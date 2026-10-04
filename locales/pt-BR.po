@@ -747,6 +747,18 @@ msgstr "Grande"
 msgid "settings.match_hud"
 msgstr "HUD da partida"
 
+msgid "settings.match_hud_layout"
+msgstr "Layout do HUD"
+
+msgid "settings.match_hud_layout_detail"
+msgstr "A faixa Ember mostra tudo em um painel. Dividido põe cada nome sob sua barra de vida."
+
+msgid "hud_layout.strip"
+msgstr "Faixa Ember"
+
+msgid "hud_layout.split"
+msgstr "Dividido"
+
 msgid "settings.match_hud_size"
 msgstr "Tamanho do HUD"
 

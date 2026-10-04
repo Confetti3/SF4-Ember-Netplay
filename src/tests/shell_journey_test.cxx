@@ -368,6 +368,10 @@ void Journeys() {
  h.Frame(0,20);Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.showMatchHud,"Autosave did not queue");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-size");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudSize==1,"HUD size did not save"); // Small by default; Right steps to Standard.
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-layout");h.Press(MenuInput::Right);h.Frame(0,45);
+ Check(h.actions.back().preferences.matchHudLayout==1,"HUD layout did not save"); // Ember strip by default; Right steps to Split.
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);
+ Check(h.actions.back().preferences.matchHudLayout==0,"HUD layout did not step back to the Ember strip");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-position");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudAnchor==1,"HUD position did not save"); // Bottom center by default; Right steps to Bottom left.
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);
@@ -553,7 +557,7 @@ void PresentationJourneys(){
  Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.showMatchHud,"Visible value arrows did not adjust on click");
  Check(status=="Saving...","Queued settings falsely reported Saved before acknowledgement");
  h.view.preferences=h.actions.back().preferences;h.Frame();Check(status=="Saved","Acknowledged settings did not report Saved");h.Press(MenuInput::Down);
- Check(h.shell.Navigation().Focus()=="hud-size","Controller did not move to the row following the mouse-selected row");
+ Check(h.shell.Navigation().Focus()=="hud-layout","Controller did not move to the row following the mouse-selected row");
  h.Screen("profile");h.Choose("main-character");h.Press(MenuInput::Right);h.Press(MenuInput::Select);h.Frame(0,40);
  h.view.preferences=h.actions.back().preferences;h.Frame(0,3);Check(status.find("Profile portrait saved:")==0,"Profile success notice missing");
  h.Frame(0,200);Check(status=="Saved","Success notice did not expire");SetMenuStatusProbe({});

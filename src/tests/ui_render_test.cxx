@@ -532,6 +532,27 @@ int main(int argc, char** argv) {
                         Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Match HUD captured gameplay input");
                         const auto* list=ImGui::GetForegroundDrawList();
                         const bool topEdge=matchStrip.anchor>=3;
+                        if(matchStrip.layout==1){
+                            // Split layout: name plates are checked against the 16:9 game image,
+                            // the telemetry panel keeps the strip's safe band and anchored half.
+                            const auto bounds=MatchStripGeometry(matchStrip);
+                            Require(bounds.panel.valid&&bounds.names[0].valid&&bounds.names[1].valid,"Split match HUD reported no geometry");
+                            const float gs=(std::min)(size.h/720.f,size.w/1280.f),gameW=1280*gs,gx0=(size.w-gameW)*.5f;
+                            const auto inside=[](const MatchStripBox& r,const ImVec2& p){return p.x>=r.x0-2&&p.x<=r.x1+2&&p.y>=r.y0-2&&p.y<=r.y1+2;};
+                            for(const auto& vertex:list->VtxBuffer)
+                                Require(inside(bounds.panel,vertex.pos)||inside(bounds.names[0],vertex.pos)||inside(bounds.names[1],vertex.pos),
+                                    "Split match HUD drew outside its name plates and telemetry panel");
+                            for(const auto& name:bounds.names){
+                                Require(name.x0>=gx0-1&&name.x1<=gx0+gameW+1&&name.y0>=0&&name.y1<=size.h,"Match HUD name left the game image");
+                                Require(name.x1-name.x0<=.35f*gameW+1,"Match HUD name plate wider than 35% of the game");
+                            }
+                            Require(std::abs(bounds.names[0].x0-(gx0+120*gs))<=1&&std::abs(bounds.names[1].x1-(gx0+1160*gs))<=1,
+                                "Match HUD names are not under the life bars");
+                            Require(bounds.names[0].x1<bounds.names[1].x0,"Match HUD names meet");
+                            Require(bounds.panel.x0>=size.w*.1f-2&&bounds.panel.x1<=size.w*.9f+2&&bounds.panel.y0>=0&&bounds.panel.y1<=size.h,
+                                "Match HUD telemetry escaped safe viewport bounds");
+                            Require(topEdge?bounds.panel.y1<=size.h*.5f:bounds.panel.y0>=size.h*.5f,"Match HUD telemetry left its anchored edge");
+                        }else
                         for(const auto& vertex:list->VtxBuffer){
                             Require(vertex.pos.x>=size.w*.1f-2&&vertex.pos.x<=size.w*.9f+2&&
                                 vertex.pos.y>=0&&vertex.pos.y<=size.h,"Match HUD escaped safe viewport bounds");
@@ -561,14 +582,14 @@ int main(int argc, char** argv) {
                         std::string(shot).find("table-spectator-locked")==0 ||
                         std::string(shot).find("table-recover")==0 || std::string(shot).find("table-replacement")==0);
                     const bool matchShot=shot&&mode==3&&(
-                        (std::string(shot)=="match-hud"&&((size.w==1280&&size.h==720&&size.dpi==1)||
+                        ((std::string(shot)=="match-hud"||std::string(shot)=="match-hud-split")&&((size.w==1280&&size.h==720&&size.dpi==1)||
                          (size.w==1920&&size.h==1080&&size.dpi==1)||(size.w==2560&&size.h==1440)||
                          (size.w==3440&&size.h==1440)||(size.w==3840&&size.h==2160&&size.dpi==1)))||
                         (size.w==1920&&size.h==1080&&size.dpi==1&&
                          (std::string(shot)=="match-hud-size-0"||std::string(shot)=="match-hud-size-2"||
                           std::string(shot)=="match-hud-raised"||std::string(shot)=="match-hud-long"||
                           std::string(shot)=="match-hud-unavailable"||std::string(shot)=="match-hud-spectator"||
-                          std::string(shot)=="match-hud-reset"||std::string(shot).find("match-hud-anchor-")==0)));
+                          std::string(shot)=="match-hud-reset"||std::string(shot).find("match-hud-anchor-")==0||std::string(shot).find("match-hud-split-")==0)));
                     if(i==settle-1&&shot&&!output.empty()&&(!trainingShotsOnly||mode==1||mode==2)&&
                         (!recoveryShotsOnly||recoveryShot)&&(!matchShotsOnly||matchShot) && (!uxShotsOnly ||
                             ((std::string(shot)=="table-delay-checking" || std::string(shot)=="table-delay-retry" ||
@@ -940,6 +961,37 @@ int main(int argc, char** argv) {
             matchStrip.spectator=true;draw("match-hud-spectator");
             matchStrip.score="12 - 10";draw("match-hud-score");
             ImGui_ImplDX9_InvalidateDeviceObjects();draw("match-hud-reset");
+            {
+                // The split layout: names under the life bars, a small telemetry panel by anchor.
+                MatchStripView split;split.names[0]="Player One";split.names[1]="Player Two";
+                split.links[0]=NetworkLink::Wired;split.links[1]=NetworkLink::Wireless;
+                split.pingMs=68;split.rollbackFrames=2;split.appliedDelay=3;split.layout=1;
+                matchStrip=split;draw("match-hud-split");
+                for(int anchor=1;anchor<5;++anchor){
+                    matchStrip.anchor=anchor;
+                    const auto shot="match-hud-split-anchor-"+std::to_string(anchor);draw(shot.c_str());
+                }
+                matchStrip.anchor=3;matchStrip.connectionWarning=true;matchStrip.disconnectCountdownMs=1400;draw("match-hud-split-anchor-top-warning");
+                matchStrip.anchor=4;matchStrip.raised=true;matchStrip.connectionWarning=false;matchStrip.disconnectCountdownMs=-1;
+                matchStrip.notice="Opponent disconnected. The match is over.";matchStrip.noticeSeverity=2;draw("match-hud-split-anchor-top-notice");
+                matchStrip.anchor=0;matchStrip.raised=false;draw("match-hud-split-notice");
+                matchStrip.notice.clear();matchStrip.noticeSeverity=0;
+                float plateHeight[3]={0,0,0},panelWidth[3]={0,0,0};
+                for(int hudSize=0;hudSize<3;++hudSize){
+                    matchStrip.size=hudSize;
+                    const auto shot="match-hud-split-size-"+std::to_string(hudSize);draw(shot.c_str());
+                    const auto bounds=MatchStripGeometry(matchStrip);
+                    plateHeight[hudSize]=bounds.names[0].y1-bounds.names[0].y0;panelWidth[hudSize]=bounds.panel.x1-bounds.panel.x0;
+                }
+                Require(plateHeight[0]<plateHeight[1]&&plateHeight[1]<plateHeight[2]&&panelWidth[0]<panelWidth[1]&&panelWidth[1]<panelWidth[2],
+                    "Split match HUD size settings collapse; two of the three choices do nothing");
+                // Long names and a watching count: the plates truncate and never meet, the panel stays in its band.
+                matchStrip.names[0]="Long player name with UTF-8 \xc3\xa9\xc3\xa9\xc3\xa9 and more";matchStrip.names[1]="Another very long player name that keeps going";
+                matchStrip.score="12 - 10";matchStrip.spectators=3;matchStrip.size=1;
+                matchStrip.pingMs=9999;matchStrip.rollbackFrames=999;matchStrip.appliedDelay=10;draw("match-hud-split-long");
+                matchStrip.spectator=true;matchStrip.size=1;draw("match-hud-split-spectator");
+                matchStrip.layout=0;matchStrip.spectator=false;matchStrip.size=0;
+            }
             mode=5;draw("controller-warning");
             Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Controller warning captured input");
             auto* warning=FindWindow("Controller warning");

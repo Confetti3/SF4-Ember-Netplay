@@ -109,6 +109,11 @@ struct MatchStripView {
     // Where the strip sits: 0 bottom center, 1 bottom left, 2 bottom right, 3 top left, 4 top right.
     // Raised moves it further in from whichever edge it is anchored to.
     int anchor = 0;
+    // 0 the Ember strip (one panel); 1 split: each name on a plate under its life bar,
+    // and a small telemetry panel placed by `anchor`/`raised`.
+    int layout = 0;
+    // Members watching this match; the split layout shows "Watching N" when above zero.
+    int spectators = 0;
     // Link state and the latest netplay notice, drawn on a line above the
     // telemetry. Severity: 0 info, 1 warning, 2 error (matches NoticeSeverity).
     std::string notice;
@@ -127,6 +132,14 @@ void DrawMatchNotice(const std::string& message, int severity);
 // Exposed for the render harness: Small/Standard/Large must not collapse.
 float MatchStripScale(const MatchStripView& view);
 void DrawMatchStripPreview(const MatchStripView& view);
+// Screen rectangles the split layout (view.layout 1) draws into, for the render
+// harness: the two name plates and the telemetry panel with its state line.
+// `valid` is false for the Ember strip, which has no separate name plates.
+struct MatchStripBox { float x0 = 0, y0 = 0, x1 = 0, y1 = 0; bool valid = false; };
+struct MatchStripBounds { MatchStripBox names[2], panel; };
+MatchStripBounds MatchStripGeometry(const MatchStripView& view);
+// The settings label for a MatchStripView::layout value ("Ember strip", "Split").
+const char* MatchStripLayoutName(int layout);
 // The settings label for a MatchStripView::anchor value ("Bottom center", "Top right").
 const char* MatchStripAnchorName(int anchor);
 void DrawControllerWarning(const std::string& message);

@@ -747,6 +747,18 @@ msgstr "Groot"
 msgid "settings.match_hud"
 msgstr "Match-HUD"
 
+msgid "settings.match_hud_layout"
+msgstr "Indeling match-HUD"
+
+msgid "settings.match_hud_layout_detail"
+msgstr "Ember-strook toont alles in één paneel. Gesplitst zet elke naam onder zijn levensbalk."
+
+msgid "hud_layout.strip"
+msgstr "Ember-strook"
+
+msgid "hud_layout.split"
+msgstr "Gesplitst"
+
 msgid "settings.match_hud_size"
 msgstr "Grootte match-HUD"
 

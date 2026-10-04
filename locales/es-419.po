@@ -747,6 +747,18 @@ msgstr "Grande"
 msgid "settings.match_hud"
 msgstr "HUD de partida"
 
+msgid "settings.match_hud_layout"
+msgstr "Diseño del HUD"
+
+msgid "settings.match_hud_layout_detail"
+msgstr "La franja Ember reúne todo en un panel. Dividido pone cada nombre bajo su barra de vida."
+
+msgid "hud_layout.strip"
+msgstr "Franja Ember"
+
+msgid "hud_layout.split"
+msgstr "Dividido"
+
 msgid "settings.match_hud_size"
 msgstr "Tamaño del HUD"
 

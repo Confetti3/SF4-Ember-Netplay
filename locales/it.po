@@ -747,6 +747,18 @@ msgstr "Grande"
 msgid "settings.match_hud"
 msgstr "HUD partita"
 
+msgid "settings.match_hud_layout"
+msgstr "Layout HUD"
+
+msgid "settings.match_hud_layout_detail"
+msgstr "La barra Ember tiene tutto in un pannello. Diviso mette ogni nome sotto la sua barra della vita."
+
+msgid "hud_layout.strip"
+msgstr "Barra Ember"
+
+msgid "hud_layout.split"
+msgstr "Diviso"
+
 msgid "settings.match_hud_size"
 msgstr "Dim. HUD partita"
 

@@ -47,6 +47,8 @@ namespace sf4e {
         unsigned rollbackFrames = 0;
         int appliedDelay = -1;
         bool spectator = false;
+        // Members watching the local member's table (the HUD's "Watching N"); from the room snapshot.
+        int spectators = 0;
         // Live GGPO link state for the match HUD.
         bool connectionWarning = false;   // GGPO CONNECTION_INTERRUPTED active
         bool predictionStalled = false;   // GGPO refused local input this frame

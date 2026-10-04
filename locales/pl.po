@@ -747,6 +747,18 @@ msgstr "Duży"
 msgid "settings.match_hud"
 msgstr "HUD walki"
 
+msgid "settings.match_hud_layout"
+msgstr "Układ HUD"
+
+msgid "settings.match_hud_layout_detail"
+msgstr "Pasek Ember mieści wszystko w jednym panelu. Podzielony umieszcza każdą nazwę pod jej paskiem życia."
+
+msgid "hud_layout.strip"
+msgstr "Pasek Ember"
+
+msgid "hud_layout.split"
+msgstr "Podzielony"
+
 msgid "settings.match_hud_size"
 msgstr "Rozmiar HUD"
 

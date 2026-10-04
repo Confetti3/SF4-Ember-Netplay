@@ -747,6 +747,18 @@ msgstr "大"
 msgid "settings.match_hud"
 msgstr "対戦HUD"
 
+msgid "settings.match_hud_layout"
+msgstr "対戦HUDのレイアウト"
+
+msgid "settings.match_hud_layout_detail"
+msgstr "Emberストリップはすべてを1つのパネルに表示します。分割は各名前を体力ゲージの下に表示します。"
+
+msgid "hud_layout.strip"
+msgstr "Emberストリップ"
+
+msgid "hud_layout.split"
+msgstr "分割"
+
 msgid "settings.match_hud_size"
 msgstr "対戦HUDのサイズ"
 

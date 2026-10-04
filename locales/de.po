@@ -747,6 +747,18 @@ msgstr "Groß"
 msgid "settings.match_hud"
 msgstr "Kampf-HUD"
 
+msgid "settings.match_hud_layout"
+msgstr "Kampf-HUD-Layout"
+
+msgid "settings.match_hud_layout_detail"
+msgstr "Ember-Leiste zeigt alles in einem Feld. Geteilt setzt jeden Namen unter seine Lebensleiste."
+
+msgid "hud_layout.strip"
+msgstr "Ember-Leiste"
+
+msgid "hud_layout.split"
+msgstr "Geteilt"
+
 msgid "settings.match_hud_size"
 msgstr "Kampf-HUD-Größe"
 

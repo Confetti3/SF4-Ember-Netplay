@@ -539,6 +539,148 @@ void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, flo
     }
 }
 }
+// The split layout: a name plate under each life bar and a small telemetry panel.
+// Same Ember language as the strip (Inter, the dark translucent panel, the link
+// glyphs, an Ember rule), only arranged around the game's own HUD.
+namespace {
+constexpr float SplitHeight=34.f,SplitLabel=13.f,SplitValue=18.f,SplitName=19.f;
+float MatchSizeFactor(int size){const float sizes[]={.85f,1.f,1.25f};return sizes[(std::max)(0,(std::min)(2,size))];}
+float TextWidth(float size,const std::string& t){return DiagnosticFont()->CalcTextSizeA(size,FLT_MAX,0,t.c_str()).x;}
+std::string FitText(std::string t,float maxWidth,float size){
+    if(TextWidth(size,t)<=maxWidth)return t;
+    const std::string ellipsis="...";
+    while(!t.empty()&&TextWidth(size,t+ellipsis)>maxWidth){
+        auto end=t.size()-1;while(end>0&&(static_cast<unsigned char>(t[end])&0xc0)==0x80)--end;t.resize(end);
+    }
+    return TextWidth(size,ellipsis)<=maxWidth?t+ellipsis:std::string();
+}
+struct Plate {
+    std::string name;NetworkLink link=NetworkLink::Unknown;
+    float x0=0,y0=0,x1=0,y1=0,k=1,font=SplitName;bool right=false;
+};
+// `edge` is the plate's outer edge (its left side for P1, right for P2); the
+// link glyph sits on the inner side of the name.
+Plate MakePlate(const MatchStripView& view,int side,float edge,float y,float k,float maxWidth){
+    Plate p;p.right=side==1;p.k=k;p.font=SplitName*k;p.link=view.links[side];
+    const float glyph=p.font*.9f,gap=6*k,chrome=21*k+gap+glyph;
+    p.name=FitText(view.names[side],(std::max)(0.f,maxWidth-chrome),p.font);
+    const float w=chrome+TextWidth(p.font,p.name);
+    p.x0=p.right?edge-w:edge;p.x1=p.x0+w;p.y0=y;p.y1=y+p.font+8*k;
+    return p;
+}
+void DrawPlate(ImDrawList* draw,const Plate& p){
+    const float k=p.k,glyph=p.font*.9f,gap=6*k;
+    draw->AddRectFilled(ImVec2(p.x0,p.y0),ImVec2(p.x1,p.y1),IM_COL32(20,19,18,185),5*k);
+    draw->AddRect(ImVec2(p.x0,p.y0),ImVec2(p.x1,p.y1),IM_COL32(88,76,65,110),5*k);
+    // The Ember rule on the outer edge, in line with the life bar's end.
+    const float rule=p.right?p.x1-7*k:p.x0+4*k;
+    draw->AddRectFilled(ImVec2(rule,p.y0+4*k),ImVec2(rule+3*k,p.y1-4*k),palette::Ember,1.5f*k);
+    const float nameWidth=p.x1-p.x0-21*k-gap-glyph;
+    const float nameX=p.right?p.x0+7*k+glyph+gap:p.x0+14*k;
+    const float glyphX=p.right?p.x0+7*k:nameX+nameWidth+gap;
+    DrawNetworkLinkGlyph(draw,ImVec2(glyphX,p.y0+(p.y1-p.y0-glyph)*.5f),glyph,p.link);
+    if(p.name.empty())return;
+    auto* font=DiagnosticFont();
+    draw->AddText(font,p.font,ImVec2(nameX+k,p.y0+4*k+k),IM_COL32(0,0,0,190),p.name.c_str());
+    draw->AddText(font,p.font,ImVec2(nameX,p.y0+4*k),palette::Ivory,p.name.c_str());
+}
+struct Cell{std::string label,value;float width=0;ImU32 color=palette::Ivory;};
+struct Telemetry{std::vector<Cell> cells;float w=0,h=SplitHeight,s=1;};
+Telemetry MakeTelemetry(const MatchStripView& view,float s,float maxWidth){
+    Telemetry t;t.s=s;t.h=SplitHeight*s;
+    struct Spec{std::string label,value,reserve;ImU32 color;};
+    std::vector<Spec> specs;
+    if(!view.score.empty())specs.push_back({"",view.score,"",IM_COL32(255,135,56,230)});
+    specs.push_back({loc::T("match.ping"),view.pingMs<0?"\xe2\x80\x94":std::to_string(view.pingMs)+" ms","999 ms",palette::Ivory});
+    specs.push_back({loc::T("match.rollback"),std::to_string(view.rollbackFrames)+"f","99f",palette::Ivory});
+    specs.push_back(view.spectator?Spec{"",loc::T("match.spectating"),"",palette::Ivory}:
+        Spec{loc::T("match.delay"),view.appliedDelay<0?"\xe2\x80\x94":std::to_string(view.appliedDelay)+"f","99f",palette::Ivory});
+    if(view.spectators>0)specs.push_back({loc::T("room.status.watching"),std::to_string(view.spectators),"99",palette::Ivory});
+    float total=0;
+    for(const auto& spec:specs){
+        Cell c;c.label=spec.label;c.value=spec.value;c.color=spec.color;
+        const float label=c.label.empty()?0:TextWidth(SplitLabel*s,c.label)+6*s;
+        c.width=20*s+label+(std::max)(TextWidth(SplitValue*s,c.value),TextWidth(SplitValue*s,spec.reserve));
+        total+=c.width;t.cells.push_back(std::move(c));
+    }
+    // Over a narrow viewport the cells share what there is; values then truncate.
+    const float shrink=total>maxWidth?maxWidth/total:1.f;
+    for(auto& c:t.cells)c.width*=shrink;
+    t.w=total*shrink;
+    return t;
+}
+void DrawTelemetry(ImDrawList* draw,const Telemetry& t,ImVec2 p){
+    const float s=t.s;auto* font=DiagnosticFont();
+    draw->AddRectFilled(p,ImVec2(p.x+t.w,p.y+t.h),IM_COL32(20,19,18,200),6*s);
+    draw->AddRect(p,ImVec2(p.x+t.w,p.y+t.h),IM_COL32(88,76,65,100),6*s);
+    // A short Ember tab on the top edge marks the panel as Ember's.
+    draw->AddRectFilled(ImVec2(p.x+10*s,p.y),ImVec2(p.x+34*s,p.y+2*s),palette::Ember);
+    float x=p.x;int index=0;
+    for(const auto& c:t.cells){
+        if(index>0)draw->AddLine(ImVec2(x,p.y+9*s),ImVec2(x,p.y+t.h-9*s),IM_COL32(88,76,65,140),1.f);
+        float tx=x+10*s;
+        const float label=c.label.empty()?0:TextWidth(SplitLabel*s,c.label)+6*s;
+        if(!c.label.empty())draw->AddText(font,SplitLabel*s,ImVec2(tx,p.y+(t.h-SplitLabel*s)*.5f+1.5f*s),palette::Muted,c.label.c_str());
+        const float room=c.width-20*s-label;
+        const auto value=FitText(c.value,room,SplitValue*s);
+        ReportMenuText(("hud-telemetry-split/"+std::to_string(index)).c_str(),SplitValue*s,t.h,label+TextWidth(SplitValue*s,c.value),c.width-20*s);
+        draw->AddText(font,SplitValue*s,ImVec2(tx+label,p.y+(t.h-SplitValue*s)*.5f),c.color,value.c_str());
+        x+=c.width;++index;
+    }
+}
+void DrawStateLine(const MatchStripView& view,ImDrawList* draw,ImVec2 p,float w,float s,float top){
+    const auto state=MatchStripStateLine(view);
+    if(state.empty())return;
+    const int severity=view.noticeSeverity>0||view.connectionWarning||view.predictionStalled?
+        (std::max)(view.noticeSeverity,view.connectionWarning||view.predictionStalled?1:0):0;
+    const ImU32 colors[]={IM_COL32(181,169,155,255),IM_COL32(255,196,96,255),IM_COL32(255,118,96,255)};
+    const float h=MatchStateHeight*s;
+    draw->AddRectFilled(ImVec2(p.x,top),ImVec2(p.x+w,top+h),IM_COL32(20,19,18,235),4*s);
+    const auto line=FitText(state,w-16*s,16*s);
+    draw->AddText(DiagnosticFont(),16*s,ImVec2(p.x+8*s,top+(h-16*s)*.5f),colors[(std::max)(0,(std::min)(2,severity))],line.c_str());
+}
+struct SplitPlaced {
+    Plate plates[2];Telemetry tel;ImVec2 pos;bool hasState=false;float stateTop=0;
+};
+SplitPlaced PlaceSplit(const MatchStripView& view){
+    const auto* vp=ImGui::GetMainViewport();
+    NoteUserText(view.names[0]);NoteUserText(view.names[1]);
+    const float s=MatchScale(view);
+    // The game keeps 16:9 inside the window: measure from its image so the names
+    // stay beside the life bars on an ultrawide screen.
+    const float gs=(std::min)(vp->Size.y/720.f,vp->Size.x/1280.f),gameW=1280*gs;
+    const float gx0=vp->Pos.x+(vp->Size.x-gameW)*.5f,gy0=vp->Pos.y+(vp->Size.y-720*gs)*.5f;
+    const float k=gs*MatchSizeFactor(view.size),maxName=.35f*gameW;
+    SplitPlaced out;
+    out.plates[0]=MakePlate(view,0,gx0+120*gs,gy0+137*gs,k,maxName);
+    out.plates[1]=MakePlate(view,1,gx0+1160*gs,gy0+137*gs,k,maxName);
+    out.tel=MakeTelemetry(view,s,vp->Size.x*.8f);
+    const float w=out.tel.w,h=out.tel.h;
+    const float gap=(view.raised?48.f:12.f)*(std::max)(.8f,vp->Size.y/1080.f);
+    const int anchor=(std::max)(0,(std::min)(4,view.anchor));
+    const bool top=anchor>=3,left=anchor==1||anchor==3,right=anchor==2||anchor==4;
+    const float x=left?vp->Pos.x+vp->Size.x*.1f:right?vp->Pos.x+vp->Size.x*.9f-w:vp->Pos.x+(vp->Size.x-w)*.5f;
+    const float stateRoom=(MatchStateHeight+4)*s,low=vp->Pos.y+(top?0.f:stateRoom),high=vp->Pos.y+vp->Size.y-h-(top?stateRoom:0.f);
+    const float wanted=top?vp->Pos.y+gap:vp->Pos.y+vp->Size.y-gap-h;
+    out.pos=ImVec2(x,(std::max)(low,(std::min)(high,wanted)));
+    out.hasState=!MatchStripStateLine(view).empty();
+    out.stateTop=top?out.pos.y+h+4*s:out.pos.y-MatchStateHeight*s-4*s;
+    return out;
+}
+}
+MatchStripBounds MatchStripGeometry(const MatchStripView& view){
+    MatchStripBounds bounds;
+    if(view.layout!=1)return bounds;
+    const auto placed=PlaceSplit(view);
+    for(int side=0;side<2;++side){const auto& p=placed.plates[side];bounds.names[side]={p.x0,p.y0,p.x1,p.y1,true};}
+    const float s=placed.tel.s;
+    bounds.panel={placed.pos.x,placed.pos.y,placed.pos.x+placed.tel.w,placed.pos.y+placed.tel.h,true};
+    if(placed.hasState){
+        bounds.panel.y0=(std::min)(bounds.panel.y0,placed.stateTop);
+        bounds.panel.y1=(std::max)(bounds.panel.y1,placed.stateTop+MatchStateHeight*s);
+    }
+    return bounds;
+}
 void DrawNetworkLinkGlyph(ImDrawList* draw, ImVec2 min, float size, NetworkLink link) {
     const float t=(std::max)(1.f,size*.11f);
     const auto at=[&](float x,float y){return ImVec2(min.x+size*x,min.y+size*y);};
@@ -568,6 +710,13 @@ const char* NetworkLinkName(NetworkLink link) {
 }
 float MatchStripScale(const MatchStripView& view) { return MatchScale(view); }
 void DrawMatchStrip(const MatchStripView& view) {
+    if(view.layout==1){
+        const auto placed=PlaceSplit(view);auto* draw=ImGui::GetForegroundDrawList();
+        for(const auto& plate:placed.plates)DrawPlate(draw,plate);
+        DrawTelemetry(draw,placed.tel,placed.pos);
+        if(placed.hasState)DrawStateLine(view,draw,placed.pos,placed.tel.w,placed.tel.s,placed.stateTop);
+        return;
+    }
     const auto* vp=ImGui::GetMainViewport();const float s=MatchScale(view);
     const float w=(std::min)(MatchWidth*s,vp->Size.x*.8f);
     const float gap=(view.raised?48.f:12.f)*(std::max)(.8f,vp->Size.y/1080.f);
@@ -584,10 +733,25 @@ void DrawMatchStripPreview(const MatchStripView& view) {
     const auto available=ImGui::GetContentRegionAvail();
     const float s=(std::min)(MatchScale(view),(std::max)(1.f,available.x)/MatchWidth);
     const auto p=ImGui::GetCursorScreenPos();
-    PaintMatchStrip(view,ImGui::GetWindowDrawList(),p,MatchWidth*s,s);
-    ImGui::Dummy(ImVec2(MatchWidth*s,MatchHeight*s));
+    if(view.layout==1){
+        // The names on one row, left and right, with the telemetry panel under them.
+        NoteUserText(view.names[0]);NoteUserText(view.names[1]);
+        auto* draw=ImGui::GetWindowDrawList();const float width=MatchWidth*s,k=.75f*s;
+        const Plate plates[2]={MakePlate(view,0,p.x,p.y,k,width*.48f),MakePlate(view,1,p.x+width,p.y,k,width*.48f)};
+        for(const auto& plate:plates)DrawPlate(draw,plate);
+        const auto tel=MakeTelemetry(view,s,width);
+        const float top=plates[0].y1-p.y+8*s;
+        DrawTelemetry(draw,tel,ImVec2(p.x+(width-tel.w)*.5f,p.y+top));
+        ImGui::Dummy(ImVec2(width,top+tel.h));
+    }else{
+        PaintMatchStrip(view,ImGui::GetWindowDrawList(),p,MatchWidth*s,s);
+        ImGui::Dummy(ImVec2(MatchWidth*s,MatchHeight*s));
+    }
     ImGui::TextDisabled("%s",loc::Tf("match.preview_spacing",view.raised?loc::T("spacing.raised"):loc::T("spacing.normal")).c_str());
     ImGui::TextDisabled("%s",loc::Tf("match.preview_position",MatchStripAnchorName(view.anchor)).c_str());
+}
+const char* MatchStripLayoutName(int layout) {
+    return loc::T(layout==1?"hud_layout.split":"hud_layout.strip");
 }
 const char* MatchStripAnchorName(int anchor) {
     const char* names[]={loc::T("hud_position.bottom_center"),loc::T("hud_position.bottom_left"),loc::T("hud_position.bottom_right"),loc::T("hud_position.top_left"),loc::T("hud_position.top_right")};

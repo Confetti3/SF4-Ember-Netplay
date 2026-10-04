@@ -747,6 +747,18 @@ msgstr "大"
 msgid "settings.match_hud"
 msgstr "对战 HUD"
 
+msgid "settings.match_hud_layout"
+msgstr "对战 HUD 布局"
+
+msgid "settings.match_hud_layout_detail"
+msgstr "Ember 条将所有信息放在一个面板中。分开会把每个名字放在其体力条下方。"
+
+msgid "hud_layout.strip"
+msgstr "Ember 条"
+
+msgid "hud_layout.split"
+msgstr "分开"
+
 msgid "settings.match_hud_size"
 msgstr "对战 HUD 大小"
 

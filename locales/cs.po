@@ -747,6 +747,18 @@ msgstr "Velké"
 msgid "settings.match_hud"
 msgstr "HUD zápasu"
 
+msgid "settings.match_hud_layout"
+msgstr "Rozložení HUD"
+
+msgid "settings.match_hud_layout_detail"
+msgstr "Pruh Ember má vše v jednom panelu. Rozdělené dá každé jméno pod jeho ukazatel zdraví."
+
+msgid "hud_layout.strip"
+msgstr "Pruh Ember"
+
+msgid "hud_layout.split"
+msgstr "Rozdělené"
+
 msgid "settings.match_hud_size"
 msgstr "Velikost HUD"
 

@@ -747,6 +747,18 @@ msgstr "Большой"
 msgid "settings.match_hud"
 msgstr "HUD матча"
 
+msgid "settings.match_hud_layout"
+msgstr "Вид HUD матча"
+
+msgid "settings.match_hud_layout_detail"
+msgstr "Полоса Ember показывает всё в одной панели. Раздельный ставит каждое имя под его полоской здоровья."
+
+msgid "hud_layout.strip"
+msgstr "Полоса Ember"
+
+msgid "hud_layout.split"
+msgstr "Раздельный"
+
 msgid "settings.match_hud_size"
 msgstr "Размер HUD матча"
 

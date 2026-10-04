@@ -747,6 +747,18 @@ msgstr "Grand"
 msgid "settings.match_hud"
 msgstr "HUD du combat"
 
+msgid "settings.match_hud_layout"
+msgstr "Disposition en combat"
+
+msgid "settings.match_hud_layout_detail"
+msgstr "Le bandeau Ember regroupe tout dans un panneau. Séparé place chaque nom sous sa barre de vie."
+
+msgid "hud_layout.strip"
+msgstr "Bandeau Ember"
+
+msgid "hud_layout.split"
+msgstr "Séparé"
+
 msgid "settings.match_hud_size"
 msgstr "Taille en combat"
 

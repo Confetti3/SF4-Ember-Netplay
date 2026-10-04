@@ -76,6 +76,14 @@ int main() {
     CHECK(store.LoadLauncher(result,error)&&result["matchHudAnchor"]==4);
     CHECK(Json::parse(Read(path / L"settings.json"))["netplay"]["matchHudAnchor"]==4);
     discordDefaults.matchHudAnchor=0;
+    CHECK(discordDefaults.matchHudLayout==0); // The Ember strip by default.
+    discordDefaults.matchHudLayout=-1;CHECK(!discordDefaults.Valid());
+    discordDefaults.matchHudLayout=2;CHECK(!discordDefaults.Valid());
+    discordDefaults.matchHudLayout=1;CHECK(discordDefaults.Valid());
+    CHECK(store.SaveLauncher({{"matchHudLayout",1}},error));
+    CHECK(store.LoadLauncher(result,error)&&result["matchHudLayout"]==1);
+    CHECK(Json::parse(Read(path / L"settings.json"))["netplay"]["matchHudLayout"]==1);
+    discordDefaults.matchHudLayout=0;
     CHECK(discordDefaults.discordPresence && discordDefaults.discordInvites);
     CHECK(discordDefaults.inputDelay == 2);
     discordDefaults.inputDelay = 0; CHECK(discordDefaults.Valid());

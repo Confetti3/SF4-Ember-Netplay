@@ -747,6 +747,18 @@ msgstr "크게"
 msgid "settings.match_hud"
 msgstr "대전 HUD"
 
+msgid "settings.match_hud_layout"
+msgstr "대전 HUD 배치"
+
+msgid "settings.match_hud_layout_detail"
+msgstr "Ember 스트립은 모든 정보를 한 패널에 표시합니다. 분할은 각 이름을 체력 게이지 아래에 둡니다."
+
+msgid "hud_layout.strip"
+msgstr "Ember 스트립"
+
+msgid "hud_layout.split"
+msgstr "분할"
+
 msgid "settings.match_hud_size"
 msgstr "대전 HUD 크기"
 

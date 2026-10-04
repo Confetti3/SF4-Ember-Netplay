@@ -747,6 +747,18 @@ msgstr "Large"
 msgid "settings.match_hud"
 msgstr "Match HUD"
 
+msgid "settings.match_hud_layout"
+msgstr "Match HUD layout"
+
+msgid "settings.match_hud_layout_detail"
+msgstr "Ember strip keeps everything in one panel. Split puts each name under its life bar."
+
+msgid "hud_layout.strip"
+msgstr "Ember strip"
+
+msgid "hud_layout.split"
+msgstr "Split"
+
 msgid "settings.match_hud_size"
 msgstr "Match HUD size"
 
