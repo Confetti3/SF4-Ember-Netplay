@@ -3235,10 +3235,10 @@ msgid "public.create"
 msgstr "公開ルームを作成"
 
 msgid "public.create_detail"
-msgstr "Ember IDを持つ全員に表示されるルームを開き、あなたがホストになります。対戦席は2本先取・勝者残りで始まり、対戦席の設定で変更できます。"
+msgstr "Ember IDを持つ全員に表示されるルームを開き、あなたがホストになります。次に名前、人数、対戦席のルールを選びます。"
 
 msgid "public.create_requirements"
-msgstr "EmberのIDサービスに公開ルームを作成して入室します。対戦席は2本先取・勝者残りで始まり、対戦席の設定で変更できます。"
+msgstr "EmberのIDサービスに公開ルームを作成して入室し、すべての対戦席にこのルールを設定します。あとから対戦席の設定で変更できます。"
 
 msgid "public.create_needs_id"
 msgstr "公開ルームにはEmber IDと信頼済みのサービスが必要です。公開ルームの画面で設定してください。"

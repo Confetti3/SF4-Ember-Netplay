@@ -762,6 +762,21 @@ void ApplicationShell::TrackLiveGames(const ShellView& v,double now) {
   else if(game.since<0||game.since>now||game.generation!=table.matchGeneration){game.generation=table.matchGeneration;game.since=now;}
  }
 }
+void ApplicationShell::ApplyCreatedRules(const ShellView& v,const Submit& submit) {
+ if(!createdRules_)return;
+ const auto& s=v.room;const auto kind=publicRooms_.OpeningKind();
+ if(kind&&*kind==PublicRoomsPanel::OpenKind::Join){createdRules_.reset();return;}
+ if(v.session.room!=netplay::RoomState::Joined||!s.roomEpoch||!Member(s,s.localMember))return;
+ // Some other room, or someone else got in first and moderates it.
+ if(!kind||!s.serverOwned||s.host!=s.localMember){createdRules_.reset();return;}
+ if(!RoomActionsAvailable(v))return;
+ for(const auto& table:s.tables){
+  if(table.rules==*createdRules_)continue;
+  room::Action request;request.table=table.id;request.kind=room::ActionKind::SetRules;request.rules=*createdRules_;
+  SendRoom(std::move(request),v,submit);
+ }
+ createdRules_.reset();
+}
 void ApplicationShell::TrackLockIn(const ShellView& v,double now) {
  const auto* local=Member(v.room,v.room.localMember);
  int lockedAt=-1;

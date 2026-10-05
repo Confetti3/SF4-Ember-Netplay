@@ -3235,10 +3235,10 @@ msgid "public.create"
 msgstr "Créer un salon public"
 
 msgid "public.create_detail"
-msgstr "Ouvre un salon visible par tous les joueurs avec un Ember ID, dont vous êtes l'hôte. Les tables démarrent en premier à 2, le gagnant reste ; modifiez-le dans Options de la table."
+msgstr "Ouvre un salon visible par tous les joueurs avec un Ember ID, dont vous êtes l'hôte. Choisissez ensuite son nom, sa taille et les règles des tables."
 
 msgid "public.create_requirements"
-msgstr "Ouvre un salon public sur le service de l'Ember ID et le rejoint. Les tables démarrent en premier à 2, le gagnant reste ; modifiez-le dans Options de la table."
+msgstr "Ouvre un salon public sur le service de l'Ember ID, le rejoint et applique ces règles à toutes les tables. Modifiez-les plus tard dans Options de la table."
 
 msgid "public.create_needs_id"
 msgstr "Les salons publics demandent un Ember ID et un service de confiance. Configurez-les dans Salons publics."

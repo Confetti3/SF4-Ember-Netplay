@@ -226,9 +226,14 @@ int main() {
     CHECK(sf4e::netplay::ReadRoomPreferences(Json::object(), defaults));
     CHECK(defaults.roomCapacity == 16 && defaults.tableRules.format == sf4e::room::SetFormat::Unlimited &&
         defaults.tableRules.rotation == sf4e::room::RotationMode::WinnerStays);
+    // A public room starts from the public default until the player picks others.
+    CHECK(defaults.publicTableRules == sf4e::room::PublicRoomRules());
     defaults.roomName = "Friday room"; defaults.roomCapacity = 12; defaults.roomPublic = true;
     defaults.tableRules.format = sf4e::room::SetFormat::Ft5;
     defaults.tableRules.rotation = sf4e::room::RotationMode::BothRotate;
+    defaults.publicTableRules.format = sf4e::room::SetFormat::Ft3;
+    defaults.publicTableRules.rotation = sf4e::room::RotationMode::LoserStays;
+    defaults.publicTableRules.roundCount = 5;
     CHECK(asyncStore.SaveLauncher({{"roomDefaults", sf4e::netplay::RoomPreferences(defaults)}}, error));
     CHECK(asyncStore.SaveLauncher({{"inputDelay", 4}}, error));
     CHECK(asyncStore.LoadLauncher(result, error));
@@ -236,8 +241,18 @@ int main() {
     CHECK(sf4e::netplay::ReadRoomPreferences(result, restored));
     CHECK(restored.roomName == "Friday room" && restored.roomCapacity == 12 && restored.roomPublic &&
         restored.tableRules.format == sf4e::room::SetFormat::Ft5 && restored.tableRules.rotation == sf4e::room::RotationMode::BothRotate);
+    CHECK(restored.publicTableRules == defaults.publicTableRules && !(restored.publicTableRules == restored.tableRules));
+    // Room defaults saved before public rules existed keep the public default.
+    {
+        auto older = result;
+        older["roomDefaults"].erase("publicRules");
+        sf4e::netplay::PlayerPreferences fromOlder;
+        CHECK(sf4e::netplay::ReadRoomPreferences(older, fromOlder) && fromOlder.publicTableRules == sf4e::room::PublicRoomRules() &&
+            fromOlder.tableRules.format == sf4e::room::SetFormat::Ft5);
+    }
     for (const Json& invalid : {Json{{"capacity", 17}}, Json{{"capacity", 258}}, Json{{"capacity", 2.5}},
-        Json{{"format", 257}}, Json{{"format", 4}}, Json{{"rotation", -1}}, Json{{"rotation", 3}}, Json{{"name", std::string(65, 'x')}}, Json{{"public", "yes"}}}) {
+        Json{{"format", 257}}, Json{{"format", 4}}, Json{{"rotation", -1}}, Json{{"rotation", 3}}, Json{{"name", std::string(65, 'x')}}, Json{{"public", "yes"}},
+        Json{{"publicRules", 2}}, Json{{"publicRules", {{"format", 4}}}}, Json{{"publicRules", {{"rotation", 3}}}}, Json{{"publicRules", {{"roundTime", 10}}}}}) {
         CHECK(!sf4e::netplay::ReadRoomPreferences({{"roomDefaults", invalid}}, restored));
         CHECK(restored.roomName == "Friday room" && restored.roomCapacity == 12);
     }

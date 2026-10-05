@@ -3235,10 +3235,10 @@ msgid "public.create"
 msgstr "Öffentlichen Raum erstellen"
 
 msgid "public.create_detail"
-msgstr "Eröffnet einen Raum, der für alle Spieler mit einer Ember ID gelistet ist, mit Ihnen als Host. Die Tische starten mit Sätzen bis 2 Siege, Sieger bleibt; ändern lässt sich das unter Tischoptionen."
+msgstr "Eröffnet einen Raum, der für alle Spieler mit einer Ember ID gelistet ist, mit Ihnen als Host. Wählen Sie danach Name, Größe und Tischregeln."
 
 msgid "public.create_requirements"
-msgstr "Eröffnet einen öffentlichen Raum beim Ember-ID-Dienst und tritt ihm bei. Die Tische starten mit Sätzen bis 2 Siege, Sieger bleibt; ändern lässt sich das unter Tischoptionen."
+msgstr "Eröffnet einen öffentlichen Raum beim Ember-ID-Dienst, tritt ihm bei und setzt diese Regeln an allen Tischen. Später ändern Sie sie unter Tischoptionen."
 
 msgid "public.create_needs_id"
 msgstr "Öffentliche Räume brauchen eine Ember ID und einen vertrauten Dienst. Richten Sie beides unter Öffentliche Räume ein."

@@ -183,8 +183,8 @@ void AbandonedCreateJourney(){
 }
 
 // Create on Public sends room_create with the room's name and capacity, never
-// a private host; its rules are not offered; the admission joins; Private is
-// unchanged.
+// a private host; its rules are offered, apart from a private room's; the
+// admission joins; Private is unchanged.
 void CreateJourney(){
  Journey j;auto& h=j.h;j.OpenList();
  j.List({MakeRoom("a","Friday Night",3,8)});
@@ -192,7 +192,9 @@ void CreateJourney(){
  h.Choose("pr-create");
  Check(h.shell.Navigation().Screen()=="create"&&j.row("visibility")&&j.row("visibility")->value==loc::T("public.visibility.public"),
   "Create public room did not open Create on Public");
- Check(!j.row("rounds")&&!j.row("set-length")&&j.row("room-name")&&j.row("capacity"),"A public room offers rules that cannot be sent");
+ Check(j.row("set-length")&&j.row("set-length")->value==SetLengthText(room::SetFormat::Ft2)&&j.row("rotation")&&
+  j.row("rotation")->value==RotationText(room::RotationMode::WinnerStays)&&j.row("rounds")&&j.row("room-name")&&j.row("capacity"),
+  "Create on Public did not offer the rules at the public default");
  Check(j.row("host")&&j.row("host")->label==loc::T("public.create")&&j.row("host")->enabled,"Create is not Create public room");
  // The choice is saved with the other room defaults.
  h.Frame(0,40);
@@ -219,6 +221,55 @@ void CreateJourney(){
  Check(j.row("visibility")->value==loc::T("public.visibility.private")&&j.row("rounds")&&j.row("host")->label==loc::T("online.create"),"Private did not bring the rules back");
  const auto asked=j.requests().size();h.Choose("host");
  Check(j.hosts()==1&&j.requests().size()==asked,"A private room did not host as before");
+}
+
+// Create on Public with rules of the player's own: they are saved apart from a
+// private room's, and once the creator is in the new room as its host, every
+// table gets them by the ordinary host action, which the room accepts.
+void CreateWithRulesJourney(){
+ Journey j;auto& h=j.h;j.OpenList();
+ j.List({});
+ h.view.preferences.roomName="Open Mic";h.Frame(0,2);
+ h.Choose("pr-none");
+ Check(h.shell.Navigation().Screen()=="create","Create room did not open Create");
+ h.FocusOn("set-length");h.Press(MenuInput::Right);
+ h.FocusOn("rotation");h.Press(MenuInput::Right);
+ Check(j.row("set-length")->value==SetLengthText(room::SetFormat::Ft3)&&j.row("rotation")->value==RotationText(room::RotationMode::LoserStays),
+  "The public rules did not step");
+ // Each save is acknowledged, as the runtime does, so the next one follows.
+ bool savedAny=false;
+ for(int i=0;i<4;++i){
+  h.Frame(0,40);
+  const auto last=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.command.kind==Kind::SavePreferences;});
+  if(last!=h.actions.rend()){savedAny=true;h.view.preferences=last->preferences;}
+ }
+ const auto& saved=h.view.preferences;
+ Check(savedAny&&saved.publicTableRules.format==room::SetFormat::Ft3&&
+  saved.publicTableRules.rotation==room::RotationMode::LoserStays&&saved.tableRules==room::Rules(),
+  "The public rules were not saved apart from a private room's");
+ h.Frame(0,2);
+ h.Choose("host");j.Admit("","b");
+ Check(j.joins()==1,"The new room's admission did not join");
+ // The service opened the room at the public default; the creator joins first and moderates.
+ room::RoomAuthority authority("Open Mic",8,9,room::PublicRoomRules());
+ Check(authority.SetServerOwned(),"The room is not server owned");
+ room::MemberProfile profile;profile.account="emb1-creator";
+ const auto joined=authority.Join("Player",room::ConnectionRef{"host","1"},false,profile);
+ Check(joined.accepted,"The creator could not join");
+ const auto creator=joined.snapshot.members.back().id;
+ auto& s=h.view.session;s.room=netplay::RoomState::Joined;s.control=netplay::Health::Healthy;s.recovery=netplay::Recovery::None;
+ h.view.room=authority.SnapshotFor(creator);
+ const auto before=h.actions.size();h.Frame(0,4);
+ std::vector<room::Action> sent;
+ for(std::size_t i=before;i<h.actions.size();++i)if(h.actions[i].command.kind==Kind::RoomAction&&h.actions[i].roomAction.kind==room::ActionKind::SetRules)sent.push_back(h.actions[i].roomAction);
+ Check(sent.size()==room::TableCount,"The chosen rules were not sent for every table");
+ for(const auto& action:sent)Check(authority.Apply(creator,action).accepted,"The room refused the creator's rules");
+ for(const auto& table:authority.SnapshotView().tables)
+  Check(table.rules==h.view.preferences.publicTableRules,"A table did not end up with the chosen rules");
+ // Sent once: a later snapshot sends nothing more.
+ h.view.room=authority.SnapshotFor(creator);const auto after=h.actions.size();h.Frame(0,4);
+ Check(std::none_of(h.actions.begin()+after,h.actions.end(),[](const ShellAction& a){return a.roomAction.kind==room::ActionKind::SetRules&&a.command.kind==Kind::RoomAction;}),
+  "The chosen rules were sent again");
 }
 
 // After a restart with Public saved, going straight to Create waits for the
@@ -560,5 +611,5 @@ void RoomLostJourney(){
  Check(!j.row("replace-room")&&j.row("leave"),"A public room offered to replace its room");
 }
 }
-int main(){try{ListJourney();JoinJourney();CreateJourney();RestoredCreateJourney();AbandonedRequestJourney();AbandonedCreateJourney();RoomJourney();RoomLostJourney();SortJourney();QuickJoinJourney();FilterJourney();AutoRefreshJourney();CreateOpeningJourney();CurrentRoomJourney();RunPublicRoomsSetupJourneys();std::cout<<"Public rooms journeys passed.\n";return 0;}
+int main(){try{ListJourney();JoinJourney();CreateJourney();CreateWithRulesJourney();RestoredCreateJourney();AbandonedRequestJourney();AbandonedCreateJourney();RoomJourney();RoomLostJourney();SortJourney();QuickJoinJourney();FilterJourney();AutoRefreshJourney();CreateOpeningJourney();CurrentRoomJourney();RunPublicRoomsSetupJourneys();std::cout<<"Public rooms journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

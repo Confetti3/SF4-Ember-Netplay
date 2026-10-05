@@ -235,6 +235,11 @@ private:
     // Shows a refusal that stays true for as long as stillBlocked says so.
     void Refuse(std::string text, std::function<bool(const ShellView&)> stillBlocked = {});
     void TrackLiveGames(const ShellView& view, double now);
+    // The rules chosen on Create for a public room, until the creator is in it
+    // as host and sets them on every table with SetRules; dropped when the
+    // player ends up in some other room.
+    void ApplyCreatedRules(const ShellView& view, const Submit& submit);
+    std::optional<room::Rules> createdRules_;
     // A lock-in the room cleared other than by the player's Release (they
     // stopped watching, moved, or their spectator view dropped) gets a notice
     // saying why.

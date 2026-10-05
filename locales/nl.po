@@ -3235,10 +3235,10 @@ msgid "public.create"
 msgstr "Openbare kamer maken"
 
 msgid "public.create_detail"
-msgstr "Opent een kamer die voor alle spelers met een Ember ID in de lijst staat, met jou als host. Tafels beginnen op eerst tot 2, winnaar blijft; wijzig dat bij Tafelopties."
+msgstr "Opent een kamer die voor alle spelers met een Ember ID in de lijst staat, met jou als host. Kies daarna naam, grootte en tafelregels."
 
 msgid "public.create_requirements"
-msgstr "Opent een openbare kamer bij de Ember ID-dienst en gaat erin. Tafels beginnen op eerst tot 2, winnaar blijft; wijzig dat bij Tafelopties."
+msgstr "Opent een openbare kamer bij de Ember ID-dienst, gaat erin en zet deze regels op elke tafel. Wijzig ze later bij Tafelopties."
 
 msgid "public.create_needs_id"
 msgstr "Openbare kamers hebben een Ember ID en een vertrouwde dienst nodig. Richt ze in via Openbare kamers."

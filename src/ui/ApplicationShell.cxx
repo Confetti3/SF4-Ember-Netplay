@@ -275,15 +275,15 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   rows[3].info=rows[4].info=true;rows[3].value=DescribeRelay(v.netReport);rows[4].value=DescribeNat(v.netReport.nat);
  }else if(screen=="create"||screen=="defaults"){
   title=screen=="create"?loc::T("room.create_title"):loc::T("settings.gameplay_defaults_title");const bool can=screen=="create"?v.canOpenRoom:v.canEditPreferences;
-  // A public room is made by the service with its default rules, which its
-  // moderator changes inside the room, so the rules are not offered here.
+  // A public room is made by the service with the public default rules; the
+  // ones chosen here follow once the creator is in it as host (ApplyCreatedRules).
   const bool publicRoom=screen=="create"&&preferences_.roomPublic;
   const std::string bridge=publicRoom?identity_.UsableBridge(v):std::string();
   if(screen=="defaults")rows.push_back(Value("delay",loc::T("settings.input_delay"),std::to_string(preferences_.inputDelay),reason,can));
   if(screen=="create")rows.push_back(Value("visibility",loc::T("public.visibility"),loc::T(publicRoom?"public.visibility.public":"public.visibility.private"),loc::T("public.visibility_detail"),can));
   rows.push_back(TextRow("room-name",loc::T("room.name"),preferences_.roomName,64,can));
   rows.push_back(Value("capacity",loc::T("room.capacity"),std::to_string(preferences_.roomCapacity),loc::T("room.capacity_detail"),can));
-  if(!publicRoom)RuleRows(rows,preferences_.tableRules,can,reason);
+  RuleRows(rows,publicRoom?preferences_.publicTableRules:preferences_.tableRules,can,reason);
   if(screen=="create"){rows.push_back(opening?ConfirmRow("cancel-open",loc::T("room.stop_creating_action"),loc::T("room.stop_creating"),true):
    Row("host",loc::T(publicRoom?"public.create":"online.create"),loc::T(!publicRoom?"room.create_requirements":bridge.empty()?"public.create_needs_id":"public.create_requirements"),
     can&&preferences_.Valid()&&!publicRooms_.Busy()&&(!publicRoom||!bridge.empty())));
@@ -486,7 +486,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?"roster":"";nav.Push(a.id);}
  else if(a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="discord"||a.id=="identity"||a.id=="developer")nav.Push(a.id);
  else if(a.id=="pr-create"||a.id=="pr-none")OpenPublicCreate();
- else if(a.id=="host"&&preferences_.roomPublic){error_.clear();publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity);}
+ else if(a.id=="host"&&preferences_.roomPublic){error_.clear();createdRules_=preferences_.publicTableRules;publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity);}
  else if(a.id=="host"||a.id=="join-now")Send(a.id=="host"?CommandKind::HostRoom:CommandKind::JoinInvite,v,submit);
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
  else if(a.id=="offline"||a.id=="controls")Send(CommandKind::StartOffline,v,submit);
@@ -527,7 +527,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="hud")preferences_.showMatchHud=a.delta>0;else if(a.id=="presence")preferences_.discordPresence=a.delta>0;
   else if(a.id=="invites")preferences_.discordInvites=a.delta>0;
   else if(a.id=="visibility"){preferences_.roomPublic=a.delta>0;if(preferences_.roomPublic)ApplyPublicDefaultName();} // UpdatePublicBridge asks the Ember ID for what Public needs
-  else AdjustRule(preferences_.tableRules,a);
+  else AdjustRule(screen=="create"&&preferences_.roomPublic?preferences_.publicTableRules:preferences_.tableRules,a);
   if(!preferences_.Valid()){preferences_=prior;error_=loc::T("error.invalid_value");}
   else{preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();}
  }
@@ -636,6 +636,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  UpdateShortCopy(v,now);
  UpdateJoinLink(v,now,submit);
  UpdatePublicRoomLink(v,now);
+ ApplyCreatedRules(v,submit);
  if(openPublicCreate_){
   openPublicCreate_=false;
   if(v.session.room==RoomState::Idle&&v.canOpenRoom&&nav.Screen()=="public-rooms")OpenPublicCreate();

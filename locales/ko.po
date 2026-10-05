@@ -3235,10 +3235,10 @@ msgid "public.create"
 msgstr "공개 방 만들기"
 
 msgid "public.create_detail"
-msgstr "Ember ID가 있는 모든 플레이어에게 보이는 방을 열고 내가 방장이 됩니다. 테이블은 2선승, 승자 유지로 시작하며 테이블 옵션에서 바꿀 수 있습니다."
+msgstr "Ember ID가 있는 모든 플레이어에게 보이는 방을 열고 내가 방장이 됩니다. 다음으로 이름, 인원, 테이블 규칙을 고르세요."
 
 msgid "public.create_requirements"
-msgstr "Ember ID 서비스에 공개 방을 만들고 바로 입장합니다. 테이블은 2선승, 승자 유지로 시작하며 테이블 옵션에서 바꿀 수 있습니다."
+msgstr "Ember ID 서비스에 공개 방을 만들어 입장하고 모든 테이블에 이 규칙을 적용합니다. 나중에 테이블 옵션에서 바꿀 수 있습니다."
 
 msgid "public.create_needs_id"
 msgstr "공개 방에는 Ember ID와 신뢰하는 서비스가 필요합니다. 공개 방 화면에서 설정하세요."
