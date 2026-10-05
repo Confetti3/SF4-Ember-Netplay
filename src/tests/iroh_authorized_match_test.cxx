@@ -287,10 +287,28 @@ int wmain(int argc, wchar_t** argv) {
 	CHECK(clients[0]->GetRoomSnapshot().members[0].fighter == -1);
 	const auto pairRevision = clients[0]->GetRoomSnapshot().tables[0].revision;
 	if (autoChecks) {
-		// AutoDelayCheck's schedule: one settle (SettleMs), both at once, and one
-		// retry RetryMs after a check that ends without a recommendation.
-		const auto settled = GetTickCount64() + 1000;
-		wait([&]() { pump(); return GetTickCount64() >= settled; });
+		// AutoDelayCheck's schedule: each side waits until its room view and its
+		// own committed copy of the room seat the pair at the same table
+		// revision (ProbePairCommitted), and for one settle (SettleMs) since
+		// that revision last moved; then both ask at once, and ask once more
+		// RetryMs after a check that ends without a recommendation.
+		const auto clear = [&](std::size_t side) {
+			const auto* committed = recoveryPeers[side].server->RoomSnapshot();
+			return committed && room::ProbePairCommitted(clients[side]->GetRoomSnapshot().tables[0], committed->tables[0]);
+		};
+		const auto settle = [&]() {
+			std::array<std::uint64_t, 2> seen{{0, 0}};
+			auto movedAt = GetTickCount64();
+			wait([&]() {
+				pump();
+				for (std::size_t side = 0; side < 2; ++side) {
+					const auto revision = clients[side]->GetRoomSnapshot().tables[0].revision;
+					if (revision != seen[side]) { seen[side] = revision; movedAt = GetTickCount64(); }
+				}
+				return clear(0) && clear(1) && GetTickCount64() >= movedAt + 1000;
+			});
+		};
+		settle();
 		const std::array<std::string, 2> peers{{rooms[1]->LocalIdentity(), rooms[0]->LocalIdentity()}};
 		std::array<int, 2> attempts{{0, 0}};
 		std::array<std::string, 2> failures;
@@ -322,6 +340,7 @@ int wmain(int argc, wchar_t** argv) {
 			if (!retry || round == 1) break;
 			const auto retryAt = GetTickCount64() + 1500;
 			wait([&]() { pump(); return GetTickCount64() >= retryAt; });
+			settle();
 			for (std::size_t side = 0; side < 2; ++side) if (!measured(side)) ask(side);
 		}
 		for (std::size_t side = 0; side < 2; ++side)
