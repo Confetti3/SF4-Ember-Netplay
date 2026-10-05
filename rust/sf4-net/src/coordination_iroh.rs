@@ -45,6 +45,14 @@ const RELAY_READY_TIMEOUT: Duration = Duration::from_secs(10);
 /// Past this the address goes out with what it has (its direct addresses).
 const ADVERTISE_READY_TIMEOUT: Duration = Duration::from_secs(3);
 const CHUNK: usize = SNAPSHOT_FRAGMENT_BYTES;
+/// Outgoing RPCs one target may have in flight, the streams one served
+/// connection answers at once. A member that stops answering, such as a
+/// leader whose game was closed, holds each RPC sent to it until the
+/// deadline, and every leader read sends it one more heartbeat. Without a
+/// per-target bound those calls took the whole budget within seconds, so
+/// the heartbeats and appends to the members still answering failed before
+/// they were sent and the new leader lost its quorum proof.
+const MAX_TARGET_IN_FLIGHT: usize = MAX_CONNECTION_STREAMS;
 mod retired;
 fn failure() -> io::Error {
     io::Error::other("room coordination transport unavailable")
@@ -69,7 +77,11 @@ pub struct IrohRpc {
     /// connection, so concurrent RPCs share one cached connection instead of
     /// each dialing its own. The gate is held only while dialing.
     dials: std::sync::Mutex<BTreeMap<u64, Arc<tokio::sync::Mutex<()>>>>,
+    /// Outgoing RPCs in flight: in total, and per target so that one target
+    /// that never answers cannot take the budget of the others. A target's
+    /// entry lives while it has an RPC in flight.
     in_flight: Semaphore,
+    target_in_flight: std::sync::Mutex<BTreeMap<u64, usize>>,
     /// Served connections and the request byte allowance of each remote
     /// endpoint. An entry lives while that endpoint has a served connection.
     peers: std::sync::Mutex<BTreeMap<EndpointId, PeerLoad>>,
@@ -114,6 +126,44 @@ impl Drop for PeerSlot {
             load.connections = load.connections.saturating_sub(1);
             if load.connections == 0 {
                 peers.remove(&self.peer);
+            }
+        }
+    }
+}
+
+/// One outgoing RPC to a target, counted against that target's bound until
+/// it ends.
+struct TargetSlot<'a> {
+    owner: &'a IrohRpc,
+    target: u64,
+}
+
+impl<'a> TargetSlot<'a> {
+    fn claim(owner: &'a IrohRpc, target: u64) -> Option<Self> {
+        let mut targets = owner
+            .target_in_flight
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let count = targets.entry(target).or_insert(0);
+        if *count >= MAX_TARGET_IN_FLIGHT {
+            return None;
+        }
+        *count += 1;
+        Some(Self { owner, target })
+    }
+}
+
+impl Drop for TargetSlot<'_> {
+    fn drop(&mut self) {
+        let mut targets = self
+            .owner
+            .target_in_flight
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        if let Some(count) = targets.get_mut(&self.target) {
+            *count = count.saturating_sub(1);
+            if *count == 0 {
+                targets.remove(&self.target);
             }
         }
     }
@@ -228,7 +278,8 @@ impl IrohRpc {
             limit: ownership.max_nodes(),
             connections: RwLock::new(BTreeMap::new()),
             dials: std::sync::Mutex::new(BTreeMap::new()),
-            in_flight: Semaphore::new(ownership.max_nodes()),
+            in_flight: Semaphore::new(ownership.max_nodes() * MAX_TARGET_IN_FLIGHT),
+            target_in_flight: std::sync::Mutex::new(BTreeMap::new()),
             peers: std::sync::Mutex::new(BTreeMap::new()),
             body_budget: Semaphore::new(BODY_BUDGET),
         }))
@@ -655,6 +706,9 @@ impl RpcTransport for IrohRpc {
         body: Vec<u8>,
     ) -> Pin<Box<dyn Future<Output = io::Result<Vec<u8>>> + Send + '_>> {
         Box::pin(async move {
+            // Refused at once, like a full budget: the call fails and its
+            // caller retries, which it would also do after a timeout.
+            let _target = TargetSlot::claim(self, target).ok_or_else(failure)?;
             let _permit = self.in_flight.try_acquire().map_err(|_| failure())?;
             match timeout(RPC_TIMEOUT, async {
                 let address = self
