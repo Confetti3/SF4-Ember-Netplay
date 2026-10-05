@@ -181,6 +181,25 @@ static void TestPermitWindowThroughAnOutage() {
 	}
 }
 
+// A retried recovery restores the same commit tick after tick while its
+// members are not bound yet. The permit ages on across every restore, and
+// the owner that finally takes over calls the late start off.
+static void TestRepeatedRestoresKeepPermitAge() {
+	BoundServer bound;
+	auto& server = bound.server;
+	bound.HoldOnePermit();
+	const auto committed = server.RecoveryCheckpoint();
+	for (std::uint64_t nowMs = 61000; nowMs <= 151000; nowMs += 30000) {
+		CHECK(server.RestoreRecoveryCheckpoint(committed));
+		server.SetAuthority(bound.term, bound.revision, false, false);
+		server.AdvanceCustomRoom(nowMs);
+		CHECK(bound.Timer().ageMs == nowMs - 1000);
+	}
+	server.SetAuthority(bound.term, bound.revision, true);
+	server.AdvanceCustomRoom(161500);
+	CHECK(bound.Table().phase == room::TablePhase::Waiting && bound.Table().permitGeneration == 0);
+}
+
 // A candidate that starts the game, takes a Ready back or lets the hold run
 // out clears the reservation. Rolled back, by a discarded proposal or a new
 // term, the reservation is as old as this server has seen it, not as old as
@@ -235,6 +254,7 @@ static void TestCandidateReservationIsNotKept() {
 int main() {
 	TestBindingThroughTheServer();
 	TestPermitWindowThroughAnOutage();
+	TestRepeatedRestoresKeepPermitAge();
 	TestRollbackKeepsPermitAge();
 	TestCandidateReservationIsNotKept();
 	std::printf("session server tournament tests passed\n");
