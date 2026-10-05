@@ -867,10 +867,36 @@ static void TestReadyDelayNeverZero() {
 	CHECK(MatchDelay(stored) == 1 && MatchDelay(0, 0) == 1 && MatchDelay(0, 3) == 3);
 }
 
+// Auto's connection check names the seated pair at the table revision this
+// PC sees, and waits until its committed copy of the room seats the same pair
+// at the same revision. A spectator watching moves the revision; a copy that
+// has not caught up with the seating, or has moved past it, is not yet clear.
+static void TestProbePairCommitted() {
+	RoomAuthority authority("Probe", 4, 1);
+	Join(authority, 0, true);
+	const MemberId p1 = Join(authority, 1);
+	const MemberId p2 = Join(authority, 2);
+	const MemberId watcher = Join(authority, 3);
+	CHECK(authority.Apply(p1, TableAction(authority, p1, 0, ActionKind::Queue)).accepted);
+	const Table oneSeat = authority.SnapshotView().tables[0];
+	CHECK(!ProbePairCommitted(oneSeat, oneSeat));
+	CHECK(authority.Apply(p2, TableAction(authority, p2, 0, ActionKind::Queue)).accepted);
+	const Table seated = authority.SnapshotView().tables[0];
+	CHECK(ProbePairCommitted(seated, seated));
+	// The committed copy still shows the table before the second seat.
+	CHECK(!ProbePairCommitted(seated, oneSeat));
+	CHECK(authority.Apply(watcher, TableAction(authority, watcher, 0, ActionKind::Watch)).accepted);
+	const Table watched = authority.SnapshotView().tables[0];
+	CHECK(watched.revision != seated.revision && watched.p1 == seated.p1 && watched.p2 == seated.p2);
+	// Same pair, another revision either way: the check waits for both to agree.
+	CHECK(!ProbePairCommitted(seated, watched) && !ProbePairCommitted(watched, seated) && ProbePairCommitted(watched, watched));
+}
+
 int main() {
     TestProfileMain();
     TestReadyDelaysShareTheHigherValue();
     TestReadyDelayNeverZero();
+    TestProbePairCommitted();
     TestFighterChangeWithdrawsOpponentReady();
     TestIdleTimeIsStampedPerSnapshot();
 	RoomAuthority authority("Test room", 16, 77);
