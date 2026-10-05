@@ -1,2 +1,8 @@
 # The deploy files run on Linux; keep them LF in every checkout.
 deploy/** text eol=lf
+# Images and fonts are bytes: no line-ending conversion.
+deploy/**/*.png binary
+deploy/**/*.jpg binary
+deploy/**/*.webp binary
+deploy/**/*.ico binary
+deploy/**/*.woff2 binary

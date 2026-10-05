@@ -1,0 +1,204 @@
+/* embernetplay.link: the landing page, the link page and the 404 page.
+   Colours follow src/ui/Theme.cxx. Inter is a Latin subset of the game's
+   own font files; see fonts/OFL.txt. */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/assets/fonts/inter-latin-400.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/assets/fonts/inter-latin-600.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  --ink: #141312;
+  --panel: rgba(33, 30, 27, 0.94);
+  --border: #443a31;
+  --ivory: #f3ebdd;
+  --muted: #b5a99b;
+  --ember: #ff8738;
+  --ember-light: #ffb16f;
+  --button: #382d24;
+  --button-border: #76502f;
+  --button-hover: #59402b;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { background: var(--ink); -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ivory);
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+/* The menu artwork, as the game draws it: covering the page under a dark
+   tint, quiet on the left where the text sits. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-color: var(--ink);
+  background-image:
+    linear-gradient(90deg, rgba(20, 19, 18, 0.96) 0%, rgba(20, 19, 18, 0.88) 42%, rgba(20, 19, 18, 0.5) 100%),
+    url("/assets/ember-background.jpg");
+  background-image:
+    linear-gradient(90deg, rgba(20, 19, 18, 0.96) 0%, rgba(20, 19, 18, 0.88) 42%, rgba(20, 19, 18, 0.5) 100%),
+    image-set(url("/assets/ember-background.webp") type("image/webp"), url("/assets/ember-background.jpg") type("image/jpeg"));
+  background-size: cover;
+  background-position: center, 70% center;
+  background-repeat: no-repeat;
+}
+
+.shell {
+  width: 100%;
+  max-width: calc(40rem + 2 * 48px);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 28px 48px 24px;
+  margin-left: clamp(0px, 5vw, 80px);
+}
+main { flex: 1; }
+
+/* Brand header: the emblem, EMBER and an orange subtitle, like the game's Home. */
+.brand { margin-bottom: 28px; }
+.brand-home {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--ivory);
+  text-decoration: none;
+  border-radius: 4px;
+}
+.brand-home img { display: block; width: 48px; height: 48px; }
+.brand-text { display: flex; flex-direction: column; line-height: 1.1; }
+.brand-name { font-weight: 600; font-size: 1.75rem; letter-spacing: 0.04em; }
+.brand-sub { margin-top: 4px; color: var(--ember); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
+.home .brand-home img { width: 88px; height: 88px; }
+.home .brand-name { font-size: 3rem; }
+
+/* Headings carry the game's header rule: a thin line with an orange start. */
+h1 {
+  margin: 0 0 16px;
+  padding-bottom: 12px;
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.25;
+  background:
+    linear-gradient(var(--ember), var(--ember)) 0 100% / 72px 3px no-repeat,
+    linear-gradient(var(--border), var(--border)) 0 100% / 100% 1px no-repeat;
+}
+h2 { margin: 0 0 8px; font-size: 1.1rem; font-weight: 600; line-height: 1.3; color: var(--ember); }
+p { margin: 0 0 12px; }
+.lead { font-size: 1.1rem; color: var(--ivory); margin-bottom: 20px; }
+strong { font-weight: 600; color: #fff; }
+
+a { color: var(--ember); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:visited { color: var(--ember); }
+a:hover { color: var(--ember-light); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--ivory); outline-offset: 3px; }
+
+.panel {
+  margin: 0 0 16px;
+  padding: 18px 20px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.panel > :last-child { margin-bottom: 0; }
+/* The orange side rule the game puts beside the thing to act on. */
+.rule { border-left: 3px solid var(--ember); }
+
+ol { margin: 0 0 12px; padding-left: 1.5em; }
+li { margin: 0 0 6px; padding-left: 2px; }
+li::marker { color: var(--ember); font-weight: 600; }
+
+.code {
+  margin: 4px 0 16px;
+  font-size: clamp(1.3rem, 7vw, 2.4rem);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum", "zero";
+  letter-spacing: 0.06em;
+  text-align: center;
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+code { font-family: inherit; font-weight: 600; color: #fff; overflow-wrap: anywhere; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 12px; }
+.panel .actions:first-child, #link .actions { justify-content: center; }
+.button, button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 18px;
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  color: var(--ivory);
+  background: var(--button);
+  border: 1px solid var(--button-border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.button:visited { color: var(--ivory); }
+.button:hover, button:hover { color: var(--ivory); background: var(--button-hover); border-color: var(--ember); }
+.button.primary, .button.primary:visited { color: var(--ink); background: var(--ember); border-color: var(--ember); }
+.button.primary:hover { color: var(--ink); background: var(--ember-light); border-color: var(--ember-light); }
+#open { min-width: 12rem; font-size: 1.1rem; padding: 12px 24px; }
+
+.note { color: var(--muted); font-size: 0.95rem; }
+.version { color: var(--ivory); padding-left: 10px; border-left: 2px solid var(--ember); }
+.status { min-height: 1.55em; margin: 0 0 8px; text-align: center; color: var(--ember-light); }
+
+footer {
+  margin-top: 24px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+footer p { margin: 0 0 6px; }
+footer a { color: var(--muted); }
+footer a:visited { color: var(--muted); }
+footer a:hover { color: var(--ivory); }
+.links { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+
+@media (max-width: 700px) {
+  body::before {
+    background-image:
+      linear-gradient(180deg, rgba(20, 19, 18, 0.9) 0%, rgba(20, 19, 18, 0.84) 40%, rgba(20, 19, 18, 0.93) 100%),
+      url("/assets/ember-background.jpg");
+    background-image:
+      linear-gradient(180deg, rgba(20, 19, 18, 0.9) 0%, rgba(20, 19, 18, 0.84) 40%, rgba(20, 19, 18, 0.93) 100%),
+      image-set(url("/assets/ember-background.webp") type("image/webp"), url("/assets/ember-background.jpg") type("image/jpeg"));
+    background-position: center, 78% center;
+  }
+  .shell { margin-left: 0; padding: 20px 16px 16px; }
+  .brand { margin-bottom: 20px; }
+  .home .brand-home img { width: 64px; height: 64px; }
+  .home .brand-name { font-size: 2.25rem; }
+  h1 { font-size: 1.5rem; }
+  .panel { padding: 16px; }
+  .actions .button, .actions button { flex: 1 1 auto; }
+  .actions .primary { flex-basis: 100%; }
+}

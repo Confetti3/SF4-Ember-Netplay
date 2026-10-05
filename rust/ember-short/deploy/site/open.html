@@ -5,31 +5,44 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#141312">
 <title>Open in Ember</title>
-<link rel="stylesheet" href="/assets/open.css">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/assets/ember-emblem.png" type="image/png">
+<link rel="preload" href="/assets/fonts/inter-latin-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/inter-latin-600.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/open.js" defer></script>
 </head>
 <body>
+<div class="shell">
+<header class="brand">
+<a class="brand-home" href="/" aria-label="SF4 Ember Netplay home"><img src="/assets/ember-emblem.png" width="48" height="48" alt=""><span class="brand-text"><span class="brand-name">EMBER</span><span class="brand-sub">SF4 / Rollback netplay</span></span></a>
+</header>
 <main>
 <h1 id="title">Open in Ember</h1>
 <section id="page" hidden>
-<p id="lead"></p>
-<div id="link" hidden>
+<p class="lead" id="lead"></p>
+<div class="panel rule" id="link" hidden>
 <p class="code" id="code" hidden></p>
 <div class="actions">
-<a class="button" id="open" href="#">Open in Ember</a>
+<a class="button primary" id="open" href="#">Open in Ember</a>
 </div>
 <p class="note" id="after"></p>
 </div>
 
+<div class="panel">
 <h2 id="get-title">Don't have Ember yet?</h2>
 <ol>
 <li>You need Ultra Street Fighter IV on Steam, on Windows, or on Linux or Steam Deck through Proton.</li>
 <li><a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest" rel="noopener">Download SF4 Ember Netplay</a>, unzip it anywhere and start <strong>Launcher.exe</strong> once.</li>
 <li id="come-back">Come back to this page and choose <strong>Open in Ember</strong>.</li>
 </ol>
+<p class="note version" id="version" hidden>Public rooms and tournaments need Ember 1.1.0 or newer.</p>
+</div>
 
-<div id="tournaments" hidden>
+<div class="panel" id="tournaments" hidden>
 <h2>Then connect Discord</h2>
 <ol>
 <li>In Ember, choose <strong>Ember ID</strong>, then <strong>Discord</strong>, then <strong>Connect Discord</strong>.</li>
@@ -37,10 +50,10 @@
 <li>Go back to the tournament site and register again. It now finds you.</li>
 </ol>
 <p class="note">Discord is optional in Ember. Tournament sites that find players by Discord account, such as BluMint, need it.</p>
-<p class="note">If Home in your Ember has no <strong>Ember ID</strong>, your copy is older than these steps: download the latest release again.</p>
+<p class="note">If Home in your Ember has no <strong>Ember ID</strong>, your copy is older than 1.1.0.</p>
 </div>
 
-<div id="fallback" hidden>
+<div class="panel" id="fallback" hidden>
 <h2>If Ember does not open</h2>
 <p id="fallback-lead">That happens when Ember has not been started on this PC yet, on Linux or Steam Deck, or when the browser blocks it. Copy the link and paste it into Ember instead:</p>
 <div class="actions">
@@ -52,12 +65,16 @@
 <p class="note" id="lasts"></p>
 </div>
 </section>
-<section id="missing" hidden>
+<section class="panel" id="missing" hidden>
 <p>This page opens Ember from a link, such as a room invitation
 (<code>embernetplay.link/j#K7QM-4XRT-9PZD</code>), a public room from a bot or site, or a tournament match from a tournament site.</p>
-<p>Ask for the link again.</p>
+<p>Ask for the link again, or <a href="/">read about SF4 Ember Netplay</a>.</p>
 </section>
-<noscript><p>This page needs JavaScript to read the link. You can also paste the whole link into Ember: Online play, Join room, Paste invitation for a room; Online play, Public rooms, Paste room link for a public room; Ember ID, Tournament matches, Paste match link for a match.</p></noscript>
+<noscript><div class="panel"><p>This page needs JavaScript to read the link. You can also paste the whole link into Ember: Online play, Join room, Paste invitation for a room; Online play, Public rooms, Paste room link for a public room; Ember ID, Tournament matches, Paste match link for a match.</p></div></noscript>
 </main>
+<footer>
+<p class="links"><a href="/">Home</a><a href="https://github.com/Confetti3/SF4-Ember-Netplay" rel="noopener">GitHub</a><a href="https://discord.gg/uPNqF5A5uq" rel="noopener">Discord</a></p>
+</footer>
+</div>
 </body>
 </html>

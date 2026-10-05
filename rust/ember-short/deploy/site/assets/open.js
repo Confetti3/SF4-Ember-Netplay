@@ -136,7 +136,27 @@
     };
   }
 
-  function start() {
+  // Every element a variant may change, put back as the HTML has it, so a
+  // link changed in an open tab draws from a clean page.
+  var current = null;
+  function reset() {
+    var byId = function (id) { return document.getElementById(id); };
+    ['page', 'missing', 'link', 'fallback', 'tournaments', 'code', 'copy-code', 'version'].forEach(function (id) {
+      byId(id).hidden = true;
+    });
+    byId('come-back').hidden = false;
+    byId('get-title').textContent = "Don't have Ember yet?";
+    byId('fallback-lead').textContent = FALLBACK_LEAD;
+    byId('title').textContent = 'Open in Ember';
+    byId('status').textContent = '';
+    byId('open').href = '#';
+    ['lead', 'after', 'lasts', 'code', 'steps'].forEach(function (id) { byId(id).textContent = ''; });
+    document.title = 'Open in Ember';
+    current = null;
+  }
+
+  function render() {
+    reset();
     var fragment = location.hash.replace(/^#/, '');
     var path = location.pathname.replace(/\/$/, '');
     var found = path === '/start' ? connect(fragment) || GETTING_STARTED :
@@ -146,10 +166,13 @@
       document.getElementById('missing').hidden = false;
       return;
     }
+    current = found;
     document.title = found.title;
     document.getElementById('title').textContent = found.title;
     document.getElementById('lead').textContent = found.lead;
     document.getElementById('page').hidden = false;
+    // Public rooms, matches and Connect Discord open only in Ember 1.1.0 or newer.
+    document.getElementById('version').hidden = path.indexOf('/j') === 0;
     if (!found.ember) {
       document.getElementById('get-title').textContent = 'Get Ember';
       document.getElementById('come-back').hidden = true;
@@ -162,17 +185,30 @@
     // The steps are this page's own fixed text.
     document.getElementById('steps').innerHTML = found.steps.map(function (step) { return '<li>' + step + '</li>'; }).join('');
     if (found.fallback) document.getElementById('fallback-lead').textContent = found.fallback;
-    document.getElementById('copy-link').addEventListener('click', function () { copy(found.link, 'Link copied. Paste it into Ember.'); });
     if (found.code) {
       var code = document.getElementById('code');
       code.textContent = found.code;
       code.hidden = false;
-      var copyCode = document.getElementById('copy-code');
-      copyCode.hidden = false;
-      copyCode.addEventListener('click', function () { copy(found.code, 'Code copied. Paste it into Ember.'); });
+      document.getElementById('copy-code').hidden = false;
     }
     document.getElementById('link').hidden = false;
     document.getElementById('fallback').hidden = false;
+  }
+
+  var FALLBACK_LEAD;
+  function start() {
+    FALLBACK_LEAD = document.getElementById('fallback-lead').textContent;
+    // Bound once; each copies whatever link the page shows now.
+    document.getElementById('copy-link').addEventListener('click', function () {
+      if (current && current.link) copy(current.link, 'Link copied. Paste it into Ember.');
+    });
+    document.getElementById('copy-code').addEventListener('click', function () {
+      if (current && current.code) copy(current.code, 'Code copied. Paste it into Ember.');
+    });
+    // Someone may paste another link into this tab: only the fragment changes,
+    // so the browser does not load the page again.
+    window.addEventListener('hashchange', render);
+    render();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);

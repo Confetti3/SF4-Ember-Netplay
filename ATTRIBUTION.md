@@ -52,6 +52,11 @@ under the [SIL Open Font License 1.1](src/ui/fonts/OFL.txt). Font provenance and
 hashes are recorded in [src/ui/fonts/SOURCE.txt](src/ui/fonts/SOURCE.txt). The full
 license is also available in the interface's About page and packaged notices.
 
+The embernetplay.link pages use a Latin subset of the same two Inter files,
+converted to WOFF2 by [scripts/build-web-assets.py](scripts/build-web-assets.py).
+Subsetting keeps Inter's name, which is not a Reserved Font Name. The license is
+served beside them as `/assets/fonts/OFL.txt`.
+
 See [README.md](README.md#external-licenses-and-copyright-information) for dependency and trademark notices (Capcom, Valve, Microsoft, etc.). Packages include `notices/THIRD_PARTY_LICENSES.txt` and the Discord Social SDK notice in `notices/Discord-SDK.txt`.
 
 You must own *Ultra Street Fighter IV* on Steam to play.
