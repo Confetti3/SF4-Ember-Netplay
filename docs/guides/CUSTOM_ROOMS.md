@@ -40,11 +40,14 @@ Battle setup, opened from **Table options** (Y on an Xbox pad, T on the
 keyboard), starts with Ready, then your **Change fighter** and **Ultra Combo**
 (Left and Right step the Ultra in place), then **Input delay**. Its value is
 your own delay, and its detail names the recommended delay and the match delay.
-Your saved delay is retained; a new profile starts at two frames. **Check
-connection** measures the connection to the other fighter for five seconds.
-Select on Input delay applies a valid recommendation, and Left and Right adjust
-it from zero to ten, so you can Ready without a usable probe. Ready locks your
-own delay for that game; Unready unlocks it. A route change or a new
+A new profile is on **Auto**: the connection check runs by itself for each
+opponent and Ready waits for it to end. You ready with its recommendation held
+between one and three frames, or with two frames if it produced none. **Check
+connection** runs the same five-second measurement by hand. Left and Right
+choose a delay of your own instead, from one to ten, with Auto one step below
+one. A chosen delay is saved, Select applies a valid recommendation to it,
+and you can Ready without a usable probe. Ready locks your own delay for that
+game; Unready unlocks it. A route change or a new
 recommendation never changes delay during a fight. The table's rules follow on
 the same page: the host changes Rounds, Round time and Edition Select in place
 and presses **Apply rules**, which appears once something changed; everyone

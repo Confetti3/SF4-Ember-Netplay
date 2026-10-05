@@ -279,7 +279,9 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   // ones chosen here follow once the creator is in it as host (ApplyCreatedRules).
   const bool publicRoom=screen=="create"&&preferences_.roomPublic;
   const std::string bridge=publicRoom?identity_.UsableBridge(v):std::string();
-  if(screen=="defaults")rows.push_back(Value("delay",loc::T("settings.input_delay"),std::to_string(preferences_.inputDelay),reason,can));
+  if(screen=="defaults")rows.push_back(preferences_.autoInputDelay?Value("delay",loc::T("settings.input_delay"),loc::T("settings.input_delay.auto"),
+   loc::Tf("room.input_delay.auto.detail",AutoInputDelayMinimum,AutoInputDelayMaximum)+"\n"+reason,can):
+   Value("delay",loc::T("settings.input_delay"),std::to_string(preferences_.inputDelay),reason,can));
   if(screen=="create")rows.push_back(Value("visibility",loc::T("public.visibility"),loc::T(publicRoom?"public.visibility.public":"public.visibility.private"),loc::T("public.visibility_detail"),can));
   rows.push_back(TextRow("room-name",loc::T("room.name"),preferences_.roomName,64,can));
   rows.push_back(Value("capacity",loc::T("room.capacity"),std::to_string(preferences_.roomCapacity),loc::T("room.capacity_detail"),can));
@@ -515,7 +517,11 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   auto prior=preferences_;
   if(a.id=="name")preferences_.displayName=a.text;else if(a.id=="room-name")preferences_.roomName=a.text;
   else if(a.id=="capacity")preferences_.roomCapacity=(std::max)(2,(std::min)(16,preferences_.roomCapacity+a.delta));
-  else if(a.id=="delay")preferences_.inputDelay=(std::max)(MinimumInputDelay,(std::min)(MaximumInputDelay,preferences_.inputDelay+a.delta));
+  else if(a.id=="delay"){
+   // Auto sits before the smallest delay. Choosing it keeps the number; leaving it starts at the smallest.
+   const int next=StepInputDelay(preferences_.autoInputDelay,preferences_.inputDelay,a.delta);
+   preferences_.autoInputDelay=next==AutoInputDelayChoice;if(!preferences_.autoInputDelay)preferences_.inputDelay=next;
+  }
   else if(a.id=="hud-layout")preferences_.matchHudLayout=(std::max)(0,(std::min)(1,preferences_.matchHudLayout+a.delta));
   else if(a.id=="hud-size")preferences_.matchHudSize=(std::max)(0,(std::min)(2,preferences_.matchHudSize+a.delta));
   else if(a.id=="hud-position")preferences_.matchHudAnchor=(std::max)(0,(std::min)(4,preferences_.matchHudAnchor+a.delta));

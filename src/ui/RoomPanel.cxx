@@ -277,6 +277,9 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     !canChange?SelectionBlocker(v):loc::T(stageOwner?"selection.p1_stage":"selection.only_p1_stage"),canChange&&stageOwner);
    rulesRows();
     // One delay row: Left and Right choose it, Select takes the recommendation.
+    // Auto sits before the smallest delay. It shows a number once the check
+    // has measured this opponent, or once Ready has locked one.
+    const bool autoDelay=v.preferences.autoInputDelay;
     const bool delayEditable=mutableRoom&&!active&&!v.delayLocked;
     const int selectedDelay=(std::max)(MinimumInputDelay,(std::min)(MaximumInputDelay,v.selectedDelay));
     const bool recommended=v.recommendedDelay>=0&&v.recommendedDelay<=MaximumInputDelay;
@@ -287,11 +290,14 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
      loc::Tf("connection.frames",room::MatchDelay(selectedDelay,v.opponentDelay)):loc::Tf("room.match_delay.at_least",selectedDelay));
     if(!delayEditable)delayDetail+="\n"+(v.delayLocked?std::string(loc::T("room.selected_delay.locked")):reason);
     else{
-     delayDetail+="\n"+std::string(loc::T("room.selected_delay.detail"));
-     if(!recommended)delayDetail+="\n"+std::string(loc::T("room.apply_recommendation.check_first"));
+     delayDetail+="\n"+(autoDelay?loc::Tf("room.input_delay.auto.detail",AutoInputDelayMinimum,AutoInputDelayMaximum):std::string(loc::T("room.selected_delay.detail")));
+     if(!recommended&&!autoDelay)delayDetail+="\n"+std::string(loc::T("room.apply_recommendation.check_first"));
     }
-    rows.push_back(Value("input-delay",loc::T("room.input_delay"),loc::Tf("connection.frames",selectedDelay),delayDetail,delayEditable));
-    rows.back().opens=v.canApplyDelay&&recommended&&!check.checking;
+    const std::string delayFrames=loc::Tf("connection.frames",selectedDelay);
+    const std::string delayValue=!autoDelay?delayFrames:
+     v.autoDelayMeasured||v.delayLocked?loc::Tf("room.input_delay.auto",delayFrames):std::string(loc::T("settings.input_delay.auto"));
+    rows.push_back(Value("input-delay",loc::T("room.input_delay"),delayValue,delayDetail,delayEditable));
+    rows.back().opens=!autoDelay&&v.canApplyDelay&&recommended&&!check.checking;
     if(rows.back().opens)rows.back().hint=loc::T("room.apply_recommendation");
     rows.push_back(Row("check-connection",check.action,check.checking?check.detail:
      !mutableRoom?reason:!t.p1||!t.p2?loc::T("room.check_connection.two_players"):
@@ -882,8 +888,8 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
    return;}
   if(a.id=="check-connection"){sendDelay(netplay::CommandKind::CheckConnection,-1);return;}
   if(a.id=="input-delay"){
-   // Select takes the recommendation; Left and Right choose a delay.
-   const int selected=a.kind==MenuAction::Adjust?(std::max)(MinimumInputDelay,(std::min)(MaximumInputDelay,v.selectedDelay+a.delta)):-1;
+   // Select takes the recommendation; Left and Right choose a delay, or Auto before the smallest.
+   const int selected=a.kind==MenuAction::Adjust?StepInputDelay(v.preferences.autoInputDelay,v.selectedDelay,a.delta):-1;
    sendDelay(netplay::CommandKind::ApplyDelay,selected);return;
   }
   if(a.id=="ultra"||a.id=="appearance"){

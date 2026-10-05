@@ -368,17 +368,24 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
             if(peer.empty() || probe.peer!=peer || probe.pairRevision!=revision) break;
             selected=probe.recommended;
         }
-        if(selected<0 || selected>MaximumInputDelay) break;
-        selected=PlayableInputDelay(selected);
-        runtime->selectedDelay=selected;
-        UserApp::netplay->client.SetSelectedDelay(selected);
-        runtime->preferences.inputDelay=selected;
+        const bool automatic=selected==AutoInputDelayChoice;
+        if(!automatic) {
+            // A 0 (an older recommendation) plays at the smallest delay.
+            if(selected<0 || selected>MaximumInputDelay) break;
+            selected=PlayableInputDelay(selected);
+            runtime->selectedDelay=selected;
+            runtime->preferences.inputDelay=selected;
+        }
+        // A chosen number turns Auto off; choosing Auto keeps the number saved.
+        runtime->preferences.autoInputDelay=automatic;
+        if(automatic) runtime->autoDelayCheck.Want(GetTickCount64());
+        UserApp::netplay->client.SetSelectedDelay(ReadyDelay());
         if(!OverlayPrefs::SavePlayerPreferences(runtime->preferences)) runtime->error=loc::T("runtime.delay_save_failed");
         break;
     }
 	case netplay::Effect::SendReady: {
 		auto& client = UserApp::netplay->client;
-        client.SetSelectedDelay(runtime->selectedDelay);
+        client.SetSelectedDelay(ReadyDelay());
 		bool sent = client.PreBattle_SetChara(command.character) == session::SendResult::Queued;
 		if (!client._lobbyData.members.empty() && client._lobbyData.members[0].connId == client._cid) {
 			sent = client.PreBattle_SetEnv(sf4e::localRand()) == session::SendResult::Queued && sent;
@@ -440,6 +447,46 @@ DispatchOutcome DispatchTournamentRoomCommand(netplay::Command command) {
 	runtimeCommand.preferences = runtime->preferences;
 	const bool helperReady = runtime->helper && runtime->helper->State() == platform::HelperState::Connected;
 	return Dispatch(std::move(runtimeCommand), helperReady, Attempt::Tournament);
+}
+
+bool AutoDelayMeasured() {
+    std::uint64_t revision=0;
+    return runtime->autoDelayCheck.Measured(CurrentProbePeer(revision));
+}
+
+int ReadyDelay() {
+    if(!runtime->preferences.autoInputDelay) return runtime->selectedDelay;
+    std::uint64_t revision=0;
+    return runtime->autoDelayCheck.Delay(CurrentProbePeer(revision));
+}
+
+// A Ready sent mid-check would start the match's own link beside the
+// check's, so it holds until the check ends, and for a check still to come.
+bool AutoDelayMeasuring() {
+    if(!runtime->preferences.autoInputDelay || !runtime->room) return false;
+    const auto& check=runtime->autoDelayCheck;
+    const auto& probe=runtime->room->Probe();
+    return check.Wanted(GetTickCount64()) ||
+        (probe.status=="checking" && !check.Opponent().empty() && probe.peer==check.Opponent());
+}
+
+// Follows the seated opponent and their check results. With Auto on, a due
+// check is asked for the way a press of Check connection asks.
+void TickAutoDelay(bool helperReady) {
+    std::uint64_t revision=0; const auto peer=CurrentProbePeer(revision);
+    const auto now=GetTickCount64();
+    auto& check=runtime->autoDelayCheck;
+    check.Seat(peer,runtime->nextProbeRequest,now);
+    if(peer.empty() || !runtime->room) return;
+    const auto& probe=runtime->room->Probe();
+    check.Observe(probe.peer,probe.request,probe.recommended);
+    if(!runtime->preferences.autoInputDelay || !check.Due(now) || probe.status=="checking" ||
+        !GetRuntimeSnapshotShared()->canProbe) return;
+    RuntimeCommand command;
+    command.command={netplay::CommandKind::CheckConnection,runtime->controller.GetSnapshot().generation,{}};
+    if(Dispatch(std::move(command),helperReady,Attempt::Fresh)!=DispatchOutcome::Dispatched) return;
+    check.Asked();
+    spdlog::info("Auto delay: connection check requested");
 }
 
 void DrainCommands(bool helperReady) {

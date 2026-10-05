@@ -26,6 +26,7 @@
 #include "../session/IrohMatchSession.hxx"
 #include "../session/RoomRecoveryRuntime.hxx"
 #include "../session/ReadyChime.hxx"
+#include "../netplay/AutoDelayCheck.hxx"
 #include "../netplay/BoundedMailbox.hxx"
 #include "../netplay/MatchResultOutbox.hxx"
 #include "../netplay/MatchEndRules.hxx"
@@ -178,6 +179,7 @@ struct Runtime {
     // Public room links (ember://room/open) likewise: the service and the room.
     platform::PublicRoomLinkMailbox publicRoomLinks;
     netplay::tournament::OpenedRoomLink openedRoomLink;
+    netplay::AutoDelayCheck autoDelayCheck;
     session::RoomRecoveryRuntime recovery;
     std::uint64_t observedAuthorityTerm=0;
 	// A terminal receipt is released only after its local outcome has been
@@ -280,6 +282,13 @@ void ResolvePendingIntents(bool helperReady);
 // A room command (host, join, leave) on tournament play's behalf, through
 // the same checks as a press.
 netplay::DispatchOutcome DispatchTournamentRoomCommand(netplay::Command command);
+// The delay a Ready sends: the chosen one, or Auto's.
+int ReadyDelay();
+// Auto has a recommendation measured against the seated opponent.
+bool AutoDelayMeasured();
+// Auto is still measuring the seated opponent, so a Ready holds for it.
+bool AutoDelayMeasuring();
+void TickAutoDelay(bool helperReady);
 
 // The match lifecycle (sf4e__NetplayRuntime__Match.cxx).
 void AbortLocalMatch(const char* reason, NoticeSeverity severity = NoticeSeverity::Error);

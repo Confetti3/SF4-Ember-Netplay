@@ -654,6 +654,9 @@ msgstr "PADRÕES DE JOGO"
 msgid "settings.input_delay"
 msgstr "Atraso de entrada"
 
+msgid "settings.input_delay.auto"
+msgstr "Auto"
+
 msgid "room.name"
 msgstr "Nome da sala"
 
@@ -1707,7 +1710,7 @@ msgstr "Pronto para revanche"
 msgid "room.ready_up"
 msgstr "Marcar Pronto"
 msgid "room.selected_delay.detail"
-msgstr "Ajuste de 1 a 10 quadros. As alterações são aplicadas imediatamente."
+msgstr "Ajuste de 1 a 10 quadros, ou desça abaixo de 1 para Auto. As alterações são aplicadas imediatamente."
 msgid "room.selected_delay.locked"
 msgstr "O atraso selecionado está bloqueado nesta partida."
 msgid "room.match_delay.at_least"
@@ -1728,6 +1731,12 @@ msgstr "Recomendado: {0}"
 
 msgid "room.input_delay.match"
 msgstr "Partida: {0}"
+
+msgid "room.input_delay.auto"
+msgstr "Auto ({0})"
+
+msgid "room.input_delay.auto.detail"
+msgstr "Auto usa a verificação da conexão e fica entre {0} e {1} quadros."
 
 msgid "room.apply_recommendation.check_first"
 msgstr "Execute Verificar conexão antes de aplicar uma recomendação."

@@ -109,6 +109,14 @@ int main() {
     CHECK(sf4e::SavedInputDelay(result["inputDelay"].get<int>()) == 1);
     CHECK(sf4e::SavedInputDelay(1) == 1 && sf4e::SavedInputDelay(3) == 3 && sf4e::SavedInputDelay(10) == 10);
     CHECK(sf4e::SavedInputDelay(-1) == 2 && sf4e::SavedInputDelay(11) == 2);
+    // Auto is on until a number is chosen and absent from a profile saved
+    // before it existed. Turning it off is saved beside the delay.
+    CHECK(sf4e::netplay::PlayerPreferences().autoInputDelay && !result.contains("autoInputDelay"));
+    discordDefaults.inputDelay = 2; discordDefaults.autoInputDelay = false; CHECK(discordDefaults.Valid());
+    CHECK(store.SaveLauncher({{"autoInputDelay", false}}, error));
+    CHECK(store.LoadLauncher(result, error) && result["autoInputDelay"] == false && result["inputDelay"] == 0);
+    const auto autoDelaySettings = Json::parse(Read(path / L"settings.json"));
+    CHECK(autoDelaySettings["netplay"]["autoInputDelay"] == false && !autoDelaySettings["legacyLauncher"].contains("autoInputDelay"));
     CHECK(store.SaveLauncher({{"inputDelay", 3}}, error));
     CHECK(store.SaveLauncher({{"discordPresence",false},{"discordInvites",false}},error));
     CHECK(store.LoadLauncher(result,error));
