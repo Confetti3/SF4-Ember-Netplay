@@ -528,12 +528,22 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
                         owner.recovery.CaughtUp(owner.room->Coordination());
                 });
             }
-            const auto view=peers[peer].client->GetRoomSnapshot();
-            room::Action request; request.kind=room::ActionKind::Ready; request.table=0;
-            request.roomEpoch=view.roomEpoch; request.revision=view.revision;
-            request.tableRevision=view.tables[0].revision; request.inputDelay=static_cast<std::uint8_t>(delay);
+            // After a cancelled preparation the member's control can still be
+            // rebinding, and its client refuses sends until then. The runtime
+            // keeps such an intent and tries again; so does this fixture.
             std::uint64_t id=0;
-            CHECK(peers[peer].client->SendRoomAction(request,&id)==session::SendResult::Queued);
+            session::SendResult sent=session::SendResult::NotConnected;
+            wait([&]() {
+                const auto view=peers[peer].client->GetRoomSnapshot();
+                room::Action request; request.kind=room::ActionKind::Ready; request.table=0;
+                request.roomEpoch=view.roomEpoch; request.revision=view.revision;
+                request.tableRevision=view.tables[0].revision; request.inputDelay=static_cast<std::uint8_t>(delay);
+                sent=peers[peer].client->SendRoomAction(request,&id);
+                if(sent!=session::SendResult::NotConnected && sent!=session::SendResult::QueueFull) return true;
+                pump();
+                return false;
+            });
+            CHECK(sent==session::SendResult::Queued);
             if(fault==Fault::SameTermPreparation && peer==2) {
                 phase="same-term preparation proposal";
                 auto& owner=peers[0];
