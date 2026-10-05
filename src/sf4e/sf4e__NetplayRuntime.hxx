@@ -37,6 +37,7 @@
 #include "../netplay/SettingsStore.hxx"
 #include "../netplay/ProfileRecordJson.hxx"
 #include "../netplay/RoomPreferences.hxx"
+#include "../netplay/InputDelayPreference.hxx"
 #include "../common/SpectatorPolicy.hxx"
 #include "../common/StageCatalog.hxx"
 #include "../common/EnvFlag.hxx"

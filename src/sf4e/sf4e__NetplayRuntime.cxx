@@ -205,9 +205,8 @@ void StartHelper() {
         if(saved.contains("onlineRecord")&&!netplay::ReadProfileRecord(saved["onlineRecord"],runtime->preferences.record))
             runtime->error=loc::T("runtime.record_invalid");
         // Auto is on unless a saved false turned it off, so a profile saved
-        // before Auto existed gets it.
-        const auto autoDelay=saved.find("autoInputDelay");
-        runtime->preferences.autoInputDelay=autoDelay==saved.end()||!autoDelay->is_boolean()||autoDelay->get<bool>();
+        // before Auto existed gets it (InputDelayPreference.hxx).
+        netplay::ReadInputDelayPreference(saved,runtime->preferences);
         try {
             runtime->preferences.showMatchHud = saved.value("showMatchHud", true);
             const int hudSize = saved.value("matchHudSize", 1);
