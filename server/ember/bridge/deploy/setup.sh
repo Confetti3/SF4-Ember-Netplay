@@ -3,7 +3,7 @@
 # Run as: sudo bash ~/ember-bridge/setup.sh
 #
 # Expects, next to this script: bin/ember-bridge (built as katie with
-# `cargo build --release --locked -p ember-bridge` in ~/ember-bridge/src/rust/ember),
+# `cargo build --release --locked -p ember-bridge` in ~/ember-bridge/src/server/ember),
 # the unit files, backup.sh, tenants.json and nginx/. Running it again installs a
 # newer binary and applies tenants.json; the bridge ID, secrets and database stay.
 #

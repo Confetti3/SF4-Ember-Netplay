@@ -1,5 +1,5 @@
 // Soak harness for public rooms on a room host elsewhere (a Linux
-// sf4e-room-host started by hand, src/roomhost/soak/README.md). Not a test:
+// sf4e-room-host started by hand, server/roomhost/soak/README.md). Not a test:
 // it needs hosts to talk to, so it is built but not registered with ctest.
 //
 //   PublicRoomSoakTest <sf4-net.exe> <room_ticket.exe> [--members 16] [--minutes 240]
@@ -9,7 +9,7 @@
 //
 // Each invitation is one room. Room N (1 for the first invitation, or from
 // --first-room; an invitation can also be written N=<invitation>) has the room
-// id src/roomhost/soak/soak-hosts.sh gives host N, so the tickets minted here
+// id server/roomhost/soak/soak-hosts.sh gives host N, so the tickets minted here
 // are the ones that host admits. Every room is filled with --members simulated
 // members, each with its own helper process and Ember ID (the first member is
 // the creator the hosts are configured with), and each keeps doing what a
@@ -44,7 +44,7 @@ using namespace sf4e::test::soak;
 namespace {
 BOOL WINAPI OnConsole(DWORD) { stopRequested = true; return TRUE; }
 
-// Prints what the hosts must be configured with (src/roomhost/soak/soak-hosts.sh
+// Prints what the hosts must be configured with (server/roomhost/soak/soak-hosts.sh
 // carries the same values) so the two sides can be compared.
 int PrintConfig(const std::wstring& tool) {
 	ticketTool = tool;

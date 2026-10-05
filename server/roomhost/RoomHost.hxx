@@ -5,9 +5,9 @@
 // docs/design/PUBLIC_ROOMS.md. Portable; the helper process and its pipe are
 // the platform's (RoomHostHelper.hxx).
 #include "RoomHostStatus.hxx"
-#include "../session/IrohRoom.hxx"
-#include "../session/RoomRecoveryRuntime.hxx"
-#include "../session/sf4e__SessionServer.hxx"
+#include "../../src/session/IrohRoom.hxx"
+#include "../../src/session/RoomRecoveryRuntime.hxx"
+#include "../../src/session/sf4e__SessionServer.hxx"
 #include <array>
 #include <cstdint>
 #include <functional>
@@ -19,7 +19,7 @@
 
 namespace sf4e { namespace roomhost {
 
-// The supervisor's configuration line (rust/ember-rooms/src/protocol.rs).
+// The supervisor's configuration line (server/ember-rooms/src/protocol.rs).
 struct Config {
 	std::array<std::uint8_t, 16> roomId = {};
 	std::string name;

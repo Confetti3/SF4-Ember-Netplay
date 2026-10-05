@@ -1,5 +1,5 @@
 // sf4e-room-host: the authority of one public room, started by the ember-rooms
-// supervisor (rust/ember-rooms/README.md, "Child protocol").
+// supervisor (server/ember-rooms/README.md, "Child protocol").
 //
 // stdin:  one JSON configuration line, then end of file means "close the room".
 // stdout: one JSON object per line (hosted, status, closed) and nothing else.

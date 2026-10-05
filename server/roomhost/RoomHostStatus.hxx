@@ -1,9 +1,9 @@
 #pragma once
 
-// The room host's status line for the supervisor (rust/ember-rooms/src/
+// The room host's status line for the supervisor (server/ember-rooms/src/
 // protocol.rs). Plain inputs and no helper or transport, so a test can build the
 // largest line, and the details of a room model, without either.
-#include "../session/RoomModel.hxx"
+#include "../../src/session/RoomModel.hxx"
 #include <cstddef>
 #include <string>
 #include <vector>

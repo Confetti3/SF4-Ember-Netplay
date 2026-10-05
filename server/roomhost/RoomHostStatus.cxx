@@ -1,5 +1,5 @@
 #include "RoomHostStatus.hxx"
-#include "../common/FighterCatalog.hxx"
+#include "../../src/common/FighterCatalog.hxx"
 #include <algorithm>
 #include <nlohmann/json.hpp>
 

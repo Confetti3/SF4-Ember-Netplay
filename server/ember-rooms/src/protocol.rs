@@ -48,7 +48,7 @@ use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 /// The most accounts a room may ban in its lifetime, and so the most a
 /// `status` line can list. The same number is `ember_protocol::rooms::
 /// MAX_ROOM_BANS` (this crate does not depend on ember-protocol), the helper's
-/// ban set and the room model in `src/roomhost`; keep them equal.
+/// ban set and the room model in `server/roomhost`; keep them equal.
 pub const MAX_ROOM_BANS: usize = 512;
 
 /// The most a status line's `details` object may weigh as compact JSON. The

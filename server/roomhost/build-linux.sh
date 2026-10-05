@@ -22,8 +22,8 @@ OUT="${2:-$PWD/sf4e-room-host}"
 CXX="${CXX:-g++}"
 JOBS="${JOBS:-$(nproc 2>/dev/null || echo 2)}"
 
-if [ ! -f "$ROOT/src/roomhost/main.cxx" ]; then
-    echo "No src/roomhost/main.cxx under $ROOT" >&2
+if [ ! -f "$ROOT/server/roomhost/main.cxx" ]; then
+    echo "No server/roomhost/main.cxx under $ROOT" >&2
     exit 1
 fi
 for header in nlohmann/json.hpp spdlog/spdlog.h fmt/format.h; do
@@ -48,10 +48,10 @@ LIBS="-static-libstdc++ -static-libgcc -pthread"
 FLAGS="-std=c++17 -O2 -pthread -DSPDLOG_FMT_EXTERNAL -DFMT_HEADER_ONLY ${CXXFLAGS:-}"
 
 SOURCES="
-src/roomhost/main.cxx
-src/roomhost/RoomHost.cxx
-src/roomhost/RoomHostStatus.cxx
-src/roomhost/RoomHostHelperPosix.cxx
+server/roomhost/main.cxx
+server/roomhost/RoomHost.cxx
+server/roomhost/RoomHostStatus.cxx
+server/roomhost/RoomHostHelperPosix.cxx
 src/platform/HelperClientPosix.cxx
 src/session/MatchAuthority.cxx
 src/session/sf4e__SessionServer.cxx

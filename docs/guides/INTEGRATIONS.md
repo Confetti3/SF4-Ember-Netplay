@@ -45,7 +45,7 @@ implemented, and how it differs from the draft, is in `STATUS.md` there.
 
 ## Run a local bridge
 
-From `rust/ember` (the bridge build needs the Visual Studio C++ tools for its
+From `server/ember` (the bridge build needs the Visual Studio C++ tools for its
 bundled SQLite):
 
 ```sh
@@ -63,7 +63,7 @@ prints a token once; the bridge keeps only a keyed hash. Keep
 Loopback `http` is accepted only because `init` sets `allow_loopback_http`
 and `allow_private_webhooks` for local work. A deployed bridge uses an
 `https` origin with both off, and `mock_browser` off.
-`rust/ember/bridge/deploy` holds the staging deployment: a systemd unit, an
+`server/ember/bridge/deploy` holds the staging deployment: a systemd unit, an
 nginx site, a daily backup and `setup.sh`.
 
 `bridge.json` also takes `match_expiry_hours`, how long a match nobody plays
@@ -497,7 +497,7 @@ events, and players their own matches, links, lobbies and tournaments.
 
 ## Discord and Twitch
 
-`rust/ember/notifier` is a ready-made subscriber that posts news to a
+`server/ember/notifier` is a ready-made subscriber that posts news to a
 Discord channel and to Twitch chat. With a `bot` section it is also a room
 bot: `/room` in Discord and `!room` in Twitch chat open a public Ember room
 and answer with its link. Configure it with a JSON file:

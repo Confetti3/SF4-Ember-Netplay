@@ -48,7 +48,7 @@ The registration stays behind if Ember's folder is deleted; it then points at a 
 
 ## Service
 
-`rust/ember-short`, an axum service on `127.0.0.1:47810` behind nginx, built and installed with `rust/ember-short/deploy/setup.sh`.
+`server/ember-short`, an axum service on `127.0.0.1:47810` behind nginx, built and installed with `server/ember-short/deploy/setup.sh`.
 
 - `PUT /s/v1/{locator}`: `version (1) | ttl seconds (u32 LE) | write token (16) | record`. The first store binds the SHA-256 of the write token; a later store needs the same token (403 otherwise). The service sets the expiry from its own clock, 60 seconds to 2 hours.
 - `GET /s/v1/{locator}`: the record, or 404. Responses are `Cache-Control: no-store`.

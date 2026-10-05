@@ -1,5 +1,5 @@
 // Match results: the body's shape, and a result delivered by the real
-// ember-bridge (built by `cargo build -p ember-bridge` in rust/ember) to a
+// ember-bridge (built by `cargo build -p ember-bridge` in server/ember) to a
 // connection's `results_url`. The delivery test is skipped when it is absent.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";

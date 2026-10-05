@@ -49,13 +49,13 @@ game -- helper --HTTPS--> bridge /v1/rooms          (list, create, ticket)
 helper --iroh--> sf4e-room-host + its sf4-net child  (authority, sole voter)
 ```
 
-- `rust/ember/protocol/src/rooms.rs`: shared types below.
-- `rust/ember/bridge/src/routes/rooms.rs`, `migrations/012_rooms.sql`.
-- `rust/ember-rooms`: supervisor, loopback only.
-- `src/roomhost/`: `sf4e-room-host`. `RoomHost` is the portable core; the
+- `server/ember/protocol/src/rooms.rs`: shared types below.
+- `server/ember/bridge/src/routes/rooms.rs`, `migrations/012_rooms.sql`.
+- `server/ember-rooms`: supervisor, loopback only.
+- `server/roomhost/`: `sf4e-room-host`. `RoomHost` is the portable core; the
   helper process and its pipe are the one platform file: a named pipe on
   Windows (`RoomHostHelperWindows.cxx`), the stdio helper on Linux
-  (`RoomHostHelperPosix.cxx`; build and deployment in `src/roomhost/README.md`).
+  (`RoomHostHelperPosix.cxx`; build and deployment in `server/roomhost/README.md`).
 - `rust/sf4-net`: Unix entry, public host mode, public join, client requests.
 
 ## Ticket

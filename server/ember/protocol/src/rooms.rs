@@ -48,8 +48,8 @@ pub const SET_FORMATS: [u8; 5] = [0, 1, 2, 3, 5];
 pub const MAX_ROTATION: u8 = 2;
 /// Accounts a server-owned room may ban in its lifetime. Bans are never
 /// evicted: the room authority closes the room instead of exceeding this.
-/// The same number is in `src/roomhost` (the C++ room model),
-/// `rust/ember-rooms/src/protocol.rs` (`MAX_ROOM_BANS`, a separate crate) and
+/// The same number is in `server/roomhost` (the C++ room model),
+/// `server/ember-rooms/src/protocol.rs` (`MAX_ROOM_BANS`, a separate crate) and
 /// the helper (`sf4-net` `public_room`, which uses this constant); keep
 /// them equal.
 pub const MAX_ROOM_BANS: usize = 512;

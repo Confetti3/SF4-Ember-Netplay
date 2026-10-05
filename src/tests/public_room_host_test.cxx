@@ -17,7 +17,7 @@
 // staged here; the Rust test public_room::tests::a_host_that_never_answers_is_a_timeout_and_not_a_refusal
 // covers it.
 // --remote <invitation>: no room host is started here; two members join a room
-// host running elsewhere (a Linux sf4e-room-host, src/roomhost/README.md) by
+// host running elsewhere (a Linux sf4e-room-host, server/roomhost/README.md) by
 // its invitation, run the connection check and a match, and leave. That host
 // must be configured with this fixture's room id, bridge id, build id, ticket
 // key and kid (`room_ticket key 111...1`, 64 ones) and creator (Alice's Ember

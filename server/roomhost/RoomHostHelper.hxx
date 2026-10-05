@@ -4,7 +4,7 @@
 // it. This is the one platform seam of the program: Windows starts the helper
 // on a named pipe (RoomHostHelperWindows.cxx); Unix runs it over stdio.
 #include "RoomHost.hxx"
-#include "../platform/HelperClient.hxx"
+#include "../../src/platform/HelperClient.hxx"
 #include <memory>
 #include <string>
 

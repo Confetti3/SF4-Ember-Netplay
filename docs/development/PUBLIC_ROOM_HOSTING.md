@@ -7,7 +7,7 @@ help with hosting or with making rooms cheaper to run.
 
 How the pieces fit is in [PUBLIC_ROOMS.md](../design/PUBLIC_ROOMS.md). How to
 install and operate the room supervisor is in
-[rust/ember-rooms/deploy/README.md](../../rust/ember-rooms/deploy/README.md).
+[server/ember-rooms/deploy/README.md](../../server/ember-rooms/deploy/README.md).
 
 ## Where things stand
 
@@ -110,6 +110,6 @@ port range cannot hold and warns when the unit's `MemoryMax` looks too small:
 sudo bash ~/ember-rooms/setup.sh --max-rooms 10
 ```
 
-Raise `MemoryMax` in `rust/ember-rooms/deploy/ember-rooms.service` by about
+Raise `MemoryMax` in `server/ember-rooms/deploy/ember-rooms.service` by about
 110 MB per room first. The restart drains: no new rooms for up to 10 minutes
 while open rooms finish.

@@ -1,5 +1,5 @@
 // Room events, and a connection opening rooms through the real ember-bridge
-// (built by `cargo build -p ember-bridge` in rust/ember) with a stand-in room
+// (built by `cargo build -p ember-bridge` in server/ember) with a stand-in room
 // supervisor (docs/design/PUBLIC_ROOMS.md, "Supervisor API"). The bridge asks
 // the supervisor which rooms are alive every five seconds, so the live test
 // waits on that. Skipped when the binary is absent.

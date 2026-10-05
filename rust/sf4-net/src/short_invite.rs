@@ -32,7 +32,7 @@ const ALPHABET: &[u8; 32] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 const DOMAIN: &[u8] = b"SF4 Ember short invitation v1";
 const CODE_CONTEXT: &str = "SF4 Ember short invitation code v1";
 
-// Wire constants, matching rust/ember-short.
+// Wire constants, matching server/ember-short.
 const WIRE_VERSION: u8 = 1;
 const NONCE_BYTES: usize = 12;
 const TAG_BYTES: usize = 16;

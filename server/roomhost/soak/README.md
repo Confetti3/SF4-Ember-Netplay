@@ -49,7 +49,7 @@ installed in the WSL Ubuntu. From the commit to test (commit first; `git archive
 takes committed content only):
 
 ```
-git -c core.autocrlf=false archive --format=tar -o soak-src.tar <commit> src rust
+git -c core.autocrlf=false archive --format=tar -o soak-src.tar <commit> src rust server
 ```
 
 In WSL:
@@ -57,14 +57,14 @@ In WSL:
 ```
 export PATH=$HOME/.cargo/bin:$PATH RUSTUP_TOOLCHAIN=1.98.0
 mkdir -p ~/soak-src && cd ~/soak-src && tar -xf /mnt/c/<path>/soak-src.tar
-bash src/roomhost/build-linux.sh . ./sf4e-room-host
+bash server/roomhost/build-linux.sh . ./sf4e-room-host
 export CARGO_TARGET_DIR=$HOME/soak-target
 (cd rust/sf4-net && cargo build --release --locked)
 ```
 
 You now have `~/soak-src/sf4e-room-host` and `~/soak-target/release/sf4-net`.
 Both link only against glibc, like the supervisor's pair
-(`src/roomhost/README.md`).
+(`server/roomhost/README.md`).
 
 ## 2. Build the Windows side
 
@@ -95,7 +95,7 @@ Compare the `ticket_key`, `ticket_kid` and `creator` lines with the script.
 ```
 ssh vps "mkdir -p ~/soak"
 scp ~/soak-src/sf4e-room-host ~/soak-target/release/sf4-net vps:soak/
-scp src/roomhost/soak/*.sh vps:soak/
+scp server/roomhost/soak/*.sh vps:soak/
 ssh vps "chmod +x ~/soak/*"
 ```
 

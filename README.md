@@ -105,6 +105,7 @@ Ember remains experimental. Local builds, automated UI and transport tests, and 
 | [Troubleshooting](docs/guides/TROUBLESHOOTING.md) | Startup, connections and diagnostics |
 | [Saving logs](docs/guides/SAVING_LOGS.md) | Save logs and diagnostics from both players for a bug report |
 | [Build and package](docs/development/BUILDING.md) | Reproducible local builds and release provenance |
+| [Server](server/README.md) | Everything that runs on the Ember server: bridge, public rooms, short links, hosting |
 | [All documentation](docs/README.md) | Design notes, validation results, reports and release notes |
 
 ## Community

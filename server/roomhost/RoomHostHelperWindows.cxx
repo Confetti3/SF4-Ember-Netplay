@@ -1,7 +1,7 @@
 // Windows: the helper is started the way the launcher starts it for a game,
 // on a named pipe, in a job that ends it with this process.
 #include "RoomHostHelper.hxx"
-#include "../platform/HelperProcess.hxx"
+#include "../../src/platform/HelperProcess.hxx"
 
 namespace sf4e { namespace roomhost {
 namespace {

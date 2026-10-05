@@ -549,10 +549,10 @@ target_link_libraries(
 # session server and the Iroh room directly and links none of the game
 # libraries (Session would bring Dimps), so the same sources port to Linux.
 add_executable(sf4e-room-host
-    "src/roomhost/main.cxx"
-    "src/roomhost/RoomHost.cxx"
-    "src/roomhost/RoomHostStatus.cxx"
-    "src/roomhost/RoomHostHelperWindows.cxx"
+    "server/roomhost/main.cxx"
+    "server/roomhost/RoomHost.cxx"
+    "server/roomhost/RoomHostStatus.cxx"
+    "server/roomhost/RoomHostHelperWindows.cxx"
     ${SF4E_SESSION_SERVER_SOURCES}
     "src/session/IrohRoom.cxx"
     "src/session/IrohRoomAdapters.cxx"
@@ -619,7 +619,7 @@ if(BUILD_TESTING)
         add_executable(PublicRoomHostTest "src/tests/public_room_host_test.cxx")
         target_link_libraries(PublicRoomHostTest PRIVATE Session sf4e Dimps sf4e_room_model "d3d9")
         add_dependencies(PublicRoomHostTest IrohHelper sf4e-room-host)
-        # The soak harness for public rooms on a remote host (src/roomhost/soak).
+        # The soak harness for public rooms on a remote host (server/roomhost/soak).
         # Not a test: it needs room hosts running elsewhere, so it is not
         # registered with add_test.
         add_executable(PublicRoomSoakTest "src/tests/public_room_soak_test.cxx" "src/tests/soak/soak_common.cxx"
@@ -631,7 +631,7 @@ if(BUILD_TESTING)
         add_custom_target(RoomTicketTool
             COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/rust-ember-target"
                 "${SF4E_CARGO_EXECUTABLE}" build --locked --example room_ticket -p ember-protocol
-            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/rust/ember"
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/server/ember"
             BYPRODUCTS "${SF4E_ROOM_TICKET_TOOL}"
             VERBATIM COMMENT "Build the room ticket test tool")
         option(SF4E_NETWORK_TESTS "Run tests requiring public Iroh relay/address lookup" OFF)
@@ -699,7 +699,7 @@ if(BUILD_TESTING)
     add_test(NAME SessionServerTransport COMMAND SessionServerTransportTest)
     add_executable(SessionServerModerationTest
         "src/tests/session_server_moderation_test.cxx"
-        "src/roomhost/RoomHostStatus.cxx"
+        "server/roomhost/RoomHostStatus.cxx"
         ${SF4E_SESSION_SERVER_SOURCES})
     target_link_libraries(SessionServerModerationTest PRIVATE
         nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")

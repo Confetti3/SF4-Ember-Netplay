@@ -10,8 +10,8 @@ Linux pair the supervisor needs for one client release:
 ~/ember-rooms/builds/<build_id>/sf4-net
 ```
 
-which `rust/ember-rooms/deploy/setup.sh` then installs (see
-`rust/ember-rooms/deploy/README.md`). Nothing here needs sudo.
+which `server/ember-rooms/deploy/setup.sh` then installs (see
+`server/ember-rooms/deploy/README.md`). Nothing here needs sudo.
 
 ## How the Linux host differs
 
@@ -72,14 +72,14 @@ the client was built from.
    a Windows checkout):
 
    ```
-   git -c core.autocrlf=false archive --format=tar.gz -o room-host-src.tgz <commit> src rust
+   git -c core.autocrlf=false archive --format=tar.gz -o room-host-src.tgz <commit> src rust server
    ```
 
 2. On the build machine, unpack and build the room host:
 
    ```
    mkdir room-host && tar -xzf room-host-src.tgz -C room-host && cd room-host
-   bash src/roomhost/build-linux.sh . ./sf4e-room-host
+   bash server/roomhost/build-linux.sh . ./sf4e-room-host
    ```
 
    `build-linux.sh [<source root>] [<output>]` compiles the same source list as
@@ -88,11 +88,11 @@ the client was built from.
    `g++ -std=c++17 -O2`, in parallel, and links the C++ runtime statically.
    About 25 s on 20 cores. `ldd ./sf4e-room-host` should list only libc.
 
-   `bash src/roomhost/test-linux.sh .` builds and runs the helper client pipe test
+   `bash server/roomhost/test-linux.sh .` builds and runs the helper client pipe test
    (about 30 s, most of it waiting out a 15 s write deadline).
 
-3. Build the helper from the same tree (its path dependencies `rust/ember` and
-   `rust/ember-short` are in the archive):
+3. Build the helper from the same tree (its path dependencies `server/ember` and
+   `server/ember-short` are in the archive):
 
    ```
    (cd rust/sf4-net && cargo build --release --locked)
@@ -117,7 +117,7 @@ the client was built from.
 ## Checking a host by hand
 
 The supervisor's child protocol is one JSON line on stdin and status lines on
-stdout (`rust/ember-rooms/README.md`, "Child protocol"). To run a host without
+stdout (`server/ember-rooms/README.md`, "Child protocol"). To run a host without
 the supervisor, start it with stdin and stdout piped, write the configuration
 line, keep stdin open, and read `hosted` (about 1 s after start on the VPS). Its
 `invitation` is what a client joins with; closing stdin closes the room, and the

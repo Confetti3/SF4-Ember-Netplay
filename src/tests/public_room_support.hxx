@@ -2,7 +2,7 @@
 
 // Shared by PublicRoomHostTest and PublicRoomSoakTest: the constants a room host
 // and a ticket must agree on, and the room_ticket example runner. A room host
-// elsewhere (PublicRoomHostTest --remote, src/roomhost/soak/soak-hosts.sh) is
+// elsewhere (PublicRoomHostTest --remote, server/roomhost/soak/soak-hosts.sh) is
 // configured with these same values. Include after the session headers, which
 // pull in winsock2.h before windows.h.
 #include <windows.h>

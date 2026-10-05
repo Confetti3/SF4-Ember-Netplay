@@ -70,7 +70,7 @@ without the player pressing Play, and nothing moves a player out of a room.
 A staging bridge runs at `https://bridge.embernetplay.link` on the project VPS so a
 platform can build its side before WP4 to WP7. It is this branch's bridge with
 SQLite, behind nginx with the `embernetplay.link` wildcard certificate, deployed by
-`rust/ember/bridge/deploy/setup.sh` (systemd unit with a dedicated account, request
+`server/ember/bridge/deploy/setup.sh` (systemd unit with a dedicated account, request
 budgets per address in nginx, and a daily database and secrets backup kept 14 days
 on the same machine). All three development switches are off. Connections:
 `blumint-staging` (tenant `blumint`) and `ember-test` (tenant `ember`) for our own
@@ -243,7 +243,7 @@ not new crates.
 `IMPLEMENTATION_CHECKLIST.md` is part of the package and stays unchanged; its items are
 recorded here instead. Everything below ran on Windows 11 (10.0.26300), x64 Rust 1.98.0
 and the x86 game build, on `feat/identity-bridge`. "Automated" means a test in the
-build's ctest run (`EmberRust` runs `cargo test --locked` in `rust/ember`, `HelperRust`
+build's ctest run (`EmberRust` runs `cargo test --locked` in `server/ember`, `HelperRust`
 runs the sf4-net suite). Mock fixtures are not counted as product acceptance.
 
 | Item | Evidence | Result |
@@ -292,7 +292,7 @@ runs the sf4-net suite). Mock fixtures are not counted as product acceptance.
 | Records (extension) | bridge `records_follow_finished_matches`, `standings_rank_the_lobby`; SDK `bridge.test.ts` | Automated, pass |
 | Tournaments (extension) | protocol `tournament` unit tests (seeding, byes for 3 to 17, every double elimination entrant losing twice, the first losers drop avoiding a rematch at 8, 16 and 32, resets, walkovers, reopening); bridge `tournaments.rs` (each format end to end, a busy player and a lobby, withdrawal, unlinking, corrections, cancellation); notifier `announces_tournament_progress`; SDK `bridge.test.ts` | Automated, pass |
 | Lobbies (extension) | bridge `lobbies.rs` (rotations, leaving and unlinking, players busy in other matches, and the lobby resuming and announcing seat changes when they are free); notifier `announces_lobby_rotations`; SDK `bridge.test.ts` | Automated, pass |
-| Linux | `cargo test --locked` in `rust/ember` and `npm test` in `sdk/typescript` (Node 24 from nodejs.org) on Ubuntu 26.04, x86_64, at `efe545e` | Automated, pass |
+| Linux | `cargo test --locked` in `server/ember` and `npm test` in `sdk/typescript` (Node 24 from nodejs.org) on Ubuntu 26.04, x86_64, at `efe545e` | Automated, pass |
 
 Tournament play on `feat/tournament-play` (same machine and toolchain):
 
