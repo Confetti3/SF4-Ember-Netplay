@@ -521,11 +521,20 @@ static void RunRecovery(const wchar_t* helperPath, bool relayOnly, std::size_t c
                 // and then proposes it in one tick. Start from an idle owner,
                 // or that candidate may be an earlier commit still applying
                 // (checkpoints decode off the game thread) and not this Ready.
+                // The sender must also hold the owner's table: the commit of
+                // the other fighter's Ready moves its revision, and a Ready
+                // built before this member applied it is refused as stale.
+                // That refusal would be the candidate, with no game_prepare.
                 auto& owner=peers[0];
                 wait([&]() {
                     pump();
+                    const auto* committed=owner.server->RoomSnapshot();
+                    const auto& view=peers[peer].client->GetRoomSnapshot();
                     return !owner.server->HasRecoveryCandidate() && !owner.server->PendingProposal() &&
-                        owner.recovery.CaughtUp(owner.room->Coordination());
+                        owner.recovery.CaughtUp(owner.room->Coordination()) && committed &&
+                        peers[peer].recovery.CaughtUp(peers[peer].room->Coordination()) &&
+                        peers[peer].recovery.AppliedRevision()==owner.recovery.AppliedRevision() &&
+                        view.revision==committed->revision && view.tables[0].revision==committed->tables[0].revision;
                 });
             }
             // After a cancelled preparation the member's control can still be
