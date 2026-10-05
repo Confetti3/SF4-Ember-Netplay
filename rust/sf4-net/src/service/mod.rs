@@ -291,6 +291,9 @@ struct ProbeAuthorization {
     leader: Option<u64>,
     revision: u64,
     expires: u64,
+    /// When the authorization stops being usable, on this PC's monotonic
+    /// clock, counted from when it was requested.
+    deadline: tokio::time::Instant,
 }
 
 struct GameSlot {
@@ -458,11 +461,22 @@ impl Drop for GameSlot {
 fn failed(code: &'static str) -> io::Error {
     io::Error::other(code)
 }
+#[cfg(test)]
+tokio::task_local! {
+    /// Tests only: seconds this task's reading of the wall clock is moved by,
+    /// as if this PC's clock were set differently.
+    static WALL_CLOCK_OFFSET: i64;
+}
+
 fn now() -> io::Result<u64> {
-    SystemTime::now()
+    let wall = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|v| v.as_secs())
-        .map_err(|_| failed("clock"))
+        .map_err(|_| failed("clock"))?;
+    #[cfg(test)]
+    let wall =
+        wall.saturating_add_signed(WALL_CLOCK_OFFSET.try_with(|offset| *offset).unwrap_or(0));
+    Ok(wall)
 }
 
 /// The helper's answer to `Command::Status`, from the running actor or while
