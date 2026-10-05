@@ -278,10 +278,15 @@ int wmain(int argc, wchar_t** argv) {
 			watching(*clients[2]) && watching(*clients[3]); });
 	const auto probePeer = rooms[1]->LocalIdentity();
 	CHECK(probePeer.size() == 64);
+	// The check names the table revision from client 0's view, and both
+	// helpers authorize it against the committed room: a view that has not
+	// caught up with the spectators' Watch names a stale revision, which the
+	// helper refuses (probe pair unavailable). Wait as waitRoomAction does.
 	wait([&]() {
 		pump();
 		const auto control = rooms[0]->ConnectionForIdentity(probePeer);
-		return control != 0 && rooms[0]->PeerIncarnation(control) != 0;
+		return control != 0 && rooms[0]->PeerIncarnation(control) != 0 &&
+			clients[0]->GetRoomSnapshot().revision == server.RoomSnapshot()->revision;
 	});
 	// Match the player UI: probe occupied seats before Ready sends selections.
 	CHECK(clients[0]->GetRoomSnapshot().members[0].fighter == -1);
