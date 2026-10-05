@@ -310,7 +310,8 @@ static void TestPermitWindowAcrossRecovery() {
 }
 
 // A replica restoring a commit made before an outage keeps the age its own
-// clock gave the same reservation; another reservation's age is not carried.
+// clock gave the same reservation, brought to the time it next ages; a newer
+// commit's age is not counted twice, and another reservation's is not carried.
 static void TestRestoreKeepsPermitAge() {
 	RoomAuthority leader("Match", 8, 1);
 	MemberId a = 0, b = 0;
@@ -321,21 +322,35 @@ static void TestRestoreKeepsPermitAge() {
 	replica.AgePermitHolds(1);
 	replica.AgePermitHolds(100001);
 	const auto aged = replica.PermitAges();
-	CHECK(aged.tables[0].first == reserved && aged.tables[0].second == 130000);
+	CHECK(aged.clockMs == 100001 && aged.tables[0].first == reserved && aged.tables[0].second == 130000);
 	RoomAuthority restored("Other", 8, 1);
 	CHECK(restored.RestoreCheckpoint(stale));
 	restored.KeepPermitAges(aged);
 	CHECK(restored.PermitAges().tables[0].second == 130000);
-	// A younger age does not take it back.
-	auto younger = aged;
-	younger.tables[0].second = 1000;
-	restored.KeepPermitAges(younger);
-	CHECK(restored.PermitAges().tables[0].second == 130000);
+	restored.AgePermitHolds(110001);
+	CHECK(restored.PermitAges().tables[0].second == 140000);
+	// A newer commit's age already covers the time since the kept one was
+	// taken: 30 s kept at 100 s, 100 s committed, aged at 170 s is 100 s.
+	RoomAuthority newer("Other", 8, 1);
+	CHECK(newer.RestoreCheckpoint(stale));
+	newer.AgePermitHolds(1);
+	newer.AgePermitHolds(70001);
+	const auto fresh = newer.Checkpoint();
+	RoomAuthority kept("Other", 8, 1);
+	CHECK(kept.RestoreCheckpoint(stale));
+	kept.AgePermitHolds(100000);
+	RoomAuthority merged("Other", 8, 1);
+	CHECK(merged.RestoreCheckpoint(fresh));
+	merged.KeepPermitAges(kept.PermitAges());
+	merged.AgePermitHolds(170000);
+	CHECK(merged.PermitAges().tables[0].second == 100000);
+	// Another reservation's age is neither carried nor charged to this one.
 	RoomAuthority other("Other", 8, 1);
 	CHECK(other.RestoreCheckpoint(stale));
 	auto elsewhere = aged;
 	elsewhere.tables[0].first = reserved + 1;
 	other.KeepPermitAges(elsewhere);
+	other.AgePermitHolds(200001);
 	CHECK(other.PermitAges().tables[0].second == 30000);
 	// A retried recovery restores the same commit tick after tick. Each
 	// restore ages on from the last instead of starting the clock again.
