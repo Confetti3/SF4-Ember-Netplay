@@ -6782,6 +6782,17 @@ async fn the_host_keeps_a_link_a_departed_member_shared() {
     // The same departure confirmed again asks nothing.
     host.apply_confirmed_retirements(BTreeSet::from([21]), &history);
     assert_eq!(host.short.adopt_at, 0);
+    // With every worker busy, a lookup waits for one instead of being lost.
+    while host.tasks.len() < MAX_TASKS {
+        host.tasks.spawn(std::future::pending::<Completion>());
+    }
+    host.apply_confirmed_retirements(BTreeSet::from([20]), &history);
+    host.pump_short_link(now().unwrap());
+    assert!(host.tasks.len() == MAX_TASKS && host.short.adopt_at != 0);
+    host.tasks.abort_all();
+    while host.tasks.join_next().await.is_some() {}
+    assert!(pump_adopt(&mut host).await);
+    assert_eq!(host.short.adopt_at, 0);
 
     // The guest shares a link, then leaves while the host leads on.
     guest.short_invite_command(7).unwrap();

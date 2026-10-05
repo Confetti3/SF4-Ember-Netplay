@@ -261,16 +261,20 @@ impl Actor {
         if self.short.adopting {
             return;
         }
-        self.short.adopt_at = 0;
-        if self.short.room.is_some()
-            || self.short.adopt_tries >= ADOPT_TRIES
-            || self.tasks.len() >= MAX_TASKS
-        {
+        if self.short.room.is_some() || self.short.adopt_tries >= ADOPT_TRIES {
+            self.short.adopt_at = 0;
             return;
         }
-        let Some(current) = self.current_invite() else {
-            return;
+        // Busy workers or an invitation not yet at hand defer the lookup to
+        // a later pump; it is not dropped.
+        let current = match self.current_invite() {
+            Some(current) if self.tasks.len() < MAX_TASKS => current,
+            _ => {
+                self.short.adopt_at = self.short.adopt_at.max(1);
+                return;
+            }
         };
+        self.short.adopt_at = 0;
         let code = current.short_code();
         self.short.adopting = true;
         self.short.adopt_tries += 1;
