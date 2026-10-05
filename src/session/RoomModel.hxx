@@ -574,10 +574,15 @@ public:
 	// process's monotonic clock), healthy or not; AdvancePausedTimers leaves
 	// them alone.
 	void AgePermitHolds(std::uint64_t nowMs);
-	// Each table's permit generation and how long ago it was reserved. A
-	// restore from a commit made before an outage would move that age back;
-	// KeepPermitAges keeps the larger age for the same reservation.
-	using PermitAgeList = std::array<std::pair<std::uint64_t, std::uint64_t>, TableCount>;
+	// Each table's permit generation and how long ago it was reserved, as of
+	// clockMs (AgePermitHolds' clock). A restore from a commit made before an
+	// outage would move that age back; KeepPermitAges keeps the larger age for
+	// the same reservation and goes on aging from clockMs, so restoring again
+	// and again does not stop the window.
+	struct PermitAgeList {
+		std::uint64_t clockMs = 0;
+		std::array<std::pair<std::uint64_t, std::uint64_t>, TableCount> tables = {};
+	};
 	PermitAgeList PermitAges() const;
 	void KeepPermitAges(const PermitAgeList& ages);
 	void ResumeRecovery(std::uint64_t nowMs);

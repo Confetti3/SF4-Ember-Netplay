@@ -118,12 +118,13 @@ void RoomAuthority::AgePermitHolds(std::uint64_t nowMs) {
 }
 
 RoomAuthority::PermitAgeList RoomAuthority::PermitAges() const {
-	PermitAgeList ages = {};
+	PermitAgeList ages;
+	ages.clockMs = recoveryPaused_ ? permitClockMs_ : nowMs_;
 	for (std::size_t i = 0; i < TableCount; ++i) {
 		const auto generation = snapshot_.tables[i].permitGeneration;
 		if (!generation) continue;
 		const auto since = permitHeldSince_[i];
-		ages[i] = {generation, recoveryPaused_ ? since : nowMs_ >= since ? nowMs_ - since : 0};
+		ages.tables[i] = {generation, recoveryPaused_ ? since : nowMs_ >= since ? nowMs_ - since : 0};
 	}
 	return ages;
 }
@@ -132,8 +133,9 @@ void RoomAuthority::KeepPermitAges(const PermitAgeList& ages) {
 	if (!recoveryPaused_) return;
 	// Generations are never reused, so the same one is the same reservation.
 	for (std::size_t i = 0; i < TableCount; ++i)
-		if (snapshot_.tables[i].permitGeneration && ages[i].first == snapshot_.tables[i].permitGeneration)
-			permitHeldSince_[i] = (std::max)(permitHeldSince_[i], ages[i].second);
+		if (snapshot_.tables[i].permitGeneration && ages.tables[i].first == snapshot_.tables[i].permitGeneration)
+			permitHeldSince_[i] = (std::max)(permitHeldSince_[i], ages.tables[i].second);
+	permitClockMs_ = ages.clockMs;
 }
 
 void RoomAuthority::ResumeRecovery(std::uint64_t nowMs) {

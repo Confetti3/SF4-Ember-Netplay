@@ -2,6 +2,7 @@
 // permit each game waits for, and the binding surviving a checkpoint.
 #include "room_authority_support.hxx"
 
+#include <memory>
 #include <string>
 
 static const std::string EndpointA(64, 'a');
@@ -279,15 +280,15 @@ static void TestPermitWindowAcrossRecovery() {
 		const auto reserved = HoldOnePermit(leader, a, b, 31000);
 		RoomAuthority owner("Other", 8, 1);
 		CHECK(owner.RestoreCheckpoint(PausedCheckpoint(leader)));
-		CHECK(owner.PermitAges()[0].first == reserved && owner.PermitAges()[0].second == 30000);
+		CHECK(owner.PermitAges().tables[0].first == reserved && owner.PermitAges().tables[0].second == 30000);
 		// Healthy for 5 s: the room's own timers and the permit age once each.
 		owner.AgePermitHolds(500);
 		owner.AdvancePausedTimers(5000);
 		owner.AgePermitHolds(5500);
-		CHECK(owner.PermitAges()[0].second == 35000);
+		CHECK(owner.PermitAges().tables[0].second == 35000);
 		// Then the outage: no healthy time, but the permit's window runs on.
 		owner.AgePermitHolds(5500 + outage);
-		CHECK(owner.PermitAges()[0].second == 35000 + outage);
+		CHECK(owner.PermitAges().tables[0].second == 35000 + outage);
 		// The new owner's clock is its own, here lower than the old one's.
 		owner.ResumeRecovery(7000);
 		const bool expired = 35000 + outage + PermitStartMarginMs >= PermitStartMs;
@@ -320,22 +321,35 @@ static void TestRestoreKeepsPermitAge() {
 	replica.AgePermitHolds(1);
 	replica.AgePermitHolds(100001);
 	const auto aged = replica.PermitAges();
-	CHECK(aged[0].first == reserved && aged[0].second == 130000);
+	CHECK(aged.tables[0].first == reserved && aged.tables[0].second == 130000);
 	RoomAuthority restored("Other", 8, 1);
 	CHECK(restored.RestoreCheckpoint(stale));
 	restored.KeepPermitAges(aged);
-	CHECK(restored.PermitAges()[0].second == 130000);
+	CHECK(restored.PermitAges().tables[0].second == 130000);
 	// A younger age does not take it back.
 	auto younger = aged;
-	younger[0].second = 1000;
+	younger.tables[0].second = 1000;
 	restored.KeepPermitAges(younger);
-	CHECK(restored.PermitAges()[0].second == 130000);
+	CHECK(restored.PermitAges().tables[0].second == 130000);
 	RoomAuthority other("Other", 8, 1);
 	CHECK(other.RestoreCheckpoint(stale));
 	auto elsewhere = aged;
-	elsewhere[0].first = reserved + 1;
+	elsewhere.tables[0].first = reserved + 1;
 	other.KeepPermitAges(elsewhere);
-	CHECK(other.PermitAges()[0].second == 30000);
+	CHECK(other.PermitAges().tables[0].second == 30000);
+	// A retried recovery restores the same commit tick after tick. Each
+	// restore ages on from the last instead of starting the clock again.
+	auto current = std::make_unique<RoomAuthority>("Other", 8, 1);
+	CHECK(current->RestoreCheckpoint(stale));
+	current->AgePermitHolds(1);
+	for (std::uint64_t nowMs = 20001; nowMs <= 100001; nowMs += 20000) {
+		const auto before = current->PermitAges();
+		current = std::make_unique<RoomAuthority>("Other", 8, 1);
+		CHECK(current->RestoreCheckpoint(stale));
+		current->KeepPermitAges(before);
+		current->AgePermitHolds(nowMs);
+	}
+	CHECK(current->PermitAges().tables[0].second == 130000);
 }
 
 // Casual rooms are unchanged: Ready starts the game with no permit.
