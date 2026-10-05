@@ -231,6 +231,8 @@ void StartHelper() {
 	runtime->preferences.lobby.roundTime = GetConfig().roundTimeIntegral;
 	if (!runtime->preferences.lobby.Valid()) runtime->preferences.lobby = {};
 	if (runtime->preferences.inputDelay < 0 || runtime->preferences.inputDelay > MaximumInputDelay) runtime->preferences.inputDelay = 2;
+	// A profile saved at zero, before the minimum, moves up to it.
+	if (runtime->preferences.inputDelay < MinimumInputDelay) runtime->preferences.inputDelay = MinimumInputDelay;
 	{
 		nlohmann::json saved;
 		std::string error;

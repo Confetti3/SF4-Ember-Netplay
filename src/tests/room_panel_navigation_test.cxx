@@ -230,12 +230,12 @@ int main() try {
     press(MenuInput::Right);
     Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 3,
         "Manual delay did not submit the bounded value");
-    // Auto sits before zero. With it on, the row shows its bounds and,
+    // Auto sits before one frame. With it on, the row shows its bounds and,
     // once the opponent is measured, the delay it resolves to; Select no longer
-    // takes the recommendation, and Right returns to zero.
-    view.selectedDelay = 0; frame(); press(MenuInput::Left);
+    // takes the recommendation, and Right returns to one frame.
+    view.selectedDelay = 1; frame(); press(MenuInput::Left);
     Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == AutoInputDelayChoice,
-        "Left from zero did not choose Auto");
+        "Left from one frame did not choose Auto");
     view.preferences.autoInputDelay = true; view.selectedDelay = 2; frame();
     Check(row("input-delay").value == "Auto", "Auto showed a delay before measuring the opponent");
     view.autoDelayMeasured = true; view.selectedDelay = 3; frame();
@@ -244,8 +244,8 @@ int main() try {
         row("input-delay").detail.find("Match: At least 3 frames") != std::string::npos,
         "Auto did not show its delay and bounds, or still offered the recommendation");
     press(MenuInput::Right);
-    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 0,
-        "Right from Auto did not choose zero");
+    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 1,
+        "Right from Auto did not choose one frame");
     view.preferences.autoInputDelay = false; view.autoDelayMeasured = false; view.selectedDelay = 2; frame();
     // Fighter, Ultra and Appearance sit under Ready. Left and Right step the
     // Ultra and the color without leaving the page; Select opens their cards

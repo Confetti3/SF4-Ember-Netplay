@@ -4,6 +4,8 @@ namespace sf4e {
 // The largest input delay a fighter can choose, in frames. Preferences, the
 // room authority, its checkpoints and the connection check all share it.
 constexpr int MaximumInputDelay = 10;
+// The smallest a fighter can choose. Zero would predict every remote frame.
+constexpr int MinimumInputDelay = 1;
 
 // Auto takes the connection check's recommendation, held between these.
 constexpr int AutoInputDelayMinimum = 1;
@@ -18,10 +20,10 @@ constexpr int AutoInputDelay(int recommended) {
 
 // Where a delay command carries a number, this asks for Auto.
 constexpr int AutoInputDelayChoice = -2;
-// One step along the delay row: Auto, then 0 to MaximumInputDelay.
+// One step along the delay row: Auto, then MinimumInputDelay to MaximumInputDelay.
 constexpr int StepInputDelay(bool automatic, int delay, int delta) {
-    return automatic ? (delta > 0 ? 0 : AutoInputDelayChoice) :
-        delay + delta < 0 ? AutoInputDelayChoice :
+    return automatic ? (delta > 0 ? MinimumInputDelay : AutoInputDelayChoice) :
+        delay + delta < MinimumInputDelay ? AutoInputDelayChoice :
         delay + delta > MaximumInputDelay ? MaximumInputDelay : delay + delta;
 }
 }

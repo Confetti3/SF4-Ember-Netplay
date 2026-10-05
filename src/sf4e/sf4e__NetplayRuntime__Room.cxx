@@ -304,7 +304,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         }
         const bool automatic=selected==AutoInputDelayChoice;
         if(!automatic) {
-            if(selected<0 || selected>MaximumInputDelay) break;
+            if(selected<MinimumInputDelay || selected>MaximumInputDelay) break;
             runtime->selectedDelay=selected;
             runtime->preferences.inputDelay=selected;
         }

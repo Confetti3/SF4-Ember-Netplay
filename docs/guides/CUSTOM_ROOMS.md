@@ -44,8 +44,8 @@ A new profile is on **Auto**: the connection check runs by itself for each
 opponent and Ready waits for it to end. You ready with its recommendation held
 between one and three frames, or with two frames if it produced none. **Check
 connection** runs the same five-second measurement by hand. Left and Right
-choose a delay of your own instead, from zero to ten, with Auto one step below
-zero. A chosen delay is saved, Select applies a valid recommendation to it,
+choose a delay of your own instead, from one to ten, with Auto one step below
+one. A chosen delay is saved, Select applies a valid recommendation to it,
 and you can Ready without a usable probe. Ready locks your own delay for that
 game; Unready unlocks it. A route change or a new
 recommendation never changes delay during a fight. The table's rules follow on

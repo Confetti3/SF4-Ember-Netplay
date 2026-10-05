@@ -1877,7 +1877,7 @@ msgid "room.ready_up"
 msgstr "准备"
 
 msgid "room.selected_delay.detail"
-msgstr "可在 0 至 10 帧间调整，低于 0 为自动，立即生效。"
+msgstr "可在 1 至 10 帧间调整，低于 1 为自动，立即生效。"
 
 msgid "room.selected_delay.locked"
 msgstr "本场对战的所选延迟已锁定。"

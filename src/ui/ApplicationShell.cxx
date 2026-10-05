@@ -395,7 +395,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="capacity")preferences_.roomCapacity=(std::max)(2,(std::min)(16,preferences_.roomCapacity+a.delta));
   else if(a.id=="invite-lifetime")preferences_.inviteLifetimeHours=StepInviteLifetime(preferences_.inviteLifetimeHours,a.delta);
   else if(a.id=="delay"){
-   // Auto sits before zero. Choosing it keeps the number; leaving it starts at zero.
+   // Auto sits before the smallest delay. Choosing it keeps the number; leaving it starts at the smallest.
    const int next=StepInputDelay(preferences_.autoInputDelay,preferences_.inputDelay,a.delta);
    preferences_.autoInputDelay=next==AutoInputDelayChoice;if(!preferences_.autoInputDelay)preferences_.inputDelay=next;
   }

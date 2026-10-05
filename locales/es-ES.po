@@ -1877,7 +1877,7 @@ msgid "room.ready_up"
 msgstr "Marcar Listo"
 
 msgid "room.selected_delay.detail"
-msgstr "Ajusta entre 0 y 10 fotogramas, o baja de 0 para Auto. Los cambios se aplican al instante."
+msgstr "Ajusta entre 1 y 10 fotogramas, o baja de 1 para Auto. Los cambios se aplican al instante."
 
 msgid "room.selected_delay.locked"
 msgstr "El retraso seleccionado está bloqueado para esta partida."

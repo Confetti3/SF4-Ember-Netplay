@@ -234,11 +234,11 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     !canChange?SelectionBlocker(v):loc::T(stageOwner?"selection.p1_stage":"selection.only_p1_stage"),canChange&&stageOwner);
    rulesRows();
     // One delay row: Left and Right choose it, Select takes the recommendation.
-    // Auto sits before zero. It shows a number once the check
+    // Auto sits before the smallest delay. It shows a number once the check
     // has measured this opponent, or once Ready has locked one.
     const bool autoDelay=v.preferences.autoInputDelay;
     const bool delayEditable=mutableRoom&&!active&&!v.delayLocked;
-    const int selectedDelay=(std::max)(0,(std::min)(MaximumInputDelay,v.selectedDelay));
+    const int selectedDelay=(std::max)(MinimumInputDelay,(std::min)(MaximumInputDelay,v.selectedDelay));
     const bool recommended=v.recommendedDelay>=0&&v.recommendedDelay<=MaximumInputDelay;
     const auto check=DescribeConnectionCheck(v);
     const bool opponentReady=v.opponentDelay>=0&&v.opponentDelay<=MaximumInputDelay;
@@ -768,7 +768,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
    return;}
   if(a.id=="check-connection"){sendDelay(netplay::CommandKind::CheckConnection,-1);return;}
   if(a.id=="input-delay"){
-   // Select takes the recommendation; Left and Right choose a delay, or Auto before zero.
+   // Select takes the recommendation; Left and Right choose a delay, or Auto before the smallest.
    const int selected=a.kind==MenuAction::Adjust?StepInputDelay(v.preferences.autoInputDelay,v.selectedDelay,a.delta):-1;
    sendDelay(netplay::CommandKind::ApplyDelay,selected);return;
   }
