@@ -1970,7 +1970,7 @@ msgid "room.ready_up"
 msgstr "準備完了にする"
 
 msgid "room.selected_delay.detail"
-msgstr "0～10Fの範囲で調整します。変更はすぐに反映されます。"
+msgstr "1～10Fの範囲で調整します。変更はすぐに反映されます。"
 
 msgid "room.selected_delay.locked"
 msgstr "この対戦中、選択した遅延は固定されます。"

@@ -271,7 +271,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    rulesRows();
     // One delay row: Left and Right choose it, Select takes the recommendation.
     const bool delayEditable=mutableRoom&&!active&&!v.delayLocked;
-    const int selectedDelay=(std::max)(0,(std::min)(MaximumInputDelay,v.selectedDelay));
+    const int selectedDelay=(std::max)(MinimumInputDelay,(std::min)(MaximumInputDelay,v.selectedDelay));
     const bool recommended=v.recommendedDelay>=0&&v.recommendedDelay<=MaximumInputDelay;
     const auto check=DescribeConnectionCheck(v);
     const bool opponentReady=v.opponentDelay>=0&&v.opponentDelay<=MaximumInputDelay;
@@ -819,7 +819,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   if(a.id=="check-connection"){sendDelay(netplay::CommandKind::CheckConnection,-1);return;}
   if(a.id=="input-delay"){
    // Select takes the recommendation; Left and Right choose a delay.
-   const int selected=a.kind==MenuAction::Adjust?(std::max)(0,(std::min)(10,v.selectedDelay+a.delta)):-1;
+   const int selected=a.kind==MenuAction::Adjust?(std::max)(MinimumInputDelay,(std::min)(MaximumInputDelay,v.selectedDelay+a.delta)):-1;
    sendDelay(netplay::CommandKind::ApplyDelay,selected);return;
   }
   if(a.id=="ultra"||a.id=="appearance"){

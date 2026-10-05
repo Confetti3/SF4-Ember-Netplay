@@ -508,7 +508,7 @@ bool IrohRoom::ConsumeCoordinationEvent(const json& event, const std::string& ty
         const unsigned expected=probe_.benchmark?600:100;
         const int recommendation=event.at("recommended_delay");
         probe_.recommended=(probe_.status=="complete" || probe_.status=="ready") && probe_.samples>=expected*4/5 &&
-            probe_.samples<=expected && probe_.samples+probe_.lost==expected && recommendation>=0 && recommendation<=MaximumInputDelay ? recommendation : -1;
+            probe_.samples<=expected && probe_.samples+probe_.lost==expected && recommendation>=0 && recommendation<=MaximumInputDelay ? PlayableInputDelay(recommendation) : -1;
         return true;
     }
     return true;

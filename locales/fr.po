@@ -1970,7 +1970,7 @@ msgid "room.ready_up"
 msgstr "Passer à Prêt"
 
 msgid "room.selected_delay.detail"
-msgstr "Réglez de 0 à 10 trames. Application immédiate."
+msgstr "Réglez de 1 à 10 trames. Application immédiate."
 
 msgid "room.selected_delay.locked"
 msgstr "Le délai choisi est verrouillé pour ce combat."

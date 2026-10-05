@@ -1970,7 +1970,7 @@ msgid "room.ready_up"
 msgstr "Gotowe"
 
 msgid "room.selected_delay.detail"
-msgstr "Ustaw od 0 do 10 klatek. Zmiany działają od razu."
+msgstr "Ustaw od 1 do 10 klatek. Zmiany działają od razu."
 
 msgid "room.selected_delay.locked"
 msgstr "Wybrane opóźnienie jest zablokowane na tę walkę."

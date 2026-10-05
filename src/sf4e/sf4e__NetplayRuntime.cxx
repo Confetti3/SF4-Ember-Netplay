@@ -273,7 +273,7 @@ void StartHelper() {
 	runtime->preferences.lobby.roundCount = GetConfig().roundCount;
 	runtime->preferences.lobby.roundTime = GetConfig().roundTimeIntegral;
 	if (!runtime->preferences.lobby.Valid()) runtime->preferences.lobby = {};
-	if (runtime->preferences.inputDelay < 0 || runtime->preferences.inputDelay > MaximumInputDelay) runtime->preferences.inputDelay = 2;
+	runtime->preferences.inputDelay = SavedInputDelay(runtime->preferences.inputDelay);
 	{
 		nlohmann::json saved;
 		std::string error;

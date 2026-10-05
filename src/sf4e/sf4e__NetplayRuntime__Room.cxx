@@ -369,6 +369,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
             selected=probe.recommended;
         }
         if(selected<0 || selected>MaximumInputDelay) break;
+        selected=PlayableInputDelay(selected);
         runtime->selectedDelay=selected;
         UserApp::netplay->client.SetSelectedDelay(selected);
         runtime->preferences.inputDelay=selected;

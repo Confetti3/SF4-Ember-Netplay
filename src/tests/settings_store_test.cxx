@@ -98,12 +98,17 @@ int main() {
     }
     CHECK(discordDefaults.discordPresence && discordDefaults.discordInvites);
     CHECK(discordDefaults.inputDelay == 2);
-    discordDefaults.inputDelay = 0; CHECK(discordDefaults.Valid());
+    discordDefaults.inputDelay = 0; CHECK(!discordDefaults.Valid());
+    discordDefaults.inputDelay = 1; CHECK(discordDefaults.Valid());
     discordDefaults.inputDelay = 10; CHECK(discordDefaults.Valid());
     discordDefaults.inputDelay = -1; CHECK(!discordDefaults.Valid());
     discordDefaults.inputDelay = 11; CHECK(!discordDefaults.Valid());
     CHECK(store.SaveLauncher({{"inputDelay", 0}}, error));
     CHECK(store.LoadLauncher(result, error) && result["inputDelay"] == 0);
+    // A 0 saved before it was withdrawn plays at 1; out of range is the default.
+    CHECK(sf4e::SavedInputDelay(result["inputDelay"].get<int>()) == 1);
+    CHECK(sf4e::SavedInputDelay(1) == 1 && sf4e::SavedInputDelay(3) == 3 && sf4e::SavedInputDelay(10) == 10);
+    CHECK(sf4e::SavedInputDelay(-1) == 2 && sf4e::SavedInputDelay(11) == 2);
     CHECK(store.SaveLauncher({{"inputDelay", 3}}, error));
     CHECK(store.SaveLauncher({{"discordPresence",false},{"discordInvites",false}},error));
     CHECK(store.LoadLauncher(result,error));

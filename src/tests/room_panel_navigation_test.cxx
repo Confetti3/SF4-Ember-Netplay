@@ -228,6 +228,13 @@ int main() try {
     press(MenuInput::Right);
     Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 3,
         "Manual delay did not submit the bounded value");
+    // 0 frames is not offered: Left from 1 stays at 1, and an older 0 reads as 1.
+    view.selectedDelay = 1; frame(); press(MenuInput::Left);
+    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 1,
+        "Input delay offered 0 frames");
+    view.selectedDelay = 0; frame();
+    Check(row("input-delay").value == "1 frames", "Input delay showed 0 frames");
+    view.selectedDelay = 2; frame();
     // Fighter, Ultra and Appearance sit under Ready. Left and Right step the
     // Ultra and the color without leaving the page; Select opens their cards
     // in fighter select.

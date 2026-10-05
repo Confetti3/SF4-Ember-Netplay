@@ -1970,7 +1970,7 @@ msgid "room.ready_up"
 msgstr "Klaar melden"
 
 msgid "room.selected_delay.detail"
-msgstr "Stel in van 0 tot 10 frames. Wijzigingen gelden meteen."
+msgstr "Stel in van 1 tot 10 frames. Wijzigingen gelden meteen."
 
 msgid "room.selected_delay.locked"
 msgstr "De gekozen vertraging staat vast voor deze match."

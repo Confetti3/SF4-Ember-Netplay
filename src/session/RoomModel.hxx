@@ -331,7 +331,8 @@ constexpr unsigned StaleGameSeconds = 600;
 // Both fighters play at the higher of their Ready delays. A fighter's delay
 // decides how much rollback the other side sees, so separate values gave the
 // lower-delay fighter an advantage. inputDelay keeps each fighter's own choice.
-inline int MatchDelay(int first, int second) { return first > second ? first : second; }
+// A match never plays at 0, whatever an older client readied with.
+inline int MatchDelay(int first, int second) { return PlayableInputDelay(first > second ? first : second); }
 inline std::uint8_t MatchDelay(const Table& table) {
 	return static_cast<std::uint8_t>(MatchDelay(table.inputDelay[0], table.inputDelay[1]));
 }
