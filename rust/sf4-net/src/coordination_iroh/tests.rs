@@ -398,3 +398,107 @@ async fn retired_incarnation_cannot_replay_admission() {
     departing.close().await;
     replacement.close().await;
 }
+
+/// A member that stops answering, such as a leader whose game was closed,
+/// holds every RPC sent to it until the deadline, and each leader read sends
+/// it another heartbeat. Those calls must not take the budget of the members
+/// that still answer: there, a heartbeat refused before it was sent cost the
+/// new leader its quorum proof.
+#[tokio::test]
+async fn unanswering_target_cannot_starve_calls_to_others() {
+    let room = [14; 16];
+    let caller = IrohRpc::bind(room, 1, false).await.unwrap();
+    let live = IrohRpc::bind(room, 2, false).await.unwrap();
+    let silent = IrohRpc::bind(room, 3, false).await.unwrap();
+    live.admit(1, caller.address()).await.unwrap();
+    caller.admit(2, live.address()).await.unwrap();
+    caller.admit(3, silent.address()).await.unwrap();
+    let coordinator = Arc::new(
+        Coordinator::new_for_room(room, 2, live.clone())
+            .await
+            .unwrap(),
+    );
+    coordinator
+        .raft()
+        .initialize(BTreeMap::from([(
+            2,
+            BasicNode::new(live.identity().to_string()),
+        )]))
+        .await
+        .unwrap();
+    coordinator
+        .raft()
+        .wait(Some(Duration::from_secs(5)))
+        .current_leader(2, "single leader")
+        .await
+        .unwrap();
+    let serving = tokio::spawn(live.clone().serve(coordinator.clone()));
+    // The silent member accepts the connection and every stream and never
+    // answers one, so each call to it stays in flight until its deadline.
+    let silent_endpoint = silent.endpoint.clone();
+    let stalled = tokio::spawn(async move {
+        let connection = silent_endpoint.accept().await.unwrap().await.unwrap();
+        let mut streams = Vec::new();
+        while let Ok(stream) = connection.accept_bi().await {
+            streams.push(stream);
+        }
+    });
+
+    // More calls than the whole budget used to allow.
+    let attempts = 4 * caller.limit;
+    let mut silent_calls = JoinSet::new();
+    for _ in 0..attempts {
+        let caller = caller.clone();
+        let expected = silent.identity().to_string();
+        silent_calls.spawn(async move {
+            <IrohRpc as RpcTransport>::call(caller.as_ref(), 3, expected, "append", vec![0]).await
+        });
+    }
+    // The calls past the target's bound are refused at once; the rest wait.
+    let mut refused = 0;
+    while refused < attempts - MAX_TARGET_IN_FLIGHT {
+        let result = timeout(Duration::from_secs(5), silent_calls.join_next())
+            .await
+            .expect("a call past the target's bound waited")
+            .unwrap()
+            .unwrap();
+        assert!(result.is_err(), "the silent member answered");
+        refused += 1;
+    }
+    assert_eq!(
+        caller.target_in_flight.lock().unwrap().get(&3).copied(),
+        Some(MAX_TARGET_IN_FLIGHT)
+    );
+
+    // A call to the member that answers still goes out and succeeds.
+    let answered = timeout(
+        Duration::from_secs(5),
+        <IrohRpc as RpcTransport>::call(
+            caller.as_ref(),
+            2,
+            live.identity().to_string(),
+            "authority",
+            vec![0],
+        ),
+    )
+    .await
+    .expect("the call to the answering member waited");
+    assert!(
+        answered.is_ok(),
+        "the silent member starved a call to another member"
+    );
+    assert!(
+        silent_calls.try_join_next().is_none(),
+        "a call within the target's bound ended early"
+    );
+
+    silent_calls.abort_all();
+    while silent_calls.join_next().await.is_some() {}
+    assert!(caller.target_in_flight.lock().unwrap().is_empty());
+    stalled.abort();
+    serving.abort();
+    coordinator.raft().shutdown().await.unwrap();
+    caller.close().await;
+    live.close().await;
+    silent.close().await;
+}
