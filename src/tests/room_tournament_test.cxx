@@ -365,6 +365,21 @@ static void TestRestoreKeepsPermitAge() {
 		current->AgePermitHolds(nowMs);
 	}
 	CHECK(current->PermitAges().tables[0].second == 130000);
+	// Resuming without aging first, directly or through AdvanceTime, takes
+	// the kept age along: 130 s at 100 s is 140 s at 110 s, past the window,
+	// so the reservation is called off instead of starting late.
+	for (const bool advance : {false, true}) {
+		RoomAuthority resumed("Other", 8, 1);
+		CHECK(resumed.RestoreCheckpoint(stale));
+		resumed.KeepPermitAges(aged);
+		if (advance) resumed.AdvanceTime(110001);
+		else {
+			resumed.ResumeRecovery(110001);
+			CHECK(resumed.PermitAges().tables[0].second == 140000);
+			resumed.AdvanceTime(110002);
+		}
+		CHECK(resumed.SnapshotView().tables[0].permitGeneration != reserved);
+	}
 }
 
 // Casual rooms are unchanged: Ready starts the game with no permit.
