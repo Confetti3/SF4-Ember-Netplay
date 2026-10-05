@@ -135,11 +135,13 @@ std::string PublicRoomsPanel::KnownRegion(const ShellView& v) {
     return relay == "other" ? std::string() : relay;
 }
 
-void PublicRoomsPanel::Create(const std::string& name, int capacity) {
+void PublicRoomsPanel::Create(const std::string& name, int capacity, const room::Rules& rules) {
+    if (pending_) return;
     Command command;
     command.op = Command::Op::RoomCreate;
     command.bridgeId = bridge_; command.roomName = name; command.capacity = capacity;
     Begin(std::move(command));
+    pending_->createdRules = rules;
 }
 
 void PublicRoomsPanel::Begin(netplay::tournament::Command command) {
@@ -227,7 +229,7 @@ void PublicRoomsPanel::Update(const ShellView& v, const std::string& screen, con
     // Only these screens show the wait and can act on its answer.
     if (pending_ && !Owns(screen) && screen != "create") pending_.reset();
     if (pending_ && pending_->sent) {
-        if (list.answered == pending_->command.request) { const Command done = pending_->command; pending_.reset(); Joined(v, submit, done, now); }
+        if (list.answered == pending_->command.request) { const Pending done = *pending_; pending_.reset(); Joined(v, submit, done, now); }
         else if (now - pending_->sentAt > AnswerSeconds) { pending_.reset(); Say(FailureText("unavailable")); }
     }
     // The list is kept fresh while the player is looking at it and free: not while
@@ -255,7 +257,8 @@ void PublicRoomsPanel::Update(const ShellView& v, const std::string& screen, con
 }
 
 // The answer to a create or ticket: a refusal in words, or the admission to join with.
-void PublicRoomsPanel::Joined(const ShellView& v, const Submit& submit, const Command& done, double now) {
+void PublicRoomsPanel::Joined(const ShellView& v, const Submit& submit, const Pending& answered, double now) {
+    const Command& done = answered.command;
     const auto& answer = v.publicRooms;
     if (!answer.failure.empty()) {
         // Full, locked and banned stay true for a while: Quick join does not offer that room again.
@@ -269,6 +272,7 @@ void PublicRoomsPanel::Joined(const ShellView& v, const Submit& submit, const Co
     join.command.generation = v.session.generation;
     join.command.invitation = answer.admission.invitation;
     join.publicTicket = answer.admission.ticket;
+    if (done.op == Command::Op::RoomCreate) join.createdRules = answered.createdRules;
     if (!submit(std::move(join))) { Say(loc::T("error.queue_failed")); return; }
     Current joined;
     joined.bridge = done.bridgeId;

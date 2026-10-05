@@ -20,6 +20,7 @@
 #include "../platform/ApplicationServices.hxx"
 #include "../common/RoomLimits.hxx"
 #include "../session/RoomModel.hxx"
+#include <optional>
 #include "../common/NoticeSeverity.hxx"
 #include <vector>
 #include <array>
@@ -92,6 +93,8 @@ namespace sf4e {
             netplay::tournament::Command tournament;
             // With JoinInvite: the signed ticket (JSON) of a public room's admission, or empty for a private room.
             std::string publicTicket;
+            // With the JoinInvite of a public room just created: the table rules chosen on Create.
+            std::optional<room::Rules> createdRules;
 		};
 		struct RuntimeSnapshot {
             ui::ControllerSample menuController;

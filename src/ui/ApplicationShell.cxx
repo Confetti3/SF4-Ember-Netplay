@@ -276,7 +276,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(screen=="create"||screen=="defaults"){
   title=screen=="create"?loc::T("room.create_title"):loc::T("settings.gameplay_defaults_title");const bool can=screen=="create"?v.canOpenRoom:v.canEditPreferences;
   // A public room is made by the service with the public default rules; the
-  // ones chosen here follow once the creator is in it as host (ApplyCreatedRules).
+  // ones chosen here follow once the creator is in it as host (netplay::CreatedRules).
   const bool publicRoom=screen=="create"&&preferences_.roomPublic;
   const std::string bridge=publicRoom?identity_.UsableBridge(v):std::string();
   if(screen=="defaults")rows.push_back(preferences_.autoInputDelay?Value("delay",loc::T("settings.input_delay"),loc::T("settings.input_delay.auto"),
@@ -487,7 +487,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?"roster":"";nav.Push(a.id);}
  else if(a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="discord"||a.id=="identity"||a.id=="developer")nav.Push(a.id);
  else if(a.id=="pr-create"||a.id=="pr-none")OpenPublicCreate();
- else if(a.id=="host"&&preferences_.roomPublic){error_.clear();createdRules_=CreatedRules{};createdRules_->rules=preferences_.publicTableRules;publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity);}
+ else if(a.id=="host"&&preferences_.roomPublic){error_.clear();publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,preferences_.publicTableRules);}
  else if(a.id=="host"||a.id=="join-now")Send(a.id=="host"?CommandKind::HostRoom:CommandKind::JoinInvite,v,submit);
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
  else if(a.id=="offline"||a.id=="controls")Send(CommandKind::StartOffline,v,submit);
@@ -607,10 +607,6 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   languageSaveAt_ = RebaseUiTimestamp(languageSaveAt_, lastUiTime_, now);
   noticeUntil_ = RebaseUiTimestamp(noticeUntil_, lastUiTime_, now);
   lockInReleasedUntil_ = RebaseUiTimestamp(lockInReleasedUntil_, lastUiTime_, now);
-  if(createdRules_){
-   if(createdRules_->roomEpoch)createdRules_->deadline=RebaseUiTimestamp(createdRules_->deadline,lastUiTime_,now);
-   if(createdRules_->table>=0)createdRules_->sentAt=RebaseUiTimestamp(createdRules_->sentAt,lastUiTime_,now);
-  }
   shortCopyUntil_ = RebaseUiTimestamp(shortCopyUntil_, lastUiTime_, now);
   roomUpdateUntil_ = RebaseUiTimestamp(roomUpdateUntil_, lastUiTime_, now);
   roomUpdateStarted_ = -1;
@@ -645,7 +641,6 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  UpdateShortCopy(v,now);
  UpdateJoinLink(v,now,submit);
  UpdatePublicRoomLink(v,now);
- ApplyCreatedRules(v,submit,now);
  if(openPublicCreate_){
   openPublicCreate_=false;
   if(v.session.room==RoomState::Idle&&v.canOpenRoom&&nav.Screen()=="public-rooms")OpenPublicCreate();

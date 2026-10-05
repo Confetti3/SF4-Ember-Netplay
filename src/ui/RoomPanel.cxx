@@ -766,41 +766,6 @@ void ApplicationShell::TrackLiveGames(const ShellView& v,double now) {
   else if(game.since<0||game.since>now||game.generation!=table.matchGeneration){game.generation=table.matchGeneration;game.since=now;}
  }
 }
-void ApplicationShell::ApplyCreatedRules(const ShellView& v,const Submit& submit,double now) {
- if(!createdRules_)return;
- auto& op=*createdRules_;
- const auto& s=v.room;const auto kind=publicRooms_.OpeningKind();
- if(kind&&*kind==PublicRoomsPanel::OpenKind::Join){createdRules_.reset();return;}
- if(v.session.room!=netplay::RoomState::Joined||!s.roomEpoch||!Member(s,s.localMember))return;
- if(!op.roomEpoch){
-  // Some other room, or someone else got in first and moderates it.
-  if(!kind||!s.serverOwned||s.host!=s.localMember){createdRules_.reset();return;}
-  op.roomEpoch=s.roomEpoch;op.host=s.localMember;op.deadline=now+CreatedRulesSeconds;
-  for(const auto& table:s.tables)op.before[table.id]=table.rules;
- }
- if(s.roomEpoch!=op.roomEpoch||s.localMember!=op.host||s.host!=op.host||now>=op.deadline){createdRules_.reset();return;}
- int next=-1;
- for(const auto& table:s.tables){
-  if(table.rules==op.rules)continue;
-  // Edited meanwhile, by the host's own Table options: that choice stands.
-  if(!(table.rules==op.before[table.id])){createdRules_.reset();return;}
-  if(next<0)next=table.id;
- }
- if(next<0){createdRules_.reset();return;}
- // One table at a time, so a fenced control parks one action, not several
- // that replace each other. One on its way is sent again once its table has
- // moved on without it (refused as stale) or nothing came back in time.
- if(op.table>=0){
-  const auto& sent=s.tables[op.table];
-  const bool landed=sent.rules==op.rules,moved=sent.revision!=op.tableRevision;
-  if(!landed&&!moved&&now-op.sentAt<CreatedRulesRetrySeconds)return;
-  op.table=-1;
- }
- if(!RoomActionsAvailable(v))return;
- const auto& table=s.tables[next];
- room::Action request;request.table=table.id;request.kind=room::ActionKind::SetRules;request.rules=op.rules;
- if(SendRoom(std::move(request),v,submit)){op.table=next;op.tableRevision=table.revision;op.sentAt=now;}
-}
 void ApplicationShell::TrackLockIn(const ShellView& v,double now) {
  const auto* local=Member(v.room,v.room.localMember);
  int lockedAt=-1;
