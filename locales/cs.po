@@ -3205,10 +3205,10 @@ msgid "public.create"
 msgstr "Vytvořit veřejnou místnost"
 
 msgid "public.create_detail"
-msgstr "Otevře místnost viditelnou pro všechny hráče s Ember ID. Jste jejím hostitelem a pravidla nastavíte přímo v ní."
+msgstr "Otevře místnost viditelnou pro všechny hráče s Ember ID, vy jste hostitel. Stoly začínají hrou do 2 výher, vítěz zůstává; změnit to můžete v Možnostech stolu."
 
 msgid "public.create_requirements"
-msgstr "Otevře veřejnou místnost ve službě Ember ID a připojí vás do ní. Pravidla stolu nastavte v místnosti."
+msgstr "Otevře veřejnou místnost ve službě Ember ID a připojí vás do ní. Stoly začínají hrou do 2 výher, vítěz zůstává; změnit to můžete v Možnostech stolu."
 
 msgid "public.create_needs_id"
 msgstr "Veřejné místnosti vyžadují Ember ID a důvěryhodnou službu. Nastavíte je v části Veřejné místnosti."

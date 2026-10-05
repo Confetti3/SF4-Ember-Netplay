@@ -3205,10 +3205,10 @@ msgid "public.create"
 msgstr "Crear sala pública"
 
 msgid "public.create_detail"
-msgstr "Abre una sala visible para todos los jugadores con un Ember ID. Tú eres el anfitrión y defines sus reglas dentro de la sala."
+msgstr "Abre una sala visible para todos los jugadores con un Ember ID, contigo como anfitrión. Las mesas empiezan con primero en 2, se queda el ganador; cámbialo en Opciones de la mesa."
 
 msgid "public.create_requirements"
-msgstr "Abre una sala pública en el servicio del Ember ID y entra en ella. Define las reglas de la mesa dentro de la sala."
+msgstr "Abre una sala pública en el servicio del Ember ID y entra en ella. Las mesas empiezan con primero en 2, se queda el ganador; cámbialo en Opciones de la mesa."
 
 msgid "public.create_needs_id"
 msgstr "Las salas públicas necesitan un Ember ID y un servicio de confianza. Configúralos en Salas públicas."

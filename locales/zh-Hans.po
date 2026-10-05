@@ -3205,10 +3205,10 @@ msgid "public.create"
 msgstr "创建公开房间"
 
 msgid "public.create_detail"
-msgstr "开设一个对所有拥有 Ember ID 的玩家可见的房间。您担任房主，规则在房间内设置。"
+msgstr "开设一个对所有拥有 Ember ID 的玩家可见的房间，由您担任房主。对战席默认先赢 2 局、胜者留下，可在对战席选项中更改。"
 
 msgid "public.create_requirements"
-msgstr "在 Ember ID 服务上创建公开房间并加入。对战席规则请在房间内设置。"
+msgstr "在 Ember ID 服务上创建公开房间并加入。对战席默认先赢 2 局、胜者留下，可在对战席选项中更改。"
 
 msgid "public.create_needs_id"
 msgstr "公开房间需要 Ember ID 和受信任的服务。请在公开房间页面中设置。"

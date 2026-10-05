@@ -151,7 +151,7 @@ void RoomHost::Attach() {
 	server_->EnableMatchAuthorization(config_.roomId,
 		[room](session::Connection connection) { return connection == 1 ? std::string() : room->PeerIdentity(connection); },
 		[room](session::Connection connection) { return connection == 1 ? 0 : room->PeerIncarnation(connection); });
-	if (!server_->EnableServerOwnedRooms(config_.name, config_.capacity, room_->Epoch(), room::Rules())) {
+	if (!server_->EnableServerOwnedRooms(config_.name, config_.capacity, room_->Epoch(), room::PublicRoomRules())) {
 		server_.reset();
 		Fail("room_model_refused");
 		return;

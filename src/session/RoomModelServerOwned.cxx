@@ -65,10 +65,13 @@ void RoomAuthority::ForgetAccount(MemberId member) {
 }
 
 // The last member left. A public room waits for its next joiner, who becomes
-// host; whoever locked it is gone, and the kick list stays.
+// host; whoever locked it is gone, and the kick list stays. The rules return to
+// the public default, which is what the room list shows for it.
 void RoomAuthority::ReopenEmptyRoom() {
 	snapshot_.host = 0;
 	snapshot_.locked = false;
+	for (auto& table : snapshot_.tables)
+		if (!(table.rules == PublicRoomRules())) { table.rules = PublicRoomRules(); Touch(table); }
 }
 
 void RoomAuthority::SaveServerOwned(nlohmann::json& state) const {

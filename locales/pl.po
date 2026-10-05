@@ -3205,10 +3205,10 @@ msgid "public.create"
 msgstr "Utwórz pokój publiczny"
 
 msgid "public.create_detail"
-msgstr "Otwiera pokój widoczny dla wszystkich graczy z Ember ID. Jesteś jego hostem i ustawiasz zasady w środku pokoju."
+msgstr "Otwiera pokój widoczny dla wszystkich graczy z Ember ID, a ty jesteś jego hostem. Stoły zaczynają od gry do 2 wygranych, zwycięzca zostaje; zmienisz to w Opcjach stołu."
 
 msgid "public.create_requirements"
-msgstr "Otwiera pokój publiczny w usłudze Ember ID i dołącza do niego. Zasady stołu ustawisz w pokoju."
+msgstr "Otwiera pokój publiczny w usłudze Ember ID i dołącza do niego. Stoły zaczynają od gry do 2 wygranych, zwycięzca zostaje; zmienisz to w Opcjach stołu."
 
 msgid "public.create_needs_id"
 msgstr "Pokoje publiczne wymagają Ember ID i zaufanej usługi. Skonfiguruj je w sekcji Pokoje publiczne."

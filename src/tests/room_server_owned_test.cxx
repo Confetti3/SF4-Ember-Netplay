@@ -305,6 +305,29 @@ static void TestAccountsStayOutOfSnapshots() {
 	CHECK(threw);
 }
 
+// A public room starts every table at first to 2, winner stays, and goes back
+// to that when it empties, whatever its last host chose.
+static void TestPublicRulesAndReopen() {
+	RoomAuthority authority("Public", 8, 1, PublicRoomRules());
+	CHECK(authority.SetServerOwned());
+	for (const auto& table : authority.SnapshotView().tables)
+		CHECK(table.rules.format == SetFormat::Ft2 && table.rules.rotation == RotationMode::WinnerStays);
+	const auto host = MemberOf(JoinAs(authority, 1, "ember-a"));
+	auto rules = TableAction(authority, host, 2, ActionKind::SetRules);
+	rules.rules.format = SetFormat::Unlimited;
+	rules.rules.rotation = RotationMode::BothRotate;
+	CHECK(authority.Apply(host, rules).accepted);
+	CHECK(authority.SnapshotView().tables[2].rules.format == SetFormat::Unlimited);
+	const auto before = authority.SnapshotView().tables[2].revision;
+	CHECK(authority.Leave(host).accepted);
+	const auto& snapshot = authority.SnapshotView();
+	CHECK(!snapshot.closed && snapshot.members.empty());
+	for (const auto& table : snapshot.tables) CHECK(table.rules == PublicRoomRules());
+	CHECK(snapshot.tables[2].revision > before);
+	// The next joiner, now the host, finds the default.
+	CHECK(JoinAs(authority, 2, "ember-b").accepted && authority.SnapshotView().tables[2].rules == PublicRoomRules());
+}
+
 static void TestPrivateRoomsAreUnchanged() {
 	RoomAuthority authority("Private", 8, 1);
 	// A private room still needs its hosting player before anyone else.
@@ -324,6 +347,8 @@ static void TestPrivateRoomsAreUnchanged() {
 	}
 	// The host leaving an empty private room still closes it.
 	CHECK(authority.Leave(host).accepted && authority.SnapshotView().closed);
+	// Its rules are the ones it was opened with.
+	CHECK(authority.SnapshotView().tables[0].rules == Rules());
 	// And it cannot be switched over once people are in it.
 	RoomAuthority used("Used", 8, 1);
 	Join(used, 0, true);
@@ -341,6 +366,7 @@ int main() {
 	TestCheckpointRoundTrip();
 	TestAccountsStayOutOfSnapshots();
 	TestPrivateRoomsAreUnchanged();
+	TestPublicRulesAndReopen();
 
 	if (failures) return 1;
 	std::puts("RoomServerOwned test passed");

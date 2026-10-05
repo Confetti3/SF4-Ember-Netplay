@@ -16,4 +16,12 @@ struct Rules {
             roundCount == rhs.roundCount && roundTime == rhs.roundTime;
     }
 };
+// A public room's tables start at first to 2, winner stays, so its queue
+// moves without the host finding Table options first.
+inline Rules PublicRoomRules() {
+    Rules rules;
+    rules.format = SetFormat::Ft2;
+    rules.rotation = RotationMode::WinnerStays;
+    return rules;
+}
 } }

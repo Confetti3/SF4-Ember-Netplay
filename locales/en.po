@@ -2879,10 +2879,10 @@ msgid "public.create"
 msgstr "Create public room"
 
 msgid "public.create_detail"
-msgstr "Opens a room listed for every player with an Ember ID. You are its host, and set its rules inside the room."
+msgstr "Opens a room listed for every player with an Ember ID, with you as host. Tables start at first to 2, winner stays; change that under Table options."
 
 msgid "public.create_requirements"
-msgstr "Opens a public room on the Ember ID service and joins it. Set its table rules inside the room."
+msgstr "Opens a public room on the Ember ID service and joins it. Tables start at first to 2, winner stays; change that under Table options."
 
 msgid "public.create_needs_id"
 msgstr "Public rooms need an Ember ID and a trusted service. Set them up under Public rooms."
