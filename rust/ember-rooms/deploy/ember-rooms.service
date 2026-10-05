@@ -61,6 +61,9 @@ SystemCallArchitectures=native
 # The box has 1.8 GB and also runs the bridge and the short-link service.
 # This limit covers the supervisor and every room host together.
 MemoryMax=700M
+# A room host past the limit is stopped and cleaned up rather than pushed
+# into swap, where it would stall the match it is serving.
+MemorySwapMax=0
 # About 64 tasks per room (room host plus helper threads) for max_rooms 8.
 # Raise it with max_rooms; setup.sh warns when the config asks for more.
 TasksMax=512
