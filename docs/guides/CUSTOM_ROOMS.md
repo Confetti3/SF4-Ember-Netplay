@@ -41,8 +41,11 @@ keyboard), starts with Ready, then your **Change fighter** and **Ultra Combo**
 (Left and Right step the Ultra in place), then **Input delay**. Its value is
 your own delay, and its detail names the recommended delay and the match delay.
 A new profile is on **Auto**: the connection check runs by itself for each
-opponent and Ready waits for it to end. You ready with its recommendation held
-between one and three frames, or with two frames if it produced none. **Check
+new opponent, and a Ready pressed meanwhile waits for it to end, for about
+twelve seconds at most. A check that fails is tried once more. You ready with
+its recommendation held between one and three frames, or with two frames if it
+produced none. A rematch, or a change of fighter, keeps the measurement;
+spectators and the queue are never checked or held. **Check
 connection** runs the same five-second measurement by hand. Left and Right
 choose a delay of your own instead, from one to ten, with Auto one step below
 one. A chosen delay is saved, Select applies a valid recommendation to it,
