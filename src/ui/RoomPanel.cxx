@@ -333,10 +333,8 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     // game is exactly who it is for.
     if(room::WatchesByChoice(t,s.localMember)){
      const bool lockedIn=local&&local->spectatorLocked;
-     std::string lockDetail=mutableRoom?loc::Tf(lockedIn?"room.unlock_spectating.detail":"room.lock_spectating.detail",room::SpectatorStartHoldMs/1000):reason;
-     // The start this spectator holds comes first.
-     if(HoldingStart(v,t))lockDetail=HoldText(v,t)+"\n"+lockDetail;
-     rows.push_back(Row("lock-spectating",loc::T(lockedIn?"room.unlock_spectating":"room.lock_spectating"),lockDetail,mutableRoom));
+     rows.push_back(Row("lock-spectating",loc::T(lockedIn?"room.unlock_spectating":"room.lock_spectating"),
+      mutableRoom?loc::Tf(lockedIn?"room.unlock_spectating.detail":"room.lock_spectating.detail",room::SpectatorStartHoldMs/1000):reason,mutableRoom));
     }
     rulesRows();
   }

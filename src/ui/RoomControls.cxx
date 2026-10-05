@@ -174,6 +174,12 @@ std::string HoldText(const ShellView& v, const room::Table& t) {
     }
     return names.empty() ? loc::Tf("room.hold.waiting_some", seconds) : loc::Tf("room.hold.waiting_for", names, seconds);
 }
+std::string HoldStatus(const ShellView& v, const room::Table& t) {
+    if (!t.spectatorHold || t.phase != room::TablePhase::Ready) return {};
+    if (!t.holdRemainingMs) return loc::T("room.phase.holding");
+    const unsigned seconds = (std::max)(1u, (t.holdRemainingMs + 999) / 1000);
+    return HoldingStart(v, t) ? loc::Tf("room.hold.waiting_you", seconds) : loc::Tf("room.hold.status", seconds);
+}
 TableBanner DescribeTableBanner(const ShellView& v, const room::Table& t) {
     TableBanner banner;
     banner.text = HoldText(v, t);

@@ -1958,7 +1958,10 @@ msgid "room.hold.waiting_some"
 msgstr "Čeká se na návrat zamčených diváků. Začne za {0} s."
 
 msgid "room.hold.waiting_you"
-msgstr "Další zápas čeká na váš návrat. Začne za {0} s."
+msgstr "Hra na vás čeká: {0} s"
+
+msgid "room.hold.status"
+msgstr "Čeká se na diváky: {0} s"
 
 msgid "room.hold.cancel_detail"
 msgstr "Zrušit start vezme zpět vaši připravenost, takže tento zápas nezačne."

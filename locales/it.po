@@ -1958,7 +1958,10 @@ msgid "room.hold.waiting_some"
 msgstr "In attesa del ritorno degli spettatori bloccati. Inizia tra {0} s."
 
 msgid "room.hold.waiting_you"
-msgstr "La prossima partita aspetta il tuo ritorno. Inizia tra {0} s."
+msgstr "La partita ti aspetta: {0} s"
+
+msgid "room.hold.status"
+msgstr "In attesa degli spettatori: {0} s"
 
 msgid "room.hold.cancel_detail"
 msgstr "Annulla l'avvio ritira il tuo Pronto, così questa partita non inizia."

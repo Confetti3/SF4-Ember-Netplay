@@ -1958,7 +1958,10 @@ msgid "room.hold.waiting_some"
 msgstr "Warten auf festgelegte Zuschauer. Start in {0} s."
 
 msgid "room.hold.waiting_you"
-msgstr "Das nächste Spiel wartet auf Ihre Rückkehr. Start in {0} s."
+msgstr "Spiel wartet auf Sie: {0} s"
+
+msgid "room.hold.status"
+msgstr "Warten auf Zuschauer: {0} s"
 
 msgid "room.hold.cancel_detail"
 msgstr "Start abbrechen nimmt Ihr Bereit zurück, sodass dieses Spiel nicht beginnt."

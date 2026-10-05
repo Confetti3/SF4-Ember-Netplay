@@ -1958,7 +1958,10 @@ msgid "room.hold.waiting_some"
 msgstr "正在等待锁定观战的观众返回。{0}秒后开始。"
 
 msgid "room.hold.waiting_you"
-msgstr "下一场对战正在等待你返回。{0}秒后开始。"
+msgstr "对战正在等你：{0}秒"
+
+msgid "room.hold.status"
+msgstr "正在等待观众：{0}秒"
 
 msgid "room.hold.cancel_detail"
 msgstr "取消开始会撤回你的准备，本场对战不会开始。"

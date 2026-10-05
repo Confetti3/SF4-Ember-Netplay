@@ -1958,7 +1958,10 @@ msgid "room.hold.waiting_some"
 msgstr "Esperando a que vuelvan los espectadores fijados. Empieza en {0} s."
 
 msgid "room.hold.waiting_you"
-msgstr "La próxima partida espera a que vuelvas. Empieza en {0} s."
+msgstr "La partida te espera: {0} s"
+
+msgid "room.hold.status"
+msgstr "Esperando espectadores: {0} s"
 
 msgid "room.hold.cancel_detail"
 msgstr "Cancelar el inicio retira tu Listo, así que esta partida no empieza."

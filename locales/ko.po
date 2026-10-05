@@ -1958,7 +1958,10 @@ msgid "room.hold.waiting_some"
 msgstr "관전 확정한 관전자가 돌아오기를 기다리는 중입니다. {0}초 후 시작합니다."
 
 msgid "room.hold.waiting_you"
-msgstr "다음 대전이 복귀를 기다리고 있습니다. {0}초 후 시작합니다."
+msgstr "대전이 기다리는 중: {0}초"
+
+msgid "room.hold.status"
+msgstr "관전자 대기 중: {0}초"
 
 msgid "room.hold.cancel_detail"
 msgstr "시작 취소는 준비 완료를 취소하여 이번 대전이 시작되지 않게 합니다."

@@ -1958,7 +1958,10 @@ msgid "room.hold.waiting_some"
 msgstr "Czekamy na powrót widzów z potwierdzeniem. Start za {0} s."
 
 msgid "room.hold.waiting_you"
-msgstr "Następny mecz czeka na Twój powrót. Start za {0} s."
+msgstr "Mecz czeka na Ciebie: {0} s"
+
+msgid "room.hold.status"
+msgstr "Czekamy na widzów: {0} s"
 
 msgid "room.hold.cancel_detail"
 msgstr "Anuluj start cofa Twoją gotowość, więc ten mecz się nie zacznie."

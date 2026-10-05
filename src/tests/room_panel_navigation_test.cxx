@@ -588,6 +588,7 @@ int main() try {
         Check(row("table-0").detail == waiting + " " + T("room.hold.cancel_detail"), "The seat card did not say what Cancel the start does");
         shell.Navigation().Push("room-table"); frame();
         Check(row("ready").detail == waiting + " " + T("room.hold.cancel_detail"), "The Ready row did not count down the held start");
+        Check(menuStatus == Tf("room.hold.status", 7), "The status line did not count down the held start in one short line");
         held.holdRemainingMs = 1; ++view.room.revision; frame();
         Check(row("ready").detail.find(Tf("room.hold.waiting_for", "Alex", 1)) == 0, "A hold that has run out did not read one second");
         // The locked-in spectator the start waits for is told so.
@@ -597,7 +598,8 @@ int main() try {
         Check(room_controls::DescribeTableBanner(view, held).text == Tf("room.hold.waiting_you", 4), "The spectator holding the start was not told");
         Check(row("table-0").detail.find(T("room.phase.holding")) != std::string::npos, "The held table read as preparing a game");
         shell.Navigation().Push("room-table"); frame();
-        Check(row("lock-spectating").detail.find(Tf("room.hold.waiting_you", 4)) == 0, "The lock-in row did not say the start waits for this spectator");
+        Check(menuStatus == Tf("room.hold.waiting_you", 4), "The status line did not say the start waits for this spectator");
+        Check(row("lock-spectating").detail.find(Tf("room.hold.waiting_you", 4)) == std::string::npos, "The lock-in row repeated the status line");
         // Released by the player: no notice. Cleared by the room: a notice says why.
         // Cleared by the room, the lock-in gets a notice saying why; released
         // by the player, none.

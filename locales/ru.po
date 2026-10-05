@@ -1958,7 +1958,10 @@ msgid "room.hold.waiting_some"
 msgstr "Ждём возвращения закреплённых зрителей. Старт через {0} с."
 
 msgid "room.hold.waiting_you"
-msgstr "Следующий матч ждёт вашего возвращения. Старт через {0} с."
+msgstr "Игра ждёт вас: {0} с"
+
+msgid "room.hold.status"
+msgstr "Ждём зрителей: {0} с"
 
 msgid "room.hold.cancel_detail"
 msgstr "Отменить старт снимает вашу готовность, и этот матч не начнётся."

@@ -1958,7 +1958,10 @@ msgid "room.hold.waiting_some"
 msgstr "Wachten op de terugkeer van vastgelegde kijkers. Begint over {0} s."
 
 msgid "room.hold.waiting_you"
-msgstr "De volgende match wacht op je terugkeer. Begint over {0} s."
+msgstr "Match wacht op je: {0} s"
+
+msgid "room.hold.status"
+msgstr "Wachten op kijkers: {0} s"
 
 msgid "room.hold.cancel_detail"
 msgstr "Start annuleren trekt je Klaar in, zodat deze match niet begint."

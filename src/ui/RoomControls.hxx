@@ -77,10 +77,13 @@ std::string OpponentChangedText(int fighter);
 // it watches t locked in and has not finished retiring the last game.
 bool HoldingStart(const ShellView& v, const room::Table& t);
 // What a held start at t waits for and how long is left: "Waiting for Alex to
-// return. Starts in 7 s.", or for the spectator it waits for, that it waits for
-// them. A host that sends no time left gets the fixed wording. Empty when t is
-// not held.
+// return. Starts in 7 s.", or for the spectator it waits for, "Game waits for
+// you: 7 s". A host that sends no time left gets the fixed wording. Empty when
+// t is not held.
 std::string HoldText(const ShellView& v, const room::Table& t);
+// The same in one short line for the status line, without names, which can be
+// any length: "Waiting for spectators: 7 s", or the spectator's own line.
+std::string HoldStatus(const ShellView& v, const room::Table& t);
 // A highlighted line across a table card, for something the player at it
 // should act on: a held start, or the opponent's new fighter until the player
 // readies or the matchup changes. seat is the side it is about, or -1. Empty

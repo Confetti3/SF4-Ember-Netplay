@@ -401,9 +401,8 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
   // the player must act on, a pending result or preparation is a wait.
   if(table.phase==room::TablePhase::Paused){status=loc::T("room.result_unresolved_status");statusTone=Tone::Error;}
   else if(table.phase==room::TablePhase::Ready){
-   // A held start says what it waits for and counts down.
-   status=table.spectatorHold?room_controls::HoldText(v,table):std::string(loc::T("room.preparing_status"));statusTone=Tone::Pending;
-   if(table.spectatorHold)NoteUserText(status);
+   // A held start counts down on one line; the rows below say who it waits for.
+   status=table.spectatorHold?room_controls::HoldStatus(v,table):std::string(loc::T("room.preparing_status"));statusTone=Tone::Pending;
   }
   else if(table.phase==room::TablePhase::Playing&&!finishedGame){
    status=table.resultPending?loc::T("room.waiting_results_status"):loc::T("room.match_in_progress");
