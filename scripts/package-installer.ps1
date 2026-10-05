@@ -11,13 +11,16 @@ if (!(Test-Path -LiteralPath (Join-Path $PackageDir 'MANIFEST.txt') -PathType Le
 & (Join-Path $PSScriptRoot 'tester-preflight.ps1') -PackageDir $PackageDir -Strict
 if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw 'Package preflight failed' }
 # The compiler is pinned like the other build inputs: a private copy under
-# build\tools, fetched once and checked against installer\innosetup-pin.json.
+# build\tools, fetched once and checked against installer\innosetup-pin.json,
+# the download on arrival and the kept ISCC.exe on every run.
 # /PORTABLE=1 leaves no uninstall entry, shortcut or file association.
 if (!$InnoCompiler) {
     $pin = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'installer\innosetup-pin.json') -Raw | ConvertFrom-Json
     $tool = Join-Path $repo "build\tools\innosetup-$($pin.version)"
     $InnoCompiler = Join-Path $tool 'ISCC.exe'
-    if (!(Test-Path -LiteralPath $InnoCompiler -PathType Leaf)) {
+    $cached = (Test-Path -LiteralPath $InnoCompiler -PathType Leaf) -and (Get-FileHash -LiteralPath $InnoCompiler -Algorithm SHA256).Hash -eq $pin.isccSha256
+    if (!$cached) {
+        if (Test-Path -LiteralPath $tool) { Remove-Item -LiteralPath $tool -Recurse -Force }
         $download = Join-Path ([IO.Path]::GetTempPath()) "innosetup-$($pin.version)-$PID.exe"
         try {
             $ProgressPreference = 'SilentlyContinue'
@@ -26,6 +29,7 @@ if (!$InnoCompiler) {
             $setup = Start-Process -FilePath $download -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER','/PORTABLE=1',"/DIR=`"$tool`"" -Wait -PassThru
             if ($setup.ExitCode -ne 0) { throw "Inno Setup installation exited with $($setup.ExitCode)" }
         } finally { Remove-Item -LiteralPath $download -ErrorAction SilentlyContinue }
+        if ((Get-FileHash -LiteralPath $InnoCompiler -Algorithm SHA256).Hash -ne $pin.isccSha256) { throw 'The installed ISCC.exe does not match installer\innosetup-pin.json' }
     }
 }
 if (!(Test-Path -LiteralPath $InnoCompiler -PathType Leaf)) { throw "Inno Setup compiler missing: $InnoCompiler" }

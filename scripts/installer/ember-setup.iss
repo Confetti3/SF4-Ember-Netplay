@@ -50,10 +50,10 @@ Filename: "{tmp}\vc_redist.x86.exe"; Parameters: "/install /quiet /norestart"; S
 Filename: "{app}\Launcher.exe"; Description: "{cm:LaunchProgram,{#AppName}}"; WorkingDir: "{app}"; Flags: nowait postinstall skipifsilent
 
 [Code]
-// The rule of RuntimeIsCurrent in src/launcher/launcher.cxx, measured against
-// the bundled runtime, which comes from the toolset that built the package.
-// ponytail: under Wine the builtin msvcp140 reports an old number, so the
-// Microsoft runtime is installed into the prefix; Wine users can take the ZIP.
+// Installs the runtime when the present msvcp140 is older than the bundled one
+// (from the toolset that built the package) or reports no version. Launcher's
+// RuntimeIsCurrent also accepts Wine's builtin DLL and an unreadable version;
+// installing the Microsoft runtime in those cases is harmless.
 function RuntimeOutdated: Boolean;
 var
   Installed, Bundled: Int64;
