@@ -113,14 +113,18 @@ struct DiscardedControlStream {
 int wmain(int argc, wchar_t** argv) {
 	std::cout << std::unitbuf;
 	CHECK(argc >= 2 && argc <= 4);
-	bool relayOnly = false, terminalRecovery = false, benchmark = false;
+	bool relayOnly = false, terminalRecovery = false, benchmark = false, autoChecks = false;
 	for (int i = 2; i < argc; ++i) {
 		const std::wstring option = argv[i];
 		if (option == L"--relay-only") relayOnly = true;
 		else if (option == L"--benchmark") benchmark = true;
 		else if (option == L"--terminal-recovery") terminalRecovery = true;
+		// Both fighters on Auto: each asks for its check one settle after the
+		// seats show, at the same moment, and asks once more if it fails.
+		else if (option == L"--auto-checks") autoChecks = true;
 		else CHECK(false);
 	}
+	CHECK(!(autoChecks && benchmark));
 	constexpr std::size_t Count = 4;
 	std::array<platform::HelperProcess, Count> processes;
 	std::array<platform::HelperClient, Count> helpers;
@@ -164,7 +168,8 @@ int wmain(int argc, wchar_t** argv) {
 				<< " term=" << authority.term << " revision=" << authority.revision << " writable=" << authority.writable
 				<< " applied=" << recoveryPeers[i].recovery.AppliedRevision() << " members=" << clients[i]->GetRoomSnapshot().members.size()
 				<< " recovery_error=" << recoveryPeers[i].recovery.Error()
-				<< " probe=" << probe.status << " samples=" << probe.samples;
+				<< " probe=" << probe.status << " samples=" << probe.samples
+				<< " probe_request=" << probe.request << " probe_failure=" << probe.failureReason;
 			if(matches[i]) std::cerr << " phase=" << static_cast<int>(matches[i]->GetPhase()) << " match=" << matches[i]->Error();
 			std::cerr << '\n';
 		}
@@ -281,6 +286,52 @@ int wmain(int argc, wchar_t** argv) {
 	// Match the player UI: probe occupied seats before Ready sends selections.
 	CHECK(clients[0]->GetRoomSnapshot().members[0].fighter == -1);
 	const auto pairRevision = clients[0]->GetRoomSnapshot().tables[0].revision;
+	if (autoChecks) {
+		// AutoDelayCheck's schedule: one settle (SettleMs), both at once, and one
+		// retry RetryMs after a check that ends without a recommendation.
+		const auto settled = GetTickCount64() + 1000;
+		wait([&]() { pump(); return GetTickCount64() >= settled; });
+		const std::array<std::string, 2> peers{{rooms[1]->LocalIdentity(), rooms[0]->LocalIdentity()}};
+		std::array<int, 2> attempts{{0, 0}};
+		std::array<std::string, 2> failures;
+		const auto ask = [&](std::size_t side) {
+			++attempts[side];
+			const auto revision = clients[side]->GetRoomSnapshot().tables[0].revision;
+			if (!rooms[side]->RequestProbe(peers[side], static_cast<std::uint64_t>(attempts[side]), revision))
+				failures[side] += " attempt " + std::to_string(attempts[side]) + ": request refused;";
+		};
+		const auto done = [&](std::size_t side) {
+			const auto& probe = rooms[side]->Probe();
+			return probe.request == static_cast<std::uint64_t>(attempts[side]) && probe.status != "checking";
+		};
+		const auto measured = [&](std::size_t side) {
+			const auto& probe = rooms[side]->Probe();
+			return (probe.status == "ready" || probe.status == "complete") && probe.samples >= 80 && probe.recommended >= 0;
+		};
+		ask(0); ask(1);
+		for (int round = 0; round < 2; ++round) {
+			wait([&]() { pump(); return done(0) && done(1); });
+			bool retry = false;
+			for (std::size_t side = 0; side < 2; ++side) {
+				if (measured(side)) continue;
+				const auto& probe = rooms[side]->Probe();
+				failures[side] += " attempt " + std::to_string(attempts[side]) + ": status=" + probe.status +
+					" failure=" + std::to_string(probe.failureReason) + ";";
+				retry = true;
+			}
+			if (!retry || round == 1) break;
+			const auto retryAt = GetTickCount64() + 1500;
+			wait([&]() { pump(); return GetTickCount64() >= retryAt; });
+			for (std::size_t side = 0; side < 2; ++side) if (!measured(side)) ask(side);
+		}
+		for (std::size_t side = 0; side < 2; ++side)
+			std::cout << "Auto check " << side << " attempts=" << attempts[side] << " measured=" << measured(side)
+				<< " recommended=" << rooms[side]->Probe().recommended << " route=" << rooms[side]->Probe().route
+				<< (failures[side].empty() ? std::string() : " failed:" + failures[side]) << '\n';
+		CHECK(measured(0) && measured(1));
+		std::cout << "Both seated players on Auto measured each other before Ready\n";
+	}
+	if (!autoChecks) {
 	CHECK(rooms[0]->RequestProbe(probePeer, 1, pairRevision, benchmark));
 	wait([&]() {
 		pump();
@@ -311,6 +362,10 @@ int wmain(int argc, wchar_t** argv) {
 	});
 
 	std::cout << "Both seated players completed the connection check before Ready\n";
+	}
+    const auto probeRoute = rooms[0]->Probe().route;
+    const auto probeControl = rooms[0]->ConnectionForIdentity(probePeer);
+    CHECK(probeControl != 0);
     const auto finalProbeRoute=rooms[1]->Probe().route;
     const auto settledAt=GetTickCount64()+1500;
     wait([&](){pump();CHECK(rooms[0]->Probe().status!="invalidated");return GetTickCount64()>=settledAt;});
