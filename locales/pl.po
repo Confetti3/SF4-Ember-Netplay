@@ -378,6 +378,9 @@ msgstr "Pomiar pakietów gry przez pięć sekund oraz zestawiania połączenia. 
 msgid "connection.checking_action"
 msgstr "Sprawdzanie połączenia..."
 
+msgid "connection.frame"
+msgstr "{0} kl."
+
 msgid "connection.frames"
 msgstr "{0} kl."
 
@@ -653,6 +656,9 @@ msgstr "DOMYŚLNE USTAWIENIA GRY"
 
 msgid "settings.input_delay"
 msgstr "Opóźnienie"
+
+msgid "settings.input_delay.auto"
+msgstr "Auto"
 
 msgid "room.name"
 msgstr "Nazwa pokoju"
@@ -1991,12 +1997,14 @@ msgid "room.ready_up"
 msgstr "Gotowe"
 
 msgid "room.selected_delay.detail"
-msgstr "Ustaw od 1 do 10 klatek. Zmiany działają od razu."
+msgstr "Ustaw od 1 do 10 klatek, poniżej 1 jest Auto. Zmiany działają od razu."
 
 msgid "room.selected_delay.locked"
 msgstr "Wybrane opóźnienie jest zablokowane na tę walkę."
 
 msgid "room.match_delay.at_least"
+msgstr "Co najmniej {0} kl."
+msgid "room.match_delay.at_least_one"
 msgstr "Co najmniej {0} kl."
 
 msgid "room.check_connection.two_players"
@@ -2019,6 +2027,12 @@ msgstr "Zalecane: {0}"
 
 msgid "room.input_delay.match"
 msgstr "Walka: {0}"
+
+msgid "room.input_delay.auto"
+msgstr "Auto ({0})"
+
+msgid "room.input_delay.auto.detail"
+msgstr "Auto korzysta ze sprawdzania połączenia i trzyma się od {0} do {1} klatek."
 
 msgid "room.apply_recommendation.check_first"
 msgstr "Najpierw sprawdź połączenie, aby zastosować zalecenie."

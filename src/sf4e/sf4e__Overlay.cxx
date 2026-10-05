@@ -202,7 +202,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 	view.canEditPreferences = snapshot.canEditPreferences;
 	view.canEditLobby = snapshot.canEditLobby;
 	view.settingsPending = snapshot.settingsPending;
-    view.selectedDelay=snapshot.selectedDelay; view.recommendedDelay=snapshot.recommendedDelay;
+    view.selectedDelay=snapshot.selectedDelay; view.recommendedDelay=snapshot.recommendedDelay; view.autoDelayMeasured=snapshot.autoDelayMeasured;
     view.opponentDelay=snapshot.opponentDelay;
     view.delayLocked=snapshot.delayLocked; view.canProbe=snapshot.canProbe; view.canApplyDelay=snapshot.canApplyDelay;
     view.probeRelay=snapshot.probeRelay; view.probeOpponent=snapshot.probeOpponent;

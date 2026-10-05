@@ -488,7 +488,7 @@ int main(int argc, char** argv) {
             ApplyTheme(size.dpi);ImGui_ImplDX9_Init(renderer.device);
             ApplicationShell shell;ShellView view;bool open=true;
             view.controllerReady=view.canChangeController=view.canEditPreferences=view.canEditSelection=view.canOpenRoom=view.helperReady=true;
-            view.controller="Assigned controller";view.preferences.displayName="Ember Player";view.selectionSummary="Ryu / Original / Color 01 / Ultra I";
+            view.controller="Assigned controller";view.preferences.displayName="Ember Player";view.preferences.autoInputDelay=false;view.selectionSummary="Ryu / Original / Color 01 / Ultra I";
             FighterSelector selector;selection::Pick pick;int stage=0;selection::StageMask stagePool=(1u<<0)|(1u<<15);
             auto availability=[](int id){selection::Availability a;a.ready=true;a.personalActions=0x3ff;
                 for(int c=0;c<selection::CostumeCount(id);++c){a.costumes|=1u<<c;a.colors[c]=(1u<<selection::ColorCount(id,c))-1;}return a;};
@@ -584,6 +584,7 @@ int main(int argc, char** argv) {
             Require(ImGui::GetTopMostPopupModal()==nullptr,"Game settings card did not close");
             view.gameSettings={};view.showGameSettingsCard=false;
             for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","discord","about"})page(screen);
+            view.preferences.autoInputDelay=true;page("defaults");view.preferences.autoInputDelay=false;
             page("home");
             for(int i=0;i<8;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
             draw("home-last-row");
@@ -718,6 +719,15 @@ int main(int argc, char** argv) {
                 Require(shell.Navigation().Focus()==control,"Delay control is unreachable at this viewport/DPI");
                 draw((std::string("table-delay-focus-")+control).c_str());
             }
+            // Auto on the focused delay row: the delay it resolves to and its bounds.
+            draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);
+            Require(shell.Navigation().Focus()=="input-delay","Delay control is unreachable at this viewport/DPI");
+            // Auto before its check, Auto once the opponent is measured, then one step Right: 1 frame.
+            view.preferences.autoInputDelay=true;view.autoDelayMeasured=false;view.selectedDelay=2;draw("table-delay-auto-unmeasured");
+            view.autoDelayMeasured=true;draw("table-delay-auto-measured");
+            view.preferences.autoInputDelay=false;view.autoDelayMeasured=false;view.selectedDelay=1;draw("table-delay-auto-then-one");
+            view.selectedDelay=2;
+            draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);
             view.recommendedDelay=-1;view.canApplyDelay=false;view.probeStatus="insufficient samples";view.probeSamples=12;view.probeLost=88;
             view.canReady=true;draw("table-delay-manual-ready");
             view.room.tables[0].ready[0]=true;view.canReady=false;view.canEditSelection=false;draw("table-unready");

@@ -170,7 +170,7 @@ void AttachRoom() {
 	// Known by now unless the helper started only moments ago; Unknown reads as checking.
 	UserApp::netplay->client.SetProfileNat(runtime->room->Network().nat);
     runtime->selectedDelay=runtime->preferences.inputDelay;
-    UserApp::netplay->client.SetSelectedDelay(runtime->selectedDelay);
+    UserApp::netplay->client.SetSelectedDelay(ReadyDelay());
     runtime->inputInitialized=true;
 	runtime->match.reset(new session::IrohMatchSession(UserApp::netplay->client, runtime->room));
 	runtime->attached = true;
@@ -204,6 +204,9 @@ void StartHelper() {
     if (store.LoadLauncher(saved, settingsError)) {
         if(saved.contains("onlineRecord")&&!netplay::ReadProfileRecord(saved["onlineRecord"],runtime->preferences.record))
             runtime->error=loc::T("runtime.record_invalid");
+        // Auto is on unless a saved false turned it off, so a profile saved
+        // before Auto existed gets it (InputDelayPreference.hxx).
+        netplay::ReadInputDelayPreference(saved,runtime->preferences);
         try {
             runtime->preferences.showMatchHud = saved.value("showMatchHud", true);
             const int hudSize = saved.value("matchHudSize", 1);
@@ -590,6 +593,7 @@ void TickRuntime() {
 	ReleaseFinishedMatch();
 	ResolvePendingIntents(helperReady);
 	SettleRoomState(helperReady);
+	TickAutoDelay(helperReady);
 	CallOutOpponentReady();
 	TakeJoinLink();
 	PublishAndTickDiscordInvite();

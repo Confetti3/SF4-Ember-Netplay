@@ -378,6 +378,9 @@ msgstr "Пять секунд замеряются игровые пакеты, 
 msgid "connection.checking_action"
 msgstr "Проверка соединения..."
 
+msgid "connection.frame"
+msgstr "{0} к."
+
 msgid "connection.frames"
 msgstr "{0} к."
 
@@ -653,6 +656,9 @@ msgstr "НАСТРОЙКИ ИГРЫ"
 
 msgid "settings.input_delay"
 msgstr "Задержка ввода"
+
+msgid "settings.input_delay.auto"
+msgstr "Авто"
 
 msgid "room.name"
 msgstr "Название зала"
@@ -1991,12 +1997,14 @@ msgid "room.ready_up"
 msgstr "Готов"
 
 msgid "room.selected_delay.detail"
-msgstr "Настройка от 1 до 10 кадров. Изменения применяются сразу."
+msgstr "Настройка от 1 до 10 кадров, ниже 1 включается Авто. Изменения применяются сразу."
 
 msgid "room.selected_delay.locked"
 msgstr "Выбранная задержка закреплена на этот матч."
 
 msgid "room.match_delay.at_least"
+msgstr "Не менее {0} к."
+msgid "room.match_delay.at_least_one"
 msgstr "Не менее {0} к."
 
 msgid "room.check_connection.two_players"
@@ -2019,6 +2027,12 @@ msgstr "Рекомендуется: {0}"
 
 msgid "room.input_delay.match"
 msgstr "Матч: {0}"
+
+msgid "room.input_delay.auto"
+msgstr "Авто ({0})"
+
+msgid "room.input_delay.auto.detail"
+msgstr "Авто опирается на проверку соединения и держится от {0} до {1} кадров."
 
 msgid "room.apply_recommendation.check_first"
 msgstr "Сначала проверьте соединение, чтобы получить рекомендацию."

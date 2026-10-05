@@ -378,6 +378,9 @@ msgstr "Misst Spiel-Datagramme fünf Sekunden lang, zuzüglich Verbindungsaufbau
 msgid "connection.checking_action"
 msgstr "Verbindung wird geprüft..."
 
+msgid "connection.frame"
+msgstr "{0} Frame"
+
 msgid "connection.frames"
 msgstr "{0} Frames"
 
@@ -653,6 +656,9 @@ msgstr "SPIELVORGABEN"
 
 msgid "settings.input_delay"
 msgstr "Eingabeverzögerung"
+
+msgid "settings.input_delay.auto"
+msgstr "Auto"
 
 msgid "room.name"
 msgstr "Raumname"
@@ -1991,13 +1997,15 @@ msgid "room.ready_up"
 msgstr "Bereit"
 
 msgid "room.selected_delay.detail"
-msgstr "1 bis 10 Frames wählen. Änderungen gelten sofort."
+msgstr "1 bis 10 Frames wählen, unter 1 liegt Auto. Änderungen gelten sofort."
 
 msgid "room.selected_delay.locked"
 msgstr "Die gewählte Verzögerung ist für diesen Kampf gesperrt."
 
 msgid "room.match_delay.at_least"
 msgstr "Mindestens {0} Frames"
+msgid "room.match_delay.at_least_one"
+msgstr "Mindestens {0} Frame"
 
 msgid "room.check_connection.two_players"
 msgstr "Vor der Verbindungsprüfung müssen beide Plätze besetzt sein."
@@ -2019,6 +2027,12 @@ msgstr "Empfohlen: {0}"
 
 msgid "room.input_delay.match"
 msgstr "Kampf: {0}"
+
+msgid "room.input_delay.auto"
+msgstr "Auto ({0})"
+
+msgid "room.input_delay.auto.detail"
+msgstr "Auto richtet sich nach der Verbindungsprüfung und bleibt zwischen {0} und {1} Frames."
 
 msgid "room.apply_recommendation.check_first"
 msgstr "Prüfen Sie erst die Verbindung, bevor Sie eine Empfehlung übernehmen."

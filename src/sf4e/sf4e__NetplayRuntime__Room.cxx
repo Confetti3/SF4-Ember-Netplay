@@ -5,8 +5,9 @@
 
 namespace sf4e { namespace NetplayFacade {
 namespace {
-std::string CurrentProbePeer(std::uint64_t& revision) {
+std::string CurrentProbePeer(std::uint64_t& revision, int* tableIndex=nullptr) {
     revision=0;
+    if (tableIndex) *tableIndex=-1;
     if (!runtime || !runtime->attached || !UserApp::netplay || !UserApp::server) return {};
     const auto& snapshot=UserApp::netplay->client.GetRoomSnapshot();
     const auto local=std::find_if(snapshot.members.begin(),snapshot.members.end(),[&](const room::Member& member){return member.id==snapshot.localMember;});
@@ -15,7 +16,9 @@ std::string CurrentProbePeer(std::uint64_t& revision) {
     const auto opponent=local->seat==0 ? table.p2 : table.p1;
     const auto peer=UserApp::server->roomPeerIdentities.find(opponent);
     if (peer==UserApp::server->roomPeerIdentities.end()) return {};
-    revision=table.revision; return peer->second;
+    revision=table.revision;
+    if (tableIndex) *tableIndex=local->table;
+    return peer->second;
 }
 
 // A command is dispatched fresh from the interface, retried from its parked
@@ -368,17 +371,24 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
             if(peer.empty() || probe.peer!=peer || probe.pairRevision!=revision) break;
             selected=probe.recommended;
         }
-        if(selected<0 || selected>MaximumInputDelay) break;
-        selected=PlayableInputDelay(selected);
-        runtime->selectedDelay=selected;
-        UserApp::netplay->client.SetSelectedDelay(selected);
-        runtime->preferences.inputDelay=selected;
+        const bool automatic=selected==AutoInputDelayChoice;
+        if(!automatic) {
+            // A 0 (an older recommendation) plays at the smallest delay.
+            if(selected<0 || selected>MaximumInputDelay) break;
+            selected=PlayableInputDelay(selected);
+            runtime->selectedDelay=selected;
+            runtime->preferences.inputDelay=selected;
+        }
+        // A chosen number turns Auto off; choosing Auto keeps the number saved.
+        runtime->preferences.autoInputDelay=automatic;
+        if(automatic) runtime->autoDelayCheck.Want(GetTickCount64());
+        UserApp::netplay->client.SetSelectedDelay(ReadyDelay());
         if(!OverlayPrefs::SavePlayerPreferences(runtime->preferences)) runtime->error=loc::T("runtime.delay_save_failed");
         break;
     }
 	case netplay::Effect::SendReady: {
 		auto& client = UserApp::netplay->client;
-        client.SetSelectedDelay(runtime->selectedDelay);
+        client.SetSelectedDelay(ReadyDelay());
 		bool sent = client.PreBattle_SetChara(command.character) == session::SendResult::Queued;
 		if (!client._lobbyData.members.empty() && client._lobbyData.members[0].connId == client._cid) {
 			sent = client.PreBattle_SetEnv(sf4e::localRand()) == session::SendResult::Queued && sent;
@@ -440,6 +450,69 @@ DispatchOutcome DispatchTournamentRoomCommand(netplay::Command command) {
 	runtimeCommand.preferences = runtime->preferences;
 	const bool helperReady = runtime->helper && runtime->helper->State() == platform::HelperState::Connected;
 	return Dispatch(std::move(runtimeCommand), helperReady, Attempt::Tournament);
+}
+
+bool AutoDelayMeasured() {
+    std::uint64_t revision=0;
+    return runtime->autoDelayCheck.Measured(CurrentProbePeer(revision));
+}
+
+int ReadyDelay() {
+    if(!runtime->preferences.autoInputDelay) return runtime->selectedDelay;
+    std::uint64_t revision=0;
+    return runtime->autoDelayCheck.Delay(CurrentProbePeer(revision));
+}
+
+// A Ready sent mid-check would start the match's own link beside the
+// check's, so it holds until the check ends, and for a check still to come,
+// but never past the check's hold (AutoDelayCheck::HoldMs).
+bool AutoDelayMeasuring() {
+    if(!runtime->preferences.autoInputDelay || !runtime->room) return false;
+    return runtime->autoDelayCheck.Holding(GetTickCount64());
+}
+
+// Whether a check against `peer` can be reserved now. The helper refuses a
+// reservation unless its own copy of the room seats this pair at exactly the
+// table revision the check names, and it ends a check whose opponent already
+// has a game link to this PC: a queued opponent who watched the last game
+// keeps one until that game's spectators are released.
+static bool AutoCheckClear(const std::string& peer, int tableIndex) {
+    if(runtime->room->Game(peer).state!=session::IrohRoom::GameState::Closed) return false;
+    const auto* committed=UserApp::server->RoomSnapshot();
+    if(!committed || tableIndex<0 || tableIndex>=static_cast<int>(room::TableCount)) return true;
+    return room::ProbePairCommitted(UserApp::netplay->client.GetRoomSnapshot().tables[tableIndex],committed->tables[tableIndex]);
+}
+
+// Asks for Auto's check. It takes the controller's check of a press of Check
+// connection, but a refusal stays in the log: the player did not press it.
+static bool RequestAutoCheck(const std::string& peer, std::uint64_t revision) {
+    const netplay::Command command{netplay::CommandKind::CheckConnection,runtime->controller.GetSnapshot().generation,{}};
+    if(!runtime->controller.Execute(command).accepted) return false;
+    const auto request=runtime->nextProbeRequest++;
+    const bool sent=runtime->room->RequestProbe(peer,request,revision,false);
+    spdlog::info("Auto delay: connection check {} request={} revision={}",sent?"requested":"refused",request,revision);
+    return true;
+}
+
+// Follows the seated opponent and their check results. With Auto on, a due
+// check is asked for once the table has settled and this PC holds the pair;
+// one that ends without a recommendation is asked for once more.
+void TickAutoDelay(bool helperReady) {
+    std::uint64_t revision=0; int tableIndex=-1;
+    // A room without coordination cannot reserve a check, so Auto readies at
+    // once with two frames there.
+    const bool coordinated=runtime->room && runtime->room->Coordination().active;
+    const auto peer=coordinated ? CurrentProbePeer(revision,&tableIndex) : std::string();
+    const auto now=GetTickCount64();
+    auto& check=runtime->autoDelayCheck;
+    check.Seat(peer,revision,runtime->nextProbeRequest,now);
+    if(peer.empty()) return;
+    const auto& probe=runtime->room->Probe();
+    check.Observe(probe.peer,probe.request,probe.status,probe.recommended,now);
+    if(!helperReady || !runtime->preferences.autoInputDelay || !check.Due(now) || probe.status=="checking" ||
+        !GetRuntimeSnapshotShared()->canProbe || !AutoCheckClear(peer,tableIndex)) return;
+    const auto request=runtime->nextProbeRequest;
+    if(RequestAutoCheck(peer,revision)) check.Asked(request);
 }
 
 void DrainCommands(bool helperReady) {

@@ -378,6 +378,9 @@ msgstr "Midiendo datagramas de la partida durante cinco segundos más la conexi�
 msgid "connection.checking_action"
 msgstr "Comprobando conexión..."
 
+msgid "connection.frame"
+msgstr "{0} fotograma"
+
 msgid "connection.frames"
 msgstr "{0} fotogramas"
 
@@ -653,6 +656,9 @@ msgstr "AJUSTES DE JUEGO"
 
 msgid "settings.input_delay"
 msgstr "Retr. entrada"
+
+msgid "settings.input_delay.auto"
+msgstr "Auto"
 
 msgid "room.name"
 msgstr "Nombre"
@@ -1991,13 +1997,15 @@ msgid "room.ready_up"
 msgstr "Marcar Listo"
 
 msgid "room.selected_delay.detail"
-msgstr "Ajusta entre 1 y 10 fotogramas. Los cambios se aplican al instante."
+msgstr "Ajusta entre 1 y 10 fotogramas, o baja de 1 para Auto. Los cambios se aplican al instante."
 
 msgid "room.selected_delay.locked"
 msgstr "El retraso seleccionado está bloqueado para esta partida."
 
 msgid "room.match_delay.at_least"
 msgstr "Mín. {0} fotogramas"
+msgid "room.match_delay.at_least_one"
+msgstr "Mín. {0} fotograma"
 
 msgid "room.check_connection.two_players"
 msgstr "Debe haber un jugador en cada asiento para comprobar la conexión."
@@ -2019,6 +2027,12 @@ msgstr "Recomendado: {0}"
 
 msgid "room.input_delay.match"
 msgstr "Partida: {0}"
+
+msgid "room.input_delay.auto"
+msgstr "Auto ({0})"
+
+msgid "room.input_delay.auto.detail"
+msgstr "Auto usa la comprobación de conexión y se mantiene entre {0} y {1} fotogramas."
 
 msgid "room.apply_recommendation.check_first"
 msgstr "Usa Comprobar conexión antes de aplicar una recomendación."

@@ -378,6 +378,9 @@ msgstr "检测游戏数据包，持续 5 秒，另加建立连接所需时间。
 msgid "connection.checking_action"
 msgstr "正在检查连接..."
 
+msgid "connection.frame"
+msgstr "{0} 帧"
+
 msgid "connection.frames"
 msgstr "{0} 帧"
 
@@ -653,6 +656,9 @@ msgstr "对战默认设置"
 
 msgid "settings.input_delay"
 msgstr "输入延迟"
+
+msgid "settings.input_delay.auto"
+msgstr "自动"
 
 msgid "room.name"
 msgstr "房间名称"
@@ -1991,12 +1997,14 @@ msgid "room.ready_up"
 msgstr "准备"
 
 msgid "room.selected_delay.detail"
-msgstr "可在 1 至 10 帧间调整，立即生效。"
+msgstr "可在 1 至 10 帧间调整，低于 1 为自动，立即生效。"
 
 msgid "room.selected_delay.locked"
 msgstr "本场对战的所选延迟已锁定。"
 
 msgid "room.match_delay.at_least"
+msgstr "至少 {0} 帧"
+msgid "room.match_delay.at_least_one"
 msgstr "至少 {0} 帧"
 
 msgid "room.check_connection.two_players"
@@ -2019,6 +2027,12 @@ msgstr "建议：{0}"
 
 msgid "room.input_delay.match"
 msgstr "对战：{0}"
+
+msgid "room.input_delay.auto"
+msgstr "自动 ({0})"
+
+msgid "room.input_delay.auto.detail"
+msgstr "自动采用连接检查的结果，并保持在 {0} 至 {1} 帧之间。"
 
 msgid "room.apply_recommendation.check_first"
 msgstr "请先检查连接，再应用建议。"

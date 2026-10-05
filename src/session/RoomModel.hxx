@@ -343,6 +343,14 @@ inline int MatchDelay(int first, int second) { return PlayableInputDelay(first >
 inline std::uint8_t MatchDelay(const Table& table) {
 	return static_cast<std::uint8_t>(MatchDelay(table.inputDelay[0], table.inputDelay[1]));
 }
+// A connection check names the seated pair at the table revision this PC's
+// room view shows. The helper reserves it only against its committed copy of
+// the room, so the check waits until that copy seats the same pair at the same
+// revision (`committed` is the local server's view of the same table).
+inline bool ProbePairCommitted(const Table& seen, const Table& committed) {
+	return seen.p1 && seen.p2 && seen.revision == committed.revision &&
+		seen.p1 == committed.p1 && seen.p2 == committed.p2;
+}
 
 struct ChatMessage {
 	std::uint64_t sequence = 0;

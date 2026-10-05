@@ -5,6 +5,11 @@
 #include "NetworkFeedback.hxx"
 
 namespace sf4e { namespace ui {
+// One frame has a string of its own, since the catalogs have no plural forms.
+inline std::string FramesText(int frames) {
+    return loc::Tf(frames == 1 ? "connection.frame" : "connection.frames", frames);
+}
+
 inline bool RoomActionsAvailable(const ShellView& view) {
     return view.session.room == netplay::RoomState::Joined &&
         view.session.control == netplay::Health::Healthy &&
@@ -51,7 +56,7 @@ inline ConnectionCheckFeedback DescribeConnectionCheck(const ShellView& view) {
         result.action = loc::T("connection.checking_action");
     } else if (measured) {
         const bool relayed = view.probeRoute == RouteKind::Relayed;
-        result.value = loc::Tf("connection.frames",view.recommendedDelay);
+        result.value = FramesText(view.recommendedDelay);
         // A relayed route names its region when the helper reported one.
         const std::string route = relayed ? DescribeRelayedRoute(view.probeRelay) :
             std::string(loc::T(view.probeRoute == RouteKind::Direct ? "connection.route_direct" : "connection.route_unknown"));

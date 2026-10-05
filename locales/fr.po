@@ -378,6 +378,9 @@ msgstr "Mesure des paquets de jeu pendant cinq secondes, plus l'établissement d
 msgid "connection.checking_action"
 msgstr "Test de connexion..."
 
+msgid "connection.frame"
+msgstr "{0} trame"
+
 msgid "connection.frames"
 msgstr "{0} trames"
 
@@ -653,6 +656,9 @@ msgstr "RÉGLAGES PAR DÉFAUT"
 
 msgid "settings.input_delay"
 msgstr "Latence d'entrée"
+
+msgid "settings.input_delay.auto"
+msgstr "Auto"
 
 msgid "room.name"
 msgstr "Nom du salon"
@@ -1991,13 +1997,15 @@ msgid "room.ready_up"
 msgstr "Passer à Prêt"
 
 msgid "room.selected_delay.detail"
-msgstr "Réglez de 1 à 10 trames. Application immédiate."
+msgstr "Réglez de 1 à 10 trames, ou Auto en dessous de 1. Application immédiate."
 
 msgid "room.selected_delay.locked"
 msgstr "Le délai choisi est verrouillé pour ce combat."
 
 msgid "room.match_delay.at_least"
 msgstr "Au moins {0} trames"
+msgid "room.match_delay.at_least_one"
+msgstr "Au moins {0} trame"
 
 msgid "room.check_connection.two_players"
 msgstr "Il faut un joueur sur chaque place pour vérifier la connexion."
@@ -2019,6 +2027,12 @@ msgstr "Conseillé : {0}"
 
 msgid "room.input_delay.match"
 msgstr "Combat : {0}"
+
+msgid "room.input_delay.auto"
+msgstr "Auto ({0})"
+
+msgid "room.input_delay.auto.detail"
+msgstr "Auto suit le test de connexion et reste entre {0} et {1} trames."
 
 msgid "room.apply_recommendation.check_first"
 msgstr "Vérifiez la connexion avant d'appliquer un conseil."
