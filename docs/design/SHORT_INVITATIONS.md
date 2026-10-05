@@ -84,6 +84,6 @@ The helper and the game ship together, so the new command and event need no vers
 ## Operating the service
 
 - Build as katie: `cd ~/ember-short/src && RUSTUP_TOOLCHAIN=1.98.0 cargo build --release --locked && cp target/release/ember-short ~/ember-short/bin/`.
-- Install or update: `ssh -t vps 'sudo bash ~/ember-short/setup.sh'`. It installs the binary, the unit, the nginx zone and snippet, adds one `include snippets/ember-short.conf;` line to the 443 server of `embernetplay.link`, checks `nginx -t` (restoring the previous files if it fails) and reloads.
+- Install or update: `ssh -t vps 'sudo bash ~/ember-short/setup.sh'`. It installs the binary, the unit, the nginx zone, the locations and headers snippets, and the site's pages and assets (`deploy/site`, built by `scripts/build-web-assets.py`), adds one `include snippets/ember-short.conf;` line to the 443 server of `embernetplay.link`, checks `nginx -t` (restoring the previous files if it fails) and reloads.
 - A restart empties the store; open rooms store their invitation again within ten minutes.
 - `SF4E_SHORT_INVITE_SERVICE` points a helper at a loopback service (`http://127.0.0.1:<port>/s/v1/`) for tests; any other value is ignored.
