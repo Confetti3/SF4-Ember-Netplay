@@ -3,6 +3,7 @@
 #include "room_authority_support.hxx"
 
 #include <memory>
+#include <stdexcept>
 #include <string>
 
 static const std::string EndpointA(64, 'a');
@@ -416,6 +417,33 @@ static void TestRestoreKeepsPermitAge() {
 		CHECK(PermitAge(*sameTime) == 110000);
 		sameTime->AdvanceTime(120000);
 		CHECK(sameTime->SnapshotView().tables[0].permitGeneration == 0);
+	}
+	{
+		// Only a paused room takes kept ages, so a live one never carries a
+		// held age under its permit clock. Resumed late, a merged room's live
+		// checkpoint counts on exactly as the room itself does: 100 s at its
+		// first aging at 170 s, 110 s at 180 s.
+		auto newer = restore(stale);
+		newer->AgePermitHolds(1);
+		newer->AgePermitHolds(70001);
+		const auto fresh = newer->Checkpoint();
+		auto kept = restore(stale);
+		kept->AgePermitHolds(100000);
+		auto live = restore(fresh);
+		live->ResumeRecovery(100000);
+		bool refused = false;
+		try { live->KeepPermitAges(kept->PermitAges()); } catch (const std::logic_error&) { refused = true; }
+		CHECK(refused);
+		for (const bool roundTrip : {false, true}) {
+			auto merged = restore(fresh);
+			merged->KeepPermitAges(kept->PermitAges());
+			merged->ResumeRecovery(170000);
+			const auto moved = roundTrip ? restore(merged->Checkpoint()) : nullptr;
+			auto& room = moved ? *moved : *merged;
+			CHECK(PermitAge(room) == 100000);
+			room.AgePermitHolds(180000);
+			CHECK(PermitAge(room) == 110000);
+		}
 	}
 	{
 		// Another reservation's age is neither carried nor charged to this one.

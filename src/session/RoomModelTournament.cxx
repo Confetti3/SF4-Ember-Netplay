@@ -141,6 +141,7 @@ void RoomAuthority::AgePermitHolds(std::uint64_t nowMs) {
 }
 
 void RoomAuthority::KeepPermitAges(const PermitTimers& kept) {
+	if (!recoveryPaused_) throw std::logic_error("permit ages kept on a live room");
 	for (std::size_t i = 0; i < TableCount; ++i) {
 		auto& timer = permits_.tables[i];
 		// Committed generations are never reused, so the same one is the same
@@ -180,7 +181,8 @@ bool RoomAuthority::PermitStartPassed(const Table& table, std::uint64_t ageMs) c
 bool RoomAuthority::NativeStartPending(std::size_t table) const {
 	const auto& timer = permits_.tables[table];
 	const auto& value = snapshot_.tables[table];
-	return timer.windowMs && timer.generation && value.phase == TablePhase::Playing && value.matchGeneration == timer.generation;
+	return timer.windowMs && timer.generation && value.matchGeneration == timer.generation &&
+		(value.phase == TablePhase::Playing || value.phase == TablePhase::Paused);
 }
 
 bool RoomAuthority::NativeStartExpired(std::uint8_t table, std::uint64_t generation) const {

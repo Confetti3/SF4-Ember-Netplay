@@ -600,8 +600,10 @@ public:
 	void AgePermitHolds(std::uint64_t nowMs);
 	// The timers as they stand; a checkpoint carries their ages.
 	const PermitTimers& PermitAges() const { return permits_; }
-	// Called on a room just restored, with the timers of the room it replaced
-	// on this process. The same reservation keeps this process's count and
+	// Called on a paused room just restored, with the timers of the room it
+	// replaced on this process; a live room throws std::logic_error. A held
+	// age therefore folds in before a room runs live again, so a live
+	// checkpoint, whose ages count from its permit clock, never carries one. The same reservation keeps this process's count and
 	// holds the restored age, so a commit made before an outage takes back no
 	// time this process saw, a newer commit's age is not counted twice, and
 	// restoring again and again, aged or not, loses nothing.
@@ -668,7 +670,8 @@ private:
 	// time the table's generation is ageMs old. A permit without a known
 	// window counts as run out.
 	bool PermitStartPassed(const Table& table, std::uint64_t ageMs) const;
-	// The table's begun game still waits for its native start under a permit.
+	// The table's begun game still waits for its native start under a permit,
+	// in play or paused over a result reported before that start.
 	bool NativeStartPending(std::size_t table) const;
 	// The start a bound table holds for its permit is called off: the permit
 	// never reached both fighters within PermitHoldMs, or its window passed.

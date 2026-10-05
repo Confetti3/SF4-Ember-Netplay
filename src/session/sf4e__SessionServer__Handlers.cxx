@@ -254,9 +254,10 @@ void SessionServer::HandleMatchAcknowledgement(session::Connection conn, const j
 			// so no departure can start the game instead. A game_start proposed
 			// inside the window can still be committed after a same-term outage
 			// and start then: that delay is bounded only by the commit latency
-			// of its proposal. The bridge accepts the game's reports for
-			// SILENT_SECS (30 minutes) past start_by, and after that sends the
-			// attempt to review.
+			// of its proposal. If no report arrives by start_by plus SILENT_SECS
+			// (30 minutes), the bridge's maintenance moves the attempt to
+			// review; reports after that are kept as evidence rather than
+			// reconciled automatically.
 			if (authority->Expects(conn, msg) && _roomAuthority->NativeStartExpired(table, generation)) {
 				if (!authority->End(MatchSender())) _transportFailed = true;
 				const auto ended = _roomAuthority->EndMatch(table, generation, room::MatchResult::Cancel);

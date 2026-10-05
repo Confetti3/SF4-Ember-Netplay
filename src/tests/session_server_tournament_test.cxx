@@ -4,6 +4,8 @@
 #include "../session/sf4e__SessionServer.hxx"
 
 #include <array>
+#include <map>
+#include <stdexcept>
 #include <string>
 
 #include "server_transport_support.hxx"
@@ -124,13 +126,13 @@ struct BoundServer {
 		CHECK(server.ApplyCommit(request, term, revision + 1, proposal->checkpoint, proposal->effectsDigest));
 		++request; ++revision;
 	}
-	void Send(session::Connection by, room::ActionKind kind, bool commit = true) {
+	void Send(session::Connection by, room::ActionKind kind, bool commit = true, std::uint64_t generation = 0) {
 		const auto& snapshot = server._roomAuthority->SnapshotView();
 		room::Action action;
 		action.kind = kind; action.roomEpoch = snapshot.roomEpoch; action.revision = snapshot.revision;
 		action.table = room::TournamentTable; action.tableRevision = snapshot.tables[room::TournamentTable].revision;
 		action.actionId = ++actionId;
-		action.matchGeneration = snapshot.tables[room::TournamentTable].permitGeneration;
+		action.matchGeneration = generation ? generation : snapshot.tables[room::TournamentTable].permitGeneration;
 		action.text = "per_one";
 		action.startWindowMs = room::PermitStartMs;
 		protocol::RoomActionMessage message; message.action = action;
@@ -271,11 +273,56 @@ static void TestStartCommittedLateStillStarts() {
 	bound.transport->Push(2, json{{"type", "game_ready"}, {"generation", reserved}});
 	CHECK(server.Step() == 0 && server.HasRecoveryCandidate());
 	CHECK(bound.Timer().generation == 0);
-	bound.Outage(31000, 1800000 + 120000);
+	// Proposed inside the window, and held pending through the outage.
+	CHECK(server.ProposeCheckpoint(bound.request, bound.term, bound.revision, nullptr));
+	const auto proposal = server.PendingProposal();
+	CHECK(proposal != nullptr);
 	bound.transport->outgoing.clear();
-	bound.Commit();
+	bound.Outage(31000, 1800000 + 120000);
+	CHECK(server.PendingProposal() == proposal && bound.Sent("game_start", reserved) == 0);
+	CHECK(server.ApplyCommit(proposal->request, bound.term, bound.revision + 1, proposal->checkpoint, proposal->effectsDigest));
+	++bound.request; ++bound.revision;
 	CHECK(bound.Sent("game_start", reserved) == 2 && bound.Sent("game_end", reserved) == 0);
 	CHECK(bound.Table().phase == room::TablePhase::Playing && bound.Table().matchGeneration == reserved);
+}
+
+// A result reported during the preparation pauses the table over it, but
+// the game has still not natively started: the permit window holds through
+// the pause and through a checkpoint the next owner restores, and the
+// acknowledgements that come after it ran out call the game off.
+static void TestPausedPreparationKeepsWindow() {
+	BoundServer bound;
+	auto& server = bound.server;
+	const auto reserved = bound.HoldOnePermit();
+	bound.Send(2, room::ActionKind::PermitReady);
+	CHECK(bound.Sent("game_prepare", reserved) == 2);
+	bound.Send(1, room::ActionKind::MatchFinished, true, reserved);
+	server.AdvanceCustomRoom(61500);
+	if (server.HasRecoveryCandidate()) bound.Commit();
+	CHECK(bound.Table().phase == room::TablePhase::Paused && bound.Table().matchGeneration == reserved);
+	std::map<room::MemberId, session::Connection> connections;
+	for (const auto& row : server.roomMembers) connections[row.second] = row.first;
+	const auto committed = server.RecoveryCheckpoint();
+	CHECK(committed.at("room").contains("start_window") && committed.at("room").at("start_window").at(0) == room::PermitStartMs);
+	CHECK(server.RestoreRecoveryCheckpoint(committed));
+	std::vector<SessionServer::StableRebind> bindings;
+	for (const auto& row : committed.at("members")) {
+		const auto member = row.at("member").get<room::MemberId>();
+		bindings.emplace_back(member, connections.at(member), row.at("data").get<protocol::MemberData>().connId,
+			row.at("incarnation").get<std::uint64_t>());
+	}
+	CHECK(server.RebindMembers(bindings));
+	server.SetAuthority(bound.term, bound.revision, true);
+	server.AdvanceCustomRoom(122000);
+	CHECK(bound.Table().phase == room::TablePhase::Paused && bound.Timer().windowMs == room::PermitStartMs);
+	bound.transport->outgoing.clear();
+	bound.Acknowledge("game_prepared", reserved);
+	bound.Acknowledge("game_ready", reserved);
+	CHECK(bound.Sent("game_end", reserved) == 2 && bound.Sent("game_start", reserved) == 0);
+	const auto& table = bound.Table();
+	CHECK(table.phase == room::TablePhase::Waiting && bound.Timer().generation == 0);
+	const auto receipts = server._roomAuthority->PendingTerminalEvents(table.p1);
+	CHECK(receipts.size() == 1 && receipts[0].generation == reserved && receipts[0].result == room::MatchResult::Cancel);
 }
 
 // A candidate that starts the game, takes a Ready back or lets the hold run
@@ -335,6 +382,7 @@ int main() {
 	TestRepeatedRestoresKeepPermitAge();
 	TestLateNativeStartIsCalledOff();
 	TestStartCommittedLateStillStarts();
+	TestPausedPreparationKeepsWindow();
 	TestRollbackKeepsPermitAge();
 	TestCandidateReservationIsNotKept();
 	std::printf("session server tournament tests passed\n");

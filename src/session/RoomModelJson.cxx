@@ -156,7 +156,8 @@ bool RoomAuthority::RestoreCheckpoint(const nlohmann::json& state) {
             if (!startWindows.empty()) {
                 if (!startWindows.at(i).is_number_unsigned()) return false;
                 window = startWindows.at(i).get<std::uint64_t>();
-                if (window && (window > MaximumPermitWindowMs || table.permitGeneration || table.phase != TablePhase::Playing ||
+                if (window && (window > MaximumPermitWindowMs || table.permitGeneration ||
+                    (table.phase != TablePhase::Playing && table.phase != TablePhase::Paused) ||
                     !table.matchGeneration || !restored.snapshot_.tournament.Active() || i != TournamentTable)) return false;
             }
             const auto generation = table.permitGeneration ? table.permitGeneration : window ? table.matchGeneration : 0;
