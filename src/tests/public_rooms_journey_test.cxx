@@ -223,11 +223,56 @@ void CreateJourney(){
  Check(j.hosts()==1&&j.requests().size()==asked,"A private room did not host as before");
 }
 
-// Create on Public with rules of the player's own: they are saved apart from a
-// private room's, and once the creator is in the new room as its host, every
-// table gets them by the ordinary host action, which the room accepts.
-void CreateWithRulesJourney(){
- Journey j;auto& h=j.h;j.OpenList();
+// A public room the service has opened at the public default, with the
+// creator in it as its first member and so its host, and the SetRules actions
+// the shell sends to it.
+struct CreatedRoom {
+ Journey& j;
+ room::RoomAuthority authority{"Open Mic",8,9,room::PublicRoomRules()};
+ room::MemberId creator=0;
+ std::size_t seen=0;
+ explicit CreatedRoom(Journey& journey):j(journey){
+  Check(authority.SetServerOwned(),"The room is not server owned");
+  creator=Join("emb1-creator",1);
+  auto& s=j.h.view.session;s.room=netplay::RoomState::Joined;s.control=netplay::Health::Healthy;s.recovery=netplay::Recovery::None;
+  seen=j.h.actions.size();Show();
+ }
+ room::MemberId Join(const char* account,int peer){
+  room::MemberProfile profile;profile.account=account;
+  const auto joined=authority.Join(account,room::ConnectionRef{"host",std::to_string(peer)},false,profile);
+  Check(joined.accepted,"A member could not join");
+  return joined.snapshot.members.back().id;
+ }
+ void Show(){j.h.view.room=authority.SnapshotFor(creator);}
+ // An action of another member's, or the host's own by hand, at the current revisions.
+ room::Action Made(room::MemberId member,std::uint8_t table,room::ActionKind kind){
+  room::Action action;action.kind=kind;action.protocolVersion=room::ProtocolVersion;
+  const auto& s=authority.SnapshotView();action.roomEpoch=s.roomEpoch;action.revision=s.revision;
+  action.table=table;action.tableRevision=s.tables[table].revision;action.actionId=1000000+member*1000+s.revision;
+  return action;
+ }
+ // The SetRules actions sent since the last call.
+ std::vector<room::Action> Sent(){
+  std::vector<room::Action> out;
+  for(;seen<j.h.actions.size();++seen){const auto& a=j.h.actions[seen];
+   if(a.command.kind==Kind::RoomAction&&a.roomAction.kind==room::ActionKind::SetRules)out.push_back(a.roomAction);}
+  return out;
+ }
+ // The one action sent now; the room applies it (or refuses it) and the shell sees the result.
+ room::Action One(const char* what){
+  const auto sent=Sent();
+  Check(sent.size()==1,what);
+  return sent.front();
+ }
+ bool Apply(const room::Action& action){const bool accepted=authority.Apply(creator,action).accepted;Show();return accepted;}
+ bool AllHave(const room::Rules& rules) const{
+  return std::all_of(authority.SnapshotView().tables.begin(),authority.SnapshotView().tables.end(),[&](const room::Table& t){return t.rules==rules;});
+ }
+};
+
+// Opens Create on Public, picks first to 3, loser stays, and creates the room.
+static room::Rules CreateWithChosenRules(Journey& j){
+ auto& h=j.h;j.OpenList();
  j.List({});
  h.view.preferences.roomName="Open Mic";h.Frame(0,2);
  h.Choose("pr-none");
@@ -250,26 +295,80 @@ void CreateWithRulesJourney(){
  h.Frame(0,2);
  h.Choose("host");j.Admit("","b");
  Check(j.joins()==1,"The new room's admission did not join");
- // The service opened the room at the public default; the creator joins first and moderates.
- room::RoomAuthority authority("Open Mic",8,9,room::PublicRoomRules());
- Check(authority.SetServerOwned(),"The room is not server owned");
- room::MemberProfile profile;profile.account="emb1-creator";
- const auto joined=authority.Join("Player",room::ConnectionRef{"host","1"},false,profile);
- Check(joined.accepted,"The creator could not join");
- const auto creator=joined.snapshot.members.back().id;
- auto& s=h.view.session;s.room=netplay::RoomState::Joined;s.control=netplay::Health::Healthy;s.recovery=netplay::Recovery::None;
- h.view.room=authority.SnapshotFor(creator);
- const auto before=h.actions.size();h.Frame(0,4);
- std::vector<room::Action> sent;
- for(std::size_t i=before;i<h.actions.size();++i)if(h.actions[i].command.kind==Kind::RoomAction&&h.actions[i].roomAction.kind==room::ActionKind::SetRules)sent.push_back(h.actions[i].roomAction);
- Check(sent.size()==room::TableCount,"The chosen rules were not sent for every table");
- for(const auto& action:sent)Check(authority.Apply(creator,action).accepted,"The room refused the creator's rules");
- for(const auto& table:authority.SnapshotView().tables)
-  Check(table.rules==h.view.preferences.publicTableRules,"A table did not end up with the chosen rules");
- // Sent once: a later snapshot sends nothing more.
- h.view.room=authority.SnapshotFor(creator);const auto after=h.actions.size();h.Frame(0,4);
- Check(std::none_of(h.actions.begin()+after,h.actions.end(),[](const ShellAction& a){return a.roomAction.kind==room::ActionKind::SetRules&&a.command.kind==Kind::RoomAction;}),
-  "The chosen rules were sent again");
+ return h.view.preferences.publicTableRules;
+}
+
+// Create on Public with rules of the player's own: they are saved apart from a
+// private room's, and once the creator is in the new room as its host, every
+// table gets them by the ordinary host action, one table at a time, each
+// confirmed by the room before the next. A table refused as stale (a seat
+// taken meanwhile) gets it again at its new revision; one lost while room
+// control was fenced is sent again once control is back.
+void CreateWithRulesJourney(){
+ Journey j;auto& h=j.h;
+ const auto rules=CreateWithChosenRules(j);
+ CreatedRoom room(j);
+ h.Frame(0,4);
+ Check(room.Apply(room.One("Table 1's rules were not sent alone")),"The room refused the creator's rules");
+ // Table 2: a member takes a seat there before the action lands, so the room refuses it.
+ h.Frame(0,4);
+ const auto stale=room.One("Table 2's rules were not sent after table 1's landed");
+ Check(stale.table==1,"The tables were not taken in order");
+ const auto guest=room.Join("emb1-guest",2);
+ const auto seat=room.Made(guest,1,room::ActionKind::Queue);
+ Check(room.authority.Apply(guest,seat).accepted,"The guest could not take a seat");
+ Check(!room.Apply(stale),"A stale table's rules were accepted");
+ h.Frame(0,4);
+ const auto again=room.One("Table 2's rules were not sent again at its new revision");
+ Check(again.table==1&&again.tableRevision==room.authority.SnapshotView().tables[1].revision,"The resend did not carry the fresh revision");
+ Check(room.Apply(again),"The resent rules were refused");
+ // Table 3: control is fenced while it is on its way and the action is lost.
+ h.Frame(0,4);
+ const auto lost=room.One("Table 3's rules were not sent");
+ Check(lost.table==2,"The tables were not taken in order");
+ h.view.session.coordinated=true;h.view.session.authorityWritable=false;h.Frame(0,120);
+ Check(room.Sent().empty(),"Rules were sent while room control was fenced");
+ h.view.session.authorityWritable=true;h.Frame(0,4);
+ const auto resent=room.One("Table 3's lost rules were not sent again once control was back");
+ Check(resent.table==2,"The lost table's rules went to another table");
+ Check(room.Apply(resent),"The resent rules were refused");
+ h.Frame(0,4);
+ Check(room.Apply(room.One("Table 4's rules were not sent")),"Table 4's rules were refused");
+ Check(room.AllHave(rules),"A table did not end up with the chosen rules");
+ // Confirmed: a later snapshot sends nothing more.
+ h.Frame(0,120);
+ Check(room.Sent().empty(),"The chosen rules were sent again");
+}
+
+// The creation rules stop: at their deadline, when the creator is no longer
+// host, and when the host edits a table's rules first.
+void CreateWithRulesStopsJourney(){
+ {
+  Journey j;auto& h=j.h;CreateWithChosenRules(j);CreatedRoom room(j);
+  h.Frame(0,4);room.One("Table 1's rules were not sent");
+  // Nothing comes back: it is sent again until the deadline, then never.
+  h.Frame(0,1,16.f);room.Sent();
+  h.Frame(0,240);
+  Check(room.Sent().empty(),"Rules were sent after the deadline");
+ }
+ {
+  Journey j;auto& h=j.h;CreateWithChosenRules(j);CreatedRoom room(j);
+  h.Frame(0,4);Check(room.Apply(room.One("Table 1's rules were not sent")),"Table 1's rules were refused");
+  const auto guest=room.Join("emb1-guest",2);
+  Check(room.authority.TransferHost(room.creator,guest).accepted,"The host could not hand the room over");
+  room.Show();h.Frame(0,240);
+  Check(room.Sent().empty(),"Rules were sent after the creator stopped being host");
+ }
+ {
+  Journey j;auto& h=j.h;CreateWithChosenRules(j);CreatedRoom room(j);
+  h.Frame(0,4);room.One("Table 1's rules were not sent");
+  // The host sets table 2 by hand before its turn: that stands, and the rest stops.
+  auto own=room.Made(room.creator,1,room::ActionKind::SetRules);own.rules.format=room::SetFormat::Ft5;
+  Check(room.authority.Apply(room.creator,own).accepted,"The host could not set table 2");
+  room.Show();h.Frame(0,240);
+  Check(room.Sent().empty(),"The creation rules overwrote rules the host set by hand");
+  Check(room.authority.SnapshotView().tables[1].rules.format==room::SetFormat::Ft5,"The host's own rules were lost");
+ }
 }
 
 // After a restart with Public saved, going straight to Create waits for the
@@ -611,5 +710,5 @@ void RoomLostJourney(){
  Check(!j.row("replace-room")&&j.row("leave"),"A public room offered to replace its room");
 }
 }
-int main(){try{ListJourney();JoinJourney();CreateJourney();CreateWithRulesJourney();RestoredCreateJourney();AbandonedRequestJourney();AbandonedCreateJourney();RoomJourney();RoomLostJourney();SortJourney();QuickJoinJourney();FilterJourney();AutoRefreshJourney();CreateOpeningJourney();CurrentRoomJourney();RunPublicRoomsSetupJourneys();std::cout<<"Public rooms journeys passed.\n";return 0;}
+int main(){try{ListJourney();JoinJourney();CreateJourney();CreateWithRulesJourney();CreateWithRulesStopsJourney();RestoredCreateJourney();AbandonedRequestJourney();AbandonedCreateJourney();RoomJourney();RoomLostJourney();SortJourney();QuickJoinJourney();FilterJourney();AutoRefreshJourney();CreateOpeningJourney();CurrentRoomJourney();RunPublicRoomsSetupJourneys();std::cout<<"Public rooms journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
