@@ -206,6 +206,8 @@ void SessionServer::AdvanceCustomRoom(std::uint64_t nowMs) {
 	if (!_roomAuthority) return;
 	if (_recovery.Enabled() && !_recovery.Writable()) {
 		if (!_roomAuthority->RecoveryPaused()) _roomAuthority->PauseForRecovery();
+		// A permit's start window is the bridge's: it runs on through an outage.
+		_roomAuthority->AgePermitHolds(nowMs);
 		if (_coordinationHealthy) {
 			if (_passiveTimerClock && nowMs >= _passiveTimerClock)
 				_roomAuthority->AdvancePausedTimers(nowMs - _passiveTimerClock);
@@ -214,6 +216,7 @@ void SessionServer::AdvanceCustomRoom(std::uint64_t nowMs) {
 		return;
 	}
 	if (_recovery.Enabled() && _roomAuthority->RecoveryPaused()) {
+		_roomAuthority->AgePermitHolds(nowMs);
 		if (_coordinationHealthy && _passiveTimerClock && nowMs >= _passiveTimerClock)
 			_roomAuthority->AdvancePausedTimers(nowMs - _passiveTimerClock);
 		_roomAuthority->ResumeRecovery(nowMs);

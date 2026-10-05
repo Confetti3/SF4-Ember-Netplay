@@ -293,6 +293,7 @@ pub async fn prepare_game(
                         "permit_id": permit.permit_id,
                         "attempt_id": permit.attempt_id,
                         "match_generation": permit.match_generation,
+                        "issued_at": permit.issued_at,
                         "start_by": permit.start_by,
                     })))
                 }

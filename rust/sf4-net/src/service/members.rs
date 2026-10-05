@@ -52,15 +52,24 @@ impl Actor {
         confirmed: BTreeSet<u64>,
         history: &BTreeSet<u64>,
     ) {
+        let mut departed = false;
         for incarnation in confirmed {
             self.admissions.remove(&incarnation);
             self.admission_order.retain(|id| *id != incarnation);
+            departed |= !self.retired_incarnations.contains(&incarnation);
             // A departure that cannot be recorded stays pending: the RPC
             // binding is already read-only, and forgetting the ID would let a
             // lagging peer replay the old Admission after a control reconnect.
             if self.record_retirement(incarnation, history) {
                 self.pending_retired_incarnations.remove(&incarnation);
             }
+        }
+        // The member that left may have shared the room's short link, which
+        // only the leader keeps current now; the pump looks only while this
+        // game leads. Once per departure: a retirement already confirmed is
+        // never confirmed again.
+        if departed {
+            self.short.schedule_adopt(now().unwrap_or(0));
         }
     }
 

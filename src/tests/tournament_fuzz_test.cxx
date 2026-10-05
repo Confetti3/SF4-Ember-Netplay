@@ -170,6 +170,33 @@ static void TestRoomListDetails() {
 // The assignment rows' times and states: the bridge's created_at and expires_at
 // are read when they are unsigned numbers and are 0 (unknown) otherwise, never a
 // reason to lose the row; and the states say what a player can still do.
+// A permit's start deadline becomes the window between the bridge's two
+// times, never compared with this PC's clock; a reply without a sound one is
+// refused.
+static void TestPrepareWindow() {
+	const auto decode = [](const json& extra) {
+		json reply = {{"state", "permitted"}, {"permit_id", "per_x"}, {"match_generation", "7"},
+			{"issued_at", 1000u}, {"start_by", 1120u}};
+		for (auto it = extra.begin(); it != extra.end(); ++it) reply[it.key()] = it.value();
+		return session::DecodePrepareReply(reply);
+	};
+	const auto good = decode(json::object());
+	CHECK(good && good->permitted && good->generation == 7 && good->startWindowMs == room::PermitStartMs);
+	// Skewed or not, the bridge's own times give the same window.
+	const auto later = decode({{"issued_at", 4000000000u}, {"start_by", 4000000120u}});
+	CHECK(later && later->startWindowMs == room::PermitStartMs);
+	CHECK(!decode({{"start_by", 1000u}}) && !decode({{"start_by", 999u}}));
+	CHECK(!decode({{"start_by", 1000u + room::MaximumPermitWindowMs / 1000 + 1}}));
+	CHECK(decode({{"start_by", 1000u + room::MaximumPermitWindowMs / 1000}}));
+	for (const char* key : {"issued_at", "start_by"}) {
+		auto missing = json{{"state", "permitted"}, {"permit_id", "per_x"}, {"match_generation", "7"},
+			{"issued_at", 1000u}, {"start_by", 1120u}};
+		missing.erase(key);
+		CHECK(!session::DecodePrepareReply(missing));
+		CHECK(!decode({{key, "1000"}}) && !decode({{key, -5}}));
+	}
+}
+
 static void TestAssignmentTimes() {
 	using netplay::tournament::Assignment;
 	const auto decode = [](const json& extra) {
@@ -256,7 +283,8 @@ static void FuzzAnswers(Random& random) {
 			if (claim->role == netplay::tournament::ClaimReply::Role::Host) CHECK(!claim->fence.empty());
 		}
 		if (const auto prepare = session::DecodePrepareReply(data)) {
-			if (prepare->permitted) CHECK(prepare->generation && room::ValidPermitId(prepare->permitId));
+			if (prepare->permitted) CHECK(prepare->generation && room::ValidPermitId(prepare->permitId) &&
+				prepare->startWindowMs && prepare->startWindowMs <= room::MaximumPermitWindowMs);
 			else CHECK(prepare->retryAfterMs <= 60000);
 		}
 		if (const auto list = session::DecodeAssignments(data)) {
@@ -507,6 +535,7 @@ static void FuzzBoundRoom(Random& random) {
 				action.matchGeneration = random.Chance(70) ? view.tables[action.table].permitGeneration : random.Below(8);
 				if (action.kind == room::ActionKind::AcknowledgeTerminal) action.matchGeneration = view.tables[action.table].matchGeneration;
 				action.text = random.Chance(85) ? std::string(random.Chance(85) ? "per_a" : "per_b") : Text(random).substr(0, 70);
+				action.startWindowMs = random.Chance(90) ? room::PermitStartMs : random.Below(room::MaximumPermitWindowMs * 2);
 				action.target = view.members[random.Below(view.members.size())].id;
 				// While a start is held, mostly a fighter handing over a permit.
 				const auto& bound = view.tables[room::TournamentTable];
@@ -565,6 +594,7 @@ int main() {
 	Random random(Seed());
 	TestRoomListDetails();
 	TestAssignmentTimes();
+	TestPrepareWindow();
 	FuzzAnswers(random);
 	FuzzLinks(random);
 	FuzzRoomLinks(random);

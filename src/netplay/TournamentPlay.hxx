@@ -53,6 +53,9 @@ struct PrepareReply {
 	bool permitted = false;
 	std::uint64_t generation = 0;
 	std::string permitId;
+	// How long the game may start after the bridge issued the permit (its
+	// start_by less its issued_at, both on the bridge's clock).
+	std::uint64_t startWindowMs = 0;
 	std::uint64_t retryAfterMs = 0;
 };
 
@@ -80,6 +83,7 @@ struct Output {
 	std::string leaseId, fence, replaces;         // Publish
 	std::uint64_t generation = 0;                 // Prepare, Report, PermitReady
 	std::string permitId;                         // PermitReady
+	std::uint64_t startWindowMs = 0;              // PermitReady
 	std::string result;                           // Report: p1_win, p2_win, draw, abort or cancel
 	std::uint64_t captureFrame = 0, confirmedFrame = 0;  // Report; zero when absent
 	room::TournamentBinding binding;              // Bind
@@ -147,7 +151,8 @@ private:
 	std::optional<Binding> binding_;
 	bool waitingForOpponent_ = false, waitingForPermit_ = false;
 	// Permits this fighter holds, by generation; games that started; games reported.
-	std::map<std::uint64_t, std::string> permits_;
+	struct HeldPermit { std::string id; std::uint64_t startWindowMs = 0; };
+	std::map<std::uint64_t, HeldPermit> permits_;
 	std::map<std::uint64_t, std::uint64_t> permitToldMs_;
 	std::set<std::uint64_t> started_, reported_;
 	// Reports the helper has not saved yet, by generation: sent and waiting for

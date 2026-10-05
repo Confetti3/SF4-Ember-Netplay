@@ -46,10 +46,6 @@ constexpr std::size_t MaximumKickedAccounts = 512;
 // room.waiting_spectators, room.lock_spectating.detail and
 // room.unlock_spectating.detail; the UI passes SpectatorStartHoldMs / 1000.
 constexpr std::uint64_t SpectatorStartHoldMs = 10000;
-// A tournament game starts by the end of the permit hold plus a spectator's
-// start hold, with a few seconds for the commits that start it.
-static_assert(PermitHoldMs + SpectatorStartHoldMs + 5000 <= PermitStartMs,
-	"a start the room allows must fall inside the permit's start window");
 
 enum class MemberStatus : std::uint8_t {
 	Idle = 0,
@@ -238,6 +234,11 @@ struct Table {
 	// the same permit. Zero when no game is waiting for one.
 	std::uint64_t permitGeneration = 0;
 	std::array<std::string, 2> permits;
+	// Each seat's permit's start window in milliseconds, as the bridge signed
+	// it. The bridge issues a permit only after the room reserved its
+	// generation, so the game must start within the shorter window from the
+	// reservation; zero where a seat has no permit.
+	std::array<std::uint64_t, 2> permitWindows = {};
 };
 
 // A seated fighter may still change fighter and delay: no game is being
@@ -435,6 +436,9 @@ struct Action {
 	std::uint64_t matchGeneration = 0;
 	std::uint8_t inputDelay = 2;
 	std::string text;
+	// PermitReady: the permit's start window in milliseconds (its start_by
+	// less its issued_at, both on the bridge's clock).
+	std::uint64_t startWindowMs = 0;
 	// Set on the generation-scoped Unwatch a spectator's runtime sends when its
 	// own stream or setup failed: leave this game only. The watch stays, the
 	// lock-in does not. A player's own Stop watching never sets it.
@@ -564,6 +568,18 @@ public:
 	// executing timer effects. Actual control recovery does not call this, so
 	// result deadlines remain suspended until quorum and control return.
 	void AdvancePausedTimers(std::uint64_t elapsedMs);
+	// A permit's start window is the bridge's, so unlike the room's own
+	// deadlines it keeps running while coordination is lost. A paused replica
+	// ages its permit holds by the time since the last call (nowMs on this
+	// process's monotonic clock), healthy or not; AdvancePausedTimers leaves
+	// them alone.
+	void AgePermitHolds(std::uint64_t nowMs);
+	// Each table's permit generation and how long ago it was reserved. A
+	// restore from a commit made before an outage would move that age back;
+	// KeepPermitAges keeps the larger age for the same reservation.
+	using PermitAgeList = std::array<std::pair<std::uint64_t, std::uint64_t>, TableCount>;
+	PermitAgeList PermitAges() const;
+	void KeepPermitAges(const PermitAgeList& ages);
 	void ResumeRecovery(std::uint64_t nowMs);
 	void SetMemberIncarnation(MemberId member, std::uint64_t incarnation);
 
@@ -609,6 +625,13 @@ private:
 	// A table deadline (ResultDisputeTimeoutMs, SpectatorStartHoldMs) that
 	// started at `since` has passed.
 	bool TimerDue(std::uint64_t since, std::uint64_t timeout, std::uint64_t nowMs) const;
+	// The permit's start window, less PermitStartMarginMs, has run out since
+	// the table's generation was reserved. A permit without a known window
+	// counts as run out.
+	bool PermitStartPassed(const Table& table, std::uint64_t nowMs) const;
+	// The start a bound table holds for its permit is called off: the permit
+	// never reached both fighters within PermitHoldMs, or its window passed.
+	bool PermitCalledOff(const Table& table, std::uint64_t nowMs) const;
 	// Ends every start hold whose spectators are back or whose deadline has
 	// passed, appending the MatchReady the hold deferred. Returns true when a
 	// table changed.
@@ -703,8 +726,11 @@ private:
 	std::array<std::uint64_t, TableCount> startHeldSince_ = {};
 	std::array<std::uint64_t, TableCount> permitHeldSince_ = {};
 	// Every running table deadline with its timeout, on the owner's monotonic
-	// clock. Recovery turns them into ages and back through this one list.
-	template <typename Visit> void ForEachTableTimer(Visit&& visit);
+	// clock. Recovery turns them into ages and back through this one list;
+	// `permits` false leaves out the permit holds.
+	template <typename Visit> void ForEachTableTimer(Visit&& visit, bool permits = true);
+	// The last AgePermitHolds time while paused; zero before the first.
+	std::uint64_t permitClockMs_ = 0;
 	std::array<std::vector<TerminalRecipient>, TableCount> activeMatchRecipients_;
 	static constexpr std::size_t MaximumTerminalReceipts = 64;
 	static constexpr std::size_t MaximumTerminalAckTombstones = 256;

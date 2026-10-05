@@ -106,12 +106,14 @@ void RoomAuthority::ReservePermit(Table& table) {
 	// refused a Ready when no generation is left.
 	table.permitGeneration = nextMatchGeneration_++;
 	table.permits = {};
+	table.permitWindows = {};
 	permitHeldSince_[table.id] = nowMs_;
 }
 
 void RoomAuthority::ClearPermit(Table& table) {
 	table.permitGeneration = 0;
 	table.permits = {};
+	table.permitWindows = {};
 	permitHeldSince_[table.id] = 0;
 }
 
@@ -150,11 +152,15 @@ Result RoomAuthority::ApplyPermitReady(MemberId member, const Action& action, Ta
 		action.matchGeneration != table->permitGeneration) return Reject(RejectReason::WrongGeneration);
 	const int seat = table->p1 == member ? 0 : table->p2 == member ? 1 : -1;
 	if (seat < 0) return Reject(RejectReason::NotSeated);
-	if (!ValidPermitId(action.text)) return Reject(RejectReason::Unauthorized);
-	if (table->permits[seat] == action.text) return Accept();
+	if (!ValidPermitId(action.text) || !action.startWindowMs || action.startWindowMs > MaximumPermitWindowMs)
+		return Reject(RejectReason::Unauthorized);
+	if (table->permits[seat] == action.text && table->permitWindows[seat] == action.startWindowMs) return Accept();
 	table->permits[seat] = action.text;
+	table->permitWindows[seat] = action.startWindowMs;
 	Touch(*table);
-	if (!PermitPending(*table) && !table->spectatorHold)
+	// A permit whose window has passed starts nothing: AdvanceTime calls the
+	// start off.
+	if (!PermitPending(*table) && !table->spectatorHold && !PermitStartPassed(*table, nowMs_))
 		return Accept({Event{Event::Kind::MatchReady, table->id, table->matchGeneration, 0, MatchResult::Abort}});
 	return Accept();
 }

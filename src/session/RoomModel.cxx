@@ -73,12 +73,20 @@ bool RoomAuthority::SetMemberFighter(MemberId member,int fighter,bool* withdrewO
     return true;
 }
 
-template <typename Visit> void RoomAuthority::ForEachTableTimer(Visit&& visit) {
+template <typename Visit> void RoomAuthority::ForEachTableTimer(Visit&& visit, bool permits) {
 	for (std::size_t i = 0; i < TableCount; ++i) {
 		if (snapshot_.tables[i].resultPending) visit(resultPendingSince_[i], ResultDisputeTimeoutMs);
 		if (snapshot_.tables[i].spectatorHold) visit(startHeldSince_[i], SpectatorStartHoldMs);
-		if (snapshot_.tables[i].permitGeneration) visit(permitHeldSince_[i], PermitHoldMs);
+		if (permits && snapshot_.tables[i].permitGeneration) visit(permitHeldSince_[i], MaximumPermitWindowMs);
 	}
+}
+
+namespace {
+// `value` plus `elapsed`, held at `maximum`: an age past its deadline only
+// needs to stay past it.
+std::uint64_t AddCapped(std::uint64_t value, std::uint64_t elapsed, std::uint64_t maximum) {
+	return value >= maximum || elapsed >= maximum - value ? maximum : value + elapsed;
+}
 }
 
 void RoomAuthority::PauseForRecovery() {
@@ -89,16 +97,43 @@ void RoomAuthority::PauseForRecovery() {
     for (auto& entry : lastActiveMs_)
         entry.second = nowMs_ >= entry.second ? nowMs_ - entry.second : 0;
     recoveryPaused_ = true;
+    permitClockMs_ = 0;
 }
 
 void RoomAuthority::AdvancePausedTimers(std::uint64_t elapsedMs) {
 	if (!recoveryPaused_ || !elapsedMs) return;
-	const auto add = [elapsedMs](std::uint64_t value, std::uint64_t maximum) {
-		return value >= maximum || elapsedMs >= maximum - value ? maximum : value + elapsedMs;
-	};
-	ForEachTableTimer([&](std::uint64_t& age, std::uint64_t timeout) { age = add(age, timeout); });
+	const auto add = [elapsedMs](std::uint64_t value, std::uint64_t maximum) { return AddCapped(value, elapsedMs, maximum); };
+	ForEachTableTimer([&](std::uint64_t& age, std::uint64_t timeout) { age = add(age, timeout); }, false);
 	for (auto& entry : lastChatMs_) entry.second = add(entry.second, 1000);
 	for (auto& entry : lastActiveMs_) entry.second = add(entry.second, MaximumIdleSeconds * 1000ull);
+}
+
+void RoomAuthority::AgePermitHolds(std::uint64_t nowMs) {
+	if (!recoveryPaused_) return;
+	if (permitClockMs_ && nowMs > permitClockMs_)
+		for (std::size_t i = 0; i < TableCount; ++i)
+			if (snapshot_.tables[i].permitGeneration)
+				permitHeldSince_[i] = AddCapped(permitHeldSince_[i], nowMs - permitClockMs_, MaximumPermitWindowMs);
+	permitClockMs_ = nowMs;
+}
+
+RoomAuthority::PermitAgeList RoomAuthority::PermitAges() const {
+	PermitAgeList ages = {};
+	for (std::size_t i = 0; i < TableCount; ++i) {
+		const auto generation = snapshot_.tables[i].permitGeneration;
+		if (!generation) continue;
+		const auto since = permitHeldSince_[i];
+		ages[i] = {generation, recoveryPaused_ ? since : nowMs_ >= since ? nowMs_ - since : 0};
+	}
+	return ages;
+}
+
+void RoomAuthority::KeepPermitAges(const PermitAgeList& ages) {
+	if (!recoveryPaused_) return;
+	// Generations are never reused, so the same one is the same reservation.
+	for (std::size_t i = 0; i < TableCount; ++i)
+		if (snapshot_.tables[i].permitGeneration && ages[i].first == snapshot_.tables[i].permitGeneration)
+			permitHeldSince_[i] = (std::max)(permitHeldSince_[i], ages[i].second);
 }
 
 void RoomAuthority::ResumeRecovery(std::uint64_t nowMs) {
@@ -118,6 +153,7 @@ void RoomAuthority::ResumeRecovery(std::uint64_t nowMs) {
 	for (auto& entry : lastActiveMs_) entry.second = rebasedNow - entry.second;
 	nowMs_ = rebasedNow;
     recoveryPaused_ = false;
+    permitClockMs_ = 0;
 }
 
 Result RoomAuthority::TransferHost(MemberId actor, MemberId successor) {
@@ -695,7 +731,8 @@ Result RoomAuthority::BeginMatch(std::uint8_t tableId, MemberId p1, MemberId p2)
 	if (!table || table->p1 != p1 || table->p2 != p2 || p1 == 0 || p2 == 0 ||
 		table->phase != TablePhase::Ready || table->spectatorHold || PermitPending(*table) || table->resultPending ||
 		HasOutstandingTerminalReceipt(tableId) ||
-		(BoundTable(*table) && !table->permitGeneration) ||
+		// The final start gate: a bound table starts only inside its permit's window.
+		(BoundTable(*table) && (!table->permitGeneration || PermitStartPassed(*table, nowMs_))) ||
 		nextMatchGeneration_ == (std::numeric_limits<std::uint64_t>::max)()) return Reject(table ? RejectReason::WrongPhase : RejectReason::UnknownTable);
 	// A bound table plays the generation its permit names.
 	table->matchGeneration = table->permitGeneration ? table->permitGeneration : nextMatchGeneration_++;
@@ -782,7 +819,7 @@ bool RoomAuthority::HasDueTimerTransition(std::uint64_t nowMs) const {
 	for (std::size_t i = 0; i < TableCount; ++i) {
 		const auto& table = snapshot_.tables[i];
 		if (table.spectatorHold && TimerDue(startHeldSince_[i], SpectatorStartHoldMs, nowMs)) return true;
-		if (table.permitGeneration && TimerDue(permitHeldSince_[i], PermitHoldMs, nowMs)) return true;
+		if (PermitCalledOff(table, nowMs)) return true;
 		if (table.resultPending && table.phase == TablePhase::Playing &&
 			TimerDue(resultPendingSince_[i], ResultDisputeTimeoutMs, nowMs)) return true;
 	}
@@ -793,6 +830,24 @@ bool RoomAuthority::TimerDue(std::uint64_t since, std::uint64_t timeout, std::ui
 	// A paused authority holds ages rather than start times.
 	if (recoveryPaused_) return since >= timeout;
 	return (std::max)(nowMs, nowMs_) - since >= timeout;
+}
+
+bool RoomAuthority::PermitStartPassed(const Table& table, std::uint64_t nowMs) const {
+	if (!table.permitGeneration) return false;
+	std::uint64_t window = MaximumPermitWindowMs;
+	bool held = false;
+	for (std::size_t seat = 0; seat < 2; ++seat) {
+		if (table.permits[seat].empty()) continue;
+		held = true;
+		window = (std::min)(window, table.permitWindows[seat]);
+	}
+	if (!held) return false;
+	return window <= PermitStartMarginMs || TimerDue(permitHeldSince_[table.id], window - PermitStartMarginMs, nowMs);
+}
+
+bool RoomAuthority::PermitCalledOff(const Table& table, std::uint64_t nowMs) const {
+	return table.permitGeneration && ((PermitPending(table) && TimerDue(permitHeldSince_[table.id], PermitHoldMs, nowMs)) ||
+		PermitStartPassed(table, nowMs));
 }
 
 std::vector<Event> RoomAuthority::AdvanceTime(std::uint64_t nowMs) {
@@ -814,11 +869,11 @@ std::vector<Event> RoomAuthority::AdvanceTime(std::uint64_t nowMs) {
 		Touch(table);
 		events.push_back(Event{Event::Kind::ResultDisputed, static_cast<std::uint8_t>(i), table.matchGeneration, resultReporter_[i], pendingResult_[i]});
 	}
-	// A permit that never reached both fighters calls the start off; they
-	// ready again for a new one.
+	// A permit that never reached both fighters, or whose window has passed,
+	// calls the start off; they ready again, and a new generation needs a new
+	// permit.
 	for (auto& table : snapshot_.tables) {
-		if (!table.permitGeneration || !PermitPending(table) ||
-			!TimerDue(permitHeldSince_[table.id], PermitHoldMs, nowMs_)) continue;
+		if (!PermitCalledOff(table, nowMs_)) continue;
 		ClearReadiness(table);
 		ClearPermit(table);
 		table.spectatorHold = false;
@@ -851,7 +906,7 @@ bool RoomAuthority::ReleaseHeldStarts(std::vector<Event>& events) {
 		startHeldSince_[table.id] = 0;
 		Touch(table);
 		changed = true;
-		if (starting && !PermitPending(table))
+		if (starting && !PermitPending(table) && !PermitStartPassed(table, nowMs_))
 			events.push_back(Event{Event::Kind::MatchReady, table.id, table.matchGeneration, 0, MatchResult::Abort});
 	}
 	return changed;

@@ -1,6 +1,6 @@
 //! Short invitation links: publishing this room's sealed invitation to the
-//! link service on request, keeping it current (a new leader takes over a
-//! link someone shared), and opening a pasted link.
+//! link service on request, keeping it current (whoever leads the room takes
+//! over a link any member shared), and opening a pasted link.
 use super::*;
 use crate::short_invite::{self, Keys, ShortError};
 
@@ -9,8 +9,8 @@ use crate::short_invite::{self, Keys, ShortError};
 const REPUBLISH_SECS: u64 = 10 * 60;
 /// After a background store fails, wait this long before the next try.
 const RETRY_SECS: u64 = 60;
-/// How many times a new leader looks its room's record up when the service
-/// does not answer.
+/// How many times a leader looks its room's record up when the service does
+/// not answer.
 const ADOPT_TRIES: u8 = 3;
 
 pub(super) struct ShortLinks {
@@ -19,11 +19,16 @@ pub(super) struct ShortLinks {
     pub(super) room: Option<ShortRoom>,
     /// A lookup of this room's record is under way (`adopt_short_link`).
     pub(super) adopting: bool,
-    /// When to look the record up again after the service did not answer;
-    /// zero when no lookup is due.
+    /// When to look the record up: asked for by `schedule_adopt`, or again
+    /// after the service did not answer. Zero when no lookup is due.
     pub(super) adopt_at: u64,
-    /// Lookups made since this game took the room over.
+    /// Lookups made since the last event that asked for one.
     pub(super) adopt_tries: u8,
+    /// The coordination term this game last led the room in; zero while it
+    /// does not lead.
+    pub(super) led_term: u64,
+    /// Another member has led the room since this game opened or joined it.
+    pub(super) followed: bool,
 }
 
 impl Default for ShortLinks {
@@ -34,6 +39,8 @@ impl Default for ShortLinks {
             adopting: false,
             adopt_at: 0,
             adopt_tries: 0,
+            led_term: 0,
+            followed: false,
         }
     }
 }
@@ -41,10 +48,49 @@ impl Default for ShortLinks {
 impl ShortLinks {
     /// Leaving a room forgets its link and any lookup of it.
     pub(super) fn clear(&mut self) {
-        self.room = None;
-        self.adopting = false;
-        self.adopt_at = 0;
+        *self = Self {
+            service: std::mem::take(&mut self.service),
+            ..Self::default()
+        };
+    }
+
+    /// A short link any member shared is kept current by whoever leads the
+    /// room, so this game looks for one when the lead passes to it: from
+    /// another member, or back to the game that opened the room. A game that
+    /// opened the room and has led it since published any link itself. One
+    /// lookup per change of leader, never one per refresh.
+    pub(super) fn follow_leader(
+        &mut self,
+        leading: bool,
+        term: u64,
+        other_leads: bool,
+        opened_here: bool,
+        time: u64,
+    ) {
+        if !leading {
+            self.led_term = 0;
+            self.followed |= other_leads;
+            return;
+        }
+        if self.led_term == term {
+            return;
+        }
+        self.led_term = term;
+        if !opened_here || self.followed {
+            self.schedule_adopt(time);
+        }
+    }
+
+    /// Something happened that can leave a shared link with nobody keeping
+    /// it current (a member left, the lead moved): look the room's record up
+    /// on the next pump. A burst of such events makes one lookup, and none is
+    /// made while this game holds the link.
+    pub(super) fn schedule_adopt(&mut self, time: u64) {
+        if self.room.is_some() {
+            return;
+        }
         self.adopt_tries = 0;
+        self.adopt_at = time.max(1);
     }
 }
 
@@ -201,17 +247,22 @@ impl Actor {
         Ok(())
     }
 
-    /// The room passed to this game from another member. A shared short link
-    /// stays current only while the room's leader stores the invitation
-    /// again, and whoever copied it may have left, so the new leader takes
-    /// the link over when the link service holds one for this room. A room
-    /// nobody shared a link for has no record there, and nothing is published
-    /// for it. The code comes from the room's own secrets, so a record under
-    /// it is this room's.
+    /// This game leads the room and may have a shared short link to keep
+    /// current (`ShortLinks::schedule_adopt`). A shared short link stays
+    /// current only while the room's leader stores the invitation again, and
+    /// whoever copied it may have left, so the leader takes the link over
+    /// when the link service holds one for this room. A room nobody shared a
+    /// link for has no record there, and nothing is published for it. The
+    /// code comes from the room's own secrets, so a record under it is this
+    /// room's.
     pub(super) fn adopt_short_link(&mut self) {
+        // A lookup under way keeps a newer request: it runs once this one is
+        // answered, in case the link was shared after the record was read.
+        if self.short.adopting {
+            return;
+        }
         self.short.adopt_at = 0;
         if self.short.room.is_some()
-            || self.short.adopting
             || self.short.adopt_tries >= ADOPT_TRIES
             || self.tasks.len() >= MAX_TASKS
         {
@@ -254,6 +305,7 @@ impl Actor {
             Ok((keys, invitation)) => {
                 // Stored again on the next pump: the record still names the
                 // leader that published it.
+                self.short.adopt_at = 0;
                 self.short.room = Some(ShortRoom {
                     code,
                     keys: Some(keys),

@@ -217,14 +217,15 @@ impl Actor {
         if state.leader_local && (!retired_for_broadcast.is_empty() || became_local_leader) {
             self.queue_membership_publication();
         }
-        // Authority passed to this game, which joined the room, from the
-        // member leading it before (a host that left, a lost leader): look
-        // for a short link someone shared. The game that opened the room
-        // published any link of its own and has nothing to take over.
-        if became_local_leader && self.hosted.is_none() {
-            self.short.adopt_tries = 0;
-            self.adopt_short_link();
-        }
+        // Whoever leads the room keeps a short link any member shared current.
+        // `state.leader` still names the coordination leader here.
+        self.short.follow_leader(
+            state.leader_local,
+            state.term,
+            !state.leader.is_empty(),
+            self.hosted.is_some(),
+            now().unwrap_or(0),
+        );
         // A relay dial or learner catch-up can fail after the authenticated
         // Admission control frame has been consumed. Keep that binding private
         // until it appears in applied membership and retry it from each fresh

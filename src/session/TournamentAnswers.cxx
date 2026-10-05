@@ -232,7 +232,13 @@ std::optional<PrepareReply> DecodePrepareReply(const nlohmann::json& data) {
 			reply.permitted = true;
 			reply.permitId = Text(data, "permit_id", 64);
 			reply.generation = Counter(data, "match_generation");
-			if (!room::ValidPermitId(reply.permitId) || !reply.generation) return std::nullopt;
+			// The signed start deadline as a window: both times are the bridge's,
+			// so this PC's clock never enters it.
+			const auto issuedAt = Seconds(data, "issued_at");
+			const auto startBy = Seconds(data, "start_by");
+			if (!room::ValidPermitId(reply.permitId) || !reply.generation || startBy <= issuedAt ||
+				startBy - issuedAt > room::MaximumPermitWindowMs / 1000) return std::nullopt;
+			reply.startWindowMs = (startBy - issuedAt) * 1000;
 		} else {
 			return std::nullopt;
 		}
