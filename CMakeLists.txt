@@ -350,8 +350,10 @@ if(BUILD_TESTING)
     add_test(NAME UiRender COMMAND UiRenderTest)
     # Every fighter now has a portrait (the packaged cutout stands in for the
     # game's), and sweeping twenty configurations cycles more art than the
-    # 32 MB selection cache holds, so the run decodes it repeatedly.
-    set_tests_properties(UiRender PROPERTIES TIMEOUT 360)
+    # 32 MB selection cache holds, so the run decodes it repeatedly. It takes
+    # about five minutes on its own, so it gets the same budget as the locale
+    # sweep.
+    set_tests_properties(UiRender PROPERTIES TIMEOUT 600)
     # Each translation at three sizes, in its own run so neither sweep nears
     # its timeout as languages are added.
     add_test(NAME UiRenderLocales COMMAND UiRenderTest)
