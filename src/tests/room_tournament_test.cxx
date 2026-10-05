@@ -365,6 +365,25 @@ static void TestRestoreKeepsPermitAge() {
 		current->AgePermitHolds(nowMs);
 	}
 	CHECK(current->PermitAges().tables[0].second == 130000);
+	// A room that pauses itself ages its permit from the time it paused, even
+	// when nothing ages it before it resumes: reserved at 1 s, paused at 31 s
+	// with 30 s on it, the window is past at 161 s.
+	for (int way = 0; way < 3; ++way) {
+		RoomAuthority live("Match", 8, 1);
+		MemberId p = 0, q = 0;
+		const auto held = HoldOnePermit(live, p, q, 31000);
+		live.PauseForRecovery();
+		if (way == 0) {
+			live.AgePermitHolds(161000);
+			CHECK(live.PermitAges().tables[0].second == 160000);
+			live.ResumeRecovery(161000);
+		} else if (way == 1) {
+			live.ResumeRecovery(161000);
+			CHECK(live.PermitAges().tables[0].second == 160000);
+		}
+		live.AdvanceTime(161001);
+		CHECK(live.SnapshotView().tables[0].permitGeneration != held);
+	}
 	// Resuming without aging first, directly or through AdvanceTime, takes
 	// the kept age along: 130 s at 100 s is 140 s at 110 s, past the window,
 	// so the reservation is called off instead of starting late.

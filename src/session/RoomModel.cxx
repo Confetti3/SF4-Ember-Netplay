@@ -97,7 +97,9 @@ void RoomAuthority::PauseForRecovery() {
     for (auto& entry : lastActiveMs_)
         entry.second = nowMs_ >= entry.second ? nowMs_ - entry.second : 0;
     recoveryPaused_ = true;
-    permitClockMs_ = 0;
+    // The permit ages were just measured on this process's clock, so they
+    // age on from that time. A restored room's ages have no such time here.
+    permitClockMs_ = nowMs_;
     permitAgesKept_ = false;
 }
 
