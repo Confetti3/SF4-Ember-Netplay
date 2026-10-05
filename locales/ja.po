@@ -378,6 +378,9 @@ msgstr "接続確立後、対戦用の通信を5秒間測定します。遅延�
 msgid "connection.checking_action"
 msgstr "接続を確認中..."
 
+msgid "connection.frame"
+msgstr "{0}F"
+
 msgid "connection.frames"
 msgstr "{0}F"
 
@@ -2000,6 +2003,8 @@ msgid "room.selected_delay.locked"
 msgstr "この対戦中、選択した遅延は固定されます。"
 
 msgid "room.match_delay.at_least"
+msgstr "{0}F以上"
+msgid "room.match_delay.at_least_one"
 msgstr "{0}F以上"
 
 msgid "room.check_connection.two_players"

@@ -378,6 +378,9 @@ msgstr "Midiendo datagramas de la partida durante cinco segundos más la conexi�
 msgid "connection.checking_action"
 msgstr "Comprobando conexión..."
 
+msgid "connection.frame"
+msgstr "{0} fotograma"
+
 msgid "connection.frames"
 msgstr "{0} fotogramas"
 
@@ -2001,6 +2004,8 @@ msgstr "El retraso seleccionado está bloqueado para esta partida."
 
 msgid "room.match_delay.at_least"
 msgstr "Mín. {0} fotogramas"
+msgid "room.match_delay.at_least_one"
+msgstr "Mín. {0} fotograma"
 
 msgid "room.check_connection.two_players"
 msgstr "Debe haber un jugador en cada asiento para comprobar la conexión."

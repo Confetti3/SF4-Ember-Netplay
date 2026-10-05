@@ -378,6 +378,9 @@ msgstr "Midiendo datagramas de juego durante cinco segundos, además de la conex
 msgid "connection.checking_action"
 msgstr "Verificando conexión..."
 
+msgid "connection.frame"
+msgstr "{0} cuadro"
+
 msgid "connection.frames"
 msgstr "{0} cuadros"
 
@@ -1715,6 +1718,8 @@ msgid "room.selected_delay.locked"
 msgstr "El retardo seleccionado está bloqueado para esta partida."
 msgid "room.match_delay.at_least"
 msgstr "Al menos {0} cuadros"
+msgid "room.match_delay.at_least_one"
+msgstr "Al menos {0} cuadro"
 msgid "room.check_connection.two_players"
 msgstr "Ambos asientos necesitan un jugador para revisar la conexión."
 msgid "room.check_connection.unready"

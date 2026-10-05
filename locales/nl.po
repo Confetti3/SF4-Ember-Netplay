@@ -378,6 +378,9 @@ msgstr "Speldatagrammen vijf seconden meten, plus het opzetten van de verbinding
 msgid "connection.checking_action"
 msgstr "Verbinding controleren..."
 
+msgid "connection.frame"
+msgstr "{0} frame"
+
 msgid "connection.frames"
 msgstr "{0} frames"
 
@@ -2001,6 +2004,8 @@ msgstr "De gekozen vertraging staat vast voor deze match."
 
 msgid "room.match_delay.at_least"
 msgstr "Minstens {0} frames"
+msgid "room.match_delay.at_least_one"
+msgstr "Minstens {0} frame"
 
 msgid "room.check_connection.two_players"
 msgstr "Beide plekken moeten bezet zijn om de verbinding te controleren."

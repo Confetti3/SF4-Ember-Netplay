@@ -378,6 +378,9 @@ msgstr "Measuring gameplay datagrams for five seconds, plus connection setup. Yo
 msgid "connection.checking_action"
 msgstr "Checking connection..."
 
+msgid "connection.frame"
+msgstr "{0} frame"
+
 msgid "connection.frames"
 msgstr "{0} frames"
 
@@ -1831,6 +1834,8 @@ msgid "room.selected_delay.locked"
 msgstr "The selected delay is locked for this match."
 msgid "room.match_delay.at_least"
 msgstr "At least {0} frames"
+msgid "room.match_delay.at_least_one"
+msgstr "At least {0} frame"
 msgid "room.check_connection.two_players"
 msgstr "Both seats need a player before checking the connection."
 msgid "room.check_connection.unready"

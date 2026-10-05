@@ -378,6 +378,9 @@ msgstr "Mesure des paquets de jeu pendant cinq secondes, plus l'établissement d
 msgid "connection.checking_action"
 msgstr "Test de connexion..."
 
+msgid "connection.frame"
+msgstr "{0} trame"
+
 msgid "connection.frames"
 msgstr "{0} trames"
 
@@ -2001,6 +2004,8 @@ msgstr "Le délai choisi est verrouillé pour ce combat."
 
 msgid "room.match_delay.at_least"
 msgstr "Au moins {0} trames"
+msgid "room.match_delay.at_least_one"
+msgstr "Au moins {0} trame"
 
 msgid "room.check_connection.two_players"
 msgstr "Il faut un joueur sur chaque place pour vérifier la connexion."

@@ -234,7 +234,7 @@ int main() try {
     // 0 frames is not offered: Left from 1 chooses Auto rather than 0, and an
     // older 0 reads as 1 and steps as 1 does.
     view.selectedDelay = 0; frame();
-    Check(row("input-delay").value == "1 frames", "Input delay showed 0 frames");
+    Check(row("input-delay").value == "1 frame", "Input delay showed 0 frames");
     press(MenuInput::Right);
     Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 2,
         "An older 0 did not step as 1 frame");

@@ -378,6 +378,9 @@ msgstr "检测游戏数据包，持续 5 秒，另加建立连接所需时间。
 msgid "connection.checking_action"
 msgstr "正在检查连接..."
 
+msgid "connection.frame"
+msgstr "{0} 帧"
+
 msgid "connection.frames"
 msgstr "{0} 帧"
 
@@ -2000,6 +2003,8 @@ msgid "room.selected_delay.locked"
 msgstr "本场对战的所选延迟已锁定。"
 
 msgid "room.match_delay.at_least"
+msgstr "至少 {0} 帧"
+msgid "room.match_delay.at_least_one"
 msgstr "至少 {0} 帧"
 
 msgid "room.check_connection.two_players"

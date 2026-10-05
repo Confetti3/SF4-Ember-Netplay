@@ -378,6 +378,9 @@ msgstr "Pět sekund se měří herní datagramy, navíc se navazuje spojení. Zp
 msgid "connection.checking_action"
 msgstr "Kontrola spojení..."
 
+msgid "connection.frame"
+msgstr "{0} sn."
+
 msgid "connection.frames"
 msgstr "{0} sn."
 
@@ -2000,6 +2003,8 @@ msgid "room.selected_delay.locked"
 msgstr "Zvolené zpoždění je pro tento zápas uzamčeno."
 
 msgid "room.match_delay.at_least"
+msgstr "Min. zpoždění: {0} sn."
+msgid "room.match_delay.at_least_one"
 msgstr "Min. zpoždění: {0} sn."
 
 msgid "room.check_connection.two_players"

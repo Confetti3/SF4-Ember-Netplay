@@ -378,6 +378,9 @@ msgstr "Misst Spiel-Datagramme fünf Sekunden lang, zuzüglich Verbindungsaufbau
 msgid "connection.checking_action"
 msgstr "Verbindung wird geprüft..."
 
+msgid "connection.frame"
+msgstr "{0} Frame"
+
 msgid "connection.frames"
 msgstr "{0} Frames"
 
@@ -2001,6 +2004,8 @@ msgstr "Die gewählte Verzögerung ist für diesen Kampf gesperrt."
 
 msgid "room.match_delay.at_least"
 msgstr "Mindestens {0} Frames"
+msgid "room.match_delay.at_least_one"
+msgstr "Mindestens {0} Frame"
 
 msgid "room.check_connection.two_players"
 msgstr "Vor der Verbindungsprüfung müssen beide Plätze besetzt sein."

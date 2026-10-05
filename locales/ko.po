@@ -378,6 +378,9 @@ msgstr "연결 설정 후 5초간 게임 데이터그램을 측정합니다. 지
 msgid "connection.checking_action"
 msgstr "연결 확인 중..."
 
+msgid "connection.frame"
+msgstr "{0}프레임"
+
 msgid "connection.frames"
 msgstr "{0}프레임"
 
@@ -2000,6 +2003,8 @@ msgid "room.selected_delay.locked"
 msgstr "이번 대전의 지연 시간이 고정되었습니다."
 
 msgid "room.match_delay.at_least"
+msgstr "최소 {0}프레임"
+msgid "room.match_delay.at_least_one"
 msgstr "최소 {0}프레임"
 
 msgid "room.check_connection.two_players"

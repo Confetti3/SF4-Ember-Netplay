@@ -287,13 +287,13 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     const bool opponentReady=v.opponentDelay>=0&&v.opponentDelay<=MaximumInputDelay;
     std::string delayDetail=loc::Tf("room.input_delay.recommended",check.value);
     if(t.p1&&t.p2)delayDetail+="\n"+loc::Tf("room.input_delay.match",opponentReady?
-     loc::Tf("connection.frames",room::MatchDelay(selectedDelay,v.opponentDelay)):loc::Tf("room.match_delay.at_least",selectedDelay));
+     FramesText(room::MatchDelay(selectedDelay,v.opponentDelay)):loc::Tf(selectedDelay==1?"room.match_delay.at_least_one":"room.match_delay.at_least",selectedDelay));
     if(!delayEditable)delayDetail+="\n"+(v.delayLocked?std::string(loc::T("room.selected_delay.locked")):reason);
     else{
      delayDetail+="\n"+(autoDelay?loc::Tf("room.input_delay.auto.detail",AutoInputDelayMinimum,AutoInputDelayMaximum):std::string(loc::T("room.selected_delay.detail")));
      if(!recommended&&!autoDelay)delayDetail+="\n"+std::string(loc::T("room.apply_recommendation.check_first"));
     }
-    const std::string delayFrames=loc::Tf("connection.frames",selectedDelay);
+    const std::string delayFrames=FramesText(selectedDelay);
     const std::string delayValue=!autoDelay?delayFrames:
      v.autoDelayMeasured||v.delayLocked?loc::Tf("room.input_delay.auto",delayFrames):std::string(loc::T("settings.input_delay.auto"));
     rows.push_back(Value("input-delay",loc::T("room.input_delay"),delayValue,delayDetail,delayEditable));

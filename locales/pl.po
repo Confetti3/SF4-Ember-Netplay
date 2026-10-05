@@ -378,6 +378,9 @@ msgstr "Pomiar pakietów gry przez pięć sekund oraz zestawiania połączenia. 
 msgid "connection.checking_action"
 msgstr "Sprawdzanie połączenia..."
 
+msgid "connection.frame"
+msgstr "{0} kl."
+
 msgid "connection.frames"
 msgstr "{0} kl."
 
@@ -2000,6 +2003,8 @@ msgid "room.selected_delay.locked"
 msgstr "Wybrane opóźnienie jest zablokowane na tę walkę."
 
 msgid "room.match_delay.at_least"
+msgstr "Co najmniej {0} kl."
+msgid "room.match_delay.at_least_one"
 msgstr "Co najmniej {0} kl."
 
 msgid "room.check_connection.two_players"
