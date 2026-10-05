@@ -174,7 +174,7 @@ enum Completion {
         String,
         Result<String, crate::short_invite::ShortError>,
     ),
-    ProbeReservation(ProbeReservationKey, bool),
+    ProbeReservation(ProbeReservationKey, probes::ReservationWait),
 }
 
 #[derive(Clone, PartialEq, Eq)]
