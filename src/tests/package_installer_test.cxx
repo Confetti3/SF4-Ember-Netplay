@@ -168,7 +168,28 @@ int wmain(int argc, wchar_t** argv) {
     CHECK(!sf4e::launcher::RecoverPackage(crashInstall,error));
     CHECK(!fs::exists(journalPath) && fs::exists(failedJournal));
     CHECK(sf4e::launcher::RecoverPackage(crashInstall,error));
+    // Uninstall removes what the inventory names or allows, an update's
+    // additions and the updater's state; the player's files, including those
+    // inside the product's own folders, stay. A junction is left alone.
+    Write(install/L"assets\\selection\\sources.json","added-by-update");
+    Write(install/L"assets\\selection\\my-mod.png","player");
+    Write(install/L"dxwrapper.dll","obsolete-again");
+    Write(install/L".ember-update-transaction-v1.json.failed","set-aside-journal");
+    Write(root/L"outside\\TRAINING_LAB.md","outside");
+    std::wstring junction=L"cmd.exe /c mklink /J \""+(install/L"docs").wstring()+L"\" \""+(root/L"outside").wstring()+L"\"";
+    STARTUPINFOW junctionStartup{};junctionStartup.cb=sizeof(junctionStartup);PROCESS_INFORMATION junctionChild{};
+    CHECK(CreateProcessW(nullptr,&junction[0],nullptr,nullptr,FALSE,CREATE_NO_WINDOW,nullptr,nullptr,&junctionStartup,&junctionChild));
+    WaitForSingleObject(junctionChild.hProcess,30000);CloseHandle(junctionChild.hThread);CloseHandle(junctionChild.hProcess);
+    CHECK(fs::is_regular_file(install/L"docs"/L"TRAINING_LAB.md"));
+    CHECK(sf4e::launcher::UninstallPackage(install,error));
+    CHECK(!fs::exists(install/L"Launcher.exe") && !fs::exists(install/L"notices") && !fs::exists(install/L"dxwrapper.dll"));
+    CHECK(!fs::exists(install/L"assets\\selection\\sources.json") && Read(install/L"assets\\selection\\my-mod.png")=="player");
+    CHECK(!fs::exists(install/L".ember-update-backups") && !fs::exists(install/L".ember-update.lock"));
+    CHECK(!fs::exists(install/L".ember-update-transaction-v1.json.failed") && Read(install/L".ember-update-transaction-v1.json.new")=="user-journal-name");
+    CHECK(Read(install/L"my-replay.bin")=="user" && Read(install/L"d3d9.dll")=="user-owned-proxy");
+    CHECK(Read(root/L"outside\\TRAINING_LAB.md")=="outside" && fs::exists(install/L"docs"));
+    fs::remove(install/L"docs");
     // Only this uniquely created temporary fixture is removed.
     RemoveTempRoot(root);
-    std::cout << "Inventory, upgrade preservation, backup and rollback checks passed\n";
+    std::cout << "Inventory, upgrade preservation, backup, rollback and uninstall checks passed\n";
 }

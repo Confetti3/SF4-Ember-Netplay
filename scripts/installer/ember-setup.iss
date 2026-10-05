@@ -1,7 +1,8 @@
 ; Per-user installer for a verified Ember package folder. It only places the
 ; first copy: updates stay with Updater.exe, which rewrites the folder as the
 ; normal user, so nothing here may need elevation or own the files afterwards.
-; Setup refuses a folder that already has files in it.
+; Setup refuses a folder that already has files in it, and the uninstaller
+; leaves the deletes to Updater.exe -Uninstall, which knows the inventory.
 ; Compiled by scripts/package-installer.ps1.
 #ifndef PackageDir
   #error Define PackageDir, AppVersion and Redist (see scripts/package-installer.ps1)
@@ -95,47 +96,25 @@ begin
       'To install here anyway, uninstall the existing copy first, or choose an empty folder.';
 end;
 
-// Deletes the files the installed PackageInventory.inc names and the folders
-// that leaves empty.
-procedure DeleteInventoryFiles(App: String);
-var
-  Lines: TArrayOfString;
-  I, Open, Close: Integer;
-  Relative, Parent: String;
-begin
-  if not LoadStringsFromFile(App + '\PackageInventory.inc', Lines) then exit;
-  for I := 0 to GetArrayLength(Lines) - 1 do begin
-    Open := Pos('("', Lines[I]);
-    Close := Pos('")', Lines[I]);
-    if (Pos('SF4E_PACKAGE_', Lines[I]) <> 1) or (Open = 0) or (Close <= Open) then continue;
-    Relative := Copy(Lines[I], Open + 2, Close - Open - 2);
-    StringChangeEx(Relative, '\\', '\', True);
-    if (Relative = '') or (Pos('..', Relative) > 0) or (Pos(':', Relative) > 0) then continue;
-    DeleteFile(App + '\' + Relative);
-    Parent := ExtractFileDir(App + '\' + Relative);
-    while (Length(Parent) > Length(App)) and RemoveDir(Parent) do Parent := ExtractFileDir(Parent);
-  end;
-end;
-
-procedure DeleteUpdaterState(App: String);
-begin
-  DelTree(App + '\.ember-update-backups', True, True, True);
-  DeleteFile(App + '\.ember-update.lock');
-  DeleteFile(App + '\.ember-update-transaction-v1.json');
-end;
-
-// Updater.exe adds and replaces files this installer never logged, so the
-// uninstaller removes what the installed PackageInventory.inc names, plus the
-// updater's own state. Anything else in the folder is the player's and stays.
+// The installed updater removes the product's files, including any an update
+// added since, and its own state; the player's files stay. It runs from a copy
+// outside the folder, since Windows will not delete a running program. The
+// folder itself goes afterwards, only if nothing of the player's is left.
 procedure CurUninstallStepChanged(Step: TUninstallStep);
 var
-  App, Handler: String;
+  App, Handler, Updater: String;
+  ResultCode: Integer;
 begin
-  if Step <> usUninstall then exit;
   App := ExpandConstant('{app}');
-  DeleteInventoryFiles(App);
-  DelTree(App + '\assets\selection', True, True, True);
-  DeleteUpdaterState(App);
+  if Step = usUninstall then begin
+    Updater := ExpandConstant('{tmp}\Updater.exe');
+    if not FileCopy(App + '\Updater.exe', Updater, False) or
+       not Exec(Updater, '-InstallDir "' + App + '" -Uninstall', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then
+      SuppressibleMsgBox('Some files of {#AppName} could not be removed from ' + App + '.' + #13#10 +
+        'See %TEMP%\sf4-netplay-update.log.', mbError, MB_OK, IDOK);
+    exit;
+  end;
+  if Step <> usPostUninstall then exit;
   RemoveDir(App + '\assets');
   RemoveDir(App);
   // Launcher.exe registers the ember: room link handler itself. Another copy

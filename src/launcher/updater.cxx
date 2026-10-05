@@ -195,11 +195,12 @@ static bool StartLauncher(const wchar_t* installDir, const wchar_t* arguments = 
 	return true;
 }
 
-static bool ParseArgs(int argc, wchar_t** argv, wchar_t* installDir, int installDirChars, wchar_t* stagingDir, int stagingDirChars, DWORD* waitPid, bool* recoverOnly) {
+static bool ParseArgs(int argc, wchar_t** argv, wchar_t* installDir, int installDirChars, wchar_t* stagingDir, int stagingDirChars, DWORD* waitPid, bool* recoverOnly, bool* uninstall) {
 	installDir[0] = L'\0';
 	stagingDir[0] = L'\0';
 	*waitPid = 0;
 	*recoverOnly = false;
+	*uninstall = false;
 
 	for (int i = 1; i < argc; i++) {
 		if (_wcsicmp(argv[i], L"-InstallDir") == 0 && i + 1 < argc) {
@@ -212,9 +213,23 @@ static bool ParseArgs(int argc, wchar_t** argv, wchar_t* installDir, int install
 			*waitPid = (DWORD)_wtoi(argv[++i]);
 		}
 		else if (_wcsicmp(argv[i], L"-RecoverOnly") == 0) { *recoverOnly = true; }
+		else if (_wcsicmp(argv[i], L"-Uninstall") == 0) { *uninstall = true; }
 	}
 
-	return installDir[0] != L'\0' && (*recoverOnly || stagingDir[0] != L'\0');
+	return installDir[0] != L'\0' && (*recoverOnly || *uninstall || stagingDir[0] != L'\0');
+}
+
+// The installer's uninstaller runs this from a copy outside the folder:
+// Windows will not delete a running image, so a copy inside the folder would
+// leave itself behind.
+static int Uninstall(const wchar_t* installDir) {
+	std::string error;
+	if (!sf4e::launcher::UninstallPackage(installDir, error)) {
+		AppendLog(("ERROR: uninstall failed: " + error).c_str());
+		return 1;
+	}
+	AppendLog("Uninstall complete");
+	return 0;
 }
 
 } // namespace
@@ -223,7 +238,7 @@ int wmain(int argc, wchar_t** argv) {
 	wchar_t installDir[MAX_PATH] = { 0 };
 	wchar_t stagingDir[MAX_PATH] = { 0 };
 	DWORD waitPid = 0;
-	bool recoverOnly = false;
+	bool recoverOnly = false, uninstall = false;
 
 	// Players double-click Updater.exe to update. Its own work needs the
 	// launcher's arguments, so a plain start opens the launcher's Updates
@@ -243,10 +258,11 @@ int wmain(int argc, wchar_t** argv) {
 		return 1;
 	}
 
-	if (!ParseArgs(argc, argv, installDir, MAX_PATH, stagingDir, MAX_PATH, &waitPid, &recoverOnly)) {
+	if (!ParseArgs(argc, argv, installDir, MAX_PATH, stagingDir, MAX_PATH, &waitPid, &recoverOnly, &uninstall)) {
 		AppendLog("ERROR: missing -InstallDir or -StagingDir");
 		return 1;
 	}
+	if (uninstall) return Uninstall(installDir);
 	if (recoverOnly) {
 		// With -WaitPid the Launcher asked for this at startup: wait for it to
 		// exit, then start it again, showing update recovery on failure.
