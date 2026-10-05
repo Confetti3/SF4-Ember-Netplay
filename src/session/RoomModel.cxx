@@ -694,18 +694,18 @@ Result RoomAuthority::BeginMatch(std::uint8_t tableId, MemberId p1, MemberId p2)
 	if (!table || table->p1 != p1 || table->p2 != p2 || p1 == 0 || p2 == 0 ||
 		table->phase != TablePhase::Ready || table->spectatorHold || PermitPending(*table) || table->resultPending ||
 		HasOutstandingTerminalReceipt(tableId) ||
-		// The final start gate: a bound table starts only inside its permit's
-		// window. On a recovering room this runs in the private candidate, and
-		// the game_prepare it leads to waits for quorum, so a same-term outage
-		// can deliver it later than the window. The bridge refuses neither a
-		// late start nor its report: it holds a permitted game with no report
-		// for SILENT_SECS (30 minutes) past start_by. This gate only has to
-		// stop clearly late starts.
+		// A bound table begins only inside its permit's window, less the
+		// margin its preparation takes; NativeStartExpired checks the window
+		// again before the native start.
 		(BoundTable(*table) && (!table->permitGeneration || PermitStartPassed(*table, PermitAge(*table)))) ||
 		nextMatchGeneration_ == (std::numeric_limits<std::uint64_t>::max)()) return Reject(table ? RejectReason::WrongPhase : RejectReason::UnknownTable);
-	// A bound table plays the generation its permit names.
+	// A bound table plays the generation its permit names, and its permit
+	// timer runs on until the native start.
 	table->matchGeneration = table->permitGeneration ? table->permitGeneration : nextMatchGeneration_++;
+	auto timer = permits_.tables[tableId];
+	timer.windowMs = PermitWindow(*table);
 	ClearPermit(*table);
+	if (timer.generation) permits_.tables[tableId] = timer;
 	table->phase = TablePhase::Playing;
 	table->resultPending = false;
 	resultReporter_[tableId] = 0;
@@ -763,6 +763,8 @@ Result RoomAuthority::EndMatch(std::uint8_t tableId, std::uint64_t generation, M
 	else if (result == MatchResult::P2Win) ++table->score[1];
 	const auto generationValue = table->matchGeneration;
 	CloseLiveGeneration(*table);
+	// A game that ends, started or not, needs no permit timer.
+	NativeStarted(tableId, generationValue);
 	// With no set length the same pair stays seated until one leaves. A
 	// first-to-N table ends the set when a win reaches N and rotates its seats.
 	// Draw/cancel/abort preserve prior wins and never award a point.

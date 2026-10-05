@@ -576,13 +576,16 @@ public:
 	// another clock has no such time here: it counts from the next
 	// AgePermitHolds, as an unsampled age, or as heldMs where this process
 	// already counts the same reservation. The age at any time is the larger
-	// of the two, so both exports read it the same way.
+	// of the two, so both exports read it the same way. The timer outlives
+	// BeginMatch until the game natively starts: windowMs is then the shorter
+	// window of the two permits, and zero while the table still holds them.
 	struct PermitTimer {
 		std::uint64_t generation = 0;  // zero when the table holds no permit
 		std::uint64_t ageMs = 0;
 		std::uint64_t sampleMs = 0;
 		bool sampled = false;
 		std::uint64_t heldMs = 0;
+		std::uint64_t windowMs = 0;
 	};
 	struct PermitTimers {
 		std::array<PermitTimer, TableCount> tables = {};
@@ -603,6 +606,13 @@ public:
 	// time this process saw, a newer commit's age is not counted twice, and
 	// restoring again and again, aged or not, loses nothing.
 	void KeepPermitAges(const PermitTimers& kept);
+	// A bound game begun but not natively started yet, whose permit window
+	// has run out since its generation was reserved. The start gate kept
+	// PermitStartMarginMs of the window for this preparation, so the native
+	// start may use all of it.
+	bool NativeStartExpired(std::uint8_t table, std::uint64_t generation) const;
+	// The game natively started: its permit timer has no more use.
+	void NativeStarted(std::uint8_t table, std::uint64_t generation);
 	void ResumeRecovery(std::uint64_t nowMs);
 	void SetMemberIncarnation(MemberId member, std::uint64_t incarnation);
 
@@ -652,10 +662,14 @@ private:
 	std::uint64_t PermitAgeAt(std::size_t table, std::uint64_t nowMs) const;
 	// Its age at the last time AgePermitHolds was given.
 	std::uint64_t PermitAge(const Table& table) const { return PermitAgeAt(table.id, permits_.clockMs); }
+	// The shorter window of the permits the table holds; zero with none.
+	static std::uint64_t PermitWindow(const Table& table);
 	// The permit's start window, less PermitStartMarginMs, has run out by the
 	// time the table's generation is ageMs old. A permit without a known
 	// window counts as run out.
 	bool PermitStartPassed(const Table& table, std::uint64_t ageMs) const;
+	// The table's begun game still waits for its native start under a permit.
+	bool NativeStartPending(std::size_t table) const;
 	// The start a bound table holds for its permit is called off: the permit
 	// never reached both fighters within PermitHoldMs, or its window passed.
 	bool PermitCalledOff(const Table& table, std::uint64_t ageMs) const;

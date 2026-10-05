@@ -572,6 +572,50 @@ static void TestPermitClockIsTheOwners() {
 	}
 }
 
+// A begun bound game keeps its permit timer, with the shorter window, until
+// it natively starts or ends, and a checkpoint carries both to the next
+// owner. A replica that still held the permit when the commit beginning the
+// game arrives keeps its own count and takes the window from the commit.
+static void TestNativeStartWindow() {
+	RoomAuthority authority("Match", 8, 1);
+	MemberId a = 0, b = 0;
+	const auto reserved = HoldOnePermit(authority, a, b, 31000, 90000);
+	CHECK(authority.Apply(b, Permit(authority, b, "per_one")).accepted);
+	const auto holding = authority.PermitAges();
+	CHECK(holding.tables[0].windowMs == 0);
+	CHECK(authority.BeginMatch(0, a, b).accepted);
+	CHECK(!authority.NativeStartExpired(0, reserved));
+	const auto checkpoint = PausedCheckpoint(authority);
+	CHECK(checkpoint.contains("start_window") && checkpoint.at("start_window").at(0) == 90000 &&
+		checkpoint.at("permit_age").at(0) == 30000);
+	const auto age = [](RoomAuthority& owner, std::uint64_t nowMs) { owner.AgePermitHolds(nowMs); };
+	for (const bool replica : {false, true}) {
+		RoomAuthority owner("Other", 8, 1);
+		CHECK(owner.RestoreCheckpoint(checkpoint));
+		if (replica) owner.KeepPermitAges(holding);
+		else age(owner, 31000);
+		age(owner, 90999);
+		CHECK(PermitAge(owner) == 89999 && !owner.NativeStartExpired(0, reserved));
+		age(owner, 91000);
+		CHECK(owner.NativeStartExpired(0, reserved) && !owner.NativeStartExpired(0, reserved + 1));
+		// The native start retires the timer.
+		owner.NativeStarted(0, reserved);
+		CHECK(!owner.NativeStartExpired(0, reserved) && owner.PermitAges().tables[0].generation == 0);
+		CHECK(!owner.Checkpoint().contains("start_window"));
+	}
+	// So does the game's end.
+	CHECK(authority.EndMatch(0, reserved, MatchResult::Cancel).accepted);
+	CHECK(authority.PermitAges().tables[0].generation == 0 && !authority.Checkpoint().contains("start_window"));
+	// A window belongs to a begun game at the bound table only.
+	RoomAuthority other("Other", 8, 1);
+	auto forged = checkpoint;
+	forged["start_window"][1] = std::uint64_t(1000);
+	CHECK(!other.RestoreCheckpoint(forged));
+	forged = checkpoint;
+	forged["start_window"][0] = MaximumPermitWindowMs + 1;
+	CHECK(!other.RestoreCheckpoint(forged));
+}
+
 // Casual rooms are unchanged: Ready starts the game with no permit.
 static void TestCasualRoomsNeedNoPermit() {
 	RoomAuthority authority("Casual", 8, 1);
@@ -593,6 +637,7 @@ int main() {
 	TestPermitWindowAcrossRecovery();
 	TestRestoreKeepsPermitAge();
 	TestPermitClockIsTheOwners();
+	TestNativeStartWindow();
 	TestCasualRoomsNeedNoPermit();
 	if (failures) std::printf("%d failure(s)\n", failures);
 	else std::printf("room tournament tests passed\n");

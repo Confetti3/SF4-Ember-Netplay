@@ -69,7 +69,8 @@ namespace sf4e {
 		// One handler per message type, called from Step().
 		void HandleSessionHello(session::Connection conn, const nlohmann::json& msg, const session::Message& incoming);
 		void HandleRoomAction(session::Connection conn, const nlohmann::json& msg, std::vector<room::Event>& deferredRoomEvents);
-		void HandleMatchAcknowledgement(session::Connection conn, const nlohmann::json& msg);
+		void HandleMatchAcknowledgement(session::Connection conn, const nlohmann::json& msg,
+			std::vector<room::Event>& events);
 		void HandleForward(session::Connection conn, const nlohmann::json& msg, const SessionProtocol::ConnectionID& cid);
 		void HandleJoinRequest(session::Connection conn, const nlohmann::json& msg, const session::Message& incoming, SessionProtocol::ConnectionID cid);
 		void HandleSetChara(session::Connection conn, const nlohmann::json& msg);

@@ -783,6 +783,8 @@ Use `typ=ember-game-permit+jwt`, an audience distinct from admission tokens, and
 
 The start authorization expires after two minutes by default. Expiry prevents starting a new game; it does not invalidate an already-started game's result. Signed reports are reconciled against the durable permit record, not rejected just because a ten-minute game outlasted a two-minute start window.
 
+The room enforces expiry when it begins the game and again before it issues `game_start`; a `game_start` proposed inside the window but committed after a coordination outage still starts the game, a delay bounded by that one proposal's commit latency. The bridge accepts reports for `SILENT_SECS` (30 minutes) past `start_by`, and after that sends the attempt to review.
+
 A permit cannot be reused for a different generation or another native game. Admission verification and game permission must be complete before any remote peer reaches the native GGPO start path.
 
 ### 15.4 Offline policy

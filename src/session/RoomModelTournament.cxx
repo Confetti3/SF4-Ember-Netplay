@@ -131,7 +131,10 @@ void RoomAuthority::AgePermitHolds(std::uint64_t nowMs) {
 		// A clock not past the last count adds nothing and leaves the sample
 		// where it was; a held age joins the count either way.
 		const auto sampleMs = timer.sampled && timer.sampleMs > nowMs ? timer.sampleMs : nowMs;
-		timer = {timer.generation, PermitAgeAt(i, nowMs), sampleMs, true, 0};
+		timer.ageMs = PermitAgeAt(i, nowMs);
+		timer.sampleMs = sampleMs;
+		timer.sampled = true;
+		timer.heldMs = 0;
 	}
 	if (!permits_.clockKnown || nowMs > permits_.clockMs) permits_.clockMs = nowMs;
 	permits_.clockKnown = true;
@@ -143,18 +146,20 @@ void RoomAuthority::KeepPermitAges(const PermitTimers& kept) {
 		// Committed generations are never reused, so the same one is the same
 		// reservation. The caller keeps a candidate's own reservations out.
 		if (!timer.generation || kept.tables[i].generation != timer.generation) continue;
-		// This process's count goes on; the restored age is held.
+		// This process's count goes on; the restored age is held, and the
+		// restored room says whether the game has begun.
 		const auto restored = (std::max)(timer.ageMs, timer.heldMs);
+		const auto windowMs = timer.windowMs;
 		timer = kept.tables[i];
 		timer.heldMs = (std::max)(timer.heldMs, restored);
+		timer.windowMs = windowMs;
 	}
 	if (!kept.clockKnown) return;
 	permits_.clockMs = kept.clockMs;
 	permits_.clockKnown = true;
 }
 
-bool RoomAuthority::PermitStartPassed(const Table& table, std::uint64_t ageMs) const {
-	if (!table.permitGeneration) return false;
+std::uint64_t RoomAuthority::PermitWindow(const Table& table) {
 	std::uint64_t window = MaximumPermitWindowMs;
 	bool held = false;
 	for (std::size_t seat = 0; seat < 2; ++seat) {
@@ -162,8 +167,30 @@ bool RoomAuthority::PermitStartPassed(const Table& table, std::uint64_t ageMs) c
 		held = true;
 		window = (std::min)(window, table.permitWindows[seat]);
 	}
-	if (!held) return false;
+	return held ? window : 0;
+}
+
+bool RoomAuthority::PermitStartPassed(const Table& table, std::uint64_t ageMs) const {
+	if (!table.permitGeneration || std::all_of(table.permits.begin(), table.permits.end(),
+		[](const std::string& permit) { return permit.empty(); })) return false;
+	const auto window = PermitWindow(table);
 	return window <= PermitStartMarginMs || ageMs >= window - PermitStartMarginMs;
+}
+
+bool RoomAuthority::NativeStartPending(std::size_t table) const {
+	const auto& timer = permits_.tables[table];
+	const auto& value = snapshot_.tables[table];
+	return timer.windowMs && timer.generation && value.phase == TablePhase::Playing && value.matchGeneration == timer.generation;
+}
+
+bool RoomAuthority::NativeStartExpired(std::uint8_t table, std::uint64_t generation) const {
+	return table < TableCount && NativeStartPending(table) && permits_.tables[table].generation == generation &&
+		PermitAge(snapshot_.tables[table]) >= permits_.tables[table].windowMs;
+}
+
+void RoomAuthority::NativeStarted(std::uint8_t table, std::uint64_t generation) {
+	if (table < TableCount && permits_.tables[table].generation == generation && permits_.tables[table].windowMs)
+		permits_.tables[table] = {};
 }
 
 bool RoomAuthority::PermitCalledOff(const Table& table, std::uint64_t ageMs) const {

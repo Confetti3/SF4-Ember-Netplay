@@ -138,6 +138,30 @@ struct BoundServer {
 		CHECK(server.Step() == 0);
 		if (commit) Commit();
 	}
+	// Both fighters acknowledge a step of the native preparation; whatever it
+	// leads to is committed.
+	void Acknowledge(const char* type, std::uint64_t generation) {
+		for (const session::Connection connection : {session::Connection(1), session::Connection(2)}) {
+			transport->Push(connection, json{{"type", type}, {"generation", generation}});
+			CHECK(server.Step() == 0);
+			if (server.HasRecoveryCandidate()) Commit();
+		}
+	}
+	// Coordination lost for lengthMs from nowMs; returns the time it is back.
+	std::uint64_t Outage(std::uint64_t nowMs, std::uint64_t lengthMs) {
+		server.SetAuthority(term, revision, false, false);
+		server.AdvanceCustomRoom(nowMs + 500);
+		server.AdvanceCustomRoom(nowMs + 500 + lengthMs);
+		server.SetAuthority(term, revision, true);
+		server.AdvanceCustomRoom(nowMs + 1000 + lengthMs);
+		return nowMs + 1000 + lengthMs;
+	}
+	// How many of the messages sent since the last clear were `type` for `generation`.
+	std::size_t Sent(const char* type, std::uint64_t generation) const {
+		return static_cast<std::size_t>(std::count_if(transport->outgoing.begin(), transport->outgoing.end(), [&](const auto& sent) {
+			return sent.second.value("type", std::string()) == type && sent.second.value("generation", std::uint64_t(0)) == generation;
+		}));
+	}
 	const room::Table& Table() const { return server._roomAuthority->SnapshotView().tables[room::TournamentTable]; }
 	const room::RoomAuthority::PermitTimer& Timer() const { return server._roomAuthority->PermitAges().tables[room::TournamentTable]; }
 	// Both ready at 1000; the first permit 30 s later. Returns the generation.
@@ -200,6 +224,60 @@ static void TestRepeatedRestoresKeepPermitAge() {
 	CHECK(bound.Table().phase == room::TablePhase::Waiting && bound.Table().permitGeneration == 0);
 }
 
+// The permit window holds until the native start. A game begun inside it
+// whose game_prepare commits only after an outage, past the window or past
+// the bridge's SILENT_SECS (30 minutes) after it, or whose fighters are
+// ready only once the window has run out, is called off: game_end, a Cancel
+// result, and no game_start.
+static void TestLateNativeStartIsCalledOff() {
+	struct Late { std::uint64_t beforePrepare, beforeReady; };
+	for (const auto late : {Late{100000, 0}, Late{1800000 + 120000, 0}, Late{0, 100000}}) {
+		BoundServer bound;
+		auto& server = bound.server;
+		const auto reserved = bound.HoldOnePermit();
+		// The second permit begins the game in a candidate an outage holds back.
+		bound.Send(2, room::ActionKind::PermitReady, false);
+		CHECK(bound.Table().phase == room::TablePhase::Playing && bound.Table().matchGeneration == reserved);
+		auto nowMs = bound.Outage(31000, late.beforePrepare);
+		bound.transport->outgoing.clear();
+		bound.Commit();
+		CHECK(bound.Sent("game_prepare", reserved) == 2);
+		bound.Acknowledge("game_prepared", reserved);
+		if (late.beforeReady) {
+			CHECK(bound.Sent("game_connect", reserved) == 2);
+			nowMs = bound.Outage(nowMs, late.beforeReady);
+		}
+		bound.Acknowledge("game_ready", reserved);
+		CHECK(bound.Sent("game_end", reserved) == 2 && bound.Sent("game_start", reserved) == 0);
+		const auto& table = bound.Table();
+		CHECK(table.phase == room::TablePhase::Waiting && table.matchGeneration == reserved && bound.Timer().generation == 0);
+		const auto receipts = server._roomAuthority->PendingTerminalEvents(table.p1);
+		CHECK(receipts.size() == 1 && receipts[0].generation == reserved && receipts[0].result == room::MatchResult::Cancel);
+	}
+}
+
+// The accepted bound: a game_start proposed inside the window but committed
+// only after a same-term outage, here past SILENT_SECS, still starts the
+// game. Its delay is that one proposal's commit latency.
+static void TestStartCommittedLateStillStarts() {
+	BoundServer bound;
+	auto& server = bound.server;
+	const auto reserved = bound.HoldOnePermit();
+	bound.Send(2, room::ActionKind::PermitReady);
+	bound.Acknowledge("game_prepared", reserved);
+	bound.transport->Push(1, json{{"type", "game_ready"}, {"generation", reserved}});
+	CHECK(server.Step() == 0);
+	if (server.HasRecoveryCandidate()) bound.Commit();
+	bound.transport->Push(2, json{{"type", "game_ready"}, {"generation", reserved}});
+	CHECK(server.Step() == 0 && server.HasRecoveryCandidate());
+	CHECK(bound.Timer().generation == 0);
+	bound.Outage(31000, 1800000 + 120000);
+	bound.transport->outgoing.clear();
+	bound.Commit();
+	CHECK(bound.Sent("game_start", reserved) == 2 && bound.Sent("game_end", reserved) == 0);
+	CHECK(bound.Table().phase == room::TablePhase::Playing && bound.Table().matchGeneration == reserved);
+}
+
 // A candidate that starts the game, takes a Ready back or lets the hold run
 // out clears the reservation. Rolled back, by a discarded proposal or a new
 // term, the reservation is as old as this server has seen it, not as old as
@@ -255,6 +333,8 @@ int main() {
 	TestBindingThroughTheServer();
 	TestPermitWindowThroughAnOutage();
 	TestRepeatedRestoresKeepPermitAge();
+	TestLateNativeStartIsCalledOff();
+	TestStartCommittedLateStillStarts();
 	TestRollbackKeepsPermitAge();
 	TestCandidateReservationIsNotKept();
 	std::printf("session server tournament tests passed\n");
