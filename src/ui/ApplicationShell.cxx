@@ -636,11 +636,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  }
  if(v.readyFailureSequence!=readyFailureSequence_){
   readyFailureSequence_=v.readyFailureSequence;
-  if(readyFailureSequence_&&!v.readyFailure.empty())menu_.ShowNotice(v.readyFailure);
- }
- if(v.opponentChangeSequence!=opponentChangeSequence_){
-  opponentChangeSequence_=v.opponentChangeSequence;
-  if(opponentChangeSequence_&&v.opponentChangedFighter>=0)menu_.ShowNotice(room_controls::OpponentChangedText(v.opponentChangedFighter));
+  if(readyFailureSequence_&&!v.readyFailure.empty())menu_.ShowError(v.readyFailure);
  }
  if(v.discordPending&&inviteRevision_!=v.discordRevision){inviteRevision_=v.discordRevision;nav.Push("discord-invitation");}
  if(!v.discordPending&&nav.Screen()=="discord-invitation")nav.Return();

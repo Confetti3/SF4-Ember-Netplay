@@ -105,15 +105,19 @@ public:
                     const char* status = "",const Detail& detail = {},int columns=1,const Card& card = {},const Body& body = {},float flyoutScale=0,float cardHeight=100,bool stableStatus=false,
                     Tone statusTone=Tone::Neutral,bool home=false);
     // A modal notice: owns menu input until Select, Back or OK dismisses it.
-    // An empty heading is the error heading; advice supplies its own.
+    // An empty heading reads "Notice"; only ShowError gives the error heading
+    // and colour.
     // An alternative adds a second button beside OK; Left and Right choose it,
     // and onAlternative runs when the notice closes through it. The action
     // belongs to the notice that asked for it, so notices cannot claim each
     // other's outcome.
     void ShowNotice(std::string text,std::string heading={},std::string alternative={},std::function<void()> onAlternative={}) {
         notice_=std::move(text); noticeHeading_=std::move(heading); noticeAlternative_=std::move(alternative);
-        noticeAlternativeAction_=std::move(onAlternative); noticeAlternativeSelected_=false;
+        noticeAlternativeAction_=std::move(onAlternative); noticeAlternativeSelected_=false; noticeError_=false;
     }
+    // Something failed: the notice says so in its heading.
+    void ShowError(std::string text) { ShowNotice(std::move(text)); noticeError_=true; }
+    bool NoticeError() const { return !notice_.empty()&&noticeError_; }
     bool NoticeOpen() const { return !notice_.empty(); }
     // The menu buttons held this frame (a notice that owns the input holds none), for a body
     // that scrolls with them.
@@ -146,7 +150,7 @@ private:
     }
     std::string lastScreen_,lastFocus_,lastEdit_,notice_,noticeHeading_,noticeAlternative_;
     std::function<void()> noticeAlternativeAction_;
-    bool noticeAlternativeSelected_=false;
+    bool noticeAlternativeSelected_=false,noticeError_=false;
     unsigned noticePrevious_=~0u;
     int lastFrame_ = -2;
     unsigned held_ = 0;

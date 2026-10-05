@@ -2,6 +2,7 @@
 #include "../common/Localization.hxx"
 #include "../ui/GameMenu.hxx"
 #include "../ui/MenuRows.hxx"
+#include "../ui/RoomControls.hxx"
 #include "../ui/RoomFeedback.hxx"
 #include "../ui/Theme.hxx"
 #include "imgui_test_support.hxx"
@@ -495,6 +496,37 @@ int main() try {
     Check(shell.Navigation().Screen() == "selection" && selectionDraws > beforeBlockedSelection,
         "Selection failed to open after terminal completion");
 
+    // The opponent changed fighter between games: a line on the table card and
+    // the Ready row say so, and nothing takes the menu away from the player.
+    {
+        shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
+        view.room.tables[0].ready[0] = view.room.tables[0].ready[1] = false;
+        view.opponentChangedFighter = 5; ++view.opponentChangeSequence; ++view.room.revision;
+        targets.clear(); frame(); frame();
+        const auto changed = room_controls::OpponentChangedText(5);
+        const auto banner = room_controls::DescribeTableBanner(view, view.room.tables[0]);
+        Check(banner.text == changed && banner.seat == 1, "The table card did not name the opponent's new fighter on their seat");
+        Check(!room_controls::DescribeTableBanner(view, view.room.tables[1]).text.size(), "Another table's card named the opponent's new fighter");
+        Check(targets.count("table-0/banner") && !targets.count("table-1/banner"), "The opponent's new fighter was not drawn on the table card");
+        Check(!shell.NoticeOpen(), "The opponent's new fighter opened a modal notice");
+        const auto beforeChangedPress = actions.size();
+        focus("table-0"); press(MenuInput::Select);
+        Check(actions.size() == beforeChangedPress + 1, "The board did not take input while the opponent's new fighter was shown");
+        shell.Navigation().Push("room-table"); frame();
+        Check(row("ready").detail.compare(0, changed.size(), changed) == 0, "The Ready row did not start with the opponent's new fighter");
+        // It ends when the player readies or the matchup changes (OpponentFighterWatch).
+        view.opponentChangedFighter = -1; ++view.room.revision; shell.Navigation().Home(); shell.Navigation().Push("room");
+        targets.clear(); frame(); frame();
+        Check(!targets.count("table-0/banner") && row("table-0").id == "table-0", "The opponent's new fighter stayed on the card");
+    }
+    // A notice with no heading is not an error; ShowError is.
+    {
+        GameMenu menu;
+        menu.ShowNotice("Advice");
+        Check(menu.NoticeOpen() && !menu.NoticeError(), "A notice with no heading read as an error");
+        menu.ShowError("Ready failed");
+        Check(menu.NoticeError(), "An error notice did not read as one");
+    }
     // Both fighters are ready and a locked-in spectator holds the start.
     shell.Navigation().Home(); shell.Navigation().Push("room-table");
     view.room.tables[0].phase = room::TablePhase::Ready; view.room.tables[0].spectatorHold = true;

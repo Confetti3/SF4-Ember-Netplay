@@ -152,6 +152,17 @@ std::string OpponentChangedText(int fighter) {
     const auto* found = selection::FindFighter(fighter);
     return loc::Tf("room.opponent_changed_fighter", found ? found->name : "?");
 }
+TableBanner DescribeTableBanner(const ShellView& v, const room::Table& t) {
+    TableBanner banner;
+    const auto place = room::PlaceOf(v.room, v.room.localMember);
+    // OpponentFighterWatch keeps the fighter only while the local player sits
+    // at this matchup unready, so the seat is the other one at their table.
+    if (v.opponentChangedFighter >= 0 && place.kind == room::Place::Kind::Seat && place.table == static_cast<int>(t.id)) {
+        banner.text = OpponentChangedText(v.opponentChangedFighter);
+        banner.seat = 1 - place.seat;
+    }
+    return banner;
+}
 std::string SelectionBlocker(const ShellView& v) {
     using room::TablePhase;
     const auto& s = v.room;

@@ -220,8 +220,8 @@ void GameMenu::DrawNoticeModal(bool noticeOpen) {
     if(ImGui::BeginPopupModal(noticePopup.c_str(),nullptr,ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoNavInputs)) {
         if(notice_.empty()) ImGui::CloseCurrentPopup();
         else {
-            if(noticeHeading_.empty()) ImGui::TextColored(ToneColor(Tone::Error),"%s",loc::T("notice.error_title"));
-            else ImGui::TextColored(ToneColor(Tone::Pending),"%s",noticeHeading_.c_str());
+            if(noticeError_) ImGui::TextColored(ToneColor(Tone::Error),"%s",loc::T("notice.error_title"));
+            else ImGui::TextColored(ToneColor(Tone::Pending),"%s",noticeHeading_.empty()?loc::T("notice.title"):noticeHeading_.c_str());
             ImGui::TextWrapped("%s",notice_.c_str());
             ImGui::Dummy(ImVec2(0,8*Scale()));
             std::vector<DialogButton> buttons{{loc::T("common.ok")}};

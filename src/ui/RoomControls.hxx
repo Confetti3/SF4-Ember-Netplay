@@ -73,4 +73,12 @@ ReadyControl DescribeReady(const ShellView& v, const room::Table& t, int seat);
 std::string SelectionBlocker(const ShellView& v);
 // "Opponent changed to <fighter>. Check your Ultra before Ready."
 std::string OpponentChangedText(int fighter);
+// A highlighted line across a table card, for something the player at it
+// should act on: the opponent's new fighter until the player readies or the
+// matchup changes. seat is the side it is about, or -1. Empty text: none.
+struct TableBanner {
+    std::string text;
+    int seat = -1;
+};
+TableBanner DescribeTableBanner(const ShellView& v, const room::Table& t);
 } } }

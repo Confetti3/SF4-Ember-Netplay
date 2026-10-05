@@ -728,6 +728,12 @@ int main(int argc, char** argv) {
             view.room.tables[0].phase=room::TablePhase::Waiting;
             view.room.tables[0].ready[0]=view.room.tables[0].ready[1]=false;
             view.room.tables[0].resultPending=false;view.canReady=view.canEditSelection=true;draw("table-rematch");
+            // The opponent's new fighter: a line on the table card, with no modal.
+            view.session.match=netplay::MatchState::None;view.opponentChangedFighter=10;++view.opponentChangeSequence;
+            const int shownFighter=view.room.members[1].fighter;view.room.members[1].fighter=10;
+            page("room");draw("room-opponent-changed");view.room.members[1].fighter=shownFighter;
+            Require(!shell.NoticeOpen(),"The opponent's new fighter opened a modal notice");
+            view.opponentChangedFighter=-1;page("room-table");view.session.match=netplay::MatchState::PostMatch;draw();
             // Applied terminal receipts remain a committed eligibility fence
             // until native/socket/helper retirement and explicit ACK.  Render
             // the waiting reason at every viewport/DPI so it cannot disappear
