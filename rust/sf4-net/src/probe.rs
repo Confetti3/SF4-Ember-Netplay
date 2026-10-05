@@ -12,6 +12,12 @@ pub fn duration(benchmark: bool) -> Duration {
     Duration::from_secs(if benchmark { 30 } else { 5 })
 }
 
+/// How long a check's reservation lets the peer it measures answer it: the
+/// measurement, its setup and final reply, and the dial before it.
+pub fn window(benchmark: bool) -> Duration {
+    duration(benchmark) + Duration::from_secs(5) + crate::transport::HANDSHAKE_TIMEOUT
+}
+
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct Metrics {
     pub expected: u32,

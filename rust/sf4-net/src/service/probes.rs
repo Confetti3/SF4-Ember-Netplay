@@ -161,6 +161,10 @@ impl Actor {
         );
         self.pending_probe_authorizations.insert(peer, key.clone());
         let source = self.endpoint.id();
+        // The authorization is usable for the check's window from now, on
+        // this PC's monotonic clock: a wall clock corrected or set by hand
+        // meanwhile changes nothing.
+        let deadline = tokio::time::Instant::now() + crate::probe::window(benchmark);
         self.tasks.spawn(async move {
             let result = async {
                 let state = recovery.state().await;
@@ -182,10 +186,12 @@ impl Actor {
                 {
                     return Err(failed("probe pair unavailable"));
                 }
+                // Stamped on this PC's wall clock, as 1.1.0 builds expect, but
+                // only ever matched: the room's entry and the peer's frame
+                // must carry the same value. No PC compares it with a clock.
                 let expires = now()
                     .unwrap_or_default()
-                    .saturating_add(crate::probe::duration(benchmark).as_secs() + 5)
-                    .saturating_add(transport::HANDSHAKE_TIMEOUT.as_secs());
+                    .saturating_add(crate::probe::window(benchmark).as_secs());
                 recovery
                     .reserve_probe(
                         recovery.incarnation,
@@ -202,6 +208,7 @@ impl Actor {
                     leader: recovery.coordinator.current_leader(),
                     revision: committed.revision,
                     expires,
+                    deadline,
                 })
             }
             .await;
@@ -223,7 +230,6 @@ impl Actor {
             self.own_probes.remove(&key.peer);
             return Ok(());
         };
-        let wall_now = now().unwrap_or_default();
         let valid = if let Ok(authorization) = &result {
             let committed = recovery.committed().await;
             key.epoch == self.epoch
@@ -233,7 +239,7 @@ impl Actor {
                 && recovery.coordinator.current_term() == authorization.term
                 && recovery.coordinator.current_leader() == authorization.leader
                 && authorization.leader.is_some()
-                && authorization.expires > wall_now
+                && tokio::time::Instant::now() < authorization.deadline
                 && committed.revision == authorization.revision
                 && !self.games.contains_key(&key.peer)
                 && self.admissions.values().any(|admission| {
@@ -445,7 +451,9 @@ impl Actor {
         // In a server-owned room the frame arrives from the host, which
         // relayed it from the source's own control; anywhere else it must
         // arrive on the source's control. Either way the reservation counts
-        // only once this replica holds its committed entry.
+        // only once this replica holds its committed entry. Its `expires` is
+        // on the source's wall clock, which need not agree with this PC's, so
+        // it is matched against that entry and never compared with a time.
         let relayed = self.server_owned() && self.host_endpoint() == Some(peer);
         let via = peer;
         let peer = claimed_source;
@@ -454,7 +462,6 @@ impl Actor {
             || request == 0
             || state.term != term
             || !state.writable
-            || expires < now().unwrap_or(u64::MAX)
             || !self.admissions.values().any(|admission| {
                 admission.room == room
                     && admission.primary_endpoint == peer
@@ -498,7 +505,7 @@ impl Actor {
             // This frame supersedes any older reservation of the peer
             // still waiting on a task; that completion is ignored.
             self.pending_probe_reservations.remove(&peer);
-            self.install_probe_permission(peer, request, pair_revision, expires);
+            self.install_probe_permission(peer, request, pair_revision);
             return Ok(true);
         }
         // The reservation's Raft entry has not reached this replica
@@ -538,21 +545,23 @@ impl Actor {
         Ok(true)
     }
 
-    /// Let `peer` open its probe connection until the reservation expires.
+    /// Let `peer` open its probe connection for a check's window, counted
+    /// from now on this PC's monotonic clock. The frame does not say whether
+    /// the check is a benchmark, so the window is the benchmark's, the longer
+    /// one; a permission ends sooner when its check completes or the peer's
+    /// next reservation replaces it.
     pub(super) fn install_probe_permission(
         &mut self,
         peer: EndpointId,
         request: u64,
         pair_revision: u64,
-        expires: u64,
     ) {
         self.probe_permissions.insert(
             peer,
             ProbePermission {
                 request,
                 pair_revision,
-                expires: tokio::time::Instant::now()
-                    + Duration::from_secs(expires.saturating_sub(now().unwrap_or(expires))),
+                expires: tokio::time::Instant::now() + crate::probe::window(true),
             },
         );
         self.probe_peers.insert(peer);
@@ -571,7 +580,7 @@ impl Actor {
             return Ok(());
         }
         if applied {
-            self.install_probe_permission(key.peer, key.request, key.pair_revision, key.expires);
+            self.install_probe_permission(key.peer, key.request, key.pair_revision);
         } else if self
             .controls
             .get(&key.peer)

@@ -2262,7 +2262,7 @@ impl ProbeSide {
 
     /// The reservation the peer's check needs, as its control frame installs it.
     fn permit(actor: &mut Actor, peer: &Endpoint) {
-        actor.install_probe_permission(peer.id(), 1, Self::REVISION, now().unwrap() + 60);
+        actor.install_probe_permission(peer.id(), 1, Self::REVISION);
     }
 
     fn start(mut actor: Actor, events: mpsc::Receiver<Event>) -> Self {
@@ -3612,7 +3612,10 @@ async fn expired_probe_authorization_completion_never_installs_or_dials() {
                 term: recovery.coordinator.current_term(),
                 leader: recovery.coordinator.current_leader(),
                 revision: recovery.committed().await.revision,
-                expires: now().unwrap().saturating_sub(1),
+                expires: now().unwrap() + 60,
+                // Its window has run out on the monotonic clock, whatever the wall
+                // clock says.
+                deadline: tokio::time::Instant::now(),
             }),
         ))
         .await
@@ -5726,6 +5729,212 @@ impl ReservationFixture {
         self.host.close().await;
         self.remote.close().await;
     }
+}
+
+/// Seconds the checked PC's wall clock is set ahead of the checking peer's
+/// (negative: behind). Each is a different PC pair.
+const PEER_CLOCK_OFFSETS: [i64; 11] = [0, 5, 15, 19, 21, 30, 60, 300, 3600, -60, -3600];
+
+/// The field report: two PCs whose clocks differ could not check the
+/// connection between them. The checking peer stamps its reservation on its
+/// own clock; the checked PC, its clock set ahead or behind, accepts the
+/// frame whatever the difference, and the permission lasts the same span on
+/// its monotonic clock.
+#[tokio::test]
+async fn a_reservation_is_accepted_whatever_the_checked_pcs_clock_says() {
+    timeout(Duration::from_secs(90), async {
+        let mut fixture = ReservationFixture::start().await;
+        let remote = fixture.remote.id();
+        let mut refused = Vec::new();
+        let mut lifetimes = Vec::new();
+        for (index, offset) in PEER_CLOCK_OFFSETS.into_iter().enumerate() {
+            let request = 20 + index as u64;
+            fixture.expires = now().unwrap() + crate::probe::window(false).as_secs();
+            fixture.reserve(request).await;
+            let frame = fixture.frame(request);
+            let accepted = WALL_CLOCK_OFFSET
+                .scope(
+                    offset,
+                    fixture.actor.accept_coordination_control(remote, &frame),
+                )
+                .await;
+            if !matches!(accepted, Ok(true)) {
+                refused.push(offset);
+                continue;
+            }
+            let permission = fixture
+                .actor
+                .probe_permissions
+                .get(&remote)
+                .expect("an accepted reservation installs its permission");
+            assert_eq!(permission.request, request);
+            let lifetime = permission
+                .expires
+                .saturating_duration_since(tokio::time::Instant::now());
+            let full = crate::probe::window(true);
+            if lifetime > full || lifetime + Duration::from_secs(2) < full {
+                lifetimes.push((offset, lifetime.as_secs()));
+            }
+        }
+        assert!(
+            refused.is_empty() && lifetimes.is_empty(),
+            "refused with the clock ahead by {refused:?} s; \
+             permission lifetimes off the window (offset, s): {lifetimes:?}"
+        );
+        fixture.stop().await;
+    })
+    .await
+    .unwrap();
+}
+
+/// The check itself, end to end on the checked side: its clock is half a
+/// minute ahead of the checking peer's, and the peer's measurement completes
+/// with samples instead of timing out unanswered.
+#[tokio::test]
+async fn a_check_of_a_pc_whose_clock_is_ahead_completes() {
+    timeout(Duration::from_secs(60), async {
+        let mut fixture = ReservationFixture::start().await;
+        let remote = fixture.remote.id();
+        fixture.expires = now().unwrap() + crate::probe::window(false).as_secs();
+        fixture.reserve(7).await;
+        let frame = fixture.frame(7);
+        let accepted = WALL_CLOCK_OFFSET
+            .scope(
+                30,
+                fixture.actor.accept_coordination_control(remote, &frame),
+            )
+            .await;
+        let ReservationFixture {
+            host,
+            remote: checker,
+            actor,
+            events,
+            recovery,
+            source,
+            room,
+            ..
+        } = fixture;
+        let (_commands, command_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
+        let (_fault, failure) = watch::channel(false);
+        let mut actor = actor;
+        let service = tokio::spawn(WALL_CLOCK_OFFSET.scope(30, async move {
+            let result = actor.run(command_rx, failure).await;
+            actor.tasks.shutdown().await;
+            result
+        }));
+        let checked = run_probe(
+            checker.clone(),
+            address(&host),
+            room,
+            host.id(),
+            7,
+            5,
+            false,
+        )
+        .await;
+        service.abort();
+        drop(events);
+        let completion = checked.unwrap_or_else(|error| {
+            panic!("the check failed ({error}); the reservation was answered {accepted:?}")
+        });
+        let summary = crate::recovery::summarize_datagram_probe(
+            &completion.samples_us,
+            completion.metrics.expected,
+            completion.metrics.sent,
+        );
+        assert_eq!(summary.status, "ready");
+        assert!(
+            summary.sample_count >= 80,
+            "{} samples",
+            summary.sample_count
+        );
+        if let Some(connection) = completion.connection {
+            connection.close(0u32.into(), b"done");
+        }
+        source.stop().await;
+        recovery.stop().await;
+        host.close().await;
+        checker.close().await;
+    })
+    .await
+    .unwrap();
+}
+
+/// This PC's wall clock is corrected (or set by hand) while its own check
+/// waits for the room to commit the reservation. Whichever way it jumps, the
+/// check goes ahead: how long the authorization stays usable is counted on
+/// the monotonic clock from when it was requested.
+#[tokio::test]
+async fn a_wall_clock_jump_during_a_check_changes_nothing() {
+    timeout(Duration::from_secs(90), async {
+        for (request, jump) in [(3, 3600i64), (4, 30), (5, -3600)] {
+            let mut fixture = ReservationFixture::start().await;
+            fixture.connect_control().await;
+            let (room, remote) = (fixture.room, fixture.remote.id());
+            fixture
+                .actor
+                .spawn_probe(1, room, remote, request, 5, false)
+                .await
+                .unwrap();
+            WALL_CLOCK_OFFSET
+                .scope(jump, complete_next(&mut fixture.actor))
+                .await;
+            while let Ok(event) = fixture.events.try_recv() {
+                assert!(
+                    !matches!(event, Event::Error { .. }),
+                    "a {jump} s jump refused the check: {}",
+                    serde_json::to_string(&event).unwrap()
+                );
+            }
+            assert!(
+                fixture.actor.own_probes.contains_key(&remote),
+                "a {jump} s jump dropped the check"
+            );
+            fixture.stop().await;
+        }
+    })
+    .await
+    .unwrap();
+}
+
+/// The monotonic deadline still holds: an authorization that completes after
+/// its window, with the wall clock saying it is fresh, is refused.
+#[tokio::test]
+async fn a_late_probe_authorization_is_refused_by_the_monotonic_clock() {
+    timeout(Duration::from_secs(60), async {
+        let mut fixture = ReservationFixture::start().await;
+        fixture.connect_control().await;
+        let (room, remote) = (fixture.room, fixture.remote.id());
+        fixture
+            .actor
+            .spawn_probe(1, room, remote, 3, 5, false)
+            .await
+            .unwrap();
+        let completion = timeout(Duration::from_secs(10), fixture.actor.tasks.join_next())
+            .await
+            .expect("worker completion")
+            .expect("a worker")
+            .expect("worker result");
+        let Completion::ProbeAuthorization(key, Ok(mut authorization)) = completion else {
+            panic!("the authorization was not committed");
+        };
+        authorization.deadline = tokio::time::Instant::now();
+        let task_count = fixture.actor.tasks.len();
+        WALL_CLOCK_OFFSET
+            .scope(
+                -3600,
+                fixture
+                    .actor
+                    .completed(Completion::ProbeAuthorization(key, Ok(authorization))),
+            )
+            .await
+            .unwrap();
+        assert!(!fixture.actor.own_probes.contains_key(&remote));
+        assert_eq!(fixture.actor.tasks.len(), task_count);
+        fixture.stop().await;
+    })
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
