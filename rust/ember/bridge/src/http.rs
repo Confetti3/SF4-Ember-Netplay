@@ -100,11 +100,21 @@ pub fn expected_revision(headers: &HeaderMap, body: Option<u64>) -> Result<u64> 
     }
 }
 
-const STYLE: &str = "body{font:16px/1.5 system-ui,sans-serif;max-width:34rem;margin:2rem auto;padding:0 1rem;color:#1d1d1f;background:#fff}\
-h1{font-size:1.4rem}code,.code{font:600 2rem ui-monospace,monospace;letter-spacing:.1em}\
-.box{border:1px solid #c7c7cc;border-radius:8px;padding:1rem;margin:1rem 0}.warn{background:#fff4e5;border-color:#f5a623}\
-button{font:inherit;padding:.4rem 1rem;margin-right:.5rem}input{font:inherit;padding:.3rem;width:100%;box-sizing:border-box}\
-@media (prefers-color-scheme:dark){body{color:#f5f5f7;background:#1c1c1e}.box{border-color:#48484a}.warn{background:#3a2a10}}";
+// Ember's interface palette: charcoal, ivory and ember orange, as in the game
+// and on embernetplay.link. Inline only; the page's CSP allows nothing else.
+const STYLE: &str = ":root{color-scheme:dark}\
+body{font:16px/1.5 system-ui,-apple-system,\"Segoe UI\",sans-serif;max-width:34rem;margin:0 auto;padding:2rem 1rem;color:#f3ebdd;background:#141312}\
+h1{font-size:1.4rem;line-height:1.3;color:#ff8738;margin:0 0 1rem;padding-bottom:.6rem;\
+background:linear-gradient(#ff8738,#ff8738) 0 100%/72px 3px no-repeat,linear-gradient(#443a31,#443a31) 0 100%/100% 1px no-repeat}\
+p{margin:.75rem 0}strong{color:#fff}a{color:#ff8738;text-underline-offset:2px}a:hover{color:#ffb16f}\
+code,.code{font:600 2rem ui-monospace,\"Cascadia Mono\",Consolas,monospace;letter-spacing:.1em;color:#f3ebdd;overflow-wrap:anywhere}\
+.box{display:block;background:#211e1b;border:1px solid #443a31;border-left:3px solid #ff8738;border-radius:4px;padding:.75rem 1rem;margin:1rem 0}\
+.box>:first-child{margin-top:0}.box>:last-child{margin-bottom:0}.warn{background:#2a2119;border-color:#76502f;border-left-color:#f1c477}\
+button{font:inherit;font-weight:600;padding:.5rem 1rem;margin:0 .5rem .5rem 0;color:#f3ebdd;background:#382d24;border:1px solid #76502f;border-radius:4px;cursor:pointer}\
+button:hover{background:#59402b;border-color:#ff8738}\
+label{display:block;margin:.75rem 0;color:#b5a99b}\
+input{font:inherit;padding:.4rem .5rem;margin-top:.25rem;width:100%;box-sizing:border-box;color:#f3ebdd;background:#191715;border:1px solid #443a31;border-radius:4px}\
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid #ff8738;outline-offset:2px}";
 
 /// A small self-contained HTML page for a person in a browser: the mock
 /// provider's pages and the Discord sign-in result. No scripts, no outside

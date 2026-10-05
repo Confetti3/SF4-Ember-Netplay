@@ -711,3 +711,22 @@ async fn an_expired_match_is_not_sent_to_blumint_and_reads_as_cancelled() {
         "pending"
     );
 }
+
+// A status request without matchId gets the bridge's JSON error, and only
+// after its credential is checked: a caller without one gets 401 first.
+#[tokio::test]
+async fn a_status_request_without_a_match_id_is_refused_as_json_after_authentication() {
+    let f = fixture().await;
+    let (status, body) = f
+        .bridge
+        .get(&f.provider, "/v1/blumint/matches/status")
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert_eq!(common::code(&body), "invalid_request", "{body}");
+    let (status, body) = f
+        .bridge
+        .get("not-a-credential", "/v1/blumint/matches/status")
+        .await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED, "{body}");
+    assert_eq!(common::code(&body), "unauthenticated", "{body}");
+}
