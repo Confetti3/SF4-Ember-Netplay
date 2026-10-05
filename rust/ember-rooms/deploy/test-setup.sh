@@ -208,7 +208,31 @@ check "exits 0" succeeded
 check "pruned build files removed" absent "$LIB/builds/aaa111"
 check "config no longer lists it" config_lacks aaa111
 
-echo "10. first install that fails leaves nothing behind"
+echo "10. --max-rooms sets the room limit"
+config_max() { python3 -c 'import json, sys; sys.exit(0 if json.load(open(sys.argv[1]))["max_rooms"] == int(sys.argv[2]) else 1)' "$CONFIG" "$1"; }
+run_setup --max-rooms 12
+check "exits 0" succeeded
+check "max_rooms is 12" config_max 12
+check "says what changed" mentions "max_rooms 10 -> 12"
+check "warns that MemoryMax is too small" mentions "needs about 1320M of memory"
+check "config lists the new build" config_lists bbb222
+snapshot snap10
+
+echo "11. --max-rooms past the port range is refused before any change"
+restarts=$(grep -c restart "$STUB_LOG")
+run_setup --max-rooms 51
+check "fails" failed
+check "names the port range" mentions "needs 102 ports but port_range 45800-45899 has 100"
+check "config unchanged" same "$T/snap10/config" "$CONFIG"
+check "service never restarted" test "$(grep -c restart "$STUB_LOG")" = "$restarts"
+check "service still up" service_up
+run_setup --max-rooms 0
+check "zero refused" failed
+check "usage error, nothing touched" same "$T/snap10/config" "$CONFIG"
+run_setup --max-rooms
+check "missing value refused" failed
+
+echo "12. first install that fails leaves nothing behind"
 new_env b
 stage_supervisor "v1 BADHEALTH"
 stage_build ccc333 three

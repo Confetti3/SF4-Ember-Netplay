@@ -2,7 +2,9 @@
 
 These notes cover running `ember-rooms` on the VPS (`ssh vps`). What the
 supervisor does and its API are in `../README.md` and
-`docs/design/PUBLIC_ROOMS.md`.
+`docs/design/PUBLIC_ROOMS.md`. What a room costs, how many rooms a server
+size holds and hosting options are in
+`docs/development/PUBLIC_ROOM_HOSTING.md`.
 
 ## What runs where
 
@@ -23,14 +25,23 @@ supervisor does and its API are in `../README.md` and
 | `/var/lib/ember-rooms/` | state for the room hosts |
 | `/etc/systemd/system/ember-rooms.service` | the unit |
 
-The unit allows 700 MB of memory and 512 tasks for the supervisor and all
-rooms together, and the example config starts at `max_rooms` 4. The machine
-has 1.8 GB and also runs the bridge (its own 256 MB limit) and the short-link
-service (96 MB); each unit has its own limit, so a full room supervisor cannot
-starve the bridge. Measure a room's memory (`systemctl status ember-rooms`
-shows the total) before raising `max_rooms`; raise `TasksMax` by about 64 per
-room and `MemoryMax` to match, or move to a larger machine. setup.sh warns
-about the tasks.
+The unit allows 1150 MB of memory and 512 tasks for the supervisor and all
+rooms together, and the example config starts at `max_rooms` 10. A room (room
+host plus helper) measured about 100 MB and 8 tasks on the VPS in October
+2026. The machine has 1.8 GB and also runs the bridge (its own 256 MB limit)
+and the short-link service (96 MB); each unit has its own limit, so a full
+room supervisor cannot starve the bridge. Measure a room's memory (`systemctl
+status ember-rooms` shows the total) before raising `max_rooms`; raise
+`MemoryMax` by about 110 MB per room, or move to a larger machine. setup.sh
+warns when `MemoryMax` or `TasksMax` looks too small for `max_rooms`.
+
+To change the room limit on an installed server, stage this folder and run
+setup.sh with `--max-rooms`. It refuses a limit the port range cannot hold
+(two ports per room) and puts the old config back if the restart fails:
+
+```
+ssh -t vps "sudo bash ~/ember-rooms/setup.sh --max-rooms 10"
+```
 
 ## Staging layout
 

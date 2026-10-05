@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Installs the Ember public room supervisor (loopback only, 127.0.0.1:47830).
-# Run as: sudo bash ~/ember-rooms/setup.sh [--prune]
+# Run as: sudo bash ~/ember-rooms/setup.sh [--prune] [--max-rooms N]
 #
 # Expects, next to this script (normally ~/ember-rooms of the user who ran
 # sudo, put there by the operator): bin/ember-rooms (built as katie with
@@ -10,7 +10,8 @@
 #
 # Running it again installs a newer supervisor binary, adds the builds that
 # are staged, and restarts the service. The secret and an existing
-# config.json are never replaced; only config.json's "builds" entries change.
+# config.json are never replaced; only config.json's "builds" entries change,
+# and "max_rooms" with --max-rooms.
 # Without --prune a build that is installed but no longer staged is kept;
 # with --prune its config entry and installed files are removed. Rooms that
 # already run keep their binaries until they end.
@@ -66,11 +67,24 @@ own() {
 }
 
 PRUNE=0
-case "${1:-}" in
-    "") ;;
-    --prune) PRUNE=1 ;;
-    *) echo "usage: sudo bash setup.sh [--prune]" >&2; exit 2 ;;
-esac
+SET_MAX_ROOMS=""
+usage() { echo "usage: sudo bash setup.sh [--prune] [--max-rooms N]" >&2; exit 2; }
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --prune) PRUNE=1 ;;
+        --max-rooms)
+            [ $# -ge 2 ] || usage
+            if [[ ! "$2" =~ ^[1-9][0-9]{0,3}$ ]] || [ "$2" -gt 1024 ]; then
+                echo "--max-rooms must be 1 to 1024." >&2
+                exit 2
+            fi
+            SET_MAX_ROOMS=$2
+            shift
+            ;;
+        *) usage ;;
+    esac
+    shift
+done
 
 if [ -z "$ROOT" ] && [ "$(id -u)" -ne 0 ]; then
     echo "Run with sudo." >&2
@@ -117,6 +131,23 @@ if [ -d "$SRC/builds" ]; then
         done
         build_ids+=("$id")
     done
+fi
+
+# Each room takes two ports from port_range. Checked here, before anything
+# is changed, so a limit the range cannot hold never restarts the service.
+if [ -n "$SET_MAX_ROOMS" ]; then
+    ranged=$CONFIG
+    [ -f "$ranged" ] || ranged=$SRC/config.example.json
+    if ! python3 - "$ranged" "$SET_MAX_ROOMS" <<'PY'
+import json, sys
+low, high = json.load(open(sys.argv[1])).get("port_range", [45800, 45899])
+rooms = int(sys.argv[2])
+if high - low + 1 < 2 * rooms:
+    sys.exit(f"--max-rooms {rooms} needs {2 * rooms} ports but port_range {low}-{high} has {high - low + 1}; widen port_range in {sys.argv[1]} first.")
+PY
+    then
+        exit 1
+    fi
 fi
 
 if [ -n "$ROOT" ]; then
@@ -272,15 +303,23 @@ for id in ${build_ids[@]+"${build_ids[@]}"}; do
 done
 
 # Make config.json's builds match: add or update staged builds, keep every
-# other key, and with --prune drop builds that are no longer staged.
+# other key, and with --prune drop builds that are no longer staged. With
+# --max-rooms also set max_rooms (checked against the ports above).
 SYNC=$(cat <<'PY'
 import grp, json, os, sys, tempfile
 path, lib, prune, owned = sys.argv[1], sys.argv[2], sys.argv[3] == "1", sys.argv[4] == "1"
+max_rooms = sys.argv[5]
 ids = [line for line in sys.stdin.read().split("\n") if line]
 with open(path) as file:
     config = json.load(file)
 builds = config.setdefault("builds", {})
 changed = False
+if max_rooms:
+    max_rooms = int(max_rooms)
+    if config.get("max_rooms") != max_rooms:
+        print(f"config: max_rooms {config.get('max_rooms', 8)} -> {max_rooms}")
+        config["max_rooms"] = max_rooms
+        changed = True
 for build in ids:
     entry = {
         "room_host": f"{lib}/builds/{build}/sf4e-room-host",
@@ -312,8 +351,8 @@ PY
 )
 OWNED=1
 [ -z "$ROOT" ] || OWNED=0
-if ! printf '%s\n' ${build_ids[@]+"${build_ids[@]}"} | python3 -c "$SYNC" "$CONFIG" "$LIB" "$PRUNE" "$OWNED"; then
-    echo "Could not update the builds in $CONFIG." >&2
+if ! printf '%s\n' ${build_ids[@]+"${build_ids[@]}"} | python3 -c "$SYNC" "$CONFIG" "$LIB" "$PRUNE" "$OWNED" "$SET_MAX_ROOMS"; then
+    echo "Could not update $CONFIG." >&2
     exit 1
 fi
 # Builds dropped from the config by --prune keep their files until the restart
@@ -352,9 +391,15 @@ if [ "$BUILD_COUNT" -eq 0 ]; then
     echo "note: no builds yet, so every room request is refused as unsupported_build." >&2
     echo "      Stage one under ~/ember-rooms/builds/<build_id>/ and run this script again." >&2
 fi
+# A room measured about 8 tasks and 100 MB on the VPS (room host plus helper);
+# the warnings leave room for growth.
 tasks=$(sed -n 's/^TasksMax=//p' "$SRC/ember-rooms.service" | head -n 1)
-if [ -n "$tasks" ] && [ "$tasks" -lt $((MAX_ROOMS * 64)) ] 2>/dev/null; then
-    echo "warning: max_rooms $MAX_ROOMS needs about $((MAX_ROOMS * 64)) tasks but the unit allows $tasks; raise TasksMax (and check MemoryMax) in the unit." >&2
+if [ -n "$tasks" ] && [ "$tasks" -lt $((MAX_ROOMS * 16)) ] 2>/dev/null; then
+    echo "warning: max_rooms $MAX_ROOMS needs about $((MAX_ROOMS * 16)) tasks but the unit allows $tasks; raise TasksMax in the unit." >&2
+fi
+memory=$(sed -n 's/^MemoryMax=\([0-9][0-9]*\)M$/\1/p' "$SRC/ember-rooms.service" | head -n 1)
+if [ -n "$memory" ] && [ "$memory" -lt $((MAX_ROOMS * 110)) ]; then
+    echo "warning: max_rooms $MAX_ROOMS needs about $((MAX_ROOMS * 110))M of memory but the unit allows ${memory}M; a room past the limit is stopped mid-match." >&2
 fi
 
 # Firewall: each room uses two UDP ports from the range.

@@ -58,14 +58,17 @@ RestrictSUIDSGID=yes
 LockPersonality=yes
 SystemCallArchitectures=native
 
-# The box has 1.8 GB and also runs the bridge and the short-link service.
-# This limit covers the supervisor and every room host together.
-MemoryMax=700M
+# The box has 1.8 GB and also runs the bridge and the short-link service
+# (about 45 MB in use together, capped at 352 MB); the system itself takes
+# about 430 MB. This limit covers the supervisor and every room together. A
+# room (room host plus helper) measured about 100 MB, so 1150M holds
+# max_rooms 10.
+MemoryMax=1150M
 # A room host past the limit is stopped and cleaned up rather than pushed
 # into swap, where it would stall the match it is serving.
 MemorySwapMax=0
-# About 64 tasks per room (room host plus helper threads) for max_rooms 8.
-# Raise it with max_rooms; setup.sh warns when the config asks for more.
+# A room measured about 8 tasks (room host plus helper threads), so 512
+# leaves plenty of headroom; setup.sh warns when the config asks for more.
 TasksMax=512
 
 [Install]
