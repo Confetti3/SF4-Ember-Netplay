@@ -151,6 +151,8 @@ void RoomAuthority::ResumeRecovery(std::uint64_t nowMs) {
         if (nowMs >= nowMs_) nowMs_ = nowMs;
         return;
     }
+	// Brings permit holds, and any ages kept across a restore, to now first.
+	AgePermitHolds(nowMs);
 	std::uint64_t rebasedNow = nowMs;
 	ForEachTableTimer([&](std::uint64_t& age, std::uint64_t) { rebasedNow = (std::max)(rebasedNow, age); });
 	for (auto& entry : lastChatMs_) {
