@@ -1672,6 +1672,9 @@ msgstr "Esperando jugadores"
 msgid "room.phase.preparing"
 msgstr "Preparando partida"
 
+msgid "room.phase.holding"
+msgstr "Esperando espectadores"
+
 msgid "room.phase.in_game"
 msgstr "En partida"
 
@@ -1946,13 +1949,31 @@ msgid "room.both_ready"
 msgstr "Ambos jugadores están listos. La partida va a comenzar."
 
 msgid "room.waiting_spectators"
-msgstr "Ambos jugadores están listos. La partida empieza cuando vuelvan los espectadores fijados, o en {0} segundos."
+msgstr "Esperando a que vuelvan los espectadores fijados. Empieza en {0} s como máximo."
+
+msgid "room.hold.waiting_for"
+msgstr "Esperando a que vuelva {0}. Empieza en {1} s."
+
+msgid "room.hold.waiting_some"
+msgstr "Esperando a que vuelvan los espectadores fijados. Empieza en {0} s."
+
+msgid "room.hold.waiting_you"
+msgstr "La partida te espera: {0} s"
+
+msgid "room.hold.status"
+msgstr "Esperando espectadores: {0} s"
+
+msgid "room.hold.cancel_detail"
+msgstr "Cancelar el inicio retira tu Listo, así que esta partida no empieza."
 
 msgid "room.match_in_progress.detail"
 msgstr "La partida actual está en curso. Espera a que termine."
 
 msgid "room.unready"
 msgstr "Cancelar Listo / liberar"
+
+msgid "room.unready.short"
+msgstr "Cancelar Listo"
 
 msgid "room.cancel_start"
 msgstr "Cancelar el inicio"
@@ -1970,7 +1991,7 @@ msgid "room.ready_up"
 msgstr "Marcar Listo"
 
 msgid "room.selected_delay.detail"
-msgstr "Ajusta entre 0 y 10 fotogramas. Los cambios se aplican al instante."
+msgstr "Ajusta entre 1 y 10 fotogramas. Los cambios se aplican al instante."
 
 msgid "room.selected_delay.locked"
 msgstr "El retraso seleccionado está bloqueado para esta partida."
@@ -2071,13 +2092,25 @@ msgid "room.lock_spectating"
 msgstr "Fijar para ver"
 
 msgid "room.lock_spectating.detail"
-msgstr "La próxima partida te espera hasta {0} segundos mientras vuelves a la sala."
+msgstr "Si aún vuelves de la última partida cuando ambos jugadores estén listos, la próxima partida te espera hasta {0} segundos."
 
 msgid "room.unlock_spectating"
 msgstr "Quitar fijación"
 
 msgid "room.unlock_spectating.detail"
-msgstr "Estás fijado. La próxima partida te espera hasta {0} segundos."
+msgstr "Estás fijado: la próxima partida espera hasta {0} segundos a que vuelvas. Dejar de ver o cambiar de mesa quita la fijación."
+
+msgid "room.lock_in_ended.stopped"
+msgstr "Fijación quitada: has dejado de ver."
+
+msgid "room.lock_in_ended.moved"
+msgstr "Fijación quitada: estás viendo otra mesa."
+
+msgid "room.lock_in_ended.playing"
+msgstr "Fijación quitada: has ocupado un puesto o te has puesto en la cola."
+
+msgid "room.lock_in_ended.dropped"
+msgstr "Fijación quitada: tu vista de espectador se ha caído. Vuelve a fijarte para que la próxima partida te espere."
 
 msgid "room.table_rules"
 msgstr "Reglas"
@@ -3205,10 +3238,10 @@ msgid "public.create"
 msgstr "Crear sala pública"
 
 msgid "public.create_detail"
-msgstr "Abre una sala visible para todos los jugadores con un Ember ID. Tú eres el anfitrión y defines sus reglas dentro de la sala."
+msgstr "Abre una sala visible para todos los jugadores con un Ember ID, contigo como anfitrión. Después elige su nombre, tamaño y reglas de mesa."
 
 msgid "public.create_requirements"
-msgstr "Abre una sala pública en el servicio del Ember ID y entra en ella. Define las reglas de la mesa dentro de la sala."
+msgstr "Abre una sala pública en el servicio del Ember ID, entra en ella y aplica estas reglas en todas las mesas. Cámbialas luego en Opciones de la mesa."
 
 msgid "public.create_needs_id"
 msgstr "Las salas públicas necesitan un Ember ID y un servicio de confianza. Configúralos en Salas públicas."

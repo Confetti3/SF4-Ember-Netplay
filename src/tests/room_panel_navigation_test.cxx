@@ -2,6 +2,7 @@
 #include "../common/Localization.hxx"
 #include "../ui/GameMenu.hxx"
 #include "../ui/MenuRows.hxx"
+#include "../ui/RoomControls.hxx"
 #include "../ui/RoomFeedback.hxx"
 #include "../ui/Theme.hxx"
 #include "imgui_test_support.hxx"
@@ -228,6 +229,13 @@ int main() try {
     press(MenuInput::Right);
     Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 3,
         "Manual delay did not submit the bounded value");
+    // 0 frames is not offered: Left from 1 stays at 1, and an older 0 reads as 1.
+    view.selectedDelay = 1; frame(); press(MenuInput::Left);
+    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 1,
+        "Input delay offered 0 frames");
+    view.selectedDelay = 0; frame();
+    Check(row("input-delay").value == "1 frames", "Input delay showed 0 frames");
+    view.selectedDelay = 2; frame();
     // Fighter, Ultra and Appearance sit under Ready. Left and Right step the
     // Ultra and the color without leaving the page; Select opens their cards
     // in fighter select.
@@ -488,6 +496,37 @@ int main() try {
     Check(shell.Navigation().Screen() == "selection" && selectionDraws > beforeBlockedSelection,
         "Selection failed to open after terminal completion");
 
+    // The opponent changed fighter between games: a line on the table card and
+    // the Ready row say so, and nothing takes the menu away from the player.
+    {
+        shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
+        view.room.tables[0].ready[0] = view.room.tables[0].ready[1] = false;
+        view.opponentChangedFighter = 5; ++view.opponentChangeSequence; ++view.room.revision;
+        targets.clear(); frame(); frame();
+        const auto changed = room_controls::OpponentChangedText(5);
+        const auto banner = room_controls::DescribeTableBanner(view, view.room.tables[0]);
+        Check(banner.text == changed && banner.seat == 1, "The table card did not name the opponent's new fighter on their seat");
+        Check(!room_controls::DescribeTableBanner(view, view.room.tables[1]).text.size(), "Another table's card named the opponent's new fighter");
+        Check(targets.count("table-0/banner") && !targets.count("table-1/banner"), "The opponent's new fighter was not drawn on the table card");
+        Check(!shell.NoticeOpen(), "The opponent's new fighter opened a modal notice");
+        const auto beforeChangedPress = actions.size();
+        focus("table-0"); press(MenuInput::Select);
+        Check(actions.size() == beforeChangedPress + 1, "The board did not take input while the opponent's new fighter was shown");
+        shell.Navigation().Push("room-table"); frame();
+        Check(row("ready").detail.compare(0, changed.size(), changed) == 0, "The Ready row did not start with the opponent's new fighter");
+        // It ends when the player readies or the matchup changes (OpponentFighterWatch).
+        view.opponentChangedFighter = -1; ++view.room.revision; shell.Navigation().Home(); shell.Navigation().Push("room");
+        targets.clear(); frame(); frame();
+        Check(!targets.count("table-0/banner") && row("table-0").id == "table-0", "The opponent's new fighter stayed on the card");
+    }
+    // A notice with no heading is not an error; ShowError is.
+    {
+        GameMenu menu;
+        menu.ShowNotice("Advice");
+        Check(menu.NoticeOpen() && !menu.NoticeError(), "A notice with no heading read as an error");
+        menu.ShowError("Ready failed");
+        Check(menu.NoticeError(), "An error notice did not read as one");
+    }
     // Both fighters are ready and a locked-in spectator holds the start.
     shell.Navigation().Home(); shell.Navigation().Push("room-table");
     view.room.tables[0].phase = room::TablePhase::Ready; view.room.tables[0].spectatorHold = true;
@@ -517,7 +556,7 @@ int main() try {
     });
     SetMenuGlyphs(3, 0x40000, 0x20000);
     shell.Navigation().Home(); shell.Navigation().Push("room"); frame(); focus("table-0"); frame(); frame();
-    Check(strip == std::set<std::string>({std::string(sf4e::loc::T("room.unready")), std::string(sf4e::loc::T("room.cancel_start"))}),
+    Check(strip == std::set<std::string>({std::string(sf4e::loc::T("room.unready.short")), std::string(sf4e::loc::T("room.cancel_start"))}),
         "During the held start the seat's two controls did not read differently");
     Check(legend.count(sf4e::loc::T("room.unready")) && legend.count(sf4e::loc::T("room.cancel_start")),
         "The legend did not name Unready for A and Cancel the start for B during the held start");
@@ -530,6 +569,56 @@ int main() try {
     view.room.tables[0].phase = room::TablePhase::Waiting; view.room.tables[0].spectatorHold = false;
     view.room.tables[0].ready[0] = view.room.tables[0].ready[1] = false;
 
+    // A held start the host timed: the card and the Ready row name who it
+    // waits for and count down, and say that B, Cancel the start, calls it off.
+    {
+        using sf4e::loc::T; using sf4e::loc::Tf;
+        const auto members = view.room.members;
+        room::Member alex; alex.id = 3; alex.name = "Alex"; alex.spectatorLocked = true;
+        room::Member other; other.id = 4; other.name = "Other";
+        view.room.members.push_back(alex); view.room.members.push_back(other);
+        auto& held = view.room.tables[0];
+        held.spectators = {3}; held.phase = room::TablePhase::Ready; held.spectatorHold = true;
+        held.ready[0] = held.ready[1] = true; held.holdRemainingMs = 6200;
+        view.canEditSelection = false; ++view.room.revision;
+        shell.Navigation().Home(); shell.Navigation().Push("room"); targets.clear(); frame(); frame();
+        const std::string waiting = Tf("room.hold.waiting_for", "Alex", 7);
+        Check(room_controls::DescribeTableBanner(view, held).text == waiting, "The held start did not name Alex and count down");
+        Check(targets.count("table-0/banner"), "The held start's line was not drawn on the card");
+        Check(row("table-0").detail == waiting + " " + T("room.hold.cancel_detail"), "The seat card did not say what Cancel the start does");
+        shell.Navigation().Push("room-table"); frame();
+        Check(row("ready").detail == waiting + " " + T("room.hold.cancel_detail"), "The Ready row did not count down the held start");
+        Check(menuStatus == Tf("room.hold.status", 7), "The status line did not count down the held start in one short line");
+        held.holdRemainingMs = 1; ++view.room.revision; frame();
+        Check(row("ready").detail.find(Tf("room.hold.waiting_for", "Alex", 1)) == 0, "A hold that has run out did not read one second");
+        // The locked-in spectator the start waits for is told so.
+        view.room.members[0].seat = -1; view.room.members[0].spectatorLocked = true; view.room.localTerminalPending = true;
+        held.p1 = 4; held.spectators = {1, 3}; held.holdRemainingMs = 4000; ++view.room.revision;
+        shell.Navigation().Home(); shell.Navigation().Push("room"); frame(); frame();
+        Check(room_controls::DescribeTableBanner(view, held).text == Tf("room.hold.waiting_you", 4), "The spectator holding the start was not told");
+        Check(row("table-0").detail.find(T("room.phase.holding")) != std::string::npos, "The held table read as preparing a game");
+        shell.Navigation().Push("room-table"); frame();
+        Check(menuStatus == Tf("room.hold.waiting_you", 4), "The status line did not say the start waits for this spectator");
+        Check(row("lock-spectating").detail.find(Tf("room.hold.waiting_you", 4)) == std::string::npos, "The lock-in row repeated the status line");
+        // Released by the player: no notice. Cleared by the room: a notice says why.
+        // Cleared by the room, the lock-in gets a notice saying why; released
+        // by the player, none.
+        view.room.members[0].spectatorLocked = false; ++view.room.revision; frame();
+        Check(menuStatus == T("room.lock_in_ended.dropped"), "A lock-in the stream failure ended was not explained");
+        view.room.members[0].spectatorLocked = true; ++view.room.revision; frame();
+        view.room.members[0].spectatorLocked = false; held.spectators = {3}; ++view.room.revision; frame();
+        Check(menuStatus == T("room.lock_in_ended.stopped"), "A lock-in that ended with watching was not explained");
+        Check(!shell.NoticeOpen(), "A lock-in that ended opened a modal");
+        view.room.members[0].spectatorLocked = true; held.spectators = {1, 3}; ++view.room.revision; frame(); frame();
+        focus("lock-spectating"); press(MenuInput::Select);
+        Check(actions.back().roomAction.kind == room::ActionKind::LockSpectating && !actions.back().roomAction.locked, "Release lock-in was not sent");
+        view.room.members[0].spectatorLocked = false; ++view.room.revision; frame(); frame();
+        Check(menuStatus != T("room.lock_in_ended.dropped"), "The player's own release was announced as the room's");
+        view.room.members = members; view.room.localTerminalPending = false;
+        held.p1 = 1; held.spectators.clear(); held.phase = room::TablePhase::Waiting; held.spectatorHold = false;
+        held.ready[0] = held.ready[1] = false; held.holdRemainingMs = 0; view.canEditSelection = true; ++view.room.revision;
+        shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
+    }
     // The Members list names every member's connection in words, unknown too.
     shell.Navigation().Home(); shell.Navigation().Push("room-members");
     view.room.members[1].link = NetworkLink::Wired; ++view.room.revision; frame();

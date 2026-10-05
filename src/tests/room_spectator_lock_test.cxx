@@ -586,7 +586,47 @@ static void TestHoldSurvivesRecovery() {
 	CHECK(!old.SnapshotView().tables[0].spectatorHold);
 }
 
+// A held table's sent snapshot says how long the hold has left, so a client
+// can count it down. The room's own state and its checkpoints never carry it,
+// and a snapshot from a host that does not send it reads as zero.
+static void TestHoldTimeLeftIsStampedWhenSent() {
+	Room room(true);
+	CHECK(!room.ReadyBoth());
+	CHECK(room.authority.SnapshotFor(room.p1).tables[0].holdRemainingMs == SpectatorStartHoldMs);
+	CHECK(room.authority.SnapshotFor(room.spectator).tables[0].holdRemainingMs == SpectatorStartHoldMs);
+	CHECK(room.authority.SnapshotView().tables[0].holdRemainingMs == 0);
+	CHECK(room.authority.SnapshotFor(room.p1).tables[1].holdRemainingMs == 0);
+	room.authority.AdvanceTime(5000);
+	const auto sent = room.authority.SnapshotFor(room.p2);
+	CHECK(sent.tables[0].holdRemainingMs == SpectatorStartHoldMs - 4000);
+	const auto wire = nlohmann::json(sent);
+	CHECK(wire.at("tables").at(0).at("hold_ms") == SpectatorStartHoldMs - 4000);
+	CHECK(!wire.at("tables").at(1).contains("hold_ms"));
+	CHECK(wire.get<Snapshot>().tables[0].holdRemainingMs == SpectatorStartHoldMs - 4000);
+	CHECK(!nlohmann::json(room.authority.SnapshotView()).at("tables").at(0).contains("hold_ms"));
+	CHECK(room.authority.Checkpoint().dump().find("hold_ms") == std::string::npos);
+	// An older host sends none; out of range is refused.
+	auto legacy = wire;
+	legacy["tables"][0].erase("hold_ms");
+	CHECK(legacy.get<Snapshot>().tables[0].holdRemainingMs == 0 && legacy.get<Snapshot>().tables[0].spectatorHold);
+	auto wrong = wire;
+	wrong["tables"][0]["hold_ms"] = SpectatorStartHoldMs + 1;
+	bool threw = false;
+	try { wrong.get<Snapshot>(); } catch (const std::exception&) { threw = true; }
+	CHECK(threw);
+	// Paused for recovery, the hold keeps its age.
+	room.authority.PauseForRecovery();
+	CHECK(room.authority.SnapshotFor(room.p1).tables[0].holdRemainingMs == SpectatorStartHoldMs - 4000);
+	room.authority.AdvanceTime(5000);
+	// Due but not yet released: still at least 1, never zero while held.
+	room.authority.AdvanceTime(1000 + SpectatorStartHoldMs - 1);
+	CHECK(room.authority.SnapshotFor(room.p1).tables[0].holdRemainingMs == 1);
+	CHECK(StartsMatch(room.authority.AdvanceTime(1000 + SpectatorStartHoldMs)));
+	CHECK(room.authority.SnapshotFor(room.p1).tables[0].holdRemainingMs == 0);
+}
+
 int main() {
+	TestHoldTimeLeftIsStampedWhenSent();
 	TestAcknowledgementReleasesTheHold();
 	TestHoldExpires();
 	TestUnlockedSpectatorNeverHolds();

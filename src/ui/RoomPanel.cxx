@@ -43,10 +43,11 @@ std::string IdleText(const room::Member& member) {
     const unsigned minutes = member.idleSeconds / 60;
     return minutes < 60 ? loc::Tf("room.idle_minutes", minutes) : loc::Tf("room.idle_hours", minutes / 60, minutes % 60);
 }
-const char* PhaseName(room::TablePhase phase) {
-    switch (phase) {
+// A held start is waiting on people, not preparing anything.
+const char* PhaseName(const room::Table& table) {
+    switch (table.phase) {
     case room::TablePhase::Waiting: return loc::T("room.phase.waiting");
-    case room::TablePhase::Ready: return loc::T("room.phase.preparing");
+    case room::TablePhase::Ready: return loc::T(table.spectatorHold ? "room.phase.holding" : "room.phase.preparing");
     case room::TablePhase::Playing: return loc::T("room.phase.in_game");
     case room::TablePhase::Paused: return loc::T("room.phase.unresolved");
     case room::TablePhase::Closed: return loc::T("room.phase.closed");
@@ -59,6 +60,8 @@ int OptionsTable(const ShellView& v, int selected) {
     const auto* local = Member(v.room, v.room.localMember);
     return local && local->table >= 0 && local->table < static_cast<int>(v.room.tables.size()) ? local->table : selected;
 }
+// The row a table card's banner takes, unscaled.
+constexpr float TableBannerHeight=22;
 // A draft with something in it besides spaces.
 bool HasChatText(const char* text) {
     for(;*text;++text)if(!std::isspace(static_cast<unsigned char>(*text)))return true;
@@ -166,7 +169,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    const auto mine=room::PlaceOf(s,s.localMember);
    for(const auto& table:s.tables){
     const auto occupied=(table.p1?1:0)+(table.p2?1:0);
-    std::string detail=loc::Tf("room.table_detail",Name(s,table.p1),Name(s,table.p2),PhaseName(table.phase),
+    std::string detail=loc::Tf("room.table_detail",Name(s,table.p1),Name(s,table.p2),PhaseName(table),
      table.queue.size(),table.spectators.size()+table.watchingNext.size(),local?StatusName(local->status):loc::T("room.connecting"));
     rows.push_back(Row("table-"+std::to_string(table.id),loc::Tf("room.table_occupancy",table.id+1,occupied),detail));
     rows.back().detailText=DetailText::Name;
@@ -177,6 +180,9 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
      // still names the state on its strip, but has no action to offer.
      const auto control=DescribeReady(v,table,mine.seat);
      rows.back().hint=control.label;rows.back().info=control.kind==ReadyControl::None;
+     // During a held start the card says what it waits for, and that B,
+     // Cancel the start, calls it off.
+     if(table.spectatorHold&&control.kind==ReadyControl::Unready)rows.back().detail=control.detail;
      const auto cost=CostOfLeavingSeat(table);
      if(leaveAsk_==static_cast<int>(table.id)&&cost)rows.back().choices={
       {"stay",loc::T("common.cancel"),loc::T("room.leave_seat.keep")},
@@ -242,6 +248,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    const bool ready=room::ReadyCancellable(t,place.seat);
     const auto readyControl=DescribeReady(v,t,place.seat);
     rows.push_back(Row("ready",readyControl.label,readyControl.detail,readyControl.kind!=ReadyControl::None));
+    if(t.spectatorHold)rows.back().detailText=DetailText::Name;
    // Under Ready, in the order a player reads them: their own pick (fighter,
    // Ultra, appearance, fighter options), then the match (P1's stage and the
    // table's rules), then their connection, then leaving. A on Fighter opens
@@ -271,7 +278,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    rulesRows();
     // One delay row: Left and Right choose it, Select takes the recommendation.
     const bool delayEditable=mutableRoom&&!active&&!v.delayLocked;
-    const int selectedDelay=(std::max)(0,(std::min)(MaximumInputDelay,v.selectedDelay));
+    const int selectedDelay=(std::max)(MinimumInputDelay,(std::min)(MaximumInputDelay,v.selectedDelay));
     const bool recommended=v.recommendedDelay>=0&&v.recommendedDelay<=MaximumInputDelay;
     const auto check=DescribeConnectionCheck(v);
     const bool opponentReady=v.opponentDelay>=0&&v.opponentDelay<=MaximumInputDelay;
@@ -446,6 +453,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   }
  };
  const auto fighter=[&](const room::Member* m){return m?(m->id==v.room.localMember?v.selectedFighter:m->fighter):-1;};
+ const ImU32 bannerColor=ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending));
  // The highlighted option of the entry's open choice, in full; empty otherwise.
  const auto choiceDetail=[&](const MenuEntry& e)->std::string{
   return nav.Choosing()&&nav.DialogId()==e.id&&nav.ChoiceIndex()<e.choices.size()?e.choices[nav.ChoiceIndex()].detail:std::string();
@@ -491,26 +499,35 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   const bool ownPlace=!nav.Asking()&&onOwnPlace&&e.id==focus;
   std::vector<std::string> labels;
   if(choosing)for(const auto& c:e.choices)labels.push_back(c.label);
-  else if(ownPlace)labels={e.hint,place.label};
+  // A strip option is half a card wide, so Unready drops its "unlock fighter".
+  else if(ownPlace){
+   const auto mine=room::PlaceOf(v.room,v.room.localMember);
+   const bool unready=mine.kind==room::Place::Kind::Seat&&DescribeReady(v,t,mine.seat).kind==ReadyControl::Unready;
+   labels={unready?std::string(loc::T("room.unready.short")):e.hint,place.label};
+  }
   const Strip strip=labels.empty()?Strip{}:stripButtons(e,p,width,h,labels.size());
   press(e,ImVec2(width,h));ReportMenuCard(e.id.c_str(),p,ImVec2(p.x+width,p.y+h));
   text(ImVec2(p.x+12*s,p.y+7*s),width*.57f,loc::Tf("room.battle_slot",t.id+1),16*s,palette::Ivory);
-  text(ImVec2(p.x+width*.60f,p.y+8*s),width*.40f-12*s,PhaseName(t.phase),14*s,palette::Ember);
+  text(ImVec2(p.x+width*.60f,p.y+8*s),width*.40f-12*s,PhaseName(t),14*s,palette::Ember);
   // A full pair shows its running win count where "VS" would sit; the gap
   // between the two sides grows to fit however long the rematch run gets.
   const std::string middle=t.p1&&t.p2?SetScoreText(t.score):"VS";
   const float gap=(std::max)(34*s,ImGui::GetFont()->CalcTextSizeA(18*s,FLT_MAX,0,middle.c_str()).x+12*s);
+  // A banner takes a row above the footer, so the option strip never hides it.
+  const auto banner=DescribeTableBanner(v,t);
+  const float bannerHeight=banner.text.empty()?0:TableBannerHeight*s,bannerTop=p.y+h-32*s-bannerHeight;
   // Portraits sit on the card's outer edges, mirrored, so neither crowds the
   // score. The row fills and centres in the band between header and footer.
   // The footer band holds the rules line or, over it, an option strip, so
   // portraits and names never sit under the strip.
-  const float band=h-60*s,portrait=(std::min)(96*s,band),half=(width-24*s-gap)*.5f;
+  const float band=h-60*s-bannerHeight,portrait=(std::min)(96*s,band),half=(width-24*s-gap)*.5f;
   const float top=p.y+28*s+(band-portrait)*.5f+portrait*.5f-20*s;
   const room::MemberId ids[]={t.p1,t.p2};
   for(int side=0;side<2;++side){
    const float x=p.x+12*s+side*(half+gap);const auto* m=Member(v.room,ids[side]);const int id=fighter(m);
    const float px=side?x+half-portrait:x,py=p.y+28*s+(band-portrait)*.5f;
    if(m)DrawCharacterPortrait(id,ImVec2(px,py),ImVec2(px+portrait,py+portrait));
+   if(m&&banner.seat==side)ImGui::GetWindowDrawList()->AddRect(ImVec2(px-2*s,py-2*s),ImVec2(px+portrait+2*s,py+portrait+2*s),bannerColor,3*s,0,2*s);
    // The link mark rides the portrait's inner lower corner on a dark disc.
    if(m){
     const float mark=14*s;const ImVec2 centre(side?px+10*s:px+portrait-10*s,py+portrait-10*s);
@@ -536,11 +553,21 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    std::string caption=m?(f?f->name:loc::T("room.fighter_not_shared")):std::string();
    if(m&&m->id==v.room.localMember)caption+=loc::T("room.suffix_you");
    if(!caption.empty())text(ImVec2(tx,top+23*s),tw,caption,14*s,palette::Muted,true);
-   // The fighter who has won sets back to back at this table.
-   if(m&&t.streakHolder==m->id&&t.streak>=2)text(ImVec2(tx,top+40*s),tw,loc::Tf("room.streak",t.streak),13*s,palette::Ember,true);
-   else if(m&&!t.ready[side]){const auto idle=IdleText(*m);if(!idle.empty())text(ImVec2(tx,top+40*s),tw,idle,13*s,palette::Muted,true);}
+   // The fighter who has won sets back to back at this table. A banner takes
+   // this line's place when the card is too short for both.
+   const bool thirdLine=!bannerHeight||top+53*s<=bannerTop;
+   if(m&&thirdLine&&t.streakHolder==m->id&&t.streak>=2)text(ImVec2(tx,top+40*s),tw,loc::Tf("room.streak",t.streak),13*s,palette::Ember,true);
+   else if(m&&thirdLine&&!t.ready[side]){const auto idle=IdleText(*m);if(!idle.empty())text(ImVec2(tx,top+40*s),tw,idle,13*s,palette::Muted,true);}
   }
   text(ImVec2(p.x+12*s+half,top+16*s),gap,middle,18*s,palette::Ember,true);
+  if(bannerHeight){
+   const ImVec2 min(p.x+8*s,bannerTop),max(p.x+width-8*s,bannerTop+bannerHeight-2*s);
+   ImGui::GetWindowDrawList()->AddRectFilled(min,max,IM_COL32(74,46,20,235),4*s);
+   ImGui::GetWindowDrawList()->AddRect(min,max,bannerColor,4*s,0,1*s);
+   if(cardVisible)NoteUserText(banner.text);
+   text(ImVec2(min.x+8*s,min.y+(max.y-min.y-13*s)*.5f),max.x-min.x-16*s,banner.text,13*s,bannerColor);
+   ReportMenuCard((e.id+"/banner").c_str(),min,max);
+  }
   // An option strip covers the footer, so the footer gives way to it.
   // A first-to-N table names its set and rotation where the round settings
   // would be; those stay on the table's rules rows.
@@ -668,7 +695,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  }else{
   ImGui::BeginChild("Room stacked",ImVec2(0,height),0,ImGuiWindowFlags_NoNavInputs);
   for(const auto& e:rows){
-   if(e.id.compare(0,6,"table-")==0)tableCard(e,136*s);
+   if(e.id.compare(0,6,"table-")==0)tableCard(e,(DescribeTableBanner(v,v.room.tables[std::stoi(e.id.substr(6))]).text.empty()?136:136+TableBannerHeight)*s);
    else if(e.id.compare(0,7,"member-")==0)memberCard(e);
    else button(e,ImGui::GetContentRegionAvail().x);
   }
@@ -680,7 +707,12 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    std::string explanation=selected->detail;
    if(!choiceDetail(*selected).empty())explanation=choiceDetail(*selected);
    else if(selected->id.compare(0,6,"table-")==0){const auto& table=v.room.tables[selectedTable_];const auto* local=Member(v.room,v.room.localMember);
-    explanation=loc::Tf("room.table_explanation",PhaseName(table.phase),local?StatusName(local->status):loc::T("room.connecting"),table.queue.size(),table.spectators.size()+table.watchingNext.size());}
+    explanation=loc::Tf("room.table_explanation",PhaseName(table),local?StatusName(local->status):loc::T("room.connecting"),table.queue.size(),table.spectators.size()+table.watchingNext.size());
+    // A narrow card can cut its banner short; here it is in full, and on
+    // your own seat during a held start, with what Cancel the start does.
+    const auto banner=DescribeTableBanner(v,table);
+    const std::string first=table.spectatorHold&&place.unready&&place.table==selectedTable_?selected->detail:banner.text;
+    if(!first.empty())explanation=first+"\n"+explanation;}
    const std::string reason=hint(*selected);
    NoteDetailText(selected->detail,selected->detailText);
    if(!reason.empty())explanation=explanation.empty()?reason:explanation+"\n"+reason;
@@ -727,6 +759,38 @@ void ApplicationShell::TrackLiveGames(const ShellView& v,double now) {
   if(table.phase!=room::TablePhase::Playing)game.since=-1;
   else if(game.since<0||game.since>now||game.generation!=table.matchGeneration){game.generation=table.matchGeneration;game.since=now;}
  }
+}
+void ApplicationShell::ApplyCreatedRules(const ShellView& v,const Submit& submit) {
+ if(!createdRules_)return;
+ const auto& s=v.room;const auto kind=publicRooms_.OpeningKind();
+ if(kind&&*kind==PublicRoomsPanel::OpenKind::Join){createdRules_.reset();return;}
+ if(v.session.room!=netplay::RoomState::Joined||!s.roomEpoch||!Member(s,s.localMember))return;
+ // Some other room, or someone else got in first and moderates it.
+ if(!kind||!s.serverOwned||s.host!=s.localMember){createdRules_.reset();return;}
+ if(!RoomActionsAvailable(v))return;
+ for(const auto& table:s.tables){
+  if(table.rules==*createdRules_)continue;
+  room::Action request;request.table=table.id;request.kind=room::ActionKind::SetRules;request.rules=*createdRules_;
+  SendRoom(std::move(request),v,submit);
+ }
+ createdRules_.reset();
+}
+void ApplicationShell::TrackLockIn(const ShellView& v,double now) {
+ const auto* local=Member(v.room,v.room.localMember);
+ int lockedAt=-1;
+ if(local&&local->spectatorLocked)
+  for(const auto& t:v.room.tables)if(room::WatchesByChoice(t,local->id)){lockedAt=t.id;break;}
+ if(lockedInTable_>=0&&lockedAt<0&&local&&v.room.roomEpoch==lockInEpoch_&&now>=lockInReleasedUntil_){
+  // Still watching that table: the room ended it because the view dropped.
+  const bool watching=room::WatchesByChoice(v.room.tables[lockedInTable_],local->id);
+  const bool playing=room::PlaceOf(v.room,local->id).kind!=room::Place::Kind::None;
+  bool elsewhere=false;
+  for(const auto& t:v.room.tables)elsewhere=elsewhere||room::WatchesByChoice(t,local->id);
+  notice_=loc::T(watching?"room.lock_in_ended.dropped":playing?"room.lock_in_ended.playing":
+   elsewhere?"room.lock_in_ended.moved":"room.lock_in_ended.stopped");
+  noticeTone_=Tone::Pending;noticeUntil_=now+8;
+ }
+ lockedInTable_=lockedAt;lockInEpoch_=v.room.roomEpoch;
 }
 bool ApplicationShell::GameIsStale(std::size_t table) const {
  return table<liveGames_.size()&&liveGames_[table].since>=0&&ImGui::GetTime()-liveGames_[table].since>=room::StaleGameSeconds;
@@ -819,7 +883,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   if(a.id=="check-connection"){sendDelay(netplay::CommandKind::CheckConnection,-1);return;}
   if(a.id=="input-delay"){
    // Select takes the recommendation; Left and Right choose a delay.
-   const int selected=a.kind==MenuAction::Adjust?(std::max)(0,(std::min)(10,v.selectedDelay+a.delta)):-1;
+   const int selected=a.kind==MenuAction::Adjust?(std::max)(MinimumInputDelay,(std::min)(MaximumInputDelay,v.selectedDelay+a.delta)):-1;
    sendDelay(netplay::CommandKind::ApplyDelay,selected);return;
   }
   if(a.id=="ultra"||a.id=="appearance"){
@@ -850,6 +914,8 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   else if(a.id=="lock-spectating"){
    const auto* local=Member(v.room,v.room.localMember);
    request.kind=ActionKind::LockSpectating;request.locked=!(local&&local->spectatorLocked);
+   // The player's own release needs no notice of why it ended.
+   if(!request.locked)lockInReleasedUntil_=ImGui::GetTime()+5;
   }
   else if(a.id=="kick"){request.kind=ActionKind::Kick;request.target=selectedMember_;}
   else if(a.id=="transfer-host"){request.kind=ActionKind::TransferHost;request.target=selectedMember_;}

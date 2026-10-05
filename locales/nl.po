@@ -1672,6 +1672,9 @@ msgstr "Wachten op spelers"
 msgid "room.phase.preparing"
 msgstr "Partij voorbereiden"
 
+msgid "room.phase.holding"
+msgstr "Wachten op kijkers"
+
 msgid "room.phase.in_game"
 msgstr "In de partij"
 
@@ -1946,13 +1949,31 @@ msgid "room.both_ready"
 msgstr "Beide spelers zijn klaar. De match begint."
 
 msgid "room.waiting_spectators"
-msgstr "Beide spelers zijn klaar. De match begint zodra vastgelegde kijkers terug zijn, of over {0} seconden."
+msgstr "Wachten op de terugkeer van vastgelegde kijkers. Begint uiterlijk over {0} s."
+
+msgid "room.hold.waiting_for"
+msgstr "Wachten op de terugkeer van {0}. Begint over {1} s."
+
+msgid "room.hold.waiting_some"
+msgstr "Wachten op de terugkeer van vastgelegde kijkers. Begint over {0} s."
+
+msgid "room.hold.waiting_you"
+msgstr "Match wacht op je: {0} s"
+
+msgid "room.hold.status"
+msgstr "Wachten op kijkers: {0} s"
+
+msgid "room.hold.cancel_detail"
+msgstr "Start annuleren trekt je Klaar in, zodat deze match niet begint."
 
 msgid "room.match_in_progress.detail"
 msgstr "De huidige match is bezig. Wacht tot deze voorbij is."
 
 msgid "room.unready"
 msgstr "Niet klaar / ontgrendel"
+
+msgid "room.unready.short"
+msgstr "Niet klaar"
 
 msgid "room.cancel_start"
 msgstr "Start annuleren"
@@ -1970,7 +1991,7 @@ msgid "room.ready_up"
 msgstr "Klaar melden"
 
 msgid "room.selected_delay.detail"
-msgstr "Stel in van 0 tot 10 frames. Wijzigingen gelden meteen."
+msgstr "Stel in van 1 tot 10 frames. Wijzigingen gelden meteen."
 
 msgid "room.selected_delay.locked"
 msgstr "De gekozen vertraging staat vast voor deze match."
@@ -2071,13 +2092,25 @@ msgid "room.lock_spectating"
 msgstr "Kijken vastleggen"
 
 msgid "room.lock_spectating.detail"
-msgstr "De volgende match wacht tot {0} seconden terwijl je terugkeert naar de kamer."
+msgstr "Ben je nog op weg terug uit de vorige match als beide spelers klaar zijn, dan wacht de volgende match tot {0} seconden op je."
 
 msgid "room.unlock_spectating"
 msgstr "Vastlegging opheffen"
 
 msgid "room.unlock_spectating.detail"
-msgstr "Je bent vastgelegd. De volgende match wacht tot {0} seconden op je."
+msgstr "Je bent vastgelegd: de volgende match wacht tot {0} seconden op je terugkeer. Stoppen met kijken of naar een andere tafel gaan heft dit op."
+
+msgid "room.lock_in_ended.stopped"
+msgstr "Vastlegging opgeheven: je bent gestopt met kijken."
+
+msgid "room.lock_in_ended.moved"
+msgstr "Vastlegging opgeheven: je kijkt nu bij een andere tafel."
+
+msgid "room.lock_in_ended.playing"
+msgstr "Vastlegging opgeheven: je hebt een plaats genomen of bent in de wachtrij gegaan."
+
+msgid "room.lock_in_ended.dropped"
+msgstr "Vastlegging opgeheven: je kijkersbeeld viel weg. Leg je opnieuw vast zodat de volgende match op je wacht."
 
 msgid "room.table_rules"
 msgstr "Tafelregels"
@@ -3205,10 +3238,10 @@ msgid "public.create"
 msgstr "Openbare kamer maken"
 
 msgid "public.create_detail"
-msgstr "Opent een kamer die voor alle spelers met een Ember ID in de lijst staat. Jij bent de host en stelt de regels in de kamer in."
+msgstr "Opent een kamer die voor alle spelers met een Ember ID in de lijst staat, met jou als host. Kies daarna naam, grootte en tafelregels."
 
 msgid "public.create_requirements"
-msgstr "Opent een openbare kamer bij de Ember ID-dienst en gaat erin. Stel de tafelregels in de kamer in."
+msgstr "Opent een openbare kamer bij de Ember ID-dienst, gaat erin en zet deze regels op elke tafel. Wijzig ze later bij Tafelopties."
 
 msgid "public.create_needs_id"
 msgstr "Openbare kamers hebben een Ember ID en een vertrouwde dienst nodig. Richt ze in via Openbare kamers."

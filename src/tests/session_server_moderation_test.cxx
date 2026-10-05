@@ -321,6 +321,17 @@ static void TestDetailsOfSnapshot() {
 	CHECK(roomhost::DetailsOf(snapshot).fighters.size() == 16);
 }
 
+// The room host opens a public room with the public rules, and the list's
+// card reads them from table 0.
+static void TestPublicRoomListsFirstToTwo() {
+	SessionServer server("public", "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(new MockTransport()));
+	CHECK(server.EnableServerOwnedRooms("Public", 8, 71, room::PublicRoomRules()));
+	const auto details = roomhost::DetailsOf(*server.RoomSnapshot());
+	CHECK(details.setFormat == 2 && details.rotation == 0);
+	const auto line = json::parse(roomhost::StatusLine(0, 0, "sf4e3:x", {}, details)).at("details");
+	CHECK(line.at("set_format") == 2 && line.at("rotation") == 0);
+}
+
 int main() {
 	TestUncommittedKicksStayOutOfTheModerationView();
 	TestOnlyACleanLastLeaveEndsTheRoom();
@@ -328,6 +339,7 @@ int main() {
 	TestStatusLineDetails();
 	TestHostDisplayName();
 	TestDetailsOfSnapshot();
+	TestPublicRoomListsFirstToTwo();
 	std::puts("SessionServerModeration test passed");
 	return 0;
 }

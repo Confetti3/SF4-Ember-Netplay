@@ -1672,6 +1672,9 @@ msgstr "対戦者を待機中"
 msgid "room.phase.preparing"
 msgstr "ゲームを準備中"
 
+msgid "room.phase.holding"
+msgstr "観戦者を待機中"
+
 msgid "room.phase.in_game"
 msgstr "ゲーム中"
 
@@ -1946,13 +1949,31 @@ msgid "room.both_ready"
 msgstr "両プレイヤーの準備が完了しました。対戦を開始します。"
 
 msgid "room.waiting_spectators"
-msgstr "両プレイヤーの準備が完了しました。観戦確定中の観戦者が戻るか、{0}秒後に対戦を開始します。"
+msgstr "観戦確定中の観戦者の復帰を待っています。最大{0}秒後に開始します。"
+
+msgid "room.hold.waiting_for"
+msgstr "{0}の復帰を待っています。{1}秒後に開始します。"
+
+msgid "room.hold.waiting_some"
+msgstr "観戦確定中の観戦者の復帰を待っています。{0}秒後に開始します。"
+
+msgid "room.hold.waiting_you"
+msgstr "対戦があなたを待機中：{0}秒"
+
+msgid "room.hold.status"
+msgstr "観戦者を待機中：{0}秒"
+
+msgid "room.hold.cancel_detail"
+msgstr "開始を取り消すと準備完了が解除され、この対戦は開始されません。"
 
 msgid "room.match_in_progress.detail"
 msgstr "対戦中です。終了を待ってください。"
 
 msgid "room.unready"
 msgstr "準備解除 / キャラ変更可能"
+
+msgid "room.unready.short"
+msgstr "準備解除"
 
 msgid "room.cancel_start"
 msgstr "開始を取り消す"
@@ -1970,7 +1991,7 @@ msgid "room.ready_up"
 msgstr "準備完了にする"
 
 msgid "room.selected_delay.detail"
-msgstr "0～10Fの範囲で調整します。変更はすぐに反映されます。"
+msgstr "1～10Fの範囲で調整します。変更はすぐに反映されます。"
 
 msgid "room.selected_delay.locked"
 msgstr "この対戦中、選択した遅延は固定されます。"
@@ -2071,13 +2092,25 @@ msgid "room.lock_spectating"
 msgstr "観戦を確定"
 
 msgid "room.lock_spectating.detail"
-msgstr "ルームに戻るまで、次の対戦の開始を最大{0}秒待ちます。"
+msgstr "両プレイヤーが準備完了したときに前の対戦から戻る途中なら、次の対戦は最大{0}秒あなたを待ちます。"
 
 msgid "room.unlock_spectating"
 msgstr "観戦確定を解除"
 
 msgid "room.unlock_spectating.detail"
-msgstr "観戦を確定中です。次の対戦は最大{0}秒あなたを待ちます。"
+msgstr "観戦を確定中です。次の対戦はあなたの復帰を最大{0}秒待ちます。観戦をやめるか別の対戦席に移ると解除されます。"
+
+msgid "room.lock_in_ended.stopped"
+msgstr "観戦確定を解除しました：観戦をやめました。"
+
+msgid "room.lock_in_ended.moved"
+msgstr "観戦確定を解除しました：別の対戦席を観戦しています。"
+
+msgid "room.lock_in_ended.playing"
+msgstr "観戦確定を解除しました：席に着いたか、順番待ちに加わりました。"
+
+msgid "room.lock_in_ended.dropped"
+msgstr "観戦確定を解除しました：観戦の映像が途切れました。次の対戦で待ってもらうには、もう一度観戦を確定してください。"
 
 msgid "room.table_rules"
 msgstr "対戦席のルール"
@@ -3205,10 +3238,10 @@ msgid "public.create"
 msgstr "公開ルームを作成"
 
 msgid "public.create_detail"
-msgstr "Ember IDを持つ全員に表示されるルームを開きます。あなたがホストとなり、ルールはルーム内で設定します。"
+msgstr "Ember IDを持つ全員に表示されるルームを開き、あなたがホストになります。次に名前、人数、対戦席のルールを選びます。"
 
 msgid "public.create_requirements"
-msgstr "EmberのIDサービスに公開ルームを作成して入室します。対戦席のルールはルーム内で設定してください。"
+msgstr "EmberのIDサービスに公開ルームを作成して入室し、すべての対戦席にこのルールを設定します。あとから対戦席の設定で変更できます。"
 
 msgid "public.create_needs_id"
 msgstr "公開ルームにはEmber IDと信頼済みのサービスが必要です。公開ルームの画面で設定してください。"

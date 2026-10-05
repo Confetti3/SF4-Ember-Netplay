@@ -344,6 +344,8 @@ void from_json(const nlohmann::json& json, Member& value) {
 void to_json(nlohmann::json& json, const Table& value) { json = nlohmann::json{{"id", value.id}, {"rules", value.rules}, {"phase", static_cast<int>(value.phase)}, {"revision", value.revision}, {"match_generation", value.matchGeneration}, {"p1", value.p1}, {"p2", value.p2}, {"queue", value.queue}, {"spectators", value.spectators}, {"watching_next", value.watchingNext}, {"ending_watchers", value.endingWatchers}, {"ready", {value.ready[0], value.ready[1]}}, {"input_delay", {value.inputDelay[0], value.inputDelay[1]}}, {"score", {value.score[0], value.score[1]}}, {"result_pending", value.resultPending}, {"spectator_hold", value.spectatorHold}, {"last_set", {{"generation", value.lastSet.generation}, {"p1", value.lastSet.p1}, {"p2", value.lastSet.p2}, {"score", {value.lastSet.score[0], value.lastSet.score[1]}}, {"winner_seat", value.lastSet.winnerSeat}}}, {"streak_holder", value.streakHolder}, {"streak", value.streak}, {"permit_generation", value.permitGeneration}, {"permits", value.permits}};
 	// Only a table holding a permit has windows, so other tables keep their wire form.
 	if (value.permitWindows[0] || value.permitWindows[1]) json["permit_windows"] = value.permitWindows;
+	// Only in a held table's sent snapshot; older readers skip the key.
+	if (value.holdRemainingMs) json["hold_ms"] = value.holdRemainingMs;
 }
 void from_json(const nlohmann::json& json, Table& value) {
 	value.id = static_cast<std::uint8_t>(ReadInt(json, "id", 0, static_cast<int>(TableCount - 1)));
@@ -378,6 +380,8 @@ void from_json(const nlohmann::json& json, Table& value) {
 	if (!json.at("result_pending").is_boolean()) throw std::invalid_argument("room result pending"); value.resultPending = json.at("result_pending").get<bool>();
 	value.spectatorHold = json.contains("spectator_hold") ? json.at("spectator_hold").get<bool>() : false;
 	if (value.spectatorHold && value.phase != TablePhase::Ready) throw std::invalid_argument("room spectator hold");
+	value.holdRemainingMs = value.spectatorHold && json.contains("hold_ms")
+		? static_cast<std::uint32_t>(ReadInt(json, "hold_ms", 0, static_cast<int>(SpectatorStartHoldMs))) : 0;
 	value.lastSet = SetRecord();
 	if (json.contains("last_set")) {
 		const auto& set = json.at("last_set");

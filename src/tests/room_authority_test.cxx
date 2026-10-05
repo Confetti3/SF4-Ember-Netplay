@@ -846,9 +846,31 @@ static void TestReadyDelaysShareTheHigherValue() {
 	CHECK(MatchDelay(authority.SnapshotView().tables[0]) == 4);
 }
 
+// An older client can still ready at 0, which crashes the match: the room
+// records 1, and a 0 already in a table (a checkpoint) still plays at 1.
+static void TestReadyDelayNeverZero() {
+	RoomAuthority authority("Delay", 4, 1);
+	Join(authority, 0, true);
+	const MemberId p1 = Join(authority, 1);
+	const MemberId p2 = Join(authority, 2);
+	for (const auto member : {p1, p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+	for (const auto member : {p1, p2}) {
+		Action action = TableAction(authority, member, 0, ActionKind::Ready);
+		action.inputDelay = 0;
+		CHECK(authority.Apply(member, action).accepted);
+	}
+	const auto& table = authority.SnapshotView().tables[0];
+	CHECK(table.inputDelay[0] == 1 && table.inputDelay[1] == 1 && MatchDelay(table) == 1);
+	CHECK(FindMember(authority.SnapshotView(), p1)->frozenDelay == 1);
+	Table stored;
+	stored.inputDelay[0] = stored.inputDelay[1] = 0;
+	CHECK(MatchDelay(stored) == 1 && MatchDelay(0, 0) == 1 && MatchDelay(0, 3) == 3);
+}
+
 int main() {
     TestProfileMain();
     TestReadyDelaysShareTheHigherValue();
+    TestReadyDelayNeverZero();
     TestFighterChangeWithdrawsOpponentReady();
     TestIdleTimeIsStampedPerSnapshot();
 	RoomAuthority authority("Test room", 16, 77);

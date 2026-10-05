@@ -46,21 +46,26 @@ struct PlayerPreferences {
     // Whether Create opens a public room on the Ember ID service instead of a private one.
     bool roomPublic = false;
     room::Rules tableRules;
+    // The rules a public room is created with. Its tables open at the public
+    // default; the creator, once in as host, sets these.
+    room::Rules publicTableRules = room::PublicRoomRules();
+    static bool ValidRules(const room::Rules& rules) {
+        const auto format = static_cast<int>(rules.format);
+        if ((format != 0 && format != 1 && format != 2 && format != 3 && format != 5) ||
+            static_cast<int>(rules.rotation) > static_cast<int>(room::RotationMode::BothRotate)) return false;
+        LobbySettings battle;
+        battle.editionSelect = rules.editionSelect;
+        battle.roundCount = rules.roundCount;
+        battle.roundTime = rules.roundTime;
+        return battle.Valid();
+    }
     bool Valid() const {
-        if (displayName.empty() || displayName.size() >= 32 || mainFighter<0 || mainFighter>=selection::FighterCount || inputDelay < 0 || inputDelay > MaximumInputDelay ||
+        if (displayName.empty() || displayName.size() >= 32 || mainFighter<0 || mainFighter>=selection::FighterCount || inputDelay < MinimumInputDelay || inputDelay > MaximumInputDelay ||
             matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > 4 || matchHudLayout < 0 || matchHudLayout > 1 || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) || !lobby.Valid() ||
             roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers)) return false;
         for (unsigned char c : displayName) if (c < 32 || c == 127) return false;
         for (unsigned char c : roomName) if (c < 32 || c == 127) return false;
-        const auto format = static_cast<int>(tableRules.format);
-        if ((format != 0 && format != 1 && format != 2 && format != 3 && format != 5) ||
-            static_cast<int>(tableRules.rotation) > static_cast<int>(room::RotationMode::BothRotate)) return false;
-        LobbySettings battle;
-        battle.editionSelect = tableRules.editionSelect;
-        battle.roundCount = tableRules.roundCount;
-        battle.roundTime = tableRules.roundTime;
-        if (!battle.Valid()) return false;
-        return true;
+        return ValidRules(tableRules) && ValidRules(publicTableRules);
     }
 };
 

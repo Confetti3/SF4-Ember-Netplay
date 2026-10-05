@@ -109,12 +109,15 @@ continue playing.
 A spectator by choice can also use **Lock in to watch** in Table options
 (**Release lock-in** undoes it). If both fighters ready while a locked-in
 spectator is still leaving the last game, the start waits for them for up to 10
-seconds, then goes ahead regardless. The table says so ("The match starts once
-locked-in spectators are back, or in 10 seconds"), and either fighter can take
-Ready back during the wait. Without lock-in the fighters do not wait: a spectator
-still closing out the previous game joins the game after that. Lock-in ends when
-you stop watching or your view of a game fails, so it cannot hold up the fighters
-again.
+seconds, then goes ahead regardless. The table reads "Waiting for spectators",
+and its card names who the start waits for and counts down ("Waiting for Alex
+to return. Starts in 7 s."); the spectator it waits for is told the game is
+waiting for them. Either fighter can take Ready back during the wait with
+Unready or Cancel the start, and then the game does not start. Without lock-in
+the fighters do not wait: a spectator still closing out the previous game joins
+the game after that. Lock-in ends when you stop watching, move to another table
+or seat, or your view of a game fails, so it cannot hold up the fighters again;
+a short notice says which.
 
 A spectator whose connection is still being set up when the fighters are ready
 (after a short grace period) misses that game and watches the next one. A

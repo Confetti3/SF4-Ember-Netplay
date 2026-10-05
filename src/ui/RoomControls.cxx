@@ -3,6 +3,7 @@
 #include "Theme.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
+#include <algorithm>
 
 namespace sf4e { namespace ui { namespace room_controls {
 namespace {
@@ -128,7 +129,7 @@ ReadyControl DescribeReady(const ShellView& v, const room::Table& t, int seat) {
     ReadyControl control;
     if (seat >= 0 && seat < 2 && room::ReadyCancellable(t, seat)) {
         control.label = loc::T("room.unready");
-        control.detail = t.spectatorHold ? loc::Tf("room.waiting_spectators", room::SpectatorStartHoldMs / 1000) : std::string(loc::T("room.ready.cancel_detail"));
+        control.detail = t.spectatorHold ? HoldText(v, t) + " " + loc::T("room.hold.cancel_detail") : std::string(loc::T("room.ready.cancel_detail"));
         if (RoomActionsAvailable(v)) control.kind = ReadyControl::Unready;
         else control.refusal = RoomWaitReason(v);
         return control;
@@ -151,6 +152,46 @@ ReadyControl DescribeReady(const ShellView& v, const room::Table& t, int seat) {
 std::string OpponentChangedText(int fighter) {
     const auto* found = selection::FindFighter(fighter);
     return loc::Tf("room.opponent_changed_fighter", found ? found->name : "?");
+}
+bool HoldingStart(const ShellView& v, const room::Table& t) {
+    const auto* local = room::FindMember(v.room, v.room.localMember);
+    return t.spectatorHold && local && local->spectatorLocked && v.room.localTerminalPending &&
+        std::find(t.spectators.begin(), t.spectators.end(), local->id) != t.spectators.end();
+}
+std::string HoldText(const ShellView& v, const room::Table& t) {
+    if (!t.spectatorHold || t.phase != room::TablePhase::Ready) return {};
+    // An older host sends no time left: say how long it can last.
+    if (!t.holdRemainingMs) return loc::Tf("room.waiting_spectators", room::SpectatorStartHoldMs / 1000);
+    const unsigned seconds = (std::max)(1u, (t.holdRemainingMs + 999) / 1000);
+    if (HoldingStart(v, t)) return loc::Tf("room.hold.waiting_you", seconds);
+    // The room knows which locked-in spectators are still returning; the
+    // snapshot names who is locked in, which is who the start can wait for.
+    std::string names;
+    for (const auto id : t.spectators) {
+        const auto* member = room::FindMember(v.room, id);
+        if (!member || !member->spectatorLocked || id == v.room.localMember) continue;
+        names += (names.empty() ? "" : ", ") + member->name;
+    }
+    return names.empty() ? loc::Tf("room.hold.waiting_some", seconds) : loc::Tf("room.hold.waiting_for", names, seconds);
+}
+std::string HoldStatus(const ShellView& v, const room::Table& t) {
+    if (!t.spectatorHold || t.phase != room::TablePhase::Ready) return {};
+    if (!t.holdRemainingMs) return loc::T("room.phase.holding");
+    const unsigned seconds = (std::max)(1u, (t.holdRemainingMs + 999) / 1000);
+    return HoldingStart(v, t) ? loc::Tf("room.hold.waiting_you", seconds) : loc::Tf("room.hold.status", seconds);
+}
+TableBanner DescribeTableBanner(const ShellView& v, const room::Table& t) {
+    TableBanner banner;
+    banner.text = HoldText(v, t);
+    if (!banner.text.empty()) return banner;
+    const auto place = room::PlaceOf(v.room, v.room.localMember);
+    // OpponentFighterWatch keeps the fighter only while the local player sits
+    // at this matchup unready, so the seat is the other one at their table.
+    if (v.opponentChangedFighter >= 0 && place.kind == room::Place::Kind::Seat && place.table == static_cast<int>(t.id)) {
+        banner.text = OpponentChangedText(v.opponentChangedFighter);
+        banner.seat = 1 - place.seat;
+    }
+    return banner;
 }
 std::string SelectionBlocker(const ShellView& v) {
     using room::TablePhase;

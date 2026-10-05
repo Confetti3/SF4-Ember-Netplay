@@ -728,6 +728,12 @@ int main(int argc, char** argv) {
             view.room.tables[0].phase=room::TablePhase::Waiting;
             view.room.tables[0].ready[0]=view.room.tables[0].ready[1]=false;
             view.room.tables[0].resultPending=false;view.canReady=view.canEditSelection=true;draw("table-rematch");
+            // The opponent's new fighter: a line on the table card, with no modal.
+            view.session.match=netplay::MatchState::None;view.opponentChangedFighter=10;++view.opponentChangeSequence;
+            const int shownFighter=view.room.members[1].fighter;view.room.members[1].fighter=10;
+            page("room");draw("room-opponent-changed");view.room.members[1].fighter=shownFighter;
+            Require(!shell.NoticeOpen(),"The opponent's new fighter opened a modal notice");
+            view.opponentChangedFighter=-1;page("room-table");view.session.match=netplay::MatchState::PostMatch;draw();
             // Applied terminal receipts remain a committed eligibility fence
             // until native/socket/helper retirement and explicit ACK.  Render
             // the waiting reason at every viewport/DPI so it cannot disappear
@@ -746,8 +752,35 @@ int main(int argc, char** argv) {
             view.room.tables[0].p1=5;view.room.tables[0].spectators={1};
             view.room.members[0].seat=-1;view.room.members[0].spectatorLocked=true;
             draw("table-spectator-locked");
+            // The start held for this locked-in spectator: the card and the
+            // lock-in row say the game waits for them.
+            {
+                auto& held=view.room.tables[0];
+                held.phase=room::TablePhase::Ready;held.spectatorHold=true;held.ready[0]=held.ready[1]=true;held.holdRemainingMs=7000;
+                view.room.localTerminalPending=true;
+                page("room");draw("room-hold-spectator");page("room-table");
+                for(int i=0;i<24&&shell.Navigation().Focus()!="lock-spectating";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+                Require(shell.Navigation().Focus()=="lock-spectating","The lock-in row is unreachable during a held start");
+                draw("table-hold-spectator");
+                // The watcher releases the lock-in before taking the seat
+                // below, so no notice of why it ended covers the next shots.
+                draw(nullptr,MenuInput::Select,1);draw(nullptr,0,1);
+                view.room.localTerminalPending=false;
+            }
             view.room.tables[0].p1=1;view.room.tables[0].spectators.clear();
             view.room.members[0].seat=0;view.room.members[0].spectatorLocked=false;
+            // The same hold as the fighters see it: who they wait for, the time
+            // left, and that B cancels the start.
+            {
+                auto& held=view.room.tables[0];
+                held.spectators={6};view.room.members[5].spectatorLocked=true;view.canEditSelection=false;
+                page("room");draw("room-hold-fighter");page("room-table");
+                for(int i=0;i<24&&shell.Navigation().Focus()!="ready";++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
+                Require(shell.Navigation().Focus()=="ready","Ready is unreachable during a held start");
+                draw("table-hold-fighter");
+                held.spectators.clear();view.room.members[5].spectatorLocked=false;view.canEditSelection=true;
+                held.phase=room::TablePhase::Waiting;held.spectatorHold=false;held.ready[0]=held.ready[1]=false;held.holdRemainingMs=0;
+            }
             // The watcher's rows have no fighter change, so focus moved; put it back.
             for(int i=0;i<24&&shell.Navigation().Focus()!="selection";++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
             for(int i=0;i<24&&shell.Navigation().Focus()!="selection";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}

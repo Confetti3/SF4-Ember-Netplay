@@ -150,6 +150,9 @@ public:
         if(previousRoomState_==netplay::RoomState::Idle)menu_.navigation.Home();
     }
     MenuNavigation& Navigation() { return menu_.navigation; }
+    // A modal notice is open, and whether it reads as an error (for tests).
+    bool NoticeOpen() const { return menu_.NoticeOpen(); }
+    bool NoticeError() const { return menu_.NoticeError(); }
     // What this client keeps of the room chat (for tests).
     const ChatTranscript& Transcript() const { return transcript_; }
     // The shell is not being drawn (the overlay is hidden): nothing typed into
@@ -232,6 +235,18 @@ private:
     // Shows a refusal that stays true for as long as stillBlocked says so.
     void Refuse(std::string text, std::function<bool(const ShellView&)> stillBlocked = {});
     void TrackLiveGames(const ShellView& view, double now);
+    // The rules chosen on Create for a public room, until the creator is in it
+    // as host and sets them on every table with SetRules; dropped when the
+    // player ends up in some other room.
+    void ApplyCreatedRules(const ShellView& view, const Submit& submit);
+    std::optional<room::Rules> createdRules_;
+    // A lock-in the room cleared other than by the player's Release (they
+    // stopped watching, moved, or their spectator view dropped) gets a notice
+    // saying why.
+    void TrackLockIn(const ShellView& view, double now);
+    int lockedInTable_=-1;
+    std::uint64_t lockInEpoch_=0;
+    double lockInReleasedUntil_=0;
     bool GameIsStale(std::size_t table) const;
     void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                        const MenuVisualFeedback& feedback);
@@ -328,7 +343,7 @@ private:
     std::uint64_t roomLinkSeen_=0;
     bool roomLinkOpening_=false;
     Tone noticeTone_=Tone::Success;
-    std::uint64_t roomEpoch_ = 0, rulesRevision_ = 0, nextActionId_ = 1, readyFailureSequence_ = 0, opponentChangeSequence_ = 0;
+    std::uint64_t roomEpoch_ = 0, rulesRevision_ = 0, nextActionId_ = 1, readyFailureSequence_ = 0;
     int selectedTable_ = 0, roomCapacity_ = 16;
     char roomName_[65] = {}, chat_[257] = {};
     room::Rules tableRules_;

@@ -34,6 +34,13 @@ Snapshot RoomAuthority::SnapshotFor(MemberId member) const {
 	Snapshot result = snapshot_;
 	result.localMember = Find(member) ? member : 0;
 	for (auto& item : result.members) item.idleSeconds = IdleSeconds(item.id);
+	for (std::size_t i = 0; i < TableCount; ++i) {
+		if (!snapshot_.tables[i].spectatorHold) continue;
+		// A paused authority holds ages rather than start times (TimerDue).
+		const auto since = startHeldSince_[i];
+		const auto age = recoveryPaused_ ? since : nowMs_ >= since ? nowMs_ - since : 0;
+		result.tables[i].holdRemainingMs = static_cast<std::uint32_t>(age < SpectatorStartHoldMs ? SpectatorStartHoldMs - age : 1);
+	}
 	result.terminalPending.fill(false);
 	result.localTerminalPending = false;
 	result.localTerminalGenerations.fill(0);
