@@ -1,6 +1,7 @@
 ; Per-user installer for a verified Ember package folder. It only places the
 ; first copy: updates stay with Updater.exe, which rewrites the folder as the
 ; normal user, so nothing here may need elevation or own the files afterwards.
+; Setup refuses a folder that already has files in it.
 ; Compiled by scripts/package-installer.ps1.
 #ifndef PackageDir
   #error Define PackageDir, AppVersion and Redist (see scripts/package-installer.ps1)
@@ -67,9 +68,36 @@ begin
   Result := (Major < BundledMajor) or ((Major = BundledMajor) and (Minor < BundledMinor));
 end;
 
-// Deletes the files the installed PackageInventory.inc names (only the
-// obsolete ones on request) and the folders that leaves empty.
-procedure DeleteInventoryFiles(App: String; ObsoleteOnly: Boolean);
+function FolderHasFiles(Dir: String): Boolean;
+var
+  Find: TFindRec;
+begin
+  Result := False;
+  if not FindFirst(Dir + '\*', Find) then exit;
+  try
+    repeat
+      if (Find.Name <> '.') and (Find.Name <> '..') then begin Result := True; exit; end;
+    until not FindNext(Find);
+  finally
+    FindClose(Find);
+  end;
+end;
+
+// Writing over an existing folder would bypass Updater.exe: its lock, its
+// journal and the recovery of an interrupted update. Existing copies update
+// themselves; this installer only places a first copy.
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  Result := '';
+  if FolderHasFiles(ExpandConstant('{app}')) then
+    Result := 'The folder ' + ExpandConstant('{app}') + ' already contains files.' + #13#10#13#10 +
+      'To update an existing copy of {#AppName}, run Updater.exe in that folder. ' +
+      'To install here anyway, uninstall the existing copy first, or choose an empty folder.';
+end;
+
+// Deletes the files the installed PackageInventory.inc names and the folders
+// that leaves empty.
+procedure DeleteInventoryFiles(App: String);
 var
   Lines: TArrayOfString;
   I, Open, Close: Integer;
@@ -80,7 +108,6 @@ begin
     Open := Pos('("', Lines[I]);
     Close := Pos('")', Lines[I]);
     if (Pos('SF4E_PACKAGE_', Lines[I]) <> 1) or (Open = 0) or (Close <= Open) then continue;
-    if ObsoleteOnly and (Pos('SF4E_PACKAGE_OBSOLETE', Lines[I]) <> 1) then continue;
     Relative := Copy(Lines[I], Open + 2, Close - Open - 2);
     StringChangeEx(Relative, '\\', '\', True);
     if (Relative = '') or (Pos('..', Relative) > 0) or (Pos(':', Relative) > 0) then continue;
@@ -97,16 +124,6 @@ begin
   DeleteFile(App + '\.ember-update-transaction-v1.json');
 end;
 
-// Installing over an older folder: a program file a past version shipped could
-// still be loaded, and an unfinished update there would be "recovered" over
-// the complete copy just written.
-procedure CurStepChanged(Step: TSetupStep);
-begin
-  if Step <> ssPostInstall then exit;
-  DeleteInventoryFiles(ExpandConstant('{app}'), True);
-  DeleteUpdaterState(ExpandConstant('{app}'));
-end;
-
 // Updater.exe adds and replaces files this installer never logged, so the
 // uninstaller removes what the installed PackageInventory.inc names, plus the
 // updater's own state. Anything else in the folder is the player's and stays.
@@ -116,7 +133,7 @@ var
 begin
   if Step <> usUninstall then exit;
   App := ExpandConstant('{app}');
-  DeleteInventoryFiles(App, False);
+  DeleteInventoryFiles(App);
   DelTree(App + '\assets\selection', True, True, True);
   DeleteUpdaterState(App);
   RemoveDir(App + '\assets');
