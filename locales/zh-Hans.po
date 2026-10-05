@@ -645,6 +645,9 @@ msgstr "对战默认设置"
 msgid "settings.input_delay"
 msgstr "输入延迟"
 
+msgid "settings.input_delay.auto"
+msgstr "自动"
+
 msgid "room.name"
 msgstr "房间名称"
 
@@ -1874,7 +1877,7 @@ msgid "room.ready_up"
 msgstr "准备"
 
 msgid "room.selected_delay.detail"
-msgstr "可在 0 至 10 帧间调整，立即生效。"
+msgstr "可在 0 至 10 帧间调整，低于 0 为自动，立即生效。"
 
 msgid "room.selected_delay.locked"
 msgstr "本场对战的所选延迟已锁定。"
@@ -1902,6 +1905,12 @@ msgstr "建议：{0}"
 
 msgid "room.input_delay.match"
 msgstr "对战：{0}"
+
+msgid "room.input_delay.auto"
+msgstr "自动 ({0})"
+
+msgid "room.input_delay.auto.detail"
+msgstr "自动采用连接检查的结果，并保持在 {0} 至 {1} 帧之间。"
 
 msgid "room.apply_recommendation.check_first"
 msgstr "请先检查连接，再应用建议。"

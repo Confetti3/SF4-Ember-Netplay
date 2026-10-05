@@ -50,6 +50,9 @@ struct PlayerPreferences {
     int mainFighter = 0;
     ProfileRecord record;
     int inputDelay = 2;
+    // Auto readies with the connection check's delay (AutoInputDelay) instead of
+    // inputDelay. It is on until the player chooses a number.
+    bool autoInputDelay = true;
     // On by default so a stall or rollback spike is visible, but Small: the standard strip drew the eye mid-fight.
     bool showMatchHud = true;
     int matchHudSize = 0;

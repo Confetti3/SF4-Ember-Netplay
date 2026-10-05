@@ -645,6 +645,9 @@ msgstr "GAMEPLAY DEFAULTS"
 msgid "settings.input_delay"
 msgstr "Input delay"
 
+msgid "settings.input_delay.auto"
+msgstr "Auto"
+
 msgid "room.name"
 msgstr "Room name"
 
@@ -1733,7 +1736,7 @@ msgstr "Ready for rematch"
 msgid "room.ready_up"
 msgstr "Ready up"
 msgid "room.selected_delay.detail"
-msgstr "Adjust from 0 to 10 frames. Changes apply immediately."
+msgstr "Adjust from 0 to 10 frames, or step below 0 for Auto. Changes apply immediately."
 msgid "room.selected_delay.locked"
 msgstr "The selected delay is locked for this match."
 msgid "room.match_delay.at_least"
@@ -1754,6 +1757,12 @@ msgstr "Recommended: {0}"
 
 msgid "room.input_delay.match"
 msgstr "Match: {0}"
+
+msgid "room.input_delay.auto"
+msgstr "Auto ({0})"
+
+msgid "room.input_delay.auto.detail"
+msgstr "Auto uses the connection check and stays between {0} and {1} frames."
 
 msgid "room.apply_recommendation.check_first"
 msgstr "Run Check connection before applying a recommendation."

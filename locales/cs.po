@@ -645,6 +645,9 @@ msgstr "VÝCHOZÍ NASTAVENÍ HRY"
 msgid "settings.input_delay"
 msgstr "Zpoždění vstupu"
 
+msgid "settings.input_delay.auto"
+msgstr "Auto"
+
 msgid "room.name"
 msgstr "Název místnosti"
 
@@ -1874,7 +1877,7 @@ msgid "room.ready_up"
 msgstr "Připraven"
 
 msgid "room.selected_delay.detail"
-msgstr "Nastavte 0 až 10 snímků. Změny se projeví ihned."
+msgstr "Nastavte 0 až 10 snímků, pod 0 je Auto. Změny se projeví ihned."
 
 msgid "room.selected_delay.locked"
 msgstr "Zvolené zpoždění je pro tento zápas uzamčeno."
@@ -1902,6 +1905,12 @@ msgstr "Doporučené: {0}"
 
 msgid "room.input_delay.match"
 msgstr "Zápas: {0}"
+
+msgid "room.input_delay.auto"
+msgstr "Auto ({0})"
+
+msgid "room.input_delay.auto.detail"
+msgstr "Auto se řídí kontrolou spojení a drží se mezi {0} a {1} snímky."
 
 msgid "room.apply_recommendation.check_first"
 msgstr "Před použitím doporučení spusťte kontrolu spojení."

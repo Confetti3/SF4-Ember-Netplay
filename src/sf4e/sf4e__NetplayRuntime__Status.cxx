@@ -117,7 +117,8 @@ static void FillRoomView(RuntimeSnapshot& snapshot) {
                 snapshot.lobbySettings.editionSelect = table->rules.editionSelect;
                 snapshot.lobbySettings.roundCount = table->rules.roundCount;
                 snapshot.lobbySettings.roundTime = table->rules.roundTime;
-                snapshot.selectedDelay=localMember->delayLocked ? localMember->frozenDelay : runtime->selectedDelay;
+                snapshot.selectedDelay=localMember->delayLocked ? localMember->frozenDelay : ReadyDelay();
+                snapshot.autoDelayMeasured=runtime->preferences.autoInputDelay && AutoDelayMeasured();
                 snapshot.delayLocked=localMember->delayLocked || !room::SeatEditable(*table, localMember->seat) ||
                     !healthyControl || snapshot.session.readyPending;
                 snapshot.canProbe=!snapshot.delayLocked && table->p1 && table->p2;
@@ -148,7 +149,7 @@ static void FillRoomView(RuntimeSnapshot& snapshot) {
                 snapshot.session.match == netplay::MatchState::PostMatch)) snapshot.canEditSelection = healthyControl;
 			const bool tableTerminalPending = seated && snapshot.room.terminalPending[localMember->table];
 			snapshot.readyGate = snapshot.readyGate && healthyControl && tableReady && !runtime->recoveringMatch &&
-				!snapshot.room.localTerminalPending && !tableTerminalPending;
+				!snapshot.room.localTerminalPending && !tableTerminalPending && !AutoDelayMeasuring();
 			snapshot.canReady = snapshot.canReady && snapshot.readyGate;
 			// A seated fighter's table state is already in LocalSelectionLocked.
 			snapshot.canEditSelection = snapshot.canEditSelection && healthyControl &&

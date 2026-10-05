@@ -645,6 +645,9 @@ msgstr "STANDAARD SPEL"
 msgid "settings.input_delay"
 msgstr "Invoervertraging"
 
+msgid "settings.input_delay.auto"
+msgstr "Auto"
+
 msgid "room.name"
 msgstr "Kamernaam"
 
@@ -1874,7 +1877,7 @@ msgid "room.ready_up"
 msgstr "Klaar melden"
 
 msgid "room.selected_delay.detail"
-msgstr "Stel in van 0 tot 10 frames. Wijzigingen gelden meteen."
+msgstr "Stel in van 0 tot 10 frames, of ga onder 0 voor Auto. Wijzigingen gelden meteen."
 
 msgid "room.selected_delay.locked"
 msgstr "De gekozen vertraging staat vast voor deze match."
@@ -1902,6 +1905,12 @@ msgstr "Aanbevolen: {0}"
 
 msgid "room.input_delay.match"
 msgstr "Match: {0}"
+
+msgid "room.input_delay.auto"
+msgstr "Auto ({0})"
+
+msgid "room.input_delay.auto.detail"
+msgstr "Auto gebruikt de verbindingscontrole en blijft tussen {0} en {1} frames."
 
 msgid "room.apply_recommendation.check_first"
 msgstr "Voer eerst Verbinding controleren uit voordat je advies toepast."

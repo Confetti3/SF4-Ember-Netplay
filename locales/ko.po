@@ -645,6 +645,9 @@ msgstr "게임플레이 기본 설정"
 msgid "settings.input_delay"
 msgstr "입력 지연"
 
+msgid "settings.input_delay.auto"
+msgstr "자동"
+
 msgid "room.name"
 msgstr "방 이름"
 
@@ -1874,7 +1877,7 @@ msgid "room.ready_up"
 msgstr "준비"
 
 msgid "room.selected_delay.detail"
-msgstr "0~10프레임으로 조정하세요. 변경 사항은 즉시 적용됩니다."
+msgstr "0~10프레임으로 조정하세요. 0 아래는 자동입니다. 변경 사항은 즉시 적용됩니다."
 
 msgid "room.selected_delay.locked"
 msgstr "이번 대전의 지연 시간이 고정되었습니다."
@@ -1902,6 +1905,12 @@ msgstr "권장: {0}"
 
 msgid "room.input_delay.match"
 msgstr "대전: {0}"
+
+msgid "room.input_delay.auto"
+msgstr "자동 ({0})"
+
+msgid "room.input_delay.auto.detail"
+msgstr "자동은 연결 확인 결과를 사용하며 {0}~{1}프레임 사이로 유지됩니다."
 
 msgid "room.apply_recommendation.check_first"
 msgstr "권장값을 적용하기 전에 연결 확인을 실행하세요."
