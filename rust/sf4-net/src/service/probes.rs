@@ -4,6 +4,17 @@
 //! reuses it, and a check the peer runs never touches ours.
 use super::*;
 
+/// How a reservation that arrived ahead of its committed entry ended.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum ReservationWait {
+    /// Committed, for the pair as this replica holds it seated.
+    Bound,
+    /// Committed, but the seats it names have since been replaced.
+    Superseded,
+    /// Its entry never reached this replica in time.
+    Unapplied,
+}
+
 impl Actor {
     pub(super) fn send_probe_reservation(
         &mut self,
@@ -485,6 +496,14 @@ impl Actor {
         // both on the leader; this replica may not have applied either yet,
         // for example a check asked for the moment both seats fill.
         let target = self.endpoint.id();
+        //
+        // The source checked the seats before it proposed the reservation, so
+        // the seat commit it names comes before the reservation's entry in
+        // the room's log: a replica holding the entry holds those seats or a
+        // newer commit. The entry is what a frame waits for. Once it has
+        // applied, an unbound pair means a later commit (a Watch, a Ready)
+        // replaced the seats: the check is stale, not invalid, and is dropped
+        // with no permission and no closed control.
         let reserved = move |recovery: crate::recovery::RecoverySession| async move {
             recovery
                 .probe_reserved(
@@ -496,27 +515,36 @@ impl Actor {
                     expires,
                 )
                 .await
-                && recovery
-                    .probe_pair_bound(
-                        source_incarnation,
-                        target_incarnation,
-                        peer,
-                        target,
-                        pair_revision,
-                    )
-                    .await
+        };
+        let settled = move |recovery: crate::recovery::RecoverySession| async move {
+            if recovery
+                .probe_pair_bound(
+                    source_incarnation,
+                    target_incarnation,
+                    peer,
+                    target,
+                    pair_revision,
+                )
+                .await
+            {
+                ReservationWait::Bound
+            } else {
+                ReservationWait::Superseded
+            }
         };
         if reserved(recovery.clone()).await {
             // This frame supersedes any older reservation of the peer
             // still waiting on a task; that completion is ignored.
             self.pending_probe_reservations.remove(&peer);
-            self.install_probe_permission(peer, request, pair_revision);
+            if settled(recovery).await == ReservationWait::Bound {
+                self.install_probe_permission(peer, request, pair_revision);
+            }
             return Ok(true);
         }
-        // The reservation's Raft entry or the seats that bind the pair have
-        // not reached this replica yet. Wait for them on a task instead of in
-        // the actor tick; its completion installs the permission or, still
-        // unapplied at PROBE_RESERVATION_TIMEOUT, closes the control.
+        // The reservation's Raft entry has not reached this replica yet.
+        // Wait for it on a task instead of in the actor tick; its completion
+        // installs the permission, drops a stale check, or, still unapplied
+        // at PROBE_RESERVATION_TIMEOUT, closes the control.
         if self.tasks.len() >= MAX_TASKS {
             if relayed {
                 return Ok(true);
@@ -549,7 +577,12 @@ impl Actor {
             })
             .await
             .is_ok();
-            Completion::ProbeReservation(key, applied)
+            let outcome = if applied {
+                settled(recovery).await
+            } else {
+                ReservationWait::Unapplied
+            };
+            Completion::ProbeReservation(key, outcome)
         });
         Ok(true)
     }
@@ -579,7 +612,7 @@ impl Actor {
     pub(super) async fn completed_probe_reservation(
         &mut self,
         key: ProbeReservationKey,
-        applied: bool,
+        outcome: ReservationWait,
     ) -> io::Result<()> {
         if self.pending_probe_reservations.get(&key.peer) != Some(&key) {
             return Ok(());
@@ -588,12 +621,13 @@ impl Actor {
         if key.epoch != self.epoch || self.room.is_none() {
             return Ok(());
         }
-        if applied {
+        if outcome == ReservationWait::Bound {
             self.install_probe_permission(key.peer, key.request, key.pair_revision);
-        } else if self
-            .controls
-            .get(&key.peer)
-            .is_some_and(|control| control.id() == key.control)
+        } else if outcome == ReservationWait::Unapplied
+            && self
+                .controls
+                .get(&key.peer)
+                .is_some_and(|control| control.id() == key.control)
         {
             // Same outcome as a refused coordination frame: the route that
             // presented the unapplied reservation closes. A control that
