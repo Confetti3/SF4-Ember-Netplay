@@ -236,11 +236,27 @@ private:
     // Shows a refusal that stays true for as long as stillBlocked says so.
     void Refuse(std::string text, std::function<bool(const ShellView&)> stillBlocked = {});
     void TrackLiveGames(const ShellView& view, double now);
-    // The rules chosen on Create for a public room, until the creator is in it
-    // as host and sets them on every table with SetRules; dropped when the
-    // player ends up in some other room.
-    void ApplyCreatedRules(const ShellView& view, const Submit& submit);
-    std::optional<room::Rules> createdRules_;
+    // The rules chosen on Create for a public room. Once the creator is in it
+    // as host, each table gets them by SetRules, one table at a time, sent
+    // again with the table's fresh revision until the committed snapshot shows
+    // them, for at most CreatedRulesSeconds. Dropped when the player ends up in
+    // some other room, stops being its host, or the rules are edited meanwhile.
+    void ApplyCreatedRules(const ShellView& view, const Submit& submit, double now);
+    static constexpr double CreatedRulesSeconds = 15, CreatedRulesRetrySeconds = 1.5;
+    struct CreatedRules {
+        room::Rules rules;
+        // Set once the creator is first seen in the room as its host.
+        std::uint64_t roomEpoch = 0;
+        room::MemberId host = 0;
+        double deadline = 0;
+        // What each table had then: a table showing anything else was edited.
+        std::array<room::Rules, room::TableCount> before{};
+        // The table whose SetRules is on its way, at the revision it was sent for.
+        int table = -1;
+        std::uint64_t tableRevision = 0;
+        double sentAt = 0;
+    };
+    std::optional<CreatedRules> createdRules_;
     // A lock-in the room cleared other than by the player's Release (they
     // stopped watching, moved, or their spectator view dropped) gets a notice
     // saying why.
