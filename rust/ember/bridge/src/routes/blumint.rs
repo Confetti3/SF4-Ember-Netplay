@@ -22,7 +22,7 @@
 use std::collections::BTreeMap;
 
 use axum::{
-    extract::{Query, State},
+    extract::{Query, State, rejection::QueryRejection},
     http::HeaderMap,
     response::Response,
 };
@@ -252,13 +252,16 @@ pub struct StatusQuery {
     match_id: String,
 }
 
-/// `GET /v1/blumint/matches/status?matchId=`.
+/// `GET /v1/blumint/matches/status?matchId=`. The query is read after the
+/// credential, so a caller without one gets 401 whatever it sent, and a
+/// missing `matchId` gets the usual JSON error.
 pub async fn status(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Query(query): Query<StatusQuery>,
+    query: std::result::Result<Query<StatusQuery>, QueryRejection>,
 ) -> Result<Response> {
     let connection_id = connection(&state, &headers).await?;
+    let Query(query) = query.map_err(|_| ApiFailure::invalid("The query needs a matchId."))?;
     let body = state
         .db
         .read(move |tx| {
