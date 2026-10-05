@@ -84,6 +84,15 @@ static void RetryOnce() {
     handoff.Observe("a", 1, "checking", -1, settle);
     handoff.Observe("", 0, "", -1, 3000);
     CHECK(handoff.Holding(3000) && !handoff.Due(3000 + retry - 1) && handoff.Due(3000 + retry));
+    // The check named a revision the room had already moved past (a spectator
+    // pressed Watch as the seats filled, and this view had not caught up), so
+    // the helper refused it. The retry waits for the view to move and settle.
+    AutoDelayCheck stale;
+    stale.Seat("a", 3, 1, 0);
+    stale.Asked(1);
+    stale.Observe("a", 1, "unavailable", -1, settle + 100);
+    stale.Seat("a", 4, 1, settle + 800);
+    CHECK(!stale.Due(settle + 100 + retry) && stale.Due(settle + 800 + settle) && stale.Holding(settle + 800 + settle));
 }
 
 // Ready never waits on the check past HoldMs: a check that never answers, a
