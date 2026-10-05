@@ -36,11 +36,11 @@ nlohmann::json RoomAuthority::Checkpoint() const {
         holdAges.push_back(!snapshot_.tables[i].spectatorHold ? std::uint64_t(0) : recoveryPaused_
             ? since : nowMs_ >= since ? nowMs_ - since : 0);
     }
+    // Permit timers hold ages paused or not; their samples stay on this process.
     json permitAges = json::array();
     for (std::size_t i = 0; i < TableCount; ++i) {
-        const auto since = permitHeldSince_[i];
-        permitAges.push_back(!snapshot_.tables[i].permitGeneration ? std::uint64_t(0) : recoveryPaused_
-            ? since : nowMs_ >= since ? nowMs_ - since : 0);
+        const auto& timer = permits_.tables[i];
+        permitAges.push_back(snapshot_.tables[i].permitGeneration ? (std::max)(timer.ageMs, timer.heldMs) : std::uint64_t(0));
     }
     json activeRosters = json::array();
     for (const auto& roster : activeMatchRecipients_) {
@@ -126,18 +126,21 @@ bool RoomAuthority::RestoreCheckpoint(const nlohmann::json& state) {
             if (!restored.recoveryPaused_ && age > restored.nowMs_) return false;
             restored.startHeldSince_[i] = restored.recoveryPaused_ ? age : restored.nowMs_ - age;
         }
-        // Older checkpoints carry no permit holds.
+        // A live room's permit ages run on from its time. A paused one's time
+        // belongs to no clock here, so they wait for this process's next
+        // AgePermitHolds. A permit with no age (an older checkpoint) has run out.
         const auto permitAges = state.value("permit_age", json::array());
         if (!permitAges.is_array() || (!permitAges.empty() && permitAges.size() != TableCount)) return false;
+        restored.permits_ = {{}, restored.nowMs_, !restored.recoveryPaused_};
         for (std::size_t i = 0; i < TableCount; ++i) {
             const auto& table = restored.snapshot_.tables[i];
             if (table.permitGeneration >= restored.nextMatchGeneration_) return false;
             if (table.permitGeneration && (!restored.snapshot_.tournament.Active() || i != TournamentTable)) return false;
-            if (!table.permitGeneration || permitAges.empty()) continue;
-            if (!permitAges.at(i).is_number_unsigned()) return false;
-            const auto age = permitAges.at(i).get<std::uint64_t>();
-            if (!restored.recoveryPaused_ && age > restored.nowMs_) return false;
-            restored.permitHeldSince_[i] = restored.recoveryPaused_ ? age : restored.nowMs_ - age;
+            if (!table.permitGeneration) continue;
+            if (!permitAges.empty() && !permitAges.at(i).is_number_unsigned()) return false;
+            const auto age = permitAges.empty() ? MaximumPermitWindowMs : permitAges.at(i).get<std::uint64_t>();
+            restored.permits_.tables[i] = {table.permitGeneration, (std::min)(age, MaximumPermitWindowMs),
+                restored.nowMs_, !restored.recoveryPaused_};
         }
         const auto parseRecipient = [&](const json& row, TerminalRecipient& recipient, bool allowMissingMember) {
             if (!row.is_object() || !row.contains("member") || !row.contains("endpoint") || !row.contains("incarnation") ||

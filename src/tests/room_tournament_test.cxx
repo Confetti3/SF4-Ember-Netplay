@@ -250,10 +250,7 @@ static void TestPermitWindowGate() {
 		// nothing: the shorter window holds.
 		RoomAuthority late("Match", 8, 1);
 		CHECK(late.RestoreCheckpoint(authority.Checkpoint()));
-		late.PauseForRecovery();
-		late.AgePermitHolds(1);
-		late.AgePermitHolds(1 + due - 11000);
-		late.ResumeRecovery(due);
+		late.AgePermitHolds(due);
 		const auto agreed = late.Apply(b, Permit(late, b, "per_one"));
 		CHECK(agreed.accepted && !HasEvent(agreed, Event::Kind::MatchReady));
 		CHECK(!late.BeginMatch(0, a, b).accepted);
@@ -280,15 +277,15 @@ static void TestPermitWindowAcrossRecovery() {
 		const auto reserved = HoldOnePermit(leader, a, b, 31000);
 		RoomAuthority owner("Other", 8, 1);
 		CHECK(owner.RestoreCheckpoint(PausedCheckpoint(leader)));
-		CHECK(owner.PermitAges().tables[0].first == reserved && owner.PermitAges().tables[0].second == 30000);
+		CHECK(owner.PermitAges().tables[0].generation == reserved && owner.PermitAges().tables[0].ageMs == 30000);
 		// Healthy for 5 s: the room's own timers and the permit age once each.
 		owner.AgePermitHolds(500);
 		owner.AdvancePausedTimers(5000);
 		owner.AgePermitHolds(5500);
-		CHECK(owner.PermitAges().tables[0].second == 35000);
+		CHECK(owner.PermitAges().tables[0].ageMs == 35000);
 		// Then the outage: no healthy time, but the permit's window runs on.
 		owner.AgePermitHolds(5500 + outage);
-		CHECK(owner.PermitAges().tables[0].second == 35000 + outage);
+		CHECK(owner.PermitAges().tables[0].ageMs == 35000 + outage);
 		// The new owner's clock is its own, here lower than the old one's.
 		owner.ResumeRecovery(7000);
 		const bool expired = 35000 + outage + PermitStartMarginMs >= PermitStartMs;
@@ -309,65 +306,124 @@ static void TestPermitWindowAcrossRecovery() {
 	}
 }
 
-// A replica restoring a commit made before an outage keeps the age its own
-// clock gave the same reservation, brought to the time it next ages; a newer
-// commit's age is not counted twice, and another reservation's is not carried.
+// The table's permit age as of its last count, as a checkpoint carries it.
+static std::uint64_t PermitAge(const RoomAuthority& room) {
+	const auto& timer = room.PermitAges().tables[0];
+	return (std::max)(timer.ageMs, timer.heldMs);
+}
+
+// A replica restoring a commit keeps the age its own clock gave the same
+// reservation: an older commit takes nothing back, a newer one is not counted
+// twice, another reservation's age is never carried, and restoring again and
+// again, aged between or not, loses nothing. A checkpoint carries the merged
+// age as of the last count.
 static void TestRestoreKeepsPermitAge() {
 	RoomAuthority leader("Match", 8, 1);
 	MemberId a = 0, b = 0;
 	const auto reserved = HoldOnePermit(leader, a, b, 31000);
+	// Committed 30 s into the reservation.
 	const auto stale = PausedCheckpoint(leader);
-	RoomAuthority replica("Other", 8, 1);
-	CHECK(replica.RestoreCheckpoint(stale));
-	replica.AgePermitHolds(1);
-	replica.AgePermitHolds(100001);
-	const auto aged = replica.PermitAges();
-	CHECK(aged.clockMs == 100001 && aged.tables[0].first == reserved && aged.tables[0].second == 130000);
-	RoomAuthority restored("Other", 8, 1);
-	CHECK(restored.RestoreCheckpoint(stale));
-	restored.KeepPermitAges(aged);
-	CHECK(restored.PermitAges().tables[0].second == 130000);
-	restored.AgePermitHolds(110001);
-	CHECK(restored.PermitAges().tables[0].second == 140000);
-	// A newer commit's age already covers the time since the kept one was
-	// taken: 30 s kept at 100 s, 100 s committed, aged at 170 s is 100 s.
-	RoomAuthority newer("Other", 8, 1);
-	CHECK(newer.RestoreCheckpoint(stale));
-	newer.AgePermitHolds(1);
-	newer.AgePermitHolds(70001);
-	const auto fresh = newer.Checkpoint();
-	RoomAuthority kept("Other", 8, 1);
-	CHECK(kept.RestoreCheckpoint(stale));
-	kept.AgePermitHolds(100000);
-	RoomAuthority merged("Other", 8, 1);
-	CHECK(merged.RestoreCheckpoint(fresh));
-	merged.KeepPermitAges(kept.PermitAges());
-	merged.AgePermitHolds(170000);
-	CHECK(merged.PermitAges().tables[0].second == 100000);
-	// Another reservation's age is neither carried nor charged to this one.
-	RoomAuthority other("Other", 8, 1);
-	CHECK(other.RestoreCheckpoint(stale));
-	auto elsewhere = aged;
-	elsewhere.tables[0].first = reserved + 1;
-	other.KeepPermitAges(elsewhere);
-	other.AgePermitHolds(200001);
-	CHECK(other.PermitAges().tables[0].second == 30000);
-	// A retried recovery restores the same commit tick after tick. Each
-	// restore ages on from the last instead of starting the clock again.
-	auto current = std::make_unique<RoomAuthority>("Other", 8, 1);
-	CHECK(current->RestoreCheckpoint(stale));
-	current->AgePermitHolds(1);
-	for (std::uint64_t nowMs = 20001; nowMs <= 100001; nowMs += 20000) {
-		const auto before = current->PermitAges();
-		current = std::make_unique<RoomAuthority>("Other", 8, 1);
-		CHECK(current->RestoreCheckpoint(stale));
-		current->KeepPermitAges(before);
-		current->AgePermitHolds(nowMs);
+	const auto restore = [](const nlohmann::json& checkpoint) {
+		auto room = std::make_unique<RoomAuthority>("Other", 8, 1);
+		CHECK(room->RestoreCheckpoint(checkpoint));
+		return room;
+	};
+	const auto exported = [](const RoomAuthority& room) { return room.Checkpoint()["permit_age"][0].get<std::uint64_t>(); };
+	// This replica's own count: the commit anchored at 1, 130 s at 100 s.
+	auto replica = restore(stale);
+	replica->AgePermitHolds(1);
+	replica->AgePermitHolds(100001);
+	const auto aged = replica->PermitAges();
+	CHECK(aged.clockMs == 100001 && aged.tables[0].generation == reserved && aged.tables[0].ageMs == 130000);
+	{
+		// An older commit takes nothing back, before or after aging.
+		auto restored = restore(stale);
+		restored->KeepPermitAges(aged);
+		CHECK(PermitAge(*restored) == 130000 && exported(*restored) == 130000);
+		restored->AgePermitHolds(110001);
+		CHECK(PermitAge(*restored) == 140000);
 	}
-	CHECK(current->PermitAges().tables[0].second == 130000);
-	// A room that pauses itself ages its permit from the time it paused, even
-	// when nothing ages it before it resumes: reserved at 1 s, paused at 31 s
-	// with 30 s on it, the window is past at 161 s.
+	{
+		// A newer commit's age already counts the time since this replica's
+		// last count: 30 s kept at 100 s, 100 s committed, aged at 170 s is
+		// still 100 s. Past that both counts agree.
+		auto newer = restore(stale);
+		newer->AgePermitHolds(1);
+		newer->AgePermitHolds(70001);
+		const auto fresh = newer->Checkpoint();
+		auto kept = restore(stale);
+		kept->AgePermitHolds(100000);
+		auto merged = restore(fresh);
+		merged->KeepPermitAges(kept->PermitAges());
+		CHECK(PermitAge(*merged) == 100000 && exported(*merged) == 100000);
+		merged->AgePermitHolds(170000);
+		CHECK(PermitAge(*merged) == 100000);
+		merged->AgePermitHolds(180000);
+		CHECK(PermitAge(*merged) == 110000);
+		// The same commit right after this replica's count, as a member
+		// catching up receives them, counts on from its own first aging.
+		auto caughtUp = restore(fresh);
+		caughtUp->KeepPermitAges(kept->PermitAges());
+		caughtUp->AgePermitHolds(100100);
+		CHECK(PermitAge(*caughtUp) == 100000);
+		caughtUp->AgePermitHolds(150000);
+		CHECK(PermitAge(*caughtUp) == 149900);
+		// Where this replica's own count is the older one it takes over once
+		// it passes the commit's: 90 s kept at 60 s overtakes 100 s at 70 s.
+		auto behind = restore(stale);
+		behind->AgePermitHolds(1);
+		behind->AgePermitHolds(60001);
+		auto overtaken = restore(fresh);
+		overtaken->KeepPermitAges(behind->PermitAges());
+		overtaken->AgePermitHolds(110001);
+		CHECK(PermitAge(*overtaken) == 140000);
+	}
+	{
+		// A held age past the window stops the start before anything ages it:
+		// 116 s committed, this replica's 30 s counted at 100 s, resumed at 100 s.
+		auto newer = restore(stale);
+		newer->AgePermitHolds(1);
+		newer->AgePermitHolds(86001);
+		auto kept = restore(stale);
+		kept->AgePermitHolds(100000);
+		auto held = restore(newer->Checkpoint());
+		held->KeepPermitAges(kept->PermitAges());
+		held->ResumeRecovery(100000);
+		const auto agreed = held->Apply(b, Permit(*held, b, "per_one"));
+		CHECK(agreed.accepted && !HasEvent(agreed, Event::Kind::MatchReady));
+		CHECK(!held->BeginMatch(0, a, b).accepted && held->HasDueTimerTransition(100000));
+		held->AdvanceTime(100000);
+		CHECK(held->SnapshotView().tables[0].permitGeneration == 0);
+	}
+	{
+		// Another reservation's age is neither carried nor charged to this one.
+		auto other = restore(stale);
+		auto elsewhere = aged;
+		elsewhere.tables[0].generation = reserved + 1;
+		other->KeepPermitAges(elsewhere);
+		other->AgePermitHolds(200001);
+		CHECK(PermitAge(*other) == 30000);
+	}
+	// A retried recovery restores the same commit tick after tick, aging
+	// between restores or not.
+	for (const bool between : {true, false}) {
+		auto current = restore(stale);
+		current->AgePermitHolds(1);
+		for (std::uint64_t nowMs = 20001; nowMs <= 100001; nowMs += 20000) {
+			const auto before = current->PermitAges();
+			current = restore(stale);
+			current->KeepPermitAges(before);
+			if (between) current->AgePermitHolds(nowMs);
+		}
+		CHECK(exported(*current) == (between ? 130000u : 30000u));
+		current->AgePermitHolds(100001);
+		CHECK(PermitAge(*current) == 130000 && exported(*current) == 130000);
+		// The next owner restores the merged age.
+		CHECK(PermitAge(*restore(current->Checkpoint())) == 130000);
+	}
+	// A room that pauses itself ages its permit on from where it stood, even
+	// when nothing ages it before it resumes: reserved at 1 s, 30 s old at
+	// 31 s, the window is past at 161 s.
 	for (int way = 0; way < 3; ++way) {
 		RoomAuthority live("Match", 8, 1);
 		MemberId p = 0, q = 0;
@@ -375,29 +431,104 @@ static void TestRestoreKeepsPermitAge() {
 		live.PauseForRecovery();
 		if (way == 0) {
 			live.AgePermitHolds(161000);
-			CHECK(live.PermitAges().tables[0].second == 160000);
+			CHECK(PermitAge(live) == 160000);
 			live.ResumeRecovery(161000);
 		} else if (way == 1) {
 			live.ResumeRecovery(161000);
-			CHECK(live.PermitAges().tables[0].second == 160000);
+			CHECK(PermitAge(live) == 160000);
 		}
 		live.AdvanceTime(161001);
 		CHECK(live.SnapshotView().tables[0].permitGeneration != held);
 	}
-	// Resuming without aging first, directly or through AdvanceTime, takes
-	// the kept age along: 130 s at 100 s is 140 s at 110 s, past the window,
-	// so the reservation is called off instead of starting late.
+	// Resuming without aging first, directly or through AdvanceTime, keeps
+	// the merged age: 130 s at 100 s is 140 s at 110 s, past the window, so
+	// the reservation is called off instead of starting late.
 	for (const bool advance : {false, true}) {
-		RoomAuthority resumed("Other", 8, 1);
-		CHECK(resumed.RestoreCheckpoint(stale));
-		resumed.KeepPermitAges(aged);
-		if (advance) resumed.AdvanceTime(110001);
+		auto resumed = restore(stale);
+		resumed->KeepPermitAges(aged);
+		if (advance) resumed->AdvanceTime(110001);
 		else {
-			resumed.ResumeRecovery(110001);
-			CHECK(resumed.PermitAges().tables[0].second == 140000);
-			resumed.AdvanceTime(110002);
+			resumed->ResumeRecovery(110001);
+			CHECK(PermitAge(*resumed) == 140000);
+			resumed->AdvanceTime(110002);
 		}
-		CHECK(resumed.SnapshotView().tables[0].permitGeneration != reserved);
+		CHECK(resumed->SnapshotView().tables[0].permitGeneration != reserved);
+	}
+}
+
+// Permit timers run on the owner's clock as given. A room resumed on a clock
+// below its restored ages keeps its own timers ahead of that clock for a
+// while, yet a permit's age grows with every millisecond the owner sees, and
+// a reservation made meanwhile counts from the owner's time as well. A local
+// time of zero is a time like any other.
+static void TestPermitClockIsTheOwners() {
+	RoomAuthority leader("Match", 8, 1);
+	leader.AdvanceTime(1000);
+	const MemberId a = JoinAs(leader, "A", EndpointA, true);
+	CHECK(leader.BindTournament(Binding()).accepted);
+	const MemberId b = JoinAs(leader, "B", EndpointB);
+	Action chat = TableAction(leader, a, 0, ActionKind::Chat);
+	chat.text = "gl";
+	CHECK(leader.Apply(a, chat).accepted);
+	ReadyBoth(leader);
+	const auto reserved = leader.SnapshotView().tables[0].permitGeneration;
+	leader.AdvanceTime(31000);
+	CHECK(leader.Apply(a, Permit(leader, a, "per_one")).accepted);
+	// The chat's 30 s age puts the resumed room's own clock at 30 s.
+	const auto checkpoint = PausedCheckpoint(leader);
+	{
+		RoomAuthority resumed("Other", 8, 1);
+		CHECK(resumed.RestoreCheckpoint(checkpoint));
+		resumed.ResumeRecovery(1000);
+		resumed.AdvanceTime(20000);
+		CHECK(PermitAge(resumed) == 49000);
+		resumed.AdvanceTime(100000);
+		CHECK(resumed.SnapshotView().tables[0].permitGeneration == 0);
+	}
+	{
+		// Paused again before that later tick, it still counts the time.
+		RoomAuthority resumed("Other", 8, 1);
+		CHECK(resumed.RestoreCheckpoint(checkpoint));
+		resumed.ResumeRecovery(1000);
+		resumed.PauseForRecovery();
+		resumed.AgePermitHolds(100000);
+		CHECK(PermitAge(resumed) == 129000);
+	}
+	{
+		// A new reservation at the owner's 2 s is 18 s old at its 20 s.
+		RoomAuthority resumed("Other", 8, 1);
+		CHECK(resumed.RestoreCheckpoint(checkpoint));
+		resumed.ResumeRecovery(1000);
+		resumed.AdvanceTime(2000);
+		CHECK(resumed.Apply(b, TableAction(resumed, b, 0, ActionKind::Unready)).accepted);
+		const auto table = resumed.SnapshotView().tables[0];
+		for (std::size_t seat = 0; seat < 2; ++seat) {
+			const auto member = seat ? table.p2 : table.p1;
+			if (!table.ready[seat]) CHECK(resumed.Apply(member, TableAction(resumed, member, 0, ActionKind::Ready)).accepted);
+		}
+		CHECK(resumed.SnapshotView().tables[0].permitGeneration > reserved);
+		resumed.AdvanceTime(20000);
+		CHECK(PermitAge(resumed) == 18000);
+	}
+	{
+		// A restored age anchored at zero grows from zero.
+		RoomAuthority restored("Other", 8, 1);
+		CHECK(restored.RestoreCheckpoint(checkpoint));
+		restored.AgePermitHolds(0);
+		restored.AgePermitHolds(100000);
+		CHECK(PermitAge(restored) == 130000);
+	}
+	{
+		// So does a reservation made at zero and paused there.
+		RoomAuthority zero("Match", 8, 1);
+		JoinAs(zero, "A", EndpointA, true);
+		CHECK(zero.BindTournament(Binding()).accepted);
+		JoinAs(zero, "B", EndpointB);
+		ReadyBoth(zero);
+		CHECK(zero.SnapshotView().tables[0].permitGeneration != 0);
+		zero.PauseForRecovery();
+		zero.AgePermitHolds(100000);
+		CHECK(PermitAge(zero) == 100000);
 	}
 }
 
@@ -421,6 +552,7 @@ int main() {
 	TestPermitWindowGate();
 	TestPermitWindowAcrossRecovery();
 	TestRestoreKeepsPermitAge();
+	TestPermitClockIsTheOwners();
 	TestCasualRoomsNeedNoPermit();
 	if (failures) std::printf("%d failure(s)\n", failures);
 	else std::printf("room tournament tests passed\n");

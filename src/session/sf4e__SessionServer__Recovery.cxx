@@ -372,8 +372,11 @@ bool SessionServer::RestoreRecoveryState(const json& value,
 		if (legacy["legacy_authority"].is_discarded()) return false;
 		const auto previousAuthorityTerm = _recovery.Authority().term;
 		// A commit made before an outage must not take back the time a
-		// permit's window has already run here.
-		const auto permitAges = _roomAuthority ? _roomAuthority->PermitAges() : room::RoomAuthority::PermitAgeList{};
+		// permit's window has already run here. While a candidate is open its
+		// own reservations are not committed: a successor can reserve the same
+		// generation, so only the baseline's timers carry over.
+		const auto permitAges = !_roomAuthority ? room::RoomAuthority::PermitTimers{}
+			: _recoveryCandidateReady ? _recoveryBaselinePermits : _roomAuthority->PermitAges();
 		if (!RestoreCheckpoint(legacy)) return false;
 		if (_roomAuthority && !_roomAuthority->RecoveryPaused()) _roomAuthority->PauseForRecovery();
 		if (_roomAuthority) _roomAuthority->KeepPermitAges(permitAges);
@@ -423,6 +426,7 @@ void SessionServer::BeginRecoveryCandidate() {
 	if (!_recovery.Enabled() || _recoveryCandidateReady || _recovery.PendingProposal()) return;
 	try {
 		_recoveryBaseline = RecoveryCheckpoint();
+		_recoveryBaselinePermits = _roomAuthority->PermitAges();
 		_recoveryBaselineBindings.clear();
 		for (const auto& row : clients) {
 			const auto member = roomMembers.find(row.conn);

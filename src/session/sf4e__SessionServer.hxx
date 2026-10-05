@@ -241,6 +241,10 @@ namespace sf4e {
 		bool _recoveryCandidateReady = false;
 		bool _recoveryFlushing = false;
 		nlohmann::json _recoveryBaseline;
+		// The baseline's permit timers on this process's clock, taken with it.
+		// A rollback ages the committed reservations from these, whatever the
+		// candidate did to them, and never takes the candidate's own.
+		room::RoomAuthority::PermitTimers _recoveryBaselinePermits;
 		// What the open recovery candidate has journaled. Reset as a whole.
 		struct RecoveryCandidate {
 			// envelope is the journal entry; encoded is the payload, dumped once

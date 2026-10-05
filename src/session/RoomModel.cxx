@@ -73,20 +73,11 @@ bool RoomAuthority::SetMemberFighter(MemberId member,int fighter,bool* withdrewO
     return true;
 }
 
-template <typename Visit> void RoomAuthority::ForEachTableTimer(Visit&& visit, bool permits) {
+template <typename Visit> void RoomAuthority::ForEachTableTimer(Visit&& visit) {
 	for (std::size_t i = 0; i < TableCount; ++i) {
 		if (snapshot_.tables[i].resultPending) visit(resultPendingSince_[i], ResultDisputeTimeoutMs);
 		if (snapshot_.tables[i].spectatorHold) visit(startHeldSince_[i], SpectatorStartHoldMs);
-		if (permits && snapshot_.tables[i].permitGeneration) visit(permitHeldSince_[i], MaximumPermitWindowMs);
 	}
-}
-
-namespace {
-// `value` plus `elapsed`, held at `maximum`: an age past its deadline only
-// needs to stay past it.
-std::uint64_t AddCapped(std::uint64_t value, std::uint64_t elapsed, std::uint64_t maximum) {
-	return value >= maximum || elapsed >= maximum - value ? maximum : value + elapsed;
-}
 }
 
 void RoomAuthority::PauseForRecovery() {
@@ -97,64 +88,23 @@ void RoomAuthority::PauseForRecovery() {
     for (auto& entry : lastActiveMs_)
         entry.second = nowMs_ >= entry.second ? nowMs_ - entry.second : 0;
     recoveryPaused_ = true;
-    // The permit ages were just measured on this process's clock, so they
-    // age on from that time. A restored room's ages have no such time here.
-    permitClockMs_ = nowMs_;
-    permitAgesKept_ = false;
 }
 
 void RoomAuthority::AdvancePausedTimers(std::uint64_t elapsedMs) {
 	if (!recoveryPaused_ || !elapsedMs) return;
 	const auto add = [elapsedMs](std::uint64_t value, std::uint64_t maximum) { return AddCapped(value, elapsedMs, maximum); };
-	ForEachTableTimer([&](std::uint64_t& age, std::uint64_t timeout) { age = add(age, timeout); }, false);
+	ForEachTableTimer([&](std::uint64_t& age, std::uint64_t timeout) { age = add(age, timeout); });
 	for (auto& entry : lastChatMs_) entry.second = add(entry.second, 1000);
 	for (auto& entry : lastActiveMs_) entry.second = add(entry.second, MaximumIdleSeconds * 1000ull);
 }
 
-void RoomAuthority::AgePermitHolds(std::uint64_t nowMs) {
-	if (!recoveryPaused_) return;
-	const auto since = [nowMs](std::uint64_t clockMs) { return clockMs && nowMs > clockMs ? nowMs - clockMs : 0; };
-	for (std::size_t i = 0; i < TableCount; ++i) {
-		const auto generation = snapshot_.tables[i].permitGeneration;
-		if (!generation) continue;
-		auto age = AddCapped(permitHeldSince_[i], since(permitClockMs_), MaximumPermitWindowMs);
-		// Generations are never reused, so the same one is the same reservation.
-		if (permitAgesKept_ && keptPermitAges_.tables[i].first == generation)
-			age = (std::max)(age, AddCapped(keptPermitAges_.tables[i].second, since(keptPermitAges_.clockMs), MaximumPermitWindowMs));
-		permitHeldSince_[i] = age;
-	}
-	permitAgesKept_ = false;
-	permitClockMs_ = nowMs;
-}
-
-RoomAuthority::PermitAgeList RoomAuthority::PermitAges() const {
-	// Restored and not yet aged: the kept ages are the newest local ones, and
-	// the restored ones come back with the checkpoint.
-	if (permitAgesKept_) return keptPermitAges_;
-	PermitAgeList ages;
-	ages.clockMs = recoveryPaused_ ? permitClockMs_ : nowMs_;
-	for (std::size_t i = 0; i < TableCount; ++i) {
-		const auto generation = snapshot_.tables[i].permitGeneration;
-		if (!generation) continue;
-		const auto since = permitHeldSince_[i];
-		ages.tables[i] = {generation, recoveryPaused_ ? since : nowMs_ >= since ? nowMs_ - since : 0};
-	}
-	return ages;
-}
-
-void RoomAuthority::KeepPermitAges(const PermitAgeList& ages) {
-	if (!recoveryPaused_) return;
-	keptPermitAges_ = ages;
-	permitAgesKept_ = true;
-}
-
 void RoomAuthority::ResumeRecovery(std::uint64_t nowMs) {
+	// Permit timers run on the owner's own clock, not the rebased one below.
+	AgePermitHolds(nowMs);
     if (!recoveryPaused_) {
         if (nowMs >= nowMs_) nowMs_ = nowMs;
         return;
     }
-	// Brings permit holds, and any ages kept across a restore, to now first.
-	AgePermitHolds(nowMs);
 	std::uint64_t rebasedNow = nowMs;
 	ForEachTableTimer([&](std::uint64_t& age, std::uint64_t) { rebasedNow = (std::max)(rebasedNow, age); });
 	for (auto& entry : lastChatMs_) {
@@ -167,8 +117,6 @@ void RoomAuthority::ResumeRecovery(std::uint64_t nowMs) {
 	for (auto& entry : lastActiveMs_) entry.second = rebasedNow - entry.second;
 	nowMs_ = rebasedNow;
     recoveryPaused_ = false;
-    permitClockMs_ = 0;
-    permitAgesKept_ = false;
 }
 
 Result RoomAuthority::TransferHost(MemberId actor, MemberId successor) {
@@ -746,8 +694,14 @@ Result RoomAuthority::BeginMatch(std::uint8_t tableId, MemberId p1, MemberId p2)
 	if (!table || table->p1 != p1 || table->p2 != p2 || p1 == 0 || p2 == 0 ||
 		table->phase != TablePhase::Ready || table->spectatorHold || PermitPending(*table) || table->resultPending ||
 		HasOutstandingTerminalReceipt(tableId) ||
-		// The final start gate: a bound table starts only inside its permit's window.
-		(BoundTable(*table) && (!table->permitGeneration || PermitStartPassed(*table, nowMs_))) ||
+		// The final start gate: a bound table starts only inside its permit's
+		// window. On a recovering room this runs in the private candidate, and
+		// the game_prepare it leads to waits for quorum, so a same-term outage
+		// can deliver it later than the window. The bridge refuses neither a
+		// late start nor its report: it holds a permitted game with no report
+		// for SILENT_SECS (30 minutes) past start_by. This gate only has to
+		// stop clearly late starts.
+		(BoundTable(*table) && (!table->permitGeneration || PermitStartPassed(*table, PermitAge(*table)))) ||
 		nextMatchGeneration_ == (std::numeric_limits<std::uint64_t>::max)()) return Reject(table ? RejectReason::WrongPhase : RejectReason::UnknownTable);
 	// A bound table plays the generation its permit names.
 	table->matchGeneration = table->permitGeneration ? table->permitGeneration : nextMatchGeneration_++;
@@ -834,7 +788,8 @@ bool RoomAuthority::HasDueTimerTransition(std::uint64_t nowMs) const {
 	for (std::size_t i = 0; i < TableCount; ++i) {
 		const auto& table = snapshot_.tables[i];
 		if (table.spectatorHold && TimerDue(startHeldSince_[i], SpectatorStartHoldMs, nowMs)) return true;
-		if (PermitCalledOff(table, nowMs)) return true;
+		// AdvanceTime(nowMs) brings the permit to this same age first.
+		if (PermitCalledOff(table, PermitAgeAt(i, nowMs))) return true;
 		if (table.resultPending && table.phase == TablePhase::Playing &&
 			TimerDue(resultPendingSince_[i], ResultDisputeTimeoutMs, nowMs)) return true;
 	}
@@ -847,25 +802,9 @@ bool RoomAuthority::TimerDue(std::uint64_t since, std::uint64_t timeout, std::ui
 	return (std::max)(nowMs, nowMs_) - since >= timeout;
 }
 
-bool RoomAuthority::PermitStartPassed(const Table& table, std::uint64_t nowMs) const {
-	if (!table.permitGeneration) return false;
-	std::uint64_t window = MaximumPermitWindowMs;
-	bool held = false;
-	for (std::size_t seat = 0; seat < 2; ++seat) {
-		if (table.permits[seat].empty()) continue;
-		held = true;
-		window = (std::min)(window, table.permitWindows[seat]);
-	}
-	if (!held) return false;
-	return window <= PermitStartMarginMs || TimerDue(permitHeldSince_[table.id], window - PermitStartMarginMs, nowMs);
-}
-
-bool RoomAuthority::PermitCalledOff(const Table& table, std::uint64_t nowMs) const {
-	return table.permitGeneration && ((PermitPending(table) && TimerDue(permitHeldSince_[table.id], PermitHoldMs, nowMs)) ||
-		PermitStartPassed(table, nowMs));
-}
-
 std::vector<Event> RoomAuthority::AdvanceTime(std::uint64_t nowMs) {
+	// The permit timers take the owner's clock as given, before the max below.
+	AgePermitHolds(nowMs);
 	if (recoveryPaused_) {
 		ResumeRecovery(nowMs);
 	}
@@ -888,7 +827,7 @@ std::vector<Event> RoomAuthority::AdvanceTime(std::uint64_t nowMs) {
 	// calls the start off; they ready again, and a new generation needs a new
 	// permit.
 	for (auto& table : snapshot_.tables) {
-		if (!PermitCalledOff(table, nowMs_)) continue;
+		if (!PermitCalledOff(table, PermitAge(table))) continue;
 		ClearReadiness(table);
 		ClearPermit(table);
 		table.spectatorHold = false;
@@ -921,7 +860,7 @@ bool RoomAuthority::ReleaseHeldStarts(std::vector<Event>& events) {
 		startHeldSince_[table.id] = 0;
 		Touch(table);
 		changed = true;
-		if (starting && !PermitPending(table) && !PermitStartPassed(table, nowMs_))
+		if (starting && !PermitPending(table) && !PermitStartPassed(table, PermitAge(table)))
 			events.push_back(Event{Event::Kind::MatchReady, table.id, table.matchGeneration, 0, MatchResult::Abort});
 	}
 	return changed;

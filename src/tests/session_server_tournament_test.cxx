@@ -84,27 +84,20 @@ static void TestBindingThroughTheServer() {
 	CHECK(!server.BindTournament(older));
 }
 
-// A permit's window keeps running while this server is not writable, whether
-// its coordination is healthy or not. After a long outage the owner calls the
-// start off; after a short one the start still waits for the other permit.
-static void TestPermitWindowThroughAnOutage() {
-	for (const std::uint64_t outage : {std::uint64_t(100000), std::uint64_t(20000)}) {
-		auto* transport = new MockTransport();
-		SessionServer server("tournament", "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(transport));
+// A writable server leading a room bound to a tournament match between
+// connections 1 and 2. Every change is committed unless a test says not to.
+struct BoundServer {
+	MockTransport* transport = new MockTransport();
+	SessionServer server{"tournament", "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(transport)};
+	const std::uint64_t term = 3;
+	std::uint64_t request = 1, revision = 0, actionId = 0;
+
+	BoundServer() {
 		std::array<std::uint8_t, 16> roomId = {};
 		roomId[0] = 78;
 		server.EnableMatchAuthorization(roomId, [](session::Connection connection) { return Endpoint(connection); });
 		server.EnableCustomRooms("Match", 16, 51);
-		std::uint64_t request = 1, revision = 0, actionId = 0;
-		constexpr std::uint64_t term = 3;
 		server.SetAuthority(term, revision, true);
-		const auto commit = [&]() {
-			CHECK(server.HasRecoveryCandidate());
-			CHECK(server.ProposeCheckpoint(request, term, revision, nullptr));
-			const auto proposal = server.PendingProposal();
-			CHECK(server.ApplyCommit(request, term, revision + 1, proposal->checkpoint, proposal->effectsDigest));
-			++request; ++revision;
-		};
 		for (const session::Connection connection : {session::Connection(1), session::Connection(2)}) {
 			protocol::SessionJoinRequest join;
 			join.username = "Fighter-" + std::to_string(connection); join.sidecarHash = "build"; join.port = 30000;
@@ -112,7 +105,7 @@ static void TestPermitWindowThroughAnOutage() {
 			protocol::SessionHelloMsg hello; hello.admission = json(join);
 			transport->Push(connection, json(hello));
 			CHECK(server.Step() == 0);
-			commit();
+			Commit();
 		}
 		room::TournamentBinding binding;
 		binding.matchId = "emt_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a12";
@@ -122,42 +115,65 @@ static void TestPermitWindowThroughAnOutage() {
 		binding.fighters[0] = {Endpoint(1), "emb1_one"};
 		binding.fighters[1] = {Endpoint(2), "emb1_two"};
 		CHECK(server.BindTournament(binding));
-		commit();
-		const auto send = [&](session::Connection by, room::ActionKind kind) {
-			const auto& snapshot = server._roomAuthority->SnapshotView();
-			room::Action action;
-			action.kind = kind; action.roomEpoch = snapshot.roomEpoch; action.revision = snapshot.revision;
-			action.table = room::TournamentTable; action.tableRevision = snapshot.tables[room::TournamentTable].revision;
-			action.actionId = ++actionId;
-			action.matchGeneration = snapshot.tables[room::TournamentTable].permitGeneration;
-			action.text = "per_one";
-			action.startWindowMs = room::PermitStartMs;
-			protocol::RoomActionMessage message; message.action = action;
-			transport->Push(by, json(message));
-			CHECK(server.Step() == 0);
-			commit();
-		};
-		// Both ready at 1000; the first permit 30 s later.
+		Commit();
+	}
+	void Commit() {
+		CHECK(server.HasRecoveryCandidate());
+		CHECK(server.ProposeCheckpoint(request, term, revision, nullptr));
+		const auto proposal = server.PendingProposal();
+		CHECK(server.ApplyCommit(request, term, revision + 1, proposal->checkpoint, proposal->effectsDigest));
+		++request; ++revision;
+	}
+	void Send(session::Connection by, room::ActionKind kind, bool commit = true) {
+		const auto& snapshot = server._roomAuthority->SnapshotView();
+		room::Action action;
+		action.kind = kind; action.roomEpoch = snapshot.roomEpoch; action.revision = snapshot.revision;
+		action.table = room::TournamentTable; action.tableRevision = snapshot.tables[room::TournamentTable].revision;
+		action.actionId = ++actionId;
+		action.matchGeneration = snapshot.tables[room::TournamentTable].permitGeneration;
+		action.text = "per_one";
+		action.startWindowMs = room::PermitStartMs;
+		protocol::RoomActionMessage message; message.action = action;
+		transport->Push(by, json(message));
+		CHECK(server.Step() == 0);
+		if (commit) Commit();
+	}
+	const room::Table& Table() const { return server._roomAuthority->SnapshotView().tables[room::TournamentTable]; }
+	const room::RoomAuthority::PermitTimer& Timer() const { return server._roomAuthority->PermitAges().tables[room::TournamentTable]; }
+	// Both ready at 1000; the first permit 30 s later. Returns the generation.
+	std::uint64_t HoldOnePermit() {
 		server.AdvanceCustomRoom(1000);
-		send(1, room::ActionKind::Ready);
-		send(2, room::ActionKind::Ready);
-		const auto reserved = server._roomAuthority->SnapshotView().tables[room::TournamentTable].permitGeneration;
+		Send(1, room::ActionKind::Ready);
+		Send(2, room::ActionKind::Ready);
+		const auto reserved = Table().permitGeneration;
 		CHECK(reserved != 0);
 		server.AdvanceCustomRoom(31000);
-		send(1, room::ActionKind::PermitReady);
+		Send(1, room::ActionKind::PermitReady);
+		return reserved;
+	}
+};
+
+// A permit's window keeps running while this server is not writable, whether
+// its coordination is healthy or not. After a long outage the owner calls the
+// start off; after a short one the start still waits for the other permit.
+static void TestPermitWindowThroughAnOutage() {
+	for (const std::uint64_t outage : {std::uint64_t(100000), std::uint64_t(20000)}) {
+		BoundServer bound;
+		auto& server = bound.server;
+		const auto reserved = bound.HoldOnePermit();
 		// Coordination is lost, and the outage passes with no healthy time.
-		server.SetAuthority(term, revision, false, false);
+		server.SetAuthority(bound.term, bound.revision, false, false);
 		server.AdvanceCustomRoom(31500);
 		server.AdvanceCustomRoom(31500 + outage);
 		CHECK(!server.HasRecoveryCandidate());
 		// Writable again: the room's timer work runs on the next tick.
-		server.SetAuthority(term, revision, true);
+		server.SetAuthority(bound.term, bound.revision, true);
 		server.AdvanceCustomRoom(32000 + outage);
-		const auto& table = server._roomAuthority->SnapshotView().tables[room::TournamentTable];
+		const auto& table = bound.Table();
 		if (outage == 100000) {
 			CHECK(server.HasRecoveryCandidate());
 			CHECK(table.phase == room::TablePhase::Waiting && table.permitGeneration == 0);
-			commit();
+			bound.Commit();
 		} else {
 			CHECK(!server.HasRecoveryCandidate());
 			CHECK(table.phase == room::TablePhase::Ready && table.permitGeneration == reserved && table.permits[0] == "per_one");
@@ -165,9 +181,62 @@ static void TestPermitWindowThroughAnOutage() {
 	}
 }
 
+// A candidate that starts the game, takes a Ready back or lets the hold run
+// out clears the reservation. Rolled back, by a discarded proposal or a new
+// term, the reservation is as old as this server has seen it, not as old as
+// the baseline's commit says: 30 s old at 31 s when the candidate opens, it
+// is 160 s old at 161 s and is called off.
+static void TestRollbackKeepsPermitAge() {
+	for (int way = 0; way < 4; ++way) {
+		BoundServer bound;
+		auto& server = bound.server;
+		const auto reserved = bound.HoldOnePermit();
+		if (way == 0) bound.Send(2, room::ActionKind::PermitReady, false);
+		else if (way == 1 || way == 3) bound.Send(2, room::ActionKind::Unready, false);
+		else server.AdvanceCustomRoom(31000 + room::PermitHoldMs);
+		CHECK(server.HasRecoveryCandidate() && bound.Table().permitGeneration == 0);
+		CHECK((bound.Table().phase == room::TablePhase::Playing) == (way == 0));
+		if (way == 3) server.SetAuthority(bound.term + 1, bound.revision, true);
+		else server.DiscardProposal();
+		CHECK(!server.HasRecoveryCandidate() && bound.Table().permitGeneration == reserved);
+		CHECK(bound.Timer().ageMs == 30000 && bound.Timer().sampled && bound.Timer().sampleMs == 31000);
+		server.AdvanceCustomRoom(161000);
+		CHECK(bound.Table().phase == room::TablePhase::Waiting && bound.Table().permitGeneration == 0);
+	}
+}
+
+// A candidate's own reservation is not committed, so a successor may reserve
+// the same generation. Replaced by the successor's commit, after a rollback
+// with no tick between or while the candidate is still open, the successor's
+// reservation keeps its own age, whatever the candidate's had reached.
+static void TestCandidateReservationIsNotKept() {
+	for (const bool discard : {true, false}) {
+		BoundServer bound;
+		auto& server = bound.server;
+		server.AdvanceCustomRoom(1000);
+		bound.Send(1, room::ActionKind::Ready);
+		bound.Send(2, room::ActionKind::Ready, false);
+		const auto speculative = bound.Table().permitGeneration;
+		CHECK(speculative != 0);
+		// The successor reserved the same generation 1 s before its commit.
+		auto successor = server.RecoveryCheckpoint();
+		successor["room"]["permit_age"][0] = std::uint64_t(1000);
+		// Not writable, the candidate's reservation ages on.
+		server.SetAuthority(bound.term, bound.revision, false, false);
+		server.AdvanceCustomRoom(100000);
+		CHECK(bound.Timer().generation == speculative && bound.Timer().ageMs == 99000);
+		if (discard) server.DiscardProposal();
+		CHECK(server.RestoreRecoveryCheckpoint(successor));
+		CHECK(bound.Table().permitGeneration == speculative);
+		CHECK(bound.Timer().ageMs == 1000 && !bound.Timer().sampled);
+	}
+}
+
 int main() {
 	TestBindingThroughTheServer();
 	TestPermitWindowThroughAnOutage();
+	TestRollbackKeepsPermitAge();
+	TestCandidateReservationIsNotKept();
 	std::printf("session server tournament tests passed\n");
 	return 0;
 }
