@@ -645,6 +645,9 @@ msgstr "対戦の初期設定"
 msgid "settings.input_delay"
 msgstr "入力遅延"
 
+msgid "settings.input_delay.auto"
+msgstr "自動"
+
 msgid "room.name"
 msgstr "ルーム名"
 
@@ -1874,7 +1877,7 @@ msgid "room.ready_up"
 msgstr "準備完了にする"
 
 msgid "room.selected_delay.detail"
-msgstr "0～10Fの範囲で調整します。変更はすぐに反映されます。"
+msgstr "1～10Fの範囲で調整します。1より下は自動です。変更はすぐに反映されます。"
 
 msgid "room.selected_delay.locked"
 msgstr "この対戦中、選択した遅延は固定されます。"
@@ -1902,6 +1905,12 @@ msgstr "推奨：{0}"
 
 msgid "room.input_delay.match"
 msgstr "対戦：{0}"
+
+msgid "room.input_delay.auto"
+msgstr "自動 ({0})"
+
+msgid "room.input_delay.auto.detail"
+msgstr "自動は接続確認の結果を使い、{0}～{1}Fの範囲に収めます。"
 
 msgid "room.apply_recommendation.check_first"
 msgstr "推奨値を適用する前に接続を確認してください。"

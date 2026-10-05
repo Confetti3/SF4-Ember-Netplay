@@ -23,7 +23,7 @@ void RetireLegacy(Json& document) {
     auto& overlay = document["overlay"];
     for (const char* key : {"host", "join", "mainMenu", "windows", "debug"}) overlay.erase(key);
 }
-const char* NetplayKeys[] = { "inputDelay", "editionSelect", "roundCount", "roundTimeIntegral", "showMatchHud", "matchHudSize", "matchHudRaised", "readySound", "readySoundVolume", "discordPresence", "discordInvites", "interfaceScale", "roomDefaults" };
+const char* NetplayKeys[] = { "inputDelay", "autoInputDelay", "editionSelect", "roundCount", "roundTimeIntegral", "showMatchHud", "matchHudSize", "matchHudRaised", "readySound", "readySoundVolume", "discordPresence", "discordInvites", "interfaceScale", "roomDefaults" };
 
 void MergeLauncher(Json& document, const Json& launcher) {
     // Only durable preferences enter the new store. Originals/backups retain

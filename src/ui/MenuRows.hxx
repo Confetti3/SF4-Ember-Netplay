@@ -5,7 +5,7 @@
 #include "../common/Localization.hxx"
 namespace sf4e { namespace ui {
 inline bool SamePreferences(const netplay::PlayerPreferences& a,const netplay::PlayerPreferences& b) {
-    return a.displayName==b.displayName&&a.mainFighter==b.mainFighter&&a.inputDelay==b.inputDelay&&a.showMatchHud==b.showMatchHud&&
+    return a.displayName==b.displayName&&a.mainFighter==b.mainFighter&&a.inputDelay==b.inputDelay&&a.autoInputDelay==b.autoInputDelay&&a.showMatchHud==b.showMatchHud&&
         a.matchHudSize==b.matchHudSize&&a.matchHudRaised==b.matchHudRaised&&a.readySound==b.readySound&&a.readySoundVolume==b.readySoundVolume&&a.discordPresence==b.discordPresence&&a.discordInvites==b.discordInvites&&a.interfaceScale==b.interfaceScale&&
         a.roomName==b.roomName&&a.roomCapacity==b.roomCapacity&&a.inviteLifetimeHours==b.inviteLifetimeHours&&a.tableRules==b.tableRules;
 }

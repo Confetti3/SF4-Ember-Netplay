@@ -170,7 +170,7 @@ void AttachRoom() {
 	// Known by now unless the helper started only moments ago; Unknown reads as checking.
 	UserApp::netplay->client.SetProfileNat(runtime->room->Network().nat);
     runtime->selectedDelay=runtime->preferences.inputDelay;
-    UserApp::netplay->client.SetSelectedDelay(runtime->selectedDelay);
+    UserApp::netplay->client.SetSelectedDelay(ReadyDelay());
     runtime->inputInitialized=true;
 	runtime->match.reset(new session::IrohMatchSession(UserApp::netplay->client, runtime->room));
 	runtime->attached = true;
@@ -204,6 +204,10 @@ void StartHelper() {
     if (store.LoadLauncher(saved, settingsError)) {
         if(saved.contains("onlineRecord")&&!netplay::ReadProfileRecord(saved["onlineRecord"],runtime->preferences.record))
             runtime->error=loc::T("runtime.record_invalid");
+        // Auto is on unless a saved false turned it off, so a profile saved
+        // before Auto existed gets it.
+        const auto autoDelay=saved.find("autoInputDelay");
+        runtime->preferences.autoInputDelay=autoDelay==saved.end()||!autoDelay->is_boolean()||autoDelay->get<bool>();
         try {
             runtime->preferences.showMatchHud = saved.value("showMatchHud", true);
             const int hudSize = saved.value("matchHudSize", 1);
@@ -227,6 +231,8 @@ void StartHelper() {
 	runtime->preferences.lobby.roundTime = GetConfig().roundTimeIntegral;
 	if (!runtime->preferences.lobby.Valid()) runtime->preferences.lobby = {};
 	if (runtime->preferences.inputDelay < 0 || runtime->preferences.inputDelay > MaximumInputDelay) runtime->preferences.inputDelay = 2;
+	// A profile saved at zero, before the minimum, moves up to it.
+	if (runtime->preferences.inputDelay < MinimumInputDelay) runtime->preferences.inputDelay = MinimumInputDelay;
 	{
 		nlohmann::json saved;
 		std::string error;
@@ -504,6 +510,7 @@ void TickRuntime() {
 	ReleaseFinishedMatch();
 	ResolvePendingIntents(helperReady);
 	SettleRoomState(helperReady);
+	TickAutoDelay(helperReady);
 	CallOutOpponentReady();
 	PublishAndTickDiscordInvite();
 }

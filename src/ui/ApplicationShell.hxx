@@ -30,6 +30,7 @@ struct ShellView {
     bool canEditSelection = false;
     bool canEditPreferences = false, canEditLobby = false, settingsPending = false;
     int selectedDelay=2, recommendedDelay=-1, opponentDelay=-1;
+    bool autoDelayMeasured=false;
     bool delayLocked=false, canProbe=false, canApplyDelay=false;
     std::string probeStatus;
     RouteKind probeRoute=RouteKind::Unknown;
