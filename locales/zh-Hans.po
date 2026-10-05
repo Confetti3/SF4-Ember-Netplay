@@ -1672,6 +1672,9 @@ msgstr "等待对战玩家"
 msgid "room.phase.preparing"
 msgstr "正在准备对战"
 
+msgid "room.phase.holding"
+msgstr "正在等待观众"
+
 msgid "room.phase.in_game"
 msgstr "对战中"
 
@@ -1946,13 +1949,28 @@ msgid "room.both_ready"
 msgstr "双方均已准备，对战即将开始。"
 
 msgid "room.waiting_spectators"
-msgstr "双方已准备就绪。锁定观战的观众返回后，或{0}秒后，对战开始。"
+msgstr "正在等待锁定观战的观众返回。最多{0}秒后开始。"
+
+msgid "room.hold.waiting_for"
+msgstr "正在等待{0}返回。{1}秒后开始。"
+
+msgid "room.hold.waiting_some"
+msgstr "正在等待锁定观战的观众返回。{0}秒后开始。"
+
+msgid "room.hold.waiting_you"
+msgstr "下一场对战正在等待你返回。{0}秒后开始。"
+
+msgid "room.hold.cancel_detail"
+msgstr "取消开始会撤回你的准备，本场对战不会开始。"
 
 msgid "room.match_in_progress.detail"
 msgstr "当前对战进行中，请等待结束。"
 
 msgid "room.unready"
 msgstr "取消准备／解锁角色"
+
+msgid "room.unready.short"
+msgstr "取消准备"
 
 msgid "room.cancel_start"
 msgstr "取消开始"
@@ -2071,13 +2089,25 @@ msgid "room.lock_spectating"
 msgstr "锁定观战"
 
 msgid "room.lock_spectating.detail"
-msgstr "你返回房间时，下一场对战最多等待你{0}秒。"
+msgstr "如果双方都准备就绪时你仍在从上一场返回，下一场对战最多等待你{0}秒。"
 
 msgid "room.unlock_spectating"
 msgstr "取消锁定"
 
 msgid "room.unlock_spectating.detail"
-msgstr "已锁定观战。下一场对战最多等待你{0}秒。"
+msgstr "已锁定观战：下一场对战最多等待你返回{0}秒。停止观战或换到其他对战席会取消锁定。"
+
+msgid "room.lock_in_ended.stopped"
+msgstr "已取消锁定：你停止了观战。"
+
+msgid "room.lock_in_ended.moved"
+msgstr "已取消锁定：你正在观看其他对战席。"
+
+msgid "room.lock_in_ended.playing"
+msgstr "已取消锁定：你已入座或加入了队列。"
+
+msgid "room.lock_in_ended.dropped"
+msgstr "已取消锁定：你的观战画面中断了。再次锁定观战，下一场对战才会等待你。"
 
 msgid "room.table_rules"
 msgstr "对战席规则"

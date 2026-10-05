@@ -556,7 +556,7 @@ int main() try {
     });
     SetMenuGlyphs(3, 0x40000, 0x20000);
     shell.Navigation().Home(); shell.Navigation().Push("room"); frame(); focus("table-0"); frame(); frame();
-    Check(strip == std::set<std::string>({std::string(sf4e::loc::T("room.unready")), std::string(sf4e::loc::T("room.cancel_start"))}),
+    Check(strip == std::set<std::string>({std::string(sf4e::loc::T("room.unready.short")), std::string(sf4e::loc::T("room.cancel_start"))}),
         "During the held start the seat's two controls did not read differently");
     Check(legend.count(sf4e::loc::T("room.unready")) && legend.count(sf4e::loc::T("room.cancel_start")),
         "The legend did not name Unready for A and Cancel the start for B during the held start");
@@ -569,6 +569,54 @@ int main() try {
     view.room.tables[0].phase = room::TablePhase::Waiting; view.room.tables[0].spectatorHold = false;
     view.room.tables[0].ready[0] = view.room.tables[0].ready[1] = false;
 
+    // A held start the host timed: the card and the Ready row name who it
+    // waits for and count down, and say that B, Cancel the start, calls it off.
+    {
+        using sf4e::loc::T; using sf4e::loc::Tf;
+        const auto members = view.room.members;
+        room::Member alex; alex.id = 3; alex.name = "Alex"; alex.spectatorLocked = true;
+        room::Member other; other.id = 4; other.name = "Other";
+        view.room.members.push_back(alex); view.room.members.push_back(other);
+        auto& held = view.room.tables[0];
+        held.spectators = {3}; held.phase = room::TablePhase::Ready; held.spectatorHold = true;
+        held.ready[0] = held.ready[1] = true; held.holdRemainingMs = 6200;
+        view.canEditSelection = false; ++view.room.revision;
+        shell.Navigation().Home(); shell.Navigation().Push("room"); targets.clear(); frame(); frame();
+        const std::string waiting = Tf("room.hold.waiting_for", "Alex", 7);
+        Check(room_controls::DescribeTableBanner(view, held).text == waiting, "The held start did not name Alex and count down");
+        Check(targets.count("table-0/banner"), "The held start's line was not drawn on the card");
+        Check(row("table-0").detail == waiting + " " + T("room.hold.cancel_detail"), "The seat card did not say what Cancel the start does");
+        shell.Navigation().Push("room-table"); frame();
+        Check(row("ready").detail == waiting + " " + T("room.hold.cancel_detail"), "The Ready row did not count down the held start");
+        held.holdRemainingMs = 1; ++view.room.revision; frame();
+        Check(row("ready").detail.find(Tf("room.hold.waiting_for", "Alex", 1)) == 0, "A hold that has run out did not read one second");
+        // The locked-in spectator the start waits for is told so.
+        view.room.members[0].seat = -1; view.room.members[0].spectatorLocked = true; view.room.localTerminalPending = true;
+        held.p1 = 4; held.spectators = {1, 3}; held.holdRemainingMs = 4000; ++view.room.revision;
+        shell.Navigation().Home(); shell.Navigation().Push("room"); frame(); frame();
+        Check(room_controls::DescribeTableBanner(view, held).text == Tf("room.hold.waiting_you", 4), "The spectator holding the start was not told");
+        Check(row("table-0").detail.find(T("room.phase.holding")) != std::string::npos, "The held table read as preparing a game");
+        shell.Navigation().Push("room-table"); frame();
+        Check(row("lock-spectating").detail.find(Tf("room.hold.waiting_you", 4)) == 0, "The lock-in row did not say the start waits for this spectator");
+        // Released by the player: no notice. Cleared by the room: a notice says why.
+        // Cleared by the room, the lock-in gets a notice saying why; released
+        // by the player, none.
+        view.room.members[0].spectatorLocked = false; ++view.room.revision; frame();
+        Check(menuStatus == T("room.lock_in_ended.dropped"), "A lock-in the stream failure ended was not explained");
+        view.room.members[0].spectatorLocked = true; ++view.room.revision; frame();
+        view.room.members[0].spectatorLocked = false; held.spectators = {3}; ++view.room.revision; frame();
+        Check(menuStatus == T("room.lock_in_ended.stopped"), "A lock-in that ended with watching was not explained");
+        Check(!shell.NoticeOpen(), "A lock-in that ended opened a modal");
+        view.room.members[0].spectatorLocked = true; held.spectators = {1, 3}; ++view.room.revision; frame(); frame();
+        focus("lock-spectating"); press(MenuInput::Select);
+        Check(actions.back().roomAction.kind == room::ActionKind::LockSpectating && !actions.back().roomAction.locked, "Release lock-in was not sent");
+        view.room.members[0].spectatorLocked = false; ++view.room.revision; frame(); frame();
+        Check(menuStatus != T("room.lock_in_ended.dropped"), "The player's own release was announced as the room's");
+        view.room.members = members; view.room.localTerminalPending = false;
+        held.p1 = 1; held.spectators.clear(); held.phase = room::TablePhase::Waiting; held.spectatorHold = false;
+        held.ready[0] = held.ready[1] = false; held.holdRemainingMs = 0; view.canEditSelection = true; ++view.room.revision;
+        shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
+    }
     // The Members list names every member's connection in words, unknown too.
     shell.Navigation().Home(); shell.Navigation().Push("room-members");
     view.room.members[1].link = NetworkLink::Wired; ++view.room.revision; frame();

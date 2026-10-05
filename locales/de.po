@@ -1672,6 +1672,9 @@ msgstr "Warten auf Charaktere"
 msgid "room.phase.preparing"
 msgstr "Vorbereitung"
 
+msgid "room.phase.holding"
+msgstr "Warten auf Zuschauer"
+
 msgid "room.phase.in_game"
 msgstr "Im Spiel"
 
@@ -1946,13 +1949,28 @@ msgid "room.both_ready"
 msgstr "Beide Charaktere sind bereit. Der Kampf beginnt."
 
 msgid "room.waiting_spectators"
-msgstr "Beide Charaktere sind bereit. Der Kampf beginnt, sobald festgelegte Zuschauer zurück sind, spätestens in {0} Sekunden."
+msgstr "Warten auf festgelegte Zuschauer. Start spätestens in {0} s."
+
+msgid "room.hold.waiting_for"
+msgstr "Warten auf die Rückkehr von {0}. Start in {1} s."
+
+msgid "room.hold.waiting_some"
+msgstr "Warten auf festgelegte Zuschauer. Start in {0} s."
+
+msgid "room.hold.waiting_you"
+msgstr "Das nächste Spiel wartet auf Ihre Rückkehr. Start in {0} s."
+
+msgid "room.hold.cancel_detail"
+msgstr "Start abbrechen nimmt Ihr Bereit zurück, sodass dieses Spiel nicht beginnt."
 
 msgid "room.match_in_progress.detail"
 msgstr "Der aktuelle Kampf läuft. Warten Sie auf das Ende."
 
 msgid "room.unready"
 msgstr "Bereit aus / Charakter frei"
+
+msgid "room.unready.short"
+msgstr "Bereit aus"
 
 msgid "room.cancel_start"
 msgstr "Start abbrechen"
@@ -2071,13 +2089,25 @@ msgid "room.lock_spectating"
 msgstr "Zuschauen festlegen"
 
 msgid "room.lock_spectating.detail"
-msgstr "Das nächste Spiel wartet bis zu {0} Sekunden, bis Sie wieder im Raum sind."
+msgstr "Sind Sie noch auf dem Rückweg aus dem letzten Spiel, wenn beide Charaktere bereit sind, wartet das nächste Spiel bis zu {0} Sekunden auf Sie."
 
 msgid "room.unlock_spectating"
 msgstr "Festlegung aufheben"
 
 msgid "room.unlock_spectating.detail"
-msgstr "Sie sind festgelegt. Das nächste Spiel wartet bis zu {0} Sekunden auf Sie."
+msgstr "Sie sind festgelegt: Das nächste Spiel wartet bis zu {0} Sekunden auf Ihre Rückkehr. Zuschauen beenden oder ein Tischwechsel hebt die Festlegung auf."
+
+msgid "room.lock_in_ended.stopped"
+msgstr "Festlegung aufgehoben: Sie schauen nicht mehr zu."
+
+msgid "room.lock_in_ended.moved"
+msgstr "Festlegung aufgehoben: Sie schauen an einem anderen Tisch zu."
+
+msgid "room.lock_in_ended.playing"
+msgstr "Festlegung aufgehoben: Sie haben einen Platz genommen oder sich in die Warteschlange gestellt."
+
+msgid "room.lock_in_ended.dropped"
+msgstr "Festlegung aufgehoben: Ihre Zuschaueransicht ist abgebrochen. Legen Sie sich erneut fest, damit das nächste Spiel auf Sie wartet."
 
 msgid "room.table_rules"
 msgstr "Tischregeln"

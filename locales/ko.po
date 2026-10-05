@@ -1672,6 +1672,9 @@ msgstr "대전 상대 대기 중"
 msgid "room.phase.preparing"
 msgstr "대전 준비 중"
 
+msgid "room.phase.holding"
+msgstr "관전자 대기 중"
+
 msgid "room.phase.in_game"
 msgstr "대전 중"
 
@@ -1946,13 +1949,28 @@ msgid "room.both_ready"
 msgstr "두 플레이어 모두 준비됐습니다. 대전을 시작합니다."
 
 msgid "room.waiting_spectators"
-msgstr "두 플레이어 모두 준비됐습니다. 관전 확정한 관전자가 돌아오거나 {0}초 후에 대전을 시작합니다."
+msgstr "관전 확정한 관전자가 돌아오기를 기다리는 중입니다. 최대 {0}초 후 시작합니다."
+
+msgid "room.hold.waiting_for"
+msgstr "{0} 님의 복귀를 기다리는 중입니다. {1}초 후 시작합니다."
+
+msgid "room.hold.waiting_some"
+msgstr "관전 확정한 관전자가 돌아오기를 기다리는 중입니다. {0}초 후 시작합니다."
+
+msgid "room.hold.waiting_you"
+msgstr "다음 대전이 복귀를 기다리고 있습니다. {0}초 후 시작합니다."
+
+msgid "room.hold.cancel_detail"
+msgstr "시작 취소는 준비 완료를 취소하여 이번 대전이 시작되지 않게 합니다."
 
 msgid "room.match_in_progress.detail"
 msgstr "현재 대전이 진행 중입니다. 끝날 때까지 기다리세요."
 
 msgid "room.unready"
 msgstr "준비 취소 / 캐릭터 잠금 해제"
+
+msgid "room.unready.short"
+msgstr "준비 취소"
 
 msgid "room.cancel_start"
 msgstr "시작 취소"
@@ -2071,13 +2089,25 @@ msgid "room.lock_spectating"
 msgstr "관전 확정"
 
 msgid "room.lock_spectating.detail"
-msgstr "방으로 돌아올 때까지 다음 대전 시작을 최대 {0}초 기다립니다."
+msgstr "두 플레이어가 준비 완료할 때 아직 이전 대전에서 돌아오는 중이면, 다음 대전이 최대 {0}초 동안 기다립니다."
 
 msgid "room.unlock_spectating"
 msgstr "관전 확정 해제"
 
 msgid "room.unlock_spectating.detail"
-msgstr "관전 확정 중입니다. 다음 대전은 최대 {0}초 동안 기다립니다."
+msgstr "관전 확정 중입니다. 다음 대전이 최대 {0}초 동안 복귀를 기다립니다. 관전을 그만두거나 다른 테이블로 옮기면 해제됩니다."
+
+msgid "room.lock_in_ended.stopped"
+msgstr "관전 확정 해제됨: 관전을 그만두었습니다."
+
+msgid "room.lock_in_ended.moved"
+msgstr "관전 확정 해제됨: 다른 테이블을 관전하고 있습니다."
+
+msgid "room.lock_in_ended.playing"
+msgstr "관전 확정 해제됨: 자리에 앉았거나 대기열에 들어갔습니다."
+
+msgid "room.lock_in_ended.dropped"
+msgstr "관전 확정 해제됨: 관전 화면이 끊겼습니다. 다음 대전이 기다리게 하려면 다시 관전 확정하세요."
 
 msgid "room.table_rules"
 msgstr "테이블 규칙"

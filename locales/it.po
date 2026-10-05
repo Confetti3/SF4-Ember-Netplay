@@ -1672,6 +1672,9 @@ msgstr "In attesa dei giocatori"
 msgid "room.phase.preparing"
 msgstr "Preparazione partita"
 
+msgid "room.phase.holding"
+msgstr "In attesa degli spettatori"
+
 msgid "room.phase.in_game"
 msgstr "In partita"
 
@@ -1946,13 +1949,28 @@ msgid "room.both_ready"
 msgstr "Entrambi pronti. La partita sta per iniziare."
 
 msgid "room.waiting_spectators"
-msgstr "Entrambi pronti. La partita inizia al ritorno degli spettatori bloccati, o tra {0} secondi."
+msgstr "In attesa del ritorno degli spettatori bloccati. Inizia entro {0} s."
+
+msgid "room.hold.waiting_for"
+msgstr "In attesa del ritorno di {0}. Inizia tra {1} s."
+
+msgid "room.hold.waiting_some"
+msgstr "In attesa del ritorno degli spettatori bloccati. Inizia tra {0} s."
+
+msgid "room.hold.waiting_you"
+msgstr "La prossima partita aspetta il tuo ritorno. Inizia tra {0} s."
+
+msgid "room.hold.cancel_detail"
+msgstr "Annulla l'avvio ritira il tuo Pronto, così questa partita non inizia."
 
 msgid "room.match_in_progress.detail"
 msgstr "Partita in corso. Attendi la fine."
 
 msgid "room.unready"
 msgstr "Non pronto / sblocca"
+
+msgid "room.unready.short"
+msgstr "Non pronto"
 
 msgid "room.cancel_start"
 msgstr "Annulla l'avvio"
@@ -2071,13 +2089,25 @@ msgid "room.lock_spectating"
 msgstr "Blocca per guardare"
 
 msgid "room.lock_spectating.detail"
-msgstr "La prossima partita ti aspetta fino a {0} secondi mentre torni nella stanza."
+msgstr "Se stai ancora tornando dall'ultima partita quando entrambi sono pronti, la prossima partita ti aspetta fino a {0} secondi."
 
 msgid "room.unlock_spectating"
 msgstr "Sblocca"
 
 msgid "room.unlock_spectating.detail"
-msgstr "Sei bloccato. La prossima partita ti aspetta fino a {0} secondi."
+msgstr "Sei bloccato: la prossima partita aspetta il tuo ritorno fino a {0} secondi. Smettere di guardare o cambiare tavolo lo sblocca."
+
+msgid "room.lock_in_ended.stopped"
+msgstr "Blocco rimosso: hai smesso di guardare."
+
+msgid "room.lock_in_ended.moved"
+msgstr "Blocco rimosso: stai guardando un altro tavolo."
+
+msgid "room.lock_in_ended.playing"
+msgstr "Blocco rimosso: hai preso un posto o sei entrato in coda."
+
+msgid "room.lock_in_ended.dropped"
+msgstr "Blocco rimosso: la tua visuale da spettatore si è interrotta. Bloccati di nuovo perché la prossima partita ti aspetti."
 
 msgid "room.table_rules"
 msgstr "Regole del tavolo"

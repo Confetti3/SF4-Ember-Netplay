@@ -1672,6 +1672,9 @@ msgstr "Ожидание бойцов"
 msgid "room.phase.preparing"
 msgstr "Подготовка боя"
 
+msgid "room.phase.holding"
+msgstr "Ждём зрителей"
+
 msgid "room.phase.in_game"
 msgstr "Идёт бой"
 
@@ -1946,13 +1949,28 @@ msgid "room.both_ready"
 msgstr "Оба бойца готовы. Матч начинается."
 
 msgid "room.waiting_spectators"
-msgstr "Оба бойца готовы. Матч начнётся, когда закреплённые зрители вернутся, но не позже чем через {0} секунд."
+msgstr "Ждём возвращения закреплённых зрителей. Старт не позже чем через {0} с."
+
+msgid "room.hold.waiting_for"
+msgstr "Ждём возвращения: {0}. Старт через {1} с."
+
+msgid "room.hold.waiting_some"
+msgstr "Ждём возвращения закреплённых зрителей. Старт через {0} с."
+
+msgid "room.hold.waiting_you"
+msgstr "Следующий матч ждёт вашего возвращения. Старт через {0} с."
+
+msgid "room.hold.cancel_detail"
+msgstr "Отменить старт снимает вашу готовность, и этот матч не начнётся."
 
 msgid "room.match_in_progress.detail"
 msgstr "Текущий матч идёт. Дождитесь завершения."
 
 msgid "room.unready"
 msgstr "Отменить готовность / выбор"
+
+msgid "room.unready.short"
+msgstr "Снять готовность"
 
 msgid "room.cancel_start"
 msgstr "Отменить старт"
@@ -2071,13 +2089,25 @@ msgid "room.lock_spectating"
 msgstr "Закрепиться зрителем"
 
 msgid "room.lock_spectating.detail"
-msgstr "Следующий матч подождёт вас до {0} секунд, пока вы возвращаетесь в комнату."
+msgstr "Если вы ещё возвращаетесь из прошлого матча, когда оба бойца готовы, следующий матч подождёт вас до {0} секунд."
 
 msgid "room.unlock_spectating"
 msgstr "Снять закрепление"
 
 msgid "room.unlock_spectating.detail"
-msgstr "Вы закреплены. Следующий матч подождёт вас до {0} секунд."
+msgstr "Вы закреплены: следующий матч ждёт вашего возвращения до {0} секунд. Закрепление снимается, если перестать смотреть или перейти к другому столу."
+
+msgid "room.lock_in_ended.stopped"
+msgstr "Закрепление снято: вы перестали смотреть."
+
+msgid "room.lock_in_ended.moved"
+msgstr "Закрепление снято: вы смотрите другой стол."
+
+msgid "room.lock_in_ended.playing"
+msgstr "Закрепление снято: вы заняли место или встали в очередь."
+
+msgid "room.lock_in_ended.dropped"
+msgstr "Закрепление снято: трансляция для зрителя прервалась. Закрепитесь снова, чтобы следующий матч вас подождал."
 
 msgid "room.table_rules"
 msgstr "Правила стола"

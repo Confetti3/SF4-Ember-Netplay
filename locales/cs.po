@@ -1672,6 +1672,9 @@ msgstr "Čekání na hráče"
 msgid "room.phase.preparing"
 msgstr "Příprava hry"
 
+msgid "room.phase.holding"
+msgstr "Čeká se na diváky"
+
 msgid "room.phase.in_game"
 msgstr "Ve hře"
 
@@ -1946,12 +1949,27 @@ msgid "room.both_ready"
 msgstr "Oba hráči jsou připraveni. Zápas začíná."
 
 msgid "room.waiting_spectators"
-msgstr "Oba hráči jsou připraveni. Zápas začne, až se vrátí zamčení diváci, nejpozději za {0} sekund."
+msgstr "Čeká se na návrat zamčených diváků. Začne nejpozději za {0} s."
+
+msgid "room.hold.waiting_for"
+msgstr "Čeká se na návrat: {0}. Začne za {1} s."
+
+msgid "room.hold.waiting_some"
+msgstr "Čeká se na návrat zamčených diváků. Začne za {0} s."
+
+msgid "room.hold.waiting_you"
+msgstr "Další zápas čeká na váš návrat. Začne za {0} s."
+
+msgid "room.hold.cancel_detail"
+msgstr "Zrušit start vezme zpět vaši připravenost, takže tento zápas nezačne."
 
 msgid "room.match_in_progress.detail"
 msgstr "Aktuální zápas probíhá. Počkejte na jeho konec."
 
 msgid "room.unready"
+msgstr "Zrušit připravenost"
+
+msgid "room.unready.short"
 msgstr "Zrušit připravenost"
 
 msgid "room.cancel_start"
@@ -2071,13 +2089,25 @@ msgid "room.lock_spectating"
 msgstr "Zamknout sledování"
 
 msgid "room.lock_spectating.detail"
-msgstr "Další zápas na vás počká až {0} sekund, než se vrátíte do místnosti."
+msgstr "Pokud se ještě vracíte z minulého zápasu, až budou oba hráči připraveni, další zápas na vás počká až {0} sekund."
 
 msgid "room.unlock_spectating"
 msgstr "Zrušit zamčení"
 
 msgid "room.unlock_spectating.detail"
-msgstr "Sledování je zamčené. Další zápas na vás počká až {0} sekund."
+msgstr "Sledování je zamčené: další zápas počká na váš návrat až {0} sekund. Ukončení sledování nebo přesun k jinému stolu zamčení zruší."
+
+msgid "room.lock_in_ended.stopped"
+msgstr "Zamčení zrušeno: přestali jste sledovat."
+
+msgid "room.lock_in_ended.moved"
+msgstr "Zamčení zrušeno: sledujete jiný stůl."
+
+msgid "room.lock_in_ended.playing"
+msgstr "Zamčení zrušeno: sedli jste si ke stolu nebo jste se zařadili do fronty."
+
+msgid "room.lock_in_ended.dropped"
+msgstr "Zamčení zrušeno: váš divácký přenos spadl. Zamkněte sledování znovu, aby na vás další zápas počkal."
 
 msgid "room.table_rules"
 msgstr "Pravidla stolu"

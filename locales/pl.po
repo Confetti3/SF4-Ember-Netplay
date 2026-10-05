@@ -1672,6 +1672,9 @@ msgstr "Czekanie na graczy"
 msgid "room.phase.preparing"
 msgstr "Przygotowanie walki"
 
+msgid "room.phase.holding"
+msgstr "Czekamy na widzów"
+
 msgid "room.phase.in_game"
 msgstr "W walce"
 
@@ -1946,13 +1949,28 @@ msgid "room.both_ready"
 msgstr "Obaj gracze są gotowi. Walka się rozpoczyna."
 
 msgid "room.waiting_spectators"
-msgstr "Obaj gracze są gotowi. Mecz zacznie się po powrocie widzów z potwierdzeniem, najpóźniej za {0} sekund."
+msgstr "Czekamy na powrót widzów z potwierdzeniem. Start najpóźniej za {0} s."
+
+msgid "room.hold.waiting_for"
+msgstr "Czekamy na powrót: {0}. Start za {1} s."
+
+msgid "room.hold.waiting_some"
+msgstr "Czekamy na powrót widzów z potwierdzeniem. Start za {0} s."
+
+msgid "room.hold.waiting_you"
+msgstr "Następny mecz czeka na Twój powrót. Start za {0} s."
+
+msgid "room.hold.cancel_detail"
+msgstr "Anuluj start cofa Twoją gotowość, więc ten mecz się nie zacznie."
 
 msgid "room.match_in_progress.detail"
 msgstr "Bieżąca walka trwa. Poczekaj na jej koniec."
 
 msgid "room.unready"
 msgstr "Cofnij gotowość / odblokuj"
+
+msgid "room.unready.short"
+msgstr "Cofnij gotowość"
 
 msgid "room.cancel_start"
 msgstr "Anuluj start"
@@ -2071,13 +2089,25 @@ msgid "room.lock_spectating"
 msgstr "Potwierdź oglądanie"
 
 msgid "room.lock_spectating.detail"
-msgstr "Następny mecz poczeka na Ciebie do {0} sekund, aż wrócisz do pokoju."
+msgstr "Jeśli wciąż wracasz z ostatniego meczu, gdy obaj gracze będą gotowi, następny mecz poczeka na Ciebie do {0} sekund."
 
 msgid "room.unlock_spectating"
 msgstr "Cofnij potwierdzenie"
 
 msgid "room.unlock_spectating.detail"
-msgstr "Oglądanie potwierdzone. Następny mecz poczeka na Ciebie do {0} sekund."
+msgstr "Oglądanie potwierdzone: następny mecz poczeka na Twój powrót do {0} sekund. Przerwanie oglądania lub przejście do innego stołu je cofa."
+
+msgid "room.lock_in_ended.stopped"
+msgstr "Potwierdzenie cofnięte: przestałeś oglądać."
+
+msgid "room.lock_in_ended.moved"
+msgstr "Potwierdzenie cofnięte: oglądasz inny stół."
+
+msgid "room.lock_in_ended.playing"
+msgstr "Potwierdzenie cofnięte: zająłeś miejsce lub dołączyłeś do kolejki."
+
+msgid "room.lock_in_ended.dropped"
+msgstr "Potwierdzenie cofnięte: Twój podgląd widza się przerwał. Potwierdź oglądanie ponownie, aby następny mecz na Ciebie poczekał."
 
 msgid "room.table_rules"
 msgstr "Zasady stołu"

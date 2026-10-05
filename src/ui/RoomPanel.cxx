@@ -43,10 +43,11 @@ std::string IdleText(const room::Member& member) {
     const unsigned minutes = member.idleSeconds / 60;
     return minutes < 60 ? loc::Tf("room.idle_minutes", minutes) : loc::Tf("room.idle_hours", minutes / 60, minutes % 60);
 }
-const char* PhaseName(room::TablePhase phase) {
-    switch (phase) {
+// A held start is waiting on people, not preparing anything.
+const char* PhaseName(const room::Table& table) {
+    switch (table.phase) {
     case room::TablePhase::Waiting: return loc::T("room.phase.waiting");
-    case room::TablePhase::Ready: return loc::T("room.phase.preparing");
+    case room::TablePhase::Ready: return loc::T(table.spectatorHold ? "room.phase.holding" : "room.phase.preparing");
     case room::TablePhase::Playing: return loc::T("room.phase.in_game");
     case room::TablePhase::Paused: return loc::T("room.phase.unresolved");
     case room::TablePhase::Closed: return loc::T("room.phase.closed");
@@ -168,7 +169,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    const auto mine=room::PlaceOf(s,s.localMember);
    for(const auto& table:s.tables){
     const auto occupied=(table.p1?1:0)+(table.p2?1:0);
-    std::string detail=loc::Tf("room.table_detail",Name(s,table.p1),Name(s,table.p2),PhaseName(table.phase),
+    std::string detail=loc::Tf("room.table_detail",Name(s,table.p1),Name(s,table.p2),PhaseName(table),
      table.queue.size(),table.spectators.size()+table.watchingNext.size(),local?StatusName(local->status):loc::T("room.connecting"));
     rows.push_back(Row("table-"+std::to_string(table.id),loc::Tf("room.table_occupancy",table.id+1,occupied),detail));
     rows.back().detailText=DetailText::Name;
@@ -179,6 +180,9 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
      // still names the state on its strip, but has no action to offer.
      const auto control=DescribeReady(v,table,mine.seat);
      rows.back().hint=control.label;rows.back().info=control.kind==ReadyControl::None;
+     // During a held start the card says what it waits for, and that B,
+     // Cancel the start, calls it off.
+     if(table.spectatorHold&&control.kind==ReadyControl::Unready)rows.back().detail=control.detail;
      const auto cost=CostOfLeavingSeat(table);
      if(leaveAsk_==static_cast<int>(table.id)&&cost)rows.back().choices={
       {"stay",loc::T("common.cancel"),loc::T("room.leave_seat.keep")},
@@ -244,6 +248,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    const bool ready=room::ReadyCancellable(t,place.seat);
     const auto readyControl=DescribeReady(v,t,place.seat);
     rows.push_back(Row("ready",readyControl.label,readyControl.detail,readyControl.kind!=ReadyControl::None));
+    if(t.spectatorHold)rows.back().detailText=DetailText::Name;
    // Under Ready, in the order a player reads them: their own pick (fighter,
    // Ultra, appearance, fighter options), then the match (P1's stage and the
    // table's rules), then their connection, then leaving. A on Fighter opens
@@ -328,8 +333,10 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     // game is exactly who it is for.
     if(room::WatchesByChoice(t,s.localMember)){
      const bool lockedIn=local&&local->spectatorLocked;
-     rows.push_back(Row("lock-spectating",loc::T(lockedIn?"room.unlock_spectating":"room.lock_spectating"),
-      mutableRoom?loc::Tf(lockedIn?"room.unlock_spectating.detail":"room.lock_spectating.detail",room::SpectatorStartHoldMs/1000):reason,mutableRoom));
+     std::string lockDetail=mutableRoom?loc::Tf(lockedIn?"room.unlock_spectating.detail":"room.lock_spectating.detail",room::SpectatorStartHoldMs/1000):reason;
+     // The start this spectator holds comes first.
+     if(HoldingStart(v,t))lockDetail=HoldText(v,t)+"\n"+lockDetail;
+     rows.push_back(Row("lock-spectating",loc::T(lockedIn?"room.unlock_spectating":"room.lock_spectating"),lockDetail,mutableRoom));
     }
     rulesRows();
   }
@@ -494,11 +501,16 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   const bool ownPlace=!nav.Asking()&&onOwnPlace&&e.id==focus;
   std::vector<std::string> labels;
   if(choosing)for(const auto& c:e.choices)labels.push_back(c.label);
-  else if(ownPlace)labels={e.hint,place.label};
+  // A strip option is half a card wide, so Unready drops its "unlock fighter".
+  else if(ownPlace){
+   const auto mine=room::PlaceOf(v.room,v.room.localMember);
+   const bool unready=mine.kind==room::Place::Kind::Seat&&DescribeReady(v,t,mine.seat).kind==ReadyControl::Unready;
+   labels={unready?std::string(loc::T("room.unready.short")):e.hint,place.label};
+  }
   const Strip strip=labels.empty()?Strip{}:stripButtons(e,p,width,h,labels.size());
   press(e,ImVec2(width,h));ReportMenuCard(e.id.c_str(),p,ImVec2(p.x+width,p.y+h));
   text(ImVec2(p.x+12*s,p.y+7*s),width*.57f,loc::Tf("room.battle_slot",t.id+1),16*s,palette::Ivory);
-  text(ImVec2(p.x+width*.60f,p.y+8*s),width*.40f-12*s,PhaseName(t.phase),14*s,palette::Ember);
+  text(ImVec2(p.x+width*.60f,p.y+8*s),width*.40f-12*s,PhaseName(t),14*s,palette::Ember);
   // A full pair shows its running win count where "VS" would sit; the gap
   // between the two sides grows to fit however long the rematch run gets.
   const std::string middle=t.p1&&t.p2?SetScoreText(t.score):"VS";
@@ -554,6 +566,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    const ImVec2 min(p.x+8*s,bannerTop),max(p.x+width-8*s,bannerTop+bannerHeight-2*s);
    ImGui::GetWindowDrawList()->AddRectFilled(min,max,IM_COL32(74,46,20,235),4*s);
    ImGui::GetWindowDrawList()->AddRect(min,max,bannerColor,4*s,0,1*s);
+   if(cardVisible)NoteUserText(banner.text);
    text(ImVec2(min.x+8*s,min.y+(max.y-min.y-13*s)*.5f),max.x-min.x-16*s,banner.text,13*s,bannerColor);
    ReportMenuCard((e.id+"/banner").c_str(),min,max);
   }
@@ -696,9 +709,12 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    std::string explanation=selected->detail;
    if(!choiceDetail(*selected).empty())explanation=choiceDetail(*selected);
    else if(selected->id.compare(0,6,"table-")==0){const auto& table=v.room.tables[selectedTable_];const auto* local=Member(v.room,v.room.localMember);
-    explanation=loc::Tf("room.table_explanation",PhaseName(table.phase),local?StatusName(local->status):loc::T("room.connecting"),table.queue.size(),table.spectators.size()+table.watchingNext.size());
-    // A narrow card can cut its banner short; here it is in full.
-    const auto banner=DescribeTableBanner(v,table);if(!banner.text.empty())explanation=banner.text+"\n"+explanation;}
+    explanation=loc::Tf("room.table_explanation",PhaseName(table),local?StatusName(local->status):loc::T("room.connecting"),table.queue.size(),table.spectators.size()+table.watchingNext.size());
+    // A narrow card can cut its banner short; here it is in full, and on
+    // your own seat during a held start, with what Cancel the start does.
+    const auto banner=DescribeTableBanner(v,table);
+    const std::string first=table.spectatorHold&&place.unready&&place.table==selectedTable_?selected->detail:banner.text;
+    if(!first.empty())explanation=first+"\n"+explanation;}
    const std::string reason=hint(*selected);
    NoteDetailText(selected->detail,selected->detailText);
    if(!reason.empty())explanation=explanation.empty()?reason:explanation+"\n"+reason;
@@ -745,6 +761,23 @@ void ApplicationShell::TrackLiveGames(const ShellView& v,double now) {
   if(table.phase!=room::TablePhase::Playing)game.since=-1;
   else if(game.since<0||game.since>now||game.generation!=table.matchGeneration){game.generation=table.matchGeneration;game.since=now;}
  }
+}
+void ApplicationShell::TrackLockIn(const ShellView& v,double now) {
+ const auto* local=Member(v.room,v.room.localMember);
+ int lockedAt=-1;
+ if(local&&local->spectatorLocked)
+  for(const auto& t:v.room.tables)if(room::WatchesByChoice(t,local->id)){lockedAt=t.id;break;}
+ if(lockedInTable_>=0&&lockedAt<0&&local&&v.room.roomEpoch==lockInEpoch_&&now>=lockInReleasedUntil_){
+  // Still watching that table: the room ended it because the view dropped.
+  const bool watching=room::WatchesByChoice(v.room.tables[lockedInTable_],local->id);
+  const bool playing=room::PlaceOf(v.room,local->id).kind!=room::Place::Kind::None;
+  bool elsewhere=false;
+  for(const auto& t:v.room.tables)elsewhere=elsewhere||room::WatchesByChoice(t,local->id);
+  notice_=loc::T(watching?"room.lock_in_ended.dropped":playing?"room.lock_in_ended.playing":
+   elsewhere?"room.lock_in_ended.moved":"room.lock_in_ended.stopped");
+  noticeTone_=Tone::Pending;noticeUntil_=now+8;
+ }
+ lockedInTable_=lockedAt;lockInEpoch_=v.room.roomEpoch;
 }
 bool ApplicationShell::GameIsStale(std::size_t table) const {
  return table<liveGames_.size()&&liveGames_[table].since>=0&&ImGui::GetTime()-liveGames_[table].since>=room::StaleGameSeconds;
@@ -868,6 +901,8 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   else if(a.id=="lock-spectating"){
    const auto* local=Member(v.room,v.room.localMember);
    request.kind=ActionKind::LockSpectating;request.locked=!(local&&local->spectatorLocked);
+   // The player's own release needs no notice of why it ended.
+   if(!request.locked)lockInReleasedUntil_=ImGui::GetTime()+5;
   }
   else if(a.id=="kick"){request.kind=ActionKind::Kick;request.target=selectedMember_;}
   else if(a.id=="transfer-host"){request.kind=ActionKind::TransferHost;request.target=selectedMember_;}

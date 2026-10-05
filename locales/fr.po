@@ -1672,6 +1672,9 @@ msgstr "Attente des combattants"
 msgid "room.phase.preparing"
 msgstr "Préparation"
 
+msgid "room.phase.holding"
+msgstr "Attente des spectateurs"
+
 msgid "room.phase.in_game"
 msgstr "En combat"
 
@@ -1946,13 +1949,28 @@ msgid "room.both_ready"
 msgstr "Les deux combattants sont prêts. Le combat commence."
 
 msgid "room.waiting_spectators"
-msgstr "Les deux combattants sont prêts. Le combat commence dès le retour des spectateurs verrouillés, ou dans {0} secondes."
+msgstr "En attente du retour des spectateurs verrouillés. Lancement dans {0} s au plus."
+
+msgid "room.hold.waiting_for"
+msgstr "En attente du retour de {0}. Lancement dans {1} s."
+
+msgid "room.hold.waiting_some"
+msgstr "En attente du retour des spectateurs verrouillés. Lancement dans {0} s."
+
+msgid "room.hold.waiting_you"
+msgstr "Le prochain combat attend votre retour. Lancement dans {0} s."
+
+msgid "room.hold.cancel_detail"
+msgstr "Annuler le lancement retire votre Prêt, et ce combat ne démarre pas."
 
 msgid "room.match_in_progress.detail"
 msgstr "Le combat est en cours. Attendez sa fin."
 
 msgid "room.unready"
 msgstr "Annuler Prêt / déverrouiller"
+
+msgid "room.unready.short"
+msgstr "Annuler Prêt"
 
 msgid "room.cancel_start"
 msgstr "Annuler le lancement"
@@ -2071,13 +2089,25 @@ msgid "room.lock_spectating"
 msgstr "Verrouiller le visionnage"
 
 msgid "room.lock_spectating.detail"
-msgstr "Le prochain combat vous attend jusqu'à {0} secondes, le temps de revenir dans le salon."
+msgstr "Si vous revenez encore du dernier combat quand les deux combattants sont prêts, le prochain combat vous attend jusqu'à {0} secondes."
 
 msgid "room.unlock_spectating"
 msgstr "Déverrouiller"
 
 msgid "room.unlock_spectating.detail"
-msgstr "Vous êtes verrouillé. Le prochain combat vous attend jusqu'à {0} secondes."
+msgstr "Vous êtes verrouillé : le prochain combat attend votre retour jusqu'à {0} secondes. Arrêter de regarder ou changer de table le déverrouille."
+
+msgid "room.lock_in_ended.stopped"
+msgstr "Verrouillage levé : vous avez arrêté de regarder."
+
+msgid "room.lock_in_ended.moved"
+msgstr "Verrouillage levé : vous regardez une autre table."
+
+msgid "room.lock_in_ended.playing"
+msgstr "Verrouillage levé : vous avez pris une place ou rejoint une file."
+
+msgid "room.lock_in_ended.dropped"
+msgstr "Verrouillage levé : votre vue de spectateur a été perdue. Verrouillez à nouveau pour que le prochain combat vous attende."
 
 msgid "room.table_rules"
 msgstr "Règles"

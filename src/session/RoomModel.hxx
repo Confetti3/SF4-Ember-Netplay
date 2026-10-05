@@ -45,6 +45,7 @@ constexpr std::size_t MaximumKickedAccounts = 512;
 // leaving the previous game. The catalogs quote it as {0} seconds in
 // room.waiting_spectators, room.lock_spectating.detail and
 // room.unlock_spectating.detail; the UI passes SpectatorStartHoldMs / 1000.
+// A held table's snapshot carries what is left of it (Table::holdRemainingMs).
 constexpr std::uint64_t SpectatorStartHoldMs = 10000;
 
 enum class MemberStatus : std::uint8_t {
@@ -228,6 +229,12 @@ struct Table {
 	// SpectatorStartHoldMs, on a locked-in spectator still retiring the
 	// previous game.
 	bool spectatorHold = false;
+	// While spectatorHold, the milliseconds left before the start goes ahead
+	// anyway, as of the moment the snapshot was sent (at least 1). Stamped per
+	// recipient like Member::idleSeconds, so the room's own state and its
+	// checkpoints keep zero, and zero is not serialized; a client counts on
+	// from when it received the snapshot.
+	std::uint32_t holdRemainingMs = 0;
 	// A bound table's ready fighters wait, for at most PermitHoldMs, for the
 	// bridge's permit for this reserved generation. Each seat's permit ID is
 	// filled when that fighter's helper has it; the game starts when both name

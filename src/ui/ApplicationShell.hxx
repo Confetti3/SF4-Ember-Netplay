@@ -235,6 +235,13 @@ private:
     // Shows a refusal that stays true for as long as stillBlocked says so.
     void Refuse(std::string text, std::function<bool(const ShellView&)> stillBlocked = {});
     void TrackLiveGames(const ShellView& view, double now);
+    // A lock-in the room cleared other than by the player's Release (they
+    // stopped watching, moved, or their spectator view dropped) gets a notice
+    // saying why.
+    void TrackLockIn(const ShellView& view, double now);
+    int lockedInTable_=-1;
+    std::uint64_t lockInEpoch_=0;
+    double lockInReleasedUntil_=0;
     bool GameIsStale(std::size_t table) const;
     void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                        const MenuVisualFeedback& feedback);

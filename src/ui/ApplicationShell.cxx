@@ -400,7 +400,11 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
   // Table phases carry their own tone: an unresolved result is a problem
   // the player must act on, a pending result or preparation is a wait.
   if(table.phase==room::TablePhase::Paused){status=loc::T("room.result_unresolved_status");statusTone=Tone::Error;}
-  else if(table.phase==room::TablePhase::Ready){status=loc::T("room.preparing_status");statusTone=Tone::Pending;}
+  else if(table.phase==room::TablePhase::Ready){
+   // A held start says what it waits for and counts down.
+   status=table.spectatorHold?room_controls::HoldText(v,table):std::string(loc::T("room.preparing_status"));statusTone=Tone::Pending;
+   if(table.spectatorHold)NoteUserText(status);
+  }
   else if(table.phase==room::TablePhase::Playing&&!finishedGame){
    status=table.resultPending?loc::T("room.waiting_results_status"):loc::T("room.match_in_progress");
    statusTone=Tone::Pending;
@@ -597,6 +601,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   saveAt_ = RebaseUiTimestamp(saveAt_, lastUiTime_, now);
   languageSaveAt_ = RebaseUiTimestamp(languageSaveAt_, lastUiTime_, now);
   noticeUntil_ = RebaseUiTimestamp(noticeUntil_, lastUiTime_, now);
+  lockInReleasedUntil_ = RebaseUiTimestamp(lockInReleasedUntil_, lastUiTime_, now);
   shortCopyUntil_ = RebaseUiTimestamp(shortCopyUntil_, lastUiTime_, now);
   roomUpdateUntil_ = RebaseUiTimestamp(roomUpdateUntil_, lastUiTime_, now);
   roomUpdateStarted_ = -1;
@@ -624,6 +629,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  }
  UpdateRoomTransitions(v,now);
  TrackLiveGames(v,now);
+ TrackLockIn(v,now);
  UpdateChat(v);
  const bool healthyRoom=UpdateRoomFeedback(v);
  UpdatePreferenceSave(v,submit);
