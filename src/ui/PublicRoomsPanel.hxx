@@ -3,6 +3,7 @@
 #include "MenuNavigation.hxx"
 #include "../netplay/PublicRooms.hxx"
 #include "../netplay/TournamentStatus.hxx"
+#include "../common/RoomRules.hxx"
 #include <functional>
 #include <optional>
 #include <set>
@@ -78,7 +79,8 @@ public:
     // Gives up waiting for the ticket or room in flight: its answer joins nothing.
     void Abandon();
     // Opens a public room: the new room's admission is joined when it arrives.
-    void Create(const std::string& name, int capacity);
+    // `rules` go with the new room's join, for the runtime to set on its tables.
+    void Create(const std::string& name, int capacity, const room::Rules& rules);
     // A create or ticket request is waiting to be sent or answered.
     bool Busy() const { return pending_.has_value(); }
     // What a pending request or refresh says on `screen`, and the list's own
@@ -122,6 +124,8 @@ private:
         netplay::tournament::Command command;
         bool sent = false;
         double sentAt = 0;
+        // A create's chosen table rules.
+        std::optional<room::Rules> createdRules;
     };
     // The room joined with an admission, kept while it is being opened and while
     // the player is in it. `seen`: the session has left Idle for it.
@@ -134,7 +138,7 @@ private:
     };
     void Begin(netplay::tournament::Command command);
     void AskForLink(const ShellView& view, bool identityPending);
-    void Joined(const ShellView& view, const Submit& submit, const netplay::tournament::Command& done, double now);
+    void Joined(const ShellView& view, const Submit& submit, const Pending& done, double now);
     void Say(std::string text) { said_ = std::move(text); }
     // Asks for the list again for the player: Updating... shows while it is in flight.
     void Refresh() { wantList_ = true; manualRefresh_ = true; said_.clear(); }

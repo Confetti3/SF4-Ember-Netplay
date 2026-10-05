@@ -162,6 +162,8 @@ static void ConcealApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& s
         sf4e::NetplayFacade::RuntimeCommand request;
         request.command = std::move(action.command);
         request.identity = std::move(action.identity);
+        request.publicTicket = std::move(action.publicTicket);
+        request.createdRules = action.createdRules;
         return sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request));
     });
 }
@@ -292,6 +294,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
         request.shortInvitation=action.shortInvitation;
         request.tournament = std::move(action.tournament);
         request.publicTicket = std::move(action.publicTicket);
+        request.createdRules = action.createdRules;
 		request.character = lobbyConditions;
 		request.character.charaID = static_cast<BYTE>(lobbyMenuCharaID);
 		request.stage = lobbyStageID;

@@ -362,7 +362,8 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 	if (command.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.command.invitation.size() > 4096 ||
 		command.preferences.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.roomAction.text.size() > room::MaximumChatBytes ||
 		command.preferences.roomName.size() > 64 || !command.identity.Valid() || !command.tournament.Valid() ||
-		command.publicTicket.size() > netplay::publicrooms::MaxTicketBytes) return false;
+		command.publicTicket.size() > netplay::publicrooms::MaxTicketBytes ||
+		(command.createdRules && !netplay::PlayerPreferences::ValidRules(*command.createdRules))) return false;
 	if (command.identity.op != netplay::IdentityOp::None) {
 		const auto bytes = sizeof(RuntimeCommand) + command.identity.Bytes();
 		return bridge::PushCommand(std::move(command), bytes);
@@ -594,6 +595,7 @@ void TickRuntime() {
 	ResolvePendingIntents(helperReady);
 	SettleRoomState(helperReady);
 	TickAutoDelay(helperReady);
+	TickCreatedRules(helperReady);
 	CallOutOpponentReady();
 	TakeJoinLink();
 	PublishAndTickDiscordInvite();

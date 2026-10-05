@@ -27,6 +27,7 @@
 #include "../session/RoomRecoveryRuntime.hxx"
 #include "../session/ReadyChime.hxx"
 #include "../netplay/AutoDelayCheck.hxx"
+#include "../netplay/CreatedRules.hxx"
 #include "../netplay/BoundedMailbox.hxx"
 #include "../netplay/MatchResultOutbox.hxx"
 #include "../netplay/MatchEndRules.hxx"
@@ -181,6 +182,9 @@ struct Runtime {
     platform::PublicRoomLinkMailbox publicRoomLinks;
     netplay::tournament::OpenedRoomLink openedRoomLink;
     netplay::AutoDelayCheck autoDelayCheck;
+    // The table rules chosen when creating a public room, set on its tables
+    // once the creator is in it as host (TickCreatedRules).
+    netplay::CreatedRules createdRules;
     session::RoomRecoveryRuntime recovery;
     std::uint64_t observedAuthorityTerm=0;
 	// A terminal receipt is released only after its local outcome has been
@@ -290,6 +294,7 @@ bool AutoDelayMeasured();
 // Auto is still measuring the seated opponent, so a Ready holds for it.
 bool AutoDelayMeasuring();
 void TickAutoDelay(bool helperReady);
+void TickCreatedRules(bool helperReady);
 
 // The match lifecycle (sf4e__NetplayRuntime__Match.cxx).
 void AbortLocalMatch(const char* reason, NoticeSeverity severity = NoticeSeverity::Error);

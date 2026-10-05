@@ -171,6 +171,8 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		// A lock-in the player asks for now is newer than a stream failure, so a
 		// release still waiting for it must not undo it.
 		runtime->spectatorLockRelease.Observe(command.roomAction);
+		// The host's own rules edit: whatever the created rules had left is theirs.
+		runtime->createdRules.ObservePlayer(command.roomAction);
 		// One parked action of each kind, and the newest press wins: an older
 		// one retried after this press would undo it (Queue, then Unqueue).
 		if (attempt == Attempt::Fresh) RoomActionIntent(command).Clear();
@@ -331,6 +333,12 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		// helper presents to the room host; a ticket that is not an object is no admission.
 		const auto ticket = command.publicTicket.empty() ? nlohmann::json() : nlohmann::json::parse(command.publicTicket, nullptr, false);
 		runtime->publicJoin = decision.effect == netplay::Effect::JoinInvite && !command.publicTicket.empty();
+		// Only the join of a public room just created carries rules for its tables.
+		if (runtime->publicJoin && command.createdRules) {
+			runtime->createdRules.Start(*command.createdRules, GetTickCount64());
+			spdlog::info("Room: created room rules armed format={} rotation={}",
+				static_cast<int>(command.createdRules->format), static_cast<int>(command.createdRules->rotation));
+		} else runtime->createdRules.Cancel("other_room");
 		const bool started = decision.effect == netplay::Effect::HostRoom ? runtime->room->Host(sf4e::sidecarHash) :
 			command.publicTicket.empty() ? runtime->room->Join(decision.invitation, sf4e::sidecarHash) :
 			ticket.is_object() && runtime->room->JoinPublic(decision.invitation, ticket, sf4e::sidecarHash);
@@ -513,6 +521,33 @@ void TickAutoDelay(bool helperReady) {
         !GetRuntimeSnapshotShared()->canProbe || !AutoCheckClear(peer,tableIndex)) return;
     const auto request=runtime->nextProbeRequest;
     if(RequestAutoCheck(peer,revision)) check.Asked(request);
+}
+
+// Sets the rules chosen on Create on the new room's tables, one at a time,
+// whether or not Ember is on screen (netplay::CreatedRules).
+void TickCreatedRules(bool helperReady) {
+    auto& rules=runtime->createdRules;
+    if(!rules.Active()) return;
+    const auto now=GetTickCount64();
+    if(!runtime->attached || !UserApp::netplay) {
+        // Not in the room (yet): only the wait for it is timed.
+        room::Action unused; rules.Next(room::Snapshot(),false,now,unused);
+        if(!rules.Active()) spdlog::info("Room: created room rules ended reason={}",rules.Ended());
+        return;
+    }
+    auto& client=UserApp::netplay->client;
+    const auto state=runtime->controller.GetSnapshot();
+    const bool canSend=helperReady && state.room==netplay::RoomState::Joined && state.control==netplay::Health::Healthy &&
+        state.recovery==netplay::Recovery::None && (!state.coordinated || state.authorityWritable) && !client.GetRoomSnapshot().closed;
+    room::Action action;
+    if(rules.Next(client.GetRoomSnapshot(),canSend,now,action)) {
+        std::uint64_t actionId=0;
+        if(client.SendRoomAction(action,&actionId)==session::SendResult::Queued) {
+            rules.Sent(action,now);
+            spdlog::info("Room: created room rules sent table={} revision={} action={}",action.table,action.tableRevision,actionId);
+        }
+    }
+    if(!rules.Active()) spdlog::info("Room: created room rules ended reason={}",rules.Ended());
 }
 
 void DrainCommands(bool helperReady) {
