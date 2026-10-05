@@ -756,7 +756,7 @@ private:
 	// Permit timers are not among them.
 	template <typename Visit> void ForEachTableTimer(Visit&& visit);
 	// A new room's clock starts at zero, like nowMs_; a restored one's is
-	// the checkpoint's time, or unknown when it was paused.
+	// the live checkpoint's permit clock, or unknown.
 	PermitTimers permits_ = {{}, 0, true};
 	std::array<std::vector<TerminalRecipient>, TableCount> activeMatchRecipients_;
 	static constexpr std::size_t MaximumTerminalReceipts = 64;

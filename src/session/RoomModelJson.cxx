@@ -63,6 +63,11 @@ nlohmann::json RoomAuthority::Checkpoint() const {
         {"chat_times", chatTimes}, {"actions", lastAcceptedActions_},
         {"kicked", kicked_}, {"time", recoveryPaused_ ? 0 : nowMs_}};
     state["snapshot"]["local_member"] = std::uint64_t(0);
+    // A live room's permit ages were counted to its permit clock, which can
+    // lag "time" after a resume on a lower clock. Only a held permit needs it.
+    const bool permitHeld = std::any_of(permits_.tables.begin(), permits_.tables.end(),
+        [](const PermitTimer& timer) { return timer.generation != 0; });
+    if (!recoveryPaused_ && permits_.clockKnown && permitHeld) state["permit_clock"] = permits_.clockMs;
     if (snapshot_.serverOwned) SaveServerOwned(state);
     if (state.dump().size() > MaximumCheckpointBytes) throw std::length_error("room checkpoint too large");
     return state;
@@ -126,12 +131,13 @@ bool RoomAuthority::RestoreCheckpoint(const nlohmann::json& state) {
             if (!restored.recoveryPaused_ && age > restored.nowMs_) return false;
             restored.startHeldSince_[i] = restored.recoveryPaused_ ? age : restored.nowMs_ - age;
         }
-        // A live room's permit ages run on from its time. A paused one's time
-        // belongs to no clock here, so they wait for this process's next
+        // A live room's permit ages run on from its permit clock. Without one,
+        // as in a paused room, they wait for this process's next
         // AgePermitHolds. A permit with no age (an older checkpoint) has run out.
         const auto permitAges = state.value("permit_age", json::array());
         if (!permitAges.is_array() || (!permitAges.empty() && permitAges.size() != TableCount)) return false;
-        restored.permits_ = {{}, restored.nowMs_, !restored.recoveryPaused_};
+        const bool permitClock = !restored.recoveryPaused_ && state.contains("permit_clock");
+        restored.permits_ = {{}, permitClock ? ReadU64(state, "permit_clock") : 0, permitClock};
         for (std::size_t i = 0; i < TableCount; ++i) {
             const auto& table = restored.snapshot_.tables[i];
             if (table.permitGeneration >= restored.nextMatchGeneration_) return false;
@@ -140,7 +146,7 @@ bool RoomAuthority::RestoreCheckpoint(const nlohmann::json& state) {
             if (!permitAges.empty() && !permitAges.at(i).is_number_unsigned()) return false;
             const auto age = permitAges.empty() ? MaximumPermitWindowMs : permitAges.at(i).get<std::uint64_t>();
             restored.permits_.tables[i] = {table.permitGeneration, (std::min)(age, MaximumPermitWindowMs),
-                restored.nowMs_, !restored.recoveryPaused_};
+                restored.permits_.clockMs, permitClock};
         }
         const auto parseRecipient = [&](const json& row, TerminalRecipient& recipient, bool allowMissingMember) {
             if (!row.is_object() || !row.contains("member") || !row.contains("endpoint") || !row.contains("incarnation") ||

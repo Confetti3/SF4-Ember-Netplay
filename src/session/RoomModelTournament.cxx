@@ -127,9 +127,11 @@ std::uint64_t RoomAuthority::PermitAgeAt(std::size_t table, std::uint64_t nowMs)
 void RoomAuthority::AgePermitHolds(std::uint64_t nowMs) {
 	for (std::size_t i = 0; i < TableCount; ++i) {
 		auto& timer = permits_.tables[i];
-		// A clock not past the last count adds nothing, and a held age waits.
-		if (!timer.generation || (timer.sampled && nowMs <= timer.sampleMs)) continue;
-		timer = {timer.generation, PermitAgeAt(i, nowMs), nowMs, true, 0};
+		if (!timer.generation) continue;
+		// A clock not past the last count adds nothing and leaves the sample
+		// where it was; a held age joins the count either way.
+		const auto sampleMs = timer.sampled && timer.sampleMs > nowMs ? timer.sampleMs : nowMs;
+		timer = {timer.generation, PermitAgeAt(i, nowMs), sampleMs, true, 0};
 	}
 	if (!permits_.clockKnown || nowMs > permits_.clockMs) permits_.clockMs = nowMs;
 	permits_.clockKnown = true;

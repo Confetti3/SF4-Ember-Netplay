@@ -380,7 +380,7 @@ static void TestRestoreKeepsPermitAge() {
 	}
 	{
 		// A held age past the window stops the start before anything ages it:
-		// 116 s committed, this replica's 30 s counted at 100 s, resumed at 100 s.
+		// 116 s committed, this replica's 30 s counted at 100 s.
 		auto newer = restore(stale);
 		newer->AgePermitHolds(1);
 		newer->AgePermitHolds(86001);
@@ -388,12 +388,34 @@ static void TestRestoreKeepsPermitAge() {
 		kept->AgePermitHolds(100000);
 		auto held = restore(newer->Checkpoint());
 		held->KeepPermitAges(kept->PermitAges());
-		held->ResumeRecovery(100000);
 		const auto agreed = held->Apply(b, Permit(*held, b, "per_one"));
 		CHECK(agreed.accepted && !HasEvent(agreed, Event::Kind::MatchReady));
 		CHECK(!held->BeginMatch(0, a, b).accepted && held->HasDueTimerTransition(100000));
 		held->AdvanceTime(100000);
 		CHECK(held->SnapshotView().tables[0].permitGeneration == 0);
+	}
+	// A held age joins the count when aged at the count's own time, with
+	// nothing added, and an earlier time leaves it there: 100 s committed over
+	// this replica's 30 s at 100 s, aged or resumed at 100 s, is 110 s at
+	// 110 s, and the missing permit's hold ends the start at 120 s.
+	for (const bool resume : {false, true}) {
+		auto newer = restore(stale);
+		newer->AgePermitHolds(1);
+		newer->AgePermitHolds(70001);
+		auto kept = restore(stale);
+		kept->AgePermitHolds(100000);
+		auto sameTime = restore(newer->Checkpoint());
+		sameTime->KeepPermitAges(kept->PermitAges());
+		if (resume) sameTime->ResumeRecovery(100000);
+		else sameTime->AgePermitHolds(100000);
+		sameTime->AgePermitHolds(100000);
+		sameTime->AgePermitHolds(90000);
+		const auto& timer = sameTime->PermitAges().tables[0];
+		CHECK(timer.ageMs == 100000 && timer.heldMs == 0 && timer.sampleMs == 100000);
+		sameTime->AgePermitHolds(110000);
+		CHECK(PermitAge(*sameTime) == 110000);
+		sameTime->AdvanceTime(120000);
+		CHECK(sameTime->SnapshotView().tables[0].permitGeneration == 0);
 	}
 	{
 		// Another reservation's age is neither carried nor charged to this one.
@@ -484,6 +506,24 @@ static void TestPermitClockIsTheOwners() {
 		CHECK(PermitAge(resumed) == 49000);
 		resumed.AdvanceTime(100000);
 		CHECK(resumed.SnapshotView().tables[0].permitGeneration == 0);
+	}
+	{
+		// A live checkpoint carries the permit clock, not the room's time
+		// ahead of it: restored, the age counts on from the owner's 1 s, and a
+		// permit given at 116 s starts nothing.
+		RoomAuthority resumed("Other", 8, 1);
+		CHECK(resumed.RestoreCheckpoint(checkpoint));
+		resumed.ResumeRecovery(1000);
+		RoomAuthority moved("Other", 8, 1);
+		CHECK(moved.RestoreCheckpoint(resumed.Checkpoint()));
+		moved.AdvanceTime(20000);
+		CHECK(PermitAge(moved) == 49000);
+		moved.AgePermitHolds(87000);
+		const auto agreed = moved.Apply(b, Permit(moved, b, "per_one"));
+		CHECK(agreed.accepted && !HasEvent(agreed, Event::Kind::MatchReady));
+		CHECK(!moved.BeginMatch(0, a, b).accepted);
+		moved.AdvanceTime(87000);
+		CHECK(moved.SnapshotView().tables[0].permitGeneration == 0);
 	}
 	{
 		// Paused again before that later tick, it still counts the time.
