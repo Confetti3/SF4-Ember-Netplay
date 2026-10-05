@@ -472,15 +472,6 @@ impl Actor {
                     && admission.primary_endpoint == self.endpoint.id()
                     && admission.incarnation == target_incarnation
             })
-            || !recovery
-                .probe_pair_bound(
-                    source_incarnation,
-                    target_incarnation,
-                    peer,
-                    self.endpoint.id(),
-                    pair_revision,
-                )
-                .await
         {
             // A refused frame closes the control it came on. A relayed one came
             // on the host's, which did not write it: it is dropped instead.
@@ -489,6 +480,11 @@ impl Actor {
             }
             return Err(failed("invalid probe reservation"));
         }
+        // The reservation needs its own committed entry and the committed
+        // seats that bind the pair at `pair_revision`. The source checked
+        // both on the leader; this replica may not have applied either yet,
+        // for example a check asked for the moment both seats fill.
+        let target = self.endpoint.id();
         let reserved = move |recovery: crate::recovery::RecoverySession| async move {
             recovery
                 .probe_reserved(
@@ -500,6 +496,15 @@ impl Actor {
                     expires,
                 )
                 .await
+                && recovery
+                    .probe_pair_bound(
+                        source_incarnation,
+                        target_incarnation,
+                        peer,
+                        target,
+                        pair_revision,
+                    )
+                    .await
         };
         if reserved(recovery.clone()).await {
             // This frame supersedes any older reservation of the peer
@@ -508,10 +513,10 @@ impl Actor {
             self.install_probe_permission(peer, request, pair_revision);
             return Ok(true);
         }
-        // The reservation's Raft entry has not reached this replica
-        // yet. Wait for it on a task instead of in the actor tick;
-        // its completion installs the permission or closes the
-        // control.
+        // The reservation's Raft entry or the seats that bind the pair have
+        // not reached this replica yet. Wait for them on a task instead of in
+        // the actor tick; its completion installs the permission or, still
+        // unapplied at PROBE_RESERVATION_TIMEOUT, closes the control.
         if self.tasks.len() >= MAX_TASKS {
             if relayed {
                 return Ok(true);
@@ -523,7 +528,11 @@ impl Actor {
             peer,
             // A relayed reservation that never applies closes nothing: the
             // host's control is not the route that vouched for it.
-            control: self.controls.get(&peer).map(ControlWorker::id).unwrap_or(0),
+            control: if relayed {
+                0
+            } else {
+                self.controls.get(&peer).map(ControlWorker::id).unwrap_or(0)
+            },
             request,
             pair_revision,
             expires,
