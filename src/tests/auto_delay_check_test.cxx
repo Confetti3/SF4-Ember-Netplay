@@ -76,6 +76,14 @@ static void RetryOnce() {
     again.Observe("a", 2, "checking", -1, settle + 100 + retry);
     again.Observe("a", 2, "complete", 3, settle + 100 + retry + 5000);
     CHECK(again.Measured("a") && again.Delay("a") == 3 && !again.Holding(settle + 100 + retry + 5000));
+    // A host handoff mid-check: the new term clears the room's check (no
+    // request, no status), and Auto asks once more while the hold lasts.
+    AutoDelayCheck handoff;
+    handoff.Seat("a", 10, 1, 0);
+    handoff.Asked(1);
+    handoff.Observe("a", 1, "checking", -1, settle);
+    handoff.Observe("", 0, "", -1, 3000);
+    CHECK(handoff.Holding(3000) && !handoff.Due(3000 + retry - 1) && handoff.Due(3000 + retry));
 }
 
 // Ready never waits on the check past HoldMs: a check that never answers, a
