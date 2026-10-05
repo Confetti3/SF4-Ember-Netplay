@@ -107,14 +107,96 @@ void RoomAuthority::ReservePermit(Table& table) {
 	table.permitGeneration = nextMatchGeneration_++;
 	table.permits = {};
 	table.permitWindows = {};
-	permitHeldSince_[table.id] = nowMs_;
+	permits_.tables[table.id] = {table.permitGeneration, 0, permits_.clockMs, permits_.clockKnown};
 }
 
 void RoomAuthority::ClearPermit(Table& table) {
 	table.permitGeneration = 0;
 	table.permits = {};
 	table.permitWindows = {};
-	permitHeldSince_[table.id] = 0;
+	permits_.tables[table.id] = {};
+}
+
+std::uint64_t RoomAuthority::PermitAgeAt(std::size_t table, std::uint64_t nowMs) const {
+	const auto& timer = permits_.tables[table];
+	const auto counted = timer.sampled && nowMs > timer.sampleMs
+		? AddCapped(timer.ageMs, nowMs - timer.sampleMs, MaximumPermitWindowMs) : timer.ageMs;
+	return (std::max)(counted, timer.heldMs);
+}
+
+void RoomAuthority::AgePermitHolds(std::uint64_t nowMs) {
+	for (std::size_t i = 0; i < TableCount; ++i) {
+		auto& timer = permits_.tables[i];
+		if (!timer.generation) continue;
+		// A clock not past the last count adds nothing and leaves the sample
+		// where it was; a held age joins the count either way.
+		const auto sampleMs = timer.sampled && timer.sampleMs > nowMs ? timer.sampleMs : nowMs;
+		timer.ageMs = PermitAgeAt(i, nowMs);
+		timer.sampleMs = sampleMs;
+		timer.sampled = true;
+		timer.heldMs = 0;
+	}
+	if (!permits_.clockKnown || nowMs > permits_.clockMs) permits_.clockMs = nowMs;
+	permits_.clockKnown = true;
+}
+
+void RoomAuthority::KeepPermitAges(const PermitTimers& kept) {
+	if (!recoveryPaused_) throw std::logic_error("permit ages kept on a live room");
+	for (std::size_t i = 0; i < TableCount; ++i) {
+		auto& timer = permits_.tables[i];
+		// Committed generations are never reused, so the same one is the same
+		// reservation. The caller keeps a candidate's own reservations out.
+		if (!timer.generation || kept.tables[i].generation != timer.generation) continue;
+		// This process's count goes on; the restored age is held, and the
+		// restored room says whether the game has begun.
+		const auto restored = (std::max)(timer.ageMs, timer.heldMs);
+		const auto windowMs = timer.windowMs;
+		timer = kept.tables[i];
+		timer.heldMs = (std::max)(timer.heldMs, restored);
+		timer.windowMs = windowMs;
+	}
+	if (!kept.clockKnown) return;
+	permits_.clockMs = kept.clockMs;
+	permits_.clockKnown = true;
+}
+
+std::uint64_t RoomAuthority::PermitWindow(const Table& table) {
+	std::uint64_t window = MaximumPermitWindowMs;
+	bool held = false;
+	for (std::size_t seat = 0; seat < 2; ++seat) {
+		if (table.permits[seat].empty()) continue;
+		held = true;
+		window = (std::min)(window, table.permitWindows[seat]);
+	}
+	return held ? window : 0;
+}
+
+bool RoomAuthority::PermitStartPassed(const Table& table, std::uint64_t ageMs) const {
+	if (!table.permitGeneration || std::all_of(table.permits.begin(), table.permits.end(),
+		[](const std::string& permit) { return permit.empty(); })) return false;
+	const auto window = PermitWindow(table);
+	return window <= PermitStartMarginMs || ageMs >= window - PermitStartMarginMs;
+}
+
+bool RoomAuthority::NativeStartPending(std::size_t table) const {
+	const auto& timer = permits_.tables[table];
+	const auto& value = snapshot_.tables[table];
+	return timer.windowMs && timer.generation && value.matchGeneration == timer.generation &&
+		(value.phase == TablePhase::Playing || value.phase == TablePhase::Paused);
+}
+
+bool RoomAuthority::NativeStartExpired(std::uint8_t table, std::uint64_t generation) const {
+	return table < TableCount && NativeStartPending(table) && permits_.tables[table].generation == generation &&
+		PermitAge(snapshot_.tables[table]) >= permits_.tables[table].windowMs;
+}
+
+void RoomAuthority::NativeStarted(std::uint8_t table, std::uint64_t generation) {
+	if (table < TableCount && permits_.tables[table].generation == generation && permits_.tables[table].windowMs)
+		permits_.tables[table] = {};
+}
+
+bool RoomAuthority::PermitCalledOff(const Table& table, std::uint64_t ageMs) const {
+	return table.permitGeneration && ((PermitPending(table) && ageMs >= PermitHoldMs) || PermitStartPassed(table, ageMs));
 }
 
 Result RoomAuthority::BindTournament(const TournamentBinding& binding) {
@@ -160,7 +242,7 @@ Result RoomAuthority::ApplyPermitReady(MemberId member, const Action& action, Ta
 	Touch(*table);
 	// A permit whose window has passed starts nothing: AdvanceTime calls the
 	// start off.
-	if (!PermitPending(*table) && !table->spectatorHold && !PermitStartPassed(*table, nowMs_))
+	if (!PermitPending(*table) && !table->spectatorHold && !PermitStartPassed(*table, PermitAge(*table)))
 		return Accept({Event{Event::Kind::MatchReady, table->id, table->matchGeneration, 0, MatchResult::Abort}});
 	return Accept();
 }

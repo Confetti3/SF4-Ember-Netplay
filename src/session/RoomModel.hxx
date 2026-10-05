@@ -569,23 +569,52 @@ public:
 	// result deadlines remain suspended until quorum and control return.
 	void AdvancePausedTimers(std::uint64_t elapsedMs);
 	// A permit's start window is the bridge's, so unlike the room's own
-	// deadlines it keeps running while coordination is lost. A paused replica
-	// ages its permit holds by the time since the last call (nowMs on this
-	// process's monotonic clock), healthy or not; AdvancePausedTimers leaves
-	// them alone.
-	void AgePermitHolds(std::uint64_t nowMs);
-	// Each table's permit generation and how long ago it was reserved, as of
-	// clockMs (AgePermitHolds' clock). A restore from a commit made before an
-	// outage would move that age back. KeepPermitAges holds the replaced
-	// authority's ages until the next AgePermitHolds, which brings them to that
-	// call's time and keeps the larger age for the same reservation; restoring
-	// again and again neither stops the window nor counts time twice.
-	struct PermitAgeList {
-		std::uint64_t clockMs = 0;
-		std::array<std::pair<std::uint64_t, std::uint64_t>, TableCount> tables = {};
+	// deadlines it keeps running while coordination is lost, and pausing and
+	// resuming leave it alone. Each table holding a permit has one timer: the
+	// generation it reserved, and its age as this process counts it, from
+	// sampleMs on its monotonic clock. An age a restored commit measured on
+	// another clock has no such time here: it counts from the next
+	// AgePermitHolds, as an unsampled age, or as heldMs where this process
+	// already counts the same reservation. The age at any time is the larger
+	// of the two, so both exports read it the same way. The timer outlives
+	// BeginMatch until the game natively starts: windowMs is then the shorter
+	// window of the two permits, and zero while the table still holds them.
+	struct PermitTimer {
+		std::uint64_t generation = 0;  // zero when the table holds no permit
+		std::uint64_t ageMs = 0;
+		std::uint64_t sampleMs = 0;
+		bool sampled = false;
+		std::uint64_t heldMs = 0;
+		std::uint64_t windowMs = 0;
 	};
-	PermitAgeList PermitAges() const;
-	void KeepPermitAges(const PermitAgeList& ages);
+	struct PermitTimers {
+		std::array<PermitTimer, TableCount> tables = {};
+		// The last time AgePermitHolds was given, where a new reservation's
+		// timer starts.
+		std::uint64_t clockMs = 0;
+		bool clockKnown = false;
+	};
+	// Brings every permit's age to nowMs on this process's monotonic clock.
+	// AdvanceTime and ResumeRecovery call it; a paused replica's owner calls it
+	// every tick, its coordination healthy or not.
+	void AgePermitHolds(std::uint64_t nowMs);
+	// The timers as they stand; a checkpoint carries their ages.
+	const PermitTimers& PermitAges() const { return permits_; }
+	// Called on a paused room just restored, with the timers of the room it
+	// replaced on this process; a live room throws std::logic_error. A held
+	// age therefore folds in before a room runs live again, so a live
+	// checkpoint, whose ages count from its permit clock, never carries one. The same reservation keeps this process's count and
+	// holds the restored age, so a commit made before an outage takes back no
+	// time this process saw, a newer commit's age is not counted twice, and
+	// restoring again and again, aged or not, loses nothing.
+	void KeepPermitAges(const PermitTimers& kept);
+	// A bound game begun but not natively started yet, whose permit window
+	// has run out since its generation was reserved. The start gate kept
+	// PermitStartMarginMs of the window for this preparation, so the native
+	// start may use all of it.
+	bool NativeStartExpired(std::uint8_t table, std::uint64_t generation) const;
+	// The game natively started: its permit timer has no more use.
+	void NativeStarted(std::uint8_t table, std::uint64_t generation);
 	void ResumeRecovery(std::uint64_t nowMs);
 	void SetMemberIncarnation(MemberId member, std::uint64_t incarnation);
 
@@ -631,13 +660,22 @@ private:
 	// A table deadline (ResultDisputeTimeoutMs, SpectatorStartHoldMs) that
 	// started at `since` has passed.
 	bool TimerDue(std::uint64_t since, std::uint64_t timeout, std::uint64_t nowMs) const;
-	// The permit's start window, less PermitStartMarginMs, has run out since
-	// the table's generation was reserved. A permit without a known window
-	// counts as run out.
-	bool PermitStartPassed(const Table& table, std::uint64_t nowMs) const;
+	// The table's permit age at nowMs, without moving its timer.
+	std::uint64_t PermitAgeAt(std::size_t table, std::uint64_t nowMs) const;
+	// Its age at the last time AgePermitHolds was given.
+	std::uint64_t PermitAge(const Table& table) const { return PermitAgeAt(table.id, permits_.clockMs); }
+	// The shorter window of the permits the table holds; zero with none.
+	static std::uint64_t PermitWindow(const Table& table);
+	// The permit's start window, less PermitStartMarginMs, has run out by the
+	// time the table's generation is ageMs old. A permit without a known
+	// window counts as run out.
+	bool PermitStartPassed(const Table& table, std::uint64_t ageMs) const;
+	// The table's begun game still waits for its native start under a permit,
+	// in play or paused over a result reported before that start.
+	bool NativeStartPending(std::size_t table) const;
 	// The start a bound table holds for its permit is called off: the permit
 	// never reached both fighters within PermitHoldMs, or its window passed.
-	bool PermitCalledOff(const Table& table, std::uint64_t nowMs) const;
+	bool PermitCalledOff(const Table& table, std::uint64_t ageMs) const;
 	// Ends every start hold whose spectators are back or whose deadline has
 	// passed, appending the MatchReady the hold deferred. Returns true when a
 	// table changed.
@@ -730,16 +768,13 @@ private:
 	std::array<MatchResult, TableCount> pendingResult_ = {};
 	std::array<std::uint64_t, TableCount> resultPendingSince_ = {};
 	std::array<std::uint64_t, TableCount> startHeldSince_ = {};
-	std::array<std::uint64_t, TableCount> permitHeldSince_ = {};
 	// Every running table deadline with its timeout, on the owner's monotonic
-	// clock. Recovery turns them into ages and back through this one list;
-	// `permits` false leaves out the permit holds.
-	template <typename Visit> void ForEachTableTimer(Visit&& visit, bool permits = true);
-	// The last AgePermitHolds time while paused; zero before the first.
-	std::uint64_t permitClockMs_ = 0;
-	// Ages kept across a restore, merged by the next AgePermitHolds.
-	PermitAgeList keptPermitAges_;
-	bool permitAgesKept_ = false;
+	// clock. Recovery turns them into ages and back through this one list.
+	// Permit timers are not among them.
+	template <typename Visit> void ForEachTableTimer(Visit&& visit);
+	// A new room's clock starts at zero, like nowMs_; a restored one's is
+	// the live checkpoint's permit clock, or unknown.
+	PermitTimers permits_ = {{}, 0, true};
 	std::array<std::vector<TerminalRecipient>, TableCount> activeMatchRecipients_;
 	static constexpr std::size_t MaximumTerminalReceipts = 64;
 	static constexpr std::size_t MaximumTerminalAckTombstones = 256;

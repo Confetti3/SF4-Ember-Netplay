@@ -298,7 +298,7 @@ int SessionServer::Step()
 				continue;
 			}
 			if (name == "game_prepared" || name == "game_ready") {
-				HandleMatchAcknowledgement(conn, msg);
+				HandleMatchAcknowledgement(conn, msg, deferredRoomEvents);
 				continue;
 			}
 			if (type == SessionProtocol::MT_FORWARD) {

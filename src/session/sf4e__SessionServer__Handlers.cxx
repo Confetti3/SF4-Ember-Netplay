@@ -240,13 +240,38 @@ void SessionServer::HandleRoomAction(session::Connection conn, const json& msg, 
 	}
 }
 
-void SessionServer::HandleMatchAcknowledgement(session::Connection conn, const json& msg) {
+void SessionServer::HandleMatchAcknowledgement(session::Connection conn, const json& msg,
+	std::vector<room::Event>& events) {
 	try {
 		if (_roomAuthority) {
 			const auto generation = msg.value("generation", std::uint64_t(0));
 			const auto table = RoomTableForGeneration(generation);
 			auto* authority = RoomMatchAuthority(table);
-			if (authority && !authority->Acknowledge(conn, msg, MatchSender())) _transportFailed = true;
+			if (!authority) return;
+			// A bound game whose permit window ran out during its preparation
+			// is called off at the next step toward its start, so game_start
+			// never goes out for it. A bound room seats its two fighters only,
+			// so no departure can start the game instead. A game_start proposed
+			// inside the window can still be committed after a same-term outage
+			// and start then: that delay is bounded only by the commit latency
+			// of its proposal. If no report arrives by start_by plus SILENT_SECS
+			// (30 minutes), the bridge's maintenance moves the attempt to
+			// review; reports after that are kept as evidence rather than
+			// reconciled automatically.
+			if (authority->Expects(conn, msg) && _roomAuthority->NativeStartExpired(table, generation)) {
+				if (!authority->End(MatchSender())) _transportFailed = true;
+				const auto ended = _roomAuthority->EndMatch(table, generation, room::MatchResult::Cancel);
+				if (!ended.accepted) { _transportFailed = true; return; }
+				_roomBattleLoaded[table].clear();
+				_roomPunchReady[table].clear();
+				_roomMatchData[table].Clear();
+				_dataDirty = true;
+				events.insert(events.end(), ended.events.begin(), ended.events.end());
+				return;
+			}
+			if (!authority->Acknowledge(conn, msg, MatchSender())) _transportFailed = true;
+			if (authority->GetPhase() == session::MatchAuthority::Phase::Started)
+				_roomAuthority->NativeStarted(table, generation);
 		} else if (_matchAuthority && !_matchAuthority->Acknowledge(conn, msg, MatchSender())) {
 			_transportFailed = true;
 		}

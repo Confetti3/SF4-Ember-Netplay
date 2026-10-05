@@ -18,6 +18,12 @@ constexpr std::uint64_t ResultDisputeTimeoutMs = 30000;
 template <typename T>
 bool InRange(T value, T low, T high) { return value >= low && value <= high; }
 
+// `value` plus `elapsed`, held at `maximum`: an age past its deadline only
+// needs to stay past it.
+inline std::uint64_t AddCapped(std::uint64_t value, std::uint64_t elapsed, std::uint64_t maximum) {
+	return value >= maximum || elapsed >= maximum - value ? maximum : value + elapsed;
+}
+
 inline bool IsValidUtf8(const std::string& text) {
 	const auto* bytes = reinterpret_cast<const unsigned char*>(text.data());
 	std::size_t i = 0;

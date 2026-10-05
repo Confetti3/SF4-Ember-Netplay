@@ -36,11 +36,19 @@ nlohmann::json RoomAuthority::Checkpoint() const {
         holdAges.push_back(!snapshot_.tables[i].spectatorHold ? std::uint64_t(0) : recoveryPaused_
             ? since : nowMs_ >= since ? nowMs_ - since : 0);
     }
-    json permitAges = json::array();
+    // Permit timers hold ages paused or not; their samples stay on this
+    // process. A begun game's timer carries its window as well, only when
+    // one waits for its native start.
+    json permitAges = json::array(), startWindows = json::array();
+    bool permitHeld = false, startPending = false;
     for (std::size_t i = 0; i < TableCount; ++i) {
-        const auto since = permitHeldSince_[i];
-        permitAges.push_back(!snapshot_.tables[i].permitGeneration ? std::uint64_t(0) : recoveryPaused_
-            ? since : nowMs_ >= since ? nowMs_ - since : 0);
+        const auto& timer = permits_.tables[i];
+        const bool pending = NativeStartPending(i);
+        const bool timed = snapshot_.tables[i].permitGeneration || pending;
+        permitHeld = permitHeld || timed;
+        startPending = startPending || pending;
+        permitAges.push_back(timed ? (std::max)(timer.ageMs, timer.heldMs) : std::uint64_t(0));
+        startWindows.push_back(pending ? timer.windowMs : std::uint64_t(0));
     }
     json activeRosters = json::array();
     for (const auto& roster : activeMatchRecipients_) {
@@ -63,6 +71,10 @@ nlohmann::json RoomAuthority::Checkpoint() const {
         {"chat_times", chatTimes}, {"actions", lastAcceptedActions_},
         {"kicked", kicked_}, {"time", recoveryPaused_ ? 0 : nowMs_}};
     state["snapshot"]["local_member"] = std::uint64_t(0);
+    // A live room's permit ages were counted to its permit clock, which can
+    // lag "time" after a resume on a lower clock. Only a held permit needs it.
+    if (!recoveryPaused_ && permits_.clockKnown && permitHeld) state["permit_clock"] = permits_.clockMs;
+    if (startPending) state["start_window"] = std::move(startWindows);
     if (snapshot_.serverOwned) SaveServerOwned(state);
     if (state.dump().size() > MaximumCheckpointBytes) throw std::length_error("room checkpoint too large");
     return state;
@@ -126,18 +138,34 @@ bool RoomAuthority::RestoreCheckpoint(const nlohmann::json& state) {
             if (!restored.recoveryPaused_ && age > restored.nowMs_) return false;
             restored.startHeldSince_[i] = restored.recoveryPaused_ ? age : restored.nowMs_ - age;
         }
-        // Older checkpoints carry no permit holds.
+        // A live room's permit ages run on from its permit clock. Without one,
+        // as in a paused room, they wait for this process's next
+        // AgePermitHolds. A permit with no age (an older checkpoint) has run out.
         const auto permitAges = state.value("permit_age", json::array());
         if (!permitAges.is_array() || (!permitAges.empty() && permitAges.size() != TableCount)) return false;
+        const bool permitClock = !restored.recoveryPaused_ && state.contains("permit_clock");
+        restored.permits_ = {{}, permitClock ? ReadU64(state, "permit_clock") : 0, permitClock};
+        // A begun game waiting for its native start keeps its window.
+        const auto startWindows = state.value("start_window", json::array());
+        if (!startWindows.is_array() || (!startWindows.empty() && startWindows.size() != TableCount)) return false;
         for (std::size_t i = 0; i < TableCount; ++i) {
             const auto& table = restored.snapshot_.tables[i];
             if (table.permitGeneration >= restored.nextMatchGeneration_) return false;
             if (table.permitGeneration && (!restored.snapshot_.tournament.Active() || i != TournamentTable)) return false;
-            if (!table.permitGeneration || permitAges.empty()) continue;
-            if (!permitAges.at(i).is_number_unsigned()) return false;
-            const auto age = permitAges.at(i).get<std::uint64_t>();
-            if (!restored.recoveryPaused_ && age > restored.nowMs_) return false;
-            restored.permitHeldSince_[i] = restored.recoveryPaused_ ? age : restored.nowMs_ - age;
+            std::uint64_t window = 0;
+            if (!startWindows.empty()) {
+                if (!startWindows.at(i).is_number_unsigned()) return false;
+                window = startWindows.at(i).get<std::uint64_t>();
+                if (window && (window > MaximumPermitWindowMs || table.permitGeneration ||
+                    (table.phase != TablePhase::Playing && table.phase != TablePhase::Paused) ||
+                    !table.matchGeneration || !restored.snapshot_.tournament.Active() || i != TournamentTable)) return false;
+            }
+            const auto generation = table.permitGeneration ? table.permitGeneration : window ? table.matchGeneration : 0;
+            if (!generation) continue;
+            if (!permitAges.empty() && !permitAges.at(i).is_number_unsigned()) return false;
+            const auto age = permitAges.empty() ? MaximumPermitWindowMs : permitAges.at(i).get<std::uint64_t>();
+            restored.permits_.tables[i] = {generation, (std::min)(age, MaximumPermitWindowMs),
+                restored.permits_.clockMs, permitClock, 0, window};
         }
         const auto parseRecipient = [&](const json& row, TerminalRecipient& recipient, bool allowMissingMember) {
             if (!row.is_object() || !row.contains("member") || !row.contains("endpoint") || !row.contains("incarnation") ||
