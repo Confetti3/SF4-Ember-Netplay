@@ -574,10 +574,16 @@ public:
 	// process's monotonic clock), healthy or not; AdvancePausedTimers leaves
 	// them alone.
 	void AgePermitHolds(std::uint64_t nowMs);
-	// Each table's permit generation and how long ago it was reserved. A
-	// restore from a commit made before an outage would move that age back;
-	// KeepPermitAges keeps the larger age for the same reservation.
-	using PermitAgeList = std::array<std::pair<std::uint64_t, std::uint64_t>, TableCount>;
+	// Each table's permit generation and how long ago it was reserved, as of
+	// clockMs (AgePermitHolds' clock). A restore from a commit made before an
+	// outage would move that age back. KeepPermitAges holds the replaced
+	// authority's ages until the next AgePermitHolds, which brings them to that
+	// call's time and keeps the larger age for the same reservation; restoring
+	// again and again neither stops the window nor counts time twice.
+	struct PermitAgeList {
+		std::uint64_t clockMs = 0;
+		std::array<std::pair<std::uint64_t, std::uint64_t>, TableCount> tables = {};
+	};
 	PermitAgeList PermitAges() const;
 	void KeepPermitAges(const PermitAgeList& ages);
 	void ResumeRecovery(std::uint64_t nowMs);
@@ -731,6 +737,9 @@ private:
 	template <typename Visit> void ForEachTableTimer(Visit&& visit, bool permits = true);
 	// The last AgePermitHolds time while paused; zero before the first.
 	std::uint64_t permitClockMs_ = 0;
+	// Ages kept across a restore, merged by the next AgePermitHolds.
+	PermitAgeList keptPermitAges_;
+	bool permitAgesKept_ = false;
 	std::array<std::vector<TerminalRecipient>, TableCount> activeMatchRecipients_;
 	static constexpr std::size_t MaximumTerminalReceipts = 64;
 	static constexpr std::size_t MaximumTerminalAckTombstones = 256;
