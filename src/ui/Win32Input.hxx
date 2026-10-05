@@ -5,6 +5,9 @@
 // Ember's addition to the vendored Win32 backend (src/ui/backends): with a
 // bridge, the window procedure's ImGui input is applied on the drawing thread.
 IMGUI_API void ImGui_ImplWin32_SetInputBridge(sf4e::ui::Win32InputBridge* bridge);
+// The size the game draws at, when it can differ from the window's client area:
+// ImGui then lays out in those pixels and the mouse is scaled to match. Zero: the client area.
+IMGUI_API void ImGui_ImplWin32_SetRenderSize(float width, float height);
 
 namespace sf4e { namespace ui {
 // Set before the Win32 backend's NewFrame as well as on visibility/focus changes.

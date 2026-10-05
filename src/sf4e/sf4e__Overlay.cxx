@@ -96,6 +96,18 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 	ImGui_ImplWin32_Init(hWnd);
 	s_inputBridge.RequestClear(); // nothing queued for a context that is gone
 	ImGui_ImplWin32_SetInputBridge(&s_inputBridge);
+	// The game draws at its resolution and Present stretches that over the window, whose
+	// client area can differ (a window the screen clips, a borderless tool, a
+	// 16:10 desktop). Laying out in the window's size put the match HUD's names below the
+	// PLAYER labels, so lay out in the backbuffer's. Each Reset initializes the overlay again.
+	IDirect3DSurface9* backBuffer = nullptr; D3DSURFACE_DESC backBufferDesc{};
+	if (SUCCEEDED(lpDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer)) && backBuffer) {
+		if (SUCCEEDED(backBuffer->GetDesc(&backBufferDesc)))
+			ImGui_ImplWin32_SetRenderSize(static_cast<float>(backBufferDesc.Width), static_cast<float>(backBufferDesc.Height));
+		backBuffer->Release();
+	}
+	RECT client{}; GetClientRect(hWnd, &client);
+	spdlog::info("Overlay: game draws at {}x{}, window client area {}x{}", backBufferDesc.Width, backBufferDesc.Height, client.right - client.left, client.bottom - client.top);
 	ImGui_ImplDX9_Init(lpDevice);
 	wchar_t gamePath[MAX_PATH] = {}, modulePath[MAX_PATH] = {};
 	HMODULE module = nullptr;

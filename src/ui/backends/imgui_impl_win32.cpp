@@ -117,6 +117,8 @@ struct ImGui_ImplWin32_Data
     std::atomic<ImGuiMouseCursor> LastMouseCursor;  // SF4 Ember: atomic, read by WM_SETCURSOR
     UINT32                      KeyboardCodePage;
     sf4e::ui::Win32InputBridge* InputBridge;        // SF4 Ember: see ImGui_ImplWin32_SetInputBridge
+    ImVec2                      RenderSize;         // SF4 Ember: see ImGui_ImplWin32_SetRenderSize
+    ImVec2                      MouseScale;         // SF4 Ember: client to display coordinates, this frame
 
 #ifndef IMGUI_IMPL_WIN32_DISABLE_GAMEPAD
     bool                        HasGamepad;
@@ -126,7 +128,7 @@ struct ImGui_ImplWin32_Data
     PFN_XInputGetState          XInputGetState;
 #endif
 
-    ImGui_ImplWin32_Data() : hWnd(), MouseHwnd(), MouseTrackedArea(0), MouseButtonsDown(), Time(), TicksPerSecond(), LastMouseCursor(0), KeyboardCodePage(), InputBridge() // SF4 Ember: no memset over atomics
+    ImGui_ImplWin32_Data() : hWnd(), MouseHwnd(), MouseTrackedArea(0), MouseButtonsDown(), Time(), TicksPerSecond(), LastMouseCursor(0), KeyboardCodePage(), InputBridge(), RenderSize(0, 0), MouseScale(1, 1) // SF4 Ember: no memset over atomics
 #ifndef IMGUI_IMPL_WIN32_DISABLE_GAMEPAD
         , HasGamepad(), WantUpdateHasGamepad(), XInputDLL(), XInputGetCapabilities(), XInputGetState()
 #endif
@@ -150,7 +152,9 @@ static ImGui_ImplWin32_Data* ImGui_ImplWin32_GetBackendData(ImGuiIO& io)
 static void ImGui_ImplWin32_Submit(ImGuiIO& io, const sf4e::ui::Win32Input& input)
 {
     ImGui_ImplWin32_Data* bd = (ImGui_ImplWin32_Data*)io.BackendPlatformUserData;
-    sf4e::ui::DeliverWin32Input(bd != nullptr ? bd->InputBridge : nullptr, io, input);
+    // Through a bridge the drawing thread scales the mouse when it applies the input.
+    sf4e::ui::Win32InputBridge* bridge = bd != nullptr ? bd->InputBridge : nullptr;
+    sf4e::ui::DeliverWin32Input(bridge, io, input, bridge == nullptr && bd != nullptr ? bd->MouseScale : ImVec2(1, 1));
 }
 static void ImGui_ImplWin32_SubmitKeyEvent(ImGuiIO& io, ImGuiKey key, bool down, int native_keycode)
 {
@@ -331,7 +335,7 @@ static void ImGui_ImplWin32_UpdateMouseData(ImGuiIO& io)
         // (Optional) Set OS mouse position from Dear ImGui if requested (rarely used, only when io.ConfigNavMoveSetMousePos is enabled by user)
         if (io.WantSetMousePos)
         {
-            POINT pos = { (int)io.MousePos.x, (int)io.MousePos.y };
+            POINT pos = { (int)(io.MousePos.x / bd->MouseScale.x), (int)(io.MousePos.y / bd->MouseScale.y) };
             if (::ClientToScreen(bd->hWnd, &pos))
                 ::SetCursorPos(pos.x, pos.y);
         }
@@ -342,7 +346,7 @@ static void ImGui_ImplWin32_UpdateMouseData(ImGuiIO& io)
         {
             POINT pos;
             if (::GetCursorPos(&pos) && ::ScreenToClient(bd->hWnd, &pos))
-                io.AddMousePosEvent((float)pos.x, (float)pos.y);
+                io.AddMousePosEvent((float)pos.x * bd->MouseScale.x, (float)pos.y * bd->MouseScale.y);
         }
     }
 }
@@ -411,14 +415,19 @@ void    ImGui_ImplWin32_NewFrame()
     IM_ASSERT(bd != nullptr && "Context or backend not initialized? Did you call ImGui_ImplWin32_Init()?");
     ImGuiIO& io = ImGui::GetIO();
 
-    // SF4 Ember: the window procedure's input, in the order it arrived.
-    if (bd->InputBridge != nullptr)
-        bd->InputBridge->ApplyTo(io);
-
     // Setup display size (every frame to accommodate for window resizing)
     RECT rect = { 0, 0, 0, 0 };
     ::GetClientRect(bd->hWnd, &rect);
-    io.DisplaySize = ImVec2((float)(rect.right - rect.left), (float)(rect.bottom - rect.top));
+    const ImVec2 client((float)(rect.right - rect.left), (float)(rect.bottom - rect.top));
+    // SF4 Ember: with a render size, ImGui lays out in the game's backbuffer pixels,
+    // which Present stretches over the client area, and the mouse is scaled to match.
+    const bool scaled = bd->RenderSize.x > 0 && bd->RenderSize.y > 0 && client.x > 0 && client.y > 0;
+    io.DisplaySize = scaled ? bd->RenderSize : client;
+    bd->MouseScale = scaled ? ImVec2(bd->RenderSize.x / client.x, bd->RenderSize.y / client.y) : ImVec2(1, 1);
+
+    // SF4 Ember: the window procedure's input, in the order it arrived.
+    if (bd->InputBridge != nullptr)
+        bd->InputBridge->ApplyTo(io, bd->MouseScale);
 
     // Setup time step
     INT64 current_time = 0;
@@ -818,6 +827,15 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandlerEx(HWND hwnd, UINT msg, WPA
     return 0;
 }
 
+
+// SF4 Ember: the size the game draws at, when it can differ from the window's
+// client area (zero: use the client area). The next NewFrame applies it.
+IMGUI_IMPL_API void ImGui_ImplWin32_SetRenderSize(float width, float height)
+{
+    ImGui_ImplWin32_Data* bd = ImGui_ImplWin32_GetBackendData();
+    if (bd != nullptr)
+        bd->RenderSize = ImVec2(width, height);
+}
 
 // SF4 Ember: set right after ImGui_ImplWin32_Init (see Win32InputBridge.hxx).
 IMGUI_IMPL_API void ImGui_ImplWin32_SetInputBridge(sf4e::ui::Win32InputBridge* bridge)

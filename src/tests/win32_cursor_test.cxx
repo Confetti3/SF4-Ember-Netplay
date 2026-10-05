@@ -4,6 +4,7 @@
 #include <imgui.h>
 #include <imgui_impl_win32.h>
 #include <atomic>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <thread>
@@ -194,6 +195,23 @@ int main() {
         check(captureChanges >= 50, "releasing the capture did not re-enter the window procedure");
         for (int i = 0; i < 1000 && ImGui::IsMouseDown(0); ++i) frame();
         check(!ImGui::IsMouseDown(0), "a release from the capturing window was lost");
+
+        // The game can draw at another size than its window's client area (a window the
+        // screen clips, a borderless tool, a 16:10 desktop). With that render size ImGui
+        // lays out in the game's pixels, and the mouse lands on what is drawn under it.
+        RECT client{}; GetClientRect(window, &client);
+        const float renderW = 1920, renderH = 1080;
+        ImGui_ImplWin32_SetRenderSize(renderW, renderH);
+        ImGui_ImplWin32_WndProcHandler(window, WM_MOUSEMOVE, 0, MAKELPARAM(100, 50));
+        frame();
+        check(io.DisplaySize.x == renderW && io.DisplaySize.y == renderH, "the render size did not become the display size");
+        const float wantX = 100 * renderW / client.right, wantY = 50 * renderH / client.bottom;
+        check(std::fabs(io.MousePos.x - wantX) < 1 && std::fabs(io.MousePos.y - wantY) < 1, "the mouse was not scaled to the render size");
+        ImGui_ImplWin32_SetRenderSize(0, 0);
+        ImGui_ImplWin32_WndProcHandler(window, WM_MOUSEMOVE, 0, MAKELPARAM(100, 50));
+        frame();
+        check(io.DisplaySize.x == client.right && io.DisplaySize.y == client.bottom, "without a render size the display is not the client area");
+        check(io.MousePos.x == 100 && io.MousePos.y == 50, "without a render size the mouse was scaled");
         ImGui_ImplWin32_SetInputBridge(nullptr);
     }
     SetCursor(previous);
