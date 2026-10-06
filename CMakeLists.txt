@@ -259,6 +259,15 @@ if(BUILD_TESTING)
     target_link_libraries(SelectionValueTest PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME SelectionValue COMMAND SelectionValueTest)
     set_tests_properties(SelectionValue PROPERTIES TIMEOUT 15)
+    add_executable(BcmFileTest "src/tests/bcm_file_test.cxx")
+    target_compile_features(BcmFileTest PRIVATE cxx_std_17)
+    target_link_libraries(BcmFileTest PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME BcmFile COMMAND BcmFileTest)
+    set_tests_properties(BcmFile PROPERTIES TIMEOUT 30)
+    add_executable(ClgFileTest "src/tests/clg_file_test.cxx")
+    target_compile_features(ClgFileTest PRIVATE cxx_std_17)
+    add_test(NAME ClgFile COMMAND ClgFileTest)
+    set_tests_properties(ClgFile PROPERTIES TIMEOUT 60)
 endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_locales.cmake")
@@ -405,6 +414,8 @@ add_library(Dimps STATIC
     "src/Dimps/Dimps__Game__Battle__System.cxx"
     "src/Dimps/Dimps__Game__Battle__Training.hxx"
     "src/Dimps/Dimps__Game__Battle__Training.cxx"
+    "src/Dimps/Dimps__Game__Battle__Trial.hxx"
+    "src/Dimps/Dimps__Game__Battle__Trial.cxx"
     "src/Dimps/Dimps__Game__Battle__Vfx.hxx"
     "src/Dimps/Dimps__Game__Battle__Vfx.cxx"
     "src/Dimps/Dimps__GameEvents.hxx"

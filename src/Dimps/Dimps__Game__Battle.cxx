@@ -10,6 +10,7 @@
 #include "Dimps__Game__Battle__Hud.hxx"
 #include "Dimps__Game__Battle__System.hxx"
 #include "Dimps__Game__Battle__Training.hxx"
+#include "Dimps__Game__Battle__Trial.hxx"
 #include "Dimps__Game__Battle__Vfx.hxx"
 #include "Dimps__Platform.hxx"
 
@@ -67,6 +68,7 @@ void Battle::Locate(HMODULE peRoot) {
 	SoundUnit::Locate(peRoot);
 	System::Locate(peRoot);
 	Training::Locate(peRoot);
+	Trial::Locate(peRoot);
 	Vfx::Locate(peRoot);
 }
 
