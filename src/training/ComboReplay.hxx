@@ -10,6 +10,7 @@
 // cancelled move for the hit to land. The game decides what comes out.
 namespace sf4e { namespace combo {
 constexpr unsigned Up = 1, Down = 2, Left = 4, Right = 8;
+constexpr int FollowDelay = 10;
 inline unsigned DirectionBits(char digit, bool facingRight) {
     const unsigned f = facingRight ? Right : Left, b = facingRight ? Left : Right;
     switch (digit) {
@@ -63,8 +64,10 @@ inline std::vector<training::Input> Synthesize(const std::vector<std::string>& s
         if (step.air) { push(DirectionBits('8', facingRight), 2); push(0, 10); }
         unsigned last = 0;
         const bool link = index && !step.cancel && !timed;
-        // A follow-up goes a few frames into the move before it, no cue.
-        if (step.follow && index && !timed) push(0, (std::max)(0, 2 + timing));
+        // A follow-up goes into the move before it with no cue, far enough in
+        // for the move to take it: El Fuerte's run takes its stop from about
+        // its sixth frame, measured in play at this delay. "@" moves it.
+        if (step.follow && index && !timed) push(0, (std::max)(0, FollowDelay + timing));
         if (timed) {
             int lead = 0;
             for (std::size_t i = 0; i < motion.size(); ++i) lead += step.charge && i == 0 ? 50 : step.cancel ? 2 : 3;

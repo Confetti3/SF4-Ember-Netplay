@@ -48,7 +48,7 @@ int main() {
         for (const auto& frame : follow) CHECK(!frame.wait);
         std::size_t press = 0;
         while (press < follow.size() && follow[press].raw != LP) ++press;
-        CHECK(press == 19 && follow[12].raw == 0);
+        CHECK(press == 19 + FollowDelay - 2 && follow[12].raw == 0);
     }
 // A timing offset rides on any move and is kept in its canonical form.
     CHECK(ParseStep("cr.MK@-1", step, error) && step.offset == -1 && Canonical(step) == "2MK@-1");

@@ -72,7 +72,7 @@ Open the training controls (F6) and select **Combo creator**. Combos are stored 
 
 ### Write a combo
 
-Pick the fighter, type a name and the moves, then **Add combo**. Moves are separated by `>` or `,`; `xx` before a move means it cancels the one before it, `~` that it is a follow-up pressed a few frames into it with no hit to wait for (a run's stop), otherwise it links. Notation is numpad or prefix style, any case:
+Pick the fighter, type a name and the moves, then **Add combo**. Moves are separated by `>` or `,`; `xx` before a move means it cancels the one before it, `~` that it is a follow-up pressed about ten frames into it with no hit to wait for (a run's stop; `@N` moves it), otherwise it links. Notation is numpad or prefix style, any case:
 
 ```
 [xx|~] [j.|cr.|st.|cl.|far.] [motion] [buttons] [(mash)] [#N] [@N]
