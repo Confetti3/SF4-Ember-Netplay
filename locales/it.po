@@ -652,6 +652,15 @@ msgstr "Lo aggiunge all'elenco dei replay del gioco e apre il registro degli inc
 msgid "replays.row_detail"
 msgstr "Seleziona per aggiungerlo all'elenco dei replay del gioco, o per aggiungerlo e guardarlo ora."
 
+msgid "replays.watched"
+msgstr "Visto"
+
+msgid "replays.spectated"
+msgstr "Da spettatore"
+
+msgid "replays.watched_spectated"
+msgstr "Visto, da spettatore"
+
 msgid "replays.not_ready"
 msgstr "Disponibile nel menu principale, fuori da una partita."
 

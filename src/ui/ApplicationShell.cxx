@@ -304,8 +304,9 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   rows.push_back(Row("replay-log",loc::T("replays.open_log"),loc::T(idle?"replays.open_log_detail":"replays.open_log_room"),idle&&v.replaysReady));
   if(v.replays.empty())rows.push_back(InfoRow("replay-none",loc::T("replays.empty"),"",loc::T("replays.empty_detail")));
   for(std::size_t i=0;i<v.replays.size();i++){rows.push_back(Row("replay-"+std::to_string(i),v.replays[i].label,loc::T(v.replaysReady?"replays.row_detail":"replays.not_ready"),v.replaysReady));
-   // The label carries the players' own names.
+   // The label carries the players' own names. The value says what Ember knows about it.
    rows.back().userText=true;for(const auto& name:v.replays[i].names)NoteUserText(name);
+   rows.back().value=v.replays[i].watched&&v.replays[i].spectated?loc::T("replays.watched_spectated"):v.replays[i].watched?loc::T("replays.watched"):v.replays[i].spectated?loc::T("replays.spectated"):"";
    // Select asks: add it to the game's list, or add it and go straight to the battle log.
    rows.back().choices={{"watch",loc::T("replays.watch"),loc::T("replays.watch_detail"),idle},{"add",loc::T("replays.add"),loc::T("replays.add_detail")}};
    rows.back().chosen=idle?"watch":"add";}

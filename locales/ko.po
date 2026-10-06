@@ -652,6 +652,15 @@ msgstr "게임의 리플레이 목록에 추가하고 배틀 로그를 엽니다
 msgid "replays.row_detail"
 msgstr "선택하여 게임의 리플레이 목록에 추가하거나, 추가하고 지금 봅니다."
 
+msgid "replays.watched"
+msgstr "시청함"
+
+msgid "replays.spectated"
+msgstr "관전"
+
+msgid "replays.watched_spectated"
+msgstr "시청함, 관전"
+
 msgid "replays.not_ready"
 msgstr "매치 중이 아닌 메인 메뉴에서 사용할 수 있습니다."
 

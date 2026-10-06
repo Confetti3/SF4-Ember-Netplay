@@ -652,6 +652,15 @@ msgstr "Adds it to the game's replay list and opens the battle log, where it is 
 msgid "replays.row_detail"
 msgstr "Select to add it to the game's replay list, or to add it and watch it now."
 
+msgid "replays.watched"
+msgstr "Watched"
+
+msgid "replays.spectated"
+msgstr "Spectated"
+
+msgid "replays.watched_spectated"
+msgstr "Watched, spectated"
+
 msgid "replays.not_ready"
 msgstr "Available at the main menu, outside a match."
 

@@ -141,6 +141,24 @@ inline RecordInfo ReadRecordInfo(const std::uint8_t* record) {
 	return info;
 }
 
+// An export built from a replay file and the 121 bytes of its slot record
+// from the used flag on, which is what usf4-replay-saver keeps beside each
+// replay (its .index/<crc>.entry). The slot number is left for Import to
+// set and the slot's two bytes are the ones every saved slot has. False
+// when the entry does not describe this replay.
+inline bool ExportFromReplay(const Bytes& replay, const Bytes& entry, Bytes& out) {
+	if (entry.size() < kRecordBytes - 4) return false;
+	Bytes record(kRecordBytes, 0);
+	std::memcpy(record.data() + 4, entry.data(), kRecordBytes - 4);
+	if (!record[4] || replay.size() < 4 || replay.size() > kLargestReplay || std::memcmp(replay.data(), "#BRP", 4) ||
+		ReadU32(record.data() + 9) != replay.size() || ReadU32(record.data() + 5) != Crc32(replay.data(), replay.size())) return false;
+	out.assign(kExportMagic, kExportMagic + 8);
+	out.insert(out.end(), record.begin(), record.end());
+	out.push_back(0x0E); out.push_back(0x0E);
+	out.insert(out.end(), replay.begin(), replay.end());
+	return true;
+}
+
 // The slot a new replay goes into among first to last, the way the game picks
 // one (0x67B830): the first empty slot, else the one saved longest ago. -1
 // when no slot in the range has a record.

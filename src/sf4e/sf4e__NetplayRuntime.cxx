@@ -273,6 +273,14 @@ void StartHelper() {
         if (length && length < sizeof(text)) OpenConnectLink(std::string(text, length), true);
         if (!runtime->connectLinks.Open()) spdlog::warn("Tournament: Discord connect links from the browser cannot reach this game");
     }
+    {
+        // A replay link likewise: the file's path.
+        char text[1100] = {};
+        const DWORD length = GetEnvironmentVariableA("SF4E_REPLAY_LINK", text, sizeof(text));
+        SetEnvironmentVariableA("SF4E_REPLAY_LINK", nullptr);
+        if (length && length < sizeof(text)) OpenReplayLink(std::string(text, length));
+        if (!runtime->replayLinks.Open()) spdlog::warn("Replays: replay links cannot reach this game");
+    }
 	runtime->preferences.inputDelay = GetConfig().inputDelay;
 	runtime->preferences.lobby.editionSelect = GetConfig().editionSelect != 0;
 	runtime->preferences.lobby.roundCount = GetConfig().roundCount;
@@ -587,6 +595,7 @@ void TickRuntime() {
 	DrainCommands(helperReady);
 	DrainRoomEvents();
 	TickTournament(helperReady);
+	TickReplayLink();
 	PersistTerminalOutcome();
 	DrainActionReplies();
 	RetryPendingAbort();

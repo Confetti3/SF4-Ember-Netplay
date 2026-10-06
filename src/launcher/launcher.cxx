@@ -35,6 +35,7 @@
 #include "../common/CrashDump.hxx"
 #include "../common/CrashReport.hxx"
 #include "../platform/ReplayFiles.hxx"
+#include "../common/ReplayLink.hxx"
 #include "../common/sf4e__NetplayConfig.hxx"
 #include "../common/install_paths.hxx"
 #include "../common/Localization.hxx"
@@ -590,11 +591,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         sf4e::tournament_link::ParseRoomLink(joinUri);
     const std::string connectBridge = joinUri.empty() || !joinCode.empty() || matchLink.Valid() || publicRoomLink.Valid() ? std::string() :
         sf4e::tournament_link::ParseConnectLink(joinUri);
+    // A replay link names an archived replay to play (common/ReplayLink.hxx).
+    const std::string replayLink = joinUri.empty() || !joinCode.empty() || matchLink.Valid() || publicRoomLink.Valid() || !connectBridge.empty() ? std::string() :
+        sf4e::replay_link::ParseReplayLink(joinUri);
     if (!joinCode.empty()) spdlog::info("Started with a room link");
     else if (matchLink.Valid()) spdlog::info("Started with a link to tournament match {}", matchLink.matchId);
     else if (publicRoomLink.Valid()) spdlog::info("Started with a public room link");
     else if (!connectBridge.empty()) spdlog::info("Started with a link to connect Discord on service {}", connectBridge);
-    else if (!joinUri.empty()) spdlog::info("Ignored a link that is not an Ember room, tournament match, public room or Discord connect link");
+    else if (!replayLink.empty()) spdlog::info("Started with a link to a replay");
+    else if (!joinUri.empty()) spdlog::info("Ignored a link that is not an Ember room, tournament match, public room, Discord connect or replay link");
     sf4e::WipeText(joinUri);
     sf4e::platform::LauncherInstance instance;
     std::wstring chosenDirectory;
@@ -630,6 +635,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // where the player decides.
         if (!connectBridge.empty() && sf4e::platform::DeliverConnectLink(connectBridge)) {
             spdlog::info("Handed the Discord connect link to the running game");
+            return 0;
+        }
+        // A replay link goes to the running game, which plays it from its main menu.
+        if (!replayLink.empty() && sf4e::platform::DeliverReplayLink(replayLink)) {
+            spdlog::info("Handed the replay link to the running game");
             return 0;
         }
         // A Discord invite reaches the running copy, so a second start for it
@@ -682,6 +692,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // A connect link as the service's ID.
     SetEnvironmentVariableW(L"SF4E_CONNECT_LINK", connectBridge.empty() ? nullptr :
         sf4e::platform::Utf8ToWide(connectBridge.c_str()).c_str());
+    // A replay link as the file's path.
+    SetEnvironmentVariableW(L"SF4E_REPLAY_LINK", replayLink.empty() ? nullptr :
+        sf4e::platform::Utf8ToWide(replayLink.c_str()).c_str());
     // A folder picked in recovery on an earlier launch comes before the search.
     sf4e::launcher::RememberedFolder remembered{sf4e::platform::Utf8ToWide(settings.gameDirectory.c_str())};
     const auto exists = [](const std::wstring& path) { return PathFileExistsW(path.c_str()) != FALSE; };

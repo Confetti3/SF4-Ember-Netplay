@@ -220,7 +220,24 @@ static void TestRecordInfoReadsTheMenuFields() {
 	CHECK(ReadRecordInfo(record).fighters[0] == -1);
 }
 
+static void TestExportFromASaverReplayAndEntry() {
+	Bytes list = EmptyList(), swan = EmptySwan();
+	const Bytes replay = Replay(0x55, 7000);
+	Fill(list, swan, 303, replay, 0xD4);
+	const std::uint8_t* record = Record(list, swan, 303);
+	const Bytes entry(record + 4, record + kRecordBytes); // what the saver keeps
+	Bytes exported;
+	CHECK(ExportFromReplay(replay, entry, exported));
+	Bytes replayBack;
+	CHECK(Import(exported, 290, 1700000000, list, swan, replayBack));
+	CHECK(replayBack == replay && ReadSlot(list, swan, 290).used);
+	CHECK(Record(list, swan, 290)[71] == 0xD4 && Record(list, swan, 290)[kRecordBytes - 3] == 0xD4);
+	CHECK(!ExportFromReplay(Replay(0x56, 7000), entry, exported)); // another replay
+	CHECK(!ExportFromReplay(replay, Bytes(entry.begin(), entry.end() - 1), exported));
+}
+
 int main() {
+	TestExportFromASaverReplayAndEntry();
 	TestRecordInfoReadsTheMenuFields();
 	TestCrcIsTheOneTheGameWrites();
 	TestIndexValidity();

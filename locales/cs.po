@@ -652,6 +652,15 @@ msgstr "Přidá do seznamu záznamů hry a otevře záznam zápasů, kde je naho
 msgid "replays.row_detail"
 msgstr "Vyberte pro přidání do seznamu záznamů hry, nebo pro přidání a přehrání teď."
 
+msgid "replays.watched"
+msgstr "Zhlédnuto"
+
+msgid "replays.spectated"
+msgstr "Jako divák"
+
+msgid "replays.watched_spectated"
+msgstr "Zhlédnuto, jako divák"
+
 msgid "replays.not_ready"
 msgstr "Dostupné v hlavním menu, mimo zápas."
 

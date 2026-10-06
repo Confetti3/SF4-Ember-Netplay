@@ -652,6 +652,15 @@ msgstr "Fügt es der Replay-Liste des Spiels hinzu und öffnet das Kampfprotokol
 msgid "replays.row_detail"
 msgstr "Wähle, um es der Replay-Liste des Spiels hinzuzufügen, oder um es hinzuzufügen und jetzt anzusehen."
 
+msgid "replays.watched"
+msgstr "Gesehen"
+
+msgid "replays.spectated"
+msgstr "Zugeschaut"
+
+msgid "replays.watched_spectated"
+msgstr "Gesehen, zugeschaut"
+
 msgid "replays.not_ready"
 msgstr "Verfügbar im Hauptmenü, außerhalb eines Matches."
 

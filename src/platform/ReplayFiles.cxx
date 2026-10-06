@@ -109,7 +109,18 @@ bool ImportFile(const fs::path& file, const Writer& write, Imported& out) {
 		}
 		slots::Bytes list = LoadFile(saves / L"LIST"), swan = LoadFile(saves / L"replays-swan.dat"), replay;
 		const int slot = slots::SlotToReplace(list, swan, kFirstMatchSlot, kLastMatchSlot);
-		if (slot < 0 || !slots::Import(LoadFile(file), slot, static_cast<std::uint32_t>(_time64(nullptr)), list, swan, replay)) {
+		slots::Bytes exported = LoadFile(file);
+		// usf4-replay-saver keeps the game's replay as it is and the slot
+		// record beside it, in .index/<crc>.entry.
+		if (exported.size() >= 4 && !std::memcmp(exported.data(), "#BRP", 4)) {
+			wchar_t crc[16] = { 0 };
+			StringCchPrintfW(crc, 16, L"%08x", slots::Crc32(exported.data(), exported.size()));
+			const slots::Bytes entry = LoadFile(file.parent_path() / L".index" / (std::wstring(crc) + L".entry"));
+			slots::Bytes built;
+			if (!slots::ExportFromReplay(exported, entry, built)) { spdlog::warn(L"Replays: {} has no slot record beside it", file.c_str()); return false; }
+			exported = std::move(built);
+		}
+		if (slot < 0 || !slots::Import(exported, slot, static_cast<std::uint32_t>(_time64(nullptr)), list, swan, replay)) {
 			spdlog::warn(L"Replays: {} is not a replay Ember can import, or the save index is damaged", file.c_str());
 			return false;
 		}
@@ -122,6 +133,7 @@ bool ImportFile(const fs::path& file, const Writer& write, Imported& out) {
 		out.slot = slot;
 		out.record.assign(record, record + slots::kRecordBytes);
 		out.slotBytes.assign(swan.begin() + slots::kSwanSlotBytesOffset + slot * 2, swan.begin() + slots::kSwanSlotBytesOffset + slot * 2 + 2);
+		out.replay = std::move(replay);
 		spdlog::info(L"Replays: imported {} into slot {}", file.c_str(), slot);
 		return true;
 	}
@@ -131,22 +143,41 @@ bool ImportFile(const fs::path& file, const Writer& write, Imported& out) {
 	}
 }
 
-void NoteMatchStart(const std::string& p1, const std::string& p2) {
+void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating) {
 	try {
 		const Folders folders = FindFolders();
 		if (folders.archive.empty()) return;
 		std::error_code ignored;
 		fs::create_directories(folders.archive, ignored);
 		std::ofstream out(folders.archive / L"matches.jsonl", std::ios::app);
-		out << nlohmann::json{{"started", static_cast<std::uint64_t>(_time64(nullptr))}, {"p1", p1}, {"p2", p2}}.dump() << '\n';
+		out << nlohmann::json{{"started", static_cast<std::uint64_t>(_time64(nullptr))}, {"p1", p1}, {"p2", p2}, {"spectated", spectating}}.dump() << '\n';
 	}
 	catch (const std::exception& e) {
 		spdlog::warn("Replays: the match's names were not noted: {}", e.what());
 	}
 }
 
+void MarkWatched(const fs::path& file) {
+	try {
+		const Folders folders = FindFolders();
+		if (folders.archive.empty()) return;
+		std::ofstream out(folders.archive / L"watched.txt", std::ios::app);
+		out << file.filename().string() << '\n';
+	}
+	catch (const std::exception& e) {
+		spdlog::warn("Replays: the watched list was not written: {}", e.what());
+	}
+}
+
 namespace {
-struct NotedMatch { std::uint64_t started; std::string names[2]; };
+struct NotedMatch { std::uint64_t started; std::string names[2]; bool spectated; };
+
+std::vector<std::string> WatchedNames(const fs::path& archive) {
+	std::vector<std::string> names;
+	std::ifstream in(archive / L"watched.txt");
+	for (std::string line; std::getline(in, line);) if (!line.empty()) names.push_back(line);
+	return names;
+}
 
 std::vector<NotedMatch> NotedMatches(const fs::path& archive) {
 	std::vector<NotedMatch> matches;
@@ -154,7 +185,7 @@ std::vector<NotedMatch> NotedMatches(const fs::path& archive) {
 	for (std::string line; std::getline(in, line);) {
 		const auto json = nlohmann::json::parse(line, nullptr, false);
 		if (!json.is_object() || !json.contains("started")) continue;
-		matches.push_back({json.value("started", std::uint64_t(0)), {json.value("p1", ""), json.value("p2", "")}});
+		matches.push_back({json.value("started", std::uint64_t(0)), {json.value("p1", ""), json.value("p2", "")}, json.value("spectated", false)});
 	}
 	return matches;
 }
@@ -165,6 +196,7 @@ std::vector<ArchivedReplay> ListArchive() {
 	const Folders folders = FindFolders();
 	if (folders.archive.empty()) return archived;
 	const std::vector<NotedMatch> noted = NotedMatches(folders.archive);
+	const std::vector<std::string> watched = WatchedNames(folders.archive);
 	std::error_code ignored;
 	for (const auto& entry : fs::directory_iterator(folders.archive, ignored)) {
 		const std::wstring name = entry.path().filename().wstring();
@@ -187,7 +219,8 @@ std::vector<ArchivedReplay> ListArchive() {
 		const NotedMatch* match = nullptr;
 		for (const NotedMatch& candidate : noted)
 			if (candidate.started <= replay.time + 120 && replay.time < candidate.started + 3600 && (!match || candidate.started > match->started)) match = &candidate;
-		if (match) { replay.names[0] = match->names[0]; replay.names[1] = match->names[1]; }
+		if (match) { replay.names[0] = match->names[0]; replay.names[1] = match->names[1]; replay.spectated = match->spectated; }
+		replay.watched = std::find(watched.begin(), watched.end(), entry.path().filename().string()) != watched.end();
 		archived.push_back(replay);
 	}
 	std::sort(archived.begin(), archived.end(), [](const ArchivedReplay& a, const ArchivedReplay& b) { return a.time > b.time; });

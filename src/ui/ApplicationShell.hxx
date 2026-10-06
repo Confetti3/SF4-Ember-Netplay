@@ -110,7 +110,7 @@ struct ShellView {
     // is a path for the import action and a label for its row. replaysReady
     // when one can be put into the game's replay list right now, and the
     // outcome of the last import as a notice (an error when it failed).
-    struct Replay { std::string path, label, names[2]; };
+    struct Replay { std::string path, label, names[2]; bool spectated = false, watched = false; };
     std::vector<Replay> replays;
     bool replaysReady = false;
     std::string replayNotice;

@@ -160,6 +160,22 @@ bool fMainMenu::OpenLocalBattleLog() {
 	return true;
 }
 
+bool fMainMenu::LeaveLocalBattleLog() {
+	rRootEvent* const root = Dimps::App::GetRootEvent();
+	if (!root) return false;
+	char* query[1] = { const_cast<char*>("LocalBattleLog") };
+	auto* const log = reinterpret_cast<std::uint8_t*>(EventBaseWithEC::FindForegroundEvent(root, query, 1));
+	if (!log) return false;
+	// The battle log's listener leaves through the flow object at the
+	// event's +8: vtable +0x9C (row, 0, 0, 0, 1).
+	struct Flow { void Request(int row, int, int, int, int); };
+	Flow* const flow = *reinterpret_cast<Flow**>(log + 8);
+	void (Flow::* request)(int, int, int, int, int);
+	*reinterpret_cast<PVOID*>(&request) = (*reinterpret_cast<PVOID**>(flow))[0x9C / 4];
+	(flow->*request)(1, 0, 0, 0, 1);
+	return true;
+}
+
 void fMainMenu::Install() {
 	int (fMainMenu:: * _fGetItemObserverState)() = &GetItemObserverState;
 	void (fMainMenu:: * _fOnModeSelected)(int) = &OnModeSelected;
