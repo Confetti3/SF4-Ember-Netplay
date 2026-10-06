@@ -54,6 +54,7 @@ struct Pick {
 // variants, and newer costumes also expose the numbered palettes 13 through 22.
 struct Availability {
     bool ready = false;
+    // Costumes the player's Steam licences cover. Bit 0 is the fighter itself.
     std::uint32_t costumes = 0;
     std::array<std::uint32_t, 8> colors{};
     std::uint16_t personalActions = 0;
@@ -74,6 +75,8 @@ std::vector<UltraCommand> UltraCommands(int fighterId, int ultraId, int editionI
 // Facing-neutral short notation for a token string: "236 236 + PPP" is
 // "QCF x2 + PPP", "~4 6 4 6 + KKK" is "Charge B, F, B, F + KKK".
 std::string UltraNotation(const std::string& tokens);
+// The player does not own this fighter. Unknown availability is not locked.
+bool FighterLocked(const Availability& availability);
 std::vector<int> AllowedCostumes(int fighterId, const Availability& availability);
 std::vector<int> AllowedColors(int fighterId, int costumeId, const Availability& availability);
 std::vector<int> AllowedPersonalActions(const Availability& availability);

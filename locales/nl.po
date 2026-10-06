@@ -1408,6 +1408,12 @@ msgstr "Wachten op beschikbare outfits en kleuren uit het spel."
 msgid "selection.no_colors"
 msgstr "Geen kleuren vrij voor deze outfit."
 
+msgid "selection.not_owned"
+msgstr "Niet in je bezit op Steam."
+
+msgid "selection.not_owned_badge"
+msgstr "NIET IN BEZIT"
+
 msgid "selection.color"
 msgstr "Kleur {0}"
 

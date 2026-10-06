@@ -1408,6 +1408,12 @@ msgstr "Čeká se na dostupné kostýmy a barvy ze hry."
 msgid "selection.no_colors"
 msgstr "Pro tento kostým nejsou odemčené barvy."
 
+msgid "selection.not_owned"
+msgstr "Na Steamu nevlastníte."
+
+msgid "selection.not_owned_badge"
+msgstr "NEVLASTNÍTE"
+
 msgid "selection.color"
 msgstr "Barva {0}"
 

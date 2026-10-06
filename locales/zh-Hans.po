@@ -1408,6 +1408,12 @@ msgstr "等待游戏读取可用服装和颜色。"
 msgid "selection.no_colors"
 msgstr "此服装没有已解锁的颜色。"
 
+msgid "selection.not_owned"
+msgstr "未在 Steam 上拥有。"
+
+msgid "selection.not_owned_badge"
+msgstr "未拥有"
+
 msgid "selection.color"
 msgstr "颜色 {0}"
 

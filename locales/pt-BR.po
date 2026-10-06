@@ -1318,6 +1318,12 @@ msgid "selection.loading_choices.detail"
 msgstr "Aguardando a disponibilidade nativa de trajes e cores."
 msgid "selection.no_colors"
 msgstr "Nenhuma cor desbloqueada para este traje."
+
+msgid "selection.not_owned"
+msgstr "Você não possui na Steam."
+
+msgid "selection.not_owned_badge"
+msgstr "NÃO ADQUIRIDO"
 msgid "selection.color"
 msgstr "Cor {0}"
 msgid "selection.ultra_combo_title"

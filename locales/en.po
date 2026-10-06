@@ -1408,6 +1408,12 @@ msgstr "Waiting for native costume and color availability."
 msgid "selection.no_colors"
 msgstr "No unlocked colors for this costume."
 
+msgid "selection.not_owned"
+msgstr "Not owned on Steam."
+
+msgid "selection.not_owned_badge"
+msgstr "NOT OWNED"
+
 msgid "selection.color"
 msgstr "Color {0}"
 

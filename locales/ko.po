@@ -1408,6 +1408,12 @@ msgstr "게임의 코스튬과 색상 사용 가능 여부를 기다립니다."
 msgid "selection.no_colors"
 msgstr "이 코스튬에 해제된 색상이 없습니다."
 
+msgid "selection.not_owned"
+msgstr "Steam에서 보유하지 않았습니다."
+
+msgid "selection.not_owned_badge"
+msgstr "미보유"
+
 msgid "selection.color"
 msgstr "색상 {0}"
 

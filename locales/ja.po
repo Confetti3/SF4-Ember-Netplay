@@ -1408,6 +1408,12 @@ msgstr "ゲーム本体のコスチュームとカラーの使用可否を確認
 msgid "selection.no_colors"
 msgstr "このコスチュームには使用可能なカラーがありません。"
 
+msgid "selection.not_owned"
+msgstr "Steamで所有していません。"
+
+msgid "selection.not_owned_badge"
+msgstr "未所有"
+
 msgid "selection.color"
 msgstr "カラー{0}"
 

@@ -1408,6 +1408,12 @@ msgstr "Ожидание данных игры о доступных костю�
 msgid "selection.no_colors"
 msgstr "Для этого костюма нет открытых цветов."
 
+msgid "selection.not_owned"
+msgstr "Не куплено в Steam."
+
+msgid "selection.not_owned_badge"
+msgstr "НЕ КУПЛЕНО"
+
 msgid "selection.color"
 msgstr "Цвет {0}"
 

@@ -1408,6 +1408,12 @@ msgstr "Attente des costumes et couleurs disponibles dans le jeu."
 msgid "selection.no_colors"
 msgstr "Aucune couleur débloquée pour ce costume."
 
+msgid "selection.not_owned"
+msgstr "Non possédé sur Steam."
+
+msgid "selection.not_owned_badge"
+msgstr "NON POSSÉDÉ"
+
 msgid "selection.color"
 msgstr "Couleur {0}"
 

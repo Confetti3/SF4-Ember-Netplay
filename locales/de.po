@@ -1408,6 +1408,12 @@ msgstr "Warten auf verfügbare Kleidung und Farben im Spiel."
 msgid "selection.no_colors"
 msgstr "Keine Farben für diese Kleidung frei."
 
+msgid "selection.not_owned"
+msgstr "Nicht auf Steam in deinem Besitz."
+
+msgid "selection.not_owned_badge"
+msgstr "NICHT IM BESITZ"
+
 msgid "selection.color"
 msgstr "Farbe {0}"
 

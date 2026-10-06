@@ -260,7 +260,12 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  }else if(screen=="roster"){
   page_=Page::Fighter;title=loc::T("selection.choose_fighter");
   // USFIV's own select order, 15 across when the list has the room for it.
-  for(const int id:RosterDisplayOrder)rows.push_back(Saving(Row("fighter-"+std::to_string(id),FindFighter(id)->name,locked,editable),"menu.hint.save_fighter",editable));
+  // A fighter the player's Steam licences do not cover keeps its place in the
+  // grid, so the layout matches the game's, but cannot be saved.
+  for(const int id:RosterDisplayOrder){
+   const bool owned=!readAvailability||!FighterLocked(readAvailability(id));
+   rows.push_back(Saving(Row("fighter-"+std::to_string(id),FindFighter(id)->name,owned?locked:loc::T("selection.not_owned"),editable&&owned),"menu.hint.save_fighter",editable&&owned));
+  }
   const auto grid=LayOutRosterGrid(ImGui::GetContentRegionAvail().x);
   columns=grid.columns;cardHeight=grid.cardHeight;menu_.wideListShare=grid.listShare;
  }else if(screen=="appearance"){
@@ -387,6 +392,10 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   const float font=(std::min)(ImGui::GetFontSize(),(max.x-min.x-6)*ImGui::GetFontSize()/(std::max)(1.f,ImGui::CalcTextSize(e.label.c_str()).x));
   ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(),font,ImVec2(min.x+3,max.y-labelHeight),saved?palette::Ember:palette::Ivory,e.label.c_str());
   if(saved)DrawCardBadge(ImVec2(min.x+3,min.y+2),max.x-min.x-6,loc::T("selection.saved"),"saved-badge");
+  if(screen=="roster"&&!saved&&readAvailability&&FighterLocked(readAvailability(id))){
+   ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(min.x+3,min.y+3),ImVec2(max.x-3,max.y-labelHeight),IM_COL32(16,15,14,170));
+   DrawCardBadge(ImVec2(min.x+3,min.y+2),max.x-min.x-6,loc::T("selection.not_owned_badge"),"not-owned-badge");
+  }
   if(pool&&!InRandomPool(id,randomStageExcluded?*randomStageExcluded:0)){
    // A skipped stage reads as switched off at a glance: dimmed, and labelled.
    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(min.x+3,min.y+3),ImVec2(max.x-3,max.y-labelHeight),IM_COL32(16,15,14,170));

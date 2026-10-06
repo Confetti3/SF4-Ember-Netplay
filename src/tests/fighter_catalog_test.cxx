@@ -165,9 +165,9 @@ int main() {
         CHECK(!Valid(pick, true)); CHECK(Normalize(pick, true)); CHECK(Valid(pick, true));
     }
     // Unlocks can have holes: selecting by a count would expose locked options.
-    Availability sparse; sparse.personalActions = 1; sparse.ready = true; sparse.costumes = (1u << 1) | (1u << 6);
+    Availability sparse; sparse.personalActions = 1; sparse.ready = true; sparse.costumes = 1u | (1u << 1) | (1u << 6);
     sparse.colors[1] = (1u << 0) | (1u << 9); sparse.colors[6] = (1u << 12) | (1u << 21);
-    CHECK(AllowedCostumes(0, sparse) == (std::vector<int>{1, 6}));
+    CHECK(AllowedCostumes(0, sparse) == (std::vector<int>{0, 1, 6}));
     CHECK(AllowedColors(0, 6, sparse) == (std::vector<int>{12, 21}));
     Pick pick; pick.costume = 6; pick.color = 20;
     CHECK(!Available(pick, true, sparse)); CHECK(Normalize(pick, true, &sparse));
