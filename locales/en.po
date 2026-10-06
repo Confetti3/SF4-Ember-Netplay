@@ -1532,7 +1532,7 @@ msgid "training.combo.capture"
 msgstr "Record combo"
 
 msgid "training.combo.capture.detail"
-msgstr "Writes down the moves Player 1 performs into the Moves line, each on the frame it began (#N), until nothing happens for a second and a half. Then Add combo or Save combo keeps them."
+msgstr "Writes down the moves Player 1 performs into the Moves line, each with how many frames after its cue it was pressed (@N), until nothing happens for a second and a half. Then Add combo or Save combo keeps them."
 
 msgid "training.combo.capture_stop"
 msgstr "Stop recording combo"

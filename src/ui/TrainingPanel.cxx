@@ -437,17 +437,15 @@ void TakeCapture(const training::View& view) {
     captureWanted=false;
     const auto* fighter=selection::FindFighter(creator.fighter); combo::Fighter files; std::string error;
     if(!fighter||!combo::LoadFighter(GameFolder(),fighter->code,files,error)) { ComboNotice(loc::Tf("training.combo.game_file",error),true); return; }
-    // Each move keeps the frame it began on, relative to the first, as "#N",
-    // so the replay presses on the recorded timing.
-    std::vector<std::string> steps; int unnamed=0, first=-1;
+    // Each move keeps how many frames after its cue it was pressed, as "@N",
+    // so the replay keeps the recorded timing against the same cues.
+    std::vector<std::string> steps; int unnamed=0;
     for(const auto& event:view.captured) {
         auto text=combo::ActionStep(files.moves,event.action,event.cancel&&!steps.empty());
         if(text.empty()) { ++unnamed; continue; }
-        if(first<0) first=event.frame;
         combo::Step step; std::string ignored;
-        if(combo::ParseStep(text,step,ignored)) {
-            step.at=(std::min)(combo::MaxAtFrame,event.frame-first);
-            if(event.offset!=training::NoOffset) step.offset=(std::max)(training::MinOffset,(std::min)(training::MaxOffset,event.offset));
+        if(event.offset!=training::NoOffset&&combo::ParseStep(text,step,ignored)) {
+            step.offset=(std::max)(training::MinOffset,(std::min)(training::MaxOffset,event.offset));
             text=combo::Canonical(step);
         }
         steps.push_back(text);
