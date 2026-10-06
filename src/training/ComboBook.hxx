@@ -62,6 +62,7 @@ enum class Range { Any, Close, Far };
 // edge: the buttons are pressed, held down, or let go (negative edge).
 // range: a standing normal that must come out as its close or far version.
 // cancel: this move cancels the one before it; otherwise it links after it.
+// follow: "~", a follow-up of the move before it: pressed a few frames in, no cue.
 // mash: the buttons are pressed again and again (Hundred Hand Slap).
 // offset: frames after this move's cue the press lands on, before it when negative ("cr.MK@+1").
 // at: the frame of the replay the press lands on, -1 when the move follows
@@ -69,6 +70,9 @@ enum class Range { Any, Close, Far };
 struct Step {
     std::string motion;
     bool charge = false, air = false, cancel = false, mash = false;
+    // follow: a follow-up pressed a few frames into the move before it, with
+    // no cue to wait for (a run's stop); it counts as a cancel otherwise.
+    bool follow = false;
     unsigned buttons = 0; int need = 0;
     Edge edge = Edge::Press; Range range = Range::Any;
     int offset = 0, at = -1;
@@ -76,7 +80,7 @@ struct Step {
 constexpr int MaxAtFrame = 3600;
 
 // Strict notation, any case:
-//   [xx] [j.|cr.|st.|cl.|far.] [motion] [buttons] [(mash)] [#N] [@N]   or   [xx] FADC[66|44] [#N] [@N]
+//   [xx|~] [j.|cr.|st.|cl.|far.] [motion] [buttons] [(mash)] [#N] [@N]   or   [xx] FADC[66|44] [#N] [@N]
 //   motion:  numpad digits 1-9, "[4]6" for charge, "360", "720"
 //   buttons: LP MP HP LK MK HK joined by "+", or P PP PPP K KK KKK;
 //            "[HP]" holds them, "]HP[" releases them, "(mash)" mashes them
@@ -112,7 +116,8 @@ inline bool ParseStep(const std::string& text, Step& step, std::string& error) {
         s.resize(frame);
     }
     if (s.size() > 6 && s.compare(s.size() - 6, 6, "(MASH)") == 0) { step.mash = true; s.resize(s.size() - 6); }
-    step.cancel = starts("XX");
+    step.follow = starts("~");
+    step.cancel = step.follow || starts("XX");
     if (starts("FADC")) {
         const auto dash = s.substr(i);
         if (step.mash || (!dash.empty() && dash != "66" && dash != "44")) return fail();
@@ -160,7 +165,7 @@ inline bool ParseStep(const std::string& text, Step& step, std::string& error) {
 }
 // The one spelling of a step: what is stored, shared and compared.
 inline std::string Canonical(const Step& step) {
-    std::string out = step.cancel ? "xx " : "";
+    std::string out = step.follow ? "~ " : step.cancel ? "xx " : "";
     const std::string timing = (step.at >= 0 ? "#" + std::to_string(step.at) : "") +
         (step.offset ? (step.offset > 0 ? "@+" : "@") + std::to_string(step.offset) : "");
     if (!step.air && !step.charge && (step.motion == "66" || step.motion == "44") && step.buttons == (MP | MK) &&
@@ -180,8 +185,9 @@ inline std::string Canonical(const Step& step) {
     return out + buttons + (step.mash ? "(mash)" : "") + timing;
 }
 
-// Splits a line into its moves: by ">" or ",", and before a lone "xx", which
-// stays on the move it makes a cancel ("2MK xx 236P" -> "2MK", "xx 236P").
+// Splits a line into its moves: by ">" or ",", and before a lone "xx" or "~",
+// which stays on the move it makes a cancel or a follow-up ("2MK xx 236P" ->
+// "2MK", "xx 236P"; "236P ~ LP" -> "236P", "~ LP").
 inline std::vector<std::string> Tokens(const std::string& line) {
     std::vector<std::string> tokens;
     std::string text;
@@ -190,9 +196,11 @@ inline std::vector<std::string> Tokens(const std::string& line) {
     for (std::size_t i = 0; i < line.size(); ++i) {
         const bool cancel = (line[i] == 'x' || line[i] == 'X') && i + 1 < line.size() && (line[i + 1] == 'x' || line[i + 1] == 'X') &&
             (i == 0 || blank(i - 1)) && blank(i + 2);
-        if (cancel || line[i] == '>' || line[i] == ',') {
+        const bool follow = line[i] == '~' && (i == 0 || blank(i - 1)) && blank(i + 1);
+        if (cancel || follow || line[i] == '>' || line[i] == ',') {
             flush();
             if (cancel) { text = "xx "; ++i; }
+            if (follow) text = "~ ";
         } else text += line[i];
     }
     flush();
@@ -268,7 +276,7 @@ inline bool ParseSteps(const std::string& line, const std::string& character, st
 inline std::string JoinSteps(const std::vector<std::string>& steps) {
     std::string line;
     for (const auto& step : steps) {
-        if (!line.empty()) line += step.compare(0, 3, "xx ") == 0 ? " " : " > ";
+        if (!line.empty()) line += step.compare(0, 3, "xx ") == 0 || step.compare(0, 2, "~ ") == 0 ? " " : " > ";
         line += step;
     }
     return line;

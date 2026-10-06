@@ -63,6 +63,8 @@ inline std::vector<training::Input> Synthesize(const std::vector<std::string>& s
         if (step.air) { push(DirectionBits('8', facingRight), 2); push(0, 10); }
         unsigned last = 0;
         const bool link = index && !step.cancel && !timed;
+        // A follow-up goes a few frames into the move before it, no cue.
+        if (step.follow && index && !timed) push(0, (std::max)(0, 2 + timing));
         if (timed) {
             int lead = 0;
             for (std::size_t i = 0; i < motion.size(); ++i) lead += step.charge && i == 0 ? 50 : step.cancel ? 2 : 3;
@@ -70,14 +72,14 @@ inline std::vector<training::Input> Synthesize(const std::vector<std::string>& s
             reach(step.at - lead);
         } else if (link) wait(training::WaitActionable, motion.empty() ? 0 : DirectionBits(motion[0], facingRight), timing);
         else if (index) push(0, 1);
-        const bool finish = step.cancel && index && !timed && buttons && !motion.empty();
+        const bool finish = step.cancel && !step.follow && index && !timed && buttons && !motion.empty();
         for (std::size_t i = 0; i + (finish ? 1 : 0) < motion.size(); ++i) {
             last = DirectionBits(motion[i], facingRight);
             const bool held = link && i == 0;
             push(last, step.charge && i == 0 ? 50 : held ? 0 : step.cancel ? 2 : 3);
         }
         if (!buttons) continue;
-        if (step.cancel && index && !timed) wait(training::WaitHit, last, timing);
+        if (step.cancel && !step.follow && index && !timed) wait(training::WaitHit, last, timing);
         if (finish) last = DirectionBits(motion.back(), facingRight);
         if (step.edge == Edge::Hold) push(last | buttons, 30);
         else if (step.edge == Edge::Release) { push(last | buttons, 30); push(last, 2); }

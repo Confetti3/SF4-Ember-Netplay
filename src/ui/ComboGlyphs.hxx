@@ -60,7 +60,7 @@ inline float DrawComboStep(const std::string& step, ImVec2 at, ImU32 tint) {
     if (!combo::ParseStep(step, parsed, error)) return Word(draw, at, h, step.c_str(), tint);
     float x = at.x;
     const auto word = [&](const char* text) { x += Word(draw, ImVec2(x, at.y), h, text, tint) + gap; };
-    if (parsed.cancel) word("xx");
+    if (parsed.follow) word("~"); else if (parsed.cancel) word("xx");
     if (step.compare(parsed.cancel ? 3 : 0, 4, "FADC") == 0) {
         word("FADC"); if (parsed.motion == "44") word("44");
         if (parsed.at >= 0) word(("#" + std::to_string(parsed.at)).c_str());

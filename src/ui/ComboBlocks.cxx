@@ -55,6 +55,7 @@ bool AddToPattern(std::vector<std::string>& steps, const std::string& line, cons
     if (added.empty()) { error = combo::Clean(line); return false; }
     // A first move that is a cancel has nothing to cancel, so it links.
     if (steps.empty() && added[0].compare(0, 3, "xx ") == 0) added[0] = added[0].substr(3);
+    if (steps.empty() && added[0].compare(0, 2, "~ ") == 0) added[0] = added[0].substr(2);
     steps.insert(steps.end(), added.begin(), added.end());
     LayOutPattern(steps);
     return true;

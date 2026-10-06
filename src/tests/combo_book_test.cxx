@@ -38,7 +38,19 @@ int main() {
     CHECK(ParseStep("cl.HP", step, error) && step.range == Range::Close && step.motion == "5");
     CHECK(ParseStep("far.MK", step, error) && step.range == Range::Far);
     CHECK(ParseStep("st.MK", step, error) && step.range == Range::Any);
-    // A timing offset rides on any move and is kept in its canonical form.
+    // A follow-up: "~" before the move, a cancel with no cue of its own.
+    CHECK(ParseStep("~ LP", step, error) && step.follow && step.cancel && step.buttons == LP && Canonical(step) == "~ 5LP");
+    CHECK(ParseStep("~lp@+2", step, error) && step.follow && Canonical(step) == "~ 5LP@+2");
+    CHECK((Tokens("236P ~ LP > 5HP") == std::vector<std::string>{"236P", "~ LP", "5HP"}));
+    CHECK(JoinSteps({"236P", "~ 5LP", "5HP"}) == "236P ~ 5LP > 5HP");
+    {
+        const auto follow = Synthesize({"236P", "~ 5LP@+2"}, true, 0);
+        for (const auto& frame : follow) CHECK(!frame.wait);
+        std::size_t press = 0;
+        while (press < follow.size() && follow[press].raw != LP) ++press;
+        CHECK(press == 19 && follow[12].raw == 0);
+    }
+// A timing offset rides on any move and is kept in its canonical form.
     CHECK(ParseStep("cr.MK@-1", step, error) && step.offset == -1 && Canonical(step) == "2MK@-1");
     CHECK(ParseStep("xx 236HP(mash)@+3", step, error) && step.offset == 3 && step.mash && Canonical(step) == "xx 236HP(mash)@+3");
     CHECK(ParseStep("FADC@+2", step, error) && step.offset == 2 && Canonical(step) == "FADC@+2");
