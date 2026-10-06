@@ -281,6 +281,20 @@ inline bool ParseSteps(const std::string& line, const std::string& character, st
     if (detail::StartsWithCancel(steps, error)) { steps.clear(); return false; }
     return true;
 }
+// A focus press followed within a few frames by a dash, as a recording sees
+// a focus cancel, becomes one FADC step on the focus's frame and cancel.
+inline void FoldFadc(std::vector<std::string>& steps) {
+    for (std::size_t i = 0; i + 1 < steps.size();) {
+        Step focus, dash; std::string error;
+        const bool pair = ParseStep(steps[i], focus, error) && ParseStep(steps[i + 1], dash, error) &&
+            focus.buttons == (MP | MK) && focus.need == 2 && (focus.motion == "5" || focus.motion.empty()) && focus.edge == Edge::Press && !focus.air &&
+            dash.buttons == 0 && (dash.motion == "66" || dash.motion == "44") && !dash.air &&
+            (focus.at < 0 || dash.at < 0 || (dash.at >= focus.at && dash.at - focus.at <= 12));
+        if (!pair) { ++i; continue; }
+        Step fadc; fadc.cancel = focus.cancel; fadc.motion = dash.motion; fadc.buttons = MP | MK; fadc.need = 2; fadc.at = focus.at; fadc.offset = focus.offset;
+        steps[i] = Canonical(fadc); steps.erase(steps.begin() + i + 1);
+    }
+}
 // "2MK xx 236P > FADC": a line ParseSteps reads back to the same steps.
 inline std::string JoinSteps(const std::vector<std::string>& steps) {
     std::string line;

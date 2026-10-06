@@ -57,6 +57,17 @@ int main() {
     CHECK(ParseStep("5LP@+0", step, error) && step.offset == 0 && Canonical(step) == "5LP");
     // A frame to land on, as a pattern editor lays moves out; kept before the offset.
     CHECK(ParseStep("2MK#45", step, error) && step.at == 45 && step.offset == 0 && Canonical(step) == "2MK#45");
+    // A recorded focus press and the dash after it fold into one FADC on the focus's frame.
+    {
+        std::vector<std::string> recorded{"cl.LP#0", "2MK#19", "xx 236HP#33", "xx 5MP+MK#49", "xx 66#53", "cl.HP#70", "5MP+MK#90", "2LK#120"};
+        FoldFadc(recorded);
+        CHECK((recorded == std::vector<std::string>{"cl.LP#0", "2MK#19", "xx 236HP#33", "xx FADC#49", "cl.HP#70", "5MP+MK#90", "2LK#120"}));
+        std::vector<std::string> back{"5MP+MK", "44"}; FoldFadc(back);
+        CHECK((back == std::vector<std::string>{"FADC44"}));
+        // A dash is two taps, not one hold.
+        const auto dash = Synthesize({"66"}, true, 0);
+        CHECK(dash.size() >= 7 && dash[0].raw == Right && dash[3].raw == 0 && dash[4].raw == Right);
+    }
     CHECK(ParseStep("5HP@-1#14", step, error) && step.at == 14 && step.offset == -1 && Canonical(step) == "5HP#14@-1");
     CHECK(!ParseStep("5HP#14#15", step, error) && !ParseStep("5HP@+1@+2", step, error));
     CHECK(ParseStep("xx 236HP#120@+2", step, error) && step.at == 120 && step.offset == 2 && Canonical(step) == "xx 236HP#120@+2");

@@ -70,13 +70,15 @@ inline std::vector<training::Input> Synthesize(const std::vector<std::string>& s
         if (step.follow && index && !timed) push(0, (std::max)(0, FollowDelay + timing));
         if (timed) {
             int lead = 0;
-            for (std::size_t i = 0; i < motion.size(); ++i) lead += step.charge && i == 0 ? 50 : step.cancel ? 2 : 3;
+            for (std::size_t i = 0; i < motion.size(); ++i) lead += (step.charge && i == 0 ? 50 : step.cancel ? 2 : 3) + (i && motion[i] == motion[i - 1] ? 1 : 0);
             if (index) push(0, 1);
             reach(step.at - lead);
         } else if (link) wait(training::WaitActionable, motion.empty() ? 0 : DirectionBits(motion[0], facingRight), timing);
         else if (index) push(0, 1);
         const bool finish = step.cancel && !step.follow && index && !timed && buttons && !motion.empty();
         for (std::size_t i = 0; i + (finish ? 1 : 0) < motion.size(); ++i) {
+            // The same direction again is a new tap: a neutral frame between (a "66" dash).
+            if (i && motion[i] == motion[i - 1]) push(0, 1);
             last = DirectionBits(motion[i], facingRight);
             const bool held = link && i == 0;
             push(last, step.charge && i == 0 ? 50 : held ? 0 : step.cancel ? 2 : 3);

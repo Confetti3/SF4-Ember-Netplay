@@ -448,6 +448,7 @@ void TakeCapture(const training::View& view) {
         if(combo::ParseStep(text,step,ignored)) { step.at=(std::min)(combo::MaxAtFrame,event.frame-first); text=combo::Canonical(step); }
         steps.push_back(text);
     }
+    combo::FoldFadc(steps);
     if(steps.empty()) { ComboNotice(loc::T("training.combo.capture_empty"),true); return; }
     creator.steps=combo::JoinSteps(steps);
     ComboNotice(loc::Tf("training.combo.captured",static_cast<int>(steps.size()),unnamed));
