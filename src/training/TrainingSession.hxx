@@ -15,8 +15,10 @@ constexpr int HistoryRows = 12;
 constexpr unsigned FightButtons = 0xcff; // Directions and six attacks; excludes menu buttons.
 // wait: a loaded frame that repeats, buttons held, until the fighter can act
 // again (1) or a hit lands (2), so a replayed combo takes its timing from the
-// fight; offset: frames to go on waiting after that.
-struct Input { unsigned mapped = 0, raw = 0; unsigned char wait = 0, offset = 0; };
+// fight; offset: frames to go on waiting after that, or when negative, how
+// many frames before the cue the script predicts to stop waiting.
+struct Input { unsigned mapped = 0, raw = 0; unsigned char wait = 0; signed char offset = 0; };
+constexpr int MinOffset = -9, MaxOffset = 30;
 constexpr unsigned char WaitActionable = 1, WaitHit = 2;
 // How long a waiting frame may wait before playback gives up on its
 // condition: a whole recovery, or the few frames a buffered press can wait
@@ -115,8 +117,10 @@ public:
     void SetReady(bool ready) { view_.ready = ready; }
     // What the fight showed this frame, for the waiting frames of a replay:
     // whether the fighter is free now, and whether a hit landed on the other one.
-    void Observe(bool actionable, bool hit) {
-        actionable_ = actionable; hit_ = hit_ || hit;
+    // untilActionable/untilActive: frames until the fighter's script says it can
+// act again, or its attack goes active; -1 when unknown.
+    void Observe(bool actionable, bool hit, int untilActionable = -1, int untilActive = -1) {
+        actionable_ = actionable; hit_ = hit_ || hit; untilActionable_ = untilActionable; untilActive_ = untilActive;
         if (hit && !view_.replay.empty() && sincePress_ < 60) view_.replay.back().hit = true;
     }
     void SetCheckpoint(bool saved) { view_.checkpoint = saved; }
@@ -203,7 +207,10 @@ public:
             const auto& frame = slots_[view_.selected][view_.cursor];
             // The cue, then the offset's frames more.
             const bool cued = frame.wait == WaitActionable ? actionable_ : frame.wait == WaitHit ? hit_ : true;
-            const bool met = cued && (cued ? waitedPast_++ : 0) >= frame.offset;
+            // An early press goes when the script says the cue is that close; the cue itself still releases it.
+            const int until = frame.wait == WaitActionable ? untilActionable_ : frame.wait == WaitHit ? untilActive_ : -1;
+            const bool early = frame.offset < 0 && until >= 0 && until <= -frame.offset;
+            const bool met = (cued && (cued ? waitedPast_++ : 0) >= frame.offset) || early;
             ++sincePress_;
             if (!met && ++waited_ < (frame.wait == WaitHit ? MaxWaitHitFrames : MaxWaitFrames)) return;
             if (frame.wait) { view_.replay.push_back({waited_, met, false}); sincePress_ = 0; }
@@ -220,6 +227,7 @@ private:
     // Loaded input is a combo: it plays once, whatever the loop setting.
     std::array<bool, SlotCount> once_{};
     bool actionable_ = false, hit_ = false;
+    int untilActionable_ = -1, untilActive_ = -1;
     int waited_ = 0, waitedPast_ = 0, sincePress_ = 0;
     void Stop() { view_.mode = Mode::Idle; view_.cursor = 0; waited_ = waitedPast_ = 0; hit_ = false; }
     void ClearHistory() {

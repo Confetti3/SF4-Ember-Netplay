@@ -24,8 +24,9 @@ inline bool ImportRecording(const std::string& text, std::vector<Input>& frames,
     if (list->size() > static_cast<std::size_t>(MaxFrames)) { error = "the recording is too long"; return false; }
     for (const auto& frame : *list) {
         if (!frame.is_array() || frame.size() != 4 || !frame[0].is_number_unsigned() || !frame[1].is_number_unsigned() ||
-            !frame[2].is_number_unsigned() || !frame[3].is_number_unsigned()) { error = "a frame is not four numbers"; frames.clear(); return false; }
-        frames.push_back({frame[0].get<unsigned>(), frame[1].get<unsigned>(), static_cast<unsigned char>(frame[2].get<unsigned>() & 3), static_cast<unsigned char>(frame[3].get<unsigned>() & 0xff)});
+            !frame[2].is_number_unsigned() || !frame[3].is_number_integer()) { error = "a frame is not four numbers"; frames.clear(); return false; }
+        frames.push_back({frame[0].get<unsigned>(), frame[1].get<unsigned>(), static_cast<unsigned char>(frame[2].get<unsigned>() & 3),
+            static_cast<signed char>((std::max)(MinOffset, (std::min)(MaxOffset, frame[3].get<int>())))});
     }
     return true;
 }

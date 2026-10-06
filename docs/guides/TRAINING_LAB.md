@@ -102,7 +102,7 @@ A route already in the pack is refused. Notes are free text. The dummy setup row
 
 ### Replay and timing
 
-**Replay moves** plays the typed line, or the selected combo, as pad input through a dummy recording slot. **Replay by** chooses Dummy (Player 2) or Me (Player 1); **Facing** says which way that player faces at the start so forward moves are read right. Directions take a few frames each and a button two; between moves the replay waits on the fight itself: a link waits for the fighter to be free again, a cancel for the hit to land. **Timing offset** adds frames to every wait, on top of a move's own `@N`. The game decides what comes out, so the timing is a guess to adjust by watching.
+**Replay moves** plays the typed line, or the selected combo, as pad input through a dummy recording slot. **Replay by** chooses Dummy (Player 2) or Me (Player 1); **Facing** says which way that player faces at the start so forward moves are read right. Directions take a few frames each and a button two; between moves the replay waits on the fight itself: a link waits for the fighter to be free again, a cancel for the hit to land. **Timing offset** adds frames to every wait, on top of a move's own `@N`. A negative value presses that many frames before the cue, read from the move's script (its first active frame for a cancel, its interruptible frame for a link), the way a player buffers the next move. The game decides what comes out, so the timing is a guess to adjust by watching.
 
 **Edit timing** lists the selected combo move by move with its offset (Left and Right move it a frame) and what the last replay saw: how long it waited for the cue, whether the move connected, and how often the combo dropped there.
 

@@ -144,6 +144,8 @@ int main() {
         CHECK(back[1].wait == sf4e::training::WaitHit && back[1].offset == 3 && back[2].raw == 0x410);
         for (const char* bad : {"", "{}", "{\"format\":\"sf4e-recording\",\"frames\":[]}", "{\"format\":\"sf4e-recording\",\"frames\":[[1,2,3]]}", "{\"format\":\"x\",\"frames\":[[1,1,0,0]]}"})
             CHECK(!sf4e::training::ImportRecording(bad, back, reason) && back.empty());
+        std::vector<sf4e::training::Input> earlyFrames{{2, 2, sf4e::training::WaitHit, -3}};
+        CHECK(sf4e::training::ImportRecording(sf4e::training::ExportRecording(earlyFrames), back, reason) && back.size() == 1 && back[0].offset == -3);
     }
     Combo bnb{"BnB", "RYU", "", Steps("cr.MK > 236HP")};
     Combo fadc{"FADC", "RYU", "two bars", Steps("cr.MK > 236HP > FADC > cr.HP")};

@@ -190,6 +190,22 @@ int main() {
             for (int i = 0; i < MaxWaitHitFrames; ++i) { session.Observe(false, false); session.Commit(session.Prepare(physical)); }
             Require(session.Prepare(physical)[0].raw == 0x18 && !session.GetView().replay[2].cued, "Waiting for a hit never gave up");
             apply(Action::Stop);
+            // A negative offset presses that many frames before the cue the
+            // script predicts, and the cue itself still releases it.
+            Command early; early.action = Action::Load; early.generation = generation; early.value = 0;
+            early.frames = {Input{9, 9, 0}, Input{2, 2, WaitActionable, -2}, Input{0x82, 0x82, 0}, Input{8, 8, WaitHit, -3}, Input{0x18, 0x18, 0}};
+            Require(session.Apply(early) && apply(Action::Play), "Early load refused");
+            session.Commit(session.Prepare(physical));
+            session.Observe(false, false, 5, -1); session.Commit(session.Prepare(physical));
+            session.Observe(false, false, 3, -1); session.Commit(session.Prepare(physical));
+            Require(session.GetView().cursor == 1, "Early press went before its frames");
+            session.Observe(false, false, 2, -1); session.Commit(session.Prepare(physical));
+            Require(session.Prepare(physical)[0].raw == 0x82 && session.GetView().cursor == 2, "Early press did not go two frames before the free frame");
+            session.Commit(session.Prepare(physical));
+            session.Observe(false, false, -1, 8); session.Commit(session.Prepare(physical));
+            session.Observe(false, true, -1, 7); session.Commit(session.Prepare(physical));
+            Require(session.GetView().cursor == 4, "Hit cue did not release an early press");
+            apply(Action::Stop);
         }
         Require(!apply(Action::Restore), "Missing checkpoint restored");
         Require(apply(Action::Record), "Record rejected");

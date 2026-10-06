@@ -34,7 +34,7 @@ inline std::vector<training::Input> Synthesize(const std::vector<std::string>& s
     std::vector<training::Input> out;
     const auto push = [&](unsigned bits, int frames) { for (; frames > 0 && out.size() < training::MaxFrames; --frames) out.push_back({bits, bits, 0, 0}); };
     const auto wait = [&](unsigned char on, unsigned held, int timing) {
-        if (out.size() < training::MaxFrames) out.push_back({held, held, on, static_cast<unsigned char>((std::max)(0, (std::min)(99, timing)))});
+        if (out.size() < training::MaxFrames) out.push_back({held, held, on, static_cast<signed char>((std::max)(training::MinOffset, (std::min)(training::MaxOffset, timing)))});
     };
     for (std::size_t index = 0; index < steps.size(); ++index) {
         Step step; std::string error;

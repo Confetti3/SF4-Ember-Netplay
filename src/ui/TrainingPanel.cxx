@@ -329,7 +329,7 @@ void HandleTiming(const MenuAction& a,const training::View& view,const TrainingS
     if(index>=steps.size()) return;
     combo::Step step; std::string error;
     if(!combo::ParseStep(steps[index],step,error)) return;
-    step.offset=(std::max)(0,(std::min)(30,step.offset+a.delta));
+    step.offset=(std::max)(training::MinOffset,(std::min)(training::MaxOffset,step.offset+a.delta));
     steps[index]=combo::Canonical(step);
     // Back into the typed line, or into the saved combo when that is what is shown.
     if(!creator.steps.empty()) creator.steps=combo::JoinSteps(steps);
@@ -446,7 +446,7 @@ void HandleCombo(const MenuAction& a,const training::View& view,const TrainingSu
         // The dummy starts on the right facing left, the player on the left facing right.
         else if(a.id=="cb-replay-by") { creator.replayBy=!creator.replayBy; creator.replayFacingRight=!creator.replayBy; }
         else if(a.id=="cb-replay-facing") creator.replayFacingRight=!creator.replayFacingRight;
-        else if(a.id=="cb-replay-gap") creator.replayOffset=(std::max)(0,(std::min)(30,creator.replayOffset+a.delta));
+        else if(a.id=="cb-replay-gap") creator.replayOffset=(std::max)(training::MinOffset,(std::min)(training::MaxOffset,creator.replayOffset+a.delta));
         else if(a.id=="cb-reset-before") creator.resetBeforeReplay=a.delta>0;
         else if(a.id.compare(0,9,"cb-setup-")==0) {
             const std::string which=a.id.substr(9);
