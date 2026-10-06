@@ -97,7 +97,7 @@ struct View {
     // One entry per move of the last replayed combo: how many frames it
     // waited for its cue (the free frame or the hit), whether the cue was
     // seen before the wait gave up, and whether a hit followed within a second.
-    struct ReplayStep { int waited = 0; bool cued = true, hit = false; };
+    struct ReplayStep { int waited = 0; bool cued = true, hit = false, predicted = false; };
     std::vector<ReplayStep> replay;
     std::uint64_t commandId = 0;
     bool commandAccepted = false;
@@ -220,7 +220,7 @@ public:
             const bool met = (cued && (cued ? waitedPast_++ : 0) >= after) || predicted;
             ++sincePress_;
             if (!met && ++waited_ < (frame.wait == WaitHit ? MaxWaitHitFrames : MaxWaitFrames)) return;
-            if (frame.wait) { view_.replay.push_back({waited_, met, false}); sincePress_ = 0; }
+            if (frame.wait) { view_.replay.push_back({waited_, met, false, predicted}); sincePress_ = 0; }
             // A hit is kept until the next press starts a move of its own, so
             // one landing while a cancel's motion is still going is not lost.
             // ponytail: a hit during a held button is dropped; track edges per button if it matters.

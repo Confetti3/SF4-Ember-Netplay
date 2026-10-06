@@ -347,8 +347,8 @@ void AfterUpdate(Native* system) {
             const bool nowPlaying = session.GetView().mode == Mode::Playback;
             if ((wasPlaying || playing) && !nowPlaying && !session.GetView().replay.empty()) {
                 std::string report;
-                for (const auto& step : session.GetView().replay) report += (report.empty() ? "" : ", ") + std::to_string(step.waited) + (step.cued ? "" : "!") + (step.hit ? "h" : "-");
-                spdlog::info("Training: replay report (waited frames, ! gave up, h hit followed): {}", report);
+                for (const auto& step : session.GetView().replay) report += (report.empty() ? "" : ", ") + std::to_string(step.waited) + (step.predicted ? "p" : "") + (step.cued ? "" : "!") + (step.hit ? "h" : "-");
+                spdlog::info("Training: replay report (waited frames, p predicted, ! gave up, h hit followed): {}", report);
             }
             wasPlaying = nowPlaying;
         }
