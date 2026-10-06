@@ -358,15 +358,20 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         const auto package=VerifiedPackage(staging);
         std::vector<fs::path> files, removals;
         for(const auto& [key,named]:package) { CheckPath(install,named.first); files.push_back(named.first); }
-        // Product files the package does not have: what an older or a slimmer
-        // package leaves behind otherwise. A junction is the player's.
-        for(fs::recursive_directory_iterator entry(install), end; entry!=end; ++entry) {
-            const auto relative=entry->path().lexically_relative(install);
-            if(GetFileAttributesW(entry->path().c_str()) & FILE_ATTRIBUTE_REPARSE_POINT) { entry.disable_recursion_pending(); continue; }
-            const auto key=PathKey(relative);
-            if(UpdaterState(key) || !IsProductPath(relative) || package.count(key)) continue;
-            if(!entry->is_regular_file()) throw std::runtime_error("Destination is not a file");
+        // Removals are what this folder owns and the package lacks: the files
+        // the installed MANIFEST.txt names, plus the obsolete list for folders
+        // from before manifests. Never merely a permitted path, so art or a
+        // doc the player keeps at an accepted name is not an update's to take.
+        // A manifest that is missing or unreadable only loses that knowledge;
+        // it must not stop the update that would replace it.
+        std::map<std::wstring,fs::path> owned;
+        for(const auto* name:package::Obsolete) owned.emplace(PathKey(name),fs::path(name));
+        CheckPath(install,L"MANIFEST.txt");
+        if(fs::exists(fs::symlink_status(install/L"MANIFEST.txt"))) try { for(const auto& [key,named]:ReadManifest(install/L"MANIFEST.txt")) owned.emplace(key,named.first); } catch(const std::exception&) {}
+        for(const auto& [key,relative]:owned) {
+            if(package.count(key) || !IsProductPath(relative) || !fs::exists(fs::symlink_status(install/relative))) continue;
             CheckPath(install,relative);
+            if(!fs::is_regular_file(install/relative)) throw std::runtime_error("Destination is not a file");
             removals.push_back(relative);
         }
         std::stable_sort(files.begin(),files.end(),[](const fs::path& left,const fs::path& right){

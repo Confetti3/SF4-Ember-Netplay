@@ -75,6 +75,8 @@ int wmain(int argc, wchar_t** argv) {
     Write(staging/L"docs\\TRAINING_LAB.md","unlisted");
     CHECK(!sf4e::launcher::ValidatePackageFolder(staging,error)); fs::remove(staging/L"docs\\TRAINING_LAB.md"); fs::remove(staging/L"docs");
     CHECK(sf4e::launcher::ValidatePackageFolder(staging,error));
+    // This version ships a doc and a selection asset the older one below lacks.
+    Write(staging/L"docs\\TRAINING_LAB.md","new"); Write(staging/L"assets\\selection\\sources.json","new"); Manifest(staging);
     CHECK(sf4e::launcher::InstallPackage(staging,install,error));
     CHECK(Read(install/L"Launcher.exe") == "new" && !fs::exists(install/L"Qt6Core.dll"));
     CHECK(!fs::exists(install/L"dxwrapper.dll") && !fs::exists(install/L"Safe display.cmd"));
@@ -103,12 +105,13 @@ int wmain(int argc, wchar_t** argv) {
     Write(staging/L"sf4-net.exe","new"); Write(staging/L"Launcher.exe","new"); Manifest(staging);
 
     // One transition, whichever way the versions go: the folder's product
-    // files become exactly the package's. Here an older package: it lacks a
-    // doc, a selection asset and a file this build added, so those go (with
-    // a rollback copy, the player's edit included), and it ships a file this
-    // build lists as obsolete, which is accepted.
+    // files become exactly the package's. Here an older package: it lacks the
+    // doc and the selection asset the installed manifest names, so those go
+    // (with a rollback copy, the player's edit included), and it ships a file
+    // this build lists as obsolete, which is accepted. Art the player keeps at
+    // an accepted name that no package shipped is not an update's to take.
     Write(install/L"docs\\TRAINING_LAB.md","player-edited");
-    Write(install/L"assets\\selection\\sources.json","newer-only");
+    Write(install/L"assets\\selection\\horror-sources.json","player-art");
     Write(install/L"my-replay.bin","user");
     const auto older=root/L"older"; fs::create_directories(older);
     for (const auto* path : sf4e::package::Required) Write(older/path,"older");
@@ -118,13 +121,16 @@ int wmain(int argc, wchar_t** argv) {
     CHECK(Read(install/L"Launcher.exe")=="older" && Read(install/L"dxwrapper.dll")=="older-display-wrapper");
     CHECK(!fs::exists(install/L"docs\\TRAINING_LAB.md") && !fs::exists(install/L"assets\\selection\\sources.json") && !fs::exists(install/L"docs"));
     CHECK(Read(install/L"my-replay.bin")=="user" && Read(install/L"d3d9.dll")=="user-owned-proxy");
+    CHECK(Read(install/L"assets\\selection\\horror-sources.json")=="player-art");
     bool editKept=false;
     for (const auto& item : fs::recursive_directory_iterator(install/L".ember-update-backups"))
         if (item.path().filename()==L"TRAINING_LAB.md") editKept = Read(item.path())=="player-edited";
     CHECK(editKept);
-    // And forward again: the newer package removes the obsolete file.
+    // And forward again: the newer package removes the obsolete file; the
+    // player's art survives its second update.
     CHECK(sf4e::launcher::InstallPackage(staging,install,error));
-    CHECK(Read(install/L"Launcher.exe")=="new" && !fs::exists(install/L"dxwrapper.dll"));
+    CHECK(Read(install/L"Launcher.exe")=="new" && !fs::exists(install/L"dxwrapper.dll") && Read(install/L"docs\\TRAINING_LAB.md")=="new");
+    CHECK(Read(install/L"assets\\selection\\horror-sources.json")=="player-art");
     // A product file held open cannot be removed: nothing changes, the
     // journal is gone, and the next transition succeeds.
     Write(install/L"docs\\TRAINING_LAB.md","held");
@@ -147,7 +153,10 @@ int wmain(int argc, wchar_t** argv) {
     Manifest(crashStaging);
     Write(crashInstall/L"Launcher.exe","prior-launcher");
     Write(crashInstall/L"sf4-net.exe","user-collision");
+    // Owned by the installed manifest and absent from the package: a removal.
     Write(crashInstall/L"docs\\TRAINING_LAB.md","removed-first");
+    const std::string crashManifest=Sha256("removed-first")+"  docs\\TRAINING_LAB.md\n";
+    Write(crashInstall/L"MANIFEST.txt",crashManifest.c_str());
     std::wstring command=L"\""+fs::absolute(argv[0]).wstring()+L"\" --crash-child \""+crashRoot.wstring()+L"\"";
     STARTUPINFOW startup{};startup.cb=sizeof(startup);PROCESS_INFORMATION child{};
     SetEnvironmentVariableW(L"SF4E_UPDATE_TEST_TERMINATE_AFTER",L"2");
@@ -199,6 +208,7 @@ int wmain(int argc, wchar_t** argv) {
     CHECK(Read(crashInstall/L"Launcher.exe")=="target" && !fs::exists(crashInstall/L"docs") && !fs::exists(journalPath));
     // Back to the interrupted state for the checks below.
     Write(crashInstall/L"Launcher.exe","prior-launcher"); Write(crashInstall/L"sf4-net.exe","user-collision"); Write(crashInstall/L"docs\\TRAINING_LAB.md","removed-first");
+    Write(crashInstall/L"MANIFEST.txt",crashManifest.c_str());
     for(const auto& op:originalJournal["operations"]) if(!op["existed"].get<bool>()) fs::remove(crashInstall/fs::u8path(op["path"].get<std::string>()));
 
     // Recovery never locks a player out or downgrades a folder it does not own.
@@ -264,6 +274,7 @@ int wmain(int argc, wchar_t** argv) {
     // A name that only starts like the updater's own is the player's.
     Write(install/L".ember-update-backups-notes.txt","player");
     Write(root/L"outside\\TRAINING_LAB.md","outside");
+    fs::remove_all(install/L"docs"); // The junction takes the shipped doc folder's place.
     std::wstring junction=L"cmd.exe /c mklink /J \""+(install/L"docs").wstring()+L"\" \""+(root/L"outside").wstring()+L"\"";
     STARTUPINFOW junctionStartup{};junctionStartup.cb=sizeof(junctionStartup);PROCESS_INFORMATION junctionChild{};
     CHECK(CreateProcessW(nullptr,&junction[0],nullptr,nullptr,FALSE,CREATE_NO_WINDOW,nullptr,nullptr,&junctionStartup,&junctionChild));

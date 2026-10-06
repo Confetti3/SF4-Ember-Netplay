@@ -11,10 +11,11 @@ bool ValidatePackageFolder(const std::filesystem::path& package, std::string& er
 // Lowercase hex SHA-256 of a file, as MANIFEST.txt writes it.
 std::string Sha256Hex(const std::filesystem::path& file);
 // Makes the folder's product files exactly the package's, whichever of the
-// two is older: files the package has are replaced, product files it lacks
-// are removed, each with a rollback copy and a journal entry. Files the
-// inventory does not know are the player's and are never touched. Refuses
-// reparse points in either tree.
+// two is older: files the package has are replaced; files the installed
+// MANIFEST.txt names, or the obsolete list, that the package lacks are
+// removed; each with a rollback copy and a journal entry. Anything else in
+// the folder is the player's and is never touched. Refuses reparse points in
+// either tree.
 bool InstallPackage(const std::filesystem::path& staging, const std::filesystem::path& install, std::string& error);
 // Restores an interrupted transaction, or validates and clears a committed one.
 bool RecoverPackage(const std::filesystem::path& install, std::string& error, bool inspectOnly = false);
