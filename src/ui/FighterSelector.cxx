@@ -263,7 +263,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   // A fighter the player's Steam licences do not cover keeps its place in the
   // grid, so the layout matches the game's, but cannot be saved.
   for(const int id:RosterDisplayOrder){
-   const bool owned=!readAvailability||!FighterLocked(readAvailability(id));
+   const bool owned=!readAvailability||!FighterLocked(id,readAvailability(id));
    rows.push_back(Saving(Row("fighter-"+std::to_string(id),FindFighter(id)->name,owned?locked:loc::T("selection.not_owned"),editable&&owned),"menu.hint.save_fighter",editable&&owned));
   }
   const auto grid=LayOutRosterGrid(ImGui::GetContentRegionAvail().x);
@@ -392,7 +392,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   const float font=(std::min)(ImGui::GetFontSize(),(max.x-min.x-6)*ImGui::GetFontSize()/(std::max)(1.f,ImGui::CalcTextSize(e.label.c_str()).x));
   ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(),font,ImVec2(min.x+3,max.y-labelHeight),saved?palette::Ember:palette::Ivory,e.label.c_str());
   if(saved)DrawCardBadge(ImVec2(min.x+3,min.y+2),max.x-min.x-6,loc::T("selection.saved"),"saved-badge");
-  if(screen=="roster"&&!saved&&readAvailability&&FighterLocked(readAvailability(id))){
+  if(screen=="roster"&&!saved&&readAvailability&&FighterLocked(id,readAvailability(id))){
    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(min.x+3,min.y+3),ImVec2(max.x-3,max.y-labelHeight),IM_COL32(16,15,14,170));
    DrawCardBadge(ImVec2(min.x+3,min.y+2),max.x-min.x-6,loc::T("selection.not_owned_badge"),"not-owned-badge");
   }

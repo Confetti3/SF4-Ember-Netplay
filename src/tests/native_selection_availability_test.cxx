@@ -41,9 +41,12 @@ int main() try {
         "Reserved native slots became selectable costumes");
     Check(AllowedCostumes(0, NativeAvailability(0)).empty(), "Empty native ownership invented costumes");
     // The title grants costume 1 to 39-43 whether or not the fighter is owned.
-    Check(FighterLocked(NativeAvailability(0x0002003f)) && AllowedCostumes(43, NativeAvailability(0x0002003f)).empty(),
+    Check(FighterLocked(43, NativeAvailability(0x0002003f)) && AllowedCostumes(43, NativeAvailability(0x0002003f)).empty(),
         "A costume grant made an unowned fighter selectable");
-    Check(!FighterLocked(Availability{}), "Unknown availability locked a fighter");
+    Check(!FighterLocked(43, Availability{}), "Unknown availability locked a fighter");
+    // The base roster is never licence-gated, whatever its bit 16 says.
+    for (int fighter = 0; fighter < 35; ++fighter)
+        Check(!FighterLocked(fighter, NativeAvailability(0x0000000f)), "A base roster fighter was locked");
     {
         Pick unowned; unowned.fighter = 43; unowned.costume = 1;
         const auto locked = NativeAvailability(0x0002003f);

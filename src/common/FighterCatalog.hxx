@@ -75,8 +75,9 @@ std::vector<UltraCommand> UltraCommands(int fighterId, int ultraId, int editionI
 // Facing-neutral short notation for a token string: "236 236 + PPP" is
 // "QCF x2 + PPP", "~4 6 4 6 + KKK" is "Charge B, F, B, F + KKK".
 std::string UltraNotation(const std::string& tokens);
-// The player does not own this fighter. Unknown availability is not locked.
-bool FighterLocked(const Availability& availability);
+// The player does not own this fighter. Only 35-43 are sold separately;
+// unknown availability is not locked.
+bool FighterLocked(int fighterId, const Availability& availability);
 std::vector<int> AllowedCostumes(int fighterId, const Availability& availability);
 std::vector<int> AllowedColors(int fighterId, int costumeId, const Availability& availability);
 std::vector<int> AllowedPersonalActions(const Availability& availability);

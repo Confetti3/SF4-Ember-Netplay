@@ -180,14 +180,16 @@ std::string UltraNotation(const std::string& tokens) {
     }
     return result;
 }
-bool FighterLocked(const Availability& availability) {
-    return availability.ready && !(availability.costumes & 1u);
+bool FighterLocked(int fighterId, const Availability& availability) {
+    // 6A0970 licence-gates only 35-43 (39-43 in some editions). The base
+    // roster's bit 16 comes from a default table, so it never locks them.
+    return fighterId >= 35 && availability.ready && !(availability.costumes & 1u);
 }
 std::vector<int> AllowedCostumes(int fighterId, const Availability& availability) {
     std::vector<int> result;
     // A fighter's other costume bits can be set without the fighter itself
     // (the title grants costume 1 to 39-43), so an unowned fighter has none.
-    if (availability.ready && !FighterLocked(availability))
+    if (availability.ready && !FighterLocked(fighterId, availability))
         for (int costume = 0; costume < CostumeCount(fighterId); ++costume)
             if (availability.costumes & (1u << costume)) result.push_back(costume);
     return result;
@@ -231,7 +233,7 @@ bool Normalize(Pick& pick, bool editionSelect, const Availability* availability)
     const auto ultras = AllowedUltras(pick.fighter, pick.edition);
     if (std::find(ultras.begin(), ultras.end(), pick.ultra) == ultras.end()) pick.ultra = 0;
     // Unknown availability is not a reason to destroy a saved valid pick.
-    if (availability && FighterLocked(*availability) && pick.fighter != 0) {
+    if (availability && FighterLocked(pick.fighter, *availability)) {
         // Ryu is in every edition the game sells. His own availability
         // settles the costume and color on the next read.
         pick.fighter = 0; pick.costume = 0; pick.color = 0; pick.ultra = 0;
