@@ -47,6 +47,11 @@ int main() try {
     // The base roster is never licence-gated, whatever its bit 16 says.
     for (int fighter = 0; fighter < 35; ++fighter)
         Check(!FighterLocked(fighter, NativeAvailability(0x0000000f)), "A base roster fighter was locked");
+    // Yun, Yang, Evil Ryu, Oni and the Ultra fighters are sold separately.
+    for (int fighter = 35; fighter < FighterCount; ++fighter) {
+        Check(FighterLocked(fighter, NativeAvailability(0x0002003f)), "An unowned separately sold fighter was not locked");
+        Check(!FighterLocked(fighter, NativeAvailability(0x0001003f)), "An owned separately sold fighter was locked");
+    }
     {
         Pick unowned; unowned.fighter = 43; unowned.costume = 1;
         const auto locked = NativeAvailability(0x0002003f);
