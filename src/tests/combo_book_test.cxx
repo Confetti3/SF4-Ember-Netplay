@@ -74,9 +74,10 @@ int main() {
     {
         std::vector<std::string> red{"5HP", "xx 5LP+MP+MK#20", "66#24"}; FoldFadc(red);
         CHECK((red == std::vector<std::string>{"5HP", "xx RFADC#20"}));
+        // The red focus is tapped, then waits for its own hit before the dash.
         const auto frames = Synthesize({"5HP", "xx RFADC"}, true, 0);
-        bool pressed = false; for (const auto& f : frames) pressed = pressed || f.raw == (LP | MP | MK);
-        CHECK(pressed);
+        std::size_t press = 0; while (press < frames.size() && frames[press].raw != (LP | MP | MK)) ++press;
+        CHECK(press + 4 < frames.size() && frames[press + 2].raw == 0 && frames[press + 4].wait == sf4e::training::WaitHit && frames[press + 5].raw == Right);
     }
     CHECK(ParseStep("5HP@-1#14", step, error) && step.at == 14 && step.offset == -1 && Canonical(step) == "5HP#14@-1");
     CHECK(!ParseStep("5HP#14#15", step, error) && !ParseStep("5HP@+1@+2", step, error));

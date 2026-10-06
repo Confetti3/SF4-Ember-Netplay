@@ -92,7 +92,7 @@ constexpr int MaxAtFrame = 3600;
 //   @N:      replay timing, -30..+30 frames ("@-1", "@+3")
 //   #N:      replay frame the press lands on, 0..3600 ("#45")
 // cr. is 2; st., cl. and far. are 5. FADC is MP+MK then a dash, 66 unless 44;
-// RFADC is the red focus, LP+MP+MK, then the dash.
+// RFADC is the red focus, LP+MP+MK tapped so the attack comes out and lands, then the dash on its hit.
 inline bool ParseStep(const std::string& text, Step& step, std::string& error) {
     step = Step{};
     std::string s;
