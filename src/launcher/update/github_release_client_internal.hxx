@@ -47,7 +47,6 @@ namespace launcher {
 
 		// Defined in github_release_validation.cxx.
 		bool IsAllowedUpdateUrl(const char* url);
-		int CompareVersions(const char* a, const char* b);
 		bool FindPackageRoot(const wchar_t* searchRoot, wchar_t* outRoot, int outRootChars);
 		bool ValidateExtractedTree(const wchar_t* extractRoot);
 		bool ValidateStagedPackage(const wchar_t* stagingDir);

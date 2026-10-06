@@ -126,6 +126,24 @@ msgstr "An operation is already running."
 msgid "updates.check_detail"
 msgstr "Check for a newer Ember package."
 
+msgid "updates.channel"
+msgstr "Update channel"
+
+msgid "updates.channel.stable"
+msgstr "Stable"
+
+msgid "updates.channel.prerelease"
+msgstr "Pre-release"
+
+msgid "updates.channel_detail"
+msgstr "Stable offers finished releases only. Pre-release also offers beta and release-candidate builds, which may have more problems. Everyone you play with needs the same version."
+
+msgid "updates.installed_version"
+msgstr "Installed version"
+
+msgid "updates.installed_version_detail"
+msgstr "The Ember version on this PC."
+
 msgid "updates.install"
 msgstr "Download and install"
 
@@ -185,6 +203,7 @@ msgstr "Opening the updater..."
 
 msgid "services.update_available"
 msgstr "An update is available: {0}"
+
 
 msgid "services.up_to_date"
 msgstr "You are up to date."
@@ -1534,8 +1553,6 @@ msgstr "A match participant left the room. The game will end."
 
 msgid "update.github_unreachable"
 msgstr "Could not reach GitHub. Check your internet connection and try again."
-msgid "update.no_version_tag"
-msgstr "GitHub release has no version tag."
 msgid "update.no_zip_asset"
 msgstr "Latest release has no SF4 Ember Netplay ZIP asset."
 msgid "update.parse_failed"

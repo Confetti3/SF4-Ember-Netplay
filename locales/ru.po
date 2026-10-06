@@ -126,6 +126,24 @@ msgstr "Операция уже выполняется."
 msgid "updates.check_detail"
 msgstr "Проверить, вышел ли новый пакет Ember."
 
+msgid "updates.channel"
+msgstr "Канал обновлений"
+
+msgid "updates.channel.stable"
+msgstr "Стабильный"
+
+msgid "updates.channel.prerelease"
+msgstr "Предварительные версии"
+
+msgid "updates.channel_detail"
+msgstr "Стабильный канал предлагает только готовые выпуски. Предварительные версии включают также бета-версии и кандидаты в релиз, в которых может быть больше проблем. Всем, с кем вы играете, нужна та же версия."
+
+msgid "updates.installed_version"
+msgstr "Установленная версия"
+
+msgid "updates.installed_version_detail"
+msgstr "Версия Ember на этом компьютере."
+
 msgid "updates.install"
 msgstr "Скачать и установить"
 
@@ -185,6 +203,7 @@ msgstr "Запуск обновления..."
 
 msgid "services.update_available"
 msgstr "Доступно обновление: {0}"
+
 
 msgid "services.up_to_date"
 msgstr "У вас последняя версия."
@@ -1565,8 +1584,6 @@ msgstr "Участник матча покинул зал. Бой заверши
 msgid "update.github_unreachable"
 msgstr "Не удалось связаться с GitHub. Проверьте интернет и повторите попытку."
 
-msgid "update.no_version_tag"
-msgstr "У выпуска на GitHub нет метки версии."
 
 msgid "update.no_zip_asset"
 msgstr "В последнем выпуске нет ZIP-пакета SF4 Ember Netplay."

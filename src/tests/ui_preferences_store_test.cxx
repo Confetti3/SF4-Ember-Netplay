@@ -46,6 +46,12 @@ int main() {
     CHECK(GameSettingsCardHiddenIn(root.wstring()) && LoadLanguagePreferenceFrom(root.wstring()) == "es-419");
     CHECK(SaveLanguagePreferenceTo(root.wstring(), "auto", error));
     CHECK(GameSettingsCardHiddenIn(root.wstring()));
+    // The update channel shares the file the same way, and is unchosen until saved.
+    CHECK(UpdateChannelPreferenceIn(root.wstring()).empty());
+    CHECK(SaveUpdateChannelPreferenceTo(root.wstring(), "prerelease", error) && UpdateChannelPreferenceIn(root.wstring()) == "prerelease");
+    CHECK(GameSettingsCardHiddenIn(root.wstring()) && LoadLanguagePreferenceFrom(root.wstring()) == "auto");
+    CHECK(SaveUpdateChannelPreferenceTo(root.wstring(), "stable", error) && UpdateChannelPreferenceIn(root.wstring()) == "stable");
+    CHECK(!SaveUpdateChannelPreferenceTo(root.wstring(), "nightly", error) && UpdateChannelPreferenceIn(root.wstring()) == "stable");
     // A field of the wrong type is not a reason to hide the card, or to throw.
     const auto mistyped = root / L"mistyped"; CHECK(std::filesystem::create_directory(mistyped));
     Write(mistyped / L"ui-preferences.json", "{\"schemaVersion\":1,\"language\":\"en\",\"hideGameSettingsCard\":\"yes\"}");

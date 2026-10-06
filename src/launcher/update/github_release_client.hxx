@@ -2,6 +2,7 @@
 
 #include <string>
 #include <functional>
+#include <optional>
 #include <cstdint>
 
 namespace sf4e {
@@ -23,6 +24,25 @@ namespace launcher {
 		std::string expectedSha256;
 	};
 
+	// A release tag or installed version label: "v1.1.0", "1.1.0-rc2",
+	// "1.1.0-links-sets-test1". Anything with another shape is not a version
+	// and is never offered or compared. A pre-release sorts before the finished
+	// release of its number, then by its word, its number and the rest.
+	struct Version {
+		int major = 0, minor = 0, patch = 0;
+		bool prerelease = false;
+		std::string word, rest;
+		int number = 0;
+	};
+	std::optional<Version> ParseVersion(const char* text);
+	int CompareVersions(const Version& a, const Version& b);
+
+	// Stable offers finished releases; Pre-release also betas and release
+	// candidates. Unchosen, the channel follows the installed version.
+	enum class UpdateChannel { Stable, Prerelease };
+	const char* UpdateChannelName(UpdateChannel channel);
+	UpdateChannel ResolveUpdateChannel(const std::string& saved, const char* installed);
+
 	struct ApplyUpdateResult {
 		bool ok = false;
 		std::string error;
@@ -42,9 +62,11 @@ namespace launcher {
 
     constexpr const char* kDefaultGithubRepo = "Confetti3/SF4-Ember-Netplay";
     constexpr const char* kReleaseZipPrefix = "sf4-ember-netplay-";
-    // Pure release parsing; HTTP and installation remain separate.
-    UpdateCheckResult ParseGithubReleaseResponse(const std::string& body, const char* installed);
-	UpdateCheckResult CheckForUpdate();
+    // Pure release parsing; HTTP and installation remain separate. The
+    // channel's highest listed release with a package, and whether it is
+    // newer than the installed version.
+    UpdateCheckResult ParseGithubReleases(const std::string& body, const char* installed, UpdateChannel channel);
+	UpdateCheckResult CheckForUpdate(UpdateChannel channel);
 	ApplyUpdateResult DownloadAndApplyUpdate(
 		const char* zipDownloadUrl,
 		const char* zipApiUrl,
