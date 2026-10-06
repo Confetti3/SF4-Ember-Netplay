@@ -51,7 +51,7 @@ Experimental unofficial netplay for Ultra Street Fighter IV, based on [sf4e by A
 - **Launch through Steam with Steam Input.** Ember accepts being started through the game's Steam launch options, so Steam Input controllers reach the game.
 - **A familiar fighter grid.** Fighter select and Choose your main follow USFIV's character-select order, and Ultra choices have I, II and W badges with written notation.
 - **A new default match HUD.** Split puts each player's name over the game's PLAYER label and the score, Ping, Rollback, Delay and spectator count in a small panel. Match HUD layout still offers Ember strip, and Match HUD position and Edge spacing place the panel.
-- **Name height.** If you changed the game's own HUD position option, the names can miss the PLAYER labels. Interface > Name height moves them up or down to match. With the names moved far up, a panel placed at the top moves to the bottom corner on its side so it stays readable.
+- **Name height.** If you changed the game's own HUD position option, the names can miss the PLAYER labels. Interface > Name height moves them up or down to match. If moving the names up leaves too little room for a readable panel at the top, the panel moves to the bottom corner on its side.
 - **Play in the background.** Player > Play in the background keeps the game's sound and your controller working while another window, such as OBS, is in front. The keyboard and Ember's menus still need the game window, and fullscreen still minimizes when it loses focus. It is off by default.
 - **The HUD follows the game's resolution.** When the game's resolution differs from its window, Ember's overlay now lays itself out at the game's resolution, and the mouse follows.
 
@@ -83,6 +83,6 @@ Report problems in [Discord](https://discord.gg/uPNqF5A5uq) with `sf4e.log` and 
 
 ## Testing
 
-1.1.0 is 1.1.0-rc2, which testers have been playing, plus Name height. The full build passed all 105 automated tests, including new checks that Name height moves the names by the chosen amount and that the HUD panel stays readable, on screen and clear of the names, moving to the bottom corner when the names are moved far up. The installer test installed setup.exe into an empty folder and uninstalled it while keeping player files. The network room tests passed for rc1 and were not run again, since nothing after rc1 changes room or match code.
+1.1.0 is 1.1.0-rc2, which testers have been playing, plus Name height. The full build passed all 105 automated tests, including new checks that Name height moves the names by the chosen amount and that the HUD panel stays readable, on screen and clear of the names, moving to the bottom corner when the names leave too little room above them. The installer test installed setup.exe into an empty folder and uninstalled it while keeping player files. The network room tests passed for rc1 and were not run again, since nothing after rc1 changes room or match code.
 
 Play in the background was tried in game behind OBS. Name height was checked against a stream frame from a player whose game HUD position was changed. This exact build has not been tested between two PCs over the internet.
