@@ -445,7 +445,11 @@ void TakeCapture(const training::View& view) {
         if(text.empty()) { ++unnamed; continue; }
         if(first<0) first=event.frame;
         combo::Step step; std::string ignored;
-        if(combo::ParseStep(text,step,ignored)) { step.at=(std::min)(combo::MaxAtFrame,event.frame-first); text=combo::Canonical(step); }
+        if(combo::ParseStep(text,step,ignored)) {
+            step.at=(std::min)(combo::MaxAtFrame,event.frame-first);
+            if(event.offset!=training::NoOffset) step.offset=(std::max)(training::MinOffset,(std::min)(training::MaxOffset,event.offset));
+            text=combo::Canonical(step);
+        }
         steps.push_back(text);
     }
     combo::FoldFadc(steps);

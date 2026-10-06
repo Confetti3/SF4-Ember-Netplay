@@ -21,6 +21,8 @@ constexpr unsigned AttackButtons = 0xcf0;
 // negative offset is before it; a hit is pressed on the frame after it is seen.
 struct Input { unsigned mapped = 0, raw = 0; unsigned char wait = 0; signed char offset = 0; };
 constexpr int MinOffset = -120, MaxOffset = 120;
+// A recorded move's offset when no cue was seen for it.
+constexpr int NoOffset = -1000;
 constexpr unsigned char WaitActionable = 1, WaitHit = 2;
 // How long a waiting frame may wait before playback gives up on its
 // condition: a whole recovery, or the few frames a buffered press can wait
@@ -90,7 +92,8 @@ struct View {
     // Record combo: whether Player 1's moves are being written down, and
     // the moves so far: action id, cancel when the move cancelled the one
     // before, and the frame it began on since the recording started.
-    struct CapturedMove { int action = -1; bool cancel = false; int frame = 0; };
+    // offset: frames from the cue to the press, or NoOffset.
+    struct CapturedMove { int action = -1; bool cancel = false; int frame = 0; int offset = NoOffset; };
     bool capturing = false;
     std::vector<CapturedMove> captured;
     // ExportSlot: the selected slot's frames, handed over once per request.

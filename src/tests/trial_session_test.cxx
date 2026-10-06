@@ -356,6 +356,19 @@ int main() {
         CHECK(capture.Events()[2].action == 300 && !capture.Events()[2].cancel);
         // Each move knows the frame it began on.
         CHECK(capture.Events()[0].frame == 5 && capture.Events()[1].frame == 13 && capture.Events()[2].frame == 43);
+        // And how long after its cue it was pressed: a cancel after the hit, a link after the free frame.
+        {
+            ComboCapture timedCapture; FighterSample own, foe; own.valid = foe.valid = true;
+            auto both = [&](unsigned status, int action, unsigned foeStatus, int count) { own.status = status; own.action = action; foe.status = foeStatus; for (int i = 0; i < count; ++i) timedCapture.Observe(own, foe); };
+            timedCapture.Start();
+            both(0, 0, 0, 3); both(16, 300, 0, 4); both(16, 300, 21, 3); both(16, 310, 21, 6); both(16, 310, 0, 2); both(0, 0, 0, 5); both(16, 300, 0, 4);
+            const auto& e = timedCapture.Events();
+            CHECK(e.size() == 3 && e[0].offset == NoOffset);
+            // The cancel began on frame 10, the hit was seen on frame 7: pressed 2 frames after the hit.
+            CHECK(e[1].cancel && e[1].offset == 2);
+            // The link began on frame 23, the fighter was free from frame 18: pressed 4 frames after the free frame.
+            CHECK(!e[2].cancel && e[2].offset == 4);
+        }
         frames(0, 0, CaptureIdleFrames);
         CHECK(!capture.Active() && capture.Events().size() == 3);
         // The same move again, after a neutral frame, is a second move.
