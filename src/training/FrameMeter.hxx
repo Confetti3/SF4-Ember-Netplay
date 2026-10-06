@@ -59,8 +59,9 @@ struct FighterSample {
     bool basicActionInhibited = true;
     int firstActiveFrame = -1;
     int lastActiveFrame = -1;
-    // Native BAC header: the frame the action can be interrupted from, -1 unknown.
-    int interruptibleFrame = -1;
+    // Native BAC header: the frame the action can be interrupted from, and
+    // its total frames; -1 unknown.
+    int interruptibleFrame = -1, totalFrames = -1;
     BoundaryProvenance boundaryProvenance = BoundaryProvenance::None;
 };
 inline bool GroundedRecoveryState(unsigned status) {

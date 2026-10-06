@@ -311,6 +311,7 @@ void AfterUpdate(Native* system) {
                     sample.boundaryProvenance = BoundaryProvenance::BacActionHeader;
                 }
                 if (script && script[2] > 0 && script[2] <= script[3] && script[3] <= 4096) sample.interruptibleFrame = script[2];
+                if (script && script[3] > 0 && script[3] <= 4096) sample.totalFrames = script[3];
             }
             (actor->*Actor::publicMethods.GetDamage)(&value);
             sample.damage = Dimps::Math::FixedToFloat(&value);
@@ -334,8 +335,10 @@ void AfterUpdate(Native* system) {
             const auto& own = fighters[side], & other = fighters[1 - side];
             const bool hit = other.valid && ((ClassifyStatus(other.status) == Phase::Hit && ClassifyStatus(previous[1 - side].status) != Phase::Hit) ||
                 other.comboDamage > previous[1 - side].comboDamage);
-            // How soon the script says the fighter is free again, so a link's press can land on that frame.
-            const int until = own.valid && own.interruptibleFrame > own.actionFrame ? static_cast<int>(std::ceil(own.interruptibleFrame - own.actionFrame)) : -1;
+            // How soon the script says the fighter is free again, so a link's
+            // press can land on that frame: its interruptible frame, else its end.
+            const int boundary = own.interruptibleFrame > 0 ? own.interruptibleFrame : own.totalFrames;
+            const int until = own.valid && boundary > own.actionFrame ? static_cast<int>(std::ceil(boundary - own.actionFrame)) : -1;
             session.Observe(own.valid && ClassifyStatus(own.status) == Phase::Neutral, hit, until);
             previous = fighters;
         }
