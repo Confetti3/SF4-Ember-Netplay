@@ -11,10 +11,11 @@ install and operate the room supervisor is in
 
 ## Where things stand
 
-The server is a 2 core, 1.8 GB VPS. It started with a limit of 4 public rooms,
-which players filled quickly. On 2026-10-05 the limit went up to 10, which is
-as many as this machine holds safely. Players have asked for something closer
-to 100.
+The server is a 2 core VPS. It started with 1.8 GB and a limit of 4 public
+rooms, which players filled quickly. On 2026-10-05 the limit went up to 10. On
+2026-10-06 the memory went to 3.8 GB with a 2 GB swapfile and the limit to 20,
+past what 2 cores hold comfortably (14 by the table below), while a larger
+server is on order. Players have asked for something closer to 100.
 
 ## What one room costs
 
@@ -35,12 +36,12 @@ together, so plan on 1 GB for them.
 ## Sizing
 
 Rooms a server can hold at about 110 MB each, leaving 1 GB for everything
-else (today's server can only spare about 650 MB) and keeping the average CPU
-under about 70%:
+else, and keeping the average CPU under about 70%:
 
 | Server | Rooms (memory) | Rooms (CPU) | About |
 |---|---|---|---|
-| 2 cores, 1.8 GB (today) | 10 | 14 | 10 |
+| 2 cores, 1.8 GB | 10 | 14 | 10 |
+| 2 cores, 3.8 GB (today) | 25 | 14 | 14; set to 20 |
 | 4 cores, 8 GB | 60 | 28 | 25 to 30 |
 | 8 cores, 16 GB | 130 | 56 | 50 to 55 |
 | 12 cores, 24 GB | 200 | 84 | 80 |

@@ -210,11 +210,11 @@ check "config no longer lists it" config_lacks aaa111
 
 echo "10. --max-rooms sets the room limit"
 config_max() { python3 -c 'import json, sys; sys.exit(0 if json.load(open(sys.argv[1]))["max_rooms"] == int(sys.argv[2]) else 1)' "$CONFIG" "$1"; }
-run_setup --max-rooms 12
+run_setup --max-rooms 24
 check "exits 0" succeeded
-check "max_rooms is 12" config_max 12
-check "says what changed" mentions "max_rooms 10 -> 12"
-check "warns that MemoryMax is too small" mentions "needs about 1320M of memory"
+check "max_rooms is 24" config_max 24
+check "says what changed" mentions "max_rooms 10 -> 24"
+check "warns that MemoryMax is too small" mentions "needs about 2640M of memory"
 check "config lists the new build" config_lists bbb222
 snapshot snap10
 

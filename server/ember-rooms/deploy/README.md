@@ -25,10 +25,10 @@ size holds and hosting options are in
 | `/var/lib/ember-rooms/` | state for the room hosts |
 | `/etc/systemd/system/ember-rooms.service` | the unit |
 
-The unit allows 1150 MB of memory and 512 tasks for the supervisor and all
+The unit allows 2400 MB of memory, 1 GB of swap and 512 tasks for the supervisor and all
 rooms together, and the example config starts at `max_rooms` 10. A room (room
 host plus helper) measured about 100 MB and 8 tasks on the VPS in October
-2026. The machine has 1.8 GB and also runs the bridge (its own 256 MB limit)
+2026. The machine has 3.8 GB and 2 cores and also runs the bridge (its own 256 MB limit)
 and the short-link service (96 MB); each unit has its own limit, so a full
 room supervisor cannot starve the bridge. Measure a room's memory (`systemctl
 status ember-rooms` shows the total) before raising `max_rooms`; raise
