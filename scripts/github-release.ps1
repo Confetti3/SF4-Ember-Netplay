@@ -35,6 +35,7 @@ try {
     if (!$published -or !$published.digest -or $published.digest -ine "sha256:$baseHash") { throw 'Local previous package does not match the published release asset.' }
     . (Join-Path $PSScriptRoot 'package-team.ps1') -OutDir $OutDir -VersionLabel $version
     . (Join-Path $PSScriptRoot 'package-upgrade.ps1') -FromVersion $PreviousVersion -ToVersion $version -BaseZip $baseZip -TargetZip $script:PackageZipPath -OutDir $OutDir
-    & gh release create $Tag $script:PackageZipPath "${script:PackageZipPath}.sha256" $script:UpgradeZipPath "${script:UpgradeZipPath}.sha256" --repo $releaseRepository --verify-tag --latest --title "SF4 Ember Netplay $Tag" --notes-file $NotesFile
+    . (Join-Path $PSScriptRoot 'package-installer.ps1') -PackageDir $script:PackageFolderPath -VersionLabel $version -OutDir $OutDir
+    & gh release create $Tag $script:PackageZipPath "${script:PackageZipPath}.sha256" $script:UpgradeZipPath "${script:UpgradeZipPath}.sha256" $script:InstallerPath "${script:InstallerPath}.sha256" --repo $releaseRepository --verify-tag --latest --title "SF4 Ember Netplay $Tag" --notes-file $NotesFile
     if ($LASTEXITCODE) { throw 'GitHub release publication failed.' }
 } finally { Pop-Location }

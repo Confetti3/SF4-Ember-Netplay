@@ -42,8 +42,16 @@ This creates `dist/sf4-ember-netplay-0.8.3.zip` and its `.sha256` sidecar. It re
 
 Every published release also includes a smaller incremental package for users of the previous release. `scripts/package-upgrade.ps1` compares the complete previous and target manifests, includes only changed product files, preserves unrelated user files, and exercises both check-only and real upgrade paths against temporary extraction of the exact previous package. The installer verifies the old installation, payload, reconstructed target and backup before completing.
 
+Fresh installations use a per-user installer built from the same verified package folder:
+
+```powershell
+pwsh -NoProfile -File ./scripts/package-installer.ps1 -PackageDir dist/sf4-ember-netplay-0.8.3 -VersionLabel 0.8.3
+```
+
+This creates `dist/sf4-ember-netplay-0.8.3-setup.exe` and its `.sha256` sidecar. The first run downloads the Inno Setup compiler named by `scripts/installer/innosetup-pin.json`, verifies its SHA-256 and keeps a private copy under `build/tools`; nothing is installed system-wide (`SF4E_ISCC` names another `ISCC.exe` instead). It bundles the Visual C++ x86 runtime installer of the building toolset. The installer needs no administrator rights, places the package under `%LOCALAPPDATA%\Programs`, and installs the runtime only when the present one is older. It only places the first copy and refuses a folder that already has files in it; updates remain with `Updater.exe` and the ZIP packages. Its uninstaller runs `Updater.exe -InstallDir <folder> -Uninstall`, which removes the files the package inventory names or allows (including any a later update added) and the updater's own state, and leaves the player's files. `scripts/test-installer.ps1 -Installer <setup.exe>` exercises the refusal, the installation and the uninstall in a temporary folder.
+
 ## Publish a release
 
-Commit the final source, README and screenshots before the final build. Build from that exact commit, review the package, then push the `release` branch and a version tag pointing to that commit. Keep legacy `main` unchanged. Keep the verified previous full package and checksum in `dist`, then use `scripts/github-release.ps1 -Tag v0.8.3`. It packages a fresh complete ZIP, constructs and validates the mandatory previous-version upgrade ZIP, and uploads both with SHA-256 sidecars. The script refuses dirty source, mismatched tags, non-published base packages and existing releases.
+Commit the final source, README and screenshots before the final build. Build from that exact commit, review the package, then push the `release` branch and a version tag pointing to that commit. Keep legacy `main` unchanged. Keep the verified previous full package and checksum in `dist`, then use `scripts/github-release.ps1 -Tag v0.8.3`. It packages a fresh complete ZIP, constructs and validates the mandatory previous-version upgrade ZIP, builds the installer, and uploads all three with SHA-256 sidecars. The script refuses dirty source, mismatched tags, non-published base packages and existing releases.
 
 Public release notes must distinguish local tests, helper network tests and observed gameplay. A package or test pass alone is not a clean-machine or two-PC gameplay result.

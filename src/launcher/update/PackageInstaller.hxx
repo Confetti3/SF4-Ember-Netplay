@@ -9,4 +9,9 @@ inline constexpr wchar_t UpdateTransactionName[] = L".ember-update-transaction-v
 bool InstallPackage(const std::filesystem::path& staging, const std::filesystem::path& install, std::string& error);
 // Restores an interrupted transaction, or validates and clears a committed one.
 bool RecoverPackage(const std::filesystem::path& install, std::string& error, bool inspectOnly = false);
+// Removes every file the package inventory names or allows (so files an update
+// added later and obsolete ones too), the updater's own state and the folders
+// that leaves empty. Anything else in the folder is the player's and stays.
+// Reparse points are left alone, never followed.
+bool UninstallPackage(const std::filesystem::path& install, std::string& error);
 } }

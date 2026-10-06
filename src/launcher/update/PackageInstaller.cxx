@@ -233,6 +233,42 @@ bool RecoverPackage(const fs::path& installInput, std::string& error, bool inspe
         auto lock=Lock(install); return RecoverLocked(install,error,false); }
     catch(const std::exception& failure){error=failure.what();return false;}
 }
+bool UninstallPackage(const fs::path& installInput, std::string& error) {
+    try {
+        const auto install=fs::absolute(installInput).lexically_normal();
+        CheckPath(install.root_path(),install.relative_path());
+        if(!fs::is_directory(install)) throw std::runtime_error("Invalid install paths");
+        std::set<std::wstring> obsolete;
+        for(const auto* name:package::Obsolete) obsolete.insert(PathKey(name));
+        const auto ours=[&](const fs::path& rel){
+            const auto key=PathKey(rel);
+            return package::IsAllowed(rel.c_str()) || obsolete.count(key) || key==PathKey(TransactionName) ||
+                key==PathKey(std::wstring(TransactionName)+L".failed") || key==PathKey(LockName) || key.find(L".ember-update-backups\\")==0;
+        };
+        std::vector<fs::path> parents;
+        std::string failed; // Keep going past a file in use; report it at the end.
+        {
+            auto lock=Lock(install);
+            for(fs::recursive_directory_iterator entry(install), end; entry!=end; ++entry) {
+                const auto rel=entry->path().lexically_relative(install);
+                // A junction or symlink is the player's, whatever it points at.
+                if(GetFileAttributesW(entry->path().c_str()) & FILE_ATTRIBUTE_REPARSE_POINT) { entry.disable_recursion_pending(); continue; }
+                if(entry->is_directory() || !ours(rel) || PathKey(rel)==PathKey(LockName)) continue;
+                CheckPath(install,rel);
+                std::error_code code; fs::remove(install/rel,code);
+                if(code && failed.empty()) failed="Cannot remove "+rel.u8string()+": "+code.message();
+                parents.push_back((install/rel).parent_path());
+            }
+        }
+        CheckPath(install,LockName); fs::remove(install/LockName);
+        for(auto parent:parents) {
+            while(PathKey(parent).size()>PathKey(install).size() && RemoveDirectoryW(parent.c_str())) parent=parent.parent_path();
+        }
+        RemoveDirectoryW(install.c_str()); // Only when nothing of the player's is left.
+        if(!failed.empty()) throw std::runtime_error(failed);
+    } catch(const std::exception& failure){error=failure.what();return false;}
+    error.clear(); return true;
+}
 bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, std::string& error) {
     std::vector<Change> changed;
     fs::path install, backup;
