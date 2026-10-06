@@ -84,11 +84,19 @@ inline bool ValidSwan(const Bytes& swan) {
 }
 
 // The slot's record, or null when the slot is out of range or its index is
-// not one the game wrote.
+// not one the game wrote. Each record names its slot in its first four
+// bytes, and a save need not keep them in slot order (a tester's LIST had
+// slot 36 at position 30), so the record is the one that names the slot;
+// a list that names it nowhere falls back to the slot's position.
 inline const std::uint8_t* Record(const Bytes& list, const Bytes& swan, int slot) {
 	if (slot < 0 || slot >= kSlots) return nullptr;
-	if (slot < kListSlots) return ValidList(list) ? list.data() + kListRecordsOffset + slot * kRecordBytes : nullptr;
-	return ValidSwan(swan) ? swan.data() + kSwanRecordsOffset + (slot - kListSlots) * kRecordBytes : nullptr;
+	const bool inList = slot < kListSlots;
+	if (inList ? !ValidList(list) : !ValidSwan(swan)) return nullptr;
+	const std::uint8_t* const records = inList ? list.data() + kListRecordsOffset : swan.data() + kSwanRecordsOffset;
+	const int first = inList ? 0 : kListSlots, count = inList ? kListSlots : kSlots - kListSlots;
+	for (int at = 0; at < count; at++)
+		if (ReadU32(records + at * kRecordBytes) == static_cast<std::uint32_t>(slot)) return records + at * kRecordBytes;
+	return records + (slot - first) * kRecordBytes;
 }
 
 struct SlotInfo {
@@ -157,6 +165,63 @@ inline bool ExportFromReplay(const Bytes& replay, const Bytes& entry, Bytes& out
 	out.push_back(0x0E); out.push_back(0x0E);
 	out.insert(out.end(), replay.begin(), replay.end());
 	return true;
+}
+
+// What a replay file's own header says: the two fighters (dwords at 0x20
+// and 0x170, the second player's block 0x150 after the first's) and when it
+// was played (a FILETIME at 0x10; the record's save time matches it for a
+// record the game wrote). Read from 153 archived replays against their
+// records (ReplaySlotsTest). False for anything shorter than the header.
+struct ReplayHeaderInfo {
+	int fighters[2];
+	std::uint32_t time; // seconds since 1970, UTC
+};
+constexpr std::size_t kReplayHeaderBytes = 0x174;
+inline bool ReadReplayHeader(const Bytes& replay, ReplayHeaderInfo& info) {
+	if (replay.size() < kReplayHeaderBytes || std::memcmp(replay.data(), "#BRP", 4)) return false;
+	for (int side = 0; side < 2; side++) {
+		const std::uint32_t fighter = ReadU32(replay.data() + 0x20 + side * 0x150);
+		info.fighters[side] = fighter < 64 ? static_cast<int>(fighter) : -1;
+	}
+	const std::uint64_t filetime = ReadU32(replay.data() + 0x10) | (static_cast<std::uint64_t>(ReadU32(replay.data() + 0x14)) << 32);
+	info.time = filetime > 116444736000000000ull ? static_cast<std::uint32_t>((filetime - 116444736000000000ull) / 10000000ull) : 0;
+	return true;
+}
+
+// An export built from a replay file alone, for a saver file without its
+// .index entry: the record is made up as the game writes one for a Versus
+// battle (type 7 at 50, 8 at each player's +22, 0E 0E as the slot's bytes,
+// as every Ember-recorded replay carries), with the fighters and the played
+// date and time from the replay's own header.
+inline bool ExportFromReplayAlone(const Bytes& replay, Bytes& out) {
+	ReplayHeaderInfo header;
+	if (!ReadReplayHeader(replay, header) || header.fighters[0] < 0 || header.fighters[1] < 0) return false;
+	Bytes full(kRecordBytes, 0);
+	std::uint8_t* record = full.data();
+	record[4] = 1;
+	WriteU32(record + 5, Crc32(replay.data(), replay.size()));
+	WriteU32(record + 9, static_cast<std::uint32_t>(replay.size()));
+	WriteU32(record + 13, header.time);
+	const std::time_t at = header.time;
+	tm utc = {};
+#ifdef _WIN32
+	gmtime_s(&utc, &at);
+#else
+	gmtime_r(&at, &utc);
+#endif
+	char title[22] = {};
+	std::snprintf(title, sizeof(title), "%04d-%02d-%02d %02d:%02d", utc.tm_year + 1900, utc.tm_mon + 1, utc.tm_mday, utc.tm_hour, utc.tm_min);
+	WriteU32(record + 22, 21);
+	std::memcpy(record + 26, title, 21);
+	record[47] = 0x02; record[48] = 0x0E; record[49] = 0x00; record[50] = 0x07;
+	record[51] = static_cast<std::uint8_t>(utc.tm_year + 1900); record[52] = static_cast<std::uint8_t>((utc.tm_year + 1900) >> 8);
+	record[53] = static_cast<std::uint8_t>(utc.tm_mon + 1); record[54] = static_cast<std::uint8_t>(utc.tm_mday);
+	for (int side = 0; side < 2; side++) {
+		record[71 + side * 34] = static_cast<std::uint8_t>(header.fighters[side]);
+		record[77 + side * 34] = 8;
+	}
+	record[123] = static_cast<std::uint8_t>(utc.tm_hour); record[124] = static_cast<std::uint8_t>(utc.tm_min);
+	return ExportFromReplay(replay, Bytes(full.begin() + 4, full.end()), out);
 }
 
 // The slot a new replay goes into among first to last, the way the game picks

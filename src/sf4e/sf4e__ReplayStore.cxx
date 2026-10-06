@@ -66,13 +66,19 @@ BOOL ReplayInfoList::Read(void* stream) {
 	const BOOL ok = (this->*publicMethods.Read)(stream);
 	std::uint8_t* const begin = *reinterpret_cast<std::uint8_t**>(reinterpret_cast<std::uint8_t*>(this) + 8);
 	std::uint8_t* const end = *reinterpret_cast<std::uint8_t**>(reinterpret_cast<std::uint8_t*>(this) + 0xC);
-	bool stock = begin && end - begin == static_cast<std::ptrdiff_t>(sf4e::replayslots::kSlots * kEntryBytes);
-	for (int slot = 0; stock && slot < sf4e::replayslots::kSlots; slot++) {
-		stock = sf4e::replayslots::ReadU32(begin + slot * kEntryBytes + 4) == static_cast<std::uint32_t>(slot);
+	// Each entry names its slot at +4 (from its record, or -1 when never
+	// filled, 0x676B70); a save need not keep the entries in slot order.
+	const std::ptrdiff_t span = begin ? end - begin : 0;
+	bool stock = begin && span == static_cast<std::ptrdiff_t>(sf4e::replayslots::kSlots * kEntryBytes);
+	int odd = -1;
+	for (int at = 0; stock && at < sf4e::replayslots::kSlots; at++) {
+		const std::uint32_t slot = sf4e::replayslots::ReadU32(begin + at * kEntryBytes + 4);
+		if (slot >= static_cast<std::uint32_t>(sf4e::replayslots::kSlots) && slot != 0xFFFFFFFFu) { stock = false; odd = at; }
 	}
 	s_entries = stock ? begin : nullptr;
 	if (stock) spdlog::info("Replay: the game's replay table is at {}", static_cast<void*>(begin));
-	else spdlog::warn("Replay: the game's replay table is not the stock shape; archived replays cannot be added while it runs");
+	else spdlog::warn("Replay: the game's replay table is not the stock shape (read {}, {} bytes for {} entries of {}, first odd entry {} holds {:#x}); archived replays cannot be added while it runs",
+		ok, span, span / static_cast<std::ptrdiff_t>(kEntryBytes), kEntryBytes, odd, odd >= 0 ? sf4e::replayslots::ReadU32(begin + odd * kEntryBytes + 4) : 0u);
 	return ok;
 }
 
@@ -186,7 +192,9 @@ sf4e::replaystore::Outcome sf4e::replaystore::Import(const std::wstring& path, P
 	if (!s_entries) return Outcome::NotReady;
 	platform::replays::Imported imported;
 	if (!platform::replays::ImportFile(path, WriteThroughSteam, imported)) return Outcome::Failed;
-	std::uint8_t* const entry = s_entries + imported.slot * kEntryBytes;
+	std::uint8_t* entry = s_entries + imported.slot * kEntryBytes;
+	for (int at = 0; at < sf4e::replayslots::kSlots; at++)
+		if (sf4e::replayslots::ReadU32(s_entries + at * kEntryBytes + 4) == static_cast<std::uint32_t>(imported.slot)) { entry = s_entries + at * kEntryBytes; break; }
 	Stream stream{nullptr, imported.record.data(), imported.record.data(), static_cast<std::uint32_t>(imported.record.size())};
 	BOOL (Entry::* deserialize)(Stream*);
 	*reinterpret_cast<PVOID*>(&deserialize) = (*reinterpret_cast<PVOID**>(entry))[2];

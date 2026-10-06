@@ -236,7 +236,49 @@ static void TestExportFromASaverReplayAndEntry() {
 	CHECK(!ExportFromReplay(replay, Bytes(entry.begin(), entry.end() - 1), exported));
 }
 
+// A save whose records are not in slot order (a tester's LIST held slot 36 at
+// position 30): the record is found by the slot it names, and an import
+// lands on that record, not on the slot's position.
+static void TestRecordsOutOfSlotOrder() {
+	Bytes list = EmptyList(), swan = EmptySwan();
+	std::uint8_t* at30 = list.data() + kListRecordsOffset + 30 * kRecordBytes;
+	std::uint8_t* at36 = list.data() + kListRecordsOffset + 36 * kRecordBytes;
+	WriteU32(at30, 36); WriteU32(at36, 30);
+	CHECK(Record(list, swan, 36) == at30 && Record(list, swan, 30) == at36);
+	const Bytes source = Replay(0x51, 4000);
+	Fill(list, swan, 36, source, 0xA5);
+	CHECK(ReadSlot(list, swan, 36).used && !ReadSlot(list, swan, 30).used);
+	Bytes exported, replay;
+	CHECK(Export(list, swan, 36, source, exported));
+	CHECK(Import(exported, 30, 1700000000, list, swan, replay));
+	CHECK(Record(list, swan, 30) == at36 && ReadU32(at36) == 30 && at36[4] == 1 && ReadU32(at36 + 13) == 1700000000);
+	CHECK(ReadU32(at30) == 36 && at30[4] == 1);
+}
+
+// A saver file with no .index entry: the record is made up from the
+// replay's own header, with the fighters and the played time it names.
+static void TestExportFromAReplayAlone() {
+	Bytes replay = Replay(0x00, 8000);
+	WriteU32(replay.data() + 0x20, 38); WriteU32(replay.data() + 0x170, 1);
+	const std::uint64_t filetime = 116444736000000000ull + 1791302248ull * 10000000ull; // 2026-10-06 15:57:28 UTC
+	WriteU32(replay.data() + 0x10, static_cast<std::uint32_t>(filetime)); WriteU32(replay.data() + 0x14, static_cast<std::uint32_t>(filetime >> 32));
+	ReplayHeaderInfo header;
+	CHECK(ReadReplayHeader(replay, header) && header.fighters[0] == 38 && header.fighters[1] == 1 && header.time == 1791302248);
+	Bytes exported;
+	CHECK(ExportFromReplayAlone(replay, exported));
+	Bytes list = EmptyList(), swan = EmptySwan(), back;
+	CHECK(Import(exported, 300, 1800000000, list, swan, back));
+	CHECK(back == replay);
+	const std::uint8_t* record = Record(list, swan, 300);
+	const RecordInfo info = ReadRecordInfo(record);
+	CHECK(info.fighters[0] == 38 && info.fighters[1] == 1 && record[50] == 7 && record[77] == 8 && record[111] == 8);
+	CHECK(!std::memcmp(record + 26, "2026-10-06 15:57", 16));
+	CHECK(!ExportFromReplayAlone(Replay(0x00, 0x100), exported));
+}
+
 int main() {
+	TestExportFromAReplayAlone();
+	TestRecordsOutOfSlotOrder();
 	TestExportFromASaverReplayAndEntry();
 	TestRecordInfoReadsTheMenuFields();
 	TestCrcIsTheOneTheGameWrites();
