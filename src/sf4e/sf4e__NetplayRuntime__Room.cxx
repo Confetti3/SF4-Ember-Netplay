@@ -1,4 +1,6 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "sf4e__GameEvents.hxx"
+#include "sf4e__ReplayStore.hxx"
 #include "../session/IdentityEvents.hxx"
 #include "../platform/Utf8.hxx"
 #include <cwchar>
@@ -94,6 +96,22 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
     }
     if (command.previewSoundVolume >= 0) {
         PlayChallengerCall((std::min)(command.previewSoundVolume, 100));
+        return DispatchOutcome::Dropped;
+    }
+    if (!command.importReplay.empty() || command.openBattleLog) {
+        // The jump leaves Ember's menu, so only with no room; the import
+        // writes the game's replay table, so only at the native main menu.
+        const bool idle = runtime->controller.GetSnapshot().room == netplay::RoomState::Idle;
+        auto outcome = replaystore::Outcome::NotReady;
+        if (!command.importReplay.empty() && AtMainMenu()) outcome = replaystore::Import(platform::Utf8ToWide(command.importReplay.c_str()));
+        if (!command.importReplay.empty()) {
+            runtime->replayNoticeError = outcome != replaystore::Outcome::Added;
+            runtime->replayNotice = loc::T(outcome == replaystore::Outcome::Added ? "replays.added" :
+                outcome == replaystore::Outcome::NotReady ? "replays.not_ready" : "replays.not_added");
+        }
+        const bool jump = command.openBattleLog || (command.watchReplay && outcome == replaystore::Outcome::Added);
+        if (jump && AtMainMenu() && idle && GameEvents::MainMenu::OpenLocalBattleLog()) runtime->battleLogOpens++;
+        else if (command.openBattleLog) { runtime->replayNoticeError = true; runtime->replayNotice = loc::T("replays.not_ready"); }
         return DispatchOutcome::Dropped;
     }
     if (command.shortInvitation) {

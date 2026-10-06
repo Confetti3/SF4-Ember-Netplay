@@ -622,6 +622,60 @@ msgstr "Offline spielen"
 msgid "home.offline_detail"
 msgstr "Native Offline-Menüs öffnen."
 
+msgid "home.replays"
+msgstr "Replays"
+
+msgid "home.replays_detail"
+msgstr "Jedes Match wird gespeichert. Lege ein beliebiges in den Replay Channel des Spiels."
+
+msgid "replays.title"
+msgstr "Replays"
+
+msgid "replays.empty"
+msgstr "Noch keine Replays"
+
+msgid "replays.empty_detail"
+msgstr "Ein Match wird hier gespeichert, wenn es endet."
+
+msgid "replays.add"
+msgstr "Zum Spiel hinzufügen"
+
+msgid "replays.add_detail"
+msgstr "Fügt es der Replay-Liste des Spiels hinzu, um es später im Kampfprotokoll anzusehen."
+
+msgid "replays.watch"
+msgstr "Jetzt ansehen"
+
+msgid "replays.watch_detail"
+msgstr "Fügt es der Replay-Liste des Spiels hinzu und öffnet das Kampfprotokoll, wo es ganz oben steht."
+
+msgid "replays.row_detail"
+msgstr "Wähle, um es der Replay-Liste des Spiels hinzuzufügen, oder um es hinzuzufügen und jetzt anzusehen."
+
+msgid "replays.not_ready"
+msgstr "Verfügbar im Hauptmenü, außerhalb eines Matches."
+
+msgid "replays.added"
+msgstr "Als neuester Eintrag der Replay-Liste des Spiels hinzugefügt."
+
+msgid "replays.not_added"
+msgstr "Dieses Replay konnte nicht hinzugefügt werden. Die Datei ist womöglich beschädigt."
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "Kampfprotokoll des Spiels öffnen"
+
+msgid "replays.open_log_detail"
+msgstr "Verlässt das Ember-Menü zum lokalen Kampfprotokoll des Spiels, wo Replays abgespielt werden."
+
+msgid "replays.open_log_room"
+msgstr "Verlasse zuerst den Raum."
+
 msgid "home.choose_controller"
 msgstr "Spiel-Controller wählen"
 

@@ -622,6 +622,60 @@ msgstr "Jugar sin conexión"
 msgid "home.offline_detail"
 msgstr "Abre los menús originales sin conexión."
 
+msgid "home.replays"
+msgstr "Repeticiones"
+
+msgid "home.replays_detail"
+msgstr "Cada partida se guarda. Pon cualquiera en el Replay Channel del juego."
+
+msgid "replays.title"
+msgstr "Repeticiones"
+
+msgid "replays.empty"
+msgstr "Aún no hay repeticiones"
+
+msgid "replays.empty_detail"
+msgstr "Una partida se guarda aquí cuando termina."
+
+msgid "replays.add"
+msgstr "Añadir al juego"
+
+msgid "replays.add_detail"
+msgstr "La añade a la lista de repeticiones del juego para verla después desde el registro de combates."
+
+msgid "replays.watch"
+msgstr "Ver ahora"
+
+msgid "replays.watch_detail"
+msgstr "La añade a la lista de repeticiones del juego y abre el registro de combates, donde queda la primera."
+
+msgid "replays.row_detail"
+msgstr "Selecciona para añadirla a la lista de repeticiones del juego, o para añadirla y verla ahora."
+
+msgid "replays.not_ready"
+msgstr "Disponible en el menú principal, fuera de una partida."
+
+msgid "replays.added"
+msgstr "Añadida como la entrada más reciente de la lista de repeticiones del juego."
+
+msgid "replays.not_added"
+msgstr "No se ha podido añadir esta repetición. El archivo puede estar dañado."
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "Abrir el registro de combates del juego"
+
+msgid "replays.open_log_detail"
+msgstr "Sale del menú de Ember al registro de combates local del juego, donde se reproducen las repeticiones."
+
+msgid "replays.open_log_room"
+msgstr "Primero sal de la sala."
+
 msgid "home.choose_controller"
 msgstr "Elegir mando de juego"
 

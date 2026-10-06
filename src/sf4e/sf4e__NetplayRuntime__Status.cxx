@@ -1,4 +1,5 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "sf4e__ReplayStore.hxx"
 
 namespace sf4e { namespace NetplayFacade {
 namespace internal {
@@ -325,6 +326,9 @@ PostPublishState Publish() {
     snapshot.controller = ControllerLabel(snapshot.inputDevice);
 
 	snapshot.atMainMenu = AtMainMenu();
+	snapshot.canImportReplay = snapshot.atMainMenu && replaystore::Ready();
+	snapshot.replayNotice = runtime->replayNotice; snapshot.replayNoticeError = runtime->replayNoticeError;
+	snapshot.battleLogOpens = runtime->battleLogOpens;
 	snapshot.matchWaitsForMenu = runtime->match && !runtime->matchEntered && !snapshot.atMainMenu &&
 		runtime->entryDeferredGeneration && runtime->entryDeferredGeneration == runtime->match->Generation() &&
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Started;

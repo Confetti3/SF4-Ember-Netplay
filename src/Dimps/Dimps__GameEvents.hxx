@@ -83,7 +83,20 @@ namespace Dimps {
 				MainMenu* (*Factory)(DWORD arg1, DWORD arg2, DWORD arg3);
 			} __staticMethods;
 
+			// What GoToVersusMode (0x6131A0) does after asking the flow for a
+			// row: fades the menu sound through the app's sound manager and
+			// closes the menu panel at observer +8.
+			struct SoundManager;
+			struct MenuPanel;
+			typedef struct __exitMethods {
+				void* (*GetApp)();
+				void (SoundManager::* FadeOut)(float seconds);
+				void (MenuPanel::* Close)(int);
+				const float* fadeSeconds;
+			} __exitMethods;
+
 			static __itemObserverMethods itemObserverMethods;
+			static __exitMethods exitMethods;
 			static __publicMethods publicMethods;
 			static __staticMethods staticMethods;
 

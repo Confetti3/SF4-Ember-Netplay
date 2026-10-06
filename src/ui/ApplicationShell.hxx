@@ -106,6 +106,15 @@ struct ShellView {
     netplay::tournament::Status tournament;
     // The bridge's public rooms and the answer to the last create or ticket request.
     netplay::publicrooms::Status publicRooms;
+    // Ember's replay archive (platform/ReplayFiles.hxx), newest first; each
+    // is a path for the import action and a label for its row. replaysReady
+    // when one can be put into the game's replay list right now, and the
+    // outcome of the last import as a notice (an error when it failed).
+    struct Replay { std::string path, label, names[2]; };
+    std::vector<Replay> replays;
+    bool replaysReady = false;
+    std::string replayNotice;
+    bool replayNoticeError = false;
 };
 
 // The count on a Chat control: a rounded badge ending at `right` (screen x), its top at `top`, the
@@ -141,6 +150,12 @@ struct ShellAction {
     // With the JoinInvite of a public room just created: the table rules chosen
     // on Create, which the runtime sets once the creator is in it as host.
     std::optional<room::Rules> createdRules;
+    // An archived replay (its ShellView::Replay::path) to put into the game's
+    // replay list, or a jump to the game's own list of them; nothing is sent.
+    std::string importReplay;
+    // With importReplay: open the battle log right after, to watch it.
+    bool watchReplay = false;
+    bool openBattleLog = false;
 };
 
 class ApplicationShell {

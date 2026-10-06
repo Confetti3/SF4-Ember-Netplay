@@ -21,6 +21,7 @@ using GameEvents::VsStageSelect;
 using Dimps::Platform::dString;
 
 MainMenu::__itemObserverMethods MainMenu::itemObserverMethods;
+MainMenu::__exitMethods MainMenu::exitMethods;
 MainMenu::__publicMethods MainMenu::publicMethods;
 MainMenu::__staticMethods MainMenu::staticMethods;
 char** RootEvent::eventFlowDefinition;
@@ -73,6 +74,10 @@ void MainMenu::Locate(HMODULE peRoot) {
 	*(PVOID*)&itemObserverMethods.OnModeSelected = (PVOID)(peRootOffset + 0x214cb0);
 	*(PVOID*)&itemObserverMethods.GetItemObserverState = (PVOID)(peRootOffset + 0x212c70);
 	*(PVOID*)&itemObserverMethods.GoToVersusMode = (PVOID)(peRootOffset + 0x2131a0);
+	exitMethods.GetApp = (void* (*)())(peRootOffset + 0xcf60);
+	*(PVOID*)&exitMethods.FadeOut = (PVOID)(peRootOffset + 0x286570);
+	*(PVOID*)&exitMethods.Close = (PVOID)(peRootOffset + 0x2d6b70);
+	exitMethods.fadeSeconds = (const float*)(peRootOffset + 0x538e00);
 	staticMethods.Factory = (MainMenu*(*)(DWORD, DWORD, DWORD))(peRootOffset + 0x212f30);
 }
 
