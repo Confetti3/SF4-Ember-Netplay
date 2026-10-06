@@ -84,7 +84,7 @@ int main() {
     CHECK(ParseStep("xx 236HP#120@+2", step, error) && step.at == 120 && step.offset == 2 && Canonical(step) == "xx 236HP#120@+2");
     CHECK(ParseStep("FADC#0", step, error) && step.at == 0 && Canonical(step) == "FADC#0");
     CHECK(ParseStep("5LP", step, error) && step.at == -1);
-    for (const char* bad : {"2MK#", "2MK#-1", "2MK#3601", "2MK#12345", "2MK#a", "#45"}) CHECK(!ParseStep(bad, step, error));
+    for (const char* bad : {"2MK#", "2MK#-1", "2MK#7201", "2MK#12345", "2MK#a", "#45"}) CHECK(!ParseStep(bad, step, error));
     for (const char* bad : {"2MK@", "2MK@1", "2MK@-121", "2MK@+121", "2MK@-a", "@-1", "xx", "FADC4", "FADC6", "[]", "][", "[HP", "]HP]", "[LP+]", "cl.", "xx xx 5LP", "cr.", "hadouken", "236H", "236HPP", "LP+", "LP+LP", "LPLK", "+LP", "PPPP",
         "[4]HP", "[46]HP", "cr.236HP", "0HP", "12345678912LP", "236 HP x"})
         CHECK(!ParseStep(bad, step, error));

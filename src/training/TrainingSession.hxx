@@ -10,7 +10,7 @@
 
 namespace sf4e { namespace training {
 constexpr int SlotCount = 8;
-constexpr int MaxFrames = 60 * 30;
+constexpr int MaxFrames = 60 * 120;
 constexpr int HistoryRows = 12;
 constexpr unsigned FightButtons = 0xcff; // Directions and six attacks; excludes menu buttons.
 constexpr unsigned AttackButtons = 0xcf0;

@@ -497,7 +497,7 @@ std::vector<MenuEntry> ComboRows(const training::View& view,bool trialRunning) {
         Row("cb-stop-trial",loc::T("training.combo.run.stop"),loc::T("training.combo.run.stop.detail"),trialRunning),
         Value("cb-fighter",loc::T("training.combo.fighter"),fighter?fighter->name:"",loc::T("training.combo.fighter.detail")),
         TextRow("cb-name",loc::T("training.combo.name"),creator.name,64),
-        TextRow("cb-steps",loc::T("training.combo.steps"),creator.steps,4096),
+        TextRow("cb-steps",loc::T("training.combo.steps"),creator.steps,8192),
         TextRow("cb-notes",loc::T("training.combo.notes"),creator.notes,256),
         Row("cb-add",loc::T("training.combo.add"),loc::T("training.combo.add.detail"),!creator.steps.empty()),
         Row("cb-save",loc::T("training.combo.save"),loc::T("training.combo.save.detail"),shown!=nullptr&&!creator.steps.empty()),

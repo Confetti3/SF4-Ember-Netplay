@@ -62,7 +62,7 @@ For Waldo's report, capture both sides and each light/medium/heavy/EX Ryu or Ken
 
 ## Record a dummy sequence
 
-Set the native training dummy to **Player/controller control** first; CPU and native playback can supersede controller input. Select one of eight slots, close the controls, and press F7. P1's controller operates P2 while P1 stays neutral. Press F7 again to stop, then F8 to replay. Each slot holds at most 1,800 accepted simulation frames (30 seconds at 60 fps). Playback can loop. Directions are absolute, so switching sides does not mirror a recording. Recordings are local to the current battle.
+Set the native training dummy to **Player/controller control** first; CPU and native playback can supersede controller input. Select one of eight slots, close the controls, and press F7. P1's controller operates P2 while P1 stays neutral. Press F7 again to stop, then F8 to replay. Each slot holds at most 7,200 accepted simulation frames (120 seconds at 60 fps). Playback can loop. Directions are absolute, so switching sides does not mirror a recording. Recordings are local to the current battle.
 
 Input history shows controller inputs, newest first, with how many simulated frames each input was held. It does not identify CPU-generated moves or measure startup.
 
@@ -82,7 +82,7 @@ Pick the fighter, type a name and the moves, then **Add combo**. Moves are separ
 
 - motion: numpad digits, `[4]6` for charge, `360`, `720`. `cr.` is 2; `st.`, `cl.` and `far.` are 5.
 - buttons: `LP MP HP LK MK HK` joined by `+`, or `P PP PPP K KK KKK`. `[HP]` holds, `]HP[` releases, `(mash)` mashes.
-- `@N`: the move's own timing offset, -120 to +120 frames. `#N`: the replay frame the press lands on, 0 to 3600.
+- `@N`: the move's own timing offset, -120 to +120 frames. `#N`: the replay frame the press lands on, 0 to 7200.
 - `FADC` is the focus cancel (MP+MK, then the dash at once). `RFADC` is the red focus: LP+MP+MK tapped and let go so the red focus attack comes out and lands, then the dash on that hit.
 - Move names work too, read as the chosen fighter's: `cr.MK xx HP Hadoken > FADC > cl.HP`. The name table comes from `src/training/ComboMoves.inc`, regenerated with `scripts/generate-combo-moves.py` from a USF4 frame-data JSON.
 
@@ -92,7 +92,7 @@ A route already in the pack is refused. **Save combo** writes the fields as type
 
 ### Share
 
-**Copy combo**, **Copy pack** and **Copy all packs** put JSON text on the clipboard; **Import from clipboard** reads any of the three shapes. Imported packs join packs of the same name and skip routes already present. Imports are bounded: 256 KB, 64 packs, 256 combos per pack, 160 moves per combo.
+**Copy combo**, **Copy pack** and **Copy all packs** put JSON text on the clipboard; **Import from clipboard** reads any of the three shapes. Imported packs join packs of the same name and skip routes already present. Imports are bounded: 256 KB, 64 packs, 256 combos per pack, 400 moves per combo.
 
 **Combo tree** shows every route in every pack by fighter; combos that start the same way share a branch.
 

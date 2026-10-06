@@ -17,7 +17,7 @@ namespace sf4e { namespace combo {
 constexpr int FormatVersion = 1;
 constexpr const char* FormatName = "sf4e-combos";
 // Imported text comes from other players, so every size is bounded.
-constexpr std::size_t MaxBytes = 256 * 1024, MaxPacks = 64, MaxCombos = 256, MaxSteps = 160, MaxText = 96, MaxNotes = 512;
+constexpr std::size_t MaxBytes = 256 * 1024, MaxPacks = 64, MaxCombos = 256, MaxSteps = 400, MaxText = 96, MaxNotes = 512;
 
 // character: the fighter catalog code, upper case. steps: one move each, in
 // order, in the canonical notation ParseStep accepts ("2MK", "xx 236HP").
@@ -82,7 +82,7 @@ struct Step {
     Edge edge = Edge::Press; Range range = Range::Any;
     int offset = 0, at = -1;
 };
-constexpr int MaxAtFrame = 3600;
+constexpr int MaxAtFrame = 7200;
 
 // Strict notation, any case:
 //   [xx|~] [j.|cr.|st.|cl.|far.] [motion] [buttons] [(mash)] [#N] [@N]   or   [xx] FADC[66|44] [#N] [@N]   or   [xx] RFADC[66|44] [#N] [@N]
@@ -90,7 +90,7 @@ constexpr int MaxAtFrame = 3600;
 //   buttons: LP MP HP LK MK HK joined by "+", or P PP PPP K KK KKK;
 //            "[HP]" holds them, "]HP[" releases them, "(mash)" mashes them
 //   @N:      replay timing, -120..+120 frames ("@-1", "@+3")
-//   #N:      replay frame the press lands on, 0..3600 ("#45")
+//   #N:      replay frame the press lands on, 0..7200 ("#45")
 // cr. is 2; st., cl. and far. are 5. FADC is MP+MK then a dash, 66 unless 44;
 // RFADC is the red focus, LP+MP+MK tapped so the attack comes out and lands, then the dash on its hit.
 inline bool ParseStep(const std::string& text, Step& step, std::string& error) {
