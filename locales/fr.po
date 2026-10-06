@@ -725,7 +725,7 @@ msgid "settings.title"
 msgstr "PARAMÈTRES"
 
 msgid "settings.player_detail"
-msgstr "Nom affiché et attribution de la manette."
+msgstr "Nom affiché, attribution de la manette et jeu en arrière-plan."
 
 msgid "settings.defaults_detail"
 msgstr "Latence et réglages des nouveaux salons."
@@ -753,6 +753,12 @@ msgstr "Clavier"
 
 msgid "player.use_keyboard_detail"
 msgstr "Attribuez le clavier comme appareil de jeu. Votre manette ne servira plus à naviguer dans les menus d'Ember tant que vous ne l'aurez pas attribuée de nouveau."
+
+msgid "player.background_play"
+msgstr "Jouer en arrière-plan"
+
+msgid "player.background_play_detail"
+msgstr "Le son du jeu et votre manette continuent de fonctionner quand une autre fenêtre, comme OBS, est au premier plan. Le clavier et les menus d'Ember ont toujours besoin de la fenêtre du jeu. Utilisez le mode fenêtré : en plein écran, le jeu se réduit toujours."
 
 msgid "player.native_menus"
 msgstr "Ouvrir les menus du jeu"

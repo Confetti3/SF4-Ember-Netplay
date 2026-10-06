@@ -725,7 +725,7 @@ msgid "settings.title"
 msgstr "IMPOSTAZIONI"
 
 msgid "settings.player_detail"
-msgstr "Nome visualizzato e assegnazione controller."
+msgstr "Nome visualizzato, assegnazione controller e gioco in background."
 
 msgid "settings.defaults_detail"
 msgstr "Ritardo input e nuove sale."
@@ -753,6 +753,12 @@ msgstr "Usa tastiera"
 
 msgid "player.use_keyboard_detail"
 msgstr "Assegna la tastiera come dispositivo di gioco. Il controller non muoverà più i menu di Ember finché non lo assegni di nuovo."
+
+msgid "player.background_play"
+msgstr "Gioca in background"
+
+msgid "player.background_play_detail"
+msgstr "L'audio del gioco e il controller continuano a funzionare mentre un'altra finestra, come OBS, è in primo piano. La tastiera e i menu di Ember richiedono ancora la finestra del gioco. Usa la modalità finestra: a schermo intero il gioco si riduce comunque a icona."
 
 msgid "player.native_menus"
 msgstr "Apri menu del gioco"

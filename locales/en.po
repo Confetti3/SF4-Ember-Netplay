@@ -725,7 +725,7 @@ msgid "settings.title"
 msgstr "SETTINGS"
 
 msgid "settings.player_detail"
-msgstr "Display name and controller assignment."
+msgstr "Display name, controller assignment and playing in the background."
 
 msgid "settings.defaults_detail"
 msgstr "Input delay and new-room defaults."
@@ -753,6 +753,12 @@ msgstr "Use keyboard"
 
 msgid "player.use_keyboard_detail"
 msgstr "Assign the keyboard as your gameplay device. Your controller then stops moving through Ember's menus until you assign it again."
+
+msgid "player.background_play"
+msgstr "Play in the background"
+
+msgid "player.background_play_detail"
+msgstr "Game sound and your controller keep working while another window, such as OBS, is in front. The keyboard and Ember's menus still need the game window. Use windowed mode: fullscreen still minimizes."
 
 msgid "player.native_menus"
 msgstr "Open native menus"

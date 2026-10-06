@@ -725,7 +725,7 @@ msgid "settings.title"
 msgstr "設定"
 
 msgid "settings.player_detail"
-msgstr "表示名とコントローラーの割り当て。"
+msgstr "表示名、コントローラーの割り当て、バックグラウンドでのプレイ。"
 
 msgid "settings.defaults_detail"
 msgstr "入力遅延と新規ルームの初期設定。"
@@ -753,6 +753,12 @@ msgstr "キーボードを使う"
 
 msgid "player.use_keyboard_detail"
 msgstr "キーボードを対戦用のデバイスに割り当てます。割り当て直すまで、コントローラーではEmberのメニューを操作できなくなります。"
+
+msgid "player.background_play"
+msgstr "バックグラウンドでプレイ"
+
+msgid "player.background_play_detail"
+msgstr "OBSなど別のウィンドウが前面にあっても、ゲームの音とコントローラーは動作し続けます。キーボードとEmberのメニューにはゲームのウィンドウが必要です。ウィンドウモードを使ってください。フルスクリーンでは最小化されます。"
 
 msgid "player.native_menus"
 msgstr "ゲーム本体のメニューを開く"

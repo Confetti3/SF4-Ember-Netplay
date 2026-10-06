@@ -725,7 +725,7 @@ msgid "settings.title"
 msgstr "EINSTELLUNGEN"
 
 msgid "settings.player_detail"
-msgstr "Anzeigename und Controller-Zuweisung."
+msgstr "Anzeigename, Controller-Zuweisung und Spielen im Hintergrund."
 
 msgid "settings.defaults_detail"
 msgstr "Eingabeverzögerung und neue Raumvorgaben."
@@ -753,6 +753,12 @@ msgstr "Tastatur nutzen"
 
 msgid "player.use_keyboard_detail"
 msgstr "Tastatur als Spielgerät zuweisen. Der Controller steuert die Ember-Menüs danach nicht mehr, bis Sie ihn erneut zuweisen."
+
+msgid "player.background_play"
+msgstr "Im Hintergrund spielen"
+
+msgid "player.background_play_detail"
+msgstr "Spielsound und Controller funktionieren weiter, während ein anderes Fenster wie OBS im Vordergrund ist. Tastatur und Ember-Menüs brauchen weiterhin das Spielfenster. Verwenden Sie den Fenstermodus: Im Vollbild wird das Spiel weiterhin minimiert."
 
 msgid "player.native_menus"
 msgstr "Native Menüs öffnen"

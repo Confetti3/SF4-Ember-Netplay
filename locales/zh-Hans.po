@@ -725,7 +725,7 @@ msgid "settings.title"
 msgstr "设置"
 
 msgid "settings.player_detail"
-msgstr "显示名称和控制器分配。"
+msgstr "显示名称、控制器分配和后台游玩。"
 
 msgid "settings.defaults_detail"
 msgstr "输入延迟和新房间默认设置。"
@@ -753,6 +753,12 @@ msgstr "使用键盘"
 
 msgid "player.use_keyboard_detail"
 msgstr "将键盘设为对战设备。在重新指定之前，控制器将无法操作 Ember 菜单。"
+
+msgid "player.background_play"
+msgstr "后台游玩"
+
+msgid "player.background_play_detail"
+msgstr "当 OBS 等其他窗口位于前台时，游戏声音和控制器仍可正常使用。键盘和 Ember 菜单仍需要游戏窗口。请使用窗口模式：全屏时游戏仍会最小化。"
 
 msgid "player.native_menus"
 msgstr "打开游戏菜单"

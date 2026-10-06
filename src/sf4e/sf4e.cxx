@@ -8,6 +8,7 @@
 #include "../Dimps/Dimps__Platform.hxx"
 
 #include "sf4e.hxx"
+#include "sf4e__BackgroundPlay.hxx"
 #include "sf4e__CrashDiagnostics.hxx"
 #include "sf4e__Event.hxx"
 #include "sf4e__Game.hxx"
@@ -236,8 +237,13 @@ void sf4e::Install(HINSTANCE hinstDll, const sf4e::Payload* const payload) {
 	Game::Install();
 	GameEvents::Install();
 	Pad::Install();
+	BackgroundPlay::Install();
 	Platform::Install();
 	UserApp::Install();
+}
+
+void sf4e::HooksCommitted() {
+	BackgroundPlay::Activate();
 }
 
 void fIEmSpriteAction::RecordToAdditionalMemento(rIEmSpriteAction* a, AdditionalMemento& m) {
