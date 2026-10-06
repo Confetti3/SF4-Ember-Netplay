@@ -340,11 +340,20 @@ Inventory ReadInventory(const fs::path& file) {
         if(line.rfind("SF4E_PACKAGE_",0)!=0 || open==std::string::npos || line.size()<open+4 || line.compare(line.size()-2,2,"\")")!=0)
             throw std::runtime_error("Invalid package inventory");
         const std::string kind=line.substr(13,open-13);
-        std::string text=line.substr(open+2,line.size()-open-4);
-        if(text.empty() || text.find('"')!=std::string::npos) throw std::runtime_error("Invalid package inventory");
-        for(size_t at=0; (at=text.find("\\\\",at))!=std::string::npos; ++at) text.erase(at,1);
-        const fs::path relative=fs::u8path(text).lexically_normal();
-        if(relative.empty() || relative.is_absolute() || relative.has_root_name()) throw std::runtime_error("Invalid package inventory");
+        // The path literal holds plain characters and doubled backslashes
+        // only, so it means here exactly what it means to the compiler: no
+        // other escape, no control character, no "." or ".." part.
+        const std::string literal=line.substr(open+2,line.size()-open-4);
+        std::string text;
+        for(size_t at=0; at<literal.size(); ++at) {
+            const unsigned char c=static_cast<unsigned char>(literal[at]);
+            if(c<0x20 || c==0x7f || c=='"' || c=='/') throw std::runtime_error("Invalid package inventory");
+            if(c=='\\' && (++at>=literal.size() || literal[at]!='\\')) throw std::runtime_error("Invalid package inventory");
+            text+=static_cast<char>(c);
+        }
+        const fs::path relative=fs::u8path(text);
+        if(text.empty() || relative.is_absolute() || relative.has_root_name() || relative.has_root_directory()) throw std::runtime_error("Invalid package inventory");
+        for(const auto& part:relative) if(part.empty() || part==L"." || part==L"..") throw std::runtime_error("Invalid package inventory");
         if(kind=="REQUIRED") inventory.required.emplace(PathKey(relative),relative);
         else if(kind=="OBSOLETE") inventory.obsolete.insert(PathKey(relative));
         else if(kind!="OPTIONAL") throw std::runtime_error("Invalid package inventory");

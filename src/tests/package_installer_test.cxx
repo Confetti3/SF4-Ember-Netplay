@@ -162,6 +162,11 @@ int wmain(int argc, wchar_t** argv) {
     CHECK(rewritten(netLine,"  "+netLine+"  ") && error.find("sf4-net.exe")!=std::string::npos);
     CHECK(rewritten(netLine,"SF4E_PACKAGE_REQUIRED( \"sf4-net.exe\")") && error.find("inventory")!=std::string::npos);
     CHECK(rewritten(netLine,"/* "+netLine+" */") && error.find("inventory")!=std::string::npos);
+    // A path literal means what the compiler reads: any escape other than a
+    // doubled backslash, and any "." or ".." part, is refused.
+    CHECK(rewritten(netLine,"SF4E_PACKAGE_REQUIRED(\"sf4-net.exe\\0/../../Launcher.exe\")") && error.find("inventory")!=std::string::npos);
+    CHECK(rewritten(netLine,"SF4E_PACKAGE_REQUIRED(\"sf4-net.ex\\x65\")") && error.find("inventory")!=std::string::npos);
+    CHECK(rewritten(netLine,"SF4E_PACKAGE_REQUIRED(\"notices\\\\..\\\\sf4-net.exe\")") && error.find("inventory")!=std::string::npos);
     CHECK(sf4e::launcher::InstallPackage(older,install,error));
     CHECK(Read(install/L"Launcher.exe")=="older" && Read(install/L"dxwrapper.dll")=="older-display-wrapper");
     CHECK(!fs::exists(install/L"docs\\TRAINING_LAB.md") && !fs::exists(install/L"assets\\selection\\sources.json") && !fs::exists(install/L"docs"));
