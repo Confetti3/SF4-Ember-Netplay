@@ -1436,7 +1436,7 @@ msgid "training.combo.tune.kept"
 msgstr "Move {0} kept at @{1}."
 
 msgid "training.combo.tune.failed"
-msgstr "Move {0}: nothing connected at any offset."
+msgstr "Move {0}: the move after it connects at no run length tried; its offset is back where it was. The loop ends here."
 
 msgid "training.combo.tune.done"
 msgstr "Tuning done."

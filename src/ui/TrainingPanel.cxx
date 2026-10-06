@@ -310,7 +310,9 @@ std::vector<std::string> TimingSteps() {
 }
 // The timing screen: those moves one by one, each with its "@" offset to
 // nudge and what the last replay saw for it.
-struct Tune { bool on=false, started=false; std::size_t step=0; int best=training::MinOffset-1, candidate=0, settle=0; } tune;
+struct Tune { bool on=false, started=false; std::size_t step=0; int best=training::MinOffset-1, candidate=0, settle=0, start=0; } tune;
+// How far below a move's starting offset the tuner looks before giving up on it.
+constexpr int TuneReach=6;
 void StartTune(const training::View& view,const TrainingSubmit& submit);
 // Writes a move's offset into the saved combo when the typed line is that
 // combo (selecting one fills the line), and into the typed line itself.
@@ -368,7 +370,7 @@ void StartTune(const training::View& view,const TrainingSubmit& submit) {
     tune=Tune{}; tune.step=NextFollow(steps,0);
     if(tune.step>=steps.size()) { ComboNotice(loc::T("training.combo.tune.none"),true); return; }
     combo::Step step; std::string error; combo::ParseStep(steps[tune.step],step,error);
-    tune.on=true; tune.candidate=step.offset;
+    tune.on=true; tune.candidate=tune.start=step.offset;
     ComboNotice(loc::Tf("training.combo.tune.trying",static_cast<int>(tune.step)+1,tune.candidate));
 }
 void TickTune(const training::View& view,const TrainingSubmit& submit) {
@@ -390,18 +392,23 @@ void TickTune(const training::View& view,const TrainingSubmit& submit) {
     const bool hit=!view.replay.empty()&&view.replay.back().hit;
     tune.started=false;
     if(hit) {
+        // Longer while it still connects; the first miss after a hit is the ceiling.
         tune.best=tune.candidate;
         if(tune.candidate<training::MaxOffset) { ++tune.candidate; ComboNotice(loc::Tf("training.combo.tune.trying",static_cast<int>(tune.step)+1,tune.candidate)); return; }
-    } else if(tune.best<training::MinOffset&&tune.candidate>training::MinOffset) {
-        // Nothing has connected yet: shorter until something does.
+    } else if(tune.best<training::MinOffset&&tune.candidate>tune.start-TuneReach&&tune.candidate>training::MinOffset) {
+        // Nothing has connected yet: shorter until something does, within reach.
         --tune.candidate; ComboNotice(loc::Tf("training.combo.tune.trying",static_cast<int>(tune.step)+1,tune.candidate)); return;
     }
-    if(tune.best<training::MinOffset) { tune.on=false; ComboNotice(loc::Tf("training.combo.tune.failed",static_cast<int>(tune.step)+1),true); return; }
+    if(tune.best<training::MinOffset) {
+        // This rep cannot connect at any run length: the loop ends here. Put the offset back and stop.
+        SetOffset(steps,tune.step,tune.start); tune.on=false;
+        ComboNotice(loc::Tf("training.combo.tune.failed",static_cast<int>(tune.step)+1),true); return;
+    }
     SetOffset(steps,tune.step,tune.best);
     ComboNotice(loc::Tf("training.combo.tune.kept",static_cast<int>(tune.step)+1,tune.best));
     tune.step=NextFollow(TimingSteps(),tune.step+1); tune.best=training::MinOffset-1;
     if(tune.step>=TimingSteps().size()) { tune.on=false; ComboNotice(loc::T("training.combo.tune.done")); return; }
-    combo::Step step; std::string error; combo::ParseStep(TimingSteps()[tune.step],step,error); tune.candidate=step.offset;
+    combo::Step step; std::string error; combo::ParseStep(TimingSteps()[tune.step],step,error); tune.candidate=tune.start=step.offset;
 }
 // The pattern editor's moves: the typed line or the selected combo, taken
 // when the screen opens and written back after every change.
