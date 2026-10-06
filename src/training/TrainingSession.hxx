@@ -15,8 +15,9 @@ constexpr int HistoryRows = 12;
 constexpr unsigned FightButtons = 0xcff; // Directions and six attacks; excludes menu buttons.
 // wait: a loaded frame that repeats, buttons held, until the fighter can act
 // again (1) or a hit lands (2), so a replayed combo takes its timing from the
-// fight; offset: frames to go on waiting after that, or when negative, how
-// many frames before the cue the script predicts to stop waiting.
+// fight; offset: frames after the cue the press lands on, 0 being the cue's
+// own frame as the fighter's script predicts it (the frame after it is seen
+// when the script says nothing), negative before it.
 struct Input { unsigned mapped = 0, raw = 0; unsigned char wait = 0; signed char offset = 0; };
 constexpr int MinOffset = -9, MaxOffset = 30;
 constexpr unsigned char WaitActionable = 1, WaitHit = 2;
@@ -207,10 +208,11 @@ public:
             const auto& frame = slots_[view_.selected][view_.cursor];
             // The cue, then the offset's frames more.
             const bool cued = frame.wait == WaitActionable ? actionable_ : frame.wait == WaitHit ? hit_ : true;
-            // An early press goes when the script says the cue is that close; the cue itself still releases it.
+            // The press lands on the predicted cue frame plus the offset; a
+            // seen cue releases it the frame after, so a prediction is never late.
             const int until = frame.wait == WaitActionable ? untilActionable_ : frame.wait == WaitHit ? untilActive_ : -1;
-            const bool early = frame.offset < 0 && until >= 0 && until <= -frame.offset;
-            const bool met = (cued && (cued ? waitedPast_++ : 0) >= frame.offset) || early;
+            const bool predicted = until >= 0 && until <= 1 - frame.offset;
+            const bool met = (cued && (cued ? waitedPast_++ : 0) >= (std::max)(0, frame.offset - 1)) || predicted;
             ++sincePress_;
             if (!met && ++waited_ < (frame.wait == WaitHit ? MaxWaitHitFrames : MaxWaitFrames)) return;
             if (frame.wait) { view_.replay.push_back({waited_, met, false}); sincePress_ = 0; }

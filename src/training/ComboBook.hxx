@@ -63,7 +63,7 @@ enum class Range { Any, Close, Far };
 // range: a standing normal that must come out as its close or far version.
 // cancel: this move cancels the one before it; otherwise it links after it.
 // mash: the buttons are pressed again and again (Hundred Hand Slap).
-// offset: frames the replay goes on waiting after this move's cue ("cr.MK@+1").
+// offset: frames after this move's cue the press lands on, before it when negative ("cr.MK@+1").
 // at: the frame of the replay the press lands on, -1 when the move follows
 // the fight's cues instead ("cr.MK#45", as a pattern editor lays it out).
 struct Step {

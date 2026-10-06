@@ -175,13 +175,12 @@ int main() {
             Require(session.Prepare(physical)[0].raw == 0x82, "Free frame did not release the wait");
             session.Commit(session.Prepare(physical));
             session.Observe(false, true); session.Commit(session.Prepare(physical));
-            session.Observe(false, false); session.Commit(session.Prepare(physical));
             Require(session.GetView().cursor == 3, "Late offset did not hold after the hit");
             session.Observe(false, false); session.Commit(session.Prepare(physical));
             Require(session.Prepare(physical)[0].raw == 0x18, "Late offset held too long");
             // Each move reports what its wait saw.
             const auto& replay = session.GetView().replay;
-            Require(replay.size() == 3 && replay[0].waited == 0 && replay[1].waited == 5 && replay[1].cued && replay[2].waited == 2 && replay[2].cued, "Waits not reported");
+            Require(replay.size() == 3 && replay[0].waited == 0 && replay[1].waited == 5 && replay[1].cued && replay[2].waited == 1 && replay[2].cued, "Waits not reported");
             Require(replay[1].hit && !replay[2].hit, "Hit not credited to the move before it");
             apply(Action::Stop);
             // A press waiting for a hit that never comes goes stale quickly.
@@ -190,19 +189,28 @@ int main() {
             for (int i = 0; i < MaxWaitHitFrames; ++i) { session.Observe(false, false); session.Commit(session.Prepare(physical)); }
             Require(session.Prepare(physical)[0].raw == 0x18 && !session.GetView().replay[2].cued, "Waiting for a hit never gave up");
             apply(Action::Stop);
-            // A negative offset presses that many frames before the cue the
-            // script predicts, and the cue itself still releases it.
+            // With the script predicting the cue, the press lands on the cue
+            // frame plus the offset: before it when negative. A seen cue still releases it.
             Command early; early.action = Action::Load; early.generation = generation; early.value = 0;
-            early.frames = {Input{9, 9, 0}, Input{2, 2, WaitActionable, -2}, Input{0x82, 0x82, 0}, Input{8, 8, WaitHit, -3}, Input{0x18, 0x18, 0}};
+            early.frames = {Input{9, 9, 0}, Input{2, 2, WaitActionable, 0}, Input{0x82, 0x82, 0}, Input{8, 8, WaitHit, -2}, Input{0x18, 0x18, 0}};
             Require(session.Apply(early) && apply(Action::Play), "Early load refused");
             session.Commit(session.Prepare(physical));
             session.Observe(false, false, 5, -1); session.Commit(session.Prepare(physical));
-            session.Observe(false, false, 3, -1); session.Commit(session.Prepare(physical));
-            Require(session.GetView().cursor == 1, "Early press went before its frames");
             session.Observe(false, false, 2, -1); session.Commit(session.Prepare(physical));
-            Require(session.Prepare(physical)[0].raw == 0x82 && session.GetView().cursor == 2, "Early press did not go two frames before the free frame");
+            Require(session.GetView().cursor == 1, "Press went before the cue frame");
+            session.Observe(false, false, 1, -1); session.Commit(session.Prepare(physical));
+            Require(session.Prepare(physical)[0].raw == 0x82 && session.GetView().cursor == 2, "Press did not land on the predicted free frame");
             session.Commit(session.Prepare(physical));
             session.Observe(false, false, -1, 8); session.Commit(session.Prepare(physical));
+            session.Observe(false, false, -1, 4); session.Commit(session.Prepare(physical));
+            Require(session.GetView().cursor == 3, "Early press went before its frames");
+            session.Observe(false, false, -1, 3); session.Commit(session.Prepare(physical));
+            Require(session.GetView().cursor == 4, "Press did not land two frames before the active frame");
+            apply(Action::Stop);
+            Require(session.Apply(early) && apply(Action::Play), "Early load refused again");
+            session.Commit(session.Prepare(physical));
+            session.Observe(true, false); session.Commit(session.Prepare(physical));
+            session.Commit(session.Prepare(physical));
             session.Observe(false, true, -1, 7); session.Commit(session.Prepare(physical));
             Require(session.GetView().cursor == 4, "Hit cue did not release an early press");
             apply(Action::Stop);

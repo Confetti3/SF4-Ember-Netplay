@@ -1382,7 +1382,7 @@ msgid "training.combo.replay.gap"
 msgstr "Timing offset"
 
 msgid "training.combo.replay.gap.detail"
-msgstr "Frames every move goes on waiting after its cue (the free frame for a link, the hit for a cancel), on top of a move's own @ offset such as cr.MK@+1. Below zero presses that many frames before the cue, as the move's script predicts it."
+msgstr "Frames after its cue every move presses on (the free frame for a link, the first active frame for a cancel), on top of a move's own @ offset such as cr.MK@+1. At zero the press lands on the cue frame itself, as the move's script predicts it; below zero that many frames before it."
 
 msgid "training.combo.replay.started"
 msgstr "Replay loaded into slot {0} and playing."
