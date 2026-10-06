@@ -6,7 +6,7 @@
 #include "../common/Localization.hxx"
 
 namespace sf4e { namespace ui {
-enum class RecoveryChoice { None, Folder, Retry, CheckUpdates, Install, Cancel, Close };
+enum class RecoveryChoice { None, Folder, Retry, CheckUpdates, Install, Cancel, Close, Channel };
 // The root screen names the header's "< Back / ..." breadcrumb (MenuScreenLabel).
 inline MenuNavigation RecoveryNavigation(bool updates) { return MenuNavigation(updates?"updates":"recovery"); }
 // Each newly found update takes the highlight once, so Select installs it
@@ -25,6 +25,9 @@ inline void OfferFoundUpdate(GameMenu& menu,const platform::ServiceSnapshot& sta
 // the service result always shows.
 // canStart adds a way into the game to the updater, which otherwise only
 // closes: it answers RecoveryChoice::Retry like the launch window's Retry.
+// The updater also shows the channel its checks use (Select on that row asks
+// for the other one, RecoveryChoice::Channel) and the installed version, so an
+// offered version can be read against it.
 inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSnapshot& state,const std::string& message,bool updates,
     Tone messageTone=Tone::Error,bool canStart=false,bool serviceNewer=true) {
     std::vector<MenuEntry> rows;
@@ -40,6 +43,11 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
         rows.back().value=state.update.latestVersion;
     }
     rows.push_back(Row("check",loc::T("updates.check"),state.pending?loc::T("updates.busy"):loc::T("updates.check_detail"),!state.pending));
+    if(updates){
+        rows.push_back(Row("channel",loc::T("updates.channel"),loc::T("updates.channel_detail"),!state.pending));
+        rows.back().value=loc::T(state.channel==launcher::UpdateChannel::Prerelease?"updates.channel.prerelease":"updates.channel.stable");
+        if(!state.installedVersion.empty())rows.push_back(InfoRow("installed",loc::T("updates.installed_version"),state.installedVersion,loc::T("updates.installed_version_detail")));
+    }
     if(state.pending)rows.push_back(Row("cancel",loc::T("updates.cancel"),loc::T("updates.cancel_detail")));
     if(updates&&canStart)
         rows.push_back(Row("retry",loc::T("updates.start_game"),state.pending?loc::T("recovery.retry_busy"):loc::T("updates.start_game_detail"),!state.pending));
@@ -72,6 +80,7 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
     if(action.id=="retry")return RecoveryChoice::Retry;
     if(action.id=="check")return RecoveryChoice::CheckUpdates;
     if(action.id=="install")return RecoveryChoice::Install;
+    if(action.id=="channel")return RecoveryChoice::Channel;
     if(action.id=="cancel")return RecoveryChoice::Cancel;
     if(action.id=="close")return RecoveryChoice::Close;
     return RecoveryChoice::None;

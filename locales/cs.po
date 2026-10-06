@@ -126,6 +126,24 @@ msgstr "Operace již probíhá."
 msgid "updates.check_detail"
 msgstr "Vyhledat novější balíček Ember."
 
+msgid "updates.channel"
+msgstr "Kanál aktualizací"
+
+msgid "updates.channel.stable"
+msgstr "Stabilní"
+
+msgid "updates.channel.prerelease"
+msgstr "Předběžné verze"
+
+msgid "updates.channel_detail"
+msgstr "Stabilní kanál nabízí jen hotová vydání. Předběžné verze zahrnují i beta verze a kandidáty na vydání, které mohou mít více problémů. Všichni, s kým hrajete, potřebují stejnou verzi."
+
+msgid "updates.installed_version"
+msgstr "Nainstalovaná verze"
+
+msgid "updates.installed_version_detail"
+msgstr "Verze Ember v tomto počítači."
+
 msgid "updates.install"
 msgstr "Stáhnout a nainstalovat"
 
@@ -185,6 +203,7 @@ msgstr "Otevírání aktualizátoru..."
 
 msgid "services.update_available"
 msgstr "K dispozici je aktualizace: {0}"
+
 
 msgid "services.up_to_date"
 msgstr "Máte aktuální verzi."
@@ -1565,8 +1584,6 @@ msgstr "Účastník zápasu opustil místnost. Hra skončí."
 msgid "update.github_unreachable"
 msgstr "GitHub není dostupný. Zkontrolujte internetové připojení a zkuste to znovu."
 
-msgid "update.no_version_tag"
-msgstr "Vydání na GitHub nemá značku verze."
 
 msgid "update.no_zip_asset"
 msgstr "Nejnovější vydání nemá ZIP balíček SF4 Ember Netplay."

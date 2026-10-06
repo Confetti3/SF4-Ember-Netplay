@@ -1,36 +1,52 @@
 // Update URL allowlist, version comparison and package tree validation for the release client.
 #include "github_release_client_internal.hxx"
+#include <cctype>
+#include <optional>
 
 namespace sf4e {
 namespace launcher {
+	// Up to nine digits, so the number fits an int without overflow.
+	static bool ReadNumber(const char*& p, int& out) {
+		const char* start = p;
+		while (*p >= '0' && *p <= '9') p++;
+		if (p == start || p - start > 9) return false;
+		out = 0;
+		for (const char* d = start; d < p; d++) out = out * 10 + (*d - '0');
+		return true;
+	}
+
+	std::optional<Version> ParseVersion(const char* text) {
+		if (!text) return std::nullopt;
+		const char* p = text;
+		if (*p == 'v' || *p == 'V') p++;
+		Version version;
+		if (!ReadNumber(p, version.major) || *p++ != '.' || !ReadNumber(p, version.minor) || *p++ != '.' || !ReadNumber(p, version.patch)) return std::nullopt;
+		if (*p == '\0') return version;
+		if (*p++ != '-' || *p == '\0') return std::nullopt;
+		version.prerelease = true;
+		for (const char* c = p; *c; c++)
+			if (!isalnum(static_cast<unsigned char>(*c)) && *c != '.' && *c != '-') return std::nullopt;
+		while (isalpha(static_cast<unsigned char>(*p))) version.word += static_cast<char>(tolower(static_cast<unsigned char>(*p++)));
+		if (*p >= '0' && *p <= '9' && !ReadNumber(p, version.number)) return std::nullopt;
+		version.rest = p;
+		return version;
+	}
+
+	int CompareVersions(const Version& a, const Version& b) {
+		const auto order = [](auto x, auto y) { return x < y ? -1 : x > y ? 1 : 0; };
+		if (int c = order(a.major, b.major)) return c;
+		if (int c = order(a.minor, b.minor)) return c;
+		if (int c = order(a.patch, b.patch)) return c;
+		if (a.prerelease != b.prerelease) return a.prerelease ? -1 : 1;
+		if (int c = a.word.compare(b.word)) return c < 0 ? -1 : 1;
+		if (int c = order(a.number, b.number)) return c;
+		if (int c = a.rest.compare(b.rest)) return c < 0 ? -1 : 1;
+		return 0;
+	}
+
 	namespace detail {
 
 		static const auto& kRequiredPackagePaths = sf4e::package::Required;
-
-		static void ParseVersionTriple(const char* tag, int& major, int& minor, int& patch) {
-			major = minor = patch = 0;
-			if (!tag || !tag[0]) {
-				return;
-			}
-			const char* p = tag;
-			while (*p == 'v' || *p == 'V') {
-				p++;
-			}
-			sscanf_s(p, "%d.%d.%d", &major, &minor, &patch);
-		}
-
-		int CompareVersions(const char* a, const char* b) {
-			int am = 0, amin = 0, ap = 0, bm = 0, bmin = 0, bp = 0;
-			ParseVersionTriple(a, am, amin, ap);
-			ParseVersionTriple(b, bm, bmin, bp);
-			if (am != bm) {
-				return am - bm;
-			}
-			if (amin != bmin) {
-				return amin - bmin;
-			}
-			return ap - bp;
-		}
 
 		static bool ParseHttpsHostFromUrl(const char* url, char* outHost, int outHostLen) {
 			if (!url || !outHost || outHostLen <= 0) {

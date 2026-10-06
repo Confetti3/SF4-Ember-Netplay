@@ -126,6 +126,24 @@ msgstr "Operacja już trwa."
 msgid "updates.check_detail"
 msgstr "Sprawdź, czy jest nowszy pakiet Ember."
 
+msgid "updates.channel"
+msgstr "Kanał aktualizacji"
+
+msgid "updates.channel.stable"
+msgstr "Stabilny"
+
+msgid "updates.channel.prerelease"
+msgstr "Wersje wstępne"
+
+msgid "updates.channel_detail"
+msgstr "Kanał stabilny oferuje tylko gotowe wydania. Wersje wstępne obejmują także wydania beta i kandydujące, które mogą mieć więcej problemów. Wszyscy, z którymi grasz, muszą mieć tę samą wersję."
+
+msgid "updates.installed_version"
+msgstr "Zainstalowana wersja"
+
+msgid "updates.installed_version_detail"
+msgstr "Wersja Ember na tym komputerze."
+
 msgid "updates.install"
 msgstr "Pobierz i zainstaluj"
 
@@ -185,6 +203,7 @@ msgstr "Otwieranie aktualizatora..."
 
 msgid "services.update_available"
 msgstr "Dostępna aktualizacja: {0}"
+
 
 msgid "services.up_to_date"
 msgstr "Masz najnowszą wersję."
@@ -1565,8 +1584,6 @@ msgstr "Uczestnik walki opuścił pokój. Gra się zakończy."
 msgid "update.github_unreachable"
 msgstr "Nie można połączyć się z GitHub. Sprawdź internet i spróbuj ponownie."
 
-msgid "update.no_version_tag"
-msgstr "Wydanie GitHub nie ma znacznika wersji."
 
 msgid "update.no_zip_asset"
 msgstr "Najnowsze wydanie nie zawiera pakietu ZIP SF4 Ember Netplay."

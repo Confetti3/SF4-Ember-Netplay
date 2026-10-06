@@ -473,7 +473,16 @@ namespace launcher {
 		return running;
 	}
 
-	UpdateCheckResult CheckForUpdate() {
+	const char* UpdateChannelName(UpdateChannel channel) { return channel == UpdateChannel::Prerelease ? "prerelease" : "stable"; }
+
+	UpdateChannel ResolveUpdateChannel(const std::string& saved, const char* installed) {
+		if (saved == "prerelease") return UpdateChannel::Prerelease;
+		if (saved == "stable") return UpdateChannel::Stable;
+		const auto version = ParseVersion(installed);
+		return version && version->prerelease ? UpdateChannel::Prerelease : UpdateChannel::Stable;
+	}
+
+	UpdateCheckResult CheckForUpdate(UpdateChannel channel) {
 		UpdateCheckResult result;
 		char installed[64] = { 0 };
 		ReadInstalledVersion(installed, sizeof(installed));
@@ -482,78 +491,100 @@ namespace launcher {
 		char repo[128] = { 0 };
 		GetGithubRepo(repo, sizeof(repo));
 
+		// GitHub's "latest" never names a pre-release and follows a flag, not
+		// the version, so both channels read the newest releases and choose.
 		char path[256] = { 0 };
-		snprintf(path, sizeof(path), "/repos/%s/releases/latest", repo);
+		snprintf(path, sizeof(path), "/repos/%s/releases?per_page=20", repo);
 
-		char body[65536] = { 0 };
+		std::vector<char> body(1024 * 1024);
 		const char* headers = "Accept: application/vnd.github+json\r\nUser-Agent: sf4e-updater/1.0\r\n";
-		if (!HttpGetUtf8WithHeaders("api.github.com", 443, true, path, 15000, headers, body, sizeof(body))) {
+		if (!HttpGetUtf8WithHeaders("api.github.com", 443, true, path, 15000, headers, body.data(), static_cast<int>(body.size()))) {
 			result.error = loc::T("update.github_unreachable");
 			return result;
 		}
 
-        return ParseGithubReleaseResponse(body, installed);
-    }
+		return ParseGithubReleases(body.data(), installed, channel);
+	}
 
-    UpdateCheckResult ParseGithubReleaseResponse(const std::string& body, const char* installed) {
-        UpdateCheckResult result;
-        if (!installed) installed = "";
-        result.installedVersion = installed;
-		try {
-			nlohmann::json release = nlohmann::json::parse(body);
-			result.latestVersion = release.value("tag_name", "");
-			result.releaseNotes = release.value("body", "");
-			result.releaseUrl = release.value("html_url", "");
+	// Fills result from one release object whose tag is a version; ok once it
+	// has a package. Whether that is an update is the caller's question.
+	static void ReadRelease(const nlohmann::json& release, UpdateCheckResult& result) {
+		result.latestVersion = release.value("tag_name", "");
+		result.releaseNotes = release.value("body", "");
+		result.releaseUrl = release.value("html_url", "");
 
-			if (result.releaseNotes.size() > 2000) {
-				result.releaseNotes = result.releaseNotes.substr(0, 2000) + "...";
-			}
+		if (result.releaseNotes.size() > 2000) {
+			result.releaseNotes = result.releaseNotes.substr(0, 2000) + "...";
+		}
 
-			if (result.latestVersion.empty()) {
-				result.error = loc::T("update.no_version_tag");
-				return result;
-			}
-
-			if (release.contains("assets") && release["assets"].is_array()) {
-				// GitHub exposes an asset content digest as "sha256:<hex>". Strip
-				// the prefix so we store bare lowercase hex (empty for older
-				// releases whose assets predate the digest field).
-				auto parseSha256Digest = [](const std::string& digest) -> std::string {
-					const std::string prefix = "sha256:";
-					if (digest.size() > prefix.size() &&
-						digest.compare(0, prefix.size(), prefix) == 0) {
-						return digest.substr(prefix.size());
-					}
-					return "";
-				};
-				for (const auto& asset : release["assets"]) {
-					std::string name = asset.value("name", "");
-					if (name.size() < 4 || name.compare(name.size()-4, 4, ".zip") != 0) {
-						continue;
-					}
-					if (name.compare(0, strlen(kReleaseZipPrefix), kReleaseZipPrefix) == 0) {
-						result.zipDownloadUrl = asset.value("browser_download_url", "");
-						result.zipApiUrl = asset.value("url", "");
-						result.expectedSha256 = parseSha256Digest(asset.value("digest", ""));
-						break;
-					}
-
+		if (release.contains("assets") && release["assets"].is_array()) {
+			// GitHub exposes an asset content digest as "sha256:<hex>". Strip
+			// the prefix so we store bare lowercase hex (empty for older
+			// releases whose assets predate the digest field).
+			auto parseSha256Digest = [](const std::string& digest) -> std::string {
+				const std::string prefix = "sha256:";
+				if (digest.size() > prefix.size() &&
+					digest.compare(0, prefix.size(), prefix) == 0) {
+					return digest.substr(prefix.size());
+				}
+				return "";
+			};
+			for (const auto& asset : release["assets"]) {
+				std::string name = asset.value("name", "");
+				if (name.size() < 4 || name.compare(name.size()-4, 4, ".zip") != 0) {
+					continue;
+				}
+				if (name.compare(0, strlen(kReleaseZipPrefix), kReleaseZipPrefix) == 0) {
+					result.zipDownloadUrl = asset.value("browser_download_url", "");
+					result.zipApiUrl = asset.value("url", "");
+					result.expectedSha256 = parseSha256Digest(asset.value("digest", ""));
+					break;
 				}
 
 			}
 
-			if (result.zipDownloadUrl.empty()) {
-				result.error = loc::T("update.no_zip_asset");
-				return result;
-			}
+		}
 
-			result.updateAvailable = CompareVersions(result.latestVersion.c_str(), installed) > 0;
-			result.ok = true;
+		if (result.zipDownloadUrl.empty()) {
+			result.error = loc::T("update.no_zip_asset");
+			return;
+		}
+
+		result.ok = true;
+	}
+
+	UpdateCheckResult ParseGithubReleases(const std::string& body, const char* installed, UpdateChannel channel) {
+		UpdateCheckResult best;
+		if (!installed) installed = "";
+		try {
+			Version bestVersion;
+			for (const auto& release : nlohmann::json::parse(body)) {
+				if (!release.is_object() || release.value("draft", false)) continue;
+				const auto version = ParseVersion(release.value("tag_name", "").c_str());
+				if (!version || (version->prerelease && channel == UpdateChannel::Stable)) continue;
+				UpdateCheckResult candidate;
+				ReadRelease(release, candidate);
+				if (candidate.ok && (!best.ok || CompareVersions(*version, bestVersion) > 0)) {
+					best = std::move(candidate);
+					bestVersion = *version;
+				}
+			}
+			if (best.ok) {
+				// A build without a version label, such as a developer build,
+				// is offered the channel's best release.
+				const auto current = ParseVersion(installed);
+				best.updateAvailable = !current || CompareVersions(bestVersion, *current) > 0;
+			}
+			else {
+				best.error = loc::T("update.no_zip_asset");
+			}
 		}
 		catch (...) {
-			result.error = loc::T("update.parse_failed");
+			best = {};
+			best.error = loc::T("update.parse_failed");
 		}
-		return result;
+		best.installedVersion = installed;
+		return best;
 	}
 
 	ApplyUpdateResult DownloadAndApplyUpdate(
