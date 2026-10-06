@@ -20,7 +20,7 @@ constexpr unsigned AttackButtons = 0xcf0;
 // predicted from the fighter's script, so 0 is that frame itself and a
 // negative offset is before it; a hit is pressed on the frame after it is seen.
 struct Input { unsigned mapped = 0, raw = 0; unsigned char wait = 0; signed char offset = 0; };
-constexpr int MinOffset = -30, MaxOffset = 30;
+constexpr int MinOffset = -120, MaxOffset = 120;
 constexpr unsigned char WaitActionable = 1, WaitHit = 2;
 // How long a waiting frame may wait before playback gives up on its
 // condition: a whole recovery, or the few frames a buffered press can wait
@@ -221,7 +221,8 @@ public:
             const int after = frame.wait == WaitActionable ? (std::max)(0, frame.offset - 1) : (std::max)(0, static_cast<int>(frame.offset));
             const bool met = (cued && (cued ? waitedPast_++ : 0) >= after) || predicted;
             ++sincePress_;
-            if (!met && ++waited_ < (frame.wait == WaitHit ? MaxWaitHitFrames : MaxWaitFrames)) return;
+            // The wait gives up only on the cue; the offset's frames after it are always granted.
+            if (!met && ++waited_ < (frame.wait == WaitHit ? MaxWaitHitFrames : MaxWaitFrames) + (std::max)(0, static_cast<int>(frame.offset))) return;
             if (frame.wait) { view_.replay.push_back({waited_, met, false, predicted}); sincePress_ = 0; }
             // A hit is kept until the next press starts a move of its own, so
             // one landing while a cancel's motion is still going is not lost.

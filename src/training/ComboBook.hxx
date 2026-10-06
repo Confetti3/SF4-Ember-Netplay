@@ -89,7 +89,7 @@ constexpr int MaxAtFrame = 3600;
 //   motion:  numpad digits 1-9, "[4]6" for charge, "360", "720"
 //   buttons: LP MP HP LK MK HK joined by "+", or P PP PPP K KK KKK;
 //            "[HP]" holds them, "]HP[" releases them, "(mash)" mashes them
-//   @N:      replay timing, -30..+30 frames ("@-1", "@+3")
+//   @N:      replay timing, -120..+120 frames ("@-1", "@+3")
 //   #N:      replay frame the press lands on, 0..3600 ("#45")
 // cr. is 2; st., cl. and far. are 5. FADC is MP+MK then a dash, 66 unless 44;
 // RFADC is the red focus, LP+MP+MK tapped so the attack comes out and lands, then the dash on its hit.
@@ -112,10 +112,10 @@ inline bool ParseStep(const std::string& text, Step& step, std::string& error) {
         const auto mark = offset ? at : frame;
         const auto digits = s.substr(mark + 1);
         if (offset) {
-            const bool signedNumber = digits.size() >= 2 && digits.size() <= 3 && (digits[0] == '-' || digits[0] == '+') && digits.find_first_not_of("0123456789", 1) == std::string::npos;
+            const bool signedNumber = digits.size() >= 2 && digits.size() <= 4 && (digits[0] == '-' || digits[0] == '+') && digits.find_first_not_of("0123456789", 1) == std::string::npos;
             if (seenAt || !signedNumber) return fail();
             step.offset = std::atoi(digits.c_str());
-            if (step.offset < -30 || step.offset > 30) return fail();
+            if (step.offset < -120 || step.offset > 120) return fail();
             seenAt = true;
         } else {
             if (seenFrame || digits.empty() || digits.size() > 4 || digits.find_first_not_of("0123456789") != std::string::npos) return fail();

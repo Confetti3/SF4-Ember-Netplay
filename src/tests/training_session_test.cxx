@@ -187,7 +187,8 @@ int main() {
             // A press waiting for a hit that never comes goes stale quickly.
             Require(session.Apply(timed) && apply(Action::Play), "Timed load refused again");
             for (int i = 0; i < 3; ++i) { session.Observe(true, false); session.Commit(session.Prepare(physical)); }
-            for (int i = 0; i < MaxWaitHitFrames; ++i) { session.Observe(false, false); session.Commit(session.Prepare(physical)); }
+            // The give-up spans the cue's frames plus the offset's.
+            for (int i = 0; i < MaxWaitHitFrames + 2; ++i) { session.Observe(false, false); session.Commit(session.Prepare(physical)); }
             Require(session.Prepare(physical)[0].raw == 0x18 && !session.GetView().replay[2].cued, "Waiting for a hit never gave up");
             apply(Action::Stop);
             // With the script predicting the free frame, a link's press lands
