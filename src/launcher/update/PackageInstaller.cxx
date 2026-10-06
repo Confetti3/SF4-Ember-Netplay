@@ -322,16 +322,27 @@ bool UninstallPackage(const fs::path& installInput, std::string& error) {
 // declares, as preflight reads them, so a package of any version is held to
 // its own list rather than this build's.
 struct Inventory { std::map<std::wstring,fs::path> required; std::set<std::wstring> obsolete; };
+// Every line is blank, a // comment, or exactly one declaration such as
+// SF4E_PACKAGE_REQUIRED("notices\\Discord-SDK.txt"), spaces allowed around it.
+// Anything else is refused rather than skipped, so a line this reader cannot
+// follow never quietly drops a requirement the compiled inventory keeps.
 Inventory ReadInventory(const fs::path& file) {
     std::ifstream input(file,std::ios::binary);
     if(!input) throw std::runtime_error("Cannot read the package inventory");
     Inventory inventory;
-    for(std::string line; std::getline(input,line);) {
-        const auto open=line.find("(\""), close=line.rfind("\")");
-        if(line.rfind("SF4E_PACKAGE_",0)!=0 || open==std::string::npos || close==std::string::npos || close<=open+2) continue;
+    bool first=true;
+    for(std::string line; std::getline(input,line); first=false) {
+        if(first && line.rfind("\xEF\xBB\xBF",0)==0) line.erase(0,3);
+        const auto begin=line.find_first_not_of(" \t\r"), end=line.find_last_not_of(" \t\r");
+        if(begin==std::string::npos || line.compare(begin,2,"//")==0) continue;
+        line=line.substr(begin,end-begin+1);
+        const auto open=line.find("(\"");
+        if(line.rfind("SF4E_PACKAGE_",0)!=0 || open==std::string::npos || line.size()<open+4 || line.compare(line.size()-2,2,"\")")!=0)
+            throw std::runtime_error("Invalid package inventory");
         const std::string kind=line.substr(13,open-13);
-        std::string text=line.substr(open+2,close-open-2);
-        for(size_t at; (at=text.find("\\\\"))!=std::string::npos;) text.erase(at,1);
+        std::string text=line.substr(open+2,line.size()-open-4);
+        if(text.empty() || text.find('"')!=std::string::npos) throw std::runtime_error("Invalid package inventory");
+        for(size_t at=0; (at=text.find("\\\\",at))!=std::string::npos; ++at) text.erase(at,1);
         const fs::path relative=fs::u8path(text).lexically_normal();
         if(relative.empty() || relative.is_absolute() || relative.has_root_name()) throw std::runtime_error("Invalid package inventory");
         if(kind=="REQUIRED") inventory.required.emplace(PathKey(relative),relative);
@@ -395,12 +406,14 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         // the installed MANIFEST.txt names, plus the obsolete list for folders
         // from before manifests. Never merely a permitted path, so art or a
         // doc the player keeps at an accepted name is not an update's to take.
-        // A manifest that is missing or unreadable only loses that knowledge;
-        // it must not stop the update that would replace it.
+        // A folder from before manifests has only the obsolete list. A manifest
+        // that is there but cannot be read stops the update, like uninstall:
+        // replacing it would lose for good which files this folder owns.
         std::map<std::wstring,fs::path> owned;
         for(const auto* name:package::Obsolete) owned.emplace(PathKey(name),fs::path(name));
         CheckPath(install,L"MANIFEST.txt");
-        if(fs::exists(fs::symlink_status(install/L"MANIFEST.txt"))) try { for(const auto& [key,named]:ReadManifest(install/L"MANIFEST.txt")) owned.emplace(key,named.first); } catch(const std::exception&) {}
+        if(fs::exists(fs::symlink_status(install/L"MANIFEST.txt")))
+            for(const auto& [key,named]:ReadManifest(install/L"MANIFEST.txt")) owned.emplace(key,named.first);
         for(const auto& [key,relative]:owned) {
             if(package.count(key) || !IsProductPath(relative) || !fs::exists(fs::symlink_status(install/relative))) continue;
             CheckPath(install,relative);

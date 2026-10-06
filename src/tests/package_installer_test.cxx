@@ -148,6 +148,20 @@ int wmain(int argc, wchar_t** argv) {
     CHECK(!sf4e::launcher::ValidatePackageFolder(trimmed,error) && error.find("sf4-net.exe")!=std::string::npos);
     fs::copy_file(staging/L"sf4-net.exe",trimmed/L"sf4-net.exe"); Write(trimmed/L"Qt6Core.dll","carried"); Manifest(trimmed);
     CHECK(!sf4e::launcher::ValidatePackageFolder(trimmed,error));
+    // The inventory reader keeps every declaration the compiler keeps, or
+    // refuses the file: an indented one still requires its file, and a line
+    // it cannot follow is an error, never a requirement quietly dropped.
+    fs::remove(trimmed/L"Qt6Core.dll"); fs::remove(trimmed/L"sf4-net.exe");
+    const auto inventoryText=Read(trimmed/L"PackageInventory.inc");
+    const auto rewritten=[&](const std::string& from,const std::string& to){
+        std::string text=inventoryText; text.replace(text.find(from),from.size(),to);
+        Write(trimmed/L"PackageInventory.inc",text.c_str()); Manifest(trimmed);
+        return !sf4e::launcher::ValidatePackageFolder(trimmed,error);
+    };
+    const std::string netLine="SF4E_PACKAGE_REQUIRED(\"sf4-net.exe\")";
+    CHECK(rewritten(netLine,"  "+netLine+"  ") && error.find("sf4-net.exe")!=std::string::npos);
+    CHECK(rewritten(netLine,"SF4E_PACKAGE_REQUIRED( \"sf4-net.exe\")") && error.find("inventory")!=std::string::npos);
+    CHECK(rewritten(netLine,"/* "+netLine+" */") && error.find("inventory")!=std::string::npos);
     CHECK(sf4e::launcher::InstallPackage(older,install,error));
     CHECK(Read(install/L"Launcher.exe")=="older" && Read(install/L"dxwrapper.dll")=="older-display-wrapper");
     CHECK(!fs::exists(install/L"docs\\TRAINING_LAB.md") && !fs::exists(install/L"assets\\selection\\sources.json") && !fs::exists(install/L"docs"));
@@ -163,6 +177,13 @@ int wmain(int argc, wchar_t** argv) {
     CHECK(sf4e::launcher::InstallPackage(staging,install,error));
     CHECK(Read(install/L"Launcher.exe")=="new" && !fs::exists(install/L"dxwrapper.dll") && Read(install/L"docs\\TRAINING_LAB.md")=="new");
     CHECK(Read(install/L"assets\\selection\\horror-sources.json")=="player-art");
+    // An installed manifest that is there but cannot be read stops the
+    // update before anything changes: replacing it would lose for good which
+    // files this folder owns.
+    const auto installedManifest=Read(install/L"MANIFEST.txt");
+    Write(install/L"MANIFEST.txt",(installedManifest+"not a manifest line\n").c_str());
+    CHECK(!sf4e::launcher::InstallPackage(older,install,error) && Read(install/L"Launcher.exe")=="new");
+    Write(install/L"MANIFEST.txt",installedManifest.c_str());
     // A product file held open cannot be removed: nothing changes, the
     // journal is gone, and the next transition succeeds.
     Write(install/L"docs\\TRAINING_LAB.md","held");

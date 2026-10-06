@@ -100,10 +100,10 @@ namespace launcher {
 			return IsAllowedUpdateHost(host);
 		}
 
-		
 
-		
-		
+
+
+
 
 		bool ValidateStagedPackage(const wchar_t* stagingDir) {
 			std::string error;
