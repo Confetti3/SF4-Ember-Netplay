@@ -14,6 +14,7 @@
 #include <iterator>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 #include <filesystem>
 #include "../ui/RecoverySurface.hxx"
@@ -33,6 +34,7 @@
 #include "../sidecar/sidecar.hxx"
 #include "../common/CrashDump.hxx"
 #include "../common/CrashReport.hxx"
+#include "../platform/ReplayFiles.hxx"
 #include "../common/sf4e__NetplayConfig.hxx"
 #include "../common/install_paths.hxx"
 #include "../common/Localization.hxx"
@@ -267,6 +269,13 @@ void NoteWindowsCrashDump(DWORD processId) {
 	CoTaskMemFree(localAppData);
 	if (named && GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES) spdlog::info(L"Windows wrote a crash dump to {}", path);
 	else spdlog::info("No crash dump from Sidecar or Windows Error Reporting; see USER_NETPLAY.md to turn on LocalDumps");
+}
+
+// Copies every match replay into Ember's archive (platform/ReplayFiles.hxx)
+// so the game's slots are not the only copy. Never blocks a start.
+void ArchiveReplays() {
+	static bool noted = false;
+	if (sf4e::platform::replays::Archive() < 0 && !noted) { noted = true; spdlog::info("Replays: no Steam path or settings folder, nothing archived"); }
 }
 
 HANDLE CreateSF4Process(
@@ -738,6 +747,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             if (!ShowRecovery(sf4e::loc::Tf("launcher.runtime_shadowed", sf4e::platform::WideToUtf8(listed)), chosenDirectory)) return 0;
             continue;
         }
+        ArchiveReplays();
         const char* dlls[] = {sidecarAnsi};
         CreateAppIDFile(location.directory.data());
         sf4e::platform::HelperProcess helper, discord;
@@ -762,18 +772,23 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // Without a logs folder there is nowhere to put one; the game then
         // writes its own after the request fails.
         if (!g_logsDir[0]) dumps.Close();
+        // More than ten matches in one sitting would push replays out of the
+        // game's slots before the copy at exit, so copy while it runs too.
+        std::thread archiver([game] { while (WaitForSingleObject(game, 30000) == WAIT_TIMEOUT) ArchiveReplays(); });
         bool dumped = false;
         dumps.ServeUntilExit(game, g_logsDir, [&](bool written) {
             if (written) { dumped = true; spdlog::info(L"Wrote the game's crash dump to {}", dumps.written); }
             else spdlog::warn("Could not write the game's crash dump (Win32 {})", GetLastError());
         });
         dumps.Close();
+        archiver.join();
         if (g_logsDir[0]) sf4e::crash::PruneDumps(g_logsDir, 5);
         DWORD exitCode = 0; GetExitCodeProcess(game,&exitCode);
         spdlog::info("Game exited with code {:#010x} ({})", exitCode, sf4e::crash::ExitCodeName(exitCode));
         const bool crashed = sf4e::crash::IsCrashExit(exitCode);
         if (crashed && !dumped) NoteWindowsCrashDump(GetProcessId(game));
         discord.Stop(); helper.Stop(); CloseHandle(game);
+        ArchiveReplays();
         // A loader failure never reaches Sidecar's crash record, so the exit
         // code is the only thing that tells a missing export from a crash.
         // With Steam above the launcher the game cannot run at all, and how it
