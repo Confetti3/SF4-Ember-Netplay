@@ -338,17 +338,22 @@ void HandleTiming(const MenuAction& a,const training::View& view,const TrainingS
     combo::Step step; std::string error;
     if(!combo::ParseStep(steps[index],step,error)) return;
     step.offset=(std::max)(training::MinOffset,(std::min)(training::MaxOffset,step.offset+a.delta));
+    // Into the saved combo when the typed line is that combo (selecting one
+    // fills the line), and into the typed line itself.
+    auto* shown=CurrentCombo();
+    const bool shownLine=shown&&(creator.steps.empty()||combo::JoinSteps(shown->steps)==creator.steps);
     steps[index]=combo::Canonical(step);
-    // Back into the typed line, or into the saved combo when that is what is shown.
     if(!creator.steps.empty()) creator.steps=combo::JoinSteps(steps);
-    else if(auto* shown=CurrentCombo()) { shown->steps=steps; SaveCombos(); }
+    if(shownLine) { shown->steps=steps; SaveCombos(); }
 }
 // The pattern editor's moves: the typed line or the selected combo, taken
 // when the screen opens and written back after every change.
 std::vector<std::string> pattern;
 void StorePattern() {
-    if(!creator.steps.empty()||!CurrentCombo()) creator.steps=combo::JoinSteps(pattern);
-    else { CurrentCombo()->steps=pattern; SaveCombos(); }
+    auto* shown=CurrentCombo();
+    const bool shownLine=shown&&(creator.steps.empty()||combo::JoinSteps(shown->steps)==creator.steps);
+    if(!creator.steps.empty()||!shown) creator.steps=combo::JoinSteps(pattern);
+    if(shownLine) { shown->steps=pattern; SaveCombos(); }
 }
 void HandlePattern(const MenuAction& a,const training::View& view,const TrainingSubmit& submit) {
     if(a.kind==MenuAction::Adjust&&a.id.compare(0,4,"blk-")==0) {
