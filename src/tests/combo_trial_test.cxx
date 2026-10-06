@@ -290,6 +290,14 @@ int main() {
         // The script is the close jab's, so that is how it is spelled.
         CHECK(jab >= 0 && combo::ActionStep(fighter.moves, jab, false) == "cl.LP" && combo::ActionStep(fighter.moves, jab, true) == "xx cl.LP");
         CHECK(combo::ActionStep(fighter.moves, 99999, false).empty());
+        // A script shared by an any-button command and a named one is spelled by the named one.
+        {
+            bcm::File shared; bcm::Move any, named;
+            any.name = "HADOKEN"; any.spelled = true; any.motion = "236"; any.buttons = combo::Punches; any.need = 1; any.press = true; any.script = 7;
+            named = any; named.name = "HADOKEN_H"; named.buttons = combo::HP;
+            shared.moves = {any, named};
+            CHECK(combo::ActionStep(shared, 7, false) == "236HP" && combo::ActionStep(shared, 7, true) == "xx 236HP");
+        }
     }
     // Combos to trials.
     combo::Pack pack{"Mine", {

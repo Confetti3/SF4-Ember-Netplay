@@ -437,11 +437,11 @@ void TakeCapture(const training::View& view) {
     captureWanted=false;
     const auto* fighter=selection::FindFighter(creator.fighter); combo::Fighter files; std::string error;
     if(!fighter||!combo::LoadFighter(GameFolder(),fighter->code,files,error)) { ComboNotice(loc::Tf("training.combo.game_file",error),true); return; }
-    std::vector<std::string> steps;
-    for(const auto& event:view.captured) { const auto step=combo::ActionStep(files.moves,event.first,event.second&&!steps.empty()); if(!step.empty()) steps.push_back(step); }
+    std::vector<std::string> steps; int unnamed=0;
+    for(const auto& event:view.captured) { const auto step=combo::ActionStep(files.moves,event.first,event.second&&!steps.empty()); if(!step.empty()) steps.push_back(step); else ++unnamed; }
     if(steps.empty()) { ComboNotice(loc::T("training.combo.capture_empty"),true); return; }
     creator.steps=combo::JoinSteps(steps);
-    ComboNotice(loc::Tf("training.combo.captured",static_cast<int>(steps.size())));
+    ComboNotice(loc::Tf("training.combo.captured",static_cast<int>(steps.size()),unnamed));
 }
 // The choices of each setting as the menu numbers them, -1 first for the
 // game's own setting; and their names.

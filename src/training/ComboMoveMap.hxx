@@ -139,16 +139,19 @@ inline std::string MoveNotation(const bcm::Move& move) {
     return MoveStep(move, step) ? Canonical(step) : std::string();
 }
 // The step for a move the game started, by its script index as the training
-// session samples it: the first move of the file that runs that script and
-// has a spelling. Empty when no move does (a walk, a jump, a follow-up the
-// notation cannot say).
+// session samples it: the most specific spelled move of the file that runs
+// that script, a named button ("236HP") before any-button masks ("236P").
+// Empty when no move does (a walk, a jump, a follow-up the notation cannot say).
 inline std::string ActionStep(const bcm::File& file, int script, bool cancel) {
+    std::string best; int bestScore = 1 << 30;
     for (const auto& move : file.moves) {
         Step step;
         if (move.script != script || !MoveStep(move, step)) continue;
+        const int score = step.buttons == Punches || step.buttons == Kicks ? 100 + step.need : detail::Count(step.buttons);
+        if (score >= bestScore) continue;
         step.cancel = cancel;
-        return Canonical(step);
+        best = Canonical(step); bestScore = score;
     }
-    return {};
+    return best;
 }
 } }
