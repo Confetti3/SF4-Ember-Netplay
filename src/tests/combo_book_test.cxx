@@ -68,6 +68,16 @@ int main() {
         const auto dash = Synthesize({"66"}, true, 0);
         CHECK(dash.size() >= 7 && dash[0].raw == Right && dash[3].raw == 0 && dash[4].raw == Right);
     }
+    // A mash: five presses, several buttons cycled a frame each, one button on and off.
+    {
+        const auto first = [](const std::vector<sf4e::training::Input>& f) { std::size_t i = 0; while (i < f.size() && !f[i].raw) ++i; return i; };
+        const auto piano = Synthesize({"5P(mash)"}, true, 0); const auto p = first(piano);
+        CHECK(p + 5 < piano.size() && piano[p].raw == LP && piano[p + 1].raw == MP && piano[p + 2].raw == HP && piano[p + 3].raw == LP && piano[p + 4].raw == MP && piano[p + 5].raw == 0);
+        const auto one = Synthesize({"5HP(mash)"}, true, 0); const auto o = first(one);
+        CHECK(o + 9 < one.size() && one[o].raw == HP && one[o + 1].raw == 0 && one[o + 8].raw == HP && one[o + 9].raw == 0);
+        const auto two = Synthesize({"5LP+MP(mash)"}, true, 0); const auto t = first(two);
+        CHECK(two[t].raw == LP && two[t + 1].raw == MP && two[t + 4].raw == LP);
+    }
     // The red focus cancel: LP+MP+MK, then the dash.
     CHECK(ParseStep("xx RFADC", step, error) && step.cancel && step.buttons == (LP | MP | MK) && step.need == 3 && step.motion == "66" && Canonical(step) == "xx RFADC");
     CHECK(ParseStep("rfadc44@+1", step, error) && step.motion == "44" && Canonical(step) == "RFADC44@+1");

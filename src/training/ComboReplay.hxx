@@ -94,7 +94,18 @@ inline std::vector<training::Input> Synthesize(const std::vector<std::string>& s
         if (finish) last = DirectionBits(motion.back(), facingRight);
         if (step.edge == Edge::Hold) push(last | buttons, 30);
         else if (step.edge == Edge::Release) { push(last | buttons, 30); push(last, 2); }
-        else if (step.mash) for (int press = 0; press < 8; ++press) { push(last | buttons, 2); push(last, 2); }
+        else if (step.mash) {
+            // Five presses: several buttons are cycled one per frame (a piano),
+            // one button goes on and off a frame at a time.
+            std::vector<unsigned> cycle;
+            if (step.buttons == Punches) cycle = {LP, MP, HP};
+            else if (step.buttons == Kicks) cycle = {LK, MK, HK};
+            else for (unsigned bit = 1; bit; bit <<= 1) if (step.buttons & bit) cycle.push_back(bit);
+            for (int press = 0; press < 5; ++press) {
+                push(last | cycle[press % cycle.size()], 1);
+                if (cycle.size() == 1) push(last, 1);
+            }
+        }
         else push(last | buttons, 1);
         // The button comes up before the next move, so its press is its own edge.
         push(last, 1);
