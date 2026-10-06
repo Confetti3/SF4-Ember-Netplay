@@ -216,6 +216,22 @@ int main() {
             session.Observe(true, false, 7); session.Commit(session.Prepare(physical));
             Require(session.GetView().cursor == 4, "Seen free frame did not release an early press");
             apply(Action::Stop);
+            // A hit landing while the motion before a cancel's wait is still
+            // going is kept for that wait; the press that started the move clears it.
+            Command kept; kept.action = Action::Load; kept.generation = generation; kept.value = 0;
+            kept.frames = {Input{0x82, 0x82, 0}, Input{2, 2, 0}, Input{0xa, 0xa, 0}, Input{0xa, 0xa, WaitHit, 0}, Input{0x408, 0x408, 0}};
+            Require(session.Apply(kept) && apply(Action::Play), "Kept load refused");
+            session.Observe(false, true); session.Commit(session.Prepare(physical));
+            session.Observe(false, false); session.Commit(session.Prepare(physical));
+            session.Observe(false, true); session.Commit(session.Prepare(physical));
+            session.Observe(false, false); session.Commit(session.Prepare(physical));
+            Require(session.GetView().cursor == 4, "A hit during the motion was lost");
+            apply(Action::Stop);
+            Require(session.Apply(kept) && apply(Action::Play), "Kept load refused again");
+            session.Observe(false, true); session.Commit(session.Prepare(physical));
+            for (int i = 0; i < 3; ++i) { session.Observe(false, false); session.Commit(session.Prepare(physical)); }
+            Require(session.GetView().cursor == 3, "A hit before the press counted for the move after it");
+            apply(Action::Stop);
         }
         Require(!apply(Action::Restore), "Missing checkpoint restored");
         Require(apply(Action::Record), "Record rejected");

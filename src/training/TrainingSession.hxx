@@ -13,6 +13,7 @@ constexpr int SlotCount = 8;
 constexpr int MaxFrames = 60 * 30;
 constexpr int HistoryRows = 12;
 constexpr unsigned FightButtons = 0xcff; // Directions and six attacks; excludes menu buttons.
+constexpr unsigned AttackButtons = 0xcf0;
 // wait: a loaded frame that repeats, buttons held, until the fighter can act
 // again (1) or a hit lands (2), so a replayed combo takes its timing from the
 // fight; offset: frames after the cue the press lands on. A free frame is
@@ -215,7 +216,12 @@ public:
             ++sincePress_;
             if (!met && ++waited_ < (frame.wait == WaitHit ? MaxWaitHitFrames : MaxWaitFrames)) return;
             if (frame.wait) { view_.replay.push_back({waited_, met, false}); sincePress_ = 0; }
-            waited_ = waitedPast_ = 0; hit_ = false;
+            // A hit is kept until the next press starts a move of its own, so
+            // one landing while a cancel's motion is still going is not lost.
+            // ponytail: a hit during a held button is dropped; track edges per button if it matters.
+            waited_ = waitedPast_ = 0;
+            if ((frame.raw & AttackButtons) && !(lastRaw_ & AttackButtons)) hit_ = false;
+            lastRaw_ = frame.raw;
             if (++view_.cursor == view_.lengths[view_.selected]) {
                 if (view_.loop && !once_[view_.selected]) view_.cursor = 0;
                 else Stop();
@@ -230,7 +236,8 @@ private:
     bool actionable_ = false, hit_ = false;
     int untilActionable_ = -1;
     int waited_ = 0, waitedPast_ = 0, sincePress_ = 0;
-    void Stop() { view_.mode = Mode::Idle; view_.cursor = 0; waited_ = waitedPast_ = 0; hit_ = false; }
+    unsigned lastRaw_ = 0;
+    void Stop() { view_.mode = Mode::Idle; view_.cursor = 0; waited_ = waitedPast_ = 0; hit_ = false; lastRaw_ = 0; }
     void ClearHistory() {
         for (auto& rows : view_.history) rows.clear();
         for (auto& frames : view_.timeline) frames.clear();
