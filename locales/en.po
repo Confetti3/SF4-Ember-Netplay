@@ -1417,6 +1417,33 @@ msgstr "The selected combo move by move: each move's timing offset, and what the
 msgid "training.combo.timing.replay.detail"
 msgstr "Replays the selected combo as it is now, so each move's report below updates. F8 on a move's row replays only up to that move."
 
+msgid "training.combo.tune"
+msgstr "Tune follow-ups"
+
+msgid "training.combo.tune.stop"
+msgstr "Stop tuning"
+
+msgid "training.combo.tune.detail"
+msgstr "Replays rep by rep, making each ~ follow-up a frame later while the move after it still connects, and keeps the longest that does. Needs Reset before replay with a saved position."
+
+msgid "training.combo.tune.none"
+msgstr "No ~ follow-up with a move after it to tune."
+
+msgid "training.combo.tune.trying"
+msgstr "Tuning move {0}: trying @{1}."
+
+msgid "training.combo.tune.kept"
+msgstr "Move {0} kept at @{1}."
+
+msgid "training.combo.tune.failed"
+msgstr "Move {0}: nothing connected at any offset."
+
+msgid "training.combo.tune.done"
+msgstr "Tuning done."
+
+msgid "training.combo.tune.stopped"
+msgstr "Tuning stopped."
+
 msgid "training.combo.timing.select"
 msgstr "Select a combo first."
 

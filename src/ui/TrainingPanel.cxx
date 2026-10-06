@@ -310,9 +310,24 @@ std::vector<std::string> TimingSteps() {
 }
 // The timing screen: those moves one by one, each with its "@" offset to
 // nudge and what the last replay saw for it.
+struct Tune { bool on=false, started=false; std::size_t step=0; int best=training::MinOffset-1, candidate=0, settle=0; } tune;
+void StartTune(const training::View& view,const TrainingSubmit& submit);
+// Writes a move's offset into the saved combo when the typed line is that
+// combo (selecting one fills the line), and into the typed line itself.
+void SetOffset(std::vector<std::string>& steps,std::size_t index,int offset) {
+    combo::Step step; std::string error;
+    if(index>=steps.size()||!combo::ParseStep(steps[index],step,error)) return;
+    step.offset=(std::max)(training::MinOffset,(std::min)(training::MaxOffset,offset));
+    auto* shown=CurrentCombo();
+    const bool shownLine=shown&&(creator.steps.empty()||combo::JoinSteps(shown->steps)==creator.steps);
+    steps[index]=combo::Canonical(step);
+    if(!creator.steps.empty()) creator.steps=combo::JoinSteps(steps);
+    if(shownLine) { shown->steps=steps; SaveCombos(); }
+}
 std::vector<MenuEntry> TimingRows(const training::View& view) {
     const auto steps=TimingSteps();
-    std::vector<MenuEntry> rows{Row("ct-replay",loc::T("training.combo.replay"),loc::T("training.combo.timing.replay.detail"),!steps.empty())};
+    std::vector<MenuEntry> rows{Row("ct-replay",loc::T("training.combo.replay"),loc::T("training.combo.timing.replay.detail"),!steps.empty()),
+        Row("ct-tune",loc::T(tune.on?"training.combo.tune.stop":"training.combo.tune"),loc::T("training.combo.tune.detail"),!steps.empty())};
     if(steps.empty()) { rows.push_back(InfoRow("ct-none",loc::T("training.combo.combo"),loc::T("training.combo.none"),loc::T("training.combo.timing.select"))); return rows; }
     for(std::size_t i=0;i<steps.size();++i) {
         combo::Step step; std::string error; combo::ParseStep(steps[i],step,error);
@@ -332,19 +347,61 @@ std::vector<MenuEntry> TimingRows(const training::View& view) {
 void HandleTiming(const MenuAction& a,const training::View& view,const TrainingSubmit& submit) {
     auto steps=TimingSteps();
     if(a.kind==MenuAction::Activate&&a.id=="ct-replay") Replay(steps,view,submit);
+    if(a.kind==MenuAction::Activate&&a.id=="ct-tune") { if(tune.on) { tune.on=false; ComboNotice(loc::T("training.combo.tune.stopped")); } else StartTune(view,submit); return; }
     if(a.kind!=MenuAction::Adjust||a.id.compare(0,3,"ct-")!=0) return;
     const auto index=static_cast<std::size_t>(std::atoi(a.id.c_str()+3));
     if(index>=steps.size()) return;
     combo::Step step; std::string error;
     if(!combo::ParseStep(steps[index],step,error)) return;
-    step.offset=(std::max)(training::MinOffset,(std::min)(training::MaxOffset,step.offset+a.delta));
-    // Into the saved combo when the typed line is that combo (selecting one
-    // fills the line), and into the typed line itself.
-    auto* shown=CurrentCombo();
-    const bool shownLine=shown&&(creator.steps.empty()||combo::JoinSteps(shown->steps)==creator.steps);
-    steps[index]=combo::Canonical(step);
-    if(!creator.steps.empty()) creator.steps=combo::JoinSteps(steps);
-    if(shownLine) { shown->steps=steps; SaveCombos(); }
+    SetOffset(steps,index,step.offset+a.delta);
+}
+// Tune: replays rep by rep, lengthening each follow-up ("~") a frame at a
+// time while the move after it still connects, and keeps the longest that
+// does. One replay per try; the result is read from the replay report.
+// ponytail: tunes follow-ups only; links and cancels have their cues.
+std::size_t NextFollow(const std::vector<std::string>& steps,std::size_t from) {
+    for(std::size_t i=from;i+1<steps.size();++i) { combo::Step step; std::string error; if(combo::ParseStep(steps[i],step,error)&&step.follow) return i; }
+    return steps.size();
+}
+void StartTune(const training::View& view,const TrainingSubmit& submit) {
+    const auto steps=TimingSteps();
+    tune=Tune{}; tune.step=NextFollow(steps,0);
+    if(tune.step>=steps.size()) { ComboNotice(loc::T("training.combo.tune.none"),true); return; }
+    combo::Step step; std::string error; combo::ParseStep(steps[tune.step],step,error);
+    tune.on=true; tune.candidate=step.offset;
+    ComboNotice(loc::Tf("training.combo.tune.trying",static_cast<int>(tune.step)+1,tune.candidate));
+}
+void TickTune(const training::View& view,const TrainingSubmit& submit) {
+    if(!tune.on) return;
+    auto steps=TimingSteps();
+    if(tune.step>=steps.size()) { tune.on=false; return; }
+    if(!tune.started) {
+        // Try the candidate: the prefix through the move after the follow-up.
+        SetOffset(steps,tune.step,tune.candidate); steps=TimingSteps();
+        std::vector<std::string> prefix(steps.begin(),steps.begin()+tune.step+2);
+        Replay(prefix,view,submit);
+        if(view.mode!=Mode::Playback&&creator.failed) { tune.on=false; return; }
+        tune.started=true; tune.settle=0; return;
+    }
+    if(view.mode==Mode::Playback) { tune.settle=1; return; }
+    if(tune.settle==0) return; // Not started yet.
+    // Idle after playing: give the last press half a second to land.
+    if(++tune.settle<30) return;
+    const bool hit=!view.replay.empty()&&view.replay.back().hit;
+    tune.started=false;
+    if(hit) {
+        tune.best=tune.candidate;
+        if(tune.candidate<training::MaxOffset) { ++tune.candidate; ComboNotice(loc::Tf("training.combo.tune.trying",static_cast<int>(tune.step)+1,tune.candidate)); return; }
+    } else if(tune.best<training::MinOffset&&tune.candidate>training::MinOffset) {
+        // Nothing has connected yet: shorter until something does.
+        --tune.candidate; ComboNotice(loc::Tf("training.combo.tune.trying",static_cast<int>(tune.step)+1,tune.candidate)); return;
+    }
+    if(tune.best<training::MinOffset) { tune.on=false; ComboNotice(loc::Tf("training.combo.tune.failed",static_cast<int>(tune.step)+1),true); return; }
+    SetOffset(steps,tune.step,tune.best);
+    ComboNotice(loc::Tf("training.combo.tune.kept",static_cast<int>(tune.step)+1,tune.best));
+    tune.step=NextFollow(TimingSteps(),tune.step+1); tune.best=training::MinOffset-1;
+    if(tune.step>=TimingSteps().size()) { tune.on=false; ComboNotice(loc::T("training.combo.tune.done")); return; }
+    combo::Step step; std::string error; combo::ParseStep(TimingSteps()[tune.step],step,error); tune.candidate=step.offset;
 }
 // The pattern editor's moves: the typed line or the selected combo, taken
 // when the screen opens and written back after every change.
@@ -692,6 +749,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   TakeCapture(v);
   rows=ComboRows(v,!v.trialSteps.empty());
  }else if(screen=="combo-timing"){
+  TickTune(v,submit);
   rows=TimingRows(v);
  }else if(screen=="combo-blocks"){
   rows=PatternRows(pattern);
