@@ -150,7 +150,9 @@ namespace Dimps {
 			typedef struct Win32_WindowData {
 				void* field_0x0;
 				HWND hWnd;
-				char field_0x8[44];
+				char field_0x8[0x3c];
+				// Set on WM_SETFOCUS, cleared on WM_KILLFOCUS (0x77EB20).
+				int hasFocus;
 			} Win32_WindowData;
 
 			static Win32_WindowData** GetWindowData(Main* m);

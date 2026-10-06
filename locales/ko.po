@@ -703,7 +703,7 @@ msgid "settings.title"
 msgstr "설정"
 
 msgid "settings.player_detail"
-msgstr "표시 이름과 컨트롤러 지정입니다."
+msgstr "표시 이름, 컨트롤러 지정, 백그라운드 플레이입니다."
 
 msgid "settings.defaults_detail"
 msgstr "입력 지연 및 새 방의 기본 설정입니다."
@@ -731,6 +731,12 @@ msgstr "키보드 사용"
 
 msgid "player.use_keyboard_detail"
 msgstr "키보드를 게임플레이 장치로 지정합니다. 다시 지정하기 전까지 컨트롤러로 Ember 메뉴를 조작할 수 없게 됩니다."
+
+msgid "player.background_play"
+msgstr "백그라운드에서 플레이"
+
+msgid "player.background_play_detail"
+msgstr "OBS 같은 다른 창이 앞에 있어도 게임 소리와 컨트롤러가 계속 작동합니다. 키보드와 Ember 메뉴는 여전히 게임 창이 필요합니다. 창 모드를 사용하세요. 전체 화면에서는 게임이 최소화됩니다."
 
 msgid "player.native_menus"
 msgstr "게임 메뉴 열기"

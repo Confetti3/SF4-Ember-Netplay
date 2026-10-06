@@ -15,6 +15,8 @@ System_RawInput::__publicMethods System_RawInput::publicMethods;
 System_RawInput::__staticMethods System_RawInput::staticMethods;
 System_XInput::__publicMethods System_XInput::publicMethods;
 System_XInput::__staticMethods System_XInput::staticMethods;
+BYTE* System::focusGate = nullptr;
+BYTE* System_XInput::focusGate = nullptr;
 
 const int System::BUTTON_MAPPING_FIGHT = 0;
 const int System::BUTTON_MAPPING_MENU = 1;
@@ -81,8 +83,14 @@ void System::Locate(HMODULE peRoot) {
 	*(PVOID*)(&publicMethods.SetDeviceTypeForPlayer) = (PVOID)(peRootOffset + 0x117270);
 	*(PVOID*)(&publicMethods.SetActiveButtonMapping) = (PVOID)(peRootOffset + 0x110170);
 	*(PVOID*)(&publicMethods.CaptureNextMatchingPadToSide) = (PVOID)(peRootOffset + 0x111110);
+	*(PVOID*)(&publicMethods.ClearInputs) = (PVOID)(peRootOffset + 0x1100e0);
+	focusGate = (BYTE*)(peRootOffset + 0x1121ad);
 
 	staticMethods.GetSingleton = (System * (*)())(peRootOffset + 0x119480);
+}
+
+int* System::GetUpdating(System* s) {
+	return (int*)((unsigned int)s + 0xf4);
 }
 
 int* System::PlayerEntry::DeviceIndex(System::PlayerEntry* e) {
@@ -100,6 +108,7 @@ int* System::PlayerEntry::AssignedController(System::PlayerEntry* e) {
 void System_RawInput::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
 	*(PVOID*)(&publicMethods.SetDeviceInUse) = (PVOID)(peRootOffset + 0x2e1310);
+	*(PVOID*)(&publicMethods.ClearKeys) = (PVOID)(peRootOffset + 0x2df8e0);
 	staticMethods.GetSingleton = (System_RawInput * (*)())(peRootOffset + 0x2e00e0);
 }
 
@@ -112,5 +121,7 @@ void System_XInput::Locate(HMODULE peRoot) {
     *(PVOID*)(&publicMethods.GetButtonsOn) = (PVOID)(base + 0x2d7290);
 	unsigned int peRootOffset = (unsigned int)peRoot;
 	*(PVOID*)(&publicMethods.SetDeviceInUse) = (PVOID)(peRootOffset + 0x2d9170);
+	*(PVOID*)(&publicMethods.Update) = (PVOID)(peRootOffset + 0x2d8d70);
+	focusGate = (BYTE*)(peRootOffset + 0x2d8d8a);
 	staticMethods.GetSingleton = (System_XInput * (*)())(peRootOffset + 0x2d90f0);
 }

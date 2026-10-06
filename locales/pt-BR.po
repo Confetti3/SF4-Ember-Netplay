@@ -703,7 +703,7 @@ msgid "settings.title"
 msgstr "CONFIGURAÇÕES"
 
 msgid "settings.player_detail"
-msgstr "Nome exibido e atribuição de controle."
+msgstr "Nome exibido, atribuição de controle e jogo em segundo plano."
 
 msgid "settings.defaults_detail"
 msgstr "Atraso de entrada e padrões de novas salas."
@@ -731,6 +731,12 @@ msgstr "Usar teclado"
 
 msgid "player.use_keyboard_detail"
 msgstr "Atribua o teclado como seu dispositivo de jogo. Seu controle deixa de mover os menus do Ember até você atribuí-lo de novo."
+
+msgid "player.background_play"
+msgstr "Jogar em segundo plano"
+
+msgid "player.background_play_detail"
+msgstr "O som do jogo e seu controle continuam funcionando enquanto outra janela, como o OBS, está na frente. O teclado e os menus do Ember ainda precisam da janela do jogo. Use o modo janela: em tela cheia o jogo ainda é minimizado."
 
 msgid "player.native_menus"
 msgstr "Abrir menus nativos"

@@ -703,7 +703,7 @@ msgid "settings.title"
 msgstr "AJUSTES"
 
 msgid "settings.player_detail"
-msgstr "Nombre visible y asignación de mando."
+msgstr "Nombre visible, asignación de mando y juego en segundo plano."
 
 msgid "settings.defaults_detail"
 msgstr "Retraso de entrada y ajustes de sala."
@@ -731,6 +731,12 @@ msgstr "Usar teclado"
 
 msgid "player.use_keyboard_detail"
 msgstr "Asigna el teclado como dispositivo de juego. Tu mando dejará de mover los menús de Ember hasta que lo asignes de nuevo."
+
+msgid "player.background_play"
+msgstr "Jugar en segundo plano"
+
+msgid "player.background_play_detail"
+msgstr "El sonido del juego y tu mando siguen funcionando mientras otra ventana, como OBS, está delante. El teclado y los menús de Ember siguen necesitando la ventana del juego. Usa el modo ventana: en pantalla completa el juego se sigue minimizando."
 
 msgid "player.native_menus"
 msgstr "Abrir menús nativos"

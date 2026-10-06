@@ -243,6 +243,7 @@ namespace OverlayPrefs {
 			{"roundTimeIntegral", preferences.lobby.roundTime}, {"showMatchHud", preferences.showMatchHud},
 			{"discordPresence", preferences.discordPresence}, {"discordInvites", preferences.discordInvites},
             {"matchHudSize",preferences.matchHudSize},{"matchHudRaised",preferences.matchHudRaised},{"matchHudAnchor",preferences.matchHudAnchor},{"matchHudLayout",preferences.matchHudLayout},{"readySound",preferences.readySound},{"readySoundVolume",preferences.readySoundVolume},
+            {"backgroundPlay",preferences.backgroundPlay},
             {"interfaceScale", preferences.interfaceScale}, {"roomDefaults", netplay::RoomPreferences(preferences)}};
         if(preferences.record.available)values["onlineRecord"]=netplay::ProfileRecordJson(preferences.record);
         return writer->QueueLauncher(std::move(values));

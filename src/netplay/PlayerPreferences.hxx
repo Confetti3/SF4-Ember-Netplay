@@ -41,6 +41,9 @@ struct PlayerPreferences {
     bool readySound = true;
     // Percent of the game's own voice volume, in steps of ten.
     int readySoundVolume = 100;
+    // The game's sound and the pads keep working while another window, such
+    // as OBS, is in front (sf4e__BackgroundPlay.cxx).
+    bool backgroundPlay = false;
     bool discordPresence = true, discordInvites = true;
     float interfaceScale = 1.f;
     LobbySettings lobby;

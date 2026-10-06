@@ -219,6 +219,7 @@ void StartHelper() {
             runtime->preferences.readySound = saved.value("readySound", true);
             const int volume = saved.value("readySoundVolume", 100);
             runtime->preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;
+            runtime->preferences.backgroundPlay = saved.value("backgroundPlay", false);
             runtime->preferences.discordPresence = saved.value("discordPresence", true);
             runtime->preferences.discordInvites = saved.value("discordInvites", true);
             const int main=saved.contains("mainFighter")&&saved["mainFighter"].is_number_integer()?saved["mainFighter"].get<int>():0;

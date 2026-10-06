@@ -703,7 +703,7 @@ msgid "settings.title"
 msgstr "НАСТРОЙКИ"
 
 msgid "settings.player_detail"
-msgstr "Отображаемое имя и назначение контроллера."
+msgstr "Отображаемое имя, назначение контроллера и игра в фоне."
 
 msgid "settings.defaults_detail"
 msgstr "Задержка ввода и параметры новых залов."
@@ -731,6 +731,12 @@ msgstr "Клавиатура"
 
 msgid "player.use_keyboard_detail"
 msgstr "Назначить клавиатуру игровым устройством. Контроллер перестанет управлять меню Ember, пока вы не назначите его снова."
+
+msgid "player.background_play"
+msgstr "Игра в фоне"
+
+msgid "player.background_play_detail"
+msgstr "Звук игры и контроллер продолжают работать, пока на переднем плане другое окно, например OBS. Клавиатуре и меню Ember по-прежнему нужно окно игры. Используйте оконный режим: в полноэкранном режиме игра всё равно сворачивается."
 
 msgid "player.native_menus"
 msgstr "Открыть меню игры"

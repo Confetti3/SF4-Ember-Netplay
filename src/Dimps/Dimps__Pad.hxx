@@ -49,6 +49,10 @@ namespace Dimps {
 				void (System::* SetDeviceTypeForPlayer)(int side, int deviceType);
 				void (System::* SetActiveButtonMapping)(int buttonMapping);
 				int (System::* CaptureNextMatchingPadToSide)(int side, DWORD inputMask, int unk3);
+				// Virtual +0xB4 (0x5100E0): masks both players' button states. The
+				// update calls it with zero masks and clearDevices set, which also
+				// clears the keyboards and pads, on each frame the window is behind.
+				void (System::* ClearInputs)(int mask0, int mask1, int mask2, int mask3, char clearDevices);
 			} __publicMethods;
 
 			typedef struct __staticMethods {
@@ -58,11 +62,18 @@ namespace Dimps {
 			static void Locate(HMODULE peRoot);
 			static __publicMethods publicMethods;
 			static __staticMethods staticMethods;
+			// The update's "window in front" gate, `test ebx, ebx` at 0x5121AD
+			// (common/FocusGate.hxx).
+			static BYTE* focusGate;
+			// The update reads and publishes inputs, gate included, only while this is set.
+			static int* GetUpdating(System* s);
 		};
 
 		struct System_RawInput {
 			typedef struct __publicMethods {
 				unsigned int(System_RawInput::* SetDeviceInUse)(int deviceIdx, int bInUse);
+				// Virtual +0x44 (0x6DF8E0): releases every key of every keyboard.
+				void (System_RawInput::* ClearKeys)();
 			} __publicMethods;
 
 			typedef struct __staticMethods {
@@ -81,6 +92,9 @@ namespace Dimps {
                 char*(System_XInput::* GetDeviceName)(int index);
                 unsigned int(System_XInput::* GetButtonsOn)(int index);
 				unsigned int(System_XInput::* SetDeviceInUse)(int deviceIdx, int bInUse);
+				// Virtual +0xC (0x6D8D70): polls the XInput and DirectInput pads,
+				// only while the game window is in front.
+				int (System_XInput::* Update)();
 			} __publicMethods;
 
 			typedef struct __staticMethods {
@@ -90,6 +104,8 @@ namespace Dimps {
 			static void Locate(HMODULE peRoot);
 			static __publicMethods publicMethods;
 			static __staticMethods staticMethods;
+			// The poll's "window in front" gate, `test ebx, ebx` at 0x6D8D8A.
+			static BYTE* focusGate;
 		};
 	}
 }

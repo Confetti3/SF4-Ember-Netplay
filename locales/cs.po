@@ -703,7 +703,7 @@ msgid "settings.title"
 msgstr "NASTAVENÍ"
 
 msgid "settings.player_detail"
-msgstr "Zobrazované jméno a přiřazení ovladače."
+msgstr "Zobrazované jméno, přiřazení ovladače a hraní na pozadí."
 
 msgid "settings.defaults_detail"
 msgstr "Zpoždění a výchozí nastavení místností."
@@ -731,6 +731,12 @@ msgstr "Použít klávesnici"
 
 msgid "player.use_keyboard_detail"
 msgstr "Přiřaďte klávesnici jako herní zařízení. Ovladač pak přestane ovládat nabídky Ember, dokud ho znovu nepřiřadíte."
+
+msgid "player.background_play"
+msgstr "Hrát na pozadí"
+
+msgid "player.background_play_detail"
+msgstr "Zvuk hry a ovladač fungují dál, i když je v popředí jiné okno, například OBS. Klávesnice a nabídky Ember dál potřebují okno hry. Použijte režim okna: na celé obrazovce se hra stále minimalizuje."
 
 msgid "player.native_menus"
 msgstr "Otevřít nabídky hry"

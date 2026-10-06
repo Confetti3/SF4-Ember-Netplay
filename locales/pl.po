@@ -703,7 +703,7 @@ msgid "settings.title"
 msgstr "USTAWIENIA"
 
 msgid "settings.player_detail"
-msgstr "Nazwa wyświetlana i przypisanie kontrolera."
+msgstr "Nazwa wyświetlana, przypisanie kontrolera i gra w tle."
 
 msgid "settings.defaults_detail"
 msgstr "Opóźnienie i ustawienia nowych pokojów."
@@ -731,6 +731,12 @@ msgstr "Użyj klawiatury"
 
 msgid "player.use_keyboard_detail"
 msgstr "Przypisz klawiaturę jako urządzenie do gry. Kontroler przestanie obsługiwać menu Ember, dopóki nie przypiszesz go ponownie."
+
+msgid "player.background_play"
+msgstr "Gra w tle"
+
+msgid "player.background_play_detail"
+msgstr "Dźwięk gry i kontroler działają dalej, gdy na pierwszym planie jest inne okno, na przykład OBS. Klawiatura i menu Ember nadal wymagają okna gry. Użyj trybu okienkowego: na pełnym ekranie gra nadal się minimalizuje."
 
 msgid "player.native_menus"
 msgstr "Otwórz menu gry"

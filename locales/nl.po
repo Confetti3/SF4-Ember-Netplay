@@ -703,7 +703,7 @@ msgid "settings.title"
 msgstr "INSTELLINGEN"
 
 msgid "settings.player_detail"
-msgstr "Schermnaam en controllertoewijzing."
+msgstr "Schermnaam, controllertoewijzing en spelen op de achtergrond."
 
 msgid "settings.defaults_detail"
 msgstr "Invoervertraging en kamerstandaard."
@@ -731,6 +731,12 @@ msgstr "Toetsenbord"
 
 msgid "player.use_keyboard_detail"
 msgstr "Wijs het toetsenbord toe als speelapparaat. Je controller bedient de menu's van Ember dan niet meer, tot je hem opnieuw toewijst."
+
+msgid "player.background_play"
+msgstr "Op de achtergrond spelen"
+
+msgid "player.background_play_detail"
+msgstr "Het geluid van het spel en je controller blijven werken terwijl een ander venster, zoals OBS, op de voorgrond staat. Het toetsenbord en de menu's van Ember hebben nog steeds het spelvenster nodig. Gebruik de venstermodus: in volledig scherm wordt het spel nog steeds geminimaliseerd."
 
 msgid "player.native_menus"
 msgstr "Spelmenu's openen"

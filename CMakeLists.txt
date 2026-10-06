@@ -38,6 +38,8 @@ if(BUILD_TESTING)
     add_test(NAME HudMementoBounds COMMAND HudMementoBoundsTest)
     add_executable(VfxObjectMementoTest "src/tests/vfx_object_memento_test.cxx")
     add_test(NAME VfxObjectMemento COMMAND VfxObjectMementoTest)
+    add_executable(FocusGateTest "src/tests/focus_gate_test.cxx")
+    add_test(NAME FocusGate COMMAND FocusGateTest)
     add_executable(GfxActionPoolTest "src/tests/gfx_action_pool_test.cxx")
     target_compile_features(GfxActionPoolTest PRIVATE cxx_std_14)
     add_test(NAME GfxActionPool COMMAND GfxActionPoolTest)
@@ -476,6 +478,8 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__OverlayPrefs.cxx"
     "src/sf4e/sf4e__Pad.hxx"
     "src/sf4e/sf4e__Pad.cxx"
+    "src/sf4e/sf4e__BackgroundPlay.hxx"
+    "src/sf4e/sf4e__BackgroundPlay.cxx"
     "src/sf4e/sf4e__Platform.hxx"
     "src/sf4e/sf4e__Platform.cxx"
     "src/sf4e/sf4e__CrashDiagnostics.hxx"

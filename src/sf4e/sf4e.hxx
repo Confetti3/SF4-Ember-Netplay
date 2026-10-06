@@ -39,6 +39,9 @@ namespace sf4e {
 	extern HANDLE hSyncEvent;
 
 	void Install(HINSTANCE hinstDll, const Payload* const payload);
+	// After the hook transaction that Install filled has committed: code
+	// patches that are only safe with their hooks in place.
+	void HooksCommitted();
 
 	namespace Eva {
 		struct IEmSpriteAction : Dimps::Eva::IEmSpriteAction {
