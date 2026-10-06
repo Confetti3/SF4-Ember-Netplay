@@ -80,9 +80,11 @@ struct Step {
     // follow: a follow-up pressed a few frames into the move before it, with
     // no cue to wait for (a run's stop); it counts as a cancel otherwise.
     bool follow = false;
-    // mashOrder: the buttons of a mash in order, one press per frame; empty
-    // for the default five presses cycling the step's buttons.
-    std::vector<unsigned> mashOrder;
+    // mashOrder: the presses of a mash in order, one per frame, each a
+    // button with its own direction digit ('0' for the step's); empty for
+    // the default five presses cycling the step's buttons.
+    struct MashPress { char direction = '0'; unsigned button = 0; };
+    std::vector<MashPress> mashOrder;
     unsigned buttons = 0; int need = 0;
     Edge edge = Edge::Press; Range range = Range::Any;
     int offset = 0, at = -1;
@@ -94,7 +96,8 @@ constexpr int MaxAtFrame = 7200;
 //   motion:  numpad digits 1-9, "[4]6" for charge, "360", "720"
 //   buttons: LP MP HP LK MK HK joined by "+", or P PP PPP K KK KKK;
 //            "[HP]" holds them, "]HP[" releases them, "(mash)" mashes them,
-//            "(mash HP-MP-LP)" in that order, one press per frame
+//            "(mash HP-MP-LP)" in that order, one press per frame, up to 10;
+//            "(mash 1MK-1MK-1MK)" with a direction for each press
 //   @N:      replay timing, -120..+120 frames ("@-1", "@+3")
 //   #N:      replay frame the press lands on, 0..7200 ("#45")
 // cr. is 2; st., cl. and far. are 5. FADC is MP+MK then a dash, 66 unless 44;
@@ -133,17 +136,19 @@ inline bool ParseStep(const std::string& text, Step& step, std::string& error) {
     }
     if (s.size() > 6 && s.compare(s.size() - 6, 6, "(MASH)") == 0) { step.mash = true; s.resize(s.size() - 6); }
     else if (s.rfind("(MASH") != std::string::npos && s.back() == ')') {
-        // "(mash HP-MP-LP)": the presses in order.
+        // "(mash HP-MP-LP)" or "(mash 1MK-1MK-1MK)": the presses in order,
+        // each a button with its own direction; the dashes are optional.
         const auto open = s.rfind("(MASH");
-        std::string list = s.substr(open + 5, s.size() - open - 6);
-        for (std::size_t from = 0; from <= list.size();) {
-            const auto dash = list.find('-', from);
-            const auto name = list.substr(from, dash == std::string::npos ? std::string::npos : dash - from);
-            const unsigned bit = name == "LP" ? LP : name == "MP" ? MP : name == "HP" ? HP : name == "LK" ? LK : name == "MK" ? MK : name == "HK" ? HK : 0;
-            if (!bit || step.mashOrder.size() >= 30) return fail();
-            step.mashOrder.push_back(bit);
-            if (dash == std::string::npos) break;
-            from = dash + 1;
+        std::string list;
+        for (char c : s.substr(open + 5, s.size() - open - 6)) if (c != '-') list += c;
+        if (list.empty()) return fail();
+        for (std::size_t at = 0; at < list.size();) {
+            Step::MashPress press;
+            if (list[at] >= '1' && list[at] <= '9') press.direction = list[at++];
+            const auto name = list.substr(at, 2);
+            press.button = name == "LP" ? LP : name == "MP" ? MP : name == "HP" ? HP : name == "LK" ? LK : name == "MK" ? MK : name == "HK" ? HK : 0;
+            if (!press.button || step.mashOrder.size() >= 10) return fail();
+            step.mashOrder.push_back(press); at += 2;
         }
         step.mash = true; s.resize(open);
     }
@@ -218,7 +223,8 @@ inline std::string Canonical(const Step& step) {
     std::string mash;
     if (step.mash) {
         mash = "(mash";
-        for (std::size_t i = 0; i < step.mashOrder.size(); ++i) mash += (i ? "-" : " ") + std::string(ButtonName(step.mashOrder[i]));
+        for (std::size_t i = 0; i < step.mashOrder.size(); ++i)
+            mash += (i ? "-" : " ") + (step.mashOrder[i].direction != '0' ? std::string(1, step.mashOrder[i].direction) : std::string()) + ButtonName(step.mashOrder[i].button);
         mash += ")";
     }
     return out + buttons + mash + timing;

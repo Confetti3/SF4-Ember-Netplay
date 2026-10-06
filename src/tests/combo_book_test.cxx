@@ -79,7 +79,11 @@ int main() {
         CHECK(two[t].raw == LP && two[t + 1].raw == MP && two[t + 4].raw == LP);
         // An order of its own sets the presses and their count; a repeat gets a frame off between.
         CHECK(ParseStep("5P(mash HP-MP-LP-LP)", step, error) && step.mash && step.mashOrder.size() == 4 && Canonical(step) == "5P(mash HP-MP-LP-LP)");
-        CHECK(!ParseStep("5P(mash HP-XX)", step, error) && !ParseStep("5P(mash -)", step, error));
+        CHECK(!ParseStep("5P(mash HP-XX)", step, error) && !ParseStep("5P(mash -)", step, error) && !ParseStep("5P(mash LP-LP-LP-LP-LP-LP-LP-LP-LP-LP-LP)", step, error));
+        // Each press may carry its own direction; the dashes are optional.
+        CHECK(ParseStep("5K(mash 1MK 1MK 3MK)", step, error) && step.mashOrder.size() == 3 && step.mashOrder[0].direction == '1' && step.mashOrder[2].direction == '3' && Canonical(step) == "5K(mash 1MK-1MK-3MK)");
+        const auto legs = Synthesize({"5K(mash 1MK-1MK-3MK)"}, true, 0); const auto l = first(legs);
+        CHECK(legs[l].raw == (Down | Left | MK) && legs[l + 1].raw == (Down | Left) && legs[l + 2].raw == (Down | Left | MK) && legs[l + 3].raw == (Down | Right) && legs[l + 4].raw == (Down | Right | MK));
         const auto ordered = Synthesize({"5P(mash HP-MP-LP-LP)"}, true, 0); const auto q = first(ordered);
         CHECK(ordered[q].raw == HP && ordered[q + 1].raw == MP && ordered[q + 2].raw == LP && ordered[q + 3].raw == 0 && ordered[q + 4].raw == LP && ordered[q + 5].raw == 0);
     }

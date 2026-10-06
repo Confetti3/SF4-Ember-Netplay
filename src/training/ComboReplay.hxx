@@ -97,19 +97,22 @@ inline std::vector<training::Input> Synthesize(const std::vector<std::string>& s
         else if (step.mash) {
             // Five presses: several buttons are cycled one per frame (a piano),
             // one button goes on and off a frame at a time.
-            std::vector<unsigned> cycle = step.mashOrder;
+            std::vector<Step::MashPress> cycle = step.mashOrder;
             const int presses = cycle.empty() ? 5 : static_cast<int>(cycle.size());
             if (cycle.empty()) {
-                if (step.buttons == Punches) cycle = {LP, MP, HP};
-                else if (step.buttons == Kicks) cycle = {LK, MK, HK};
-                else for (unsigned bit = 1; bit; bit <<= 1) if (step.buttons & bit) cycle.push_back(bit);
+                std::vector<unsigned> bits;
+                if (step.buttons == Punches) bits = {LP, MP, HP};
+                else if (step.buttons == Kicks) bits = {LK, MK, HK};
+                else for (unsigned bit = 1; bit; bit <<= 1) if (step.buttons & bit) bits.push_back(bit);
+                for (unsigned bit : bits) cycle.push_back({'0', bit});
             }
             unsigned previous = 0;
             for (int press = 0; press < presses; ++press) {
-                const unsigned button = cycle[press % cycle.size()];
+                const auto& one = cycle[press % cycle.size()];
+                const unsigned direction = one.direction != '0' ? DirectionBits(one.direction, facingRight) : last;
                 // The same button twice in a row needs a frame off between, to be a new press.
-                if (button == previous) push(last, 1);
-                push(last | button, 1); previous = button;
+                if (one.button == previous) push(direction, 1);
+                push(direction | one.button, 1); previous = one.button;
             }
         }
         else push(last | buttons, 1);
