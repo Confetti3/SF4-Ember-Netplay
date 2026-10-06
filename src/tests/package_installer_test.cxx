@@ -4,6 +4,7 @@
 #include <bcrypt.h>
 #include <filesystem>
 #include <fstream>
+#include <vector>
 #include <iostream>
 #include <cstdlib>
 #include <nlohmann/json.hpp>
@@ -21,6 +22,14 @@ std::string Sha256(const std::string& bytes) {
     for(const auto byte:digest){text+=hex[byte>>4];text+=hex[byte&15];}
     return text;
 }
+// PackageInventory.inc declaring these paths, in the form the real one uses.
+std::string Escaped(const std::wstring& path) { std::string text; for (wchar_t c : path) { if (c == L'\\') text += '\\'; text += static_cast<char>(c); } return text; }
+void Inventory(const fs::path& package, const std::vector<std::wstring>& required, const std::vector<std::wstring>& obsolete) {
+    std::string lines;
+    for (const auto& path : required) lines += "SF4E_PACKAGE_REQUIRED(\"" + Escaped(path) + "\")\n";
+    for (const auto& path : obsolete) lines += "SF4E_PACKAGE_OBSOLETE(\"" + Escaped(path) + "\")\n";
+    Write(package/L"PackageInventory.inc", lines.c_str());
+}
 // MANIFEST.txt for every file in the folder, as packaging writes it.
 void Manifest(const fs::path& package) {
     std::string lines;
@@ -29,6 +38,14 @@ void Manifest(const fs::path& package) {
         if (entry.is_regular_file() && rel != L"MANIFEST.txt") lines += sf4e::launcher::Sha256Hex(entry.path()) + "  " + rel.u8string() + "\n";
     }
     Write(package/L"MANIFEST.txt", lines.c_str());
+}
+// A package of this build's shape: every required file with this content, its
+// inventory and its manifest.
+void Package(const fs::path& package, const char* content) {
+    std::vector<std::wstring> required, obsolete;
+    for (const auto* path : sf4e::package::Required) { Write(package/path, content); required.push_back(path); }
+    for (const auto* path : sf4e::package::Obsolete) obsolete.push_back(path);
+    Inventory(package, required, obsolete); Manifest(package);
 }
 int wmain(int argc, wchar_t** argv) {
     std::string error;
@@ -47,14 +64,15 @@ int wmain(int argc, wchar_t** argv) {
             const auto path = entry.path().lexically_relative(package);
             if (!sf4e::package::IsAllowed(path.c_str())) { std::wcerr << L"Unexpected package file: " << path.c_str() << L'\n'; return 1; }
         }
-        std::cout << "Actual package accepted by the native updater inventory\n";
+        // What the updater will hold it to as well, so packaging and updating agree.
+        CHECK(sf4e::launcher::ValidatePackageFolder(package,error));
+        std::cout << "Actual package accepted by the native updater inventory and validation\n";
         return 0;
     }
     const auto root = MakeTempRoot(L"ember-upgrade-test-");
     const auto staging = root/L"staging", install = root/L"install";
     fs::create_directories(staging); fs::create_directories(install);
-    for (const auto* path : sf4e::package::Required) Write(staging/path,"new");
-    Manifest(staging);
+    Package(staging,"new");
     Write(install/L"Launcher.exe","old"); Write(install/L"Qt6Core.dll","legacy");
     Write(install/L"dxwrapper.dll","previous-display-wrapper");
     Write(install/L"Safe display.cmd","previous-display-recovery");
@@ -114,12 +132,22 @@ int wmain(int argc, wchar_t** argv) {
     Write(install/L"assets\\selection\\horror-sources.json","player-art");
     Write(install/L"my-replay.bin","user");
     const auto older=root/L"older"; fs::create_directories(older);
-    for (const auto* path : sf4e::package::Required) Write(older/path,"older");
-    Write(older/L"dxwrapper.dll","older-display-wrapper"); Manifest(older);
+    std::vector<std::wstring> olderRequired;
+    for (const auto* path : sf4e::package::Required) if (std::wstring(path).find(L"iscord")==std::wstring::npos) { Write(older/path,"older"); olderRequired.push_back(path); }
+    Write(older/L"dxwrapper.dll","older-display-wrapper"); olderRequired.push_back(L"dxwrapper.dll");
+    Inventory(older,olderRequired,{}); Manifest(older);
     CHECK(sf4e::launcher::ValidatePackageFolder(older,error));
+    // Matching a manifest is not completeness: a package short of a file its
+    // own inventory requires, or carrying one it calls obsolete, is refused.
+    const auto trimmed=root/L"trimmed"; fs::copy(staging,trimmed,fs::copy_options::recursive);
+    fs::remove(trimmed/L"sf4-net.exe"); Manifest(trimmed);
+    CHECK(!sf4e::launcher::ValidatePackageFolder(trimmed,error) && error.find("sf4-net.exe")!=std::string::npos);
+    fs::copy_file(staging/L"sf4-net.exe",trimmed/L"sf4-net.exe"); Write(trimmed/L"Qt6Core.dll","carried"); Manifest(trimmed);
+    CHECK(!sf4e::launcher::ValidatePackageFolder(trimmed,error));
     CHECK(sf4e::launcher::InstallPackage(older,install,error));
     CHECK(Read(install/L"Launcher.exe")=="older" && Read(install/L"dxwrapper.dll")=="older-display-wrapper");
     CHECK(!fs::exists(install/L"docs\\TRAINING_LAB.md") && !fs::exists(install/L"assets\\selection\\sources.json") && !fs::exists(install/L"docs"));
+    CHECK(!fs::exists(install/L"ember-discord.exe") && !fs::exists(install/L"notices\\Discord-SDK.txt"));
     CHECK(Read(install/L"my-replay.bin")=="user" && Read(install/L"d3d9.dll")=="user-owned-proxy");
     CHECK(Read(install/L"assets\\selection\\horror-sources.json")=="player-art");
     bool editKept=false;
@@ -149,8 +177,7 @@ int wmain(int argc, wchar_t** argv) {
     // destination from exact backup bytes.
     const auto crashRoot=root/L"crash", crashStaging=crashRoot/L"staging", crashInstall=crashRoot/L"install";
     fs::create_directories(crashStaging);fs::create_directories(crashInstall);
-    for(const auto* path:sf4e::package::Required) Write(crashStaging/path,"target");
-    Manifest(crashStaging);
+    Package(crashStaging,"target");
     Write(crashInstall/L"Launcher.exe","prior-launcher");
     Write(crashInstall/L"sf4-net.exe","user-collision");
     // Owned by the installed manifest and absent from the package: a removal.

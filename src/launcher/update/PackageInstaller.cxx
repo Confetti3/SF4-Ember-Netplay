@@ -314,6 +314,29 @@ bool UninstallPackage(const fs::path& installInput, std::string& error) {
     } catch(const std::exception& failure){error=failure.what();return false;}
     error.clear(); return true;
 }
+// The required and obsolete paths a package's own PackageInventory.inc
+// declares, as preflight reads them, so a package of any version is held to
+// its own list rather than this build's.
+struct Inventory { std::map<std::wstring,fs::path> required; std::set<std::wstring> obsolete; };
+Inventory ReadInventory(const fs::path& file) {
+    std::ifstream input(file,std::ios::binary);
+    if(!input) throw std::runtime_error("Cannot read the package inventory");
+    Inventory inventory;
+    for(std::string line; std::getline(input,line);) {
+        const auto open=line.find("(\""), close=line.rfind("\")");
+        if(line.rfind("SF4E_PACKAGE_",0)!=0 || open==std::string::npos || close==std::string::npos || close<=open+2) continue;
+        const std::string kind=line.substr(13,open-13);
+        std::string text=line.substr(open+2,close-open-2);
+        for(size_t at; (at=text.find("\\\\"))!=std::string::npos;) text.erase(at,1);
+        const fs::path relative=fs::u8path(text).lexically_normal();
+        if(relative.empty() || relative.is_absolute() || relative.has_root_name()) throw std::runtime_error("Invalid package inventory");
+        if(kind=="REQUIRED") inventory.required.emplace(PathKey(relative),relative);
+        else if(kind=="OBSOLETE") inventory.obsolete.insert(PathKey(relative));
+        else if(kind!="OPTIONAL") throw std::runtime_error("Invalid package inventory");
+    }
+    if(input.bad() || inventory.required.empty()) throw std::runtime_error("Invalid package inventory");
+    return inventory;
+}
 // The package's files by relative path, each with its manifest hash, once
 // every file matched the manifest and the manifest named nothing missing.
 static std::map<std::wstring,std::pair<fs::path,std::string>> VerifiedPackage(const fs::path& package) {
@@ -334,7 +357,13 @@ static std::map<std::wstring,std::pair<fs::path,std::string>> VerifiedPackage(co
         seen.insert(key);
     }
     for(const auto& [key,named]:manifest) if(!seen.count(key)) throw std::runtime_error("Incomplete package");
-    if(!seen.count(PathKey(L"Launcher.exe"))) throw std::runtime_error("Incomplete package");
+    // Matching its manifest is not having what it needs: a package also meets
+    // its own inventory's required list and carries none of its obsolete files.
+    const auto inventory=ReadInventory(package/L"PackageInventory.inc");
+    seen.insert(PathKey(L"MANIFEST.txt"));
+    for(const auto& [key,relative]:inventory.required) if(!seen.count(key)) throw std::runtime_error("Incomplete package: "+relative.u8string());
+    for(const auto& key:seen) if(inventory.obsolete.count(key)) throw std::runtime_error("Package carries an obsolete file");
+    if(!seen.count(PathKey(L"Launcher.exe")) || !seen.count(PathKey(L"Updater.exe"))) throw std::runtime_error("Incomplete package");
     manifest[PathKey(L"MANIFEST.txt")]={fs::path(L"MANIFEST.txt"),HashFile(package/L"MANIFEST.txt")};
     return manifest;
 }

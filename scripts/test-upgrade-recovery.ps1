@@ -76,6 +76,7 @@ try {
     Set-Content -LiteralPath $file -Encoding ASCII -NoNewline -Value 'target'
    }
   }
+  Copy-Item -LiteralPath (Join-Path $PSScriptRoot '..\src\common\PackageInventory.inc') -Destination (Join-Path $nativeStage 'PackageInventory.inc') -Force
   $nativeManifest=@(); foreach($file in Get-ChildItem -LiteralPath $nativeStage -File -Recurse){ if($file.Name -ne 'MANIFEST.txt'){ $nativeManifest+=ManifestLine $file.FullName $file.FullName.Substring($nativeStage.Length+1) } }
   Set-Content -LiteralPath (Join-Path $nativeStage 'MANIFEST.txt') -Encoding ASCII -Value $nativeManifest
   Set-Content -LiteralPath (Join-Path $nativeInstall 'Launcher.exe') -Encoding ASCII -NoNewline -Value 'native-prior'

@@ -4,9 +4,11 @@
 namespace sf4e { namespace launcher {
 // Present in the install folder while an update transaction is unfinished.
 inline constexpr wchar_t UpdateTransactionName[] = L".ember-update-transaction-v1.json";
-// A package folder answers to its own MANIFEST.txt: every file it names is
-// present with that hash, nothing else is in it, and every path is one this
-// build's inventory knows, current or obsolete, so an older package passes too.
+// A package folder answers to its own MANIFEST.txt and PackageInventory.inc:
+// every file the manifest names is present with that hash, nothing else is in
+// it, its inventory's required files are among them and none of its obsolete
+// ones, and every path is one this build's inventory knows, current or
+// obsolete, so an older package passes too.
 bool ValidatePackageFolder(const std::filesystem::path& package, std::string& error);
 // Lowercase hex SHA-256 of a file, as MANIFEST.txt writes it.
 std::string Sha256Hex(const std::filesystem::path& file);
