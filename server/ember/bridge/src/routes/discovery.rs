@@ -4,6 +4,7 @@ use ember_protocol::{
     api::{API_VERSION, BridgeProfile, Capabilities, ConnectionInfo, Limits, WELL_KNOWN_PATH},
     challenge, json,
     lobby::Rotation,
+    matches::MAX_GAMES_TO_WIN,
     tournament::Format,
 };
 use serde_json::json;
@@ -55,7 +56,7 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
         api_version: API_VERSION.into(),
         event_version: "v1".into(),
         games: vec!["usf4".into()],
-        games_to_win: vec![1, 2, 3, 5],
+        games_to_win: (1..=MAX_GAMES_TO_WIN).collect(),
         // `ember-room-v1` plays under the room's own settings. No translator
         // for a native USF4 rules profile is tested yet (spec 13.3).
         native_rules_profiles: vec![ember_protocol::play::PROFILE.into()],

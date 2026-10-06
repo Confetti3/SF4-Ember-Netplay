@@ -28,7 +28,7 @@ use axum::{
 };
 use ember_protocol::{
     EmberId, json as wire,
-    matches::{MatchState, Participant, Rules},
+    matches::{MAX_GAMES_TO_WIN, MatchState, Participant, Rules, games_to_win_valid},
     play::{PROFILE, play_url},
 };
 use rusqlite::{OptionalExtension, Transaction, params};
@@ -133,7 +133,7 @@ struct TeamPlayer {
 }
 
 /// `POST /v1/blumint/matches`: a set between two teams of one, played in
-/// Ember. `matchSettings.gamesToWin` (1, 2, 3 or 5) sets its length; other
+/// Ember. `matchSettings.gamesToWin` (1 to 10, best of 1 to 19) sets its length; other
 /// settings are BluMint's own and ignored.
 pub async fn create(
     State(state): State<AppState>,
@@ -160,8 +160,12 @@ pub async fn create(
         Some(value) => value
             .as_u64()
             .and_then(|n| u8::try_from(n).ok())
-            .filter(|n| matches!(n, 1 | 2 | 3 | 5))
-            .ok_or_else(|| ApiFailure::invalid("matchSettings.gamesToWin must be 1, 2, 3 or 5."))?,
+            .filter(|n| games_to_win_valid(*n))
+            .ok_or_else(|| {
+                ApiFailure::invalid(format!(
+                    "matchSettings.gamesToWin must be 1 to {MAX_GAMES_TO_WIN}."
+                ))
+            })?,
     };
     let ctx = Ctx::of(&state);
     let bridge_id = state.config.bridge_id.clone();

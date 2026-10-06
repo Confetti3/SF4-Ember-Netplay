@@ -12,6 +12,7 @@ use crate::{
     EmberId, Error, PublicKey, Result, SigningIdentity,
     encoding::is_prefixed_id,
     json,
+    matches::games_to_win_valid,
     play::{MAX_INVITATION, VERSION, check_build, is_hex},
     sign::Domain,
 };
@@ -42,8 +43,9 @@ pub const MAX_HOST_NAME: usize = 32;
 pub const NO_FIGHTER: u8 = 255;
 /// Character IDs below this are fighters; `NO_FIGHTER` is the only other value.
 pub const FIGHTER_LIMIT: u8 = 64;
-/// Set formats a table can play: 0 is unlimited, otherwise first to N.
-pub const SET_FORMATS: [u8; 5] = [0, 1, 2, 3, 5];
+/// The set format of a table that plays on without a set length. Any other
+/// format is first to N (`matches::games_to_win_valid`).
+pub const UNLIMITED_SET: u8 = 0;
 /// Winner stays, loser stays, both rotate.
 pub const MAX_ROTATION: u8 = 2;
 /// Accounts a server-owned room may ban in its lifetime. Bans are never
@@ -83,9 +85,9 @@ pub fn check_host_name(name: &str) -> Result<()> {
     }
 }
 
-/// Whether `format` is one a table can play (`SET_FORMATS`).
+/// Whether `format` is one a table can play: unlimited or first to 1 to 10.
 pub fn set_format_valid(format: u8) -> bool {
-    SET_FORMATS.contains(&format)
+    format == UNLIMITED_SET || games_to_win_valid(format)
 }
 
 fn check_capacity(capacity: u8) -> Result<()> {
@@ -202,7 +204,7 @@ pub struct RoomSummary {
     /// The moderator has the room locked: nobody new gets in.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub locked: Option<bool>,
-    /// The first table's set format (`SET_FORMATS`).
+    /// The first table's set format (`set_format_valid`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub set_format: Option<u8>,
     /// The first table's rotation: 0 to `MAX_ROTATION`.
@@ -447,6 +449,8 @@ impl CloseRoom {
 #[cfg(test)]
 mod tests {
     use zeroize::Zeroizing;
+
+    use crate::matches::MAX_GAMES_TO_WIN;
 
     use super::*;
 
@@ -798,14 +802,14 @@ te"
             (
                 "set_format",
                 RoomSummary {
-                    set_format: Some(4),
+                    set_format: Some(11),
                     ..detailed()
                 },
             ),
             (
                 "set_format",
                 RoomSummary {
-                    set_format: Some(7),
+                    set_format: Some(255),
                     ..detailed()
                 },
             ),
@@ -821,7 +825,7 @@ te"
             assert_eq!(room.check(), Err(Error::InvalidField(field)), "{room:?}");
             assert!(!room.details_valid(), "{room:?}");
         }
-        for format in SET_FORMATS {
+        for format in 0..=MAX_GAMES_TO_WIN {
             let room = RoomSummary {
                 set_format: Some(format),
                 ..detailed()

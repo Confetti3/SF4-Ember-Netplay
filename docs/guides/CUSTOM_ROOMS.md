@@ -70,7 +70,7 @@ tuning assumptions, not a guarantee about frame timing or network quality.
 Each table has a **Set length** and, once it has one, an **After a set** rule.
 The host sets both with the other table rules. With no set length the same two
 fighters keep playing until one of them leaves, and results count their wins
-against each other. With a set length of first to 1, 2, 3 or 5, the set ends
+against each other. With a set length of first to 1 through 10, the set ends
 when a fighter reaches that many wins and the seats rotate:
 
 - **Winner stays** (king of the hill): the winner keeps the seat and the loser

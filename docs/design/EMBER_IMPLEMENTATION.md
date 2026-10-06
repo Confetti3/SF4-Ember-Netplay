@@ -94,7 +94,7 @@ fighters and can carry up to 14 spectators.
 
 Both fighters must ready for each game, and valid native results accumulate
 wins for the seated pair. With no set length the pair keeps its seats until one
-of them leaves. A table can instead play first-to-1, 2, 3 or 5 sets: when a
+of them leaves. A table can instead play first-to-N sets (N from 1 to 10): when a
 win reaches the set length the set ends, and the table's rotation decides who
 gives up the seat (winner stays, loser stays, or both rotate, winner first).
 Rotated fighters join the back of the queue and the front of the queue fills

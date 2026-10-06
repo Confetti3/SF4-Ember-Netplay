@@ -119,7 +119,7 @@ async fn invalid_details_are_stored_as_nothing_and_the_list_stays_valid() {
     // poll and the listing still work.
     for bad in [
         json!({ "name": "two\nlines", "capacity": 1, "locked": "yes", "host_name": "",
-            "fighters": [1, 2, 3], "set_format": 4, "rotation": 9 }),
+            "fighters": [1, 2, 3], "set_format": 11, "rotation": 9 }),
         json!({ "capacity": 1, "fighters": [64] }),
         json!("not an object"),
         json!([1, 2]),
@@ -222,6 +222,25 @@ async fn a_rename_and_a_new_capacity_reach_the_listing_and_the_full_check() {
     ember_bridge::poll_rooms(bridge.state()).await;
     let rooms = listing(&bridge, &sam, "").await;
     assert_eq!((rooms[0].capacity, rooms[0].members), (8, 8));
+}
+
+// A table that moves to a longer set shows it: first to 10 replaces first to 2.
+#[tokio::test]
+async fn a_longer_set_reaches_the_listing() {
+    let (bridge, fake) = start().await;
+    let (kate, sam) = (player(&bridge, 1).await, player(&bridge, 2).await);
+    let room_id = open_room(&bridge, &kate, "198.51.100.1", 8).await;
+    report(&fake, &room_id, 2, 0, &[]);
+    for length in [2, 10] {
+        report_details(
+            &fake,
+            &room_id,
+            json!({ "set_format": length, "rotation": 0 }),
+        );
+        ember_bridge::poll_rooms(bridge.state()).await;
+        let detailed = raw_listing(&bridge, &sam, "?detail=1").await;
+        assert_eq!(detailed["rooms"][0]["set_format"], length, "{detailed}");
+    }
 }
 
 // The member count and the fighters are judged against the capacity the room

@@ -344,7 +344,7 @@ bool RoomAuthority::ValidRules(const Rules& rules) const {
 		rules.roundCount == 7 || rules.roundCount == 15 || rules.roundCount == 99;
 	const bool validTime = rules.roundTime == 30 || rules.roundTime == 60 || rules.roundTime == 99 ||
 		rules.roundTime == 300 || rules.roundTime == 9999;
-	return (format == 0 || format == 1 || format == 2 || format == 3 || format == 5) &&
+	return ValidSetFormat(format) &&
 		static_cast<std::uint8_t>(rules.rotation) <= static_cast<std::uint8_t>(RotationMode::BothRotate) && validRounds && validTime;
 }
 

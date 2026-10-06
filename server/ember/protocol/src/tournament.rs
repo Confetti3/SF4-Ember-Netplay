@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     EmberId, Error, Result,
     encoding::is_prefixed_id,
-    matches::{MAX_EXTERNAL_ID, check_metadata},
+    matches::{MAX_EXTERNAL_ID, check_metadata, games_to_win_valid},
 };
 
 /// Entrants in an elimination bracket at most.
@@ -83,10 +83,6 @@ pub struct CreateTournament {
     pub metadata: BTreeMap<String, String>,
 }
 
-fn check_length(games: u8) -> bool {
-    matches!(games, 1 | 2 | 3 | 5)
-}
-
 impl CreateTournament {
     pub fn check(&self) -> Result<()> {
         if self.external_tournament_id.is_empty()
@@ -97,12 +93,12 @@ impl CreateTournament {
         if self.game != "usf4" {
             return Err(Error::InvalidField("game"));
         }
-        if !check_length(self.games_to_win) {
+        if !games_to_win_valid(self.games_to_win) {
             return Err(Error::InvalidField("games_to_win"));
         }
         if self
             .finals_games_to_win
-            .is_some_and(|games| !check_length(games))
+            .is_some_and(|games| !games_to_win_valid(games))
         {
             return Err(Error::InvalidField("finals_games_to_win"));
         }
@@ -1086,7 +1082,12 @@ mod tests {
             metadata: BTreeMap::new(),
         };
         assert!(command.check().is_ok());
+        command.finals_games_to_win = Some(10);
+        assert!(command.check().is_ok());
+        command.finals_games_to_win = Some(11);
+        assert!(command.check().is_err());
         command.finals_games_to_win = Some(4);
+        command.games_to_win = 0;
         assert!(command.check().is_err());
         let wire: CreateTournament = serde_json::from_value(serde_json::json!({
             "external_tournament_id": "t", "game": "usf4", "format": "round_robin",

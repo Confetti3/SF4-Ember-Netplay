@@ -255,8 +255,10 @@ async fn a_match_is_created_played_and_its_score_sent_to_blumint() {
         )
         .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    let (status, _) = create(&f, json!({ "gamesToWin": 4 })).await;
-    assert_eq!(status, StatusCode::BAD_REQUEST);
+    for refused in [0, 11, 300] {
+        let (status, _) = create(&f, json!({ "gamesToWin": refused })).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+    }
     // One player on both sides is refused, and nothing is created.
     let (status, refused) = f
         .bridge
@@ -280,13 +282,14 @@ async fn a_match_is_created_played_and_its_score_sent_to_blumint() {
     assert_eq!(status, StatusCode::OK, "{created}");
     let id = created["matchId"].as_str().unwrap().to_owned();
     // BluMint lost the answer and asks again: the same match. A different
-    // request for the same players is refused while it is on.
+    // request for the same players is refused while it is on. A first to 4
+    // (best of 7) passes the length check and meets the match that is on.
     assert_eq!(
         create(&f, json!({ "gamesToWin": 1, "gravity": 1.1 })).await,
         (StatusCode::OK, created.clone())
     );
     assert_eq!(
-        create(&f, json!({ "gamesToWin": 3 })).await.0,
+        create(&f, json!({ "gamesToWin": 4 })).await.0,
         StatusCode::CONFLICT
     );
     assert_eq!(

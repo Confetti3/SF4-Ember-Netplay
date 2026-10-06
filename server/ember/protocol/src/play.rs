@@ -13,7 +13,7 @@ use crate::{
     EmberId, Error, PublicKey, Result, SigningIdentity,
     encoding::{Counter, decode_b64u, is_prefixed_id},
     json,
-    matches::Rules,
+    matches::{Rules, games_to_win_valid},
     report::{GameReport, Outcome},
     sign::Domain,
 };
@@ -181,7 +181,7 @@ impl Binding {
             ),
             (self.binding_revision.is_positive(), "binding_revision"),
             (is_hex(&self.room_id, 32), "room_id"),
-            (matches!(self.games_to_win, 1 | 2 | 3 | 5), "games_to_win"),
+            (games_to_win_valid(self.games_to_win), "games_to_win"),
             (
                 self.fighters.iter().all(|f| is_hex(&f.endpoint_id, 64)),
                 "fighters",

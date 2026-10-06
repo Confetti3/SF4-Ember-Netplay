@@ -138,7 +138,7 @@ static void TestRoomListDetails() {
 	CHECK(detailed.hasDetails && detailed.hostName == "Kate" && detailed.locked && detailed.setFormat == 5 && detailed.rotation == 2);
 	CHECK((detailed.fighters == std::vector<int>{3, -1, 12}));
 	// Each bad field is ignored on its own; the rest of the row stands.
-	const auto lenient = room({{"host_name", 7}, {"fighters", json::array({3u, "x"})}, {"locked", "yes"}, {"set_format", 4u}, {"rotation", 3u}});
+	const auto lenient = room({{"host_name", 7}, {"fighters", json::array({3u, "x"})}, {"locked", "yes"}, {"set_format", 11u}, {"rotation", 3u}});
 	CHECK(lenient.hostName.empty() && lenient.fighters.empty() && !lenient.locked && lenient.setFormat == -1 &&
 		lenient.rotation == -1 && !lenient.hasDetails && lenient.id == Hex32 && lenient.members == 3);
 	CHECK(room({{"fighters", json::array({64u})}}).fighters.empty());
@@ -148,8 +148,8 @@ static void TestRoomListDetails() {
 	CHECK((room({{"fighters", json::array({1u, 2u, 3u})}}).fighters == std::vector<int>{1, 2, 3}));
 	CHECK(room({{"fighters", json::array()}}).hasDetails);
 	CHECK(room({{"set_format", 0u}}).setFormat == 0 && room({{"rotation", 0u}}).rotation == 0);
-	for (const unsigned format : {1u, 2u, 3u, 5u}) CHECK(room({{"set_format", format}}).setFormat == static_cast<int>(format));
-	CHECK(room({{"set_format", 4u}}).setFormat == -1);
+	for (unsigned format = 1; format <= 10; ++format) CHECK(room({{"set_format", format}}).setFormat == static_cast<int>(format));
+	CHECK(room({{"set_format", 11u}}).setFormat == -1);
 	// listed_at that is not a number is ignored.
 	const auto text = session::DecodeRoomList({{"listed_at", "soon"}, {"rooms", json::array({Row()})}});
 	CHECK(text && text->listedAt == 0);
@@ -207,7 +207,20 @@ static void TestAssignmentTimes() {
 		return list && list->size() == 1 ? (*list)[0] : Assignment();
 	};
 	const auto plain = decode(json::object());
-	CHECK(plain.createdAt == 0 && plain.expiresAt == 0 && plain.matchId == "emt_1");
+	CHECK(plain.createdAt == 0 && plain.expiresAt == 0 && plain.matchId == "emt_1" && plain.gamesToWin == 0);
+	// Every first to 1 through 10 is a set; the winner of a first to 10 has 10.
+	for (unsigned games = 1; games <= static_cast<unsigned>(room::MaxSetLength); ++games)
+		CHECK(decode({{"games_to_win", games}}).gamesToWin == static_cast<int>(games));
+	const auto longest = decode({{"state", "completed"}, {"games_to_win", 10u}, {"wins", json::array({10u, 9u})}});
+	CHECK(longest.gamesToWin == 10 && longest.wins[0] == 10 && longest.wins[1] == 9);
+	const auto mixed = session::DecodeAssignments({{"assignments", json::array({
+		json{{"match_id", "emt_1"}, {"state", "ready"}, {"slot", 0u}, {"games_to_win", 10u}},
+		json{{"match_id", "emt_2"}, {"state", "ready"}, {"slot", 1u}, {"games_to_win", 2u}}})}});
+	CHECK(mixed && mixed->size() == 2 && (*mixed)[0].gamesToWin == 10 && (*mixed)[1].gamesToWin == 2);
+	// A length or a score past the longest set is not an answer the bridge gives.
+	for (const unsigned games : {0u, 11u, 255u})
+		CHECK(!session::DecodeAssignments({{"assignments", json::array({json{{"match_id", "emt_1"}, {"state", "ready"}, {"slot", 0u}, {"games_to_win", games}}})}}));
+	CHECK(!session::DecodeAssignments({{"assignments", json::array({json{{"match_id", "emt_1"}, {"state", "ready"}, {"slot", 0u}, {"wins", json::array({11u, 0u})}}})}}));
 	const auto timed = decode({{"created_at", 1000u}, {"expires_at", 87400u}});
 	CHECK(timed.createdAt == 1000 && timed.expiresAt == 87400);
 	// Each time stands alone, and a wrong one is unknown, not an error.
@@ -289,7 +302,8 @@ static void FuzzAnswers(Random& random) {
 		}
 		if (const auto list = session::DecodeAssignments(data)) {
 			CHECK(list->size() <= 50);
-			for (const auto& item : *list) CHECK((item.slot == 0 || item.slot == 1) && item.gamesToWin <= 5 && item.wins[0] <= 9 && item.wins[1] <= 9);
+			for (const auto& item : *list) CHECK((item.slot == 0 || item.slot == 1) && item.gamesToWin <= room::MaxSetLength &&
+				item.wins[0] <= static_cast<unsigned>(room::MaxSetLength) && item.wins[1] <= static_cast<unsigned>(room::MaxSetLength));
 		}
 		json event = {{"op", random.Chance(80) ? "match_claim" : Text(random)}, {"request_id", Value(random)}, {"ok", Value(random)}, {"data", data}};
 		if (random.Chance(50)) event["request_id"] = random.Below(100);

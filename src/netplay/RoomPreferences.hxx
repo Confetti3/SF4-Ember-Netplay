@@ -27,7 +27,7 @@ inline bool ReadTableRules(const nlohmann::json& object, room::Rules& rules) {
     if (object.contains("editionSelect") && !object["editionSelect"].is_boolean()) return false;
     const auto format = object.value("format", static_cast<std::int64_t>(rules.format));
     const auto rotation = object.value("rotation", static_cast<std::int64_t>(rules.rotation));
-    if ((format != 0 && format != 1 && format != 2 && format != 3 && format != 5) || rotation < 0 || rotation > 2) return false;
+    if (!room::ValidSetFormat(format) || rotation < 0 || rotation > 2) return false;
     const auto rounds = object.value("roundCount", static_cast<std::int64_t>(rules.roundCount));
     const auto time = object.value("roundTime", static_cast<std::int64_t>(rules.roundTime));
     if (rounds < 1 || rounds > 99 || time < 30 || time > 9999) return false;

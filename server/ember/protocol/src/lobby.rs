@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     EmberId, Error, Result,
     encoding::is_prefixed_id,
-    matches::{MAX_EXTERNAL_ID, check_metadata},
+    matches::{MAX_EXTERNAL_ID, check_metadata, games_to_win_valid},
 };
 
 /// Who gives up the seat when a set ends. The players who leave join the
@@ -71,7 +71,7 @@ impl CreateLobby {
         if self.game != "usf4" {
             return Err(Error::InvalidField("game"));
         }
-        if !matches!(self.games_to_win, 1 | 2 | 3 | 5) {
+        if !games_to_win_valid(self.games_to_win) {
             return Err(Error::InvalidField("games_to_win"));
         }
         if self.required_build_id.is_empty() || self.required_build_id.len() > 128 {
@@ -127,6 +127,8 @@ mod tests {
         };
         assert!(command.check().is_ok());
         command.games_to_win = 4;
+        assert!(command.check().is_ok());
+        command.games_to_win = 11;
         assert!(command.check().is_err());
         command.games_to_win = 3;
         command.game = "sf6".into();

@@ -26,7 +26,7 @@ struct RoomDetails {
 	// Moderator first, then the rest in join order; each a main fighter id or 255
 	// for none, at most MaximumDetailFighters.
 	std::vector<int> fighters;
-	// Table 0's rules. setFormat is the first-to count (0 unlimited, 1, 2, 3, 5).
+	// Table 0's rules. setFormat is the first-to count (0 unlimited, else 1 to 10).
 	// rotation is room::RotationMode's value: 0 winner stays, 1 loser stays,
 	// 2 both rotate.
 	int setFormat = 0, rotation = 0;

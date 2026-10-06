@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <stdexcept>
 
+#include "../common/RoomRules.hxx"
+
 namespace sf4e { namespace session {
 namespace {
 using nlohmann::json;
@@ -123,7 +125,7 @@ void DecodeDetails(const json& view, Room& room) {
 	}
 	if (const auto found = view.find("set_format"); found != view.end() && found->is_number_unsigned()) {
 		const auto value = found->get<std::uint64_t>();
-		if (value <= 3 || value == 5) { room.setFormat = static_cast<int>(value); room.hasDetails = true; }
+		if (value <= static_cast<std::uint64_t>(room::MaxSetLength)) { room.setFormat = static_cast<int>(value); room.hasDetails = true; }
 	}
 	if (const auto found = view.find("rotation"); found != view.end() && found->is_number_unsigned() && found->get<std::uint64_t>() <= 2) {
 		room.rotation = static_cast<int>(found->get<std::uint64_t>());
@@ -152,7 +154,7 @@ Binding DecodeBinding(const json& view) {
 	binding.room.assignmentGeneration = Counter(view, "assignment_generation");
 	binding.room.bindingRevision = Counter(view, "binding_revision");
 	const auto games = view.at("games_to_win");
-	if (!games.is_number_unsigned() || games.get<std::uint64_t>() > 5) throw std::invalid_argument("games_to_win");
+	if (!games.is_number_unsigned() || games.get<std::uint64_t>() > static_cast<std::uint64_t>(room::MaxSetLength)) throw std::invalid_argument("games_to_win");
 	binding.room.gamesToWin = static_cast<std::uint8_t>(games.get<std::uint64_t>());
 	const auto& fighters = view.at("fighters");
 	if (!fighters.is_array() || fighters.size() != 2) throw std::invalid_argument("fighters");
@@ -268,8 +270,8 @@ std::optional<std::vector<Assignment>> DecodeAssignments(const nlohmann::json& d
 			item.slot = static_cast<int>(slot.get<std::uint64_t>());
 			if (row.contains("games_to_win")) {
 				const auto& games = row.at("games_to_win");
-				if (!games.is_number_unsigned() || games.get<std::uint64_t>() > 5) return std::nullopt;
-				item.gamesToWin = static_cast<int>(games.get<std::uint64_t>());
+				if (!games.is_number_unsigned() || !room::ValidGamesToWin(games.get<long long>())) return std::nullopt;
+				item.gamesToWin = games.get<int>();
 			}
 			if (row.contains("opponent") && row.at("opponent").is_object())
 				item.opponentFingerprint = OptionalText(row.at("opponent"), "fingerprint", 32);
@@ -277,7 +279,8 @@ std::optional<std::vector<Assignment>> DecodeAssignments(const nlohmann::json& d
 				const auto& wins = row.at("wins");
 				if (!wins.is_array() || wins.size() != 2) return std::nullopt;
 				for (std::size_t i = 0; i < 2; ++i) {
-					if (!wins.at(i).is_number_unsigned() || wins.at(i).get<std::uint64_t>() > 9) return std::nullopt;
+					// The winner of the longest set reaches MaxSetLength.
+					if (!wins.at(i).is_number_unsigned() || wins.at(i).get<std::uint64_t>() > static_cast<std::uint64_t>(room::MaxSetLength)) return std::nullopt;
 					item.wins[i] = static_cast<unsigned>(wins.at(i).get<std::uint64_t>());
 				}
 			}

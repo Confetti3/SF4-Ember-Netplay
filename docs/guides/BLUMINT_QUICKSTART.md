@@ -70,7 +70,7 @@ The page currently returns 404; see "Testing on staging now".
 
 Send two teams of one player each, using the Ember IDs returned by lookup
 (`inGameId`; `playerId` is accepted too). `matchSettings.gamesToWin` sets the
-set length: 1, 2, 3 or 5, first to 2 when absent. Other settings are ignored.
+set length: 1 to 10 (best of 1 to best of 19), first to 2 when absent. Other settings are ignored.
 
 ```json
 { "teams": [ { "players": [ { "inGameId": "emb1_..." } ] },

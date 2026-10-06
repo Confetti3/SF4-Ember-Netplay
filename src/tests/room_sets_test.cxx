@@ -170,6 +170,16 @@ static void TestRulesChangeStartsANewSet() {
 	SetRules(authority, host, SetFormat::Ft2, RotationMode::WinnerStays);
 	CHECK(authority.SnapshotView().tables[0].score[0] == 0);
 	CHECK(authority.SnapshotView().tables[0].rules.format == SetFormat::Ft2);
+	// Every first to 1 through 10 is a set length (best of 7 included); 11 is not.
+	SetRules(authority, host, SetFormat::Ft4, RotationMode::WinnerStays);
+	SetRules(authority, host, SetFormat::Ft10, RotationMode::WinnerStays);
+	CHECK(authority.SnapshotView().tables[0].rules.format == SetFormat::Ft10);
+	{
+		Action longer = TableAction(authority, host, 0, ActionKind::SetRules);
+		longer.rules.format = static_cast<SetFormat>(MaxSetLength + 1);
+		CHECK(!authority.Apply(host, longer).accepted);
+		CHECK(authority.SnapshotView().tables[0].rules.format == SetFormat::Ft10);
+	}
 	SetRules(authority, host, SetFormat::Ft2, RotationMode::LoserStays);
 	CHECK(authority.SnapshotView().tables[0].rules.rotation == RotationMode::LoserStays);
 	// Rules a room was created with are kept, not reset to an open table.

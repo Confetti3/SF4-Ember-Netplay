@@ -63,7 +63,7 @@ struct PlayerPreferences {
     room::Rules publicTableRules = room::PublicRoomRules();
     static bool ValidRules(const room::Rules& rules) {
         const auto format = static_cast<int>(rules.format);
-        if ((format != 0 && format != 1 && format != 2 && format != 3 && format != 5) ||
+        if (!room::ValidSetFormat(format) ||
             static_cast<int>(rules.rotation) > static_cast<int>(room::RotationMode::BothRotate)) return false;
         LobbySettings battle;
         battle.editionSelect = rules.editionSelect;

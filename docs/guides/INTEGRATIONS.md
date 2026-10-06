@@ -98,7 +98,7 @@ end to end against any bridge.
 ## Create and decide matches
 
 - `POST /v1/matches` (provider, `Idempotency-Key` required) takes the two
-  linked participants, the set length (`games_to_win` of 1, 2, 3 or 5) and the
+  linked participants, the set length (`games_to_win` of 1 to 10) and the
   rules profile: `ember-room-v1` for a match played in Ember (next section) or
   `organizer-reported-v1` for one an organizer decides. Retrying with the same
   key or the same `external_match_id` returns the same match.
@@ -360,7 +360,7 @@ fires. Lobbies go beyond the EMBER-TB-001 package; `"lobbies"` in the
 capabilities `features` and `lobby_rotations` say a bridge has them.
 
 - `POST /v1/lobbies` (provider, `Idempotency-Key`) takes `external_lobby_id`,
-  `games_to_win` (1, 2, 3 or 5), `rotation` and `required_build_id`, with
+  `games_to_win` (1 to 10), `rotation` and `required_build_id`, with
   optional display `metadata` such as `title`.
 - `POST /v1/lobbies/{id}/queue` adds a linked player who asked to play:
   `{"participant_id": "...", "ember_id": "..."}`. Nobody is queued without

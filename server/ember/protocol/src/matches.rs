@@ -12,6 +12,13 @@ pub const MAX_EXTERNAL_ID: usize = 256;
 pub const MAX_METADATA_ENTRIES: usize = 16;
 pub const MAX_METADATA_VALUE: usize = 1024;
 pub const MAX_METADATA_TOTAL: usize = 8 * 1024;
+/// The longest set: first to 10 (best of 19).
+pub const MAX_GAMES_TO_WIN: u8 = 10;
+
+/// Whether a set of first to `games` is one Ember plays: 1 to `MAX_GAMES_TO_WIN`.
+pub fn games_to_win_valid(games: u8) -> bool {
+    (1..=MAX_GAMES_TO_WIN).contains(&games)
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -52,7 +59,7 @@ impl Rules {
 
     pub fn check(&self) -> Result<()> {
         let valid = [
-            (matches!(self.games_to_win, 1 | 2 | 3 | 5), "games_to_win"),
+            (games_to_win_valid(self.games_to_win), "games_to_win"),
             (self.draw_policy == "replay_no_score", "draw_policy"),
             (
                 !self.native_rules_profile.is_empty() && self.native_rules_profile.len() <= 64,
@@ -270,7 +277,7 @@ impl MatchCompleted {
             (b, a)
         };
         let consistent = self.state == MatchState::Completed
-            && matches!(n, 1 | 2 | 3 | 5)
+            && games_to_win_valid(n)
             && a.ember_id != b.ember_id
             && winner.ember_id == self.winner_id
             && winner.wins == n

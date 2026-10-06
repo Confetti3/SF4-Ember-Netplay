@@ -67,7 +67,11 @@ inline bool AdjustRule(room::Rules& rules,const MenuAction& a) {
     if(a.id=="edition") rules.editionSelect=a.delta>0;
     else if(a.id=="rounds") Step(rules.roundCount,{1,3,5,7,15,99},a.delta);
     else if(a.id=="time") Step(rules.roundTime,{30,60,99,300,9999},a.delta);
-    else if(a.id=="set-length") Step(rules.format,{0,1,2,3,5},a.delta);
+    else if(a.id=="set-length") {
+        std::vector<int> lengths;
+        for(int n=0;n<=room::MaxSetLength;++n) lengths.push_back(n);
+        Step(rules.format,lengths,a.delta);
+    }
     else if(a.id=="rotation"&&rules.format!=room::SetFormat::Unlimited) Step(rules.rotation,{0,1,2},a.delta);
     else return false;
     return true;

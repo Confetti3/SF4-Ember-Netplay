@@ -89,7 +89,8 @@ impl Details {
             members,
             set_format: value
                 .get("set_format")
-                .and_then(|format| small(format, 5))
+                .and_then(Value::as_u64)
+                .and_then(|format| u8::try_from(format).ok())
                 .filter(|format| set_format_valid(*format)),
             rotation: value
                 .get("rotation")
@@ -125,9 +126,21 @@ mod tests {
     }
 
     #[test]
+    fn every_set_length_is_read_and_longer_ones_are_not() {
+        let format =
+            |value: Value| Details::from_value(&json!({ "set_format": value }), 2, 4).set_format;
+        for length in 0..=ember_protocol::matches::MAX_GAMES_TO_WIN {
+            assert_eq!(format(json!(length)), Some(length));
+        }
+        for refused in [json!(11), json!(255), json!(256), json!(-1), json!(2.5)] {
+            assert_eq!(format(refused.clone()), None, "{refused}");
+        }
+    }
+
+    #[test]
     fn each_field_is_judged_alone() {
         let value = json!({ "name": "two\nlines", "capacity": 1, "locked": "yes",
-            "host_name": "x".repeat(33), "fighters": [64], "set_format": 4, "rotation": 3 });
+            "host_name": "x".repeat(33), "fighters": [64], "set_format": 11, "rotation": 3 });
         assert_eq!(Details::from_value(&value, 0, 4), Details::default());
         let mixed = json!({ "name": "Fine", "capacity": 300, "locked": false, "host_name": "",
             "fighters": [1, 2, 3], "set_format": 5, "rotation": 0 });

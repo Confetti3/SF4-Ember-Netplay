@@ -303,8 +303,7 @@ bool RoomAuthority::RestoreCheckpoint(const nlohmann::json& state) {
 
 void to_json(nlohmann::json& json, const Rules& value) { json = nlohmann::json{{"format", static_cast<int>(value.format)}, {"rotation", static_cast<int>(value.rotation)}, {"edition_select", value.editionSelect}, {"round_count", value.roundCount}, {"round_time", value.roundTime}}; }
 void from_json(const nlohmann::json& json, Rules& value) {
-	const auto format = ReadInt(json, "format", 0, 5);
-	if (format != 0 && format != 1 && format != 2 && format != 3 && format != 5) throw std::invalid_argument("room set format");
+	const auto format = ReadInt(json, "format", 0, MaxSetLength);
 	value.format = static_cast<SetFormat>(format);
 	value.rotation = static_cast<RotationMode>(ReadInt(json, "rotation", 0, 2));
 	if (!json.at("edition_select").is_boolean()) throw std::invalid_argument("room edition field");
