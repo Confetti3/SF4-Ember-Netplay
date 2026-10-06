@@ -1,36 +1,51 @@
 // Update URL allowlist, version comparison and package tree validation for the release client.
 #include "github_release_client_internal.hxx"
+#include <cctype>
+#include <optional>
 
 namespace sf4e {
 namespace launcher {
+	// Up to nine digits, so the number fits an int without overflow.
+	static bool ReadNumber(const char*& p, int& out) {
+		const char* start = p;
+		while (*p >= '0' && *p <= '9') p++;
+		if (p == start || p - start > 9) return false;
+		out = 0;
+		for (const char* d = start; d < p; d++) out = out * 10 + (*d - '0');
+		return true;
+	}
+
+	std::optional<Version> ParseVersion(const char* text) {
+		if (!text) return std::nullopt;
+		const char* p = text;
+		if (*p == 'v' || *p == 'V') p++;
+		Version version;
+		if (!ReadNumber(p, version.major) || *p++ != '.' || !ReadNumber(p, version.minor) || *p++ != '.' || !ReadNumber(p, version.patch)) return std::nullopt;
+		if (*p == '\0') return version;
+		if (*p++ != '-' || *p == '\0') return std::nullopt;
+		version.prerelease = true;
+		for (const char* c = p; *c; c++)
+			if (!isalnum(static_cast<unsigned char>(*c)) && *c != '.' && *c != '-') return std::nullopt;
+		while (isalpha(static_cast<unsigned char>(*p))) version.word += static_cast<char>(tolower(static_cast<unsigned char>(*p++)));
+		if (*p >= '0' && *p <= '9' && !ReadNumber(p, version.number)) return std::nullopt;
+		version.rest = p;
+		return version;
+	}
+
+	int CompareVersions(const Version& a, const Version& b) {
+		const auto order = [](auto x, auto y) { return x < y ? -1 : x > y ? 1 : 0; };
+		if (int c = order(a.major, b.major)) return c;
+		if (int c = order(a.minor, b.minor)) return c;
+		if (int c = order(a.patch, b.patch)) return c;
+		if (a.prerelease != b.prerelease) return a.prerelease ? -1 : 1;
+		if (int c = a.word.compare(b.word)) return c < 0 ? -1 : 1;
+		if (int c = order(a.number, b.number)) return c;
+		if (int c = a.rest.compare(b.rest)) return c < 0 ? -1 : 1;
+		return 0;
+	}
+
 	namespace detail {
 
-		static const auto& kRequiredPackagePaths = sf4e::package::Required;
-
-		static void ParseVersionTriple(const char* tag, int& major, int& minor, int& patch) {
-			major = minor = patch = 0;
-			if (!tag || !tag[0]) {
-				return;
-			}
-			const char* p = tag;
-			while (*p == 'v' || *p == 'V') {
-				p++;
-			}
-			sscanf_s(p, "%d.%d.%d", &major, &minor, &patch);
-		}
-
-		int CompareVersions(const char* a, const char* b) {
-			int am = 0, amin = 0, ap = 0, bm = 0, bmin = 0, bp = 0;
-			ParseVersionTriple(a, am, amin, ap);
-			ParseVersionTriple(b, bm, bmin, bp);
-			if (am != bm) {
-				return am - bm;
-			}
-			if (amin != bmin) {
-				return amin - bmin;
-			}
-			return ap - bp;
-		}
 
 		static bool ParseHttpsHostFromUrl(const char* url, char* outHost, int outHostLen) {
 			if (!url || !outHost || outHostLen <= 0) {
@@ -85,87 +100,17 @@ namespace launcher {
 			return IsAllowedUpdateHost(host);
 		}
 
-		static bool PathExistsUnderRoot(const wchar_t* baseDir, const wchar_t* relPath) {
-			if (!baseDir || !relPath) {
-				return false;
-			}
-			wchar_t path[MAX_PATH * 2] = { 0 };
-			if (FAILED(PathCchCombine(path, MAX_PATH * 2, baseDir, relPath))) {
-				return false;
-			}
-			return GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES;
-		}
 
-		static bool IsAllowedPackagePath(const wchar_t* path) { return sf4e::package::IsAllowed(path); }
 
-		static bool ValidatePackageTree(const wchar_t* root, const wchar_t* relPrefix) {
-			wchar_t dir[MAX_PATH * 2] = { 0 };
-			if (relPrefix && relPrefix[0]) {
-				if (FAILED(PathCchCombine(dir, MAX_PATH * 2, root, relPrefix))) {
-					return false;
-				}
-			}
-			else {
-				wcsncpy_s(dir, root, _TRUNCATE);
-			}
 
-			wchar_t pattern[MAX_PATH * 2] = { 0 };
-			wcsncpy_s(pattern, dir, _TRUNCATE);
-			if (FAILED(PathCchAppend(pattern, MAX_PATH * 2, L"*"))) {
-				return false;
-			}
 
-			WIN32_FIND_DATAW fd = { 0 };
-			HANDLE hFind = FindFirstFileW(pattern, &fd);
-			if (hFind == INVALID_HANDLE_VALUE) {
-				return true;
-			}
-			do {
-				if (wcscmp(fd.cFileName, L".") == 0 || wcscmp(fd.cFileName, L"..") == 0) {
-					continue;
-				}
-				wchar_t rel[MAX_PATH * 2] = { 0 };
-				if (relPrefix && relPrefix[0]) {
-					if (FAILED(StringCchPrintfW(rel, MAX_PATH * 2, L"%s\\%s", relPrefix, fd.cFileName))) {
-						FindClose(hFind);
-						return false;
-					}
-				}
-				else if (FAILED(StringCchCopyW(rel, MAX_PATH * 2, fd.cFileName))) {
-					FindClose(hFind);
-					return false;
-				}
-
-				if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-					if (!ValidatePackageTree(root, rel)) {
-						FindClose(hFind);
-						return false;
-					}
-				}
-				else if (!IsAllowedPackagePath(rel)) {
-					char relUtf8[MAX_PATH * 2] = { 0 };
-					WidePathToUtf8(rel, relUtf8, sizeof(relUtf8));
-					AppendUpdateLog((std::string("unexpected package file: ") + relUtf8).c_str());
-					FindClose(hFind);
-					return false;
-				}
-			} while (FindNextFileW(hFind, &fd));
-			FindClose(hFind);
-			return true;
-		}
 
 		bool ValidateStagedPackage(const wchar_t* stagingDir) {
-			for (const wchar_t* rel : kRequiredPackagePaths) {
-				if (!PathExistsUnderRoot(stagingDir, rel)) {
-					char relUtf8[MAX_PATH * 2] = { 0 };
-					WidePathToUtf8(rel, relUtf8, sizeof(relUtf8));
-					AppendUpdateLog((std::string("missing package file: ") + relUtf8).c_str());
-					return false;
-				}
-			}
-			return ValidatePackageTree(stagingDir, L"");
+			std::string error;
+			if (launcher::ValidatePackageFolder(stagingDir, error)) return true;
+			AppendUpdateLog(("package rejected: " + error).c_str());
+			return false;
 		}
-
 		static bool IsPathUnderRoot(const wchar_t* root, const wchar_t* candidate) {
 			wchar_t rootFull[MAX_PATH * 2] = { 0 };
 			wchar_t candidateFull[MAX_PATH * 2] = { 0 };
@@ -185,7 +130,6 @@ namespace launcher {
 			}
 			return true;
 		}
-
 		bool ValidateExtractedTree(const wchar_t* extractRoot) {
 			if (!extractRoot || !extractRoot[0]) {
 				return false;

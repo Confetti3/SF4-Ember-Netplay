@@ -126,6 +126,24 @@ msgstr "已有操作正在进行。"
 msgid "updates.check_detail"
 msgstr "检查是否有新版 Ember 安装包。"
 
+msgid "updates.channel"
+msgstr "更新频道"
+
+msgid "updates.channel.stable"
+msgstr "稳定版"
+
+msgid "updates.channel.prerelease"
+msgstr "预发布版"
+
+msgid "updates.channel_detail"
+msgstr "稳定版只提供正式版本。预发布版还提供测试版和候选发布版，可能存在更多问题。一起游玩的所有人需要使用相同的版本。"
+
+msgid "updates.installed_version"
+msgstr "已安装版本"
+
+msgid "updates.installed_version_detail"
+msgstr "此电脑上的 Ember 版本。"
+
 msgid "updates.install"
 msgstr "下载并安装"
 
@@ -185,6 +203,10 @@ msgstr "正在打开更新程序..."
 
 msgid "services.update_available"
 msgstr "有可用更新：{0}"
+
+msgid "services.stable_available"
+msgstr "稳定版 {0} 可用。安装后将替换您当前的预发布版。"
+
 
 msgid "services.up_to_date"
 msgstr "已是最新版本。"
@@ -1571,8 +1593,6 @@ msgstr "一名参赛玩家离开房间，对战即将结束。"
 msgid "update.github_unreachable"
 msgstr "无法连接 GitHub。请检查网络后重试。"
 
-msgid "update.no_version_tag"
-msgstr "GitHub 发行版没有版本标签。"
 
 msgid "update.no_zip_asset"
 msgstr "最新发行版没有 SF4 Ember Netplay ZIP 文件。"
@@ -1585,6 +1605,9 @@ msgstr "缺少下载 URL。"
 
 msgid "update.missing_version"
 msgstr "缺少版本标签。"
+
+msgid "update.not_offered"
+msgstr "此版本不是所提供的版本。请重新检查更新。"
 
 msgid "update.close_sf4"
 msgstr "安装更新前请关闭《终极街头霸王IV》。"

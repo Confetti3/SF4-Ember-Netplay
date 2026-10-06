@@ -126,6 +126,24 @@ msgstr "別の操作を実行中です。"
 msgid "updates.check_detail"
 msgstr "新しいEmberパッケージを確認します。"
 
+msgid "updates.channel"
+msgstr "アップデートチャンネル"
+
+msgid "updates.channel.stable"
+msgstr "安定版"
+
+msgid "updates.channel.prerelease"
+msgstr "プレリリース版"
+
+msgid "updates.channel_detail"
+msgstr "安定版は正式リリースのみを提供します。プレリリース版はベータ版やリリース候補版も提供しますが、問題が多い場合があります。一緒に遊ぶ全員が同じバージョンである必要があります。"
+
+msgid "updates.installed_version"
+msgstr "インストール済みバージョン"
+
+msgid "updates.installed_version_detail"
+msgstr "このPCのEmberのバージョンです。"
+
 msgid "updates.install"
 msgstr "ダウンロードしてインストール"
 
@@ -185,6 +203,10 @@ msgstr "アップデーターを起動中..."
 
 msgid "services.update_available"
 msgstr "アップデートがあります：{0}"
+
+msgid "services.stable_available"
+msgstr "安定版 {0} が利用できます。インストールすると現在のプレリリース版が置き換えられます。"
+
 
 msgid "services.up_to_date"
 msgstr "最新版です。"
@@ -1571,8 +1593,6 @@ msgstr "対戦参加者がルームから退出しました。ゲームを終了
 msgid "update.github_unreachable"
 msgstr "GitHubに接続できませんでした。インターネット接続を確認して再試行してください。"
 
-msgid "update.no_version_tag"
-msgstr "GitHubのリリースにバージョンタグがありません。"
 
 msgid "update.no_zip_asset"
 msgstr "最新リリースにSF4 Ember NetplayのZIPファイルがありません。"
@@ -1585,6 +1605,9 @@ msgstr "ダウンロードURLがありません。"
 
 msgid "update.missing_version"
 msgstr "バージョンタグがありません。"
+
+msgid "update.not_offered"
+msgstr "このバージョンは提示されたものではありません。もう一度アップデートを確認してください。"
 
 msgid "update.close_sf4"
 msgstr "更新をインストールする前にUltra Street Fighter IVを閉じてください。"

@@ -13,7 +13,8 @@
 #include <atomic>
 
 namespace sf4e { namespace platform {
-enum class ServiceAction { None, CheckUpdates, ExportDiagnostics, OpenUpdater, InstallUpdate, OpenRecovery, OpenCommunity };
+// SwitchUpdateChannel saves the other channel, then checks for an update on it.
+enum class ServiceAction { None, CheckUpdates, SwitchUpdateChannel, ExportDiagnostics, OpenUpdater, InstallUpdate, OpenRecovery, OpenCommunity };
 // Community Discord server, shown in Help & About and opened as https://<invite>.
 constexpr const char* CommunityInvite = "discord.gg/uPNqF5A5uq";
 enum class DiagnosticTiming : std::size_t {
@@ -78,6 +79,10 @@ struct ServiceSnapshot {
     std::string message;
     std::uint64_t downloadedBytes = 0, totalBytes = 0;
     launcher::UpdateCheckResult update;
+    // The version on this PC and the channel its checks use, read once at
+    // start; the worker changes the channel, so no one else reads the file.
+    std::string installedVersion;
+    launcher::UpdateChannel channel = launcher::UpdateChannel::Stable;
     std::vector<std::string> connectionHistory;
 };
 // The home relay and network class, once per export: they rarely change, so

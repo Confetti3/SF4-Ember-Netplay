@@ -126,6 +126,24 @@ msgstr "Er loopt al een bewerking."
 msgid "updates.check_detail"
 msgstr "Zoek naar een nieuwer Ember-pakket."
 
+msgid "updates.channel"
+msgstr "Updatekanaal"
+
+msgid "updates.channel.stable"
+msgstr "Stabiel"
+
+msgid "updates.channel.prerelease"
+msgstr "Voorlopige versie"
+
+msgid "updates.channel_detail"
+msgstr "Stabiel biedt alleen afgewerkte versies aan. Voorlopige versie biedt ook bèta- en release-candidateversies aan, die meer problemen kunnen hebben. Iedereen met wie je speelt heeft dezelfde versie nodig."
+
+msgid "updates.installed_version"
+msgstr "Geïnstalleerde versie"
+
+msgid "updates.installed_version_detail"
+msgstr "De Ember-versie op deze pc."
+
 msgid "updates.install"
 msgstr "Downloaden en installeren"
 
@@ -185,6 +203,10 @@ msgstr "Updater openen..."
 
 msgid "services.update_available"
 msgstr "Update beschikbaar: {0}"
+
+msgid "services.stable_available"
+msgstr "Stabiele versie {0} is beschikbaar. Installeren vervangt de voorlopige versie die je hebt."
+
 
 msgid "services.up_to_date"
 msgstr "Je bent up-to-date."
@@ -1571,8 +1593,6 @@ msgstr "Matchdeelnemer verliet de kamer. De partij eindigt."
 msgid "update.github_unreachable"
 msgstr "GitHub is niet bereikbaar. Controleer je internetverbinding en probeer opnieuw."
 
-msgid "update.no_version_tag"
-msgstr "De GitHub-release heeft geen versietag."
 
 msgid "update.no_zip_asset"
 msgstr "Nieuwste release mist een SF4 Ember Netplay-ZIP."
@@ -1585,6 +1605,9 @@ msgstr "Download-URL ontbreekt."
 
 msgid "update.missing_version"
 msgstr "Versietag ontbreekt."
+
+msgid "update.not_offered"
+msgstr "Deze versie is niet de aangeboden versie. Controleer opnieuw op updates."
 
 msgid "update.close_sf4"
 msgstr "Sluit Ultra Street Fighter IV voor je een update installeert."

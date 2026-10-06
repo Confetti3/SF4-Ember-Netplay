@@ -160,6 +160,7 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
         case RecoveryChoice::Retry:retry=true;quit=true;break;
         case RecoveryChoice::CheckUpdates:serviceNewer=true;services.Request(platform::ServiceAction::CheckUpdates);break;
         case RecoveryChoice::Install:serviceNewer=true;services.Request(platform::ServiceAction::InstallUpdate);break;
+        case RecoveryChoice::Channel:serviceNewer=true;services.Request(platform::ServiceAction::SwitchUpdateChannel);break;
         case RecoveryChoice::Cancel:services.Cancel();break;
         case RecoveryChoice::Close:services.Cancel();quit=true;break;
         default:break;

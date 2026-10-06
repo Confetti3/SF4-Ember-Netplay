@@ -1,4 +1,5 @@
 #include "ApplicationServices.hxx"
+#include "UiPreferencesStore.hxx"
 #include "../common/install_paths.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "../common/Localization.hxx"
@@ -41,7 +42,13 @@ std::string DescribeDiagnostics(const DiagnosticsView& view) {
         " | Gameplay direct/relay links: " + std::to_string(view.directLinks) + "/" + std::to_string(view.relayedLinks) +
         " | Route changes/local drops/send pressure: " + std::to_string(view.routeChanges) + "/" + std::to_string(view.localDrops) + "/" + std::to_string(view.sendPressure);
 }
-ApplicationServices::ApplicationServices(std::wstring diagnosticsDirectory) : diagnosticsDirectory_(std::move(diagnosticsDirectory)), worker_(&ApplicationServices::Run, this) {}
+ApplicationServices::ApplicationServices(std::wstring diagnosticsDirectory) : diagnosticsDirectory_(std::move(diagnosticsDirectory)) {
+    char installed[64] = {};
+    launcher::ReadInstalledVersion(installed, sizeof(installed));
+    state_.installedVersion = installed;
+    state_.channel = launcher::ResolveUpdateChannel(UpdateChannelPreference(), installed);
+    worker_ = std::thread(&ApplicationServices::Run, this);
+}
 ApplicationServices::~ApplicationServices() {
     Cancel();
     { std::lock_guard<std::mutex> lock(mutex_); stop_ = true; }
@@ -63,7 +70,7 @@ bool ApplicationServices::Request(ServiceAction action, const DiagnosticsView& d
     state_.downloadedBytes = state_.totalBytes = 0;
     request_ = action; diagnostics_ = diagnostics; state_.pending = true; state_.succeeded = false; state_.lastAction = action;
     state_.message = action == ServiceAction::OpenCommunity ? loc::T("services.opening_community") :
-        action == ServiceAction::CheckUpdates ? loc::T("services.checking") :
+        action == ServiceAction::CheckUpdates || action == ServiceAction::SwitchUpdateChannel ? loc::T("services.checking") :
         action == ServiceAction::ExportDiagnostics ? loc::T("services.exporting") :
         action == ServiceAction::InstallUpdate ? loc::T("services.downloading") : loc::T("services.opening_updater");
     wake_.notify_one(); return true;
@@ -78,9 +85,16 @@ void ApplicationServices::Run() {
             action = request_; request_ = ServiceAction::None; diagnostics = diagnostics_; next = state_;
         }
         try {
+            if (action == ServiceAction::SwitchUpdateChannel) {
+                const auto other = next.channel == launcher::UpdateChannel::Stable ? launcher::UpdateChannel::Prerelease : launcher::UpdateChannel::Stable;
+                std::string saveError;
+                if (SaveUpdateChannelPreference(launcher::UpdateChannelName(other), saveError)) { next.channel = other; action = ServiceAction::CheckUpdates; }
+                else { next.message = loc::T("common.save_failed"); next.succeeded = false; }
+            }
             if (action == ServiceAction::CheckUpdates) {
-                next.update = launcher::CheckForUpdate(); next.succeeded = next.update.ok;
-                next.message = !next.update.ok ? next.update.error : next.update.updateAvailable ?
+                next.update = launcher::CheckForUpdate(next.channel); next.succeeded = next.update.ok;
+                next.message = !next.update.ok ? next.update.error : next.update.goesBack ?
+                    loc::Tf("services.stable_available",next.update.latestVersion) : next.update.updateAvailable ?
                     loc::Tf("services.update_available",next.update.latestVersion) : loc::T("services.up_to_date");
             } else if (action == ServiceAction::ExportDiagnostics) {
                 const auto directory = diagnosticsDirectory_.empty() ? std::filesystem::path(netplay::SettingsStore::DefaultDirectory()) / L"diagnostics" : std::filesystem::path(diagnosticsDirectory_);
@@ -146,7 +160,7 @@ void ApplicationServices::Run() {
                     next.message = loc::T("services.no_verified_update");
                 } else {
                     const auto result = launcher::DownloadAndApplyUpdate(next.update.zipDownloadUrl.c_str(), next.update.zipApiUrl.c_str(),
-                        next.update.latestVersion.c_str(), next.update.expectedSha256.c_str(),
+                        next.update.latestVersion.c_str(), next.update.expectedSha256.c_str(), next.update.goesBack,
                         [&](std::uint64_t received, std::uint64_t total) {
                             if (cancelled_) return false;
                             next.downloadedBytes = received; next.totalBytes = total;

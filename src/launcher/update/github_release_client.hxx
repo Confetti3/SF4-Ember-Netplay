@@ -2,6 +2,7 @@
 
 #include <string>
 #include <functional>
+#include <optional>
 #include <cstdint>
 
 namespace sf4e {
@@ -21,7 +22,33 @@ namespace launcher {
 		// "digest" field ("sha256:<hex>"). Empty if the release predates GitHub
 		// asset digests; callers should treat an empty value as "unverifiable".
 		std::string expectedSha256;
+		// The offer goes back a version: the Stable channel's best release is
+		// older than the installed pre-release. Installing it is a downgrade
+		// the player chose; an install is never given one otherwise.
+		bool goesBack = false;
 	};
+
+	// A release tag or installed version label: "v1.1.0", "1.1.0-rc2",
+	// "1.1.0-links-sets-test1". Anything with another shape is not a version
+	// and is never offered or compared. A pre-release sorts before the finished
+	// release of its number, then by its word, its number and the rest.
+	struct Version {
+		int major = 0, minor = 0, patch = 0;
+		bool prerelease = false;
+		std::string word, rest;
+		int number = 0;
+	};
+	std::optional<Version> ParseVersion(const char* text);
+	int CompareVersions(const Version& a, const Version& b);
+
+	// Stable offers finished releases; Pre-release also betas and release
+	// candidates. Unchosen, the channel follows the installed version.
+	enum class UpdateChannel { Stable, Prerelease };
+	const char* UpdateChannelName(UpdateChannel channel);
+	UpdateChannel ResolveUpdateChannel(const std::string& saved, const char* installed);
+	// Whether installing `tag` over `installed` is the kind of offer the check
+	// made: an update, or with goBack a step back between two valid versions.
+	bool TransitionOffered(const char* tag, const char* installed, bool goBack);
 
 	struct ApplyUpdateResult {
 		bool ok = false;
@@ -42,14 +69,17 @@ namespace launcher {
 
     constexpr const char* kDefaultGithubRepo = "Confetti3/SF4-Ember-Netplay";
     constexpr const char* kReleaseZipPrefix = "sf4-ember-netplay-";
-    // Pure release parsing; HTTP and installation remain separate.
-    UpdateCheckResult ParseGithubReleaseResponse(const std::string& body, const char* installed);
-	UpdateCheckResult CheckForUpdate();
+    // Pure release parsing; HTTP and installation remain separate. The
+    // channel's highest listed release with a package, and whether it is
+    // newer than the installed version.
+    UpdateCheckResult ParseGithubReleases(const std::string& body, const char* installed, UpdateChannel channel);
+	UpdateCheckResult CheckForUpdate(UpdateChannel channel);
 	ApplyUpdateResult DownloadAndApplyUpdate(
 		const char* zipDownloadUrl,
 		const char* zipApiUrl,
 		const char* latestVersionTag,
 		const char* expectedSha256,
+		bool goBack,
         const std::function<bool(std::uint64_t, std::uint64_t)>& progress = {}
 	);
 

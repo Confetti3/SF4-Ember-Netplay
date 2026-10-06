@@ -16,6 +16,10 @@ bool SaveLanguagePreference(std::string_view preference, std::string& error);
 // The player chose "Don't show again" on the recommended game settings card.
 bool GameSettingsCardHidden();
 bool HideGameSettingsCardForever(std::string& error);
+// The chosen update channel, "stable" or "prerelease", or empty while none
+// was chosen (files written before the channel existed included).
+std::string UpdateChannelPreference();
+bool SaveUpdateChannelPreference(std::string_view channel, std::string& error);
 
 // A tournament match Ember already told the player is ready to play, so a
 // restart does not tell them again. `until` is the unix second after which the
@@ -50,6 +54,8 @@ bool SaveLanguagePreferenceTo(const std::wstring& directory,
     std::string_view preference, std::string& error);
 bool GameSettingsCardHiddenIn(const std::wstring& directory);
 bool HideGameSettingsCardIn(const std::wstring& directory, std::string& error);
+std::string UpdateChannelPreferenceIn(const std::wstring& directory);
+bool SaveUpdateChannelPreferenceTo(const std::wstring& directory, std::string_view channel, std::string& error);
 std::vector<AnnouncedMatch> LoadAnnouncedMatchesFrom(const std::wstring& directory);
 bool SaveAnnouncedMatchesTo(const std::wstring& directory, const std::vector<AnnouncedMatch>& matches, std::string& error);
 }

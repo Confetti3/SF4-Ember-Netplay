@@ -126,6 +126,24 @@ msgstr "이미 다른 작업이 진행 중입니다."
 msgid "updates.check_detail"
 msgstr "새 Ember 패키지가 있는지 확인합니다."
 
+msgid "updates.channel"
+msgstr "업데이트 채널"
+
+msgid "updates.channel.stable"
+msgstr "안정"
+
+msgid "updates.channel.prerelease"
+msgstr "사전 출시"
+
+msgid "updates.channel_detail"
+msgstr "안정 채널은 정식 버전만 제공합니다. 사전 출시 채널은 베타 및 출시 후보 버전도 제공하며 문제가 더 많을 수 있습니다. 함께 플레이하는 모든 사람이 같은 버전이어야 합니다."
+
+msgid "updates.installed_version"
+msgstr "설치된 버전"
+
+msgid "updates.installed_version_detail"
+msgstr "이 PC의 Ember 버전입니다."
+
 msgid "updates.install"
 msgstr "다운로드 및 설치"
 
@@ -185,6 +203,10 @@ msgstr "업데이터 여는 중..."
 
 msgid "services.update_available"
 msgstr "업데이트가 있습니다: {0}"
+
+msgid "services.stable_available"
+msgstr "안정 버전 {0}을(를) 사용할 수 있습니다. 설치하면 현재 사전 출시 버전이 교체됩니다."
+
 
 msgid "services.up_to_date"
 msgstr "최신 버전입니다."
@@ -1571,8 +1593,6 @@ msgstr "대전 참가자가 방을 나갔습니다. 대전이 종료됩니다."
 msgid "update.github_unreachable"
 msgstr "GitHub에 연결하지 못했습니다. 인터넷 연결을 확인하고 다시 시도하세요."
 
-msgid "update.no_version_tag"
-msgstr "GitHub 릴리스에 버전 태그가 없습니다."
 
 msgid "update.no_zip_asset"
 msgstr "최신 릴리스에 SF4 Ember Netplay ZIP 파일이 없습니다."
@@ -1585,6 +1605,9 @@ msgstr "다운로드 URL이 없습니다."
 
 msgid "update.missing_version"
 msgstr "버전 태그가 없습니다."
+
+msgid "update.not_offered"
+msgstr "이 버전은 제안된 버전이 아닙니다. 업데이트를 다시 확인하세요."
 
 msgid "update.close_sf4"
 msgstr "업데이트를 설치하기 전에 Ultra Street Fighter IV를 닫으세요."
