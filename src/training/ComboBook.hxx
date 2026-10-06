@@ -103,22 +103,26 @@ inline bool ParseStep(const std::string& text, Step& step, std::string& error) {
         if (s.compare(i, length, prefix) != 0) return false;
         i += length; return true;
     };
-    const auto at = s.rfind('@');
-    if (at != std::string::npos) {
-        const auto digits = s.substr(at + 1);
-        const bool signedNumber = digits.size() >= 2 && digits.size() <= 3 && (digits[0] == '-' || digits[0] == '+') && digits.find_first_not_of("0123456789", 1) == std::string::npos;
-        if (!signedNumber) return fail();
-        step.offset = std::atoi(digits.c_str());
-        if (step.offset < -30 || step.offset > 30) return fail();
-        s.resize(at);
-    }
-    const auto frame = s.rfind('#');
-    if (frame != std::string::npos) {
-        const auto digits = s.substr(frame + 1);
-        if (digits.empty() || digits.size() > 4 || digits.find_first_not_of("0123456789") != std::string::npos) return fail();
-        step.at = std::atoi(digits.c_str());
-        if (step.at > MaxAtFrame) return fail();
-        s.resize(frame);
+    // "@N" and "#N" ride at the end, in either order, each at most once.
+    for (bool seenAt = false, seenFrame = false;;) {
+        const auto at = s.rfind('@'), frame = s.rfind('#');
+        if (at == std::string::npos && frame == std::string::npos) break;
+        const bool offset = frame == std::string::npos || (at != std::string::npos && at > frame);
+        const auto mark = offset ? at : frame;
+        const auto digits = s.substr(mark + 1);
+        if (offset) {
+            const bool signedNumber = digits.size() >= 2 && digits.size() <= 3 && (digits[0] == '-' || digits[0] == '+') && digits.find_first_not_of("0123456789", 1) == std::string::npos;
+            if (seenAt || !signedNumber) return fail();
+            step.offset = std::atoi(digits.c_str());
+            if (step.offset < -30 || step.offset > 30) return fail();
+            seenAt = true;
+        } else {
+            if (seenFrame || digits.empty() || digits.size() > 4 || digits.find_first_not_of("0123456789") != std::string::npos) return fail();
+            step.at = std::atoi(digits.c_str());
+            if (step.at > MaxAtFrame) return fail();
+            seenFrame = true;
+        }
+        s.resize(mark);
     }
     if (s.size() > 6 && s.compare(s.size() - 6, 6, "(MASH)") == 0) { step.mash = true; s.resize(s.size() - 6); }
     step.follow = starts("~");
