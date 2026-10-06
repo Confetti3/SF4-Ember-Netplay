@@ -126,7 +126,7 @@ struct ComboCreator {
     combo::Tree tree;
     // Who performs a replay, which way they face at the start, and the frames
     // between linked moves.
-    int replayBy=1, replayOffset=0; bool replayFacingRight=false;
+    int replayBy=0, replayOffset=0; bool replayFacingRight=true;
     // Every replay or trial attempt starts from the saved position.
     bool resetBeforeReplay=true;
     // The dummy and gauge settings being edited: the selected combo's, or the
