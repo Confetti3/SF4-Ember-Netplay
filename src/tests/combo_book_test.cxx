@@ -48,7 +48,7 @@ int main() {
         for (const auto& frame : follow) CHECK(!frame.wait);
         std::size_t press = 0;
         while (press < follow.size() && follow[press].raw != LP) ++press;
-        CHECK(press == 19 + FollowDelay - 2 && follow[12].raw == 0);
+        CHECK(press == 18 + FollowDelay - 2 && follow[12].raw == 0);
     }
 // A timing offset rides on any move and is kept in its canonical form.
     CHECK(ParseStep("cr.MK@-1", step, error) && step.offset == -1 && Canonical(step) == "2MK@-1");
@@ -138,14 +138,14 @@ int main() {
         CHECK(held == 50 && frames[0].mapped == frames[0].raw);
         // Facing left mirrors forward and back.
         const auto mirrored = Synthesize(Steps("236HP > 5LP"), false, 0);
-        CHECK(mirrored[3].raw == (Down | Left) && mirrored[9].raw == (Left | HP) && mirrored[12].wait == sf4e::training::WaitActionable && mirrored[13].raw == LP);
+        CHECK(mirrored[3].raw == (Down | Left) && mirrored[9].raw == (Left | HP) && mirrored[11].wait == sf4e::training::WaitActionable && mirrored[12].raw == LP);
         CHECK(Synthesize({}, true, 0).size() == 1 && Synthesize({"nonsense"}, true, 0).size() == 1);
         // Moves on frames: the press lands on its frame, no cue is waited for,
         // and a frame already passed starts the move at once.
         const auto timed = Synthesize(Steps("5LP#10 > 2MK#30 > xx 236HP#42 > 5HP#43"), true, 0);
         CHECK(timed[10].raw == LP && timed[9].raw == 0 && timed[30].raw == (Down | MK) && timed[27].raw == Down && timed[42].raw == (Right | HP));
         for (const auto& frame : timed) CHECK(!frame.wait);
-        CHECK(timed[29].raw == Down && timed[31].raw == (Down | MK) && timed[32].raw == Down && timed[36].raw == Down);
+        CHECK(timed[29].raw == Down && timed[31].raw == Down && timed[32].raw == 0 && timed[36].raw == Down);
         CHECK(timed.size() > 44 && timed.back().raw == 0);
     }
 

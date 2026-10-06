@@ -87,7 +87,7 @@ inline std::vector<training::Input> Synthesize(const std::vector<std::string>& s
         if (step.edge == Edge::Hold) push(last | buttons, 30);
         else if (step.edge == Edge::Release) { push(last | buttons, 30); push(last, 2); }
         else if (step.mash) for (int press = 0; press < 8; ++press) { push(last | buttons, 2); push(last, 2); }
-        else push(last | buttons, 2);
+        else push(last | buttons, 1);
         // The button comes up before the next move, so its press is its own edge.
         push(last, 1);
     }
