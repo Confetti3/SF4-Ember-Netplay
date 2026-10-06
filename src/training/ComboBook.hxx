@@ -17,7 +17,7 @@ namespace sf4e { namespace combo {
 constexpr int FormatVersion = 1;
 constexpr const char* FormatName = "sf4e-combos";
 // Imported text comes from other players, so every size is bounded.
-constexpr std::size_t MaxBytes = 256 * 1024, MaxPacks = 64, MaxCombos = 256, MaxSteps = 64, MaxText = 96, MaxNotes = 512;
+constexpr std::size_t MaxBytes = 256 * 1024, MaxPacks = 64, MaxCombos = 256, MaxSteps = 160, MaxText = 96, MaxNotes = 512;
 
 // character: the fighter catalog code, upper case. steps: one move each, in
 // order, in the canonical notation ParseStep accepts ("2MK", "xx 236HP").

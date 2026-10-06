@@ -90,7 +90,7 @@ A route already in the pack is refused. **Save combo** writes the fields as type
 
 ### Share
 
-**Copy combo**, **Copy pack** and **Copy all packs** put JSON text on the clipboard; **Import from clipboard** reads any of the three shapes. Imported packs join packs of the same name and skip routes already present. Imports are bounded: 256 KB, 64 packs, 256 combos per pack, 64 moves per combo.
+**Copy combo**, **Copy pack** and **Copy all packs** put JSON text on the clipboard; **Import from clipboard** reads any of the three shapes. Imported packs join packs of the same name and skip routes already present. Imports are bounded: 256 KB, 64 packs, 256 combos per pack, 160 moves per combo.
 
 **Combo tree** shows every route in every pack by fighter; combos that start the same way share a branch.
 
