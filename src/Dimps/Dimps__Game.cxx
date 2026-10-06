@@ -7,6 +7,7 @@
 namespace Game = Dimps::Game;
 using Game::GameMementoKey;
 using Game::ProgressData;
+using Game::ReplayInfoList;
 using Game::Request;
 using Game::Sprite::Control;
 using Game::Sprite::SingleNodeControl;
@@ -20,6 +21,7 @@ void Game::Locate(HMODULE peRoot) {
 	Battle::Locate(peRoot);
 	Control::Locate(peRoot);
 	GameMementoKey::Locate(peRoot);
+	ReplayInfoList::Locate(peRoot);
 	Request::Locate(peRoot);
 }
 
@@ -29,6 +31,18 @@ void GameMementoKey::Locate(HMODULE peRoot) {
 	*(PVOID*)&publicMethods.Initialize = (PVOID)(peRootOffset + 0x12fd40);
 	*(PVOID*)&publicMethods.ClearKey = (PVOID)(peRootOffset + 0x12f3d0);
 	totalMementoSize = (int*)(peRootOffset + 0x6a5840);
+}
+
+ReplayInfoList::__publicMethods ReplayInfoList::publicMethods;
+DWORD* ReplayInfoList::listFirstSlot = nullptr;
+DWORD* ReplayInfoList::listSizes = nullptr;
+
+void ReplayInfoList::Locate(HMODULE peRoot) {
+	unsigned int peRootOffset = (unsigned int)peRoot;
+
+	*(PVOID*)&publicMethods.Read = (PVOID)(peRootOffset + 0x276ef0);
+	listFirstSlot = (DWORD*)(peRootOffset + 0x66a014);
+	listSizes = (DWORD*)(peRootOffset + 0x562684);
 }
 
 void Request::Locate(HMODULE peRoot) {

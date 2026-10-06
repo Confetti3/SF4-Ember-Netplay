@@ -58,6 +58,22 @@ namespace Dimps {
 			static BattleTypeSettings* GetBattleTypeSettings(ProgressData* data);
 		};
 
+		// Dimps::Game::ReplayInfoList, the game's 310 replay slots (vector at
+		// +8). common/ReplaySlots.hxx has the record layout; Read (vtable
+		// slot 2, 0x676EF0) fills the slots from the LIST file's stream.
+		// The slots form four lists, laid out by a table of first slots
+		// (0xA6A014) and a table of sizes (0x962684: size, largest file).
+		struct ReplayInfoList {
+			typedef struct __publicMethods {
+				BOOL (ReplayInfoList::* Read)(void* stream);
+			} __publicMethods;
+
+			static void Locate(HMODULE peRoot);
+			static __publicMethods publicMethods;
+			static DWORD* listFirstSlot;
+			static DWORD* listSizes;
+		};
+
 		struct Request {
 			typedef struct __publicMethods {
 				DWORD (Request::* GetRandomSeed)();

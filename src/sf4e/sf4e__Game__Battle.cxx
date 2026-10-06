@@ -1,10 +1,12 @@
 #include <map>
+#include <string>
 #include <vector>
 #include <windows.h>
 #include <detours/detours.h>
 #include "spdlog/spdlog.h"
 
 #include "../Dimps/Dimps__Eva.hxx"
+#include "../Dimps/Dimps__Game.hxx"
 #include "../Dimps/Dimps__Game__Battle.hxx"
 #include "../Dimps/Dimps__Math.hxx"
 #include "../common/SoundReconcile.hxx"
@@ -55,7 +57,48 @@ void fBattle::Install() {
 	System::Install();
 	Vfx::Install();
 	ReplayCodec::Install();
+	WidenMatchReplayList();
 }
+
+namespace {
+std::string s_matchReplayListNote;
+}
+
+// The game's 310 replay slots are four lists, laid out by a table of first
+// slots (0xA6A014: 0, 30, 180, 300) and a table of sizes (0x962684: 30, 150,
+// 120, 10, each beside its largest file). The last list is the one a Versus
+// battle saves into, so ten Ember matches fill it and the eleventh replaces
+// the first. The list before it holds replays the native online service
+// handed out. Moving the border between the two gives matches 30 slots and
+// leaves that list 100. Thirty because the replay menu shows the 30 newest
+// of a list and no more (the cut is in its Flash movie, not in code read so
+// far), so a longer list only hides replays. The list code reads both
+// tables (0x67B830 finds the slot, 0x677A10 names a slot's list), and the
+// save files go by slot number, so their layout is unchanged. Anything other
+// than the stock values means another build of the game, which is left
+// alone. Runs before logging is up, so the outcome is kept for
+// MatchReplayListNote.
+void fBattle::WidenMatchReplayList() {
+	DWORD* const firstSlot = Dimps::Game::ReplayInfoList::listFirstSlot;
+	DWORD* const sizes = Dimps::Game::ReplayInfoList::listSizes; // size, largest file
+	const DWORD spread = 100, matches = 30;
+	if (firstSlot[2] != 180 || firstSlot[3] != 300 || sizes[4] != 120 || sizes[6] != 10) {
+		s_matchReplayListNote = "Replay: the slot tables are not the stock ones; the match list keeps its size";
+		return;
+	}
+	DWORD old = 0;
+	if (!VirtualProtect(sizes, 8 * sizeof(DWORD), PAGE_READWRITE, &old)) {
+		s_matchReplayListNote = fmt::format("Replay: the match list keeps ten slots (VirtualProtect error {})", GetLastError());
+		return;
+	}
+	sizes[4] = spread;
+	sizes[6] = matches;
+	VirtualProtect(sizes, 8 * sizeof(DWORD), old, &old);
+	firstSlot[3] = firstSlot[2] + spread;
+	s_matchReplayListNote = fmt::format("Replay: the match list holds {} replays, slots {} to 309", matches, firstSlot[3]);
+}
+
+const std::string& fBattle::MatchReplayListNote() { return s_matchReplayListNote; }
 
 void sf4e::Game::Battle::ReplayCodec::Install() {
 	std::uint8_t* (ReplayCodec::* _fAppend)(std::uint32_t) = &Append;
