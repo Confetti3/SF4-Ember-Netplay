@@ -88,9 +88,11 @@ struct View {
     // The game's own task list shows the trial, so the overlay's list stays hidden.
     bool nativeTrialList = false;
     // Record combo: whether Player 1's moves are being written down, and
-    // the moves so far (action ids; cancel when the move cancelled the one before).
+    // the moves so far: action id, cancel when the move cancelled the one
+    // before, and the frame it began on since the recording started.
+    struct CapturedMove { int action = -1; bool cancel = false; int frame = 0; };
     bool capturing = false;
-    std::vector<std::pair<int, bool>> captured;
+    std::vector<CapturedMove> captured;
     // ExportSlot: the selected slot's frames, handed over once per request.
     std::uint64_t exportId = 0; int exportedSlot = -1;
     std::vector<Input> exported;

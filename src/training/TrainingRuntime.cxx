@@ -373,7 +373,7 @@ void AfterUpdate(Native* system) {
     std::lock_guard<std::mutex> lock(mutex); published = session.GetView(); published.meter = meter.View();
     if (published.available) published.dummy = ReadDummyState(published.dummy);
     published.capturing = comboCapture.Active(); published.captured.clear();
-    for (const auto& event : comboCapture.Events()) published.captured.emplace_back(event.action, event.cancel);
+    for (const auto& event : comboCapture.Events()) published.captured.push_back({event.action, event.cancel, event.frame});
     published.exportId = exportId; published.exportedSlot = exportedSlot; published.exported = exported;
     published.trialSteps = trialSteps; published.trial = trial.GetView(); published.nativeTrialList = nativeList.live;
     published.commandId=commandId;published.commandAccepted=commandAccepted;

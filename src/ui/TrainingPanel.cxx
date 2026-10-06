@@ -437,8 +437,17 @@ void TakeCapture(const training::View& view) {
     captureWanted=false;
     const auto* fighter=selection::FindFighter(creator.fighter); combo::Fighter files; std::string error;
     if(!fighter||!combo::LoadFighter(GameFolder(),fighter->code,files,error)) { ComboNotice(loc::Tf("training.combo.game_file",error),true); return; }
-    std::vector<std::string> steps; int unnamed=0;
-    for(const auto& event:view.captured) { const auto step=combo::ActionStep(files.moves,event.first,event.second&&!steps.empty()); if(!step.empty()) steps.push_back(step); else ++unnamed; }
+    // Each move keeps the frame it began on, relative to the first, as "#N",
+    // so the replay presses on the recorded timing.
+    std::vector<std::string> steps; int unnamed=0, first=-1;
+    for(const auto& event:view.captured) {
+        auto text=combo::ActionStep(files.moves,event.action,event.cancel&&!steps.empty());
+        if(text.empty()) { ++unnamed; continue; }
+        if(first<0) first=event.frame;
+        combo::Step step; std::string ignored;
+        if(combo::ParseStep(text,step,ignored)) { step.at=(std::min)(combo::MaxAtFrame,event.frame-first); text=combo::Canonical(step); }
+        steps.push_back(text);
+    }
     if(steps.empty()) { ComboNotice(loc::T("training.combo.capture_empty"),true); return; }
     creator.steps=combo::JoinSteps(steps);
     ComboNotice(loc::Tf("training.combo.captured",static_cast<int>(steps.size()),unnamed));

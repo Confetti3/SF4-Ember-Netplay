@@ -86,7 +86,7 @@ Pick the fighter, type a name and the moves, then **Add combo**. Moves are separ
 
 A route already in the pack is refused. **Save combo** writes the fields as typed over the selected combo instead; **Duplicate combo** copies the selected combo into the pack right after it and selects the copy, for tuning a variant. Notes are free text. The dummy setup rows (dummy action, guard, counter hit, quick stand, super and revenge gauge) are applied to the game at once and kept with the selected combo; **Game setting** leaves the Training menu's choice alone.
 
-**Record combo** writes down the moves Player 1 performs into the Moves line, as a new move for each attack and a cancel when it starts before the previous one recovered. It stops by itself after a second and a half without an attack.
+**Record combo** writes down the moves Player 1 performs into the Moves line, as a new move for each attack and a cancel when it starts before the previous one recovered, each with the frame it began on as `#N` so a replay keeps the recorded timing (remove the `#N` to replay by cues instead). It stops by itself after a second and a half without an attack. Add combo or Save combo keeps the line.
 
 ### Share
 

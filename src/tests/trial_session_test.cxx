@@ -354,6 +354,8 @@ int main() {
         CHECK(capture.Events()[0].action == 300 && !capture.Events()[0].cancel);
         CHECK(capture.Events()[1].action == 310 && capture.Events()[1].cancel);
         CHECK(capture.Events()[2].action == 300 && !capture.Events()[2].cancel);
+        // Each move knows the frame it began on.
+        CHECK(capture.Events()[0].frame == 5 && capture.Events()[1].frame == 13 && capture.Events()[2].frame == 43);
         frames(0, 0, CaptureIdleFrames);
         CHECK(!capture.Active() && capture.Events().size() == 3);
         // The same move again, after a neutral frame, is a second move.
