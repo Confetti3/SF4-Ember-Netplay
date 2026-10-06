@@ -81,7 +81,7 @@ Pick the fighter, type a name and the moves, then **Add combo**. Moves are separ
 
 - motion: numpad digits, `[4]6` for charge, `360`, `720`. `cr.` is 2; `st.`, `cl.` and `far.` are 5.
 - buttons: `LP MP HP LK MK HK` joined by `+`, or `P PP PPP K KK KKK`. `[HP]` holds, `]HP[` releases, `(mash)` mashes.
-- `@N`: extra replay wait after the move's cue, -9 to +30 frames. `#N`: the replay frame the press lands on, 0 to 3600.
+- `@N`: the move's own timing offset, -30 to +30 frames. `#N`: the replay frame the press lands on, 0 to 3600.
 - Move names work too, read as the chosen fighter's: `cr.MK xx HP Hadoken > FADC > cl.HP`. The name table comes from `src/training/ComboMoves.inc`, regenerated with `scripts/generate-combo-moves.py` from a USF4 frame-data JSON.
 
 A route already in the pack is refused. Notes are free text. The dummy setup rows (dummy action, guard, counter hit, quick stand, super and revenge gauge) are applied to the game at once and kept with the selected combo; **Game setting** leaves the Training menu's choice alone.

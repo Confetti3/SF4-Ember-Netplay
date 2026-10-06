@@ -80,7 +80,7 @@ constexpr int MaxAtFrame = 3600;
 //   motion:  numpad digits 1-9, "[4]6" for charge, "360", "720"
 //   buttons: LP MP HP LK MK HK joined by "+", or P PP PPP K KK KKK;
 //            "[HP]" holds them, "]HP[" releases them, "(mash)" mashes them
-//   @N:      replay timing, -9..+30 frames ("@-1", "@+3")
+//   @N:      replay timing, -30..+30 frames ("@-1", "@+3")
 //   #N:      replay frame the press lands on, 0..3600 ("#45")
 // cr. is 2; st., cl. and far. are 5. FADC is MP+MK then a dash, 66 unless 44.
 inline bool ParseStep(const std::string& text, Step& step, std::string& error) {
@@ -100,7 +100,7 @@ inline bool ParseStep(const std::string& text, Step& step, std::string& error) {
         const bool signedNumber = digits.size() >= 2 && digits.size() <= 3 && (digits[0] == '-' || digits[0] == '+') && digits.find_first_not_of("0123456789", 1) == std::string::npos;
         if (!signedNumber) return fail();
         step.offset = std::atoi(digits.c_str());
-        if (step.offset < -9 || step.offset > 30) return fail();
+        if (step.offset < -30 || step.offset > 30) return fail();
         s.resize(at);
     }
     const auto frame = s.rfind('#');

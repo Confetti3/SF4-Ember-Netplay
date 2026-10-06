@@ -20,7 +20,7 @@ constexpr unsigned AttackButtons = 0xcf0;
 // predicted from the fighter's script, so 0 is that frame itself and a
 // negative offset is before it; a hit is pressed on the frame after it is seen.
 struct Input { unsigned mapped = 0, raw = 0; unsigned char wait = 0; signed char offset = 0; };
-constexpr int MinOffset = -9, MaxOffset = 30;
+constexpr int MinOffset = -30, MaxOffset = 30;
 constexpr unsigned char WaitActionable = 1, WaitHit = 2;
 // How long a waiting frame may wait before playback gives up on its
 // condition: a whole recovery, or the few frames a buffered press can wait
