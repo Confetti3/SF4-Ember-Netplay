@@ -103,8 +103,9 @@ int main() {
     CHECK(!ParseStep("236(mash)", step, error) && !ParseStep("FADC(mash)", step, error));
 
     // Typed steps become pad input, timed by the fight: a cancelled move does
-    // its motion at once and waits for the hit to press; a linked move holds
-    // its first direction through the wait for the free frame.
+    // its motion at once but the last direction, which it presses with the
+    // button on the hit; a linked move holds its first direction through the
+    // wait for the free frame.
     {
         const auto frames = Synthesize(Steps("2MK xx 236HP > 2HP@+2 > [4]6P"), true, 1);
         CHECK(!frames.empty() && frames.size() < 200);
@@ -116,7 +117,7 @@ int main() {
         }
         const std::vector<std::string> expected{
             std::to_string(Down), std::to_string(Down | MK), std::to_string(Down), "0",
-            std::to_string(Down), std::to_string(Down | Right), std::to_string(Right), "hit:" + std::to_string(Right) + "@1", std::to_string(Right | HP), std::to_string(Right),
+            std::to_string(Down), std::to_string(Down | Right), "hit:" + std::to_string(Down | Right) + "@1", std::to_string(Right | HP), std::to_string(Right),
             "free:" + std::to_string(Down) + "@3", std::to_string(Down | HP), std::to_string(Down),
             "free:" + std::to_string(Left) + "@1", std::to_string(Left), std::to_string(Right), std::to_string(Right | LP), std::to_string(Right), "0"};
         CHECK(seen == expected);

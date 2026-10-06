@@ -311,9 +311,9 @@ void AfterUpdate(Native* system) {
             const auto& own = fighters[side], & other = fighters[1 - side];
             const bool hit = other.valid && ((ClassifyStatus(other.status) == Phase::Hit && ClassifyStatus(previous[1 - side].status) != Phase::Hit) ||
                 other.comboDamage > previous[1 - side].comboDamage);
-            // How soon the script says those cues come, so an early press can land before them.
-            const auto until = [&](int boundary) { return own.valid && boundary > own.actionFrame ? static_cast<int>(std::ceil(boundary - own.actionFrame)) : -1; };
-            session.Observe(own.valid && ClassifyStatus(own.status) == Phase::Neutral, hit, until(own.interruptibleFrame), until(own.firstActiveFrame));
+            // How soon the script says the fighter is free again, so a link's press can land on that frame.
+            const int until = own.valid && own.interruptibleFrame > own.actionFrame ? static_cast<int>(std::ceil(own.interruptibleFrame - own.actionFrame)) : -1;
+            session.Observe(own.valid && ClassifyStatus(own.status) == Phase::Neutral, hit, until);
             previous = fighters;
         }
         if (commitInput) session.Commit(output);

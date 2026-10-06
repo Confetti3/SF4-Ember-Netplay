@@ -46,17 +46,18 @@ inline std::vector<training::Input> Synthesize(const std::vector<std::string>& s
         const bool timed = step.at >= 0;
         const auto reach = [&](int frame) { push(0, frame - static_cast<int>(out.size())); };
         if (steps[index].compare(step.cancel ? 3 : 0, 4, "FADC") == 0) {
-            // Focus on the hit, then the dash.
+            // A focus cancel: focus as the hit lands, then the dash.
             const unsigned dash = DirectionBits(step.motion == "44" ? '4' : '6', facingRight);
             if (timed) reach(step.at);
-            else if (index) wait(step.cancel ? training::WaitHit : training::WaitActionable, 0, timing);
+            else if (index) wait(training::WaitHit, 0, timing);
             push(MP | MK, 2); push(0, 2); push(dash, 2); push(0, 2); push(dash, 2);
             continue;
         }
         // The directions, as a player does them: a linked move holds its
         // first direction through the recovery before it and presses on the
         // free frame; a cancelled move does its motion during the move before
-        // it and presses when the hit lands.
+        // it, all but the last direction, and finishes it with the button as
+        // the hit lands, so the motion is fresh.
         std::string motion = step.motion;
         if (motion == "360" || motion == "720") { motion.clear(); for (int turn = step.motion == "720" ? 2 : 1; turn > 0; --turn) motion += "63214789"; }
         if (step.air) { push(DirectionBits('8', facingRight), 2); push(0, 10); }
@@ -69,13 +70,15 @@ inline std::vector<training::Input> Synthesize(const std::vector<std::string>& s
             reach(step.at - lead);
         } else if (link) wait(training::WaitActionable, motion.empty() ? 0 : DirectionBits(motion[0], facingRight), timing);
         else if (index) push(0, 1);
-        for (std::size_t i = 0; i < motion.size(); ++i) {
+        const bool finish = step.cancel && index && !timed && buttons && !motion.empty();
+        for (std::size_t i = 0; i + (finish ? 1 : 0) < motion.size(); ++i) {
             last = DirectionBits(motion[i], facingRight);
             const bool held = link && i == 0;
             push(last, step.charge && i == 0 ? 50 : held ? 0 : step.cancel ? 2 : 3);
         }
         if (!buttons) continue;
         if (step.cancel && index && !timed) wait(training::WaitHit, last, timing);
+        if (finish) last = DirectionBits(motion.back(), facingRight);
         if (step.edge == Edge::Hold) push(last | buttons, 30);
         else if (step.edge == Edge::Release) { push(last | buttons, 30); push(last, 2); }
         else if (step.mash) for (int press = 0; press < 8; ++press) { push(last | buttons, 2); push(last, 2); }
