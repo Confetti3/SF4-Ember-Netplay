@@ -810,6 +810,12 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  // F8 on the combo and timing screens replays the moves as they are now;
  // on a timing row, only up to that move, so one rep can be tuned at a time.
  if((screen=="combos"||screen=="combo-timing")&&!ImGui::GetIO().WantTextInput&&ImGui::IsKeyPressed(ImGuiKey_F8,false)){
+  // A running replay stops first; tuning stops with it.
+  if(v.mode==Mode::Playback){
+   Command stop;stop.action=Action::Stop;stop.generation=v.generation;
+   if(submit&&submit(stop)){tune.on=false;ComboNotice(loc::T("training.combo.replay.stopped"));}
+   return;
+  }
   auto steps=TimingSteps();
   const auto& focus=nav.Focus();
   if(screen=="combo-timing"&&focus.compare(0,3,"ct-")==0&&focus!="ct-replay"&&focus!="ct-none"){
