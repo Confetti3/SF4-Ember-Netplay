@@ -128,6 +128,13 @@ int main() {
     CHECK(store.LoadLauncher(result,error)&&result["matchHudSize"]==2&&result["matchHudRaised"]==true);
     CHECK(Json::parse(Read(path / L"settings.json"))["netplay"]["matchHudSize"]==2);
     CHECK(discordDefaults.matchHudAnchor==0); // Bottom center by default.
+    CHECK(discordDefaults.matchHudNameOffset==0); // The game's default HUD position.
+    discordDefaults.matchHudNameOffset=-sf4e::netplay::MaxMatchHudNameOffset-1;CHECK(!discordDefaults.Valid());
+    discordDefaults.matchHudNameOffset=sf4e::netplay::MaxMatchHudNameOffset+1;CHECK(!discordDefaults.Valid());
+    discordDefaults.matchHudNameOffset=-sf4e::netplay::MaxMatchHudNameOffset;CHECK(discordDefaults.Valid());
+    discordDefaults.matchHudNameOffset=0;
+    CHECK(store.SaveLauncher({{"matchHudNameOffset",-20}},error));
+    CHECK(store.LoadLauncher(result,error)&&result["matchHudNameOffset"]==-20);
     discordDefaults.matchHudAnchor=-1;CHECK(!discordDefaults.Valid());
     discordDefaults.matchHudAnchor=5;CHECK(!discordDefaults.Valid());
     discordDefaults.matchHudAnchor=4;CHECK(discordDefaults.Valid());

@@ -787,6 +787,21 @@ msgstr "Układ HUD"
 msgid "settings.match_hud_layout_detail"
 msgstr "Pasek Ember mieści wszystko w jednym panelu. Podzielony umieszcza każdą nazwę pod jej paskiem życia."
 
+msgid "settings.name_offset"
+msgstr "Wysokość nazw"
+
+msgid "settings.name_offset_detail"
+msgstr "Przesuwa nazwy układu podzielonego w górę lub w dół. Użyj, gdy nie zakrywają PLAYER 1 i PLAYER 2, bo w grze zmieniono położenie HUD."
+
+msgid "name_offset.default"
+msgstr "Domyślna"
+
+msgid "name_offset.up"
+msgstr "W górę {0}"
+
+msgid "name_offset.down"
+msgstr "W dół {0}"
+
 msgid "hud_layout.strip"
 msgstr "Pasek Ember"
 

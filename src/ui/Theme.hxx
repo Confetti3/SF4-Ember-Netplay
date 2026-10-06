@@ -112,6 +112,9 @@ struct MatchStripView {
     // 0 the Ember strip (one panel); 1 split: each name on a plate above its life bar,
     // and a small telemetry panel placed by `anchor`/`raised`.
     int layout = 0;
+    // Split layout: the name plates' shift from the default PLAYER label row, in 720p
+    // game units (positive is down), for a game whose own HUD position was changed.
+    int nameOffset = 0;
     // Members watching this match; the split layout shows "Watching N" when above zero.
     int spectators = 0;
     // Link state and the latest netplay notice, drawn on a line above the
@@ -145,6 +148,8 @@ MatchStripBounds MatchStripGeometry(const MatchStripView& view,ImVec2 screenPos,
 const char* MatchStripLayoutName(int layout);
 // The settings label for a MatchStripView::anchor value ("Bottom center", "Top right").
 const char* MatchStripAnchorName(int anchor);
+// "Default", "Up 20" or "Down 6": the split layout's name offset (MatchStripView::nameOffset).
+std::string MatchHudNameOffsetText(int offset);
 void DrawControllerWarning(const std::string& message);
 struct DiagnosticStripView {
     bool hasRemote = false, networkAvailable = false;

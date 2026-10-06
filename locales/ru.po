@@ -787,6 +787,21 @@ msgstr "Вид HUD матча"
 msgid "settings.match_hud_layout_detail"
 msgstr "Полоса Ember показывает всё в одной панели. Раздельный ставит каждое имя под его полоской здоровья."
 
+msgid "settings.name_offset"
+msgstr "Высота имён"
+
+msgid "settings.name_offset_detail"
+msgstr "Сдвигает имена раздельного вида вверх или вниз. Пригодится, если они не закрывают PLAYER 1 и PLAYER 2, потому что в игре изменено положение HUD."
+
+msgid "name_offset.default"
+msgstr "По умолчанию"
+
+msgid "name_offset.up"
+msgstr "Выше на {0}"
+
+msgid "name_offset.down"
+msgstr "Ниже на {0}"
+
 msgid "hud_layout.strip"
 msgstr "Полоса Ember"
 

@@ -787,6 +787,21 @@ msgstr "对战 HUD 布局"
 msgid "settings.match_hud_layout_detail"
 msgstr "Ember 条将所有信息放在一个面板中。分开会把每个名字放在其体力条下方。"
 
+msgid "settings.name_offset"
+msgstr "名字高度"
+
+msgid "settings.name_offset_detail"
+msgstr "上下移动分开布局中的名字。游戏自身的 HUD 位置改过、名字没有盖住 PLAYER 1 和 PLAYER 2 时使用。"
+
+msgid "name_offset.default"
+msgstr "默认"
+
+msgid "name_offset.up"
+msgstr "上移 {0}"
+
+msgid "name_offset.down"
+msgstr "下移 {0}"
+
 msgid "hud_layout.strip"
 msgstr "Ember 条"
 

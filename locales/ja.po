@@ -787,6 +787,21 @@ msgstr "対戦HUDのレイアウト"
 msgid "settings.match_hud_layout_detail"
 msgstr "Emberストリップはすべてを1つのパネルに表示します。分割は各名前を体力ゲージの下に表示します。"
 
+msgid "settings.name_offset"
+msgstr "名前の高さ"
+
+msgid "settings.name_offset_detail"
+msgstr "分割レイアウトの名前を上下に動かします。ゲーム側のHUD位置を変えていて、PLAYER 1/PLAYER 2 に重ならないときに使います。"
+
+msgid "name_offset.default"
+msgstr "標準"
+
+msgid "name_offset.up"
+msgstr "上へ {0}"
+
+msgid "name_offset.down"
+msgstr "下へ {0}"
+
 msgid "hud_layout.strip"
 msgstr "Emberストリップ"
 

@@ -787,6 +787,21 @@ msgstr "Match HUD layout"
 msgid "settings.match_hud_layout_detail"
 msgstr "Ember strip keeps everything in one panel. Split puts each name under its life bar."
 
+msgid "settings.name_offset"
+msgstr "Name height"
+
+msgid "settings.name_offset_detail"
+msgstr "Moves the split layout's names up or down. Use it when they miss PLAYER 1 and PLAYER 2 because the game's own HUD position was changed."
+
+msgid "name_offset.default"
+msgstr "Default"
+
+msgid "name_offset.up"
+msgstr "Up {0}"
+
+msgid "name_offset.down"
+msgstr "Down {0}"
+
 msgid "hud_layout.strip"
 msgstr "Ember strip"
 

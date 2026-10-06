@@ -787,6 +787,21 @@ msgstr "Disposition en combat"
 msgid "settings.match_hud_layout_detail"
 msgstr "Le bandeau Ember regroupe tout dans un panneau. Séparé place chaque nom sous sa barre de vie."
 
+msgid "settings.name_offset"
+msgstr "Hauteur des noms"
+
+msgid "settings.name_offset_detail"
+msgstr "Monte ou descend les noms de la disposition séparée. Utile quand ils ne couvrent pas PLAYER 1 et PLAYER 2 parce que la position du HUD a été modifiée dans le jeu."
+
+msgid "name_offset.default"
+msgstr "Par défaut"
+
+msgid "name_offset.up"
+msgstr "Haut {0}"
+
+msgid "name_offset.down"
+msgstr "Bas {0}"
+
 msgid "hud_layout.strip"
 msgstr "Bandeau Ember"
 

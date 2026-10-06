@@ -234,8 +234,9 @@ SplitPlaced PlaceSplit(const MatchStripView& view,const Screen& screen){
     // the "N WINS" streak text (from x 428, mirrored to x 852), above the life bar (top y 98).
     // The plate always fills y 74..95 and at least the label's width, and the name is the
     // label's size (20 units) whatever the HUD size setting, which scales only the panel.
+    // USF4's own HUD position option moves the label row; the player's name offset follows it.
     const float k=gs*20.f/SplitName;
-    const float y=gy0+74*gs,height=21*gs,maxName=274*gs,minName=108*gs;
+    const float y=gy0+(74+view.nameOffset)*gs,height=21*gs,maxName=274*gs,minName=108*gs;
     out.plates[0]=MakePlate(view,0,gx0+146*gs,y,k,maxName,minName,height);
     out.plates[1]=MakePlate(view,1,gx0+1134*gs,y,k,maxName,minName,height);
     // A top-anchored panel and its state line end above the plates. On a short screen
@@ -308,6 +309,10 @@ void DrawMatchStripPreview(const MatchStripView& view) {
 }
 const char* MatchStripLayoutName(int layout) {
     return loc::T(layout==1?"hud_layout.split":"hud_layout.strip");
+}
+std::string MatchHudNameOffsetText(int offset) {
+    if(offset==0)return loc::T("name_offset.default");
+    return loc::Tf(offset<0?"name_offset.up":"name_offset.down",offset<0?-offset:offset);
 }
 const char* MatchStripAnchorName(int anchor) {
     const char* names[]={loc::T("hud_position.bottom_center"),loc::T("hud_position.bottom_left"),loc::T("hud_position.bottom_right"),loc::T("hud_position.top_left"),loc::T("hud_position.top_right")};

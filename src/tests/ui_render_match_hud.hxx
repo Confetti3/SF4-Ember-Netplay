@@ -40,8 +40,10 @@ void CheckMatchHudFrame(const sf4e::ui::MatchStripView& matchStrip,int w,int h){
     for(const auto& name:bounds.names){
         Require(name.x0>=gx0-1&&name.x1<=gx0+gameW+1&&name.y0>=0&&name.y1<=h,"Match HUD name left the game image");
         Require(name.x1-name.x0<=.35f*gameW+1,"Match HUD name plate too wide for the game");
-        // The game's label row above the life bars (top edge y 98): y 74..95, covering the label's y 76..93.
-        Require(std::abs(name.y0-(gy0+74*gs))<=1&&std::abs(name.y1-(gy0+95*gs))<=1,"Match HUD name plate does not fill y 74..95 of the game frame");
+        // The game's label row above the life bars (top edge y 98): y 74..95, covering the label's y 76..93,
+        // moved by the player's name offset for a game whose HUD position was changed.
+        const float y0=gy0+(74+matchStrip.nameOffset)*gs;
+        Require(std::abs(name.y0-y0)<=1&&std::abs(name.y1-(y0+21*gs))<=1,"Match HUD name plate does not fill y 74..95 of the game frame, moved by the name offset");
     }
     Require(bounds.names[0].x1<bounds.names[1].x0,"Match HUD names meet");
     // The telemetry panel and its state line, at any anchor, never sit on a name plate.
@@ -180,6 +182,28 @@ void ShootMatchHud(sf4e::ui::MatchStripView& matchStrip,const Draw& draw,const R
     matchStrip.score="12 - 10";matchStrip.spectators=3;matchStrip.size=1;
     matchStrip.pingMs=9999;matchStrip.rollbackFrames=999;matchStrip.appliedDelay=10;draw("match-hud-split-long");
     matchStrip.spectator=true;matchStrip.size=1;draw("match-hud-split-spectator");
+    // The name offset moves both plates by that many game units and nothing else; a top-anchored
+    // panel stays above plates moved all the way up, on short screens too.
+    matchStrip.spectator=false;matchStrip.score.clear();matchStrip.spectators=0;
+    const auto unmoved=MatchStripGeometry(matchStrip);
+    const float shiftScale=(std::min)(ImGui::GetMainViewport()->Size.y/720.f,ImGui::GetMainViewport()->Size.x/1280.f);
+    for(const int offset:{-60,-20,60}){
+        matchStrip.nameOffset=offset;
+        for(const int anchor:{0,3,4}){
+            matchStrip.anchor=anchor;draw(anchor==0&&offset==-20?"match-hud-split-name-up":nullptr,0,1);
+            const auto moved=MatchStripGeometry(matchStrip);
+            for(int side=0;side<2;++side)
+                Require(std::abs(moved.names[side].y0-unmoved.names[side].y0-offset*shiftScale)<=1&&
+                    moved.names[side].x0==unmoved.names[side].x0&&moved.names[side].x1==unmoved.names[side].x1&&
+                    moved.names[side].y1-moved.names[side].y0==unmoved.names[side].y1-unmoved.names[side].y0,"Match HUD name offset does not move the plates by itself");
+            for(const auto& screen:shortScreens){
+                const auto bounds=MatchStripGeometry(matchStrip,ImVec2(0,0),screen);
+                for(const auto& name:bounds.names)Require(!MatchBoxesOverlap(bounds.panel,name),"Match HUD telemetry covers a moved name plate on a short screen");
+                Require(bounds.panel.y0>=0,"Match HUD telemetry left the top of a short screen above moved name plates");
+            }
+        }
+    }
+    matchStrip.nameOffset=0;matchStrip.anchor=0;
     matchStrip.layout=0;matchStrip.spectator=false;matchStrip.size=0;
 }
 }

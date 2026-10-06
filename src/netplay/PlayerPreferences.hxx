@@ -21,6 +21,9 @@ struct LobbySettings {
     }
 };
 
+// How far the name plates move either way, in 720p game units.
+constexpr int MaxMatchHudNameOffset = 60;
+
 struct PlayerPreferences {
     std::string displayName = "Player";
     int mainFighter = 0;
@@ -37,6 +40,9 @@ struct PlayerPreferences {
     int matchHudAnchor = 0;
     // 0 the Ember strip (one panel), 1 split: names over the game's PLAYER labels and a small telemetry panel.
     int matchHudLayout = 1;
+    // Moves the split layout's name plates down (positive) or up, in 720p game units.
+    // USF4's own HUD position option moves the PLAYER labels the plates cover.
+    int matchHudNameOffset = 0;
     // The announcer calls out when the other fighter at this player's table readies.
     bool readySound = true;
     // Percent of the game's own voice volume, in steps of ten.
@@ -67,7 +73,7 @@ struct PlayerPreferences {
     }
     bool Valid() const {
         if (displayName.empty() || displayName.size() >= 32 || mainFighter<0 || mainFighter>=selection::FighterCount || inputDelay < MinimumInputDelay || inputDelay > MaximumInputDelay ||
-            matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > 4 || matchHudLayout < 0 || matchHudLayout > 1 || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) || !lobby.Valid() ||
+            matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > 4 || matchHudLayout < 0 || matchHudLayout > 1 || matchHudNameOffset < -MaxMatchHudNameOffset || matchHudNameOffset > MaxMatchHudNameOffset || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) || !lobby.Valid() ||
             roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers)) return false;
         for (unsigned char c : displayName) if (c < 32 || c == 127) return false;
         for (unsigned char c : roomName) if (c < 32 || c == 127) return false;

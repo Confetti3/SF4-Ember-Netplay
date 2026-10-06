@@ -787,6 +787,21 @@ msgstr "대전 HUD 배치"
 msgid "settings.match_hud_layout_detail"
 msgstr "Ember 스트립은 모든 정보를 한 패널에 표시합니다. 분할은 각 이름을 체력 게이지 아래에 둡니다."
 
+msgid "settings.name_offset"
+msgstr "이름 높이"
+
+msgid "settings.name_offset_detail"
+msgstr "분할 배치의 이름을 위나 아래로 옮깁니다. 게임의 HUD 위치를 바꿔서 이름이 PLAYER 1, PLAYER 2를 가리지 않을 때 사용하세요."
+
+msgid "name_offset.default"
+msgstr "기본"
+
+msgid "name_offset.up"
+msgstr "위로 {0}"
+
+msgid "name_offset.down"
+msgstr "아래로 {0}"
+
 msgid "hud_layout.strip"
 msgstr "Ember 스트립"
 

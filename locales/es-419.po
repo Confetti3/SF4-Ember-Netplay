@@ -787,6 +787,21 @@ msgstr "Diseño del HUD"
 msgid "settings.match_hud_layout_detail"
 msgstr "La franja Ember reúne todo en un panel. Dividido pone cada nombre bajo su barra de vida."
 
+msgid "settings.name_offset"
+msgstr "Altura de los nombres"
+
+msgid "settings.name_offset_detail"
+msgstr "Sube o baja los nombres del diseño dividido. Úsalo cuando no cubren PLAYER 1 y PLAYER 2 porque se cambió la posición del HUD en el juego."
+
+msgid "name_offset.default"
+msgstr "Predeterminada"
+
+msgid "name_offset.up"
+msgstr "Arriba {0}"
+
+msgid "name_offset.down"
+msgstr "Abajo {0}"
+
 msgid "hud_layout.strip"
 msgstr "Franja Ember"
 

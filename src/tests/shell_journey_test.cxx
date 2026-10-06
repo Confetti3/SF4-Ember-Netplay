@@ -374,8 +374,18 @@ void Journeys() {
  Check(h.actions.back().preferences.matchHudSize==1,"HUD size did not save"); // Small by default; Right steps to Standard.
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-layout");h.Press(MenuInput::Left);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudLayout==0,"HUD layout did not save"); // Split by default; Left steps to the Ember strip.
+ {std::vector<MenuEntry> stripRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){stripRows=rows;});h.view.preferences=h.actions.back().preferences;h.Frame();SetMenuEntriesProbe({});
+  const auto offset=std::find_if(stripRows.begin(),stripRows.end(),[](const MenuEntry& e){return e.id=="hud-name-offset";});
+  Check(offset!=stripRows.end()&&!offset->enabled,"Name height is offered for the Ember strip, which has no name plates");}
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudLayout==1,"HUD layout did not step back to Split");
+ // Name height: Left moves the plates up two units at a time, to the limit and no further, and Right back down.
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-name-offset");h.Press(MenuInput::Left);h.Frame(0,45);
+ Check(h.actions.back().preferences.matchHudNameOffset==-2,"Name height did not save");
+ for(int i=0;i<40;++i){h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);}
+ Check(h.actions.back().preferences.matchHudNameOffset==-netplay::MaxMatchHudNameOffset,"Name height went past its limit");
+ for(int i=0;i<30;++i){h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Right);h.Frame(0,45);}
+ Check(h.actions.back().preferences.matchHudNameOffset==0,"Name height did not step back to Default");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-position");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudAnchor==1,"HUD position did not save"); // Bottom center by default; Right steps to Bottom left.
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);

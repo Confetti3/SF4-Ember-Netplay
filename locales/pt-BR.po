@@ -787,6 +787,21 @@ msgstr "Layout do HUD"
 msgid "settings.match_hud_layout_detail"
 msgstr "A faixa Ember mostra tudo em um painel. Dividido põe cada nome sob sua barra de vida."
 
+msgid "settings.name_offset"
+msgstr "Altura dos nomes"
+
+msgid "settings.name_offset_detail"
+msgstr "Sobe ou desce os nomes do layout dividido. Use quando eles não cobrem PLAYER 1 e PLAYER 2 porque a posição do HUD foi alterada no jogo."
+
+msgid "name_offset.default"
+msgstr "Padrão"
+
+msgid "name_offset.up"
+msgstr "Acima {0}"
+
+msgid "name_offset.down"
+msgstr "Abaixo {0}"
+
 msgid "hud_layout.strip"
 msgstr "Faixa Ember"
 

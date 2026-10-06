@@ -787,6 +787,21 @@ msgstr "Rozložení HUD"
 msgid "settings.match_hud_layout_detail"
 msgstr "Pruh Ember má vše v jednom panelu. Rozdělené dá každé jméno pod jeho ukazatel zdraví."
 
+msgid "settings.name_offset"
+msgstr "Výška jmen"
+
+msgid "settings.name_offset_detail"
+msgstr "Posune jména rozděleného rozložení nahoru nebo dolů. Použijte, když nezakrývají PLAYER 1 a PLAYER 2, protože hra má změněnou polohu HUD."
+
+msgid "name_offset.default"
+msgstr "Výchozí"
+
+msgid "name_offset.up"
+msgstr "Nahoru {0}"
+
+msgid "name_offset.down"
+msgstr "Dolů {0}"
+
 msgid "hud_layout.strip"
 msgstr "Pruh Ember"
 

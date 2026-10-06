@@ -787,6 +787,21 @@ msgstr "Layout HUD"
 msgid "settings.match_hud_layout_detail"
 msgstr "La barra Ember tiene tutto in un pannello. Diviso mette ogni nome sotto la sua barra della vita."
 
+msgid "settings.name_offset"
+msgstr "Altezza dei nomi"
+
+msgid "settings.name_offset_detail"
+msgstr "Sposta in alto o in basso i nomi del layout diviso. Usalo quando non coprono PLAYER 1 e PLAYER 2 perché la posizione dell'HUD nel gioco è stata cambiata."
+
+msgid "name_offset.default"
+msgstr "Predefinita"
+
+msgid "name_offset.up"
+msgstr "Su {0}"
+
+msgid "name_offset.down"
+msgstr "Giù {0}"
+
 msgid "hud_layout.strip"
 msgstr "Barra Ember"
 

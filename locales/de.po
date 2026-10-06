@@ -787,6 +787,21 @@ msgstr "Kampf-HUD-Layout"
 msgid "settings.match_hud_layout_detail"
 msgstr "Ember-Leiste zeigt alles in einem Feld. Geteilt setzt jeden Namen unter seine Lebensleiste."
 
+msgid "settings.name_offset"
+msgstr "Namenshöhe"
+
+msgid "settings.name_offset_detail"
+msgstr "Verschiebt die Namen des geteilten Layouts nach oben oder unten. Nutzen Sie das, wenn sie PLAYER 1 und PLAYER 2 verfehlen, weil die HUD-Position im Spiel geändert wurde."
+
+msgid "name_offset.default"
+msgstr "Standard"
+
+msgid "name_offset.up"
+msgstr "Hoch {0}"
+
+msgid "name_offset.down"
+msgstr "Runter {0}"
+
 msgid "hud_layout.strip"
 msgstr "Ember-Leiste"
 

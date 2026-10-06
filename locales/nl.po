@@ -787,6 +787,21 @@ msgstr "Indeling match-HUD"
 msgid "settings.match_hud_layout_detail"
 msgstr "Ember-strook toont alles in één paneel. Gesplitst zet elke naam onder zijn levensbalk."
 
+msgid "settings.name_offset"
+msgstr "Hoogte namen"
+
+msgid "settings.name_offset_detail"
+msgstr "Verschuift de namen van de gesplitste indeling omhoog of omlaag. Gebruik dit als ze PLAYER 1 en PLAYER 2 missen omdat de HUD-positie in het spel is gewijzigd."
+
+msgid "name_offset.default"
+msgstr "Standaard"
+
+msgid "name_offset.up"
+msgstr "Omhoog {0}"
+
+msgid "name_offset.down"
+msgstr "Omlaag {0}"
+
 msgid "hud_layout.strip"
 msgstr "Ember-strook"
 
