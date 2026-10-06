@@ -98,7 +98,7 @@ A route already in the pack is refused. Notes are free text. The dummy setup row
 
 **Start trial** lists the selected combo's moves over the fight and ticks them off as each comes out and connects. Player 1 has to be the combo's fighter. Like the game's Trial mode it judges which move came out and whether it hit, not which buttons were pressed. A failed attempt says which move dropped and why: a different move came out, the next move came out before this one hit, or the combo dropped. The panel counts cleared attempts and the rate. **Stop trial** removes the list.
 
-**Save position** keeps both fighters' place, health, meters and dummy state; **Reset position** restores it. With **Reset before replay** on, every replay and trial attempt starts from the saved position.
+**Save position** keeps both fighters' place, health, meters and dummy state for this battle; with a combo selected, where the two stand is also written into that combo, so it comes back in another battle. **Reset position** restores the saved state, or puts the fighters where the selected combo keeps them. With **Reset before replay** on, every replay and trial attempt starts from there.
 
 ### Replay and timing
 

@@ -118,6 +118,22 @@ void TickNativeList(int current) {
 // A step's ids come from the fighter's command file on the assumption that a
 // move's script index is the action id the game reports. Where that fails the
 // step just never ticks, so the ids are logged once as the trial ends.
+// Puts both fighters at an x each, through the root position the engine
+// keeps for them. ponytail: x only, on the ground; add y and facing if a
+// combo ever needs them.
+bool PlaceFighters(Native* system, const float* x) {
+    using Actor = Dimps::Game::Battle::Chara::Actor;
+    using Unit = Dimps::Game::Battle::Chara::Unit;
+    Unit* unit = (system->*Native::publicMethods.GetCharaUnit)();
+    if (!unit) return false;
+    for (unsigned side = 0; side < 2; ++side) {
+        Actor* actor = (unit->*Unit::publicMethods.GetActorByIndex)(side);
+        float* position = actor ? (actor->*Actor::publicMethods.GetCurrentRootPosition)() : nullptr;
+        if (!position) return false;
+        position[0] = x[side];
+    }
+    return true;
+}
 // Back to the checkpoint; false when the engine did not come back whole,
 // after which the battle is left rather than played on.
 bool RestoreCheckpoint(Native* system) {
@@ -216,6 +232,7 @@ void BeforeUpdate(Native* system, bool networkOwned) {
             if (!commandAccepted) spdlog::warn("Training: trial refused: {}", error.empty() ? "the step texts do not match the steps" : error);
             continue;
         }
+        if (command.generation == session.GetView().generation && command.action == Action::Place) { commandAccepted = PlaceFighters(system, command.place); continue; }
         if (command.generation == session.GetView().generation && command.action == Action::CaptureStart) { comboCapture.Start(); commandAccepted = true; continue; }
         if (command.generation == session.GetView().generation && command.action == Action::CaptureStop) { comboCapture.Stop(); commandAccepted = true; continue; }
         if (command.generation == session.GetView().generation && command.action == Action::ExportSlot) {
@@ -302,6 +319,12 @@ void AfterUpdate(Native* system) {
             (actor->*Actor::publicMethods.GetVitalityAmt_FixedPoint)(&value);
             sample.health = Dimps::Math::FixedToFloat(&value);
             sample.valid = true;
+        }
+        {
+            float x[2] = {0, 0};
+            for (unsigned side = 0; side < 2 && unit; ++side)
+                if (Actor* actor = (unit->*Unit::publicMethods.GetActorByIndex)(side)) if (const float* position = (actor->*Actor::publicMethods.GetCurrentRootPosition)()) x[side] = position[0];
+            session.SetPositions(x[0], x[1]);
         }
         // The replay's waiting frames read the fight: the fighter playing it
         // in a neutral state, and a hit on the other one landing this frame.

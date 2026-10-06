@@ -29,7 +29,7 @@ constexpr int MaxWaitFrames = 90, MaxWaitHitFrames = 15;
 using Frame = std::array<Input, 2>;
 struct InputRun { unsigned buttons = 0; unsigned frames = 0; };
 enum class Mode { Idle, Recording, Playback };
-enum class Action { Select, Record, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, AutoFreeze, StartTrial, StopTrial, Load, CaptureStart, CaptureStop, ExportSlot, DummyState };
+enum class Action { Select, Record, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, AutoFreeze, StartTrial, StopTrial, Load, CaptureStart, CaptureStop, ExportSlot, DummyState, Place };
 // The dummy's behaviour as the game's Training menu sets it; each value is
 // the menu's choice index and -1 leaves that setting as it is. action: stand,
 // crouch, jump, cpu. guard: no block, after first hit, all, random.
@@ -67,10 +67,14 @@ struct Command {
     std::vector<Input> frames;
     // DummyState: the settings to change.
     DummyState dummy;
+    // Place: where to put Player 1 and Player 2 (x).
+    float place[2] = {0, 0};
 };
 struct View {
     bool available = false, ready = false, checkpoint = false, loop = true;
     std::uint64_t generation = 0;
+    // Where Player 1 and Player 2 stand (x), as the adapter reads them each frame.
+    float x[2] = {0, 0};
     Mode mode = Mode::Idle;
     int selected = 0, cursor = 0, playbackSide = 1;
     std::array<int, SlotCount> lengths{};
@@ -125,6 +129,7 @@ public:
         if (hit && !view_.replay.empty() && sincePress_ < 60) view_.replay.back().hit = true;
     }
     void SetCheckpoint(bool saved) { view_.checkpoint = saved; }
+    void SetPositions(float x0, float x1) { view_.x[0] = x0; view_.x[1] = x1; }
     bool Apply(Command command) {
         if (!view_.available || command.generation != view_.generation) return false;
         switch (command.action) {

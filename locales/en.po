@@ -1457,13 +1457,13 @@ msgid "training.combo.save_pos"
 msgstr "Save position"
 
 msgid "training.combo.save_pos.detail"
-msgstr "Keeps both fighters as they are now: place, health, meters, dummy state."
+msgstr "Keeps both fighters as they are now: place, health, meters, dummy state. With a combo selected, where they stand is also saved with that combo."
 
 msgid "training.combo.reset_pos"
 msgstr "Reset position"
 
 msgid "training.combo.reset_pos.detail"
-msgstr "Puts both fighters back where they were saved."
+msgstr "Puts both fighters back where they were saved, or where the selected combo keeps them."
 
 msgid "training.combo.reset_before"
 msgstr "Reset before replay"
@@ -1473,6 +1473,9 @@ msgstr "Every replay and trial attempt starts from the saved position; after eac
 
 msgid "training.combo.position_saved"
 msgstr "Position saved."
+
+msgid "training.combo.position_kept"
+msgstr "Position saved, and kept with the combo."
 
 msgid "training.combo.position_reset"
 msgstr "Position reset."

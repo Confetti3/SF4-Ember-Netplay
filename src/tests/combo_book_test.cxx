@@ -182,6 +182,11 @@ int main() {
         CHECK(Import(Export(set), packs, error) && packs[0].combos[0].setup.action == 1 && packs[0].combos[0].setup.super == 7 && packs[0].combos[0].setup.guard == -1);
         CHECK(Export(fadc).find("setup") == std::string::npos && Export(set).find("\"guard\"") == std::string::npos);
         CHECK(!Import(R"({"character":"RYU","steps":"5LP","setup":{"action":9}})", packs, error));
+        // Where the fighters stand travels with the combo too.
+        Combo placed = fadc; placed.placed = true; placed.place[0] = -1.5f; placed.place[1] = 2.25f;
+        CHECK(Import(Export(placed), packs, error) && packs[0].combos[0].placed && packs[0].combos[0].place[0] == -1.5f && packs[0].combos[0].place[1] == 2.25f);
+        CHECK(Export(fadc).find("place") == std::string::npos && Import(Export(fadc), packs, error) && !packs[0].combos[0].placed);
+        CHECK(!Import(R"({"character":"RYU","steps":"5LP","place":[1]})", packs, error) && !Import(R"({"character":"RYU","steps":"5LP","place":[1,99999]})", packs, error));
         CHECK(!Import(R"({"character":"RYU","steps":"5LP","setup":3})", packs, error));
         CHECK(Import(R"({"character":"RYU","steps":"5LP","setup":{"revenge":8}})", packs, error) && packs[0].combos[0].setup.revenge == 8);
     }

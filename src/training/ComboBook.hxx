@@ -1,7 +1,9 @@
 #pragma once
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cstdlib>
+#include <cmath>
 #include <cstring>
 #include <map>
 #include <string>
@@ -28,7 +30,10 @@ struct Setup { int action = -1, guard = -1, counterHit = -1, quickStand = -1, su
 inline bool operator==(const Setup& a, const Setup& b) {
     return a.action == b.action && a.guard == b.guard && a.counterHit == b.counterHit && a.quickStand == b.quickStand && a.super == b.super && a.revenge == b.revenge;
 }
-struct Combo { std::string name, character, notes; std::vector<std::string> steps; Setup setup; };
+// place: where the fighters stand when the combo starts, Player 1's and
+// Player 2's x; placed is false when the combo has none.
+struct Combo { std::string name, character, notes; std::vector<std::string> steps; Setup setup; bool placed = false; std::array<float, 2> place{}; };
+constexpr float MaxPlace = 10000;
 struct Pack { std::string name; std::vector<Combo> combos; };
 // One move in a character's routes. combos: "pack / combo" for each combo that ends here.
 struct Node { std::string step; std::vector<std::string> combos; std::vector<Node> children; };
@@ -294,6 +299,7 @@ inline nlohmann::json ToJson(const Combo& combo) {
         const char* names[] = {"action", "guard", "counterHit", "quickStand", "super", "revenge"};
         for (int i = 0; i < 6; ++i) if (fields[i] >= 0) value["setup"][names[i]] = fields[i];
     }
+    if (combo.placed) value["place"] = {combo.place[0], combo.place[1]};
     return value;
 }
 inline nlohmann::json ToJson(const Pack& pack) {
@@ -332,6 +338,13 @@ inline bool Read(const nlohmann::json& value, Combo& combo, std::string& error) 
         !Text(value, "notes", MaxNotes, combo.notes, error)) return false;
     combo.character = Fold(combo.character, std::toupper);
     if (combo.character.empty()) { error = "a combo needs a character"; return false; }
+    combo.placed = false; combo.place[0] = combo.place[1] = 0;
+    const auto place = value.find("place");
+    if (place != value.end()) {
+        if (!place->is_array() || place->size() != 2 || !(*place)[0].is_number() || !(*place)[1].is_number()) { error = "place is not two numbers"; return false; }
+        for (int i = 0; i < 2; ++i) { combo.place[i] = (*place)[i].get<float>(); if (!(std::abs(combo.place[i]) <= MaxPlace)) { error = "place is out of the stage"; return false; } }
+        combo.placed = true;
+    }
     combo.setup = Setup{};
     const auto setup = value.find("setup");
     if (setup != value.end()) {

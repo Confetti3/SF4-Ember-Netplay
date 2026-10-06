@@ -257,9 +257,17 @@ bool ApplySetup(const training::View& view,const TrainingSubmit& submit) {
     return submit(command);
 }
 // The saved position first, when there is one and the player wants it.
+// The checkpoint when there is one, else the combo's own place.
+bool PlaceCommand(const training::View& view,Command& command) {
+    const auto* shown=CurrentCombo();
+    if(view.checkpoint) { command.action=Action::Restore; }
+    else if(shown&&shown->placed) { command.action=Action::Place; command.place[0]=shown->place[0]; command.place[1]=shown->place[1]; }
+    else return false;
+    command.generation=view.generation; return true;
+}
 bool ResetPosition(const training::View& view,const TrainingSubmit& submit) {
-    if(!creator.resetBeforeReplay||!view.checkpoint||!submit) return true;
-    Command restore; restore.action=Action::Restore; restore.generation=view.generation;
+    Command restore;
+    if(!creator.resetBeforeReplay||!submit||!PlaceCommand(view,restore)) return true;
     return submit(restore);
 }
 void StartTrial(const training::View& view,const TrainingSubmit& submit) {
@@ -416,7 +424,7 @@ std::vector<MenuEntry> ComboRows(const training::View& view,bool trialRunning) {
         Row("cb-timing",loc::T("training.combo.timing"),loc::T("training.combo.timing.detail"),!creator.steps.empty()||shown!=nullptr),
         Row("cb-blocks",loc::T("training.combo.blocks"),loc::T("training.combo.blocks.detail")),
         Row("cb-save-pos",loc::T("training.combo.save_pos"),loc::T("training.combo.save_pos.detail"),view.ready),
-        Row("cb-reset-pos",loc::T("training.combo.reset_pos"),loc::T("training.combo.reset_pos.detail"),view.ready&&view.checkpoint),
+        Row("cb-reset-pos",loc::T("training.combo.reset_pos"),loc::T("training.combo.reset_pos.detail"),view.ready&&(view.checkpoint||(shown&&shown->placed))),
         Value("cb-reset-before",loc::T("training.combo.reset_before"),loc::T(creator.resetBeforeReplay?"common.on":"common.off"),loc::T("training.combo.reset_before.detail")),
         Value("cb-setup-action",loc::T("training.combo.setup.action"),SetupLabel(0,creator.setup.action),loc::T("training.combo.setup.detail")),
         Value("cb-setup-guard",loc::T("training.combo.setup.guard"),SetupLabel(1,creator.setup.guard),loc::T("training.combo.setup.detail")),
@@ -503,10 +511,16 @@ void HandleCombo(const MenuAction& a,const training::View& view,const TrainingSu
         Command command; command.action=view.capturing?Action::CaptureStop:Action::CaptureStart; command.generation=view.generation;
         if(submit&&submit(command)) { captureWanted=true; ComboNotice(loc::T(view.capturing?"training.combo.capture_wait":"training.combo.capture_started")); }
         else ComboNotice(loc::T("training.command_rejected"),true);
-    } else if(a.id=="cb-save-pos"||a.id=="cb-reset-pos") {
-        Command command; command.action=a.id=="cb-save-pos"?Action::Save:Action::Restore; command.generation=view.generation;
+    } else if(a.id=="cb-save-pos") {
+        Command command; command.action=Action::Save; command.generation=view.generation;
         const bool sent=submit&&submit(command);
-        ComboNotice(loc::T(!sent?"training.command_rejected":a.id=="cb-save-pos"?"training.combo.position_saved":"training.combo.position_reset"),!sent);
+        // The place goes with the shown combo, so it comes back with it.
+        if(auto* shown=CurrentCombo(); sent&&shown) { shown->placed=true; shown->place[0]=view.x[0]; shown->place[1]=view.x[1]; SaveCombos(); }
+        ComboNotice(loc::T(!sent?"training.command_rejected":CurrentCombo()?"training.combo.position_kept":"training.combo.position_saved"),!sent);
+    } else if(a.id=="cb-reset-pos") {
+        Command command;
+        const bool sent=submit&&PlaceCommand(view,command)&&submit(command);
+        ComboNotice(loc::T(!sent?"training.command_rejected":"training.combo.position_reset"),!sent);
     } else if(a.id=="cb-start-trial") StartTrial(view,submit);
     else if(a.id=="cb-stop-trial") {
         Command command; command.action=Action::StopTrial; command.generation=view.generation;
