@@ -10,6 +10,7 @@
 //   sf4e__NetplayRuntime__Tournament.cxx  playing a bridge-run tournament match
 //   sf4e__NetplayRuntime__PublicRooms.cxx the bridge's public room list and admissions
 #include "sf4e__NetplayFacade.hxx"
+#include "sf4e__ReplayStore.hxx"
 #include "sf4e__RuntimeBridge.hxx"
 #include "sf4e__InputDevices.hxx"
 #include "../Dimps/Dimps__Selection.hxx"
@@ -178,6 +179,14 @@ struct Runtime {
     netplay::tournament::OpenedLink openedLink;
     // Discord connect links (ember://discord/connect) likewise: the service.
     platform::ConnectLinkMailbox connectLinks;
+    // A replay link (common/ReplayLink.hxx) from the launcher, waiting for
+    // the native main menu with no room, where it is played like Watch now.
+    platform::ReplayLinkMailbox replayLinks;
+    std::string pendingReplayLink;
+    // Watch now: the replay to play once the battle log is up, then the wait
+    // for it to end so the log can be left for the main menu.
+    replaystore::Playable autoplay;
+    bool autoplayStarted = false;
     netplay::tournament::OpenedLink openedConnect;
     // Public room links (ember://room/open) likewise: the service and the room.
     platform::PublicRoomLinkMailbox publicRoomLinks;
@@ -321,6 +330,11 @@ void TickTournament(bool helperReady);
 void OpenMatchLink(const tournament_link::MatchLink& link);
 // `launched`: the link started Ember, so it was just clicked.
 void OpenConnectLink(const std::string& bridge, bool launched = false);
+// Plays an archived replay the way the Replays screen's Watch now does, or
+// keeps it until the native main menu is up with no room open.
+void WatchReplay(const std::string& file, bool watch, bool openBattleLog);
+void OpenReplayLink(const std::string& file);
+void TickReplayLink();
 // Hands a public room link to the interface, which asks for the room's ticket
 // when the player is free. `launched` as for OpenConnectLink.
 void OpenPublicRoomLink(const tournament_link::RoomLink& link, bool launched = false);

@@ -652,6 +652,15 @@ msgstr "ゲームのリプレイ一覧に追加し、バトルログを開きま
 msgid "replays.row_detail"
 msgstr "決定で、ゲームのリプレイ一覧に追加するか、追加して今すぐ見るかを選びます。"
 
+msgid "replays.watched"
+msgstr "視聴済み"
+
+msgid "replays.spectated"
+msgstr "観戦"
+
+msgid "replays.watched_spectated"
+msgstr "視聴済み、観戦"
+
 msgid "replays.not_ready"
 msgstr "対戦中以外のメインメニューで使えます。"
 

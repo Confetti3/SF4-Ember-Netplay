@@ -652,6 +652,15 @@ msgstr "添加到游戏的回放列表并打开对战记录，它会排在最上
 msgid "replays.row_detail"
 msgstr "选择以添加到游戏的回放列表，或添加后立即观看。"
 
+msgid "replays.watched"
+msgstr "已观看"
+
+msgid "replays.spectated"
+msgstr "观战"
+
+msgid "replays.watched_spectated"
+msgstr "已观看，观战"
+
 msgid "replays.not_ready"
 msgstr "在主菜单（非对战中）可用。"
 

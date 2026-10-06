@@ -652,6 +652,15 @@ msgstr "Добавляет в список записей игры и откры
 msgid "replays.row_detail"
 msgstr "Выберите, чтобы добавить в список записей игры, или добавить и посмотреть сейчас."
 
+msgid "replays.watched"
+msgstr "Просмотрено"
+
+msgid "replays.spectated"
+msgstr "Как зритель"
+
+msgid "replays.watched_spectated"
+msgstr "Просмотрено, как зритель"
+
 msgid "replays.not_ready"
 msgstr "Доступно в главном меню, вне матча."
 

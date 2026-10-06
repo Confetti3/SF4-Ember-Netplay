@@ -652,6 +652,15 @@ msgstr "L'ajoute à la liste des replays du jeu et ouvre le journal de combats, 
 msgid "replays.row_detail"
 msgstr "Sélectionnez pour l'ajouter à la liste des replays du jeu, ou pour l'ajouter et le regarder maintenant."
 
+msgid "replays.watched"
+msgstr "Vu"
+
+msgid "replays.spectated"
+msgstr "En spectateur"
+
+msgid "replays.watched_spectated"
+msgstr "Vu, en spectateur"
+
 msgid "replays.not_ready"
 msgstr "Disponible au menu principal, hors d'un match."
 

@@ -652,6 +652,15 @@ msgstr "La añade a la lista de repeticiones del juego y abre el registro de com
 msgid "replays.row_detail"
 msgstr "Selecciona para añadirla a la lista de repeticiones del juego, o para añadirla y verla ahora."
 
+msgid "replays.watched"
+msgstr "Visto"
+
+msgid "replays.spectated"
+msgstr "Como espectador"
+
+msgid "replays.watched_spectated"
+msgstr "Visto, como espectador"
+
 msgid "replays.not_ready"
 msgstr "Disponible en el menú principal, fuera de una partida."
 

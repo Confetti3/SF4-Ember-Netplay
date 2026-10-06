@@ -4,6 +4,7 @@
 
 #include "../common/JoinLink.hxx"
 #include "../common/TournamentLink.hxx"
+#include "../common/ReplayLink.hxx"
 #ifdef _WIN32
 #include "../platform/JoinLinkMailbox.hxx"
 #endif
@@ -303,7 +304,24 @@ static void TestARunningGameReceivesTheLink() {
 }
 #endif
 
+static void TestReplayLinks() {
+	using namespace sf4e::replay_link;
+	const std::string path = "C:\\Users\\Me\\Documents\\USF4 Replays\\2026-10-05_23-35-03_69991186.usf4replay";
+	const std::string link = MakeReplayLink(path);
+	CHECK(link.compare(0, 25, "ember://replay/open?file=") == 0 && link.find(' ') == std::string::npos);
+	CHECK(ParseReplayLink(link) == path);
+	CHECK(ParseReplayLink("EMBER://REPLAY/OPEN?file=D%3A%5Cr%5Cmatch.emberreplay") == "D:\\r\\match.emberreplay");
+	CHECK(ParseReplayLink("ember://replay/open?file=D%3A%5Cr%5Cmatch.txt").empty());
+	CHECK(ParseReplayLink("ember://replay/open?file=").empty());
+	CHECK(ParseReplayLink("ember://replay/open?file=a%0A.emberreplay").empty());
+	CHECK(ParseReplayLink("ember://replay/open?file=a%2.emberreplay").empty());
+	CHECK(ParseReplayLink("ember://replay/open?file=a%22b.emberreplay").empty());
+	CHECK(ParseReplayLink("ember://join/7K3M-0X1R-T9PZ").empty());
+	CHECK(ParseReplayLink(std::string("ember://replay/open?file=") + std::string(1100, 'a') + ".emberreplay").empty());
+}
+
 int main() {
+	TestReplayLinks();
 	TestCodesNormalizeLikeTheHelper();
 	TestOnlyTheJoinLinkIsAccepted();
 	TestTheJoinScreenGetsTheShortLink();

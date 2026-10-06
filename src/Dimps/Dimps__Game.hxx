@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 #include <windows.h>
 
 #include "Dimps__Eva.hxx"
@@ -72,6 +74,64 @@ namespace Dimps {
 			static __publicMethods publicMethods;
 			static DWORD* listFirstSlot;
 			static DWORD* listSizes;
+		};
+
+		// What the game does to play a replay it has loaded into the replay
+		// system (the replay channel's ReplayPlayer, 0x482CE0): a battle
+		// Request (two 0xA0-byte player blocks) is built from the replay's
+		// header and its slot record (a ReplayInfoList entry, 0x108 bytes),
+		// and handed to the battle flow, whose Versus state then loads it.
+		// The local battle log's list (BattleLog::SelectEvent's +0x44, created
+		// in 0x470820): rows of 0x38 bytes between +0x74 and +0x78 with the
+		// slot first, the selected row at +0x84. The DECIDE handler (0x4797C0)
+		// stores the row and calls PlayRow (0x4796D0): it reads the slot through
+		// the save controller into the mode event's buffer and sets the list's
+		// step (+0x6C, run by the Select event's task) to the game's own chain:
+		// 0x479020 checks the read, 0x478D40 loads the replay system, builds the
+		// request into the mode event and ends Select with 0, which moves the
+		// mode to Versus and then Battle.
+		struct ReplayBattle {
+			static constexpr std::size_t SelectList = 0x44, ListRowsBegin = 0x74, ListRowsEnd = 0x78, ListRowBytes = 0x38, ListSelected = 0x84;
+			// The Versus splash (the Versus state's +0x48) advances when its Flash
+			// movies finish and the announcer voice ends, or when the player
+			// presses Start (0x605240 at 0x605371): the voice at +0x150 is faded
+			// (0x686B50), its phase +0x18C and state +0x11C are set to 3, which
+			// the state's check waits for, and the two movies at +0x2C8 (8 bytes
+			// each) get the "Close" signal (0x78DAF0) when valid (0x78ECD0).
+			static constexpr std::size_t SplashState = 0x11C, SplashPhase = 0x18C, SplashVoice = 0x150, SplashMovies = 0x2C8;
+			struct List;
+			struct Voice;
+			struct Movie;
+			typedef struct __staticMethods {
+				void (__thiscall* PlayRow)(List* list);
+				void (__thiscall* FadeVoice)(Voice* voice, int frames);
+				bool (__thiscall* MovieValid)(Movie* movie);
+				void (__thiscall* MovieSignal)(Movie* movie, const char* name, int);
+			} __staticMethods;
+
+			static void Locate(HMODULE peRoot);
+			static __staticMethods staticMethods;
+		};
+
+		// Dimps::Game::SaveDataController (singleton from 0x67C880), which reads
+		// and writes the save files through Steam. The replay channel reads a
+		// slot into a buffer with ReadSlot (0x67C450) and Start (0x67C3F0),
+		// then waits for State (0x67C410, the implementation's +0x240) to
+		// reach 2; Busy (0x67C430) refuses a new request while one runs.
+		struct SaveDataController {
+			typedef struct __publicMethods {
+				void (SaveDataController::* ReadSlot)(int slot, void* buffer, int bytes, int a, int b);
+				void (SaveDataController::* Start)(int);
+				int (SaveDataController::* State)();
+				BOOL (SaveDataController::* Busy)();
+			} __publicMethods;
+			typedef struct __staticMethods {
+				SaveDataController* (*GetSingleton)();
+			} __staticMethods;
+
+			static void Locate(HMODULE peRoot);
+			static __publicMethods publicMethods;
+			static __staticMethods staticMethods;
 		};
 
 		struct Request {

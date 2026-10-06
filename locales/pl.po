@@ -652,6 +652,15 @@ msgstr "Dodaje do listy powtórek gry i otwiera dziennik walk, gdzie jest na gó
 msgid "replays.row_detail"
 msgstr "Wybierz, aby dodać do listy powtórek gry, albo dodać i obejrzeć teraz."
 
+msgid "replays.watched"
+msgstr "Obejrzane"
+
+msgid "replays.spectated"
+msgstr "Oglądane jako widz"
+
+msgid "replays.watched_spectated"
+msgstr "Obejrzane, jako widz"
+
 msgid "replays.not_ready"
 msgstr "Dostępne w menu głównym, poza meczem."
 

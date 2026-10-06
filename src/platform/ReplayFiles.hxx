@@ -47,27 +47,35 @@ int Archive();
 // game, write goes through Steam's FileWrite.
 struct Imported {
 	int slot = -1;
-	replayslots::Bytes record, slotBytes;
+	replayslots::Bytes record, slotBytes, replay;
 };
 using Writer = std::function<bool(const std::string& name, const replayslots::Bytes& contents)>;
 bool ImportFile(const std::filesystem::path& file, const Writer& write, Imported& out);
 
 // The game's record names no one for an Ember match, so Ember notes the
 // two players itself when a match starts (matches.jsonl in the archive:
-// the start time and both names, P1 first). A replay is saved when the
+// the start time, both names, P1 first, and whether this PC only watched;
+// the game records a spectated match too). A replay is saved when the
 // match ends, so it belongs to the last match started before its save
 // time, within an hour.
-void NoteMatchStart(const std::string& p1, const std::string& p2);
+void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating);
+
+// Remembers that an archived replay was put into the game (watched.txt in
+// the archive, one file name per line), so the list can say so.
+void MarkWatched(const std::filesystem::path& file);
 
 // The archive, newest first. label is the save time in local time, fighters
 // the two native fighter IDs from the replay's record (-1 when the file
-// holds none) and names the players Ember noted, empty when it noted none.
+// holds none), names the players Ember noted (empty when it noted none),
+// spectated whether this PC only watched that match, and watched whether
+// it was put into the game before.
 struct ArchivedReplay {
 	std::filesystem::path path;
 	std::string label;
 	std::uint64_t time = 0;
 	int fighters[2] = {-1, -1};
 	std::string names[2];
+	bool spectated = false, watched = false;
 };
 std::vector<ArchivedReplay> ListArchive();
 
