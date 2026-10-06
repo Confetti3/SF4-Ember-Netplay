@@ -204,6 +204,9 @@ msgstr "Updater openen..."
 msgid "services.update_available"
 msgstr "Update beschikbaar: {0}"
 
+msgid "services.stable_available"
+msgstr "Stabiele versie {0} is beschikbaar. Installeren vervangt de voorlopige versie die je hebt."
+
 
 msgid "services.up_to_date"
 msgstr "Je bent up-to-date."
@@ -1596,6 +1599,9 @@ msgstr "Download-URL ontbreekt."
 
 msgid "update.missing_version"
 msgstr "Versietag ontbreekt."
+
+msgid "update.not_offered"
+msgstr "Deze versie is niet de aangeboden versie. Controleer opnieuw op updates."
 
 msgid "update.close_sf4"
 msgstr "Sluit Ultra Street Fighter IV voor je een update installeert."

@@ -204,6 +204,9 @@ msgstr "Запуск обновления..."
 msgid "services.update_available"
 msgstr "Доступно обновление: {0}"
 
+msgid "services.stable_available"
+msgstr "Доступна стабильная версия {0}. Её установка заменит вашу предварительную версию."
+
 
 msgid "services.up_to_date"
 msgstr "У вас последняя версия."
@@ -1596,6 +1599,9 @@ msgstr "Нет адреса загрузки."
 
 msgid "update.missing_version"
 msgstr "Нет метки версии."
+
+msgid "update.not_offered"
+msgstr "Эта версия не та, что была предложена. Проверьте обновления ещё раз."
 
 msgid "update.close_sf4"
 msgstr "Закройте Ultra Street Fighter IV перед установкой обновления."

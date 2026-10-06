@@ -204,6 +204,9 @@ msgstr "Opening the updater..."
 msgid "services.update_available"
 msgstr "An update is available: {0}"
 
+msgid "services.stable_available"
+msgstr "Stable release {0} is available. Installing it replaces the pre-release you have."
+
 
 msgid "services.up_to_date"
 msgstr "You are up to date."
@@ -1561,6 +1564,9 @@ msgid "update.missing_url"
 msgstr "Missing download URL."
 msgid "update.missing_version"
 msgstr "Missing version tag."
+
+msgid "update.not_offered"
+msgstr "This version is not the one that was offered. Check for updates again."
 msgid "update.close_sf4"
 msgstr "Close Ultra Street Fighter IV before installing an update."
 msgid "update.elevated"

@@ -204,6 +204,9 @@ msgstr "Otevírání aktualizátoru..."
 msgid "services.update_available"
 msgstr "K dispozici je aktualizace: {0}"
 
+msgid "services.stable_available"
+msgstr "Je k dispozici stabilní verze {0}. Její instalace nahradí vaši předběžnou verzi."
+
 
 msgid "services.up_to_date"
 msgstr "Máte aktuální verzi."
@@ -1596,6 +1599,9 @@ msgstr "Chybí URL ke stažení."
 
 msgid "update.missing_version"
 msgstr "Chybí značka verze."
+
+msgid "update.not_offered"
+msgstr "Tato verze není ta, která byla nabídnuta. Zkontrolujte aktualizace znovu."
 
 msgid "update.close_sf4"
 msgstr "Před instalací aktualizace zavřete Ultra Street Fighter IV."

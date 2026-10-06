@@ -74,9 +74,18 @@ int main(int argc, char** argv) {
     CHECK(!ParseGithubReleases(list.dump(), "1.1.0-rc2", UpdateChannel::Prerelease).updateAvailable);
     result = ParseGithubReleases(list.dump(), "1.0.1", UpdateChannel::Stable);
     CHECK(result.ok && result.updateAvailable && result.latestVersion == "v1.0.2");
-    // Stable never offers an installed pre-release the older finished release.
+    // Stable offers an installed pre-release its best release as the way back,
+    // and says so; a finished install and the pre-release channel never go back.
     result = ParseGithubReleases(list.dump(), "1.1.0-rc1", UpdateChannel::Stable);
-    CHECK(result.ok && !result.updateAvailable && result.latestVersion == "v1.0.2");
+    CHECK(result.ok && result.updateAvailable && result.goesBack && result.latestVersion == "v1.0.2");
+    CHECK(!ParseGithubReleases(list.dump(), "1.0.2", UpdateChannel::Stable).goesBack);
+    result = ParseGithubReleases(listed({"v1.0.2"}).dump(), "1.1.0", UpdateChannel::Stable);
+    CHECK(result.ok && !result.updateAvailable && !result.goesBack);
+    CHECK(!ParseGithubReleases(list.dump(), "1.1.0-rc1", UpdateChannel::Prerelease).goesBack);
+    // An install only takes the kind of change it was offered.
+    CHECK(TransitionOffered("v1.1.0", "1.0.2", false) && !TransitionOffered("v1.1.0", "1.0.2", true));
+    CHECK(TransitionOffered("v1.0.2", "1.1.0-rc1", true) && !TransitionOffered("v1.0.2", "1.1.0-rc1", false));
+    CHECK(TransitionOffered("v1.1.0", "dev", false) && !TransitionOffered("v1.1.0", "dev", true) && !TransitionOffered("latest", "1.1.0-rc1", true));
     list = listed({"v1.1.0", "v1.1.0-rc2"});
     CHECK(ParseGithubReleases(list.dump(), "1.1.0-rc2", UpdateChannel::Prerelease).latestVersion == "v1.1.0");
     CHECK(ParseGithubReleases(list.dump(), "1.1.0-rc2", UpdateChannel::Stable).updateAvailable);

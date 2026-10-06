@@ -204,6 +204,9 @@ msgstr "アップデーターを起動中..."
 msgid "services.update_available"
 msgstr "アップデートがあります：{0}"
 
+msgid "services.stable_available"
+msgstr "安定版 {0} が利用できます。インストールすると現在のプレリリース版が置き換えられます。"
+
 
 msgid "services.up_to_date"
 msgstr "最新版です。"
@@ -1596,6 +1599,9 @@ msgstr "ダウンロードURLがありません。"
 
 msgid "update.missing_version"
 msgstr "バージョンタグがありません。"
+
+msgid "update.not_offered"
+msgstr "このバージョンは提示されたものではありません。もう一度アップデートを確認してください。"
 
 msgid "update.close_sf4"
 msgstr "更新をインストールする前にUltra Street Fighter IVを閉じてください。"
