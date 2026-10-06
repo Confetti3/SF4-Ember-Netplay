@@ -46,12 +46,13 @@ inline std::vector<training::Input> Synthesize(const std::vector<std::string>& s
         // lands there, or at once when that frame has passed; it waits for no cue.
         const bool timed = step.at >= 0;
         const auto reach = [&](int frame) { push(0, frame - static_cast<int>(out.size())); };
-        if (steps[index].compare(step.cancel ? 3 : 0, 4, "FADC") == 0) {
-            // A focus cancel: focus as the hit lands, then the dash.
+        const bool fadc = (step.buttons == (MP | MK) && step.need == 2) || (step.buttons == (LP | MP | MK) && step.need == 3);
+        if (fadc && (step.motion == "66" || step.motion == "44") && !step.charge && !step.air) {
+            // A focus cancel, red or not: focus as the hit lands, then the dash.
             const unsigned dash = DirectionBits(step.motion == "44" ? '4' : '6', facingRight);
             if (timed) reach(step.at);
             else if (index) wait(training::WaitHit, 0, timing);
-            push(MP | MK, 2); push(0, 2); push(dash, 2); push(0, 2); push(dash, 2);
+            push(step.buttons, 2); push(0, 2); push(dash, 2); push(0, 2); push(dash, 2);
             continue;
         }
         // The directions, as a player does them: a linked move holds its

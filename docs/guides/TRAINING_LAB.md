@@ -77,11 +77,13 @@ Pick the fighter, type a name and the moves, then **Add combo**. Moves are separ
 ```
 [xx|~] [j.|cr.|st.|cl.|far.] [motion] [buttons] [(mash)] [#N] [@N]
 [xx] FADC[66|44] [#N] [@N]
+[xx] RFADC[66|44] [#N] [@N]
 ```
 
 - motion: numpad digits, `[4]6` for charge, `360`, `720`. `cr.` is 2; `st.`, `cl.` and `far.` are 5.
 - buttons: `LP MP HP LK MK HK` joined by `+`, or `P PP PPP K KK KKK`. `[HP]` holds, `]HP[` releases, `(mash)` mashes.
 - `@N`: the move's own timing offset, -30 to +30 frames. `#N`: the replay frame the press lands on, 0 to 3600.
+- `FADC` is the focus cancel (MP+MK, then the dash); `RFADC` the red focus cancel (LP+MP+MK, then the dash).
 - Move names work too, read as the chosen fighter's: `cr.MK xx HP Hadoken > FADC > cl.HP`. The name table comes from `src/training/ComboMoves.inc`, regenerated with `scripts/generate-combo-moves.py` from a USF4 frame-data JSON.
 
 A route already in the pack is refused. **Save combo** writes the fields as typed over the selected combo instead; **Duplicate combo** copies the selected combo into the pack right after it and selects the copy, for tuning a variant. Notes are free text. The dummy setup rows (dummy action, guard, counter hit, quick stand, super and revenge gauge) are applied to the game at once and kept with the selected combo; **Game setting** leaves the Training menu's choice alone.

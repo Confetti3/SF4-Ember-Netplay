@@ -68,6 +68,16 @@ int main() {
         const auto dash = Synthesize({"66"}, true, 0);
         CHECK(dash.size() >= 7 && dash[0].raw == Right && dash[3].raw == 0 && dash[4].raw == Right);
     }
+    // The red focus cancel: LP+MP+MK, then the dash.
+    CHECK(ParseStep("xx RFADC", step, error) && step.cancel && step.buttons == (LP | MP | MK) && step.need == 3 && step.motion == "66" && Canonical(step) == "xx RFADC");
+    CHECK(ParseStep("rfadc44@+1", step, error) && step.motion == "44" && Canonical(step) == "RFADC44@+1");
+    {
+        std::vector<std::string> red{"5HP", "xx 5LP+MP+MK#20", "66#24"}; FoldFadc(red);
+        CHECK((red == std::vector<std::string>{"5HP", "xx RFADC#20"}));
+        const auto frames = Synthesize({"5HP", "xx RFADC"}, true, 0);
+        bool pressed = false; for (const auto& f : frames) pressed = pressed || f.raw == (LP | MP | MK);
+        CHECK(pressed);
+    }
     CHECK(ParseStep("5HP@-1#14", step, error) && step.at == 14 && step.offset == -1 && Canonical(step) == "5HP#14@-1");
     CHECK(!ParseStep("5HP#14#15", step, error) && !ParseStep("5HP@+1@+2", step, error));
     CHECK(ParseStep("xx 236HP#120@+2", step, error) && step.at == 120 && step.offset == 2 && Canonical(step) == "xx 236HP#120@+2");

@@ -85,13 +85,14 @@ struct Step {
 constexpr int MaxAtFrame = 3600;
 
 // Strict notation, any case:
-//   [xx|~] [j.|cr.|st.|cl.|far.] [motion] [buttons] [(mash)] [#N] [@N]   or   [xx] FADC[66|44] [#N] [@N]
+//   [xx|~] [j.|cr.|st.|cl.|far.] [motion] [buttons] [(mash)] [#N] [@N]   or   [xx] FADC[66|44] [#N] [@N]   or   [xx] RFADC[66|44] [#N] [@N]
 //   motion:  numpad digits 1-9, "[4]6" for charge, "360", "720"
 //   buttons: LP MP HP LK MK HK joined by "+", or P PP PPP K KK KKK;
 //            "[HP]" holds them, "]HP[" releases them, "(mash)" mashes them
 //   @N:      replay timing, -30..+30 frames ("@-1", "@+3")
 //   #N:      replay frame the press lands on, 0..3600 ("#45")
-// cr. is 2; st., cl. and far. are 5. FADC is MP+MK then a dash, 66 unless 44.
+// cr. is 2; st., cl. and far. are 5. FADC is MP+MK then a dash, 66 unless 44;
+// RFADC is the red focus, LP+MP+MK, then the dash.
 inline bool ParseStep(const std::string& text, Step& step, std::string& error) {
     step = Step{};
     std::string s;
@@ -127,10 +128,11 @@ inline bool ParseStep(const std::string& text, Step& step, std::string& error) {
     if (s.size() > 6 && s.compare(s.size() - 6, 6, "(MASH)") == 0) { step.mash = true; s.resize(s.size() - 6); }
     step.follow = starts("~");
     step.cancel = step.follow || starts("XX");
-    if (starts("FADC")) {
+    const bool red = starts("RFADC");
+    if (red || starts("FADC")) {
         const auto dash = s.substr(i);
         if (step.mash || (!dash.empty() && dash != "66" && dash != "44")) return fail();
-        step.motion = dash.empty() ? "66" : dash; step.buttons = MP | MK; step.need = 2;
+        step.motion = dash.empty() ? "66" : dash; step.buttons = red ? LP | MP | MK : MP | MK; step.need = red ? 3 : 2;
         return true;
     }
     bool stance = false;
@@ -177,8 +179,9 @@ inline std::string Canonical(const Step& step) {
     std::string out = step.follow ? "~ " : step.cancel ? "xx " : "";
     const std::string timing = (step.at >= 0 ? "#" + std::to_string(step.at) : "") +
         (step.offset ? (step.offset > 0 ? "@+" : "@") + std::to_string(step.offset) : "");
-    if (!step.air && !step.charge && (step.motion == "66" || step.motion == "44") && step.buttons == (MP | MK) &&
-        step.need == 2 && step.edge == Edge::Press && !step.mash) return out + (step.motion == "66" ? "FADC" : "FADC44") + timing;
+    const bool focus = step.buttons == (MP | MK) && step.need == 2, red = step.buttons == (LP | MP | MK) && step.need == 3;
+    if (!step.air && !step.charge && (step.motion == "66" || step.motion == "44") && (focus || red) && step.edge == Edge::Press && !step.mash)
+        return out + (red ? "RFADC" : "FADC") + (step.motion == "66" ? "" : "44") + timing;
     if (step.air) out += "j.";
     if (step.range != Range::Any) out += step.range == Range::Close ? "cl." : "far.";
     else out += step.charge ? "[" + step.motion.substr(0, 1) + "]" + step.motion.substr(1) : step.motion;
@@ -283,15 +286,16 @@ inline bool ParseSteps(const std::string& line, const std::string& character, st
 }
 // A focus press followed within a few frames by a dash, as a recording sees
 // a focus cancel, becomes one FADC step on the focus's frame and cancel.
+inline int detail_count(unsigned bits) { int n = 0; for (; bits; bits &= bits - 1) ++n; return n; }
 inline void FoldFadc(std::vector<std::string>& steps) {
     for (std::size_t i = 0; i + 1 < steps.size();) {
         Step focus, dash; std::string error;
         const bool pair = ParseStep(steps[i], focus, error) && ParseStep(steps[i + 1], dash, error) &&
-            focus.buttons == (MP | MK) && focus.need == 2 && (focus.motion == "5" || focus.motion.empty()) && focus.edge == Edge::Press && !focus.air &&
+            (focus.buttons == (MP | MK) || focus.buttons == (LP | MP | MK)) && focus.need == detail_count(focus.buttons) && (focus.motion == "5" || focus.motion.empty()) && focus.edge == Edge::Press && !focus.air &&
             dash.buttons == 0 && (dash.motion == "66" || dash.motion == "44") && !dash.air &&
             (focus.at < 0 || dash.at < 0 || (dash.at >= focus.at && dash.at - focus.at <= 12));
         if (!pair) { ++i; continue; }
-        Step fadc; fadc.cancel = focus.cancel; fadc.motion = dash.motion; fadc.buttons = MP | MK; fadc.need = 2; fadc.at = focus.at; fadc.offset = focus.offset;
+        Step fadc; fadc.cancel = focus.cancel; fadc.motion = dash.motion; fadc.buttons = focus.buttons; fadc.need = focus.need; fadc.at = focus.at; fadc.offset = focus.offset;
         steps[i] = Canonical(fadc); steps.erase(steps.begin() + i + 1);
     }
 }
