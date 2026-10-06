@@ -622,6 +622,60 @@ msgstr "Hrát offline"
 msgid "home.offline_detail"
 msgstr "Otevřít nabídky hry offline."
 
+msgid "home.replays"
+msgstr "Záznamy"
+
+msgid "home.replays_detail"
+msgstr "Každý zápas se ukládá. Kterýkoli vložte do Replay Channel ve hře."
+
+msgid "replays.title"
+msgstr "Záznamy"
+
+msgid "replays.empty"
+msgstr "Zatím žádné záznamy"
+
+msgid "replays.empty_detail"
+msgstr "Zápas se sem uloží, když skončí."
+
+msgid "replays.add"
+msgstr "Přidat do hry"
+
+msgid "replays.add_detail"
+msgstr "Přidá do seznamu záznamů hry k pozdějšímu přehrání ze záznamu zápasů."
+
+msgid "replays.watch"
+msgstr "Přehrát teď"
+
+msgid "replays.watch_detail"
+msgstr "Přidá do seznamu záznamů hry a otevře záznam zápasů, kde je nahoře."
+
+msgid "replays.row_detail"
+msgstr "Vyberte pro přidání do seznamu záznamů hry, nebo pro přidání a přehrání teď."
+
+msgid "replays.not_ready"
+msgstr "Dostupné v hlavním menu, mimo zápas."
+
+msgid "replays.added"
+msgstr "Přidáno jako nejnovější položka seznamu záznamů hry."
+
+msgid "replays.not_added"
+msgstr "Tento záznam se nepodařilo přidat. Soubor může být poškozený."
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "Otevřít herní záznam zápasů"
+
+msgid "replays.open_log_detail"
+msgstr "Opustí nabídku Emberu a otevře místní záznam zápasů hry, kde se přehrávají záznamy."
+
+msgid "replays.open_log_room"
+msgstr "Nejdřív opusťte místnost."
+
 msgid "home.choose_controller"
 msgstr "Vybrat herní ovladač"
 

@@ -15,6 +15,7 @@
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../Dimps/Dimps__UserApp.hxx"
 #include "../common/StageCatalog.hxx"
+#include "../platform/ReplayFiles.hxx"
 #include "../common/Localization.hxx"
 #include "../common/sf4e__RollbackDiagnostics.hxx"
 #include "../session/sf4e__SessionClient.hxx"
@@ -163,6 +164,7 @@ static bool StartRuntimeGgpo() {
         for (const auto& member : room.members)
             if (!captured.name.empty() && member.name == captured.name) captured.link = member.link;
     }
+    sf4e::platform::replays::NoteMatchStart(netplay->matchSides[0].name, netplay->matchSides[1].name);
     netplay->spectating = endpoints.localSlot >= 2;
     netplay->startScoreKnown = false;
     netplay->startScore[0] = netplay->startScore[1] = 0;

@@ -622,6 +622,60 @@ msgstr "オフラインで遊ぶ"
 msgid "home.offline_detail"
 msgstr "ゲーム本体のオフラインメニューを開きます。"
 
+msgid "home.replays"
+msgstr "リプレイ"
+
+msgid "home.replays_detail"
+msgstr "すべての対戦が保存されます。どれでもゲームのリプレイチャンネルに入れられます。"
+
+msgid "replays.title"
+msgstr "リプレイ"
+
+msgid "replays.empty"
+msgstr "リプレイはまだありません"
+
+msgid "replays.empty_detail"
+msgstr "対戦が終わるとここに保存されます。"
+
+msgid "replays.add"
+msgstr "ゲームに追加"
+
+msgid "replays.add_detail"
+msgstr "ゲームのリプレイ一覧に追加し、後でバトルログから視聴できます。"
+
+msgid "replays.watch"
+msgstr "今すぐ見る"
+
+msgid "replays.watch_detail"
+msgstr "ゲームのリプレイ一覧に追加し、バトルログを開きます。一番上に表示されます。"
+
+msgid "replays.row_detail"
+msgstr "決定で、ゲームのリプレイ一覧に追加するか、追加して今すぐ見るかを選びます。"
+
+msgid "replays.not_ready"
+msgstr "対戦中以外のメインメニューで使えます。"
+
+msgid "replays.added"
+msgstr "ゲームのリプレイ一覧の最新項目として追加しました。"
+
+msgid "replays.not_added"
+msgstr "このリプレイを追加できませんでした。ファイルが破損している可能性があります。"
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "ゲームのバトルログを開く"
+
+msgid "replays.open_log_detail"
+msgstr "Ember のメニューを離れ、リプレイを再生できるゲームのローカルバトルログを開きます。"
+
+msgid "replays.open_log_room"
+msgstr "先にルームから退出してください。"
+
 msgid "home.choose_controller"
 msgstr "対戦用コントローラーを選択"
 

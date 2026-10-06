@@ -247,6 +247,11 @@ struct Runtime {
 	bool attached = false;
 	bool helperLossReported = false;
 	bool offlineRequested = false;
+	// The last replay import's outcome (RuntimeSnapshot::replayNotice) and
+	// the count of battle log jumps from Ember.
+	std::string replayNotice;
+	bool replayNoticeError = false;
+	std::uint64_t battleLogOpens = 0;
 	// Room links from the browser (ember://join/...): the launcher's start
 	// argument, or one a later launcher handed over. The newest waits here
 	// as the https link for the Join screen; the sequence tells it apart.

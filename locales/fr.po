@@ -622,6 +622,60 @@ msgstr "Jouer hors ligne"
 msgid "home.offline_detail"
 msgstr "Ouvrir les menus hors ligne du jeu."
 
+msgid "home.replays"
+msgstr "Replays"
+
+msgid "home.replays_detail"
+msgstr "Chaque match est enregistré. Placez-en n'importe lequel dans le Replay Channel du jeu."
+
+msgid "replays.title"
+msgstr "Replays"
+
+msgid "replays.empty"
+msgstr "Aucun replay pour l'instant"
+
+msgid "replays.empty_detail"
+msgstr "Un match est enregistré ici quand il se termine."
+
+msgid "replays.add"
+msgstr "Ajouter au jeu"
+
+msgid "replays.add_detail"
+msgstr "L'ajoute à la liste des replays du jeu pour le regarder plus tard depuis le journal de combats."
+
+msgid "replays.watch"
+msgstr "Regarder maintenant"
+
+msgid "replays.watch_detail"
+msgstr "L'ajoute à la liste des replays du jeu et ouvre le journal de combats, où il est en tête."
+
+msgid "replays.row_detail"
+msgstr "Sélectionnez pour l'ajouter à la liste des replays du jeu, ou pour l'ajouter et le regarder maintenant."
+
+msgid "replays.not_ready"
+msgstr "Disponible au menu principal, hors d'un match."
+
+msgid "replays.added"
+msgstr "Ajouté comme entrée la plus récente de la liste des replays du jeu."
+
+msgid "replays.not_added"
+msgstr "Ce replay n'a pas pu être ajouté. Le fichier est peut-être endommagé."
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "Ouvrir le journal de combats du jeu"
+
+msgid "replays.open_log_detail"
+msgstr "Quitte le menu d'Ember pour le journal de combats local du jeu, où les replays se regardent."
+
+msgid "replays.open_log_room"
+msgstr "Quittez d'abord le salon."
+
 msgid "home.choose_controller"
 msgstr "Choisir la manette de jeu"
 

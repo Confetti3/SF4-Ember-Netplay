@@ -16,6 +16,9 @@ namespace sf4e {
 			void OnModeSelected(int mode);
 			int GetItemObserverState();
 
+			// On the item observer (ToItemObserver), like GoToVersusMode.
+			void GoToLocalBattleLog();
+			static bool OpenLocalBattleLog();
 			static int (*OnModeSelectedOverride)(int mode);
 			// Written by the overlay on the drawing thread, read by the game.
 			static std::atomic<int> bOverrideItemObserverState;

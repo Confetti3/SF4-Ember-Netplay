@@ -622,6 +622,60 @@ msgstr "Игра без сети"
 msgid "home.offline_detail"
 msgstr "Открыть меню игры для игры без сети."
 
+msgid "home.replays"
+msgstr "Записи"
+
+msgid "home.replays_detail"
+msgstr "Каждый матч сохраняется. Любой из них можно поместить в Replay Channel игры."
+
+msgid "replays.title"
+msgstr "Записи"
+
+msgid "replays.empty"
+msgstr "Записей пока нет"
+
+msgid "replays.empty_detail"
+msgstr "Матч сохраняется сюда по окончании."
+
+msgid "replays.add"
+msgstr "Добавить в игру"
+
+msgid "replays.add_detail"
+msgstr "Добавляет в список записей игры, чтобы посмотреть позже из журнала боёв."
+
+msgid "replays.watch"
+msgstr "Смотреть сейчас"
+
+msgid "replays.watch_detail"
+msgstr "Добавляет в список записей игры и открывает журнал боёв, где она первая."
+
+msgid "replays.row_detail"
+msgstr "Выберите, чтобы добавить в список записей игры, или добавить и посмотреть сейчас."
+
+msgid "replays.not_ready"
+msgstr "Доступно в главном меню, вне матча."
+
+msgid "replays.added"
+msgstr "Добавлено как самая новая запись в списке игры."
+
+msgid "replays.not_added"
+msgstr "Не удалось добавить эту запись. Файл может быть повреждён."
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "Открыть журнал боёв игры"
+
+msgid "replays.open_log_detail"
+msgstr "Выходит из меню Ember в локальный журнал боёв игры, где воспроизводятся записи."
+
+msgid "replays.open_log_room"
+msgstr "Сначала выйдите из комнаты."
+
 msgid "home.choose_controller"
 msgstr "Выбрать контроллер для боя"
 

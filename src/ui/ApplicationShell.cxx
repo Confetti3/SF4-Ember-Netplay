@@ -248,6 +248,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Row("profile",loc::T("home.profile"),loc::T("home.profile_detail")),
    Row("identity",loc::T("screen.identity"),identity_.HomeDetail(v)),
    Row("settings",loc::T("home.settings"),loc::T("home.settings_detail")),
+   Row("replays",loc::T("home.replays"),loc::T("home.replays_detail")),
    Row("offline",loc::T("home.offline"),loc::T("home.offline_detail"),idle)};
   if(opening)rows[0].detail=OpeningCreates(v)?loc::T("room.creating_status"):loc::T("room.joining_status");
   if(!v.controllerReady)rows.insert(rows.begin(),Row("player",loc::T("home.choose_controller"),loc::T("home.choose_controller_detail")));
@@ -298,6 +299,16 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(PublicRoomsPanel::Owns(screen)){
   title=loc::T("screen.public_rooms");rows=publicRooms_.Rows(v,identity_.UsableBridge(v),identity_.Waiting(),identity_.PublicSetup(),PublicListWidth());
  }else if(screen.compare(0,4,"room")==0){title=v.room.name.empty()?loc::T("screen.room"):v.room.name;NoteUserText(v.room.name);rows=RoomEntries(v);
+ }else if(screen=="replays"){
+  title=loc::T("replays.title");
+  rows.push_back(Row("replay-log",loc::T("replays.open_log"),loc::T(idle?"replays.open_log_detail":"replays.open_log_room"),idle&&v.replaysReady));
+  if(v.replays.empty())rows.push_back(InfoRow("replay-none",loc::T("replays.empty"),"",loc::T("replays.empty_detail")));
+  for(std::size_t i=0;i<v.replays.size();i++){rows.push_back(Row("replay-"+std::to_string(i),v.replays[i].label,loc::T(v.replaysReady?"replays.row_detail":"replays.not_ready"),v.replaysReady));
+   // The label carries the players' own names.
+   rows.back().userText=true;for(const auto& name:v.replays[i].names)NoteUserText(name);
+   // Select asks: add it to the game's list, or add it and go straight to the battle log.
+   rows.back().choices={{"watch",loc::T("replays.watch"),loc::T("replays.watch_detail"),idle},{"add",loc::T("replays.add"),loc::T("replays.add_detail")}};
+   rows.back().chosen=idle?"watch":"add";}
  }else if(screen=="settings"){
   title=loc::T("settings.title");rows={Row("player",loc::T("screen.player"),loc::T("settings.player_detail")),Row("defaults",loc::T("screen.defaults"),loc::T("settings.defaults_detail")),Row("interface",loc::T("settings.interface"),loc::T("settings.interface_detail")),Row("discord",loc::T("screen.discord"),loc::T("settings.discord_detail")),
    Row("about",loc::T("home.about"),loc::T("home.about_detail"))};
@@ -458,6 +469,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
      ((!RoomActionsAvailable(v)&&!RoomCheckpointPending(v))||(roomUpdateVisible_&&!seatedTableStatus)) && !committedMatchStatus &&
      !v.controllerUnavailable&&sessionProblem.empty()&&v.error.empty()&&error_.empty())))
   {status=RoomWaitReason(v);statusTone=Tone::Pending;}
+ if(screen=="replays"&&!v.replayNotice.empty()&&status.empty()){status=v.replayNotice;statusTone=v.replayNoticeError?Tone::Error:Tone::Success;}
  return {status,statusTone};
 }
 void ApplicationShell::PublishPlayerCard(const ShellView& v) {
@@ -487,6 +499,8 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="profile"||a.id=="main-character")nav.Push(a.id);
  else if(a.id.compare(0,5,"main-")==0&&v.canEditPreferences){preferences_.mainFighter=std::stoi(a.id.substr(5));preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?"roster":"";nav.Push(a.id);}
+ else if(a.id=="replays")nav.Push(a.id);
+ else if(a.id=="replay-log"){ShellAction r;r.command.generation=v.session.generation;r.openBattleLog=true;if(!submit(std::move(r)))error_=loc::T("error.queue_failed");}
  else if(a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="discord"||a.id=="identity"||a.id=="developer")nav.Push(a.id);
  else if(a.id=="pr-create"||a.id=="pr-none")OpenPublicCreate();
  else if(a.id=="host"&&preferences_.roomPublic){error_.clear();publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,preferences_.publicTableRules);}
@@ -822,6 +836,10 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   else if(IdentityPanel::Owns(screen))identity_.Accept(a,v);
   else if(PublicRoomsPanel::Owns(screen))publicRooms_.Choose(a);
   else if(a.id=="language")SetLanguage(a.text);
+  else if(a.id.compare(0,7,"replay-")==0&&a.id!="replay-none"&&a.id!="replay-log"){
+   const std::size_t i=std::stoul(a.id.substr(7));
+   if(i<v.replays.size()&&v.replaysReady){ShellAction r;r.command.generation=v.session.generation;r.importReplay=v.replays[i].path;r.watchReplay=a.text=="watch";if(!submit(std::move(r)))error_=loc::T("error.queue_failed");}
+  }
  }else if(a.kind==MenuAction::Activate){
   HandleActivate(a,v,screen,idle,submit);
  }else if(a.kind==MenuAction::Adjust||a.kind==MenuAction::TextAccepted){

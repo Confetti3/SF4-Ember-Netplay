@@ -584,6 +584,8 @@ int main(int argc, char** argv) {
             Require(ImGui::GetTopMostPopupModal()==nullptr,"Game settings card did not close");
             view.gameSettings={};view.showGameSettingsCard=false;
             for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","discord","about"})page(screen);
+            page("replays");view.replays={{"a","2026-10-05 23:35"},{"b","2026-10-05 23:36"}};view.replaysReady=true;view.replayNotice="Added as the newest entry of the game's replay list.";page("replays");
+            view.replays.clear();view.replaysReady=false;view.replayNotice.clear();
             view.preferences.autoInputDelay=true;page("defaults");view.preferences.autoInputDelay=false;
             page("home");
             for(int i=0;i<8;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}

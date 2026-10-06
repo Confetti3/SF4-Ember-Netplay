@@ -622,6 +622,60 @@ msgstr "Play offline"
 msgid "home.offline_detail"
 msgstr "Open the native offline menus."
 
+msgid "home.replays"
+msgstr "Replays"
+
+msgid "home.replays_detail"
+msgstr "Every match is saved. Put any of them into the game's Replay Channel."
+
+msgid "replays.title"
+msgstr "Replays"
+
+msgid "replays.empty"
+msgstr "No replays yet"
+
+msgid "replays.empty_detail"
+msgstr "A match is saved here when it ends."
+
+msgid "replays.add"
+msgstr "Add to game"
+
+msgid "replays.add_detail"
+msgstr "Adds it to the game's replay list to watch later from the battle log."
+
+msgid "replays.watch"
+msgstr "Watch now"
+
+msgid "replays.watch_detail"
+msgstr "Adds it to the game's replay list and opens the battle log, where it is the top entry."
+
+msgid "replays.row_detail"
+msgstr "Select to add it to the game's replay list, or to add it and watch it now."
+
+msgid "replays.not_ready"
+msgstr "Available at the main menu, outside a match."
+
+msgid "replays.added"
+msgstr "Added as the newest entry of the game's replay list."
+
+msgid "replays.not_added"
+msgstr "This replay could not be added. The file may be damaged."
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "Open the game's battle log"
+
+msgid "replays.open_log_detail"
+msgstr "Leaves Ember's menu for the game's local battle log, where replays play."
+
+msgid "replays.open_log_room"
+msgstr "Leave the room first."
+
 msgid "home.choose_controller"
 msgstr "Choose gameplay controller"
 

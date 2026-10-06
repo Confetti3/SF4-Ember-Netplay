@@ -622,6 +622,60 @@ msgstr "Graj offline"
 msgid "home.offline_detail"
 msgstr "Otwórz menu gry offline."
 
+msgid "home.replays"
+msgstr "Powtórki"
+
+msgid "home.replays_detail"
+msgstr "Każdy mecz jest zapisywany. Umieść dowolny w Replay Channel gry."
+
+msgid "replays.title"
+msgstr "Powtórki"
+
+msgid "replays.empty"
+msgstr "Brak powtórek"
+
+msgid "replays.empty_detail"
+msgstr "Mecz jest tu zapisywany, gdy się kończy."
+
+msgid "replays.add"
+msgstr "Dodaj do gry"
+
+msgid "replays.add_detail"
+msgstr "Dodaje do listy powtórek gry, by obejrzeć później z dziennika walk."
+
+msgid "replays.watch"
+msgstr "Obejrzyj teraz"
+
+msgid "replays.watch_detail"
+msgstr "Dodaje do listy powtórek gry i otwiera dziennik walk, gdzie jest na górze."
+
+msgid "replays.row_detail"
+msgstr "Wybierz, aby dodać do listy powtórek gry, albo dodać i obejrzeć teraz."
+
+msgid "replays.not_ready"
+msgstr "Dostępne w menu głównym, poza meczem."
+
+msgid "replays.added"
+msgstr "Dodano jako najnowszą pozycję listy powtórek gry."
+
+msgid "replays.not_added"
+msgstr "Nie udało się dodać tej powtórki. Plik może być uszkodzony."
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "Otwórz dziennik walk gry"
+
+msgid "replays.open_log_detail"
+msgstr "Opuszcza menu Ember i otwiera lokalny dziennik walk gry, gdzie odtwarza się powtórki."
+
+msgid "replays.open_log_room"
+msgstr "Najpierw opuść pokój."
+
 msgid "home.choose_controller"
 msgstr "Wybierz kontroler do gry"
 

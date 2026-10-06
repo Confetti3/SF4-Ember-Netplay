@@ -95,6 +95,11 @@ namespace sf4e {
             std::string publicTicket;
             // With the JoinInvite of a public room just created: the table rules chosen on Create.
             std::optional<room::Rules> createdRules;
+            // An archived replay to put into the game's replay list (sf4e__ReplayStore),
+            // then, with watchReplay, the jump to the game's battle log; or the jump alone.
+            std::string importReplay;
+            bool watchReplay = false;
+            bool openBattleLog = false;
 		};
 		struct RuntimeSnapshot {
             ui::ControllerSample menuController;
@@ -108,6 +113,14 @@ namespace sf4e {
 			bool atMainMenu = false;
 			// A started match is waiting for the player to return to the main menu.
 			bool matchWaitsForMenu = false;
+			// An archived replay can go into the game's replay list now (the
+			// native main menu, with the game's table seen), the outcome of
+			// the last import as a notice, and how many times the battle log
+			// was opened from Ember, for the overlay to close itself on.
+			bool canImportReplay = false;
+			std::string replayNotice;
+			bool replayNoticeError = false;
+			std::uint64_t battleLogOpens = 0;
 			bool canOpenRoom = false;
 			bool canReplaceRoom = false;
 			bool canReady = false;

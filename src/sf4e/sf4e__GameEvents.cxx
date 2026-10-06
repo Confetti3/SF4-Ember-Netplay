@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <windows.h>
 #include <detours/detours.h>
 
@@ -81,6 +82,7 @@ LogoDolby, 0, LogoCRI, BLACK, 10.0f, BLACK, 10.0f
 MainMenu, 14, Benchmark, BLACK, 30.0f, BLACK, 30.0f			
 	Benchmark, 0, MainMenu, BLACK, 30.0f, BLACK, 30.0f			
 MainMenu, 13, Manual, BLACK, 30.0f, BLACK, 30.0f			
+MainMenu, 15, LocalBattleLog, BLACK, 30.0f, BLACK, 30.0f
 	Manual, 0, MainMenu, BLACK, 30.0f, BLACK, 30.0f			
 	PlayerTitleSetting, 0, MainMenu, BLACK, 30.0f, BLACK, 30.0f			
 	PlayerTitleSetting, 1, Option, BLACK, 30.0f, BLACK, 30.0f			
@@ -126,6 +128,36 @@ void fGameEvents::Install() {
 	VsBattle::Install();
 	VsPreBattle::Install();
 	VsStageSelect::Install();
+}
+
+// The main menu's own jump to Versus (0x6131A0) asks the flow for its row
+// 2, fades the menu sound, closes the menu and clears its selection. The
+// same with row 15, which Ember's flow table adds above, opens the local
+// battle log, the list of replays a Versus battle saves into.
+void fMainMenu::GoToLocalBattleLog() {
+	std::uint8_t* const observer = reinterpret_cast<std::uint8_t*>(this);
+	struct Flow { void Request(int row, int, int, int, int); };
+	Flow* const flow = *reinterpret_cast<Flow**>(observer + 0x18);
+	void (Flow::* request)(int, int, int, int, int);
+	*reinterpret_cast<PVOID*>(&request) = (*reinterpret_cast<PVOID**>(flow))[0x9C / 4];
+	(flow->*request)(15, 0, 0, 0, 1);
+	auto* const app = reinterpret_cast<std::uint8_t*>(rMainMenu::exitMethods.GetApp());
+	auto* const sound = **reinterpret_cast<rMainMenu::SoundManager***>(app + 0x7C);
+	(sound->*rMainMenu::exitMethods.FadeOut)(*rMainMenu::exitMethods.fadeSeconds);
+	(reinterpret_cast<rMainMenu::MenuPanel*>(observer + 8)->*rMainMenu::exitMethods.Close)(0);
+	*reinterpret_cast<int*>(observer + 0x2A8) = 0;
+}
+
+// Opens the local battle log from the native main menu, when it is the
+// foreground event. False, doing nothing, otherwise.
+bool fMainMenu::OpenLocalBattleLog() {
+	rRootEvent* const root = Dimps::App::GetRootEvent();
+	if (!root) return false;
+	char* query[1] = { const_cast<char*>("MainMenu") };
+	rMainMenu* const mainMenu = reinterpret_cast<rMainMenu*>(EventBaseWithEC::FindForegroundEvent(root, query, 1));
+	if (!mainMenu) return false;
+	static_cast<fMainMenu*>(rMainMenu::ToItemObserver(mainMenu))->GoToLocalBattleLog();
+	return true;
 }
 
 void fMainMenu::Install() {
