@@ -220,7 +220,7 @@ void DrawTelemetry(ImDrawList* draw,const Telemetry& t,ImVec2 p){
     }
 }
 struct SplitPlaced {
-    Plate plates[2];Telemetry tel;PanelSpot spot;bool hasState=false;
+    Plate plates[2];Telemetry tel;PanelSpot spot;bool hasState=false,panelBelow=false;
 };
 SplitPlaced PlaceSplit(const MatchStripView& view,const Screen& screen){
     NoteUserText(view.names[0]);NoteUserText(view.names[1]);
@@ -241,13 +241,20 @@ SplitPlaced PlaceSplit(const MatchStripView& view,const Screen& screen){
     out.plates[1]=MakePlate(view,1,gx0+1134*gs,y,k,maxName,minName,height);
     // A top-anchored panel and its state line end above the plates. On a short screen
     // the band above them is too low for that at the usual scale, so the viewport term
-    // shrinks until the Large footprint fits; the three sizes stay distinct.
-    const float topLimit=y-4*gs;
-    float viewport=ViewportScale(screen.size.y);
-    if(view.anchor>=3)viewport=(std::min)(viewport,(topLimit-screen.pos.y)/((SplitHeight+MatchStateHeight+4)*SizeFactors[2]));
+    // shrinks until the Large footprint fits; the three sizes stay distinct. When names
+    // moved up leave less than half the usual scale, the panel goes to the bottom corner
+    // on its side instead, where it stays readable.
+    const float topLimit=y-4*gs,usual=ViewportScale(screen.size.y);
+    float viewport=usual;
+    auto placed=view;
+    if(view.anchor>=3){
+        const float fit=(topLimit-screen.pos.y)/((SplitHeight+MatchStateHeight+4)*SizeFactors[2]);
+        if(fit<usual*.5f){placed.anchor=view.anchor==3?1:2;out.panelBelow=true;}
+        else viewport=(std::min)(viewport,fit);
+    }
     const float s=viewport*SizeFactor(view);
     out.tel=MakeTelemetry(view,s,screen.size.x*.8f);
-    out.spot=PlacePanel(view,screen,out.tel.w,out.tel.h,s,topLimit);
+    out.spot=PlacePanel(placed,screen,out.tel.w,out.tel.h,s,topLimit);
     out.hasState=!MatchStripStateLine(view).empty();
     return out;
 }
@@ -264,6 +271,7 @@ MatchStripBounds MatchStripGeometry(const MatchStripView& view,ImVec2 screenPos,
     for(int side=0;side<2;++side){const auto& p=placed.plates[side];bounds.names[side]={p.x0,p.y0,p.x1,p.y1,true};}
     const float s=placed.tel.s;
     bounds.panel={placed.spot.pos.x,placed.spot.pos.y,placed.spot.pos.x+placed.tel.w,placed.spot.pos.y+placed.tel.h,true};
+    bounds.panelScale=s;bounds.panelBelow=placed.panelBelow;
     if(placed.hasState){
         bounds.panel.y0=(std::min)(bounds.panel.y0,placed.spot.stateTop);
         bounds.panel.y1=(std::max)(bounds.panel.y1,placed.spot.stateTop+MatchStateHeight*s);

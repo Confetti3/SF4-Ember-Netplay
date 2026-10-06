@@ -10,6 +10,8 @@
 #include <cmath>
 #include <string>
 namespace {
+// Half the Small panel's usual scale on a screen h tall: the least a squeezed panel keeps.
+float MatchHudMinimumPanelScale(float h){return .5f*(std::max)(.8f,h/1080.f)*.85f;}
 bool MatchBoxesOverlap(const sf4e::ui::MatchStripBox& a,const sf4e::ui::MatchStripBox& b){return a.x0<b.x1&&b.x0<a.x1&&a.y0<b.y1&&b.y0<a.y1;}
 // One drawn frame of the HUD, in a window of w by h: it never takes input, the Ember
 // strip stays inside the safe band and on its anchored half, and the split layout keeps
@@ -56,7 +58,11 @@ void CheckMatchHudFrame(const sf4e::ui::MatchStripView& matchStrip,int w,int h){
     Require(bounds.names[0].x1<=gx0+420*gs+1&&bounds.names[1].x0>=gx0+860*gs-1,"Match HUD name plate reaches the streak text or the timer");
     Require(bounds.panel.x0>=w*.1f-2&&bounds.panel.x1<=w*.9f+2&&bounds.panel.y0>=0&&bounds.panel.y1<=h,
         "Match HUD telemetry escaped safe viewport bounds");
-    Require(topEdge?bounds.panel.y1<=h*.5f:bounds.panel.y0>=h*.5f,"Match HUD telemetry left its anchored edge");
+    // Names moved far up send a top-anchored panel to the bottom corner on its side.
+    Require(!bounds.panelBelow||topEdge,"Match HUD moved a bottom-anchored panel");
+    const bool top=topEdge&&!bounds.panelBelow;
+    Require(top?bounds.panel.y1<=h*.5f:bounds.panel.y0>=h*.5f,"Match HUD telemetry left its anchored edge");
+    Require(bounds.panelScale>=MatchHudMinimumPanelScale(h)-.001f,"Match HUD telemetry shrank below half its usual scale");
 }
 // Whether the capture filter (--match-shots-only) keeps this shot at this window size and scale.
 bool MatchHudShotCaptured(const char* shot,int w,int h,float dpi){
@@ -192,6 +198,8 @@ void ShootMatchHud(sf4e::ui::MatchStripView& matchStrip,const Draw& draw,const R
         for(const int anchor:{0,3,4}){
             matchStrip.anchor=anchor;draw(anchor==0&&offset==-20?"match-hud-split-name-up":nullptr,0,1);
             const auto moved=MatchStripGeometry(matchStrip);
+            // All the way up leaves no readable room above the names; part way up still does.
+            Require(moved.panelBelow==(anchor>=3&&offset==-60),"Match HUD placed a top panel on the wrong edge for the name offset");
             for(int side=0;side<2;++side)
                 Require(std::abs(moved.names[side].y0-unmoved.names[side].y0-offset*shiftScale)<=1&&
                     moved.names[side].x0==unmoved.names[side].x0&&moved.names[side].x1==unmoved.names[side].x1&&
@@ -199,7 +207,8 @@ void ShootMatchHud(sf4e::ui::MatchStripView& matchStrip,const Draw& draw,const R
             for(const auto& screen:shortScreens){
                 const auto bounds=MatchStripGeometry(matchStrip,ImVec2(0,0),screen);
                 for(const auto& name:bounds.names)Require(!MatchBoxesOverlap(bounds.panel,name),"Match HUD telemetry covers a moved name plate on a short screen");
-                Require(bounds.panel.y0>=0,"Match HUD telemetry left the top of a short screen above moved name plates");
+                Require(bounds.panel.y0>=0&&bounds.panel.y1<=screen.y,"Match HUD telemetry left a short screen around moved name plates");
+                Require(bounds.panelScale>=MatchHudMinimumPanelScale(screen.y)-.001f,"Match HUD telemetry unreadable above moved name plates on a short screen");
             }
         }
     }

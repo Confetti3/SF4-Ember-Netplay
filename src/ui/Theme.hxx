@@ -140,7 +140,9 @@ void DrawMatchStripPreview(const MatchStripView& view);
 // harness: the two name plates and the telemetry panel with its state line.
 // `valid` is false for the Ember strip, which has no separate name plates.
 struct MatchStripBox { float x0 = 0, y0 = 0, x1 = 0, y1 = 0; bool valid = false; };
-struct MatchStripBounds { MatchStripBox names[2], panel; };
+// panelScale is the telemetry panel's scale; panelBelow is set when a top-anchored panel
+// went to the bottom corner because names moved up left too little room above them.
+struct MatchStripBounds { MatchStripBox names[2], panel; float panelScale = 0; bool panelBelow = false; };
 MatchStripBounds MatchStripGeometry(const MatchStripView& view);
 // The same on a screen of any size, for checking placement on screens the harness does not render.
 MatchStripBounds MatchStripGeometry(const MatchStripView& view,ImVec2 screenPos,ImVec2 screenSize);

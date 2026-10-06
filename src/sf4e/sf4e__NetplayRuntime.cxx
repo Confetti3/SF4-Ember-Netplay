@@ -216,8 +216,7 @@ void StartHelper() {
             runtime->preferences.matchHudAnchor = hudAnchor >= 0 && hudAnchor <= 4 ? hudAnchor : 0;
             const int hudLayout = saved.contains("matchHudLayout") && saved["matchHudLayout"].is_number_integer() ? saved["matchHudLayout"].get<int>() : 1;
             runtime->preferences.matchHudLayout = hudLayout >= 0 && hudLayout <= 1 ? hudLayout : 1;
-            const int nameOffset = saved.contains("matchHudNameOffset") && saved["matchHudNameOffset"].is_number_integer() ? saved["matchHudNameOffset"].get<int>() : 0;
-            runtime->preferences.matchHudNameOffset = nameOffset >= -netplay::MaxMatchHudNameOffset && nameOffset <= netplay::MaxMatchHudNameOffset ? nameOffset : 0;
+            runtime->preferences.matchHudNameOffset = netplay::ReadMatchHudNameOffset(saved);
             runtime->preferences.readySound = saved.value("readySound", true);
             const int volume = saved.value("readySoundVolume", 100);
             runtime->preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;

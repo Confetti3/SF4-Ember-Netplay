@@ -2,6 +2,7 @@
 #include "../netplay/SettingsWriter.hxx"
 #include "../netplay/RoomPreferences.hxx"
 #include "../netplay/InputDelayPreference.hxx"
+#include "../netplay/MatchHudPreference.hxx"
 #define NOMINMAX
 #include <windows.h>
 #include <filesystem>
@@ -135,6 +136,15 @@ int main() {
     discordDefaults.matchHudNameOffset=0;
     CHECK(store.SaveLauncher({{"matchHudNameOffset",-20}},error));
     CHECK(store.LoadLauncher(result,error)&&result["matchHudNameOffset"]==-20);
+    CHECK(sf4e::netplay::ReadMatchHudNameOffset(result)==-20);
+    // A profile from before 1.1.0, the wrong type, out of range, or a number past an
+    // int's range (which a plain conversion would wrap into range) is Default.
+    using sf4e::netplay::ReadMatchHudNameOffset;
+    CHECK(ReadMatchHudNameOffset(Json::object())==0&&ReadMatchHudNameOffset({{"matchHudNameOffset","-20"}})==0);
+    CHECK(ReadMatchHudNameOffset({{"matchHudNameOffset",61}})==0&&ReadMatchHudNameOffset({{"matchHudNameOffset",-61}})==0);
+    CHECK(ReadMatchHudNameOffset({{"matchHudNameOffset",60}})==60&&ReadMatchHudNameOffset({{"matchHudNameOffset",-60}})==-60);
+    CHECK(ReadMatchHudNameOffset({{"matchHudNameOffset",4294967298ull}})==0&&ReadMatchHudNameOffset({{"matchHudNameOffset",-4294967294ll}})==0);
+    CHECK(ReadMatchHudNameOffset({{"matchHudNameOffset",18446744073709551615ull}})==0&&ReadMatchHudNameOffset({{"matchHudNameOffset",2.0}})==0);
     discordDefaults.matchHudAnchor=-1;CHECK(!discordDefaults.Valid());
     discordDefaults.matchHudAnchor=5;CHECK(!discordDefaults.Valid());
     discordDefaults.matchHudAnchor=4;CHECK(discordDefaults.Valid());
