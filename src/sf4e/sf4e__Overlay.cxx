@@ -14,6 +14,7 @@
 #include "../ui/DeveloperOverlay.hxx"
 #include "../ui/TrainingPanel.hxx"
 #include "../training/TrainingRuntime.hxx"
+#include "../netplay/SettingsStore.hxx"
 #include "../common/Localization.hxx"
 #include "../platform/GameDisplaySettings.hxx"
 #include "../platform/UiPreferencesStore.hxx"
@@ -419,11 +420,16 @@ void Overlay::DrawOverlay() {
         if (trainingOpen) {
             // Only what this frame's flyout forwards is read below.
             sf4e::ui::TakeForwardedMenuAction();
+            // The setter keeps only its first call, and the lookup asks the shell each time.
+            static bool comboBookDirectorySet=false;
+            if(!comboBookDirectorySet) { sf4e::ui::SetComboBookDirectory(sf4e::netplay::SettingsStore::DefaultDirectory()); comboBookDirectorySet=true; }
             sf4e::ui::DrawTrainingFlyout(training, sf4e::training::Submit);
             if(sf4e::ui::TakeForwardedMenuAction().kind==sf4e::ui::MenuAction::Close) trainingOpen=false;
         } else if (trainingHud) {
             const auto hud = sf4e::ui::DrawTrainingHud(training);
             if (hud.open) trainingOpen = true;
+            if (hud.replay) practice(sf4e::training::Action::Play);
+            if (hud.stop) practice(sf4e::training::Action::Stop);
             pointer = hud.pointer;
         }
     }

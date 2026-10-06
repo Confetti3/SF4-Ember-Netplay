@@ -1147,6 +1147,33 @@ msgstr "F6 Comandi allenamento"
 msgid "training.hide_hint"
 msgstr "F5 Nascondi HUD"
 
+msgid "training.save_recording"
+msgstr "Salva registrazione come"
+
+msgid "training.save_recording.detail"
+msgstr "Scrive lo slot selezionato in un file con questo nome, accanto alle tue combo."
+
+msgid "training.load_recording"
+msgstr "Carica registrazione"
+
+msgid "training.load_recording.detail"
+msgstr "Sinistra e Destra scelgono una registrazione salvata; Seleziona la carica nello slot selezionato."
+
+msgid "training.recording_saved"
+msgstr "Registrazione salvata come {0}."
+
+msgid "training.recording_loaded"
+msgstr "Registrazione {0} caricata nello slot {1}."
+
+msgid "training.recording_none"
+msgstr "Nessuna registrazione salvata."
+
+msgid "training.replay_chip"
+msgstr "F8 Riproduci slot {0}"
+
+msgid "training.stop_chip"
+msgstr "F8 Ferma"
+
 msgid "training.dummy_recording"
 msgstr "Registra manichino"
 
@@ -1158,6 +1185,399 @@ msgstr "Sequenza comandi"
 
 msgid "training.input_history.detail"
 msgstr "Comandi premuti da ogni giocatore."
+
+msgid "training.combo.title"
+msgstr "Creatore di combo"
+
+msgid "training.combo.title.detail"
+msgstr "Scrivi le combo mossa per mossa, condividile e guarda tutte le route."
+
+msgid "training.combo.none"
+msgstr "Nessuno"
+
+msgid "training.combo.pack"
+msgstr "Pacchetto"
+
+msgid "training.combo.pack.detail"
+msgstr "Combo in questo pacchetto: {0}. Sinistra e Destra cambiano pacchetto."
+
+msgid "training.combo.new_pack"
+msgstr "Nuovo pacchetto"
+
+msgid "training.combo.combo"
+msgstr "Combo"
+
+msgid "training.combo.fighter"
+msgstr "Lottatore"
+
+msgid "training.combo.fighter.detail"
+msgstr "Il lottatore della combo. I nomi delle mosse sono letti come quelli di questo lottatore."
+
+msgid "training.combo.name"
+msgstr "Nome della combo"
+
+msgid "training.combo.steps"
+msgstr "Mosse"
+
+msgid "training.combo.notes"
+msgstr "Note"
+
+msgid "training.combo.add"
+msgstr "Aggiungi combo"
+
+msgid "training.combo.add.detail"
+msgstr "Aggiunge le mosse al pacchetto. Esempio: cr.MK xx HP Hadoken > FADC > cl.HP"
+
+msgid "training.combo.tree"
+msgstr "Albero delle combo"
+
+msgid "training.combo.tree.detail"
+msgstr "Tutte le route dei tuoi pacchetti, per lottatore."
+
+msgid "training.combo.tree.empty"
+msgstr "Ancora nessuna combo."
+
+msgid "training.combo.copy_combo"
+msgstr "Copia combo"
+
+msgid "training.combo.copy_pack"
+msgstr "Copia pacchetto"
+
+msgid "training.combo.copy_all"
+msgstr "Copia tutti i pacchetti"
+
+msgid "training.combo.copy.detail"
+msgstr "La copia come testo da condividere."
+
+msgid "training.combo.paste"
+msgstr "Importa dagli appunti"
+
+msgid "training.combo.paste.detail"
+msgstr "Aggiunge una combo, un pacchetto o più pacchetti copiati."
+
+msgid "training.combo.delete"
+msgstr "Elimina combo"
+
+msgid "training.combo.delete.detail"
+msgstr "Rimuove la combo selezionata dal suo pacchetto."
+
+msgid "training.combo.added"
+msgstr "Combo aggiunte: {0}."
+
+msgid "training.combo.exists"
+msgstr "Questa route è già nel pacchetto."
+
+msgid "training.combo.copied"
+msgstr "Copiato."
+
+msgid "training.combo.invalid"
+msgstr "Non accettato: {0}"
+
+msgid "training.combo.save_failed"
+msgstr "Impossibile salvare le combo."
+
+msgid "training.combo.import_trials"
+msgstr "Importa le prove del gioco"
+
+msgid "training.combo.import_trials.detail"
+msgstr "Legge le prove Ultra del gioco per il lottatore scelto sopra in un pacchetto con il nome del lottatore, così l'albero mostra le route del gioco."
+
+msgid "training.combo.export_trial"
+msgstr "Esporta il pacchetto come file di prove"
+
+msgid "training.combo.export_trial.detail"
+msgstr "Scrive le combo di questo pacchetto per il lottatore scelto sopra come {0} nella cartella trials accanto alle tue combo: 24 combo, le tue per prime; una combo con più di 8 mosse viene scritta intera e il gioco ne mostra solo le prime 8 senza la mod della lista scorrevole. Messo al posto del {0} del gioco (tieni una copia), la modalità Sfide lo usa."
+
+msgid "training.combo.trials_imported"
+msgstr "Prove lette: {0} di {1}. Combo aggiunte: {2}."
+
+msgid "training.combo.trial_exported"
+msgstr "Combo scritte: {0}, in {1}. Mettilo al posto di {2} tenendo una copia; la modalità Sfide lo carica."
+
+msgid "training.combo.trial_skipped"
+msgstr "Omesse o modificate: {0}. Prima: {1}"
+
+msgid "training.combo.trial_none"
+msgstr "Nessuna combo di questo pacchetto è stata scritta per {0}."
+
+msgid "training.combo.game_file"
+msgstr "Impossibile leggere i file del gioco: {0}"
+
+msgid "training.combo.trial_failed"
+msgstr "Impossibile scrivere il file di prove: {0}"
+
+msgid "training.combo.run.start"
+msgstr "Avvia la prova"
+
+msgid "training.combo.run.start.detail"
+msgstr "Esercitati nella combo selezionata come Giocatore 1: le sue mosse compaiono sopra il combattimento e vengono spuntate quando ciascuna esce e colpisce. Il Giocatore 1 deve essere il lottatore della combo."
+
+msgid "training.combo.run.stop"
+msgstr "Ferma la prova"
+
+msgid "training.combo.run.stop.detail"
+msgstr "Toglie l'elenco delle mosse dallo schermo."
+
+msgid "training.combo.run.started"
+msgstr "Prova avviata per {0}. Mosse controllate: {1} di {2}."
+
+msgid "training.combo.run.refused"
+msgstr "Impossibile avviare la prova: {0}"
+
+msgid "training.combo.run.stopped"
+msgstr "Prova fermata."
+
+msgid "training.combo.run.count"
+msgstr "Riuscite: {0}. Tentativi: {1}. Percentuale: {2}%."
+
+msgid "training.combo.run.complete"
+msgstr "Combo completata!"
+
+msgid "training.combo.run.failed"
+msgstr "Mossa {0}: {1}"
+
+msgid "training.combo.run.wrong_move"
+msgstr "è uscita un'altra mossa"
+
+msgid "training.combo.run.whiffed"
+msgstr "la mossa successiva è uscita prima che questa colpisse"
+
+msgid "training.combo.run.dropped"
+msgstr "la combo si è interrotta"
+
+msgid "training.combo.run.unchecked"
+msgstr "{0} (non controllata)"
+
+msgid "training.combo.replay"
+msgstr "Riproduci mosse"
+
+msgid "training.combo.replay.detail"
+msgstr "Riproduce le mosse scritte, o la combo selezionata, come input del pad. Il timing è stimato: cambia lo spazio di link e guarda quali mosse escono."
+
+msgid "training.combo.replay.by"
+msgstr "Riprodotto da"
+
+msgid "training.combo.replay.by.dummy"
+msgstr "Manichino (Giocatore 2)"
+
+msgid "training.combo.replay.by.me"
+msgstr "Io (Giocatore 1)"
+
+msgid "training.combo.replay.by.detail"
+msgstr "Chi esegue le mosse. Sinistra e Destra cambiano."
+
+msgid "training.combo.replay.facing"
+msgstr "Direzione"
+
+msgid "training.combo.replay.facing.right"
+msgstr "Destra"
+
+msgid "training.combo.replay.facing.left"
+msgstr "Sinistra"
+
+msgid "training.combo.replay.facing.detail"
+msgstr "Dove guarda quel giocatore all'inizio; le mosse in avanti si leggono così."
+
+msgid "training.combo.replay.gap"
+msgstr "Correzione del timing"
+
+msgid "training.combo.replay.gap.detail"
+msgstr "Frame di attesa in più per ogni mossa dopo il suo segnale (il frame libero per un link, il colpo per un cancel), oltre alla correzione @ della mossa come cr.MK@+1."
+
+msgid "training.combo.replay.started"
+msgstr "Riproduzione caricata nello slot {0} e avviata."
+
+msgid "training.combo.timing"
+msgstr "Modifica timing"
+
+msgid "training.combo.timing.detail"
+msgstr "La combo selezionata mossa per mossa: la correzione di ogni mossa e cosa ha visto l'ultima riproduzione."
+
+msgid "training.combo.timing.replay.detail"
+msgstr "Riproduce la combo selezionata così com'è, per aggiornare il rapporto di ogni mossa qui sotto."
+
+msgid "training.combo.timing.select"
+msgstr "Seleziona prima una combo."
+
+msgid "training.combo.timing.none"
+msgstr "Non ancora riprodotta."
+
+msgid "training.combo.timing.gave_up"
+msgstr "La riproduzione ha atteso il segnale di questa mossa senza mai vederlo."
+
+msgid "training.combo.timing.first"
+msgstr "Prima mossa; collegata: {0}."
+
+msgid "training.combo.timing.cancel"
+msgstr "Ha atteso {0} frame il colpo; collegata: {1}."
+
+msgid "training.combo.timing.link"
+msgstr "Ha atteso {0} frame che il lottatore fosse libero; collegata: {1}."
+
+msgid "training.combo.timing.hit"
+msgstr "sì"
+
+msgid "training.combo.timing.no_hit"
+msgstr "no"
+
+msgid "training.combo.timing.adjust"
+msgstr "Sinistra e Destra spostano di un frame."
+
+msgid "training.combo.timing.drops"
+msgstr "Fallita qui {0} volte."
+
+msgid "training.combo.blocks"
+msgstr "Editor di pattern"
+
+msgid "training.combo.blocks.detail"
+msgstr "Le mosse come blocchi su un righello di frame, come uno step sequencer: ogni blocco preme sul suo frame e la riproduzione segue quei frame."
+
+msgid "training.combo.blocks.frame"
+msgstr "Frame {0}"
+
+msgid "training.combo.blocks.hint"
+msgstr "Sinistra e Destra spostano il blocco di un frame; trascinalo col mouse. Seleziona modifica la mossa."
+
+msgid "training.combo.blocks.add"
+msgstr "Aggiungi mossa"
+
+msgid "training.combo.blocks.delete"
+msgstr "Elimina blocco"
+
+msgid "training.combo.blocks.delete.detail"
+msgstr "Rimuove il blocco evidenziato."
+
+msgid "training.combo.blocks.replay.detail"
+msgstr "Riproduce il pattern sui suoi frame."
+
+msgid "training.combo.blocks.empty"
+msgstr "Ancora nessuna mossa. Aggiungine una sotto."
+
+msgid "training.combo.save_pos"
+msgstr "Salva posizione"
+
+msgid "training.combo.save_pos.detail"
+msgstr "Tiene i due lottatori come sono ora: posto, vita, barre, stato del manichino."
+
+msgid "training.combo.reset_pos"
+msgstr "Ripristina posizione"
+
+msgid "training.combo.reset_pos.detail"
+msgstr "Riporta i due lottatori dove sono stati salvati."
+
+msgid "training.combo.reset_before"
+msgstr "Ripristina prima della riproduzione"
+
+msgid "training.combo.reset_before.detail"
+msgstr "Ogni riproduzione e tentativo di sfida parte dalla posizione salvata; dopo ogni tentativo viene ripristinata."
+
+msgid "training.combo.position_saved"
+msgstr "Posizione salvata."
+
+msgid "training.combo.position_reset"
+msgstr "Posizione ripristinata."
+
+msgid "training.combo.capture"
+msgstr "Registra combo"
+
+msgid "training.combo.capture.detail"
+msgstr "Annota le mosse che il Giocatore 1 esegue nella riga Mosse, fino a un secondo e mezzo senza nulla."
+
+msgid "training.combo.capture_stop"
+msgstr "Ferma registrazione combo"
+
+msgid "training.combo.capture_started"
+msgstr "Registrazione: esegui la combo come Giocatore 1."
+
+msgid "training.combo.capture_wait"
+msgstr "Chiusura della registrazione."
+
+msgid "training.combo.captured"
+msgstr "{0} mosse annotate nella riga Mosse."
+
+msgid "training.combo.capture_empty"
+msgstr "Nessuna mossa registrata."
+
+msgid "training.combo.setup.detail"
+msgstr "Sinistra e Destra lo cambiano; vale subito nel gioco e resta con la combo selezionata. Impostazione del gioco lascia la scelta del menu Allenamento."
+
+msgid "training.combo.setup.game"
+msgstr "Impostazione del gioco"
+
+msgid "training.combo.setup.action"
+msgstr "Manichino"
+
+msgid "training.combo.setup.guard"
+msgstr "Parata"
+
+msgid "training.combo.setup.counter"
+msgstr "Counter hit"
+
+msgid "training.combo.setup.quick"
+msgstr "Rialzo rapido"
+
+msgid "training.combo.setup.super"
+msgstr "Barra super"
+
+msgid "training.combo.setup.revenge"
+msgstr "Barra revenge"
+
+msgid "training.combo.setup.stand"
+msgstr "In piedi"
+
+msgid "training.combo.setup.crouch"
+msgstr "Accovacciato"
+
+msgid "training.combo.setup.jump"
+msgstr "Salto"
+
+msgid "training.combo.setup.cpu"
+msgstr "CPU"
+
+msgid "training.combo.setup.guard_none"
+msgstr "Nessuna parata"
+
+msgid "training.combo.setup.guard_first"
+msgstr "Dopo il primo colpo"
+
+msgid "training.combo.setup.guard_all"
+msgstr "Para tutto"
+
+msgid "training.combo.setup.guard_random"
+msgstr "Casuale"
+
+msgid "training.combo.setup.counter_off"
+msgstr "No"
+
+msgid "training.combo.setup.counter_on"
+msgstr "Sì"
+
+msgid "training.combo.setup.counter_random"
+msgstr "Casuale"
+
+msgid "training.combo.setup.quick_quick"
+msgstr "Rapido"
+
+msgid "training.combo.setup.quick_normal"
+msgstr "Normale"
+
+msgid "training.combo.setup.quick_delayed"
+msgstr "Ritardato"
+
+msgid "training.combo.setup.quick_random"
+msgstr "Casuale"
+
+msgid "training.combo.setup.gauge_normal"
+msgstr "Normale"
+
+msgid "training.combo.setup.gauge_max"
+msgstr "Piena all'inizio"
+
+msgid "training.combo.setup.gauge_infinite"
+msgstr "Infinita"
+
+msgid "training.combo.setup.gauge_refill"
+msgstr "Ricarica"
 
 msgid "training.close_controls"
 msgstr "Chiudi comandi allenamento"
@@ -1232,7 +1652,7 @@ msgid "training.recording_suspended"
 msgstr "Registrazione sospesa con comandi aperti"
 
 msgid "training.playback_suspended"
-msgstr "Riproduzione sospesa con comandi aperti"
+msgstr "Riproduzione in corso; la registrazione attende la chiusura dei comandi"
 
 msgid "training.applying"
 msgstr "Applicazione comando..."

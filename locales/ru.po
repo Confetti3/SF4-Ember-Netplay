@@ -1147,6 +1147,33 @@ msgstr "F6 Меню тренировки"
 msgid "training.hide_hint"
 msgstr "F5 Скрыть HUD"
 
+msgid "training.save_recording"
+msgstr "Сохранить запись как"
+
+msgid "training.save_recording.detail"
+msgstr "Записывает выбранный слот в файл с этим именем рядом с вашими комбо."
+
+msgid "training.load_recording"
+msgstr "Загрузить запись"
+
+msgid "training.load_recording.detail"
+msgstr "Влево и Вправо выбирают сохранённую запись; Выбор загружает её в выбранный слот."
+
+msgid "training.recording_saved"
+msgstr "Запись сохранена как {0}."
+
+msgid "training.recording_loaded"
+msgstr "Запись {0} загружена в слот {1}."
+
+msgid "training.recording_none"
+msgstr "Сохранённых записей нет."
+
+msgid "training.replay_chip"
+msgstr "F8 Воспроизвести слот {0}"
+
+msgid "training.stop_chip"
+msgstr "F8 Стоп"
+
 msgid "training.dummy_recording"
 msgstr "Запись манекена"
 
@@ -1158,6 +1185,399 @@ msgstr "История нажатий"
 
 msgid "training.input_history.detail"
 msgstr "Просмотр удерживаемых кнопок каждого игрока."
+
+msgid "training.combo.title"
+msgstr "Редактор комбо"
+
+msgid "training.combo.title.detail"
+msgstr "Записывайте комбо по приёмам, делитесь ими и смотрите все маршруты."
+
+msgid "training.combo.none"
+msgstr "Нет"
+
+msgid "training.combo.pack"
+msgstr "Набор"
+
+msgid "training.combo.pack.detail"
+msgstr "Комбо в наборе: {0}. Влево и Вправо меняют набор."
+
+msgid "training.combo.new_pack"
+msgstr "Новый набор"
+
+msgid "training.combo.combo"
+msgstr "Комбо"
+
+msgid "training.combo.fighter"
+msgstr "Боец"
+
+msgid "training.combo.fighter.detail"
+msgstr "Боец, для которого комбо. Названия приёмов читаются для этого бойца."
+
+msgid "training.combo.name"
+msgstr "Название комбо"
+
+msgid "training.combo.steps"
+msgstr "Приёмы"
+
+msgid "training.combo.notes"
+msgstr "Заметки"
+
+msgid "training.combo.add"
+msgstr "Добавить комбо"
+
+msgid "training.combo.add.detail"
+msgstr "Добавляет приёмы в набор. Пример: cr.MK xx HP Hadoken > FADC > cl.HP"
+
+msgid "training.combo.tree"
+msgstr "Дерево комбо"
+
+msgid "training.combo.tree.detail"
+msgstr "Все маршруты из ваших наборов по бойцам."
+
+msgid "training.combo.tree.empty"
+msgstr "Комбо пока нет."
+
+msgid "training.combo.copy_combo"
+msgstr "Копировать комбо"
+
+msgid "training.combo.copy_pack"
+msgstr "Копировать набор"
+
+msgid "training.combo.copy_all"
+msgstr "Копировать все наборы"
+
+msgid "training.combo.copy.detail"
+msgstr "Копирует как текст, которым можно поделиться."
+
+msgid "training.combo.paste"
+msgstr "Импорт из буфера обмена"
+
+msgid "training.combo.paste.detail"
+msgstr "Добавляет скопированное комбо, набор или несколько наборов."
+
+msgid "training.combo.delete"
+msgstr "Удалить комбо"
+
+msgid "training.combo.delete.detail"
+msgstr "Убирает выбранное комбо из набора."
+
+msgid "training.combo.added"
+msgstr "Добавлено комбо: {0}."
+
+msgid "training.combo.exists"
+msgstr "Этот маршрут уже есть в наборе."
+
+msgid "training.combo.copied"
+msgstr "Скопировано."
+
+msgid "training.combo.invalid"
+msgstr "Не принято: {0}"
+
+msgid "training.combo.save_failed"
+msgstr "Не удалось сохранить комбо."
+
+msgid "training.combo.import_trials"
+msgstr "Импорт испытаний из игры"
+
+msgid "training.combo.import_trials.detail"
+msgstr "Читает испытания Ultra из игры для выбранного выше бойца в набор с именем бойца, чтобы дерево показывало маршруты из игры."
+
+msgid "training.combo.export_trial"
+msgstr "Экспорт набора в файл испытаний"
+
+msgid "training.combo.export_trial.detail"
+msgstr "Записывает комбо этого набора для выбранного выше бойца как {0} в папку trials рядом с вашими комбо: 24 комбо, ваши первыми; комбо длиннее 8 приёмов записывается целиком, а игра без мода прокручиваемого списка показывает только первые 8. Поставленный на место {0} из игры (сохраните копию), он работает в режиме испытаний."
+
+msgid "training.combo.trials_imported"
+msgstr "Прочитано испытаний: {0} из {1}. Добавлено комбо: {2}."
+
+msgid "training.combo.trial_exported"
+msgstr "Записано комбо: {0}, в {1}. Поставьте на место {2}, сохранив копию; режим испытаний его загружает."
+
+msgid "training.combo.trial_skipped"
+msgstr "Пропущено или изменено: {0}. Первое: {1}"
+
+msgid "training.combo.trial_none"
+msgstr "Не удалось записать ни одного комбо из этого набора для: {0}."
+
+msgid "training.combo.game_file"
+msgstr "Не удалось прочитать файлы игры: {0}"
+
+msgid "training.combo.trial_failed"
+msgstr "Не удалось записать файл испытаний: {0}"
+
+msgid "training.combo.run.start"
+msgstr "Начать испытание"
+
+msgid "training.combo.run.start.detail"
+msgstr "Отрабатывайте выбранное комбо за Игрока 1: его приёмы показаны поверх боя и отмечаются, когда каждый выходит и попадает. Игрок 1 должен быть бойцом этого комбо."
+
+msgid "training.combo.run.stop"
+msgstr "Остановить испытание"
+
+msgid "training.combo.run.stop.detail"
+msgstr "Убирает список приёмов с экрана."
+
+msgid "training.combo.run.started"
+msgstr "Испытание начато, боец: {0}. Проверяется приёмов: {1} из {2}."
+
+msgid "training.combo.run.refused"
+msgstr "Не удалось начать испытание: {0}"
+
+msgid "training.combo.run.stopped"
+msgstr "Испытание остановлено."
+
+msgid "training.combo.run.count"
+msgstr "Выполнено: {0}. Попыток: {1}. Успешность: {2}%."
+
+msgid "training.combo.run.complete"
+msgstr "Комбо выполнено!"
+
+msgid "training.combo.run.failed"
+msgstr "Приём {0}: {1}"
+
+msgid "training.combo.run.wrong_move"
+msgstr "вышел другой приём"
+
+msgid "training.combo.run.whiffed"
+msgstr "следующий приём вышел раньше, чем этот попал"
+
+msgid "training.combo.run.dropped"
+msgstr "комбо прервалось"
+
+msgid "training.combo.run.unchecked"
+msgstr "{0} (без проверки)"
+
+msgid "training.combo.replay"
+msgstr "Воспроизвести приёмы"
+
+msgid "training.combo.replay.detail"
+msgstr "Воспроизводит набранные приёмы или выбранное комбо как ввод с пада. Тайминг примерный: меняйте паузу линка и смотрите, какие приёмы выходят."
+
+msgid "training.combo.replay.by"
+msgstr "Исполняет"
+
+msgid "training.combo.replay.by.dummy"
+msgstr "Манекен (Игрок 2)"
+
+msgid "training.combo.replay.by.me"
+msgstr "Я (Игрок 1)"
+
+msgid "training.combo.replay.by.detail"
+msgstr "Кто выполняет приёмы. Влево и Вправо меняют."
+
+msgid "training.combo.replay.facing"
+msgstr "Направление"
+
+msgid "training.combo.replay.facing.right"
+msgstr "Вправо"
+
+msgid "training.combo.replay.facing.left"
+msgstr "Влево"
+
+msgid "training.combo.replay.facing.detail"
+msgstr "Куда смотрит этот игрок в начале; приёмы вперёд читаются так."
+
+msgid "training.combo.replay.gap"
+msgstr "Сдвиг тайминга"
+
+msgid "training.combo.replay.gap.detail"
+msgstr "Кадры, которые каждый приём ждёт после своего сигнала (свободный кадр для линка, попадание для кэнсела), вдобавок к собственному сдвигу @ приёма, например cr.MK@+1."
+
+msgid "training.combo.replay.started"
+msgstr "Воспроизведение загружено в слот {0} и запущено."
+
+msgid "training.combo.timing"
+msgstr "Правка тайминга"
+
+msgid "training.combo.timing.detail"
+msgstr "Выбранное комбо приём за приёмом: сдвиг каждого приёма и что увидело последнее воспроизведение."
+
+msgid "training.combo.timing.replay.detail"
+msgstr "Воспроизводит выбранное комбо как есть, чтобы обновить отчёт по каждому приёму ниже."
+
+msgid "training.combo.timing.select"
+msgstr "Сначала выберите комбо."
+
+msgid "training.combo.timing.none"
+msgstr "Ещё не воспроизводилось."
+
+msgid "training.combo.timing.gave_up"
+msgstr "Воспроизведение ждало сигнал этого приёма и не увидело его."
+
+msgid "training.combo.timing.first"
+msgstr "Первый приём; связался: {0}."
+
+msgid "training.combo.timing.cancel"
+msgstr "Ждал {0} кадров попадания; связался: {1}."
+
+msgid "training.combo.timing.link"
+msgstr "Ждал {0} кадров освобождения бойца; связался: {1}."
+
+msgid "training.combo.timing.hit"
+msgstr "да"
+
+msgid "training.combo.timing.no_hit"
+msgstr "нет"
+
+msgid "training.combo.timing.adjust"
+msgstr "Влево и Вправо сдвигают на кадр."
+
+msgid "training.combo.timing.drops"
+msgstr "Сорвалось здесь {0} раз."
+
+msgid "training.combo.blocks"
+msgstr "Редактор паттерна"
+
+msgid "training.combo.blocks.detail"
+msgstr "Приёмы как блоки на линейке кадров, как в степ-секвенсоре: каждый блок нажимает на своём кадре, воспроизведение идёт по этим кадрам."
+
+msgid "training.combo.blocks.frame"
+msgstr "Кадр {0}"
+
+msgid "training.combo.blocks.hint"
+msgstr "Влево и Вправо сдвигают блок на кадр; тяните мышью. Выбор редактирует приём."
+
+msgid "training.combo.blocks.add"
+msgstr "Добавить приём"
+
+msgid "training.combo.blocks.delete"
+msgstr "Удалить блок"
+
+msgid "training.combo.blocks.delete.detail"
+msgstr "Убирает выделенный блок."
+
+msgid "training.combo.blocks.replay.detail"
+msgstr "Воспроизводит паттерн по его кадрам."
+
+msgid "training.combo.blocks.empty"
+msgstr "Приёмов пока нет. Добавьте ниже."
+
+msgid "training.combo.save_pos"
+msgstr "Сохранить позицию"
+
+msgid "training.combo.save_pos.detail"
+msgstr "Запоминает обоих бойцов как есть: место, здоровье, шкалы, состояние манекена."
+
+msgid "training.combo.reset_pos"
+msgstr "Вернуть позицию"
+
+msgid "training.combo.reset_pos.detail"
+msgstr "Возвращает обоих бойцов туда, где они были сохранены."
+
+msgid "training.combo.reset_before"
+msgstr "Возвращать перед воспроизведением"
+
+msgid "training.combo.reset_before.detail"
+msgstr "Каждое воспроизведение и попытка испытания начинается с сохранённой позиции; после каждой попытки она восстанавливается."
+
+msgid "training.combo.position_saved"
+msgstr "Позиция сохранена."
+
+msgid "training.combo.position_reset"
+msgstr "Позиция возвращена."
+
+msgid "training.combo.capture"
+msgstr "Записать комбо"
+
+msgid "training.combo.capture.detail"
+msgstr "Записывает приёмы Игрока 1 в строку Приёмы, пока полторы секунды ничего не происходит."
+
+msgid "training.combo.capture_stop"
+msgstr "Остановить запись комбо"
+
+msgid "training.combo.capture_started"
+msgstr "Идёт запись: выполните комбо за Игрока 1."
+
+msgid "training.combo.capture_wait"
+msgstr "Запись завершается."
+
+msgid "training.combo.captured"
+msgstr "В строку Приёмы записано приёмов: {0}."
+
+msgid "training.combo.capture_empty"
+msgstr "Приёмы не записаны."
+
+msgid "training.combo.setup.detail"
+msgstr "Влево и Вправо меняют; сразу действует в игре и хранится с выбранным комбо. Настройка игры оставляет выбор меню тренировки."
+
+msgid "training.combo.setup.game"
+msgstr "Настройка игры"
+
+msgid "training.combo.setup.action"
+msgstr "Манекен"
+
+msgid "training.combo.setup.guard"
+msgstr "Блок"
+
+msgid "training.combo.setup.counter"
+msgstr "Контрудар"
+
+msgid "training.combo.setup.quick"
+msgstr "Быстрый подъём"
+
+msgid "training.combo.setup.super"
+msgstr "Шкала супер"
+
+msgid "training.combo.setup.revenge"
+msgstr "Шкала реванша"
+
+msgid "training.combo.setup.stand"
+msgstr "Стоит"
+
+msgid "training.combo.setup.crouch"
+msgstr "Сидит"
+
+msgid "training.combo.setup.jump"
+msgstr "Прыжок"
+
+msgid "training.combo.setup.cpu"
+msgstr "CPU"
+
+msgid "training.combo.setup.guard_none"
+msgstr "Без блока"
+
+msgid "training.combo.setup.guard_first"
+msgstr "После первого удара"
+
+msgid "training.combo.setup.guard_all"
+msgstr "Блокировать всё"
+
+msgid "training.combo.setup.guard_random"
+msgstr "Случайно"
+
+msgid "training.combo.setup.counter_off"
+msgstr "Выкл."
+
+msgid "training.combo.setup.counter_on"
+msgstr "Вкл."
+
+msgid "training.combo.setup.counter_random"
+msgstr "Случайно"
+
+msgid "training.combo.setup.quick_quick"
+msgstr "Быстрый"
+
+msgid "training.combo.setup.quick_normal"
+msgstr "Обычный"
+
+msgid "training.combo.setup.quick_delayed"
+msgstr "С задержкой"
+
+msgid "training.combo.setup.quick_random"
+msgstr "Случайно"
+
+msgid "training.combo.setup.gauge_normal"
+msgstr "Обычная"
+
+msgid "training.combo.setup.gauge_max"
+msgstr "Полная на старте"
+
+msgid "training.combo.setup.gauge_infinite"
+msgstr "Бесконечная"
+
+msgid "training.combo.setup.gauge_refill"
+msgstr "Пополнение"
 
 msgid "training.close_controls"
 msgstr "Закрыть меню тренировки"
@@ -1232,7 +1652,7 @@ msgid "training.recording_suspended"
 msgstr "Запись приостановлена, пока открыто меню"
 
 msgid "training.playback_suspended"
-msgstr "Воспроизведение приостановлено, пока открыто меню"
+msgstr "Воспроизведение идёт; запись ждёт закрытия меню"
 
 msgid "training.applying"
 msgstr "Выполнение команды..."

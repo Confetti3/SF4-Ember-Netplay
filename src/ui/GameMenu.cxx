@@ -509,8 +509,11 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     ImGui::Dummy(ImVec2(0,legendHeight));
     if(flyout) {
         // The flyout has no choice dialog, so a row that opens one does nothing.
+        // Its text rows edit in the same popup as the shell's.
         if(navigation.Choosing()) navigation.Cancel();
         DrawFlyoutConfirmation(entries,unit,bodyTop,legendTop,action);
+        DrawEditModal(entries,acceptEditText,action);
+        lastEdit_=navigation.EditingId();
         lastFocus_=navigation.Focus();lastScreen_=navigation.Screen();
         if(backRequested) return navigation.Return();
         return action;

@@ -1147,6 +1147,33 @@ msgstr "F6 Training controls"
 msgid "training.hide_hint"
 msgstr "F5 Hide HUD"
 
+msgid "training.save_recording"
+msgstr "Save recording as"
+
+msgid "training.save_recording.detail"
+msgstr "Writes the selected slot to a file by this name, beside your combos."
+
+msgid "training.load_recording"
+msgstr "Load recording"
+
+msgid "training.load_recording.detail"
+msgstr "Left and Right choose a saved recording; Select loads it into the selected slot."
+
+msgid "training.recording_saved"
+msgstr "Recording saved as {0}."
+
+msgid "training.recording_loaded"
+msgstr "Recording {0} loaded into slot {1}."
+
+msgid "training.recording_none"
+msgstr "No saved recordings."
+
+msgid "training.replay_chip"
+msgstr "F8 Replay slot {0}"
+
+msgid "training.stop_chip"
+msgstr "F8 Stop"
+
 msgid "training.dummy_recording"
 msgstr "Dummy recording"
 
@@ -1158,6 +1185,399 @@ msgstr "Input history"
 
 msgid "training.input_history.detail"
 msgstr "Inspect each player's held inputs."
+
+msgid "training.combo.title"
+msgstr "Combo creator"
+
+msgid "training.combo.title.detail"
+msgstr "Write combos as moves, share them and see every route."
+
+msgid "training.combo.none"
+msgstr "None"
+
+msgid "training.combo.pack"
+msgstr "Pack"
+
+msgid "training.combo.pack.detail"
+msgstr "Combos in this pack: {0}. Left and Right change the pack."
+
+msgid "training.combo.new_pack"
+msgstr "New pack"
+
+msgid "training.combo.combo"
+msgstr "Combo"
+
+msgid "training.combo.fighter"
+msgstr "Fighter"
+
+msgid "training.combo.fighter.detail"
+msgstr "The fighter the combo is for. Move names are read as this fighter's."
+
+msgid "training.combo.name"
+msgstr "Combo name"
+
+msgid "training.combo.steps"
+msgstr "Moves"
+
+msgid "training.combo.notes"
+msgstr "Notes"
+
+msgid "training.combo.add"
+msgstr "Add combo"
+
+msgid "training.combo.add.detail"
+msgstr "Adds the moves to the pack. Example: cr.MK xx HP Hadoken > FADC > cl.HP"
+
+msgid "training.combo.tree"
+msgstr "Combo tree"
+
+msgid "training.combo.tree.detail"
+msgstr "Every route in your packs, by fighter."
+
+msgid "training.combo.tree.empty"
+msgstr "No combos yet."
+
+msgid "training.combo.copy_combo"
+msgstr "Copy combo"
+
+msgid "training.combo.copy_pack"
+msgstr "Copy pack"
+
+msgid "training.combo.copy_all"
+msgstr "Copy all packs"
+
+msgid "training.combo.copy.detail"
+msgstr "Copies it as text you can share."
+
+msgid "training.combo.paste"
+msgstr "Import from clipboard"
+
+msgid "training.combo.paste.detail"
+msgstr "Adds a copied combo, pack or set of packs."
+
+msgid "training.combo.delete"
+msgstr "Delete combo"
+
+msgid "training.combo.delete.detail"
+msgstr "Removes the selected combo from its pack."
+
+msgid "training.combo.added"
+msgstr "Combos added: {0}."
+
+msgid "training.combo.exists"
+msgstr "That route is already in the pack."
+
+msgid "training.combo.copied"
+msgstr "Copied."
+
+msgid "training.combo.invalid"
+msgstr "Not accepted: {0}"
+
+msgid "training.combo.save_failed"
+msgstr "The combos could not be saved."
+
+msgid "training.combo.import_trials"
+msgstr "Import game trials"
+
+msgid "training.combo.import_trials.detail"
+msgstr "Reads the game's own Ultra trials for the fighter chosen above into a pack named after the fighter, so the tree shows the game's routes."
+
+msgid "training.combo.export_trial"
+msgstr "Export pack as trial file"
+
+msgid "training.combo.export_trial.detail"
+msgstr "Writes this pack's combos for the fighter chosen above as {0} in the trials folder beside your combos: 24 combos, your own first; a trial longer than 8 moves is written whole, and the game lists its first 8 unless the scrolling-list mod is installed. Put it in place of the game's own {0}, keeping a backup, and Trial mode plays it."
+
+msgid "training.combo.trials_imported"
+msgstr "Trials read: {0} of {1}. Combos added: {2}."
+
+msgid "training.combo.trial_exported"
+msgstr "Combos written: {0}, to {1}. Put it in place of {2}, keeping a backup; Trial mode loads it."
+
+msgid "training.combo.trial_skipped"
+msgstr "Left out or changed: {0}. First: {1}"
+
+msgid "training.combo.trial_none"
+msgstr "No combo of this pack could be written for {0}."
+
+msgid "training.combo.game_file"
+msgstr "The game's files could not be read: {0}"
+
+msgid "training.combo.trial_failed"
+msgstr "The trial file could not be written: {0}"
+
+msgid "training.combo.run.start"
+msgstr "Start trial"
+
+msgid "training.combo.run.start.detail"
+msgstr "Practice the selected combo as Player 1: its moves are listed over the fight and tick off as each one comes out and hits. Player 1 has to be the combo's fighter."
+
+msgid "training.combo.run.stop"
+msgstr "Stop trial"
+
+msgid "training.combo.run.stop.detail"
+msgstr "Takes the list of moves off the screen."
+
+msgid "training.combo.run.started"
+msgstr "Trial started for {0}. Moves checked: {1} of {2}."
+
+msgid "training.combo.run.refused"
+msgstr "The trial could not start: {0}"
+
+msgid "training.combo.run.stopped"
+msgstr "Trial stopped."
+
+msgid "training.combo.run.count"
+msgstr "Cleared: {0}. Attempts: {1}. Rate: {2}%."
+
+msgid "training.combo.run.complete"
+msgstr "Combo complete!"
+
+msgid "training.combo.run.failed"
+msgstr "Move {0}: {1}"
+
+msgid "training.combo.run.wrong_move"
+msgstr "a different move came out"
+
+msgid "training.combo.run.whiffed"
+msgstr "the next move came out before this one hit"
+
+msgid "training.combo.run.dropped"
+msgstr "the combo dropped"
+
+msgid "training.combo.run.unchecked"
+msgstr "{0} (not checked)"
+
+msgid "training.combo.replay"
+msgstr "Replay moves"
+
+msgid "training.combo.replay.detail"
+msgstr "Plays the typed moves, or the selected combo, as pad input. The timing is a guess: change the link gap and watch which moves come out."
+
+msgid "training.combo.replay.by"
+msgstr "Replay by"
+
+msgid "training.combo.replay.by.dummy"
+msgstr "Dummy (Player 2)"
+
+msgid "training.combo.replay.by.me"
+msgstr "Me (Player 1)"
+
+msgid "training.combo.replay.by.detail"
+msgstr "Who performs the moves. Left and Right change it."
+
+msgid "training.combo.replay.facing"
+msgstr "Facing"
+
+msgid "training.combo.replay.facing.right"
+msgstr "Right"
+
+msgid "training.combo.replay.facing.left"
+msgstr "Left"
+
+msgid "training.combo.replay.facing.detail"
+msgstr "The way that player faces when the replay starts; forward moves are read that way."
+
+msgid "training.combo.replay.gap"
+msgstr "Timing offset"
+
+msgid "training.combo.replay.gap.detail"
+msgstr "Frames every move goes on waiting after its cue (the free frame for a link, the hit for a cancel), on top of a move's own @ offset such as cr.MK@+1."
+
+msgid "training.combo.replay.started"
+msgstr "Replay loaded into slot {0} and playing."
+
+msgid "training.combo.timing"
+msgstr "Edit timing"
+
+msgid "training.combo.timing.detail"
+msgstr "The selected combo move by move: each move's timing offset, and what the last replay saw."
+
+msgid "training.combo.timing.replay.detail"
+msgstr "Replays the selected combo as it is now, so each move's report below updates."
+
+msgid "training.combo.timing.select"
+msgstr "Select a combo first."
+
+msgid "training.combo.timing.none"
+msgstr "Not replayed yet."
+
+msgid "training.combo.timing.gave_up"
+msgstr "The replay waited for this move's cue and never saw it."
+
+msgid "training.combo.timing.first"
+msgstr "First move; connected: {0}."
+
+msgid "training.combo.timing.cancel"
+msgstr "Waited {0} frames for the hit; connected: {1}."
+
+msgid "training.combo.timing.link"
+msgstr "Waited {0} frames for the fighter to be free; connected: {1}."
+
+msgid "training.combo.timing.hit"
+msgstr "yes"
+
+msgid "training.combo.timing.no_hit"
+msgstr "no"
+
+msgid "training.combo.timing.adjust"
+msgstr "Left and Right move it a frame earlier or later."
+
+msgid "training.combo.timing.drops"
+msgstr "Dropped here {0} times."
+
+msgid "training.combo.blocks"
+msgstr "Pattern editor"
+
+msgid "training.combo.blocks.detail"
+msgstr "The moves as blocks on a frame ruler, like a step sequencer: each block presses on its frame, and the replay plays those frames."
+
+msgid "training.combo.blocks.frame"
+msgstr "Frame {0}"
+
+msgid "training.combo.blocks.hint"
+msgstr "Left and Right move the block a frame; drag it with the mouse. Select edits the move."
+
+msgid "training.combo.blocks.add"
+msgstr "Add move"
+
+msgid "training.combo.blocks.delete"
+msgstr "Delete block"
+
+msgid "training.combo.blocks.delete.detail"
+msgstr "Removes the highlighted block."
+
+msgid "training.combo.blocks.replay.detail"
+msgstr "Plays the pattern on its frames."
+
+msgid "training.combo.blocks.empty"
+msgstr "No moves yet. Add one below."
+
+msgid "training.combo.save_pos"
+msgstr "Save position"
+
+msgid "training.combo.save_pos.detail"
+msgstr "Keeps both fighters as they are now: place, health, meters, dummy state."
+
+msgid "training.combo.reset_pos"
+msgstr "Reset position"
+
+msgid "training.combo.reset_pos.detail"
+msgstr "Puts both fighters back where they were saved."
+
+msgid "training.combo.reset_before"
+msgstr "Reset before replay"
+
+msgid "training.combo.reset_before.detail"
+msgstr "Every replay and trial attempt starts from the saved position; after each attempt the position is restored."
+
+msgid "training.combo.position_saved"
+msgstr "Position saved."
+
+msgid "training.combo.position_reset"
+msgstr "Position reset."
+
+msgid "training.combo.capture"
+msgstr "Record combo"
+
+msgid "training.combo.capture.detail"
+msgstr "Writes down the moves Player 1 performs, as the Moves line, until nothing happens for a second and a half."
+
+msgid "training.combo.capture_stop"
+msgstr "Stop recording combo"
+
+msgid "training.combo.capture_started"
+msgstr "Recording: perform the combo as Player 1."
+
+msgid "training.combo.capture_wait"
+msgstr "Finishing the recording."
+
+msgid "training.combo.captured"
+msgstr "Recorded {0} moves into the Moves line."
+
+msgid "training.combo.capture_empty"
+msgstr "No moves were recorded."
+
+msgid "training.combo.setup.detail"
+msgstr "Left and Right change it; it is set in the game at once and kept with the selected combo. Game setting leaves the Training menu's choice."
+
+msgid "training.combo.setup.game"
+msgstr "Game setting"
+
+msgid "training.combo.setup.action"
+msgstr "Dummy"
+
+msgid "training.combo.setup.guard"
+msgstr "Guard"
+
+msgid "training.combo.setup.counter"
+msgstr "Counter hit"
+
+msgid "training.combo.setup.quick"
+msgstr "Quick stand"
+
+msgid "training.combo.setup.super"
+msgstr "Super gauge"
+
+msgid "training.combo.setup.revenge"
+msgstr "Revenge gauge"
+
+msgid "training.combo.setup.stand"
+msgstr "Stand"
+
+msgid "training.combo.setup.crouch"
+msgstr "Crouch"
+
+msgid "training.combo.setup.jump"
+msgstr "Jump"
+
+msgid "training.combo.setup.cpu"
+msgstr "CPU"
+
+msgid "training.combo.setup.guard_none"
+msgstr "No block"
+
+msgid "training.combo.setup.guard_first"
+msgstr "After first hit"
+
+msgid "training.combo.setup.guard_all"
+msgstr "Block all"
+
+msgid "training.combo.setup.guard_random"
+msgstr "Random"
+
+msgid "training.combo.setup.counter_off"
+msgstr "Off"
+
+msgid "training.combo.setup.counter_on"
+msgstr "On"
+
+msgid "training.combo.setup.counter_random"
+msgstr "Random"
+
+msgid "training.combo.setup.quick_quick"
+msgstr "Quick"
+
+msgid "training.combo.setup.quick_normal"
+msgstr "Normal"
+
+msgid "training.combo.setup.quick_delayed"
+msgstr "Delayed"
+
+msgid "training.combo.setup.quick_random"
+msgstr "Random"
+
+msgid "training.combo.setup.gauge_normal"
+msgstr "Normal"
+
+msgid "training.combo.setup.gauge_max"
+msgstr "Max at start"
+
+msgid "training.combo.setup.gauge_infinite"
+msgstr "Infinite"
+
+msgid "training.combo.setup.gauge_refill"
+msgstr "Refill"
 
 msgid "training.close_controls"
 msgstr "Close training controls"
@@ -1232,7 +1652,7 @@ msgid "training.recording_suspended"
 msgstr "Recording suspended while controls are open"
 
 msgid "training.playback_suspended"
-msgstr "Playback suspended while controls are open"
+msgstr "Playback running; recording waits for the controls to close"
 
 msgid "training.applying"
 msgstr "Applying command..."

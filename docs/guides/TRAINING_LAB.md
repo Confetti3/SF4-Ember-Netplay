@@ -16,11 +16,11 @@ Use the game's main menu to enter **Training** and select both fighters and a st
 | F7 | Start/stop recording P1's controls onto P2. If the selected slot already holds a recording, F7 opens Dummy Recording with the overwrite question on Record, answered Cancel until you choose Record |
 | F8 | Start/stop playback of the selected P2 slot |
 
-The passive meter does not capture gameplay input. Training controls use keyboard and mouse only: F6 opens/closes, arrows navigate, Enter selects, and Escape goes back. There is no controller opening shortcut or controller navigation in the flyout. Start retains native pause behavior while Ember is closed. While the flyout is open, all gameplay input is captured, including controllers; closing inputs must release before returning to gameplay. F6 does not request native pause. Recording and playback suspend while the controls are open, and stop if the game loses focus. F5 through F8 are reserved while in training.
+The passive meter does not capture gameplay input. Training controls use keyboard and mouse only: F6 opens/closes, arrows navigate, Enter selects, and Escape goes back. There is no controller opening shortcut or controller navigation in the flyout. Start retains native pause behavior while Ember is closed. While the flyout is open, all gameplay input is captured, including controllers; closing inputs must release before returning to gameplay. F6 does not request native pause. Recording suspends while the controls are open; playback keeps running under them. Both stop if the game loses focus. F5 through F8 are reserved while in training.
 
 The passive HUD uses two slim meter rows, a 42% opaque background and translucent meter cells. Its prompt shows F6 for controls and F5 to hide the HUD. At 720p it is 620 pixels wide, bounded by 75% of viewport width; its size follows viewport height instead of the main menu's DPI scale. It sits just above the game's super meters, with its bottom edge at 82% of the viewport height, so it no longer covers them.
 
-The controls are a fixed, centered flyout targeting 820 by 600 logical pixels, bounded by 80% of each viewport dimension. The game stays visible around it: there is no full-screen artwork or dimming. Narrow layouts place details above a scrolling list; headings, command feedback and the button legend remain fixed. Confirmations stay inside the panel with Cancel selected first. Outside clicks neither close the flyout nor pass through into gameplay. Successful Record and Play commands close Ember; close native pause separately if it remains open. Rejected commands remain visible with an explanation.
+The controls are a flyout targeting 820 by 600 logical pixels, bounded by 80% of each viewport dimension. It opens at the top centre and can be dragged anywhere inside the viewport, out of the way of a replay or trial. The game stays visible around it: there is no full-screen artwork or dimming. Narrow layouts place details above a scrolling list; headings, command feedback and the button legend remain fixed. Confirmations stay inside the panel with Cancel selected first. Outside clicks neither close the flyout nor pass through into gameplay. Successful Record and Play commands close Ember; close native pause separately if it remains open. Rejected commands remain visible with an explanation.
 
 ## Read the frame meter
 
@@ -65,6 +65,52 @@ For Waldo's report, capture both sides and each light/medium/heavy/EX Ryu or Ken
 Set the native training dummy to **Player/controller control** first; CPU and native playback can supersede controller input. Select one of eight slots, close the controls, and press F7. P1's controller operates P2 while P1 stays neutral. Press F7 again to stop, then F8 to replay. Each slot holds at most 1,800 accepted simulation frames (30 seconds at 60 fps). Playback can loop. Directions are absolute, so switching sides does not mirror a recording. Recordings are local to the current battle.
 
 Input history shows controller inputs, newest first, with how many simulated frames each input was held. It does not identify CPU-generated moves or measure startup.
+
+## Combo creator
+
+Open the training controls (F6) and select **Combo creator**. Combos are stored in packs in `combos.json` beside Ember's settings; dummy recordings saved from the Dummy Recording screen go to `recordings\` next to it.
+
+### Write a combo
+
+Pick the fighter, type a name and the moves, then **Add combo**. Moves are separated by `>` or `,`; `xx` before a move means it cancels the one before it, otherwise it links. Notation is numpad or prefix style, any case:
+
+```
+[xx] [j.|cr.|st.|cl.|far.] [motion] [buttons] [(mash)] [#N] [@N]
+[xx] FADC[66|44] [#N] [@N]
+```
+
+- motion: numpad digits, `[4]6` for charge, `360`, `720`. `cr.` is 2; `st.`, `cl.` and `far.` are 5.
+- buttons: `LP MP HP LK MK HK` joined by `+`, or `P PP PPP K KK KKK`. `[HP]` holds, `]HP[` releases, `(mash)` mashes.
+- `@N`: extra replay wait after the move's cue, -9 to +30 frames. `#N`: the replay frame the press lands on, 0 to 3600.
+- Move names work too, read as the chosen fighter's: `cr.MK xx HP Hadoken > FADC > cl.HP`. The name table comes from `src/training/ComboMoves.inc`, regenerated with `scripts/generate-combo-moves.py` from a USF4 frame-data JSON.
+
+A route already in the pack is refused. Notes are free text. The dummy setup rows (dummy action, guard, counter hit, quick stand, super and revenge gauge) are applied to the game at once and kept with the selected combo; **Game setting** leaves the Training menu's choice alone.
+
+**Record combo** writes down the moves Player 1 performs into the Moves line, as a new move for each attack and a cancel when it starts before the previous one recovered. It stops by itself after a second and a half without an attack.
+
+### Share
+
+**Copy combo**, **Copy pack** and **Copy all packs** put JSON text on the clipboard; **Import from clipboard** reads any of the three shapes. Imported packs join packs of the same name and skip routes already present. Imports are bounded: 256 KB, 64 packs, 256 combos per pack, 64 moves per combo.
+
+**Combo tree** shows every route in every pack by fighter; combos that start the same way share a branch.
+
+### Run a trial
+
+**Start trial** lists the selected combo's moves over the fight and ticks them off as each comes out and connects. Player 1 has to be the combo's fighter. Like the game's Trial mode it judges which move came out and whether it hit, not which buttons were pressed. A failed attempt says which move dropped and why: a different move came out, the next move came out before this one hit, or the combo dropped. The panel counts cleared attempts and the rate. **Stop trial** removes the list.
+
+**Save position** keeps both fighters' place, health, meters and dummy state; **Reset position** restores it. With **Reset before replay** on, every replay and trial attempt starts from the saved position.
+
+### Replay and timing
+
+**Replay moves** plays the typed line, or the selected combo, as pad input through a dummy recording slot. **Replay by** chooses Dummy (Player 2) or Me (Player 1); **Facing** says which way that player faces at the start so forward moves are read right. Directions take a few frames each and a button two; between moves the replay waits on the fight itself: a link waits for the fighter to be free again, a cancel for the hit to land. **Timing offset** adds frames to every wait, on top of a move's own `@N`. The game decides what comes out, so the timing is a guess to adjust by watching.
+
+**Edit timing** lists the selected combo move by move with its offset (Left and Right move it a frame) and what the last replay saw: how long it waited for the cue, whether the move connected, and how often the combo dropped there.
+
+**Pattern editor** lays the moves out as blocks on a frame ruler, like a step sequencer. Each block presses on its `#N` frame; Up and Down pick a block, Left and Right nudge it a frame, or drag it with the mouse. Select edits the move; **Add move** and **Delete block** change the pattern; its Replay plays the blocks on those frames.
+
+### Game trials
+
+**Import game trials** reads the game's own Ultra trials for the chosen fighter from the newest patch that has the file into a pack named after the fighter. **Export pack as trial file** writes the pack's combos for that fighter as the fighter's trial file into `trials\` beside `combos.json`: 24 combos, your own first, then the game's. A combo longer than 8 moves is written whole; the game lists only its first 8 unless the scrolling-list mod is installed. Put the file in place of the game's own, keeping a backup, and Trial mode plays it. Moves a trial cannot name are reported as left out or changed. Both read the files from the game folder Ember is running in.
 
 ## Implementation notes
 

@@ -1147,6 +1147,33 @@ msgstr "F6 트레이닝 조작"
 msgid "training.hide_hint"
 msgstr "F5 HUD 숨기기"
 
+msgid "training.save_recording"
+msgstr "녹화 이름 지정 저장"
+
+msgid "training.save_recording.detail"
+msgstr "선택한 슬롯을 이 이름의 파일로 콤보 옆에 저장합니다."
+
+msgid "training.load_recording"
+msgstr "녹화 불러오기"
+
+msgid "training.load_recording.detail"
+msgstr "좌우로 저장한 녹화를 고르고, 선택하면 선택한 슬롯에 불러옵니다."
+
+msgid "training.recording_saved"
+msgstr "녹화를 {0}(으)로 저장했습니다."
+
+msgid "training.recording_loaded"
+msgstr "녹화 {0}을(를) 슬롯 {1}에 불러왔습니다."
+
+msgid "training.recording_none"
+msgstr "저장한 녹화가 없습니다."
+
+msgid "training.replay_chip"
+msgstr "F8 슬롯 {0} 재생"
+
+msgid "training.stop_chip"
+msgstr "F8 정지"
+
 msgid "training.dummy_recording"
 msgstr "더미 녹화"
 
@@ -1158,6 +1185,399 @@ msgstr "입력 기록"
 
 msgid "training.input_history.detail"
 msgstr "각 플레이어가 누르고 있는 입력을 확인합니다."
+
+msgid "training.combo.title"
+msgstr "콤보 제작"
+
+msgid "training.combo.title.detail"
+msgstr "콤보를 기술 순서로 적고, 공유하고, 모든 루트를 확인합니다."
+
+msgid "training.combo.none"
+msgstr "없음"
+
+msgid "training.combo.pack"
+msgstr "팩"
+
+msgid "training.combo.pack.detail"
+msgstr "이 팩의 콤보 수: {0}. 좌우로 팩을 바꿉니다."
+
+msgid "training.combo.new_pack"
+msgstr "새 팩"
+
+msgid "training.combo.combo"
+msgstr "콤보"
+
+msgid "training.combo.fighter"
+msgstr "캐릭터"
+
+msgid "training.combo.fighter.detail"
+msgstr "콤보를 쓸 캐릭터입니다. 기술 이름은 이 캐릭터의 것으로 읽습니다."
+
+msgid "training.combo.name"
+msgstr "콤보 이름"
+
+msgid "training.combo.steps"
+msgstr "기술"
+
+msgid "training.combo.notes"
+msgstr "메모"
+
+msgid "training.combo.add"
+msgstr "콤보 추가"
+
+msgid "training.combo.add.detail"
+msgstr "기술을 팩에 추가합니다. 예: cr.MK xx HP Hadoken > FADC > cl.HP"
+
+msgid "training.combo.tree"
+msgstr "콤보 트리"
+
+msgid "training.combo.tree.detail"
+msgstr "팩에 있는 모든 루트를 캐릭터별로 보여 줍니다."
+
+msgid "training.combo.tree.empty"
+msgstr "아직 콤보가 없습니다."
+
+msgid "training.combo.copy_combo"
+msgstr "콤보 복사"
+
+msgid "training.combo.copy_pack"
+msgstr "팩 복사"
+
+msgid "training.combo.copy_all"
+msgstr "모든 팩 복사"
+
+msgid "training.combo.copy.detail"
+msgstr "공유할 수 있는 텍스트로 복사합니다."
+
+msgid "training.combo.paste"
+msgstr "클립보드에서 가져오기"
+
+msgid "training.combo.paste.detail"
+msgstr "복사한 콤보, 팩 또는 여러 팩을 추가합니다."
+
+msgid "training.combo.delete"
+msgstr "콤보 삭제"
+
+msgid "training.combo.delete.detail"
+msgstr "선택한 콤보를 팩에서 삭제합니다."
+
+msgid "training.combo.added"
+msgstr "추가한 콤보 수: {0}."
+
+msgid "training.combo.exists"
+msgstr "그 루트는 이미 팩에 있습니다."
+
+msgid "training.combo.copied"
+msgstr "복사했습니다."
+
+msgid "training.combo.invalid"
+msgstr "받을 수 없습니다: {0}"
+
+msgid "training.combo.save_failed"
+msgstr "콤보를 저장하지 못했습니다."
+
+msgid "training.combo.import_trials"
+msgstr "게임 트라이얼 가져오기"
+
+msgid "training.combo.import_trials.detail"
+msgstr "위에서 고른 캐릭터의 게임 울트라 트라이얼을 캐릭터 이름의 팩으로 읽어 옵니다. 트리에 게임의 루트가 표시됩니다."
+
+msgid "training.combo.export_trial"
+msgstr "팩을 트라이얼 파일로 내보내기"
+
+msgid "training.combo.export_trial.detail"
+msgstr "이 팩에서 위에서 고른 캐릭터의 콤보를 콤보 옆의 trials 폴더에 {0}(으)로 씁니다. 콤보는 24개까지이며 내 콤보가 먼저입니다. 기술이 8개를 넘는 콤보도 전부 쓰지만, 스크롤 목록 모드가 없으면 게임은 처음 8개만 표시합니다. 게임의 {0} 자리에 넣으면(백업을 남기고) 트라이얼 모드에서 재생됩니다."
+
+msgid "training.combo.trials_imported"
+msgstr "읽은 트라이얼: {1}개 중 {0}개. 추가한 콤보 수: {2}."
+
+msgid "training.combo.trial_exported"
+msgstr "콤보 {0}개를 {1}에 썼습니다. 백업을 남기고 {2} 자리에 넣으면 트라이얼 모드가 읽어 들입니다."
+
+msgid "training.combo.trial_skipped"
+msgstr "제외 또는 변경: {0}개. 첫 번째: {1}"
+
+msgid "training.combo.trial_none"
+msgstr "이 팩에는 {0}용으로 쓸 수 있는 콤보가 없습니다."
+
+msgid "training.combo.game_file"
+msgstr "게임 파일을 읽지 못했습니다: {0}"
+
+msgid "training.combo.trial_failed"
+msgstr "트라이얼 파일을 쓰지 못했습니다: {0}"
+
+msgid "training.combo.run.start"
+msgstr "트라이얼 시작"
+
+msgid "training.combo.run.start.detail"
+msgstr "선택한 콤보를 플레이어 1로 연습합니다. 기술 목록이 대전 화면 위에 표시되고, 기술이 나가서 맞을 때마다 체크됩니다. 플레이어 1은 콤보의 캐릭터여야 합니다."
+
+msgid "training.combo.run.stop"
+msgstr "트라이얼 중지"
+
+msgid "training.combo.run.stop.detail"
+msgstr "기술 목록을 화면에서 지웁니다."
+
+msgid "training.combo.run.started"
+msgstr "{0} 트라이얼을 시작했습니다. 판정하는 기술: {1} / {2}"
+
+msgid "training.combo.run.refused"
+msgstr "트라이얼을 시작할 수 없습니다: {0}"
+
+msgid "training.combo.run.stopped"
+msgstr "트라이얼을 중지했습니다."
+
+msgid "training.combo.run.count"
+msgstr "성공: {0}. 시도: {1}. 성공률: {2}%."
+
+msgid "training.combo.run.complete"
+msgstr "콤보 성공!"
+
+msgid "training.combo.run.failed"
+msgstr "기술 {0}: {1}"
+
+msgid "training.combo.run.wrong_move"
+msgstr "다른 기술이 나갔습니다"
+
+msgid "training.combo.run.whiffed"
+msgstr "이 기술이 맞기 전에 다음 기술이 나갔습니다"
+
+msgid "training.combo.run.dropped"
+msgstr "콤보가 끊겼습니다"
+
+msgid "training.combo.run.unchecked"
+msgstr "{0} (판정 없음)"
+
+msgid "training.combo.replay"
+msgstr "기술 재생"
+
+msgid "training.combo.replay.detail"
+msgstr "입력한 기술이나 선택한 콤보를 패드 입력으로 재생합니다. 타이밍은 추정값입니다. 링크 간격을 바꿔 어떤 기술이 나오는지 확인하세요."
+
+msgid "training.combo.replay.by"
+msgstr "재생 주체"
+
+msgid "training.combo.replay.by.dummy"
+msgstr "더미 (2P)"
+
+msgid "training.combo.replay.by.me"
+msgstr "나 (1P)"
+
+msgid "training.combo.replay.by.detail"
+msgstr "기술을 수행할 쪽입니다. 좌우로 바꿉니다."
+
+msgid "training.combo.replay.facing"
+msgstr "방향"
+
+msgid "training.combo.replay.facing.right"
+msgstr "오른쪽"
+
+msgid "training.combo.replay.facing.left"
+msgstr "왼쪽"
+
+msgid "training.combo.replay.facing.detail"
+msgstr "재생 시작 시 그 쪽이 보는 방향입니다. 앞 방향 기술은 이 기준으로 읽습니다."
+
+msgid "training.combo.replay.gap"
+msgstr "타이밍 보정"
+
+msgid "training.combo.replay.gap.detail"
+msgstr "각 기술이 신호(링크는 자유 프레임, 캔슬은 히트) 뒤에 더 기다리는 프레임 수입니다. cr.MK@+1 같은 기술별 @ 보정에 더해집니다."
+
+msgid "training.combo.replay.started"
+msgstr "슬롯 {0}에 불러와 재생 중입니다."
+
+msgid "training.combo.timing"
+msgstr "타이밍 편집"
+
+msgid "training.combo.timing.detail"
+msgstr "선택한 콤보를 기술별로 보여 줍니다. 각 기술의 타이밍 보정과 마지막 재생에서 본 결과입니다."
+
+msgid "training.combo.timing.replay.detail"
+msgstr "선택한 콤보를 지금 상태로 재생하여 아래 기술별 결과를 갱신합니다."
+
+msgid "training.combo.timing.select"
+msgstr "먼저 콤보를 선택하세요."
+
+msgid "training.combo.timing.none"
+msgstr "아직 재생하지 않았습니다."
+
+msgid "training.combo.timing.gave_up"
+msgstr "이 기술의 신호를 기다렸지만 보지 못했습니다."
+
+msgid "training.combo.timing.first"
+msgstr "첫 기술. 이어짐: {0}."
+
+msgid "training.combo.timing.cancel"
+msgstr "히트까지 {0}프레임 대기. 이어짐: {1}."
+
+msgid "training.combo.timing.link"
+msgstr "캐릭터가 자유로워질 때까지 {0}프레임 대기. 이어짐: {1}."
+
+msgid "training.combo.timing.hit"
+msgstr "예"
+
+msgid "training.combo.timing.no_hit"
+msgstr "아니요"
+
+msgid "training.combo.timing.adjust"
+msgstr "좌우로 한 프레임씩 옮깁니다."
+
+msgid "training.combo.timing.drops"
+msgstr "여기서 {0}번 끊겼습니다."
+
+msgid "training.combo.blocks"
+msgstr "패턴 편집기"
+
+msgid "training.combo.blocks.detail"
+msgstr "기술을 프레임 눈금 위의 블록으로 배치합니다. 스텝 시퀀서처럼 각 블록은 자기 프레임에 입력하고, 재생은 그 프레임대로 진행합니다."
+
+msgid "training.combo.blocks.frame"
+msgstr "프레임 {0}"
+
+msgid "training.combo.blocks.hint"
+msgstr "좌우로 블록을 한 프레임씩 옮깁니다. 마우스로 끌 수도 있습니다. 선택하면 기술을 편집합니다."
+
+msgid "training.combo.blocks.add"
+msgstr "기술 추가"
+
+msgid "training.combo.blocks.delete"
+msgstr "블록 삭제"
+
+msgid "training.combo.blocks.delete.detail"
+msgstr "강조된 블록을 지웁니다."
+
+msgid "training.combo.blocks.replay.detail"
+msgstr "패턴을 그 프레임대로 재생합니다."
+
+msgid "training.combo.blocks.empty"
+msgstr "아직 기술이 없습니다. 아래에서 추가하세요."
+
+msgid "training.combo.save_pos"
+msgstr "위치 저장"
+
+msgid "training.combo.save_pos.detail"
+msgstr "두 캐릭터의 현재 상태(위치, 체력, 게이지, 더미 상태)를 저장합니다."
+
+msgid "training.combo.reset_pos"
+msgstr "위치 복원"
+
+msgid "training.combo.reset_pos.detail"
+msgstr "두 캐릭터를 저장한 상태로 되돌립니다."
+
+msgid "training.combo.reset_before"
+msgstr "재생 전 복원"
+
+msgid "training.combo.reset_before.detail"
+msgstr "재생과 트라이얼 시도를 저장한 위치에서 시작하고, 각 시도가 끝나면 위치를 복원합니다."
+
+msgid "training.combo.position_saved"
+msgstr "위치를 저장했습니다."
+
+msgid "training.combo.position_reset"
+msgstr "위치를 복원했습니다."
+
+msgid "training.combo.capture"
+msgstr "콤보 기록"
+
+msgid "training.combo.capture.detail"
+msgstr "1P가 수행하는 기술을 기술 줄에 적습니다. 1.5초 동안 아무 일도 없으면 끝납니다."
+
+msgid "training.combo.capture_stop"
+msgstr "콤보 기록 중지"
+
+msgid "training.combo.capture_started"
+msgstr "기록 중: 1P로 콤보를 수행하세요."
+
+msgid "training.combo.capture_wait"
+msgstr "기록을 마치는 중입니다."
+
+msgid "training.combo.captured"
+msgstr "기술 {0}개를 기술 줄에 기록했습니다."
+
+msgid "training.combo.capture_empty"
+msgstr "기록된 기술이 없습니다."
+
+msgid "training.combo.setup.detail"
+msgstr "좌우로 바꿉니다. 바로 게임에 적용되고 선택한 콤보에 저장됩니다. 게임 설정은 트레이닝 메뉴의 선택을 그대로 둡니다."
+
+msgid "training.combo.setup.game"
+msgstr "게임 설정"
+
+msgid "training.combo.setup.action"
+msgstr "더미"
+
+msgid "training.combo.setup.guard"
+msgstr "가드"
+
+msgid "training.combo.setup.counter"
+msgstr "카운터 히트"
+
+msgid "training.combo.setup.quick"
+msgstr "퀵 스탠드"
+
+msgid "training.combo.setup.super"
+msgstr "슈퍼 게이지"
+
+msgid "training.combo.setup.revenge"
+msgstr "리벤지 게이지"
+
+msgid "training.combo.setup.stand"
+msgstr "서기"
+
+msgid "training.combo.setup.crouch"
+msgstr "앉기"
+
+msgid "training.combo.setup.jump"
+msgstr "점프"
+
+msgid "training.combo.setup.cpu"
+msgstr "CPU"
+
+msgid "training.combo.setup.guard_none"
+msgstr "가드 없음"
+
+msgid "training.combo.setup.guard_first"
+msgstr "첫 타 이후"
+
+msgid "training.combo.setup.guard_all"
+msgstr "모두 가드"
+
+msgid "training.combo.setup.guard_random"
+msgstr "랜덤"
+
+msgid "training.combo.setup.counter_off"
+msgstr "꺼짐"
+
+msgid "training.combo.setup.counter_on"
+msgstr "켜짐"
+
+msgid "training.combo.setup.counter_random"
+msgstr "랜덤"
+
+msgid "training.combo.setup.quick_quick"
+msgstr "빠르게"
+
+msgid "training.combo.setup.quick_normal"
+msgstr "보통"
+
+msgid "training.combo.setup.quick_delayed"
+msgstr "지연"
+
+msgid "training.combo.setup.quick_random"
+msgstr "랜덤"
+
+msgid "training.combo.setup.gauge_normal"
+msgstr "보통"
+
+msgid "training.combo.setup.gauge_max"
+msgstr "시작 시 최대"
+
+msgid "training.combo.setup.gauge_infinite"
+msgstr "무한"
+
+msgid "training.combo.setup.gauge_refill"
+msgstr "자동 회복"
 
 msgid "training.close_controls"
 msgstr "트레이닝 조작 닫기"
@@ -1232,7 +1652,7 @@ msgid "training.recording_suspended"
 msgstr "조작 창이 열려 녹화 일시 중지"
 
 msgid "training.playback_suspended"
-msgstr "조작 창이 열려 재생 일시 중지"
+msgstr "재생 중. 녹화는 조작 창을 닫을 때까지 대기합니다"
 
 msgid "training.applying"
 msgstr "명령 적용 중..."

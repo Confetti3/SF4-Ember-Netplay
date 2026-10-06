@@ -145,6 +145,52 @@ int main() {
         auto apply = [&](Action a, int value = 0) { return session.Apply({a, value, generation}); };
         Require(!apply(Action::Select, -1) && !apply(Action::Select, SlotCount), "Invalid slot accepted");
         Require(!apply(Action::Play), "Empty playback accepted");
+        // Loaded input plays on the side it names; a recording plays on the dummy again.
+        {
+            Command load; load.action = Action::Load; load.generation = session.GetView().generation; load.value = 0;
+            load.frames = {Input{9, 9}, Input{0x410, 0x410}};
+            Require(session.Apply(load) && session.GetView().lengths[session.GetView().selected] == 2, "Load refused");
+            Require(apply(Action::Play), "Loaded playback refused");
+            Frame physical{}; physical[0] = {1, 1}; physical[1] = {2, 2};
+            auto frame = session.Prepare(physical);
+            Require(frame[0].raw == 9 && frame[1].raw == 2, "Loaded input did not replace Player 1");
+            session.Commit(frame); frame = session.Prepare(physical);
+            Require(frame[0].raw == 0x410, "Loaded input did not advance");
+            Command empty; empty.action = Action::Load; empty.generation = load.generation;
+            Require(!session.Apply(empty), "Empty load accepted while playing");
+            // Loaded input is a combo: one pass even with looping on.
+            Require(session.GetView().loop, "Loop is not the default");
+            session.Commit(frame);
+            Require(session.GetView().mode == Mode::Idle, "Loaded input looped");
+            apply(Action::Stop);
+            // A waiting frame repeats, buttons held, until the fight shows its
+            // cue, then its offset's frames more; it gives up after a while.
+            Command timed; timed.action = Action::Load; timed.generation = generation; timed.value = 0;
+            timed.frames = {Input{9, 9, 0}, Input{2, 2, WaitActionable, 0}, Input{0x82, 0x82, 0}, Input{8, 8, WaitHit, 2}, Input{0x18, 0x18, 0}};
+            Require(session.Apply(timed) && apply(Action::Play), "Timed load refused");
+            session.Commit(session.Prepare(physical));
+            for (int held = 0; held < 5; ++held) { session.Observe(false, false); session.Commit(session.Prepare(physical)); }
+            Require(session.Prepare(physical)[0].raw == 2 && session.GetView().cursor == 1, "Waiting frame did not hold its direction");
+            session.Observe(true, false); session.Commit(session.Prepare(physical));
+            Require(session.Prepare(physical)[0].raw == 0x82, "Free frame did not release the wait");
+            session.Commit(session.Prepare(physical));
+            session.Observe(false, true); session.Commit(session.Prepare(physical));
+            session.Observe(false, false); session.Commit(session.Prepare(physical));
+            Require(session.GetView().cursor == 3, "Late offset did not hold after the hit");
+            session.Observe(false, false); session.Commit(session.Prepare(physical));
+            Require(session.Prepare(physical)[0].raw == 0x18, "Late offset held too long");
+            // Each move reports what its wait saw.
+            const auto& replay = session.GetView().replay;
+            Require(replay.size() == 3 && replay[0].waited == 0 && replay[1].waited == 5 && replay[1].cued && replay[2].waited == 2 && replay[2].cued, "Waits not reported");
+            Require(replay[1].hit && !replay[2].hit, "Hit not credited to the move before it");
+            apply(Action::Stop);
+            // A press waiting for a hit that never comes goes stale quickly.
+            Require(session.Apply(timed) && apply(Action::Play), "Timed load refused again");
+            for (int i = 0; i < 3; ++i) { session.Observe(true, false); session.Commit(session.Prepare(physical)); }
+            for (int i = 0; i < MaxWaitHitFrames; ++i) { session.Observe(false, false); session.Commit(session.Prepare(physical)); }
+            Require(session.Prepare(physical)[0].raw == 0x18 && !session.GetView().replay[2].cued, "Waiting for a hit never gave up");
+            apply(Action::Stop);
+        }
         Require(!apply(Action::Restore), "Missing checkpoint restored");
         Require(apply(Action::Record), "Record rejected");
         Frame physical{{Input{0x10, 0x10}, Input{0x80, 0x80}}};
@@ -264,6 +310,22 @@ int main() {
         Require(!meter.View().advantage.valid, "Advantage crossed a simulation gap");
         exchange(0, 22, 10, 15); meter.Reset();
         Require(!meter.View().advantage.valid, "Practice reset retained advantage");
+        // Dummy settings: a request within the menu's choices shows in the
+        // view until the adapter's read-back; -1 leaves a setting alone.
+        {
+            Session dummy; dummy.Enter();
+            Command set; set.action = Action::DummyState; set.generation = dummy.GetView().generation;
+            set.dummy.action = 1; set.dummy.guard = 2; set.dummy.counterHit = 1;
+            Require(dummy.Apply(set), "Dummy settings refused");
+            DummyState expected; expected.action = 1; expected.guard = 2; expected.counterHit = 1;
+            Require(dummy.GetView().dummy == expected, "Dummy settings not shown");
+            set.dummy = DummyState{}; set.dummy.stun = 2;
+            Require(dummy.Apply(set) && dummy.GetView().dummy.action == 1 && dummy.GetView().dummy.stun == 2, "Unchanged dummy setting was cleared");
+            set.dummy = DummyState{}; set.dummy.action = 4;
+            Require(!dummy.Apply(set), "Menu recorder value accepted as a dummy action");
+            set.dummy = DummyState{}; set.dummy.counterHit = 3;
+            Require(!dummy.Apply(set) && !ValidDummyState(set.dummy), "Counter hit beyond the menu's choices accepted");
+        }
         std::puts("Training session and frame meter checks passed.");
         return 0;
     } catch (const std::exception& e) { std::fprintf(stderr, "%s\n", e.what()); return 1; }

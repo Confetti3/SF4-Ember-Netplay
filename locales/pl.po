@@ -1147,6 +1147,33 @@ msgstr "F6 Sterowanie treningiem"
 msgid "training.hide_hint"
 msgstr "F5 Ukryj HUD"
 
+msgid "training.save_recording"
+msgstr "Zapisz nagranie jako"
+
+msgid "training.save_recording.detail"
+msgstr "Zapisuje wybrany slot do pliku o tej nazwie obok twoich combo."
+
+msgid "training.load_recording"
+msgstr "Wczytaj nagranie"
+
+msgid "training.load_recording.detail"
+msgstr "Lewo i Prawo wybierają zapisane nagranie; Wybór wczytuje je do wybranego slotu."
+
+msgid "training.recording_saved"
+msgstr "Nagranie zapisane jako {0}."
+
+msgid "training.recording_loaded"
+msgstr "Nagranie {0} wczytane do slotu {1}."
+
+msgid "training.recording_none"
+msgstr "Brak zapisanych nagrań."
+
+msgid "training.replay_chip"
+msgstr "F8 Odtwórz slot {0}"
+
+msgid "training.stop_chip"
+msgstr "F8 Zatrzymaj"
+
 msgid "training.dummy_recording"
 msgstr "Nagrywanie P2"
 
@@ -1158,6 +1185,399 @@ msgstr "Historia wejść"
 
 msgid "training.input_history.detail"
 msgstr "Sprawdź przytrzymywane przyciski obu graczy."
+
+msgid "training.combo.title"
+msgstr "Kreator combo"
+
+msgid "training.combo.title.detail"
+msgstr "Zapisuj combo cios po ciosie, udostępniaj je i przeglądaj wszystkie ścieżki."
+
+msgid "training.combo.none"
+msgstr "Brak"
+
+msgid "training.combo.pack"
+msgstr "Paczka"
+
+msgid "training.combo.pack.detail"
+msgstr "Combo w tej paczce: {0}. Lewo i Prawo zmieniają paczkę."
+
+msgid "training.combo.new_pack"
+msgstr "Nowa paczka"
+
+msgid "training.combo.combo"
+msgstr "Combo"
+
+msgid "training.combo.fighter"
+msgstr "Postać"
+
+msgid "training.combo.fighter.detail"
+msgstr "Postać, dla której jest combo. Nazwy ciosów są odczytywane dla tej postaci."
+
+msgid "training.combo.name"
+msgstr "Nazwa combo"
+
+msgid "training.combo.steps"
+msgstr "Ciosy"
+
+msgid "training.combo.notes"
+msgstr "Notatki"
+
+msgid "training.combo.add"
+msgstr "Dodaj combo"
+
+msgid "training.combo.add.detail"
+msgstr "Dodaje ciosy do paczki. Przykład: cr.MK xx HP Hadoken > FADC > cl.HP"
+
+msgid "training.combo.tree"
+msgstr "Drzewo combo"
+
+msgid "training.combo.tree.detail"
+msgstr "Wszystkie ścieżki z twoich paczek, według postaci."
+
+msgid "training.combo.tree.empty"
+msgstr "Nie ma jeszcze combo."
+
+msgid "training.combo.copy_combo"
+msgstr "Kopiuj combo"
+
+msgid "training.combo.copy_pack"
+msgstr "Kopiuj paczkę"
+
+msgid "training.combo.copy_all"
+msgstr "Kopiuj wszystkie paczki"
+
+msgid "training.combo.copy.detail"
+msgstr "Kopiuje jako tekst do udostępnienia."
+
+msgid "training.combo.paste"
+msgstr "Importuj ze schowka"
+
+msgid "training.combo.paste.detail"
+msgstr "Dodaje skopiowane combo, paczkę lub kilka paczek."
+
+msgid "training.combo.delete"
+msgstr "Usuń combo"
+
+msgid "training.combo.delete.detail"
+msgstr "Usuwa wybrane combo z paczki."
+
+msgid "training.combo.added"
+msgstr "Dodane combo: {0}."
+
+msgid "training.combo.exists"
+msgstr "Ta ścieżka jest już w paczce."
+
+msgid "training.combo.copied"
+msgstr "Skopiowano."
+
+msgid "training.combo.invalid"
+msgstr "Nie przyjęto: {0}"
+
+msgid "training.combo.save_failed"
+msgstr "Nie udało się zapisać combo."
+
+msgid "training.combo.import_trials"
+msgstr "Importuj próby z gry"
+
+msgid "training.combo.import_trials.detail"
+msgstr "Wczytuje próby Ultra z gry dla postaci wybranej powyżej do paczki o nazwie postaci, aby drzewo pokazywało ścieżki z gry."
+
+msgid "training.combo.export_trial"
+msgstr "Eksportuj paczkę jako plik prób"
+
+msgid "training.combo.export_trial.detail"
+msgstr "Zapisuje combo z tej paczki dla postaci wybranej powyżej jako {0} w folderze trials obok twoich combo: 24 combo, najpierw twoje; combo dłuższe niż 8 ciosów jest zapisywane w całości, a gra bez moda przewijanej listy pokazuje tylko pierwsze 8. Podmieniony za {0} z gry (zachowaj kopię) działa w trybie Prób."
+
+msgid "training.combo.trials_imported"
+msgstr "Wczytane próby: {0} z {1}. Dodane combo: {2}."
+
+msgid "training.combo.trial_exported"
+msgstr "Zapisane combo: {0}, do {1}. Podmień za {2}, zachowując kopię; tryb Prób go wczyta."
+
+msgid "training.combo.trial_skipped"
+msgstr "Pominięte lub zmienione: {0}. Pierwsze: {1}"
+
+msgid "training.combo.trial_none"
+msgstr "Nie udało się zapisać żadnego combo z tej paczki dla: {0}."
+
+msgid "training.combo.game_file"
+msgstr "Nie udało się odczytać plików gry: {0}"
+
+msgid "training.combo.trial_failed"
+msgstr "Nie udało się zapisać pliku prób: {0}"
+
+msgid "training.combo.run.start"
+msgstr "Rozpocznij próbę"
+
+msgid "training.combo.run.start.detail"
+msgstr "Ćwicz wybrane combo jako Gracz 1: jego ciosy są wypisane nad walką i odhaczane, gdy każdy wyjdzie i trafi. Gracz 1 musi być wojownikiem z tego combo."
+
+msgid "training.combo.run.stop"
+msgstr "Zatrzymaj próbę"
+
+msgid "training.combo.run.stop.detail"
+msgstr "Zdejmuje listę ciosów z ekranu."
+
+msgid "training.combo.run.started"
+msgstr "Próba rozpoczęta, wojownik: {0}. Sprawdzane ciosy: {1} z {2}."
+
+msgid "training.combo.run.refused"
+msgstr "Nie udało się rozpocząć próby: {0}"
+
+msgid "training.combo.run.stopped"
+msgstr "Próba zatrzymana."
+
+msgid "training.combo.run.count"
+msgstr "Zaliczone: {0}. Próby: {1}. Skuteczność: {2}%."
+
+msgid "training.combo.run.complete"
+msgstr "Combo zaliczone!"
+
+msgid "training.combo.run.failed"
+msgstr "Cios {0}: {1}"
+
+msgid "training.combo.run.wrong_move"
+msgstr "wyszedł inny cios"
+
+msgid "training.combo.run.whiffed"
+msgstr "następny cios wyszedł, zanim ten trafił"
+
+msgid "training.combo.run.dropped"
+msgstr "combo zostało przerwane"
+
+msgid "training.combo.run.unchecked"
+msgstr "{0} (bez sprawdzania)"
+
+msgid "training.combo.replay"
+msgstr "Odtwórz ciosy"
+
+msgid "training.combo.replay.detail"
+msgstr "Odtwarza wpisane ciosy lub wybrane combo jako wejście pada. Timing jest zgadywany: zmień odstęp linku i patrz, które ciosy wychodzą."
+
+msgid "training.combo.replay.by"
+msgstr "Odtwarza"
+
+msgid "training.combo.replay.by.dummy"
+msgstr "Manekin (Gracz 2)"
+
+msgid "training.combo.replay.by.me"
+msgstr "Ja (Gracz 1)"
+
+msgid "training.combo.replay.by.detail"
+msgstr "Kto wykonuje ciosy. Lewo i Prawo zmieniają."
+
+msgid "training.combo.replay.facing"
+msgstr "Kierunek"
+
+msgid "training.combo.replay.facing.right"
+msgstr "Prawo"
+
+msgid "training.combo.replay.facing.left"
+msgstr "Lewo"
+
+msgid "training.combo.replay.facing.detail"
+msgstr "Gdzie ten gracz patrzy na starcie; ciosy do przodu są tak czytane."
+
+msgid "training.combo.replay.gap"
+msgstr "Przesunięcie timingu"
+
+msgid "training.combo.replay.gap.detail"
+msgstr "Klatki, które każdy cios czeka jeszcze po sygnale (wolna klatka przy linku, trafienie przy cancelu), oprócz własnego przesunięcia @ ciosu, np. cr.MK@+1."
+
+msgid "training.combo.replay.started"
+msgstr "Odtwarzanie wczytane do slotu {0} i uruchomione."
+
+msgid "training.combo.timing"
+msgstr "Edytuj timing"
+
+msgid "training.combo.timing.detail"
+msgstr "Wybrane combo cios po ciosie: przesunięcie każdego ciosu i co widziało ostatnie odtwarzanie."
+
+msgid "training.combo.timing.replay.detail"
+msgstr "Odtwarza wybrane combo w obecnej postaci, aby odświeżyć raport każdego ciosu poniżej."
+
+msgid "training.combo.timing.select"
+msgstr "Najpierw wybierz combo."
+
+msgid "training.combo.timing.none"
+msgstr "Jeszcze nie odtworzono."
+
+msgid "training.combo.timing.gave_up"
+msgstr "Odtwarzanie czekało na sygnał tego ciosu i nigdy go nie zobaczyło."
+
+msgid "training.combo.timing.first"
+msgstr "Pierwszy cios; połączony: {0}."
+
+msgid "training.combo.timing.cancel"
+msgstr "Czekał {0} klatek na trafienie; połączony: {1}."
+
+msgid "training.combo.timing.link"
+msgstr "Czekał {0} klatek na uwolnienie postaci; połączony: {1}."
+
+msgid "training.combo.timing.hit"
+msgstr "tak"
+
+msgid "training.combo.timing.no_hit"
+msgstr "nie"
+
+msgid "training.combo.timing.adjust"
+msgstr "Lewo i Prawo przesuwają o klatkę."
+
+msgid "training.combo.timing.drops"
+msgstr "Przerwane tutaj {0} razy."
+
+msgid "training.combo.blocks"
+msgstr "Edytor wzoru"
+
+msgid "training.combo.blocks.detail"
+msgstr "Ciosy jako bloki na linijce klatek, jak w sekwencerze: każdy blok wciska na swojej klatce, a odtwarzanie gra te klatki."
+
+msgid "training.combo.blocks.frame"
+msgstr "Klatka {0}"
+
+msgid "training.combo.blocks.hint"
+msgstr "Lewo i Prawo przesuwają blok o klatkę; przeciągnij go myszą. Wybór edytuje cios."
+
+msgid "training.combo.blocks.add"
+msgstr "Dodaj cios"
+
+msgid "training.combo.blocks.delete"
+msgstr "Usuń blok"
+
+msgid "training.combo.blocks.delete.detail"
+msgstr "Usuwa podświetlony blok."
+
+msgid "training.combo.blocks.replay.detail"
+msgstr "Odtwarza wzór na jego klatkach."
+
+msgid "training.combo.blocks.empty"
+msgstr "Brak ciosów. Dodaj jeden poniżej."
+
+msgid "training.combo.save_pos"
+msgstr "Zapisz pozycję"
+
+msgid "training.combo.save_pos.detail"
+msgstr "Zachowuje obie postacie takie, jakie są teraz: miejsce, życie, paski, stan manekina."
+
+msgid "training.combo.reset_pos"
+msgstr "Przywróć pozycję"
+
+msgid "training.combo.reset_pos.detail"
+msgstr "Cofa obie postacie tam, gdzie je zapisano."
+
+msgid "training.combo.reset_before"
+msgstr "Przywróć przed odtworzeniem"
+
+msgid "training.combo.reset_before.detail"
+msgstr "Każde odtworzenie i próba zaczyna się z zapisanej pozycji; po każdej próbie jest ona przywracana."
+
+msgid "training.combo.position_saved"
+msgstr "Pozycja zapisana."
+
+msgid "training.combo.position_reset"
+msgstr "Pozycja przywrócona."
+
+msgid "training.combo.capture"
+msgstr "Nagraj combo"
+
+msgid "training.combo.capture.detail"
+msgstr "Zapisuje ciosy wykonywane przez Gracza 1 w wierszu Ciosy, aż przez półtorej sekundy nic się nie stanie."
+
+msgid "training.combo.capture_stop"
+msgstr "Zatrzymaj nagrywanie combo"
+
+msgid "training.combo.capture_started"
+msgstr "Nagrywanie: wykonaj combo jako Gracz 1."
+
+msgid "training.combo.capture_wait"
+msgstr "Kończenie nagrania."
+
+msgid "training.combo.captured"
+msgstr "Zapisano {0} ciosów w wierszu Ciosy."
+
+msgid "training.combo.capture_empty"
+msgstr "Nie nagrano żadnych ciosów."
+
+msgid "training.combo.setup.detail"
+msgstr "Lewo i Prawo zmieniają; działa w grze od razu i zostaje z wybranym combo. Ustawienie gry zostawia wybór z menu treningu."
+
+msgid "training.combo.setup.game"
+msgstr "Ustawienie gry"
+
+msgid "training.combo.setup.action"
+msgstr "Manekin"
+
+msgid "training.combo.setup.guard"
+msgstr "Blok"
+
+msgid "training.combo.setup.counter"
+msgstr "Counter hit"
+
+msgid "training.combo.setup.quick"
+msgstr "Szybkie wstanie"
+
+msgid "training.combo.setup.super"
+msgstr "Pasek super"
+
+msgid "training.combo.setup.revenge"
+msgstr "Pasek revenge"
+
+msgid "training.combo.setup.stand"
+msgstr "Stoi"
+
+msgid "training.combo.setup.crouch"
+msgstr "Kuca"
+
+msgid "training.combo.setup.jump"
+msgstr "Skok"
+
+msgid "training.combo.setup.cpu"
+msgstr "CPU"
+
+msgid "training.combo.setup.guard_none"
+msgstr "Bez bloku"
+
+msgid "training.combo.setup.guard_first"
+msgstr "Po pierwszym trafieniu"
+
+msgid "training.combo.setup.guard_all"
+msgstr "Blokuj wszystko"
+
+msgid "training.combo.setup.guard_random"
+msgstr "Losowo"
+
+msgid "training.combo.setup.counter_off"
+msgstr "Wył."
+
+msgid "training.combo.setup.counter_on"
+msgstr "Wł."
+
+msgid "training.combo.setup.counter_random"
+msgstr "Losowo"
+
+msgid "training.combo.setup.quick_quick"
+msgstr "Szybko"
+
+msgid "training.combo.setup.quick_normal"
+msgstr "Normalnie"
+
+msgid "training.combo.setup.quick_delayed"
+msgstr "Z opóźnieniem"
+
+msgid "training.combo.setup.quick_random"
+msgstr "Losowo"
+
+msgid "training.combo.setup.gauge_normal"
+msgstr "Normalny"
+
+msgid "training.combo.setup.gauge_max"
+msgstr "Pełny na start"
+
+msgid "training.combo.setup.gauge_infinite"
+msgstr "Nieskończony"
+
+msgid "training.combo.setup.gauge_refill"
+msgstr "Uzupełnianie"
 
 msgid "training.close_controls"
 msgstr "Zamknij panel treningu"
@@ -1232,7 +1652,7 @@ msgid "training.recording_suspended"
 msgstr "Nagrywanie wstrzymane, gdy panel jest otwarty"
 
 msgid "training.playback_suspended"
-msgstr "Odtwarzanie wstrzymane, gdy panel jest otwarty"
+msgstr "Odtwarzanie trwa; nagrywanie czeka na zamknięcie panelu"
 
 msgid "training.applying"
 msgstr "Wykonywanie polecenia..."

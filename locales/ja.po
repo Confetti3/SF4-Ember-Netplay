@@ -1147,6 +1147,33 @@ msgstr "F6 トレーニング操作"
 msgid "training.hide_hint"
 msgstr "F5 HUDを隠す"
 
+msgid "training.save_recording"
+msgstr "録画を名前を付けて保存"
+
+msgid "training.save_recording.detail"
+msgstr "選択中のスロットを、この名前のファイルとしてコンボの隣に保存します。"
+
+msgid "training.load_recording"
+msgstr "録画を読み込む"
+
+msgid "training.load_recording.detail"
+msgstr "左右で保存した録画を選び、決定で選択中のスロットに読み込みます。"
+
+msgid "training.recording_saved"
+msgstr "録画を{0}として保存しました。"
+
+msgid "training.recording_loaded"
+msgstr "録画{0}をスロット{1}に読み込みました。"
+
+msgid "training.recording_none"
+msgstr "保存した録画はありません。"
+
+msgid "training.replay_chip"
+msgstr "F8 スロット{0}を再生"
+
+msgid "training.stop_chip"
+msgstr "F8 停止"
+
 msgid "training.dummy_recording"
 msgstr "ダミーレコーディング"
 
@@ -1158,6 +1185,399 @@ msgstr "入力履歴"
 
 msgid "training.input_history.detail"
 msgstr "各プレイヤーが押しているボタンを確認します。"
+
+msgid "training.combo.title"
+msgstr "コンボ作成"
+
+msgid "training.combo.title.detail"
+msgstr "コンボを技の並びで書き、共有し、すべてのルートを確認します。"
+
+msgid "training.combo.none"
+msgstr "なし"
+
+msgid "training.combo.pack"
+msgstr "パック"
+
+msgid "training.combo.pack.detail"
+msgstr "このパックのコンボ数：{0}。左右でパックを切り替えます。"
+
+msgid "training.combo.new_pack"
+msgstr "新しいパック"
+
+msgid "training.combo.combo"
+msgstr "コンボ"
+
+msgid "training.combo.fighter"
+msgstr "キャラクター"
+
+msgid "training.combo.fighter.detail"
+msgstr "コンボを使うキャラクター。技名はこのキャラクターのものとして読みます。"
+
+msgid "training.combo.name"
+msgstr "コンボ名"
+
+msgid "training.combo.steps"
+msgstr "技"
+
+msgid "training.combo.notes"
+msgstr "メモ"
+
+msgid "training.combo.add"
+msgstr "コンボを追加"
+
+msgid "training.combo.add.detail"
+msgstr "技をパックに追加します。例：cr.MK xx HP Hadoken > FADC > cl.HP"
+
+msgid "training.combo.tree"
+msgstr "コンボツリー"
+
+msgid "training.combo.tree.detail"
+msgstr "パック内のすべてのルートをキャラクター別に表示します。"
+
+msgid "training.combo.tree.empty"
+msgstr "コンボはまだありません。"
+
+msgid "training.combo.copy_combo"
+msgstr "コンボをコピー"
+
+msgid "training.combo.copy_pack"
+msgstr "パックをコピー"
+
+msgid "training.combo.copy_all"
+msgstr "すべてのパックをコピー"
+
+msgid "training.combo.copy.detail"
+msgstr "共有できるテキストとしてコピーします。"
+
+msgid "training.combo.paste"
+msgstr "クリップボードから読み込む"
+
+msgid "training.combo.paste.detail"
+msgstr "コピーしたコンボ、パック、複数のパックを追加します。"
+
+msgid "training.combo.delete"
+msgstr "コンボを削除"
+
+msgid "training.combo.delete.detail"
+msgstr "選択中のコンボをパックから削除します。"
+
+msgid "training.combo.added"
+msgstr "追加したコンボ数：{0}。"
+
+msgid "training.combo.exists"
+msgstr "そのルートはすでにパックにあります。"
+
+msgid "training.combo.copied"
+msgstr "コピーしました。"
+
+msgid "training.combo.invalid"
+msgstr "受け付けられません：{0}"
+
+msgid "training.combo.save_failed"
+msgstr "コンボを保存できませんでした。"
+
+msgid "training.combo.import_trials"
+msgstr "ゲームのトライアルを読み込む"
+
+msgid "training.combo.import_trials.detail"
+msgstr "上で選んだキャラクターのゲーム内ウルトラトライアルを、キャラクター名のパックに読み込みます。ツリーにゲームのルートが表示されます。"
+
+msgid "training.combo.export_trial"
+msgstr "パックをトライアルファイルに書き出す"
+
+msgid "training.combo.export_trial.detail"
+msgstr "このパックにある上で選んだキャラクターのコンボを、コンボの隣の trials フォルダーに {0} として書き出します。コンボは24個まで、自分のコンボが先です。技が9個以上のコンボもすべて書き出しますが、スクロール表示MODがなければゲームは最初の8個だけ表示します。ゲームの {0} と入れ替えると（バックアップを残して）トライアルモードで使えます。"
+
+msgid "training.combo.trials_imported"
+msgstr "読み込んだトライアル：{1}件中{0}件。追加したコンボ数：{2}。"
+
+msgid "training.combo.trial_exported"
+msgstr "コンボを{0}個、{1}に書き出しました。{2}と入れ替えてください（バックアップを残して）。トライアルモードで読み込まれます。"
+
+msgid "training.combo.trial_skipped"
+msgstr "除外または変更：{0}件。最初の1件：{1}"
+
+msgid "training.combo.trial_none"
+msgstr "このパックには {0} 用に書き出せるコンボがありません。"
+
+msgid "training.combo.game_file"
+msgstr "ゲームのファイルを読み込めませんでした：{0}"
+
+msgid "training.combo.trial_failed"
+msgstr "トライアルファイルを書き出せませんでした：{0}"
+
+msgid "training.combo.run.start"
+msgstr "トライアルを開始"
+
+msgid "training.combo.run.start.detail"
+msgstr "選んだコンボをプレイヤー1で練習します。技の一覧が対戦画面に表示され、技が出て当たるたびにチェックが付きます。プレイヤー1はコンボのキャラクターにしてください。"
+
+msgid "training.combo.run.stop"
+msgstr "トライアルを停止"
+
+msgid "training.combo.run.stop.detail"
+msgstr "技の一覧を画面から消します。"
+
+msgid "training.combo.run.started"
+msgstr "{0} のトライアルを開始しました。判定する技：{1} / {2}"
+
+msgid "training.combo.run.refused"
+msgstr "トライアルを開始できませんでした：{0}"
+
+msgid "training.combo.run.stopped"
+msgstr "トライアルを停止しました。"
+
+msgid "training.combo.run.count"
+msgstr "成功：{0}。試行：{1}。成功率：{2}%。"
+
+msgid "training.combo.run.complete"
+msgstr "コンボ成功"
+
+msgid "training.combo.run.failed"
+msgstr "技 {0}：{1}"
+
+msgid "training.combo.run.wrong_move"
+msgstr "別の技が出ました"
+
+msgid "training.combo.run.whiffed"
+msgstr "この技が当たる前に次の技が出ました"
+
+msgid "training.combo.run.dropped"
+msgstr "コンボが途切れました"
+
+msgid "training.combo.run.unchecked"
+msgstr "{0}（判定なし）"
+
+msgid "training.combo.replay"
+msgstr "技を再生"
+
+msgid "training.combo.replay.detail"
+msgstr "入力した技、または選択中のコンボをパッド入力として再生します。タイミングは推測です。リンク間隔を変えて、どの技が出るか確かめてください。"
+
+msgid "training.combo.replay.by"
+msgstr "再生する側"
+
+msgid "training.combo.replay.by.dummy"
+msgstr "ダミー（2P）"
+
+msgid "training.combo.replay.by.me"
+msgstr "自分（1P）"
+
+msgid "training.combo.replay.by.detail"
+msgstr "技を出す側。左右で切り替えます。"
+
+msgid "training.combo.replay.facing"
+msgstr "向き"
+
+msgid "training.combo.replay.facing.right"
+msgstr "右"
+
+msgid "training.combo.replay.facing.left"
+msgstr "左"
+
+msgid "training.combo.replay.facing.detail"
+msgstr "再生開始時にその側が向いている方向。前方向の技はこの向きで読みます。"
+
+msgid "training.combo.replay.gap"
+msgstr "タイミング補正"
+
+msgid "training.combo.replay.gap.detail"
+msgstr "各技が合図（リンクは行動可能フレーム、キャンセルはヒット）の後にさらに待つフレーム数。cr.MK@+1 のような技ごとの @ 補正に加算されます。"
+
+msgid "training.combo.replay.started"
+msgstr "スロット{0}に読み込み、再生中です。"
+
+msgid "training.combo.timing"
+msgstr "タイミング編集"
+
+msgid "training.combo.timing.detail"
+msgstr "選択中のコンボを技ごとに表示します。各技のタイミング補正と、前回の再生で見えた結果です。"
+
+msgid "training.combo.timing.replay.detail"
+msgstr "選択中のコンボを現在の内容で再生し、下の各技の結果を更新します。"
+
+msgid "training.combo.timing.select"
+msgstr "先にコンボを選んでください。"
+
+msgid "training.combo.timing.none"
+msgstr "まだ再生していません。"
+
+msgid "training.combo.timing.gave_up"
+msgstr "この技の合図を待ちましたが、確認できませんでした。"
+
+msgid "training.combo.timing.first"
+msgstr "最初の技。つながった：{0}。"
+
+msgid "training.combo.timing.cancel"
+msgstr "ヒットまで{0}フレーム待機。つながった：{1}。"
+
+msgid "training.combo.timing.link"
+msgstr "キャラクターが動けるまで{0}フレーム待機。つながった：{1}。"
+
+msgid "training.combo.timing.hit"
+msgstr "はい"
+
+msgid "training.combo.timing.no_hit"
+msgstr "いいえ"
+
+msgid "training.combo.timing.adjust"
+msgstr "左右で1フレームずつ前後にずらします。"
+
+msgid "training.combo.timing.drops"
+msgstr "ここで{0}回途切れました。"
+
+msgid "training.combo.blocks"
+msgstr "パターンエディター"
+
+msgid "training.combo.blocks.detail"
+msgstr "技をフレーム目盛り上のブロックとして並べます。ステップシーケンサーのように、各ブロックはそのフレームで押し、再生はそのフレームどおりに行います。"
+
+msgid "training.combo.blocks.frame"
+msgstr "フレーム{0}"
+
+msgid "training.combo.blocks.hint"
+msgstr "左右でブロックを1フレーム動かします。マウスでドラッグもできます。決定で技を編集します。"
+
+msgid "training.combo.blocks.add"
+msgstr "技を追加"
+
+msgid "training.combo.blocks.delete"
+msgstr "ブロックを削除"
+
+msgid "training.combo.blocks.delete.detail"
+msgstr "選択中のブロックを削除します。"
+
+msgid "training.combo.blocks.replay.detail"
+msgstr "パターンをそのフレームどおりに再生します。"
+
+msgid "training.combo.blocks.empty"
+msgstr "技はまだありません。下で追加してください。"
+
+msgid "training.combo.save_pos"
+msgstr "位置を保存"
+
+msgid "training.combo.save_pos.detail"
+msgstr "両キャラクターの現在の状態（位置、体力、ゲージ、ダミーの状態）を保存します。"
+
+msgid "training.combo.reset_pos"
+msgstr "位置を戻す"
+
+msgid "training.combo.reset_pos.detail"
+msgstr "両キャラクターを保存した状態に戻します。"
+
+msgid "training.combo.reset_before"
+msgstr "再生前に戻す"
+
+msgid "training.combo.reset_before.detail"
+msgstr "再生やトライアルの各試行を保存した位置から始め、各試行の後に位置を戻します。"
+
+msgid "training.combo.position_saved"
+msgstr "位置を保存しました。"
+
+msgid "training.combo.position_reset"
+msgstr "位置を戻しました。"
+
+msgid "training.combo.capture"
+msgstr "コンボを記録"
+
+msgid "training.combo.capture.detail"
+msgstr "1Pが出した技を「技」欄に書き取ります。1.5秒間何も起きなければ終了します。"
+
+msgid "training.combo.capture_stop"
+msgstr "コンボの記録を停止"
+
+msgid "training.combo.capture_started"
+msgstr "記録中：1Pでコンボを出してください。"
+
+msgid "training.combo.capture_wait"
+msgstr "記録を終了しています。"
+
+msgid "training.combo.captured"
+msgstr "{0}個の技を「技」欄に記録しました。"
+
+msgid "training.combo.capture_empty"
+msgstr "技は記録されませんでした。"
+
+msgid "training.combo.setup.detail"
+msgstr "左右で変更します。すぐにゲームに反映され、選択中のコンボに保存されます。ゲーム設定はトレーニングメニューの選択をそのまま使います。"
+
+msgid "training.combo.setup.game"
+msgstr "ゲーム設定"
+
+msgid "training.combo.setup.action"
+msgstr "ダミー"
+
+msgid "training.combo.setup.guard"
+msgstr "ガード"
+
+msgid "training.combo.setup.counter"
+msgstr "カウンターヒット"
+
+msgid "training.combo.setup.quick"
+msgstr "クイックスタンド"
+
+msgid "training.combo.setup.super"
+msgstr "スーパーゲージ"
+
+msgid "training.combo.setup.revenge"
+msgstr "リベンジゲージ"
+
+msgid "training.combo.setup.stand"
+msgstr "立ち"
+
+msgid "training.combo.setup.crouch"
+msgstr "しゃがみ"
+
+msgid "training.combo.setup.jump"
+msgstr "ジャンプ"
+
+msgid "training.combo.setup.cpu"
+msgstr "CPU"
+
+msgid "training.combo.setup.guard_none"
+msgstr "ガードなし"
+
+msgid "training.combo.setup.guard_first"
+msgstr "初段後"
+
+msgid "training.combo.setup.guard_all"
+msgstr "すべてガード"
+
+msgid "training.combo.setup.guard_random"
+msgstr "ランダム"
+
+msgid "training.combo.setup.counter_off"
+msgstr "オフ"
+
+msgid "training.combo.setup.counter_on"
+msgstr "オン"
+
+msgid "training.combo.setup.counter_random"
+msgstr "ランダム"
+
+msgid "training.combo.setup.quick_quick"
+msgstr "クイック"
+
+msgid "training.combo.setup.quick_normal"
+msgstr "通常"
+
+msgid "training.combo.setup.quick_delayed"
+msgstr "遅延"
+
+msgid "training.combo.setup.quick_random"
+msgstr "ランダム"
+
+msgid "training.combo.setup.gauge_normal"
+msgstr "通常"
+
+msgid "training.combo.setup.gauge_max"
+msgstr "開始時に最大"
+
+msgid "training.combo.setup.gauge_infinite"
+msgstr "無限"
+
+msgid "training.combo.setup.gauge_refill"
+msgstr "自動回復"
 
 msgid "training.close_controls"
 msgstr "トレーニング操作を閉じる"
@@ -1232,7 +1652,7 @@ msgid "training.recording_suspended"
 msgstr "操作画面を開いている間、記録は一時停止します"
 
 msgid "training.playback_suspended"
-msgstr "操作画面を開いている間、再生は一時停止します"
+msgstr "再生中。録画は操作画面を閉じるまで待機します"
 
 msgid "training.applying"
 msgstr "操作を適用中..."
