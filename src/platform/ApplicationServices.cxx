@@ -93,7 +93,8 @@ void ApplicationServices::Run() {
             }
             if (action == ServiceAction::CheckUpdates) {
                 next.update = launcher::CheckForUpdate(next.channel); next.succeeded = next.update.ok;
-                next.message = !next.update.ok ? next.update.error : next.update.updateAvailable ?
+                next.message = !next.update.ok ? next.update.error : next.update.goesBack ?
+                    loc::Tf("services.stable_available",next.update.latestVersion) : next.update.updateAvailable ?
                     loc::Tf("services.update_available",next.update.latestVersion) : loc::T("services.up_to_date");
             } else if (action == ServiceAction::ExportDiagnostics) {
                 const auto directory = diagnosticsDirectory_.empty() ? std::filesystem::path(netplay::SettingsStore::DefaultDirectory()) / L"diagnostics" : std::filesystem::path(diagnosticsDirectory_);
@@ -159,7 +160,7 @@ void ApplicationServices::Run() {
                     next.message = loc::T("services.no_verified_update");
                 } else {
                     const auto result = launcher::DownloadAndApplyUpdate(next.update.zipDownloadUrl.c_str(), next.update.zipApiUrl.c_str(),
-                        next.update.latestVersion.c_str(), next.update.expectedSha256.c_str(),
+                        next.update.latestVersion.c_str(), next.update.expectedSha256.c_str(), next.update.goesBack,
                         [&](std::uint64_t received, std::uint64_t total) {
                             if (cancelled_) return false;
                             next.downloadedBytes = received; next.totalBytes = total;

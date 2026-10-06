@@ -204,6 +204,9 @@ msgstr "Lancement de la mise à jour..."
 msgid "services.update_available"
 msgstr "Mise à jour disponible : {0}"
 
+msgid "services.stable_available"
+msgstr "La version stable {0} est disponible. L'installer remplace la préversion que vous avez."
+
 
 msgid "services.up_to_date"
 msgstr "Vous êtes à jour."
@@ -1596,6 +1599,9 @@ msgstr "URL de téléchargement manquante."
 
 msgid "update.missing_version"
 msgstr "Version manquante."
+
+msgid "update.not_offered"
+msgstr "Cette version n'est pas celle qui a été proposée. Recherchez à nouveau les mises à jour."
 
 msgid "update.close_sf4"
 msgstr "Fermez Ultra Street Fighter IV avant d'installer une mise à jour."

@@ -22,6 +22,10 @@ namespace launcher {
 		// "digest" field ("sha256:<hex>"). Empty if the release predates GitHub
 		// asset digests; callers should treat an empty value as "unverifiable".
 		std::string expectedSha256;
+		// The offer goes back a version: the Stable channel's best release is
+		// older than the installed pre-release. Installing it is a downgrade
+		// the player chose; an install is never given one otherwise.
+		bool goesBack = false;
 	};
 
 	// A release tag or installed version label: "v1.1.0", "1.1.0-rc2",
@@ -42,6 +46,9 @@ namespace launcher {
 	enum class UpdateChannel { Stable, Prerelease };
 	const char* UpdateChannelName(UpdateChannel channel);
 	UpdateChannel ResolveUpdateChannel(const std::string& saved, const char* installed);
+	// Whether installing `tag` over `installed` is the kind of offer the check
+	// made: an update, or with goBack a step back between two valid versions.
+	bool TransitionOffered(const char* tag, const char* installed, bool goBack);
 
 	struct ApplyUpdateResult {
 		bool ok = false;
@@ -72,6 +79,7 @@ namespace launcher {
 		const char* zipApiUrl,
 		const char* latestVersionTag,
 		const char* expectedSha256,
+		bool goBack,
         const std::function<bool(std::uint64_t, std::uint64_t)>& progress = {}
 	);
 

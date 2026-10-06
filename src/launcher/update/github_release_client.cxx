@@ -130,15 +130,16 @@ namespace launcher {
 		// The updater must not run from the directory it is about to rewrite:
 		// Windows refuses to replace the image of a running executable, so the
 		// old in-place launch made its own replacement the expected failure.
-		// Copy the staged (new, already validated) updater to a unique directory
-		// outside the replacement set and run that. This also means an upgrade
-		// started from an older install executes the new updater implementation
-		// rather than the one already on disk. Updater.exe imports only system
-		// DLLs and the MSVC runtime, so the single file is self-sufficient.
-		static bool StageUpdaterOutsideInstall(const wchar_t* installDir, const wchar_t* stagingDir,
+		// Copy the updater in updaterDir (the staged, already validated one for
+		// an update, so an upgrade runs the new implementation; the installed
+		// one when going back, since it knows every file its version added) to
+		// a unique directory outside the replacement set and run that.
+		// Updater.exe imports only system DLLs and the MSVC runtime, so the
+		// single file is self-sufficient.
+		static bool StageUpdaterOutsideInstall(const wchar_t* installDir, const wchar_t* updaterDir,
 			wchar_t* outPath, size_t outLen) {
 			wchar_t source[MAX_PATH] = { 0 };
-			if (FAILED(PathCchCombine(source, MAX_PATH, stagingDir, L"Updater.exe")) ||
+			if (FAILED(PathCchCombine(source, MAX_PATH, updaterDir, L"Updater.exe")) ||
 				GetFileAttributesW(source) == INVALID_FILE_ATTRIBUTES) {
 				// Fall back to the installed copy only if the package lacks one.
 				if (FAILED(PathCchCombine(source, MAX_PATH, installDir, L"Updater.exe")) ||
@@ -181,12 +182,12 @@ namespace launcher {
 		}
 
 		enum class SpawnResult { Started, Failed, NotNormalUser };
-		static SpawnResult SpawnUpdater(const wchar_t* installDir, const wchar_t* stagingDir, const wchar_t* params) {
+		static SpawnResult SpawnUpdater(const wchar_t* installDir, const wchar_t* updaterDir, const wchar_t* params) {
 			if (!UpdaterMayRun()) {
 				return SpawnResult::NotNormalUser;
 			}
 			wchar_t updaterPath[MAX_PATH] = { 0 };
-			if (!StageUpdaterOutsideInstall(installDir, stagingDir, updaterPath, MAX_PATH)) {
+			if (!StageUpdaterOutsideInstall(installDir, updaterDir, updaterPath, MAX_PATH)) {
 				return SpawnResult::Failed;
 			}
 
@@ -475,6 +476,12 @@ namespace launcher {
 
 	const char* UpdateChannelName(UpdateChannel channel) { return channel == UpdateChannel::Prerelease ? "prerelease" : "stable"; }
 
+	bool TransitionOffered(const char* tag, const char* installed, bool goBack) {
+		const auto target = ParseVersion(tag), current = ParseVersion(installed);
+		if (!target || !current) return !goBack;
+		return (CompareVersions(*target, *current) < 0) == goBack;
+	}
+
 	UpdateChannel ResolveUpdateChannel(const std::string& saved, const char* installed) {
 		if (saved == "prerelease") return UpdateChannel::Prerelease;
 		if (saved == "stable") return UpdateChannel::Stable;
@@ -585,9 +592,13 @@ namespace launcher {
 			}
 			if (best.ok) {
 				// A build without a version label, such as a developer build,
-				// is offered the channel's best release.
+				// is offered the channel's best release. Stable offers an
+				// installed pre-release its best release even when older, as
+				// the way back.
 				const auto current = ParseVersion(installed);
-				best.updateAvailable = !current || CompareVersions(bestVersion, *current) > 0;
+				const int order = current ? CompareVersions(bestVersion, *current) : 1;
+				best.goesBack = order < 0 && current->prerelease && channel == UpdateChannel::Stable;
+				best.updateAvailable = order > 0 || best.goesBack;
 			}
 			else {
 				best.error = loc::T("update.no_zip_asset");
@@ -606,6 +617,7 @@ namespace launcher {
 		const char* zipApiUrl,
 		const char* latestVersionTag,
 		const char* expectedSha256,
+		bool goBack,
         const std::function<bool(std::uint64_t, std::uint64_t)>& progress
 	) {
 		ApplyUpdateResult result;
@@ -615,6 +627,15 @@ namespace launcher {
 		}
 		if (!latestVersionTag || !latestVersionTag[0]) {
 			result.error = loc::T("update.missing_version");
+			return result;
+		}
+		// The check decided whether this is an update or a step back; an
+		// install is only ever given the kind it was offered.
+		char installedVersion[64] = { 0 };
+		ReadInstalledVersion(installedVersion, sizeof(installedVersion));
+		if (!TransitionOffered(latestVersionTag, installedVersion, goBack)) {
+			AppendUpdateLog("install refused: not the offered kind of version change");
+			result.error = loc::T("update.not_offered");
 			return result;
 		}
 		if (IsGameProcessRunning()) {
@@ -773,7 +794,7 @@ namespace launcher {
 		wchar_t updaterParams[4096] = { 0 };
 		swprintf_s(updaterParams, L"-InstallDir \"%s\" -StagingDir \"%s\" -WaitPid %lu",
 			installDir, stagingDir, GetCurrentProcessId());
-        switch (SpawnUpdater(installDir, stagingDir, updaterParams)) {
+        switch (SpawnUpdater(installDir, goBack ? installDir : stagingDir, updaterParams)) {
         case SpawnResult::Started: break;
         case SpawnResult::NotNormalUser: result.error = loc::T("update.elevated"); return result;
         default: result.error = loc::T("update.updater_start_failed"); return result;

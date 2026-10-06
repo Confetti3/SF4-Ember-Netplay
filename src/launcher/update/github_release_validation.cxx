@@ -46,7 +46,6 @@ namespace launcher {
 
 	namespace detail {
 
-		static const auto& kRequiredPackagePaths = sf4e::package::Required;
 
 		static bool ParseHttpsHostFromUrl(const char* url, char* outHost, int outHostLen) {
 			if (!url || !outHost || outHostLen <= 0) {
@@ -101,87 +100,17 @@ namespace launcher {
 			return IsAllowedUpdateHost(host);
 		}
 
-		static bool PathExistsUnderRoot(const wchar_t* baseDir, const wchar_t* relPath) {
-			if (!baseDir || !relPath) {
-				return false;
-			}
-			wchar_t path[MAX_PATH * 2] = { 0 };
-			if (FAILED(PathCchCombine(path, MAX_PATH * 2, baseDir, relPath))) {
-				return false;
-			}
-			return GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES;
-		}
+		
 
-		static bool IsAllowedPackagePath(const wchar_t* path) { return sf4e::package::IsAllowed(path); }
-
-		static bool ValidatePackageTree(const wchar_t* root, const wchar_t* relPrefix) {
-			wchar_t dir[MAX_PATH * 2] = { 0 };
-			if (relPrefix && relPrefix[0]) {
-				if (FAILED(PathCchCombine(dir, MAX_PATH * 2, root, relPrefix))) {
-					return false;
-				}
-			}
-			else {
-				wcsncpy_s(dir, root, _TRUNCATE);
-			}
-
-			wchar_t pattern[MAX_PATH * 2] = { 0 };
-			wcsncpy_s(pattern, dir, _TRUNCATE);
-			if (FAILED(PathCchAppend(pattern, MAX_PATH * 2, L"*"))) {
-				return false;
-			}
-
-			WIN32_FIND_DATAW fd = { 0 };
-			HANDLE hFind = FindFirstFileW(pattern, &fd);
-			if (hFind == INVALID_HANDLE_VALUE) {
-				return true;
-			}
-			do {
-				if (wcscmp(fd.cFileName, L".") == 0 || wcscmp(fd.cFileName, L"..") == 0) {
-					continue;
-				}
-				wchar_t rel[MAX_PATH * 2] = { 0 };
-				if (relPrefix && relPrefix[0]) {
-					if (FAILED(StringCchPrintfW(rel, MAX_PATH * 2, L"%s\\%s", relPrefix, fd.cFileName))) {
-						FindClose(hFind);
-						return false;
-					}
-				}
-				else if (FAILED(StringCchCopyW(rel, MAX_PATH * 2, fd.cFileName))) {
-					FindClose(hFind);
-					return false;
-				}
-
-				if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-					if (!ValidatePackageTree(root, rel)) {
-						FindClose(hFind);
-						return false;
-					}
-				}
-				else if (!IsAllowedPackagePath(rel)) {
-					char relUtf8[MAX_PATH * 2] = { 0 };
-					WidePathToUtf8(rel, relUtf8, sizeof(relUtf8));
-					AppendUpdateLog((std::string("unexpected package file: ") + relUtf8).c_str());
-					FindClose(hFind);
-					return false;
-				}
-			} while (FindNextFileW(hFind, &fd));
-			FindClose(hFind);
-			return true;
-		}
+		
+		
 
 		bool ValidateStagedPackage(const wchar_t* stagingDir) {
-			for (const wchar_t* rel : kRequiredPackagePaths) {
-				if (!PathExistsUnderRoot(stagingDir, rel)) {
-					char relUtf8[MAX_PATH * 2] = { 0 };
-					WidePathToUtf8(rel, relUtf8, sizeof(relUtf8));
-					AppendUpdateLog((std::string("missing package file: ") + relUtf8).c_str());
-					return false;
-				}
-			}
-			return ValidatePackageTree(stagingDir, L"");
+			std::string error;
+			if (launcher::ValidatePackageFolder(stagingDir, error)) return true;
+			AppendUpdateLog(("package rejected: " + error).c_str());
+			return false;
 		}
-
 		static bool IsPathUnderRoot(const wchar_t* root, const wchar_t* candidate) {
 			wchar_t rootFull[MAX_PATH * 2] = { 0 };
 			wchar_t candidateFull[MAX_PATH * 2] = { 0 };
@@ -201,7 +130,6 @@ namespace launcher {
 			}
 			return true;
 		}
-
 		bool ValidateExtractedTree(const wchar_t* extractRoot) {
 			if (!extractRoot || !extractRoot[0]) {
 				return false;
