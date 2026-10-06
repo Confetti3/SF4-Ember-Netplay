@@ -21,10 +21,11 @@ std::string Sha256Hex(const std::filesystem::path& file);
 bool InstallPackage(const std::filesystem::path& staging, const std::filesystem::path& install, std::string& error);
 // Restores an interrupted transaction, or validates and clears a committed one.
 bool RecoverPackage(const std::filesystem::path& install, std::string& error, bool inspectOnly = false);
-// Removes every file the package inventory names or allows (so files an update
-// added later and obsolete ones too), every file the installed MANIFEST.txt
-// names (whatever version that is), the updater's own state and the folders
-// that leaves empty. Anything else in the folder is the player's and stays.
+// Removes every file the installed MANIFEST.txt names (whatever version that
+// is), every file this build's inventory names, obsolete ones too, the
+// updater's own state and the folders that leaves empty. Selection art counts
+// only when the manifest names it. Anything else in the folder is the
+// player's and stays.
 // Reparse points are left alone, never followed. MANIFEST.txt goes last, and
 // only when nothing failed, so a retry still knows what is ours.
 bool UninstallPackage(const std::filesystem::path& install, std::string& error);

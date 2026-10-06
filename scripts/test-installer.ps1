@@ -30,6 +30,8 @@ try {
     Set-Content -LiteralPath (Join-Path $target 'assets\selection\sources.json') -Value 'added-by-update'
     Set-Content -LiteralPath (Join-Path $target 'dxwrapper.dll') -Value 'obsolete'
     Set-Content -LiteralPath (Join-Path $target 'assets\selection\my-mod.png') -Value 'mine'
+    # A photograph at a path selection art may use, which no package ships.
+    Set-Content -LiteralPath (Join-Path $target 'assets\selection\RYU\costume-0\color-0.jpg') -Value 'mine'
     Set-Content -LiteralPath (Join-Path $target 'my-notes.txt') -Value 'mine'
     # Uninstall runs setup's own helper, not the folder's Updater.exe.
     Set-Content -LiteralPath (Join-Path $target 'Updater.exe') -Value 'not a working updater'
@@ -63,5 +65,5 @@ if ($removal.ExitCode -ne 0) { throw "Uninstaller exited with $($removal.ExitCod
 for ($i = 0; $i -lt 50 -and (Test-Path -LiteralPath $uninstallKey); $i++) { Start-Sleep -Milliseconds 200 }
 $left = @(Get-ChildItem -LiteralPath $target -Recurse -File -Force | ForEach-Object { $_.FullName.Substring($target.Length + 1) } | Sort-Object)
 Remove-Item -LiteralPath $target -Recurse -Force
-if (($left -join ',') -ne 'assets\selection\my-mod.png,my-notes.txt') { throw "Unexpected files after uninstall: $($left -join ', ')" }
+if (($left -join ',') -ne 'assets\selection\my-mod.png,assets\selection\RYU\costume-0\color-0.jpg,my-notes.txt') { throw "Unexpected files after uninstall: $($left -join ', ')" }
 Write-Host 'Installer test passed: a folder with files is refused, the installed folder passes preflight, uninstall stops while an update holds the folder, then removes the product (also after its Updater.exe changed) and keeps the player files.'

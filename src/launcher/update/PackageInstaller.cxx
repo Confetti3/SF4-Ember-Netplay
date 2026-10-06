@@ -51,6 +51,12 @@ bool IsProductPath(const fs::path& relative) {
     static const std::set<std::wstring> obsolete=[]{ std::set<std::wstring> keys; for(const auto* name:package::Obsolete) keys.insert(PathKey(name)); return keys; }();
     return package::IsAllowed(relative.c_str()) || obsolete.count(PathKey(relative))>0;
 }
+// The files this build's inventory names one by one, current or obsolete.
+// Selection art is allowed by pattern instead, so a file there is Ember's only
+// when a manifest names it; otherwise it is the player's.
+bool InventoryNames(const fs::path& relative) {
+    return IsProductPath(relative) && !selection::IsSelectionAssetPath(relative.wstring());
+}
 bool UpdaterState(const std::wstring& key) {
     return key==PathKey(TransactionName) || key==PathKey(std::wstring(TransactionName)+L".failed") || key==PathKey(LockName) || key.find(L".ember-update-backups\\")==0;
 }
@@ -293,7 +299,7 @@ bool UninstallPackage(const fs::path& installInput, std::string& error) {
             std::set<std::wstring> named;
             CheckPath(install,L"MANIFEST.txt");
             if(fs::exists(fs::symlink_status(install/L"MANIFEST.txt"))) for(const auto& [key,entry]:ReadManifest(install/L"MANIFEST.txt")) named.insert(key);
-            const auto ours=[&](const fs::path& rel){ const auto key=PathKey(rel); return IsProductPath(rel) || named.count(key) || UpdaterState(key); };
+            const auto ours=[&](const fs::path& rel){ const auto key=PathKey(rel); return named.count(key) || InventoryNames(rel) || UpdaterState(key); };
             std::vector<fs::path> owned;
             for(fs::recursive_directory_iterator entry(install), end; entry!=end; ++entry) {
                 const auto rel=entry->path().lexically_relative(install);

@@ -320,17 +320,23 @@ int wmain(int argc, wchar_t** argv) {
     CHECK(!sf4e::launcher::RecoverPackage(crashInstall,error));
     CHECK(!fs::exists(journalPath) && fs::exists(failedJournal));
     CHECK(sf4e::launcher::RecoverPackage(crashInstall,error));
-    // Uninstall removes what the inventory names or allows, an update's
-    // additions and the updater's state; the player's files, including those
-    // inside the product's own folders, stay. A junction is left alone.
+    // Uninstall removes what the installed manifest or the inventory names and
+    // the updater's state; the player's files, including those inside the
+    // product's own folders, stay. A junction is left alone.
     Write(install/L"assets\\selection\\sources.json","added-by-update");
     Write(install/L"assets\\selection\\my-mod.png","player");
+    // Selection art is Ember's only when the manifest names it: a cutout it
+    // names goes, a photograph at an allowed path that no package shipped stays.
+    Write(install/L"assets\\selection\\RYU\\costume-0\\color-0-cutout.png","shipped-cutout");
+    Write(install/L"assets\\selection\\RYU\\costume-0\\color-0.jpg","player-photo");
     Write(install/L"dxwrapper.dll","obsolete-again");
     Write(install/L".ember-update-transaction-v1.json.failed","set-aside-journal");
     // A file only the installed version's manifest names: the helper setup kept
     // may be older than what updates installed since.
     Write(install/L"from-another-version.dll","named-by-manifest");
-    Write(install/L"MANIFEST.txt",(Sha256("named-by-manifest")+"  from-another-version.dll\n").c_str());
+    Write(install/L"MANIFEST.txt",(Sha256("named-by-manifest")+"  from-another-version.dll\n"+
+        Sha256("added-by-update")+"  assets\\selection\\sources.json\n"+
+        Sha256("shipped-cutout")+"  assets\\selection\\RYU\\costume-0\\color-0-cutout.png\n").c_str());
     // A name that only starts like the updater's own is the player's.
     Write(install/L".ember-update-backups-notes.txt","player");
     Write(root/L"outside\\TRAINING_LAB.md","outside");
@@ -357,6 +363,7 @@ int wmain(int argc, wchar_t** argv) {
     CHECK(Read(install/L".ember-update-backups-notes.txt")=="player");
     CHECK(!fs::exists(install/L"Launcher.exe") && !fs::exists(install/L"notices") && !fs::exists(install/L"dxwrapper.dll"));
     CHECK(!fs::exists(install/L"assets\\selection\\sources.json") && Read(install/L"assets\\selection\\my-mod.png")=="player");
+    CHECK(!fs::exists(install/L"assets\\selection\\RYU\\costume-0\\color-0-cutout.png") && Read(install/L"assets\\selection\\RYU\\costume-0\\color-0.jpg")=="player-photo");
     CHECK(!fs::exists(install/L".ember-update-backups") && !fs::exists(install/L".ember-update.lock"));
     CHECK(!fs::exists(install/L".ember-update-transaction-v1.json.failed") && Read(install/L".ember-update-transaction-v1.json.new")=="user-journal-name");
     CHECK(Read(install/L"my-replay.bin")=="user" && Read(install/L"d3d9.dll")=="user-owned-proxy");
