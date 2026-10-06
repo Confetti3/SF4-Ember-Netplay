@@ -84,7 +84,7 @@ Pick the fighter, type a name and the moves, then **Add combo**. Moves are separ
 - `@N`: the move's own timing offset, -30 to +30 frames. `#N`: the replay frame the press lands on, 0 to 3600.
 - Move names work too, read as the chosen fighter's: `cr.MK xx HP Hadoken > FADC > cl.HP`. The name table comes from `src/training/ComboMoves.inc`, regenerated with `scripts/generate-combo-moves.py` from a USF4 frame-data JSON.
 
-A route already in the pack is refused. Notes are free text. The dummy setup rows (dummy action, guard, counter hit, quick stand, super and revenge gauge) are applied to the game at once and kept with the selected combo; **Game setting** leaves the Training menu's choice alone.
+A route already in the pack is refused. **Save combo** writes the fields as typed over the selected combo instead; **Duplicate combo** copies the selected combo into the pack right after it and selects the copy, for tuning a variant. Notes are free text. The dummy setup rows (dummy action, guard, counter hit, quick stand, super and revenge gauge) are applied to the game at once and kept with the selected combo; **Game setting** leaves the Training menu's choice alone.
 
 **Record combo** writes down the moves Player 1 performs into the Moves line, as a new move for each attack and a cancel when it starts before the previous one recovered. It stops by itself after a second and a half without an attack.
 

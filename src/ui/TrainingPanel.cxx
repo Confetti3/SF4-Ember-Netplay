@@ -424,6 +424,8 @@ std::vector<MenuEntry> ComboRows(const training::View& view,bool trialRunning) {
         TextRow("cb-steps",loc::T("training.combo.steps"),creator.steps,512),
         TextRow("cb-notes",loc::T("training.combo.notes"),creator.notes,256),
         Row("cb-add",loc::T("training.combo.add"),loc::T("training.combo.add.detail"),!creator.steps.empty()),
+        Row("cb-save",loc::T("training.combo.save"),loc::T("training.combo.save.detail"),shown!=nullptr&&!creator.steps.empty()),
+        Row("cb-duplicate",loc::T("training.combo.duplicate"),loc::T("training.combo.duplicate.detail"),shown!=nullptr),
         Row("cb-capture",loc::T(view.capturing?"training.combo.capture_stop":"training.combo.capture"),loc::T("training.combo.capture.detail"),view.ready),
         Row("cb-replay",loc::T("training.combo.replay"),loc::T("training.combo.replay.detail"),!creator.steps.empty()||shown!=nullptr),
         Row("cb-timing",loc::T("training.combo.timing"),loc::T("training.combo.timing.detail"),!creator.steps.empty()||shown!=nullptr),
@@ -498,6 +500,22 @@ void HandleCombo(const MenuAction& a,const training::View& view,const TrainingSu
         // The line is shown back as it was understood.
         creator.steps=combo::JoinSteps(made.steps);
         AddCombos({combo::Pack{pack?pack->name:DefaultPack,{made}}});
+    } else if(a.id=="cb-save"&&CurrentCombo()) {
+        // The fields as typed go over the selected combo; its place stays.
+        auto* shown=CurrentCombo();
+        const auto* fighter=selection::FindFighter(creator.fighter);
+        combo::Combo made{creator.name,fighter?fighter->code:"",creator.notes,{},creator.setup,shown->placed,shown->place};
+        if(!combo::ParseSteps(creator.steps,made.character,made.steps,error)||made.steps.empty()||made.steps.size()>combo::MaxSteps) {
+            ComboNotice(loc::Tf("training.combo.invalid",error.empty()?creator.steps:error),true); return;
+        }
+        *shown=made; creator.steps=combo::JoinSteps(made.steps); SaveCombos();
+        ComboNotice(loc::T("training.combo.saved"));
+    } else if(a.id=="cb-duplicate"&&pack&&CurrentCombo()) {
+        // A copy right after the original, selected, so a variant can be tuned.
+        combo::Combo copy=*CurrentCombo(); copy.name=combo::Clean(copy.name+" "+loc::T("training.combo.copy_suffix"));
+        if(pack->combos.size()>=combo::MaxCombos) { ComboNotice(loc::T("training.combo.save_failed"),true); return; }
+        pack->combos.insert(pack->combos.begin()+creator.entry+1,copy); ++creator.entry; ShowCombo(); SaveCombos();
+        ComboNotice(loc::T("training.combo.duplicated"));
     } else if(a.id=="cb-replay") {
         // The typed line when there is one, else the selected combo.
         std::vector<std::string> steps;

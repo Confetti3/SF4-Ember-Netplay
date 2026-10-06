@@ -1228,6 +1228,27 @@ msgstr "Add combo"
 msgid "training.combo.add.detail"
 msgstr "Adds the moves to the pack. Example: cr.MK xx HP Hadoken > FADC > cl.HP"
 
+msgid "training.combo.save"
+msgstr "Save combo"
+
+msgid "training.combo.save.detail"
+msgstr "Writes the name, moves, notes and dummy setup as typed over the selected combo."
+
+msgid "training.combo.saved"
+msgstr "Combo saved."
+
+msgid "training.combo.duplicate"
+msgstr "Duplicate combo"
+
+msgid "training.combo.duplicate.detail"
+msgstr "Copies the selected combo into this pack, right after it, and selects the copy."
+
+msgid "training.combo.duplicated"
+msgstr "Combo duplicated."
+
+msgid "training.combo.copy_suffix"
+msgstr "copy"
+
 msgid "training.combo.tree"
 msgstr "Combo tree"
 
