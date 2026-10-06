@@ -1,8 +1,9 @@
 ; Per-user installer for a verified Ember package folder. It only places the
 ; first copy: updates stay with Updater.exe, which rewrites the folder as the
 ; normal user, so nothing here may need elevation or own the files afterwards.
-; Setup refuses a folder that already has files in it, and the uninstaller
-; leaves the deletes to Updater.exe -Uninstall, which knows the inventory.
+; Setup refuses a folder that already has files in it. The uninstaller never
+; deletes package files itself (uninsneveruninstall): updates change them
+; later, so the native helper below is their only owner.
 ; Compiled by scripts/package-installer.ps1.
 #ifndef PackageDir
   #error Define PackageDir, AppVersion and Redist (see scripts/package-installer.ps1)
@@ -38,7 +39,10 @@ MinVersion=10.0
 Name: desktopicon; Description: "{cm:CreateDesktopIcon}"; Flags: unchecked
 
 [Files]
-Source: "{#PackageDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
+Source: "{#PackageDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion uninsneveruninstall
+; The uninstall helper, kept beside the uninstaller rather than in the folder,
+; so uninstall works whatever has happened to {app}\Updater.exe since.
+Source: "{#PackageDir}\Updater.exe"; DestDir: "{localappdata}\{#AppName} Setup"; DestName: "ember-uninstall.exe"; Flags: ignoreversion
 Source: "{#Redist}"; DestDir: "{tmp}"; DestName: "vc_redist.x86.exe"; Flags: deleteafterinstall; Check: RuntimeOutdated
 
 [Icons]
@@ -96,10 +100,13 @@ begin
       'To install here anyway, uninstall the existing copy first, or choose an empty folder.';
 end;
 
-// The installed updater removes the product's files, including any an update
-// added since, and its own state; the player's files stay. It runs from a copy
-// outside the folder, since Windows will not delete a running program. The
-// folder itself goes afterwards, only if nothing of the player's is left.
+// The kept helper (this setup's Updater.exe) removes the product's files,
+// including any an update added since, by its own inventory and the installed
+// MANIFEST.txt, and the updater's state; the player's files stay. It runs from
+// a temporary copy. If it cannot finish (an update holds the folder, a file is
+// in use), uninstall stops before Inno removes anything, and the entry stays
+// for another try. The folder goes afterwards, only if nothing of the
+// player's is left.
 procedure CurUninstallStepChanged(Step: TUninstallStep);
 var
   App, Handler, Updater: String;
@@ -108,10 +115,12 @@ begin
   App := ExpandConstant('{app}');
   if Step = usUninstall then begin
     Updater := ExpandConstant('{tmp}\Updater.exe');
-    if not FileCopy(App + '\Updater.exe', Updater, False) or
-       not Exec(Updater, '-InstallDir "' + App + '" -Uninstall', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then
-      SuppressibleMsgBox('Some files of {#AppName} could not be removed from ' + App + '.' + #13#10 +
+    if not FileCopy(ExpandConstant('{localappdata}\{#AppName} Setup\ember-uninstall.exe'), Updater, False) or
+       not Exec(Updater, '-InstallDir "' + App + '" -Uninstall', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then begin
+      SuppressibleMsgBox('{#AppName} could not be removed from ' + App + '. Close Ember and try again.' + #13#10 +
         'See %TEMP%\sf4-netplay-update.log.', mbError, MB_OK, IDOK);
+      Abort;
+    end;
     exit;
   end;
   if Step <> usPostUninstall then exit;

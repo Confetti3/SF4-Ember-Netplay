@@ -72,6 +72,23 @@ std::string HashFile(const fs::path& path) {
     BCryptDestroyHash(hash); BCryptCloseAlgorithmProvider(algorithm,0);
     std::ostringstream out; out<<std::hex<<std::setfill('0'); for(auto byte:digest) out<<std::setw(2)<<static_cast<unsigned>(byte); return out.str();
 }
+// The files MANIFEST.txt names: every file of its package but itself, one
+// "<sha256>  <path>" line each; Windows PowerShell starts it with a byte-order
+// mark. Any other line means the file is not a package manifest.
+std::set<std::wstring> ManifestNames(const fs::path& file) {
+    std::ifstream input(file,std::ios::binary);
+    if(!input) throw std::runtime_error("Package manifest missing");
+    std::set<std::wstring> names;
+    bool first=true;
+    for(std::string line; std::getline(input,line); first=false) {
+        if(!line.empty() && line.back()=='\r') line.pop_back();
+        if(first && line.rfind("\xEF\xBB\xBF",0)==0) line.erase(0,3);
+        if(line.size()<67 || line.compare(64,2,"  ")!=0 || !ValidHash(line.substr(0,64))) throw std::runtime_error("Invalid package manifest");
+        names.insert(PathKey(fs::u8path(line.substr(66))));
+    }
+    if(input.bad() || names.empty()) throw std::runtime_error("Invalid package manifest");
+    return names;
+}
 void DurableJson(const fs::path& path, const json& value) {
     const auto temporary=TemporarySibling(path);
     const auto contents=value.dump(2);
@@ -238,27 +255,39 @@ bool UninstallPackage(const fs::path& installInput, std::string& error) {
         const auto install=fs::absolute(installInput).lexically_normal();
         CheckPath(install.root_path(),install.relative_path());
         if(!fs::is_directory(install)) throw std::runtime_error("Invalid install paths");
-        std::set<std::wstring> obsolete;
-        for(const auto* name:package::Obsolete) obsolete.insert(PathKey(name));
-        const auto ours=[&](const fs::path& rel){
-            const auto key=PathKey(rel);
-            return package::IsAllowed(rel.c_str()) || obsolete.count(key) || key==PathKey(TransactionName) ||
-                key==PathKey(std::wstring(TransactionName)+L".failed") || key==PathKey(LockName) || key.find(L".ember-update-backups\\")==0;
-        };
         std::vector<fs::path> parents;
         std::string failed; // Keep going past a file in use; report it at the end.
         {
             auto lock=Lock(install);
+            // The installed version's own manifest as well as this build's
+            // inventory: setup runs the helper it shipped, which may be older
+            // than the version updates have installed since. Read under the
+            // lock, and removed last, only once everything else is gone, so a
+            // retry after a failure still knows what is ours.
+            std::set<std::wstring> named;
+            for(const auto* name:package::Obsolete) named.insert(PathKey(name));
+            try { named.merge(ManifestNames(install/L"MANIFEST.txt")); } catch(const std::exception&) {}
+            const auto ours=[&](const fs::path& rel){
+                const auto key=PathKey(rel);
+                return package::IsAllowed(rel.c_str()) || named.count(key) || key==PathKey(TransactionName) ||
+                    key==PathKey(std::wstring(TransactionName)+L".failed") || key==PathKey(LockName) || key.find(L".ember-update-backups\\")==0;
+            };
+            std::vector<fs::path> owned;
             for(fs::recursive_directory_iterator entry(install), end; entry!=end; ++entry) {
                 const auto rel=entry->path().lexically_relative(install);
                 // A junction or symlink is the player's, whatever it points at.
                 if(GetFileAttributesW(entry->path().c_str()) & FILE_ATTRIBUTE_REPARSE_POINT) { entry.disable_recursion_pending(); continue; }
-                if(entry->is_directory() || !ours(rel) || PathKey(rel)==PathKey(LockName)) continue;
+                if(entry->is_directory() || !ours(rel) || PathKey(rel)==PathKey(LockName) || PathKey(rel)==L"manifest.txt") continue;
                 CheckPath(install,rel);
+                owned.push_back(rel);
+            }
+            const auto removeOwned=[&](const fs::path& rel){
                 std::error_code code; fs::remove(install/rel,code);
                 if(code && failed.empty()) failed="Cannot remove "+rel.u8string()+": "+code.message();
                 parents.push_back((install/rel).parent_path());
-            }
+            };
+            for(const auto& rel:owned) removeOwned(rel);
+            if(failed.empty() && fs::exists(install/L"MANIFEST.txt")) { CheckPath(install,L"MANIFEST.txt"); removeOwned(L"MANIFEST.txt"); }
         }
         CheckPath(install,LockName); fs::remove(install/LockName);
         for(auto parent:parents) {

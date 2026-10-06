@@ -1,6 +1,7 @@
 #include "../launcher/update/PackageInstaller.hxx"
 #include "../common/PackageInventory.hxx"
 #include <windows.h>
+#include <bcrypt.h>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -11,6 +12,15 @@
 namespace fs = std::filesystem;
 void Write(const fs::path& path, const char* text) { fs::create_directories(path.parent_path()); std::ofstream(path) << text; }
 std::string Read(const fs::path& path) { std::ifstream input(path); return {std::istreambuf_iterator<char>(input), {}}; }
+std::string Sha256(const std::string& bytes) {
+    BCRYPT_ALG_HANDLE algorithm=nullptr; unsigned char digest[32]{};
+    BCryptOpenAlgorithmProvider(&algorithm,BCRYPT_SHA256_ALGORITHM,nullptr,0);
+    BCryptHash(algorithm,nullptr,0,reinterpret_cast<PUCHAR>(const_cast<char*>(bytes.data())),static_cast<ULONG>(bytes.size()),digest,sizeof(digest));
+    BCryptCloseAlgorithmProvider(algorithm,0);
+    static const char hex[]="0123456789abcdef"; std::string text;
+    for(const auto byte:digest){text+=hex[byte>>4];text+=hex[byte&15];}
+    return text;
+}
 int wmain(int argc, wchar_t** argv) {
     std::string error;
     if (argc == 3 && std::wstring(argv[1]) == L"--recover") {
@@ -175,13 +185,27 @@ int wmain(int argc, wchar_t** argv) {
     Write(install/L"assets\\selection\\my-mod.png","player");
     Write(install/L"dxwrapper.dll","obsolete-again");
     Write(install/L".ember-update-transaction-v1.json.failed","set-aside-journal");
+    // A file only the installed version's manifest names: the helper setup kept
+    // may be older than what updates installed since.
+    Write(install/L"from-another-version.dll","named-by-manifest");
+    Write(install/L"MANIFEST.txt",(Sha256("named-by-manifest")+"  from-another-version.dll\n").c_str());
+    // A name that only starts like the updater's own is the player's.
+    Write(install/L".ember-update-backups-notes.txt","player");
     Write(root/L"outside\\TRAINING_LAB.md","outside");
     std::wstring junction=L"cmd.exe /c mklink /J \""+(install/L"docs").wstring()+L"\" \""+(root/L"outside").wstring()+L"\"";
     STARTUPINFOW junctionStartup{};junctionStartup.cb=sizeof(junctionStartup);PROCESS_INFORMATION junctionChild{};
     CHECK(CreateProcessW(nullptr,&junction[0],nullptr,nullptr,FALSE,CREATE_NO_WINDOW,nullptr,nullptr,&junctionStartup,&junctionChild));
     WaitForSingleObject(junctionChild.hProcess,30000);CloseHandle(junctionChild.hThread);CloseHandle(junctionChild.hProcess);
     CHECK(fs::is_regular_file(install/L"docs"/L"TRAINING_LAB.md"));
+    // A file in use stops the uninstall; the manifest stays, so the retry
+    // still knows the file a later version added is ours.
+    HANDLE inUse=CreateFileW((install/L"from-another-version.dll").c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
+    CHECK(inUse!=INVALID_HANDLE_VALUE);
+    CHECK(!sf4e::launcher::UninstallPackage(install,error) && fs::exists(install/L"MANIFEST.txt"));
+    CloseHandle(inUse);
     CHECK(sf4e::launcher::UninstallPackage(install,error));
+    CHECK(!fs::exists(install/L"from-another-version.dll") && !fs::exists(install/L"MANIFEST.txt"));
+    CHECK(Read(install/L".ember-update-backups-notes.txt")=="player");
     CHECK(!fs::exists(install/L"Launcher.exe") && !fs::exists(install/L"notices") && !fs::exists(install/L"dxwrapper.dll"));
     CHECK(!fs::exists(install/L"assets\\selection\\sources.json") && Read(install/L"assets\\selection\\my-mod.png")=="player");
     CHECK(!fs::exists(install/L".ember-update-backups") && !fs::exists(install/L".ember-update.lock"));
