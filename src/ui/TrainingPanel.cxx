@@ -707,8 +707,17 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   if(DrawPattern(pattern,entries,navigation,height,ImGui::GetFontSize()/ImGui::GetFont()->FontSize)) StorePattern();
  }):GameMenu::Body{},ImGui::GetFontSize()/ImGui::GetFont()->FontSize,100,false,statusTone);
  if(a.kind==MenuAction::Close||a.id=="return"){ForwardMenuAction({MenuAction::Close});return;}
- // F8 on the combo and timing screens replays the moves as they are now.
- if((screen=="combos"||screen=="combo-timing")&&!ImGui::GetIO().WantTextInput&&ImGui::IsKeyPressed(ImGuiKey_F8,false)){Replay(TimingSteps(),v,submit);return;}
+ // F8 on the combo and timing screens replays the moves as they are now;
+ // on a timing row, only up to that move, so one rep can be tuned at a time.
+ if((screen=="combos"||screen=="combo-timing")&&!ImGui::GetIO().WantTextInput&&ImGui::IsKeyPressed(ImGuiKey_F8,false)){
+  auto steps=TimingSteps();
+  const auto& focus=nav.Focus();
+  if(screen=="combo-timing"&&focus.compare(0,3,"ct-")==0&&focus!="ct-replay"&&focus!="ct-none"){
+   const auto upTo=static_cast<std::size_t>(std::atoi(focus.c_str()+3));
+   if(upTo+1<steps.size())steps.resize(upTo+1);
+  }
+  Replay(steps,v,submit);return;
+ }
  if(a.kind==MenuAction::Activate&&screen=="home"){if(a.id=="recording")ListRecordings();nav.Push(a.id);return;}
  if(screen=="recording"&&HandleRecordingLibrary(a,v,submit))return;
  if(screen=="combos"&&a.kind==MenuAction::Activate&&a.id=="cb-timing"){nav.Push("combo-timing");return;}

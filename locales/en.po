@@ -1394,7 +1394,7 @@ msgid "training.combo.timing.detail"
 msgstr "The selected combo move by move: each move's timing offset, and what the last replay saw."
 
 msgid "training.combo.timing.replay.detail"
-msgstr "Replays the selected combo as it is now, so each move's report below updates. F8 does the same from any row."
+msgstr "Replays the selected combo as it is now, so each move's report below updates. F8 on a move's row replays only up to that move."
 
 msgid "training.combo.timing.select"
 msgstr "Select a combo first."
