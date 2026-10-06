@@ -77,7 +77,7 @@ std::string HashFile(const fs::path& path) {
 // mark. Any other line means the file is not a package manifest.
 std::set<std::wstring> ManifestNames(const fs::path& file) {
     std::ifstream input(file,std::ios::binary);
-    if(!input) throw std::runtime_error("Package manifest missing");
+    if(!input) throw std::runtime_error("Cannot read the package manifest");
     std::set<std::wstring> names;
     bool first=true;
     for(std::string line; std::getline(input,line); first=false) {
@@ -264,9 +264,12 @@ bool UninstallPackage(const fs::path& installInput, std::string& error) {
             // than the version updates have installed since. Read under the
             // lock, and removed last, only once everything else is gone, so a
             // retry after a failure still knows what is ours.
+            // A manifest that is there but cannot be trusted or read stops the
+            // uninstall before anything goes: it may be all that names a file.
             std::set<std::wstring> named;
             for(const auto* name:package::Obsolete) named.insert(PathKey(name));
-            try { named.merge(ManifestNames(install/L"MANIFEST.txt")); } catch(const std::exception&) {}
+            CheckPath(install,L"MANIFEST.txt");
+            if(fs::exists(fs::symlink_status(install/L"MANIFEST.txt"))) named.merge(ManifestNames(install/L"MANIFEST.txt"));
             const auto ours=[&](const fs::path& rel){
                 const auto key=PathKey(rel);
                 return package::IsAllowed(rel.c_str()) || named.count(key) || key==PathKey(TransactionName) ||

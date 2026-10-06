@@ -84,6 +84,21 @@ int main(int argc, char** argv) {
     list[0]["draft"] = true; list[2]["assets"] = nlohmann::json::array();
     CHECK(ParseGithubReleases(list.dump(), "1.0.2", UpdateChannel::Prerelease).latestVersion == "v1.1.0");
     CHECK(!ParseGithubReleases(listed({"latest", "nightly"}).dump(), "1.0.2", UpdateChannel::Prerelease).ok);
+    // GitHub sends null for empty fields: one such release, before or after
+    // the newest, spoils nothing (a null digest only leaves it unverifiable).
+    list = listed({"v1.0.1", "v1.1.0", "v1.0.0"});
+    list[0]["body"] = nullptr; list[2]["body"] = nullptr; list[2]["html_url"] = nullptr;
+    for (auto& asset : list[0]["assets"]) asset["digest"] = nullptr;
+    result = ParseGithubReleases(list.dump(), "1.0.0", UpdateChannel::Stable);
+    CHECK(result.ok && result.latestVersion == "v1.1.0" && result.expectedSha256 == digest);
+    list[1]["tag_name"] = nullptr;
+    result = ParseGithubReleases(list.dump(), "1.0.0", UpdateChannel::Stable);
+    CHECK(result.ok && result.latestVersion == "v1.0.1" && result.expectedSha256.empty());
+    // Stable also skips a release GitHub marks as a pre-release, whatever its tag.
+    list = listed({"v1.2.0", "v1.1.0"});
+    list[0]["prerelease"] = true;
+    CHECK(ParseGithubReleases(list.dump(), "1.0.2", UpdateChannel::Stable).latestVersion == "v1.1.0");
+    CHECK(ParseGithubReleases(list.dump(), "1.0.2", UpdateChannel::Prerelease).latestVersion == "v1.2.0");
     if (argc > 1 && std::string(argv[1]) == "--live") {
         result = CheckForUpdate(UpdateChannel::Stable);
         CHECK(result.ok && !result.installedVersion.empty());

@@ -506,12 +506,18 @@ namespace launcher {
 		return ParseGithubReleases(body.data(), installed, channel);
 	}
 
+	// A string field of a release or asset; GitHub sends null for an empty one.
+	static std::string Text(const nlohmann::json& object, const char* key) {
+		const auto field = object.find(key);
+		return field != object.end() && field->is_string() ? field->get<std::string>() : std::string();
+	}
+
 	// Fills result from one release object whose tag is a version; ok once it
 	// has a package. Whether that is an update is the caller's question.
 	static void ReadRelease(const nlohmann::json& release, UpdateCheckResult& result) {
-		result.latestVersion = release.value("tag_name", "");
-		result.releaseNotes = release.value("body", "");
-		result.releaseUrl = release.value("html_url", "");
+		result.latestVersion = Text(release, "tag_name");
+		result.releaseNotes = Text(release, "body");
+		result.releaseUrl = Text(release, "html_url");
 
 		if (result.releaseNotes.size() > 2000) {
 			result.releaseNotes = result.releaseNotes.substr(0, 2000) + "...";
@@ -530,14 +536,15 @@ namespace launcher {
 				return "";
 			};
 			for (const auto& asset : release["assets"]) {
-				std::string name = asset.value("name", "");
+				if (!asset.is_object()) continue;
+				std::string name = Text(asset, "name");
 				if (name.size() < 4 || name.compare(name.size()-4, 4, ".zip") != 0) {
 					continue;
 				}
 				if (name.compare(0, strlen(kReleaseZipPrefix), kReleaseZipPrefix) == 0) {
-					result.zipDownloadUrl = asset.value("browser_download_url", "");
-					result.zipApiUrl = asset.value("url", "");
-					result.expectedSha256 = parseSha256Digest(asset.value("digest", ""));
+					result.zipDownloadUrl = Text(asset, "browser_download_url");
+					result.zipApiUrl = Text(asset, "url");
+					result.expectedSha256 = parseSha256Digest(Text(asset, "digest"));
 					break;
 				}
 
@@ -558,10 +565,17 @@ namespace launcher {
 		if (!installed) installed = "";
 		try {
 			Version bestVersion;
-			for (const auto& release : nlohmann::json::parse(body)) {
-				if (!release.is_object() || release.value("draft", false)) continue;
-				const auto version = ParseVersion(release.value("tag_name", "").c_str());
-				if (!version || (version->prerelease && channel == UpdateChannel::Stable)) continue;
+			const auto releases = nlohmann::json::parse(body);
+			if (!releases.is_array()) throw std::runtime_error("not a release list");
+			const auto flag = [](const nlohmann::json& release, const char* key) {
+				const auto field = release.find(key);
+				return field != release.end() && field->is_boolean() && field->get<bool>();
+			};
+			for (const auto& release : releases) {
+				if (!release.is_object() || flag(release, "draft")) continue;
+				const auto version = ParseVersion(Text(release, "tag_name").c_str());
+				// Stable takes neither a pre-release tag nor a release GitHub marks as one.
+				if (!version || ((version->prerelease || flag(release, "prerelease")) && channel == UpdateChannel::Stable)) continue;
 				UpdateCheckResult candidate;
 				ReadRelease(release, candidate);
 				if (candidate.ok && (!best.ok || CompareVersions(*version, bestVersion) > 0)) {

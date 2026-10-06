@@ -197,6 +197,12 @@ int wmain(int argc, wchar_t** argv) {
     CHECK(CreateProcessW(nullptr,&junction[0],nullptr,nullptr,FALSE,CREATE_NO_WINDOW,nullptr,nullptr,&junctionStartup,&junctionChild));
     WaitForSingleObject(junctionChild.hProcess,30000);CloseHandle(junctionChild.hThread);CloseHandle(junctionChild.hProcess);
     CHECK(fs::is_regular_file(install/L"docs"/L"TRAINING_LAB.md"));
+    // A manifest that is there but cannot be read stops the uninstall before
+    // anything goes: it may be all that names a file a later version added.
+    HANDLE unreadable=CreateFileW((install/L"MANIFEST.txt").c_str(),GENERIC_READ,FILE_SHARE_DELETE,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
+    CHECK(unreadable!=INVALID_HANDLE_VALUE);
+    CHECK(!sf4e::launcher::UninstallPackage(install,error) && fs::exists(install/L"Launcher.exe") && fs::exists(install/L"from-another-version.dll"));
+    CloseHandle(unreadable);
     // A file in use stops the uninstall; the manifest stays, so the retry
     // still knows the file a later version added is ours.
     HANDLE inUse=CreateFileW((install/L"from-another-version.dll").c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
