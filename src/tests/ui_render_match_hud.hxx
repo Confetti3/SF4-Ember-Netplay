@@ -198,8 +198,15 @@ void ShootMatchHud(sf4e::ui::MatchStripView& matchStrip,const Draw& draw,const R
         for(const int anchor:{0,3,4}){
             matchStrip.anchor=anchor;draw(anchor==0&&offset==-20?"match-hud-split-name-up":nullptr,0,1);
             const auto moved=MatchStripGeometry(matchStrip);
-            // All the way up leaves no readable room above the names; part way up still does.
-            Require(moved.panelBelow==(anchor>=3&&offset==-60),"Match HUD placed a top panel on the wrong edge for the name offset");
+            // A top panel goes below when the band above the moved names gives less than half
+            // its usual scale: the Large panel and state line over y 0..(70+offset) of the game image.
+            const auto view=ImGui::GetMainViewport()->Size;
+            const float band=(view.y-720*shiftScale)*.5f+(70+offset)*shiftScale;
+            Require(moved.panelBelow==(anchor>=3&&band/((34+24+4)*1.25f)<.5f*(std::max)(.8f,view.y/1080.f)),
+                "Match HUD placed a top panel on the wrong edge for the name offset");
+            // On a 16:9 screen, all the way up leaves no readable room above the names; part way up still does.
+            Require(MatchStripGeometry(matchStrip,ImVec2(0,0),ImVec2(1920,1080)).panelBelow==(anchor>=3&&offset==-60),
+                "Match HUD placed a top panel on the wrong edge for the name offset on a 16:9 screen");
             for(int side=0;side<2;++side)
                 Require(std::abs(moved.names[side].y0-unmoved.names[side].y0-offset*shiftScale)<=1&&
                     moved.names[side].x0==unmoved.names[side].x0&&moved.names[side].x1==unmoved.names[side].x1&&
