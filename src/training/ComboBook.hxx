@@ -57,6 +57,7 @@ inline std::string Fold(std::string text, int (*fold)(int)) {
 // The game's own button bits, as the training session records them.
 constexpr unsigned LP = 0x10, MP = 0x20, HP = 0x400, LK = 0x40, MK = 0x80, HK = 0x800;
 constexpr unsigned Punches = LP | MP | HP, Kicks = LK | MK | HK;
+inline const char* ButtonName(unsigned bit) { return bit == LP ? "LP" : bit == MP ? "MP" : bit == HP ? "HP" : bit == LK ? "LK" : bit == MK ? "MK" : bit == HK ? "HK" : ""; }
 enum class Edge { Press, Hold, Release };
 enum class Range { Any, Close, Far };
 // One move as inputs a trial can check.
@@ -79,6 +80,9 @@ struct Step {
     // follow: a follow-up pressed a few frames into the move before it, with
     // no cue to wait for (a run's stop); it counts as a cancel otherwise.
     bool follow = false;
+    // mashOrder: the buttons of a mash in order, one press per frame; empty
+    // for the default five presses cycling the step's buttons.
+    std::vector<unsigned> mashOrder;
     unsigned buttons = 0; int need = 0;
     Edge edge = Edge::Press; Range range = Range::Any;
     int offset = 0, at = -1;
@@ -89,7 +93,8 @@ constexpr int MaxAtFrame = 7200;
 //   [xx|~] [j.|cr.|st.|cl.|far.] [motion] [buttons] [(mash)] [#N] [@N]   or   [xx] FADC[66|44] [#N] [@N]   or   [xx] RFADC[66|44] [#N] [@N]
 //   motion:  numpad digits 1-9, "[4]6" for charge, "360", "720"
 //   buttons: LP MP HP LK MK HK joined by "+", or P PP PPP K KK KKK;
-//            "[HP]" holds them, "]HP[" releases them, "(mash)" mashes them
+//            "[HP]" holds them, "]HP[" releases them, "(mash)" mashes them,
+//            "(mash HP-MP-LP)" in that order, one press per frame
 //   @N:      replay timing, -120..+120 frames ("@-1", "@+3")
 //   #N:      replay frame the press lands on, 0..7200 ("#45")
 // cr. is 2; st., cl. and far. are 5. FADC is MP+MK then a dash, 66 unless 44;
@@ -127,6 +132,21 @@ inline bool ParseStep(const std::string& text, Step& step, std::string& error) {
         s.resize(mark);
     }
     if (s.size() > 6 && s.compare(s.size() - 6, 6, "(MASH)") == 0) { step.mash = true; s.resize(s.size() - 6); }
+    else if (s.rfind("(MASH") != std::string::npos && s.back() == ')') {
+        // "(mash HP-MP-LP)": the presses in order.
+        const auto open = s.rfind("(MASH");
+        std::string list = s.substr(open + 5, s.size() - open - 6);
+        for (std::size_t from = 0; from <= list.size();) {
+            const auto dash = list.find('-', from);
+            const auto name = list.substr(from, dash == std::string::npos ? std::string::npos : dash - from);
+            const unsigned bit = name == "LP" ? LP : name == "MP" ? MP : name == "HP" ? HP : name == "LK" ? LK : name == "MK" ? MK : name == "HK" ? HK : 0;
+            if (!bit || step.mashOrder.size() >= 30) return fail();
+            step.mashOrder.push_back(bit);
+            if (dash == std::string::npos) break;
+            from = dash + 1;
+        }
+        step.mash = true; s.resize(open);
+    }
     step.follow = starts("~");
     step.cancel = step.follow || starts("XX");
     const bool red = starts("RFADC");
@@ -195,7 +215,13 @@ inline std::string Canonical(const Step& step) {
     }
     if (step.edge == Edge::Hold) buttons = "[" + buttons + "]";
     if (step.edge == Edge::Release) buttons = "]" + buttons + "[";
-    return out + buttons + (step.mash ? "(mash)" : "") + timing;
+    std::string mash;
+    if (step.mash) {
+        mash = "(mash";
+        for (std::size_t i = 0; i < step.mashOrder.size(); ++i) mash += (i ? "-" : " ") + std::string(ButtonName(step.mashOrder[i]));
+        mash += ")";
+    }
+    return out + buttons + mash + timing;
 }
 
 // Splits a line into its moves: by ">" or ",", and before a lone "xx" or "~",

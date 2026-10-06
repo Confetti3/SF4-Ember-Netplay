@@ -77,6 +77,11 @@ int main() {
         CHECK(o + 9 < one.size() && one[o].raw == HP && one[o + 1].raw == 0 && one[o + 8].raw == HP && one[o + 9].raw == 0);
         const auto two = Synthesize({"5LP+MP(mash)"}, true, 0); const auto t = first(two);
         CHECK(two[t].raw == LP && two[t + 1].raw == MP && two[t + 4].raw == LP);
+        // An order of its own sets the presses and their count; a repeat gets a frame off between.
+        CHECK(ParseStep("5P(mash HP-MP-LP-LP)", step, error) && step.mash && step.mashOrder.size() == 4 && Canonical(step) == "5P(mash HP-MP-LP-LP)");
+        CHECK(!ParseStep("5P(mash HP-XX)", step, error) && !ParseStep("5P(mash -)", step, error));
+        const auto ordered = Synthesize({"5P(mash HP-MP-LP-LP)"}, true, 0); const auto q = first(ordered);
+        CHECK(ordered[q].raw == HP && ordered[q + 1].raw == MP && ordered[q + 2].raw == LP && ordered[q + 3].raw == 0 && ordered[q + 4].raw == LP && ordered[q + 5].raw == 0);
     }
     // The red focus cancel: LP+MP+MK, then the dash.
     CHECK(ParseStep("xx RFADC", step, error) && step.cancel && step.buttons == (LP | MP | MK) && step.need == 3 && step.motion == "66" && Canonical(step) == "xx RFADC");
