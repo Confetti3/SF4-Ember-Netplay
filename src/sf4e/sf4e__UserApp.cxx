@@ -118,6 +118,9 @@ static MatchEntry StartMatchFromLobby(SessionClient* const client) {
     BattleTypeSettings->editionSelect = client->_lobbyData.editionSelect;
     BattleTypeSettings->rounds = client->_lobbyData.roundCount;
     BattleTypeSettings->timeLimit = client->_lobbyData.roundTime;
+    // A Versus battle saves its own replay when this is set (0x63CA40); the
+    // launcher copies each one out of the game's ten slots.
+    BattleTypeSettings->recordReplay = TRUE;
     spdlog::info(
         "Netplay: starting match with rounds={} time={}",
         client->_lobbyData.roundCount,

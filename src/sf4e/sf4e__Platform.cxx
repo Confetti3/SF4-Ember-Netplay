@@ -19,6 +19,7 @@
 #include "sf4e.hxx"
 #include "sf4e__CrashDiagnostics.hxx"
 #include "sf4e__Game.hxx"
+#include "sf4e__Game__Battle.hxx"
 #include "BuildIdentity.hxx"
 #include "sf4e__Platform.hxx"
 #include "sf4e__UserApp.hxx"
@@ -355,6 +356,7 @@ int fMain::Initialize(void* a, void* b, void* c) {
             sf4e::crash::WatchGameExit();
             LogVSyncForced();
             spdlog::info("Sidecar logging initialized; install hooks are active");
+            spdlog::info("{}", Game::Battle::MatchReplayListNote());
         }
         catch (const spdlog::spdlog_ex& ex)
         {
