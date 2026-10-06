@@ -70,8 +70,12 @@ std::map<std::wstring,std::pair<fs::path,std::string>> ReadManifest(const fs::pa
         if(!line.empty() && line.back()=='\r') line.pop_back();
         if(first && line.rfind("\xEF\xBB\xBF",0)==0) line.erase(0,3);
         if(line.size()<67 || line.compare(64,2,"  ")!=0 || !ValidHash(line.substr(0,64))) throw std::runtime_error("Invalid package manifest");
+        // PowerShell writes digests in uppercase; the journal and the final
+        // check compare them as written, so they are kept lowercase here.
+        std::string hash=line.substr(0,64);
+        std::transform(hash.begin(),hash.end(),hash.begin(),[](unsigned char c){return static_cast<char>(std::tolower(c));});
         const fs::path relative=fs::u8path(line.substr(66)).lexically_normal();
-        if(relative.empty() || relative.is_absolute() || relative.has_root_name() || !entries.emplace(PathKey(relative),std::make_pair(relative,line.substr(0,64))).second)
+        if(relative.empty() || relative.is_absolute() || relative.has_root_name() || !entries.emplace(PathKey(relative),std::make_pair(relative,hash)).second)
             throw std::runtime_error("Invalid package manifest");
     }
     if(input.bad() || entries.empty()) throw std::runtime_error("Invalid package manifest");

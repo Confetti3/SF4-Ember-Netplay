@@ -136,6 +136,10 @@ int wmain(int argc, wchar_t** argv) {
     for (const auto* path : sf4e::package::Required) if (std::wstring(path).find(L"iscord")==std::wstring::npos) { Write(older/path,"older"); olderRequired.push_back(path); }
     Write(older/L"dxwrapper.dll","older-display-wrapper"); olderRequired.push_back(L"dxwrapper.dll");
     Inventory(older,olderRequired,{}); Manifest(older);
+    // Windows PowerShell writes its digests in uppercase; the package still
+    // validates, installs and passes the final check below.
+    { std::string upper=Read(older/L"MANIFEST.txt"); for(size_t at=0;at<upper.size();at=upper.find('\n',at)+1){ for(size_t i=at;i<at+64&&i<upper.size();++i) upper[i]=static_cast<char>(std::toupper(static_cast<unsigned char>(upper[i]))); if(upper.find('\n',at)==std::string::npos) break; } Write(older/L"MANIFEST.txt",upper.c_str()); }
+    CHECK(Read(older/L"MANIFEST.txt").find('A')!=std::string::npos || Read(older/L"MANIFEST.txt").find('F')!=std::string::npos);
     CHECK(sf4e::launcher::ValidatePackageFolder(older,error));
     // Matching a manifest is not completeness: a package short of a file its
     // own inventory requires, or carrying one it calls obsolete, is refused.
