@@ -9,7 +9,7 @@ Experimental unofficial netplay for Ultra Street Fighter IV, based on [sf4e by A
 - **Everyone in a room needs 1.1.0.** 1.0.x and 1.1.0 cannot join each other's rooms, and the release candidates cannot join 1.1.0 rooms either. Public rooms and tournaments need an Ember ID.
 - **From v1.0.2 or 1.1.0-rc2, use the updater.** Ember offers 1.1.0 in game. You can also download the zip below and extract it over your Ember folder. Your settings carry over; Input delay moves to Auto as described below.
 - **From 1.1.0-rc1, install it by hand.** The rc1 updater does not see this release. Extract the zip over your rc1 folder.
-- **New installs can use setup.exe.** `sf4-ember-netplay-1.1.0-setup.exe` installs Ember for your Windows account into an empty folder, with a Start menu entry and an uninstaller. It also installs a newer Visual C++ runtime when yours is too old, which asks for administrator rights. To update an existing folder, use the updater or the zip.
+- **New installs can use setup.exe, contributed by FRaccie.** The installer came from [FRaccie's pull request #24](https://github.com/Confetti3/SF4-Ember-Netplay/pull/24). `sf4-ember-netplay-1.1.0-setup.exe` installs Ember for your Windows account into an empty folder, with a Start menu entry and an uninstaller. It also installs a newer Visual C++ runtime when yours is too old, which asks for administrator rights. To update an existing folder, use the updater or the zip.
 
 ## Public rooms
 
@@ -57,7 +57,7 @@ Experimental unofficial netplay for Ultra Street Fighter IV, based on [sf4e by A
 
 ## Updates and installing
 
-- **Choose your update channel, contributed by FRaccie.** The updater window shows Update channel and Installed version. Stable offers finished releases; Pre-release also offers release candidates. Switching a pre-release installation back to Stable offers the latest finished release as the way back.
+- **Choose your update channel, contributed by FRaccie.** The update channel came from [FRaccie's pull request #25](https://github.com/Confetti3/SF4-Ember-Netplay/pull/25) and going back to Stable from [pull request #26](https://github.com/Confetti3/SF4-Ember-Netplay/pull/26). The updater window shows Update channel and Installed version. Stable offers finished releases; Pre-release also offers release candidates. Switching a pre-release installation back to Stable offers the latest finished release as the way back.
 - **Uninstalling keeps your files.** The uninstaller removes only the files Ember installed, plus the updater's backups. Replays, notes and art you added yourself stay.
 - **Updates check package files more carefully.** An update stops with a message when the installed file list cannot be read, instead of guessing which files are Ember's.
 
