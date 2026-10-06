@@ -333,7 +333,11 @@ Inventory ReadInventory(const fs::path& file) {
     bool first=true;
     for(std::string line; std::getline(input,line); first=false) {
         if(first && line.rfind("\xEF\xBB\xBF",0)==0) line.erase(0,3);
-        const auto begin=line.find_first_not_of(" \t\r"), end=line.find_last_not_of(" \t\r");
+        // Lines end in LF or CRLF; any other CR could start a line another
+        // reader sees and this one would not, even inside a comment.
+        if(!line.empty() && line.back()=='\r') line.pop_back();
+        if(line.find('\r')!=std::string::npos) throw std::runtime_error("Invalid package inventory");
+        const auto begin=line.find_first_not_of(" \t"), end=line.find_last_not_of(" \t");
         if(begin==std::string::npos || line.compare(begin,2,"//")==0) continue;
         line=line.substr(begin,end-begin+1);
         const auto open=line.find("(\"");
