@@ -339,7 +339,19 @@ void AfterUpdate(Native* system) {
             session.Observe(own.valid && ClassifyStatus(own.status) == Phase::Neutral, hit, until);
             previous = fighters;
         }
-        if (commitInput) session.Commit(output);
+        {
+            // A replayed combo's report, once it ends, so a tuning session can be read back from the log.
+            static bool wasPlaying = false;
+            const bool playing = session.GetView().mode == Mode::Playback;
+            if (commitInput) session.Commit(output);
+            const bool nowPlaying = session.GetView().mode == Mode::Playback;
+            if ((wasPlaying || playing) && !nowPlaying && !session.GetView().replay.empty()) {
+                std::string report;
+                for (const auto& step : session.GetView().replay) report += (report.empty() ? "" : ", ") + std::to_string(step.waited) + (step.cued ? "" : "!") + (step.hit ? "h" : "-");
+                spdlog::info("Training: replay report (waited frames, ! gave up, h hit followed): {}", report);
+            }
+            wasPlaying = nowPlaying;
+        }
         meter.Observe(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters);
         trial.Observe(ObserveTrial(fighters[0], fighters[1]));
         comboCapture.Observe(fighters[0]);
