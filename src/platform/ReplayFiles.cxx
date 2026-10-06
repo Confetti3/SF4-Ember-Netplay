@@ -117,7 +117,10 @@ bool ImportFile(const fs::path& file, const Writer& write, Imported& out) {
 			StringCchPrintfW(crc, 16, L"%08x", slots::Crc32(exported.data(), exported.size()));
 			const slots::Bytes entry = LoadFile(file.parent_path() / L".index" / (std::wstring(crc) + L".entry"));
 			slots::Bytes built;
-			if (!slots::ExportFromReplay(exported, entry, built)) { spdlog::warn(L"Replays: {} has no slot record beside it", file.c_str()); return false; }
+			// Without that entry, the record is made up from the replay's own header.
+			if (!slots::ExportFromReplay(exported, entry, built) && !slots::ExportFromReplayAlone(exported, built)) {
+				spdlog::warn(L"Replays: {} has no slot record beside it and no readable header", file.c_str()); return false;
+			}
 			exported = std::move(built);
 		}
 		if (slot < 0 || !slots::Import(exported, slot, static_cast<std::uint32_t>(_time64(nullptr)), list, swan, replay)) {
@@ -198,20 +201,36 @@ std::vector<ArchivedReplay> ListArchive() {
 	const std::vector<NotedMatch> noted = NotedMatches(folders.archive);
 	const std::vector<std::string> watched = WatchedNames(folders.archive);
 	std::error_code ignored;
-	for (const auto& entry : fs::directory_iterator(folders.archive, ignored)) {
+	// Ember's own files sit in the archive root, named by their save time;
+	// usf4-replay-saver's (.usf4replay, the game's file as it is) may be
+	// dropped in any folder under it and tell their time and fighters themselves.
+	for (const auto& entry : fs::recursive_directory_iterator(folders.archive, ignored)) {
 		const std::wstring name = entry.path().filename().wstring();
+		const bool saver = entry.path().extension() == L".usf4replay";
 		tm utc = {};
-		if (entry.path().extension() != L".emberreplay" || name.size() < 15 ||
-			swscanf_s(name.c_str(), L"%4d%2d%2d-%2d%2d%2d", &utc.tm_year, &utc.tm_mon, &utc.tm_mday, &utc.tm_hour, &utc.tm_min, &utc.tm_sec) != 6) continue;
-		utc.tm_year -= 1900; utc.tm_mon -= 1;
-		const __time64_t time = _mkgmtime64(&utc);
+		__time64_t time = -1;
+		ArchivedReplay replay{entry.path()};
+		if (saver) {
+			std::ifstream file(entry.path(), std::ios::binary);
+			slots::Bytes head(slots::kReplayHeaderBytes);
+			slots::ReplayHeaderInfo info;
+			if (!file.read(reinterpret_cast<char*>(head.data()), head.size()) || !slots::ReadReplayHeader(head, info)) continue;
+			replay.fighters[0] = info.fighters[0]; replay.fighters[1] = info.fighters[1];
+			time = info.time;
+		}
+		else {
+			if (entry.path().parent_path() != folders.archive || entry.path().extension() != L".emberreplay" || name.size() < 15 ||
+				swscanf_s(name.c_str(), L"%4d%2d%2d-%2d%2d%2d", &utc.tm_year, &utc.tm_mon, &utc.tm_mday, &utc.tm_hour, &utc.tm_min, &utc.tm_sec) != 6) continue;
+			utc.tm_year -= 1900; utc.tm_mon -= 1;
+			time = _mkgmtime64(&utc);
+		}
 		tm local = {};
 		char label[32] = { 0 };
 		if (time < 0 || _localtime64_s(&local, &time) || !std::strftime(label, sizeof(label), "%Y-%m-%d %H:%M", &local)) continue;
-		ArchivedReplay replay{entry.path(), label, static_cast<std::uint64_t>(time)};
+		replay.label = label; replay.time = static_cast<std::uint64_t>(time);
 		std::ifstream file(entry.path(), std::ios::binary);
 		slots::Bytes head(slots::kExportHeaderBytes);
-		if (file.read(reinterpret_cast<char*>(head.data()), head.size()) && !std::memcmp(head.data(), slots::kExportMagic, 8)) {
+		if (!saver && file.read(reinterpret_cast<char*>(head.data()), head.size()) && !std::memcmp(head.data(), slots::kExportMagic, 8)) {
 			const slots::RecordInfo info = slots::ReadRecordInfo(head.data() + 8);
 			replay.fighters[0] = info.fighters[0]; replay.fighters[1] = info.fighters[1];
 		}
