@@ -61,6 +61,25 @@ int main() {
     backend.connected[4]=backend.connected[5]=true;
     CHECK(!sf4e::input::MenuDevice(sample()).connected);
     pad.type[0]=4;pad.index[0]=5;CHECK(sf4e::input::MenuDevice(sample()).index==5);
+    // With no pad the keyboard is the menu device in either of the game's
+    // keyboard slots: the game moves player 1 to slot 1 on a key press.
+    backend.connected[0]=backend.connected[4]=backend.connected[5]=false;
+    for (int slot : {0,1}) {
+        pad.type[0]=1;pad.index[0]=slot;
+        const auto keyboard=sf4e::input::MenuDevice(sample());
+        CHECK(keyboard.connected&&keyboard.type==1&&keyboard.index==0);
+    }
+    {
+        // A keyboard player stays connected when the game moves the slot mid-match.
+        const auto keyboard=sample().front();
+        CHECK(sf4e::input::AssignToSide(keyboard,0,true)&&pad.type[0]==1);
+        unsigned mapped=0,raw=0;
+        pad.index[0]=1;CHECK(sf4e::input::ReadAssignedInput(keyboard,0,mapped,raw)&&mapped==0x10u);
+        pad.type[1]=1;pad.index[1]=1;pad.assigned[1]=1;
+        CHECK(sf4e::input::AssignToSide(keyboard,0,true)&&pad.assigned[1]==-1);
+        pad.type[1]=1;pad.index[1]=0;
+    }
+    backend.connected[0]=backend.connected[4]=backend.connected[5]=true;
     for (int index : {0,4,5}) {
         pad.type[0] = 1; pad.index[0] = 0;
         sf4e::input::Assignment assignment;
@@ -108,5 +127,5 @@ int main() {
     backend.buttons[4]=0x200;ambiguous.Tick(sample());backend.buttons[4]=0;
     CHECK(ambiguous.Tick(sample())&&ambiguous.Selected().index==4);
     backend.connected[4]=false;ambiguous.Tick(sample());CHECK(!ambiguous.Ready()&&ambiguous.Selected().index==4);
-    std::cout << "Native adapter: stale keyboard replaced by XInput, DirectInput and leverless devices; both slots, held buttons, cancel, disconnect and rematches passed\n";
+    std::cout << "Native adapter: keyboard in either game slot, stale keyboard replaced by XInput, DirectInput and leverless devices; both slots, held buttons, cancel, disconnect and rematches passed\n";
 }

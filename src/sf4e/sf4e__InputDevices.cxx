@@ -52,6 +52,12 @@ std::string InventoryKey(const std::vector<Device>& devices) {
             device.name + '\n';
     return key;
 }
+// Whether a side of the game's pad system holds this device. The game keeps
+// the keyboard in slot 0 or 1 and moves a player between them on a key press,
+// while ReadDevices lists one keyboard, so a keyboard matches either slot.
+bool Holds(int type,int index,const Device& device) {
+    return type==device.type&&(type==Dimps::Pad::PADTYPE_RAWINPUT||index==device.index);
+}
 bool Connected(const Device& device) {
     using namespace Dimps::Pad;
     if(!device.connected)return false;
@@ -103,7 +109,7 @@ Device MenuDevice(const std::vector<Device>& devices) {
     const int index = (pad->*methods.GetDeviceIndexForPlayer)(0);
     Device native,only;unsigned controllers=0;
     for(const auto& device:devices)if(device.connected){
-        if(device.type==type&&device.index==index)native=device;
+        if(Holds(type,index,device))native=device;
         if(device.type==PADTYPE_XINPUT||device.type==PADTYPE_DIRECTINPUT){only=device;++controllers;}
     }
     if(native.connected&&native.type!=PADTYPE_RAWINPUT)return native;
@@ -139,22 +145,21 @@ bool AssignToSide(const Device& device, int side, bool fight) {
     const auto& methods = System::publicMethods;
     ReleaseFromSide(side);
     const int otherSide = 1 - side;
-    if ((pad->*methods.GetDeviceTypeForPlayer)(otherSide) == device.type &&
-        (pad->*methods.GetDeviceIndexForPlayer)(otherSide) == device.index) ReleaseFromSide(otherSide);
+    if (Holds((pad->*methods.GetDeviceTypeForPlayer)(otherSide),
+            (pad->*methods.GetDeviceIndexForPlayer)(otherSide), device)) ReleaseFromSide(otherSide);
     (pad->*methods.AssociatePlayerAndGamepad)(side, device.index);
     (pad->*methods.SetDeviceTypeForPlayer)(side, device.type);
     (pad->*methods.SetSideHasAssignedController)(side, 1);
     (pad->*methods.SetActiveButtonMapping)(fight ? System::BUTTON_MAPPING_FIGHT : System::BUTTON_MAPPING_MENU);
-    return (pad->*methods.GetDeviceTypeForPlayer)(side)==device.type&&
-        (pad->*methods.GetDeviceIndexForPlayer)(side)==device.index;
+    return Holds((pad->*methods.GetDeviceTypeForPlayer)(side),(pad->*methods.GetDeviceIndexForPlayer)(side),device);
 }
 bool ReadAssignedInput(const Device& device,int side,unsigned& mapped,unsigned& raw) {
     mapped=raw=0;
     using namespace Dimps::Pad;
     if(side<0||side>1||!Connected(device))return false;
     auto* pad=System::staticMethods.GetSingleton();const auto& methods=System::publicMethods;
-    if(!pad||(pad->*methods.GetDeviceTypeForPlayer)(side)!=device.type||
-        (pad->*methods.GetDeviceIndexForPlayer)(side)!=device.index)return false;
+    if(!pad||!Holds((pad->*methods.GetDeviceTypeForPlayer)(side),(pad->*methods.GetDeviceIndexForPlayer)(side),device))
+        return false;
     mapped=(pad->*methods.GetButtons_MappedOn)(side);raw=(pad->*methods.GetButtons_RawOn)(side);
     return true;
 }
