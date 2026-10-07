@@ -699,6 +699,31 @@ bool fSystem::SaveState::Load(SaveState* src) {
     return !sf4e::Game::MementoFailure::restore;
 }
 
+void fSystem::SaveState::ForgetFinishedSounds(SaveState* state) {
+    int forgotten = 0;
+    for (auto& saved : state->criPlayerState) {
+        auto& sound = saved.second;
+        if (!sound.bLive) continue;
+        // Still playing: a live real sound of the same request whose player
+        // has not run out. The real players are asked themselves, by the
+        // game's own check, since their records are live until stopped too.
+        bool playing = false;
+        for (auto managerIter = fSoundPlayerManager::shadowManagerMap.begin();
+            !playing && managerIter != fSoundPlayerManager::shadowManagerMap.end(); managerIter++) {
+            rSoundPlayerManager* realManager = managerIter->second;
+            rSoundPlayerManager::CriPlayerAdapter* realPlayers = *rSoundPlayerManager::GetAdapters(realManager);
+            for (int i = 0; !playing && i < *rSoundPlayerManager::GetNumAdapters(realManager); i++) {
+                const auto real = fSoundPlayerManager::adapterToCurrentSound.find(&realPlayers[i]);
+                playing = real != fSoundPlayerManager::adapterToCurrentSound.end() && real->second.bLive &&
+                    fSoundPlayerManager::DeferredSoundRequest::IsEqual(&sound, &real->second) &&
+                    (realPlayers[i].*rSoundPlayerManager::CriPlayerAdapter::publicMethods.IsStillPlaying)();
+            }
+        }
+        if (!playing) { sound.bLive = false; ++forgotten; }
+    }
+    if (forgotten) spdlog::info("SaveState: {} sounds that had ended are not kept as playing in this state", forgotten);
+}
+
 bool fSystem::SaveState::Save(SaveState* dst, bool temporary) {
     diag::ScopedTimer _saveTimer(temporary ? -1 : diag::OP_SAVE_TOTAL);
     AssertSaveStateThreadAffinity();

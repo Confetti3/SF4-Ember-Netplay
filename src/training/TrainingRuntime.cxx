@@ -284,6 +284,8 @@ void BeforeUpdate(Native* system, bool networkOwned) {
             // A state the memento cannot represent is refused, not kept
             // without its task functors (ledger A-001).
             commandAccepted = Battle::SaveState::Save(&checkpoint);
+            // The checkpoint is loaded long after: a voice that had ended by then must not come back with it.
+            if (commandAccepted) Battle::SaveState::ForgetFinishedSounds(&checkpoint);
             session.SetCheckpoint(checkpoint.used);
         } else if (command.action == Action::Restore) {
             commandAccepted = RestoreCheckpoint(system);
