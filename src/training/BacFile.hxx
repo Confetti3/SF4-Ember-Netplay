@@ -1,5 +1,6 @@
 #pragma once
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -20,7 +21,9 @@ constexpr std::size_t MaxBytes = 4 * 1024 * 1024;
 // hits: hit-data set of every hitbox that can hit. effects: indices into
 // File::effects. next: indices into File::scripts the script passes into by
 // itself (on hit, on landing), not those that wait for another input.
-struct Script { std::vector<std::int32_t> hits, effects, next; };
+// spawns: one per entry of effects, the frames of the script its spawn
+// command covers, {-1, -1} when the file gives none.
+struct Script { std::vector<std::int32_t> hits, effects, next; std::vector<std::array<int, 2>> spawns; };
 // scripts: indexed by action id. An empty slot is an empty Script.
 struct File { std::vector<Script> scripts, effects; };
 // Adds the ids not already in `to`, keeping order.
@@ -56,6 +59,8 @@ inline bool Table(const ByteReader& in, std::size_t count, std::uint64_t table, 
             const std::size_t commands = in.U16(list + 2);
             // The data offset counts from the list's own record.
             const std::uint64_t data = list + in.U32(list + 8);
+            // So does the frame offset: a first and a last frame a command.
+            const std::uint64_t frames = in.U32(list + 4) ? list + in.U32(list + 4) : 0;
             if (!in.Has(data, commands * size)) return fail("a script's commands run past the end of the file");
             used += commands * size;
             if (used > in.size) return fail("the scripts overlap");
@@ -71,7 +76,10 @@ inline bool Table(const ByteReader& in, std::size_t count, std::uint64_t table, 
                     if (in.data[record + 26] && id >= 0) out[i].hits.push_back(id);
                 } else if (in.U16(record) == 0 && in.U16(record + 2) == 2) {
                     const auto effect = static_cast<std::int32_t>(in.U32(record + 4));
-                    if (effect >= 0) out[i].effects.push_back(effect);
+                    if (effect < 0) continue;
+                    out[i].effects.push_back(effect);
+                    const bool timed = frames && in.Has(frames + k * 4, 4);
+                    out[i].spawns.push_back({timed ? in.U16(frames + k * 4) : -1, timed ? in.U16(frames + k * 4 + 2) : -1});
                 }
             }
         }
@@ -115,5 +123,27 @@ inline std::vector<std::int32_t> ScriptHits(const File& file, std::int32_t scrip
         todo.insert(todo.end(), now.next.begin(), now.next.end());
     }
     return hits;
+}
+
+// The attack boundary of a script whose attack is an effect it spawns (a
+// fireball): the earliest spawn of an effect that can hit, in the terms of the
+// script's own header, which counts one frame later than the commands do.
+// Read off Ryu's Hadoken: spawn command at 25 to 26, header 26 and 27.
+// Not every header agrees (Sagat's Tiger Shot says 24 and 25 for a spawn at
+// 24 to 25), so this is for a script whose header says nothing, and may be a
+// frame late there.
+// False when the script spawns nothing that hits or the file gives no frames.
+inline bool ProjectileBoundary(const File& file, std::int32_t script, int& first, int& last) {
+    if (script < 0 || static_cast<std::size_t>(script) >= file.scripts.size()) return false;
+    const Script& now = file.scripts[static_cast<std::size_t>(script)];
+    bool found = false;
+    for (std::size_t i = 0; i < now.effects.size(); ++i) {
+        const auto effect = static_cast<std::size_t>(now.effects[i]);
+        const auto& spawn = now.spawns[i];
+        if (effect >= file.effects.size() || file.effects[effect].hits.empty() || spawn[0] < 0 || spawn[1] <= spawn[0]) continue;
+        if (found && spawn[0] + 1 >= first) continue;
+        first = spawn[0] + 1; last = spawn[1] + 1; found = true;
+    }
+    return found;
 }
 } }

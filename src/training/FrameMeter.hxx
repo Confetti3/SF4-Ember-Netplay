@@ -5,7 +5,7 @@
 
 namespace sf4e { namespace training {
 enum class Phase { Neutral, Movement, Attack, Guard, Hit, Down, Unknown };
-enum class BoundaryProvenance : std::uint8_t { None, BacActionHeader };
+enum class BoundaryProvenance : std::uint8_t { None, BacActionHeader, BacEffectSpawn };
 enum class MeasurementUnavailable : std::uint8_t {
     None, WaitingForAttackBoundary, NoAttackBoundary, NoContact, MeasuringRecovery,
     Interrupted, InvalidSample

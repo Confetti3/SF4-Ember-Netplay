@@ -76,6 +76,7 @@ struct ScriptRow {
     Ids hits, effects;
     std::vector<std::array<int, 2>> flows; // {type, target}
     Ids guards;                            // hitboxes of type 0, which never hit
+    int spawnAt = -1;                      // first frame of every effect spawn; -1 writes no frames
 };
 static Bytes Scripts(const std::map<int, ScriptRow>& scripts, const std::map<int, ScriptRow>& effects) {
     const std::size_t counts[] = {scripts.empty() ? 0 : static_cast<std::size_t>(scripts.rbegin()->first) + 1,
@@ -92,9 +93,13 @@ static Bytes Scripts(const std::map<int, ScriptRow>& scripts, const std::map<int
             Set32(out, table + 4 * entry.first, static_cast<std::uint32_t>(out.size()));
             Bytes lists, data;
             const std::size_t listCount = 4;
-            const auto list = [&](unsigned type, std::size_t count) {
-                Put16(lists, type); Put16(lists, static_cast<std::uint32_t>(count)); Put32(lists, 0);
-                Put32(lists, static_cast<std::uint32_t>(listCount * 12 - (lists.size() - 8) + data.size()));
+            const auto list = [&](unsigned type, std::size_t count, int framesFrom = -1) {
+                const std::size_t record = lists.size();
+                Put16(lists, type); Put16(lists, static_cast<std::uint32_t>(count));
+                Put32(lists, framesFrom < 0 ? 0 : static_cast<std::uint32_t>(listCount * 12 - record + data.size()));
+                // The other-kind command first, then each spawn a frame later than the one before.
+                for (std::size_t i = 0; framesFrom >= 0 && i < count; ++i) { Put16(data, i ? framesFrom + i - 1 : 0); Put16(data, i ? framesFrom + i : 1); }
+                Put32(lists, static_cast<std::uint32_t>(listCount * 12 - record + data.size()));
             };
             list(0, row.flows.size());
             for (const auto& flow : row.flows) { Put16(data, flow[0]); Put16(data, 0); Put16(data, flow[1]); Put16(data, 0); }
@@ -105,7 +110,7 @@ static Bytes Scripts(const std::map<int, ScriptRow>& scripts, const std::map<int
                 data[at + 26] = i < row.hits.size() ? 1 : 0;
                 Set32(data, at + 40, static_cast<std::uint32_t>(i < row.hits.size() ? row.hits[i] : row.guards[i - row.hits.size()]));
             }
-            list(10, row.effects.size() + 1);
+            list(10, row.effects.size() + 1, row.spawnAt);
             data.resize(data.size() + 32); // An effect command of another kind.
             data[data.size() - 32] = 5;
             for (const auto effect : row.effects) { Put16(data, 0); Put16(data, 2); Put32(data, effect); data.resize(data.size() + 24); }
@@ -120,8 +125,8 @@ static Bytes Scripts(const std::map<int, ScriptRow>& scripts, const std::map<int
     }
     return out;
 }
-static ScriptRow Script(Ids hits, Ids effects = {}, std::vector<std::array<int, 2>> flows = {}, Ids guards = {}) {
-    return ScriptRow{std::move(hits), std::move(effects), std::move(flows), std::move(guards)};
+static ScriptRow Script(Ids hits, Ids effects = {}, std::vector<std::array<int, 2>> flows = {}, Ids guards = {}, int spawnAt = -1) {
+    return ScriptRow{std::move(hits), std::move(effects), std::move(flows), std::move(guards), spawnAt};
 }
 static Bytes SampleScripts() {
     return Scripts({{18, Script({})}, {256, Script({10}, {}, {}, {999})}, {262, Script({12})}, {322, Script({60}, {}, {{{0, 325}}})}, {325, Script({})},
@@ -154,6 +159,19 @@ int main() {
     CHECK((bac::ScriptHits(scripts, 387) == Ids{103, 104}));
     CHECK(bac::ScriptHits(scripts, 436) == Ids{130});
     CHECK(bac::ScriptHits(scripts, 300).empty() && bac::ScriptHits(scripts, -1).empty() && bac::ScriptHits(scripts, 9999).empty());
+    {
+        // A fireball's attack frames: the earliest spawn of an effect that hits, a frame later as the header counts.
+        const Bytes timedBytes = Scripts({{384, Script({}, {1, 0}, {}, {}, 25)}, {385, Script({}, {0})}, {386, Script({}, {1}, {}, {}, 25)}, {387, Script({10})}},
+            {{0, Script({100})}, {1, Script({})}});
+        bac::File timed;
+        CHECK(ReadExact(timedBytes, timedBytes.size(), timed, error));
+        int first = -1, last = -1;
+        CHECK(bac::ProjectileBoundary(timed, 384, first, last) && first == 27 && last == 28); // effect 1 never hits; effect 0 is spawned second
+        first = last = -1;
+        CHECK(!bac::ProjectileBoundary(timed, 385, first, last) && first == -1);              // no frames in the file
+        CHECK(!bac::ProjectileBoundary(timed, 386, first, last));                             // spawns nothing that hits
+        CHECK(!bac::ProjectileBoundary(timed, 387, first, last) && !bac::ProjectileBoundary(timed, 999, first, last) && !bac::ProjectileBoundary(timed, -1, first, last));
+    }
     for (std::size_t size = 0; size < scriptBytes.size(); ++size) {
         bac::File model;
         if (!ReadExact(scriptBytes, size, model, error)) CHECK(model.scripts.empty());
@@ -420,6 +438,11 @@ int main() {
             combo::Fighter real;
             clg::File theirs, rebuilt, back;
             CHECK(combo::LoadFighter(installed, code, real, error));
+            if (code == "RYX") {
+                // Evil Ryu's light Hadoken has no attack frames in its header; Ryu's, the same move, says 26 and 27.
+                int first = -1, last = -1;
+                CHECK(bac::ProjectileBoundary(real.scripts, 384, first, last) && first == 26 && last == 27);
+            }
             std::printf("%s: %s\n", code.c_str(), combo::CommandFolder(installed, code).lexically_relative(installed).generic_string().c_str());
             {
                 // The first trials read with the files of their own time.

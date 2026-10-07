@@ -3,6 +3,8 @@
 #include <cmath>
 #include "TrainingCapture.hxx"
 #include "ComboCapture.hxx"
+#include "ComboTrial.hxx"
+#include "../common/FighterCatalog.hxx"
 #include "../Dimps/Dimps__Game__Battle__System.hxx"
 #include "../Dimps/Dimps__Game__Battle__Training.hxx"
 #include "../Dimps/Dimps__Game__Battle__Trial.hxx"
@@ -36,6 +38,11 @@ bool resetOnDrop = false;
 // request lets its banner play before it takes the battle away.
 constexpr int LeaveFrames = 120;
 int leaveIn = 0;
+// Each fighter's script file, for the moves whose native header names no
+// attack frames: a fireball's hitbox is in the effect the move spawns.
+// scriptFighter: whose file is held, -1 none. Kept across battles.
+bac::File scriptFiles[2];
+int scriptFighter[2] = {-1, -1};
 // Where each attempt of the trial starts, when the player prefers a side.
 bool trialPlaced = false; float trialPlace[2] = {0, 0};
 unsigned attemptsSeen = 0;
@@ -343,6 +350,24 @@ int BattleFighter(Native* system, int side) {
     const int id = *(const int*)((const char*)*request + (side ? 0x2C0 : 0x08));
     return id >= 0 && id < 44 ? id : -1;
 }
+// ponytail: two files under a megabyte, read in the battle's first sampled
+// frame; a worker if that frame is ever seen to stutter.
+const bac::File& FighterScripts(Native* system, unsigned side) {
+    const int id = BattleFighter(system, static_cast<int>(side));
+    if (id == scriptFighter[side]) return scriptFiles[side];
+    scriptFighter[side] = id; scriptFiles[side] = {};
+    const auto* fighter = selection::FindFighter(id);
+    if (!fighter) return scriptFiles[side];
+    wchar_t program[32768] = {};
+    GetModuleFileNameW(nullptr, program, 32768);
+    const std::string code = fighter->code;
+    const auto folder = combo::CommandFolder(std::filesystem::path(program).parent_path(), code);
+    std::vector<std::uint8_t> bytes;
+    std::string error;
+    if (!combo::ReadFile(folder / (code + ".bac"), bac::MaxBytes, bytes, error) || !bac::Read(bytes.data(), bytes.size(), scriptFiles[side], error))
+        spdlog::warn("Training: no projectile frames for {}: {}", code, error);
+    return scriptFiles[side];
+}
 void AfterUpdate(Native* system) {
     overriding = false;
     // The native integral field wraps at 16 bits. Count only one accepted
@@ -376,6 +401,10 @@ void AfterUpdate(Native* system) {
                     sample.firstActiveFrame = script[0];
                     sample.lastActiveFrame = script[1];
                     sample.boundaryProvenance = BoundaryProvenance::BacActionHeader;
+                } else if (script && script[3] <= 4096 &&
+                    bac::ProjectileBoundary(FighterScripts(system, side), sample.action, sample.firstActiveFrame, sample.lastActiveFrame)) {
+                    if (sample.firstActiveFrame < script[3]) sample.boundaryProvenance = BoundaryProvenance::BacEffectSpawn;
+                    else sample.firstActiveFrame = sample.lastActiveFrame = -1;
                 }
                 if (script && script[2] > 0 && script[2] <= script[3] && script[3] <= 4096) sample.interruptibleFrame = script[2];
                 if (script && script[3] > 0 && script[3] <= 4096) sample.totalFrames = script[3];
