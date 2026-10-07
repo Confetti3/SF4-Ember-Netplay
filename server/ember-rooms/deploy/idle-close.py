@@ -11,7 +11,11 @@ empty_close_secs.
 Each run polls GET /rooms once and keeps, per room, when it was first seen
 quiet, so the timer that runs it (ember-rooms-idle.timer, every 30 seconds)
 is what measures the time. A member who comes and goes, or a match that
-starts and ends, between two polls is not seen.
+starts and ends, between two polls is not seen. If the last poll is more than
+MAX_GAP_SECS old (the timer was stopped, the box rebooted, or the supervisor
+did not answer), nobody watched the rooms in between, so every clock starts
+again from this poll: a room is only closed after 15 minutes it was seen
+quiet the whole time.
 
 Run by ember-rooms-idle.service. By hand, to see what it would close:
     sudo python3 ~/ember-rooms/idle-close.py --dry-run
@@ -27,6 +31,8 @@ import urllib.request
 ETC = "/etc/ember-rooms"
 STATE_DIR = "/var/lib/ember-rooms-idle"
 DEFAULT_BIND = "127.0.0.1:47830"
+# Four missed 30-second runs.
+MAX_GAP_SECS = 120
 
 
 def credential(name):
@@ -51,19 +57,25 @@ def describe(room):
     return "%s (%r, host %r)" % (room["room_id"], name, host)
 
 
-def load_state(path):
+def load_state(path, now):
+    """When each room was first seen quiet, or nothing when the last poll
+    was not recent enough to vouch for the time since."""
     try:
         with open(path) as f:
             state = json.load(f)
-        return {k: float(v) for k, v in state.get("quiet_since", {}).items()}
-    except (OSError, ValueError, AttributeError, TypeError):
+        polled_at = float(state["polled_at"])
+        quiet_since = {k: float(v) for k, v in state["quiet_since"].items()}
+    except (OSError, ValueError, KeyError, AttributeError, TypeError):
         return {}
+    if not 0 <= now - polled_at <= MAX_GAP_SECS:
+        return {}
+    return quiet_since
 
 
-def save_state(path, quiet_since):
+def save_state(path, now, quiet_since):
     tmp = path + ".tmp"
     with open(tmp, "w") as f:
-        json.dump({"quiet_since": quiet_since}, f)
+        json.dump({"polled_at": now, "quiet_since": quiet_since}, f)
     os.replace(tmp, path)
 
 
@@ -102,8 +114,8 @@ def main():
     state_path = os.path.join(
         os.environ.get("STATE_DIRECTORY", STATE_DIR), "state.json"
     )
-    previous = load_state(state_path)
     now = time.time()
+    previous = load_state(state_path, now)
     limit = args.idle_minutes * 60
     quiet_since = {}
     to_close = []
@@ -147,7 +159,7 @@ def main():
         quiet_since.pop(room_id, None)
 
     # Rooms no longer listed, or no longer quiet, drop out here.
-    save_state(state_path, quiet_since)
+    save_state(state_path, now, quiet_since)
     return 0
 
 
