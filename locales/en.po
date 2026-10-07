@@ -1232,7 +1232,7 @@ msgid "training.combo.add.unnamed"
 msgstr "no name yet"
 
 msgid "training.combo.capture.drop"
-msgstr "Record stops on drop"
+msgstr "Record until drop"
 
 msgid "training.combo.capture.drop.detail"
 msgstr "On: Record combo ends the moment the other fighter is free again, so one recording is one combo and a retry after a drop is not written down behind it. Off: it runs until nothing happens for a second and a half, for setups and sequences that are not one combo."
@@ -1733,7 +1733,7 @@ msgid "training.combo.capture"
 msgstr "Record combo"
 
 msgid "training.combo.capture.detail"
-msgstr "Writes down the moves Player 1 performs into the Moves line, each with how many frames after its cue it was pressed (@N). It ends when the combo drops, if Record stops on drop is on, and otherwise once nothing happens for a second and a half. Then Add as new combo or Save combo keeps them."
+msgstr "Writes down the moves Player 1 performs into the Moves line, each with how many frames after its cue it was pressed (@N). It ends when the combo drops, if Record until drop is on, and otherwise once nothing happens for a second and a half. Then Add as new combo or Save combo keeps them."
 
 msgid "training.combo.capture_stop"
 msgstr "Stop recording combo"
