@@ -1064,8 +1064,19 @@ impl Coordinator {
             // but healthy first chunk otherwise strands a fresh learner.
             install_snapshot_timeout: 9_000,
             max_payload_entries: 1,
-            snapshot_policy: SnapshotPolicy::LogsSinceLast(8),
-            max_in_snapshot_log_to_keep: 2,
+            // Every log entry carries a whole checkpoint, so the entries kept
+            // between snapshots are most of a helper's memory. The host of a
+            // server-owned room is its only voter and its members are
+            // learners that are sent a snapshot when they fall behind, so it
+            // keeps few; a private room keeps enough to serve a slow voter.
+            snapshot_policy: SnapshotPolicy::LogsSinceLast(match ownership {
+                Ownership::Host => 3,
+                _ => 8,
+            }),
+            max_in_snapshot_log_to_keep: match ownership {
+                Ownership::Host => 1,
+                _ => 2,
+            },
             // OpenRaft awaits one InstallSnapshot RPC before issuing the next.
             // Batch the same four 16 KiB transport fragments allowed by the
             // checkpoint credit window so relay RTT is paid once per window,

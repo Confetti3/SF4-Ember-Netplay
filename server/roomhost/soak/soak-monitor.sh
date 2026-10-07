@@ -61,7 +61,11 @@ if [ -z "$IFACE" ]; then IFACE="$(sed -n 's/^ *\([^:lo ]*\):.*/\1/p' /proc/net/d
 
 declare -A PREV_TICKS
 PREV_UP=0
-# Resident kB and CPU ticks of a pid: sets P_RSS P_TICKS (0 when it is gone).
+# Memory kB and CPU ticks of a pid: sets P_RSS P_TICKS (0 when it is gone).
+# The memory is the proportional set size (Pss in smaps_rollup): the pages of
+# the binary that every room host or helper shares count once in all, not once
+# per process as the resident set does, so the figure is what a room costs. A
+# kernel without smaps_rollup falls back to the resident set.
 pstat() {
     P_RSS=0; P_TICKS=0
     local line rest fields
@@ -70,9 +74,15 @@ pstat() {
     # shellcheck disable=SC2206
     fields=($rest)
     P_TICKS=$(( ${fields[11]} + ${fields[12]} ))
-    local pages
-    { read -r _ pages _ < "/proc/$1/statm"; } 2>/dev/null || return 1
-    P_RSS=$(( pages * PAGE_KB ))
+    local pss
+    pss=$(sed -n 's/^Pss:[[:space:]]*\([0-9][0-9]*\) kB.*/\1/p' "/proc/$1/smaps_rollup" 2>/dev/null) || pss=""
+    if [ -n "$pss" ]; then
+        P_RSS=$pss
+    else
+        local pages
+        { read -r _ pages _ < "/proc/$1/statm"; } 2>/dev/null || return 1
+        P_RSS=$(( pages * PAGE_KB ))
+    fi
 }
 # CPU percent (two decimals, as an integer of hundredths) since the last call for this pid.
 pcpu() { # pid ticks dt_cs

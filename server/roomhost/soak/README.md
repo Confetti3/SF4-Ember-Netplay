@@ -194,7 +194,12 @@ ssh vps "cd /tmp/sf4-soak && tar -czf - --exclude=in --exclude=out ." > soak-sta
 Read memory per room from `soak-mon.csv.rooms.csv` (`host_rss_kb`,
 `helper_rss_kb` against time: a leak is a line that keeps climbing after the
 rooms are full), CPU from the `_cpu_pct` columns (percent of one core), and the
-network from the byte counters' differences.
+network from the byte counters' differences. The memory columns keep their
+names but hold the proportional set size (`Pss` from `smaps_rollup`): the
+binary's pages, which every helper shares, count once in all rather than once
+per process, so the figure is what one more room costs. Runs before October
+2026 recorded the resident set, which overstates a helper by the 19 MB or so
+of its binary.
 
 ## Reading the client CSV
 
