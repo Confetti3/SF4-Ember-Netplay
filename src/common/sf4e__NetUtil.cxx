@@ -211,14 +211,16 @@ namespace sf4e {
 	}
 
 	static void ApplyWinHttpDownloadOptions(HINTERNET hSession, HINTERNET hRequest) {
+		// Redirects stay on HTTPS: GitHub hands a release asset to its storage
+		// host over HTTPS, and nothing a download needs is served over HTTP.
 		if (hSession) {
-			DWORD redirectPolicy = WINHTTP_OPTION_REDIRECT_POLICY_ALWAYS;
+			DWORD redirectPolicy = WINHTTP_OPTION_REDIRECT_POLICY_DISALLOW_HTTPS_TO_HTTP;
 			WinHttpSetOption(hSession, WINHTTP_OPTION_REDIRECT_POLICY, &redirectPolicy, sizeof(redirectPolicy));
 			DWORD maxRedirects = 10;
 			WinHttpSetOption(hSession, WINHTTP_OPTION_MAX_HTTP_AUTOMATIC_REDIRECTS, &maxRedirects, sizeof(maxRedirects));
 		}
 		if (hRequest) {
-			DWORD reqRedirect = WINHTTP_OPTION_REDIRECT_POLICY_ALWAYS;
+			DWORD reqRedirect = WINHTTP_OPTION_REDIRECT_POLICY_DISALLOW_HTTPS_TO_HTTP;
 			WinHttpSetOption(hRequest, WINHTTP_OPTION_REDIRECT_POLICY, &reqRedirect, sizeof(reqRedirect));
 			DWORD secureProtocols = WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2;
 #ifdef WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_3

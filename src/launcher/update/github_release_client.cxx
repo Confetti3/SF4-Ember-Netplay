@@ -6,12 +6,16 @@ namespace launcher {
 
 	namespace detail {
 
+		// Another repository is for development builds only; a release reads
+		// its own.
 		static void GetGithubRepo(char* outRepo, int outRepoLen) {
+#ifndef NDEBUG
 			const char* env = getenv("SF4E_GITHUB_REPO");
 			if (env && env[0]) {
 				strncpy_s(outRepo, outRepoLen, env, _TRUNCATE);
 				return;
 			}
+#endif
 			strncpy_s(outRepo, outRepoLen, kDefaultGithubRepo, _TRUNCATE);
 		}
 
