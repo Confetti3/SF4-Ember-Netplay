@@ -105,10 +105,14 @@ Nothing in the room authority, the wire format or the server changed.
 2. **The forfeit.** It is local: the player's own client gives the seat up. A
    client that does not do it leaves the opponent waiting, as today. Making
    the room enforce it would be a change to the authority.
-3. **Showing "in Training" to the room.** Not built. Member status is derived
-   by the authority from table membership, and `from_json` refuses a status
-   above `WatchingNext`, so a new status value is a wire change. A boolean on
-   the member, read with a default like `spectatorLocked`, and an action to
-   set it, appended like `LockSpectating`, would avoid that.
+3. **Showing "in Training" to the room.** Not built. What the room shows
+   today is the idle time: a member in Training sends no actions, so after a
+   minute the member list says how long they have been idle, as for anyone
+   who is away. To say "in Training" instead: member status is derived by the
+   authority from table membership, and `from_json` refuses a status above
+   `WatchingNext`, so a new status value is a wire change. A boolean on the
+   member, read with a default like `spectatorLocked`, and an action to set
+   it, appended like `LockSpectating`, would avoid that; it would be the
+   first member flag a client sets that is not about a table.
 4. **The banner** is drawn by Ember. The game's own is `ui\intrusion`, shown
    by its Arcade fight-request classes, for which there are no bindings.
