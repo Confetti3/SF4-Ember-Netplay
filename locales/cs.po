@@ -628,6 +628,24 @@ msgstr "Trénink"
 msgid "home.training_detail"
 msgstr "Přejít rovnou do režimu Trénink, bez otázky na výzvy k zápasu."
 
+msgid "settings.training_auto_ready"
+msgstr "Připravit mě při výzvě z Tréninku"
+
+msgid "settings.training_auto_ready_detail"
+msgstr "Vyp.: po výzvě z Tréninku ke stolu máš 15 sekund na stisk Připraven, jinak se místa vzdáváš. Zap.: jsi připraven hned."
+
+msgid "room.training.detail"
+msgstr "Čekej v režimu Trénink, aniž opustíš místnost. Když si naproti tobě sedne bojovník, hra tě vrátí sem, abys potvrdil připravenost."
+
+msgid "room.training.unavailable"
+msgstr "Trénink z místnosti vyžaduje hlavní nabídku, zatím nikoho naproti tobě, žádné potvrzené Připraven a žádnou tvou hru, která právě začíná."
+
+msgid "room.training_call.ready_in"
+msgstr "Potvrď připravenost do {0} s, jinak se místa vzdáváš."
+
+msgid "runtime.training_call.forfeit"
+msgstr "Po výzvě z Tréninku jsi nepotvrdil připravenost včas, takže tvé místo bylo uvolněno."
+
 msgid "home.choose_controller"
 msgstr "Vybrat herní ovladač"
 

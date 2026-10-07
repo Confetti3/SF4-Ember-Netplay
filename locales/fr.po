@@ -628,6 +628,24 @@ msgstr "Entraînement"
 msgid "home.training_detail"
 msgstr "Aller directement au mode Entraînement, sans la question des demandes de combat."
 
+msgid "settings.training_auto_ready"
+msgstr "Me mettre prêt à l'appel depuis l'Entraînement"
+
+msgid "settings.training_auto_ready_detail"
+msgstr "Non : appelé depuis l'Entraînement à votre table, vous avez 15 secondes pour appuyer sur Prêt, sinon vous cédez la place. Oui : vous êtes mis prêt aussitôt."
+
+msgid "room.training.detail"
+msgstr "Attendez en mode Entraînement sans quitter le salon. Quand un combattant s'assoit en face de vous, le jeu vous ramène ici pour vous mettre prêt."
+
+msgid "room.training.unavailable"
+msgstr "L'Entraînement depuis le salon demande le menu principal, personne encore assis en face de vous, aucun Prêt donné et aucune partie à vous en train de démarrer."
+
+msgid "room.training_call.ready_in"
+msgstr "Mettez-vous prêt dans {0} s, sinon vous cédez la place."
+
+msgid "runtime.training_call.forfeit"
+msgstr "Vous ne vous êtes pas mis prêt à temps après l'appel depuis l'Entraînement : votre place a été cédée."
+
 msgid "home.choose_controller"
 msgstr "Choisir la manette de jeu"
 

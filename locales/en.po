@@ -628,6 +628,24 @@ msgstr "Training"
 msgid "home.training_detail"
 msgstr "Go straight into Training mode, without the Fight Request question."
 
+msgid "settings.training_auto_ready"
+msgstr "Ready me when called from Training"
+
+msgid "settings.training_auto_ready_detail"
+msgstr "Off: called out of Training to your table, you have 15 seconds to press Ready, or you give up the seat. On: you are readied at once."
+
+msgid "room.training.detail"
+msgstr "Wait in Training mode without leaving the room. When a fighter sits down opposite you, the game brings you back here to ready."
+
+msgid "room.training.unavailable"
+msgstr "Training from the room needs the main menu, nobody sitting opposite you yet, no Ready given and no game of yours starting."
+
+msgid "room.training_call.ready_in"
+msgstr "Ready within {0} s, or you give up the seat."
+
+msgid "runtime.training_call.forfeit"
+msgstr "You did not ready in time after the call from Training, so your seat was given up."
+
 msgid "home.choose_controller"
 msgstr "Choose gameplay controller"
 

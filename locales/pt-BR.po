@@ -628,6 +628,24 @@ msgstr "Treino"
 msgid "home.training_detail"
 msgstr "Ir direto para o modo Treino, sem a pergunta de pedido de luta."
 
+msgid "settings.training_auto_ready"
+msgstr "Ficar pronto ao ser chamado do Treino"
+
+msgid "settings.training_auto_ready_detail"
+msgstr "Não: chamado do Treino para a sua mesa, você tem 15 segundos para apertar Pronto, ou cede o lugar. Sim: você fica pronto na hora."
+
+msgid "room.training.detail"
+msgstr "Espere no modo Treino sem sair da sala. Quando um lutador se sentar à sua frente, o jogo traz você de volta para cá para ficar pronto."
+
+msgid "room.training.unavailable"
+msgstr "Treinar a partir da sala exige o menu principal, ninguém ainda sentado à sua frente, nenhum Pronto dado e nenhuma partida sua começando."
+
+msgid "room.training_call.ready_in"
+msgstr "Fique pronto em {0} s, ou você cede o lugar."
+
+msgid "runtime.training_call.forfeit"
+msgstr "Você não ficou pronto a tempo após a chamada do Treino, então seu lugar foi cedido."
+
 msgid "home.choose_controller"
 msgstr "Escolher controle de jogo"
 

@@ -628,6 +628,24 @@ msgstr "Training"
 msgid "home.training_detail"
 msgstr "Direkt in den Trainingsmodus, ohne die Frage nach Kampfanfragen."
 
+msgid "settings.training_auto_ready"
+msgstr "Bei Ruf aus dem Training bereit melden"
+
+msgid "settings.training_auto_ready_detail"
+msgstr "Aus: Wirst du aus dem Training an deinen Tisch gerufen, hast du 15 Sekunden für Bereit, sonst gibst du den Platz auf. Ein: Du wirst sofort bereit gemeldet."
+
+msgid "room.training.detail"
+msgstr "Warte im Trainingsmodus, ohne den Raum zu verlassen. Setzt sich ein Kämpfer dir gegenüber, holt dich das Spiel hierher zurück, damit du dich bereit meldest."
+
+msgid "room.training.unavailable"
+msgstr "Training aus dem Raum geht nur im Hauptmenü, solange dir noch niemand gegenübersitzt, ohne gegebenes Bereit und ohne dass ein Spiel von dir startet."
+
+msgid "room.training_call.ready_in"
+msgstr "Melde dich in {0} s bereit, sonst gibst du den Platz auf."
+
+msgid "runtime.training_call.forfeit"
+msgstr "Du hast dich nach dem Ruf aus dem Training nicht rechtzeitig bereit gemeldet; dein Platz wurde aufgegeben."
+
 msgid "home.choose_controller"
 msgstr "Spiel-Controller wählen"
 

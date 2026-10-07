@@ -628,6 +628,24 @@ msgstr "Training"
 msgid "home.training_detail"
 msgstr "Ga direct naar de Training-modus, zonder de Fight Request-vraag."
 
+msgid "settings.training_auto_ready"
+msgstr "Maak mij gereed bij oproep uit Training"
+
+msgid "settings.training_auto_ready_detail"
+msgstr "Uit: als je uit Training naar je tafel wordt geroepen, heb je 15 seconden om op Gereed te drukken, anders geef je je plek op. Aan: je wordt meteen gereed gemeld."
+
+msgid "room.training.detail"
+msgstr "Wacht in de Training-modus zonder de kamer te verlaten. Zodra er een vechter tegenover je gaat zitten, haalt de game je hierheen terug om je gereed te melden."
+
+msgid "room.training.unavailable"
+msgstr "Training vanuit de kamer kan alleen in het hoofdmenu, zolang er nog niemand tegenover je zit, je niet gereed bent en er geen game van jou start."
+
+msgid "room.training_call.ready_in"
+msgstr "Meld je gereed binnen {0} s, anders geef je je plek op."
+
+msgid "runtime.training_call.forfeit"
+msgstr "Je meldde je niet op tijd gereed na de oproep uit Training, dus je plek is opgegeven."
+
 msgid "home.choose_controller"
 msgstr "Kies spelcontroller"
 

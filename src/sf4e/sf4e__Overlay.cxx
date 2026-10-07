@@ -214,6 +214,8 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.readyRequested = snapshot.readyRequested; view.readyFailure = snapshot.readyFailure;
     view.readyFailureSequence = snapshot.readyFailureSequence;
     view.opponentChangedFighter = snapshot.opponentChangedFighter; view.opponentChangeSequence = snapshot.opponentChangeSequence;
+    view.trainingCallSequence = snapshot.trainingCallSequence; view.trainingReadySequence = snapshot.trainingReadySequence;
+    view.trainingReadySeconds = snapshot.trainingReadySeconds; view.canTrain = snapshot.canTrain;
 	view.canEditPreferences = snapshot.canEditPreferences;
 	view.canEditLobby = snapshot.canEditLobby;
 	view.settingsPending = snapshot.settingsPending;
@@ -293,6 +295,14 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 			sf4e::selection::ToNative(pick, lobbyConditions);
 			return true;
 		}
+		// Training from inside a room: no room command is sent, the game alone
+		// moves, and the menu closes behind it. The runtime's own gate decides.
+		if (action.enterTraining && action.command.kind != sf4e::netplay::CommandKind::StartOffline) {
+			if (!snapshot.canTrain) return false;
+			fMainMenu::RequestTraining();
+			presentation.Close();
+			return true;
+		}
 		sf4e::NetplayFacade::RuntimeCommand request;
 		request.command = std::move(action.command);
         request.service = action.service;
@@ -358,6 +368,12 @@ void Overlay::DrawOverlay() {
     static std::uint64_t joinLinkShown=0;
     if (snapshot.pendingJoinSequence!=joinLinkShown && snapshot.atMainMenu && presentation.Available()) {
         presentation.Open(); joinLinkShown=snapshot.pendingJoinSequence;
+    }
+    // Called out of Training: back at the main menu the menu opens on the
+    // player's table, which the shell turns to, so the Ready row is in reach.
+    static std::uint64_t trainingCallShown=0;
+    if (snapshot.trainingCallSequence!=trainingCallShown && snapshot.atMainMenu && presentation.Available()) {
+        presentation.Open(); trainingCallShown=snapshot.trainingCallSequence;
     }
     // A Discord connect link likewise, at the main menu only: during play it
     // waits until the player opens Ember, which then asks before going on.

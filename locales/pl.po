@@ -628,6 +628,24 @@ msgstr "Trening"
 msgid "home.training_detail"
 msgstr "Przejdź od razu do trybu Trening, bez pytania o wyzwania do walki."
 
+msgid "settings.training_auto_ready"
+msgstr "Gotowość po wezwaniu z Treningu"
+
+msgid "settings.training_auto_ready_detail"
+msgstr "Wył.: wezwany z Treningu do stołu masz 15 sekund na Gotowość, inaczej oddajesz miejsce. Wł.: gotowość zgłaszana jest od razu."
+
+msgid "room.training.detail"
+msgstr "Czekaj w trybie Trening bez wychodzenia z pokoju. Gdy naprzeciw ciebie usiądzie zawodnik, gra sprowadzi cię tutaj, by zgłosić gotowość."
+
+msgid "room.training.unavailable"
+msgstr "Trening z pokoju wymaga menu głównego, pustego miejsca naprzeciw ciebie, braku zgłoszonej gotowości i żadnej twojej gry w trakcie startu."
+
+msgid "room.training_call.ready_in"
+msgstr "Zgłoś gotowość w ciągu {0} s albo oddajesz miejsce."
+
+msgid "runtime.training_call.forfeit"
+msgstr "Nie zgłoszono gotowości na czas po wezwaniu z Treningu, więc twoje miejsce zostało oddane."
+
 msgid "home.choose_controller"
 msgstr "Wybierz kontroler do gry"
 

@@ -628,6 +628,24 @@ msgstr "Entrenamiento"
 msgid "home.training_detail"
 msgstr "Ir directamente al modo Entrenamiento, sin la pregunta de petición de combate."
 
+msgid "settings.training_auto_ready"
+msgstr "Ponerme listo al llamarme del Entrenamiento"
+
+msgid "settings.training_auto_ready_detail"
+msgstr "No: si te llaman del Entrenamiento a tu mesa, tienes 15 segundos para pulsar Listo o cedes el asiento. Sí: se te pone listo al momento."
+
+msgid "room.training.detail"
+msgstr "Espera en el modo Entrenamiento sin salir de la sala. Cuando un luchador se siente frente a ti, el juego te trae de vuelta aquí para que te pongas listo."
+
+msgid "room.training.unavailable"
+msgstr "Entrenar desde la sala requiere el menú principal, que nadie se haya sentado aún frente a ti, no haber dado Listo y que no esté empezando una partida tuya."
+
+msgid "room.training_call.ready_in"
+msgstr "Ponte listo en {0} s o cedes el asiento."
+
+msgid "runtime.training_call.forfeit"
+msgstr "No te pusiste listo a tiempo tras la llamada del Entrenamiento, así que se cedió tu asiento."
+
 msgid "home.choose_controller"
 msgstr "Elegir mando de juego"
 

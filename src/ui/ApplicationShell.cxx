@@ -323,6 +323,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Value("ready-sound",loc::T("settings.ready_sound"),preferences_.readySound?loc::T("common.on"):loc::T("common.off"),loc::T("settings.ready_sound_detail"),v.canEditPreferences),
    Value("ready-volume",loc::T("settings.ready_sound_volume"),std::to_string(preferences_.readySoundVolume)+"%",loc::T("settings.ready_sound_volume_detail"),v.canEditPreferences&&preferences_.readySound),
    Row("ready-test",loc::T("settings.ready_sound_test"),loc::T("settings.ready_sound_test_detail"),v.canEditPreferences&&preferences_.readySound),
+   Value("training-auto-ready",loc::T("settings.training_auto_ready"),preferences_.trainingAutoReady?loc::T("common.on"):loc::T("common.off"),loc::T("settings.training_auto_ready_detail"),v.canEditPreferences),
    Value("scale",loc::T("settings.interface_size"),size,reason,v.canEditPreferences),
    Value("language",loc::T("settings.language"),languageValue,languageSaveError_.empty()?std::string(loc::T("settings.language.detail")):languageSaveError_,true)};
   // Select lists the languages by their own names; browsing them changes nothing.
@@ -534,6 +535,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="hud-position")preferences_.matchHudAnchor=(std::max)(0,(std::min)(4,preferences_.matchHudAnchor+a.delta));
   else if(a.id=="hud-spacing")preferences_.matchHudRaised=a.delta>0;
   else if(a.id=="ready-sound")preferences_.readySound=a.delta>0;
+  else if(a.id=="training-auto-ready")preferences_.trainingAutoReady=a.delta>0;
   else if(a.id=="background-play")preferences_.backgroundPlay=a.delta>0;
   else if(a.id=="ready-volume")preferences_.readySoundVolume=(std::max)(10,(std::min)(100,preferences_.readySoundVolume+10*a.delta));
   else if(a.id=="scale")preferences_.interfaceScale=(std::max)(1.f,(std::min)(1.5f,preferences_.interfaceScale+.05f*a.delta));
@@ -608,6 +610,17 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  using namespace netplay; auto& nav=menu_.navigation;
  const double now = ImGui::GetTime();
  if(!languageSeeded_){languagePreference_=loc::ValidPreference(v.languagePreference)?v.languagePreference:"auto";languageSeeded_=true;}
+ // Called out of Training: the player's own table is shown, where the Ready
+ // row carries the time left, and a player who asked for it is readied.
+ if(v.trainingCallSequence!=trainingCallSeen_||v.trainingReadySequence!=trainingReadySeen_){
+  const auto place=room::PlaceOf(v.room,v.room.localMember);
+  const bool seated=v.session.room==RoomState::Joined&&place.kind==room::Place::Kind::Seat&&place.table>=0&&place.table<static_cast<int>(v.room.tables.size());
+  if(seated&&v.trainingCallSequence!=trainingCallSeen_)OpenTableOptions(v,place.table);
+  trainingCallSeen_=v.trainingCallSequence;
+  // The Ready waits for the runtime's gate, and ends with the seat or the window.
+  if(!seated||v.trainingReadySeconds<=0)trainingReadySeen_=v.trainingReadySequence;
+  else if(v.trainingReadySequence!=trainingReadySeen_&&v.canReady){selectedTable_=place.table;Send(CommandKind::Ready,v,submit);trainingReadySeen_=v.trainingReadySequence;}
+ }
  if(lastUiTime_ >= 0 && now < lastUiTime_) {
   // DX9 reset recreates ImGui, but these deadlines belong to the surviving shell.
   // Keep raw-clock users in RoomAction in the same epoch, including queued saves.

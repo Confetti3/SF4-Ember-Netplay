@@ -628,6 +628,24 @@ msgstr "Allenamento"
 msgid "home.training_detail"
 msgstr "Vai direttamente alla modalità Allenamento, senza la domanda sulle richieste di lotta."
 
+msgid "settings.training_auto_ready"
+msgstr "Rendimi pronto alla chiamata dall'Allenamento"
+
+msgid "settings.training_auto_ready_detail"
+msgstr "No: chiamato dall'Allenamento al tuo tavolo, hai 15 secondi per premere Pronto, altrimenti cedi il posto. Sì: vieni reso pronto subito."
+
+msgid "room.training.detail"
+msgstr "Aspetta in modalità Allenamento senza lasciare la stanza. Quando un lottatore si siede di fronte a te, il gioco ti riporta qui per dichiararti pronto."
+
+msgid "room.training.unavailable"
+msgstr "L'Allenamento dalla stanza richiede il menu principale, nessuno ancora seduto di fronte a te, nessun Pronto dato e nessuna tua partita in avvio."
+
+msgid "room.training_call.ready_in"
+msgstr "Dichiarati pronto entro {0} s, o cedi il posto."
+
+msgid "runtime.training_call.forfeit"
+msgstr "Non ti sei dichiarato pronto in tempo dopo la chiamata dall'Allenamento: il tuo posto è stato ceduto."
+
 msgid "home.choose_controller"
 msgstr "Scegli controller di gioco"
 

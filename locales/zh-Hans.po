@@ -628,6 +628,24 @@ msgstr "训练"
 msgid "home.training_detail"
 msgstr "不询问对战请求设置，直接进入训练模式。"
 
+msgid "settings.training_auto_ready"
+msgstr "从训练被叫回时自动准备"
+
+msgid "settings.training_auto_ready_detail"
+msgstr "关：从训练被叫回牌桌后，你有 15 秒按下准备，否则让出座位。开：立即为你准备。"
+
+msgid "room.training.detail"
+msgstr "不离开房间，在训练模式中等待。有对手在你对面坐下时，游戏会把你带回这里准备。"
+
+msgid "room.training.unavailable"
+msgstr "从房间进入训练需要处于主菜单、对面还没有人坐下、尚未准备，且没有你的对局正在开始。"
+
+msgid "room.training_call.ready_in"
+msgstr "请在 {0} 秒内准备，否则让出座位。"
+
+msgid "runtime.training_call.forfeit"
+msgstr "从训练被叫回后你没有及时准备，座位已让出。"
+
 msgid "home.choose_controller"
 msgstr "选择对战控制器"
 

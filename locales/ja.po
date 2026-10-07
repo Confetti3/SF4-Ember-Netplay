@@ -628,6 +628,24 @@ msgstr "トレーニング"
 msgid "home.training_detail"
 msgstr "乱入設定の確認なしで、すぐにトレーニングモードに入ります。"
 
+msgid "settings.training_auto_ready"
+msgstr "トレーニングから呼ばれたら自動で準備完了"
+
+msgid "settings.training_auto_ready_detail"
+msgstr "オフ：トレーニングからテーブルに呼ばれたら、15秒以内に準備完了を押さないと席を失います。オン：すぐに準備完了になります。"
+
+msgid "room.training.detail"
+msgstr "ルームを出ずにトレーニングモードで待てます。向かいの席に対戦相手が座ると、準備完了のためにここへ戻されます。"
+
+msgid "room.training.unavailable"
+msgstr "ルームからのトレーニングは、メインメニューにいて、向かいの席にまだ誰もおらず、準備完了を出しておらず、自分の対戦が始まっていないときだけ使えます。"
+
+msgid "room.training_call.ready_in"
+msgstr "{0}秒以内に準備完了しないと席を失います。"
+
+msgid "runtime.training_call.forfeit"
+msgstr "トレーニングから呼ばれたあと時間内に準備完了しなかったため、席を失いました。"
+
 msgid "home.choose_controller"
 msgstr "対戦用コントローラーを選択"
 
