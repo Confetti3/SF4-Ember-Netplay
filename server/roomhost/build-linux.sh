@@ -44,8 +44,12 @@ for header in spdlog/spdlog-inl.h fmt/format-inl.h; do
         exit 1
     fi
 done
-LIBS="-static-libstdc++ -static-libgcc -pthread"
-FLAGS="-std=c++17 -O2 -pthread -DSPDLOG_FMT_EXTERNAL -DFMT_HEADER_ONLY ${CXXFLAGS:-}"
+# NDEBUG turns off nlohmann's assertions; LTO and section garbage collection
+# shrink the binary (and the pages of it each room host keeps resident), and
+# the symbols go: a crash is read from the supervisor's log and the reason
+# the host reports, not from a backtrace.
+LIBS="-static-libstdc++ -static-libgcc -pthread -flto=auto -Wl,--gc-sections -s"
+FLAGS="-std=c++17 -O2 -DNDEBUG -flto=auto -ffunction-sections -fdata-sections -pthread -DSPDLOG_FMT_EXTERNAL -DFMT_HEADER_ONLY ${CXXFLAGS:-}"
 
 SOURCES="
 server/roomhost/main.cxx

@@ -50,9 +50,11 @@ void IrohRoom::SubmitCommittedCheckpoint(const coordination::TransferIdentity& r
     // ignored while it decodes. A failed decode gives the revision back.
     decoding_.push_back({ticket,identity,receivedRevision_});
     receivedRevision_=identity.revision;
-    const std::string bytes=checkpointReceiver_.Bytes();
+    // Taken, not copied, and moved on to the worker: a commit's bytes exist
+    // once from the receiver to the decode.
+    std::string bytes=checkpointReceiver_.TakeBytes();
     checkpointReceiver_.Reset();
-    if(decodeOffThread_ && decoder_.Submit(ticket,bytes)) return;
+    if(decodeOffThread_ && decoder_.Submit(ticket,std::move(bytes))) return;
     // The worker is disabled or its thread could not start. Decode inline from
     // now on; this one can complete inline only if nothing older is still
     // decoding, because results are matched oldest first. Otherwise fail it
