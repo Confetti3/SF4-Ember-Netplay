@@ -77,6 +77,11 @@ struct FighterSample {
 // What a meter cell shows. An attack is told apart by the script's attack
 // boundary: before it startup, inside it active, after it recovery; Attack
 // alone when the script gives none.
+// The action frame is read after the game's update, when it already counts
+// the frame that update played: the frame a cell stands for is one less. A
+// crouching jab whose script is active from frame 3 so has three startup
+// cells, which is what its frame data says, where reading the counter as it
+// stands gave two and a recovery one too long.
 // ponytail: one active stretch per action; a multi-hit move's gaps between
 // hits read as active. Read every hit box if they have to show.
 // Sequence is AS_SEQUENCE: both fighters while a throw or a cinematic plays;
@@ -95,8 +100,8 @@ inline MeterKind ClassifyMeter(const FighterSample& sample) {
     case Phase::Down: return sample.status == 20 ? MeterKind::Rise : MeterKind::Down;
     case Phase::Attack:
         if (sample.firstActiveFrame < 0 || sample.lastActiveFrame <= sample.firstActiveFrame) return MeterKind::Attack;
-        return sample.actionFrame < sample.firstActiveFrame ? MeterKind::Startup :
-            sample.actionFrame < sample.lastActiveFrame ? MeterKind::Active : MeterKind::Recovery;
+        return sample.actionFrame - 1 < sample.firstActiveFrame ? MeterKind::Startup :
+            sample.actionFrame - 1 < sample.lastActiveFrame ? MeterKind::Active : MeterKind::Recovery;
     default: return MeterKind::Unknown;
     }
 }
@@ -119,9 +124,9 @@ struct FrameAdvantage {
 };
 // A fighter's last attack in advancing frames, hitstop left out: those inside
 // its attack boundary and those after it. Its startup is MeterView's
-// startupFrames, the frame the attack first hits on, so the move's total is
-// startup - 1 + active + recovery. seen: an attack was made; live: it is
-// still going.
+// startupFrames, the frames before the first active one, as the game's frame
+// data counts it, so the move's total is startup + active + recovery. seen:
+// an attack was made; live: it is still going.
 struct MoveFrames { int active = 0, recovery = 0; bool seen = false, live = false; };
 // The bars show MeterShown frames; the meter keeps MeterHistory of the
 // exchange, twenty seconds, so a held one can be looked back through.
@@ -211,7 +216,6 @@ public:
                         view_.startupBoundaryProvenance[side] = sample.boundaryProvenance;
                         view_.startupUnavailable[side] = MeasurementUnavailable::None;
                         startupPending_[side] = false;
-                        firstActiveAt_[side] = now; Meaty(side);
                     }
                 }
             } else startupPending_[side] = false;
@@ -223,6 +227,8 @@ public:
                 if (began || (actionChanged && kind == MeterKind::Startup)) move = MoveFrames{};
                 move.seen = move.live = true;
                 if (began || actionChanged || sample.actionFrame > previous.actionFrame) {
+                    // The attack's first active frame is what a meaty is timed by.
+                    if (kind == MeterKind::Active && !move.active) { firstActiveAt_[side] = now; Meaty(side); }
                     if (kind == MeterKind::Active) ++move.active;
                     else if (kind == MeterKind::Recovery) ++move.recovery;
                 }
