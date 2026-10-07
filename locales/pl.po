@@ -1566,6 +1566,9 @@ msgstr "Czekanie na przeciwnika w lobby przed rozpoczęciem walki."
 msgid "runtime.unsupported_stage"
 msgstr "Pokój wybrał nieobsługiwaną arenę. Zresetuj lobby przed ponowieniem próby."
 
+msgid "runtime.unsupported_match"
+msgstr "Pokój wybrał nieobsługiwanych wojowników lub ustawienia meczu. Zresetuj lobby przed ponowieniem próby."
+
 msgid "runtime.netplay_input_failed"
 msgstr "Błąd wejścia gry sieciowej. Walka się zakończyła."
 

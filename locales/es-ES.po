@@ -1566,6 +1566,9 @@ msgstr "Esperando al rival en el punto de encuentro para iniciar la partida."
 msgid "runtime.unsupported_stage"
 msgstr "Fase no compatible. Reinicia el punto de encuentro y reintenta."
 
+msgid "runtime.unsupported_match"
+msgstr "Luchadores o ajustes de combate no compatibles. Reinicia el punto de encuentro y reintenta."
+
 msgid "runtime.netplay_input_failed"
 msgstr "Falló la entrada de netplay. La partida terminó."
 

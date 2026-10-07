@@ -14,12 +14,14 @@
 #include "../Dimps/Dimps__Math.hxx"
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../Dimps/Dimps__UserApp.hxx"
+#include "../common/FighterCatalog.hxx"
 #include "../common/StageCatalog.hxx"
 #include "../common/Localization.hxx"
 #include "../common/sf4e__RollbackDiagnostics.hxx"
 #include "../session/sf4e__SessionClient.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 #include "../session/sf4e__SessionServer.hxx"
+#include "../netplay/PlayerPreferences.hxx"
 
 #include "sf4e__Game__Battle.hxx"
 #include "sf4e__Game__Battle__System.hxx"
@@ -78,6 +80,19 @@ static bool StartMatchFromLobby(SessionClient* const client) {
     );
     if (!mainMenu) {
         return false;
+    }
+
+    // The room's settings go into the game's battle settings as they are, so
+    // only the values the game offers are taken. Not a deferral: nothing
+    // retried here would change them.
+    sf4e::netplay::LobbySettings settings;
+    settings.editionSelect = client->_lobbyData.editionSelect;
+    settings.roundCount = client->_lobbyData.roundCount;
+    settings.roundTime = client->_lobbyData.roundTime.integral;
+    if (!settings.Valid() || client->_lobbyData.roundTime.fractional != 0) {
+        spdlog::error("Client: rejected match settings rounds={} time={}", settings.roundCount, settings.roundTime);
+        sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.unsupported_match"));
+        return true;
     }
 
     ProgressData* progressData = *RootEvent::GetProgressData(root);
@@ -207,6 +222,13 @@ void fUserApp::_OnVsPreBattleTasksRegistered()
         sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.unsupported_stage"));
         return;
     }
+    for (const auto& chara : netplay->client._matchData.chara)
+        if (!sf4e::selection::Valid(sf4e::selection::FromNative(chara), netplay->client._lobbyData.editionSelect)) {
+            spdlog::error("VsPreBattle: rejected unsupported fighter {} costume {} edition {}",
+                chara.charaID, chara.costume, chara.unc_edition);
+            sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.unsupported_match"));
+            return;
+        }
     size_t charaConditionSize = sizeof(rVsMode::ConfirmedCharaConditions);
 
     // XXX (adanducci): this is a little fragile- it's technically possible

@@ -1566,6 +1566,9 @@ msgstr "Wachten op tegenstander in de lobby voordat de match kan beginnen."
 msgid "runtime.unsupported_stage"
 msgstr "De kamer gaf een niet-ondersteund level door. Stel de lobby opnieuw in en probeer het opnieuw."
 
+msgid "runtime.unsupported_match"
+msgstr "De kamer gaf niet-ondersteunde vechters of wedstrijdinstellingen door. Stel de lobby opnieuw in en probeer het opnieuw."
+
 msgid "runtime.netplay_input_failed"
 msgstr "Netplay-invoer mislukt. De match is afgelopen."
 

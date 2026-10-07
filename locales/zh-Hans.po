@@ -1566,6 +1566,9 @@ msgstr "等待对手进入大厅，对战才能开始。"
 msgid "runtime.unsupported_stage"
 msgstr "房间提供的场地不受支持。请重置大厅后重试。"
 
+msgid "runtime.unsupported_match"
+msgstr "房间提供的角色或对战设置不受支持。请重置大厅后重试。"
+
 msgid "runtime.netplay_input_failed"
 msgstr "联机输入失败，对战已结束。"
 

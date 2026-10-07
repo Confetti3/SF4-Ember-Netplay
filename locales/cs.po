@@ -1566,6 +1566,9 @@ msgstr "Před začátkem zápasu se čeká na soupeře v lobby."
 msgid "runtime.unsupported_stage"
 msgstr "Místnost zadala nepodporovanou scénu. Před dalším pokusem obnovte lobby."
 
+msgid "runtime.unsupported_match"
+msgstr "Místnost zadala nepodporované bojovníky nebo nastavení zápasu. Před dalším pokusem obnovte lobby."
+
 msgid "runtime.netplay_input_failed"
 msgstr "Síťový vstup selhal. Zápas skončil."
 

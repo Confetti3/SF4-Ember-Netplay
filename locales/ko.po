@@ -1566,6 +1566,9 @@ msgstr "대전을 시작하려면 상대가 로비에 들어오기를 기다려�
 msgid "runtime.unsupported_stage"
 msgstr "방에서 지원하지 않는 스테이지를 지정했습니다. 다시 시도하기 전에 로비를 초기화하세요."
 
+msgid "runtime.unsupported_match"
+msgstr "방에서 지원하지 않는 캐릭터 또는 대전 설정을 지정했습니다. 다시 시도하기 전에 로비를 초기화하세요."
+
 msgid "runtime.netplay_input_failed"
 msgstr "넷플레이 입력에 실패했습니다. 대전이 종료되었습니다."
 

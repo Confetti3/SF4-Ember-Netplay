@@ -1566,6 +1566,9 @@ msgstr "対戦開始前に相手がロビーに来るのを待っています。
 msgid "runtime.unsupported_stage"
 msgstr "ルームから非対応のステージが指定されました。ロビーをリセットして再試行してください。"
 
+msgid "runtime.unsupported_match"
+msgstr "ルームから非対応のキャラクターまたは対戦設定が指定されました。ロビーをリセットして再試行してください。"
+
 msgid "runtime.netplay_input_failed"
 msgstr "ネット対戦の入力処理に失敗しました。対戦を終了しました。"
 

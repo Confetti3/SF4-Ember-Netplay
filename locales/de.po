@@ -1566,6 +1566,9 @@ msgstr "Warten auf Gegner in der Lobby, bevor der Kampf starten kann."
 msgid "runtime.unsupported_stage"
 msgstr "Stage nicht unterstützt. Lobby zurücksetzen und erneut versuchen."
 
+msgid "runtime.unsupported_match"
+msgstr "Kämpfer oder Match-Einstellungen nicht unterstützt. Lobby zurücksetzen und erneut versuchen."
+
 msgid "runtime.netplay_input_failed"
 msgstr "Netplay-Eingabe fehlgeschlagen. Der Kampf ist beendet."
 

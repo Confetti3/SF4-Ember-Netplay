@@ -1566,6 +1566,9 @@ msgstr "Attente de l'adversaire dans le salon avant le début du combat."
 msgid "runtime.unsupported_stage"
 msgstr "Le salon a fourni un niveau non pris en charge. Réinitialisez le salon et réessayez."
 
+msgid "runtime.unsupported_match"
+msgstr "Le salon a fourni des combattants ou des réglages de match non pris en charge. Réinitialisez le salon et réessayez."
+
 msgid "runtime.netplay_input_failed"
 msgstr "Échec des commandes netplay. Le combat est terminé."
 

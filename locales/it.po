@@ -1566,6 +1566,9 @@ msgstr "In attesa dell'avversario nella sala per iniziare la partita."
 msgid "runtime.unsupported_stage"
 msgstr "La sala ha scelto un livello non supportato. Reimposta la sala e riprova."
 
+msgid "runtime.unsupported_match"
+msgstr "La sala ha scelto lottatori o impostazioni di incontro non supportati. Reimposta la sala e riprova."
+
 msgid "runtime.netplay_input_failed"
 msgstr "Errore nei comandi netplay. Partita terminata."
 

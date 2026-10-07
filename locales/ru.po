@@ -1566,6 +1566,9 @@ msgstr "Ожидание соперника в зале перед начало�
 msgid "runtime.unsupported_stage"
 msgstr "Зал передал неподдерживаемое место битвы. Сбросьте зал и повторите попытку."
 
+msgid "runtime.unsupported_match"
+msgstr "Зал передал неподдерживаемых бойцов или настройки матча. Сбросьте зал и повторите попытку."
+
 msgid "runtime.netplay_input_failed"
 msgstr "Сбой сетевого ввода. Матч завершён."
 
