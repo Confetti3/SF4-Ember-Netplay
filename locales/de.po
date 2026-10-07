@@ -647,7 +647,13 @@ msgid "replays.watch"
 msgstr "Jetzt ansehen"
 
 msgid "replays.watch_detail"
-msgstr "Fügt es der Replay-Liste des Spiels hinzu und öffnet das Kampfprotokoll, wo es ganz oben steht."
+msgstr "Fügt es der Replay-Liste des Spiels hinzu und spielt es aus dem Kampfprotokoll ab."
+
+msgid "replays.save_watched"
+msgstr "Zugeschaute Matches speichern"
+
+msgid "replays.save_watched_detail"
+msgstr "Ein: Auch Matches, bei denen Sie nur zuschauen, werden aufgezeichnet. Aus: nur die Matches, die Sie spielen."
 
 msgid "replays.row_detail"
 msgstr "Wähle, um es der Replay-Liste des Spiels hinzuzufügen, oder um es hinzuzufügen und jetzt anzusehen."

@@ -647,7 +647,13 @@ msgid "replays.watch"
 msgstr "立即观看"
 
 msgid "replays.watch_detail"
-msgstr "添加到游戏的回放列表并打开对战记录，它会排在最上面。"
+msgstr "添加到游戏的回放列表，并从对战记录中播放。"
+
+msgid "replays.save_watched"
+msgstr "保存观战的对战"
+
+msgid "replays.save_watched_detail"
+msgstr "开：只观战的对战也会录制。关：只录制自己参加的对战。"
 
 msgid "replays.row_detail"
 msgstr "选择以添加到游戏的回放列表，或添加后立即观看。"

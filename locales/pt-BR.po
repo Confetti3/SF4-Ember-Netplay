@@ -647,7 +647,13 @@ msgid "replays.watch"
 msgstr "Assistir agora"
 
 msgid "replays.watch_detail"
-msgstr "Adiciona à lista de replays do jogo e abre o registro de batalhas, onde fica no topo."
+msgstr "Adiciona à lista de replays do jogo e o reproduz a partir do registro de batalhas."
+
+msgid "replays.save_watched"
+msgstr "Salvar partidas que você assiste"
+
+msgid "replays.save_watched_detail"
+msgstr "Ligado: as partidas que você só assiste também são gravadas. Desligado: só as partidas que você joga."
 
 msgid "replays.row_detail"
 msgstr "Selecione para adicionar à lista de replays do jogo, ou para adicionar e assistir agora."

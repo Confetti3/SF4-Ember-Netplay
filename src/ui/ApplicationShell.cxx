@@ -302,6 +302,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(screen=="replays"){
   title=loc::T("replays.title");
   rows.push_back(Row("replay-log",loc::T("replays.open_log"),loc::T(idle?"replays.open_log_detail":"replays.open_log_room"),idle&&v.replaysReady));
+  rows.push_back(Value("replay-save-watched",loc::T("replays.save_watched"),preferences_.recordWatched?loc::T("common.on"):loc::T("common.off"),loc::T("replays.save_watched_detail"),v.canEditPreferences));
   if(v.replays.empty())rows.push_back(InfoRow("replay-none",loc::T("replays.empty"),"",loc::T("replays.empty_detail")));
   for(std::size_t i=0;i<v.replays.size();i++){rows.push_back(Row("replay-"+std::to_string(i),v.replays[i].label,loc::T(v.replaysReady?"replays.row_detail":"replays.not_ready"),v.replaysReady));
    // The label carries the players' own names. The value says what Ember knows about it.
@@ -546,6 +547,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="hud-spacing")preferences_.matchHudRaised=a.delta>0;
   else if(a.id=="ready-sound")preferences_.readySound=a.delta>0;
   else if(a.id=="background-play")preferences_.backgroundPlay=a.delta>0;
+  else if(a.id=="replay-save-watched")preferences_.recordWatched=a.delta>0;
   else if(a.id=="ready-volume")preferences_.readySoundVolume=(std::max)(10,(std::min)(100,preferences_.readySoundVolume+10*a.delta));
   else if(a.id=="scale")preferences_.interfaceScale=(std::max)(1.f,(std::min)(1.5f,preferences_.interfaceScale+.05f*a.delta));
   else if(a.id=="hud")preferences_.showMatchHud=a.delta>0;else if(a.id=="presence")preferences_.discordPresence=a.delta>0;

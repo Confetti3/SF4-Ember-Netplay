@@ -120,8 +120,11 @@ static MatchEntry StartMatchFromLobby(SessionClient* const client) {
     BattleTypeSettings->rounds = client->_lobbyData.roundCount;
     BattleTypeSettings->timeLimit = client->_lobbyData.roundTime;
     // A Versus battle saves its own replay when this is set (0x63CA40); the
-    // launcher copies each one out of the game's ten slots.
-    BattleTypeSettings->recordReplay = TRUE;
+    // launcher copies each one out of the game's slots. A match this PC only
+    // watches is recorded unless the player turned that off.
+    sf4e::NetplayFacade::RuntimeMatchEndpoints seats;
+    const bool watching = sf4e::NetplayFacade::GetRuntimeMatchEndpoints(seats) && seats.localSlot >= 2;
+    BattleTypeSettings->recordReplay = !watching || sf4e::NetplayFacade::GetRuntimeSnapshotShared()->preferences.recordWatched;
     spdlog::info(
         "Netplay: starting match with rounds={} time={}",
         client->_lobbyData.roundCount,

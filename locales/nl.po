@@ -647,7 +647,13 @@ msgid "replays.watch"
 msgstr "Nu bekijken"
 
 msgid "replays.watch_detail"
-msgstr "Voegt hem toe aan de replaylijst van het spel en opent het gevechtslogboek, waar hij bovenaan staat."
+msgstr "Voegt hem toe aan de replaylijst van het spel en speelt hem af vanuit het gevechtslogboek."
+
+msgid "replays.save_watched"
+msgstr "Matches waar je naar kijkt opslaan"
+
+msgid "replays.save_watched_detail"
+msgstr "Aan: matches waar je alleen naar kijkt worden ook opgenomen. Uit: alleen de matches die je zelf speelt."
 
 msgid "replays.row_detail"
 msgstr "Selecteer om hem aan de replaylijst van het spel toe te voegen, of om hem toe te voegen en nu te bekijken."
