@@ -14,8 +14,11 @@
 //! account's holder) removes stays removed (`withdraw`): lookup does not link
 //! it again until the player completes a Discord sign-in started after that.
 //!
-//! A sign-in by an account connected to another Ember ID moves nothing by
-//! itself: the browser page says what moving it ends and asks first.
+//! A sign-in connects nothing by itself unless the account is already this
+//! Ember ID's: the browser page names the Ember ID it would connect to and
+//! asks first, so an authorize link someone else started cannot tie the
+//! person who opens it to their Ember ID. For an account connected to
+//! another Ember ID the page also says what moving it ends.
 //! Starting a sign-in ends the Ember ID's earlier ones, and the player can
 //! end the one in flight (`cancel`), so only the latest can connect.
 use axum::{
@@ -71,7 +74,7 @@ fn state_hash(state: &AppState, text: &str) -> [u8; 32] {
     state.keys.keyed_hash("discord-sign-in", text.as_bytes())
 }
 
-/// The key of a sign-in waiting on the move question: a secret of its own,
+/// The key of a sign-in waiting on the page's question: a secret of its own,
 /// made when the question is asked and shown only on that page. The sign-in's
 /// state was handed to the Ember that started it, so it does not answer the
 /// question.
@@ -229,9 +232,10 @@ pub async fn cancel(
 /// What the callback did with a sign-in Discord confirmed.
 enum Stored {
     Connected(String),
-    /// The account is connected to `from`; the player decides.
-    Moving {
-        from: String,
+    /// The account is not `to`'s yet: connected to `from`, or to no Ember
+    /// ID. The player decides.
+    Asking {
+        from: Option<String>,
         to: String,
         confirmation: String,
     },
@@ -239,8 +243,8 @@ enum Stored {
 }
 
 /// `GET /v1/discord/callback`: Discord's answer, in the player's browser.
-/// The page says what happened, or asks before moving an account connected
-/// to another Ember ID; the player goes back to their tournament site.
+/// The page says what happened, or asks before connecting an account that
+/// is not this Ember ID's yet; the player goes back to their tournament site.
 pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer>) -> Response {
     let Ok(discord) = enabled(&state).cloned() else {
         return finished(
@@ -311,7 +315,7 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
                     |row| row.get(0),
                 )
                 .optional()?;
-            if let Some(owner) = owner.filter(|owner| *owner != ember_id) {
+            if owner.as_deref() != Some(ember_id.as_str()) {
                 // The question is answered with its own secret from here on;
                 // the state stops naming this sign-in.
                 tx.execute(
@@ -323,7 +327,7 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
                         confirmation_key.as_slice()
                     ],
                 )?;
-                return Ok(Stored::Moving {
+                return Ok(Stored::Asking {
                     from: owner,
                     to: ember_id,
                     confirmation,
@@ -339,13 +343,16 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
             state.committed();
             connected(&shown, &ember_id)
         }
-        Ok(Stored::Moving {
+        Ok(Stored::Asking {
             from,
             to,
             confirmation,
         }) => {
             state.committed();
-            moving(&confirmation, &shown, &from, &to)
+            match from {
+                Some(from) => moving(&confirmation, &shown, &from, &to),
+                None => connecting(&confirmation, &shown, &to),
+            }
         }
         Ok(Stored::Gone) => not_waiting(),
         Err(_) => not_saved(),
@@ -358,9 +365,9 @@ pub struct MoveAnswer {
     choice: String,
 }
 
-/// `POST /v1/discord/callback`: the player's answer to moving an account
-/// connected to another Ember ID, from the page `callback` showed. Either
-/// way the sign-in is done.
+/// `POST /v1/discord/callback`: the player's answer to connecting or moving
+/// an account, from the page `callback` showed. Either way the sign-in is
+/// done.
 pub async fn decide(State(state): State<AppState>, Form(answer): Form<MoveAnswer>) -> Response {
     if enabled(&state).is_err() {
         return finished(
@@ -369,10 +376,11 @@ pub async fn decide(State(state): State<AppState>, Form(answer): Form<MoveAnswer
         );
     }
     let moves = match answer.choice.as_str() {
-        "move" => true,
-        "keep" => false,
+        "move" | "connect" => true,
+        "keep" | "refuse" => false,
         _ => return not_waiting(),
     };
+    let refused = answer.choice == "refuse";
     let hash = confirmation_hash(&state, &answer.confirmation);
     let ctx = Ctx::of(&state);
     let decided = state
@@ -404,6 +412,16 @@ pub async fn decide(State(state): State<AppState>, Form(answer): Form<MoveAnswer
     state.committed();
     if moves {
         connected(&username, &ember_id)
+    } else if refused {
+        finished(
+            "Not connected",
+            &format!(
+                "Discord account <strong>{}</strong> was not connected to any Ember ID. \
+                 If you did not choose Connect Discord in Ember, someone may have sent you that link: \
+                 do not sign in from it again. You can close this tab.",
+                html(&username)
+            ),
+        )
     } else {
         finished(
             "Nothing moved",
@@ -487,6 +505,29 @@ fn moving(confirmation: &str, username: &str, from: &str, to: &str) -> Response 
              <form method=\"post\" action=\"{CALLBACK_PATH}\"><input type=\"hidden\" name=\"confirmation\" value=\"{}\">\
              <button name=\"choice\" value=\"move\">Move it to {to}</button>\
              <button name=\"choice\" value=\"keep\">Keep it on {from}</button></form>",
+            html(confirmation)
+        ),
+        false,
+    )
+}
+
+/// Asks before connecting an account no Ember ID has to `to`, naming it so
+/// the player can compare it with the one their Ember shows. The form
+/// carries the question's confirmation secret, which only this page has.
+fn connecting(confirmation: &str, username: &str, to: &str) -> Response {
+    let (username, to) = (html(username), html(&fingerprint(to)));
+    page(
+        "Connect this Discord account?",
+        &format!(
+            "<h1>Connect this Discord account?</h1>\
+             <p>This connects Discord account <strong>{username}</strong> to Ember ID <strong>{to}</strong>. \
+             Tournament sites that use this Ember service will find that Ember ID from this Discord account.</p>\
+             <div class=\"box warn\"><p>Check that <strong>{to}</strong> is the Ember ID your Ember shows. \
+             If you did not choose Connect Discord in Ember just now, someone else may have sent you this link: \
+             choose This wasn't me.</p></div>\
+             <form method=\"post\" action=\"{CALLBACK_PATH}\"><input type=\"hidden\" name=\"confirmation\" value=\"{}\">\
+             <button name=\"choice\" value=\"connect\">Connect it to {to}</button>\
+             <button name=\"choice\" value=\"refuse\">This wasn't me</button></form>",
             html(confirmation)
         ),
         false,

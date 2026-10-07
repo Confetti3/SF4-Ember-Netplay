@@ -200,11 +200,20 @@ async fn account(bridge: &Bridge, player: &Player) -> Json {
     body["account"].clone()
 }
 
-/// Signs `player` in as `who` (`kate` or `sam`).
+/// Signs `player` in as `who` (`kate` or `sam`), whose account no other
+/// Ember ID has, answering the page's question when it asks.
 async fn connect(bridge: &Bridge, player: &Player, who: &str) {
     let state = start(bridge, player).await;
-    let page = back(bridge, &format!("code=good-{who}&state={state}")).await;
-    assert!(page.contains("Discord connected"), "{page}");
+    connect_with(bridge, &state, who).await;
+}
+
+/// The page a sign-in ends on once the player says yes to a first
+/// connection, or the page itself when it did not ask.
+async fn answered(bridge: &Bridge, page: String) -> String {
+    if !page.contains("Connect this Discord account?") {
+        return page;
+    }
+    decide(bridge, &confirmation(&page), "connect").await
 }
 
 /// The confirmation secret on the page that asks before moving an account.
@@ -318,7 +327,17 @@ async fn a_player_connects_discord_once_per_sign_in() {
             .await
             .contains("Sign-in expired")
     );
+    // A first connection asks, naming the Ember ID, and connects nothing
+    // until the player answers.
     let page = back(&bridge, &format!("code=good-kate&state={state}")).await;
+    assert!(
+        page.contains("Connect this Discord account?")
+            && page.contains("kate")
+            && page.contains(&kate.id().fingerprint()),
+        "{page}"
+    );
+    assert_eq!(account(&bridge, &kate).await, Json::Null);
+    let page = decide(&bridge, &confirmation(&page), "connect").await;
     assert!(
         page.contains("Discord connected") && page.contains("kate"),
         "{page}"
@@ -369,7 +388,7 @@ async fn the_latest_sign_in_wins_and_a_player_can_disconnect() {
     let bridge = bridge_with_discord().await;
     let (one, two) = (player(&bridge, 1).await, player(&bridge, 2).await);
     let state = start(&bridge, &one).await;
-    back(&bridge, &format!("code=good-kate&state={state}")).await;
+    connect_with(&bridge, &state, "kate").await;
     // The same Discord account signed in from another Ember ID moves there
     // once the player says so.
     move_here(&bridge, &two, "kate").await;
@@ -377,7 +396,7 @@ async fn the_latest_sign_in_wins_and_a_player_can_disconnect() {
     assert_eq!(account(&bridge, &two).await["user_id"], KATE);
     // Another account replaces this Ember ID's.
     let state = start(&bridge, &two).await;
-    back(&bridge, &format!("code=good-sam&state={state}")).await;
+    connect_with(&bridge, &state, "sam").await;
     assert_eq!(account(&bridge, &two).await["user_id"], SAM);
 
     // Disconnecting needs a proof made for it: no other action is issued for that route.
@@ -427,7 +446,8 @@ async fn a_second_answer_for_a_sign_in_is_turned_away() {
             .contains("Sign-in expired")
     );
     HELD.release.notify_one();
-    assert!(first.await.unwrap().contains("Discord connected"));
+    let page = answered(&bridge, first.await.unwrap()).await;
+    assert!(page.contains("Discord connected"), "{page}");
     assert_eq!(account(&bridge, &kate).await["user_id"], KATE);
 }
 
@@ -878,6 +898,51 @@ async fn only_the_latest_sign_in_connects_and_ember_can_end_it() {
 /// Finishes the sign-in `state` as `who`, whose account no other Ember ID has.
 async fn connect_with(bridge: &Bridge, state: &str, who: &str) {
     let page = back(bridge, &format!("code=good-{who}&state={state}")).await;
+    let page = answered(bridge, page).await;
+    assert!(page.contains("Discord connected"), "{page}");
+}
+
+#[tokio::test]
+async fn an_authorize_link_someone_else_started_connects_nothing_unless_confirmed() {
+    let bridge = bridge_with_discord().await;
+    let (attacker, kate) = (player(&bridge, 1).await, player(&bridge, 2).await);
+    // Someone starts Connect Discord and sends the authorize link on; the
+    // person who opens it signs in to Discord as themselves.
+    let state = start(&bridge, &attacker).await;
+    let page = back(&bridge, &format!("code=good-kate&state={state}")).await;
+    assert!(
+        page.contains("Connect this Discord account?")
+            && page.contains(&attacker.id().fingerprint())
+            && page.contains("This wasn't me"),
+        "{page}"
+    );
+    assert_eq!(account(&bridge, &attacker).await, Json::Null);
+    // The state, which the starter has, does not answer the question.
+    assert!(
+        decide(&bridge, &state, "connect")
+            .await
+            .contains("Sign-in expired")
+    );
+    assert_eq!(account(&bridge, &attacker).await, Json::Null);
+    // This wasn't me: nothing is connected, and the question is gone.
+    let asked = confirmation(&page);
+    assert!(
+        decide(&bridge, &asked, "refuse")
+            .await
+            .contains("was not connected")
+    );
+    assert!(
+        decide(&bridge, &asked, "connect")
+            .await
+            .contains("Sign-in expired")
+    );
+    assert_eq!(account(&bridge, &attacker).await, Json::Null);
+    // The account is still free for its owner's own Ember ID.
+    connect(&bridge, &kate, "kate").await;
+    assert_eq!(account(&bridge, &kate).await["user_id"], KATE);
+    // Signing in again to the Ember ID the account is already on asks nothing.
+    let state = start(&bridge, &kate).await;
+    let page = back(&bridge, &format!("code=good-kate&state={state}")).await;
     assert!(page.contains("Discord connected"), "{page}");
 }
 
