@@ -185,6 +185,28 @@ ssh vps "curl -fsS http://127.0.0.1:47830/health"
 The supervisor logs one line per room start and stop. Room host and helper
 output goes to the same journal. Neither logs the secret or invitations.
 
+## Closing idle lone rooms
+
+A host who opens a public room and walks away holds a slot until they leave.
+`idle-close.py` closes a room that has had at most one member and no table
+playing for 15 minutes in a row; a second member or a match starting resets
+the clock. Rooms with two or more people are never closed by it, and empty
+rooms are left to `empty_close_secs`. It runs from `ember-rooms-idle.timer`
+every 30 seconds as a throwaway user that only gets the config and the
+secret, and closes rooms through `DELETE /rooms/<id>` like the bridge does.
+
+```
+ssh -t vps "sudo bash ~/ember-rooms/install-idle-close.sh"
+ssh -t vps "sudo python3 ~/ember-rooms/idle-close.py --dry-run"
+ssh -t vps "sudo journalctl -u ember-rooms-idle"
+```
+
+The first installs it (run it again after changing the script or units), the
+second lists the quiet rooms and how long each has been quiet without closing
+anything, and the third shows one line per closed room. To change the 15
+minutes, edit `--idle-minutes` in `ember-rooms-idle.service` and install
+again. To stop it: `sudo systemctl disable --now ember-rooms-idle.timer`.
+
 ## Firewall
 
 Each room uses two UDP ports from `port_range` (45800 to 45899 by default),
