@@ -67,6 +67,13 @@ Request** VsBattle::GetRequest(VsBattle* battleEvent) {
 	return (Request**)((unsigned int)battleEvent + 0x50);
 }
 
+void GameEvents::Flow::Request(Flow* flow, int row) {
+	struct Native { void Request(int row, int, int, int, int); };
+	void (Native::* request)(int, int, int, int, int);
+	*(PVOID*)&request = (*(PVOID**)flow)[RequestOffset / sizeof(PVOID)];
+	(((Native*)flow)->*request)(row, 0, 0, 0, 1);
+}
+
 void MainMenu::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
 
