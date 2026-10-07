@@ -1,0 +1,49 @@
+# The Ember public room service as a container, on the same machine as the
+# bridge. Host networking: the supervisor listens on 127.0.0.1:47830 where
+# the bridge already looks for it, and the room hosts bind their UDP ports
+# straight on the machine (open them in the firewall as for a bare install).
+#
+#   cd /etc/ember-rooms/docker && BUILD_ID=<hash> docker compose up -d
+#
+# Set BUILD_ID (the image's tag, the client release's sidecar build hash) in
+# a .env file next to this file; docker/README.md has the whole procedure.
+services:
+  ember-rooms:
+    image: ember-rooms:${BUILD_ID:?set BUILD_ID to the client build the image was made for}
+    build:
+      context: ../../..
+      dockerfile: server/ember-rooms/docker/Dockerfile
+      args:
+        BUILD_ID: ${BUILD_ID}
+    network_mode: host
+    restart: unless-stopped
+    # SIGTERM drains (no new rooms, open rooms until empty or drain_secs,
+    # 600 by default) plus the 10 s the supervisor gives each host to exit;
+    # as TimeoutStopSec in deploy/ember-rooms.service. Raise both together.
+    stop_grace_period: 660s
+    read_only: true
+    tmpfs:
+      # The helpers' state and logs; HOME for the room hosts.
+      - /var/lib/ember-rooms:uid=4783,gid=4783,mode=0700,size=256m
+    volumes:
+      # config.json and supervisor.secret as a bare install keeps them, so
+      # deploy/connect-bridge.sh still finds both. Readable by uid 4783.
+      - /etc/ember-rooms:/etc/ember-rooms:ro
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    # The limits of deploy/ember-rooms.service: about 110 MB and 16 tasks per
+    # room over max_rooms; a room past the memory limit is stopped mid-match,
+    # so raise it before max_rooms. One process is killed at the limit, not
+    # the whole container (cgroup v2 default), so the other rooms stay up.
+    mem_limit: ${EMBER_ROOMS_MEMORY:-2400m}
+    pids_limit: ${EMBER_ROOMS_TASKS:-512}
+    environment:
+      EMBER_ROOMS_MAX_ROOMS: ${EMBER_ROOMS_MAX_ROOMS:-10}
+      EMBER_ROOMS_PORT_RANGE: ${EMBER_ROOMS_PORT_RANGE:-45800-45899}
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"

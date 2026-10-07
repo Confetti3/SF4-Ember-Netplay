@@ -1,0 +1,22 @@
+# The containerised room service (server/ember-rooms/docker), as a unit so it
+# comes back after a reboot and stops with a drain like the bare-metal unit.
+# Install next to ember-rooms.service; run one of the two, not both: both
+# listen on 127.0.0.1:47830 and bind the same UDP ports.
+[Unit]
+Description=Ember public room supervisor (container)
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=exec
+WorkingDirectory=/etc/ember-rooms/docker
+ExecStart=/usr/bin/docker compose up --no-build --abort-on-container-exit
+ExecStop=/usr/bin/docker compose down
+# The container's stop_grace_period (660 s) must fit inside this.
+TimeoutStopSec=700
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

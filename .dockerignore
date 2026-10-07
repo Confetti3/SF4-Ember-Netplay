@@ -1,0 +1,13 @@
+# The build context of server/ember-rooms/docker/Dockerfile: the room
+# service's own crates, the helper and its path dependencies, and the C++ the
+# room host is built from. Everything else (assets, game build trees, docs)
+# stays out so a build sends a few megabytes.
+*
+!rust/sf4-net/
+!server/ember/
+!server/ember-rooms/
+!server/ember-short/
+!server/roomhost/
+!src/
+**/target/
+**/.git/
