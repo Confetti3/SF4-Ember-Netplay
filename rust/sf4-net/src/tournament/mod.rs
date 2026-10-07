@@ -373,8 +373,10 @@ fn spawn_with(
             })
         };
         // Spooled reports go out in the background, oldest first, also after
-        // a restart; one pass at a time so they keep their order.
-        let resend = {
+        // a restart; one pass at a time so they keep their order. A helper
+        // with no spool (the headless room host) has nothing to resend, and
+        // each pass would only start a blocking thread to find that out.
+        let resend = shared.spool.usable().then(|| {
             let shared = shared.clone();
             tokio::spawn(async move {
                 loop {
@@ -384,7 +386,7 @@ fn spawn_with(
                     }
                 }
             })
-        };
+        });
         // Bridge jobs start only when an HTTP slot is free, so the bounded
         // channel is the only place they wait; the set owns every running one.
         let mut running = tokio::task::JoinSet::new();
@@ -410,7 +412,9 @@ fn spawn_with(
             });
         }
         serial.abort();
-        resend.abort();
+        if let Some(resend) = resend {
+            resend.abort();
+        }
         running.abort_all();
     });
     (handle, task)

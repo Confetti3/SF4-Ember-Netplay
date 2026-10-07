@@ -8,7 +8,7 @@ use std::sync::{
 use ember_protocol::EmberId;
 use iroh::endpoint::Connection;
 use tokio::{
-    sync::mpsc,
+    sync::{Notify, mpsc},
     task::JoinHandle,
     time::{Instant, timeout_at},
 };
@@ -66,6 +66,12 @@ pub struct ControlWorker {
 
 impl ControlWorker {
     pub fn start(channel: ControlChannel) -> Self {
+        Self::start_waking(channel, Arc::new(Notify::new()))
+    }
+
+    /// `start`, with `wake` notified each time the reader has queued a frame
+    /// for `try_receive`, so the actor need not poll for one.
+    pub fn start_waking(channel: ControlChannel, wake: Arc<Notify>) -> Self {
         let (outgoing, mut send_queue) = mpsc::channel(CONTROL_QUEUE_CAPACITY);
         let (recv_queue, incoming) = mpsc::channel(CONTROL_QUEUE_CAPACITY);
         let rejected = Arc::new(AtomicU64::new(0));
@@ -101,7 +107,10 @@ impl ControlWorker {
                     if recv_queue.send(frame).await.is_err() {
                         break;
                     }
+                    wake.notify_one();
                 }
+                // The actor also learns of a reader that has ended.
+                wake.notify_one();
                 recv_connection.close(1u32.into(), b"control reader ended");
             }),
         ];

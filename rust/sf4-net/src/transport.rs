@@ -90,7 +90,10 @@ fn production_builder() -> iroh::endpoint::Builder {
 /// fallback to another one. The headless room host passes the port it was
 /// given, so an unusable port must stop the helper rather than move it.
 pub async fn bind_endpoint_on_port(port: u16) -> io::Result<Endpoint> {
+    // A headless room host runs on a server with a public address: there is
+    // no gateway to map a port on, and the periodic probes for one only cost.
     production_builder()
+        .portmapper_config(PortmapperConfig::Disabled)
         .bind_addr((std::net::Ipv4Addr::UNSPECIFIED, port))
         .map_err(|error| failed_at("bind address", error))?
         .bind()

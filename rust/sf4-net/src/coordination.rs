@@ -59,6 +59,8 @@ const RECENT_REQUESTS: usize = 128;
 const SNAPSHOT_MAGIC: [u8; 8] = *b"sf4rs001";
 const SNAPSHOT_HEADER_BYTES: usize = SNAPSHOT_MAGIC.len() + size_of::<u64>() + 32;
 const AUTHORITY_CLAIM_COALESCE: Duration = Duration::from_millis(500);
+/// The same for the sole voter of a server-owned room; see `authority_claim`.
+const HOST_AUTHORITY_CLAIM_COALESCE: Duration = Duration::from_millis(2500);
 
 openraft::declare_raft_types!(pub RoomTypes: D = Proposal, R = Receipt, Node = BasicNode);
 pub type RoomRaft = Raft<RoomTypes>;
@@ -209,6 +211,16 @@ pub struct Committed {
     pub term: u64,
 }
 
+/// What identifies a committed checkpoint without its text: on one node a
+/// revision names one checkpoint, so a reader that saw this mark and sees it
+/// again saw the same checkpoint.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct CommittedMark {
+    pub revision: u64,
+    pub term: u64,
+    pub request: String,
+}
+
 /// Small coordination-only entries do not advance the native checkpoint
 /// revision. They are still replicated and applied by every admitted helper,
 /// which lets a receiver validate a probe against its own committed state.
@@ -315,6 +327,9 @@ struct Memory {
     snapshot: Option<(SnapshotMeta<u64, BasicNode>, Vec<u8>)>,
     /// The most nodes an installed snapshot's membership may hold.
     max_nodes: usize,
+    /// The SHA-256 of the committed checkpoint at the revision it was taken
+    /// for, hashed once per revision for `committed_digest`.
+    committed_digest: Option<(u64, [u8; 32])>,
 }
 impl Memory {
     fn new(max_nodes: usize) -> Self {
@@ -325,6 +340,7 @@ impl Memory {
             machine: Machine::default(),
             snapshot: None,
             max_nodes,
+            committed_digest: None,
         }
     }
 }
@@ -398,6 +414,42 @@ impl Store {
 
     pub async fn committed(&self) -> Committed {
         self.0.lock().await.machine.committed.clone()
+    }
+
+    /// The committed revision alone. The actor asks on every tick whether it
+    /// has moved, and the checkpoint behind it can weigh a mebibyte.
+    pub async fn committed_revision(&self) -> u64 {
+        self.0.lock().await.machine.committed.revision
+    }
+
+    pub async fn committed_mark(&self) -> CommittedMark {
+        let memory = self.0.lock().await;
+        let committed = &memory.machine.committed;
+        CommittedMark {
+            revision: committed.revision,
+            term: committed.term,
+            request: committed.request.clone(),
+        }
+    }
+
+    /// The committed revision and the SHA-256 of its checkpoint, hashed once
+    /// per revision: the periodic coordination refresh reads it every second.
+    pub async fn committed_digest(&self) -> (u64, [u8; 32]) {
+        let mut memory = self.0.lock().await;
+        let revision = memory.machine.committed.revision;
+        if let Some((hashed, digest)) = memory.committed_digest
+            && hashed == revision
+        {
+            return (revision, digest);
+        }
+        let checkpoint = &memory.machine.committed.checkpoint;
+        let digest = if checkpoint.is_empty() {
+            [0; 32]
+        } else {
+            crate::recovery::sha256(checkpoint.as_bytes())
+        };
+        memory.committed_digest = Some((revision, digest));
+        (revision, digest)
     }
 
     /// The membership entry applied by the state machine.  OpenRaft's
@@ -1079,11 +1131,11 @@ impl Coordinator {
             .await?;
         let claim: AuthorityClaim = serde_json::from_slice(&bytes)
             .map_err(|_| io::Error::other("invalid authority claim"))?;
-        let committed = self.store.committed().await;
+        let revision = self.store.committed_revision().await;
         if claim.incarnation != leader
             || claim.leader != Some(leader)
             || claim.term < metrics.current_term
-            || claim.revision < committed.revision
+            || claim.revision < revision
         {
             return Err(io::Error::other("room quorum proof is stale"));
         }
@@ -1104,14 +1156,22 @@ impl Coordinator {
     pub async fn authority_claim(&self) -> io::Result<AuthorityClaim> {
         let mut cached = self.authority_claims.lock().await;
         let metrics = self.raft.metrics().borrow().clone();
-        let committed = self.committed().await;
+        let revision = self.committed_revision().await;
         let voters = self.store.applied_voters().await;
         let members = self.store.applied_members().await;
+        // The host of a server-owned room is its only voter, so its barrier
+        // confirms nothing a follower could contradict; its once-a-second
+        // health check reuses a claim for longer.
+        let coalesce = if matches!(self.ownership, Ownership::Host) {
+            HOST_AUTHORITY_CLAIM_COALESCE
+        } else {
+            AUTHORITY_CLAIM_COALESCE
+        };
         if let Some((completed, claim)) = cached.as_ref()
-            && completed.elapsed() <= AUTHORITY_CLAIM_COALESCE
+            && completed.elapsed() <= coalesce
             && claim.term == metrics.current_term
             && claim.leader == metrics.current_leader
-            && claim.revision == committed.revision
+            && claim.revision == revision
             && claim.voters == voters
             && claim.members == members
         {
@@ -1122,12 +1182,12 @@ impl Coordinator {
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         self.read_barrier().await?;
         let metrics = self.raft.metrics().borrow().clone();
-        let committed = self.committed().await;
+        let revision = self.committed_revision().await;
         let claim = AuthorityClaim {
             incarnation: self.incarnation,
             term: metrics.current_term,
             leader: metrics.current_leader,
-            revision: committed.revision,
+            revision,
             voters: self.store.applied_voters().await,
             members: self.store.applied_members().await,
         };
@@ -1195,6 +1255,18 @@ impl Coordinator {
     }
     pub async fn committed(&self) -> Committed {
         self.store.committed().await
+    }
+
+    pub async fn committed_revision(&self) -> u64 {
+        self.store.committed_revision().await
+    }
+
+    pub async fn committed_mark(&self) -> CommittedMark {
+        self.store.committed_mark().await
+    }
+
+    pub async fn committed_digest(&self) -> (u64, [u8; 32]) {
+        self.store.committed_digest().await
     }
     #[allow(clippy::too_many_arguments)]
     pub async fn probe_reserved(

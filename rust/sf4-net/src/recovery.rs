@@ -352,7 +352,7 @@ impl RecoverySession {
             .ensure_linearizable()
             .await
             .map_err(|_| io::Error::other("room quorum unavailable"))?;
-        if self.committed().await.revision != revision {
+        if self.committed_revision().await != revision {
             return Ok(false);
         }
         self.promote_voters(voters).await?;
@@ -406,7 +406,9 @@ impl RecoverySession {
 
     pub async fn state(&self) -> AuthorityState {
         let metrics = self.coordinator.raft().metrics().borrow().clone();
-        let committed = self.coordinator.committed().await;
+        // The revision and a digest hashed once per revision: this runs every
+        // second and must not copy or rehash the checkpoint each time.
+        let (revision, digest) = self.coordinator.committed_digest().await;
         let leader_id = metrics.current_leader.unwrap_or_default();
         let leader = metrics
             .membership_config
@@ -435,13 +437,9 @@ impl RecoverySession {
                 .is_ok_and(|result| result.is_ok())
         };
         let writable = quorum && metrics.current_leader.is_some();
-        let mut digest = [0; 32];
-        if !committed.checkpoint.is_empty() {
-            digest = sha256(committed.checkpoint.as_bytes());
-        }
         AuthorityState {
             term: metrics.current_term,
-            revision: committed.revision,
+            revision,
             incarnation: self.incarnation,
             leader,
             writable,
@@ -455,6 +453,15 @@ impl RecoverySession {
 
     pub async fn committed(&self) -> Committed {
         self.coordinator.committed().await
+    }
+
+    /// The committed revision without the checkpoint; see `Store`.
+    pub async fn committed_revision(&self) -> u64 {
+        self.coordinator.committed_revision().await
+    }
+
+    pub async fn committed_mark(&self) -> crate::coordination::CommittedMark {
+        self.coordinator.committed_mark().await
     }
 
     pub fn voter_ids(&self) -> BTreeSet<u64> {
@@ -636,7 +643,7 @@ impl RecoverySession {
                     source_incarnation, target_incarnation, term, request
                 ),
                 term,
-                base: self.committed().await.revision,
+                base: self.committed_revision().await,
                 checkpoint: String::new(),
                 admin: Some(AdminEntry::ProbeReservation(ProbeReservation {
                     room: self.room,

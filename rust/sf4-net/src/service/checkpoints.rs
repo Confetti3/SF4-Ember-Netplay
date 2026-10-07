@@ -259,14 +259,21 @@ impl Actor {
         let Some(recovery) = self.recovery.clone() else {
             return Ok(());
         };
-        let committed = recovery.committed().await;
-        if committed.revision == 0 || committed.revision <= self.last_exported_revision {
+        // This runs on every actor tick. Only the revision is read until it
+        // has moved past what the native side holds; the checkpoint behind
+        // it can weigh a mebibyte and was copied here 500 times a second.
+        let revision = recovery.committed_revision().await;
+        if revision == 0 || revision <= self.last_exported_revision {
             return Ok(());
         }
         if self.incoming_transfer.is_some()
             || self.outgoing_transfer.is_some()
             || self.pending_checkpoint_committed.is_some()
         {
+            return Ok(());
+        }
+        let committed = recovery.committed().await;
+        if committed.revision == 0 || committed.revision <= self.last_exported_revision {
             return Ok(());
         }
         let Ok(transfer_id) = committed.request.parse::<u64>() else {

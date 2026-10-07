@@ -120,6 +120,11 @@ impl Actor {
             .filter(|incarnation| *incarnation != recovery.incarnation)
             .collect();
         self.pending_coordination_refresh = Some(key.clone());
+        let known_revision = self
+            .refresh_roster
+            .as_ref()
+            .filter(|(cached_room, _, _)| *cached_room == room)
+            .map(|(_, revision, _)| *revision);
         self.tasks.spawn(async move {
             let (applied_members, applied_history) = recovery.applied_membership_provenance().await;
             let mut retired = BTreeSet::new();
@@ -129,7 +134,14 @@ impl Actor {
                 }
             }
             let state = recovery.state().await;
-            let committed = recovery.committed().await;
+            let committed = recovery.committed_mark().await;
+            // The checkpoint is copied out only when the actor has not read
+            // a roster from this revision yet.
+            let checkpoint = if Some(committed.revision) == known_revision {
+                None
+            } else {
+                Some(recovery.committed().await.checkpoint)
+            };
             let joint = recovery.applied_joint_goal().await.is_some();
             let leader = recovery.coordinator.current_leader();
             Completion::CoordinationRefresh(
@@ -141,6 +153,7 @@ impl Actor {
                     applied_history,
                     retired,
                     committed,
+                    checkpoint,
                     joint,
                 },
             )
@@ -161,6 +174,7 @@ impl Actor {
             applied_history,
             retired,
             committed,
+            checkpoint,
             joint,
             ..
         } = refresh;
@@ -193,7 +207,18 @@ impl Actor {
         self.applied_admission_members
             .extend(applied_history.iter().copied());
         let retired_for_broadcast = self.pending_retired_incarnations.clone();
-        if let Some(retained) = self.committed_roster(committed.checkpoint.as_bytes()) {
+        let roster = match checkpoint {
+            Some(checkpoint) => {
+                let roster = self.committed_roster(checkpoint.as_bytes());
+                self.refresh_roster = Some((recovery.room, committed.revision, roster.clone()));
+                roster
+            }
+            None => self
+                .refresh_roster
+                .as_ref()
+                .and_then(|(_, _, roster)| roster.clone()),
+        };
+        if let Some(retained) = roster {
             // A leave hands authority to a single voter, and a room that
             // shrinks keeps the voters it had; the leader moves the voter
             // count to the one the room should have from here until it
@@ -409,7 +434,7 @@ impl Actor {
         let Some(recovery) = self.recovery.clone() else {
             return Ok(());
         };
-        let committed_now = recovery.committed().await;
+        let committed_now = recovery.committed_mark().await;
         let current_term = recovery.coordinator.current_term();
         let current_leader = recovery.coordinator.current_leader();
         let current = key.epoch == self.epoch
@@ -422,10 +447,7 @@ impl Actor {
             && current_leader == key.leader
             && refresh.state.incarnation == key.incarnation
             && refresh.state.revision == refresh.committed.revision
-            && committed_now.revision == refresh.committed.revision
-            && committed_now.term == refresh.committed.term
-            && committed_now.request == refresh.committed.request
-            && committed_now.checkpoint == refresh.committed.checkpoint;
+            && committed_now == refresh.committed;
         let grace = self.leader_loss_grace();
         let failed_leader = if current && !refresh.state.writable {
             current_leader

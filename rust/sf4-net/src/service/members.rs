@@ -492,13 +492,13 @@ impl Actor {
         let Some(recovery) = self.recovery.clone() else {
             return Ok(());
         };
-        let committed = recovery.committed().await;
+        let committed_revision = recovery.committed_revision().await;
         let current = key.epoch == self.epoch
             && self.room == Some(key.room)
             && recovery.room == key.room
             && recovery.incarnation == key.incarnation
             && recovery.coordinator.current_term() == key.term
-            && committed.revision == key.revision;
+            && committed_revision == key.revision;
         if current && let Ok(result) = result {
             let (_, history) = recovery.applied_membership_provenance().await;
             self.apply_confirmed_retirements(result.confirmed_retirements, &history);

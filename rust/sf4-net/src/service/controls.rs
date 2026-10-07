@@ -903,7 +903,10 @@ impl Actor {
     ) -> io::Result<()> {
         let peer = channel.connection.remote_id();
         self.opening = false;
-        self.controls.insert(peer, ControlWorker::start(channel));
+        self.controls.insert(
+            peer,
+            ControlWorker::start_waking(channel, self.control_wake.clone()),
+        );
         if let Some(invite) = joined_invite.as_ref() {
             self.room_invite = Some(invite.clone());
             // sf4e2/emd2 intentionally omits the private

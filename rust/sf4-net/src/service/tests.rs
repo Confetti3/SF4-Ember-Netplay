@@ -279,6 +279,8 @@ fn test_actor(endpoint: Endpoint, events: mpsc::Sender<Event>) -> Actor {
         short: ShortLinks::default(),
         public: None,
         coordination_port: None,
+        refresh_roster: None,
+        control_wake: Arc::new(Notify::new()),
     }
 }
 
@@ -3707,6 +3709,8 @@ async fn service_replays_committed_checkpoint_to_each_native_owner() {
             short: ShortLinks::default(),
             public: None,
             coordination_port: None,
+            refresh_roster: None,
+            control_wake: Arc::new(Notify::new()),
         };
         let mut host_actor = make_actor(host.clone(), host_events_tx);
         let invite = host_actor.setup_host_recovery(seed).await.unwrap();
@@ -3998,6 +4002,8 @@ async fn closing_room_does_not_poison_new_room_on_same_endpoint() {
         short: ShortLinks::default(),
         public: None,
         coordination_port: None,
+        refresh_roster: None,
+        control_wake: Arc::new(Notify::new()),
     };
     actor
         .command(Request {
@@ -4126,6 +4132,8 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
             short: ShortLinks::default(),
             public: None,
             coordination_port: None,
+            refresh_roster: None,
+            control_wake: Arc::new(Notify::new()),
         };
         let service = tokio::spawn(async move {
             let result = actor.run(command_rx, failure).await;
@@ -4479,6 +4487,8 @@ async fn actor_admits_full_sixteen_member_room_and_fifteen_game_links() {
             short: ShortLinks::default(),
             public: None,
             coordination_port: None,
+            refresh_roster: None,
+            control_wake: Arc::new(Notify::new()),
         };
         let service = tokio::spawn(async move {
             let result = actor.run(command_rx, failure).await;

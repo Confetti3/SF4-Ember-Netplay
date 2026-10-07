@@ -213,11 +213,10 @@ impl Actor {
                         expires,
                     )
                     .await?;
-                let committed = recovery.committed().await;
                 Ok(ProbeAuthorization {
                     term: state.term,
                     leader: recovery.coordinator.current_leader(),
-                    revision: committed.revision,
+                    revision: recovery.committed_revision().await,
                     expires,
                     deadline,
                 })
@@ -242,7 +241,7 @@ impl Actor {
             return Ok(());
         };
         let valid = if let Ok(authorization) = &result {
-            let committed = recovery.committed().await;
+            let committed_revision = recovery.committed_revision().await;
             key.epoch == self.epoch
                 && self.room == Some(key.room)
                 && recovery.room == key.room
@@ -251,7 +250,7 @@ impl Actor {
                 && recovery.coordinator.current_leader() == authorization.leader
                 && authorization.leader.is_some()
                 && tokio::time::Instant::now() < authorization.deadline
-                && committed.revision == authorization.revision
+                && committed_revision == authorization.revision
                 && !self.games.contains_key(&key.peer)
                 && self.admissions.values().any(|admission| {
                     admission.room == key.room
