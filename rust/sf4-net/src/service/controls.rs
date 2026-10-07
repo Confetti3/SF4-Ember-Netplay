@@ -717,7 +717,7 @@ impl Actor {
                             if coordination.unwrap_or(false) {
                                 // Any roster mutation is published by its
                                 // authenticated asynchronous completion.
-                            } else if !native_json_depth_ok(&payload) {
+                            } else if !native_json_depth_ok(payload.as_bytes()) {
                                 // Nested past what the native side can copy:
                                 // dropped here, the route stays open.
                             } else if let Ok(native) =
@@ -726,7 +726,7 @@ impl Actor {
                                 && native.message_id > 1
                                 && !native.payload.is_empty()
                             {
-                                if !native_json_depth_ok(&native.payload) {
+                                if !native_json_depth_ok(native.payload.as_bytes()) {
                                     continue;
                                 }
                                 self.emit(Event::Message {

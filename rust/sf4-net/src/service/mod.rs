@@ -109,9 +109,9 @@ const MAX_NATIVE_JSON_DEPTH: usize = 128;
 
 /// Whether `text` nests no deeper than MAX_NATIVE_JSON_DEPTH. Only brackets
 /// outside strings count; whether it is valid JSON is for the native side.
-fn native_json_depth_ok(text: &str) -> bool {
+fn native_json_depth_ok(text: &[u8]) -> bool {
     let (mut depth, mut in_string, mut escaped) = (0usize, false, false);
-    for byte in text.bytes() {
+    for &byte in text {
         if in_string {
             if escaped {
                 escaped = false;

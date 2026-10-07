@@ -10,6 +10,13 @@ impl Actor {
         if self.outgoing_transfer.is_some() {
             return;
         }
+        // The one way a committed checkpoint reaches native code, whether the
+        // watcher or the proposal's completion found it. Nested past what the
+        // native side can copy, it is never replayable: passed over once.
+        if !native_json_depth_ok(&transfer.bytes) {
+            self.last_exported_revision = self.last_exported_revision.max(transfer.revision);
+            return;
+        }
         self.outgoing_transfer = Some(OutgoingCheckpoint {
             transfer,
             next_offset: 0,
@@ -283,12 +290,6 @@ impl Actor {
         let Some(base_revision) = committed.revision().checked_sub(1) else {
             return Ok(());
         };
-        if !native_json_depth_ok(committed.checkpoint()) {
-            // Nested past what the native side can copy, so never replayable;
-            // passed over once rather than scanned again on every tick.
-            self.last_exported_revision = committed.revision();
-            return Ok(());
-        }
         let transfer = CheckpointTransfer::new(
             recovery.room,
             transfer_id,

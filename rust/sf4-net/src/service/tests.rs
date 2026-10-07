@@ -7465,16 +7465,118 @@ async fn a_short_link_that_cannot_be_opened_says_why() {
     own.close().await;
 }
 
+fn nested_json(depth: usize) -> String {
+    format!("{}{}", "[".repeat(depth), "]".repeat(depth))
+}
+
 #[test]
 fn json_nested_past_the_native_limit_is_not_handed_on() {
-    let nested = |depth: usize| format!("{}{}", "[".repeat(depth), "]".repeat(depth));
-    assert!(native_json_depth_ok(&nested(MAX_NATIVE_JSON_DEPTH)));
-    assert!(!native_json_depth_ok(&nested(MAX_NATIVE_JSON_DEPTH + 1)));
-    assert!(!native_json_depth_ok(&format!("{{\"a\":{}", "{".repeat(64 * 1024))));
+    let ok = |text: &str| native_json_depth_ok(text.as_bytes());
+    assert!(ok(&nested_json(MAX_NATIVE_JSON_DEPTH)));
+    assert!(!ok(&nested_json(MAX_NATIVE_JSON_DEPTH + 1)));
+    assert!(!ok(&format!("{{\"a\":{}", "{".repeat(64 * 1024))));
     // Brackets inside strings, escaped quotes included, are text.
     let quoted = format!("{{\"name\":\"\\\"{}\"}}", "[".repeat(1000));
-    assert!(native_json_depth_ok(&quoted));
-    assert!(native_json_depth_ok(r#"{"kind":"room","members":[{"data":{"name":"a]]]"}}]}"#));
+    assert!(ok(&quoted));
+    assert!(ok(r#"{"kind":"room","members":[{"data":{"name":"a]]]"}}]}"#));
+}
+
+/// Both paths that find a committed checkpoint, the watcher and the
+/// proposal's completion, export it through `start_outgoing_checkpoint`.
+#[tokio::test]
+async fn a_checkpoint_nested_past_the_native_limit_is_passed_over_once() {
+    let endpoint = endpoint().await;
+    let (events, mut receiver) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let mut actor = test_actor(endpoint.clone(), events);
+    let room = [46; 16];
+    actor.epoch = 1;
+    actor.room = Some(room);
+    let deep = nested_json(MAX_NATIVE_JSON_DEPTH + 1).into_bytes();
+    let deep = CheckpointTransfer::new(room, 17, 3, 7, 8, deep).unwrap();
+
+    actor.start_outgoing_checkpoint(deep);
+
+    assert!(actor.outgoing_transfer.is_none());
+    assert_eq!(actor.last_exported_revision, 8);
+    assert!(receiver.try_recv().is_err());
+    // The next revision exports as usual.
+    let next = CheckpointTransfer::new(room, 18, 3, 8, 9, b"{\"checkpoint\":{}}".to_vec()).unwrap();
+    actor.start_outgoing_checkpoint(next);
+    assert!(matches!(
+        receiver.recv().await,
+        Some(Event::CheckpointBegin { transfer: 18, revision: 9, .. })
+    ));
+    endpoint.close().await;
+}
+
+/// A peer's message nested past the limit, bare or as a native control's
+/// payload, is dropped; the route stays open and later messages arrive.
+#[tokio::test]
+async fn a_control_message_nested_past_the_native_limit_is_dropped() {
+    timeout(Duration::from_secs(60), async {
+        let mut fixture = ReservationFixture::start().await;
+        let remote_id = fixture.remote.id();
+        let (remote_side, accepted) = tokio::join!(
+            async {
+                let connection = fixture
+                    .remote
+                    .connect(address(&fixture.host), CONTROL_ALPN)
+                    .await
+                    .unwrap();
+                transport::connect_control_on(connection, &fixture.invite)
+                    .await
+                    .unwrap()
+            },
+            async {
+                let connection = fixture.host.accept().await.unwrap().await.unwrap();
+                transport::accept_control(connection, &fixture.invite)
+                    .await
+                    .unwrap()
+            }
+        );
+        fixture
+            .actor
+            .controls
+            .insert(remote_id, ControlWorker::start(accepted));
+        let remote_worker = ControlWorker::start(remote_side);
+        let deep = nested_json(MAX_NATIVE_JSON_DEPTH + 1);
+        // A native control carries its payload as a JSON string or as raw JSON.
+        let quoted = serde_json::json!({
+            "type": "native_control",
+            "message_id": 7,
+            "payload": deep,
+        })
+        .to_string();
+        let raw = format!(r#"{{"type":"native_control","message_id":8,"payload":{deep}}}"#);
+        for (offset, payload) in [deep.clone(), quoted, raw, "[\"after\"]".to_string()]
+            .into_iter()
+            .enumerate()
+        {
+            remote_worker
+                .try_send(ControlFrame {
+                    message_id: TRANSPORT_MESSAGE_ID_BASE + offset as u64,
+                    payload: payload.into_bytes(),
+                })
+                .unwrap();
+        }
+        let mut delivered = Vec::new();
+        while !delivered.iter().any(|payload: &String| payload == "[\"after\"]") {
+            fixture.actor.poll_controls().await.unwrap();
+            while let Ok(event) = fixture.events.try_recv() {
+                match event {
+                    Event::Message { payload, .. } => delivered.push(payload),
+                    Event::ControlClosed { .. } => panic!("the route closed"),
+                    _ => (),
+                }
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        assert_eq!(delivered, vec!["[\"after\"]".to_string()]);
+        assert!(fixture.actor.controls.contains_key(&remote_id));
+        drop(remote_worker);
+    })
+    .await
+    .unwrap();
 }
 
 mod join_deadline;
