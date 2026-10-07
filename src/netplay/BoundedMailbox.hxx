@@ -46,6 +46,11 @@ public:
         return rejections_;
     }
 
+    bool Empty() const {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return queue_.empty();
+    }
+
 private:
     const size_t maxItems_;
     const size_t maxBytes_;

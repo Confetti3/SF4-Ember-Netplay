@@ -194,6 +194,9 @@ public:
     }
     virtual bool ReadyForMatch() const;
     bool ProposalInFlight() const { return !proposalBytes_.empty(); }
+    // A received commit is being decoded on the worker thread, or is staged
+    // and not yet activated: work that completes without a helper event.
+    bool CheckpointPending() const { return !decoding_.empty() || !committedCheckpoints_.empty(); }
     bool RequestProbe(const std::string& peer, std::uint64_t request, std::uint64_t pairRevision, bool benchmark=false);
     Connection ConnectionForIdentity(const std::string& identity) const;
     std::map<Connection,std::string> ControlIdentities() const;

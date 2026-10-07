@@ -47,6 +47,10 @@ public:
 	// is the reason for the closed line.
 	bool Tick(std::uint64_t nowMs);
 	bool Hosted() const { return hosted_; }
+	// Hosted, empty and with nothing in flight: no proposal, decode, ban or
+	// timer waits on the next tick, so the caller may tick slowly until a
+	// helper event arrives.
+	bool Quiet() const;
 	// True once the room ends on its own: the room model closed it (a kick at the
 	// ban cap) or its last member left with a Leave. The host then says closed
 	// with CloseReason(), runs the close sequence and exits.
@@ -86,6 +90,8 @@ private:
 	std::set<std::string> forwardedBans_;
 	// When each ban not yet given to the helper was first seen.
 	std::map<std::string, std::uint64_t> pendingBans_;
+	// The snapshot and applied revisions the last Report looked at; see Report.
+	std::uint64_t reportedSnapshotRevision_ = 0, reportedAppliedRevision_ = 0;
 	struct Reported {
 		std::size_t members = 0, tablesPlaying = 0;
 		std::string invitation;

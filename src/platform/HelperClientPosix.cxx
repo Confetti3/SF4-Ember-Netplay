@@ -29,11 +29,20 @@ bool SetNonBlocking(int fd) {
 
 HelperClient::HelperClient() : outgoing_(MaxMessages, MaxQueuedBytes), incoming_(MaxMessages, MaxQueuedBytes) {
     if (pipe(stopPipe_) != 0) { stopPipe_[0] = stopPipe_[1] = -1; }
+    // The wake pipe only ever holds "look at the queue"; a full one has said
+    // it already, so both ends are nonblocking and a failed write is fine.
+    if (pipe(wakePipe_) != 0 || !SetNonBlocking(wakePipe_[0]) || !SetNonBlocking(wakePipe_[1])) {
+        CloseFd(wakePipe_[0]); CloseFd(wakePipe_[1]);
+    }
 }
-HelperClient::~HelperClient() { Stop(); CloseFd(stopPipe_[0]); CloseFd(stopPipe_[1]); }
+HelperClient::~HelperClient() {
+    Stop();
+    CloseFd(stopPipe_[0]); CloseFd(stopPipe_[1]);
+    CloseFd(wakePipe_[0]); CloseFd(wakePipe_[1]);
+}
 
 bool HelperClient::Start(int readFd, int writeFd) {
-    if (stopPipe_[0] < 0 || started_ || worker_.joinable() || state_ != HelperState::Stopped || readFd < 0 || writeFd < 0) { return false; }
+    if (stopPipe_[0] < 0 || wakePipe_[0] < 0 || started_ || worker_.joinable() || state_ != HelperState::Stopped || readFd < 0 || writeFd < 0) { return false; }
     // Blocking descriptors would let one write of a large frame wait on a helper
     // that has stopped reading, past the deadline and the stop signal. With these
     // two nonblocking, Transfer takes what the pipe has room for and polls again.
@@ -56,6 +65,8 @@ bool HelperClient::Send(const std::string& payload, uint64_t* requestId) {
     if (!outgoing_.TryPush(std::move(message), payload.size())) { return false; }
     if (requestId) { *requestId = nextId_; }
     ++nextId_;
+    const char byte = 0;
+    while (write(wakePipe_[1], &byte, 1) < 0 && errno == EINTR) {}
     return true;
 }
 
@@ -119,48 +130,60 @@ bool HelperClient::ReadFrame(int fd, HelperMessage& message) {
     return Transfer(fd, &message.payload[0], message.payload.size(), false);
 }
 
-// The same loop as the Windows worker: bounded writes, then one read when the
+// The same work as the Windows worker: bounded writes, then one read when the
 // helper has written, with one frame held back while the incoming mailbox is
-// full so the helper feels the backpressure instead of losing an event.
+// full so the helper feels the backpressure instead of losing an event. Unlike
+// that worker it does not look every 2 ms: each pass waits in one poll for the
+// stop signal, a Send (the wake pipe) or the helper's output, so a room with
+// nothing happening costs nothing. Only a held-back frame is retried on a timer,
+// since the mailbox's consumer gives no signal when it makes room.
 void HelperClient::Run(int readFd, int writeFd) {
     uint64_t lastReceived = 1;
     HelperMessage pendingIncoming;
     bool hasPendingIncoming = false;
-    const auto stopping = [this](int waitMs) {
-        pollfd stop = {}; stop.fd = stopPipe_[0]; stop.events = POLLIN;
-        return poll(&stop, 1, waitMs) > 0;
-    };
-    while (!stopping(0)) {
-        HelperMessage message;
+    const auto failed = [this](int error) { if (!error_) error_ = error; state_ = HelperState::Failed; NotifyIncoming(); };
+    for (;;) {
         OutgoingMessage sending;
         for (size_t i = 0; i < 8 && outgoing_.TryPop(sending); ++i) {
             const bool written = WriteFrame(writeFd, sending);
             WipeText(sending.payload);
-            if (!written) { state_ = HelperState::Failed; return; }
+            if (!written) { failed(error_); return; }
         }
         if (hasPendingIncoming) {
             const size_t size = pendingIncoming.payload.size();
             if (incoming_.TryPush(pendingIncoming, size)) {
                 pendingIncoming = {};
                 hasPendingIncoming = false;
-            } else {
-                stopping(2);
-                continue;
+                NotifyIncoming();
             }
         }
-        pollfd readable = {}; readable.fd = readFd; readable.events = POLLIN;
-        const int ready = poll(&readable, 1, 0);
-        if (ready < 0 && errno != EINTR) { error_ = errno; state_ = HelperState::Failed; return; }
-        if (ready > 0) {
+        // More than one bounded batch queued: write again before waiting.
+        const int timeout = hasPendingIncoming ? 2 : outgoing_.Empty() ? -1 : 0;
+        pollfd waits[3] = {};
+        waits[0].fd = stopPipe_[0]; waits[0].events = POLLIN;
+        waits[1].fd = wakePipe_[0]; waits[1].events = POLLIN;
+        // Not read while a frame is held back, so the helper feels the backpressure.
+        waits[2].fd = hasPendingIncoming ? -1 : readFd; waits[2].events = POLLIN;
+        const int ready = poll(waits, 3, timeout);
+        if (ready < 0) { if (errno == EINTR) continue; failed(errno); return; }
+        if (waits[0].revents) { return; }
+        if (waits[1].revents) {
+            char drained[64];
+            while (read(wakePipe_[0], drained, sizeof drained) > 0) {}
+        }
+        if (waits[2].revents) {
+            HelperMessage message;
             // POLLHUP with nothing to read is the helper gone: ReadFrame fails on it.
-            if (!ReadFrame(readFd, message) || message.id <= lastReceived) { if (!error_) error_ = EBADMSG; state_ = HelperState::Failed; return; }
+            if (!ReadFrame(readFd, message) || message.id <= lastReceived) { failed(EBADMSG); return; }
             lastReceived = message.id;
             const size_t size = message.payload.size();
-            if (!incoming_.TryPush(message, size)) {
+            if (incoming_.TryPush(message, size)) {
+                NotifyIncoming();
+            } else {
                 pendingIncoming = std::move(message);
                 hasPendingIncoming = true;
             }
-        } else { stopping(2); }
+        }
     }
 }
 

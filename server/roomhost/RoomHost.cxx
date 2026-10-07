@@ -191,6 +191,16 @@ void RoomHost::Report(std::uint64_t nowMs) {
 	}
 	const auto* snapshot = server_->RoomSnapshot();
 	if (!snapshot) return;
+	// Everything reported comes from the snapshot (which moves its revision on
+	// every change), the committed bans (which change with a commit) and the
+	// invitation. While none has moved and no ban or commit is pending, the
+	// report would compare equal, so the copies below are not made.
+	const auto appliedRevision = recovery_.AppliedRevision();
+	if (haveReported_ && snapshot->revision == reportedSnapshotRevision_ && appliedRevision == reportedAppliedRevision_ &&
+		invitation_ == reported_.invitation && pendingBans_.empty() && !server_->HasRecoveryCandidate() &&
+		!server_->PendingProposal() && (closing_ || !snapshot->closed)) return;
+	reportedSnapshotRevision_ = snapshot->revision;
+	reportedAppliedRevision_ = appliedRevision;
 	Reported current;
 	current.members = snapshot->members.size();
 	for (const auto& table : snapshot->tables)
@@ -211,6 +221,14 @@ void RoomHost::Report(std::uint64_t nowMs) {
 	emit_(line);
 	reported_ = std::move(current);
 	haveReported_ = true;
+}
+
+bool RoomHost::Quiet() const {
+	if (!hosted_ || closing_ || !server_ || !pendingBans_.empty() || recoveryFailedSinceMs_) return false;
+	if (room_->ProposalInFlight() || room_->CheckpointPending()) return false;
+	if (server_->HasRecoveryCandidate() || server_->PendingProposal()) return false;
+	const auto* snapshot = server_->RoomSnapshot();
+	return snapshot && snapshot->members.empty() && !snapshot->closed;
 }
 
 bool RoomHost::Tick(std::uint64_t nowMs) {

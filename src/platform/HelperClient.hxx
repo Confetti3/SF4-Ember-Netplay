@@ -5,6 +5,8 @@
 #include "../netplay/BoundedMailbox.hxx"
 #include "../common/WipeText.hxx"
 #include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <mutex>
 #include <thread>
 
@@ -46,9 +48,25 @@ public:
 #endif
     bool Send(const std::string& payload, uint64_t* requestId = nullptr);
     bool TryReceive(HelperMessage& message) { return incoming_.TryPop(message); }
+    // Returns when the worker has queued an event since the last call, or
+    // after `timeoutMs`. A consumer that drains with TryReceive and then waits
+    // here sleeps until there is something to do instead of polling: an
+    // event that arrived between the drain and the wait returns at once.
+    void WaitForIncoming(unsigned timeoutMs) {
+        std::unique_lock<std::mutex> lock(arrivalMutex_);
+        if (arrivals_ == arrivalsSeen_) {
+            arrival_.wait_for(lock, std::chrono::milliseconds(timeoutMs), [this] { return arrivals_ != arrivalsSeen_; });
+        }
+        arrivalsSeen_ = arrivals_;
+    }
     HelperState State() const { return state_.load(); }
     void Stop();
 private:
+    // The worker, after pushing to incoming_ or when it fails.
+    void NotifyIncoming() {
+        { std::lock_guard<std::mutex> lock(arrivalMutex_); ++arrivals_; }
+        arrival_.notify_all();
+    }
 #ifdef _WIN32
     void Run(HelperBootstrap bootstrap);
     bool Transfer(HANDLE pipe, void* data, DWORD size, bool write);
@@ -64,6 +82,9 @@ private:
     // The worker polls the read end beside the helper's pipe; Stop writes to
     // the other end, and the pipe's own fds are closed only once it has gone.
     int stopPipe_[2] = {-1, -1};
+    // Send writes a byte here after queueing, so the worker wakes to write
+    // instead of looking at the queue on a timer.
+    int wakePipe_[2] = {-1, -1};
     int readFd_ = -1, writeFd_ = -1;
     std::atomic<int> error_{0};
 #endif
@@ -74,6 +95,9 @@ private:
     bool started_ = false;
     netplay::BoundedMailbox<OutgoingMessage> outgoing_;
     netplay::BoundedMailbox<HelperMessage> incoming_;
+    std::mutex arrivalMutex_;
+    std::condition_variable arrival_;
+    uint64_t arrivals_ = 0, arrivalsSeen_ = 0;
 };
 
 } }

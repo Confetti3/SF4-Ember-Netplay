@@ -161,6 +161,7 @@ void HelperClient::Run(HelperBootstrap bootstrap) {
             if (incoming_.TryPush(pendingIncoming, size)) {
                 pendingIncoming = {};
                 hasPendingIncoming = false;
+                NotifyIncoming();
             } else {
                 WaitForSingleObject(stop_, 2);
                 continue;
@@ -175,7 +176,7 @@ void HelperClient::Run(HelperBootstrap bootstrap) {
             if (!incoming_.TryPush(message, size)) {
                 pendingIncoming = std::move(message);
                 hasPendingIncoming = true;
-            }
+            } else { NotifyIncoming(); }
         } else { WaitForSingleObject(stop_, 2); }
     }
 }
