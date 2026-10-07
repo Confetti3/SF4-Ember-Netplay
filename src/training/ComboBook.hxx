@@ -17,7 +17,7 @@ namespace sf4e { namespace combo {
 constexpr int FormatVersion = 1;
 constexpr const char* FormatName = "sf4e-combos";
 // Imported text comes from other players, so every size is bounded.
-constexpr std::size_t MaxBytes = 256 * 1024, MaxPacks = 64, MaxCombos = 256, MaxSteps = 400, MaxText = 96, MaxNotes = 512;
+constexpr std::size_t MaxBytes = 1024 * 1024, MaxPacks = 128, MaxCombos = 256, MaxSteps = 400, MaxText = 96, MaxNotes = 512;
 
 // character: the fighter catalog code, upper case. steps: one move each, in
 // order, in the canonical notation ParseStep accepts ("2MK", "xx 236HP").
@@ -237,12 +237,14 @@ inline std::vector<std::string> Tokens(const std::string& line) {
     std::vector<std::string> tokens;
     std::string text;
     const auto flush = [&] { if (!Clean(text).empty()) tokens.push_back(Clean(text)); text.clear(); };
+    // A new line separates moves as ">" does, so a combo may be typed a move a line.
+    const auto separates = [](char c) { return c == '>' || c == ',' || c == '\n' || c == '\r'; };
     const auto blank = [&](std::size_t at) { return at >= line.size() || static_cast<unsigned char>(line[at]) <= ' ' || line[at] == '>' || line[at] == ','; };
     for (std::size_t i = 0; i < line.size(); ++i) {
         const bool cancel = (line[i] == 'x' || line[i] == 'X') && i + 1 < line.size() && (line[i + 1] == 'x' || line[i + 1] == 'X') &&
             (i == 0 || blank(i - 1)) && blank(i + 2);
         const bool follow = line[i] == '~' && (i == 0 || blank(i - 1)) && blank(i + 1);
-        if (cancel || follow || line[i] == '>' || line[i] == ',') {
+        if (cancel || follow || separates(line[i])) {
             flush();
             if (cancel) { text = "xx "; ++i; }
             if (follow) text = "~ ";

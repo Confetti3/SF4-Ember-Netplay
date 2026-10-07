@@ -193,6 +193,7 @@ MenuInput ReadMenuInput() {
     ApplyMenuGlyphs();
     value.held|=keys; value.keyboard=keys;
     value.acceptText=ImGui::IsKeyPressed(ImGuiKey_Enter,false);
+    value.ctrl=io.KeyCtrl;
     return value;
 }
 void GameMenu::DrawHomeStatusLine(const std::vector<MenuEntry>& entries,const char* status,Tone statusTone,float homeMargin) {

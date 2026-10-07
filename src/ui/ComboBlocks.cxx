@@ -63,6 +63,9 @@ bool AddToPattern(std::vector<std::string>& steps, const std::string& line, cons
 std::size_t FocusedPatternBlock() { return focusedBlock; }
 bool DrawPattern(std::vector<std::string>& steps, const std::vector<MenuEntry>& entries, MenuNavigation& nav, float height, float unit) {
     bool changed = LayOutPattern(steps);
+    ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x);
+    ImGui::TextDisabled("%s", loc::T("training.combo.blocks.guide"));
+    ImGui::PopTextWrapPos();
     const auto& focus = nav.Focus();
     if (focus.compare(0, 4, "blk-") == 0 && focus != "blk-add" && focus != "blk-delete" && focus != "blk-replay")
         focusedBlock = static_cast<std::size_t>(std::atoi(focus.c_str() + 4));

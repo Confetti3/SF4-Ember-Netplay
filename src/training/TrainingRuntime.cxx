@@ -12,6 +12,7 @@
 #include "../sf4e/sf4e__Overlay.hxx"
 #include "../sf4e/sf4e__Pad.hxx"
 #include <mutex>
+#include <random>
 #include <spdlog/spdlog.h>
 
 namespace sf4e { namespace training {
@@ -29,9 +30,21 @@ int exportedSlot = -1;
 std::vector<Input> exported;
 // Reset-on-drop: attempts counted so far and the frames until the restore.
 bool resetOnDrop = false;
+// Where each attempt of the trial starts, when the player prefers a side.
+bool trialPlaced = false; float trialPlace[2] = {0, 0};
 unsigned attemptsSeen = 0;
 int restoreIn = 0;
 std::vector<std::string> trialSteps;
+// The dummy's own behaviour. The plan is the player's and outlives a battle;
+// offline practice only, so the random numbers need not be reproducible.
+DummyPlan dummyPlan;
+DummyWatch dummyWatch;
+std::minstd_rand dummyRandom{std::random_device{}()};
+// The stretch of stun a reply was last decided for, so each gets one roll.
+unsigned decidedStretch = 0;
+// The dummy's Training-menu action while a reply plays, -1 otherwise: the
+// reply is pad input, which the dummy takes while that setting is Stand.
+int replyAction = -1;
 // Normal shutdown owns this worker. Never join a thread from a DLL destructor
 // while Windows holds the loader lock.
 TrainingCapture* capture = nullptr;
@@ -138,7 +151,7 @@ bool PlaceFighters(Native* system, const float* x) {
 // after which the battle is left rather than played on.
 bool RestoreCheckpoint(Native* system) {
     const bool restored = Battle::SaveState::Load(&checkpoint);
-    meter.Reset(); trial.Restart();
+    meter.Reset(); trial.Restart(); dummyWatch.Reset();
     if (!restored) {
         spdlog::error("Training: the checkpoint did not fully restore; leaving the battle");
         *Native::GetReadyState(system) = Native::RS_ISLEAVING;
@@ -225,7 +238,11 @@ void BeforeUpdate(Native* system, bool networkOwned) {
                 (command.trialSteps.size() == command.trial.steps.size() && trial.Load(command.trial, error));
             if (commandAccepted && command.action == Action::StartTrial) {
                 trialSteps = command.trialSteps; resetOnDrop = command.trialResetOnDrop; attemptsSeen = 0; restoreIn = 0;
-                if (command.trialTexts.size() == command.trialSteps.size()) StartNativeList(command.trialFighter, command.trialTexts);
+                trialPlaced = command.trialPlaced; trialPlace[0] = command.place[0]; trialPlace[1] = command.place[1];
+                // The game's list shows eight rows and does not scroll: a longer combo
+                // would hide its later moves, so the overlay's list, which follows the
+                // move being waited for, shows it instead.
+                if (command.trialTexts.size() == command.trialSteps.size() && command.trialSteps.size() <= 8) StartNativeList(command.trialFighter, command.trialTexts);
             }
             // The overlay ran Load on the same trial and showed its refusal; the
             // command carries no request id, so a refusal here is only logged.
@@ -233,7 +250,12 @@ void BeforeUpdate(Native* system, bool networkOwned) {
             continue;
         }
         if (command.generation == session.GetView().generation && command.action == Action::Place) { commandAccepted = PlaceFighters(system, command.place); continue; }
-        if (command.generation == session.GetView().generation && command.action == Action::CaptureStart) { comboCapture.Start(); commandAccepted = true; continue; }
+        if (command.generation == session.GetView().generation && command.action == Action::DummyPlan) {
+            commandAccepted = ValidDummyPlan(command.plan);
+            if (commandAccepted) dummyPlan = command.plan;
+            continue;
+        }
+        if (command.generation == session.GetView().generation && command.action == Action::CaptureStart) { comboCapture.Start(command.value != 0); commandAccepted = true; continue; }
         if (command.generation == session.GetView().generation && command.action == Action::CaptureStop) { comboCapture.Stop(); commandAccepted = true; continue; }
         if (command.generation == session.GetView().generation && command.action == Action::ExportSlot) {
             exportedSlot = session.GetView().selected; exported = session.Slot(exportedSlot); ++exportId; commandAccepted = true; continue;
@@ -275,6 +297,16 @@ void BeforeUpdate(Native* system, bool networkOwned) {
     output = session.Prepare(physical);
     commitInput = true;
     overriding = session.GetView().mode != Mode::Idle;
+}
+// The fighter a player brought into this battle. The battle's request holds
+// a block a player, Player 1's 0x08 into it and Player 2's 0x2C0, and a
+// block starts with the fighter's id: read off a Training battle of Ken (1)
+// against Hakan (33). -1 when it is no fighter's number.
+int BattleFighter(Native* system, int side) {
+    auto** request = Native::GetRequest(system);
+    if (!request || !*request) return -1;
+    const int id = *(const int*)((const char*)*request + (side ? 0x2C0 : 0x08));
+    return id >= 0 && id < 44 ? id : -1;
 }
 void AfterUpdate(Native* system) {
     overriding = false;
@@ -358,15 +390,44 @@ void AfterUpdate(Native* system) {
         meter.Observe(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters);
         trial.Observe(ObserveTrial(fighters[0], fighters[1]));
         comboCapture.Observe(fighters[0], fighters[1]);
+        // The dummy is free again: it may reply, unless that hit finished the
+        // trial's combo, and it may change its stance for the next attempt.
+        // Its stun is timed, so the reply's motion can go in before the free
+        // frame and its button land on it; a stun not seen before is replied
+        // to as it ends.
+        {
+            const DummySeen seen = dummyWatch.Observe(fighters[1], fighters[0].action);
+            int* options = DummyOptions();
+            // Hit again: a reply already begun is dropped, and this stretch decides anew.
+            if (seen.held && seen.stretch != decidedStretch) session.StopReply();
+            const bool typed = !dummyPlan.moves[0].empty();
+            const auto& frames = typed ? dummyPlan.moves[session.GetView().x[1] < session.GetView().x[0] ? 0 : 1] : session.Slot(dummyPlan.slot);
+            const int cause = seen.freed ? seen.freed : seen.held;
+            if (cause && seen.stretch != decidedStretch && ReplyDue(seen, ReplyLead(frames), dummyPlan.timing)) {
+                decidedStretch = seen.stretch;
+                if (!(cause == 1 && trial.GetView().complete) && DummyReplies(dummyPlan, cause, dummyRandom()) &&
+                    (typed ? session.Reply(frames) : session.Reply(dummyPlan.slot)) && options) {
+                    replyAction = options[Manager::OPT_ACTION]; options[Manager::OPT_ACTION] = 0;
+                }
+            }
+            if (seen.freed && dummyPlan.varyStance && options) {
+                int& action = replyAction >= 0 ? replyAction : options[Manager::OPT_ACTION];
+                if (action == 0 || action == 1) action = dummyRandom() & 1;
+            }
+            if (replyAction >= 0 && !session.Replying() && options) { options[Manager::OPT_ACTION] = replyAction; replyAction = -1; }
+        }
         // An attempt just ended: the restore waits long enough for the result
         // to be read, then the next attempt starts from the checkpoint.
         const unsigned attemptsDone = trial.GetView().failures + trial.GetView().successes;
-        if (resetOnDrop && checkpoint.used && attemptsDone != attemptsSeen) { attemptsSeen = attemptsDone; restoreIn = 45; }
-        if (restoreIn && !--restoreIn) RestoreCheckpoint(system);
+        if (resetOnDrop && (checkpoint.used || trialPlaced) && attemptsDone != attemptsSeen) { attemptsSeen = attemptsDone; restoreIn = 45; }
+        if (restoreIn && !--restoreIn) {
+            if (checkpoint.used) RestoreCheckpoint(system);
+            if (trialPlaced) PlaceFighters(system, trialPlace);
+        }
         if (!capture) capture = new TrainingCapture();
         capture->Record(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters, meter.View());
     } else if (sampling && delta != 0) {
-        meter.Reset(); trial.Restart();
+        meter.Reset(); trial.Restart(); dummyWatch.Reset();
         ++gapResets;
     }
     sampling = false;
@@ -376,6 +437,7 @@ void AfterUpdate(Native* system) {
     for (const auto& event : comboCapture.Events()) published.captured.push_back({event.action, event.cancel, event.frame, event.offset});
     published.exportId = exportId; published.exportedSlot = exportedSlot; published.exported = exported;
     published.trialSteps = trialSteps; published.trial = trial.GetView(); published.nativeTrialList = nativeList.live;
+    for (int side = 0; side < 2; ++side) published.fighters[side] = BattleFighter(system, side);
     published.commandId=commandId;published.commandAccepted=commandAccepted;
     if(commandId&&!commandAccepted)published.commandError="Practice state changed. The command was not applied.";
 }
@@ -386,7 +448,7 @@ void CloseBattle() {
     gapResets = 0;
     overriding = false; sampling = false;
     if (checkpoint.used) Battle::SaveState::Free(&checkpoint);
-    session.Reset(); meter.Reset(); EndTrial();
+    session.Reset(); meter.Reset(); EndTrial(); dummyWatch.Reset(); replyAction = -1;
     std::lock_guard<std::mutex> lock(mutex); commands.clear(); published = session.GetView();
 }
 } }

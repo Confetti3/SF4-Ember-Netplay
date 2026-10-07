@@ -82,8 +82,9 @@ inline std::vector<std::int32_t> StepActions(const bcm::File& file, const Step& 
 // - its ids are the scripts of the moves it starts, and every other move's
 //   script those pass into by themselves (a focus attack growing a level);
 // - it has to hit when one of those moves has a hitbox or a projectile;
-// - FADC is its dash. The focus attack before it is left out of the moves
-//   the trial judges, since a cancelled one is not a step of the combo;
+// - FADC is its dash. The focus attack before it is not a step of the combo;
+// - a focus attack and a dash are never wrong moves, so an FADC the combo
+//   does not list still lets it through. As listed steps they are judged;
 // - a step that does not parse or starts no move gets no ids, which the
 //   trial shows as not checked.
 inline training::Trial PracticeTrial(const Fighter& fighter, const Combo& combo) {
@@ -91,6 +92,14 @@ inline training::Trial PracticeTrial(const Fighter& fighter, const Combo& combo)
     const auto& moves = fighter.moves.moves;
     std::vector<std::int32_t> all, focus;
     for (const auto& move : moves) if (move.script >= 0) bac::Add(all, move.script);
+    for (const char* text : {"FADC", "FADC44"}) {
+        Step step, dash;
+        std::string error;
+        if (!ParseStep(text, step, error)) continue;
+        bac::Add(focus, StepActions(fighter.moves, step));
+        dash.motion = step.motion;
+        for (const auto i : StepMoves(fighter.moves, dash)) bac::Add(focus, moves[i].script);
+    }
     for (const auto& text : combo.steps) {
         training::TrialStep made;
         Step step;
@@ -455,6 +464,27 @@ inline bool LoadTrials(const std::filesystem::path& game, const std::string& cod
         if (from) *from = path;
         return clg::Read(bytes.data(), bytes.size(), trials, error);
     }
+    return false;
+}
+// The game's first trials, <CODE>.clg, from before Ultra, with the command
+// and script files that lie beside them and whose ids they use; the current
+// files where none do.
+inline bool LoadFirstTrials(const std::filesystem::path& game, const std::string& code, Fighter& fighter, clg::File& trials, std::string& error) {
+    if (!IsFighterCode(code)) { error = "\"" + Clean(code) + "\" is not a fighter"; return false; }
+    for (const char* layer : {"resource", "dlc/04_ae2", "dlc/03_character_free"}) {
+        const auto folder = game / layer / "battle" / "chara" / code;
+        std::vector<std::uint8_t> bytes;
+        if (!ReadFile(folder / (code + ".clg"), clg::MaxBytes, bytes, error) || !clg::Read(bytes.data(), bytes.size(), trials, error)) continue;
+        bcm::File moves;
+        bac::File scripts;
+        if (ReadFile(folder / (code + ".bcm"), bcm::MaxBytes, bytes, error) && bcm::Read(bytes.data(), bytes.size(), moves, error) &&
+            ReadFile(folder / (code + ".bac"), bac::MaxBytes, bytes, error) && bac::Read(bytes.data(), bytes.size(), scripts, error)) {
+            fighter = MakeFighter(std::move(moves), std::move(scripts));
+            return true;
+        }
+        return LoadFighter(game, code, fighter, error);
+    }
+    error = "the game has no first trials for " + code;
     return false;
 }
 // Writes the trial file as folder/<CODE>_swan.clg, making the folder.

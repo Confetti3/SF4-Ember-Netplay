@@ -374,6 +374,23 @@ int main() {
         // The same move again, after a neutral frame, is a second move.
         capture.Start(); frames(16, 300, 5); frames(0, 0, 1); frames(16, 300, 5);
         CHECK(capture.Events().size() == 2 && !capture.Events()[1].cancel);
+        // Asked to stop on a drop, the capture ends when the fighter being hit is free again.
+        {
+            ComboCapture dropped; FighterSample own, foe; own.valid = foe.valid = true;
+            auto both = [&](unsigned status, int action, unsigned foeStatus, int count) { own.status = status; own.action = action; foe.status = foeStatus; for (int i = 0; i < count; ++i) dropped.Observe(own, foe); };
+            dropped.Start(true);
+            both(16, 300, 0, 4); both(16, 300, 21, 6); both(16, 310, 21, 5);
+            CHECK(dropped.Active() && dropped.Events().size() == 2);
+            both(0, 0, 0, 1); both(16, 300, 0, 4);
+            CHECK(!dropped.Active() && dropped.Events().size() == 2);
+            // Left alone it goes on, and writes the retry down too.
+            dropped.Start(); both(16, 300, 21, 6); both(0, 0, 0, 2); both(16, 310, 0, 4);
+            CHECK(dropped.Active() && dropped.Events().size() == 2);
+        }
+        // A dash is a move: out of a focus attack it is a cancel, and what comes after it links.
+        capture.Start(); frames(16, 300, 6); frames(16, 325, 4); frames(12, 18, 10); frames(16, 310, 5); frames(0, 0, 3); frames(13, 19, 8);
+        CHECK(capture.Events().size() == 5 && capture.Events()[2].action == 18 && capture.Events()[2].cancel);
+        CHECK(capture.Events()[3].action == 310 && !capture.Events()[3].cancel && capture.Events()[4].action == 19 && !capture.Events()[4].cancel);
     }
     return 0;
 }

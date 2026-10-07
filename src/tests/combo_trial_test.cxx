@@ -212,9 +212,9 @@ int main() {
         CHECK(made.steps.size() == 7);
         CHECK(made.steps[0].ids == Ids{256} && made.steps[0].mustHit);
         CHECK((sorted(made.steps[1].ids) == Ids{384, 385, 386}) && made.steps[1].mustHit); // a projectile hits too
-        // FADC is its dash, and the focus attack it cancels is no move of this trial.
+        // FADC is its dash. The focus attack it cancels and a dash are never wrong moves.
         CHECK(made.steps[2].ids == Ids{18} && !made.steps[2].mustHit);
-        CHECK((sorted(made.moves) == Ids{18, 256, 262, 322, 384, 385, 386, 387, 420, 436, 440}));
+        CHECK((sorted(made.moves) == Ids{256, 262, 322, 384, 385, 386, 387, 420, 436, 440}));
         // The focus attack passes into its next level by itself; 437 is no move.
         CHECK((sorted(made.steps[3].ids) == Ids{322, 325}) && made.steps[3].mustHit);
         CHECK(made.steps[4].ids == Ids{436} && made.steps[4].mustHit);
@@ -222,7 +222,8 @@ int main() {
         CHECK(made.steps[5].ids.empty() && made.steps[6].ids.empty());
         const training::Trial dash = combo::PracticeTrial(fighter, {"", "RYU", "", {"66", "5LP"}});
         CHECK(dash.steps[0].ids == Ids{18} && !dash.steps[0].mustHit && (sorted(dash.steps[1].ids) == Ids{256, 262}));
-        CHECK(std::find(dash.moves.begin(), dash.moves.end(), 325) != dash.moves.end());
+        // Nor in a combo that lists no FADC: one done anyway does not fail it.
+        CHECK(std::find(dash.moves.begin(), dash.moves.end(), 325) == dash.moves.end() && std::find(dash.moves.begin(), dash.moves.end(), 18) == dash.moves.end());
         CHECK(combo::PracticeTrial(fighter, {}).steps.empty());
 
         // Played through the trial: jab, Hadoken, focus cancel, dash.
@@ -414,11 +415,20 @@ int main() {
             "ELN", "FLN", "GEN", "GKI", "GKN", "GKX", "GUL", "GUY", "HKN", "HND", "HUG", "HWK", "IBK", "JHA", "JRI", "KEN", "MKT", "PSN", "RIC",
             "RLN", "ROS", "RYU", "RYX", "SGT", "SKR", "VEG", "YAN", "YUN", "ZGF"};
         int fighters = 0, rows = 0, same = 0, levels = 0, combos = 0, steps = 0, said = 0, practised = 0, judged = 0;
+        int firstLevels = 0, firstCombos = 0;
         for (const std::string code : codes) {
             combo::Fighter real;
             clg::File theirs, rebuilt, back;
             CHECK(combo::LoadFighter(installed, code, real, error));
             std::printf("%s: %s\n", code.c_str(), combo::CommandFolder(installed, code).lexically_relative(installed).generic_string().c_str());
+            {
+                // The first trials read with the files of their own time.
+                combo::Fighter early; clg::File first; std::vector<std::string> skipped;
+                if (combo::LoadFirstTrials(installed, code, early, first, error)) {
+                    const auto pack = combo::ReadTrials(first, early, code, code, skipped);
+                    firstLevels += static_cast<int>(first.levels.size()); firstCombos += static_cast<int>(pack.combos.size());
+                }
+            }
             if (!combo::LoadTrials(installed, code, theirs, error)) continue;
             issues.clear();
             const combo::Pack read = combo::ReadTrials(theirs, real, code, code, issues);
@@ -448,6 +458,8 @@ int main() {
             ++fighters;
         }
         CHECK(fighters == 44);
+        std::printf("first trials: %d of %d whole\n", firstCombos, firstLevels);
+        CHECK(firstCombos > 0);
         std::printf("%d fighters: %d of %d trial rows said as notation, %d of %d trials whole; %d of %d rows rebuilt as the game wrote them\n",
             fighters, said, steps, combos, levels, same, rows);
         // Not worse than the figures of the 1.11/1.10 folders the program names.

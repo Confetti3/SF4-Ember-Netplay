@@ -1166,7 +1166,7 @@ msgid "training.recording_loaded"
 msgstr "Recording {0} loaded into slot {1}."
 
 msgid "training.recording_none"
-msgstr "No saved recordings."
+msgstr "None saved."
 
 msgid "training.replay_chip"
 msgstr "F8 Replay slot {0}"
@@ -1199,7 +1199,7 @@ msgid "training.combo.pack"
 msgstr "Pack"
 
 msgid "training.combo.pack.detail"
-msgstr "Combos in this pack: {0}. Left and Right change the pack."
+msgstr "A pack of this fighter's combos; it holds {0} of them. Left and Right go through the fighter's packs."
 
 msgid "training.combo.new_pack"
 msgstr "New pack"
@@ -1211,7 +1211,7 @@ msgid "training.combo.fighter"
 msgstr "Fighter"
 
 msgid "training.combo.fighter.detail"
-msgstr "The fighter the combo is for. Move names are read as this fighter's."
+msgstr "The fighter the packs and combos below belong to: only that fighter's are shown and can be selected. It follows Player 1 when a battle starts; Left and Right pick another to look at or write for."
 
 msgid "training.combo.name"
 msgstr "Combo name"
@@ -1223,10 +1223,22 @@ msgid "training.combo.notes"
 msgstr "Notes"
 
 msgid "training.combo.add"
-msgstr "Add combo"
+msgstr "Add as new combo"
 
 msgid "training.combo.add.detail"
-msgstr "Adds the moves to the pack. Example: cr.MK xx HP Hadoken > FADC > cl.HP"
+msgstr "Asks for a name, then adds the moves to the selected pack as a new combo. The selected combo is left as it is; Save combo is the one that writes over it. Example moves: cr.MK xx HP Hadoken > FADC > cl.HP"
+
+msgid "training.combo.add.unnamed"
+msgstr "no name yet"
+
+msgid "training.combo.capture.drop"
+msgstr "Record stops on drop"
+
+msgid "training.combo.capture.drop.detail"
+msgstr "On: Record combo ends the moment the other fighter is free again, so one recording is one combo and a retry after a drop is not written down behind it. Off: it runs until nothing happens for a second and a half, for setups and sequences that are not one combo."
+
+msgid "training.combo.trials_loaded"
+msgstr "{0} had no combos yet: the game's {1} trials were read in."
 
 msgid "training.combo.save"
 msgstr "Save combo"
@@ -1301,7 +1313,7 @@ msgid "training.combo.import_trials"
 msgstr "Import game trials"
 
 msgid "training.combo.import_trials.detail"
-msgstr "Reads the game's own Ultra trials for the fighter chosen above into a pack named after the fighter, so the tree shows the game's routes."
+msgstr "Reads the game's own trials for the fighter chosen above into two packs named after the fighter: its Ultra Street Fighter 4 trials, and the Street Fighter 4 trials the game still carries from before Ultra. A fighter with no pack gets them by itself when a battle starts."
 
 msgid "training.combo.export_trial"
 msgstr "Export pack as trial file"
@@ -1504,6 +1516,177 @@ msgstr "Plays the pattern on its frames."
 msgid "training.combo.blocks.empty"
 msgstr "No moves yet. Add one below."
 
+msgid "training.guide"
+msgstr "About this screen"
+
+msgid "training.home.guide"
+msgstr "These controls work on the battle you are in. Dummy Recording records pad input onto the dummy and plays it back. Input History lists what each player pressed. Combo creator writes combos down, replays them for you and checks your own attempts as trials. F6 opens and closes the controls, the arrows move, Enter selects and Esc goes back a screen."
+
+msgid "training.recording.guide"
+msgstr "Pick a slot, then Record: Player 1's pad drives the dummy until you stop. Play has the dummy repeat the slot, and Loop keeps it repeating. F7 starts and stops a recording without opening this screen. Slots last for this battle only; Save recording keeps one as a named file and Load recording brings it back."
+
+msgid "training.history.guide"
+msgstr "Each player's pad inputs, newest first, with the frames each one was held. Select a player to read the list. It shows what was pressed, not which move came out."
+
+msgid "training.combo.guide"
+msgstr "1. The fighter on top is Player 1's; its packs and combos are the rows under it. 2. Put the moves on the Moves line: type them, or use Record combo and perform the combo. 3. Add as new combo keeps it in the pack. 4. Edit moves changes it row by row, Edit timing shifts single moves by frames, Replay moves plays it for you. 5. Start trial checks your own attempts. Every row explains itself while it is highlighted."
+
+msgid "training.combo.timing.guide"
+msgstr "One row a move. Left and Right on a move shift its press a frame earlier or later (@N). Replay moves plays the combo, and each row then says what the replay saw: how long it waited and whether the move connected. F8 on a move replays up to that move. Add, Duplicate and Remove work on the move you highlighted last; on a move's row Insert, D and Delete do the same."
+
+msgid "training.combo.moves"
+msgstr "Edit moves"
+
+msgid "training.combo.moves.detail"
+msgstr "The combo's moves beside the moves you can add: drag moves in, reorder them, change a move's strength, stance, cancel or timing, and loop a group of them."
+
+msgid "training.combo.moves.guide"
+msgstr "Left: the combo, a move a row. Middle: the selected move and what can be changed about it. Right: the moves you can add. Drag a move from the right onto the combo and it goes in after the move it lands on; double-click adds it after the selected move. Drag a move of the combo to give it another place. With the keys: Up and Down walk the rows, Select on a move types it anew, and on a move's row Insert adds after it, D duplicates, Delete removes, G puts it in the group. Changes are saved in the selected combo while the Moves line is that combo; otherwise they stay on the Moves line until Add combo or Save combo."
+
+msgid "training.combo.moves.add"
+msgstr "Add after move {0}"
+
+msgid "training.combo.moves.add_first"
+msgstr "Add the first move"
+
+msgid "training.combo.moves.add.detail"
+msgstr "Type one move, or several separated by >, as on the Moves line. They go in after the move you highlighted last. Insert on a move's row opens this."
+
+msgid "training.combo.moves.duplicate"
+msgstr "Duplicate move {0}"
+
+msgid "training.combo.moves.duplicate.detail"
+msgstr "Puts a copy right after the move. D on the move's row does the same."
+
+msgid "training.combo.moves.remove"
+msgstr "Remove move {0}"
+
+msgid "training.combo.moves.remove.detail"
+msgstr "Takes the move out of the combo. Delete on the move's row does the same. A combo keeps at least one move."
+
+msgid "training.combo.moves.move"
+msgstr "Reorder move {0}"
+
+msgid "training.combo.moves.move.value"
+msgstr "Earlier / Later"
+
+msgid "training.combo.moves.move.detail"
+msgstr "Left swaps the move with the one before it, Right with the one after."
+
+msgid "training.combo.moves.row.detail"
+msgstr "Select edits this move. Insert adds a move after it, D duplicates it, Delete removes it, G puts it in the group."
+
+msgid "training.combo.moves.group.start"
+msgstr "Start group at move {0}"
+
+msgid "training.combo.moves.group.extend"
+msgstr "Extend group to move {0}"
+
+msgid "training.combo.moves.group.detail"
+msgstr "A group is a run of neighbouring moves, shown with their numbers in brackets. Start it on one move, highlight another and extend: every move between joins. G on a move's row does the same. The group lasts until you leave this screen."
+
+msgid "training.combo.moves.group.clear"
+msgstr "Clear group {0}"
+
+msgid "training.combo.moves.group.clear.detail"
+msgstr "Forgets the group. Its moves stay in the combo."
+
+msgid "training.combo.moves.group.duplicate"
+msgstr "Duplicate group {0}"
+
+msgid "training.combo.moves.group.duplicate.detail"
+msgstr "Puts a copy of the group's moves right after the group."
+
+msgid "training.combo.moves.group.loops"
+msgstr "Loop count"
+
+msgid "training.combo.moves.group.loops.detail"
+msgstr "How many times in a row the group plays once it is looped. Left and Right change it."
+
+msgid "training.combo.moves.group.loop"
+msgstr "Loop group {0} x{1}"
+
+msgid "training.combo.moves.group.loop.detail"
+msgstr "Repeats the group's moves so they play that many times in a row. The repeats become ordinary rows, so each rep can be timed by itself."
+
+msgid "training.combo.moves.group.remove"
+msgstr "Remove group {0}"
+
+msgid "training.combo.moves.group.remove.detail"
+msgstr "Takes every move of the group out of the combo."
+
+msgid "training.combo.moves.replay.detail"
+msgstr "Plays the moves as they are now. F8 does the same."
+
+msgid "training.combo.moves.limit"
+msgstr "That does not fit: a combo holds 1 to {0} moves."
+
+msgid "training.combo.moves.changed"
+msgstr "The combo now has {0} moves."
+
+msgid "training.combo.moves.column"
+msgstr "Combo"
+
+msgid "training.combo.moves.selected"
+msgstr "Move {0}"
+
+msgid "training.combo.moves.joins"
+msgstr "After the move before it"
+
+msgid "training.combo.moves.joins.link"
+msgstr "Link"
+
+msgid "training.combo.moves.joins.cancel"
+msgstr "Cancel (xx)"
+
+msgid "training.combo.moves.joins.follow"
+msgstr "Follow-up (~)"
+
+msgid "training.combo.moves.strength"
+msgstr "Strength"
+
+msgid "training.combo.moves.stance"
+msgstr "Stance"
+
+msgid "training.combo.moves.offset"
+msgstr "Timing in frames"
+
+msgid "training.combo.moves.type"
+msgstr "Type this move"
+
+msgid "training.combo.moves.addable"
+msgstr "Moves to add"
+
+msgid "training.combo.moves.empty"
+msgstr "No moves yet. Drag one here from the right, or double-click it."
+
+msgid "training.combo.moves.add.fadc"
+msgstr "Focus cancel and dash"
+
+msgid "training.combo.moves.add.rfadc"
+msgstr "Red focus cancel and dash"
+
+msgid "training.combo.moves.add.dash"
+msgstr "Forward dash"
+
+msgid "training.combo.moves.add.backdash"
+msgstr "Back dash"
+
+msgid "training.combo.moves.add.focus"
+msgstr "Focus attack"
+
+msgid "training.combo.moves.add.throw"
+msgstr "Throw"
+
+msgid "training.combo.steps.detail"
+msgstr "Select opens the moves as a text area, a move a line. A new line separates moves just as > does, so the combo reads the same on one line or many. Enter starts a new line there; Ctrl+Enter accepts."
+
+msgid "edit.instructions.area"
+msgstr "Type or paste with the keyboard. Enter starts a new line. Ctrl+Enter or the Accept button accepts; Escape or controller Back cancels."
+
+msgid "training.combo.blocks.guide"
+msgstr "Each block is a move on the frame its button is pressed (#N). Up and Down pick a block, Left and Right move it a frame, and the mouse drags it. A replay from here presses on exactly those frames instead of waiting for each hit, for setups that need fixed timing."
+
 msgid "training.combo.save_pos"
 msgstr "Save position"
 
@@ -1522,6 +1705,21 @@ msgstr "Reset before replay"
 msgid "training.combo.reset_before.detail"
 msgstr "Every replay and trial attempt starts from the saved position; after each attempt the position is restored."
 
+msgid "training.combo.side"
+msgstr "Player 1 starts on"
+
+msgid "training.combo.side.any"
+msgstr "Where they stand"
+
+msgid "training.combo.side.left"
+msgstr "The left"
+
+msgid "training.combo.side.right"
+msgstr "The right"
+
+msgid "training.combo.side.detail"
+msgstr "The side Player 1 has when a replay or a trial attempt starts, and after Reset position. Left or Right turns the saved position, or where the two stand, about the middle of the stage when Player 1 is on the other side: a combo saved in the left corner starts in the right corner. A replay's facing follows from it. Where they stand moves nobody."
+
 msgid "training.combo.position_saved"
 msgstr "Position saved."
 
@@ -1535,7 +1733,7 @@ msgid "training.combo.capture"
 msgstr "Record combo"
 
 msgid "training.combo.capture.detail"
-msgstr "Writes down the moves Player 1 performs into the Moves line, each with how many frames after its cue it was pressed (@N), until nothing happens for a second and a half. Then Add combo or Save combo keeps them."
+msgstr "Writes down the moves Player 1 performs into the Moves line, each with how many frames after its cue it was pressed (@N). It ends when the combo drops, if Record stops on drop is on, and otherwise once nothing happens for a second and a half. Then Add as new combo or Save combo keeps them."
 
 msgid "training.combo.capture_stop"
 msgstr "Stop recording combo"
@@ -1554,6 +1752,87 @@ msgstr "No moves were recorded."
 
 msgid "training.combo.setup.detail"
 msgstr "Left and Right change it; it is set in the game at once and kept with the selected combo. Game setting leaves the Training menu's choice."
+
+msgid "training.combo.reply"
+msgstr "Dummy reply"
+
+msgid "training.combo.reply.detail"
+msgstr "What the dummy does by itself once it is free again, to punish a dropped combo or an unsafe ender: it plays Reply moves, or the reply slot while that line is empty. It waits while a replay or recording runs, and a cleared trial is left alone."
+
+msgid "training.combo.reply.hit"
+msgstr "After a dropped combo"
+
+msgid "training.combo.reply.block"
+msgstr "After blocking"
+
+msgid "training.combo.reply.rise"
+msgstr "On getting up"
+
+msgid "training.combo.reply.any"
+msgstr "Whenever it recovers"
+
+msgid "training.combo.reply.slot"
+msgstr "Reply slot"
+
+msgid "training.combo.reply.slot.detail"
+msgstr "The dummy recording played as the reply while Reply moves is empty, from its first press. Replay moves does not load over it."
+
+msgid "training.combo.reply.chance"
+msgstr "Reply chance"
+
+msgid "training.combo.reply.chance.detail"
+msgstr "How often the dummy replies. Below 100% it varies from one attempt to the next."
+
+msgid "training.combo.vary_stance"
+msgstr "Vary stance"
+
+msgid "training.combo.vary_stance.detail"
+msgstr "Each time the dummy recovers it stands or crouches at random, so the combo is practised on both. Only while the dummy is set to stand or crouch."
+
+msgid "training.combo.keys"
+msgstr "{0} Replay  {1} Reset  {2} Trial  {3} Record"
+
+msgid "training.combo.reply.moves"
+msgstr "Reply moves"
+
+msgid "training.combo.reply.moves.detail"
+msgstr "The reply typed as moves in numpad notation, such as 623HP or 44, read for the side the dummy faces. The motion goes in while the dummy is still held, so the button lands on its first free frame. Empty uses the reply slot."
+
+msgid "training.combo.reply.timing"
+msgstr "Reply timing"
+
+msgid "training.combo.reply.timing.detail"
+msgstr "Frames after the dummy's first free frame that the reply's button lands. How long a stun lasts is learned the first time it is seen; until then the reply starts as the stun ends."
+
+msgid "training.combo.reply.slot_busy"
+msgstr "Slot {0} holds the dummy's reply. Select another slot to replay moves."
+
+msgid "training.combo.key.replay"
+msgstr "Replay key"
+
+msgid "training.combo.key.reset"
+msgstr "Reset key"
+
+msgid "training.combo.key.trial"
+msgstr "Trial key"
+
+msgid "training.combo.key.record"
+msgstr "Record key"
+
+msgid "training.combo.key.save"
+msgstr "Save key"
+
+msgid "training.combo.key.save.detail"
+msgstr "Left and Right pick the key that saves the Moves line as a new combo of the selected pack, over the fight: after Record combo, one press keeps what you just did. It never writes over a combo; Save combo does that. Off leaves it without a key."
+
+msgid "training.combo.key.save.none"
+msgstr "Nothing to save: record or type the moves first."
+
+msgid "training.combo.keys.save"
+msgstr "{0} Save"
+
+msgid "training.combo.key.detail"
+msgstr "Left and Right pick the key that does this over the fight. Off leaves it without one."
 
 msgid "training.combo.setup.game"
 msgstr "Game setting"
@@ -1720,14 +1999,41 @@ msgstr "TRAINING LAB"
 msgid "training.command_rejected"
 msgstr "The practice command was not accepted. Review the state and try again."
 
-msgid "training.start_frames"
-msgstr "Start {0} f"
-
-msgid "training.start_unknown"
-msgstr "Start --"
-
 msgid "training.startup"
 msgstr "Startup"
+
+msgid "training.meter.active"
+msgstr "Active"
+
+msgid "training.meter.recovery"
+msgstr "Recovery"
+
+msgid "training.meter.hit"
+msgstr "Hit"
+
+msgid "training.meter.block"
+msgstr "Block"
+
+msgid "training.meter.whiff"
+msgstr "Whiff"
+
+msgid "training.meter.knockdown"
+msgstr "Knockdown"
+
+msgid "training.meter.wakeup"
+msgstr "Wakeup"
+
+msgid "training.meter.meaty"
+msgstr "Meaty"
+
+msgid "training.meter.throw"
+msgstr "Throw / cinematic"
+
+msgid "training.meter.attack"
+msgstr "Attack"
+
+msgid "training.meter.move"
+msgstr "Move"
 
 msgid "training.neutral"
 msgstr "Neutral"

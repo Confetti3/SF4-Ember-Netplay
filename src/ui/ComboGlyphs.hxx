@@ -52,7 +52,8 @@ inline float Word(ImDrawList* draw, ImVec2 at, float h, const char* text, ImU32 
 // One canonical step at `at`, one text line high. Returns the width used.
 // tint supplies the alpha and the colour of arrows and words; the discs keep
 // their strength colours (light blue, medium yellow, heavy red, any white).
-inline float DrawComboStep(const std::string& step, ImVec2 at, ImU32 tint) {
+// mirror: the arrows as a fighter facing left presses them, 236 drawn as 214.
+inline float DrawComboStep(const std::string& step, ImVec2 at, ImU32 tint, bool mirror = false) {
     using namespace glyphs;
     auto* draw = ImGui::GetWindowDrawList();
     const float h = ImGui::GetTextLineHeight(), gap = h * .12f;
@@ -73,7 +74,8 @@ inline float DrawComboStep(const std::string& step, ImVec2 at, ImU32 tint) {
     else if (parsed.motion == "360" || parsed.motion == "720") word(parsed.motion.c_str());
     else for (std::size_t i = 0; i < parsed.motion.size(); ++i) {
         if (parsed.motion[i] == '5') continue;
-        x += Arrow(draw, ImVec2(x, at.y), h, parsed.motion[i], parsed.charge && i == 0, tint) + gap;
+        const char way = parsed.motion[i], column = static_cast<char>((way - '1') % 3);
+        x += Arrow(draw, ImVec2(x, at.y), h, mirror && way >= '1' && way <= '9' ? static_cast<char>(way + 2 - 2 * column) : way, parsed.charge && i == 0, tint) + gap;
     }
     if (parsed.buttons) {
         if (parsed.edge == combo::Edge::Hold) word("[");

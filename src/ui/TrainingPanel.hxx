@@ -13,6 +13,14 @@ void ShowTrainingRecordings();
 // Where the combo creator keeps its book (combos.json). Until this is set the
 // book lives in memory only, which is what the render tests want.
 void SetComboBookDirectory(std::wstring directory);
+// Puts moves on the combo creator's Moves line, as typing them there does.
+void SetComboMoves(const std::string& line);
+// Replay or stop the combo, reset position, start or stop its trial, record
+// a combo: the combo creator's rows on keys the player picks (F1 to F4 at
+// first), over the fight or the controls. Also sends the dummy's plan each battle.
+void TrainingHotkeys(const training::View& view, const TrainingSubmit& submit);
+// Whether a hotkey sits on the key that many after F1, so the game is not given it.
+bool TrainingHotkeyBound(int fromF1);
 MenuNavigation& TrainingNavigation();
 // Passive, except for its chips: open the controls, replay the selected slot,
 // stop playback. pointer: the pointer is over the chips, so the overlay takes

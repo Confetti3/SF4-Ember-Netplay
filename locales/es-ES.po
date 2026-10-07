@@ -1199,7 +1199,7 @@ msgid "training.combo.pack"
 msgstr "Paquete"
 
 msgid "training.combo.pack.detail"
-msgstr "Combos en este paquete: {0}. Izquierda y Derecha cambian de paquete."
+msgstr "Un paquete de combos de este luchador; contiene {0}. Izquierda y Derecha recorren los paquetes del luchador."
 
 msgid "training.combo.new_pack"
 msgstr "Nuevo paquete"
@@ -1211,7 +1211,7 @@ msgid "training.combo.fighter"
 msgstr "Luchador"
 
 msgid "training.combo.fighter.detail"
-msgstr "El luchador del combo. Los nombres de los golpes se leen como los de este luchador."
+msgstr "El luchador al que pertenecen los paquetes y combos de abajo: solo se muestran y se pueden seleccionar los de ese luchador. Sigue al Jugador 1 cuando empieza un combate; Izquierda y Derecha eligen otro para consultarlo o escribirle combos."
 
 msgid "training.combo.name"
 msgstr "Nombre del combo"
@@ -1223,10 +1223,43 @@ msgid "training.combo.notes"
 msgstr "Notas"
 
 msgid "training.combo.add"
-msgstr "Añadir combo"
+msgstr "Añadir combo nuevo"
 
 msgid "training.combo.add.detail"
-msgstr "Añade los golpes al paquete. Ejemplo: cr.MK xx HP Hadoken > FADC > cl.HP"
+msgstr "Pide un nombre y añade los golpes al paquete seleccionado como combo nuevo. El combo seleccionado se queda como está; Guardar combo es el que lo sobrescribe. Golpes de ejemplo: cr.MK xx HP Hadoken > FADC > cl.HP"
+
+msgid "training.combo.add.unnamed"
+msgstr "aún sin nombre"
+
+msgid "training.combo.capture.drop"
+msgstr "Parar grabación al corte"
+
+msgid "training.combo.capture.drop.detail"
+msgstr "Activado: Grabar combo termina en cuanto el otro luchador vuelve a estar libre, así que una grabación es un combo y un reintento tras un corte no se anota detrás. Desactivado: sigue hasta que pase segundo y medio sin nada, para setups y secuencias que no son un solo combo."
+
+msgid "training.combo.trials_loaded"
+msgstr "{0} aún no tenía combos: se han leído los {1} desafíos del juego."
+
+msgid "training.combo.save"
+msgstr "Guardar combo"
+
+msgid "training.combo.save.detail"
+msgstr "Escribe el nombre, los golpes, las notas y el ajuste del muñeco tal como están sobre el combo seleccionado."
+
+msgid "training.combo.saved"
+msgstr "Combo guardado."
+
+msgid "training.combo.duplicate"
+msgstr "Duplicar combo"
+
+msgid "training.combo.duplicate.detail"
+msgstr "Copia el combo seleccionado en este paquete, justo después, y selecciona la copia."
+
+msgid "training.combo.duplicated"
+msgstr "Combo duplicado."
+
+msgid "training.combo.copy_suffix"
+msgstr "copia"
 
 msgid "training.combo.tree"
 msgstr "Árbol de combos"
@@ -1280,7 +1313,7 @@ msgid "training.combo.import_trials"
 msgstr "Importar desafíos del juego"
 
 msgid "training.combo.import_trials.detail"
-msgstr "Lee los desafíos Ultra del juego para el luchador elegido arriba en un paquete con el nombre del luchador, para que el árbol muestre las rutas del juego."
+msgstr "Lee los desafíos propios del juego para el luchador elegido arriba en dos paquetes con el nombre del luchador: sus desafíos de Ultra Street Fighter 4 y los desafíos de Street Fighter 4 que el juego aún conserva de antes de Ultra. Un luchador sin paquete los recibe solo cuando empieza un combate."
 
 msgid "training.combo.export_trial"
 msgstr "Exportar paquete como archivo de desafíos"
@@ -1384,6 +1417,9 @@ msgstr "Ajuste de timing"
 msgid "training.combo.replay.gap.detail"
 msgstr "Frames que cada golpe sigue esperando tras su señal (el frame libre en un link, el golpe en un cancel), además del ajuste @ propio del golpe, como cr.MK@+1."
 
+msgid "training.combo.replay.stopped"
+msgstr "Reproducción parada."
+
 msgid "training.combo.replay.started"
 msgstr "Reproducción cargada en la ranura {0} y en marcha."
 
@@ -1395,6 +1431,33 @@ msgstr "El combo seleccionado golpe a golpe: el ajuste de cada golpe y lo que vi
 
 msgid "training.combo.timing.replay.detail"
 msgstr "Reproduce el combo seleccionado tal como está, para actualizar el informe de cada golpe."
+
+msgid "training.combo.tune"
+msgstr "Afinar continuaciones"
+
+msgid "training.combo.tune.stop"
+msgstr "Parar afinado"
+
+msgid "training.combo.tune.detail"
+msgstr "Reproduce repetición a repetición, retrasando un frame cada continuación ~ mientras el golpe siguiente siga conectando, y se queda con la más larga que lo logra. Necesita Restablecer al reproducir con una posición guardada."
+
+msgid "training.combo.tune.none"
+msgstr "No hay ninguna continuación ~ con un golpe detrás que afinar."
+
+msgid "training.combo.tune.trying"
+msgstr "Afinando el golpe {0}: probando @{1}."
+
+msgid "training.combo.tune.kept"
+msgstr "El golpe {0} se queda en @{1}."
+
+msgid "training.combo.tune.failed"
+msgstr "Golpe {0}: el golpe siguiente no conecta con ninguna duración probada; su ajuste vuelve a donde estaba. El bucle termina aquí."
+
+msgid "training.combo.tune.done"
+msgstr "Afinado terminado."
+
+msgid "training.combo.tune.stopped"
+msgstr "Afinado parado."
 
 msgid "training.combo.timing.select"
 msgstr "Selecciona un combo primero."
@@ -1453,6 +1516,177 @@ msgstr "Reproduce el patrón en sus frames."
 msgid "training.combo.blocks.empty"
 msgstr "Aún no hay golpes. Añade uno abajo."
 
+msgid "training.guide"
+msgstr "Sobre esta pantalla"
+
+msgid "training.home.guide"
+msgstr "Estos controles actúan sobre el combate en el que estás. Grabar al sparring graba la entrada del mando en el muñeco y la reproduce. Hist. comandos muestra lo que pulsó cada jugador. Creador de combos anota combos, los reproduce por ti y comprueba tus intentos como desafíos. F6 abre y cierra los controles, las flechas mueven, Enter selecciona y Esc vuelve una pantalla atrás."
+
+msgid "training.recording.guide"
+msgstr "Elige una ranura y luego Grabar: el mando del Jugador 1 controla al muñeco hasta que pares. Repro. hace que el muñeco repita la ranura y Repetir la mantiene en bucle. F7 inicia y detiene una grabación sin abrir esta pantalla. Las ranuras duran solo este combate; Guardar grabación como conserva una en un archivo con nombre y Cargar grabación la recupera."
+
+msgid "training.history.guide"
+msgstr "Las entradas del mando de cada jugador, las más recientes primero, con los frames que se mantuvo cada una. Selecciona un jugador para leer la lista. Muestra lo que se pulsó, no qué golpe salió."
+
+msgid "training.combo.guide"
+msgstr "1. El luchador de arriba es el del Jugador 1; sus paquetes y combos son las filas de debajo. 2. Pon los golpes en la línea Golpes: escríbelos, o usa Grabar combo y ejecuta el combo. 3. Añadir combo nuevo lo guarda en el paquete. 4. Editar golpes lo cambia fila a fila, Editar timing desplaza golpes sueltos por frames y Reproducir golpes lo ejecuta por ti. 5. Iniciar desafío comprueba tus intentos. Cada fila se explica sola mientras está resaltada."
+
+msgid "training.combo.timing.guide"
+msgstr "Una fila por golpe. Izquierda y Derecha sobre un golpe adelantan o retrasan su pulsación un frame (@N). Reproducir golpes ejecuta el combo, y cada fila dice luego lo que vio la reproducción: cuánto esperó y si el golpe conectó. F8 sobre un golpe reproduce hasta ese golpe. Añadir, Duplicar y Quitar actúan sobre el último golpe que resaltaste; en la fila de un golpe, Insert, D y Delete hacen lo mismo."
+
+msgid "training.combo.moves"
+msgstr "Editar golpes"
+
+msgid "training.combo.moves.detail"
+msgstr "Los golpes del combo junto a los que puedes añadir: arrastra golpes, reordénalos, cambia la fuerza, la postura, el cancel o el timing de un golpe y repite un grupo de ellos."
+
+msgid "training.combo.moves.guide"
+msgstr "Izquierda: el combo, un golpe por fila. Centro: el golpe seleccionado y lo que se puede cambiar de él. Derecha: los golpes que puedes añadir. Arrastra un golpe de la derecha al combo y entra después del golpe sobre el que cae; con doble clic se añade después del golpe seleccionado. Arrastra un golpe del combo para cambiarlo de sitio. Con las teclas: Arriba y Abajo recorren las filas, Seleccionar sobre un golpe lo escribe de nuevo, y en la fila de un golpe Insert añade después, D duplica, Delete quita y G lo mete en el grupo. Los cambios se guardan en el combo seleccionado mientras la línea Golpes sea ese combo; si no, se quedan en la línea Golpes hasta Añadir combo nuevo o Guardar combo."
+
+msgid "training.combo.moves.add"
+msgstr "Añadir tras el golpe {0}"
+
+msgid "training.combo.moves.add_first"
+msgstr "Añadir el primer golpe"
+
+msgid "training.combo.moves.add.detail"
+msgstr "Escribe un golpe, o varios separados por >, como en la línea Golpes. Entran después del último golpe que resaltaste. Insert en la fila de un golpe abre esto."
+
+msgid "training.combo.moves.duplicate"
+msgstr "Duplicar golpe {0}"
+
+msgid "training.combo.moves.duplicate.detail"
+msgstr "Pone una copia justo después del golpe. D en la fila del golpe hace lo mismo."
+
+msgid "training.combo.moves.remove"
+msgstr "Quitar golpe {0}"
+
+msgid "training.combo.moves.remove.detail"
+msgstr "Quita el golpe del combo. Delete en la fila del golpe hace lo mismo. Un combo conserva al menos un golpe."
+
+msgid "training.combo.moves.move"
+msgstr "Reordenar golpe {0}"
+
+msgid "training.combo.moves.move.value"
+msgstr "Antes / Después"
+
+msgid "training.combo.moves.move.detail"
+msgstr "Izquierda intercambia el golpe con el anterior, Derecha con el siguiente."
+
+msgid "training.combo.moves.row.detail"
+msgstr "Seleccionar edita este golpe. Insert añade un golpe después, D lo duplica, Delete lo quita y G lo mete en el grupo."
+
+msgid "training.combo.moves.group.start"
+msgstr "Iniciar grupo en golpe {0}"
+
+msgid "training.combo.moves.group.extend"
+msgstr "Ampliar grupo a golpe {0}"
+
+msgid "training.combo.moves.group.detail"
+msgstr "Un grupo es una serie de golpes contiguos, que se muestran con sus números entre corchetes. Inícialo en un golpe, resalta otro y amplíalo: todos los golpes intermedios se unen. G en la fila de un golpe hace lo mismo. El grupo dura hasta que salgas de esta pantalla."
+
+msgid "training.combo.moves.group.clear"
+msgstr "Deshacer grupo {0}"
+
+msgid "training.combo.moves.group.clear.detail"
+msgstr "Olvida el grupo. Sus golpes siguen en el combo."
+
+msgid "training.combo.moves.group.duplicate"
+msgstr "Duplicar grupo {0}"
+
+msgid "training.combo.moves.group.duplicate.detail"
+msgstr "Pone una copia de los golpes del grupo justo después del grupo."
+
+msgid "training.combo.moves.group.loops"
+msgstr "Repeticiones"
+
+msgid "training.combo.moves.group.loops.detail"
+msgstr "Cuántas veces seguidas se ejecuta el grupo al repetirlo. Izquierda y Derecha lo cambian."
+
+msgid "training.combo.moves.group.loop"
+msgstr "Repetir grupo {0} x{1}"
+
+msgid "training.combo.moves.group.loop.detail"
+msgstr "Repite los golpes del grupo para que se ejecuten esas veces seguidas. Las repeticiones pasan a ser filas normales, así que cada una se puede ajustar por separado."
+
+msgid "training.combo.moves.group.remove"
+msgstr "Quitar grupo {0}"
+
+msgid "training.combo.moves.group.remove.detail"
+msgstr "Quita del combo todos los golpes del grupo."
+
+msgid "training.combo.moves.replay.detail"
+msgstr "Reproduce los golpes tal como están ahora. F8 hace lo mismo."
+
+msgid "training.combo.moves.limit"
+msgstr "Eso no cabe: un combo tiene de 1 a {0} golpes."
+
+msgid "training.combo.moves.changed"
+msgstr "El combo tiene ahora {0} golpes."
+
+msgid "training.combo.moves.column"
+msgstr "Combo"
+
+msgid "training.combo.moves.selected"
+msgstr "Golpe {0}"
+
+msgid "training.combo.moves.joins"
+msgstr "Tras el golpe anterior"
+
+msgid "training.combo.moves.joins.link"
+msgstr "Link"
+
+msgid "training.combo.moves.joins.cancel"
+msgstr "Cancel (xx)"
+
+msgid "training.combo.moves.joins.follow"
+msgstr "Continuación (~)"
+
+msgid "training.combo.moves.strength"
+msgstr "Fuerza"
+
+msgid "training.combo.moves.stance"
+msgstr "Postura"
+
+msgid "training.combo.moves.offset"
+msgstr "Timing en frames"
+
+msgid "training.combo.moves.type"
+msgstr "Escribir este golpe"
+
+msgid "training.combo.moves.addable"
+msgstr "Golpes para añadir"
+
+msgid "training.combo.moves.empty"
+msgstr "Aún no hay golpes. Arrastra uno aquí desde la derecha o haz doble clic en él."
+
+msgid "training.combo.moves.add.fadc"
+msgstr "Cancel de focus y dash"
+
+msgid "training.combo.moves.add.rfadc"
+msgstr "Cancel de focus rojo y dash"
+
+msgid "training.combo.moves.add.dash"
+msgstr "Dash adelante"
+
+msgid "training.combo.moves.add.backdash"
+msgstr "Dash atrás"
+
+msgid "training.combo.moves.add.focus"
+msgstr "Ataque focus"
+
+msgid "training.combo.moves.add.throw"
+msgstr "Agarre"
+
+msgid "training.combo.steps.detail"
+msgstr "Seleccionar abre los golpes como área de texto, un golpe por línea. Una línea nueva separa golpes igual que >, así que el combo se lee igual en una línea o en varias. Enter empieza ahí una línea nueva; Ctrl+Enter acepta."
+
+msgid "edit.instructions.area"
+msgstr "Escribe o pega con el teclado. Enter empieza una línea nueva. Ctrl+Enter o el botón Aceptar acepta; Escape o el botón Atrás del mando cancela."
+
+msgid "training.combo.blocks.guide"
+msgstr "Cada bloque es un golpe en el frame en que se pulsa su botón (#N). Arriba y Abajo eligen un bloque, Izquierda y Derecha lo mueven un frame y el ratón lo arrastra. Una reproducción desde aquí pulsa exactamente en esos frames en vez de esperar cada golpe, para setups que necesitan un timing fijo."
+
 msgid "training.combo.save_pos"
 msgstr "Guardar posición"
 
@@ -1466,13 +1700,31 @@ msgid "training.combo.reset_pos.detail"
 msgstr "Devuelve a ambos luchadores a donde se guardaron."
 
 msgid "training.combo.reset_before"
-msgstr "Restablecer antes de reproducir"
+msgstr "Restablecer al reproducir"
 
 msgid "training.combo.reset_before.detail"
 msgstr "Cada reproducción e intento de desafío empieza desde la posición guardada; tras cada intento se restablece."
 
+msgid "training.combo.side"
+msgstr "El Jugador 1 empieza"
+
+msgid "training.combo.side.any"
+msgstr "Donde estén"
+
+msgid "training.combo.side.left"
+msgstr "A la izquierda"
+
+msgid "training.combo.side.right"
+msgstr "A la derecha"
+
+msgid "training.combo.side.detail"
+msgstr "El lado que tiene el Jugador 1 cuando empieza una reproducción o un intento de desafío, y tras Restablecer posición. A la izquierda o A la derecha gira la posición guardada, o donde estén los dos, respecto al centro del escenario cuando el Jugador 1 está en el otro lado: un combo guardado en la esquina izquierda empieza en la esquina derecha. La orientación de la reproducción se deduce de ello. Donde estén no mueve a nadie."
+
 msgid "training.combo.position_saved"
 msgstr "Posición guardada."
+
+msgid "training.combo.position_kept"
+msgstr "Posición guardada, y se conserva con el combo."
 
 msgid "training.combo.position_reset"
 msgstr "Posición restablecida."
@@ -1481,7 +1733,7 @@ msgid "training.combo.capture"
 msgstr "Grabar combo"
 
 msgid "training.combo.capture.detail"
-msgstr "Anota los golpes que ejecuta el Jugador 1 en la línea Golpes hasta que pase segundo y medio sin nada."
+msgstr "Anota los golpes que ejecuta el Jugador 1 en la línea Golpes, cada uno con los frames tras su señal en que se pulsó (@N). Termina cuando el combo se corta, si Parar grabación al corte está activado, y si no cuando pasa segundo y medio sin nada. Luego Añadir combo nuevo o Guardar combo los conserva."
 
 msgid "training.combo.capture_stop"
 msgstr "Detener grabación del combo"
@@ -1493,13 +1745,94 @@ msgid "training.combo.capture_wait"
 msgstr "Terminando la grabación."
 
 msgid "training.combo.captured"
-msgstr "{0} golpes anotados en la línea Golpes."
+msgstr "{0} golpes anotados en la línea Golpes ({1} sin nombre omitidos)."
 
 msgid "training.combo.capture_empty"
 msgstr "No se grabó ningún golpe."
 
 msgid "training.combo.setup.detail"
 msgstr "Izquierda y Derecha lo cambian; se aplica al juego al instante y se guarda con el combo seleccionado. Ajuste del juego deja la elección del menú de Entrenamiento."
+
+msgid "training.combo.reply"
+msgstr "Respuesta del muñeco"
+
+msgid "training.combo.reply.detail"
+msgstr "Lo que hace el muñeco por sí solo en cuanto vuelve a estar libre, para castigar un combo fallado o un final inseguro: reproduce los Golpes de respuesta, o la ranura de respuesta si esa línea está vacía. Espera mientras haya una reproducción o grabación, y un desafío superado se deja en paz."
+
+msgid "training.combo.reply.hit"
+msgstr "Tras un combo fallado"
+
+msgid "training.combo.reply.block"
+msgstr "Tras bloquear"
+
+msgid "training.combo.reply.rise"
+msgstr "Al levantarse"
+
+msgid "training.combo.reply.any"
+msgstr "Siempre que se recupere"
+
+msgid "training.combo.reply.slot"
+msgstr "Ranura de respuesta"
+
+msgid "training.combo.reply.slot.detail"
+msgstr "La grabación del muñeco que se reproduce como respuesta mientras Golpes de respuesta esté vacío, desde su primera pulsación. Reproducir golpes no carga nada encima."
+
+msgid "training.combo.reply.chance"
+msgstr "Probabilidad de respuesta"
+
+msgid "training.combo.reply.chance.detail"
+msgstr "Con qué frecuencia responde el muñeco. Por debajo del 100 % varía de un intento a otro."
+
+msgid "training.combo.vary_stance"
+msgstr "Variar postura"
+
+msgid "training.combo.vary_stance.detail"
+msgstr "Cada vez que el muñeco se recupera, se queda de pie o agachado al azar, para practicar el combo contra ambas. Solo si el muñeco está en de pie o agachado."
+
+msgid "training.combo.keys"
+msgstr "{0} Reproducir  {1} Restablecer  {2} Desafío  {3} Grabar"
+
+msgid "training.combo.reply.moves"
+msgstr "Golpes de respuesta"
+
+msgid "training.combo.reply.moves.detail"
+msgstr "La respuesta escrita en notación numérica, como 623HP o 44, leída según el lado al que mira el muñeco. El movimiento se introduce mientras el muñeco sigue retenido, para que el botón caiga en su primer frame libre. Vacío usa la ranura de respuesta."
+
+msgid "training.combo.reply.timing"
+msgstr "Ajuste de respuesta"
+
+msgid "training.combo.reply.timing.detail"
+msgstr "Frames tras el primer frame libre del muñeco en los que cae el botón de la respuesta. La duración de un aturdimiento se aprende la primera vez; hasta entonces la respuesta empieza cuando termina."
+
+msgid "training.combo.reply.slot_busy"
+msgstr "La ranura {0} contiene la respuesta del muñeco. Selecciona otra para reproducir golpes."
+
+msgid "training.combo.key.replay"
+msgstr "Tecla Reproducir"
+
+msgid "training.combo.key.reset"
+msgstr "Tecla Restablecer"
+
+msgid "training.combo.key.trial"
+msgstr "Tecla Desafío"
+
+msgid "training.combo.key.record"
+msgstr "Tecla Grabar"
+
+msgid "training.combo.key.save"
+msgstr "Tecla Guardar"
+
+msgid "training.combo.key.save.detail"
+msgstr "Izquierda y Derecha eligen la tecla que guarda la línea Golpes como combo nuevo del paquete seleccionado, durante el combate: tras Grabar combo, una pulsación conserva lo que acabas de hacer. Nunca sobrescribe un combo; eso lo hace Guardar combo. Desactivado la deja sin tecla."
+
+msgid "training.combo.key.save.none"
+msgstr "Nada que guardar: graba o escribe los golpes primero."
+
+msgid "training.combo.keys.save"
+msgstr "{0} Guardar"
+
+msgid "training.combo.key.detail"
+msgstr "Izquierda y Derecha eligen la tecla que hace esto durante el combate. Desactivado la deja sin tecla."
 
 msgid "training.combo.setup.game"
 msgstr "Ajuste del juego"
@@ -1666,14 +1999,41 @@ msgstr "ENTRENAMIENTO"
 msgid "training.command_rejected"
 msgstr "No se aceptó la orden de entrenamiento. Comprueba el estado y vuelve a intentarlo."
 
-msgid "training.start_frames"
-msgstr "Inicio {0} f"
-
-msgid "training.start_unknown"
-msgstr "Inicio --"
-
 msgid "training.startup"
 msgstr "Inicio"
+
+msgid "training.meter.active"
+msgstr "Activo"
+
+msgid "training.meter.recovery"
+msgstr "Recuperación"
+
+msgid "training.meter.hit"
+msgstr "Golpe"
+
+msgid "training.meter.block"
+msgstr "Bloqueo"
+
+msgid "training.meter.whiff"
+msgstr "Al aire"
+
+msgid "training.meter.knockdown"
+msgstr "Derribo"
+
+msgid "training.meter.wakeup"
+msgstr "Levantada"
+
+msgid "training.meter.meaty"
+msgstr "Meaty"
+
+msgid "training.meter.throw"
+msgstr "Agarre / cinemática"
+
+msgid "training.meter.attack"
+msgstr "Ataque"
+
+msgid "training.meter.move"
+msgstr "Movimiento"
 
 msgid "training.neutral"
 msgstr "Neutral"

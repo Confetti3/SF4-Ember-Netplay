@@ -1199,7 +1199,7 @@ msgid "training.combo.pack"
 msgstr "Pacchetto"
 
 msgid "training.combo.pack.detail"
-msgstr "Combo in questo pacchetto: {0}. Sinistra e Destra cambiano pacchetto."
+msgstr "Un pacchetto di combo di questo lottatore; ne contiene {0}. Sinistra e Destra scorrono i pacchetti del lottatore."
 
 msgid "training.combo.new_pack"
 msgstr "Nuovo pacchetto"
@@ -1211,7 +1211,7 @@ msgid "training.combo.fighter"
 msgstr "Lottatore"
 
 msgid "training.combo.fighter.detail"
-msgstr "Il lottatore della combo. I nomi delle mosse sono letti come quelli di questo lottatore."
+msgstr "Il lottatore a cui appartengono i pacchetti e le combo qui sotto: solo i suoi vengono mostrati e si possono selezionare. Segue il Giocatore 1 quando inizia un incontro; Sinistra e Destra ne scelgono un altro da guardare o per cui scrivere."
 
 msgid "training.combo.name"
 msgstr "Nome della combo"
@@ -1223,10 +1223,43 @@ msgid "training.combo.notes"
 msgstr "Note"
 
 msgid "training.combo.add"
-msgstr "Aggiungi combo"
+msgstr "Aggiungi nuova combo"
 
 msgid "training.combo.add.detail"
-msgstr "Aggiunge le mosse al pacchetto. Esempio: cr.MK xx HP Hadoken > FADC > cl.HP"
+msgstr "Chiede un nome, poi aggiunge le mosse al pacchetto selezionato come nuova combo. La combo selezionata resta com'è; è Salva combo a sovrascriverla. Mosse di esempio: cr.MK xx HP Hadoken > FADC > cl.HP"
+
+msgid "training.combo.add.unnamed"
+msgstr "ancora senza nome"
+
+msgid "training.combo.capture.drop"
+msgstr "Ferma a combo interrotta"
+
+msgid "training.combo.capture.drop.detail"
+msgstr "Sì: Registra combo termina nell'istante in cui l'altro lottatore torna libero, così una registrazione è una sola combo e un nuovo tentativo dopo un'interruzione non viene annotato di seguito. No: prosegue finché non succede nulla per un secondo e mezzo, per setup e sequenze che non sono una sola combo."
+
+msgid "training.combo.trials_loaded"
+msgstr "{0} non aveva ancora combo: sono state lette le {1} prove del gioco."
+
+msgid "training.combo.save"
+msgstr "Salva combo"
+
+msgid "training.combo.save.detail"
+msgstr "Scrive nome, mosse, note e impostazioni del manichino così come sono sulla combo selezionata."
+
+msgid "training.combo.saved"
+msgstr "Combo salvata."
+
+msgid "training.combo.duplicate"
+msgstr "Duplica combo"
+
+msgid "training.combo.duplicate.detail"
+msgstr "Copia la combo selezionata in questo pacchetto, subito dopo, e seleziona la copia."
+
+msgid "training.combo.duplicated"
+msgstr "Combo duplicata."
+
+msgid "training.combo.copy_suffix"
+msgstr "copia"
 
 msgid "training.combo.tree"
 msgstr "Albero delle combo"
@@ -1280,7 +1313,7 @@ msgid "training.combo.import_trials"
 msgstr "Importa le prove del gioco"
 
 msgid "training.combo.import_trials.detail"
-msgstr "Legge le prove Ultra del gioco per il lottatore scelto sopra in un pacchetto con il nome del lottatore, così l'albero mostra le route del gioco."
+msgstr "Legge le prove del gioco per il lottatore scelto sopra in due pacchetti con il nome del lottatore: le sue prove di Ultra Street Fighter 4 e le prove di Street Fighter 4 che il gioco conserva da prima di Ultra. Un lottatore senza pacchetti le riceve da solo quando inizia un incontro."
 
 msgid "training.combo.export_trial"
 msgstr "Esporta il pacchetto come file di prove"
@@ -1384,6 +1417,9 @@ msgstr "Correzione del timing"
 msgid "training.combo.replay.gap.detail"
 msgstr "Frame di attesa in più per ogni mossa dopo il suo segnale (il frame libero per un link, il colpo per un cancel), oltre alla correzione @ della mossa come cr.MK@+1."
 
+msgid "training.combo.replay.stopped"
+msgstr "Riproduzione fermata."
+
 msgid "training.combo.replay.started"
 msgstr "Riproduzione caricata nello slot {0} e avviata."
 
@@ -1395,6 +1431,33 @@ msgstr "La combo selezionata mossa per mossa: la correzione di ogni mossa e cosa
 
 msgid "training.combo.timing.replay.detail"
 msgstr "Riproduce la combo selezionata così com'è, per aggiornare il rapporto di ogni mossa qui sotto."
+
+msgid "training.combo.tune"
+msgstr "Regola i follow-up"
+
+msgid "training.combo.tune.stop"
+msgstr "Ferma regolazione"
+
+msgid "training.combo.tune.detail"
+msgstr "Riproduce una ripetizione dopo l'altra, ritardando ogni follow-up ~ di un frame finché la mossa successiva collega ancora, e tiene il più lungo che riesce. Richiede Ripristina prima del replay con una posizione salvata."
+
+msgid "training.combo.tune.none"
+msgstr "Nessun follow-up ~ seguito da una mossa da regolare."
+
+msgid "training.combo.tune.trying"
+msgstr "Regolazione mossa {0}: provo @{1}."
+
+msgid "training.combo.tune.kept"
+msgstr "Mossa {0} tenuta a @{1}."
+
+msgid "training.combo.tune.failed"
+msgstr "Mossa {0}: la mossa successiva non collega con nessuna durata provata; la sua correzione è tornata com'era. Il ciclo finisce qui."
+
+msgid "training.combo.tune.done"
+msgstr "Regolazione completata."
+
+msgid "training.combo.tune.stopped"
+msgstr "Regolazione fermata."
 
 msgid "training.combo.timing.select"
 msgstr "Seleziona prima una combo."
@@ -1453,6 +1516,177 @@ msgstr "Riproduce il pattern sui suoi frame."
 msgid "training.combo.blocks.empty"
 msgstr "Ancora nessuna mossa. Aggiungine una sotto."
 
+msgid "training.guide"
+msgstr "Su questa schermata"
+
+msgid "training.home.guide"
+msgstr "Questi comandi agiscono sull'incontro in corso. Registra manichino registra i comandi del pad sul manichino e li riproduce. Sequenza comandi elenca cosa ha premuto ogni giocatore. Creatore di combo annota le combo, le riproduce per te e controlla i tuoi tentativi come prove. F6 apre e chiude i comandi, le frecce spostano, Enter seleziona ed Esc torna indietro di una schermata."
+
+msgid "training.recording.guide"
+msgstr "Scegli uno slot, poi Registra: il pad del Giocatore 1 comanda il manichino finché non fermi. Riproduci fa ripetere lo slot al manichino e Ripeti riproduzione lo fa continuare. F7 avvia e ferma una registrazione senza aprire questa schermata. Gli slot durano solo per questo incontro; Salva registrazione come ne conserva uno in un file con nome e Carica registrazione lo riporta."
+
+msgid "training.history.guide"
+msgstr "I comandi del pad di ogni giocatore, dal più recente, con i frame per cui ciascuno è stato tenuto premuto. Seleziona un giocatore per leggere l'elenco. Mostra cosa è stato premuto, non quale mossa è uscita."
+
+msgid "training.combo.guide"
+msgstr "1. Il lottatore in alto è quello del Giocatore 1; i suoi pacchetti e le sue combo sono le righe sotto. 2. Metti le mosse nella riga Mosse: digitale, oppure usa Registra combo ed esegui la combo. 3. Aggiungi nuova combo la conserva nel pacchetto. 4. Modifica mosse la cambia riga per riga, Modifica timing sposta le singole mosse di qualche frame, Riproduci mosse la esegue per te. 5. Avvia la prova controlla i tuoi tentativi. Ogni riga si spiega da sola mentre è evidenziata."
+
+msgid "training.combo.timing.guide"
+msgstr "Una riga per mossa. Sinistra e Destra su una mossa ne spostano la pressione di un frame prima o dopo (@N). Riproduci mosse esegue la combo, e ogni riga dice poi cosa ha visto la riproduzione: quanto ha atteso e se la mossa ha collegato. F8 su una mossa riproduce fino a quella mossa. Aggiungi, Duplica e Rimuovi agiscono sull'ultima mossa evidenziata; sulla riga di una mossa Insert, D e Delete fanno lo stesso."
+
+msgid "training.combo.moves"
+msgstr "Modifica mosse"
+
+msgid "training.combo.moves.detail"
+msgstr "Le mosse della combo accanto a quelle che puoi aggiungere: trascina dentro le mosse, riordinale, cambia forza, posizione, cancel o timing di una mossa e ripeti un gruppo di mosse."
+
+msgid "training.combo.moves.guide"
+msgstr "A sinistra: la combo, una riga per mossa. Al centro: la mossa selezionata e cosa se ne può cambiare. A destra: le mosse che puoi aggiungere. Trascina una mossa da destra sulla combo e va dopo la mossa su cui cade; il doppio clic la aggiunge dopo la mossa selezionata. Trascina una mossa della combo per darle un altro posto. Con i tasti: Su e Giù scorrono le righe, Seleziona su una mossa la fa ridigitare, e sulla riga di una mossa Insert aggiunge dopo, D duplica, Delete rimuove, G la mette nel gruppo. Le modifiche vengono salvate nella combo selezionata finché la riga Mosse è quella combo; altrimenti restano nella riga Mosse fino ad Aggiungi nuova combo o Salva combo."
+
+msgid "training.combo.moves.add"
+msgstr "Aggiungi dopo la mossa {0}"
+
+msgid "training.combo.moves.add_first"
+msgstr "Aggiungi la prima mossa"
+
+msgid "training.combo.moves.add.detail"
+msgstr "Digita una mossa, o più mosse separate da >, come nella riga Mosse. Vanno dopo l'ultima mossa evidenziata. Insert sulla riga di una mossa apre questo."
+
+msgid "training.combo.moves.duplicate"
+msgstr "Duplica mossa {0}"
+
+msgid "training.combo.moves.duplicate.detail"
+msgstr "Mette una copia subito dopo la mossa. D sulla riga della mossa fa lo stesso."
+
+msgid "training.combo.moves.remove"
+msgstr "Rimuovi mossa {0}"
+
+msgid "training.combo.moves.remove.detail"
+msgstr "Toglie la mossa dalla combo. Delete sulla riga della mossa fa lo stesso. Una combo tiene almeno una mossa."
+
+msgid "training.combo.moves.move"
+msgstr "Sposta mossa {0}"
+
+msgid "training.combo.moves.move.value"
+msgstr "Prima / Dopo"
+
+msgid "training.combo.moves.move.detail"
+msgstr "Sinistra scambia la mossa con quella precedente, Destra con quella successiva."
+
+msgid "training.combo.moves.row.detail"
+msgstr "Seleziona modifica questa mossa. Insert aggiunge una mossa dopo, D la duplica, Delete la rimuove, G la mette nel gruppo."
+
+msgid "training.combo.moves.group.start"
+msgstr "Inizia gruppo dalla mossa {0}"
+
+msgid "training.combo.moves.group.extend"
+msgstr "Estendi gruppo alla mossa {0}"
+
+msgid "training.combo.moves.group.detail"
+msgstr "Un gruppo è una serie di mosse vicine, mostrate con i numeri tra parentesi. Inizialo su una mossa, evidenziane un'altra ed estendi: entrano tutte le mosse in mezzo. G sulla riga di una mossa fa lo stesso. Il gruppo dura finché non lasci questa schermata."
+
+msgid "training.combo.moves.group.clear"
+msgstr "Sciogli gruppo {0}"
+
+msgid "training.combo.moves.group.clear.detail"
+msgstr "Dimentica il gruppo. Le sue mosse restano nella combo."
+
+msgid "training.combo.moves.group.duplicate"
+msgstr "Duplica gruppo {0}"
+
+msgid "training.combo.moves.group.duplicate.detail"
+msgstr "Mette una copia delle mosse del gruppo subito dopo il gruppo."
+
+msgid "training.combo.moves.group.loops"
+msgstr "Ripetizioni"
+
+msgid "training.combo.moves.group.loops.detail"
+msgstr "Quante volte di fila viene eseguito il gruppo una volta ripetuto. Sinistra e Destra lo cambiano."
+
+msgid "training.combo.moves.group.loop"
+msgstr "Ripeti gruppo {0} x{1}"
+
+msgid "training.combo.moves.group.loop.detail"
+msgstr "Ripete le mosse del gruppo così vengono eseguite quel numero di volte di fila. Le ripetizioni diventano righe normali, così ognuna può avere il suo timing."
+
+msgid "training.combo.moves.group.remove"
+msgstr "Rimuovi gruppo {0}"
+
+msgid "training.combo.moves.group.remove.detail"
+msgstr "Toglie dalla combo tutte le mosse del gruppo."
+
+msgid "training.combo.moves.replay.detail"
+msgstr "Riproduce le mosse come sono ora. F8 fa lo stesso."
+
+msgid "training.combo.moves.limit"
+msgstr "Non ci sta: una combo contiene da 1 a {0} mosse."
+
+msgid "training.combo.moves.changed"
+msgstr "La combo ora ha {0} mosse."
+
+msgid "training.combo.moves.column"
+msgstr "Combo"
+
+msgid "training.combo.moves.selected"
+msgstr "Mossa {0}"
+
+msgid "training.combo.moves.joins"
+msgstr "Dopo la mossa precedente"
+
+msgid "training.combo.moves.joins.link"
+msgstr "Link"
+
+msgid "training.combo.moves.joins.cancel"
+msgstr "Cancel (xx)"
+
+msgid "training.combo.moves.joins.follow"
+msgstr "Follow-up (~)"
+
+msgid "training.combo.moves.strength"
+msgstr "Forza"
+
+msgid "training.combo.moves.stance"
+msgstr "Posizione"
+
+msgid "training.combo.moves.offset"
+msgstr "Timing in frame"
+
+msgid "training.combo.moves.type"
+msgstr "Digita questa mossa"
+
+msgid "training.combo.moves.addable"
+msgstr "Mosse da aggiungere"
+
+msgid "training.combo.moves.empty"
+msgstr "Ancora nessuna mossa. Trascinane una qui da destra, o fai doppio clic."
+
+msgid "training.combo.moves.add.fadc"
+msgstr "Focus cancel e dash"
+
+msgid "training.combo.moves.add.rfadc"
+msgstr "Red focus cancel e dash"
+
+msgid "training.combo.moves.add.dash"
+msgstr "Dash in avanti"
+
+msgid "training.combo.moves.add.backdash"
+msgstr "Dash indietro"
+
+msgid "training.combo.moves.add.focus"
+msgstr "Focus attack"
+
+msgid "training.combo.moves.add.throw"
+msgstr "Presa"
+
+msgid "training.combo.steps.detail"
+msgstr "Seleziona apre le mosse come area di testo, una mossa per riga. Un a capo separa le mosse proprio come >, quindi la combo si legge allo stesso modo su una riga o su più righe. Lì Enter va a capo; Ctrl+Enter conferma."
+
+msgid "edit.instructions.area"
+msgstr "Digita o incolla con la tastiera. Enter va a capo. Ctrl+Enter o il pulsante Accetta conferma; Escape o Back sul controller annulla."
+
+msgid "training.combo.blocks.guide"
+msgstr "Ogni blocco è una mossa sul frame in cui viene premuto il suo tasto (#N). Su e Giù scelgono un blocco, Sinistra e Destra lo spostano di un frame, e il mouse lo trascina. Una riproduzione da qui preme esattamente su quei frame invece di attendere ogni colpo, per i setup che richiedono un timing fisso."
+
 msgid "training.combo.save_pos"
 msgstr "Salva posizione"
 
@@ -1466,13 +1700,31 @@ msgid "training.combo.reset_pos.detail"
 msgstr "Riporta i due lottatori dove sono stati salvati."
 
 msgid "training.combo.reset_before"
-msgstr "Ripristina prima della riproduzione"
+msgstr "Ripristina prima del replay"
 
 msgid "training.combo.reset_before.detail"
 msgstr "Ogni riproduzione e tentativo di sfida parte dalla posizione salvata; dopo ogni tentativo viene ripristinata."
 
+msgid "training.combo.side"
+msgstr "Giocatore 1 parte"
+
+msgid "training.combo.side.any"
+msgstr "Dove si trovano"
+
+msgid "training.combo.side.left"
+msgstr "A sinistra"
+
+msgid "training.combo.side.right"
+msgstr "A destra"
+
+msgid "training.combo.side.detail"
+msgstr "Il lato del Giocatore 1 quando parte una riproduzione o un tentativo di prova, e dopo Ripristina posizione. A sinistra o A destra ribalta la posizione salvata, o quella in cui si trovano i due, rispetto al centro dello stage quando il Giocatore 1 è dall'altro lato: una combo salvata nell'angolo sinistro parte nell'angolo destro. La direzione di una riproduzione ne deriva. Dove si trovano non sposta nessuno."
+
 msgid "training.combo.position_saved"
 msgstr "Posizione salvata."
+
+msgid "training.combo.position_kept"
+msgstr "Posizione salvata e conservata con la combo."
 
 msgid "training.combo.position_reset"
 msgstr "Posizione ripristinata."
@@ -1481,7 +1733,7 @@ msgid "training.combo.capture"
 msgstr "Registra combo"
 
 msgid "training.combo.capture.detail"
-msgstr "Annota le mosse che il Giocatore 1 esegue nella riga Mosse, fino a un secondo e mezzo senza nulla."
+msgstr "Annota nella riga Mosse le mosse che il Giocatore 1 esegue, ciascuna con il numero di frame dopo il suo segnale in cui è stata premuta (@N). Termina quando la combo si interrompe, se Ferma a combo interrotta è attivo, altrimenti quando non succede nulla per un secondo e mezzo. Poi Aggiungi nuova combo o Salva combo le conserva."
 
 msgid "training.combo.capture_stop"
 msgstr "Ferma registrazione combo"
@@ -1493,13 +1745,94 @@ msgid "training.combo.capture_wait"
 msgstr "Chiusura della registrazione."
 
 msgid "training.combo.captured"
-msgstr "{0} mosse annotate nella riga Mosse."
+msgstr "{0} mosse annotate nella riga Mosse ({1} senza nome escluse)."
 
 msgid "training.combo.capture_empty"
 msgstr "Nessuna mossa registrata."
 
 msgid "training.combo.setup.detail"
 msgstr "Sinistra e Destra lo cambiano; vale subito nel gioco e resta con la combo selezionata. Impostazione del gioco lascia la scelta del menu Allenamento."
+
+msgid "training.combo.reply"
+msgstr "Risposta del manichino"
+
+msgid "training.combo.reply.detail"
+msgstr "Cosa fa il manichino da solo appena torna libero, per punire una combo sbagliata o una chiusura rischiosa: riproduce le Mosse di risposta, o lo slot di risposta se quella riga è vuota. Attende mentre è in corso una riproduzione o una registrazione, e una prova superata viene lasciata stare."
+
+msgid "training.combo.reply.hit"
+msgstr "Dopo una combo sbagliata"
+
+msgid "training.combo.reply.block"
+msgstr "Dopo una parata"
+
+msgid "training.combo.reply.rise"
+msgstr "Al rialzo"
+
+msgid "training.combo.reply.any"
+msgstr "Ogni volta che si riprende"
+
+msgid "training.combo.reply.slot"
+msgstr "Slot di risposta"
+
+msgid "training.combo.reply.slot.detail"
+msgstr "La registrazione del manichino riprodotta come risposta finché Mosse di risposta è vuoto, dalla sua prima pressione. Riproduci mosse non la sovrascrive."
+
+msgid "training.combo.reply.chance"
+msgstr "Probabilità di risposta"
+
+msgid "training.combo.reply.chance.detail"
+msgstr "Quanto spesso risponde il manichino. Sotto il 100% cambia da un tentativo all'altro."
+
+msgid "training.combo.vary_stance"
+msgstr "Varia la posizione"
+
+msgid "training.combo.vary_stance.detail"
+msgstr "Ogni volta che il manichino si riprende, resta in piedi o accovacciato a caso, così la combo si prova su entrambe. Solo se il manichino è impostato su in piedi o accovacciato."
+
+msgid "training.combo.keys"
+msgstr "{0} Riproduci  {1} Ripristina  {2} Prova  {3} Registra"
+
+msgid "training.combo.reply.moves"
+msgstr "Mosse di risposta"
+
+msgid "training.combo.reply.moves.detail"
+msgstr "La risposta scritta in notazione numerica, come 623HP o 44, letta per il lato verso cui guarda il manichino. Il movimento viene inserito mentre il manichino è ancora bloccato, così il tasto cade sul suo primo frame libero. Vuoto usa lo slot di risposta."
+
+msgid "training.combo.reply.timing"
+msgstr "Tempismo della risposta"
+
+msgid "training.combo.reply.timing.detail"
+msgstr "Frame dopo il primo frame libero del manichino in cui cade il tasto della risposta. La durata di uno stordimento si impara la prima volta; fino ad allora la risposta parte quando finisce."
+
+msgid "training.combo.reply.slot_busy"
+msgstr "Lo slot {0} contiene la risposta del manichino. Seleziona un altro slot per riprodurre le mosse."
+
+msgid "training.combo.key.replay"
+msgstr "Tasto Riproduci"
+
+msgid "training.combo.key.reset"
+msgstr "Tasto Ripristina"
+
+msgid "training.combo.key.trial"
+msgstr "Tasto Prova"
+
+msgid "training.combo.key.record"
+msgstr "Tasto Registra"
+
+msgid "training.combo.key.save"
+msgstr "Tasto Salva"
+
+msgid "training.combo.key.save.detail"
+msgstr "Sinistra e Destra scelgono il tasto che salva la riga Mosse come nuova combo del pacchetto selezionato, durante lo scontro: dopo Registra combo, una pressione conserva ciò che hai appena fatto. Non sovrascrive mai una combo; quello lo fa Salva combo. Disattivato lo lascia senza tasto."
+
+msgid "training.combo.key.save.none"
+msgstr "Niente da salvare: prima registra o digita le mosse."
+
+msgid "training.combo.keys.save"
+msgstr "{0} Salva"
+
+msgid "training.combo.key.detail"
+msgstr "Sinistra e Destra scelgono il tasto che fa questo durante lo scontro. Disattivato lo lascia senza tasto."
 
 msgid "training.combo.setup.game"
 msgstr "Impostazione del gioco"
@@ -1666,14 +1999,41 @@ msgstr "ALLENAMENTO"
 msgid "training.command_rejected"
 msgstr "Comando di allenamento rifiutato. Controlla lo stato e riprova."
 
-msgid "training.start_frames"
-msgstr "Avvio {0} f"
-
-msgid "training.start_unknown"
-msgstr "Avvio --"
-
 msgid "training.startup"
 msgstr "Avvio"
+
+msgid "training.meter.active"
+msgstr "Attivo"
+
+msgid "training.meter.recovery"
+msgstr "Recupero"
+
+msgid "training.meter.hit"
+msgstr "Colpo"
+
+msgid "training.meter.block"
+msgstr "Parata"
+
+msgid "training.meter.whiff"
+msgstr "A vuoto"
+
+msgid "training.meter.knockdown"
+msgstr "Atterramento"
+
+msgid "training.meter.wakeup"
+msgstr "Rialzata"
+
+msgid "training.meter.meaty"
+msgstr "Meaty"
+
+msgid "training.meter.throw"
+msgstr "Presa / filmato"
+
+msgid "training.meter.attack"
+msgstr "Attacco"
+
+msgid "training.meter.move"
+msgstr "Movimento"
 
 msgid "training.neutral"
 msgstr "Neutrale"

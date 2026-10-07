@@ -409,6 +409,11 @@ void Overlay::DrawOverlay() {
         auto practice = [&](sf4e::training::Action action) {
             sf4e::training::Submit({action, 0, training.generation});
         };
+        // The setter keeps only its first call, and the lookup asks the shell each time.
+        // Before the HUD and the hotkeys, which read the combo book too.
+        static bool comboBookDirectorySet=false;
+        if(!comboBookDirectorySet) { sf4e::ui::SetComboBookDirectory(sf4e::netplay::SettingsStore::DefaultDirectory()); comboBookDirectorySet=true; }
+        sf4e::ui::TrainingHotkeys(training, sf4e::training::Submit);
         if (!trainingOpen && !ImGui::GetIO().WantTextInput) {
             if (ImGui::IsKeyPressed(ImGuiKey_F7, false)) {
                 if(training.mode != sf4e::training::Mode::Recording && training.lengths[training.selected]>0) {
@@ -420,9 +425,6 @@ void Overlay::DrawOverlay() {
         if (trainingOpen) {
             // Only what this frame's flyout forwards is read below.
             sf4e::ui::TakeForwardedMenuAction();
-            // The setter keeps only its first call, and the lookup asks the shell each time.
-            static bool comboBookDirectorySet=false;
-            if(!comboBookDirectorySet) { sf4e::ui::SetComboBookDirectory(sf4e::netplay::SettingsStore::DefaultDirectory()); comboBookDirectorySet=true; }
             sf4e::ui::DrawTrainingFlyout(training, sf4e::training::Submit);
             if(sf4e::ui::TakeForwardedMenuAction().kind==sf4e::ui::MenuAction::Close) trainingOpen=false;
         } else if (trainingHud) {
@@ -533,7 +535,9 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
     if (!ImGui::GetCurrentContext()) return 0;
     if (activationClick.Swallow(message, l)) return 0;
     const auto handled = sf4e::ui::HandleOverlayMessage(window, message, w, l, capture, s_menuAvailable, pointerCapture);
-    if (trainingAvailable && w >= VK_F5 && w <= VK_F8 &&
-        (message == WM_KEYDOWN || message == WM_KEYUP || message == WM_SYSKEYDOWN || message == WM_SYSKEYUP)) return 1;
+    // The combo hotkeys only as plain keys, so Alt+F4 still reaches the game.
+    const bool plainKey = message == WM_KEYDOWN || message == WM_KEYUP, systemKey = message == WM_SYSKEYDOWN || message == WM_SYSKEYUP;
+    if (trainingAvailable && ((w >= VK_F5 && w <= VK_F8 && (plainKey || systemKey)) ||
+        (plainKey && w >= VK_F1 && w <= VK_F12 && sf4e::ui::TrainingHotkeyBound(static_cast<int>(w - VK_F1))))) return 1;
     return handled;
 }

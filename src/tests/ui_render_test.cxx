@@ -497,7 +497,7 @@ int main(int argc, char** argv) {
             training::FrameMeter meter;std::array<training::FighterSample,2> fighters;
             for(int f=0;f<120;++f){
                 for(int p=0;p<2;++p){auto& s=fighters[p];s.valid=true;s.timeScale=1;s.status=p?(f<40?0:f<65?22:0):(f<30?0:f<70?16:0);
-                    s.action=s.status?100+p:0;s.actionFrame=static_cast<float>(f);s.firstActiveFrame=p?-1:34;s.health=p?920:1000;s.damage=p?80:0;s.comboDamage=p?160:0;}
+                    s.action=s.status?100+p:0;s.actionFrame=static_cast<float>(f);s.firstActiveFrame=p?-1:34;s.lastActiveFrame=p?-1:38;s.health=p?920:1000;s.damage=p?80:0;s.comboDamage=p?160:0;}
                 meter.Observe(f,fighters);
             }
             training.meter=meter.View();training.history[0]={{0x14,5},{1,3},{0,16}};training.history[1]={{0x40,2},{0,10}};
@@ -902,6 +902,13 @@ int main(int argc, char** argv) {
             for(const char* screen:{"recording","history"}){
                 TrainingNavigation().Home();TrainingNavigation().Push(screen);draw((std::string("training-")+screen).c_str());
             }
+            // The combo creator's screens, with a combo on the Moves line to show.
+            SetComboMoves("2MK > xx 236HP > FADC > 5HP > xx 623HP");
+            for(const char* screen:{"combos","combo-timing","combo-moves"}){
+                TrainingNavigation().Home();TrainingNavigation().Push("combos");if(std::string(screen)!="combos")TrainingNavigation().Push(screen);
+                draw((std::string("training-")+screen).c_str());
+            }
+            SetComboMoves("");
             TrainingNavigation().Home();TrainingNavigation().Push("recording");draw();
             // Returning restores the prior selection, which may be below Record.
             for(int i=0;i<20;++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}

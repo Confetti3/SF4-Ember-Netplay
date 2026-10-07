@@ -23,6 +23,8 @@ struct MenuInput {
     // The bits of `held` that come from keyboard keys. Last, so that
     // {held, time} still initializes the other two.
     unsigned keyboard = 0;
+    // Ctrl is held: with Enter it accepts a text area, whose plain Enter is a new line.
+    bool ctrl = false;
 };
 // One option of a choice. The id is what the option means, so a choice whose
 // options change meaning under the player closes instead of quietly sending
@@ -60,6 +62,12 @@ struct MenuEntry {
     // What Select does, when the generic word says too little ("Ready up").
     std::string hint;
     std::size_t textLimit = 256;
+    // A text row edited as an area of several lines. draft is what the
+    // editor opens with when that is not the value as the row shows it.
+    bool multiline = false;
+    std::string draft;
+    // The editor opens empty, whatever the row shows as its value.
+    bool blankDraft = false;
     // Explicit pane transitions; empty preserves ordinary list/grid movement.
     std::string left, right;
     // Presentation-only grace during a healthy room checkpoint. Never authorizes an action.
@@ -199,7 +207,7 @@ public:
         const auto& e=entries[states_[Screen()].index];
         switch (MenuSelectOpens(e)) {
         case SelectOpens::Reader: mode_=Modal::Read; modalId_=e.id; return {};
-        case SelectOpens::Edit: mode_=Modal::Edit; modalId_=e.id; secret_=e.secret; draft_=e.secret?std::string():e.value; editAccept_=true; return {};
+        case SelectOpens::Edit: mode_=Modal::Edit; modalId_=e.id; secret_=e.secret; multiline_=e.multiline; draft_=e.secret||(e.blankDraft&&e.draft.empty())?std::string():e.draft.empty()?e.value:e.draft; editAccept_=true; return {};
         case SelectOpens::Choice: case SelectOpens::Confirm: Open(e); return {};
         case SelectOpens::Activate: return {MenuAction::Activate,e.id};
         case SelectOpens::Nothing: break;
@@ -260,6 +268,8 @@ public:
             // Enter is the keyboard's explicit accept. The controller's Select
             // presses the highlighted button, which is Accept unless the
             // pointer moved to Cancel. Directions stay with the text cursor.
+            // A text area keeps the keyboard's Enter for its lines; Ctrl+Enter accepts there.
+            if(multiline_&&!in.ctrl&&(in.acceptText||(in.keyboard&MenuInput::Select))) return {};
             if(!in.acceptText) {
                 if(!(pressed&MenuInput::Select)) return {};
                 if(!editAccept_) { Cancel(); return {}; }
@@ -332,7 +342,7 @@ private:
     Modal mode_=Modal::None;
     std::string modalId_,draft_;
     std::vector<std::string> choiceIds_;
-    bool confirmSelected_=false, armed_=true, editAccept_=true, secret_=false;
+    bool confirmSelected_=false, armed_=true, editAccept_=true, secret_=false, multiline_=false;
     std::size_t choiceIndex_=0;
     unsigned previous_=0,direction_=0;
     double nextRepeat_=0;

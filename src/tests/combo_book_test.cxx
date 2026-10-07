@@ -1,4 +1,5 @@
 #include "../training/ComboBook.hxx"
+#include "../training/ComboEdit.hxx"
 #include "../training/ComboReplay.hxx"
 #include "../training/RecordingFile.hxx"
 #include "test_support.hxx"
@@ -43,6 +44,27 @@ int main() {
     CHECK(ParseStep("~lp@+2", step, error) && step.follow && Canonical(step) == "~ 5LP@+2");
     CHECK((Tokens("236P ~ LP > 5HP") == std::vector<std::string>{"236P", "~ LP", "5HP"}));
     CHECK(JoinSteps({"236P", "~ 5LP", "5HP"}) == "236P ~ 5LP > 5HP");
+    // A combo typed a move a line reads as the same combo on one line.
+    CHECK((Tokens("2MK\r\nxx 236HP\n\n5HP >\n FADC\n~ LP") == std::vector<std::string>{"2MK", "xx 236HP", "5HP", "FADC", "~ LP"}));
+    CHECK(JoinSteps(Tokens("2MK\nxx 236HP\n5HP")) == "2MK xx 236HP > 5HP" && (Steps("2MK\nxx 236HP\n5HP") == Steps("2MK xx 236HP > 5HP")));
+    {
+        // Row edits: add, remove, repeat and reorder, each leaving a combo behind.
+        using Rows = std::vector<std::string>;
+        Rows rows{"2MK", "xx 236HP", "5HP"};
+        CHECK(InsertSteps(rows, 1, {"5LP", "xx 5MP"}) && (rows == Rows{"2MK", "5LP", "xx 5MP", "xx 236HP", "5HP"}));
+        CHECK(InsertSteps(rows, rows.size(), {"623HP"}) && rows.back() == "623HP" && !InsertSteps(rows, 9, {"5LP"}) && !InsertSteps(rows, 0, {}));
+        CHECK(RemoveSteps(rows, 1, 2) && RemoveSteps(rows, 3, 1) && (rows == Rows{"2MK", "xx 236HP", "5HP"}));
+        // A cancel that becomes the first move links; the last move stays.
+        CHECK(RemoveSteps(rows, 0, 1) && (rows == Rows{"236HP", "5HP"}) && !RemoveSteps(rows, 0, 2) && !RemoveSteps(rows, 2, 1) && !RemoveSteps(rows, 1, 0));
+        // A group looped: its moves three times in all.
+        CHECK(RepeatSteps(rows, 0, 2, 2) && (rows == Rows{"236HP", "5HP", "236HP", "5HP", "236HP", "5HP"}));
+        CHECK(RepeatSteps(rows, 5, 1, 1) && rows.size() == 7 && !RepeatSteps(rows, 6, 2, 1) && !RepeatSteps(rows, 0, 1, 0) && !RepeatSteps(rows, 0, 7, MaxSteps));
+        Rows framed{"2MK#10", "xx 236HP#30", "5HP"};
+        // A copy presses on no frame of its own, and a frame stays with its place in the order.
+        CHECK(RepeatSteps(framed, 1, 1, 1) && (framed == Rows{"2MK#10", "xx 236HP#30", "xx 236HP", "5HP"}));
+        CHECK(MoveStep(framed, 0, 1) && (framed == Rows{"236HP#10", "2MK#30", "xx 236HP", "5HP"}));
+        CHECK(MoveStep(framed, 3, -1) && (framed == Rows{"236HP#10", "2MK#30", "5HP", "xx 236HP"}) && !MoveStep(framed, 0, -1) && !MoveStep(framed, 3, 1) && !MoveStep(framed, 1, 0));
+    }
     {
         const auto follow = Synthesize({"236P", "~ 5LP@+2"}, true, 0);
         for (const auto& frame : follow) CHECK(!frame.wait);

@@ -279,8 +279,8 @@ int main() {
         Require(meter.View().frozen && meter.View().frames.back().frame == 34, "Idle did not hold exchange");
         fighters[0].status = 16; meter.Observe(50, fighters);
         Require(!meter.View().frozen && meter.View().frames.size() == 1, "Next exchange did not resume");
-        for (int i = 51; i < 200; ++i) meter.Observe(i, fighters);
-        Require(meter.View().frames.size() == 120, "Frame meter unbounded");
+        for (int i = 51; i < 800; ++i) meter.Observe(i, fighters);
+        Require(meter.View().frames.size() == MeterHistory, "Frame meter unbounded");
         meter.Observe(10, fighters);
         Require(meter.View().frames.size() == 1 && meter.View().stateFrames[0] == 1, "Timeline crossed reset");
         fighters[0].valid = false; meter.Observe(11, fighters);
@@ -368,6 +368,134 @@ int main() {
             Require(!dummy.Apply(set), "Menu recorder value accepted as a dummy action");
             set.dummy = DummyState{}; set.dummy.counterHit = 3;
             Require(!dummy.Apply(set) && !ValidDummyState(set.dummy), "Counter hit beyond the menu's choices accepted");
+        }
+        {
+            // A meter cell tells an attack's startup, active and recovery frames apart by the script's boundary.
+            FighterSample attack; attack.valid = true; attack.status = 16; attack.firstActiveFrame = 4; attack.lastActiveFrame = 7;
+            const auto at = [&](float frame) { attack.actionFrame = frame; return ClassifyMeter(attack); };
+            Require(at(3) == MeterKind::Startup && at(4) == MeterKind::Active && at(6) == MeterKind::Active && at(7) == MeterKind::Recovery, "Attack frames misfiled");
+            // A move of 3 startup, 3 active, 4 recovery frames, blocked on its first active frame with two frames of hitstop.
+            FrameMeter counted; std::array<FighterSample, 2> pair;
+            const auto step = [&](int tick, unsigned status, float frame, unsigned other) {
+                for (auto& fighter : pair) { fighter = FighterSample{}; fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.basicActionInhibited = false; fighter.action = 0; }
+                pair[0].status = status; pair[0].action = status == 16 ? 100 : 0; pair[0].actionFrame = frame; pair[0].firstActiveFrame = status == 16 ? 4 : -1; pair[0].lastActiveFrame = status == 16 ? 7 : -1;
+                pair[1].status = other; pair[1].action = other ? 200 : 0; pair[1].actionFrame = static_cast<float>(tick);
+                counted.Observe(tick, pair);
+            };
+            int tick = 0;
+            step(tick++, 0, 0, 0);
+            for (float frame : {1.f, 2.f, 3.f, 4.f, 4.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f}) step(tick, 16, frame, frame >= 4 ? 22 : 0), ++tick;
+            Require(counted.View().moves[0].live && counted.View().moves[0].active == 3 && counted.View().moves[0].recovery == 4, "A move's active or recovery frames miscounted, or hitstop counted");
+            Require(counted.View().advantage.attacker == 0 && counted.View().advantage.blocked, "A blocked attack was not told from a hit");
+            step(tick++, 0, 0, 22);
+            Require(counted.View().moves[0].seen && !counted.View().moves[0].live && counted.View().moves[0].recovery == 4 && !counted.View().moves[1].seen, "A finished move lost its frames");
+            // After a pause the next move starts the bars from their left edge.
+            for (int idle = 0; idle < 40; ++idle) step(tick++, 0, 0, 0);
+            step(tick++, 16, 1, 0);
+            Require(counted.View().frames.size() == 1 && counted.View().moves[0].active == 0 && counted.View().advantage.attacker == -1, "A new move after a pause kept the old bars or frames");
+            attack.lastActiveFrame = -1;
+            Require(at(5) == MeterKind::Attack, "An attack with no boundary was split");
+            attack.status = 22;
+            Require(at(5) == MeterKind::Guard && ClassifyMeter(FighterSample{}) == MeterKind::Unknown, "A blocking or missing fighter misfiled");
+            attack.status = 24;
+            Require(at(5) == MeterKind::Sequence, "A throw's sequence was not told from an unknown state");
+            attack.status = 19; Require(at(5) == MeterKind::Down, "Lying down misfiled");
+            attack.status = 20; Require(at(5) == MeterKind::Rise, "Getting up was not told from lying down");
+            // A throw: 3 startup frames, 5 frames holding the other, who is let go to fall while the thrower takes 4 more.
+            counted.Reset(); tick = 0;
+            step(tick++, 0, 0, 0);
+            for (float frame : {1.f, 2.f, 3.f}) step(tick++, 16, frame, 0);
+            for (int held = 0; held < 5; ++held) step(tick++, 24, 0, 24);
+            Require(ClassifyMeter(counted.View().current[0]) == MeterKind::Sequence && counted.View().advantage.attacker == 0 && counted.View().advantage.pending, "A throw that connected was not a contact");
+            for (int free = 0; free < 4; ++free) step(tick++, 24, 0, 19);
+            Require(ClassifyMeter(counted.View().current[0]) == MeterKind::Recovery && ClassifyMeter(counted.View().current[1]) == MeterKind::Down &&
+                counted.View().moves[0].live && counted.View().moves[0].recovery == 4, "The thrower's frames after the throw were not its recovery");
+            // The thrower is free 6 frames before the other is up.
+            for (int idle = 0; idle < 6; ++idle) step(tick++, 0, 0, 20);
+            Require(!counted.View().moves[0].live && counted.View().moves[0].recovery == 4 && !counted.View().meatyValid[0], "A throw's recovery was lost, or a meaty read before any attack");
+            step(tick++, 0, 0, 0);
+            Require(counted.View().advantage.valid && counted.View().advantage.knockdown && counted.View().advantage.frames[0] == 6, "A throw's knockdown advantage miscounted");
+            // Down again, and an attack that is active 1 frame before the other is up: a meaty.
+            for (int down = 0; down < 3; ++down) step(tick++, 0, 0, 19);
+            for (float frame : {1.f, 2.f, 3.f, 4.f}) step(tick++, 16, frame, 20);
+            step(tick++, 16, 5, 0);
+            Require(counted.View().meatyValid[0] && counted.View().meatyFrames[0] == -1 && !counted.View().meatyValid[1], "Meaty timing miscounted");
+            Require(counted.View().frames.back().fighters[1].wake && !counted.View().frames.back().fighters[0].wake && !counted.View().frames[counted.View().frames.size() - 2].fighters[1].wake, "The first frame up was not marked, or more than it");
+        }
+        {
+            // The dummy's own reply: what it came out of, how long it stays there, and what it plays.
+            DummyWatch watch;
+            const auto sample = [](unsigned status, int action, float frame, float damage = 0) {
+                FighterSample dummy; dummy.valid = true; dummy.status = status; dummy.action = action; dummy.actionFrame = frame; dummy.comboDamage = damage; return dummy;
+            };
+            // Hit by move 100 for five frames: nothing is known the first time.
+            Require(!watch.Observe(sample(0, 0, 0), 100).freed, "An idle dummy was freed");
+            for (int frame = 0; frame < 5; ++frame) {
+                const auto seen = watch.Observe(sample(21, 300, static_cast<float>(frame), 10), 100);
+                Require(seen.held == 1 && seen.until == -1 && !seen.freed, "An unseen stun was timed");
+            }
+            const auto first = watch.Observe(sample(0, 0, 0), 0);
+            Require(first.freed == 1 && !watch.Observe(sample(0, 0, 1), 0).freed, "A hit's end was not reported once");
+            // The same hit again counts down to its free frame, and a second hit in it starts over.
+            auto seen = watch.Observe(sample(21, 300, 0, 10), 100);
+            Require(seen.until == 5 && seen.stretch != first.stretch, "A seen stun was not timed");
+            Require(watch.Observe(sample(21, 300, 1, 10), 100).until == 4, "The stun did not count down");
+            seen = watch.Observe(sample(21, 300, 2, 20), 100);
+            Require(seen.until == 5, "A second hit did not start the stun over");
+            // A reply whose button is three frames in starts when four are left, one fewer with timing +1, and at once when freed.
+            DummySeen left; left.held = 1; left.until = 5;
+            Require(!ReplyDue(left, 3, 0), "The reply started too early");
+            left.until = 4;
+            Require(ReplyDue(left, 3, 0) && !ReplyDue(left, 3, 1) && ReplyDue(first, 0, 0), "The reply was not due on its frame");
+            left.until = -1;
+            Require(!ReplyDue(left, 3, 0), "A reply was due in an untimed stun");
+            // Another move's hit is its own length; a knockdown is one whoever caused it.
+            Require(watch.Observe(sample(21, 300, 0, 30), 101).until == -1, "Another move's stun was taken as known");
+            watch.Reset();
+            watch.Observe(sample(19, 400, 0), 100); watch.Observe(sample(20, 401, 0), 100); watch.Observe(sample(20, 401, 1), 100);
+            Require(watch.Observe(sample(1, 0, 0), 0).freed == 3, "A knockdown was not reported as getting up");
+            watch.Observe(sample(19, 400, 0), 555);
+            Require(watch.Observe(sample(20, 401, 0), 777).until == 2, "Getting up was not timed across attackers");
+            watch.Reset();
+            watch.Observe(sample(22, 500, 0), 100);
+            Require(watch.Observe(sample(0, 0, 0), 0).freed == 2, "A block's end was not reported");
+            DummyPlan plan;
+            Require(!DummyReplies(plan, 1, 0), "A dummy with no plan replied");
+            plan.when = 1; plan.chance = 50;
+            Require(DummyReplies(plan, 1, 49) && !DummyReplies(plan, 1, 50) && !DummyReplies(plan, 2, 0) && !DummyReplies(plan, 0, 0), "Reply chance or cause misjudged");
+            plan.when = 4;
+            Require(DummyReplies(plan, 3, 0) && ValidDummyPlan(plan), "A reply to anything missed a knockdown");
+            plan.timing = MaxReplyTiming + 1;
+            Require(!ValidDummyPlan(plan), "A reply timing beyond its range was accepted");
+            plan.timing = 0; plan.slot = SlotCount;
+            Require(!ValidDummyPlan(plan), "A reply slot beyond the slots was accepted");
+            // 623HP: three directions of three frames, then the button.
+            std::vector<Input> dragon;
+            for (unsigned bits : {8u, 8u, 8u, 2u, 2u, 2u, 10u, 10u, 10u, 0x40au, 10u, 0u}) dragon.push_back({bits, bits, 0, 0});
+            Require(ReplyStart(dragon) == 0 && ReplyLead(dragon) == 9 && ReplyStart({}) == -1 && ReplyLead({{8, 8, 0, 0}}) == 0, "A reply's start or lead misread");
+
+            Session reply; reply.Enter(); reply.SetReady(true);
+            Command command; command.generation = reply.GetView().generation;
+            Require(!reply.Reply(2), "An empty slot replied");
+            command.action = Action::Select; command.value = 2; reply.Apply(command);
+            command.action = Action::Record; reply.Apply(command);
+            // Two idle frames, as a player leaves before pressing, then two presses.
+            for (unsigned buttons : {0u, 0u, 0x10u, 0x20u}) { Frame frame; frame[1].raw = frame[1].mapped = buttons; reply.Commit(frame); }
+            command.action = Action::Stop; reply.Apply(command);
+            command.action = Action::Select; command.value = 5; reply.Apply(command);
+            Require(reply.Reply(2) && reply.GetView().mode == Mode::Playback && reply.GetView().selected == 2, "The reply did not start");
+            Require(!reply.Reply(2), "A reply started over a playback");
+            Require(reply.Prepare(Frame{})[1].raw == 0x10 && reply.Prepare(Frame{})[0].raw == 0, "The reply did not start on its first press, on Player 2");
+            reply.Commit(reply.Prepare(Frame{}));
+            Require(reply.Prepare(Frame{})[1].raw == 0x20, "The reply did not advance");
+            reply.Commit(reply.Prepare(Frame{}));
+            Require(reply.GetView().mode == Mode::Idle && reply.GetView().selected == 5, "The reply looped or kept the selection");
+            // The typed reply has a slot of its own; hit again, it is dropped.
+            Require(reply.Reply(dragon) && reply.Replying() && reply.GetView().selected == ReplySlot && reply.Prepare(Frame{})[1].raw == 8, "The typed reply did not start");
+            reply.StopReply();
+            Require(!reply.Replying() && reply.GetView().mode == Mode::Idle && reply.GetView().selected == 5 && reply.GetView().lengths[2] == 4, "A dropped reply kept the selection or touched a slot");
+            command.action = Action::Select; command.value = ReplySlot;
+            Require(!reply.Apply(command), "The reply's own slot could be selected");
         }
         std::puts("Training session and frame meter checks passed.");
         return 0;
