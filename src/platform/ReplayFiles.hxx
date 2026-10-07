@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 
+#include "../common/ReplayInputs.hxx"
 #include "../common/ReplaySlots.hxx"
 
 namespace sf4e { namespace platform { namespace replays {
@@ -90,6 +91,15 @@ struct ArchivedReplay {
 	bool spectated = false, watched = false;
 	// An exported video (<name>.mp4) is beside it.
 	bool video = false;
+	// From the replay itself (common/ReplayInputs.hxx), when it is one that
+	// reads: the rounds each player won (-1 when the last round's winner is
+	// not known), the rounds played, their frames, and for each player what
+	// was chosen and what was pressed.
+	bool read = false;
+	int score[2] = {-1, -1};
+	unsigned rounds = 0, frames = 0;
+	replayinputs::Player players[2];
+	replayinputs::Stats stats[2];
 };
 
 // Lists the archive on a thread of its own: Ember's own files from the

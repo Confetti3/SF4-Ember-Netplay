@@ -700,6 +700,36 @@ msgstr "已在资源管理器中打开 {0}。"
 msgid "services.replay_folder_failed"
 msgstr "无法打开录像文件夹。"
 
+msgid "replays.inputs"
+msgstr "输入与统计"
+
+msgid "replays.inputs_detail"
+msgstr "逐帧显示双方按下的内容并统计次数。直接从回放文件读取，不会播放。"
+
+msgid "replays.info_look"
+msgstr "服装 {0}，颜色 {1}，终极 {2}"
+
+msgid "inputs.length_value"
+msgstr "{0} 回合，{1}"
+
+msgid "inputs.buttons"
+msgstr "{0}：按键次数"
+
+msgid "inputs.activity"
+msgstr "每分钟 {0} 次输入，跳跃 {1} 次，{2}% 的时间在下蹲。"
+
+msgid "inputs.round"
+msgstr "第 {0} 回合"
+
+msgid "inputs.legend"
+msgstr "每一行：时间，以及此后 P1 和 P2 按住的输入。方向按屏幕上的数字小键盘表示：4 为左，6 为右，5 为无。"
+
+msgid "inputs.unreadable"
+msgstr "无法读取输入"
+
+msgid "inputs.unreadable_detail"
+msgstr "此回放为旧格式，或文件已损坏。"
+
 msgid "replays.row_detail"
 msgstr "选择以添加到游戏的回放列表，或添加后立即观看。"
 

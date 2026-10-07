@@ -700,6 +700,36 @@ msgstr "Složka {0} otevřena v Průzkumníku."
 msgid "services.replay_folder_failed"
 msgstr "Složku záznamů se nepodařilo otevřít."
 
+msgid "replays.inputs"
+msgstr "Vstupy a statistiky"
+
+msgid "replays.inputs_detail"
+msgstr "Ukáže, co oba hráči mačkali, snímek po snímku, a kolikrát. Čte se ze souboru záznamu; nic se nepřehrává."
+
+msgid "replays.info_look"
+msgstr "Kostým {0}, barva {1}, Ultra {2}"
+
+msgid "inputs.length_value"
+msgstr "Kola: {0}, {1}"
+
+msgid "inputs.buttons"
+msgstr "{0}: stisky tlačítek"
+
+msgid "inputs.activity"
+msgstr "{0} vstupů za minutu, skoky: {1}, v podřepu {2} % času."
+
+msgid "inputs.round"
+msgstr "Kolo {0}"
+
+msgid "inputs.legend"
+msgstr "Každý řádek: čas a co od té chvíle drží P1 a P2. Směry jako na numerické klávesnici při pohledu na obrazovku: 4 je vlevo, 6 vpravo, 5 nic."
+
+msgid "inputs.unreadable"
+msgstr "Vstupy nelze přečíst"
+
+msgid "inputs.unreadable_detail"
+msgstr "Tento záznam je ve starším formátu, nebo je jeho soubor poškozený."
+
 msgid "replays.row_detail"
 msgstr "Vyberte pro přidání do seznamu záznamů hry, nebo pro přidání a přehrání teď."
 

@@ -700,6 +700,36 @@ msgstr "Se abrió {0} en el Explorador."
 msgid "services.replay_folder_failed"
 msgstr "No se pudo abrir la carpeta de repeticiones."
 
+msgid "replays.inputs"
+msgstr "Entradas y estadísticas"
+
+msgid "replays.inputs_detail"
+msgstr "Muestra lo que presionaron ambos jugadores, cuadro por cuadro, y cuántas veces. Se lee del archivo de la repetición; no se reproduce nada."
+
+msgid "replays.info_look"
+msgstr "Traje {0}, color {1}, Ultra {2}"
+
+msgid "inputs.length_value"
+msgstr "Rondas: {0}, {1}"
+
+msgid "inputs.buttons"
+msgstr "{0}: pulsaciones de botones"
+
+msgid "inputs.activity"
+msgstr "{0} entradas por minuto, {1} saltos, agachado el {2}% del tiempo."
+
+msgid "inputs.round"
+msgstr "Ronda {0}"
+
+msgid "inputs.legend"
+msgstr "Cada línea: el tiempo y lo que P1 y P2 mantienen desde ahí. Direcciones como en un teclado numérico visto en pantalla: 4 es izquierda, 6 derecha, 5 ninguna."
+
+msgid "inputs.unreadable"
+msgstr "No se pueden leer las entradas"
+
+msgid "inputs.unreadable_detail"
+msgstr "Esta repetición tiene un formato anterior o su archivo está dañado."
+
 msgid "replays.row_detail"
 msgstr "Selecciona para agregarla a la lista de repeticiones del juego, o para agregarla y verla ahora."
 

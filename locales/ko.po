@@ -700,6 +700,36 @@ msgstr "탐색기에서 {0}을(를) 열었습니다."
 msgid "services.replay_folder_failed"
 msgstr "리플레이 폴더를 열 수 없습니다."
 
+msgid "replays.inputs"
+msgstr "입력과 통계"
+
+msgid "replays.inputs_detail"
+msgstr "두 플레이어가 누른 것을 프레임 단위로 보여 주고 횟수를 셉니다. 리플레이 파일에서 읽으며 재생하지 않습니다."
+
+msgid "replays.info_look"
+msgstr "코스튬 {0}, 색상 {1}, 울트라 {2}"
+
+msgid "inputs.length_value"
+msgstr "{0}라운드, {1}"
+
+msgid "inputs.buttons"
+msgstr "{0}: 버튼 누른 횟수"
+
+msgid "inputs.activity"
+msgstr "분당 입력 {0}회, 점프 {1}회, 앉은 시간 {2}%."
+
+msgid "inputs.round"
+msgstr "라운드 {0}"
+
+msgid "inputs.legend"
+msgstr "각 줄: 시간, 그리고 그때부터 P1과 P2가 누르고 있는 입력. 방향은 화면 기준 숫자 키패드 표기입니다. 4는 왼쪽, 6은 오른쪽, 5는 없음."
+
+msgid "inputs.unreadable"
+msgstr "입력을 읽을 수 없습니다"
+
+msgid "inputs.unreadable_detail"
+msgstr "이 리플레이는 예전 형식이거나 파일이 손상되었습니다."
+
 msgid "replays.row_detail"
 msgstr "선택하여 게임의 리플레이 목록에 추가하거나, 추가하고 지금 봅니다."
 

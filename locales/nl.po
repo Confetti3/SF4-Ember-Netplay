@@ -700,6 +700,36 @@ msgstr "{0} geopend in Verkenner."
 msgid "services.replay_folder_failed"
 msgstr "De replaymap kon niet worden geopend."
 
+msgid "replays.inputs"
+msgstr "Inputs en statistieken"
+
+msgid "replays.inputs_detail"
+msgstr "Toont wat beide spelers indrukten, frame voor frame, en hoe vaak. Gelezen uit het replaybestand; er wordt niets afgespeeld."
+
+msgid "replays.info_look"
+msgstr "Kostuum {0}, kleur {1}, Ultra {2}"
+
+msgid "inputs.length_value"
+msgstr "Rondes: {0}, {1}"
+
+msgid "inputs.buttons"
+msgstr "{0}: knopdrukken"
+
+msgid "inputs.activity"
+msgstr "{0} inputs per minuut, {1} sprongen, {2}% van de tijd gehurkt."
+
+msgid "inputs.round"
+msgstr "Ronde {0}"
+
+msgid "inputs.legend"
+msgstr "Elke regel: de tijd, dan wat P1 en P2 vanaf daar vasthouden. Richtingen zoals op een numeriek toetsenblok, gezien op het scherm: 4 is links, 6 is rechts, 5 is geen."
+
+msgid "inputs.unreadable"
+msgstr "Inputs kunnen niet worden gelezen"
+
+msgid "inputs.unreadable_detail"
+msgstr "Deze replay heeft een ouder formaat, of het bestand is beschadigd."
+
 msgid "replays.row_detail"
 msgstr "Selecteer om hem aan de replaylijst van het spel toe te voegen, of om hem toe te voegen en nu te bekijken."
 

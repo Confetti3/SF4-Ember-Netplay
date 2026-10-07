@@ -700,6 +700,36 @@ msgstr "{0} aperto in Esplora file."
 msgid "services.replay_folder_failed"
 msgstr "Impossibile aprire la cartella dei replay."
 
+msgid "replays.inputs"
+msgstr "Input e statistiche"
+
+msgid "replays.inputs_detail"
+msgstr "Mostra cosa hanno premuto i due giocatori, fotogramma per fotogramma, e quante volte. Letto dal file del replay; non viene riprodotto nulla."
+
+msgid "replays.info_look"
+msgstr "Costume {0}, colore {1}, Ultra {2}"
+
+msgid "inputs.length_value"
+msgstr "Round: {0}, {1}"
+
+msgid "inputs.buttons"
+msgstr "{0}: pressioni dei pulsanti"
+
+msgid "inputs.activity"
+msgstr "{0} input al minuto, {1} salti, accovacciato per il {2}% del tempo."
+
+msgid "inputs.round"
+msgstr "Round {0}"
+
+msgid "inputs.legend"
+msgstr "Ogni riga: il tempo, poi cosa tengono premuto P1 e P2 da lì in poi. Direzioni come su un tastierino numerico visto a schermo: 4 è sinistra, 6 destra, 5 nessuna."
+
+msgid "inputs.unreadable"
+msgstr "Impossibile leggere gli input"
+
+msgid "inputs.unreadable_detail"
+msgstr "Questo replay è in un formato precedente, oppure il file è danneggiato."
+
 msgid "replays.row_detail"
 msgstr "Seleziona per aggiungerlo all'elenco dei replay del gioco, o per aggiungerlo e guardarlo ora."
 

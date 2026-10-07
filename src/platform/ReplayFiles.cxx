@@ -299,6 +299,17 @@ bool ReadArchived(const fs::path& path, bool inRoot, ArchivedReplay& replay) {
 	char label[32] = { 0 };
 	if (time < 0 || _localtime64_s(&local, &time) || !std::strftime(label, sizeof(label), "%Y-%m-%d %H:%M", &local)) return false;
 	replay.label = label; replay.time = static_cast<std::uint64_t>(time);
+	// The whole replay, once per file (the lister keeps what is read): its
+	// score, its length and what each player chose and pressed.
+	const slots::Bytes whole = LoadFile(path);
+	replayinputs::Match played;
+	if (replayinputs::Parse(whole.data(), whole.size(), played)) {
+		replay.read = true;
+		replayinputs::Score(played, replay.score);
+		replay.rounds = static_cast<unsigned>(played.rounds.size());
+		for (const auto& round : played.rounds) replay.frames += round.frames;
+		for (int side = 0; side < 2; side++) { replay.players[side] = played.players[side]; replay.stats[side] = replayinputs::Count(played, side); }
+	}
 	return true;
 }
 

@@ -1,6 +1,9 @@
 #include "shell_journey_support.hxx"
 #include "shell_chat_journey.hxx"
 #include <algorithm>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <iterator>
 namespace {
 // The fighter drawn right of `fighter` in USFIV's select order, which is where Right goes.
@@ -373,6 +376,7 @@ void Journeys() {
  Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.recordWatched,"Save matches you watch did not save");
  // A replay's row is its file: Watch now asks for that path. A link's question opens the screen and is answered with Watch or a dismissal.
  {const ShellAction saved=h.actions.back(); // the journey goes on from the preferences just saved
+  h.view.preferences=saved.preferences;h.Frame(); // and the save is acknowledged before the frames below pass
   ShellView::Replay shown;shown.path="C:\\r\\a.emberreplay";shown.label="2026-10-06 21:32  Ryu vs Ken";
   h.view.replays={shown};h.view.replaysReady=true;h.Screen("replays");h.Choose("replay:C:\\r\\a.emberreplay");h.Press(MenuInput::Select);
   Check(h.actions.back().replay.mode==sf4e::replay::Mode::Watch&&h.actions.back().replay.path==shown.path,"Watch now did not ask for the replay's file");
@@ -382,6 +386,18 @@ void Journeys() {
   Check(h.actions.back().replay.mode==sf4e::replay::Mode::DismissLink&&h.actions.back().replay.path.empty(),"Not now did not dismiss the link");
   h.Choose("replay-link");h.Press(MenuInput::Select);
   Check(h.actions.back().replay.mode==sf4e::replay::Mode::Watch&&h.actions.back().replay.path==h.view.replayLink,"Play it did not ask for the link's file");
+  // Inputs and stats, the third choice, reads the file (one round: LP for a frame) and sends nothing.
+  {std::vector<unsigned char> replay(0x320+0x88,0);std::memcpy(replay.data(),"#BRP",4);replay[8]=1;replay[10]=8;replay[0x18]=1;replay[0x320+0x7C]=3;
+   const unsigned char press[]={0x10,0,0};replay.insert(replay.end(),press,press+3);
+   const auto file=std::filesystem::temp_directory_path()/"ember-journey-inputs.usf4replay";
+   std::ofstream(file,std::ios::binary).write(reinterpret_cast<const char*>(replay.data()),static_cast<std::streamsize>(replay.size()));
+   ShellView::Replay read;read.path=file.string();read.label="2026-10-06 21:32  Ryu vs Ken";
+   h.view.replayLink.clear();h.view.replays={read};h.Screen("replays");const std::size_t sent=h.actions.size();const std::string row="replay:"+read.path;h.Choose(row.c_str());
+   for(int i=0;i<2;++i)h.Press(MenuInput::Right);
+   h.Press(MenuInput::Select);
+   Check(h.shell.Navigation().Screen()=="replay-inputs"&&h.actions.size()==sent,"Inputs and stats did not open its screen, or sent something");
+   h.FocusOn("inputs-p2");h.FocusOn("inputs-round-1");
+   std::error_code ignored;std::filesystem::remove(file,ignored);}
   h.view.replays.clear();h.view.replaysReady=false;h.view.replayLink.clear();h.Frame();h.actions.push_back(saved);}
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("interface");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-size");h.Press(MenuInput::Right);h.Frame(0,45);

@@ -270,8 +270,27 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
                 const std::string fighterName = fighter ? fighter->name : sf4e::loc::T("common.unavailable");
                 return replay.names[side].empty() ? fighterName : sf4e::loc::Tf("replays.player", replay.names[side], fighterName);
             };
+            // What the replay's own file says: the score, the length, and for
+            // each player the look, the buttons pressed and how busy they were.
+            std::string score, info;
+            if (replay.read) {
+                namespace in = sf4e::replayinputs;
+                if (replay.score[0] >= 0) score = std::to_string(replay.score[0]) + "-" + std::to_string(replay.score[1]);
+                const std::string length = in::Clock(replay.frames);
+                info = (score.empty() ? "" : score + "  ") + sf4e::loc::Tf("inputs.length_value", replay.rounds, length);
+                for (int side = 0; side < 2; side++) {
+                    const auto& player = replay.players[side]; const auto& stats = replay.stats[side];
+                    const int costume = player.costume + 1, color = player.color + 1;
+                    const char* ultra = player.ultra == 0 ? "I" : player.ultra == 1 ? "II" : "W";
+                    const unsigned perMinute = stats.PerMinute(), jumps = stats.jumps, crouched = stats.CrouchedPercent();
+                    std::string presses;
+                    for (int button = 0; button < 6; button++) presses += std::string(button ? " " : "") + in::ButtonNames[button] + " " + std::to_string(stats.presses[button]);
+                    info += std::string("\n") + (side ? "P2 " : "P1 ") + name(side) + ": " + sf4e::loc::Tf("replays.info_look", costume, color, ultra) + ". " + presses + ". " +
+                        sf4e::loc::Tf("inputs.activity", perMinute, jumps, crouched);
+                }
+            }
             view.replays.push_back({sf4e::platform::WideToUtf8(replay.path.wstring()),
-                replay.label + "  " + sf4e::loc::Tf("replays.fighters", name(0), name(1)), {replay.names[0], replay.names[1]}, replay.spectated, replay.watched, replay.video});
+                replay.label + "  " + sf4e::loc::Tf("replays.fighters", name(0), name(1)), {replay.names[0], replay.names[1]}, replay.spectated, replay.watched, replay.video, score, info});
         }
     }
     view.replaysReady = snapshot.replays.ready;

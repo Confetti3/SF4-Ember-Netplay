@@ -700,6 +700,36 @@ msgstr "Otwarto {0} w Eksploratorze."
 msgid "services.replay_folder_failed"
 msgstr "Nie udało się otworzyć folderu powtórek."
 
+msgid "replays.inputs"
+msgstr "Wejścia i statystyki"
+
+msgid "replays.inputs_detail"
+msgstr "Pokazuje, co naciskali obaj gracze, klatka po klatce, i ile razy. Odczytane z pliku powtórki; nic nie jest odtwarzane."
+
+msgid "replays.info_look"
+msgstr "Kostium {0}, kolor {1}, Ultra {2}"
+
+msgid "inputs.length_value"
+msgstr "Rundy: {0}, {1}"
+
+msgid "inputs.buttons"
+msgstr "{0}: naciśnięcia przycisków"
+
+msgid "inputs.activity"
+msgstr "{0} wejść na minutę, skoki: {1}, w kucki przez {2}% czasu."
+
+msgid "inputs.round"
+msgstr "Runda {0}"
+
+msgid "inputs.legend"
+msgstr "Każdy wiersz: czas, a potem to, co od tej chwili trzymają P1 i P2. Kierunki jak na klawiaturze numerycznej widzianej na ekranie: 4 to lewo, 6 prawo, 5 brak."
+
+msgid "inputs.unreadable"
+msgstr "Nie można odczytać wejść"
+
+msgid "inputs.unreadable_detail"
+msgstr "Ta powtórka ma starszy format albo jej plik jest uszkodzony."
+
 msgid "replays.row_detail"
 msgstr "Wybierz, aby dodać do listy powtórek gry, albo dodać i obejrzeć teraz."
 

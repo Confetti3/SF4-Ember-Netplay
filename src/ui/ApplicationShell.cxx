@@ -8,12 +8,16 @@
 #include "RoomControls.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
+#include "../common/ReplayInputs.hxx"
 #include "../platform/LocaleWindows.hxx"
 #include "../platform/UiPreferencesStore.hxx"
 #include <imgui.h>
 #include <cfloat>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <utility>
 namespace sf4e { namespace ui {
 namespace {
@@ -299,6 +303,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(PublicRoomsPanel::Owns(screen)){
   title=loc::T("screen.public_rooms");rows=publicRooms_.Rows(v,identity_.UsableBridge(v),identity_.Waiting(),identity_.PublicSetup(),PublicListWidth());
  }else if(screen.compare(0,4,"room")==0){title=v.room.name.empty()?loc::T("screen.room"):v.room.name;NoteUserText(v.room.name);rows=RoomEntries(v);
+ }else if(screen=="replay-inputs"){title=loc::T("replays.inputs");rows=inputsRows_;
  }else if(screen=="replays"){
   title=loc::T("replays.title");
   if(!v.replayLink.empty()){
@@ -318,8 +323,11 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    rows.back().userText=true;for(const auto& name:v.replays[i].names)NoteUserText(name);
    rows.back().value=v.replays[i].watched&&v.replays[i].spectated?loc::T("replays.watched_spectated"):v.replays[i].watched?loc::T("replays.watched"):v.replays[i].spectated?loc::T("replays.spectated"):"";
    if(v.replays[i].video)rows.back().value=rows.back().value.empty()?loc::T("replays.video"):rows.back().value+", "+loc::T("replays.video");
+   // The score leads the value; the replay's own account of the match leads the detail.
+   if(!v.replays[i].score.empty())rows.back().value=rows.back().value.empty()?v.replays[i].score:v.replays[i].score+"  "+rows.back().value;
+   if(!v.replays[i].info.empty()){rows.back().detail=v.replays[i].info+"\n\n"+rows.back().detail;rows.back().detailText=DetailText::Name;}
    // Select asks: add it to the game's list, or add it and go straight to the battle log.
-   rows.back().choices={{"watch",loc::T("replays.watch"),loc::T("replays.watch_detail"),idle},{"export",loc::T("replays.export_gpu"),loc::T("replays.export_gpu_detail"),idle},{"add",loc::T("replays.add"),loc::T("replays.add_detail")}};
+   rows.back().choices={{"watch",loc::T("replays.watch"),loc::T("replays.watch_detail"),idle},{"export",loc::T("replays.export_gpu"),loc::T("replays.export_gpu_detail"),idle},{"inputs",loc::T("replays.inputs"),loc::T("replays.inputs_detail")},{"add",loc::T("replays.add"),loc::T("replays.add_detail")}};
    rows.back().chosen=idle?"watch":"add";}
  }else if(screen=="settings"){
   title=loc::T("settings.title");rows={Row("player",loc::T("screen.player"),loc::T("settings.player_detail")),Row("defaults",loc::T("screen.defaults"),loc::T("settings.defaults_detail")),Row("interface",loc::T("settings.interface"),loc::T("settings.interface_detail")),Row("discord",loc::T("screen.discord"),loc::T("settings.discord_detail")),
@@ -493,6 +501,42 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
  card.members=static_cast<int>(v.room.members.size());
  for(const auto& table:v.room.tables)if(table.phase==room::TablePhase::Playing)++card.activeTables;
  SetMenuPlayerCard(std::move(card));
+}
+// The replay's own label, its length, what each player pressed, and a row a
+// round whose Select opens the round's inputs in the reader.
+void ApplicationShell::OpenReplayInputs(const ShellView::Replay& replay) {
+ namespace in=replayinputs;
+ inputsRows_.clear();
+ // One file, once, when the player asks: no more of it than a replay can be, and nothing it throws leaves here.
+ std::vector<std::uint8_t> bytes(replayslots::kLargestReplay+replayslots::kExportHeaderBytes+1);
+ try{
+  std::ifstream file(std::filesystem::u8path(replay.path),std::ios::binary);
+  file.read(reinterpret_cast<char*>(bytes.data()),static_cast<std::streamsize>(bytes.size()));
+  bytes.resize(static_cast<std::size_t>(file.gcount()));
+ }catch(const std::exception&){bytes.clear();}
+ in::Match match;
+ if(!in::Parse(bytes.data(),bytes.size(),match)){inputsRows_.push_back(InfoRow("inputs-none",loc::T("inputs.unreadable"),"",loc::T("inputs.unreadable_detail")));return;}
+ std::uint32_t frames=0;for(const auto& round:match.rounds)frames+=round.frames;
+ const std::size_t rounds=match.rounds.size();const std::string length=in::Clock(frames);
+ int score[2]={-1,-1};
+ const std::string result=in::Score(match,score)?std::to_string(score[0])+"-"+std::to_string(score[1])+"  ":"";
+ inputsRows_.push_back(InfoRow("inputs-replay",replay.label,result+loc::Tf("inputs.length_value",rounds,length),loc::T("replays.inputs_detail")));
+ inputsRows_.back().userText=true;
+ for(int side=0;side<2;side++){
+  const in::Stats stats=in::Count(match,side);
+  std::string presses;
+  for(int button=0;button<6;button++)presses+=std::string(button?"  ":"")+in::ButtonNames[button]+" "+std::to_string(stats.presses[button]);
+  const std::string who=replay.names[side].empty()?(side?"P2":"P1"):replay.names[side];
+  const unsigned perMinute=stats.PerMinute(),jumps=stats.jumps,crouched=stats.CrouchedPercent();
+  inputsRows_.push_back(InfoRow("inputs-p"+std::to_string(side+1),loc::Tf("inputs.buttons",who),presses,loc::Tf("inputs.activity",perMinute,jumps,crouched)));
+  inputsRows_.back().userText=!replay.names[side].empty();
+ }
+ for(std::size_t round=0;round<rounds;round++){
+  const std::size_t number=round+1;
+  auto row=Row("inputs-round-"+std::to_string(number),loc::Tf("inputs.round",number),std::string(loc::T("inputs.legend"))+"\n\n"+in::Log(match.rounds[round]));
+  row.value=in::Clock(match.rounds[round].frames);row.reading=true;
+  inputsRows_.push_back(std::move(row));
+ }
 }
 void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,const std::string& screen,bool idle,const Submit& submit) {
  using namespace netplay; auto& nav=menu_.navigation;
@@ -855,6 +899,10 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
    ShellAction r;r.command.generation=v.session.generation;
    if(a.text=="link-play")r.replay={replay::Mode::Watch,v.replayLink};else r.replay.mode=replay::Mode::DismissLink;
    if(!submit(std::move(r)))error_=loc::T("error.queue_failed");
+  }
+  else if(a.id.compare(0,7,"replay:")==0&&a.text=="inputs"){
+   // Read from the file here; nothing is sent to the game.
+   for(const auto& shown:v.replays)if(shown.path==a.id.substr(7)){OpenReplayInputs(shown);menu_.navigation.Push("replay-inputs");break;}
   }
   else if(a.id.compare(0,7,"replay:")==0&&v.replaysReady){
    ShellAction r;r.command.generation=v.session.generation;r.replay={a.text=="watch"?replay::Mode::Watch:a.text=="export"?replay::Mode::Export:replay::Mode::Add,a.id.substr(7)};

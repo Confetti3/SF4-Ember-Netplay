@@ -700,6 +700,36 @@ msgstr "{0} открыта в Проводнике."
 msgid "services.replay_folder_failed"
 msgstr "Не удалось открыть папку реплеев."
 
+msgid "replays.inputs"
+msgstr "Ввод и статистика"
+
+msgid "replays.inputs_detail"
+msgstr "Показывает, что нажимали оба игрока, кадр за кадром, и сколько раз. Читается из файла реплея; ничего не воспроизводится."
+
+msgid "replays.info_look"
+msgstr "Костюм {0}, цвет {1}, Ultra {2}"
+
+msgid "inputs.length_value"
+msgstr "Раунды: {0}, {1}"
+
+msgid "inputs.buttons"
+msgstr "{0}: нажатия кнопок"
+
+msgid "inputs.activity"
+msgstr "{0} вводов в минуту, прыжки: {1}, в приседе {2}% времени."
+
+msgid "inputs.round"
+msgstr "Раунд {0}"
+
+msgid "inputs.legend"
+msgstr "Каждая строка: время и то, что с этого момента удерживают P1 и P2. Направления как на цифровой клавиатуре, если смотреть на экран: 4 — влево, 6 — вправо, 5 — ничего."
+
+msgid "inputs.unreadable"
+msgstr "Не удалось прочитать ввод"
+
+msgid "inputs.unreadable_detail"
+msgstr "Этот реплей в старом формате, либо файл повреждён."
+
 msgid "replays.row_detail"
 msgstr "Выберите, чтобы добавить в список записей игры, или добавить и посмотреть сейчас."
 

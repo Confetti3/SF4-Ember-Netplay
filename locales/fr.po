@@ -700,6 +700,36 @@ msgstr "{0} ouvert dans l'Explorateur."
 msgid "services.replay_folder_failed"
 msgstr "Le dossier des replays n'a pas pu être ouvert."
 
+msgid "replays.inputs"
+msgstr "Entrées et statistiques"
+
+msgid "replays.inputs_detail"
+msgstr "Montre ce que les deux joueurs ont pressé, image par image, et combien de fois. Lu dans le fichier du replay ; rien n'est rejoué."
+
+msgid "replays.info_look"
+msgstr "Costume {0}, couleur {1}, Ultra {2}"
+
+msgid "inputs.length_value"
+msgstr "Rounds : {0}, {1}"
+
+msgid "inputs.buttons"
+msgstr "{0} : pressions de boutons"
+
+msgid "inputs.activity"
+msgstr "{0} entrées par minute, {1} sauts, accroupi {2} % du temps."
+
+msgid "inputs.round"
+msgstr "Round {0}"
+
+msgid "inputs.legend"
+msgstr "Chaque ligne : le temps, puis ce que P1 et P2 maintiennent à partir de là. Directions comme sur un pavé numérique vu à l'écran : 4 à gauche, 6 à droite, 5 aucune."
+
+msgid "inputs.unreadable"
+msgstr "Entrées illisibles"
+
+msgid "inputs.unreadable_detail"
+msgstr "Ce replay est dans un ancien format, ou son fichier est endommagé."
+
 msgid "replays.row_detail"
 msgstr "Sélectionnez pour l'ajouter à la liste des replays du jeu, ou pour l'ajouter et le regarder maintenant."
 

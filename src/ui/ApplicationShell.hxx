@@ -111,7 +111,9 @@ struct ShellView {
     // is a path for the import action and a label for its row. replaysReady
     // when one can be put into the game's replay list right now, and the
     // outcome of the last import as a notice (an error when it failed).
-    struct Replay { std::string path, label, names[2]; bool spectated = false, watched = false, video = false; };
+    // score: "2-1", player 1 first, or empty when the replay does not tell.
+    // info: what the replay says of the match, for the row's detail.
+    struct Replay { std::string path, label, names[2]; bool spectated = false, watched = false, video = false; std::string score, info; };
     std::vector<Replay> replays;
     bool replaysReady = false;
     std::string replayNotice;
@@ -328,6 +330,10 @@ private:
     netplay::PlayerPreferences preferences_;
     netplay::LobbySettings lobby_;
     std::string error_;
+    // The Inputs and stats screen of the replay last chosen for it, made once
+    // when it opens: the file is read and counted then (common/ReplayInputs.hxx).
+    std::vector<MenuEntry> inputsRows_;
+    void OpenReplayInputs(const ShellView::Replay& replay);
     // The replay link last seen, so its question opens the Replays screen once.
     std::string replayLinkSeen_;
     // A shell error has no natural clear point (a paste that failed, an
