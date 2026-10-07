@@ -317,6 +317,14 @@ static void TestReplayLinks() {
 	CHECK(ParseReplayLink("ember://replay/open?file=a%2.emberreplay").empty());
 	CHECK(ParseReplayLink("ember://replay/open?file=a%22b.emberreplay").empty());
 	CHECK(ParseReplayLink("ember://join/7K3M-0X1R-T9PZ").empty());
+	// Only a file on a drive of this PC: no share, no device path, no stream, no relative path.
+	CHECK(ParseReplayLink(MakeReplayLink("\\\\server\\share\\a.emberreplay")).empty());
+	CHECK(ParseReplayLink(MakeReplayLink("\\\\?\\C:\\r\\a.emberreplay")).empty());
+	CHECK(ParseReplayLink(MakeReplayLink("\\\\.\\pipe\\a.emberreplay")).empty());
+	CHECK(ParseReplayLink(MakeReplayLink("//server/share/a.emberreplay")).empty());
+	CHECK(ParseReplayLink(MakeReplayLink("C:\\r\\a.txt:x.emberreplay")).empty());
+	CHECK(ParseReplayLink(MakeReplayLink("r\\a.emberreplay")).empty());
+	CHECK(ParseReplayLink(MakeReplayLink("C:/r/a.emberreplay")) == "C:/r/a.emberreplay");
 	CHECK(ParseReplayLink(std::string("ember://replay/open?file=") + std::string(1100, 'a') + ".emberreplay").empty());
 }
 

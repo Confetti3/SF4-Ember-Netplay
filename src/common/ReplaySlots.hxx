@@ -21,8 +21,8 @@
 // the replay in one file, so it can be put back into any slot. Everything
 // here works on bytes in memory and touches no file. The game holds the slots
 // in memory while it runs and writes them back on its next save, so an import
-// only lasts when the game is not running. ReplaySlotsTest covers export and
-// import on indexes built at these offsets.
+// made while it runs has to reach that table too (sf4e__ReplayStore.cxx).
+// ReplaySlotsTest covers export and import on indexes built at these offsets.
 
 #include <cstddef>
 #include <cstdint>
@@ -88,8 +88,9 @@ inline bool ValidSwan(const Bytes& swan) {
 // The slot's record, or null when the slot is out of range or its index is
 // not one the game wrote. Each record names its slot in its first four
 // bytes, and a save need not keep them in slot order (a tester's LIST had
-// slot 36 at position 30), so the record is the one that names the slot;
-// a list that names it nowhere falls back to the slot's position.
+// slot 36 at position 30), so the record is the one that names the slot.
+// A list that names it nowhere falls back to the slot's position, unless
+// the record there names another slot: that one is the other slot's.
 inline const std::uint8_t* Record(const Bytes& list, const Bytes& swan, int slot) {
 	if (slot < 0 || slot >= kSlots) return nullptr;
 	const bool inList = slot < kListSlots;
@@ -98,7 +99,15 @@ inline const std::uint8_t* Record(const Bytes& list, const Bytes& swan, int slot
 	const int first = inList ? 0 : kListSlots, count = inList ? kListSlots : kSlots - kListSlots;
 	for (int at = 0; at < count; at++)
 		if (ReadU32(records + at * kRecordBytes) == static_cast<std::uint32_t>(slot)) return records + at * kRecordBytes;
-	return records + (slot - first) * kRecordBytes;
+	const std::uint8_t* const fallback = records + (slot - first) * kRecordBytes;
+	return ReadU32(fallback) < static_cast<std::uint32_t>(kSlots) ? nullptr : fallback;
+}
+
+// A record that is used and names this replay: its size and CRC, of a file
+// the game could have saved. The one check every export and import makes.
+inline bool Describes(const std::uint8_t* record, const std::uint8_t* replay, std::size_t size) {
+	return record[4] && size >= 4 && size <= kLargestReplay && !std::memcmp(replay, "#BRP", 4) &&
+		ReadU32(record + 9) == size && ReadU32(record + 5) == Crc32(replay, size);
 }
 
 struct SlotInfo {
@@ -119,9 +128,7 @@ inline SlotInfo ReadSlot(const Bytes& list, const Bytes& swan, int slot) {
 // file must be one the game could have saved.
 inline bool Export(const Bytes& list, const Bytes& swan, int slot, const Bytes& replay, Bytes& out) {
 	const std::uint8_t* record = Record(list, swan, slot);
-	if (!record || !ValidSwan(swan) || !record[4] || replay.size() < 4 || replay.size() > kLargestReplay ||
-		std::memcmp(replay.data(), "#BRP", 4) || ReadU32(record + 9) != replay.size() ||
-		ReadU32(record + 5) != Crc32(replay.data(), replay.size())) return false;
+	if (!record || !ValidSwan(swan) || !Describes(record, replay.data(), replay.size())) return false;
 	out.assign(kExportMagic, kExportMagic + 8);
 	out.insert(out.end(), record, record + kRecordBytes);
 	out.insert(out.end(), swan.data() + kSwanSlotBytesOffset + slot * 2, swan.data() + kSwanSlotBytesOffset + slot * 2 + 2);
@@ -151,6 +158,15 @@ inline RecordInfo ReadRecordInfo(const std::uint8_t* record) {
 	return info;
 }
 
+// What the game reads of a record it did not write: a title of at most 21
+// characters, two fighters of the roster and a date and time that exist. An
+// export may come from anyone, so a record outside that is not imported.
+inline bool PlausibleRecord(const std::uint8_t* record) {
+	const RecordInfo info = ReadRecordInfo(record);
+	return ReadU32(record + 22) <= 21 && info.fighters[0] >= 0 && info.fighters[1] >= 0 &&
+		info.year >= 2009 && info.year <= 2199 && info.month >= 1 && info.month <= 12 && info.day >= 1 && info.day <= 31 && info.hour < 24 && info.minute < 60;
+}
+
 // An export built from a replay file and the 121 bytes of its slot record
 // from the used flag on, which is what usf4-replay-saver keeps beside each
 // replay (its .index/<crc>.entry). The slot number is left for Import to
@@ -160,8 +176,7 @@ inline bool ExportFromReplay(const Bytes& replay, const Bytes& entry, Bytes& out
 	if (entry.size() < kRecordBytes - 4) return false;
 	Bytes record(kRecordBytes, 0);
 	std::memcpy(record.data() + 4, entry.data(), kRecordBytes - 4);
-	if (!record[4] || replay.size() < 4 || replay.size() > kLargestReplay || std::memcmp(replay.data(), "#BRP", 4) ||
-		ReadU32(record.data() + 9) != replay.size() || ReadU32(record.data() + 5) != Crc32(replay.data(), replay.size())) return false;
+	if (!Describes(record.data(), replay.data(), replay.size())) return false;
 	out.assign(kExportMagic, kExportMagic + 8);
 	out.insert(out.end(), record.begin(), record.end());
 	out.push_back(0x0E); out.push_back(0x0E);
@@ -273,16 +288,16 @@ inline int SlotToReplace(const Bytes& list, const Bytes& swan, int first, int la
 // the menu, which lists by date, has it at its own place. The caller writes the
 // changed files and their ".0" files from Sidecar. False, changing nothing,
 // when the export or an index is damaged. The export may come from anyone;
-// the size, CRC and magic are checked here, and the replay itself is read by
-// the game.
+// the size, CRC and magic are checked here and the record's fields are kept
+// to what the game shows (PlausibleRecord); the replay itself is read by the
+// game.
 inline bool Import(const Bytes& exported, int slot, std::uint32_t now, Bytes& list, Bytes& swan, Bytes& replay) {
 	const std::uint8_t* target = Record(list, swan, slot);
 	if (!target || !ValidSwan(swan) || exported.size() < kExportHeaderBytes || std::memcmp(exported.data(), kExportMagic, 8)) return false;
 	const std::uint8_t* record = exported.data() + 8;
 	const std::uint8_t* body = exported.data() + kExportHeaderBytes;
 	const std::size_t size = exported.size() - kExportHeaderBytes;
-	if (!record[4] || size < 4 || size > kLargestReplay || std::memcmp(body, "#BRP", 4) ||
-		ReadU32(record + 9) != size || ReadU32(record + 5) != Crc32(body, size)) return false;
+	if (!Describes(record, body, size) || !PlausibleRecord(record)) return false;
 	std::uint8_t* out = const_cast<std::uint8_t*>(target);
 	std::memcpy(out, record, kRecordBytes);
 	WriteU32(out, static_cast<std::uint32_t>(slot));

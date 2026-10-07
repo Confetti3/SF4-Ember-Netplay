@@ -4,8 +4,9 @@
 //   ember://replay/open?file=<percent-encoded path>
 // Another program on this PC (usf4-replay-saver) opens it; the launcher hands
 // it to the running game, or starts the game with it. Only a plain path to a
-// .emberreplay or .usf4replay file is accepted, so the link can name a file
-// and nothing else.
+// .emberreplay or .usf4replay file on a drive of this PC is accepted
+// ("C:\\..."): no network share, no device path, so the link can name a local
+// file and nothing else. The player is still asked before it is played.
 
 #include <cctype>
 #include <cstdio>
@@ -38,7 +39,10 @@ inline std::string ParseReplayLink(const std::string& text) {
 		if (static_cast<unsigned char>(c) < 0x20 || c == '"' || c == '*' || c == '?' || c == '<' || c == '>' || c == '|') return std::string();
 		path += c;
 	}
-	if (path.empty() || path.size() > kLongestPath) return std::string();
+	if (path.size() < 4 || path.size() > kLongestPath) return std::string();
+	// A drive letter and its root; "\\server\share", "\\?\" and "\\.\" start otherwise.
+	if (!std::isalpha(static_cast<unsigned char>(path[0])) || path[1] != ':' || (path[2] != '\\' && path[2] != '/')) return std::string();
+	if (path.find(':', 2) != std::string::npos) return std::string(); // no alternate data stream
 	const auto dot = path.rfind('.');
 	std::string ext = dot == std::string::npos ? std::string() : path.substr(dot);
 	for (char& c : ext) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
