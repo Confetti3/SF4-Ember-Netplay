@@ -2474,6 +2474,9 @@ msgstr "Idle {0} min"
 
 msgid "room.idle_hours"
 msgstr "Idle {0} h {1} min"
+
+msgid "room.in_training"
+msgstr "In Training"
 msgid "room.phase.waiting"
 msgstr "Waiting for fighters"
 msgid "room.phase.preparing"

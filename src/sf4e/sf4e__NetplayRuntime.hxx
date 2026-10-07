@@ -224,6 +224,8 @@ struct Runtime {
 	// selection the shell holds.
 	room::TrainingCall trainingCall;
 	std::uint64_t trainingCallSequence = 0, trainingReadySequence = 0;
+	// When the room was last told whether the player is in Training.
+	std::uint64_t trainingSaidAtMs = 0;
 	Intent lobbyEditIntent{15000, Intent::Completion::OnDispatch};
 	std::string readyFailure;
 	std::uint64_t readyFailureSequence = 0;

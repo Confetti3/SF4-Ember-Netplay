@@ -589,6 +589,27 @@ static void CallOutOfTraining() {
 	default: break;
 	}
 }
+// The room is told when the local player is in a Training battle and when
+// they no longer are, so the others see why a member is not answering. What
+// the room's own snapshot says of the player is what is compared, so a word
+// that was lost or refused is said again, at most every two seconds.
+static void SayTraining() {
+	if (!runtime->attached || !UserApp::netplay) { runtime->trainingSaidAtMs = 0; return; }
+	const auto& room = UserApp::netplay->client.GetRoomSnapshot();
+	const auto* me = room::FindMember(room, room.localMember);
+	const bool training = training::ControlsAvailable();
+	const auto now = GetTickCount64();
+	if (!me || !room.roomEpoch || me->training == training || now - runtime->trainingSaidAtMs < 2000) return;
+	if (runtime->controller.GetSnapshot().control != netplay::Health::Healthy) return;
+	room::Action say;
+	say.kind = room::ActionKind::SetTraining;
+	say.locked = training;
+	say.roomEpoch = room.roomEpoch;
+	say.revision = room.revision;
+	runtime->trainingSaidAtMs = now;
+	if (UserApp::netplay->client.SendRoomAction(say) != session::SendResult::Queued)
+		spdlog::info("Room: could not say the player is {} Training; it is said again", training ? "in" : "out of");
+}
 void TickRuntime() {
 	if (!runtime) return;
 	{
@@ -650,6 +671,7 @@ void TickRuntime() {
 	TickCreatedRules(helperReady);
 	CallOutOpponentReady();
 	CallOutOfTraining();
+	SayTraining();
 	TakeJoinLink();
 	PublishAndTickDiscordInvite();
 }

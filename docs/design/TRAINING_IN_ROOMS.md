@@ -29,7 +29,9 @@ is left for a decision.
 
 ## What it rests on
 
-Nothing in the room authority, the wire format or the server changed.
+The call itself changes nothing in the room authority, the wire format or the
+server. Showing the others that a member is in Training does, in one commit
+of its own: see "In Training, as the room shows it" below.
 
 - Being in Training while a member was already possible: the menu can be
   hidden and Training picked in the game's own menu. `matchWaitsForMenu`,
@@ -59,6 +61,36 @@ Nothing in the room authority, the wire format or the server changed.
 - **Entering Training from the room** uses `fMainMenu::RequestTraining`, the
   same request the Home row makes, without the `StartOffline` command that row
   rides on: that command ends the room.
+
+## In Training, as the room shows it
+
+A member in a Training battle is shown to the others as "In Training", where
+a quiet member is otherwise shown as idle for so many minutes.
+
+- `Member::training`, a boolean. On the wire it is `"training": true`, written
+  only when set and read as off when absent, as `idle_s` is written and
+  `spectator_locked` is read. A state or snapshot without it reads as before.
+- `ActionKind::SetTraining`, appended after `PermitReady`, carrying the wanted
+  value in `Action::locked` as `LockSpectating` does. `ProtocolVersion` is
+  unchanged, on that precedent: an older authority refuses the kind as
+  unknown, and a room only admits members of its own build in any case.
+- `RoomAuthority::ApplySetTraining`: any member may set their own flag; it
+  touches the room revision when it changes and binds nothing. A fighter
+  whose game starts loses it in `NormalizeMemberStatus`.
+- It is the first member flag a client sets that is not about a table, so it
+  is dispatched with `Rename` and `Chat`, before the table lookup.
+- The runtime says it (`SayTraining`, beside `CallOutOfTraining`) by comparing
+  what the room's snapshot says of the player with whether a Training battle
+  is running, at most every two seconds, so a word that was lost or refused
+  is said again. It goes straight to `SendRoomAction`.
+- The client keeps a refusal of this action off the player's error line and
+  does not let its acceptance clear an error another action left.
+- `RoomTrainingFlagTest` covers the authority and the wire; the whole suite
+  ran with it.
+
+Not built with it: the room server (`server/roomhost`) compiles the same
+sources and needs rebuilding to accept the action. Until then a public room's
+authority refuses it, quietly, and its members show as idle as before.
 
 ## The rule in full
 
@@ -105,14 +137,9 @@ Nothing in the room authority, the wire format or the server changed.
 2. **The forfeit.** It is local: the player's own client gives the seat up. A
    client that does not do it leaves the opponent waiting, as today. Making
    the room enforce it would be a change to the authority.
-3. **Showing "in Training" to the room.** Not built. What the room shows
-   today is the idle time: a member in Training sends no actions, so after a
-   minute the member list says how long they have been idle, as for anyone
-   who is away. To say "in Training" instead: member status is derived by the
-   authority from table membership, and `from_json` refuses a status above
-   `WatchingNext`, so a new status value is a wire change. A boolean on the
-   member, read with a default like `spectatorLocked`, and an action to set
-   it, appended like `LockSpectating`, would avoid that; it would be the
-   first member flag a client sets that is not about a table.
+3. **The Training flag on the wire.** It is added without a new
+   `ProtocolVersion`, like `LockSpectating`. If a version step is wanted for a
+   new action kind, it is one constant; the commit stands apart so it can be
+   left out, and the call works without it.
 4. **The banner** is drawn by Ember. The game's own is `ui\intrusion`, shown
    by its Arcade fight-request classes, for which there are no bindings.

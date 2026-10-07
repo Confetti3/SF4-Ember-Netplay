@@ -2538,6 +2538,9 @@ msgstr "{0} min inactief"
 msgid "room.idle_hours"
 msgstr "{0} u {1} min inactief"
 
+msgid "room.in_training"
+msgstr "In Training"
+
 msgid "room.phase.waiting"
 msgstr "Wachten op spelers"
 

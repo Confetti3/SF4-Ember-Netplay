@@ -35,10 +35,12 @@ const char* StatusName(room::MemberStatus status) {
 }
 // "Idle 4 min" for a member who has done nothing in the room for a minute
 // or more while waiting (not in a game, not ready, not watching one), else
-// empty.
+// empty. A waiting member who said they are in Training is shown as that
+// instead: it is why they are quiet.
 std::string IdleText(const room::Member& member) {
     const bool waiting = member.status == room::MemberStatus::Idle || member.status == room::MemberStatus::Queued ||
         member.status == room::MemberStatus::Seated;
+    if (waiting && member.training) return loc::T("room.in_training");
     if (!waiting || member.idleSeconds < 60) return {};
     const unsigned minutes = member.idleSeconds / 60;
     return minutes < 60 ? loc::Tf("room.idle_minutes", minutes) : loc::Tf("room.idle_hours", minutes / 60, minutes % 60);

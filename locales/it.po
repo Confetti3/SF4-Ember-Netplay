@@ -2538,6 +2538,9 @@ msgstr "Inattivo da {0} min"
 msgid "room.idle_hours"
 msgstr "Inattivo da {0} h {1} min"
 
+msgid "room.in_training"
+msgstr "In allenamento"
+
 msgid "room.phase.waiting"
 msgstr "In attesa dei giocatori"
 

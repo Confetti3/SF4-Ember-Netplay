@@ -448,6 +448,8 @@ void RoomAuthority::NormalizeMemberStatus(MemberId member) {
 			item->seat = table.p1 == member ? 0 : 1;
 			item->status = table.phase == TablePhase::Playing ? MemberStatus::Playing :
 				(table.ready[item->seat] ? MemberStatus::Ready : MemberStatus::Seated);
+			// A fighter in a game is not in Training, whatever they last said.
+			if (item->status == MemberStatus::Playing) item->training = false;
 			return;
 		}
 		if (std::find(table.queue.begin(), table.queue.end(), member) != table.queue.end()) {

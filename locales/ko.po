@@ -2538,6 +2538,9 @@ msgstr "{0}분째 대기 중"
 msgid "room.idle_hours"
 msgstr "{0}시간 {1}분째 대기 중"
 
+msgid "room.in_training"
+msgstr "트레이닝 중"
+
 msgid "room.phase.waiting"
 msgstr "대전 상대 대기 중"
 

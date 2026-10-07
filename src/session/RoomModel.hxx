@@ -95,6 +95,11 @@ enum class ActionKind : std::uint8_t {
 	// A bound table's fighter has the bridge's permit for the reserved game
 	// (Action::matchGeneration), named by Action::text.
 	PermitReady,
+	// A member's own word that they are in the game's Training mode, on
+	// (Action::locked) or off. It changes what the others are shown and
+	// nothing else. Appended so older authorities reject it as an unknown
+	// kind.
+	SetTraining,
 };
 
 enum class RejectReason : std::uint8_t {
@@ -179,6 +184,10 @@ struct Member {
     // time for it to finish retiring the previous game. Cleared when it stops
     // watching that table.
     bool spectatorLocked = false;
+    // The member said they are in the game's Training mode (SetTraining). It
+    // ends by their word, or when a game of theirs starts. Optional on the
+    // wire and written only when set, so a state without it reads as before.
+    bool training = false;
     // Seconds since the member last did anything in the room (joined, sent a
     // room action, showed a fighter), as of the moment the snapshot was sent;
     // a member in a game counts as active. Stamped per recipient when sent,
@@ -659,6 +668,7 @@ private:
 	Result ApplyCancelResult(MemberId member, const Action& action, Table* table);
 	Result ApplyAbortMatch(MemberId member, const Action& action, Table* table);
 	Result ApplyLockSpectating(MemberId member, const Action& action, Table* table, Member* item);
+	Result ApplySetTraining(MemberId member, const Action& action);
 	Result ApplyPermitReady(MemberId member, const Action& action, Table* table);
 	// Table 0 of a room bound to a tournament match.
 	bool BoundTable(const Table& table) const;
