@@ -730,6 +730,39 @@ msgstr "无法读取输入"
 msgid "inputs.unreadable_detail"
 msgstr "此回放为旧格式，或文件已损坏。"
 
+msgid "export.title"
+msgstr "导出视频"
+
+msgid "export.detail"
+msgstr "录制时显示在游戏画面上，屏幕和视频中都有。"
+
+msgid "export.names"
+msgstr "玩家名称"
+
+msgid "export.name"
+msgstr "玩家 {0}"
+
+msgid "export.line"
+msgstr "对战信息行"
+
+msgid "export.line_text"
+msgstr "对战信息行文字"
+
+msgid "export.set"
+msgstr "局数比分"
+
+msgid "export.set_detail"
+msgstr "每位玩家在本轮对局中目前的胜场数，显示在名称旁。根据这两位玩家刚才连续进行的对战统计；如不正确请修改。"
+
+msgid "export.set_wins"
+msgstr "玩家 {0} 胜场"
+
+msgid "export.mark"
+msgstr "Ember 标记"
+
+msgid "export.generate"
+msgstr "生成视频"
+
 msgid "replays.row_detail"
 msgstr "选择以添加到游戏的回放列表，或添加后立即观看。"
 

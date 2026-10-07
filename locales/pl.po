@@ -730,6 +730,39 @@ msgstr "Nie można odczytać wejść"
 msgid "inputs.unreadable_detail"
 msgstr "Ta powtórka ma starszy format albo jej plik jest uszkodzony."
 
+msgid "export.title"
+msgstr "Eksportuj wideo"
+
+msgid "export.detail"
+msgstr "Wyświetlane na grze podczas nagrywania, na ekranie i w wideo."
+
+msgid "export.names"
+msgstr "Nazwy graczy"
+
+msgid "export.name"
+msgstr "Gracz {0}"
+
+msgid "export.line"
+msgstr "Wiersz meczu"
+
+msgid "export.line_text"
+msgstr "Tekst wiersza meczu"
+
+msgid "export.set"
+msgstr "Wynik seta"
+
+msgid "export.set_detail"
+msgstr "Dotychczasowe wygrane każdego gracza w secie, obok nazwy. Liczone z meczów, które ci dwaj rozegrali tuż przedtem; zmień, jeśli się nie zgadza."
+
+msgid "export.set_wins"
+msgstr "Wygrane gracza {0}"
+
+msgid "export.mark"
+msgstr "Znak Ember"
+
+msgid "export.generate"
+msgstr "Utwórz wideo"
+
 msgid "replays.row_detail"
 msgstr "Wybierz, aby dodać do listy powtórek gry, albo dodać i obejrzeć teraz."
 

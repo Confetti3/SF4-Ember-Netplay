@@ -394,7 +394,7 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 		kind != netplay::CommandKind::CheckConnection && kind != netplay::CommandKind::ApplyDelay) return false;
 	const auto bytes = sizeof(RuntimeCommand) + command.displayName.size() + command.command.invitation.size() +
 		command.preferences.displayName.size() + command.preferences.roomName.size() + command.roomAction.text.size() + command.publicTicket.size() +
-		command.replay.path.size();
+		command.replay.path.size() + command.replay.caption.name[0].size() + command.replay.caption.name[1].size() + command.replay.caption.text.size();
 	return bridge::PushCommand(std::move(command), bytes);
 }
 

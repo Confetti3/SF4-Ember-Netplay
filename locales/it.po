@@ -730,6 +730,39 @@ msgstr "Impossibile leggere gli input"
 msgid "inputs.unreadable_detail"
 msgstr "Questo replay è in un formato precedente, oppure il file è danneggiato."
 
+msgid "export.title"
+msgstr "Esporta video"
+
+msgid "export.detail"
+msgstr "Mostrato sopra il gioco durante la registrazione, a schermo e nel video."
+
+msgid "export.names"
+msgstr "Nomi dei giocatori"
+
+msgid "export.name"
+msgstr "Giocatore {0}"
+
+msgid "export.line"
+msgstr "Riga della partita"
+
+msgid "export.line_text"
+msgstr "Testo della riga della partita"
+
+msgid "export.set"
+msgstr "Punteggio del set"
+
+msgid "export.set_detail"
+msgstr "Le vittorie di ciascun giocatore nel set finora, accanto al nome. Contate dalle partite che i due hanno giocato subito prima; modificalo se non è corretto."
+
+msgid "export.set_wins"
+msgstr "Vittorie del giocatore {0}"
+
+msgid "export.mark"
+msgstr "Marchio Ember"
+
+msgid "export.generate"
+msgstr "Genera video"
+
 msgid "replays.row_detail"
 msgstr "Seleziona per aggiungerlo all'elenco dei replay del gioco, o per aggiungerlo e guardarlo ora."
 

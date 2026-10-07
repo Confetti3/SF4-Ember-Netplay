@@ -584,7 +584,8 @@ int main(int argc, char** argv) {
             Require(ImGui::GetTopMostPopupModal()==nullptr,"Game settings card did not close");
             view.gameSettings={};view.showGameSettingsCard=false;
             for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","discord","about"})page(screen);
-            page("replays");view.replays={{"a","2026-10-05 23:35",{"Alice","Bob"},false,true,false,"2-1","2-1  3 rounds, 2:11\nP1 Alice (Ryu): Costume 3, color 10, Ultra II. LP 101 MP 78 HP 50 LK 84 MK 43 HK 31. 323 inputs a minute, 18 jumps, crouching 54% of the time.\nP2 Bob (Ken): Costume 1, color 1, Ultra I. LP 73 MP 13 HP 14 LK 59 MK 35 HK 40. 303 inputs a minute, 18 jumps, crouching 31% of the time."},{"b","2026-10-05 23:36",{},true,false}};view.replaysReady=true;view.replayNotice="Added as the newest entry of the game's replay list.";page("replays");
+            page("replays");{sf4e::ui::ShellView::Replay a,b;a.path="a";a.label="2026-10-05 23:35";a.names[0]="Alice";a.names[1]="Bob";a.watched=true;a.score="2-1";a.info="2-1  3 rounds, 2:11\nP1 Alice (Ryu): Costume 3, color 10, Ultra II. LP 101 MP 78 HP 50 LK 84 MK 43 HK 31. 323 inputs a minute, 18 jumps, crouching 54% of the time.\nP2 Bob (Ken): Costume 1, color 1, Ultra I. LP 73 MP 13 HP 14 LK 59 MK 35 HK 40. 303 inputs a minute, 18 jumps, crouching 31% of the time.";
+             b.path="b";b.label="2026-10-05 23:36";b.spectated=true;view.replays={a,b};}view.replaysReady=true;view.replayNotice="Added as the newest entry of the game's replay list.";page("replays");
             view.replays.clear();view.replaysReady=false;view.replayNotice.clear();
             view.preferences.autoInputDelay=true;page("defaults");view.preferences.autoInputDelay=false;
             page("home");

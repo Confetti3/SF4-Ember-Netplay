@@ -126,6 +126,9 @@ namespace sf4e {
 				bool noticeError = false;
 				std::uint64_t logOpens = 0, returns = 0;
 				std::string link;
+				// The caption of the export that is recording, to draw over the game.
+				replay::Caption caption;
+				bool captionShown = false;
 				std::shared_ptr<const std::vector<platform::replays::ArchivedReplay>> archive;
 			} replays;
 			bool canOpenRoom = false;

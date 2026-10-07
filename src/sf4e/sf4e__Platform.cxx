@@ -236,8 +236,12 @@ void fD3D::BuildPresentParameters() {
 
 void fD3D::RunScene_Render(void* sceneCommandList) {
     (this->*rD3D::privateMethods.RunScene_Render)(sceneCommandList);
-    sf4e::replaycapture::Frame(lpD3DDevice);
+    // An export is the game's picture as it is before Ember draws on it,
+    // unless it has a caption, which Ember draws.
+    const bool captioned = sf4e::replaycapture::AfterOverlay();
+    if (!captioned) sf4e::replaycapture::Frame(lpD3DDevice);
     Overlay::DrawOverlay();
+    if (captioned) sf4e::replaycapture::Frame(lpD3DDevice);
 }
 
 void fD3D::Destroy() {

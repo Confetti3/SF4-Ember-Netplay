@@ -730,6 +730,39 @@ msgstr "Vstupy nelze přečíst"
 msgid "inputs.unreadable_detail"
 msgstr "Tento záznam je ve starším formátu, nebo je jeho soubor poškozený."
 
+msgid "export.title"
+msgstr "Exportovat video"
+
+msgid "export.detail"
+msgstr "Zobrazuje se přes hru při nahrávání, na obrazovce i ve videu."
+
+msgid "export.names"
+msgstr "Jména hráčů"
+
+msgid "export.name"
+msgstr "Hráč {0}"
+
+msgid "export.line"
+msgstr "Řádek zápasu"
+
+msgid "export.line_text"
+msgstr "Text řádku zápasu"
+
+msgid "export.set"
+msgstr "Skóre setu"
+
+msgid "export.set_detail"
+msgstr "Dosavadní výhry každého hráče v setu, vedle jména. Počítá se ze zápasů, které tito dva hráli těsně předtím; pokud nesedí, upravte je."
+
+msgid "export.set_wins"
+msgstr "Výhry hráče {0}"
+
+msgid "export.mark"
+msgstr "Značka Ember"
+
+msgid "export.generate"
+msgstr "Vytvořit video"
+
 msgid "replays.row_detail"
 msgstr "Vyberte pro přidání do seznamu záznamů hry, nebo pro přidání a přehrání teď."
 

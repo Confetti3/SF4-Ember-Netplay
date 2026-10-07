@@ -221,6 +221,7 @@ void sf4e::replaystore::Start(const replay::Request& request, bool atMainMenu, b
 		const std::wstring path = platform::Utf8ToWide(request.path.c_str());
 		const std::size_t dot = path.find_last_of(L'.');
 		op.video = (dot == std::wstring::npos ? path : path.substr(0, dot)) + L".mp4";
+		op.status.caption = request.caption;
 	}
 	op.Enter(Step::OpeningLog);
 }
@@ -243,6 +244,7 @@ void sf4e::replaystore::Tick(bool atMainMenu) {
 			op.awaited = false; op.video.clear();
 		}
 	}
+	op.status.captionShown = op.awaited && op.status.step == Step::Playing && op.status.caption.Any() && replaycapture::GetState() == replaycapture::State::Recording;
 	if (op.status.step == Step::Idle) return;
 	auto* const log = BattleLogEvent();
 	auto* const state = BattleLogState(log);
@@ -265,7 +267,7 @@ void sf4e::replaystore::Tick(bool atMainMenu) {
 		}
 		// The fight is loading: record from here to the log's return.
 		if (Named(state, "Battle") && !op.video.empty() && !op.awaited) {
-			replaycapture::Begin(op.video);
+			replaycapture::Begin(op.video, op.status.caption.Any());
 			op.awaited = true;
 			spdlog::info("Replay: encoding the playback");
 		}

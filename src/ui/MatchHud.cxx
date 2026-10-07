@@ -156,7 +156,7 @@ Plate MakePlate(const MatchStripView& view,int side,float edge,float y,float k,f
     p.x0=p.right?edge-w:edge;p.x1=p.x0+w;p.y0=y;p.y1=y+height;
     return p;
 }
-void DrawPlate(ImDrawList* draw,const Plate& p){
+void DrawPlate(ImDrawList* draw,const Plate& p,bool withLink=true){
     const float k=p.k,glyph=p.font*.9f,gap=6*k;
     // Opaque: the plate hides the game's own PLAYER label.
     draw->AddRectFilled(ImVec2(p.x0,p.y0),ImVec2(p.x1,p.y1),IM_COL32(20,19,18,255),5*k);
@@ -169,7 +169,7 @@ void DrawPlate(ImDrawList* draw,const Plate& p){
     const float nameWidth=TextWidth(p.font,p.name);
     const float nameX=p.right?p.x1-14*k-nameWidth:p.x0+14*k;
     const float glyphX=p.right?nameX-gap-glyph:nameX+nameWidth+gap;
-    DrawNetworkLinkGlyph(draw,ImVec2(glyphX,p.y0+(p.y1-p.y0-glyph)*.5f),glyph,p.link);
+    if(withLink)DrawNetworkLinkGlyph(draw,ImVec2(glyphX,p.y0+(p.y1-p.y0-glyph)*.5f),glyph,p.link);
     if(p.name.empty())return;
     auto* font=DiagnosticFont();
     const float textY=p.y0+(p.y1-p.y0-p.font)*.5f;
@@ -292,6 +292,34 @@ void DrawMatchStrip(const MatchStripView& view) {
     const auto spot=PlacePanel(view,screen,w,MatchHeight*s,s,FLT_MAX);
     PaintMatchStrip(view,draw,spot.pos,w,s);
     DrawStateLine(view,draw,spot.pos.x,w,spot.stateTop,s);
+}
+void DrawExportCaption(const ExportCaptionView& view) {
+    auto* draw=ImGui::GetForegroundDrawList();
+    const auto screen=MainScreen();
+    // The game's 16:9 image inside the window, in its 720p units, as PlaceSplit measures it.
+    const float gs=(std::min)(screen.size.y/720.f,screen.size.x/1280.f);
+    const float gx0=screen.pos.x+(screen.size.x-1280*gs)*.5f,gy0=screen.pos.y+(screen.size.y-720*gs)*.5f;
+    MatchStripView plates;plates.layout=1;plates.nameOffset=view.nameOffset;
+    plates.names[0]=view.names[0];plates.names[1]=view.names[1];
+    const auto placed=PlaceSplit(plates,screen);
+    for(const auto& plate:placed.plates)if(!plate.name.empty())DrawPlate(draw,plate,false);
+    auto* font=DiagnosticFont();
+    const auto boxed=[&](const std::string& text,float size,float x,float y,float padX,float height,ImU32 color){
+        draw->AddRectFilled(ImVec2(x,y),ImVec2(x+TextWidth(size,text)+2*padX,y+height),IM_COL32(20,19,18,235),4*gs);
+        draw->AddText(font,size,ImVec2(x+padX+gs,y+(height-size)*.5f+gs),IM_COL32(0,0,0,190),text.c_str());
+        draw->AddText(font,size,ImVec2(x+padX,y+(height-size)*.5f),color,text.c_str());
+    };
+    if(!view.line.empty()){
+        // Over the timer, in the band above the K.O. sign (which starts 43 units down).
+        NoteUserText(view.line);
+        const float size=16*gs,pad=10*gs;
+        const auto text=FitText(view.line,520*gs,size);
+        boxed(text,size,gx0+640*gs-TextWidth(size,text)*.5f-pad,gy0+10*gs,pad,24*gs,palette::Ivory);
+    }
+    if(view.mark){
+        const float size=13*gs,pad=7*gs;const std::string mark="EMBER";
+        boxed(mark,size,gx0+1280*gs-TextWidth(size,mark)-2*pad-8*gs,gy0+720*gs-19*gs-6*gs,pad,19*gs,palette::Ember);
+    }
 }
 void DrawMatchStripPreview(const MatchStripView& view) {
     const auto available=ImGui::GetContentRegionAvail();

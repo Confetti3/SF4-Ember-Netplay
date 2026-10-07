@@ -15,7 +15,7 @@ using sf4e::replaycapture::State;
 
 // What the game thread asks: under s_lock with the file, since Frame reads both.
 std::atomic<State> s_state{State::Idle};
-std::atomic<bool> s_wanted{false}, s_sending{false};
+std::atomic<bool> s_wanted{false}, s_sending{false}, s_afterOverlay{false};
 // The grab and the link, and everything below: the render thread's, under
 // s_lock so a reset on another thread waits for a frame in progress.
 std::mutex s_lock;
@@ -28,10 +28,10 @@ constexpr ULONGLONG kClosePatienceMs = 30000;
 
 namespace sf4e { namespace replaycapture {
 
-void Begin(const std::wstring& file) {
+void Begin(const std::wstring& file, bool withOverlay) {
 	std::lock_guard<std::mutex> lock(s_lock);
 	if (s_state != State::Idle) return;
-	s_file = file; s_opened = false; s_sending = false;
+	s_file = file; s_opened = false; s_sending = false; s_afterOverlay = withOverlay;
 	s_wanted = true;
 	s_state = State::Recording;
 }
@@ -44,6 +44,8 @@ void Clear() {
 }
 
 State GetState() { return s_state; }
+
+bool AfterOverlay() { return s_afterOverlay && s_state == State::Recording; }
 
 void Frame(IDirect3DDevice9* device) {
 	const State seen = s_state;

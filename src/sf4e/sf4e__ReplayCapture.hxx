@@ -18,16 +18,18 @@ namespace sf4e { namespace replaycapture {
 enum class State { Idle, Recording, Closing, Done, Failed };
 
 // Game thread. Begin: record from the next rendered frame into file, an
-// .mp4. End: stop and close the file; Done or Failed follows
+// .mp4; withOverlay when the frame is to be taken after Ember's overlay is
+// drawn (an export's caption) instead of before it. End: stop and close the file; Done or Failed follows
 // without the game thread waiting. Clear: back to Idle after either.
-void Begin(const std::wstring& file);
+void Begin(const std::wstring& file, bool withOverlay);
 void End();
 void Clear();
 State GetState();
 
 // Render thread. Frame: once per rendered frame, before the overlay is
-// drawn. Release: before the device resets or goes, lets go of the grab's
+// drawn or, when AfterOverlay says so, after it. Release: before the device resets or goes, lets go of the grab's
 // surfaces; it waits for a Frame in progress.
+bool AfterOverlay();
 void Frame(IDirect3DDevice9* device);
 void Release();
 

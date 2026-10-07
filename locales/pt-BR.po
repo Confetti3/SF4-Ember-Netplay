@@ -730,6 +730,39 @@ msgstr "Não foi possível ler os comandos"
 msgid "inputs.unreadable_detail"
 msgstr "Este replay está em um formato antigo ou o arquivo está danificado."
 
+msgid "export.title"
+msgstr "Exportar vídeo"
+
+msgid "export.detail"
+msgstr "Mostrado sobre o jogo enquanto grava, na tela e no vídeo."
+
+msgid "export.names"
+msgstr "Nomes dos jogadores"
+
+msgid "export.name"
+msgstr "Jogador {0}"
+
+msgid "export.line"
+msgstr "Linha da partida"
+
+msgid "export.line_text"
+msgstr "Texto da linha da partida"
+
+msgid "export.set"
+msgstr "Placar do set"
+
+msgid "export.set_detail"
+msgstr "As vitórias de cada jogador no set até agora, ao lado do nome. Contadas a partir das partidas que os dois jogaram logo antes; altere se não estiver certo."
+
+msgid "export.set_wins"
+msgstr "Vitórias do jogador {0}"
+
+msgid "export.mark"
+msgstr "Marca do Ember"
+
+msgid "export.generate"
+msgstr "Gerar vídeo"
+
 msgid "replays.row_detail"
 msgstr "Selecione para adicionar à lista de replays do jogo, ou para adicionar e assistir agora."
 

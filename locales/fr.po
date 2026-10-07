@@ -730,6 +730,39 @@ msgstr "Entrées illisibles"
 msgid "inputs.unreadable_detail"
 msgstr "Ce replay est dans un ancien format, ou son fichier est endommagé."
 
+msgid "export.title"
+msgstr "Exporter la vidéo"
+
+msgid "export.detail"
+msgstr "Affiché par-dessus le jeu pendant l'enregistrement, à l'écran et dans la vidéo."
+
+msgid "export.names"
+msgstr "Noms des joueurs"
+
+msgid "export.name"
+msgstr "Joueur {0}"
+
+msgid "export.line"
+msgstr "Ligne du match"
+
+msgid "export.line_text"
+msgstr "Texte de la ligne du match"
+
+msgid "export.set"
+msgstr "Score du set"
+
+msgid "export.set_detail"
+msgstr "Les victoires de chaque joueur dans le set jusqu'ici, à côté du nom. Comptées d'après les matchs que ces deux joueurs ont joués juste avant ; modifiez-le s'il n'est pas juste."
+
+msgid "export.set_wins"
+msgstr "Victoires du joueur {0}"
+
+msgid "export.mark"
+msgstr "Marque Ember"
+
+msgid "export.generate"
+msgstr "Générer la vidéo"
+
 msgid "replays.row_detail"
 msgstr "Sélectionnez pour l'ajouter à la liste des replays du jeu, ou pour l'ajouter et le regarder maintenant."
 

@@ -26,7 +26,7 @@ inline const char* MenuScreenName(const std::string& screen) {
         {"costumes",loc::T("selection.costume_gallery")},{"colors",loc::T("selection.color_gallery")},
         {"ultra",loc::T("selection.ultra_combo")},{"stage",loc::T("selection.stage")},{"options",loc::T("selection.additional_options")},
         {"recording",loc::T("screen.dummy_recording")},{"history",loc::T("screen.input_history")},{"developer","Developer"},
-        {"recovery",loc::T("screen.recovery")},{"updates",loc::T("screen.updates")},{"replays",loc::T("replays.title")},{"replay-inputs",loc::T("replays.inputs")}};
+        {"recovery",loc::T("screen.recovery")},{"updates",loc::T("screen.updates")},{"replays",loc::T("replays.title")},{"replay-inputs",loc::T("replays.inputs")},{"replay-export",loc::T("export.title")}};
     for(const auto& name:names)if(screen==name.first)return name.second;
     return nullptr;
 }

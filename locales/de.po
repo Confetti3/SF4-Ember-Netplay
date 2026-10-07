@@ -730,6 +730,39 @@ msgstr "Eingaben nicht lesbar"
 msgid "inputs.unreadable_detail"
 msgstr "Dieses Replay hat ein älteres Format oder die Datei ist beschädigt."
 
+msgid "export.title"
+msgstr "Video exportieren"
+
+msgid "export.detail"
+msgstr "Wird während der Aufnahme über dem Spiel angezeigt, auf dem Bildschirm und im Video."
+
+msgid "export.names"
+msgstr "Spielernamen"
+
+msgid "export.name"
+msgstr "Spieler {0}"
+
+msgid "export.line"
+msgstr "Match-Zeile"
+
+msgid "export.line_text"
+msgstr "Text der Match-Zeile"
+
+msgid "export.set"
+msgstr "Satzstand"
+
+msgid "export.set_detail"
+msgstr "Die bisherigen Siege jedes Spielers im Satz, neben dem Namen. Gezählt aus den Matches, die beide direkt davor gespielt haben; ändern Sie ihn, wenn er nicht stimmt."
+
+msgid "export.set_wins"
+msgstr "Siege von Spieler {0}"
+
+msgid "export.mark"
+msgstr "Ember-Zeichen"
+
+msgid "export.generate"
+msgstr "Video erstellen"
+
 msgid "replays.row_detail"
 msgstr "Wähle, um es der Replay-Liste des Spiels hinzuzufügen, oder um es hinzuzufügen und jetzt anzusehen."
 

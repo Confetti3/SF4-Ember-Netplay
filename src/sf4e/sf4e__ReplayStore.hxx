@@ -46,6 +46,10 @@ struct Status {
 	std::string notice;
 	bool noticeError = false;
 	std::uint64_t logOpens = 0, returns = 0;
+	// The running export's caption, and whether it is to be drawn now
+	// (while the replay's battle records).
+	replay::Caption caption;
+	bool captionShown = false;
 };
 const Status& GetStatus();
 // A playback that is being made into a video is running: the game is then

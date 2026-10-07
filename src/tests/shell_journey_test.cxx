@@ -386,6 +386,17 @@ void Journeys() {
   Check(h.actions.back().replay.mode==sf4e::replay::Mode::DismissLink&&h.actions.back().replay.path.empty(),"Not now did not dismiss the link");
   h.Choose("replay-link");h.Press(MenuInput::Select);
   Check(h.actions.back().replay.mode==sf4e::replay::Mode::Watch&&h.actions.back().replay.path==h.view.replayLink,"Play it did not ask for the link's file");
+  // Export video opens the caption's screen; the set so far is counted from the two matches before, the line is the date and score, and Generate sends all of it.
+  {ShellView::Replay third,second,first;third.path="C:\\r\\c.emberreplay";third.label="2026-10-06 21:40  A (Ryu) vs B (Ken)";third.names[0]="A";third.names[1]="B";third.score="2-1";third.time=3000;
+   second=third;second.path="C:\\r\\b.emberreplay";second.time=2500;second.rounds[0]=0;second.rounds[1]=2;
+   first=third;first.path="C:\\r\\a2.emberreplay";first.time=2000;first.names[0]="B";first.names[1]="A";first.rounds[0]=1;first.rounds[1]=2;
+   h.view.replayLink.clear();h.view.replays={third,second,first};h.Screen("replays");h.Choose("replay:C:\\r\\c.emberreplay");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+   Check(h.shell.Navigation().Screen()=="replay-export","Export video did not open the caption's screen");
+   h.Choose("cap-mark");h.Press(MenuInput::Left);h.Frame();h.Choose("cap-generate");
+   const auto& sent=h.actions.back().replay;
+   Check(sent.mode==sf4e::replay::Mode::Export&&sent.path==third.path&&sent.caption.names&&sent.caption.line&&!sent.caption.mark&&sent.caption.set,"Generate did not send the export with its caption");
+   Check(sent.caption.wins[0]==1&&sent.caption.wins[1]==1&&sent.caption.text=="2026-10-06   2-1"&&sent.caption.name[0]=="A","The caption did not start from the replay and the set before it");
+   Check(h.shell.Navigation().Screen()=="replays","Generate did not return to the Replays screen");}
   // Inputs and stats, the third choice, reads the file (one round: LP for a frame) and sends nothing.
   {std::vector<unsigned char> replay(0x320+0x88,0);std::memcpy(replay.data(),"#BRP",4);replay[8]=1;replay[10]=8;replay[0x18]=1;replay[0x320+0x7C]=3;
    const unsigned char press[]={0x10,0,0};replay.insert(replay.end(),press,press+3);

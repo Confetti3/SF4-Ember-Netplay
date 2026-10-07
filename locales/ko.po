@@ -730,6 +730,39 @@ msgstr "입력을 읽을 수 없습니다"
 msgid "inputs.unreadable_detail"
 msgstr "이 리플레이는 예전 형식이거나 파일이 손상되었습니다."
 
+msgid "export.title"
+msgstr "동영상 내보내기"
+
+msgid "export.detail"
+msgstr "녹화하는 동안 화면과 동영상 모두에서 게임 위에 표시됩니다."
+
+msgid "export.names"
+msgstr "플레이어 이름"
+
+msgid "export.name"
+msgstr "플레이어 {0}"
+
+msgid "export.line"
+msgstr "매치 줄"
+
+msgid "export.line_text"
+msgstr "매치 줄 텍스트"
+
+msgid "export.set"
+msgstr "세트 스코어"
+
+msgid "export.set_detail"
+msgstr "이 세트에서 지금까지 각 플레이어가 이긴 횟수를 이름 옆에 표시합니다. 직전에 두 사람이 한 매치에서 셉니다. 맞지 않으면 바꾸세요."
+
+msgid "export.set_wins"
+msgstr "플레이어 {0} 승리 수"
+
+msgid "export.mark"
+msgstr "Ember 표시"
+
+msgid "export.generate"
+msgstr "동영상 만들기"
+
 msgid "replays.row_detail"
 msgstr "선택하여 게임의 리플레이 목록에 추가하거나, 추가하고 지금 봅니다."
 

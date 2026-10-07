@@ -113,7 +113,9 @@ struct ShellView {
     // outcome of the last import as a notice (an error when it failed).
     // score: "2-1", player 1 first, or empty when the replay does not tell.
     // info: what the replay says of the match, for the row's detail.
-    struct Replay { std::string path, label, names[2]; bool spectated = false, watched = false, video = false; std::string score, info; };
+    // time: when it was saved (seconds since 1970). rounds: the rounds each
+    // player won, -1 when unknown; with time, what a set's score is counted from.
+    struct Replay { std::string path, label, names[2]; bool spectated = false, watched = false, video = false; std::string score, info; std::uint64_t time = 0; int rounds[2] = {-1, -1}; };
     std::vector<Replay> replays;
     bool replaysReady = false;
     std::string replayNotice;
@@ -334,6 +336,11 @@ private:
     // when it opens: the file is read and counted then (common/ReplayInputs.hxx).
     std::vector<MenuEntry> inputsRows_;
     void OpenReplayInputs(const ShellView::Replay& replay);
+    // The Export video screen: the replay it is for and the caption as the
+    // player has it, sent with the request when Generate is chosen.
+    std::string exportPath_;
+    replay::Caption caption_;
+    void OpenReplayExport(const ShellView& view,const ShellView::Replay& replay);
     // The replay link last seen, so its question opens the Replays screen once.
     std::string replayLinkSeen_;
     // A shell error has no natural clear point (a paste that failed, an

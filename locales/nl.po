@@ -730,6 +730,39 @@ msgstr "Inputs kunnen niet worden gelezen"
 msgid "inputs.unreadable_detail"
 msgstr "Deze replay heeft een ouder formaat, of het bestand is beschadigd."
 
+msgid "export.title"
+msgstr "Video exporteren"
+
+msgid "export.detail"
+msgstr "Wordt tijdens het opnemen over het spel getoond, op het scherm en in de video."
+
+msgid "export.names"
+msgstr "Spelersnamen"
+
+msgid "export.name"
+msgstr "Speler {0}"
+
+msgid "export.line"
+msgstr "Matchregel"
+
+msgid "export.line_text"
+msgstr "Tekst van de matchregel"
+
+msgid "export.set"
+msgstr "Setstand"
+
+msgid "export.set_detail"
+msgstr "De overwinningen van elke speler in de set tot nu toe, naast de naam. Geteld uit de matches die deze twee vlak hiervoor speelden; pas hem aan als hij niet klopt."
+
+msgid "export.set_wins"
+msgstr "Overwinningen speler {0}"
+
+msgid "export.mark"
+msgstr "Ember-merk"
+
+msgid "export.generate"
+msgstr "Video maken"
+
 msgid "replays.row_detail"
 msgstr "Selecteer om hem aan de replaylijst van het spel toe te voegen, of om hem toe te voegen en nu te bekijken."
 

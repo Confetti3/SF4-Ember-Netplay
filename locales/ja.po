@@ -730,6 +730,39 @@ msgstr "入力を読み取れません"
 msgid "inputs.unreadable_detail"
 msgstr "このリプレイは古い形式か、ファイルが壊れています。"
 
+msgid "export.title"
+msgstr "動画を書き出す"
+
+msgid "export.detail"
+msgstr "録画中、画面と動画の両方でゲームの上に表示されます。"
+
+msgid "export.names"
+msgstr "プレイヤー名"
+
+msgid "export.name"
+msgstr "プレイヤー{0}"
+
+msgid "export.line"
+msgstr "対戦の行"
+
+msgid "export.line_text"
+msgstr "対戦の行のテキスト"
+
+msgid "export.set"
+msgstr "セットのスコア"
+
+msgid "export.set_detail"
+msgstr "このセットでの各プレイヤーのこれまでの勝利数を、名前の横に表示します。直前にこの二人が行った対戦から数えます。違う場合は変更してください。"
+
+msgid "export.set_wins"
+msgstr "プレイヤー{0}の勝利数"
+
+msgid "export.mark"
+msgstr "Emberマーク"
+
+msgid "export.generate"
+msgstr "動画を作成"
+
 msgid "replays.row_detail"
 msgstr "決定で、ゲームのリプレイ一覧に追加するか、追加して今すぐ見るかを選びます。"
 

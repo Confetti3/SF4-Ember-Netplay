@@ -304,6 +304,22 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   title=loc::T("screen.public_rooms");rows=publicRooms_.Rows(v,identity_.UsableBridge(v),identity_.Waiting(),identity_.PublicSetup(),PublicListWidth());
  }else if(screen.compare(0,4,"room")==0){title=v.room.name.empty()?loc::T("screen.room"):v.room.name;NoteUserText(v.room.name);rows=RoomEntries(v);
  }else if(screen=="replay-inputs"){title=loc::T("replays.inputs");rows=inputsRows_;
+ }else if(screen=="replay-export"){
+  // Each part of the caption on or off, with its text; Generate sends it with the export.
+  title=loc::T("export.title");
+  const auto onOff=[](bool on){return std::string(on?loc::T("common.on"):loc::T("common.off"));};
+  const int one=1,two=2;
+  for(const auto* text:{&caption_.name[0],&caption_.name[1],&caption_.text})NoteUserText(*text);
+  rows={Value("cap-names",loc::T("export.names"),onOff(caption_.names),loc::T("export.detail")),
+   TextRow("cap-name1",loc::Tf("export.name",one),caption_.name[0],31,caption_.names),
+   TextRow("cap-name2",loc::Tf("export.name",two),caption_.name[1],31,caption_.names),
+   Value("cap-line",loc::T("export.line"),onOff(caption_.line),loc::T("export.detail")),
+   TextRow("cap-text",loc::T("export.line_text"),caption_.text,60,caption_.line),
+   Value("cap-set",loc::T("export.set"),onOff(caption_.set),loc::T("export.set_detail")),
+   Value("cap-set1",loc::Tf("export.set_wins",one),std::to_string(caption_.wins[0]),loc::T("export.set_detail"),caption_.set),
+   Value("cap-set2",loc::Tf("export.set_wins",two),std::to_string(caption_.wins[1]),loc::T("export.set_detail"),caption_.set),
+   Value("cap-mark",loc::T("export.mark"),onOff(caption_.mark),loc::T("export.detail")),
+   Row("cap-generate",loc::T("export.generate"),loc::T("replays.export_gpu_detail"),idle&&v.replaysReady)};
  }else if(screen=="replays"){
   title=loc::T("replays.title");
   if(!v.replayLink.empty()){
@@ -538,6 +554,28 @@ void ApplicationShell::OpenReplayInputs(const ShellView::Replay& replay) {
   inputsRows_.push_back(std::move(row));
  }
 }
+// The caption an export starts from: the names Ember noted, the date and
+// score on one line, Ember's mark, and the set so far. The set is counted
+// from the archive: the matches these two played right before this one,
+// each within half an hour of the next, by who won each.
+void ApplicationShell::OpenReplayExport(const ShellView& view,const ShellView::Replay& replay) {
+ exportPath_=replay.path;caption_=replay::Caption{};
+ caption_.name[0]=replay.names[0];caption_.name[1]=replay.names[1];
+ caption_.names=!replay.names[0].empty()&&!replay.names[1].empty();
+ caption_.text=replay.label.substr(0,10)+(replay.score.empty()?"":"   "+replay.score);
+ caption_.line=caption_.mark=true;
+ std::uint64_t next=replay.time;
+ for(const auto& earlier:view.replays){
+  if(!caption_.names||earlier.time>=replay.time)continue;
+  if(next-earlier.time>1800)break; // newest first: nothing older continues the set
+  const bool same=earlier.names[0]==replay.names[0]&&earlier.names[1]==replay.names[1];
+  const bool swapped=earlier.names[0]==replay.names[1]&&earlier.names[1]==replay.names[0];
+  if((!same&&!swapped)||earlier.rounds[0]<0||earlier.rounds[0]==earlier.rounds[1])continue;
+  const int winner=earlier.rounds[0]>earlier.rounds[1]?0:1;
+  ++caption_.wins[same?winner:1-winner];next=earlier.time;
+ }
+ caption_.set=caption_.wins[0]+caption_.wins[1]>0;
+}
 void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,const std::string& screen,bool idle,const Submit& submit) {
  using namespace netplay; auto& nav=menu_.navigation;
  // The retry row a failed save adds to every screen stays the shell's.
@@ -557,6 +595,10 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?"roster":"";nav.Push(a.id);}
  else if(a.id=="replays")nav.Push(a.id);
  else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
+ else if(a.id=="cap-generate"){
+  ShellAction r;r.command.generation=v.session.generation;r.replay={replay::Mode::Export,exportPath_,caption_};
+  if(!submit(std::move(r)))error_=loc::T("error.queue_failed");else nav.Return();
+ }
  else if(a.id=="replay-log"){ShellAction r;r.command.generation=v.session.generation;r.replay.mode=replay::Mode::OpenLog;if(!submit(std::move(r)))error_=loc::T("error.queue_failed");}
  else if(a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="discord"||a.id=="identity"||a.id=="developer")nav.Push(a.id);
  else if(a.id=="pr-create"||a.id=="pr-none")OpenPublicCreate();
@@ -586,6 +628,13 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
  else if(IdentityPanel::Owns(screen))identity_.Accept(a,v);
  else if(a.id=="invite-text")std::snprintf(invitation_,sizeof(invitation_),"%s",a.text.c_str());
  else if(a.id=="language")SetLanguage(std::string(loc::NextPreference(languagePreference_,a.delta)));
+ else if(screen=="replay-export"){
+  if(a.id=="cap-names")caption_.names=a.delta>0;else if(a.id=="cap-line")caption_.line=a.delta>0;
+  else if(a.id=="cap-set")caption_.set=a.delta>0;else if(a.id=="cap-mark")caption_.mark=a.delta>0;
+  else if(a.id=="cap-name1")caption_.name[0]=a.text;else if(a.id=="cap-name2")caption_.name[1]=a.text;
+  else if(a.id=="cap-text")caption_.text=a.text;
+  else if(a.id=="cap-set1"||a.id=="cap-set2"){int& wins=caption_.wins[a.id=="cap-set2"];wins=(std::max)(0,(std::min)(99,wins+a.delta));}
+ }
  else{
   auto prior=preferences_;
   if(a.id=="name")preferences_.displayName=a.text;else if(a.id=="room-name")preferences_.roomName=a.text;
@@ -904,8 +953,12 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
    // Read from the file here; nothing is sent to the game.
    for(const auto& shown:v.replays)if(shown.path==a.id.substr(7)){OpenReplayInputs(shown);menu_.navigation.Push("replay-inputs");break;}
   }
+  else if(a.id.compare(0,7,"replay:")==0&&a.text=="export"){
+   // The caption is set up first; Generate on that screen sends the export.
+   for(const auto& shown:v.replays)if(shown.path==a.id.substr(7)){OpenReplayExport(v,shown);menu_.navigation.Push("replay-export");break;}
+  }
   else if(a.id.compare(0,7,"replay:")==0&&v.replaysReady){
-   ShellAction r;r.command.generation=v.session.generation;r.replay={a.text=="watch"?replay::Mode::Watch:a.text=="export"?replay::Mode::Export:replay::Mode::Add,a.id.substr(7)};
+   ShellAction r;r.command.generation=v.session.generation;r.replay={a.text=="watch"?replay::Mode::Watch:replay::Mode::Add,a.id.substr(7)};
    if(!submit(std::move(r)))error_=loc::T("error.queue_failed");
   }
  }else if(a.kind==MenuAction::Activate){

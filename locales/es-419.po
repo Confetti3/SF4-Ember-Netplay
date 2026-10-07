@@ -730,6 +730,39 @@ msgstr "No se pueden leer las entradas"
 msgid "inputs.unreadable_detail"
 msgstr "Esta repetición tiene un formato anterior o su archivo está dañado."
 
+msgid "export.title"
+msgstr "Exportar video"
+
+msgid "export.detail"
+msgstr "Se muestra sobre el juego mientras graba, en pantalla y en el video."
+
+msgid "export.names"
+msgstr "Nombres de los jugadores"
+
+msgid "export.name"
+msgstr "Jugador {0}"
+
+msgid "export.line"
+msgstr "Línea de la partida"
+
+msgid "export.line_text"
+msgstr "Texto de la línea de la partida"
+
+msgid "export.set"
+msgstr "Marcador del set"
+
+msgid "export.set_detail"
+msgstr "Las victorias de cada jugador en el set hasta ahora, junto al nombre. Se cuentan de las partidas que estos dos jugaron justo antes; cámbialo si no es correcto."
+
+msgid "export.set_wins"
+msgstr "Victorias del jugador {0}"
+
+msgid "export.mark"
+msgstr "Marca de Ember"
+
+msgid "export.generate"
+msgstr "Generar video"
+
 msgid "replays.row_detail"
 msgstr "Selecciona para agregarla a la lista de repeticiones del juego, o para agregarla y verla ahora."
 

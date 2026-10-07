@@ -730,6 +730,39 @@ msgstr "Inputs cannot be read"
 msgid "inputs.unreadable_detail"
 msgstr "This replay is in an older format, or its file is damaged."
 
+msgid "export.title"
+msgstr "Export video"
+
+msgid "export.detail"
+msgstr "Shown over the game while it records, on screen and in the video."
+
+msgid "export.names"
+msgstr "Player names"
+
+msgid "export.name"
+msgstr "Player {0}"
+
+msgid "export.line"
+msgstr "Match line"
+
+msgid "export.line_text"
+msgstr "Match line text"
+
+msgid "export.set"
+msgstr "Set score"
+
+msgid "export.set_detail"
+msgstr "Each player's wins so far in the set, beside the name. Counted from the matches these two played just before; change it if it is not right."
+
+msgid "export.set_wins"
+msgstr "Player {0} wins"
+
+msgid "export.mark"
+msgstr "Ember mark"
+
+msgid "export.generate"
+msgstr "Generate video"
+
 msgid "replays.row_detail"
 msgstr "Select to add it to the game's replay list, or to add it and watch it now."
 

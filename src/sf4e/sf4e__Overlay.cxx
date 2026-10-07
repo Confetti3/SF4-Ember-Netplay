@@ -290,7 +290,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
                 }
             }
             view.replays.push_back({sf4e::platform::WideToUtf8(replay.path.wstring()),
-                replay.label + "  " + sf4e::loc::Tf("replays.fighters", name(0), name(1)), {replay.names[0], replay.names[1]}, replay.spectated, replay.watched, replay.video, score, info});
+                replay.label + "  " + sf4e::loc::Tf("replays.fighters", name(0), name(1)), {replay.names[0], replay.names[1]}, replay.spectated, replay.watched, replay.video, score, info, replay.time, {replay.score[0], replay.score[1]}});
         }
     }
     view.replaysReady = snapshot.replays.ready;
@@ -496,6 +496,19 @@ void Overlay::DrawOverlay() {
         ImGui::Begin("Ember match waiting", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
             ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing);
         ImGui::TextUnformatted(sf4e::loc::T("runtime.return_menu_to_join")); ImGui::End();
+    }
+    // An export's caption, over the replay while it records: it is in the picture.
+    if (snapshot.replays.captionShown) {
+        const auto& caption = snapshot.replays.caption;
+        sf4e::ui::ExportCaptionView shown;
+        for (int side = 0; side < 2 && caption.names; ++side) {
+            const std::string wins = caption.set ? std::to_string(caption.wins[side]) : std::string();
+            shown.names[side] = wins.empty() ? caption.name[side] : side ? wins + "   " + caption.name[side] : caption.name[side] + "   " + wins;
+        }
+        if (caption.line) shown.line = caption.text;
+        if (caption.set && !caption.names) shown.line += (shown.line.empty() ? "" : "   ") + std::to_string(caption.wins[0]) + " - " + std::to_string(caption.wins[1]);
+        shown.mark = caption.mark; shown.nameOffset = snapshot.preferences.matchHudNameOffset;
+        sf4e::ui::DrawExportCaption(shown);
     }
     if (frame->ggpoSessionActive) {
         sf4e::ui::DrawControllerWarning(snapshot.gameplayInputError);
