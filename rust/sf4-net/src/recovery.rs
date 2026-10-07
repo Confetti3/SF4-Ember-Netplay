@@ -352,7 +352,7 @@ impl RecoverySession {
             .ensure_linearizable()
             .await
             .map_err(|_| io::Error::other("room quorum unavailable"))?;
-        if self.committed_revision().await != revision {
+        if self.committed().await.revision != revision {
             return Ok(false);
         }
         self.promote_voters(voters).await?;
@@ -406,9 +406,9 @@ impl RecoverySession {
 
     pub async fn state(&self) -> AuthorityState {
         let metrics = self.coordinator.raft().metrics().borrow().clone();
-        // The revision and a digest hashed once per revision: this runs every
-        // second and must not copy or rehash the checkpoint each time.
-        let (revision, digest) = self.coordinator.committed_digest().await;
+        // Runs every second: the shared value hashes its checkpoint once.
+        let committed = self.coordinator.committed().await;
+        let (revision, digest) = (committed.revision, committed.digest());
         let leader_id = metrics.current_leader.unwrap_or_default();
         let leader = metrics
             .membership_config
@@ -451,17 +451,8 @@ impl RecoverySession {
         }
     }
 
-    pub async fn committed(&self) -> Committed {
+    pub async fn committed(&self) -> std::sync::Arc<Committed> {
         self.coordinator.committed().await
-    }
-
-    /// The committed revision without the checkpoint; see `Store`.
-    pub async fn committed_revision(&self) -> u64 {
-        self.coordinator.committed_revision().await
-    }
-
-    pub async fn committed_mark(&self) -> crate::coordination::CommittedMark {
-        self.coordinator.committed_mark().await
     }
 
     pub fn voter_ids(&self) -> BTreeSet<u64> {
@@ -643,7 +634,7 @@ impl RecoverySession {
                     source_incarnation, target_incarnation, term, request
                 ),
                 term,
-                base: self.committed_revision().await,
+                base: self.committed().await.revision,
                 checkpoint: String::new(),
                 admin: Some(AdminEntry::ProbeReservation(ProbeReservation {
                     room: self.room,

@@ -127,7 +127,7 @@ impl Actor {
                             // equivalent committed exclusion proof for this
                             // one-way departure route.
                             if recovery
-                                .confirm_departure(state.term, recovery.committed_revision().await)
+                                .confirm_departure(state.term, recovery.committed().await.revision)
                                 .await
                                 .is_ok()
                             {
@@ -282,7 +282,7 @@ impl Actor {
                 // can stop replicating to the departing follower before its
                 // local metrics learn that fact, so followers also query the
                 // current leader's authenticated voter claim.
-                let minimum_revision = recovery.committed_revision().await;
+                let minimum_revision = recovery.committed().await.revision;
                 let mut leader_confirmed_departure = false;
                 let removed = timeout(LEAVE_STEP_TIMEOUT, async {
                     loop {

@@ -11,7 +11,7 @@ use std::{
     io::{self, Cursor, Read, Write},
     ops::RangeBounds,
     pin::Pin,
-    sync::Arc,
+    sync::{Arc, OnceLock},
     time::{Duration, Instant},
 };
 
@@ -203,31 +203,51 @@ pub struct Receipt {
     pub accepted: bool,
     pub revision: u64,
 }
+/// The committed checkpoint. The store holds it behind an `Arc` and replaces
+/// it whole on each commit, so a reader takes a coherent value without
+/// copying the checkpoint, which can weigh a mebibyte.
 #[derive(Clone, Default, Serialize, Deserialize)]
 pub struct Committed {
     pub revision: u64,
     pub checkpoint: String,
     pub request: String,
     pub term: u64,
-}
-
-/// What identifies a committed checkpoint without its text: on one node a
-/// revision names one checkpoint, so a reader that saw this mark and sees it
-/// again saw the same checkpoint.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct CommittedMark {
-    pub revision: u64,
-    pub term: u64,
-    pub request: String,
+    /// The checkpoint's SHA-256, hashed on first use.
+    #[serde(skip)]
+    digest: OnceLock<[u8; 32]>,
 }
 
 impl Committed {
-    pub fn mark(&self) -> CommittedMark {
-        CommittedMark {
-            revision: self.revision,
-            term: self.term,
-            request: self.request.clone(),
+    fn new(revision: u64, checkpoint: String, request: String, term: u64) -> Self {
+        Self {
+            revision,
+            checkpoint,
+            request,
+            term,
+            digest: OnceLock::new(),
         }
+    }
+
+    /// The SHA-256 of the checkpoint, all zeroes for none.
+    pub fn digest(&self) -> [u8; 32] {
+        *self.digest.get_or_init(|| {
+            if self.checkpoint.is_empty() {
+                [0; 32]
+            } else {
+                crate::recovery::sha256(self.checkpoint.as_bytes())
+            }
+        })
+    }
+
+    /// The same commit. The store hands out one shared value per commit, so
+    /// this is almost always the pointer test; the field comparison covers a
+    /// value rebuilt by an installed snapshot.
+    pub fn same_commit(&self, other: &Self) -> bool {
+        std::ptr::eq(self, other)
+            || (self.revision == other.revision
+                && self.term == other.term
+                && self.request == other.request
+                && self.checkpoint == other.checkpoint)
     }
 }
 
@@ -295,7 +315,7 @@ struct Machine {
     /// next membership, in ascending incarnation order.
     #[serde(default)]
     departed_order: Vec<u64>,
-    committed: Committed,
+    committed: Arc<Committed>,
     recent: Vec<(String, [u8; 32], Receipt)>,
     #[serde(default)]
     probes: Vec<ProbeReservation>,
@@ -337,9 +357,6 @@ struct Memory {
     snapshot: Option<(SnapshotMeta<u64, BasicNode>, Vec<u8>)>,
     /// The most nodes an installed snapshot's membership may hold.
     max_nodes: usize,
-    /// The SHA-256 of the committed checkpoint at the revision it was taken
-    /// for, hashed once per revision for `committed_digest`.
-    committed_digest: Option<(u64, [u8; 32])>,
     /// The committed revision, published for `Store::committed_changes`.
     commits: watch::Sender<u64>,
 }
@@ -352,7 +369,6 @@ impl Memory {
             machine: Machine::default(),
             snapshot: None,
             max_nodes,
-            committed_digest: None,
             commits: watch::Sender::new(0),
         }
     }
@@ -435,31 +451,10 @@ impl Store {
         Self(Arc::new(Mutex::new(Memory::new(max_nodes))))
     }
 
-    pub async fn committed(&self) -> Committed {
+    /// The committed checkpoint, shared: taking it copies nothing, so the
+    /// actor can look on every tick.
+    pub async fn committed(&self) -> Arc<Committed> {
         self.0.lock().await.machine.committed.clone()
-    }
-
-    /// The committed revision alone. The actor asks on every tick whether it
-    /// has moved, and the checkpoint behind it can weigh a mebibyte.
-    pub async fn committed_revision(&self) -> u64 {
-        self.0.lock().await.machine.committed.revision
-    }
-
-    pub async fn committed_mark(&self) -> CommittedMark {
-        self.0.lock().await.machine.committed.mark()
-    }
-
-    /// The committed mark, with the checkpoint only when the mark is not
-    /// `known`: one read, so the checkpoint is always the mark's.
-    pub async fn committed_unless(
-        &self,
-        known: Option<&CommittedMark>,
-    ) -> (CommittedMark, Option<String>) {
-        let memory = self.0.lock().await;
-        let committed = &memory.machine.committed;
-        let mark = committed.mark();
-        let checkpoint = (known != Some(&mark)).then(|| committed.checkpoint.clone());
-        (mark, checkpoint)
     }
 
     /// Follows the committed revision: it changes when an entry or an
@@ -467,26 +462,6 @@ impl Store {
     /// asking on a timer.
     pub async fn committed_changes(&self) -> watch::Receiver<u64> {
         self.0.lock().await.commits.subscribe()
-    }
-
-    /// The committed revision and the SHA-256 of its checkpoint, hashed once
-    /// per revision: the periodic coordination refresh reads it every second.
-    pub async fn committed_digest(&self) -> (u64, [u8; 32]) {
-        let mut memory = self.0.lock().await;
-        let revision = memory.machine.committed.revision;
-        if let Some((hashed, digest)) = memory.committed_digest
-            && hashed == revision
-        {
-            return (revision, digest);
-        }
-        let checkpoint = &memory.machine.committed.checkpoint;
-        let digest = if checkpoint.is_empty() {
-            [0; 32]
-        } else {
-            crate::recovery::sha256(checkpoint.as_bytes())
-        };
-        memory.committed_digest = Some((revision, digest));
-        (revision, digest)
     }
 
     /// The membership entry applied by the state machine.  OpenRaft's
@@ -579,9 +554,9 @@ impl Store {
         target_endpoint: &str,
         pair_revision: u64,
     ) -> bool {
-        let checkpoint = self.committed().await.checkpoint;
+        let committed = self.committed().await;
         committed_probe_pair_bound(
-            &checkpoint,
+            &committed.checkpoint,
             source_incarnation,
             target_incarnation,
             source_endpoint,
@@ -855,12 +830,12 @@ impl RaftStorage<RoomTypes> for Store {
                             accepted: true,
                             revision: proposal.base + 1,
                         };
-                        machine.committed = Committed {
-                            revision: receipt.revision,
-                            checkpoint: proposal.checkpoint.clone(),
-                            request: proposal.request.clone(),
-                            term: proposal.term,
-                        };
+                        machine.committed = Arc::new(Committed::new(
+                            receipt.revision,
+                            proposal.checkpoint.clone(),
+                            proposal.request.clone(),
+                            proposal.term,
+                        ));
                         machine.recent.push((
                             proposal.dedup_key().to_owned(),
                             proposal.digest(),
@@ -1181,7 +1156,7 @@ impl Coordinator {
             .await?;
         let claim: AuthorityClaim = serde_json::from_slice(&bytes)
             .map_err(|_| io::Error::other("invalid authority claim"))?;
-        let revision = self.store.committed_revision().await;
+        let revision = self.store.committed().await.revision;
         if claim.incarnation != leader
             || claim.leader != Some(leader)
             || claim.term < metrics.current_term
@@ -1206,7 +1181,7 @@ impl Coordinator {
     pub async fn authority_claim(&self) -> io::Result<AuthorityClaim> {
         let mut cached = self.authority_claims.lock().await;
         let metrics = self.raft.metrics().borrow().clone();
-        let revision = self.committed_revision().await;
+        let revision = self.committed().await.revision;
         let voters = self.store.applied_voters().await;
         let members = self.store.applied_members().await;
         // The host of a server-owned room is its only voter, so its barrier
@@ -1232,7 +1207,7 @@ impl Coordinator {
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         self.read_barrier().await?;
         let metrics = self.raft.metrics().borrow().clone();
-        let revision = self.committed_revision().await;
+        let revision = self.committed().await.revision;
         let claim = AuthorityClaim {
             incarnation: self.incarnation,
             term: metrics.current_term,
@@ -1303,27 +1278,8 @@ impl Coordinator {
             .learner_ids()
             .collect()
     }
-    pub async fn committed(&self) -> Committed {
+    pub async fn committed(&self) -> Arc<Committed> {
         self.store.committed().await
-    }
-
-    pub async fn committed_revision(&self) -> u64 {
-        self.store.committed_revision().await
-    }
-
-    pub async fn committed_mark(&self) -> CommittedMark {
-        self.store.committed_mark().await
-    }
-
-    pub async fn committed_digest(&self) -> (u64, [u8; 32]) {
-        self.store.committed_digest().await
-    }
-
-    pub async fn committed_unless(
-        &self,
-        known: Option<&CommittedMark>,
-    ) -> (CommittedMark, Option<String>) {
-        self.store.committed_unless(known).await
     }
 
     pub async fn committed_changes(&self) -> watch::Receiver<u64> {

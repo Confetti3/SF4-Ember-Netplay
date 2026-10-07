@@ -355,11 +355,11 @@ async fn simultaneous_authority_claims_share_one_fresh_read_barrier() {
 }
 
 #[tokio::test]
-async fn a_follower_announces_each_commit_and_reads_its_checkpoint_once() {
+async fn a_follower_announces_each_commit_and_shares_its_checkpoint() {
     let (_bus, nodes) = cluster(3).await;
     let mut commits = nodes[1].committed_changes().await;
-    let (empty, checkpoint) = nodes[1].committed_unless(None).await;
-    assert_eq!((empty.revision, checkpoint.as_deref()), (0, Some("")));
+    let empty = nodes[1].committed().await;
+    assert_eq!((empty.revision, empty.digest()), (0, [0; 32]));
     assert!(
         nodes[0]
             .propose(proposal(&nodes[0], "one", 0, "first state"))
@@ -375,11 +375,15 @@ async fn a_follower_announces_each_commit_and_reads_its_checkpoint_once() {
     })
     .await
     .expect("the follower's commit was announced");
-    let (mark, checkpoint) = nodes[1].committed_unless(Some(&empty)).await;
-    assert_eq!(mark.revision, 1);
-    assert_eq!(mark.request, "one");
-    assert_eq!(checkpoint.as_deref(), Some("first state"));
-    assert_eq!(nodes[1].committed_unless(Some(&mark)).await, (mark, None));
+    // One shared value per commit: a second look is the same value, and its
+    // digest is the checkpoint's.
+    let first = nodes[1].committed().await;
+    assert_eq!((first.revision, first.request.as_str()), (1, "one"));
+    assert_eq!(first.checkpoint, "first state");
+    assert_eq!(first.digest(), crate::recovery::sha256(b"first state"));
+    let again = nodes[1].committed().await;
+    assert!(Arc::ptr_eq(&first, &again) && first.same_commit(&again));
+    assert!(!first.same_commit(&empty));
 
     // An installed snapshot announces its revision too.
     let mut store = nodes[0].store.clone();
@@ -392,6 +396,9 @@ async fn a_follower_announces_each_commit_and_reads_its_checkpoint_once() {
         .unwrap();
     assert!(restored_commits.has_changed().unwrap());
     assert_eq!(*restored_commits.borrow_and_update(), 1);
+    // A value rebuilt from a snapshot is still the same commit.
+    let rebuilt = restored.committed().await;
+    assert!(!Arc::ptr_eq(&rebuilt, &first) && rebuilt.same_commit(&first));
     stop(nodes).await;
 }
 

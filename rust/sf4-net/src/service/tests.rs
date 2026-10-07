@@ -285,6 +285,22 @@ fn test_actor(endpoint: Endpoint, events: mpsc::Sender<Event>) -> Actor {
 }
 
 #[tokio::test]
+async fn an_arrival_brings_the_tick_forward_but_keeps_an_overdue_one() {
+    let now = Instant::now();
+    // Due in a second: an arrival makes it due now.
+    let later = tokio::time::sleep_until(now + Duration::from_secs(1));
+    tokio::pin!(later);
+    tick_now(later.as_mut());
+    assert!(later.deadline() <= Instant::now());
+    // Already 100 ms late: it stays due when it was, so its lag is reported.
+    let overdue_at = now - Duration::from_millis(100);
+    let overdue = tokio::time::sleep_until(overdue_at);
+    tokio::pin!(overdue);
+    tick_now(overdue.as_mut());
+    assert_eq!(overdue.deadline(), overdue_at);
+}
+
+#[tokio::test]
 async fn the_tick_slows_only_when_nothing_is_left_for_it() {
     let (events, mut native) = mpsc::channel(IPC_QUEUE_CAPACITY);
     let mut actor = test_actor(endpoint().await, events);

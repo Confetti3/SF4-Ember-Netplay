@@ -492,7 +492,7 @@ impl Actor {
         let Some(recovery) = self.recovery.clone() else {
             return Ok(());
         };
-        let committed_revision = recovery.committed_revision().await;
+        let committed_revision = recovery.committed().await.revision;
         let current = key.epoch == self.epoch
             && self.room == Some(key.room)
             && recovery.room == key.room

@@ -67,6 +67,11 @@ private:
         { std::lock_guard<std::mutex> lock(arrivalMutex_); }
         arrival_.notify_all();
     }
+    // Every exit of the worker on an error, on both platforms.
+    void MarkFailed() {
+        state_ = HelperState::Failed;
+        NotifyIncoming();
+    }
 #ifdef _WIN32
     void Run(HelperBootstrap bootstrap);
     bool Transfer(HANDLE pipe, void* data, DWORD size, bool write);

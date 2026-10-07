@@ -141,7 +141,7 @@ void HelperClient::Run(int readFd, int writeFd) {
     uint64_t lastReceived = 1;
     HelperMessage pendingIncoming;
     bool hasPendingIncoming = false;
-    const auto failed = [this](int error) { if (!error_) error_ = error; state_ = HelperState::Failed; NotifyIncoming(); };
+    const auto failed = [this](int error) { if (!error_) error_ = error; MarkFailed(); };
     for (;;) {
         OutgoingMessage sending;
         for (size_t i = 0; i < 8 && outgoing_.TryPop(sending); ++i) {

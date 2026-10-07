@@ -219,10 +219,7 @@ struct CoordinationRefresh {
     applied_members: BTreeSet<u64>,
     applied_history: BTreeSet<u64>,
     retired: BTreeSet<u64>,
-    committed: crate::coordination::CommittedMark,
-    /// The committed checkpoint, only when its revision is not the one the
-    /// actor last read a roster from (`refresh_roster`).
-    checkpoint: Option<String>,
+    committed: Arc<crate::coordination::Committed>,
     /// The applied membership is a joint configuration nobody finished.
     joint: bool,
 }
@@ -694,17 +691,26 @@ struct Actor {
     /// Exact UDP port for this process's coordination endpoint when hosting.
     coordination_port: Option<u16>,
     /// The roster the committed checkpoint named the last time a
-    /// coordination refresh parsed one, by room and committed state, so a
-    /// refresh of the same state parses nothing.
+    /// coordination refresh parsed one, with the room and the commit it came
+    /// from, so a refresh of the same commit parses nothing.
     refresh_roster: Option<(
         [u8; 16],
-        crate::coordination::CommittedMark,
+        Arc<crate::coordination::Committed>,
         Option<BTreeSet<EndpointId>>,
     )>,
     /// Signalled when work arrives that no other arm of the actor's loop
     /// sees: a control's reader queued a frame, or the room's Raft store
     /// committed (`install_recovery`). The loop ticks at once.
     wake: Arc<Notify>,
+}
+
+/// Brings the actor's next tick forward to now. A tick already overdue keeps
+/// its deadline, so the lag it reports still counts from when it was due.
+fn tick_now(tick: std::pin::Pin<&mut tokio::time::Sleep>) {
+    let now = Instant::now();
+    if tick.deadline() > now {
+        tick.reset(now);
+    }
 }
 
 impl Actor {
@@ -1380,11 +1386,11 @@ impl Actor {
         mut commands: mpsc::Receiver<Request>,
         mut failed_ipc: watch::Receiver<bool>,
     ) -> io::Result<()> {
-        // The period is set again after every tick (`tick_period`), and an
-        // arrival on any other arm brings the next tick forward, so the loop
-        // is woken by work and the interval only bounds the pumps' timers.
-        let mut tick = interval(FAST_TICK);
-        tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        // The next tick is set after every tick (`tick_period`), and an
+        // arrival on any other arm brings it forward (`tick_now`), so the loop
+        // is woken by work and the timer only bounds the pumps' timers.
+        let tick = tokio::time::sleep_until(Instant::now());
+        tokio::pin!(tick);
         let wake = self.wake.clone();
         let mut statistics = interval(Duration::from_secs(1));
         let mut statistics_ticks: u64 = 0;
@@ -1399,7 +1405,7 @@ impl Actor {
                 _ = failed_ipc.changed() => return Err(failed("IPC disconnected")),
                 request = commands.recv() => match request {
                     Some(request) => {
-                        tick.reset_immediately();
+                        tick_now(tick.as_mut());
                         let _step = busy.enter(stall::command_stage(&request.command));
                         let id = request.id;
                         match request.command {
@@ -1433,7 +1439,7 @@ impl Actor {
                     None => return Err(failed("IPC disconnected")),
                 },
                 incoming = self.endpoint.accept() => {
-                    tick.reset_immediately();
+                    tick_now(tick.as_mut());
                     let _step = busy.enter("accept");
                     let Some(incoming) = incoming else { return Err(failed("endpoint closed")); };
                     if self.tasks.len() >= MAX_TASKS
@@ -1453,17 +1459,17 @@ impl Actor {
                     });
                 }
                 result = self.tasks.join_next(), if !self.tasks.is_empty() => {
-                    tick.reset_immediately();
+                    tick_now(tick.as_mut());
                     let _step = busy.enter(match &result { Some(Ok(completion)) => stall::completion_stage(completion), _ => "task" });
                     match result { Some(Ok(completion)) => self.completed(completion).await?,
                         Some(Err(error)) if error.is_cancelled() => (), _ => return Err(failed("helper worker failed")) }
                 }
                 // A control queued a frame or the room committed: tick now.
-                _ = wake.notified() => tick.reset_immediately(),
-                scheduled = tick.tick() => {
+                _ = wake.notified() => tick_now(tick.as_mut()),
+                () = &mut tick => {
                     let _step = busy.enter("tick");
                     let started = Instant::now();
-                    load.tick(started.saturating_duration_since(scheduled), self.events.capacity());
+                    load.tick(started.saturating_duration_since(tick.deadline()), self.events.capacity());
                     self.events.flush()?;
                     self.expire_departure_grace();
                     self.start_next_admission_operation();
@@ -1480,7 +1486,7 @@ impl Actor {
                     busy.stage("tick:pump_committed_checkpoint");
                     self.pump_committed_checkpoint().await?;
                     load.body(started.elapsed());
-                    tick.reset_after(self.tick_period());
+                    tick.as_mut().reset(Instant::now() + self.tick_period());
                 },
                 _ = statistics.tick() => {
                     let _step = busy.enter("statistics");
