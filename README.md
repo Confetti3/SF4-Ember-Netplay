@@ -89,7 +89,7 @@ Back returns through menus, and from Home it hides Ember. On your own table card
 
 Existing Ember preferences remain under `%APPDATA%\sf4e`. Help & About provides the version, update checking, attribution and redacted diagnostic exports. Ember updates use the renamed repository and verify the downloaded ZIP's SHA-256 before installation.
 
-**`release` is the current Ember branch.** [Legacy `main`](https://github.com/Confetti3/SF4-Ember-Netplay/tree/main) preserves the previous SF4 Netplay Launcher. Its releases and [archived README](docs/archive/README-pre-ember.md) remain available. Legacy in-place upgrades to Ember are not supported; follow the fresh-install steps above.
+**`release` is the current Ember branch.** [Legacy `main`](https://github.com/Confetti3/SF4-Ember-Netplay/tree/c6f2f1907f396c40a8542cc056e3bafa2adb3bde) preserves the previous SF4 Netplay Launcher. Its releases and [archived README](docs/archive/README-pre-ember.md) remain available. Legacy in-place upgrades to Ember are not supported; follow the fresh-install steps above.
 
 Browse the [branch archive](docs/archive/README.md) for all retired development branches, preserved as tagged snapshots with their original commit history.
 

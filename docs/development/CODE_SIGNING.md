@@ -21,12 +21,12 @@ We do **not** ship Defender folder-exclusion scripts. Do not ask users to run `A
 | `SIGNPATH_ORGANIZATION_ID` | Your SignPath organization GUID |
 | `SIGNPATH_SIGNING_POLICY_SLUG` | e.g. `release` (matches `.signpath/signpath.json`) |
 
-The workflow [`.github/workflows/release-windows.yml`](https://github.com/Confetti3/SF4-Ember-Netplay/blob/main/.github/workflows/release-windows.yml) submits artifacts to SignPath when these secrets are set.
+The workflow [`.github/workflows/release-windows.yml`](https://github.com/Confetti3/SF4-Ember-Netplay/blob/v0.6.5/.github/workflows/release-windows.yml) submits artifacts to SignPath when these secrets are set.
 
 ## Option B — Azure Artifact Signing (~$10/month)
 
 1. Create an [Azure Artifact Signing](https://learn.microsoft.com/en-us/azure/artifact-signing/overview) account
-2. Add GitHub secrets (see [`.github/workflows/release-windows.yml`](https://github.com/Confetti3/SF4-Ember-Netplay/blob/main/.github/workflows/release-windows.yml)):
+2. Add GitHub secrets (see [`.github/workflows/release-windows.yml`](https://github.com/Confetti3/SF4-Ember-Netplay/blob/v0.6.5/.github/workflows/release-windows.yml)):
    - `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`
    - `AZURE_CODESIGNING_ENDPOINT`, `AZURE_CODESIGNING_ACCOUNT`, `AZURE_CODESIGNING_PROFILE`
 3. Run workflow **Release Windows** on a version tag before publishing the zip

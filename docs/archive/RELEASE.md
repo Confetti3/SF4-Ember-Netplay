@@ -1,6 +1,6 @@
 # Publishing SF4 Netplay Launcher releases
 
-> **Experimental unofficial port** — release notes and zip assets should describe this as **not production-ready** friends-only test software. See [docs/guides/SCOPE_AND_LIMITATIONS.md](SCOPE_AND_LIMITATIONS.md) and [docs/release-notes/RELEASE_NOTES_TEMPLATE.md](RELEASE_NOTES_TEMPLATE.md).
+> **Experimental unofficial port** — release notes and zip assets should describe this as **not production-ready** friends-only test software. See [docs/guides/SCOPE_AND_LIMITATIONS.md](../guides/SCOPE_AND_LIMITATIONS.md) and [docs/release-notes/RELEASE_NOTES_TEMPLATE.md](../release-notes/RELEASE_NOTES_TEMPLATE.md).
 
 ## One-command release (recommended)
 
@@ -40,7 +40,7 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
    - Tell them this is **experimental** test software — not production-ready; sessions may fail
    - Tell them to download the **Assets** zip (not source-only)
    - Same zip on both PCs; run `preflight.cmd` then `Launcher.exe`
-   - Link [docs/guides/TROUBLESHOOTING.md](TROUBLESHOOTING.md) in release notes (see template) so GitHub Releases point players at the troubleshooting guide
+   - Link [docs/guides/TROUBLESHOOTING.md](../guides/TROUBLESHOOTING.md) in release notes (see template) so GitHub Releases point players at the troubleshooting guide
 
 ## What ships in the zip
 

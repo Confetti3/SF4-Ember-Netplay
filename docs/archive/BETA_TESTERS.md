@@ -6,7 +6,7 @@ Thank you for helping test this **friends-only experiment**. Sessions may fail �
 
 ## Windows Defender / “Wacapew.A!ml”
 
-If Windows blocks **`Sidecar.dll`** or **`Launcher.exe`**, that is usually a **false positive** (unsigned game hook via Detours). Download only from [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest). Verify SHA256 hashes on the release page. See [`docs/guides/WINDOWS_DEFENDER.md`](WINDOWS_DEFENDER.md) — we do **not** recommend Defender exclusions.
+If Windows blocks **`Sidecar.dll`** or **`Launcher.exe`**, that is usually a **false positive** (unsigned game hook via Detours). Download only from [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest). Verify SHA256 hashes on the release page. See [`docs/guides/WINDOWS_DEFENDER.md`](../guides/WINDOWS_DEFENDER.md) — we do **not** recommend Defender exclusions.
 
 ## Before you play
 
@@ -32,11 +32,11 @@ Stay in **Simple mode** (default). Do not use **Find match** or **Open rooms** u
 - **Experimental port** — Windows + Steam USF4 only; you must own the game; **not finished software**
 - **Same zip** on both PCs; default broker has **~50 rooms**; empty lobbies expire after ~5 min, while occupied rooms do not age out by default
 - **Not tested enough yet:** disconnect recovery, spectator mode
-- Full details: [`docs/guides/SCOPE_AND_LIMITATIONS.md`](SCOPE_AND_LIMITATIONS.md)
+- Full details: [`docs/guides/SCOPE_AND_LIMITATIONS.md`](../guides/SCOPE_AND_LIMITATIONS.md)
 
 ## If something goes wrong
 
-Start with **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** — 60-second checklist, black launcher, crash on **Start game**, settings, and Direct IP firewall steps.
+Start with **[TROUBLESHOOTING.md](../guides/TROUBLESHOOTING.md)** — 60-second checklist, black launcher, crash on **Start game**, settings, and Direct IP firewall steps.
 
 | Problem | What to check |
 |---------|----------------|
@@ -57,4 +57,4 @@ Include:
 
 Send logs from: `%APPDATA%\sf4e\logs\sf4e.log`
 
-More detail: [USER_NETPLAY.md](USER_NETPLAY.md), [TEAM_QUICKSTART.md](TEAM_QUICKSTART.md) (packaged as `START_HERE.md` in the zip).
+More detail: [USER_NETPLAY.md](../guides/USER_NETPLAY.md), [TEAM_QUICKSTART.md](TEAM_QUICKSTART.md) (packaged as `START_HERE.md` in the zip).

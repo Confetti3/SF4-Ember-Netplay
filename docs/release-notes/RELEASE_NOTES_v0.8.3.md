@@ -32,7 +32,7 @@ The checkpoint/performance candidate was tested successfully by the project owne
 
 Optional connection checks can still be unavailable even when a match works. The custom room-board toolbar uses a separate rendering path from the shared menu feedback cache and should receive additional visual inspection.
 
-When reporting a problem, save diagnostics and logs from both PCs using the [log collection guide](https://github.com/Confetti3/SF4-Ember-Netplay/blob/release/docs/SAVING_LOGS.md).
+When reporting a problem, save diagnostics and logs from both PCs using the [log collection guide](https://github.com/Confetti3/SF4-Ember-Netplay/blob/v0.8.3/docs/SAVING_LOGS.md).
 
 Ember remains experimental.
 
