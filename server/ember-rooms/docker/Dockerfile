@@ -25,8 +25,11 @@ COPY server/ember server/ember
 COPY server/ember-short server/ember-short
 COPY server/ember-rooms server/ember-rooms
 COPY rust/sf4-net rust/sf4-net
-RUN cd server/ember-rooms && cargo build --release --locked \
-    && cd /src/rust/sf4-net && cargo build --release --locked
+# The image's own toolchain: rust/sf4-net/rust-toolchain.toml would have
+# rustup fetch the Windows target and lint components the client build needs.
+RUN export RUSTUP_TOOLCHAIN="$(rustup default | cut -d' ' -f1)" \
+    && cd server/ember-rooms && cargo build --release --locked \
+    && cd /src/rust/sf4-net && cargo build --profile server --locked
 
 # --- The room host, with the distribution's header-only spdlog, fmt and json.
 FROM debian:${DEBIAN_RELEASE} AS cpp
@@ -36,7 +39,9 @@ RUN apt-get update \
 WORKDIR /src
 COPY src src
 COPY server/roomhost server/roomhost
-RUN bash server/roomhost/build-linux.sh /src /out/sf4e-room-host \
+# A Windows checkout gives the scripts CRLF line ends, which bash refuses.
+RUN sed -i 's/\r$//' server/roomhost/build-linux.sh \
+    && bash server/roomhost/build-linux.sh /src /out/sf4e-room-host \
     && ldd /out/sf4e-room-host
 
 # --- The service.
@@ -55,10 +60,12 @@ RUN apt-get update \
     && install -d -o ember-rooms -g ember-rooms -m 0700 /var/lib/ember-rooms \
     && install -d -m 0755 /etc/ember-rooms /usr/local/lib/ember-rooms/builds
 COPY --from=rust /src/server/ember-rooms/target/release/ember-rooms /usr/local/lib/ember-rooms/ember-rooms
-COPY --from=rust /src/rust/sf4-net/target/release/sf4-net /usr/local/lib/ember-rooms/builds/${BUILD_ID}/sf4-net
+COPY --from=rust /src/rust/sf4-net/target/server/sf4-net /usr/local/lib/ember-rooms/builds/${BUILD_ID}/sf4-net
 COPY --from=cpp /out/sf4e-room-host /usr/local/lib/ember-rooms/builds/${BUILD_ID}/sf4e-room-host
 COPY server/ember-rooms/deploy/config.example.json /usr/local/lib/ember-rooms/config.example.json
 COPY --chmod=0755 server/ember-rooms/docker/entrypoint.sh /usr/local/lib/ember-rooms/docker-entrypoint.sh
+# As for build-linux.sh: a CRLF entrypoint would not start.
+RUN sed -i 's/\r$//' /usr/local/lib/ember-rooms/docker-entrypoint.sh
 # MALLOC_ARENA_MAX: as in deploy/ember-rooms.service, for the supervisor and
 # every room host and helper it starts.
 ENV MALLOC_ARENA_MAX=2 \

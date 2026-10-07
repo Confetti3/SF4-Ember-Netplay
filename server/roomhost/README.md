@@ -95,17 +95,17 @@ the client was built from.
    `server/ember-short` are in the archive):
 
    ```
-   (cd rust/sf4-net && cargo build --release --locked)
+   (cd rust/sf4-net && cargo build --profile server --locked)
    ```
 
-   The binary is `rust/sf4-net/target/release/sf4-net` (or under
+   The binary is `rust/sf4-net/target/server/sf4-net` (or under
    `$CARGO_TARGET_DIR`). About 1.5 min on 20 cores from a warm registry.
 
 4. Stage the pair on the server under the build id and install it:
 
    ```
    ssh vps "mkdir -p ~/ember-rooms/builds/<build_id>"
-   scp ./sf4e-room-host rust/sf4-net/target/release/sf4-net vps:~/ember-rooms/builds/<build_id>/
+   scp ./sf4e-room-host rust/sf4-net/target/server/sf4-net vps:~/ember-rooms/builds/<build_id>/
    ssh -t vps "sudo bash ~/ember-rooms/setup.sh"
    ```
 

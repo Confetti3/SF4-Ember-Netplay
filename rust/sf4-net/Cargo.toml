@@ -36,10 +36,17 @@ ember-short = { path = "../../server/ember-short" }
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_System_Com", "Win32_System_IO", "Win32_System_LibraryLoader", "Win32_System_Pipes", "Win32_System_Threading", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
 
 [profile.release]
-# One codegen unit and whole-program LTO: a smaller binary, which every room
+# The helper players get, built by cmake/sf4e_helper.cmake.
+strip = "debuginfo"
+lto = "thin"
+
+# The public room server's helper (`cargo build --profile server`): one
+# codegen unit and whole-program LTO give a smaller binary, which every room
 # host's helper keeps pages of resident, and a little less CPU. Symbols go
 # too; a panic is read from the helper's stderr in the supervisor's log.
 # Not `panic = "abort"`: the actor expects a task panic as a JoinError.
+[profile.server]
+inherits = "release"
 strip = true
 lto = "fat"
 codegen-units = 1

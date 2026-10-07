@@ -14,7 +14,8 @@
 #   EMBER_ROOMS_PORT_RANGE   default 45800-45899 (two UDP ports per room)
 #   EMBER_ROOMS_EMPTY_CLOSE_SECS, EMBER_ROOMS_DRAIN_SECS  defaults 120, 600
 # with the image's build as the only one. The secret file must exist and be
-# readable by uid 4783 (user ember-rooms in the image).
+# readable by the container's user: uid 4783, with the host's ember-rooms
+# group added (compose.yml, group_add).
 set -eu
 # EMBER_ROOMS_LIB: where the binaries are; only a test outside the image sets it.
 LIB=${EMBER_ROOMS_LIB:-/usr/local/lib/ember-rooms}

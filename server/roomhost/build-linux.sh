@@ -93,6 +93,7 @@ compile() {
 export -f compile
 echo "Compiling $(echo "$SOURCES" | grep -c .) files with $JOBS jobs"
 echo "$SOURCES" | grep . | xargs -P "$JOBS" -I{} bash -c 'compile "$@"' _ {}
+mkdir -p "$(dirname "$OUT")"
 # shellcheck disable=SC2086
 "$CXX" $FLAGS -o "$OUT" "$OBJ"/*.o $LIBS
 echo "Built $OUT"

@@ -27,16 +27,23 @@ services:
       - /var/lib/ember-rooms:uid=4783,gid=4783,mode=0700,size=256m
     volumes:
       # config.json and supervisor.secret as a bare install keeps them, so
-      # deploy/connect-bridge.sh still finds both. Readable by uid 4783.
+      # deploy/connect-bridge.sh still finds both.
       - /etc/ember-rooms:/etc/ember-rooms:ro
+    # deploy/setup.sh gives /etc/ember-rooms (0750) and the files in it
+    # (0640) to root and the host's ember-rooms group, whose id is the host's
+    # own. The container's user joins that group, so it reads them as they
+    # are and nothing on the host is re-owned.
+    group_add:
+      - ${EMBER_ROOMS_HOST_GID:?set EMBER_ROOMS_HOST_GID to the host's ember-rooms group id (getent group ember-rooms)}
     cap_drop:
       - ALL
     security_opt:
       - no-new-privileges:true
-    # The limits of deploy/ember-rooms.service: about 110 MB and 16 tasks per
-    # room over max_rooms; a room past the memory limit is stopped mid-match,
-    # so raise it before max_rooms. One process is killed at the limit, not
-    # the whole container (cgroup v2 default), so the other rooms stay up.
+    # Size these as MemoryMax and TasksMax in deploy/ember-rooms.service,
+    # whose comments give the per-room figures; a room past the memory limit
+    # is stopped mid-match, so raise it before max_rooms. One process is
+    # killed at the limit, not the whole container (cgroup v2 default), so
+    # the other rooms stay up.
     mem_limit: ${EMBER_ROOMS_MEMORY:-2400m}
     pids_limit: ${EMBER_ROOMS_TASKS:-512}
     environment:

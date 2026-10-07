@@ -107,22 +107,38 @@ and the CPU held under 70 percent, that is 35 MB and 1.4 percent of a core
 per room. At the October 2026 figures above (about 100 MB and 10 percent) a
 room is three times too big and seven times too busy.
 
-What the October work (below) changes: an idle room no longer wakes up
-hundreds of times a second, so an empty room should cost about 1 percent of
-a core and a busy one 3 to 5 (every action sends a checkpoint of about
-320 KiB to every member, hashed, compressed and parsed); its memory stays at
-two iroh endpoints, a runtime, a Raft log of several checkpoints and the
-HTTP and TLS clients per helper, an estimated 45 MB per room with the host.
-That puts such a server at about 100 rooms, and the 2 core server at 40 to
-50. Measure after each release and move the table above.
+What the October work (below) is expected to change has not been measured
+with a hosted room yet, so the figures in this paragraph are targets, not
+results. An idle room no longer wakes up hundreds of times a second, so the
+target for an empty room is about 1 percent of a core. A busy room does real
+work: every action sends a checkpoint of about 320 KiB to every member,
+hashed, compressed and parsed. On 2026-10-07, with the older build, 14 rooms
+with matches running cost 2 to 9 percent of a core per helper and 0.5 to 3
+per room host. Memory stays at two iroh endpoints, a runtime, a Raft log of
+a few checkpoints and the HTTP and TLS clients per helper; the target is
+45 MB per room with its host.
+
+The arithmetic on a 4 core server, keeping 70 percent (2.8 cores) for rooms:
+
+| Mix | CPU | Fits |
+|---|---|---|
+| 100 rooms, all busy at 3 to 5 percent | 3 to 5 cores | no |
+| 100 rooms, 30 busy at 5 percent, 70 empty at 1 percent | 2.2 cores | yes |
+| 50 rooms, all busy at 5 percent | 2.5 cores | yes |
+
+So about 100 rooms holds only while most of them are quiet, and about 50
+when every room is playing; the 2 core server is half of each. Memory at
+45 MB is not the limit (100 rooms is 4.5 GB). Measure a hosted room with
+the soak (`server/roomhost/soak`) before raising `max_rooms` on any of this,
+and move the table above to what it shows.
 
 200 on one server needs rooms that share a process (item 1 below): one
 helper with one endpoint, one runtime and one set of relay, DNS and address
 publication tasks, and one room host holding many room models. Per room
-that leaves the Raft state (a few megabytes, less with a tighter snapshot
-policy) and the control connections, so 200 rooms is about 2 GB and the CPU
-is only real activity. Short of that, several small servers (item 2) reach
-the same count with more machines to run.
+that would leave the Raft state and the control connections, and the CPU
+would be only real activity; how much that is has to be measured once it
+exists. Short of that, several small servers (item 2) reach the same count
+with more machines to run.
 
 ## Work that would fit more rooms on one server
 

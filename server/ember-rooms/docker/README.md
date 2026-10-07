@@ -21,8 +21,10 @@ same value `deploy/setup.sh` takes as the folder name under `builds/`):
 docker build --build-arg BUILD_ID=<hash> -t ember-rooms:<hash> -f server/ember-rooms/docker/Dockerfile .
 ```
 
-Three stages: a Rust stage builds the supervisor and the helper with
-`cargo build --release --locked`; a Debian stage builds the room host with
+Three stages: a Rust stage builds the supervisor with
+`cargo build --release --locked` and the helper with the server profile
+(`--profile server`: fat LTO, one codegen unit, no symbols; players' helpers
+keep the release profile); a Debian stage builds the room host with
 `server/roomhost/build-linux.sh` and the distribution's `nlohmann-json3-dev`,
 `libspdlog-dev` and `libfmt-dev`; a slim Debian image of the same release
 holds the three binaries, `tini` and a system user `ember-rooms` with uid
@@ -43,10 +45,20 @@ docker save ember-rooms:<hash> | gzip | ssh vps 'gunzip | sudo docker load'
 
 Docker Engine with the compose plugin, then:
 
-1. `/etc/ember-rooms/` as a bare install has it: `supervisor.secret` (32 or
-   more characters, `openssl rand -hex 32`) and optionally `config.json`.
-   Make both readable by uid 4783: `chown root:4783` and `chmod 0640`.
-   Without `config.json` the container writes one from its environment (see
+1. `/etc/ember-rooms/` as `deploy/setup.sh` leaves it: the directory 0750
+   and `supervisor.secret` (32 or more characters) and `config.json` 0640,
+   all owned by root and the host's `ember-rooms` group. The container's
+   user (uid 4783) joins that group through `group_add` in `compose.yml`, so
+   nothing is re-owned. On a machine that never had the bare install, make
+   the same layout:
+
+   ```
+   sudo groupadd --system ember-rooms
+   sudo install -d -o root -g ember-rooms -m 0750 /etc/ember-rooms
+   openssl rand -hex 32 | sudo install -o root -g ember-rooms -m 0640 /dev/stdin /etc/ember-rooms/supervisor.secret
+   ```
+
+   `config.json` is optional. Without it the container writes one from its environment (see
    `entrypoint.sh`: bind, secret file, `max_rooms`, `port_range`, timings)
    naming the image's build as the only one. With it, the file is used as it
    is and must list the image's build under `builds` with the paths
@@ -57,15 +69,17 @@ Docker Engine with the compose plugin, then:
 
    ```
    BUILD_ID=<hash>
+   EMBER_ROOMS_HOST_GID=<getent group ember-rooms | cut -d: -f3>
    EMBER_ROOMS_MAX_ROOMS=10
    EMBER_ROOMS_PORT_RANGE=45800-45899
    EMBER_ROOMS_MEMORY=2400m
    EMBER_ROOMS_TASKS=512
    ```
 
-   The memory and task limits are the unit's: about 110 MB and 16 tasks per
-   room over `max_rooms`. A room past the memory limit is stopped mid-match,
-   so raise the limit before the room count.
+   Size the memory and task limits as `MemoryMax` and `TasksMax` in
+   `deploy/ember-rooms.service`, whose comments give the per-room figures. A
+   room past the memory limit is stopped mid-match, so raise the limit
+   before the room count.
 3. The UDP port range open to the Internet, in ufw and in the provider's
    firewall, as `deploy/setup.sh` does (`ufw allow 45800:45899/udp`).
 4. Start it, and check it answers:

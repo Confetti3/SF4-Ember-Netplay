@@ -59,10 +59,10 @@ export PATH=$HOME/.cargo/bin:$PATH RUSTUP_TOOLCHAIN=1.98.0
 mkdir -p ~/soak-src && cd ~/soak-src && tar -xf /mnt/c/<path>/soak-src.tar
 bash server/roomhost/build-linux.sh . ./sf4e-room-host
 export CARGO_TARGET_DIR=$HOME/soak-target
-(cd rust/sf4-net && cargo build --release --locked)
+(cd rust/sf4-net && cargo build --profile server --locked)
 ```
 
-You now have `~/soak-src/sf4e-room-host` and `~/soak-target/release/sf4-net`.
+You now have `~/soak-src/sf4e-room-host` and `~/soak-target/server/sf4-net`.
 Both link only against glibc, like the supervisor's pair
 (`server/roomhost/README.md`).
 
@@ -94,7 +94,7 @@ Compare the `ticket_key`, `ticket_kid` and `creator` lines with the script.
 
 ```
 ssh vps "mkdir -p ~/soak"
-scp ~/soak-src/sf4e-room-host ~/soak-target/release/sf4-net vps:soak/
+scp ~/soak-src/sf4e-room-host ~/soak-target/server/sf4-net vps:soak/
 scp server/roomhost/soak/*.sh vps:soak/
 ssh vps "chmod +x ~/soak/*"
 ```
