@@ -19,6 +19,9 @@ Dimps::GameEvents::RootEvent* (*Dimps::App::GetRootEvent)();
 Dimps::App::__publicMethods Dimps::App::publicMethods;
 BYTE* Dimps::App::soundFocusCheck = nullptr;
 DWORD Dimps::App::foregroundWindowImport = 0;
+BYTE* Dimps::App::activeFocusCheck = nullptr;
+BYTE* Dimps::App::iconicChecks[2] = { nullptr, nullptr };
+DWORD Dimps::App::iconicImport = 0;
 
 void Dimps::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
@@ -47,4 +50,8 @@ void Dimps::App::Locate(HMODULE peRoot) {
 	*(PVOID*)&publicMethods.HandleMessage = (PVOID)(peRootOffset + 0x0033e0);
 	soundFocusCheck = (BYTE*)(peRootOffset + 0x0042f8);
 	foregroundWindowImport = peRootOffset + 0x5312ac;
+	activeFocusCheck = (BYTE*)(peRootOffset + 0x0042ae);
+	iconicChecks[0] = (BYTE*)(peRootOffset + 0x0042d7);
+	iconicChecks[1] = (BYTE*)(peRootOffset + 0x004321);
+	iconicImport = peRootOffset + 0x531378;
 }

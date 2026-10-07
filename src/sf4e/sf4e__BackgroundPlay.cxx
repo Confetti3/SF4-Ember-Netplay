@@ -11,11 +11,14 @@
 #include "../Dimps/Dimps__Platform.hxx"
 #include "../common/FocusGate.hxx"
 #include "sf4e__BackgroundPlay.hxx"
+#include "sf4e__Game__Battle__System.hxx"
+#include "sf4e__ReplayStore.hxx"
+#include "sf4e__UserApp.hxx"
 
 namespace rPad = Dimps::Pad;
 using rApp = Dimps::App;
 using rMain = Dimps::Platform::Main;
-namespace gate = sf4e::focus_gate;
+namespace fgate = sf4e::focus_gate;
 
 namespace {
 // Both detours are queued: Activate may make its edits once they commit.
@@ -30,6 +33,12 @@ std::atomic<bool> ready{false};
 std::atomic<bool> enabled{false};
 
 bool Active() { return ready.load() && enabled.load(); }
+bool Exporting() { return ready.load() && sf4e::replaystore::Exporting(); }
+// This PC watches a room's match: no pads to read, and the match is to run
+// to its end, and save its replay, with the window behind or minimized.
+bool Watching() {
+    return ready.load() && sf4e::Game::Battle::System::ggpo && sf4e::UserApp::netplay && sf4e::UserApp::netplay->spectating;
+}
 
 const rMain::Win32_WindowData* WindowData() {
     rMain* main = rMain::staticMethods.GetSingleton();
@@ -50,12 +59,28 @@ bool WindowInFront() {
 // it is the game's own, so the frame keeps the sound up, and restores a mute
 // from before (at startup behind another window, or with the setting off).
 HWND WINAPI SoundForeground() {
-    if (Active())
+    if (Active() || Exporting())
         if (const rMain::Win32_WindowData* data = WindowData()) return data->hWnd;
     return GetForegroundWindow();
 }
 // The frame's `call dword ptr [...]` reads its function from here.
 HWND (WINAPI* soundForeground)() = SoundForeground;
+
+// While a replay is exported as a video, or a room's match is watched, the
+// game is told its window is in front and not minimized, whatever the
+// setting: the frame's own "active" flag stays set, so the battle goes on
+// behind another window. An export keeps its sound up as well; a watched
+// match is muted behind another window as before. Otherwise these answer as
+// Windows does.
+HWND WINAPI ActiveForeground() {
+    if (Exporting() || Watching())
+        if (const rMain::Win32_WindowData* data = WindowData()) return data->hWnd;
+    return GetForegroundWindow();
+}
+HWND (WINAPI* activeForeground)() = ActiveForeground;
+BOOL WINAPI ActiveIconic(HWND window) { return Exporting() || Watching() ? FALSE : IsIconic(window); }
+BOOL WINAPI SoundIconic(HWND window) { return Exporting() ? FALSE : IsIconic(window); }
+BOOL (WINAPI* windowIconic[2])(HWND) = { ActiveIconic, SoundIconic };
 
 // focus_gate::ApplyAll's access to the game's code. A protection that cannot
 // be put back leaves the bytes writable; they are already final.
@@ -73,7 +98,7 @@ struct CodePages {
     }
 };
 
-gate::Edit edits[3];
+fgate::Edit edits[6];
 
 struct AppMessages : rApp {
     unsigned int HandleMessage(HWND window, UINT message, WPARAM wParam, LPARAM lParam);
@@ -82,7 +107,7 @@ struct AppMessages : rApp {
 // Losing focus mutes the game here as well as in the frame. Skipping it keeps
 // the sound from dropping for the one frame before the frame restores it.
 unsigned int AppMessages::HandleMessage(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
-    if (message == WM_KILLFOCUS && Active()) {
+    if (message == WM_KILLFOCUS && (Active() || Exporting())) {
         spdlog::info("Background play: kept the game's sound as its window lost focus");
         return 0;
     }
@@ -108,11 +133,16 @@ int PadPoll::Update() {
 }
 
 void sf4e::BackgroundPlay::Install() {
-    edits[0] = gate::Gate(rPad::System::focusGate, gate::kUpdateSkip);
-    edits[1] = gate::Gate(rPad::System_XInput::focusGate, gate::kPollSkip);
-    edits[2] = gate::CallThrough(rApp::soundFocusCheck, rApp::foregroundWindowImport,
+    edits[0] = fgate::Gate(rPad::System::focusGate, fgate::kUpdateSkip);
+    edits[1] = fgate::Gate(rPad::System_XInput::focusGate, fgate::kPollSkip);
+    edits[2] = fgate::CallThrough(rApp::soundFocusCheck, rApp::foregroundWindowImport,
         static_cast<std::uint32_t>(reinterpret_cast<std::uintptr_t>(&soundForeground)));
-    for (const gate::Edit& edit : edits) {
+    edits[3] = fgate::CallThrough(rApp::activeFocusCheck, rApp::foregroundWindowImport,
+        static_cast<std::uint32_t>(reinterpret_cast<std::uintptr_t>(&activeForeground)));
+    for (int i = 0; i < 2; i++)
+        edits[4 + i] = fgate::CallThrough(rApp::iconicChecks[i], rApp::iconicImport,
+            static_cast<std::uint32_t>(reinterpret_cast<std::uintptr_t>(&windowIconic[i])));
+    for (const fgate::Edit& edit : edits) {
         if (std::memcmp(edit.at, edit.native, edit.length) != 0) {
             unavailable = "the game's focus checks hold other bytes than this game build's";
             return;
@@ -128,7 +158,7 @@ void sf4e::BackgroundPlay::Install() {
 void sf4e::BackgroundPlay::Activate() {
     if (!hooked) return;
     CodePages pages;
-    if (!gate::ApplyAll(edits, pages)) {
+    if (!fgate::ApplyAll(edits, pages)) {
         unavailable = "the game's focus checks could not be patched";
         return;
     }
