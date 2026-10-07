@@ -8,6 +8,7 @@
 #include "../Dimps/Dimps__Game__Battle__Trial.hxx"
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
+#include "../Dimps/Dimps__Sound.hxx"
 #include "../sf4e/sf4e__Game__Battle__System.hxx"
 #include "../sf4e/sf4e__Overlay.hxx"
 #include "../sf4e/sf4e__Pad.hxx"
@@ -30,6 +31,11 @@ int exportedSlot = -1;
 std::vector<Input> exported;
 // Reset-on-drop: attempts counted so far and the frames until the restore.
 bool resetOnDrop = false;
+// Leave: frames until the battle is sent to the main menu, 0 when it is not.
+// The announcer's call and the banner play first, as the game's own fight
+// request lets its banner play before it takes the battle away.
+constexpr int LeaveFrames = 120;
+int leaveIn = 0;
 // Where each attempt of the trial starts, when the player prefers a side.
 bool trialPlaced = false; float trialPlace[2] = {0, 0};
 unsigned attemptsSeen = 0;
@@ -255,6 +261,17 @@ void BeforeUpdate(Native* system, bool networkOwned) {
             if (commandAccepted) dummyPlan = command.plan;
             continue;
         }
+        if (command.generation == session.GetView().generation && command.action == Action::Leave) {
+            // Once per battle; value is the announcer's volume in percent, 0 for none.
+            commandAccepted = !leaveIn;
+            if (commandAccepted) {
+                leaveIn = LeaveFrames;
+                const bool called = command.value > 0 && Dimps::Sound::PlaySystemCue(Dimps::Sound::SystemCue::HereComesChallenger,
+                    Dimps::Sound::SystemChannel::Voice, command.value / 100.f);
+                spdlog::info("Training: leaving for the main menu in {} frames; challenger call {}", LeaveFrames, called ? "played" : "not played");
+            }
+            continue;
+        }
         if (command.generation == session.GetView().generation && command.action == Action::CaptureStart) { comboCapture.Start(command.value != 0); commandAccepted = true; continue; }
         if (command.generation == session.GetView().generation && command.action == Action::CaptureStop) { comboCapture.Stop(); commandAccepted = true; continue; }
         if (command.generation == session.GetView().generation && command.action == Action::ExportSlot) {
@@ -277,6 +294,14 @@ void BeforeUpdate(Native* system, bool networkOwned) {
         } else if (command.action == Action::DummyState) {
             WriteDummyState(command.dummy);
         }
+    }
+    // The pause menu's "exit to main menu", asked for by Ember instead of the
+    // player. Only out of a fight that is running: a battle still loading or
+    // in its intro is waited for, as that menu cannot be opened there either.
+    if (leaveIn && (leaveIn > 1 || session.GetView().ready) && !--leaveIn) {
+        *Native::GetBattleExitType(system) = Native::BET_PAUSE_TOMAINMENU;
+        *Native::GetReadyState(system) = Native::RS_ISLEAVING;
+        spdlog::info("Training: battle told to leave for the main menu");
     }
     TickNativeList(trial.GetView().current);
     // Opening either overlay suspends recording; native pause frames are
@@ -438,6 +463,7 @@ void AfterUpdate(Native* system) {
     published.exportId = exportId; published.exportedSlot = exportedSlot; published.exported = exported;
     published.trialSteps = trialSteps; published.trial = trial.GetView(); published.nativeTrialList = nativeList.live;
     for (int side = 0; side < 2; ++side) published.fighters[side] = BattleFighter(system, side);
+    published.leavingIn = leaveIn;
     published.commandId=commandId;published.commandAccepted=commandAccepted;
     if(commandId&&!commandAccepted)published.commandError="Practice state changed. The command was not applied.";
 }
@@ -445,7 +471,7 @@ void StopCapture() { delete capture; capture = nullptr; }
 void CloseBattle() {
     if (session.GetView().available)
         spdlog::info("Training: frame meter reset {} times on multi-frame updates this battle", gapResets);
-    gapResets = 0;
+    gapResets = 0; leaveIn = 0;
     overriding = false; sampling = false;
     if (checkpoint.used) Battle::SaveState::Free(&checkpoint);
     session.Reset(); meter.Reset(); EndTrial(); dummyWatch.Reset(); replyAction = -1;

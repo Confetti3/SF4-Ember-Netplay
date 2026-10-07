@@ -1837,6 +1837,9 @@ msgstr "Nichts zu speichern: Erst die Züge aufnehmen oder eintippen."
 msgid "training.combo.keys.save"
 msgstr "{0} Speichern"
 
+msgid "training.challenger"
+msgstr "EIN NEUER KÄMPFER BETRITT DEN RING!"
+
 msgid "training.combo.key.detail"
 msgstr "Links und Rechts wählen die Taste, die dies im Kampf auslöst. Aus lässt es ohne Taste."
 

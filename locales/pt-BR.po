@@ -1952,6 +1952,9 @@ msgstr "Nada para salvar: grave ou digite os golpes primeiro."
 msgid "training.combo.keys.save"
 msgstr "{0} Salvar"
 
+msgid "training.challenger"
+msgstr "UM NOVO LUTADOR ENTROU NO RINGUE!"
+
 msgid "training.combo.key.detail"
 msgstr "Esquerda e Direita escolhem a tecla que faz isso durante a luta. Desativado deixa sem tecla."
 

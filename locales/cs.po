@@ -1837,6 +1837,9 @@ msgstr "Není co uložit: nejdřív údery nahrajte nebo napište."
 msgid "training.combo.keys.save"
 msgstr "{0} Uložit"
 
+msgid "training.challenger"
+msgstr "DO RINGU VSTOUPIL NOVÝ BOJOVNÍK!"
+
 msgid "training.combo.key.detail"
 msgstr "Vlevo a Vpravo vyberou klávesu, která to během souboje provede. Vypnuto ji nechá bez klávesy."
 

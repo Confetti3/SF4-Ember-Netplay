@@ -1661,8 +1661,27 @@ void TrialList(const training::View& view, float hudScale) {
     ImGui::End();
     ImGui::PopStyleVar(3);
 }
+// The game's own words for a fight request arriving, across the middle of
+// the screen while the battle is about to be taken away.
+void ChallengerBanner(const training::View& view) {
+    if (view.leavingIn <= 0) return;
+    const auto* vp = ImGui::GetMainViewport();
+    auto* draw = ImGui::GetForegroundDrawList();
+    const char* text = loc::T("training.challenger");
+    const float size = vp->Size.y * .075f;
+    const ImVec2 extent = ImGui::GetFont()->CalcTextSizeA(size, FLT_MAX, 0, text);
+    const float y = vp->Pos.y + vp->Size.y * .42f, band = size * 1.8f;
+    draw->AddRectFilled(ImVec2(vp->Pos.x, y - (band - extent.y) / 2), ImVec2(vp->Pos.x + vp->Size.x, y + (band + extent.y) / 2), IM_COL32(0, 0, 0, 170));
+    const ImVec2 at(vp->Pos.x + (vp->Size.x - extent.x) / 2, y);
+    // Lit and dim by turns, as the game's banner flashes.
+    const ImU32 colour = (view.leavingIn / 8) % 2 ? IM_COL32(255, 214, 72, 255) : palette::Ember;
+    for (const ImVec2 offset : {ImVec2(-2, 0), ImVec2(2, 0), ImVec2(0, -2), ImVec2(0, 2)})
+        draw->AddText(ImGui::GetFont(), size, ImVec2(at.x + offset.x, at.y + offset.y), IM_COL32(10, 10, 10, 255), text);
+    draw->AddText(ImGui::GetFont(), size, at, colour, text);
+}
 TrainingHudInput DrawTrainingHud(const training::View& view) {
     if (!view.available) return {};
+    ChallengerBanner(view);
     const auto* vp = ImGui::GetMainViewport();
     // Size the passive HUD to the game viewport; menu/DPI scaling should not
     // turn it into a large panel over the fight.

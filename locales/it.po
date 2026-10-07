@@ -1837,6 +1837,9 @@ msgstr "Niente da salvare: prima registra o digita le mosse."
 msgid "training.combo.keys.save"
 msgstr "{0} Salva"
 
+msgid "training.challenger"
+msgstr "UN NUOVO GUERRIERO È SALITO SUL RING!"
+
 msgid "training.combo.key.detail"
 msgstr "Sinistra e Destra scelgono il tasto che fa questo durante lo scontro. Disattivato lo lascia senza tasto."
 

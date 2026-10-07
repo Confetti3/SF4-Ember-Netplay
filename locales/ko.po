@@ -1837,6 +1837,9 @@ msgstr "저장할 것이 없습니다. 먼저 기술을 기록하거나 입력�
 msgid "training.combo.keys.save"
 msgstr "{0} 저장"
 
+msgid "training.challenger"
+msgstr "새로운 도전자가 나타났습니다!"
+
 msgid "training.combo.key.detail"
 msgstr "좌우로 대전 중에 이 동작을 하는 키를 고릅니다. 끄기는 키 없이 둡니다."
 

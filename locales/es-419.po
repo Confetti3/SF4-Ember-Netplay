@@ -1952,6 +1952,9 @@ msgstr "Nada que guardar: primero graba o escribe los golpes."
 msgid "training.combo.keys.save"
 msgstr "{0} Guardar"
 
+msgid "training.challenger"
+msgstr "¡UN NUEVO LUCHADOR HA ENTRADO AL RING!"
+
 msgid "training.combo.key.detail"
 msgstr "Izquierda y Derecha eligen la tecla que hace esto durante el combate. Desactivado la deja sin tecla."
 

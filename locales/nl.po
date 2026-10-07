@@ -1837,6 +1837,9 @@ msgstr "Niets om op te slaan: neem de moves eerst op of typ ze."
 msgid "training.combo.keys.save"
 msgstr "{0} Opslaan"
 
+msgid "training.challenger"
+msgstr "EEN NIEUWE STRIJDER BETREEDT DE RING!"
+
 msgid "training.combo.key.detail"
 msgstr "Links en Rechts kiezen de toets die dit tijdens het gevecht doet. Uit laat het zonder toets."
 

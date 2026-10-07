@@ -1837,6 +1837,9 @@ msgstr "保存するものがありません。先に技を記録するか入力
 msgid "training.combo.keys.save"
 msgstr "{0} 保存"
 
+msgid "training.challenger"
+msgstr "新たな挑戦者が現れました！"
+
 msgid "training.combo.key.detail"
 msgstr "左右で、対戦中にこの操作を行うキーを選びます。オフにするとキーなしになります。"
 

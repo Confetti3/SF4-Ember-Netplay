@@ -1837,6 +1837,9 @@ msgstr "Нечего сохранять: сначала запишите или 
 msgid "training.combo.keys.save"
 msgstr "{0} Сохр."
 
+msgid "training.challenger"
+msgstr "НОВЫЙ БОЕЦ ВЫХОДИТ НА РИНГ!"
+
 msgid "training.combo.key.detail"
 msgstr "Влево и Вправо выбирают клавишу, которая делает это во время боя. «Выкл.» оставляет без клавиши."
 

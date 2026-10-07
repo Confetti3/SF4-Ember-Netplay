@@ -35,7 +35,7 @@ constexpr int MaxWaitFrames = 90, MaxWaitHitFrames = 15;
 using Frame = std::array<Input, 2>;
 struct InputRun { unsigned buttons = 0; unsigned frames = 0; };
 enum class Mode { Idle, Recording, Playback };
-enum class Action { Select, Record, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, AutoFreeze, StartTrial, StopTrial, Load, CaptureStart, CaptureStop, ExportSlot, DummyState, Place, DummyPlan };
+enum class Action { Select, Record, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, AutoFreeze, StartTrial, StopTrial, Load, CaptureStart, CaptureStop, ExportSlot, DummyState, Place, DummyPlan, Leave };
 // The dummy's behaviour as the game's Training menu sets it; each value is
 // the menu's choice index and -1 leaves that setting as it is. action: stand,
 // crouch, jump, cpu. guard: no block, after first hit, all, random.
@@ -144,6 +144,9 @@ inline bool ReplyDue(const DummySeen& seen, int lead, int timing) {
 // overlay's list.
 // frames: for Load, made-up input for the selected slot; value is the side
 // (0 or 1) that plays it back.
+// Leave: a challenger is waiting, so the battle goes back to the main menu
+// after the announcer's call and a banner; value is the call's volume in
+// percent, 0 for none.
 struct Command {
     Action action = Action::Stop; int value = 0; std::uint64_t generation = 0; std::uint64_t requestId = 0;
     Trial trial; std::vector<std::string> trialSteps;
@@ -169,6 +172,9 @@ struct View {
     float x[2] = {0, 0};
     // The fighters of this battle, Player 1 first, as the game numbers them; -1 unknown.
     int fighters[2] = {-1, -1};
+    // The battle has been told to leave for the main menu: a challenger is
+    // waiting. Frames left before it goes, 0 when it was not.
+    int leavingIn = 0;
     Mode mode = Mode::Idle;
     int selected = 0, cursor = 0, playbackSide = 1;
     std::array<int, SlotCount + 1> lengths{};

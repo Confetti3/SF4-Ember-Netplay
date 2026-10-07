@@ -1837,6 +1837,9 @@ msgstr "没有可保存的内容：请先记录或输入招式。"
 msgid "training.combo.keys.save"
 msgstr "{0} 保存"
 
+msgid "training.challenger"
+msgstr "新的挑战者登场！"
+
 msgid "training.combo.key.detail"
 msgstr "左右选择在对战中执行此操作的按键。关闭则不设按键。"
 
