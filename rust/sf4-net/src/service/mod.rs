@@ -102,6 +102,40 @@ const MAX_RETIRED_INCARNATIONS: usize = crate::coordination::MAX_RETIRED_MEMBER_
 // native logical message ID is carried in `NativeControlMessage` so C++ can
 // preserve its IPC correlation without sharing the QUIC frame counter.
 const TRANSPORT_MESSAGE_ID_BASE: u64 = 2;
+/// How deep the JSON handed to the native side may nest: the depth at which
+/// serde_json stops. The native side copies and prints what it parses
+/// recursively, on a thread stack sized for real messages.
+const MAX_NATIVE_JSON_DEPTH: usize = 128;
+
+/// Whether `text` nests no deeper than MAX_NATIVE_JSON_DEPTH. Only brackets
+/// outside strings count; whether it is valid JSON is for the native side.
+fn native_json_depth_ok(text: &str) -> bool {
+    let (mut depth, mut in_string, mut escaped) = (0usize, false, false);
+    for byte in text.bytes() {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\' {
+                escaped = true;
+            } else if byte == b'"' {
+                in_string = false;
+            }
+            continue;
+        }
+        match byte {
+            b'"' => in_string = true,
+            b'[' | b'{' => {
+                depth += 1;
+                if depth > MAX_NATIVE_JSON_DEPTH {
+                    return false;
+                }
+            }
+            b']' | b'}' => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+    }
+    true
+}
 
 mod checkpoints;
 mod controls;

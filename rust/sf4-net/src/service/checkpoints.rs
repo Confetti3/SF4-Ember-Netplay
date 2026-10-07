@@ -283,6 +283,12 @@ impl Actor {
         let Some(base_revision) = committed.revision().checked_sub(1) else {
             return Ok(());
         };
+        if !native_json_depth_ok(committed.checkpoint()) {
+            // Nested past what the native side can copy, so never replayable;
+            // passed over once rather than scanned again on every tick.
+            self.last_exported_revision = committed.revision();
+            return Ok(());
+        }
         let transfer = CheckpointTransfer::new(
             recovery.room,
             transfer_id,

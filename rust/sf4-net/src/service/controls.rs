@@ -717,12 +717,18 @@ impl Actor {
                             if coordination.unwrap_or(false) {
                                 // Any roster mutation is published by its
                                 // authenticated asynchronous completion.
+                            } else if !native_json_depth_ok(&payload) {
+                                // Nested past what the native side can copy:
+                                // dropped here, the route stays open.
                             } else if let Ok(native) =
                                 serde_json::from_str::<NativeControlMessage>(&payload)
                                 && native.kind == "native_control"
                                 && native.message_id > 1
                                 && !native.payload.is_empty()
                             {
+                                if !native_json_depth_ok(&native.payload) {
+                                    continue;
+                                }
                                 self.emit(Event::Message {
                                     epoch: self.epoch,
                                     peer,

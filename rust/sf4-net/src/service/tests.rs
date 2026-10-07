@@ -7465,6 +7465,18 @@ async fn a_short_link_that_cannot_be_opened_says_why() {
     own.close().await;
 }
 
+#[test]
+fn json_nested_past_the_native_limit_is_not_handed_on() {
+    let nested = |depth: usize| format!("{}{}", "[".repeat(depth), "]".repeat(depth));
+    assert!(native_json_depth_ok(&nested(MAX_NATIVE_JSON_DEPTH)));
+    assert!(!native_json_depth_ok(&nested(MAX_NATIVE_JSON_DEPTH + 1)));
+    assert!(!native_json_depth_ok(&format!("{{\"a\":{}", "{".repeat(64 * 1024))));
+    // Brackets inside strings, escaped quotes included, are text.
+    let quoted = format!("{{\"name\":\"\\\"{}\"}}", "[".repeat(1000));
+    assert!(native_json_depth_ok(&quoted));
+    assert!(native_json_depth_ok(r#"{"kind":"room","members":[{"data":{"name":"a]]]"}}]}"#));
+}
+
 mod join_deadline;
 mod public_admission;
 mod public_rooms;
