@@ -670,6 +670,36 @@ msgstr "Не сейчас"
 msgid "replays.link_dismiss_detail"
 msgstr "Оставляет файл на месте и забывает ссылку."
 
+msgid "replays.export_gpu"
+msgstr "Экспорт видео (GPU)"
+
+msgid "replays.export_gpu_detail"
+msgstr "Записывает в .mp4 в полном размере изображения игры, кодирует видеокарта."
+
+msgid "replays.exported"
+msgstr "Видео сохранено: {0}"
+
+msgid "replays.gpu_not_exported"
+msgstr "Видео не создано. Windows не предоставила кодировщик H.264, или изображение игры не удалось прочитать. Причина указана в журнале."
+
+msgid "replays.video"
+msgstr "Видео"
+
+msgid "replays.open_folder"
+msgstr "Открыть папку реплеев"
+
+msgid "replays.open_folder_detail"
+msgstr "Открывает архив в Проводнике: реплеи и экспортированные видео."
+
+msgid "services.opening_replay_folder"
+msgstr "Открывается папка реплеев…"
+
+msgid "services.replay_folder_opened"
+msgstr "{0} открыта в Проводнике."
+
+msgid "services.replay_folder_failed"
+msgstr "Не удалось открыть папку реплеев."
+
 msgid "replays.row_detail"
 msgstr "Выберите, чтобы добавить в список записей игры, или добавить и посмотреть сейчас."
 

@@ -670,6 +670,36 @@ msgstr "Nie teraz"
 msgid "replays.link_dismiss_detail"
 msgstr "Zostawia plik na miejscu i zapomina o linku."
 
+msgid "replays.export_gpu"
+msgstr "Eksportuj wideo (GPU)"
+
+msgid "replays.export_gpu_detail"
+msgstr "Nagrywa go jako .mp4 w pełnym rozmiarze obrazu gry, kodowany przez kartę graficzną."
+
+msgid "replays.exported"
+msgstr "Wideo zapisano: {0}"
+
+msgid "replays.gpu_not_exported"
+msgstr "Nie powstało wideo. Windows nie udostępnił kodera H.264 albo nie udało się odczytać obrazu gry. Przyczyna jest w dzienniku."
+
+msgid "replays.video"
+msgstr "Wideo"
+
+msgid "replays.open_folder"
+msgstr "Otwórz folder powtórek"
+
+msgid "replays.open_folder_detail"
+msgstr "Otwiera archiwum w Eksploratorze: powtórki i wyeksportowane wideo."
+
+msgid "services.opening_replay_folder"
+msgstr "Otwieranie folderu powtórek…"
+
+msgid "services.replay_folder_opened"
+msgstr "Otwarto {0} w Eksploratorze."
+
+msgid "services.replay_folder_failed"
+msgstr "Nie udało się otworzyć folderu powtórek."
+
 msgid "replays.row_detail"
 msgstr "Wybierz, aby dodać do listy powtórek gry, albo dodać i obejrzeć teraz."
 

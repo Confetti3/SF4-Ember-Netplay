@@ -670,6 +670,36 @@ msgstr "暂不"
 msgid "replays.link_dismiss_detail"
 msgstr "保留文件并忘记此链接。"
 
+msgid "replays.export_gpu"
+msgstr "导出视频 (GPU)"
+
+msgid "replays.export_gpu_detail"
+msgstr "以游戏画面的完整尺寸录制为 .mp4，由显卡编码。"
+
+msgid "replays.exported"
+msgstr "视频已保存：{0}"
+
+msgid "replays.gpu_not_exported"
+msgstr "未生成视频。Windows 没有提供 H.264 编码器，或无法读取游戏画面。原因见日志。"
+
+msgid "replays.video"
+msgstr "视频"
+
+msgid "replays.open_folder"
+msgstr "打开录像文件夹"
+
+msgid "replays.open_folder_detail"
+msgstr "在资源管理器中打开存档：录像和导出的视频。"
+
+msgid "services.opening_replay_folder"
+msgstr "正在打开录像文件夹…"
+
+msgid "services.replay_folder_opened"
+msgstr "已在资源管理器中打开 {0}。"
+
+msgid "services.replay_folder_failed"
+msgstr "无法打开录像文件夹。"
+
 msgid "replays.row_detail"
 msgstr "选择以添加到游戏的回放列表，或添加后立即观看。"
 

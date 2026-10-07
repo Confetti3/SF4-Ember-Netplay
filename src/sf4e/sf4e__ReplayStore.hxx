@@ -48,8 +48,12 @@ struct Status {
 	std::uint64_t logOpens = 0, returns = 0;
 };
 const Status& GetStatus();
+// A playback that is being made into a video is running: the game is then
+// kept playing and sounding behind another window (sf4e__BackgroundPlay.cxx).
+bool Exporting();
 
-// Runs a request (common/ReplayRequest.hxx: Add, Watch or OpenLog). Refused
+// Runs a request (common/ReplayRequest.hxx: Add, Watch, Export or OpenLog). An export records from the Battle state to the log's return
+// (sf4e__ReplayCapture.hxx) and its outcome becomes the notice. Refused
 // with a notice while another runs, or where it cannot be done: an import
 // writes the game's table and files, so only at the native main menu with
 // the save controller free; the battle log leaves Ember's menu, so only with

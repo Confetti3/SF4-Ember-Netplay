@@ -670,6 +670,36 @@ msgstr "今はしない"
 msgid "replays.link_dismiss_detail"
 msgstr "ファイルはそのままにして、リンクを忘れます。"
 
+msgid "replays.export_gpu"
+msgstr "動画を書き出す (GPU)"
+
+msgid "replays.export_gpu_detail"
+msgstr "ゲーム画面そのままの大きさで .mp4 として録画し、グラフィックカードでエンコードします。"
+
+msgid "replays.exported"
+msgstr "動画を保存しました: {0}"
+
+msgid "replays.gpu_not_exported"
+msgstr "動画は作成されませんでした。Windows に H.264 エンコーダーがないか、ゲームの画面を読み取れませんでした。理由はログにあります。"
+
+msgid "replays.video"
+msgstr "動画"
+
+msgid "replays.open_folder"
+msgstr "リプレイフォルダーを開く"
+
+msgid "replays.open_folder_detail"
+msgstr "アーカイブをエクスプローラーで開きます。リプレイと書き出した動画があります。"
+
+msgid "services.opening_replay_folder"
+msgstr "リプレイフォルダーを開いています…"
+
+msgid "services.replay_folder_opened"
+msgstr "{0} をエクスプローラーで開きました。"
+
+msgid "services.replay_folder_failed"
+msgstr "リプレイフォルダーを開けませんでした。"
+
 msgid "replays.row_detail"
 msgstr "決定で、ゲームのリプレイ一覧に追加するか、追加して今すぐ見るかを選びます。"
 

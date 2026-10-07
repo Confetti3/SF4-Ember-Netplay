@@ -670,6 +670,36 @@ msgstr "Ahora no"
 msgid "replays.link_dismiss_detail"
 msgstr "Deja el archivo donde está y olvida el enlace."
 
+msgid "replays.export_gpu"
+msgstr "Exportar vídeo (GPU)"
+
+msgid "replays.export_gpu_detail"
+msgstr "Lo graba como .mp4 al tamaño de imagen completo del juego, codificado por tu tarjeta gráfica."
+
+msgid "replays.exported"
+msgstr "Vídeo guardado: {0}"
+
+msgid "replays.gpu_not_exported"
+msgstr "No se creó ningún vídeo. Windows no ofreció un codificador H.264, o no se pudo leer la imagen del juego. El motivo está en el registro."
+
+msgid "replays.video"
+msgstr "Vídeo"
+
+msgid "replays.open_folder"
+msgstr "Abrir la carpeta de repeticiones"
+
+msgid "replays.open_folder_detail"
+msgstr "Abre el archivo en el Explorador: repeticiones y vídeos exportados."
+
+msgid "services.opening_replay_folder"
+msgstr "Abriendo la carpeta de repeticiones…"
+
+msgid "services.replay_folder_opened"
+msgstr "Se abrió {0} en el Explorador."
+
+msgid "services.replay_folder_failed"
+msgstr "No se pudo abrir la carpeta de repeticiones."
+
 msgid "replays.row_detail"
 msgstr "Selecciona para añadirla a la lista de repeticiones del juego, o para añadirla y verla ahora."
 

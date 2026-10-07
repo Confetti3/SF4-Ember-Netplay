@@ -10,9 +10,11 @@ namespace sf4e { namespace replay {
 
 // Add: put the archived replay at `path` into the game's replay list.
 // Watch: that, then open the game's battle log and play it.
+// Export: Watch, with the playback written to an .mp4 beside the replay by
+// Ember's encoder.
 // OpenLog: open the battle log; no path.
 // DismissLink: the player declined the replay a link asked for; no path.
-enum class Mode { None, Add, Watch, OpenLog, DismissLink };
+enum class Mode { None, Add, Watch, Export, OpenLog, DismissLink };
 
 struct Request {
 	Mode mode = Mode::None;

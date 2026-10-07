@@ -670,6 +670,36 @@ msgstr "Pas maintenant"
 msgid "replays.link_dismiss_detail"
 msgstr "Laisse le fichier où il est et oublie le lien."
 
+msgid "replays.export_gpu"
+msgstr "Exporter la vidéo (GPU)"
+
+msgid "replays.export_gpu_detail"
+msgstr "L'enregistre en .mp4 à la taille d'image complète du jeu, encodé par votre carte graphique."
+
+msgid "replays.exported"
+msgstr "Vidéo enregistrée : {0}"
+
+msgid "replays.gpu_not_exported"
+msgstr "Aucune vidéo n'a été créée. Windows n'a fourni aucun encodeur H.264, ou l'image du jeu n'a pas pu être lue. La raison figure dans le journal."
+
+msgid "replays.video"
+msgstr "Vidéo"
+
+msgid "replays.open_folder"
+msgstr "Ouvrir le dossier des replays"
+
+msgid "replays.open_folder_detail"
+msgstr "Ouvre l'archive dans l'Explorateur : replays et vidéos exportées."
+
+msgid "services.opening_replay_folder"
+msgstr "Ouverture du dossier des replays…"
+
+msgid "services.replay_folder_opened"
+msgstr "{0} ouvert dans l'Explorateur."
+
+msgid "services.replay_folder_failed"
+msgstr "Le dossier des replays n'a pas pu être ouvert."
+
 msgid "replays.row_detail"
 msgstr "Sélectionnez pour l'ajouter à la liste des replays du jeu, ou pour l'ajouter et le regarder maintenant."
 

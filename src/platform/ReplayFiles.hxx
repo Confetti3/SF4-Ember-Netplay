@@ -88,6 +88,8 @@ struct ArchivedReplay {
 	int fighters[2] = {-1, -1};
 	std::string names[2];
 	bool spectated = false, watched = false;
+	// An exported video (<name>.mp4) is beside it.
+	bool video = false;
 };
 
 // Lists the archive on a thread of its own: Ember's own files from the

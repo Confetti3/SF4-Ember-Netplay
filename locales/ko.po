@@ -670,6 +670,36 @@ msgstr "나중에"
 msgid "replays.link_dismiss_detail"
 msgstr "파일은 그대로 두고 링크를 잊습니다."
 
+msgid "replays.export_gpu"
+msgstr "동영상 내보내기 (GPU)"
+
+msgid "replays.export_gpu_detail"
+msgstr "게임 화면 전체 크기의 .mp4로 녹화하며, 그래픽 카드로 인코딩합니다."
+
+msgid "replays.exported"
+msgstr "동영상 저장됨: {0}"
+
+msgid "replays.gpu_not_exported"
+msgstr "동영상이 만들어지지 않았습니다. Windows에 H.264 인코더가 없거나 게임 화면을 읽지 못했습니다. 이유는 로그에 있습니다."
+
+msgid "replays.video"
+msgstr "동영상"
+
+msgid "replays.open_folder"
+msgstr "리플레이 폴더 열기"
+
+msgid "replays.open_folder_detail"
+msgstr "탐색기에서 보관함을 엽니다. 리플레이와 내보낸 동영상이 있습니다."
+
+msgid "services.opening_replay_folder"
+msgstr "리플레이 폴더를 여는 중…"
+
+msgid "services.replay_folder_opened"
+msgstr "탐색기에서 {0}을(를) 열었습니다."
+
+msgid "services.replay_folder_failed"
+msgstr "리플레이 폴더를 열 수 없습니다."
+
 msgid "replays.row_detail"
 msgstr "선택하여 게임의 리플레이 목록에 추가하거나, 추가하고 지금 봅니다."
 

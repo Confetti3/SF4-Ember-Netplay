@@ -23,6 +23,7 @@
 #include "../platform/Elevation.hxx"
 #include "../platform/LauncherInstance.hxx"
 #include "../platform/Utf8.hxx"
+#include "../platform/VideoLink.hxx"
 #include "../platform/WineBuiltin.hxx"
 
 #include <CLI/CLI.hpp>
@@ -547,6 +548,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         if (ShowLauncherMessage("launcher.runtime_outdated", MB_YESNO | MB_ICONERROR) == IDYES)
             ShellExecuteW(nullptr, L"open", L"https://aka.ms/vc14/vc_redist.x86.exe", nullptr, nullptr, SW_SHOWNORMAL);
         return 1;
+    }
+    {
+        // Not a launcher start: the game's video export runs its encoder in
+        // this executable (platform/VideoLink.hxx). Before the log, which rotates.
+        int count = 0; auto** arguments = CommandLineToArgvW(GetCommandLineW(), &count);
+        const std::wstring link = count == 3 && !wcscmp(arguments[1], L"--encode-video") ? arguments[2] : L"";
+        LocalFree(arguments);
+        if (!link.empty()) return sf4e::platform::videolink::Serve(link);
     }
     ConfigureLauncherLogging();
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);

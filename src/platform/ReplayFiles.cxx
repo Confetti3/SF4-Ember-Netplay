@@ -347,6 +347,8 @@ std::vector<ArchivedReplay> List(ListCache& cache) {
 			if (candidate.started <= replay.time + 120 && replay.time < candidate.started + 3600 && (!match || candidate.started > match->started)) match = &candidate;
 		if (match) { replay.names[0] = match->names[0]; replay.names[1] = match->names[1]; replay.spectated = match->spectated; }
 		replay.watched = std::find(cache.watched.begin(), cache.watched.end(), WideToUtf8(path.filename().wstring())) != cache.watched.end();
+		fs::path video = path;
+		replay.video = fs::exists(video.replace_extension(L".mp4"), failed);
 		archived.push_back(std::move(replay));
 	}
 	cache.replays = std::move(seen);

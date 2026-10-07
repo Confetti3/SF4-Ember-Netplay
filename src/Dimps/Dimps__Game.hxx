@@ -106,6 +106,15 @@ namespace Dimps {
 			// the state's check waits for, and the two movies at +0x2C8 (8 bytes
 			// each) get the "Close" signal (0x78DAF0) when valid (0x78ECD0).
 			static constexpr std::size_t VersusSplash = 0x48, SplashState = 0x11C, SplashPhase = 0x18C, SplashVoice = 0x150, SplashMovies = 0x2C8;
+			// When the replay's match is over the Battle state opens its end
+			// menu (the object at +0x464, 0x484609) and its step 0x484310 waits
+			// for the choice at +0x480, which the menu's handler writes
+			// (0x42DFEF) and is -1 until then: 0 plays the replay again
+			// (0x4846C0), anything else ends the state, which puts the log back
+			// on its list. Read from the code; which number the menu's own
+			// "leave" writes was not seen, so 1 stands for it.
+			static constexpr std::size_t BattleEndChoice = 0x480;
+			static constexpr int EndChoiceLeave = 1;
 			struct List;
 			struct Voice;
 			struct Movie;
