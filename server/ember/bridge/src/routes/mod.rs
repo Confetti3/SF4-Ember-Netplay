@@ -93,6 +93,7 @@ pub fn router(state: AppState) -> Router {
             get(discord::get).delete(discord::remove),
         )
         .route("/v1/rooms", get(rooms::list).post(rooms::create))
+        .route("/v1/rooms/public", get(rooms::public_list))
         .route("/v1/rooms/{room_id}", get(rooms::get))
         .route("/v1/rooms/{room_id}/close", post(rooms::close))
         .route("/v1/rooms/{room_id}/tickets", post(rooms::ticket))

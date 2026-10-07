@@ -1,4 +1,5 @@
-/* embernetplay.link: the landing page, the link page and the 404 page.
+/* embernetplay.link: the landing page, the public rooms page, the link page
+   and the 404 page.
    Colours follow src/ui/Theme.cxx. Inter is a Latin subset of the game's
    own font files; see fonts/OFL.txt. */
 @font-face {
@@ -66,7 +67,7 @@ body::before {
 
 .shell {
   width: 100%;
-  max-width: calc(40rem + 2 * 48px);
+  max-width: calc(60rem + 2 * 48px);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -75,8 +76,27 @@ body::before {
 }
 main { flex: 1; }
 
-/* Brand header: the emblem, EMBER and an orange subtitle, like the game's Home. */
-.brand { margin-bottom: 28px; }
+/* The header on every page: the emblem, EMBER and an orange subtitle, like
+   the game's Home, and the site's links. */
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  margin-bottom: 32px;
+}
+.site-nav { display: flex; flex-wrap: wrap; gap: 4px; }
+.site-nav a, .site-nav a:visited {
+  padding: 8px 12px;
+  color: var(--ivory);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 4px;
+}
+.site-nav a:hover { color: var(--ember-light); background: rgba(255, 135, 56, 0.08); }
+.site-nav a[aria-current="page"] { color: var(--ember); box-shadow: inset 0 -2px 0 var(--ember); border-radius: 4px 4px 0 0; }
 .brand-home {
   display: inline-flex;
   align-items: center;
@@ -85,12 +105,13 @@ main { flex: 1; }
   text-decoration: none;
   border-radius: 4px;
 }
-.brand-home img { display: block; width: 48px; height: 48px; }
+.brand-home img { display: block; width: 44px; height: 44px; }
 .brand-text { display: flex; flex-direction: column; line-height: 1.1; }
-.brand-name { font-weight: 600; font-size: 1.75rem; letter-spacing: 0.04em; }
+.brand-name { font-weight: 600; font-size: 1.6rem; letter-spacing: 0.04em; }
 .brand-sub { margin-top: 4px; color: var(--ember); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
-.home .brand-home img { width: 88px; height: 88px; }
-.home .brand-name { font-size: 3rem; }
+/* The header spans the page; the link and 404 pages keep their text to a
+   reading width, while the landing and rooms pages use the whole width. */
+body:not(.wide) main, body:not(.wide) footer { max-width: 40rem; }
 
 /* Headings carry the game's header rule: a thin line with an orange start. */
 h1 {
@@ -194,11 +215,241 @@ footer a:hover { color: var(--ivory); }
     background-position: center, 78% center;
   }
   .shell { margin-left: 0; padding: 20px 16px 16px; }
-  .brand { margin-bottom: 20px; }
-  .home .brand-home img { width: 64px; height: 64px; }
-  .home .brand-name { font-size: 2.25rem; }
+  .site-header { margin-bottom: 24px; }
+  .site-nav { width: 100%; margin-left: -12px; }
+  .site-nav a { padding: 6px 12px; }
   h1 { font-size: 1.5rem; }
   .panel { padding: 16px; }
   .actions .button, .actions button { flex: 1 1 auto; }
   .actions .primary { flex-basis: 100%; }
+}
+
+/* The public rooms page: cards laid out like Ember's Public rooms screen
+   (src/ui/PublicRoomsCards.cxx), wider than the other pages. */
+.offscreen { position: fixed; left: -9999px; opacity: 0; }
+
+.room-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 0 0 8px; }
+.room-filters { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 auto; }
+.room-filter, .room-refresh {
+  min-height: 34px;
+  padding: 6px 14px;
+  font-size: 0.9rem;
+  border-radius: 17px;
+}
+.room-filter[aria-pressed="true"] { color: var(--ink); background: var(--ember); border-color: var(--ember); }
+.room-filter[aria-pressed="true"]:hover { color: var(--ink); background: var(--ember-light); }
+.room-refresh:disabled { opacity: 0.6; cursor: progress; }
+.room-toggle { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 0.9rem; cursor: pointer; }
+.room-toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--ember); }
+.room-summary { min-height: 1.55em; margin: 0 0 12px; color: var(--muted); font-size: 0.95rem; }
+
+.room-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 26rem), 1fr)); gap: 12px; margin: 0 0 12px; }
+.room-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: 4px;
+}
+.room-card:focus-within { box-shadow: inset 0 0 0 2px var(--ember); }
+.room-card.dimmed { background: rgba(26, 24, 22, 0.94); }
+.room-card.dimmed .room-name { color: var(--muted); }
+
+.room-head { display: flex; align-items: flex-start; gap: 12px; }
+.room-titles { flex: 1 1 auto; min-width: 0; }
+.room-name {
+  margin: 0;
+  color: var(--ivory);
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.room-meta { margin: 4px 0 0; color: #9e9386; font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* The seat count in a pill, and how full the room is under it. */
+.room-seats { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+.room-count {
+  min-width: 3.4rem;
+  padding: 2px 10px;
+  color: var(--ivory);
+  background: #26221e;
+  border-radius: 11px;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  line-height: 18px;
+}
+.dimmed .room-count { color: var(--muted); }
+.room-bar { position: relative; width: 64px; height: 3px; background: #3c3630; border-radius: 1.5px; overflow: hidden; }
+.room-bar-fill { position: absolute; inset: 0 auto 0 0; background: var(--ember); border-radius: 1.5px; }
+.dimmed .room-bar-fill { background: var(--muted); }
+
+.room-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 32px; }
+.room-faces { display: flex; align-items: center; gap: 4px; }
+.room-face {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background-color: #585048;
+  background-image: url("/assets/faces.webp");
+  background-size: calc(44 * 32px) 32px;
+  background-repeat: no-repeat;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.room-face.none { background-image: none; }
+.dimmed .room-face { filter: brightness(0.55); }
+.room-more { margin-left: 2px; color: var(--muted); font-size: 0.875rem; }
+.room-rules { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 auto; }
+.room-standing { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.room-chip {
+  display: inline-block;
+  padding: 0 7px;
+  color: var(--muted);
+  background: rgba(16, 15, 14, 0.9);
+  border-radius: 10px;
+  font-size: 0.8125rem;
+  line-height: 20px;
+  white-space: nowrap;
+}
+.room-chip.set { color: var(--ember); }
+.room-chip.match { color: var(--ink); background: #a4cea0; }
+.room-chip.status { background: #38332e; }
+.room-chip.version { color: var(--ember-light); border: 1px solid #76502f; line-height: 18px; }
+
+.room-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.room-age { color: var(--muted); font-size: 0.875rem; }
+.room-actions { display: flex; gap: 8px; margin-left: auto; }
+.room-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  min-height: 34px;
+  padding: 6px 16px;
+  font-size: 0.9rem;
+  border-radius: 17px;
+  color: var(--ember);
+  background: transparent;
+  border: 1.5px solid var(--ember);
+  text-decoration: none;
+}
+.room-action:visited { color: var(--ember); }
+.room-action:hover { color: var(--ember-light); background: rgba(255, 135, 56, 0.1); border-color: var(--ember-light); }
+.room-action.primary, .room-action.primary:visited { color: var(--ink); background: var(--ember); }
+.room-action.primary:hover { color: var(--ink); background: var(--ember-light); }
+
+.room-message { padding: 16px; grid-column: 1 / -1; }
+.room-message p { margin: 0; }
+.room-message-title { font-size: 1.1rem; color: var(--ivory); }
+.room-status { text-align: left; }
+
+/* The list on its way: pulsing shapes where the cards will be. */
+.room-skeleton { min-height: 118px; }
+.room-skeleton span { display: block; height: 14px; background: #786c60; border-radius: 7px; animation: room-pulse 1.6s ease-in-out infinite; }
+.room-skeleton span:nth-child(1) { width: 40%; height: 18px; }
+.room-skeleton span:nth-child(2) { width: 25%; }
+.room-skeleton span:nth-child(3) { width: 30%; height: 32px; border-radius: 3px; }
+@keyframes room-pulse { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.5; } }
+@media (prefers-reduced-motion: reduce) { .room-skeleton span { animation: none; opacity: 0.35; } }
+
+@media (max-width: 700px) {
+  .room-name { font-size: 1.1rem; }
+  .room-refresh { margin-left: auto; }
+  .room-actions { flex: 1 1 100%; }
+  .room-actions .room-action { flex: 1 1 auto; }
+}
+
+/* The landing page. */
+.hero { max-width: 44rem; margin: 8px 0 40px; }
+.eyebrow { margin: 0 0 10px; color: var(--ember); font-size: 0.8rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
+.hero-title {
+  font-size: clamp(2rem, 5.2vw, 3.25rem);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  padding-bottom: 18px;
+  margin-bottom: 20px;
+}
+.hero .lead { font-size: 1.2rem; max-width: 38rem; }
+.hero-actions { margin: 24px 0 14px; }
+.hero-actions .button { min-height: 50px; padding: 12px 24px; font-size: 1.05rem; }
+.live-button { gap: 10px; }
+.live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 9px;
+  color: var(--ink);
+  background: #a4cea0;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  line-height: 18px;
+}
+.live::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #1d4a1a; }
+
+.section-title {
+  margin: 0 0 16px;
+  color: var(--ivory);
+  font-size: 1.35rem;
+}
+.features, .start { margin: 0 0 40px; }
+.feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: 12px; }
+.feature {
+  padding: 18px 20px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--ember);
+  border-radius: 4px;
+}
+.feature h3 { margin: 0 0 8px; font-size: 1.05rem; font-weight: 600; color: #fff; }
+.feature p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+.feature code { color: var(--ivory); font-weight: 400; }
+
+.step-list { counter-reset: step; list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: 12px; }
+.step-list li {
+  counter-increment: step;
+  position: relative;
+  margin: 0;
+  padding: 16px 18px 16px 62px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+}
+.step-list li::before {
+  content: counter(step);
+  position: absolute;
+  left: 18px;
+  top: 16px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+  background: var(--ember);
+  border-radius: 50%;
+  font-weight: 600;
+}
+.step-list strong { display: block; margin-bottom: 2px; }
+.panel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 24rem), 1fr)); gap: 0 16px; align-items: start; }
+
+@media (max-width: 700px) {
+  .hero { margin-bottom: 32px; }
+  .hero .lead { font-size: 1.05rem; }
+  .hero-actions .button { flex: 1 1 100%; }
 }

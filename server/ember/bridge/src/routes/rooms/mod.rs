@@ -398,28 +398,10 @@ pub async fn list(
     let body = state
         .db
         .read(move |tx| match caller {
-            Caller::Player(_) => {
-                let mut statement = tx.prepare(&format!(
-                    "SELECT {COLUMNS} FROM rooms
-                     WHERE closed_at IS NULL AND invitation_sealed IS NOT NULL AND members >= 1
-                       AND (?1 IS NULL OR build_id = ?1)
-                     ORDER BY COALESCE(locked, 0), capacity - members DESC, created_at, room_id LIMIT ?2"
-                ))?;
-                let rows = statement.query_map(params![query.build_id, LIST_LIMIT], room_of)?;
-                let mut rooms = Vec::new();
-                for room in rows {
-                    let room = room?;
-                    rooms.push(if detailed {
-                        room.listing()?
-                    } else {
-                        room.summary()?
-                    });
-                }
-                Ok(serde_json::to_value(RoomList {
-                    rooms,
-                    listed_at: detailed.then_some(now),
-                }))
-            }
+            Caller::Player(_) => Ok(serde_json::to_value(RoomList {
+                rooms: player_rooms(tx, query.build_id.as_deref(), detailed)?,
+                listed_at: detailed.then_some(now),
+            })),
             Caller::Connection { connection_id, .. } => {
                 let mut statement = tx.prepare(&format!(
                     "SELECT {COLUMNS} FROM rooms
@@ -439,6 +421,59 @@ pub async fn list(
         .await?
         .map_err(|_| ApiFailure::unavailable())?;
     Ok(ok(&body))
+}
+
+/// The rooms a player's listing shows: open, with at least one member,
+/// unlocked ones first and those with the most free seats first.
+fn player_rooms(
+    tx: &Transaction<'_>,
+    build_id: Option<&str>,
+    detailed: bool,
+) -> Result<Vec<RoomSummary>> {
+    let mut statement = tx.prepare(&format!(
+        "SELECT {COLUMNS} FROM rooms
+         WHERE closed_at IS NULL AND invitation_sealed IS NOT NULL AND members >= 1
+           AND (?1 IS NULL OR build_id = ?1)
+         ORDER BY COALESCE(locked, 0), capacity - members DESC, created_at, room_id LIMIT ?2"
+    ))?;
+    let rows = statement.query_map(params![build_id, LIST_LIMIT], room_of)?;
+    let mut rooms = Vec::new();
+    for room in rows {
+        let room = room?;
+        rooms.push(if detailed {
+            room.listing()?
+        } else {
+            room.summary()?
+        });
+    }
+    Ok(rooms)
+}
+
+/// The room list on the embernetplay.link rooms page.
+#[derive(serde::Serialize)]
+struct PublicRoomList {
+    /// For the page's room links (`ember://room/open?bridge=&room=`).
+    bridge_id: String,
+    listed_at: u64,
+    rooms: Vec<RoomSummary>,
+}
+
+/// `GET /v1/rooms/public`: the rooms a player's detailed listing shows, for a
+/// web page, with no credential. Nothing in it is more than any Ember ID can
+/// list, and a room link still needs a player's ticket to get in.
+pub async fn public_list(State(state): State<AppState>) -> Result<Response> {
+    supervisor(&state)?;
+    let bridge_id = state.config.bridge_id.clone();
+    let listed_at = state.now();
+    let rooms = state
+        .db
+        .read(move |tx| player_rooms(tx, None, true))
+        .await?;
+    Ok(ok(&PublicRoomList {
+        bridge_id,
+        listed_at,
+        rooms,
+    }))
 }
 
 /// `POST /v1/rooms`: opens a room on the supervisor. A player's room is

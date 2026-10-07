@@ -14,16 +14,20 @@
 # What it changes:
 #   /usr/local/lib/ember-short/ember-short      the service binary (root-owned)
 #   /etc/systemd/system/ember-short.service     runs it as a transient user on 127.0.0.1:47810
-#   /etc/nginx/conf.d/ember-short.conf          request rate zone for /s/
-#   /etc/nginx/snippets/ember-short.conf        /s/ proxy, the /j, /m, /r and /start page, the landing
-#                                               and 404 pages and /assets/, without access logs
+#   /etc/nginx/conf.d/ember-short.conf          request rate zones for /s/ and /rooms.json, and
+#                                               the five-second cache of the room list
+#   /var/lib/nginx/ember-rooms/                 that cache (owned by nginx's www-data)
+#   /etc/nginx/snippets/ember-short.conf        /s/ proxy, the /j, /m, /r and /start page, the landing,
+#                                               rooms and 404 pages, the /rooms.json proxy to the
+#                                               Ember bridge (127.0.0.1:47820) and /assets/, without
+#                                               access logs
 #   /etc/nginx/snippets/ember-short-headers.conf  HSTS, nosniff and no-referrer, which the server
 #                                               and each of those locations include
 #   /etc/nginx/sites-available/embernetplay.link  one include line in the 443 server
 #   /var/www/embernetplay.link/open.html         the page room, match and public room links open
-#   /var/www/embernetplay.link/index.html, 404.html, favicon.ico, assets/
-#                                               the landing page, the 404 page and their styles,
-#                                               fonts and images
+#   /var/www/embernetplay.link/index.html, rooms.html, 404.html, favicon.ico, assets/
+#                                               the landing page, the public rooms page, the 404
+#                                               page and their scripts, styles, fonts and images
 # index.html replaces the placeholder ~/ember-web/setup.sh wrote, which that
 # script leaves alone once a page is there. Files this script installed under
 # earlier names are removed after nginx accepts the new configuration.
@@ -42,8 +46,8 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 # The site's files, relative to site/ here and to $ROOT on the server.
-PAGES="open.html index.html 404.html favicon.ico"
-ASSETS="assets/site.css assets/open.js assets/ember-emblem.png assets/ember-background.webp
+PAGES="open.html index.html rooms.html 404.html favicon.ico"
+ASSETS="assets/site.css assets/open.js assets/rooms.js assets/home.js assets/faces.webp assets/og.jpg assets/ember-emblem.png assets/ember-background.webp
     assets/ember-background.jpg assets/fonts/inter-latin-400.woff2 assets/fonts/inter-latin-600.woff2
     assets/fonts/OFL.txt"
 for file in bin/ember-short ember-short.service nginx/ember-short-zone.conf \
@@ -90,6 +94,7 @@ restore() {
     if [ -f "$backup/headers" ]; then cp -a "$backup/headers" /etc/nginx/snippets/ember-short-headers.conf; else rm -f /etc/nginx/snippets/ember-short-headers.conf; fi
 }
 
+install -d -o www-data -g www-data -m 0700 /var/lib/nginx/ember-rooms
 install -o root -g root -m 0644 "$SRC/nginx/ember-short-zone.conf" /etc/nginx/conf.d/ember-short.conf
 install -o root -g root -m 0644 "$SRC/nginx/ember-short-locations.conf" /etc/nginx/snippets/ember-short.conf
 install -o root -g root -m 0644 "$SRC/nginx/ember-short-headers.conf" /etc/nginx/snippets/ember-short-headers.conf
@@ -133,7 +138,7 @@ for attempt in 1 2 3 4 5; do
 done
 echo "service: $(curl -fsS http://127.0.0.1:47810/s/health || echo 'no answer')"
 echo "public:  $(curl -fsS --resolve $DOMAIN:443:127.0.0.1 https://$DOMAIN/s/health || echo 'no answer')"
-for page in '' j j/K7QM-4XRT-9PZD m r start open.html assets/site.css assets/fonts/inter-latin-400.woff2 \
+for page in '' rooms rooms.json rooms.html assets/og.jpg j j/K7QM-4XRT-9PZD m r start open.html assets/site.css assets/fonts/inter-latin-400.woff2 \
     assets/ember-background.webp no-such-page; do
     echo "/$page:  $(curl -sS -o /dev/null -w '%{http_code} %{content_type}' --resolve $DOMAIN:443:127.0.0.1 https://$DOMAIN/$page)"
 done

@@ -379,3 +379,48 @@ async fn the_creation_and_admission_views_carry_no_details() {
     assert_eq!(status, StatusCode::CREATED, "{created}");
     assert_eq!(created.as_object().unwrap().len(), 8, "{created}");
 }
+
+#[tokio::test]
+async fn the_public_list_needs_no_credential_and_matches_the_detailed_listing() {
+    let (bridge, fake) = start().await;
+    let (kate, sam, lee) = (
+        player(&bridge, 1).await,
+        player(&bridge, 2).await,
+        player(&bridge, 3).await,
+    );
+    let late = open_room(&bridge, &kate, "198.51.100.1", 8).await;
+    let quiet = open_room(&bridge, &sam, "198.51.100.2", 4).await;
+    report(&fake, &late, 2, 1, &[]);
+    report_details(&fake, &late, full_details());
+    ember_bridge::poll_rooms(bridge.state()).await;
+
+    let public = |bridge: &Bridge| {
+        let request = bridge.client.get(bridge.url("/v1/rooms/public")).send();
+        async move { common::read(request.await.unwrap()).await }
+    };
+    // A room with no member yet is not listed, here as in Ember.
+    let (status, body) = public(&bridge).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["bridge_id"], bridge.bridge_id.as_str());
+    assert!(body["listed_at"].as_u64().is_some(), "{body}");
+    let detailed = raw_listing(&bridge, &lee, "?detail=1").await;
+    assert_eq!(body["rooms"], detailed["rooms"]);
+    assert_eq!(body["rooms"].as_array().unwrap().len(), 1, "{body}");
+    assert_eq!(body["rooms"][0]["host_name"], "Kate");
+
+    report(&fake, &quiet, 1, 0, &[]);
+    ember_bridge::poll_rooms(bridge.state()).await;
+    let (_, body) = public(&bridge).await;
+    assert_eq!(
+        body["rooms"],
+        raw_listing(&bridge, &lee, "?detail=1").await["rooms"]
+    );
+    assert_eq!(body["rooms"].as_array().unwrap().len(), 2, "{body}");
+    // Nothing secret rides along.
+    assert!(!body.to_string().contains("invitation"), "{body}");
+
+    // A bridge without public rooms has no public list either.
+    let off = Bridge::start().await;
+    let (status, _) = public(&off).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}

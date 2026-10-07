@@ -93,6 +93,13 @@ flowchart LR
 The VPS owns the room. A room host on the VPS is the authority and the only
 coordination voter; players need an Ember ID and a ticket from the bridge.
 
+The bridge also answers `GET /v1/rooms/public` with no credential: the same
+rooms and details a player's detailed list shows, plus the bridge ID. The
+embernetplay.link/rooms page reads it as `/rooms.json` (nginx caches it for
+5 s) and joins through `ember://room/open` links. At each release, add the new
+Sidecar build ID to `VERSIONS` in `ember-short/deploy/site/assets/rooms.js`;
+rooms on a build missing there show "Other version".
+
 ```mermaid
 flowchart TB
   subgraph A["Creator's PC"]

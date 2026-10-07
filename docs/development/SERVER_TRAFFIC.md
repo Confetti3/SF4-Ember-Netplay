@@ -34,6 +34,7 @@ flowchart LR
     end
     nginx -->|"/s/v1/"| short
     nginx -->|"bridge.embernetplay.link"| bridge
+    nginx -->|"/rooms.json, cached 5 s"| bridge
     bridge <-->|"HTTP + shared secret:<br/>create, status poll every 5 s, close"| rooms
     rooms -->|"starts one per room<br/>config on stdin, status on stdout"| roomhost
     roomhost <-->|"stdio frames"| rhelper
@@ -49,6 +50,7 @@ flowchart LR
   other["Other players' helpers"]
 
   browser -->|"GET /j /m /r /start page<br/>(code stays in the # part)"| nginx
+  browser -->|"GET /rooms page and /rooms.json<br/>(no credential)"| nginx
   browser -.->|"ember:// handoff"| launcher
   helper -->|"PUT sealed invite<br/>on change + every 10 min"| nginx
   helper -->|"GET sealed invite by locator"| nginx
