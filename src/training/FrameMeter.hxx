@@ -139,8 +139,9 @@ struct MeterView {
     std::array<BoundaryProvenance, 2> startupBoundaryProvenance{};
     // Meaty timing: the frame this fighter's attack first became active,
     // counted from the first frame the other was up from a knockdown. 0 meets
-    // that frame, -N came N frames early (meaty while N is less than the
-    // attack's active frames), +N left the other N frames to act in.
+    // that frame; -N came N frames early, a meaty with N active frames passed
+    // while N is less than the attack's active frames; +N left the other N
+    // frames to act in.
     std::array<int, 2> meatyFrames{};
     std::array<bool, 2> meatyValid{};
     bool frozen = false, autoFreeze = true;

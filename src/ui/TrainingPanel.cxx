@@ -80,11 +80,14 @@ std::vector<Reading> Readings(const MeterView& meter, int side) {
     const ImU32 tone = !advantage.valid ? ImGui::GetColorU32(ImGuiCol_TextDisabled) : advantage.frames[side] > 0 ? IM_COL32(118, 224, 160, 255) :
         advantage.frames[side] < 0 ? IM_COL32(255, 121, 129, 255) : palette::Ivory;
     if (meter.meatyValid[side]) {
-        // Pink while the attack was still active on the first frame the other was up.
-        const int meaty = meter.meatyFrames[side];
-        char timing[16]; std::snprintf(timing, sizeof timing, "%+d", meaty);
-        readings.push_back({loc::T("training.meter.meaty"), meaty ? timing : "0",
-            meaty <= 0 && -meaty < (std::max)(1, move.active) ? KindColor(MeterKind::Meaty) : IM_COL32(255, 121, 129, 255), true});
+        // A meaty, in pink: how many of the attack's active frames had passed
+        // when the other got up, 0 for its first; the more, the meatier. Not
+        // one, in red and signed: -N ended N frames too early to be active
+        // then, +N became active N frames after.
+        const int offset = meter.meatyFrames[side];
+        const bool landed = offset <= 0 && -offset < (std::max)(1, move.active);
+        char timing[16]; std::snprintf(timing, sizeof timing, landed ? "%d" : "%+d", landed ? -offset : offset);
+        readings.push_back({loc::T("training.meter.meaty"), timing, landed ? KindColor(MeterKind::Meaty) : IM_COL32(255, 121, 129, 255), true});
     }
     if (met && std::string(met) == "training.meter.whiff") readings.push_back({loc::T(met), "", palette::Ivory, false});
     else readings.push_back({met ? loc::T(met) : loc::T("training.advantage"), frames, tone, true});
@@ -144,8 +147,10 @@ void Meter(const MeterView& meter, float hudScale) {
     }
     back = (std::max)(0, (std::min)(back, kept - shownMost));
     const int first = (std::max)(0, kept - shownMost - back);
-    // An attack that was active on the frame the other got up is a meaty:
-    // every active frame of it is shown so, on its own bar.
+    // A meaty is an attack whose active frames are already out as the other
+    // gets up: the ones that came before that frame hit nothing and have
+    // passed, and stay red with their count; from that frame on they are the
+    // meaty frames, shown so on the attack's own bar.
     // ponytail: found by walking the kept frames each draw, at most MeterHistory; mark it in the meter if that is ever felt.
     std::vector<char> meaty[2];
     for (int side = 0; side < 2; ++side) {
@@ -153,8 +158,7 @@ void Meter(const MeterView& meter, float hudScale) {
         const auto active = [&](int at) { return ClassifyMeter(meter.frames[at].fighters[side]) == MeterKind::Active; };
         for (int at = 0; at < kept; ++at) {
             if (!meter.frames[at].fighters[1 - side].wake || !active(at)) continue;
-            for (int run = at; run >= 0 && active(run); --run) meaty[side][run] = 1;
-            for (int run = at + 1; run < kept && active(run); ++run) meaty[side][run] = 1;
+            for (int run = at; run < kept && active(run); ++run) meaty[side][run] = 1;
         }
     }
     for (int side = 0; side < 2; ++side) {
