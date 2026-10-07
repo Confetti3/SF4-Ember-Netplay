@@ -144,6 +144,19 @@ void Meter(const MeterView& meter, float hudScale) {
     }
     back = (std::max)(0, (std::min)(back, kept - shownMost));
     const int first = (std::max)(0, kept - shownMost - back);
+    // An attack that was active on the frame the other got up is a meaty:
+    // every active frame of it is shown so, on its own bar.
+    // ponytail: found by walking the kept frames each draw, at most MeterHistory; mark it in the meter if that is ever felt.
+    std::vector<char> meaty[2];
+    for (int side = 0; side < 2; ++side) {
+        meaty[side].assign(static_cast<std::size_t>(kept), 0);
+        const auto active = [&](int at) { return ClassifyMeter(meter.frames[at].fighters[side]) == MeterKind::Active; };
+        for (int at = 0; at < kept; ++at) {
+            if (!meter.frames[at].fighters[1 - side].wake || !active(at)) continue;
+            for (int run = at; run >= 0 && active(run); --run) meaty[side][run] = 1;
+            for (int run = at + 1; run < kept && active(run); ++run) meaty[side][run] = 1;
+        }
+    }
     for (int side = 0; side < 2; ++side) {
         const ImVec2 origin = ImGui::GetCursorScreenPos();
         // A cell leans as the game's gauges do: its top edge sits further right.
@@ -166,8 +179,8 @@ void Meter(const MeterView& meter, float hudScale) {
             if (i >= count) { quad(i * cell, (i + 1) * cell - 1, IM_COL32(48, 50, 54, 120)); continue; }
             const auto& sample = meter.frames[first + i].fighters[side];
             auto kind = ClassifyMeter(sample);
-            // The frame a fighter is first up from a knockdown, and the other's attack where it is active on that frame.
-            if (sample.wake || (kind == MeterKind::Active && meter.frames[first + i].fighters[1 - side].wake)) kind = MeterKind::Meaty;
+            // The frame a fighter is first up from a knockdown, and the other's attack that was active on it.
+            if (sample.wake || meaty[side][first + i]) kind = MeterKind::Meaty;
             quad(i * cell, (i + 1) * cell - (cell >= 3 ? 1.f : 0.f), (KindColor(kind) & ~IM_COL32_A_MASK) | (static_cast<ImU32>(kind == MeterKind::Neutral ? 150 : 245) << IM_COL32_A_SHIFT));
             // A new action inside a run (a cancel, the next hit of a string) starts a new count.
             const bool action = i > 0 && sample.valid && sample.action >= 0 && sample.action != meter.frames[first + i - 1].fighters[side].action;
@@ -1301,7 +1314,7 @@ void FollowBattle(const training::View& view) {
 }
 void SetComboBookDirectory(std::wstring directory) { if(creator.directory.empty()) creator.directory=std::move(directory); }
 void SetComboMoves(const std::string& line) { creator.steps=combo::JoinSteps(combo::Tokens(line)); }
-void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit) {
+void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit,bool padSelect) {
     if(!view.available||ImGui::GetIO().WantTextInput||ImGui::GetIO().KeyAlt) return;
     LoadCombos();
     FollowBattle(view);
@@ -1317,6 +1330,20 @@ void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit) {
     if(pressed(2)) row(view.trialSteps.empty()?"cb-start-trial":"cb-stop-trial");
     if(pressed(3)) row("cb-capture");
     if(pressed(5)) row("cb-save-pos");
+    // The pad's Select: a tap puts the fighters back, and held for half a
+    // second it saves where they stand. Where that is, is taken as the button
+    // goes down, in case the game moves them on the press.
+    static double downAt=-1; static bool saved=false; static float down[2]={0,0};
+    const double now=ImGui::GetTime();
+    if(padSelect&&downAt<0) { downAt=now; saved=false; down[0]=view.x[0]; down[1]=view.x[1]; }
+    if(padSelect&&!saved&&now-downAt>=.5) {
+        saved=true;
+        Command place; place.action=Action::Place; place.generation=view.generation; place.place[0]=down[0]; place.place[1]=down[1];
+        if(submit) submit(place);
+        row("cb-save-pos");
+        if(creator.checkpointPlaced) { creator.checkpointPlace[0]=down[0]; creator.checkpointPlace[1]=down[1]; }
+    }
+    if(!padSelect&&downAt>=0) { if(!saved&&now-downAt<.5) row("cb-reset-pos"); downAt=-1; }
     // Save: the Moves line becomes a new combo of the pack. It never writes over one.
     if(pressed(4)) {
         const auto* shown=CurrentCombo();

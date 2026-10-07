@@ -18,7 +18,8 @@ void SetComboMoves(const std::string& line);
 // Replay or stop the combo, reset position, start or stop its trial, record
 // a combo: the combo creator's rows on keys the player picks (F1 to F4 at
 // first), over the fight or the controls. Also sends the dummy's plan each battle.
-void TrainingHotkeys(const training::View& view, const TrainingSubmit& submit);
+// padSelect: the pad's Select button is down; a tap resets the position and a hold saves it.
+void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit,bool padSelect=false);
 // Whether a hotkey sits on the key that many after F1, so the game is not given it.
 bool TrainingHotkeyBound(int fromF1);
 MenuNavigation& TrainingNavigation();

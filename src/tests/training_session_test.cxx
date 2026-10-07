@@ -279,7 +279,7 @@ int main() {
         Require(meter.View().frozen && meter.View().frames.back().frame == 34, "Idle did not hold exchange");
         fighters[0].status = 16; meter.Observe(50, fighters);
         Require(!meter.View().frozen && meter.View().frames.size() == 1, "Next exchange did not resume");
-        for (int i = 51; i < 800; ++i) meter.Observe(i, fighters);
+        for (int i = 51; i < 151 + static_cast<int>(MeterHistory); ++i) meter.Observe(i, fighters);
         Require(meter.View().frames.size() == MeterHistory, "Frame meter unbounded");
         meter.Observe(10, fighters);
         Require(meter.View().frames.size() == 1 && meter.View().stateFrames[0] == 1, "Timeline crossed reset");

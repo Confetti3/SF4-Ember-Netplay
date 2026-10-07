@@ -436,7 +436,8 @@ void Overlay::DrawOverlay() {
         // Before the HUD and the hotkeys, which read the combo book too.
         static bool comboBookDirectorySet=false;
         if(!comboBookDirectorySet) { sf4e::ui::SetComboBookDirectory(sf4e::netplay::SettingsStore::DefaultDirectory()); comboBookDirectorySet=true; }
-        sf4e::ui::TrainingHotkeys(training, sf4e::training::Submit);
+        sf4e::ui::TrainingHotkeys(training, sf4e::training::Submit,
+            !trainingOpen && (snapshot.menuController.buttons & sf4e::ui::ControllerSample::Chat) != 0);
         if (!trainingOpen && !ImGui::GetIO().WantTextInput) {
             if (ImGui::IsKeyPressed(ImGuiKey_F7, false)) {
                 if(training.mode != sf4e::training::Mode::Recording && training.lengths[training.selected]>0) {

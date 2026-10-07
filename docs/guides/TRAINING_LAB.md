@@ -47,7 +47,7 @@ Each bar holds up to 120 simulated frames for one fighter, the upper one Player 
 | Red | Damage, blowback or stun |
 | Purple | Bound or down |
 | Light purple | Rise (wakeup) |
-| Bright pink | The first frame a fighter is up from a knockdown, and the other's attack where it is active on that frame: a meaty |
+| Bright pink | The first frame a fighter is up from a knockdown, and every active frame of the other's attack that was active on that frame: a meaty |
 | Beige | Throw or cinematic sequence holding both fighters |
 
 Guard posture alone is not proof of blockstun. The native animation frame can pause or change rate while simulation frames continue; the passive bar is not a move-table recovery or total-duration lookup.

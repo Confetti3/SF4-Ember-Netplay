@@ -119,8 +119,8 @@ struct FrameAdvantage {
 // still going.
 struct MoveFrames { int active = 0, recovery = 0; bool seen = false, live = false; };
 // The bars show MeterShown frames; the meter keeps MeterHistory of the
-// exchange, so a held one can be looked back through.
-constexpr std::size_t MeterShown = 120, MeterHistory = 600;
+// exchange, twenty seconds, so a held one can be looked back through.
+constexpr std::size_t MeterShown = 120, MeterHistory = 1200;
 struct MeterFrame {
     std::array<FighterSample, 2> fighters;
     int frame = 0;
