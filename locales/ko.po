@@ -730,9 +730,6 @@ msgstr "입력과 통계"
 msgid "replays.inputs_detail"
 msgstr "두 플레이어가 누른 것을 프레임 단위로 보여 주고 횟수를 셉니다. 리플레이 파일에서 읽으며 재생하지 않습니다."
 
-msgid "replays.info_look"
-msgstr "코스튬 {0}, 색상 {1}, 울트라 {2}"
-
 msgid "inputs.length_value"
 msgstr "{0}라운드, {1}"
 
@@ -747,6 +744,12 @@ msgstr "라운드 {0}"
 
 msgid "inputs.legend"
 msgstr "각 줄: 시간, 그리고 그때부터 P1과 P2가 누르고 있는 입력. 방향은 화면 기준 숫자 키패드 표기입니다. 4는 왼쪽, 6은 오른쪽, 5는 없음."
+
+msgid "inputs.reading"
+msgstr "리플레이를 읽는 중..."
+
+msgid "inputs.look_unknown"
+msgstr "외형 알 수 없음"
 
 msgid "inputs.unreadable"
 msgstr "입력을 읽을 수 없습니다"

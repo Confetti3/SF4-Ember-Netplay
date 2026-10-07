@@ -390,9 +390,9 @@ void Journeys() {
   h.Choose("replay-link");h.Press(MenuInput::Select);
   Check(h.actions.back().replay.mode==sf4e::replay::Mode::Watch&&h.actions.back().replay.path==h.view.replayLink,"Play it did not ask for the link's file");
   // Export video opens the caption's screen; the set so far is counted from the two matches before, the line is the date and score, and Generate sends all of it.
-  {ShellView::Replay third,second,first;third.path="C:\\r\\c.emberreplay";third.label="2026-10-06 21:40  A (Ryu) vs B (Ken)";third.names[0]="A";third.names[1]="B";third.score="2-1";third.time=3000;
-   second=third;second.path="C:\\r\\b.emberreplay";second.time=2500;second.rounds[0]=0;second.rounds[1]=2;
-   first=third;first.path="C:\\r\\a2.emberreplay";first.time=2000;first.names[0]="B";first.names[1]="A";first.rounds[0]=1;first.rounds[1]=2;
+  {ShellView::Replay third,second,first;third.path="C:\\r\\c.emberreplay";third.label="2026-10-06 21:40  A (Ryu) vs B (Ken)";third.names[0]="A";third.names[1]="B";third.summary=sf4e::replayinputs::Summary{};third.summary->scored=true;third.summary->score[0]=2;third.summary->score[1]=1;third.time=3000;
+   second=third;second.path="C:\\r\\b.emberreplay";second.time=2500;second.summary->score[0]=0;second.summary->score[1]=2;
+   first=third;first.path="C:\\r\\a2.emberreplay";first.time=2000;first.names[0]="B";first.names[1]="A";first.summary->score[0]=1;first.summary->score[1]=2;
    h.view.replayLink.clear();h.view.replays={third,second,first};h.Screen("replays");h.Choose("replay:C:\\r\\c.emberreplay");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
    Check(h.shell.Navigation().Screen()=="replay-export","Export video did not open the caption's screen");
    h.Choose("cap-mark");h.Press(MenuInput::Left);h.Frame();h.Choose("cap-generate");
@@ -400,7 +400,8 @@ void Journeys() {
    Check(sent.mode==sf4e::replay::Mode::Export&&sent.path==third.path&&sent.caption.names&&sent.caption.line&&!sent.caption.mark&&sent.caption.set,"Generate did not send the export with its caption");
    Check(sent.caption.wins[0]==1&&sent.caption.wins[1]==1&&sent.caption.text=="2026-10-06   2-1"&&sent.caption.name[0]=="A","The caption did not start from the replay and the set before it");
    Check(h.shell.Navigation().Screen()=="replays","Generate did not return to the Replays screen");}
-  // Inputs and stats, the third choice, reads the file (one round: LP for a frame) and sends nothing.
+  // With the game ready, Inputs and stats remains the third choice. The
+  // fixture hands over the worker's result; opening the screen reads nothing.
   {std::vector<unsigned char> replay(0x320+0x88,0);std::memcpy(replay.data(),"#BRP",4);replay[8]=1;replay[10]=8;replay[0x18]=1;replay[0x320+0x7C]=3;
    const unsigned char press[]={0x10,0,0};replay.insert(replay.end(),press,press+3);
    const auto file=std::filesystem::temp_directory_path()/"ember-journey-inputs.usf4replay";
@@ -410,7 +411,13 @@ void Journeys() {
    for(int i=0;i<2;++i)h.Press(MenuInput::Right);
    h.Press(MenuInput::Select);
    Check(h.shell.Navigation().Screen()=="replay-inputs"&&h.actions.size()==sent,"Inputs and stats did not open its screen, or sent something");
+   h.FocusOn("inputs-reading");
+   auto match=std::make_shared<sf4e::replayinputs::Match>();
+   Check(sf4e::replayinputs::Parse(replay.data(),replay.size(),*match),"Inputs fixture did not parse");
+   h.view.replayInputsFile=read.path;h.view.replayInputs=match;h.view.replayInputsSummary=sf4e::replayinputs::Summarize(*match);
+   h.view.replayInputsLogs=std::make_shared<const std::vector<std::string>>(std::vector<std::string>{sf4e::replayinputs::Log(match->rounds[0])});h.Frame();
    h.FocusOn("inputs-p2");h.FocusOn("inputs-round-1");
+   h.view.replayInputsFile.clear();h.view.replayInputs.reset();h.view.replayInputsLogs.reset();
    std::error_code ignored;std::filesystem::remove(file,ignored);}
   // In a room the menu is the room's: a link waits there, and takes the menu once the room is left.
   h.view.replayLink.clear();h.Frame();h.Screen("home");
@@ -418,6 +425,19 @@ void Journeys() {
   Check(h.shell.Navigation().Screen()!="replays","A replay link moved the menu in a room");
   h.view.session.room=netplay::RoomState::Idle;h.Frame();
   Check(h.shell.Navigation().Screen()=="replays","A replay link did not open the Replays screen once the room was left");
+  // Inputs and stats, the third choice, sends nothing to the game and needs nothing of it: its screen opens with the
+  // game not ready, names the file, and shows the match once the view hands it over (one round: LP for a frame).
+  {ShellView::Replay read;read.path="C:\\r\\b.usf4replay";read.label="2026-10-06 21:32  Ryu vs Ken";
+   h.view.replayLink.clear();h.view.replays={read};h.view.replaysReady=false;h.Screen("replays");const std::size_t sent=h.actions.size();const std::string row="replay:"+read.path;h.Choose(row.c_str());
+   h.Press(MenuInput::Select);
+   Check(h.shell.Navigation().Screen()=="replay-inputs"&&h.actions.size()==sent&&h.shell.ReplayInputsFile()==read.path,"Inputs and stats did not open its screen for the file, or sent something");
+   h.FocusOn("inputs-reading");
+   h.view.replayInputsFile=read.path;h.Frame();h.FocusOn("inputs-none");
+   auto match=std::make_shared<sf4e::replayinputs::Match>();match->rounds.resize(1);match->rounds[0].frames=1;match->rounds[0].runs.push_back({1,{sf4e::replayinputs::LP,0}});
+   h.view.replayInputs=match;h.view.replayInputsSummary=sf4e::replayinputs::Summarize(*match);
+   h.view.replayInputsLogs=std::make_shared<const std::vector<std::string>>(std::vector<std::string>{sf4e::replayinputs::Log(match->rounds[0])});h.Frame();
+   h.FocusOn("inputs-p2");h.FocusOn("inputs-round-1");
+   h.view.replayInputsFile.clear();h.view.replayInputs.reset();h.view.replayInputsLogs.reset();h.view.replaysReady=true;}
   h.view.replays.clear();h.view.replaysReady=false;h.view.replayLink.clear();h.Frame();h.actions.push_back(saved);}
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("interface");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-size");h.Press(MenuInput::Right);h.Frame(0,45);

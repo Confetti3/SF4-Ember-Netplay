@@ -730,9 +730,6 @@ msgstr "Entradas y estadísticas"
 msgid "replays.inputs_detail"
 msgstr "Muestra lo que presionaron ambos jugadores, cuadro por cuadro, y cuántas veces. Se lee del archivo de la repetición; no se reproduce nada."
 
-msgid "replays.info_look"
-msgstr "Traje {0}, color {1}, Ultra {2}"
-
 msgid "inputs.length_value"
 msgstr "Rondas: {0}, {1}"
 
@@ -747,6 +744,12 @@ msgstr "Ronda {0}"
 
 msgid "inputs.legend"
 msgstr "Cada línea: el tiempo y lo que P1 y P2 mantienen desde ahí. Direcciones como en un teclado numérico visto en pantalla: 4 es izquierda, 6 derecha, 5 ninguna."
+
+msgid "inputs.reading"
+msgstr "Leyendo la repetición..."
+
+msgid "inputs.look_unknown"
+msgstr "Aspecto desconocido"
 
 msgid "inputs.unreadable"
 msgstr "No se pueden leer las entradas"

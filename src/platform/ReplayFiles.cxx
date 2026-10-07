@@ -22,6 +22,7 @@
 
 #include "Utf8.hxx"
 #include "../common/ReplayFileSafety.hxx"
+#include "../common/ReplayInputDetails.hxx"
 
 namespace fs = std::filesystem;
 namespace slots = sf4e::replayslots;
@@ -75,7 +76,7 @@ bool ArchiveName(const slots::Bytes& exported, wchar_t (&name)[64]) {
 // name says (WholeArchived); usf4-replay-saver's (.usf4replay, the game's
 // file as it is) may be dropped in any folder under it and tell their time
 // and fighters themselves. False for any other file.
-bool ReadArchived(const fs::path& path, bool inRoot, ArchivedReplay& replay, std::uint32_t& crc) {
+bool ReadArchived(const fs::path& path, bool inRoot, ArchivedReplay& replay, std::uint32_t& crc, bool summarize) {
 	const slots::Bytes contents = LoadFile(path);
 	std::uint64_t time = 0;
 	replay = ArchivedReplay{path};
@@ -96,15 +97,11 @@ bool ReadArchived(const fs::path& path, bool inRoot, ArchivedReplay& replay, std
 	char label[32] = { 0 };
 	if (_localtime64_s(&local, &at) || !std::strftime(label, sizeof(label), "%Y-%m-%d %H:%M", &local)) return false;
 	replay.label = label; replay.time = time;
-	// Nightly's score and input statistics come from these same bytes, so
-	// the shared index keeps them without reopening each replay for listing.
-	replayinputs::Match played;
-	if (replayinputs::Parse(contents.data(), contents.size(), played)) {
-		replay.read = true;
-		replayinputs::Score(played, replay.score);
-		replay.rounds = static_cast<unsigned>(played.rounds.size());
-		for (const auto& round : played.rounds) replay.frames += round.frames;
-		for (int side = 0; side < 2; side++) { replay.players[side] = played.players[side]; replay.stats[side] = replayinputs::Count(played, side); }
+	// Only Refresh (the launcher/lister) parses inputs. Add can run during
+	// a game-thread import and leaves that work for the next listing.
+	if (summarize) {
+		replayinputs::Match played;
+		if (replayinputs::Parse(contents.data(), contents.size(), played)) replay.summary = replayinputs::Summarize(played);
 	}
 	return true;
 }
@@ -116,7 +113,7 @@ bool ReadArchived(const fs::path& path, bool inRoot, ArchivedReplay& replay, std
 // look at what is kept.
 class ArchiveIndex {
 public:
-	struct Entry { std::uintmax_t size; fs::file_time_type written; bool replay; std::uint32_t crc; ArchivedReplay read; };
+	struct Entry { std::uintmax_t size; fs::file_time_type written; bool replay; std::uint32_t crc; ArchivedReplay read; bool summarized = false; };
 
 	// Brings the index up to the folder. The files are read without the lock,
 	// so a thread that only asks is never kept waiting for a disk.
@@ -137,8 +134,8 @@ public:
 			if (failed) continue;
 			const auto before = kept.find(path.wstring());
 			Entry entry{size, written, false, 0, {}};
-			if (before != kept.end() && before->second.size == size && before->second.written == written) entry = before->second;
-			else entry.replay = ReadArchived(path, path.parent_path() == archive, entry.read, entry.crc);
+			if (before != kept.end() && before->second.size == size && before->second.written == written && before->second.summarized) entry = before->second;
+			else { entry.replay = ReadArchived(path, path.parent_path() == archive, entry.read, entry.crc, true); entry.summarized = true; }
 			if (entry.replay) replays.push_back(entry.read);
 			seen.emplace(path.wstring(), std::move(entry));
 		}
@@ -165,7 +162,7 @@ public:
 		if (failed) return false;
 		entry.written = fs::last_write_time(path, failed);
 		if (failed) return false;
-		entry.replay = ReadArchived(path, true, entry.read, entry.crc);
+		entry.replay = ReadArchived(path, true, entry.read, entry.crc, false);
 		if (!entry.replay) return false;
 		std::lock_guard<std::mutex> lock(mutex_);
 		added_[path.wstring()] = std::move(entry);
@@ -477,34 +474,69 @@ std::vector<ArchivedReplay> List(NotesCache& cache) {
 }
 
 // The one lister of this process. Its thread is started by the first Want
-// and ended by StopListing, which waits for it.
+// and ended by StopListing, which waits for it. detailWanted: the replay to
+// read whole next, empty when none is asked for.
 struct Lister {
 	std::mutex mutex;
 	std::condition_variable wake;
 	bool wanted = false, stop = false;
+	std::string detailWanted;
 	std::thread thread;
 	std::shared_ptr<const std::vector<ArchivedReplay>> latest;
+	std::shared_ptr<const ReplayDetail> detail;
 };
 Lister& TheLister() { static Lister* const lister = new Lister; return *lister; }
 
 void ListUntilStopped(Lister& lister) {
 	NotesCache cache;
+	// Two seconds between listings, however often one is asked for. One
+	// replay's detail does not wait for that.
+	auto nextListing = std::chrono::steady_clock::now();
 	std::unique_lock<std::mutex> lock(lister.mutex);
 	while (!lister.stop) {
-		lister.wake.wait(lock, [&] { return lister.wanted || lister.stop; });
-		if (lister.stop) break;
-		lister.wanted = false;
-		lock.unlock();
-		std::shared_ptr<const std::vector<ArchivedReplay>> listed;
-		// Whatever a file or a folder throws ends this listing, not the game.
-		try { listed = std::make_shared<const std::vector<ArchivedReplay>>(List(cache)); }
-		catch (const std::exception& e) { spdlog::warn("Replays: the archive was not listed: {}", e.what()); }
-		catch (...) { spdlog::warn("Replays: the archive was not listed"); }
-		lock.lock();
-		if (listed) lister.latest = std::move(listed);
-		// Two seconds between listings, however often one is asked for.
-		lister.wake.wait_for(lock, std::chrono::seconds(2), [&] { return lister.stop; });
+		if (!lister.detailWanted.empty()) {
+			std::string file = std::move(lister.detailWanted);
+			lister.detailWanted.clear();
+			lock.unlock();
+			std::shared_ptr<ReplayDetail> detail;
+			try {
+				detail = std::make_shared<ReplayDetail>();
+				detail->file = std::move(file);
+				// Keep nightly's read/parse/format failure boundary on this
+				// worker. Publish a complete match and logs, or an unreadable file.
+				replayinputs::ReadDetail(detail->file, [&](replayinputs::Match& match) {
+					const auto summary = replayinputs::Summarize(match);
+					auto logs = std::make_shared<std::vector<std::string>>();
+					for (const auto& round : match.rounds) logs->push_back(replayinputs::Log(round));
+					auto played = std::make_shared<const replayinputs::Match>(std::move(match));
+					detail->summary = summary; detail->logs = std::move(logs); detail->match = std::move(played);
+				});
+			}
+			catch (...) { spdlog::warn("Replays: the replay detail could not be prepared"); }
+			lock.lock();
+			if (detail) lister.detail = std::move(detail);
+		}
+		else if (lister.wanted && std::chrono::steady_clock::now() >= nextListing) {
+			lister.wanted = false;
+			lock.unlock();
+			std::shared_ptr<const std::vector<ArchivedReplay>> listed;
+			// Whatever a file or a folder throws ends this listing, not the game.
+			try { listed = std::make_shared<const std::vector<ArchivedReplay>>(List(cache)); }
+			catch (const std::exception& e) { spdlog::warn("Replays: the archive was not listed: {}", e.what()); }
+			catch (...) { spdlog::warn("Replays: the archive was not listed"); }
+			lock.lock();
+			if (listed) lister.latest = std::move(listed);
+			nextListing = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+		}
+		else if (lister.wanted) lister.wake.wait_until(lock, nextListing, [&] { return lister.stop || !lister.detailWanted.empty(); });
+		else lister.wake.wait(lock, [&] { return lister.wanted || lister.stop || !lister.detailWanted.empty(); });
 	}
+}
+
+// Under the lister's lock: wakes its thread, starting it the first time.
+void Wake(Lister& lister) {
+	lister.wake.notify_all();
+	if (!lister.thread.joinable()) lister.thread = std::thread([&lister] { ListUntilStopped(lister); });
 }
 }
 
@@ -513,8 +545,21 @@ void WantListing() {
 	std::lock_guard<std::mutex> lock(lister.mutex);
 	if (lister.stop) return;
 	lister.wanted = true;
-	lister.wake.notify_all();
-	if (!lister.thread.joinable()) lister.thread = std::thread([&lister] { ListUntilStopped(lister); });
+	Wake(lister);
+}
+
+void WantDetail(const std::string& file) {
+	Lister& lister = TheLister();
+	std::lock_guard<std::mutex> lock(lister.mutex);
+	if (lister.stop || file.empty()) return;
+	lister.detailWanted = file;
+	Wake(lister);
+}
+
+std::shared_ptr<const ReplayDetail> LatestDetail() {
+	Lister& lister = TheLister();
+	std::lock_guard<std::mutex> lock(lister.mutex);
+	return lister.detail;
 }
 
 std::shared_ptr<const std::vector<ArchivedReplay>> LatestListing() {

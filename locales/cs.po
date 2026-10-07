@@ -730,9 +730,6 @@ msgstr "Vstupy a statistiky"
 msgid "replays.inputs_detail"
 msgstr "Ukáže, co oba hráči mačkali, snímek po snímku, a kolikrát. Čte se ze souboru záznamu; nic se nepřehrává."
 
-msgid "replays.info_look"
-msgstr "Kostým {0}, barva {1}, Ultra {2}"
-
 msgid "inputs.length_value"
 msgstr "Kola: {0}, {1}"
 
@@ -747,6 +744,12 @@ msgstr "Kolo {0}"
 
 msgid "inputs.legend"
 msgstr "Každý řádek: čas a co od té chvíle drží P1 a P2. Směry jako na numerické klávesnici při pohledu na obrazovku: 4 je vlevo, 6 vpravo, 5 nic."
+
+msgid "inputs.reading"
+msgstr "Čtu záznam..."
+
+msgid "inputs.look_unknown"
+msgstr "Vzhled není znám"
 
 msgid "inputs.unreadable"
 msgstr "Vstupy nelze přečíst"

@@ -730,9 +730,6 @@ msgstr "入力と統計"
 msgid "replays.inputs_detail"
 msgstr "両プレイヤーが押した内容をフレームごとに表示し、回数を数えます。リプレイファイルから読み取るだけで、再生はしません。"
 
-msgid "replays.info_look"
-msgstr "コスチューム{0}、カラー{1}、ウルトラ{2}"
-
 msgid "inputs.length_value"
 msgstr "{0}ラウンド、{1}"
 
@@ -747,6 +744,12 @@ msgstr "ラウンド{0}"
 
 msgid "inputs.legend"
 msgstr "各行：時間と、そこからP1とP2が押し続けている入力。方向は画面から見たテンキー表記です。4が左、6が右、5は入力なし。"
+
+msgid "inputs.reading"
+msgstr "リプレイを読み込んでいます..."
+
+msgid "inputs.look_unknown"
+msgstr "外見は不明"
 
 msgid "inputs.unreadable"
 msgstr "入力を読み取れません"

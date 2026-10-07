@@ -730,9 +730,6 @@ msgstr "Input e statistiche"
 msgid "replays.inputs_detail"
 msgstr "Mostra cosa hanno premuto i due giocatori, fotogramma per fotogramma, e quante volte. Letto dal file del replay; non viene riprodotto nulla."
 
-msgid "replays.info_look"
-msgstr "Costume {0}, colore {1}, Ultra {2}"
-
 msgid "inputs.length_value"
 msgstr "Round: {0}, {1}"
 
@@ -747,6 +744,12 @@ msgstr "Round {0}"
 
 msgid "inputs.legend"
 msgstr "Ogni riga: il tempo, poi cosa tengono premuto P1 e P2 da lì in poi. Direzioni come su un tastierino numerico visto a schermo: 4 è sinistra, 6 destra, 5 nessuna."
+
+msgid "inputs.reading"
+msgstr "Lettura del replay..."
+
+msgid "inputs.look_unknown"
+msgstr "Aspetto sconosciuto"
 
 msgid "inputs.unreadable"
 msgstr "Impossibile leggere gli input"

@@ -730,9 +730,6 @@ msgstr "输入与统计"
 msgid "replays.inputs_detail"
 msgstr "逐帧显示双方按下的内容并统计次数。直接从回放文件读取，不会播放。"
 
-msgid "replays.info_look"
-msgstr "服装 {0}，颜色 {1}，终极 {2}"
-
 msgid "inputs.length_value"
 msgstr "{0} 回合，{1}"
 
@@ -747,6 +744,12 @@ msgstr "第 {0} 回合"
 
 msgid "inputs.legend"
 msgstr "每一行：时间，以及此后 P1 和 P2 按住的输入。方向按屏幕上的数字小键盘表示：4 为左，6 为右，5 为无。"
+
+msgid "inputs.reading"
+msgstr "正在读取回放..."
+
+msgid "inputs.look_unknown"
+msgstr "外观未知"
 
 msgid "inputs.unreadable"
 msgstr "无法读取输入"

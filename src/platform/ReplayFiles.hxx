@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -126,15 +127,9 @@ struct ArchivedReplay {
 	bool spectated = false, watched = false;
 	// An exported video (<name>.mp4) is beside it.
 	bool video = false;
-	// From the replay itself (common/ReplayInputs.hxx), when it is one that
-	// reads: the rounds each player won (-1 when the last round's winner is
-	// not known), the rounds played, their frames, and for each player what
-	// was chosen and what was pressed.
-	bool read = false;
-	int score[2] = {-1, -1};
-	unsigned rounds = 0, frames = 0;
-	replayinputs::Player players[2];
-	replayinputs::Stats stats[2];
+	// What the replay itself says of the match (common/ReplayInputs.hxx);
+	// none for a file that is not one it reads.
+	std::optional<replayinputs::Summary> summary;
 };
 
 // Lists the archive on a thread of its own: Ember's own files from the
@@ -150,5 +145,19 @@ struct ArchivedReplay {
 void WantListing();
 std::shared_ptr<const std::vector<ArchivedReplay>> LatestListing();
 void StopListing();
+
+// One replay read whole (common/ReplayInputs.hxx), for the Inputs and stats
+// screen: match is null for a file that is not one it reads. The lister's
+// thread reads it: WantDetail asks, from any thread, and LatestDetail is the
+// last one read (null before the first). file is the name it was asked by,
+// UTF-8 as the Replays screen names its rows.
+struct ReplayDetail {
+	std::string file;
+	std::shared_ptr<const replayinputs::Match> match;
+	replayinputs::Summary summary;
+	std::shared_ptr<const std::vector<std::string>> logs;
+};
+void WantDetail(const std::string& file);
+std::shared_ptr<const ReplayDetail> LatestDetail();
 
 } } }
