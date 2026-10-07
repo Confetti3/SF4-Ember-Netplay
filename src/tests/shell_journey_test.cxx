@@ -598,7 +598,7 @@ void PresentationJourneys(){
  frame(MenuInput::Select);frame();
  Check(recovery.navigation.Confirming()&&!recovery.navigation.ConfirmSelected(),"Recovery install not defaulting to Cancel");
  Check(frame(MenuInput::Select)==RecoveryChoice::None,"Recovery default confirmation installed an update");frame();
- state.pending=true;state.downloadedBytes=100;state.totalBytes=200;frame();
+ state.pending=true;state.stageDone=100;state.stageTotal=200;frame();
  for(int i=0;i<10&&recovery.navigation.Focus()!="cancel";++i){frame(MenuInput::Down);frame();}
  Check(frame(MenuInput::Select)==RecoveryChoice::Cancel,"Recovery cancellation not reachable");
  // An update found while the window is open takes the highlight once; after

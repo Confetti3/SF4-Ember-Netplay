@@ -105,7 +105,7 @@ namespace launcher {
 
 
 
-		bool ValidateStagedPackage(const wchar_t* stagingDir, const std::function<void(std::uint64_t, std::uint64_t)>& progress) {
+		bool ValidateStagedPackage(const wchar_t* stagingDir, const PackageProgress& progress) {
 			std::string error;
 			if (launcher::ValidatePackageFolder(stagingDir, error, progress)) return true;
 			AppendUpdateLog(("package rejected: " + error).c_str());

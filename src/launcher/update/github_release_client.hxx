@@ -74,18 +74,18 @@ namespace launcher {
     // newer than the installed version.
     UpdateCheckResult ParseGithubReleases(const std::string& body, const char* installed, UpdateChannel channel);
 	UpdateCheckResult CheckForUpdate(UpdateChannel channel);
-	// The steps DownloadAndApplyUpdate goes through after the download, for
-	// the status line, each with how far it is; a total of 0 is not known.
-	enum class UpdateStage { Verifying, Extracting, Preparing };
-	using UpdateStageProgress = std::function<void(UpdateStage, std::uint64_t done, std::uint64_t total)>;
+	// The steps DownloadAndApplyUpdate goes through, for the status line, each
+	// with how far it is: bytes while downloading and verifying, files after.
+	// A total of 0 is not known. Returning false cancels the update.
+	enum class UpdateStage { Downloading, Verifying, Extracting, Preparing };
+	using UpdateProgress = std::function<bool(UpdateStage, std::uint64_t done, std::uint64_t total)>;
 	ApplyUpdateResult DownloadAndApplyUpdate(
 		const char* zipDownloadUrl,
 		const char* zipApiUrl,
 		const char* latestVersionTag,
 		const char* expectedSha256,
 		bool goBack,
-        const std::function<bool(std::uint64_t, std::uint64_t)>& progress = {},
-        const UpdateStageProgress& stage = {},
+        const UpdateProgress& progress = {},
         // Shown by Updater.exe while it installs; it has no catalogs of its own.
         const char* installingText = ""
 	);

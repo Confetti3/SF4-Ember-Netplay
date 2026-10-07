@@ -9,7 +9,7 @@ namespace launcher {
 		// downloaded release zip against the digest GitHub publishes for the asset,
 		// so a tampered or corrupted download is rejected before we extract and run
 		// any of its contents.
-		bool ComputeFileSha256Hex(const wchar_t* filePath, std::string& outHex, const std::function<void(std::uint64_t, std::uint64_t)>& progress) {
+		bool ComputeFileSha256Hex(const wchar_t* filePath, std::string& outHex, const PackageProgress& progress) {
 			outHex.clear();
 
 			BCRYPT_ALG_HANDLE hAlg = NULL;
@@ -53,8 +53,7 @@ namespace launcher {
 				GetFileSizeEx(hFile, &size);
 				std::uint64_t hashed = 0;
 				for (;;) {
-					if (progress) progress(hashed, static_cast<std::uint64_t>(size.QuadPart));
-					if (!ReadFile(hFile, buffer, sizeof(buffer), &cbRead, NULL)) {
+					if ((progress && !progress(hashed, static_cast<std::uint64_t>(size.QuadPart))) || !ReadFile(hFile, buffer, sizeof(buffer), &cbRead, NULL)) {
 						ok = false;
 						break;
 					}

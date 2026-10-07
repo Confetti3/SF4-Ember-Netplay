@@ -67,7 +67,7 @@ bool ApplicationServices::Request(ServiceAction action, const DiagnosticsView& d
     std::lock_guard<std::mutex> lock(mutex_);
     if (stop_ || state_.pending || action == ServiceAction::None) return false;
     cancelled_ = false;
-    state_.downloadedBytes = state_.totalBytes = state_.stageDone = state_.stageTotal = 0;
+    state_.updateStage = launcher::UpdateStage::Downloading; state_.stageDone = state_.stageTotal = 0;
     request_ = action; diagnostics_ = diagnostics; state_.pending = true; state_.succeeded = false; state_.lastAction = action;
     state_.message = action == ServiceAction::OpenCommunity ? loc::T("services.opening_community") :
         action == ServiceAction::CheckUpdates || action == ServiceAction::SwitchUpdateChannel ? loc::T("services.checking") :
@@ -161,19 +161,17 @@ void ApplicationServices::Run() {
                 } else {
                     const auto result = launcher::DownloadAndApplyUpdate(next.update.zipDownloadUrl.c_str(), next.update.zipApiUrl.c_str(),
                         next.update.latestVersion.c_str(), next.update.expectedSha256.c_str(), next.update.goesBack,
-                        [&](std::uint64_t received, std::uint64_t total) {
-                            if (cancelled_) return false;
-                            next.downloadedBytes = received; next.totalBytes = total;
-                            std::lock_guard<std::mutex> lock(mutex_);
-                            state_.downloadedBytes = received; state_.totalBytes = total;
-                            return true;
-                        },
                         [&](launcher::UpdateStage stage, std::uint64_t done, std::uint64_t total) {
+                            if (cancelled_) return false;
                             std::lock_guard<std::mutex> lock(mutex_);
-                            state_.downloadedBytes = state_.totalBytes = 0;
+                            if (stage != state_.updateStage) {
+                                state_.updateStage = stage;
+                                state_.message = loc::T(stage == launcher::UpdateStage::Downloading ? "services.downloading" :
+                                    stage == launcher::UpdateStage::Verifying ? "services.verifying" :
+                                    stage == launcher::UpdateStage::Extracting ? "services.extracting" : "services.preparing");
+                            }
                             state_.stageDone = done; state_.stageTotal = total;
-                            state_.message = stage == launcher::UpdateStage::Verifying ? loc::T("services.verifying") :
-                                stage == launcher::UpdateStage::Extracting ? loc::T("services.extracting") : loc::T("services.preparing");
+                            return true;
                         },
                         loc::T("services.installing"));
                     next.installed = next.succeeded = result.ok;

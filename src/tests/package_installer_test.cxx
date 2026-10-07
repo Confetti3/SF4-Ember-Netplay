@@ -93,13 +93,22 @@ int wmain(int argc, wchar_t** argv) {
     Write(staging/L"docs\\TRAINING_LAB.md","unlisted");
     CHECK(!sf4e::launcher::ValidatePackageFolder(staging,error)); fs::remove(staging/L"docs\\TRAINING_LAB.md"); fs::remove(staging/L"docs");
     std::uint64_t checked=0,named=0;
-    CHECK(sf4e::launcher::ValidatePackageFolder(staging,error,[&](std::uint64_t done,std::uint64_t total){checked=done;named=total;}));
+    CHECK(sf4e::launcher::ValidatePackageFolder(staging,error,[&](std::uint64_t done,std::uint64_t total){checked=done;named=total;return true;}));
     CHECK(named>0 && checked==named);
+    // A pass that is told to stop fails as cancelled, from whichever of its
+    // threads heard it.
+    CHECK(!sf4e::launcher::ValidatePackageFolder(staging,error,[](std::uint64_t,std::uint64_t){return false;}) && error=="Cancelled");
     // This version ships a doc and a selection asset the older one below lacks.
     Write(staging/L"docs\\TRAINING_LAB.md","new"); Write(staging/L"assets\\selection\\sources.json","new"); Manifest(staging);
-    unsigned steps=0,lastDone=0,lastTotal=0;
-    CHECK(sf4e::launcher::InstallPackage(staging,install,error,[&](unsigned done,unsigned total){++steps;lastDone=done;lastTotal=total;}));
-    CHECK(steps>0 && lastTotal>0 && lastDone==lastTotal);
+    // The bar only goes forward, to a total that is fixed from the first
+    // step: here nearly every file changes and two are removed.
+    std::uint64_t steps=0,lastDone=0,firstTotal=0,lastTotal=0; bool forward=true;
+    const auto watch=[&](std::uint64_t done,std::uint64_t total){
+        if(!steps++) firstTotal=total;
+        forward=forward&&done>=lastDone&&total==firstTotal; lastDone=done; lastTotal=total; return true;
+    };
+    CHECK(sf4e::launcher::InstallPackage(staging,install,error,watch));
+    CHECK(steps>0 && lastTotal>0 && lastDone==lastTotal && forward);
     CHECK(Read(install/L"Launcher.exe") == "new" && !fs::exists(install/L"Qt6Core.dll"));
     CHECK(!fs::exists(install/L"dxwrapper.dll") && !fs::exists(install/L"Safe display.cmd"));
     CHECK(Read(install/L"d3d9.dll") == "user-owned-proxy");
@@ -115,14 +124,18 @@ int wmain(int argc, wchar_t** argv) {
     // The same package again writes nothing: the backup set of the update
     // before stays, and no file is rewritten.
     const auto launcherWritten=fs::last_write_time(install/L"Launcher.exe");
-    CHECK(sf4e::launcher::InstallPackage(staging,install,error));
-    CHECK(backed && fs::last_write_time(install/L"Launcher.exe")==launcherWritten && !fs::exists(install/L".ember-update-transaction-v1.json"));
+    steps=lastDone=0;
+    CHECK(sf4e::launcher::InstallPackage(staging,install,error,watch));
+    CHECK(steps>0 && lastDone==lastTotal && forward);
+    CHECK(fs::last_write_time(install/L"Launcher.exe")==launcherWritten && !fs::exists(install/L".ember-update-transaction-v1.json"));
     backed=false;
     for (const auto& item : fs::recursive_directory_iterator(install/L".ember-update-backups")) backed=backed||item.path().filename()==L"Qt6Core.dll";
     CHECK(backed);
     // H-013: another update replaces the backup set instead of adding one,
     // and backs up only the file it changes.
     Write(staging/L"Launcher.exe","newer"); Manifest(staging);
+    // Told to stop before anything is written, it changes nothing.
+    CHECK(!sf4e::launcher::InstallPackage(staging,install,error,[](std::uint64_t,std::uint64_t){return false;}) && Read(install/L"Launcher.exe")=="new");
     CHECK(sf4e::launcher::InstallPackage(staging,install,error));
     CHECK(Read(install/L"Launcher.exe")=="newer");
     CHECK(std::distance(fs::directory_iterator(install/L".ember-update-backups"), fs::directory_iterator()) == 1);
@@ -343,6 +356,58 @@ int wmain(int argc, wchar_t** argv) {
     CHECK(!sf4e::launcher::RecoverPackage(crashInstall,error));
     CHECK(!fs::exists(journalPath) && fs::exists(failedJournal));
     CHECK(sf4e::launcher::RecoverPackage(crashInstall,error));
+
+    // An update leaves alone the files that already are the package's: they
+    // are in the journal's target and in none of its operations, and have no
+    // backup. Here two files and the manifest change, and the process ends
+    // after the first replacement.
+    const auto sparseRoot=root/L"sparse", sparseStaging=sparseRoot/L"staging", sparseInstall=sparseRoot/L"install";
+    fs::create_directories(sparseStaging); fs::create_directories(sparseInstall);
+    Package(sparseStaging,"first");
+    CHECK(sf4e::launcher::InstallPackage(sparseStaging,sparseInstall,error));
+    Write(sparseStaging/L"Launcher.exe","second"); Write(sparseStaging/L"Updater.exe","second"); Manifest(sparseStaging);
+    std::wstring sparseCommand=L"\""+fs::absolute(argv[0]).wstring()+L"\" --crash-child \""+sparseRoot.wstring()+L"\"";
+    STARTUPINFOW sparseStartup{};sparseStartup.cb=sizeof(sparseStartup);PROCESS_INFORMATION sparseChild{};
+    SetEnvironmentVariableW(L"SF4E_UPDATE_TEST_TERMINATE_AFTER",L"1");
+    CHECK(CreateProcessW(nullptr,&sparseCommand[0],nullptr,nullptr,FALSE,CREATE_NO_WINDOW,nullptr,nullptr,&sparseStartup,&sparseChild));
+    SetEnvironmentVariableW(L"SF4E_UPDATE_TEST_TERMINATE_AFTER",nullptr);
+    WaitForSingleObject(sparseChild.hProcess,30000);DWORD sparseExit=0;GetExitCodeProcess(sparseChild.hProcess,&sparseExit);
+    CloseHandle(sparseChild.hThread);CloseHandle(sparseChild.hProcess);CHECK(sparseExit==86);
+    const auto sparseJournalPath=sparseInstall/L".ember-update-transaction-v1.json", sparseFailed=sparseInstall/L".ember-update-transaction-v1.json.failed";
+    const auto sparseJournal=Read(sparseJournalPath);
+    CHECK(nlohmann::json::parse(sparseJournal)["operations"].size()==3 && nlohmann::json::parse(sparseJournal)["target"].size()>3);
+    CHECK(Read(sparseInstall/L"Launcher.exe")=="second" && Read(sparseInstall/L"Updater.exe")=="first");
+    // Recovery restores what the update changed and leaves the rest alone.
+    const auto untouched=fs::last_write_time(sparseInstall/L"sf4-net.exe");
+    CHECK(sf4e::launcher::RecoverPackage(sparseInstall,error));
+    CHECK(Read(sparseInstall/L"Launcher.exe")=="first" && !fs::exists(sparseJournalPath) && fs::last_write_time(sparseInstall/L"sf4-net.exe")==untouched);
+    // One of the files left alone that is gone by then (an antivirus
+    // quarantine, say) has no backup. The half-applied update is still
+    // restored, and the failure names the file, once.
+    Write(sparseInstall/L"Launcher.exe","second"); fs::remove(sparseInstall/L"sf4-net.exe");
+    Write(sparseJournalPath,sparseJournal.c_str());
+    CHECK(!sf4e::launcher::RecoverPackage(sparseInstall,error) && error.find("sf4-net.exe")!=std::string::npos);
+    CHECK(Read(sparseInstall/L"Launcher.exe")=="first" && !fs::exists(sparseJournalPath) && fs::exists(sparseFailed));
+    CHECK(sf4e::launcher::RecoverPackage(sparseInstall,error));
+    // The same when every operation had finished: the update is not undone,
+    // and is not reported as whole either.
+    fs::remove(sparseFailed);
+    for(const auto* changed:{L"Launcher.exe",L"Updater.exe",L"MANIFEST.txt"}) fs::copy_file(sparseStaging/changed,sparseInstall/changed,fs::copy_options::overwrite_existing);
+    Write(sparseJournalPath,sparseJournal.c_str());
+    CHECK(!sf4e::launcher::RecoverPackage(sparseInstall,error) && error.find("sf4-net.exe")!=std::string::npos);
+    CHECK(Read(sparseInstall/L"Launcher.exe")=="second" && !fs::exists(sparseJournalPath) && fs::exists(sparseFailed));
+    // Installing the update again writes the missing file.
+    CHECK(sf4e::launcher::InstallPackage(sparseStaging,sparseInstall,error) && Read(sparseInstall/L"sf4-net.exe")=="first");
+    // An install that fails part way undoes its own work the same way: the
+    // file it replaced is restored, the ones it left alone are not touched.
+    Write(sparseStaging/L"Launcher.exe","third"); Manifest(sparseStaging);
+    const auto leftAlone=fs::last_write_time(sparseInstall/L"sf4-net.exe");
+    HANDLE heldManifest=CreateFileW((sparseInstall/L"MANIFEST.txt").c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
+    CHECK(heldManifest!=INVALID_HANDLE_VALUE);
+    CHECK(!sf4e::launcher::InstallPackage(sparseStaging,sparseInstall,error) && error.find("restored")!=std::string::npos);
+    CloseHandle(heldManifest);
+    CHECK(Read(sparseInstall/L"Launcher.exe")=="second" && !fs::exists(sparseJournalPath) && fs::last_write_time(sparseInstall/L"sf4-net.exe")==leftAlone);
+    CHECK(sf4e::launcher::InstallPackage(sparseStaging,sparseInstall,error) && Read(sparseInstall/L"Launcher.exe")=="third");
     // Uninstall removes what the installed manifest or the inventory names and
     // the updater's state; the player's files, including those inside the
     // product's own folders, stay. A junction is left alone.

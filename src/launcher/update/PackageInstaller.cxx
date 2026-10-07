@@ -17,6 +17,7 @@
 #include <cctype>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <thread>
 
 namespace sf4e { namespace launcher {
@@ -117,26 +118,43 @@ std::string HashFile(const fs::path& path) {
     BCryptDestroyHash(hash); BCryptCloseAlgorithmProvider(algorithm,0);
     std::ostringstream out; out<<std::hex<<std::setfill('0'); for(auto byte:digest) out<<std::setw(2)<<static_cast<unsigned>(byte); return out.str();
 }
-// The hashes of `files`, in their order; empty for one that could not be
-// read, which matches no hash. Several files at a time: on the first read of
-// a file the antivirus scan costs many times the hashing (36 s against 1 s
-// for a package's 4,756 files, one at a time), and scans run side by side.
-// `step` is called once per file, never from two threads at once.
-std::vector<std::string> HashFiles(const std::vector<fs::path>& files, const std::function<void()>& step = {}) {
-    std::vector<std::string> hashes(files.size());
+// The hashes of `files`, in their order. Several files at a time: on the
+// first read of a file the antivirus scan costs many times the hashing (36 s
+// against 1 s for a package's 4,756 files, one at a time), and scans run side
+// by side. A file that cannot be read is an error, unless `tolerant`: then it
+// has no hash, for a pass that only asks whether a file must be written.
+// `step` is called once per file, never from two threads at once. The first
+// error, from a file or from `step`, stops the rest and is thrown here once
+// every thread has ended.
+std::vector<std::optional<std::string>> HashFiles(const std::vector<fs::path>& files, bool tolerant, const std::function<void()>& step = {}) {
+    std::vector<std::optional<std::string>> hashes(files.size());
     std::atomic<size_t> next{0};
+    std::atomic<bool> stop{false};
     std::mutex report;
-    const auto work=[&]{
-        for(size_t index; (index=next++)<files.size();) {
-            try { hashes[index]=HashFile(files[index]); } catch(const std::exception&) {}
-            if(step) { std::lock_guard<std::mutex> lock(report); step(); }
+    std::exception_ptr failure;
+    const auto work=[&]() noexcept {
+        for(size_t index; !stop && (index=next++)<files.size();) {
+            try {
+                try { hashes[index]=HashFile(files[index]); } catch(const std::exception&) { if(!tolerant) throw; }
+                if(step) { std::lock_guard<std::mutex> lock(report); step(); }
+            } catch(...) {
+                std::lock_guard<std::mutex> lock(report);
+                if(!failure) failure=std::current_exception();
+                stop=true;
+            }
         }
     };
-    // Eight at most: enough for the scans, and no burden on a small PC.
-    std::vector<std::thread> workers;
-    for(unsigned count=(std::min)(8u,(std::max)(1u,std::thread::hardware_concurrency())); --count;) workers.emplace_back(work);
-    work();
-    for(auto& worker:workers) worker.join();
+    {
+        // Joined on every way out of this block: a thread still running when
+        // its object is destroyed ends the process.
+        struct Workers { std::vector<std::thread> threads; ~Workers(){ for(auto& thread:threads) thread.join(); } } workers;
+        // Eight at most: enough for the scans, and no burden on a small PC.
+        // A thread that cannot be started only leaves the pass slower.
+        try { for(unsigned count=(std::min)(8u,(std::max)(1u,std::thread::hardware_concurrency())); --count;) workers.threads.emplace_back(work); }
+        catch(const std::exception&) {}
+        work();
+    }
+    if(failure) std::rethrow_exception(failure);
     return hashes;
 }
 void DurableJson(const fs::path& path, const json& value) {
@@ -216,10 +234,10 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
         // changed afterwards, by the player; they are not ours to undo.
         const bool committed=transaction.at("state")=="committed";
         std::set<std::wstring> seen;
-        std::map<std::wstring,std::string> targets;
+        std::map<std::wstring,std::pair<fs::path,std::string>> targets;
         for(const auto& item:transaction.at("target").items()) {
             const auto relative=fs::u8path(item.key()); CheckPath(install,relative);
-            if(!ValidHash(item.value().get<std::string>()) || !targets.emplace(PathKey(relative),item.value().get<std::string>()).second)
+            if(!ValidHash(item.value().get<std::string>()) || !targets.emplace(PathKey(relative),std::make_pair(relative,item.value().get<std::string>())).second)
                 throw std::runtime_error("Invalid target inventory");
         }
         // Validate the entire journal before changing any destination. Damaged
@@ -244,6 +262,11 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
         // would silently downgrade it. A missing file (antivirus, say) is not
         // such evidence and is restored.
         validating=false;
+        // The target's files the update left alone, since they already were
+        // the package's: in no operation, so with no backup, and at their
+        // prior bytes and their target bytes at once.
+        std::vector<fs::path> skipped; std::vector<std::string> skippedHashes;
+        for(const auto& [key,named]:targets) if(!seen.count(key)) { skipped.push_back(install/named.first); skippedHashes.push_back(named.second); }
         bool finished=!ownRollback, replaced=false;
         if(!committed && !ownRollback) for(const auto& operation:transaction.at("operations")) {
             const fs::path relative=fs::u8path(operation.at("path").get<std::string>());
@@ -252,9 +275,13 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
             const bool existed=operation.at("existed").get<bool>();
             const bool atPrior=existed?present&&SameHash(current,operation.at("priorSha256").get<std::string>()):!present;
             const auto target=targets.find(PathKey(relative));
-            const bool atTarget=target!=targets.end()?present&&SameHash(current,target->second):!present;
+            const bool atTarget=target!=targets.end()?present&&SameHash(current,target->second.second):!present;
             finished=finished&&atTarget;
             replaced=replaced||(present&&!atPrior&&!atTarget);
+        }
+        if(!committed && !finished && !replaced) {
+            const auto current=HashFiles(skipped,true);
+            for(size_t index=0; index<skipped.size(); ++index) replaced=replaced||(current[index]&&!SameHash(*current[index],skippedHashes[index]));
         }
         if(!committed && !finished) {
             if(replaced) {
@@ -289,6 +316,16 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
             }
         }
         stream.close();
+        // One of the files left alone that is gone since (an antivirus
+        // quarantine, say) cannot be restored, so the folder is not whole
+        // whichever way the operations went. Everything that could be done is
+        // done; the journal is set aside so this is reported once, and
+        // installing the update again writes the file.
+        if(!committed) for(const auto& path:skipped) if(!fs::is_regular_file(path)) {
+            SetAsideJournal(transactionPath);
+            error="An update file is missing and has no backup; install the update again: "+path.lexically_relative(install).u8string();
+            return false;
+        }
         fs::remove(transactionPath); error.clear(); return true;
     } catch(const std::exception& failure){
         error=failure.what();
@@ -395,13 +432,17 @@ Inventory ReadInventory(const fs::path& file) {
     if(input.bad() || inventory.required.empty()) throw std::runtime_error("Invalid package inventory");
     return inventory;
 }
-// The package's files by relative path, each with its manifest hash, once
-// every file matched the manifest and the manifest named nothing missing.
-static std::map<std::wstring,std::pair<fs::path,std::string>> VerifiedPackage(const fs::path& package,
-    const std::function<void(std::uint64_t, std::uint64_t)>& progress = {}) {
+using Manifest = std::map<std::wstring,std::pair<fs::path,std::string>>;
+// What a package folder's MANIFEST.txt names, nothing of it checked yet.
+static Manifest PackageManifest(const fs::path& package) {
     CheckPath(package.root_path(),package.relative_path());
     if(!fs::is_directory(package)) throw std::runtime_error("Invalid package folder");
-    auto manifest=ReadManifest(package/L"MANIFEST.txt");
+    return ReadManifest(package/L"MANIFEST.txt");
+}
+// The package's files by relative path, each with its manifest hash, once
+// every file matched `manifest` and it named nothing missing. `progress`
+// hears each of the manifest's files; MANIFEST.txt itself is added after.
+static Manifest VerifiedPackage(const fs::path& package, Manifest manifest, const PackageProgress& progress = {}) {
     std::set<std::wstring> seen;
     std::vector<fs::path> present; std::vector<std::string> expected;
     for(fs::recursive_directory_iterator entry(package), end; entry!=end; ++entry) {
@@ -417,9 +458,9 @@ static std::map<std::wstring,std::pair<fs::path,std::string>> VerifiedPackage(co
         seen.insert(key);
     }
     std::uint64_t checked=0;
-    const auto hashes=HashFiles(present,[&]{ if(progress) progress(++checked,manifest.size()); });
+    const auto hashes=HashFiles(present,false,[&]{ if(progress && !progress(++checked,manifest.size())) throw std::runtime_error("Cancelled"); });
     for(size_t index=0; index<present.size(); ++index)
-        if(!SameHash(hashes[index],expected[index])) throw std::runtime_error("Package file failed verification");
+        if(!SameHash(*hashes[index],expected[index])) throw std::runtime_error("Package file failed verification");
     for(const auto& [key,named]:manifest) if(!seen.count(key)) throw std::runtime_error("Incomplete package");
     // Matching its manifest is not having what it needs: a package also meets
     // its own inventory's required list and carries none of its obsolete files.
@@ -432,13 +473,11 @@ static std::map<std::wstring,std::pair<fs::path,std::string>> VerifiedPackage(co
     return manifest;
 }
 std::string Sha256Hex(const fs::path& file) { return HashFile(file); }
-bool ValidatePackageFolder(const fs::path& packageInput, std::string& error,
-    const std::function<void(std::uint64_t, std::uint64_t)>& progress) {
-    try { VerifiedPackage(fs::absolute(packageInput).lexically_normal(),progress); error.clear(); return true; }
+bool ValidatePackageFolder(const fs::path& packageInput, std::string& error, const PackageProgress& progress) {
+    try { const auto package=fs::absolute(packageInput).lexically_normal(); VerifiedPackage(package,PackageManifest(package),progress); error.clear(); return true; }
     catch(const std::exception& failure){error=failure.what();return false;}
 }
-bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, std::string& error,
-    const std::function<void(unsigned, unsigned)>& progress) {
+bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, std::string& error, const PackageProgress& progress) {
     std::vector<Change> changed;
     fs::path install, backup;
     std::unique_ptr<InstallLock> installLock;
@@ -450,13 +489,7 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         CheckPath(install.root_path(),install.relative_path());
         installLock=std::make_unique<InstallLock>(Lock(install));
         if(!RecoverLocked(install,error,false)) throw std::runtime_error(error);
-        // Checking the package is the first third of the file steps; the
-        // exact total is known once the files to write are.
-        const auto package=VerifiedPackage(staging,[&](std::uint64_t checked,std::uint64_t named){
-            if(progress) progress(unsigned(checked),unsigned(3*named));
-        });
-        std::vector<fs::path> files, removals;
-        for(const auto& [key,named]:package) { CheckPath(install,named.first); files.push_back(named.first); }
+        auto named=PackageManifest(staging);
         // Removals are what this folder owns and the package lacks: the files
         // the installed MANIFEST.txt names, plus the obsolete list for folders
         // from before manifests. Never merely a permitted path, so art or a
@@ -464,44 +497,53 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         // A folder from before manifests has only the obsolete list. A manifest
         // that is there but cannot be read stops the update, like uninstall:
         // replacing it would lose for good which files this folder owns.
+        // Listed from the package's manifest before its files are checked, so
+        // the number of steps is known from the first one; nothing is removed
+        // unless that same manifest then passes.
+        std::vector<fs::path> files, removals;
         std::map<std::wstring,fs::path> owned;
         for(const auto* name:package::Obsolete) owned.emplace(PathKey(name),fs::path(name));
         CheckPath(install,L"MANIFEST.txt");
         if(fs::exists(fs::symlink_status(install/L"MANIFEST.txt")))
-            for(const auto& [key,named]:ReadManifest(install/L"MANIFEST.txt")) owned.emplace(key,named.first);
+            for(const auto& [key,entry]:ReadManifest(install/L"MANIFEST.txt")) owned.emplace(key,entry.first);
         for(const auto& [key,relative]:owned) {
-            if(package.count(key) || !IsProductPath(relative) || !fs::exists(fs::symlink_status(install/relative))) continue;
+            if(named.count(key) || key==PathKey(L"MANIFEST.txt") || !IsProductPath(relative) || !fs::exists(fs::symlink_status(install/relative))) continue;
             CheckPath(install,relative);
             if(!fs::is_regular_file(install/relative)) throw std::runtime_error("Destination is not a file");
             removals.push_back(relative);
         }
+        // Five steps for each of the package's files (check it, compare the
+        // folder's copy, back that up, replace it, check the result) and one
+        // for each removal's backup: fixed here, so the bar only goes forward.
+        std::uint64_t done=0;
+        const std::uint64_t total=5*(named.size()+1)+removals.size();
+        const auto step=[&](std::uint64_t count=1){ done+=count; if(progress && !progress(done,total)) throw std::runtime_error("Cancelled"); };
+        const auto package=VerifiedPackage(staging,std::move(named),[&](std::uint64_t,std::uint64_t){ step(); return true; });
+        step(); // MANIFEST.txt, which the pass above does not count.
+        for(const auto& [key,entry]:package) { CheckPath(install,entry.first); files.push_back(entry.first); }
         std::stable_sort(files.begin(),files.end(),[](const fs::path& left,const fs::path& right){
             return _wcsicmp(left.c_str(),L"MANIFEST.txt")==0 ? false : _wcsicmp(right.c_str(),L"MANIFEST.txt")==0;
         });
+        // A file that already is the package's needs no backup and no
+        // rewrite; between releases that is nearly all of them, the artwork.
+        // It stays out of the journal, so a rollback leaves it alone, and in
+        // `target`, so the check after the last write still covers it. One
+        // that is missing or cannot be read is written.
+        std::vector<fs::path> written, installed;
+        for(const auto& rel:files) installed.push_back(install/rel);
+        const auto current=HashFiles(installed,true,[&]{ step(); });
+        for(size_t index=0; index<files.size(); ++index)
+            if(!current[index] || !fs::is_regular_file(fs::symlink_status(installed[index])) || !SameHash(*current[index],package.at(PathKey(files[index])).second))
+                written.push_back(files[index]);
+        step(2*(files.size()-written.size()));
+        // The folder already is the package: there is no transaction to
+        // journal and no backup set to make, so the one of the last update
+        // stays the newest.
+        if(written.empty() && removals.empty()) { step(total-done); error.clear(); return true; }
         static std::atomic<unsigned> serial{0};
         backup = install / L".ember-update-backups" / (std::to_wstring(GetTickCount64())+L"-"+std::to_wstring(GetCurrentProcessId())+L"-"+std::to_wstring(++serial));
         CheckPath(install,backup.lexically_relative(install));
         fs::create_directories(backup);
-        // A file that already is the package's needs no backup and no
-        // rewrite; between releases that is nearly all of them, the artwork.
-        // It stays out of the journal, so a rollback leaves it alone, and in
-        // `target`, so the check after the last write still covers it.
-        unsigned done=unsigned(files.size()), total=unsigned(3*files.size());
-        const auto step=[&]{ if(progress) progress(++done,total); };
-        std::vector<fs::path> written, installed;
-        for(const auto& rel:files) installed.push_back(install/rel);
-        const auto current=HashFiles(installed,step);
-        for(size_t index=0; index<files.size(); ++index)
-            if(!fs::is_regular_file(fs::symlink_status(installed[index])) || !SameHash(current[index],package.at(PathKey(files[index])).second))
-                written.push_back(files[index]);
-        // The folder already is the package: there is no transaction to
-        // journal, and the backup set of the last update stays the newest.
-        if(written.empty() && removals.empty()) {
-            fs::remove(backup);
-            if(progress) progress(total,total);
-            error.clear(); return true;
-        }
-        total+=unsigned(removals.size()+2*written.size());
         const auto preserve = [&](const fs::path& rel) {
             CheckPath(install,rel);
             const bool existed = fs::exists(install/rel);
@@ -535,9 +577,9 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         }
         std::vector<fs::path> finished; std::vector<std::string> wanted;
         for(const auto& item:target.items()) { finished.push_back(install/fs::u8path(item.key())); wanted.push_back(item.value().get<std::string>()); }
-        const auto result=HashFiles(finished,step);
+        const auto result=HashFiles(finished,false,[&]{ step(); });
         for(size_t index=0; index<finished.size(); ++index)
-            if(result[index]!=wanted[index]) throw std::runtime_error("Installed update verification failed");
+            if(*result[index]!=wanted[index]) throw std::runtime_error("Installed update verification failed");
         transaction["state"]="committed"; DurableJson(install/TransactionName,transaction);
         if(terminateAfter && strcmp(terminateAfter,"commit")==0) TerminateProcess(GetCurrentProcess(),86);
         fs::remove(install/TransactionName);
