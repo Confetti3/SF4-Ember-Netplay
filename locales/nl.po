@@ -665,7 +665,7 @@ msgid "replays.not_ready"
 msgstr "Beschikbaar in het hoofdmenu, buiten een match."
 
 msgid "replays.added"
-msgstr "Toegevoegd als nieuwste item van de replaylijst van het spel."
+msgstr "Toegevoegd aan de replaylijst van het spel, onder de datum waarop hij gespeeld is."
 
 msgid "replays.not_added"
 msgstr "Deze replay kon niet worden toegevoegd. Het bestand is mogelijk beschadigd."

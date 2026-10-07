@@ -665,7 +665,7 @@ msgid "replays.not_ready"
 msgstr "対戦中以外のメインメニューで使えます。"
 
 msgid "replays.added"
-msgstr "ゲームのリプレイ一覧の最新項目として追加しました。"
+msgstr "対戦した日付でゲームのリプレイ一覧に追加しました。"
 
 msgid "replays.not_added"
 msgstr "このリプレイを追加できませんでした。ファイルが破損している可能性があります。"

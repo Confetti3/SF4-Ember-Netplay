@@ -665,7 +665,7 @@ msgid "replays.not_ready"
 msgstr "在主菜单（非对战中）可用。"
 
 msgid "replays.added"
-msgstr "已添加为游戏回放列表中的最新条目。"
+msgstr "已按对战日期添加到游戏的回放列表。"
 
 msgid "replays.not_added"
 msgstr "无法添加此回放。文件可能已损坏。"

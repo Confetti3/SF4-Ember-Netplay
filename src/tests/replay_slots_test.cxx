@@ -157,13 +157,9 @@ static void TestImportTakesTheSlotAndSaveTime() {
 		CHECK(ReadU32(record) == static_cast<std::uint32_t>(slot) && record[4] == 1);
 		const SlotInfo info = ReadSlot(list, swan, slot);
 		CHECK(info.used && info.size == source.size() && info.crc == Crc32(source.data(), source.size()) && info.time == 1700000000);
-		// The menu's fields keep the fighters; the date and time become the
-		// import's (1700000000 is 2023-11-14 22:13:20 UTC) and the title says
-		// when it was played.
-		CHECK(record[17] == 0xC3 && record[71] == 0xC3 && record[kRecordBytes - 3] == 0xC3);
-		const RecordInfo shown = ReadRecordInfo(record);
-		CHECK(shown.year == 2023 && shown.month == 11 && shown.day == 14 && shown.hour == 22 && shown.minute == 13);
-		CHECK(ReadU32(record + 22) == 21 && !std::memcmp(record + 26, "50115-195-195 195:195", 21));
+		// Everything the menu shows stays as it was played: the title, the
+		// fighters and the date and time. Only the save time is the import's.
+		CHECK(!std::memcmp(record + 17, exported.data() + 8 + 17, kRecordBytes - 17));
 		CHECK(swan[kSwanSlotBytesOffset + slot * 2] == 0x0E);
 		// It exports again as the same replay, with the import's record.
 		Bytes again;
@@ -276,7 +272,45 @@ static void TestExportFromAReplayAlone() {
 	CHECK(!ExportFromReplayAlone(Replay(0x00, 0x100), exported));
 }
 
+// A replay put back into a slot keeps its CRC under a new save time, and the
+// archive's file names give that CRC back, so it is not archived twice.
+static void TestAnImportedReplayIsKnownByItsCrc() {
+	Bytes list = EmptyList(), swan = EmptySwan(), exported, back;
+	const Bytes replay = Replay(0x21, 6000);
+	Fill(list, swan, 300, replay, 0x44);
+	CHECK(Export(list, swan, 300, replay, exported));
+	const std::uint32_t saved = ReadSlot(list, swan, 300).time;
+	CHECK(Import(exported, 301, saved + 5000, list, swan, back));
+	const SlotInfo again = ReadSlot(list, swan, 301);
+	CHECK(again.time != saved && again.crc == Crc32(replay.data(), replay.size()));
+	std::uint32_t crc = 0;
+	CHECK(ArchiveNameCrc(L"20261005-213503-69991186.emberreplay", crc) && crc == 0x69991186);
+	CHECK(!ArchiveNameCrc(L"20261005-213503-69991186.mp4", crc));
+	CHECK(!ArchiveNameCrc(L"20261005-213503-6999118.emberreplayy", crc));
+	CHECK(!ArchiveNameCrc(L"20261005-213503-6999zzzz.emberreplay", crc));
+	CHECK(!ArchiveNameCrc(L"watched.txt", crc));
+}
+
+// A slot whose file is newer than its record: archived from the file when its
+// ".0" says it is whole, not otherwise; with a record that names it, as Export.
+static void TestASlotFileAheadOfItsRecord() {
+	Bytes list = EmptyList(), swan = EmptySwan(), exported;
+	const Bytes old = Replay(0x10, 5000);
+	Fill(list, swan, 301, old, 0x55);
+	Bytes fresh = Replay(0x00, 8000);
+	WriteU32(fresh.data() + 0x20, 11); WriteU32(fresh.data() + 0x170, 1);
+	bool fromRecord = true;
+	CHECK(ExportSlotFile(list, swan, 301, fresh, Sidecar(fresh), exported, fromRecord) && !fromRecord);
+	CHECK(Bytes(exported.begin() + kExportHeaderBytes, exported.end()) == fresh);
+	CHECK(ReadU32(exported.data() + 8 + 5) == Crc32(fresh.data(), fresh.size()));
+	CHECK(!ExportSlotFile(list, swan, 301, fresh, Sidecar(old), exported, fromRecord));
+	CHECK(!ExportSlotFile(list, swan, 301, fresh, Bytes(), exported, fromRecord));
+	CHECK(ExportSlotFile(list, swan, 301, old, Bytes(), exported, fromRecord) && fromRecord);
+}
+
 int main() {
+	TestASlotFileAheadOfItsRecord();
+	TestAnImportedReplayIsKnownByItsCrc();
 	TestExportFromAReplayAlone();
 	TestRecordsOutOfSlotOrder();
 	TestExportFromASaverReplayAndEntry();

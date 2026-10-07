@@ -30,7 +30,11 @@ struct Folders {
 Folders FindFolders();
 
 // Copies every match replay not yet in the archive, one file each, named by
-// its save time (UTC) and CRC. A slot caught while the game is writing it
+// its save time (UTC) and CRC. The archive holds a replay when one of its
+// files has that CRC, whatever its save time: a replay put back into the
+// game is saved there under a new time. It is the slot's file that is read: one
+// the game's index does not list yet is archived two minutes after it was
+// written, with a record made from its own header. A slot caught while the game is writing it
 // fails the size and CRC check and is copied on a later call. Returns how
 // many were copied, or -1 when there is nowhere to copy from or to.
 int Archive();
