@@ -622,6 +622,12 @@ msgstr "Jogar offline"
 msgid "home.offline_detail"
 msgstr "Abra os menus offline nativos."
 
+msgid "home.training"
+msgstr "Treino"
+
+msgid "home.training_detail"
+msgstr "Ir direto para o modo Treino, sem a pergunta de pedido de luta."
+
 msgid "home.choose_controller"
 msgstr "Escolher controle de jogo"
 

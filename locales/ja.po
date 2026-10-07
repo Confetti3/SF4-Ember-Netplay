@@ -622,6 +622,12 @@ msgstr "オフラインで遊ぶ"
 msgid "home.offline_detail"
 msgstr "ゲーム本体のオフラインメニューを開きます。"
 
+msgid "home.training"
+msgstr "トレーニング"
+
+msgid "home.training_detail"
+msgstr "乱入設定の確認なしで、すぐにトレーニングモードに入ります。"
+
 msgid "home.choose_controller"
 msgstr "対戦用コントローラーを選択"
 

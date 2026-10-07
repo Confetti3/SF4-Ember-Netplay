@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <detours/detours.h>
+#include <spdlog/spdlog.h>
 
 #include "../Dimps/Dimps.hxx"
 #include "../Dimps/Dimps__Event.hxx"
@@ -36,6 +37,7 @@ using fUserApp = sf4e::UserApp;
 
 int (*fMainMenu::OnModeSelectedOverride)(int mode);
 std::atomic<int> fMainMenu::bOverrideItemObserverState{-1};
+std::atomic<ULONGLONG> fMainMenu::trainingRequestedUntil{0};
 void (*fVsBattle::OnTasksRegistered)() = nullptr;
 void (*fVsPreBattle::OnTasksRegistered)() = nullptr;
 
@@ -136,8 +138,31 @@ void fMainMenu::Install() {
 }
 
 
+void fMainMenu::RequestTraining() {
+	trainingRequestedUntil.store(GetTickCount64() + 2000);
+}
+
 int fMainMenu::GetItemObserverState() {
 	sf4e::NetplayFacade::NotifyRuntimeEventSystemReady();
+	if (const ULONGLONG until = trainingRequestedUntil.load()) {
+		if (GetTickCount64() > until) {
+			trainingRequestedUntil.store(0);
+		}
+		else if ((this->*rMainMenu::itemObserverMethods.GetItemObserverState)() == rMainMenu::MMIOS_IDLE) {
+			trainingRequestedUntil.store(0);
+			// The game's own selection, with the Fight Request question
+			// switched off for this one call: it then exits to Training
+			// directly, the path it takes where requests are not offered.
+			// The value goes back in case the menu stays (the call does
+			// nothing unless the menu is idle).
+			DWORD* offered = rMainMenu::GetFightRequestOffered(rMainMenu::FromItemObserver(this));
+			const DWORD was = *offered;
+			*offered = 0;
+			(this->*rMainMenu::itemObserverMethods.OnModeSelected)(rMainMenu::MMI_TRAINING);
+			*offered = was;
+			spdlog::info("Main menu: entering Training without the Fight Request question (it was {})", was ? "offered" : "not offered");
+		}
+	}
 	const int overridden = bOverrideItemObserverState.load();
 	if (overridden != -1) {
 		return overridden;

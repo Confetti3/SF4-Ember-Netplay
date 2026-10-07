@@ -622,6 +622,12 @@ msgstr "Игра без сети"
 msgid "home.offline_detail"
 msgstr "Открыть меню игры для игры без сети."
 
+msgid "home.training"
+msgstr "Тренировка"
+
+msgid "home.training_detail"
+msgstr "Сразу перейти в режим тренировки, без вопроса о вызовах на бой."
+
 msgid "home.choose_controller"
 msgstr "Выбрать контроллер для боя"
 

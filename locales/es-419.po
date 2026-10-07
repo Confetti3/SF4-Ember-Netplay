@@ -622,6 +622,12 @@ msgstr "Jugar sin conexión"
 msgid "home.offline_detail"
 msgstr "Abre los menús nativos sin conexión."
 
+msgid "home.training"
+msgstr "Entrenamiento"
+
+msgid "home.training_detail"
+msgstr "Ir directo al modo Entrenamiento, sin la pregunta de solicitud de pelea."
+
 msgid "home.choose_controller"
 msgstr "Elegir control de juego"
 

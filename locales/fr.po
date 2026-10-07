@@ -622,6 +622,12 @@ msgstr "Jouer hors ligne"
 msgid "home.offline_detail"
 msgstr "Ouvrir les menus hors ligne du jeu."
 
+msgid "home.training"
+msgstr "Entraînement"
+
+msgid "home.training_detail"
+msgstr "Aller directement au mode Entraînement, sans la question des demandes de combat."
+
 msgid "home.choose_controller"
 msgstr "Choisir la manette de jeu"
 

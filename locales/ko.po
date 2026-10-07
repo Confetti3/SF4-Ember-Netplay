@@ -622,6 +622,12 @@ msgstr "오프라인 플레이"
 msgid "home.offline_detail"
 msgstr "게임의 오프라인 메뉴를 엽니다."
 
+msgid "home.training"
+msgstr "트레이닝"
+
+msgid "home.training_detail"
+msgstr "난입 설정을 묻지 않고 바로 트레이닝 모드로 들어갑니다."
+
 msgid "home.choose_controller"
 msgstr "게임플레이 컨트롤러 선택"
 

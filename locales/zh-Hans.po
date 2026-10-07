@@ -622,6 +622,12 @@ msgstr "离线游玩"
 msgid "home.offline_detail"
 msgstr "打开游戏原有的离线菜单。"
 
+msgid "home.training"
+msgstr "训练"
+
+msgid "home.training_detail"
+msgstr "不询问对战请求设置，直接进入训练模式。"
+
 msgid "home.choose_controller"
 msgstr "选择对战控制器"
 

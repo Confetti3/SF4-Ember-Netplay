@@ -312,7 +312,14 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		request.character.charaID = static_cast<BYTE>(lobbyMenuCharaID);
 		request.stage = lobbyStageID;
 		request.randomStageExcluded = lobbyStageExcluded;
-		return sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request));
+		// Training rides on StartOffline: the game is sent on only where that
+		// command can be accepted, outside any room or match and at the main menu.
+		const bool training = action.enterTraining && request.command.kind == sf4e::netplay::CommandKind::StartOffline &&
+			snapshot.atMainMenu && snapshot.session.room == sf4e::netplay::RoomState::Idle &&
+			snapshot.session.match == sf4e::netplay::MatchState::None;
+		if (!sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request))) return false;
+		if (training) fMainMenu::RequestTraining();
+		return true;
 	}, [&] {
 		DrawNetworkCharaConfig(lobbyConditions, lobbyMenuCharaID,
 			(snapshot.session.room == sf4e::netplay::RoomState::Idle || snapshot.localSlot == 0) ? &lobbyStageID : nullptr, snapshot);

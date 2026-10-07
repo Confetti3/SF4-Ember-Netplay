@@ -622,6 +622,12 @@ msgstr "Offline spelen"
 msgid "home.offline_detail"
 msgstr "Open de offline spelmenu’s."
 
+msgid "home.training"
+msgstr "Training"
+
+msgid "home.training_detail"
+msgstr "Ga direct naar de Training-modus, zonder de Fight Request-vraag."
+
 msgid "home.choose_controller"
 msgstr "Kies spelcontroller"
 

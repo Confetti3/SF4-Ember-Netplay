@@ -683,6 +683,17 @@ void AppearanceGalleries(){
 }
 // A notice raised while an editor or a confirmation is open must be seen, and
 // must give the dialog back with its draft and its Cancel default.
+// Training on Home is the offline command with the game sent on into
+// Training mode; Play offline alone sends the game nowhere.
+void TrainingFromHome() {
+ using namespace sf4e;
+ using Kind=netplay::CommandKind;
+ Harness h;h.Frame();
+ h.Choose("training");
+ Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::StartOffline&&h.actions.back().enterTraining,"Training did not ride on the offline command");
+ h.Screen("home");h.Choose("offline");
+ Check(h.actions.back().command.kind==Kind::StartOffline&&!h.actions.back().enterTraining,"Play offline asked for Training");
+}
 void NoticeOverDialogs() {
  using namespace sf4e;Harness h;h.Frame();
  const auto shown=[&](const char* name){const auto* w=ImGui::FindWindowByName(name);return w&&w->Active&&!w->Hidden&&w->HiddenFramesCannotSkipItems==0;};
@@ -902,5 +913,5 @@ void TrainingJourneys() {
  TakeForwardedMenuAction();
 }
 }
-int main(){try{Journeys();KeyboardJourneys();ChatJourneys();NoticeOverDialogs();LanguageSaveFailure();SessionReports();RecoveryWindow();SelectorPages();SelectorFromHome();DeveloperSelectors();TrainingJourneys();PresentationJourneys();AppearanceGalleries();std::cout<<"Shell journeys through the renderer passed.\n";return 0;}
+int main(){try{Journeys();TrainingFromHome();KeyboardJourneys();ChatJourneys();NoticeOverDialogs();LanguageSaveFailure();SessionReports();RecoveryWindow();SelectorPages();SelectorFromHome();DeveloperSelectors();TrainingJourneys();PresentationJourneys();AppearanceGalleries();std::cout<<"Shell journeys through the renderer passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

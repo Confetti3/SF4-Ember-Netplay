@@ -2,6 +2,10 @@
 
 Ember adds an offline training overlay. Its frame meter shows native fighter states, action IDs, animation frames, observed action durations, startup and signed recovery advantage. Separate startup/active/recovery coloring remains unavailable, so the complete attack stays orange. New timing behavior still needs gameplay correlation.
 
+## Getting there
+
+**Training** on Ember's Home sends the game straight into Training mode, to the fighter select, without the main menu's Fight Request question. It is offered outside a room and a match, like **Play offline**, and rides on the same command: the game's own Training selection is made for the player with that question switched off for the one call, which is the path the game takes by itself where fight requests cannot be made. Choosing Training in the game's own menu still asks.
+
 ## Open the lab
 
 Use the game's main menu to enter **Training** and select both fighters and a stage. The meter appears at the bottom of the screen once the fight is ready. The viewer and its F6 controls exist only inside native offline Training. There is no Training page in the main Ember overlay.

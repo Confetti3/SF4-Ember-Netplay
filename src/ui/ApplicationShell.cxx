@@ -75,9 +75,10 @@ bool ApplicationShell::Service(platform::ServiceAction kind, const ShellView& vi
 void ApplicationShell::Refuse(std::string text, std::function<bool(const ShellView&)> stillBlocked) {
     error_ = std::move(text); errorBlockedText_ = error_; errorBlocked_ = std::move(stillBlocked);
 }
-bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit) {
+bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit, bool enterTraining) {
     ShellAction action;
     action.command.kind = kind;
+    action.enterTraining = enterTraining && kind == netplay::CommandKind::StartOffline;
     action.command.generation = view.session.generation;
     action.preferences = preferences_;
     if (kind == netplay::CommandKind::SetLobbySettings) action.preferences.lobby = lobby_;
@@ -248,6 +249,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Row("profile",loc::T("home.profile"),loc::T("home.profile_detail")),
    Row("identity",loc::T("screen.identity"),identity_.HomeDetail(v)),
    Row("settings",loc::T("home.settings"),loc::T("home.settings_detail")),
+   Row("training",loc::T("home.training"),loc::T("home.training_detail"),idle),
    Row("offline",loc::T("home.offline"),loc::T("home.offline_detail"),idle)};
   if(opening)rows[0].detail=OpeningCreates(v)?loc::T("room.creating_status"):loc::T("room.joining_status");
   if(!v.controllerReady)rows.insert(rows.begin(),Row("player",loc::T("home.choose_controller"),loc::T("home.choose_controller_detail")));
@@ -493,6 +495,8 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="host"||a.id=="join-now")Send(a.id=="host"?CommandKind::HostRoom:CommandKind::JoinInvite,v,submit);
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
  else if(a.id=="offline"||a.id=="controls")Send(CommandKind::StartOffline,v,submit);
+ // Training is the offline menus with the game sent on into Training mode.
+ else if(a.id=="training")Send(CommandKind::StartOffline,v,submit,true);
  else if(a.id=="paste"){const char* t=ImGui::GetClipboardText();if(t&&*t&&std::strlen(t)<sizeof(invitation_)){std::strcpy(invitation_,t);error_.clear();}else error_=loc::T("error.invitation_invalid");}
  else if(a.id=="capture"||a.id=="keyboard"){ShellAction r;r.command.generation=v.session.generation;r.inputAction=a.id=="capture"?input::Action::BeginCapture:input::Action::UseKeyboard;submit(std::move(r));}
  else if(a.id=="invite-cancel"||a.id=="invite-switch"){ShellAction r;r.command.generation=v.session.generation;r.discordRevision=v.discordRevision;r.discordAction=a.id=="invite-cancel"?discord::InviteAction::Cancel:discord::InviteAction::Switch;if(!submit(std::move(r)))error_=loc::T("error.invitation_changed");}

@@ -126,6 +126,9 @@ struct ShellAction {
     int previewSoundVolume=-1;
     // Asks for the room's short link; nothing else is sent.
     bool shortInvitation=false;
+    // With a StartOffline: once it is accepted, the game's main menu leaves
+    // straight for Training mode.
+    bool enterTraining=false;
     // Steps the chosen Ultra or color by delta (the table page's Ultra and
     // Appearance rows); the overlay applies it to the pick, and nothing is sent.
     struct SelectionStep {
@@ -350,7 +353,7 @@ private:
     std::set<room::MemberId> muted_;
     bool Service(platform::ServiceAction action, const ShellView& view, const Submit& submit);
     bool SendRoom(room::Action action, const ShellView& view, const Submit& submit);
-    bool Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit);
+    bool Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit, bool enterTraining = false);
 };
 
 } }

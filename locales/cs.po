@@ -622,6 +622,12 @@ msgstr "Hrát offline"
 msgid "home.offline_detail"
 msgstr "Otevřít nabídky hry offline."
 
+msgid "home.training"
+msgstr "Trénink"
+
+msgid "home.training_detail"
+msgstr "Přejít rovnou do režimu Trénink, bez otázky na výzvy k zápasu."
+
 msgid "home.choose_controller"
 msgstr "Vybrat herní ovladač"
 
