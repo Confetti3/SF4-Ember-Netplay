@@ -18,7 +18,9 @@
 //! Ember ID's: the browser page names the Ember ID it would connect to and
 //! asks first, so an authorize link someone else started cannot tie the
 //! person who opens it to their Ember ID. For an account connected to
-//! another Ember ID the page also says what moving it ends.
+//! another Ember ID the page also says what moving it ends. The answer holds
+//! only for the owner the page named: if the account was connected or moved
+//! elsewhere meanwhile, it changes nothing.
 //! Starting a sign-in ends the Ember ID's earlier ones, and the player can
 //! end the one in flight (`cancel`), so only the latest can connect.
 use axum::{
@@ -317,14 +319,17 @@ pub async fn callback(State(state): State<AppState>, Query(answer): Query<Answer
                 .optional()?;
             if owner.as_deref() != Some(ember_id.as_str()) {
                 // The question is answered with its own secret from here on;
-                // the state stops naming this sign-in.
+                // the state stops naming this sign-in. The owner it names is
+                // kept, so the answer holds only while it still is.
                 tx.execute(
-                    "UPDATE discord_sign_ins SET state_hash = ?4, pending_user_id = ?2, pending_username = ?3 WHERE state_hash = ?1",
+                    "UPDATE discord_sign_ins SET state_hash = ?4, pending_user_id = ?2, pending_username = ?3, pending_owner = ?5
+                     WHERE state_hash = ?1",
                     params![
                         hash.as_slice(),
                         user.id,
                         user.username,
-                        confirmation_key.as_slice()
+                        confirmation_key.as_slice(),
+                        owner
                     ],
                 )?;
                 return Ok(Stored::Asking {
@@ -365,6 +370,14 @@ pub struct MoveAnswer {
     choice: String,
 }
 
+/// What the player's answer did.
+enum Decided {
+    /// Connected, or left where it was: the Ember ID asked about and the account.
+    Answered(String, String),
+    /// The account was connected or moved elsewhere after the page asked.
+    Changed,
+}
+
 /// `POST /v1/discord/callback`: the player's answer to connecting or moving
 /// an account, from the page `callback` showed. Either way the sign-in is
 /// done.
@@ -386,26 +399,51 @@ pub async fn decide(State(state): State<AppState>, Form(answer): Form<MoveAnswer
     let decided = state
         .db
         .write(move |tx| {
-            let Some((ember_id, user_id, username)) = tx
+            let Some((ember_id, user_id, username, asked_owner)) = tx
                 .query_row(
                     "DELETE FROM discord_sign_ins
                      WHERE state_hash = ?1 AND expires_at > ?2 AND claimed = 1 AND pending_user_id IS NOT NULL
-                     RETURNING ember_id, pending_user_id, pending_username",
+                     RETURNING ember_id, pending_user_id, pending_username, pending_owner",
                     params![hash.as_slice(), ctx.now],
-                    |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?)),
+                    |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, String>(2)?,
+                            row.get::<_, Option<String>>(3)?,
+                        ))
+                    },
                 )
                 .optional()?
             else {
                 return Ok(None);
             };
             if moves {
+                let owner: Option<String> = tx
+                    .query_row(
+                        "SELECT ember_id FROM discord_accounts WHERE user_id = ?1",
+                        [&user_id],
+                        |row| row.get(0),
+                    )
+                    .optional()?;
+                if owner != asked_owner {
+                    return Ok(Some(Decided::Changed));
+                }
                 store(tx, &ctx, &ember_id, &user_id, &username)?;
             }
-            Ok(Some((ember_id, username)))
+            Ok(Some(Decided::Answered(ember_id, username)))
         })
         .await;
     let (ember_id, username) = match decided {
-        Ok(Some(decided)) => decided,
+        Ok(Some(Decided::Answered(ember_id, username))) => (ember_id, username),
+        Ok(Some(Decided::Changed)) => {
+            state.committed();
+            return finished(
+                "Not connected",
+                "This Discord account was connected to an Ember ID after this page asked, so nothing changed. \
+                 Choose Connect Discord in Ember again if you want it there.",
+            );
+        }
         Ok(None) => return not_waiting(),
         Err(_) => return not_saved(),
     };

@@ -902,6 +902,42 @@ async fn connect_with(bridge: &Bridge, state: &str, who: &str) {
     assert!(page.contains("Discord connected"), "{page}");
 }
 
+/// Two pages ask to connect the same free account; once one is answered, the
+/// other no longer describes what it would do and changes nothing.
+#[tokio::test]
+async fn a_page_left_open_does_not_move_an_account_connected_since() {
+    let bridge = bridge_with_discord().await;
+    let provider = bridge.provider(BLUMINT).await;
+    let (one, two) = (player(&bridge, 1).await, player(&bridge, 2).await);
+    let first = start(&bridge, &one).await;
+    let second = start(&bridge, &two).await;
+    let stale = back(&bridge, &format!("code=good-kate&state={first}")).await;
+    let current = back(&bridge, &format!("code=good-kate&state={second}")).await;
+    assert!(stale.contains("Connect this Discord account?"), "{stale}");
+    assert!(current.contains("Connect this Discord account?"), "{current}");
+    let page = decide(&bridge, &confirmation(&current), "connect").await;
+    assert!(page.contains("Discord connected"), "{page}");
+    lookup(&bridge, &provider, &[KATE]).await;
+    let links = platform_links(&bridge).await;
+    assert_eq!(links, vec![(two.id().to_string(), format!("discord:{KATE}"))]);
+
+    let page = decide(&bridge, &confirmation(&stale), "connect").await;
+    assert!(page.contains("after this page asked"), "{page}");
+    assert_eq!(account(&bridge, &one).await, Json::Null);
+    assert_eq!(account(&bridge, &two).await["user_id"], KATE);
+    assert_eq!(platform_links(&bridge).await, links);
+    // The same holds for a move question whose account moved on meanwhile.
+    let third = player(&bridge, 3).await;
+    let state = start(&bridge, &one).await;
+    let asked = back(&bridge, &format!("code=good-kate&state={state}")).await;
+    assert!(asked.contains("Move this Discord account?"), "{asked}");
+    move_here(&bridge, &third, "kate").await;
+    let page = decide(&bridge, &confirmation(&asked), "move").await;
+    assert!(page.contains("after this page asked"), "{page}");
+    assert_eq!(account(&bridge, &third).await["user_id"], KATE);
+    assert_eq!(account(&bridge, &one).await, Json::Null);
+}
+
 #[tokio::test]
 async fn an_authorize_link_someone_else_started_connects_nothing_unless_confirmed() {
     let bridge = bridge_with_discord().await;

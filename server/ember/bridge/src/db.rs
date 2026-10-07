@@ -31,6 +31,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     ),
     (14, include_str!("../migrations/014_room_details.sql")),
     (15, include_str!("../migrations/015_match_expiry.sql")),
+    (16, include_str!("../migrations/016_discord_confirm_owner.sql")),
 ];
 
 #[derive(Clone)]
@@ -148,7 +149,7 @@ mod tests {
             .prepare("SELECT delivery_attempts, delivery_next_at, delivery_first_at FROM matches")
             .unwrap();
         connection
-            .prepare("SELECT claimed, pending_user_id, pending_username FROM discord_sign_ins")
+            .prepare("SELECT claimed, pending_user_id, pending_username, pending_owner FROM discord_sign_ins")
             .unwrap();
         let versions: Vec<i64> = connection
             .prepare("SELECT version FROM schema_migrations ORDER BY version")
