@@ -10,9 +10,11 @@
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "../common/ReplayInputs.hxx"
 #include "../common/ReplaySlots.hxx"
 
 namespace sf4e { namespace platform { namespace replays {
@@ -117,6 +119,9 @@ struct ArchivedReplay {
 	bool spectated = false, watched = false;
 	// An exported video (VideoOf) is beside it.
 	bool video = false;
+	// What the replay itself says of the match (common/ReplayInputs.hxx);
+	// none for a file that is not one it reads.
+	std::optional<replayinputs::Summary> summary;
 };
 // The video an export of that replay writes: its name with ".mp4".
 inline std::filesystem::path VideoOf(std::filesystem::path replay) { return replay.replace_extension(L".mp4"); }
@@ -134,5 +139,20 @@ inline std::filesystem::path VideoOf(std::filesystem::path replay) { return repl
 void WantListing();
 std::shared_ptr<const std::vector<ArchivedReplay>> LatestListing();
 void StopListing();
+
+// One replay read whole (common/ReplayInputs.hxx), for the Inputs and stats
+// screen: match is null for a file that is not one it reads. The lister's
+// thread reads it: WantDetail asks, from any thread, and LatestDetail is the
+// last one read (null before the first). file is the name it was asked by,
+// UTF-8 as the Replays screen names its rows.
+struct ReplayDetail {
+	std::string file;
+	std::shared_ptr<const replayinputs::Match> match;
+};
+void WantDetail(const std::string& file);
+std::shared_ptr<const ReplayDetail> LatestDetail();
+// The same read on the caller's thread. False for a file that is not read,
+// whatever the file or its folder does.
+bool ReadMatch(const std::filesystem::path& file, replayinputs::Match& match);
 
 } } }

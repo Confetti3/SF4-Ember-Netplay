@@ -373,6 +373,9 @@ void Journeys() {
  Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.recordWatched,"Save matches you watch did not save");
  // A replay's row is its file: Watch now asks for that path. A link's question opens the screen and is answered with Watch or a dismissal.
  {const ShellAction saved=h.actions.back(); // the journey goes on from the preferences just saved
+  // The view takes the saved preferences first, as the runtime would: the block below draws more frames than
+  // an unanswered save is given, and the shell would otherwise count that save as failed and hold the next one back.
+  h.view.preferences=saved.preferences;h.Frame();
   ShellView::Replay shown;shown.path="C:\\r\\a.emberreplay";shown.label="2026-10-06 21:32  Ryu vs Ken";
   h.view.replays={shown};h.view.replaysReady=true;h.Screen("replays");h.Choose("replay:C:\\r\\a.emberreplay");h.Press(MenuInput::Select);
   Check(h.actions.back().replay.mode==sf4e::replay::Mode::Watch&&h.actions.back().replay.path==shown.path,"Watch now did not ask for the replay's file");
@@ -388,6 +391,18 @@ void Journeys() {
   Check(h.shell.Navigation().Screen()!="replays","A replay link moved the menu in a room");
   h.view.session.room=netplay::RoomState::Idle;h.Frame();
   Check(h.shell.Navigation().Screen()=="replays","A replay link did not open the Replays screen once the room was left");
+  // Inputs and stats, the third choice, sends nothing to the game and needs nothing of it: its screen opens with the
+  // game not ready, names the file, and shows the match once the view hands it over (one round: LP for a frame).
+  {ShellView::Replay read;read.path="C:\\r\\b.usf4replay";read.label="2026-10-06 21:32  Ryu vs Ken";
+   h.view.replayLink.clear();h.view.replays={read};h.view.replaysReady=false;h.Screen("replays");const std::size_t sent=h.actions.size();const std::string row="replay:"+read.path;h.Choose(row.c_str());
+   h.Press(MenuInput::Select);
+   Check(h.shell.Navigation().Screen()=="replay-inputs"&&h.actions.size()==sent&&h.shell.ReplayInputsFile()==read.path,"Inputs and stats did not open its screen for the file, or sent something");
+   h.FocusOn("inputs-reading");
+   h.view.replayInputsFile=read.path;h.Frame();h.FocusOn("inputs-none");
+   auto match=std::make_shared<sf4e::replayinputs::Match>();match->rounds.resize(1);match->rounds[0].frames=1;match->rounds[0].runs.push_back({1,{sf4e::replayinputs::LP,0}});
+   h.view.replayInputs=match;h.Frame();
+   h.FocusOn("inputs-p2");h.FocusOn("inputs-round-1");
+   h.view.replayInputsFile.clear();h.view.replayInputs.reset();h.view.replaysReady=true;}
   h.view.replays.clear();h.view.replaysReady=false;h.view.replayLink.clear();h.Frame();h.actions.push_back(saved);}
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("interface");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-size");h.Press(MenuInput::Right);h.Frame(0,45);

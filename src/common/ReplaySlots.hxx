@@ -245,6 +245,12 @@ inline bool ExportFromReplayAlone(const Bytes& replay, Bytes& out) {
 	record[123] = static_cast<std::uint8_t>(utc.tm_hour); record[124] = static_cast<std::uint8_t>(utc.tm_min);
 	return ExportFromReplay(replay, Bytes(full.begin() + 4, full.end()), out);
 }
+// A record made up above carries a title, which the game's own records of a
+// Versus battle never do, and names no winner.
+inline bool MadeUp(const std::uint8_t* record) { return ReadU32(record + 22) != 0; }
+// The winner in a record the game wrote: 0 for player 1, 1 for player 2.
+// -1 for a made-up record or any other value.
+inline int RecordWinner(const std::uint8_t* record) { return !MadeUp(record) && record[49] <= 1 ? record[49] : -1; }
 
 // The export of a slot from its file, whatever the index says of it. The
 // game writes a replay's file and its ".0" when a match ends, and its indexes

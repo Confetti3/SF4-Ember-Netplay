@@ -706,6 +706,39 @@ msgstr "{0} をエクスプローラーで開きました。"
 msgid "services.replay_folder_failed"
 msgstr "リプレイフォルダーを開けませんでした。"
 
+msgid "replays.inputs"
+msgstr "入力と統計"
+
+msgid "replays.inputs_detail"
+msgstr "両プレイヤーが押した内容をフレームごとに表示し、回数を数えます。リプレイファイルから読み取るだけで、再生はしません。"
+
+msgid "inputs.length_value"
+msgstr "{0}ラウンド、{1}"
+
+msgid "inputs.buttons"
+msgstr "{0}：ボタンを押した回数"
+
+msgid "inputs.activity"
+msgstr "1分あたり{0}入力、ジャンプ{1}回、しゃがみ{2}%。"
+
+msgid "inputs.round"
+msgstr "ラウンド{0}"
+
+msgid "inputs.legend"
+msgstr "各行：時間と、そこからP1とP2が押し続けている入力。方向は画面から見たテンキー表記です。4が左、6が右、5は入力なし。"
+
+msgid "inputs.unreadable"
+msgstr "入力を読み取れません"
+
+msgid "inputs.unreadable_detail"
+msgstr "このリプレイは古い形式か、ファイルが壊れています。"
+
+msgid "inputs.reading"
+msgstr "リプレイを読み込んでいます..."
+
+msgid "inputs.look_unknown"
+msgstr "外見は不明"
+
 msgid "replays.row_detail"
 msgstr "決定で、見る、動画として書き出す、ゲームのリプレイ一覧に追加する、から選びます。"
 

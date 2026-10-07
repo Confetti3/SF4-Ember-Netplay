@@ -127,6 +127,8 @@ namespace sf4e {
 				std::uint64_t logOpens = 0, returns = 0;
 				std::string link;
 				std::shared_ptr<const std::vector<platform::replays::ArchivedReplay>> archive;
+				// The replay last read whole, or null (platform::replays::WantDetail).
+				std::shared_ptr<const platform::replays::ReplayDetail> detail;
 			} replays;
 			bool canOpenRoom = false;
 			bool canReplaceRoom = false;

@@ -271,8 +271,16 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
                 return replay.names[side].empty() ? fighterName : sf4e::loc::Tf("replays.player", replay.names[side], fighterName);
             };
             view.replays.push_back({sf4e::platform::WideToUtf8(replay.path.wstring()),
-                replay.label + "  " + sf4e::loc::Tf("replays.fighters", name(0), name(1)), {replay.names[0], replay.names[1]}, replay.spectated, replay.watched, replay.video});
+                replay.label + "  " + sf4e::loc::Tf("replays.fighters", name(0), name(1)), {replay.names[0], replay.names[1]}, replay.spectated, replay.watched, replay.video, replay.summary});
         }
+    }
+    // The Inputs and stats screen names a file; the lister reads it once and
+    // the screen is handed the match when it is that file's.
+    if (shell.Navigation().Screen() == "replay-inputs") {
+        static std::string asked;
+        const std::string& file = shell.ReplayInputsFile();
+        if (file != asked) { asked = file; sf4e::platform::replays::WantDetail(file); }
+        if (snapshot.replays.detail && snapshot.replays.detail->file == file) { view.replayInputsFile = file; view.replayInputs = snapshot.replays.detail->match; }
     }
     view.replaysReady = snapshot.replays.ready;
     view.replayNotice = snapshot.replays.notice; view.replayNoticeError = snapshot.replays.noticeError;

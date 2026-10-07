@@ -332,6 +332,7 @@ PostPublishState Publish() {
 	snapshot.replays.logOpens = replays.logOpens; snapshot.replays.returns = replays.returns;
 	snapshot.replays.link = runtime->replayLinkAsked;
 	snapshot.replays.archive = platform::replays::LatestListing();
+	snapshot.replays.detail = platform::replays::LatestDetail();
 	snapshot.matchWaitsForMenu = runtime->match && !runtime->matchEntered && !snapshot.atMainMenu &&
 		runtime->entryDeferredGeneration && runtime->entryDeferredGeneration == runtime->match->Generation() &&
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Started;

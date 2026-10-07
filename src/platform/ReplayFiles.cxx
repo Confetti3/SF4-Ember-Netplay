@@ -95,6 +95,9 @@ bool ReadArchived(const fs::path& path, bool inRoot, ArchivedReplay& replay, std
 	char label[32] = { 0 };
 	if (_localtime64_s(&local, &at) || !std::strftime(label, sizeof(label), "%Y-%m-%d %H:%M", &local)) return false;
 	replay.label = label; replay.time = time;
+	// The lister keeps what is read, so each file is parsed once.
+	replayinputs::Match played;
+	if (replayinputs::Parse(contents.data(), contents.size(), played)) replay.summary = replayinputs::Summarize(played);
 	return true;
 }
 
@@ -458,35 +461,66 @@ std::vector<ArchivedReplay> List(NotesCache& cache) {
 }
 
 // The one lister of this process. Its thread is started by the first Want
-// and ended by StopListing, which waits for it.
+// and ended by StopListing, which waits for it. detailWanted: the replay to
+// read whole next, empty when none is asked for.
 struct Lister {
 	std::mutex mutex;
 	std::condition_variable wake;
 	bool wanted = false, stop = false;
+	std::string detailWanted;
 	std::thread thread;
 	std::shared_ptr<const std::vector<ArchivedReplay>> latest;
+	std::shared_ptr<const ReplayDetail> detail;
 };
 Lister& TheLister() { static Lister* const lister = new Lister; return *lister; }
 
 void ListUntilStopped(Lister& lister) {
 	NotesCache cache;
+	// Two seconds between listings, however often one is asked for. One
+	// replay's detail does not wait for that.
+	auto nextListing = std::chrono::steady_clock::now();
 	std::unique_lock<std::mutex> lock(lister.mutex);
 	while (!lister.stop) {
-		lister.wake.wait(lock, [&] { return lister.wanted || lister.stop; });
-		if (lister.stop) break;
-		lister.wanted = false;
-		lock.unlock();
-		std::shared_ptr<const std::vector<ArchivedReplay>> listed;
-		// Whatever a file or a folder throws ends this listing, not the game.
-		try { listed = std::make_shared<const std::vector<ArchivedReplay>>(List(cache)); }
-		catch (const std::exception& e) { spdlog::warn("Replays: the archive was not listed: {}", e.what()); }
-		catch (...) { spdlog::warn("Replays: the archive was not listed"); }
-		lock.lock();
-		if (listed) lister.latest = std::move(listed);
-		// Two seconds between listings, however often one is asked for.
-		lister.wake.wait_for(lock, std::chrono::seconds(2), [&] { return lister.stop; });
+		if (!lister.detailWanted.empty()) {
+			auto detail = std::make_shared<ReplayDetail>();
+			detail->file = std::move(lister.detailWanted);
+			lister.detailWanted.clear();
+			lock.unlock();
+			replayinputs::Match match;
+			if (ReadMatch(Utf8ToWide(detail->file.c_str()), match)) detail->match = std::make_shared<const replayinputs::Match>(std::move(match));
+			lock.lock();
+			lister.detail = std::move(detail);
+		}
+		else if (lister.wanted && std::chrono::steady_clock::now() >= nextListing) {
+			lister.wanted = false;
+			lock.unlock();
+			std::shared_ptr<const std::vector<ArchivedReplay>> listed;
+			// Whatever a file or a folder throws ends this listing, not the game.
+			try { listed = std::make_shared<const std::vector<ArchivedReplay>>(List(cache)); }
+			catch (const std::exception& e) { spdlog::warn("Replays: the archive was not listed: {}", e.what()); }
+			catch (...) { spdlog::warn("Replays: the archive was not listed"); }
+			lock.lock();
+			if (listed) lister.latest = std::move(listed);
+			nextListing = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+		}
+		else if (lister.wanted) lister.wake.wait_until(lock, nextListing, [&] { return lister.stop || !lister.detailWanted.empty(); });
+		else lister.wake.wait(lock, [&] { return lister.wanted || lister.stop || !lister.detailWanted.empty(); });
 	}
 }
+
+// Under the lister's lock: wakes its thread, starting it the first time.
+void Wake(Lister& lister) {
+	lister.wake.notify_all();
+	if (!lister.thread.joinable()) lister.thread = std::thread([&lister] { ListUntilStopped(lister); });
+}
+}
+
+bool ReadMatch(const fs::path& file, replayinputs::Match& match) {
+	try {
+		const slots::Bytes contents = LoadFile(file);
+		return replayinputs::Parse(contents.data(), contents.size(), match);
+	}
+	catch (...) { return false; }
 }
 
 void WantListing() {
@@ -494,8 +528,21 @@ void WantListing() {
 	std::lock_guard<std::mutex> lock(lister.mutex);
 	if (lister.stop) return;
 	lister.wanted = true;
-	lister.wake.notify_all();
-	if (!lister.thread.joinable()) lister.thread = std::thread([&lister] { ListUntilStopped(lister); });
+	Wake(lister);
+}
+
+void WantDetail(const std::string& file) {
+	Lister& lister = TheLister();
+	std::lock_guard<std::mutex> lock(lister.mutex);
+	if (lister.stop || file.empty()) return;
+	lister.detailWanted = file;
+	Wake(lister);
+}
+
+std::shared_ptr<const ReplayDetail> LatestDetail() {
+	Lister& lister = TheLister();
+	std::lock_guard<std::mutex> lock(lister.mutex);
+	return lister.detail;
 }
 
 std::shared_ptr<const std::vector<ArchivedReplay>> LatestListing() {

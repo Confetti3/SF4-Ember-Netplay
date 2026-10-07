@@ -706,6 +706,39 @@ msgstr "{0} im Explorer geöffnet."
 msgid "services.replay_folder_failed"
 msgstr "Der Replay-Ordner ließ sich nicht öffnen."
 
+msgid "replays.inputs"
+msgstr "Eingaben und Statistik"
+
+msgid "replays.inputs_detail"
+msgstr "Zeigt, was beide Spieler gedrückt haben, Frame für Frame, und wie oft. Aus der Replay-Datei gelesen; es wird nichts abgespielt."
+
+msgid "inputs.length_value"
+msgstr "Runden: {0}, {1}"
+
+msgid "inputs.buttons"
+msgstr "{0}: Tastendrücke"
+
+msgid "inputs.activity"
+msgstr "{0} Eingaben pro Minute, {1} Sprünge, {2} % der Zeit geduckt."
+
+msgid "inputs.round"
+msgstr "Runde {0}"
+
+msgid "inputs.legend"
+msgstr "Jede Zeile: die Zeit, dann was P1 und P2 von da an halten. Richtungen wie auf dem Ziffernblock, vom Bildschirm aus gesehen: 4 ist links, 6 rechts, 5 keine."
+
+msgid "inputs.unreadable"
+msgstr "Eingaben nicht lesbar"
+
+msgid "inputs.unreadable_detail"
+msgstr "Dieses Replay hat ein älteres Format oder die Datei ist beschädigt."
+
+msgid "inputs.reading"
+msgstr "Replay wird gelesen..."
+
+msgid "inputs.look_unknown"
+msgstr "Aussehen unbekannt"
+
 msgid "replays.row_detail"
 msgstr "Wähle, um es anzusehen, als Video zu exportieren oder der Replay-Liste des Spiels hinzuzufügen."
 

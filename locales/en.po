@@ -706,6 +706,39 @@ msgstr "Opened {0} in Explorer."
 msgid "services.replay_folder_failed"
 msgstr "The replay folder could not be opened."
 
+msgid "replays.inputs"
+msgstr "Inputs and stats"
+
+msgid "replays.inputs_detail"
+msgstr "Shows what both players pressed, frame by frame, and counts of it. Read from the replay file; nothing is played."
+
+msgid "inputs.length_value"
+msgstr "Rounds: {0}, {1}"
+
+msgid "inputs.buttons"
+msgstr "{0}: button presses"
+
+msgid "inputs.activity"
+msgstr "{0} inputs a minute, {1} jumps, crouching {2}% of the time."
+
+msgid "inputs.round"
+msgstr "Round {0}"
+
+msgid "inputs.legend"
+msgstr "Each line: the time, then what P1 and P2 hold from there on. Directions as on a numpad seen on screen: 4 is left, 6 is right, 5 is none."
+
+msgid "inputs.unreadable"
+msgstr "Inputs cannot be read"
+
+msgid "inputs.unreadable_detail"
+msgstr "This replay is in an older format, or its file is damaged."
+
+msgid "inputs.reading"
+msgstr "Reading the replay..."
+
+msgid "inputs.look_unknown"
+msgstr "Look not known"
+
 msgid "replays.row_detail"
 msgstr "Select to watch it, export it as a video, or add it to the game's replay list."
 

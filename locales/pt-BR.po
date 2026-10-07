@@ -706,6 +706,39 @@ msgstr "{0} aberto no Explorador."
 msgid "services.replay_folder_failed"
 msgstr "Não foi possível abrir a pasta de replays."
 
+msgid "replays.inputs"
+msgstr "Comandos e estatísticas"
+
+msgid "replays.inputs_detail"
+msgstr "Mostra o que os dois jogadores pressionaram, quadro a quadro, e quantas vezes. Lido do arquivo do replay; nada é reproduzido."
+
+msgid "inputs.length_value"
+msgstr "Rounds: {0}, {1}"
+
+msgid "inputs.buttons"
+msgstr "{0}: botões pressionados"
+
+msgid "inputs.activity"
+msgstr "{0} comandos por minuto, {1} pulos, agachado {2}% do tempo."
+
+msgid "inputs.round"
+msgstr "Round {0}"
+
+msgid "inputs.legend"
+msgstr "Cada linha: o tempo e o que P1 e P2 seguram a partir dali. Direções como em um teclado numérico visto na tela: 4 é esquerda, 6 é direita, 5 é nenhuma."
+
+msgid "inputs.unreadable"
+msgstr "Não foi possível ler os comandos"
+
+msgid "inputs.unreadable_detail"
+msgstr "Este replay está em um formato antigo ou o arquivo está danificado."
+
+msgid "inputs.reading"
+msgstr "Lendo o replay..."
+
+msgid "inputs.look_unknown"
+msgstr "Aparência desconhecida"
+
 msgid "replays.row_detail"
 msgstr "Selecione para assistir, exportar como vídeo ou adicionar à lista de replays do jogo."
 
