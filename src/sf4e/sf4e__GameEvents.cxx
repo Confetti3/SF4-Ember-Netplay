@@ -136,16 +136,12 @@ void fGameEvents::Install() {
 // battle log, the list of replays a Versus battle saves into.
 void fMainMenu::GoToLocalBattleLog() {
 	std::uint8_t* const observer = reinterpret_cast<std::uint8_t*>(this);
-	struct Flow { void Request(int row, int, int, int, int); };
-	Flow* const flow = *reinterpret_cast<Flow**>(observer + 0x18);
-	void (Flow::* request)(int, int, int, int, int);
-	*reinterpret_cast<PVOID*>(&request) = (*reinterpret_cast<PVOID**>(flow))[0x9C / 4];
-	(flow->*request)(15, 0, 0, 0, 1);
+	Dimps::GameEvents::Flow::Request(*reinterpret_cast<Dimps::GameEvents::Flow**>(observer + rMainMenu::ObserverFlow), rMainMenu::FlowRowLocalBattleLog);
 	auto* const app = reinterpret_cast<std::uint8_t*>(rMainMenu::exitMethods.GetApp());
-	auto* const sound = **reinterpret_cast<rMainMenu::SoundManager***>(app + 0x7C);
+	auto* const sound = **reinterpret_cast<rMainMenu::SoundManager***>(app + rMainMenu::AppSoundManager);
 	(sound->*rMainMenu::exitMethods.FadeOut)(*rMainMenu::exitMethods.fadeSeconds);
-	(reinterpret_cast<rMainMenu::MenuPanel*>(observer + 8)->*rMainMenu::exitMethods.Close)(0);
-	*reinterpret_cast<int*>(observer + 0x2A8) = 0;
+	(reinterpret_cast<rMainMenu::MenuPanel*>(observer + rMainMenu::ObserverPanel)->*rMainMenu::exitMethods.Close)(0);
+	*reinterpret_cast<int*>(observer + rMainMenu::ObserverSelection) = 0;
 }
 
 // Opens the local battle log from the native main menu, when it is the
@@ -166,13 +162,7 @@ bool fMainMenu::LeaveLocalBattleLog() {
 	char* query[1] = { const_cast<char*>("LocalBattleLog") };
 	auto* const log = reinterpret_cast<std::uint8_t*>(EventBaseWithEC::FindForegroundEvent(root, query, 1));
 	if (!log) return false;
-	// The battle log's listener leaves through the flow object at the
-	// event's +8: vtable +0x9C (row, 0, 0, 0, 1).
-	struct Flow { void Request(int row, int, int, int, int); };
-	Flow* const flow = *reinterpret_cast<Flow**>(log + 8);
-	void (Flow::* request)(int, int, int, int, int);
-	*reinterpret_cast<PVOID*>(&request) = (*reinterpret_cast<PVOID**>(flow))[0x9C / 4];
-	(flow->*request)(1, 0, 0, 0, 1);
+	Dimps::GameEvents::Flow::Request(*reinterpret_cast<Dimps::GameEvents::Flow**>(log + Dimps::GameEvents::Flow::OnLocalBattleLog), rMainMenu::FlowRowMainMenu);
 	return true;
 }
 

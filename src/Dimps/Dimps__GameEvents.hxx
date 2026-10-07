@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 #include <string>
 #include <windows.h>
 
@@ -41,6 +43,16 @@ namespace Dimps {
 			static char** eventFlowDefinition;
 			static Game::ProgressData** GetProgressData(RootEvent* e);
 			static void Locate(HMODULE peRoot);
+		};
+
+		// The object an event leaves through: its vtable's +0x9C takes
+		// (row, 0, 0, 0, 1) and moves the game to that row of the event flow
+		// table. The main menu's item observer keeps one
+		// (MainMenu::ObserverFlow); the local battle log's event keeps its
+		// own at +8, which its Back uses for Player Data (0x46F910).
+		struct Flow {
+			static constexpr std::size_t RequestOffset = 0x9C, OnLocalBattleLog = 0x8;
+			static void Request(Flow* flow, int row);
 		};
 
 		struct MainMenu : Dimps::Event::EventBase {
@@ -94,6 +106,14 @@ namespace Dimps {
 				void (MenuPanel::* Close)(int);
 				const float* fadeSeconds;
 			} __exitMethods;
+
+			// Where that code finds things: the flow on the item observer, the
+			// panel it closes, the selection it clears, and the sound manager
+			// (a pointer to a pointer) on the app.
+			static constexpr std::size_t ObserverFlow = 0x18, ObserverPanel = 0x8, ObserverSelection = 0x2A8, AppSoundManager = 0x7C;
+			// The row of the event flow table that is the main menu, and the
+			// one Ember adds for the local battle log (sf4e__GameEvents.cxx).
+			static constexpr int FlowRowMainMenu = 1, FlowRowLocalBattleLog = 15;
 
 			static __itemObserverMethods itemObserverMethods;
 			static __exitMethods exitMethods;

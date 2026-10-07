@@ -70,6 +70,13 @@ namespace Dimps {
 				BOOL (ReplayInfoList::* Read)(void* stream);
 			} __publicMethods;
 
+			// The vector's begin and end on the list, and an entry: 0x108
+			// bytes, its vtable (whose third function, 0x676820, fills it
+			// from a stream holding a 125-byte record), the slot it names at
+			// +4 (-1 when never filled, 0x676B70) and the slot's two bytes
+			// at +0x106.
+			static constexpr std::size_t Entries = 0x8, EntriesEnd = 0xC, EntryBytes = 0x108, EntrySlot = 0x4, EntrySlotBytes = 0x106, EntryDeserialize = 2;
+
 			static void Locate(HMODULE peRoot);
 			static __publicMethods publicMethods;
 			static DWORD* listFirstSlot;
@@ -98,7 +105,7 @@ namespace Dimps {
 			// (0x686B50), its phase +0x18C and state +0x11C are set to 3, which
 			// the state's check waits for, and the two movies at +0x2C8 (8 bytes
 			// each) get the "Close" signal (0x78DAF0) when valid (0x78ECD0).
-			static constexpr std::size_t SplashState = 0x11C, SplashPhase = 0x18C, SplashVoice = 0x150, SplashMovies = 0x2C8;
+			static constexpr std::size_t VersusSplash = 0x48, SplashState = 0x11C, SplashPhase = 0x18C, SplashVoice = 0x150, SplashMovies = 0x2C8;
 			struct List;
 			struct Voice;
 			struct Movie;
