@@ -655,6 +655,21 @@ msgstr "Matches waar je naar kijkt opslaan"
 msgid "replays.save_watched_detail"
 msgstr "Aan: matches waar je alleen naar kijkt worden ook opgenomen. Uit: alleen de matches die je zelf speelt."
 
+msgid "replays.link"
+msgstr "Een link wil een replay afspelen"
+
+msgid "replays.link_detail"
+msgstr "Een link vroeg Ember om {0} af te spelen. Speel hem alleen af als je weet waar de link vandaan komt."
+
+msgid "replays.link_play"
+msgstr "Afspelen"
+
+msgid "replays.link_dismiss"
+msgstr "Nu niet"
+
+msgid "replays.link_dismiss_detail"
+msgstr "Laat het bestand staan en vergeet de link."
+
 msgid "replays.row_detail"
 msgstr "Selecteer om hem aan de replaylijst van het spel toe te voegen, of om hem toe te voegen en nu te bekijken."
 

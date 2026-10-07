@@ -259,25 +259,24 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.identityRefusal = snapshot.identityRefusal;
     view.tournament = snapshot.tournament;
     view.publicRooms = snapshot.publicRooms;
-    // The archive is read while the Replays screen is open, at most every two seconds.
-    static std::vector<sf4e::ui::ShellView::Replay> replays;
-    static double replaysReadAt = -10;
-    if (shell.Navigation().Screen() == "replays" && ImGui::GetTime() - replaysReadAt > 2) {
-        replaysReadAt = ImGui::GetTime();
-        replays.clear();
-        for (const auto& replay : sf4e::platform::replays::ListArchive()) {
+    // The archive is listed off this thread (the runtime's lister); while the
+    // Replays screen shows, a new listing is asked for and the last one
+    // becomes its rows.
+    if (shell.Navigation().Screen() == "replays") {
+        sf4e::NetplayFacade::WantReplayList();
+        if (snapshot.replays.archive) for (const auto& replay : *snapshot.replays.archive) {
             const auto name = [&](int side) {
                 const auto* fighter = sf4e::selection::FindFighter(replay.fighters[side]);
                 const std::string fighterName = fighter ? fighter->name : sf4e::loc::T("common.unavailable");
                 return replay.names[side].empty() ? fighterName : sf4e::loc::Tf("replays.player", replay.names[side], fighterName);
             };
-            replays.push_back({sf4e::platform::WideToUtf8(replay.path.wstring()),
+            view.replays.push_back({sf4e::platform::WideToUtf8(replay.path.wstring()),
                 replay.label + "  " + sf4e::loc::Tf("replays.fighters", name(0), name(1)), {replay.names[0], replay.names[1]}, replay.spectated, replay.watched});
         }
     }
-    view.replays = replays;
-    view.replaysReady = snapshot.canImportReplay;
-    view.replayNotice = snapshot.replayNotice; view.replayNoticeError = snapshot.replayNoticeError;
+    view.replaysReady = snapshot.replays.ready;
+    view.replayNotice = snapshot.replays.notice; view.replayNoticeError = snapshot.replays.noticeError;
+    view.replayLink = snapshot.replays.link;
     const auto* fighter = sf4e::selection::FindFighter(lobbyMenuCharaID);
     view.selectedFighter=lobbyMenuCharaID;
     auto summaryPick = sf4e::selection::FromNative(lobbyConditions); summaryPick.fighter = lobbyMenuCharaID;
@@ -316,8 +315,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		sf4e::NetplayFacade::RuntimeCommand request;
 		request.command = std::move(action.command);
         request.service = action.service;
-        request.importReplay = std::move(action.importReplay); request.watchReplay = action.watchReplay;
-        request.openBattleLog = action.openBattleLog;
+        request.replay = std::move(action.replay);
         request.inputAction = action.inputAction; request.discordAction = action.discordAction;
         request.discordRevision = action.discordRevision;
 		request.displayName = snapshot.preferences.displayName;
@@ -407,14 +405,12 @@ void Overlay::DrawOverlay() {
     sf4e::ui::SetMenuInput({controllerNavigation.Buttons(), ImGui::GetTime()});
     sf4e::ui::SetMenuGlyphs(snapshot.menuController.deviceType,snapshot.menuController.selectPhysical,snapshot.menuController.backPhysical);
     if (presentation.Reopened()) shell.ShowPlay();
-    // The runtime opened the game's battle log from the Replays screen: Ember's
-    // menu gets out of the way, and comes back on that screen once the player
-    // has left the game's menus and returned to the main menu.
-    static std::uint64_t battleLogOpensSeen = 0;
-    static bool returnToReplays = false, awayFromMenu = false;
-    if (snapshot.battleLogOpens != battleLogOpensSeen) { battleLogOpensSeen = snapshot.battleLogOpens; presentation.Close(); returnToReplays = true; awayFromMenu = false; }
-    if (returnToReplays && !presentation.Available()) awayFromMenu = true;
-    else if (returnToReplays && awayFromMenu) { presentation.Open(); shell.Navigation().Home(); shell.Navigation().Push("replays"); returnToReplays = false; }
+    // The game's battle log was opened from the Replays screen: Ember's menu
+    // gets out of the way, and comes back on that screen when the replay
+    // operation says the main menu is back (sf4e__ReplayStore.hxx).
+    static std::uint64_t logOpensSeen = 0, returnsSeen = 0;
+    if (snapshot.replays.logOpens != logOpensSeen) { logOpensSeen = snapshot.replays.logOpens; presentation.Close(); }
+    if (snapshot.replays.returns != returnsSeen) { returnsSeen = snapshot.replays.returns; presentation.Open(); shell.Navigation().Home(); shell.Navigation().Push("replays"); }
     if (ImGui::IsKeyPressed(ImGuiKey_F10, false)) presentation.Toggle();
     // Every overlay frame, since the training panel draws art with the menu
     // closed. Pump returns at once when nothing drew art since the last pump.

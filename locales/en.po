@@ -655,6 +655,21 @@ msgstr "Save matches you watch"
 msgid "replays.save_watched_detail"
 msgstr "On: matches you only watch are recorded too. Off: only the matches you play."
 
+msgid "replays.link"
+msgstr "A link wants to play a replay"
+
+msgid "replays.link_detail"
+msgstr "A link asked Ember to play {0}. Play it only if you know where the link came from."
+
+msgid "replays.link_play"
+msgstr "Play it"
+
+msgid "replays.link_dismiss"
+msgstr "Not now"
+
+msgid "replays.link_dismiss_detail"
+msgstr "Leaves the file where it is and forgets the link."
+
 msgid "replays.row_detail"
 msgstr "Select to add it to the game's replay list, or to add it and watch it now."
 

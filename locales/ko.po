@@ -655,6 +655,21 @@ msgstr "관전한 매치 저장"
 msgid "replays.save_watched_detail"
 msgstr "켜기: 관전만 한 매치도 기록합니다. 끄기: 직접 플레이한 매치만 기록합니다."
 
+msgid "replays.link"
+msgstr "링크가 리플레이 재생을 요청했습니다"
+
+msgid "replays.link_detail"
+msgstr "링크가 Ember에 {0} 재생을 요청했습니다. 링크의 출처를 아는 경우에만 재생하세요."
+
+msgid "replays.link_play"
+msgstr "재생"
+
+msgid "replays.link_dismiss"
+msgstr "나중에"
+
+msgid "replays.link_dismiss_detail"
+msgstr "파일은 그대로 두고 링크를 잊습니다."
+
 msgid "replays.row_detail"
 msgstr "선택하여 게임의 리플레이 목록에 추가하거나, 추가하고 지금 봅니다."
 

@@ -655,6 +655,21 @@ msgstr "Enregistrer les matchs regardés"
 msgid "replays.save_watched_detail"
 msgstr "Oui : les matchs que vous ne faites que regarder sont enregistrés aussi. Non : seulement les matchs que vous jouez."
 
+msgid "replays.link"
+msgstr "Un lien veut lire un replay"
+
+msgid "replays.link_detail"
+msgstr "Un lien a demandé à Ember de lire {0}. Ne le lisez que si vous savez d'où vient le lien."
+
+msgid "replays.link_play"
+msgstr "Le lire"
+
+msgid "replays.link_dismiss"
+msgstr "Pas maintenant"
+
+msgid "replays.link_dismiss_detail"
+msgstr "Laisse le fichier où il est et oublie le lien."
+
 msgid "replays.row_detail"
 msgstr "Sélectionnez pour l'ajouter à la liste des replays du jeu, ou pour l'ajouter et le regarder maintenant."
 

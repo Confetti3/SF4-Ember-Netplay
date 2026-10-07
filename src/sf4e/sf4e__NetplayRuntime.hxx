@@ -179,14 +179,13 @@ struct Runtime {
     netplay::tournament::OpenedLink openedLink;
     // Discord connect links (ember://discord/connect) likewise: the service.
     platform::ConnectLinkMailbox connectLinks;
-    // A replay link (common/ReplayLink.hxx) from the launcher, waiting for
-    // the native main menu with no room, where it is played like Watch now.
+    // Replay links (common/ReplayLink.hxx) from the launcher, and the file
+    // the last one asked for: a question on the Replays screen until the
+    // player answers it (RuntimeSnapshot::replays.link).
     platform::ReplayLinkMailbox replayLinks;
-    std::string pendingReplayLink;
-    // Watch now: the replay to play once the battle log is up, then the wait
-    // for it to end so the log can be left for the main menu.
-    replaystore::Playable autoplay;
-    bool autoplayStarted = false;
+    std::string replayLinkAsked;
+    // Lists the archive for the Replays screen, on its own thread.
+    platform::replays::ArchiveLister replayLister;
     netplay::tournament::OpenedLink openedConnect;
     // Public room links (ember://room/open) likewise: the service and the room.
     platform::PublicRoomLinkMailbox publicRoomLinks;
@@ -256,11 +255,6 @@ struct Runtime {
 	bool attached = false;
 	bool helperLossReported = false;
 	bool offlineRequested = false;
-	// The last replay import's outcome (RuntimeSnapshot::replayNotice) and
-	// the count of battle log jumps from Ember.
-	std::string replayNotice;
-	bool replayNoticeError = false;
-	std::uint64_t battleLogOpens = 0;
 	// Room links from the browser (ember://join/...): the launcher's start
 	// argument, or one a later launcher handed over. The newest waits here
 	// as the https link for the Join screen; the sequence tells it apart.
@@ -330,11 +324,13 @@ void TickTournament(bool helperReady);
 void OpenMatchLink(const tournament_link::MatchLink& link);
 // `launched`: the link started Ember, so it was just clicked.
 void OpenConnectLink(const std::string& bridge, bool launched = false);
-// Plays an archived replay the way the Replays screen's Watch now does, or
-// keeps it until the native main menu is up with no room open.
-void WatchReplay(const std::string& file, bool watch, bool openBattleLog);
-void OpenReplayLink(const std::string& file);
-void TickReplayLink();
+// Runs a request from the Replays screen, or the player's answer to a
+// replay link, and once a tick takes links, asks for listings and moves the
+// replay operation on (sf4e__ReplayStore.hxx).
+void RunReplayRequest(const replay::Request& request);
+void TickReplays();
+// The Replays screen asked for a listing since the last call (NetplayFacade::WantReplayList).
+bool TakeReplayListWanted();
 // Hands a public room link to the interface, which asks for the room's ticket
 // when the player is free. `launched` as for OpenConnectLink.
 void OpenPublicRoomLink(const tournament_link::RoomLink& link, bool launched = false);

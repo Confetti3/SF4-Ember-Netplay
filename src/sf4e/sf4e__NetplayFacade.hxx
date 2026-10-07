@@ -18,6 +18,8 @@
 #include "../netplay/PublicRooms.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../platform/ApplicationServices.hxx"
+#include "../platform/ReplayFiles.hxx"
+#include "../common/ReplayRequest.hxx"
 #include "../common/RoomLimits.hxx"
 #include "../session/RoomModel.hxx"
 #include <optional>
@@ -95,11 +97,9 @@ namespace sf4e {
             std::string publicTicket;
             // With the JoinInvite of a public room just created: the table rules chosen on Create.
             std::optional<room::Rules> createdRules;
-            // An archived replay to put into the game's replay list (sf4e__ReplayStore),
-            // then, with watchReplay, the jump to the game's battle log; or the jump alone.
-            std::string importReplay;
-            bool watchReplay = false;
-            bool openBattleLog = false;
+            // What the Replays screen asks of the game (sf4e__ReplayStore), or
+            // the player's answer to a replay link; mode None for every other command.
+            replay::Request replay;
 		};
 		struct RuntimeSnapshot {
             ui::ControllerSample menuController;
@@ -113,14 +113,21 @@ namespace sf4e {
 			bool atMainMenu = false;
 			// A started match is waiting for the player to return to the main menu.
 			bool matchWaitsForMenu = false;
-			// An archived replay can go into the game's replay list now (the
-			// native main menu, with the game's table seen), the outcome of
-			// the last import as a notice, and how many times the battle log
-			// was opened from Ember, for the overlay to close itself on.
-			bool canImportReplay = false;
-			std::string replayNotice;
-			bool replayNoticeError = false;
-			std::uint64_t battleLogOpens = 0;
+			// Replays. ready: an archived one can go into the game's replay
+			// list now (the native main menu, the game's table seen, the match
+			// list's 30 slots in place). notice: the outcome of the last
+			// request. logOpens and returns: sf4e__ReplayStore's counts, for
+			// Ember's menu to get out of the way and to come back on. link:
+			// the file a replay link asked for, until the player answers.
+			// archive: the last listing of the archive, or null (WantReplayList).
+			struct Replays {
+				bool ready = false;
+				std::string notice;
+				bool noticeError = false;
+				std::uint64_t logOpens = 0, returns = 0;
+				std::string link;
+				std::shared_ptr<const std::vector<platform::replays::ArchivedReplay>> archive;
+			} replays;
 			bool canOpenRoom = false;
 			bool canReplaceRoom = false;
 			bool canReady = false;
@@ -224,6 +231,9 @@ namespace sf4e {
 		// published and is never null. Safe on any thread, before StartHelper
 		// and after StopHelper.
 		std::shared_ptr<const RuntimeSnapshot> GetRuntimeSnapshotShared();
+		// Any thread: the Replays screen is showing, so the archive is to be
+		// listed again (RuntimeSnapshot::replays.archive, within a few seconds).
+		void WantReplayList();
 		// The overlay's frame input, on any thread; never null.
 		std::shared_ptr<const PresentationSnapshot> GetPresentationSnapshotShared();
 		// Game thread, once at the end of every outer tick: expires notices and

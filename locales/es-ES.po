@@ -655,6 +655,21 @@ msgstr "Guardar partidas que ves"
 msgid "replays.save_watched_detail"
 msgstr "Sí: también se graban las partidas que solo ves. No: solo las partidas que juegas."
 
+msgid "replays.link"
+msgstr "Un enlace quiere reproducir una repetición"
+
+msgid "replays.link_detail"
+msgstr "Un enlace ha pedido a Ember reproducir {0}. Reprodúcela solo si sabes de dónde viene el enlace."
+
+msgid "replays.link_play"
+msgstr "Reproducir"
+
+msgid "replays.link_dismiss"
+msgstr "Ahora no"
+
+msgid "replays.link_dismiss_detail"
+msgstr "Deja el archivo donde está y olvida el enlace."
+
 msgid "replays.row_detail"
 msgstr "Selecciona para añadirla a la lista de repeticiones del juego, o para añadirla y verla ahora."
 

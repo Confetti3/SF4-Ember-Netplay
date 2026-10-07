@@ -11,20 +11,22 @@
 #include "../Dimps/Dimps__Event.hxx"
 #include "../Dimps/Dimps__Game.hxx"
 #include "../Dimps/Dimps__Game__Battle.hxx"
+#include "../common/Localization.hxx"
 #include "../common/ReplaySlots.hxx"
 #include "../platform/ReplayFiles.hxx"
+#include "../platform/Utf8.hxx"
+#include "sf4e__Game__Battle.hxx"
+#include "sf4e__GameEvents.hxx"
 
 namespace {
 
-// The game's replay slots (Dimps__Game.hxx): a std::vector of 310 entries at
-// +8 (begin) and +0xC (end), 0x108 bytes each. An entry is its vtable, then
-// what its slot record holds (slot number at +4, used at +0xC, CRC, size,
-// 64-bit save time, title, and the menu's fields from +0x38), then the slot's
-// two bytes at +0x106. Its vtable's third function (0x676820) fills it from
-// a memory stream holding the 125-byte record: the stream is four words, of
-// which only the base, cursor and size are read.
-constexpr std::size_t kEntryBytes = 0x108, kEntrySlotBytesOffset = 0x106;
+using Dimps::Game::ReplayBattle;
+using Dimps::Game::SaveDataController;
+using Table = Dimps::Game::ReplayInfoList;
+using sf4e::replaystore::Step;
 
+// The stream an entry is filled from (Dimps__Game.hxx, ReplayInfoList): four
+// words, of which only the base, cursor and size are read.
 struct Stream {
 	const void* vtable;
 	const std::uint8_t* base;
@@ -32,7 +34,7 @@ struct Stream {
 	std::uint32_t size;
 };
 
-struct ReplayInfoList : Dimps::Game::ReplayInfoList {
+struct ReplayInfoList : Table {
 	BOOL Read(void* stream);
 };
 
@@ -64,37 +66,49 @@ bool WriteThroughSteam(const std::string& name, const sf4e::replayslots::Bytes& 
 
 BOOL ReplayInfoList::Read(void* stream) {
 	const BOOL ok = (this->*publicMethods.Read)(stream);
-	std::uint8_t* const begin = *reinterpret_cast<std::uint8_t**>(reinterpret_cast<std::uint8_t*>(this) + 8);
-	std::uint8_t* const end = *reinterpret_cast<std::uint8_t**>(reinterpret_cast<std::uint8_t*>(this) + 0xC);
-	// Each entry names its slot at +4 (from its record, or -1 when never
-	// filled, 0x676B70); a save need not keep the entries in slot order.
+	std::uint8_t* const begin = *reinterpret_cast<std::uint8_t**>(reinterpret_cast<std::uint8_t*>(this) + Entries);
+	std::uint8_t* const end = *reinterpret_cast<std::uint8_t**>(reinterpret_cast<std::uint8_t*>(this) + EntriesEnd);
+	// A save need not keep the entries in slot order, so each is asked which
+	// slot it names.
 	const std::ptrdiff_t span = begin ? end - begin : 0;
-	bool stock = begin && span == static_cast<std::ptrdiff_t>(sf4e::replayslots::kSlots * kEntryBytes);
+	bool stock = begin && span == static_cast<std::ptrdiff_t>(sf4e::replayslots::kSlots * EntryBytes);
 	int odd = -1;
 	for (int at = 0; stock && at < sf4e::replayslots::kSlots; at++) {
-		const std::uint32_t slot = sf4e::replayslots::ReadU32(begin + at * kEntryBytes + 4);
+		const std::uint32_t slot = sf4e::replayslots::ReadU32(begin + at * EntryBytes + EntrySlot);
 		if (slot >= static_cast<std::uint32_t>(sf4e::replayslots::kSlots) && slot != 0xFFFFFFFFu) { stock = false; odd = at; }
 	}
 	s_entries = stock ? begin : nullptr;
 	if (stock) spdlog::info("Replay: the game's replay table is at {}", static_cast<void*>(begin));
 	else spdlog::warn("Replay: the game's replay table is not the stock shape (read {}, {} bytes for {} entries of {}, first odd entry {} holds {:#x}); archived replays cannot be added while it runs",
-		ok, span, span / static_cast<std::ptrdiff_t>(kEntryBytes), kEntryBytes, odd, odd >= 0 ? sf4e::replayslots::ReadU32(begin + odd * kEntryBytes + 4) : 0u);
+		ok, span, span / static_cast<std::ptrdiff_t>(EntryBytes), EntryBytes, odd, odd >= 0 ? sf4e::replayslots::ReadU32(begin + odd * EntryBytes + EntrySlot) : 0u);
 	return ok;
 }
 
+bool SavesBusy() {
+	auto* const saves = SaveDataController::staticMethods.GetSingleton();
+	return !saves || (saves->*SaveDataController::publicMethods.Busy)();
 }
 
-void sf4e::replaystore::Install() {
-	BOOL (ReplayInfoList::* detour)(void*) = &ReplayInfoList::Read;
-	DetourAttach(reinterpret_cast<PVOID*>(&ReplayInfoList::publicMethods.Read), *reinterpret_cast<PVOID*>(&detour));
+// Puts an archived replay into the game's files and then its table, as the
+// newest entry of the match list. The slot it took, or -1.
+int Import(const std::wstring& path) {
+	sf4e::platform::replays::Imported imported;
+	if (!sf4e::platform::replays::ImportFile(path, WriteThroughSteam, imported)) return -1;
+	std::uint8_t* entry = s_entries + imported.slot * Table::EntryBytes;
+	for (int at = 0; at < sf4e::replayslots::kSlots; at++)
+		if (sf4e::replayslots::ReadU32(s_entries + at * Table::EntryBytes + Table::EntrySlot) == static_cast<std::uint32_t>(imported.slot)) { entry = s_entries + at * Table::EntryBytes; break; }
+	Stream stream{nullptr, imported.record.data(), imported.record.data(), static_cast<std::uint32_t>(imported.record.size())};
+	BOOL (Entry::* deserialize)(Stream*);
+	*reinterpret_cast<PVOID*>(&deserialize) = (*reinterpret_cast<PVOID**>(entry))[Table::EntryDeserialize];
+	if (!(reinterpret_cast<Entry*>(entry)->*deserialize)(&stream)) {
+		// The files already hold the replay; the next game start lists it.
+		spdlog::warn("Replay: the game did not take slot {}'s record; it shows after a restart", imported.slot);
+		return -1;
+	}
+	std::memcpy(entry + Table::EntrySlotBytes, imported.slotBytes.data(), 2);
+	spdlog::info("Replay: slot {} is in the game's table", imported.slot);
+	return imported.slot;
 }
-
-bool sf4e::replaystore::Ready() { return s_entries != nullptr; }
-
-namespace {
-enum class Playback { Idle, Waiting, Started };
-Playback s_playback = Playback::Idle;
-int s_playbackWait = 0;
 
 Dimps::Event::EventBaseWithEC* BattleLogEvent() {
 	auto* const root = Dimps::App::GetRootEvent();
@@ -105,106 +119,133 @@ Dimps::Event::EventBaseWithEC* BattleLogEvent() {
 
 // The battle log's current state ("Select", "Versus", "Battle") or nullptr.
 Dimps::Event::EventBase* BattleLogState(Dimps::Event::EventBaseWithEC* log) {
-	auto* const controller = (log->*Dimps::Event::EventBaseWithEC::publicMethods.GetChildEventController)();
+	auto* const controller = log ? (log->*Dimps::Event::EventBaseWithEC::publicMethods.GetChildEventController)() : nullptr;
 	return controller ? (controller->*Dimps::Event::EventController::publicMethods.GetForegroundEvent)() : nullptr;
 }
 
-const char* StateName(Dimps::Event::EventBase* state) { return state ? Dimps::Event::EventBase::GetName(state) : ""; }
+bool Named(Dimps::Event::EventBase* state, const char* name) { return state && !std::strcmp(Dimps::Event::EventBase::GetName(state), name); }
+
+// The Versus splash waits for its movies and the announcer, which do not
+// finish here; it gets the Start press the player could give it
+// (Dimps__Game.hxx, ReplayBattle).
+void SkipSplash(Dimps::Event::EventBase* versus) {
+	std::uint8_t* const splash = *reinterpret_cast<std::uint8_t**>(reinterpret_cast<std::uint8_t*>(versus) + ReplayBattle::VersusSplash);
+	if (!splash || *reinterpret_cast<int*>(splash + ReplayBattle::SplashState) != 1) return;
+	const auto& native = ReplayBattle::staticMethods;
+	auto* const voice = *reinterpret_cast<ReplayBattle::Voice**>(splash + ReplayBattle::SplashVoice);
+	*reinterpret_cast<int*>(splash + ReplayBattle::SplashPhase) = 3;
+	if (voice) native.FadeVoice(voice, 0x1F);
+	*reinterpret_cast<int*>(splash + ReplayBattle::SplashState) = 3;
+	for (int movie = 0; movie < 2; movie++) {
+		auto* const m = reinterpret_cast<ReplayBattle::Movie*>(splash + ReplayBattle::SplashMovies + movie * 8);
+		if (native.MovieValid(m)) native.MovieSignal(m, "Close", 0);
+	}
+	spdlog::info("Replay: skipped the Versus splash");
 }
 
-bool sf4e::replaystore::TickPlayback(const Playable& playable) {
-	using Dimps::Game::ReplayBattle;
-	using Dimps::Game::SaveDataController;
-	if (s_playback == Playback::Idle) { s_playback = Playback::Waiting; s_playbackWait = 0; }
-	if (s_playback == Playback::Started) return true;
-	auto* const log = BattleLogEvent();
-	auto* const select = log ? BattleLogState(log) : nullptr;
-	// The jump fades through a few frames; the log's list is up soon after.
-	if (!select || std::strcmp(StateName(select), "Select")) {
-		if (++s_playbackWait > 600) { spdlog::warn("Replay: the battle log did not come up; the replay is in its list"); s_playback = Playback::Idle; return true; }
-		return false;
-	}
-	auto* const saves = SaveDataController::staticMethods.GetSingleton();
-	if ((saves->*SaveDataController::publicMethods.Busy)()) {
-		if (++s_playbackWait > 600) { spdlog::warn("Replay: the save controller stayed busy; the replay is in the battle log's list"); s_playback = Playback::Idle; return true; }
-		return false;
-	}
-	// The list is the Select event's, with the imported slot among its rows;
-	// playing it is what the list's DECIDE does (Dimps__Game.hxx, ReplayBattle).
+// The one operation. waited: ticks in the step's wait. slot: the imported
+// replay to play, for Watch, else -1. started: the log has left its list for
+// the replay. splash: ticks of the Versus state, -1 once skipped.
+constexpr int kPatience = 600, kSplashTicks = 120, kGoneTicks = 120;
+struct Operation {
+	sf4e::replaystore::Status status;
+	int waited = 0, slot = -1, splash = 0;
+	bool started = false;
+	void Enter(Step step) { status.step = step; waited = 0; }
+	void Notice(const char* key, bool error) { status.notice = sf4e::loc::T(key); status.noticeError = error; }
+} s_operation;
+
+// Plays the slot's row of the battle log's list, as the list's DECIDE does.
+// False while the list has no such row.
+bool PlayRow(Dimps::Event::EventBase* select, int slot) {
 	auto* const list = *reinterpret_cast<std::uint8_t**>(reinterpret_cast<std::uint8_t*>(select) + ReplayBattle::SelectList);
 	const std::uint8_t* const rows = list ? *reinterpret_cast<std::uint8_t**>(list + ReplayBattle::ListRowsBegin) : nullptr;
 	const std::uint8_t* const end = list ? *reinterpret_cast<std::uint8_t**>(list + ReplayBattle::ListRowsEnd) : nullptr;
-	int row = -1;
 	for (const std::uint8_t* r = rows; r && r < end; r += ReplayBattle::ListRowBytes) {
-		if (*reinterpret_cast<const int*>(r) == playable.slot) { row = static_cast<int>((r - rows) / ReplayBattle::ListRowBytes); break; }
+		if (*reinterpret_cast<const int*>(r) != slot) continue;
+		const int row = static_cast<int>((r - rows) / ReplayBattle::ListRowBytes);
+		*reinterpret_cast<int*>(list + ReplayBattle::ListSelected) = row;
+		ReplayBattle::staticMethods.PlayRow(reinterpret_cast<ReplayBattle::List*>(list));
+		spdlog::info("Replay: playing slot {} from row {} of the battle log", slot, row);
+		return true;
 	}
-	if (row < 0) {
-		if (++s_playbackWait > 600) { spdlog::warn("Replay: slot {} is not in the battle log's list", playable.slot); s_playback = Playback::Idle; return true; }
-		return false;
-	}
-	*reinterpret_cast<int*>(list + ReplayBattle::ListSelected) = row;
-	ReplayBattle::staticMethods.PlayRow(reinterpret_cast<ReplayBattle::List*>(list));
-	spdlog::info("Replay: playing slot {} from row {} of the battle log", playable.slot, row);
-	s_playback = Playback::Started;
-	s_playbackWait = 0;
-	return true;
-}
-
-bool sf4e::replaystore::PlaybackOver() {
-	if (s_playback != Playback::Started) return s_playback == Playback::Idle;
-	auto* const log = BattleLogEvent();
-	if (!log) return false;
-	const char* state = StateName(BattleLogState(log));
-	// Versus and Battle run the replay; Select again means it is over.
-	if (!std::strcmp(state, "Versus") || !std::strcmp(state, "Battle")) {
-		// The Versus splash (the state's +0x48) waits for its movies and the
-		// announcer, which do not finish here; after two seconds it gets the
-		// Start press the player could give it (Dimps__Game.hxx, ReplayBattle).
-		using Dimps::Game::ReplayBattle;
-		static int ticks = 0, pressed = 0;
-		if (s_playbackWait == 0) { ticks = 0; pressed = 0; }
-		if (!std::strcmp(state, "Versus")) {
-			++ticks;
-			auto* const controller = (log->*Dimps::Event::EventBaseWithEC::publicMethods.GetChildEventController)();
-			auto* const versus = reinterpret_cast<std::uint8_t*>((controller->*Dimps::Event::EventController::publicMethods.GetForegroundEvent)());
-			std::uint8_t* const splash = versus ? *reinterpret_cast<std::uint8_t**>(versus + 0x48) : nullptr;
-			if (splash && ticks > 120 && !pressed && *reinterpret_cast<int*>(splash + ReplayBattle::SplashState) == 1) {
-				pressed = 1;
-				const auto& native = ReplayBattle::staticMethods;
-				auto* const voice = *reinterpret_cast<ReplayBattle::Voice**>(splash + ReplayBattle::SplashVoice);
-				*reinterpret_cast<int*>(splash + ReplayBattle::SplashPhase) = 3;
-				if (voice) native.FadeVoice(voice, 0x1F);
-				*reinterpret_cast<int*>(splash + ReplayBattle::SplashState) = 3;
-				for (int movie = 0; movie < 2; movie++) {
-					auto* const m = reinterpret_cast<ReplayBattle::Movie*>(splash + ReplayBattle::SplashMovies + movie * 8);
-					if (native.MovieValid(m)) native.MovieSignal(m, "Close", 0);
-				}
-				spdlog::info("Replay: skipped the Versus splash");
-			}
-		}
-		s_playbackWait = 1; return false;
-	}
-	if (!std::strcmp(state, "Select") && s_playbackWait) { s_playback = Playback::Idle; return true; }
 	return false;
 }
 
-sf4e::replaystore::Outcome sf4e::replaystore::Import(const std::wstring& path, Playable* playable) {
-	if (!s_entries) return Outcome::NotReady;
-	platform::replays::Imported imported;
-	if (!platform::replays::ImportFile(path, WriteThroughSteam, imported)) return Outcome::Failed;
-	std::uint8_t* entry = s_entries + imported.slot * kEntryBytes;
-	for (int at = 0; at < sf4e::replayslots::kSlots; at++)
-		if (sf4e::replayslots::ReadU32(s_entries + at * kEntryBytes + 4) == static_cast<std::uint32_t>(imported.slot)) { entry = s_entries + at * kEntryBytes; break; }
-	Stream stream{nullptr, imported.record.data(), imported.record.data(), static_cast<std::uint32_t>(imported.record.size())};
-	BOOL (Entry::* deserialize)(Stream*);
-	*reinterpret_cast<PVOID*>(&deserialize) = (*reinterpret_cast<PVOID**>(entry))[2];
-	if (!(reinterpret_cast<Entry*>(entry)->*deserialize)(&stream)) {
-		// The files already hold the replay; the next game start lists it.
-		spdlog::warn("Replay: the game did not take slot {}'s record; it shows after a restart", imported.slot);
-		return Outcome::Failed;
+}
+
+void sf4e::replaystore::Install() {
+	BOOL (ReplayInfoList::* detour)(void*) = &ReplayInfoList::Read;
+	DetourAttach(reinterpret_cast<PVOID*>(&Table::publicMethods.Read), *reinterpret_cast<PVOID*>(&detour));
+}
+
+bool sf4e::replaystore::Ready() { return s_entries != nullptr && sf4e::Game::Battle::MatchReplayListWidened(); }
+
+const sf4e::replaystore::Status& sf4e::replaystore::GetStatus() { return s_operation.status; }
+
+void sf4e::replaystore::Start(const replay::Request& request, bool atMainMenu, bool noRoom) {
+	Operation& op = s_operation;
+	const bool import = request.mode == replay::Mode::Add || request.mode == replay::Mode::Watch;
+	const bool jump = request.mode == replay::Mode::Watch || request.mode == replay::Mode::OpenLog;
+	if (!import && !jump) return;
+	if (op.status.step != Step::Idle || !atMainMenu) { op.Notice("replays.not_ready", true); return; }
+	op.slot = -1;
+	if (import) {
+		if (!Ready() || SavesBusy()) { op.Notice("replays.not_ready", true); return; }
+		const std::wstring path = platform::Utf8ToWide(request.path.c_str());
+		op.slot = Import(path);
+		if (op.slot < 0) { op.Notice("replays.not_added", true); return; }
+		platform::replays::MarkWatched(path);
+		op.Notice("replays.added", false);
 	}
-	std::memcpy(entry + kEntrySlotBytesOffset, imported.slotBytes.data(), 2);
-	spdlog::info("Replay: slot {} is in the game's table", imported.slot);
-	if (playable) { playable->slot = imported.slot; playable->replay = std::move(imported.replay); playable->record = std::move(imported.record); }
-	return Outcome::Added;
+	if (!jump) return;
+	if (!noRoom || !GameEvents::MainMenu::OpenLocalBattleLog()) {
+		// A replay that was added stays added; only the jump did not happen.
+		if (!import) op.Notice("replays.not_ready", true);
+		return;
+	}
+	op.status.logOpens++;
+	op.started = false; op.splash = 0;
+	op.Enter(Step::OpeningLog);
+}
+
+void sf4e::replaystore::Tick(bool atMainMenu) {
+	Operation& op = s_operation;
+	if (op.status.step == Step::Idle) return;
+	auto* const log = BattleLogEvent();
+	auto* const state = BattleLogState(log);
+	const bool late = ++op.waited > kPatience;
+	switch (op.status.step) {
+	case Step::OpeningLog:
+		// The jump fades through a few frames; the log's list is up soon after.
+		if (Named(state, "Select")) op.Enter(op.slot >= 0 ? Step::SelectingRow : Step::InLog);
+		else if (late) { spdlog::warn("Replay: the battle log did not come up"); op.Enter(Step::InLog); }
+		break;
+	case Step::SelectingRow:
+		if (Named(state, "Select") && !SavesBusy() && PlayRow(state, op.slot)) op.Enter(Step::Playing);
+		else if (late) { spdlog::warn("Replay: slot {} could not be played; it is in the battle log's list", op.slot); op.Enter(Step::InLog); }
+		break;
+	case Step::Playing:
+		if (!log) {
+			// The player left the log, or the game moved on without it.
+			if (op.waited > kGoneTicks) op.Enter(Step::InLog);
+			break;
+		}
+		if (Named(state, "Versus") || Named(state, "Battle")) {
+			op.started = true; op.waited = 0;
+			if (Named(state, "Versus") && op.splash >= 0 && ++op.splash > kSplashTicks) { SkipSplash(state); op.splash = -1; }
+		}
+		else if (Named(state, "Select") && op.started) {
+			// Watched, or left: back to the main menu, where Ember reopens.
+			GameEvents::MainMenu::LeaveLocalBattleLog();
+			op.Enter(Step::InLog);
+		}
+		else if (late) { spdlog::warn("Replay: the battle log did not start slot {}", op.slot); op.Enter(Step::InLog); }
+		break;
+	case Step::InLog:
+		if (atMainMenu && !log) { op.status.returns++; op.Enter(Step::Idle); }
+		break;
+	case Step::Idle:
+		break;
+	}
 }
