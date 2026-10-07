@@ -30,7 +30,7 @@ use openraft::{
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, watch};
 
 mod server_owned;
 pub use server_owned::Ownership;
@@ -221,6 +221,16 @@ pub struct CommittedMark {
     pub request: String,
 }
 
+impl Committed {
+    pub fn mark(&self) -> CommittedMark {
+        CommittedMark {
+            revision: self.revision,
+            term: self.term,
+            request: self.request.clone(),
+        }
+    }
+}
+
 /// Small coordination-only entries do not advance the native checkpoint
 /// revision. They are still replicated and applied by every admitted helper,
 /// which lets a receiver validate a probe against its own committed state.
@@ -330,6 +340,8 @@ struct Memory {
     /// The SHA-256 of the committed checkpoint at the revision it was taken
     /// for, hashed once per revision for `committed_digest`.
     committed_digest: Option<(u64, [u8; 32])>,
+    /// The committed revision, published for `Store::committed_changes`.
+    commits: watch::Sender<u64>,
 }
 impl Memory {
     fn new(max_nodes: usize) -> Self {
@@ -341,7 +353,18 @@ impl Memory {
             snapshot: None,
             max_nodes,
             committed_digest: None,
+            commits: watch::Sender::new(0),
         }
+    }
+
+    /// Tells `committed_changes` readers when the committed revision moved.
+    fn publish_commit(&self) {
+        let revision = self.machine.committed.revision;
+        self.commits.send_if_modified(|published| {
+            let moved = *published != revision;
+            *published = revision;
+            moved
+        });
     }
 }
 
@@ -423,13 +446,27 @@ impl Store {
     }
 
     pub async fn committed_mark(&self) -> CommittedMark {
+        self.0.lock().await.machine.committed.mark()
+    }
+
+    /// The committed mark, with the checkpoint only when the mark is not
+    /// `known`: one read, so the checkpoint is always the mark's.
+    pub async fn committed_unless(
+        &self,
+        known: Option<&CommittedMark>,
+    ) -> (CommittedMark, Option<String>) {
         let memory = self.0.lock().await;
         let committed = &memory.machine.committed;
-        CommittedMark {
-            revision: committed.revision,
-            term: committed.term,
-            request: committed.request.clone(),
-        }
+        let mark = committed.mark();
+        let checkpoint = (known != Some(&mark)).then(|| committed.checkpoint.clone());
+        (mark, checkpoint)
+    }
+
+    /// Follows the committed revision: it changes when an entry or an
+    /// installed snapshot moves it, so a reader can wait for that instead of
+    /// asking on a timer.
+    pub async fn committed_changes(&self) -> watch::Receiver<u64> {
+        self.0.lock().await.commits.subscribe()
     }
 
     /// The committed revision and the SHA-256 of its checkpoint, hashed once
@@ -837,6 +874,7 @@ impl RaftStorage<RoomTypes> for Store {
             }
             receipts.push(receipt);
         }
+        memory.publish_commit();
         Ok(receipts)
     }
     async fn get_snapshot_builder(&mut self) -> Self {
@@ -905,6 +943,7 @@ impl RaftStorage<RoomTypes> for Store {
         let mut memory = self.0.lock().await;
         memory.machine = machine;
         memory.snapshot = Some((meta.clone(), bytes));
+        memory.publish_commit();
         Ok(())
     }
     async fn get_current_snapshot(&mut self) -> Result<Option<Snapshot<RoomTypes>>, StoreError> {
@@ -1278,6 +1317,17 @@ impl Coordinator {
 
     pub async fn committed_digest(&self) -> (u64, [u8; 32]) {
         self.store.committed_digest().await
+    }
+
+    pub async fn committed_unless(
+        &self,
+        known: Option<&CommittedMark>,
+    ) -> (CommittedMark, Option<String>) {
+        self.store.committed_unless(known).await
+    }
+
+    pub async fn committed_changes(&self) -> watch::Receiver<u64> {
+        self.store.committed_changes().await
     }
     #[allow(clippy::too_many_arguments)]
     pub async fn probe_reserved(

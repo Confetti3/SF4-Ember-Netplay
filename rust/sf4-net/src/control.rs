@@ -184,6 +184,10 @@ impl ControlWorker {
     pub fn try_receive(&mut self) -> Option<ControlFrame> {
         self.incoming.try_recv().ok()
     }
+    /// True while the reader has queued frames `try_receive` has not taken.
+    pub fn has_queued(&self) -> bool {
+        !self.incoming.is_empty()
+    }
     /// Close the connection now. Frames the reader already queued stay
     /// receivable, so a worker being replaced is closed and then drained.
     pub fn close(&self) {

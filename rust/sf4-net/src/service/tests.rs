@@ -280,8 +280,33 @@ fn test_actor(endpoint: Endpoint, events: mpsc::Sender<Event>) -> Actor {
         public: None,
         coordination_port: None,
         refresh_roster: None,
-        control_wake: Arc::new(Notify::new()),
+        wake: Arc::new(Notify::new()),
     }
+}
+
+#[tokio::test]
+async fn the_tick_slows_only_when_nothing_is_left_for_it() {
+    let (events, mut native) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let mut actor = test_actor(endpoint().await, events);
+    assert_eq!(actor.tick_period(), IDLE_TICK);
+    actor.room = Some([44; 16]);
+    assert_eq!(actor.tick_period(), ROOM_TICK);
+    // The native side drains the queue without telling the actor, so held
+    // lifecycle events keep the tick short until they have moved.
+    for _ in 0..=IPC_QUEUE_CAPACITY {
+        actor
+            .emit(Event::HelperLoad {
+                epoch: 0,
+                actor_tick_lag_max_us: 0,
+                actor_tick_body_max_us: 0,
+                event_queue_free_min: 0,
+            })
+            .unwrap();
+    }
+    assert_eq!(actor.tick_period(), FAST_TICK);
+    while native.try_recv().is_ok() {}
+    actor.events.flush().unwrap();
+    assert_eq!(actor.tick_period(), ROOM_TICK);
 }
 
 #[tokio::test]
@@ -3710,7 +3735,7 @@ async fn service_replays_committed_checkpoint_to_each_native_owner() {
             public: None,
             coordination_port: None,
             refresh_roster: None,
-            control_wake: Arc::new(Notify::new()),
+            wake: Arc::new(Notify::new()),
         };
         let mut host_actor = make_actor(host.clone(), host_events_tx);
         let invite = host_actor.setup_host_recovery(seed).await.unwrap();
@@ -4003,7 +4028,7 @@ async fn closing_room_does_not_poison_new_room_on_same_endpoint() {
         public: None,
         coordination_port: None,
         refresh_roster: None,
-        control_wake: Arc::new(Notify::new()),
+        wake: Arc::new(Notify::new()),
     };
     actor
         .command(Request {
@@ -4133,7 +4158,7 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
             public: None,
             coordination_port: None,
             refresh_roster: None,
-            control_wake: Arc::new(Notify::new()),
+            wake: Arc::new(Notify::new()),
         };
         let service = tokio::spawn(async move {
             let result = actor.run(command_rx, failure).await;
@@ -4488,7 +4513,7 @@ async fn actor_admits_full_sixteen_member_room_and_fifteen_game_links() {
             public: None,
             coordination_port: None,
             refresh_roster: None,
-            control_wake: Arc::new(Notify::new()),
+            wake: Arc::new(Notify::new()),
         };
         let service = tokio::spawn(async move {
             let result = actor.run(command_rx, failure).await;
@@ -6481,6 +6506,10 @@ async fn flushed_departure_behind_more_than_one_poll_budget(replacement: bool) {
         fixture.actor.poll_controls().await.unwrap();
         drain(&mut fixture.events, &mut order);
         assert!(!order.iter().any(|entry| entry == "departed"));
+        // Nothing signals the frames past the budget again, so the next tick
+        // comes soon rather than at the room's slow period.
+        assert!(fixture.actor.controls[&remote_id].has_queued());
+        assert_eq!(fixture.actor.tick_period(), FAST_TICK);
 
         let (mut replacement_worker, mut replacement_id) = (None, 0);
         if replacement {

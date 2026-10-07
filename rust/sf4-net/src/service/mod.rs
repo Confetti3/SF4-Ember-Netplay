@@ -694,12 +694,17 @@ struct Actor {
     /// Exact UDP port for this process's coordination endpoint when hosting.
     coordination_port: Option<u16>,
     /// The roster the committed checkpoint named the last time a
-    /// coordination refresh parsed one, by room and revision, so a refresh
-    /// at the same revision parses nothing.
-    refresh_roster: Option<([u8; 16], u64, Option<BTreeSet<EndpointId>>)>,
-    /// Signalled by a control's reader when it has queued a frame, so the
-    /// actor polls its controls then instead of on a timer.
-    control_wake: Arc<Notify>,
+    /// coordination refresh parsed one, by room and committed state, so a
+    /// refresh of the same state parses nothing.
+    refresh_roster: Option<(
+        [u8; 16],
+        crate::coordination::CommittedMark,
+        Option<BTreeSet<EndpointId>>,
+    )>,
+    /// Signalled when work arrives that no other arm of the actor's loop
+    /// sees: a control's reader queued a frame, or the room's Raft store
+    /// committed (`install_recovery`). The loop ticks at once.
+    wake: Arc<Notify>,
 }
 
 impl Actor {
@@ -717,9 +722,16 @@ impl Actor {
             || self.pending_checkpoint_retry.is_some()
             || self.pending_checkpoint_ack.is_some()
             || self.pending_checkpoint_committed.is_some();
+        // Work the last tick left behind: frames past a control's poll
+        // budget, or held back while the event queue to the native side is
+        // full. Neither signals again, and the native side drains that queue
+        // without telling the actor, so both are looked at again soon.
+        let work_left = self.events.has_backlog()
+            || self.controls.values().any(ControlWorker::has_queued);
         if !self.games.is_empty()
             || !self.pending_game_admissions.is_empty()
             || checkpoint_in_flight
+            || work_left
             || self.opening
         {
             FAST_TICK
@@ -1373,12 +1385,11 @@ impl Actor {
         // is woken by work and the interval only bounds the pumps' timers.
         let mut tick = interval(FAST_TICK);
         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-        let control_wake = self.control_wake.clone();
+        let wake = self.wake.clone();
         let mut statistics = interval(Duration::from_secs(1));
         let mut statistics_ticks: u64 = 0;
-        // Load over the current statistics second; see Event::HelperLoad.
-        let (mut tick_lag_max, mut tick_body_max) = (Duration::ZERO, Duration::ZERO);
-        let mut event_free_min = usize::MAX;
+        // Load since the last HelperLoad report; see Event::HelperLoad.
+        let mut load = stall::LoadWindow::default();
         // The last network summary the native side was sent; see network.rs.
         let mut reported_network = None;
         let busy = stall::Busy::new(self.events.sender());
@@ -1447,13 +1458,12 @@ impl Actor {
                     match result { Some(Ok(completion)) => self.completed(completion).await?,
                         Some(Err(error)) if error.is_cancelled() => (), _ => return Err(failed("helper worker failed")) }
                 }
-                // A control's reader queued a frame: poll the controls now.
-                _ = control_wake.notified() => tick.reset_immediately(),
+                // A control queued a frame or the room committed: tick now.
+                _ = wake.notified() => tick.reset_immediately(),
                 scheduled = tick.tick() => {
                     let _step = busy.enter("tick");
                     let started = Instant::now();
-                    tick_lag_max = tick_lag_max.max(started.saturating_duration_since(scheduled));
-                    event_free_min = event_free_min.min(self.events.capacity());
+                    load.tick(started.saturating_duration_since(scheduled), self.events.capacity());
                     self.events.flush()?;
                     self.expire_departure_grace();
                     self.start_next_admission_operation();
@@ -1469,7 +1479,7 @@ impl Actor {
                     self.pump_outgoing_checkpoint();
                     busy.stage("tick:pump_committed_checkpoint");
                     self.pump_committed_checkpoint().await?;
-                    tick_body_max = tick_body_max.max(started.elapsed());
+                    load.body(started.elapsed());
                     tick.reset_after(self.tick_period());
                 },
                 _ = statistics.tick() => {
@@ -1486,18 +1496,16 @@ impl Actor {
                     if reported_network.as_ref() != Some(&summary) && self.emit_bulk(summary.clone().into()) {
                         reported_network = Some(summary);
                     }
-                    let micros = |value: Duration| u64::try_from(value.as_micros()).unwrap_or(u64::MAX);
-                    let (lag, body) = (micros(tick_lag_max), micros(tick_body_max));
-                    let free = if event_free_min == usize::MAX { self.events.capacity() } else { event_free_min } as u64;
-                    (tick_lag_max, tick_body_max, event_free_min) = (Duration::ZERO, Duration::ZERO, usize::MAX);
                     // While a room is open, not only during a match: a report that
                     // stops at match end must mean the actor stopped (F-008). With
-                    // no game it comes every few seconds rather than every second.
+                    // no game it comes every few seconds rather than every second,
+                    // and covers every second since the last one sent.
                     let due = !self.games.is_empty()
                         || (self.room.is_some() && statistics_ticks % IDLE_LOAD_REPORT_SECS == 0);
                     if due && self.events.has_headroom() {
-                        self.emit(Event::HelperLoad { epoch: self.epoch, actor_tick_lag_max_us: lag,
-                            actor_tick_body_max_us: body, event_queue_free_min: free })?;
+                        self.emit(load.report(self.epoch, self.events.capacity()))?;
+                    } else if self.room.is_none() && self.games.is_empty() {
+                        load.clear();
                     }
                     for (peer, slot) in &self.games {
                         if !self.events.has_headroom() { break; }

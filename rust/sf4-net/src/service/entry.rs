@@ -147,7 +147,7 @@ pub async fn run_on_port<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         public: None,
         coordination_port,
         refresh_roster: None,
-        control_wake: Arc::new(Notify::new()),
+        wake: Arc::new(Notify::new()),
     };
     let result = actor.run(receiver, failure).await;
     actor.clear_room();

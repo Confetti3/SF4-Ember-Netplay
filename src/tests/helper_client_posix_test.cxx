@@ -155,6 +155,43 @@ int main() {
         client.Stop();
     }
 
+    // Events left behind by a consumer that takes a bounded batch keep
+    // WaitForIncoming from sleeping, with nothing new arriving; once all are
+    // taken it waits again.
+    {
+        Pipes p;
+        HelperClient client;
+        CHECK(client.Start(p.fromHelper[0], p.toHelper[1]));
+        p.fromHelper[0] = p.toHelper[1] = -1;
+        const std::string payload = "{\"type\":\"ready\"}";
+        std::string frames;
+        for (uint64_t id = 2; id <= 4; ++id) {
+            std::string frame(14, '\0');
+            const uint32_t length = static_cast<uint32_t>(10 + payload.size());
+            for (int i = 0; i < 4; ++i) { frame[i] = static_cast<char>(length >> (24 - 8 * i)); }
+            frame[5] = 1;
+            for (int i = 0; i < 8; ++i) { frame[6 + i] = static_cast<char>(id >> (56 - 8 * i)); }
+            frames += frame + payload;
+        }
+        CHECK(write(p.fromHelper[1], frames.data(), frames.size()) == static_cast<ssize_t>(frames.size()));
+        // Let the worker queue all three.
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        HelperMessage message;
+        CHECK(client.TryReceive(message) && message.id == 2);
+        uint64_t before = GetTickCount64();
+        client.WaitForIncoming(2000);
+        uint64_t took = GetTickCount64() - before;
+        std::printf("queued: WaitForIncoming returned after %llu ms with events left\n", static_cast<unsigned long long>(took));
+        CHECK(took < 100);
+        CHECK(client.TryReceive(message) && message.id == 3);
+        CHECK(client.TryReceive(message) && message.id == 4);
+        before = GetTickCount64();
+        client.WaitForIncoming(100);
+        took = GetTickCount64() - before;
+        CHECK(took >= 80);
+        client.Stop();
+    }
+
     std::printf(failures ? "helper_client_posix_test: %d failure(s)\n" : "helper_client_posix_test: ok\n", failures);
     return failures ? 1 : 0;
 }

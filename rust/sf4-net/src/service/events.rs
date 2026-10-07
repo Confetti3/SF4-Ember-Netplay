@@ -51,6 +51,11 @@ impl EventOutbox {
         self.backlog().is_empty() && self.sender.capacity() > LIFECYCLE_EVENT_RESERVE
     }
 
+    /// True while lifecycle events wait for the queue to drain.
+    pub(super) fn has_backlog(&self) -> bool {
+        !self.backlog().is_empty()
+    }
+
     /// A lifecycle event: queued now, or held in order until the queue drains.
     pub(super) fn emit(&self, event: Event) -> io::Result<()> {
         let mut backlog = self.backlog();

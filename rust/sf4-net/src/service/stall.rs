@@ -149,9 +149,73 @@ pub(super) fn completion_stage(completion: &Completion) -> &'static str {
     }
 }
 
+/// The actor's load since the last `HelperLoad` sent: the worst tick lag and
+/// tick body, and the fewest free event slots a tick saw. A window that was
+/// not reported carries on, so a spike in a second without a report is in
+/// the next one.
+#[derive(Default)]
+pub(super) struct LoadWindow {
+    lag_max: Duration,
+    body_max: Duration,
+    free_min: Option<usize>,
+}
+
+impl LoadWindow {
+    /// A tick began `lag` after it was due, with `free` event slots.
+    pub(super) fn tick(&mut self, lag: Duration, free: usize) {
+        self.lag_max = self.lag_max.max(lag);
+        self.free_min = Some(self.free_min.map_or(free, |seen| seen.min(free)));
+    }
+
+    /// A tick's work took `body`.
+    pub(super) fn body(&mut self, body: Duration) {
+        self.body_max = self.body_max.max(body);
+    }
+
+    /// The report for this window, which then starts over. `free_now` stands
+    /// in for a window no tick has seen.
+    pub(super) fn report(&mut self, epoch: u64, free_now: usize) -> Event {
+        let micros = |value: Duration| u64::try_from(value.as_micros()).unwrap_or(u64::MAX);
+        let window = std::mem::take(self);
+        Event::HelperLoad {
+            epoch,
+            actor_tick_lag_max_us: micros(window.lag_max),
+            actor_tick_body_max_us: micros(window.body_max),
+            event_queue_free_min: window.free_min.unwrap_or(free_now) as u64,
+        }
+    }
+
+    /// Starts over without a report, while nothing would send one.
+    pub(super) fn clear(&mut self) {
+        *self = Self::default();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_load_spike_between_reports_is_in_the_next_one() {
+        let mut load = LoadWindow::default();
+        // A second with a spike that sends no report...
+        load.tick(Duration::from_millis(40), 90);
+        load.body(Duration::from_millis(7));
+        // ...then a quiet one that does.
+        load.tick(Duration::from_millis(1), 120);
+        load.body(Duration::from_micros(300));
+        let Event::HelperLoad { actor_tick_lag_max_us, actor_tick_body_max_us, event_queue_free_min, .. } =
+            load.report(3, 128)
+        else {
+            unreachable!()
+        };
+        assert_eq!((actor_tick_lag_max_us, actor_tick_body_max_us, event_queue_free_min), (40_000, 7_000, 90));
+        // The next window starts over; with no tick it reports the queue as it is.
+        let Event::HelperLoad { actor_tick_lag_max_us, event_queue_free_min, .. } = load.report(3, 128) else {
+            unreachable!()
+        };
+        assert_eq!((actor_tick_lag_max_us, event_queue_free_min), (0, 128));
+    }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn stuck_step_is_reported_while_stuck_and_when_it_ends() {

@@ -48,23 +48,23 @@ public:
 #endif
     bool Send(const std::string& payload, uint64_t* requestId = nullptr);
     bool TryReceive(HelperMessage& message) { return incoming_.TryPop(message); }
-    // Returns when the worker has queued an event since the last call, or
-    // after `timeoutMs`. A consumer that drains with TryReceive and then waits
-    // here sleeps until there is something to do instead of polling: an
-    // event that arrived between the drain and the wait returns at once.
+    // Returns at once while an event waits for TryReceive or the worker has
+    // failed, otherwise when either happens or after `timeoutMs`. A consumer
+    // that takes a bounded batch with TryReceive and then waits here sleeps
+    // only when there is nothing left to take.
     void WaitForIncoming(unsigned timeoutMs) {
         std::unique_lock<std::mutex> lock(arrivalMutex_);
-        if (arrivals_ == arrivalsSeen_) {
-            arrival_.wait_for(lock, std::chrono::milliseconds(timeoutMs), [this] { return arrivals_ != arrivalsSeen_; });
-        }
-        arrivalsSeen_ = arrivals_;
+        arrival_.wait_for(lock, std::chrono::milliseconds(timeoutMs),
+            [this] { return !incoming_.Empty() || state_.load() == HelperState::Failed; });
     }
     HelperState State() const { return state_.load(); }
     void Stop();
 private:
-    // The worker, after pushing to incoming_ or when it fails.
+    // The worker, after pushing to incoming_ or setting Failed. Taking the
+    // lock orders the change before a waiter's check of it, so the wakeup
+    // cannot fall between that check and the wait.
     void NotifyIncoming() {
-        { std::lock_guard<std::mutex> lock(arrivalMutex_); ++arrivals_; }
+        { std::lock_guard<std::mutex> lock(arrivalMutex_); }
         arrival_.notify_all();
     }
 #ifdef _WIN32
@@ -97,7 +97,6 @@ private:
     netplay::BoundedMailbox<HelperMessage> incoming_;
     std::mutex arrivalMutex_;
     std::condition_variable arrival_;
-    uint64_t arrivals_ = 0, arrivalsSeen_ = 0;
 };
 
 } }

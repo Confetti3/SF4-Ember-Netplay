@@ -54,7 +54,7 @@ impl Actor {
         )?;
         let own = session.advertise().await;
         self.remember_admission(own);
-        self.recovery = Some(session);
+        self.install_recovery(session).await;
         Ok(invite)
     }
 
@@ -85,8 +85,22 @@ impl Actor {
                 .ok_or_else(|| failed("invitation coordination route missing"))?,
             primary_endpoint: invite.endpoint(),
         });
-        self.recovery = Some(session);
+        self.install_recovery(session).await;
         Ok(())
+    }
+
+    /// Makes `session` the room's coordination. A follower's Raft store
+    /// commits on its own task, so each commit wakes the actor to hand the
+    /// checkpoint to the native side; the forwarding ends with the store.
+    pub(super) async fn install_recovery(&mut self, session: crate::recovery::RecoverySession) {
+        let mut commits = session.coordinator.committed_changes().await;
+        let wake = self.wake.clone();
+        tokio::spawn(async move {
+            while commits.changed().await.is_ok() {
+                wake.notify_one();
+            }
+        });
+        self.recovery = Some(session);
     }
 
     pub(super) async fn emit_coordination_state(&mut self) -> io::Result<()> {
@@ -120,11 +134,11 @@ impl Actor {
             .filter(|incarnation| *incarnation != recovery.incarnation)
             .collect();
         self.pending_coordination_refresh = Some(key.clone());
-        let known_revision = self
+        let known = self
             .refresh_roster
             .as_ref()
             .filter(|(cached_room, _, _)| *cached_room == room)
-            .map(|(_, revision, _)| *revision);
+            .map(|(_, mark, _)| mark.clone());
         self.tasks.spawn(async move {
             let (applied_members, applied_history) = recovery.applied_membership_provenance().await;
             let mut retired = BTreeSet::new();
@@ -134,14 +148,10 @@ impl Actor {
                 }
             }
             let state = recovery.state().await;
-            let committed = recovery.committed_mark().await;
             // The checkpoint is copied out only when the actor has not read
-            // a roster from this revision yet.
-            let checkpoint = if Some(committed.revision) == known_revision {
-                None
-            } else {
-                Some(recovery.committed().await.checkpoint)
-            };
+            // a roster from this committed state yet.
+            let (committed, checkpoint) =
+                recovery.coordinator.committed_unless(known.as_ref()).await;
             let joint = recovery.applied_joint_goal().await.is_some();
             let leader = recovery.coordinator.current_leader();
             Completion::CoordinationRefresh(
@@ -210,12 +220,13 @@ impl Actor {
         let roster = match checkpoint {
             Some(checkpoint) => {
                 let roster = self.committed_roster(checkpoint.as_bytes());
-                self.refresh_roster = Some((recovery.room, committed.revision, roster.clone()));
+                self.refresh_roster = Some((recovery.room, committed.clone(), roster.clone()));
                 roster
             }
             None => self
                 .refresh_roster
                 .as_ref()
+                .filter(|(room, mark, _)| *room == recovery.room && *mark == committed)
                 .and_then(|(_, _, roster)| roster.clone()),
         };
         if let Some(retained) = roster {

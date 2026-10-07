@@ -435,7 +435,7 @@ impl Actor {
                     .await?;
                     self.remember_admission(admission.clone());
                     self.remember_admission(session.advertise().await);
-                    self.recovery = Some(session);
+                    self.install_recovery(session).await;
                     // Accepted here and now: the authority's own binding.
                     self.bind_control_session(peer, admission.incarnation)?;
                     self.last_coordination_state = None;
@@ -905,7 +905,7 @@ impl Actor {
         self.opening = false;
         self.controls.insert(
             peer,
-            ControlWorker::start_waking(channel, self.control_wake.clone()),
+            ControlWorker::start_waking(channel, self.wake.clone()),
         );
         if let Some(invite) = joined_invite.as_ref() {
             self.room_invite = Some(invite.clone());

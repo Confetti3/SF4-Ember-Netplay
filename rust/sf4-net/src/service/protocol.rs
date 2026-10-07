@@ -362,9 +362,12 @@ pub enum Event {
         local_drops: u64,
         route: String,
     },
-    // Helper load over the last second, once per second while a room is open.
-    // The actor's 2 ms tick shares the runtime workers with every bridge task,
-    // so its lag is the scheduling delay a gameplay packet can also see.
+    // Helper load since the last report: once a second during a game, and
+    // every IDLE_LOAD_REPORT_SECS while a room is open with no game. A report
+    // the event queue had no room for is folded into the next one. During a
+    // game the actor ticks every 2 ms on the runtime workers it shares with
+    // every bridge task, so its lag is the scheduling delay a gameplay packet
+    // can also see.
     HelperLoad {
         epoch: u64,
         actor_tick_lag_max_us: u64,
