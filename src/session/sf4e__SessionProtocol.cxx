@@ -1,5 +1,8 @@
 #include "SessionPlainTypes.hxx"
 #include "sf4e__SessionProtocol.hxx"
+#include "../common/FighterCatalog.hxx"
+#include "../common/StageCatalog.hxx"
+#include "../netplay/PlayerPreferences.hxx"
 
 namespace sf4e {
 	namespace SessionProtocol {
@@ -24,6 +27,18 @@ namespace sf4e {
 			false,
 			{}
 		};
+
+		MatchProblem FindMatchProblem(const LobbyData& lobby, const MatchData& match) {
+			netplay::LobbySettings settings;
+			settings.editionSelect = lobby.editionSelect;
+			settings.roundCount = lobby.roundCount;
+			settings.roundTime = lobby.roundTime.integral;
+			if (!settings.Valid() || lobby.roundTime.fractional != 0) return MatchProblem::Settings;
+			if (!selection::FindStage(match.stageID)) return MatchProblem::Stage;
+			for (const auto& chara : match.chara)
+				if (!selection::Valid(selection::FromNative(chara), lobby.editionSelect)) return MatchProblem::Fighter;
+			return MatchProblem::None;
+		}
 
 		MatchData::MatchData()
 		{

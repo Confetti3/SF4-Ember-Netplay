@@ -96,6 +96,12 @@ namespace sf4e {
 			std::array<std::uint8_t, 2> inputDelay = {{ 2, 2 }};
 		};
 
+		// What the game could not take in a room's match: its round count or
+		// time, its stage, or either fighter. Every value is one the game's own
+		// menus offer, or it is refused before any of it is written.
+		enum class MatchProblem { None, Settings, Stage, Fighter };
+		MatchProblem FindMatchProblem(const LobbyData& lobby, const MatchData& match);
+
 		enum MessageType {
 			MT_SESSION_HELLO,
 			MT_SESSION_HELLO_RESP,

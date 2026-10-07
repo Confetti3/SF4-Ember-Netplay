@@ -90,6 +90,17 @@ static void HandleSessionlessClose(std::uint64_t closedGeneration) {
 	runtime->recoveringMatch = true;
 }
 
+// The room's match is one the game cannot take, and nothing of it was
+// written. Leave this game as a failed setup does: the room hears of it, the
+// session is retired, and the next game enters as usual.
+static void RejectMatchEntry() {
+	spdlog::warn("Netplay: leaving generation {}: the game cannot take its match", runtime->match->Generation());
+	if (LocalIsSpectator()) ArmSpectatorLockRelease(runtime->match->Generation(), true);
+	ReportMatchAbort();
+	runtime->readyIntent.Withdraw(); runtime->lobbyEditIntent.Clear();
+	internal::AbortLocalMatch(loc::T("runtime.unsupported_match"), NoticeSeverity::Warning);
+}
+
 // The entry into a started match waits for the main menu. Say so once, and
 // have a spectator that misses P1's window sit the game out.
 static void ObserveDeferredEntry() {
@@ -471,8 +482,10 @@ void TickMatch() {
 				Apply(netplay::EventKind::MatchEnded);
 			if (phase == session::IrohMatchSession::Phase::Started && !runtime->matchEntered) {
 				Apply(netplay::EventKind::GameplayReady);
-				runtime->matchEntered = UserApp::EnterAuthorizedMatch();
+				const auto entry = UserApp::EnterAuthorizedMatch();
+				runtime->matchEntered = entry == UserApp::MatchEntry::Entered;
 				if (runtime->matchEntered) runtime->enteredGeneration = runtime->match->Generation();
+				else if (entry == UserApp::MatchEntry::Rejected) RejectMatchEntry();
 				else if (!AtMainMenu()) ObserveDeferredEntry();
 			}
 			if (runtime->matchEntered && GetGgpoSyncPhase() == GgpoSyncPhase::Running) Apply(netplay::EventKind::MatchStarted);

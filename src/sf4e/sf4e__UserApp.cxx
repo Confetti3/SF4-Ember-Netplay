@@ -14,14 +14,12 @@
 #include "../Dimps/Dimps__Math.hxx"
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../Dimps/Dimps__UserApp.hxx"
-#include "../common/FighterCatalog.hxx"
 #include "../common/StageCatalog.hxx"
 #include "../common/Localization.hxx"
 #include "../common/sf4e__RollbackDiagnostics.hxx"
 #include "../session/sf4e__SessionClient.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 #include "../session/sf4e__SessionServer.hxx"
-#include "../netplay/PlayerPreferences.hxx"
 
 #include "sf4e__Game__Battle.hxx"
 #include "sf4e__Game__Battle__System.hxx"
@@ -57,7 +55,33 @@ std::unique_ptr<fUserApp::Netplay> fUserApp::netplay;
 std::unique_ptr<SessionServer> fUserApp::server;
 static bool s_pendingMatchStart = false;
 
-static bool StartMatchFromLobby(SessionClient* const client) {
+// The room's match checked as the game would take it, logged and named to the
+// player when it cannot be: the catalog id of the notice, or nullptr.
+static const char* RejectedMatch(const SessionClient& client, const char* where) {
+    const auto& lobby = client._lobbyData;
+    const auto& match = client._matchData;
+    switch (SessionProtocol::FindMatchProblem(lobby, match)) {
+    case SessionProtocol::MatchProblem::None:
+        return nullptr;
+    case SessionProtocol::MatchProblem::Stage:
+        spdlog::error("{}: rejected unsupported stage ID {}", where, match.stageID);
+        return "runtime.unsupported_stage";
+    case SessionProtocol::MatchProblem::Settings:
+        spdlog::error("{}: rejected match settings rounds={} time={}.{}", where,
+            lobby.roundCount, lobby.roundTime.integral, lobby.roundTime.fractional);
+        break;
+    case SessionProtocol::MatchProblem::Fighter:
+        spdlog::error("{}: rejected fighters {}/{}/{} and {}/{}/{} (fighter/costume/edition)", where,
+            match.chara[0].charaID, match.chara[0].costume, match.chara[0].unc_edition,
+            match.chara[1].charaID, match.chara[1].costume, match.chara[1].unc_edition);
+        break;
+    }
+    return "runtime.unsupported_match";
+}
+
+using MatchEntry = fUserApp::MatchEntry;
+
+static MatchEntry StartMatchFromLobby(SessionClient* const client) {
     sf4e::NetplayFacade::ClearBattleState();
     fVsBattle::bSessionSynced = false;
     fVsBattle::bSessionSentLoaded = false;
@@ -65,12 +89,18 @@ static bool StartMatchFromLobby(SessionClient* const client) {
     if (!client || client->_lobbyData.members.size() < 2) {
         spdlog::info("Client: deferring match start until opponent joins the lobby");
         sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.waiting_opponent_join"));
-        return false;
+        return MatchEntry::Deferred;
+    }
+    // Before anything of the match reaches the game: its settings go into the
+    // battle settings below and its stage and fighters into VS mode.
+    if (const char* notice = RejectedMatch(*client, "Client")) {
+        sf4e::NetplayFacade::PushAlert(sf4e::loc::T(notice));
+        return MatchEntry::Rejected;
     }
 
     RootEvent* root = App::GetRootEvent();
     if (!root) {
-        return false;
+        return MatchEntry::Deferred;
     }
     char* mainMenuQuery[1] = { "MainMenu" };
     rMainMenu* mainMenu = (rMainMenu*)EventBaseWithEC::FindForegroundEvent(
@@ -79,20 +109,7 @@ static bool StartMatchFromLobby(SessionClient* const client) {
         1
     );
     if (!mainMenu) {
-        return false;
-    }
-
-    // The room's settings go into the game's battle settings as they are, so
-    // only the values the game offers are taken. Not a deferral: nothing
-    // retried here would change them.
-    sf4e::netplay::LobbySettings settings;
-    settings.editionSelect = client->_lobbyData.editionSelect;
-    settings.roundCount = client->_lobbyData.roundCount;
-    settings.roundTime = client->_lobbyData.roundTime.integral;
-    if (!settings.Valid() || client->_lobbyData.roundTime.fractional != 0) {
-        spdlog::error("Client: rejected match settings rounds={} time={}", settings.roundCount, settings.roundTime);
-        sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.unsupported_match"));
-        return true;
+        return MatchEntry::Deferred;
     }
 
     ProgressData* progressData = *RootEvent::GetProgressData(root);
@@ -110,7 +127,7 @@ static bool StartMatchFromLobby(SessionClient* const client) {
     fVsPreBattle::OnTasksRegistered = fUserApp::_OnVsPreBattleTasksRegistered;
     fVsBattle::OnTasksRegistered = fUserApp::_OnVsBattleTasksRegistered;
     (rMainMenu::ToItemObserver(mainMenu)->*rMainMenu::itemObserverMethods.GoToVersusMode)();
-    return true;
+    return MatchEntry::Entered;
 }
 
 sf4e::UserApp::Netplay::Netplay(
@@ -217,18 +234,13 @@ void fUserApp::_OnVsPreBattleTasksRegistered()
         sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.waiting_opponent_start"));
         return;
     }
-    if (!sf4e::selection::FindStage(netplay->client._matchData.stageID)) {
-        spdlog::error("VsPreBattle: rejected unsupported stage ID {}", netplay->client._matchData.stageID);
-        sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.unsupported_stage"));
+    // Entry refused such a match before VS mode began. This keeps the bytes
+    // out of the game should they change after entry, which a session that
+    // takes host updates until the battle allows.
+    if (const char* notice = RejectedMatch(netplay->client, "VsPreBattle")) {
+        sf4e::NetplayFacade::PushAlert(sf4e::loc::T(notice));
         return;
     }
-    for (const auto& chara : netplay->client._matchData.chara)
-        if (!sf4e::selection::Valid(sf4e::selection::FromNative(chara), netplay->client._lobbyData.editionSelect)) {
-            spdlog::error("VsPreBattle: rejected unsupported fighter {} costume {} edition {}",
-                chara.charaID, chara.costume, chara.unc_edition);
-            sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.unsupported_match"));
-            return;
-        }
     size_t charaConditionSize = sizeof(rVsMode::ConfirmedCharaConditions);
 
     // XXX (adanducci): this is a little fragile- it's technically possible
@@ -256,21 +268,16 @@ void fUserApp::_OnVsPreBattleTasksRegistered()
 }
 
 void OnReady(sf4e::SessionClient* const client, const sf4e::SessionClient::Callbacks& c) {
-    if (!StartMatchFromLobby(client)) {
-        s_pendingMatchStart = true;
-        spdlog::info("Client: deferring match start until main menu");
-    }
-    else {
-        s_pendingMatchStart = false;
-    }
+    s_pendingMatchStart = StartMatchFromLobby(client) == MatchEntry::Deferred;
+    if (s_pendingMatchStart) spdlog::info("Client: deferring match start until main menu");
 }
 
 void OnBattleSynced(SessionClient* const client, const sf4e::SessionClient::Callbacks& callbacks) {
     fVsBattle::bSessionSynced = true;
 }
 
-bool fUserApp::EnterAuthorizedMatch() {
-    return netplay && StartMatchFromLobby(&netplay->client);
+MatchEntry fUserApp::EnterAuthorizedMatch() {
+    return netplay ? StartMatchFromLobby(&netplay->client) : MatchEntry::Deferred;
 }
 
 sf4e::SessionClient::Callbacks clientCallbacks = {
@@ -316,7 +323,7 @@ void fUserApp::TryStartPendingMatch() {
     if (netplay->client._lobbyData.members.size() < 2) {
         return;
     }
-    if (StartMatchFromLobby(&netplay->client)) {
+    if (StartMatchFromLobby(&netplay->client) != MatchEntry::Deferred) {
         s_pendingMatchStart = false;
     }
 }
