@@ -655,6 +655,21 @@ msgstr "Zapisuj oglądane mecze"
 msgid "replays.save_watched_detail"
 msgstr "Wł.: nagrywane są też mecze, które tylko oglądasz. Wył.: tylko mecze, w których grasz."
 
+msgid "replays.link"
+msgstr "Link chce odtworzyć powtórkę"
+
+msgid "replays.link_detail"
+msgstr "Link poprosił Ember o odtworzenie {0}. Odtwórz ją tylko wtedy, gdy wiesz, skąd pochodzi link."
+
+msgid "replays.link_play"
+msgstr "Odtwórz"
+
+msgid "replays.link_dismiss"
+msgstr "Nie teraz"
+
+msgid "replays.link_dismiss_detail"
+msgstr "Zostawia plik na miejscu i zapomina o linku."
+
 msgid "replays.row_detail"
 msgstr "Wybierz, aby dodać do listy powtórek gry, albo dodać i obejrzeć teraz."
 

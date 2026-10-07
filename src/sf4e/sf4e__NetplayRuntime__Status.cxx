@@ -326,9 +326,12 @@ PostPublishState Publish() {
     snapshot.controller = ControllerLabel(snapshot.inputDevice);
 
 	snapshot.atMainMenu = AtMainMenu();
-	snapshot.canImportReplay = snapshot.atMainMenu && replaystore::Ready();
-	snapshot.replayNotice = runtime->replayNotice; snapshot.replayNoticeError = runtime->replayNoticeError;
-	snapshot.battleLogOpens = runtime->battleLogOpens;
+	const replaystore::Status& replays = replaystore::GetStatus();
+	snapshot.replays.ready = snapshot.atMainMenu && replays.step == replaystore::Step::Idle && replaystore::Ready();
+	snapshot.replays.notice = replays.notice; snapshot.replays.noticeError = replays.noticeError;
+	snapshot.replays.logOpens = replays.logOpens; snapshot.replays.returns = replays.returns;
+	snapshot.replays.link = runtime->replayLinkAsked;
+	snapshot.replays.archive = runtime->replayLister.Latest();
 	snapshot.matchWaitsForMenu = runtime->match && !runtime->matchEntered && !snapshot.atMainMenu &&
 		runtime->entryDeferredGeneration && runtime->entryDeferredGeneration == runtime->match->Generation() &&
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Started;

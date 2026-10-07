@@ -371,6 +371,18 @@ void Journeys() {
  Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.backgroundPlay,"Play in the background did not save");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("replays");h.Choose("replay-save-watched");h.Press(MenuInput::Left);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.recordWatched,"Save matches you watch did not save");
+ // A replay's row is its file: Watch now asks for that path. A link's question opens the screen and is answered with Watch or a dismissal.
+ {const ShellAction saved=h.actions.back(); // the journey goes on from the preferences just saved
+  ShellView::Replay shown;shown.path="C:\\r\\a.emberreplay";shown.label="2026-10-06 21:32  Ryu vs Ken";
+  h.view.replays={shown};h.view.replaysReady=true;h.Screen("replays");h.Choose("replay:C:\\r\\a.emberreplay");h.Press(MenuInput::Select);
+  Check(h.actions.back().replay.mode==sf4e::replay::Mode::Watch&&h.actions.back().replay.path==shown.path,"Watch now did not ask for the replay's file");
+  h.Screen("home");h.view.replayLink="D:\\x\\b.usf4replay";h.Frame();
+  Check(h.shell.Navigation().Screen()=="replays","A replay link did not open the Replays screen");
+  h.Choose("replay-link");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+  Check(h.actions.back().replay.mode==sf4e::replay::Mode::DismissLink&&h.actions.back().replay.path.empty(),"Not now did not dismiss the link");
+  h.Choose("replay-link");h.Press(MenuInput::Select);
+  Check(h.actions.back().replay.mode==sf4e::replay::Mode::Watch&&h.actions.back().replay.path==h.view.replayLink,"Play it did not ask for the link's file");
+  h.view.replays.clear();h.view.replaysReady=false;h.view.replayLink.clear();h.Frame();h.actions.push_back(saved);}
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("interface");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-size");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudSize==1,"HUD size did not save"); // Small by default; Right steps to Standard.

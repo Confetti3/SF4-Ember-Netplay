@@ -9,11 +9,17 @@
 #include <chrono>
 #include <cstring>
 #include <fstream>
+#include <condition_variable>
 #include <iterator>
+#include <map>
+#include <mutex>
 #include <set>
+#include <thread>
 
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
+
+#include "Utf8.hxx"
 
 namespace fs = std::filesystem;
 namespace slots = sf4e::replayslots;
@@ -21,9 +27,35 @@ namespace slots = sf4e::replayslots;
 namespace sf4e { namespace platform { namespace replays {
 namespace {
 
-slots::Bytes LoadFile(const fs::path& path) {
+// The largest files read: an exported replay, and the game's two indexes
+// (76 KB and 44 KB as the game writes them).
+constexpr std::size_t kMostReplayBytes = slots::kLargestReplay + slots::kExportHeaderBytes, kMostIndexBytes = 1 << 20;
+
+// The file's contents, or nothing when it is longer than most: a file may
+// come from anyone, and no more than that is ever read of it.
+slots::Bytes LoadFile(const fs::path& path, std::size_t most = kMostReplayBytes) {
 	std::ifstream file(path, std::ios::binary);
-	return slots::Bytes(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+	slots::Bytes contents(most + 1);
+	file.read(reinterpret_cast<char*>(contents.data()), static_cast<std::streamsize>(contents.size()));
+	contents.resize(static_cast<std::size_t>(file.gcount()));
+	if (contents.size() > most) contents.clear();
+	return contents;
+}
+
+// The replays the archive holds, by CRC: Ember's own from their names,
+// usf4-replay-saver's from their contents.
+std::set<std::uint32_t> HeldCrcs(const fs::path& archive) {
+	std::set<std::uint32_t> held;
+	std::error_code ignored;
+	for (fs::recursive_directory_iterator at(archive, fs::directory_options::skip_permission_denied, ignored), end; !ignored && at != end; at.increment(ignored)) {
+		std::uint32_t crc = 0;
+		if (slots::ArchiveNameCrc(at->path().filename().wstring(), crc)) held.insert(crc);
+		else if (at->path().extension() == L".usf4replay") {
+			const slots::Bytes saver = LoadFile(at->path());
+			if (!saver.empty()) held.insert(slots::Crc32(saver.data(), saver.size()));
+		}
+	}
+	return held;
 }
 
 // Written under another name first, so a cut-off write is never taken for a
@@ -59,10 +91,16 @@ Folders FindFolders() {
 		SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &appData) != S_OK) return folders;
 	folders.archive = fs::path(appData) / L"sf4e" / L"replays";
 	CoTaskMemFree(appData);
+	// The account signed in to the running Steam client, which is the one a
+	// running game reads and writes as.
+	DWORD active = 0, activeBytes = sizeof(active);
+	RegGetValueW(HKEY_CURRENT_USER, L"Software\\Valve\\Steam\\ActiveProcess", L"ActiveUser", RRF_RT_REG_DWORD, NULL, &active, &activeBytes);
 	std::error_code ignored;
-	for (const auto& account : fs::directory_iterator(fs::path(steamPath) / L"userdata", ignored)) {
-		const fs::path saves = account.path() / L"45760" / L"remote" / L"capcom" / L"superstreetfighteriv" / L"ssf4_savedata";
-		if (fs::exists(saves / L"replays-swan.dat", ignored)) folders.saves.push_back(saves);
+	for (fs::directory_iterator at(fs::path(steamPath) / L"userdata", ignored), end; !ignored && at != end; at.increment(ignored)) {
+		const fs::path saves = at->path() / L"45760" / L"remote" / L"capcom" / L"superstreetfighteriv" / L"ssf4_savedata";
+		if (!fs::exists(saves / L"replays-swan.dat", ignored)) continue;
+		folders.saves.push_back(saves);
+		if (active && at->path().filename().wstring() == std::to_wstring(active)) folders.active = saves;
 	}
 	return folders;
 }
@@ -72,20 +110,10 @@ int Archive() {
 		const Folders folders = FindFolders();
 		if (folders.archive.empty()) return -1;
 		std::error_code ignored;
-		// The replays the archive holds, by CRC: Ember's own from their names,
-		// usf4-replay-saver's from their contents.
-		std::set<std::uint32_t> held;
-		for (const auto& entry : fs::recursive_directory_iterator(folders.archive, ignored)) {
-			std::uint32_t crc = 0;
-			if (slots::ArchiveNameCrc(entry.path().filename().wstring(), crc)) held.insert(crc);
-			else if (entry.path().extension() == L".usf4replay") {
-				const slots::Bytes saver = LoadFile(entry.path());
-				held.insert(slots::Crc32(saver.data(), saver.size()));
-			}
-		}
+		std::set<std::uint32_t> held = HeldCrcs(folders.archive);
 		int copied = 0;
 		for (const fs::path& saves : folders.saves) {
-			const slots::Bytes list = LoadFile(saves / L"LIST"), swan = LoadFile(saves / L"replays-swan.dat");
+			const slots::Bytes list = LoadFile(saves / L"LIST", kMostIndexBytes), swan = LoadFile(saves / L"replays-swan.dat", kMostIndexBytes);
 			if (!slots::ValidSwan(swan)) continue;
 			for (int slot = kFirstMatchSlot; slot <= kLastMatchSlot; slot++) {
 				// The file is what is archived, not what the index says the slot
@@ -97,7 +125,7 @@ int Archive() {
 				slots::Bytes exported;
 				bool fromRecord = false;
 				if (replay.size() < 4 || std::memcmp(replay.data(), "#BRP", 4) || held.count(crc)) continue;
-				if (!slots::ExportSlotFile(list, swan, slot, replay, LoadFile(file.wstring() + L".0"), exported, fromRecord) || !ArchiveName(exported, name)) {
+				if (!slots::ExportSlotFile(list, swan, slot, replay, LoadFile(file.wstring() + L".0", 4), exported, fromRecord) || !ArchiveName(exported, name)) {
 					spdlog::debug("Replays: slot {} is not a whole replay, not archived", slot);
 					continue;
 				}
@@ -122,16 +150,15 @@ int Archive() {
 
 bool ImportFile(const fs::path& file, const Writer& write, Imported& out) {
 	try {
-		Archive();
+		// Everything in the game's slots is archived first, so what the import
+		// replaces is kept; without that nothing is replaced.
+		if (Archive() < 0) { spdlog::warn("Replays: the slots could not be archived, so nothing is imported over them"); return false; }
 		const Folders folders = FindFolders();
-		if (folders.saves.empty()) { spdlog::warn("Replays: no save folder to import into"); return false; }
-		// The account that played most recently.
-		std::error_code ignored;
-		fs::path saves = folders.saves.front();
-		for (const fs::path& candidate : folders.saves) {
-			if (fs::last_write_time(candidate / L"replays-swan.dat", ignored) > fs::last_write_time(saves / L"replays-swan.dat", ignored)) saves = candidate;
-		}
-		slots::Bytes list = LoadFile(saves / L"LIST"), swan = LoadFile(saves / L"replays-swan.dat"), replay;
+		// The files written through `write` are the running account's, so the
+		// indexes are read from that account and no other.
+		const fs::path& saves = folders.active;
+		if (saves.empty()) { spdlog::warn("Replays: no save folder for the Steam account that is signed in"); return false; }
+		slots::Bytes list = LoadFile(saves / L"LIST", kMostIndexBytes), swan = LoadFile(saves / L"replays-swan.dat", kMostIndexBytes), replay;
 		const int slot = slots::SlotToReplace(list, swan, kFirstMatchSlot, kLastMatchSlot);
 		slots::Bytes exported = LoadFile(file);
 		// usf4-replay-saver keeps the game's replay as it is and the slot
@@ -139,7 +166,7 @@ bool ImportFile(const fs::path& file, const Writer& write, Imported& out) {
 		if (exported.size() >= 4 && !std::memcmp(exported.data(), "#BRP", 4)) {
 			wchar_t crc[16] = { 0 };
 			StringCchPrintfW(crc, 16, L"%08x", slots::Crc32(exported.data(), exported.size()));
-			const slots::Bytes entry = LoadFile(file.parent_path() / L".index" / (std::wstring(crc) + L".entry"));
+			const slots::Bytes entry = LoadFile(file.parent_path() / L".index" / (std::wstring(crc) + L".entry"), slots::kRecordBytes);
 			slots::Bytes built;
 			// Without that entry, the record is made up from the replay's own header.
 			if (!slots::ExportFromReplay(exported, entry, built) && !slots::ExportFromReplayAlone(exported, built)) {
@@ -147,20 +174,36 @@ bool ImportFile(const fs::path& file, const Writer& write, Imported& out) {
 			}
 			exported = std::move(built);
 		}
+		// The replay the slot holds now, to put back should a write fail, and
+		// to be sure it is in the archive before it goes.
+		const std::string prefix = "capcom/superstreetfighteriv/ssf4_savedata/", name = std::to_string(slot);
+		const slots::Bytes before = slot < 0 ? slots::Bytes() : LoadFile(saves / std::to_wstring(slot));
+		if (before.size() >= 4 && !std::memcmp(before.data(), "#BRP", 4) && !HeldCrcs(folders.archive).count(slots::Crc32(before.data(), before.size()))) {
+			spdlog::warn("Replays: slot {} holds a replay that is not in the archive yet, so it is not replaced", slot);
+			return false;
+		}
 		if (slot < 0 || !slots::Import(exported, slot, static_cast<std::uint32_t>(_time64(nullptr)), list, swan, replay)) {
 			spdlog::warn(L"Replays: {} is not a replay Ember can import, or the save index is damaged", file.c_str());
 			return false;
 		}
-		const std::string prefix = "capcom/superstreetfighteriv/ssf4_savedata/", name = std::to_string(slot);
-		bool written = write(prefix + name, replay) && write(prefix + name + ".0", slots::Sidecar(replay)) &&
-			write(prefix + "replays-swan.dat", swan) && write(prefix + "replays-swan.dat.0", slots::Sidecar(swan));
+		// The replay first and the indexes that name it last: an index never
+		// names a file that is not there. Should a write fail after the
+		// replay's, the slot gets its old replay back, which the unchanged
+		// index still names.
+		bool written = write(prefix + name, replay) && write(prefix + name + ".0", slots::Sidecar(replay));
+		const bool replaced = written;
+		written = written && write(prefix + "replays-swan.dat", swan) && write(prefix + "replays-swan.dat.0", slots::Sidecar(swan));
 		if (written && slot < slots::kListSlots) written = write(prefix + "LIST", list) && write(prefix + "LIST.0", slots::Sidecar(list));
-		if (!written) { spdlog::error("Replays: could not write slot {} and its index", slot); return false; }
+		if (!written) {
+			spdlog::error("Replays: could not write slot {} and its index", slot);
+			if (replaced && !before.empty() && !(write(prefix + name, before) && write(prefix + name + ".0", slots::Sidecar(before))))
+				spdlog::error("Replays: slot {}'s own replay could not be put back; it is in the archive", slot);
+			return false;
+		}
 		const std::uint8_t* record = slots::Record(list, swan, slot);
 		out.slot = slot;
 		out.record.assign(record, record + slots::kRecordBytes);
 		out.slotBytes.assign(swan.begin() + slots::kSwanSlotBytesOffset + slot * 2, swan.begin() + slots::kSwanSlotBytesOffset + slot * 2 + 2);
-		out.replay = std::move(replay);
 		spdlog::info(L"Replays: imported {} into slot {}", file.c_str(), slot);
 		return true;
 	}
@@ -189,7 +232,7 @@ void MarkWatched(const fs::path& file) {
 		const Folders folders = FindFolders();
 		if (folders.archive.empty()) return;
 		std::ofstream out(folders.archive / L"watched.txt", std::ios::app);
-		out << file.filename().string() << '\n';
+		out << WideToUtf8(file.filename().wstring()) << '\n';
 	}
 	catch (const std::exception& e) {
 		spdlog::warn("Replays: the watched list was not written: {}", e.what());
@@ -199,75 +242,166 @@ void MarkWatched(const fs::path& file) {
 namespace {
 struct NotedMatch { std::uint64_t started; std::string names[2]; bool spectated; };
 
-std::vector<std::string> WatchedNames(const fs::path& archive) {
+std::vector<std::string> WatchedNames(const fs::path& file) {
 	std::vector<std::string> names;
-	std::ifstream in(archive / L"watched.txt");
+	std::ifstream in(file);
 	for (std::string line; std::getline(in, line);) if (!line.empty()) names.push_back(line);
 	return names;
 }
 
-std::vector<NotedMatch> NotedMatches(const fs::path& archive) {
+// A line that is not a match as NoteMatchStart writes one is passed over:
+// the file is the player's to edit, or to damage.
+std::vector<NotedMatch> NotedMatches(const fs::path& file) {
 	std::vector<NotedMatch> matches;
-	std::ifstream in(archive / L"matches.jsonl");
+	std::ifstream in(file);
 	for (std::string line; std::getline(in, line);) {
 		const auto json = nlohmann::json::parse(line, nullptr, false);
-		if (!json.is_object() || !json.contains("started")) continue;
-		matches.push_back({json.value("started", std::uint64_t(0)), {json.value("p1", ""), json.value("p2", "")}, json.value("spectated", false)});
+		if (!json.is_object()) continue;
+		const auto started = json.find("started"), spectated = json.find("spectated");
+		if (started == json.end() || !started->is_number_unsigned()) continue;
+		const auto name = [&](const char* key) { const auto at = json.find(key); return at != json.end() && at->is_string() ? at->get<std::string>() : std::string(); };
+		matches.push_back({started->get<std::uint64_t>(), {name("p1"), name("p2")}, spectated != json.end() && spectated->is_boolean() && spectated->get<bool>()});
 	}
 	return matches;
 }
-}
 
-std::vector<ArchivedReplay> ListArchive() {
-	std::vector<ArchivedReplay> archived;
-	const Folders folders = FindFolders();
-	if (folders.archive.empty()) return archived;
-	const std::vector<NotedMatch> noted = NotedMatches(folders.archive);
-	const std::vector<std::string> watched = WatchedNames(folders.archive);
-	std::error_code ignored;
-	// Ember's own files sit in the archive root, named by their save time;
-	// usf4-replay-saver's (.usf4replay, the game's file as it is) may be
-	// dropped in any folder under it and tell their time and fighters themselves.
-	for (const auto& entry : fs::recursive_directory_iterator(folders.archive, ignored)) {
-		const std::wstring name = entry.path().filename().wstring();
-		const bool saver = entry.path().extension() == L".usf4replay";
-		tm utc = {};
-		__time64_t time = -1;
-		ArchivedReplay replay{entry.path()};
-		if (saver) {
-			std::ifstream file(entry.path(), std::ios::binary);
-			slots::Bytes head(slots::kReplayHeaderBytes);
-			slots::ReplayHeaderInfo info;
-			if (!file.read(reinterpret_cast<char*>(head.data()), head.size()) || !slots::ReadReplayHeader(head, info)) continue;
-			replay.fighters[0] = info.fighters[0]; replay.fighters[1] = info.fighters[1];
-			time = info.time;
-		}
-		else {
-			if (entry.path().parent_path() != folders.archive || entry.path().extension() != L".emberreplay" || name.size() < 15 ||
-				swscanf_s(name.c_str(), L"%4d%2d%2d-%2d%2d%2d", &utc.tm_year, &utc.tm_mon, &utc.tm_mday, &utc.tm_hour, &utc.tm_min, &utc.tm_sec) != 6) continue;
-			utc.tm_year -= 1900; utc.tm_mon -= 1;
-			time = _mkgmtime64(&utc);
-		}
-		tm local = {};
-		char label[32] = { 0 };
-		if (time < 0 || _localtime64_s(&local, &time) || !std::strftime(label, sizeof(label), "%Y-%m-%d %H:%M", &local)) continue;
-		replay.label = label; replay.time = static_cast<std::uint64_t>(time);
-		std::ifstream file(entry.path(), std::ios::binary);
+// What a replay's own file says of it: when it was saved and who fought.
+// Ember's files sit in the archive root, named by their save time;
+// usf4-replay-saver's (.usf4replay, the game's file as it is) may be dropped
+// in any folder under it and tell their time and fighters themselves. False
+// for any other file.
+bool ReadArchived(const fs::path& path, bool inRoot, ArchivedReplay& replay) {
+	const std::wstring name = path.filename().wstring();
+	const bool saver = path.extension() == L".usf4replay";
+	tm utc = {};
+	__time64_t time = -1;
+	replay = ArchivedReplay{path};
+	std::ifstream file(path, std::ios::binary);
+	if (saver) {
+		slots::Bytes head(slots::kReplayHeaderBytes);
+		slots::ReplayHeaderInfo info;
+		if (!file.read(reinterpret_cast<char*>(head.data()), head.size()) || !slots::ReadReplayHeader(head, info)) return false;
+		replay.fighters[0] = info.fighters[0]; replay.fighters[1] = info.fighters[1];
+		time = info.time;
+	}
+	else {
+		if (!inRoot || path.extension() != L".emberreplay" || name.size() < 15 ||
+			swscanf_s(name.c_str(), L"%4d%2d%2d-%2d%2d%2d", &utc.tm_year, &utc.tm_mon, &utc.tm_mday, &utc.tm_hour, &utc.tm_min, &utc.tm_sec) != 6) return false;
+		utc.tm_year -= 1900; utc.tm_mon -= 1;
+		time = _mkgmtime64(&utc);
 		slots::Bytes head(slots::kExportHeaderBytes);
-		if (!saver && file.read(reinterpret_cast<char*>(head.data()), head.size()) && !std::memcmp(head.data(), slots::kExportMagic, 8)) {
+		if (file.read(reinterpret_cast<char*>(head.data()), head.size()) && !std::memcmp(head.data(), slots::kExportMagic, 8)) {
 			const slots::RecordInfo info = slots::ReadRecordInfo(head.data() + 8);
 			replay.fighters[0] = info.fighters[0]; replay.fighters[1] = info.fighters[1];
 		}
+	}
+	tm local = {};
+	char label[32] = { 0 };
+	if (time < 0 || _localtime64_s(&local, &time) || !std::strftime(label, sizeof(label), "%Y-%m-%d %H:%M", &local)) return false;
+	replay.label = label; replay.time = static_cast<std::uint64_t>(time);
+	return true;
+}
+
+// What the lister keeps between two listings, so a listing opens only the
+// files that are new or changed: each replay as read, by its path, size and
+// time, and the two lists beside them by their time.
+struct ListCache {
+	struct Entry { std::uintmax_t size; fs::file_time_type written; ArchivedReplay replay; };
+	std::map<std::wstring, Entry> replays;
+	fs::file_time_type notedWritten{}, watchedWritten{};
+	std::vector<NotedMatch> noted;
+	std::vector<std::string> watched;
+};
+
+std::vector<ArchivedReplay> List(ListCache& cache) {
+	std::vector<ArchivedReplay> archived;
+	const Folders folders = FindFolders();
+	if (folders.archive.empty()) return archived;
+	std::error_code ignored;
+	const fs::path notedFile = folders.archive / L"matches.jsonl", watchedFile = folders.archive / L"watched.txt";
+	const auto notedWritten = fs::last_write_time(notedFile, ignored);
+	if (ignored) cache.noted.clear(); else if (notedWritten != cache.notedWritten) cache.noted = NotedMatches(notedFile);
+	cache.notedWritten = notedWritten;
+	const auto watchedWritten = fs::last_write_time(watchedFile, ignored);
+	if (ignored) cache.watched.clear(); else if (watchedWritten != cache.watchedWritten) cache.watched = WatchedNames(watchedFile);
+	cache.watchedWritten = watchedWritten;
+
+	std::map<std::wstring, ListCache::Entry> seen;
+	for (fs::recursive_directory_iterator at(folders.archive, fs::directory_options::skip_permission_denied, ignored), end; !ignored && at != end; at.increment(ignored)) {
+		const fs::path& path = at->path();
+		const std::wstring extension = path.extension().wstring();
+		if (extension != L".emberreplay" && extension != L".usf4replay") continue;
+		std::error_code failed;
+		const std::uintmax_t size = at->file_size(failed);
+		const fs::file_time_type written = failed ? fs::file_time_type{} : at->last_write_time(failed);
+		if (failed) continue;
+		const auto kept = cache.replays.find(path.wstring());
+		ListCache::Entry entry{size, written, {}};
+		if (kept != cache.replays.end() && kept->second.size == size && kept->second.written == written) entry = kept->second;
+		else if (!ReadArchived(path, path.parent_path() == folders.archive, entry.replay)) continue;
+		ArchivedReplay replay = entry.replay;
+		seen.emplace(path.wstring(), std::move(entry));
 		// The last match started before the save, allowing two minutes of clock skew.
 		const NotedMatch* match = nullptr;
-		for (const NotedMatch& candidate : noted)
+		for (const NotedMatch& candidate : cache.noted)
 			if (candidate.started <= replay.time + 120 && replay.time < candidate.started + 3600 && (!match || candidate.started > match->started)) match = &candidate;
 		if (match) { replay.names[0] = match->names[0]; replay.names[1] = match->names[1]; replay.spectated = match->spectated; }
-		replay.watched = std::find(watched.begin(), watched.end(), entry.path().filename().string()) != watched.end();
-		archived.push_back(replay);
+		replay.watched = std::find(cache.watched.begin(), cache.watched.end(), WideToUtf8(path.filename().wstring())) != cache.watched.end();
+		archived.push_back(std::move(replay));
 	}
+	cache.replays = std::move(seen);
 	std::sort(archived.begin(), archived.end(), [](const ArchivedReplay& a, const ArchivedReplay& b) { return a.time > b.time; });
 	return archived;
+}
+}
+
+struct ArchiveLister::State {
+	std::mutex mutex;
+	std::condition_variable wake;
+	bool wanted = false, stop = false, running = false;
+	std::shared_ptr<const std::vector<ArchivedReplay>> latest;
+};
+
+ArchiveLister::ArchiveLister() : state_(std::make_shared<State>()) {}
+
+// The thread is not joined: it holds the state itself and ends at its next
+// wake, and the owner may be going away under the loader lock.
+ArchiveLister::~ArchiveLister() {
+	std::lock_guard<std::mutex> lock(state_->mutex);
+	state_->stop = true;
+	state_->wake.notify_all();
+}
+
+std::shared_ptr<const std::vector<ArchivedReplay>> ArchiveLister::Latest() const {
+	std::lock_guard<std::mutex> lock(state_->mutex);
+	return state_->latest;
+}
+
+void ArchiveLister::Want() {
+	std::lock_guard<std::mutex> lock(state_->mutex);
+	state_->wanted = true;
+	state_->wake.notify_all();
+	if (state_->running) return;
+	state_->running = true;
+	std::thread([state = state_] {
+		ListCache cache;
+		std::unique_lock<std::mutex> lock(state->mutex);
+		while (!state->stop) {
+			state->wake.wait(lock, [&] { return state->wanted || state->stop; });
+			if (state->stop) break;
+			state->wanted = false;
+			lock.unlock();
+			std::shared_ptr<const std::vector<ArchivedReplay>> listed;
+			// Whatever a file or a folder throws ends this listing, not the game.
+			try { listed = std::make_shared<const std::vector<ArchivedReplay>>(List(cache)); }
+			catch (const std::exception& e) { spdlog::warn("Replays: the archive was not listed: {}", e.what()); }
+			catch (...) { spdlog::warn("Replays: the archive was not listed"); }
+			lock.lock();
+			if (listed) state->latest = std::move(listed);
+			// Two seconds between listings, however often one is asked for.
+			state->wake.wait_for(lock, std::chrono::seconds(2), [&] { return state->stop; });
+		}
+	}).detach();
 }
 
 } } }

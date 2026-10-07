@@ -99,8 +99,8 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         PlayChallengerCall((std::min)(command.previewSoundVolume, 100));
         return DispatchOutcome::Dropped;
     }
-    if (!command.importReplay.empty() || command.openBattleLog) {
-        WatchReplay(command.importReplay, command.watchReplay, command.openBattleLog);
+    if (command.replay.mode != replay::Mode::None) {
+        RunReplayRequest(command.replay);
         return DispatchOutcome::Dropped;
     }
     if (command.shortInvitation) {
@@ -452,54 +452,21 @@ static void Retry(Intent& intent, bool helperReady) {
 }
 
 namespace internal {
-// Puts an archived replay into the game and, with watch, opens the battle
-// log on it; or opens the battle log alone. The jump leaves Ember's menu,
-// so only with no room; the import writes the game's replay table, so only
-// at the native main menu. The outcome goes to the Replays screen's notice.
-void WatchReplay(const std::string& file, bool watch, bool openBattleLog) {
-    const bool idle = runtime->controller.GetSnapshot().room == netplay::RoomState::Idle;
-    auto outcome = replaystore::Outcome::NotReady;
-    replaystore::Playable playable;
-    if (!file.empty() && AtMainMenu()) outcome = replaystore::Import(platform::Utf8ToWide(file.c_str()), &playable);
-    if (outcome == replaystore::Outcome::Added) platform::replays::MarkWatched(platform::Utf8ToWide(file.c_str()));
-    if (!file.empty()) {
-        runtime->replayNoticeError = outcome != replaystore::Outcome::Added;
-        runtime->replayNotice = loc::T(outcome == replaystore::Outcome::Added ? "replays.added" :
-            outcome == replaystore::Outcome::NotReady ? "replays.not_ready" : "replays.not_added");
-    }
-    const bool jump = openBattleLog || (watch && outcome == replaystore::Outcome::Added);
-    if (jump && AtMainMenu() && idle && GameEvents::MainMenu::OpenLocalBattleLog()) {
-        runtime->battleLogOpens++;
-        // Watch now plays it as soon as the log is up (TickReplayLink).
-        runtime->autoplay = watch ? std::move(playable) : replaystore::Playable();
-        runtime->autoplayStarted = false;
-    }
-    else if (openBattleLog) { runtime->replayNoticeError = true; runtime->replayNotice = loc::T("replays.not_ready"); }
+// A replay link's file is played only on the player's word, so any request
+// for it, or a dismissal, answers the question the link left.
+void RunReplayRequest(const replay::Request& request) {
+    if (request.mode == replay::Mode::DismissLink || request.path == runtime->replayLinkAsked) runtime->replayLinkAsked.clear();
+    replaystore::Start(request, AtMainMenu(), runtime->controller.GetSnapshot().room == netplay::RoomState::Idle && !UserApp::netplay);
 }
 
-void OpenReplayLink(const std::string& file) {
-    if (file.empty()) return;
-    runtime->pendingReplayLink = file;
-    spdlog::info("Replays: a link asked to play an archived replay");
-}
-
-// The link waits for the native main menu with no room, then plays like Watch now.
-void TickReplayLink() {
-    if (!runtime->autoplay.replay.empty()) {
-        if (!runtime->autoplayStarted) runtime->autoplayStarted = replaystore::TickPlayback(runtime->autoplay);
-        else if (replaystore::PlaybackOver()) {
-            // Back to the main menu, where Ember reopens on the Replays screen.
-            runtime->autoplay = replaystore::Playable();
-            GameEvents::MainMenu::LeaveLocalBattleLog();
-        }
-        return;
+void TickReplays() {
+    const std::string link = runtime->replayLinks.Take();
+    if (!link.empty()) {
+        runtime->replayLinkAsked = link;
+        spdlog::info("Replays: a link asked for a replay; the Replays screen asks the player");
     }
-    OpenReplayLink(runtime->replayLinks.Take());
-    if (runtime->pendingReplayLink.empty() || !AtMainMenu() || !replaystore::Ready() ||
-        runtime->controller.GetSnapshot().room != netplay::RoomState::Idle || UserApp::netplay) return;
-    const std::string file = std::move(runtime->pendingReplayLink);
-    runtime->pendingReplayLink.clear();
-    WatchReplay(file, true, false);
+    if (TakeReplayListWanted()) runtime->replayLister.Want();
+    replaystore::Tick(AtMainMenu());
 }
 
 // A Ready press that cannot be honoured ends its intent and is announced once.

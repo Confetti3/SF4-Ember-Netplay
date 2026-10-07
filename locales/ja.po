@@ -655,6 +655,21 @@ msgstr "観戦した対戦を保存"
 msgid "replays.save_watched_detail"
 msgstr "オン：観戦しただけの対戦も記録します。オフ：自分が対戦したものだけ記録します。"
 
+msgid "replays.link"
+msgstr "リンクがリプレイの再生を求めています"
+
+msgid "replays.link_detail"
+msgstr "リンクがEmberに{0}の再生を求めました。リンクの出どころが分かっている場合だけ再生してください。"
+
+msgid "replays.link_play"
+msgstr "再生する"
+
+msgid "replays.link_dismiss"
+msgstr "今はしない"
+
+msgid "replays.link_dismiss_detail"
+msgstr "ファイルはそのままにして、リンクを忘れます。"
+
 msgid "replays.row_detail"
 msgstr "決定で、ゲームのリプレイ一覧に追加するか、追加して今すぐ見るかを選びます。"
 

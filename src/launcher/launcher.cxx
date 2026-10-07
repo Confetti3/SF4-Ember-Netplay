@@ -785,7 +785,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // Without a logs folder there is nowhere to put one; the game then
         // writes its own after the request fails.
         if (!g_logsDir[0]) dumps.Close();
-        // More than ten matches in one sitting would push replays out of the
+        // More than thirty matches in one sitting would push replays out of the
         // game's slots before the copy at exit, so copy while it runs too.
         std::thread archiver([game] { while (WaitForSingleObject(game, 30000) == WAIT_TIMEOUT) ArchiveReplays(); });
         bool dumped = false;

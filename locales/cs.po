@@ -655,6 +655,21 @@ msgstr "Ukládat sledované zápasy"
 msgid "replays.save_watched_detail"
 msgstr "ZAP: nahrávají se i zápasy, které jen sledujete. VYP: jen zápasy, které hrajete."
 
+msgid "replays.link"
+msgstr "Odkaz chce přehrát záznam"
+
+msgid "replays.link_detail"
+msgstr "Odkaz požádal Ember o přehrání {0}. Přehrajte ho jen tehdy, když víte, odkud odkaz pochází."
+
+msgid "replays.link_play"
+msgstr "Přehrát"
+
+msgid "replays.link_dismiss"
+msgstr "Teď ne"
+
+msgid "replays.link_dismiss_detail"
+msgstr "Soubor zůstane na místě a odkaz se zapomene."
+
 msgid "replays.row_detail"
 msgstr "Vyberte pro přidání do seznamu záznamů hry, nebo pro přidání a přehrání teď."
 

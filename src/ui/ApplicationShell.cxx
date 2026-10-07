@@ -301,10 +301,18 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(screen.compare(0,4,"room")==0){title=v.room.name.empty()?loc::T("screen.room"):v.room.name;NoteUserText(v.room.name);rows=RoomEntries(v);
  }else if(screen=="replays"){
   title=loc::T("replays.title");
+  if(!v.replayLink.empty()){
+   // A link names a file and nothing is played on its word: Select asks.
+   rows.push_back(Row("replay-link",loc::T("replays.link"),loc::Tf("replays.link_detail",v.replayLink)));
+   rows.back().detailText=DetailText::Name;NoteUserText(v.replayLink);
+   rows.back().choices={{"link-play",loc::T("replays.link_play"),loc::T("replays.watch_detail"),idle&&v.replaysReady},{"link-dismiss",loc::T("replays.link_dismiss"),loc::T("replays.link_dismiss_detail")}};
+   rows.back().chosen=idle&&v.replaysReady?"link-play":"link-dismiss";
+  }
   rows.push_back(Row("replay-log",loc::T("replays.open_log"),loc::T(idle?"replays.open_log_detail":"replays.open_log_room"),idle&&v.replaysReady));
   rows.push_back(Value("replay-save-watched",loc::T("replays.save_watched"),preferences_.recordWatched?loc::T("common.on"):loc::T("common.off"),loc::T("replays.save_watched_detail"),v.canEditPreferences));
   if(v.replays.empty())rows.push_back(InfoRow("replay-none",loc::T("replays.empty"),"",loc::T("replays.empty_detail")));
-  for(std::size_t i=0;i<v.replays.size();i++){rows.push_back(Row("replay-"+std::to_string(i),v.replays[i].label,loc::T(v.replaysReady?"replays.row_detail":"replays.not_ready"),v.replaysReady));
+  // A row is its file, not its place: the list is listed again while a row's choices are open.
+  for(std::size_t i=0;i<v.replays.size();i++){rows.push_back(Row("replay:"+v.replays[i].path,v.replays[i].label,loc::T(v.replaysReady?"replays.row_detail":"replays.not_ready"),v.replaysReady));
    // The label carries the players' own names. The value says what Ember knows about it.
    rows.back().userText=true;for(const auto& name:v.replays[i].names)NoteUserText(name);
    rows.back().value=v.replays[i].watched&&v.replays[i].spectated?loc::T("replays.watched_spectated"):v.replays[i].watched?loc::T("replays.watched"):v.replays[i].spectated?loc::T("replays.spectated"):"";
@@ -502,7 +510,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id.compare(0,5,"main-")==0&&v.canEditPreferences){preferences_.mainFighter=std::stoi(a.id.substr(5));preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?"roster":"";nav.Push(a.id);}
  else if(a.id=="replays")nav.Push(a.id);
- else if(a.id=="replay-log"){ShellAction r;r.command.generation=v.session.generation;r.openBattleLog=true;if(!submit(std::move(r)))error_=loc::T("error.queue_failed");}
+ else if(a.id=="replay-log"){ShellAction r;r.command.generation=v.session.generation;r.replay.mode=replay::Mode::OpenLog;if(!submit(std::move(r)))error_=loc::T("error.queue_failed");}
  else if(a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="discord"||a.id=="identity"||a.id=="developer")nav.Push(a.id);
  else if(a.id=="pr-create"||a.id=="pr-none")OpenPublicCreate();
  else if(a.id=="host"&&preferences_.roomPublic){error_.clear();publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,preferences_.publicTableRules);}
@@ -672,6 +680,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  }
  if(v.discordPending&&inviteRevision_!=v.discordRevision){inviteRevision_=v.discordRevision;nav.Push("discord-invitation");}
  if(!v.discordPending&&nav.Screen()=="discord-invitation")nav.Return();
+ if(v.replayLink!=replayLinkSeen_){replayLinkSeen_=v.replayLink;if(!v.replayLink.empty()&&nav.Screen()!="replays"){nav.Home();nav.Push("replays");}}
  if(v.inputCapture!=input::Capture::Idle&&nav.Screen()!="assignment")nav.Push("assignment");
  if(v.inputCapture==input::Capture::Idle&&nav.Screen()=="assignment")nav.Return();
  identity_.Update(v,nav.Screen(),submit,now);
@@ -839,9 +848,14 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   else if(IdentityPanel::Owns(screen))identity_.Accept(a,v);
   else if(PublicRoomsPanel::Owns(screen))publicRooms_.Choose(a);
   else if(a.id=="language")SetLanguage(a.text);
-  else if(a.id.compare(0,7,"replay-")==0&&a.id!="replay-none"&&a.id!="replay-log"){
-   const std::size_t i=std::stoul(a.id.substr(7));
-   if(i<v.replays.size()&&v.replaysReady){ShellAction r;r.command.generation=v.session.generation;r.importReplay=v.replays[i].path;r.watchReplay=a.text=="watch";if(!submit(std::move(r)))error_=loc::T("error.queue_failed");}
+  else if(a.id=="replay-link"){
+   ShellAction r;r.command.generation=v.session.generation;
+   if(a.text=="link-play")r.replay={replay::Mode::Watch,v.replayLink};else r.replay.mode=replay::Mode::DismissLink;
+   if(!submit(std::move(r)))error_=loc::T("error.queue_failed");
+  }
+  else if(a.id.compare(0,7,"replay:")==0&&v.replaysReady){
+   ShellAction r;r.command.generation=v.session.generation;r.replay={a.text=="watch"?replay::Mode::Watch:replay::Mode::Add,a.id.substr(7)};
+   if(!submit(std::move(r)))error_=loc::T("error.queue_failed");
   }
  }else if(a.kind==MenuAction::Activate){
   HandleActivate(a,v,screen,idle,submit);

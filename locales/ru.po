@@ -655,6 +655,21 @@ msgstr "Сохранять просмотренные матчи"
 msgid "replays.save_watched_detail"
 msgstr "Вкл.: записываются и матчи, которые вы только смотрите. Выкл.: только матчи, в которых вы играете."
 
+msgid "replays.link"
+msgstr "Ссылка хочет воспроизвести реплей"
+
+msgid "replays.link_detail"
+msgstr "Ссылка попросила Ember воспроизвести {0}. Воспроизводите его, только если знаете, откуда ссылка."
+
+msgid "replays.link_play"
+msgstr "Воспроизвести"
+
+msgid "replays.link_dismiss"
+msgstr "Не сейчас"
+
+msgid "replays.link_dismiss_detail"
+msgstr "Оставляет файл на месте и забывает ссылку."
+
 msgid "replays.row_detail"
 msgstr "Выберите, чтобы добавить в список записей игры, или добавить и посмотреть сейчас."
 

@@ -655,6 +655,21 @@ msgstr "Zugeschaute Matches speichern"
 msgid "replays.save_watched_detail"
 msgstr "Ein: Auch Matches, bei denen Sie nur zuschauen, werden aufgezeichnet. Aus: nur die Matches, die Sie spielen."
 
+msgid "replays.link"
+msgstr "Ein Link möchte ein Replay abspielen"
+
+msgid "replays.link_detail"
+msgstr "Ein Link hat Ember gebeten, {0} abzuspielen. Spielen Sie es nur ab, wenn Sie wissen, woher der Link stammt."
+
+msgid "replays.link_play"
+msgstr "Abspielen"
+
+msgid "replays.link_dismiss"
+msgstr "Jetzt nicht"
+
+msgid "replays.link_dismiss_detail"
+msgstr "Lässt die Datei, wo sie ist, und vergisst den Link."
+
 msgid "replays.row_detail"
 msgstr "Wähle, um es der Replay-Liste des Spiels hinzuzufügen, oder um es hinzuzufügen und jetzt anzusehen."
 

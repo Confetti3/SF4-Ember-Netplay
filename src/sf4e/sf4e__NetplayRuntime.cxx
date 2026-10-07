@@ -279,7 +279,7 @@ void StartHelper() {
         char text[1100] = {};
         const DWORD length = GetEnvironmentVariableA("SF4E_REPLAY_LINK", text, sizeof(text));
         SetEnvironmentVariableA("SF4E_REPLAY_LINK", nullptr);
-        if (length && length < sizeof(text)) OpenReplayLink(std::string(text, length));
+        if (length && length < sizeof(text)) runtime->replayLinkAsked.assign(text, length);
         if (!runtime->replayLinks.Open()) spdlog::warn("Replays: replay links cannot reach this game");
     }
 	runtime->preferences.inputDelay = GetConfig().inputDelay;
@@ -386,7 +386,7 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 	// Gameplay/update commands join this queue when their effect handlers exist.
 	const auto kind = command.command.kind;
 	if (command.inputAction == input::Action::None && command.service == platform::ServiceAction::None && command.previewSoundVolume < 0 && !command.shortInvitation &&
-		command.importReplay.empty() && !command.openBattleLog && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
+		command.replay.mode == replay::Mode::None && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
 		kind != netplay::CommandKind::LeaveRoom && kind != netplay::CommandKind::StartOffline &&
 		kind != netplay::CommandKind::Ready && kind != netplay::CommandKind::Rematch &&
 		kind != netplay::CommandKind::SavePreferences && kind != netplay::CommandKind::SetLobbySettings &&
@@ -394,9 +394,13 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 		kind != netplay::CommandKind::CheckConnection && kind != netplay::CommandKind::ApplyDelay) return false;
 	const auto bytes = sizeof(RuntimeCommand) + command.displayName.size() + command.command.invitation.size() +
 		command.preferences.displayName.size() + command.preferences.roomName.size() + command.roomAction.text.size() + command.publicTicket.size() +
-		command.importReplay.size();
+		command.replay.path.size();
 	return bridge::PushCommand(std::move(command), bytes);
 }
+
+namespace { std::atomic<bool> s_replayListWanted{false}; }
+void WantReplayList() { s_replayListWanted = true; }
+namespace internal { bool TakeReplayListWanted() { return s_replayListWanted.exchange(false); } }
 
 bool IsRuntimeRoomActive() { return runtime && runtime->attached; }
 bool IsRuntimePublicJoin() { return runtime && runtime->publicJoin; }
@@ -596,7 +600,7 @@ void TickRuntime() {
 	DrainCommands(helperReady);
 	DrainRoomEvents();
 	TickTournament(helperReady);
-	TickReplayLink();
+	TickReplays();
 	PersistTerminalOutcome();
 	DrainActionReplies();
 	RetryPendingAbort();

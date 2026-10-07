@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -23,9 +24,12 @@ constexpr int kFirstMatchSlot = 280, kLastMatchSlot = replayslots::kSlots - 1;
 // The game's save folders, one for each Steam account that has played on this
 // PC, and the folder the replays are copied to (%APPDATA%\sf4e\replays).
 // Both empty when Windows has no Steam path or settings folder for this user.
+// active is the one of saves that belongs to the account signed in to the
+// running Steam client (its ActiveUser), empty when Steam is not running or
+// that account has no saves here.
 struct Folders {
 	std::vector<std::filesystem::path> saves;
-	std::filesystem::path archive;
+	std::filesystem::path archive, active;
 };
 Folders FindFolders();
 
@@ -41,9 +45,13 @@ int Archive();
 
 // An archived replay put back into the game's files: the slot it took, the
 // slot record as written (ReplaySlots.hxx: Import) and the slot's two bytes.
-// The slots are archived first, so the replay the slot held is kept. The
-// game holds the slots in memory while it runs and writes them back on its
-// next save, so a caller inside the game puts the record into its table too.
+// The indexes are read from the signed-in account's folder (Folders::active),
+// the one write stores into. The slots are archived first and the replay the
+// slot holds has to be in the archive, or nothing is written. The replay is
+// written before the indexes; should a write fail after it, the slot's old
+// replay is written back. The game holds the slots in memory while it runs
+// and writes them back on its next save, so a caller inside the game puts
+// the record into its table too, and only after this returned true.
 // write stores each changed file: its name under the account's Steam Cloud
 // folder (capcom/superstreetfighteriv/ssf4_savedata/<name>) and its bytes.
 // The game reads its files through Steam, which keeps its own index of their
@@ -51,7 +59,7 @@ int Archive();
 // game, write goes through Steam's FileWrite.
 struct Imported {
 	int slot = -1;
-	replayslots::Bytes record, slotBytes, replay;
+	replayslots::Bytes record, slotBytes;
 };
 using Writer = std::function<bool(const std::string& name, const replayslots::Bytes& contents)>;
 bool ImportFile(const std::filesystem::path& file, const Writer& write, Imported& out);
@@ -81,6 +89,26 @@ struct ArchivedReplay {
 	std::string names[2];
 	bool spectated = false, watched = false;
 };
-std::vector<ArchivedReplay> ListArchive();
+
+// Lists the archive on a thread of its own: Ember's own files from the
+// archive root, and usf4-replay-saver's (.usf4replay) from any folder under
+// it, those with time and fighters from the replay's header and no names.
+// The game's threads only ask and read: Want asks for a listing, which
+// starts within two seconds of the one before, and Latest is the last one
+// made (null before the first). A listing opens only the files that are new
+// or changed since the one before, so it does not grow with the archive, and
+// nothing a file or folder does there reaches the caller.
+class ArchiveLister {
+public:
+	ArchiveLister();
+	~ArchiveLister();
+	ArchiveLister(const ArchiveLister&) = delete;
+	ArchiveLister& operator=(const ArchiveLister&) = delete;
+	void Want();
+	std::shared_ptr<const std::vector<ArchivedReplay>> Latest() const;
+private:
+	struct State;
+	std::shared_ptr<State> state_;
+};
 
 } } }

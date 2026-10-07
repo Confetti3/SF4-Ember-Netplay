@@ -655,6 +655,21 @@ msgstr "保存观战的对战"
 msgid "replays.save_watched_detail"
 msgstr "开：只观战的对战也会录制。关：只录制自己参加的对战。"
 
+msgid "replays.link"
+msgstr "有链接想要播放回放"
+
+msgid "replays.link_detail"
+msgstr "有链接请求 Ember 播放 {0}。只有在你知道链接来源时才播放。"
+
+msgid "replays.link_play"
+msgstr "播放"
+
+msgid "replays.link_dismiss"
+msgstr "暂不"
+
+msgid "replays.link_dismiss_detail"
+msgstr "保留文件并忘记此链接。"
+
 msgid "replays.row_detail"
 msgstr "选择以添加到游戏的回放列表，或添加后立即观看。"
 

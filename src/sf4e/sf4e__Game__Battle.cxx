@@ -62,6 +62,7 @@ void fBattle::Install() {
 
 namespace {
 std::string s_matchReplayListNote;
+bool s_matchReplayListWidened = false;
 }
 
 // The game's 310 replay slots are four lists, laid out by a table of first
@@ -95,10 +96,12 @@ void fBattle::WidenMatchReplayList() {
 	sizes[6] = matches;
 	VirtualProtect(sizes, 8 * sizeof(DWORD), old, &old);
 	firstSlot[3] = firstSlot[2] + spread;
+	s_matchReplayListWidened = true;
 	s_matchReplayListNote = fmt::format("Replay: the match list holds {} replays, slots {} to 309", matches, firstSlot[3]);
 }
 
 const std::string& fBattle::MatchReplayListNote() { return s_matchReplayListNote; }
+bool fBattle::MatchReplayListWidened() { return s_matchReplayListWidened; }
 
 void sf4e::Game::Battle::ReplayCodec::Install() {
 	std::uint8_t* (ReplayCodec::* _fAppend)(std::uint32_t) = &Append;
