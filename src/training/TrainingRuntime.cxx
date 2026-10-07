@@ -277,7 +277,15 @@ void BeforeUpdate(Native* system, bool networkOwned) {
         if (command.generation == session.GetView().generation && command.action == Action::ExportSlot) {
             exportedSlot = session.GetView().selected; exported = session.Slot(exportedSlot); ++exportId; commandAccepted = true; continue;
         }
-        if (!session.Apply(command)) continue;
+        if (!session.Apply(command)) {
+            // A position that was asked for and not saved or put back is the
+            // one refusal a player notices without being told.
+            if (command.action == Action::Save || command.action == Action::Restore)
+                spdlog::info("Training: {} position refused (fight ready={}, saved={}, command for battle {} in battle {})",
+                    command.action == Action::Save ? "save" : "reset", session.GetView().ready, session.GetView().checkpoint,
+                    command.generation, session.GetView().generation);
+            continue;
+        }
         commandAccepted=true;
         if (command.action == Action::Save) {
             if (checkpoint.used) Battle::SaveState::Free(&checkpoint);
@@ -287,10 +295,10 @@ void BeforeUpdate(Native* system, bool networkOwned) {
             // The checkpoint is loaded long after: a voice that had ended by then must not come back with it.
             if (commandAccepted) Battle::SaveState::ForgetFinishedSounds(&checkpoint);
             session.SetCheckpoint(checkpoint.used);
+            spdlog::info("Training: position {}", commandAccepted ? "saved" : "not saved, the game's state could not be taken");
         } else if (command.action == Action::Restore) {
             commandAccepted = RestoreCheckpoint(system);
-            if (!commandAccepted) {
-            }
+            spdlog::info("Training: position {}", commandAccepted ? "reset to the saved one" : "not reset");
         } else if (command.action == Action::ClearHistory) {
             meter.Reset();
         } else if (command.action == Action::DummyState) {
@@ -378,6 +386,7 @@ void AfterUpdate(Native* system) {
             sample.comboDamage = Dimps::Math::FixedToFloat(&value);
             (actor->*Actor::publicMethods.GetVitalityAmt_FixedPoint)(&value);
             sample.health = Dimps::Math::FixedToFloat(&value);
+            if (commitInput) sample.input = output[side].raw & FightButtons;
             sample.valid = true;
         }
         {

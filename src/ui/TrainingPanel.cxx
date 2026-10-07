@@ -161,7 +161,45 @@ void Meter(const MeterView& meter, float hudScale) {
             for (int run = at; run < kept && active(run); ++run) meaty[side][run] = 1;
         }
     }
+    // What was pressed, on a lane of its own beside each bar: Player 1's over
+    // their bar, Player 2's under theirs, so the two bars stay together. A
+    // direction shows as it changes and a button as it goes down, at the frame
+    // it did; presses too close to draw apart are moved right, in order.
+    const float lane = 13 * hudScale;
+    const auto inputs = [&](int side) {
+        const ImVec2 origin = ImGui::GetCursorScreenPos();
+        const int shown = (std::min)(shownMost, kept - first);
+        float cursor = origin.x;
+        unsigned before = first > 0 ? meter.frames[first - 1].fighters[side].input : 0;
+        static const unsigned masks[] = {0x10, 0x20, 0x400, 0x40, 0x80, 0x800};
+        static const ImU32 colours[] = {IM_COL32(96, 176, 255, 255), IM_COL32(255, 214, 72, 255), IM_COL32(255, 96, 96, 255)};
+        const auto place = [&](float at) -> float {
+            // Not more than a few cells late: a press shown far from its frame would mislead.
+            const float x = (std::max)(at, cursor);
+            return x - at > 6 * cell ? -1.f : x;
+        };
+        for (int i = 0; i < shown; ++i) {
+            const unsigned now = meter.frames[first + i].fighters[side].input;
+            const float at = origin.x + slant / 2 + i * cell;
+            const unsigned way = now & 0xF;
+            if (way != (before & 0xF) && way) {
+                // Numpad digit of the direction held; opposite directions held together cancel.
+                const int x = ((way & 8) ? 1 : 0) - ((way & 4) ? 1 : 0), y = ((way & 1) ? 1 : 0) - ((way & 2) ? 1 : 0);
+                const char digit = static_cast<char>('5' + x + 3 * y);
+                const float spot = place(at);
+                if (digit != '5' && spot >= 0) cursor = spot + glyphs::Arrow(draw, ImVec2(spot, origin.y), lane, digit, false, IM_COL32(235, 235, 235, 255));
+            }
+            for (int button = 0; button < 6; ++button) {
+                if (!(now & masks[button]) || (before & masks[button])) continue;
+                const float spot = place(at);
+                if (spot >= 0) cursor = spot + glyphs::Disc(draw, ImVec2(spot, origin.y), lane, button < 3 ? 'P' : 'K', colours[button % 3], IM_COL32(255, 255, 255, 255));
+            }
+            before = now;
+        }
+        ImGui::Dummy(ImVec2(full, lane));
+    };
     for (int side = 0; side < 2; ++side) {
+        if (side == 0) inputs(0);
         const ImVec2 origin = ImGui::GetCursorScreenPos();
         // A cell leans as the game's gauges do: its top edge sits further right.
         const auto quad = [&](float from, float to, ImU32 colour) {
@@ -188,8 +226,13 @@ void Meter(const MeterView& meter, float hudScale) {
             quad(i * cell, (i + 1) * cell - (cell >= 3 ? 1.f : 0.f), (KindColor(kind) & ~IM_COL32_A_MASK) | (static_cast<ImU32>(kind == MeterKind::Neutral ? 150 : 245) << IM_COL32_A_SHIFT));
             // A new action inside a run (a cancel, the next hit of a string) starts a new count.
             const bool action = i > 0 && sample.valid && sample.action >= 0 && sample.action != meter.frames[first + i - 1].fighters[side].action;
+            // Each hit of a combo is its own stretch of being hit: a new one starts where the damage of the combo grows
+            // or the reaction plays again, and a dark line parts it from the one before.
+            const bool struck = i > 0 && kind == MeterKind::Hit && runKind == MeterKind::Hit && !action &&
+                (sample.comboDamage > meter.frames[first + i - 1].fighters[side].comboDamage || sample.actionFrame < meter.frames[first + i - 1].fighters[side].actionFrame);
+            if (struck || (action && kind == MeterKind::Hit && runKind == MeterKind::Hit)) quad(i * cell - 1, i * cell + 1, IM_COL32(12, 12, 14, 255));
             if (i == 0) runKind = kind;
-            else if (kind != runKind || action) { label(runStart, i, runKind); runStart = i; runKind = kind; }
+            else if (kind != runKind || action || struck) { label(runStart, i, runKind); runStart = i; runKind = kind; }
         }
         if (count) label(runStart, count, runKind);
         // Earlier frames lie to the left, later ones to the right, of what is shown.
@@ -198,6 +241,7 @@ void Meter(const MeterView& meter, float hudScale) {
         // Every tenth frame, under the bar.
         for (int i = 10; i < 120; i += 10) draw->AddLine(ImVec2(origin.x + i * cell, origin.y + height), ImVec2(origin.x + i * cell, origin.y + height + 2 * hudScale), IM_COL32(255, 214, 72, 200));
         ImGui::Dummy(ImVec2(full, height));
+        if (side == 1) inputs(1);
     }
 }
 // What the colours mean and what the meter is doing, where the reason line has nothing to say.

@@ -68,6 +68,11 @@ struct FighterSample {
     bool throwRecovery = false;
     // Also the meter's: the first frame up from a knockdown, the one a meaty attack is active on.
     bool wake = false;
+    // The pad as the game took it this frame: the fight buttons and
+    // directions, in the game's own bits (up 1, down 2, left 4, right 8,
+    // LP 0x10, MP 0x20, HP 0x400, LK 0x40, MK 0x80, HK 0x800). A replay's
+    // presses are here as a player's would be.
+    unsigned input = 0;
 };
 // What a meter cell shows. An attack is told apart by the script's attack
 // boundary: before it startup, inside it active, after it recovery; Attack
