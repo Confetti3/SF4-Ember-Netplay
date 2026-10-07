@@ -52,7 +52,7 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\Launcher.exe"; WorkingDir: "{
 [Run]
 ; The runtime installs per machine, so this is the one step that asks for
 ; administrator rights. Declining leaves Launcher.exe to report the old runtime.
-Filename: "{tmp}\vc_redist.x86.exe"; Parameters: "/install /quiet /norestart"; StatusMsg: "Installing the Microsoft Visual C++ runtime..."; Check: RuntimeOutdated
+Filename: "{tmp}\vc_redist.x86.exe"; Parameters: "/install /quiet /norestart"; StatusMsg: "Installing the Microsoft Visual C++ runtime. This can take a minute..."; BeforeInstall: RuntimeBar(True); AfterInstall: RuntimeBar(False); Check: RuntimeOutdated
 Filename: "{app}\Launcher.exe"; Description: "{cm:LaunchProgram,{#AppName}}"; WorkingDir: "{app}"; Flags: nowait postinstall skipifsilent
 
 [Code]
@@ -71,6 +71,15 @@ begin
   UnpackVersionComponents(Installed, Major, Minor, Revision, Build);
   UnpackVersionComponents(Bundled, BundledMajor, BundledMinor, Revision, Build);
   Result := (Major < BundledMajor) or ((Major = BundledMajor) and (Minor < BundledMinor));
+end;
+
+// The files are in place by then and the bar is full; the runtime's own
+// installer runs quietly and reports nothing, so the bar keeps moving instead
+// of standing still as if setup had stopped.
+procedure RuntimeBar(Running: Boolean);
+begin
+  if Running then WizardForm.ProgressGauge.Style := npbstMarquee
+  else WizardForm.ProgressGauge.Style := npbstNormal;
 end;
 
 function FolderHasFiles(Dir: String): Boolean;
