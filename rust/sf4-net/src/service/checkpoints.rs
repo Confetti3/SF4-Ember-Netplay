@@ -262,7 +262,7 @@ impl Actor {
         // This runs on every actor tick; the committed value is shared, so
         // looking at it copies nothing.
         let committed = recovery.committed().await;
-        if committed.revision == 0 || committed.revision <= self.last_exported_revision {
+        if committed.revision() == 0 || committed.revision() <= self.last_exported_revision {
             return Ok(());
         }
         if self.incoming_transfer.is_some()
@@ -271,32 +271,32 @@ impl Actor {
         {
             return Ok(());
         }
-        let Ok(transfer_id) = committed.request.parse::<u64>() else {
+        let Ok(transfer_id) = committed.request().parse::<u64>() else {
             // Only helper proposals created from a native SessionProposal are
             // replayable. Keep the revision pending so an invalid candidate
             // cannot be mistaken for a committed native checkpoint.
             return Ok(());
         };
-        if transfer_id == 0 || committed.term == 0 {
+        if transfer_id == 0 || committed.term() == 0 {
             return Ok(());
         }
-        let Some(base_revision) = committed.revision.checked_sub(1) else {
+        let Some(base_revision) = committed.revision().checked_sub(1) else {
             return Ok(());
         };
         let transfer = CheckpointTransfer::new(
             recovery.room,
             transfer_id,
-            committed.term,
+            committed.term(),
             base_revision,
-            committed.revision,
+            committed.revision(),
             // The one copy: the transfer owns its bytes.
-            committed.checkpoint.as_bytes().to_vec(),
+            committed.checkpoint().as_bytes().to_vec(),
         )?;
         if let Some(retained) = self.committed_roster(&transfer.bytes) {
             self.schedule_membership_reconciliation(
                 retained,
-                committed.term,
-                committed.revision,
+                committed.term(),
+                committed.revision(),
                 false,
             );
         }
@@ -548,10 +548,10 @@ impl Actor {
         // replay and membership effects; the periodic watcher uses
         // this same durable observation if the waiter never returns.
         let committed = recovery.committed().await;
-        let committed_exact = committed.revision == key.revision
-            && committed.term == key.term
-            && committed.request == key.transfer.to_string()
-            && committed.checkpoint.as_bytes() == transfer.bytes
+        let committed_exact = committed.revision() == key.revision
+            && committed.term() == key.term
+            && committed.request() == key.transfer.to_string()
+            && committed.checkpoint().as_bytes() == transfer.bytes
             && transfer.room == key.room
             && transfer.transfer == key.transfer
             && transfer.base_revision == key.base_revision
@@ -562,12 +562,12 @@ impl Actor {
             if let Some(retained) = self.committed_roster(&transfer.bytes) {
                 self.schedule_membership_reconciliation(
                     retained,
-                    committed.term,
-                    committed.revision,
+                    committed.term(),
+                    committed.revision(),
                     false,
                 );
             }
-            if committed.revision > self.last_exported_revision
+            if committed.revision() > self.last_exported_revision
                 && self.outgoing_transfer.is_none()
                 && self.pending_checkpoint_committed.is_none()
             {

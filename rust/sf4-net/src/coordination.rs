@@ -206,18 +206,36 @@ pub struct Receipt {
 /// The committed checkpoint. The store holds it behind an `Arc` and replaces
 /// it whole on each commit, so a reader takes a coherent value without
 /// copying the checkpoint, which can weigh a mebibyte.
-#[derive(Clone, Default, Serialize, Deserialize)]
+/// Its fields are private and it has no `Clone`: a value is built whole and
+/// never changed, which the cached digest relies on.
+#[derive(Default, Serialize, Deserialize)]
 pub struct Committed {
-    pub revision: u64,
-    pub checkpoint: String,
-    pub request: String,
-    pub term: u64,
+    revision: u64,
+    checkpoint: String,
+    request: String,
+    term: u64,
     /// The checkpoint's SHA-256, hashed on first use.
     #[serde(skip)]
     digest: OnceLock<[u8; 32]>,
 }
 
 impl Committed {
+    pub fn revision(&self) -> u64 {
+        self.revision
+    }
+
+    pub fn checkpoint(&self) -> &str {
+        &self.checkpoint
+    }
+
+    pub fn request(&self) -> &str {
+        &self.request
+    }
+
+    pub fn term(&self) -> u64 {
+        self.term
+    }
+
     fn new(revision: u64, checkpoint: String, request: String, term: u64) -> Self {
         Self {
             revision,

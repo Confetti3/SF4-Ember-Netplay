@@ -352,7 +352,7 @@ impl RecoverySession {
             .ensure_linearizable()
             .await
             .map_err(|_| io::Error::other("room quorum unavailable"))?;
-        if self.committed().await.revision != revision {
+        if self.committed().await.revision() != revision {
             return Ok(false);
         }
         self.promote_voters(voters).await?;
@@ -408,7 +408,7 @@ impl RecoverySession {
         let metrics = self.coordinator.raft().metrics().borrow().clone();
         // Runs every second: the shared value hashes its checkpoint once.
         let committed = self.coordinator.committed().await;
-        let (revision, digest) = (committed.revision, committed.digest());
+        let (revision, digest) = (committed.revision(), committed.digest());
         let leader_id = metrics.current_leader.unwrap_or_default();
         let leader = metrics
             .membership_config
@@ -634,7 +634,7 @@ impl RecoverySession {
                     source_incarnation, target_incarnation, term, request
                 ),
                 term,
-                base: self.committed().await.revision,
+                base: self.committed().await.revision(),
                 checkpoint: String::new(),
                 admin: Some(AdminEntry::ProbeReservation(ProbeReservation {
                     room: self.room,

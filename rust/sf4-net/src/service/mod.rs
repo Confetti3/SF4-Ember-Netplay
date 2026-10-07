@@ -829,6 +829,8 @@ impl Actor {
         self.short.clear();
         self.host_address = None;
         self.room = None;
+        // The cached roster holds the room's whole checkpoint.
+        self.refresh_roster = None;
         self.opening = false;
         self.controls.clear();
         self.clear_parked_controls();

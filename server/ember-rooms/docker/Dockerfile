@@ -51,7 +51,7 @@ RUN test -n "$BUILD_ID" || { echo "docker build needs --build-arg BUILD_ID=<side
     && echo "$BUILD_ID" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$' \
     || { echo "BUILD_ID must be 1 to 128 letters, digits, dots, dashes or underscores" >&2; exit 1; }
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates tini \
+    && apt-get install -y --no-install-recommends ca-certificates tini jq \
     && rm -rf /var/lib/apt/lists/* \
     # A fixed id, so the host can make /etc/ember-rooms readable to it.
     && groupadd --system --gid 4783 ember-rooms \

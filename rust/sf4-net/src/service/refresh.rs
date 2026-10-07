@@ -213,7 +213,7 @@ impl Actor {
                 roster.clone()
             }
             _ => {
-                let roster = self.committed_roster(committed.checkpoint.as_bytes());
+                let roster = self.committed_roster(committed.checkpoint().as_bytes());
                 self.refresh_roster = Some((recovery.room, committed.clone(), roster.clone()));
                 roster
             }
@@ -229,11 +229,11 @@ impl Actor {
             self.schedule_membership_reconciliation(
                 retained,
                 state.term,
-                committed.revision,
+                committed.revision(),
                 restore_voters,
             );
         } else {
-            self.schedule_pending_membership_reconciliation(state.term, committed.revision);
+            self.schedule_pending_membership_reconciliation(state.term, committed.revision());
         }
         let became_local_leader = state.leader_local
             && self
@@ -446,7 +446,7 @@ impl Actor {
             && current_term == key.term
             && current_leader == key.leader
             && refresh.state.incarnation == key.incarnation
-            && refresh.state.revision == refresh.committed.revision
+            && refresh.state.revision == refresh.committed.revision()
             && committed_now.same_commit(&refresh.committed);
         let grace = self.leader_loss_grace();
         let failed_leader = if current && !refresh.state.writable {

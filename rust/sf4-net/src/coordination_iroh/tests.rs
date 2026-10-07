@@ -50,7 +50,7 @@ async fn authenticated_iroh_commit_and_host_loss() {
     assert!(nodes[0].propose(proposal).await.unwrap().accepted);
     tokio::time::timeout(Duration::from_secs(5), async {
         loop {
-            if nodes[1].committed().await.revision == 1 && nodes[2].committed().await.revision == 1
+            if nodes[1].committed().await.revision() == 1 && nodes[2].committed().await.revision() == 1
             {
                 break;
             }
@@ -80,7 +80,7 @@ async fn authenticated_iroh_commit_and_host_loss() {
         &nodes[2]
     };
     assert_eq!(
-        successor.committed().await.checkpoint,
+        successor.committed().await.checkpoint(),
         "active generation 42"
     );
     for i in 1..3 {

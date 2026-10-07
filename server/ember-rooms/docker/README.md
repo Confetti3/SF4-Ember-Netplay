@@ -58,12 +58,11 @@ Docker Engine with the compose plugin, then:
    openssl rand -hex 32 | sudo install -o root -g ember-rooms -m 0640 /dev/stdin /etc/ember-rooms/supervisor.secret
    ```
 
-   `config.json` is optional. Without it the container writes one from its environment (see
-   `entrypoint.sh`: bind, secret file, `max_rooms`, `port_range`, timings)
-   naming the image's build as the only one. With it, the file is used as it
-   is and must list the image's build under `builds` with the paths
-   `/usr/local/lib/ember-rooms/builds/<hash>/sf4e-room-host` and `.../sf4-net`,
-   which is what `deploy/setup.sh` writes.
+   `config.json` is optional: its settings (bind, secret file, `max_rooms`,
+   `port_range`, timings) are used when it is there, and the environment
+   (see `entrypoint.sh`) when it is not. Its `builds` is not: the image
+   holds one build, so the configuration the supervisor reads names that
+   build and the image's binaries, whatever the file lists.
 2. `/etc/ember-rooms/docker/` with `compose.yml` from this folder and a
    `.env` next to it:
 
@@ -130,7 +129,9 @@ Players of the old build keep their rooms until they end, so the old image
 drains while the new one is wanted at once. The supervisor serves one
 address, so on one machine the simplest order is:
 
-1. Load the new image, set `BUILD_ID` in `.env` to it.
+1. Load the new image, set `BUILD_ID` in `.env` to it. Nothing in
+   `/etc/ember-rooms/config.json` changes: the new container serves its own
+   build.
 2. `docker compose up -d`: compose replaces the container, which means a
    drain of the old one first (up to the grace period) and no new rooms of
    either build while it lasts. Do it when the rooms are quiet, or keep the

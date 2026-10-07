@@ -216,7 +216,7 @@ impl Actor {
                 Ok(ProbeAuthorization {
                     term: state.term,
                     leader: recovery.coordinator.current_leader(),
-                    revision: recovery.committed().await.revision,
+                    revision: recovery.committed().await.revision(),
                     expires,
                     deadline,
                 })
@@ -241,7 +241,7 @@ impl Actor {
             return Ok(());
         };
         let valid = if let Ok(authorization) = &result {
-            let committed_revision = recovery.committed().await.revision;
+            let committed_revision = recovery.committed().await.revision();
             key.epoch == self.epoch
                 && self.room == Some(key.room)
                 && recovery.room == key.room

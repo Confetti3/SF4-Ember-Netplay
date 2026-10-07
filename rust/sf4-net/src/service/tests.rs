@@ -301,6 +301,19 @@ async fn an_arrival_brings_the_tick_forward_but_keeps_an_overdue_one() {
 }
 
 #[tokio::test]
+async fn leaving_a_room_lets_go_of_its_cached_checkpoint() {
+    let (events, _native) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let mut actor = test_actor(endpoint().await, events);
+    let committed = Arc::new(crate::coordination::Committed::default());
+    actor.room = Some([45; 16]);
+    actor.refresh_roster = Some(([45; 16], committed.clone(), None));
+    assert_eq!(Arc::strong_count(&committed), 2);
+    actor.clear_room();
+    assert!(actor.refresh_roster.is_none());
+    assert_eq!(Arc::strong_count(&committed), 1);
+}
+
+#[tokio::test]
 async fn the_tick_slows_only_when_nothing_is_left_for_it() {
     let (events, mut native) = mpsc::channel(IPC_QUEUE_CAPACITY);
     let mut actor = test_actor(endpoint().await, events);
@@ -3654,7 +3667,7 @@ async fn expired_probe_authorization_completion_never_installs_or_dials() {
             Ok(ProbeAuthorization {
                 term: recovery.coordinator.current_term(),
                 leader: recovery.coordinator.current_leader(),
-                revision: recovery.committed().await.revision,
+                revision: recovery.committed().await.revision(),
                 expires: now().unwrap() + 60,
                 // Its window has run out on the monotonic clock, whatever the wall
                 // clock says.
@@ -5233,7 +5246,7 @@ async fn removing_a_voter_does_not_wait_for_an_unreachable_voter() {
         let retained = BTreeSet::from([host.id(), dead_primary.id()]);
         actor.committed_native_members = Some(retained.clone());
         let term = recovery.state().await.term;
-        let revision = recovery.committed().await.revision;
+        let revision = recovery.committed().await.revision();
         actor.spawn_membership_operation(retained, term, revision);
         // The replacement voter set leaves out the voter that cannot answer,
         // so the change commits instead of waiting on it.
@@ -5324,7 +5337,7 @@ async fn a_probe_reservation_wait_does_not_block_the_actor() {
                 request: "roster".into(),
                 dedup_id: "roster".into(),
                 term: state.term,
-                base: recovery.committed().await.revision,
+                base: recovery.committed().await.revision(),
                 checkpoint: roster.to_string(),
                 admin: None,
             })
@@ -5687,7 +5700,7 @@ impl ReservationFixture {
                 request: "roster".into(),
                 dedup_id: "roster".into(),
                 term: state.term,
-                base: recovery.committed().await.revision,
+                base: recovery.committed().await.revision(),
                 checkpoint: roster.to_string(),
                 admin: None,
             })
@@ -6084,7 +6097,7 @@ impl ReservationFixture {
                 request: format!("roster:{revision}"),
                 dedup_id: format!("roster:{revision}"),
                 term: self.term,
-                base: self.recovery.committed().await.revision,
+                base: self.recovery.committed().await.revision(),
                 checkpoint: roster.to_string(),
                 admin: None,
             })
