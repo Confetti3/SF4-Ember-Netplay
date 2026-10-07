@@ -223,9 +223,18 @@ void Meter(const MeterView& meter, float hudScale) {
             auto kind = ClassifyMeter(sample);
             // The frame a fighter is first up from a knockdown, and the other's attack that was active on it.
             if (sample.wake || meaty[side][first + i]) kind = MeterKind::Meaty;
+            // Holding back in a jump near an attack puts the fighter in a guard status, and nothing is guarded in the air.
+            if (kind == MeterKind::Guard && sample.status != 22) {
+                int from = first + i;
+                while (from > 0 && (meter.frames[from].fighters[side].status == 14 || meter.frames[from].fighters[side].status == 15)) --from;
+                const unsigned before = meter.frames[from].fighters[side].status;
+                if (sample.posture > 1 || before == 2 || before == 5) kind = MeterKind::Neutral;
+            }
             quad(i * cell, (i + 1) * cell - (cell >= 3 ? 1.f : 0.f), (KindColor(kind) & ~IM_COL32_A_MASK) | (static_cast<ImU32>(kind == MeterKind::Neutral ? 150 : 245) << IM_COL32_A_SHIFT));
             // A new action inside a run (a cancel, the next hit of a string) starts a new count.
-            const bool action = i > 0 && sample.valid && sample.action >= 0 && sample.action != meter.frames[first + i - 1].fighters[side].action;
+            // Guarding is one stretch whatever plays in it: the guard pose, then each blocked hit's own reaction.
+            const bool action = i > 0 && sample.valid && sample.action >= 0 && sample.action != meter.frames[first + i - 1].fighters[side].action &&
+                !(kind == MeterKind::Guard && runKind == MeterKind::Guard);
             // Each hit of a combo is its own stretch of being hit: a new one starts where the damage of the combo grows
             // or the reaction plays again, and a dark line parts it from the one before.
             const bool struck = i > 0 && kind == MeterKind::Hit && runKind == MeterKind::Hit && !action &&

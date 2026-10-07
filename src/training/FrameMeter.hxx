@@ -94,7 +94,8 @@ inline MeterKind ClassifyMeter(const FighterSample& sample) {
     if (sample.status == 24) return sample.throwRecovery ? MeterKind::Recovery : MeterKind::Sequence;
     switch (ClassifyStatus(sample.status)) {
     case Phase::Neutral: return MeterKind::Neutral;
-    case Phase::Movement: return MeterKind::Movement;
+    // A jump shows as nothing: its frames are the same every time. Walks and dashes show.
+    case Phase::Movement: return sample.status == 2 || sample.status == 5 || sample.status == 6 ? MeterKind::Neutral : MeterKind::Movement;
     case Phase::Guard: return MeterKind::Guard;
     case Phase::Hit: return MeterKind::Hit;
     case Phase::Down: return sample.status == 20 ? MeterKind::Rise : MeterKind::Down;

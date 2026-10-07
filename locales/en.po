@@ -1790,7 +1790,7 @@ msgid "training.combo.reply.block"
 msgstr "After blocking"
 
 msgid "training.combo.reply.rise"
-msgstr "On getting up"
+msgstr "On Wake-Up"
 
 msgid "training.combo.reply.any"
 msgstr "Whenever it recovers"

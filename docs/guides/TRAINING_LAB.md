@@ -144,7 +144,7 @@ Every screen of the training controls starts with, or on the first screen ends w
 
 ### Dummy reply
 
-**Dummy reply** makes the dummy act by itself once it is free again: after being hit (a dropped combo), after blocking, on getting up, or any of them. A trial that was cleared gets no reply, and none starts while a replay or a recording runs.
+**Dummy reply** makes the dummy act by itself once it is free again: after being hit (a dropped combo), after blocking, on wake-up, or any of them. A trial that was cleared gets no reply, and none starts while a replay or a recording runs.
 
 **Reply moves** is the reply typed in numpad notation (`623HP`, `44`, `2LK > 2LP xx 623HP`), read for the side the dummy faces. Move names are not read here, since the reply belongs to whoever the dummy is. While the line is empty the dummy plays the **Reply slot** instead, a dummy recording, once from its first pressed frame; **Replay moves** refuses to load over that slot.
 
