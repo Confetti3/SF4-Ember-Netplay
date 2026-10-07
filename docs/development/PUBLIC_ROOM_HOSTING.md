@@ -33,6 +33,15 @@ Each public room is two processes: `sf4e-room-host` and its network helper
 The system, the bridge, the short-link service and nginx take about 500 MB
 together, so plan on 1 GB for them.
 
+Two things to know when reading those figures. The memory column is resident
+set size, which counts the helper binary's own pages (about 19 MB of a 36 MB
+binary) in every helper although the kernel shares them between processes;
+`Pss` in `/proc/<pid>/smaps_rollup` is the real per-room number. And most of
+the CPU is spent waiting: a helper run on its own with no room open measured
+3.7 percent of a core (4 threads, 24 MB `Pss` of which 5 MB private) on a
+2.3 GHz Xeon, because its actor loop wakes every 2 ms whether or not there is
+anything to do. The work that removes that is listed below.
+
 ## Sizing
 
 Rooms a server can hold at about 110 MB each, leaving 1 GB for everything

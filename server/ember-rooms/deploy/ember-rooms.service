@@ -16,6 +16,11 @@ StateDirectory=ember-rooms
 StateDirectoryMode=0700
 WorkingDirectory=/var/lib/ember-rooms
 Environment=HOME=/var/lib/ember-rooms
+# The room hosts and helpers inherit this. glibc gives every thread its own
+# malloc arena and keeps each one at its peak, so a helper that copies a
+# 320 KiB checkpoint on a few threads holds several times that for good; two
+# arenas keep that retention small. Set in the container image too.
+Environment=MALLOC_ARENA_MAX=2
 UMask=0077
 
 # SIGTERM starts a drain: no new rooms, existing ones run until empty or
