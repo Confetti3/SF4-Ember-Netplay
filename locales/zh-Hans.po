@@ -202,7 +202,19 @@ msgid "services.exporting"
 msgstr "正在导出诊断信息..."
 
 msgid "services.downloading"
-msgstr "正在下载并验证更新..."
+msgstr "正在下载更新..."
+
+msgid "services.verifying"
+msgstr "正在验证下载..."
+
+msgid "services.extracting"
+msgstr "正在解压更新..."
+
+msgid "services.preparing"
+msgstr "正在准备更新..."
+
+msgid "services.installing"
+msgstr "正在安装更新..."
 
 msgid "services.opening_updater"
 msgstr "正在打开更新程序..."

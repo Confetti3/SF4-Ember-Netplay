@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include <windows.h>
+#include <commctrl.h>
 #include <pathcch.h>
 #include <shellapi.h>
 #include <strsafe.h>
@@ -78,9 +79,45 @@ static bool WaitForProcessExit(DWORD pid, DWORD timeoutMs) {
 	return waitResult == WAIT_OBJECT_0;
 }
 
-static bool InstallFiles(const wchar_t* staging, const wchar_t* install) {
+// A captioned progress bar, so the time between the launcher closing and
+// opening again is not an empty screen. It has no close button: the install
+// is a transaction that finishes or rolls back by itself. Its own thread keeps
+// it answering Windows while a file copy holds the install. The bar is the
+// whole window and the caption its only text.
+struct ProgressWindow { const wchar_t* title; HANDLE ready; HWND window; };
+static DWORD WINAPI RunProgressWindow(void* parameter) {
+	auto* progress = static_cast<ProgressWindow*>(parameter);
+	const int width = 440, height = 72;
+	InitCommonControls();
+	progress->window = CreateWindowExW(WS_EX_TOPMOST, PROGRESS_CLASSW, progress->title, WS_POPUP | WS_CAPTION | PBS_SMOOTH,
+		(GetSystemMetrics(SM_CXSCREEN) - width) / 2, (GetSystemMetrics(SM_CYSCREEN) - height) / 2, width, height,
+		nullptr, nullptr, nullptr, nullptr);
+	// The launcher starts this process hidden, and Windows applies that to a
+	// process's first ShowWindow whatever it asks for; the second one shows.
+	ShowWindow(progress->window, SW_SHOWNORMAL);
+	ShowWindow(progress->window, SW_SHOWNORMAL);
+	SetEvent(progress->ready);
+	MSG message;
+	while (GetMessageW(&message, nullptr, 0, 0) > 0) DispatchMessageW(&message);
+	return 0;
+}
+// Null when the window could not be made; the install goes on without it.
+static HWND ShowProgressWindow(const wchar_t* title) {
+	static ProgressWindow progress;
+	progress = { title, CreateEventW(nullptr, TRUE, FALSE, nullptr), nullptr };
+	HANDLE thread = progress.ready ? CreateThread(nullptr, 0, RunProgressWindow, &progress, 0, nullptr) : nullptr;
+	if (!thread) return nullptr;
+	WaitForSingleObject(progress.ready, 5000);
+	CloseHandle(thread);
+	return progress.window;
+}
+
+static bool InstallFiles(const wchar_t* staging, const wchar_t* install, HWND bar) {
     std::string error;
-    if (sf4e::launcher::InstallPackage(staging, install, error)) return true;
+    if (sf4e::launcher::InstallPackage(staging, install, error, [bar](unsigned done, unsigned total) {
+        if (!bar) return;
+        PostMessageW(bar, PBM_SETRANGE32, 0, total); PostMessageW(bar, PBM_SETPOS, done, 0);
+    })) return true;
     AppendLog(error.c_str()); return false;
 }
 static bool StartLauncher(const wchar_t* installDir, const wchar_t* arguments = nullptr) {
@@ -110,7 +147,7 @@ static bool StartLauncher(const wchar_t* installDir, const wchar_t* arguments = 
 	return true;
 }
 
-static bool ParseArgs(int argc, wchar_t** argv, wchar_t* installDir, int installDirChars, wchar_t* stagingDir, int stagingDirChars, DWORD* waitPid, bool* recoverOnly, bool* uninstall) {
+static bool ParseArgs(int argc, wchar_t** argv, wchar_t* installDir, int installDirChars, wchar_t* stagingDir, int stagingDirChars, DWORD* waitPid, bool* recoverOnly, bool* uninstall, const wchar_t** status) {
 	installDir[0] = L'\0';
 	stagingDir[0] = L'\0';
 	*waitPid = 0;
@@ -127,6 +164,7 @@ static bool ParseArgs(int argc, wchar_t** argv, wchar_t* installDir, int install
 		else if (_wcsicmp(argv[i], L"-WaitPid") == 0 && i + 1 < argc) {
 			*waitPid = (DWORD)_wtoi(argv[++i]);
 		}
+		else if (_wcsicmp(argv[i], L"-Status") == 0 && i + 1 < argc) { if (argv[++i][0]) *status = argv[i]; }
 		else if (_wcsicmp(argv[i], L"-RecoverOnly") == 0) { *recoverOnly = true; }
 		else if (_wcsicmp(argv[i], L"-Uninstall") == 0) { *uninstall = true; }
 	}
@@ -154,6 +192,9 @@ int wmain(int argc, wchar_t** argv) {
 	wchar_t stagingDir[MAX_PATH] = { 0 };
 	DWORD waitPid = 0;
 	bool recoverOnly = false, uninstall = false;
+	// The launcher passes this in the player's language; one from before
+	// -Status does not.
+	const wchar_t* status = L"Installing the update...";
 
 	// Players double-click Updater.exe to update. Its own work needs the
 	// launcher's arguments, so a plain start opens the launcher's Updates
@@ -173,7 +214,7 @@ int wmain(int argc, wchar_t** argv) {
 		return 1;
 	}
 
-	if (!ParseArgs(argc, argv, installDir, MAX_PATH, stagingDir, MAX_PATH, &waitPid, &recoverOnly, &uninstall)) {
+	if (!ParseArgs(argc, argv, installDir, MAX_PATH, stagingDir, MAX_PATH, &waitPid, &recoverOnly, &uninstall, &status)) {
 		AppendLog("ERROR: missing -InstallDir or -StagingDir");
 		return 1;
 	}
@@ -220,6 +261,9 @@ int wmain(int argc, wchar_t** argv) {
 		return 1;
 	}
 
+	wchar_t title[512] = { 0 };
+	_snwprintf_s(title, _TRUNCATE, L"SF4 Ember Netplay - %s", status);
+	const HWND bar = ShowProgressWindow(title);
 	if (!WaitForProcessExit(waitPid, 30000)) {
 		AppendLog("ERROR: launcher is still running; update cancelled");
         StartLauncher(installDir, L"--updates --update-error");
@@ -229,7 +273,7 @@ int wmain(int argc, wchar_t** argv) {
 
 	Sleep(500);
 
-	if (!InstallFiles(stagingDir, installDir)) {
+	if (!InstallFiles(stagingDir, installDir, bar)) {
         StartLauncher(installDir, L"--updates --update-error");
 		return 1;
 	}

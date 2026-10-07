@@ -92,10 +92,14 @@ int wmain(int argc, wchar_t** argv) {
     Write(staging/L"Launcher.exe","new");
     Write(staging/L"docs\\TRAINING_LAB.md","unlisted");
     CHECK(!sf4e::launcher::ValidatePackageFolder(staging,error)); fs::remove(staging/L"docs\\TRAINING_LAB.md"); fs::remove(staging/L"docs");
-    CHECK(sf4e::launcher::ValidatePackageFolder(staging,error));
+    std::uint64_t checked=0,named=0;
+    CHECK(sf4e::launcher::ValidatePackageFolder(staging,error,[&](std::uint64_t done,std::uint64_t total){checked=done;named=total;}));
+    CHECK(named>0 && checked==named);
     // This version ships a doc and a selection asset the older one below lacks.
     Write(staging/L"docs\\TRAINING_LAB.md","new"); Write(staging/L"assets\\selection\\sources.json","new"); Manifest(staging);
-    CHECK(sf4e::launcher::InstallPackage(staging,install,error));
+    unsigned lastDone=0,lastTotal=0;
+    CHECK(sf4e::launcher::InstallPackage(staging,install,error,[&](unsigned done,unsigned total){lastDone=done;lastTotal=total;}));
+    CHECK(lastTotal>0 && lastDone==lastTotal);
     CHECK(Read(install/L"Launcher.exe") == "new" && !fs::exists(install/L"Qt6Core.dll"));
     CHECK(!fs::exists(install/L"dxwrapper.dll") && !fs::exists(install/L"Safe display.cmd"));
     CHECK(Read(install/L"d3d9.dll") == "user-owned-proxy");

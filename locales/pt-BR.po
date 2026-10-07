@@ -202,7 +202,19 @@ msgid "services.exporting"
 msgstr "Exportando diagnóstico..."
 
 msgid "services.downloading"
-msgstr "Baixando e verificando a atualização..."
+msgstr "Baixando a atualização..."
+
+msgid "services.verifying"
+msgstr "Verificando o download..."
+
+msgid "services.extracting"
+msgstr "Extraindo a atualização..."
+
+msgid "services.preparing"
+msgstr "Preparando a atualização..."
+
+msgid "services.installing"
+msgstr "Instalando a atualização..."
 
 msgid "services.opening_updater"
 msgstr "Abrindo o atualizador..."

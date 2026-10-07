@@ -202,7 +202,19 @@ msgid "services.exporting"
 msgstr "Export diagnostiky..."
 
 msgid "services.downloading"
-msgstr "Stahování a ověřování aktualizace..."
+msgstr "Stahování aktualizace..."
+
+msgid "services.verifying"
+msgstr "Ověřování staženého souboru..."
+
+msgid "services.extracting"
+msgstr "Rozbalování aktualizace..."
+
+msgid "services.preparing"
+msgstr "Příprava aktualizace..."
+
+msgid "services.installing"
+msgstr "Instalace aktualizace..."
 
 msgid "services.opening_updater"
 msgstr "Otevírání aktualizátoru..."

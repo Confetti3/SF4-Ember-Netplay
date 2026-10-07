@@ -13,8 +13,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -49,10 +51,10 @@ namespace launcher {
 		bool IsAllowedUpdateUrl(const char* url);
 		bool FindPackageRoot(const wchar_t* searchRoot, wchar_t* outRoot, int outRootChars);
 		bool ValidateExtractedTree(const wchar_t* extractRoot);
-		bool ValidateStagedPackage(const wchar_t* stagingDir);
+		bool ValidateStagedPackage(const wchar_t* stagingDir, const std::function<void(std::uint64_t, std::uint64_t)>& progress = {});
 
 		// Defined in github_release_download.cxx.
-		bool ComputeFileSha256Hex(const wchar_t* filePath, std::string& outHex);
+		bool ComputeFileSha256Hex(const wchar_t* filePath, std::string& outHex, const std::function<void(std::uint64_t, std::uint64_t)>& progress = {});
 		bool HexEqualsIgnoreCase(const std::string& a, const std::string& b);
 		bool DownloadReleaseZip(
 			const char* zipApiUrl,

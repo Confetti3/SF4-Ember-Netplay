@@ -54,6 +54,9 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
     rows.push_back(Row("close",loc::T("common.close"),state.pending?loc::T("recovery.close_cancels_detail"):
         loc::T(updates?"updates.close_detail":"recovery.close_detail")));
     // Back on the root closes the window, so the legend says so.
+    // Rows wait while the worker is busy; the status line and the bar say with
+    // what, so their panes do not add "Unavailable".
+    if(state.pending)for(auto& row:rows)row.quiet=true;
     menu.backHint=updates?loc::T("updates.back_close"):loc::T("recovery.back_close");
     const auto* vp=ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);
@@ -68,7 +71,9 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
     // run to several lines and name the files to move and the folders to look in.
     menu.fitStatus=true;
     const auto action=menu.Draw(updates?loc::T("updates.title"):loc::T("recovery.title"),rows,status.c_str(),[&](const std::string&){
-        if(!state.pending||!state.downloadedBytes)return;
+        if(!state.pending)return;
+        if(state.stageTotal){ImGui::ProgressBar((std::min)(1.f,float(state.stageDone)/state.stageTotal),ImVec2(-1,0));return;}
+        if(!state.downloadedBytes)return;
         if(state.totalBytes)ImGui::ProgressBar((std::min)(1.f,float(state.downloadedBytes)/state.totalBytes),ImVec2(-1,0));
         const auto progress=loc::Tf("updates.downloaded_mb",state.downloadedBytes/1048576.0);
         ImGui::TextWrapped("%s",progress.c_str());

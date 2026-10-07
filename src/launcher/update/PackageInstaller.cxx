@@ -373,7 +373,8 @@ Inventory ReadInventory(const fs::path& file) {
 }
 // The package's files by relative path, each with its manifest hash, once
 // every file matched the manifest and the manifest named nothing missing.
-static std::map<std::wstring,std::pair<fs::path,std::string>> VerifiedPackage(const fs::path& package) {
+static std::map<std::wstring,std::pair<fs::path,std::string>> VerifiedPackage(const fs::path& package,
+    const std::function<void(std::uint64_t, std::uint64_t)>& progress = {}) {
     CheckPath(package.root_path(),package.relative_path());
     if(!fs::is_directory(package)) throw std::runtime_error("Invalid package folder");
     auto manifest=ReadManifest(package/L"MANIFEST.txt");
@@ -389,6 +390,7 @@ static std::map<std::wstring,std::pair<fs::path,std::string>> VerifiedPackage(co
         if(named==manifest.end()) throw std::runtime_error("Package file not in its manifest");
         if(!SameHash(HashFile(entry->path()),named->second.second)) throw std::runtime_error("Package file failed verification");
         seen.insert(key);
+        if(progress) progress(seen.size(),manifest.size());
     }
     for(const auto& [key,named]:manifest) if(!seen.count(key)) throw std::runtime_error("Incomplete package");
     // Matching its manifest is not having what it needs: a package also meets
@@ -402,11 +404,13 @@ static std::map<std::wstring,std::pair<fs::path,std::string>> VerifiedPackage(co
     return manifest;
 }
 std::string Sha256Hex(const fs::path& file) { return HashFile(file); }
-bool ValidatePackageFolder(const fs::path& packageInput, std::string& error) {
-    try { VerifiedPackage(fs::absolute(packageInput).lexically_normal()); error.clear(); return true; }
+bool ValidatePackageFolder(const fs::path& packageInput, std::string& error,
+    const std::function<void(std::uint64_t, std::uint64_t)>& progress) {
+    try { VerifiedPackage(fs::absolute(packageInput).lexically_normal(),progress); error.clear(); return true; }
     catch(const std::exception& failure){error=failure.what();return false;}
 }
-bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, std::string& error) {
+bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, std::string& error,
+    const std::function<void(unsigned, unsigned)>& progress) {
     std::vector<Change> changed;
     fs::path install, backup;
     std::unique_ptr<InstallLock> installLock;
@@ -418,7 +422,11 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         CheckPath(install.root_path(),install.relative_path());
         installLock=std::make_unique<InstallLock>(Lock(install));
         if(!RecoverLocked(install,error,false)) throw std::runtime_error(error);
-        const auto package=VerifiedPackage(staging);
+        // Checking the package is the first quarter of the file steps; the
+        // exact total is known once the removals are.
+        const auto package=VerifiedPackage(staging,[&](std::uint64_t checked,std::uint64_t named){
+            if(progress) progress(unsigned(checked),unsigned(4*named));
+        });
         std::vector<fs::path> files, removals;
         for(const auto& [key,named]:package) { CheckPath(install,named.first); files.push_back(named.first); }
         // Removals are what this folder owns and the package lacks: the files
@@ -446,6 +454,8 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         backup = install / L".ember-update-backups" / (std::to_wstring(GetTickCount64())+L"-"+std::to_wstring(GetCurrentProcessId())+L"-"+std::to_wstring(++serial));
         CheckPath(install,backup.lexically_relative(install));
         fs::create_directories(backup);
+        unsigned done=unsigned(files.size()); const unsigned total=unsigned(removals.size()+4*files.size());
+        const auto step=[&]{ if(progress) progress(++done,total); };
         const auto preserve = [&](const fs::path& rel) {
             CheckPath(install,rel);
             const bool existed = fs::exists(install/rel);
@@ -457,6 +467,7 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
                 FlushFile(backup/rel);
             }
             changed.push_back({rel,existed});
+            step();
         };
         for (const auto& rel : removals) preserve(rel);
         for (const auto& rel : files) preserve(rel);
@@ -474,8 +485,12 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         for (const auto& rel : files) {
             ReplaceFileVerified(staging/rel,install/rel,target.at(rel.generic_u8string()).get<std::string>());
             if(terminateAfter && ++completed==std::atoi(terminateAfter)) TerminateProcess(GetCurrentProcess(),86);
+            step();
         }
-        for(const auto& item:target.items()) if(HashFile(install/fs::u8path(item.key()))!=item.value().get<std::string>()) throw std::runtime_error("Installed update verification failed");
+        for(const auto& item:target.items()) {
+            if(HashFile(install/fs::u8path(item.key()))!=item.value().get<std::string>()) throw std::runtime_error("Installed update verification failed");
+            step();
+        }
         transaction["state"]="committed"; DurableJson(install/TransactionName,transaction);
         if(terminateAfter && strcmp(terminateAfter,"commit")==0) TerminateProcess(GetCurrentProcess(),86);
         fs::remove(install/TransactionName);

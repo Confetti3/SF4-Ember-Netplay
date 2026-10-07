@@ -78,6 +78,8 @@ struct ServiceSnapshot {
     ServiceAction lastAction = ServiceAction::None;
     std::string message;
     std::uint64_t downloadedBytes = 0, totalBytes = 0;
+    // How far the step after the download is (checking, unpacking, preparing).
+    std::uint64_t stageDone = 0, stageTotal = 0;
     launcher::UpdateCheckResult update;
     // The version on this PC and the channel its checks use, read once at
     // start; the worker changes the channel, so no one else reads the file.

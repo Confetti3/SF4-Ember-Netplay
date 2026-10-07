@@ -888,7 +888,7 @@ if(BUILD_TESTING)
     add_test(NAME FramePacingCaptureValidation COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${CMAKE_SOURCE_DIR}/scripts/test-capture-frame-pacing.ps1)
     set_tests_properties(FramePacingCaptureValidation PROPERTIES TIMEOUT 60)
 endif()
-target_link_libraries(Updater PRIVATE sf4e_package_installer sf4e_selection "pathcch" "shell32")
+target_link_libraries(Updater PRIVATE sf4e_package_installer sf4e_selection "pathcch" "shell32" "comctl32")
 set_target_properties(Updater PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 sf4e_configure_windows_version(Updater "SF4 Ember Netplay Updater" "Updater.exe" "VFT_APP")
 

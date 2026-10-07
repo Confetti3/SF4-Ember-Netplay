@@ -100,6 +100,23 @@ namespace launcher {
 			}
 		}
 
+		// The number of entries the archive's end record names, or 0 when it
+		// cannot be read or the archive is a zip64 one. Entries, not bytes:
+		// a package is thousands of small files, so the count moves evenly.
+		static std::uint64_t ZipEntryCount(const wchar_t* zipPath) {
+			std::ifstream zip(zipPath, std::ios::binary | std::ios::ate);
+			const std::streamoff size = zip.tellg();
+			if (size < 22) return 0;
+			// The record is 22 bytes and a comment of at most 65535 follows it.
+			std::string tail(static_cast<size_t>((std::min<std::streamoff>)(size, 22 + 65535)), '\0');
+			zip.seekg(size - static_cast<std::streamoff>(tail.size()));
+			if (!zip.read(&tail[0], tail.size())) return 0;
+			const size_t record = tail.rfind("PK\x05\x06");
+			if (record == std::string::npos || record + 22 > tail.size()) return 0;
+			const unsigned count = static_cast<unsigned char>(tail[record + 10]) | static_cast<unsigned char>(tail[record + 11]) << 8;
+			return count == 0xFFFF ? 0 : count;
+		}
+
 		static bool ExpandZipArchive(const wchar_t* zipPath, const wchar_t* destDir,
 			const std::function<bool(std::uint64_t, std::uint64_t)>& progress) {
 			// The system tar by full path: a bare name would be searched for in the
@@ -622,7 +639,9 @@ namespace launcher {
 		const char* latestVersionTag,
 		const char* expectedSha256,
 		bool goBack,
-        const std::function<bool(std::uint64_t, std::uint64_t)>& progress
+        const std::function<bool(std::uint64_t, std::uint64_t)>& progress,
+        const UpdateStageProgress& stage,
+        const char* installingText
 	) {
 		ApplyUpdateResult result;
 		if ((!zipDownloadUrl || !zipDownloadUrl[0]) && (!zipApiUrl || !zipApiUrl[0])) {
@@ -737,10 +756,14 @@ namespace launcher {
 		// asset before we extract or run anything from it. A mismatch means the zip
 		// was tampered with or corrupted in transit, so refuse it. Releases that
 		// predate GitHub asset digests provide no expected hash and are refused.
+		const auto report = [&stage](UpdateStage step) {
+			return [&stage, step](std::uint64_t done, std::uint64_t total) { if (stage) stage(step, done, total); };
+		};
+		report(UpdateStage::Verifying)(0, 0);
 		std::string expectedHash = (expectedSha256 && expectedSha256[0]) ? expectedSha256 : "";
 		if (!expectedHash.empty()) {
 			std::string actualHash;
-			if (!ComputeFileSha256Hex(zipPath, actualHash)) {
+			if (!ComputeFileSha256Hex(zipPath, actualHash, report(UpdateStage::Verifying))) {
 				AppendUpdateLog("hash computation failed");
 				result.error = loc::T("update.verify_failed");
 				return result;
@@ -755,7 +778,23 @@ namespace launcher {
 			result.error = loc::T("update.no_digest"); return result;
 		}
 
-		const bool extracted = ExpandZipArchive(zipPath, extractDir, progress);
+		// tar reports nothing, so the folder it fills is counted against the
+		// archive's entries each time the wait asks whether to go on.
+		const std::uint64_t entries = ZipEntryCount(zipPath);
+		const auto extracting = report(UpdateStage::Extracting);
+		extracting(0, entries);
+		const bool extracted = ExpandZipArchive(zipPath, extractDir, [&](std::uint64_t received, std::uint64_t total) {
+			if (entries) {
+				std::error_code error;
+				std::uint64_t present = 0;
+				for (std::filesystem::recursive_directory_iterator entry(extractDir, error), end; !error && entry != end; entry.increment(error))
+					if (!entry->is_directory(error)) ++present;
+				// Release archives list files only; one that lists its folders
+				// too ends a little short of full.
+				extracting((std::min)(present, entries), entries);
+			}
+			return !progress || progress(received, total);
+		});
 		DeleteFileW(zipPath);
 		if (!extracted) {
 			AppendUpdateLog("extract failed");
@@ -765,6 +804,7 @@ namespace launcher {
 			return result;
 		}
 		AppendUpdateLog("extract ok");
+		report(UpdateStage::Preparing)(0, 0);
 
 		if (!ValidateExtractedTree(extractDir)) {
 			AppendUpdateLog("extract path validation failed");
@@ -786,7 +826,7 @@ namespace launcher {
 			return result;
 		}
 		AppendUpdateLog(("staging dir: " + std::string(stagingUtf8)).c_str());
-		if (!ValidateStagedPackage(stagingDir)) {
+		if (!ValidateStagedPackage(stagingDir, report(UpdateStage::Preparing))) {
 			AppendUpdateLog("package validation failed");
 			result.error = loc::T("update.validation_failed");
 			return result;
@@ -796,8 +836,12 @@ namespace launcher {
         if (progress && !progress(0,0)) { result.error = loc::T("update.cancelled"); return result; }
         if (IsGameProcessRunning()) { result.error = loc::T("update.close_game"); return result; }
 		wchar_t updaterParams[4096] = { 0 };
-		swprintf_s(updaterParams, L"-InstallDir \"%s\" -StagingDir \"%s\" -WaitPid %lu",
-			installDir, stagingDir, GetCurrentProcessId());
+		// An Updater.exe from before -Status ignores it. The text is ours, but
+		// a quote in it would end the argument early.
+		std::wstring status = std::filesystem::u8path(installingText ? installingText : "").wstring();
+		std::replace(status.begin(), status.end(), L'"', L'\'');
+		swprintf_s(updaterParams, L"-InstallDir \"%s\" -StagingDir \"%s\" -WaitPid %lu -Status \"%s\"",
+			installDir, stagingDir, GetCurrentProcessId(), status.c_str());
         switch (SpawnUpdater(installDir, goBack ? installDir : stagingDir, updaterParams)) {
         case SpawnResult::Started: break;
         case SpawnResult::NotNormalUser: result.error = loc::T("update.elevated"); return result;
