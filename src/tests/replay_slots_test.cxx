@@ -41,6 +41,12 @@ static void Fill(Bytes& list, Bytes& swan, int slot, const Bytes& replay, std::u
 	WriteU32(record + 9, static_cast<std::uint32_t>(replay.size()));
 	WriteU32(record + 13, 1549657440);
 	std::memset(record + 17, meta, kRecordBytes - 17);
+	// What the game shows has to be showable (PlausibleRecord): no title, two
+	// fighters of the roster, 8 February 2019, 20:24.
+	WriteU32(record + 22, 0);
+	record[51] = 0xE3; record[52] = 0x07; record[53] = 2; record[54] = 8;
+	record[71] = meta % 40; record[105] = (meta + 1) % 40;
+	record[123] = 20; record[124] = 24;
 	swan[kSwanSlotBytesOffset + slot * 2] = swan[kSwanSlotBytesOffset + slot * 2 + 1] = 0x0E;
 	Seal(swan);
 }
@@ -89,7 +95,7 @@ static void TestExportFromBothIndexes() {
 		const std::uint8_t* record = exported.data() + 8;
 		CHECK(ReadU32(record) == static_cast<std::uint32_t>(slot) && record[4] == 1);
 		CHECK(ReadU32(record + 9) == replay.size() && ReadU32(record + 13) == 1549657440);
-		CHECK(record[17] == meta && record[kRecordBytes - 1] == meta);
+		CHECK(record[17] == meta && record[kRecordBytes - 3] == meta);
 		CHECK(record[kRecordBytes] == 0x0E && record[kRecordBytes + 1] == 0x0E);
 		CHECK(Bytes(exported.begin() + kExportHeaderBytes, exported.end()) == replay);
 		const SlotInfo info = ReadSlot(list, swan, slot);
@@ -227,7 +233,7 @@ static void TestExportFromASaverReplayAndEntry() {
 	Bytes replayBack;
 	CHECK(Import(exported, 290, 1700000000, list, swan, replayBack));
 	CHECK(replayBack == replay && ReadSlot(list, swan, 290).used);
-	CHECK(Record(list, swan, 290)[71] == 0xD4 && Record(list, swan, 290)[kRecordBytes - 3] == 0xD4);
+	CHECK(Record(list, swan, 290)[17] == 0xD4 && Record(list, swan, 290)[kRecordBytes - 3] == 0xD4);
 	CHECK(!ExportFromReplay(Replay(0x56, 7000), entry, exported)); // another replay
 	CHECK(!ExportFromReplay(replay, Bytes(entry.begin(), entry.end() - 1), exported));
 }
@@ -308,7 +314,44 @@ static void TestASlotFileAheadOfItsRecord() {
 	CHECK(ExportSlotFile(list, swan, 301, old, Bytes(), exported, fromRecord) && fromRecord);
 }
 
+// A list that names a slot nowhere: its position serves only when the record
+// there names no slot, never when it is another slot's.
+static void TestRecordNeverTakesAnotherSlots() {
+	Bytes list = EmptyList(), swan = EmptySwan();
+	std::uint8_t* at30 = list.data() + kListRecordsOffset + 30 * kRecordBytes;
+	WriteU32(at30, 36); // slot 30's position now holds slot 36's record, and no record names 30
+	const std::uint8_t* at36 = list.data() + kListRecordsOffset + 36 * kRecordBytes;
+	CHECK(Record(list, swan, 36) == at30);
+	CHECK(Record(list, swan, 30) == nullptr);
+	WriteU32(at30, 0xFFFFFFFF); // never filled: the position is the slot's again
+	CHECK(Record(list, swan, 30) == at30 && Record(list, swan, 36) == at36);
+}
+
+// An export from anyone: a record whose fields the game would not show is refused.
+static void TestImportRefusesAnImplausibleRecord() {
+	Bytes replay = Replay(0x00, 8000), exported, back;
+	WriteU32(replay.data() + 0x20, 38); WriteU32(replay.data() + 0x170, 1);
+	const std::uint64_t filetime = 116444736000000000ull + 1791302248ull * 10000000ull;
+	WriteU32(replay.data() + 0x10, static_cast<std::uint32_t>(filetime)); WriteU32(replay.data() + 0x14, static_cast<std::uint32_t>(filetime >> 32));
+	CHECK(ExportFromReplayAlone(replay, exported));
+	const auto refused = [&](std::size_t at, std::uint8_t value) {
+		Bytes bad = exported, list = EmptyList(), swan = EmptySwan();
+		bad[8 + at] = value;
+		return !Import(bad, 300, 1800000000, list, swan, back);
+	};
+	Bytes list = EmptyList(), swan = EmptySwan();
+	CHECK(Import(exported, 300, 1800000000, list, swan, back));
+	CHECK(refused(71, 200)); // a fighter outside the roster
+	CHECK(refused(105, 64));
+	CHECK(refused(53, 13)); // month 13
+	CHECK(refused(54, 0)); // day 0
+	CHECK(refused(123, 24)); // hour 24
+	CHECK(refused(22, 22)); // a title longer than its field
+}
+
 int main() {
+	TestRecordNeverTakesAnotherSlots();
+	TestImportRefusesAnImplausibleRecord();
 	TestASlotFileAheadOfItsRecord();
 	TestAnImportedReplayIsKnownByItsCrc();
 	TestExportFromAReplayAlone();
