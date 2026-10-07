@@ -629,7 +629,7 @@ msgid "home.training_detail"
 msgstr "Go straight into Training mode, without the Fight Request question."
 
 msgid "settings.training_auto_ready"
-msgstr "Ready me when called from Training"
+msgstr "Auto-ready from Training"
 
 msgid "settings.training_auto_ready_detail"
 msgstr "Off: called out of Training to your table, you have 15 seconds to press Ready, or you give up the seat. On: you are readied at once."

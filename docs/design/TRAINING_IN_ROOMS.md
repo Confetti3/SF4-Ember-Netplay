@@ -24,7 +24,7 @@ is left for a decision.
 5. They press Ready and the match starts the usual way. If the 15 seconds run
    out, their seat is given up, by the action the Leave seat row sends, and a
    notice says so.
-6. With **Ready me when called from Training** on (Settings, off by default)
+6. With **Auto-ready from Training** on (Settings, off by default)
    they are readied at once instead.
 
 ## What it rests on
