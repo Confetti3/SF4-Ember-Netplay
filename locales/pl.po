@@ -647,7 +647,13 @@ msgid "replays.watch"
 msgstr "Obejrzyj teraz"
 
 msgid "replays.watch_detail"
-msgstr "Dodaje do listy powtórek gry i otwiera dziennik walk, gdzie jest na górze."
+msgstr "Dodaje do listy powtórek gry i odtwarza ją z dziennika walk."
+
+msgid "replays.save_watched"
+msgstr "Zapisuj oglądane mecze"
+
+msgid "replays.save_watched_detail"
+msgstr "Wł.: nagrywane są też mecze, które tylko oglądasz. Wył.: tylko mecze, w których grasz."
 
 msgid "replays.row_detail"
 msgstr "Wybierz, aby dodać do listy powtórek gry, albo dodać i obejrzeć teraz."

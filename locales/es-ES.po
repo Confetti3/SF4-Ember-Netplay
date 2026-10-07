@@ -647,7 +647,13 @@ msgid "replays.watch"
 msgstr "Ver ahora"
 
 msgid "replays.watch_detail"
-msgstr "La añade a la lista de repeticiones del juego y abre el registro de combates, donde queda la primera."
+msgstr "La añade a la lista de repeticiones del juego y la reproduce desde el registro de combates."
+
+msgid "replays.save_watched"
+msgstr "Guardar partidas que ves"
+
+msgid "replays.save_watched_detail"
+msgstr "Sí: también se graban las partidas que solo ves. No: solo las partidas que juegas."
 
 msgid "replays.row_detail"
 msgstr "Selecciona para añadirla a la lista de repeticiones del juego, o para añadirla y verla ahora."

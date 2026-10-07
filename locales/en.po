@@ -647,7 +647,13 @@ msgid "replays.watch"
 msgstr "Watch now"
 
 msgid "replays.watch_detail"
-msgstr "Adds it to the game's replay list and opens the battle log, where it is the top entry."
+msgstr "Adds it to the game's replay list and plays it from the battle log."
+
+msgid "replays.save_watched"
+msgstr "Save matches you watch"
+
+msgid "replays.save_watched_detail"
+msgstr "On: matches you only watch are recorded too. Off: only the matches you play."
 
 msgid "replays.row_detail"
 msgstr "Select to add it to the game's replay list, or to add it and watch it now."

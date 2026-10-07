@@ -647,7 +647,13 @@ msgid "replays.watch"
 msgstr "Přehrát teď"
 
 msgid "replays.watch_detail"
-msgstr "Přidá do seznamu záznamů hry a otevře záznam zápasů, kde je nahoře."
+msgstr "Přidá do seznamu záznamů hry a přehraje ho ze záznamu zápasů."
+
+msgid "replays.save_watched"
+msgstr "Ukládat sledované zápasy"
+
+msgid "replays.save_watched_detail"
+msgstr "ZAP: nahrávají se i zápasy, které jen sledujete. VYP: jen zápasy, které hrajete."
 
 msgid "replays.row_detail"
 msgstr "Vyberte pro přidání do seznamu záznamů hry, nebo pro přidání a přehrání teď."

@@ -647,7 +647,13 @@ msgid "replays.watch"
 msgstr "Guarda ora"
 
 msgid "replays.watch_detail"
-msgstr "Lo aggiunge all'elenco dei replay del gioco e apre il registro degli incontri, dove è in cima."
+msgstr "Lo aggiunge all'elenco dei replay del gioco e lo riproduce dal registro degli incontri."
+
+msgid "replays.save_watched"
+msgstr "Salva le partite che guardi"
+
+msgid "replays.save_watched_detail"
+msgstr "Sì: vengono registrate anche le partite che guardi soltanto. No: solo le partite che giochi."
 
 msgid "replays.row_detail"
 msgstr "Seleziona per aggiungerlo all'elenco dei replay del gioco, o per aggiungerlo e guardarlo ora."

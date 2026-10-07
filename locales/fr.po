@@ -647,7 +647,13 @@ msgid "replays.watch"
 msgstr "Regarder maintenant"
 
 msgid "replays.watch_detail"
-msgstr "L'ajoute à la liste des replays du jeu et ouvre le journal de combats, où il est en tête."
+msgstr "L'ajoute à la liste des replays du jeu et le lit depuis le journal de combats."
+
+msgid "replays.save_watched"
+msgstr "Enregistrer les matchs regardés"
+
+msgid "replays.save_watched_detail"
+msgstr "Oui : les matchs que vous ne faites que regarder sont enregistrés aussi. Non : seulement les matchs que vous jouez."
 
 msgid "replays.row_detail"
 msgstr "Sélectionnez pour l'ajouter à la liste des replays du jeu, ou pour l'ajouter et le regarder maintenant."
