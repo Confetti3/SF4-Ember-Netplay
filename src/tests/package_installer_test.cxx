@@ -97,9 +97,9 @@ int wmain(int argc, wchar_t** argv) {
     CHECK(named>0 && checked==named);
     // This version ships a doc and a selection asset the older one below lacks.
     Write(staging/L"docs\\TRAINING_LAB.md","new"); Write(staging/L"assets\\selection\\sources.json","new"); Manifest(staging);
-    unsigned lastDone=0,lastTotal=0;
-    CHECK(sf4e::launcher::InstallPackage(staging,install,error,[&](unsigned done,unsigned total){lastDone=done;lastTotal=total;}));
-    CHECK(lastTotal>0 && lastDone==lastTotal);
+    unsigned steps=0,lastDone=0,lastTotal=0;
+    CHECK(sf4e::launcher::InstallPackage(staging,install,error,[&](unsigned done,unsigned total){++steps;lastDone=done;lastTotal=total;}));
+    CHECK(steps>0 && lastTotal>0 && lastDone==lastTotal);
     CHECK(Read(install/L"Launcher.exe") == "new" && !fs::exists(install/L"Qt6Core.dll"));
     CHECK(!fs::exists(install/L"dxwrapper.dll") && !fs::exists(install/L"Safe display.cmd"));
     CHECK(Read(install/L"d3d9.dll") == "user-owned-proxy");
@@ -112,9 +112,28 @@ int wmain(int argc, wchar_t** argv) {
         if (item.path().filename() == L"dxwrapper.dll") displayBacked = Read(item.path()) == "previous-display-wrapper";
     }
     CHECK(backed && displayBacked);
-    // H-013: another update replaces the backup set instead of adding one.
+    // The same package again writes nothing: the backup set of the update
+    // before stays, and no file is rewritten.
+    const auto launcherWritten=fs::last_write_time(install/L"Launcher.exe");
     CHECK(sf4e::launcher::InstallPackage(staging,install,error));
+    CHECK(backed && fs::last_write_time(install/L"Launcher.exe")==launcherWritten && !fs::exists(install/L".ember-update-transaction-v1.json"));
+    backed=false;
+    for (const auto& item : fs::recursive_directory_iterator(install/L".ember-update-backups")) backed=backed||item.path().filename()==L"Qt6Core.dll";
+    CHECK(backed);
+    // H-013: another update replaces the backup set instead of adding one,
+    // and backs up only the file it changes.
+    Write(staging/L"Launcher.exe","newer"); Manifest(staging);
+    CHECK(sf4e::launcher::InstallPackage(staging,install,error));
+    CHECK(Read(install/L"Launcher.exe")=="newer");
     CHECK(std::distance(fs::directory_iterator(install/L".ember-update-backups"), fs::directory_iterator()) == 1);
+    backed=false; bool unchangedBacked=false;
+    for (const auto& item : fs::recursive_directory_iterator(install/L".ember-update-backups")) {
+        if (item.path().filename() == L"Launcher.exe") backed = Read(item.path()) == "new";
+        if (item.path().filename() == L"Updater.exe") unchangedBacked = true;
+    }
+    CHECK(backed && !unchangedBacked);
+    Write(staging/L"Launcher.exe","new"); Manifest(staging);
+    CHECK(sf4e::launcher::InstallPackage(staging,install,error) && Read(install/L"Launcher.exe")=="new");
     const auto keptBackup = fs::directory_iterator(install/L".ember-update-backups")->path();
     // A late obsolete-file failure must roll back earlier replacements.
     Write(staging/L"Launcher.exe","third"); Manifest(staging); fs::create_directory(install/L"Qt6Core.dll");

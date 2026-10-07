@@ -17,12 +17,13 @@ bool ValidatePackageFolder(const std::filesystem::path& package, std::string& er
 // Lowercase hex SHA-256 of a file, as MANIFEST.txt writes it.
 std::string Sha256Hex(const std::filesystem::path& file);
 // Makes the folder's product files exactly the package's, whichever of the
-// two is older: files the package has are replaced; files the installed
+// two is older: files the package has are replaced, unless the folder's copy
+// already is the package's; files the installed
 // MANIFEST.txt names, or the obsolete list, that the package lacks are
 // removed; each with a rollback copy and a journal entry. Anything else in
 // the folder is the player's and is never touched. Refuses reparse points in
 // either tree. `progress` hears how many of the file steps (check the package,
-// back up, replace, check the result) are done.
+// compare, back up, replace, check the result) are done.
 bool InstallPackage(const std::filesystem::path& staging, const std::filesystem::path& install, std::string& error,
     const std::function<void(unsigned done, unsigned total)>& progress = {});
 // Restores an interrupted transaction, or validates and clears a committed one.
