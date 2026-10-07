@@ -1,8 +1,10 @@
 //! Runs the real `ember-rooms` binary and sends it SIGTERM, as systemd does
 //! on a restart (`KillMode=mixed`: the signal goes to the supervisor only).
 //! The supervisor must drain: refuse new rooms, leave an occupied room's host
-//! running, and exit 0 once the room ends or `drain_secs` has passed. Unix
-//! only; on other platforms this file compiles to nothing.
+//! running, and exit 0 once the room ends or `drain_secs` has passed. SIGHUP,
+//! as `systemctl reload` sends it, must re-read the configuration and leave
+//! the supervisor and its rooms running. Unix only; on other platforms this
+//! file compiles to nothing.
 #![cfg(all(unix, feature = "test-fake-host"))]
 
 use std::{
@@ -235,4 +237,67 @@ fn sigterm_closes_a_room_that_outlasts_the_drain_time() {
         begun.elapsed()
     );
     wait_for("the host to be gone", 5, || !alive(host));
+}
+
+/// Rewrites the running supervisor's configuration file through `change`.
+fn rewrite_config(running: &Running, change: impl FnOnce(&mut Value)) {
+    let path = running.dir.join("config.json");
+    let mut config: Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+    change(&mut config);
+    std::fs::write(&path, config.to_string()).unwrap();
+}
+
+fn limits(running: &Running) -> Value {
+    let (status, limits) = http(running, "GET", "/limits", None).unwrap();
+    assert_eq!(status, 200);
+    limits
+}
+
+#[test]
+fn sighup_reloads_the_limits_and_keeps_the_rooms() {
+    let mut running = start("sighup", 60, 47220);
+    let host = occupied_room(&running);
+    assert_eq!(limits(&running)["max_rooms"], 4);
+
+    rewrite_config(&running, |config| {
+        config["max_rooms"] = json!(5);
+        config["builds"]["b2"] = config["builds"]["b1"].clone();
+    });
+    signal("HUP", running.child.id());
+    wait_for("the reload", 10, || limits(&running)["reloads"] == 1);
+    let now = limits(&running);
+    assert_eq!(
+        (&now["max_rooms"], &now["builds"]),
+        (&json!(5), &json!(["b1", "b2"]))
+    );
+    assert!(
+        running.child.try_wait().unwrap().is_none(),
+        "SIGHUP ended the supervisor"
+    );
+    assert!(alive(host), "SIGHUP ended the room host");
+    let (status, rooms) = http(&running, "GET", "/rooms", None).unwrap();
+    assert_eq!((status, rooms.as_array().map(Vec::len)), (200, Some(1)));
+    let (status, _) = http(
+        &running,
+        "POST",
+        "/rooms",
+        Some(&room_body(2, "normal", "b2")),
+    )
+    .unwrap();
+    assert_eq!(status, 201);
+
+    // A file that does not parse is refused and changes nothing.
+    std::fs::write(running.dir.join("config.json"), "{ not json").unwrap();
+    signal("HUP", running.child.id());
+    std::thread::sleep(Duration::from_millis(500));
+    assert!(
+        running.child.try_wait().unwrap().is_none(),
+        "a bad reload ended the supervisor"
+    );
+    let after = limits(&running);
+    assert_eq!(
+        (&after["max_rooms"], &after["reloads"]),
+        (&json!(5), &json!(1))
+    );
+    assert!(alive(host));
 }

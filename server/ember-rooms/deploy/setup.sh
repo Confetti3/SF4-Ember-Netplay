@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Installs the Ember public room supervisor (loopback only, 127.0.0.1:47830).
-# Run as: sudo bash ~/ember-rooms/setup.sh [--prune] [--max-rooms N]
+# Run as: sudo bash ~/ember-rooms/setup.sh [--prune] [--max-rooms N] [--restart]
 #
 # Expects, next to this script (normally ~/ember-rooms of the user who ran
 # sudo, put there by the operator): bin/ember-rooms (built as katie with
@@ -9,9 +9,18 @@
 # hold the Linux binaries sf4e-room-host and sf4-net of one game release.
 #
 # Running it again installs a newer supervisor binary, adds the builds that
-# are staged, and restarts the service. The secret and an existing
-# config.json are never replaced; only config.json's "builds" entries change,
-# and "max_rooms" with --max-rooms.
+# are staged, and applies the result. The secret and an existing config.json
+# are never replaced; only config.json's "builds" entries change, and
+# "max_rooms" with --max-rooms.
+#
+# Applying is a reload, with no room touched, when nothing needs more: the
+# staged supervisor binary is the one installed, the running supervisor answers
+# GET /limits (older ones have no reload and would end on SIGHUP), the
+# settings only a restart applies are unchanged, and the unit changed at most
+# in its comments, ExecReload and its MemoryMax, MemorySwapMax and TasksMax
+# (set on the running service). Otherwise, or with --restart, the service is
+# restarted, which drains: no new rooms for up to drain_secs, then the rooms
+# still running are closed.
 # Without --prune a build that is installed but no longer staged is kept;
 # with --prune its config entry and installed files are removed. Rooms that
 # already run keep their binaries until they end.
@@ -22,10 +31,12 @@
 # files, so they are never overwritten.
 #
 # Before it replaces anything the script copies the current supervisor binary,
-# unit and config.json into one temporary bundle. If the install, the restart
-# or the health check fails, the whole bundle is put back, builds added by this
-# run are removed, and the previous service is restarted and checked again.
-# The script then exits with an error. On a first install there is nothing to
+# unit and config.json into one temporary bundle. If the install, the reload,
+# the restart or the health check fails, the whole bundle is put back, builds
+# added by this run are removed, and the service is brought back the way this
+# run touched it: reloaded again after a reload, restarted and checked again
+# after a restart, and left alone when the run failed before either. The
+# script then exits with an error. On a first install there is nothing to
 # restore, so the service is stopped and what this run added is removed.
 #
 # What it changes:
@@ -68,10 +79,12 @@ own() {
 
 PRUNE=0
 SET_MAX_ROOMS=""
-usage() { echo "usage: sudo bash setup.sh [--prune] [--max-rooms N]" >&2; exit 2; }
+FORCE_RESTART=0
+usage() { echo "usage: sudo bash setup.sh [--prune] [--max-rooms N] [--restart]" >&2; exit 2; }
 while [ $# -gt 0 ]; do
     case "$1" in
         --prune) PRUNE=1 ;;
+        --restart) FORCE_RESTART=1 ;;
         --max-rooms)
             [ $# -ge 2 ] || usage
             if [[ ! "$2" =~ ^[1-9][0-9]{0,3}$ ]] || [ "$2" -gt 1024 ]; then
@@ -192,6 +205,8 @@ had_unit=0
 had_config=0
 added_builds=()
 armed=0
+# How this run has touched the service so far: none, reloaded or restarted.
+touched=none
 if [ -f "$LIB/ember-rooms" ]; then cp -a "$LIB/ember-rooms" "$backup/ember-rooms"; had_exec=1; fi
 if [ -f "$UNIT" ]; then cp -a "$UNIT" "$backup/ember-rooms.service"; had_unit=1; fi
 if [ -f "$CONFIG" ]; then cp -a "$CONFIG" "$backup/config.json"; had_config=1; fi
@@ -211,6 +226,39 @@ wait_health() {
         sleep 1
     done
     return 1
+}
+# The unit's resource limits as "MemoryMax=... MemorySwapMax=... TasksMax=...".
+unit_limits() {
+    sed -n 's/^\(MemoryMax\|MemorySwapMax\|TasksMax\)=\(.*\)$/\1=\2/p' "$1" | tr '\n' ' '
+}
+# The unit's lines that a reload cannot apply: all but comments, blank lines,
+# ExecReload and the resource limits.
+unit_core() {
+    grep -vE '^[[:space:]]*(#|$)|^(ExecReload|MemoryMax|MemorySwapMax|TasksMax)=' "$1" || true
+}
+# Waits up to 10 seconds for GET /limits to show a reload past $1 that matches
+# config.json: max_rooms, port_range and the build ids.
+wait_reloaded() {
+    local before=$1 attempt limits
+    for attempt in 1 2 3 4 5 6 7 8 9 10; do
+        if limits=$(auth_curl "http://$BIND/limits" 2>/dev/null) && python3 - "$CONFIG" "$before" "$limits" <<'PY'
+import json, sys
+config = json.load(open(sys.argv[1]))
+limits = json.loads(sys.argv[3])
+wanted = (config.get("max_rooms", 8), list(config.get("port_range", [45800, 45899])), sorted(config.get("builds", {})))
+sys.exit(0 if limits["reloads"] > int(sys.argv[2]) and (limits["max_rooms"], limits["port_range"], limits["builds"]) == wanted else 1)
+PY
+        then
+            echo "reload: the supervisor runs with $(printf '%s' "$limits" | python3 -c 'import json, sys; l = json.load(sys.stdin); print("max_rooms %d, %d build(s), %d room(s) running" % (l["max_rooms"], len(l["builds"]), l["rooms"]))')"
+            return 0
+        fi
+        sleep 1
+    done
+    return 1
+}
+# The reload count GET /limits reports, or nothing when it does not answer.
+reload_count() {
+    auth_curl "http://$BIND/limits" 2>/dev/null | python3 -c 'import json, sys; print(json.load(sys.stdin)["reloads"])' 2>/dev/null
 }
 # Puts one bundled file back, or removes the new one if there was none.
 put_back() {
@@ -236,6 +284,30 @@ rollback() {
         rm -rf "$BUILDS/$id" || ok=0
     done
     systemctl daemon-reload || ok=0
+    if [ "$touched" = none ] && [ "$had_exec" -eq 1 ] && [ "$had_unit" -eq 1 ]; then
+        if [ "$ok" -eq 1 ]; then
+            echo "Restored the previous supervisor binary, unit and config.json. The running supervisor was neither reloaded nor restarted, so no room was touched." >&2
+        else
+            echo "RESTORING FAILED: the previous files could not all be put back. The bundle is kept in $backup. The running supervisor was not touched." >&2
+            backup_keep=1
+        fi
+        return
+    fi
+    if [ "$touched" = reloaded ]; then
+        local count
+        BIND=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1])).get("bind", "127.0.0.1:47830"))' "$CONFIG" 2>/dev/null || echo 127.0.0.1:47830)
+        # shellcheck disable=SC2086
+        [ -n "$old_limits" ] && { systemctl set-property --runtime ember-rooms $old_limits || ok=0; }
+        count=$(reload_count)
+        systemctl reload ember-rooms || ok=0
+        if [ "$ok" -eq 1 ] && [ -n "$count" ] && wait_reloaded "$count"; then
+            echo "Restored the previous unit and config.json and reloaded them; no room was touched." >&2
+        else
+            echo "RESTORING FAILED: the running supervisor did not take the previous config.json back. The bundle is kept in $backup. See: sudo journalctl -u ember-rooms -n 30" >&2
+            backup_keep=1
+        fi
+        return
+    fi
     if [ "$had_exec" -eq 0 ] || [ "$had_unit" -eq 0 ]; then
         if [ "$ok" -eq 1 ]; then
             echo "This was a first install, so there is nothing to restore: the service is stopped and the files this run added are removed." >&2
@@ -391,15 +463,16 @@ if [ "$BUILD_COUNT" -eq 0 ]; then
     echo "note: no builds yet, so every room request is refused as unsupported_build." >&2
     echo "      Stage one under ~/ember-rooms/builds/<build_id>/ and run this script again." >&2
 fi
-# A room measured about 8 tasks and 100 MB on the VPS (room host plus helper);
-# the warnings leave room for growth.
+# A room measured about 8 tasks and up to 100 MB on the VPS (room host plus
+# helper, the helper growing with the room's age); the warnings leave room for
+# growth.
 tasks=$(sed -n 's/^TasksMax=//p' "$SRC/ember-rooms.service" | head -n 1)
 if [ -n "$tasks" ] && [ "$tasks" -lt $((MAX_ROOMS * 16)) ] 2>/dev/null; then
     echo "warning: max_rooms $MAX_ROOMS needs about $((MAX_ROOMS * 16)) tasks but the unit allows $tasks; raise TasksMax in the unit." >&2
 fi
 memory=$(sed -n 's/^MemoryMax=\([0-9][0-9]*\)M$/\1/p' "$SRC/ember-rooms.service" | head -n 1)
-if [ -n "$memory" ] && [ "$memory" -lt $((MAX_ROOMS * 110)) ]; then
-    echo "warning: max_rooms $MAX_ROOMS needs about $((MAX_ROOMS * 110))M of memory but the unit allows ${memory}M; a room past the limit is stopped mid-match." >&2
+if [ -n "$memory" ] && [ "$memory" -lt $((MAX_ROOMS * 100)) ]; then
+    echo "warning: max_rooms $MAX_ROOMS needs about $((MAX_ROOMS * 100))M of memory but the unit allows ${memory}M; past it the rooms swap and stall." >&2
 fi
 
 # Firewall: each room uses two UDP ports from the range.
@@ -424,21 +497,77 @@ if command -v systemd-analyze >/dev/null 2>&1; then
         echo "$verify" >&2
     fi
 fi
+# Reload or restart: see the top of this file.
+mode=restart
+why="--restart was given"
+old_limits=""
+if [ "$FORCE_RESTART" -eq 0 ]; then
+    why=""
+    if [ "$had_exec" -eq 0 ] || [ "$had_unit" -eq 0 ] || [ "$had_config" -eq 0 ]; then
+        why="this is a first install"
+    elif ! cmp -s "$backup/ember-rooms" "$LIB/ember-rooms"; then
+        why="the supervisor binary is new"
+    elif ! systemctl is-active --quiet ember-rooms; then
+        why="the service is not running"
+    elif [ "$(unit_core "$backup/ember-rooms.service")" != "$(unit_core "$SRC/ember-rooms.service")" ]; then
+        why="the unit changed beyond its resource limits"
+    elif ! running=$(auth_curl "http://$BIND/limits" 2>/dev/null) || [ -z "$running" ]; then
+        why="the running supervisor does not answer GET /limits, so it predates reloading"
+    elif ! python3 - "$CONFIG" "$running" <<'PY'
+import json, sys
+config, running = json.load(open(sys.argv[1])), json.loads(sys.argv[2])
+defaults = {"bind": "127.0.0.1:47830", "empty_close_secs": 120, "drain_secs": 600}
+keys = ["bind", "secret_file", "empty_close_secs", "drain_secs"]
+sys.exit(0 if all(config.get(key, defaults.get(key)) == running.get(key) for key in keys) else 1)
+PY
+    then
+        why="a setting only a restart applies (bind, secret_file, empty_close_secs or drain_secs) differs from what the supervisor runs with"
+    else
+        before=$(printf '%s' "$running" | python3 -c 'import json, sys; print(json.load(sys.stdin)["reloads"])')
+        mode=reload
+    fi
+fi
+
 inst root root -m 0644 "$SRC/ember-rooms.service" "$UNIT.new"
 mv -f "$UNIT.new" "$UNIT"
 systemctl daemon-reload
 systemctl enable ember-rooms >/dev/null 2>&1
 
-# Ask the supervisor how many rooms run, to warn before a restart that drains.
-if systemctl is-active --quiet ember-rooms; then
-    rooms=$(auth_curl "http://$BIND/rooms" 2>/dev/null | python3 -c 'import json, sys; print(len(json.load(sys.stdin)))' 2>/dev/null || echo "?")
-    if [ "$rooms" != "0" ]; then
-        echo "restart: $rooms room(s) are running; the supervisor drains first (no new rooms, up to the drain time in config.json, then the rest are closed)."
+if [ "$mode" = reload ]; then
+    echo "apply: reload (rooms keep running)"
+    touched=reloaded
+    new_limits=$(unit_limits "$SRC/ember-rooms.service")
+    if [ "$new_limits" != "$(unit_limits "$backup/ember-rooms.service")" ]; then
+        old_limits=$(unit_limits "$backup/ember-rooms.service")
+        # shellcheck disable=SC2086
+        if ! systemctl set-property --runtime ember-rooms $new_limits; then
+            echo "Could not set $new_limits on the running service." >&2
+            exit 1
+        fi
+        echo "limits: $new_limits"
     fi
-fi
-if ! systemctl restart ember-rooms; then
-    echo "ember-rooms did not restart." >&2
-    exit 1
+    if ! systemctl reload ember-rooms; then
+        echo "ember-rooms did not reload." >&2
+        exit 1
+    fi
+    if ! wait_reloaded "$before"; then
+        echo "reload: the supervisor did not take the new config.json (see: sudo journalctl -u ember-rooms -n 30)." >&2
+        exit 1
+    fi
+else
+    echo "apply: restart, because $why"
+    # Ask the supervisor how many rooms run, to warn before a restart that drains.
+    if systemctl is-active --quiet ember-rooms; then
+        rooms=$(auth_curl "http://$BIND/rooms" 2>/dev/null | python3 -c 'import json, sys; print(len(json.load(sys.stdin)))' 2>/dev/null || echo "?")
+        if [ "$rooms" != "0" ]; then
+            echo "restart: $rooms room(s) are running; the supervisor drains first (no new rooms, up to the drain time in config.json, then the rest are closed)."
+        fi
+    fi
+    touched=restarted
+    if ! systemctl restart ember-rooms; then
+        echo "ember-rooms did not restart." >&2
+        exit 1
+    fi
 fi
 
 echo

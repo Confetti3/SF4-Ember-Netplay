@@ -19,7 +19,15 @@
 //!   `opened` latches the first time the host reports a member and `details`
 //!   is the host's latest listing details, when it sent usable ones.
 //! - `DELETE /rooms/{room_id}` asks the host to close and answers 204, or 404.
+//! - `GET /limits` answers 200 with `{ max_rooms, port_range, builds, rooms,
+//!   reloads, bind, secret_file, empty_close_secs, drain_secs }`: the limits
+//!   in force, so an operator can see a reload took, and the settings only a
+//!   restart changes.
 //! - `GET /health` answers `ok`.
+//!
+//! SIGHUP re-reads the configuration file and applies `max_rooms`,
+//! `port_range` and `builds` without touching running rooms
+//! ([`Supervisor::reload`]); SIGTERM drains and exits.
 //!
 //! The child protocol is documented in [`protocol`].
 pub mod api;
@@ -29,7 +37,7 @@ pub mod supervisor;
 
 pub use api::router;
 pub use config::{Build, Config, Settings, Tuning};
-pub use supervisor::{CreateError, Hosted, RoomInfo, Supervisor};
+pub use supervisor::{CreateError, Hosted, LimitsView, Reloaded, RoomInfo, Supervisor};
 
 /// Serves the API on `listener`. When `signal` completes the supervisor
 /// drains (see [`Supervisor::drain`]) and the server then stops. The API

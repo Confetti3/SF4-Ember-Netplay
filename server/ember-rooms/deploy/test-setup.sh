@@ -6,7 +6,9 @@
 # stand-ins for systemctl, curl, ufw, sleep and systemd-analyze come first on
 # PATH. The fake systemctl "starts" a supervisor depending on a marker inside
 # the installed binary: BADSTART makes the restart fail, BADHEALTH makes the
-# restart succeed but leaves /health unanswered.
+# restart succeed but leaves /health unanswered. LIMITS marks a supervisor
+# that reloads and answers GET /limits with the config.json it last read;
+# BADRELOAD makes it ignore a reload.
 set -u
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -19,11 +21,37 @@ cat > "$T/stubs/systemctl" <<'EOF'
 #!/usr/bin/env bash
 echo "systemctl $*" >> "$STUB_LOG"
 bin=$EMBER_ROOMS_ROOT/usr/local/lib/ember-rooms/ember-rooms
+config=$EMBER_ROOMS_ROOT/etc/ember-rooms/config.json
+# What the running supervisor read: its binary's markers, the config and a
+# reload count.
+loaded() {
+    python3 - "$config" "$STUB_STATE.loaded" "$1" "$2" <<'PY'
+import json, os, sys
+config, out, markers, reloads = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
+c = json.load(open(config)) if os.path.exists(config) else {}
+# A reload keeps the settings only a restart changes.
+started = json.load(open(out)) if reloads and os.path.exists(out) else c
+json.dump({"markers": markers, "max_rooms": c.get("max_rooms", 8),
+           "port_range": c.get("port_range", [45800, 45899]),
+           "builds": sorted(c.get("builds", {})), "rooms": 0, "reloads": reloads,
+           "bind": started.get("bind", "127.0.0.1:47830"), "secret_file": started.get("secret_file", ""),
+           "empty_close_secs": started.get("empty_close_secs", 120),
+           "drain_secs": started.get("drain_secs", 600)}, open(out, "w"))
+PY
+}
 case "$1" in
     restart)
         [ "${STUB_NO_RECOVER:-0}" = 1 ] && { echo down > "$STUB_STATE"; exit 0; }
         grep -q BADSTART "$bin" 2>/dev/null && { echo down > "$STUB_STATE"; exit 1; }
         if grep -q BADHEALTH "$bin" 2>/dev/null; then echo down > "$STUB_STATE"; else echo up > "$STUB_STATE"; fi
+        loaded "$(grep -o 'LIMITS\|BADRELOAD' "$bin" 2>/dev/null | tr '\n' ' ')" 0
+        ;;
+    reload)
+        [ "$(cat "$STUB_STATE" 2>/dev/null)" = up ] || exit 1
+        markers=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["markers"])' "$STUB_STATE.loaded")
+        case "$markers" in *BADRELOAD*) exit 0 ;; esac
+        count=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["reloads"])' "$STUB_STATE.loaded")
+        loaded "$markers" $((count + 1))
         ;;
     stop) echo down > "$STUB_STATE" ;;
     is-active)
@@ -45,6 +73,10 @@ for last in "$@"; do :; done
 case "$last" in
     */health) echo ok ;;
     */rooms) echo '[]' ;;
+    */limits)
+        grep -q LIMITS "$STUB_STATE.loaded" 2>/dev/null || exit 22
+        python3 -c 'import json, sys; l = json.load(open(sys.argv[1])); l.pop("markers"); print(json.dumps(l))' "$STUB_STATE.loaded"
+        ;;
 esac
 EOF
 printf '#!/bin/sh\nexit 0\n' > "$T/stubs/sleep"
@@ -210,11 +242,12 @@ check "config no longer lists it" config_lacks aaa111
 
 echo "10. --max-rooms sets the room limit"
 config_max() { python3 -c 'import json, sys; sys.exit(0 if json.load(open(sys.argv[1]))["max_rooms"] == int(sys.argv[2]) else 1)' "$CONFIG" "$1"; }
-run_setup --max-rooms 24
+run_setup --max-rooms 31
 check "exits 0" succeeded
-check "max_rooms is 24" config_max 24
-check "says what changed" mentions "max_rooms 10 -> 24"
-check "warns that MemoryMax is too small" mentions "needs about 2640M of memory"
+check "max_rooms is 31" config_max 31
+check "says what changed" mentions "max_rooms 10 -> 31"
+check "warns that MemoryMax is too small" mentions "needs about 3100M of memory"
+check "restarts a supervisor that cannot reload" mentions "does not answer GET /limits"
 check "config lists the new build" config_lists bbb222
 snapshot snap10
 
@@ -232,7 +265,24 @@ check "usage error, nothing touched" same "$T/snap10/config" "$CONFIG"
 run_setup --max-rooms
 check "missing value refused" failed
 
-echo "12. first install that fails leaves nothing behind"
+echo "12. a failure before the service is touched leaves it alone"
+restarts=$(grep -c restart "$STUB_LOG")
+python3 - "$CONFIG" <<'PY'
+import json, sys
+config = json.load(open(sys.argv[1]))
+config["secret_file"] = "/somewhere/else"
+json.dump(config, open(sys.argv[1], "w"))
+PY
+cp -a "$CONFIG" "$T/wrong-secret-config"
+run_setup
+check "fails" failed
+check "names the secret file" mentions "names secret_file /somewhere/else"
+check "service never restarted" test "$(grep -c restart "$STUB_LOG")" = "$restarts"
+check "says no room was touched" mentions "neither reloaded nor restarted"
+check "config back byte for byte" same "$T/wrong-secret-config" "$CONFIG"
+cp -a "$T/snap10/config" "$CONFIG"
+
+echo "13. first install that fails leaves nothing behind"
 new_env b
 stage_supervisor "v1 BADHEALTH"
 stage_build ccc333 three
@@ -244,6 +294,80 @@ check "no unit" absent "$UNIT"
 check "no config" absent "$CONFIG"
 check "no build" absent "$LIB/builds/ccc333"
 check "service stopped" service_down
+
+echo "14. a supervisor that reloads takes a new limit without a restart"
+new_env c
+limits_say() { python3 -c 'import json, sys; l = json.load(open(sys.argv[1])); sys.exit(0 if (l["max_rooms"], l["builds"], l["reloads"]) == (int(sys.argv[2]), sys.argv[3].split(","), int(sys.argv[4])) else 1)' "$STUB_STATE.loaded" "$@"; }
+restarts_are() { test "$(grep -c 'systemctl restart' "$STUB_LOG")" = "$1"; }
+reloads_are() { test "$(grep -c 'systemctl reload' "$STUB_LOG")" = "$1"; }
+stage_supervisor "v1 LIMITS"
+stage_build ddd444 four
+run_setup
+check "first install exits 0" succeeded
+check "first install restarts" restarts_are 1
+run_setup --max-rooms 30
+check "exits 0" succeeded
+check "says it reloads" mentions "apply: reload (rooms keep running)"
+check "never restarted again" restarts_are 1
+check "reloaded once" reloads_are 1
+check "max_rooms is 30" config_max 30
+check "the supervisor runs with 30" limits_say 30 ddd444 1
+check "reports what runs" mentions "reload: the supervisor runs with max_rooms 30"
+snapshot snap14
+
+echo "15. a new build is added by a reload"
+stage_build eee555 five
+run_setup
+check "exits 0" succeeded
+check "still no restart" restarts_are 1
+check "the supervisor lists both builds" limits_say 30 ddd444,eee555 2
+
+echo "16. new resource limits in the unit are set on the running service"
+sed 's/^MemoryMax=.*/MemoryMax=3100M/' "$HERE/ember-rooms.service" > "$STAGE/ember-rooms.service"
+run_setup
+check "exits 0" succeeded
+check "still no restart" restarts_are 1
+check "set on the running service" grep -q "set-property --runtime ember-rooms MemoryMax=3100M" "$STUB_LOG"
+check "unit installed" same "$STAGE/ember-rooms.service" "$UNIT"
+
+echo "17. any other unit change restarts"
+{ cat "$STAGE/ember-rooms.service"; echo "Nice=1"; } > "$STAGE/ember-rooms.service.new"
+mv "$STAGE/ember-rooms.service.new" "$STAGE/ember-rooms.service"
+run_setup
+check "exits 0" succeeded
+check "restarted" restarts_are 2
+check "says why" mentions "the unit changed beyond its resource limits"
+run_setup --restart
+check "--restart restarts" restarts_are 3
+check "says why" mentions "--restart was given"
+
+echo "18. a reload the supervisor does not take is undone by another reload"
+stage_supervisor "v2 LIMITS BADRELOAD"
+run_setup
+check "new binary restarts" restarts_are 4
+snapshot snap18
+restarts=$(grep -c 'systemctl restart' "$STUB_LOG")
+run_setup --max-rooms 12
+check "fails" failed
+check "says it did not take" mentions "did not take the new config.json"
+check "never restarted" restarts_are "$restarts"
+check "config back byte for byte" same "$T/snap18/config" "$CONFIG"
+check "service still up" service_up
+
+echo "19. a restart-only setting forces a restart"
+stage_supervisor "v3 LIMITS"
+run_setup
+python3 - "$CONFIG" <<'PY'
+import json, sys
+config = json.load(open(sys.argv[1]))
+config["drain_secs"] = 300
+json.dump(config, open(sys.argv[1], "w"))
+PY
+restarts=$(grep -c 'systemctl restart' "$STUB_LOG")
+run_setup
+check "exits 0" succeeded
+check "restarted" restarts_are $((restarts + 1))
+check "says why" mentions "a setting only a restart applies"
 
 echo
 echo "$pass passed, $fail failed"

@@ -420,6 +420,91 @@ async fn the_room_limit_is_enforced() {
 }
 
 #[tokio::test]
+async fn a_reload_changes_the_limits_and_leaves_running_rooms_alone() {
+    let harness = harness(|config, _| config.max_rooms = 1);
+    assert_eq!(harness.create(1, "normal").await.0, StatusCode::CREATED);
+    assert_eq!(
+        harness.create(2, "normal").await.1,
+        json!({ "reason": "room_limit" })
+    );
+    let (code, limits) = harness.call(Method::GET, "/limits", None).await;
+    assert_eq!(code, StatusCode::OK);
+    assert_eq!(
+        limits,
+        json!({ "max_rooms": 1, "port_range": [45800, 45809], "builds": ["b1", "missing"],
+            "rooms": 1, "reloads": 0, "bind": "127.0.0.1:47830", "secret_file": "unused",
+            "empty_close_secs": 120, "drain_secs": 600 })
+    );
+
+    // More rooms, a new build and one gone; the drain time only after a restart.
+    let mut config = harness.supervisor.settings().config.clone();
+    config.max_rooms = 3;
+    config.builds.remove("missing");
+    let b1 = config.builds["b1"].clone();
+    config.builds.insert("b2".to_owned(), b1);
+    config.drain_secs = 5;
+    let reloaded = harness.supervisor.reload(&config).unwrap();
+    assert_eq!(
+        reloaded.applied,
+        [
+            "max_rooms 1 -> 3",
+            "build b2 added",
+            "build missing removed (its running rooms continue)",
+        ]
+    );
+    assert_eq!(
+        reloaded.needs_restart,
+        ["drain_secs changed; it takes effect after a restart"]
+    );
+    assert_eq!(harness.create(2, "normal").await.0, StatusCode::CREATED);
+    let mut on_b2 = body(3, "normal");
+    on_b2["build_id"] = json!("b2");
+    assert_eq!(
+        harness.call(Method::POST, "/rooms", Some(on_b2)).await.0,
+        StatusCode::CREATED
+    );
+    let mut on_missing = body(4, "normal");
+    on_missing["build_id"] = json!("missing");
+    assert_eq!(
+        harness
+            .call(Method::POST, "/rooms", Some(on_missing))
+            .await
+            .1,
+        json!({ "reason": "unsupported_build" })
+    );
+    assert_eq!(harness.list().await.len(), 3);
+
+    // A lower limit closes nothing; it only refuses new rooms.
+    config.max_rooms = 1;
+    let reloaded = harness.supervisor.reload(&config).unwrap();
+    assert_eq!(
+        reloaded.applied,
+        ["max_rooms 3 -> 1 (3 rooms run; none is closed, new ones wait until fewer run)"]
+    );
+    assert_eq!(harness.list().await.len(), 3);
+    assert_eq!(
+        harness.create(5, "normal").await.1,
+        json!({ "reason": "room_limit" })
+    );
+
+    // A configuration that does not validate changes nothing.
+    config.max_rooms = 0;
+    assert!(harness.supervisor.reload(&config).is_err());
+    let (_, limits) = harness.call(Method::GET, "/limits", None).await;
+    assert_eq!(
+        (
+            &limits["max_rooms"],
+            &limits["builds"],
+            &limits["rooms"],
+            &limits["reloads"]
+        ),
+        (&json!(1), &json!(["b1", "b2"]), &json!(3), &json!(2))
+    );
+    // The drain time read at start is still the one in force.
+    assert_eq!(limits["drain_secs"], 600);
+}
+
+#[tokio::test]
 async fn both_ports_are_reused_after_their_room_closes() {
     let harness = harness(|config, _| config.port_range = [45800, 45803]);
     let (_, first) = harness.create(1, "normal").await;

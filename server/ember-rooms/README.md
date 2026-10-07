@@ -47,6 +47,7 @@ in constant time. Refusals are JSON `{ "reason": "..." }`.
 | | 502 `host_failed` (the host exited, broke the protocol or took over 30 s) |
 | `GET /rooms` | 200 `[{ room_id, members, capacity, tables_playing, invitation, banned, opened, details? }]` |
 | `DELETE /rooms/{room_id}` | 204 once the host has been asked to close, or 404 |
+| `GET /limits` | 200 `{ max_rooms, port_range, builds, rooms, reloads, bind, secret_file, empty_close_secs, drain_secs }` |
 | `GET /health` | `ok` |
 
 `opened` is false until the host has reported a status with at least one member
@@ -116,6 +117,10 @@ Objects with an unknown `type` and blank lines are ignored.
   `empty_close_secs` without a break. For a room nobody has entered, the time
   runs from `hosted`.
 - A host that has not said `hosted` in 30 s is killed.
+- On SIGHUP the supervisor re-reads its configuration and applies
+  `max_rooms`, `port_range` and `builds` without touching running rooms; the
+  other settings wait for a restart, and a file that does not validate
+  changes nothing.
 - On SIGTERM (Ctrl-C on Windows) the supervisor drains: it refuses new rooms,
   keeps serving the API, waits until every room is gone or `drain_secs` has
   passed, closes the rest and exits 0.

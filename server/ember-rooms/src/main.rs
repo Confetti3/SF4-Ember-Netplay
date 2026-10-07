@@ -1,8 +1,12 @@
 //! `ember-rooms <config.json>`
 //!
 //! Runs the public room supervisor on the loopback address named in the
-//! configuration file. It writes no request log.
-use std::{path::Path, process::ExitCode};
+//! configuration file. It writes no request log. SIGHUP re-reads the file
+//! (`systemctl reload ember-rooms`); SIGTERM drains and exits.
+use std::{
+    path::{Path, PathBuf},
+    process::ExitCode,
+};
 
 use ember_rooms::{Settings, Supervisor, Tuning, serve_until};
 
@@ -25,7 +29,7 @@ fn main() -> ExitCode {
         Ok(runtime) => runtime,
         Err(error) => return fail(&error.to_string()),
     };
-    match runtime.block_on(serve(settings)) {
+    match runtime.block_on(serve(settings, PathBuf::from(path))) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => fail(&error),
     }
@@ -36,7 +40,13 @@ fn fail(message: &str) -> ExitCode {
     ExitCode::FAILURE
 }
 
-async fn serve(settings: Settings) -> Result<(), String> {
+async fn serve(settings: Settings, path: PathBuf) -> Result<(), String> {
+    // Before anything else: SIGHUP's default action ends the process, and a
+    // reload that arrived while this supervisor still had none would take
+    // every room with it.
+    #[cfg(unix)]
+    let hangup = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup())
+        .map_err(|error| format!("cannot handle SIGHUP: {error}"))?;
     let address = settings.config.bind_address()?;
     for (id, build) in &settings.config.builds {
         for path in [&build.room_host, &build.helper] {
@@ -50,10 +60,41 @@ async fn serve(settings: Settings) -> Result<(), String> {
         .map_err(|error| format!("cannot listen on {address}: {error}"))?;
     let tuning = Tuning::from_config(&settings.config);
     let supervisor = Supervisor::new(settings, tuning);
+    #[cfg(unix)]
+    tokio::spawn(reload_on_hangup(hangup, supervisor.clone(), path));
+    #[cfg(not(unix))]
+    let _ = path;
     eprintln!("ember-rooms: listening on {address}");
     serve_until(listener, supervisor, shutdown())
         .await
         .map_err(|error| error.to_string())
+}
+
+/// Re-reads the configuration on each SIGHUP. A file that does not read or
+/// validate is logged and changes nothing.
+#[cfg(unix)]
+async fn reload_on_hangup(
+    mut hangup: tokio::signal::unix::Signal,
+    supervisor: Supervisor,
+    path: PathBuf,
+) {
+    while hangup.recv().await.is_some() {
+        let result = ember_rooms::Config::load(&path).and_then(|config| supervisor.reload(&config));
+        match result {
+            Ok(reloaded) => {
+                if reloaded.applied.is_empty() {
+                    eprintln!("ember-rooms: reloaded: no change");
+                }
+                for line in reloaded.applied {
+                    eprintln!("ember-rooms: reloaded: {line}");
+                }
+                for line in reloaded.needs_restart {
+                    eprintln!("ember-rooms: reload: {line}");
+                }
+            }
+            Err(error) => eprintln!("ember-rooms: reload refused, nothing changed: {error}"),
+        }
+    }
 }
 
 async fn shutdown() {

@@ -33,16 +33,20 @@ host plus helper) measured about 100 MB and 8 tasks on the VPS in October
 2026. The machine has 3.8 GB and 2 cores and also runs the bridge (its own 256 MB limit)
 and the short-link service (96 MB); each unit has its own limit, so a full
 room supervisor cannot starve the bridge. Measure a room's memory (`systemctl
-status ember-rooms` shows the total) before raising `max_rooms`; raise
-`MemoryMax` by about 110 MB per room, or move to a larger machine. setup.sh
-warns when `MemoryMax` or `TasksMax` looks too small for `max_rooms`.
+status ember-rooms` shows the total) before raising `max_rooms`; budget
+`MemoryMax` at about 100 MB per room (with 20 busy rooms on 2026-10-06 they
+averaged 57 MB, but a helper grows with the room's age), or move to a larger
+machine. setup.sh warns when `MemoryMax` or `TasksMax` looks too small for
+`max_rooms`.
 
 To change the room limit on an installed server, stage this folder and run
 setup.sh with `--max-rooms`. It refuses a limit the port range cannot hold
-(two ports per room) and puts the old config back if the restart fails:
+(two ports per room). With an unchanged supervisor binary it reloads, so the
+running rooms are not touched, and it puts the old config back if the reload
+does not take:
 
 ```
-ssh -t vps "sudo bash ~/ember-rooms/setup.sh --max-rooms 10"
+ssh -t vps "sudo bash ~/ember-rooms/setup.sh --max-rooms 30"
 ```
 
 ## Staging layout
@@ -115,7 +119,8 @@ add them under the release's build hash. Keep the old release's build until
 its players have moved on.
 
 To add a build, stage `~/ember-rooms/builds/<build_id>/` and run setup.sh
-again. It copies the files, adds the `builds` entry and restarts the service.
+again. It copies the files, adds the `builds` entry and reloads the service
+(see Reloading and restarting).
 Existing builds stay as they are: a build id names one exact pair of binaries,
 so if the staged files for an installed id differ from the installed ones,
 setup.sh refuses before changing anything (running rooms use those files).
@@ -131,10 +136,28 @@ Without `--prune`, setup.sh keeps builds that are no longer staged. Rooms of a
 removed build keep running until they are empty; new rooms for that build are
 refused as `unsupported_build`.
 
-## Restarting
+## Reloading and restarting
 
-The supervisor reads `config.json` only at start, so adding a build or
-changing a setting means a restart. A restart drains: SIGTERM stops new rooms,
+`systemctl reload ember-rooms` sends SIGHUP: the supervisor re-reads
+`config.json` and applies `max_rooms`, `port_range` and `builds` at once.
+Running rooms keep their ports and binaries, and a lower `max_rooms` closes no
+room; it only refuses new ones until fewer run. A file that does not parse or
+validate is logged and changes nothing. `GET /limits` shows what is in force
+and counts the reloads. `bind`, `secret_file`, `empty_close_secs` and
+`drain_secs` still need a restart.
+
+setup.sh reloads by itself when that is enough: the staged supervisor binary
+is the one installed, the running supervisor answers `GET /limits`, those four
+settings match what it runs with, and the unit changed at most in its comments,
+`ExecReload` and its resource limits (which it sets on the running service with
+`systemctl set-property --runtime`). Anything else, or `--restart`, restarts.
+It prints `apply: reload` or `apply: restart, because ...` before it does.
+
+A supervisor older than the reload support (before 2026-10-06) ends on SIGHUP,
+so never run `systemctl reload` against one; setup.sh only reloads a
+supervisor that answers `GET /limits`.
+
+A restart drains: SIGTERM stops new rooms,
 existing rooms run until they are empty or `drain_secs` (600) has passed, then
 the rest are closed and the service exits. The unit waits up to 660 seconds for
 that, so `systemctl restart ember-rooms` and setup.sh can take up to eleven

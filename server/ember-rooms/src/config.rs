@@ -13,7 +13,7 @@ pub const MIN_PORT: u16 = 1024;
 
 /// A room host build the supervisor can run. Each client release needs room
 /// hosts built from the same commit, keyed by its sidecar build hash.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Build {
     /// Path to the `sf4e-room-host` binary.
@@ -65,6 +65,16 @@ fn default_drain_secs() -> u64 {
 }
 
 impl Config {
+    /// Reads and checks the configuration file alone, as a reload does.
+    pub fn load(path: &Path) -> Result<Self, String> {
+        let text = std::fs::read_to_string(path)
+            .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
+        let config: Config = serde_json::from_str(&text)
+            .map_err(|error| format!("invalid configuration {}: {error}", path.display()))?;
+        config.validate()?;
+        Ok(config)
+    }
+
     pub fn bind_address(&self) -> Result<SocketAddr, String> {
         let address: SocketAddr = self
             .bind
@@ -138,10 +148,7 @@ impl Settings {
 
     /// Reads the configuration and the secret file it names.
     pub fn load(path: &Path) -> Result<Self, String> {
-        let text = std::fs::read_to_string(path)
-            .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
-        let config: Config = serde_json::from_str(&text)
-            .map_err(|error| format!("invalid configuration {}: {error}", path.display()))?;
+        let config = Config::load(path)?;
         let secret = std::fs::read(&config.secret_file)
             .map_err(|error| format!("cannot read the secret file: {error}"))?;
         Self::new(config, &secret)

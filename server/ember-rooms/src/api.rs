@@ -22,6 +22,7 @@ pub fn router(supervisor: Supervisor) -> Router {
     let authed = Router::new()
         .route("/rooms", get(list_rooms).post(create_room))
         .route("/rooms/{room_id}", delete(delete_room))
+        .route("/limits", get(limits))
         .route_layer(middleware::from_fn_with_state(
             supervisor.clone(),
             require_secret,
@@ -85,6 +86,10 @@ async fn create_room(State(supervisor): State<Supervisor>, body: Bytes) -> Respo
 
 async fn list_rooms(State(supervisor): State<Supervisor>) -> Response {
     no_store(Json(supervisor.list()).into_response())
+}
+
+async fn limits(State(supervisor): State<Supervisor>) -> Response {
+    no_store(Json(supervisor.limits()).into_response())
 }
 
 async fn delete_room(

@@ -5,6 +5,10 @@ Wants=network-online.target
 
 [Service]
 ExecStart=/usr/local/lib/ember-rooms/ember-rooms /etc/ember-rooms/config.json
+# SIGHUP re-reads config.json: max_rooms, port_range and builds change while
+# rooms keep running (setup.sh reloads instead of restarting when the
+# supervisor binary is unchanged). The other settings need a restart.
+ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=2
 User=ember-rooms
@@ -66,12 +70,13 @@ SystemCallArchitectures=native
 # The box has 3.8 GB and a 2 GB swapfile, and also runs the bridge and the
 # short-link service (about 45 MB in use together, capped at 352 MB); the
 # system itself takes about 430 MB. This limit covers the supervisor and every
-# room together. A room (room host plus helper) measured about 100 MB, so
-# 2400M holds max_rooms 20.
-MemoryMax=2400M
+# room together. With 20 busy rooms on 2026-10-06 the rooms took 1134 MB, about
+# 57 MB each, but a helper grows with the room's age (the oldest held 108 MB),
+# so a room is budgeted at 100 MB: 3000M holds max_rooms 30.
+MemoryMax=3000M
 # Past the limit the rooms may use up to 1 GB of swap rather than have a room
 # host stopped mid-match. Swapped rooms stall, so this is overflow only: keep
-# MemoryMax above max_rooms times 110M.
+# MemoryMax above max_rooms times 100M.
 MemorySwapMax=1G
 # A room measured about 8 tasks (room host plus helper threads), so 512
 # leaves plenty of headroom; setup.sh warns when the config asks for more.

@@ -5,7 +5,7 @@
 //! ends: it exits, closes on request, goes idle, breaks the protocol or
 //! overstays its welcome. Shared state holds what the API needs to answer.
 use std::{
-    collections::HashSet,
+    collections::{BTreeMap, HashSet},
     process::Stdio,
     sync::{Arc, Mutex, MutexGuard},
 };
@@ -19,7 +19,7 @@ use tokio::{
 };
 
 use crate::{
-    config::{Settings, Tuning},
+    config::{Build, Config, Settings, Tuning},
     protocol::{
         ChildConfig, ChildMessage, CreateRoom, LineReader, MAX_ROOM_BANS, ReadError, parse_line,
         usable_details,
@@ -50,6 +50,34 @@ pub struct RoomInfo {
     /// when the host has not sent one or sent one that does not qualify.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub details: Option<serde_json::Value>,
+}
+
+/// `GET /limits`: what the supervisor runs with now, so an operator can see
+/// that a reload took.
+#[derive(Clone, Debug, Serialize)]
+pub struct LimitsView {
+    pub max_rooms: usize,
+    pub port_range: [u16; 2],
+    /// Build ids, sorted.
+    pub builds: Vec<String>,
+    /// Rooms that hold a port: starting, live or closing.
+    pub rooms: usize,
+    /// Reloads applied since the supervisor started.
+    pub reloads: u64,
+    /// The settings only a restart changes, as this process read them at
+    /// start, so a deployment can tell whether a reload is enough.
+    pub bind: String,
+    pub secret_file: String,
+    pub empty_close_secs: u64,
+    pub drain_secs: u64,
+}
+
+/// What a reload changed, and what it found changed that only a restart
+/// applies. Both are lines for the log.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct Reloaded {
+    pub applied: Vec<String>,
+    pub needs_restart: Vec<String>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -86,12 +114,32 @@ struct Room {
     live: Option<Live>,
 }
 
-#[derive(Default)]
+/// The part of the configuration a reload replaces while rooms run. A room
+/// keeps the ports and binaries it started with, so changing these never
+/// touches a running room.
+struct Limits {
+    max_rooms: usize,
+    port_range: [u16; 2],
+    builds: BTreeMap<String, Build>,
+}
+
+impl Limits {
+    fn of(config: &Config) -> Self {
+        Self {
+            max_rooms: config.max_rooms,
+            port_range: config.port_range,
+            builds: config.builds.clone(),
+        }
+    }
+}
+
 struct Inner {
     /// Keyed by the lowercase room id.
     rooms: std::collections::HashMap<String, Room>,
     draining: bool,
     next_seq: u64,
+    limits: Limits,
+    reloads: u64,
 }
 
 struct Shared {
@@ -118,11 +166,18 @@ struct Spec {
 
 impl Supervisor {
     pub fn new(settings: Settings, tuning: Tuning) -> Self {
+        let inner = Inner {
+            rooms: Default::default(),
+            draining: false,
+            next_seq: 0,
+            limits: Limits::of(&settings.config),
+            reloads: 0,
+        };
         Self {
             shared: Arc::new(Shared {
                 settings,
                 tuning,
-                inner: Mutex::default(),
+                inner: Mutex::new(inner),
                 count: watch::channel(0).0,
             }),
         }
@@ -155,7 +210,7 @@ impl Supervisor {
     /// The two lowest ports in the range that no room holds and nothing
     /// else on this machine has bound. They need not be adjacent.
     fn free_ports(&self, inner: &Inner) -> Option<[u16; 2]> {
-        let [low, high] = self.shared.settings.config.port_range;
+        let [low, high] = inner.limits.port_range;
         let used: HashSet<u16> = inner.rooms.values().flat_map(|room| room.ports).collect();
         let mut free = (low..=high)
             .filter(|port| !used.contains(port))
@@ -174,17 +229,16 @@ impl Supervisor {
             if inner.draining {
                 return Err(CreateError::RoomLimit);
             }
-            let build = self
-                .shared
-                .settings
-                .config
+            let build = inner
+                .limits
                 .builds
                 .get(&request.build_id)
+                .cloned()
                 .ok_or(CreateError::UnsupportedBuild)?;
             if inner.rooms.contains_key(&key) {
                 return Err(CreateError::Exists);
             }
-            if inner.rooms.len() >= self.shared.settings.config.max_rooms {
+            if inner.rooms.len() >= inner.limits.max_rooms {
                 return Err(CreateError::RoomLimit);
             }
             let ports = self.free_ports(&inner).ok_or(CreateError::RoomLimit)?;
@@ -220,6 +274,89 @@ impl Supervisor {
         // The task drops the sender after it has reaped the child and freed
         // the port, so an error here means the host failed.
         hosted_rx.await.map_err(|_| CreateError::HostFailed)
+    }
+
+    /// The limits in force now.
+    pub fn limits(&self) -> LimitsView {
+        let inner = self.lock();
+        let started = &self.shared.settings.config;
+        LimitsView {
+            max_rooms: inner.limits.max_rooms,
+            port_range: inner.limits.port_range,
+            builds: inner.limits.builds.keys().cloned().collect(),
+            rooms: inner.rooms.len(),
+            reloads: inner.reloads,
+            bind: started.bind.clone(),
+            secret_file: started.secret_file.clone(),
+            empty_close_secs: started.empty_close_secs,
+            drain_secs: started.drain_secs,
+        }
+    }
+
+    /// Takes `max_rooms`, `port_range` and `builds` from a freshly read
+    /// configuration while rooms keep running. A room that already runs keeps
+    /// its ports and binaries, and a lower `max_rooms` closes no room: it only
+    /// refuses new ones until enough have ended. The settings only a restart
+    /// applies (the address, the secret file and the timings) are reported,
+    /// not taken. A configuration that does not validate changes nothing.
+    pub fn reload(&self, config: &Config) -> Result<Reloaded, String> {
+        config.validate()?;
+        let running = &self.shared.settings.config;
+        let mut reloaded = Reloaded::default();
+        for (name, differs) in [
+            ("bind", config.bind != running.bind),
+            ("secret_file", config.secret_file != running.secret_file),
+            (
+                "empty_close_secs",
+                config.empty_close_secs != running.empty_close_secs,
+            ),
+            ("drain_secs", config.drain_secs != running.drain_secs),
+        ] {
+            if differs {
+                reloaded
+                    .needs_restart
+                    .push(format!("{name} changed; it takes effect after a restart"));
+            }
+        }
+        let mut inner = self.lock();
+        let old = &inner.limits;
+        if config.max_rooms != old.max_rooms {
+            let mut line = format!("max_rooms {} -> {}", old.max_rooms, config.max_rooms);
+            if inner.rooms.len() > config.max_rooms {
+                line += &format!(
+                    " ({} rooms run; none is closed, new ones wait until fewer run)",
+                    inner.rooms.len()
+                );
+            }
+            reloaded.applied.push(line);
+        }
+        if config.port_range != old.port_range {
+            reloaded.applied.push(format!(
+                "port_range {}-{} -> {}-{} (running rooms keep their ports)",
+                old.port_range[0], old.port_range[1], config.port_range[0], config.port_range[1]
+            ));
+        }
+        for (id, build) in &config.builds {
+            match old.builds.get(id) {
+                None => reloaded.applied.push(format!("build {id} added")),
+                Some(previous) if previous != build => {
+                    reloaded.applied.push(format!("build {id} updated"))
+                }
+                Some(_) => {}
+            }
+        }
+        for id in old
+            .builds
+            .keys()
+            .filter(|id| !config.builds.contains_key(*id))
+        {
+            reloaded
+                .applied
+                .push(format!("build {id} removed (its running rooms continue)"));
+        }
+        inner.limits = Limits::of(config);
+        inner.reloads += 1;
+        Ok(reloaded)
     }
 
     /// Live rooms, oldest first.
