@@ -15,7 +15,9 @@ The server is a 2 core VPS. It started with 1.8 GB and a limit of 4 public
 rooms, which players filled quickly. On 2026-10-05 the limit went up to 10. On
 2026-10-06 the memory went to 3.8 GB with a 2 GB swapfile and the limit to 20,
 past what 2 cores hold comfortably (14 by the table below), while a larger
-server is on order. Players have asked for something closer to 100.
+server is on order. Players have asked for something closer to 100, and some
+for 200; what that takes is under "Can one server hold 200 rooms?" below.
+The service can also run as a container ([server/ember-rooms/docker](../../server/ember-rooms/docker/README.md)).
 
 ## What one room costs
 
@@ -36,11 +38,17 @@ together, so plan on 1 GB for them.
 Two things to know when reading those figures. The memory column is resident
 set size, which counts the helper binary's own pages (about 19 MB of a 36 MB
 binary) in every helper although the kernel shares them between processes;
-`Pss` in `/proc/<pid>/smaps_rollup` is the real per-room number. And most of
-the CPU is spent waiting: a helper run on its own with no room open measured
-3.7 percent of a core (4 threads, 24 MB `Pss` of which 5 MB private) on a
-2.3 GHz Xeon, because its actor loop wakes every 2 ms whether or not there is
-anything to do. The work that removes that is listed below.
+`Pss` in `/proc/<pid>/smaps_rollup` is the real per-room number, and the soak
+monitor records that now. And most of the CPU was spent waiting: a helper run
+on its own with no room open measured 3.7 percent of a core (4 threads, 24 MB
+`Pss` of which 5 MB private) on a 2.3 GHz Xeon, because its actor loop woke
+every 2 ms whether or not there was anything to do. After the October 2026
+work below the same measurement is 0.3 percent of a core and 22 MB `Pss`
+(3.8 MB private), and the room host binary is 1.9 MB instead of 3.9. What a
+hosted room costs with those changes is still to be measured on the server
+(a room cannot be hosted without the relay, so it was not measured where the
+code was written); do it before raising `max_rooms`, and put the numbers in
+the table above.
 
 ## Sizing
 
@@ -91,25 +99,80 @@ What matters when comparing:
   short-link service, nginx with the certificate and the room supervisor all
   move together.
 
+## Can one server hold 200 rooms?
+
+Players have asked for something near 200 rooms. On a 4 core, 8 GB server
+with 1 GB kept for the system, the bridge, nginx and the short-link service
+and the CPU held under 70 percent, that is 35 MB and 1.4 percent of a core
+per room. At the October 2026 figures above (about 100 MB and 10 percent) a
+room is three times too big and seven times too busy.
+
+What the October work (below) changes: an idle room no longer wakes up
+hundreds of times a second, so an empty room should cost about 1 percent of
+a core and a busy one 3 to 5 (every action sends a checkpoint of about
+320 KiB to every member, hashed, compressed and parsed); its memory stays at
+two iroh endpoints, a runtime, a Raft log of several checkpoints and the
+HTTP and TLS clients per helper, an estimated 45 MB per room with the host.
+That puts such a server at about 100 rooms, and the 2 core server at 40 to
+50. Measure after each release and move the table above.
+
+200 on one server needs rooms that share a process (item 1 below): one
+helper with one endpoint, one runtime and one set of relay, DNS and address
+publication tasks, and one room host holding many room models. Per room
+that leaves the Raft state (a few megabytes, less with a tighter snapshot
+policy) and the control connections, so 200 rooms is about 2 GB and the CPU
+is only real activity. Short of that, several small servers (item 2) reach
+the same count with more machines to run.
+
 ## Work that would fit more rooms on one server
 
-These need code changes. Each one ships with a client release, because a room
-host only admits clients of its own build.
+Each code change here ships with a client release, because a room host only
+admits clients of its own build.
 
-1. **Profile the room helper's memory.** `sf4-net` holds 65 to 88 MB per room,
-   which is most of a room's memory. Find out what it holds (heaptrack or
-   similar on a Linux build) and whether it can drop to around 30 MB.
-2. **Find the idle CPU.** A room with nobody playing should cost close to
-   nothing, but the averages above include idle time. Check whether the room
-   host or the helper polls or wakes up more often than it needs to.
-3. **Host many rooms in one process.** Today every room is its own room host
-   plus its own helper. One process serving many rooms would share the
-   runtime, the network stack and the binary, and is the biggest possible
-   saving. It is also the largest change.
-4. **Run rooms on more than one machine.** The supervisor only listens on
-   loopback, so rooms must run on the same machine as the bridge. Letting
-   the bridge use supervisors on other machines would allow adding small
-   servers instead of buying one large one.
+Done in October 2026, shipping with the next client release:
+
+- **The idle CPU.** The helper's actor loop woke every 2 ms and, once a room
+  was open, copied the committed checkpoint out of its Raft store on every
+  wakeup to compare a revision number; the room host's pipe worker polled
+  the helper every 2 ms and its main loop ticked every 16 ms whether or not
+  anything had happened. Both now wait for work: the helper's tick follows
+  what is in flight (2 ms during a game or a checkpoint transfer, 25 ms with
+  a room open, 50 ms with none) and every arrival brings it forward; the room
+  host sleeps until its helper has an event, 250 ms at most while the room is
+  empty and settled. The once-a-second coordination refresh reads a digest
+  hashed once per revision instead of copying and rehashing the checkpoint,
+  and a headless helper no longer probes for a gateway port mapping.
+- **Memory.** `MALLOC_ARENA_MAX=2` in the unit and the image, so glibc does
+  not keep one arena per thread at its peak; the room host built with LTO,
+  section garbage collection and no symbols; a received commit's bytes moved
+  from the receiver to the decoder instead of copied twice. What a helper
+  holds (two endpoints and their relay, DNS and address-publication state,
+  the Raft log, the HTTP client) is still per process; the shared pages of
+  its 36 MB binary are not per room, which the soak monitor now measures as
+  proportional set size.
+- **A container.** The room service as one image per client build,
+  `server/ember-rooms/docker`, so the binaries are built in one place and a
+  new or bigger machine is a `docker compose up`.
+
+Still to do:
+
+1. **Host many rooms in one process.** The path to 200 rooms on one server,
+   and the largest change: the helper's IPC frames and events carry a room
+   id; one actor per room runs behind one shared endpoint, which already
+   receives the room id in every coordination RPC and control proof; the
+   room host multiplexes rooms over one helper connection; the supervisor
+   starts one pair per build instead of one per room; the two UDP ports per
+   room become a shared pair.
+2. **Run rooms on more than one machine.** The supervisor listens on
+   loopback, so rooms run on the bridge's machine. A bridge that keeps a
+   directory of supervisors (an id, an address and a secret each, reached
+   over HTTPS behind nginx on the other machine), places rooms across them,
+   polls each and routes a close to the room's host would add small servers
+   instead of a larger one. It is the fallback if item 1 slips.
+3. **The rest of the helper's memory.** With the copying gone, measure what
+   a helper with an open room still holds (heaptrack on a Linux build) and
+   whether its coordination endpoint can share the main one for a public
+   host, which halves the relay, address and DNS work per room.
 
 ## Changing the room limit
 

@@ -1,7 +1,9 @@
 # Deploying the room supervisor
 
-These notes cover running `ember-rooms` on the VPS (`ssh vps`). What the
-supervisor does and its API are in `../README.md` and
+These notes cover running `ember-rooms` on the VPS (`ssh vps`) from staged
+binaries. The same service as a container, with the room host and helper
+built into the image, is in [../docker/README.md](../docker/README.md). What
+the supervisor does and its API are in `../README.md` and
 `docs/design/PUBLIC_ROOMS.md`. What a room costs, how many rooms a server
 size holds and hosting options are in
 `docs/development/PUBLIC_ROOM_HOSTING.md`.
