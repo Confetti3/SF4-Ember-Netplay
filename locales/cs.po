@@ -665,7 +665,7 @@ msgid "replays.not_ready"
 msgstr "Dostupné v hlavním menu, mimo zápas."
 
 msgid "replays.added"
-msgstr "Přidáno jako nejnovější položka seznamu záznamů hry."
+msgstr "Přidáno do seznamu záznamů hry pod datem, kdy se zápas hrál."
 
 msgid "replays.not_added"
 msgstr "Tento záznam se nepodařilo přidat. Soubor může být poškozený."

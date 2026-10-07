@@ -665,7 +665,7 @@ msgid "replays.not_ready"
 msgstr "Disponível no menu principal, fora de uma partida."
 
 msgid "replays.added"
-msgstr "Adicionado como a entrada mais recente da lista de replays do jogo."
+msgstr "Adicionado à lista de replays do jogo, na data em que foi jogado."
 
 msgid "replays.not_added"
 msgstr "Não foi possível adicionar este replay. O arquivo pode estar danificado."

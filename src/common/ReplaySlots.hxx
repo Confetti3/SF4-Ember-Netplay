@@ -29,6 +29,8 @@
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <cwchar>
+#include <string>
 #include <vector>
 
 namespace sf4e { namespace replayslots {
@@ -224,6 +226,30 @@ inline bool ExportFromReplayAlone(const Bytes& replay, Bytes& out) {
 	return ExportFromReplay(replay, Bytes(full.begin() + 4, full.end()), out);
 }
 
+// The export of a slot from its file, whatever the index says of it. The
+// game writes a replay's file and its ".0" when a match ends, and its indexes
+// at a save of their own, which a slot's file can be ahead of (or never get:
+// the file is then on disk with the record of the replay it replaced). With
+// a record that names the file this is Export. Without one the file has to
+// be whole, which its ".0" says, and the record is made up from its header
+// (ExportFromReplayAlone); fromRecord tells which.
+inline bool ExportSlotFile(const Bytes& list, const Bytes& swan, int slot, const Bytes& replay, const Bytes& sidecar, Bytes& out, bool& fromRecord) {
+	fromRecord = Export(list, swan, slot, replay, out);
+	return fromRecord || (sidecar.size() == 4 && sidecar == Sidecar(replay) && ExportFromReplayAlone(replay, out));
+}
+
+// The CRC an archived replay's file name ends in
+// ("20261005-213503-69991186.emberreplay": the save time, UTC, and the
+// replay's CRC). False for any other name. A replay put back into the game
+// is saved under a new time (Import), so the CRC alone tells whether the
+// archive holds it.
+inline bool ArchiveNameCrc(const std::wstring& name, std::uint32_t& crc) {
+	if (name.size() != 36 || name[8] != L'-' || name[15] != L'-' || name.compare(24, std::wstring::npos, L".emberreplay")) return false;
+	wchar_t* end = nullptr;
+	crc = static_cast<std::uint32_t>(std::wcstoul(name.c_str() + 16, &end, 16));
+	return end == name.c_str() + 24;
+}
+
 // The slot a new replay goes into among first to last, the way the game picks
 // one (0x67B830): the first empty slot, else the one saved longest ago. -1
 // when no slot in the range has a record.
@@ -239,13 +265,12 @@ inline int SlotToReplace(const Bytes& list, const Bytes& swan, int first, int la
 }
 
 // Puts an exported replay into a slot, replacing what was there: the slot's
-// index gets the record with this slot number, now as its save time and as
-// the date and time the menu shows, swan gets the slot's two bytes and a new
-// leading CRC, and replay becomes the contents for the slot's file. The save
-// time decides which slot the next replay replaces, and the menu lists by
-// date, so a fresh one keeps the import at the top until the slots cycle
-// round. The date it was played goes into the record's title, which the game
-// reads as 21 characters after their count. The caller writes the
+// index gets the record with this slot number and now as its save time, swan
+// gets the slot's two bytes and a new leading CRC, and replay becomes the
+// contents for the slot's file. The save time decides which slot the next
+// replay replaces, so a fresh one keeps the import until the slots cycle
+// round. The date and time the menu shows stay the ones it was played at, so
+// the menu, which lists by date, has it at its own place. The caller writes the
 // changed files and their ".0" files from Sidecar. False, changing nothing,
 // when the export or an index is damaged. The export may come from anyone;
 // the size, CRC and magic are checked here, and the replay itself is read by
@@ -262,21 +287,6 @@ inline bool Import(const Bytes& exported, int slot, std::uint32_t now, Bytes& li
 	std::memcpy(out, record, kRecordBytes);
 	WriteU32(out, static_cast<std::uint32_t>(slot));
 	WriteU32(out + 13, now);
-	const RecordInfo played = ReadRecordInfo(record);
-	char title[22] = {};
-	std::snprintf(title, sizeof(title), "%04d-%02d-%02d %02d:%02d", played.year, played.month, played.day, played.hour, played.minute);
-	WriteU32(out + 22, 21);
-	std::memcpy(out + 26, title, 21);
-	const std::time_t at = now;
-	tm utc = {};
-#ifdef _WIN32
-	gmtime_s(&utc, &at);
-#else
-	gmtime_r(&at, &utc);
-#endif
-	out[51] = static_cast<std::uint8_t>(utc.tm_year + 1900); out[52] = static_cast<std::uint8_t>((utc.tm_year + 1900) >> 8);
-	out[53] = static_cast<std::uint8_t>(utc.tm_mon + 1); out[54] = static_cast<std::uint8_t>(utc.tm_mday);
-	out[123] = static_cast<std::uint8_t>(utc.tm_hour); out[124] = static_cast<std::uint8_t>(utc.tm_min);
 	std::memcpy(swan.data() + kSwanSlotBytesOffset + slot * 2, record + kRecordBytes, 2);
 	WriteU32(swan.data(), Crc32(swan.data() + 4, swan.size() - 4));
 	replay.assign(body, body + size);

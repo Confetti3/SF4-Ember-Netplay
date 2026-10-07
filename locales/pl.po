@@ -665,7 +665,7 @@ msgid "replays.not_ready"
 msgstr "Dostępne w menu głównym, poza meczem."
 
 msgid "replays.added"
-msgstr "Dodano jako najnowszą pozycję listy powtórek gry."
+msgstr "Dodano do listy powtórek gry pod datą, kiedy mecz został rozegrany."
 
 msgid "replays.not_added"
 msgstr "Nie udało się dodać tej powtórki. Plik może być uszkodzony."

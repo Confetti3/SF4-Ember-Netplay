@@ -6,9 +6,11 @@
 #include <time.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cstring>
 #include <fstream>
 #include <iterator>
+#include <set>
 
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
@@ -37,12 +39,13 @@ bool SaveFile(const fs::path& path, const slots::Bytes& contents) {
 	return !error;
 }
 
-// "20261005-213503-69991186.emberreplay": the save time (UTC) and the CRC.
-bool ArchiveName(const slots::SlotInfo& info, wchar_t (&name)[64]) {
-	const __time64_t saved = info.time;
+// "20261005-213503-69991186.emberreplay": the save time (UTC) and the CRC,
+// both from the export's record.
+bool ArchiveName(const slots::Bytes& exported, wchar_t (&name)[64]) {
+	const __time64_t saved = slots::ReadU32(exported.data() + 8 + 13);
 	tm utc = {};
 	return !_gmtime64_s(&utc, &saved) && SUCCEEDED(StringCchPrintfW(name, 64, L"%04d%02d%02d-%02d%02d%02d-%08x.emberreplay",
-		utc.tm_year + 1900, utc.tm_mon + 1, utc.tm_mday, utc.tm_hour, utc.tm_min, utc.tm_sec, info.crc));
+		utc.tm_year + 1900, utc.tm_mon + 1, utc.tm_mday, utc.tm_hour, utc.tm_min, utc.tm_sec, slots::ReadU32(exported.data() + 8 + 5)));
 }
 
 }
@@ -69,21 +72,42 @@ int Archive() {
 		const Folders folders = FindFolders();
 		if (folders.archive.empty()) return -1;
 		std::error_code ignored;
+		// The replays the archive holds, by CRC: Ember's own from their names,
+		// usf4-replay-saver's from their contents.
+		std::set<std::uint32_t> held;
+		for (const auto& entry : fs::recursive_directory_iterator(folders.archive, ignored)) {
+			std::uint32_t crc = 0;
+			if (slots::ArchiveNameCrc(entry.path().filename().wstring(), crc)) held.insert(crc);
+			else if (entry.path().extension() == L".usf4replay") {
+				const slots::Bytes saver = LoadFile(entry.path());
+				held.insert(slots::Crc32(saver.data(), saver.size()));
+			}
+		}
 		int copied = 0;
 		for (const fs::path& saves : folders.saves) {
 			const slots::Bytes list = LoadFile(saves / L"LIST"), swan = LoadFile(saves / L"replays-swan.dat");
 			if (!slots::ValidSwan(swan)) continue;
 			for (int slot = kFirstMatchSlot; slot <= kLastMatchSlot; slot++) {
-				const slots::SlotInfo info = slots::ReadSlot(list, swan, slot);
+				// The file is what is archived, not what the index says the slot
+				// holds: the index can be behind it (ReplaySlots.hxx: ExportSlotFile).
+				const fs::path file = saves / std::to_wstring(slot);
+				const slots::Bytes replay = LoadFile(file);
+				const std::uint32_t crc = slots::Crc32(replay.data(), replay.size());
 				wchar_t name[64] = { 0 };
-				if (!info.used || !ArchiveName(info, name) || fs::exists(folders.archive / name, ignored)) continue;
 				slots::Bytes exported;
-				if (!slots::Export(list, swan, slot, LoadFile(saves / std::to_wstring(slot)), exported)) {
-					spdlog::debug("Replays: slot {} does not match its file, not archived", slot);
+				bool fromRecord = false;
+				if (replay.size() < 4 || std::memcmp(replay.data(), "#BRP", 4) || held.count(crc)) continue;
+				if (!slots::ExportSlotFile(list, swan, slot, replay, LoadFile(file.wstring() + L".0"), exported, fromRecord) || !ArchiveName(exported, name)) {
+					spdlog::debug("Replays: slot {} is not a whole replay, not archived", slot);
 					continue;
 				}
+				// Two minutes for the game to write the slot's record, which
+				// says more than the file's header does.
+				if (!fromRecord && fs::file_time_type::clock::now() - fs::last_write_time(file, ignored) < std::chrono::minutes(2)) continue;
+				if (!fromRecord) spdlog::info("Replays: slot {} holds a replay the game's index does not list; archived from the file alone", slot);
 				fs::create_directories(folders.archive, ignored);
 				if (!SaveFile(folders.archive / name, exported)) { spdlog::warn("Replays: could not write the copy of slot {}", slot); continue; }
+				held.insert(crc);
 				copied++;
 			}
 		}
