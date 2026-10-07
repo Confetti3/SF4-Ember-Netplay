@@ -69,8 +69,14 @@ msgstr "SF4 Ember Netplay už běží. Pokud jej nevidíte, ukončete Launcher.e
 msgid "launcher.start_failed"
 msgstr "Spuštění hry nebo injekce selhala. Zkontrolujte protokol spouštěče v %APPDATA%\\sf4e\\logs\\launcher.log a zkuste to znovu."
 
+msgid "launcher.game_runs_as_admin"
+msgstr "SSFIV.exe má nastavené spouštění jako správce, proto ho Ember nemůže spustit. Ve složce hry klikněte pravým tlačítkem na SSFIV.exe, otevřete Vlastnosti a potom Kompatibilita a zrušte \"Spustit tento program jako správce\", také v \"Změnit nastavení pro všechny uživatele\". Pak to zkuste znovu."
+
 msgid "launcher.game_error"
 msgstr "Hra skončila s chybou. Zkontrolujte protokol spouštěče v %APPDATA%\\sf4e\\logs\\launcher.log a zkuste to znovu."
+
+msgid "launcher.steam_runs_as_admin"
+msgstr "Hra se nemohla spojit se Steamem, protože Steam běží jako správce. Zavřete Steam, spusťte ho normálně a zkuste to znovu. Spuštění Emberu jako správce také funguje, ale aktualizace se tak neinstalují."
 
 msgid "launcher.game_crashed"
 msgstr "Hra spadla. Pošlete prosím týmu SF4 Ember Netplay soubory ze složky %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log a sf4e-crash-*.dmp) a zkuste to znovu."

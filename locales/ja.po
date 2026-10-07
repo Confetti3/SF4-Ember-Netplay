@@ -69,8 +69,14 @@ msgstr "SF4 Ember Netplayはすでに起動しています。画面に見えな�
 msgid "launcher.start_failed"
 msgstr "ゲームの起動または組み込みに失敗しました。ランチャーのログ（%APPDATA%\\sf4e\\logs\\launcher.log）を確認して再試行してください。"
 
+msgid "launcher.game_runs_as_admin"
+msgstr "SSFIV.exeが管理者として実行する設定になっているため、Emberから起動できません。ゲームフォルダーのSSFIV.exeを右クリックして「プロパティ」の「互換性」を開き、「管理者としてこのプログラムを実行する」をオフにしてください（「全ユーザーの設定を変更」の中も同様です）。その後、再試行してください。"
+
 msgid "launcher.game_error"
 msgstr "ゲームがエラーで終了しました。ランチャーのログ（%APPDATA%\\sf4e\\logs\\launcher.log）を確認して再試行してください。"
+
+msgid "launcher.steam_runs_as_admin"
+msgstr "Steamが管理者として実行されているため、ゲームがSteamに接続できませんでした。Steamを終了して通常どおり起動し直してから再試行してください。Emberを管理者として起動しても動作しますが、その場合アップデートはインストールされません。"
 
 msgid "launcher.game_crashed"
 msgstr "ゲームがクラッシュしました。%APPDATA%\\sf4e\\logs 内のファイル（sf4e.log、sf4e-crash.log、sf4e-crash-*.dmp）を SF4 Ember Netplay チームに送ってから再試行してください。"

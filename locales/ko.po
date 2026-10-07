@@ -69,8 +69,14 @@ msgstr "SF4 Ember Netplay가 이미 실행 중입니다. 창이 보이지 않으
 msgid "launcher.start_failed"
 msgstr "게임 실행 또는 인젝션에 실패했습니다. 런처 로그(%APPDATA%\\sf4e\\logs\\launcher.log)를 확인하고 다시 시도하세요."
 
+msgid "launcher.game_runs_as_admin"
+msgstr "SSFIV.exe가 관리자 권한으로 실행되도록 설정되어 있어 Ember에서 시작할 수 없습니다. 게임 폴더에서 SSFIV.exe를 마우스 오른쪽 버튼으로 클릭하고 속성의 호환성 탭을 연 뒤 \"관리자 권한으로 이 프로그램 실행\"을 해제하세요. \"모든 사용자 설정 변경\" 안에서도 해제해야 합니다. 그런 다음 다시 시도하세요."
+
 msgid "launcher.game_error"
 msgstr "게임이 오류로 종료되었습니다. 런처 로그(%APPDATA%\\sf4e\\logs\\launcher.log)를 확인하고 다시 시도하세요."
+
+msgid "launcher.steam_runs_as_admin"
+msgstr "Steam이 관리자 권한으로 실행 중이어서 게임이 Steam에 연결하지 못했습니다. Steam을 종료하고 일반 방식으로 다시 실행한 뒤 다시 시도하세요. Ember를 관리자 권한으로 실행해도 되지만, 그러면 업데이트가 설치되지 않습니다."
 
 msgid "launcher.game_crashed"
 msgstr "게임이 충돌했습니다. %APPDATA%\\sf4e\\logs 폴더의 파일(sf4e.log, sf4e-crash.log, sf4e-crash-*.dmp)을 SF4 Ember Netplay 팀에 보낸 뒤 다시 시도하세요."

@@ -19,6 +19,7 @@
 #include "../ui/RecoverySurface.hxx"
 #include "../platform/JoinLinkMailbox.hxx"
 #include "../common/WipeText.hxx"
+#include "../platform/Elevation.hxx"
 #include "../platform/LauncherInstance.hxx"
 #include "../platform/Utf8.hxx"
 #include "../platform/WineBuiltin.hxx"
@@ -277,7 +278,8 @@ HANDLE CreateSF4Process(
 	LPWSTR szExePath,
 	int nDlls,
 	LPCSTR* rlpDlls,
-	sf4e::crash::DumpChannel& dumps
+	sf4e::crash::DumpChannel& dumps,
+	DWORD& startError
 ) {
 	wchar_t szErrorString[1024] = { 0 };
 	DWORD dwError;
@@ -318,6 +320,7 @@ HANDLE CreateSF4Process(
 			NULL
 		)) {
 		dwError = GetLastError();
+		startError = dwError;
 		StringCchPrintf(szErrorString, 1024, L"DetourCreateProcessWithDllEx failed: %d", dwError);
         spdlog::error("Could not start the game with Sidecar (Win32 {})", dwError);
         if (hSyncEvent) CloseHandle(hSyncEvent);
@@ -741,10 +744,18 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         const auto helperPath = std::filesystem::path(installRoot)/L"sf4-net.exe";
         sf4e::crash::DumpChannel dumps;
         if (!dumps.Create()) spdlog::warn("Could not create the crash dump channel (Win32 {})", GetLastError());
-        HANDLE game = CreateSF4Process(payload,helper,discord,helperPath.wstring(),location.directory.data(),location.executable.data(),1,dlls,dumps);
+        // A game started by a normal process cannot reach a Steam that runs as
+        // administrator: its SteamAPI_Init fails and it exits.
+        const bool steamAbove = sf4e::platform::ProcessElevation() == sf4e::platform::Elevation::Normal &&
+            sf4e::platform::SteamElevation() == sf4e::platform::Elevation::Elevated;
+        if (steamAbove) spdlog::warn("Steam runs as administrator and the launcher does not; the game may not reach Steam");
+        DWORD startError = 0;
+        HANDLE game = CreateSF4Process(payload,helper,discord,helperPath.wstring(),location.directory.data(),location.executable.data(),1,dlls,dumps,startError);
         if (!game) {
             dumps.Close();
-            if (!ShowRecovery(sf4e::loc::T("launcher.start_failed"),chosenDirectory)) return 0;
+            // ERROR_ELEVATION_REQUIRED: SSFIV.exe is marked to run as administrator.
+            const char* startMessage = startError == ERROR_ELEVATION_REQUIRED ? "launcher.game_runs_as_admin" : "launcher.start_failed";
+            if (!ShowRecovery(sf4e::loc::T(startMessage),chosenDirectory)) return 0;
             continue;
         }
         // The game's crash handler asks for its dump here and waits for it.
@@ -765,7 +776,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         discord.Stop(); helper.Stop(); CloseHandle(game);
         // A loader failure never reaches Sidecar's crash record, so the exit
         // code is the only thing that tells a missing export from a crash.
-        const char* exitMessage = exitCode == 0xC0000139u ? "launcher.game_wrong_dll" : crashed ? "launcher.game_crashed" : "launcher.game_error";
+        // With Steam above the launcher the game cannot run at all, and how it
+        // exits after SteamAPI_Init fails may look like a crash, so that comes first.
+        const char* exitMessage = exitCode == 0xC0000139u ? "launcher.game_wrong_dll" :
+            steamAbove ? "launcher.steam_runs_as_admin" : crashed ? "launcher.game_crashed" : "launcher.game_error";
         if (exitCode != 0 && ShowRecovery(sf4e::loc::T(exitMessage),chosenDirectory)) continue;
         return 0;
     }

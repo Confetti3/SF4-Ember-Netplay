@@ -69,8 +69,14 @@ msgstr "SF4 Ember Netplay 已在运行。如找不到窗口，请在任务管理
 msgid "launcher.start_failed"
 msgstr "游戏启动或注入失败。请查看启动器日志（%APPDATA%\\sf4e\\logs\\launcher.log）后重试。"
 
+msgid "launcher.game_runs_as_admin"
+msgstr "SSFIV.exe 被设置为以管理员身份运行，因此 Ember 无法启动它。请在游戏文件夹中右键单击 SSFIV.exe，打开“属性”中的“兼容性”，取消勾选“以管理员身份运行此程序”，“更改所有用户的设置”中也要取消。然后重试。"
+
 msgid "launcher.game_error"
 msgstr "游戏异常退出。请查看启动器日志（%APPDATA%\\sf4e\\logs\\launcher.log）后重试。"
+
+msgid "launcher.steam_runs_as_admin"
+msgstr "Steam 正以管理员身份运行，因此游戏无法连接到 Steam。请关闭 Steam，以普通方式重新启动后重试。以管理员身份启动 Ember 也可以，但这样不会安装更新。"
 
 msgid "launcher.game_crashed"
 msgstr "游戏崩溃了。请将 %APPDATA%\\sf4e\\logs 中的文件（sf4e.log、sf4e-crash.log 和 sf4e-crash-*.dmp）发送给 SF4 Ember Netplay 团队，然后重试。"

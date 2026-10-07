@@ -69,8 +69,14 @@ msgstr "O SF4 Ember Netplay já está em execução. Se não o vir, encerre Laun
 msgid "launcher.start_failed"
 msgstr "Falha ao iniciar ou injetar no jogo. Verifique o log do inicializador em %APPDATA%\\sf4e\\logs\\launcher.log e tente novamente."
 
+msgid "launcher.game_runs_as_admin"
+msgstr "O SSFIV.exe está configurado para ser executado como administrador, por isso o Ember não consegue iniciá-lo. Clique com o botão direito no SSFIV.exe na pasta do jogo, abra Propriedades e depois Compatibilidade, e desmarque \"Executar este programa como administrador\", também em \"Alterar configurações para todos os usuários\". Depois tente novamente."
+
 msgid "launcher.game_error"
 msgstr "O jogo foi encerrado com erro. Consulte o log do inicializador em %APPDATA%\\sf4e\\logs\\launcher.log e tente novamente."
+
+msgid "launcher.steam_runs_as_admin"
+msgstr "O jogo não conseguiu acessar o Steam porque o Steam está sendo executado como administrador. Feche o Steam, abra-o normalmente e tente novamente. Iniciar o Ember como administrador também funciona, mas assim as atualizações não são instaladas."
 
 msgid "launcher.game_crashed"
 msgstr "O jogo travou. Envie para a equipe do SF4 Ember Netplay os arquivos de %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log e sf4e-crash-*.dmp) e tente novamente."

@@ -69,8 +69,14 @@ msgstr "SF4 Ember Netplay draait al. Zie je het niet? Sluit Launcher.exe en SSFI
 msgid "launcher.start_failed"
 msgstr "Starten of injectie mislukt. Bekijk het launcherlogboek in %APPDATA%\\sf4e\\logs\\launcher.log en probeer opnieuw."
 
+msgid "launcher.game_runs_as_admin"
+msgstr "SSFIV.exe is ingesteld om als administrator te draaien, daarom kan Ember het niet starten. Klik in de spelmap met de rechtermuisknop op SSFIV.exe, open Eigenschappen en dan Compatibiliteit, en zet \"Dit programma als administrator uitvoeren\" uit, ook onder \"Instellingen voor alle gebruikers wijzigen\". Probeer het daarna opnieuw."
+
 msgid "launcher.game_error"
 msgstr "Spel afgesloten met een fout. Bekijk het launcherlogboek in %APPDATA%\\sf4e\\logs\\launcher.log en probeer opnieuw."
+
+msgid "launcher.steam_runs_as_admin"
+msgstr "Het spel kon Steam niet bereiken omdat Steam als administrator draait. Sluit Steam, start het normaal opnieuw en probeer het nogmaals. Ember als administrator starten werkt ook, maar dan worden updates niet geïnstalleerd."
 
 msgid "launcher.game_crashed"
 msgstr "Het spel is gecrasht. Stuur de bestanden uit %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log en sf4e-crash-*.dmp) naar het SF4 Ember Netplay-team en probeer opnieuw."
