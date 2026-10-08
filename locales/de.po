@@ -202,7 +202,19 @@ msgid "services.exporting"
 msgstr "Diagnoseexport läuft..."
 
 msgid "services.downloading"
-msgstr "Update wird geladen und geprüft..."
+msgstr "Update wird geladen..."
+
+msgid "services.verifying"
+msgstr "Download wird geprüft..."
+
+msgid "services.extracting"
+msgstr "Update wird entpackt..."
+
+msgid "services.preparing"
+msgstr "Update wird vorbereitet..."
+
+msgid "services.installing"
+msgstr "Update wird installiert..."
 
 msgid "services.opening_updater"
 msgstr "Updater wird geöffnet..."

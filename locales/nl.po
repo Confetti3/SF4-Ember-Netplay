@@ -202,7 +202,19 @@ msgid "services.exporting"
 msgstr "Diagnostiek exporteren..."
 
 msgid "services.downloading"
-msgstr "Update downloaden en controleren..."
+msgstr "Update downloaden..."
+
+msgid "services.verifying"
+msgstr "Download controleren..."
+
+msgid "services.extracting"
+msgstr "Update uitpakken..."
+
+msgid "services.preparing"
+msgstr "Update voorbereiden..."
+
+msgid "services.installing"
+msgstr "Update installeren..."
 
 msgid "services.opening_updater"
 msgstr "Updater openen..."

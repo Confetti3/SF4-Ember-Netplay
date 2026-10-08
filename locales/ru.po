@@ -202,7 +202,19 @@ msgid "services.exporting"
 msgstr "Экспорт диагностики..."
 
 msgid "services.downloading"
-msgstr "Загрузка и проверка обновления..."
+msgstr "Загрузка обновления..."
+
+msgid "services.verifying"
+msgstr "Проверка загрузки..."
+
+msgid "services.extracting"
+msgstr "Распаковка обновления..."
+
+msgid "services.preparing"
+msgstr "Подготовка обновления..."
+
+msgid "services.installing"
+msgstr "Установка обновления..."
 
 msgid "services.opening_updater"
 msgstr "Запуск обновления..."

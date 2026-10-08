@@ -202,7 +202,19 @@ msgid "services.exporting"
 msgstr "診断情報を出力中..."
 
 msgid "services.downloading"
-msgstr "更新をダウンロードして検証中..."
+msgstr "更新をダウンロード中..."
+
+msgid "services.verifying"
+msgstr "ダウンロードを検証中..."
+
+msgid "services.extracting"
+msgstr "更新を展開中..."
+
+msgid "services.preparing"
+msgstr "更新を準備中..."
+
+msgid "services.installing"
+msgstr "更新をインストール中..."
 
 msgid "services.opening_updater"
 msgstr "アップデーターを起動中..."

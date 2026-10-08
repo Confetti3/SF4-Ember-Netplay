@@ -100,7 +100,7 @@ function RecoverTransaction([string]$Install, [string]$Path, [switch]$InspectOnl
     if (!(Test-Path -LiteralPath $Path -PathType Leaf)) { throw 'Invalid update transaction path.' }
     $transaction = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($transaction.schema -ne 1 -or $transaction.installation -ine $Install -or !$transaction.backup -or !$transaction.operations -or
-        $transaction.state -notin 'prepared','committed' -or $transaction.target -isnot [pscustomobject]) {
+        $transaction.state -notin 'prepared','committed','rolling-back' -or $transaction.target -isnot [pscustomobject]) {
         throw 'The pending update transaction is invalid. Preserve the installation and backup for manual recovery.'
     }
     if ($InspectOnly) {
@@ -132,9 +132,19 @@ function RecoverTransaction([string]$Install, [string]$Path, [switch]$InspectOnl
         $seen[$key] = $true
         if (($operation.existed -and [string]$operation.priorSha256 -notmatch '^[a-fA-F0-9]{64}$') -or
             (!$operation.existed -and [string]$operation.priorSha256 -ne '')) { throw 'Invalid prior hash.' }
-        if ($transaction.state -eq 'prepared' -and $operation.existed -and
+        if ($transaction.state -ne 'committed' -and $operation.existed -and
             (!(Test-Path -LiteralPath $source -PathType Leaf) -or (Get-FileHash -LiteralPath $source).Hash -ine [string]$operation.priorSha256)) {
             throw "The recovery backup is missing or damaged: $key"
+        }
+    }
+    $missingSkipped = ''
+    $missingProperty = $transaction.PSObject.Properties['missingSkipped']
+    if ($missingProperty) {
+        if ($missingProperty.Value -isnot [string]) { throw 'Invalid missing update file.' }
+        $missingSkipped = $missingProperty.Value.Replace('/','\')
+        $null = SafePath $Install $missingSkipped
+        if (!$target.ContainsKey($missingSkipped) -or $seen.ContainsKey($missingSkipped)) {
+            throw 'Invalid missing update file.'
         }
     }
     if ($transaction.state -eq 'committed') {
@@ -145,6 +155,13 @@ function RecoverTransaction([string]$Install, [string]$Path, [switch]$InspectOnl
         Remove-Item -LiteralPath $Path -Force
         Write-Host 'The completed update transaction was verified.'
         return $true
+    }
+    # The complete journal and backup set are validated above. Persist the
+    # chosen rollback before the first destination changes, so either reader
+    # resumes restoration without reclassifying a partially restored install.
+    if ($transaction.state -ne 'rolling-back') {
+        $transaction.state = 'rolling-back'
+        WriteTransaction $Path $transaction
     }
     foreach ($operation in @($transaction.operations)) {
         $destination = SafePath $Install ([string]$operation.path)
@@ -167,6 +184,14 @@ function RecoverTransaction([string]$Install, [string]$Path, [switch]$InspectOnl
         }
     }
     VerifyFiles $Install $restored
+    if ($missingSkipped) {
+        # The recorded skipped file has no backup. Restoration completes the
+        # operations, but cannot clear the native reader's terminal repair result.
+        $failedPath = SafePath $Install '.ember-update-transaction-v1.json.failed'
+        if (Test-Path -LiteralPath $failedPath -PathType Container) { throw 'Invalid failed update transaction path.' }
+        Move-Item -LiteralPath $Path -Destination $failedPath -Force
+        throw "An update file is missing and has no backup; install the update again: $missingSkipped"
+    }
     Remove-Item -LiteralPath $Path -Force
     Write-Host "The interrupted update was restored from $($transaction.backup)."
     return $true

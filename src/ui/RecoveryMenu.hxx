@@ -31,26 +31,29 @@ inline void OfferFoundUpdate(GameMenu& menu,const platform::ServiceSnapshot& sta
 inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSnapshot& state,const std::string& message,bool updates,
     Tone messageTone=Tone::Error,bool canStart=false,bool serviceNewer=true) {
     std::vector<MenuEntry> rows;
+    // A row that waits while the worker is busy: the status line and the bar
+    // say with what, so its pane does not add "Unavailable".
+    const auto waits=[&](MenuEntry row){row.quiet=state.pending;return row;};
     if(!updates){
-        rows.push_back(Row("folder",loc::T("recovery.choose_folder"),loc::T("recovery.choose_folder_detail"),!state.pending));
-        rows.push_back(Row("retry",loc::T("recovery.retry"),state.pending?loc::T("recovery.retry_busy"):loc::T("recovery.retry_detail"),!state.pending));
+        rows.push_back(waits(Row("folder",loc::T("recovery.choose_folder"),loc::T("recovery.choose_folder_detail"),!state.pending)));
+        rows.push_back(waits(Row("retry",loc::T("recovery.retry"),state.pending?loc::T("recovery.retry_busy"):loc::T("recovery.retry_detail"),!state.pending)));
     }
     // A found update comes first, named by its version: installing it is
     // what the player came here for.
     if(state.update.ok&&state.update.updateAvailable){
-        rows.push_back(ConfirmRow("install",loc::T("updates.install"),state.update.expectedSha256.size()==64?
-            loc::T("updates.install_detail"):loc::T("updates.unverified"),!state.pending&&state.update.expectedSha256.size()==64));
+        rows.push_back(waits(ConfirmRow("install",loc::T("updates.install"),state.update.expectedSha256.size()==64?
+            loc::T("updates.install_detail"):loc::T("updates.unverified"),!state.pending&&state.update.expectedSha256.size()==64)));
         rows.back().value=state.update.latestVersion;
     }
-    rows.push_back(Row("check",loc::T("updates.check"),state.pending?loc::T("updates.busy"):loc::T("updates.check_detail"),!state.pending));
+    rows.push_back(waits(Row("check",loc::T("updates.check"),state.pending?loc::T("updates.busy"):loc::T("updates.check_detail"),!state.pending)));
     if(updates){
-        rows.push_back(Row("channel",loc::T("updates.channel"),loc::T("updates.channel_detail"),!state.pending));
+        rows.push_back(waits(Row("channel",loc::T("updates.channel"),loc::T("updates.channel_detail"),!state.pending)));
         rows.back().value=loc::T(state.channel==launcher::UpdateChannel::Prerelease?"updates.channel.prerelease":"updates.channel.stable");
         if(!state.installedVersion.empty())rows.push_back(InfoRow("installed",loc::T("updates.installed_version"),state.installedVersion,loc::T("updates.installed_version_detail")));
     }
     if(state.pending)rows.push_back(Row("cancel",loc::T("updates.cancel"),loc::T("updates.cancel_detail")));
     if(updates&&canStart)
-        rows.push_back(Row("retry",loc::T("updates.start_game"),state.pending?loc::T("recovery.retry_busy"):loc::T("updates.start_game_detail"),!state.pending));
+        rows.push_back(waits(Row("retry",loc::T("updates.start_game"),state.pending?loc::T("recovery.retry_busy"):loc::T("updates.start_game_detail"),!state.pending)));
     rows.push_back(Row("close",loc::T("common.close"),state.pending?loc::T("recovery.close_cancels_detail"):
         loc::T(updates?"updates.close_detail":"recovery.close_detail")));
     // Back on the root closes the window, so the legend says so.
@@ -68,9 +71,10 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
     // run to several lines and name the files to move and the folders to look in.
     menu.fitStatus=true;
     const auto action=menu.Draw(updates?loc::T("updates.title"):loc::T("recovery.title"),rows,status.c_str(),[&](const std::string&){
-        if(!state.pending||!state.downloadedBytes)return;
-        if(state.totalBytes)ImGui::ProgressBar((std::min)(1.f,float(state.downloadedBytes)/state.totalBytes),ImVec2(-1,0));
-        const auto progress=loc::Tf("updates.downloaded_mb",state.downloadedBytes/1048576.0);
+        if(!state.pending)return;
+        if(state.stageTotal)ImGui::ProgressBar((std::min)(1.f,float(state.stageDone)/state.stageTotal),ImVec2(-1,0));
+        if(state.updateStage!=launcher::UpdateStage::Downloading||!state.stageDone)return;
+        const auto progress=loc::Tf("updates.downloaded_mb",state.stageDone/1048576.0);
         ImGui::TextWrapped("%s",progress.c_str());
     },1,{},{},0,100,true,tone);
     ImGui::End();

@@ -202,7 +202,19 @@ msgid "services.exporting"
 msgstr "진단 정보 내보내는 중..."
 
 msgid "services.downloading"
-msgstr "업데이트 다운로드 및 검증 중..."
+msgstr "업데이트 다운로드 중..."
+
+msgid "services.verifying"
+msgstr "다운로드 검증 중..."
+
+msgid "services.extracting"
+msgstr "업데이트 압축 해제 중..."
+
+msgid "services.preparing"
+msgstr "업데이트 준비 중..."
+
+msgid "services.installing"
+msgstr "업데이트 설치 중..."
 
 msgid "services.opening_updater"
 msgstr "업데이터 여는 중..."

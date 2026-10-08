@@ -982,7 +982,7 @@ int main(int argc, char** argv) {
             // The found update is the first row, so Select asks to install it.
             draw(nullptr,MenuInput::Select,1);draw("update-confirmation");
             Require(recoveryMenu.navigation.Confirming()&&!recoveryMenu.navigation.ConfirmSelected(),"Recovery update confirmation is unsafe");
-            draw(nullptr,MenuInput::Back,1);draw();recoveryState.pending=true;recoveryState.downloadedBytes=25*1024*1024;recoveryState.totalBytes=100*1024*1024;
+            draw(nullptr,MenuInput::Back,1);draw();recoveryState.pending=true;recoveryState.stageDone=25*1024*1024;recoveryState.stageTotal=100*1024*1024;
             recoveryState.message="Downloading the verified update. You can cancel this operation.";draw("update-downloading");
             mode=0;shell.Navigation().Home();draw("home-restored");
             auto* main=FindWindow("EmberShell");
