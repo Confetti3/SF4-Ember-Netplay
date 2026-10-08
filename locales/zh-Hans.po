@@ -1422,19 +1422,19 @@ msgstr "输入记录"
 msgid "training.input_history.detail"
 msgstr "查看各玩家持续按住的输入。"
 
-msgid "training.combo.title"
+msgid "training.tools"
 msgstr "位置和木桩"
 
-msgid "training.combo.title.detail"
+msgid "training.tools.detail"
 msgstr "保存和重置位置，设置木桩及其反击。"
 
 msgid "training.match.checkpoint_disabled"
 msgstr "Shared save/reset is disabled during rollback matches in nightly."
 
-msgid "training.combo.invalid"
+msgid "training.invalid"
 msgstr "未接受：{0}"
 
-msgid "training.combo.save_failed"
+msgid "training.save_failed"
 msgstr "无法保存文件。"
 
 msgid "training.guide"
@@ -1449,163 +1449,163 @@ msgstr "选择一个槽位，然后录制：玩家1的手柄操控木桩，直�
 msgid "training.history.guide"
 msgstr "各玩家的手柄输入，最新的在前，并附每个输入按住的帧数。选择一名玩家即可查看列表。它显示的是按下了什么，不是打出了哪一招。"
 
-msgid "training.combo.guide"
+msgid "training.tools.guide"
 msgstr "保存位置会保存当前对战的状态，重置位置则把它放回；手柄的 Select 按一下重置，按住则保存。木桩各行会立即更改游戏的训练设置。木桩反击是木桩恢复自由后自己做的动作：播放反击招式，该行为空时播放反击槽位。"
 
 msgid "edit.instructions.area"
 msgstr "使用键盘输入或粘贴。按 Enter 换行。按 Ctrl+Enter 或确认按钮确认；按 Escape 或控制器上的返回取消。"
 
-msgid "training.combo.save_pos"
+msgid "training.position.save"
 msgstr "保存位置"
 
-msgid "training.combo.save_pos.detail"
+msgid "training.position.save.detail"
 msgstr "保存双方角色当前的状态：位置、体力、能量条、木桩状态。"
 
-msgid "training.combo.reset_pos"
+msgid "training.position.reset"
 msgstr "重置位置"
 
-msgid "training.combo.reset_pos.detail"
+msgid "training.position.reset.detail"
 msgstr "把双方角色放回保存时的位置。"
 
-msgid "training.combo.position_saved"
+msgid "training.position.saved"
 msgstr "已保存位置。"
 
-msgid "training.combo.position_reset"
+msgid "training.position.reset_done"
 msgstr "已重置位置。"
 
-msgid "training.combo.setup.detail"
+msgid "training.dummy.detail"
 msgstr "左右切换；立即在游戏中生效。"
 
-msgid "training.combo.reply"
+msgid "training.reply"
 msgstr "木桩反击"
 
-msgid "training.combo.reply.detail"
+msgid "training.reply.detail"
 msgstr "木桩恢复自由后自己做的动作，用来惩罚断掉的连招或不安全的收尾：播放反击招式，该行为空时播放反击槽位。回放或录制进行时它会等待。"
 
-msgid "training.combo.reply.hit"
+msgid "training.reply.hit"
 msgstr "连招断掉后"
 
-msgid "training.combo.reply.block"
+msgid "training.reply.block"
 msgstr "防御后"
 
-msgid "training.combo.reply.rise"
+msgid "training.reply.rise"
 msgstr "起身时"
 
-msgid "training.combo.reply.any"
+msgid "training.reply.any"
 msgstr "每次恢复时"
 
-msgid "training.combo.reply.slot"
+msgid "training.reply.slot"
 msgstr "反击槽位"
 
-msgid "training.combo.reply.slot.detail"
+msgid "training.reply.slot.detail"
 msgstr "反击招式为空时作为反击播放的木桩录制，从第一次按键开始。"
 
-msgid "training.combo.reply.chance"
+msgid "training.reply.chance"
 msgstr "反击概率"
 
-msgid "training.combo.reply.chance.detail"
+msgid "training.reply.chance.detail"
 msgstr "木桩反击的频率。低于 100% 时每次尝试都会不同。"
 
-msgid "training.combo.vary_stance"
+msgid "training.reply.vary_stance"
 msgstr "变换姿势"
 
-msgid "training.combo.vary_stance.detail"
+msgid "training.reply.vary_stance.detail"
 msgstr "木桩每次恢复时随机站立或蹲下，让连招在两种姿势上都得到练习。仅在木桩设为站立或蹲下时生效。"
 
-msgid "training.combo.reply.moves"
+msgid "training.reply.moves"
 msgstr "反击招式"
 
-msgid "training.combo.reply.moves.detail"
+msgid "training.reply.moves.detail"
 msgstr "用数字表示法输入的反击，例如 623HP 或 44，按木桩面对的方向读取。指令在木桩仍被控制时输入，使按键落在它第一个可行动的帧上。留空则使用反击槽位。"
 
-msgid "training.combo.reply.timing"
+msgid "training.reply.timing"
 msgstr "反击时机"
 
-msgid "training.combo.reply.timing.detail"
+msgid "training.reply.timing.detail"
 msgstr "反击按键落在木桩第一个可行动帧之后的帧数。硬直的长度在第一次看到时记下；在此之前，反击在硬直结束时开始。"
 
-msgid "training.combo.key.reset"
+msgid "training.key.reset"
 msgstr "重置键"
 
 msgid "training.challenger"
 msgstr "新的挑战者登场！"
 
-msgid "training.combo.key.detail"
+msgid "training.key.detail"
 msgstr "左右选择在对战中执行此操作的按键。关闭则不设按键。"
 
-msgid "training.combo.setup.action"
+msgid "training.dummy.action"
 msgstr "木桩"
 
-msgid "training.combo.setup.guard"
+msgid "training.dummy.guard"
 msgstr "防御"
 
-msgid "training.combo.setup.counter"
+msgid "training.dummy.counter"
 msgstr "反击命中"
 
-msgid "training.combo.setup.quick"
+msgid "training.dummy.quick"
 msgstr "快速起身"
 
-msgid "training.combo.setup.super"
+msgid "training.dummy.super"
 msgstr "超级能量"
 
-msgid "training.combo.setup.revenge"
+msgid "training.dummy.revenge"
 msgstr "复仇能量"
 
-msgid "training.combo.setup.stand"
+msgid "training.dummy.stand"
 msgstr "站立"
 
-msgid "training.combo.setup.crouch"
+msgid "training.dummy.crouch"
 msgstr "蹲下"
 
-msgid "training.combo.setup.jump"
+msgid "training.dummy.jump"
 msgstr "跳跃"
 
-msgid "training.combo.setup.cpu"
+msgid "training.dummy.cpu"
 msgstr "CPU"
 
-msgid "training.combo.setup.guard_none"
+msgid "training.dummy.guard_none"
 msgstr "不防御"
 
-msgid "training.combo.setup.guard_first"
+msgid "training.dummy.guard_first"
 msgstr "首次命中后"
 
-msgid "training.combo.setup.guard_all"
+msgid "training.dummy.guard_all"
 msgstr "全部防御"
 
-msgid "training.combo.setup.guard_random"
+msgid "training.dummy.guard_random"
 msgstr "随机"
 
-msgid "training.combo.setup.counter_off"
+msgid "training.dummy.counter_off"
 msgstr "关"
 
-msgid "training.combo.setup.counter_on"
+msgid "training.dummy.counter_on"
 msgstr "开"
 
-msgid "training.combo.setup.counter_random"
+msgid "training.dummy.counter_random"
 msgstr "随机"
 
-msgid "training.combo.setup.quick_quick"
+msgid "training.dummy.quick_quick"
 msgstr "快速"
 
-msgid "training.combo.setup.quick_normal"
+msgid "training.dummy.quick_normal"
 msgstr "正常"
 
-msgid "training.combo.setup.quick_delayed"
+msgid "training.dummy.quick_delayed"
 msgstr "延迟"
 
-msgid "training.combo.setup.quick_random"
+msgid "training.dummy.quick_random"
 msgstr "随机"
 
-msgid "training.combo.setup.gauge_normal"
+msgid "training.dummy.gauge_normal"
 msgstr "正常"
 
-msgid "training.combo.setup.gauge_max"
+msgid "training.dummy.gauge_max"
 msgstr "开局满"
 
-msgid "training.combo.setup.gauge_infinite"
+msgid "training.dummy.gauge_infinite"
 msgstr "无限"
 
-msgid "training.combo.setup.gauge_refill"
+msgid "training.dummy.gauge_refill"
 msgstr "自动回复"
 
 msgid "training.close_controls"

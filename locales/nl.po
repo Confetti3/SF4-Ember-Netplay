@@ -1422,19 +1422,19 @@ msgstr "Invoergeschiedenis"
 msgid "training.input_history.detail"
 msgstr "Bekijk de invoer van beide spelers."
 
-msgid "training.combo.title"
+msgid "training.tools"
 msgstr "Positie en dummy"
 
-msgid "training.combo.title.detail"
+msgid "training.tools.detail"
 msgstr "Bewaar en herstel de positie, stel de dummy in en wat hij uit zichzelf doet."
 
 msgid "training.match.checkpoint_disabled"
 msgstr "Shared save/reset is disabled during rollback matches in nightly."
 
-msgid "training.combo.invalid"
+msgid "training.invalid"
 msgstr "Niet geaccepteerd: {0}"
 
-msgid "training.combo.save_failed"
+msgid "training.save_failed"
 msgstr "Het bestand kon niet worden opgeslagen."
 
 msgid "training.guide"
@@ -1449,163 +1449,163 @@ msgstr "Kies een slot en dan Opnemen: de pad van Speler 1 bestuurt de dummy tot 
 msgid "training.history.guide"
 msgstr "De pad-invoer van elke speler, nieuwste eerst, met de frames dat elke invoer ingedrukt was. Selecteer een speler om de lijst te lezen. Je ziet wat er werd ingedrukt, niet welke move eruit kwam."
 
-msgid "training.combo.guide"
+msgid "training.tools.guide"
 msgstr "Positie opslaan bewaart het gevecht zoals het nu is en Positie herstellen zet het terug; op de pad herstelt Select met een tik en slaat het op als je het vasthoudt. De dummy-rijen veranderen meteen de trainingsinstellingen van de game. Dummy-antwoord laat de dummy uit zichzelf handelen zodra hij weer vrij is: hij speelt Antwoordmoves af, of het antwoordslot als die regel leeg is."
 
 msgid "edit.instructions.area"
 msgstr "Typ of plak met het toetsenbord. Enter begint een nieuwe regel. Ctrl+Enter of de knop Accepteren bevestigt; Escape of controllerknop Terug annuleert."
 
-msgid "training.combo.save_pos"
+msgid "training.position.save"
 msgstr "Positie opslaan"
 
-msgid "training.combo.save_pos.detail"
+msgid "training.position.save.detail"
 msgstr "Bewaart beide vechters zoals ze nu zijn: plek, leven, meters, dummy-toestand."
 
-msgid "training.combo.reset_pos"
+msgid "training.position.reset"
 msgstr "Positie herstellen"
 
-msgid "training.combo.reset_pos.detail"
+msgid "training.position.reset.detail"
 msgstr "Zet beide vechters terug waar ze zijn opgeslagen."
 
-msgid "training.combo.position_saved"
+msgid "training.position.saved"
 msgstr "Positie opgeslagen."
 
-msgid "training.combo.position_reset"
+msgid "training.position.reset_done"
 msgstr "Positie hersteld."
 
-msgid "training.combo.setup.detail"
+msgid "training.dummy.detail"
 msgstr "Links en Rechts veranderen het; het geldt meteen in de game."
 
-msgid "training.combo.reply"
+msgid "training.reply"
 msgstr "Dummy-antwoord"
 
-msgid "training.combo.reply.detail"
+msgid "training.reply.detail"
 msgstr "Wat de dummy uit zichzelf doet zodra hij weer vrij is, om een gedropte combo of een onveilig einde af te straffen: hij speelt Antwoordmoves af, of het antwoordslot als die regel leeg is. Het wacht terwijl een replay of opname loopt."
 
-msgid "training.combo.reply.hit"
+msgid "training.reply.hit"
 msgstr "Na een gedropte combo"
 
-msgid "training.combo.reply.block"
+msgid "training.reply.block"
 msgstr "Na het blokken"
 
-msgid "training.combo.reply.rise"
+msgid "training.reply.rise"
 msgstr "Bij het opstaan"
 
-msgid "training.combo.reply.any"
+msgid "training.reply.any"
 msgstr "Telkens als hij herstelt"
 
-msgid "training.combo.reply.slot"
+msgid "training.reply.slot"
 msgstr "Antwoordslot"
 
-msgid "training.combo.reply.slot.detail"
+msgid "training.reply.slot.detail"
 msgstr "De dummyopname die als antwoord wordt afgespeeld zolang Antwoordmoves leeg is, vanaf de eerste druk."
 
-msgid "training.combo.reply.chance"
+msgid "training.reply.chance"
 msgstr "Antwoordkans"
 
-msgid "training.combo.reply.chance.detail"
+msgid "training.reply.chance.detail"
 msgstr "Hoe vaak de dummy antwoordt. Onder 100% verschilt het van poging tot poging."
 
-msgid "training.combo.vary_stance"
+msgid "training.reply.vary_stance"
 msgstr "Houding afwisselen"
 
-msgid "training.combo.vary_stance.detail"
+msgid "training.reply.vary_stance.detail"
 msgstr "Telkens als de dummy herstelt, staat of hurkt hij willekeurig, zodat je de combo op beide oefent. Alleen als de dummy op staan of hurken staat."
 
-msgid "training.combo.reply.moves"
+msgid "training.reply.moves"
 msgstr "Antwoordmoves"
 
-msgid "training.combo.reply.moves.detail"
+msgid "training.reply.moves.detail"
 msgstr "Het antwoord getypt als moves in numpadnotatie, zoals 623HP of 44, gelezen voor de kant waar de dummy naar kijkt. De beweging gaat erin terwijl de dummy nog vastzit, zodat de knop op zijn eerste vrije frame valt. Leeg gebruikt het antwoordslot."
 
-msgid "training.combo.reply.timing"
+msgid "training.reply.timing"
 msgstr "Antwoordtiming"
 
-msgid "training.combo.reply.timing.detail"
+msgid "training.reply.timing.detail"
 msgstr "Frames na het eerste vrije frame van de dummy waarop de knop van het antwoord valt. Hoe lang een stun duurt wordt de eerste keer geleerd; tot dan begint het antwoord als de stun eindigt."
 
-msgid "training.combo.key.reset"
+msgid "training.key.reset"
 msgstr "Toets herstellen"
 
 msgid "training.challenger"
 msgstr "EEN NIEUWE STRIJDER BETREEDT DE RING!"
 
-msgid "training.combo.key.detail"
+msgid "training.key.detail"
 msgstr "Links en Rechts kiezen de toets die dit tijdens het gevecht doet. Uit laat het zonder toets."
 
-msgid "training.combo.setup.action"
+msgid "training.dummy.action"
 msgstr "Dummy"
 
-msgid "training.combo.setup.guard"
+msgid "training.dummy.guard"
 msgstr "Blok"
 
-msgid "training.combo.setup.counter"
+msgid "training.dummy.counter"
 msgstr "Counter hit"
 
-msgid "training.combo.setup.quick"
+msgid "training.dummy.quick"
 msgstr "Snel opstaan"
 
-msgid "training.combo.setup.super"
+msgid "training.dummy.super"
 msgstr "Supermeter"
 
-msgid "training.combo.setup.revenge"
+msgid "training.dummy.revenge"
 msgstr "Revengemeter"
 
-msgid "training.combo.setup.stand"
+msgid "training.dummy.stand"
 msgstr "Staan"
 
-msgid "training.combo.setup.crouch"
+msgid "training.dummy.crouch"
 msgstr "Hurken"
 
-msgid "training.combo.setup.jump"
+msgid "training.dummy.jump"
 msgstr "Springen"
 
-msgid "training.combo.setup.cpu"
+msgid "training.dummy.cpu"
 msgstr "CPU"
 
-msgid "training.combo.setup.guard_none"
+msgid "training.dummy.guard_none"
 msgstr "Niet blokken"
 
-msgid "training.combo.setup.guard_first"
+msgid "training.dummy.guard_first"
 msgstr "Na de eerste treffer"
 
-msgid "training.combo.setup.guard_all"
+msgid "training.dummy.guard_all"
 msgstr "Alles blokken"
 
-msgid "training.combo.setup.guard_random"
+msgid "training.dummy.guard_random"
 msgstr "Willekeurig"
 
-msgid "training.combo.setup.counter_off"
+msgid "training.dummy.counter_off"
 msgstr "Uit"
 
-msgid "training.combo.setup.counter_on"
+msgid "training.dummy.counter_on"
 msgstr "Aan"
 
-msgid "training.combo.setup.counter_random"
+msgid "training.dummy.counter_random"
 msgstr "Willekeurig"
 
-msgid "training.combo.setup.quick_quick"
+msgid "training.dummy.quick_quick"
 msgstr "Snel"
 
-msgid "training.combo.setup.quick_normal"
+msgid "training.dummy.quick_normal"
 msgstr "Normaal"
 
-msgid "training.combo.setup.quick_delayed"
+msgid "training.dummy.quick_delayed"
 msgstr "Vertraagd"
 
-msgid "training.combo.setup.quick_random"
+msgid "training.dummy.quick_random"
 msgstr "Willekeurig"
 
-msgid "training.combo.setup.gauge_normal"
+msgid "training.dummy.gauge_normal"
 msgstr "Normaal"
 
-msgid "training.combo.setup.gauge_max"
+msgid "training.dummy.gauge_max"
 msgstr "Vol bij start"
 
-msgid "training.combo.setup.gauge_infinite"
+msgid "training.dummy.gauge_infinite"
 msgstr "Oneindig"
 
-msgid "training.combo.setup.gauge_refill"
+msgid "training.dummy.gauge_refill"
 msgstr "Bijvullen"
 
 msgid "training.close_controls"

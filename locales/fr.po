@@ -1422,19 +1422,19 @@ msgstr "Historique"
 msgid "training.input_history.detail"
 msgstr "Voir les commandes maintenues par joueur."
 
-msgid "training.combo.title"
+msgid "training.tools"
 msgstr "Position et mannequin"
 
-msgid "training.combo.title.detail"
+msgid "training.tools.detail"
 msgstr "Enregistrez et rétablissez la position, réglez le mannequin et ce qu'il fait de lui-même."
 
 msgid "training.match.checkpoint_disabled"
 msgstr "Shared save/reset is disabled during rollback matches in nightly."
 
-msgid "training.combo.invalid"
+msgid "training.invalid"
 msgstr "Refusé : {0}"
 
-msgid "training.combo.save_failed"
+msgid "training.save_failed"
 msgstr "Le fichier n'a pas pu être enregistré."
 
 msgid "training.guide"
@@ -1449,163 +1449,163 @@ msgstr "Choisissez un emplacement, puis Enregistrer : la manette du Joueur 1 pil
 msgid "training.history.guide"
 msgstr "Les commandes de la manette de chaque joueur, les dernières en premier, avec les trames de maintien de chacune. Sélectionnez un joueur pour lire la liste. Elle montre ce qui a été pressé, pas le coup qui est sorti."
 
-msgid "training.combo.guide"
+msgid "training.tools.guide"
 msgstr "Enregistrer la position garde le combat tel quel et Rétablir la position le ramène ; à la manette, Select rétablit d'un appui bref et enregistre s'il est maintenu. Les lignes du mannequin changent aussitôt les réglages d'Entraînement du jeu. Riposte du mannequin fait agir le mannequin de lui-même dès qu'il est de nouveau libre : il joue les Coups de riposte, ou l'emplacement de riposte si cette ligne est vide."
 
 msgid "edit.instructions.area"
 msgstr "Saisissez ou collez au clavier. Enter commence une nouvelle ligne. Ctrl+Enter ou le bouton Valider valide ; Esc ou Retour sur manette annule."
 
-msgid "training.combo.save_pos"
+msgid "training.position.save"
 msgstr "Enregistrer la position"
 
-msgid "training.combo.save_pos.detail"
+msgid "training.position.save.detail"
 msgstr "Garde les deux combattants tels quels : place, vie, jauges, état du mannequin."
 
-msgid "training.combo.reset_pos"
+msgid "training.position.reset"
 msgstr "Rétablir la position"
 
-msgid "training.combo.reset_pos.detail"
+msgid "training.position.reset.detail"
 msgstr "Remet les deux combattants là où ils ont été enregistrés."
 
-msgid "training.combo.position_saved"
+msgid "training.position.saved"
 msgstr "Position enregistrée."
 
-msgid "training.combo.position_reset"
+msgid "training.position.reset_done"
 msgstr "Position rétablie."
 
-msgid "training.combo.setup.detail"
+msgid "training.dummy.detail"
 msgstr "Gauche et Droite le changent ; appliqué au jeu aussitôt."
 
-msgid "training.combo.reply"
+msgid "training.reply"
 msgstr "Riposte du mannequin"
 
-msgid "training.combo.reply.detail"
+msgid "training.reply.detail"
 msgstr "Ce que fait le mannequin de lui-même dès qu'il est de nouveau libre, pour punir un combo raté ou une fin risquée : il joue les Coups de riposte, ou l'emplacement de riposte si cette ligne est vide. La riposte attend pendant une relecture ou un enregistrement."
 
-msgid "training.combo.reply.hit"
+msgid "training.reply.hit"
 msgstr "Après un combo raté"
 
-msgid "training.combo.reply.block"
+msgid "training.reply.block"
 msgstr "Après une garde"
 
-msgid "training.combo.reply.rise"
+msgid "training.reply.rise"
 msgstr "Au relevé"
 
-msgid "training.combo.reply.any"
+msgid "training.reply.any"
 msgstr "Dès qu'il récupère"
 
-msgid "training.combo.reply.slot"
+msgid "training.reply.slot"
 msgstr "Empl. de riposte"
 
-msgid "training.combo.reply.slot.detail"
+msgid "training.reply.slot.detail"
 msgstr "L'enregistrement du mannequin joué comme riposte tant que Coups de riposte est vide, à partir de sa première pression."
 
-msgid "training.combo.reply.chance"
+msgid "training.reply.chance"
 msgstr "Chance de riposte"
 
-msgid "training.combo.reply.chance.detail"
+msgid "training.reply.chance.detail"
 msgstr "La fréquence à laquelle le mannequin riposte. Sous 100 %, cela varie d'une tentative à l'autre."
 
-msgid "training.combo.vary_stance"
+msgid "training.reply.vary_stance"
 msgstr "Varier la posture"
 
-msgid "training.combo.vary_stance.detail"
+msgid "training.reply.vary_stance.detail"
 msgstr "Chaque fois que le mannequin récupère, il se tient debout ou accroupi au hasard, pour travailler le combo sur les deux. Seulement si le mannequin est réglé sur debout ou accroupi."
 
-msgid "training.combo.reply.moves"
+msgid "training.reply.moves"
 msgstr "Coups de riposte"
 
-msgid "training.combo.reply.moves.detail"
+msgid "training.reply.moves.detail"
 msgstr "La riposte saisie en notation numérique, comme 623HP ou 44, lue selon le côté où regarde le mannequin. Le mouvement est entré pendant que le mannequin est encore bloqué, pour que le bouton tombe sur sa première frame libre. Vide : l'emplacement de riposte est utilisé."
 
-msgid "training.combo.reply.timing"
+msgid "training.reply.timing"
 msgstr "Timing de riposte"
 
-msgid "training.combo.reply.timing.detail"
+msgid "training.reply.timing.detail"
 msgstr "Frames après la première frame libre du mannequin où tombe le bouton de la riposte. La durée d'un étourdissement est apprise la première fois ; d'ici là, la riposte commence quand il se termine."
 
-msgid "training.combo.key.reset"
+msgid "training.key.reset"
 msgstr "Touche Rétablir"
 
 msgid "training.challenger"
 msgstr "UN NOUVEAU COMBATTANT ENTRE SUR LE RING !"
 
-msgid "training.combo.key.detail"
+msgid "training.key.detail"
 msgstr "Gauche et Droite choisissent la touche qui fait cela pendant le combat. Désactivé la laisse sans touche."
 
-msgid "training.combo.setup.action"
+msgid "training.dummy.action"
 msgstr "Mannequin"
 
-msgid "training.combo.setup.guard"
+msgid "training.dummy.guard"
 msgstr "Garde"
 
-msgid "training.combo.setup.counter"
+msgid "training.dummy.counter"
 msgstr "Contre"
 
-msgid "training.combo.setup.quick"
+msgid "training.dummy.quick"
 msgstr "Relevée rapide"
 
-msgid "training.combo.setup.super"
+msgid "training.dummy.super"
 msgstr "Jauge super"
 
-msgid "training.combo.setup.revenge"
+msgid "training.dummy.revenge"
 msgstr "Jauge revenge"
 
-msgid "training.combo.setup.stand"
+msgid "training.dummy.stand"
 msgstr "Debout"
 
-msgid "training.combo.setup.crouch"
+msgid "training.dummy.crouch"
 msgstr "Accroupi"
 
-msgid "training.combo.setup.jump"
+msgid "training.dummy.jump"
 msgstr "Saut"
 
-msgid "training.combo.setup.cpu"
+msgid "training.dummy.cpu"
 msgstr "CPU"
 
-msgid "training.combo.setup.guard_none"
+msgid "training.dummy.guard_none"
 msgstr "Pas de garde"
 
-msgid "training.combo.setup.guard_first"
+msgid "training.dummy.guard_first"
 msgstr "Après le premier coup"
 
-msgid "training.combo.setup.guard_all"
+msgid "training.dummy.guard_all"
 msgstr "Tout garder"
 
-msgid "training.combo.setup.guard_random"
+msgid "training.dummy.guard_random"
 msgstr "Aléatoire"
 
-msgid "training.combo.setup.counter_off"
+msgid "training.dummy.counter_off"
 msgstr "Non"
 
-msgid "training.combo.setup.counter_on"
+msgid "training.dummy.counter_on"
 msgstr "Oui"
 
-msgid "training.combo.setup.counter_random"
+msgid "training.dummy.counter_random"
 msgstr "Aléatoire"
 
-msgid "training.combo.setup.quick_quick"
+msgid "training.dummy.quick_quick"
 msgstr "Rapide"
 
-msgid "training.combo.setup.quick_normal"
+msgid "training.dummy.quick_normal"
 msgstr "Normale"
 
-msgid "training.combo.setup.quick_delayed"
+msgid "training.dummy.quick_delayed"
 msgstr "Retardée"
 
-msgid "training.combo.setup.quick_random"
+msgid "training.dummy.quick_random"
 msgstr "Aléatoire"
 
-msgid "training.combo.setup.gauge_normal"
+msgid "training.dummy.gauge_normal"
 msgstr "Normale"
 
-msgid "training.combo.setup.gauge_max"
+msgid "training.dummy.gauge_max"
 msgstr "Pleine au départ"
 
-msgid "training.combo.setup.gauge_infinite"
+msgid "training.dummy.gauge_infinite"
 msgstr "Infinie"
 
-msgid "training.combo.setup.gauge_refill"
+msgid "training.dummy.gauge_refill"
 msgstr "Recharge"
 
 msgid "training.close_controls"

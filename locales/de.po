@@ -1422,19 +1422,19 @@ msgstr "Input-Verlauf"
 msgid "training.input_history.detail"
 msgstr "Gehaltene Eingaben beider Spieler ansehen."
 
-msgid "training.combo.title"
+msgid "training.tools"
 msgstr "Position und Dummy"
 
-msgid "training.combo.title.detail"
+msgid "training.tools.detail"
 msgstr "Position speichern und zurücksetzen, den Dummy einstellen und was er von selbst tut."
 
 msgid "training.match.checkpoint_disabled"
 msgstr "Shared save/reset is disabled during rollback matches in nightly."
 
-msgid "training.combo.invalid"
+msgid "training.invalid"
 msgstr "Nicht angenommen: {0}"
 
-msgid "training.combo.save_failed"
+msgid "training.save_failed"
 msgstr "Die Datei konnte nicht gespeichert werden."
 
 msgid "training.guide"
@@ -1449,163 +1449,163 @@ msgstr "Wähle einen Slot, dann Aufnehmen: Das Pad von Spieler 1 steuert den Dum
 msgid "training.history.guide"
 msgstr "Die Pad-Eingaben jedes Spielers, neueste zuerst, mit den Frames, die jede gehalten wurde. Wähle einen Spieler, um die Liste zu lesen. Sie zeigt, was gedrückt wurde, nicht welcher Zug herauskam."
 
-msgid "training.combo.guide"
+msgid "training.tools.guide"
 msgstr "Position speichern hält den Kampf fest, wie er jetzt ist, und Position zurücksetzen holt ihn zurück; am Pad setzt Select kurz gedrückt zurück und speichert gehalten. Die Dummy-Zeilen ändern sofort die Trainingseinstellungen des Spiels. Dummy-Antwort lässt den Dummy von selbst handeln, sobald er wieder frei ist: Er spielt die Antwortzüge ab, oder den Antwort-Slot, solange diese Zeile leer ist."
 
 msgid "edit.instructions.area"
 msgstr "Mit der Tastatur tippen oder einfügen. Enter beginnt eine neue Zeile. Ctrl+Enter oder die Schaltfläche Annehmen bestätigt; Escape oder Controller-Back bricht ab."
 
-msgid "training.combo.save_pos"
+msgid "training.position.save"
 msgstr "Position speichern"
 
-msgid "training.combo.save_pos.detail"
+msgid "training.position.save.detail"
 msgstr "Hält beide Kämpfer fest, wie sie jetzt sind: Stand, Leben, Leisten, Dummy-Zustand."
 
-msgid "training.combo.reset_pos"
+msgid "training.position.reset"
 msgstr "Position zurücksetzen"
 
-msgid "training.combo.reset_pos.detail"
+msgid "training.position.reset.detail"
 msgstr "Setzt beide Kämpfer dorthin zurück, wo sie gespeichert wurden."
 
-msgid "training.combo.position_saved"
+msgid "training.position.saved"
 msgstr "Position gespeichert."
 
-msgid "training.combo.position_reset"
+msgid "training.position.reset_done"
 msgstr "Position zurückgesetzt."
 
-msgid "training.combo.setup.detail"
+msgid "training.dummy.detail"
 msgstr "Links und Rechts ändern es; es wird sofort im Spiel gesetzt."
 
-msgid "training.combo.reply"
+msgid "training.reply"
 msgstr "Dummy-Antwort"
 
-msgid "training.combo.reply.detail"
+msgid "training.reply.detail"
 msgstr "Was der Dummy von selbst tut, sobald er wieder frei ist, um eine abgebrochene Combo oder ein unsicheres Ende zu bestrafen: Er spielt die Antwortzüge ab, oder den Antwort-Slot, solange diese Zeile leer ist. Die Antwort wartet, solange eine Wiedergabe oder Aufnahme läuft."
 
-msgid "training.combo.reply.hit"
+msgid "training.reply.hit"
 msgstr "Nach abgebrochener Combo"
 
-msgid "training.combo.reply.block"
+msgid "training.reply.block"
 msgstr "Nach dem Blocken"
 
-msgid "training.combo.reply.rise"
+msgid "training.reply.rise"
 msgstr "Beim Aufstehen"
 
-msgid "training.combo.reply.any"
+msgid "training.reply.any"
 msgstr "Immer wenn er sich erholt"
 
-msgid "training.combo.reply.slot"
+msgid "training.reply.slot"
 msgstr "Antwort-Slot"
 
-msgid "training.combo.reply.slot.detail"
+msgid "training.reply.slot.detail"
 msgstr "Die Dummy-Aufnahme, die als Antwort abgespielt wird, solange Antwortzüge leer ist, ab dem ersten Tastendruck."
 
-msgid "training.combo.reply.chance"
+msgid "training.reply.chance"
 msgstr "Antwortchance"
 
-msgid "training.combo.reply.chance.detail"
+msgid "training.reply.chance.detail"
 msgstr "Wie oft der Dummy antwortet. Unter 100 % wechselt es von Versuch zu Versuch."
 
-msgid "training.combo.vary_stance"
+msgid "training.reply.vary_stance"
 msgstr "Haltung variieren"
 
-msgid "training.combo.vary_stance.detail"
+msgid "training.reply.vary_stance.detail"
 msgstr "Jedes Mal, wenn sich der Dummy erholt, steht oder duckt er sich zufällig, damit die Combo an beidem geübt wird. Nur solange der Dummy auf Stehen oder Ducken steht."
 
-msgid "training.combo.reply.moves"
+msgid "training.reply.moves"
 msgstr "Antwortzüge"
 
-msgid "training.combo.reply.moves.detail"
+msgid "training.reply.moves.detail"
 msgstr "Die Antwort als Züge in Numpad-Notation, etwa 623HP oder 44, gelesen für die Seite, in die der Dummy blickt. Die Bewegung wird eingegeben, solange der Dummy noch festhängt, damit die Taste auf seinen ersten freien Frame fällt. Leer nutzt den Antwort-Slot."
 
-msgid "training.combo.reply.timing"
+msgid "training.reply.timing"
 msgstr "Antwort-Timing"
 
-msgid "training.combo.reply.timing.detail"
+msgid "training.reply.timing.detail"
 msgstr "Frames nach dem ersten freien Frame des Dummys, auf die die Taste der Antwort fällt. Wie lange ein Stun dauert, wird beim ersten Mal gelernt; bis dahin beginnt die Antwort, wenn der Stun endet."
 
-msgid "training.combo.key.reset"
+msgid "training.key.reset"
 msgstr "Taste Zurücksetzen"
 
 msgid "training.challenger"
 msgstr "EIN NEUER KÄMPFER BETRITT DEN RING!"
 
-msgid "training.combo.key.detail"
+msgid "training.key.detail"
 msgstr "Links und Rechts wählen die Taste, die dies im Kampf auslöst. Aus lässt es ohne Taste."
 
-msgid "training.combo.setup.action"
+msgid "training.dummy.action"
 msgstr "Dummy"
 
-msgid "training.combo.setup.guard"
+msgid "training.dummy.guard"
 msgstr "Block"
 
-msgid "training.combo.setup.counter"
+msgid "training.dummy.counter"
 msgstr "Counter-Hit"
 
-msgid "training.combo.setup.quick"
+msgid "training.dummy.quick"
 msgstr "Schnelles Aufstehen"
 
-msgid "training.combo.setup.super"
+msgid "training.dummy.super"
 msgstr "Super-Leiste"
 
-msgid "training.combo.setup.revenge"
+msgid "training.dummy.revenge"
 msgstr "Revenge-Leiste"
 
-msgid "training.combo.setup.stand"
+msgid "training.dummy.stand"
 msgstr "Stehen"
 
-msgid "training.combo.setup.crouch"
+msgid "training.dummy.crouch"
 msgstr "Ducken"
 
-msgid "training.combo.setup.jump"
+msgid "training.dummy.jump"
 msgstr "Springen"
 
-msgid "training.combo.setup.cpu"
+msgid "training.dummy.cpu"
 msgstr "CPU"
 
-msgid "training.combo.setup.guard_none"
+msgid "training.dummy.guard_none"
 msgstr "Kein Block"
 
-msgid "training.combo.setup.guard_first"
+msgid "training.dummy.guard_first"
 msgstr "Nach erstem Treffer"
 
-msgid "training.combo.setup.guard_all"
+msgid "training.dummy.guard_all"
 msgstr "Alles blocken"
 
-msgid "training.combo.setup.guard_random"
+msgid "training.dummy.guard_random"
 msgstr "Zufällig"
 
-msgid "training.combo.setup.counter_off"
+msgid "training.dummy.counter_off"
 msgstr "Aus"
 
-msgid "training.combo.setup.counter_on"
+msgid "training.dummy.counter_on"
 msgstr "An"
 
-msgid "training.combo.setup.counter_random"
+msgid "training.dummy.counter_random"
 msgstr "Zufällig"
 
-msgid "training.combo.setup.quick_quick"
+msgid "training.dummy.quick_quick"
 msgstr "Schnell"
 
-msgid "training.combo.setup.quick_normal"
+msgid "training.dummy.quick_normal"
 msgstr "Normal"
 
-msgid "training.combo.setup.quick_delayed"
+msgid "training.dummy.quick_delayed"
 msgstr "Verzögert"
 
-msgid "training.combo.setup.quick_random"
+msgid "training.dummy.quick_random"
 msgstr "Zufällig"
 
-msgid "training.combo.setup.gauge_normal"
+msgid "training.dummy.gauge_normal"
 msgstr "Normal"
 
-msgid "training.combo.setup.gauge_max"
+msgid "training.dummy.gauge_max"
 msgstr "Voll zu Beginn"
 
-msgid "training.combo.setup.gauge_infinite"
+msgid "training.dummy.gauge_infinite"
 msgstr "Unendlich"
 
-msgid "training.combo.setup.gauge_refill"
+msgid "training.dummy.gauge_refill"
 msgstr "Auffüllen"
 
 msgid "training.close_controls"

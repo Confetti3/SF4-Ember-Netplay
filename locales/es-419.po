@@ -1537,19 +1537,19 @@ msgstr "F8 Reproducir ranura {0}"
 msgid "training.stop_chip"
 msgstr "F8 Detener"
 
-msgid "training.combo.title"
+msgid "training.tools"
 msgstr "Posición y muñeco"
 
-msgid "training.combo.title.detail"
+msgid "training.tools.detail"
 msgstr "Guarda y restablece la posición, ajusta el muñeco y lo que hace por sí solo."
 
 msgid "training.match.checkpoint_disabled"
 msgstr "Shared save/reset is disabled during rollback matches in nightly."
 
-msgid "training.combo.invalid"
+msgid "training.invalid"
 msgstr "No aceptado: {0}"
 
-msgid "training.combo.save_failed"
+msgid "training.save_failed"
 msgstr "No se pudo guardar el archivo."
 
 msgid "training.guide"
@@ -1564,163 +1564,163 @@ msgstr "Elige un espacio y luego Grabar: el control del Jugador 1 maneja al muñ
 msgid "training.history.guide"
 msgstr "Las entradas del control de cada jugador, las más nuevas primero, con los frames que se mantuvo cada una. Selecciona un jugador para leer la lista. Muestra lo que se presionó, no qué golpe salió."
 
-msgid "training.combo.guide"
+msgid "training.tools.guide"
 msgstr "Guardar posición conserva la batalla tal como está y Restablecer posición la devuelve; en el control, Select restablece con un toque y guarda si se mantiene. Las filas del muñeco cambian al instante los ajustes de Entrenamiento del juego. Respuesta del muñeco hace que el muñeco actúe por sí solo en cuanto vuelve a estar libre: reproduce los Golpes de respuesta, o el espacio de respuesta si esa línea está vacía."
 
 msgid "edit.instructions.area"
 msgstr "Escribe o pega con el teclado. Enter empieza una línea nueva. Ctrl+Enter o el botón Aceptar acepta; Escape o Volver en el control cancela."
 
-msgid "training.combo.save_pos"
+msgid "training.position.save"
 msgstr "Guardar posición"
 
-msgid "training.combo.save_pos.detail"
+msgid "training.position.save.detail"
 msgstr "Guarda a ambos peleadores tal como están: lugar, vida, barras, estado del muñeco."
 
-msgid "training.combo.reset_pos"
+msgid "training.position.reset"
 msgstr "Restablecer posición"
 
-msgid "training.combo.reset_pos.detail"
+msgid "training.position.reset.detail"
 msgstr "Devuelve a ambos peleadores a donde se guardaron."
 
-msgid "training.combo.position_saved"
+msgid "training.position.saved"
 msgstr "Posición guardada."
 
-msgid "training.combo.position_reset"
+msgid "training.position.reset_done"
 msgstr "Posición restablecida."
 
-msgid "training.combo.setup.detail"
+msgid "training.dummy.detail"
 msgstr "Izquierda y Derecha lo cambian; se aplica al juego al instante."
 
-msgid "training.combo.reply"
+msgid "training.reply"
 msgstr "Respuesta del muñeco"
 
-msgid "training.combo.reply.detail"
+msgid "training.reply.detail"
 msgstr "Lo que hace el muñeco por sí solo en cuanto vuelve a estar libre, para castigar un combo fallado o un final inseguro: reproduce los Golpes de respuesta, o el espacio de respuesta si esa línea está vacía. Espera mientras haya una reproducción o grabación."
 
-msgid "training.combo.reply.hit"
+msgid "training.reply.hit"
 msgstr "Tras un combo fallado"
 
-msgid "training.combo.reply.block"
+msgid "training.reply.block"
 msgstr "Tras bloquear"
 
-msgid "training.combo.reply.rise"
+msgid "training.reply.rise"
 msgstr "Al levantarse"
 
-msgid "training.combo.reply.any"
+msgid "training.reply.any"
 msgstr "Siempre que se recupere"
 
-msgid "training.combo.reply.slot"
+msgid "training.reply.slot"
 msgstr "Espacio de respuesta"
 
-msgid "training.combo.reply.slot.detail"
+msgid "training.reply.slot.detail"
 msgstr "La grabación del muñeco que se reproduce como respuesta mientras Golpes de respuesta esté vacío, desde su primera pulsación."
 
-msgid "training.combo.reply.chance"
+msgid "training.reply.chance"
 msgstr "Probabilidad de respuesta"
 
-msgid "training.combo.reply.chance.detail"
+msgid "training.reply.chance.detail"
 msgstr "Con qué frecuencia responde el muñeco. Por debajo del 100 % varía de un intento a otro."
 
-msgid "training.combo.vary_stance"
+msgid "training.reply.vary_stance"
 msgstr "Variar postura"
 
-msgid "training.combo.vary_stance.detail"
+msgid "training.reply.vary_stance.detail"
 msgstr "Cada vez que el muñeco se recupera, se queda de pie o agachado al azar, para practicar el combo contra ambas. Solo si el muñeco está en de pie o agachado."
 
-msgid "training.combo.reply.moves"
+msgid "training.reply.moves"
 msgstr "Golpes de respuesta"
 
-msgid "training.combo.reply.moves.detail"
+msgid "training.reply.moves.detail"
 msgstr "La respuesta escrita en notación numérica, como 623HP o 44, leída según el lado al que mira el muñeco. El movimiento se ingresa mientras el muñeco sigue retenido, para que el botón caiga en su primer frame libre. Vacío usa el espacio de respuesta."
 
-msgid "training.combo.reply.timing"
+msgid "training.reply.timing"
 msgstr "Ajuste de respuesta"
 
-msgid "training.combo.reply.timing.detail"
+msgid "training.reply.timing.detail"
 msgstr "Frames tras el primer frame libre del muñeco en los que cae el botón de la respuesta. La duración de un aturdimiento se aprende la primera vez; hasta entonces la respuesta empieza cuando termina."
 
-msgid "training.combo.key.reset"
+msgid "training.key.reset"
 msgstr "Tecla Restablecer"
 
 msgid "training.challenger"
 msgstr "¡UN NUEVO LUCHADOR HA ENTRADO AL RING!"
 
-msgid "training.combo.key.detail"
+msgid "training.key.detail"
 msgstr "Izquierda y Derecha eligen la tecla que hace esto durante el combate. Desactivado la deja sin tecla."
 
-msgid "training.combo.setup.action"
+msgid "training.dummy.action"
 msgstr "Muñeco"
 
-msgid "training.combo.setup.guard"
+msgid "training.dummy.guard"
 msgstr "Bloqueo"
 
-msgid "training.combo.setup.counter"
+msgid "training.dummy.counter"
 msgstr "Counter hit"
 
-msgid "training.combo.setup.quick"
+msgid "training.dummy.quick"
 msgstr "Levantarse rápido"
 
-msgid "training.combo.setup.super"
+msgid "training.dummy.super"
 msgstr "Barra de súper"
 
-msgid "training.combo.setup.revenge"
+msgid "training.dummy.revenge"
 msgstr "Barra de revancha"
 
-msgid "training.combo.setup.stand"
+msgid "training.dummy.stand"
 msgstr "De pie"
 
-msgid "training.combo.setup.crouch"
+msgid "training.dummy.crouch"
 msgstr "Agachado"
 
-msgid "training.combo.setup.jump"
+msgid "training.dummy.jump"
 msgstr "Salto"
 
-msgid "training.combo.setup.cpu"
+msgid "training.dummy.cpu"
 msgstr "CPU"
 
-msgid "training.combo.setup.guard_none"
+msgid "training.dummy.guard_none"
 msgstr "Sin bloqueo"
 
-msgid "training.combo.setup.guard_first"
+msgid "training.dummy.guard_first"
 msgstr "Tras el primer golpe"
 
-msgid "training.combo.setup.guard_all"
+msgid "training.dummy.guard_all"
 msgstr "Bloquear todo"
 
-msgid "training.combo.setup.guard_random"
+msgid "training.dummy.guard_random"
 msgstr "Aleatorio"
 
-msgid "training.combo.setup.counter_off"
+msgid "training.dummy.counter_off"
 msgstr "No"
 
-msgid "training.combo.setup.counter_on"
+msgid "training.dummy.counter_on"
 msgstr "Sí"
 
-msgid "training.combo.setup.counter_random"
+msgid "training.dummy.counter_random"
 msgstr "Aleatorio"
 
-msgid "training.combo.setup.quick_quick"
+msgid "training.dummy.quick_quick"
 msgstr "Rápido"
 
-msgid "training.combo.setup.quick_normal"
+msgid "training.dummy.quick_normal"
 msgstr "Normal"
 
-msgid "training.combo.setup.quick_delayed"
+msgid "training.dummy.quick_delayed"
 msgstr "Retrasado"
 
-msgid "training.combo.setup.quick_random"
+msgid "training.dummy.quick_random"
 msgstr "Aleatorio"
 
-msgid "training.combo.setup.gauge_normal"
+msgid "training.dummy.gauge_normal"
 msgstr "Normal"
 
-msgid "training.combo.setup.gauge_max"
+msgid "training.dummy.gauge_max"
 msgstr "Llena al inicio"
 
-msgid "training.combo.setup.gauge_infinite"
+msgid "training.dummy.gauge_infinite"
 msgstr "Infinita"
 
-msgid "training.combo.setup.gauge_refill"
+msgid "training.dummy.gauge_refill"
 msgstr "Recarga"
 
 msgid "selection.preview_unavailable"

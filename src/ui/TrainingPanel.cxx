@@ -50,7 +50,7 @@ void SavePractice() {
     std::string error;
     const nlohmann::json practice{{"reply",{{"when",lab.plan.when},{"slot",lab.plan.slot},{"chance",lab.plan.chance},{"timing",lab.plan.timing},
         {"vary_stance",lab.plan.varyStance},{"moves",lab.replyMoves}}},{"keys",{{"reset_position",lab.keys[ResetKey]},{"save_position",lab.keys[SaveKey]}}}};
-    if(!netplay::json_file::Publish(lab.directory,PracticeFile,practice,error)) Notice(loc::T("training.combo.save_failed"),true);
+    if(!netplay::json_file::Publish(lab.directory,PracticeFile,practice,error)) Notice(loc::T("training.save_failed"),true);
 }
 // The plan into the game, its typed reply made into input for either facing.
 bool SendPlan(const training::View& view,const TrainingSubmit& submit) {
@@ -85,12 +85,12 @@ void LoadPractice() {
 void SavePosition(const training::View& view,const TrainingSubmit& submit) {
     Command command; command.action=Action::Save; command.generation=view.generation;
     const bool sent=submit&&submit(command);
-    Notice(loc::T(sent?"training.combo.position_saved":"training.command_rejected"),!sent);
+    Notice(loc::T(sent?"training.position.saved":"training.command_rejected"),!sent);
 }
 void ResetPosition(const training::View& view,const TrainingSubmit& submit) {
     Command command; command.action=Action::Restore; command.generation=view.generation;
     const bool sent=view.checkpoint&&submit&&submit(command);
-    Notice(loc::T(sent?"training.combo.position_reset":"training.command_rejected"),!sent);
+    Notice(loc::T(sent?"training.position.reset_done":"training.command_rejected"),!sent);
 }
 // The dummy's settings as the game's Training menu numbers them, and their
 // names: 0 action, 1 guard, 2 counter hit, 3 quick stand, 4 either gauge.
@@ -101,11 +101,11 @@ const std::vector<int>& DummyChoices(int kind) {
 // Empty until the game's own setting has been read.
 const char* DummyLabel(int kind,int value) {
     static const char* const names[5][4]={
-        {"training.combo.setup.stand","training.combo.setup.crouch","training.combo.setup.jump","training.combo.setup.cpu"},
-        {"training.combo.setup.guard_none","training.combo.setup.guard_first","training.combo.setup.guard_all","training.combo.setup.guard_random"},
-        {"training.combo.setup.counter_off","training.combo.setup.counter_on","training.combo.setup.counter_random",""},
-        {"training.combo.setup.quick_quick","training.combo.setup.quick_normal","training.combo.setup.quick_delayed","training.combo.setup.quick_random"},
-        {"training.combo.setup.gauge_normal","training.combo.setup.gauge_max","training.combo.setup.gauge_infinite","training.combo.setup.gauge_refill"}};
+        {"training.dummy.stand","training.dummy.crouch","training.dummy.jump","training.dummy.cpu"},
+        {"training.dummy.guard_none","training.dummy.guard_first","training.dummy.guard_all","training.dummy.guard_random"},
+        {"training.dummy.counter_off","training.dummy.counter_on","training.dummy.counter_random",""},
+        {"training.dummy.quick_quick","training.dummy.quick_normal","training.dummy.quick_delayed","training.dummy.quick_random"},
+        {"training.dummy.gauge_normal","training.dummy.gauge_max","training.dummy.gauge_infinite","training.dummy.gauge_refill"}};
     const auto& choices=DummyChoices(kind);
     for(std::size_t i=0;i<choices.size();++i) if(choices[i]==value) return loc::T(names[kind][i]);
     return "";
@@ -119,30 +119,30 @@ int StepDummy(int kind,int value,int delta) {
 }
 // A hotkey's key as the hint and its row show it.
 std::string KeyName(int which) { return lab.keys[which]<0?loc::T("common.off"):"F"+std::to_string(lab.keys[which]+1); }
-constexpr const char* ReplyNames[]={"common.off","training.combo.reply.hit","training.combo.reply.block","training.combo.reply.rise","training.combo.reply.any"};
+constexpr const char* ReplyNames[]={"common.off","training.reply.hit","training.reply.block","training.reply.rise","training.reply.any"};
 std::vector<MenuEntry> ToolRows(const training::View& view) {
     LoadPractice();
     auto detailed=[](MenuEntry e,const char* detail){e.detail=detail;return e;};
     const auto& dummy=view.dummy;
     return {
-        InfoRow("about",loc::T("training.guide"),"",loc::T("training.combo.guide")),
-        Row("save-pos",loc::T("training.combo.save_pos"),loc::T("training.combo.save_pos.detail"),view.ready),
-        Row("reset-pos",loc::T("training.combo.reset_pos"),loc::T("training.combo.reset_pos.detail"),view.ready&&view.checkpoint),
-        Value("dummy-action",loc::T("training.combo.setup.action"),DummyLabel(0,dummy.action),loc::T("training.combo.setup.detail")),
-        Value("dummy-guard",loc::T("training.combo.setup.guard"),DummyLabel(1,dummy.guard),loc::T("training.combo.setup.detail")),
-        Value("dummy-counter",loc::T("training.combo.setup.counter"),DummyLabel(2,dummy.counterHit),loc::T("training.combo.setup.detail")),
-        Value("dummy-quick",loc::T("training.combo.setup.quick"),DummyLabel(3,dummy.quickStand),loc::T("training.combo.setup.detail")),
-        Value("dummy-super",loc::T("training.combo.setup.super"),DummyLabel(4,dummy.super),loc::T("training.combo.setup.detail")),
-        Value("dummy-revenge",loc::T("training.combo.setup.revenge"),DummyLabel(4,dummy.revenge),loc::T("training.combo.setup.detail")),
-        Value("reply",loc::T("training.combo.reply"),loc::T(ReplyNames[lab.plan.when]),loc::T("training.combo.reply.detail")),
-        detailed(TextRow("reply-moves",loc::T("training.combo.reply.moves"),lab.replyMoves,256),loc::T("training.combo.reply.moves.detail")),
-        Value("reply-timing",loc::T("training.combo.reply.timing"),(lab.plan.timing>0?"+":"")+std::to_string(lab.plan.timing)+" f",loc::T("training.combo.reply.timing.detail"),lab.plan.when!=0),
-        Value("reply-slot",loc::T("training.combo.reply.slot"),loc::Tf("training.slot",lab.plan.slot+1)+" ("+loc::Tf("training.recorded_frames",view.lengths[lab.plan.slot])+")",loc::T("training.combo.reply.slot.detail"),lab.plan.when!=0&&lab.replyMoves.empty()),
-        Value("reply-chance",loc::T("training.combo.reply.chance"),std::to_string(lab.plan.chance)+"%",loc::T("training.combo.reply.chance.detail"),lab.plan.when!=0),
-        Value("reply-stance",loc::T("training.combo.vary_stance"),loc::T(lab.plan.varyStance?"common.on":"common.off"),loc::T("training.combo.vary_stance.detail")),
-        Value("key-0",loc::T("training.combo.key.reset"),KeyName(ResetKey),loc::T("training.combo.key.detail")),
+        InfoRow("about",loc::T("training.guide"),"",loc::T("training.tools.guide")),
+        Row("save-pos",loc::T("training.position.save"),loc::T("training.position.save.detail"),view.ready),
+        Row("reset-pos",loc::T("training.position.reset"),loc::T("training.position.reset.detail"),view.ready&&view.checkpoint),
+        Value("dummy-action",loc::T("training.dummy.action"),DummyLabel(0,dummy.action),loc::T("training.dummy.detail")),
+        Value("dummy-guard",loc::T("training.dummy.guard"),DummyLabel(1,dummy.guard),loc::T("training.dummy.detail")),
+        Value("dummy-counter",loc::T("training.dummy.counter"),DummyLabel(2,dummy.counterHit),loc::T("training.dummy.detail")),
+        Value("dummy-quick",loc::T("training.dummy.quick"),DummyLabel(3,dummy.quickStand),loc::T("training.dummy.detail")),
+        Value("dummy-super",loc::T("training.dummy.super"),DummyLabel(4,dummy.super),loc::T("training.dummy.detail")),
+        Value("dummy-revenge",loc::T("training.dummy.revenge"),DummyLabel(4,dummy.revenge),loc::T("training.dummy.detail")),
+        Value("reply",loc::T("training.reply"),loc::T(ReplyNames[lab.plan.when]),loc::T("training.reply.detail")),
+        detailed(TextRow("reply-moves",loc::T("training.reply.moves"),lab.replyMoves,256),loc::T("training.reply.moves.detail")),
+        Value("reply-timing",loc::T("training.reply.timing"),(lab.plan.timing>0?"+":"")+std::to_string(lab.plan.timing)+" f",loc::T("training.reply.timing.detail"),lab.plan.when!=0),
+        Value("reply-slot",loc::T("training.reply.slot"),loc::Tf("training.slot",lab.plan.slot+1)+" ("+loc::Tf("training.recorded_frames",view.lengths[lab.plan.slot])+")",loc::T("training.reply.slot.detail"),lab.plan.when!=0&&lab.replyMoves.empty()),
+        Value("reply-chance",loc::T("training.reply.chance"),std::to_string(lab.plan.chance)+"%",loc::T("training.reply.chance.detail"),lab.plan.when!=0),
+        Value("reply-stance",loc::T("training.reply.vary_stance"),loc::T(lab.plan.varyStance?"common.on":"common.off"),loc::T("training.reply.vary_stance.detail")),
+        Value("key-0",loc::T("training.key.reset"),KeyName(ResetKey),loc::T("training.key.detail")),
         // Named by the row it presses, so it needs no words of its own.
-        Value("key-1",loc::T("training.combo.save_pos"),KeyName(SaveKey),loc::T("training.combo.key.detail"))};
+        Value("key-1",loc::T("training.position.save"),KeyName(SaveKey),loc::T("training.key.detail"))};
 }
 void HandleTools(const MenuAction& a,const training::View& view,const TrainingSubmit& submit) {
     if(a.kind==MenuAction::Adjust) {
@@ -183,7 +183,7 @@ void HandleTools(const MenuAction& a,const training::View& view,const TrainingSu
     }
     if(a.kind==MenuAction::TextAccepted&&a.id=="reply-moves") {
         std::vector<std::string> steps; std::string error; const auto text=combo::Clean(a.text);
-        if(!text.empty()&&!combo::ParseSteps(text,steps,error)) { Notice(loc::Tf("training.combo.invalid",error.empty()?text:error),true); return; }
+        if(!text.empty()&&!combo::ParseSteps(text,steps,error)) { Notice(loc::Tf("training.invalid",error.empty()?text:error),true); return; }
         lab.replyMoves=text; SavePractice();
         if(!SendPlan(view,submit)) Notice(loc::T("training.command_rejected"),true);
         return;
@@ -220,7 +220,7 @@ void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit,boo
 bool TrainingHotkeyBound(int fromF1) { return fromF1>=0&&(lab.keys[ResetKey]==fromF1||lab.keys[SaveKey]==fromF1); }
 std::string TrainingKeyHints() {
     std::string hints;
-    const char* const names[]={"training.combo.reset_pos","training.combo.save_pos"};
+    const char* const names[]={"training.position.reset","training.position.save"};
     for(int which=0;which<2;++which) if(lab.keys[which]>=0) hints+=(hints.empty()?"":"  ")+KeyName(which)+" "+loc::T(names[which]);
     return hints;
 }
@@ -247,14 +247,14 @@ void TakeExport(const training::View& v) {
     std::error_code ignored; std::filesystem::create_directories(RecordingFolder(),ignored);
     std::string error;
     if(!netplay::json_file::Publish(RecordingFolder(),std::filesystem::path(name+".json").wstring(),nlohmann::json::parse(training::ExportRecording(v.exported),nullptr,false),error))
-        Notice(loc::T("training.combo.save_failed"),true);
+        Notice(loc::T("training.save_failed"),true);
     else ListRecordings();
 }
 // Save as, choose, load: the slot goes to a file by name, a file into the selected slot.
 bool HandleRecordingLibrary(const MenuAction& a,const training::View& v,const TrainingSubmit& submit) {
     if(a.kind==MenuAction::TextAccepted&&a.id=="save-recording") {
         const auto name=combo::Clean(a.text);
-        if(name.empty()||name.find_first_of("\\/:*?\"<>|")!=std::string::npos) { Notice(loc::Tf("training.combo.invalid",name),true); return true; }
+        if(name.empty()||name.find_first_of("\\/:*?\"<>|")!=std::string::npos) { Notice(loc::Tf("training.invalid",name),true); return true; }
         Command command; command.action=Action::ExportSlot; command.generation=v.generation;
         if(submit&&submit(command)) { savePending=name; Notice(loc::Tf("training.recording_saved",name)); }
         else Notice(loc::T("training.command_rejected"),true);
@@ -266,7 +266,7 @@ bool HandleRecordingLibrary(const MenuAction& a,const training::View& v,const Tr
     const auto name=recordings[(std::min)(recordingChoice,recordings.size()-1)];
     std::string bytes,error; bool missing=false; std::vector<training::Input> frames;
     if(!netplay::json_file::ReadBytes(RecordingFolder()/(name+".json"),bytes,missing,error)||missing||!training::ImportRecording(bytes,frames,error)) {
-        Notice(loc::Tf("training.combo.invalid",error),true); return true;
+        Notice(loc::Tf("training.invalid",error),true); return true;
     }
     Command load; load.action=Action::Load; load.generation=v.generation; load.value=1; load.frames=frames;
     if(submit&&submit(load)) Notice(loc::Tf("training.recording_loaded",name,v.selected+1));
@@ -337,7 +337,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  if(screen=="home"){
   rows={Row("recording",loc::T("training.dummy_recording"),loc::T("training.dummy_recording.detail")),
    Row("history",loc::T("training.input_history"),loc::T("training.input_history.detail")),
-   Row("tools",loc::T("training.combo.title"),loc::T("training.combo.title.detail")),
+   Row("tools",loc::T("training.tools"),loc::T("training.tools.detail")),
    InfoRow("about",loc::T("training.guide"),"",loc::T("training.home.guide")),
    Row("return",loc::T("training.close_controls"),loc::T("training.close_controls.detail"))};
  }else if(screen=="recording"){

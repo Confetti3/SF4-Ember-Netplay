@@ -1422,19 +1422,19 @@ msgstr "История нажатий"
 msgid "training.input_history.detail"
 msgstr "Просмотр удерживаемых кнопок каждого игрока."
 
-msgid "training.combo.title"
+msgid "training.tools"
 msgstr "Позиция и манекен"
 
-msgid "training.combo.title.detail"
+msgid "training.tools.detail"
 msgstr "Сохраняйте и возвращайте позицию, настраивайте манекена и то, что он делает сам."
 
 msgid "training.match.checkpoint_disabled"
 msgstr "Shared save/reset is disabled during rollback matches in nightly."
 
-msgid "training.combo.invalid"
+msgid "training.invalid"
 msgstr "Не принято: {0}"
 
-msgid "training.combo.save_failed"
+msgid "training.save_failed"
 msgstr "Не удалось сохранить файл."
 
 msgid "training.guide"
@@ -1449,163 +1449,163 @@ msgstr "Выберите ячейку, затем «Запись»: пад Иг�
 msgid "training.history.guide"
 msgstr "Нажатия на паде каждого игрока, сначала новые, с числом кадров удержания. Выберите игрока, чтобы прочитать список. Показано, что было нажато, а не какой приём вышел."
 
-msgid "training.combo.guide"
+msgid "training.tools.guide"
 msgstr "«Сохранить позицию» запоминает бой как есть, а «Вернуть позицию» возвращает его; на паде Select при коротком нажатии возвращает, а при удержании сохраняет. Строки манекена сразу меняют настройки тренировки в игре. «Ответ манекена» заставляет манекена действовать самому, как только он снова свободен: воспроизводит «Приёмы ответа» или ячейку ответа, если эта строка пуста."
 
 msgid "edit.instructions.area"
 msgstr "Введите или вставьте текст с клавиатуры. Enter начинает новую строку. Ctrl+Enter или кнопка «Принять» принимает; Escape или «Назад» на контроллере отменяет."
 
-msgid "training.combo.save_pos"
+msgid "training.position.save"
 msgstr "Сохранить позицию"
 
-msgid "training.combo.save_pos.detail"
+msgid "training.position.save.detail"
 msgstr "Запоминает обоих бойцов как есть: место, здоровье, шкалы, состояние манекена."
 
-msgid "training.combo.reset_pos"
+msgid "training.position.reset"
 msgstr "Вернуть позицию"
 
-msgid "training.combo.reset_pos.detail"
+msgid "training.position.reset.detail"
 msgstr "Возвращает обоих бойцов туда, где они были сохранены."
 
-msgid "training.combo.position_saved"
+msgid "training.position.saved"
 msgstr "Позиция сохранена."
 
-msgid "training.combo.position_reset"
+msgid "training.position.reset_done"
 msgstr "Позиция возвращена."
 
-msgid "training.combo.setup.detail"
+msgid "training.dummy.detail"
 msgstr "Влево и Вправо меняют; сразу действует в игре."
 
-msgid "training.combo.reply"
+msgid "training.reply"
 msgstr "Ответ манекена"
 
-msgid "training.combo.reply.detail"
+msgid "training.reply.detail"
 msgstr "Что манекен делает сам, как только снова свободен, чтобы наказать сорванное комбо или небезопасное завершение: воспроизводит «Приёмы ответа» или ячейку ответа, если эта строка пуста. Ответ ждёт, пока идёт воспроизведение или запись."
 
-msgid "training.combo.reply.hit"
+msgid "training.reply.hit"
 msgstr "После сорванного комбо"
 
-msgid "training.combo.reply.block"
+msgid "training.reply.block"
 msgstr "После блока"
 
-msgid "training.combo.reply.rise"
+msgid "training.reply.rise"
 msgstr "При подъёме"
 
-msgid "training.combo.reply.any"
+msgid "training.reply.any"
 msgstr "Всегда после восстановления"
 
-msgid "training.combo.reply.slot"
+msgid "training.reply.slot"
 msgstr "Ячейка ответа"
 
-msgid "training.combo.reply.slot.detail"
+msgid "training.reply.slot.detail"
 msgstr "Запись манекена, которая воспроизводится как ответ, пока «Приёмы ответа» пусты, с первого нажатия."
 
-msgid "training.combo.reply.chance"
+msgid "training.reply.chance"
 msgstr "Шанс ответа"
 
-msgid "training.combo.reply.chance.detail"
+msgid "training.reply.chance.detail"
 msgstr "Как часто манекен отвечает. Ниже 100% это меняется от попытки к попытке."
 
-msgid "training.combo.vary_stance"
+msgid "training.reply.vary_stance"
 msgstr "Менять стойку"
 
-msgid "training.combo.vary_stance.detail"
+msgid "training.reply.vary_stance.detail"
 msgstr "После каждого восстановления манекен случайно стоит или сидит, чтобы комбо отрабатывалось на обеих стойках. Только когда манекен стоит или сидит по настройке."
 
-msgid "training.combo.reply.moves"
+msgid "training.reply.moves"
 msgstr "Приёмы ответа"
 
-msgid "training.combo.reply.moves.detail"
+msgid "training.reply.moves.detail"
 msgstr "Ответ, записанный цифровой нотацией, например 623HP или 44, читается для стороны, в которую смотрит манекен. Движение вводится, пока манекен ещё скован, чтобы кнопка попала на его первый свободный кадр. Пустая строка использует ячейку ответа."
 
-msgid "training.combo.reply.timing"
+msgid "training.reply.timing"
 msgstr "Тайминг ответа"
 
-msgid "training.combo.reply.timing.detail"
+msgid "training.reply.timing.detail"
 msgstr "Число кадров после первого свободного кадра манекена, на которое попадает кнопка ответа. Длительность оглушения запоминается с первого раза; до этого ответ начинается, когда оно заканчивается."
 
-msgid "training.combo.key.reset"
+msgid "training.key.reset"
 msgstr "Клавиша позиции"
 
 msgid "training.challenger"
 msgstr "НОВЫЙ БОЕЦ ВЫХОДИТ НА РИНГ!"
 
-msgid "training.combo.key.detail"
+msgid "training.key.detail"
 msgstr "Влево и Вправо выбирают клавишу, которая делает это во время боя. «Выкл.» оставляет без клавиши."
 
-msgid "training.combo.setup.action"
+msgid "training.dummy.action"
 msgstr "Манекен"
 
-msgid "training.combo.setup.guard"
+msgid "training.dummy.guard"
 msgstr "Блок"
 
-msgid "training.combo.setup.counter"
+msgid "training.dummy.counter"
 msgstr "Контрудар"
 
-msgid "training.combo.setup.quick"
+msgid "training.dummy.quick"
 msgstr "Быстрый подъём"
 
-msgid "training.combo.setup.super"
+msgid "training.dummy.super"
 msgstr "Шкала супер"
 
-msgid "training.combo.setup.revenge"
+msgid "training.dummy.revenge"
 msgstr "Шкала реванша"
 
-msgid "training.combo.setup.stand"
+msgid "training.dummy.stand"
 msgstr "Стоит"
 
-msgid "training.combo.setup.crouch"
+msgid "training.dummy.crouch"
 msgstr "Сидит"
 
-msgid "training.combo.setup.jump"
+msgid "training.dummy.jump"
 msgstr "Прыжок"
 
-msgid "training.combo.setup.cpu"
+msgid "training.dummy.cpu"
 msgstr "CPU"
 
-msgid "training.combo.setup.guard_none"
+msgid "training.dummy.guard_none"
 msgstr "Без блока"
 
-msgid "training.combo.setup.guard_first"
+msgid "training.dummy.guard_first"
 msgstr "После первого удара"
 
-msgid "training.combo.setup.guard_all"
+msgid "training.dummy.guard_all"
 msgstr "Блокировать всё"
 
-msgid "training.combo.setup.guard_random"
+msgid "training.dummy.guard_random"
 msgstr "Случайно"
 
-msgid "training.combo.setup.counter_off"
+msgid "training.dummy.counter_off"
 msgstr "Выкл."
 
-msgid "training.combo.setup.counter_on"
+msgid "training.dummy.counter_on"
 msgstr "Вкл."
 
-msgid "training.combo.setup.counter_random"
+msgid "training.dummy.counter_random"
 msgstr "Случайно"
 
-msgid "training.combo.setup.quick_quick"
+msgid "training.dummy.quick_quick"
 msgstr "Быстрый"
 
-msgid "training.combo.setup.quick_normal"
+msgid "training.dummy.quick_normal"
 msgstr "Обычный"
 
-msgid "training.combo.setup.quick_delayed"
+msgid "training.dummy.quick_delayed"
 msgstr "С задержкой"
 
-msgid "training.combo.setup.quick_random"
+msgid "training.dummy.quick_random"
 msgstr "Случайно"
 
-msgid "training.combo.setup.gauge_normal"
+msgid "training.dummy.gauge_normal"
 msgstr "Обычная"
 
-msgid "training.combo.setup.gauge_max"
+msgid "training.dummy.gauge_max"
 msgstr "Полная на старте"
 
-msgid "training.combo.setup.gauge_infinite"
+msgid "training.dummy.gauge_infinite"
 msgstr "Бесконечная"
 
-msgid "training.combo.setup.gauge_refill"
+msgid "training.dummy.gauge_refill"
 msgstr "Пополнение"
 
 msgid "training.close_controls"

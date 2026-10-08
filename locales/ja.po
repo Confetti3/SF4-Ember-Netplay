@@ -1422,19 +1422,19 @@ msgstr "入力履歴"
 msgid "training.input_history.detail"
 msgstr "各プレイヤーが押しているボタンを確認します。"
 
-msgid "training.combo.title"
+msgid "training.tools"
 msgstr "位置とダミー"
 
-msgid "training.combo.title.detail"
+msgid "training.tools.detail"
 msgstr "位置を保存して戻し、ダミーとその反撃を設定します。"
 
 msgid "training.match.checkpoint_disabled"
 msgstr "Shared save/reset is disabled during rollback matches in nightly."
 
-msgid "training.combo.invalid"
+msgid "training.invalid"
 msgstr "受け付けられません：{0}"
 
-msgid "training.combo.save_failed"
+msgid "training.save_failed"
 msgstr "ファイルを保存できませんでした。"
 
 msgid "training.guide"
@@ -1449,163 +1449,163 @@ msgstr "スロットを選んでレコーディング：停止するまでプレ
 msgid "training.history.guide"
 msgstr "各プレイヤーのパッド入力を新しい順に、入力ごとの保持フレーム数とともに表示します。プレイヤーを選ぶと一覧を読めます。表示されるのは押した入力で、出た技ではありません。"
 
-msgid "training.combo.guide"
+msgid "training.tools.guide"
 msgstr "位置を保存は今の対戦の状態を保存し、位置を戻すでその状態に戻します。パッドのSelectは押してすぐ離すと戻し、押したままにすると保存します。ダミーの行はゲームのトレーニング設定をすぐに変更します。ダミーの反撃はダミーが動けるようになった瞬間に自分で行う行動です。反撃の技を再生し、その欄が空なら反撃スロットを再生します。"
 
 msgid "edit.instructions.area"
 msgstr "キーボードで入力または貼り付け。Enterで改行します。Ctrl+Enterか確定ボタンで確定、Escかコントローラーの戻るでキャンセルします。"
 
-msgid "training.combo.save_pos"
+msgid "training.position.save"
 msgstr "位置を保存"
 
-msgid "training.combo.save_pos.detail"
+msgid "training.position.save.detail"
 msgstr "両キャラクターの現在の状態（位置、体力、ゲージ、ダミーの状態）を保存します。"
 
-msgid "training.combo.reset_pos"
+msgid "training.position.reset"
 msgstr "位置を戻す"
 
-msgid "training.combo.reset_pos.detail"
+msgid "training.position.reset.detail"
 msgstr "両キャラクターを保存した状態に戻します。"
 
-msgid "training.combo.position_saved"
+msgid "training.position.saved"
 msgstr "位置を保存しました。"
 
-msgid "training.combo.position_reset"
+msgid "training.position.reset_done"
 msgstr "位置を戻しました。"
 
-msgid "training.combo.setup.detail"
+msgid "training.dummy.detail"
 msgstr "左右で変更します。すぐにゲームに反映されます。"
 
-msgid "training.combo.reply"
+msgid "training.reply"
 msgstr "ダミーの反撃"
 
-msgid "training.combo.reply.detail"
+msgid "training.reply.detail"
 msgstr "ダミーが動けるようになった瞬間に自分で行う行動です。落としたコンボや隙のある締めに反撃します。反撃の技を再生し、その欄が空なら反撃スロットを再生します。再生中や記録中は待機します。"
 
-msgid "training.combo.reply.hit"
+msgid "training.reply.hit"
 msgstr "コンボを落とした後"
 
-msgid "training.combo.reply.block"
+msgid "training.reply.block"
 msgstr "ガード後"
 
-msgid "training.combo.reply.rise"
+msgid "training.reply.rise"
 msgstr "起き上がり"
 
-msgid "training.combo.reply.any"
+msgid "training.reply.any"
 msgstr "復帰するたび"
 
-msgid "training.combo.reply.slot"
+msgid "training.reply.slot"
 msgstr "反撃スロット"
 
-msgid "training.combo.reply.slot.detail"
+msgid "training.reply.slot.detail"
 msgstr "反撃の技が空のとき、反撃として再生するダミーの記録です。最初の入力から再生します。"
 
-msgid "training.combo.reply.chance"
+msgid "training.reply.chance"
 msgstr "反撃の確率"
 
-msgid "training.combo.reply.chance.detail"
+msgid "training.reply.chance.detail"
 msgstr "ダミーが反撃する頻度です。100%未満では試行ごとに変わります。"
 
-msgid "training.combo.vary_stance"
+msgid "training.reply.vary_stance"
 msgstr "姿勢を変える"
 
-msgid "training.combo.vary_stance.detail"
+msgid "training.reply.vary_stance.detail"
 msgstr "ダミーが復帰するたびに立ちかしゃがみをランダムに選び、両方でコンボを練習できます。ダミーが立ちかしゃがみに設定されているときだけ働きます。"
 
-msgid "training.combo.reply.moves"
+msgid "training.reply.moves"
 msgstr "反撃の技"
 
-msgid "training.combo.reply.moves.detail"
+msgid "training.reply.moves.detail"
 msgstr "テンキー表記で入力する反撃です。例: 623HP、44。ダミーの向きに合わせて読みます。ダミーがまだ動けない間にコマンドを入れ、動ける最初のフレームにボタンが重なります。空なら反撃スロットを使います。"
 
-msgid "training.combo.reply.timing"
+msgid "training.reply.timing"
 msgstr "反撃のタイミング"
 
-msgid "training.combo.reply.timing.detail"
+msgid "training.reply.timing.detail"
 msgstr "ダミーが動ける最初のフレームから、反撃のボタンが入るまでのフレーム数です。硬直の長さは最初に見たときに覚えます。それまでは硬直が終わった時点で反撃を始めます。"
 
-msgid "training.combo.key.reset"
+msgid "training.key.reset"
 msgstr "位置を戻すキー"
 
 msgid "training.challenger"
 msgstr "新たな挑戦者が現れました！"
 
-msgid "training.combo.key.detail"
+msgid "training.key.detail"
 msgstr "左右で、対戦中にこの操作を行うキーを選びます。オフにするとキーなしになります。"
 
-msgid "training.combo.setup.action"
+msgid "training.dummy.action"
 msgstr "ダミー"
 
-msgid "training.combo.setup.guard"
+msgid "training.dummy.guard"
 msgstr "ガード"
 
-msgid "training.combo.setup.counter"
+msgid "training.dummy.counter"
 msgstr "カウンターヒット"
 
-msgid "training.combo.setup.quick"
+msgid "training.dummy.quick"
 msgstr "クイックスタンド"
 
-msgid "training.combo.setup.super"
+msgid "training.dummy.super"
 msgstr "スーパーゲージ"
 
-msgid "training.combo.setup.revenge"
+msgid "training.dummy.revenge"
 msgstr "リベンジゲージ"
 
-msgid "training.combo.setup.stand"
+msgid "training.dummy.stand"
 msgstr "立ち"
 
-msgid "training.combo.setup.crouch"
+msgid "training.dummy.crouch"
 msgstr "しゃがみ"
 
-msgid "training.combo.setup.jump"
+msgid "training.dummy.jump"
 msgstr "ジャンプ"
 
-msgid "training.combo.setup.cpu"
+msgid "training.dummy.cpu"
 msgstr "CPU"
 
-msgid "training.combo.setup.guard_none"
+msgid "training.dummy.guard_none"
 msgstr "ガードなし"
 
-msgid "training.combo.setup.guard_first"
+msgid "training.dummy.guard_first"
 msgstr "初段後"
 
-msgid "training.combo.setup.guard_all"
+msgid "training.dummy.guard_all"
 msgstr "すべてガード"
 
-msgid "training.combo.setup.guard_random"
+msgid "training.dummy.guard_random"
 msgstr "ランダム"
 
-msgid "training.combo.setup.counter_off"
+msgid "training.dummy.counter_off"
 msgstr "オフ"
 
-msgid "training.combo.setup.counter_on"
+msgid "training.dummy.counter_on"
 msgstr "オン"
 
-msgid "training.combo.setup.counter_random"
+msgid "training.dummy.counter_random"
 msgstr "ランダム"
 
-msgid "training.combo.setup.quick_quick"
+msgid "training.dummy.quick_quick"
 msgstr "クイック"
 
-msgid "training.combo.setup.quick_normal"
+msgid "training.dummy.quick_normal"
 msgstr "通常"
 
-msgid "training.combo.setup.quick_delayed"
+msgid "training.dummy.quick_delayed"
 msgstr "遅延"
 
-msgid "training.combo.setup.quick_random"
+msgid "training.dummy.quick_random"
 msgstr "ランダム"
 
-msgid "training.combo.setup.gauge_normal"
+msgid "training.dummy.gauge_normal"
 msgstr "通常"
 
-msgid "training.combo.setup.gauge_max"
+msgid "training.dummy.gauge_max"
 msgstr "開始時に最大"
 
-msgid "training.combo.setup.gauge_infinite"
+msgid "training.dummy.gauge_infinite"
 msgstr "無限"
 
-msgid "training.combo.setup.gauge_refill"
+msgid "training.dummy.gauge_refill"
 msgstr "自動回復"
 
 msgid "training.close_controls"

@@ -1422,19 +1422,19 @@ msgstr "Sequenza comandi"
 msgid "training.input_history.detail"
 msgstr "Comandi premuti da ogni giocatore."
 
-msgid "training.combo.title"
+msgid "training.tools"
 msgstr "Posizione e manichino"
 
-msgid "training.combo.title.detail"
+msgid "training.tools.detail"
 msgstr "Salva e ripristina la posizione, imposta il manichino e cosa fa da solo."
 
 msgid "training.match.checkpoint_disabled"
 msgstr "Shared save/reset is disabled during rollback matches in nightly."
 
-msgid "training.combo.invalid"
+msgid "training.invalid"
 msgstr "Non accettato: {0}"
 
-msgid "training.combo.save_failed"
+msgid "training.save_failed"
 msgstr "Impossibile salvare il file."
 
 msgid "training.guide"
@@ -1449,163 +1449,163 @@ msgstr "Scegli uno slot, poi Registra: il pad del Giocatore 1 comanda il manichi
 msgid "training.history.guide"
 msgstr "I comandi del pad di ogni giocatore, dal più recente, con i frame per cui ciascuno è stato tenuto premuto. Seleziona un giocatore per leggere l'elenco. Mostra cosa è stato premuto, non quale mossa è uscita."
 
-msgid "training.combo.guide"
+msgid "training.tools.guide"
 msgstr "Salva posizione tiene l'incontro com'è ora e Ripristina posizione lo riporta; sul pad, Select ripristina con un tocco e salva se tenuto premuto. Le righe del manichino cambiano subito le impostazioni di Allenamento del gioco. Risposta del manichino fa agire il manichino da solo appena torna libero: riproduce le Mosse di risposta, o lo slot di risposta se quella riga è vuota."
 
 msgid "edit.instructions.area"
 msgstr "Digita o incolla con la tastiera. Enter va a capo. Ctrl+Enter o il pulsante Accetta conferma; Escape o Back sul controller annulla."
 
-msgid "training.combo.save_pos"
+msgid "training.position.save"
 msgstr "Salva posizione"
 
-msgid "training.combo.save_pos.detail"
+msgid "training.position.save.detail"
 msgstr "Tiene i due lottatori come sono ora: posto, vita, barre, stato del manichino."
 
-msgid "training.combo.reset_pos"
+msgid "training.position.reset"
 msgstr "Ripristina posizione"
 
-msgid "training.combo.reset_pos.detail"
+msgid "training.position.reset.detail"
 msgstr "Riporta i due lottatori dove sono stati salvati."
 
-msgid "training.combo.position_saved"
+msgid "training.position.saved"
 msgstr "Posizione salvata."
 
-msgid "training.combo.position_reset"
+msgid "training.position.reset_done"
 msgstr "Posizione ripristinata."
 
-msgid "training.combo.setup.detail"
+msgid "training.dummy.detail"
 msgstr "Sinistra e Destra lo cambiano; vale subito nel gioco."
 
-msgid "training.combo.reply"
+msgid "training.reply"
 msgstr "Risposta del manichino"
 
-msgid "training.combo.reply.detail"
+msgid "training.reply.detail"
 msgstr "Cosa fa il manichino da solo appena torna libero, per punire una combo sbagliata o una chiusura rischiosa: riproduce le Mosse di risposta, o lo slot di risposta se quella riga è vuota. Attende mentre è in corso una riproduzione o una registrazione."
 
-msgid "training.combo.reply.hit"
+msgid "training.reply.hit"
 msgstr "Dopo una combo sbagliata"
 
-msgid "training.combo.reply.block"
+msgid "training.reply.block"
 msgstr "Dopo una parata"
 
-msgid "training.combo.reply.rise"
+msgid "training.reply.rise"
 msgstr "Al rialzo"
 
-msgid "training.combo.reply.any"
+msgid "training.reply.any"
 msgstr "Ogni volta che si riprende"
 
-msgid "training.combo.reply.slot"
+msgid "training.reply.slot"
 msgstr "Slot di risposta"
 
-msgid "training.combo.reply.slot.detail"
+msgid "training.reply.slot.detail"
 msgstr "La registrazione del manichino riprodotta come risposta finché Mosse di risposta è vuoto, dalla sua prima pressione."
 
-msgid "training.combo.reply.chance"
+msgid "training.reply.chance"
 msgstr "Probabilità di risposta"
 
-msgid "training.combo.reply.chance.detail"
+msgid "training.reply.chance.detail"
 msgstr "Quanto spesso risponde il manichino. Sotto il 100% cambia da un tentativo all'altro."
 
-msgid "training.combo.vary_stance"
+msgid "training.reply.vary_stance"
 msgstr "Varia la posizione"
 
-msgid "training.combo.vary_stance.detail"
+msgid "training.reply.vary_stance.detail"
 msgstr "Ogni volta che il manichino si riprende, resta in piedi o accovacciato a caso, così la combo si prova su entrambe. Solo se il manichino è impostato su in piedi o accovacciato."
 
-msgid "training.combo.reply.moves"
+msgid "training.reply.moves"
 msgstr "Mosse di risposta"
 
-msgid "training.combo.reply.moves.detail"
+msgid "training.reply.moves.detail"
 msgstr "La risposta scritta in notazione numerica, come 623HP o 44, letta per il lato verso cui guarda il manichino. Il movimento viene inserito mentre il manichino è ancora bloccato, così il tasto cade sul suo primo frame libero. Vuoto usa lo slot di risposta."
 
-msgid "training.combo.reply.timing"
+msgid "training.reply.timing"
 msgstr "Tempismo della risposta"
 
-msgid "training.combo.reply.timing.detail"
+msgid "training.reply.timing.detail"
 msgstr "Frame dopo il primo frame libero del manichino in cui cade il tasto della risposta. La durata di uno stordimento si impara la prima volta; fino ad allora la risposta parte quando finisce."
 
-msgid "training.combo.key.reset"
+msgid "training.key.reset"
 msgstr "Tasto Ripristina"
 
 msgid "training.challenger"
 msgstr "UN NUOVO GUERRIERO È SALITO SUL RING!"
 
-msgid "training.combo.key.detail"
+msgid "training.key.detail"
 msgstr "Sinistra e Destra scelgono il tasto che fa questo durante lo scontro. Disattivato lo lascia senza tasto."
 
-msgid "training.combo.setup.action"
+msgid "training.dummy.action"
 msgstr "Manichino"
 
-msgid "training.combo.setup.guard"
+msgid "training.dummy.guard"
 msgstr "Parata"
 
-msgid "training.combo.setup.counter"
+msgid "training.dummy.counter"
 msgstr "Counter hit"
 
-msgid "training.combo.setup.quick"
+msgid "training.dummy.quick"
 msgstr "Rialzo rapido"
 
-msgid "training.combo.setup.super"
+msgid "training.dummy.super"
 msgstr "Barra super"
 
-msgid "training.combo.setup.revenge"
+msgid "training.dummy.revenge"
 msgstr "Barra revenge"
 
-msgid "training.combo.setup.stand"
+msgid "training.dummy.stand"
 msgstr "In piedi"
 
-msgid "training.combo.setup.crouch"
+msgid "training.dummy.crouch"
 msgstr "Accovacciato"
 
-msgid "training.combo.setup.jump"
+msgid "training.dummy.jump"
 msgstr "Salto"
 
-msgid "training.combo.setup.cpu"
+msgid "training.dummy.cpu"
 msgstr "CPU"
 
-msgid "training.combo.setup.guard_none"
+msgid "training.dummy.guard_none"
 msgstr "Nessuna parata"
 
-msgid "training.combo.setup.guard_first"
+msgid "training.dummy.guard_first"
 msgstr "Dopo il primo colpo"
 
-msgid "training.combo.setup.guard_all"
+msgid "training.dummy.guard_all"
 msgstr "Para tutto"
 
-msgid "training.combo.setup.guard_random"
+msgid "training.dummy.guard_random"
 msgstr "Casuale"
 
-msgid "training.combo.setup.counter_off"
+msgid "training.dummy.counter_off"
 msgstr "No"
 
-msgid "training.combo.setup.counter_on"
+msgid "training.dummy.counter_on"
 msgstr "Sì"
 
-msgid "training.combo.setup.counter_random"
+msgid "training.dummy.counter_random"
 msgstr "Casuale"
 
-msgid "training.combo.setup.quick_quick"
+msgid "training.dummy.quick_quick"
 msgstr "Rapido"
 
-msgid "training.combo.setup.quick_normal"
+msgid "training.dummy.quick_normal"
 msgstr "Normale"
 
-msgid "training.combo.setup.quick_delayed"
+msgid "training.dummy.quick_delayed"
 msgstr "Ritardato"
 
-msgid "training.combo.setup.quick_random"
+msgid "training.dummy.quick_random"
 msgstr "Casuale"
 
-msgid "training.combo.setup.gauge_normal"
+msgid "training.dummy.gauge_normal"
 msgstr "Normale"
 
-msgid "training.combo.setup.gauge_max"
+msgid "training.dummy.gauge_max"
 msgstr "Piena all'inizio"
 
-msgid "training.combo.setup.gauge_infinite"
+msgid "training.dummy.gauge_infinite"
 msgstr "Infinita"
 
-msgid "training.combo.setup.gauge_refill"
+msgid "training.dummy.gauge_refill"
 msgstr "Ricarica"
 
 msgid "training.close_controls"

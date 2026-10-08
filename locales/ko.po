@@ -1422,19 +1422,19 @@ msgstr "입력 기록"
 msgid "training.input_history.detail"
 msgstr "각 플레이어가 누르고 있는 입력을 확인합니다."
 
-msgid "training.combo.title"
+msgid "training.tools"
 msgstr "위치와 더미"
 
-msgid "training.combo.title.detail"
+msgid "training.tools.detail"
 msgstr "위치를 저장하고 되돌리며, 더미와 더미의 반격을 설정합니다."
 
 msgid "training.match.checkpoint_disabled"
 msgstr "Shared save/reset is disabled during rollback matches in nightly."
 
-msgid "training.combo.invalid"
+msgid "training.invalid"
 msgstr "받을 수 없습니다: {0}"
 
-msgid "training.combo.save_failed"
+msgid "training.save_failed"
 msgstr "파일을 저장하지 못했습니다."
 
 msgid "training.guide"
@@ -1449,163 +1449,163 @@ msgstr "슬롯을 고른 뒤 녹화를 선택하면 중지할 때까지 플레�
 msgid "training.history.guide"
 msgstr "각 플레이어의 패드 입력을 최근 것부터, 누르고 있던 프레임 수와 함께 보여 줍니다. 플레이어를 선택하면 목록을 볼 수 있습니다. 누른 입력을 표시하며, 어떤 기술이 나갔는지는 표시하지 않습니다."
 
-msgid "training.combo.guide"
+msgid "training.tools.guide"
 msgstr "위치 저장은 지금의 대전 상태를 저장하고, 위치 복원은 그 상태로 되돌립니다. 패드의 Select는 짧게 누르면 복원하고 길게 누르면 저장합니다. 더미 줄은 게임의 트레이닝 설정을 바로 바꿉니다. 더미 반격은 더미가 다시 움직일 수 있게 되는 순간 스스로 하는 행동입니다. 반격 기술을 재생하고, 그 줄이 비어 있으면 반격 슬롯을 재생합니다."
 
 msgid "edit.instructions.area"
 msgstr "키보드로 입력하거나 붙여넣으세요. Enter는 줄을 바꿉니다. Ctrl+Enter 또는 수락 버튼으로 확정하고 Esc 또는 컨트롤러의 뒤로 버튼으로 취소합니다."
 
-msgid "training.combo.save_pos"
+msgid "training.position.save"
 msgstr "위치 저장"
 
-msgid "training.combo.save_pos.detail"
+msgid "training.position.save.detail"
 msgstr "두 캐릭터의 현재 상태(위치, 체력, 게이지, 더미 상태)를 저장합니다."
 
-msgid "training.combo.reset_pos"
+msgid "training.position.reset"
 msgstr "위치 복원"
 
-msgid "training.combo.reset_pos.detail"
+msgid "training.position.reset.detail"
 msgstr "두 캐릭터를 저장한 상태로 되돌립니다."
 
-msgid "training.combo.position_saved"
+msgid "training.position.saved"
 msgstr "위치를 저장했습니다."
 
-msgid "training.combo.position_reset"
+msgid "training.position.reset_done"
 msgstr "위치를 복원했습니다."
 
-msgid "training.combo.setup.detail"
+msgid "training.dummy.detail"
 msgstr "좌우로 바꿉니다. 바로 게임에 적용됩니다."
 
-msgid "training.combo.reply"
+msgid "training.reply"
 msgstr "더미 반격"
 
-msgid "training.combo.reply.detail"
+msgid "training.reply.detail"
 msgstr "더미가 다시 움직일 수 있게 되는 순간 스스로 하는 행동입니다. 놓친 콤보나 빈틈 있는 마무리를 응징합니다. 반격 기술을 재생하고, 그 줄이 비어 있으면 반격 슬롯을 재생합니다. 재생이나 녹화 중에는 기다립니다."
 
-msgid "training.combo.reply.hit"
+msgid "training.reply.hit"
 msgstr "콤보를 놓친 뒤"
 
-msgid "training.combo.reply.block"
+msgid "training.reply.block"
 msgstr "가드 후"
 
-msgid "training.combo.reply.rise"
+msgid "training.reply.rise"
 msgstr "기상 시"
 
-msgid "training.combo.reply.any"
+msgid "training.reply.any"
 msgstr "회복할 때마다"
 
-msgid "training.combo.reply.slot"
+msgid "training.reply.slot"
 msgstr "반격 슬롯"
 
-msgid "training.combo.reply.slot.detail"
+msgid "training.reply.slot.detail"
 msgstr "반격 기술이 비어 있을 때 반격으로 재생하는 더미 녹화입니다. 첫 입력부터 재생합니다."
 
-msgid "training.combo.reply.chance"
+msgid "training.reply.chance"
 msgstr "반격 확률"
 
-msgid "training.combo.reply.chance.detail"
+msgid "training.reply.chance.detail"
 msgstr "더미가 반격하는 빈도입니다. 100% 미만이면 시도마다 달라집니다."
 
-msgid "training.combo.vary_stance"
+msgid "training.reply.vary_stance"
 msgstr "자세 바꾸기"
 
-msgid "training.combo.vary_stance.detail"
+msgid "training.reply.vary_stance.detail"
 msgstr "더미가 회복할 때마다 서기나 앉기를 무작위로 골라 두 자세 모두에서 콤보를 연습할 수 있습니다. 더미가 서기나 앉기로 설정된 동안에만 작동합니다."
 
-msgid "training.combo.reply.moves"
+msgid "training.reply.moves"
 msgstr "반격 기술"
 
-msgid "training.combo.reply.moves.detail"
+msgid "training.reply.moves.detail"
 msgstr "숫자 표기로 입력하는 반격입니다. 예: 623HP, 44. 더미가 보는 방향에 맞춰 읽습니다. 더미가 아직 움직일 수 없는 동안 커맨드를 넣어, 움직일 수 있는 첫 프레임에 버튼이 들어갑니다. 비워 두면 반격 슬롯을 씁니다."
 
-msgid "training.combo.reply.timing"
+msgid "training.reply.timing"
 msgstr "반격 타이밍"
 
-msgid "training.combo.reply.timing.detail"
+msgid "training.reply.timing.detail"
 msgstr "더미가 움직일 수 있는 첫 프레임 뒤 반격 버튼이 들어가는 프레임 수입니다. 경직 길이는 처음 볼 때 기억합니다. 그 전에는 경직이 끝날 때 반격을 시작합니다."
 
-msgid "training.combo.key.reset"
+msgid "training.key.reset"
 msgstr "위치 복원 키"
 
 msgid "training.challenger"
 msgstr "새로운 도전자가 나타났습니다!"
 
-msgid "training.combo.key.detail"
+msgid "training.key.detail"
 msgstr "좌우로 대전 중에 이 동작을 하는 키를 고릅니다. 끄기는 키 없이 둡니다."
 
-msgid "training.combo.setup.action"
+msgid "training.dummy.action"
 msgstr "더미"
 
-msgid "training.combo.setup.guard"
+msgid "training.dummy.guard"
 msgstr "가드"
 
-msgid "training.combo.setup.counter"
+msgid "training.dummy.counter"
 msgstr "카운터 히트"
 
-msgid "training.combo.setup.quick"
+msgid "training.dummy.quick"
 msgstr "퀵 스탠드"
 
-msgid "training.combo.setup.super"
+msgid "training.dummy.super"
 msgstr "슈퍼 게이지"
 
-msgid "training.combo.setup.revenge"
+msgid "training.dummy.revenge"
 msgstr "리벤지 게이지"
 
-msgid "training.combo.setup.stand"
+msgid "training.dummy.stand"
 msgstr "서기"
 
-msgid "training.combo.setup.crouch"
+msgid "training.dummy.crouch"
 msgstr "앉기"
 
-msgid "training.combo.setup.jump"
+msgid "training.dummy.jump"
 msgstr "점프"
 
-msgid "training.combo.setup.cpu"
+msgid "training.dummy.cpu"
 msgstr "CPU"
 
-msgid "training.combo.setup.guard_none"
+msgid "training.dummy.guard_none"
 msgstr "가드 없음"
 
-msgid "training.combo.setup.guard_first"
+msgid "training.dummy.guard_first"
 msgstr "첫 타 이후"
 
-msgid "training.combo.setup.guard_all"
+msgid "training.dummy.guard_all"
 msgstr "모두 가드"
 
-msgid "training.combo.setup.guard_random"
+msgid "training.dummy.guard_random"
 msgstr "랜덤"
 
-msgid "training.combo.setup.counter_off"
+msgid "training.dummy.counter_off"
 msgstr "꺼짐"
 
-msgid "training.combo.setup.counter_on"
+msgid "training.dummy.counter_on"
 msgstr "켜짐"
 
-msgid "training.combo.setup.counter_random"
+msgid "training.dummy.counter_random"
 msgstr "랜덤"
 
-msgid "training.combo.setup.quick_quick"
+msgid "training.dummy.quick_quick"
 msgstr "빠르게"
 
-msgid "training.combo.setup.quick_normal"
+msgid "training.dummy.quick_normal"
 msgstr "보통"
 
-msgid "training.combo.setup.quick_delayed"
+msgid "training.dummy.quick_delayed"
 msgstr "지연"
 
-msgid "training.combo.setup.quick_random"
+msgid "training.dummy.quick_random"
 msgstr "랜덤"
 
-msgid "training.combo.setup.gauge_normal"
+msgid "training.dummy.gauge_normal"
 msgstr "보통"
 
-msgid "training.combo.setup.gauge_max"
+msgid "training.dummy.gauge_max"
 msgstr "시작 시 최대"
 
-msgid "training.combo.setup.gauge_infinite"
+msgid "training.dummy.gauge_infinite"
 msgstr "무한"
 
-msgid "training.combo.setup.gauge_refill"
+msgid "training.dummy.gauge_refill"
 msgstr "자동 회복"
 
 msgid "training.close_controls"
