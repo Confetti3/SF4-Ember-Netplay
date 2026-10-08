@@ -1,0 +1,24 @@
+{
+  "bind": "127.0.0.1:47850",
+  "state_dir": "/var/lib/ember-reports",
+  "bugsink_base": "http://127.0.0.1:47860",
+  "bugsink_host": "bugs.embernetplay.link",
+  "project_id": 1,
+  "limits": {
+    "per_address": 5,
+    "address_window_secs": 600,
+    "global_reports": 300,
+    "global_window_secs": 3600,
+    "tracked_addresses": 4096,
+    "workers": 4,
+    "queue": 32,
+    "upload_secs": 20,
+    "queue_wait_secs": 60,
+    "processing_secs": 20,
+    "outbox_count": 512,
+    "outbox_bytes": 268435456,
+    "dump_days": 30,
+    "dump_bytes": 2147483648,
+    "dump_count": 4096
+  }
+}
