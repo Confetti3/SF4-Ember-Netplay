@@ -246,6 +246,11 @@ namespace sf4e {
 		// Any thread: the Replays screen is showing, so the archive is to be
 		// listed again (RuntimeSnapshot::replays.archive, within a few seconds).
 		void WantReplayList();
+		// At startup: in a run of the in-game self-test (SF4E_SELFTEST set,
+		// sf4e__NetplayRuntime__SelfTest.cxx) the game counts its window as
+		// in front, so the run goes on behind other windows. Does nothing
+		// otherwise.
+		void InstallSelfTest();
 		// The overlay's frame input, on any thread; never null.
 		std::shared_ptr<const PresentationSnapshot> GetPresentationSnapshotShared();
 		// Game thread, once at the end of every outer tick: expires notices and

@@ -325,6 +325,9 @@ void RetryMatchFinished();
 void PumpResultOutbox();
 void TickMatch();
 void ReleaseFinishedMatch();
+// The in-game self-test (sf4e__NetplayRuntime__SelfTest.cxx), once a tick;
+// nothing unless SF4E_SELFTEST names a test.
+void TickSelfTest();
 
 // Tournament play (sf4e__NetplayRuntime__Tournament.cxx).
 void DispatchTournament(const netplay::tournament::Command& command, bool helperReady);
