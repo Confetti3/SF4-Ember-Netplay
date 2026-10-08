@@ -11,9 +11,10 @@
 # JOBS to override the compiler, its flags or the parallelism.
 #
 # The sources are the room host's own files, the session server, the Iroh room,
-# the room model and the small common pieces they use: the same list as the
-# sf4e-room-host target in CMakeLists.txt, with RoomHostHelperPosix.cxx and
-# HelperClientPosix.cxx in place of the Windows helper files. No game library.
+# the room model and the small common pieces they use: the same files as the
+# sf4e-room-host target and the libraries it links in CMakeLists.txt, with
+# RoomHostHelperPosix.cxx and HelperClientPosix.cxx in place of the Windows
+# helper files. No game library.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
