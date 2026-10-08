@@ -691,6 +691,12 @@ msgstr "Added to the game's replay list, under the date it was played."
 msgid "replays.not_added"
 msgstr "This replay could not be added. The file may be damaged."
 
+msgid "replays.not_added_yet"
+msgstr "The game has not saved its last match yet. Try again in a moment."
+
+msgid "replays.not_added_files"
+msgstr "This replay could not be added: the game's replay files could not be read or written. Nothing was changed."
+
 msgid "replays.fighters"
 msgstr "{0} vs {1}"
 

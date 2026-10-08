@@ -691,6 +691,12 @@ msgstr "플레이한 날짜로 게임 리플레이 목록에 추가했습니다.
 msgid "replays.not_added"
 msgstr "이 리플레이를 추가할 수 없습니다. 파일이 손상되었을 수 있습니다."
 
+msgid "replays.not_added_yet"
+msgstr "게임이 마지막 대전을 아직 저장하지 않았습니다. 잠시 후 다시 시도하세요."
+
+msgid "replays.not_added_files"
+msgstr "이 리플레이를 추가할 수 없습니다. 게임의 리플레이 파일을 읽거나 쓸 수 없었습니다. 변경된 것은 없습니다."
+
 msgid "replays.fighters"
 msgstr "{0} vs {1}"
 

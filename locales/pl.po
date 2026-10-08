@@ -691,6 +691,12 @@ msgstr "Dodano do listy powtórek gry pod datą, kiedy mecz został rozegrany."
 msgid "replays.not_added"
 msgstr "Nie udało się dodać tej powtórki. Plik może być uszkodzony."
 
+msgid "replays.not_added_yet"
+msgstr "Gra nie zapisała jeszcze ostatniego meczu. Spróbuj ponownie za chwilę."
+
+msgid "replays.not_added_files"
+msgstr "Nie udało się dodać tej powtórki: nie można było odczytać lub zapisać plików powtórek gry. Nic nie zostało zmienione."
+
 msgid "replays.fighters"
 msgstr "{0} vs {1}"
 

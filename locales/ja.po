@@ -691,6 +691,12 @@ msgstr "対戦した日付でゲームのリプレイ一覧に追加しました
 msgid "replays.not_added"
 msgstr "このリプレイを追加できませんでした。ファイルが破損している可能性があります。"
 
+msgid "replays.not_added_yet"
+msgstr "ゲームが最後の対戦をまだ保存していません。少ししてからもう一度お試しください。"
+
+msgid "replays.not_added_files"
+msgstr "このリプレイを追加できませんでした。ゲームのリプレイファイルを読み書きできませんでした。何も変更されていません。"
+
 msgid "replays.fighters"
 msgstr "{0} vs {1}"
 

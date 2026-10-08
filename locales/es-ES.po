@@ -691,6 +691,12 @@ msgstr "Añadida a la lista de repeticiones del juego, con la fecha en que se ju
 msgid "replays.not_added"
 msgstr "No se ha podido añadir esta repetición. El archivo puede estar dañado."
 
+msgid "replays.not_added_yet"
+msgstr "El juego aún no ha guardado el último combate. Inténtalo de nuevo en un momento."
+
+msgid "replays.not_added_files"
+msgstr "No se pudo añadir esta repetición: no se pudieron leer o escribir los archivos de repeticiones del juego. No se ha cambiado nada."
+
 msgid "replays.fighters"
 msgstr "{0} vs {1}"
 
