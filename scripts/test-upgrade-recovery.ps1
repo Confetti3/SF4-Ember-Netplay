@@ -42,13 +42,16 @@ try {
  $targetManifest=Join-Path $payload 'MANIFEST.txt'
  $afterLines=@(ManifestLine (Join-Path $payload 'Launcher.exe') 'Launcher.exe';ManifestLine (Join-Path $payload 'Updater.exe') 'Updater.exe';ManifestLine (Join-Path $install 'preflight.ps1') 'preflight.ps1';ManifestLine (Join-Path $payload 'future.bin') 'future.bin')
  Set-Content -LiteralPath $targetManifest -Encoding UTF8 -Value $afterLines
- $changed=@('Launcher.exe','Updater.exe','future.bin','MANIFEST.txt')|Sort-Object
+ $changed=[string[]]@('Launcher.exe','Updater.exe','future.bin','MANIFEST.txt')
+ [Array]::Sort($changed,[StringComparer]::Ordinal)
  $metadata=[ordered]@{schema=1;from='1.0.0';to='1.0.1';baseManifestSha256=Hash $baseManifest;targetManifestSha256=Hash $targetManifest;
   changedFiles=$changed;removedFiles=@();installerSha256=Hash (Join-Path $package 'Install-Upgrade.ps1')}
  $upgradeJson=Join-Path $package 'upgrade.json';$metadata|ConvertTo-Json -Depth 4|Set-Content -LiteralPath $upgradeJson -Encoding UTF8
  $inventory=@()
- foreach($file in Get-ChildItem -LiteralPath $package -File -Recurse|Sort-Object FullName){
-  if($file.Name-ne'UPGRADE_MANIFEST.txt'){$inventory+=ManifestLine $file.FullName $file.FullName.Substring($package.Length+1)}
+ $manifestPaths=[string[]]@(Get-ChildItem -LiteralPath $package -File -Recurse|Where-Object{$_.Name-ne'UPGRADE_MANIFEST.txt'}|ForEach-Object{$_.FullName})
+ [Array]::Sort($manifestPaths,[StringComparer]::Ordinal)
+ foreach($path in $manifestPaths){
+  $inventory+=ManifestLine $path $path.Substring($package.Length+1)
  }
  Set-Content -LiteralPath (Join-Path $package 'UPGRADE_MANIFEST.txt') -Encoding UTF8 -Value $inventory
  & (Join-Path $package 'Install-Upgrade.ps1') -InstallDir $install -CheckOnly

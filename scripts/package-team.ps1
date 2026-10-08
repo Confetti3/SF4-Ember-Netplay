@@ -78,8 +78,10 @@ if ($LASTEXITCODE -ne 0) { throw 'Dependency notice collection failed' }
 $revision = git -C $repo rev-parse HEAD
 Set-Content -LiteralPath (Join-Path $destination 'BUILD_INFO.txt') -Encoding UTF8 -Value "SF4 Ember Netplay`nRelease: $VersionLabel`nSource revision: $revision`nSee build-provenance.json for the exact source fingerprint and validation.`n"
 Add-Content -LiteralPath (Join-Path $destination 'BUILD_INFO.txt') -Value "Source: $repo`nSource fingerprint: $($receipt.sourceFingerprint)`nFeatures: $($receipt.features -join ', ')"
-$manifest = Get-ChildItem -LiteralPath $destination -File -Recurse | Sort-Object FullName | ForEach-Object {
-    '{0}  {1}' -f (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.FullName.Substring($destination.Length + 1)
+$manifestPaths = [string[]]@(Get-ChildItem -LiteralPath $destination -File -Recurse | ForEach-Object { $_.FullName })
+[Array]::Sort($manifestPaths, [StringComparer]::Ordinal)
+$manifest = foreach ($path in $manifestPaths) {
+    '{0}  {1}' -f (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant(), $path.Substring($destination.Length + 1)
 }
 Set-Content -LiteralPath (Join-Path $destination 'MANIFEST.txt') -Encoding UTF8 -Value $manifest
 & (Join-Path $PSScriptRoot 'tester-preflight.ps1') -PackageDir $destination -Strict

@@ -55,8 +55,10 @@ function VerifyAbsent([string]$Root, [string[]]$Entries) {
 }
 
 function SameList($Left, $Right) {
-    $a = @($Left | ForEach-Object { [string]$_ } | Sort-Object)
-    $b = @($Right | ForEach-Object { [string]$_ } | Sort-Object)
+    $a = [string[]]@($Left | ForEach-Object { [string]$_ })
+    $b = [string[]]@($Right | ForEach-Object { [string]$_ })
+    [Array]::Sort($a, [StringComparer]::Ordinal)
+    [Array]::Sort($b, [StringComparer]::Ordinal)
     if ($a.Count -ne $b.Count) { return $false }
     for ($i = 0; $i -lt $a.Count; ++$i) { if ($a[$i] -cne $b[$i]) { return $false } }
     return $true
@@ -243,12 +245,14 @@ $before = ReadManifest $baseManifestPath $packageRoot
 $after = ReadManifest $nextManifestPath $payload
 $before['MANIFEST.txt'] = $metadata.baseManifestSha256
 $after['MANIFEST.txt'] = $metadata.targetManifestSha256
-$changed = @($after.Keys | Where-Object { !$before.ContainsKey($_) -or $before[$_] -ine $after[$_] } | Sort-Object)
-$removed = @($before.Keys | Where-Object { !$after.ContainsKey($_) } | Sort-Object)
+$changed = [string[]]@($after.Keys | Where-Object { !$before.ContainsKey($_) -or $before[$_] -ine $after[$_] })
+$removed = [string[]]@($before.Keys | Where-Object { !$after.ContainsKey($_) })
+[Array]::Sort($changed, [StringComparer]::Ordinal)
+[Array]::Sort($removed, [StringComparer]::Ordinal)
 if (!(SameList $changed $metadata.changedFiles) -or !(SameList $removed $metadata.removedFiles)) {
     throw 'Upgrade inventory does not match its manifests.'
 }
-$actualPayload = @(Get-ChildItem -LiteralPath $payload -File -Recurse | ForEach-Object { $_.FullName.Substring($payload.Length + 1) } | Sort-Object)
+$actualPayload = [string[]]@(Get-ChildItem -LiteralPath $payload -File -Recurse | ForEach-Object { $_.FullName.Substring($payload.Length + 1) })
 if (!(SameList $changed $actualPayload)) { throw 'Upgrade payload files do not match its declared inventory.' }
 $payloadHashes = @{}; foreach ($relative in $changed) { $payloadHashes[$relative] = $after[$relative] }
 VerifyFiles $payload $payloadHashes
