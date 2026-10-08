@@ -57,6 +57,11 @@ try {
   $failed=$false;try{& (Join-Path $package 'Install-Upgrade.ps1') -InstallDir $install -RecoverOnly}catch{$failed=$true}
   if(!$failed-or(Hash (Join-Path $install 'Launcher.exe'))-ne$launcherBefore){throw 'Damaged backup evidence changed live files'}
   Set-Content -LiteralPath $transactionPath -Encoding UTF8 -Value $original
+  # A rollback interrupted after restoring Launcher resumes its remaining operations.
+  $rollingBack=$original|ConvertFrom-Json
+  $rollingBack.state='rolling-back'
+  Copy-Item -LiteralPath (Join-Path $rollingBack.backup 'Launcher.exe') -Destination (Join-Path $install 'Launcher.exe') -Force
+  $rollingBack|ConvertTo-Json -Depth 8|Set-Content -LiteralPath $transactionPath -Encoding UTF8
  }
  if($NativeFixture -and $boundary-eq 1) {
   & $NativeFixture --recover $install

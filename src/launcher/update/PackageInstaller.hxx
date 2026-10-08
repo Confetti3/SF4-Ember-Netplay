@@ -35,6 +35,7 @@ bool InstallPackage(const std::filesystem::path& staging, const std::filesystem:
 // An unreadable file keeps the journal for retry. A missing skipped file has
 // no backup: completed operations stay installed, partial ones are restored,
 // and the failure asks for another install. A committed journal is only cleared.
+// A rolling-back journal resumes restoration without reclassifying skipped edits.
 bool RecoverPackage(const std::filesystem::path& install, std::string& error, bool inspectOnly = false);
 // Removes every file the installed MANIFEST.txt names (whatever version that
 // is), every file this build's inventory names, obsolete ones too, the

@@ -450,6 +450,11 @@ int wmain(int argc, wchar_t** argv) {
     // restored, and the failure names the file, once.
     Write(sparseInstall/L"Launcher.exe","second"); fs::remove(sparseInstall/L"sf4-net.exe");
     Write(sparseJournalPath,sparseJournal.c_str());
+    HANDLE blockedMissingRestore=CreateFileW((sparseInstall/L"Launcher.exe").c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
+    CHECK(blockedMissingRestore!=INVALID_HANDLE_VALUE);
+    CHECK(!sf4e::launcher::RecoverPackage(sparseInstall,error));
+    CHECK(nlohmann::json::parse(Read(sparseJournalPath))["state"]=="rolling-back" && !fs::exists(sparseFailed));
+    CloseHandle(blockedMissingRestore);
     CHECK(!sf4e::launcher::RecoverPackage(sparseInstall,error) && error.find("sf4-net.exe")!=std::string::npos);
     CHECK(Read(sparseInstall/L"Launcher.exe")=="first" && !fs::exists(sparseJournalPath) && fs::exists(sparseFailed));
     CHECK(sf4e::launcher::RecoverPackage(sparseInstall,error));
@@ -494,6 +499,51 @@ int wmain(int argc, wchar_t** argv) {
     CHECK(Read(sparseInstall/L"Launcher.exe")=="second" && Read(sparseInstall/L"Updater.exe")=="second");
     CHECK(Read(sparseInstall/L"MANIFEST.txt")==priorSparseManifest && Read(sparseInstall/L"sf4-net.exe")=="edited-during-install");
     CHECK(!fs::exists(sparseJournalPath) && !fs::exists(sparseFailed));
+    Write(sparseInstall/L"sf4-net.exe","first");
+    // A replaced destination held without delete sharing blocks restoration.
+    // The rollback phase stays durable until every operation is restored.
+    Write(sparseStaging/L"Updater.exe","cancelled-updater"); Manifest(sparseStaging);
+    HANDLE blockedRestore=INVALID_HANDLE_VALUE;
+    CHECK(!sf4e::launcher::InstallPackage(sparseStaging,sparseInstall,error,[&](std::uint64_t,std::uint64_t) {
+        if(!fs::exists(sparseJournalPath) || Read(sparseInstall/L"Launcher.exe")!="cancelled-target") return true;
+        Write(sparseInstall/L"sf4-net.exe","edited-during-rollback");
+        blockedRestore=CreateFileW((sparseInstall/L"Launcher.exe").c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
+        CHECK(blockedRestore!=INVALID_HANDLE_VALUE); return false;
+    }));
+    CHECK(error.find("Cancelled. Automatic restore incomplete")!=std::string::npos);
+    const auto rollbackJournal=nlohmann::json::parse(Read(sparseJournalPath));
+    CHECK(rollbackJournal["state"]=="rolling-back" && rollbackJournal["operations"].size()==3 && !fs::exists(sparseFailed));
+    CHECK(Read(sparseInstall/L"Launcher.exe")=="cancelled-target" && Read(sparseInstall/L"sf4-net.exe")=="edited-during-rollback");
+    CHECK(!sf4e::launcher::RecoverPackage(sparseInstall,error));
+    CHECK(nlohmann::json::parse(Read(sparseJournalPath))==rollbackJournal && !fs::exists(sparseFailed));
+    CloseHandle(blockedRestore);
+    CHECK(sf4e::launcher::RecoverPackage(sparseInstall,error) && error.empty());
+    for(const auto& operation:rollbackJournal["operations"]) {
+        const auto path=sparseInstall/fs::u8path(operation["path"].get<std::string>());
+        CHECK(operation["existed"].get<bool>() && sf4e::launcher::Sha256Hex(path)==operation["priorSha256"].get<std::string>());
+    }
+    CHECK(Read(sparseInstall/L"Launcher.exe")=="second" && Read(sparseInstall/L"Updater.exe")=="second" && Read(sparseInstall/L"MANIFEST.txt")==priorSparseManifest);
+    CHECK(Read(sparseInstall/L"sf4-net.exe")=="edited-during-rollback" && !fs::exists(sparseJournalPath) && !fs::exists(sparseFailed));
+    // An interruption after one restoration leaves both prior and target
+    // bytes. Recovery resumes rollback and leaves an edited skipped file alone.
+    const auto rollbackBackup=fs::u8path(rollbackJournal["backup"].get<std::string>());
+    for(const auto& operation:rollbackJournal["operations"]) {
+        const auto relative=fs::u8path(operation["path"].get<std::string>());
+        fs::copy_file(sparseStaging/relative,sparseInstall/relative,fs::copy_options::overwrite_existing);
+    }
+    fs::copy_file(rollbackBackup/L"Launcher.exe",sparseInstall/L"Launcher.exe",fs::copy_options::overwrite_existing);
+    Write(sparseJournalPath,rollbackJournal.dump().c_str());
+    CHECK(Read(sparseInstall/L"Launcher.exe")=="second" && Read(sparseInstall/L"Updater.exe")=="cancelled-updater");
+    HANDLE restoredLauncher=CreateFileW((sparseInstall/L"Launcher.exe").c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
+    CHECK(restoredLauncher!=INVALID_HANDLE_VALUE);
+    CHECK(sf4e::launcher::RecoverPackage(sparseInstall,error) && error.empty());
+    CloseHandle(restoredLauncher);
+    for(const auto& operation:rollbackJournal["operations"]) {
+        const auto path=sparseInstall/fs::u8path(operation["path"].get<std::string>());
+        CHECK(sf4e::launcher::Sha256Hex(path)==operation["priorSha256"].get<std::string>());
+    }
+    CHECK(Read(sparseInstall/L"Launcher.exe")=="second" && Read(sparseInstall/L"Updater.exe")=="second" && Read(sparseInstall/L"MANIFEST.txt")==priorSparseManifest);
+    CHECK(Read(sparseInstall/L"sf4-net.exe")=="edited-during-rollback" && !fs::exists(sparseJournalPath) && !fs::exists(sparseFailed));
     Write(sparseInstall/L"sf4-net.exe","first");
     // The same edit after a replacement can fail final verification without
     // cancellation; restoration still returns recorded files to prior bytes.

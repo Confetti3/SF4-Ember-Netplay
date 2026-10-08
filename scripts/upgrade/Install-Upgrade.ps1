@@ -100,7 +100,7 @@ function RecoverTransaction([string]$Install, [string]$Path, [switch]$InspectOnl
     if (!(Test-Path -LiteralPath $Path -PathType Leaf)) { throw 'Invalid update transaction path.' }
     $transaction = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($transaction.schema -ne 1 -or $transaction.installation -ine $Install -or !$transaction.backup -or !$transaction.operations -or
-        $transaction.state -notin 'prepared','committed' -or $transaction.target -isnot [pscustomobject]) {
+        $transaction.state -notin 'prepared','committed','rolling-back' -or $transaction.target -isnot [pscustomobject]) {
         throw 'The pending update transaction is invalid. Preserve the installation and backup for manual recovery.'
     }
     if ($InspectOnly) {
@@ -132,7 +132,7 @@ function RecoverTransaction([string]$Install, [string]$Path, [switch]$InspectOnl
         $seen[$key] = $true
         if (($operation.existed -and [string]$operation.priorSha256 -notmatch '^[a-fA-F0-9]{64}$') -or
             (!$operation.existed -and [string]$operation.priorSha256 -ne '')) { throw 'Invalid prior hash.' }
-        if ($transaction.state -eq 'prepared' -and $operation.existed -and
+        if ($transaction.state -ne 'committed' -and $operation.existed -and
             (!(Test-Path -LiteralPath $source -PathType Leaf) -or (Get-FileHash -LiteralPath $source).Hash -ine [string]$operation.priorSha256)) {
             throw "The recovery backup is missing or damaged: $key"
         }

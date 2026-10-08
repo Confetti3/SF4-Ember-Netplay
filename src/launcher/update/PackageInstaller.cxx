@@ -291,27 +291,27 @@ RecoveryOutcome RecoveryDecision(const RecoveryObservation& observation) {
     if(!observation.operationsComplete) return RecoveryOutcome::Restore;
     return observation.targetComplete?RecoveryOutcome::Completed:RecoveryOutcome::RepairNeeded;
 }
-// An install undoing its own failure restores its operations directly.
-// Startup recovery observes all targets before deciding whether it still
-// owns a partial update or the folder has been replaced since.
-bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly, bool ownRollback = false) {
+// A rolling-back journal resumes its recorded restoration. A prepared one
+// observes all targets before deciding whether the folder was replaced since.
+bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly) {
     const auto transactionPath=install/TransactionName;
     CheckPath(install,TransactionName);
     if(!fs::exists(transactionPath)) return true;
     if(!fs::is_regular_file(transactionPath)) {error="Invalid update transaction path";return false;}
     if(inspectOnly){error="Pending update recovery is required";return false;}
-    // Only a journal or backup that fails validation is set aside: nothing has
-    // changed yet and no retry can succeed. A read or restore failure keeps the
-    // journal, since a later attempt can still finish the restore.
-    bool validating=true;
+    // Invalid prepared evidence is set aside before any destination changes.
+    // Read failures and unfinished rollbacks keep their journal for retry.
+    bool validating=true, rollingBack=false;
     try {
         std::ifstream stream(transactionPath);
         if(!stream) { validating=false; throw std::runtime_error("Cannot read the pending update transaction"); }
         json transaction;
         try { stream>>transaction; }
         catch(...) { if(stream.bad()) validating=false; throw; }
+        const auto state=transaction.value("state",std::string());
+        rollingBack=state=="rolling-back";
         if(transaction.value("schema",0)!=1 || PathKey(fs::u8path(transaction.value("installation",std::string())))!=PathKey(install) ||
-            (transaction.value("state",std::string())!="prepared" && transaction.value("state",std::string())!="committed") ||
+            (state!="prepared" && state!="committed" && !rollingBack) ||
             !transaction.at("operations").is_array() || transaction.at("operations").empty() || !transaction.at("target").is_object())
             throw std::runtime_error("Invalid pending update transaction");
         const fs::path backup=fs::u8path(transaction.at("backup").get<std::string>());
@@ -344,9 +344,16 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
             file.operation=true;
             if(existed) file.prior=prior;
         }
+        fs::path missing;
+        if(rollingBack && transaction.contains("missingSkipped")) {
+            missing=fs::u8path(transaction.at("missingSkipped").get<std::string>());
+            CheckPath(install,missing);
+            const auto file=files.find(PathKey(missing));
+            if(file==files.end() || file->second.operation) throw std::runtime_error("Invalid missing update file");
+        }
         validating=false;
         stream.close();
-        if(!committed && ownRollback) {
+        if(rollingBack) {
             RestoreOperations(install,backup,files);
         } else if(!committed) {
             ObserveRecoveryFiles(install,files);
@@ -358,6 +365,11 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
                 if(!SetAsideJournal(transactionPath)) throw std::runtime_error("Cannot clear the pending update transaction");
                 error.clear(); return true;
             case RecoveryOutcome::Restore:
+                ValidateRecoveryBackups(backup,files,true);
+                transaction["state"]="rolling-back";
+                if(!observation.missing.empty()) transaction["missingSkipped"]=observation.missing.generic_u8string();
+                DurableJson(transactionPath,transaction);
+                rollingBack=true;
                 RestoreOperations(install,backup,files);
                 break;
             case RecoveryOutcome::Completed: break;
@@ -365,21 +377,22 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
             }
             // A skipped file has no prior copy. Completed operations stay at
             // their target; partial operations have been restored above.
-            if(!observation.missing.empty()) {
-                if(!SetAsideJournal(transactionPath)) throw std::runtime_error("Cannot clear the pending update transaction");
-                error="An update file is missing and has no backup; install the update again: "+observation.missing.generic_string();
-                return false;
-            }
+            missing=observation.missing;
+        }
+        if(!missing.empty()) {
+            if(!SetAsideJournal(transactionPath)) throw std::runtime_error("Cannot clear the pending update transaction");
+            error="An update file is missing and has no backup; install the update again: "+missing.generic_string();
+            return false;
         }
         fs::remove(transactionPath); error.clear(); return true;
     } catch(const InvalidRecoveryEvidence& failure) {
         error=failure.what();
-        if(!ownRollback) SetAsideJournal(transactionPath);
+        if(!rollingBack) SetAsideJournal(transactionPath);
         return false;
     } catch(const std::exception& failure){
         error=failure.what();
-        // An own rollback keeps its journal, so the next launch retries it.
-        if(validating && !ownRollback) SetAsideJournal(transactionPath);
+        // An unfinished rollback keeps its journal for the next attempt.
+        if(validating && !rollingBack) SetAsideJournal(transactionPath);
         return false;
     }
 }
@@ -529,6 +542,7 @@ bool ValidatePackageFolder(const fs::path& packageInput, std::string& error, con
 bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, std::string& error, const PackageProgress& progress) {
     std::vector<Change> changed;
     fs::path install, backup;
+    json transaction;
     std::unique_ptr<InstallLock> installLock;
     enum class InstallState { Unprepared, Prepared, Committed };
     InstallState state=InstallState::Unprepared;
@@ -613,7 +627,7 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         for(const auto& change:changed) operations.push_back({{"path",change.relative.generic_u8string()},{"existed",change.existed},
             {"priorSha256",change.existed?HashFile(backup/change.relative):std::string()}});
         for(const auto& rel:files) target[rel.generic_u8string()]=package.at(PathKey(rel)).second;
-        json transaction={{"schema",1},{"state","prepared"},{"installation",install.u8string()},{"backup",backup.u8string()},
+        transaction={{"schema",1},{"state","prepared"},{"installation",install.u8string()},{"backup",backup.u8string()},
             {"operations",operations},{"target",target}};
         DurableJson(install/TransactionName,transaction);
         state=InstallState::Prepared;
@@ -641,7 +655,13 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         }
         bool restored = true;
         std::string recoveryError;
-        if(state==InstallState::Prepared && installLock) restored=RecoverLocked(install,recoveryError,false,true);
+        if(state==InstallState::Prepared && installLock) {
+            try {
+                transaction["state"]="rolling-back";
+                DurableJson(install/TransactionName,transaction);
+                restored=RecoverLocked(install,recoveryError,false);
+            } catch(const std::exception& restoreFailure) { restored=false; recoveryError=restoreFailure.what(); }
+        }
         error = std::string(failure.what()) + (state==InstallState::Unprepared ? ". No new update was applied; preserve any pending recovery evidence." : restored ? ". Previous files restored." : ". Automatic restore incomplete; preserve the transaction and backup. " + recoveryError);
         return false;
     }
