@@ -3,6 +3,8 @@
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 . (Join-Path $PSScriptRoot 'NightlyOperations.ps1')
+# A day-first culture for the whole run: nothing here may depend on the build PC's date format.
+[cultureinfo]::CurrentCulture = 'nl-BE'
 $fixture = Join-Path ([IO.Path]::GetTempPath()) ('nightly-publication-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $fixture | Out-Null
 $repository = 'Confetti3/SF4-Ember-Netplay-Nightly'
