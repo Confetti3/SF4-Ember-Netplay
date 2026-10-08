@@ -133,5 +133,20 @@ for attempt in 1 2 3 4 5; do
 done
 (( healthy )) || { echo "Report listener did not answer." >&2; exit 1; }
 systemctl reload nginx
+# Reload can return while old workers still serve the preceding site. Wait
+# for the exact HTTPS route, with TLS/SNI/Host intact and no proxy or DNS hop.
+healthy=0
+deadline=$((SECONDS + 10))
+while (( SECONDS < deadline )); do
+    remaining=$((deadline - SECONDS))
+    if [[ $(curl -sS --noproxy '*' --resolve embernetplay.link:443:127.0.0.1 \
+        --connect-timeout 2 --max-time "$remaining" -o /dev/null -w '%{http_code}' \
+        https://embernetplay.link/report/v1 || true) == 405 ]]; then
+        healthy=1
+        break
+    fi
+    (( SECONDS < deadline )) && sleep 1
+done
+(( healthy )) || { echo "Report HTTPS route did not answer 405 within 10 seconds." >&2; exit 1; }
 echo "ember-reports installed. katie must reconnect SSH for ember-symbols membership."
 echo "Configure the Bugsink project ID in $ETC/config.json and restart after edits."

@@ -25,7 +25,8 @@ impl Worker {
             command.arg("symbolicate").arg(symbols);
             match exchange(command, bytes, deadline).await {
                 Ok(output) => {
-                    if let Ok(walk) = serde_json::from_slice(&output) {
+                    if let Ok(walk) = serde_json::from_slice::<Walk>(&output) {
+                        log_unreadable(&walk);
                         return walk;
                     }
                     fallback.status = "worker_failed".into();
@@ -41,6 +42,25 @@ impl Worker {
             fallback.status = "worker_unsupported".into();
         }
         fallback
+    }
+}
+
+fn unreadable_log_lines(walk: &Walk) -> Vec<String> {
+    // Child stderr stays suppressed, including third-party parser errors.
+    // Only this bounded, validated store-relative diagnostic reaches journald.
+    walk.unreadable_symbols
+        .iter()
+        .take(256)
+        .filter(|name| crate::symbolicate::safe_symbol_relative(name))
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .map(|name| format!("ember-reports: symbols unreadable: {name}"))
+        .collect()
+}
+
+fn log_unreadable(walk: &Walk) {
+    for line in unreadable_log_lines(walk) {
+        eprintln!("{line}");
     }
 }
 
@@ -168,12 +188,38 @@ pub fn run(symbols: PathBuf) -> Result<(), &'static str> {
         .build()
         .map_err(|_| "cannot start worker")?;
     let walk = runtime.block_on(crate::symbolicate::walk(bytes, symbols));
+    // Useful for direct operator invocation too; service workers have null
+    // stderr and their parent emits these lines once from the JSON result.
+    log_unreadable(&walk);
     serde_json::to_writer(std::io::stdout().lock(), &walk).map_err(|_| "cannot write frames")
 }
 
 #[cfg(all(test, target_os = "linux"))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn operator_lines_deduplicate_and_reject_paths_and_control_characters() {
+        let name = "Launcher.pdb/ABC1/Launcher.sym";
+        let walk = Walk {
+            unreadable_symbols: [
+                name,
+                name,
+                "/private/store/Launcher.sym",
+                "../ABC1/Launcher.sym",
+                "C:\\private\\Launcher.sym",
+                "Launcher.pdb/ABC1/Launcher.sym\nplayer data",
+            ]
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
+            ..Walk::default()
+        };
+        assert_eq!(
+            unreadable_log_lines(&walk),
+            [format!("ember-reports: symbols unreadable: {name}")]
+        );
+    }
 
     #[tokio::test]
     async fn deadline_kills_and_reaps_worker() {

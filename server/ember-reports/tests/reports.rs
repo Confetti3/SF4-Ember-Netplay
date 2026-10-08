@@ -605,7 +605,10 @@ async fn synthetic_crash_symbolicated_and_module_offset_events() {
             Duration::from_secs(2),
         )
         .await;
-    assert_eq!(no.status, "ok");
+    assert_eq!(
+        no.status,
+        format!("partial: symbols missing for SSFIV.exe/{SYNTHETIC_DEBUG_ID}/SSFIV.exe.sym")
+    );
     assert_eq!(no.crash_frames[0].module, "SSFIV.exe");
     assert_eq!(no.crash_frames[0].offset, 0x1234);
     assert!(no.crash_frames[0].function.is_none());
@@ -665,6 +668,83 @@ async fn synthetic_crash_symbolicated_and_module_offset_events() {
     assert_eq!(event["release"], "0.8.0");
     assert_eq!(event["environment"], "beta");
     assert_eq!(event["tags"]["build_id"], "a".repeat(12));
+}
+
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn unreadable_symbols_report_partial_and_log_only_store_relative_name() {
+    use std::{
+        io::Write,
+        os::unix::{fs::PermissionsExt, process::CommandExt},
+        process::{Command, Stdio},
+    };
+    let temp = Temp::new();
+    // A root-run test drops only the worker's credentials, so chmod really
+    // causes EACCES rather than being bypassed by root's DAC privileges.
+    std::fs::set_permissions(&temp.0, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let relative = format!("Launcher.exe/{SYNTHETIC_DEBUG_ID}/Launcher.exe.sym");
+    let path = temp.0.join(&relative);
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    for directory in [
+        path.parent().unwrap(),
+        path.parent().unwrap().parent().unwrap(),
+    ] {
+        std::fs::set_permissions(directory, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    std::fs::write(
+        &path,
+        format!(
+            "MODULE windows x86 {SYNTHETIC_DEBUG_ID} Launcher.exe\nFUNC 1200 100 0 report_crash\n"
+        ),
+    )
+    .unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000)).unwrap();
+    let root = unsafe { libc::geteuid() } == 0;
+    let executable = if root {
+        // A root-owned checkout may be under /root, which nobody cannot
+        // traverse. Put only the worker binary in the accessible fixture.
+        let executable = temp.0.join("symbolicate-worker");
+        std::fs::copy(env!("CARGO_BIN_EXE_ember-reports"), &executable).unwrap();
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755)).unwrap();
+        executable
+    } else {
+        PathBuf::from(env!("CARGO_BIN_EXE_ember-reports"))
+    };
+    let mut command = Command::new(executable);
+    command
+        .arg("symbolicate")
+        .arg(&temp.0)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    if root {
+        command.uid(65534).gid(65534);
+    }
+    let mut child = command.spawn().unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(&synthetic("Launcher.exe"))
+        .unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success());
+    let walk: Walk = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(
+        walk.status,
+        format!("partial: symbols unreadable for {relative}")
+    );
+    assert_eq!(walk.crash_frames[0].module, "Launcher.exe");
+    assert_eq!(walk.crash_frames[0].offset, 0x1234);
+    assert!(walk.crash_frames[0].function.is_none());
+    assert_eq!(
+        String::from_utf8(output.stderr).unwrap(),
+        format!("ember-reports: symbols unreadable: {relative}\n")
+    );
+    let event: Value =
+        serde_json::from_slice(&event::build(&"a".repeat(32), &report(), &walk, None)).unwrap();
+    assert_eq!(event["extra"]["symbolication"], walk.status);
+    assert!(!walk.status.contains(temp.0.to_str().unwrap()));
 }
 
 #[tokio::test]

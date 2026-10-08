@@ -12,6 +12,7 @@ Build in WSL Ubuntu 26.04 with Rust 1.98 or newer:
 ```sh
 cd server/ember-reports
 cargo test
+python3 tests/deploy_setup.py
 cargo clippy --all-targets -- -D warnings
 cargo build --release
 ```
@@ -133,8 +134,12 @@ are 64 directory entries, 128 threads, 256 modules and 1024 memory ranges. List
 streams must use the exact unpadded layout; module names and CodeView records
 are capped at 1024 bytes with their referenced ranges checked before parsing.
 Symbol files must be canonical paths within the symbol store, at most 8 MiB
-each and 16 MiB total per walk. Missing, oversized or corrupt symbols leave
-frames as module+offset. The child has a single current-thread runtime, with
+each and 16 MiB total per walk. Missing, unreadable, rejected, oversized or corrupt
+symbols leave frames as module+offset. A successful walk with any symbol lookup
+problems reports `extra.symbolication = "partial: symbols <problem> for
+<store-relative name>; ..."`; `ok` means the requested symbols loaded without
+those problems. Modules without a debug identity use their code basename.
+The child has a single current-thread runtime, with
 no cooperative provider checkpoints or nested per-request runtime.
 
 Sentry frames are innermost-last, retaining the nearest 64 per thread. Exported
@@ -176,9 +181,12 @@ Bugsink/state access and configure Bugsink's event retention separately. The
 30-day policy covers raw dumps, not Bugsink events or pending outbox JSON;
 outbox events remain until delivery or explicit owner removal, within the caps.
 
-The sole request journal line contains method, status, bytes read, report ID
+The request journal line contains method, status, bytes read, report ID
 (or `-` for rejection), processing milliseconds. There are no addresses,
-contents or secrets in those lines. Parser panic messages are suppressed by a
+contents or secrets in those lines. Unreadable symbol files additionally produce
+one operator line per file per walk, containing only the validated store-relative
+symbol name. The parent emits these diagnostics from worker JSON while keeping
+worker stderr suppressed. Parser panic messages are suppressed by a
 static panic hook. No library logging subscriber is installed.
 nginx disables report access logs and disk upload buffering. Secrets are loaded
 only through systemd's credential directory, never event/config JSON.

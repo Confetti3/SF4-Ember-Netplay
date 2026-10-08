@@ -1,15 +1,18 @@
 //! Local symbols only. No symbol servers, registers, environment or memory in events.
 use async_trait::async_trait;
 use breakpad_symbols::{
-    FileError, FileKind, LocateSymbolsResult, SimpleSymbolSupplier, SymbolError, SymbolFile,
-    SymbolSupplier, Symbolizer,
+    FileError, FileKind, LocateSymbolsResult, SymbolError, SymbolFile, SymbolSupplier, Symbolizer,
 };
 use minidump::{Minidump, MinidumpModuleList, Module};
 use serde::{Deserialize, Serialize};
 use std::{
-    io::Read,
+    collections::BTreeMap,
+    io::{self, Read},
     path::PathBuf,
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicUsize, Ordering},
+    },
 };
 
 pub const FRAMES: usize = 64;
@@ -40,6 +43,9 @@ pub struct Walk {
     pub crash_frames: Vec<Frame>,
     pub threads: Vec<Thread>,
     pub status: String,
+    // Worker-to-parent diagnostics only; event::build does not export this field.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub unreadable_symbols: Vec<String>,
 }
 
 pub fn basename(path: &str) -> &str {
@@ -202,10 +208,84 @@ fn bounded_dump(mut bytes: Vec<u8>) -> Option<Vec<u8>> {
     Some(bytes)
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SymbolProblem {
+    Missing,
+    Unreadable,
+    Rejected,
+    Budget,
+    Corrupt,
+}
+impl SymbolProblem {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Missing => "missing",
+            Self::Unreadable => "unreadable",
+            Self::Rejected => "path rejected",
+            Self::Budget => "over budget",
+            Self::Corrupt => "corrupt",
+        }
+    }
+}
+
+// Never allow paths or control characters from the dump into a diagnostic.
+pub(crate) fn safe_symbol_relative(name: &str) -> bool {
+    name.len() <= 2048
+        && !name.chars().any(char::is_control)
+        && name.split('/').count() == 3
+        && name
+            .split('/')
+            .all(|s| !s.is_empty() && s != "." && s != ".." && !s.contains(['\\', ':']))
+}
+
+#[derive(Default)]
+struct SymbolProblems(Mutex<BTreeMap<String, SymbolProblem>>);
+impl SymbolProblems {
+    fn record(&self, name: &str, problem: SymbolProblem) {
+        self.0.lock().unwrap().insert(name.to_owned(), problem);
+    }
+    fn apply(&self, walk: &mut Walk) {
+        let problems = self.0.lock().unwrap();
+        if problems.is_empty() {
+            return;
+        }
+        let details = problems
+            .iter()
+            .map(|(name, problem)| format!("symbols {} for {}", problem.label(), head(name, 256)))
+            .collect::<Vec<_>>()
+            .join("; ");
+        walk.status = if walk.status == "ok" {
+            format!("partial: {details}")
+        } else {
+            format!("{}: {details}", walk.status)
+        };
+        walk.unreadable_symbols = problems
+            .iter()
+            .filter(|(name, problem)| {
+                **problem == SymbolProblem::Unreadable && safe_symbol_relative(name)
+            })
+            .map(|(name, _)| name.clone())
+            .collect();
+    }
+}
+
 struct LocalSymbols {
     root: PathBuf,
-    local: SimpleSymbolSupplier,
     bytes: AtomicUsize,
+    problems: Arc<SymbolProblems>,
+}
+impl LocalSymbols {
+    fn io_error(&self, name: &str, error: io::Error) -> SymbolError {
+        self.problems.record(
+            name,
+            if error.kind() == io::ErrorKind::NotFound {
+                SymbolProblem::Missing
+            } else {
+                SymbolProblem::Unreadable
+            },
+        );
+        SymbolError::NotFound
+    }
 }
 #[async_trait]
 impl SymbolSupplier for LocalSymbols {
@@ -213,42 +293,66 @@ impl SymbolSupplier for LocalSymbols {
         &self,
         module: &(dyn Module + Sync),
     ) -> Result<LocateSymbolsResult, SymbolError> {
-        // Validate leaf names before invoking the local-path supplier.
-        let lookup = breakpad_symbols::breakpad_sym_lookup(module).ok_or(SymbolError::NotFound)?;
-        if lookup
-            .cache_rel
-            .split('/')
-            .any(|s| s.is_empty() || s == "." || s == ".." || s.contains(['\\', ':', '\0']))
-        {
+        // Validate leaf names before accessing the local store.
+        let module_name = head(basename(&module.code_file()), 128)
+            .chars()
+            .map(|c| if c.is_control() { '?' } else { c })
+            .collect::<String>();
+        let Some(lookup) = breakpad_symbols::breakpad_sym_lookup(module) else {
+            self.problems.record(&module_name, SymbolProblem::Missing);
+            return Err(SymbolError::NotFound);
+        };
+        let name = &lookup.cache_rel;
+        if !safe_symbol_relative(name) {
+            self.problems.record(&module_name, SymbolProblem::Rejected);
             return Err(SymbolError::NotFound);
         }
+        // Check the expected store path directly: SimpleSymbolSupplier's
+        // metadata().ok() would collapse permission failures into missing.
         let path = self
-            .local
-            .locate_file(module, FileKind::BreakpadSym)
-            .await
-            .map_err(|_| SymbolError::NotFound)?;
-        let path = path.canonicalize().map_err(|_| SymbolError::NotFound)?;
+            .root
+            .join(name)
+            .canonicalize()
+            .map_err(|error| self.io_error(name, error))?;
         if !path.starts_with(&self.root) {
+            self.problems.record(name, SymbolProblem::Rejected);
             return Err(SymbolError::NotFound);
         }
-        let file = std::fs::File::open(path).map_err(|_| SymbolError::NotFound)?;
-        let length = file.metadata().map_err(|_| SymbolError::NotFound)?.len();
-        if length > SYMBOL_BYTES as u64 {
-            return Err(SymbolError::NotFound);
-        }
-        if self.bytes.fetch_add(length as usize, Ordering::Relaxed) + length as usize
-            > TOTAL_SYMBOL_BYTES
+        if !path
+            .metadata()
+            .map_err(|error| self.io_error(name, error))?
+            .is_file()
         {
+            self.problems.record(name, SymbolProblem::Rejected);
+            return Err(SymbolError::NotFound);
+        }
+        let file = std::fs::File::open(path).map_err(|error| self.io_error(name, error))?;
+        let metadata = file
+            .metadata()
+            .map_err(|error| self.io_error(name, error))?;
+        if !metadata.is_file() {
+            self.problems.record(name, SymbolProblem::Rejected);
+            return Err(SymbolError::NotFound);
+        }
+        let length = metadata.len();
+        if length > SYMBOL_BYTES as u64
+            || self.bytes.fetch_add(length as usize, Ordering::Relaxed) + length as usize
+                > TOTAL_SYMBOL_BYTES
+        {
+            self.problems.record(name, SymbolProblem::Budget);
             return Err(SymbolError::NotFound);
         }
         let mut bytes = Vec::new();
         file.take((SYMBOL_BYTES + 1) as u64)
             .read_to_end(&mut bytes)
-            .map_err(|_| SymbolError::NotFound)?;
+            .map_err(|error| self.io_error(name, error))?;
         if bytes.len() > SYMBOL_BYTES {
+            self.problems.record(name, SymbolProblem::Budget);
             return Err(SymbolError::NotFound);
         }
-        let symbols = SymbolFile::from_bytes(&bytes)?;
+        let symbols = SymbolFile::from_bytes(&bytes).inspect_err(|_| {
+            self.problems.record(name, SymbolProblem::Corrupt);
+        })?;
         Ok(LocateSymbolsResult {
             symbols,
             extra_debug_info: None,
@@ -284,10 +388,11 @@ pub(crate) async fn walk(bytes: Vec<u8>, symbols: PathBuf) -> Walk {
         top.offset = top.instruction.saturating_sub(module.base_address());
     }
     let root = symbols.canonicalize().unwrap_or(symbols);
+    let problems = Arc::new(SymbolProblems::default());
     let provider = Symbolizer::new(LocalSymbols {
-        local: SimpleSymbolSupplier::new(vec![root.clone()]),
         root,
         bytes: AtomicUsize::new(0),
+        problems: problems.clone(),
     });
     match minidump_processor::process_minidump(&dump, &provider).await {
         Ok(state) => {
@@ -331,12 +436,46 @@ pub(crate) async fn walk(bytes: Vec<u8>, symbols: PathBuf) -> Walk {
         }
         Err(_) => raw.status = "walk_failed".into(),
     }
+    problems.apply(&mut raw);
     raw
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn io_problems_are_distinct_and_preserve_walk_failure() {
+        let problems = Arc::new(SymbolProblems::default());
+        let supplier = LocalSymbols {
+            root: PathBuf::from("unused"),
+            bytes: AtomicUsize::new(0),
+            problems: problems.clone(),
+        };
+        let unreadable = "Launcher.pdb/ABC1/Launcher.sym";
+        supplier.io_error(unreadable, io::Error::from(io::ErrorKind::PermissionDenied));
+        supplier.io_error(unreadable, io::Error::from(io::ErrorKind::PermissionDenied));
+        supplier.io_error(
+            "SSFIV.exe/DEF1/SSFIV.exe.sym",
+            io::Error::from(io::ErrorKind::NotFound),
+        );
+        let mut walk = Walk {
+            status: "ok".into(),
+            ..Walk::default()
+        };
+        problems.apply(&mut walk);
+        assert_eq!(
+            walk.status,
+            "partial: symbols unreadable for Launcher.pdb/ABC1/Launcher.sym; symbols missing for SSFIV.exe/DEF1/SSFIV.exe.sym"
+        );
+        assert_eq!(walk.unreadable_symbols, [unreadable]);
+        walk.status = "walk_failed".into();
+        problems.apply(&mut walk);
+        assert!(
+            walk.status
+                .starts_with("walk_failed: symbols unreadable for ")
+        );
+    }
 
     fn modules(padded: bool, count: usize, name_bytes: usize, cv_bytes: usize) -> Vec<u8> {
         let offset = 44;

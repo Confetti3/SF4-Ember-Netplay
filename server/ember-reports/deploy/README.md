@@ -28,6 +28,10 @@ The owner runs setup with sudo. It creates the dedicated user/groups, adds
 katie to `ember-symbols`, installs the binary/unit/key, creates config only if
 missing, and includes the exact report location in the existing HTTPS site.
 It runs `nginx -t` before reload and checks the local listener using GET (405).
+After reload it polls HTTPS `/report/v1` through local nginx with
+`--resolve embernetplay.link:443:127.0.0.1`, preserving certificate checks and
+the public Host/SNI. Setup succeeds only after GET returns 405, within 10 seconds;
+a timeout or wrong route fails setup and invokes the same restore path.
 No firewall ports are opened or test reports submitted. Rerunning updates the
 binary/unit/snippets/key while preserving configuration. Failures restore the
 immediate predecessor's files and service state; created accounts/groups and
@@ -72,18 +76,23 @@ Generate symbols from the **exact release binary and matching PDB**, on the
 build machine that has that PDB. `dump_syms -s` creates the store layout:
 
 ```sh
+umask 002
 dump_syms -s symbols Launcher.exe
 dump_syms -s symbols Sidecar.dll
 dump_syms -s symbols Updater.exe
 dump_syms -s symbols sf4-net.exe
+chmod -R g+rX symbols/
 scp -r symbols/. vps:/var/lib/ember-reports/symbols/
+# On the VPS as katie, also fix modes preserved by scp (including old uploads):
+umask 002
+chmod -R g+rX /var/lib/ember-reports/symbols/
 ```
 
 These options refer to [Mozilla's dump_syms](https://github.com/mozilla/dump_syms/blob/main/src/main.rs).
 
 Preserve the tool's case/layout: `<module debug filename>/<DEBUGID>/<module>.sym`.
 For Windows PDBs this can be `Sidecar.pdb/<GUID-and-age>/Sidecar.sym`, rather
-than a directory named Sidecar.dll. The Breakpad local supplier uses the dump's
+than a directory named Sidecar.dll. The Breakpad lookup uses the dump's
 debug filename and identifier, stripping `.pdb` from the symbol leaf. Executable
 debug names can instead use `Launcher.exe/<DEBUGID>/Launcher.exe.sym`. The
 synthetic test exercises actual local-path loading with that layout.
@@ -92,8 +101,16 @@ In production, scp into a temporary sibling first, ensure directories are
 group-traversable and files group-readable, then move complete DEBUGID
 directories into the store on the VPS. This prevents partially uploaded `.sym`
 files being read. scp's modes are not controlled by the service's UMask. Symbol
-files above 8 MiB, or beyond 16 MiB total for a report, are skipped. Only trusted
-build accounts should belong to `ember-symbols`.
+uploads need `umask 002` and `chmod -R g+rX` on the uploaded tree before moving
+complete directories into the store. If the service cannot read a `.sym`, the
+event's `extra.symbolication` reports `partial: symbols unreadable for
+<store-relative name>` (alongside missing or other per-module problems), and
+the journal contains one `ember-reports: symbols unreadable: <store-relative name>`
+line per affected file per walk. These diagnostics omit absolute paths, report
+IDs, addresses, contents and credentials. Fix the group permissions and resubmit
+the dump to symbolicate it; already-built events are not rewritten.
+Symbol files above 8 MiB, or beyond 16 MiB total for a report, are skipped. Only
+trusted build accounts should belong to `ember-symbols`.
 
 SSFIV.exe has no symbols. Its frames remain `SSFIV.exe+0x<RVA>`; add its static
 0x400000 image base to locate the IDA effective address in the matching binary.
