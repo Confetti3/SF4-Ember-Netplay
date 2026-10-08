@@ -47,7 +47,9 @@ void EndBattle();
 // What this PC hands the game for both picks of a match (fighters and spectators alike):
 // - a custom costume it doesn't have becomes the fighter's original costume in colour 1, or colour 2 if that would
 //   look identical to the other side's pick (same fighter, costume and colour);
-// - a custom costume it has plays as a stand-in costume the other side isn't using.
+// - a custom costume it has plays as a stand-in: the fighter's original costume, or in a mirror match where the
+//   other side wears that, the next of the first three it isn't using (the file-name swap can't tell the two
+//   sides' loads apart). Replays record the stand-in, so they show what a player without the costume sees.
 template<class Native> void ApplyPicks(Native (&picks)[2]) {
     bool fellBack[2] = {};
     for (int i = 0; i < 2; i++)
@@ -66,7 +68,7 @@ template<class Native> void ApplyPicks(Native (&picks)[2]) {
         SetStandIn(i, -1, -1, -1);
         if (!selection::IsCustomCostume(picks[i].costume)) continue;
         const Native& other = picks[1 - i];
-        for (int standIn : {1, 2, 0})
+        for (int standIn : {0, 1, 2})
             if (other.charaID != picks[i].charaID || other.costume != standIn) {
                 SetStandIn(i, picks[i].charaID, standIn, picks[i].costume);
                 picks[i].costume = static_cast<decltype(picks[i].costume)>(standIn);
