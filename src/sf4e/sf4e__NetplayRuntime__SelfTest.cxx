@@ -55,6 +55,7 @@ struct Run {
 	std::wstring replay;
 	std::uint32_t crc = 0;
 	std::map<std::string, std::uint32_t> before;
+	int watched = 0;
 	std::uint64_t returns = 0;
 	bool played = false, left = false, atTitle = false;
 	int tries = 0, playing = 0;
@@ -101,13 +102,34 @@ std::map<std::string, std::uint32_t> SaveFiles() {
 	return files;
 }
 
-// The match slot whose file is this replay, or -1.
-int SlotHolding(const std::map<std::string, std::uint32_t>& files, std::uint32_t crc) {
+// The one match slot whose file an import changed, -1 when none did or more
+// than one, and -2 when a file changed that an import of that slot may not
+// touch: another slot, or anything but the slot, its checksum file and the
+// two indexes with theirs.
+int SlotChanged(const std::map<std::string, std::uint32_t>& before, const std::map<std::string, std::uint32_t>& after) {
+	int changed = -1;
 	for (int slot = kFirstMatchSlot; slot <= kLastMatchSlot; slot++) {
-		const auto at = files.find(std::to_string(slot));
-		if (at != files.end() && at->second == crc) return slot;
+		const std::string name = std::to_string(slot);
+		const auto was = before.find(name), is = after.find(name);
+		const bool same = (was == before.end() && is == after.end()) || (was != before.end() && is != after.end() && was->second == is->second);
+		const auto wasSum = before.find(name + ".0"), isSum = after.find(name + ".0");
+		const bool sameSum = (wasSum == before.end() && isSum == after.end()) || (wasSum != before.end() && isSum != after.end() && wasSum->second == isSum->second);
+		if (same && sameSum) continue;
+		if (changed >= 0) return -2;
+		changed = slot;
 	}
-	return -1;
+	return changed;
+}
+
+// How often the archive's watched list names this file.
+int WatchedCount(const std::wstring& replay) {
+	const fs::path archive = platform::replays::FindFolders().archive;
+	if (archive.empty()) return 0;
+	std::ifstream in(archive / L"watched.txt");
+	const std::string name = platform::WideToUtf8(fs::path(replay).filename().wstring());
+	int count = 0;
+	for (std::string line; std::getline(in, line);) count += line == name;
+	return count;
 }
 
 // The game's foreground event by name, once the game says it is up; the
@@ -218,6 +240,7 @@ void TickSelfTest() {
 		if (run.replay.empty()) { Say(false, "archive listing", "no Ember replay in the archive to test with"); Finish(); break; }
 		Say(true, "archive listing", std::to_string(listing->size()) + " replays; testing with " + platform::WideToUtf8(fs::path(run.replay).filename().wstring()));
 		run.before = SaveFiles();
+		run.watched = WatchedCount(run.replay);
 		if (run.before.empty()) { Say(false, "save folder", "none for the signed-in Steam account"); Finish(); break; }
 		// The third write of the import fails: every file has to be as it was.
 		replaystore::FailWriteForTest(2);
@@ -248,11 +271,16 @@ void TickSelfTest() {
 	}
 	case Stage::Add: {
 		const auto files = SaveFiles();
-		const int slot = SlotHolding(files, run.crc);
 		if (status.noticeError || status.notice != loc::T("replays.added")) { Say(false, "add", "'" + status.notice + "'"); Finish(); break; }
-		if (slot < 0) { Say(false, "add", "no match slot's file is the replay"); Finish(); break; }
-		const auto sidecar = files.find(std::to_string(slot) + ".0");
-		Say(sidecar != files.end(), "add", "in slot " + std::to_string(slot));
+		// Exactly one slot changed, it holds the replay, and its checksum file is the replay's.
+		const int slot = SlotChanged(run.before, files);
+		const auto file = files.find(std::to_string(slot)), sum = files.find(std::to_string(slot) + ".0");
+		if (slot < 0) { Say(false, "add", slot == -2 ? "more than one match slot changed" : "no match slot changed"); Finish(); break; }
+		if (file == files.end() || file->second != run.crc) { Say(false, "add", "slot " + std::to_string(slot) + " changed, but does not hold the replay"); Finish(); break; }
+		Say(sum != files.end(), "add", "in slot " + std::to_string(slot) + ", no other slot touched");
+		// Added is not watched.
+		Say(WatchedCount(run.replay) == run.watched, "add leaves the replay unwatched");
+		run.before = files;
 		run.returns = status.returns;
 		RunReplayRequest({replay::Mode::Watch, platform::WideToUtf8(run.replay)});
 		Enter(Stage::Watch);
@@ -274,6 +302,10 @@ void TickSelfTest() {
 			if (!run.played) Say(false, "watch", "the battle log never played the replay");
 			else if (status.returns == run.returns) Say(false, "watch", "the main menu did not come back to Ember");
 			else Say(true, "watch", "played and came back after " + std::to_string(run.waited / kSecond) + " s" + (run.left ? ", left by the test" : ""));
+			// Watching put it into one more slot and marked it watched, once.
+			const int slot = SlotChanged(run.before, SaveFiles());
+			Say(slot >= 0, "watch import", slot >= 0 ? "in slot " + std::to_string(slot) : slot == -2 ? "more than one match slot changed" : "no match slot changed");
+			Say(WatchedCount(run.replay) == run.watched + 1, "watch marks the replay watched");
 			Finish();
 		}
 		else if (Late(600)) { Say(false, "watch", std::string("still ") + (run.played ? "playing" : "starting") + " after ten minutes"); Finish(); }
