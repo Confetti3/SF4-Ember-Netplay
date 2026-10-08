@@ -763,6 +763,12 @@ msgstr "Ember 표시"
 msgid "export.generate"
 msgstr "동영상 만들기"
 
+msgid "replays.frame_meter"
+msgstr "프레임 미터"
+
+msgid "replays.frame_meter_detail"
+msgstr "지금 보기와 동영상 내보내기에서 트레이닝 프레임 미터를 리플레이 위에 표시합니다. 내보내기에서는 동영상에도 들어갑니다."
+
 msgid "replays.row_detail"
 msgstr "선택하여 게임의 리플레이 목록에 추가하거나, 추가하고 지금 봅니다."
 

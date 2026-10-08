@@ -763,6 +763,12 @@ msgstr "Ember 标记"
 msgid "export.generate"
 msgstr "生成视频"
 
+msgid "replays.frame_meter"
+msgstr "帧数表"
+
+msgid "replays.frame_meter_detail"
+msgstr "“立即观看”和“导出视频”会在回放上显示训练模式的帧数表。导出时它也会出现在视频中。"
+
 msgid "replays.row_detail"
 msgstr "选择以添加到游戏的回放列表，或添加后立即观看。"
 

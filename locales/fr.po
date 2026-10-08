@@ -763,6 +763,12 @@ msgstr "Marque Ember"
 msgid "export.generate"
 msgstr "Générer la vidéo"
 
+msgid "replays.frame_meter"
+msgstr "Compteur de frames"
+
+msgid "replays.frame_meter_detail"
+msgstr "Regarder maintenant et Exporter la vidéo affichent le compteur de frames de l'entraînement sur le replay. Dans un export, il est aussi dans la vidéo."
+
 msgid "replays.row_detail"
 msgstr "Sélectionnez pour l'ajouter à la liste des replays du jeu, ou pour l'ajouter et le regarder maintenant."
 

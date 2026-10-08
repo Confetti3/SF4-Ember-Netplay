@@ -763,6 +763,12 @@ msgstr "Ember-Zeichen"
 msgid "export.generate"
 msgstr "Video erstellen"
 
+msgid "replays.frame_meter"
+msgstr "Frame-Anzeige"
+
+msgid "replays.frame_meter_detail"
+msgstr "Jetzt ansehen und Video exportieren zeigen die Frame-Anzeige des Trainings über dem Replay. Beim Export ist sie auch im Video."
+
 msgid "replays.row_detail"
 msgstr "Wähle, um es der Replay-Liste des Spiels hinzuzufügen, oder um es hinzuzufügen und jetzt anzusehen."
 

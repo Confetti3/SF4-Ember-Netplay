@@ -763,6 +763,12 @@ msgstr "Marca de Ember"
 msgid "export.generate"
 msgstr "Generar vídeo"
 
+msgid "replays.frame_meter"
+msgstr "Medidor de fotogramas"
+
+msgid "replays.frame_meter_detail"
+msgstr "Ver ahora y Exportar vídeo muestran el medidor de fotogramas del entrenamiento sobre la repetición. En una exportación también queda en el vídeo."
+
 msgid "replays.row_detail"
 msgstr "Selecciona para añadirla a la lista de repeticiones del juego, o para añadirla y verla ahora."
 

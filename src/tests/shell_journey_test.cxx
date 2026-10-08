@@ -380,6 +380,9 @@ void Journeys() {
   ShellView::Replay shown;shown.path="C:\\r\\a.emberreplay";shown.label="2026-10-06 21:32  Ryu vs Ken";
   h.view.replays={shown};h.view.replaysReady=true;h.Screen("replays");h.Choose("replay:C:\\r\\a.emberreplay");h.Press(MenuInput::Select);
   Check(h.actions.back().replay.mode==sf4e::replay::Mode::Watch&&h.actions.back().replay.path==shown.path,"Watch now did not ask for the replay's file");
+  Check(!h.actions.back().replay.meter,"Watch now asked for the frame meter with the row off");
+  h.Choose("replay-meter");h.Press(MenuInput::Right);h.Frame();h.Choose("replay:C:\\r\\a.emberreplay");h.Press(MenuInput::Select);
+  Check(h.actions.back().replay.mode==sf4e::replay::Mode::Watch&&h.actions.back().replay.meter,"Watch now did not ask for the frame meter with the row on");
   h.Screen("home");h.view.replayLink="D:\\x\\b.usf4replay";h.Frame();
   Check(h.shell.Navigation().Screen()=="replays","A replay link did not open the Replays screen");
   h.Choose("replay-link");h.Press(MenuInput::Right);h.Press(MenuInput::Select);

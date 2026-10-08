@@ -33,6 +33,9 @@ struct Request {
 	std::string path;
 	// With Export.
 	Caption caption;
+	// With Watch or Export: the Training frame meter over the replay
+	// (training/TrainingRuntime.hxx: ObserveMatch), and in the video too.
+	bool meter = false;
 };
 
 } }

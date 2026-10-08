@@ -467,7 +467,7 @@ void Overlay::DrawOverlay() {
         sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(cancel));
     }
     // The meter in a match is the player's choice; the runtime reads nothing for it otherwise.
-    sf4e::training::WatchMatches(snapshot.preferences.matchFrameMeter);
+    sf4e::training::WatchMatches(snapshot.preferences.matchFrameMeter || snapshot.replays.meterShown);
     const auto training = sf4e::training::ReadView();
     trainingAvailable = training.available;
     bool pointer = false;

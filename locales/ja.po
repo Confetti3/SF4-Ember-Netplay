@@ -763,6 +763,12 @@ msgstr "Emberマーク"
 msgid "export.generate"
 msgstr "動画を作成"
 
+msgid "replays.frame_meter"
+msgstr "フレームメーター"
+
+msgid "replays.frame_meter_detail"
+msgstr "「今すぐ見る」と「動画を書き出す」で、トレーニングのフレームメーターをリプレイの上に表示します。書き出しでは動画にも入ります。"
+
 msgid "replays.row_detail"
 msgstr "決定で、ゲームのリプレイ一覧に追加するか、追加して今すぐ見るかを選びます。"
 

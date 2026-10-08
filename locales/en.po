@@ -763,6 +763,12 @@ msgstr "Ember mark"
 msgid "export.generate"
 msgstr "Generate video"
 
+msgid "replays.frame_meter"
+msgstr "Frame meter"
+
+msgid "replays.frame_meter_detail"
+msgstr "Watch now and Export video show the Training frame meter over the replay. In an export it is in the video too."
+
 msgid "replays.row_detail"
 msgstr "Select to add it to the game's replay list, or to add it and watch it now."
 

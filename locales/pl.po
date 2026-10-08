@@ -763,6 +763,12 @@ msgstr "Znak Ember"
 msgid "export.generate"
 msgstr "Utwórz wideo"
 
+msgid "replays.frame_meter"
+msgstr "Miernik klatek"
+
+msgid "replays.frame_meter_detail"
+msgstr "Oglądaj teraz i Eksportuj wideo pokazują nad powtórką miernik klatek z treningu. Przy eksporcie jest też w wideo."
+
 msgid "replays.row_detail"
 msgstr "Wybierz, aby dodać do listy powtórek gry, albo dodać i obejrzeć teraz."
 

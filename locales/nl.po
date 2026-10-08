@@ -763,6 +763,12 @@ msgstr "Ember-merk"
 msgid "export.generate"
 msgstr "Video maken"
 
+msgid "replays.frame_meter"
+msgstr "Framemeter"
+
+msgid "replays.frame_meter_detail"
+msgstr "Nu bekijken en Video exporteren tonen de framemeter van de training over de replay. Bij een export staat hij ook in de video."
+
 msgid "replays.row_detail"
 msgstr "Selecteer om hem aan de replaylijst van het spel toe te voegen, of om hem toe te voegen en nu te bekijken."
 

@@ -333,6 +333,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   }
   rows.push_back(Row("replay-log",loc::T("replays.open_log"),loc::T(idle?"replays.open_log_detail":"replays.open_log_room"),idle&&v.replaysReady));
   rows.push_back(Row("replay-folder",loc::T("replays.open_folder"),v.services.lastAction==platform::ServiceAction::OpenReplayFolder&&!v.services.message.empty()?v.services.message:loc::T("replays.open_folder_detail"),!v.services.pending));
+  rows.push_back(Value("replay-meter",loc::T("replays.frame_meter"),replayMeter_?loc::T("common.on"):loc::T("common.off"),loc::T("replays.frame_meter_detail")));
   rows.push_back(Value("replay-save-watched",loc::T("replays.save_watched"),preferences_.recordWatched?loc::T("common.on"):loc::T("common.off"),loc::T("replays.save_watched_detail"),v.canEditPreferences));
   if(v.replays.empty())rows.push_back(InfoRow("replay-none",loc::T("replays.empty"),"",loc::T("replays.empty_detail")));
   // A row is its file, not its place: the list is listed again while a row's choices are open.
@@ -600,7 +601,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="replays")nav.Push(a.id);
  else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
  else if(a.id=="cap-generate"){
-  ShellAction r;r.command.generation=v.session.generation;r.replay={replay::Mode::Export,exportPath_,caption_};
+  ShellAction r;r.command.generation=v.session.generation;r.replay={replay::Mode::Export,exportPath_,caption_};r.replay.meter=replayMeter_;
   if(!submit(std::move(r)))error_=loc::T("error.queue_failed");else nav.Return();
  }
  else if(a.id=="replay-log"){ShellAction r;r.command.generation=v.session.generation;r.replay.mode=replay::Mode::OpenLog;if(!submit(std::move(r)))error_=loc::T("error.queue_failed");}
@@ -634,6 +635,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
  else if(IdentityPanel::Owns(screen))identity_.Accept(a,v);
  else if(a.id=="invite-text")std::snprintf(invitation_,sizeof(invitation_),"%s",a.text.c_str());
  else if(a.id=="language")SetLanguage(std::string(loc::NextPreference(languagePreference_,a.delta)));
+ else if(a.id=="replay-meter")replayMeter_=a.delta>0;
  else if(screen=="replay-export"){
   if(a.id=="cap-names")caption_.names=a.delta>0;else if(a.id=="cap-line")caption_.line=a.delta>0;
   else if(a.id=="cap-set")caption_.set=a.delta>0;else if(a.id=="cap-mark")caption_.mark=a.delta>0;
@@ -977,7 +979,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
    for(const auto& shown:v.replays)if(shown.path==a.id.substr(7)){OpenReplayExport(v,shown);menu_.navigation.Push("replay-export");break;}
   }
   else if(a.id.compare(0,7,"replay:")==0&&v.replaysReady){
-   ShellAction r;r.command.generation=v.session.generation;r.replay={a.text=="watch"?replay::Mode::Watch:replay::Mode::Add,a.id.substr(7)};
+   ShellAction r;r.command.generation=v.session.generation;r.replay={a.text=="watch"?replay::Mode::Watch:replay::Mode::Add,a.id.substr(7)};r.replay.meter=replayMeter_&&a.text=="watch";
    if(!submit(std::move(r)))error_=loc::T("error.queue_failed");
   }
  }else if(a.kind==MenuAction::Activate){

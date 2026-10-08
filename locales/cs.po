@@ -763,6 +763,12 @@ msgstr "Značka Ember"
 msgid "export.generate"
 msgstr "Vytvořit video"
 
+msgid "replays.frame_meter"
+msgstr "Měřič snímků"
+
+msgid "replays.frame_meter_detail"
+msgstr "Sledovat teď a Exportovat video zobrazí nad záznamem tréninkový měřič snímků. Při exportu je i ve videu."
+
 msgid "replays.row_detail"
 msgstr "Vyberte pro přidání do seznamu záznamů hry, nebo pro přidání a přehrání teď."
 

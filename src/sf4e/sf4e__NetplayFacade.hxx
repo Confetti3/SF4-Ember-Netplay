@@ -129,6 +129,8 @@ namespace sf4e {
 				// The caption of the export that is recording, to draw over the game.
 				replay::Caption caption;
 				bool captionShown = false;
+				// A replay is playing that was asked for with the frame meter.
+				bool meterShown = false;
 				std::shared_ptr<const std::vector<platform::replays::ArchivedReplay>> archive;
 			} replays;
 			bool canOpenRoom = false;

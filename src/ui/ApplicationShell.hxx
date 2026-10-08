@@ -347,6 +347,8 @@ private:
     void OpenReplayInputs(const ShellView::Replay& replay);
     // The Export video screen: the replay it is for and the caption as the
     // player has it, sent with the request when Generate is chosen.
+    // Replays > Frame meter: sent with Watch now and Generate video. Not saved; off at each start.
+    bool replayMeter_ = false;
     std::string exportPath_;
     replay::Caption caption_;
     void OpenReplayExport(const ShellView& view,const ShellView::Replay& replay);

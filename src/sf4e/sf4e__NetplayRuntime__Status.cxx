@@ -333,6 +333,7 @@ PostPublishState Publish() {
 	snapshot.replays.logOpens = replays.logOpens; snapshot.replays.returns = replays.returns;
 	snapshot.replays.link = runtime->replayLinkAsked;
 	snapshot.replays.captionShown = replays.captionShown;
+	snapshot.replays.meterShown = replaystore::MeterWanted();
 	if (replays.captionShown) snapshot.replays.caption = replays.caption;
 	snapshot.replays.archive = runtime->replayLister.Latest();
 	snapshot.matchWaitsForMenu = runtime->match && !runtime->matchEntered && !snapshot.atMainMenu &&

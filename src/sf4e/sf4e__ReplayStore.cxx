@@ -156,7 +156,7 @@ constexpr int kPatience = 600, kSplashTicks = 120, kGoneTicks = 120, kDecidedTic
 struct Operation {
 	sf4e::replaystore::Status status;
 	int waited = 0, slot = -1, splash = 0;
-	bool started = false, awaited = false;
+	bool started = false, awaited = false, meter = false;
 	// decided: ticks the exported replay's match has been over; -1 once Ember chose to leave.
 	int decided = 0;
 	std::wstring video;
@@ -199,7 +199,7 @@ void sf4e::replaystore::Start(const replay::Request& request, bool atMainMenu, b
 	const bool jump = request.mode == replay::Mode::Watch || request.mode == replay::Mode::OpenLog || exporting;
 	if (!import && !jump) return;
 	if (op.status.step != Step::Idle || !atMainMenu || op.awaited) { op.Notice("replays.not_ready", true); return; }
-	op.slot = -1; op.video.clear();
+	op.slot = -1; op.video.clear(); op.meter = request.meter && jump && import;
 	if (import) {
 		if (!Ready() || SavesBusy()) { op.Notice("replays.not_ready", true); return; }
 		const std::wstring path = platform::Utf8ToWide(request.path.c_str());
@@ -225,6 +225,8 @@ void sf4e::replaystore::Start(const replay::Request& request, bool atMainMenu, b
 	}
 	op.Enter(Step::OpeningLog);
 }
+
+bool sf4e::replaystore::MeterWanted() { return s_operation.meter && s_operation.status.step == Step::Playing; }
 
 bool sf4e::replaystore::Exporting() {
 	const Operation& op = s_operation;
@@ -267,7 +269,7 @@ void sf4e::replaystore::Tick(bool atMainMenu) {
 		}
 		// The fight is loading: record from here to the log's return.
 		if (Named(state, "Battle") && !op.video.empty() && !op.awaited) {
-			replaycapture::Begin(op.video, op.status.caption.Any());
+			replaycapture::Begin(op.video, op.status.caption.Any() || op.meter);
 			op.awaited = true;
 			spdlog::info("Replay: encoding the playback");
 		}
