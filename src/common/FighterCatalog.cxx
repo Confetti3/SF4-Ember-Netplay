@@ -64,7 +64,6 @@ int ColorCount(int fighterId, int costumeId) {
     return costumeId < BaseCostumeCount(fighterId) ? 12 : 22;
 }
 const char* CostumePack(int fighterId, int costumeId) {
-    if (FindFighter(fighterId) && IsCustomCostume(costumeId)) return "Custom";
     if (costumeId < 0 || costumeId >= CostumeCount(fighterId)) return "";
     if (costumeId == 0) return "Original";
     const int base = BaseCostumeCount(fighterId);
@@ -197,7 +196,8 @@ std::vector<int> AllowedCostumes(int fighterId, const Availability& availability
     if (availability.ready && !FighterLocked(fighterId, availability))
         for (int costume = 0; costume < CostumeCount(fighterId); ++costume)
             if (availability.costumes & (1u << costume)) result.push_back(costume);
-    if (availability.ready && FindFighter(fighterId))
+    // Custom costumes need no licence of their own, only the fighter's.
+    if (availability.ready && !FighterLocked(fighterId, availability) && FindFighter(fighterId))
         result.insert(result.end(), availability.customCostumes.begin(), availability.customCostumes.end());
     return result;
 }

@@ -10,7 +10,6 @@
 // custom costume plays as a stand-in, one of the fighter's first three costumes (always owned), and while the
 // game builds that stand-in's file names it is given the custom slot instead (ApplyPicks, Install).
 #include "../common/FighterCatalog.hxx"
-#include "../common/StageCatalog.hxx"
 
 #include <vector>
 
@@ -22,17 +21,17 @@ namespace sf4e { namespace custom {
 // Call inside the sidecar's Detours transaction.
 void Install();
 
-// Custom costume indices installed on this PC for a fighter, ascending. Read once per game start (the setup
-// program only changes them while the game is closed). SF4E_IGNORE_CUSTOM=1 in the environment pretends none
+// Custom costume indices installed on this PC for a fighter (with all ten colours), ascending. Read once per game
+// start (the setup program only changes them while the game is closed). SF4E_IGNORE_CUSTOM=1 in the environment pretends none
 // are installed, to play a player without them (testing with a second copy).
 const std::vector<int>& InstalledCostumes(int fighterId);
 bool CostumeInstalled(int fighterId, int costumeId);
-// Custom colours installed on this PC for one of a fighter's own costumes (battle\chara\<CHR>\<CHR>_<CC>_<NN>.col.emb,
-// colours 30..99), ascending.
+// Custom colours installed on this PC for one of a fighter's own costumes (battle\chara\<CHR>\<CHR>_<CC>_<NN>.col.emb
+// and .obj.emm, colours 30..99), ascending.
 const std::vector<int>& InstalledColors(int fighterId, int costumeId);
 bool ColorInstalled(int fighterId, int costumeId, int colorId);
-// Custom stage ids installed on this PC (battle\stage\STG_<code>.emz in the patch folder with a custom code, see
-// StageCatalog), ascending.
+// Custom stage ids installed on this PC (battle\stage\STG_<code>.emz and .tex.emz in the patch folder with a custom
+// code, see StageCatalog), ascending.
 const std::vector<int>& InstalledStages();
 // A fighter's availability for the selectors and the ready check: the game's own (Dimps::Selection) plus the custom
 // costumes, colours and stages installed on this PC, which need no licence.
@@ -57,7 +56,7 @@ void EndBattle();
 // - a custom costume it has plays as a stand-in: the fighter's original costume, or in a mirror match where the
 //   other side wears that, the next of the first three it isn't using (the file-name swap can't tell the two
 //   sides' loads apart); a custom colour it has plays as colour 1 the same way, or the next the other side isn't
-//   using. Replays record the stand-ins, so they show what a player without the content sees.
+//   using. Replays record the stand-ins, so they never hold custom content.
 template<class Native> void ApplyPicks(Native (&picks)[2]) {
     bool fellBack[2] = {};
     for (int i = 0; i < 2; i++)

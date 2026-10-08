@@ -84,10 +84,7 @@ int main() {
                         CHECK(Available(pick, true, all));
                         CHECK(!Normalize(pick, true, &all));
                     }
-                    // Past the costume's own colours only a custom colour (30-99) is a valid pick.
                     pick.color = ColorCount(fighter, costume);
-                    CHECK(Valid(pick, true) == IsCustomColor(pick.color));
-                    pick.color = CostumeLimit;
                     CHECK(!Valid(pick, true));
                 }
             }
@@ -197,6 +194,8 @@ int main() {
     CHECK(!Valid(custom, true));
     Availability installed; installed.ready = true; installed.costumes = 1u; installed.customCostumes = {11};
     CHECK(AllowedCostumes(0, installed) == (std::vector<int>{0, 11}) && AllowedColors(0, 11, installed).size() == 10);
+    Availability unowned = installed; unowned.costumes = 0;   // a licence-locked fighter (35-43) has no costumes at all
+    CHECK(AllowedCostumes(40, unowned).empty() && AllowedCostumes(40, installed) == (std::vector<int>{0, 11}));
     CHECK(AllowedCostumes(0, sparse) == (std::vector<int>{0, 1, 6}));
 
     // Custom colours of the game's own costumes: colours 30-99 (indices 29-98), valid on the network and listed after

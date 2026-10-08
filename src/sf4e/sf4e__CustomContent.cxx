@@ -1,8 +1,11 @@
 #include "sf4e__CustomContent.hxx"
+#include "../common/EnvFlag.hxx"
+#include "../common/StageCatalog.hxx"
 #include "../Dimps/Dimps__Selection.hxx"
 
 #include <algorithm>
 #include <array>
+#include <cstring>
 #include <fstream>
 #include <mutex>
 #include <string>
@@ -92,9 +95,23 @@ std::string ReadName(const std::wstring& file) {
     return line;
 }
 
+bool Exists(const std::wstring& file) { return GetFileAttributesW(file.c_str()) != INVALID_FILE_ATTRIBUTES; }
+// The two digits at `at` of a file name (RYU_12...), or -1.
+int Number(const std::wstring& name, std::size_t at) {
+    if (name.size() < at + 2 || name[at] < L'0' || name[at] > L'9' || name[at + 1] < L'0' || name[at + 1] > L'9') return -1;
+    return (name[at] - L'0') * 10 + (name[at + 1] - L'0');
+}
+// Calls `found` with each file name matching `pattern`.
+template<class F> void Each(const std::wstring& pattern, F found) {
+    WIN32_FIND_DATAW data;
+    const HANDLE search = FindFirstFileW(pattern.c_str(), &data);
+    if (search == INVALID_HANDLE_VALUE) return;
+    do found(std::wstring(data.cFileName)); while (FindNextFileW(search, &data));
+    FindClose(search);
+}
+
 void Scan() {
-    wchar_t ignore[8] = {};
-    if (GetEnvironmentVariableW(L"SF4E_IGNORE_CUSTOM", ignore, 8) && ignore[0] && ignore[0] != L'0') {
+    if (EnvFlag("SF4E_IGNORE_CUSTOM")) {
         spdlog::info("Custom costumes: ignored for this copy (SF4E_IGNORE_CUSTOM)");
         return;
     }
@@ -107,47 +124,40 @@ void Scan() {
     int total = 0;
     for (int id = 0; id < selection::FighterCount; id++) {
         const std::string code = selection::FindFighter(id)->code;
-        const std::wstring chr(code.begin(), code.end());
-        for (int costume = selection::FirstCustomCostume; costume < selection::CostumeLimit; costume++) {
-            const int slot = costume + 1;
-            const std::wstring stem = root + chr + L"\\" + chr + L"_" + std::to_wstring(slot / 10) + std::to_wstring(slot % 10);
-            if (GetFileAttributesW((stem + L".obj.emo").c_str()) == INVALID_FILE_ATTRIBUTES) continue;
+        const std::wstring chr(code.begin(), code.end()), folder = root + chr + L"\\";
+        // A colour is <name>.col.emb and <name>.obj.emm.
+        const auto colorFiles = [&](const std::wstring& name) { return Exists(folder + name + L".col.emb") && Exists(folder + name + L".obj.emm"); };
+        // Custom costumes: <CHR>_<NN>.obj.emo, NN 08..99, with all ten colours (an opponent may pick any of them).
+        Each(folder + chr + L"_??.obj.emo", [&](const std::wstring& name) {
+            const int costume = Number(name, 4) - 1;
+            if (name.size() != 14 || !selection::IsCustomCostume(costume)) return;
+            for (int color = 1; color <= selection::CustomColorCount; color++)
+                if (!colorFiles(name.substr(0, 6) + L"_" + std::to_wstring(color / 10) + std::to_wstring(color % 10))) return;
             installed[id].push_back(costume);
-            selection::SetCustomName(id, costume, -1, ReadName(stem + L".txt"));
-        }
+            selection::SetCustomName(id, costume, -1, ReadName(folder + name.substr(0, 6) + L".txt"));
+        });
+        std::sort(installed[id].begin(), installed[id].end());
         total += static_cast<int>(installed[id].size());
-        // Custom colours of the game's costumes: <CHR>_<CC>_<NN>.col.emb with NN 30..99.
-        WIN32_FIND_DATAW color;
-        const HANDLE colors = FindFirstFileW((root + chr + L"\\" + chr + L"_??_??.col.emb").c_str(), &color);
-        if (colors == INVALID_HANDLE_VALUE) continue;
-        do {
-            const std::wstring name = color.cFileName;
-            const auto digit = [&](int at) { return name[at] >= L'0' && name[at] <= L'9'; };
-            if (name.size() != 17 || !digit(4) || !digit(5) || !digit(7) || !digit(8)) continue;
-            const int costume = (name[4] - L'0') * 10 + (name[5] - L'0') - 1, colorId = (name[7] - L'0') * 10 + (name[8] - L'0') - 1;
-            if (costume < 0 || costume >= selection::CostumeCount(id) || !selection::IsCustomColor(colorId)) continue;
+        // Custom colours of the game's costumes: <CHR>_<CC>_<NN>, NN 30..99.
+        Each(folder + chr + L"_??_??.col.emb", [&](const std::wstring& name) {
+            const int costume = Number(name, 4) - 1, colorId = Number(name, 7) - 1;
+            if (name.size() != 17 || costume < 0 || costume >= selection::CostumeCount(id) || !selection::IsCustomColor(colorId) ||
+                !colorFiles(name.substr(0, 9))) return;
             installedColors[id][costume].push_back(colorId);
-            selection::SetCustomName(id, costume, colorId, ReadName(root + chr + L"\\" + name.substr(0, 9) + L".txt"));
-        } while (FindNextFileW(colors, &color));
-        FindClose(colors);
+            selection::SetCustomName(id, costume, colorId, ReadName(folder + name.substr(0, 9) + L".txt"));
+        });
         for (auto& list : installedColors[id]) std::sort(list.begin(), list.end());
     }
     spdlog::info("Custom costumes installed: {}", total);
-    // STG_<code>.emz with a custom code (the pattern also finds STG_<code>.tex.emz and the game's own stages).
-    WIN32_FIND_DATAW found;
-    const HANDLE search = FindFirstFileW((battle + L"stage\\STG_*.emz").c_str(), &found);
-    if (search != INVALID_HANDLE_VALUE) {
-        do {
-            const std::wstring name = found.cFileName;
-            if (name.size() != 11 || name[4] > 127 || name[5] > 127 || name[6] > 127) continue;
-            const char code[4] = {static_cast<char>(name[4]), static_cast<char>(name[5]), static_cast<char>(name[6]), 0};
-            const int id = selection::CustomStageId(code);
-            if (id < 0) continue;
-            installedStages.push_back(id);
-            selection::SetCustomStageName(id, ReadName(battle + L"stage\\" + name.substr(0, 7) + L".txt").c_str());
-        } while (FindNextFileW(search, &found));
-        FindClose(search);
-    }
+    // Custom stages: STG_<code>.emz and STG_<code>.tex.emz with a custom code (the pattern also finds the game's own).
+    Each(battle + L"stage\\STG_???.emz", [&](const std::wstring& name) {
+        if (name.size() != 11 || name[4] > 127 || name[5] > 127 || name[6] > 127) return;
+        const char code[4] = {static_cast<char>(name[4]), static_cast<char>(name[5]), static_cast<char>(name[6]), 0};
+        const int id = selection::CustomStageId(code);
+        if (id < 0 || !Exists(battle + L"stage\\" + name.substr(0, 7) + L".tex.emz")) return;
+        installedStages.push_back(id);
+        selection::SetCustomStageName(id, ReadName(battle + L"stage\\" + name.substr(0, 7) + L".txt").c_str());
+    });
     std::sort(installedStages.begin(), installedStages.end());
     spdlog::info("Custom stages installed: {}", installedStages.size());
 }
@@ -192,22 +202,19 @@ int ApplyStage(int stageId) {
     customMusic = false;
     if (!selection::IsCustomStage(stageId)) return stageId;
     const int fallback = selection::CustomStageFallback(stageId);
-    for (int id : InstalledStages())
-        if (id == stageId) {
-            customNative = fallback;
-            customCode = selection::FindStage(stageId)->code;
-            const std::string code = customCode;
-            customMusic = GetFileAttributesW((battleFolder + L"sound\\bgm\\BGM_" + std::wstring(code.begin(), code.end()) + L".csb").c_str()) !=
-                          INVALID_FILE_ATTRIBUTES;
-            spdlog::info("Custom stage {} plays as stage {} with its own files{}", customCode, fallback, customMusic ? " and music" : "");
-        }
+    const auto& stages = InstalledStages();
+    if (!std::binary_search(stages.begin(), stages.end(), stageId)) return fallback;
+    customNative = fallback;
+    customCode = selection::FindStage(stageId)->code;
+    const std::string code = customCode;
+    customMusic = Exists(battleFolder + L"sound\\bgm\\BGM_" + std::wstring(code.begin(), code.end()) + L".csb");
+    spdlog::info("Custom stage {} plays as stage {} with its own files{}", customCode, fallback, customMusic ? " and music" : "");
     return fallback;
 }
 
 bool CostumeInstalled(int fighterId, int costumeId) {
-    for (int costume : InstalledCostumes(fighterId))
-        if (costume == costumeId) return true;
-    return false;
+    const auto& costumes = InstalledCostumes(fighterId);
+    return std::find(costumes.begin(), costumes.end(), costumeId) != costumes.end();
 }
 
 void SetStandIn(int side, int fighter, int standIn, int custom) {
@@ -227,9 +234,9 @@ void SetColorStandIn(int side, int fighter, int costume, int standIn, int custom
 // every match; the menu reads its music's path from a table entry (RVA 0x66b6f0) each time it loads it.
 // Remove this function and its two calls to get the menu's own track back.
 void PickMenuMusic() {
-    static std::string path;
-    path = std::string("battle/sound/bgm/BGM_") + selection::FindStage(1 + GetTickCount() % 21)->code + ".csb";
-    *reinterpret_cast<const char**>(reinterpret_cast<std::uintptr_t>(GetModuleHandleW(NULL)) + 0x66b6f0) = path.c_str();
+    static char path[] = "battle/sound/bgm/BGM_CHN.csb";   // one lasting buffer: only the stage code changes
+    std::memcpy(path + 21, selection::FindStage(1 + GetTickCount() % 21)->code, 3);
+    *reinterpret_cast<const char**>(reinterpret_cast<std::uintptr_t>(GetModuleHandleW(NULL)) + 0x66b6f0) = path;
 }
 
 void EndBattle() {
