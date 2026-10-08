@@ -11,6 +11,7 @@
 #include "../Dimps/Dimps__Platform.hxx"
 #include "../common/FocusGate.hxx"
 #include "sf4e__BackgroundPlay.hxx"
+#include "sf4e__CodePages.hxx"
 
 namespace rPad = Dimps::Pad;
 using rApp = Dimps::App;
@@ -56,22 +57,6 @@ HWND WINAPI SoundForeground() {
 }
 // The frame's `call dword ptr [...]` reads its function from here.
 HWND (WINAPI* soundForeground)() = SoundForeground;
-
-// focus_gate::ApplyAll's access to the game's code. A protection that cannot
-// be put back leaves the bytes writable; they are already final.
-struct CodePages {
-    bool Unlock(std::uint8_t* at, std::uint8_t length, unsigned long& saved) {
-        DWORD old = 0;
-        if (!VirtualProtect(at, length, PAGE_EXECUTE_READWRITE, &old)) return false;
-        saved = old;
-        return true;
-    }
-    void Lock(std::uint8_t* at, std::uint8_t length, unsigned long saved) {
-        DWORD old = 0;
-        VirtualProtect(at, length, saved, &old);
-        FlushInstructionCache(GetCurrentProcess(), at, length);
-    }
-};
 
 gate::Edit edits[3];
 
@@ -127,7 +112,7 @@ void sf4e::BackgroundPlay::Install() {
 
 void sf4e::BackgroundPlay::Activate() {
     if (!hooked) return;
-    CodePages pages;
+    sf4e::CodePages pages;
     if (!gate::ApplyAll(edits, pages)) {
         unavailable = "the game's focus checks could not be patched";
         return;
