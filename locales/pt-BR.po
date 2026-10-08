@@ -139,10 +139,16 @@ msgid "updates.channel.stable"
 msgstr "Estável"
 
 msgid "updates.channel.prerelease"
-msgstr "Pré-lançamento"
+msgstr "Beta"
+
+msgid "updates.channel.nightly"
+msgstr "Nightly"
+
+msgid "updates.channel.nightly_detail"
+msgstr "Versões de teste diárias com os recursos mais recentes. Elas podem apresentar falhas. Nas salas, você só pode jogar com outros jogadores do Nightly, e replays ou combos salvos no Nightly podem não abrir após voltar a uma versão anterior."
 
 msgid "updates.channel_detail"
-msgstr "Estável oferece apenas versões finalizadas. Pré-lançamento também oferece versões beta e candidatas a lançamento, que podem ter mais problemas. Todos com quem você joga precisam da mesma versão."
+msgstr "Estável oferece apenas versões finalizadas. Beta também oferece versões beta e candidatas a lançamento, que podem ter mais problemas. Todos com quem você joga precisam da mesma versão."
 
 msgid "updates.installed_version"
 msgstr "Versão instalada"
@@ -222,8 +228,8 @@ msgstr "Abrindo o atualizador..."
 msgid "services.update_available"
 msgstr "Há uma atualização disponível: {0}"
 
-msgid "services.stable_available"
-msgstr "A versão estável {0} está disponível. Instalá-la substitui o pré-lançamento que você tem."
+msgid "services.go_back_available"
+msgstr "Você pode voltar para {0}"
 
 
 msgid "services.up_to_date"

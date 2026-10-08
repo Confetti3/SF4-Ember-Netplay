@@ -139,10 +139,16 @@ msgid "updates.channel.stable"
 msgstr "安定版"
 
 msgid "updates.channel.prerelease"
-msgstr "プレリリース版"
+msgstr "ベータ版"
+
+msgid "updates.channel.nightly"
+msgstr "ナイトリー"
+
+msgid "updates.channel.nightly_detail"
+msgstr "最新機能を含む毎日のテストビルドです。正常に動作しない場合があります。ルームではナイトリー版のプレイヤーとだけ対戦できます。ナイトリー版で保存したリプレイやコンボは、以前のバージョンに戻すと開けなくなる場合があります。"
 
 msgid "updates.channel_detail"
-msgstr "安定版は正式リリースのみを提供します。プレリリース版はベータ版やリリース候補版も提供しますが、問題が多い場合があります。一緒に遊ぶ全員が同じバージョンである必要があります。"
+msgstr "安定版は正式リリースのみを提供します。ベータ版はベータ版やリリース候補版も提供しますが、問題が多い場合があります。一緒に遊ぶ全員が同じバージョンである必要があります。"
 
 msgid "updates.installed_version"
 msgstr "インストール済みバージョン"
@@ -222,8 +228,8 @@ msgstr "アップデーターを起動中..."
 msgid "services.update_available"
 msgstr "アップデートがあります：{0}"
 
-msgid "services.stable_available"
-msgstr "安定版 {0} が利用できます。インストールすると現在のプレリリース版が置き換えられます。"
+msgid "services.go_back_available"
+msgstr "{0} に戻すことができます"
 
 
 msgid "services.up_to_date"

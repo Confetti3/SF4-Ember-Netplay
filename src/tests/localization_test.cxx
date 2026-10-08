@@ -187,6 +187,14 @@ int main(int argc, char** argv) {
             CHECK(Placeholders(entry.second) == Placeholders(catalogs[i][entry.first]));
         }
     }
+    // Channel warnings and go-back offers have localized prose in every
+    // non-English catalog. Product channel names may be shared across locales.
+    for (std::size_t i = 1; i < count; ++i) {
+        CHECK(catalogs[i]["updates.channel.nightly_detail"] != catalogs[0]["updates.channel.nightly_detail"]);
+        CHECK(catalogs[i]["services.go_back_available"] != catalogs[0]["services.go_back_available"]);
+        const auto& beta = catalogs[i]["updates.channel.prerelease"];
+        CHECK(catalogs[i]["updates.channel_detail"].find(beta) != std::string::npos);
+    }
     for (std::size_t i = 0; i < count; ++i) {
         const auto locale = static_cast<Locale>(i);
         std::vector<unsigned> text = Codepoints(NativeName(locale));

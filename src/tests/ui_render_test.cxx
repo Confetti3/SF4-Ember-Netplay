@@ -977,7 +977,10 @@ int main(int argc, char** argv) {
             Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Controller warning captured input");
             auto* warning=FindWindow("Controller warning");
             Require(warning->ScrollMax.y<1&&warning->Pos.y+warning->Size.y<size.h,"Controller warning escaped viewport");
-            mode=4;draw("launch-recovery");recoveryUpdates=true;recoveryState.installedVersion="1.1.0-rc1";recoveryState.channel=launcher::UpdateChannel::Prerelease;recoveryMenu.navigation=RecoveryNavigation(true);recoveryState.update.ok=recoveryState.update.updateAvailable=true;
+            mode=4;draw("launch-recovery");recoveryUpdates=true;recoveryState.installedVersion="1.1.0-rc1";recoveryState.channel=launcher::UpdateChannel::Beta;recoveryMenu.navigation=RecoveryNavigation(true);
+            recoveryMenu.navigation.Prefer("channel");draw("update-channel-beta");
+            recoveryState.channel=launcher::UpdateChannel::Nightly;recoveryState.installedVersion="1.2.0-nightly20261008";draw("update-channel-nightly");
+            recoveryState.channel=launcher::UpdateChannel::Beta;recoveryState.installedVersion="1.1.0-rc1";recoveryMenu.navigation=RecoveryNavigation(true);recoveryState.update.ok=recoveryState.update.updateAvailable=true;
             recoveryState.update.expectedSha256=std::string(64,'a');recoveryState.update.latestVersion="v1.0.0";draw("update-available");
             // The found update is the first row, so Select asks to install it.
             draw(nullptr,MenuInput::Select,1);draw("update-confirmation");

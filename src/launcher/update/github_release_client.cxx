@@ -8,9 +8,8 @@ namespace launcher {
 
 	namespace detail {
 
-		// Another repository is for development builds only; a release reads
-		// its own.
-		static void GetGithubRepo(char* outRepo, int outRepoLen) {
+		// Development builds can override any channel's repository.
+		static void GetGithubRepo(UpdateChannel channel, char* outRepo, int outRepoLen) {
 #ifndef NDEBUG
 			const char* env = getenv("SF4E_GITHUB_REPO");
 			if (env && env[0]) {
@@ -18,7 +17,7 @@ namespace launcher {
 				return;
 			}
 #endif
-			strncpy_s(outRepo, outRepoLen, kDefaultGithubRepo, _TRUNCATE);
+			strncpy_s(outRepo, outRepoLen, UpdateChannelRepo(channel), _TRUNCATE);
 		}
 
 		// Waits in short slices so a cancel (launcher closing) or a hung process
@@ -497,7 +496,13 @@ namespace launcher {
 		return running;
 	}
 
-	const char* UpdateChannelName(UpdateChannel channel) { return channel == UpdateChannel::Prerelease ? "prerelease" : "stable"; }
+	ReleaseKind ClassifyReleaseKind(const Version& version) {
+		if (!version.prerelease) return ReleaseKind::Stable;
+		return version.word == "nightly" ? ReleaseKind::Nightly : ReleaseKind::Beta;
+	}
+
+	const char* UpdateChannelName(UpdateChannel channel) { return GetUpdateChannelInfo(channel).stored; }
+	const char* UpdateChannelRepo(UpdateChannel channel) { return GetUpdateChannelInfo(channel).repo; }
 
 	bool TransitionOffered(const char* tag, const char* installed, bool goBack) {
 		const auto target = ParseVersion(tag), current = ParseVersion(installed);
@@ -506,10 +511,11 @@ namespace launcher {
 	}
 
 	UpdateChannel ResolveUpdateChannel(const std::string& saved, const char* installed) {
-		if (saved == "prerelease") return UpdateChannel::Prerelease;
-		if (saved == "stable") return UpdateChannel::Stable;
+		if (const auto channel = ParseSavedUpdateChannel(saved)) return *channel;
 		const auto version = ParseVersion(installed);
-		return version && version->prerelease ? UpdateChannel::Prerelease : UpdateChannel::Stable;
+		const auto kind = version ? ClassifyReleaseKind(*version) : ReleaseKind::Stable;
+		for (const auto& info : kUpdateChannels) if (info.kind == kind) return info.channel;
+		return UpdateChannel::Stable;
 	}
 
 	UpdateCheckResult CheckForUpdate(UpdateChannel channel) {
@@ -519,10 +525,10 @@ namespace launcher {
 		result.installedVersion = installed;
 
 		char repo[128] = { 0 };
-		GetGithubRepo(repo, sizeof(repo));
+		GetGithubRepo(channel, repo, sizeof(repo));
 
 		// GitHub's "latest" never names a pre-release and follows a flag, not
-		// the version, so both channels read the newest releases and choose.
+		// the version, so each channel reads the newest releases and chooses.
 		char path[256] = { 0 };
 		snprintf(path, sizeof(path), "/repos/%s/releases?per_page=20", repo);
 
@@ -592,6 +598,7 @@ namespace launcher {
 
 	UpdateCheckResult ParseGithubReleases(const std::string& body, const char* installed, UpdateChannel channel) {
 		UpdateCheckResult best;
+		const auto& info = GetUpdateChannelInfo(channel);
 		if (!installed) installed = "";
 		try {
 			Version bestVersion;
@@ -605,7 +612,8 @@ namespace launcher {
 				if (!release.is_object() || flag(release, "draft")) continue;
 				const auto version = ParseVersion(Text(release, "tag_name").c_str());
 				// Stable takes neither a pre-release tag nor a release GitHub marks as one.
-				if (!version || ((version->prerelease || flag(release, "prerelease")) && channel == UpdateChannel::Stable)) continue;
+				if (!version || !info.Accepts(ClassifyReleaseKind(*version)) ||
+					(info.skipGithubPrerelease && flag(release, "prerelease"))) continue;
 				UpdateCheckResult candidate;
 				ReadRelease(release, candidate);
 				if (candidate.ok && (!best.ok || CompareVersions(*version, bestVersion) > 0)) {
@@ -615,12 +623,11 @@ namespace launcher {
 			}
 			if (best.ok) {
 				// A build without a version label, such as a developer build,
-				// is offered the channel's best release. Stable offers an
-				// installed pre-release its best release even when older, as
-				// the way back.
+				// is offered the channel's best release. An installed kind the
+				// channel does not accept can go back to its best release.
 				const auto current = ParseVersion(installed);
 				const int order = current ? CompareVersions(bestVersion, *current) : 1;
-				best.goesBack = order < 0 && current->prerelease && channel == UpdateChannel::Stable;
+				best.goesBack = order < 0 && current && !info.Accepts(ClassifyReleaseKind(*current));
 				best.updateAvailable = order > 0 || best.goesBack;
 			}
 			else {
@@ -636,20 +643,16 @@ namespace launcher {
 	}
 
 	ApplyUpdateResult DownloadAndApplyUpdate(
-		const char* zipDownloadUrl,
-		const char* zipApiUrl,
-		const char* latestVersionTag,
-		const char* expectedSha256,
-		bool goBack,
+		const UpdateCheckResult& offer,
         const UpdateProgress& progress,
         const char* installingText
 	) {
 		ApplyUpdateResult result;
-		if ((!zipDownloadUrl || !zipDownloadUrl[0]) && (!zipApiUrl || !zipApiUrl[0])) {
+		if (offer.zipDownloadUrl.empty() && offer.zipApiUrl.empty()) {
 			result.error = loc::T("update.missing_url");
 			return result;
 		}
-		if (!latestVersionTag || !latestVersionTag[0]) {
+		if (offer.latestVersion.empty()) {
 			result.error = loc::T("update.missing_version");
 			return result;
 		}
@@ -657,7 +660,7 @@ namespace launcher {
 		// install is only ever given the kind it was offered.
 		char installedVersion[64] = { 0 };
 		ReadInstalledVersion(installedVersion, sizeof(installedVersion));
-		if (!TransitionOffered(latestVersionTag, installedVersion, goBack)) {
+		if (!TransitionOffered(offer.latestVersion.c_str(), installedVersion, offer.goesBack)) {
 			AppendUpdateLog("install refused: not the offered kind of version change");
 			result.error = loc::T("update.not_offered");
 			return result;
@@ -679,7 +682,7 @@ namespace launcher {
 		}
 
 		char safeTag[64] = { 0 };
-		SanitizeTagForPath(latestVersionTag, safeTag, sizeof(safeTag));
+		SanitizeTagForPath(offer.latestVersion.c_str(), safeTag, sizeof(safeTag));
 
 		wchar_t tempRoot[MAX_PATH] = { 0 };
 		std::string tempPathError;
@@ -749,18 +752,8 @@ namespace launcher {
 		};
 		std::string downloadError;
 		AppendUpdateLog("DownloadAndApplyUpdate start");
-		if (!DownloadReleaseZip(zipApiUrl, zipDownloadUrl, zipPath, downloadError, at(UpdateStage::Downloading))) {
-			char repo[128] = { 0 };
-			GetGithubRepo(repo, sizeof(repo));
-			char releasePage[256] = { 0 };
-			snprintf(
-				releasePage,
-				sizeof(releasePage),
-				"https://github.com/%s/releases/tag/%s",
-				repo,
-				latestVersionTag
-			);
-			result.error = loc::Tf("update.download_failed", downloadError, releasePage);
+		if (!DownloadReleaseZip(offer, zipPath, downloadError, at(UpdateStage::Downloading))) {
+			result.error = downloadError;
 			return result;
 		}
 
@@ -769,7 +762,7 @@ namespace launcher {
 		// was tampered with or corrupted in transit, so refuse it. Releases that
 		// predate GitHub asset digests provide no expected hash and are refused.
 		at(UpdateStage::Verifying)(0, 0);
-		std::string expectedHash = (expectedSha256 && expectedSha256[0]) ? expectedSha256 : "";
+		const std::string& expectedHash = offer.expectedSha256;
 		if (!expectedHash.empty()) {
 			std::string actualHash;
 			if (!ComputeFileSha256Hex(zipPath, actualHash, at(UpdateStage::Verifying))) {
@@ -851,7 +844,7 @@ namespace launcher {
 			installDir, stagingDir, GetCurrentProcessId(), status.c_str());
         SpawnResult spawned = SpawnResult::Failed;
         if (!HandoffPreparedUpdate(at(UpdateStage::Preparing), preparedDone, preparedTotal, [&] {
-            spawned = SpawnUpdater(installDir, goBack ? installDir : stagingDir, updaterParams);
+            spawned = SpawnUpdater(installDir, offer.goesBack ? installDir : stagingDir, updaterParams);
         })) { result.error = loc::T("update.cancelled"); return result; }
         switch (spawned) {
         case SpawnResult::Started: break;

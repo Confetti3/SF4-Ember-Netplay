@@ -26,7 +26,7 @@ inline void OfferFoundUpdate(GameMenu& menu,const platform::ServiceSnapshot& sta
 // canStart adds a way into the game to the updater, which otherwise only
 // closes: it answers RecoveryChoice::Retry like the launch window's Retry.
 // The updater also shows the channel its checks use (Select on that row asks
-// for the other one, RecoveryChoice::Channel) and the installed version, so an
+// for the next one, RecoveryChoice::Channel) and the installed version, so an
 // offered version can be read against it.
 inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSnapshot& state,const std::string& message,bool updates,
     Tone messageTone=Tone::Error,bool canStart=false,bool serviceNewer=true) {
@@ -47,8 +47,9 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
     }
     rows.push_back(waits(Row("check",loc::T("updates.check"),state.pending?loc::T("updates.busy"):loc::T("updates.check_detail"),!state.pending)));
     if(updates){
-        rows.push_back(waits(Row("channel",loc::T("updates.channel"),loc::T("updates.channel_detail"),!state.pending)));
-        rows.back().value=loc::T(state.channel==launcher::UpdateChannel::Prerelease?"updates.channel.prerelease":"updates.channel.stable");
+        const auto& channel=launcher::GetUpdateChannelInfo(state.channel);
+        rows.push_back(waits(Row("channel",loc::T("updates.channel"),loc::T(channel.detailKey),!state.pending)));
+        rows.back().value=loc::T(channel.labelKey);
         if(!state.installedVersion.empty())rows.push_back(InfoRow("installed",loc::T("updates.installed_version"),state.installedVersion,loc::T("updates.installed_version_detail")));
     }
     if(state.pending)rows.push_back(Row("cancel",loc::T("updates.cancel"),loc::T("updates.cancel_detail")));

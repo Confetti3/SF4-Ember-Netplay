@@ -2,6 +2,7 @@
 #include "github_release_client_internal.hxx"
 #include <cctype>
 #include <optional>
+#include <string_view>
 
 namespace sf4e {
 namespace launcher {
@@ -32,6 +33,32 @@ namespace launcher {
 		return version;
 	}
 
+	// Nightly revision components may exceed an int. Compare their digit
+	// counts and contents after leading zeroes, without numeric conversion.
+	static int CompareNightlyRest(std::string_view a, std::string_view b) {
+		for (;;) {
+			const auto dotA = a.find('.'), dotB = b.find('.');
+			auto partA = a.substr(0, dotA), partB = b.substr(0, dotB);
+			const auto numeric = [](std::string_view part) {
+				return !part.empty() && part.find_first_not_of("0123456789") == std::string_view::npos;
+			};
+			const bool numberA = numeric(partA), numberB = numeric(partB);
+			if (numberA != numberB) return numberA ? -1 : 1;
+			if (numberA) {
+				const auto trim = [](std::string_view part) {
+					const auto first = part.find_first_not_of('0');
+					return first == std::string_view::npos ? std::string_view("0") : part.substr(first);
+				};
+				partA = trim(partA); partB = trim(partB);
+				if (partA.size() != partB.size()) return partA.size() < partB.size() ? -1 : 1;
+			}
+			if (const int c = partA.compare(partB)) return c < 0 ? -1 : 1;
+			if (dotA == std::string_view::npos || dotB == std::string_view::npos)
+				return dotA == dotB ? 0 : dotA == std::string_view::npos ? -1 : 1;
+			a.remove_prefix(dotA + 1); b.remove_prefix(dotB + 1);
+		}
+	}
+
 	int CompareVersions(const Version& a, const Version& b) {
 		const auto order = [](auto x, auto y) { return x < y ? -1 : x > y ? 1 : 0; };
 		if (int c = order(a.major, b.major)) return c;
@@ -40,6 +67,7 @@ namespace launcher {
 		if (a.prerelease != b.prerelease) return a.prerelease ? -1 : 1;
 		if (int c = a.word.compare(b.word)) return c < 0 ? -1 : 1;
 		if (int c = order(a.number, b.number)) return c;
+		if (a.word == "nightly") return CompareNightlyRest(a.rest, b.rest);
 		if (int c = a.rest.compare(b.rest)) return c < 0 ? -1 : 1;
 		return 0;
 	}

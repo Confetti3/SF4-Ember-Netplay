@@ -1,6 +1,7 @@
 #include "UiPreferencesStore.hxx"
 
 #include "../common/Localization.hxx"
+#include "../common/UpdateChannel.hxx"
 #include "../netplay/JsonFileStore.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include <algorithm>
@@ -83,12 +84,11 @@ bool HiddenFrom(const Path& directory) noexcept {
     } catch (...) { return false; }
 }
 
-bool KnownChannel(std::string_view channel) { return channel == "stable" || channel == "prerelease"; }
 std::string ChannelFrom(const Path& directory) noexcept {
     try {
         const Json value = LoadValid(directory);
         const std::string channel = value.is_object() ? value.value(UpdateChannelKey, std::string()) : std::string();
-        return KnownChannel(channel) ? channel : std::string();
+        return updates::ParseSavedUpdateChannel(channel) ? channel : std::string();
     } catch (...) { return {}; }
 }
 
@@ -133,7 +133,7 @@ bool SaveTo(const Path& directory, const Json& patch, std::string& error) noexce
 }
 
 bool SaveChannelTo(const Path& directory, std::string_view channel, std::string& error) {
-    if (!KnownChannel(channel)) { error = "Unknown update channel."; return false; }
+    if (!updates::ParseSavedUpdateChannel(channel)) { error = "Unknown update channel."; return false; }
     return SaveTo(directory, {{UpdateChannelKey, std::string(channel)}}, error);
 }
 

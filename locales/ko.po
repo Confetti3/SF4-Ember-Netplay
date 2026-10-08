@@ -139,10 +139,16 @@ msgid "updates.channel.stable"
 msgstr "안정"
 
 msgid "updates.channel.prerelease"
-msgstr "사전 출시"
+msgstr "베타"
+
+msgid "updates.channel.nightly"
+msgstr "나이틀리"
+
+msgid "updates.channel.nightly_detail"
+msgstr "최신 기능을 포함한 일일 테스트 빌드입니다. 정상적으로 작동하지 않을 수 있습니다. 방에서는 나이틀리 버전을 사용하는 플레이어하고만 플레이할 수 있으며, 나이틀리에서 저장한 리플레이나 콤보는 이전 버전으로 돌아간 후 열리지 않을 수 있습니다."
 
 msgid "updates.channel_detail"
-msgstr "안정 채널은 정식 버전만 제공합니다. 사전 출시 채널은 베타 및 출시 후보 버전도 제공하며 문제가 더 많을 수 있습니다. 함께 플레이하는 모든 사람이 같은 버전이어야 합니다."
+msgstr "안정 채널은 정식 버전만 제공합니다. 베타 채널은 베타 및 출시 후보 버전도 제공하며 문제가 더 많을 수 있습니다. 함께 플레이하는 모든 사람이 같은 버전이어야 합니다."
 
 msgid "updates.installed_version"
 msgstr "설치된 버전"
@@ -222,8 +228,8 @@ msgstr "업데이터 여는 중..."
 msgid "services.update_available"
 msgstr "업데이트가 있습니다: {0}"
 
-msgid "services.stable_available"
-msgstr "안정 버전 {0}을(를) 사용할 수 있습니다. 설치하면 현재 사전 출시 버전이 교체됩니다."
+msgid "services.go_back_available"
+msgstr "{0} 버전으로 돌아갈 수 있습니다"
 
 
 msgid "services.up_to_date"

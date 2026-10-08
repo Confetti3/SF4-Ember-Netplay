@@ -3,6 +3,7 @@
 // Shared by the translation units that implement the release client. Not a
 // public interface; include github_release_client.hxx instead.
 #include "github_release_client.hxx"
+#include "github_release_download.hxx"
 #include "PackageInstaller.hxx"
 #include "../../common/PackageInventory.hxx"
 
@@ -57,13 +58,6 @@ namespace launcher {
 		// `progress` hears the bytes hashed; false stops, and the hash fails.
 		bool ComputeFileSha256Hex(const wchar_t* filePath, std::string& outHex, const PackageProgress& progress = {});
 		bool HexEqualsIgnoreCase(const std::string& a, const std::string& b);
-		bool DownloadReleaseZip(
-			const char* zipApiUrl,
-			const char* zipDownloadUrl,
-			const wchar_t* zipPath,
-			std::string& outError,
-            const std::function<bool(std::uint64_t, std::uint64_t)>& progress
-		);
 
 	} // namespace detail
 } // namespace launcher

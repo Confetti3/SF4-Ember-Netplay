@@ -4,6 +4,7 @@
 #include <functional>
 #include <optional>
 #include <cstdint>
+#include "../../common/UpdateChannel.hxx"
 
 namespace sf4e {
 namespace launcher {
@@ -22,9 +23,8 @@ namespace launcher {
 		// "digest" field ("sha256:<hex>"). Empty if the release predates GitHub
 		// asset digests; callers should treat an empty value as "unverifiable".
 		std::string expectedSha256;
-		// The offer goes back a version: the Stable channel's best release is
-		// older than the installed pre-release. Installing it is a downgrade
-		// the player chose; an install is never given one otherwise.
+		// The offer goes back a version: the channel's best release is older
+		// than an installed version of a kind the channel does not accept.
 		bool goesBack = false;
 	};
 
@@ -32,6 +32,7 @@ namespace launcher {
 	// "1.1.0-links-sets-test1". Anything with another shape is not a version
 	// and is never offered or compared. A pre-release sorts before the finished
 	// release of its number, then by its word, its number and the rest.
+	// Dot-separated numeric Nightly revisions in the rest sort numerically.
 	struct Version {
 		int major = 0, minor = 0, patch = 0;
 		bool prerelease = false;
@@ -41,10 +42,17 @@ namespace launcher {
 	std::optional<Version> ParseVersion(const char* text);
 	int CompareVersions(const Version& a, const Version& b);
 
-	// Stable offers finished releases; Pre-release also betas and release
-	// candidates. Unchosen, the channel follows the installed version.
-	enum class UpdateChannel { Stable, Prerelease };
+	using updates::ReleaseKind;
+	using updates::UpdateChannel;
+	using updates::UpdateChannelInfo;
+	using updates::kDefaultGithubRepo;
+	using updates::kUpdateChannels;
+	using updates::GetUpdateChannelInfo;
+	using updates::ParseSavedUpdateChannel;
+	ReleaseKind ClassifyReleaseKind(const Version& version);
+
 	const char* UpdateChannelName(UpdateChannel channel);
+	const char* UpdateChannelRepo(UpdateChannel channel);
 	UpdateChannel ResolveUpdateChannel(const std::string& saved, const char* installed);
 	// Whether installing `tag` over `installed` is the kind of offer the check
 	// made: an update, or with goBack a step back between two valid versions.
@@ -67,7 +75,6 @@ namespace launcher {
 	bool ReadInstalledVersion(char* outVersion, int outVersionLen);
 	bool IsGameProcessRunning();
 
-    constexpr const char* kDefaultGithubRepo = "Confetti3/SF4-Ember-Netplay";
     constexpr const char* kReleaseZipPrefix = "sf4-ember-netplay-";
     // Pure release parsing; HTTP and installation remain separate. The
     // channel's highest listed release with a package, and whether it is
@@ -80,11 +87,7 @@ namespace launcher {
 	enum class UpdateStage { Downloading, Verifying, Extracting, Preparing };
 	using UpdateProgress = std::function<bool(UpdateStage, std::uint64_t done, std::uint64_t total)>;
 	ApplyUpdateResult DownloadAndApplyUpdate(
-		const char* zipDownloadUrl,
-		const char* zipApiUrl,
-		const char* latestVersionTag,
-		const char* expectedSha256,
-		bool goBack,
+		const UpdateCheckResult& offer,
         const UpdateProgress& progress = {},
         // Shown by Updater.exe while it installs; it has no catalogs of its own.
         const char* installingText = ""

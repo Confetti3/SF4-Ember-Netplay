@@ -13,7 +13,7 @@
 #include <atomic>
 
 namespace sf4e { namespace platform {
-// SwitchUpdateChannel saves the other channel, then checks for an update on it.
+// SwitchUpdateChannel saves the next channel, then checks for an update on it.
 enum class ServiceAction { None, CheckUpdates, SwitchUpdateChannel, ExportDiagnostics, OpenUpdater, InstallUpdate, OpenRecovery, OpenCommunity, OpenReplayFolder };
 // Community Discord server, shown in Help & About and opened as https://<invite>.
 constexpr const char* CommunityInvite = "discord.gg/uPNqF5A5uq";
