@@ -492,7 +492,7 @@ namespace launcher {
 	}
 
 	UpdateChannel ResolveUpdateChannel(const std::string& saved, const char* installed) {
-		for (const auto& info : kUpdateChannels) if (saved == info.stored) return info.channel;
+		if (const auto channel = ParseSavedUpdateChannel(saved)) return *channel;
 		const auto version = ParseVersion(installed);
 		const auto kind = version ? ClassifyReleaseKind(*version) : ReleaseKind::Stable;
 		for (const auto& info : kUpdateChannels) if (info.kind == kind) return info.channel;
@@ -624,19 +624,15 @@ namespace launcher {
 	}
 
 	ApplyUpdateResult DownloadAndApplyUpdate(
-		const char* zipDownloadUrl,
-		const char* zipApiUrl,
-		const char* latestVersionTag,
-		const char* expectedSha256,
-		bool goBack,
+		const UpdateCheckResult& offer,
         const std::function<bool(std::uint64_t, std::uint64_t)>& progress
 	) {
 		ApplyUpdateResult result;
-		if ((!zipDownloadUrl || !zipDownloadUrl[0]) && (!zipApiUrl || !zipApiUrl[0])) {
+		if (offer.zipDownloadUrl.empty() && offer.zipApiUrl.empty()) {
 			result.error = loc::T("update.missing_url");
 			return result;
 		}
-		if (!latestVersionTag || !latestVersionTag[0]) {
+		if (offer.latestVersion.empty()) {
 			result.error = loc::T("update.missing_version");
 			return result;
 		}
@@ -644,7 +640,7 @@ namespace launcher {
 		// install is only ever given the kind it was offered.
 		char installedVersion[64] = { 0 };
 		ReadInstalledVersion(installedVersion, sizeof(installedVersion));
-		if (!TransitionOffered(latestVersionTag, installedVersion, goBack)) {
+		if (!TransitionOffered(offer.latestVersion.c_str(), installedVersion, offer.goesBack)) {
 			AppendUpdateLog("install refused: not the offered kind of version change");
 			result.error = loc::T("update.not_offered");
 			return result;
@@ -666,7 +662,7 @@ namespace launcher {
 		}
 
 		char safeTag[64] = { 0 };
-		SanitizeTagForPath(latestVersionTag, safeTag, sizeof(safeTag));
+		SanitizeTagForPath(offer.latestVersion.c_str(), safeTag, sizeof(safeTag));
 
 		wchar_t tempRoot[MAX_PATH] = { 0 };
 		std::string tempPathError;
@@ -725,18 +721,8 @@ namespace launcher {
 
 		std::string downloadError;
 		AppendUpdateLog("DownloadAndApplyUpdate start");
-		if (!DownloadReleaseZip(zipApiUrl, zipDownloadUrl, zipPath, downloadError, progress)) {
-			char repo[128] = { 0 };
-			GetGithubRepo(ResolveUpdateChannel("", latestVersionTag), repo, sizeof(repo));
-			char releasePage[256] = { 0 };
-			snprintf(
-				releasePage,
-				sizeof(releasePage),
-				"https://github.com/%s/releases/tag/%s",
-				repo,
-				latestVersionTag
-			);
-			result.error = loc::Tf("update.download_failed", downloadError, releasePage);
+		if (!DownloadSelectedReleaseZip(offer, zipPath, downloadError, progress)) {
+			result.error = downloadError;
 			return result;
 		}
 
@@ -744,7 +730,7 @@ namespace launcher {
 		// asset before we extract or run anything from it. A mismatch means the zip
 		// was tampered with or corrupted in transit, so refuse it. Releases that
 		// predate GitHub asset digests provide no expected hash and are refused.
-		std::string expectedHash = (expectedSha256 && expectedSha256[0]) ? expectedSha256 : "";
+		const std::string& expectedHash = offer.expectedSha256;
 		if (!expectedHash.empty()) {
 			std::string actualHash;
 			if (!ComputeFileSha256Hex(zipPath, actualHash)) {
@@ -805,7 +791,7 @@ namespace launcher {
 		wchar_t updaterParams[4096] = { 0 };
 		swprintf_s(updaterParams, L"-InstallDir \"%s\" -StagingDir \"%s\" -WaitPid %lu",
 			installDir, stagingDir, GetCurrentProcessId());
-        switch (SpawnUpdater(installDir, goBack ? installDir : stagingDir, updaterParams)) {
+        switch (SpawnUpdater(installDir, offer.goesBack ? installDir : stagingDir, updaterParams)) {
         case SpawnResult::Started: break;
         case SpawnResult::NotNormalUser: result.error = loc::T("update.elevated"); return result;
         default: result.error = loc::T("update.updater_start_failed"); return result;

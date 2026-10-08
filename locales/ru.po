@@ -139,16 +139,16 @@ msgid "updates.channel.stable"
 msgstr "Стабильный"
 
 msgid "updates.channel.prerelease"
-msgstr "Предварительные версии"
+msgstr "Бета"
 
 msgid "updates.channel.nightly"
 msgstr "Nightly"
 
 msgid "updates.channel.nightly_detail"
-msgstr "Daily test builds with the newest features. They may break. You can only play rooms with other Nightly players, and replays or combos saved on Nightly may not open after going back."
+msgstr "Ежедневные тестовые сборки с новейшими функциями. Они могут работать некорректно. В комнатах можно играть только с другими игроками Nightly, а повторы или комбинации, сохранённые в Nightly, могут не открыться после возврата к более ранней версии."
 
 msgid "updates.channel_detail"
-msgstr "Стабильный канал предлагает только готовые выпуски. Предварительные версии включают также бета-версии и кандидаты в релиз, в которых может быть больше проблем. Всем, с кем вы играете, нужна та же версия."
+msgstr "Стабильный канал предлагает только готовые выпуски. Бета включает также бета-версии и кандидаты в релиз, в которых может быть больше проблем. Всем, с кем вы играете, нужна та же версия."
 
 msgid "updates.installed_version"
 msgstr "Установленная версия"
@@ -217,7 +217,7 @@ msgid "services.update_available"
 msgstr "Доступно обновление: {0}"
 
 msgid "services.go_back_available"
-msgstr "Going back to {0} is available"
+msgstr "Можно вернуться к версии {0}"
 
 
 msgid "services.up_to_date"

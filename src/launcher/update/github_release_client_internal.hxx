@@ -3,6 +3,7 @@
 // Shared by the translation units that implement the release client. Not a
 // public interface; include github_release_client.hxx instead.
 #include "github_release_client.hxx"
+#include "github_release_download.hxx"
 #include "PackageInstaller.hxx"
 #include "../../common/PackageInventory.hxx"
 

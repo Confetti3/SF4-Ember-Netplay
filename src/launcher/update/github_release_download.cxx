@@ -226,6 +226,19 @@ namespace launcher {
 			return false;
 		}
 
+		bool DownloadSelectedReleaseZip(
+			const UpdateCheckResult& offer, const wchar_t* zipPath, std::string& outError,
+			const std::function<bool(std::uint64_t, std::uint64_t)>& progress
+		) {
+			std::string downloadError;
+			if (!DownloadReleaseZip(offer.zipApiUrl.c_str(), offer.zipDownloadUrl.c_str(), zipPath, downloadError, progress)) {
+				outError = loc::Tf("update.download_failed", downloadError, offer.releaseUrl);
+				return false;
+			}
+			outError.clear();
+			return true;
+		}
+
 	} // namespace detail
 } // namespace launcher
 } // namespace sf4e

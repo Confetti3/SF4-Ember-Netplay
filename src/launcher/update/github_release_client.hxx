@@ -4,7 +4,7 @@
 #include <functional>
 #include <optional>
 #include <cstdint>
-#include <array>
+#include "../../common/UpdateChannel.hxx"
 
 namespace sf4e {
 namespace launcher {
@@ -32,6 +32,7 @@ namespace launcher {
 	// "1.1.0-links-sets-test1". Anything with another shape is not a version
 	// and is never offered or compared. A pre-release sorts before the finished
 	// release of its number, then by its word, its number and the rest.
+	// Dot-separated numeric Nightly revisions in the rest sort numerically.
 	struct Version {
 		int major = 0, minor = 0, patch = 0;
 		bool prerelease = false;
@@ -41,36 +42,15 @@ namespace launcher {
 	std::optional<Version> ParseVersion(const char* text);
 	int CompareVersions(const Version& a, const Version& b);
 
-	enum class ReleaseKind { Stable, Beta, Nightly };
+	using updates::ReleaseKind;
+	using updates::UpdateChannel;
+	using updates::UpdateChannelInfo;
+	using updates::kDefaultGithubRepo;
+	using updates::kUpdateChannels;
+	using updates::GetUpdateChannelInfo;
+	using updates::ParseSavedUpdateChannel;
 	ReleaseKind ClassifyReleaseKind(const Version& version);
 
-	constexpr const char* kDefaultGithubRepo = "Confetti3/SF4-Ember-Netplay";
-	// Unchosen, the channel follows the installed version's kind.
-	enum class UpdateChannel { Stable, Beta, Nightly };
-	struct UpdateChannelInfo {
-		UpdateChannel channel;
-		const char* stored;
-		const char* repo;
-		const char* labelKey;
-		const char* detailKey;
-		ReleaseKind kind;
-		std::array<bool, 3> acceptedKinds;
-		bool skipGithubPrerelease;
-		UpdateChannel next;
-		bool Accepts(ReleaseKind releaseKind) const { return acceptedKinds[static_cast<std::size_t>(releaseKind)]; }
-	};
-	inline constexpr UpdateChannelInfo kUpdateChannels[] = {
-		{UpdateChannel::Stable, "stable", kDefaultGithubRepo, "updates.channel.stable", "updates.channel_detail",
-			ReleaseKind::Stable, {true, false, false}, true, UpdateChannel::Beta},
-		{UpdateChannel::Beta, "prerelease", kDefaultGithubRepo, "updates.channel.prerelease", "updates.channel_detail",
-			ReleaseKind::Beta, {true, true, false}, false, UpdateChannel::Nightly},
-		{UpdateChannel::Nightly, "nightly", "Confetti3/SF4-Ember-Netplay-Nightly", "updates.channel.nightly", "updates.channel.nightly_detail",
-			ReleaseKind::Nightly, {false, false, true}, false, UpdateChannel::Stable}
-	};
-	inline const UpdateChannelInfo& GetUpdateChannelInfo(UpdateChannel channel) {
-		for (const auto& info : kUpdateChannels) if (info.channel == channel) return info;
-		return kUpdateChannels[0];
-	}
 	const char* UpdateChannelName(UpdateChannel channel);
 	const char* UpdateChannelRepo(UpdateChannel channel);
 	UpdateChannel ResolveUpdateChannel(const std::string& saved, const char* installed);
@@ -102,11 +82,7 @@ namespace launcher {
     UpdateCheckResult ParseGithubReleases(const std::string& body, const char* installed, UpdateChannel channel);
 	UpdateCheckResult CheckForUpdate(UpdateChannel channel);
 	ApplyUpdateResult DownloadAndApplyUpdate(
-		const char* zipDownloadUrl,
-		const char* zipApiUrl,
-		const char* latestVersionTag,
-		const char* expectedSha256,
-		bool goBack,
+		const UpdateCheckResult& offer,
         const std::function<bool(std::uint64_t, std::uint64_t)>& progress = {}
 	);
 

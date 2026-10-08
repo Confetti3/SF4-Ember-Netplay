@@ -139,16 +139,16 @@ msgid "updates.channel.stable"
 msgstr "Stabiel"
 
 msgid "updates.channel.prerelease"
-msgstr "Voorlopige versie"
+msgstr "Bèta"
 
 msgid "updates.channel.nightly"
 msgstr "Nightly"
 
 msgid "updates.channel.nightly_detail"
-msgstr "Daily test builds with the newest features. They may break. You can only play rooms with other Nightly players, and replays or combos saved on Nightly may not open after going back."
+msgstr "Dagelijkse testversies met de nieuwste functies. Ze kunnen problemen geven. In kamers kun je alleen met andere Nightly-spelers spelen. Replays of combo’s die op Nightly zijn opgeslagen, kun je na terugkeer naar een eerdere versie mogelijk niet meer openen."
 
 msgid "updates.channel_detail"
-msgstr "Stabiel biedt alleen afgewerkte versies aan. Voorlopige versie biedt ook bèta- en release-candidateversies aan, die meer problemen kunnen hebben. Iedereen met wie je speelt heeft dezelfde versie nodig."
+msgstr "Stabiel biedt alleen afgewerkte versies aan. Bèta biedt ook bèta- en release-candidateversies aan, die meer problemen kunnen hebben. Iedereen met wie je speelt heeft dezelfde versie nodig."
 
 msgid "updates.installed_version"
 msgstr "Geïnstalleerde versie"
@@ -217,7 +217,7 @@ msgid "services.update_available"
 msgstr "Update beschikbaar: {0}"
 
 msgid "services.go_back_available"
-msgstr "Going back to {0} is available"
+msgstr "Je kunt teruggaan naar {0}"
 
 
 msgid "services.up_to_date"

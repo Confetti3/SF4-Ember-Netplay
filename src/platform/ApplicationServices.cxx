@@ -159,8 +159,7 @@ void ApplicationServices::Run() {
                 if (!next.update.ok || !next.update.updateAvailable || next.update.expectedSha256.size() != 64) {
                     next.message = loc::T("services.no_verified_update");
                 } else {
-                    const auto result = launcher::DownloadAndApplyUpdate(next.update.zipDownloadUrl.c_str(), next.update.zipApiUrl.c_str(),
-                        next.update.latestVersion.c_str(), next.update.expectedSha256.c_str(), next.update.goesBack,
+                    const auto result = launcher::DownloadAndApplyUpdate(next.update,
                         [&](std::uint64_t received, std::uint64_t total) {
                             if (cancelled_) return false;
                             next.downloadedBytes = received; next.totalBytes = total;

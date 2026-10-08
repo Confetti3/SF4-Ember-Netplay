@@ -139,16 +139,16 @@ msgid "updates.channel.stable"
 msgstr "稳定版"
 
 msgid "updates.channel.prerelease"
-msgstr "预发布版"
+msgstr "测试版"
 
 msgid "updates.channel.nightly"
-msgstr "Nightly"
+msgstr "夜间版"
 
 msgid "updates.channel.nightly_detail"
-msgstr "Daily test builds with the newest features. They may break. You can only play rooms with other Nightly players, and replays or combos saved on Nightly may not open after going back."
+msgstr "每天提供包含最新功能的测试版本，可能无法正常运行。在房间中只能与其他夜间版玩家一起游玩。在夜间版中保存的回放或连招，回退到旧版本后可能无法打开。"
 
 msgid "updates.channel_detail"
-msgstr "稳定版只提供正式版本。预发布版还提供测试版和候选发布版，可能存在更多问题。一起游玩的所有人需要使用相同的版本。"
+msgstr "稳定版只提供正式版本。测试版还提供测试版和候选发布版，可能存在更多问题。一起游玩的所有人需要使用相同的版本。"
 
 msgid "updates.installed_version"
 msgstr "已安装版本"
@@ -217,7 +217,7 @@ msgid "services.update_available"
 msgstr "有可用更新：{0}"
 
 msgid "services.go_back_available"
-msgstr "Going back to {0} is available"
+msgstr "可以回退到 {0}"
 
 
 msgid "services.up_to_date"

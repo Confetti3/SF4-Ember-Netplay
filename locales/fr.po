@@ -139,16 +139,16 @@ msgid "updates.channel.stable"
 msgstr "Stable"
 
 msgid "updates.channel.prerelease"
-msgstr "Préversion"
+msgstr "Bêta"
 
 msgid "updates.channel.nightly"
 msgstr "Nightly"
 
 msgid "updates.channel.nightly_detail"
-msgstr "Daily test builds with the newest features. They may break. You can only play rooms with other Nightly players, and replays or combos saved on Nightly may not open after going back."
+msgstr "Versions de test quotidiennes avec les dernières fonctionnalités. Elles peuvent présenter des dysfonctionnements. Dans les salons, vous ne pouvez jouer qu’avec d’autres joueurs Nightly. Les replays ou combos enregistrés sur Nightly risquent de ne plus s’ouvrir après un retour à une version antérieure."
 
 msgid "updates.channel_detail"
-msgstr "Stable ne propose que les versions finales. Préversion propose aussi les versions bêta et candidates, qui peuvent comporter plus de problèmes. Toutes les personnes avec qui vous jouez doivent avoir la même version."
+msgstr "Stable ne propose que les versions finales. Bêta propose aussi les versions bêta et candidates, qui peuvent comporter plus de problèmes. Toutes les personnes avec qui vous jouez doivent avoir la même version."
 
 msgid "updates.installed_version"
 msgstr "Version installée"
@@ -217,7 +217,7 @@ msgid "services.update_available"
 msgstr "Mise à jour disponible : {0}"
 
 msgid "services.go_back_available"
-msgstr "Going back to {0} is available"
+msgstr "Vous pouvez revenir à {0}"
 
 
 msgid "services.up_to_date"

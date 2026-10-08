@@ -1,9 +1,12 @@
-#include "../launcher/update/github_release_client.hxx"
+#include "../launcher/update/github_release_download.hxx"
+#include <filesystem>
+#include <initializer_list>
 #include <nlohmann/json.hpp>
 #include <cstdlib>
 #include <iostream>
 
 #include "test_support.hxx"
+#include "temp_root.hxx"
 
 int main(int argc, char** argv) {
     using namespace sf4e::launcher;
@@ -52,6 +55,21 @@ int main(int argc, char** argv) {
     CHECK(ParseVersion("1.1.0-links-sets-test1") && ParseVersion("1.1.0-links-sets-test1")->prerelease);
     for (const char* bad : {"latest", "v1.1.0-", "1.1", "1.1.0.0", "1.1.0 ", "v1.1.0-rc 1", "1234567890.0.0", "", "rc1"}) CHECK(!ParseVersion(bad));
     CHECK(!ParseVersion(nullptr));
+    CHECK(before("1.2.0-nightly20261008.2", "1.2.0-nightly20261008.10"));
+    CHECK(before("1.2.0-NIGHTLY20261008.2", "1.2.0-nightly20261008.10"));
+    CHECK(before("1.2.0-nightly20261008.2.9", "1.2.0-nightly20261008.2.10"));
+    CHECK(before("1.2.0-nightly20261008.99999999999999999999", "1.2.0-nightly20261008.100000000000000000000"));
+    CHECK(CompareVersions(*ParseVersion("1.2.0-nightly20261008.02"), *ParseVersion("1.2.0-nightly20261008.2")) == 0);
+    CHECK(before("1.2.0-nightly20261008.02", "1.2.0-nightly20261008.1a"));
+    // Other pre-release words retain their existing suffix ordering.
+    CHECK(before("1.2.0-beta1.10", "1.2.0-beta1.2"));
+
+    for (const auto& info : kUpdateChannels) {
+        CHECK(ParseSavedUpdateChannel(info.stored) == info.channel);
+        CHECK(ResolveUpdateChannel(info.stored, "dev") == info.channel);
+    }
+    for (const char* saved : {"", "bogus", "beta", "Nightly", " nightly", "stable "})
+        CHECK(!ParseSavedUpdateChannel(saved));
 
     // The chosen channel, or the installed version's kind while none is chosen.
     CHECK(ResolveUpdateChannel("", "1.0.2") == UpdateChannel::Stable && ResolveUpdateChannel("", "1.1.0-rc1") == UpdateChannel::Beta);
@@ -107,6 +125,40 @@ int main(int argc, char** argv) {
     CHECK(result.ok && result.updateAvailable && result.goesBack && result.latestVersion == "v1.1.0-rc2");
     result = ParseGithubReleases(list.dump(), "1.2.0", UpdateChannel::Beta);
     CHECK(result.ok && !result.updateAvailable && !result.goesBack);
+
+    // Release list order does not change the best Nightly or its update offer.
+    for (const auto tags : {
+        std::initializer_list<const char*>{"v1.3.0-nightly20261008.2", "v1.3.0-nightly20261008.10", "v1.3.0-nightly20261008.1"},
+        std::initializer_list<const char*>{"v1.3.0-nightly20261008.10", "v1.3.0-nightly20261008.1", "v1.3.0-nightly20261008.2"}}) {
+        result = ParseGithubReleases(listed(tags).dump(), "1.3.0-nightly20261008.2", UpdateChannel::Nightly);
+        CHECK(result.ok && result.latestVersion == "v1.3.0-nightly20261008.10" && result.updateAvailable && !result.goesBack);
+        CHECK(TransitionOffered(result.latestVersion.c_str(), result.installedVersion.c_str(), result.goesBack));
+        CHECK(!ParseGithubReleases(listed(tags).dump(), "1.3.0-nightly20261008.10", UpdateChannel::Nightly).updateAvailable);
+    }
+
+    // Failed asset downloads retain the selected page, even when its repository
+    // cannot be inferred from the tag. Disallowed hosts fail without HTTP.
+    {
+        const auto root = MakeTempRoot(L"ember-update-download-test-");
+        CHECK(std::filesystem::create_directory(root));
+        for (const char* page : {
+            "https://github.com/Confetti3/SF4-Ember-Netplay/releases/tag/selected-beta",
+            "https://github.com/Confetti3/SF4-Ember-Netplay-Nightly/releases/tag/selected-nightly",
+            "https://github.com/another-owner/selected-repository/releases/tag/selected-release"}) {
+            release["html_url"] = page;
+            release["tag_name"] = "v1.1.0";
+            auto offer = one("1.0.2");
+            CHECK(offer.ok && offer.releaseUrl == page);
+            offer.zipDownloadUrl = "https://blocked.invalid/selected.zip";
+            offer.zipApiUrl = "https://blocked.invalid/assets/selected";
+            std::string error;
+            CHECK(!detail::DownloadSelectedReleaseZip(offer, (root / L"selected.zip").c_str(), error));
+            CHECK(error.find(offer.releaseUrl) != std::string::npos);
+            CHECK(error.find("host is not allowlisted") != std::string::npos);
+            CHECK(!std::filesystem::exists(root / L"selected.zip"));
+        }
+        RemoveTempRoot(root);
+    }
 
     auto mixed = listed({"v1.1.0", "v1.2.0-rc1", "v1.3.0-nightly20261008", "v1.3.0-nightly20261008.2", "v2.0.0-nightly20261009"});
     mixed[2]["prerelease"] = true; mixed[3]["prerelease"] = true;
