@@ -2,6 +2,7 @@
 // A game-style fallback clears the OS cursor if overlay handling falls through.
 #include "../ui/Win32Input.hxx"
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <imgui_impl_win32.h>
 #include <atomic>
 #include <cmath>
@@ -193,7 +194,10 @@ int main() {
         owner.join();
         check(captured, "the test window never held the capture, so its release was not exercised");
         check(captureChanges >= 50, "releasing the capture did not re-enter the window procedure");
-        for (int i = 0; i < 1000 && ImGui::IsMouseDown(0); ++i) frame();
+        // ImGui takes one button change a frame and holds later input behind
+        // it. On a busy machine the presses arrive faster than the frames,
+        // so run until every one is taken, or the mouse moves below wait.
+        for (int i = 0; i < 1000 && (ImGui::IsMouseDown(0) || GImGui->InputEventsQueue.Size); ++i) frame();
         check(!ImGui::IsMouseDown(0), "a release from the capturing window was lost");
 
         // The game can draw at another size than its window's client area (a window the
