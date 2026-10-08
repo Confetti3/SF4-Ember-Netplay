@@ -1816,9 +1816,11 @@ TrainingHudInput DrawTrainingHud(const training::View& view) {
     const ImVec2 hudTop = MeterWindow(view.meter, hudScale, width, hudBottom);
     // The one input this HUD takes: a chip that opens the controls for a
     // mouse, as F6 does from the keyboard. It captures the mouse only while
-    // the pointer is over it, so the passive meter below never does.
+    // the pointer is over it, so the passive meter above never does. With
+    // the combo's line it hangs under the meter, between the game's two
+    // super gauges, so the middle of the screen stays the fight's.
     TrainingHudInput input;
-    ImGui::SetNextWindowPos(ImVec2(hudTop.x, hudTop.y - 4 * hudScale), ImGuiCond_Always, ImVec2(0, 1));
+    ImGui::SetNextWindowPos(ImVec2(hudTop.x, hudBottom + 4 * hudScale), ImGuiCond_Always, ImVec2(0, 0));
     ImGui::SetNextWindowBgAlpha(.42f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(4 * hudScale, 3 * hudScale));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
