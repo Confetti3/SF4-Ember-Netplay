@@ -368,14 +368,15 @@ bool UndoImport(const Imported& imported, const Writer& write) {
 	}
 }
 
-void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating) {
+void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2) {
 	try {
 		const Folders folders = FindFolders();
 		if (folders.archive.empty()) return;
 		std::error_code ignored;
 		fs::create_directories(folders.archive, ignored);
 		std::ofstream out(folders.archive / L"matches.jsonl", std::ios::app);
-		out << nlohmann::json{{"started", static_cast<std::uint64_t>(_time64(nullptr))}, {"p1", p1}, {"p2", p2}, {"spectated", spectating}}.dump() << '\n';
+		out << nlohmann::json{{"started", static_cast<std::uint64_t>(_time64(nullptr))}, {"p1", p1}, {"p2", p2}, {"spectated", spectating},
+			{"f1", fighter1}, {"f2", fighter2}}.dump() << '\n';
 	}
 	catch (const std::exception& e) {
 		spdlog::warn("Replays: the match's names were not noted: {}", e.what());
@@ -395,8 +396,6 @@ void MarkWatched(const fs::path& file) {
 }
 
 namespace {
-struct NotedMatch { std::uint64_t started; std::string names[2]; bool spectated; };
-
 std::vector<std::string> WatchedNames(const fs::path& file) {
 	std::vector<std::string> names;
 	std::ifstream in(file);
@@ -405,9 +404,10 @@ std::vector<std::string> WatchedNames(const fs::path& file) {
 }
 
 // A line that is not a match as NoteMatchStart writes one is passed over:
-// the file is the player's to edit, or to damage.
-std::vector<NotedMatch> NotedMatches(const fs::path& file) {
-	std::vector<NotedMatch> matches;
+// the file is the player's to edit, or to damage. A note from before the
+// fighters were written has none.
+std::vector<slots::NotedMatch> NotedMatches(const fs::path& file) {
+	std::vector<slots::NotedMatch> matches;
 	std::ifstream in(file);
 	for (std::string line; std::getline(in, line);) {
 		const auto json = nlohmann::json::parse(line, nullptr, false);
@@ -415,7 +415,11 @@ std::vector<NotedMatch> NotedMatches(const fs::path& file) {
 		const auto started = json.find("started"), spectated = json.find("spectated");
 		if (started == json.end() || !started->is_number_unsigned()) continue;
 		const auto name = [&](const char* key) { const auto at = json.find(key); return at != json.end() && at->is_string() ? at->get<std::string>() : std::string(); };
-		matches.push_back({started->get<std::uint64_t>(), {name("p1"), name("p2")}, spectated != json.end() && spectated->is_boolean() && spectated->get<bool>()});
+		const auto fighter = [&](const char* key) {
+			const auto at = json.find(key);
+			return at != json.end() && at->is_number_integer() && at->get<std::int64_t>() >= 0 && at->get<std::int64_t>() < 64 ? static_cast<int>(at->get<std::int64_t>()) : -1;
+		};
+		matches.push_back({started->get<std::uint64_t>(), {name("p1"), name("p2")}, {fighter("f1"), fighter("f2")}, spectated != json.end() && spectated->is_boolean() && spectated->get<bool>()});
 	}
 	return matches;
 }
@@ -424,7 +428,7 @@ std::vector<NotedMatch> NotedMatches(const fs::path& file) {
 // their files changed.
 struct NotesCache {
 	fs::file_time_type notedWritten{}, watchedWritten{};
-	std::vector<NotedMatch> noted;
+	std::vector<slots::NotedMatch> noted;
 	std::vector<std::string> watched;
 };
 
@@ -442,11 +446,9 @@ std::vector<ArchivedReplay> List(NotesCache& cache) {
 
 	std::vector<ArchivedReplay> archived = Index().Refresh(folders.archive);
 	for (ArchivedReplay& replay : archived) {
-		// The last match started before the save, allowing two minutes of clock skew.
-		const NotedMatch* match = nullptr;
-		for (const NotedMatch& candidate : cache.noted)
-			if (candidate.started <= replay.time + 120 && replay.time < candidate.started + 3600 && (!match || candidate.started > match->started)) match = &candidate;
-		if (match) { replay.names[0] = match->names[0]; replay.names[1] = match->names[1]; replay.spectated = match->spectated; }
+		if (const slots::NotedMatch* match = slots::MatchOf(cache.noted, replay.time, replay.fighters)) {
+			replay.names[0] = match->names[0]; replay.names[1] = match->names[1]; replay.spectated = match->spectated;
+		}
 		replay.watched = std::find(cache.watched.begin(), cache.watched.end(), WideToUtf8(replay.path.filename().wstring())) != cache.watched.end();
 	}
 	std::sort(archived.begin(), archived.end(), [](const ArchivedReplay& a, const ArchivedReplay& b) { return a.time > b.time; });

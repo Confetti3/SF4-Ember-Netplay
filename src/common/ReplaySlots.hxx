@@ -351,6 +351,33 @@ inline bool Import(const Bytes& exported, int slot, std::uint32_t now, Bytes& li
 	return true;
 }
 
+// A match as Ember noted it when it started (platform/ReplayFiles.hxx:
+// NoteMatchStart): when, the two players' names, their fighters (-1 in a note
+// written before fighters were) and whether this PC only watched.
+struct NotedMatch {
+	std::uint64_t started;
+	std::string names[2];
+	int fighters[2];
+	bool spectated;
+};
+
+// The match a replay saved at `saved` belongs to: the last one that started
+// before the save, within the hour, with the replay's two fighters. Both
+// times are this PC's clock, so the start is never after the save; a replay
+// is saved as its match ends, and in a room the next match has often started
+// by the time it is looked at, which is why the save is the limit. Null when
+// no note fits.
+inline const NotedMatch* MatchOf(const std::vector<NotedMatch>& noted, std::uint64_t saved, const int fighters[2]) {
+	const NotedMatch* match = nullptr;
+	for (const NotedMatch& candidate : noted) {
+		if (candidate.started > saved || saved >= candidate.started + 3600) continue;
+		const bool named = candidate.fighters[0] >= 0 && candidate.fighters[1] >= 0;
+		if (named && (candidate.fighters[0] != fighters[0] || candidate.fighters[1] != fighters[1])) continue;
+		if (!match || candidate.started > match->started) match = &candidate;
+	}
+	return match;
+}
+
 // The files an import changes, as data: each by its name in the save folder,
 // with the bytes it gets and the bytes it had before anything was changed.
 // The replay and its ".0" come first and the indexes that name it last, so an
