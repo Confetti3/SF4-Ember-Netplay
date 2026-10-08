@@ -169,6 +169,15 @@ fSystem::SemanticHashes fSystem::ComputeSemanticHashes(rSystem* src) {
     return out;
 }
 
+void fSystem::CaptureMeterSample(rSystem* src, bool show) {
+    // The inputs the frame was played with are still in the playback slot.
+    const auto& pads = fPadSystem::playbackData[0];
+    int confirmed = -1;
+    if (localPlayerHandle == GGPO_INVALID_HANDLE) { sf4e::training::ObserveMatch(src, 0, -1, pads[0].rawOn, pads[1].rawOn); return; }
+    if (show && !(ggpo && GGPO_SUCCEEDED(ggpo_get_last_confirmed_frame(ggpo, &confirmed)))) confirmed = -1;
+    sf4e::training::ObserveMatch(src, lastGgpoSaveFrame, confirmed, pads[0].rawOn, pads[1].rawOn);
+}
+
 void fSystem::CaptureHashCheckpoint(rSystem* src) {
     // The engine counter is a signed 16-bit field and wraps during a long
     // match. GGPO's save callback uses a monotonic frame identity; spectators
@@ -697,6 +706,31 @@ bool fSystem::SaveState::Load(SaveState* src) {
     }
     if (sf4e::crash::HeapCheckEnabled()) sf4e::crash::HeapCheckpoint("load", src->simulationFrame);
     return !sf4e::Game::MementoFailure::restore;
+}
+
+void fSystem::SaveState::ForgetFinishedSounds(SaveState* state) {
+    int forgotten = 0;
+    for (auto& saved : state->criPlayerState) {
+        auto& sound = saved.second;
+        if (!sound.bLive) continue;
+        // Still playing: a live real sound of the same request whose player
+        // has not run out. The real players are asked themselves, by the
+        // game's own check, since their records are live until stopped too.
+        bool playing = false;
+        for (auto managerIter = fSoundPlayerManager::shadowManagerMap.begin();
+            !playing && managerIter != fSoundPlayerManager::shadowManagerMap.end(); managerIter++) {
+            rSoundPlayerManager* realManager = managerIter->second;
+            rSoundPlayerManager::CriPlayerAdapter* realPlayers = *rSoundPlayerManager::GetAdapters(realManager);
+            for (int i = 0; !playing && i < *rSoundPlayerManager::GetNumAdapters(realManager); i++) {
+                const auto real = fSoundPlayerManager::adapterToCurrentSound.find(&realPlayers[i]);
+                playing = real != fSoundPlayerManager::adapterToCurrentSound.end() && real->second.bLive &&
+                    fSoundPlayerManager::DeferredSoundRequest::IsEqual(&sound, &real->second) &&
+                    (realPlayers[i].*rSoundPlayerManager::CriPlayerAdapter::publicMethods.IsStillPlaying)();
+            }
+        }
+        if (!playing) { sound.bLive = false; ++forgotten; }
+    }
+    if (forgotten) spdlog::info("SaveState: {} sounds that had ended are not kept as playing in this state", forgotten);
 }
 
 bool fSystem::SaveState::Save(SaveState* dst, bool temporary) {

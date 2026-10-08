@@ -9,7 +9,8 @@ namespace sf4e { namespace ui {
 std::string FitLabel(const std::string& text,float width) {
     if(ImGui::CalcTextSize(text.c_str()).x<=width)return text;
     const char* end=nullptr;
-    ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(),(std::max)(1.f,width-ImGui::CalcTextSize("...").x),0,text.c_str(),nullptr,&end);
+    // A measured width is rounded up, so the cut leaves a pixel for that.
+    ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(),(std::max)(1.f,width-ImGui::CalcTextSize("...").x-1),0,text.c_str(),nullptr,&end);
     return std::string(text.c_str(),end)+"...";
 }
 namespace {
@@ -244,17 +245,19 @@ void GameMenu::DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEd
         if(!navigation.Editing()) ImGui::CloseCurrentPopup();
         else {
             const auto* entry=FindEntry(entries,navigation.EditingId());
-            const std::size_t limit=entry?(std::min)(std::size_t(4096),entry->textLimit):4096;
+            const std::size_t limit=entry?(std::min)(std::size_t(8192),entry->textLimit):4096;
             const bool canAccept=entry&&entry->enabled;
             ImGui::TextWrapped("%s",entry?entry->label.c_str():loc::T("edit.title"));
-            ImGui::TextWrapped("%s",loc::T("edit.instructions"));
+            const bool area=entry&&entry->multiline;
+            ImGui::TextWrapped("%s",loc::T(area?"edit.instructions.area":"edit.instructions"));
             const bool secret=navigation.EditingSecret();
-            char draft[4097]={}; std::strncpy(draft,navigation.Draft().c_str(),limit);
+            char draft[8193]={}; std::strncpy(draft,navigation.Draft().c_str(),limit);
             // A masked passphrase draws only asterisks, so its glyphs are never needed.
             if(!secret) NoteUserText(navigation.Draft(),UserTextRole::Draft);
             if(lastEdit_!=navigation.EditingId()) ImGui::SetKeyboardFocusHere();
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-            if(ImGui::InputText(secret?"##Secret":"##Draft",draft,limit+1,secret?ImGuiInputTextFlags_Password:0)) navigation.Draft(draft);
+            if(area) { if(ImGui::InputTextMultiline("##Area",draft,limit+1,ImVec2(ImGui::GetContentRegionAvail().x,10*ImGui::GetTextLineHeightWithSpacing()))) navigation.Draft(draft); }
+            else if(ImGui::InputText(secret?"##Secret":"##Draft",draft,limit+1,secret?ImGuiInputTextFlags_Password:0)) navigation.Draft(draft);
             if(secret) WipeText(draft,sizeof(draft));
             ImGui::TextDisabled("%s",loc::Tf("edit.bytes",static_cast<unsigned>(navigation.Draft().size()),static_cast<unsigned>(limit)).c_str());
             const bool visualAccept=entry&&feedback_.Enabled(*entry);

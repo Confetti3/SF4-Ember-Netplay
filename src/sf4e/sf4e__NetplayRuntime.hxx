@@ -10,6 +10,7 @@
 //   sf4e__NetplayRuntime__Tournament.cxx  playing a bridge-run tournament match
 //   sf4e__NetplayRuntime__PublicRooms.cxx the bridge's public room list and admissions
 #include "sf4e__NetplayFacade.hxx"
+#include "sf4e__ReplayStore.hxx"
 #include "sf4e__RuntimeBridge.hxx"
 #include "sf4e__InputDevices.hxx"
 #include "../Dimps/Dimps__Selection.hxx"
@@ -26,6 +27,7 @@
 #include "../session/IrohMatchSession.hxx"
 #include "../session/RoomRecoveryRuntime.hxx"
 #include "../session/ReadyChime.hxx"
+#include "../session/TrainingCall.hxx"
 #include "../netplay/AutoDelayCheck.hxx"
 #include "../netplay/CreatedRules.hxx"
 #include "../netplay/BoundedMailbox.hxx"
@@ -178,6 +180,13 @@ struct Runtime {
     netplay::tournament::OpenedLink openedLink;
     // Discord connect links (ember://discord/connect) likewise: the service.
     platform::ConnectLinkMailbox connectLinks;
+    // Replay links (common/ReplayLink.hxx) from the launcher, and the file
+    // the last one asked for: a question on the Replays screen until the
+    // player answers it (RuntimeSnapshot::replays.link).
+    platform::ReplayLinkMailbox replayLinks;
+    std::string replayLinkAsked;
+    // Lists the archive for the Replays screen, on its own thread.
+    platform::replays::ArchiveLister replayLister;
     netplay::tournament::OpenedLink openedConnect;
     // Public room links (ember://room/open) likewise: the service and the room.
     platform::PublicRoomLinkMailbox publicRoomLinks;
@@ -217,6 +226,14 @@ struct Runtime {
 	// The opponent's fighter changed between games; the sequence moves per change.
 	room::OpponentFighterWatch opponentFighterWatch;
 	std::uint64_t opponentChangeSequence = 0;
+	// A player waiting in Training is called to their table. The sequences
+	// move when the table is to be shown and when a Ready is to be sent for
+	// the player; both are the shell's to act on, since a Ready carries the
+	// selection the shell holds.
+	room::TrainingCall trainingCall;
+	std::uint64_t trainingCallSequence = 0, trainingReadySequence = 0;
+	// When the room was last told whether the player is in Training.
+	std::uint64_t trainingSaidAtMs = 0;
 	Intent lobbyEditIntent{15000, Intent::Completion::OnDispatch};
 	std::string readyFailure;
 	std::uint64_t readyFailureSequence = 0;
@@ -316,6 +333,13 @@ void TickTournament(bool helperReady);
 void OpenMatchLink(const tournament_link::MatchLink& link);
 // `launched`: the link started Ember, so it was just clicked.
 void OpenConnectLink(const std::string& bridge, bool launched = false);
+// Runs a request from the Replays screen, or the player's answer to a
+// replay link, and once a tick takes links, asks for listings and moves the
+// replay operation on (sf4e__ReplayStore.hxx).
+void RunReplayRequest(const replay::Request& request);
+void TickReplays();
+// The Replays screen asked for a listing since the last call (NetplayFacade::WantReplayList).
+bool TakeReplayListWanted();
 // Hands a public room link to the interface, which asks for the room's ticket
 // when the player is free. `launched` as for OpenConnectLink.
 void OpenPublicRoomLink(const tournament_link::RoomLink& link, bool launched = false);

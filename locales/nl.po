@@ -622,6 +622,218 @@ msgstr "Offline spelen"
 msgid "home.offline_detail"
 msgstr "Open de offline spelmenu’s."
 
+msgid "home.replays"
+msgstr "Replays"
+
+msgid "home.replays_detail"
+msgstr "Elke match wordt opgeslagen. Zet er een in het Replay Channel van het spel."
+
+msgid "replays.title"
+msgstr "Replays"
+
+msgid "replays.empty"
+msgstr "Nog geen replays"
+
+msgid "replays.empty_detail"
+msgstr "Een match wordt hier opgeslagen als hij eindigt."
+
+msgid "replays.add"
+msgstr "Aan spel toevoegen"
+
+msgid "replays.add_detail"
+msgstr "Voegt hem toe aan de replaylijst van het spel om later vanuit het gevechtslogboek te bekijken."
+
+msgid "replays.watch"
+msgstr "Nu bekijken"
+
+msgid "replays.watch_detail"
+msgstr "Voegt hem toe aan de replaylijst van het spel en speelt hem af vanuit het gevechtslogboek."
+
+msgid "replays.save_watched"
+msgstr "Matches waar je naar kijkt opslaan"
+
+msgid "replays.save_watched_detail"
+msgstr "Aan: matches waar je alleen naar kijkt worden ook opgenomen. Uit: alleen de matches die je zelf speelt."
+
+msgid "replays.link"
+msgstr "Een link wil een replay afspelen"
+
+msgid "replays.link_detail"
+msgstr "Een link vroeg Ember om {0} af te spelen. Speel hem alleen af als je weet waar de link vandaan komt."
+
+msgid "replays.link_play"
+msgstr "Afspelen"
+
+msgid "replays.link_dismiss"
+msgstr "Nu niet"
+
+msgid "replays.link_dismiss_detail"
+msgstr "Laat het bestand staan en vergeet de link."
+
+msgid "replays.export_gpu"
+msgstr "Video exporteren (GPU)"
+
+msgid "replays.export_gpu_detail"
+msgstr "Neemt hem op als .mp4 op de volledige beeldgrootte van het spel, gecodeerd door je grafische kaart."
+
+msgid "replays.exported"
+msgstr "Video opgeslagen: {0}"
+
+msgid "replays.gpu_not_exported"
+msgstr "Er is geen video gemaakt. Windows gaf geen H.264-encoder, of het beeld van het spel kon niet worden gelezen. De reden staat in het logboek."
+
+msgid "replays.video"
+msgstr "Video"
+
+msgid "replays.open_folder"
+msgstr "Replaymap openen"
+
+msgid "replays.open_folder_detail"
+msgstr "Opent het archief in Verkenner: replays en geëxporteerde video's."
+
+msgid "services.opening_replay_folder"
+msgstr "Replaymap wordt geopend…"
+
+msgid "services.replay_folder_opened"
+msgstr "{0} geopend in Verkenner."
+
+msgid "services.replay_folder_failed"
+msgstr "De replaymap kon niet worden geopend."
+
+msgid "replays.inputs"
+msgstr "Inputs en statistieken"
+
+msgid "replays.inputs_detail"
+msgstr "Toont wat beide spelers indrukten, frame voor frame, en hoe vaak. Gelezen uit het replaybestand; er wordt niets afgespeeld."
+
+msgid "replays.info_look"
+msgstr "Kostuum {0}, kleur {1}, Ultra {2}"
+
+msgid "inputs.length_value"
+msgstr "Rondes: {0}, {1}"
+
+msgid "inputs.buttons"
+msgstr "{0}: knopdrukken"
+
+msgid "inputs.activity"
+msgstr "{0} inputs per minuut, {1} sprongen, {2}% van de tijd gehurkt."
+
+msgid "inputs.round"
+msgstr "Ronde {0}"
+
+msgid "inputs.legend"
+msgstr "Elke regel: de tijd, dan wat P1 en P2 vanaf daar vasthouden. Richtingen zoals op een numeriek toetsenblok, gezien op het scherm: 4 is links, 6 is rechts, 5 is geen."
+
+msgid "inputs.unreadable"
+msgstr "Inputs kunnen niet worden gelezen"
+
+msgid "inputs.unreadable_detail"
+msgstr "Deze replay heeft een ouder formaat, of het bestand is beschadigd."
+
+msgid "export.title"
+msgstr "Video exporteren"
+
+msgid "export.detail"
+msgstr "Wordt tijdens het opnemen over het spel getoond, op het scherm en in de video."
+
+msgid "export.names"
+msgstr "Spelersnamen"
+
+msgid "export.name"
+msgstr "Speler {0}"
+
+msgid "export.line"
+msgstr "Matchregel"
+
+msgid "export.line_text"
+msgstr "Tekst van de matchregel"
+
+msgid "export.set"
+msgstr "Setstand"
+
+msgid "export.set_detail"
+msgstr "De overwinningen van elke speler in de set tot nu toe, naast de naam. Geteld uit de matches die deze twee vlak hiervoor speelden; pas hem aan als hij niet klopt."
+
+msgid "export.set_wins"
+msgstr "Overwinningen speler {0}"
+
+msgid "export.mark"
+msgstr "Ember-merk"
+
+msgid "export.generate"
+msgstr "Video maken"
+
+msgid "replays.frame_meter"
+msgstr "Framemeter"
+
+msgid "replays.frame_meter_detail"
+msgstr "Nu bekijken en Video exporteren tonen de framemeter van de training over de replay. Bij een export staat hij ook in de video."
+
+msgid "replays.row_detail"
+msgstr "Selecteer om hem aan de replaylijst van het spel toe te voegen, of om hem toe te voegen en nu te bekijken."
+
+msgid "replays.watched"
+msgstr "Bekeken"
+
+msgid "replays.spectated"
+msgstr "Toegekeken"
+
+msgid "replays.watched_spectated"
+msgstr "Bekeken, toegekeken"
+
+msgid "replays.not_ready"
+msgstr "Beschikbaar in het hoofdmenu, buiten een match."
+
+msgid "replays.added"
+msgstr "Toegevoegd aan de replaylijst van het spel, onder de datum waarop hij gespeeld is."
+
+msgid "replays.not_added"
+msgstr "Deze replay kon niet worden toegevoegd. Het bestand is mogelijk beschadigd."
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "Gevechtslogboek van het spel openen"
+
+msgid "replays.open_log_detail"
+msgstr "Verlaat het Ember-menu voor het lokale gevechtslogboek van het spel, waar replays worden afgespeeld."
+
+msgid "replays.open_log_room"
+msgstr "Verlaat eerst de kamer."
+msgid "home.training"
+msgstr "Training"
+
+msgid "home.training_detail"
+msgstr "Ga direct naar de Training-modus, zonder de Fight Request-vraag."
+
+msgid "settings.training_auto_ready"
+msgstr "Maak mij gereed bij oproep uit Training"
+
+msgid "settings.training_auto_ready_detail"
+msgstr "Uit: als je uit Training naar je tafel wordt geroepen, heb je 15 seconden om op Gereed te drukken, anders geef je je plek op. Aan: je wordt meteen gereed gemeld."
+
+msgid "settings.match_frame_meter"
+msgstr "Framemeter in matches"
+
+msgid "settings.match_frame_meter_detail"
+msgstr "Toont de framemeter uit Training over je online matches en de matches die je bekijkt. Alleen jij ziet hem. Hij loopt achter met de frames die nog op de invoer van de andere speler wachten."
+
+msgid "room.training.detail"
+msgstr "Wacht in de Training-modus zonder de kamer te verlaten. Zodra er een vechter tegenover je gaat zitten, haalt de game je hierheen terug om je gereed te melden."
+
+msgid "room.training.unavailable"
+msgstr "Training vanuit de kamer kan alleen in het hoofdmenu, zolang er nog niemand tegenover je zit, je niet gereed bent en er geen game van jou start."
+
+msgid "room.training_call.ready_in"
+msgstr "Meld je gereed binnen {0} s, anders geef je je plek op."
+
+msgid "runtime.training_call.forfeit"
+msgstr "Je meldde je niet op tijd gereed na de oproep uit Training, dus je plek is opgegeven."
+
 msgid "home.choose_controller"
 msgstr "Kies spelcontroller"
 
@@ -1147,6 +1359,33 @@ msgstr "F6 Trainingsbesturing"
 msgid "training.hide_hint"
 msgstr "F5 HUD verbergen"
 
+msgid "training.save_recording"
+msgstr "Opname opslaan als"
+
+msgid "training.save_recording.detail"
+msgstr "Schrijft het gekozen slot naar een bestand met deze naam, naast je combo's."
+
+msgid "training.load_recording"
+msgstr "Opname laden"
+
+msgid "training.load_recording.detail"
+msgstr "Links en Rechts kiezen een opgeslagen opname; Selecteren laadt hem in het gekozen slot."
+
+msgid "training.recording_saved"
+msgstr "Opname opgeslagen als {0}."
+
+msgid "training.recording_loaded"
+msgstr "Opname {0} geladen in slot {1}."
+
+msgid "training.recording_none"
+msgstr "Geen opgeslagen opnames."
+
+msgid "training.replay_chip"
+msgstr "F8 Slot {0} afspelen"
+
+msgid "training.stop_chip"
+msgstr "F8 Stoppen"
+
 msgid "training.dummy_recording"
 msgstr "Dummyopname"
 
@@ -1158,6 +1397,735 @@ msgstr "Invoergeschiedenis"
 
 msgid "training.input_history.detail"
 msgstr "Bekijk de invoer van beide spelers."
+
+msgid "training.combo.title"
+msgstr "Combomaker"
+
+msgid "training.combo.title.detail"
+msgstr "Schrijf combo's als moves, deel ze en bekijk elke route."
+
+msgid "training.combo.none"
+msgstr "Geen"
+
+msgid "training.combo.pack"
+msgstr "Pakket"
+
+msgid "training.combo.pack.detail"
+msgstr "Een pakket met combo's van deze vechter; het bevat er {0}. Links en Rechts lopen door de pakketten van de vechter."
+
+msgid "training.combo.new_pack"
+msgstr "Nieuw pakket"
+
+msgid "training.combo.combo"
+msgstr "Combo"
+
+msgid "training.combo.fighter"
+msgstr "Vechter"
+
+msgid "training.combo.fighter.detail"
+msgstr "De vechter bij wie de pakketten en combo's hieronder horen: alleen die van deze vechter worden getoond en kunnen worden gekozen. Hij volgt Speler 1 wanneer een gevecht begint; Links en Rechts kiezen een andere om te bekijken of voor te schrijven."
+
+msgid "training.combo.name"
+msgstr "Naam van combo"
+
+msgid "training.combo.steps"
+msgstr "Moves"
+
+msgid "training.combo.notes"
+msgstr "Notities"
+
+msgid "training.combo.add"
+msgstr "Nieuwe combo toevoegen"
+
+msgid "training.combo.add.detail"
+msgstr "Vraagt om een naam en voegt de moves dan als nieuwe combo toe aan het gekozen pakket. De gekozen combo blijft zoals hij is; Combo opslaan is degene die hem overschrijft. Voorbeeldmoves: cr.MK xx HP Hadoken > FADC > cl.HP"
+
+msgid "training.combo.add.unnamed"
+msgstr "nog geen naam"
+
+msgid "training.combo.capture.drop"
+msgstr "Opname stopt bij drop"
+
+msgid "training.combo.capture.drop.detail"
+msgstr "Aan: Combo opnemen stopt zodra de andere vechter weer vrij is, zodat één opname één combo is en een nieuwe poging na een drop er niet achteraan wordt geschreven. Uit: het loopt door tot er anderhalve seconde niets gebeurt, voor setups en reeksen die niet één combo zijn."
+
+msgid "training.combo.trials_loaded"
+msgstr "{0} had nog geen combo's: de {1} trials van de game zijn ingelezen."
+
+msgid "training.combo.save"
+msgstr "Combo opslaan"
+
+msgid "training.combo.save.detail"
+msgstr "Schrijft de naam, moves, notities en dummy-instellingen zoals getypt over de gekozen combo."
+
+msgid "training.combo.saved"
+msgstr "Combo opgeslagen."
+
+msgid "training.combo.duplicate"
+msgstr "Combo dupliceren"
+
+msgid "training.combo.duplicate.detail"
+msgstr "Kopieert de gekozen combo in dit pakket, er direct achter, en selecteert de kopie."
+
+msgid "training.combo.duplicated"
+msgstr "Combo gedupliceerd."
+
+msgid "training.combo.copy_suffix"
+msgstr "kopie"
+
+msgid "training.combo.tree"
+msgstr "Comboboom"
+
+msgid "training.combo.tree.detail"
+msgstr "Elke route in je pakketten, per vechter."
+
+msgid "training.combo.tree.empty"
+msgstr "Nog geen combo's."
+
+msgid "training.combo.copy_combo"
+msgstr "Combo kopiëren"
+
+msgid "training.combo.copy_pack"
+msgstr "Pakket kopiëren"
+
+msgid "training.combo.copy_all"
+msgstr "Alle pakketten kopiëren"
+
+msgid "training.combo.copy.detail"
+msgstr "Kopieert het als tekst om te delen."
+
+msgid "training.combo.paste"
+msgstr "Importeren van klembord"
+
+msgid "training.combo.paste.detail"
+msgstr "Voegt een gekopieerde combo, pakket of reeks pakketten toe."
+
+msgid "training.combo.delete"
+msgstr "Combo verwijderen"
+
+msgid "training.combo.delete.detail"
+msgstr "Haalt de gekozen combo uit het pakket."
+
+msgid "training.combo.added"
+msgstr "Combo's toegevoegd: {0}."
+
+msgid "training.combo.exists"
+msgstr "Die route zit al in het pakket."
+
+msgid "training.combo.copied"
+msgstr "Gekopieerd."
+
+msgid "training.combo.invalid"
+msgstr "Niet geaccepteerd: {0}"
+
+msgid "training.combo.save_failed"
+msgstr "De combo's konden niet worden opgeslagen."
+
+msgid "training.combo.import_trials"
+msgstr "Trials van de game importeren"
+
+msgid "training.combo.import_trials.detail"
+msgstr "Leest de eigen trials van de game voor de hierboven gekozen vechter in twee pakketten met de naam van de vechter: de trials van Ultra Street Fighter 4, en de trials van Street Fighter 4 die de game nog van voor Ultra meedraagt. Een vechter zonder pakket krijgt ze vanzelf wanneer een gevecht begint."
+
+msgid "training.combo.export_trial"
+msgstr "Pakket exporteren als trialbestand"
+
+msgid "training.combo.export_trial.detail"
+msgstr "Schrijft de combo's van dit pakket voor de hierboven gekozen vechter als {0} in de map trials naast je combo's: 24 combo's, die van jezelf eerst; een combo met meer dan 8 moves wordt helemaal weggeschreven en de game toont zonder de scrollijst-mod alleen de eerste 8. Op de plaats van de {0} van de game gezet (bewaar een back-up) speelt Trial-modus hem."
+
+msgid "training.combo.trials_imported"
+msgstr "Trials gelezen: {0} van {1}. Combo's toegevoegd: {2}."
+
+msgid "training.combo.trial_exported"
+msgstr "Combo's geschreven: {0}, naar {1}. Zet het op de plaats van {2}, met een back-up; Trial-modus laadt het."
+
+msgid "training.combo.trial_skipped"
+msgstr "Weggelaten of gewijzigd: {0}. Eerste: {1}"
+
+msgid "training.combo.trial_none"
+msgstr "Geen combo uit dit pakket kon voor {0} worden geschreven."
+
+msgid "training.combo.game_file"
+msgstr "De bestanden van de game konden niet worden gelezen: {0}"
+
+msgid "training.combo.trial_failed"
+msgstr "Het trialbestand kon niet worden geschreven: {0}"
+
+msgid "training.combo.run.start"
+msgstr "Trial starten"
+
+msgid "training.combo.run.start.detail"
+msgstr "Oefen de gekozen combo als Speler 1: de moves staan over het gevecht en worden afgevinkt zodra elke move uitkomt en raakt. Speler 1 moet de vechter van de combo zijn."
+
+msgid "training.combo.run.stop"
+msgstr "Trial stoppen"
+
+msgid "training.combo.run.stop.detail"
+msgstr "Haalt de lijst met moves van het scherm."
+
+msgid "training.combo.run.started"
+msgstr "Trial gestart voor {0}. Gecontroleerde moves: {1} van {2}."
+
+msgid "training.combo.run.refused"
+msgstr "De trial kon niet starten: {0}"
+
+msgid "training.combo.run.stopped"
+msgstr "Trial gestopt."
+
+msgid "training.combo.run.count"
+msgstr "Gehaald: {0}. Pogingen: {1}. Percentage: {2}%."
+
+msgid "training.combo.run.complete"
+msgstr "Combo gehaald!"
+
+msgid "training.combo.run.failed"
+msgstr "Move {0}: {1}"
+
+msgid "training.combo.run.wrong_move"
+msgstr "er kwam een andere move uit"
+
+msgid "training.combo.run.whiffed"
+msgstr "de volgende move kwam uit voordat deze raakte"
+
+msgid "training.combo.run.dropped"
+msgstr "de combo viel weg"
+
+msgid "training.combo.run.unchecked"
+msgstr "{0} (niet gecontroleerd)"
+
+msgid "training.combo.replay"
+msgstr "Moves afspelen"
+
+msgid "training.combo.replay.detail"
+msgstr "Speelt de getypte moves, of de gekozen combo, af als pad-invoer. De timing is een gok: pas de link-ruimte aan en kijk welke moves eruit komen."
+
+msgid "training.combo.replay.by"
+msgstr "Afgespeeld door"
+
+msgid "training.combo.replay.by.dummy"
+msgstr "Dummy (Speler 2)"
+
+msgid "training.combo.replay.by.me"
+msgstr "Ik (Speler 1)"
+
+msgid "training.combo.replay.by.detail"
+msgstr "Wie de moves uitvoert. Links en Rechts wisselen."
+
+msgid "training.combo.replay.facing"
+msgstr "Kijkrichting"
+
+msgid "training.combo.replay.facing.right"
+msgstr "Rechts"
+
+msgid "training.combo.replay.facing.left"
+msgstr "Links"
+
+msgid "training.combo.replay.facing.detail"
+msgstr "Waarheen die speler kijkt bij de start; voorwaartse moves worden zo gelezen."
+
+msgid "training.combo.replay.gap"
+msgstr "Timingverschuiving"
+
+msgid "training.combo.replay.gap.detail"
+msgstr "Frames die elke move na zijn sein nog wacht (het vrije frame bij een link, de treffer bij een cancel), bovenop de eigen @-verschuiving zoals cr.MK@+1."
+
+msgid "training.combo.replay.stopped"
+msgstr "Afspelen gestopt."
+
+msgid "training.combo.replay.started"
+msgstr "Afspelen geladen in slot {0} en gestart."
+
+msgid "training.combo.timing"
+msgstr "Timing bewerken"
+
+msgid "training.combo.timing.detail"
+msgstr "De gekozen combo move voor move: de timingverschuiving van elke move en wat de laatste afspeelbeurt zag."
+
+msgid "training.combo.timing.replay.detail"
+msgstr "Speelt de gekozen combo af zoals hij nu is, zodat het verslag per move hieronder bijwerkt."
+
+msgid "training.combo.tune"
+msgstr "Follow-ups afstellen"
+
+msgid "training.combo.tune.stop"
+msgstr "Afstellen stoppen"
+
+msgid "training.combo.tune.detail"
+msgstr "Speelt beurt na beurt af en maakt elke ~ follow-up een frame later zolang de move erna nog raakt, en houdt de langste die dat doet. Vereist Herstellen voor afspelen met een opgeslagen positie."
+
+msgid "training.combo.tune.none"
+msgstr "Geen ~ follow-up met een move erna om af te stellen."
+
+msgid "training.combo.tune.trying"
+msgstr "Move {0} afstellen: @{1} proberen."
+
+msgid "training.combo.tune.kept"
+msgstr "Move {0} blijft op @{1}."
+
+msgid "training.combo.tune.failed"
+msgstr "Move {0}: de move erna raakt bij geen enkele geprobeerde lengte; de verschuiving staat weer waar ze stond. De loop eindigt hier."
+
+msgid "training.combo.tune.done"
+msgstr "Afstellen klaar."
+
+msgid "training.combo.tune.stopped"
+msgstr "Afstellen gestopt."
+
+msgid "training.combo.timing.select"
+msgstr "Kies eerst een combo."
+
+msgid "training.combo.timing.none"
+msgstr "Nog niet afgespeeld."
+
+msgid "training.combo.timing.gave_up"
+msgstr "Het afspelen wachtte op het sein voor deze move en zag het nooit."
+
+msgid "training.combo.timing.first"
+msgstr "Eerste move; verbonden: {0}."
+
+msgid "training.combo.timing.cancel"
+msgstr "Wachtte {0} frames op de treffer; verbonden: {1}."
+
+msgid "training.combo.timing.link"
+msgstr "Wachtte {0} frames tot de vechter vrij was; verbonden: {1}."
+
+msgid "training.combo.timing.hit"
+msgstr "ja"
+
+msgid "training.combo.timing.no_hit"
+msgstr "nee"
+
+msgid "training.combo.timing.adjust"
+msgstr "Links en Rechts verschuiven een frame."
+
+msgid "training.combo.timing.drops"
+msgstr "Hier {0} keer gemist."
+
+msgid "training.combo.blocks"
+msgstr "Patrooneditor"
+
+msgid "training.combo.blocks.detail"
+msgstr "De moves als blokken op een frameliniaal, zoals in een stepsequencer: elk blok drukt op zijn frame en het afspelen volgt die frames."
+
+msgid "training.combo.blocks.frame"
+msgstr "Frame {0}"
+
+msgid "training.combo.blocks.hint"
+msgstr "Links en Rechts schuiven het blok een frame; sleep het met de muis. Selecteren bewerkt de move."
+
+msgid "training.combo.blocks.add"
+msgstr "Move toevoegen"
+
+msgid "training.combo.blocks.delete"
+msgstr "Blok verwijderen"
+
+msgid "training.combo.blocks.delete.detail"
+msgstr "Haalt het gemarkeerde blok weg."
+
+msgid "training.combo.blocks.replay.detail"
+msgstr "Speelt het patroon op zijn frames af."
+
+msgid "training.combo.blocks.empty"
+msgstr "Nog geen moves. Voeg er hieronder een toe."
+
+msgid "training.guide"
+msgstr "Over dit scherm"
+
+msgid "training.home.guide"
+msgstr "Deze besturing werkt op het gevecht waarin je zit. Dummyopname neemt pad-invoer op voor de dummy en speelt die af. Invoergeschiedenis toont wat elke speler indrukte. Combomaker schrijft combo's op, speelt ze voor je af en controleert je eigen pogingen als trials. F6 opent en sluit de besturing, de pijlen bewegen, Enter selecteert en Esc gaat een scherm terug."
+
+msgid "training.recording.guide"
+msgstr "Kies een slot en dan Opnemen: de pad van Speler 1 bestuurt de dummy tot je stopt. Afspelen laat de dummy het slot herhalen, en Herhalen blijft het herhalen. F7 start en stopt een opname zonder dit scherm te openen. Slots blijven alleen voor dit gevecht; Opname opslaan als bewaart er een als bestand met een naam en Opname laden haalt hem terug."
+
+msgid "training.history.guide"
+msgstr "De pad-invoer van elke speler, nieuwste eerst, met de frames dat elke invoer ingedrukt was. Selecteer een speler om de lijst te lezen. Je ziet wat er werd ingedrukt, niet welke move eruit kwam."
+
+msgid "training.combo.guide"
+msgstr "1. De vechter bovenaan is die van Speler 1; zijn pakketten en combo's zijn de rijen eronder. 2. Zet de moves op de Moves-regel: typ ze, of gebruik Combo opnemen en voer de combo uit. 3. Nieuwe combo toevoegen bewaart hem in het pakket. 4. Moves bewerken past hem rij voor rij aan, Timing bewerken verschuift losse moves per frame, Moves afspelen speelt hem voor je af. 5. Trial starten controleert je eigen pogingen. Elke rij legt zichzelf uit zolang ze gemarkeerd is."
+
+msgid "training.combo.timing.guide"
+msgstr "Eén rij per move. Links en Rechts op een move verschuiven de druk een frame eerder of later (@N). Moves afspelen speelt de combo af, en elke rij zegt daarna wat het afspelen zag: hoe lang het wachtte en of de move raakte. F8 op een move speelt af tot en met die move. Toevoegen, Dupliceren en Verwijderen werken op de move die je het laatst markeerde; op de rij van een move doen Insert, D en Delete hetzelfde."
+
+msgid "training.combo.moves"
+msgstr "Moves bewerken"
+
+msgid "training.combo.moves.detail"
+msgstr "De moves van de combo naast de moves die je kunt toevoegen: sleep moves erin, verander de volgorde, pas de sterkte, houding, cancel of timing van een move aan, en herhaal een groep moves."
+
+msgid "training.combo.moves.guide"
+msgstr "Links: de combo, één move per rij. Midden: de gekozen move en wat je eraan kunt veranderen. Rechts: de moves die je kunt toevoegen. Sleep een move van rechts op de combo en hij komt na de move waarop hij landt; dubbelklikken voegt hem toe na de gekozen move. Sleep een move van de combo om hem een andere plek te geven. Met de toetsen: Omhoog en Omlaag lopen door de rijen, Selecteren op een move typt hem opnieuw, en op de rij van een move voegt Insert erna toe, dupliceert D, verwijdert Delete en zet G hem in de groep. Wijzigingen worden in de gekozen combo opgeslagen zolang de Moves-regel die combo is; anders blijven ze op de Moves-regel tot Nieuwe combo toevoegen of Combo opslaan."
+
+msgid "training.combo.moves.add"
+msgstr "Toevoegen na move {0}"
+
+msgid "training.combo.moves.add_first"
+msgstr "Eerste move toevoegen"
+
+msgid "training.combo.moves.add.detail"
+msgstr "Typ één move, of meerdere gescheiden door >, zoals op de Moves-regel. Ze komen na de move die je het laatst markeerde. Insert op de rij van een move opent dit."
+
+msgid "training.combo.moves.duplicate"
+msgstr "Move {0} dupliceren"
+
+msgid "training.combo.moves.duplicate.detail"
+msgstr "Zet een kopie direct na de move. D op de rij van de move doet hetzelfde."
+
+msgid "training.combo.moves.remove"
+msgstr "Move {0} verwijderen"
+
+msgid "training.combo.moves.remove.detail"
+msgstr "Haalt de move uit de combo. Delete op de rij van de move doet hetzelfde. Een combo houdt minstens één move."
+
+msgid "training.combo.moves.move"
+msgstr "Move {0} verplaatsen"
+
+msgid "training.combo.moves.move.value"
+msgstr "Eerder / Later"
+
+msgid "training.combo.moves.move.detail"
+msgstr "Links wisselt de move met die ervoor, Rechts met die erna."
+
+msgid "training.combo.moves.row.detail"
+msgstr "Selecteren bewerkt deze move. Insert voegt er een move na toe, D dupliceert hem, Delete verwijdert hem, G zet hem in de groep."
+
+msgid "training.combo.moves.group.start"
+msgstr "Groep starten bij move {0}"
+
+msgid "training.combo.moves.group.extend"
+msgstr "Groep uitbreiden tot move {0}"
+
+msgid "training.combo.moves.group.detail"
+msgstr "Een groep is een reeks opeenvolgende moves, getoond met hun nummers tussen haakjes. Start hem op één move, markeer een andere en breid uit: elke move ertussen doet mee. G op de rij van een move doet hetzelfde. De groep blijft tot je dit scherm verlaat."
+
+msgid "training.combo.moves.group.clear"
+msgstr "Groep {0} wissen"
+
+msgid "training.combo.moves.group.clear.detail"
+msgstr "Vergeet de groep. De moves blijven in de combo."
+
+msgid "training.combo.moves.group.duplicate"
+msgstr "Groep {0} dupliceren"
+
+msgid "training.combo.moves.group.duplicate.detail"
+msgstr "Zet een kopie van de moves van de groep direct na de groep."
+
+msgid "training.combo.moves.group.loops"
+msgstr "Aantal keer"
+
+msgid "training.combo.moves.group.loops.detail"
+msgstr "Hoe vaak achter elkaar de groep speelt zodra hij herhaald wordt. Links en Rechts veranderen het."
+
+msgid "training.combo.moves.group.loop"
+msgstr "Groep {0} herhalen x{1}"
+
+msgid "training.combo.moves.group.loop.detail"
+msgstr "Herhaalt de moves van de groep zodat ze zo vaak achter elkaar spelen. De herhalingen worden gewone rijen, zodat elke beurt apart getimed kan worden."
+
+msgid "training.combo.moves.group.remove"
+msgstr "Groep {0} verwijderen"
+
+msgid "training.combo.moves.group.remove.detail"
+msgstr "Haalt elke move van de groep uit de combo."
+
+msgid "training.combo.moves.replay.detail"
+msgstr "Speelt de moves af zoals ze nu zijn. F8 doet hetzelfde."
+
+msgid "training.combo.moves.limit"
+msgstr "Dat past niet: een combo bevat 1 tot {0} moves."
+
+msgid "training.combo.moves.changed"
+msgstr "De combo heeft nu {0} moves."
+
+msgid "training.combo.moves.column"
+msgstr "Combo"
+
+msgid "training.combo.moves.selected"
+msgstr "Move {0}"
+
+msgid "training.combo.moves.joins"
+msgstr "Na de vorige move"
+
+msgid "training.combo.moves.joins.link"
+msgstr "Link"
+
+msgid "training.combo.moves.joins.cancel"
+msgstr "Cancel (xx)"
+
+msgid "training.combo.moves.joins.follow"
+msgstr "Follow-up (~)"
+
+msgid "training.combo.moves.strength"
+msgstr "Sterkte"
+
+msgid "training.combo.moves.stance"
+msgstr "Houding"
+
+msgid "training.combo.moves.offset"
+msgstr "Timing in frames"
+
+msgid "training.combo.moves.type"
+msgstr "Deze move typen"
+
+msgid "training.combo.moves.addable"
+msgstr "Beschikbare moves"
+
+msgid "training.combo.moves.empty"
+msgstr "Nog geen moves. Sleep er een van rechts hierheen, of dubbelklik erop."
+
+msgid "training.combo.moves.add.fadc"
+msgstr "Focus cancel en dash"
+
+msgid "training.combo.moves.add.rfadc"
+msgstr "Red focus cancel en dash"
+
+msgid "training.combo.moves.add.dash"
+msgstr "Dash vooruit"
+
+msgid "training.combo.moves.add.backdash"
+msgstr "Backdash"
+
+msgid "training.combo.moves.add.focus"
+msgstr "Focus attack"
+
+msgid "training.combo.moves.add.throw"
+msgstr "Worp"
+
+msgid "training.combo.steps.detail"
+msgstr "Selecteren opent de moves als tekstvak, één move per regel. Een nieuwe regel scheidt moves net zoals > dat doet, dus de combo leest hetzelfde op één regel of op meerdere. Enter begint daar een nieuwe regel; Ctrl+Enter bevestigt."
+
+msgid "edit.instructions.area"
+msgstr "Typ of plak met het toetsenbord. Enter begint een nieuwe regel. Ctrl+Enter of de knop Accepteren bevestigt; Escape of controllerknop Terug annuleert."
+
+msgid "training.combo.blocks.guide"
+msgstr "Elk blok is een move op het frame waarop de knop wordt ingedrukt (#N). Omhoog en Omlaag kiezen een blok, Links en Rechts schuiven het een frame, en de muis sleept het. Afspelen vanaf hier drukt precies op die frames in plaats van op elke treffer te wachten, voor setups die vaste timing nodig hebben."
+
+msgid "training.combo.save_pos"
+msgstr "Positie opslaan"
+
+msgid "training.combo.save_pos.detail"
+msgstr "Bewaart beide vechters zoals ze nu zijn: plek, leven, meters, dummy-toestand."
+
+msgid "training.combo.reset_pos"
+msgstr "Positie herstellen"
+
+msgid "training.combo.reset_pos.detail"
+msgstr "Zet beide vechters terug waar ze zijn opgeslagen."
+
+msgid "training.combo.reset_before"
+msgstr "Herstellen voor afspelen"
+
+msgid "training.combo.reset_before.detail"
+msgstr "Elke afspeelbeurt en trial-poging begint vanaf de opgeslagen positie; na elke poging wordt die hersteld."
+
+msgid "training.combo.side"
+msgstr "Speler 1 begint"
+
+msgid "training.combo.side.any"
+msgstr "Waar ze staan"
+
+msgid "training.combo.side.left"
+msgstr "Links"
+
+msgid "training.combo.side.right"
+msgstr "Rechts"
+
+msgid "training.combo.side.detail"
+msgstr "De kant die Speler 1 heeft wanneer een afspeelbeurt of trial-poging begint, en na Positie herstellen. Links of Rechts draait de opgeslagen positie, of waar de twee staan, om het midden van de stage wanneer Speler 1 aan de andere kant staat: een combo die in de linkerhoek is opgeslagen begint in de rechterhoek. De kijkrichting bij het afspelen volgt daaruit. Waar ze staan verplaatst niemand."
+
+msgid "training.combo.position_saved"
+msgstr "Positie opgeslagen."
+
+msgid "training.combo.position_kept"
+msgstr "Positie opgeslagen en bij de combo bewaard."
+
+msgid "training.combo.position_reset"
+msgstr "Positie hersteld."
+
+msgid "training.combo.capture"
+msgstr "Combo opnemen"
+
+msgid "training.combo.capture.detail"
+msgstr "Schrijft de moves die Speler 1 uitvoert in de Moves-regel, elk met het aantal frames na zijn sein waarop hij werd ingedrukt (@N). Het stopt wanneer de combo dropt, als Opname stopt bij drop aan staat, en anders zodra er anderhalve seconde niets gebeurt. Daarna bewaart Nieuwe combo toevoegen of Combo opslaan ze."
+
+msgid "training.combo.capture_stop"
+msgstr "Combo-opname stoppen"
+
+msgid "training.combo.capture_started"
+msgstr "Opname loopt: voer de combo uit als Speler 1."
+
+msgid "training.combo.capture_wait"
+msgstr "Opname wordt afgerond."
+
+msgid "training.combo.captured"
+msgstr "{0} moves in de Moves-regel opgenomen ({1} zonder naam weggelaten)."
+
+msgid "training.combo.capture_empty"
+msgstr "Geen moves opgenomen."
+
+msgid "training.combo.setup.detail"
+msgstr "Links en Rechts veranderen het; het geldt meteen in de game en blijft bij de gekozen combo. Game-instelling laat de keuze van het trainingsmenu staan."
+
+msgid "training.combo.reply"
+msgstr "Dummy-antwoord"
+
+msgid "training.combo.reply.detail"
+msgstr "Wat de dummy uit zichzelf doet zodra hij weer vrij is, om een gedropte combo of een onveilig einde af te straffen: hij speelt Antwoordmoves af, of het antwoordslot als die regel leeg is. Het wacht terwijl een replay of opname loopt, en een geslaagde trial blijft ongemoeid."
+
+msgid "training.combo.reply.hit"
+msgstr "Na een gedropte combo"
+
+msgid "training.combo.reply.block"
+msgstr "Na het blokken"
+
+msgid "training.combo.reply.rise"
+msgstr "Bij het opstaan"
+
+msgid "training.combo.reply.any"
+msgstr "Telkens als hij herstelt"
+
+msgid "training.combo.reply.slot"
+msgstr "Antwoordslot"
+
+msgid "training.combo.reply.slot.detail"
+msgstr "De dummyopname die als antwoord wordt afgespeeld zolang Antwoordmoves leeg is, vanaf de eerste druk. Moves afspelen laadt er niet overheen."
+
+msgid "training.combo.reply.chance"
+msgstr "Antwoordkans"
+
+msgid "training.combo.reply.chance.detail"
+msgstr "Hoe vaak de dummy antwoordt. Onder 100% verschilt het van poging tot poging."
+
+msgid "training.combo.vary_stance"
+msgstr "Houding afwisselen"
+
+msgid "training.combo.vary_stance.detail"
+msgstr "Telkens als de dummy herstelt, staat of hurkt hij willekeurig, zodat je de combo op beide oefent. Alleen als de dummy op staan of hurken staat."
+
+msgid "training.combo.keys"
+msgstr "{0} Afspelen  {1} Herstellen  {2} Trial  {3} Opnemen"
+
+msgid "training.combo.reply.moves"
+msgstr "Antwoordmoves"
+
+msgid "training.combo.reply.moves.detail"
+msgstr "Het antwoord getypt als moves in numpadnotatie, zoals 623HP of 44, gelezen voor de kant waar de dummy naar kijkt. De beweging gaat erin terwijl de dummy nog vastzit, zodat de knop op zijn eerste vrije frame valt. Leeg gebruikt het antwoordslot."
+
+msgid "training.combo.reply.timing"
+msgstr "Antwoordtiming"
+
+msgid "training.combo.reply.timing.detail"
+msgstr "Frames na het eerste vrije frame van de dummy waarop de knop van het antwoord valt. Hoe lang een stun duurt wordt de eerste keer geleerd; tot dan begint het antwoord als de stun eindigt."
+
+msgid "training.combo.reply.slot_busy"
+msgstr "Slot {0} bevat het antwoord van de dummy. Selecteer een ander slot om moves af te spelen."
+
+msgid "training.combo.key.replay"
+msgstr "Toets afspelen"
+
+msgid "training.combo.key.reset"
+msgstr "Toets herstellen"
+
+msgid "training.combo.key.trial"
+msgstr "Toets trial"
+
+msgid "training.combo.key.record"
+msgstr "Toets opnemen"
+
+msgid "training.combo.key.save"
+msgstr "Toets opslaan"
+
+msgid "training.combo.key.save.detail"
+msgstr "Links en Rechts kiezen de toets die tijdens het gevecht de Moves-regel opslaat als nieuwe combo van het gekozen pakket: na Combo opnemen bewaart één druk wat je net deed. Hij overschrijft nooit een combo; dat doet Combo opslaan. Uit laat het zonder toets."
+
+msgid "training.combo.key.save.none"
+msgstr "Niets om op te slaan: neem de moves eerst op of typ ze."
+
+msgid "training.combo.keys.save"
+msgstr "{0} Opslaan"
+
+msgid "training.challenger"
+msgstr "EEN NIEUWE STRIJDER BETREEDT DE RING!"
+
+msgid "training.combo.key.detail"
+msgstr "Links en Rechts kiezen de toets die dit tijdens het gevecht doet. Uit laat het zonder toets."
+
+msgid "training.combo.setup.game"
+msgstr "Game-instelling"
+
+msgid "training.combo.setup.action"
+msgstr "Dummy"
+
+msgid "training.combo.setup.guard"
+msgstr "Blok"
+
+msgid "training.combo.setup.counter"
+msgstr "Counter hit"
+
+msgid "training.combo.setup.quick"
+msgstr "Snel opstaan"
+
+msgid "training.combo.setup.super"
+msgstr "Supermeter"
+
+msgid "training.combo.setup.revenge"
+msgstr "Revengemeter"
+
+msgid "training.combo.setup.stand"
+msgstr "Staan"
+
+msgid "training.combo.setup.crouch"
+msgstr "Hurken"
+
+msgid "training.combo.setup.jump"
+msgstr "Springen"
+
+msgid "training.combo.setup.cpu"
+msgstr "CPU"
+
+msgid "training.combo.setup.guard_none"
+msgstr "Niet blokken"
+
+msgid "training.combo.setup.guard_first"
+msgstr "Na de eerste treffer"
+
+msgid "training.combo.setup.guard_all"
+msgstr "Alles blokken"
+
+msgid "training.combo.setup.guard_random"
+msgstr "Willekeurig"
+
+msgid "training.combo.setup.counter_off"
+msgstr "Uit"
+
+msgid "training.combo.setup.counter_on"
+msgstr "Aan"
+
+msgid "training.combo.setup.counter_random"
+msgstr "Willekeurig"
+
+msgid "training.combo.setup.quick_quick"
+msgstr "Snel"
+
+msgid "training.combo.setup.quick_normal"
+msgstr "Normaal"
+
+msgid "training.combo.setup.quick_delayed"
+msgstr "Vertraagd"
+
+msgid "training.combo.setup.quick_random"
+msgstr "Willekeurig"
+
+msgid "training.combo.setup.gauge_normal"
+msgstr "Normaal"
+
+msgid "training.combo.setup.gauge_max"
+msgstr "Vol bij start"
+
+msgid "training.combo.setup.gauge_infinite"
+msgstr "Oneindig"
+
+msgid "training.combo.setup.gauge_refill"
+msgstr "Bijvullen"
 
 msgid "training.close_controls"
 msgstr "Trainingsbesturing sluiten"
@@ -1232,7 +2200,7 @@ msgid "training.recording_suspended"
 msgstr "Opname gepauzeerd zolang de besturing open is"
 
 msgid "training.playback_suspended"
-msgstr "Afspelen gepauzeerd zolang de besturing open is"
+msgstr "Afspelen loopt; opnemen wacht tot de besturing dicht is"
 
 msgid "training.applying"
 msgstr "Opdracht uitvoeren..."
@@ -1246,14 +2214,41 @@ msgstr "TRAININGSLAB"
 msgid "training.command_rejected"
 msgstr "De trainingsopdracht is geweigerd. Controleer de status en probeer opnieuw."
 
-msgid "training.start_frames"
-msgstr "Start {0} f"
-
-msgid "training.start_unknown"
-msgstr "Start --"
-
 msgid "training.startup"
 msgstr "Aanloop"
+
+msgid "training.meter.active"
+msgstr "Actief"
+
+msgid "training.meter.recovery"
+msgstr "Herstel"
+
+msgid "training.meter.hit"
+msgstr "Hit"
+
+msgid "training.meter.block"
+msgstr "Block"
+
+msgid "training.meter.whiff"
+msgstr "Mis"
+
+msgid "training.meter.knockdown"
+msgstr "Knockdown"
+
+msgid "training.meter.wakeup"
+msgstr "Opstaan"
+
+msgid "training.meter.meaty"
+msgstr "Meaty"
+
+msgid "training.meter.throw"
+msgstr "Worp / filmpje"
+
+msgid "training.meter.attack"
+msgstr "Aanval"
+
+msgid "training.meter.move"
+msgstr "Beweging"
 
 msgid "training.neutral"
 msgstr "Neutraal"
@@ -1730,6 +2725,9 @@ msgstr "{0} min inactief"
 
 msgid "room.idle_hours"
 msgstr "{0} u {1} min inactief"
+
+msgid "room.in_training"
+msgstr "In Training"
 
 msgid "room.phase.waiting"
 msgstr "Wachten op spelers"

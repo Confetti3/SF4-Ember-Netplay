@@ -198,6 +198,16 @@ namespace sf4e {
 					// could; the caller must abandon the timeline.
 					[[nodiscard]] static bool Save(SaveState* dst, bool temporary = false);
 					[[nodiscard]] static bool Load(SaveState* src);
+					// For a state kept longer than a rollback's few frames (the
+					// training lab's checkpoint). A sound counts as live until
+					// something stops it, so a voice that ended by itself is still
+					// recorded as playing; loading the state after its player went
+					// to another sound would start it again from the beginning.
+					// This marks the recorded sounds no real player is still
+					// playing as over. Rollback states must not be passed here: a
+					// sound that ended a frame ago may be one the corrected
+					// timeline never starts.
+					static void ForgetFinishedSounds(SaveState* state);
 
 					// Returns a slot to the clean, unowned, unused state
 					// without touching engine memento data. Only safe when
@@ -234,6 +244,9 @@ namespace sf4e {
 				static SemanticHashes ComputeSemanticHashes(Dimps::Game::Battle::System* src);
 				static CharaSemantics CaptureCharaSemantics(Dimps::Game::Battle::System* src, int side);
 				static void CaptureHashCheckpoint(Dimps::Game::Battle::System* src);
+				// The frame meter's sample of the frame just played. show: off
+				// inside a rollback, where nothing new is confirmed.
+				static void CaptureMeterSample(Dimps::Game::Battle::System* src, bool show);
 				static HashCheckpoint* FindHashCheckpoint(int frameIdx);
 				static void ClearHashCheckpoints();
 				static GGPOPlayerHandle localPlayerHandle;

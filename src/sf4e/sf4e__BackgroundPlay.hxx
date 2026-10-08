@@ -5,6 +5,9 @@
 // Background play (Player > Play in the background): the game's sound and the
 // pads keep working while another window, such as OBS, is in front. The
 // keyboard still needs the game window, and so do Ember's own menus.
+// With or without the setting, a replay being exported as a video keeps
+// playing and keeps its sound while the window is behind or minimized, and
+// a room's match this PC only watches keeps playing there too.
 namespace sf4e {
 	namespace BackgroundPlay {
 		// Queues the hooks in the open Detours transaction.

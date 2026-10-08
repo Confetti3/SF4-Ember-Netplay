@@ -152,6 +152,16 @@ const char* MatchStripLayoutName(int layout);
 const char* MatchStripAnchorName(int anchor);
 // "Default", "Up 20" or "Down 6": the split layout's name offset (MatchStripView::nameOffset).
 std::string MatchHudNameOffsetText(int offset);
+// What a replay's export shows over the game (common/ReplayRequest.hxx,
+// Caption), as text ready to draw: the two plates of the split layout
+// without their link glyphs (an empty name draws none), one line centred
+// over the timer, and Ember's mark in the bottom right corner.
+struct ExportCaptionView {
+    std::string names[2], line;
+    bool mark = false;
+    int nameOffset = 0;
+};
+void DrawExportCaption(const ExportCaptionView& view);
 void DrawControllerWarning(const std::string& message);
 struct DiagnosticStripView {
     bool hasRemote = false, networkAvailable = false;

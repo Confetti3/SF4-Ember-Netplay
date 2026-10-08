@@ -41,6 +41,7 @@ void Platform::Locate(HMODULE peRoot) {
 void Allocator::Locate(HMODULE peRoot) {
     unsigned int peRootOffset = (unsigned int)peRoot;
     *(PVOID*)&publicMethods.Allocate = (PVOID)(peRootOffset + 0x2b3240);
+    *(PVOID*)&publicMethods.Free = (PVOID)(peRootOffset + 0x2b32a0);
     *(PVOID*)&staticMethods.GetSingleton = (PVOID)(peRootOffset + 0x2b2fd0);
 }
 

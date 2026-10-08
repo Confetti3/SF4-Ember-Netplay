@@ -13,7 +13,10 @@
 #include "../ui/Win32Input.hxx"
 #include "../ui/DeveloperOverlay.hxx"
 #include "../ui/TrainingPanel.hxx"
+#include "../platform/ReplayFiles.hxx"
+#include "../platform/Utf8.hxx"
 #include "../training/TrainingRuntime.hxx"
+#include "../netplay/SettingsStore.hxx"
 #include "../common/Localization.hxx"
 #include "../platform/GameDisplaySettings.hxx"
 #include "../platform/UiPreferencesStore.hxx"
@@ -213,6 +216,8 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.readyRequested = snapshot.readyRequested; view.readyFailure = snapshot.readyFailure;
     view.readyFailureSequence = snapshot.readyFailureSequence;
     view.opponentChangedFighter = snapshot.opponentChangedFighter; view.opponentChangeSequence = snapshot.opponentChangeSequence;
+    view.trainingCallSequence = snapshot.trainingCallSequence; view.trainingReadySequence = snapshot.trainingReadySequence;
+    view.trainingReadySeconds = snapshot.trainingReadySeconds; view.canTrain = snapshot.canTrain;
 	view.canEditPreferences = snapshot.canEditPreferences;
 	view.canEditLobby = snapshot.canEditLobby;
 	view.settingsPending = snapshot.settingsPending;
@@ -257,6 +262,43 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.identityRefusal = snapshot.identityRefusal;
     view.tournament = snapshot.tournament;
     view.publicRooms = snapshot.publicRooms;
+    // The archive is listed off this thread (the runtime's lister); while the
+    // Replays screen shows, a new listing is asked for and the last one
+    // becomes its rows.
+    if (shell.Navigation().Screen() == "replays") {
+        sf4e::NetplayFacade::WantReplayList();
+        if (snapshot.replays.archive) for (const auto& replay : *snapshot.replays.archive) {
+            const auto name = [&](int side) {
+                const auto* fighter = sf4e::selection::FindFighter(replay.fighters[side]);
+                const std::string fighterName = fighter ? fighter->name : sf4e::loc::T("common.unavailable");
+                return replay.names[side].empty() ? fighterName : sf4e::loc::Tf("replays.player", replay.names[side], fighterName);
+            };
+            // What the replay's own file says: the score, the length, and for
+            // each player the look, the buttons pressed and how busy they were.
+            std::string score, info;
+            if (replay.read) {
+                namespace in = sf4e::replayinputs;
+                if (replay.score[0] >= 0) score = std::to_string(replay.score[0]) + "-" + std::to_string(replay.score[1]);
+                const std::string length = in::Clock(replay.frames);
+                info = (score.empty() ? "" : score + "  ") + sf4e::loc::Tf("inputs.length_value", replay.rounds, length);
+                for (int side = 0; side < 2; side++) {
+                    const auto& player = replay.players[side]; const auto& stats = replay.stats[side];
+                    const int costume = player.costume + 1, color = player.color + 1;
+                    const char* ultra = player.ultra == 0 ? "I" : player.ultra == 1 ? "II" : "W";
+                    const unsigned perMinute = stats.PerMinute(), jumps = stats.jumps, crouched = stats.CrouchedPercent();
+                    std::string presses;
+                    for (int button = 0; button < 6; button++) presses += std::string(button ? " " : "") + in::ButtonNames[button] + " " + std::to_string(stats.presses[button]);
+                    info += std::string("\n") + (side ? "P2 " : "P1 ") + name(side) + ": " + sf4e::loc::Tf("replays.info_look", costume, color, ultra) + ". " + presses + ". " +
+                        sf4e::loc::Tf("inputs.activity", perMinute, jumps, crouched);
+                }
+            }
+            view.replays.push_back({sf4e::platform::WideToUtf8(replay.path.wstring()),
+                replay.label + "  " + sf4e::loc::Tf("replays.fighters", name(0), name(1)), {replay.names[0], replay.names[1]}, replay.spectated, replay.watched, replay.video, score, info, replay.time, {replay.score[0], replay.score[1]}});
+        }
+    }
+    view.replaysReady = snapshot.replays.ready;
+    view.replayNotice = snapshot.replays.notice; view.replayNoticeError = snapshot.replays.noticeError;
+    view.replayLink = snapshot.replays.link;
     const auto* fighter = sf4e::selection::FindFighter(lobbyMenuCharaID);
     view.selectedFighter=lobbyMenuCharaID;
     auto summaryPick = sf4e::selection::FromNative(lobbyConditions); summaryPick.fighter = lobbyMenuCharaID;
@@ -292,9 +334,18 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 			sf4e::selection::ToNative(pick, lobbyConditions);
 			return true;
 		}
+		// Training from inside a room: no room command is sent, the game alone
+		// moves, and the menu closes behind it. The runtime's own gate decides.
+		if (action.enterTraining && action.command.kind != sf4e::netplay::CommandKind::StartOffline) {
+			if (!snapshot.canTrain) return false;
+			fMainMenu::RequestTraining();
+			presentation.Close();
+			return true;
+		}
 		sf4e::NetplayFacade::RuntimeCommand request;
 		request.command = std::move(action.command);
         request.service = action.service;
+        request.replay = std::move(action.replay);
         request.inputAction = action.inputAction; request.discordAction = action.discordAction;
         request.discordRevision = action.discordRevision;
 		request.displayName = snapshot.preferences.displayName;
@@ -311,7 +362,14 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		request.character.charaID = static_cast<BYTE>(lobbyMenuCharaID);
 		request.stage = lobbyStageID;
 		request.randomStageExcluded = lobbyStageExcluded;
-		return sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request));
+		// Training rides on StartOffline: the game is sent on only where that
+		// command can be accepted, outside any room or match and at the main menu.
+		const bool training = action.enterTraining && request.command.kind == sf4e::netplay::CommandKind::StartOffline &&
+			snapshot.atMainMenu && snapshot.session.room == sf4e::netplay::RoomState::Idle &&
+			snapshot.session.match == sf4e::netplay::MatchState::None;
+		if (!sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request))) return false;
+		if (training) fMainMenu::RequestTraining();
+		return true;
 	}, [&] {
 		DrawNetworkCharaConfig(lobbyConditions, lobbyMenuCharaID,
 			(snapshot.session.room == sf4e::netplay::RoomState::Idle || snapshot.localSlot == 0) ? &lobbyStageID : nullptr, snapshot);
@@ -351,6 +409,12 @@ void Overlay::DrawOverlay() {
     if (snapshot.pendingJoinSequence!=joinLinkShown && snapshot.atMainMenu && presentation.Available()) {
         presentation.Open(); joinLinkShown=snapshot.pendingJoinSequence;
     }
+    // Called out of Training: back at the main menu the menu opens on the
+    // player's table, which the shell turns to, so the Ready row is in reach.
+    static std::uint64_t trainingCallShown=0;
+    if (snapshot.trainingCallSequence!=trainingCallShown && snapshot.atMainMenu && presentation.Available()) {
+        presentation.Open(); trainingCallShown=snapshot.trainingCallSequence;
+    }
     // A Discord connect link likewise, at the main menu only: during play it
     // waits until the player opens Ember, which then asks before going on.
     static std::uint64_t connectLinkShown=0;
@@ -384,6 +448,12 @@ void Overlay::DrawOverlay() {
     sf4e::ui::SetMenuInput({controllerNavigation.Buttons(), ImGui::GetTime()});
     sf4e::ui::SetMenuGlyphs(snapshot.menuController.deviceType,snapshot.menuController.selectPhysical,snapshot.menuController.backPhysical);
     if (presentation.Reopened()) shell.ShowPlay();
+    // The game's battle log was opened from the Replays screen: Ember's menu
+    // gets out of the way, and comes back on that screen when the replay
+    // operation says the main menu is back (sf4e__ReplayStore.hxx).
+    static std::uint64_t logOpensSeen = 0, returnsSeen = 0;
+    if (snapshot.replays.logOpens != logOpensSeen) { logOpensSeen = snapshot.replays.logOpens; presentation.Close(); }
+    if (snapshot.replays.returns != returnsSeen) { returnsSeen = snapshot.replays.returns; presentation.Open(); shell.Navigation().Home(); shell.Navigation().Push("replays"); }
     if (ImGui::IsKeyPressed(ImGuiKey_F10, false)) presentation.Toggle();
     // Every overlay frame, since the training panel draws art with the menu
     // closed. Pump returns at once when nothing drew art since the last pump.
@@ -396,6 +466,8 @@ void Overlay::DrawOverlay() {
         cancel.inputAction = sf4e::input::Action::Cancel;
         sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(cancel));
     }
+    // The meter in a match is the player's choice; the runtime reads nothing for it otherwise.
+    sf4e::training::WatchMatches(snapshot.preferences.matchFrameMeter || snapshot.replays.meterShown);
     const auto training = sf4e::training::ReadView();
     trainingAvailable = training.available;
     bool pointer = false;
@@ -408,6 +480,12 @@ void Overlay::DrawOverlay() {
         auto practice = [&](sf4e::training::Action action) {
             sf4e::training::Submit({action, 0, training.generation});
         };
+        // The setter keeps only its first call, and the lookup asks the shell each time.
+        // Before the HUD and the hotkeys, which read the combo book too.
+        static bool comboBookDirectorySet=false;
+        if(!comboBookDirectorySet) { sf4e::ui::SetComboBookDirectory(sf4e::netplay::SettingsStore::DefaultDirectory()); comboBookDirectorySet=true; }
+        sf4e::ui::TrainingHotkeys(training, sf4e::training::Submit,
+            !trainingOpen && (snapshot.menuController.buttons & sf4e::ui::ControllerSample::Chat) != 0);
         if (!trainingOpen && !ImGui::GetIO().WantTextInput) {
             if (ImGui::IsKeyPressed(ImGuiKey_F7, false)) {
                 if(training.mode != sf4e::training::Mode::Recording && training.lengths[training.selected]>0) {
@@ -424,6 +502,8 @@ void Overlay::DrawOverlay() {
         } else if (trainingHud) {
             const auto hud = sf4e::ui::DrawTrainingHud(training);
             if (hud.open) trainingOpen = true;
+            if (hud.replay) practice(sf4e::training::Action::Play);
+            if (hud.stop) practice(sf4e::training::Action::Stop);
             pointer = hud.pointer;
         }
     }
@@ -451,8 +531,23 @@ void Overlay::DrawOverlay() {
             ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing);
         ImGui::TextUnformatted(sf4e::loc::T("runtime.return_menu_to_join")); ImGui::End();
     }
+    // An export's caption, over the replay while it records: it is in the picture.
+    if (snapshot.replays.captionShown) {
+        const auto& caption = snapshot.replays.caption;
+        sf4e::ui::ExportCaptionView shown;
+        for (int side = 0; side < 2 && caption.names; ++side) {
+            const std::string wins = caption.set ? std::to_string(caption.wins[side]) : std::string();
+            shown.names[side] = wins.empty() ? caption.name[side] : side ? wins + "   " + caption.name[side] : caption.name[side] + "   " + wins;
+        }
+        if (caption.line) shown.line = caption.text;
+        if (caption.set && !caption.names) shown.line += (shown.line.empty() ? "" : "   ") + std::to_string(caption.wins[0]) + " - " + std::to_string(caption.wins[1]);
+        shown.mark = caption.mark; shown.nameOffset = snapshot.preferences.matchHudNameOffset;
+        sf4e::ui::DrawExportCaption(shown);
+    }
     if (frame->ggpoSessionActive) {
         sf4e::ui::DrawControllerWarning(snapshot.gameplayInputError);
+        // The frame meter, while the runtime is watching this match for it.
+        if (training.watching && !presentation.Visible()) sf4e::ui::DrawMatchMeter(training);
         sf4e::ui::MatchStripView strip;
         for (int side = 0; side < 2; ++side) { strip.names[side] = status.matchSides[side].name; strip.links[side] = status.matchSides[side].link; }
         if (status.hasMatchScore) strip.score = sf4e::ui::SetScoreText(status.matchScore);
@@ -527,7 +622,9 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
     if (!ImGui::GetCurrentContext()) return 0;
     if (activationClick.Swallow(message, l)) return 0;
     const auto handled = sf4e::ui::HandleOverlayMessage(window, message, w, l, capture, s_menuAvailable, pointerCapture);
-    if (trainingAvailable && w >= VK_F5 && w <= VK_F8 &&
-        (message == WM_KEYDOWN || message == WM_KEYUP || message == WM_SYSKEYDOWN || message == WM_SYSKEYUP)) return 1;
+    // The combo hotkeys only as plain keys, so Alt+F4 still reaches the game.
+    const bool plainKey = message == WM_KEYDOWN || message == WM_KEYUP, systemKey = message == WM_SYSKEYDOWN || message == WM_SYSKEYUP;
+    if (trainingAvailable && ((w >= VK_F5 && w <= VK_F8 && (plainKey || systemKey)) ||
+        (plainKey && w >= VK_F1 && w <= VK_F12 && sf4e::ui::TrainingHotkeyBound(static_cast<int>(w - VK_F1))))) return 1;
     return handled;
 }

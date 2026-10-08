@@ -622,6 +622,218 @@ msgstr "Offline spielen"
 msgid "home.offline_detail"
 msgstr "Native Offline-Menüs öffnen."
 
+msgid "home.replays"
+msgstr "Replays"
+
+msgid "home.replays_detail"
+msgstr "Jedes Match wird gespeichert. Lege ein beliebiges in den Replay Channel des Spiels."
+
+msgid "replays.title"
+msgstr "Replays"
+
+msgid "replays.empty"
+msgstr "Noch keine Replays"
+
+msgid "replays.empty_detail"
+msgstr "Ein Match wird hier gespeichert, wenn es endet."
+
+msgid "replays.add"
+msgstr "Zum Spiel hinzufügen"
+
+msgid "replays.add_detail"
+msgstr "Fügt es der Replay-Liste des Spiels hinzu, um es später im Kampfprotokoll anzusehen."
+
+msgid "replays.watch"
+msgstr "Jetzt ansehen"
+
+msgid "replays.watch_detail"
+msgstr "Fügt es der Replay-Liste des Spiels hinzu und spielt es aus dem Kampfprotokoll ab."
+
+msgid "replays.save_watched"
+msgstr "Zugeschaute Matches speichern"
+
+msgid "replays.save_watched_detail"
+msgstr "Ein: Auch Matches, bei denen Sie nur zuschauen, werden aufgezeichnet. Aus: nur die Matches, die Sie spielen."
+
+msgid "replays.link"
+msgstr "Ein Link möchte ein Replay abspielen"
+
+msgid "replays.link_detail"
+msgstr "Ein Link hat Ember gebeten, {0} abzuspielen. Spielen Sie es nur ab, wenn Sie wissen, woher der Link stammt."
+
+msgid "replays.link_play"
+msgstr "Abspielen"
+
+msgid "replays.link_dismiss"
+msgstr "Jetzt nicht"
+
+msgid "replays.link_dismiss_detail"
+msgstr "Lässt die Datei, wo sie ist, und vergisst den Link."
+
+msgid "replays.export_gpu"
+msgstr "Video exportieren (GPU)"
+
+msgid "replays.export_gpu_detail"
+msgstr "Nimmt es als .mp4 in der vollen Bildgröße des Spiels auf, kodiert von deiner Grafikkarte."
+
+msgid "replays.exported"
+msgstr "Video gespeichert: {0}"
+
+msgid "replays.gpu_not_exported"
+msgstr "Es wurde kein Video erstellt. Windows hat keinen H.264-Encoder bereitgestellt, oder das Bild des Spiels konnte nicht gelesen werden. Der Grund steht im Protokoll."
+
+msgid "replays.video"
+msgstr "Video"
+
+msgid "replays.open_folder"
+msgstr "Replay-Ordner öffnen"
+
+msgid "replays.open_folder_detail"
+msgstr "Öffnet das Archiv im Explorer: Replays und exportierte Videos."
+
+msgid "services.opening_replay_folder"
+msgstr "Replay-Ordner wird geöffnet…"
+
+msgid "services.replay_folder_opened"
+msgstr "{0} im Explorer geöffnet."
+
+msgid "services.replay_folder_failed"
+msgstr "Der Replay-Ordner ließ sich nicht öffnen."
+
+msgid "replays.inputs"
+msgstr "Eingaben und Statistik"
+
+msgid "replays.inputs_detail"
+msgstr "Zeigt, was beide Spieler gedrückt haben, Frame für Frame, und wie oft. Aus der Replay-Datei gelesen; es wird nichts abgespielt."
+
+msgid "replays.info_look"
+msgstr "Kostüm {0}, Farbe {1}, Ultra {2}"
+
+msgid "inputs.length_value"
+msgstr "Runden: {0}, {1}"
+
+msgid "inputs.buttons"
+msgstr "{0}: Tastendrücke"
+
+msgid "inputs.activity"
+msgstr "{0} Eingaben pro Minute, {1} Sprünge, {2} % der Zeit geduckt."
+
+msgid "inputs.round"
+msgstr "Runde {0}"
+
+msgid "inputs.legend"
+msgstr "Jede Zeile: die Zeit, dann was P1 und P2 von da an halten. Richtungen wie auf dem Ziffernblock, vom Bildschirm aus gesehen: 4 ist links, 6 rechts, 5 keine."
+
+msgid "inputs.unreadable"
+msgstr "Eingaben nicht lesbar"
+
+msgid "inputs.unreadable_detail"
+msgstr "Dieses Replay hat ein älteres Format oder die Datei ist beschädigt."
+
+msgid "export.title"
+msgstr "Video exportieren"
+
+msgid "export.detail"
+msgstr "Wird während der Aufnahme über dem Spiel angezeigt, auf dem Bildschirm und im Video."
+
+msgid "export.names"
+msgstr "Spielernamen"
+
+msgid "export.name"
+msgstr "Spieler {0}"
+
+msgid "export.line"
+msgstr "Match-Zeile"
+
+msgid "export.line_text"
+msgstr "Text der Match-Zeile"
+
+msgid "export.set"
+msgstr "Satzstand"
+
+msgid "export.set_detail"
+msgstr "Die bisherigen Siege jedes Spielers im Satz, neben dem Namen. Gezählt aus den Matches, die beide direkt davor gespielt haben; ändern Sie ihn, wenn er nicht stimmt."
+
+msgid "export.set_wins"
+msgstr "Siege von Spieler {0}"
+
+msgid "export.mark"
+msgstr "Ember-Zeichen"
+
+msgid "export.generate"
+msgstr "Video erstellen"
+
+msgid "replays.frame_meter"
+msgstr "Frame-Anzeige"
+
+msgid "replays.frame_meter_detail"
+msgstr "Jetzt ansehen und Video exportieren zeigen die Frame-Anzeige des Trainings über dem Replay. Beim Export ist sie auch im Video."
+
+msgid "replays.row_detail"
+msgstr "Wähle, um es der Replay-Liste des Spiels hinzuzufügen, oder um es hinzuzufügen und jetzt anzusehen."
+
+msgid "replays.watched"
+msgstr "Gesehen"
+
+msgid "replays.spectated"
+msgstr "Zugeschaut"
+
+msgid "replays.watched_spectated"
+msgstr "Gesehen, zugeschaut"
+
+msgid "replays.not_ready"
+msgstr "Verfügbar im Hauptmenü, außerhalb eines Matches."
+
+msgid "replays.added"
+msgstr "Der Replay-Liste des Spiels hinzugefügt, unter dem Datum, an dem es gespielt wurde."
+
+msgid "replays.not_added"
+msgstr "Dieses Replay konnte nicht hinzugefügt werden. Die Datei ist womöglich beschädigt."
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "Kampfprotokoll des Spiels öffnen"
+
+msgid "replays.open_log_detail"
+msgstr "Verlässt das Ember-Menü zum lokalen Kampfprotokoll des Spiels, wo Replays abgespielt werden."
+
+msgid "replays.open_log_room"
+msgstr "Verlasse zuerst den Raum."
+msgid "home.training"
+msgstr "Training"
+
+msgid "home.training_detail"
+msgstr "Direkt in den Trainingsmodus, ohne die Frage nach Kampfanfragen."
+
+msgid "settings.training_auto_ready"
+msgstr "Bei Ruf aus dem Training bereit melden"
+
+msgid "settings.training_auto_ready_detail"
+msgstr "Aus: Wirst du aus dem Training an deinen Tisch gerufen, hast du 15 Sekunden für Bereit, sonst gibst du den Platz auf. Ein: Du wirst sofort bereit gemeldet."
+
+msgid "settings.match_frame_meter"
+msgstr "Frame-Anzeige in Matches"
+
+msgid "settings.match_frame_meter_detail"
+msgstr "Zeigt die Frame-Anzeige aus dem Training über deinen Online-Matches und denen, die du ansiehst. Nur du siehst sie. Sie läuft um die Frames nach, die noch auf die Eingaben des anderen Spielers warten."
+
+msgid "room.training.detail"
+msgstr "Warte im Trainingsmodus, ohne den Raum zu verlassen. Setzt sich ein Kämpfer dir gegenüber, holt dich das Spiel hierher zurück, damit du dich bereit meldest."
+
+msgid "room.training.unavailable"
+msgstr "Training aus dem Raum geht nur im Hauptmenü, solange dir noch niemand gegenübersitzt, ohne gegebenes Bereit und ohne dass ein Spiel von dir startet."
+
+msgid "room.training_call.ready_in"
+msgstr "Melde dich in {0} s bereit, sonst gibst du den Platz auf."
+
+msgid "runtime.training_call.forfeit"
+msgstr "Du hast dich nach dem Ruf aus dem Training nicht rechtzeitig bereit gemeldet; dein Platz wurde aufgegeben."
+
 msgid "home.choose_controller"
 msgstr "Spiel-Controller wählen"
 
@@ -1147,6 +1359,33 @@ msgstr "F6 Trainingssteuerung"
 msgid "training.hide_hint"
 msgstr "F5 HUD ausblenden"
 
+msgid "training.save_recording"
+msgstr "Aufnahme speichern als"
+
+msgid "training.save_recording.detail"
+msgstr "Schreibt den gewählten Slot unter diesem Namen in eine Datei neben deinen Combos."
+
+msgid "training.load_recording"
+msgstr "Aufnahme laden"
+
+msgid "training.load_recording.detail"
+msgstr "Links und Rechts wählen eine gespeicherte Aufnahme; Auswahl lädt sie in den gewählten Slot."
+
+msgid "training.recording_saved"
+msgstr "Aufnahme als {0} gespeichert."
+
+msgid "training.recording_loaded"
+msgstr "Aufnahme {0} in Slot {1} geladen."
+
+msgid "training.recording_none"
+msgstr "Keine gespeicherten Aufnahmen."
+
+msgid "training.replay_chip"
+msgstr "F8 Slot {0} abspielen"
+
+msgid "training.stop_chip"
+msgstr "F8 Stopp"
+
 msgid "training.dummy_recording"
 msgstr "Dummy-Aufnahme"
 
@@ -1158,6 +1397,735 @@ msgstr "Input-Verlauf"
 
 msgid "training.input_history.detail"
 msgstr "Gehaltene Eingaben beider Spieler ansehen."
+
+msgid "training.combo.title"
+msgstr "Combo-Editor"
+
+msgid "training.combo.title.detail"
+msgstr "Combos als Züge schreiben, teilen und alle Routen ansehen."
+
+msgid "training.combo.none"
+msgstr "Keine"
+
+msgid "training.combo.pack"
+msgstr "Paket"
+
+msgid "training.combo.pack.detail"
+msgstr "Ein Paket mit Combos dieses Kämpfers; es enthält {0} davon. Links und Rechts gehen durch die Pakete des Kämpfers."
+
+msgid "training.combo.new_pack"
+msgstr "Neues Paket"
+
+msgid "training.combo.combo"
+msgstr "Combo"
+
+msgid "training.combo.fighter"
+msgstr "Kämpfer"
+
+msgid "training.combo.fighter.detail"
+msgstr "Der Kämpfer, zu dem die Pakete und Combos darunter gehören: Nur seine werden gezeigt und lassen sich wählen. Er folgt Spieler 1, wenn ein Kampf beginnt; Links und Rechts wählen einen anderen zum Ansehen oder Schreiben."
+
+msgid "training.combo.name"
+msgstr "Combo-Name"
+
+msgid "training.combo.steps"
+msgstr "Züge"
+
+msgid "training.combo.notes"
+msgstr "Notizen"
+
+msgid "training.combo.add"
+msgstr "Neue Combo hinzufügen"
+
+msgid "training.combo.add.detail"
+msgstr "Fragt nach einem Namen und fügt die Züge dann dem gewählten Paket als neue Combo hinzu. Die gewählte Combo bleibt, wie sie ist; überschrieben wird sie nur mit Combo speichern. Beispielzüge: cr.MK xx HP Hadoken > FADC > cl.HP"
+
+msgid "training.combo.add.unnamed"
+msgstr "noch kein Name"
+
+msgid "training.combo.capture.drop"
+msgstr "Aufnahme endet bei Abbruch"
+
+msgid "training.combo.capture.drop.detail"
+msgstr "Ein: Combo aufnehmen endet in dem Moment, in dem der andere Kämpfer wieder frei ist; so ist eine Aufnahme eine Combo, und ein neuer Versuch nach einem Abbruch wird nicht dahinter mitgeschrieben. Aus: Die Aufnahme läuft, bis anderthalb Sekunden nichts passiert, für Setups und Abfolgen, die nicht eine einzige Combo sind."
+
+msgid "training.combo.trials_loaded"
+msgstr "{0} hatte noch keine Combos: Die {1}-Trials des Spiels wurden eingelesen."
+
+msgid "training.combo.save"
+msgstr "Combo speichern"
+
+msgid "training.combo.save.detail"
+msgstr "Schreibt Name, Züge, Notizen und Dummy-Einstellungen wie eingegeben über die gewählte Combo."
+
+msgid "training.combo.saved"
+msgstr "Combo gespeichert."
+
+msgid "training.combo.duplicate"
+msgstr "Combo duplizieren"
+
+msgid "training.combo.duplicate.detail"
+msgstr "Kopiert die gewählte Combo in dieses Paket, direkt dahinter, und wählt die Kopie."
+
+msgid "training.combo.duplicated"
+msgstr "Combo dupliziert."
+
+msgid "training.combo.copy_suffix"
+msgstr "Kopie"
+
+msgid "training.combo.tree"
+msgstr "Combo-Baum"
+
+msgid "training.combo.tree.detail"
+msgstr "Alle Routen deiner Pakete, nach Kämpfer."
+
+msgid "training.combo.tree.empty"
+msgstr "Noch keine Combos."
+
+msgid "training.combo.copy_combo"
+msgstr "Combo kopieren"
+
+msgid "training.combo.copy_pack"
+msgstr "Paket kopieren"
+
+msgid "training.combo.copy_all"
+msgstr "Alle Pakete kopieren"
+
+msgid "training.combo.copy.detail"
+msgstr "Kopiert es als Text zum Teilen."
+
+msgid "training.combo.paste"
+msgstr "Aus Zwischenablage importieren"
+
+msgid "training.combo.paste.detail"
+msgstr "Fügt eine kopierte Combo, ein Paket oder mehrere Pakete hinzu."
+
+msgid "training.combo.delete"
+msgstr "Combo löschen"
+
+msgid "training.combo.delete.detail"
+msgstr "Entfernt die gewählte Combo aus ihrem Paket."
+
+msgid "training.combo.added"
+msgstr "Hinzugefügte Combos: {0}."
+
+msgid "training.combo.exists"
+msgstr "Diese Route ist schon im Paket."
+
+msgid "training.combo.copied"
+msgstr "Kopiert."
+
+msgid "training.combo.invalid"
+msgstr "Nicht angenommen: {0}"
+
+msgid "training.combo.save_failed"
+msgstr "Die Combos konnten nicht gespeichert werden."
+
+msgid "training.combo.import_trials"
+msgstr "Trials des Spiels importieren"
+
+msgid "training.combo.import_trials.detail"
+msgstr "Liest die eigenen Trials des Spiels für den oben gewählten Kämpfer in zwei Pakete mit dem Namen des Kämpfers: seine Trials aus Ultra Street Fighter 4 und die Trials aus Street Fighter 4, die das Spiel noch aus der Zeit vor Ultra enthält. Ein Kämpfer ohne Paket bekommt sie von selbst, wenn ein Kampf beginnt."
+
+msgid "training.combo.export_trial"
+msgstr "Paket als Trial-Datei exportieren"
+
+msgid "training.combo.export_trial.detail"
+msgstr "Schreibt die Combos dieses Pakets für den oben gewählten Kämpfer als {0} in den Ordner trials neben deinen Combos: 24 Combos, deine eigenen zuerst; eine Combo mit mehr als 8 Zügen wird ganz geschrieben, das Spiel zeigt ohne die Scroll-Listen-Mod aber nur die ersten 8. An die Stelle der {0} des Spiels gesetzt (Sicherung behalten) spielt der Trial-Modus sie."
+
+msgid "training.combo.trials_imported"
+msgstr "Gelesene Trials: {0} von {1}. Hinzugefügte Combos: {2}."
+
+msgid "training.combo.trial_exported"
+msgstr "Geschriebene Combos: {0}, nach {1}. An die Stelle von {2} setzen, Sicherung behalten; der Trial-Modus lädt die Datei."
+
+msgid "training.combo.trial_skipped"
+msgstr "Ausgelassen oder geändert: {0}. Zuerst: {1}"
+
+msgid "training.combo.trial_none"
+msgstr "Für {0} konnte keine Combo dieses Pakets geschrieben werden."
+
+msgid "training.combo.game_file"
+msgstr "Die Dateien des Spiels konnten nicht gelesen werden: {0}"
+
+msgid "training.combo.trial_failed"
+msgstr "Die Trial-Datei konnte nicht geschrieben werden: {0}"
+
+msgid "training.combo.run.start"
+msgstr "Trial starten"
+
+msgid "training.combo.run.start.detail"
+msgstr "Übe die gewählte Combo als Spieler 1: Ihre Züge stehen über dem Kampf und werden abgehakt, sobald jeder herauskommt und trifft. Spieler 1 muss der Kämpfer der Combo sein."
+
+msgid "training.combo.run.stop"
+msgstr "Trial beenden"
+
+msgid "training.combo.run.stop.detail"
+msgstr "Nimmt die Liste der Züge vom Bildschirm."
+
+msgid "training.combo.run.started"
+msgstr "Trial für {0} gestartet. Geprüfte Züge: {1} von {2}."
+
+msgid "training.combo.run.refused"
+msgstr "Das Trial konnte nicht starten: {0}"
+
+msgid "training.combo.run.stopped"
+msgstr "Trial beendet."
+
+msgid "training.combo.run.count"
+msgstr "Geschafft: {0}. Versuche: {1}. Quote: {2}%."
+
+msgid "training.combo.run.complete"
+msgstr "Combo geschafft!"
+
+msgid "training.combo.run.failed"
+msgstr "Zug {0}: {1}"
+
+msgid "training.combo.run.wrong_move"
+msgstr "ein anderer Zug kam heraus"
+
+msgid "training.combo.run.whiffed"
+msgstr "der nächste Zug kam heraus, bevor dieser traf"
+
+msgid "training.combo.run.dropped"
+msgstr "die Combo ist abgerissen"
+
+msgid "training.combo.run.unchecked"
+msgstr "{0} (nicht geprüft)"
+
+msgid "training.combo.replay"
+msgstr "Züge abspielen"
+
+msgid "training.combo.replay.detail"
+msgstr "Spielt die eingegebenen Züge oder die gewählte Combo als Pad-Eingabe ab. Das Timing ist geraten: Link-Abstand ändern und sehen, welche Züge kommen."
+
+msgid "training.combo.replay.by"
+msgstr "Abspielen durch"
+
+msgid "training.combo.replay.by.dummy"
+msgstr "Dummy (Spieler 2)"
+
+msgid "training.combo.replay.by.me"
+msgstr "Ich (Spieler 1)"
+
+msgid "training.combo.replay.by.detail"
+msgstr "Wer die Züge ausführt. Links und Rechts wechseln."
+
+msgid "training.combo.replay.facing"
+msgstr "Blickrichtung"
+
+msgid "training.combo.replay.facing.right"
+msgstr "Rechts"
+
+msgid "training.combo.replay.facing.left"
+msgstr "Links"
+
+msgid "training.combo.replay.facing.detail"
+msgstr "Wohin dieser Spieler beim Start schaut; Vorwärts-Züge werden so gelesen."
+
+msgid "training.combo.replay.gap"
+msgstr "Timing-Versatz"
+
+msgid "training.combo.replay.gap.detail"
+msgstr "Frames, die jeder Zug nach seinem Signal (freier Frame bei Links, Treffer bei Cancels) noch wartet, zusätzlich zum eigenen @-Versatz wie cr.MK@+1."
+
+msgid "training.combo.replay.stopped"
+msgstr "Wiedergabe gestoppt."
+
+msgid "training.combo.replay.started"
+msgstr "Wiedergabe in Slot {0} geladen und gestartet."
+
+msgid "training.combo.timing"
+msgstr "Timing bearbeiten"
+
+msgid "training.combo.timing.detail"
+msgstr "Die gewählte Combo Zug für Zug: der Timing-Versatz jedes Zugs und was die letzte Wiedergabe gesehen hat."
+
+msgid "training.combo.timing.replay.detail"
+msgstr "Spielt die gewählte Combo so ab, wie sie jetzt ist, damit sich die Berichte unten aktualisieren."
+
+msgid "training.combo.tune"
+msgstr "Follow-ups abstimmen"
+
+msgid "training.combo.tune.stop"
+msgstr "Abstimmen stoppen"
+
+msgid "training.combo.tune.detail"
+msgstr "Spielt Durchlauf für Durchlauf ab und setzt jedes ~-Follow-up einen Frame später, solange der Zug danach noch verbindet; das längste, das klappt, bleibt. Braucht Vor Wiedergabe zurücksetzen mit einer gespeicherten Position."
+
+msgid "training.combo.tune.none"
+msgstr "Kein ~-Follow-up mit einem Zug danach zum Abstimmen."
+
+msgid "training.combo.tune.trying"
+msgstr "Zug {0} wird abgestimmt: Versuch mit @{1}."
+
+msgid "training.combo.tune.kept"
+msgstr "Zug {0} bleibt bei @{1}."
+
+msgid "training.combo.tune.failed"
+msgstr "Zug {0}: Der Zug danach verbindet bei keiner der getesteten Längen; sein Versatz ist wieder wie zuvor. Der Loop endet hier."
+
+msgid "training.combo.tune.done"
+msgstr "Abstimmen fertig."
+
+msgid "training.combo.tune.stopped"
+msgstr "Abstimmen gestoppt."
+
+msgid "training.combo.timing.select"
+msgstr "Zuerst eine Combo wählen."
+
+msgid "training.combo.timing.none"
+msgstr "Noch nicht abgespielt."
+
+msgid "training.combo.timing.gave_up"
+msgstr "Die Wiedergabe wartete auf das Signal für diesen Zug und sah es nie."
+
+msgid "training.combo.timing.first"
+msgstr "Erster Zug; verbunden: {0}."
+
+msgid "training.combo.timing.cancel"
+msgstr "{0} Frames auf den Treffer gewartet; verbunden: {1}."
+
+msgid "training.combo.timing.link"
+msgstr "{0} Frames auf den freien Kämpfer gewartet; verbunden: {1}."
+
+msgid "training.combo.timing.hit"
+msgstr "ja"
+
+msgid "training.combo.timing.no_hit"
+msgstr "nein"
+
+msgid "training.combo.timing.adjust"
+msgstr "Links und Rechts verschieben um einen Frame."
+
+msgid "training.combo.timing.drops"
+msgstr "Hier {0}-mal abgebrochen."
+
+msgid "training.combo.blocks"
+msgstr "Pattern-Editor"
+
+msgid "training.combo.blocks.detail"
+msgstr "Die Züge als Blöcke auf einem Frame-Lineal, wie in einem Step-Sequencer: jeder Block drückt auf seinem Frame, die Wiedergabe spielt diese Frames."
+
+msgid "training.combo.blocks.frame"
+msgstr "Frame {0}"
+
+msgid "training.combo.blocks.hint"
+msgstr "Links und Rechts verschieben den Block um einen Frame; mit der Maus ziehen. Auswahl bearbeitet den Zug."
+
+msgid "training.combo.blocks.add"
+msgstr "Zug hinzufügen"
+
+msgid "training.combo.blocks.delete"
+msgstr "Block löschen"
+
+msgid "training.combo.blocks.delete.detail"
+msgstr "Entfernt den markierten Block."
+
+msgid "training.combo.blocks.replay.detail"
+msgstr "Spielt das Pattern auf seinen Frames ab."
+
+msgid "training.combo.blocks.empty"
+msgstr "Noch keine Züge. Unten einen hinzufügen."
+
+msgid "training.guide"
+msgstr "Über diesen Bildschirm"
+
+msgid "training.home.guide"
+msgstr "Diese Steuerung wirkt auf den Kampf, in dem du gerade bist. Dummy-Aufnahme nimmt Pad-Eingaben auf den Dummy auf und spielt sie ab. Input-Verlauf listet auf, was jeder Spieler gedrückt hat. Der Combo-Editor schreibt Combos auf, spielt sie dir vor und prüft deine eigenen Versuche als Trials. F6 öffnet und schließt die Steuerung, die Pfeiltasten bewegen, Enter wählt aus und Esc geht einen Bildschirm zurück."
+
+msgid "training.recording.guide"
+msgstr "Wähle einen Slot, dann Aufnehmen: Das Pad von Spieler 1 steuert den Dummy, bis du stoppst. Abspielen lässt den Dummy den Slot wiederholen, und Endlosschleife lässt ihn immer weiter wiederholen. F7 startet und stoppt eine Aufnahme, ohne diesen Bildschirm zu öffnen. Slots gelten nur für diesen Kampf; Aufnahme speichern als behält einen als benannte Datei und Aufnahme laden holt ihn zurück."
+
+msgid "training.history.guide"
+msgstr "Die Pad-Eingaben jedes Spielers, neueste zuerst, mit den Frames, die jede gehalten wurde. Wähle einen Spieler, um die Liste zu lesen. Sie zeigt, was gedrückt wurde, nicht welcher Zug herauskam."
+
+msgid "training.combo.guide"
+msgstr "1. Der Kämpfer oben ist der von Spieler 1; seine Pakete und Combos sind die Zeilen darunter. 2. Bring die Züge in die Züge-Zeile: Tippe sie ein oder nutze Combo aufnehmen und führe die Combo aus. 3. Neue Combo hinzufügen behält sie im Paket. 4. Züge bearbeiten ändert sie Zeile für Zeile, Timing bearbeiten verschiebt einzelne Züge um Frames, Züge abspielen spielt sie dir vor. 5. Trial starten prüft deine eigenen Versuche. Jede Zeile erklärt sich selbst, solange sie markiert ist."
+
+msgid "training.combo.timing.guide"
+msgstr "Eine Zeile pro Zug. Links und Rechts auf einem Zug verschieben seinen Tastendruck einen Frame früher oder später (@N). Züge abspielen spielt die Combo ab, und jede Zeile sagt dann, was die Wiedergabe gesehen hat: wie lange sie gewartet hat und ob der Zug verbunden hat. F8 auf einem Zug spielt bis zu diesem Zug ab. Hinzufügen, Duplizieren und Entfernen wirken auf den zuletzt markierten Zug; in der Zeile eines Zugs tun Insert, D und Delete dasselbe."
+
+msgid "training.combo.moves"
+msgstr "Züge bearbeiten"
+
+msgid "training.combo.moves.detail"
+msgstr "Die Züge der Combo neben den Zügen, die du hinzufügen kannst: Züge hineinziehen, umordnen, Stärke, Haltung, Cancel oder Timing eines Zugs ändern und eine Gruppe von Zügen loopen."
+
+msgid "training.combo.moves.guide"
+msgstr "Links: die Combo, ein Zug pro Zeile. Mitte: der gewählte Zug und was sich daran ändern lässt. Rechts: die Züge, die du hinzufügen kannst. Zieh einen Zug von rechts auf die Combo, und er kommt hinter den Zug, auf dem er landet; ein Doppelklick fügt ihn hinter dem gewählten Zug ein. Zieh einen Zug der Combo, um ihm einen anderen Platz zu geben. Mit den Tasten: Hoch und Runter gehen durch die Zeilen, Auswahl auf einem Zug tippt ihn neu, und in der Zeile eines Zugs fügt Insert dahinter ein, D dupliziert, Delete entfernt, G nimmt ihn in die Gruppe. Änderungen werden in der gewählten Combo gespeichert, solange die Züge-Zeile diese Combo ist; sonst bleiben sie in der Züge-Zeile bis Neue Combo hinzufügen oder Combo speichern."
+
+msgid "training.combo.moves.add"
+msgstr "Nach Zug {0} hinzufügen"
+
+msgid "training.combo.moves.add_first"
+msgstr "Ersten Zug hinzufügen"
+
+msgid "training.combo.moves.add.detail"
+msgstr "Tippe einen Zug ein oder mehrere, getrennt durch >, wie in der Züge-Zeile. Sie kommen hinter den zuletzt markierten Zug. Insert in der Zeile eines Zugs öffnet dies."
+
+msgid "training.combo.moves.duplicate"
+msgstr "Zug {0} duplizieren"
+
+msgid "training.combo.moves.duplicate.detail"
+msgstr "Setzt eine Kopie direkt hinter den Zug. D in der Zeile des Zugs tut dasselbe."
+
+msgid "training.combo.moves.remove"
+msgstr "Zug {0} entfernen"
+
+msgid "training.combo.moves.remove.detail"
+msgstr "Nimmt den Zug aus der Combo. Delete in der Zeile des Zugs tut dasselbe. Eine Combo behält mindestens einen Zug."
+
+msgid "training.combo.moves.move"
+msgstr "Zug {0} verschieben"
+
+msgid "training.combo.moves.move.value"
+msgstr "Früher / Später"
+
+msgid "training.combo.moves.move.detail"
+msgstr "Links tauscht den Zug mit dem davor, Rechts mit dem danach."
+
+msgid "training.combo.moves.row.detail"
+msgstr "Auswahl bearbeitet diesen Zug. Insert fügt dahinter einen Zug hinzu, D dupliziert ihn, Delete entfernt ihn, G nimmt ihn in die Gruppe."
+
+msgid "training.combo.moves.group.start"
+msgstr "Gruppe ab Zug {0} beginnen"
+
+msgid "training.combo.moves.group.extend"
+msgstr "Gruppe bis Zug {0} erweitern"
+
+msgid "training.combo.moves.group.detail"
+msgstr "Eine Gruppe ist eine Reihe benachbarter Züge, angezeigt mit ihren Nummern in Klammern. Beginne sie auf einem Zug, markiere einen anderen und erweitere: Jeder Zug dazwischen kommt dazu. G in der Zeile eines Zugs tut dasselbe. Die Gruppe bleibt, bis du diesen Bildschirm verlässt."
+
+msgid "training.combo.moves.group.clear"
+msgstr "Gruppe {0} aufheben"
+
+msgid "training.combo.moves.group.clear.detail"
+msgstr "Vergisst die Gruppe. Ihre Züge bleiben in der Combo."
+
+msgid "training.combo.moves.group.duplicate"
+msgstr "Gruppe {0} duplizieren"
+
+msgid "training.combo.moves.group.duplicate.detail"
+msgstr "Setzt eine Kopie der Züge der Gruppe direkt hinter die Gruppe."
+
+msgid "training.combo.moves.group.loops"
+msgstr "Loop-Anzahl"
+
+msgid "training.combo.moves.group.loops.detail"
+msgstr "Wie oft hintereinander die Gruppe spielt, sobald sie geloopt ist. Links und Rechts ändern es."
+
+msgid "training.combo.moves.group.loop"
+msgstr "Gruppe {0} x{1} loopen"
+
+msgid "training.combo.moves.group.loop.detail"
+msgstr "Wiederholt die Züge der Gruppe, sodass sie so oft hintereinander spielen. Die Wiederholungen werden gewöhnliche Zeilen, sodass jeder Durchlauf für sich getimt werden kann."
+
+msgid "training.combo.moves.group.remove"
+msgstr "Gruppe {0} entfernen"
+
+msgid "training.combo.moves.group.remove.detail"
+msgstr "Nimmt alle Züge der Gruppe aus der Combo."
+
+msgid "training.combo.moves.replay.detail"
+msgstr "Spielt die Züge so ab, wie sie jetzt sind. F8 tut dasselbe."
+
+msgid "training.combo.moves.limit"
+msgstr "Das passt nicht: Eine Combo hat 1 bis {0} Züge."
+
+msgid "training.combo.moves.changed"
+msgstr "Die Combo hat jetzt {0} Züge."
+
+msgid "training.combo.moves.column"
+msgstr "Combo"
+
+msgid "training.combo.moves.selected"
+msgstr "Zug {0}"
+
+msgid "training.combo.moves.joins"
+msgstr "Nach dem Zug davor"
+
+msgid "training.combo.moves.joins.link"
+msgstr "Link"
+
+msgid "training.combo.moves.joins.cancel"
+msgstr "Cancel (xx)"
+
+msgid "training.combo.moves.joins.follow"
+msgstr "Follow-up (~)"
+
+msgid "training.combo.moves.strength"
+msgstr "Stärke"
+
+msgid "training.combo.moves.stance"
+msgstr "Haltung"
+
+msgid "training.combo.moves.offset"
+msgstr "Timing in Frames"
+
+msgid "training.combo.moves.type"
+msgstr "Diesen Zug eintippen"
+
+msgid "training.combo.moves.addable"
+msgstr "Verfügbare Züge"
+
+msgid "training.combo.moves.empty"
+msgstr "Noch keine Züge. Zieh einen von rechts hierher oder doppelklicke ihn."
+
+msgid "training.combo.moves.add.fadc"
+msgstr "Focus Cancel und Dash"
+
+msgid "training.combo.moves.add.rfadc"
+msgstr "Red Focus Cancel und Dash"
+
+msgid "training.combo.moves.add.dash"
+msgstr "Dash vorwärts"
+
+msgid "training.combo.moves.add.backdash"
+msgstr "Backdash"
+
+msgid "training.combo.moves.add.focus"
+msgstr "Focus Attack"
+
+msgid "training.combo.moves.add.throw"
+msgstr "Wurf"
+
+msgid "training.combo.steps.detail"
+msgstr "Auswahl öffnet die Züge als Textfeld, ein Zug pro Zeile. Eine neue Zeile trennt Züge genau wie >, die Combo liest sich also in einer Zeile gleich wie in vielen. Enter beginnt dort eine neue Zeile; Ctrl+Enter bestätigt."
+
+msgid "edit.instructions.area"
+msgstr "Mit der Tastatur tippen oder einfügen. Enter beginnt eine neue Zeile. Ctrl+Enter oder die Schaltfläche Annehmen bestätigt; Escape oder Controller-Back bricht ab."
+
+msgid "training.combo.blocks.guide"
+msgstr "Jeder Block ist ein Zug auf dem Frame, auf dem seine Taste gedrückt wird (#N). Hoch und Runter wählen einen Block, Links und Rechts verschieben ihn um einen Frame, und die Maus zieht ihn. Eine Wiedergabe von hier drückt genau auf diesen Frames, statt auf jeden Treffer zu warten, für Setups, die festes Timing brauchen."
+
+msgid "training.combo.save_pos"
+msgstr "Position speichern"
+
+msgid "training.combo.save_pos.detail"
+msgstr "Hält beide Kämpfer fest, wie sie jetzt sind: Stand, Leben, Leisten, Dummy-Zustand."
+
+msgid "training.combo.reset_pos"
+msgstr "Position zurücksetzen"
+
+msgid "training.combo.reset_pos.detail"
+msgstr "Setzt beide Kämpfer dorthin zurück, wo sie gespeichert wurden."
+
+msgid "training.combo.reset_before"
+msgstr "Vor Wiedergabe zurücksetzen"
+
+msgid "training.combo.reset_before.detail"
+msgstr "Jede Wiedergabe und jeder Trial-Versuch beginnt an der gespeicherten Position; nach jedem Versuch wird sie wiederhergestellt."
+
+msgid "training.combo.side"
+msgstr "Spieler 1 startet"
+
+msgid "training.combo.side.any"
+msgstr "Wo sie stehen"
+
+msgid "training.combo.side.left"
+msgstr "Links"
+
+msgid "training.combo.side.right"
+msgstr "Rechts"
+
+msgid "training.combo.side.detail"
+msgstr "Die Seite, die Spieler 1 hat, wenn eine Wiedergabe oder ein Trial-Versuch beginnt, und nach Position zurücksetzen. Links oder Rechts spiegelt die gespeicherte Position, oder wo die beiden stehen, an der Mitte der Stage, wenn Spieler 1 auf der anderen Seite ist: Eine in der linken Ecke gespeicherte Combo beginnt in der rechten Ecke. Die Blickrichtung einer Wiedergabe ergibt sich daraus. Wo sie stehen bewegt niemanden."
+
+msgid "training.combo.position_saved"
+msgstr "Position gespeichert."
+
+msgid "training.combo.position_kept"
+msgstr "Position gespeichert und bei der Combo behalten."
+
+msgid "training.combo.position_reset"
+msgstr "Position zurückgesetzt."
+
+msgid "training.combo.capture"
+msgstr "Combo aufnehmen"
+
+msgid "training.combo.capture.detail"
+msgstr "Schreibt die Züge, die Spieler 1 ausführt, in die Züge-Zeile, jeweils mit der Zahl der Frames, die er nach seinem Signal gedrückt wurde (@N). Die Aufnahme endet, wenn die Combo abbricht, falls Aufnahme endet bei Abbruch an ist, und sonst, sobald anderthalb Sekunden nichts passiert. Danach behält Neue Combo hinzufügen oder Combo speichern sie."
+
+msgid "training.combo.capture_stop"
+msgstr "Combo-Aufnahme stoppen"
+
+msgid "training.combo.capture_started"
+msgstr "Aufnahme läuft: Combo als Spieler 1 ausführen."
+
+msgid "training.combo.capture_wait"
+msgstr "Aufnahme wird beendet."
+
+msgid "training.combo.captured"
+msgstr "{0} Züge in die Züge-Zeile aufgenommen ({1} ohne Namen ausgelassen)."
+
+msgid "training.combo.capture_empty"
+msgstr "Keine Züge aufgenommen."
+
+msgid "training.combo.setup.detail"
+msgstr "Links und Rechts ändern es; es wird sofort im Spiel gesetzt und bei der gewählten Combo gespeichert. Spieleinstellung lässt die Wahl des Trainingsmenüs."
+
+msgid "training.combo.reply"
+msgstr "Dummy-Antwort"
+
+msgid "training.combo.reply.detail"
+msgstr "Was der Dummy von selbst tut, sobald er wieder frei ist, um eine abgebrochene Combo oder ein unsicheres Ende zu bestrafen: Er spielt die Antwortzüge ab, oder den Antwort-Slot, solange diese Zeile leer ist. Die Antwort wartet, solange eine Wiedergabe oder Aufnahme läuft, und ein geschafftes Trial bleibt unberührt."
+
+msgid "training.combo.reply.hit"
+msgstr "Nach abgebrochener Combo"
+
+msgid "training.combo.reply.block"
+msgstr "Nach dem Blocken"
+
+msgid "training.combo.reply.rise"
+msgstr "Beim Aufstehen"
+
+msgid "training.combo.reply.any"
+msgstr "Immer wenn er sich erholt"
+
+msgid "training.combo.reply.slot"
+msgstr "Antwort-Slot"
+
+msgid "training.combo.reply.slot.detail"
+msgstr "Die Dummy-Aufnahme, die als Antwort abgespielt wird, solange Antwortzüge leer ist, ab dem ersten Tastendruck. Züge abspielen lädt nicht darüber."
+
+msgid "training.combo.reply.chance"
+msgstr "Antwortchance"
+
+msgid "training.combo.reply.chance.detail"
+msgstr "Wie oft der Dummy antwortet. Unter 100 % wechselt es von Versuch zu Versuch."
+
+msgid "training.combo.vary_stance"
+msgstr "Haltung variieren"
+
+msgid "training.combo.vary_stance.detail"
+msgstr "Jedes Mal, wenn sich der Dummy erholt, steht oder duckt er sich zufällig, damit die Combo an beidem geübt wird. Nur solange der Dummy auf Stehen oder Ducken steht."
+
+msgid "training.combo.keys"
+msgstr "{0} Abspielen  {1} Zurücksetzen  {2} Trial  {3} Aufnehmen"
+
+msgid "training.combo.reply.moves"
+msgstr "Antwortzüge"
+
+msgid "training.combo.reply.moves.detail"
+msgstr "Die Antwort als Züge in Numpad-Notation, etwa 623HP oder 44, gelesen für die Seite, in die der Dummy blickt. Die Bewegung wird eingegeben, solange der Dummy noch festhängt, damit die Taste auf seinen ersten freien Frame fällt. Leer nutzt den Antwort-Slot."
+
+msgid "training.combo.reply.timing"
+msgstr "Antwort-Timing"
+
+msgid "training.combo.reply.timing.detail"
+msgstr "Frames nach dem ersten freien Frame des Dummys, auf die die Taste der Antwort fällt. Wie lange ein Stun dauert, wird beim ersten Mal gelernt; bis dahin beginnt die Antwort, wenn der Stun endet."
+
+msgid "training.combo.reply.slot_busy"
+msgstr "Slot {0} enthält die Antwort des Dummys. Wähle einen anderen Slot, um Züge abzuspielen."
+
+msgid "training.combo.key.replay"
+msgstr "Taste Abspielen"
+
+msgid "training.combo.key.reset"
+msgstr "Taste Zurücksetzen"
+
+msgid "training.combo.key.trial"
+msgstr "Taste Trial"
+
+msgid "training.combo.key.record"
+msgstr "Taste Aufnehmen"
+
+msgid "training.combo.key.save"
+msgstr "Taste Speichern"
+
+msgid "training.combo.key.save.detail"
+msgstr "Links und Rechts wählen die Taste, die im Kampf die Züge-Zeile als neue Combo im gewählten Paket speichert: Nach Combo aufnehmen behält ein Druck, was du gerade gemacht hast. Sie überschreibt nie eine Combo; das macht Combo speichern. Aus lässt es ohne Taste."
+
+msgid "training.combo.key.save.none"
+msgstr "Nichts zu speichern: Erst die Züge aufnehmen oder eintippen."
+
+msgid "training.combo.keys.save"
+msgstr "{0} Speichern"
+
+msgid "training.challenger"
+msgstr "EIN NEUER KÄMPFER BETRITT DEN RING!"
+
+msgid "training.combo.key.detail"
+msgstr "Links und Rechts wählen die Taste, die dies im Kampf auslöst. Aus lässt es ohne Taste."
+
+msgid "training.combo.setup.game"
+msgstr "Spieleinstellung"
+
+msgid "training.combo.setup.action"
+msgstr "Dummy"
+
+msgid "training.combo.setup.guard"
+msgstr "Block"
+
+msgid "training.combo.setup.counter"
+msgstr "Counter-Hit"
+
+msgid "training.combo.setup.quick"
+msgstr "Schnelles Aufstehen"
+
+msgid "training.combo.setup.super"
+msgstr "Super-Leiste"
+
+msgid "training.combo.setup.revenge"
+msgstr "Revenge-Leiste"
+
+msgid "training.combo.setup.stand"
+msgstr "Stehen"
+
+msgid "training.combo.setup.crouch"
+msgstr "Ducken"
+
+msgid "training.combo.setup.jump"
+msgstr "Springen"
+
+msgid "training.combo.setup.cpu"
+msgstr "CPU"
+
+msgid "training.combo.setup.guard_none"
+msgstr "Kein Block"
+
+msgid "training.combo.setup.guard_first"
+msgstr "Nach erstem Treffer"
+
+msgid "training.combo.setup.guard_all"
+msgstr "Alles blocken"
+
+msgid "training.combo.setup.guard_random"
+msgstr "Zufällig"
+
+msgid "training.combo.setup.counter_off"
+msgstr "Aus"
+
+msgid "training.combo.setup.counter_on"
+msgstr "An"
+
+msgid "training.combo.setup.counter_random"
+msgstr "Zufällig"
+
+msgid "training.combo.setup.quick_quick"
+msgstr "Schnell"
+
+msgid "training.combo.setup.quick_normal"
+msgstr "Normal"
+
+msgid "training.combo.setup.quick_delayed"
+msgstr "Verzögert"
+
+msgid "training.combo.setup.quick_random"
+msgstr "Zufällig"
+
+msgid "training.combo.setup.gauge_normal"
+msgstr "Normal"
+
+msgid "training.combo.setup.gauge_max"
+msgstr "Voll zu Beginn"
+
+msgid "training.combo.setup.gauge_infinite"
+msgstr "Unendlich"
+
+msgid "training.combo.setup.gauge_refill"
+msgstr "Auffüllen"
 
 msgid "training.close_controls"
 msgstr "Trainingssteuerung schließen"
@@ -1232,7 +2200,7 @@ msgid "training.recording_suspended"
 msgstr "Aufnahme pausiert, solange die Steuerung geöffnet ist"
 
 msgid "training.playback_suspended"
-msgstr "Wiedergabe pausiert bei offener Steuerung"
+msgstr "Wiedergabe läuft; Aufnahme wartet, bis die Steuerung geschlossen ist"
 
 msgid "training.applying"
 msgstr "Befehl wird ausgeführt..."
@@ -1246,14 +2214,41 @@ msgstr "TRAININGSLABOR"
 msgid "training.command_rejected"
 msgstr "Trainingsbefehl nicht angenommen. Prüfen Sie den Zustand und versuchen Sie es erneut."
 
-msgid "training.start_frames"
-msgstr "Start {0} F"
-
-msgid "training.start_unknown"
-msgstr "Start --"
-
 msgid "training.startup"
 msgstr "Start"
+
+msgid "training.meter.active"
+msgstr "Aktiv"
+
+msgid "training.meter.recovery"
+msgstr "Erholung"
+
+msgid "training.meter.hit"
+msgstr "Treffer"
+
+msgid "training.meter.block"
+msgstr "Block"
+
+msgid "training.meter.whiff"
+msgstr "Verfehlt"
+
+msgid "training.meter.knockdown"
+msgstr "Knockdown"
+
+msgid "training.meter.wakeup"
+msgstr "Aufstehen"
+
+msgid "training.meter.meaty"
+msgstr "Meaty"
+
+msgid "training.meter.throw"
+msgstr "Wurf / Sequenz"
+
+msgid "training.meter.attack"
+msgstr "Angriff"
+
+msgid "training.meter.move"
+msgstr "Bewegung"
 
 msgid "training.neutral"
 msgstr "Neutral"
@@ -1730,6 +2725,9 @@ msgstr "Inaktiv seit {0} Min."
 
 msgid "room.idle_hours"
 msgstr "Inaktiv seit {0} Std. {1} Min."
+
+msgid "room.in_training"
+msgstr "Im Training"
 
 msgid "room.phase.waiting"
 msgstr "Warten auf Charaktere"

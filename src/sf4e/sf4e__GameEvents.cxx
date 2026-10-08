@@ -1,5 +1,7 @@
+#include <cstdint>
 #include <windows.h>
 #include <detours/detours.h>
+#include <spdlog/spdlog.h>
 
 #include "../Dimps/Dimps.hxx"
 #include "../Dimps/Dimps__Event.hxx"
@@ -36,6 +38,7 @@ using fUserApp = sf4e::UserApp;
 
 int (*fMainMenu::OnModeSelectedOverride)(int mode);
 std::atomic<int> fMainMenu::bOverrideItemObserverState{-1};
+std::atomic<ULONGLONG> fMainMenu::trainingRequestedUntil{0};
 void (*fVsBattle::OnTasksRegistered)() = nullptr;
 void (*fVsPreBattle::OnTasksRegistered)() = nullptr;
 
@@ -81,6 +84,7 @@ LogoDolby, 0, LogoCRI, BLACK, 10.0f, BLACK, 10.0f
 MainMenu, 14, Benchmark, BLACK, 30.0f, BLACK, 30.0f			
 	Benchmark, 0, MainMenu, BLACK, 30.0f, BLACK, 30.0f			
 MainMenu, 13, Manual, BLACK, 30.0f, BLACK, 30.0f			
+MainMenu, 15, LocalBattleLog, BLACK, 30.0f, BLACK, 30.0f
 	Manual, 0, MainMenu, BLACK, 30.0f, BLACK, 30.0f			
 	PlayerTitleSetting, 0, MainMenu, BLACK, 30.0f, BLACK, 30.0f			
 	PlayerTitleSetting, 1, Option, BLACK, 30.0f, BLACK, 30.0f			
@@ -128,6 +132,42 @@ void fGameEvents::Install() {
 	VsStageSelect::Install();
 }
 
+// The main menu's own jump to Versus (0x6131A0) asks the flow for its row
+// 2, fades the menu sound, closes the menu and clears its selection. The
+// same with row 15, which Ember's flow table adds above, opens the local
+// battle log, the list of replays a Versus battle saves into.
+void fMainMenu::GoToLocalBattleLog() {
+	std::uint8_t* const observer = reinterpret_cast<std::uint8_t*>(this);
+	Dimps::GameEvents::Flow::Request(*reinterpret_cast<Dimps::GameEvents::Flow**>(observer + rMainMenu::ObserverFlow), rMainMenu::FlowRowLocalBattleLog);
+	auto* const app = reinterpret_cast<std::uint8_t*>(rMainMenu::exitMethods.GetApp());
+	auto* const sound = **reinterpret_cast<rMainMenu::SoundManager***>(app + rMainMenu::AppSoundManager);
+	(sound->*rMainMenu::exitMethods.FadeOut)(*rMainMenu::exitMethods.fadeSeconds);
+	(reinterpret_cast<rMainMenu::MenuPanel*>(observer + rMainMenu::ObserverPanel)->*rMainMenu::exitMethods.Close)(0);
+	*reinterpret_cast<int*>(observer + rMainMenu::ObserverSelection) = 0;
+}
+
+// Opens the local battle log from the native main menu, when it is the
+// foreground event. False, doing nothing, otherwise.
+bool fMainMenu::OpenLocalBattleLog() {
+	rRootEvent* const root = Dimps::App::GetRootEvent();
+	if (!root) return false;
+	char* query[1] = { const_cast<char*>("MainMenu") };
+	rMainMenu* const mainMenu = reinterpret_cast<rMainMenu*>(EventBaseWithEC::FindForegroundEvent(root, query, 1));
+	if (!mainMenu) return false;
+	static_cast<fMainMenu*>(rMainMenu::ToItemObserver(mainMenu))->GoToLocalBattleLog();
+	return true;
+}
+
+bool fMainMenu::LeaveLocalBattleLog() {
+	rRootEvent* const root = Dimps::App::GetRootEvent();
+	if (!root) return false;
+	char* query[1] = { const_cast<char*>("LocalBattleLog") };
+	auto* const log = reinterpret_cast<std::uint8_t*>(EventBaseWithEC::FindForegroundEvent(root, query, 1));
+	if (!log) return false;
+	Dimps::GameEvents::Flow::Request(*reinterpret_cast<Dimps::GameEvents::Flow**>(log + Dimps::GameEvents::Flow::OnLocalBattleLog), rMainMenu::FlowRowMainMenu);
+	return true;
+}
+
 void fMainMenu::Install() {
 	int (fMainMenu:: * _fGetItemObserverState)() = &GetItemObserverState;
 	void (fMainMenu:: * _fOnModeSelected)(int) = &OnModeSelected;
@@ -136,8 +176,31 @@ void fMainMenu::Install() {
 }
 
 
+void fMainMenu::RequestTraining() {
+	trainingRequestedUntil.store(GetTickCount64() + 2000);
+}
+
 int fMainMenu::GetItemObserverState() {
 	sf4e::NetplayFacade::NotifyRuntimeEventSystemReady();
+	if (const ULONGLONG until = trainingRequestedUntil.load()) {
+		if (GetTickCount64() > until) {
+			trainingRequestedUntil.store(0);
+		}
+		else if ((this->*rMainMenu::itemObserverMethods.GetItemObserverState)() == rMainMenu::MMIOS_IDLE) {
+			trainingRequestedUntil.store(0);
+			// The game's own selection, with the Fight Request question
+			// switched off for this one call: it then exits to Training
+			// directly, the path it takes where requests are not offered.
+			// The value goes back in case the menu stays (the call does
+			// nothing unless the menu is idle).
+			DWORD* offered = rMainMenu::GetFightRequestOffered(rMainMenu::FromItemObserver(this));
+			const DWORD was = *offered;
+			*offered = 0;
+			(this->*rMainMenu::itemObserverMethods.OnModeSelected)(rMainMenu::MMI_TRAINING);
+			*offered = was;
+			spdlog::info("Main menu: entering Training without the Fight Request question (it was {})", was ? "offered" : "not offered");
+		}
+	}
 	const int overridden = bOverrideItemObserverState.load();
 	if (overridden != -1) {
 		return overridden;

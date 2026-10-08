@@ -35,10 +35,12 @@ const char* StatusName(room::MemberStatus status) {
 }
 // "Idle 4 min" for a member who has done nothing in the room for a minute
 // or more while waiting (not in a game, not ready, not watching one), else
-// empty.
+// empty. A waiting member who said they are in Training is shown as that
+// instead: it is why they are quiet.
 std::string IdleText(const room::Member& member) {
     const bool waiting = member.status == room::MemberStatus::Idle || member.status == room::MemberStatus::Queued ||
         member.status == room::MemberStatus::Seated;
+    if (waiting && member.training) return loc::T("room.in_training");
     if (!waiting || member.idleSeconds < 60) return {};
     const unsigned minutes = member.idleSeconds / 60;
     return minutes < 60 ? loc::Tf("room.idle_minutes", minutes) : loc::Tf("room.idle_hours", minutes / 60, minutes % 60);
@@ -203,6 +205,8 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    // Changing fighter needs a seat, so it lives in the table options (and X).
    rows.push_back(Row("options",loc::T("room.table_options"),loc::Tf("room.table_options.detail",OptionsTable(v,selectedTable_)+1)));
    rows.push_back(Row("room-admin",loc::T("room.settings"),loc::T(host?"room.settings.detail":"room.settings.host_only"),host));
+   // Waiting for a seat or an opponent can be done in Training; the room calls the player back.
+   rows.push_back(Row("room-training",loc::T("home.training"),loc::T(v.canTrain?"room.training.detail":"room.training.unavailable"),v.canTrain));
   }else{
    rows.push_back(Row("room-status",loc::T("room.connection_status"),loc::T(v.session.room==netplay::RoomState::Opening?"room.opening":"room.waiting_state"),false));
   }
@@ -247,7 +251,8 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   if(seated){
    const bool ready=room::ReadyCancellable(t,place.seat);
     const auto readyControl=DescribeReady(v,t,place.seat);
-    rows.push_back(Row("ready",readyControl.label,readyControl.detail,readyControl.kind!=ReadyControl::None));
+    // Called out of Training, the row says how long there is to ready.
+    rows.push_back(Row("ready",readyControl.label,v.trainingReadySeconds>0?loc::Tf("room.training_call.ready_in",v.trainingReadySeconds)+"\n"+readyControl.detail:readyControl.detail,readyControl.kind!=ReadyControl::None));
     if(t.spectatorHold)rows.back().detailText=DetailText::Name;
    // Under Ready, in the order a player reads them: their own pick (fighter,
    // Ultra, appearance, fighter options), then the match (P1's stage and the
@@ -893,6 +898,12 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
    return;
   }
  if(a.id=="leave"){Send(netplay::CommandKind::LeaveRoom,v,submit);return;}
+ if(a.id=="room-training"){
+  // No room command: the overlay sends the game on while the room stays as it is.
+  ShellAction training;training.command.generation=v.session.generation;training.enterTraining=true;
+  if(!v.canTrain||!submit(std::move(training)))error_=loc::T("room.training.unavailable");
+  return;
+ }
  if(a.id=="mute"){if(muted_.count(selectedMember_))muted_.erase(selectedMember_);else muted_.insert(selectedMember_);return;}
  if(a.id=="rename"){std::snprintf(roomName_,sizeof(roomName_),"%s",a.text.c_str());return;}
  if(a.id=="room-capacity"){roomCapacity_=(std::max)(2,(std::min)(16,roomCapacity_+a.delta));return;}

@@ -1,4 +1,5 @@
 #include "sf4e__Game__Battle__System__Internal.hxx"
+#include "sf4e__ReplayStore.hxx"
 #include "../common/SpectatorCatchUp.hxx"
 #include "sf4e__MementoGuards.hxx"
 
@@ -404,6 +405,7 @@ static bool PlayGgpoFrame(rSystem* system) {
     }
     fSystem::CaptureSnapshot(system);
     fSystem::CaptureHashCheckpoint(system);
+    fSystem::CaptureMeterSample(system, true);
     PublishConfirmedNativeMatchResult();
     return true;
 }
@@ -542,6 +544,10 @@ void fSystem::BattleUpdate() {
             (_this->*rSystem::publicMethods.BattleUpdate)();
         }
         sf4e::training::AfterUpdate(_this);
+        // A replay watched with the frame meter: the frame just played goes
+        // to the meter as a watched match's does, with no input to confirm.
+        // ponytail: the pads are not passed, so the meter's input row stays empty; the replay's own inputs (common/ReplayInputs.hxx) could fill it.
+        if (sf4e::replaystore::MeterWanted()) sf4e::training::ObserveMatch(_this, 0, -1, 0, 0);
     }
 
     if (nExtraFramesToSimulate > 0) {

@@ -497,7 +497,9 @@ int main(int argc, char** argv) {
             training::FrameMeter meter;std::array<training::FighterSample,2> fighters;
             for(int f=0;f<120;++f){
                 for(int p=0;p<2;++p){auto& s=fighters[p];s.valid=true;s.timeScale=1;s.status=p?(f<40?0:f<65?22:0):(f<30?0:f<70?16:0);
-                    s.action=s.status?100+p:0;s.actionFrame=static_cast<float>(f);s.firstActiveFrame=p?-1:34;s.health=p?920:1000;s.damage=p?80:0;s.comboDamage=p?160:0;}
+                    s.action=s.status?100+p:0;s.actionFrame=static_cast<float>(f);s.firstActiveFrame=p?-1:34;s.lastActiveFrame=p?-1:38;s.health=p?920:1000;s.damage=p?80:0;s.comboDamage=p?160:0;
+                    // A quarter circle and a heavy punch, pressed just before the attack starts.
+                    s.input=p?0:f==24||f==25?2u:f==26||f==27?10u:f==28?8u:f>=29&&f<33?0x408u:0u;}
                 meter.Observe(f,fighters);
             }
             training.meter=meter.View();training.history[0]={{0x14,5},{1,3},{0,16}};training.history[1]={{0x40,2},{0,10}};
@@ -545,7 +547,7 @@ int main(int argc, char** argv) {
                     if(mode==1){
                         auto* flyout=FindWindow("###TrainingControls");
                         Require(flyout->Size.x<=size.w*.8f+1&&flyout->Size.y<=size.h*.8f+1,"Training flyout covers too much game");
-                        Require(std::abs(flyout->Pos.x*2+flyout->Size.x-size.w)<=2&&std::abs(flyout->Pos.y*2+flyout->Size.y-size.h)<=2,"Training flyout is not centered");
+                        Require(std::abs(flyout->Pos.x*2+flyout->Size.x-size.w)<=2&&flyout->Pos.y<=size.h*.05f,"Training flyout is not at the top centre");
                         Require(flyout->ScrollMax.y<1,"Training footer displaced by overflowing content");
                         Require(ImGui::GetTopMostPopupModal()==nullptr,"Training confirmation dims the game viewport");
                         for(auto* window:GImGui->Windows){
@@ -584,6 +586,9 @@ int main(int argc, char** argv) {
             Require(ImGui::GetTopMostPopupModal()==nullptr,"Game settings card did not close");
             view.gameSettings={};view.showGameSettingsCard=false;
             for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","discord","about"})page(screen);
+            page("replays");{sf4e::ui::ShellView::Replay a,b;a.path="a";a.label="2026-10-05 23:35";a.names[0]="Alice";a.names[1]="Bob";a.watched=true;a.score="2-1";a.info="2-1  3 rounds, 2:11\nP1 Alice (Ryu): Costume 3, color 10, Ultra II. LP 101 MP 78 HP 50 LK 84 MK 43 HK 31. 323 inputs a minute, 18 jumps, crouching 54% of the time.\nP2 Bob (Ken): Costume 1, color 1, Ultra I. LP 73 MP 13 HP 14 LK 59 MK 35 HK 40. 303 inputs a minute, 18 jumps, crouching 31% of the time.";
+             b.path="b";b.label="2026-10-05 23:36";b.spectated=true;view.replays={a,b};}view.replaysReady=true;view.replayNotice="Added as the newest entry of the game's replay list.";page("replays");
+            view.replays.clear();view.replaysReady=false;view.replayNotice.clear();
             view.preferences.autoInputDelay=true;page("defaults");view.preferences.autoInputDelay=false;
             page("home");
             for(int i=0;i<8;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
@@ -902,6 +907,13 @@ int main(int argc, char** argv) {
             for(const char* screen:{"recording","history"}){
                 TrainingNavigation().Home();TrainingNavigation().Push(screen);draw((std::string("training-")+screen).c_str());
             }
+            // The combo creator's screens, with a combo on the Moves line to show.
+            SetComboMoves("2MK > xx 236HP > FADC > 5HP > xx 623HP");
+            for(const char* screen:{"combos","combo-timing","combo-moves"}){
+                TrainingNavigation().Home();TrainingNavigation().Push("combos");if(std::string(screen)!="combos")TrainingNavigation().Push(screen);
+                draw((std::string("training-")+screen).c_str());
+            }
+            SetComboMoves("");
             TrainingNavigation().Home();TrainingNavigation().Push("recording");draw();
             // Returning restores the prior selection, which may be below Record.
             for(int i=0;i<20;++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
@@ -920,11 +932,22 @@ int main(int argc, char** argv) {
             mode=2;draw("training-hud");
             Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Passive training HUD captured input");
             CheckMatchHudScales();
-            auto* hud=FindWindow("Training frame meter");Require(hud->Size.x<=size.w*.76f&&hud->Size.y<size.h*.13f,"Passive HUD too large");
+            // Two bars, an input lane a fighter, the readings and the legend.
+            auto* hud=FindWindow("Training frame meter");Require(hud->Size.x<=size.w*.76f&&hud->Size.y<size.h*.17f,"Passive HUD too large");
             Require(hud->Pos.y+hud->Size.y<=size.h*.83f,"Training HUD covers the game's super meters");
             SetMenuGlyphs(4,0,0);draw("training-hud-directinput");
             Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"DirectInput HUD captured input");
             SetMenuGlyphs(0,0,0);draw("training-hud-keyboard");SetMenuGlyphs(3,0x40000,0x20000);
+            // A running trial lists its steps beside the fight, as passive as the meter and clear of it.
+            training.trialSteps.assign(14,"xx 236236PPP");training.trial.steps.assign(14,training::TrialStepState::Waiting);
+            training.trial.steps[0]=training::TrialStepState::Done;training.trial.steps[1]=training::TrialStepState::Out;training.trial.steps[3]=training::TrialStepState::Unchecked;
+            training.trial.current=1;training.trial.attempts=3;training.trial.successes=1;
+            training.trial.lastFailure=training::TrialFailure::Whiffed;training.trial.failedStep=2;
+            draw("training-hud-trial");
+            Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Trial list captured input");
+            auto* list=FindWindow("Training trial");
+            Require(list->Pos.x>=0&&list->Pos.x+list->Size.x<=size.w*.5f&&list->Pos.y+list->Size.y<=FindWindow("Training frame meter")->Pos.y,"Trial list leaves its corner");
+            training.trialSteps.clear();training.trial=training::TrialView{};
             mode=3;draw("match-hud");
             ShootMatchHud(matchStrip,draw,[&]{ImGui_ImplDX9_InvalidateDeviceObjects();});
             mode=5;draw("controller-warning");

@@ -96,6 +96,14 @@ if(BUILD_TESTING)
     target_compile_features(AutoDelayCheckTest PRIVATE cxx_std_11)
     add_test(NAME AutoDelayCheck COMMAND AutoDelayCheckTest)
     set_tests_properties(AutoDelayCheck PROPERTIES TIMEOUT 15)
+    add_executable(ReplaySlotsTest "src/tests/replay_slots_test.cxx")
+    target_compile_features(ReplaySlotsTest PRIVATE cxx_std_17)
+    add_test(NAME ReplaySlots COMMAND ReplaySlotsTest)
+    set_tests_properties(ReplaySlots PROPERTIES TIMEOUT 15)
+    add_executable(ReplayInputsTest "src/tests/replay_inputs_test.cxx")
+    target_compile_features(ReplayInputsTest PRIVATE cxx_std_17)
+    add_test(NAME ReplayInputs COMMAND ReplayInputsTest)
+    set_tests_properties(ReplayInputs PROPERTIES TIMEOUT 15)
     # The recorder layout is the 32-bit engine's.
     if(CMAKE_SIZEOF_VOID_P EQUAL 4)
         add_executable(ReplayRecorderTest "src/tests/replay_recorder_test.cxx")
@@ -228,6 +236,14 @@ if(BUILD_TESTING)
     target_link_libraries(ReadyChimeTest PRIVATE sf4e_room_model)
     add_test(NAME ReadyChime COMMAND ReadyChimeTest)
     set_tests_properties(ReadyChime PROPERTIES TIMEOUT 30)
+    add_executable(TrainingCallTest "src/tests/training_call_test.cxx")
+    target_link_libraries(TrainingCallTest PRIVATE sf4e_room_model)
+    add_test(NAME TrainingCall COMMAND TrainingCallTest)
+    set_tests_properties(TrainingCall PROPERTIES TIMEOUT 30)
+    add_executable(RoomTrainingFlagTest "src/tests/room_training_flag_test.cxx")
+    target_link_libraries(RoomTrainingFlagTest PRIVATE sf4e_room_model)
+    add_test(NAME RoomTrainingFlag COMMAND RoomTrainingFlagTest)
+    set_tests_properties(RoomTrainingFlag PROPERTIES TIMEOUT 30)
     add_executable(SessionRecoveryGateTest "src/tests/session_recovery_gate_test.cxx")
     target_compile_features(SessionRecoveryGateTest PRIVATE cxx_std_14)
     target_link_libraries(SessionRecoveryGateTest PRIVATE sf4e_room_model)
@@ -259,6 +275,29 @@ if(BUILD_TESTING)
     target_link_libraries(SelectionValueTest PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME SelectionValue COMMAND SelectionValueTest)
     set_tests_properties(SelectionValue PROPERTIES TIMEOUT 15)
+    add_executable(ComboBookTest "src/tests/combo_book_test.cxx")
+    target_compile_features(ComboBookTest PRIVATE cxx_std_14)
+    target_link_libraries(ComboBookTest PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME ComboBook COMMAND ComboBookTest)
+    set_tests_properties(ComboBook PROPERTIES TIMEOUT 15)
+    add_executable(BcmFileTest "src/tests/bcm_file_test.cxx")
+    target_compile_features(BcmFileTest PRIVATE cxx_std_17)
+    target_link_libraries(BcmFileTest PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME BcmFile COMMAND BcmFileTest)
+    set_tests_properties(BcmFile PROPERTIES TIMEOUT 30)
+    add_executable(ClgFileTest "src/tests/clg_file_test.cxx")
+    target_compile_features(ClgFileTest PRIVATE cxx_std_17)
+    add_test(NAME ClgFile COMMAND ClgFileTest)
+    set_tests_properties(ClgFile PROPERTIES TIMEOUT 60)
+    add_executable(ComboTrialTest "src/tests/combo_trial_test.cxx")
+    target_compile_features(ComboTrialTest PRIVATE cxx_std_17)
+    target_link_libraries(ComboTrialTest PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME ComboTrial COMMAND ComboTrialTest)
+    set_tests_properties(ComboTrial PROPERTIES TIMEOUT 30)
+    add_executable(TrialSessionTest "src/tests/trial_session_test.cxx")
+    target_compile_features(TrialSessionTest PRIVATE cxx_std_14)
+    add_test(NAME TrialSession COMMAND TrialSessionTest)
+    set_tests_properties(TrialSession PROPERTIES TIMEOUT 15)
 endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_locales.cmake")
@@ -309,7 +348,7 @@ install(DIRECTORY "assets/brand" DESTINATION "assets" FILES_MATCHING PATTERN "*.
 install(DIRECTORY "assets/input" DESTINATION "assets" FILES_MATCHING PATTERN "*.png" PATTERN "*.txt")
 target_sources(sf4e_ui PRIVATE src/ui/ControllerNavigation.cxx src/ui/backends/imgui_impl_win32.cpp)
 set_source_files_properties(src/ui/backends/imgui_impl_win32.cpp PROPERTIES COMPILE_DEFINITIONS IMGUI_IMPL_WIN32_DISABLE_GAMEPAD)
-target_sources(sf4e_ui PRIVATE src/ui/TrainingPanel.cxx src/ui/IdentityPanel.cxx src/ui/IdentityConnect.cxx src/ui/PublicRoomsPanel.cxx src/ui/PublicRoomsCards.cxx src/ui/PublicRoomsSetup.cxx src/ui/MatchAnnouncements.cxx)
+target_sources(sf4e_ui PRIVATE src/ui/TrainingPanel.cxx src/ui/ComboBlocks.cxx src/ui/IdentityPanel.cxx src/ui/IdentityConnect.cxx src/ui/PublicRoomsPanel.cxx src/ui/PublicRoomsCards.cxx src/ui/PublicRoomsSetup.cxx src/ui/MatchAnnouncements.cxx)
 target_compile_features(sf4e_ui PUBLIC cxx_std_17)
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_fonts.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_brand.cmake")
@@ -405,6 +444,8 @@ add_library(Dimps STATIC
     "src/Dimps/Dimps__Game__Battle__System.cxx"
     "src/Dimps/Dimps__Game__Battle__Training.hxx"
     "src/Dimps/Dimps__Game__Battle__Training.cxx"
+    "src/Dimps/Dimps__Game__Battle__Trial.hxx"
+    "src/Dimps/Dimps__Game__Battle__Trial.cxx"
     "src/Dimps/Dimps__Game__Battle__Vfx.hxx"
     "src/Dimps/Dimps__Game__Battle__Vfx.cxx"
     "src/Dimps/Dimps__GameEvents.hxx"
@@ -437,6 +478,29 @@ add_library(sf4e_common STATIC
     "src/common/install_paths.hxx"
 )
 target_link_libraries(sf4e_common PUBLIC "iphlpapi" "ws2_32" "winhttp")
+# The game's replay files: archiving and importing (platform/ReplayFiles.hxx).
+add_library(sf4e_replay_files STATIC "src/platform/ReplayFiles.cxx" "src/platform/ReplayFiles.hxx" "src/common/ReplaySlots.hxx")
+target_compile_features(sf4e_replay_files PUBLIC cxx_std_17)
+target_link_libraries(sf4e_replay_files PUBLIC spdlog::spdlog PRIVATE nlohmann_json::nlohmann_json shell32 ole32)
+# Ember's own video export: the frame grab in the game (platform/FrameGrab.hxx),
+# the encoder in a Launcher.exe the game starts for it (VideoLink.hxx,
+# VideoEncoder.hxx). Media Foundation and the audio device API are
+# delay-loaded: N editions without the Media Feature Pack and Wine may lack
+# them, and the launcher and Sidecar must still load there.
+add_library(sf4e_video STATIC "src/platform/VideoEncoder.cxx" "src/platform/VideoEncoder.hxx" "src/platform/VideoLink.cxx" "src/platform/VideoLink.hxx" "src/platform/FrameGrab.cxx" "src/platform/FrameGrab.hxx")
+target_compile_features(sf4e_video PUBLIC cxx_std_17)
+target_link_libraries(sf4e_video PUBLIC spdlog::spdlog mfplat mfreadwrite mfuuid mmdevapi d3d11 dxgi ole32 delayimp)
+target_link_options(sf4e_video INTERFACE "/DELAYLOAD:mfplat.dll" "/DELAYLOAD:mfreadwrite.dll" "/DELAYLOAD:MMDevAPI.dll" "/DELAYLOAD:d3d11.dll" "/DELAYLOAD:dxgi.dll")
+if(BUILD_TESTING)
+    add_executable(VideoEncoderTest "src/tests/video_encoder_test.cxx")
+    target_link_libraries(VideoEncoderTest PRIVATE sf4e_video winmm)
+    add_test(NAME VideoEncoder COMMAND VideoEncoderTest)
+    set_tests_properties(VideoEncoder PROPERTIES TIMEOUT 60 SKIP_RETURN_CODE 77)
+    add_executable(FrameGrabTest "src/tests/frame_grab_test.cxx")
+    target_link_libraries(FrameGrabTest PRIVATE sf4e_video d3d9)
+    add_test(NAME FrameGrab COMMAND FrameGrabTest)
+    set_tests_properties(FrameGrab PROPERTIES TIMEOUT 60 SKIP_RETURN_CODE 77)
+endif()
 if(BUILD_TESTING)
     add_executable(NetworkLinkTest "src/tests/network_link_test.cxx")
     target_link_libraries(NetworkLinkTest PRIVATE sf4e_common)
@@ -482,6 +546,10 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__BackgroundPlay.cxx"
     "src/sf4e/sf4e__Platform.hxx"
     "src/sf4e/sf4e__Platform.cxx"
+    "src/sf4e/sf4e__ReplayStore.hxx"
+    "src/sf4e/sf4e__ReplayStore.cxx"
+    "src/sf4e/sf4e__ReplayCapture.hxx"
+    "src/sf4e/sf4e__ReplayCapture.cxx"
     "src/sf4e/sf4e__CrashDiagnostics.hxx"
     "src/sf4e/sf4e__CrashDiagnostics.cxx"
     "src/sf4e/sf4e__UserApp.hxx"
@@ -506,7 +574,7 @@ if(SF4E_DEVELOPER_UI)
     target_sources(sf4e PRIVATE "src/sf4e/sf4e__DeveloperOverlay.cxx" "src/sf4e/sf4e__DeveloperOverlay__Battle.cxx" "src/sf4e/sf4e__DeveloperOverlay__System.cxx")
     target_compile_definitions(sf4e PRIVATE SF4E_DEVELOPER_UI=1)
 endif()
-target_link_libraries(sf4e PRIVATE sf4e_netplay_core sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization)
+target_link_libraries(sf4e PRIVATE sf4e_replay_files sf4e_video sf4e_netplay_core sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization)
 target_link_libraries(
     sf4e
     PRIVATE ${LIB_DETOURS} Session sf4e_common "Kernel32" "ws2_32" "Mswsock" "AdvApi32" "Shlwapi" "pathcch" "shell32" "Bcrypt" "Xinput9_1_0" "iphlpapi" "Dbghelp"
@@ -788,7 +856,7 @@ endif()
 add_library(sf4e_app_services STATIC src/platform/ApplicationServices.cxx src/launcher/update/github_release_client.cxx src/launcher/update/github_release_validation.cxx src/launcher/update/github_release_download.cxx)
 target_compile_features(sf4e_app_services PUBLIC cxx_std_17)
 target_compile_definitions(sf4e_app_services PRIVATE SF4E_APP_VERSION="${PROJECT_VERSION}")
-target_link_libraries(sf4e_app_services PUBLIC sf4e_settings sf4e_localization PRIVATE sf4e_common sf4e_selection sf4e_package_installer spdlog::spdlog nlohmann_json::nlohmann_json WIL::WIL pathcch shell32 shlwapi bcrypt)
+target_link_libraries(sf4e_app_services PUBLIC sf4e_settings sf4e_localization sf4e_replay_files PRIVATE sf4e_common sf4e_selection sf4e_package_installer spdlog::spdlog nlohmann_json::nlohmann_json WIL::WIL pathcch shell32 shlwapi bcrypt)
 if(BUILD_TESTING)
     add_executable(ApplicationServicesTest src/tests/application_services_test.cxx)
     target_link_libraries(ApplicationServicesTest PRIVATE sf4e_app_services)
@@ -809,7 +877,9 @@ if(BUILD_TESTING)
     set_tests_properties(RecoveryController PROPERTIES TIMEOUT 30)
 endif()
 add_executable(Launcher WIN32 src/launcher/launcher.cxx src/launcher/netplay/netplay_persist.cxx src/launcher/GameLocator.cxx)
-target_link_libraries(Launcher PRIVATE sf4e_helper_platform sf4e_settings sf4e_recovery sf4e_localization)
+target_link_libraries(Launcher PRIVATE sf4e_helper_platform sf4e_settings sf4e_recovery sf4e_localization sf4e_replay_files sf4e_video)
+# As the video export's encoder (platform/VideoLink.hxx) it holds a second of 4K frames: 4 GB of addresses instead of 2.
+target_link_options(Launcher PRIVATE "/LARGEADDRESSAWARE")
 set(_SF4E_LAUNCHER_EXE_TARGET Launcher)
 target_include_directories(${_SF4E_LAUNCHER_EXE_TARGET} PRIVATE "src/common" "src/launcher")
 		target_link_libraries(${_SF4E_LAUNCHER_EXE_TARGET} PRIVATE

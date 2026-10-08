@@ -194,6 +194,7 @@ namespace Dimps {
 			typedef struct __publicMethods {
 				// arg2 and arg3 are almost always 0 and -1, respectively
 				void* (Allocator::* Allocate)(size_t size, DWORD arg2, DWORD arg3);
+				void (Allocator::* Free)(void* block);
 			} __publicMethods;
 
 			typedef struct __staticMethods {

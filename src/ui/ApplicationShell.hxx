@@ -1,4 +1,5 @@
 #pragma once
+#include "../common/ReplayRequest.hxx"
 #include "../common/GameDisplayConfig.hxx"
 #include "../discord/Presence.hxx"
 #include "../netplay/InputAssignment.hxx"
@@ -97,6 +98,12 @@ struct ShellView {
     // (-1: none), and a sequence that changes per change.
     int opponentChangedFighter = -1;
     std::uint64_t opponentChangeSequence = 0;
+    // Called out of Training to the player's table (RuntimeSnapshot's fields
+    // of the same names): show the table, ready the player, the seconds left
+    // to ready, and whether Training can be entered from the room.
+    std::uint64_t trainingCallSequence = 0, trainingReadySequence = 0;
+    int trainingReadySeconds = 0;
+    bool canTrain = false;
     int selectedFighter = 0;
     // The Ember identity (RuntimeSnapshot::identity and its request fields).
     netplay::IdentityView identity;
@@ -106,6 +113,22 @@ struct ShellView {
     netplay::tournament::Status tournament;
     // The bridge's public rooms and the answer to the last create or ticket request.
     netplay::publicrooms::Status publicRooms;
+    // Ember's replay archive (platform/ReplayFiles.hxx), newest first; each
+    // is a path for the import action and a label for its row. replaysReady
+    // when one can be put into the game's replay list right now, and the
+    // outcome of the last import as a notice (an error when it failed).
+    // score: "2-1", player 1 first, or empty when the replay does not tell.
+    // info: what the replay says of the match, for the row's detail.
+    // time: when it was saved (seconds since 1970). rounds: the rounds each
+    // player won, -1 when unknown; with time, what a set's score is counted from.
+    struct Replay { std::string path, label, names[2]; bool spectated = false, watched = false, video = false; std::string score, info; std::uint64_t time = 0; int rounds[2] = {-1, -1}; };
+    std::vector<Replay> replays;
+    bool replaysReady = false;
+    std::string replayNotice;
+    bool replayNoticeError = false;
+    // The file a replay link asked Ember to play, until the player answers:
+    // the Replays screen opens with the question as its first row.
+    std::string replayLink;
 };
 
 // The count on a Chat control: a rounded badge ending at `right` (screen x), its top at `top`, the
@@ -126,6 +149,9 @@ struct ShellAction {
     int previewSoundVolume=-1;
     // Asks for the room's short link; nothing else is sent.
     bool shortInvitation=false;
+    // With a StartOffline: once it is accepted, the game's main menu leaves
+    // straight for Training mode.
+    bool enterTraining=false;
     // Steps the chosen Ultra or color by delta (the table page's Ultra and
     // Appearance rows); the overlay applies it to the pick, and nothing is sent.
     struct SelectionStep {
@@ -141,6 +167,10 @@ struct ShellAction {
     // With the JoinInvite of a public room just created: the table rules chosen
     // on Create, which the runtime sets once the creator is in it as host.
     std::optional<room::Rules> createdRules;
+    // What the Replays screen asks of the game: an archived replay (its
+    // ShellView::Replay::path) to add or to watch, the game's own list, or
+    // no to a replay link. Nothing is sent to the room.
+    replay::Request replay;
 };
 
 class ApplicationShell {
@@ -311,6 +341,19 @@ private:
     netplay::PlayerPreferences preferences_;
     netplay::LobbySettings lobby_;
     std::string error_;
+    // The Inputs and stats screen of the replay last chosen for it, made once
+    // when it opens: the file is read and counted then (common/ReplayInputs.hxx).
+    std::vector<MenuEntry> inputsRows_;
+    void OpenReplayInputs(const ShellView::Replay& replay);
+    // The Export video screen: the replay it is for and the caption as the
+    // player has it, sent with the request when Generate is chosen.
+    // Replays > Frame meter: sent with Watch now and Generate video. Not saved; off at each start.
+    bool replayMeter_ = false;
+    std::string exportPath_;
+    replay::Caption caption_;
+    void OpenReplayExport(const ShellView& view,const ShellView::Replay& replay);
+    // The replay link last seen, so its question opens the Replays screen once.
+    std::string replayLinkSeen_;
     // A shell error has no natural clear point (a paste that failed, an
     // invalid value), so it ends with the screen it appeared on, with the
     // condition a refusal named (Refuse), or a few seconds after it appeared.
@@ -335,6 +378,8 @@ private:
     // that arrived while the player was free joins by itself, for as long
     // as the runtime offers that.
     std::uint64_t joinLinkSeen_=0;
+    // The training call's sequences as last acted on.
+    std::uint64_t trainingCallSeen_=0,trainingReadySeen_=0;
     std::string joinLink_;
     bool joinLinkDirect_=false;
     // A public room link from the browser: the last one seen, and whether
@@ -350,7 +395,7 @@ private:
     std::set<room::MemberId> muted_;
     bool Service(platform::ServiceAction action, const ShellView& view, const Submit& submit);
     bool SendRoom(room::Action action, const ShellView& view, const Submit& submit);
-    bool Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit);
+    bool Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit, bool enterTraining = false);
 };
 
 } }

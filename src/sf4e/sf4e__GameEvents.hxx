@@ -16,9 +16,22 @@ namespace sf4e {
 			void OnModeSelected(int mode);
 			int GetItemObserverState();
 
+			// On the item observer (ToItemObserver), like GoToVersusMode.
+			void GoToLocalBattleLog();
+			static bool OpenLocalBattleLog();
+			// Leaves the battle log for the main menu (its flow row 1), the way
+			// its own Back leaves for Player Data (row 0, 0x46F910).
+			static bool LeaveLocalBattleLog();
 			static int (*OnModeSelectedOverride)(int mode);
 			// Written by the overlay on the drawing thread, read by the game.
 			static std::atomic<int> bOverrideItemObserverState;
+			// Asks the main menu to leave for Training mode without its
+			// Fight Request question. Any thread; the game thread acts on it
+			// the next time the menu is idle, and forgets it after two
+			// seconds, so a request made where no main menu is up does
+			// nothing later.
+			static void RequestTraining();
+			static std::atomic<ULONGLONG> trainingRequestedUntil;
 			static void Install();
 		};
 

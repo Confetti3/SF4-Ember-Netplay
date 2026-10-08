@@ -3,6 +3,8 @@
 #include "../common/install_paths.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "../common/Localization.hxx"
+#include "ReplayFiles.hxx"
+#include "Utf8.hxx"
 #include <windows.h>
 #include <objbase.h>
 #include <shellapi.h>
@@ -70,6 +72,7 @@ bool ApplicationServices::Request(ServiceAction action, const DiagnosticsView& d
     state_.downloadedBytes = state_.totalBytes = 0;
     request_ = action; diagnostics_ = diagnostics; state_.pending = true; state_.succeeded = false; state_.lastAction = action;
     state_.message = action == ServiceAction::OpenCommunity ? loc::T("services.opening_community") :
+        action == ServiceAction::OpenReplayFolder ? loc::T("services.opening_replay_folder") :
         action == ServiceAction::CheckUpdates || action == ServiceAction::SwitchUpdateChannel ? loc::T("services.checking") :
         action == ServiceAction::ExportDiagnostics ? loc::T("services.exporting") :
         action == ServiceAction::InstallUpdate ? loc::T("services.downloading") : loc::T("services.opening_updater");
@@ -155,6 +158,14 @@ void ApplicationServices::Run() {
                 if (SUCCEEDED(com)) CoUninitialize();
                 next.succeeded = opened;
                 next.message = opened ? loc::T("services.community_opened") : loc::Tf("services.community_failed", CommunityInvite);
+            } else if (action == ServiceAction::OpenReplayFolder) {
+                const auto folder = replays::FindFolders().archive;
+                std::error_code ignored; std::filesystem::create_directories(folder, ignored);
+                const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+                const auto opened = !folder.empty() && reinterpret_cast<INT_PTR>(ShellExecuteW(nullptr, L"open", folder.c_str(), nullptr, nullptr, SW_SHOWNORMAL)) > 32;
+                if (SUCCEEDED(com)) CoUninitialize();
+                next.succeeded = opened;
+                next.message = opened ? loc::Tf("services.replay_folder_opened", WideToUtf8(folder.wstring())) : loc::T("services.replay_folder_failed");
             } else if (action == ServiceAction::InstallUpdate) {
                 if (!next.update.ok || !next.update.updateAvailable || next.update.expectedSha256.size() != 64) {
                     next.message = loc::T("services.no_verified_update");

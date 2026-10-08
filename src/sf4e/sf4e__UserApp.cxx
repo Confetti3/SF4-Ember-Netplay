@@ -15,6 +15,7 @@
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../Dimps/Dimps__UserApp.hxx"
 #include "../common/StageCatalog.hxx"
+#include "../platform/ReplayFiles.hxx"
 #include "../common/Localization.hxx"
 #include "../common/sf4e__RollbackDiagnostics.hxx"
 #include "../session/sf4e__SessionClient.hxx"
@@ -118,6 +119,12 @@ static MatchEntry StartMatchFromLobby(SessionClient* const client) {
     BattleTypeSettings->editionSelect = client->_lobbyData.editionSelect;
     BattleTypeSettings->rounds = client->_lobbyData.roundCount;
     BattleTypeSettings->timeLimit = client->_lobbyData.roundTime;
+    // A Versus battle saves its own replay when this is set (0x63CA40); the
+    // launcher copies each one out of the game's slots. A match this PC only
+    // watches is recorded unless the player turned that off.
+    sf4e::NetplayFacade::RuntimeMatchEndpoints seats;
+    const bool watching = sf4e::NetplayFacade::GetRuntimeMatchEndpoints(seats) && seats.localSlot >= 2;
+    BattleTypeSettings->recordReplay = !watching || sf4e::NetplayFacade::GetRuntimeSnapshotShared()->preferences.recordWatched;
     spdlog::info(
         "Netplay: starting match with rounds={} time={}",
         client->_lobbyData.roundCount,
@@ -161,6 +168,7 @@ static bool StartRuntimeGgpo() {
             if (!captured.name.empty() && member.name == captured.name) captured.link = member.link;
     }
     netplay->spectating = endpoints.localSlot >= 2;
+    sf4e::platform::replays::NoteMatchStart(netplay->matchSides[0].name, netplay->matchSides[1].name, netplay->spectating);
     netplay->startScoreKnown = false;
     netplay->startScore[0] = netplay->startScore[1] = 0;
     for (const auto& member : room.members)

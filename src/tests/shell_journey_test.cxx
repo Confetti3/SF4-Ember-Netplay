@@ -1,6 +1,9 @@
 #include "shell_journey_support.hxx"
 #include "shell_chat_journey.hxx"
 #include <algorithm>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <iterator>
 namespace {
 // The fighter drawn right of `fighter` in USFIV's select order, which is where Right goes.
@@ -369,6 +372,47 @@ void Journeys() {
  h.Frame(0,20);Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.showMatchHud,"Autosave did not queue");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("player");h.Choose("background-play");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.backgroundPlay,"Play in the background did not save");
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("replays");h.Choose("replay-save-watched");h.Press(MenuInput::Left);h.Frame(0,45);
+ Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.recordWatched,"Save matches you watch did not save");
+ // A replay's row is its file: Watch now asks for that path. A link's question opens the screen and is answered with Watch or a dismissal.
+ {const ShellAction saved=h.actions.back(); // the journey goes on from the preferences just saved
+  h.view.preferences=saved.preferences;h.Frame(); // and the save is acknowledged before the frames below pass
+  ShellView::Replay shown;shown.path="C:\\r\\a.emberreplay";shown.label="2026-10-06 21:32  Ryu vs Ken";
+  h.view.replays={shown};h.view.replaysReady=true;h.Screen("replays");h.Choose("replay:C:\\r\\a.emberreplay");h.Press(MenuInput::Select);
+  Check(h.actions.back().replay.mode==sf4e::replay::Mode::Watch&&h.actions.back().replay.path==shown.path,"Watch now did not ask for the replay's file");
+  Check(!h.actions.back().replay.meter,"Watch now asked for the frame meter with the row off");
+  h.Choose("replay-meter");h.Press(MenuInput::Right);h.Frame();h.Choose("replay:C:\\r\\a.emberreplay");h.Press(MenuInput::Select);
+  Check(h.actions.back().replay.mode==sf4e::replay::Mode::Watch&&h.actions.back().replay.meter,"Watch now did not ask for the frame meter with the row on");
+  h.Screen("home");h.view.replayLink="D:\\x\\b.usf4replay";h.Frame();
+  Check(h.shell.Navigation().Screen()=="replays","A replay link did not open the Replays screen");
+  h.Choose("replay-link");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+  Check(h.actions.back().replay.mode==sf4e::replay::Mode::DismissLink&&h.actions.back().replay.path.empty(),"Not now did not dismiss the link");
+  h.Choose("replay-link");h.Press(MenuInput::Select);
+  Check(h.actions.back().replay.mode==sf4e::replay::Mode::Watch&&h.actions.back().replay.path==h.view.replayLink,"Play it did not ask for the link's file");
+  // Export video opens the caption's screen; the set so far is counted from the two matches before, the line is the date and score, and Generate sends all of it.
+  {ShellView::Replay third,second,first;third.path="C:\\r\\c.emberreplay";third.label="2026-10-06 21:40  A (Ryu) vs B (Ken)";third.names[0]="A";third.names[1]="B";third.score="2-1";third.time=3000;
+   second=third;second.path="C:\\r\\b.emberreplay";second.time=2500;second.rounds[0]=0;second.rounds[1]=2;
+   first=third;first.path="C:\\r\\a2.emberreplay";first.time=2000;first.names[0]="B";first.names[1]="A";first.rounds[0]=1;first.rounds[1]=2;
+   h.view.replayLink.clear();h.view.replays={third,second,first};h.Screen("replays");h.Choose("replay:C:\\r\\c.emberreplay");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+   Check(h.shell.Navigation().Screen()=="replay-export","Export video did not open the caption's screen");
+   h.Choose("cap-mark");h.Press(MenuInput::Left);h.Frame();h.Choose("cap-generate");
+   const auto& sent=h.actions.back().replay;
+   Check(sent.mode==sf4e::replay::Mode::Export&&sent.path==third.path&&sent.caption.names&&sent.caption.line&&!sent.caption.mark&&sent.caption.set,"Generate did not send the export with its caption");
+   Check(sent.caption.wins[0]==1&&sent.caption.wins[1]==1&&sent.caption.text=="2026-10-06   2-1"&&sent.caption.name[0]=="A","The caption did not start from the replay and the set before it");
+   Check(h.shell.Navigation().Screen()=="replays","Generate did not return to the Replays screen");}
+  // Inputs and stats, the third choice, reads the file (one round: LP for a frame) and sends nothing.
+  {std::vector<unsigned char> replay(0x320+0x88,0);std::memcpy(replay.data(),"#BRP",4);replay[8]=1;replay[10]=8;replay[0x18]=1;replay[0x320+0x7C]=3;
+   const unsigned char press[]={0x10,0,0};replay.insert(replay.end(),press,press+3);
+   const auto file=std::filesystem::temp_directory_path()/"ember-journey-inputs.usf4replay";
+   std::ofstream(file,std::ios::binary).write(reinterpret_cast<const char*>(replay.data()),static_cast<std::streamsize>(replay.size()));
+   ShellView::Replay read;read.path=file.string();read.label="2026-10-06 21:32  Ryu vs Ken";
+   h.view.replayLink.clear();h.view.replays={read};h.Screen("replays");const std::size_t sent=h.actions.size();const std::string row="replay:"+read.path;h.Choose(row.c_str());
+   for(int i=0;i<2;++i)h.Press(MenuInput::Right);
+   h.Press(MenuInput::Select);
+   Check(h.shell.Navigation().Screen()=="replay-inputs"&&h.actions.size()==sent,"Inputs and stats did not open its screen, or sent something");
+   h.FocusOn("inputs-p2");h.FocusOn("inputs-round-1");
+   std::error_code ignored;std::filesystem::remove(file,ignored);}
+  h.view.replays.clear();h.view.replaysReady=false;h.view.replayLink.clear();h.Frame();h.actions.push_back(saved);}
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("interface");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-size");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudSize==1,"HUD size did not save"); // Small by default; Right steps to Standard.
@@ -683,6 +727,48 @@ void AppearanceGalleries(){
 }
 // A notice raised while an editor or a confirmation is open must be seen, and
 // must give the dialog back with its draft and its Cancel default.
+// Training on Home is the offline command with the game sent on into
+// Training mode; Play offline alone sends the game nowhere.
+void TrainingFromHome() {
+ using namespace sf4e;
+ using Kind=netplay::CommandKind;
+ Harness h;h.Frame();
+ h.Choose("training");
+ Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::StartOffline&&h.actions.back().enterTraining,"Training did not ride on the offline command");
+ h.Screen("home");h.Choose("offline");
+ Check(h.actions.back().command.kind==Kind::StartOffline&&!h.actions.back().enterTraining,"Play offline asked for Training");
+}
+// Training from inside a room: the row sends no room command, and a player
+// called back from Training lands on their table, readied for them only once
+// the runtime allows a Ready.
+void TrainingFromRoom() {
+ using namespace sf4e;
+ using Kind=netplay::CommandKind;
+ Harness h;h.Frame();
+ room::Member me,other;me.id=1;me.name="Me";other.id=2;other.name="Other";
+ h.view.session.room=netplay::RoomState::Joined;h.view.session.control=netplay::Health::Healthy;h.view.room.roomEpoch=9;h.view.room.localMember=1;
+ for(std::size_t i=0;i<h.view.room.tables.size();++i)h.view.room.tables[i].id=static_cast<std::uint8_t>(i);
+ h.view.room.members={me,other};h.view.canTrain=true;h.Frame();
+ const auto before=h.actions.size();
+ h.Choose("room-training");
+ Check(h.actions.size()==before+1&&h.actions.back().enterTraining&&h.actions.back().command.kind!=Kind::StartOffline,"Training from the room did not ask for Training alone");
+ // Seated opposite another fighter and called back: the table page, with the time to ready on its Ready row.
+ me.table=0;me.seat=0;me.status=room::MemberStatus::Seated;other.table=0;other.seat=1;other.status=room::MemberStatus::Seated;
+ h.view.room.members={me,other};h.view.room.tables[0].p1=1;h.view.room.tables[0].p2=2;h.view.room.tables[0].phase=room::TablePhase::Waiting;
+ h.view.canTrain=false;h.view.trainingCallSequence=1;h.view.trainingReadySeconds=15;h.Frame();
+ Check(h.shell.Navigation().Screen()=="room-table","A player called back from Training was not shown their table");
+ // Asked to be readied: nothing until the runtime's gate opens, then one Ready.
+ const auto sent=h.actions.size();
+ h.view.trainingReadySequence=1;h.Frame();h.Frame();
+ Check(h.actions.size()==sent,"A Ready was sent before the runtime allowed one");
+ h.view.canReady=true;h.Frame();
+ Check(h.actions.size()==sent+1&&h.actions.back().command.kind==Kind::Ready,"A player who asked for it was not readied after the call");
+ h.Frame();h.Frame();
+ Check(h.actions.size()==sent+1,"The call readied the player more than once");
+ // A window that closed takes a waiting Ready with it.
+ h.view.canReady=false;h.view.trainingReadySequence=2;h.Frame();h.view.trainingReadySeconds=0;h.Frame();h.view.canReady=true;h.Frame();
+ Check(h.actions.size()==sent+1,"A Ready outlived its window");
+}
 void NoticeOverDialogs() {
  using namespace sf4e;Harness h;h.Frame();
  const auto shown=[&](const char* name){const auto* w=ImGui::FindWindowByName(name);return w&&w->Active&&!w->Hidden&&w->HiddenFramesCannotSkipItems==0;};
@@ -902,5 +988,5 @@ void TrainingJourneys() {
  TakeForwardedMenuAction();
 }
 }
-int main(){try{Journeys();KeyboardJourneys();ChatJourneys();NoticeOverDialogs();LanguageSaveFailure();SessionReports();RecoveryWindow();SelectorPages();SelectorFromHome();DeveloperSelectors();TrainingJourneys();PresentationJourneys();AppearanceGalleries();std::cout<<"Shell journeys through the renderer passed.\n";return 0;}
+int main(){try{Journeys();TrainingFromHome();TrainingFromRoom();KeyboardJourneys();ChatJourneys();NoticeOverDialogs();LanguageSaveFailure();SessionReports();RecoveryWindow();SelectorPages();SelectorFromHome();DeveloperSelectors();TrainingJourneys();PresentationJourneys();AppearanceGalleries();std::cout<<"Shell journeys through the renderer passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

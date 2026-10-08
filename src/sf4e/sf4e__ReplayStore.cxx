@@ -1,0 +1,309 @@
+#include "sf4e__ReplayStore.hxx"
+
+#include <cstdint>
+#include <cstring>
+#include <string>
+#include <windows.h>
+#include <detours/detours.h>
+#include <spdlog/spdlog.h>
+
+#include "../Dimps/Dimps.hxx"
+#include "../Dimps/Dimps__Event.hxx"
+#include "../Dimps/Dimps__Game.hxx"
+#include "../Dimps/Dimps__Game__Battle.hxx"
+#include "../Dimps/Dimps__Game__Battle__System.hxx"
+#include "../common/Localization.hxx"
+#include "../common/ReplaySlots.hxx"
+#include "../platform/ReplayFiles.hxx"
+#include "../platform/Utf8.hxx"
+#include "sf4e__Game__Battle.hxx"
+#include "sf4e__GameEvents.hxx"
+#include "sf4e__ReplayCapture.hxx"
+
+namespace {
+
+using Dimps::Game::ReplayBattle;
+using Dimps::Game::SaveDataController;
+using Table = Dimps::Game::ReplayInfoList;
+using sf4e::replaystore::Step;
+
+// The stream an entry is filled from (Dimps__Game.hxx, ReplayInfoList): four
+// words, of which only the base, cursor and size are read.
+struct Stream {
+	const void* vtable;
+	const std::uint8_t* base;
+	const std::uint8_t* cursor;
+	std::uint32_t size;
+};
+
+struct ReplayInfoList : Table {
+	BOOL Read(void* stream);
+};
+
+struct Entry {
+	BOOL Deserialize(Stream* stream);
+};
+
+std::uint8_t* s_entries = nullptr;
+
+// Steam's cloud files for this account, as the game itself writes them: the
+// game's steam_api.dll exports the accessor, and FileWrite is the first
+// function of every ISteamRemoteStorage version.
+struct RemoteStorage {
+	bool FileWrite(const char* name, const void* data, std::int32_t size);
+};
+
+bool WriteThroughSteam(const std::string& name, const sf4e::replayslots::Bytes& contents) {
+	using Accessor = RemoteStorage* (*)();
+	const HMODULE steam = GetModuleHandleW(L"steam_api.dll");
+	const Accessor accessor = steam ? reinterpret_cast<Accessor>(GetProcAddress(steam, "SteamRemoteStorage")) : nullptr;
+	RemoteStorage* const storage = accessor ? accessor() : nullptr;
+	if (!storage) { spdlog::warn("Replay: Steam's remote storage is not available"); return false; }
+	bool (RemoteStorage::* fileWrite)(const char*, const void*, std::int32_t);
+	*reinterpret_cast<PVOID*>(&fileWrite) = (*reinterpret_cast<PVOID**>(storage))[0];
+	if ((storage->*fileWrite)(name.c_str(), contents.data(), static_cast<std::int32_t>(contents.size()))) return true;
+	spdlog::warn("Replay: Steam did not write {} ({} bytes)", name, contents.size());
+	return false;
+}
+
+BOOL ReplayInfoList::Read(void* stream) {
+	const BOOL ok = (this->*publicMethods.Read)(stream);
+	std::uint8_t* const begin = *reinterpret_cast<std::uint8_t**>(reinterpret_cast<std::uint8_t*>(this) + Entries);
+	std::uint8_t* const end = *reinterpret_cast<std::uint8_t**>(reinterpret_cast<std::uint8_t*>(this) + EntriesEnd);
+	// A save need not keep the entries in slot order, so each is asked which
+	// slot it names.
+	const std::ptrdiff_t span = begin ? end - begin : 0;
+	bool stock = begin && span == static_cast<std::ptrdiff_t>(sf4e::replayslots::kSlots * EntryBytes);
+	int odd = -1;
+	for (int at = 0; stock && at < sf4e::replayslots::kSlots; at++) {
+		const std::uint32_t slot = sf4e::replayslots::ReadU32(begin + at * EntryBytes + EntrySlot);
+		if (slot >= static_cast<std::uint32_t>(sf4e::replayslots::kSlots) && slot != 0xFFFFFFFFu) { stock = false; odd = at; }
+	}
+	s_entries = stock ? begin : nullptr;
+	if (stock) spdlog::info("Replay: the game's replay table is at {}", static_cast<void*>(begin));
+	else spdlog::warn("Replay: the game's replay table is not the stock shape (read {}, {} bytes for {} entries of {}, first odd entry {} holds {:#x}); archived replays cannot be added while it runs",
+		ok, span, span / static_cast<std::ptrdiff_t>(EntryBytes), EntryBytes, odd, odd >= 0 ? sf4e::replayslots::ReadU32(begin + odd * EntryBytes + EntrySlot) : 0u);
+	return ok;
+}
+
+bool SavesBusy() {
+	auto* const saves = SaveDataController::staticMethods.GetSingleton();
+	return !saves || (saves->*SaveDataController::publicMethods.Busy)();
+}
+
+// Puts an archived replay into the game's files and then its table, as the
+// newest entry of the match list. The slot it took, or -1.
+int Import(const std::wstring& path) {
+	sf4e::platform::replays::Imported imported;
+	if (!sf4e::platform::replays::ImportFile(path, WriteThroughSteam, imported)) return -1;
+	std::uint8_t* entry = s_entries + imported.slot * Table::EntryBytes;
+	for (int at = 0; at < sf4e::replayslots::kSlots; at++)
+		if (sf4e::replayslots::ReadU32(s_entries + at * Table::EntryBytes + Table::EntrySlot) == static_cast<std::uint32_t>(imported.slot)) { entry = s_entries + at * Table::EntryBytes; break; }
+	Stream stream{nullptr, imported.record.data(), imported.record.data(), static_cast<std::uint32_t>(imported.record.size())};
+	BOOL (Entry::* deserialize)(Stream*);
+	*reinterpret_cast<PVOID*>(&deserialize) = (*reinterpret_cast<PVOID**>(entry))[Table::EntryDeserialize];
+	if (!(reinterpret_cast<Entry*>(entry)->*deserialize)(&stream)) {
+		// The files already hold the replay; the next game start lists it.
+		spdlog::warn("Replay: the game did not take slot {}'s record; it shows after a restart", imported.slot);
+		return -1;
+	}
+	std::memcpy(entry + Table::EntrySlotBytes, imported.slotBytes.data(), 2);
+	spdlog::info("Replay: slot {} is in the game's table", imported.slot);
+	return imported.slot;
+}
+
+Dimps::Event::EventBaseWithEC* BattleLogEvent() {
+	auto* const root = Dimps::App::GetRootEvent();
+	if (!root) return nullptr;
+	char* query[1] = { const_cast<char*>("LocalBattleLog") };
+	return reinterpret_cast<Dimps::Event::EventBaseWithEC*>(Dimps::Event::EventBaseWithEC::FindForegroundEvent(root, query, 1));
+}
+
+// The battle log's current state ("Select", "Versus", "Battle") or nullptr.
+Dimps::Event::EventBase* BattleLogState(Dimps::Event::EventBaseWithEC* log) {
+	auto* const controller = log ? (log->*Dimps::Event::EventBaseWithEC::publicMethods.GetChildEventController)() : nullptr;
+	return controller ? (controller->*Dimps::Event::EventController::publicMethods.GetForegroundEvent)() : nullptr;
+}
+
+bool Named(Dimps::Event::EventBase* state, const char* name) { return state && !std::strcmp(Dimps::Event::EventBase::GetName(state), name); }
+
+// The Versus splash waits for its movies and the announcer, which do not
+// finish here; it gets the Start press the player could give it
+// (Dimps__Game.hxx, ReplayBattle).
+void SkipSplash(Dimps::Event::EventBase* versus) {
+	std::uint8_t* const splash = *reinterpret_cast<std::uint8_t**>(reinterpret_cast<std::uint8_t*>(versus) + ReplayBattle::VersusSplash);
+	if (!splash || *reinterpret_cast<int*>(splash + ReplayBattle::SplashState) != 1) return;
+	const auto& native = ReplayBattle::staticMethods;
+	auto* const voice = *reinterpret_cast<ReplayBattle::Voice**>(splash + ReplayBattle::SplashVoice);
+	*reinterpret_cast<int*>(splash + ReplayBattle::SplashPhase) = 3;
+	if (voice) native.FadeVoice(voice, 0x1F);
+	*reinterpret_cast<int*>(splash + ReplayBattle::SplashState) = 3;
+	for (int movie = 0; movie < 2; movie++) {
+		auto* const m = reinterpret_cast<ReplayBattle::Movie*>(splash + ReplayBattle::SplashMovies + movie * 8);
+		if (native.MovieValid(m)) native.MovieSignal(m, "Close", 0);
+	}
+	spdlog::info("Replay: skipped the Versus splash");
+}
+
+// The one operation. waited: ticks in the step's wait. slot: the imported
+// replay to play, for Watch, else -1. started: the log has left its list for
+// the replay. splash: ticks of the Versus state, -1 once skipped.
+// kDecidedTicks: how long an export shows the decided match (the win pose
+// and result) before Ember leaves the replay for the player.
+constexpr int kPatience = 600, kSplashTicks = 120, kGoneTicks = 120, kDecidedTicks = 360;
+// video: the .mp4 an export writes, empty otherwise; awaited: the capture
+// was started and its outcome is owed.
+struct Operation {
+	sf4e::replaystore::Status status;
+	int waited = 0, slot = -1, splash = 0;
+	bool started = false, awaited = false, meter = false;
+	// decided: ticks the exported replay's match has been over; -1 once Ember chose to leave.
+	int decided = 0;
+	std::wstring video;
+	void Enter(Step step) { status.step = step; waited = 0; }
+	void Notice(const char* key, bool error) { status.notice = sf4e::loc::T(key); status.noticeError = error; }
+} s_operation;
+
+// Plays the slot's row of the battle log's list, as the list's DECIDE does.
+// False while the list has no such row.
+bool PlayRow(Dimps::Event::EventBase* select, int slot) {
+	auto* const list = *reinterpret_cast<std::uint8_t**>(reinterpret_cast<std::uint8_t*>(select) + ReplayBattle::SelectList);
+	const std::uint8_t* const rows = list ? *reinterpret_cast<std::uint8_t**>(list + ReplayBattle::ListRowsBegin) : nullptr;
+	const std::uint8_t* const end = list ? *reinterpret_cast<std::uint8_t**>(list + ReplayBattle::ListRowsEnd) : nullptr;
+	for (const std::uint8_t* r = rows; r && r < end; r += ReplayBattle::ListRowBytes) {
+		if (*reinterpret_cast<const int*>(r) != slot) continue;
+		const int row = static_cast<int>((r - rows) / ReplayBattle::ListRowBytes);
+		*reinterpret_cast<int*>(list + ReplayBattle::ListSelected) = row;
+		ReplayBattle::staticMethods.PlayRow(reinterpret_cast<ReplayBattle::List*>(list));
+		spdlog::info("Replay: playing slot {} from row {} of the battle log", slot, row);
+		return true;
+	}
+	return false;
+}
+
+}
+
+void sf4e::replaystore::Install() {
+	BOOL (ReplayInfoList::* detour)(void*) = &ReplayInfoList::Read;
+	DetourAttach(reinterpret_cast<PVOID*>(&Table::publicMethods.Read), *reinterpret_cast<PVOID*>(&detour));
+}
+
+bool sf4e::replaystore::Ready() { return s_entries != nullptr && sf4e::Game::Battle::MatchReplayListWidened(); }
+
+const sf4e::replaystore::Status& sf4e::replaystore::GetStatus() { return s_operation.status; }
+
+void sf4e::replaystore::Start(const replay::Request& request, bool atMainMenu, bool noRoom) {
+	Operation& op = s_operation;
+	const bool exporting = request.mode == replay::Mode::Export;
+	const bool import = request.mode == replay::Mode::Add || request.mode == replay::Mode::Watch || exporting;
+	const bool jump = request.mode == replay::Mode::Watch || request.mode == replay::Mode::OpenLog || exporting;
+	if (!import && !jump) return;
+	if (op.status.step != Step::Idle || !atMainMenu || op.awaited) { op.Notice("replays.not_ready", true); return; }
+	op.slot = -1; op.video.clear(); op.meter = request.meter && jump && import;
+	if (import) {
+		if (!Ready() || SavesBusy()) { op.Notice("replays.not_ready", true); return; }
+		const std::wstring path = platform::Utf8ToWide(request.path.c_str());
+		op.slot = Import(path);
+		if (op.slot < 0) { op.Notice("replays.not_added", true); return; }
+		platform::replays::MarkWatched(path);
+		op.Notice("replays.added", false);
+	}
+	if (!jump) return;
+	if (!noRoom || !GameEvents::MainMenu::OpenLocalBattleLog()) {
+		// A replay that was added stays added; only the jump did not happen.
+		if (!import) op.Notice("replays.not_ready", true);
+		return;
+	}
+	op.status.logOpens++;
+	op.started = false; op.splash = 0; op.decided = 0;
+	if (exporting) {
+		// Ember's encoder writes straight next to the replay.
+		const std::wstring path = platform::Utf8ToWide(request.path.c_str());
+		const std::size_t dot = path.find_last_of(L'.');
+		op.video = (dot == std::wstring::npos ? path : path.substr(0, dot)) + L".mp4";
+		op.status.caption = request.caption;
+	}
+	op.Enter(Step::OpeningLog);
+}
+
+bool sf4e::replaystore::MeterWanted() { return s_operation.meter && s_operation.status.step == Step::Playing; }
+
+bool sf4e::replaystore::Exporting() {
+	const Operation& op = s_operation;
+	return !op.video.empty() && (op.status.step == Step::SelectingRow || op.status.step == Step::Playing);
+}
+
+void sf4e::replaystore::Tick(bool atMainMenu) {
+	Operation& op = s_operation;
+	// An export's file closes on the encoder's time; its outcome is the notice.
+	if (op.awaited) {
+		const replaycapture::State capture = replaycapture::GetState();
+		if (capture == replaycapture::State::Done || capture == replaycapture::State::Failed) {
+			const std::string file = platform::WideToUtf8(op.video);
+			op.status.notice = capture == replaycapture::State::Done ? loc::Tf("replays.exported", file) : std::string(loc::T("replays.gpu_not_exported"));
+			op.status.noticeError = capture != replaycapture::State::Done;
+			replaycapture::Clear();
+			op.awaited = false; op.video.clear();
+		}
+	}
+	op.status.captionShown = op.awaited && op.status.step == Step::Playing && op.status.caption.Any() && replaycapture::GetState() == replaycapture::State::Recording;
+	if (op.status.step == Step::Idle) return;
+	auto* const log = BattleLogEvent();
+	auto* const state = BattleLogState(log);
+	const bool late = ++op.waited > kPatience;
+	switch (op.status.step) {
+	case Step::OpeningLog:
+		// The jump fades through a few frames; the log's list is up soon after.
+		if (Named(state, "Select")) op.Enter(op.slot >= 0 ? Step::SelectingRow : Step::InLog);
+		else if (late) { spdlog::warn("Replay: the battle log did not come up"); op.Enter(Step::InLog); }
+		break;
+	case Step::SelectingRow:
+		if (Named(state, "Select") && !SavesBusy() && PlayRow(state, op.slot)) op.Enter(Step::Playing);
+		else if (late) { spdlog::warn("Replay: slot {} could not be played; it is in the battle log's list", op.slot); op.Enter(Step::InLog); }
+		break;
+	case Step::Playing:
+		if (!log) {
+			// The player left the log, or the game moved on without it.
+			if (op.waited > kGoneTicks) { replaycapture::End(); op.Enter(Step::InLog); }
+			break;
+		}
+		// The fight is loading: record from here to the log's return.
+		if (Named(state, "Battle") && !op.video.empty() && !op.awaited) {
+			replaycapture::Begin(op.video, op.status.caption.Any() || op.meter);
+			op.awaited = true;
+			spdlog::info("Replay: encoding the playback");
+		}
+		// An export leaves the replay by itself: once the match has been
+		// decided for a while, the end menu's choice is made for the player
+		// (Dimps__Game.hxx, ReplayBattle). Written each tick until the state
+		// goes, since the menu opens with no choice made.
+		if (Named(state, "Battle") && op.awaited) {
+			using Flow = Dimps::Game::Battle::System;
+			const DWORD flow = *Flow::staticVars.CurrentBattleFlow;
+			const bool over = flow == Flow::BF__MATCH_RESULT || flow == Flow::BF__MATCH_OVER || flow == Flow::BF__BTL_OVER || flow == Flow::BF__GAME_OVER;
+			if (!over && op.decided >= 0) op.decided = 0;
+			else if (op.decided >= 0 && ++op.decided > kDecidedTicks) {
+				op.decided = -1;
+				spdlog::info("Replay: the match is over (battle flow {}); leaving the replay", flow);
+			}
+			if (op.decided < 0) *reinterpret_cast<int*>(reinterpret_cast<std::uint8_t*>(state) + ReplayBattle::BattleEndChoice) = ReplayBattle::EndChoiceLeave;
+		}
+		if (Named(state, "Versus") || Named(state, "Battle")) {
+			op.started = true; op.waited = 0;
+			if (Named(state, "Versus") && op.splash >= 0 && ++op.splash > kSplashTicks) { SkipSplash(state); op.splash = -1; }
+		}
+		else if (Named(state, "Select") && op.started) {
+			// Watched, or left: back to the main menu, where Ember reopens.
+			replaycapture::End();
+			GameEvents::MainMenu::LeaveLocalBattleLog();
+			op.Enter(Step::InLog);
+		}
+		else if (late) { spdlog::warn("Replay: the battle log did not start slot {}", op.slot); op.video.clear(); op.Enter(Step::InLog); }
+		break;
+	case Step::InLog:
+		if (atMainMenu && !log) { op.status.returns++; op.Enter(Step::Idle); }
+		break;
+	case Step::Idle:
+		break;
+	}
+}
