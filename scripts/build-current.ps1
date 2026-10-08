@@ -29,7 +29,7 @@ if ($LASTEXITCODE) { throw 'Build failed' }
 # receipt names them, so testsPassed never implies they ran (ledger A-015).
 $excludedTests = 'Iroh(Room|Game|Authorized|Recovery)|CustomRoom(FourTables|Spectators)|DiscordSmoke'
 if (!$SkipTests) {
-    & $ctest --test-dir $build --output-on-failure -E $excludedTests
+    & $ctest --test-dir $build --output-on-failure --parallel $env:NUMBER_OF_PROCESSORS -E $excludedTests
     if ($LASTEXITCODE) { throw 'Tests failed' }
 }
 & $cmake --install $build *> (Join-Path $build 'stage.log')

@@ -3,17 +3,20 @@
 # fourteen, past their timeout. Each sweep is cut into shards that CTest can run
 # side by side. Shard K of N takes every Nth locale and size configuration
 # starting at K, so the shards share none and between them miss none, and each
-# prints how many of the whole sweep it drew.
+# prints how many of the whole sweep it drew. A shard runs a drawing thread and
+# an art decoding thread, and takes about three times as long when the machine
+# is busy compiling, so each counts two processors and keeps the ten minutes
+# the whole sweep had.
 set(SF4E_UI_RENDER_SHARDS 4)
 math(EXPR sf4e_ui_render_last_shard "${SF4E_UI_RENDER_SHARDS} - 1")
 foreach(shard RANGE ${sf4e_ui_render_last_shard})
     # English and the padded pseudo locale at every size.
     add_test(NAME UiRender.${shard} COMMAND UiRenderTest)
-    set_tests_properties(UiRender.${shard} PROPERTIES TIMEOUT 300
+    set_tests_properties(UiRender.${shard} PROPERTIES TIMEOUT 600 PROCESSORS 2
         ENVIRONMENT "SF4E_UI_RENDER_LOCALES=:${shard}/${SF4E_UI_RENDER_SHARDS}")
     # Each translation at three sizes.
     add_test(NAME UiRenderLocales.${shard} COMMAND UiRenderTest)
-    set_tests_properties(UiRenderLocales.${shard} PROPERTIES TIMEOUT 600
+    set_tests_properties(UiRenderLocales.${shard} PROPERTIES TIMEOUT 600 PROCESSORS 2
         ENVIRONMENT "SF4E_UI_RENDER_LOCALES=translations:${shard}/${SF4E_UI_RENDER_SHARDS}")
 endforeach()
 # The atlas rebuild on its own: every language and scale within the atlas
