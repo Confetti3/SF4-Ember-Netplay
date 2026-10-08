@@ -1,8 +1,8 @@
 name: Windows test suite
 # The local suite of scripts/build-current.ps1 on a self-hosted Windows
-# machine. It needs a signed-in desktop: the DX9 render tests draw on the GPU
-# and the helper's identity tests use the user's DPAPI key, so the runner is
-# started in the user's session, not as a service.
+# machine, after every push to release and once a night. The runner is
+# started in a signed-in desktop session, not as a service: the DX9 tests
+# draw on the GPU and a service has no desktop to give them.
 #
 # Never on pull_request: that would run a stranger's code on the machine.
 # A repository opts in by registering a runner labelled "ember" and setting
@@ -10,6 +10,8 @@ name: Windows test suite
 on:
   push:
     branches: [release]
+  schedule:
+    - cron: '0 2 * * *'
   workflow_dispatch:
 permissions:
   contents: read
