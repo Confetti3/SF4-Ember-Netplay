@@ -1,5 +1,5 @@
 # Build and publish the designated Nightly checkout on the Windows build PC.
-param([switch]$WhatIf, [switch]$Force, [switch]$SkipRoomHosts,
+param([switch]$WhatIf, [switch]$Local, [switch]$Force, [switch]$SkipRoomHosts,
       [string]$VisualStudioPath = $env:SF4E_VISUAL_STUDIO_PATH,
       [string]$DiscordSdkArchive = $env:SF4E_DISCORD_SDK_ARCHIVE)
 $ErrorActionPreference = 'Stop'
@@ -18,9 +18,26 @@ function Invoke-NightlyCommand([string]$Command, [string[]]$Arguments, [string]$
     return $result
 }
 
+function Invoke-NightlyRepositoryQuery([string[]]$Arguments, [string]$Failure, [string]$DryRunFallback) {
+    $result = & gh @Arguments 2>&1
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -ne 0) {
+        $detail = ($result | ForEach-Object { "$_" }) -join "`n"
+        if ($detail -match 'HTTP 404|Could not resolve to a Repository|Git Repository is empty') {
+            if ($WhatIf) {
+                Write-Host "WhatIf: Nightly repository $releaseRepository is unavailable; $DryRunFallback"
+                return
+            }
+            throw "Nightly repository $releaseRepository was not found or has no initial commit. Create it with one initial commit on its default branch before publishing. $detail"
+        }
+        throw "$Failure (exit $exitCode): $detail"
+    }
+    return $result
+}
+
 function Get-NightlyReleases {
-    $json = Invoke-NightlyCommand gh @('release', 'list', '--repo', $releaseRepository,
-        '--exclude-drafts', '--limit', '10000', '--json', 'tagName,createdAt') 'Could not list Nightly releases.'
+    $json = Invoke-NightlyRepositoryQuery @('release', 'list', '--repo', $releaseRepository,
+        '--exclude-drafts', '--limit', '10000', '--json', 'tagName,createdAt') 'Could not list Nightly releases.' 'Continuing with no previous Nightly.'
     $releases = @($json | ConvertFrom-Json)
     if ($releases.Count -ge 10000) { throw 'Nightly release list was truncated; refusing to choose or prune from an incomplete list.' }
     return $releases | Sort-Object { [DateTimeOffset]::Parse($_.createdAt) } -Descending
@@ -31,29 +48,11 @@ function ConvertTo-BashLiteral([string]$Value) {
 }
 
 try {
-    # Read the workspace channel ourselves when this branch's build helper lacks
-    # channel support. Do not change BuildEnvironment.ps1 here.
-    $workspace = Split-Path $checkoutRoot -Parent
-    $targetPath = Join-Path $workspace 'build-target.json'
-    $workspaceTarget = Get-Content -LiteralPath $targetPath -Raw | ConvertFrom-Json
-    $nightlyTarget = $workspaceTarget.channels.nightly
-    if (!$nightlyTarget -or !$nightlyTarget.sourceDirectory) { throw "No channels.nightly target in $targetPath" }
-    $expectedSource = [IO.Path]::GetFullPath((Join-Path $workspace $nightlyTarget.sourceDirectory)).TrimEnd('\','/')
-    if ($checkoutRoot.TrimEnd('\','/') -ine $expectedSource) { throw "Wrong Nightly checkout: $checkoutRoot. Designated source: $expectedSource" }
-    foreach ($relative in @($nightlyTarget.buildDirectory, $nightlyTarget.installDirectory)) {
-        if (!$relative) { throw 'The Nightly target must name buildDirectory and installDirectory.' }
-        $resolved = [IO.Path]::GetFullPath((Join-Path $checkoutRoot $relative))
-        if (!$resolved.StartsWith($checkoutRoot.TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
-            throw "Nightly build and stage paths must stay inside the checkout: $resolved"
-        }
-    }
     . (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')
-    # Older helpers reject channel checkouts before returning a target.
-    $resolvedTarget = $null
-    try { $resolvedTarget = Get-EmberBuildTarget $checkoutRoot } catch {
-        Write-Host "Using channels.nightly from $targetPath (build helper: $($_.Exception.Message))"
+    $nightlyTarget = Get-EmberBuildTarget $checkoutRoot
+    if ($nightlyTarget.channel -ne 'nightly') {
+        throw 'Get-EmberBuildTarget must return .channel = nightly. Use the channel-aware BuildEnvironment.ps1 and the designated Nightly checkout.'
     }
-    if ($resolvedTarget.channel -and $resolvedTarget.channel -ne 'nightly') { throw 'Get-EmberBuildTarget did not select the nightly channel.' }
     $nightlyBranch = [string]$nightlyTarget.branch
     if ($nightlyBranch -ne 'nightly') { throw 'channels.nightly.branch must be nightly.' }
     $releaseRepository = [string]$nightlyTarget.githubRepo
@@ -68,8 +67,12 @@ try {
     $dirty = @(Invoke-NightlyCommand git @('status', '--porcelain', '--untracked-files=all') 'Could not check worktree cleanliness.')
     if ($dirty.Count) { throw "Nightly requires committed source and no untracked non-ignored files:`n$($dirty -join "`n")" }
 
-    Invoke-NightlyCommand git @('fetch', 'origin', $nightlyBranch) 'Fetching the Nightly branch failed.' | Out-Host
-    Invoke-NightlyCommand git @('merge', '--ff-only', "origin/$nightlyBranch") 'Nightly cannot fast-forward; resolve the divergence by hand.' | Out-Host
+    if ($Local) {
+        Write-Host 'Local: using checkout HEAD as-is; no fetch or fast-forward.'
+    } else {
+        Invoke-NightlyCommand git @('fetch', 'origin', $nightlyBranch) 'Fetching the Nightly branch failed.' | Out-Host
+        Invoke-NightlyCommand git @('merge', '--ff-only', "origin/$nightlyBranch") 'Nightly cannot fast-forward; resolve the divergence by hand.' | Out-Host
+    }
     $sourceRevision = (Invoke-NightlyCommand git @('rev-parse', 'HEAD') 'Could not resolve HEAD.').Trim()
     if ($sourceRevision -notmatch '^[0-9a-f]{40}$') { throw "Expected a full source SHA: $sourceRevision" }
     Write-Host "Nightly source: $sourceRevision"
@@ -87,16 +90,16 @@ try {
             Write-Host "Skipped: nothing new since $($previousRelease.tagName) ($sourceRevision)."
             return
         }
-    }
+    } else { Write-Host 'No previous Nightly release; collecting notes since origin/release.' }
 
     $versionLines = @(Get-Content CMakeLists.txt | Where-Object { $_ -match '^\s+VERSION ' })
     if ($versionLines.Count -ne 1 -or $versionLines[0].Trim() -notmatch '^VERSION ([0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9})$') {
         throw 'Expected one VERSION X.Y.Z line in CMakeLists.txt.'
     }
     $baseLabel = "$($Matches[1])-nightly$([DateTime]::UtcNow.ToString('yyyyMMdd'))"
-    # Include tags without releases as well, and fail on API errors rather than
-    # mistaking an authentication/network failure for an unused tag.
-    $tagRefs = Invoke-NightlyCommand gh @('api', "repos/$releaseRepository/git/matching-refs/tags/v$baseLabel", '--paginate', '--jq', '.[].ref') 'Could not check existing Nightly tags.'
+    # Include tags without releases as well. Only a missing or empty repository is
+    # tolerated under WhatIf; authentication/network failures still fail.
+    $tagRefs = Invoke-NightlyRepositoryQuery @('api', "repos/$releaseRepository/git/matching-refs/tags/v$baseLabel", '--paginate', '--jq', '.[].ref') 'Could not check existing Nightly tags.' 'Skipping the remote tag-collision check; the planned tag must be rechecked before publishing.'
     $existingTags = @($tagRefs | ForEach-Object { $_ -replace '^refs/tags/', '' })
     $existingTags += @($publishedReleases | ForEach-Object tagName)
     $nightlyLabel = $baseLabel
@@ -109,8 +112,12 @@ try {
     $notesPath = Join-Path $outDirectory "nightly-$nightlyLabel.md"
     $baseline = $previousSource
     if (!$baseline) {
-        Invoke-NightlyCommand git @('fetch', 'origin', 'release') 'Could not fetch the initial Stable changelog baseline.' | Out-Host
         $baseline = 'origin/release'
+        if ($Local) {
+            Invoke-NightlyCommand git @('cat-file', '-e', "$baseline^{commit}") 'Local mode requires an existing origin/release ref for the initial changelog baseline; fetch it before running with -Local.' | Out-Null
+        } else {
+            Invoke-NightlyCommand git @('fetch', 'origin', 'release') 'Could not fetch the initial Stable changelog baseline.' | Out-Host
+        }
     } else {
         Invoke-NightlyCommand git @('cat-file', '-e', "$baseline^{commit}") 'Previous Nightly Source commit is unavailable locally; restore its history before publishing.' | Out-Null
     }
