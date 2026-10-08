@@ -5,7 +5,7 @@
 namespace sf4e { namespace selection {
 inline int ReadStage(const nlohmann::json& value) {
     // Check JSON before narrowing (including unsigned values above INT64_MAX).
-    if (!value.is_number_integer() || value < 0 || value > 29 || !FindStage(value.get<int>()))
+    if (!value.is_number_integer() || value < 0 || value > 0xffffff || !FindStage(value.get<int>()))
         throw nlohmann::json::out_of_range::create(406, "Stage must be a supported versus stage ID", &value);
     return value.get<int>();
 }

@@ -27,6 +27,7 @@
 #include "sf4e__Overlay.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "sf4e__UserApp.hxx"
+#include "sf4e__CustomContent.hxx"
 #include "sf4e__Pad.hxx"
 
 
@@ -256,15 +257,21 @@ void fUserApp::_OnVsPreBattleTasksRegistered()
 
     Dimps::Platform::dString* stageName = rVsMode::GetStageName(mode);
     rVsMode::ConfirmedPlayerConditions* conditions = rVsMode::GetConfirmedPlayerConditions(mode);
+    // What this PC shows: custom costumes it has play as stand-ins, ones it doesn't have become the
+    // original (the match data stays as sent).
+    rVsMode::ConfirmedCharaConditions shown[2] = { netplay->client._matchData.chara[0], netplay->client._matchData.chara[1] };
+    sf4e::custom::ApplyPicks(shown);
     for (int i = 0; i < 2; i++) {
-        *(rVsMode::ConfirmedPlayerConditions::GetCharaID(&conditions[i])) = netplay->client._matchData.chara[i].charaID;
+        *(rVsMode::ConfirmedPlayerConditions::GetCharaID(&conditions[i])) = shown[i].charaID;
         *(rVsMode::ConfirmedPlayerConditions::GetSideActive(&conditions[i])) = 1;
         rVsMode::ConfirmedCharaConditions* charaConditions = rVsMode::ConfirmedPlayerConditions::GetCharaConditions(&conditions[i]);
-        memcpy_s(charaConditions, charaConditionSize, &netplay->client._matchData.chara[i], charaConditionSize);
+        memcpy_s(charaConditions, charaConditionSize, &shown[i], charaConditionSize);
     }
 
-    (stageName->*Dimps::Platform::dString::publicMethods.assign)(Dimps::stageCodes[netplay->client._matchData.stageID], 4);
-    *(rVsMode::GetStageCode(mode)) = netplay->client._matchData.stageID;
+    // A custom stage plays as its fallback stage, loading its own files if this PC has them.
+    const int stage = sf4e::custom::ApplyStage(static_cast<int>(netplay->client._matchData.stageID));
+    (stageName->*Dimps::Platform::dString::publicMethods.assign)(Dimps::stageCodes[stage], 4);
+    *(rVsMode::GetStageCode(mode)) = stage;
 }
 
 void OnReady(sf4e::SessionClient* const client, const sf4e::SessionClient::Callbacks& c) {

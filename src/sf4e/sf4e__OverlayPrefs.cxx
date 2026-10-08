@@ -1,10 +1,12 @@
 #include "sf4e__OverlayPrefs.hxx"
 #include "sf4e__CrashDiagnostics.hxx"
+#include "sf4e__CustomContent.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "../netplay/ProfileRecordJson.hxx"
 #include "../netplay/SettingsWriter.hxx"
 #include "../netplay/RoomPreferences.hxx"
 
+#include <algorithm>
 #include <fstream>
 #include <climits>
 #include <shlobj.h>
@@ -62,6 +64,19 @@ namespace OverlayPrefs {
             selection::ToNative(pick, c);
         }
 
+		// Picks of custom content the setup program has removed since: the original costume (colour kept) and the
+		// default stage. The selectors only offer what is installed (scanned once per game start).
+		void DropRemovedCustom(Data& data) {
+			auto costume = [](CharaPick& c) {
+				if (selection::IsCustomCostume(c.costume) && !custom::CostumeInstalled(c.charaID, c.costume)) c.costume = 0;
+			};
+			costume(data.lobby);
+			for (auto& fighter : data.fighters) costume(fighter);
+			const auto& stages = custom::InstalledStages();
+			if (selection::IsCustomStage(data.stageID) && std::find(stages.begin(), stages.end(), data.stageID) == stages.end())
+				data.stageID = Data{}.stageID;
+		}
+
 
 	} // namespace
 
@@ -95,6 +110,7 @@ namespace OverlayPrefs {
 	}
 
 	void Clamp(Data& data) {
+        DropRemovedCustom(data);
         ClampChara(data.lobby, data.lobbyEditionSelect);
         for (int id = 0; id < selection::FighterCount; ++id) {
             data.fighters[id].charaID = static_cast<uint8_t>(id);
@@ -129,7 +145,7 @@ namespace OverlayPrefs {
 		if (j.contains("randomStageExcluded") && j["randomStageExcluded"].is_array()) {
 			std::uint64_t excluded = 0;
 			for (const auto& id : j["randomStageExcluded"])
-				if (id.is_number_integer() && selection::FindStage(id.get<std::int64_t>())) excluded |= std::uint64_t(1) << id.get<int>();
+				if (id.is_number_integer() && selection::FindStage(id.get<std::int64_t>()) && !selection::IsCustomStage(id.get<std::int64_t>())) excluded |= std::uint64_t(1) << id.get<int>();
 			out.randomStageExcluded = selection::NormalizeRandomExclusions(excluded);
 		}
 

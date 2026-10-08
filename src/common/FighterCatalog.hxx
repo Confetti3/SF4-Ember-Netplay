@@ -58,10 +58,20 @@ struct Availability {
     std::uint32_t costumes = 0;
     std::array<std::uint32_t, 8> colors{};
     std::uint16_t personalActions = 0;
+    std::vector<int> customCostumes;    // installed custom costumes (see IsCustomCostume), ascending
+    std::vector<int> customStages;      // installed custom stages (StageCatalog's IsCustomStage), ascending
 };
 
+// Custom costumes, added by a separate setup program: slots 8..99 (indices 7..98) of every fighter, ten colours
+// each. Any of them is a valid pick on the network; each PC shows its own install of that slot, or the
+// fighter's original costume (sf4e::custom::ApplyPicks).
+constexpr int FirstCustomCostume = 7;
+constexpr int CostumeLimit = 99;
+constexpr int CustomColorCount = 10;
+inline bool IsCustomCostume(int costumeId) { return costumeId >= FirstCustomCostume && costumeId < CostumeLimit; }
+
 int BaseCostumeCount(int fighterId);
-int CostumeCount(int fighterId);
+int CostumeCount(int fighterId);      // the game's own costumes
 int ColorCount(int fighterId, int costumeId);
 const char* CostumePack(int fighterId, int costumeId);
 std::vector<int> AllowedUltras(int fighterId, int editionId);
