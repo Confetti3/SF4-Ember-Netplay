@@ -622,6 +622,132 @@ msgstr "Hrát offline"
 msgid "home.offline_detail"
 msgstr "Otevřít nabídky hry offline."
 
+msgid "home.replays"
+msgstr "Záznamy"
+
+msgid "home.replays_detail"
+msgstr "Každý zápas se ukládá. Kterýkoli vložte do Replay Channel ve hře."
+
+msgid "replays.title"
+msgstr "Záznamy"
+
+msgid "replays.empty"
+msgstr "Zatím žádné záznamy"
+
+msgid "replays.empty_detail"
+msgstr "Zápas se sem uloží, když skončí."
+
+msgid "replays.add"
+msgstr "Přidat do hry"
+
+msgid "replays.add_detail"
+msgstr "Přidá do seznamu záznamů hry k pozdějšímu přehrání ze záznamu zápasů."
+
+msgid "replays.watch"
+msgstr "Přehrát teď"
+
+msgid "replays.watch_detail"
+msgstr "Přidá do seznamu záznamů hry a přehraje ho ze záznamu zápasů."
+
+msgid "replays.save_watched"
+msgstr "Ukládat sledované zápasy"
+
+msgid "replays.save_watched_detail"
+msgstr "ZAP: nahrávají se i zápasy, které jen sledujete. VYP: jen zápasy, které hrajete."
+
+msgid "replays.link"
+msgstr "Odkaz chce přehrát záznam"
+
+msgid "replays.link_detail"
+msgstr "Odkaz požádal Ember o přehrání {0}. Přehrajte ho jen tehdy, když víte, odkud odkaz pochází."
+
+msgid "replays.link_play"
+msgstr "Přehrát"
+
+msgid "replays.link_dismiss"
+msgstr "Teď ne"
+
+msgid "replays.link_dismiss_detail"
+msgstr "Soubor zůstane na místě a odkaz se zapomene."
+
+msgid "replays.export"
+msgstr "Exportovat video"
+
+msgid "replays.export_detail"
+msgstr "Přehraje ho a nahraje jako .mp4 v plné velikosti obrazu hry."
+
+msgid "replays.exported"
+msgstr "Video uloženo: {0}"
+
+msgid "replays.not_exported_encoder"
+msgstr "Video nevzniklo. Windows neposkytl kodér videa, nebo se kodér zastavil. Důvod je v protokolu."
+
+msgid "replays.not_exported_picture"
+msgstr "Video nevzniklo. Obraz hry se nepodařilo přečíst, nebo se během exportu změnila jeho velikost."
+
+msgid "replays.not_exported_file"
+msgstr "Video nevzniklo. Soubor se nepodařilo zapsat. Dřívější video tohoto záznamu může být otevřené v přehrávači."
+
+msgid "replays.video"
+msgstr "Video"
+
+msgid "replays.open_folder"
+msgstr "Otevřít složku záznamů"
+
+msgid "replays.open_folder_detail"
+msgstr "Otevře archiv v Průzkumníku: záznamy a exportovaná videa."
+
+msgid "services.opening_replay_folder"
+msgstr "Otevírání složky záznamů…"
+
+msgid "services.replay_folder_opened"
+msgstr "Složka {0} otevřena v Průzkumníku."
+
+msgid "services.replay_folder_failed"
+msgstr "Složku záznamů se nepodařilo otevřít."
+
+msgid "replays.row_detail"
+msgstr "Vyberte pro přehrání, export jako video nebo přidání do seznamu záznamů hry."
+
+msgid "replays.watched"
+msgstr "Zhlédnuto"
+
+msgid "replays.spectated"
+msgstr "Jako divák"
+
+msgid "replays.watched_spectated"
+msgstr "Zhlédnuto, jako divák"
+
+msgid "replays.not_ready"
+msgstr "Dostupné v hlavním menu, mimo zápas."
+
+msgid "replays.added"
+msgstr "Přidáno do seznamu záznamů hry pod datem, kdy se zápas hrál."
+
+msgid "replays.not_added"
+msgstr "Tento záznam se nepodařilo přidat. Soubor může být poškozený."
+
+msgid "replays.not_added_yet"
+msgstr "Hra ještě neuložila poslední zápas. Zkus to za chvíli znovu."
+
+msgid "replays.not_added_files"
+msgstr "Tento záznam se nepodařilo přidat: soubory záznamů hry se nepodařilo přečíst nebo zapsat. Nic se nezměnilo."
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "Otevřít herní záznam zápasů"
+
+msgid "replays.open_log_detail"
+msgstr "Opustí nabídku Emberu a otevře místní záznam zápasů hry, kde se přehrávají záznamy."
+
+msgid "replays.open_log_room"
+msgstr "Nejdřív opusťte místnost."
+
 msgid "home.choose_controller"
 msgstr "Vybrat herní ovladač"
 

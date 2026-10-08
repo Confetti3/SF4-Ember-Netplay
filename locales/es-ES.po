@@ -622,6 +622,132 @@ msgstr "Jugar sin conexión"
 msgid "home.offline_detail"
 msgstr "Abre los menús originales sin conexión."
 
+msgid "home.replays"
+msgstr "Repeticiones"
+
+msgid "home.replays_detail"
+msgstr "Cada partida se guarda. Pon cualquiera en el Replay Channel del juego."
+
+msgid "replays.title"
+msgstr "Repeticiones"
+
+msgid "replays.empty"
+msgstr "Aún no hay repeticiones"
+
+msgid "replays.empty_detail"
+msgstr "Una partida se guarda aquí cuando termina."
+
+msgid "replays.add"
+msgstr "Añadir al juego"
+
+msgid "replays.add_detail"
+msgstr "La añade a la lista de repeticiones del juego para verla después desde el registro de combates."
+
+msgid "replays.watch"
+msgstr "Ver ahora"
+
+msgid "replays.watch_detail"
+msgstr "La añade a la lista de repeticiones del juego y la reproduce desde el registro de combates."
+
+msgid "replays.save_watched"
+msgstr "Guardar partidas que ves"
+
+msgid "replays.save_watched_detail"
+msgstr "Sí: también se graban las partidas que solo ves. No: solo las partidas que juegas."
+
+msgid "replays.link"
+msgstr "Un enlace quiere reproducir una repetición"
+
+msgid "replays.link_detail"
+msgstr "Un enlace ha pedido a Ember reproducir {0}. Reprodúcela solo si sabes de dónde viene el enlace."
+
+msgid "replays.link_play"
+msgstr "Reproducir"
+
+msgid "replays.link_dismiss"
+msgstr "Ahora no"
+
+msgid "replays.link_dismiss_detail"
+msgstr "Deja el archivo donde está y olvida el enlace."
+
+msgid "replays.export"
+msgstr "Exportar vídeo"
+
+msgid "replays.export_detail"
+msgstr "La reproduce y la graba como .mp4 con el tamaño completo de la imagen del juego."
+
+msgid "replays.exported"
+msgstr "Vídeo guardado: {0}"
+
+msgid "replays.not_exported_encoder"
+msgstr "No se creó ningún vídeo. Windows no ofreció un codificador de vídeo, o el codificador se detuvo. El motivo está en el registro."
+
+msgid "replays.not_exported_picture"
+msgstr "No se creó ningún vídeo. No se pudo leer la imagen del juego, o cambió de tamaño durante la exportación."
+
+msgid "replays.not_exported_file"
+msgstr "No se creó ningún vídeo. No se pudo escribir el archivo. Puede que un vídeo anterior de esta repetición esté abierto en un reproductor."
+
+msgid "replays.video"
+msgstr "Vídeo"
+
+msgid "replays.open_folder"
+msgstr "Abrir la carpeta de repeticiones"
+
+msgid "replays.open_folder_detail"
+msgstr "Abre el archivo en el Explorador: repeticiones y vídeos exportados."
+
+msgid "services.opening_replay_folder"
+msgstr "Abriendo la carpeta de repeticiones…"
+
+msgid "services.replay_folder_opened"
+msgstr "Se abrió {0} en el Explorador."
+
+msgid "services.replay_folder_failed"
+msgstr "No se pudo abrir la carpeta de repeticiones."
+
+msgid "replays.row_detail"
+msgstr "Selecciona para verla, exportarla como vídeo o añadirla a la lista de repeticiones del juego."
+
+msgid "replays.watched"
+msgstr "Visto"
+
+msgid "replays.spectated"
+msgstr "Como espectador"
+
+msgid "replays.watched_spectated"
+msgstr "Visto, como espectador"
+
+msgid "replays.not_ready"
+msgstr "Disponible en el menú principal, fuera de una partida."
+
+msgid "replays.added"
+msgstr "Añadida a la lista de repeticiones del juego, con la fecha en que se jugó."
+
+msgid "replays.not_added"
+msgstr "No se ha podido añadir esta repetición. El archivo puede estar dañado."
+
+msgid "replays.not_added_yet"
+msgstr "El juego aún no ha guardado el último combate. Inténtalo de nuevo en un momento."
+
+msgid "replays.not_added_files"
+msgstr "No se pudo añadir esta repetición: no se pudieron leer o escribir los archivos de repeticiones del juego. No se ha cambiado nada."
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "Abrir el registro de combates del juego"
+
+msgid "replays.open_log_detail"
+msgstr "Sale del menú de Ember al registro de combates local del juego, donde se reproducen las repeticiones."
+
+msgid "replays.open_log_room"
+msgstr "Primero sal de la sala."
+
 msgid "home.choose_controller"
 msgstr "Elegir mando de juego"
 

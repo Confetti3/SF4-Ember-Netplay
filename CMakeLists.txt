@@ -96,6 +96,10 @@ if(BUILD_TESTING)
     target_compile_features(AutoDelayCheckTest PRIVATE cxx_std_11)
     add_test(NAME AutoDelayCheck COMMAND AutoDelayCheckTest)
     set_tests_properties(AutoDelayCheck PROPERTIES TIMEOUT 15)
+    add_executable(ReplaySlotsTest "src/tests/replay_slots_test.cxx")
+    target_compile_features(ReplaySlotsTest PRIVATE cxx_std_17)
+    add_test(NAME ReplaySlots COMMAND ReplaySlotsTest)
+    set_tests_properties(ReplaySlots PROPERTIES TIMEOUT 15)
     # The recorder layout is the 32-bit engine's.
     if(CMAKE_SIZEOF_VOID_P EQUAL 4)
         add_executable(ReplayRecorderTest "src/tests/replay_recorder_test.cxx")
@@ -437,6 +441,12 @@ add_library(sf4e_common STATIC
     "src/common/install_paths.hxx"
 )
 target_link_libraries(sf4e_common PUBLIC "iphlpapi" "ws2_32" "winhttp")
+# The game's replay files: archiving and importing (platform/ReplayFiles.hxx).
+add_library(sf4e_replay_files STATIC "src/platform/ReplayFiles.cxx" "src/platform/ReplayFiles.hxx" "src/common/ReplaySlots.hxx")
+target_compile_features(sf4e_replay_files PUBLIC cxx_std_17)
+target_link_libraries(sf4e_replay_files PUBLIC spdlog::spdlog PRIVATE nlohmann_json::nlohmann_json shell32 ole32)
+# Ember's own video export: the game's side and the encoder's, and their tests.
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_video.cmake")
 if(BUILD_TESTING)
     add_executable(NetworkLinkTest "src/tests/network_link_test.cxx")
     target_link_libraries(NetworkLinkTest PRIVATE sf4e_common)
@@ -482,6 +492,10 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__BackgroundPlay.cxx"
     "src/sf4e/sf4e__Platform.hxx"
     "src/sf4e/sf4e__Platform.cxx"
+    "src/sf4e/sf4e__ReplayStore.hxx"
+    "src/sf4e/sf4e__ReplayStore.cxx"
+    "src/sf4e/sf4e__ReplayCapture.hxx"
+    "src/sf4e/sf4e__ReplayCapture.cxx"
     "src/sf4e/sf4e__CrashDiagnostics.hxx"
     "src/sf4e/sf4e__CrashDiagnostics.cxx"
     "src/sf4e/sf4e__UserApp.hxx"
@@ -506,7 +520,7 @@ if(SF4E_DEVELOPER_UI)
     target_sources(sf4e PRIVATE "src/sf4e/sf4e__DeveloperOverlay.cxx" "src/sf4e/sf4e__DeveloperOverlay__Battle.cxx" "src/sf4e/sf4e__DeveloperOverlay__System.cxx")
     target_compile_definitions(sf4e PRIVATE SF4E_DEVELOPER_UI=1)
 endif()
-target_link_libraries(sf4e PRIVATE sf4e_netplay_core sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization)
+target_link_libraries(sf4e PRIVATE sf4e_replay_files sf4e_video_capture sf4e_netplay_core sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization)
 target_link_libraries(
     sf4e
     PRIVATE ${LIB_DETOURS} Session sf4e_common "Kernel32" "ws2_32" "Mswsock" "AdvApi32" "Shlwapi" "pathcch" "shell32" "Bcrypt" "Xinput9_1_0" "iphlpapi" "Dbghelp"
@@ -788,7 +802,7 @@ endif()
 add_library(sf4e_app_services STATIC src/platform/ApplicationServices.cxx src/launcher/update/github_release_client.cxx src/launcher/update/github_release_validation.cxx src/launcher/update/github_release_download.cxx)
 target_compile_features(sf4e_app_services PUBLIC cxx_std_17)
 target_compile_definitions(sf4e_app_services PRIVATE SF4E_APP_VERSION="${PROJECT_VERSION}")
-target_link_libraries(sf4e_app_services PUBLIC sf4e_settings sf4e_localization PRIVATE sf4e_common sf4e_selection sf4e_package_installer spdlog::spdlog nlohmann_json::nlohmann_json WIL::WIL pathcch shell32 shlwapi bcrypt)
+target_link_libraries(sf4e_app_services PUBLIC sf4e_settings sf4e_localization sf4e_replay_files PRIVATE sf4e_common sf4e_selection sf4e_package_installer spdlog::spdlog nlohmann_json::nlohmann_json WIL::WIL pathcch shell32 shlwapi bcrypt)
 if(BUILD_TESTING)
     add_executable(ApplicationServicesTest src/tests/application_services_test.cxx)
     target_link_libraries(ApplicationServicesTest PRIVATE sf4e_app_services)
@@ -809,7 +823,9 @@ if(BUILD_TESTING)
     set_tests_properties(RecoveryController PROPERTIES TIMEOUT 30)
 endif()
 add_executable(Launcher WIN32 src/launcher/launcher.cxx src/launcher/netplay/netplay_persist.cxx src/launcher/GameLocator.cxx)
-target_link_libraries(Launcher PRIVATE sf4e_helper_platform sf4e_settings sf4e_recovery sf4e_localization)
+target_link_libraries(Launcher PRIVATE sf4e_helper_platform sf4e_settings sf4e_recovery sf4e_localization sf4e_replay_files sf4e_video_encoder)
+# As the video export's encoder (platform/VideoServe.hxx) it holds a second of 4K frames: 4 GB of addresses instead of 2.
+target_link_options(Launcher PRIVATE "/LARGEADDRESSAWARE")
 set(_SF4E_LAUNCHER_EXE_TARGET Launcher)
 target_include_directories(${_SF4E_LAUNCHER_EXE_TARGET} PRIVATE "src/common" "src/launcher")
 		target_link_libraries(${_SF4E_LAUNCHER_EXE_TARGET} PRIVATE

@@ -10,6 +10,12 @@
 // the foreground window through Ember, and the two pad gates, which start
 // with `test ebx, ebx` (85 DB), become short jumps whose decision Ember makes
 // in C++. With Background play off each answers exactly as the game did.
+// A video export has a group of three more of its own: the frame's "window in
+// front and not minimized" test just before (GetForegroundWindow at 0x4042AE,
+// IsIconic at 0x4042D7) and the sound check's IsIconic at 0x404321, each read
+// through Ember so an export plays on behind another window. That group is
+// applied after Background play's and on its own, so a build where it does
+// not fit keeps Background play.
 #include <cstddef>
 #include <cstdint>
 #include <cstring>

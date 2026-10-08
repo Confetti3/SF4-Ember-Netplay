@@ -30,6 +30,10 @@ std::atomic<bool> ready{false};
 std::atomic<bool> enabled{false};
 
 bool Active() { return ready.load() && enabled.load(); }
+// The hold a video export asks for (HoldForExport), and whether the edits
+// that let the frame honour it are in place. Every hook reads only these.
+std::atomic<bool> exportHold{false}, exportReady{false};
+bool Exporting() { return exportReady.load() && exportHold.load(); }
 
 const rMain::Win32_WindowData* WindowData() {
     rMain* main = rMain::staticMethods.GetSingleton();
@@ -50,12 +54,25 @@ bool WindowInFront() {
 // it is the game's own, so the frame keeps the sound up, and restores a mute
 // from before (at startup behind another window, or with the setting off).
 HWND WINAPI SoundForeground() {
-    if (Active())
+    if (Active() || Exporting())
         if (const rMain::Win32_WindowData* data = WindowData()) return data->hWnd;
     return GetForegroundWindow();
 }
 // The frame's `call dword ptr [...]` reads its function from here.
 HWND (WINAPI* soundForeground)() = SoundForeground;
+
+// While a replay is exported as a video the game is told its window is in
+// front and not minimized, whatever the setting: the frame's own "active"
+// flag stays set and the sound stays up, so the replay plays on behind
+// another window. Otherwise these answer as Windows does.
+HWND WINAPI ExportForeground() {
+    if (Exporting())
+        if (const rMain::Win32_WindowData* data = WindowData()) return data->hWnd;
+    return GetForegroundWindow();
+}
+HWND (WINAPI* exportForeground)() = ExportForeground;
+BOOL WINAPI ExportIconic(HWND window) { return Exporting() ? FALSE : IsIconic(window); }
+BOOL (WINAPI* exportIconic)(HWND) = ExportIconic;
 
 // focus_gate::ApplyAll's access to the game's code. A protection that cannot
 // be put back leaves the bytes writable; they are already final.
@@ -73,7 +90,9 @@ struct CodePages {
     }
 };
 
-gate::Edit edits[3];
+// Background play's three edits, and the export hold's three. Each group is
+// made whole or not at all, and the second failing leaves the first as shipped.
+gate::Edit edits[3], exportEdits[3];
 
 struct AppMessages : rApp {
     unsigned int HandleMessage(HWND window, UINT message, WPARAM wParam, LPARAM lParam);
@@ -82,7 +101,7 @@ struct AppMessages : rApp {
 // Losing focus mutes the game here as well as in the frame. Skipping it keeps
 // the sound from dropping for the one frame before the frame restores it.
 unsigned int AppMessages::HandleMessage(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
-    if (message == WM_KILLFOCUS && Active()) {
+    if (message == WM_KILLFOCUS && (Active() || Exporting())) {
         spdlog::info("Background play: kept the game's sound as its window lost focus");
         return 0;
     }
@@ -112,6 +131,11 @@ void sf4e::BackgroundPlay::Install() {
     edits[1] = gate::Gate(rPad::System_XInput::focusGate, gate::kPollSkip);
     edits[2] = gate::CallThrough(rApp::soundFocusCheck, rApp::foregroundWindowImport,
         static_cast<std::uint32_t>(reinterpret_cast<std::uintptr_t>(&soundForeground)));
+    exportEdits[0] = gate::CallThrough(rApp::activeFocusCheck, rApp::foregroundWindowImport,
+        static_cast<std::uint32_t>(reinterpret_cast<std::uintptr_t>(&exportForeground)));
+    for (int i = 0; i < 2; i++)
+        exportEdits[1 + i] = gate::CallThrough(rApp::iconicChecks[i], rApp::iconicImport,
+            static_cast<std::uint32_t>(reinterpret_cast<std::uintptr_t>(&exportIconic)));
     for (const gate::Edit& edit : edits) {
         if (std::memcmp(edit.at, edit.native, edit.length) != 0) {
             unavailable = "the game's focus checks hold other bytes than this game build's";
@@ -134,7 +158,10 @@ void sf4e::BackgroundPlay::Activate() {
     }
     unavailable = nullptr;
     ready.store(true);
+    exportReady.store(gate::ApplyAll(exportEdits, pages));
 }
+
+void sf4e::BackgroundPlay::HoldForExport(bool on) { exportHold.store(on); }
 
 void sf4e::BackgroundPlay::BeforePadUpdate(rPad::System* system, bool on) {
     enabled.store(on);
@@ -143,6 +170,7 @@ void sf4e::BackgroundPlay::BeforePadUpdate(rPad::System* system, bool on) {
         reported = true;
         if (unavailable) spdlog::warn("Background play: unavailable, {}", unavailable);
         else spdlog::info("Background play: available");
+        if (!exportReady.load()) spdlog::warn("Background play: a video export stops while the game's window is behind another");
     }
     if (!ready.load() || !*rPad::System::GetUpdating(system) || WindowInFront()) return;
     if (!on) {

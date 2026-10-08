@@ -91,8 +91,27 @@ static void CheckAllOrNone() {
     }
 }
 
+// The export's group comes second and alone: where its bytes are another
+// build's, Background play's edits stay as they were made.
+static void CheckGroupsApart() {
+    Code code;
+    Edits edits(code);
+    Pages pages;
+    CHECK(gate::ApplyAll(edits.list, pages));
+    const Code played = code;
+    // 0x4042AE asks GetForegroundWindow, 0x4042D7 and 0x404321 IsIconic (slot 0x931378).
+    std::uint8_t active[6] = { 0xFF, 0x15, 0xAC, 0x12, 0x93, 0x00 }, iconic[2][6] = { { 0xFF, 0x15, 0x78, 0x13, 0x93, 0x00 }, { 0xFF, 0x15, 0x78, 0x13, 0x93, 0x01 } };
+    const gate::Edit exporting[3] = { gate::CallThrough(active, kImport, kEmber), gate::CallThrough(iconic[0], 0x00931378, kEmber), gate::CallThrough(iconic[1], 0x00931378, kEmber) };
+    Pages second;
+    CHECK(!gate::ApplyAll(exporting, second) && second.unlocks == 0 && Same(code, played));
+    CHECK(active[2] == 0xAC && iconic[0][2] == 0x78);
+    iconic[1][5] = 0x00;
+    CHECK(gate::ApplyAll(exporting, second) && second.open == 0 && active[2] == 0x78 && iconic[1][2] == 0x78 && Same(code, played));
+}
+
 int main() {
     CheckTargets();
     CheckAllOrNone();
+    CheckGroupsApart();
     return 0;
 }

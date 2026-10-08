@@ -622,6 +622,132 @@ msgstr "Offline spielen"
 msgid "home.offline_detail"
 msgstr "Native Offline-Menüs öffnen."
 
+msgid "home.replays"
+msgstr "Replays"
+
+msgid "home.replays_detail"
+msgstr "Jedes Match wird gespeichert. Lege ein beliebiges in den Replay Channel des Spiels."
+
+msgid "replays.title"
+msgstr "Replays"
+
+msgid "replays.empty"
+msgstr "Noch keine Replays"
+
+msgid "replays.empty_detail"
+msgstr "Ein Match wird hier gespeichert, wenn es endet."
+
+msgid "replays.add"
+msgstr "Zum Spiel hinzufügen"
+
+msgid "replays.add_detail"
+msgstr "Fügt es der Replay-Liste des Spiels hinzu, um es später im Kampfprotokoll anzusehen."
+
+msgid "replays.watch"
+msgstr "Jetzt ansehen"
+
+msgid "replays.watch_detail"
+msgstr "Fügt es der Replay-Liste des Spiels hinzu und spielt es aus dem Kampfprotokoll ab."
+
+msgid "replays.save_watched"
+msgstr "Zugeschaute Matches speichern"
+
+msgid "replays.save_watched_detail"
+msgstr "Ein: Auch Matches, bei denen Sie nur zuschauen, werden aufgezeichnet. Aus: nur die Matches, die Sie spielen."
+
+msgid "replays.link"
+msgstr "Ein Link möchte ein Replay abspielen"
+
+msgid "replays.link_detail"
+msgstr "Ein Link hat Ember gebeten, {0} abzuspielen. Spielen Sie es nur ab, wenn Sie wissen, woher der Link stammt."
+
+msgid "replays.link_play"
+msgstr "Abspielen"
+
+msgid "replays.link_dismiss"
+msgstr "Jetzt nicht"
+
+msgid "replays.link_dismiss_detail"
+msgstr "Lässt die Datei, wo sie ist, und vergisst den Link."
+
+msgid "replays.export"
+msgstr "Video exportieren"
+
+msgid "replays.export_detail"
+msgstr "Spielt es ab und nimmt es als .mp4 in der vollen Bildgröße des Spiels auf."
+
+msgid "replays.exported"
+msgstr "Video gespeichert: {0}"
+
+msgid "replays.not_exported_encoder"
+msgstr "Es wurde kein Video erstellt. Windows hat keinen Video-Encoder bereitgestellt, oder er hat angehalten. Der Grund steht im Protokoll."
+
+msgid "replays.not_exported_picture"
+msgstr "Es wurde kein Video erstellt. Das Bild des Spiels konnte nicht gelesen werden, oder seine Größe hat sich während des Exports geändert."
+
+msgid "replays.not_exported_file"
+msgstr "Es wurde kein Video erstellt. Die Datei konnte nicht geschrieben werden. Ein früheres Video dieses Replays ist vielleicht in einem Player geöffnet."
+
+msgid "replays.video"
+msgstr "Video"
+
+msgid "replays.open_folder"
+msgstr "Replay-Ordner öffnen"
+
+msgid "replays.open_folder_detail"
+msgstr "Öffnet das Archiv im Explorer: Replays und exportierte Videos."
+
+msgid "services.opening_replay_folder"
+msgstr "Replay-Ordner wird geöffnet…"
+
+msgid "services.replay_folder_opened"
+msgstr "{0} im Explorer geöffnet."
+
+msgid "services.replay_folder_failed"
+msgstr "Der Replay-Ordner ließ sich nicht öffnen."
+
+msgid "replays.row_detail"
+msgstr "Wähle, um es anzusehen, als Video zu exportieren oder der Replay-Liste des Spiels hinzuzufügen."
+
+msgid "replays.watched"
+msgstr "Gesehen"
+
+msgid "replays.spectated"
+msgstr "Zugeschaut"
+
+msgid "replays.watched_spectated"
+msgstr "Gesehen, zugeschaut"
+
+msgid "replays.not_ready"
+msgstr "Verfügbar im Hauptmenü, außerhalb eines Matches."
+
+msgid "replays.added"
+msgstr "Der Replay-Liste des Spiels hinzugefügt, unter dem Datum, an dem es gespielt wurde."
+
+msgid "replays.not_added"
+msgstr "Dieses Replay konnte nicht hinzugefügt werden. Die Datei ist womöglich beschädigt."
+
+msgid "replays.not_added_yet"
+msgstr "Das Spiel hat das letzte Match noch nicht gespeichert. Versuche es gleich noch einmal."
+
+msgid "replays.not_added_files"
+msgstr "Dieses Replay konnte nicht hinzugefügt werden: Die Replay-Dateien des Spiels konnten nicht gelesen oder geschrieben werden. Es wurde nichts geändert."
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "Kampfprotokoll des Spiels öffnen"
+
+msgid "replays.open_log_detail"
+msgstr "Verlässt das Ember-Menü zum lokalen Kampfprotokoll des Spiels, wo Replays abgespielt werden."
+
+msgid "replays.open_log_room"
+msgstr "Verlasse zuerst den Raum."
+
 msgid "home.choose_controller"
 msgstr "Spiel-Controller wählen"
 

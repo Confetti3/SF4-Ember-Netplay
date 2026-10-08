@@ -7,6 +7,7 @@
 #include "../Dimps/Dimps__Eva.hxx"
 #include "../Dimps/Dimps__Game.hxx"
 #include "sf4e__Game.hxx"
+#include "sf4e__ReplayStore.hxx"
 #include "sf4e__Game__Battle.hxx"
 #include "sf4e__MementoGuards.hxx"
 
@@ -27,6 +28,7 @@ bool fGame::MementoFailure::restore = false;
 void fGame::Install() {
     Battle::Install();
     GameMementoKey::Install();
+    sf4e::replaystore::Install();
 }
 
 void fKey::Install() {

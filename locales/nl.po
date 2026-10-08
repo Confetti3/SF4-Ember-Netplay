@@ -622,6 +622,132 @@ msgstr "Offline spelen"
 msgid "home.offline_detail"
 msgstr "Open de offline spelmenu’s."
 
+msgid "home.replays"
+msgstr "Replays"
+
+msgid "home.replays_detail"
+msgstr "Elke match wordt opgeslagen. Zet er een in het Replay Channel van het spel."
+
+msgid "replays.title"
+msgstr "Replays"
+
+msgid "replays.empty"
+msgstr "Nog geen replays"
+
+msgid "replays.empty_detail"
+msgstr "Een match wordt hier opgeslagen als hij eindigt."
+
+msgid "replays.add"
+msgstr "Aan spel toevoegen"
+
+msgid "replays.add_detail"
+msgstr "Voegt hem toe aan de replaylijst van het spel om later vanuit het gevechtslogboek te bekijken."
+
+msgid "replays.watch"
+msgstr "Nu bekijken"
+
+msgid "replays.watch_detail"
+msgstr "Voegt hem toe aan de replaylijst van het spel en speelt hem af vanuit het gevechtslogboek."
+
+msgid "replays.save_watched"
+msgstr "Matches waar je naar kijkt opslaan"
+
+msgid "replays.save_watched_detail"
+msgstr "Aan: matches waar je alleen naar kijkt worden ook opgenomen. Uit: alleen de matches die je zelf speelt."
+
+msgid "replays.link"
+msgstr "Een link wil een replay afspelen"
+
+msgid "replays.link_detail"
+msgstr "Een link vroeg Ember om {0} af te spelen. Speel hem alleen af als je weet waar de link vandaan komt."
+
+msgid "replays.link_play"
+msgstr "Afspelen"
+
+msgid "replays.link_dismiss"
+msgstr "Nu niet"
+
+msgid "replays.link_dismiss_detail"
+msgstr "Laat het bestand staan en vergeet de link."
+
+msgid "replays.export"
+msgstr "Video exporteren"
+
+msgid "replays.export_detail"
+msgstr "Speelt hem af en neemt hem op als .mp4 op de volledige beeldgrootte van het spel."
+
+msgid "replays.exported"
+msgstr "Video opgeslagen: {0}"
+
+msgid "replays.not_exported_encoder"
+msgstr "Er is geen video gemaakt. Windows gaf geen video-encoder, of de encoder is gestopt. De reden staat in het logboek."
+
+msgid "replays.not_exported_picture"
+msgstr "Er is geen video gemaakt. Het beeld van het spel kon niet worden gelezen, of veranderde van grootte tijdens het exporteren."
+
+msgid "replays.not_exported_file"
+msgstr "Er is geen video gemaakt. Het bestand kon niet worden geschreven. Een eerdere video van deze replay staat misschien open in een speler."
+
+msgid "replays.video"
+msgstr "Video"
+
+msgid "replays.open_folder"
+msgstr "Replaymap openen"
+
+msgid "replays.open_folder_detail"
+msgstr "Opent het archief in Verkenner: replays en geëxporteerde video's."
+
+msgid "services.opening_replay_folder"
+msgstr "Replaymap wordt geopend…"
+
+msgid "services.replay_folder_opened"
+msgstr "{0} geopend in Verkenner."
+
+msgid "services.replay_folder_failed"
+msgstr "De replaymap kon niet worden geopend."
+
+msgid "replays.row_detail"
+msgstr "Selecteer om hem te bekijken, als video te exporteren of aan de replaylijst van het spel toe te voegen."
+
+msgid "replays.watched"
+msgstr "Bekeken"
+
+msgid "replays.spectated"
+msgstr "Toegekeken"
+
+msgid "replays.watched_spectated"
+msgstr "Bekeken, toegekeken"
+
+msgid "replays.not_ready"
+msgstr "Beschikbaar in het hoofdmenu, buiten een match."
+
+msgid "replays.added"
+msgstr "Toegevoegd aan de replaylijst van het spel, onder de datum waarop hij gespeeld is."
+
+msgid "replays.not_added"
+msgstr "Deze replay kon niet worden toegevoegd. Het bestand is mogelijk beschadigd."
+
+msgid "replays.not_added_yet"
+msgstr "De game heeft de laatste match nog niet opgeslagen. Probeer het zo meteen opnieuw."
+
+msgid "replays.not_added_files"
+msgstr "Deze replay kon niet worden toegevoegd: de replaybestanden van de game konden niet worden gelezen of geschreven. Er is niets gewijzigd."
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "Gevechtslogboek van het spel openen"
+
+msgid "replays.open_log_detail"
+msgstr "Verlaat het Ember-menu voor het lokale gevechtslogboek van het spel, waar replays worden afgespeeld."
+
+msgid "replays.open_log_room"
+msgstr "Verlaat eerst de kamer."
+
 msgid "home.choose_controller"
 msgstr "Kies spelcontroller"
 

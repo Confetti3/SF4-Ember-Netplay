@@ -622,6 +622,132 @@ msgstr "Jogar offline"
 msgid "home.offline_detail"
 msgstr "Abra os menus offline nativos."
 
+msgid "home.replays"
+msgstr "Replays"
+
+msgid "home.replays_detail"
+msgstr "Toda partida é salva. Coloque qualquer uma delas no Replay Channel do jogo."
+
+msgid "replays.title"
+msgstr "Replays"
+
+msgid "replays.empty"
+msgstr "Nenhum replay ainda"
+
+msgid "replays.empty_detail"
+msgstr "Uma partida é salva aqui quando termina."
+
+msgid "replays.add"
+msgstr "Adicionar ao jogo"
+
+msgid "replays.add_detail"
+msgstr "Adiciona à lista de replays do jogo para assistir depois no registro de batalhas."
+
+msgid "replays.watch"
+msgstr "Assistir agora"
+
+msgid "replays.watch_detail"
+msgstr "Adiciona à lista de replays do jogo e o reproduz a partir do registro de batalhas."
+
+msgid "replays.save_watched"
+msgstr "Salvar partidas que você assiste"
+
+msgid "replays.save_watched_detail"
+msgstr "Ligado: as partidas que você só assiste também são gravadas. Desligado: só as partidas que você joga."
+
+msgid "replays.link"
+msgstr "Um link quer reproduzir um replay"
+
+msgid "replays.link_detail"
+msgstr "Um link pediu ao Ember para reproduzir {0}. Reproduza apenas se você sabe de onde veio o link."
+
+msgid "replays.link_play"
+msgstr "Reproduzir"
+
+msgid "replays.link_dismiss"
+msgstr "Agora não"
+
+msgid "replays.link_dismiss_detail"
+msgstr "Deixa o arquivo onde está e esquece o link."
+
+msgid "replays.export"
+msgstr "Exportar vídeo"
+
+msgid "replays.export_detail"
+msgstr "Reproduz e grava como .mp4 no tamanho completo da imagem do jogo."
+
+msgid "replays.exported"
+msgstr "Vídeo salvo: {0}"
+
+msgid "replays.not_exported_encoder"
+msgstr "Nenhum vídeo foi criado. O Windows não ofereceu um codificador de vídeo, ou o codificador parou. O motivo está no registro."
+
+msgid "replays.not_exported_picture"
+msgstr "Nenhum vídeo foi criado. A imagem do jogo não pôde ser lida, ou mudou de tamanho durante a exportação."
+
+msgid "replays.not_exported_file"
+msgstr "Nenhum vídeo foi criado. O arquivo não pôde ser gravado. Um vídeo anterior deste replay pode estar aberto em um player."
+
+msgid "replays.video"
+msgstr "Vídeo"
+
+msgid "replays.open_folder"
+msgstr "Abrir a pasta de replays"
+
+msgid "replays.open_folder_detail"
+msgstr "Abre o arquivo no Explorador: replays e vídeos exportados."
+
+msgid "services.opening_replay_folder"
+msgstr "Abrindo a pasta de replays…"
+
+msgid "services.replay_folder_opened"
+msgstr "{0} aberto no Explorador."
+
+msgid "services.replay_folder_failed"
+msgstr "Não foi possível abrir a pasta de replays."
+
+msgid "replays.row_detail"
+msgstr "Selecione para assistir, exportar como vídeo ou adicionar à lista de replays do jogo."
+
+msgid "replays.watched"
+msgstr "Assistido"
+
+msgid "replays.spectated"
+msgstr "Assistido como espectador"
+
+msgid "replays.watched_spectated"
+msgstr "Assistido, como espectador"
+
+msgid "replays.not_ready"
+msgstr "Disponível no menu principal, fora de uma partida."
+
+msgid "replays.added"
+msgstr "Adicionado à lista de replays do jogo, na data em que foi jogado."
+
+msgid "replays.not_added"
+msgstr "Não foi possível adicionar este replay. O arquivo pode estar danificado."
+
+msgid "replays.not_added_yet"
+msgstr "O jogo ainda não salvou a última partida. Tente de novo em instantes."
+
+msgid "replays.not_added_files"
+msgstr "Não foi possível adicionar este replay: os arquivos de replay do jogo não puderam ser lidos ou gravados. Nada foi alterado."
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "Abrir o registro de batalhas do jogo"
+
+msgid "replays.open_log_detail"
+msgstr "Sai do menu do Ember para o registro de batalhas local do jogo, onde os replays são reproduzidos."
+
+msgid "replays.open_log_room"
+msgstr "Saia da sala primeiro."
+
 msgid "home.choose_controller"
 msgstr "Escolher controle de jogo"
 

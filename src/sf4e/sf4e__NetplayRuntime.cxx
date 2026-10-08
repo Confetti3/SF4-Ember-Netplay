@@ -1,4 +1,5 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "../platform/Utf8.hxx"
 #include "../common/HexText.hxx"
 #include "../ui/NetworkFeedback.hxx"
 
@@ -221,6 +222,7 @@ void StartHelper() {
             const int volume = saved.value("readySoundVolume", 100);
             runtime->preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;
             runtime->preferences.backgroundPlay = saved.value("backgroundPlay", false);
+            runtime->preferences.recordWatched = saved.value("recordWatched", true);
             runtime->preferences.discordPresence = saved.value("discordPresence", true);
             runtime->preferences.discordInvites = saved.value("discordInvites", true);
             const int main=saved.contains("mainFighter")&&saved["mainFighter"].is_number_integer()?saved["mainFighter"].get<int>():0;
@@ -273,6 +275,15 @@ void StartHelper() {
         if (length && length < sizeof(text)) OpenConnectLink(std::string(text, length), true);
         if (!runtime->connectLinks.Open()) spdlog::warn("Tournament: Discord connect links from the browser cannot reach this game");
     }
+    {
+        // A replay link likewise: the file's path. The launcher sets it as
+        // wide text, so it is read as wide text: a path need not be ASCII.
+        wchar_t text[1100] = {};
+        const DWORD length = GetEnvironmentVariableW(L"SF4E_REPLAY_LINK", text, static_cast<DWORD>(std::size(text)));
+        SetEnvironmentVariableW(L"SF4E_REPLAY_LINK", nullptr);
+        if (length && length < std::size(text)) runtime->replayLinkAsked = platform::WideToUtf8(std::wstring(text, length));
+        if (!runtime->replayLinks.Open()) spdlog::warn("Replays: replay links cannot reach this game");
+    }
 	runtime->preferences.inputDelay = GetConfig().inputDelay;
 	runtime->preferences.lobby.editionSelect = GetConfig().editionSelect != 0;
 	runtime->preferences.lobby.roundCount = GetConfig().roundCount;
@@ -313,6 +324,8 @@ void NotifyRuntimeEventSystemReady() { if (runtime) runtime->eventSystemReady = 
 
 void StopHelper() {
     training::StopCapture();
+    // The archive's lister holds files open while it reads; it is ended and waited for here.
+    platform::replays::StopListing();
 	if (!runtime) return;
     if (runtime->discordClient) {
         runtime->discordClient->Send("{\"type\":\"shutdown\"}");
@@ -376,16 +389,19 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 	}
 	// Gameplay/update commands join this queue when their effect handlers exist.
 	const auto kind = command.command.kind;
-	if (command.inputAction == input::Action::None && command.service == platform::ServiceAction::None && command.previewSoundVolume < 0 && !command.shortInvitation && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
+	if (command.inputAction == input::Action::None && command.service == platform::ServiceAction::None && command.previewSoundVolume < 0 && !command.shortInvitation &&
+		command.replay.mode == replay::Mode::None && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
 		kind != netplay::CommandKind::LeaveRoom && kind != netplay::CommandKind::StartOffline &&
 		kind != netplay::CommandKind::Ready && kind != netplay::CommandKind::Rematch &&
 		kind != netplay::CommandKind::SavePreferences && kind != netplay::CommandKind::SetLobbySettings &&
 		kind != netplay::CommandKind::RoomAction && kind != netplay::CommandKind::ReplaceRoom &&
 		kind != netplay::CommandKind::CheckConnection && kind != netplay::CommandKind::ApplyDelay) return false;
 	const auto bytes = sizeof(RuntimeCommand) + command.displayName.size() + command.command.invitation.size() +
-		command.preferences.displayName.size() + command.preferences.roomName.size() + command.roomAction.text.size() + command.publicTicket.size();
+		command.preferences.displayName.size() + command.preferences.roomName.size() + command.roomAction.text.size() + command.publicTicket.size() +
+		command.replay.path.size();
 	return bridge::PushCommand(std::move(command), bytes);
 }
+
 
 bool IsRuntimeRoomActive() { return runtime && runtime->attached; }
 bool IsRuntimePublicJoin() { return runtime && runtime->publicJoin; }
@@ -585,6 +601,7 @@ void TickRuntime() {
 	DrainCommands(helperReady);
 	DrainRoomEvents();
 	TickTournament(helperReady);
+	TickReplays();
 	PersistTerminalOutcome();
 	DrainActionReplies();
 	RetryPendingAbort();

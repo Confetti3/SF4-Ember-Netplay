@@ -1,4 +1,5 @@
 #pragma once
+#include "../common/ReplayRequest.hxx"
 #include "../common/GameDisplayConfig.hxx"
 #include "../discord/Presence.hxx"
 #include "../netplay/InputAssignment.hxx"
@@ -106,6 +107,18 @@ struct ShellView {
     netplay::tournament::Status tournament;
     // The bridge's public rooms and the answer to the last create or ticket request.
     netplay::publicrooms::Status publicRooms;
+    // Ember's replay archive (platform/ReplayFiles.hxx), newest first; each
+    // is a path for the import action and a label for its row. replaysReady
+    // when one can be put into the game's replay list right now, and the
+    // outcome of the last import as a notice (an error when it failed).
+    struct Replay { std::string path, label, names[2]; bool spectated = false, watched = false, video = false; };
+    std::vector<Replay> replays;
+    bool replaysReady = false;
+    std::string replayNotice;
+    bool replayNoticeError = false;
+    // The file a replay link asked Ember to play, until the player answers:
+    // the Replays screen opens with the question as its first row.
+    std::string replayLink;
 };
 
 // The count on a Chat control: a rounded badge ending at `right` (screen x), its top at `top`, the
@@ -141,6 +154,10 @@ struct ShellAction {
     // With the JoinInvite of a public room just created: the table rules chosen
     // on Create, which the runtime sets once the creator is in it as host.
     std::optional<room::Rules> createdRules;
+    // What the Replays screen asks of the game: an archived replay (its
+    // ShellView::Replay::path) to add or to watch, the game's own list, or
+    // no to a replay link. Nothing is sent to the room.
+    replay::Request replay;
 };
 
 class ApplicationShell {
@@ -311,6 +328,8 @@ private:
     netplay::PlayerPreferences preferences_;
     netplay::LobbySettings lobby_;
     std::string error_;
+    // The replay link last seen, so its question opens the Replays screen once.
+    std::string replayLinkSeen_;
     // A shell error has no natural clear point (a paste that failed, an
     // invalid value), so it ends with the screen it appeared on, with the
     // condition a refusal named (Refuse), or a few seconds after it appeared.

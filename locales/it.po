@@ -622,6 +622,132 @@ msgstr "Gioca offline"
 msgid "home.offline_detail"
 msgstr "Apri i menu offline del gioco."
 
+msgid "home.replays"
+msgstr "Replay"
+
+msgid "home.replays_detail"
+msgstr "Ogni partita viene salvata. Metti una qualsiasi nel Replay Channel del gioco."
+
+msgid "replays.title"
+msgstr "Replay"
+
+msgid "replays.empty"
+msgstr "Ancora nessun replay"
+
+msgid "replays.empty_detail"
+msgstr "Una partita viene salvata qui quando finisce."
+
+msgid "replays.add"
+msgstr "Aggiungi al gioco"
+
+msgid "replays.add_detail"
+msgstr "Lo aggiunge all'elenco dei replay del gioco per guardarlo più tardi dal registro degli incontri."
+
+msgid "replays.watch"
+msgstr "Guarda ora"
+
+msgid "replays.watch_detail"
+msgstr "Lo aggiunge all'elenco dei replay del gioco e lo riproduce dal registro degli incontri."
+
+msgid "replays.save_watched"
+msgstr "Salva le partite che guardi"
+
+msgid "replays.save_watched_detail"
+msgstr "Sì: vengono registrate anche le partite che guardi soltanto. No: solo le partite che giochi."
+
+msgid "replays.link"
+msgstr "Un link vuole riprodurre un replay"
+
+msgid "replays.link_detail"
+msgstr "Un link ha chiesto a Ember di riprodurre {0}. Riproducilo solo se sai da dove viene il link."
+
+msgid "replays.link_play"
+msgstr "Riproduci"
+
+msgid "replays.link_dismiss"
+msgstr "Non ora"
+
+msgid "replays.link_dismiss_detail"
+msgstr "Lascia il file dov'è e dimentica il link."
+
+msgid "replays.export"
+msgstr "Esporta video"
+
+msgid "replays.export_detail"
+msgstr "Lo riproduce e lo registra come .mp4 alla dimensione piena dell'immagine del gioco."
+
+msgid "replays.exported"
+msgstr "Video salvato: {0}"
+
+msgid "replays.not_exported_encoder"
+msgstr "Nessun video creato. Windows non ha fornito un codificatore video, oppure il codificatore si è fermato. Il motivo è nel registro."
+
+msgid "replays.not_exported_picture"
+msgstr "Nessun video creato. Non è stato possibile leggere l'immagine del gioco, oppure ha cambiato dimensione durante l'esportazione."
+
+msgid "replays.not_exported_file"
+msgstr "Nessun video creato. Non è stato possibile scrivere il file. Un video precedente di questo replay potrebbe essere aperto in un lettore."
+
+msgid "replays.video"
+msgstr "Video"
+
+msgid "replays.open_folder"
+msgstr "Apri la cartella dei replay"
+
+msgid "replays.open_folder_detail"
+msgstr "Apre l'archivio in Esplora file: replay e video esportati."
+
+msgid "services.opening_replay_folder"
+msgstr "Apertura della cartella dei replay…"
+
+msgid "services.replay_folder_opened"
+msgstr "{0} aperto in Esplora file."
+
+msgid "services.replay_folder_failed"
+msgstr "Impossibile aprire la cartella dei replay."
+
+msgid "replays.row_detail"
+msgstr "Seleziona per guardarlo, esportarlo come video o aggiungerlo all'elenco dei replay del gioco."
+
+msgid "replays.watched"
+msgstr "Visto"
+
+msgid "replays.spectated"
+msgstr "Da spettatore"
+
+msgid "replays.watched_spectated"
+msgstr "Visto, da spettatore"
+
+msgid "replays.not_ready"
+msgstr "Disponibile nel menu principale, fuori da una partita."
+
+msgid "replays.added"
+msgstr "Aggiunto all'elenco dei replay del gioco, con la data in cui è stato giocato."
+
+msgid "replays.not_added"
+msgstr "Impossibile aggiungere questo replay. Il file potrebbe essere danneggiato."
+
+msgid "replays.not_added_yet"
+msgstr "Il gioco non ha ancora salvato l'ultimo incontro. Riprova tra un momento."
+
+msgid "replays.not_added_files"
+msgstr "Impossibile aggiungere questo replay: non è stato possibile leggere o scrivere i file dei replay del gioco. Non è stato modificato nulla."
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "Apri il registro degli incontri del gioco"
+
+msgid "replays.open_log_detail"
+msgstr "Esce dal menu di Ember per il registro locale degli incontri del gioco, dove si guardano i replay."
+
+msgid "replays.open_log_room"
+msgstr "Prima esci dalla stanza."
+
 msgid "home.choose_controller"
 msgstr "Scegli controller di gioco"
 

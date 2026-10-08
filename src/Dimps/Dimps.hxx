@@ -29,5 +29,13 @@ namespace Dimps {
 		static BYTE* soundFocusCheck;
 		// The import slot of GetForegroundWindow that call reads (0x9312AC).
 		static DWORD foregroundWindowImport;
+		// Just before, the frame keeps whether the window is in front and
+		// not minimized in the app's +4: the same call at 0x4042AE, and
+		// `call dword ptr [IsIconic]` (slot 0x931378) at 0x4042D7. The sound
+		// check asks IsIconic too, at 0x404321. Read from the code alone;
+		// what else reads +4 is not known.
+		static BYTE* activeFocusCheck;
+		static BYTE* iconicChecks[2];
+		static DWORD iconicImport;
 	};
 }

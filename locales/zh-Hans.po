@@ -622,6 +622,132 @@ msgstr "离线游玩"
 msgid "home.offline_detail"
 msgstr "打开游戏原有的离线菜单。"
 
+msgid "home.replays"
+msgstr "回放"
+
+msgid "home.replays_detail"
+msgstr "每场对战都会保存。可将任意一场放入游戏的回放频道。"
+
+msgid "replays.title"
+msgstr "回放"
+
+msgid "replays.empty"
+msgstr "还没有回放"
+
+msgid "replays.empty_detail"
+msgstr "对战结束后会保存到这里。"
+
+msgid "replays.add"
+msgstr "添加到游戏"
+
+msgid "replays.add_detail"
+msgstr "添加到游戏的回放列表，稍后可从对战记录中观看。"
+
+msgid "replays.watch"
+msgstr "立即观看"
+
+msgid "replays.watch_detail"
+msgstr "添加到游戏的回放列表，并从对战记录中播放。"
+
+msgid "replays.save_watched"
+msgstr "保存观战的对战"
+
+msgid "replays.save_watched_detail"
+msgstr "开：只观战的对战也会录制。关：只录制自己参加的对战。"
+
+msgid "replays.link"
+msgstr "有链接想要播放回放"
+
+msgid "replays.link_detail"
+msgstr "有链接请求 Ember 播放 {0}。只有在你知道链接来源时才播放。"
+
+msgid "replays.link_play"
+msgstr "播放"
+
+msgid "replays.link_dismiss"
+msgstr "暂不"
+
+msgid "replays.link_dismiss_detail"
+msgstr "保留文件并忘记此链接。"
+
+msgid "replays.export"
+msgstr "导出视频"
+
+msgid "replays.export_detail"
+msgstr "播放并录制为 .mp4，大小与游戏画面相同。"
+
+msgid "replays.exported"
+msgstr "视频已保存：{0}"
+
+msgid "replays.not_exported_encoder"
+msgstr "未生成视频。Windows 没有提供视频编码器，或编码器已停止。原因见日志。"
+
+msgid "replays.not_exported_picture"
+msgstr "未生成视频。无法读取游戏画面，或导出期间画面大小发生了变化。"
+
+msgid "replays.not_exported_file"
+msgstr "未生成视频。无法写入文件。此回放之前的视频可能正在播放器中打开。"
+
+msgid "replays.video"
+msgstr "视频"
+
+msgid "replays.open_folder"
+msgstr "打开录像文件夹"
+
+msgid "replays.open_folder_detail"
+msgstr "在资源管理器中打开存档：录像和导出的视频。"
+
+msgid "services.opening_replay_folder"
+msgstr "正在打开录像文件夹…"
+
+msgid "services.replay_folder_opened"
+msgstr "已在资源管理器中打开 {0}。"
+
+msgid "services.replay_folder_failed"
+msgstr "无法打开录像文件夹。"
+
+msgid "replays.row_detail"
+msgstr "选择以观看、导出为视频，或添加到游戏的回放列表。"
+
+msgid "replays.watched"
+msgstr "已观看"
+
+msgid "replays.spectated"
+msgstr "观战"
+
+msgid "replays.watched_spectated"
+msgstr "已观看，观战"
+
+msgid "replays.not_ready"
+msgstr "在主菜单（非对战中）可用。"
+
+msgid "replays.added"
+msgstr "已按对战日期添加到游戏的回放列表。"
+
+msgid "replays.not_added"
+msgstr "无法添加此回放。文件可能已损坏。"
+
+msgid "replays.not_added_yet"
+msgstr "游戏尚未保存上一场对战。请稍后再试。"
+
+msgid "replays.not_added_files"
+msgstr "无法添加此回放：无法读取或写入游戏的回放文件。未做任何更改。"
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "打开游戏的对战记录"
+
+msgid "replays.open_log_detail"
+msgstr "离开 Ember 菜单，进入游戏的本地对战记录，在那里播放回放。"
+
+msgid "replays.open_log_room"
+msgstr "请先离开房间。"
+
 msgid "home.choose_controller"
 msgstr "选择对战控制器"
 
