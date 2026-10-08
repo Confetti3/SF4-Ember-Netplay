@@ -3400,6 +3400,12 @@ msgstr "No se pudo guardar el registro de la partida. La siguiente partida puede
 msgid "runtime.rollback_unsupported_state"
 msgstr "El netplay no pudo guardar un estado del juego no compatible. La partida ha terminado."
 
+msgid "runtime.practice_saved"
+msgstr "P{0} ha guardado la posición"
+
+msgid "runtime.practice_reset"
+msgstr "P{0} ha restablecido la posición"
+
 msgid "runtime.participant_left_room"
 msgstr "Un participante salió de la sala."
 

@@ -3400,6 +3400,12 @@ msgstr "Bilan du combat non enregistré. Le prochain combat peut commencer ; l'e
 msgid "runtime.rollback_unsupported_state"
 msgstr "Le netplay n'a pas pu enregistrer un état du jeu non pris en charge. Le combat est terminé."
 
+msgid "runtime.practice_saved"
+msgstr "P{0} a enregistré la position"
+
+msgid "runtime.practice_reset"
+msgstr "P{0} a réinitialisé la position"
+
 msgid "runtime.participant_left_room"
 msgstr "Un combattant a quitté le salon."
 

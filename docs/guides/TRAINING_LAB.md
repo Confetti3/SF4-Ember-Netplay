@@ -76,7 +76,9 @@ Each player row shows `Start N f`. It counts observed advancing frames from the 
 
 A room's host can turn **Training** on in a table's rules (Table options, with the round count and the round time). At that table both fighters' health, Super and Ultra gauges fill again about a second after they are left alone, and nobody is knocked out. Both players and every spectator get the rule from the table; nothing has to be set on their side.
 
-A game under the rule ends when the round time runs out or a fighter leaves the seat, so set the round time to 9999. There is no reset, no dummy and no recording at such a table: the other player is the dummy. Turn **Frame meter in matches** on to see the frames.
+A game under the rule ends when the round time runs out or a fighter leaves the seat, so set the round time to 9999. Either player can save where both fighters stand and put both back there: the keys chosen in Training for **Save position** and **Reset position** (F11 and F2 unless changed), or the pad's Select, held half a second to save and tapped to reset. It happens for both players and every spectator on the same frame, and both are told who did it. Until somebody saves, a reset goes back to the start of the round. A line under the frame meter names the keys.
+
+There is no dummy and no recording at such a table: the other player is the dummy. Turn **Frame meter in matches** on to see the frames.
 
 ### Opt-in frame-meter capture
 

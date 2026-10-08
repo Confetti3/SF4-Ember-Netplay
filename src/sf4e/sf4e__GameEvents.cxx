@@ -12,6 +12,7 @@
 #include "sf4e__Game__Battle__System.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "sf4e__UserApp.hxx"
+#include "../training/TrainingRuntime.hxx"
 
 using Dimps::Game::Request;
 
@@ -303,6 +304,8 @@ void fVsBattle::PrepareBattleRequest() {
 		}
 	}
 	bForceNextMatchOnline = false;
+	// With the rule goes the shared save and reset of that battle.
+	sf4e::training::SetMatchPractice(r && bNextMatchTraining);
 	bOverrideNextRandomSeed = false;
 	nextMatchRandomSeed = 0xffffffff;
 	bNextMatchTraining = false;

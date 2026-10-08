@@ -3400,6 +3400,12 @@ msgstr "无法保存对战记录。下一场对战仍可开始；系统会继续
 msgid "runtime.rollback_unsupported_state"
 msgstr "联机系统无法保存不受支持的游戏状态。对战已结束。"
 
+msgid "runtime.practice_saved"
+msgstr "P{0} 保存了位置"
+
+msgid "runtime.practice_reset"
+msgstr "P{0} 重置了位置"
+
 msgid "runtime.participant_left_room"
 msgstr "一名参赛玩家离开了房间。"
 

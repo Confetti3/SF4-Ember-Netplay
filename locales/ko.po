@@ -3400,6 +3400,12 @@ msgstr "대전 전적을 저장하지 못했습니다. 다음 대전은 시작�
 msgid "runtime.rollback_unsupported_state"
 msgstr "넷플레이에서 지원하지 않는 게임 상태를 저장하지 못했습니다. 대전이 종료되었습니다."
 
+msgid "runtime.practice_saved"
+msgstr "P{0}가 위치를 저장했습니다"
+
+msgid "runtime.practice_reset"
+msgstr "P{0}가 위치를 초기화했습니다"
+
 msgid "runtime.participant_left_room"
 msgstr "대전 참가자가 방을 나갔습니다."
 

@@ -3400,6 +3400,12 @@ msgstr "Не удалось сохранить результат матча. С
 msgid "runtime.rollback_unsupported_state"
 msgstr "Сетевая игра не смогла сохранить неподдерживаемое состояние игры. Матч завершён."
 
+msgid "runtime.practice_saved"
+msgstr "P{0} сохранил позицию"
+
+msgid "runtime.practice_reset"
+msgstr "P{0} сбросил позицию"
+
 msgid "runtime.participant_left_room"
 msgstr "Участник матча покинул зал."
 

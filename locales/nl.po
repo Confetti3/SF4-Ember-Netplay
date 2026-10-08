@@ -3400,6 +3400,12 @@ msgstr "De matchstand kon niet worden opgeslagen. De volgende match kan beginnen
 msgid "runtime.rollback_unsupported_state"
 msgstr "Netplay kon een niet-ondersteunde spelstatus niet opslaan. De match is afgelopen."
 
+msgid "runtime.practice_saved"
+msgstr "P{0} heeft de positie opgeslagen"
+
+msgid "runtime.practice_reset"
+msgstr "P{0} heeft de positie hersteld"
+
 msgid "runtime.participant_left_room"
 msgstr "Een matchdeelnemer verliet de kamer."
 

@@ -2955,6 +2955,12 @@ msgstr "A rede não está disponível. O modo offline está disponível."
 msgid "runtime.room_join_failed"
 msgstr "Não foi possível entrar na sala. Verifique o convite e se os dois jogadores usam o mesmo pacote do SF4 Ember Netplay."
 
+msgid "runtime.practice_saved"
+msgstr "P{0} salvou a posição"
+
+msgid "runtime.practice_reset"
+msgstr "P{0} restaurou a posição"
+
 msgid "room.rules.tournament"
 msgstr "O torneio define as regras desta mesa."
 

@@ -3400,6 +3400,12 @@ msgstr "Kampfbilanz konnte nicht gespeichert werden. Der nächste Kampf kann sta
 msgid "runtime.rollback_unsupported_state"
 msgstr "Netplay konnte Spielzustand nicht speichern. Kampf beendet."
 
+msgid "runtime.practice_saved"
+msgstr "P{0} hat die Position gespeichert"
+
+msgid "runtime.practice_reset"
+msgstr "P{0} hat die Position zurückgesetzt"
+
 msgid "runtime.participant_left_room"
 msgstr "Ein Kampfteilnehmer hat den Raum verlassen."
 

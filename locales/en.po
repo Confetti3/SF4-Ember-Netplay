@@ -3069,6 +3069,12 @@ msgstr "Networking is unavailable. Offline is available."
 msgid "runtime.room_join_failed"
 msgstr "Could not join the room. Check the invitation and that both players use the same SF4 Ember Netplay package."
 
+msgid "runtime.practice_saved"
+msgstr "P{0} saved the position"
+
+msgid "runtime.practice_reset"
+msgstr "P{0} reset the position"
+
 msgid "room.rules.tournament"
 msgstr "The tournament sets the rules at this table."
 

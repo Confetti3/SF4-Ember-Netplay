@@ -3400,6 +3400,12 @@ msgstr "Záznam zápasu se nepodařilo uložit. Další zápas může začít; u
 msgid "runtime.rollback_unsupported_state"
 msgstr "Netplay nedokázal uložit nepodporovaný stav hry. Zápas skončil."
 
+msgid "runtime.practice_saved"
+msgstr "P{0} uložil pozici"
+
+msgid "runtime.practice_reset"
+msgstr "P{0} obnovil pozici"
+
 msgid "runtime.participant_left_room"
 msgstr "Účastník zápasu opustil místnost."
 

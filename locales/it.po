@@ -3400,6 +3400,12 @@ msgstr "Impossibile salvare il record della partita. La prossima può iniziare; 
 msgid "runtime.rollback_unsupported_state"
 msgstr "Impossibile salvare uno stato di gioco non supportato per il netplay. Partita terminata."
 
+msgid "runtime.practice_saved"
+msgstr "P{0} ha salvato la posizione"
+
+msgid "runtime.practice_reset"
+msgstr "P{0} ha ripristinato la posizione"
+
 msgid "runtime.participant_left_room"
 msgstr "Un partecipante ha lasciato la sala."
 
