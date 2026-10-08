@@ -1,15 +1,54 @@
-# Focused quoting checks only: never execute the publisher or run builds.
+#Requires -Version 7
+# Focused label and quoting checks: never execute the publisher or run builds.
 param([string]$BashPath = '')
 $ErrorActionPreference = 'Stop'
-$publisher = Join-Path $PSScriptRoot 'publish-nightly.ps1'
-$parseErrors = $null
-$ast = [Management.Automation.Language.Parser]::ParseFile($publisher, [ref]$null, [ref]$parseErrors)
-if ($parseErrors.Count) { throw ($parseErrors.Message -join "`n") }
-$helper = $ast.Find({ param($node)
-    $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'ConvertTo-NightlyWslPath'
-}, $true)
-if (!$helper) { throw 'Missing WSL path converter' }
-. ([scriptblock]::Create($helper.Extent.Text))
+. (Join-Path $PSScriptRoot 'NightlyOperations.ps1')
+$outDirectory = Join-Path ([IO.Path]::GetTempPath()) ("nightly labels [literal] ' " + [Guid]::NewGuid().ToString('N'))
+$baseLabel = '1.2.0-nightly20261008'
+$existingTags = @()
+$fixtures = @()
+try {
+    New-Item -ItemType Directory -Path $outDirectory | Out-Null
+    if ((Get-NightlyLabel $baseLabel $existingTags $outDirectory) -cne $baseLabel) { throw 'Unused base label was not selected' }
+    $existingTags = @("v$baseLabel", "v$baseLabel.2")
+    if ((Get-NightlyLabel $baseLabel $existingTags $outDirectory) -cne "$baseLabel.3") { throw 'Remote tag collisions were not skipped' }
+    $existingTags = @()
+    foreach ($extension in @('', '.zip', '.zip.sha256', '-setup.exe', '-setup.exe.sha256')) {
+        $fixture = Join-Path $outDirectory "sf4-ember-netplay-$baseLabel$extension"
+        $fixtures += $fixture
+        if (!$extension) {
+            New-Item -ItemType Directory -Path $fixture | Out-Null
+        } else {
+            Set-Content -LiteralPath $fixture -Value 'preserve existing output'
+        }
+        if ((Get-NightlyLabel $baseLabel $existingTags $outDirectory) -cne "$baseLabel.2") { throw "Local output collision was not skipped: $extension" }
+        if (!(Test-Path -LiteralPath $fixture)) { throw 'Chooser removed an existing output' }
+        if ($extension -and (Get-Content -LiteralPath $fixture -Raw).Trim() -cne 'preserve existing output') {
+            throw 'Chooser changed an existing output'
+        }
+        Remove-Item -LiteralPath $fixture
+    }
+    # Alternate remote and partial local outputs, including a repeated run.
+    $existingTags = @("v$baseLabel.2", "v$baseLabel.4", "v$baseLabel.7")
+    foreach ($ending in @('', '.3.zip', '.5-setup.exe.sha256')) {
+        $fixture = Join-Path $outDirectory "sf4-ember-netplay-$baseLabel$ending"
+        $fixtures += $fixture
+        Set-Content -LiteralPath $fixture -Value 'preserve existing output'
+    }
+    $firstLabel = Get-NightlyLabel $baseLabel $existingTags $outDirectory
+    if ($firstLabel -cne "$baseLabel.6") { throw 'Mixed collisions did not select the first free suffix' }
+    $fixture = Join-Path $outDirectory "sf4-ember-netplay-$firstLabel"
+    $fixtures += $fixture
+    New-Item -ItemType Directory -Path $fixture | Out-Null
+    if ((Get-NightlyLabel $baseLabel $existingTags $outDirectory) -cne "$baseLabel.8") { throw 'Repeated run reused an occupied label' }
+} finally {
+    # Delete only the fixtures created above; no real dist outputs are touched.
+    foreach ($fixture in $fixtures) {
+        if (Test-Path -LiteralPath $fixture) { Remove-Item -LiteralPath $fixture }
+    }
+    if (Test-Path -LiteralPath $outDirectory) { Remove-Item -LiteralPath $outDirectory }
+}
+Write-Output 'PASS Nightly labels skip remote tags and all local outputs, preserve outputs'
 
 $cases = @(
     @('C:\Users\Kate\Desktop\sf4\sf4-nightly\dist\nightly-room-hosts\1.2.0-nightly20261008\room-host-src.tgz',
@@ -44,12 +83,8 @@ function Invoke-NightlyCommand([string]$Command, [string[]]$Arguments, [string]$
         if ($Arguments[$index] -cne $expected[$index]) { throw "WSL argv mismatch at $index" }
     }
 }
-$wslCall = $ast.Find({ param($node)
-    $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -eq 'Invoke-NightlyCommand' -and
-    $node.CommandElements[1].Extent.Text -eq 'wsl'
-}, $true)
-if (!$wslCall) { throw 'Missing direct WSL invocation' }
-& ([scriptblock]::Create($wslCall.Extent.Text))
+Invoke-NightlyLinuxBuild 'C:\Kate''s files\$HOME; & (literal) `tick\build-wsl.sh' $sourceRevision `
+    'C:\Kate''s files\$HOME; & (literal) `tick\room-host-src.tgz' 'C:\Kate''s files\$HOME; & (literal) `tick\output dirs'
 Write-Output 'PASS WSL invocation uses --exec and separate unchanged argv'
 
 if (!$BashPath) {
@@ -58,13 +93,10 @@ if (!$BashPath) {
 }
 $fixture = Join-Path ([IO.Path]::GetTempPath()) ("nightly paths ' " + [Guid]::NewGuid().ToString('N') + '.sh')
 try {
-    $body = $ast.Find({ param($node)
-        $node -is [Management.Automation.Language.StringConstantExpressionAst] -and
-        $node.StringConstantType -eq 'SingleQuotedHereString'
-    }, $true).Value
-    [IO.File]::WriteAllText($fixture, $body.Replace("`r`n", "`n") + "`n", [Text.UTF8Encoding]::new($false))
-    & $BashPath -n -- $fixture
-    if ($LASTEXITCODE -ne 0) { throw 'Generated build script has invalid Bash syntax' }
+    foreach ($name in @('build-nightly-room-hosts.sh', 'stage-nightly-room-hosts.sh', 'test-nightly-staging.sh')) {
+        & $BashPath -n -- (Join-Path $PSScriptRoot $name)
+        if ($LASTEXITCODE -ne 0) { throw "$name has invalid Bash syntax" }
+    }
     # This probe only prints argv; it never executes the build script.
     [IO.File]::WriteAllText($fixture, 'printf ''%s\n'' "$@"' + "`n", [Text.UTF8Encoding]::new($false))
     $expected = @($sourceRevision, $linuxArchive, $linuxArtifacts)
@@ -73,7 +105,9 @@ try {
     for ($index = 0; $index -lt $expected.Count; $index++) {
         if ($actual[$index] -cne $expected[$index]) { throw "Bash changed argv at $index" }
     }
-    Write-Output 'PASS generated Bash syntax and native argv round trip with spaces and shell metacharacters'
+    Write-Output 'PASS dedicated Bash syntax and native argv round trip with spaces and shell metacharacters'
 } finally {
     Remove-Item -LiteralPath $fixture -ErrorAction SilentlyContinue
 }
+& $BashPath -- (Join-Path $PSScriptRoot 'test-nightly-staging.sh')
+if ($LASTEXITCODE -ne 0) { throw 'Atomic staging regression tests failed' }
