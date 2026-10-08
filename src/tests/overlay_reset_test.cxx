@@ -1,6 +1,7 @@
 // Exercise the production overlay lifecycle without starting SF4 or networking.
 #include "../sf4e/sf4e__Overlay.hxx"
 #include "../sf4e/sf4e__OverlayPrefs.hxx"
+#include "../sf4e/sf4e__ReplayCapture.hxx"
 #include "../common/StageCatalog.hxx"
 #include "../ui/OverlayPresentation.hxx"
 #include <imgui.h>
@@ -107,7 +108,20 @@ int main() {
     check(Overlay::OverlayWindowFunc(window, WM_ACTIVATEAPP, TRUE, 0) == 0,
         "activation during reset was swallowed from the native window");
     check(Overlay::HasInputFocus(), "display-reset activation was lost while ImGui was absent");
+    namespace Capture = sf4e::replaycapture;
+    Capture::Release();
+    Capture::Begin(L"unused-capture-reset.mp4", false);
+    Capture::Frame(device);
+    check(Capture::GetState() == Capture::State::Recording, "capture opened while the device was unavailable");
     check(SUCCEEDED(device->Reset(&params)), "hidden DX9 reset failed");
+    Capture::Frame(device);
+    check(Capture::GetState() == Capture::State::Recording, "capture resumed before reset completion was published");
+    Capture::Resume(nullptr);
+    Capture::Frame(device);
+    check(Capture::GetState() == Capture::State::Recording, "an unavailable device enabled capture");
+    Capture::End(); Capture::Frame(nullptr);
+    check(Capture::GetState() == Capture::State::Failed, "a suppressed capture reported a video");
+    Capture::Clear(); Capture::Resume(device);
     Overlay::InitializeOverlay(window, device);
     Overlay::RequestMainControls();
     check(Overlay::CapturesMenuInput(), "overlay could not accept an open request after display reset");

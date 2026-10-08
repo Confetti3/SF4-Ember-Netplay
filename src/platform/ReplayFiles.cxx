@@ -20,6 +20,7 @@
 #include <spdlog/spdlog.h>
 
 #include "Utf8.hxx"
+#include "../common/ReplayFileSafety.hxx"
 
 namespace fs = std::filesystem;
 namespace slots = sf4e::replayslots;
@@ -42,18 +43,13 @@ slots::Bytes LoadFile(const fs::path& path, std::size_t most = kMostReplayBytes)
 	return contents;
 }
 
-// The replays the archive holds, by CRC: Ember's own from their names,
-// usf4-replay-saver's from their contents.
+// The replays the archive holds, verified from each file's contents.
 std::set<std::uint32_t> HeldCrcs(const fs::path& archive) {
 	std::set<std::uint32_t> held;
 	std::error_code ignored;
 	for (fs::recursive_directory_iterator at(archive, fs::directory_options::skip_permission_denied, ignored), end; !ignored && at != end; at.increment(ignored)) {
 		std::uint32_t crc = 0;
-		if (slots::ArchiveNameCrc(at->path().filename().wstring(), crc)) held.insert(crc);
-		else if (at->path().extension() == L".usf4replay") {
-			const slots::Bytes saver = LoadFile(at->path());
-			if (!saver.empty()) held.insert(slots::Crc32(saver.data(), saver.size()));
-		}
+		if (replayfiles::ArchivedCrc(at->path(), crc)) held.insert(crc);
 	}
 	return held;
 }
@@ -148,7 +144,7 @@ int Archive() {
 	}
 }
 
-bool ImportFile(const fs::path& file, const Writer& write, Imported& out) {
+bool ImportFile(const fs::path& file, const Writer& write, const Remover& remove, const Publisher& publish, Imported& out) {
 	try {
 		// Everything in the game's slots is archived first, so what the import
 		// replaces is kept; without that nothing is replaced.
@@ -186,24 +182,28 @@ bool ImportFile(const fs::path& file, const Writer& write, Imported& out) {
 			spdlog::warn(L"Replays: {} is not a replay Ember can import, or the save index is damaged", file.c_str());
 			return false;
 		}
-		// The replay first and the indexes that name it last: an index never
-		// names a file that is not there. Should a write fail after the
-		// replay's, the slot gets its old replay back, which the unchanged
-		// index still names.
-		bool written = write(prefix + name, replay) && write(prefix + name + ".0", slots::Sidecar(replay));
-		const bool replaced = written;
-		written = written && write(prefix + "replays-swan.dat", swan) && write(prefix + "replays-swan.dat.0", slots::Sidecar(swan));
-		if (written && slot < slots::kListSlots) written = write(prefix + "LIST", list) && write(prefix + "LIST.0", slots::Sidecar(list));
-		if (!written) {
-			spdlog::error("Replays: could not write slot {} and its index", slot);
-			if (replaced && !before.empty() && !(write(prefix + name, before) && write(prefix + name + ".0", slots::Sidecar(before))))
-				spdlog::error("Replays: slot {}'s own replay could not be put back; it is in the archive", slot);
+		const std::uint8_t* record = slots::Record(list, swan, slot);
+		Imported imported;
+		imported.slot = slot;
+		imported.record.assign(record, record + slots::kRecordBytes);
+		imported.slotBytes.assign(swan.begin() + slots::kSwanSlotBytesOffset + slot * 2, swan.begin() + slots::kSwanSlotBytesOffset + slot * 2 + 2);
+		std::vector<replayfiles::Change> changes;
+		const auto stage = [&](const std::string& leaf, const slots::Bytes& contents) {
+			replayfiles::Change change;
+			change.name = prefix + leaf; change.after = contents;
+			if (!replayfiles::Snapshot(saves / leaf, kMostIndexBytes, change)) return false;
+			changes.push_back(std::move(change));
+			return true;
+		};
+		if (!stage(name, replay) || !stage(name + ".0", slots::Sidecar(replay)) ||
+			!stage("replays-swan.dat", swan) || !stage("replays-swan.dat.0", slots::Sidecar(swan)) ||
+			(slot < slots::kListSlots && (!stage("LIST", list) || !stage("LIST.0", slots::Sidecar(list))))) return false;
+		bool restored = true;
+		if (!replayfiles::Apply(changes, write, remove, [&] { return publish(imported); }, restored)) {
+			spdlog::error("Replays: slot {} was not imported; original files restored: {}", slot, restored);
 			return false;
 		}
-		const std::uint8_t* record = slots::Record(list, swan, slot);
-		out.slot = slot;
-		out.record.assign(record, record + slots::kRecordBytes);
-		out.slotBytes.assign(swan.begin() + slots::kSwanSlotBytesOffset + slot * 2, swan.begin() + slots::kSwanSlotBytesOffset + slot * 2 + 2);
+		out = std::move(imported);
 		spdlog::info(L"Replays: imported {} into slot {}", file.c_str(), slot);
 		return true;
 	}

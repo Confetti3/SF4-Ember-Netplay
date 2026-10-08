@@ -8,7 +8,7 @@
 // the encoder's process takes them out in order, captures the game's sound
 // itself, and closes the file when told to or when the game goes away, so a
 // game closed during an export still leaves a file that plays. The file is
-// written as "<name>.part.mp4" and takes its own name only once it holds a
+// written to a uniquely reserved temporary file and takes its own name only once it holds a
 // video, so an export that fails leaves an earlier one of that replay alone.
 namespace sf4e { namespace platform { namespace videolink {
 
@@ -22,6 +22,8 @@ bool Start(const std::wstring& file, unsigned width, unsigned height, const std:
 void Send(const void* luma, int lumaPitch, const void* chroma, int chromaPitch);
 // Asks the encoder to close the file, without waiting for it.
 void Stop();
+// A picture capture failed: stop and discard the temporary video.
+void Fail();
 // After Stop: true once the encoder's process has ended, with ok saying the
 // file holds a video; false while it is still closing it. Abort ends a
 // process that does not.

@@ -3,6 +3,7 @@
 #include <atomic>
 #include <mutex>
 #include <windows.h>
+#include <d3d9.h>
 #include <spdlog/spdlog.h>
 
 #include "../platform/FrameGrab.hxx"
@@ -21,6 +22,7 @@ std::atomic<bool> s_wanted{false}, s_sending{false}, s_afterOverlay{false};
 std::mutex s_lock;
 std::wstring s_file;
 bool s_opened = false;
+bool s_deviceAvailable = true;
 ULONGLONG s_closingSince = 0;
 // The encoder's process may take this long to close its file before it is ended.
 constexpr ULONGLONG kClosePatienceMs = 30000;
@@ -59,6 +61,7 @@ void Frame(IDirect3DDevice9* device) {
 		s_sending = false;
 	}
 	else if (s_state == State::Recording) {
+		if (!s_deviceAvailable) return;
 		if (!s_opened) {
 			// The first frame tells the picture's size.
 			s_opened = true;
@@ -66,8 +69,11 @@ void Frame(IDirect3DDevice9* device) {
 			s_sending = grab::Open(device, width, height) && link::Start(s_file, width, height);
 			if (!s_sending) { grab::Release(); s_wanted = false; s_state = State::Failed; return; }
 		}
-		// ponytail: a window resized during an export freezes the picture from there (Grab refuses the new size); restart the encoder at that size if it matters.
-		grab::Grab(device, link::Send);
+		if (!grab::Grab(device, link::Send)) {
+			link::Fail();
+			grab::Release(); s_wanted = false; s_sending = false;
+			s_closingSince = GetTickCount64(); s_state = State::Closing;
+		}
 	}
 	if (s_state == State::Closing) {
 		bool ok = false;
@@ -78,7 +84,13 @@ void Frame(IDirect3DDevice9* device) {
 
 void Release() {
 	std::lock_guard<std::mutex> lock(s_lock);
+	s_deviceAvailable = false;
 	grab::Release();
+}
+
+void Resume(IDirect3DDevice9* device) {
+	std::lock_guard<std::mutex> lock(s_lock);
+	s_deviceAvailable = device && device->TestCooperativeLevel() == D3D_OK;
 }
 
 } }

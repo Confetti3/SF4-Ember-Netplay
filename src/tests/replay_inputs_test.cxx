@@ -3,17 +3,34 @@
 // instead: its players, its rounds and what each player pressed.
 
 #include "../common/ReplayInputs.hxx"
+#include "../common/ReplayInputDetails.hxx"
 
 #include <fstream>
 #include <initializer_list>
 #include <iterator>
 #include <utility>
+#include <chrono>
+#include <cstdlib>
+#include <new>
 
 #include "test_support.hxx"
 
 using namespace sf4e::replayinputs;
 using sf4e::replayslots::Bytes;
 using sf4e::replayslots::WriteU32;
+
+static int failAllocationAfter = -1;
+void* operator new(std::size_t size) {
+	if (failAllocationAfter == 0) throw std::bad_alloc();
+	if (failAllocationAfter > 0) --failAllocationAfter;
+	if (void* memory = std::malloc(size ? size : 1)) return memory;
+	throw std::bad_alloc();
+}
+void operator delete(void* memory) noexcept { std::free(memory); }
+void operator delete(void* memory, std::size_t) noexcept { std::free(memory); }
+void* operator new[](std::size_t size) { return ::operator new(size); }
+void operator delete[](void* memory) noexcept { std::free(memory); }
+void operator delete[](void* memory, std::size_t) noexcept { std::free(memory); }
 
 static void Record(Bytes& stream, std::uint32_t value) {
 	for (int i = 0; i < 3; i++) stream.push_back(static_cast<std::uint8_t>(value >> (8 * i)));
@@ -135,6 +152,55 @@ static void TestRefusals() {
 	CHECK(match.rounds.size() == 5); // untouched by every refusal
 }
 
+static void TestDetailFailureBoundary() {
+	namespace fs = std::filesystem;
+	const fs::path folder = fs::temp_directory_path() / ("ember-replay-inputs-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+	CHECK(fs::create_directory(folder));
+	const fs::path file = folder / "inputs.usf4replay";
+	Bytes stream;
+	Record(stream, Both(LP, 0)); Record(stream, Both(Up, HP));
+	const Bytes replay = Replay({stream});
+	const auto save = [&](const Bytes& bytes) {
+		std::ofstream out(file, std::ios::binary | std::ios::trunc);
+		out.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+		out.close(); CHECK(!out.fail());
+	};
+	save(replay);
+	const auto utf8 = [](const fs::path& path) {
+		const auto encoded = path.u8string();
+		return std::string(reinterpret_cast<const char*>(encoded.data()), encoded.size());
+	};
+	const std::string path = utf8(file);
+	bool formatted = false;
+	CHECK(ReadDetail(path, [&](const Match& match) { formatted = true; CHECK(match.rounds.size() == 1 && !Log(match.rounds[0]).empty()); }));
+	CHECK(formatted);
+	CHECK(!ReadDetail(path, [](const Match&) { throw std::bad_alloc(); }));
+	CHECK(!ReadDetail(path, [](const Match&) { throw 1; }));
+	// Fail each allocation in the real read/parse/log path, from the initial
+	// byte buffer through construction of the formatted rows.
+	bool reachedSuccess = false;
+	unsigned failures = 0;
+	for (int allocation = 0; allocation < 128; allocation++) {
+		failAllocationAfter = allocation;
+		const bool ok = ReadDetail(path, [](const Match& match) {
+			std::vector<std::string> rows;
+			for (const auto& round : match.rounds) rows.push_back(Clock(round.frames) + Log(round));
+		});
+		failAllocationAfter = -1;
+		if (ok) { reachedSuccess = true; break; }
+		++failures;
+	}
+	CHECK(reachedSuccess && failures >= 4);
+	formatted = false;
+	save(Bytes(replay.begin(), replay.end() - 1));
+	CHECK(!ReadDetail(path, [&](const Match&) { formatted = true; }) && !formatted);
+	save(Bytes(sf4e::replayslots::kLargestReplay + sf4e::replayslots::kExportHeaderBytes + 1, 0));
+	CHECK(!ReadDetail(path, [&](const Match&) { formatted = true; }) && !formatted);
+	CHECK(!ReadDetail(utf8(folder / "missing"), [&](const Match&) { formatted = true; }) && !formatted);
+	CHECK(!ReadDetail(utf8(folder), [&](const Match&) { formatted = true; }) && !formatted);
+	fs::remove_all(folder);
+}
+
 int main(int argc, char** argv) {
 	if (argc > 1) {
 		std::ifstream file(argv[1], std::ios::binary);
@@ -158,6 +224,7 @@ int main(int argc, char** argv) {
 	TestParseAndCount();
 	TestScore();
 	TestRefusals();
+	TestDetailFailureBoundary();
 	printf("replay_inputs_test: all tests passed\n");
 	return 0;
 }

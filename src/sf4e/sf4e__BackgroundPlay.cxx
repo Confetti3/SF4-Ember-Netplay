@@ -31,13 +31,15 @@ const char* unavailable = "its hooks did not commit";
 std::atomic<bool> ready{false};
 // The player's setting, published by each pad update.
 std::atomic<bool> enabled{false};
+std::atomic<bool> exporting{false}, watching{false};
+std::atomic<HWND> gameWindow{nullptr};
 
 bool Active() { return ready.load() && enabled.load(); }
-bool Exporting() { return ready.load() && sf4e::replaystore::Exporting(); }
+bool Exporting() { return ready.load() && exporting.load(); }
 // This PC watches a room's match: no pads to read, and the match is to run
 // to its end, and save its replay, with the window behind or minimized.
 bool Watching() {
-    return ready.load() && sf4e::Game::Battle::System::ggpo && sf4e::UserApp::netplay && sf4e::UserApp::netplay->spectating;
+    return ready.load() && watching.load();
 }
 
 const rMain::Win32_WindowData* WindowData() {
@@ -60,7 +62,7 @@ bool WindowInFront() {
 // from before (at startup behind another window, or with the setting off).
 HWND WINAPI SoundForeground() {
     if (Active() || Exporting())
-        if (const rMain::Win32_WindowData* data = WindowData()) return data->hWnd;
+        if (const HWND window = gameWindow.load()) return window;
     return GetForegroundWindow();
 }
 // The frame's `call dword ptr [...]` reads its function from here.
@@ -74,7 +76,7 @@ HWND (WINAPI* soundForeground)() = SoundForeground;
 // Windows does.
 HWND WINAPI ActiveForeground() {
     if (Exporting() || Watching())
-        if (const rMain::Win32_WindowData* data = WindowData()) return data->hWnd;
+        if (const HWND window = gameWindow.load()) return window;
     return GetForegroundWindow();
 }
 HWND (WINAPI* activeForeground)() = ActiveForeground;
@@ -167,6 +169,10 @@ void sf4e::BackgroundPlay::Activate() {
 }
 
 void sf4e::BackgroundPlay::BeforePadUpdate(rPad::System* system, bool on) {
+    const rMain::Win32_WindowData* const data = WindowData();
+    gameWindow.store(data ? data->hWnd : nullptr);
+    exporting.store(sf4e::replaystore::Exporting());
+    watching.store(sf4e::Game::Battle::System::ggpo && sf4e::UserApp::netplay && sf4e::UserApp::netplay->spectating);
     enabled.store(on);
     static bool reported = false;
     if (!reported) {

@@ -46,24 +46,50 @@ struct Entry {
 
 std::uint8_t* s_entries = nullptr;
 
-// Steam's cloud files for this account, as the game itself writes them: the
-// game's steam_api.dll exports the accessor, and FileWrite is the first
-// function of every ISteamRemoteStorage version.
+// Request a fixed interface version so write, delete and exists have known
+// vtable positions, independent of the game's default storage version.
 struct RemoteStorage {
 	bool FileWrite(const char* name, const void* data, std::int32_t size);
+	bool FileDelete(const char* name);
+	bool FileExists(const char* name);
+};
+struct SteamClient {
+	RemoteStorage* GetRemoteStorage(int user, int pipe, const char* version);
 };
 
-bool WriteThroughSteam(const std::string& name, const sf4e::replayslots::Bytes& contents) {
-	using Accessor = RemoteStorage* (*)();
+RemoteStorage* Storage() {
 	const HMODULE steam = GetModuleHandleW(L"steam_api.dll");
-	const Accessor accessor = steam ? reinterpret_cast<Accessor>(GetProcAddress(steam, "SteamRemoteStorage")) : nullptr;
-	RemoteStorage* const storage = accessor ? accessor() : nullptr;
+	if (!steam) return nullptr;
+	using ClientAccessor = SteamClient* (*)();
+	using HandleAccessor = int (*)();
+	const auto clientAccessor = reinterpret_cast<ClientAccessor>(GetProcAddress(steam, "SteamClient"));
+	const auto user = reinterpret_cast<HandleAccessor>(GetProcAddress(steam, "SteamAPI_GetHSteamUser"));
+	const auto pipe = reinterpret_cast<HandleAccessor>(GetProcAddress(steam, "SteamAPI_GetHSteamPipe"));
+	SteamClient* const client = clientAccessor ? clientAccessor() : nullptr;
+	if (!client || !user || !pipe) return nullptr;
+	RemoteStorage* (SteamClient::* get)(int, int, const char*);
+	*reinterpret_cast<PVOID*>(&get) = (*reinterpret_cast<PVOID**>(client))[17];
+	return (client->*get)(user(), pipe(), "STEAMREMOTESTORAGE_INTERFACE_VERSION016");
+}
+
+bool WriteThroughSteam(const std::string& name, const sf4e::replayslots::Bytes& contents) {
+	RemoteStorage* const storage = Storage();
 	if (!storage) { spdlog::warn("Replay: Steam's remote storage is not available"); return false; }
 	bool (RemoteStorage::* fileWrite)(const char*, const void*, std::int32_t);
 	*reinterpret_cast<PVOID*>(&fileWrite) = (*reinterpret_cast<PVOID**>(storage))[0];
 	if ((storage->*fileWrite)(name.c_str(), contents.data(), static_cast<std::int32_t>(contents.size()))) return true;
 	spdlog::warn("Replay: Steam did not write {} ({} bytes)", name, contents.size());
 	return false;
+}
+
+bool RemoveThroughSteam(const std::string& name) {
+	RemoteStorage* const storage = Storage();
+	if (!storage) return false;
+	bool (RemoteStorage::* exists)(const char*);
+	bool (RemoteStorage::* remove)(const char*);
+	*reinterpret_cast<PVOID*>(&exists) = (*reinterpret_cast<PVOID**>(storage))[13];
+	*reinterpret_cast<PVOID*>(&remove) = (*reinterpret_cast<PVOID**>(storage))[6];
+	return !(storage->*exists)(name.c_str()) || (storage->*remove)(name.c_str());
 }
 
 BOOL ReplayInfoList::Read(void* stream) {
@@ -95,19 +121,22 @@ bool SavesBusy() {
 // newest entry of the match list. The slot it took, or -1.
 int Import(const std::wstring& path) {
 	sf4e::platform::replays::Imported imported;
-	if (!sf4e::platform::replays::ImportFile(path, WriteThroughSteam, imported)) return -1;
-	std::uint8_t* entry = s_entries + imported.slot * Table::EntryBytes;
-	for (int at = 0; at < sf4e::replayslots::kSlots; at++)
-		if (sf4e::replayslots::ReadU32(s_entries + at * Table::EntryBytes + Table::EntrySlot) == static_cast<std::uint32_t>(imported.slot)) { entry = s_entries + at * Table::EntryBytes; break; }
-	Stream stream{nullptr, imported.record.data(), imported.record.data(), static_cast<std::uint32_t>(imported.record.size())};
-	BOOL (Entry::* deserialize)(Stream*);
-	*reinterpret_cast<PVOID*>(&deserialize) = (*reinterpret_cast<PVOID**>(entry))[Table::EntryDeserialize];
-	if (!(reinterpret_cast<Entry*>(entry)->*deserialize)(&stream)) {
-		// The files already hold the replay; the next game start lists it.
-		spdlog::warn("Replay: the game did not take slot {}'s record; it shows after a restart", imported.slot);
-		return -1;
-	}
-	std::memcpy(entry + Table::EntrySlotBytes, imported.slotBytes.data(), 2);
+	const auto publish = [](const sf4e::platform::replays::Imported& value) {
+		if (!s_entries) return false;
+		std::uint8_t* entry = s_entries + value.slot * Table::EntryBytes;
+		for (int at = 0; at < sf4e::replayslots::kSlots; at++)
+			if (sf4e::replayslots::ReadU32(s_entries + at * Table::EntryBytes + Table::EntrySlot) == static_cast<std::uint32_t>(value.slot)) { entry = s_entries + at * Table::EntryBytes; break; }
+		Stream stream{nullptr, value.record.data(), value.record.data(), static_cast<std::uint32_t>(value.record.size())};
+		BOOL (Entry::* deserialize)(Stream*);
+		*reinterpret_cast<PVOID*>(&deserialize) = (*reinterpret_cast<PVOID**>(entry))[Table::EntryDeserialize];
+		if (!(reinterpret_cast<Entry*>(entry)->*deserialize)(&stream)) {
+			spdlog::warn("Replay: the game did not take slot {}'s record", value.slot);
+			return false;
+		}
+		std::memcpy(entry + Table::EntrySlotBytes, value.slotBytes.data(), 2);
+		return true;
+	};
+	if (!sf4e::platform::replays::ImportFile(path, WriteThroughSteam, RemoveThroughSteam, publish, imported)) return -1;
 	spdlog::info("Replay: slot {} is in the game's table", imported.slot);
 	return imported.slot;
 }

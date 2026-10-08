@@ -28,9 +28,11 @@ State GetState();
 
 // Render thread. Frame: once per rendered frame, before the overlay is
 // drawn or, when AfterOverlay says so, after it. Release: before the device resets or goes, lets go of the grab's
-// surfaces; it waits for a Frame in progress.
+// surfaces and disables grabs; it waits for a Frame in progress. Resume is
+// called after the native reset returns, and enables only a usable device.
 bool AfterOverlay();
 void Frame(IDirect3DDevice9* device);
 void Release();
+void Resume(IDirect3DDevice9* device);
 
 } }

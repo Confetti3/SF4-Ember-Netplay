@@ -79,8 +79,9 @@ bool Open(IDirect3DDevice9* device, unsigned& width, unsigned& height) {
 	IDirect3DSurface9* target = nullptr;
 	D3DSURFACE_DESC desc = {};
 	if (FAILED(device->GetRenderTarget(0, &target))) return false;
-	target->GetDesc(&desc);
+	const HRESULT described = target->GetDesc(&desc);
 	target->Release();
+	if (FAILED(described)) return false;
 	if (desc.Format != D3DFMT_X8R8G8B8 && desc.Format != D3DFMT_A8R8G8B8) { spdlog::warn("Frame grab: the render target's format {} is not BGRA", static_cast<int>(desc.Format)); return false; }
 	s_sourceWidth = desc.Width; s_sourceHeight = desc.Height; s_format = desc.Format;
 	// Four luma bytes to a pixel, two rows to a chroma row: up to three columns and a row are left off.
@@ -92,8 +93,7 @@ bool Grab(IDirect3DDevice9* device, Sink sink) {
 	IDirect3DSurface9* target = nullptr; IDirect3DSurface9* depth = nullptr; IDirect3DSurface9* copy = nullptr;
 	D3DSURFACE_DESC desc = {};
 	if (FAILED(device->GetRenderTarget(0, &target))) return false;
-	target->GetDesc(&desc);
-	bool done = desc.Width == s_sourceWidth && desc.Height == s_sourceHeight && Make(device) && SUCCEEDED(s_copy->GetSurfaceLevel(0, &copy)) &&
+	bool done = SUCCEEDED(target->GetDesc(&desc)) && desc.Width == s_sourceWidth && desc.Height == s_sourceHeight && Make(device) && SUCCEEDED(s_copy->GetSurfaceLevel(0, &copy)) &&
 		// Onto a texture the shaders can sample; this also resolves a multisampled target.
 		SUCCEEDED(device->StretchRect(target, nullptr, copy, nullptr, D3DTEXF_NONE));
 	if (done) {
@@ -135,9 +135,13 @@ bool Grab(IDirect3DDevice9* device, Sink sink) {
 		s_state->Apply();
 		D3DLOCKED_RECT luma = {}, chroma = {};
 		done = done && SUCCEEDED(device->GetRenderTargetData(s_planes[0], s_read[0])) && SUCCEEDED(device->GetRenderTargetData(s_planes[1], s_read[1]));
-		if (done && SUCCEEDED(s_read[0]->LockRect(&luma, nullptr, D3DLOCK_READONLY))) {
-			if (SUCCEEDED(s_read[1]->LockRect(&chroma, nullptr, D3DLOCK_READONLY))) { sink(luma.pBits, luma.Pitch, chroma.pBits, chroma.Pitch); s_read[1]->UnlockRect(); }
-			s_read[0]->UnlockRect();
+		if (done) {
+			done = SUCCEEDED(s_read[0]->LockRect(&luma, nullptr, D3DLOCK_READONLY));
+			if (done) {
+				done = SUCCEEDED(s_read[1]->LockRect(&chroma, nullptr, D3DLOCK_READONLY));
+				if (done) { sink(luma.pBits, luma.Pitch, chroma.pBits, chroma.Pitch); s_read[1]->UnlockRect(); }
+				s_read[0]->UnlockRect();
+			}
 		}
 	}
 	Drop(depth); Drop(copy); Drop(target);

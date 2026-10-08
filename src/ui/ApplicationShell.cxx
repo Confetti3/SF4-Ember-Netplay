@@ -9,6 +9,7 @@
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include "../common/ReplayInputs.hxx"
+#include "../common/ReplayInputDetails.hxx"
 #include "../platform/LocaleWindows.hxx"
 #include "../platform/UiPreferencesStore.hxx"
 #include <imgui.h>
@@ -305,7 +306,8 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(PublicRoomsPanel::Owns(screen)){
   title=loc::T("screen.public_rooms");rows=publicRooms_.Rows(v,identity_.UsableBridge(v),identity_.Waiting(),identity_.PublicSetup(),PublicListWidth());
  }else if(screen.compare(0,4,"room")==0){title=v.room.name.empty()?loc::T("screen.room"):v.room.name;NoteUserText(v.room.name);rows=RoomEntries(v);
- }else if(screen=="replay-inputs"){title=loc::T("replays.inputs");rows=inputsRows_;
+ }else if(screen=="replay-inputs"){title=loc::T("replays.inputs");
+  if(inputsFailed_)rows={InfoRow("inputs-none",loc::T("inputs.unreadable"),"",loc::T("inputs.unreadable_detail"))};else rows=inputsRows_;
  }else if(screen=="replay-export"){
   // Each part of the caption on or off, with its text; Generate sends it with the export.
   title=loc::T("export.title");
@@ -525,18 +527,10 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
 }
 // The replay's own label, its length, what each player pressed, and a row a
 // round whose Select opens the round's inputs in the reader.
-void ApplicationShell::OpenReplayInputs(const ShellView::Replay& replay) {
+void ApplicationShell::OpenReplayInputs(const ShellView::Replay& replay) noexcept {
  namespace in=replayinputs;
  inputsRows_.clear();
- // One file, once, when the player asks: no more of it than a replay can be, and nothing it throws leaves here.
- std::vector<std::uint8_t> bytes(replayslots::kLargestReplay+replayslots::kExportHeaderBytes+1);
- try{
-  std::ifstream file(std::filesystem::u8path(replay.path),std::ios::binary);
-  file.read(reinterpret_cast<char*>(bytes.data()),static_cast<std::streamsize>(bytes.size()));
-  bytes.resize(static_cast<std::size_t>(file.gcount()));
- }catch(const std::exception&){bytes.clear();}
- in::Match match;
- if(!in::Parse(bytes.data(),bytes.size(),match)){inputsRows_.push_back(InfoRow("inputs-none",loc::T("inputs.unreadable"),"",loc::T("inputs.unreadable_detail")));return;}
+ inputsFailed_=!in::ReadDetail(replay.path,[&](const in::Match& match){
  std::uint32_t frames=0;for(const auto& round:match.rounds)frames+=round.frames;
  const std::size_t rounds=match.rounds.size();const std::string length=in::Clock(frames);
  int score[2]={-1,-1};
@@ -558,6 +552,8 @@ void ApplicationShell::OpenReplayInputs(const ShellView::Replay& replay) {
   row.value=in::Clock(match.rounds[round].frames);row.reading=true;
   inputsRows_.push_back(std::move(row));
  }
+ });
+ if(inputsFailed_)inputsRows_.clear();
 }
 // The caption an export starts from: the names Ember noted, the date and
 // score on one line, Ember's mark, and the set so far. The set is counted

@@ -5,6 +5,8 @@
 // frame count given after the file name.
 // Skips (77) where Windows has no encoder for it.
 #include "../platform/VideoLink.hxx"
+#include "../platform/VideoTemporary.hxx"
+#include "test_support.hxx"
 
 #include <windows.h>
 #include <mmsystem.h>
@@ -16,6 +18,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <iostream>
 #include <vector>
 
@@ -28,6 +32,21 @@ int wmain(int argc, wchar_t** argv) {
 	wchar_t self[MAX_PATH] = {0};
 	GetModuleFileNameW(nullptr, self, MAX_PATH);
 	std::error_code error;
+	// Reservations never use another replay's final export name, and a failed
+	// process start removes its reservation while preserving an existing video.
+	const std::filesystem::path folder = std::filesystem::temp_directory_path() / (L"ember-video-files-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()));
+	CHECK(std::filesystem::create_directory(folder));
+	const auto final = folder / L"set.mp4", other = folder / L"set.part.mp4";
+	{ std::ofstream old(other, std::ios::binary); old << "previous video"; }
+	std::wstring first, second;
+	CHECK(link::ReserveTemporary(final.wstring(), first) && link::ReserveTemporary(final.wstring(), second));
+	CHECK(first != second && std::filesystem::path(first).extension() != L".mp4" && std::filesystem::path(second).extension() != L".mp4");
+	CHECK(std::filesystem::exists(first) && std::filesystem::exists(second));
+	CHECK(std::filesystem::remove(first) && std::filesystem::remove(second));
+	CHECK(!link::Start(final.wstring(), width, height, L"no-such-encoder.exe"));
+	CHECK(std::filesystem::file_size(other) == 14);
+	CHECK(std::distance(std::filesystem::directory_iterator(folder), std::filesystem::directory_iterator()) == 1);
+	std::filesystem::remove_all(folder);
 	std::filesystem::remove(file, error);
 	if (link::Start(file.wstring(), width, height, L"no-such-encoder.exe")) { std::cerr << "A missing encoder started\n"; return 1; }
 	if (!link::Start(file.wstring(), width, height, self)) { std::cerr << "The encoder's process did not start\n"; return 1; }
@@ -74,6 +93,16 @@ int wmain(int argc, wchar_t** argv) {
 	if (!made && !std::filesystem::exists(file, error)) { std::cout << "No encoder here for this size; skipped\n"; return 77; }
 	const auto size = std::filesystem::file_size(file, error);
 	if (!made || error || size < 10000) { std::cerr << "The file is missing or empty\n"; return 1; }
+	const auto read = [](const std::filesystem::path& path) {
+		std::ifstream in(path, std::ios::binary);
+		return std::vector<char>((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+	};
+	const auto previous = read(file);
+	CHECK(link::Start(file.wstring(), width, height, self));
+	for (int frame = 0; frame < 120; frame++) { link::Send(luma.data(), pitch, chroma.data(), pitch); Sleep(17); }
+	link::Fail();
+	CHECK(!link::Finish());
+	CHECK(read(file) == previous);
 	std::wcout << L"Encoded " << size << L" bytes to " << file.wstring() << L"\n";
 	return 0;
 }

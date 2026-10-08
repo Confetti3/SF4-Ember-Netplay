@@ -2,6 +2,12 @@
 // and replays-swan.dat.
 
 #include "../common/ReplaySlots.hxx"
+#include "../common/ReplayFileSafety.hxx"
+
+#include <chrono>
+#include <algorithm>
+#include <map>
+#include <stdexcept>
 
 #include "test_support.hxx"
 
@@ -349,7 +355,111 @@ static void TestImportRefusesAnImplausibleRecord() {
 	CHECK(refused(22, 22)); // a title longer than its field
 }
 
+static void TestImportWriteRecovery() {
+	namespace files = sf4e::replayfiles;
+	const std::vector<files::Change> changes = {
+		{"280", {1, 2, 3}, {9}, true}, {"280.0", {4, 3, 2, 1}, {8}, true},
+		{"replays-swan.dat", {5, 6}, {7}, true}, {"replays-swan.dat.0", {}, {6}, false},
+		{"LIST", {}, {5}, true}, {"LIST.0", {7, 8}, {4}, true}
+	};
+	std::map<std::string, Bytes> original;
+	for (const auto& change : changes) if (change.existed) original[change.name] = change.before;
+	// Each failed write has already changed its file, including a missing file
+	// and a sidecar that did not hold its body's checksum before the import.
+	for (int thrown = 0; thrown < 2; thrown++) for (int failure = 0; failure <= static_cast<int>(changes.size()); failure++) {
+		auto disk = original;
+		int attempts = 0, publications = 0;
+		bool undoing = false;
+		std::vector<std::string> undone;
+		const auto write = [&](const std::string& name, const Bytes& bytes) {
+			disk[name] = bytes;
+			if (undoing) { undone.push_back(name); return true; }
+			if (attempts++ == failure) {
+				undoing = true;
+				if (thrown) throw std::runtime_error("write stopped");
+				return false;
+			}
+			return true;
+		};
+		const auto remove = [&](const std::string& name) { undone.push_back(name); disk.erase(name); return true; };
+		const auto publish = [&] {
+			++publications;
+			undoing = true;
+			for (const auto& change : changes) CHECK(disk.at(change.name) == change.after);
+			if (thrown) throw std::runtime_error("table refused");
+			return false;
+		};
+		bool restored = false;
+		CHECK(!files::Apply(changes, write, remove, publish, restored));
+		CHECK(restored && disk == original);
+		CHECK(publications == (failure == static_cast<int>(changes.size()) ? 1 : 0));
+		const std::size_t count = (std::min)(static_cast<std::size_t>(failure + 1), changes.size());
+		CHECK(undone.size() == count);
+		for (std::size_t at = 0; at < count; at++) CHECK(undone[at] == changes[count - 1 - at].name);
+	}
+	auto disk = original;
+	bool restored = false;
+	CHECK(files::Apply(changes, [&](const std::string& name, const Bytes& bytes) { disk[name] = bytes; return true; },
+		[&](const std::string& name) { disk.erase(name); return true; }, [] { return true; }, restored));
+	for (const auto& change : changes) CHECK(disk.at(change.name) == change.after);
+	int undoAttempts = 0;
+	CHECK(!files::Apply(changes, [&](const std::string&, const Bytes&) { return ++undoAttempts <= static_cast<int>(changes.size()); },
+		[&](const std::string&) -> bool { ++undoAttempts; throw std::runtime_error("delete stopped"); }, [] { return false; }, restored));
+	CHECK(!restored && undoAttempts == static_cast<int>(changes.size() * 2));
+}
+
+static void TestVerifiedArchiveAndSnapshots() {
+	namespace fs = std::filesystem;
+	namespace files = sf4e::replayfiles;
+	const fs::path folder = fs::temp_directory_path() / ("ember-replay-files-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+	CHECK(fs::create_directory(folder));
+	const auto save = [](const fs::path& path, const Bytes& bytes) {
+		std::ofstream out(path, std::ios::binary | std::ios::trunc);
+		out.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+		out.close(); CHECK(!out.fail());
+	};
+	files::Change snapshot;
+	CHECK(files::Snapshot(folder / "missing", 100, snapshot) && !snapshot.existed);
+	CHECK(!files::Snapshot(folder, 100, snapshot));
+	save(folder / "empty", {});
+	CHECK(files::Snapshot(folder / "empty", 100, snapshot) && snapshot.existed && snapshot.before.empty());
+	save(folder / "large", Bytes(101, 0x42));
+	CHECK(!files::Snapshot(folder / "large", 100, snapshot));
+	save(folder / "exact", {3, 2, 1});
+	CHECK(files::Snapshot(folder / "exact", 3, snapshot) && snapshot.before == Bytes({3, 2, 1}));
+	Bytes list = EmptyList(), swan = EmptySwan(), exported;
+	const Bytes body = Replay(0, 8000);
+	Fill(list, swan, 280, body, 0x44);
+	CHECK(Export(list, swan, 280, body, exported));
+	char name[64] = {};
+	std::snprintf(name, sizeof name, "20261005-213503-%08x.emberreplay", Crc32(body.data(), body.size()));
+	const fs::path archive = folder / name;
+	std::uint32_t crc = 0;
+	CHECK(fs::create_directory(archive));
+	CHECK(!files::ArchivedCrc(archive, crc));
+	CHECK(fs::remove(archive));
+	save(archive, exported);
+	CHECK(files::ArchivedCrc(archive, crc) && crc == Crc32(body.data(), body.size()));
+	Bytes bad = exported; bad.resize(bad.size() - 1); save(archive, bad);
+	CHECK(!files::ArchivedCrc(archive, crc));
+	bad = exported; bad.back() ^= 1; save(archive, bad);
+	CHECK(!files::ArchivedCrc(archive, crc));
+	bad = exported; bad[0] = 'X'; save(archive, bad);
+	CHECK(!files::ArchivedCrc(archive, crc));
+	bad = exported; bad[8 + 5] ^= 1; save(archive, bad);
+	CHECK(!files::ArchivedCrc(archive, crc));
+	save(folder / "20261005-213503-00000000.emberreplay", exported);
+	CHECK(!files::ArchivedCrc(folder / "20261005-213503-00000000.emberreplay", crc));
+	save(folder / "saver.usf4replay", body);
+	CHECK(files::ArchivedCrc(folder / "saver.usf4replay", crc) && crc == Crc32(body.data(), body.size()));
+	save(folder / "saver.usf4replay", {'#', 'B', 'R', 'P'});
+	CHECK(!files::ArchivedCrc(folder / "saver.usf4replay", crc));
+	fs::remove_all(folder);
+}
+
 int main() {
+	TestImportWriteRecovery();
+	TestVerifiedArchiveAndSnapshots();
 	TestRecordNeverTakesAnotherSlots();
 	TestImportRefusesAnImplausibleRecord();
 	TestASlotFileAheadOfItsRecord();
