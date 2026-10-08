@@ -97,6 +97,10 @@ MainMenu* MainMenu::FromItemObserver(MainMenu* s) {
 	return (MainMenu*)((unsigned int)s - 0x40);
 }
 
+DWORD* MainMenu::GetFightRequestOffered(MainMenu* e) {
+	return (DWORD*)((unsigned int)e + 0x860);
+}
+
 Dimps::Game::ProgressData** RootEvent::GetProgressData(RootEvent* e) {
 	return (Dimps::Game::ProgressData**)((unsigned int)e + 0x6c);
 }

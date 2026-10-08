@@ -98,6 +98,12 @@ struct ShellView {
     // (-1: none), and a sequence that changes per change.
     int opponentChangedFighter = -1;
     std::uint64_t opponentChangeSequence = 0;
+    // Called out of Training to the player's table (RuntimeSnapshot's fields
+    // of the same names): show the table, ready the player, the seconds left
+    // to ready, and whether Training can be entered from the room.
+    std::uint64_t trainingCallSequence = 0, trainingReadySequence = 0;
+    int trainingReadySeconds = 0;
+    bool canTrain = false;
     int selectedFighter = 0;
     // The Ember identity (RuntimeSnapshot::identity and its request fields).
     netplay::IdentityView identity;
@@ -143,6 +149,9 @@ struct ShellAction {
     int previewSoundVolume=-1;
     // Asks for the room's short link; nothing else is sent.
     bool shortInvitation=false;
+    // With a StartOffline: once it is accepted, the game's main menu leaves
+    // straight for Training mode.
+    bool enterTraining=false;
     // Steps the chosen Ultra or color by delta (the table page's Ultra and
     // Appearance rows); the overlay applies it to the pick, and nothing is sent.
     struct SelectionStep {
@@ -367,6 +376,8 @@ private:
     // that arrived while the player was free joins by itself, for as long
     // as the runtime offers that.
     std::uint64_t joinLinkSeen_=0;
+    // The training call's sequences as last acted on.
+    std::uint64_t trainingCallSeen_=0,trainingReadySeen_=0;
     std::string joinLink_;
     bool joinLinkDirect_=false;
     // A public room link from the browser: the last one seen, and whether
@@ -382,7 +393,7 @@ private:
     std::set<room::MemberId> muted_;
     bool Service(platform::ServiceAction action, const ShellView& view, const Submit& submit);
     bool SendRoom(room::Action action, const ShellView& view, const Submit& submit);
-    bool Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit);
+    bool Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit, bool enterTraining = false);
 };
 
 } }

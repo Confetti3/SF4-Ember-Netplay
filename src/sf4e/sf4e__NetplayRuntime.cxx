@@ -218,6 +218,8 @@ void StartHelper() {
             runtime->preferences.matchHudLayout = hudLayout >= 0 && hudLayout <= 1 ? hudLayout : 1;
             runtime->preferences.matchHudNameOffset = netplay::ReadMatchHudNameOffset(saved);
             runtime->preferences.readySound = saved.value("readySound", true);
+            runtime->preferences.trainingAutoReady = saved.value("trainingAutoReady", false);
+            runtime->preferences.matchFrameMeter = saved.value("matchFrameMeter", false);
             const int volume = saved.value("readySoundVolume", 100);
             runtime->preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;
             runtime->preferences.backgroundPlay = saved.value("backgroundPlay", false);
@@ -554,6 +556,76 @@ void internal::PlayChallengerCall(int volumePercent) {
 		spdlog::info("Room: challenger call not played; the game's sound system is not up");
 	else spdlog::info("Room: challenger call played");
 }
+// A player in a room may wait in Training (TrainingCall.hxx). Another fighter
+// sitting down opposite them takes them out of it, with the announcer's call
+// unless they turned that off; back at the main menu the shell shows their
+// table and they have the window to ready. Letting it run out gives the seat
+// up, by the same action as the Leave seat row.
+static void CallOutOfTraining() {
+	if (!runtime->attached || !UserApp::netplay) { runtime->trainingCall.Reset(); return; }
+	const auto& room = UserApp::netplay->client.GetRoomSnapshot();
+	room::TrainingCall::Input in;
+	in.inTraining = training::ControlsAvailable();
+	in.atMainMenu = AtMainMenu();
+	in.autoAccept = runtime->preferences.trainingAutoReady;
+	in.canReady = GetRuntimeSnapshotShared()->canReady;
+	switch (runtime->trainingCall.Update(room, in, GetTickCount64())) {
+	case room::TrainingCall::Step::Call: {
+		training::Command leave;
+		leave.action = training::Action::Leave;
+		leave.generation = training::ReadView().generation;
+		leave.value = runtime->preferences.readySound ? runtime->preferences.readySoundVolume : 0;
+		spdlog::info("Room: a challenger sat down while the player is in Training; the battle is {}",
+			training::Submit(leave) ? "told to leave" : "not told to leave, its queue is full");
+		break;
+	}
+	case room::TrainingCall::Step::Open:
+		++runtime->trainingCallSequence;
+		spdlog::info("Room: back from Training; {} s to ready", room::TrainingCall::ReadyWindowMs / 1000);
+		break;
+	case room::TrainingCall::Step::Ready:
+		++runtime->trainingReadySequence;
+		break;
+	case room::TrainingCall::Step::Forfeit: {
+		const auto mine = room::PlaceOf(room, room.localMember);
+		if (mine.kind != room::Place::Kind::Seat || mine.table < 0 || mine.table >= static_cast<int>(room.tables.size())) break;
+		RuntimeCommand forfeit;
+		forfeit.command = {netplay::CommandKind::RoomAction, runtime->controller.GetSnapshot().generation, {}};
+		forfeit.preferences = runtime->preferences;
+		forfeit.roomAction.kind = room::ActionKind::Unqueue;
+		forfeit.roomAction.table = static_cast<std::uint8_t>(mine.table);
+		forfeit.roomAction.roomEpoch = room.roomEpoch;
+		forfeit.roomAction.revision = room.revision;
+		forfeit.roomAction.tableRevision = room.tables[mine.table].revision;
+		const bool queued = SubmitRuntimeCommand(std::move(forfeit));
+		PushAlert(loc::T("runtime.training_call.forfeit"), NoticeSeverity::Info);
+		spdlog::info("Room: not readied in time after the call from Training; the seat is {}", queued ? "given up" : "not given up, the command queue is full");
+		break;
+	}
+	default: break;
+	}
+}
+// The room is told when the local player is in a Training battle and when
+// they no longer are, so the others see why a member is not answering. What
+// the room's own snapshot says of the player is what is compared, so a word
+// that was lost or refused is said again, at most every two seconds.
+static void SayTraining() {
+	if (!runtime->attached || !UserApp::netplay) { runtime->trainingSaidAtMs = 0; return; }
+	const auto& room = UserApp::netplay->client.GetRoomSnapshot();
+	const auto* me = room::FindMember(room, room.localMember);
+	const bool training = training::ControlsAvailable();
+	const auto now = GetTickCount64();
+	if (!me || !room.roomEpoch || me->training == training || now - runtime->trainingSaidAtMs < 2000) return;
+	if (runtime->controller.GetSnapshot().control != netplay::Health::Healthy) return;
+	room::Action say;
+	say.kind = room::ActionKind::SetTraining;
+	say.locked = training;
+	say.roomEpoch = room.roomEpoch;
+	say.revision = room.revision;
+	runtime->trainingSaidAtMs = now;
+	if (UserApp::netplay->client.SendRoomAction(say) != session::SendResult::Queued)
+		spdlog::info("Room: could not say the player is {} Training; it is said again", training ? "in" : "out of");
+}
 void TickRuntime() {
 	if (!runtime) return;
 	{
@@ -615,6 +687,8 @@ void TickRuntime() {
 	TickAutoDelay(helperReady);
 	TickCreatedRules(helperReady);
 	CallOutOpponentReady();
+	CallOutOfTraining();
+	SayTraining();
 	TakeJoinLink();
 	PublishAndTickDiscordInvite();
 }

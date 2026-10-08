@@ -5,7 +5,7 @@
 
 namespace sf4e { namespace training {
 enum class Phase { Neutral, Movement, Attack, Guard, Hit, Down, Unknown };
-enum class BoundaryProvenance : std::uint8_t { None, BacActionHeader };
+enum class BoundaryProvenance : std::uint8_t { None, BacActionHeader, BacEffectSpawn };
 enum class MeasurementUnavailable : std::uint8_t {
     None, WaitingForAttackBoundary, NoAttackBoundary, NoContact, MeasuringRecovery,
     Interrupted, InvalidSample
@@ -59,8 +59,53 @@ struct FighterSample {
     bool basicActionInhibited = true;
     int firstActiveFrame = -1;
     int lastActiveFrame = -1;
+    // Native BAC header: the frame the action can be interrupted from, and
+    // its total frames; -1 unknown.
+    int interruptibleFrame = -1, totalFrames = -1;
     BoundaryProvenance boundaryProvenance = BoundaryProvenance::None;
+    // Set by the meter, not the game: the thrower, still in a throw's
+    // sequence after the fighter it threw has left it.
+    bool throwRecovery = false;
+    // Also the meter's: the first frame up from a knockdown, the one a meaty attack is active on.
+    bool wake = false;
+    // The pad as the game took it this frame: the fight buttons and
+    // directions, in the game's own bits (up 1, down 2, left 4, right 8,
+    // LP 0x10, MP 0x20, HP 0x400, LK 0x40, MK 0x80, HK 0x800). A replay's
+    // presses are here as a player's would be.
+    unsigned input = 0;
 };
+// What a meter cell shows. An attack is told apart by the script's attack
+// boundary: before it startup, inside it active, after it recovery; Attack
+// alone when the script gives none.
+// The action frame is read after the game's update, when it already counts
+// the frame that update played: the frame a cell stands for is one less. A
+// crouching jab whose script is active from frame 3 so has three startup
+// cells, which is what its frame data says, where reading the counter as it
+// stands gave two and a recovery one too long.
+// ponytail: one active stretch per action; a multi-hit move's gaps between
+// hits read as active. Read every hit box if they have to show.
+// Sequence is AS_SEQUENCE: both fighters while a throw or a cinematic plays;
+// what the thrower has left of it once the other is let go is its recovery.
+// Down is bouncing or lying, Rise getting up. Meaty is the bars' own, never
+// ClassifyMeter's: the frame a fighter is first up, and an attack active on it.
+enum class MeterKind { Neutral, Movement, Startup, Active, Recovery, Attack, Guard, Hit, Down, Rise, Sequence, Meaty, Unknown };
+inline MeterKind ClassifyMeter(const FighterSample& sample) {
+    if (!sample.valid) return MeterKind::Unknown;
+    if (sample.status == 24) return sample.throwRecovery ? MeterKind::Recovery : MeterKind::Sequence;
+    switch (ClassifyStatus(sample.status)) {
+    case Phase::Neutral: return MeterKind::Neutral;
+    // A jump shows as nothing: its frames are the same every time. Walks and dashes show.
+    case Phase::Movement: return sample.status == 2 || sample.status == 5 || sample.status == 6 ? MeterKind::Neutral : MeterKind::Movement;
+    case Phase::Guard: return MeterKind::Guard;
+    case Phase::Hit: return MeterKind::Hit;
+    case Phase::Down: return sample.status == 20 ? MeterKind::Rise : MeterKind::Down;
+    case Phase::Attack:
+        if (sample.firstActiveFrame < 0 || sample.lastActiveFrame <= sample.firstActiveFrame) return MeterKind::Attack;
+        return sample.actionFrame - 1 < sample.firstActiveFrame ? MeterKind::Startup :
+            sample.actionFrame - 1 < sample.lastActiveFrame ? MeterKind::Active : MeterKind::Recovery;
+    default: return MeterKind::Unknown;
+    }
+}
 inline bool GroundedRecoveryState(unsigned status) {
     switch (status) {
     case 0: case 1: case 3: case 4: case 7: case 8: case 9:
@@ -72,8 +117,21 @@ struct FrameAdvantage {
     std::array<int, 2> frames{};
     bool valid = false, pending = false;
     bool knockdown = false;
+    // Who landed the attack this exchange is measured from (-1 before any
+    // contact), and whether it was blocked.
+    int attacker = -1;
+    bool blocked = false;
     MeasurementUnavailable unavailable = MeasurementUnavailable::NoContact;
 };
+// A fighter's last attack in advancing frames, hitstop left out: those inside
+// its attack boundary and those after it. Its startup is MeterView's
+// startupFrames, the frames before the first active one, as the game's frame
+// data counts it, so the move's total is startup + active + recovery. seen:
+// an attack was made; live: it is still going.
+struct MoveFrames { int active = 0, recovery = 0; bool seen = false, live = false; };
+// The bars show MeterShown frames; the meter keeps MeterHistory of the
+// exchange, twenty seconds, so a held one can be looked back through.
+constexpr std::size_t MeterShown = 120, MeterHistory = 1200;
 struct MeterFrame {
     std::array<FighterSample, 2> fighters;
     int frame = 0;
@@ -84,19 +142,27 @@ struct MeterView {
     std::array<unsigned, 2> stateFrames{};
     std::array<unsigned, 2> actionFrames{};
     std::array<unsigned, 2> lastAttackFrames{};
+    std::array<MoveFrames, 2> moves;
     FrameAdvantage advantage;
     std::array<int, 2> startupFrames{{-1, -1}};
     std::array<MeasurementUnavailable, 2> startupUnavailable{{MeasurementUnavailable::NoAttackBoundary,
         MeasurementUnavailable::NoAttackBoundary}};
     std::array<BoundaryProvenance, 2> startupBoundaryProvenance{};
+    // Meaty timing: the frame this fighter's attack first became active,
+    // counted from the first frame the other was up from a knockdown. 0 meets
+    // that frame; -N came N frames early, a meaty with N active frames passed
+    // while N is less than the attack's active frames; +N left the other N
+    // frames to act in.
+    std::array<int, 2> meatyFrames{};
+    std::array<bool, 2> meatyValid{};
     bool frozen = false, autoFreeze = true;
 };
 class FrameMeter {
 public:
     const MeterView& View() const { return view_; }
-    void Reset() { const bool autoFreeze = view_.autoFreeze; view_ = MeterView{}; view_.autoFreeze = autoFreeze; idleFrames_ = 0; hadActivity_ = false; hasFrame_ = false; observedFrames_ = contactFrame_ = 0; armed_ = {}; recovered_ = {{-1, -1}}; startupElapsed_ = {}; startupPending_ = {}; }
+    void Reset() { const bool autoFreeze = view_.autoFreeze; view_ = MeterView{}; view_.autoFreeze = autoFreeze; idleFrames_ = 0; hadActivity_ = false; hasFrame_ = false; observedFrames_ = contactFrame_ = 0; armed_ = {}; recovered_ = {{-1, -1}}; startupElapsed_ = {}; startupPending_ = {}; thrower_ = {}; firstActiveAt_ = wakeAt_ = {{-1, -1}}; }
     void SetAutoFreeze(bool enabled) { view_.autoFreeze = enabled; view_.frozen = false; }
-    void Observe(int frame, const std::array<FighterSample, 2>& fighters) {
+    void Observe(int frame, const std::array<FighterSample, 2>& observed) {
         // The native fixed-point integral is a wrapping 16-bit counter. It
         // becomes negative after 32767; those values must never double as
         // the "not recovered" sentinel. Check continuity modulo 16 bits and
@@ -104,7 +170,19 @@ public:
         const auto nativeFrame = static_cast<std::uint16_t>(frame);
         if (hasFrame_ && static_cast<std::uint16_t>(nativeFrame - lastFrame_) != 1) Reset();
         lastFrame_ = nativeFrame; hasFrame_ = true;
-        ObserveAdvantage(observedFrames_++, fighters);
+        auto fighters = observed;
+        // Whoever came into a sequence out of an attack is the one throwing.
+        for (int side = 0; side < 2; ++side) {
+            const auto& previous = view_.current[side];
+            if (!fighters[side].valid || fighters[side].status != 24) thrower_[side] = false;
+            else if (!previous.valid || previous.status != 24) thrower_[side] = previous.valid && previous.status == 16;
+        }
+        for (int side = 0; side < 2; ++side)
+            fighters[side].throwRecovery = thrower_[side] && fighters[1 - side].valid && fighters[1 - side].status != 24;
+        for (int side = 0; side < 2; ++side)
+            fighters[side].wake = fighters[side].valid && view_.current[side].valid && view_.current[side].status == 20 && fighters[side].status != 20;
+        const std::int64_t now = observedFrames_++;
+        ObserveAdvantage(now, fighters);
         bool neutral = true;
         for (int side = 0; side < 2; ++side) {
             const auto& sample = fighters[side];
@@ -142,6 +220,32 @@ public:
                     }
                 }
             } else startupPending_[side] = false;
+            auto& move = view_.moves[side];
+            if (sample.valid && sample.status == 16) {
+                const auto kind = ClassifyMeter(sample);
+                const bool began = !previous.valid || previous.status != 16;
+                // A cancel into another attack is a new move; a move's own later scripts are not.
+                if (began || (actionChanged && kind == MeterKind::Startup)) move = MoveFrames{};
+                move.seen = move.live = true;
+                if (began || actionChanged || sample.actionFrame > previous.actionFrame) {
+                    // The attack's first active frame is what a meaty is timed by.
+                    if (kind == MeterKind::Active && !move.active) { firstActiveAt_[side] = now; Meaty(side); }
+                    if (kind == MeterKind::Active) ++move.active;
+                    else if (kind == MeterKind::Recovery) ++move.recovery;
+                }
+            } else if (sample.valid && sample.status == 24 && thrower_[side] && move.seen) {
+                // A throw that connected goes on in the sequence.
+                move.live = true;
+                if (sample.throwRecovery) ++move.recovery;
+            } else move.live = false;
+            if (sample.valid && previous.valid) {
+                const bool down = ClassifyStatus(sample.status) == Phase::Down;
+                // A knockdown starts a new meaty reading; the attack that caused it is not one.
+                if (down && ClassifyStatus(previous.status) != Phase::Down) {
+                    wakeAt_[side] = firstActiveAt_[1 - side] = -1; view_.meatyValid[1 - side] = false;
+                }
+                if (sample.wake) { wakeAt_[side] = now; Meaty(1 - side); }
+            }
             if (sample.valid && previous.valid && sample.action >= 0 && sample.action == previous.action &&
                 sample.actionFrame >= previous.actionFrame) ++view_.actionFrames[side];
             else {
@@ -153,13 +257,14 @@ public:
         }
         if (neutral) ++idleFrames_;
         else {
-            if (view_.frozen) view_.frames.clear();
+            // After a pause the bars start again from their left edge.
+            if (view_.frozen || idleFrames_ >= 30) view_.frames.clear();
             view_.frozen = false; idleFrames_ = 0; hadActivity_ = true;
         }
         if (view_.autoFreeze && hadActivity_ && idleFrames_ >= 30) view_.frozen = true;
         if (!view_.frozen) {
             view_.frames.push_back({fighters, frame});
-            if (view_.frames.size() > 120) view_.frames.pop_front();
+            if (view_.frames.size() > MeterHistory) view_.frames.pop_front();
         }
     }
 private:
@@ -196,6 +301,8 @@ private:
             contacts[defender] = (sample.status == 21 || sample.status == 22 || sample.status == 23) && previous.valid &&
                 (sample.status != previous.status || sample.action != previous.action ||
                  sample.actionFrame < previous.actionFrame || sample.comboDamage > previous.comboDamage);
+            // A throw connects as its sequence takes both; only the thrown fighter is hit by it.
+            if (sample.status == 24 && previous.valid && previous.status != 24 && armed_[1 - defender]) contacts[defender] = true;
         }
         // A trade/interruption cannot inherit the earlier attack's recovery.
         if ((contacts[0] && contacts[1]) || (contacts[0] && armed_[0]) || (contacts[1] && armed_[1])) {
@@ -205,6 +312,8 @@ private:
             if (contacts[defender] && armed_[1 - defender]) {
                 view_.advantage.valid = false; view_.advantage.pending = true;
                 view_.advantage.unavailable = MeasurementUnavailable::MeasuringRecovery;
+                view_.advantage.attacker = 1 - defender;
+                view_.advantage.blocked = ClassifyStatus(fighters[defender].status) == Phase::Guard;
                 recovered_[defender] = -1;
                 // Preserve an already recovered attacker's timestamp: a
                 // projectile may connect after its owner's recovery ends.
@@ -232,7 +341,15 @@ private:
             view_.advantage.unavailable = MeasurementUnavailable::None;
         }
     }
+    void Meaty(int attacker) {
+        const auto active = firstActiveAt_[attacker], wake = wakeAt_[1 - attacker];
+        if (active < 0 || wake < 0 || active - wake > 60) return;
+        view_.meatyFrames[attacker] = static_cast<int>(active - wake); view_.meatyValid[attacker] = true;
+    }
     MeterView view_;
+    std::array<bool, 2> thrower_{};
+    // On the clock of accepted observations; -1 none.
+    std::array<std::int64_t, 2> firstActiveAt_{{-1, -1}}, wakeAt_{{-1, -1}};
     std::array<bool, 2> armed_{};
     std::array<bool, 2> startupPending_{};
     std::array<int, 2> startupElapsed_{};

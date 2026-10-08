@@ -127,6 +127,13 @@ namespace Dimps {
 			// more clear when invoking item observer methods.
 			static MainMenu* ToItemObserver(MainMenu* s);
 			static MainMenu* FromItemObserver(MainMenu* s);
+
+			// Whether choosing Arcade or Training first asks about Fight
+			// Request. The menu fills it when it is built, from what the
+			// platform allows; with 0, OnModeSelected(MMI_TRAINING) leaves for
+			// Training at once, as the game itself does where no requests
+			// can be made. Takes the event, not its item observer.
+			static DWORD* GetFightRequestOffered(MainMenu* e);
 		};
 
 		struct VsCharaSelect : Dimps::Event::EventBase {

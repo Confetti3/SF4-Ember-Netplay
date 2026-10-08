@@ -147,6 +147,13 @@ namespace sf4e {
 			// readied (-1: none); the sequence changes per change.
 			int opponentChangedFighter = -1;
 			std::uint64_t opponentChangeSequence = 0;
+			// Called out of Training: the sequences change when the table is
+			// to be shown and when the player is to be readied, and the
+			// seconds are what is left to ready, 0 while no window is open.
+			std::uint64_t trainingCallSequence = 0, trainingReadySequence = 0;
+			int trainingReadySeconds = 0;
+			// The player may leave for Training without leaving the room.
+			bool canTrain = false;
 			bool canEditSelection = false;
             std::string selectionLockReason;
 			bool canEditPreferences = false;

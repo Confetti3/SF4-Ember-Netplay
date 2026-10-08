@@ -80,6 +80,17 @@ Result RoomAuthority::ApplyRename(MemberId member, const Action& action) {
 	snapshot_.name = action.text; TouchRoom(); return Accept();
 }
 
+// The action carries the wanted value rather than a toggle, as LockSpectating
+// does, and the member's action watermark already refuses an older copy. It
+// is the member's alone to say and binds nobody: no seat, queue or start
+// depends on it.
+Result RoomAuthority::ApplySetTraining(MemberId member, const Action& action) {
+	Member* item = Find(member);
+	if (!item) return Reject(RejectReason::UnknownMember);
+	if (item->training != action.locked) { item->training = action.locked; TouchRoom(); }
+	return Accept();
+}
+
 Result RoomAuthority::ApplyAcknowledgeTerminal(MemberId member, const Action& action) {
 	if (!action.matchGeneration) return Reject(RejectReason::WrongGeneration);
 	for (auto& receipt : terminalReceipts_) {
@@ -428,6 +439,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (action.kind == ActionKind::Kick) return ApplyKick(member, action);
 	if (action.kind == ActionKind::Chat) return ApplyChat(member, action);
 	if (action.kind == ActionKind::Rename) return ApplyRename(member, action);
+	if (action.kind == ActionKind::SetTraining) return ApplySetTraining(member, action);
 	Table* table = FindTable(action.table);
 	if (!table) return Reject(RejectReason::UnknownTable);
 	Member* item = Find(member);

@@ -27,6 +27,7 @@
 #include "../session/IrohMatchSession.hxx"
 #include "../session/RoomRecoveryRuntime.hxx"
 #include "../session/ReadyChime.hxx"
+#include "../session/TrainingCall.hxx"
 #include "../netplay/AutoDelayCheck.hxx"
 #include "../netplay/CreatedRules.hxx"
 #include "../netplay/BoundedMailbox.hxx"
@@ -225,6 +226,14 @@ struct Runtime {
 	// The opponent's fighter changed between games; the sequence moves per change.
 	room::OpponentFighterWatch opponentFighterWatch;
 	std::uint64_t opponentChangeSequence = 0;
+	// A player waiting in Training is called to their table. The sequences
+	// move when the table is to be shown and when a Ready is to be sent for
+	// the player; both are the shell's to act on, since a Ready carries the
+	// selection the shell holds.
+	room::TrainingCall trainingCall;
+	std::uint64_t trainingCallSequence = 0, trainingReadySequence = 0;
+	// When the room was last told whether the player is in Training.
+	std::uint64_t trainingSaidAtMs = 0;
 	Intent lobbyEditIntent{15000, Intent::Completion::OnDispatch};
 	std::string readyFailure;
 	std::uint64_t readyFailureSequence = 0;

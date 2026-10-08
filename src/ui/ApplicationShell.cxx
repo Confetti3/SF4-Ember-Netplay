@@ -79,9 +79,10 @@ bool ApplicationShell::Service(platform::ServiceAction kind, const ShellView& vi
 void ApplicationShell::Refuse(std::string text, std::function<bool(const ShellView&)> stillBlocked) {
     error_ = std::move(text); errorBlockedText_ = error_; errorBlocked_ = std::move(stillBlocked);
 }
-bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit) {
+bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit, bool enterTraining) {
     ShellAction action;
     action.command.kind = kind;
+    action.enterTraining = enterTraining && kind == netplay::CommandKind::StartOffline;
     action.command.generation = view.session.generation;
     action.preferences = preferences_;
     if (kind == netplay::CommandKind::SetLobbySettings) action.preferences.lobby = lobby_;
@@ -252,6 +253,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Row("profile",loc::T("home.profile"),loc::T("home.profile_detail")),
    Row("identity",loc::T("screen.identity"),identity_.HomeDetail(v)),
    Row("settings",loc::T("home.settings"),loc::T("home.settings_detail")),
+   Row("training",loc::T("home.training"),loc::T("home.training_detail"),idle),
    Row("replays",loc::T("home.replays"),loc::T("home.replays_detail")),
    Row("offline",loc::T("home.offline"),loc::T("home.offline_detail"),idle)};
   if(opening)rows[0].detail=OpeningCreates(v)?loc::T("room.creating_status"):loc::T("room.joining_status");
@@ -368,6 +370,8 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Value("ready-sound",loc::T("settings.ready_sound"),preferences_.readySound?loc::T("common.on"):loc::T("common.off"),loc::T("settings.ready_sound_detail"),v.canEditPreferences),
    Value("ready-volume",loc::T("settings.ready_sound_volume"),std::to_string(preferences_.readySoundVolume)+"%",loc::T("settings.ready_sound_volume_detail"),v.canEditPreferences&&preferences_.readySound),
    Row("ready-test",loc::T("settings.ready_sound_test"),loc::T("settings.ready_sound_test_detail"),v.canEditPreferences&&preferences_.readySound),
+   Value("training-auto-ready",loc::T("settings.training_auto_ready"),preferences_.trainingAutoReady?loc::T("common.on"):loc::T("common.off"),loc::T("settings.training_auto_ready_detail"),v.canEditPreferences),
+   Value("match-frame-meter",loc::T("settings.match_frame_meter"),preferences_.matchFrameMeter?loc::T("common.on"):loc::T("common.off"),loc::T("settings.match_frame_meter_detail"),v.canEditPreferences),
    Value("scale",loc::T("settings.interface_size"),size,reason,v.canEditPreferences),
    Value("language",loc::T("settings.language"),languageValue,languageSaveError_.empty()?std::string(loc::T("settings.language.detail")):languageSaveError_,true)};
   // Select lists the languages by their own names; browsing them changes nothing.
@@ -606,6 +610,8 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="host"||a.id=="join-now")Send(a.id=="host"?CommandKind::HostRoom:CommandKind::JoinInvite,v,submit);
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
  else if(a.id=="offline"||a.id=="controls")Send(CommandKind::StartOffline,v,submit);
+ // Training is the offline menus with the game sent on into Training mode.
+ else if(a.id=="training")Send(CommandKind::StartOffline,v,submit,true);
  else if(a.id=="paste"){const char* t=ImGui::GetClipboardText();if(t&&*t&&std::strlen(t)<sizeof(invitation_)){std::strcpy(invitation_,t);error_.clear();}else error_=loc::T("error.invitation_invalid");}
  else if(a.id=="capture"||a.id=="keyboard"){ShellAction r;r.command.generation=v.session.generation;r.inputAction=a.id=="capture"?input::Action::BeginCapture:input::Action::UseKeyboard;submit(std::move(r));}
  else if(a.id=="invite-cancel"||a.id=="invite-switch"){ShellAction r;r.command.generation=v.session.generation;r.discordRevision=v.discordRevision;r.discordAction=a.id=="invite-cancel"?discord::InviteAction::Cancel:discord::InviteAction::Switch;if(!submit(std::move(r)))error_=loc::T("error.invitation_changed");}
@@ -650,6 +656,8 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="hud-position")preferences_.matchHudAnchor=(std::max)(0,(std::min)(4,preferences_.matchHudAnchor+a.delta));
   else if(a.id=="hud-spacing")preferences_.matchHudRaised=a.delta>0;
   else if(a.id=="ready-sound")preferences_.readySound=a.delta>0;
+  else if(a.id=="training-auto-ready")preferences_.trainingAutoReady=a.delta>0;
+  else if(a.id=="match-frame-meter")preferences_.matchFrameMeter=a.delta>0;
   else if(a.id=="background-play")preferences_.backgroundPlay=a.delta>0;
   else if(a.id=="replay-save-watched")preferences_.recordWatched=a.delta>0;
   else if(a.id=="ready-volume")preferences_.readySoundVolume=(std::max)(10,(std::min)(100,preferences_.readySoundVolume+10*a.delta));
@@ -725,6 +733,17 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  using namespace netplay; auto& nav=menu_.navigation;
  const double now = ImGui::GetTime();
  if(!languageSeeded_){languagePreference_=loc::ValidPreference(v.languagePreference)?v.languagePreference:"auto";languageSeeded_=true;}
+ // Called out of Training: the player's own table is shown, where the Ready
+ // row carries the time left, and a player who asked for it is readied.
+ if(v.trainingCallSequence!=trainingCallSeen_||v.trainingReadySequence!=trainingReadySeen_){
+  const auto place=room::PlaceOf(v.room,v.room.localMember);
+  const bool seated=v.session.room==RoomState::Joined&&place.kind==room::Place::Kind::Seat&&place.table>=0&&place.table<static_cast<int>(v.room.tables.size());
+  if(seated&&v.trainingCallSequence!=trainingCallSeen_)OpenTableOptions(v,place.table);
+  trainingCallSeen_=v.trainingCallSequence;
+  // The Ready waits for the runtime's gate, and ends with the seat or the window.
+  if(!seated||v.trainingReadySeconds<=0)trainingReadySeen_=v.trainingReadySequence;
+  else if(v.trainingReadySequence!=trainingReadySeen_&&v.canReady){selectedTable_=place.table;Send(CommandKind::Ready,v,submit);trainingReadySeen_=v.trainingReadySequence;}
+ }
  if(lastUiTime_ >= 0 && now < lastUiTime_) {
   // DX9 reset recreates ImGui, but these deadlines belong to the surviving shell.
   // Keep raw-clock users in RoomAction in the same epoch, including queued saves.

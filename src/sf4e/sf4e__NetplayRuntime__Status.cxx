@@ -290,9 +290,10 @@ std::uint64_t PublishFingerprint() {
     mix(runtime->readyIntent.Parked() != nullptr); mix(runtime->lobbyEditIntent.Parked() != nullptr); mix(runtime->pendingAbort != nullptr);
     mix(runtime->readyIntent.Armed()); mix(runtime->readyFailureSequence);
     mix(runtime->opponentChangeSequence); mix(static_cast<std::uint64_t>(runtime->opponentFighterWatch.Pending() + 1));
+    mix(runtime->trainingCallSequence); mix(runtime->trainingReadySequence); mix((runtime->trainingCall.Remaining(GetTickCount64()) + 999) / 1000);
     mix(runtime->recoveringMatch); mix(OverlayPrefs::PersistencePending()); mixString(OverlayPrefs::PersistenceError());
     mix(runtime->services.Snapshot().pending); mixString(runtime->discordStatusId); mix(runtime->discordInvite.Revision());
-    mix(runtime->preferences.showMatchHud); mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudRaised); mix(runtime->preferences.matchHudAnchor); mix(runtime->preferences.matchHudLayout); mix(runtime->preferences.matchHudNameOffset); mix(runtime->preferences.readySound); mix(runtime->preferences.readySoundVolume); mix(runtime->preferences.backgroundPlay); mix(runtime->preferences.recordWatched);
+    mix(runtime->preferences.showMatchHud); mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudRaised); mix(runtime->preferences.matchHudAnchor); mix(runtime->preferences.matchHudLayout); mix(runtime->preferences.matchHudNameOffset); mix(runtime->preferences.readySound); mix(runtime->preferences.readySoundVolume); mix(runtime->preferences.matchFrameMeter); mix(runtime->preferences.trainingAutoReady); mix(runtime->preferences.backgroundPlay); mix(runtime->preferences.recordWatched);
     mix(static_cast<std::uint64_t>(runtime->input.State())); mix(runtime->input.Ready());
     mix(AtMainMenu());
     return h;
@@ -389,6 +390,14 @@ PostPublishState Publish() {
     snapshot.readyRequested = runtime->readyIntent.Armed();
     snapshot.readyFailure = runtime->readyFailure; snapshot.readyFailureSequence = runtime->readyFailureSequence;
     snapshot.opponentChangedFighter = runtime->opponentFighterWatch.Pending(); snapshot.opponentChangeSequence = runtime->opponentChangeSequence;
+    snapshot.trainingCallSequence = runtime->trainingCallSequence; snapshot.trainingReadySequence = runtime->trainingReadySequence;
+    snapshot.trainingReadySeconds = static_cast<int>((runtime->trainingCall.Remaining(GetTickCount64()) + 999) / 1000);
+    // Training from the room: at the main menu, with no game of the player's
+    // starting or running and no Ready of theirs given or on its way.
+    snapshot.canTrain = snapshot.atMainMenu && snapshot.session.room == netplay::RoomState::Joined &&
+        snapshot.session.match == netplay::MatchState::None && snapshot.session.control == netplay::Health::Healthy &&
+        !snapshot.session.readyPending && !runtime->readyIntent.Parked() && !runtime->pendingAbort &&
+        room::TrainingCall::MayTrain(snapshot.room);
 	FillLockReasons(snapshot);
     snapshot.discordPending = runtime->discordInvite.Active();
     snapshot.discordConfirm = runtime->discordInvite.NeedsConfirmation();

@@ -724,6 +724,48 @@ void AppearanceGalleries(){
 }
 // A notice raised while an editor or a confirmation is open must be seen, and
 // must give the dialog back with its draft and its Cancel default.
+// Training on Home is the offline command with the game sent on into
+// Training mode; Play offline alone sends the game nowhere.
+void TrainingFromHome() {
+ using namespace sf4e;
+ using Kind=netplay::CommandKind;
+ Harness h;h.Frame();
+ h.Choose("training");
+ Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::StartOffline&&h.actions.back().enterTraining,"Training did not ride on the offline command");
+ h.Screen("home");h.Choose("offline");
+ Check(h.actions.back().command.kind==Kind::StartOffline&&!h.actions.back().enterTraining,"Play offline asked for Training");
+}
+// Training from inside a room: the row sends no room command, and a player
+// called back from Training lands on their table, readied for them only once
+// the runtime allows a Ready.
+void TrainingFromRoom() {
+ using namespace sf4e;
+ using Kind=netplay::CommandKind;
+ Harness h;h.Frame();
+ room::Member me,other;me.id=1;me.name="Me";other.id=2;other.name="Other";
+ h.view.session.room=netplay::RoomState::Joined;h.view.session.control=netplay::Health::Healthy;h.view.room.roomEpoch=9;h.view.room.localMember=1;
+ for(std::size_t i=0;i<h.view.room.tables.size();++i)h.view.room.tables[i].id=static_cast<std::uint8_t>(i);
+ h.view.room.members={me,other};h.view.canTrain=true;h.Frame();
+ const auto before=h.actions.size();
+ h.Choose("room-training");
+ Check(h.actions.size()==before+1&&h.actions.back().enterTraining&&h.actions.back().command.kind!=Kind::StartOffline,"Training from the room did not ask for Training alone");
+ // Seated opposite another fighter and called back: the table page, with the time to ready on its Ready row.
+ me.table=0;me.seat=0;me.status=room::MemberStatus::Seated;other.table=0;other.seat=1;other.status=room::MemberStatus::Seated;
+ h.view.room.members={me,other};h.view.room.tables[0].p1=1;h.view.room.tables[0].p2=2;h.view.room.tables[0].phase=room::TablePhase::Waiting;
+ h.view.canTrain=false;h.view.trainingCallSequence=1;h.view.trainingReadySeconds=15;h.Frame();
+ Check(h.shell.Navigation().Screen()=="room-table","A player called back from Training was not shown their table");
+ // Asked to be readied: nothing until the runtime's gate opens, then one Ready.
+ const auto sent=h.actions.size();
+ h.view.trainingReadySequence=1;h.Frame();h.Frame();
+ Check(h.actions.size()==sent,"A Ready was sent before the runtime allowed one");
+ h.view.canReady=true;h.Frame();
+ Check(h.actions.size()==sent+1&&h.actions.back().command.kind==Kind::Ready,"A player who asked for it was not readied after the call");
+ h.Frame();h.Frame();
+ Check(h.actions.size()==sent+1,"The call readied the player more than once");
+ // A window that closed takes a waiting Ready with it.
+ h.view.canReady=false;h.view.trainingReadySequence=2;h.Frame();h.view.trainingReadySeconds=0;h.Frame();h.view.canReady=true;h.Frame();
+ Check(h.actions.size()==sent+1,"A Ready outlived its window");
+}
 void NoticeOverDialogs() {
  using namespace sf4e;Harness h;h.Frame();
  const auto shown=[&](const char* name){const auto* w=ImGui::FindWindowByName(name);return w&&w->Active&&!w->Hidden&&w->HiddenFramesCannotSkipItems==0;};
@@ -943,5 +985,5 @@ void TrainingJourneys() {
  TakeForwardedMenuAction();
 }
 }
-int main(){try{Journeys();KeyboardJourneys();ChatJourneys();NoticeOverDialogs();LanguageSaveFailure();SessionReports();RecoveryWindow();SelectorPages();SelectorFromHome();DeveloperSelectors();TrainingJourneys();PresentationJourneys();AppearanceGalleries();std::cout<<"Shell journeys through the renderer passed.\n";return 0;}
+int main(){try{Journeys();TrainingFromHome();TrainingFromRoom();KeyboardJourneys();ChatJourneys();NoticeOverDialogs();LanguageSaveFailure();SessionReports();RecoveryWindow();SelectorPages();SelectorFromHome();DeveloperSelectors();TrainingJourneys();PresentationJourneys();AppearanceGalleries();std::cout<<"Shell journeys through the renderer passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}
