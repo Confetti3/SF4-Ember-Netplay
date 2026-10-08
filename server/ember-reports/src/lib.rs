@@ -5,12 +5,14 @@ pub mod intake;
 pub mod limits;
 pub mod store;
 pub mod symbolicate;
+pub mod worker;
 
 use crate::{
     bugsink::Bugsink,
     config::Config,
     limits::{Gate, RateLimiter, Ticket},
     store::Store,
+    worker::Worker,
 };
 use axum::{
     Json, Router,
@@ -40,11 +42,20 @@ pub struct App {
     pub rate: RateLimiter,
     pub gate: Gate,
     pub wake: Arc<Notify>,
+    worker: Worker,
 }
 #[derive(Clone)]
 struct ReportId(String);
 impl App {
     pub async fn new(config: Config, key: &str) -> Result<Arc<Self>, &'static str> {
+        let executable = std::env::current_exe().map_err(|_| "cannot locate symbolicate worker")?;
+        Self::with_worker(config, key, Worker::new(executable)).await
+    }
+    pub async fn with_worker(
+        config: Config,
+        key: &str,
+        worker: Worker,
+    ) -> Result<Arc<Self>, &'static str> {
         config.validate()?;
         let store = Arc::new(
             Store::new(config.state_dir.clone(), config.limits.clone())
@@ -59,6 +70,7 @@ impl App {
             store,
             bugsink,
             wake: Arc::new(Notify::new()),
+            worker,
         }))
     }
     pub async fn background(self: Arc<Self>) {
@@ -194,37 +206,41 @@ async fn receive(State(app): State<Arc<App>>, request: Request) -> Response {
         .await
         .unwrap_or_else(|_| refusal(StatusCode::SERVICE_UNAVAILABLE, "processing_failed"))
 }
-async fn process(
-    app: Arc<App>,
-    mut report: intake::Report,
-    ticket: Option<Arc<Ticket>>,
-) -> Response {
-    let _ticket = ticket.clone();
+async fn process(app: Arc<App>, report: intake::Report, ticket: Option<Arc<Ticket>>) -> Response {
+    // This detached processing task owns admission through worker kill/reap
+    // and storage completion, including after the HTTP client disconnects.
+    let _ticket = ticket;
     let id = uuid::Uuid::new_v4().simple().to_string();
-    let mut dump_path = None;
-    let walk = if let Some(bytes) = report.minidump.take() {
-        match app.store.dump(&id, &bytes).await {
-            Ok(path) => dump_path = Some(path.to_string_lossy().into_owned()),
-            Err(_) => return refusal(StatusCode::SERVICE_UNAVAILABLE, "storage_unavailable"),
-        }
-        symbolicate::walk(
-            bytes,
-            app.config.state_dir.join("symbols"),
-            Duration::from_secs(app.config.limits.processing_secs),
-            ticket,
-        )
-        .await
+    let dump_path = report
+        .minidump
+        .as_ref()
+        .map(|_| app.store.dump_path(&id).to_string_lossy().into_owned());
+    let walk = if let Some(bytes) = &report.minidump {
+        app.worker
+            .walk(
+                bytes.clone(),
+                app.config.state_dir.join("symbols"),
+                Duration::from_secs(app.config.limits.processing_secs),
+            )
+            .await
     } else {
         symbolicate::Walk {
-            status: "no_dump",
+            status: "no_dump".into(),
             ..Default::default()
         }
     };
     let event = event::build(&id, &report, &walk, dump_path.as_deref());
     // 202 means the event is durable locally, independent of Bugsink uptime.
     // When capacity is exhausted, refuse instead of evicting accepted events.
-    if app.store.enqueue(&id, &event).await.is_err() {
-        app.store.remove_dump(&id).await;
+    let reservation = match app.store.reserve(&id, event.len()).await {
+        Ok(reservation) => reservation,
+        Err(_) => return refusal(StatusCode::SERVICE_UNAVAILABLE, "outbox_unavailable"),
+    };
+    if reservation
+        .commit(&event, report.minidump.as_deref())
+        .await
+        .is_err()
+    {
         return refusal(StatusCode::SERVICE_UNAVAILABLE, "outbox_unavailable");
     }
     app.wake.notify_one();

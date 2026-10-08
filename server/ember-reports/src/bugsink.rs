@@ -2,6 +2,16 @@ use crate::{config::Config, store::Store};
 use std::time::Duration;
 use tokio::sync::Mutex;
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum Delivery {
+    Delivered,
+    AlreadyDelivered,
+    BackendUnavailable,
+    Rejected(u16),
+    ReadFailed,
+    DeleteFailed,
+}
+
 pub struct Bugsink {
     client: reqwest::Client,
     url: String,
@@ -51,7 +61,7 @@ impl Bugsink {
         bytes.push(b'\n');
         bytes
     }
-    async fn send(&self, id: &str, event: &[u8]) -> bool {
+    async fn send(&self, id: &str, event: &[u8]) -> Delivery {
         for attempt in 0..3 {
             if attempt > 0 {
                 tokio::time::sleep(Duration::from_millis(if attempt == 1 { 250 } else { 1000 }))
@@ -69,29 +79,48 @@ impl Bugsink {
                 .body(Self::envelope(id, event))
                 .send()
                 .await;
-            if let Ok(response) = result
-                && response.status().is_success()
-            {
-                return true;
+            if let Ok(response) = result {
+                let status = response.status();
+                if status.is_success() {
+                    return Delivery::Delivered;
+                }
+                // Transport, 5xx, throttling, authentication/configuration and
+                // request timeout are backend-wide: retry, then pause a batch.
+                // Other permanent rejections are specific to this event.
+                if !status.is_server_error()
+                    && !status.is_redirection()
+                    && !matches!(status.as_u16(), 401 | 403 | 404 | 405 | 408 | 429)
+                {
+                    return Delivery::Rejected(status.as_u16());
+                }
             }
-            // Even persistent 4xx stays bounded on disk for operator repair.
         }
-        false
+        Delivery::BackendUnavailable
     }
-    pub async fn deliver(&self, store: &Store, id: &str) -> bool {
-        let _lock = self.delivery.lock().await;
+    async fn deliver_locked(&self, store: &Store, id: &str) -> Delivery {
         match store.event(id).await {
-            Ok(Some(event)) => self.send(id, &event).await && store.delivered(id).await.is_ok(),
-            Ok(None) => true,
-            Err(_) => false,
+            Ok(Some(event)) => match self.send(id, &event).await {
+                Delivery::Delivered => match store.delivered(id).await {
+                    Ok(()) => Delivery::Delivered,
+                    Err(_) => Delivery::DeleteFailed,
+                },
+                failure => failure,
+            },
+            Ok(None) => Delivery::AlreadyDelivered,
+            Err(_) => Delivery::ReadFailed,
         }
+    }
+    pub async fn deliver(&self, store: &Store, id: &str) -> Delivery {
+        let _lock = self.delivery.lock().await;
+        self.deliver_locked(store, id).await
     }
     pub async fn replay(&self, store: &Store) {
+        let _lock = self.delivery.lock().await;
         if let Ok(ids) = store.pending().await {
             for id in ids {
-                // Stop a batch at the first failure; don't multiply retries
-                // across hundreds of pending events while Bugsink is down.
-                if !self.deliver(store, &id).await {
+                // Event-specific failures stay capped on disk and rotate.
+                // Only a backend-wide outage pauses the rest of this batch.
+                if self.deliver_locked(store, &id).await == Delivery::BackendUnavailable {
                     break;
                 }
             }

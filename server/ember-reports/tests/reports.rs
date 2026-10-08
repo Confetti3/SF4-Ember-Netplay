@@ -7,14 +7,15 @@ use axum::{
 };
 use ember_reports::{
     App,
-    bugsink::Bugsink,
+    bugsink::{Bugsink, Delivery},
     config::{Config, Limits},
     event::{self, EVENT_BYTES},
     intake::{self, Kind, Report},
     limits::{Gate, RateLimiter, client_address},
     router,
     store::Store,
-    symbolicate::{self, Frame, Thread, Walk},
+    symbolicate::{Frame, Thread, Walk},
+    worker::Worker,
 };
 use serde_json::{Value, json};
 use std::{
@@ -85,13 +86,17 @@ fn request(body: Body) -> Request<Body> {
     ));
     request
 }
+fn worker() -> Worker {
+    Worker::new(PathBuf::from(env!("CARGO_BIN_EXE_ember-reports")))
+}
 async fn app(temp: &Temp) -> Arc<App> {
-    App::new(
+    App::with_worker(
         Config {
             state_dir: temp.0.clone(),
             ..Config::default()
         },
         "publictestkey",
+        worker(),
     )
     .await
     .unwrap()
@@ -168,13 +173,23 @@ async fn outbox_full_returns_503_and_leaves_accepted_event() {
         state_dir: temp.0.clone(),
         limits: Limits {
             outbox_count: 1,
+            dump_count: 1,
             ..Limits::default()
         },
         ..Config::default()
     };
-    let state = App::new(config, "publictestkey").await.unwrap();
+    let state = App::with_worker(config, "publictestkey", worker())
+        .await
+        .unwrap();
     let accepted = "a".repeat(32);
-    state.store.enqueue(&accepted, b"{}").await.unwrap();
+    state
+        .store
+        .reserve(&accepted, 2)
+        .await
+        .unwrap()
+        .commit(b"{}", Some(b"MDMPaccepted"))
+        .await
+        .unwrap();
     let response = router(state.clone())
         .oneshot(request(Body::from(parts(vec![
             meta_part(),
@@ -184,7 +199,11 @@ async fn outbox_full_returns_503_and_leaves_accepted_event() {
         .unwrap();
     assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
     assert_eq!(state.store.event(&accepted).await.unwrap().unwrap(), b"{}");
-    assert_eq!(std::fs::read_dir(temp.0.join("dumps")).unwrap().count(), 0);
+    assert_eq!(std::fs::read_dir(temp.0.join("dumps")).unwrap().count(), 1);
+    assert_eq!(
+        std::fs::read(state.store.dump_path(&accepted)).unwrap(),
+        b"MDMPaccepted"
+    );
 }
 
 #[tokio::test]
@@ -579,13 +598,13 @@ async fn synthetic_crash_symbolicated_and_module_offset_events() {
     let temp = Temp::new();
     let symbols = temp.0.join("symbols");
     std::fs::create_dir(&symbols).unwrap();
-    let no = symbolicate::walk(
-        synthetic("SSFIV.exe"),
-        symbols.clone(),
-        Duration::from_secs(2),
-        None,
-    )
-    .await;
+    let no = worker()
+        .walk(
+            synthetic("SSFIV.exe"),
+            symbols.clone(),
+            Duration::from_secs(2),
+        )
+        .await;
     assert_eq!(no.status, "ok");
     assert_eq!(no.crash_frames[0].module, "SSFIV.exe");
     assert_eq!(no.crash_frames[0].offset, 0x1234);
@@ -618,13 +637,9 @@ async fn synthetic_crash_symbolicated_and_module_offset_events() {
     let directory = symbols.join("Launcher.exe").join(debug_id);
     std::fs::create_dir_all(&directory).unwrap();
     std::fs::write(directory.join("Launcher.exe.sym"), format!("MODULE windows x86 {debug_id} Launcher.exe\nFILE 0 launcher.cpp\nFUNC 1200 100 0 report_crash\n1200 100 42 0\n")).unwrap();
-    let yes = symbolicate::walk(
-        synthetic("Launcher.exe"),
-        symbols,
-        Duration::from_secs(2),
-        None,
-    )
-    .await;
+    let yes = worker()
+        .walk(synthetic("Launcher.exe"), symbols, Duration::from_secs(2))
+        .await;
     assert_eq!(yes.status, "ok");
     assert_eq!(
         yes.crash_frames[0].function.as_deref(),
@@ -670,11 +685,15 @@ async fn failed_walk_preserves_raw_facts_and_worker_slot() {
         .start(gate.reserve().unwrap(), Duration::from_secs(1))
         .await
         .unwrap();
-    let walk = symbolicate::walk(bytes, temp.0.clone(), Duration::from_secs(1), Some(ticket)).await;
+    let walk = worker()
+        .walk(bytes, temp.0.clone(), Duration::from_secs(1))
+        .await;
     assert_eq!(walk.status, "walk_failed");
     assert_eq!(walk.code, Some(0xc0000005));
     assert_eq!(walk.address, Some(0xdeadbeef));
     assert_eq!(walk.crash_frames[0].offset, 0x1234);
+    assert!(gate.reserve().is_err());
+    drop(ticket);
     assert!(gate.reserve().is_ok());
 }
 
@@ -691,7 +710,9 @@ async fn input_budget_preserves_exception_without_walking_excess_threads() {
             bytes[offset..offset + 4].copy_from_slice(&129_u32.to_le_bytes());
         }
     }
-    let walk = symbolicate::walk(bytes, temp.0.clone(), Duration::from_secs(1), None).await;
+    let walk = worker()
+        .walk(bytes, temp.0.clone(), Duration::from_secs(1))
+        .await;
     assert_eq!(walk.status, "input_budget");
     assert_eq!(walk.code, Some(0xc0000005));
     assert_eq!(walk.address, Some(0xdeadbeef));
@@ -714,7 +735,7 @@ fn event_order_thread_truncation_problem_and_size_cap() {
             id: 2,
             frames: (100..180).map(make_frame).collect(),
         }],
-        status: "ok",
+        status: "ok".into(),
         ..Walk::default()
     };
     for name in intake::LOG_NAMES {
@@ -809,7 +830,10 @@ async fn outbox_retries_envelope_then_removes_only_delivered_event() {
     let id = "c".repeat(32);
     let event = event::build(&id, &report(), &Walk::default(), None);
     store.enqueue(&id, &event).await.unwrap();
-    assert!(!sender.deliver(&store, &id).await);
+    assert_eq!(
+        sender.deliver(&store, &id).await,
+        Delivery::BackendUnavailable
+    );
     assert!(store.event(&id).await.unwrap().is_some());
     assert_eq!(fake.attempts.load(Ordering::SeqCst), 3);
     sender.replay(&store).await;
@@ -843,15 +867,28 @@ async fn bounded_outbox_and_dump_retention_oldest_first() {
     let a = "a".repeat(32);
     let b = "b".repeat(32);
     let c = "c".repeat(32);
-    store.enqueue(&a, b"{}").await.unwrap();
+    store
+        .reserve(&a, 2)
+        .await
+        .unwrap()
+        .commit(b"{}", Some(b"MDMP01"))
+        .await
+        .unwrap();
     assert!(store.enqueue(&b, b"{}").await.is_err());
-    store.delivered(&a).await.unwrap();
-    store.enqueue(&b, b"{}").await.unwrap();
-    let first = store.dump(&a, b"MDMP01").await.unwrap();
+    let first = store.dump_path(&a);
     let file = std::fs::File::options().write(true).open(&first).unwrap();
     file.set_modified(SystemTime::now() - Duration::from_secs(60))
         .unwrap();
-    let second = store.dump(&b, b"MDMP02").await.unwrap();
+    drop(file);
+    store.delivered(&a).await.unwrap();
+    store
+        .reserve(&b, 2)
+        .await
+        .unwrap()
+        .commit(b"{}", Some(b"MDMP02"))
+        .await
+        .unwrap();
+    let second = store.dump_path(&b);
     assert!(!first.exists());
     assert!(second.exists());
     std::fs::File::options()
@@ -864,19 +901,27 @@ async fn bounded_outbox_and_dump_retention_oldest_first() {
     store.prune_dumps(SystemTime::now()).await.unwrap();
     assert!(!second.exists());
     assert!(temp.0.join("dumps/operator-notes.txt").exists());
-    let third = store.dump(&c, b"MDMP03").await.unwrap();
-    assert!(third.exists());
-    let outbox = std::fs::File::open(temp.0.join("outbox").join(format!("{b}.json"))).unwrap();
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
         assert_eq!(
-            outbox.metadata().unwrap().permissions().mode() & 0o777,
+            std::fs::metadata(temp.0.join("outbox").join(format!("{b}.json")))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o777,
             0o600
         );
     }
-    #[cfg(not(unix))]
-    drop(outbox);
+    store.delivered(&b).await.unwrap();
+    store
+        .reserve(&c, 2)
+        .await
+        .unwrap()
+        .commit(b"{}", Some(b"MDMP03"))
+        .await
+        .unwrap();
+    assert!(store.dump_path(&c).exists());
 }
 
 #[test]

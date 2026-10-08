@@ -50,8 +50,11 @@ The key reaches the service only as
 `$CREDENTIALS_DIRECTORY/bugsink_dsn_key`. Envelope delivery sets `X-Sentry-Auth`
 and the configured Host, with three attempts (250 ms then 1 s backoff, each
 HTTP attempt bounded at 3 s). Replay runs on new-report notifications and every
-minute, stopping a batch at its first failure. Non-2xx responses, including
-authentication errors, remain in the bounded outbox for operator repair. The
+minute, rotating batches of up to 16 pending events. Transport errors, 5xx,
+redirects, 401/403/404/405/408 and 429 pause a batch after those retries. Other
+HTTP rejections and local read/delete failures retain the affected event and
+continue the batch. Rotation prevents retained failures from starving later
+reports. Non-2xx responses remain in the bounded outbox for operator repair. The
 event ID stays unchanged; remote acceptance followed by a crash before local
 deletion can resend the same ID.
 

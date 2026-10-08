@@ -218,6 +218,7 @@ dependencies = [
  "breakpad-symbols",
  "futures-util",
  "http-body-util",
+ "libc",
  "minidump",
  "minidump-processor",
  "minidump-synth",

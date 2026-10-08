@@ -1,20 +1,15 @@
 //! Local symbols only. No symbol servers, registers, environment or memory in events.
-use crate::limits::Ticket;
 use async_trait::async_trait;
 use breakpad_symbols::{
     FileError, FileKind, LocateSymbolsResult, SimpleSymbolSupplier, SymbolError, SymbolFile,
     SymbolSupplier, Symbolizer,
 };
 use minidump::{Minidump, MinidumpModuleList, Module};
-use minidump_unwind::{FillSymbolError, FrameSymbolizer, FrameWalker, SymbolProvider};
+use serde::{Deserialize, Serialize};
 use std::{
     io::Read,
     path::PathBuf,
-    sync::{
-        Arc,
-        atomic::{AtomicUsize, Ordering},
-    },
-    time::{Duration, Instant},
+    sync::atomic::{AtomicUsize, Ordering},
 };
 
 pub const FRAMES: usize = 64;
@@ -22,7 +17,7 @@ pub const THREADS: usize = 128;
 const SYMBOL_BYTES: usize = 8 * 1024 * 1024;
 const TOTAL_SYMBOL_BYTES: usize = 16 * 1024 * 1024;
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Deserialize, Serialize)]
 pub struct Frame {
     pub instruction: u64,
     pub module: String,
@@ -31,12 +26,12 @@ pub struct Frame {
     pub filename: Option<String>,
     pub line: Option<u32>,
 }
-#[derive(Default)]
+#[derive(Default, Deserialize, Serialize)]
 pub struct Thread {
     pub id: u32,
     pub frames: Vec<Frame>,
 }
-#[derive(Default)]
+#[derive(Default, Deserialize, Serialize)]
 pub struct Walk {
     pub code: Option<u32>,
     pub reason: Option<String>,
@@ -44,7 +39,7 @@ pub struct Walk {
     pub crashing_thread: Option<u32>,
     pub crash_frames: Vec<Frame>,
     pub threads: Vec<Thread>,
-    pub status: &'static str,
+    pub status: String,
 }
 
 pub fn basename(path: &str) -> &str {
@@ -106,9 +101,9 @@ fn directory(bytes: &[u8]) -> Option<Vec<(u32, usize, usize)>> {
 
 // Read only the fixed exception record before the expensive walk. Even a
 // corrupt/missing system or thread stream still yields the raw crash facts.
-fn raw_facts(bytes: &[u8]) -> Walk {
+pub(crate) fn raw_facts(bytes: &[u8]) -> Walk {
     let mut result = Walk {
-        status: "invalid_dump",
+        status: "invalid_dump".into(),
         ..Walk::default()
     };
     if let Some(entries) = directory(bytes)
@@ -163,16 +158,24 @@ fn bounded_dump(mut bytes: Vec<u8>) -> Option<Vec<u8>> {
                 4 => (256, 108),
                 _ => (1024, 16),
             };
-            if count > cap || size < 4 + count * item {
+            // rust-minidump also accepts four padding bytes before records.
+            // Support only the exact unpadded layout, never ambiguous offsets.
+            if count > cap || size != 4 + count * item {
                 return None;
             }
             if kind == 4 {
                 for i in 0..count {
                     let p = offset + 4 + i * item;
                     let name = u32_at(&bytes, p + 20)? as usize;
-                    if u32_at(&bytes, name)? > 1024 || u32_at(&bytes, p + 76)? > 1024 {
+                    let name_bytes = u32_at(&bytes, name)? as usize;
+                    let cv_bytes = u32_at(&bytes, p + 76)? as usize;
+                    let cv = u32_at(&bytes, p + 80)? as usize;
+                    if name_bytes > 1024 || !name_bytes.is_multiple_of(2) || cv_bytes > 1024 {
                         return None;
                     }
+                    let name_start = name.checked_add(4)?;
+                    bytes.get(name_start..name_start.checked_add(name_bytes)?)?;
+                    bytes.get(cv..cv.checked_add(cv_bytes)?)?;
                 }
             }
         }
@@ -246,7 +249,6 @@ impl SymbolSupplier for LocalSymbols {
             return Err(SymbolError::NotFound);
         }
         let symbols = SymbolFile::from_bytes(&bytes)?;
-        tokio::task::yield_now().await;
         Ok(LocateSymbolsResult {
             symbols,
             extra_debug_info: None,
@@ -261,164 +263,136 @@ impl SymbolSupplier for LocalSymbols {
     }
 }
 
-struct Cooperative {
-    symbols: Symbolizer,
-    operations: AtomicUsize,
-}
-impl Cooperative {
-    async fn checkpoint(&self) {
-        // Returning errors alone would allow stack scanning to keep running.
-        // Pending stops the walk until the enclosing deadline drops the future.
-        if self.operations.fetch_add(1, Ordering::Relaxed) >= 8192 {
-            std::future::pending::<()>().await;
-        }
-        tokio::task::yield_now().await;
+// Called only by the isolated symbolicate process. Its runtime is the process's
+// sole runtime; the parent owns all deadlines and OS resource limits.
+pub(crate) async fn walk(bytes: Vec<u8>, symbols: PathBuf) -> Walk {
+    let mut raw = raw_facts(&bytes);
+    let Some(bytes) = bounded_dump(bytes) else {
+        raw.status = "input_budget".into();
+        return raw;
+    };
+    let Ok(dump) = Minidump::read(bytes) else {
+        return raw;
+    };
+    // Resolve the exception instruction independently of the processor, so
+    // missing thread/system streams do not lose module+offset grouping.
+    if let Ok(modules) = dump.get_stream::<MinidumpModuleList>()
+        && let Some(top) = raw.crash_frames.first_mut()
+        && let Some(module) = modules.module_at_address(top.instruction)
+    {
+        top.module = head(basename(&module.code_file()), 128);
+        top.offset = top.instruction.saturating_sub(module.base_address());
     }
-}
-#[async_trait]
-impl SymbolProvider for Cooperative {
-    async fn fill_symbol(
-        &self,
-        module: &(dyn Module + Sync),
-        frame: &mut (dyn FrameSymbolizer + Send),
-    ) -> Result<(), FillSymbolError> {
-        self.checkpoint().await;
-        self.symbols.fill_symbol(module, frame).await
-    }
-    async fn walk_frame(
-        &self,
-        module: &(dyn Module + Sync),
-        walker: &mut (dyn FrameWalker + Send),
-    ) -> Option<()> {
-        self.checkpoint().await;
-        self.symbols.walk_frame(module, walker).await
-    }
-    async fn get_file_path(
-        &self,
-        _: &(dyn Module + Sync),
-        _: FileKind,
-    ) -> Result<PathBuf, FileError> {
-        Err(FileError::NotFound)
-    }
-}
-
-pub async fn walk(
-    bytes: Vec<u8>,
-    symbols: PathBuf,
-    deadline: Duration,
-    ticket: Option<Arc<Ticket>>,
-) -> Walk {
-    let fallback = raw_facts(&bytes);
-    tokio::task::spawn_blocking(move || {
-        let _ticket = ticket;
-        let started = Instant::now();
-        let mut raw = raw_facts(&bytes);
-        let Some(bytes) = bounded_dump(bytes) else {
-            raw.status = "input_budget";
-            return raw;
-        };
-        let Ok(dump) = Minidump::read(bytes) else {
-            return raw;
-        };
-        // Resolve the exception instruction independently of the processor, so
-        // missing thread/system streams do not lose module+offset grouping.
-        if let Ok(modules) = dump.get_stream::<MinidumpModuleList>()
-            && let Some(top) = raw.crash_frames.first_mut()
-            && let Some(module) = modules.module_at_address(top.instruction)
-        {
-            top.module = head(basename(&module.code_file()), 128);
-            top.offset = top.instruction.saturating_sub(module.base_address());
-        }
-        let root = symbols.canonicalize().unwrap_or(symbols);
-        let provider = Cooperative {
-            symbols: Symbolizer::new(LocalSymbols {
-                local: SimpleSymbolSupplier::new(vec![root.clone()]),
-                root,
-                bytes: AtomicUsize::new(0),
-            }),
-            operations: AtomicUsize::new(0),
-        };
-        let Ok(runtime) = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-        else {
-            raw.status = "runtime_failed";
-            return raw;
-        };
-        let processed = runtime.block_on(async {
-            tokio::time::timeout(
-                deadline.saturating_sub(started.elapsed()),
-                minidump_processor::process_minidump(&dump, &provider),
-            )
-            .await
-        });
-        match processed {
-            Ok(Ok(state)) => {
-                for (index, thread) in state.threads.iter().take(THREADS).enumerate() {
-                    let frames = thread
-                        .frames
-                        .iter()
-                        .take(FRAMES)
-                        .map(|f| {
-                            let (module, base) =
-                                f.module.as_ref().map_or(("unknown".into(), 0), |m| {
-                                    (head(basename(&m.code_file()), 128), m.base_address())
-                                });
-                            Frame {
-                                instruction: f.instruction,
-                                module,
-                                offset: f.instruction.saturating_sub(base),
-                                function: f.function_name.as_deref().map(|s| head(s, 256)),
-                                filename: f
-                                    .source_file_name
-                                    .as_deref()
-                                    .map(|s| head(basename(s), 256)),
-                                line: f.source_line,
-                            }
-                        })
-                        .collect::<Vec<_>>();
-                    if raw.crashing_thread == Some(thread.thread_id)
-                        || (raw.crashing_thread.is_none() && state.requesting_thread == Some(index))
-                    {
-                        raw.crashing_thread = Some(thread.thread_id);
-                        if !frames.is_empty() {
-                            raw.crash_frames = frames;
-                        }
-                    } else {
-                        raw.threads.push(Thread {
-                            id: thread.thread_id,
-                            frames,
+    let root = symbols.canonicalize().unwrap_or(symbols);
+    let provider = Symbolizer::new(LocalSymbols {
+        local: SimpleSymbolSupplier::new(vec![root.clone()]),
+        root,
+        bytes: AtomicUsize::new(0),
+    });
+    match minidump_processor::process_minidump(&dump, &provider).await {
+        Ok(state) => {
+            for (index, thread) in state.threads.iter().take(THREADS).enumerate() {
+                let frames = thread
+                    .frames
+                    .iter()
+                    .take(FRAMES)
+                    .map(|f| {
+                        let (module, base) = f.module.as_ref().map_or(("unknown".into(), 0), |m| {
+                            (head(basename(&m.code_file()), 128), m.base_address())
                         });
+                        Frame {
+                            instruction: f.instruction,
+                            module,
+                            offset: f.instruction.saturating_sub(base),
+                            function: f.function_name.as_deref().map(|s| head(s, 256)),
+                            filename: f
+                                .source_file_name
+                                .as_deref()
+                                .map(|s| head(basename(s), 256)),
+                            line: f.source_line,
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                if raw.crashing_thread == Some(thread.thread_id)
+                    || (raw.crashing_thread.is_none() && state.requesting_thread == Some(index))
+                {
+                    raw.crashing_thread = Some(thread.thread_id);
+                    if !frames.is_empty() {
+                        raw.crash_frames = frames;
                     }
+                } else {
+                    raw.threads.push(Thread {
+                        id: thread.thread_id,
+                        frames,
+                    });
                 }
-                raw.status = "ok";
             }
-            Ok(Err(_)) => raw.status = "walk_failed",
-            Err(_) => raw.status = "timeout",
+            raw.status = "ok".into();
         }
-        raw
-    })
-    .await
-    .unwrap_or(Walk {
-        status: "worker_failed",
-        ..fallback
-    })
+        Err(_) => raw.status = "walk_failed".into(),
+    }
+    raw
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn exhausted_operation_budget_yields_to_deadline() {
-        let provider = Cooperative {
-            symbols: Symbolizer::new(SimpleSymbolSupplier::new(Vec::new())),
-            operations: AtomicUsize::new(8192),
+    fn modules(padded: bool, count: usize, name_bytes: usize, cv_bytes: usize) -> Vec<u8> {
+        let offset = 44;
+        let header = if padded { 8 } else { 4 };
+        let size = header + count * 108;
+        let name = offset + size;
+        let cv = name + 4 + name_bytes;
+        let mut bytes = vec![0; cv + cv_bytes];
+        bytes[..4].copy_from_slice(b"MDMP");
+        let put = |bytes: &mut [u8], at: usize, value: usize| {
+            bytes[at..at + 4].copy_from_slice(&(value as u32).to_le_bytes());
         };
-        assert!(
-            tokio::time::timeout(Duration::from_millis(5), provider.checkpoint())
-                .await
-                .is_err()
-        );
+        put(&mut bytes, 8, 1);
+        put(&mut bytes, 12, 32);
+        put(&mut bytes, 32, 4);
+        put(&mut bytes, 36, size);
+        put(&mut bytes, 40, offset);
+        put(&mut bytes, offset, count);
+        put(&mut bytes, name, name_bytes);
+        for i in 0..count {
+            let record = offset + header + i * 108;
+            put(&mut bytes, record + 20, name);
+            put(&mut bytes, record + 76, cv_bytes);
+            put(&mut bytes, record + 80, cv);
+        }
+        bytes
+    }
+
+    #[test]
+    fn padded_module_records_are_rejected_before_parser() {
+        assert!(bounded_dump(modules(false, 1, 16, 16)).is_some());
+        assert!(bounded_dump(modules(true, 1, 16, 16)).is_none());
+        // The original bypass: all 256 padded records share a 2 MiB name.
+        assert!(bounded_dump(modules(true, 256, 2 * 1024 * 1024, 0)).is_none());
+    }
+
+    #[test]
+    fn shared_oversized_names_and_codeview_records_are_rejected() {
+        assert!(bounded_dump(modules(false, 256, 2 * 1024 * 1024, 0)).is_none());
+        for padded in [false, true] {
+            assert!(bounded_dump(modules(padded, 1, 16, 1025)).is_none());
+        }
+        assert!(bounded_dump(modules(false, 1, 1024, 1024)).is_some());
+        assert!(bounded_dump(modules(false, 1, 15, 0)).is_none());
+    }
+
+    #[test]
+    fn module_name_and_codeview_referenced_ranges_are_checked() {
+        let mut name = modules(false, 1, 16, 0);
+        name.pop();
+        assert!(bounded_dump(name).is_none());
+        let mut cv = modules(false, 1, 16, 16);
+        cv.pop();
+        assert!(bounded_dump(cv).is_none());
+        let mut rva = modules(false, 1, 16, 16);
+        rva[44 + 4 + 80..44 + 4 + 84].copy_from_slice(&u32::MAX.to_le_bytes());
+        assert!(bounded_dump(rva).is_none());
     }
 }

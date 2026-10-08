@@ -3,7 +3,7 @@ use std::process::ExitCode;
 
 fn main() -> ExitCode {
     // A third-party parser panic must not print player data via Rust's default
-    // panic hook. The request worker catches the panic and emits raw facts.
+    // panic hook. An isolated worker failure emits raw facts in the parent.
     std::panic::set_hook(Box::new(|_| {
         eprintln!("method=- status=500 size=0 report_id=- processing_ms=0");
     }));
@@ -17,6 +17,11 @@ fn main() -> ExitCode {
 }
 fn run() -> Result<(), &'static str> {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
+    if let [mode, symbols] = args.as_slice()
+        && mode == "symbolicate"
+    {
+        return ember_reports::worker::run(symbols.into());
+    }
     let path = match args.as_slice() {
         [] => std::path::PathBuf::from("/etc/ember-reports/config.json"),
         [path] => path.into(),

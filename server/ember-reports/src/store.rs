@@ -5,12 +5,30 @@ use std::{
     path::{Path, PathBuf},
     time::{Duration, SystemTime},
 };
-use tokio::{fs, io::AsyncWriteExt, sync::Mutex};
+use tokio::{
+    fs,
+    io::AsyncWriteExt,
+    sync::{Mutex, MutexGuard},
+};
 
 pub struct Store {
     pub root: PathBuf,
     limits: Limits,
-    lock: Mutex<()>,
+    lock: Mutex<Cursor>,
+}
+#[derive(Default)]
+struct Cursor {
+    after: Option<PathBuf>,
+}
+
+// The lock is the capacity reservation. Competing reservations and delivery
+// cannot change capacity until commit/drop. It is held only for storage I/O,
+// never for symbolication or backend HTTP.
+pub struct Reservation<'a> {
+    store: &'a Store,
+    id: String,
+    bytes: usize,
+    _lock: MutexGuard<'a, Cursor>,
 }
 struct Entry {
     path: PathBuf,
@@ -46,10 +64,10 @@ async fn entries(directory: &Path, extension: &str) -> io::Result<Vec<Entry>> {
             });
         }
     }
-    result.sort_by_key(|e| e.modified);
+    result.sort_by(|a, b| (a.modified, &a.path).cmp(&(b.modified, &b.path)));
     Ok(result)
 }
-async fn atomic(path: &Path, bytes: &[u8]) -> io::Result<()> {
+async fn stage(path: &Path, bytes: &[u8]) -> io::Result<()> {
     let temporary = path.with_extension("tmp");
     let mut options = fs::OpenOptions::new();
     options.write(true).create_new(true);
@@ -60,14 +78,6 @@ async fn atomic(path: &Path, bytes: &[u8]) -> io::Result<()> {
         file.write_all(bytes).await?;
         file.sync_all().await?;
         drop(file);
-        fs::rename(&temporary, path).await?;
-        #[cfg(unix)]
-        {
-            let directory = path.parent().unwrap().to_owned();
-            tokio::task::spawn_blocking(move || std::fs::File::open(directory)?.sync_all())
-                .await
-                .map_err(|_| error("directory sync task failed"))??;
-        }
         Ok(())
     }
     .await;
@@ -75,6 +85,65 @@ async fn atomic(path: &Path, bytes: &[u8]) -> io::Result<()> {
         let _ = fs::remove_file(&temporary).await;
     }
     result
+}
+
+async fn publish(path: &Path) -> io::Result<()> {
+    fs::rename(path.with_extension("tmp"), path).await?;
+    #[cfg(unix)]
+    {
+        let directory = path.parent().unwrap().to_owned();
+        tokio::task::spawn_blocking(move || std::fs::File::open(directory)?.sync_all())
+            .await
+            .map_err(|_| error("directory sync task failed"))??;
+    }
+    Ok(())
+}
+
+impl Reservation<'_> {
+    pub async fn commit(self, event: &[u8], dump: Option<&[u8]>) -> io::Result<()> {
+        if event.len() != self.bytes
+            || dump.is_some_and(|d| {
+                d.len() > crate::intake::DUMP_BYTES || d.len() as u64 > self.store.limits.dump_bytes
+            })
+        {
+            return Err(error("invalid reserved report"));
+        }
+        let event_path = self
+            .store
+            .root
+            .join("outbox")
+            .join(format!("{}.json", self.id));
+        let dump_path = self.store.dump_path(&self.id);
+        let result = async {
+            // Complete both staged, synced writes before publishing or pruning.
+            if let Some(dump) = dump {
+                stage(&dump_path, dump).await?;
+            }
+            stage(&event_path, event).await?;
+            if dump.is_some() {
+                publish(&dump_path).await?;
+            }
+            publish(&event_path).await
+        }
+        .await;
+        if result.is_err() {
+            for path in [&event_path, &dump_path] {
+                let _ = fs::remove_file(path.with_extension("tmp")).await;
+                let _ = fs::remove_file(path).await;
+            }
+            return result;
+        }
+        // The report is now durable. Retention failure cannot turn an accepted
+        // write into a rejection after older evidence has already been pruned;
+        // periodic retention retries it. Protect this report from clock skew.
+        if let Some(dump) = dump {
+            let _ = self
+                .store
+                .prune(SystemTime::now(), dump.len() as u64, 1, Some(&dump_path))
+                .await;
+        }
+        Ok(())
+    }
 }
 
 impl Store {
@@ -91,7 +160,7 @@ impl Store {
         let store = Self {
             root,
             limits,
-            lock: Mutex::new(()),
+            lock: Mutex::new(Cursor::default()),
         };
         // A killed write has no accepted report ID; remove its private temporary
         // file on restart. Durable .json events remain untouched.
@@ -110,7 +179,7 @@ impl Store {
                 }
             }
         }
-        store.prune(SystemTime::now(), 0, 0).await?;
+        store.prune(SystemTime::now(), 0, 0, None).await?;
         Ok(store)
     }
     async fn prune(
@@ -118,8 +187,10 @@ impl Store {
         now: SystemTime,
         reserve_bytes: u64,
         reserve_count: usize,
+        protected: Option<&Path>,
     ) -> io::Result<()> {
         let mut files = entries(&self.root.join("dumps"), "dmp").await?;
+        files.retain(|entry| Some(entry.path.as_path()) != protected);
         let age = Duration::from_secs(self.limits.dump_days * 86400);
         let mut total: u64 = files.iter().map(|e| e.bytes).sum();
         let mut count = files.len();
@@ -137,44 +208,66 @@ impl Store {
     }
     pub async fn prune_dumps(&self, now: SystemTime) -> io::Result<()> {
         let _lock = self.lock.lock().await;
-        self.prune(now, 0, 0).await
+        self.prune(now, 0, 0, None).await
     }
-    pub async fn dump(&self, id: &str, bytes: &[u8]) -> io::Result<PathBuf> {
-        if !event_id(id) || bytes.len() > crate::intake::DUMP_BYTES {
-            return Err(error("invalid dump"));
-        }
-        let _lock = self.lock.lock().await;
-        self.prune(SystemTime::now(), bytes.len() as u64, 1).await?;
-        let path = self.root.join("dumps").join(format!("{id}.dmp"));
-        atomic(&path, bytes).await?;
-        Ok(path)
+    pub fn dump_path(&self, id: &str) -> PathBuf {
+        self.root.join("dumps").join(format!("{id}.dmp"))
     }
-    pub async fn remove_dump(&self, id: &str) {
-        if event_id(id) {
-            let _lock = self.lock.lock().await;
-            let _ = fs::remove_file(self.root.join("dumps").join(format!("{id}.dmp"))).await;
-        }
-    }
-    pub async fn enqueue(&self, id: &str, bytes: &[u8]) -> io::Result<()> {
-        if !event_id(id) || bytes.len() >= EVENT_BYTES {
+    pub async fn reserve(&self, id: &str, bytes: usize) -> io::Result<Reservation<'_>> {
+        if !event_id(id) || bytes >= EVENT_BYTES {
             return Err(error("invalid event"));
         }
-        let _lock = self.lock.lock().await;
+        let lock = self.lock.lock().await;
         let files = entries(&self.root.join("outbox"), "json").await?;
         if files.len() >= self.limits.outbox_count
-            || files.iter().map(|e| e.bytes).sum::<u64>() + bytes.len() as u64
-                > self.limits.outbox_bytes
+            || files.iter().map(|e| e.bytes).sum::<u64>() + bytes as u64 > self.limits.outbox_bytes
         {
             return Err(error("outbox full"));
         }
-        atomic(&self.root.join("outbox").join(format!("{id}.json")), bytes).await
+        for path in [
+            self.dump_path(id),
+            self.root.join("outbox").join(format!("{id}.json")),
+        ] {
+            for path in [&path, &path.with_extension("tmp")] {
+                match fs::symlink_metadata(path).await {
+                    Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+                    Err(e) => return Err(e),
+                    Ok(_) => return Err(error("report id already exists")),
+                }
+            }
+        }
+        Ok(Reservation {
+            store: self,
+            id: id.to_owned(),
+            bytes,
+            _lock: lock,
+        })
+    }
+    pub async fn enqueue(&self, id: &str, bytes: &[u8]) -> io::Result<()> {
+        self.reserve(id, bytes.len())
+            .await?
+            .commit(bytes, None)
+            .await
     }
     pub async fn pending(&self) -> io::Result<Vec<String>> {
-        let _lock = self.lock.lock().await;
-        Ok(entries(&self.root.join("outbox"), "json")
-            .await?
+        let mut cursor = self.lock.lock().await;
+        let mut files = entries(&self.root.join("outbox"), "json").await?;
+        // Stable lexical cursor, independent of mtime and deletion of the last
+        // delivered entry. Every retained failure is retried without starving
+        // files outside the first batch of 16.
+        files.sort_by(|a, b| a.path.cmp(&b.path));
+        let start = cursor
+            .after
+            .as_ref()
+            .map_or(0, |after| files.partition_point(|e| &e.path <= after));
+        let selected: Vec<_> = files[start..]
             .iter()
+            .chain(files[..start].iter())
             .take(16)
+            .collect();
+        cursor.after = selected.last().map(|e| e.path.clone());
+        Ok(selected
+            .into_iter()
             .filter_map(|e| e.path.file_stem()?.to_str().map(str::to_owned))
             .collect())
     }
