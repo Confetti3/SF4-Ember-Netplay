@@ -325,6 +325,12 @@ msgstr "Rundy"
 msgid "rules.round_time"
 msgstr "Czas rundy"
 
+msgid "rules.training"
+msgstr "Trening"
+
+msgid "rules.training.detail"
+msgstr "Wł.: życie i paski obu zawodników napełniają się ponownie i nikt nie zostaje znokautowany, do ćwiczeń z innym graczem. Gra kończy się, gdy zawodnik opuści miejsce albo skończy się czas rundy, więc ustaw długi czas rundy."
+
 msgid "screen.home"
 msgstr "Start"
 
@@ -3575,6 +3581,12 @@ msgstr "Nie udało się zapisać bilansu walk. Następna walka może się zaczą
 
 msgid "runtime.rollback_unsupported_state"
 msgstr "Gra sieciowa nie mogła zapisać nieobsługiwanego stanu gry. Walka się zakończyła."
+
+msgid "runtime.practice_saved"
+msgstr "P{0} zapisał pozycję"
+
+msgid "runtime.practice_reset"
+msgstr "P{0} przywrócił pozycję"
 
 msgid "runtime.participant_left_room"
 msgstr "Uczestnik walki opuścił pokój."

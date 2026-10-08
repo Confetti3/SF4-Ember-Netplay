@@ -325,6 +325,12 @@ msgstr "ラウンド"
 msgid "rules.round_time"
 msgstr "タイム"
 
+msgid "rules.training"
+msgstr "トレーニング"
+
+msgid "rules.training.detail"
+msgstr "オン：両方のファイターの体力とゲージが回復し、KOになりません。他のプレイヤーと練習するためのルールです。ファイターが席を離れるかラウンドタイムが切れると試合が終わるので、ラウンドタイムは長く設定してください。"
+
 msgid "screen.home"
 msgstr "ホーム"
 
@@ -3575,6 +3581,12 @@ msgstr "対戦記録を保存できませんでした。次の対戦は開始で
 
 msgid "runtime.rollback_unsupported_state"
 msgstr "非対応のゲーム状態をネット対戦で保存できませんでした。対戦を終了しました。"
+
+msgid "runtime.practice_saved"
+msgstr "P{0}が位置を保存しました"
+
+msgid "runtime.practice_reset"
+msgstr "P{0}が位置をリセットしました"
 
 msgid "runtime.participant_left_room"
 msgstr "対戦参加者がルームから退出しました。"

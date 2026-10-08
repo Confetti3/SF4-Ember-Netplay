@@ -47,7 +47,7 @@ Each bar holds up to 120 simulated frames for one fighter, the upper one Player 
 | Red | Damage, blowback or stun |
 | Purple | Bound or down |
 | Light purple | Rise (wakeup) |
-| Bright pink | The first frame a fighter is up from a knockdown, and the other's attack from that frame on while it stays active: a meaty. Its active frames before that frame have passed and stay red, with their count; the Meaty reading is that count, the higher the meatier |
+| Bright pink | The frame a fighter can first be hit after a knockdown, and on the other's bar the active frames of a meaty attack that had already passed by then. Each of those is a frame of advantage gained: an attack that is +2 on block with 3 pink frames is +5. From the frame the attack meets the fighter on it is red as any active frame; the Meaty reading is the count of pink frames |
 | Beige | Throw or cinematic sequence holding both fighters |
 
 Guard posture alone is not proof of blockstun. The native animation frame can pause or change rate while simulation frames continue; the passive bar is not a move-table recovery or total-duration lookup.
@@ -71,6 +71,14 @@ Each player row shows `Start N f`. It counts observed advancing frames from the 
 ### In an online match
 
 **Settings > Frame meter in matches** (off by default) draws the meter over your own online matches and the ones you watch. Only you see it. It reads the game and changes nothing in it. It shows a frame once the other player's inputs for it have arrived, so it trails the fight by the frames still predicted and never shows one that is later played differently. The controls, recordings and hotkeys of Training are not there. A projectile move without attack frames in its script shows no startup in a match.
+
+### Training with another player
+
+A room's host can turn **Training** on in a table's rules (Table options, with the round count and the round time). At that table both fighters' health, Super and Ultra gauges fill again about a second after they are left alone, and nobody is knocked out. Both players and every spectator get the rule from the table; nothing has to be set on their side.
+
+A game under the rule ends when the round time runs out or a fighter leaves the seat, so set the round time to 9999. Either player can save where both fighters stand and put both back there: the keys chosen in Training for **Save position** and **Reset position** (F11 and F2 unless changed), or the pad's Select, held half a second to save and tapped to reset. It happens for both players and every spectator on the same frame, and both are told who did it. Until somebody saves, a reset goes back to the start of the round. A line under the frame meter names the keys.
+
+There is no dummy and no recording at such a table: the other player is the dummy. Turn **Frame meter in matches** on to see the frames.
 
 ### Opt-in frame-meter capture
 

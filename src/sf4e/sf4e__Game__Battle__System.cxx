@@ -325,6 +325,19 @@ int fSystem::RestoreFromMemento(Memento* m, GameMementoKey::MementoID* id) {
 }
 
 
+// Says who saved or reset the position at a Training table. A step is taken
+// on a press that was received, never on a predicted one, so it is said as
+// soon as a frame of the present has it; the count rises with each.
+static void AnnouncePractice() {
+    static unsigned told = 0;
+    const auto state = sf4e::training::MatchPracticeState();
+    if (state.count == told) return;
+    told = state.count;
+    if (state.by < 0 || state.last == sf4e::training::PracticeStep::None) return;
+    sf4e::NetplayFacade::PushAlert(sf4e::loc::Tf(
+        state.last == sf4e::training::PracticeStep::Save ? "runtime.practice_saved" : "runtime.practice_reset", state.by + 1).c_str());
+}
+
 // One deterministic frame from GGPO's inputs: synchronize, run the engine
 // update, advance. False when no frame was played: a transient refusal, or an
 // abort that retired the session.
@@ -362,6 +375,12 @@ static bool PlayGgpoFrame(rSystem* system) {
         return false;
     }
     NoteDisconnectFlags(disconnect_flags);
+    // A Training table's save and reset are in the inputs and are done here,
+    // before the game plays the frame; the game is not shown them.
+    if (!sf4e::training::BeforeMatchFrame(system, ggpoInputs[0].rawOn, ggpoInputs[1].rawOn)) {
+        fSystem::AbortGgpoMatch(sf4e::loc::T("runtime.rollback_unsupported_state"));
+        return false;
+    }
     {
         PlaybackFrameScopeGuard _playbackGuard;
         fPadSystem::playbackFrame = 0;
@@ -406,6 +425,7 @@ static bool PlayGgpoFrame(rSystem* system) {
     fSystem::CaptureSnapshot(system);
     fSystem::CaptureHashCheckpoint(system);
     fSystem::CaptureMeterSample(system, true);
+    AnnouncePractice();
     PublishConfirmedNativeMatchResult();
     return true;
 }
@@ -477,6 +497,7 @@ void fSystem::BattleUpdate() {
                         if(sf4e::NetplayFacade::IsRuntimeRoomActive())
                             sf4e::NetplayFacade::ReadRuntimeMatchInput(i,inputs.mappedOn,inputs.rawOn);
                         else inputs = { (p->*padMethods.GetButtons_MappedOn)(i), (p->*padMethods.GetButtons_RawOn)(i) };
+                        inputs.rawOn = sf4e::training::WithMatchPractice(inputs.rawOn);
                     }
                     {
                         diag::ScopedTimer _t(diag::OP_ADD_LOCAL_INPUT);

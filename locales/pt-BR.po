@@ -325,6 +325,12 @@ msgstr "Rounds"
 msgid "rules.round_time"
 msgstr "Tempo do round"
 
+msgid "rules.training"
+msgstr "Treino"
+
+msgid "rules.training.detail"
+msgstr "Ligado: a vida e as barras dos dois lutadores enchem de novo e ninguém é nocauteado, para praticar com outro jogador. Uma partida termina quando um lutador deixa o assento ou o tempo do round acaba, então escolha um tempo de round longo."
+
 msgid "screen.home"
 msgstr "Início"
 
@@ -3130,6 +3136,12 @@ msgid "runtime.networking_unavailable"
 msgstr "A rede não está disponível. O modo offline está disponível."
 msgid "runtime.room_join_failed"
 msgstr "Não foi possível entrar na sala. Verifique o convite e se os dois jogadores usam o mesmo pacote do SF4 Ember Netplay."
+
+msgid "runtime.practice_saved"
+msgstr "P{0} salvou a posição"
+
+msgid "runtime.practice_reset"
+msgstr "P{0} restaurou a posição"
 
 msgid "room.rules.tournament"
 msgstr "O torneio define as regras desta mesa."

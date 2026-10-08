@@ -215,6 +215,9 @@ static bool StartRuntimeGgpo() {
             endpoints.localSlot, netplay->delay);
         fSystem::StartGGPO(players, static_cast<int>(count), endpoints.localPort, netplay->delay, netplay->client._matchData.rngSeed);
     }
+    // The table's Training rule goes into the battle request beside the seed,
+    // for the fighters and for whoever watches them.
+    fVsBattle::bNextMatchTraining = fSystem::ggpo != nullptr && netplay->client._lobbyData.trainingMode;
     sf4e::NetplayFacade::ReportGgpoTransport( "127.0.0.1", endpoints.remotePorts[endpoints.localSlot == 0 ? 1 : 0]);
     sf4e::NetplayFacade::ResetGgpoBattleWatch();
     return fSystem::ggpo != nullptr;

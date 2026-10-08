@@ -325,6 +325,12 @@ msgstr "Rounds"
 msgid "rules.round_time"
 msgstr "Temps du round"
 
+msgid "rules.training"
+msgstr "Entraînement"
+
+msgid "rules.training.detail"
+msgstr "Activé : la vie et les jauges des deux combattants se remplissent à nouveau et personne n'est mis K.-O., pour s'exercer avec un autre joueur. Une partie se termine quand un combattant quitte sa place ou quand le temps du round est écoulé ; choisissez donc un temps de round long."
+
 msgid "screen.home"
 msgstr "Accueil"
 
@@ -3575,6 +3581,12 @@ msgstr "Bilan du combat non enregistré. Le prochain combat peut commencer ; l'e
 
 msgid "runtime.rollback_unsupported_state"
 msgstr "Le netplay n'a pas pu enregistrer un état du jeu non pris en charge. Le combat est terminé."
+
+msgid "runtime.practice_saved"
+msgstr "P{0} a enregistré la position"
+
+msgid "runtime.practice_reset"
+msgstr "P{0} a réinitialisé la position"
 
 msgid "runtime.participant_left_room"
 msgstr "Un combattant a quitté le salon."

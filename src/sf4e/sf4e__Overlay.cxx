@@ -548,6 +548,12 @@ void Overlay::DrawOverlay() {
         sf4e::ui::DrawControllerWarning(snapshot.gameplayInputError);
         // The frame meter, while the runtime is watching this match for it.
         if (training.watching && !presentation.Visible()) sf4e::ui::DrawMatchMeter(training);
+        // A Training table's shared reset and save: asked for here, sent with the player's next input.
+        if (focused && !presentation.Visible() && !status.spectator && sf4e::training::MatchPracticeActive()) {
+            sf4e::ui::SetComboBookDirectory(sf4e::netplay::SettingsStore::DefaultDirectory());
+            sf4e::training::RequestMatchPractice(sf4e::ui::MatchPracticeKeys(
+                (snapshot.menuController.buttons & sf4e::ui::ControllerSample::Chat) != 0));
+        }
         sf4e::ui::MatchStripView strip;
         for (int side = 0; side < 2; ++side) { strip.names[side] = status.matchSides[side].name; strip.links[side] = status.matchSides[side].link; }
         if (status.hasMatchScore) strip.score = sf4e::ui::SetScoreText(status.matchScore);

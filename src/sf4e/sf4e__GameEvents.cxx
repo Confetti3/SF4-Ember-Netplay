@@ -13,6 +13,7 @@
 #include "sf4e__Game__Battle__System.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "sf4e__UserApp.hxx"
+#include "../training/TrainingRuntime.hxx"
 
 using Dimps::Game::Request;
 
@@ -50,6 +51,7 @@ bool fVsBattle::bSessionSynced = false;
 bool fVsBattle::bOverrideNextRandomSeed = false;
 bool fVsBattle::bTerminateOnNextLeftBattle = false;
 DWORD fVsBattle::nextMatchRandomSeed = 0xffffffff;
+bool fVsBattle::bNextMatchTraining = false;
 bool fVsPreBattle::bSkipToVersus = false;
 
 char* fRootEvent::eventFlowDescription = R"(	Boot, 0, Title,										
@@ -327,10 +329,24 @@ void fVsBattle::PrepareBattleRequest() {
 		if (bOverrideNextRandomSeed) {
 			(r->*Request::publicMethods.SetRandomSeed)(nextMatchRandomSeed);
 		}
+		if (bNextMatchTraining) {
+			// The game's own gauge behaviour, chosen before the battle
+			// exists and never changed in it: nothing is written during a
+			// frame, so a rollback has nothing of ours to restore.
+			for (int player = 0; player < 2; player++) {
+				for (int param : { Request::PP_VITALITY, Request::PP_RECOVERABLE_VITALITY, Request::PP_SUPER_COMBO, Request::PP_REVENGE }) {
+					(r->*Request::publicMethods.SetPlayerParam)(player, param, Request::PM_REFILL);
+				}
+			}
+			spdlog::info("Battle: Training rules, health and gauges refill");
+		}
 	}
 	bForceNextMatchOnline = false;
+	// With the rule goes the shared save and reset of that battle.
+	sf4e::training::SetMatchPractice(r && bNextMatchTraining);
 	bOverrideNextRandomSeed = false;
 	nextMatchRandomSeed = 0xffffffff;
+	bNextMatchTraining = false;
 }
 
 void fVsBattle::RegisterTasks() {

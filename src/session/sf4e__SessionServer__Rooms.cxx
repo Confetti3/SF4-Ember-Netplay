@@ -294,7 +294,7 @@ void SessionServer::ProjectRoomTable(session::Connection connection, std::uint8_
 	update.lobbyData.roundCount = table.rules.roundCount;
 	update.lobbyData.roundTime.integral = table.rules.roundTime;
 	update.lobbyData.roundTime.fractional = 0;
-	update.lobbyData.trainingMode = false;
+	update.lobbyData.trainingMode = table.rules.training;
 	const auto dataFor = [&](room::MemberId id) -> const room::Member* {
 		for (const auto& item : snapshot.members) if (item.id == id) return &item;
 		return nullptr;

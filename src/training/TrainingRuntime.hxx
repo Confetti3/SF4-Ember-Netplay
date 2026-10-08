@@ -1,5 +1,6 @@
 #pragma once
 #include "TrainingSession.hxx"
+#include "MatchPractice.hxx"
 
 namespace Dimps { namespace Game { namespace Battle { struct System; } } }
 namespace sf4e { namespace training {
@@ -16,6 +17,24 @@ void AfterUpdate(Dimps::Game::Battle::System* system);
 // just reached, 0 or less for a spectator, who plays confirmed inputs only.
 // lastConfirmedInput: -1 to capture without showing anything yet.
 void ObserveMatch(Dimps::Game::Battle::System* system, int stateFrame, int lastConfirmedInput, unsigned padOne, unsigned padTwo);
+// The shared save and reset of a match played by a table's Training rule
+// (MatchPractice.hxx). SetMatchPractice: whether the battle being prepared
+// is one. Game thread.
+void SetMatchPractice(bool enabled);
+// Any thread: whether such a match is on, and the local player's wish to
+// reset or save (PracticeReset, PracticeSave), sent with their next input.
+bool MatchPracticeActive();
+void RequestMatchPractice(unsigned bits);
+// The local pad's raw word as it goes to GGPO: with the wish in it.
+unsigned WithMatchPractice(unsigned raw);
+// Before the game plays a frame from GGPO's inputs, simulated or
+// resimulated: takes the two bits out of both raw words and does what they
+// ask. False when the saved position did not come back whole; the match
+// must end.
+bool BeforeMatchFrame(Dimps::Game::Battle::System* system, unsigned& rawOne, unsigned& rawTwo);
+// The part of it that is saved and restored with every frame.
+PracticeState MatchPracticeState();
+void SetMatchPracticeState(const PracticeState& state);
 // Whether the player wants that meter. Any thread.
 void WatchMatches(bool enabled);
 void CloseBattle();

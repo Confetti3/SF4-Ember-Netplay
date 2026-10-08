@@ -607,6 +607,13 @@ bool fSystem::ggpo_advance_frame_callback(int)
         return true;
     }
     NoteDisconnectFlags(disconnect_flags);
+    // As in a frame of the present (PlayGgpoFrame): the save and reset of a
+    // Training table are part of the frame.
+    if (!sf4e::training::BeforeMatchFrame(rSystem::staticMethods.GetSingleton(), inputs[0].rawOn, inputs[1].rawOn)) {
+        AbortGgpoMatch(sf4e::loc::T("runtime.rollback_unsupported_state"));
+        if (ggpo) ggpo_advance_frame(ggpo);
+        return true;
+    }
 
     // Restored on every exit; rollback resimulation must never leak
     // playback mode into subsequent engine work.

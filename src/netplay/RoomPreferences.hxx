@@ -15,6 +15,7 @@ inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
         {"rotation", static_cast<int>(value.tableRules.rotation)},
         {"editionSelect", value.tableRules.editionSelect},
         {"roundCount", value.tableRules.roundCount}, {"roundTime", value.tableRules.roundTime},
+        {"training", value.tableRules.training},
         {"publicRules", {{"format", static_cast<int>(open.format)}, {"rotation", static_cast<int>(open.rotation)},
             {"editionSelect", open.editionSelect}, {"roundCount", open.roundCount}, {"roundTime", open.roundTime}}}};
 }
@@ -24,7 +25,8 @@ inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
 inline bool ReadTableRules(const nlohmann::json& object, room::Rules& rules) {
     for (const char* key : {"format", "rotation", "roundCount", "roundTime"})
         if (object.contains(key) && !object[key].is_number_integer()) return false;
-    if (object.contains("editionSelect") && !object["editionSelect"].is_boolean()) return false;
+    for (const char* key : {"editionSelect", "training"})
+        if (object.contains(key) && !object[key].is_boolean()) return false;
     const auto format = object.value("format", static_cast<std::int64_t>(rules.format));
     const auto rotation = object.value("rotation", static_cast<std::int64_t>(rules.rotation));
     if (!room::ValidSetFormat(format) || rotation < 0 || rotation > 2) return false;
@@ -36,6 +38,7 @@ inline bool ReadTableRules(const nlohmann::json& object, room::Rules& rules) {
     rules.roundCount = static_cast<std::uint8_t>(rounds);
     rules.roundTime = static_cast<std::uint16_t>(time);
     rules.editionSelect = object.value("editionSelect", rules.editionSelect);
+    rules.training = object.value("training", rules.training);
     return true;
 }
 

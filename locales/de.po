@@ -325,6 +325,12 @@ msgstr "Runden"
 msgid "rules.round_time"
 msgstr "Rundenzeit"
 
+msgid "rules.training"
+msgstr "Training"
+
+msgid "rules.training.detail"
+msgstr "An: Energie und Leisten beider Kämpfer füllen sich wieder auf und niemand geht K.o., zum Üben mit einem anderen Spieler. Ein Spiel endet, wenn ein Kämpfer den Platz verlässt oder die Rundenzeit abläuft; wähle also eine lange Rundenzeit."
+
 msgid "screen.home"
 msgstr "Startseite"
 
@@ -3575,6 +3581,12 @@ msgstr "Kampfbilanz konnte nicht gespeichert werden. Der nächste Kampf kann sta
 
 msgid "runtime.rollback_unsupported_state"
 msgstr "Netplay konnte Spielzustand nicht speichern. Kampf beendet."
+
+msgid "runtime.practice_saved"
+msgstr "P{0} hat die Position gespeichert"
+
+msgid "runtime.practice_reset"
+msgstr "P{0} hat die Position zurückgesetzt"
 
 msgid "runtime.participant_left_room"
 msgstr "Ein Kampfteilnehmer hat den Raum verlassen."

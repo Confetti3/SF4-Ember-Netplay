@@ -119,6 +119,42 @@ int main() {
 		const auto again = room.Join("P1", 1);
 		CHECK(again && !room.member(again).training);
 	}
+	{
+		// The table rule: the host sets it with the other rules, every member's view carries it,
+		// it is written only when set, and rules written before it existed read as before.
+		Room room;
+		CHECK(!room.authority.SnapshotView().tables[0].rules.training);
+		nlohmann::json plain = room.authority.SnapshotFor(room.p2);
+		CHECK(!plain.at("tables").at(0).at("rules").contains("training"));
+		auto set = room.Make(room.host, ActionKind::SetRules);
+		set.rules = room.authority.SnapshotView().tables[0].rules;
+		set.rules.training = true; set.rules.roundTime = 9999;
+		CHECK(!room.authority.Apply(room.p1, set).accepted);
+		set = room.Make(room.host, ActionKind::SetRules);
+		set.rules = room.authority.SnapshotView().tables[0].rules;
+		set.rules.training = true; set.rules.roundTime = 9999;
+		CHECK(room.authority.Apply(room.host, set).accepted);
+		CHECK(room.authority.SnapshotView().tables[0].rules.training && !room.authority.SnapshotView().tables[1].rules.training);
+		nlohmann::json marked = room.authority.SnapshotFor(room.p2);
+		CHECK(marked.at("tables").at(0).at("rules").at("training").get<bool>());
+		const Snapshot read = marked.get<Snapshot>();
+		CHECK(read.tables[0].rules.training && read.tables[0].rules.roundTime == 9999 && !read.tables[1].rules.training);
+		CHECK(!plain.get<Snapshot>().tables[0].rules.training);
+		// The action carries it over the wire, and a value that is no boolean is refused.
+		const Action back = nlohmann::json(set).get<Action>();
+		CHECK(back.rules.training && back.rules == set.rules);
+		Rules other = set.rules; other.training = false;
+		CHECK(!(other == set.rules));
+		nlohmann::json bad = nlohmann::json(set.rules);
+		bad["training"] = 1;
+		bool refused = false;
+		try { (void)bad.get<Rules>(); } catch (const std::exception&) { refused = true; }
+		CHECK(refused);
+		// It still plays as a table: both ready and the game begins under the rule.
+		CHECK(room.Apply(room.p1, ActionKind::Queue).accepted && room.Apply(room.p2, ActionKind::Queue).accepted);
+		CHECK(room.Apply(room.p1, ActionKind::Ready).accepted && room.Apply(room.p2, ActionKind::Ready).accepted);
+		CHECK(room.authority.BeginMatch(0, room.p1, room.p2).accepted && room.authority.SnapshotView().tables[0].rules.training);
+	}
 	if (failures) { std::printf("%d failures\n", failures); return 1; }
 	std::printf("Room training flag rules passed.\n");
 	return 0;

@@ -325,6 +325,12 @@ msgstr "Kola"
 msgid "rules.round_time"
 msgstr "Čas kola"
 
+msgid "rules.training"
+msgstr "Trénink"
+
+msgid "rules.training.detail"
+msgstr "Zap.: zdraví a ukazatele obou bojovníků se znovu doplňují a nikdo není knokautován, pro trénink s jiným hráčem. Hra končí, když bojovník opustí místo nebo vyprší čas kola, nastav proto dlouhý čas kola."
+
 msgid "screen.home"
 msgstr "Domů"
 
@@ -3575,6 +3581,12 @@ msgstr "Záznam zápasu se nepodařilo uložit. Další zápas může začít; u
 
 msgid "runtime.rollback_unsupported_state"
 msgstr "Netplay nedokázal uložit nepodporovaný stav hry. Zápas skončil."
+
+msgid "runtime.practice_saved"
+msgstr "P{0} uložil pozici"
+
+msgid "runtime.practice_reset"
+msgstr "P{0} obnovil pozici"
 
 msgid "runtime.participant_left_room"
 msgstr "Účastník zápasu opustil místnost."

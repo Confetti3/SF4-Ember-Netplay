@@ -1,5 +1,6 @@
 #include "../training/TrainingSession.hxx"
 #include "../training/ConfirmedSamples.hxx"
+#include "../training/MatchPractice.hxx"
 #include <cstdio>
 #include <stdexcept>
 using namespace sf4e::training;
@@ -418,11 +419,12 @@ int main() {
             Require(!counted.View().moves[0].live && counted.View().moves[0].recovery == 4 && !counted.View().meatyValid[0], "A throw's recovery was lost, or a meaty read before any attack");
             step(tick++, 0, 0, 0);
             Require(counted.View().advantage.valid && counted.View().advantage.knockdown && counted.View().advantage.frames[0] == 6, "A throw's knockdown advantage miscounted");
-            // Down again, and an attack that is active 1 frame before the other is up: a meaty.
+            // Down again, and an attack that first is active in the frame before the other is seen up,
+            // the frame it can be hit on: a meaty that meets it with its first active frame.
             for (int down = 0; down < 3; ++down) step(tick++, 0, 0, 19);
             for (float frame : {1.f, 2.f, 3.f, 4.f, 5.f}) step(tick++, 16, frame, 20);
             step(tick++, 16, 6, 0);
-            Require(counted.View().meatyValid[0] && counted.View().meatyFrames[0] == -1 && !counted.View().meatyValid[1], "Meaty timing miscounted");
+            Require(counted.View().meatyValid[0] && counted.View().meatyFrames[0] == 0 && !counted.View().meatyValid[1], "Meaty timing miscounted");
             Require(counted.View().frames.back().fighters[1].wake && !counted.View().frames.back().fighters[0].wake && !counted.View().frames[counted.View().frames.size() - 2].fighters[1].wake, "The first frame up was not marked, or more than it");
         }
         {
@@ -533,6 +535,39 @@ int main() {
             // The next match counts from one again.
             capture(1, 21);
             Require(kept.Next(0, frame, out) && frame == 1 && out[0].status == 21 && !kept.Next(900, frame, out), "A new match did not start the frames anew");
+        }
+        {
+            // A Training table's shared save and reset, decided from a frame's inputs and the state that rolls back with it.
+            PracticeState state;
+            const unsigned reset = PracticeReset, save = PracticeSave;
+            // Nothing before the fight, whatever is pressed; the press is remembered as held.
+            Require(DecidePractice(state, reset | save, 0, false) == PracticeStep::None && state.count == 0, "A step was taken before the fight");
+            // The fight begins: the position is saved by nobody, so a reset has one.
+            Require(DecidePractice(state, reset | save, 0, true) == PracticeStep::Save && state.by == -1 && state.count == 1, "The round's start was not saved");
+            // Still held from before: no press.
+            Require(DecidePractice(state, reset | save, 0, true) == PracticeStep::None, "A held button counted as a press");
+            Require(DecidePractice(state, 0, 0, true) == PracticeStep::None, "A release counted as a press");
+            // A press counts once, as it goes down, and says whose it is.
+            Require(DecidePractice(state, 0, reset, true) == PracticeStep::Reset && state.by == 1 && state.last == PracticeStep::Reset && state.count == 2, "Player 2's reset was not taken");
+            Require(DecidePractice(state, 0, reset, true) == PracticeStep::None && state.count == 2, "A reset repeated while held");
+            Require(DecidePractice(state, save, reset, true) == PracticeStep::Save && state.by == 0 && state.count == 3, "Player 1's save was not taken");
+            // Both in one frame is a save, and Player 1's before Player 2's.
+            (void)DecidePractice(state, 0, 0, true);
+            Require(DecidePractice(state, reset, save, true) == PracticeStep::Save && state.by == 1, "A save and a reset in one frame was not a save");
+            (void)DecidePractice(state, 0, 0, true);
+            Require(DecidePractice(state, save, save, true) == PracticeStep::Save && state.by == 0, "Two saves in one frame were not Player 1's");
+            // Other bits of the pad are not its business.
+            (void)DecidePractice(state, 0, 0, true);
+            Require(DecidePractice(state, 0x10 | 0x400 | 0x8, 0xFFFF, true) == PracticeStep::None, "A fight button was taken for a step");
+            // A predicted frame repeats the last input, and a rollback brings the state back: the frame decides as it first did.
+            PracticeState before = state;
+            Require(DecidePractice(state, reset, 0, true) == PracticeStep::Reset, "A reset was not taken");
+            const PracticeState after = state;
+            Require(DecidePractice(state, reset, 0, true) == PracticeStep::None && DecidePractice(state, reset, 0, true) == PracticeStep::None, "A predicted repeat made a press");
+            state = before;
+            Require(DecidePractice(state, reset, 0, true) == PracticeStep::Reset && state.count == after.count && state.held == after.held, "A replayed frame decided otherwise");
+            // The fight over and begun again saves again.
+            Require(DecidePractice(state, 0, 0, false) == PracticeStep::None && DecidePractice(state, 0, 0, true) == PracticeStep::Save && state.by == -1, "A new fight did not save its start");
         }
         std::puts("Training session and frame meter checks passed.");
         return 0;

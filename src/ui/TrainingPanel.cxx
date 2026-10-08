@@ -148,17 +148,19 @@ void Meter(const MeterView& meter, float hudScale) {
     back = (std::max)(0, (std::min)(back, kept - shownMost));
     const int first = (std::max)(0, kept - shownMost - back);
     // A meaty is an attack whose active frames are already out as the other
-    // gets up: the ones that came before that frame hit nothing and have
-    // passed, and stay red with their count; from that frame on they are the
-    // meaty frames, shown so on the attack's own bar.
+    // gets up. The active frames that passed before it met them are the
+    // meaty frames: each is a frame of advantage the attack gains over
+    // hitting with its first one, and they show so on the attack's own bar.
+    // From the frame it meets them on it is active as any attack is.
     // ponytail: found by walking the kept frames each draw, at most MeterHistory; mark it in the meter if that is ever felt.
     std::vector<char> meaty[2];
     for (int side = 0; side < 2; ++side) {
         meaty[side].assign(static_cast<std::size_t>(kept), 0);
         const auto active = [&](int at) { return ClassifyMeter(meter.frames[at].fighters[side]) == MeterKind::Active; };
-        for (int at = 0; at < kept; ++at) {
-            if (!meter.frames[at].fighters[1 - side].wake || !active(at)) continue;
-            for (int run = at; run < kept && active(run); ++run) meaty[side][run] = 1;
+        for (int at = 1; at < kept; ++at) {
+            // The other is first seen up at `at`: the frame it could be hit on is the one before.
+            if (!meter.frames[at].fighters[1 - side].wake || !active(at - 1)) continue;
+            for (int run = at - 2; run >= 0 && active(run); --run) meaty[side][run] = 1;
         }
     }
     // What was pressed, on a lane of its own beside each bar: Player 1's over
@@ -221,8 +223,9 @@ void Meter(const MeterView& meter, float hudScale) {
             if (i >= count) { quad(i * cell, (i + 1) * cell - 1, IM_COL32(48, 50, 54, 120)); continue; }
             const auto& sample = meter.frames[first + i].fighters[side];
             auto kind = ClassifyMeter(sample);
-            // The frame a fighter is first up from a knockdown, and the other's attack that was active on it.
-            if (sample.wake || meaty[side][first + i]) kind = MeterKind::Meaty;
+            // The frame a fighter can first be hit after a knockdown, one before it is seen up, and the
+            // other's active frames that had passed by then.
+            if ((first + i + 1 < kept && meter.frames[first + i + 1].fighters[side].wake) || meaty[side][first + i]) kind = MeterKind::Meaty;
             // Holding back in a jump near an attack puts the fighter in a guard status, and nothing is guarded in the air.
             if (kind == MeterKind::Guard && sample.status != 22) {
                 int from = first + i;
@@ -1797,6 +1800,38 @@ void DrawMatchMeter(const training::View& view) {
     const float hudScale = (std::max)(1.f, (std::min)(1.5f, vp->Size.y / 900.f));
     MeterWindow(view.meter, hudScale, (std::min)(900 * hudScale, vp->Size.x * .75f), vp->Pos.y + vp->Size.y * TrainingHudBottom);
 }
+// A Training table's shared reset and save, for the match's own HUD: the
+// keys the player chose for them in Training, and the pad's Select, tapped
+// to reset and held half a second to save. Returns the PracticeReset and
+// PracticeSave bits asked for this frame, and draws the line that names the keys.
+unsigned MatchPracticeKeys(bool padSelect) {
+    if(ImGui::GetIO().WantTextInput||ImGui::GetIO().KeyAlt) return 0;
+    LoadCombos();
+    unsigned asked=0;
+    const auto pressed=[](int which) { return creator.keys[which]>=0&&ImGui::IsKeyPressed(static_cast<ImGuiKey>(ImGuiKey_F1+creator.keys[which]),false); };
+    if(pressed(1)) asked|=training::PracticeReset;
+    if(pressed(5)) asked|=training::PracticeSave;
+    static double downAt=-1; static bool saved=false;
+    const double now=ImGui::GetTime();
+    if(padSelect&&downAt<0) { downAt=now; saved=false; }
+    if(padSelect&&!saved&&now-downAt>=.5) { saved=true; asked|=training::PracticeSave; }
+    if(!padSelect&&downAt>=0) { if(!saved&&now-downAt<.5) asked|=training::PracticeReset; downAt=-1; }
+    const auto* vp=ImGui::GetMainViewport();
+    const float hudScale=(std::max)(1.f,(std::min)(1.5f,vp->Size.y/900.f));
+    ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+vp->Size.x/2,vp->Pos.y+vp->Size.y*TrainingHudBottom+4*hudScale),ImGuiCond_Always,ImVec2(.5f,0));
+    ImGui::SetNextWindowBgAlpha(.42f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(4*hudScale,3*hudScale));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize,0.f);
+    if(ImGui::Begin("Match practice keys",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|
+        ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoFocusOnAppearing)) {
+        ImGui::SetWindowFontScale(.8f*hudScale/Scale());
+        ImGui::TextDisabled("%s %s   %s %s",KeyName(1,"-").c_str(),loc::T("training.combo.reset_pos"),KeyName(5,"-").c_str(),loc::T("training.combo.save_pos"));
+        ImGui::SetWindowFontScale(1.f);
+    }
+    ImGui::End();
+    ImGui::PopStyleVar(2);
+    return asked;
+}
 TrainingHudInput DrawTrainingHud(const training::View& view) {
     if (!view.available) return {};
     ChallengerBanner(view);
@@ -1813,9 +1848,11 @@ TrainingHudInput DrawTrainingHud(const training::View& view) {
     const ImVec2 hudTop = MeterWindow(view.meter, hudScale, width, hudBottom);
     // The one input this HUD takes: a chip that opens the controls for a
     // mouse, as F6 does from the keyboard. It captures the mouse only while
-    // the pointer is over it, so the passive meter below never does.
+    // the pointer is over it, so the passive meter above never does. With
+    // the combo's line it hangs under the meter, between the game's two
+    // super gauges, so the middle of the screen stays the fight's.
     TrainingHudInput input;
-    ImGui::SetNextWindowPos(ImVec2(hudTop.x, hudTop.y - 4 * hudScale), ImGuiCond_Always, ImVec2(0, 1));
+    ImGui::SetNextWindowPos(ImVec2(hudTop.x, hudBottom + 4 * hudScale), ImGuiCond_Always, ImVec2(0, 0));
     ImGui::SetNextWindowBgAlpha(.42f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(4 * hudScale, 3 * hudScale));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
