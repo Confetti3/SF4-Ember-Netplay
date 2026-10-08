@@ -721,7 +721,7 @@ namespace launcher {
 
 		std::string downloadError;
 		AppendUpdateLog("DownloadAndApplyUpdate start");
-		if (!DownloadSelectedReleaseZip(offer, zipPath, downloadError, progress)) {
+		if (!DownloadReleaseZip(offer, zipPath, downloadError, progress)) {
 			result.error = downloadError;
 			return result;
 		}

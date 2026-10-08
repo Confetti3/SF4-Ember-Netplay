@@ -174,12 +174,12 @@ namespace launcher {
 		}
 
 		bool DownloadReleaseZip(
-			const char* zipApiUrl,
-			const char* zipDownloadUrl,
+			const UpdateCheckResult& offer,
 			const wchar_t* zipPath,
 			std::string& outError,
             const std::function<bool(std::uint64_t, std::uint64_t)>& progress
 		) {
+			outError.clear();
 			const char* apiHeaders = "Accept: application/octet-stream\r\nUser-Agent: sf4e-updater/1.0\r\n";
 			const char* browserHeaders = "User-Agent: sf4e-updater/1.0\r\n";
 			std::vector<std::string> attempts;
@@ -194,16 +194,19 @@ namespace launcher {
 
 			AppendUpdateLog("download start");
 
-			if (zipDownloadUrl && zipDownloadUrl[0]) {
-				if (TryHttpDownload("browser", zipDownloadUrl, browserHeaders, zipPath, attemptError, progress)) {
+			if (!offer.zipDownloadUrl.empty()) {
+				if (TryHttpDownload("browser", offer.zipDownloadUrl.c_str(), browserHeaders, zipPath, attemptError, progress)) {
 					return true;
 				}
 				recordFailure("browser");
-                if (progress && !progress(0,0)) { outError = "Cancelled"; return false; }
+				if (progress && !progress(0, 0)) {
+					outError = loc::Tf("update.download_failed", "Cancelled", offer.releaseUrl);
+					return false;
+				}
 			}
 
-			if (zipApiUrl && zipApiUrl[0]) {
-				if (TryHttpDownload("api", zipApiUrl, apiHeaders, zipPath, attemptError, progress)) {
+			if (!offer.zipApiUrl.empty()) {
+				if (TryHttpDownload("api", offer.zipApiUrl.c_str(), apiHeaders, zipPath, attemptError, progress)) {
 					return true;
 				}
 				recordFailure("api");
@@ -217,26 +220,11 @@ namespace launcher {
 				detail += attempts[i];
 			}
 			if (detail.empty()) {
-				outError = "all download methods failed";
+				detail = "all download methods failed";
 			}
-			else {
-				outError = detail;
-			}
-			AppendUpdateLog(("download failed: " + outError).c_str());
+			AppendUpdateLog(("download failed: " + detail).c_str());
+			outError = loc::Tf("update.download_failed", detail, offer.releaseUrl);
 			return false;
-		}
-
-		bool DownloadSelectedReleaseZip(
-			const UpdateCheckResult& offer, const wchar_t* zipPath, std::string& outError,
-			const std::function<bool(std::uint64_t, std::uint64_t)>& progress
-		) {
-			std::string downloadError;
-			if (!DownloadReleaseZip(offer.zipApiUrl.c_str(), offer.zipDownloadUrl.c_str(), zipPath, downloadError, progress)) {
-				outError = loc::Tf("update.download_failed", downloadError, offer.releaseUrl);
-				return false;
-			}
-			outError.clear();
-			return true;
 		}
 
 	} // namespace detail

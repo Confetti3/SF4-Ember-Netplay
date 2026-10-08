@@ -152,7 +152,7 @@ int main(int argc, char** argv) {
             offer.zipDownloadUrl = "https://blocked.invalid/selected.zip";
             offer.zipApiUrl = "https://blocked.invalid/assets/selected";
             std::string error;
-            CHECK(!detail::DownloadSelectedReleaseZip(offer, (root / L"selected.zip").c_str(), error));
+            CHECK(!detail::DownloadReleaseZip(offer, (root / L"selected.zip").c_str(), error));
             CHECK(error.find(offer.releaseUrl) != std::string::npos);
             CHECK(error.find("host is not allowlisted") != std::string::npos);
             CHECK(!std::filesystem::exists(root / L"selected.zip"));

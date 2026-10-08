@@ -55,13 +55,6 @@ namespace launcher {
 		// Defined in github_release_download.cxx.
 		bool ComputeFileSha256Hex(const wchar_t* filePath, std::string& outHex);
 		bool HexEqualsIgnoreCase(const std::string& a, const std::string& b);
-		bool DownloadReleaseZip(
-			const char* zipApiUrl,
-			const char* zipDownloadUrl,
-			const wchar_t* zipPath,
-			std::string& outError,
-            const std::function<bool(std::uint64_t, std::uint64_t)>& progress
-		);
 
 	} // namespace detail
 } // namespace launcher
