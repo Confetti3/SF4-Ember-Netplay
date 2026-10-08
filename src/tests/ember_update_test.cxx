@@ -54,14 +54,34 @@ int main(int argc, char** argv) {
     CHECK(!ParseVersion(nullptr));
 
     // The chosen channel, or the installed version's kind while none is chosen.
-    CHECK(ResolveUpdateChannel("", "1.0.2") == UpdateChannel::Stable && ResolveUpdateChannel("", "1.1.0-rc1") == UpdateChannel::Prerelease);
-    CHECK(ResolveUpdateChannel("", "1.1.0-links-sets-test1") == UpdateChannel::Prerelease && ResolveUpdateChannel("", "dev") == UpdateChannel::Stable);
-    CHECK(ResolveUpdateChannel("stable", "1.1.0-rc1") == UpdateChannel::Stable && ResolveUpdateChannel("prerelease", "1.0.2") == UpdateChannel::Prerelease);
-    CHECK(std::string(UpdateChannelName(UpdateChannel::Stable)) == "stable" && std::string(UpdateChannelName(UpdateChannel::Prerelease)) == "prerelease");
+    CHECK(ResolveUpdateChannel("", "1.0.2") == UpdateChannel::Stable && ResolveUpdateChannel("", "1.1.0-rc1") == UpdateChannel::Beta);
+    CHECK(ResolveUpdateChannel("", "1.1.0-links-sets-test1") == UpdateChannel::Beta && ResolveUpdateChannel("", "dev") == UpdateChannel::Stable);
+    CHECK(ResolveUpdateChannel("stable", "1.1.0-rc1") == UpdateChannel::Stable && ResolveUpdateChannel("prerelease", "1.0.2") == UpdateChannel::Beta);
+    CHECK(std::string(UpdateChannelName(UpdateChannel::Stable)) == "stable" && std::string(UpdateChannelName(UpdateChannel::Beta)) == "prerelease");
+    CHECK(ResolveUpdateChannel("", "v1.2.0-NIGHTLY20261008.2") == UpdateChannel::Nightly);
+    CHECK(ResolveUpdateChannel("nightly", "1.0.2") == UpdateChannel::Nightly);
+    CHECK(ResolveUpdateChannel("stable", "1.2.0-nightly20261008") == UpdateChannel::Stable);
+    CHECK(ResolveUpdateChannel("prerelease", "1.2.0-nightly20261008") == UpdateChannel::Beta);
+    CHECK(ResolveUpdateChannel("bogus", "1.2.0-nightly20261008") == UpdateChannel::Nightly);
+    CHECK(ResolveUpdateChannel("", nullptr) == UpdateChannel::Stable);
+    CHECK(std::string(UpdateChannelName(UpdateChannel::Nightly)) == "nightly");
+    CHECK(std::string(UpdateChannelRepo(UpdateChannel::Stable)) == kDefaultGithubRepo);
+    CHECK(std::string(UpdateChannelRepo(UpdateChannel::Beta)) == kDefaultGithubRepo);
+    CHECK(std::string(UpdateChannelRepo(UpdateChannel::Nightly)) == "Confetti3/SF4-Ember-Netplay-Nightly");
+    CHECK(GetUpdateChannelInfo(UpdateChannel::Stable).next == UpdateChannel::Beta);
+    CHECK(GetUpdateChannelInfo(UpdateChannel::Beta).next == UpdateChannel::Nightly);
+    CHECK(GetUpdateChannelInfo(UpdateChannel::Nightly).next == UpdateChannel::Stable);
+    CHECK(ClassifyReleaseKind(*ParseVersion("v1.2.0")) == ReleaseKind::Stable);
+    for (const char* tag : {"v1.2.0-rc1", "v1.2.0-beta2", "v1.2.0-links-sets-test1"})
+        CHECK(ClassifyReleaseKind(*ParseVersion(tag)) == ReleaseKind::Beta);
+    for (const char* tag : {"v1.2.0-nightly20261008", "v1.2.0-NIGHTLY20261008.2"})
+        CHECK(ClassifyReleaseKind(*ParseVersion(tag)) == ReleaseKind::Nightly);
+    CHECK(ParseVersion("v1.2.0-nightly20261008.2")->number == 20261008);
+    CHECK(ParseVersion("v1.2.0-nightly20261008.2")->rest == ".2");
 
     // Each channel takes its highest listed release with a package: Stable
-    // finished ones only, Pre-release either kind. Drafts, packageless
-    // releases and tags that are not versions are skipped.
+    // finished ones only, Beta finished releases and betas, Nightly nightlies.
+    // Drafts, packageless releases and tags that are not versions are skipped.
     release["assets"].push_back({{"name", "sf4-ember-netplay-x.zip"}, {"browser_download_url", "branded"}, {"digest", "sha256:" + digest}});
     const auto listed = [&](std::initializer_list<const char*> tags) {
         auto list = nlohmann::json::array();
@@ -69,30 +89,56 @@ int main(int argc, char** argv) {
         return list;
     };
     auto list = listed({"v1.1.0-rc1", "v1.0.2", "latest", "v1.1.0-rc2", "v1.0.1"});
-    result = ParseGithubReleases(list.dump(), "1.0.2", UpdateChannel::Prerelease);
+    result = ParseGithubReleases(list.dump(), "1.0.2", UpdateChannel::Beta);
     CHECK(result.ok && result.updateAvailable && result.latestVersion == "v1.1.0-rc2" && result.expectedSha256 == digest);
-    CHECK(!ParseGithubReleases(list.dump(), "1.1.0-rc2", UpdateChannel::Prerelease).updateAvailable);
+    CHECK(!ParseGithubReleases(list.dump(), "1.1.0-rc2", UpdateChannel::Beta).updateAvailable);
     result = ParseGithubReleases(list.dump(), "1.0.1", UpdateChannel::Stable);
     CHECK(result.ok && result.updateAvailable && result.latestVersion == "v1.0.2");
-    // Stable offers an installed pre-release its best release as the way back,
-    // and says so; a finished install and the pre-release channel never go back.
+    // An installed kind the channel does not accept can go back to its best release.
     result = ParseGithubReleases(list.dump(), "1.1.0-rc1", UpdateChannel::Stable);
     CHECK(result.ok && result.updateAvailable && result.goesBack && result.latestVersion == "v1.0.2");
     CHECK(!ParseGithubReleases(list.dump(), "1.0.2", UpdateChannel::Stable).goesBack);
     result = ParseGithubReleases(listed({"v1.0.2"}).dump(), "1.1.0", UpdateChannel::Stable);
     CHECK(result.ok && !result.updateAvailable && !result.goesBack);
-    CHECK(!ParseGithubReleases(list.dump(), "1.1.0-rc1", UpdateChannel::Prerelease).goesBack);
+    CHECK(!ParseGithubReleases(list.dump(), "1.1.0-rc1", UpdateChannel::Beta).goesBack);
+    result = ParseGithubReleases(list.dump(), "1.2.0-nightly20261008", UpdateChannel::Stable);
+    CHECK(result.ok && result.updateAvailable && result.goesBack && result.latestVersion == "v1.0.2");
+    result = ParseGithubReleases(list.dump(), "1.2.0-nightly20261008", UpdateChannel::Beta);
+    CHECK(result.ok && result.updateAvailable && result.goesBack && result.latestVersion == "v1.1.0-rc2");
+    result = ParseGithubReleases(list.dump(), "1.2.0", UpdateChannel::Beta);
+    CHECK(result.ok && !result.updateAvailable && !result.goesBack);
+
+    auto mixed = listed({"v1.1.0", "v1.2.0-rc1", "v1.3.0-nightly20261008", "v1.3.0-nightly20261008.2", "v2.0.0-nightly20261009"});
+    mixed[2]["prerelease"] = true; mixed[3]["prerelease"] = true;
+    mixed[4]["assets"] = nlohmann::json::array();
+    result = ParseGithubReleases(mixed.dump(), "1.0.2", UpdateChannel::Beta);
+    CHECK(result.ok && result.updateAvailable && result.latestVersion == "v1.2.0-rc1");
+    mixed[1]["assets"] = nlohmann::json::array();
+    CHECK(ParseGithubReleases(mixed.dump(), "1.0.2", UpdateChannel::Beta).latestVersion == "v1.1.0");
+    result = ParseGithubReleases(mixed.dump(), "1.3.0-nightly20261008", UpdateChannel::Nightly);
+    CHECK(result.ok && result.updateAvailable && !result.goesBack && result.latestVersion == "v1.3.0-nightly20261008.2");
+    mixed[3]["draft"] = true;
+    CHECK(ParseGithubReleases(mixed.dump(), "1.0.2", UpdateChannel::Nightly).latestVersion == "v1.3.0-nightly20261008");
+    mixed[2]["prerelease"] = false;
+    CHECK(ParseGithubReleases(mixed.dump(), "1.0.2", UpdateChannel::Nightly).latestVersion == "v1.3.0-nightly20261008");
+    mixed[2]["assets"] = nlohmann::json::array();
+    CHECK(!ParseGithubReleases(mixed.dump(), "1.0.2", UpdateChannel::Nightly).ok);
+    CHECK(!ParseGithubReleases(listed({"v1.2.0-nightly20261008"}).dump(), "1.0.2", UpdateChannel::Beta).ok);
+    for (const auto channel : {UpdateChannel::Stable, UpdateChannel::Beta, UpdateChannel::Nightly}) {
+        result = ParseGithubReleases(listed({"v1.0.2", "v1.2.0-rc1", "v1.3.0-nightly20261008"}).dump(), "dev", channel);
+        CHECK(result.ok && result.updateAvailable && !result.goesBack);
+    }
     // An install only takes the kind of change it was offered.
     CHECK(TransitionOffered("v1.1.0", "1.0.2", false) && !TransitionOffered("v1.1.0", "1.0.2", true));
     CHECK(TransitionOffered("v1.0.2", "1.1.0-rc1", true) && !TransitionOffered("v1.0.2", "1.1.0-rc1", false));
     CHECK(TransitionOffered("v1.1.0", "dev", false) && !TransitionOffered("v1.1.0", "dev", true) && !TransitionOffered("latest", "1.1.0-rc1", true));
     list = listed({"v1.1.0", "v1.1.0-rc2"});
-    CHECK(ParseGithubReleases(list.dump(), "1.1.0-rc2", UpdateChannel::Prerelease).latestVersion == "v1.1.0");
+    CHECK(ParseGithubReleases(list.dump(), "1.1.0-rc2", UpdateChannel::Beta).latestVersion == "v1.1.0");
     CHECK(ParseGithubReleases(list.dump(), "1.1.0-rc2", UpdateChannel::Stable).updateAvailable);
     list = listed({"v1.2.0-rc1", "v1.1.0", "v1.3.0-rc1"});
     list[0]["draft"] = true; list[2]["assets"] = nlohmann::json::array();
-    CHECK(ParseGithubReleases(list.dump(), "1.0.2", UpdateChannel::Prerelease).latestVersion == "v1.1.0");
-    CHECK(!ParseGithubReleases(listed({"latest", "nightly"}).dump(), "1.0.2", UpdateChannel::Prerelease).ok);
+    CHECK(ParseGithubReleases(list.dump(), "1.0.2", UpdateChannel::Beta).latestVersion == "v1.1.0");
+    CHECK(!ParseGithubReleases(listed({"latest", "nightly"}).dump(), "1.0.2", UpdateChannel::Beta).ok);
     // GitHub sends null for empty fields: one such release, before or after
     // the newest, spoils nothing (a null digest only leaves it unverifiable).
     list = listed({"v1.0.1", "v1.1.0", "v1.0.0"});
@@ -107,7 +153,7 @@ int main(int argc, char** argv) {
     list = listed({"v1.2.0", "v1.1.0"});
     list[0]["prerelease"] = true;
     CHECK(ParseGithubReleases(list.dump(), "1.0.2", UpdateChannel::Stable).latestVersion == "v1.1.0");
-    CHECK(ParseGithubReleases(list.dump(), "1.0.2", UpdateChannel::Prerelease).latestVersion == "v1.2.0");
+    CHECK(ParseGithubReleases(list.dump(), "1.0.2", UpdateChannel::Beta).latestVersion == "v1.2.0");
     if (argc > 1 && std::string(argv[1]) == "--live") {
         result = CheckForUpdate(UpdateChannel::Stable);
         CHECK(result.ok && !result.installedVersion.empty());

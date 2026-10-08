@@ -83,7 +83,7 @@ bool HiddenFrom(const Path& directory) noexcept {
     } catch (...) { return false; }
 }
 
-bool KnownChannel(std::string_view channel) { return channel == "stable" || channel == "prerelease"; }
+bool KnownChannel(std::string_view channel) { return channel == "stable" || channel == "prerelease" || channel == "nightly"; }
 std::string ChannelFrom(const Path& directory) noexcept {
     try {
         const Json value = LoadValid(directory);

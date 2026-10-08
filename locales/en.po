@@ -139,10 +139,16 @@ msgid "updates.channel.stable"
 msgstr "Stable"
 
 msgid "updates.channel.prerelease"
-msgstr "Pre-release"
+msgstr "Beta"
+
+msgid "updates.channel.nightly"
+msgstr "Nightly"
+
+msgid "updates.channel.nightly_detail"
+msgstr "Daily test builds with the newest features. They may break. You can only play rooms with other Nightly players, and replays or combos saved on Nightly may not open after going back."
 
 msgid "updates.channel_detail"
-msgstr "Stable offers finished releases only. Pre-release also offers beta and release-candidate builds, which may have more problems. Everyone you play with needs the same version."
+msgstr "Stable offers finished releases only. Beta also offers beta and release-candidate builds, which may have more problems. Everyone you play with needs the same version."
 
 msgid "updates.installed_version"
 msgstr "Installed version"
@@ -210,8 +216,8 @@ msgstr "Opening the updater..."
 msgid "services.update_available"
 msgstr "An update is available: {0}"
 
-msgid "services.stable_available"
-msgstr "Stable release {0} is available. Installing it replaces the pre-release you have."
+msgid "services.go_back_available"
+msgstr "Going back to {0} is available"
 
 
 msgid "services.up_to_date"

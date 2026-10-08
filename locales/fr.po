@@ -141,6 +141,12 @@ msgstr "Stable"
 msgid "updates.channel.prerelease"
 msgstr "Préversion"
 
+msgid "updates.channel.nightly"
+msgstr "Nightly"
+
+msgid "updates.channel.nightly_detail"
+msgstr "Daily test builds with the newest features. They may break. You can only play rooms with other Nightly players, and replays or combos saved on Nightly may not open after going back."
+
 msgid "updates.channel_detail"
 msgstr "Stable ne propose que les versions finales. Préversion propose aussi les versions bêta et candidates, qui peuvent comporter plus de problèmes. Toutes les personnes avec qui vous jouez doivent avoir la même version."
 
@@ -210,8 +216,8 @@ msgstr "Lancement de la mise à jour..."
 msgid "services.update_available"
 msgstr "Mise à jour disponible : {0}"
 
-msgid "services.stable_available"
-msgstr "La version stable {0} est disponible. L'installer remplace la préversion que vous avez."
+msgid "services.go_back_available"
+msgstr "Going back to {0} is available"
 
 
 msgid "services.up_to_date"

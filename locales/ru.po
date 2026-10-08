@@ -141,6 +141,12 @@ msgstr "Стабильный"
 msgid "updates.channel.prerelease"
 msgstr "Предварительные версии"
 
+msgid "updates.channel.nightly"
+msgstr "Nightly"
+
+msgid "updates.channel.nightly_detail"
+msgstr "Daily test builds with the newest features. They may break. You can only play rooms with other Nightly players, and replays or combos saved on Nightly may not open after going back."
+
 msgid "updates.channel_detail"
 msgstr "Стабильный канал предлагает только готовые выпуски. Предварительные версии включают также бета-версии и кандидаты в релиз, в которых может быть больше проблем. Всем, с кем вы играете, нужна та же версия."
 
@@ -210,8 +216,8 @@ msgstr "Запуск обновления..."
 msgid "services.update_available"
 msgstr "Доступно обновление: {0}"
 
-msgid "services.stable_available"
-msgstr "Доступна стабильная версия {0}. Её установка заменит вашу предварительную версию."
+msgid "services.go_back_available"
+msgstr "Going back to {0} is available"
 
 
 msgid "services.up_to_date"

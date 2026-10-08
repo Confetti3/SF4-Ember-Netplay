@@ -141,6 +141,12 @@ msgstr "Stabilní"
 msgid "updates.channel.prerelease"
 msgstr "Předběžné verze"
 
+msgid "updates.channel.nightly"
+msgstr "Nightly"
+
+msgid "updates.channel.nightly_detail"
+msgstr "Daily test builds with the newest features. They may break. You can only play rooms with other Nightly players, and replays or combos saved on Nightly may not open after going back."
+
 msgid "updates.channel_detail"
 msgstr "Stabilní kanál nabízí jen hotová vydání. Předběžné verze zahrnují i beta verze a kandidáty na vydání, které mohou mít více problémů. Všichni, s kým hrajete, potřebují stejnou verzi."
 
@@ -210,8 +216,8 @@ msgstr "Otevírání aktualizátoru..."
 msgid "services.update_available"
 msgstr "K dispozici je aktualizace: {0}"
 
-msgid "services.stable_available"
-msgstr "Je k dispozici stabilní verze {0}. Její instalace nahradí vaši předběžnou verzi."
+msgid "services.go_back_available"
+msgstr "Going back to {0} is available"
 
 
 msgid "services.up_to_date"

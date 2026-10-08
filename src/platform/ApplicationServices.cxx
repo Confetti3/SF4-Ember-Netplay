@@ -86,7 +86,7 @@ void ApplicationServices::Run() {
         }
         try {
             if (action == ServiceAction::SwitchUpdateChannel) {
-                const auto other = next.channel == launcher::UpdateChannel::Stable ? launcher::UpdateChannel::Prerelease : launcher::UpdateChannel::Stable;
+                const auto other = launcher::GetUpdateChannelInfo(next.channel).next;
                 std::string saveError;
                 if (SaveUpdateChannelPreference(launcher::UpdateChannelName(other), saveError)) { next.channel = other; action = ServiceAction::CheckUpdates; }
                 else { next.message = loc::T("common.save_failed"); next.succeeded = false; }
@@ -94,7 +94,7 @@ void ApplicationServices::Run() {
             if (action == ServiceAction::CheckUpdates) {
                 next.update = launcher::CheckForUpdate(next.channel); next.succeeded = next.update.ok;
                 next.message = !next.update.ok ? next.update.error : next.update.goesBack ?
-                    loc::Tf("services.stable_available",next.update.latestVersion) : next.update.updateAvailable ?
+                    loc::Tf("services.go_back_available",next.update.latestVersion) : next.update.updateAvailable ?
                     loc::Tf("services.update_available",next.update.latestVersion) : loc::T("services.up_to_date");
             } else if (action == ServiceAction::ExportDiagnostics) {
                 const auto directory = diagnosticsDirectory_.empty() ? std::filesystem::path(netplay::SettingsStore::DefaultDirectory()) / L"diagnostics" : std::filesystem::path(diagnosticsDirectory_);

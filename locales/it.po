@@ -141,6 +141,12 @@ msgstr "Stabile"
 msgid "updates.channel.prerelease"
 msgstr "Versione preliminare"
 
+msgid "updates.channel.nightly"
+msgstr "Nightly"
+
+msgid "updates.channel.nightly_detail"
+msgstr "Daily test builds with the newest features. They may break. You can only play rooms with other Nightly players, and replays or combos saved on Nightly may not open after going back."
+
 msgid "updates.channel_detail"
 msgstr "Stabile offre solo le versioni definitive. Versione preliminare offre anche le versioni beta e candidate, che possono avere più problemi. Tutti quelli con cui giochi devono avere la stessa versione."
 
@@ -210,8 +216,8 @@ msgstr "Apertura aggiornamento..."
 msgid "services.update_available"
 msgstr "Aggiornamento disponibile: {0}"
 
-msgid "services.stable_available"
-msgstr "La versione stabile {0} è disponibile. Installarla sostituisce la versione preliminare che hai."
+msgid "services.go_back_available"
+msgstr "Going back to {0} is available"
 
 
 msgid "services.up_to_date"

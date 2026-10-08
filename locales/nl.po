@@ -141,6 +141,12 @@ msgstr "Stabiel"
 msgid "updates.channel.prerelease"
 msgstr "Voorlopige versie"
 
+msgid "updates.channel.nightly"
+msgstr "Nightly"
+
+msgid "updates.channel.nightly_detail"
+msgstr "Daily test builds with the newest features. They may break. You can only play rooms with other Nightly players, and replays or combos saved on Nightly may not open after going back."
+
 msgid "updates.channel_detail"
 msgstr "Stabiel biedt alleen afgewerkte versies aan. Voorlopige versie biedt ook bèta- en release-candidateversies aan, die meer problemen kunnen hebben. Iedereen met wie je speelt heeft dezelfde versie nodig."
 
@@ -210,8 +216,8 @@ msgstr "Updater openen..."
 msgid "services.update_available"
 msgstr "Update beschikbaar: {0}"
 
-msgid "services.stable_available"
-msgstr "Stabiele versie {0} is beschikbaar. Installeren vervangt de voorlopige versie die je hebt."
+msgid "services.go_back_available"
+msgstr "Going back to {0} is available"
 
 
 msgid "services.up_to_date"
