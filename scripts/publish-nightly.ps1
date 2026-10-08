@@ -43,6 +43,24 @@ function Get-NightlyReleases {
     return $releases | Sort-Object { [DateTimeOffset]::Parse($_.createdAt) } -Descending
 }
 
+function Get-NightlyLabel([string]$BaseLabel, [string[]]$ExistingTags, [string]$OutDirectory) {
+    $label = $BaseLabel
+    $suffix = 2
+    while ($true) {
+        $destination = Join-Path $OutDirectory "sf4-ember-netplay-$label"
+        $localCollision = $false
+        foreach ($extension in @('', '.zip', '.zip.sha256', '-setup.exe', '-setup.exe.sha256')) {
+            if (Test-Path -LiteralPath "$destination$extension") {
+                $localCollision = $true
+                break
+            }
+        }
+        if ($ExistingTags -notcontains "v$label" -and !$localCollision) { return $label }
+        $label = "$BaseLabel.$suffix"
+        $suffix++
+    }
+}
+
 function ConvertTo-NightlyWslPath([string]$WindowsPath) {
     # Ubuntu uses WSL's default /mnt/<drive> mounts. Convert here so no
     # Windows backslashes ever cross a shell boundary. Reject UNC/relative
@@ -109,9 +127,9 @@ try {
     $tagRefs = Invoke-NightlyRepositoryQuery @('api', "repos/$releaseRepository/git/matching-refs/tags/v$baseLabel", '--paginate', '--jq', '.[].ref') 'Could not check existing Nightly tags.' 'Skipping the remote tag-collision check; the planned tag must be rechecked before publishing.'
     $existingTags = @($tagRefs | ForEach-Object { $_ -replace '^refs/tags/', '' })
     $existingTags += @($publishedReleases | ForEach-Object tagName)
-    $nightlyLabel = $baseLabel
-    $suffix = 2
-    while ($existingTags -contains "v$nightlyLabel") { $nightlyLabel = "$baseLabel.$suffix"; $suffix++ }
+    # Dry runs and failed publication can leave outputs without a remote tag.
+    # Select a free label before building; preserve every existing local output.
+    $nightlyLabel = Get-NightlyLabel $baseLabel $existingTags $outDirectory
     # ParseVersion: three numbers (1..9 digits), word nightly, eight-digit
     # prerelease number, optional .N remainder; see github_release_validation.cxx.
     if ($nightlyLabel -cnotmatch '^[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}-nightly[0-9]{8}(\.[0-9]+)?$') { throw "Invalid Nightly version: $nightlyLabel" }

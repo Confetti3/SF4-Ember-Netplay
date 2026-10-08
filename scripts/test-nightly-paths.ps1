@@ -1,4 +1,4 @@
-# Focused quoting checks only: never execute the publisher or run builds.
+# Focused label and quoting checks: never execute the publisher or run builds.
 param([string]$BashPath = '')
 $ErrorActionPreference = 'Stop'
 $publisher = Join-Path $PSScriptRoot 'publish-nightly.ps1'
@@ -10,6 +10,69 @@ $helper = $ast.Find({ param($node)
 }, $true)
 if (!$helper) { throw 'Missing WSL path converter' }
 . ([scriptblock]::Create($helper.Extent.Text))
+
+$labelHelper = $ast.Find({ param($node)
+    $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-NightlyLabel'
+}, $true)
+if (!$labelHelper) { throw 'Missing Nightly label chooser' }
+. ([scriptblock]::Create($labelHelper.Extent.Text))
+$labelCall = $ast.Find({ param($node)
+    $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -eq 'Get-NightlyLabel'
+}, $true)
+$buildCall = $ast.Find({ param($node)
+    $node -is [Management.Automation.Language.CommandAst] -and $node.Extent.Text -like "*'build-current.ps1'*"
+}, $true)
+if (!$labelCall -or !$buildCall -or $labelCall.Extent.StartOffset -ge $buildCall.Extent.StartOffset) {
+    throw 'Nightly label selection must run before build-current.ps1'
+}
+# Run the actual publisher call with fixed inputs and temporary output fixtures.
+$selectLabel = [scriptblock]::Create($labelCall.Extent.Text)
+$outDirectory = Join-Path ([IO.Path]::GetTempPath()) ("nightly labels [literal] ' " + [Guid]::NewGuid().ToString('N'))
+$baseLabel = '1.2.0-nightly20261008'
+$existingTags = @()
+$fixtures = @()
+try {
+    New-Item -ItemType Directory -Path $outDirectory | Out-Null
+    if ((& $selectLabel) -cne $baseLabel) { throw 'Unused base label was not selected' }
+    $existingTags = @("v$baseLabel", "v$baseLabel.2")
+    if ((& $selectLabel) -cne "$baseLabel.3") { throw 'Remote tag collisions were not skipped' }
+    $existingTags = @()
+    foreach ($extension in @('', '.zip', '.zip.sha256', '-setup.exe', '-setup.exe.sha256')) {
+        $fixture = Join-Path $outDirectory "sf4-ember-netplay-$baseLabel$extension"
+        $fixtures += $fixture
+        if (!$extension) {
+            New-Item -ItemType Directory -Path $fixture | Out-Null
+        } else {
+            Set-Content -LiteralPath $fixture -Value 'preserve existing output'
+        }
+        if ((& $selectLabel) -cne "$baseLabel.2") { throw "Local output collision was not skipped: $extension" }
+        if (!(Test-Path -LiteralPath $fixture)) { throw 'Chooser removed an existing output' }
+        if ($extension -and (Get-Content -LiteralPath $fixture -Raw).Trim() -cne 'preserve existing output') {
+            throw 'Chooser changed an existing output'
+        }
+        Remove-Item -LiteralPath $fixture
+    }
+    # Alternate remote and partial local outputs, including a repeated run.
+    $existingTags = @("v$baseLabel.2", "v$baseLabel.4", "v$baseLabel.7")
+    foreach ($ending in @('', '.3.zip', '.5-setup.exe.sha256')) {
+        $fixture = Join-Path $outDirectory "sf4-ember-netplay-$baseLabel$ending"
+        $fixtures += $fixture
+        Set-Content -LiteralPath $fixture -Value 'preserve existing output'
+    }
+    $firstLabel = & $selectLabel
+    if ($firstLabel -cne "$baseLabel.6") { throw 'Mixed collisions did not select the first free suffix' }
+    $fixture = Join-Path $outDirectory "sf4-ember-netplay-$firstLabel"
+    $fixtures += $fixture
+    New-Item -ItemType Directory -Path $fixture | Out-Null
+    if ((& $selectLabel) -cne "$baseLabel.8") { throw 'Repeated run reused an occupied label' }
+} finally {
+    # Delete only the fixtures created above; no real dist outputs are touched.
+    foreach ($fixture in $fixtures) {
+        if (Test-Path -LiteralPath $fixture) { Remove-Item -LiteralPath $fixture }
+    }
+    if (Test-Path -LiteralPath $outDirectory) { Remove-Item -LiteralPath $outDirectory }
+}
+Write-Output 'PASS Nightly labels skip remote tags and all local outputs, preserve outputs and run before the build'
 
 $cases = @(
     @('C:\Users\Kate\Desktop\sf4\sf4-nightly\dist\nightly-room-hosts\1.2.0-nightly20261008\room-host-src.tgz',
