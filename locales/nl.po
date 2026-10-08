@@ -1327,6 +1327,9 @@ msgstr "Alternatief {0}"
 msgid "selection.alternate_pack"
 msgstr "Alternatief {0} / {1}"
 
+msgid "selection.custom"
+msgstr "Aangepast {0}"
+
 msgid "selection.stage_count"
 msgstr "{0} LEVELS / USFIV"
 

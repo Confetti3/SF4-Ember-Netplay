@@ -1,4 +1,5 @@
 #include "sf4e__CustomContent.hxx"
+#include "../Dimps/Dimps__Selection.hxx"
 
 #include <algorithm>
 #include <array>
@@ -112,6 +113,13 @@ const std::vector<int>& InstalledCostumes(int fighterId) {
 const std::vector<int>& InstalledStages() {
     std::call_once(scanned, Scan);
     return installedStages;
+}
+
+selection::Availability ReadAvailability(int fighterId) {
+    selection::Availability result = Dimps::Selection::ReadAvailability(fighterId);
+    result.customCostumes = InstalledCostumes(fighterId);
+    result.customStages = InstalledStages();
+    return result;
 }
 
 int ApplyStage(int stageId) {

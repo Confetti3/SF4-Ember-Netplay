@@ -1288,6 +1288,9 @@ msgstr "Ultra Combo"
 msgid "selection.ultra_row.detail"
 msgstr "Esquerda e Direita trocam o Ultra aqui. Selecionar mostra cada Ultra com seu comando."
 
+msgid "selection.custom"
+msgstr "Personalizado {0}"
+
 msgid "selection.ultra_double"
 msgstr "Ultra Duplo"
 msgid "selection.ultra_one"

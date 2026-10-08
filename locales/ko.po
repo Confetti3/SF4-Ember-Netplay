@@ -1327,6 +1327,9 @@ msgstr "추가 {0}"
 msgid "selection.alternate_pack"
 msgstr "추가 {0} / {1}"
 
+msgid "selection.custom"
+msgstr "사용자 지정 {0}"
+
 msgid "selection.stage_count"
 msgstr "스테이지 {0}개 / USFIV"
 
