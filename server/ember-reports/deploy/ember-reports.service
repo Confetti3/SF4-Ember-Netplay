@@ -1,0 +1,57 @@
+[Unit]
+Description=Ember opt-in crash and problem reports
+After=network.target
+
+[Service]
+ExecStart=/usr/local/lib/ember-reports/ember-reports /etc/ember-reports/config.json
+User=ember-reports
+# katie can traverse state to reach symbols, but cannot enter dumps/outbox.
+Group=ember-symbols
+SupplementaryGroups=ember-reports
+StateDirectory=ember-reports
+StateDirectoryMode=0710
+WorkingDirectory=/var/lib/ember-reports
+LoadCredential=bugsink_dsn_key:/etc/ember-reports/bugsink_dsn_key
+UMask=0077
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=120
+KillMode=control-group
+OOMPolicy=stop
+
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictAddressFamilies=AF_INET AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged
+IPAddressDeny=any
+IPAddressAllow=localhost
+# The service only reads trusted, owner-uploaded symbols.
+ReadOnlyPaths=/var/lib/ember-reports/symbols
+MemoryMax=512M
+MemorySwapMax=0
+TasksMax=32
+LimitNOFILE=256
+LimitCORE=0
+CPUQuota=100%
+
+[Install]
+WantedBy=multi-user.target

@@ -11,6 +11,7 @@ has too little memory to build.
 | [ember-rooms](ember-rooms) | `ember-rooms`: the public room supervisor; starts one room host per room | [ember-rooms/deploy](ember-rooms/deploy) |
 | [roomhost](roomhost) | `sf4e-room-host`: one public room (C++, shares the session code in `src/`) | built with [roomhost/build-linux.sh](roomhost/build-linux.sh), installed by ember-rooms |
 | [ember-short](ember-short) | `ember-short`: short invitation links and the embernetplay.link pages | [ember-short/deploy](ember-short/deploy) |
+| [ember-reports](ember-reports) | `ember-reports`: opt-in crash/problem reports and local symbolication, forwarded to Bugsink | [ember-reports/deploy](ember-reports/deploy) |
 
 Shared with the game:
 
@@ -30,8 +31,9 @@ More:
 
 ## What travels between the VPS and players
 
-Only coordination reaches the VPS. Match inputs go player to player, directly
-or through the n0 iroh relays, so the VPS never carries gameplay. Updates come
+Coordination and optional diagnostic reports reach the VPS. Match inputs go
+player to player, directly or through the n0 iroh relays, so the VPS never
+carries gameplay. Updates come
 from GitHub releases, not the VPS. The Discord and Twitch room bot is left out.
 
 ```mermaid
