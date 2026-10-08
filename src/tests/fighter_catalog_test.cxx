@@ -222,5 +222,13 @@ int main() {
     CHECK(FindStage(CustomStageFallback(zzz)) && !IsCustomStage(CustomStageFallback(zzz)));
     CHECK(ResolveStage(c12, 0) == c12);
     for (std::uint32_t roll = 0; roll <= 100; ++roll) CHECK(!IsCustomStage(ResolveStage(RandomStageId, roll)));
-    std::cout << "44-fighter catalog, edition restrictions, palette bounds, sparse unlocks, saved-choice repair, custom costumes and custom stages passed\n";
+
+    // Names the setup program gives custom content: display only, kept apart per costume and colour.
+    CHECK(CustomName(0, 70).empty());
+    SetCustomName(0, 70, -1, "Monster Hunter"); SetCustomName(0, 1, 29, "Steel Blue");
+    CHECK(CustomName(0, 70) == "Monster Hunter" && CustomName(0, 1, 29) == "Steel Blue" && CustomName(0, 1).empty() && CustomName(1, 70).empty());
+    CHECK(std::string(FindStage(d12)->name) == "Custom stage D12");
+    SetCustomStageName(d12, "Testing Stage"); SetCustomStageName(1, "Not custom");
+    CHECK(std::string(FindStage(d12)->name) == "Testing Stage" && std::string(FindStage(1)->name) == "Crowded Downtown");
+    std::cout << "44-fighter catalog, edition restrictions, palette bounds, sparse unlocks, saved-choice repair, custom costumes, stages and names passed\n";
 }

@@ -17,6 +17,9 @@ int NormalizeStage(std::int64_t nativeId);
 int CustomStageId(const char* code);   // -1 for anything but a custom code
 bool IsCustomStage(std::int64_t id);
 int CustomStageFallback(std::int64_t id);
+// The name the setup program gives a custom stage installed on this PC (sf4e::custom reads it), instead of
+// "Custom stage C12". Display only, at most 63 bytes.
+void SetCustomStageName(std::int64_t id, const char* name);
 // A local choice only, like the 255 sentinel used for personal action and win
 // quote. P1 resolves it to a catalog stage before the stage is sent, so it is
 // never valid on the wire and FindStage, NormalizeStage and ReadStage reject it.

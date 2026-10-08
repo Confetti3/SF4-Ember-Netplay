@@ -77,6 +77,10 @@ constexpr int FirstCustomColor = 29;
 inline bool IsCustomColor(int colorId) { return colorId >= FirstCustomColor && colorId < CostumeLimit; }
 // The costume's own colours, or a custom colour of one of the game's costumes.
 bool ColorInRange(int fighterId, int costumeId, int colorId);
+// The names the setup program gives the custom costumes (colorId -1) and colours installed on this PC
+// (sf4e::custom reads them); empty for none. Display only: each PC names what it has.
+void SetCustomName(int fighterId, int costumeId, int colorId, const std::string& name);
+std::string CustomName(int fighterId, int costumeId, int colorId = -1);
 
 int BaseCostumeCount(int fighterId);
 int CostumeCount(int fighterId);      // the game's own costumes

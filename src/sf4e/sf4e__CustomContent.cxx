@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <array>
+#include <fstream>
 #include <mutex>
 #include <string>
 
@@ -75,6 +76,22 @@ const char* __cdecl LoaderStageCode(int stageId) {
     return stageCode(stageId);
 }
 
+// The name the setup program gives an item: the first line of the .txt beside it (UTF-8), at most 40 bytes.
+std::string ReadName(const std::wstring& file) {
+    std::ifstream in(file, std::ios::binary);
+    std::string line;
+    if (!in || !std::getline(in, line)) return {};
+    if (line.compare(0, 3, "\xEF\xBB\xBF") == 0) line.erase(0, 3);
+    line.erase(std::remove_if(line.begin(), line.end(), [](char c) { return c >= 0 && c < ' '; }), line.end());
+    if (line.size() > 40) {
+        std::size_t cut = 40;
+        while (cut > 0 && (line[cut] & 0xC0) == 0x80) cut--;
+        line.resize(cut);
+    }
+    while (!line.empty() && line.back() == ' ') line.pop_back();
+    return line;
+}
+
 void Scan() {
     wchar_t ignore[8] = {};
     if (GetEnvironmentVariableW(L"SF4E_IGNORE_CUSTOM", ignore, 8) && ignore[0] && ignore[0] != L'0') {
@@ -93,9 +110,10 @@ void Scan() {
         const std::wstring chr(code.begin(), code.end());
         for (int costume = selection::FirstCustomCostume; costume < selection::CostumeLimit; costume++) {
             const int slot = costume + 1;
-            const std::wstring file = root + chr + L"\\" + chr + L"_" + std::to_wstring(slot / 10) +
-                                      std::to_wstring(slot % 10) + L".obj.emo";
-            if (GetFileAttributesW(file.c_str()) != INVALID_FILE_ATTRIBUTES) installed[id].push_back(costume);
+            const std::wstring stem = root + chr + L"\\" + chr + L"_" + std::to_wstring(slot / 10) + std::to_wstring(slot % 10);
+            if (GetFileAttributesW((stem + L".obj.emo").c_str()) == INVALID_FILE_ATTRIBUTES) continue;
+            installed[id].push_back(costume);
+            selection::SetCustomName(id, costume, -1, ReadName(stem + L".txt"));
         }
         total += static_cast<int>(installed[id].size());
         // Custom colours of the game's costumes: <CHR>_<CC>_<NN>.col.emb with NN 30..99.
@@ -107,8 +125,9 @@ void Scan() {
             const auto digit = [&](int at) { return name[at] >= L'0' && name[at] <= L'9'; };
             if (name.size() != 17 || !digit(4) || !digit(5) || !digit(7) || !digit(8)) continue;
             const int costume = (name[4] - L'0') * 10 + (name[5] - L'0') - 1, colorId = (name[7] - L'0') * 10 + (name[8] - L'0') - 1;
-            if (costume >= 0 && costume < selection::CostumeCount(id) && selection::IsCustomColor(colorId))
-                installedColors[id][costume].push_back(colorId);
+            if (costume < 0 || costume >= selection::CostumeCount(id) || !selection::IsCustomColor(colorId)) continue;
+            installedColors[id][costume].push_back(colorId);
+            selection::SetCustomName(id, costume, colorId, ReadName(root + chr + L"\\" + name.substr(0, 9) + L".txt"));
         } while (FindNextFileW(colors, &color));
         FindClose(colors);
         for (auto& list : installedColors[id]) std::sort(list.begin(), list.end());
@@ -123,7 +142,9 @@ void Scan() {
             if (name.size() != 11 || name[4] > 127 || name[5] > 127 || name[6] > 127) continue;
             const char code[4] = {static_cast<char>(name[4]), static_cast<char>(name[5]), static_cast<char>(name[6]), 0};
             const int id = selection::CustomStageId(code);
-            if (id >= 0) installedStages.push_back(id);
+            if (id < 0) continue;
+            installedStages.push_back(id);
+            selection::SetCustomStageName(id, ReadName(battle + L"stage\\" + name.substr(0, 7) + L".txt").c_str());
         } while (FindNextFileW(search, &found));
         FindClose(search);
     }

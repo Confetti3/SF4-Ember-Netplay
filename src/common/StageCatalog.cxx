@@ -51,24 +51,32 @@ constexpr int FallbackCount = sizeof(customFallbacks) / sizeof(customFallbacks[0
 const char* const gameCodes[] = {"TRN", "CHN", "USA", "RUS", "BRA", "AFR", "VIE", "EUR", "RVR", "VCN", "SCO", "JPN", "LAB",
     "IND", "KOR", "BLD", "CNX", "BRX", "VNX", "JPX", "AFX", "LBX", "GAS", "SCX", "DET", "ELV", "HFP", "MAD", "BFU", "JUR"};
 bool CodeCharacter(char c) { return (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'); }
-// A lasting Stage for any custom id, made the first time it is asked for.
-const Stage* CustomStage(std::int64_t id) {
-    if (!IsCustomStage(id)) return nullptr;
-    struct Entry { char code[4]; char name[24]; Stage stage; };
-    static std::mutex lock;
-    static std::map<std::int64_t, std::unique_ptr<Entry>> made;
-    std::lock_guard<std::mutex> hold(lock);
-    auto& entry = made[id];
+// A lasting Stage for any custom id, made the first time it is asked for (customLock held).
+struct CustomEntry { char code[4]; char name[64]; Stage stage; };
+std::mutex customLock;
+std::map<std::int64_t, std::unique_ptr<CustomEntry>> customMade;
+CustomEntry* CustomStageEntry(std::int64_t id) {
+    auto& entry = customMade[id];
     if (!entry) {
-        entry.reset(new Entry());
+        entry.reset(new CustomEntry());
         entry->code[0] = static_cast<char>(id >> 16);
         entry->code[1] = static_cast<char>(id >> 8 & 0xff);
         entry->code[2] = static_cast<char>(id & 0xff);
         std::snprintf(entry->name, sizeof(entry->name), "Custom stage %s", entry->code);
         entry->stage = {static_cast<int>(id), entry->code, entry->name};
     }
-    return &entry->stage;
+    return entry.get();
 }
+const Stage* CustomStage(std::int64_t id) {
+    if (!IsCustomStage(id)) return nullptr;
+    std::lock_guard<std::mutex> hold(customLock);
+    return &CustomStageEntry(id)->stage;
+}
+}
+void SetCustomStageName(std::int64_t id, const char* name) {
+    if (!IsCustomStage(id) || !name || !*name) return;
+    std::lock_guard<std::mutex> hold(customLock);
+    std::snprintf(CustomStageEntry(id)->name, sizeof(CustomEntry::name), "%s", name);
 }
 int CustomStageId(const char* code) {
     if (!code || std::strlen(code) != 3 || !CodeCharacter(code[0]) || !CodeCharacter(code[1]) || !CodeCharacter(code[2])) return -1;

@@ -1,6 +1,9 @@
 #include "FighterCatalog.hxx"
 #include <algorithm>
+#include <map>
+#include <mutex>
 #include <sstream>
+#include <tuple>
 
 namespace sf4e { namespace selection {
 namespace {
@@ -215,6 +218,19 @@ std::vector<int> AllowedColors(int fighterId, int costumeId, const Availability&
 // The costume's own colours, or a custom colour of one of the game's costumes.
 bool ColorInRange(int fighterId, int costumeId, int color) {
     return color >= 0 && (color < ColorCount(fighterId, costumeId) || (IsCustomColor(color) && !IsCustomCostume(costumeId)));
+}
+namespace {
+std::mutex customNamesLock;
+std::map<std::tuple<int, int, int>, std::string> customNames;
+}
+void SetCustomName(int fighterId, int costumeId, int colorId, const std::string& name) {
+    std::lock_guard<std::mutex> hold(customNamesLock);
+    customNames[std::make_tuple(fighterId, costumeId, colorId)] = name;
+}
+std::string CustomName(int fighterId, int costumeId, int colorId) {
+    std::lock_guard<std::mutex> hold(customNamesLock);
+    const auto found = customNames.find(std::make_tuple(fighterId, costumeId, colorId));
+    return found == customNames.end() ? std::string() : found->second;
 }
 bool Valid(const Pick& pick, bool editionSelect) {
     // The native menus wrap PA over -1..9 and quotes over -1..10.
