@@ -1,6 +1,6 @@
 #include "../training/ComboBook.hxx"
 #include "../training/ComboEdit.hxx"
-#include "../training/ComboReplay.hxx"
+#include "../training/MoveInputs.hxx"
 #include "../training/RecordingFile.hxx"
 #include "test_support.hxx"
 

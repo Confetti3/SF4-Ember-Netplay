@@ -10,7 +10,7 @@
 #include "ComboGlyphs.hxx"
 #include "ComboBlocks.hxx"
 #include "../training/RecordingFile.hxx"
-#include "../training/ComboReplay.hxx"
+#include "../training/MoveInputs.hxx"
 #include <algorithm>
 #include <cfloat>
 #include <cstdio>

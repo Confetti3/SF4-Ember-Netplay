@@ -373,10 +373,10 @@ const bac::File& FighterScripts(Native* system, unsigned side) {
     wchar_t program[32768] = {};
     GetModuleFileNameW(nullptr, program, 32768);
     const std::string code = fighter->code;
-    const auto folder = combo::CommandFolder(std::filesystem::path(program).parent_path(), code);
+    const auto folder = CommandFolder(std::filesystem::path(program).parent_path(), code);
     std::vector<std::uint8_t> bytes;
     std::string error;
-    if (!combo::ReadFile(folder / (code + ".bac"), bac::MaxBytes, bytes, error) || !bac::Read(bytes.data(), bytes.size(), scriptFiles[side], error))
+    if (!ReadFile(folder / (code + ".bac"), bac::MaxBytes, bytes, error) || !bac::Read(bytes.data(), bytes.size(), scriptFiles[side], error))
         spdlog::warn("Training: no projectile frames for {}: {}", code, error);
     return scriptFiles[side];
 }
