@@ -18,5 +18,10 @@ namespace sf4e {
 		// Game thread, before the native pad update: records the setting and
 		// does what the update's focus gate did, minus the pads when it is on.
 		void BeforePadUpdate(Dimps::Pad::System* system, bool enabled);
+		// For the in-game self-test (sf4e__NetplayRuntime__SelfTest.cxx): the
+		// game is told its window is in front and not minimized from here on,
+		// so a test run goes on behind other windows. Its sound still follows
+		// the setting. Any thread.
+		void KeepActiveForTest();
 	}
 }

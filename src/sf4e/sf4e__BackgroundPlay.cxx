@@ -32,6 +32,8 @@ std::atomic<bool> ready{false};
 // The player's setting, published by each pad update.
 std::atomic<bool> enabled{false};
 std::atomic<bool> exporting{false}, watching{false};
+// A run of the in-game self-test, which no player sits in front of.
+std::atomic<bool> testing{false};
 std::atomic<HWND> gameWindow{nullptr};
 
 bool Active() { return ready.load() && enabled.load(); }
@@ -41,6 +43,7 @@ bool Exporting() { return ready.load() && exporting.load(); }
 bool Watching() {
     return ready.load() && watching.load();
 }
+bool Testing() { return ready.load() && testing.load(); }
 
 const rMain::Win32_WindowData* WindowData() {
     rMain* main = rMain::staticMethods.GetSingleton();
@@ -75,12 +78,12 @@ HWND (WINAPI* soundForeground)() = SoundForeground;
 // match is muted behind another window as before. Otherwise these answer as
 // Windows does.
 HWND WINAPI ActiveForeground() {
-    if (Exporting() || Watching())
+    if (Exporting() || Watching() || Testing())
         if (const HWND window = gameWindow.load()) return window;
     return GetForegroundWindow();
 }
 HWND (WINAPI* activeForeground)() = ActiveForeground;
-BOOL WINAPI ActiveIconic(HWND window) { return Exporting() || Watching() ? FALSE : IsIconic(window); }
+BOOL WINAPI ActiveIconic(HWND window) { return Exporting() || Watching() || Testing() ? FALSE : IsIconic(window); }
 BOOL WINAPI SoundIconic(HWND window) { return Exporting() ? FALSE : IsIconic(window); }
 BOOL (WINAPI* windowIconic[2])(HWND) = { ActiveIconic, SoundIconic };
 
@@ -167,6 +170,8 @@ void sf4e::BackgroundPlay::Activate() {
     unavailable = nullptr;
     ready.store(true);
 }
+
+void sf4e::BackgroundPlay::KeepActiveForTest() { testing.store(true); }
 
 void sf4e::BackgroundPlay::BeforePadUpdate(rPad::System* system, bool on) {
     const rMain::Win32_WindowData* const data = WindowData();

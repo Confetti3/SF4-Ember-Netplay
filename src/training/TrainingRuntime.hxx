@@ -32,6 +32,9 @@ bool BeforeMatchFrame(Dimps::Game::Battle::System* system, unsigned& rawOne, uns
 // The part of it that is saved and restored with every frame.
 PracticeState MatchPracticeState();
 void SetMatchPracticeState(const PracticeState& state);
+// For the in-game self-test: lets the lab into an offline Versus battle too,
+// where it otherwise runs in a Training battle only. Game thread.
+void AllowOfflineVersusForTest(bool allowed);
 // Whether the player wants that meter. Any thread.
 void WatchMatches(bool enabled);
 void CloseBattle();
