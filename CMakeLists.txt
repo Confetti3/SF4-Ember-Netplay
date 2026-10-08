@@ -419,21 +419,7 @@ if(BUILD_TESTING)
     target_link_libraries(Win32CursorTest PRIVATE sf4e_ui)
     add_test(NAME Win32Cursor COMMAND Win32CursorTest)
     target_link_libraries(UiRenderTest PRIVATE sf4e_ui "d3d9" "dbghelp" "psapi")
-    add_test(NAME UiRender COMMAND UiRenderTest)
-    # Every fighter now has a portrait (the packaged cutout stands in for the
-    # game's), and sweeping twenty configurations cycles more art than the
-    # 32 MB selection cache holds, so the run decodes it repeatedly. It takes
-    # about five minutes on its own, so it gets the same budget as the locale
-    # sweep.
-    set_tests_properties(UiRender PROPERTIES TIMEOUT 600)
-    # Each translation at three sizes, in its own run so neither sweep nears
-    # its timeout as languages are added.
-    add_test(NAME UiRenderLocales COMMAND UiRenderTest)
-    set_tests_properties(UiRenderLocales PROPERTIES TIMEOUT 600 ENVIRONMENT "SF4E_UI_RENDER_LOCALES=translations")
-    # The atlas rebuild on its own: every language and scale within the atlas
-    # budget, then random player text through many rebuilds.
-    add_test(NAME UiRenderAtlas COMMAND UiRenderTest)
-    set_tests_properties(UiRenderAtlas PROPERTIES TIMEOUT 300 ENVIRONMENT "SF4E_UI_RENDER_ATLAS_STRESS=150")
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_ui_render_tests.cmake")
     add_executable(SelectionArtTest src/tests/selection_art_test.cxx)
     target_compile_definitions(SelectionArtTest PRIVATE SF4E_TEST_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
     target_link_libraries(SelectionArtTest PRIVATE sf4e_ui "d3d9")

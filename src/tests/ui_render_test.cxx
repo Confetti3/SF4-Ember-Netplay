@@ -471,8 +471,17 @@ int main(int argc, char** argv) {
         // English and the padded pseudo locale sweep every size. The
         // UiRenderLocales run sweeps each translation at the tightest, the
         // commonest and a scaled size, which keeps both runs inside their timeouts.
+        // SF4E_UI_RENDER_LOCALES is "[translations][:K/N]". With ":K/N" the run
+        // keeps every Nth locale and size configuration starting at K, so N
+        // runs with K from 0 to N-1 draw each configuration exactly once.
         const char* localeRun = std::getenv("SF4E_UI_RENDER_LOCALES");
-        const bool translations = localeRun && std::string(localeRun) == "translations";
+        const std::string localeSet = localeRun ? localeRun : "";
+        const auto shardAt = localeSet.find(':');
+        const bool translations = localeSet.compare(0, shardAt, "translations") == 0;
+        Require(translations || shardAt == 0 || localeSet.empty(), "SF4E_UI_RENDER_LOCALES names an unknown locale set");
+        int shard = 0, shards = 1;
+        Require(shardAt == std::string::npos || (std::sscanf(localeSet.c_str() + shardAt, ":%d/%d", &shard, &shards) == 2 && shard >= 0 && shard < shards),
+            "SF4E_UI_RENDER_LOCALES shard must be :K/N with K below N");
         // SF4E_UI_RENDER_QUICK=1 is for a quick look at a change: English at 1920x1080 only.
         const char* quickRun = std::getenv("SF4E_UI_RENDER_QUICK");
         const std::string quickMode = quickRun ? quickRun : "";
@@ -482,7 +491,7 @@ int main(int argc, char** argv) {
         const std::vector<Size> sizes = quickMode == "narrow" ? std::vector<Size>{{640,720,1.5f}} : quick ? std::vector<Size>{{1920,1080,1}} : translations ?
             std::vector<Size>{{640,720,1.5f}, {1280,720,1}, {1920,1080,1.5f}} :
             std::vector<Size>{{1280,720,1}, {1920,1080,1}, {1920,1080,1.25f}, {1920,1080,1.5f}, {2560,1440,1.5f}, {640,720,1.5f}, {3440,1440,1}, {3840,2160,1}, {3840,2160,1.5f}, {1280,720,2}};
-        int frames = 0;
+        int frames = 0, configurations = 0, swept = 0;
         // Overflows are collected rather than thrown, so one run lists every
         // row a translation needs shortened, with the locale and size it hit.
         std::string probeContext;
@@ -503,6 +512,8 @@ int main(int argc, char** argv) {
           if(localePass.locale<0)sf4e::loc::testing::SetPseudoActive();
           else sf4e::loc::SetActive(static_cast<sf4e::loc::Locale>(localePass.locale));
         for(const auto size:sizes) {
+            if(configurations++%shards!=shard)continue;
+            ++swept;
             using namespace sf4e;using namespace ui;
             std::printf("UI viewport %dx%d at %.0f%% DPI\n",size.w,size.h,size.dpi*100);std::fflush(stdout);
             probeContext=localePass.name+" "+std::to_string(size.w)+"x"+std::to_string(size.h)+"@"+std::to_string(static_cast<int>(size.dpi*100))+"%";
@@ -1001,13 +1012,14 @@ int main(int argc, char** argv) {
         }
         sf4e::loc::SetActive(sf4e::loc::Locale::En);
         sf4e::ui::SetMenuTextProbe({});
+        Require(swept>0,"This shard has no configuration to draw");
         if(!overflows.empty()){
             for(const auto& overflow:overflows)std::fprintf(stderr,"Menu overflow: %s\n",overflow.c_str());
             std::fprintf(stderr,"UI render check failed: %d menu rows overflow\n",static_cast<int>(overflows.size()));
             return 1;
         }
-        std::printf("Localized controller-first UI render checks passed: %d DX9 frames across %d locale/viewport/DPI configurations.\n",
-            frames,static_cast<int>(localePasses.size()*sizes.size()));
+        std::printf("Localized controller-first UI render checks passed: %d DX9 frames across %d of %d locale/viewport/DPI configurations (shard %d of %d).\n",
+            frames,swept,configurations,shard,shards);
         return 0;
     }catch(const std::exception& error){std::fprintf(stderr,"UI render check failed: %s\n",error.what());return 1;}
 }
