@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.20)
+cmake_minimum_required (VERSION 3.26)
 
 include("${CMAKE_SOURCE_DIR}/cmake/sf4e_version.cmake")
 
@@ -983,16 +983,17 @@ install(FILES "src/ui/backends/LICENSE.txt" DESTINATION "notices" RENAME "Dear-I
 install(DIRECTORY "assets/selection" DESTINATION "assets" COMPONENT SelectionReferences OPTIONAL
     FILES_MATCHING PATTERN "*.png" PATTERN "*.jpg" PATTERN "*.json" PATTERN "*.md"
     REGEX "/color-[0-9]+\\.(png|jpg)$" EXCLUDE)
-# Keep local builds self-contained when references have been fetched. Copy on
-# each build because image-only changes do not cause Sidecar to relink.
+# Keep local builds self-contained when references have been fetched. Compare
+# on each build because image-only changes do not cause Sidecar to relink, and
+# write only the files whose content changed.
 add_custom_target(SelectionAssets
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/assets/selection" "$<TARGET_FILE_DIR:Sidecar>/assets/selection"
     # The menu art and button prompts the install step ships, so a launch from
     # the build folder does not fall back to text glyphs.
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/assets/brand" "$<TARGET_FILE_DIR:Sidecar>/assets/brand"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/assets/input" "$<TARGET_FILE_DIR:Sidecar>/assets/input"
     VERBATIM)
 add_dependencies(Sidecar SelectionAssets)
