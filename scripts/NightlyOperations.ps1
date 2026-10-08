@@ -24,7 +24,9 @@ function Test-NightlyTag([string]$Tag) {
 
 function Select-NightlyReleases([object[]]$Releases) {
     return $Releases | Where-Object { Test-NightlyTag $_.tagName } |
-        Sort-Object { [DateTimeOffset]::Parse($_.createdAt) } -Descending
+        # A cast, not Parse: ConvertFrom-Json hands a DateTime, and Parse would read
+        # its text by the PC's culture, which swaps or refuses day and month where days come first.
+        Sort-Object { [DateTimeOffset]$_.createdAt } -Descending
 }
 
 function Invoke-NightlyRepositoryQuery([string]$Repository, [string[]]$Arguments,

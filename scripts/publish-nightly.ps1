@@ -20,7 +20,7 @@ $locationPushed = $false
 try {
     # Also protect manually started runs, not just the scheduled task.
     $runLock = [IO.File]::Open((Join-Path $outDirectory 'nightly.lock'), 'OpenOrCreate', 'ReadWrite', 'None')
-    Start-Transcript -LiteralPath (Join-Path $logDirectory "$(Get-Date -Format yyyyMMdd-HHmmss).log") -Append | Out-Null
+    Start-Transcript -LiteralPath (Join-Path $logDirectory "$((Get-Date).ToString('yyyyMMdd-HHmmss', [cultureinfo]::InvariantCulture)).log") -Append | Out-Null
     $transcriptStarted = $true
     Push-Location $checkoutRoot
     $locationPushed = $true
@@ -94,7 +94,7 @@ try {
     if ($versionLines.Count -ne 1 -or $versionLines[0].Trim() -notmatch '^VERSION ([0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9})$') {
         throw 'Expected one VERSION X.Y.Z line in CMakeLists.txt.'
     }
-    $baseLabel = "$($Matches[1])-nightly$([DateTime]::UtcNow.ToString('yyyyMMdd'))"
+    $baseLabel = "$($Matches[1])-nightly$([DateTime]::UtcNow.ToString('yyyyMMdd', [cultureinfo]::InvariantCulture))"
     # Include tags without releases as well. Only a missing or empty repository is
     # tolerated under WhatIf; authentication/network failures still fail.
     $tagRefs = Invoke-NightlyRepositoryQuery $releaseRepository @('api', "repos/$releaseRepository/git/matching-refs/tags/v$baseLabel", '--paginate', '--jq', '.[].ref') 'Could not check existing Nightly tags.' -WhatIf:$WhatIf

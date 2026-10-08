@@ -159,7 +159,7 @@ function Assert-LoadedGgpo([object]$result, [object]$artifact, [string]$label) {
     }
 }
 
-$stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$stamp = (Get-Date).ToString('yyyyMMdd-HHmmss', [cultureinfo]::InvariantCulture)
 $baselineResultPath = Join-Path $resultDirectory "baseline-$stamp.json"
 $candidateResultPath = Join-Path $resultDirectory "candidate-$stamp.json"
 $baseline = Invoke-Benchmark 'baseline' $baselinePath $baselineResultPath $baselineArtifacts

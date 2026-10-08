@@ -1,6 +1,7 @@
 # Ledger H-012: the capture validator must refuse a capture whose usable
 # intervals cover only a small part of its intended length.
 $ErrorActionPreference='Stop'
+$originalCulture=[cultureinfo]::CurrentCulture
 $script=Join-Path $PSScriptRoot 'capture-frame-pacing.ps1'
 $root=Join-Path ([IO.Path]::GetTempPath()) ('ember-frame-capture-test-'+[Guid]::NewGuid().ToString('N'))
 $null=New-Item -ItemType Directory -Path $root -Force
@@ -8,15 +9,19 @@ function WriteCapture([string]$Path,[int]$Frames,[double]$IntervalMs,[double]$St
     # CPUStartQPCTime is in milliseconds, as PresentMon writes it with --qpc_time_ms;
     # the raw CPUStartQPC column is present too, and must not be preferred.
     $lines=@('Application,ProcessID,SwapChainAddress,CPUStartQPC,CPUStartQPCTime,MsBetweenDisplayChange')
-    for($i=0;$i -lt $Frames;$i++){ $ms=1000+$i*$StepMs; $lines+=('SSFIV.exe,42,0x1,{0},{1},{2}' -f [long]($ms*10000),$ms,$IntervalMs) }
+    for($i=0;$i -lt $Frames;$i++){ $ms=1000+$i*$StepMs; $lines+=[string]::Format([cultureinfo]::InvariantCulture,'SSFIV.exe,42,0x1,{0},{1},{2}',[long]($ms*10000),$ms,$IntervalMs) }
     Set-Content -LiteralPath $Path -Encoding ASCII -Value $lines
 }
 try {
+    # PresentMon CSV and its receipt must not depend on the build PC's culture.
+    [cultureinfo]::CurrentCulture='nl-BE'
     # 60 s at 60 fps: 3600 displayed intervals cover the whole capture.
     $full=Join-Path $root 'full.csv'; WriteCapture $full 3600 16.667
     & $script -CsvPath $full -DurationSeconds 60 | Out-Null
     $receipt=Get-Content -LiteralPath ([IO.Path]::ChangeExtension($full,'.json')) -Raw | ConvertFrom-Json
     if($receipt.coveredSeconds -lt 59 -or $receipt.durationSeconds -ne 60){throw "Full capture receipt is wrong: covered=$($receipt.coveredSeconds)"}
+    if($receipt.samples -ne 3600 -or $receipt.p50Ms -ne 16.667 -or $receipt.p95Ms -ne 16.667 -or $receipt.p99Ms -ne 16.667 -or
+       $receipt.timestampSpanSeconds -ne 60 -or $receipt.over25Ms -ne 0 -or $receipt.over50Ms -ne 0){throw 'Full capture timings are wrong.'}
 
     # A nominal 300 s capture with 40 displayed frames must be refused.
     $sparse=Join-Path $root 'sparse.csv'; WriteCapture $sparse 40 16.667
@@ -40,5 +45,6 @@ try {
     if(!$refused){throw 'A capture with only raw QPC timestamps was accepted.'}
     Write-Host 'Frame capture coverage validation passed.'
 } finally {
+    [cultureinfo]::CurrentCulture=$originalCulture
     Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
 }
