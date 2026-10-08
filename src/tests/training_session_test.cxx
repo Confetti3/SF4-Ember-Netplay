@@ -418,11 +418,12 @@ int main() {
             Require(!counted.View().moves[0].live && counted.View().moves[0].recovery == 4 && !counted.View().meatyValid[0], "A throw's recovery was lost, or a meaty read before any attack");
             step(tick++, 0, 0, 0);
             Require(counted.View().advantage.valid && counted.View().advantage.knockdown && counted.View().advantage.frames[0] == 6, "A throw's knockdown advantage miscounted");
-            // Down again, and an attack that is active 1 frame before the other is up: a meaty.
+            // Down again, and an attack that first is active in the frame before the other is seen up,
+            // the frame it can be hit on: a meaty that meets it with its first active frame.
             for (int down = 0; down < 3; ++down) step(tick++, 0, 0, 19);
             for (float frame : {1.f, 2.f, 3.f, 4.f, 5.f}) step(tick++, 16, frame, 20);
             step(tick++, 16, 6, 0);
-            Require(counted.View().meatyValid[0] && counted.View().meatyFrames[0] == -1 && !counted.View().meatyValid[1], "Meaty timing miscounted");
+            Require(counted.View().meatyValid[0] && counted.View().meatyFrames[0] == 0 && !counted.View().meatyValid[1], "Meaty timing miscounted");
             Require(counted.View().frames.back().fighters[1].wake && !counted.View().frames.back().fighters[0].wake && !counted.View().frames[counted.View().frames.size() - 2].fighters[1].wake, "The first frame up was not marked, or more than it");
         }
         {

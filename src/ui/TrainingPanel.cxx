@@ -148,17 +148,19 @@ void Meter(const MeterView& meter, float hudScale) {
     back = (std::max)(0, (std::min)(back, kept - shownMost));
     const int first = (std::max)(0, kept - shownMost - back);
     // A meaty is an attack whose active frames are already out as the other
-    // gets up: the ones that came before that frame hit nothing and have
-    // passed, and stay red with their count; from that frame on they are the
-    // meaty frames, shown so on the attack's own bar.
+    // gets up. The active frames that passed before it met them are the
+    // meaty frames: each is a frame of advantage the attack gains over
+    // hitting with its first one, and they show so on the attack's own bar.
+    // From the frame it meets them on it is active as any attack is.
     // ponytail: found by walking the kept frames each draw, at most MeterHistory; mark it in the meter if that is ever felt.
     std::vector<char> meaty[2];
     for (int side = 0; side < 2; ++side) {
         meaty[side].assign(static_cast<std::size_t>(kept), 0);
         const auto active = [&](int at) { return ClassifyMeter(meter.frames[at].fighters[side]) == MeterKind::Active; };
-        for (int at = 0; at < kept; ++at) {
-            if (!meter.frames[at].fighters[1 - side].wake || !active(at)) continue;
-            for (int run = at; run < kept && active(run); ++run) meaty[side][run] = 1;
+        for (int at = 1; at < kept; ++at) {
+            // The other is first seen up at `at`: the frame it could be hit on is the one before.
+            if (!meter.frames[at].fighters[1 - side].wake || !active(at - 1)) continue;
+            for (int run = at - 2; run >= 0 && active(run); --run) meaty[side][run] = 1;
         }
     }
     // What was pressed, on a lane of its own beside each bar: Player 1's over
@@ -221,8 +223,9 @@ void Meter(const MeterView& meter, float hudScale) {
             if (i >= count) { quad(i * cell, (i + 1) * cell - 1, IM_COL32(48, 50, 54, 120)); continue; }
             const auto& sample = meter.frames[first + i].fighters[side];
             auto kind = ClassifyMeter(sample);
-            // The frame a fighter is first up from a knockdown, and the other's attack that was active on it.
-            if (sample.wake || meaty[side][first + i]) kind = MeterKind::Meaty;
+            // The frame a fighter can first be hit after a knockdown, one before it is seen up, and the
+            // other's active frames that had passed by then.
+            if ((first + i + 1 < kept && meter.frames[first + i + 1].fighters[side].wake) || meaty[side][first + i]) kind = MeterKind::Meaty;
             // Holding back in a jump near an attack puts the fighter in a guard status, and nothing is guarded in the air.
             if (kind == MeterKind::Guard && sample.status != 22) {
                 int from = first + i;

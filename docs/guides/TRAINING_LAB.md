@@ -47,7 +47,7 @@ Each bar holds up to 120 simulated frames for one fighter, the upper one Player 
 | Red | Damage, blowback or stun |
 | Purple | Bound or down |
 | Light purple | Rise (wakeup) |
-| Bright pink | The first frame a fighter is up from a knockdown, and the other's attack from that frame on while it stays active: a meaty. Its active frames before that frame have passed and stay red, with their count; the Meaty reading is that count, the higher the meatier |
+| Bright pink | The frame a fighter can first be hit after a knockdown, and on the other's bar the active frames of a meaty attack that had already passed by then. Each of those is a frame of advantage gained: an attack that is +2 on block with 3 pink frames is +5. From the frame the attack meets the fighter on it is red as any active frame; the Meaty reading is the count of pink frames |
 | Beige | Throw or cinematic sequence holding both fighters |
 
 Guard posture alone is not proof of blockstun. The native animation frame can pause or change rate while simulation frames continue; the passive bar is not a move-table recovery or total-duration lookup.

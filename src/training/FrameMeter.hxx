@@ -66,7 +66,7 @@ struct FighterSample {
     // Set by the meter, not the game: the thrower, still in a throw's
     // sequence after the fighter it threw has left it.
     bool throwRecovery = false;
-    // Also the meter's: the first frame up from a knockdown, the one a meaty attack is active on.
+    // Also the meter's: the first sample up from a knockdown. The frame a meaty attack meets is the one before it.
     bool wake = false;
     // The pad as the game took it this frame: the fight buttons and
     // directions, in the game's own bits (up 1, down 2, left 4, right 8,
@@ -149,7 +149,8 @@ struct MeterView {
         MeasurementUnavailable::NoAttackBoundary}};
     std::array<BoundaryProvenance, 2> startupBoundaryProvenance{};
     // Meaty timing: the frame this fighter's attack first became active,
-    // counted from the first frame the other was up from a knockdown. 0 meets
+    // counted from the frame the other could first be hit after a knockdown,
+    // one before the first sample that shows them up. 0 meets
     // that frame; -N came N frames early, a meaty with N active frames passed
     // while N is less than the attack's active frames; +N left the other N
     // frames to act in.
@@ -244,7 +245,9 @@ public:
                 if (down && ClassifyStatus(previous.status) != Phase::Down) {
                     wakeAt_[side] = firstActiveAt_[1 - side] = -1; view_.meatyValid[1 - side] = false;
                 }
-                if (sample.wake) { wakeAt_[side] = now; Meaty(1 - side); }
+                // The frame a meaty meets is the one before the fighter is seen up: a status is read
+                // after its update, so the fighter could already be hit in the frame that ended the rise.
+                if (sample.wake) { wakeAt_[side] = now - 1; Meaty(1 - side); }
             }
             if (sample.valid && previous.valid && sample.action >= 0 && sample.action == previous.action &&
                 sample.actionFrame >= previous.actionFrame) ++view_.actionFrames[side];
