@@ -1705,7 +1705,7 @@ void TrialList(const training::View& view, float hudScale) {
         const ImVec4 bad = ImGui::ColorConvertU32ToFloat4(IM_COL32(255, 121, 129, 255));
         // A long combo shows the steps around the one being waited for, as
         // many as fit above the frame meter.
-        const int shown = (std::max)(3, (std::min)(12, static_cast<int>(vp->Size.y * .4f / ImGui::GetTextLineHeightWithSpacing()) - 2));
+        const int shown = (std::max)(3, (std::min)(12, static_cast<int>(vp->Size.y * .35f / ImGui::GetTextLineHeightWithSpacing()) - 2));
         const int first = (std::max)(0, (std::min)(trial.current - shown / 2, count - shown));
         for (int step = first; step < count && step < first + shown; ++step) {
             const auto state = trial.steps[step];
