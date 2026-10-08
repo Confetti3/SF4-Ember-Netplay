@@ -9,10 +9,23 @@ function Get-EmberBuildTarget([string]$SourceRoot) {
         $targetPath = Join-Path $SourceRoot 'build-target.json'
     }
     $target = Get-Content -LiteralPath $targetPath -Raw | ConvertFrom-Json
-    $expected = [IO.Path]::GetFullPath((Join-Path $workspace $target.sourceDirectory)).TrimEnd('\','/')
-    if ($SourceRoot.TrimEnd('\','/') -ne $expected) {
-        throw "Wrong build target: $SourceRoot. Designated source: $expected ($targetPath)"
+    $entries = @([pscustomobject]@{channel='stable';target=$target})
+    foreach ($property in $target.channels.PSObject.Properties) {
+        $entries += [pscustomobject]@{channel=$property.Name;target=$property.Value}
     }
+    $designated = @()
+    $matching = @()
+    foreach ($entry in $entries) {
+        $expected = [IO.Path]::GetFullPath((Join-Path $workspace $entry.target.sourceDirectory)).TrimEnd('\','/')
+        $designated += $expected
+        if ($SourceRoot.TrimEnd('\','/') -eq $expected) { $matching += $entry }
+    }
+    if ($matching.Count -eq 0) {
+        throw "Wrong build target: $SourceRoot. Designated source: $($designated -join ', ') ($targetPath)"
+    }
+    if ($matching.Count -ne 1) { throw "Ambiguous build target: $SourceRoot ($targetPath)" }
+    $target = $matching[0].target
+    $target | Add-Member -NotePropertyName channel -NotePropertyValue $matching[0].channel -Force
     foreach ($relative in @($target.buildDirectory, $target.installDirectory)) {
         $resolved = [IO.Path]::GetFullPath((Join-Path $SourceRoot $relative))
         if (!$resolved.StartsWith($SourceRoot.TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {

@@ -41,3 +41,28 @@ catch { if ($_.Exception.Message -notlike 'Wrong build target:*') { throw } }
 try { Get-EmberBuildTarget $standalone | Out-Null; throw 'Unexpected acceptance' }
 catch { if ($_.Exception.Message -notlike 'Build and stage paths must be inside*') { throw } }
 Write-Output 'PASS standalone target, workspace precedence, wrong-checkout and path-escape guards'
+
+$nightly = Join-Path $fixture 'nightly'
+New-Item -ItemType Directory -Path $nightly | Out-Null
+$designation = @{sourceDirectory='standalone';buildDirectory='build/current';installDirectory='build/current/stage';channels=@{nightly=@{sourceDirectory='nightly';buildDirectory='build/nightly';installDirectory='build/nightly/stage';features=@('fixture')}}}
+$designation | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $fixture 'build-target.json')
+$target = Get-EmberBuildTarget $nightly
+if ($target.channel -ne 'nightly' -or $target.sourceDirectory -ne 'nightly' -or $target.buildDirectory -ne 'build/nightly' -or $target.installDirectory -ne 'build/nightly/stage' -or $target.features[0] -ne 'fixture') { throw 'Channel target failed' }
+Write-Output 'PASS channel target and properties'
+if ((Get-EmberBuildTarget $standalone).channel -ne 'stable') { throw 'Stable target failed' }
+Write-Output 'PASS top-level target remains stable'
+try { Get-EmberBuildTarget $source | Out-Null; throw 'Unexpected acceptance' }
+catch {
+    if ($_.Exception.Message -notlike 'Wrong build target:*' -or !$_.Exception.Message.Contains($standalone) -or !$_.Exception.Message.Contains($nightly)) { throw }
+}
+Write-Output 'PASS unrelated checkout rejected with all designated sources'
+$designation.channels.nightly.buildDirectory = '../outside'
+$designation | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $fixture 'build-target.json')
+try { Get-EmberBuildTarget $nightly | Out-Null; throw 'Unexpected acceptance' }
+catch { if ($_.Exception.Message -notlike 'Build and stage paths must be inside*') { throw } }
+Write-Output 'PASS channel path escape rejected'
+$designation.channels.nightly.sourceDirectory = 'standalone'
+$designation | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $fixture 'build-target.json')
+try { Get-EmberBuildTarget $standalone | Out-Null; throw 'Unexpected acceptance' }
+catch { if ($_.Exception.Message -notlike 'Ambiguous build target:*') { throw } }
+Write-Output 'PASS duplicate checkout designation rejected'
