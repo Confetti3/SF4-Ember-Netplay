@@ -212,8 +212,10 @@ bool ApplyTheme(float dpiScale) {
             merged.FontDataOwnedByAtlas = false;
             merged.GlyphRanges = scriptRanges[font].Data;
             // Dense CJK outlines need no oversampling. The diagnostic font's
-            // extra density is for the scaled match strip; CJK glyphs take it
-            // only up to 2x so a Japanese atlas stays a fraction of the size.
+            // extra density is for the scaled match strip; cap its CJK glyphs
+            // at 2x even at 300% DPI. Baking the whole catalog at that extra
+            // density can double the atlas allocation after height rounding.
+            // Body and heading glyphs still bake at the display's density.
             merged.OversampleH = merged.OversampleV = 1;
             // Noto Sans CJK sets more line space per em than Inter, so at Inter's
             // size its glyphs look small beside Latin text. Matching the line
@@ -225,7 +227,7 @@ bool ApplyTheme(float dpiScale) {
             const float fit = interSpan > 0 && cjkSpan > 0 ? (std::max)(1.f, (std::min)(cjkSpan / interSpan, 1.3f)) : 1.f;
             const float mergedSize = sizes[i] * fit;
             merged.GlyphOffset.y = 0;
-            merged.RasterizerDensity = (std::min)(config.RasterizerDensity, (std::max)(2.f, dpiScale));
+            merged.RasterizerDensity = i == 2 ? (std::min)(config.RasterizerDensity, 2.f) : config.RasterizerDensity;
             std::snprintf(merged.Name, sizeof(merged.Name), "Noto Sans CJK %.0fpx", mergedSize*dpiScale);
             io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(source.data), static_cast<int>(source.bytes), mergedSize, &merged);
         }
