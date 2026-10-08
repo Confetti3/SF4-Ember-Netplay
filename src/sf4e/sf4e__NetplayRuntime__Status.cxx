@@ -384,9 +384,12 @@ PostPublishState Publish() {
     snapshot.trainingCallSequence = runtime->trainingCallSequence; snapshot.trainingReadySequence = runtime->trainingReadySequence;
     snapshot.trainingReadySeconds = static_cast<int>((runtime->trainingCall.Remaining(GetTickCount64()) + 999) / 1000);
     // Training from the room: at the main menu, with no game of the player's
-    // starting or running and no Ready of theirs given or on its way.
+    // starting or running and no Ready of theirs given or on its way. A game
+    // that is over leaves PostMatch behind until the next one, as it does for
+    // a Ready.
     snapshot.canTrain = snapshot.atMainMenu && snapshot.session.room == netplay::RoomState::Joined &&
-        snapshot.session.match == netplay::MatchState::None && snapshot.session.control == netplay::Health::Healthy &&
+        (snapshot.session.match == netplay::MatchState::None || snapshot.session.match == netplay::MatchState::PostMatch) &&
+        snapshot.session.control == netplay::Health::Healthy &&
         !snapshot.session.readyPending && !runtime->readyIntent.Parked() && !runtime->pendingAbort &&
         room::TrainingCall::MayTrain(snapshot.room);
 	FillLockReasons(snapshot);
