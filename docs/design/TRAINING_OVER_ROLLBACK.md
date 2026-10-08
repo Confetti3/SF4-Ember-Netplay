@@ -10,7 +10,7 @@ two machines yet.
 
 - The training lab is offline. `training::BeforeUpdate` takes a battle only
   when it is not network-owned and the game mode is Training. Everything the
-  lab writes (position restore, dummy input, replayed combos, gauge options)
+  lab writes (position restore, dummy input, gauge options)
   is written on one machine.
 - A match over rollback is a Versus battle. Its rules are the lobby's:
   `LobbySettings` allows a round time of 9999 and long round counts, which is
@@ -218,10 +218,9 @@ second it saves. A line under the frame meter names the keys.
 
 ## What stays offline
 
-Dummy recordings, the dummy's replies, replayed combos, trials and the combo
-creator. They drive one fighter from a local script, which over rollback is
-an input source the other side cannot predict or verify. A drill partner is
-the other player.
+Dummy recordings and the dummy's replies. They drive one fighter from a local
+script, which over rollback is an input source the other side cannot predict
+or verify. A drill partner is the other player.
 
 ## For a decision
 
