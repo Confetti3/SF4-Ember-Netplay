@@ -1,4 +1,5 @@
 #include "update/PackageInstaller.hxx"
+#include "update/ProgressWindow.hxx"
 #include "../common/PackageInventory.hxx"
 #include "../platform/Elevation.hxx"
 #include <stdio.h>
@@ -79,50 +80,12 @@ static bool WaitForProcessExit(DWORD pid, DWORD timeoutMs) {
 	return waitResult == WAIT_OBJECT_0;
 }
 
-// A captioned progress bar, so the time between the launcher closing and
-// opening again is not an empty screen. It has no close button: the install
-// is a transaction that finishes or rolls back by itself. It comes to the
-// front once and then is a window like any other, so one that stays longer
-// than it should can be put behind the others. Its own thread keeps
-// it answering Windows while a file copy holds the install. The bar is the
-// whole window and the caption its only text.
-struct ProgressWindow { const wchar_t* title; HANDLE ready; HWND window; };
-constexpr int ProgressBarRange = 1000;
-static DWORD WINAPI RunProgressWindow(void* parameter) {
-	auto* progress = static_cast<ProgressWindow*>(parameter);
-	const int width = 440, height = 72;
-	InitCommonControls();
-	progress->window = CreateWindowExW(0, PROGRESS_CLASSW, progress->title, WS_POPUP | WS_CAPTION | PBS_SMOOTH,
-		(GetSystemMetrics(SM_CXSCREEN) - width) / 2, (GetSystemMetrics(SM_CYSCREEN) - height) / 2, width, height,
-		nullptr, nullptr, nullptr, nullptr);
-	// The launcher starts this process hidden, and Windows applies that to a
-	// process's first ShowWindow whatever it asks for; the second one shows.
-	ShowWindow(progress->window, SW_SHOWNORMAL);
-	ShowWindow(progress->window, SW_SHOWNORMAL);
-	SetForegroundWindow(progress->window);
-	SendMessageW(progress->window, PBM_SETRANGE32, 0, ProgressBarRange);
-	SetEvent(progress->ready);
-	MSG message;
-	while (GetMessageW(&message, nullptr, 0, 0) > 0) DispatchMessageW(&message);
-	return 0;
-}
-// Null when the window could not be made; the install goes on without it.
-static HWND ShowProgressWindow(const wchar_t* title) {
-	static ProgressWindow progress;
-	progress = { title, CreateEventW(nullptr, TRUE, FALSE, nullptr), nullptr };
-	HANDLE thread = progress.ready ? CreateThread(nullptr, 0, RunProgressWindow, &progress, 0, nullptr) : nullptr;
-	if (!thread) return nullptr;
-	WaitForSingleObject(progress.ready, 5000);
-	CloseHandle(thread);
-	return progress.window;
-}
-
 static bool InstallFiles(const wchar_t* staging, const wchar_t* install, HWND bar) {
     std::string error;
     // A package is thousands of file steps; the bar is told only when it
     // would move, so the window's message queue never fills.
     if (sf4e::launcher::InstallPackage(staging, install, error, [bar, shown = -1](std::uint64_t done, std::uint64_t total) mutable {
-        const int position = total ? static_cast<int>(done * ProgressBarRange / total) : 0;
+        const int position = total ? static_cast<int>(done * sf4e::launcher::ProgressWindow::Range / total) : 0;
         if (bar && position != shown) PostMessageW(bar, PBM_SETPOS, shown = position, 0);
         return true;
     })) return true;
@@ -271,9 +234,10 @@ int wmain(int argc, wchar_t** argv) {
 
 	wchar_t title[512] = { 0 };
 	_snwprintf_s(title, _TRUNCATE, L"SF4 Ember Netplay - %s", status);
-	const HWND bar = ShowProgressWindow(title);
+	sf4e::launcher::ProgressWindow progress(title);
 	if (!WaitForProcessExit(waitPid, 30000)) {
 		AppendLog("ERROR: launcher is still running; update cancelled");
+        progress.Close();
         StartLauncher(installDir, L"--updates --update-error");
         return 1;
 	}
@@ -281,7 +245,9 @@ int wmain(int argc, wchar_t** argv) {
 
 	Sleep(500);
 
-	if (!InstallFiles(stagingDir, installDir, bar)) {
+	const bool installed = InstallFiles(stagingDir, installDir, progress.Window());
+	progress.Close();
+	if (!installed) {
         StartLauncher(installDir, L"--updates --update-error");
 		return 1;
 	}

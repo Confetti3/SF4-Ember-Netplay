@@ -30,10 +30,11 @@ std::string Sha256Hex(const std::filesystem::path& file);
 // not change; a file left alone counts its back-up and replace steps as done.
 bool InstallPackage(const std::filesystem::path& staging, const std::filesystem::path& install, std::string& error,
     const PackageProgress& progress = {});
-// Restores an interrupted transaction, or validates and clears a committed one.
-// A file the update left alone has no rollback copy: when one is gone, the
-// rest is still restored, and the failure says the update must be installed
-// again.
+// Observes an interrupted transaction's full target inventory before clearing
+// a finished update, restoring its operations or preserving a replaced folder.
+// An unreadable file keeps the journal for retry. A missing skipped file has
+// no backup: completed operations stay installed, partial ones are restored,
+// and the failure asks for another install. A committed journal is only cleared.
 bool RecoverPackage(const std::filesystem::path& install, std::string& error, bool inspectOnly = false);
 // Removes every file the installed MANIFEST.txt names (whatever version that
 // is), every file this build's inventory names, obsolete ones too, the

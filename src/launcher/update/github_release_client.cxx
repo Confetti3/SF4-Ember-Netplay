@@ -1,4 +1,5 @@
 #include "github_release_client_internal.hxx"
+#include "UpdateHandoff.hxx"
 #include "../../platform/Elevation.hxx"
 #include "../../platform/Utf8.hxx"
 
@@ -739,8 +740,12 @@ namespace launcher {
 		// they belong to. Once the caller has answered false, so does every
 		// later report, whichever part asks.
 		bool go = true;
+		std::uint64_t preparedDone = 0, preparedTotal = 0;
 		const auto at = [&](UpdateStage step) {
-			return [&, step](std::uint64_t done, std::uint64_t total) { return go = go && (!progress || progress(step, done, total)); };
+			return [&, step](std::uint64_t done, std::uint64_t total) {
+				if (step == UpdateStage::Preparing) { preparedDone = done; preparedTotal = total; }
+				return go = go && (!progress || progress(step, done, total));
+			};
 		};
 		std::string downloadError;
 		AppendUpdateLog("DownloadAndApplyUpdate start");
@@ -836,7 +841,6 @@ namespace launcher {
 		}
 		AppendUpdateLog("package validation ok");
 
-        if (!go) { result.error = loc::T("update.cancelled"); return result; }
         if (IsGameProcessRunning()) { result.error = loc::T("update.close_game"); return result; }
 		wchar_t updaterParams[4096] = { 0 };
 		// An Updater.exe from before -Status ignores it. The text is ours, but
@@ -845,7 +849,11 @@ namespace launcher {
 		std::replace(status.begin(), status.end(), L'"', L'\'');
 		swprintf_s(updaterParams, L"-InstallDir \"%s\" -StagingDir \"%s\" -WaitPid %lu -Status \"%s\"",
 			installDir, stagingDir, GetCurrentProcessId(), status.c_str());
-        switch (SpawnUpdater(installDir, goBack ? installDir : stagingDir, updaterParams)) {
+        SpawnResult spawned = SpawnResult::Failed;
+        if (!HandoffPreparedUpdate(at(UpdateStage::Preparing), preparedDone, preparedTotal, [&] {
+            spawned = SpawnUpdater(installDir, goBack ? installDir : stagingDir, updaterParams);
+        })) { result.error = loc::T("update.cancelled"); return result; }
+        switch (spawned) {
         case SpawnResult::Started: break;
         case SpawnResult::NotNormalUser: result.error = loc::T("update.elevated"); return result;
         default: result.error = loc::T("update.updater_start_failed"); return result;

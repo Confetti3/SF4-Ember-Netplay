@@ -19,6 +19,10 @@
 #include <mutex>
 #include <optional>
 #include <thread>
+#include <exception>
+#include <stdexcept>
+#include <system_error>
+#include <utility>
 
 namespace sf4e { namespace launcher {
 namespace {
@@ -206,8 +210,90 @@ bool SetAsideJournal(const fs::path& transactionPath) noexcept {
     return MoveFileExW(transactionPath.c_str(),(transactionPath.wstring()+L".failed").c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH) ||
         DeleteFileW(transactionPath.c_str());
 }
-// `ownRollback`: InstallPackage undoing its own failed install, so the folder
-// is known to hold only its partial work and is always restored.
+struct RecoveryFile {
+    fs::path relative;
+    std::optional<std::string> target, prior;
+    bool operation=false;
+    enum class State { Matching, Missing, Different, Unreadable } state=State::Unreadable;
+    std::string current;
+    bool AtTarget() const { return target ? state==State::Matching : state==State::Missing; }
+    bool AtPrior() const { return prior ? !current.empty()&&SameHash(current,*prior) : state==State::Missing; }
+};
+struct InvalidRecoveryEvidence : std::runtime_error { using std::runtime_error::runtime_error; };
+// Check every available backup before any destination changes. A missing
+// backup matters only when restoration is needed; an unreadable one can be
+// retried, whereas bytes that disagree with the journal cannot be trusted.
+void ValidateRecoveryBackups(const fs::path& backup, const std::map<std::wstring,RecoveryFile>& files, bool requireAll) {
+    for(const auto& [key,file]:files) if(file.operation && file.prior) {
+        if(!fs::is_regular_file(backup/file.relative)) {
+            if(requireAll) throw InvalidRecoveryEvidence("Update backup is missing or damaged");
+        } else if(!SameHash(HashFile(backup/file.relative),*file.prior))
+            throw InvalidRecoveryEvidence("Update backup is missing or damaged");
+    }
+}
+// Restore only recorded operations, after validating their complete backup
+// set. Files left out of the transaction remain exactly as the player left
+// them, even when they changed while this install was running.
+void RestoreOperations(const fs::path& install, const fs::path& backup, const std::map<std::wstring,RecoveryFile>& files) {
+    ValidateRecoveryBackups(backup,files,true);
+    for(const auto& [key,file]:files) if(file.operation) {
+        const auto path=install/file.relative;
+        if(fs::is_directory(path)) throw std::runtime_error("Recovery destination is not a file");
+    }
+    for(const auto& [key,file]:files) if(file.operation) {
+        const auto path=install/file.relative;
+        if(file.prior) {
+            // An untouched file may still be held open and needs no write.
+            if(fs::is_regular_file(path) && SameHash(HashFile(path),*file.prior)) continue;
+            ReplaceFileVerified(backup/file.relative,path,*file.prior);
+        } else fs::remove(path);
+    }
+    for(const auto& [key,file]:files) if(file.operation) {
+        const auto path=install/file.relative;
+        if(file.prior) {
+            if(!fs::is_regular_file(path) || !SameHash(HashFile(path),*file.prior))
+                throw std::runtime_error("Restored update file failed verification");
+        } else if(fs::exists(path)) throw std::runtime_error("New update file could not be removed during recovery");
+    }
+}
+void ObserveRecoveryFiles(const fs::path& install, std::map<std::wstring,RecoveryFile>& files) {
+    for(auto& [key,file]:files) {
+        std::error_code error;
+        const auto status=fs::status(install/file.relative,error);
+        if(error && error!=std::errc::no_such_file_or_directory) continue;
+        if(!fs::exists(status)) { file.state=RecoveryFile::State::Missing; continue; }
+        if(!fs::is_regular_file(status)) { file.state=RecoveryFile::State::Different; continue; }
+        try {
+            file.current=HashFile(install/file.relative);
+            file.state=file.target&&SameHash(file.current,*file.target)?RecoveryFile::State::Matching:RecoveryFile::State::Different;
+        } catch(const std::exception&) { file.state=RecoveryFile::State::Unreadable; }
+    }
+}
+enum class RecoveryOutcome { Completed, Restore, PreserveReplaced, RepairNeeded };
+struct RecoveryObservation {
+    bool operationsComplete=true, targetComplete=true, replaced=false;
+    fs::path missing;
+};
+RecoveryObservation ClassifyRecovery(const std::map<std::wstring,RecoveryFile>& files) {
+    RecoveryObservation observation;
+    for(const auto& [key,file]:files) {
+        if(file.state==RecoveryFile::State::Unreadable)
+            throw std::runtime_error("Cannot read update file during recovery: "+file.relative.generic_string());
+        if(file.operation) observation.operationsComplete=observation.operationsComplete&&file.AtTarget();
+        if(file.target) observation.targetComplete=observation.targetComplete&&file.AtTarget();
+        observation.replaced=observation.replaced||(file.state==RecoveryFile::State::Different && (!file.operation || !file.AtPrior()));
+        if(!file.operation && file.state==RecoveryFile::State::Missing && observation.missing.empty()) observation.missing=file.relative;
+    }
+    return observation;
+}
+RecoveryOutcome RecoveryDecision(const RecoveryObservation& observation) {
+    if(observation.replaced) return RecoveryOutcome::PreserveReplaced;
+    if(!observation.operationsComplete) return RecoveryOutcome::Restore;
+    return observation.targetComplete?RecoveryOutcome::Completed:RecoveryOutcome::RepairNeeded;
+}
+// An install undoing its own failure restores its operations directly.
+// Startup recovery observes all targets before deciding whether it still
+// owns a partial update or the folder has been replaced since.
 bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly, bool ownRollback = false) {
     const auto transactionPath=install/TransactionName;
     CheckPath(install,TransactionName);
@@ -219,7 +305,11 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
     // journal, since a later attempt can still finish the restore.
     bool validating=true;
     try {
-        std::ifstream stream(transactionPath); json transaction; stream>>transaction;
+        std::ifstream stream(transactionPath);
+        if(!stream) { validating=false; throw std::runtime_error("Cannot read the pending update transaction"); }
+        json transaction;
+        try { stream>>transaction; }
+        catch(...) { if(stream.bad()) validating=false; throw; }
         if(transaction.value("schema",0)!=1 || PathKey(fs::u8path(transaction.value("installation",std::string())))!=PathKey(install) ||
             (transaction.value("state",std::string())!="prepared" && transaction.value("state",std::string())!="committed") ||
             !transaction.at("operations").is_array() || transaction.at("operations").empty() || !transaction.at("target").is_object())
@@ -233,11 +323,11 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
         // target, so only its removal failed. Files that differ now were
         // changed afterwards, by the player; they are not ours to undo.
         const bool committed=transaction.at("state")=="committed";
-        std::set<std::wstring> seen;
-        std::map<std::wstring,std::pair<fs::path,std::string>> targets;
+        std::map<std::wstring,RecoveryFile> files;
         for(const auto& item:transaction.at("target").items()) {
             const auto relative=fs::u8path(item.key()); CheckPath(install,relative);
-            if(!ValidHash(item.value().get<std::string>()) || !targets.emplace(PathKey(relative),std::make_pair(relative,item.value().get<std::string>())).second)
+            const auto hash=item.value().get<std::string>();
+            if(!ValidHash(hash) || !files.emplace(PathKey(relative),RecoveryFile{relative,hash}).second)
                 throw std::runtime_error("Invalid target inventory");
         }
         // Validate the entire journal before changing any destination. Damaged
@@ -245,88 +335,47 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
         for(const auto& operation:transaction.at("operations")) {
             const auto relative=fs::u8path(operation.at("path").get<std::string>()); CheckPath(install,relative); CheckPath(backup,relative);
             const auto key=PathKey(relative);
-            if(!seen.insert(key).second || key==PathKey(TransactionName) || key==PathKey(LockName) || key.find(L".ember-update-backups") == 0 ||
-                fs::is_directory(install/relative)) throw std::runtime_error("Invalid recovery operation");
+            auto& file=files.try_emplace(key,RecoveryFile{relative}).first->second;
+            if(file.operation || key==PathKey(TransactionName) || key==PathKey(LockName) || key.find(L".ember-update-backups") == 0)
+                throw std::runtime_error("Invalid recovery operation");
             const bool existed=operation.at("existed").get<bool>();
             const auto prior=operation.at("priorSha256").get<std::string>();
             if((existed && !ValidHash(prior)) || (!existed && !prior.empty())) throw std::runtime_error("Invalid prior hash");
-            // A backup that disagrees with its journal entry means damaged
-            // evidence, not a folder the player replaced.
-            if(!committed && existed && fs::is_regular_file(backup/relative) && !SameHash(HashFile(backup/relative),prior))
-                throw std::runtime_error("Update backup is missing or damaged");
+            file.operation=true;
+            if(existed) file.prior=prior;
         }
-        // A prepared journal restores only a half-applied update. If every file
-        // already matches the target, the update finished. If any file matches
-        // neither the prior nor the target bytes, the folder was replaced since,
-        // such as by extracting a package over it, and restoring the old backup
-        // would silently downgrade it. A missing file (antivirus, say) is not
-        // such evidence and is restored.
         validating=false;
-        // The target's files the update left alone, since they already were
-        // the package's: in no operation, so with no backup, and at their
-        // prior bytes and their target bytes at once.
-        std::vector<fs::path> skipped; std::vector<std::string> skippedHashes;
-        for(const auto& [key,named]:targets) if(!seen.count(key)) { skipped.push_back(install/named.first); skippedHashes.push_back(named.second); }
-        bool finished=!ownRollback, replaced=false;
-        if(!committed && !ownRollback) for(const auto& operation:transaction.at("operations")) {
-            const fs::path relative=fs::u8path(operation.at("path").get<std::string>());
-            const bool present=fs::is_regular_file(install/relative);
-            const std::string current=present?HashFile(install/relative):std::string();
-            const bool existed=operation.at("existed").get<bool>();
-            const bool atPrior=existed?present&&SameHash(current,operation.at("priorSha256").get<std::string>()):!present;
-            const auto target=targets.find(PathKey(relative));
-            const bool atTarget=target!=targets.end()?present&&SameHash(current,target->second.second):!present;
-            finished=finished&&atTarget;
-            replaced=replaced||(present&&!atPrior&&!atTarget);
-        }
-        if(!committed && !finished && !replaced) {
-            const auto current=HashFiles(skipped,true);
-            for(size_t index=0; index<skipped.size(); ++index) replaced=replaced||(current[index]&&!SameHash(*current[index],skippedHashes[index]));
-        }
-        if(!committed && !finished) {
-            if(replaced) {
-                stream.close();
-                // Reporting success with the journal still in place would make
-                // the Launcher and Updater restart each other forever.
+        stream.close();
+        if(!committed && ownRollback) {
+            RestoreOperations(install,backup,files);
+        } else if(!committed) {
+            ObserveRecoveryFiles(install,files);
+            const auto observation=ClassifyRecovery(files);
+            const auto outcome=RecoveryDecision(observation);
+            if(outcome!=RecoveryOutcome::Restore) ValidateRecoveryBackups(backup,files,false);
+            switch(outcome) {
+            case RecoveryOutcome::PreserveReplaced:
                 if(!SetAsideJournal(transactionPath)) throw std::runtime_error("Cannot clear the pending update transaction");
                 error.clear(); return true;
+            case RecoveryOutcome::Restore:
+                RestoreOperations(install,backup,files);
+                break;
+            case RecoveryOutcome::Completed: break;
+            case RecoveryOutcome::RepairNeeded: break;
             }
-            // A half-applied update needs every backup; one that is missing
-            // can never be restored.
-            for(const auto& operation:transaction.at("operations"))
-                if(operation.at("existed").get<bool>() && !fs::is_regular_file(backup/fs::u8path(operation.at("path").get<std::string>()))) {
-                    validating=true; throw std::runtime_error("Update backup is missing or damaged");
-                }
-            for(const auto& operation:transaction.at("operations")) {
-                const fs::path relative=fs::u8path(operation.at("path").get<std::string>());
-                const auto prior=operation.at("priorSha256").get<std::string>();
-                if(operation.at("existed").get<bool>()) {
-                    // Untouched so far (a removal that failed, say) needs no restore,
-                    // and may still be held open.
-                    if(fs::is_regular_file(install/relative) && SameHash(HashFile(install/relative),prior)) continue;
-                    ReplaceFileVerified(backup/relative,install/relative,prior);
-                } else { fs::remove(install/relative); }
+            // A skipped file has no prior copy. Completed operations stay at
+            // their target; partial operations have been restored above.
+            if(!observation.missing.empty()) {
+                if(!SetAsideJournal(transactionPath)) throw std::runtime_error("Cannot clear the pending update transaction");
+                error="An update file is missing and has no backup; install the update again: "+observation.missing.generic_string();
+                return false;
             }
-            for(const auto& operation:transaction.at("operations")) {
-                const fs::path relative=fs::u8path(operation.at("path").get<std::string>());
-                if(operation.at("existed").get<bool>()) {
-                    if(!fs::is_regular_file(install/relative) || !SameHash(HashFile(install/relative),operation.at("priorSha256").get<std::string>()))
-                        throw std::runtime_error("Restored update file failed verification");
-                } else if(fs::exists(install/relative)) throw std::runtime_error("New update file could not be removed during recovery");
-            }
-        }
-        stream.close();
-        // One of the files left alone that is gone since (an antivirus
-        // quarantine, say) cannot be restored, so the folder is not whole
-        // whichever way the operations went. Everything that could be done is
-        // done; the journal is set aside so this is reported once, and
-        // installing the update again writes the file.
-        if(!committed) for(const auto& path:skipped) if(!fs::is_regular_file(path)) {
-            SetAsideJournal(transactionPath);
-            error="An update file is missing and has no backup; install the update again: "+path.lexically_relative(install).u8string();
-            return false;
         }
         fs::remove(transactionPath); error.clear(); return true;
+    } catch(const InvalidRecoveryEvidence& failure) {
+        error=failure.what();
+        if(!ownRollback) SetAsideJournal(transactionPath);
+        return false;
     } catch(const std::exception& failure){
         error=failure.what();
         // An own rollback keeps its journal, so the next launch retries it.
@@ -481,7 +530,8 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
     std::vector<Change> changed;
     fs::path install, backup;
     std::unique_ptr<InstallLock> installLock;
-    bool prepared=false;
+    enum class InstallState { Unprepared, Prepared, Committed };
+    InstallState state=InstallState::Unprepared;
     try {
         install = fs::absolute(installInput).lexically_normal();
         const auto staging = fs::absolute(stagingInput).lexically_normal();
@@ -566,7 +616,7 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         json transaction={{"schema",1},{"state","prepared"},{"installation",install.u8string()},{"backup",backup.u8string()},
             {"operations",operations},{"target",target}};
         DurableJson(install/TransactionName,transaction);
-        prepared=true;
+        state=InstallState::Prepared;
         int completed=0; const char* terminateAfter=std::getenv("SF4E_UPDATE_TEST_TERMINATE_AFTER");
         for (const auto& rel : removals) fs::remove(install/rel);
         for (const auto& rel : removals) RemoveEmptyParents(install,(install/rel).parent_path());
@@ -581,13 +631,18 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         for(size_t index=0; index<finished.size(); ++index)
             if(*result[index]!=wanted[index]) throw std::runtime_error("Installed update verification failed");
         transaction["state"]="committed"; DurableJson(install/TransactionName,transaction);
+        state=InstallState::Committed;
         if(terminateAfter && strcmp(terminateAfter,"commit")==0) TerminateProcess(GetCurrentProcess(),86);
         fs::remove(install/TransactionName);
     } catch (const std::exception& failure) {
+        if(state==InstallState::Committed) {
+            error=std::string(failure.what())+". Update installed; transaction cleanup is pending.";
+            return false;
+        }
         bool restored = true;
         std::string recoveryError;
-        if(prepared && installLock) restored=RecoverLocked(install,recoveryError,false,true);
-        error = std::string(failure.what()) + (!prepared ? ". No new update was applied; preserve any pending recovery evidence." : restored ? ". Previous files restored." : ". Automatic restore incomplete; preserve the transaction and backup. " + recoveryError);
+        if(state==InstallState::Prepared && installLock) restored=RecoverLocked(install,recoveryError,false,true);
+        error = std::string(failure.what()) + (state==InstallState::Unprepared ? ". No new update was applied; preserve any pending recovery evidence." : restored ? ". Previous files restored." : ". Automatic restore incomplete; preserve the transaction and backup. " + recoveryError);
         return false;
     }
     PruneBackupSets(install/L".ember-update-backups", backup);
