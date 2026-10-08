@@ -43,8 +43,15 @@ function Get-NightlyReleases {
     return $releases | Sort-Object { [DateTimeOffset]::Parse($_.createdAt) } -Descending
 }
 
-function ConvertTo-BashLiteral([string]$Value) {
-    return "'" + $Value.Replace("'", "'\''") + "'"
+function ConvertTo-NightlyWslPath([string]$WindowsPath) {
+    # Ubuntu uses WSL's default /mnt/<drive> mounts. Convert here so no
+    # Windows backslashes ever cross a shell boundary. Reject UNC/relative
+    # paths rather than silently inventing a mount for them.
+    if ($WindowsPath -notmatch '^[a-zA-Z]:[\\/]') {
+        throw "Expected an absolute drive path for WSL Ubuntu: $WindowsPath"
+    }
+    $fullPath = [IO.Path]::GetFullPath($WindowsPath).Replace('\', '/')
+    return '/mnt/' + $fullPath.Substring(0, 1).ToLowerInvariant() + $fullPath.Substring(2)
 }
 
 try {
@@ -125,6 +132,10 @@ try {
     $subjects = @(Invoke-NightlyCommand git @('log', '--first-parent', '--max-count=60', '--format=%s', $commitRange) 'Could not collect Nightly commit subjects.')
     $commitCount = [int](Invoke-NightlyCommand git @('rev-list', '--first-parent', '--count', $commitRange) 'Could not count Nightly commits.')
 
+    # Resolve before the child build script enters vcvarsall. Reuse its actual
+    # VS installation for the installer instead of probing again afterwards.
+    $nightlyTools = Get-EmberToolPaths $checkoutRoot $VisualStudioPath ''
+    $VisualStudioPath = $nightlyTools.VisualStudioPath
     & (Join-Path $PSScriptRoot 'build-current.ps1') -VisualStudioPath $VisualStudioPath -DiscordSdkArchive $DiscordSdkArchive
     . (Join-Path $PSScriptRoot 'package-team.ps1') -OutDir $outDirectory -VersionLabel $nightlyLabel
     $releaseAssets = @($script:PackageZipPath, "${script:PackageZipPath}.sha256")
@@ -138,6 +149,7 @@ try {
     $publicBuildId = (Get-FileHash -LiteralPath (Join-Path $stageDirectory 'Sidecar.dll') -Algorithm SHA256).Hash.ToLowerInvariant()
     $packagedBuildId = (Get-FileHash -LiteralPath (Join-Path $script:PackageFolderPath 'Sidecar.dll') -Algorithm SHA256).Hash.ToLowerInvariant()
     if ($publicBuildId -ne $packagedBuildId) { throw 'Staged and packaged Sidecar.dll build ids differ.' }
+    if ($publicBuildId -cnotmatch '^[0-9a-f]{64}$') { throw 'Expected a SHA-256 public rooms build id.' }
     Write-Host "Public rooms build: $publicBuildId"
     $notes = @("SF4 Ember Netplay Nightly $nightlyLabel", '', "Source: $sourceRevision", '',
         'Nightly build from the nightly branch. Daily test builds may break; rooms only with other Nightly players.', '',
@@ -152,15 +164,15 @@ try {
         New-Item -ItemType Directory -Path $hostDirectory -Force | Out-Null
         $archivePath = Join-Path $hostDirectory 'room-host-src.tgz'
         Invoke-NightlyCommand git @('-c', 'core.autocrlf=false', 'archive', '--format=tar.gz', '-o', $archivePath, $sourceRevision, 'src', 'rust', 'server') 'Could not archive the committed room-host sources.' | Out-Host
-        $linuxArchive = (Invoke-NightlyCommand wsl @('-d', 'Ubuntu', '-u', 'kate', '--', 'wslpath', '-a', $archivePath) 'Could not resolve the archive path in WSL Ubuntu.').Trim()
-        $linuxArtifacts = (Invoke-NightlyCommand wsl @('-d', 'Ubuntu', '-u', 'kate', '--', 'wslpath', '-a', $hostDirectory) 'Could not resolve the room-host output path in WSL Ubuntu.').Trim()
+        $linuxArchive = ConvertTo-NightlyWslPath $archivePath
+        $linuxArtifacts = ConvertTo-NightlyWslPath $hostDirectory
         $linuxScript = @'
 set -euo pipefail
 export PATH="$HOME/.cargo/bin:$PATH"
-build_root="$HOME/ember-nightly-build/__SHA__"
+build_root="$HOME/ember-nightly-build/$1"
 export CARGO_TARGET_DIR="$HOME/ember-nightly-build/cargo-target"
 mkdir -p "$build_root"
-tar -xzf __ARCHIVE__ -C "$build_root"
+tar -xzf "$2" -C "$build_root"
 cd "$build_root"
 bash server/roomhost/build-linux.sh . ./sf4e-room-host
 (cd rust/sf4-net && cargo build --profile server --locked)
@@ -174,14 +186,15 @@ while IFS= read -r library; do
 done < <(printf '%s\n' "$dependencies" | awk 'NF { print $1 }')
 test -x ./sf4e-room-host
 test -x "$CARGO_TARGET_DIR/server/sf4-net"
-cp ./sf4e-room-host "$CARGO_TARGET_DIR/server/sf4-net" __ARTIFACTS__/
+cp ./sf4e-room-host "$CARGO_TARGET_DIR/server/sf4-net" "$3/"
 '@
-        $linuxScript = $linuxScript.Replace('__SHA__', $sourceRevision).Replace('__ARCHIVE__', (ConvertTo-BashLiteral $linuxArchive)).Replace('__ARTIFACTS__', (ConvertTo-BashLiteral $linuxArtifacts))
         $linuxScriptPath = Join-Path $hostDirectory 'build-wsl.sh'
         [IO.File]::WriteAllText($linuxScriptPath, $linuxScript.Replace("`r`n", "`n") + "`n", [Text.UTF8Encoding]::new($false))
-        $linuxScriptFile = (Invoke-NightlyCommand wsl @('-d', 'Ubuntu', '-u', 'kate', '--', 'wslpath', '-a', $linuxScriptPath) 'Could not resolve the WSL build script.').Trim()
-        & wsl -d Ubuntu -u kate -- bash -lc "bash $(ConvertTo-BashLiteral $linuxScriptFile)"
-        if ($LASTEXITCODE -ne 0) { throw 'Nightly room-host/helper build or libc dependency check failed in WSL Ubuntu.' }
+        $linuxScriptFile = ConvertTo-NightlyWslPath $linuxScriptPath
+        # --exec bypasses WSL's default shell. Bash reads the script directly;
+        # paths and the validated SHA are argv, never interpolated shell text.
+        Invoke-NightlyCommand wsl @('-d', 'Ubuntu', '-u', 'kate', '--exec', 'bash', '--',
+            $linuxScriptFile, $sourceRevision, $linuxArchive, $linuxArtifacts) 'Nightly room-host/helper build or libc dependency check failed in WSL Ubuntu.' | Out-Host
         $hostBinaries = @((Join-Path $hostDirectory 'sf4e-room-host'), (Join-Path $hostDirectory 'sf4-net'))
         foreach ($binary in $hostBinaries) {
             if (!(Test-Path -LiteralPath $binary -PathType Leaf)) { throw "WSL did not produce $binary" }
@@ -204,6 +217,8 @@ cp ./sf4e-room-host "$CARGO_TARGET_DIR/server/sf4-net" __ARTIFACTS__/
     } else { Write-Host 'WhatIf: no release publication or pruning; the release URL below is planned.' }
 
     if (!$SkipRoomHosts -and !$WhatIf) {
+        # SSH runs a remote shell (and legacy scp may too). The only variable
+        # in these fixed remote paths is the validated lowercase SHA-256 above.
         Invoke-NightlyCommand ssh @('-o', 'BatchMode=yes', 'vps', "mkdir -p ~/ember-rooms/builds/$publicBuildId") 'Could not create the VPS staging directory.' | Out-Host
         Invoke-NightlyCommand scp (@('-o', 'BatchMode=yes') + $hostBinaries + @("vps:~/ember-rooms/builds/$publicBuildId/")) 'Could not stage the Nightly room-host pair on vps.' | Out-Host
         & ssh -o BatchMode=yes server1 true
