@@ -1476,6 +1476,9 @@ msgstr "Kopiert die gewählte Combo in dieses Paket, direkt dahinter, und wählt
 msgid "training.combo.duplicated"
 msgstr "Combo dupliziert."
 
+msgid "training.match.checkpoint_disabled"
+msgstr "Shared save/reset is disabled during rollback matches in nightly."
+
 msgid "training.combo.copy_suffix"
 msgstr "Kopie"
 

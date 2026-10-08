@@ -268,8 +268,9 @@ public:
             view_.lengths[view_.selected] = static_cast<int>(slots_[view_.selected].size());
             view_.playbackSide = command.value & 1; once_[view_.selected] = true; return true;
         case Action::Play:
+            Stop();
             if (slots_[view_.selected].empty()) return false;
-            Stop(); view_.mode = Mode::Playback;
+            view_.mode = Mode::Playback;
             // A loaded combo reports each move; a recording has none to report.
             view_.replay.clear(); sincePress_ = 0;
             if (once_[view_.selected]) view_.replay.push_back({});

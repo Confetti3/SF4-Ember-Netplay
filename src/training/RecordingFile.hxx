@@ -18,7 +18,9 @@ inline std::string ExportRecording(const std::vector<Input>& frames) {
 inline bool ImportRecording(const std::string& text, std::vector<Input>& frames, std::string& error) {
     frames.clear();
     const auto value = nlohmann::json::parse(text, nullptr, false);
-    if (!value.is_object() || value.value("format", "") != RecordingFormat) { error = "this is not a recording"; return false; }
+    if (!value.is_object()) { error = "this is not a recording"; return false; }
+    const auto format = value.find("format");
+    if (format == value.end() || !format->is_string() || format->get<std::string>() != RecordingFormat) { error = "this is not a recording"; return false; }
     const auto list = value.find("frames");
     if (list == value.end() || !list->is_array() || list->empty()) { error = "the recording has no frames"; return false; }
     if (list->size() > static_cast<std::size_t>(MaxFrames)) { error = "the recording is too long"; return false; }

@@ -1476,6 +1476,9 @@ msgstr "選択中のコンボをこのパックのすぐ後に複製し、複製
 msgid "training.combo.duplicated"
 msgstr "コンボを複製しました。"
 
+msgid "training.match.checkpoint_disabled"
+msgstr "Shared save/reset is disabled during rollback matches in nightly."
+
 msgid "training.combo.copy_suffix"
 msgstr "コピー"
 

@@ -51,11 +51,9 @@ int scriptFighter[2] = {-1, -1};
 std::atomic<bool> watching{false};
 bool matchShown = false;
 ConfirmedSamples confirmed;
-// A match under a table's Training rule: its shared save and reset. The
-// position is kept in `checkpoint`, which an offline battle and a match
-// never use at once.
+// A match under a table's Training rule. Shared checkpoints are unavailable;
+// the offline checkpoint does not participate in rollback state ownership.
 std::atomic<bool> matchPractice{false};
-std::atomic<unsigned> practiceWish{0};
 PracticeState practice;
 // Where each attempt of the trial starts, when the player prefers a side.
 bool trialPlaced = false; float trialPlace[2] = {0, 0};
@@ -532,35 +530,19 @@ void AfterUpdate(Native* system) {
     published.commandId=commandId;published.commandAccepted=commandAccepted;
     if(commandId&&!commandAccepted)published.commandError="Practice state changed. The command was not applied.";
 }
-void SetMatchPractice(bool enabled) { matchPractice = enabled; practiceWish = 0; practice = PracticeState{}; }
+void SetMatchPractice(bool enabled) { matchPractice = enabled; practice = PracticeState{}; }
 bool MatchPracticeActive() { return matchPractice; }
-void RequestMatchPractice(unsigned bits) { if (matchPractice) practiceWish |= bits & PracticeMask; }
+void RequestMatchPractice(unsigned) {}
 unsigned WithMatchPractice(unsigned raw) {
-    return matchPractice ? (raw & ~PracticeMask) | practiceWish.exchange(0) : raw;
+    return matchPractice ? raw & ~PracticeMask : raw;
 }
 PracticeState MatchPracticeState() { return practice; }
 void SetMatchPracticeState(const PracticeState& state) { practice = state; }
-bool BeforeMatchFrame(Native* system, unsigned& rawOne, unsigned& rawTwo) {
+bool BeforeMatchFrame(Native*, unsigned& rawOne, unsigned& rawTwo) {
     // A match without the rule is not touched, its inputs included.
     if (!matchPractice) return true;
-    const unsigned one = rawOne & PracticeMask, two = rawTwo & PracticeMask;
+    // Consume reserved commands without changing the fight or its checkpoint.
     rawOne &= ~PracticeMask; rawTwo &= ~PracticeMask;
-    // The battle flow is saved and restored with the frame, so a resimulated frame decides as it first did.
-    const auto step = DecidePractice(practice, one, two, *Native::staticVars.CurrentBattleFlow == Native::BF__FIGHT);
-    if (step == PracticeStep::Save) {
-        if (checkpoint.used) Battle::SaveState::Free(&checkpoint);
-        if (Battle::SaveState::Save(&checkpoint)) Battle::SaveState::ForgetFinishedSounds(&checkpoint);
-        else spdlog::warn("Training: the match's position could not be saved; a reset keeps the earlier one or does nothing");
-    } else if (step == PracticeStep::Reset && checkpoint.used) {
-        // What is ours stays as it is now: the saved state holds the presses and the count of its own frame.
-        // So does the engine's frame count, which the peers' state snapshots are compared by.
-        const PracticeState keep = practice;
-        const auto frames = *Native::GetNumFramesSimulated_FixedPoint(system);
-        const bool restored = Battle::SaveState::Load(&checkpoint);
-        practice = keep;
-        *Native::GetNumFramesSimulated_FixedPoint(system) = frames;
-        if (!restored) { spdlog::error("Training: the match's saved position did not fully restore"); return false; }
-    }
     return true;
 }
 void WatchMatches(bool enabled) { watching = enabled; }
@@ -597,7 +579,7 @@ void CloseBattle() {
     overriding = false; sampling = false;
     if (checkpoint.used) Battle::SaveState::Free(&checkpoint);
     session.Reset(); meter.Reset(); confirmed.Reset(); matchShown = false; EndTrial();
-    matchPractice = false; practiceWish = 0; practice = PracticeState{}; dummyWatch.Reset(); replyAction = -1;
+    matchPractice = false; practice = PracticeState{}; dummyWatch.Reset(); replyAction = -1;
     std::lock_guard<std::mutex> lock(mutex); commands.clear(); published = session.GetView();
 }
 } }

@@ -501,6 +501,26 @@ int main() {
             Require(!reply.Replying() && reply.GetView().mode == Mode::Idle && reply.GetView().selected == 5 && reply.GetView().lengths[2] == 4, "A dropped reply kept the selection or touched a slot");
             command.action = Action::Select; command.value = ReplySlot;
             Require(!reply.Apply(command), "The reply's own slot could be selected");
+            // Play stops a reply before checking the restored selection.
+            for (bool typed : {false, true}) {
+                Require(typed ? reply.Reply(dragon) : reply.Reply(2), "The reply did not start over an empty selection");
+                command.action = Action::Play;
+                Require(!reply.Apply(command) && !reply.Replying() && reply.GetView().mode == Mode::Idle &&
+                    reply.GetView().selected == 5 && reply.GetView().cursor == 0, "Play started on an empty restored slot");
+                Frame physical; physical[0] = {0x10, 0x10, 0, 0}; physical[1] = {0x20, 0x20, 0, 0};
+                const auto output = reply.Prepare(physical);
+                Require(output[0].raw == 0x10 && output[1].raw == 0x20, "A refused playback changed physical input");
+            }
+            command.action = Action::Select; command.value = 2;
+            Require(reply.Apply(command), "The recorded slot could not be selected");
+            command.action = Action::Load; command.value = 0; command.frames = {{0x40, 0x40, 0, 0}};
+            Require(reply.Apply(command) && reply.Reply(dragon), "The reply did not start over a loaded selection");
+            command.action = Action::Play;
+            Require(reply.Apply(command) && !reply.Replying() && reply.GetView().mode == Mode::Playback &&
+                reply.GetView().selected == 2 && reply.GetView().playbackSide == 0 && reply.GetView().cursor == 0,
+                "Play did not restart the restored slot and side");
+            Require(reply.Prepare(Frame{})[0].raw == 0x40 && reply.Prepare(Frame{})[1].raw == 0,
+                "Play used the reply instead of the restored recording");
         }
         {
             // A rollback match: every played frame is captured, a replayed one over its first capture,

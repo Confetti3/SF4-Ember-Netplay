@@ -1299,7 +1299,7 @@ void HandleCombo(const MenuAction& a,const training::View& view,const TrainingSu
         ComboNotice(loc::T("training.combo.saved"));
     } else if(a.id=="cb-duplicate"&&pack&&CurrentCombo()) {
         // A copy right after the original, selected, so a variant can be tuned.
-        combo::Combo copy=*CurrentCombo(); copy.name=combo::Clean(copy.name+" "+loc::T("training.combo.copy_suffix"));
+        combo::Combo copy=*CurrentCombo(); copy.name=combo::CopyName(copy.name,loc::T("training.combo.copy_suffix"));
         if(pack->combos.size()>=combo::MaxCombos) { ComboNotice(loc::T("training.combo.save_failed"),true); return; }
         pack->combos.insert(pack->combos.begin()+creator.entry+1,copy); ++creator.entry; ShowCombo(); SaveCombos();
         ComboNotice(loc::T("training.combo.duplicated"));
@@ -1800,22 +1800,8 @@ void DrawMatchMeter(const training::View& view) {
     const float hudScale = (std::max)(1.f, (std::min)(1.5f, vp->Size.y / 900.f));
     MeterWindow(view.meter, hudScale, (std::min)(900 * hudScale, vp->Size.x * .75f), vp->Pos.y + vp->Size.y * TrainingHudBottom);
 }
-// A Training table's shared reset and save, for the match's own HUD: the
-// keys the player chose for them in Training, and the pad's Select, tapped
-// to reset and held half a second to save. Returns the PracticeReset and
-// PracticeSave bits asked for this frame, and draws the line that names the keys.
-unsigned MatchPracticeKeys(bool padSelect) {
-    if(ImGui::GetIO().WantTextInput||ImGui::GetIO().KeyAlt) return 0;
-    LoadCombos();
-    unsigned asked=0;
-    const auto pressed=[](int which) { return creator.keys[which]>=0&&ImGui::IsKeyPressed(static_cast<ImGuiKey>(ImGuiKey_F1+creator.keys[which]),false); };
-    if(pressed(1)) asked|=training::PracticeReset;
-    if(pressed(5)) asked|=training::PracticeSave;
-    static double downAt=-1; static bool saved=false;
-    const double now=ImGui::GetTime();
-    if(padSelect&&downAt<0) { downAt=now; saved=false; }
-    if(padSelect&&!saved&&now-downAt>=.5) { saved=true; asked|=training::PracticeSave; }
-    if(!padSelect&&downAt>=0) { if(!saved&&now-downAt<.5) asked|=training::PracticeReset; downAt=-1; }
+// A Training table's match HUD explains why shared position controls are unavailable.
+unsigned MatchPracticeKeys(bool) {
     const auto* vp=ImGui::GetMainViewport();
     const float hudScale=(std::max)(1.f,(std::min)(1.5f,vp->Size.y/900.f));
     ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+vp->Size.x/2,vp->Pos.y+vp->Size.y*TrainingHudBottom+4*hudScale),ImGuiCond_Always,ImVec2(.5f,0));
@@ -1825,12 +1811,12 @@ unsigned MatchPracticeKeys(bool padSelect) {
     if(ImGui::Begin("Match practice keys",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings|
         ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoFocusOnAppearing)) {
         ImGui::SetWindowFontScale(.8f*hudScale/Scale());
-        ImGui::TextDisabled("%s %s   %s %s",KeyName(1,"-").c_str(),loc::T("training.combo.reset_pos"),KeyName(5,"-").c_str(),loc::T("training.combo.save_pos"));
+        ImGui::TextDisabled("%s",loc::T("training.match.checkpoint_disabled"));
         ImGui::SetWindowFontScale(1.f);
     }
     ImGui::End();
     ImGui::PopStyleVar(2);
-    return asked;
+    return 0;
 }
 TrainingHudInput DrawTrainingHud(const training::View& view) {
     if (!view.available) return {};

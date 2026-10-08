@@ -1476,6 +1476,9 @@ msgstr "Zkopíruje vybrané kombo do tohoto balíčku hned za něj a vybere kopi
 msgid "training.combo.duplicated"
 msgstr "Kombo duplikováno."
 
+msgid "training.match.checkpoint_disabled"
+msgstr "Shared save/reset is disabled during rollback matches in nightly."
+
 msgid "training.combo.copy_suffix"
 msgstr "kopie"
 

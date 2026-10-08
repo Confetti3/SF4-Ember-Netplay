@@ -1476,6 +1476,9 @@ msgstr "선택한 콤보를 이 팩의 바로 뒤에 복사하고 그 사본을 
 msgid "training.combo.duplicated"
 msgstr "콤보를 복제했습니다."
 
+msgid "training.match.checkpoint_disabled"
+msgstr "Shared save/reset is disabled during rollback matches in nightly."
+
 msgid "training.combo.copy_suffix"
 msgstr "사본"
 

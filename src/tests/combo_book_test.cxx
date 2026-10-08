@@ -222,6 +222,15 @@ int main() {
         CHECK(back[1].wait == sf4e::training::WaitHit && back[1].offset == 3 && back[2].raw == 0x410);
         for (const char* bad : {"", "{}", "{\"format\":\"sf4e-recording\",\"frames\":[]}", "{\"format\":\"sf4e-recording\",\"frames\":[[1,2,3]]}", "{\"format\":\"x\",\"frames\":[[1,1,0,0]]}"})
             CHECK(!sf4e::training::ImportRecording(bad, back, reason) && back.empty());
+        for (const char* format : {"1", "-1", "1.5", "true", "false", "null", "[]", "{}"}) {
+            back = frames; reason.clear();
+            CHECK(!sf4e::training::ImportRecording(std::string("{\"format\":") + format + ",\"frames\":[[0,0,0,0]]}", back, reason));
+            CHECK(back.empty() && reason == "this is not a recording");
+        }
+        for (const char* bad : {"[]", "null", "1", "\"sf4e-recording\"", R"({"frames":[[0,0,0,0]]})"}) {
+            back = frames; reason.clear();
+            CHECK(!sf4e::training::ImportRecording(bad, back, reason) && back.empty() && !reason.empty());
+        }
         std::vector<sf4e::training::Input> earlyFrames{{2, 2, sf4e::training::WaitHit, -3}};
         CHECK(sf4e::training::ImportRecording(sf4e::training::ExportRecording(earlyFrames), back, reason) && back.size() == 1 && back[0].offset == -3);
     }
@@ -240,6 +249,25 @@ int main() {
     CHECK(packs.size() == 1 && packs[0].name == "Basics" && packs[0].combos.size() == 2);
     CHECK(Import(Export(std::vector<Pack>{basics, more}), packs, error));
     CHECK(packs.size() == 2 && packs[1].combos[1].character == "KEN");
+
+    // A duplicate's bounded name keeps the whole persisted book readable.
+    {
+        CHECK(CopyName("BnB", "copy") == "BnB copy");
+        for (const std::string& name : {std::string(MaxText, 'a'), std::string(MaxText - 1, 'a'),
+            std::string(MaxText - 2, 'a') + "\xc3\xa9", std::string(MaxText - 2, 'a')}) {
+            for (const char* suffix : {"copy", "\xe6\x97\xa5"}) {
+                Combo original = bnb; original.name = name;
+                CHECK(Import(Export(original), packs, error));
+                Combo copy = packs[0].combos[0]; copy.name = CopyName(copy.name, suffix);
+                CHECK(!copy.name.empty() && copy.name.size() <= MaxText);
+                std::vector<Pack> saved{{"Duplicates", {original, copy}}, more};
+                CHECK(Import(Export(saved), packs, error));
+                CHECK(packs.size() == 2 && packs[0].combos.size() == 2 && packs[1].combos.size() == more.combos.size());
+                CHECK(packs[0].combos[0].name == name && packs[0].combos[1].name == copy.name);
+                CHECK(packs[0].combos[1].steps == original.steps && packs[1].combos[1].character == "KEN");
+            }
+        }
+    }
 
     // A combo's dummy and gauge settings travel with it; only set fields are written.
     {

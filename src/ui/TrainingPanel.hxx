@@ -34,7 +34,7 @@ constexpr float TrainingHudBottom = .82f;
 TrainingHudInput DrawTrainingHud(const training::View& view);
 // The frame meter alone, over a rollback match the runtime is watching.
 void DrawMatchMeter(const training::View& view);
-// In a match under a table's Training rule: the keys for the shared reset
-// and save, drawn and read. Returns training::PracticeReset / PracticeSave.
+// In a match under a table's Training rule: draws the shared position controls'
+// unavailable message. Returns zero; padSelect does not request a command.
 unsigned MatchPracticeKeys(bool padSelect);
 } }

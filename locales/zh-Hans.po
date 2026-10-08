@@ -1476,6 +1476,9 @@ msgstr "在此连招包中紧接所选连招之后添加一份副本，并选中
 msgid "training.combo.duplicated"
 msgstr "已复制一份连招。"
 
+msgid "training.match.checkpoint_disabled"
+msgstr "Shared save/reset is disabled during rollback matches in nightly."
+
 msgid "training.combo.copy_suffix"
 msgstr "副本"
 

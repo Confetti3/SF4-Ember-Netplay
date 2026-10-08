@@ -17,20 +17,17 @@ void AfterUpdate(Dimps::Game::Battle::System* system);
 // just reached, 0 or less for a spectator, who plays confirmed inputs only.
 // lastConfirmedInput: -1 to capture without showing anything yet.
 void ObserveMatch(Dimps::Game::Battle::System* system, int stateFrame, int lastConfirmedInput, unsigned padOne, unsigned padTwo);
-// The shared save and reset of a match played by a table's Training rule
-// (MatchPractice.hxx). SetMatchPractice: whether the battle being prepared
-// is one. Game thread.
+// SetMatchPractice: whether the battle being prepared uses a table's
+// Training rule. Game thread.
 void SetMatchPractice(bool enabled);
-// Any thread: whether such a match is on, and the local player's wish to
-// reset or save (PracticeReset, PracticeSave), sent with their next input.
+// Any thread: whether such a match is on. Shared checkpoint requests are ignored.
 bool MatchPracticeActive();
 void RequestMatchPractice(unsigned bits);
-// The local pad's raw word as it goes to GGPO: with the wish in it.
+// The local pad's raw word as it goes to GGPO, with reserved practice bits removed.
 unsigned WithMatchPractice(unsigned raw);
 // Before the game plays a frame from GGPO's inputs, simulated or
-// resimulated: takes the two bits out of both raw words and does what they
-// ask. False when the saved position did not come back whole; the match
-// must end.
+// resimulated: takes the two bits out of both raw words. Shared save/reset
+// is disabled, so the fight and checkpoint stay as they are. Returns true.
 bool BeforeMatchFrame(Dimps::Game::Battle::System* system, unsigned& rawOne, unsigned& rawTwo);
 // The part of it that is saved and restored with every frame.
 PracticeState MatchPracticeState();

@@ -1476,6 +1476,9 @@ msgstr "Копирует выбранное комбо в этот набор с
 msgid "training.combo.duplicated"
 msgstr "Комбо продублировано."
 
+msgid "training.match.checkpoint_disabled"
+msgstr "Shared save/reset is disabled during rollback matches in nightly."
+
 msgid "training.combo.copy_suffix"
 msgstr "копия"
 

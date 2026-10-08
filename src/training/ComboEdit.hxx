@@ -8,6 +8,16 @@
 // move editor and the timing screen do to the list. Every edit keeps the list
 // a combo: at least one move, at most MaxSteps, and a first move that links.
 namespace sf4e { namespace combo {
+// A copy's name fits the book's text limit without splitting a UTF-8 character.
+inline std::string CopyName(const std::string& name, const std::string& suffix) {
+    std::string out = Clean(name + " " + suffix);
+    if (out.size() > MaxText) {
+        std::size_t length = MaxText;
+        while (length && (static_cast<unsigned char>(out[length]) & 0xC0) == 0x80) --length;
+        out.resize(length);
+    }
+    return Clean(out);
+}
 // A first move has nothing to cancel or follow, so it links.
 inline void LinkFirst(std::vector<std::string>& steps) {
     if (steps.empty()) return;
