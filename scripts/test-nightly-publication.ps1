@@ -1,3 +1,4 @@
+#Requires -Version 7
 # Direct operation tests: all git/gh/SSH/scp/WSL commands are mocked.
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
@@ -39,6 +40,8 @@ function Reset-Fake {
     $script:commands = [Collections.Generic.List[object]]::new()
     $script:remoteReleases = @{}
     $script:remoteTags = @{}
+    $script:remoteUploads = @{}
+    $script:failCleanup = $false
     $script:dirty = @()
     $script:head = $snapshot.revision
     $script:fingerprint = $snapshot.fingerprint
@@ -66,7 +69,28 @@ function Invoke-NightlyCommand([string]$Command, [string[]]$Arguments, [string]$
         return
     }
     if ($Command -in @('ssh', 'scp')) {
+        if ($Command -eq 'ssh') {
+            Check ($Arguments[-1] -match '^bash -s -- (ember-rooms(?:-box)?) ([0-9a-f]{64}) [0-9a-f]{64} [0-9a-f]{64} ([0-9a-f]{32}) (prepare|commit|cleanup)$') 'Unexpected host staging command'
+            $root, $build, $token, $operation = $Matches[1], $Matches[2], $Matches[3], $Matches[4]
+            $key = "$($Arguments[-2]):~/$root/.incoming-$build-$token/"
+            $record = Get-Content $statePath -Raw | ConvertFrom-Json
+            $destination = $record.destinations | Where-Object hostName -CEQ $Arguments[-2]
+            Check ($destination.uploadToken -ceq $token) 'Upload token was not persisted before remote mutation'
+            if ($operation -eq 'prepare') {
+                Check (!$script:remoteUploads.ContainsKey($key)) 'Retry did not remove abandoned upload'
+                $script:remoteUploads[$key] = @()
+            } elseif ($operation -eq 'cleanup') {
+                if ($script:failCleanup) { throw 'injected upload cleanup failure' }
+                $script:remoteUploads.Remove($key)
+                return
+            }
+        } else {
+            $key = $Arguments[-1]
+            Check ($script:remoteUploads.ContainsKey($key)) 'Upload directory was not prepared'
+            $script:remoteUploads[$key] = @('partial host bytes')
+        }
         if ($script:failOn -and $text -like $script:failOn) { $script:failOn = ''; throw 'injected staging failure' }
+        if ($Command -eq 'ssh' -and $operation -eq 'commit') { $script:remoteUploads.Remove($key) }
         if ($Command -eq 'scp' -and $script:failOn -eq 'dirty-after-upload') { $script:failOn=''; $script:dirty=@(' M tracked.cxx') }
         return
     }
@@ -195,19 +219,70 @@ try {
     Check ($script:remoteReleases.ContainsKey('stable3')) 'Unrelated release was removed'
     Pass 'mixed release lists use the Nightly baseline and retain exactly fourteen Nightlies'
 
-    foreach ($failure in @('scp *', 'ssh *vps* commit', 'ssh *server1* commit')) {
+    foreach ($failure in @('ssh *vps* prepare', 'ssh *server1* prepare', 'scp *', 'scp *server1:*', 'ssh *vps* commit', 'ssh *server1* commit')) {
         Reset-Fake
         $pending = New-Pending
         $script:failOn = $failure
         Reject { Resume-Pending } '*injected staging failure*'
         Check ($script:remoteReleases.Count -eq 0) 'Staging failure made a release visible'
         Check ((Get-Content $statePath -Raw | ConvertFrom-Json).phase -eq 'prepared') 'Failed staging lost prepared state'
+        Check ($script:remoteUploads.Count -eq 0) 'Handled staging failure leaked partial upload files'
         Resume-Pending
         Check (!$script:remoteReleases[$pending.tag].draft -and !(Test-Path $statePath)) 'Staging retry did not finish same artifact identity'
         $scpCalls = @($script:commands | Where-Object command -eq 'scp')
         Check (@($scpCalls | Where-Object { $_.argv[-1] -notmatch '/\.incoming-[0-9a-f]{64}-[0-9a-f]{32}/$' }).Count -eq 0) 'scp wrote into scanned builds'
     }
     Pass 'upload and verification failures on either host prevent publication; unchanged-source retry uses the recorded identity'
+
+    Reset-Fake
+    $pending = New-Pending
+    $script:failOn = 'scp *'
+    $script:failCleanup = $true
+    Reject { Resume-Pending } '*injected staging failure*'
+    $record = Get-Content $statePath -Raw | ConvertFrom-Json
+    $token = $record.destinations[0].uploadToken
+    Check ($token -cmatch '^[0-9a-f]{32}$' -and $script:remoteUploads.Count -eq 1) 'Failed cleanup lost upload recovery identity'
+    $abandoned = "vps:~/ember-rooms/.incoming-$($pending.buildId)-$token/"
+    $unrelated = "vps:~/ember-rooms/.incoming-$($pending.buildId)-$([Guid]::NewGuid().ToString('N'))/"
+    $script:remoteUploads[$unrelated] = @('unrelated partial upload')
+    $script:failCleanup = $false
+    Resume-Pending
+    Check (!$script:remoteUploads.ContainsKey($abandoned) -and $script:remoteUploads.ContainsKey($unrelated)) 'Recovery leaked owned upload or swept another upload'
+    Check ($script:remoteUploads.Count -eq 1) 'Recovery created another abandoned upload'
+    Reset-Fake
+    $pending = New-Pending
+    $script:failCleanup = $true
+    Reject { Resume-Pending } '*injected upload cleanup failure*'
+    $record = Get-Content $statePath -Raw | ConvertFrom-Json
+    Check ($record.phase -ceq 'prepared' -and $record.destinations[0].uploadToken -cmatch '^[0-9a-f]{32}$') 'Cleanup failure after commit lost recovery token'
+    Check ($script:remoteReleases.Count -eq 0) 'Unconfirmed upload cleanup reached publication'
+    $script:failCleanup = $false
+    Resume-Pending
+    Check ($script:remoteUploads.Count -eq 0) 'Cleanup retry after commit leaked upload files'
+    Pass 'failed cleanup retains an exact upload token and retry removes only its partial files'
+
+    foreach ($hostIndex in @(0, 1)) {
+        Reset-Fake
+        $pending = New-Pending
+        $token = [Guid]::NewGuid().ToString('N')
+        $destination = $pending.destinations[$hostIndex]
+        $destination | Add-Member -NotePropertyName uploadToken -NotePropertyValue $token
+        Save-NightlyState $statePath $pending
+        # Abrupt process death skips finally: persisted token and remote partial bytes survive.
+        $abandoned = "$($destination.hostName):~/$($destination.root)/.incoming-$($pending.buildId)-$token/"
+        $script:remoteUploads[$abandoned] = @('interrupted scp bytes')
+        Resume-Pending
+        Check ($script:remoteUploads.Count -eq 0) 'Interrupted upload was not recovered'
+    }
+    Pass 'process interruption on either destination recovers persisted partial uploads before preparing again'
+
+    Reset-Fake
+    $pending = New-Pending
+    $pending.destinations[0] | Add-Member -NotePropertyName uploadToken -NotePropertyValue '../unrelated'
+    Save-NightlyState $statePath $pending
+    Reject { Resume-Pending } '*Invalid room-host upload token*'
+    Check (@($script:commands | Where-Object command -in @('ssh', 'scp')).Count -eq 0) 'Malformed recovery token reached a remote operation'
+    Pass 'invalid persisted upload tokens are rejected before remote mutations'
 
     Reset-Fake
     $pending = New-Pending
@@ -226,6 +301,7 @@ try {
     $script:failOn = 'dirty-after-upload'
     Reject { Resume-Pending } '*requires committed source*'
     Check ($script:remoteReleases.Count -eq 0) 'Source edited during staging reached publication'
+    Check ($script:remoteUploads.Count -eq 0) 'Source edit during staging leaked upload files'
     $script:dirty = @()
     Resume-Pending
     Pass 'an editor save during upload blocks the next external mutation and remains recoverable'

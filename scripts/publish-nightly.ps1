@@ -1,3 +1,4 @@
+#Requires -Version 7
 # Build and publish the designated Nightly checkout on the Windows build PC.
 param([switch]$WhatIf, [switch]$Local, [switch]$Force, [switch]$SkipRoomHosts,
       [string]$VisualStudioPath = $env:SF4E_VISUAL_STUDIO_PATH,

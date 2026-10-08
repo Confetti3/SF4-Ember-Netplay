@@ -17,11 +17,28 @@ upload_pair() {
 }
 for root in ember-rooms ember-rooms-box; do
     final="$fixture/$root/builds/$id"
+    incoming="$fixture/$root/.incoming-$id-$token"
+    unrelated="$fixture/$root/.incoming-$id-00000000000000000000000000000002"
+    mkdir -p "$unrelated"
+    printf 'unrelated bytes' > "$unrelated/sf4-net"
+    # scp failure never invokes commit: clean only this upload, then retry.
+    run_stage prepare
+    printf 'partial' > "$incoming/sf4e-room-host"
+    run_stage cleanup
+    run_stage cleanup
+    test ! -e "$incoming" && test ! -e "$final"
+    [[ $(cat "$unrelated/sf4-net") == 'unrelated bytes' ]]
+    # A stopped publisher leaves the token-owned directory; recovery removes it.
+    run_stage prepare
+    printf 'interrupted upload' > "$incoming/sf4-net"
+    run_stage cleanup
+    test ! -e "$incoming"
     upload_pair
     # Simulate interrupted/truncated scp: no incomplete build becomes visible.
     printf 'partial' > "$incoming/sf4-net"
     if run_stage commit; then echo 'Accepted truncated upload' >&2; exit 1; fi
     test ! -e "$final"
+    test ! -e "$incoming"
     upload_pair
     run_stage commit
     test ! -e "$incoming"
@@ -39,5 +56,6 @@ for root in ember-rooms ember-rooms-box; do
     if run_stage commit; then echo 'Accepted incomplete existing pair' >&2; exit 1; fi
     test ! -e "$final/sf4-net"
     [[ $(cat "$final/sf4e-room-host") == 'host fixture' ]]
+    [[ $(cat "$unrelated/sf4-net") == 'unrelated bytes' ]]
 done
-echo 'PASS atomic staging on both roots: truncated upload, complete pair, identical retry, conflicting and partial existing identities'
+echo 'PASS staging on both roots: failed/interrupted upload cleanup, unrelated upload preservation, atomic pair and immutable identities'

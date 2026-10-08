@@ -15,6 +15,10 @@ verify_pair() {
 }
 # Pass hashes explicitly: function positional arguments have their own scope.
 case "$6" in
+    cleanup)
+        # Only the validated build/token path owned by this upload; idempotent.
+        rm -rf -- "$incoming"
+        ;;
     prepare)
         mkdir -p "$root"
         mkdir "$incoming"

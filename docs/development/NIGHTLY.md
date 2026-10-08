@@ -6,6 +6,10 @@ merge feature branches into `nightly`. After each Stable release, merge
 `release` into `nightly`; keep Nightly's CMake version one minor version ahead
 of Stable.
 
+Nightly requires **PowerShell 7 or later** (`pwsh`). The publisher, importable
+Nightly operations and both Nightly PowerShell tests declare `#Requires -Version 7`,
+so Windows PowerShell 5.1 rejects them before any script code or fixture creation.
+
 The Windows build PC runs `scripts/publish-nightly.ps1` at 04:00 local time
 from `C:\Users\Kate\Desktop\sf4\sf4-nightly`. The parent `build-target.json`
 must select that checkout through `channels.nightly`:
@@ -114,6 +118,12 @@ fingerprint and artifacts intact; if they changed, restore that committed source
 and the original files before retrying. Completed publication is recorded before
 retention, so retention-only retries can use a newer clean source checkout.
 The pending record is removed only after retention succeeds.
+
+Each host destination records its upload token before creating a temporary
+directory. Handled failures remove that exact directory, including partial uploads
+and failures caused by source edits. If cleanup fails or the process is interrupted,
+the token remains recorded; retry removes that owned directory before uploading
+again. Cleanup is idempotent and never sweeps other temporary directories.
 
 `dist/nightly-cleanup.json` saves exact release IDs and tag-object hashes before
 deletion. Release and tag deletion are separate recoverable operations. Retries

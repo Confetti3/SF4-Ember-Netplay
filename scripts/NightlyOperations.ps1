@@ -1,3 +1,4 @@
+#Requires -Version 7
 # Import-safe operations. The entry script owns preparation and phase ordering.
 function Invoke-NightlyCommand([string]$Command, [string[]]$Arguments, [string]$Failure,
                               [switch]$AllowNotFound, [string]$InputText) {
@@ -140,7 +141,7 @@ function Get-NightlyRoomDestinations {
 }
 
 function Invoke-NightlyHostStage([object]$Destination, [string]$BuildId, [object[]]$Binaries,
-                                 [string]$SourceRoot, [object]$Snapshot) {
+                                 [string]$SourceRoot, [object]$Snapshot, [object]$Pending, [string]$StatePath) {
     if (($Destination.hostName -ceq 'vps' -and $Destination.root -ceq 'ember-rooms') -or
         ($Destination.hostName -ceq 'server1' -and $Destination.root -ceq 'ember-rooms-box')) { }
     else { throw 'Unexpected Nightly room-host destination.' }
@@ -148,16 +149,42 @@ function Invoke-NightlyHostStage([object]$Destination, [string]$BuildId, [object
         $Binaries[0].name -cne 'sf4e-room-host' -or $Binaries[1].name -cne 'sf4-net' -or
         @($Binaries | Where-Object { $_.sha256 -cnotmatch '^[0-9a-f]{64}$' }).Count) { throw 'Invalid room-host pair identity.' }
     Assert-NightlyArtifacts $Binaries
-    $token = [Guid]::NewGuid().ToString('N')
+    $recoverUpload = !!$Destination.uploadToken
+    if ($recoverUpload -and $Destination.uploadToken -cnotmatch '^[0-9a-f]{32}$') { throw 'Invalid room-host upload token.' }
+    if (!$recoverUpload) {
+        $Destination | Add-Member -NotePropertyName uploadToken -NotePropertyValue ([Guid]::NewGuid().ToString('N')) -Force
+        # Persist ownership before prepare; process death can skip all local cleanup.
+        Save-NightlyState $StatePath $Pending
+    }
+    $token = $Destination.uploadToken
     $payload = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'stage-nightly-room-hosts.sh') -Raw).Replace("`r`n", "`n")
     $remote = "bash -s -- $($Destination.root) $BuildId $($Binaries[0].sha256) $($Binaries[1].sha256) $token"
-    Assert-NightlySource $SourceRoot $Snapshot
-    Invoke-NightlyCommand ssh @('-o', 'BatchMode=yes', $Destination.hostName, "$remote prepare") 'Could not prepare host upload.' -InputText $payload | Out-Null
-    Assert-NightlySource $SourceRoot $Snapshot
-    Invoke-NightlyCommand scp (@('-o', 'BatchMode=yes') + @($Binaries | ForEach-Object path) +
-        @("$($Destination.hostName):~/$($Destination.root)/.incoming-$BuildId-$token/")) 'Could not upload the Nightly room-host pair.' | Out-Null
-    Assert-NightlySource $SourceRoot $Snapshot
-    Invoke-NightlyCommand ssh @('-o', 'BatchMode=yes', $Destination.hostName, "$remote commit") 'Remote pair verification or atomic staging failed.' -InputText $payload | Out-Null
+    $stageError = $null
+    try {
+        Assert-NightlySource $SourceRoot $Snapshot
+        if ($recoverUpload) {
+            Invoke-NightlyCommand ssh @('-o', 'BatchMode=yes', $Destination.hostName, "$remote cleanup") 'Could not recover the previous host upload.' -InputText $payload | Out-Null
+            Assert-NightlySource $SourceRoot $Snapshot
+        }
+        Invoke-NightlyCommand ssh @('-o', 'BatchMode=yes', $Destination.hostName, "$remote prepare") 'Could not prepare host upload.' -InputText $payload | Out-Null
+        Assert-NightlySource $SourceRoot $Snapshot
+        Invoke-NightlyCommand scp (@('-o', 'BatchMode=yes') + @($Binaries | ForEach-Object path) +
+            @("$($Destination.hostName):~/$($Destination.root)/.incoming-$BuildId-$token/")) 'Could not upload the Nightly room-host pair.' | Out-Null
+        Assert-NightlySource $SourceRoot $Snapshot
+        Invoke-NightlyCommand ssh @('-o', 'BatchMode=yes', $Destination.hostName, "$remote commit") 'Remote pair verification or atomic staging failed.' -InputText $payload | Out-Null
+    } catch { $stageError = $_; throw }
+    finally {
+        # Removing our exact temporary resource also applies when source checks fail.
+        # Keep the persisted token until remote cleanup has been confirmed.
+        try {
+            Invoke-NightlyCommand ssh @('-o', 'BatchMode=yes', $Destination.hostName, "$remote cleanup") 'Could not clean the host upload.' -InputText $payload | Out-Null
+            $Destination.uploadToken = ''
+            Save-NightlyState $StatePath $Pending
+        } catch {
+            if (!$stageError) { throw }
+            Write-Warning "Upload cleanup failed; retry using the recorded token in ${StatePath}: $($_.Exception.Message)"
+        }
+    }
 }
 
 function Get-NightlyRelease([string]$Repository, [string]$Tag) {
@@ -299,7 +326,7 @@ function Complete-NightlyPublication([object]$Pending, [string]$StatePath, [stri
         Assert-NightlyArtifacts (@($Pending.assets) + @($Pending.notes) + @($Pending.binaries))
         # Repeat staging after an interruption. Identical pairs are accepted.
         foreach ($destination in $Pending.destinations) {
-            Invoke-NightlyHostStage $destination $Pending.buildId $Pending.binaries $SourceRoot $Pending.snapshot
+            Invoke-NightlyHostStage $destination $Pending.buildId $Pending.binaries $SourceRoot $Pending.snapshot $Pending $StatePath
         }
         $Pending.phase = 'staged'
         Save-NightlyState $StatePath $Pending

@@ -1,3 +1,4 @@
+#Requires -Version 7
 # Focused label and quoting checks: never execute the publisher or run builds.
 param([string]$BashPath = '')
 $ErrorActionPreference = 'Stop'
