@@ -60,6 +60,7 @@ struct Availability {
     std::uint16_t personalActions = 0;
     std::vector<int> customCostumes;    // installed custom costumes (see IsCustomCostume), ascending
     std::vector<int> customStages;      // installed custom stages (StageCatalog's IsCustomStage), ascending
+    std::array<std::vector<int>, 8> customColors;   // installed custom colours of each game costume (IsCustomColor)
 };
 
 // Custom costumes, added by a separate setup program: slots 8..99 (indices 7..98) of every fighter, ten colours
@@ -69,6 +70,13 @@ constexpr int FirstCustomCostume = 7;
 constexpr int CostumeLimit = 99;
 constexpr int CustomColorCount = 10;
 inline bool IsCustomCostume(int costumeId) { return costumeId >= FirstCustomCostume && costumeId < CostumeLimit; }
+// Custom colours of the game's own costumes, added the same way: colours 30..99 (indices 29..98) of any of them,
+// leaving the game's own (up to 22) room.
+// Each PC shows its own install of that colour, or colour 1 (sf4e::custom::ApplyPicks).
+constexpr int FirstCustomColor = 29;
+inline bool IsCustomColor(int colorId) { return colorId >= FirstCustomColor && colorId < CostumeLimit; }
+// The costume's own colours, or a custom colour of one of the game's costumes.
+bool ColorInRange(int fighterId, int costumeId, int colorId);
 
 int BaseCostumeCount(int fighterId);
 int CostumeCount(int fighterId);      // the game's own costumes
