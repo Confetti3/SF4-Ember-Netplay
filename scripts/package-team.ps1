@@ -14,7 +14,7 @@ if ($BuildDir -ne (Join-Path $repo $designation.buildDirectory) -or $InstallDir 
 $receipt = Assert-BuildReceipt $repo $BuildDir $InstallDir
 if (!$receipt.testsPassed) { throw 'The current build has no passing test receipt' }
 if (!$receipt.baseRevision -or $receipt.baseRevision -ne (& git -C $repo rev-parse HEAD)) { throw 'The build receipt is for a different source commit; rebuild the release commit.' }
-if (!$VersionLabel) { $VersionLabel = Get-Date -Format "yyyyMMdd-HHmmss" }
+if (!$VersionLabel) { $VersionLabel = (Get-Date).ToString("yyyyMMdd-HHmmss", [cultureinfo]::InvariantCulture) }
 if ($VersionLabel -notmatch '^[a-zA-Z0-9._-]+$') { throw "Invalid version label" }
 $discordBuild = Join-Path $InstallDir 'discord-build.json'
 if (!(Test-Path -LiteralPath $discordBuild -PathType Leaf)) { throw 'Discord-enabled packaging requires an installed, configured Discord build.' }

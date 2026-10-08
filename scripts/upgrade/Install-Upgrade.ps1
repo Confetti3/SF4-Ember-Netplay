@@ -305,7 +305,7 @@ if ($CheckOnly) { Write-Host "Upgrade check passed: $($changed.Count) files to r
 $parent = Split-Path $install -Parent
 $id = [Guid]::NewGuid().ToString('N')
 $stage = Join-Path $parent ('.ember-upgrade-stage-' + $id)
-$backup = Join-Path $parent ("Ember-backup-$($metadata.from)-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + $id.Substring(0,8))
+$backup = Join-Path $parent ("Ember-backup-$($metadata.from)-" + (Get-Date).ToString('yyyyMMdd-HHmmss', [cultureinfo]::InvariantCulture) + '-' + $id.Substring(0,8))
 $null = [IO.Directory]::CreateDirectory($stage)
 $touched = New-Object 'System.Collections.Generic.List[string]'
 $backupMade = $false

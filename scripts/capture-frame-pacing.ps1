@@ -17,7 +17,7 @@ if($CsvPath){
     $presentMon=(Resolve-Path -LiteralPath $PresentMonPath).Path
     $outputRoot=if([IO.Path]::IsPathRooted($OutputDirectory)){$OutputDirectory}else{Join-Path $repo $OutputDirectory}
     $null=[IO.Directory]::CreateDirectory($outputRoot)
-    $stamp=Get-Date -Format 'yyyyMMdd-HHmmss'
+    $stamp=(Get-Date).ToString('yyyyMMdd-HHmmss',[cultureinfo]::InvariantCulture)
     $csv=Join-Path $outputRoot "$Label-$stamp.csv"
     & $presentMon --process_name $ProcessName --timed $DurationSeconds --terminate_after_timed --output_file $csv --qpc_time_ms --no_console_stats
     if($LASTEXITCODE -ne 0){throw "PresentMon failed with exit code $LASTEXITCODE"}
@@ -72,4 +72,4 @@ $receiptPath=[IO.Path]::ChangeExtension($csv,'.json')
 $receipt|ConvertTo-Json -Depth 4|Set-Content -LiteralPath $receiptPath -Encoding UTF8
 Write-Host "Frame capture: $csv"
 Write-Host "Receipt: $receiptPath"
-Write-Host ("samples={0} p50={1:N2}ms p95={2:N2}ms p99={3:N2}ms over25={4} over50={5}" -f $receipt.samples,$receipt.p50Ms,$receipt.p95Ms,$receipt.p99Ms,$receipt.over25Ms,$receipt.over50Ms)
+Write-Host ([string]::Format([cultureinfo]::InvariantCulture,"samples={0} p50={1:N2}ms p95={2:N2}ms p99={3:N2}ms over25={4} over50={5}",$receipt.samples,$receipt.p50Ms,$receipt.p95Ms,$receipt.p99Ms,$receipt.over25Ms,$receipt.over50Ms))
