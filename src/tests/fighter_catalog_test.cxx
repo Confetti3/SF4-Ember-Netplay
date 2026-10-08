@@ -84,7 +84,10 @@ int main() {
                         CHECK(Available(pick, true, all));
                         CHECK(!Normalize(pick, true, &all));
                     }
+                    // Past the costume's own colours only a custom colour (30-99) is a valid pick.
                     pick.color = ColorCount(fighter, costume);
+                    CHECK(Valid(pick, true) == IsCustomColor(pick.color));
+                    pick.color = CostumeLimit;
                     CHECK(!Valid(pick, true));
                 }
             }
@@ -195,6 +198,17 @@ int main() {
     Availability installed; installed.ready = true; installed.costumes = 1u; installed.customCostumes = {11};
     CHECK(AllowedCostumes(0, installed) == (std::vector<int>{0, 11}) && AllowedColors(0, 11, installed).size() == 10);
     CHECK(AllowedCostumes(0, sparse) == (std::vector<int>{0, 1, 6}));
+
+    // Custom colours of the game's own costumes: colours 30-99 (indices 29-98), valid on the network and listed after
+    // the costume's own colours once installed. Custom costumes keep their ten.
+    CHECK(IsCustomColor(29) && IsCustomColor(98) && !IsCustomColor(28) && !IsCustomColor(22) && !IsCustomColor(99));
+    CHECK(ColorInRange(0, 1, 30) && !ColorInRange(0, 1, 15) && !ColorInRange(0, 1, 99) && !ColorInRange(0, 11, 22));
+    Pick extra; extra.costume = 1; extra.color = 29;
+    CHECK(Valid(extra, true) && !Normalize(extra, true));
+    extra.costume = 11;
+    CHECK(!Valid(extra, true));
+    Availability coloured; coloured.ready = true; coloured.costumes = 1u; coloured.colors[0] = 1u; coloured.customColors[0] = {29, 40};
+    CHECK(AllowedColors(0, 0, coloured) == (std::vector<int>{0, 29, 40}));
 
     // Custom stages: any three capital letters or digits that aren't a game stage's code; the code is the id, so a
     // custom stage travels as one number. They fall back to a stock stage by rule and never enter Random.

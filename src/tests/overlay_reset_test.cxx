@@ -65,6 +65,12 @@ static int CheckPerFighterPicks() {
     check(removed.stageID == 0, "a custom stage that isn't installed stayed picked");
     check(removed.lobby.costume == 0 && removed.lobby.color == 3 && removed.fighters[0].costume == 0,
         "a custom costume that isn't installed stayed picked");
+    Prefs::Data removedColor;
+    removedColor.lobby.charaID = 0; removedColor.lobby.costume = 1; removedColor.lobby.color = 30;
+    removedColor.fighters[0] = removedColor.lobby;
+    Prefs::Clamp(removedColor);
+    check(removedColor.lobby.costume == 1 && removedColor.lobby.color == 0 && removedColor.fighters[0].color == 0,
+        "a custom colour that isn't installed stayed picked");
     // Stages taken out of Random round-trip as ids; unknown ids are dropped,
     // and a list that would leave Random nothing is forgotten.
     random.randomStageExcluded = (1u << 0) | (1u << 26);

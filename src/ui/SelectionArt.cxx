@@ -355,9 +355,9 @@ SelectionImage SelectionArt::Portrait(int fighterId, bool large) {
 }
 SelectionImage SelectionArt::Appearance(int fighterId, int costume, int color) {
     const auto* fighter = selection::FindFighter(fighterId);
-    if (!fighter || color < 0 || color >= selection::ColorCount(fighterId, costume)) return {};
+    if (!fighter || !selection::ColorInRange(fighterId, costume, color)) return {};
     const std::string key = std::string(fighter->code) + "/costume-" + std::to_string(costume) + "/color-" + std::to_string(color);
-    if (selection::IsCustomCostume(costume))
+    if (selection::IsCustomCostume(costume) || selection::IsCustomColor(color))
         return impl_->Request(key, [&] { return impl_->CustomCostumePaths(fighter->code, costume, color); });
     const auto result = impl_->Request(key, [&] { return impl_->ImagePaths(key); });
     // Native selection art depicts the original outfit in its default palette.

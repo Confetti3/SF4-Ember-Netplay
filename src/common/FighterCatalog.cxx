@@ -208,7 +208,13 @@ std::vector<int> AllowedColors(int fighterId, int costumeId, const Availability&
     }
     for (int color = 0; color < ColorCount(fighterId, costumeId); ++color)
         if (availability.colors[costumeId] & (1u << color)) result.push_back(color);
+    if (availability.ready && costumeId < static_cast<int>(availability.customColors.size()))
+        result.insert(result.end(), availability.customColors[costumeId].begin(), availability.customColors[costumeId].end());
     return result;
+}
+// The costume's own colours, or a custom colour of one of the game's costumes.
+bool ColorInRange(int fighterId, int costumeId, int color) {
+    return color >= 0 && (color < ColorCount(fighterId, costumeId) || (IsCustomColor(color) && !IsCustomCostume(costumeId)));
 }
 bool Valid(const Pick& pick, bool editionSelect) {
     // The native menus wrap PA over -1..9 and quotes over -1..10.
@@ -217,8 +223,8 @@ bool Valid(const Pick& pick, bool editionSelect) {
         (pick.winQuote != 255 && (pick.winQuote < 0 || pick.winQuote > 10)) ||
         pick.handicap < 0 || pick.handicap > 4) return false;
     if (!EditionAllowed(pick.fighter, pick.edition, editionSelect) || pick.costume < 0 ||
-        (pick.costume >= CostumeCount(pick.fighter) && !IsCustomCostume(pick.costume)) || pick.color < 0 ||
-        pick.color >= ColorCount(pick.fighter, pick.costume)) return false;
+        (pick.costume >= CostumeCount(pick.fighter) && !IsCustomCostume(pick.costume)) ||
+        !ColorInRange(pick.fighter, pick.costume, pick.color)) return false;
     const auto ultras = AllowedUltras(pick.fighter, pick.edition);
     return std::find(ultras.begin(), ultras.end(), pick.ultra) != ultras.end();
 }
@@ -237,7 +243,7 @@ bool Normalize(Pick& pick, bool editionSelect, const Availability* availability)
     if (!FindFighter(pick.fighter)) pick.fighter = 0;
     pick.edition = NormalizeEdition(pick.fighter, pick.edition, editionSelect);
     if (pick.costume < 0 || (pick.costume >= CostumeCount(pick.fighter) && !IsCustomCostume(pick.costume))) pick.costume = 0;
-    if (pick.color < 0 || pick.color >= ColorCount(pick.fighter, pick.costume)) pick.color = 0;
+    if (!ColorInRange(pick.fighter, pick.costume, pick.color)) pick.color = 0;
     const auto ultras = AllowedUltras(pick.fighter, pick.edition);
     if (std::find(ultras.begin(), ultras.end(), pick.ultra) == ultras.end()) pick.ultra = 0;
     // Unknown availability is not a reason to destroy a saved valid pick.
