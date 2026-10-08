@@ -43,8 +43,11 @@ struct Renderer {
         p.Windowed = TRUE; p.SwapEffect = D3DSWAPEFFECT_DISCARD;
         p.BackBufferFormat = D3DFMT_A8R8G8B8; p.BackBufferWidth = 2560; p.BackBufferHeight = 1440;
         p.hDeviceWindow = window;
-        Require(SUCCEEDED(d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window,
-            D3DCREATE_SOFTWARE_VERTEXPROCESSING, &p, &device)), "DX9 device creation failed");
+        const HRESULT hr = d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window,
+            D3DCREATE_SOFTWARE_VERTEXPROCESSING, &p, &device);
+        char message[64];
+        std::snprintf(message, sizeof(message), "DX9 device creation failed (0x%08lx)", static_cast<unsigned long>(hr));
+        Require(SUCCEEDED(hr), message);
     }
     ~Renderer() { if (device) device->Release(); if (d3d) d3d->Release(); if (window) DestroyWindow(window); }
     void Resize(int width, int height) {
