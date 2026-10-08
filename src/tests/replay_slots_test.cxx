@@ -620,9 +620,41 @@ static void TestVerifiedArchiveAndSnapshots() {
 	fs::remove_all(folder);
 }
 
+// A replay belongs to the last match that began before it was saved, with its
+// fighters. In a room the next match has usually begun by the time the replay
+// is listed, and must not lend it its names.
+static void TestAReplayIsNamedAfterItsOwnMatch() {
+	const std::vector<NotedMatch> noted = {
+		{1000, {"Ann", "Bob"}, {5, 9}, false},
+		{1200, {"Ann", "Cy"}, {5, 12}, false},  // the next match: Ann stays, Cy sits down
+		{1320, {"Dee", "Cy"}, {7, 12}, true},   // and the one after, which this PC watched
+		{9000, {"Old", "Note"}, {-1, -1}, false}, // a note from before fighters were written
+	};
+	const int first[2] = {5, 9}, second[2] = {5, 12}, other[2] = {1, 2};
+	// Saved at 1190, ten seconds before the next match began.
+	const NotedMatch* match = MatchOf(noted, 1190, first);
+	CHECK(match && match->names[1] == "Bob" && !match->spectated);
+	// Saved at 1210: the next match began ten seconds earlier and is not this replay's.
+	match = MatchOf(noted, 1210, first);
+	CHECK(match && match->names[1] == "Bob");
+	// The next match's own replay.
+	match = MatchOf(noted, 1310, second);
+	CHECK(match && match->names[1] == "Cy" && !match->spectated);
+	// A match that began after the save is never the one, however soon after.
+	CHECK(!MatchOf(noted, 999, first));
+	// Nor one more than an hour before it, nor one with other fighters.
+	CHECK(!MatchOf(noted, 1000 + 3600, first) && MatchOf(noted, 1000 + 3599, first));
+	CHECK(!MatchOf(noted, 1250, other));
+	// An old note names no fighters and is taken by its time alone.
+	match = MatchOf(noted, 9100, other);
+	CHECK(match && match->names[0] == "Old");
+	CHECK(!MatchOf({}, 1190, first));
+}
+
 int main() {
 	TestImportWriteRecovery();
 	TestVerifiedArchiveAndSnapshots();
+	TestAReplayIsNamedAfterItsOwnMatch();
 	TestARecordNeedsAWholeReplay();
 	TestAnImportThatFailsLeavesTheFilesAsTheyWere();
 	TestASlotWhoseIndexIsBehind();

@@ -102,10 +102,11 @@ ImportResult ImportFile(const std::filesystem::path& file, const Writer& write, 
 // The game's record names no one for an Ember match, so Ember notes the
 // two players itself when a match starts (matches.jsonl in the archive:
 // the start time, both names, P1 first, and whether this PC only watched;
-// the game records a spectated match too). A replay is saved when the
-// match ends, so it belongs to the last match started before its save
-// time, within an hour.
-void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating);
+// the game records a spectated match too, and the two fighters). A replay is
+// saved when the match ends, so it belongs to the last match started before
+// its save time, within an hour, with its two fighters
+// (ReplaySlots.hxx: MatchOf).
+void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2);
 
 // Remembers that an archived replay was played with Watch now (watched.txt in
 // the archive, one file name per line), so the list can say so.
