@@ -670,8 +670,44 @@ msgstr "Nu niet"
 msgid "replays.link_dismiss_detail"
 msgstr "Laat het bestand staan en vergeet de link."
 
+msgid "replays.export"
+msgstr "Video exporteren"
+
+msgid "replays.export_detail"
+msgstr "Speelt hem af en neemt hem op als .mp4 op de volledige beeldgrootte van het spel."
+
+msgid "replays.exported"
+msgstr "Video opgeslagen: {0}"
+
+msgid "replays.not_exported_encoder"
+msgstr "Er is geen video gemaakt. Windows gaf geen video-encoder, of de encoder is gestopt. De reden staat in het logboek."
+
+msgid "replays.not_exported_picture"
+msgstr "Er is geen video gemaakt. Het beeld van het spel kon niet worden gelezen, of veranderde van grootte tijdens het exporteren."
+
+msgid "replays.not_exported_file"
+msgstr "Er is geen video gemaakt. Het bestand kon niet worden geschreven. Een eerdere video van deze replay staat misschien open in een speler."
+
+msgid "replays.video"
+msgstr "Video"
+
+msgid "replays.open_folder"
+msgstr "Replaymap openen"
+
+msgid "replays.open_folder_detail"
+msgstr "Opent het archief in Verkenner: replays en geëxporteerde video's."
+
+msgid "services.opening_replay_folder"
+msgstr "Replaymap wordt geopend…"
+
+msgid "services.replay_folder_opened"
+msgstr "{0} geopend in Verkenner."
+
+msgid "services.replay_folder_failed"
+msgstr "De replaymap kon niet worden geopend."
+
 msgid "replays.row_detail"
-msgstr "Selecteer om hem aan de replaylijst van het spel toe te voegen, of om hem toe te voegen en nu te bekijken."
+msgstr "Selecteer om hem te bekijken, als video te exporteren of aan de replaylijst van het spel toe te voegen."
 
 msgid "replays.watched"
 msgstr "Bekeken"

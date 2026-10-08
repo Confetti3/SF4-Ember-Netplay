@@ -670,8 +670,44 @@ msgstr "Не сейчас"
 msgid "replays.link_dismiss_detail"
 msgstr "Оставляет файл на месте и забывает ссылку."
 
+msgid "replays.export"
+msgstr "Экспорт видео"
+
+msgid "replays.export_detail"
+msgstr "Воспроизводит запись и сохраняет её как .mp4 в полном размере изображения игры."
+
+msgid "replays.exported"
+msgstr "Видео сохранено: {0}"
+
+msgid "replays.not_exported_encoder"
+msgstr "Видео не создано. Windows не предоставила видеокодировщик, или кодировщик остановился. Причина указана в журнале."
+
+msgid "replays.not_exported_picture"
+msgstr "Видео не создано. Изображение игры не удалось прочитать, или его размер изменился во время экспорта."
+
+msgid "replays.not_exported_file"
+msgstr "Видео не создано. Файл не удалось записать. Возможно, прежнее видео этой записи открыто в проигрывателе."
+
+msgid "replays.video"
+msgstr "Видео"
+
+msgid "replays.open_folder"
+msgstr "Открыть папку реплеев"
+
+msgid "replays.open_folder_detail"
+msgstr "Открывает архив в Проводнике: реплеи и экспортированные видео."
+
+msgid "services.opening_replay_folder"
+msgstr "Открывается папка реплеев…"
+
+msgid "services.replay_folder_opened"
+msgstr "{0} открыта в Проводнике."
+
+msgid "services.replay_folder_failed"
+msgstr "Не удалось открыть папку реплеев."
+
 msgid "replays.row_detail"
-msgstr "Выберите, чтобы добавить в список записей игры, или добавить и посмотреть сейчас."
+msgstr "Выберите, чтобы посмотреть, экспортировать как видео или добавить в список записей игры."
 
 msgid "replays.watched"
 msgstr "Просмотрено"

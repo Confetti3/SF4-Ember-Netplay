@@ -670,8 +670,44 @@ msgstr "Ahora no"
 msgid "replays.link_dismiss_detail"
 msgstr "Deja el archivo donde está y olvida el enlace."
 
+msgid "replays.export"
+msgstr "Exportar video"
+
+msgid "replays.export_detail"
+msgstr "La reproduce y la graba como .mp4 con el tamaño completo de la imagen del juego."
+
+msgid "replays.exported"
+msgstr "Video guardado: {0}"
+
+msgid "replays.not_exported_encoder"
+msgstr "No se creó ningún video. Windows no ofreció un codificador de video, o el codificador se detuvo. El motivo está en el registro."
+
+msgid "replays.not_exported_picture"
+msgstr "No se creó ningún video. No se pudo leer la imagen del juego, o cambió de tamaño durante la exportación."
+
+msgid "replays.not_exported_file"
+msgstr "No se creó ningún video. No se pudo escribir el archivo. Puede que un video anterior de esta repetición esté abierto en un reproductor."
+
+msgid "replays.video"
+msgstr "Video"
+
+msgid "replays.open_folder"
+msgstr "Abrir la carpeta de repeticiones"
+
+msgid "replays.open_folder_detail"
+msgstr "Abre el archivo en el Explorador: repeticiones y videos exportados."
+
+msgid "services.opening_replay_folder"
+msgstr "Abriendo la carpeta de repeticiones…"
+
+msgid "services.replay_folder_opened"
+msgstr "Se abrió {0} en el Explorador."
+
+msgid "services.replay_folder_failed"
+msgstr "No se pudo abrir la carpeta de repeticiones."
+
 msgid "replays.row_detail"
-msgstr "Selecciona para agregarla a la lista de repeticiones del juego, o para agregarla y verla ahora."
+msgstr "Selecciona para verla, exportarla como video o agregarla a la lista de repeticiones del juego."
 
 msgid "replays.watched"
 msgstr "Visto"

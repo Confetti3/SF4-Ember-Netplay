@@ -271,7 +271,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
                 return replay.names[side].empty() ? fighterName : sf4e::loc::Tf("replays.player", replay.names[side], fighterName);
             };
             view.replays.push_back({sf4e::platform::WideToUtf8(replay.path.wstring()),
-                replay.label + "  " + sf4e::loc::Tf("replays.fighters", name(0), name(1)), {replay.names[0], replay.names[1]}, replay.spectated, replay.watched});
+                replay.label + "  " + sf4e::loc::Tf("replays.fighters", name(0), name(1)), {replay.names[0], replay.names[1]}, replay.spectated, replay.watched, replay.video});
         }
     }
     view.replaysReady = snapshot.replays.ready;

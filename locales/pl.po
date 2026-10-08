@@ -670,8 +670,44 @@ msgstr "Nie teraz"
 msgid "replays.link_dismiss_detail"
 msgstr "Zostawia plik na miejscu i zapomina o linku."
 
+msgid "replays.export"
+msgstr "Eksportuj wideo"
+
+msgid "replays.export_detail"
+msgstr "Odtwarza ją i nagrywa jako .mp4 w pełnym rozmiarze obrazu gry."
+
+msgid "replays.exported"
+msgstr "Wideo zapisano: {0}"
+
+msgid "replays.not_exported_encoder"
+msgstr "Nie powstało wideo. Windows nie udostępnił kodera wideo albo koder się zatrzymał. Przyczyna jest w dzienniku."
+
+msgid "replays.not_exported_picture"
+msgstr "Nie powstało wideo. Nie udało się odczytać obrazu gry albo jego rozmiar zmienił się podczas eksportu."
+
+msgid "replays.not_exported_file"
+msgstr "Nie powstało wideo. Nie udało się zapisać pliku. Wcześniejsze wideo tej powtórki może być otwarte w odtwarzaczu."
+
+msgid "replays.video"
+msgstr "Wideo"
+
+msgid "replays.open_folder"
+msgstr "Otwórz folder powtórek"
+
+msgid "replays.open_folder_detail"
+msgstr "Otwiera archiwum w Eksploratorze: powtórki i wyeksportowane wideo."
+
+msgid "services.opening_replay_folder"
+msgstr "Otwieranie folderu powtórek…"
+
+msgid "services.replay_folder_opened"
+msgstr "Otwarto {0} w Eksploratorze."
+
+msgid "services.replay_folder_failed"
+msgstr "Nie udało się otworzyć folderu powtórek."
+
 msgid "replays.row_detail"
-msgstr "Wybierz, aby dodać do listy powtórek gry, albo dodać i obejrzeć teraz."
+msgstr "Wybierz, aby obejrzeć, wyeksportować jako wideo albo dodać do listy powtórek gry."
 
 msgid "replays.watched"
 msgstr "Obejrzane"

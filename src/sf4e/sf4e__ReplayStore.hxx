@@ -50,7 +50,10 @@ struct Status {
 };
 const Status& GetStatus();
 
-// Runs a request (common/ReplayRequest.hxx: Add, Watch or OpenLog). Refused
+// Runs a request (common/ReplayRequest.hxx: Add, Watch, Export or OpenLog).
+// An export records from the Battle state until Playing is left, however
+// that happens (sf4e__ReplayCapture.hxx), leaves the replay by itself once
+// its match is over, and its outcome becomes the notice. Refused
 // with a notice while another runs, or where it cannot be done: an import
 // writes the game's table and files, so only at the native main menu with
 // the save controller free; the battle log leaves Ember's menu, so only with

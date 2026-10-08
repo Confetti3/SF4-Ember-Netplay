@@ -450,6 +450,8 @@ std::vector<ArchivedReplay> List(NotesCache& cache) {
 			replay.names[0] = match->names[0]; replay.names[1] = match->names[1]; replay.spectated = match->spectated;
 		}
 		replay.watched = std::find(cache.watched.begin(), cache.watched.end(), WideToUtf8(replay.path.filename().wstring())) != cache.watched.end();
+		std::error_code failed;
+		replay.video = fs::exists(VideoOf(replay.path), failed);
 	}
 	std::sort(archived.begin(), archived.end(), [](const ArchivedReplay& a, const ArchivedReplay& b) { return a.time > b.time; });
 	return archived;

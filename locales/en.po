@@ -670,8 +670,44 @@ msgstr "Not now"
 msgid "replays.link_dismiss_detail"
 msgstr "Leaves the file where it is and forgets the link."
 
+msgid "replays.export"
+msgstr "Export video"
+
+msgid "replays.export_detail"
+msgstr "Plays it and records an .mp4 at the game's full picture size."
+
+msgid "replays.exported"
+msgstr "Video saved: {0}"
+
+msgid "replays.not_exported_encoder"
+msgstr "No video was made. Windows gave no video encoder, or the encoder stopped. The log has the reason."
+
+msgid "replays.not_exported_picture"
+msgstr "No video was made. The game's picture could not be read, or changed size during the export."
+
+msgid "replays.not_exported_file"
+msgstr "No video was made. The file could not be written. An earlier video of this replay may be open in a player."
+
+msgid "replays.video"
+msgstr "Video"
+
+msgid "replays.open_folder"
+msgstr "Open the replay folder"
+
+msgid "replays.open_folder_detail"
+msgstr "Opens the archive in Explorer: replays and exported videos."
+
+msgid "services.opening_replay_folder"
+msgstr "Opening the replay folder…"
+
+msgid "services.replay_folder_opened"
+msgstr "Opened {0} in Explorer."
+
+msgid "services.replay_folder_failed"
+msgstr "The replay folder could not be opened."
+
 msgid "replays.row_detail"
-msgstr "Select to add it to the game's replay list, or to add it and watch it now."
+msgstr "Select to watch it, export it as a video, or add it to the game's replay list."
 
 msgid "replays.watched"
 msgstr "Watched"

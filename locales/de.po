@@ -670,8 +670,44 @@ msgstr "Jetzt nicht"
 msgid "replays.link_dismiss_detail"
 msgstr "Lässt die Datei, wo sie ist, und vergisst den Link."
 
+msgid "replays.export"
+msgstr "Video exportieren"
+
+msgid "replays.export_detail"
+msgstr "Spielt es ab und nimmt es als .mp4 in der vollen Bildgröße des Spiels auf."
+
+msgid "replays.exported"
+msgstr "Video gespeichert: {0}"
+
+msgid "replays.not_exported_encoder"
+msgstr "Es wurde kein Video erstellt. Windows hat keinen Video-Encoder bereitgestellt, oder er hat angehalten. Der Grund steht im Protokoll."
+
+msgid "replays.not_exported_picture"
+msgstr "Es wurde kein Video erstellt. Das Bild des Spiels konnte nicht gelesen werden, oder seine Größe hat sich während des Exports geändert."
+
+msgid "replays.not_exported_file"
+msgstr "Es wurde kein Video erstellt. Die Datei konnte nicht geschrieben werden. Ein früheres Video dieses Replays ist vielleicht in einem Player geöffnet."
+
+msgid "replays.video"
+msgstr "Video"
+
+msgid "replays.open_folder"
+msgstr "Replay-Ordner öffnen"
+
+msgid "replays.open_folder_detail"
+msgstr "Öffnet das Archiv im Explorer: Replays und exportierte Videos."
+
+msgid "services.opening_replay_folder"
+msgstr "Replay-Ordner wird geöffnet…"
+
+msgid "services.replay_folder_opened"
+msgstr "{0} im Explorer geöffnet."
+
+msgid "services.replay_folder_failed"
+msgstr "Der Replay-Ordner ließ sich nicht öffnen."
+
 msgid "replays.row_detail"
-msgstr "Wähle, um es der Replay-Liste des Spiels hinzuzufügen, oder um es hinzuzufügen und jetzt anzusehen."
+msgstr "Wähle, um es anzusehen, als Video zu exportieren oder der Replay-Liste des Spiels hinzuzufügen."
 
 msgid "replays.watched"
 msgstr "Gesehen"

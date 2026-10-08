@@ -115,7 +115,11 @@ struct ArchivedReplay {
 	int fighters[2] = {-1, -1};
 	std::string names[2];
 	bool spectated = false, watched = false;
+	// An exported video (VideoOf) is beside it.
+	bool video = false;
 };
+// The video an export of that replay writes: its name with ".mp4".
+inline std::filesystem::path VideoOf(std::filesystem::path replay) { return replay.replace_extension(L".mp4"); }
 
 // Lists the archive on a thread of its own: Ember's own files from the
 // archive root, and usf4-replay-saver's (.usf4replay) from any folder under

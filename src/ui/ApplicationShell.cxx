@@ -309,6 +309,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    rows.back().chosen=idle&&v.replaysReady?"link-play":"link-dismiss";
   }
   rows.push_back(Row("replay-log",loc::T("replays.open_log"),loc::T(idle?"replays.open_log_detail":"replays.open_log_room"),idle&&v.replaysReady));
+  rows.push_back(Row("replay-folder",loc::T("replays.open_folder"),v.services.lastAction==platform::ServiceAction::OpenReplayFolder&&!v.services.message.empty()?v.services.message:loc::T("replays.open_folder_detail"),!v.services.pending));
   rows.push_back(Value("replay-save-watched",loc::T("replays.save_watched"),preferences_.recordWatched?loc::T("common.on"):loc::T("common.off"),loc::T("replays.save_watched_detail"),v.canEditPreferences));
   if(v.replays.empty())rows.push_back(InfoRow("replay-none",loc::T("replays.empty"),"",loc::T("replays.empty_detail")));
   // A row is its file, not its place: the list is listed again while a row's choices are open.
@@ -316,8 +317,9 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    // The label carries the players' own names. The value says what Ember knows about it.
    rows.back().userText=true;for(const auto& name:v.replays[i].names)NoteUserText(name);
    rows.back().value=v.replays[i].watched&&v.replays[i].spectated?loc::T("replays.watched_spectated"):v.replays[i].watched?loc::T("replays.watched"):v.replays[i].spectated?loc::T("replays.spectated"):"";
+   if(v.replays[i].video)rows.back().value=rows.back().value.empty()?loc::T("replays.video"):rows.back().value+", "+loc::T("replays.video");
    // Select asks: add it to the game's list, or add it and go straight to the battle log.
-   rows.back().choices={{"watch",loc::T("replays.watch"),loc::T("replays.watch_detail"),idle},{"add",loc::T("replays.add"),loc::T("replays.add_detail")}};
+   rows.back().choices={{"watch",loc::T("replays.watch"),loc::T("replays.watch_detail"),idle},{"export",loc::T("replays.export"),loc::T("replays.export_detail"),idle},{"add",loc::T("replays.add"),loc::T("replays.add_detail")}};
    rows.back().chosen=idle?"watch":"add";}
  }else if(screen=="settings"){
   title=loc::T("settings.title");rows={Row("player",loc::T("screen.player"),loc::T("settings.player_detail")),Row("defaults",loc::T("screen.defaults"),loc::T("settings.defaults_detail")),Row("interface",loc::T("settings.interface"),loc::T("settings.interface_detail")),Row("discord",loc::T("screen.discord"),loc::T("settings.discord_detail")),
@@ -510,6 +512,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id.compare(0,5,"main-")==0&&v.canEditPreferences){preferences_.mainFighter=std::stoi(a.id.substr(5));preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?"roster":"";nav.Push(a.id);}
  else if(a.id=="replays")nav.Push(a.id);
+ else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
  else if(a.id=="replay-log"){ShellAction r;r.command.generation=v.session.generation;r.replay.mode=replay::Mode::OpenLog;if(!submit(std::move(r)))error_=loc::T("error.queue_failed");}
  else if(a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="discord"||a.id=="identity"||a.id=="developer")nav.Push(a.id);
  else if(a.id=="pr-create"||a.id=="pr-none")OpenPublicCreate();
@@ -855,7 +858,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
    if(!submit(std::move(r)))error_=loc::T("error.queue_failed");
   }
   else if(a.id.compare(0,7,"replay:")==0&&v.replaysReady){
-   ShellAction r;r.command.generation=v.session.generation;r.replay={a.text=="watch"?replay::Mode::Watch:replay::Mode::Add,a.id.substr(7)};
+   ShellAction r;r.command.generation=v.session.generation;r.replay={a.text=="watch"?replay::Mode::Watch:a.text=="export"?replay::Mode::Export:replay::Mode::Add,a.id.substr(7)};
    if(!submit(std::move(r)))error_=loc::T("error.queue_failed");
   }
  }else if(a.kind==MenuAction::Activate){

@@ -670,8 +670,44 @@ msgstr "Agora não"
 msgid "replays.link_dismiss_detail"
 msgstr "Deixa o arquivo onde está e esquece o link."
 
+msgid "replays.export"
+msgstr "Exportar vídeo"
+
+msgid "replays.export_detail"
+msgstr "Reproduz e grava como .mp4 no tamanho completo da imagem do jogo."
+
+msgid "replays.exported"
+msgstr "Vídeo salvo: {0}"
+
+msgid "replays.not_exported_encoder"
+msgstr "Nenhum vídeo foi criado. O Windows não ofereceu um codificador de vídeo, ou o codificador parou. O motivo está no registro."
+
+msgid "replays.not_exported_picture"
+msgstr "Nenhum vídeo foi criado. A imagem do jogo não pôde ser lida, ou mudou de tamanho durante a exportação."
+
+msgid "replays.not_exported_file"
+msgstr "Nenhum vídeo foi criado. O arquivo não pôde ser gravado. Um vídeo anterior deste replay pode estar aberto em um player."
+
+msgid "replays.video"
+msgstr "Vídeo"
+
+msgid "replays.open_folder"
+msgstr "Abrir a pasta de replays"
+
+msgid "replays.open_folder_detail"
+msgstr "Abre o arquivo no Explorador: replays e vídeos exportados."
+
+msgid "services.opening_replay_folder"
+msgstr "Abrindo a pasta de replays…"
+
+msgid "services.replay_folder_opened"
+msgstr "{0} aberto no Explorador."
+
+msgid "services.replay_folder_failed"
+msgstr "Não foi possível abrir a pasta de replays."
+
 msgid "replays.row_detail"
-msgstr "Selecione para adicionar à lista de replays do jogo, ou para adicionar e assistir agora."
+msgstr "Selecione para assistir, exportar como vídeo ou adicionar à lista de replays do jogo."
 
 msgid "replays.watched"
 msgstr "Assistido"
