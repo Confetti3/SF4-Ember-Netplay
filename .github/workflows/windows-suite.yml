@@ -1,0 +1,57 @@
+name: Windows test suite
+# The local suite of scripts/build-current.ps1 on a self-hosted Windows
+# machine. It needs a signed-in desktop: the DX9 render tests draw on the GPU
+# and the helper's identity tests use the user's DPAPI key, so the runner is
+# started in the user's session, not as a service.
+#
+# Never on pull_request: that would run a stranger's code on the machine.
+# A repository opts in by registering a runner labelled "ember" and setting
+# the variable EMBER_WINDOWS_RUNNER to true; without it the job is skipped.
+on:
+  push:
+    branches: [release]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: windows-suite
+jobs:
+  suite:
+    if: vars.EMBER_WINDOWS_RUNNER == 'true'
+    runs-on: [self-hosted, Windows, ember]
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      # The work folder is kept between runs, so only changed files are
+      # written and the build after it is incremental.
+      - name: Check out exact commit
+        run: |
+          git init -q .
+          git -c protocol.version=2 fetch --depth=1 "https://github.com/$env:GITHUB_REPOSITORY.git" $env:GITHUB_SHA
+          git checkout --force --detach FETCH_HEAD
+      # VCPKG_ROOT comes from the runner's environment. The Discord companion
+      # needs the SDK archive, which is not in the repository.
+      - name: Configure
+        run: |
+          . ./scripts/BuildEnvironment.ps1
+          $tools = Get-EmberToolPaths $PWD '' ''
+          Enter-EmberVcEnvironment $tools.VisualStudioPath
+          cmake -S . -B build/tests -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTING=ON `
+            "-DCMAKE_TOOLCHAIN_FILE=$($tools.VcpkgRoot)/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x86-windows-wchar-filenames -DVCPKG_HOST_TRIPLET=x86-windows-wchar-filenames `
+            -DSF4E_BUILD_IROH_HELPER=ON -DSF4E_BUILD_DISCORD=OFF
+      - name: Build
+        run: |
+          . ./scripts/BuildEnvironment.ps1
+          Enter-EmberVcEnvironment (Get-EmberToolPaths $PWD '' '').VisualStudioPath
+          cmake --build build/tests --parallel
+      # The exclusions of scripts/build-current.ps1: public-network and live
+      # Discord tests need their own explicit run.
+      - name: Test
+        run: |
+          . ./scripts/BuildEnvironment.ps1
+          Enter-EmberVcEnvironment (Get-EmberToolPaths $PWD '' '').VisualStudioPath
+          ctest --test-dir build/tests --output-on-failure --parallel $env:NUMBER_OF_PROCESSORS `
+            -E 'Iroh(Room|Game|Authorized|Recovery)|CustomRoom(FourTables|Spectators)|DiscordSmoke'
