@@ -1,25 +1,22 @@
-#include "../training/ComboBook.hxx"
-#include "../training/ComboEdit.hxx"
-#include "../training/ComboReplay.hxx"
+#include "../training/MoveInputs.hxx"
 #include "../training/RecordingFile.hxx"
 #include "test_support.hxx"
 
 using namespace sf4e::combo;
 
-static std::vector<std::string> Steps(const char* line, const char* character = "RYU") {
+static std::vector<std::string> Steps(const char* line) {
     std::vector<std::string> steps;
     std::string error;
-    CHECK(ParseSteps(line, character, steps, error));
+    CHECK(ParseSteps(line, steps, error));
     return steps;
 }
 
 int main() {
-    std::vector<Pack> packs;
     std::vector<std::string> steps;
     std::string error;
     Step step;
 
-    // A step is inputs a trial can check, however it was spelled.
+    // A step is the inputs it stands for, however it was spelled.
     CHECK(ParseStep("cr.mk", step, error) && step.motion == "2" && step.buttons == MK && step.need == 1 && !step.air);
     CHECK(ParseStep("HP", step, error) && step.motion == "5" && step.buttons == HP);
     CHECK(ParseStep("j.HK", step, error) && step.air && step.motion.empty() && step.buttons == HK);
@@ -43,28 +40,9 @@ int main() {
     CHECK(ParseStep("~ LP", step, error) && step.follow && step.cancel && step.buttons == LP && Canonical(step) == "~ 5LP");
     CHECK(ParseStep("~lp@+2", step, error) && step.follow && Canonical(step) == "~ 5LP@+2");
     CHECK((Tokens("236P ~ LP > 5HP") == std::vector<std::string>{"236P", "~ LP", "5HP"}));
-    CHECK(JoinSteps({"236P", "~ 5LP", "5HP"}) == "236P ~ 5LP > 5HP");
-    // A combo typed a move a line reads as the same combo on one line.
+    // Moves typed a line each read as the same moves on one line.
     CHECK((Tokens("2MK\r\nxx 236HP\n\n5HP >\n FADC\n~ LP") == std::vector<std::string>{"2MK", "xx 236HP", "5HP", "FADC", "~ LP"}));
-    CHECK(JoinSteps(Tokens("2MK\nxx 236HP\n5HP")) == "2MK xx 236HP > 5HP" && (Steps("2MK\nxx 236HP\n5HP") == Steps("2MK xx 236HP > 5HP")));
-    {
-        // Row edits: add, remove, repeat and reorder, each leaving a combo behind.
-        using Rows = std::vector<std::string>;
-        Rows rows{"2MK", "xx 236HP", "5HP"};
-        CHECK(InsertSteps(rows, 1, {"5LP", "xx 5MP"}) && (rows == Rows{"2MK", "5LP", "xx 5MP", "xx 236HP", "5HP"}));
-        CHECK(InsertSteps(rows, rows.size(), {"623HP"}) && rows.back() == "623HP" && !InsertSteps(rows, 9, {"5LP"}) && !InsertSteps(rows, 0, {}));
-        CHECK(RemoveSteps(rows, 1, 2) && RemoveSteps(rows, 3, 1) && (rows == Rows{"2MK", "xx 236HP", "5HP"}));
-        // A cancel that becomes the first move links; the last move stays.
-        CHECK(RemoveSteps(rows, 0, 1) && (rows == Rows{"236HP", "5HP"}) && !RemoveSteps(rows, 0, 2) && !RemoveSteps(rows, 2, 1) && !RemoveSteps(rows, 1, 0));
-        // A group looped: its moves three times in all.
-        CHECK(RepeatSteps(rows, 0, 2, 2) && (rows == Rows{"236HP", "5HP", "236HP", "5HP", "236HP", "5HP"}));
-        CHECK(RepeatSteps(rows, 5, 1, 1) && rows.size() == 7 && !RepeatSteps(rows, 6, 2, 1) && !RepeatSteps(rows, 0, 1, 0) && !RepeatSteps(rows, 0, 7, MaxSteps));
-        Rows framed{"2MK#10", "xx 236HP#30", "5HP"};
-        // A copy presses on no frame of its own, and a frame stays with its place in the order.
-        CHECK(RepeatSteps(framed, 1, 1, 1) && (framed == Rows{"2MK#10", "xx 236HP#30", "xx 236HP", "5HP"}));
-        CHECK(MoveStep(framed, 0, 1) && (framed == Rows{"236HP#10", "2MK#30", "xx 236HP", "5HP"}));
-        CHECK(MoveStep(framed, 3, -1) && (framed == Rows{"236HP#10", "2MK#30", "5HP", "xx 236HP"}) && !MoveStep(framed, 0, -1) && !MoveStep(framed, 3, 1) && !MoveStep(framed, 1, 0));
-    }
+    CHECK((Steps("2MK\nxx 236HP\n5HP") == Steps("2MK xx 236HP > 5HP")));
     {
         const auto follow = Synthesize({"236P", "~ 5LP@+2"}, true, 0);
         for (const auto& frame : follow) CHECK(!frame.wait);
@@ -72,20 +50,14 @@ int main() {
         while (press < follow.size() && follow[press].raw != LP) ++press;
         CHECK(press == 18 + FollowDelay - 2 && follow[12].raw == 0);
     }
-// A timing offset rides on any move and is kept in its canonical form.
+    // A timing offset rides on any move and is kept in its canonical form.
     CHECK(ParseStep("cr.MK@-1", step, error) && step.offset == -1 && Canonical(step) == "2MK@-1");
     CHECK(ParseStep("xx 236HP(mash)@+3", step, error) && step.offset == 3 && step.mash && Canonical(step) == "xx 236HP(mash)@+3");
     CHECK(ParseStep("FADC@+2", step, error) && step.offset == 2 && Canonical(step) == "FADC@+2");
     CHECK(ParseStep("5LP@+0", step, error) && step.offset == 0 && Canonical(step) == "5LP");
-    // A frame to land on, as a pattern editor lays moves out; kept before the offset.
+    // A frame to land on; kept before the offset.
     CHECK(ParseStep("2MK#45", step, error) && step.at == 45 && step.offset == 0 && Canonical(step) == "2MK#45");
-    // A recorded focus press and the dash after it fold into one FADC on the focus's frame.
     {
-        std::vector<std::string> recorded{"cl.LP#0", "2MK#19", "xx 236HP#33", "xx 5MP+MK#49", "xx 66#53", "cl.HP#70", "5MP+MK#90", "2LK#120"};
-        FoldFadc(recorded);
-        CHECK((recorded == std::vector<std::string>{"cl.LP#0", "2MK#19", "xx 236HP#33", "xx FADC#49", "cl.HP#70", "5MP+MK#90", "2LK#120"}));
-        std::vector<std::string> back{"5MP+MK", "44"}; FoldFadc(back);
-        CHECK((back == std::vector<std::string>{"FADC44"}));
         // A dash is two taps, not one hold.
         const auto dash = Synthesize({"66"}, true, 0);
         CHECK(dash.size() >= 7 && dash[0].raw == Right && dash[3].raw == 0 && dash[4].raw == Right);
@@ -113,8 +85,6 @@ int main() {
     CHECK(ParseStep("xx RFADC", step, error) && step.cancel && step.buttons == (LP | MP | MK) && step.need == 3 && step.motion == "66" && Canonical(step) == "xx RFADC");
     CHECK(ParseStep("rfadc44@+1", step, error) && step.motion == "44" && Canonical(step) == "RFADC44@+1");
     {
-        std::vector<std::string> red{"5HP", "xx 5LP+MP+MK#20", "66#24"}; FoldFadc(red);
-        CHECK((red == std::vector<std::string>{"5HP", "xx RFADC#20"}));
         // The red focus is tapped, then waits for its own hit before the dash.
         const auto frames = Synthesize({"5HP", "xx RFADC"}, true, 0);
         std::size_t press = 0; while (press < frames.size() && frames[press].raw != (LP | MP | MK)) ++press;
@@ -136,46 +106,9 @@ int main() {
     CHECK(Steps("cl.hp XX 623]HP[ xx fadc44 > far.mk, [mp+mk] > ]MP+MK[") ==
         (std::vector<std::string>{"cl.HP", "xx 623]HP[", "xx FADC44", "far.MK", "5[MP+MK]", "5]MP+MK["}));
     CHECK(Steps(" > , ").empty());
-    CHECK(!ParseSteps("cr.MK > shoryu", "RYU", steps, error) && steps.empty() && error == "\"shoryu\" is not a move");
-    CHECK(!ParseSteps("xx 236HP", "RYU", steps, error) && error == "the first move cannot be a cancel");
-    CHECK(!ParseSteps("2MK xx", "RYU", steps, error));
-    // The stored line reads back to the same steps.
-    for (const char* line : {"cl.HP xx 623]HP[ xx FADC44 > far.MK > 5[MP+MK]", "2MK xx 236HP > FADC > j.236KK > [4]6P"})
-        CHECK(JoinSteps(Steps(line)) == line);
-
-    // Named moves resolve per fighter, with a strength, and stay notation after.
-    CHECK(Steps("cr.MK xx HP Hadouken > FADC > EX Tatsu, shoryuken > Focus > back dash") ==
-        (std::vector<std::string>{"2MK", "xx 236HP", "FADC", "214KK", "623P", "5MP+MK", "44"}));
-    CHECK(Steps("Sonic Boom xx l flash kick", "GUL") == (std::vector<std::string>{"[4]6P", "xx [2]8LK"}));
-    CHECK(Steps("lariat > spd", "ZGF") == (std::vector<std::string>{"5PPP", "360P"}));
-    CHECK(!ParseSteps("hadoken", "ZGF", steps, error) && !ParseSteps("HP focus", "RYU", steps, error));
-    // A kick on a punch move, or the other way round, names no move.
-    CHECK(!ParseSteps("LK Hadoken", "RYU", steps, error) && !ParseSteps("HP Tatsu", "RYU", steps, error) && !ParseSteps("MK Shoryuken", "RYU", steps, error));
-
-    // Every generated name is a move the notation can express, and resolves to it.
-    struct Row { const char* character; const char* name; const char* notation; };
-    static const Row rows[] = {
-#include "../training/ComboMoves.inc"
-    };
-    for (const auto& row : rows) {
-        CHECK(!Tokens(row.notation).empty());
-        for (const auto& piece : Tokens(row.notation)) CHECK(ParseStep(piece, step, error));
-        CHECK(ResolveName(row.character, row.name) == row.notation);
-        // A name must never be readable as notation, or it would hide that move.
-        CHECK(!ParseStep(row.name, step, error));
-    }
-    CHECK(Steps("EX Oil Rocket > Oil Coaster", "HKN") == (std::vector<std::string>{"360PP", "720PPP"}));
-    CHECK(Steps("Collarbone Breaker > Metsu Shoryuken") == (std::vector<std::string>{"6MP", "236236KKK"}));
-    // A name may be a sequence: rekka follow-ups, target combos, a cancel, Raging Demon.
-    CHECK(Steps("cl.MP xx HP Rekka 3", "FLN") == (std::vector<std::string>{"cl.MP", "xx 236HP", "236P", "236P"}));
-    CHECK(Steps("Target Combo 1 xx Scramble Slide", "DCP") == (std::vector<std::string>{"cl.MP", "5HK", "xx [4]6K", "5K"}));
-    CHECK(Steps("Goshoryuken FADC > Raging Demon", "GKI") ==
-        (std::vector<std::string>{"623P", "xx FADC", "5LP", "5LP", "6", "5LK", "5HP"}));
-    // Twins under one name are told apart by their tag; mash, hold and release are inputs too.
-    CHECK(Steps("Crazy Buffalo > K Crazy Buffalo > TAP 1 > Dash Swing Blow", "BSN") ==
-        (std::vector<std::string>{"[4]646P", "[4]646K", "5]PPP[", "[4]3[P]"}));
-    CHECK(Steps("Ashura Senku 3K", "GKI") == (std::vector<std::string>{"623KKK"}));
-    CHECK(Steps("Hands > LP (mash)", "DCP") == (std::vector<std::string>{"5P(mash)", "5LP(mash)"}));
+    CHECK(!ParseSteps("cr.MK > shoryu", steps, error) && steps.empty() && error == "\"shoryu\" is not a move");
+    CHECK(!ParseSteps("xx 236HP", steps, error) && error == "the first move cannot be a cancel");
+    CHECK(!ParseSteps("2MK xx", steps, error));
     CHECK(ParseStep("[2]8LP(mash)", step, error) && step.mash && step.charge && step.buttons == LP);
     CHECK(!ParseStep("236(mash)", step, error) && !ParseStep("FADC(mash)", step, error));
 
@@ -234,94 +167,5 @@ int main() {
         std::vector<sf4e::training::Input> earlyFrames{{2, 2, sf4e::training::WaitHit, -3}};
         CHECK(sf4e::training::ImportRecording(sf4e::training::ExportRecording(earlyFrames), back, reason) && back.size() == 1 && back[0].offset == -3);
     }
-    Combo bnb{"BnB", "RYU", "", Steps("cr.MK > 236HP")};
-    Combo fadc{"FADC", "RYU", "two bars", Steps("cr.MK > 236HP > FADC > cr.HP")};
-    Combo other{"Punish", "RYU", "", Steps("cr.HP > 623HP")};
-    Combo ken{"BnB", "KEN", "", Steps("cr.MK > 236HP")};
-    Pack basics{"Basics", {bnb, fadc}};
-    Pack more{"More", {other, ken}};
-
-    // Each exported shape reads back: one combo, one pack, several packs.
-    CHECK(Import(Export(fadc), packs, error));
-    CHECK(packs.size() == 1 && packs[0].name.empty() && packs[0].combos.size() == 1);
-    CHECK(packs[0].combos[0].steps == fadc.steps && packs[0].combos[0].notes == "two bars");
-    CHECK(Import(Export(basics), packs, error));
-    CHECK(packs.size() == 1 && packs[0].name == "Basics" && packs[0].combos.size() == 2);
-    CHECK(Import(Export(std::vector<Pack>{basics, more}), packs, error));
-    CHECK(packs.size() == 2 && packs[1].combos[1].character == "KEN");
-
-    // A duplicate's bounded name keeps the whole persisted book readable.
-    {
-        CHECK(CopyName("BnB", "copy") == "BnB copy");
-        for (const std::string& name : {std::string(MaxText, 'a'), std::string(MaxText - 1, 'a'),
-            std::string(MaxText - 2, 'a') + "\xc3\xa9", std::string(MaxText - 2, 'a')}) {
-            for (const char* suffix : {"copy", "\xe6\x97\xa5"}) {
-                Combo original = bnb; original.name = name;
-                CHECK(Import(Export(original), packs, error));
-                Combo copy = packs[0].combos[0]; copy.name = CopyName(copy.name, suffix);
-                CHECK(!copy.name.empty() && copy.name.size() <= MaxText);
-                std::vector<Pack> saved{{"Duplicates", {original, copy}}, more};
-                CHECK(Import(Export(saved), packs, error));
-                CHECK(packs.size() == 2 && packs[0].combos.size() == 2 && packs[1].combos.size() == more.combos.size());
-                CHECK(packs[0].combos[0].name == name && packs[0].combos[1].name == copy.name);
-                CHECK(packs[0].combos[1].steps == original.steps && packs[1].combos[1].character == "KEN");
-            }
-        }
-    }
-
-    // A combo's dummy and gauge settings travel with it; only set fields are written.
-    {
-        Combo set = fadc; set.setup.action = 1; set.setup.super = 7;
-        CHECK(Import(Export(set), packs, error) && packs[0].combos[0].setup.action == 1 && packs[0].combos[0].setup.super == 7 && packs[0].combos[0].setup.guard == -1);
-        CHECK(Export(fadc).find("setup") == std::string::npos && Export(set).find("\"guard\"") == std::string::npos);
-        CHECK(!Import(R"({"character":"RYU","steps":"5LP","setup":{"action":9}})", packs, error));
-        // Where the fighters stand travels with the combo too.
-        Combo placed = fadc; placed.placed = true; placed.place[0] = -1.5f; placed.place[1] = 2.25f;
-        CHECK(Import(Export(placed), packs, error) && packs[0].combos[0].placed && packs[0].combos[0].place[0] == -1.5f && packs[0].combos[0].place[1] == 2.25f);
-        CHECK(Export(fadc).find("place") == std::string::npos && Import(Export(fadc), packs, error) && !packs[0].combos[0].placed);
-        CHECK(!Import(R"({"character":"RYU","steps":"5LP","place":[1]})", packs, error) && !Import(R"({"character":"RYU","steps":"5LP","place":[1,99999]})", packs, error));
-        CHECK(!Import(R"({"character":"RYU","steps":"5LP","setup":3})", packs, error));
-        CHECK(Import(R"({"character":"RYU","steps":"5LP","setup":{"revenge":8}})", packs, error) && packs[0].combos[0].setup.revenge == 8);
-    }
-    // A hand-written combo: no header, steps as one line or a list, any spelling.
-    CHECK(Import(R"({"character":" ryu ","steps":"cr.mk > 236HP"})", packs, error));
-    CHECK(packs[0].combos[0].character == "RYU" && packs[0].combos[0].steps == bnb.steps);
-    CHECK(Import(R"({"character":"RYU","steps":["CR.MK","236hp"]})", packs, error));
-    CHECK(packs[0].combos[0].steps == bnb.steps);
-    CHECK(Import(R"({"character":"ryu","steps":["cr.MK","xx HP Hadoken"]})", packs, error));
-    CHECK(packs[0].combos[0].steps == (std::vector<std::string>{"2MK", "xx 236HP"}));
-
-    // Refused, with a reason, and nothing half-read is left behind.
-    for (const char* bad : {"", "not json", "[]", R"({"format":"other","steps":"5LP","character":"RYU"})",
-        R"({"version":2,"steps":"5LP","character":"RYU"})", R"({"steps":"5LP"})", R"({"character":"RYU","steps":[]})",
-        R"({"character":"RYU","steps":[1]})", R"({"character":"RYU","steps":"5LP","name":7})", R"({"packs":{}})",
-        R"({"character":"RYU","steps":"5LP > jab"})", R"({"character":"RYU","steps":["xx 5LP"]})",
-        R"({"character":"GUL","steps":"Hadoken"})", R"({"character":"RYU","steps":"HP Focus"})", R"({"character":"RYU","steps":["5LP","jab"]})",
-        R"({"combos":[{"character":"RYU"}]})", R"({"packs":[{"name":"A","combos":[{"character":"RYU","steps":"5LP"}]},{"name":"B"}]})"}) {
-        CHECK(!Import(bad, packs, error));
-        CHECK(packs.empty() && !error.empty());
-    }
-    CHECK(!Import(R"({"character":"RYU","steps":"5LP","name":")" + std::string(MaxText + 1, 'a') + "\"}", packs, error));
-    CHECK(!Import(std::string(MaxBytes + 1, ' '), packs, error));
-
-    // Merging joins packs by name and skips a route the pack already holds.
-    std::vector<Pack> book{basics};
-    Combo sameRoute{"Renamed", "RYU", "", Steps("2mk > 236hp")};
-    CHECK(Merge(book, {Pack{"Basics", {sameRoute, other}}, more}) == 3);
-    CHECK(book.size() == 2 && book[0].combos.size() == 3 && book[1].combos.size() == 2);
-
-    // Shared starts share nodes; routes branch where they differ.
-    const auto tree = BuildTree({basics, more});
-    CHECK(tree.size() == 2 && tree.at("RYU").children.size() == 2);
-    CHECK(RenderTree(tree) ==
-        "KEN\n"
-        "  2MK\n"
-        "    236HP  [More / BnB]\n"
-        "RYU\n"
-        "  2MK\n"
-        "    236HP  [Basics / BnB]\n"
-        "      FADC\n"
-        "        2HP  [Basics / FADC]\n"
-        "  2HP\n"
-        "    623HP  [More / Punish]\n");
+    return 0;
 }

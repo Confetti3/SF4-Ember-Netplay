@@ -8,7 +8,6 @@
 #include <vector>
 #include <string>
 #include "FrameMeter.hxx"
-#include "TrialSession.hxx"
 
 namespace sf4e { namespace training {
 constexpr int SlotCount = 8;
@@ -19,14 +18,12 @@ constexpr int HistoryRows = 12;
 constexpr unsigned FightButtons = 0xcff; // Directions and six attacks; excludes menu buttons.
 constexpr unsigned AttackButtons = 0xcf0;
 // wait: a loaded frame that repeats, buttons held, until the fighter can act
-// again (1) or a hit lands (2), so a replayed combo takes its timing from the
+// again (1) or a hit lands (2), so typed moves take their timing from the
 // fight; offset: frames after the cue the press lands on. A free frame is
 // predicted from the fighter's script, so 0 is that frame itself and a
 // negative offset is before it; a hit is pressed on the frame after it is seen.
 struct Input { unsigned mapped = 0, raw = 0; unsigned char wait = 0; signed char offset = 0; };
 constexpr int MinOffset = -120, MaxOffset = 120;
-// A recorded move's offset when no cue was seen for it.
-constexpr int NoOffset = -1000;
 constexpr unsigned char WaitActionable = 1, WaitHit = 2;
 // How long a waiting frame may wait before playback gives up on its
 // condition: a whole recovery, or the few frames a buffered press can wait
@@ -35,7 +32,7 @@ constexpr int MaxWaitFrames = 90, MaxWaitHitFrames = 15;
 using Frame = std::array<Input, 2>;
 struct InputRun { unsigned buttons = 0; unsigned frames = 0; };
 enum class Mode { Idle, Recording, Playback };
-enum class Action { Select, Record, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, AutoFreeze, StartTrial, StopTrial, Load, CaptureStart, CaptureStop, ExportSlot, DummyState, Place, DummyPlan, Leave };
+enum class Action { Select, Record, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, AutoFreeze, Load, ExportSlot, DummyState, Place, DummyPlan, Leave };
 // The dummy's behaviour as the game's Training menu sets it; each value is
 // the menu's choice index and -1 leaves that setting as it is. action: stand,
 // crouch, jump, cpu. guard: no block, after first hit, all, random.
@@ -57,7 +54,7 @@ inline bool ValidDummyState(const DummyState& s) {
         (s.revenge == -1 || s.revenge == 0 || s.revenge == 5 || s.revenge == 7 || s.revenge == 8);
 }
 // What the dummy does by itself once it is free again. when: 0 nothing, 1
-// after being hit (a dropped combo), 2 after blocking, 3 on getting up, 4 any
+// after being hit, 2 after blocking, 3 on getting up, 4 any
 // of them. moves: the reply as made-up input, for the dummy facing right [0]
 // and left [1]; when empty it replies with the recording in slot. chance:
 // percent of the times it replies. timing: frames the reply's first attack
@@ -137,11 +134,6 @@ inline bool DummyReplies(const DummyPlan& plan, int cause, unsigned roll) {
 inline bool ReplyDue(const DummySeen& seen, int lead, int timing) {
     return seen.freed || (seen.until >= 0 && seen.until <= lead + 1 - timing);
 }
-// trial, trialSteps: for StartTrial, the combo to practise and the text shown
-// for each of its steps. The overlay prepares both; the adapter owns them after.
-// trialFighter, trialTexts: the native id of the combo's fighter and, per
-// step, the game's own text ids for its task list; either missing keeps the
-// overlay's list.
 // frames: for Load, made-up input for the selected slot; value is the side
 // (0 or 1) that plays it back.
 // Leave: a challenger is waiting, so the battle goes back to the main menu
@@ -149,14 +141,6 @@ inline bool ReplyDue(const DummySeen& seen, int lead, int timing) {
 // percent, 0 for none.
 struct Command {
     Action action = Action::Stop; int value = 0; std::uint64_t generation = 0; std::uint64_t requestId = 0;
-    Trial trial; std::vector<std::string> trialSteps;
-    int trialFighter = -1; std::vector<std::array<std::string, 4>> trialTexts;
-    // StartTrial: after every attempt, failed or cleared, the checkpoint is
-    // restored so the next one starts where it was saved.
-    bool trialResetOnDrop = false;
-    // StartTrial: after that restore, or by itself without a checkpoint, the
-    // fighters are put at `place`, where the player wants each attempt to start.
-    bool trialPlaced = false;
     std::vector<Input> frames;
     // DummyState: the settings to change.
     DummyState dummy;
@@ -184,27 +168,9 @@ struct View {
     std::array<std::deque<InputRun>, 2> history;
     std::array<std::deque<unsigned>, 2> timeline;
     MeterView meter;
-    // The running trial: one text per step, empty when none runs. The adapter
-    // fills both, as it does the meter.
-    std::vector<std::string> trialSteps;
-    TrialView trial;
-    // The game's own task list shows the trial, so the overlay's list stays hidden.
-    bool nativeTrialList = false;
-    // Record combo: whether Player 1's moves are being written down, and
-    // the moves so far: action id, cancel when the move cancelled the one
-    // before, and the frame it began on since the recording started.
-    // offset: frames from the cue to the press, or NoOffset.
-    struct CapturedMove { int action = -1; bool cancel = false; int frame = 0; int offset = NoOffset; };
-    bool capturing = false;
-    std::vector<CapturedMove> captured;
     // ExportSlot: the selected slot's frames, handed over once per request.
     std::uint64_t exportId = 0; int exportedSlot = -1;
     std::vector<Input> exported;
-    // One entry per move of the last replayed combo: how many frames it
-    // waited for its cue (the free frame or the hit), whether the cue was
-    // seen before the wait gave up, and whether a hit followed within a second.
-    struct ReplayStep { int waited = 0; bool cued = true, hit = false, predicted = false; };
-    std::vector<ReplayStep> replay;
     std::uint64_t commandId = 0;
     bool commandAccepted = false;
     std::string commandError;
@@ -227,12 +193,11 @@ public:
         once_ = {}; actionable_ = hit_ = false; waited_ = waitedPast_ = 0; resume_ = -1;
     }
     void SetReady(bool ready) { view_.ready = ready; }
-    // What the fight showed this frame, for the waiting frames of a replay:
+    // What the fight showed this frame, for the waiting frames of a playback:
     // whether the fighter is free now, and whether a hit landed on the other one.
     // untilActionable: frames until the fighter's script says it can act again, -1 when unknown.
     void Observe(bool actionable, bool hit, int untilActionable = -1) {
         actionable_ = actionable; hit_ = hit_ || hit; untilActionable_ = untilActionable;
-        if (hit && resume_ < 0 && !view_.replay.empty() && sincePress_ < 60) view_.replay.back().hit = true;
     }
     void SetCheckpoint(bool saved) { view_.checkpoint = saved; }
     void SetPositions(float x0, float x1) { view_.x[0] = x0; view_.x[1] = x1; }
@@ -270,11 +235,7 @@ public:
         case Action::Play:
             Stop();
             if (slots_[view_.selected].empty()) return false;
-            view_.mode = Mode::Playback;
-            // A loaded combo reports each move; a recording has none to report.
-            view_.replay.clear(); sincePress_ = 0;
-            if (once_[view_.selected]) view_.replay.push_back({});
-            return true;
+            view_.mode = Mode::Playback; return true;
         case Action::Clear:
             if (view_.mode != Mode::Idle) return false;
             slots_[view_.selected].clear(); view_.lengths[view_.selected] = 0; return true;
@@ -346,10 +307,8 @@ public:
             const bool predicted = frame.wait == WaitActionable && untilActionable_ >= 0 && untilActionable_ <= 1 - frame.offset;
             const int after = frame.wait == WaitActionable ? (std::max)(0, frame.offset - 1) : (std::max)(0, static_cast<int>(frame.offset));
             const bool met = (cued && (cued ? waitedPast_++ : 0) >= after) || predicted;
-            ++sincePress_;
             // The wait gives up only on the cue; the offset's frames after it are always granted.
             if (!met && ++waited_ < (frame.wait == WaitHit ? MaxWaitHitFrames : MaxWaitFrames) + (std::max)(0, static_cast<int>(frame.offset))) return;
-            if (frame.wait && resume_ < 0) { view_.replay.push_back({waited_, met, false, predicted}); sincePress_ = 0; }
             // A hit is kept until the next press starts a move of its own, so
             // one landing while a cancel's motion is still going is not lost.
             // ponytail: a hit during a held button is dropped; track edges per button if it matters.
@@ -365,11 +324,11 @@ public:
 private:
     View view_;
     std::array<std::vector<Input>, SlotCount + 1> slots_;
-    // Loaded input is a combo: it plays once, whatever the loop setting.
+    // Loaded input plays once, whatever the loop setting.
     std::array<bool, SlotCount + 1> once_{};
     bool actionable_ = false, hit_ = false;
     int untilActionable_ = -1;
-    int waited_ = 0, waitedPast_ = 0, sincePress_ = 0;
+    int waited_ = 0, waitedPast_ = 0;
     unsigned lastRaw_ = 0;
     // The selection a reply borrowed, -1 when none plays.
     int resume_ = -1, resumeSide_ = 1;

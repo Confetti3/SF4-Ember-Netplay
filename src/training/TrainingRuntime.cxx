@@ -2,14 +2,13 @@
 #include <algorithm>
 #include <cmath>
 #include "TrainingCapture.hxx"
-#include "ComboCapture.hxx"
-#include "ComboTrial.hxx"
+#include "BacFile.hxx"
+#include "GameFiles.hxx"
 #include "ConfirmedSamples.hxx"
 #include <atomic>
 #include "../common/FighterCatalog.hxx"
 #include "../Dimps/Dimps__Game__Battle__System.hxx"
 #include "../Dimps/Dimps__Game__Battle__Training.hxx"
-#include "../Dimps/Dimps__Game__Battle__Trial.hxx"
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
 #include "../Dimps/Dimps__Sound.hxx"
@@ -27,14 +26,9 @@ using Battle = sf4e::Game::Battle::System;
 using Pad = Dimps::Pad::System;
 Session session;
 FrameMeter meter;
-// Player 1 is the one who practises a combo; player 2 takes it.
-TrialSession trial;
-ComboCapture comboCapture;
 std::uint64_t exportId = 0;
 int exportedSlot = -1;
 std::vector<Input> exported;
-// Reset-on-drop: attempts counted so far and the frames until the restore.
-bool resetOnDrop = false;
 // Leave: frames until the battle is sent to the main menu, 0 when it is not.
 // The announcer's call and the banner play first, as the game's own fight
 // request lets its banner play before it takes the battle away.
@@ -49,17 +43,14 @@ int scriptFighter[2] = {-1, -1};
 // frames whose inputs are confirmed. watching is read on the game thread
 // and set from the overlay's.
 std::atomic<bool> watching{false};
+// The in-game self-test's: the lab also runs in an offline Versus battle.
+bool versusForTest = false;
 bool matchShown = false;
 ConfirmedSamples confirmed;
 // A match under a table's Training rule. Shared checkpoints are unavailable;
 // the offline checkpoint does not participate in rollback state ownership.
 std::atomic<bool> matchPractice{false};
 PracticeState practice;
-// Where each attempt of the trial starts, when the player prefers a side.
-bool trialPlaced = false; float trialPlace[2] = {0, 0};
-unsigned attemptsSeen = 0;
-int restoreIn = 0;
-std::vector<std::string> trialSteps;
 // The dummy's own behaviour. The plan is the player's and outlives a battle;
 // offline practice only, so the random numbers need not be reproducible.
 DummyPlan dummyPlan;
@@ -89,76 +80,9 @@ bool commandAccepted=false;
 // meter. Logged per battle: a large count explains a missing frame-advantage
 // readout (ledger F-006).
 std::uint64_t gapResets = 0;
-// The game's own task list for the running trial, driven the way Trial mode
-// drives its widget: a fresh movie is asked for, Update creates it once the
-// files are in, then the rows are set once and the cursor follows the trial.
-// Game memory and game thread only; the overlay's list stands in while it is
-// not live.
-using TaskList = Dimps::Game::Battle::Trial::TaskList;
-using Allocator = Dimps::Platform::Allocator;
-struct NativeList {
-    TaskList* widget = nullptr;
-    std::vector<std::array<std::string, 4>> texts;
-    int waited = 0, cursor = -1;
-    bool live = false;
-} nativeList;
-// Frames the movie may take to appear before the overlay's list is kept.
-constexpr int NativeListPatience = 300;
-void DestroyNativeList() {
-    auto& list = nativeList;
-    if (list.widget) {
-        (list.widget->*TaskList::publicMethods.Release)();
-        (list.widget->*TaskList::publicMethods.Destruct)();
-        if (auto* allocator = Allocator::staticMethods.GetSingleton()) (allocator->*Allocator::publicMethods.Free)(list.widget);
-    }
-    list = NativeList{};
-}
-void StartNativeList(int fighter, std::vector<std::array<std::string, 4>> texts) {
-    DestroyNativeList();
-    if (fighter < 0 || texts.empty()) return;
-    auto* allocator = Allocator::staticMethods.GetSingleton();
-    void* memory = allocator ? (allocator->*Allocator::publicMethods.Allocate)(TaskList::Size, 0, -1) : nullptr;
-    if (!memory) { spdlog::warn("Training: no game memory for the task list; the overlay's list shows the trial"); return; }
-    auto& list = nativeList;
-    list.widget = (TaskList*)memory; list.texts = std::move(texts);
-    (list.widget->*TaskList::publicMethods.Construct)();
-    (list.widget->*TaskList::publicMethods.Init)(fighter);
-    *TaskList::GetReloadRequest(list.widget) = 1;
-}
-// Once per battle frame.
-void TickNativeList(int current) {
-    auto& list = nativeList;
-    if (!list.widget) return;
-    (list.widget->*TaskList::publicMethods.Update)();
-    if (*TaskList::GetMovieCreated(list.widget)) {
-        *TaskList::GetMovieCreated(list.widget) = 0;
-        (list.widget->*TaskList::publicMethods.ClearAllTask)();
-        // Trial mode sends the first three ids of a row and leaves the fourth empty.
-        Dimps::Game::Battle::Trial::Text ids[4];
-        for (std::size_t i = 0; i < list.texts.size(); ++i) {
-            for (std::size_t slot = 0; slot < 4; ++slot) ids[slot].Set(list.texts[i][slot].c_str(), slot < 3 ? list.texts[i][slot].size() : 0);
-            (list.widget->*TaskList::publicMethods.SetTask)(static_cast<int>(i), ids[0], ids[1], ids[2], ids[3]);
-        }
-        (list.widget->*TaskList::publicMethods.Advance)();
-        (list.widget->*TaskList::publicMethods.SetPosition)(150.f, 310.f);
-        list.live = true; list.cursor = -1;
-    }
-    if (!list.live) {
-        if (++list.waited == NativeListPatience) {
-            spdlog::warn("Training: the game's task list did not appear; the overlay's list shows the trial");
-            DestroyNativeList();
-        }
-        return;
-    }
-    if (list.cursor != current) { (list.widget->*TaskList::publicMethods.SetTaskCursor)(current); list.cursor = current; }
-    (list.widget->*TaskList::publicMethods.Draw)();
-}
-// A step's ids come from the fighter's command file on the assumption that a
-// move's script index is the action id the game reports. Where that fails the
-// step just never ticks, so the ids are logged once as the trial ends.
 // Puts both fighters at an x each, through the root position the engine
-// keeps for them. ponytail: x only, on the ground; add y and facing if a
-// combo ever needs them.
+// keeps for them. ponytail: x only, on the ground; add y and facing if
+// they are ever needed.
 bool PlaceFighters(Native* system, const float* x) {
     using Actor = Dimps::Game::Battle::Chara::Actor;
     using Unit = Dimps::Game::Battle::Chara::Unit;
@@ -176,18 +100,12 @@ bool PlaceFighters(Native* system, const float* x) {
 // after which the battle is left rather than played on.
 bool RestoreCheckpoint(Native* system) {
     const bool restored = Battle::SaveState::Load(&checkpoint);
-    meter.Reset(); trial.Restart(); dummyWatch.Reset();
+    meter.Reset(); dummyWatch.Reset();
     if (!restored) {
         spdlog::error("Training: the checkpoint did not fully restore; leaving the battle");
         *Native::GetReadyState(system) = Native::RS_ISLEAVING;
     }
     return restored;
-}
-void EndTrial() {
-    const auto unmatched = trial.Unmatched();
-    if (!unmatched.empty()) spdlog::info("Training: trial steps that never matched: {}", unmatched);
-    trial = TrialSession{}; trialSteps.clear();
-    DestroyNativeList();
 }
 }
 // The game's Training menu settings live in Training::Manager; the dummy
@@ -238,8 +156,9 @@ bool ReadOverride(int side, Input& result) {
 }
 void BeforeUpdate(Native* system, bool networkOwned) {
     overriding = false; sampling = false; commitInput = false;
+    const int gameMode = (system->*Native::publicMethods.GetGameMode)();
     const bool available = !networkOwned &&
-        (system->*Native::publicMethods.GetGameMode)() == Dimps::Game::Battle::GAMEMODE_TRAINING &&
+        (gameMode == Dimps::Game::Battle::GAMEMODE_TRAINING || (versusForTest && gameMode == Dimps::Game::Battle::GAMEMODE_VERSUS)) &&
         !(system->*Native::publicMethods.IsLeavingBattle)();
     if (!available) {
         if (session.GetView().available) CloseBattle();
@@ -254,25 +173,6 @@ void BeforeUpdate(Native* system, bool networkOwned) {
         commandId=command.requestId; commandAccepted=false;
         if (command.generation == session.GetView().generation && command.action == Action::AutoFreeze) {
             meter.SetAutoFreeze(command.value != 0); commandAccepted=true; continue;
-        }
-        if (command.generation == session.GetView().generation &&
-            (command.action == Action::StartTrial || command.action == Action::StopTrial)) {
-            EndTrial();
-            std::string error;
-            commandAccepted = command.action == Action::StopTrial ||
-                (command.trialSteps.size() == command.trial.steps.size() && trial.Load(command.trial, error));
-            if (commandAccepted && command.action == Action::StartTrial) {
-                trialSteps = command.trialSteps; resetOnDrop = command.trialResetOnDrop; attemptsSeen = 0; restoreIn = 0;
-                trialPlaced = command.trialPlaced; trialPlace[0] = command.place[0]; trialPlace[1] = command.place[1];
-                // The game's list shows eight rows and does not scroll: a longer combo
-                // would hide its later moves, so the overlay's list, which follows the
-                // move being waited for, shows it instead.
-                if (command.trialTexts.size() == command.trialSteps.size() && command.trialSteps.size() <= 8) StartNativeList(command.trialFighter, command.trialTexts);
-            }
-            // The overlay ran Load on the same trial and showed its refusal; the
-            // command carries no request id, so a refusal here is only logged.
-            if (!commandAccepted) spdlog::warn("Training: trial refused: {}", error.empty() ? "the step texts do not match the steps" : error);
-            continue;
         }
         if (command.generation == session.GetView().generation && command.action == Action::Place) { commandAccepted = PlaceFighters(system, command.place); continue; }
         if (command.generation == session.GetView().generation && command.action == Action::DummyPlan) {
@@ -291,8 +191,6 @@ void BeforeUpdate(Native* system, bool networkOwned) {
             }
             continue;
         }
-        if (command.generation == session.GetView().generation && command.action == Action::CaptureStart) { comboCapture.Start(command.value != 0); commandAccepted = true; continue; }
-        if (command.generation == session.GetView().generation && command.action == Action::CaptureStop) { comboCapture.Stop(); commandAccepted = true; continue; }
         if (command.generation == session.GetView().generation && command.action == Action::ExportSlot) {
             exportedSlot = session.GetView().selected; exported = session.Slot(exportedSlot); ++exportId; commandAccepted = true; continue;
         }
@@ -332,14 +230,13 @@ void BeforeUpdate(Native* system, bool networkOwned) {
         *Native::GetReadyState(system) = Native::RS_ISLEAVING;
         spdlog::info("Training: battle told to leave for the main menu");
     }
-    TickNativeList(trial.GetView().current);
     // Opening either overlay suspends recording; native pause frames are
     // also excluded by the before/after simulation counter check.
     if (!session.GetView().ready) return;
     beforeFrame = Native::GetNumFramesSimulated_FixedPoint(system)->integral;
     sampling = true;
-    // Playback needs no pad, so it goes on under the open controls, where a
-    // replay or trial can be watched; recording waits for the pad to be free.
+    // Playback needs no pad, so it goes on under the open controls, where it
+    // can be watched; recording waits for the pad to be free.
     const bool menu = sf4e::Overlay::CapturesMenuInput() || sf4e::Pad::MenuInputBlocked();
     if (menu && session.GetView().mode != Mode::Playback) return;
     Pad* pad = Pad::staticMethods.GetSingleton();
@@ -373,10 +270,10 @@ const bac::File& FighterScripts(Native* system, unsigned side) {
     wchar_t program[32768] = {};
     GetModuleFileNameW(nullptr, program, 32768);
     const std::string code = fighter->code;
-    const auto folder = combo::CommandFolder(std::filesystem::path(program).parent_path(), code);
+    const auto folder = CommandFolder(std::filesystem::path(program).parent_path(), code);
     std::vector<std::uint8_t> bytes;
     std::string error;
-    if (!combo::ReadFile(folder / (code + ".bac"), bac::MaxBytes, bytes, error) || !bac::Read(bytes.data(), bytes.size(), scriptFiles[side], error))
+    if (!ReadFile(folder / (code + ".bac"), bac::MaxBytes, bytes, error) || !bac::Read(bytes.data(), bytes.size(), scriptFiles[side], error))
         spdlog::warn("Training: no projectile frames for {}: {}", code, error);
     return scriptFiles[side];
 }
@@ -447,7 +344,7 @@ void AfterUpdate(Native* system) {
                 if (Actor* actor = (unit->*Unit::publicMethods.GetActorByIndex)(side)) if (const float* position = (actor->*Actor::publicMethods.GetCurrentRootPosition)()) x[side] = position[0];
             session.SetPositions(x[0], x[1]);
         }
-        // The replay's waiting frames read the fight: the fighter playing it
+        // A playback's waiting frames read the fight: the fighter playing it
         // in a neutral state, and a hit on the other one landing this frame.
         {
             static std::array<FighterSample, 2> previous;
@@ -462,24 +359,9 @@ void AfterUpdate(Native* system) {
             session.Observe(own.valid && ClassifyStatus(own.status) == Phase::Neutral, hit, until);
             previous = fighters;
         }
-        {
-            // A replayed combo's report, once it ends, so a tuning session can be read back from the log.
-            static bool wasPlaying = false;
-            const bool playing = session.GetView().mode == Mode::Playback;
-            if (commitInput) session.Commit(output);
-            const bool nowPlaying = session.GetView().mode == Mode::Playback;
-            if ((wasPlaying || playing) && !nowPlaying && !session.GetView().replay.empty()) {
-                std::string report;
-                for (const auto& step : session.GetView().replay) report += (report.empty() ? "" : ", ") + std::to_string(step.waited) + (step.predicted ? "p" : "") + (step.cued ? "" : "!") + (step.hit ? "h" : "-");
-                spdlog::info("Training: replay report (waited frames, p predicted, ! gave up, h hit followed): {}", report);
-            }
-            wasPlaying = nowPlaying;
-        }
+        if (commitInput) session.Commit(output);
         meter.Observe(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters);
-        trial.Observe(ObserveTrial(fighters[0], fighters[1]));
-        comboCapture.Observe(fighters[0], fighters[1]);
-        // The dummy is free again: it may reply, unless that hit finished the
-        // trial's combo, and it may change its stance for the next attempt.
+        // The dummy is free again: it may reply, and it may change its stance.
         // Its stun is timed, so the reply's motion can go in before the free
         // frame and its button land on it; a stun not seen before is replied
         // to as it ends.
@@ -493,7 +375,7 @@ void AfterUpdate(Native* system) {
             const int cause = seen.freed ? seen.freed : seen.held;
             if (cause && seen.stretch != decidedStretch && ReplyDue(seen, ReplyLead(frames), dummyPlan.timing)) {
                 decidedStretch = seen.stretch;
-                if (!(cause == 1 && trial.GetView().complete) && DummyReplies(dummyPlan, cause, dummyRandom()) &&
+                if (DummyReplies(dummyPlan, cause, dummyRandom()) &&
                     (typed ? session.Reply(frames) : session.Reply(dummyPlan.slot)) && options) {
                     replyAction = options[Manager::OPT_ACTION]; options[Manager::OPT_ACTION] = 0;
                 }
@@ -504,27 +386,16 @@ void AfterUpdate(Native* system) {
             }
             if (replyAction >= 0 && !session.Replying() && options) { options[Manager::OPT_ACTION] = replyAction; replyAction = -1; }
         }
-        // An attempt just ended: the restore waits long enough for the result
-        // to be read, then the next attempt starts from the checkpoint.
-        const unsigned attemptsDone = trial.GetView().failures + trial.GetView().successes;
-        if (resetOnDrop && (checkpoint.used || trialPlaced) && attemptsDone != attemptsSeen) { attemptsSeen = attemptsDone; restoreIn = 45; }
-        if (restoreIn && !--restoreIn) {
-            if (checkpoint.used) RestoreCheckpoint(system);
-            if (trialPlaced) PlaceFighters(system, trialPlace);
-        }
         if (!capture) capture = new TrainingCapture();
         capture->Record(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters, meter.View());
     } else if (sampling && delta != 0) {
-        meter.Reset(); trial.Restart(); dummyWatch.Reset();
+        meter.Reset(); dummyWatch.Reset();
         ++gapResets;
     }
     sampling = false;
     std::lock_guard<std::mutex> lock(mutex); published = session.GetView(); published.meter = meter.View();
     if (published.available) published.dummy = ReadDummyState(published.dummy);
-    published.capturing = comboCapture.Active(); published.captured.clear();
-    for (const auto& event : comboCapture.Events()) published.captured.push_back({event.action, event.cancel, event.frame, event.offset});
     published.exportId = exportId; published.exportedSlot = exportedSlot; published.exported = exported;
-    published.trialSteps = trialSteps; published.trial = trial.GetView(); published.nativeTrialList = nativeList.live;
     for (int side = 0; side < 2; ++side) published.fighters[side] = BattleFighter(system, side);
     published.leavingIn = leaveIn;
     published.commandId=commandId;published.commandAccepted=commandAccepted;
@@ -545,6 +416,7 @@ bool BeforeMatchFrame(Native*, unsigned& rawOne, unsigned& rawTwo) {
     rawOne &= ~PracticeMask; rawTwo &= ~PracticeMask;
     return true;
 }
+void AllowOfflineVersusForTest(bool allowed) { versusForTest = allowed; }
 void WatchMatches(bool enabled) { watching = enabled; }
 void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput, unsigned padOne, unsigned padTwo) {
     if (!watching) {
@@ -578,7 +450,7 @@ void CloseBattle() {
     gapResets = 0; leaveIn = 0;
     overriding = false; sampling = false;
     if (checkpoint.used) Battle::SaveState::Free(&checkpoint);
-    session.Reset(); meter.Reset(); confirmed.Reset(); matchShown = false; EndTrial();
+    session.Reset(); meter.Reset(); confirmed.Reset(); matchShown = false;
     matchPractice = false; practice = PracticeState{}; dummyWatch.Reset(); replyAction = -1;
     std::lock_guard<std::mutex> lock(mutex); commands.clear(); published = session.GetView();
 }
