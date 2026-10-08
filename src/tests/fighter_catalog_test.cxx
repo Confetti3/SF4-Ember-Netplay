@@ -184,5 +184,29 @@ int main() {
     CHECK(pick.edition == 14 && pick.costume == 0 && pick.color == 0 && pick.ultra == 2);
     pick.edition = 16; CHECK(Normalize(pick, true)); CHECK(pick.ultra == 0);
     CHECK(Normalize(pick, false)); CHECK(pick.edition == 14);
-    std::cout << "44-fighter catalog, edition restrictions, palette bounds, sparse unlocks and saved-choice repair passed\n";
+
+    // Custom costumes: slots 8-99 (indices 7-98) of every fighter, ten colours each, valid picks on the network and
+    // listed only once installed.
+    CHECK(IsCustomCostume(7) && IsCustomCostume(98) && !IsCustomCostume(6) && !IsCustomCostume(99));
+    Pick custom; custom.costume = 11; custom.color = 9;
+    CHECK(Valid(custom, true) && !Normalize(custom, true) && ColorCount(0, 11) == 10);
+    custom.color = 10;
+    CHECK(!Valid(custom, true));
+    Availability installed; installed.ready = true; installed.costumes = 1u; installed.customCostumes = {11};
+    CHECK(AllowedCostumes(0, installed) == (std::vector<int>{0, 11}) && AllowedColors(0, 11, installed).size() == 10);
+    CHECK(AllowedCostumes(0, sparse) == (std::vector<int>{0, 1, 6}));
+
+    // Custom stages: any three capital letters or digits that aren't a game stage's code; the code is the id, so a
+    // custom stage travels as one number. They fall back to a stock stage by rule and never enter Random.
+    const int c12 = CustomStageId("C12"), d12 = CustomStageId("D12"), zzz = CustomStageId("ZZZ");
+    CHECK(c12 == ('C' << 16 | '1' << 8 | '2') && IsCustomStage(c12) && IsCustomStage(d12) && IsCustomStage(zzz));
+    for (const char* bad : {"CHN", "GAS", "SCX", "c12", "C1", "C123", "C-2", ""}) CHECK(CustomStageId(bad) == -1);
+    CHECK(!IsCustomStage(1) && !IsCustomStage(RandomStageId) && !IsCustomStage('C' << 16 | 'H' << 8 | 'N'));
+    CHECK(FindStage(c12) && std::string(FindStage(c12)->code) == "C12" && FindStage(c12)->id == c12 && NormalizeStage(c12) == c12);
+    CHECK(CustomStageFallback(c12) == 16 && CustomStageFallback(d12) == 16);              // the 12th fallback, CNX
+    CHECK(CustomStageFallback(CustomStageId("C05")) == 6 && CustomStageFallback(CustomStageId("C19")) == 1);
+    CHECK(FindStage(CustomStageFallback(zzz)) && !IsCustomStage(CustomStageFallback(zzz)));
+    CHECK(ResolveStage(c12, 0) == c12);
+    for (std::uint32_t roll = 0; roll <= 100; ++roll) CHECK(!IsCustomStage(ResolveStage(RandomStageId, roll)));
+    std::cout << "44-fighter catalog, edition restrictions, palette bounds, sparse unlocks, saved-choice repair, custom costumes and custom stages passed\n";
 }

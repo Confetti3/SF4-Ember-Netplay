@@ -1,4 +1,5 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "sf4e__CustomContent.hxx"
 #include "../session/IdentityEvents.hxx"
 #include "../platform/Utf8.hxx"
 #include <cwchar>
@@ -236,7 +237,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		if (inFlight) return DispatchOutcome::Dropped;
 		const char* refusal = nullptr;
 		const auto availability = command.character.charaID < 44 ?
-			Dimps::Selection::ReadAvailability(command.character.charaID) : selection::Availability{};
+			custom::ReadAvailability(command.character.charaID) : selection::Availability{};
 		if (!runtime->input.Ready()) refusal = loc::T("runtime.ready.assign_controller");
 		else if (!selection::IsRandomStage(command.stage) && !selection::FindStage(command.stage)) refusal = loc::T("runtime.ready.stage_unavailable");
 		else if (command.character.charaID >= 44 || selection::FighterLocked(command.character.charaID, availability)) refusal = loc::T("runtime.ready.fighter_unavailable");

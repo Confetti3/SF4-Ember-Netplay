@@ -30,6 +30,9 @@ bool CostumeInstalled(int fighterId, int costumeId);
 // Custom stage ids installed on this PC (battle\stage\STG_<code>.emz in the patch folder with a custom code, see
 // StageCatalog), ascending.
 const std::vector<int>& InstalledStages();
+// A fighter's availability for the selectors and the ready check: the game's own (Dimps::Selection) plus the custom
+// costumes and stages installed on this PC, which need no licence.
+selection::Availability ReadAvailability(int fighterId);
 
 // The stage this PC hands the game for a match's stage id: a stock stage stays; a custom stage plays as its
 // fallback stage (its effects), and if this PC has it, the stage loader is given its code (C12: STG_C12.emz and
