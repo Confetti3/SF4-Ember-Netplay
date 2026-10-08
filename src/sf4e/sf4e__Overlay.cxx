@@ -481,9 +481,9 @@ void Overlay::DrawOverlay() {
             sf4e::training::Submit({action, 0, training.generation});
         };
         // The setter keeps only its first call, and the lookup asks the shell each time.
-        // Before the HUD and the hotkeys, which read the combo book too.
-        static bool comboBookDirectorySet=false;
-        if(!comboBookDirectorySet) { sf4e::ui::SetComboBookDirectory(sf4e::netplay::SettingsStore::DefaultDirectory()); comboBookDirectorySet=true; }
+        // Before the HUD and the hotkeys, which read the lab's settings too.
+        static bool trainingDirectorySet=false;
+        if(!trainingDirectorySet) { sf4e::ui::SetTrainingDirectory(sf4e::netplay::SettingsStore::DefaultDirectory()); trainingDirectorySet=true; }
         sf4e::ui::TrainingHotkeys(training, sf4e::training::Submit,
             !trainingOpen && (snapshot.menuController.buttons & sf4e::ui::ControllerSample::Chat) != 0);
         if (!trainingOpen && !ImGui::GetIO().WantTextInput) {
@@ -550,7 +550,6 @@ void Overlay::DrawOverlay() {
         if (training.watching && !presentation.Visible()) sf4e::ui::DrawMatchMeter(training);
         // A Training table's shared reset and save: asked for here, sent with the player's next input.
         if (focused && !presentation.Visible() && !status.spectator && sf4e::training::MatchPracticeActive()) {
-            sf4e::ui::SetComboBookDirectory(sf4e::netplay::SettingsStore::DefaultDirectory());
             sf4e::training::RequestMatchPractice(sf4e::ui::MatchPracticeKeys(
                 (snapshot.menuController.buttons & sf4e::ui::ControllerSample::Chat) != 0));
         }
@@ -628,7 +627,7 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
     if (!ImGui::GetCurrentContext()) return 0;
     if (activationClick.Swallow(message, l)) return 0;
     const auto handled = sf4e::ui::HandleOverlayMessage(window, message, w, l, capture, s_menuAvailable, pointerCapture);
-    // The combo hotkeys only as plain keys, so Alt+F4 still reaches the game.
+    // The position hotkeys only as plain keys, so Alt+F4 still reaches the game.
     const bool plainKey = message == WM_KEYDOWN || message == WM_KEYUP, systemKey = message == WM_SYSKEYDOWN || message == WM_SYSKEYUP;
     if (trainingAvailable && ((w >= VK_F5 && w <= VK_F8 && (plainKey || systemKey)) ||
         (plainKey && w >= VK_F1 && w <= VK_F12 && sf4e::ui::TrainingHotkeyBound(static_cast<int>(w - VK_F1))))) return 1;

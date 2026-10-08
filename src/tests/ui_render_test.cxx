@@ -927,16 +927,11 @@ int main(int argc, char** argv) {
             }
             mode=1;TrainingNavigation().Home();draw("training-home");
             Require(TrainingNavigation().Focus()=="recording","Removed practice position still occupies training root");
-            for(const char* screen:{"recording","history"}){
+            // The dummy rows name the game's own settings, as the adapter reads them.
+            training.dummy.action=1;training.dummy.guard=2;training.dummy.counterHit=1;training.dummy.quickStand=3;training.dummy.super=5;training.dummy.revenge=7;
+            for(const char* screen:{"recording","history","tools"}){
                 TrainingNavigation().Home();TrainingNavigation().Push(screen);draw((std::string("training-")+screen).c_str());
             }
-            // The combo creator's screens, with a combo on the Moves line to show.
-            SetComboMoves("2MK > xx 236HP > FADC > 5HP > xx 623HP");
-            for(const char* screen:{"combos","combo-timing","combo-moves"}){
-                TrainingNavigation().Home();TrainingNavigation().Push("combos");if(std::string(screen)!="combos")TrainingNavigation().Push(screen);
-                draw((std::string("training-")+screen).c_str());
-            }
-            SetComboMoves("");
             TrainingNavigation().Home();TrainingNavigation().Push("recording");draw();
             // Returning restores the prior selection, which may be below Record.
             for(int i=0;i<20;++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
@@ -961,16 +956,6 @@ int main(int argc, char** argv) {
             SetMenuGlyphs(4,0,0);draw("training-hud-directinput");
             Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"DirectInput HUD captured input");
             SetMenuGlyphs(0,0,0);draw("training-hud-keyboard");SetMenuGlyphs(3,0x40000,0x20000);
-            // A running trial lists its steps beside the fight, as passive as the meter and clear of it.
-            training.trialSteps.assign(14,"xx 236236PPP");training.trial.steps.assign(14,training::TrialStepState::Waiting);
-            training.trial.steps[0]=training::TrialStepState::Done;training.trial.steps[1]=training::TrialStepState::Out;training.trial.steps[3]=training::TrialStepState::Unchecked;
-            training.trial.current=1;training.trial.attempts=3;training.trial.successes=1;
-            training.trial.lastFailure=training::TrialFailure::Whiffed;training.trial.failedStep=2;
-            draw("training-hud-trial");
-            Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Trial list captured input");
-            auto* list=FindWindow("Training trial");
-            Require(list->Pos.x>=0&&list->Pos.x+list->Size.x<=size.w*.5f&&list->Pos.y+list->Size.y<=FindWindow("Training frame meter")->Pos.y,"Trial list leaves its corner");
-            training.trialSteps.clear();training.trial=training::TrialView{};
             mode=3;draw("match-hud");
             ShootMatchHud(matchStrip,draw,[&]{ImGui_ImplDX9_InvalidateDeviceObjects();});
             mode=5;draw("controller-warning");

@@ -160,7 +160,7 @@ int main() {
             Require(frame[0].raw == 0x410, "Loaded input did not advance");
             Command empty; empty.action = Action::Load; empty.generation = load.generation;
             Require(!session.Apply(empty), "Empty load accepted while playing");
-            // Loaded input is a combo: one pass even with looping on.
+            // Loaded input plays one pass even with looping on.
             Require(session.GetView().loop, "Loop is not the default");
             session.Commit(frame);
             Require(session.GetView().mode == Mode::Idle, "Loaded input looped");
@@ -181,17 +181,13 @@ int main() {
             Require(session.GetView().cursor == 3, "Late offset did not hold after the hit");
             session.Observe(false, false); session.Commit(session.Prepare(physical));
             Require(session.Prepare(physical)[0].raw == 0x18, "Late offset held too long");
-            // Each move reports what its wait saw.
-            const auto& replay = session.GetView().replay;
-            Require(replay.size() == 3 && replay[0].waited == 0 && replay[1].waited == 5 && replay[1].cued && replay[2].waited == 2 && replay[2].cued, "Waits not reported");
-            Require(replay[1].hit && !replay[2].hit, "Hit not credited to the move before it");
             apply(Action::Stop);
             // A press waiting for a hit that never comes goes stale quickly.
             Require(session.Apply(timed) && apply(Action::Play), "Timed load refused again");
             for (int i = 0; i < 3; ++i) { session.Observe(true, false); session.Commit(session.Prepare(physical)); }
             // The give-up spans the cue's frames plus the offset's.
             for (int i = 0; i < MaxWaitHitFrames + 2; ++i) { session.Observe(false, false); session.Commit(session.Prepare(physical)); }
-            Require(session.Prepare(physical)[0].raw == 0x18 && !session.GetView().replay[2].cued, "Waiting for a hit never gave up");
+            Require(session.Prepare(physical)[0].raw == 0x18, "Waiting for a hit never gave up");
             apply(Action::Stop);
             // With the script predicting the free frame, a link's press lands
             // on that frame plus the offset: before it when negative. A seen
