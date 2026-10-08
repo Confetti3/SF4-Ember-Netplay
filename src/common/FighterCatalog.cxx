@@ -54,12 +54,14 @@ int CostumeCount(int fighterId) {
     return base ? base + 3 : 0;
 }
 int ColorCount(int fighterId, int costumeId) {
+    if (FindFighter(fighterId) && IsCustomCostume(costumeId)) return CustomColorCount;
     if (costumeId < 0 || costumeId >= CostumeCount(fighterId)) return 0;
     // Native customization builds 12 earlier-costume and 22 later-costume
     // entries at RVA 0x2ec64. Availability further filters profile unlocks.
     return costumeId < BaseCostumeCount(fighterId) ? 12 : 22;
 }
 const char* CostumePack(int fighterId, int costumeId) {
+    if (FindFighter(fighterId) && IsCustomCostume(costumeId)) return "Custom";
     if (costumeId < 0 || costumeId >= CostumeCount(fighterId)) return "";
     if (costumeId == 0) return "Original";
     const int base = BaseCostumeCount(fighterId);
@@ -192,12 +194,18 @@ std::vector<int> AllowedCostumes(int fighterId, const Availability& availability
     if (availability.ready && !FighterLocked(fighterId, availability))
         for (int costume = 0; costume < CostumeCount(fighterId); ++costume)
             if (availability.costumes & (1u << costume)) result.push_back(costume);
+    if (availability.ready && FindFighter(fighterId))
+        result.insert(result.end(), availability.customCostumes.begin(), availability.customCostumes.end());
     return result;
 }
 std::vector<int> AllowedColors(int fighterId, int costumeId, const Availability& availability) {
     std::vector<int> result;
     const auto costumes = AllowedCostumes(fighterId, availability);
     if (std::find(costumes.begin(), costumes.end(), costumeId) == costumes.end()) return result;
+    if (IsCustomCostume(costumeId)) {
+        for (int color = 0; color < CustomColorCount; ++color) result.push_back(color);
+        return result;
+    }
     for (int color = 0; color < ColorCount(fighterId, costumeId); ++color)
         if (availability.colors[costumeId] & (1u << color)) result.push_back(color);
     return result;
@@ -209,7 +217,7 @@ bool Valid(const Pick& pick, bool editionSelect) {
         (pick.winQuote != 255 && (pick.winQuote < 0 || pick.winQuote > 10)) ||
         pick.handicap < 0 || pick.handicap > 4) return false;
     if (!EditionAllowed(pick.fighter, pick.edition, editionSelect) || pick.costume < 0 ||
-        pick.costume >= CostumeCount(pick.fighter) || pick.color < 0 ||
+        (pick.costume >= CostumeCount(pick.fighter) && !IsCustomCostume(pick.costume)) || pick.color < 0 ||
         pick.color >= ColorCount(pick.fighter, pick.costume)) return false;
     const auto ultras = AllowedUltras(pick.fighter, pick.edition);
     return std::find(ultras.begin(), ultras.end(), pick.ultra) != ultras.end();
@@ -228,7 +236,7 @@ bool Normalize(Pick& pick, bool editionSelect, const Availability* availability)
     if (pick.handicap < 0 || pick.handicap > 4) pick.handicap = 0;
     if (!FindFighter(pick.fighter)) pick.fighter = 0;
     pick.edition = NormalizeEdition(pick.fighter, pick.edition, editionSelect);
-    if (pick.costume < 0 || pick.costume >= CostumeCount(pick.fighter)) pick.costume = 0;
+    if (pick.costume < 0 || (pick.costume >= CostumeCount(pick.fighter) && !IsCustomCostume(pick.costume))) pick.costume = 0;
     if (pick.color < 0 || pick.color >= ColorCount(pick.fighter, pick.costume)) pick.color = 0;
     const auto ultras = AllowedUltras(pick.fighter, pick.edition);
     if (std::find(ultras.begin(), ultras.end(), pick.ultra) == ultras.end()) pick.ultra = 0;

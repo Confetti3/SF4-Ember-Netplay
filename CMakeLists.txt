@@ -486,6 +486,8 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__CrashDiagnostics.cxx"
     "src/sf4e/sf4e__UserApp.hxx"
     "src/sf4e/sf4e__UserApp.cxx"
+    "src/sf4e/sf4e__CustomContent.hxx"
+    "src/sf4e/sf4e__CustomContent.cxx"
     "src/sf4e/sf4e__NetplayFacade.hxx"
     "src/sf4e/sf4e__NetplayFacade.cxx"
     "src/sf4e/sf4e__NetplayRuntime.hxx"

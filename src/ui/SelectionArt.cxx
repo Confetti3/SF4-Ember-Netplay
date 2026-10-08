@@ -253,6 +253,20 @@ struct SelectionArt::Impl {
         const std::wstring relative(key.begin(), key.end());
         return {assetRoot + L"/" + relative + L"-cutout.png", assetRoot + L"/" + relative + L".png", assetRoot + L"/" + relative + L".jpg"};
     }
+    // Custom costumes and stages bring their pictures beside their files in the game's patch folder (the setup
+    // program that installs them puts them there): <CHR>_<NN>_<CC>.png per colour or <CHR>_<NN>.png for all,
+    // STG_<code>.png or .jpg.
+    std::wstring PatchFolder(const wchar_t* sub) const { return gameRoot + L"/patch_ae2_tu3/battle/" + sub + L"/"; }
+    static std::wstring TwoDigits(int n) { return std::to_wstring(n / 10) + std::to_wstring(n % 10); }
+    std::vector<std::wstring> CustomCostumePaths(const char* code, int costume, int color) const {
+        const std::wstring chr(code, code + std::strlen(code));
+        const std::wstring stem = PatchFolder(L"chara") + chr + L"/" + chr + L"_" + TwoDigits(costume + 1);
+        return {stem + L"_" + TwoDigits(color + 1) + L".png", stem + L".png"};
+    }
+    std::vector<std::wstring> CustomStagePaths(const char* code) const {
+        const std::wstring stem = PatchFolder(L"stage") + L"STG_" + std::wstring(code, code + std::strlen(code));
+        return {stem + L".png", stem + L".jpg"};
+    }
 };
 
 SelectionArt::SelectionArt(IDirect3DDevice9* device, std::wstring game, std::wstring assets, Logger log)
@@ -343,6 +357,8 @@ SelectionImage SelectionArt::Appearance(int fighterId, int costume, int color) {
     const auto* fighter = selection::FindFighter(fighterId);
     if (!fighter || color < 0 || color >= selection::ColorCount(fighterId, costume)) return {};
     const std::string key = std::string(fighter->code) + "/costume-" + std::to_string(costume) + "/color-" + std::to_string(color);
+    if (selection::IsCustomCostume(costume))
+        return impl_->Request(key, [&] { return impl_->CustomCostumePaths(fighter->code, costume, color); });
     const auto result = impl_->Request(key, [&] { return impl_->ImagePaths(key); });
     // Native selection art depicts the original outfit in its default palette.
     if (result.missing && costume == 0 && color == 0) return Portrait(fighterId, true);
@@ -366,6 +382,8 @@ SelectionImage SelectionArt::Stage(int nativeId) {
     const auto* stage = selection::FindStage(nativeId);
     if (!stage) return {};
     const std::string key = std::string("stages/") + stage->code;
+    if (selection::IsCustomStage(nativeId))
+        return impl_->Request(key, [&] { return impl_->CustomStagePaths(stage->code); }, MaximumImageSide);
     return impl_->Request(key, [&] { return impl_->ImagePaths(key); }, MaximumImageSide);
 }
 } }

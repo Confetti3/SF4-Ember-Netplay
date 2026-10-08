@@ -166,6 +166,8 @@ const char* StageLabel(int stageId) {
 }
 std::string CostumeLabel(const selection::Pick& pick) {
     if (pick.costume == 0) return loc::T("selection.original");
+    // A custom costume is named by its slot, as the setup program numbers it (slot = index + 1).
+    if (selection::IsCustomCostume(pick.costume)) return loc::Tf("selection.custom", pick.costume + 1);
     return loc::Tf("selection.alternate_pack", pick.costume, selection::CostumePack(pick.fighter, pick.costume));
 }
 const char* UltraLabel(int ultra) {
@@ -280,7 +282,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    const bool usable=!AllowedColors(pick.fighter,costume,availability).empty();
    // The legend says Select saves, so an editable card's detail is just its
    // pack, which fits the compact gallery's two lines with the saved choice.
-   rows.push_back(Saving(Row("costume-"+std::to_string(costume),costume==0?loc::T("selection.original"):loc::Tf("selection.alternate",costume),
+   rows.push_back(Saving(Row("costume-"+std::to_string(costume),costume==0?loc::T("selection.original"):selection::IsCustomCostume(costume)?loc::Tf("selection.custom",costume+1):loc::Tf("selection.alternate",costume),
     !usable?std::string(loc::T("selection.no_colors")):editable?CostumeLabel(option):CostumeLabel(option)+"\n"+locked,editable&&usable),"menu.hint.save_costume",editable));
   }else for(int color:AllowedColors(pick.fighter,pick.costume,availability))
    rows.push_back(Saving(Row("color-"+std::to_string(color),loc::Tf("selection.color",color+1),editable?"":locked,editable),"menu.hint.save_color",editable));
@@ -298,6 +300,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   page_=Page::Stage;title=loc::T("selection.stage_title");
   rows.push_back(Saving(Row("stage-"+std::to_string(RandomStageId),loc::T("selection.random_stage"),stageId?loc::T("selection.random_stage.detail"):loc::T("selection.only_p1_stage"),editable&&stageId),"menu.hint.save_stage",editable&&stageId));
   for(const auto& stage:StageList())rows.push_back(Saving(Row("stage-"+std::to_string(stage.id),stage.name,stageId?locked:loc::T("selection.only_p1_stage"),editable&&stageId),"menu.hint.save_stage",editable&&stageId));
+  for(int id:availability.customStages)rows.push_back(Saving(Row("stage-"+std::to_string(id),FindStage(id)->name,stageId?locked:loc::T("selection.only_p1_stage"),editable&&stageId),"menu.hint.save_stage",editable&&stageId));
   if(stageId&&randomStageExcluded){
    rows.push_back(Row("random-pool",loc::T("selection.random_pool"),loc::Tf("selection.random_pool.detail",RandomPoolSize(*randomStageExcluded),VersusStageCount)));
    rows.back().wide=true;

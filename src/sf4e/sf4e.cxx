@@ -16,6 +16,7 @@
 #include "sf4e__Pad.hxx"
 #include "sf4e__Platform.hxx"
 #include "sf4e__UserApp.hxx"
+#include "sf4e__CustomContent.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "../common/MementoGuards.hxx"
 
@@ -240,6 +241,7 @@ void sf4e::Install(HINSTANCE hinstDll, const sf4e::Payload* const payload) {
 	BackgroundPlay::Install();
 	Platform::Install();
 	UserApp::Install();
+	custom::Install();
 }
 
 void sf4e::HooksCommitted() {

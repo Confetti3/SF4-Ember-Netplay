@@ -1,4 +1,5 @@
 #include "Dimps__Selection.hxx"
+#include "../sf4e/sf4e__CustomContent.hxx"
 
 namespace Dimps { namespace Selection {
 namespace {
@@ -39,6 +40,9 @@ sf4e::selection::Availability ReadAvailability(int fighterId) {
     auto* profile = *reinterpret_cast<unsigned char* const*>(app + 0x6c);
     if (!profile) return result;
     result.costumes = CostumeAvailabilityMask((*costumeManager)[fighterId + 1]);
+    // Custom costumes have no licence bit: installed is available.
+    result.customCostumes = sf4e::custom::InstalledCostumes(fighterId);
+    result.customStages = sf4e::custom::InstalledStages();
     for (int action = 0; action < 10; ++action)
         if (actionUnlocked(profile + 0x6428, fighterId, action)) result.personalActions |= 1u << action;
     const int base = BaseCostumeCount(fighterId);
