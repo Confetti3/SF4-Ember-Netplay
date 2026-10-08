@@ -23,8 +23,8 @@ must select that checkout through `channels.nightly`:
 ```
 
 Use the channel-aware `Get-EmberBuildTarget` on `nightly` for the existing
-build/package scripts. The publisher also reads the channel entry directly
-when the helper does not yet return `.channel`.
+build/package scripts. The publisher requires its returned `.channel` to be
+`nightly`; merge the channel-aware `BuildEnvironment.ps1` change before running.
 
 The job requires a clean checkout on `nightly` and skips while `SSFIV.exe`
 runs. It fetches and fast-forwards, then skips unchanged published source
@@ -71,11 +71,26 @@ Run by hand from the same checkout:
 ```powershell
 Set-Location C:\Users\Kate\Desktop\sf4\sf4-nightly
 pwsh -NoProfile -File ./scripts/publish-nightly.ps1 -WhatIf -Force
+pwsh -NoProfile -File ./scripts/publish-nightly.ps1 -WhatIf -Local -Force
 pwsh -NoProfile -File ./scripts/publish-nightly.ps1
 ```
 
 `-WhatIf` still fetches/fast-forwards, builds, tests, packages, writes notes
 and builds Linux room hosts; it skips publication, pruning and remote staging.
+Add `-Local` to skip all fetches and the fast-forward and use the checkout's
+current HEAD, including before `origin/nightly` has been pushed. It still
+requires a clean checkout on `nightly`. Without a previous Nightly, local mode
+uses the existing `origin/release` ref for notes; fetch that ref beforehand if
+it is absent. `-Local` alone still publishes and stages; use `-WhatIf -Local`
+for a local dry run.
+
+Under `-WhatIf`, a missing or empty Nightly repository is logged and the run continues
+with no previous Nightly and no remote tag-collision check. A repository with
+no releases also uses `origin/release` for notes while checking any existing
+tags. Authentication and network failures remain errors. Without `-WhatIf`,
+a missing or empty repository is an error: create it with an initial default-branch
+commit first. A dry run's planned tag is checked again when publishing.
+
 `-SkipRoomHosts` skips Linux building/staging. `-Force` rebuilds unchanged
 source. `-VisualStudioPath` and `-DiscordSdkArchive` override the corresponding
 environment variables. Existing local package destinations are never
