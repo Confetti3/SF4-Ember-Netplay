@@ -117,28 +117,43 @@ bool SavesBusy() {
 	return !saves || (saves->*SaveDataController::publicMethods.Busy)();
 }
 
+// The table's entry for a slot, by the rule the files' records are found by
+// (ReplaySlots.hxx: Record): the entry that names the slot; else the one at
+// the slot's position, but only when that one names no slot at all. Null when
+// the position holds another slot's entry.
+std::uint8_t* EntryOf(int slot) {
+	if (!s_entries || slot < 0 || slot >= sf4e::replayslots::kSlots) return nullptr;
+	for (int at = 0; at < sf4e::replayslots::kSlots; at++)
+		if (Table::GetEntrySlot(Table::GetEntry(s_entries, at)) == static_cast<std::uint32_t>(slot)) return Table::GetEntry(s_entries, at);
+	std::uint8_t* const positional = Table::GetEntry(s_entries, slot);
+	return Table::GetEntrySlot(positional) < static_cast<std::uint32_t>(sf4e::replayslots::kSlots) ? nullptr : positional;
+}
+
 // Puts an archived replay into the game's files and then its table, as the
-// newest entry of the match list. The slot it took, or -1.
-int Import(const std::wstring& path) {
+// newest entry of the match list. `slot` is the one it took. When the table
+// does not take the record the files are put back: left ahead of the table,
+// the game's next save would write the old record over them.
+using sf4e::platform::replays::ImportResult;
+ImportResult Import(const std::wstring& path, int& slot) {
 	sf4e::platform::replays::Imported imported;
+	slot = -1;
 	const auto publish = [](const sf4e::platform::replays::Imported& value) {
-		if (!s_entries) return false;
-		std::uint8_t* entry = Table::GetEntry(s_entries, value.slot);
-		for (int at = 0; at < sf4e::replayslots::kSlots; at++)
-			if (Table::GetEntrySlot(Table::GetEntry(s_entries, at)) == static_cast<std::uint32_t>(value.slot)) { entry = Table::GetEntry(s_entries, at); break; }
+		std::uint8_t* const entry = EntryOf(value.slot);
 		Stream stream{nullptr, value.record.data(), value.record.data(), static_cast<std::uint32_t>(value.record.size())};
 		BOOL (Entry::* deserialize)(Stream*);
-		*reinterpret_cast<PVOID*>(&deserialize) = Table::GetEntryDeserialize(entry);
-		if (!(reinterpret_cast<Entry*>(entry)->*deserialize)(&stream)) {
-			spdlog::warn("Replay: the game did not take slot {}'s record", value.slot);
+		if (entry) *reinterpret_cast<PVOID*>(&deserialize) = Table::GetEntryDeserialize(entry);
+		if (!entry || !(reinterpret_cast<Entry*>(entry)->*deserialize)(&stream)) {
+			spdlog::warn("Replay: the game's table {} slot {}; its files are put back", entry ? "did not take the record of" : "has no entry for", value.slot);
 			return false;
 		}
 		std::memcpy(Table::GetEntrySlotBytes(entry), value.slotBytes.data(), 2);
 		return true;
 	};
-	if (!sf4e::platform::replays::ImportFile(path, WriteThroughSteam, RemoveThroughSteam, publish, imported)) return -1;
+	const ImportResult result = sf4e::platform::replays::ImportFile(path, WriteThroughSteam, RemoveThroughSteam, publish, imported);
+	if (result != ImportResult::Done) return result;
 	spdlog::info("Replay: slot {} is in the game's table", imported.slot);
-	return imported.slot;
+	slot = imported.slot;
+	return ImportResult::Done;
 }
 
 Dimps::Event::EventBaseWithEC* BattleLogEvent() {
@@ -221,6 +236,13 @@ bool sf4e::replaystore::Ready() { return s_entries != nullptr && sf4e::Game::Bat
 
 const sf4e::replaystore::Status& sf4e::replaystore::GetStatus() { return s_operation.status; }
 
+// What the player is told when a replay was not added. Two of the reasons
+// pass by themselves once the game has saved its last match.
+static const char* NotAddedNotice(ImportResult result) {
+	return result == ImportResult::IndexBehind || result == ImportResult::NotArchived ? "replays.not_added_yet" :
+		result == ImportResult::NotAReplay ? "replays.not_added" : "replays.not_added_files";
+}
+
 void sf4e::replaystore::Start(const replay::Request& request, bool atMainMenu, bool noRoom) {
 	Operation& op = s_operation;
 	const bool exporting = request.mode == replay::Mode::Export;
@@ -232,9 +254,10 @@ void sf4e::replaystore::Start(const replay::Request& request, bool atMainMenu, b
 	if (import) {
 		if (!Ready() || SavesBusy()) { op.Notice("replays.not_ready", true); return; }
 		const std::wstring path = platform::Utf8ToWide(request.path.c_str());
-		op.slot = Import(path);
-		if (op.slot < 0) { op.Notice("replays.not_added", true); return; }
-		platform::replays::MarkWatched(path);
+		const ImportResult result = Import(path, op.slot);
+		if (result != ImportResult::Done) { op.Notice(NotAddedNotice(result), true); return; }
+		// Added is not watched; only a replay that is played is marked so.
+		if (request.mode == replay::Mode::Watch) platform::replays::MarkWatched(path);
 		op.Notice("replays.added", false);
 	}
 	if (!jump) return;

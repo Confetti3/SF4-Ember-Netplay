@@ -814,6 +814,12 @@ msgstr "Přidáno do seznamu záznamů hry pod datem, kdy se zápas hrál."
 msgid "replays.not_added"
 msgstr "Tento záznam se nepodařilo přidat. Soubor může být poškozený."
 
+msgid "replays.not_added_yet"
+msgstr "Hra ještě neuložila poslední zápas. Zkus to za chvíli znovu."
+
+msgid "replays.not_added_files"
+msgstr "Tento záznam se nepodařilo přidat: soubory záznamů hry se nepodařilo přečíst nebo zapsat. Nic se nezměnilo."
+
 msgid "replays.fighters"
 msgstr "{0} vs {1}"
 

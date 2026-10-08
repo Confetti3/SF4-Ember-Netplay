@@ -814,6 +814,12 @@ msgstr "Aggiunto all'elenco dei replay del gioco, con la data in cui è stato gi
 msgid "replays.not_added"
 msgstr "Impossibile aggiungere questo replay. Il file potrebbe essere danneggiato."
 
+msgid "replays.not_added_yet"
+msgstr "Il gioco non ha ancora salvato l'ultimo incontro. Riprova tra un momento."
+
+msgid "replays.not_added_files"
+msgstr "Impossibile aggiungere questo replay: non è stato possibile leggere o scrivere i file dei replay del gioco. Non è stato modificato nulla."
+
 msgid "replays.fighters"
 msgstr "{0} vs {1}"
 

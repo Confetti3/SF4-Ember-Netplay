@@ -266,7 +266,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     // Replays screen shows, a new listing is asked for and the last one
     // becomes its rows.
     if (shell.Navigation().Screen() == "replays") {
-        sf4e::NetplayFacade::WantReplayList();
+        sf4e::platform::replays::WantListing();
         if (snapshot.replays.archive) for (const auto& replay : *snapshot.replays.archive) {
             const auto name = [&](int side) {
                 const auto* fighter = sf4e::selection::FindFighter(replay.fighters[side]);

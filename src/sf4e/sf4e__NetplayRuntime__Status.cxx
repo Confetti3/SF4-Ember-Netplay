@@ -335,7 +335,7 @@ PostPublishState Publish() {
 	snapshot.replays.captionShown = replays.captionShown;
 	snapshot.replays.meterShown = replaystore::MeterWanted();
 	if (replays.captionShown) snapshot.replays.caption = replays.caption;
-	snapshot.replays.archive = runtime->replayLister.Latest();
+	snapshot.replays.archive = platform::replays::LatestListing();
 	snapshot.matchWaitsForMenu = runtime->match && !runtime->matchEntered && !snapshot.atMainMenu &&
 		runtime->entryDeferredGeneration && runtime->entryDeferredGeneration == runtime->match->Generation() &&
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Started;

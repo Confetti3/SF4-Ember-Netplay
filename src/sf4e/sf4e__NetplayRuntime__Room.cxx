@@ -465,7 +465,6 @@ void TickReplays() {
         runtime->replayLinkAsked = link;
         spdlog::info("Replays: a link asked for a replay; the Replays screen asks the player");
     }
-    if (TakeReplayListWanted()) runtime->replayLister.Want();
     replaystore::Tick(AtMainMenu());
 }
 

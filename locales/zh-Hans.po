@@ -814,6 +814,12 @@ msgstr "已按对战日期添加到游戏的回放列表。"
 msgid "replays.not_added"
 msgstr "无法添加此回放。文件可能已损坏。"
 
+msgid "replays.not_added_yet"
+msgstr "游戏尚未保存上一场对战。请稍后再试。"
+
+msgid "replays.not_added_files"
+msgstr "无法添加此回放：无法读取或写入游戏的回放文件。未做任何更改。"
+
 msgid "replays.fighters"
 msgstr "{0} vs {1}"
 

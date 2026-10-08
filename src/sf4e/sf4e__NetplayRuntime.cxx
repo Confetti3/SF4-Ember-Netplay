@@ -324,6 +324,8 @@ void NotifyRuntimeEventSystemReady() { if (runtime) runtime->eventSystemReady = 
 
 void StopHelper() {
     training::StopCapture();
+    // The archive's lister holds files open while it reads; it is ended and waited for here.
+    platform::replays::StopListing();
 	if (!runtime) return;
     if (runtime->discordClient) {
         runtime->discordClient->Send("{\"type\":\"shutdown\"}");
@@ -400,9 +402,6 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 	return bridge::PushCommand(std::move(command), bytes);
 }
 
-namespace { std::atomic<bool> s_replayListWanted{false}; }
-void WantReplayList() { s_replayListWanted = true; }
-namespace internal { bool TakeReplayListWanted() { return s_replayListWanted.exchange(false); } }
 
 bool IsRuntimeRoomActive() { return runtime && runtime->attached; }
 bool IsRuntimePublicJoin() { return runtime && runtime->publicJoin; }
