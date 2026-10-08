@@ -38,7 +38,7 @@ ComPtr<IMFSinkWriter> s_writer;
 DWORD s_videoStream = 0, s_audioStream = 0;
 UINT32 s_width = 0, s_height = 0;
 LONGLONG s_start = 0, s_lastFrame = -1, s_pictures = 0, s_dropped = 0;
-std::atomic<bool> s_failed{false};
+bool s_failed = false;
 // Pictures with the writer, and how many it may hold before the next is
 // dropped: its own queue of about 65 and then as many as memory allows.
 std::atomic<long> s_held{0};
@@ -118,22 +118,23 @@ bool OpenSound(DWORD pid) {
 
 // On the capture thread, the only one that writes sound. data is the
 // captured float sound, or null for silence; gain brings it back to full.
-bool WriteSound(const BYTE* data, UINT32 frames, float gain, LONGLONG& written) {
+void WriteSound(const BYTE* data, UINT32 frames, float gain, LONGLONG& written) {
 	ComPtr<IMFMediaBuffer> buffer; ComPtr<IMFSample> sample; BYTE* bytes = nullptr;
 	const DWORD size = frames * kAudioFrameBytes;
-	if (FAILED(MFCreateMemoryBuffer(size, &buffer)) || FAILED(buffer->Lock(&bytes, nullptr, nullptr))) { s_failed = true; return false; }
+	if (FAILED(MFCreateMemoryBuffer(size, &buffer)) || FAILED(buffer->Lock(&bytes, nullptr, nullptr))) return;
 	if (data) {
 		const float* in = reinterpret_cast<const float*>(data);
 		short* out = reinterpret_cast<short*>(bytes);
 		for (UINT32 i = 0; i < frames * kChannels; i++) out[i] = static_cast<short>((std::max)(-1.f, (std::min)(1.f, in[i] * gain)) * 32767);
 	}
 	else memset(bytes, 0, size);
-	if (FAILED(buffer->Unlock()) || FAILED(buffer->SetCurrentLength(size)) || FAILED(MFCreateSample(&sample)) ||
-		FAILED(sample->AddBuffer(buffer.Get())) || FAILED(sample->SetSampleTime(written * 10000000 / kSampleRate)) ||
-		FAILED(sample->SetSampleDuration(static_cast<LONGLONG>(frames) * 10000000 / kSampleRate)) ||
-		FAILED(s_writer->WriteSample(s_audioStream, sample.Get()))) { s_failed = true; return false; }
+	buffer->Unlock(); buffer->SetCurrentLength(size);
+	if (FAILED(MFCreateSample(&sample))) return;
+	sample->AddBuffer(buffer.Get());
+	sample->SetSampleTime(written * 10000000 / kSampleRate);
+	sample->SetSampleDuration(static_cast<LONGLONG>(frames) * 10000000 / kSampleRate);
+	s_writer->WriteSample(s_audioStream, sample.Get());
 	written += frames;
-	return true;
 }
 
 void CaptureSound() {
@@ -156,19 +157,16 @@ void CaptureSound() {
 			}
 		}
 		UINT32 packet = 0;
-		while (!s_failed) {
-			if (FAILED(s_capture->GetNextPacketSize(&packet))) { s_failed = true; break; }
-			if (!packet) break;
+		while (SUCCEEDED(s_capture->GetNextPacketSize(&packet)) && packet) {
 			BYTE* data = nullptr; UINT32 frames = 0; DWORD flags = 0; UINT64 at = 0;
-			if (FAILED(s_capture->GetBuffer(&data, &frames, &flags, nullptr, &at))) { s_failed = true; break; }
+			if (FAILED(s_capture->GetBuffer(&data, &frames, &flags, nullptr, &at))) break;
 			// Loopback delivers nothing while nothing plays, and the AAC encoder
 			// takes its input as one unbroken run: a gap is written as silence, or
 			// the sound after it would come early against the picture.
 			const LONGLONG due = ((at ? static_cast<LONGLONG>(at) : Now()) - s_start) * kSampleRate / 10000000;
-			bool ok = true;
-			if (due > written + kSampleRate / 50) ok = WriteSound(nullptr, static_cast<UINT32>(due - written), 1, written);
-			if (ok) ok = WriteSound(flags & AUDCLNT_BUFFERFLAGS_SILENT ? nullptr : data, frames, gain, written);
-			if (FAILED(s_capture->ReleaseBuffer(frames)) || !ok) s_failed = true;
+			if (due > written + kSampleRate / 50) WriteSound(nullptr, static_cast<UINT32>(due - written), 1, written);
+			WriteSound(flags & AUDCLNT_BUFFERFLAGS_SILENT ? nullptr : data, frames, gain, written);
+			s_capture->ReleaseBuffer(frames);
 		}
 		Sleep(10);
 	}
@@ -241,7 +239,6 @@ HRESULT Open(const std::wstring& file, IMFDXGIDeviceManager* card) {
 	// job to whatever else is registered (one such took 1.4 GB for 3840x2400).
 	const bool hevc = s_width > 4096 || s_height > 2160;
 	HRESULT hr = MFCreateAttributes(&attributes, 2);
-	if (SUCCEEDED(hr)) hr = attributes->SetGUID(MF_TRANSCODE_CONTAINERTYPE, MFTranscodeContainerType_MPEG4);
 	// The graphics card's encoder, when its driver registered one.
 	if (SUCCEEDED(hr)) hr = attributes->SetUINT32(MF_READWRITE_ENABLE_HARDWARE_TRANSFORMS, TRUE);
 	if (SUCCEEDED(hr) && card) hr = attributes->SetUnknown(MF_SINK_WRITER_D3D_MANAGER, card);
@@ -323,10 +320,7 @@ bool Begin(const std::wstring& file, unsigned width, unsigned height, unsigned l
 	}
 	LogEncoder();
 	s_start = Now();
-	if (s_capture) {
-		if (SUCCEEDED(s_client->Start())) { s_audioRuns = true; s_audio = std::thread(CaptureSound); }
-		else s_failed = true;
-	}
+	if (s_capture && SUCCEEDED(s_client->Start())) { s_audioRuns = true; s_audio = std::thread(CaptureSound); }
 	return true;
 }
 

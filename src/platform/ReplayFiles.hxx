@@ -49,10 +49,10 @@ int Archive();
 // The indexes are read from the signed-in account's folder (Folders::active),
 // the one write stores into. The slots are archived first and the replay the
 // slot holds has to be in the archive, or nothing is written. The replay is
-// written before the indexes. Every changed file is restored on failure,
-// including when publish refuses the live-table update. remove restores a
-// file that did not exist before the import. publish runs after all writes,
-// while the original bytes are still held for rollback.
+// written before the indexes; should a write fail after it, the slot's old
+// replay is written back. The game holds the slots in memory while it runs
+// and writes them back on its next save, so a caller inside the game puts
+// the record into its table too, and only after this returned true.
 // write stores each changed file: its name under the account's Steam Cloud
 // folder (capcom/superstreetfighteriv/ssf4_savedata/<name>) and its bytes.
 // The game reads its files through Steam, which keeps its own index of their
@@ -63,9 +63,7 @@ struct Imported {
 	replayslots::Bytes record, slotBytes;
 };
 using Writer = std::function<bool(const std::string& name, const replayslots::Bytes& contents)>;
-using Remover = std::function<bool(const std::string& name)>;
-using Publisher = std::function<bool(const Imported& imported)>;
-bool ImportFile(const std::filesystem::path& file, const Writer& write, const Remover& remove, const Publisher& publish, Imported& out);
+bool ImportFile(const std::filesystem::path& file, const Writer& write, Imported& out);
 
 // The game's record names no one for an Ember match, so Ember notes the
 // two players itself when a match starts (matches.jsonl in the archive:

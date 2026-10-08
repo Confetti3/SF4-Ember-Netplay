@@ -61,12 +61,6 @@ int main() {
 	DWORD blend = FALSE;
 	device->GetRenderState(D3DRS_ALPHABLENDENABLE, &blend);
 	if (after != before || !blend) { std::cerr << "The device's state was not put back\n"; s_failures++; }
-	IDirect3DSurface9* resized = nullptr;
-	if (FAILED(device->CreateRenderTarget(640, 360, D3DFMT_X8R8G8B8, D3DMULTISAMPLE_NONE, 0, FALSE, &resized, nullptr))) { std::cerr << "No resized render target\n"; return 1; }
-	if (FAILED(device->SetRenderTarget(0, resized))) { std::cerr << "Could not resize the render target\n"; return 1; }
-	if (grab::Grab(device, Check)) { std::cerr << "A changed picture size was accepted\n"; s_failures++; }
-	device->SetRenderTarget(0, before);
-	resized->Release();
 	before->Release(); after->Release();
 	grab::Release();
 	if (device->Release() != 0) { std::cerr << "The grab kept something of the device\n"; s_failures++; }

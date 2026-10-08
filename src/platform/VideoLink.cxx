@@ -1,6 +1,5 @@
 #include "VideoLink.hxx"
 #include "VideoEncoder.hxx"
-#include "VideoTemporary.hxx"
 
 #include <windows.h>
 #include <shlobj.h>
@@ -15,7 +14,6 @@ using sf4e::platform::videolink::kSlots;
 // The start of the shared memory; the slots follow. One side writes each
 // counter: the game sent and stop, the encoder taken, opened and the notes.
 struct Shared {
-	// stop: 0 while running, 1 to finish, -1 to discard a failed capture.
 	volatile LONG sent, taken, stop;
 	// 0 while the encoder opens, then 1, or -1 when it could not.
 	volatile LONG opened;
@@ -30,14 +28,11 @@ struct Shared {
 HANDLE s_mapping = nullptr, s_wake = nullptr, s_process = nullptr;
 Shared* s_shared = nullptr;
 LONG s_dropped = 0;
-std::wstring s_partial;
 
 size_t FrameBytes(const Shared* shared) { return static_cast<size_t>(shared->width) * shared->height * 3 / 2; }
 BYTE* Slot(Shared* shared, LONG index) { return reinterpret_cast<BYTE*>(shared + 1) + (index % kSlots) * FrameBytes(shared); }
 
 void Close() {
-	if (!s_partial.empty() && (!s_process || WaitForSingleObject(s_process, 0) == WAIT_OBJECT_0)) DeleteFileW(s_partial.c_str());
-	s_partial.clear();
 	if (s_shared) UnmapViewOfFile(s_shared);
 	for (HANDLE* handle : {&s_mapping, &s_wake, &s_process}) { if (*handle) CloseHandle(*handle); *handle = nullptr; }
 	s_shared = nullptr;
@@ -51,16 +46,19 @@ void CopyRows(BYTE* to, const void* from, int pitch, unsigned width, unsigned ro
 namespace sf4e { namespace platform { namespace videolink {
 
 bool Start(const std::wstring& file, unsigned width, unsigned height, const std::wstring& encoder) {
-	if (s_shared || file.size() >= 1024) return false;
+	// Written beside itself as "<name>.part.mp4", so a failed export never
+	// costs the file an earlier one made (the container goes by the extension).
+	const size_t dot = file.find_last_of(L'.');
+	const std::wstring part = (dot == std::wstring::npos ? file : file.substr(0, dot)) + L".part.mp4";
+	if (s_shared || part.size() >= 1024) return false;
 	const std::wstring name = L"Local\\sf4e-video-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount());
-	if (!ReserveTemporary(file, s_partial)) { s_partial.clear(); return false; }
 	const ULONGLONG size = sizeof(Shared) + static_cast<ULONGLONG>(width) * height * 3 / 2 * kSlots;
 	s_mapping = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, static_cast<DWORD>(size >> 32), static_cast<DWORD>(size), name.c_str());
 	s_wake = CreateEventW(nullptr, FALSE, FALSE, (name + L"-wake").c_str());
 	s_shared = s_mapping ? static_cast<Shared*>(MapViewOfFile(s_mapping, FILE_MAP_ALL_ACCESS, 0, 0, 0)) : nullptr;
 	if (!s_shared || !s_wake) { spdlog::warn("Video: no shared memory for {}x{} ({})", width, height, GetLastError()); Close(); return false; }
 	s_shared->width = width; s_shared->height = height; s_shared->game = GetCurrentProcessId();
-	wcscpy_s(s_shared->file, s_partial.c_str()); wcscpy_s(s_shared->final, file.c_str());
+	wcscpy_s(s_shared->file, part.c_str()); wcscpy_s(s_shared->final, file.c_str());
 	s_dropped = 0;
 
 	std::wstring exe = encoder;
@@ -96,13 +94,7 @@ void Send(const void* luma, int lumaPitch, const void* chroma, int chromaPitch) 
 
 void Stop() {
 	if (!s_shared) return;
-	InterlockedCompareExchange(&s_shared->stop, 1, 0);
-	SetEvent(s_wake);
-}
-
-void Fail() {
-	if (!s_shared) return;
-	InterlockedExchange(&s_shared->stop, -1);
+	InterlockedExchange(&s_shared->stop, 1);
 	SetEvent(s_wake);
 }
 
@@ -187,7 +179,6 @@ int Serve(const std::wstring& link) {
 		}
 	}
 	bool closed = video::End();
-	if (InterlockedCompareExchange(&shared->stop, 0, 0) < 0) closed = false;
 	shared->final[1023] = 0;
 	// Only a file that holds a video takes the export's name, over an earlier one.
 	if (closed) closed = MoveFileExW(shared->file, shared->final, MOVEFILE_REPLACE_EXISTING) != 0;

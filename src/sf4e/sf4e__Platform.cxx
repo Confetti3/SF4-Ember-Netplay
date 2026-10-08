@@ -254,7 +254,6 @@ DWORD fD3D::Reset() {
     sf4e::replaycapture::Release();
     Overlay::FreeOverlay();
     DWORD out = (this->*rD3D::privateMethods.Reset)();
-    sf4e::replaycapture::Resume(lpD3DDevice);
     Overlay::InitializeOverlay(
         (*rMain::GetWindowData(rMain::staticMethods.GetSingleton()))->hWnd,
         Dimps::Platform::D3D::staticMethods.GetSingleton()->lpD3DDevice

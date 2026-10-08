@@ -344,8 +344,7 @@ private:
     // The Inputs and stats screen of the replay last chosen for it, made once
     // when it opens: the file is read and counted then (common/ReplayInputs.hxx).
     std::vector<MenuEntry> inputsRows_;
-    bool inputsFailed_ = false;
-    void OpenReplayInputs(const ShellView::Replay& replay) noexcept;
+    void OpenReplayInputs(const ShellView::Replay& replay);
     // The Export video screen: the replay it is for and the caption as the
     // player has it, sent with the request when Generate is chosen.
     // Replays > Frame meter: sent with Watch now and Generate video. Not saved; off at each start.
