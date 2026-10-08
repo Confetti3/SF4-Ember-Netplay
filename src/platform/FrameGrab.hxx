@@ -14,9 +14,11 @@ namespace sf4e { namespace platform { namespace grab {
 // down to a multiple of four and its height to an even number. False when
 // the target is not 32-bit BGRA or the device made no shaders or surfaces.
 bool Open(IDirect3DDevice9* device, unsigned& width, unsigned& height);
-// The render target as it is now, to sink(luma, lumaPitch, chroma, chromaPitch).
-// The device's state is as before on return. False when the target's size is
-// no longer the one Open saw.
+// Draws the render target as it is now into the planes, and hands the frame
+// of the call before to sink(luma, lumaPitch, chroma, chromaPitch): a
+// sixtieth of a second late, and none on the first call after Open or
+// Release. The device's state is as before on return. False when the
+// target's size is no longer the one Open saw, or the device refused a step.
 typedef void (*Sink)(const void* luma, int lumaPitch, const void* chroma, int chromaPitch);
 bool Grab(IDirect3DDevice9* device, Sink sink);
 // Lets go of everything on the device; before it resets or goes. Grab makes it again.

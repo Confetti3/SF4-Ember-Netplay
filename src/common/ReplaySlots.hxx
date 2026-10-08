@@ -103,13 +103,6 @@ inline const std::uint8_t* Record(const Bytes& list, const Bytes& swan, int slot
 	return ReadU32(fallback) < static_cast<std::uint32_t>(kSlots) ? nullptr : fallback;
 }
 
-// A record that is used and names this replay: its size and CRC, of a file
-// the game could have saved. The one check every export and import makes.
-inline bool Describes(const std::uint8_t* record, const std::uint8_t* replay, std::size_t size) {
-	return record[4] && size >= 4 && size <= kLargestReplay && !std::memcmp(replay, "#BRP", 4) &&
-		ReadU32(record + 9) == size && ReadU32(record + 5) == Crc32(replay, size);
-}
-
 struct SlotInfo {
 	bool used;
 	std::uint32_t crc, size, time; // time is seconds since 1970, UTC
@@ -120,20 +113,6 @@ inline SlotInfo ReadSlot(const Bytes& list, const Bytes& swan, int slot) {
 	const std::uint8_t* record = Record(list, swan, slot);
 	if (!record) return {false, 0, 0, 0};
 	return {record[4] != 0, ReadU32(record + 5), ReadU32(record + 9), ReadU32(record + 13)};
-}
-
-// The export of a slot, given the contents of its replay file. False when the
-// indexes are damaged, the slot is empty or the file is not the one the slot
-// names: the record must be used and name the file's size and CRC, and the
-// file must be one the game could have saved.
-inline bool Export(const Bytes& list, const Bytes& swan, int slot, const Bytes& replay, Bytes& out) {
-	const std::uint8_t* record = Record(list, swan, slot);
-	if (!record || !ValidSwan(swan) || !Describes(record, replay.data(), replay.size())) return false;
-	out.assign(kExportMagic, kExportMagic + 8);
-	out.insert(out.end(), record, record + kRecordBytes);
-	out.insert(out.end(), swan.data() + kSwanSlotBytesOffset + slot * 2, swan.data() + kSwanSlotBytesOffset + slot * 2 + 2);
-	out.insert(out.end(), replay.begin(), replay.end());
-	return true;
 }
 
 // What the menu shows for a record: the two fighters (native IDs, -1 when
@@ -156,6 +135,53 @@ inline RecordInfo ReadRecordInfo(const std::uint8_t* record) {
 	info.month = record[53]; info.day = record[54];
 	info.hour = record[123]; info.minute = record[124];
 	return info;
+}
+
+// What a replay file's own header says: the two fighters (dwords at 0x20
+// and 0x170, the second player's block 0x150 after the first's) and when it
+// was played (a FILETIME at 0x10; the record's save time matches it for a
+// record the game wrote). Read from 153 archived replays against their
+// records (ReplaySlotsTest). False for anything shorter than the header.
+struct ReplayHeaderInfo {
+	int fighters[2];
+	std::uint32_t time; // seconds since 1970, UTC
+};
+constexpr std::size_t kReplayHeaderBytes = 0x174;
+inline bool ReadReplayHeader(const std::uint8_t* replay, std::size_t size, ReplayHeaderInfo& info) {
+	if (size < kReplayHeaderBytes || std::memcmp(replay, "#BRP", 4)) return false;
+	for (int side = 0; side < 2; side++) {
+		const std::uint32_t fighter = ReadU32(replay + 0x20 + side * 0x150);
+		info.fighters[side] = fighter < 64 ? static_cast<int>(fighter) : -1;
+	}
+	const std::uint64_t filetime = ReadU32(replay + 0x10) | (static_cast<std::uint64_t>(ReadU32(replay + 0x14)) << 32);
+	info.time = filetime > 116444736000000000ull ? static_cast<std::uint32_t>((filetime - 116444736000000000ull) / 10000000ull) : 0;
+	return true;
+}
+inline bool ReadReplayHeader(const Bytes& replay, ReplayHeaderInfo& info) { return ReadReplayHeader(replay.data(), replay.size(), info); }
+
+// A record that is used and names this replay: its size and CRC, of a file
+// the game could have saved, with a whole header whose two fighters are the
+// record's. The one check every export and import makes.
+inline bool Describes(const std::uint8_t* record, const std::uint8_t* replay, std::size_t size) {
+	ReplayHeaderInfo header;
+	if (!record[4] || size > kLargestReplay || !ReadReplayHeader(replay, size, header) ||
+		ReadU32(record + 9) != size || ReadU32(record + 5) != Crc32(replay, size)) return false;
+	const RecordInfo info = ReadRecordInfo(record);
+	return header.fighters[0] >= 0 && header.fighters[1] >= 0 && header.fighters[0] == info.fighters[0] && header.fighters[1] == info.fighters[1];
+}
+
+// The export of a slot, given the contents of its replay file. False when the
+// indexes are damaged, the slot is empty or the file is not the one the slot
+// names: the record must be used and name the file's size and CRC, and the
+// file must be one the game could have saved.
+inline bool Export(const Bytes& list, const Bytes& swan, int slot, const Bytes& replay, Bytes& out) {
+	const std::uint8_t* record = Record(list, swan, slot);
+	if (!record || !ValidSwan(swan) || !Describes(record, replay.data(), replay.size())) return false;
+	out.assign(kExportMagic, kExportMagic + 8);
+	out.insert(out.end(), record, record + kRecordBytes);
+	out.insert(out.end(), swan.data() + kSwanSlotBytesOffset + slot * 2, swan.data() + kSwanSlotBytesOffset + slot * 2 + 2);
+	out.insert(out.end(), replay.begin(), replay.end());
+	return true;
 }
 
 // What the game reads of a record it did not write: a title of at most 21
@@ -181,27 +207,6 @@ inline bool ExportFromReplay(const Bytes& replay, const Bytes& entry, Bytes& out
 	out.insert(out.end(), record.begin(), record.end());
 	out.push_back(0x0E); out.push_back(0x0E);
 	out.insert(out.end(), replay.begin(), replay.end());
-	return true;
-}
-
-// What a replay file's own header says: the two fighters (dwords at 0x20
-// and 0x170, the second player's block 0x150 after the first's) and when it
-// was played (a FILETIME at 0x10; the record's save time matches it for a
-// record the game wrote). Read from 153 archived replays against their
-// records (ReplaySlotsTest). False for anything shorter than the header.
-struct ReplayHeaderInfo {
-	int fighters[2];
-	std::uint32_t time; // seconds since 1970, UTC
-};
-constexpr std::size_t kReplayHeaderBytes = 0x174;
-inline bool ReadReplayHeader(const Bytes& replay, ReplayHeaderInfo& info) {
-	if (replay.size() < kReplayHeaderBytes || std::memcmp(replay.data(), "#BRP", 4)) return false;
-	for (int side = 0; side < 2; side++) {
-		const std::uint32_t fighter = ReadU32(replay.data() + 0x20 + side * 0x150);
-		info.fighters[side] = fighter < 64 ? static_cast<int>(fighter) : -1;
-	}
-	const std::uint64_t filetime = ReadU32(replay.data() + 0x10) | (static_cast<std::uint64_t>(ReadU32(replay.data() + 0x14)) << 32);
-	info.time = filetime > 116444736000000000ull ? static_cast<std::uint32_t>((filetime - 116444736000000000ull) / 10000000ull) : 0;
 	return true;
 }
 
@@ -240,6 +245,12 @@ inline bool ExportFromReplayAlone(const Bytes& replay, Bytes& out) {
 	record[123] = static_cast<std::uint8_t>(utc.tm_hour); record[124] = static_cast<std::uint8_t>(utc.tm_min);
 	return ExportFromReplay(replay, Bytes(full.begin() + 4, full.end()), out);
 }
+// A record made up above carries a title, which the game's own records of a
+// Versus battle never do, and names no winner.
+inline bool MadeUp(const std::uint8_t* record) { return ReadU32(record + 22) != 0; }
+// The winner in a record the game wrote: 0 for player 1, 1 for player 2.
+// -1 for a made-up record or any other value.
+inline int RecordWinner(const std::uint8_t* record) { return !MadeUp(record) && record[49] <= 1 ? record[49] : -1; }
 
 // The export of a slot from its file, whatever the index says of it. The
 // game writes a replay's file and its ".0" when a match ends, and its indexes
@@ -253,16 +264,54 @@ inline bool ExportSlotFile(const Bytes& list, const Bytes& swan, int slot, const
 	return fromRecord || (sidecar.size() == 4 && sidecar == Sidecar(replay) && ExportFromReplayAlone(replay, out));
 }
 
-// The CRC an archived replay's file name ends in
-// ("20261005-213503-69991186.emberreplay": the save time, UTC, and the
-// replay's CRC). False for any other name. A replay put back into the game
-// is saved under a new time (Import), so the CRC alone tells whether the
-// archive holds it.
-inline bool ArchiveNameCrc(const std::wstring& name, std::uint32_t& crc) {
+// An archived replay's file name, "20261005-213503-69991186.emberreplay":
+// the save time (UTC, seconds since 1970) and the replay's CRC. False for any
+// other name. A replay put back into the game is saved under a new time
+// (Import), so the CRC alone tells whether the archive holds it.
+inline bool ParseArchiveName(const std::wstring& name, std::uint64_t& time, std::uint32_t& crc) {
 	if (name.size() != 36 || name[8] != L'-' || name[15] != L'-' || name.compare(24, std::wstring::npos, L".emberreplay")) return false;
-	wchar_t* end = nullptr;
-	crc = static_cast<std::uint32_t>(std::wcstoul(name.c_str() + 16, &end, 16));
-	return end == name.c_str() + 24;
+	int part[6] = {};
+	const int at[6] = {0, 4, 6, 9, 11, 13}, digits[6] = {4, 2, 2, 2, 2, 2};
+	for (int i = 0; i < 6; i++)
+		for (int d = 0; d < digits[i]; d++) {
+			const wchar_t c = name[at[i] + d];
+			if (c < L'0' || c > L'9') return false;
+			part[i] = part[i] * 10 + (c - L'0');
+		}
+	crc = 0;
+	for (int i = 16; i < 24; i++) {
+		const wchar_t c = name[i];
+		const int digit = c >= L'0' && c <= L'9' ? c - L'0' : c >= L'a' && c <= L'f' ? c - L'a' + 10 : c >= L'A' && c <= L'F' ? c - L'A' + 10 : -1;
+		if (digit < 0) return false;
+		crc = crc << 4 | static_cast<std::uint32_t>(digit);
+	}
+	if (part[0] < 1970 || part[1] < 1 || part[1] > 12 || part[2] < 1 || part[2] > 31 || part[3] > 23 || part[4] > 59 || part[5] > 60) return false;
+	// Days since 1970 for a date of the proleptic Gregorian calendar.
+	const int y = part[0] - (part[1] <= 2), era = y / 400, yoe = y - era * 400;
+	const int doy = (153 * (part[1] + (part[1] > 2 ? -3 : 9)) + 2) / 5 + part[2] - 1, doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+	const std::int64_t days = static_cast<std::int64_t>(era) * 146097 + doe - 719468;
+	time = static_cast<std::uint64_t>(days * 86400 + part[3] * 3600 + part[4] * 60 + part[5]);
+	return true;
+}
+
+// Whether an archive file is the replay its name says: an export whose record
+// describes its body, with the name's CRC. The archive is a folder anyone can
+// put a file in, and this is what lets a slot be written over.
+inline bool WholeArchived(const Bytes& exported, std::uint32_t nameCrc) {
+	if (exported.size() < kExportHeaderBytes || std::memcmp(exported.data(), kExportMagic, 8)) return false;
+	const std::uint8_t* record = exported.data() + 8;
+	return ReadU32(record + 5) == nameCrc && Describes(record, exported.data() + kExportHeaderBytes, exported.size() - kExportHeaderBytes);
+}
+
+// A slot whose file the index does not describe: the game writes a match's
+// replay file as the match ends and its indexes at a later save, and until
+// then the index still names the replay the slot held before. sidecar is the
+// slot's ".0". False for a slot with no whole replay in its file.
+inline bool FileAheadOfRecord(const Bytes& list, const Bytes& swan, int slot, const Bytes& replay, const Bytes& sidecar) {
+	const std::uint8_t* record = Record(list, swan, slot);
+	ReplayHeaderInfo header;
+	if (!ReadReplayHeader(replay, header) || sidecar != Sidecar(replay)) return false;
+	return !record || !Describes(record, replay.data(), replay.size());
 }
 
 // The slot a new replay goes into among first to last, the way the game picks
@@ -305,6 +354,89 @@ inline bool Import(const Bytes& exported, int slot, std::uint32_t now, Bytes& li
 	std::memcpy(swan.data() + kSwanSlotBytesOffset + slot * 2, record + kRecordBytes, 2);
 	WriteU32(swan.data(), Crc32(swan.data() + 4, swan.size() - 4));
 	replay.assign(body, body + size);
+	return true;
+}
+
+// A match as Ember noted it when it started (platform/ReplayFiles.hxx:
+// NoteMatchStart): when, the two players' names, their fighters (-1 in a note
+// written before fighters were) and whether this PC only watched.
+struct NotedMatch {
+	std::uint64_t started;
+	std::string names[2];
+	int fighters[2];
+	bool spectated;
+};
+
+// The match a replay saved at `saved` belongs to: the last one that started
+// before the save, within the hour, with the replay's two fighters. Both
+// times are this PC's clock, so the start is never after the save; a replay
+// is saved as its match ends, and in a room the next match has often started
+// by the time it is looked at, which is why the save is the limit. Null when
+// no note fits.
+inline const NotedMatch* MatchOf(const std::vector<NotedMatch>& noted, std::uint64_t saved, const int fighters[2]) {
+	const NotedMatch* match = nullptr;
+	for (const NotedMatch& candidate : noted) {
+		if (candidate.started > saved || saved >= candidate.started + 3600) continue;
+		const bool named = candidate.fighters[0] >= 0 && candidate.fighters[1] >= 0;
+		if (named && (candidate.fighters[0] != fighters[0] || candidate.fighters[1] != fighters[1])) continue;
+		if (!match || candidate.started > match->started) match = &candidate;
+	}
+	return match;
+}
+
+// The files an import changes, as data: each by its name in the save folder,
+// with the bytes it gets and the bytes it had before anything was changed.
+// The replay and its ".0" come first and the indexes that name it last, so an
+// index never names a file that is not there yet.
+struct PlannedWrite {
+	std::string name;
+	Bytes now, before;
+};
+using WritePlan = std::vector<PlannedWrite>;
+
+// The plan for putting an export into a slot (Import), from the files as they
+// are now: the slot's replay and its ".0", swan and its ".0", and for a slot
+// of LIST that file and its ".0". False, with an empty plan, where Import
+// refuses. A file that was not there has an empty `before`.
+struct SlotFiles {
+	Bytes list, listSidecar, swan, swanSidecar, replay, replaySidecar;
+};
+inline bool PlanImport(const Bytes& exported, int slot, std::uint32_t now, const SlotFiles& files, WritePlan& plan) {
+	plan.clear();
+	Bytes list = files.list, swan = files.swan, replay;
+	if (!Import(exported, slot, now, list, swan, replay)) return false;
+	const std::string name = std::to_string(slot);
+	plan.push_back({name, replay, files.replay});
+	plan.push_back({name + ".0", Sidecar(replay), files.replaySidecar});
+	plan.push_back({"replays-swan.dat", swan, files.swan});
+	plan.push_back({"replays-swan.dat.0", Sidecar(swan), files.swanSidecar});
+	if (slot < kListSlots) {
+		plan.push_back({"LIST", list, files.list});
+		plan.push_back({"LIST.0", Sidecar(list), files.listSidecar});
+	}
+	return true;
+}
+
+// Puts back the first `count` files of a plan, last written first. A file that
+// was not there before stays as written: nothing names it once its index is
+// back. False when a file could not be put back.
+template <class Writer> bool UndoPlan(const WritePlan& plan, std::size_t count, const Writer& write) {
+	bool whole = true;
+	for (std::size_t at = count < plan.size() ? count : plan.size(); at-- > 0;)
+		if (!plan[at].before.empty() && !write(plan[at].name, plan[at].before)) whole = false;
+	return whole;
+}
+
+// Writes a plan in order. On the first write that fails, the files written so
+// far are put back and it is false; `undone` then says whether they all were.
+template <class Writer> bool RunPlan(const WritePlan& plan, const Writer& write, bool& undone) {
+	undone = true;
+	for (std::size_t at = 0; at < plan.size(); at++) {
+		if (write(plan[at].name, plan[at].now)) continue;
+		// The failed write may have left the file changed, so it is put back too.
+		undone = UndoPlan(plan, at + 1, write);
+		return false;
+	}
 	return true;
 }
 

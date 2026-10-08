@@ -23,15 +23,15 @@
 // behind is dropped rather than kept, so the memory has a ceiling.
 namespace sf4e { namespace platform { namespace video {
 
-// The performance counter in 100 ns units: the clock of Frame's time.
-long long Clock();
 // Opens the file and starts capturing the sound of the process soundPid.
 // Width and height are even.
 bool Begin(const std::wstring& file, unsigned width, unsigned height, unsigned long soundPid);
-// One NV12 picture (BT.709, 16 to 235) drawn at the Clock time at: height
+// One NV12 picture (BT.709, 16 to 235) drawn at the time at, on the clock of
+// VideoShared.hxx: height
 // rows of width luma bytes, then height / 2 rows of width chroma bytes.
 void Frame(const void* luma, int lumaPitch, const void* chroma, int chromaPitch, long long at);
-// Closes the file. True when it holds at least one picture.
+// Closes the file. True when it holds at least one picture and every
+// picture and sound the encoder was given went into it.
 bool End();
 // What was opened and how it closed, for the caller's log.
 const std::string& Summary();

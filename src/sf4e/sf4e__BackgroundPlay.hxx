@@ -6,8 +6,7 @@
 // pads keep working while another window, such as OBS, is in front. The
 // keyboard still needs the game window, and so do Ember's own menus.
 // With or without the setting, a replay being exported as a video keeps
-// playing and keeps its sound while the window is behind or minimized, and
-// a room's match this PC only watches keeps playing there too.
+// playing and keeps its sound while the window is behind or minimized.
 namespace sf4e {
 	namespace BackgroundPlay {
 		// Queues the hooks in the open Detours transaction.
@@ -18,5 +17,8 @@ namespace sf4e {
 		// Game thread, before the native pad update: records the setting and
 		// does what the update's focus gate did, minus the pads when it is on.
 		void BeforePadUpdate(Dimps::Pad::System* system, bool enabled);
+		// Game thread: a replay is being exported as a video, or no longer.
+		// The hooks, which the window procedure and the frame run, read only this.
+		void HoldForExport(bool on);
 	}
 }

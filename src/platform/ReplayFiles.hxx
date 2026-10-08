@@ -2,13 +2,15 @@
 
 // The game's replay files on this PC (ReplaySlots.hxx has their layout):
 // copying every match replay out of the game's slots into Ember's archive,
-// and putting an archived one back. Shared by the launcher, which does both
-// around a game run, and Sidecar, which imports while the game runs.
+// and putting an archived one back. Shared by the launcher, which archives
+// around and during a game run, and Sidecar, which lists the archive and
+// imports from it while the game runs.
 
 #include <cstdint>
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -36,42 +38,68 @@ Folders FindFolders();
 
 // Copies every match replay not yet in the archive, one file each, named by
 // its save time (UTC) and CRC. The archive holds a replay when one of its
-// files has that CRC, whatever its save time: a replay put back into the
-// game is saved there under a new time. It is the slot's file that is read: one
-// the game's index does not list yet is archived two minutes after it was
-// written, with a record made from its own header. A slot caught while the game is writing it
-// fails the size and CRC check and is copied on a later call. Returns how
-// many were copied, or -1 when there is nowhere to copy from or to.
+// files is that replay, whatever its save time: a replay put back into the
+// game is saved there under a new time. A file counts by its contents, not
+// its name. It is the slot's file that is read: one the game's index does not
+// list yet is archived two minutes after it was written, with a record made
+// from its own header. A slot caught while the game is writing it fails the
+// size and CRC check and is copied on a later call. The archive is read
+// through one index kept for this process, which opens a file once and again
+// only when it changed. Returns how many were copied, or -1 when there is
+// nowhere to copy from or to. The launcher's: it walks every account's slots
+// and the whole archive folder.
 int Archive();
 
 // An archived replay put back into the game's files: the slot it took, the
-// slot record as written (ReplaySlots.hxx: Import) and the slot's two bytes.
-// The indexes are read from the signed-in account's folder (Folders::active),
-// the one write stores into. The slots are archived first and the replay the
-// slot holds has to be in the archive, or nothing is written. The replay is
-// written before the indexes; should a write fail after it, the slot's old
-// replay is written back. The game holds the slots in memory while it runs
-// and writes them back on its next save, so a caller inside the game puts
-// the record into its table too, and only after this returned true.
+// slot record as written (ReplaySlots.hxx: Import), the slot's two bytes and
+// the writes that were made (ReplaySlots.hxx: WritePlan), which UndoImport
+// takes back. The indexes are read from the signed-in account's folder
+// (Folders::active), the one write stores into.
+//
+// Nothing is written unless the indexes match their checksum files, no match
+// slot holds a replay the index has not caught up with (the game writes a
+// match's file before its index, and the index would name that slot as the
+// oldest), and the replay the chosen slot holds is in the archive, copied
+// there now if need be. The files are then written in the plan's order, the
+// replay before the indexes that name it; a write that fails puts back every
+// file written so far.
+//
+// The game holds the slots in memory while it runs and writes them back on
+// its next save, so a caller inside the game puts the record into its table
+// too, only after this returned Done, and calls UndoImport when the table
+// does not take it: the files would otherwise be ahead of the table, and the
+// game's next save would write the old record over them.
+//
 // write stores each changed file: its name under the account's Steam Cloud
 // folder (capcom/superstreetfighteriv/ssf4_savedata/<name>) and its bytes.
 // The game reads its files through Steam, which keeps its own index of their
 // sizes, so a file written beside it is read at its old size: inside the
 // game, write goes through Steam's FileWrite.
+//
+// It reads the two indexes, the match slots' files (kept by size and time)
+// and the one file to import; the archive folder is not walked.
 struct Imported {
 	int slot = -1;
 	replayslots::Bytes record, slotBytes;
+	replayslots::WritePlan plan;
 };
+// Why nothing was imported. IndexBehind and NotArchived pass by themselves
+// once the game has saved; the others do not.
+enum class ImportResult { Done, NoFolder, NotAReplay, IndexBehind, NotArchived, IndexDamaged, WriteFailed };
 using Writer = std::function<bool(const std::string& name, const replayslots::Bytes& contents)>;
-bool ImportFile(const std::filesystem::path& file, const Writer& write, Imported& out);
+ImportResult ImportFile(const std::filesystem::path& file, const Writer& write, Imported& out);
+// Puts the files of an import back as they were before it. False when one
+// could not be.
+bool UndoImport(const Imported& imported, const Writer& write);
 
 // The game's record names no one for an Ember match, so Ember notes the
 // two players itself when a match starts (matches.jsonl in the archive:
 // the start time, both names, P1 first, and whether this PC only watched;
-// the game records a spectated match too). A replay is saved when the
-// match ends, so it belongs to the last match started before its save
-// time, within an hour.
-void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating);
+// the game records a spectated match too, and the two fighters). A replay is
+// saved when the match ends, so it belongs to the last match started before
+// its save time, within an hour, with its two fighters
+// (ReplaySlots.hxx: MatchOf).
+void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2);
 
 // Remembers that an archived replay was put into the game (watched.txt in
 // the archive, one file name per line), so the list can say so.
@@ -89,38 +117,42 @@ struct ArchivedReplay {
 	int fighters[2] = {-1, -1};
 	std::string names[2];
 	bool spectated = false, watched = false;
-	// An exported video (<name>.mp4) is beside it.
+	// An exported video (VideoOf) is beside it.
 	bool video = false;
-	// From the replay itself (common/ReplayInputs.hxx), when it is one that
-	// reads: the rounds each player won (-1 when the last round's winner is
-	// not known), the rounds played, their frames, and for each player what
-	// was chosen and what was pressed.
-	bool read = false;
-	int score[2] = {-1, -1};
-	unsigned rounds = 0, frames = 0;
-	replayinputs::Player players[2];
-	replayinputs::Stats stats[2];
+	// What the replay itself says of the match (common/ReplayInputs.hxx);
+	// none for a file that is not one it reads.
+	std::optional<replayinputs::Summary> summary;
 };
+// The video an export of that replay writes: its name with ".mp4".
+inline std::filesystem::path VideoOf(std::filesystem::path replay) { return replay.replace_extension(L".mp4"); }
 
 // Lists the archive on a thread of its own: Ember's own files from the
 // archive root, and usf4-replay-saver's (.usf4replay) from any folder under
 // it, those with time and fighters from the replay's header and no names.
-// The game's threads only ask and read: Want asks for a listing, which
-// starts within two seconds of the one before, and Latest is the last one
+// Any thread may ask and read: WantListing asks for a listing, which starts
+// within two seconds of the one before, and LatestListing is the last one
 // made (null before the first). A listing opens only the files that are new
 // or changed since the one before, so it does not grow with the archive, and
-// nothing a file or folder does there reaches the caller.
-class ArchiveLister {
-public:
-	ArchiveLister();
-	~ArchiveLister();
-	ArchiveLister(const ArchiveLister&) = delete;
-	ArchiveLister& operator=(const ArchiveLister&) = delete;
-	void Want();
-	std::shared_ptr<const std::vector<ArchivedReplay>> Latest() const;
-private:
-	struct State;
-	std::shared_ptr<State> state_;
+// nothing a file or folder does there reaches the caller. StopListing ends
+// the thread and waits for a listing in progress; called once, at shutdown,
+// and never under the loader lock.
+void WantListing();
+std::shared_ptr<const std::vector<ArchivedReplay>> LatestListing();
+void StopListing();
+
+// One replay read whole (common/ReplayInputs.hxx), for the Inputs and stats
+// screen: match is null for a file that is not one it reads. The lister's
+// thread reads it: WantDetail asks, from any thread, and LatestDetail is the
+// last one read (null before the first). file is the name it was asked by,
+// UTF-8 as the Replays screen names its rows.
+struct ReplayDetail {
+	std::string file;
+	std::shared_ptr<const replayinputs::Match> match;
 };
+void WantDetail(const std::string& file);
+std::shared_ptr<const ReplayDetail> LatestDetail();
+// The same read on the caller's thread. False for a file that is not read,
+// whatever the file or its folder does.
+bool ReadMatch(const std::filesystem::path& file, replayinputs::Match& match);
 
 } } }

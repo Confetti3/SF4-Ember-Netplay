@@ -119,7 +119,7 @@ namespace sf4e {
 			// request. logOpens and returns: sf4e__ReplayStore's counts, for
 			// Ember's menu to get out of the way and to come back on. link:
 			// the file a replay link asked for, until the player answers.
-			// archive: the last listing of the archive, or null (WantReplayList).
+			// archive: the last listing of the archive, or null (platform::replays::WantListing).
 			struct Replays {
 				bool ready = false;
 				std::string notice;
@@ -132,6 +132,8 @@ namespace sf4e {
 				// A replay is playing that was asked for with the frame meter.
 				bool meterShown = false;
 				std::shared_ptr<const std::vector<platform::replays::ArchivedReplay>> archive;
+				// The replay last read whole, or null (platform::replays::WantDetail).
+				std::shared_ptr<const platform::replays::ReplayDetail> detail;
 			} replays;
 			bool canOpenRoom = false;
 			bool canReplaceRoom = false;
@@ -243,9 +245,6 @@ namespace sf4e {
 		// published and is never null. Safe on any thread, before StartHelper
 		// and after StopHelper.
 		std::shared_ptr<const RuntimeSnapshot> GetRuntimeSnapshotShared();
-		// Any thread: the Replays screen is showing, so the archive is to be
-		// listed again (RuntimeSnapshot::replays.archive, within a few seconds).
-		void WantReplayList();
 		// The overlay's frame input, on any thread; never null.
 		std::shared_ptr<const PresentationSnapshot> GetPresentationSnapshotShared();
 		// Game thread, once at the end of every outer tick: expires notices and

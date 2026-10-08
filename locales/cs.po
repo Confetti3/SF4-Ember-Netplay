@@ -694,17 +694,23 @@ msgstr "Teď ne"
 msgid "replays.link_dismiss_detail"
 msgstr "Soubor zůstane na místě a odkaz se zapomene."
 
-msgid "replays.export_gpu"
-msgstr "Exportovat video (GPU)"
+msgid "replays.export"
+msgstr "Exportovat video"
 
-msgid "replays.export_gpu_detail"
-msgstr "Nahraje jej jako .mp4 v plné velikosti obrazu hry, kódovaný grafickou kartou."
+msgid "replays.export_detail"
+msgstr "Přehraje ho a nahraje jako .mp4 v plné velikosti obrazu hry."
 
 msgid "replays.exported"
 msgstr "Video uloženo: {0}"
 
-msgid "replays.gpu_not_exported"
-msgstr "Video nevzniklo. Windows neposkytl kodér H.264, nebo se nepodařilo přečíst obraz hry. Důvod je v protokolu."
+msgid "replays.not_exported_encoder"
+msgstr "Video nevzniklo. Windows neposkytl kodér videa, nebo se kodér zastavil. Důvod je v protokolu."
+
+msgid "replays.not_exported_picture"
+msgstr "Video nevzniklo. Obraz hry se nepodařilo přečíst, nebo se během exportu změnila jeho velikost."
+
+msgid "replays.not_exported_file"
+msgstr "Video nevzniklo. Soubor se nepodařilo zapsat. Dřívější video tohoto záznamu může být otevřené v přehrávači."
 
 msgid "replays.video"
 msgstr "Video"
@@ -730,9 +736,6 @@ msgstr "Vstupy a statistiky"
 msgid "replays.inputs_detail"
 msgstr "Ukáže, co oba hráči mačkali, snímek po snímku, a kolikrát. Čte se ze souboru záznamu; nic se nepřehrává."
 
-msgid "replays.info_look"
-msgstr "Kostým {0}, barva {1}, Ultra {2}"
-
 msgid "inputs.length_value"
 msgstr "Kola: {0}, {1}"
 
@@ -753,6 +756,12 @@ msgstr "Vstupy nelze přečíst"
 
 msgid "inputs.unreadable_detail"
 msgstr "Tento záznam je ve starším formátu, nebo je jeho soubor poškozený."
+
+msgid "inputs.reading"
+msgstr "Čtu záznam..."
+
+msgid "inputs.look_unknown"
+msgstr "Vzhled není znám"
 
 msgid "export.title"
 msgstr "Exportovat video"
@@ -794,7 +803,7 @@ msgid "replays.frame_meter_detail"
 msgstr "Sledovat teď a Exportovat video zobrazí nad záznamem tréninkový měřič snímků. Při exportu je i ve videu."
 
 msgid "replays.row_detail"
-msgstr "Vyberte pro přidání do seznamu záznamů hry, nebo pro přidání a přehrání teď."
+msgstr "Vyberte pro přehrání, export jako video nebo přidání do seznamu záznamů hry."
 
 msgid "replays.watched"
 msgstr "Zhlédnuto"
@@ -813,6 +822,12 @@ msgstr "Přidáno do seznamu záznamů hry pod datem, kdy se zápas hrál."
 
 msgid "replays.not_added"
 msgstr "Tento záznam se nepodařilo přidat. Soubor může být poškozený."
+
+msgid "replays.not_added_yet"
+msgstr "Hra ještě neuložila poslední zápas. Zkus to za chvíli znovu."
+
+msgid "replays.not_added_files"
+msgstr "Tento záznam se nepodařilo přidat: soubory záznamů hry se nepodařilo přečíst nebo zapsat. Nic se nezměnilo."
 
 msgid "replays.fighters"
 msgstr "{0} vs {1}"

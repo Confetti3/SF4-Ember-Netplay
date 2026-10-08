@@ -31,10 +31,11 @@ bool Ready();
 //                 list's own DECIDE plays it; or ten seconds
 //   Playing       the log runs the replay (its Versus and Battle states);
 //                 until it is back on its list, which Ember then leaves for
-//                 the main menu. Ten seconds for the replay to start, two
-//                 for a battle log that went away
+//                 the main menu. Ten seconds for the replay to start, thirty
+//                 for its Versus screen to reach the battle, two for a
+//                 battle log that went away
 //   InLog         the player is in the game's own menus; until the main menu
-//                 is back
+//                 is back, or they are in a room
 enum class Step { Idle, OpeningLog, SelectingRow, Playing, InLog };
 
 // notice: the last request's outcome for the Replays screen, an error when
@@ -52,22 +53,24 @@ struct Status {
 	bool captionShown = false;
 };
 const Status& GetStatus();
-// A playback that is being made into a video is running: the game is then
-// kept playing and sounding behind another window (sf4e__BackgroundPlay.cxx).
-bool Exporting();
 // The replay that is playing was asked for with the frame meter: each of its
 // frames is then shown to the meter (sf4e__Game__Battle__System.cxx).
 bool MeterWanted();
 
-// Runs a request (common/ReplayRequest.hxx: Add, Watch, Export or OpenLog). An export records from the Battle state to the log's return
-// (sf4e__ReplayCapture.hxx) and its outcome becomes the notice. Refused
+// Runs a request (common/ReplayRequest.hxx: Add, Watch, Export or OpenLog).
+// An export records from the Battle state until Playing is left, however
+// that happens (sf4e__ReplayCapture.hxx), leaves the replay by itself once
+// its match is over, and its outcome becomes the notice; while its replay
+// plays the game is kept running and sounding behind another window
+// (sf4e__BackgroundPlay.hxx). Refused
 // with a notice while another runs, or where it cannot be done: an import
 // writes the game's table and files, so only at the native main menu with
 // the save controller free; the battle log leaves Ember's menu, so only with
 // no room.
 void Start(const replay::Request& request, bool atMainMenu, bool noRoom);
 
-// Once a game tick: moves the operation on.
-void Tick(bool atMainMenu);
+// Once a game tick: moves the operation on. noRoom as for Start: an operation
+// whose player has gone into a room ends without reopening Ember's menu.
+void Tick(bool atMainMenu, bool noRoom);
 
 } }

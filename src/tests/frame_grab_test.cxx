@@ -9,13 +9,14 @@
 #include <iostream>
 
 namespace {
-int s_failures = 0;
+int s_failures = 0, s_frames = 0;
 unsigned s_width = 0, s_height = 0;
 void Near(const char* what, int got, int want) {
 	if (std::abs(got - want) > 2) { std::cerr << what << ": " << got << ", not " << want << "\n"; s_failures++; }
 }
 // BT.709 at 16 to 235: red is Y 63, U 102, V 240 and blue Y 32, U 240, V 118.
 void Check(const void* luma, int lumaPitch, const void* chroma, int chromaPitch) {
+	s_frames++;
 	const auto* y = static_cast<const unsigned char*>(luma);
 	const auto* uv = static_cast<const unsigned char*>(chroma);
 	for (const unsigned row : {0u, s_height / 2, s_height - 1}) {
@@ -50,11 +51,15 @@ int main() {
 
 	if (!grab::Open(device, s_width, s_height)) { std::cerr << "The grab did not open\n"; return 1; }
 	if (s_width != 1280 || s_height != 720) { std::cerr << "Size " << s_width << "x" << s_height << ", not 1280x720\n"; return 1; }
-	// Twice, the second inside a scene and after a release, as after a device reset.
-	if (!grab::Grab(device, Check)) { std::cerr << "The first grab failed\n"; return 1; }
+	// A frame is handed over on the call after the one that drew it. Then
+	// inside a scene and after a release, as after a device reset, where the
+	// frame drawn before the release is gone.
+	if (!grab::Grab(device, Check) || s_frames != 0) { std::cerr << "The first grab failed, or handed over a frame it had not drawn\n"; return 1; }
+	if (!grab::Grab(device, Check) || s_frames != 1) { std::cerr << "The second grab did not hand over the first's frame\n"; return 1; }
 	grab::Release();
 	device->BeginScene();
-	if (!grab::Grab(device, Check)) { std::cerr << "The grab inside a scene failed\n"; return 1; }
+	if (!grab::Grab(device, Check) || s_frames != 1) { std::cerr << "The grab inside a scene failed, or handed over a released frame\n"; return 1; }
+	if (!grab::Grab(device, Check) || s_frames != 2) { std::cerr << "The grab after a release did not hand over its frame\n"; return 1; }
 	if (FAILED(device->EndScene())) { std::cerr << "The grab closed the caller's scene\n"; s_failures++; }
 
 	device->GetRenderTarget(0, &after);

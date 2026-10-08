@@ -1,4 +1,5 @@
 #include "VideoEncoder.hxx"
+#include "VideoShared.hxx"
 
 #include <windows.h>
 #include <mfapi.h>
@@ -38,7 +39,8 @@ ComPtr<IMFSinkWriter> s_writer;
 DWORD s_videoStream = 0, s_audioStream = 0;
 UINT32 s_width = 0, s_height = 0;
 LONGLONG s_start = 0, s_lastFrame = -1, s_pictures = 0, s_dropped = 0;
-bool s_failed = false;
+// The writer refused a picture or sound: the file is not the whole export.
+std::atomic<bool> s_failed{false};
 // Pictures with the writer, and how many it may hold before the next is
 // dropped: its own queue of about 65 and then as many as memory allows.
 std::atomic<long> s_held{0};
@@ -62,7 +64,7 @@ std::thread s_audio;
 DWORD s_soundPid = 0;
 std::atomic<bool> s_audioRuns{false};
 
-LONGLONG Now() { return sf4e::platform::video::Clock(); }
+LONGLONG Now() { return sf4e::platform::videolink::Clock(); }
 
 struct Activated : Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, Microsoft::WRL::FtmBase, IActivateAudioInterfaceCompletionHandler> {
 	HANDLE done = CreateEventW(nullptr, TRUE, FALSE, nullptr);
@@ -133,7 +135,8 @@ void WriteSound(const BYTE* data, UINT32 frames, float gain, LONGLONG& written) 
 	sample->AddBuffer(buffer.Get());
 	sample->SetSampleTime(written * 10000000 / kSampleRate);
 	sample->SetSampleDuration(static_cast<LONGLONG>(frames) * 10000000 / kSampleRate);
-	s_writer->WriteSample(s_audioStream, sample.Get());
+	const HRESULT hr = s_writer->WriteSample(s_audioStream, sample.Get());
+	if (FAILED(hr) && !s_failed.exchange(true)) spdlog::warn("Video: the encoder stopped taking sound ({:#x})", static_cast<unsigned>(hr));
 	written += frames;
 }
 
@@ -238,7 +241,9 @@ HRESULT Open(const std::wstring& file, IMFDXGIDeviceManager* card) {
 	// Past this size the cards' H.264 encoders decline and Windows hands the
 	// job to whatever else is registered (one such took 1.4 GB for 3840x2400).
 	const bool hevc = s_width > 4096 || s_height > 2160;
-	HRESULT hr = MFCreateAttributes(&attributes, 2);
+	HRESULT hr = MFCreateAttributes(&attributes, 3);
+	// Named here, since the file is written under a temporary name without ".mp4".
+	if (SUCCEEDED(hr)) hr = attributes->SetGUID(MF_TRANSCODE_CONTAINERTYPE, MFTranscodeContainerType_MPEG4);
 	// The graphics card's encoder, when its driver registered one.
 	if (SUCCEEDED(hr)) hr = attributes->SetUINT32(MF_READWRITE_ENABLE_HARDWARE_TRANSFORMS, TRUE);
 	if (SUCCEEDED(hr) && card) hr = attributes->SetUnknown(MF_SINK_WRITER_D3D_MANAGER, card);
@@ -278,12 +283,6 @@ void LogEncoder() {
 }
 
 namespace sf4e { namespace platform { namespace video {
-
-long long Clock() {
-	LARGE_INTEGER counter, frequency;
-	QueryPerformanceCounter(&counter); QueryPerformanceFrequency(&frequency);
-	return counter.QuadPart / frequency.QuadPart * 10000000 + counter.QuadPart % frequency.QuadPart * 10000000 / frequency.QuadPart;
-}
 
 const std::string& Summary() { return s_summary; }
 
@@ -345,7 +344,7 @@ void Frame(const void* luma, int lumaPitch, const void* chroma, int chromaPitch,
 	sample->SetSampleDuration(10000000 / kFrameRate);
 	const HRESULT hr = s_writer->WriteSample(s_videoStream, sample.Get());
 	if (SUCCEEDED(hr)) s_pictures++;
-	else if (!s_failed) { s_failed = true; spdlog::warn("Video: the encoder stopped taking pictures after {} ({:#x})", s_pictures, static_cast<unsigned>(hr)); }
+	else if (!s_failed.exchange(true)) { spdlog::warn("Video: the encoder stopped taking pictures after {} ({:#x})", s_pictures, static_cast<unsigned>(hr)); }
 }
 
 bool End() {

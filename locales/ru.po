@@ -694,17 +694,23 @@ msgstr "Не сейчас"
 msgid "replays.link_dismiss_detail"
 msgstr "Оставляет файл на месте и забывает ссылку."
 
-msgid "replays.export_gpu"
-msgstr "Экспорт видео (GPU)"
+msgid "replays.export"
+msgstr "Экспорт видео"
 
-msgid "replays.export_gpu_detail"
-msgstr "Записывает в .mp4 в полном размере изображения игры, кодирует видеокарта."
+msgid "replays.export_detail"
+msgstr "Воспроизводит запись и сохраняет её как .mp4 в полном размере изображения игры."
 
 msgid "replays.exported"
 msgstr "Видео сохранено: {0}"
 
-msgid "replays.gpu_not_exported"
-msgstr "Видео не создано. Windows не предоставила кодировщик H.264, или изображение игры не удалось прочитать. Причина указана в журнале."
+msgid "replays.not_exported_encoder"
+msgstr "Видео не создано. Windows не предоставила видеокодировщик, или кодировщик остановился. Причина указана в журнале."
+
+msgid "replays.not_exported_picture"
+msgstr "Видео не создано. Изображение игры не удалось прочитать, или его размер изменился во время экспорта."
+
+msgid "replays.not_exported_file"
+msgstr "Видео не создано. Файл не удалось записать. Возможно, прежнее видео этой записи открыто в проигрывателе."
 
 msgid "replays.video"
 msgstr "Видео"
@@ -730,9 +736,6 @@ msgstr "Ввод и статистика"
 msgid "replays.inputs_detail"
 msgstr "Показывает, что нажимали оба игрока, кадр за кадром, и сколько раз. Читается из файла реплея; ничего не воспроизводится."
 
-msgid "replays.info_look"
-msgstr "Костюм {0}, цвет {1}, Ultra {2}"
-
 msgid "inputs.length_value"
 msgstr "Раунды: {0}, {1}"
 
@@ -753,6 +756,12 @@ msgstr "Не удалось прочитать ввод"
 
 msgid "inputs.unreadable_detail"
 msgstr "Этот реплей в старом формате, либо файл повреждён."
+
+msgid "inputs.reading"
+msgstr "Чтение записи..."
+
+msgid "inputs.look_unknown"
+msgstr "Внешний вид неизвестен"
 
 msgid "export.title"
 msgstr "Экспорт видео"
@@ -794,7 +803,7 @@ msgid "replays.frame_meter_detail"
 msgstr "«Смотреть сейчас» и «Экспорт видео» показывают поверх реплея счётчик кадров из тренировки. При экспорте он попадает и в видео."
 
 msgid "replays.row_detail"
-msgstr "Выберите, чтобы добавить в список записей игры, или добавить и посмотреть сейчас."
+msgstr "Выберите, чтобы посмотреть, экспортировать как видео или добавить в список записей игры."
 
 msgid "replays.watched"
 msgstr "Просмотрено"
@@ -813,6 +822,12 @@ msgstr "Добавлено в список записей игры под дат
 
 msgid "replays.not_added"
 msgstr "Не удалось добавить эту запись. Файл может быть повреждён."
+
+msgid "replays.not_added_yet"
+msgstr "Игра ещё не сохранила последний матч. Попробуйте ещё раз через минуту."
+
+msgid "replays.not_added_files"
+msgstr "Не удалось добавить этот повтор: файлы повторов игры не удалось прочитать или записать. Ничего не изменено."
 
 msgid "replays.fighters"
 msgstr "{0} vs {1}"

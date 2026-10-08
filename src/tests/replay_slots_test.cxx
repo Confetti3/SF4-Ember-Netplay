@@ -5,11 +5,16 @@
 
 #include "test_support.hxx"
 
+#include <map>
+
 using namespace sf4e::replayslots;
 
+// A replay with a whole header: the magic and two fighters of the roster,
+// which a record has to name too (Describes).
 static Bytes Replay(std::uint8_t fill, std::size_t size) {
 	Bytes replay(size, fill);
 	std::memcpy(replay.data(), "#BRP", 4);
+	if (size >= kReplayHeaderBytes) { WriteU32(replay.data() + 0x20, fill % 40); WriteU32(replay.data() + 0x170, (fill + 1) % 40); }
 	return replay;
 }
 
@@ -45,7 +50,10 @@ static void Fill(Bytes& list, Bytes& swan, int slot, const Bytes& replay, std::u
 	// fighters of the roster, 8 February 2019, 20:24.
 	WriteU32(record + 22, 0);
 	record[51] = 0xE3; record[52] = 0x07; record[53] = 2; record[54] = 8;
-	record[71] = meta % 40; record[105] = (meta + 1) % 40;
+	// The fighters are the replay's own, as the game writes them.
+	ReplayHeaderInfo header = {{0, 0}, 0};
+	ReadReplayHeader(replay, header);
+	record[71] = static_cast<std::uint8_t>(header.fighters[0]); record[105] = static_cast<std::uint8_t>(header.fighters[1]);
 	record[123] = 20; record[124] = 24;
 	swan[kSwanSlotBytesOffset + slot * 2] = swan[kSwanSlotBytesOffset + slot * 2 + 1] = 0x0E;
 	Seal(swan);
@@ -136,7 +144,7 @@ static void TestExportRefusesWhatDoesNotBelong() {
 static void TestSlotToReplaceFollowsTheGame() {
 	Bytes list = EmptyList(), swan = EmptySwan();
 	CHECK(SlotToReplace(list, swan, 200, 309) == 200); // all empty: the first
-	for (int slot = 200; slot <= 309; slot++) Fill(list, swan, slot, Replay(0x11, 100), 0);
+	for (int slot = 200; slot <= 309; slot++) Fill(list, swan, slot, Replay(0x11, 500), 0);
 	// Record() refuses an unsealed swan, so each write there is sealed at once.
 	for (int slot = 200; slot <= 309; slot++) { WriteU32(const_cast<std::uint8_t*>(Record(list, swan, slot)) + 13, 2000 + slot); Seal(swan); }
 	WriteU32(const_cast<std::uint8_t*>(Record(list, swan, 267)) + 13, 5);
@@ -290,11 +298,142 @@ static void TestAnImportedReplayIsKnownByItsCrc() {
 	const SlotInfo again = ReadSlot(list, swan, 301);
 	CHECK(again.time != saved && again.crc == Crc32(replay.data(), replay.size()));
 	std::uint32_t crc = 0;
-	CHECK(ArchiveNameCrc(L"20261005-213503-69991186.emberreplay", crc) && crc == 0x69991186);
-	CHECK(!ArchiveNameCrc(L"20261005-213503-69991186.mp4", crc));
-	CHECK(!ArchiveNameCrc(L"20261005-213503-6999118.emberreplayy", crc));
-	CHECK(!ArchiveNameCrc(L"20261005-213503-6999zzzz.emberreplay", crc));
-	CHECK(!ArchiveNameCrc(L"watched.txt", crc));
+	std::uint64_t time = 0;
+	// One reader of the name gives both the save time and the CRC.
+	CHECK(ParseArchiveName(L"20261005-213503-69991186.emberreplay", time, crc) && crc == 0x69991186 && time == 1791236103);
+	CHECK(ParseArchiveName(L"19700101-000000-0000000A.emberreplay", time, crc) && crc == 10 && time == 0);
+	CHECK(ParseArchiveName(L"20240229-235959-ffffffff.emberreplay", time, crc) && crc == 0xFFFFFFFFu && time == 1709251199);
+	CHECK(!ParseArchiveName(L"20261005-213503-69991186.mp4", time, crc));
+	CHECK(!ParseArchiveName(L"20261005-213503-6999118.emberreplayy", time, crc));
+	CHECK(!ParseArchiveName(L"20261005-213503-6999zzzz.emberreplay", time, crc));
+	CHECK(!ParseArchiveName(L"20261305-213503-69991186.emberreplay", time, crc)); // month 13
+	CHECK(!ParseArchiveName(L"2026100x-213503-69991186.emberreplay", time, crc));
+	CHECK(!ParseArchiveName(L"watched.txt", time, crc));
+	// The archive holds it only when the file is that replay: an export whose
+	// record describes its body, under the body's own CRC.
+	CHECK(WholeArchived(exported, Crc32(replay.data(), replay.size())));
+	CHECK(!WholeArchived(exported, Crc32(replay.data(), replay.size()) + 1)); // another name
+	CHECK(!WholeArchived(Bytes(exported.begin(), exported.end() - 1), Crc32(replay.data(), replay.size()))); // cut short
+	CHECK(!WholeArchived(Bytes(), 0) && !WholeArchived(replay, Crc32(replay.data(), replay.size()))); // empty, or not an export
+}
+
+// A record describes a replay only with a whole header and the same fighters.
+static void TestARecordNeedsAWholeReplay() {
+	Bytes list = EmptyList(), swan = EmptySwan(), out;
+	// Only the magic, with the size and CRC the record names: not a replay.
+	Bytes stub = {'#', 'B', 'R', 'P'};
+	std::uint8_t* record = const_cast<std::uint8_t*>(Record(list, swan, 300));
+	record[4] = 1; WriteU32(record + 5, Crc32(stub.data(), stub.size())); WriteU32(record + 9, 4);
+	Seal(swan);
+	CHECK(!Describes(Record(list, swan, 300), stub.data(), stub.size()) && !Export(list, swan, 300, stub, out));
+	// One byte short of the header.
+	const Bytes shortOne = Replay(0x07, kReplayHeaderBytes - 1);
+	Bytes list2 = EmptyList(), swan2 = EmptySwan();
+	Fill(list2, swan2, 301, shortOne, 0);
+	CHECK(!Export(list2, swan2, 301, shortOne, out));
+	// A whole one is described; with another fighter in the record it is not.
+	const Bytes whole = Replay(0x07, kReplayHeaderBytes);
+	Fill(list2, swan2, 302, whole, 0);
+	CHECK(Export(list2, swan2, 302, whole, out));
+	const_cast<std::uint8_t*>(Record(list2, swan2, 302))[71] ^= 1;
+	Seal(swan2);
+	CHECK(!Export(list2, swan2, 302, whole, out));
+	// A fighter outside the roster in the header is nobody's.
+	Bytes odd = Replay(0x07, 2000);
+	WriteU32(odd.data() + 0x170, 200);
+	Fill(list2, swan2, 303, odd, 0);
+	CHECK(!Export(list2, swan2, 303, odd, out));
+}
+
+// The files as an import finds them and as a Writer leaves them.
+struct Folder {
+	std::map<std::string, Bytes> files;
+	int writes = 0, failAt = -1;
+	bool Write(const std::string& name, const Bytes& contents) {
+		if (writes++ == failAt) { files[name] = Bytes{0xDE, 0xAD}; return false; } // a failed write may leave anything
+		files[name] = contents;
+		return true;
+	}
+};
+
+// An import is a plan of writes; a write that fails puts every file back as it
+// was, whichever write it is, and so does undoing a plan that was written.
+static void TestAnImportThatFailsLeavesTheFilesAsTheyWere() {
+	for (int slot : {290, 305}) {
+		Bytes list = EmptyList(), swan = EmptySwan(), exported;
+		const Bytes held = Replay(0x10, 5000), incoming = Replay(0x31, 7000);
+		Fill(list, swan, slot, held, 0x55);
+		Bytes otherList = EmptyList(), otherSwan = EmptySwan();
+		Fill(otherList, otherSwan, 300, incoming, 0x66);
+		CHECK(Export(otherList, otherSwan, 300, incoming, exported));
+		const SlotFiles before{list, Sidecar(list), swan, Sidecar(swan), held, Sidecar(held)};
+		Folder start;
+		const std::string name = std::to_string(slot);
+		start.files = {{name, held}, {name + ".0", Sidecar(held)}, {"replays-swan.dat", swan}, {"replays-swan.dat.0", Sidecar(swan)}, {"LIST", list}, {"LIST.0", Sidecar(list)}};
+		WritePlan plan;
+		CHECK(PlanImport(exported, slot, 1800000000, before, plan));
+		CHECK(plan.size() == (slot < kListSlots ? 6u : 4u) && plan[0].name == name && plan[1].name == name + ".0" && plan[0].before == held);
+		// The replay goes first and the indexes that name it last.
+		CHECK(plan[2].name == "replays-swan.dat" && plan.back().name == (slot < kListSlots ? "LIST.0" : "replays-swan.dat.0"));
+		for (int failAt = 0; failAt < static_cast<int>(plan.size()); failAt++) {
+			Folder folder = start;
+			folder.failAt = failAt;
+			bool undone = false;
+			const auto write = [&](const std::string& file, const Bytes& contents) { return folder.Write(file, contents); };
+			CHECK(!RunPlan(plan, write, undone) && undone);
+			CHECK(folder.files == start.files);
+		}
+		// Every write succeeds: the files are the import's, and the slot exports as the new replay.
+		Folder folder = start;
+		bool undone = false;
+		const auto write = [&](const std::string& file, const Bytes& contents) { return folder.Write(file, contents); };
+		CHECK(RunPlan(plan, write, undone));
+		Bytes again;
+		CHECK(Export(folder.files["LIST"], folder.files["replays-swan.dat"], slot, folder.files[name], again));
+		CHECK(Bytes(again.begin() + kExportHeaderBytes, again.end()) == incoming && folder.files[name + ".0"] == Sidecar(incoming));
+		CHECK(ValidSwan(folder.files["replays-swan.dat"]) && folder.files["replays-swan.dat.0"] == Sidecar(folder.files["replays-swan.dat"]));
+		// The game refused the record afterwards: the same undo, over the whole plan.
+		CHECK(UndoPlan(plan, plan.size(), write) && folder.files == start.files);
+		// A write that fails while putting back is told.
+		Folder stuck = start;
+		stuck.failAt = 2; // the third write of the plan fails, then the first put-back does too
+		int calls = 0;
+		const auto failing = [&](const std::string& file, const Bytes& contents) { return ++calls != 4 && stuck.Write(file, contents); };
+		CHECK(!RunPlan(plan, failing, undone) && !undone);
+	}
+	// A slot that held nothing: its file stays, and the index is back as it was.
+	Bytes list = EmptyList(), swan = EmptySwan(), exported;
+	const Bytes incoming = Replay(0x31, 7000);
+	Bytes otherList = EmptyList(), otherSwan = EmptySwan();
+	Fill(otherList, otherSwan, 300, incoming, 0x66);
+	CHECK(Export(otherList, otherSwan, 300, incoming, exported));
+	WritePlan plan;
+	CHECK(PlanImport(exported, 301, 1, SlotFiles{list, Sidecar(list), swan, Sidecar(swan), Bytes(), Bytes()}, plan));
+	Folder folder;
+	folder.files = {{"replays-swan.dat", swan}, {"replays-swan.dat.0", Sidecar(swan)}};
+	folder.failAt = 3;
+	bool undone = false;
+	const auto write = [&](const std::string& file, const Bytes& contents) { return folder.Write(file, contents); };
+	CHECK(!RunPlan(plan, write, undone) && undone);
+	CHECK(folder.files["replays-swan.dat"] == swan && folder.files["replays-swan.dat.0"] == Sidecar(swan) && folder.files["301"] == incoming);
+	// What Import refuses makes no plan.
+	Bytes damaged = exported;
+	damaged.back() ^= 1;
+	CHECK(!PlanImport(damaged, 301, 1, SlotFiles{list, Sidecar(list), swan, Sidecar(swan), Bytes(), Bytes()}, plan) && plan.empty());
+}
+
+// The match just played: its file is on disk and the index still names the
+// replay the slot held before. No slot is chosen from an index in that state.
+static void TestASlotWhoseIndexIsBehind() {
+	Bytes list = EmptyList(), swan = EmptySwan();
+	const Bytes old = Replay(0x10, 5000), fresh = Replay(0x20, 8000);
+	Fill(list, swan, 301, old, 0x55);
+	CHECK(!FileAheadOfRecord(list, swan, 301, old, Sidecar(old)));    // the record names the file
+	CHECK(FileAheadOfRecord(list, swan, 301, fresh, Sidecar(fresh))); // a whole file the record does not name
+	CHECK(FileAheadOfRecord(list, swan, 302, fresh, Sidecar(fresh))); // and in a slot the index has as empty
+	CHECK(!FileAheadOfRecord(list, swan, 301, fresh, Sidecar(old)));  // a file still being written is nobody's yet
+	CHECK(!FileAheadOfRecord(list, swan, 302, Bytes(), Bytes()));     // no file
+	CHECK(!FileAheadOfRecord(list, swan, 302, Bytes(kLargestReplay), Sidecar(Bytes(kLargestReplay)))); // the game's empty preallocation
 }
 
 // A slot whose file is newer than its record: archived from the file when its
@@ -349,7 +488,42 @@ static void TestImportRefusesAnImplausibleRecord() {
 	CHECK(refused(22, 22)); // a title longer than its field
 }
 
+// A replay belongs to the last match that began before it was saved, with its
+// fighters. In a room the next match has usually begun by the time the replay
+// is listed, and must not lend it its names.
+static void TestAReplayIsNamedAfterItsOwnMatch() {
+	const std::vector<NotedMatch> noted = {
+		{1000, {"Ann", "Bob"}, {5, 9}, false},
+		{1200, {"Ann", "Cy"}, {5, 12}, false},  // the next match: Ann stays, Cy sits down
+		{1320, {"Dee", "Cy"}, {7, 12}, true},   // and the one after, which this PC watched
+		{9000, {"Old", "Note"}, {-1, -1}, false}, // a note from before fighters were written
+	};
+	const int first[2] = {5, 9}, second[2] = {5, 12}, other[2] = {1, 2};
+	// Saved at 1190, ten seconds before the next match began.
+	const NotedMatch* match = MatchOf(noted, 1190, first);
+	CHECK(match && match->names[1] == "Bob" && !match->spectated);
+	// Saved at 1210: the next match began ten seconds earlier and is not this replay's.
+	match = MatchOf(noted, 1210, first);
+	CHECK(match && match->names[1] == "Bob");
+	// The next match's own replay.
+	match = MatchOf(noted, 1310, second);
+	CHECK(match && match->names[1] == "Cy" && !match->spectated);
+	// A match that began after the save is never the one, however soon after.
+	CHECK(!MatchOf(noted, 999, first));
+	// Nor one more than an hour before it, nor one with other fighters.
+	CHECK(!MatchOf(noted, 1000 + 3600, first) && MatchOf(noted, 1000 + 3599, first));
+	CHECK(!MatchOf(noted, 1250, other));
+	// An old note names no fighters and is taken by its time alone.
+	match = MatchOf(noted, 9100, other);
+	CHECK(match && match->names[0] == "Old");
+	CHECK(!MatchOf({}, 1190, first));
+}
+
 int main() {
+	TestAReplayIsNamedAfterItsOwnMatch();
+	TestARecordNeedsAWholeReplay();
+	TestAnImportThatFailsLeavesTheFilesAsTheyWere();
+	TestASlotWhoseIndexIsBehind();
 	TestRecordNeverTakesAnotherSlots();
 	TestImportRefusesAnImplausibleRecord();
 	TestASlotFileAheadOfItsRecord();

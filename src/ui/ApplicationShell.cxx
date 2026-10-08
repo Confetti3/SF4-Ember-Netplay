@@ -8,19 +8,18 @@
 #include "RoomControls.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
-#include "../common/ReplayInputs.hxx"
 #include "../platform/LocaleWindows.hxx"
+#include "ReplaySummaryText.hxx"
 #include "../platform/UiPreferencesStore.hxx"
 #include <imgui.h>
 #include <cfloat>
 #include <cstdio>
 #include <cstring>
-#include <filesystem>
-#include <fstream>
-#include <iterator>
 #include <utility>
 namespace sf4e { namespace ui {
 namespace {
+// The player's name as Ember noted it, or the side.
+std::string Who(const ShellView::Replay& replay,int side){return replay.names[side].empty()?(side?"P2":"P1"):replay.names[side];}
 constexpr double ErrorSeconds = 5;
 // The launch card names only the settings that differ, in the order the game's
 // own Options menu lists them. Empty means nothing to say.
@@ -305,7 +304,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(PublicRoomsPanel::Owns(screen)){
   title=loc::T("screen.public_rooms");rows=publicRooms_.Rows(v,identity_.UsableBridge(v),identity_.Waiting(),identity_.PublicSetup(),PublicListWidth());
  }else if(screen.compare(0,4,"room")==0){title=v.room.name.empty()?loc::T("screen.room"):v.room.name;NoteUserText(v.room.name);rows=RoomEntries(v);
- }else if(screen=="replay-inputs"){title=loc::T("replays.inputs");rows=inputsRows_;
+ }else if(screen=="replay-inputs"){title=loc::T("replays.inputs");BuildInputsRows(v,rows);
  }else if(screen=="replay-export"){
   // Each part of the caption on or off, with its text; Generate sends it with the export.
   title=loc::T("export.title");
@@ -321,7 +320,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Value("cap-set1",loc::Tf("export.set_wins",one),std::to_string(caption_.wins[0]),loc::T("export.set_detail"),caption_.set),
    Value("cap-set2",loc::Tf("export.set_wins",two),std::to_string(caption_.wins[1]),loc::T("export.set_detail"),caption_.set),
    Value("cap-mark",loc::T("export.mark"),onOff(caption_.mark),loc::T("export.detail")),
-   Row("cap-generate",loc::T("export.generate"),loc::T("replays.export_gpu_detail"),idle&&v.replaysReady)};
+   Row("cap-generate",loc::T("export.generate"),loc::T("replays.export_detail"),idle&&v.replaysReady)};
  }else if(screen=="replays"){
   title=loc::T("replays.title");
   if(!v.replayLink.empty()){
@@ -337,17 +336,23 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   rows.push_back(Value("replay-save-watched",loc::T("replays.save_watched"),preferences_.recordWatched?loc::T("common.on"):loc::T("common.off"),loc::T("replays.save_watched_detail"),v.canEditPreferences));
   if(v.replays.empty())rows.push_back(InfoRow("replay-none",loc::T("replays.empty"),"",loc::T("replays.empty_detail")));
   // A row is its file, not its place: the list is listed again while a row's choices are open.
-  for(std::size_t i=0;i<v.replays.size();i++){rows.push_back(Row("replay:"+v.replays[i].path,v.replays[i].label,loc::T(v.replaysReady?"replays.row_detail":"replays.not_ready"),v.replaysReady));
+  // A row is always open: reading its inputs needs nothing of the game. What does is each choice's own.
+  for(std::size_t i=0;i<v.replays.size();i++){rows.push_back(Row("replay:"+v.replays[i].path,v.replays[i].label,loc::T(v.replaysReady?"replays.row_detail":"replays.not_ready")));
    // The label carries the players' own names. The value says what Ember knows about it.
    rows.back().userText=true;for(const auto& name:v.replays[i].names)NoteUserText(name);
    rows.back().value=v.replays[i].watched&&v.replays[i].spectated?loc::T("replays.watched_spectated"):v.replays[i].watched?loc::T("replays.watched"):v.replays[i].spectated?loc::T("replays.spectated"):"";
    if(v.replays[i].video)rows.back().value=rows.back().value.empty()?loc::T("replays.video"):rows.back().value+", "+loc::T("replays.video");
    // The score leads the value; the replay's own account of the match leads the detail.
-   if(!v.replays[i].score.empty())rows.back().value=rows.back().value.empty()?v.replays[i].score:v.replays[i].score+"  "+rows.back().value;
-   if(!v.replays[i].info.empty()){rows.back().detail=v.replays[i].info+"\n\n"+rows.back().detail;rows.back().detailText=DetailText::Name;}
+   if(const auto& summary=v.replays[i].summary){
+    const std::string score=ScoreText(*summary);
+    if(!score.empty())rows.back().value=rows.back().value.empty()?score:score+"  "+rows.back().value;
+    std::string said=MatchText(*summary);
+    for(int side=0;side<2;side++)said+="\n"+Who(v.replays[i],side)+": "+LookText(summary->players[side])+". "+PressesText(summary->stats[side])+". "+ActivityText(summary->stats[side]);
+    rows.back().detail=said+"\n\n"+rows.back().detail;rows.back().detailText=DetailText::Name;
+   }
    // Select asks: add it to the game's list, or add it and go straight to the battle log.
-   rows.back().choices={{"watch",loc::T("replays.watch"),loc::T("replays.watch_detail"),idle},{"export",loc::T("replays.export_gpu"),loc::T("replays.export_gpu_detail"),idle},{"inputs",loc::T("replays.inputs"),loc::T("replays.inputs_detail")},{"add",loc::T("replays.add"),loc::T("replays.add_detail")}};
-   rows.back().chosen=idle?"watch":"add";}
+   rows.back().choices={{"watch",loc::T("replays.watch"),loc::T("replays.watch_detail"),idle&&v.replaysReady},{"export",loc::T("replays.export"),loc::T("replays.export_detail"),idle&&v.replaysReady},{"inputs",loc::T("replays.inputs"),loc::T("replays.inputs_detail")},{"add",loc::T("replays.add"),loc::T("replays.add_detail"),v.replaysReady}};
+   rows.back().chosen=!v.replaysReady?"inputs":idle?"watch":"add";}
  }else if(screen=="settings"){
   title=loc::T("settings.title");rows={Row("player",loc::T("screen.player"),loc::T("settings.player_detail")),Row("defaults",loc::T("screen.defaults"),loc::T("settings.defaults_detail")),Row("interface",loc::T("settings.interface"),loc::T("settings.interface_detail")),Row("discord",loc::T("screen.discord"),loc::T("settings.discord_detail")),
    Row("about",loc::T("home.about"),loc::T("home.about_detail"))};
@@ -523,40 +528,32 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
  for(const auto& table:v.room.tables)if(table.phase==room::TablePhase::Playing)++card.activeTables;
  SetMenuPlayerCard(std::move(card));
 }
-// The replay's own label, its length, what each player pressed, and a row a
-// round whose Select opens the round's inputs in the reader.
-void ApplicationShell::OpenReplayInputs(const ShellView::Replay& replay) {
+// The Inputs and stats screen: the replay's own label and length, for each
+// player the look and what was pressed, and a row a round whose Select opens
+// the round's inputs in the reader. Until the match for that file is handed
+// over the screen says it is being read.
+void ApplicationShell::BuildInputsRows(const ShellView& v,std::vector<MenuEntry>& rows) {
  namespace in=replayinputs;
- inputsRows_.clear();
- // One file, once, when the player asks: no more of it than a replay can be, and nothing it throws leaves here.
- std::vector<std::uint8_t> bytes(replayslots::kLargestReplay+replayslots::kExportHeaderBytes+1);
- try{
-  std::ifstream file(std::filesystem::u8path(replay.path),std::ios::binary);
-  file.read(reinterpret_cast<char*>(bytes.data()),static_cast<std::streamsize>(bytes.size()));
-  bytes.resize(static_cast<std::size_t>(file.gcount()));
- }catch(const std::exception&){bytes.clear();}
- in::Match match;
- if(!in::Parse(bytes.data(),bytes.size(),match)){inputsRows_.push_back(InfoRow("inputs-none",loc::T("inputs.unreadable"),"",loc::T("inputs.unreadable_detail")));return;}
- std::uint32_t frames=0;for(const auto& round:match.rounds)frames+=round.frames;
- const std::size_t rounds=match.rounds.size();const std::string length=in::Clock(frames);
- int score[2]={-1,-1};
- const std::string result=in::Score(match,score)?std::to_string(score[0])+"-"+std::to_string(score[1])+"  ":"";
- inputsRows_.push_back(InfoRow("inputs-replay",replay.label,result+loc::Tf("inputs.length_value",rounds,length),loc::T("replays.inputs_detail")));
- inputsRows_.back().userText=true;
- for(int side=0;side<2;side++){
-  const in::Stats stats=in::Count(match,side);
-  std::string presses;
-  for(int button=0;button<6;button++)presses+=std::string(button?"  ":"")+in::ButtonNames[button]+" "+std::to_string(stats.presses[button]);
-  const std::string who=replay.names[side].empty()?(side?"P2":"P1"):replay.names[side];
-  const unsigned perMinute=stats.PerMinute(),jumps=stats.jumps,crouched=stats.CrouchedPercent();
-  inputsRows_.push_back(InfoRow("inputs-p"+std::to_string(side+1),loc::Tf("inputs.buttons",who),presses,loc::Tf("inputs.activity",perMinute,jumps,crouched)));
-  inputsRows_.back().userText=!replay.names[side].empty();
+ if(v.replayInputsFile!=inputsReplay_.path){rows.push_back(InfoRow("inputs-reading",loc::T("inputs.reading"),"",loc::T("replays.inputs_detail")));return;}
+ if(!v.replayInputs){rows.push_back(InfoRow("inputs-none",loc::T("inputs.unreadable"),"",loc::T("inputs.unreadable_detail")));return;}
+ const in::Match& match=*v.replayInputs;
+ if(inputsLogged_!=v.replayInputs){
+  inputsLogged_=v.replayInputs;inputsLogs_.clear();
+  for(const auto& round:match.rounds)inputsLogs_.push_back(in::Log(round));
  }
- for(std::size_t round=0;round<rounds;round++){
+ const in::Summary summary=in::Summarize(match);
+ const std::string score=ScoreText(summary);
+ rows.push_back(InfoRow("inputs-replay",inputsReplay_.label,(score.empty()?"":score+"  ")+MatchText(summary),loc::T("replays.inputs_detail")));
+ rows.back().userText=true;
+ for(int side=0;side<2;side++){
+  rows.push_back(InfoRow("inputs-p"+std::to_string(side+1),loc::Tf("inputs.buttons",Who(inputsReplay_,side)),PressesText(summary.stats[side]),LookText(summary.players[side])+". "+ActivityText(summary.stats[side])));
+  rows.back().userText=!inputsReplay_.names[side].empty();
+ }
+ for(std::size_t round=0;round<match.rounds.size();round++){
   const std::size_t number=round+1;
-  auto row=Row("inputs-round-"+std::to_string(number),loc::Tf("inputs.round",number),std::string(loc::T("inputs.legend"))+"\n\n"+in::Log(match.rounds[round]));
+  auto row=Row("inputs-round-"+std::to_string(number),loc::Tf("inputs.round",number),std::string(loc::T("inputs.legend"))+"\n\n"+inputsLogs_[round]);
   row.value=in::Clock(match.rounds[round].frames);row.reading=true;
-  inputsRows_.push_back(std::move(row));
+  rows.push_back(std::move(row));
  }
 }
 // The caption an export starts from: the names Ember noted, the date and
@@ -567,7 +564,8 @@ void ApplicationShell::OpenReplayExport(const ShellView& view,const ShellView::R
  exportPath_=replay.path;caption_=replay::Caption{};
  caption_.name[0]=replay.names[0];caption_.name[1]=replay.names[1];
  caption_.names=!replay.names[0].empty()&&!replay.names[1].empty();
- caption_.text=replay.label.substr(0,10)+(replay.score.empty()?"":"   "+replay.score);
+ const std::string score=replay.summary?ScoreText(*replay.summary):std::string();
+ caption_.text=replay.label.substr(0,10)+(score.empty()?"":"   "+score);
  caption_.line=caption_.mark=true;
  std::uint64_t next=replay.time;
  for(const auto& earlier:view.replays){
@@ -575,8 +573,8 @@ void ApplicationShell::OpenReplayExport(const ShellView& view,const ShellView::R
   if(next-earlier.time>1800)break; // newest first: nothing older continues the set
   const bool same=earlier.names[0]==replay.names[0]&&earlier.names[1]==replay.names[1];
   const bool swapped=earlier.names[0]==replay.names[1]&&earlier.names[1]==replay.names[0];
-  if((!same&&!swapped)||earlier.rounds[0]<0||earlier.rounds[0]==earlier.rounds[1])continue;
-  const int winner=earlier.rounds[0]>earlier.rounds[1]?0:1;
+  if((!same&&!swapped)||!earlier.summary||!earlier.summary->scored||earlier.summary->score[0]==earlier.summary->score[1])continue;
+  const int winner=earlier.summary->score[0]>earlier.summary->score[1]?0:1;
   ++caption_.wins[same?winner:1-winner];next=earlier.time;
  }
  caption_.set=caption_.wins[0]+caption_.wins[1]>0;
@@ -797,7 +795,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  }
  if(v.discordPending&&inviteRevision_!=v.discordRevision){inviteRevision_=v.discordRevision;nav.Push("discord-invitation");}
  if(!v.discordPending&&nav.Screen()=="discord-invitation")nav.Return();
- if(v.replayLink!=replayLinkSeen_){replayLinkSeen_=v.replayLink;if(!v.replayLink.empty()&&nav.Screen()!="replays"){nav.Home();nav.Push("replays");}}
+ // A replay link takes the menu to its question only with no room: in a room the menu is the room's, and the link waits until it is left.
+ if(v.replayLink!=replayLinkSeen_&&(v.replayLink.empty()||v.session.room==netplay::RoomState::Idle)){replayLinkSeen_=v.replayLink;if(!v.replayLink.empty()&&nav.Screen()!="replays"){nav.Home();nav.Push("replays");}}
  if(v.inputCapture!=input::Capture::Idle&&nav.Screen()!="assignment")nav.Push("assignment");
  if(v.inputCapture==input::Capture::Idle&&nav.Screen()=="assignment")nav.Return();
  identity_.Update(v,nav.Screen(),submit,now);
@@ -971,8 +970,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
    if(!submit(std::move(r)))error_=loc::T("error.queue_failed");
   }
   else if(a.id.compare(0,7,"replay:")==0&&a.text=="inputs"){
-   // Read from the file here; nothing is sent to the game.
-   for(const auto& shown:v.replays)if(shown.path==a.id.substr(7)){OpenReplayInputs(shown);menu_.navigation.Push("replay-inputs");break;}
+   // Nothing is sent to the game: the screen names the file and is handed its match (ReplayInputsFile).
+   for(const auto& shown:v.replays)if(shown.path==a.id.substr(7)){inputsReplay_=shown;menu_.navigation.Push("replay-inputs");break;}
   }
   else if(a.id.compare(0,7,"replay:")==0&&a.text=="export"){
    // The caption is set up first; Generate on that screen sends the export.

@@ -3,8 +3,11 @@
 // seconds of a test picture (white over black) over the link while it plays a
 // tone, and checks the file. 640x360 and three seconds, or the size and the
 // frame count given after the file name.
-// Skips (77) where Windows has no encoder for it.
+// Then a second export of the same file that is stopped without one: the
+// first stays as it was, and neither leaves its temporary file behind.
+// Skips (77) only where Windows has no encoder for the picture.
 #include "../platform/VideoLink.hxx"
+#include "../platform/VideoServe.hxx"
 
 #include <windows.h>
 #include <mmsystem.h>
@@ -19,8 +22,28 @@
 #include <iostream>
 #include <vector>
 
+namespace link = sf4e::platform::videolink;
+
+// Stop, then up to 30 seconds for the encoder's process to end, as the game's
+// tick waits for it (sf4e__ReplayCapture.cxx). How it ended.
+static link::Result Finish(bool keep) {
+	link::Result result = link::NoLink;
+	link::Stop(keep);
+	for (int waited = 0; waited < 3000; waited++) { if (link::Closed(result)) return result; Sleep(10); }
+	link::Abandoned stuck = link::Abandon();
+	link::End(stuck);
+	return link::NoLink;
+}
+
+// The folder holds a temporary file of an export of that video.
+static bool LeftBehind(const std::filesystem::path& file) {
+	std::error_code error;
+	for (const auto& entry : std::filesystem::directory_iterator(file.parent_path(), error))
+		if (entry.path().filename().wstring().rfind(file.filename().wstring() + L".", 0) == 0) return true;
+	return false;
+}
+
 int wmain(int argc, wchar_t** argv) {
-	namespace link = sf4e::platform::videolink;
 	if (argc == 3 && !wcscmp(argv[1], L"--encode-video")) return link::Serve(argv[2]);
 	const std::filesystem::path file = argc > 1 ? std::filesystem::path(argv[1]) : std::filesystem::temp_directory_path() / L"ember-video-encoder-test.mp4";
 	const unsigned width = argc > 3 ? _wtoi(argv[2]) : 640, height = argc > 3 ? _wtoi(argv[3]) : 360;
@@ -69,11 +92,27 @@ int wmain(int argc, wchar_t** argv) {
 	if (mixer) mixer->SetMasterVolume(1, nullptr);
 	if (out) { waveOutReset(out); waveOutUnprepareHeader(out, &header, sizeof header); waveOutClose(out); }
 
-	const bool made = link::Finish();
-	if (link::Finish()) { std::cerr << "A finished export finished again\n"; return 1; }
-	if (!made && !std::filesystem::exists(file, error)) { std::cout << "No encoder here for this size; skipped\n"; return 77; }
+	if (link::Lost()) { std::cerr << "The encoder's process ended during the export\n"; }
+	const link::Result made = Finish(true);
+	if (Finish(true) != link::NoLink) { std::cerr << "A finished export finished again\n"; return 1; }
+	if (made == link::NotOpened) { std::cout << "No encoder here for this size; skipped\n"; return 77; }
 	const auto size = std::filesystem::file_size(file, error);
-	if (!made || error || size < 10000) { std::cerr << "The file is missing or empty\n"; return 1; }
+	if (made != link::Written || error || size < 10000) { std::cerr << "The file is missing or empty (the encoder ended with " << made << ")\n"; return 1; }
+	if (LeftBehind(file)) { std::cerr << "The export left its temporary file\n"; return 1; }
+
+	// An export that is given up: no new file, the earlier one untouched.
+	if (!link::Start(file.wstring(), width, height, self)) { std::cerr << "The second export did not start\n"; return 1; }
+	for (int frame = 0; frame < 90; frame++) { link::Send(luma.data(), pitch, chroma.data(), pitch); Sleep(16); }
+	const link::Result dropped = Finish(false);
+	if (dropped != link::NoVideo) { std::cerr << "A given-up export ended with " << dropped << "\n"; return 1; }
+	if (std::filesystem::file_size(file, error) != size || error) { std::cerr << "A given-up export changed the earlier video\n"; return 1; }
+	if (LeftBehind(file)) { std::cerr << "A given-up export left its temporary file\n"; return 1; }
+
+	// A folder that takes no file is told apart from a Windows without an encoder.
+	const std::filesystem::path nowhere = file.parent_path() / L"ember-no-such-folder" / L"video.mp4";
+	if (!link::Start(nowhere.wstring(), width, height, self)) { std::cerr << "The third export did not start\n"; return 1; }
+	const link::Result unwritable = Finish(true);
+	if (unwritable != link::NotWritable) { std::cerr << "An export into a missing folder ended with " << unwritable << "\n"; return 1; }
 	std::wcout << L"Encoded " << size << L" bytes to " << file.wstring() << L"\n";
 	return 0;
 }

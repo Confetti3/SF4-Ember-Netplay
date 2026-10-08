@@ -694,17 +694,23 @@ msgstr "Nie teraz"
 msgid "replays.link_dismiss_detail"
 msgstr "Zostawia plik na miejscu i zapomina o linku."
 
-msgid "replays.export_gpu"
-msgstr "Eksportuj wideo (GPU)"
+msgid "replays.export"
+msgstr "Eksportuj wideo"
 
-msgid "replays.export_gpu_detail"
-msgstr "Nagrywa go jako .mp4 w pełnym rozmiarze obrazu gry, kodowany przez kartę graficzną."
+msgid "replays.export_detail"
+msgstr "Odtwarza ją i nagrywa jako .mp4 w pełnym rozmiarze obrazu gry."
 
 msgid "replays.exported"
 msgstr "Wideo zapisano: {0}"
 
-msgid "replays.gpu_not_exported"
-msgstr "Nie powstało wideo. Windows nie udostępnił kodera H.264 albo nie udało się odczytać obrazu gry. Przyczyna jest w dzienniku."
+msgid "replays.not_exported_encoder"
+msgstr "Nie powstało wideo. Windows nie udostępnił kodera wideo albo koder się zatrzymał. Przyczyna jest w dzienniku."
+
+msgid "replays.not_exported_picture"
+msgstr "Nie powstało wideo. Nie udało się odczytać obrazu gry albo jego rozmiar zmienił się podczas eksportu."
+
+msgid "replays.not_exported_file"
+msgstr "Nie powstało wideo. Nie udało się zapisać pliku. Wcześniejsze wideo tej powtórki może być otwarte w odtwarzaczu."
 
 msgid "replays.video"
 msgstr "Wideo"
@@ -730,9 +736,6 @@ msgstr "Wejścia i statystyki"
 msgid "replays.inputs_detail"
 msgstr "Pokazuje, co naciskali obaj gracze, klatka po klatce, i ile razy. Odczytane z pliku powtórki; nic nie jest odtwarzane."
 
-msgid "replays.info_look"
-msgstr "Kostium {0}, kolor {1}, Ultra {2}"
-
 msgid "inputs.length_value"
 msgstr "Rundy: {0}, {1}"
 
@@ -753,6 +756,12 @@ msgstr "Nie można odczytać wejść"
 
 msgid "inputs.unreadable_detail"
 msgstr "Ta powtórka ma starszy format albo jej plik jest uszkodzony."
+
+msgid "inputs.reading"
+msgstr "Odczytywanie powtórki..."
+
+msgid "inputs.look_unknown"
+msgstr "Wygląd nieznany"
 
 msgid "export.title"
 msgstr "Eksportuj wideo"
@@ -794,7 +803,7 @@ msgid "replays.frame_meter_detail"
 msgstr "Oglądaj teraz i Eksportuj wideo pokazują nad powtórką miernik klatek z treningu. Przy eksporcie jest też w wideo."
 
 msgid "replays.row_detail"
-msgstr "Wybierz, aby dodać do listy powtórek gry, albo dodać i obejrzeć teraz."
+msgstr "Wybierz, aby obejrzeć, wyeksportować jako wideo albo dodać do listy powtórek gry."
 
 msgid "replays.watched"
 msgstr "Obejrzane"
@@ -813,6 +822,12 @@ msgstr "Dodano do listy powtórek gry pod datą, kiedy mecz został rozegrany."
 
 msgid "replays.not_added"
 msgstr "Nie udało się dodać tej powtórki. Plik może być uszkodzony."
+
+msgid "replays.not_added_yet"
+msgstr "Gra nie zapisała jeszcze ostatniego meczu. Spróbuj ponownie za chwilę."
+
+msgid "replays.not_added_files"
+msgstr "Nie udało się dodać tej powtórki: nie można było odczytać lub zapisać plików powtórek gry. Nic nie zostało zmienione."
 
 msgid "replays.fighters"
 msgstr "{0} vs {1}"

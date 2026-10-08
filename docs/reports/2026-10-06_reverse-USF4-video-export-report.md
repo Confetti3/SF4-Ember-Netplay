@@ -29,20 +29,19 @@ Frames reach the service from the battle system's end of frame (`0x5DBAA0`, thro
 
 `BattleLog::ModeEvent` has an `Upload` state beside `Select`, `Versus` and `Battle` (`0x46FC40`). Its `UploadEvent` (`0x47ABD0`) discards any previous clip (`0x4DF5B0`), sets the flag (`0x4DF520(1)`), and the mode plays the replay through `Versus` and `Battle` with the recorder running. `LocalReplay::BattleEvent`'s teardown (`0x483A80`) calls `0x4DF590`, then `0x4DF5B0`, then `0x4DF520(0)`: stop, delete, clear. The deletion is why `raw_video` is empty on this PC although the folder exists: the clip only lives between the end of the battle and the upload controller's `waitForUpload` (`0x4E52B0`, `0x4E5B10`).
 
-## What Ember does (Export video on the Replays screen)
+## What Ember does instead
 
-Export video is Watch now plus the recorder, started by Ember once the Battle state is up. The flag may not be set before the list's play step (`0x4796D0`): that branch hands the loading screen to the upload controller (`0x4E4DA0`, `0x478B10`), which asks YouTube for its authorization first. With the flag clear the list and the Versus state do nothing; at Battle, Ember calls Discard, Begin (`0x4DF540`), the flag, and Start (`0x4DF550`, with the display mode byte as the Versus state reads it), and the Battle teardown stops the writer as usual. Its delete is skipped, and the clip is moved beside the replay.
+Ember does not use the game's recorder. Driving it from outside the `Upload` state needs detours on the controller's discard and on `CoInitialize`, the file is a `.wmv` in the game's own profile, and it needs `WMVCore.DLL`. The notes above are kept as a description of the game.
 
-1. Before queueing `Versus`: `0x4DF5B0` (discard a stale clip), `0x4DF520(1)`, `0x4DF550`. The recorder opens the writer with the window's size.
-2. Let the replay play. Nothing else to feed: the battle system and present loop push frames and the sound hook pushes audio.
-3. Detour the controller's implementation `+0x28` (`0x4E39E0`) while exporting so the teardown's delete does nothing, or detour `0x4DF5B0`. After `Stop` returns (the teardown calls it), move the newest `SFIVCLIP*.wmv` from `raw_video` to `%APPDATA%\sf4e\replays\<replay name>.wmv`.
-4. Clear the flag (`0x4DF520(0)`) as the teardown does.
+Export video on the Replays screen is Watch now with Ember's own recording of it:
+
+- The render thread reads each finished frame from the device as NV12 (`src/platform/FrameGrab.hxx`) and copies it into shared memory (`src/platform/VideoLink.hxx`).
+- A `Launcher.exe` started for the export takes the frames out and encodes them with Media Foundation, H.264 and AAC in an `.mp4`, and captures the game's sound itself through WASAPI process loopback (`src/platform/VideoServe.hxx`, `src/platform/VideoEncoder.hxx`). The encoder is in its own process because it keeps more frames in memory than a 32-bit game has room for.
+- The replay operation starts the recording when the battle log's Battle state is up and ends it when playback is left (`src/sf4e/sf4e__ReplayStore.hxx`, `src/sf4e/sf4e__ReplayCapture.hxx`).
 
 Costs and limits:
 
-- Real time: the clip takes as long as the replay to make, since it is the game rendering it.
-- Picture is the game's window resolution; the WMV profile is the game's (VBR, quality from the profile), not ours. A different profile means building one through `IWMProfileManager`, which the service does inside `0x6B45C0`; possible but a larger change.
-- Needs `WMVCore.DLL`, present on Windows 10 and 11 except N editions without the Media Feature Pack. Under Proton it depends on Wine's `wmvcore`, which is a stub for writing, so no export on Linux.
-- `.wmv` only, from the game. Ember could run `ffmpeg` afterwards for MP4, but that is a shipped dependency; not worth it unless asked.
-
-Untested: that recording works when the flag and Start are set by Ember rather than the `Upload` state (nothing in the start path checks the state), and that the sound hook captures the replay's audio when the battle began from the battle log rather than from the upload flow (same events, so expected).
+- Real time: the video takes as long as the replay to make, since it is the game rendering it.
+- The picture is the game's render target, at its size.
+- Sound needs Windows 10 2004 or later; before that the file is silent. N editions without the Media Feature Pack have no encoder, and the export says so.
+- Not tried under Proton.

@@ -694,17 +694,23 @@ msgstr "暂不"
 msgid "replays.link_dismiss_detail"
 msgstr "保留文件并忘记此链接。"
 
-msgid "replays.export_gpu"
-msgstr "导出视频 (GPU)"
+msgid "replays.export"
+msgstr "导出视频"
 
-msgid "replays.export_gpu_detail"
-msgstr "以游戏画面的完整尺寸录制为 .mp4，由显卡编码。"
+msgid "replays.export_detail"
+msgstr "播放并录制为 .mp4，大小与游戏画面相同。"
 
 msgid "replays.exported"
 msgstr "视频已保存：{0}"
 
-msgid "replays.gpu_not_exported"
-msgstr "未生成视频。Windows 没有提供 H.264 编码器，或无法读取游戏画面。原因见日志。"
+msgid "replays.not_exported_encoder"
+msgstr "未生成视频。Windows 没有提供视频编码器，或编码器已停止。原因见日志。"
+
+msgid "replays.not_exported_picture"
+msgstr "未生成视频。无法读取游戏画面，或导出期间画面大小发生了变化。"
+
+msgid "replays.not_exported_file"
+msgstr "未生成视频。无法写入文件。此回放之前的视频可能正在播放器中打开。"
 
 msgid "replays.video"
 msgstr "视频"
@@ -730,9 +736,6 @@ msgstr "输入与统计"
 msgid "replays.inputs_detail"
 msgstr "逐帧显示双方按下的内容并统计次数。直接从回放文件读取，不会播放。"
 
-msgid "replays.info_look"
-msgstr "服装 {0}，颜色 {1}，终极 {2}"
-
 msgid "inputs.length_value"
 msgstr "{0} 回合，{1}"
 
@@ -753,6 +756,12 @@ msgstr "无法读取输入"
 
 msgid "inputs.unreadable_detail"
 msgstr "此回放为旧格式，或文件已损坏。"
+
+msgid "inputs.reading"
+msgstr "正在读取回放..."
+
+msgid "inputs.look_unknown"
+msgstr "外观未知"
 
 msgid "export.title"
 msgstr "导出视频"
@@ -794,7 +803,7 @@ msgid "replays.frame_meter_detail"
 msgstr "“立即观看”和“导出视频”会在回放上显示训练模式的帧数表。导出时它也会出现在视频中。"
 
 msgid "replays.row_detail"
-msgstr "选择以添加到游戏的回放列表，或添加后立即观看。"
+msgstr "选择以观看、导出为视频，或添加到游戏的回放列表。"
 
 msgid "replays.watched"
 msgstr "已观看"
@@ -813,6 +822,12 @@ msgstr "已按对战日期添加到游戏的回放列表。"
 
 msgid "replays.not_added"
 msgstr "无法添加此回放。文件可能已损坏。"
+
+msgid "replays.not_added_yet"
+msgstr "游戏尚未保存上一场对战。请稍后再试。"
+
+msgid "replays.not_added_files"
+msgstr "无法添加此回放：无法读取或写入游戏的回放文件。未做任何更改。"
 
 msgid "replays.fighters"
 msgstr "{0} vs {1}"

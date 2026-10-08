@@ -85,12 +85,18 @@ static void TestScore() {
 		for (const auto& start : starts) { WriteU32(replay.data() + 0x320 + 0x88 * round + 0x1C, start.first); WriteU32(replay.data() + 0x320 + 0x88 * round + 0x58, start.second); round++; }
 		return replay;
 	};
+	// The export Ember makes up for a replay without a record, as it is; or,
+	// for the game's own, the same record without its title and with a winner.
 	const auto wrapped = [](const Bytes& replay, int winner, bool made) {
-		Bytes file(sf4e::replayslots::kExportMagic, sf4e::replayslots::kExportMagic + 8);
-		file.resize(sf4e::replayslots::kExportHeaderBytes, 0);
-		file[8 + 49] = static_cast<std::uint8_t>(winner);
-		if (made) file[8 + 26] = '2';
-		file.insert(file.end(), replay.begin(), replay.end());
+		Bytes file;
+		CHECK(sf4e::replayslots::ExportFromReplayAlone(replay, file));
+		std::uint8_t* record = file.data() + 8;
+		CHECK(sf4e::replayslots::MadeUp(record) && sf4e::replayslots::RecordWinner(record) == -1);
+		if (!made) {
+			std::memset(record + 22, 0, 25);
+			record[49] = static_cast<std::uint8_t>(winner);
+			CHECK(!sf4e::replayslots::MadeUp(record) && sf4e::replayslots::RecordWinner(record) == winner);
+		}
 		return file;
 	};
 	Match match;
@@ -109,6 +115,27 @@ static void TestScore() {
 	CHECK(Parse(replay.data(), replay.size(), match) && Score(match, score) && score[0] == 3 && score[1] == 0);
 	replay = played({{0, 0}, {3, 0}}, 3); // more rounds won than the match has
 	CHECK(Parse(replay.data(), replay.size(), match) && !Score(match, score));
+	// Rounds that cannot have been played: a match that starts a round up,
+	// a count that goes down, and two rounds won in one.
+	replay = played({{1, 0}}, 3);
+	CHECK(Parse(replay.data(), replay.size(), match) && !Score(match, score));
+	replay = played({{0, 0}, {1, 0}, {0, 1}}, 3);
+	CHECK(Parse(replay.data(), replay.size(), match) && !Score(match, score));
+	replay = played({{0, 0}, {2, 0}}, 5);
+	CHECK(Parse(replay.data(), replay.size(), match) && !Score(match, score));
+	// A draw gives both a round; the round after it decides.
+	replay = played({{0, 0}, {1, 1}}, 3);
+	file = wrapped(replay, 1, false);
+	CHECK(Parse(file.data(), file.size(), match) && Score(match, score) && score[0] == 1 && score[1] == 2);
+	// A record that describes another replay names no winner for this one.
+	file = wrapped(replay, 1, false);
+	file[8 + 5] ^= 1; // its CRC
+	CHECK(Parse(file.data(), file.size(), match) && !Score(match, score));
+	// What a list keeps of a match.
+	replay = played({{0, 0}, {0, 1}}, 3);
+	CHECK(Parse(replay.data(), replay.size(), match));
+	const Summary summary = Summarize(match);
+	CHECK(summary.scored && summary.score[1] == 2 && summary.rounds == 2 && summary.frames == 2 && summary.stats[0].presses[0] == 2 && summary.players[0].fighter == 25);
 }
 
 static void TestRefusals() {
@@ -122,17 +149,51 @@ static void TestRefusals() {
 	CHECK(!Parse(bad.data(), bad.size(), match));
 	bad = replay; bad.push_back(0); // a byte the rounds do not account for
 	CHECK(!Parse(bad.data(), bad.size(), match));
-	bad = replay; WriteU32(bad.data() + 0x18, 9);
+	bad = replay; WriteU32(bad.data() + 0x18, 9); // more round records than the file holds
+	CHECK(!Parse(bad.data(), bad.size(), match));
+	bad = replay; WriteU32(bad.data() + 0x18, 0xFFFFFFFF);
+	CHECK(!Parse(bad.data(), bad.size(), match));
+	bad = Replay({stream, stream}); WriteU32(bad.data() + 0x320 + 0x7C, 0xFFFFFFFC); // stream lengths that wrap
+	WriteU32(bad.data() + 0x320 + 0x88 + 0x7C, 8);
 	CHECK(!Parse(bad.data(), bad.size(), match));
 	bad = replay; bad[0] = 'X';
 	CHECK(!Parse(bad.data(), bad.size(), match));
 	CHECK(!Parse(replay.data(), 0x100, match));
-	// A repeat count past any round.
+	// Repeats that add up past what a count of frames holds.
 	Bytes endless;
-	Record(endless, Both(LP, 0)); Record(endless, 0x400000 | 0x3FFFFF);
+	Record(endless, Both(LP, 0));
+	for (int i = 0; i < 513; i++) Record(endless, 0x400000 | 0x3FFFFF);
 	bad = Replay({endless});
 	CHECK(!Parse(bad.data(), bad.size(), match));
 	CHECK(match.rounds.size() == 5); // untouched by every refusal
+}
+
+// Ember's own rules play longer than the game's: 15 rounds, and a round of
+// the 9999 second timer, are read like any other.
+static void TestLongRules() {
+	Bytes stream, timed;
+	Record(stream, Both(LP, 0));
+	Record(timed, Both(0, 0)); Record(timed, 0x400000 | (9999 * 60 - 1));
+	std::vector<Bytes> streams(15, stream);
+	streams.back() = timed;
+	const Bytes replay = Replay(streams);
+	Match match;
+	CHECK(Parse(replay.data(), replay.size(), match) && match.rounds.size() == 15 && match.rounds.back().frames == 9999 * 60);
+	CHECK(Clock(match.rounds.back().frames) == "166:39");
+}
+
+// A choice no selection writes is kept as unknown, not shown as one.
+static void TestChoicesInRange() {
+	Bytes stream;
+	Record(stream, Both(LP, 0));
+	Bytes replay = Replay({stream});
+	WriteU32(replay.data() + 0x20 + 4, 0x7FFFFFFF); // player 1's costume
+	WriteU32(replay.data() + 0x20 + 8, 0xFFFFFFFF); // and color
+	WriteU32(replay.data() + 0x170 + 5 * 4, 3);    // player 2's Ultra
+	Match match;
+	CHECK(Parse(replay.data(), replay.size(), match));
+	CHECK(match.players[0].costume == -1 && match.players[0].color == -1 && match.players[0].ultra == 1);
+	CHECK(match.players[1].ultra == -1 && match.players[1].costume == 0);
 }
 
 int main(int argc, char** argv) {
@@ -158,6 +219,8 @@ int main(int argc, char** argv) {
 	TestParseAndCount();
 	TestScore();
 	TestRefusals();
+	TestLongRules();
+	TestChoicesInRange();
 	printf("replay_inputs_test: all tests passed\n");
 	return 0;
 }

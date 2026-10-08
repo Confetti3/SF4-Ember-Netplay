@@ -694,17 +694,23 @@ msgstr "Ahora no"
 msgid "replays.link_dismiss_detail"
 msgstr "Deja el archivo donde está y olvida el enlace."
 
-msgid "replays.export_gpu"
-msgstr "Exportar vídeo (GPU)"
+msgid "replays.export"
+msgstr "Exportar vídeo"
 
-msgid "replays.export_gpu_detail"
-msgstr "Lo graba como .mp4 al tamaño de imagen completo del juego, codificado por tu tarjeta gráfica."
+msgid "replays.export_detail"
+msgstr "La reproduce y la graba como .mp4 con el tamaño completo de la imagen del juego."
 
 msgid "replays.exported"
 msgstr "Vídeo guardado: {0}"
 
-msgid "replays.gpu_not_exported"
-msgstr "No se creó ningún vídeo. Windows no ofreció un codificador H.264, o no se pudo leer la imagen del juego. El motivo está en el registro."
+msgid "replays.not_exported_encoder"
+msgstr "No se creó ningún vídeo. Windows no ofreció un codificador de vídeo, o el codificador se detuvo. El motivo está en el registro."
+
+msgid "replays.not_exported_picture"
+msgstr "No se creó ningún vídeo. No se pudo leer la imagen del juego, o cambió de tamaño durante la exportación."
+
+msgid "replays.not_exported_file"
+msgstr "No se creó ningún vídeo. No se pudo escribir el archivo. Puede que un vídeo anterior de esta repetición esté abierto en un reproductor."
 
 msgid "replays.video"
 msgstr "Vídeo"
@@ -730,9 +736,6 @@ msgstr "Entradas y estadísticas"
 msgid "replays.inputs_detail"
 msgstr "Muestra lo que pulsaron ambos jugadores, fotograma a fotograma, y cuántas veces. Se lee del archivo de la repetición; no se reproduce nada."
 
-msgid "replays.info_look"
-msgstr "Traje {0}, color {1}, Ultra {2}"
-
 msgid "inputs.length_value"
 msgstr "Asaltos: {0}, {1}"
 
@@ -753,6 +756,12 @@ msgstr "No se pueden leer las entradas"
 
 msgid "inputs.unreadable_detail"
 msgstr "Esta repetición tiene un formato anterior o su archivo está dañado."
+
+msgid "inputs.reading"
+msgstr "Leyendo la repetición..."
+
+msgid "inputs.look_unknown"
+msgstr "Aspecto desconocido"
 
 msgid "export.title"
 msgstr "Exportar vídeo"
@@ -794,7 +803,7 @@ msgid "replays.frame_meter_detail"
 msgstr "Ver ahora y Exportar vídeo muestran el medidor de fotogramas del entrenamiento sobre la repetición. En una exportación también queda en el vídeo."
 
 msgid "replays.row_detail"
-msgstr "Selecciona para añadirla a la lista de repeticiones del juego, o para añadirla y verla ahora."
+msgstr "Selecciona para verla, exportarla como vídeo o añadirla a la lista de repeticiones del juego."
 
 msgid "replays.watched"
 msgstr "Visto"
@@ -813,6 +822,12 @@ msgstr "Añadida a la lista de repeticiones del juego, con la fecha en que se ju
 
 msgid "replays.not_added"
 msgstr "No se ha podido añadir esta repetición. El archivo puede estar dañado."
+
+msgid "replays.not_added_yet"
+msgstr "El juego aún no ha guardado el último combate. Inténtalo de nuevo en un momento."
+
+msgid "replays.not_added_files"
+msgstr "No se pudo añadir esta repetición: no se pudieron leer o escribir los archivos de repeticiones del juego. No se ha cambiado nada."
 
 msgid "replays.fighters"
 msgstr "{0} vs {1}"

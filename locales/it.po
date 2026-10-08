@@ -694,17 +694,23 @@ msgstr "Non ora"
 msgid "replays.link_dismiss_detail"
 msgstr "Lascia il file dov'è e dimentica il link."
 
-msgid "replays.export_gpu"
-msgstr "Esporta video (GPU)"
+msgid "replays.export"
+msgstr "Esporta video"
 
-msgid "replays.export_gpu_detail"
-msgstr "Lo registra come .mp4 alla dimensione piena dell'immagine del gioco, codificato dalla scheda grafica."
+msgid "replays.export_detail"
+msgstr "Lo riproduce e lo registra come .mp4 alla dimensione piena dell'immagine del gioco."
 
 msgid "replays.exported"
 msgstr "Video salvato: {0}"
 
-msgid "replays.gpu_not_exported"
-msgstr "Nessun video creato. Windows non ha fornito un codificatore H.264, oppure non è stato possibile leggere l'immagine del gioco. Il motivo è nel registro."
+msgid "replays.not_exported_encoder"
+msgstr "Nessun video creato. Windows non ha fornito un codificatore video, oppure il codificatore si è fermato. Il motivo è nel registro."
+
+msgid "replays.not_exported_picture"
+msgstr "Nessun video creato. Non è stato possibile leggere l'immagine del gioco, oppure ha cambiato dimensione durante l'esportazione."
+
+msgid "replays.not_exported_file"
+msgstr "Nessun video creato. Non è stato possibile scrivere il file. Un video precedente di questo replay potrebbe essere aperto in un lettore."
 
 msgid "replays.video"
 msgstr "Video"
@@ -730,9 +736,6 @@ msgstr "Input e statistiche"
 msgid "replays.inputs_detail"
 msgstr "Mostra cosa hanno premuto i due giocatori, fotogramma per fotogramma, e quante volte. Letto dal file del replay; non viene riprodotto nulla."
 
-msgid "replays.info_look"
-msgstr "Costume {0}, colore {1}, Ultra {2}"
-
 msgid "inputs.length_value"
 msgstr "Round: {0}, {1}"
 
@@ -753,6 +756,12 @@ msgstr "Impossibile leggere gli input"
 
 msgid "inputs.unreadable_detail"
 msgstr "Questo replay è in un formato precedente, oppure il file è danneggiato."
+
+msgid "inputs.reading"
+msgstr "Lettura del replay..."
+
+msgid "inputs.look_unknown"
+msgstr "Aspetto sconosciuto"
 
 msgid "export.title"
 msgstr "Esporta video"
@@ -794,7 +803,7 @@ msgid "replays.frame_meter_detail"
 msgstr "Guarda ora ed Esporta video mostrano il misuratore di frame dell'allenamento sopra il replay. In un'esportazione è anche nel video."
 
 msgid "replays.row_detail"
-msgstr "Seleziona per aggiungerlo all'elenco dei replay del gioco, o per aggiungerlo e guardarlo ora."
+msgstr "Seleziona per guardarlo, esportarlo come video o aggiungerlo all'elenco dei replay del gioco."
 
 msgid "replays.watched"
 msgstr "Visto"
@@ -813,6 +822,12 @@ msgstr "Aggiunto all'elenco dei replay del gioco, con la data in cui è stato gi
 
 msgid "replays.not_added"
 msgstr "Impossibile aggiungere questo replay. Il file potrebbe essere danneggiato."
+
+msgid "replays.not_added_yet"
+msgstr "Il gioco non ha ancora salvato l'ultimo incontro. Riprova tra un momento."
+
+msgid "replays.not_added_files"
+msgstr "Impossibile aggiungere questo replay: non è stato possibile leggere o scrivere i file dei replay del gioco. Non è stato modificato nulla."
 
 msgid "replays.fighters"
 msgstr "{0} vs {1}"

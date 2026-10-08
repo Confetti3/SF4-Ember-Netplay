@@ -694,17 +694,23 @@ msgstr "今はしない"
 msgid "replays.link_dismiss_detail"
 msgstr "ファイルはそのままにして、リンクを忘れます。"
 
-msgid "replays.export_gpu"
-msgstr "動画を書き出す (GPU)"
+msgid "replays.export"
+msgstr "動画を書き出す"
 
-msgid "replays.export_gpu_detail"
-msgstr "ゲーム画面そのままの大きさで .mp4 として録画し、グラフィックカードでエンコードします。"
+msgid "replays.export_detail"
+msgstr "再生しながら、ゲーム画面そのままの大きさの .mp4 として録画します。"
 
 msgid "replays.exported"
 msgstr "動画を保存しました: {0}"
 
-msgid "replays.gpu_not_exported"
-msgstr "動画は作成されませんでした。Windows に H.264 エンコーダーがないか、ゲームの画面を読み取れませんでした。理由はログにあります。"
+msgid "replays.not_exported_encoder"
+msgstr "動画は作成されませんでした。Windows に動画エンコーダーがないか、エンコーダーが停止しました。理由はログにあります。"
+
+msgid "replays.not_exported_picture"
+msgstr "動画は作成されませんでした。ゲームの画面を読み取れなかったか、書き出し中に画面の大きさが変わりました。"
+
+msgid "replays.not_exported_file"
+msgstr "動画は作成されませんでした。ファイルを書き込めませんでした。このリプレイの以前の動画がプレーヤーで開かれている可能性があります。"
 
 msgid "replays.video"
 msgstr "動画"
@@ -730,9 +736,6 @@ msgstr "入力と統計"
 msgid "replays.inputs_detail"
 msgstr "両プレイヤーが押した内容をフレームごとに表示し、回数を数えます。リプレイファイルから読み取るだけで、再生はしません。"
 
-msgid "replays.info_look"
-msgstr "コスチューム{0}、カラー{1}、ウルトラ{2}"
-
 msgid "inputs.length_value"
 msgstr "{0}ラウンド、{1}"
 
@@ -753,6 +756,12 @@ msgstr "入力を読み取れません"
 
 msgid "inputs.unreadable_detail"
 msgstr "このリプレイは古い形式か、ファイルが壊れています。"
+
+msgid "inputs.reading"
+msgstr "リプレイを読み込んでいます..."
+
+msgid "inputs.look_unknown"
+msgstr "外見は不明"
 
 msgid "export.title"
 msgstr "動画を書き出す"
@@ -794,7 +803,7 @@ msgid "replays.frame_meter_detail"
 msgstr "「今すぐ見る」と「動画を書き出す」で、トレーニングのフレームメーターをリプレイの上に表示します。書き出しでは動画にも入ります。"
 
 msgid "replays.row_detail"
-msgstr "決定で、ゲームのリプレイ一覧に追加するか、追加して今すぐ見るかを選びます。"
+msgstr "決定で、見る、動画として書き出す、ゲームのリプレイ一覧に追加する、から選びます。"
 
 msgid "replays.watched"
 msgstr "視聴済み"
@@ -813,6 +822,12 @@ msgstr "対戦した日付でゲームのリプレイ一覧に追加しました
 
 msgid "replays.not_added"
 msgstr "このリプレイを追加できませんでした。ファイルが破損している可能性があります。"
+
+msgid "replays.not_added_yet"
+msgstr "ゲームが最後の対戦をまだ保存していません。少ししてからもう一度お試しください。"
+
+msgid "replays.not_added_files"
+msgstr "このリプレイを追加できませんでした。ゲームのリプレイファイルを読み書きできませんでした。何も変更されていません。"
 
 msgid "replays.fighters"
 msgstr "{0} vs {1}"
