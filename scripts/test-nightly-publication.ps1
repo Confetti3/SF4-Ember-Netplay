@@ -209,6 +209,16 @@ try {
     }
     try {
         Reset-Fake
+        # Both dates parse without throwing under nl-BE, but Parse swaps their order.
+        $script:remoteReleases = [ordered]@{
+            'v1.2.0-nightly20260910' = [pscustomobject]@{tag_name='v1.2.0-nightly20260910';draft=$false;createdAt='2026-09-10T12:00:00Z'}
+            'v1.2.0-nightly20261008' = [pscustomobject]@{tag_name='v1.2.0-nightly20261008';draft=$false;createdAt='2026-10-08T12:00:00Z'}
+        }
+        $releases = @(Get-NightlyReleases $repository)
+        Check (($releases.tagName -join ',') -ceq 'v1.2.0-nightly20261008,v1.2.0-nightly20260910') 'Ambiguous dates selected wrong descending Nightly tag order'
+        Pass 'ambiguous day/month dates use the complete descending Nightly tag order'
+
+        Reset-Fake
         Add-OldReleases 14
         1..3 | ForEach-Object {
             $script:remoteReleases["stable$_"] = [pscustomobject]@{tag_name="stable$_";draft=$false;createdAt="2026-10-0${_}T12:00:00Z"}
