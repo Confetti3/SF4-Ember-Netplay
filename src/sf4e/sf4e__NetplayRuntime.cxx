@@ -1,4 +1,5 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "../platform/Utf8.hxx"
 #include "../common/HexText.hxx"
 #include "../ui/NetworkFeedback.hxx"
 
@@ -275,11 +276,12 @@ void StartHelper() {
         if (!runtime->connectLinks.Open()) spdlog::warn("Tournament: Discord connect links from the browser cannot reach this game");
     }
     {
-        // A replay link likewise: the file's path.
-        char text[1100] = {};
-        const DWORD length = GetEnvironmentVariableA("SF4E_REPLAY_LINK", text, sizeof(text));
-        SetEnvironmentVariableA("SF4E_REPLAY_LINK", nullptr);
-        if (length && length < sizeof(text)) runtime->replayLinkAsked.assign(text, length);
+        // A replay link likewise: the file's path. The launcher sets it as
+        // wide text, so it is read as wide text: a path need not be ASCII.
+        wchar_t text[1100] = {};
+        const DWORD length = GetEnvironmentVariableW(L"SF4E_REPLAY_LINK", text, static_cast<DWORD>(std::size(text)));
+        SetEnvironmentVariableW(L"SF4E_REPLAY_LINK", nullptr);
+        if (length && length < std::size(text)) runtime->replayLinkAsked = platform::WideToUtf8(std::wstring(text, length));
         if (!runtime->replayLinks.Open()) spdlog::warn("Replays: replay links cannot reach this game");
     }
 	runtime->preferences.inputDelay = GetConfig().inputDelay;

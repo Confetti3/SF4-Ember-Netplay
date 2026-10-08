@@ -35,7 +35,7 @@ bool Ready();
 //                 for its Versus screen to reach the battle, two for a
 //                 battle log that went away
 //   InLog         the player is in the game's own menus; until the main menu
-//                 is back
+//                 is back, or they are in a room
 enum class Step { Idle, OpeningLog, SelectingRow, Playing, InLog };
 
 // notice: the last request's outcome for the Replays screen, an error when
@@ -57,7 +57,8 @@ const Status& GetStatus();
 // no room.
 void Start(const replay::Request& request, bool atMainMenu, bool noRoom);
 
-// Once a game tick: moves the operation on.
-void Tick(bool atMainMenu);
+// Once a game tick: moves the operation on. noRoom as for Start: an operation
+// whose player has gone into a room ends without reopening Ember's menu.
+void Tick(bool atMainMenu, bool noRoom);
 
 } }

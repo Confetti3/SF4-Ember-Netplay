@@ -237,7 +237,7 @@ void sf4e::replaystore::Start(const replay::Request& request, bool atMainMenu, b
 	op.Enter(Step::OpeningLog);
 }
 
-void sf4e::replaystore::Tick(bool atMainMenu) {
+void sf4e::replaystore::Tick(bool atMainMenu, bool noRoom) {
 	Operation& op = s_operation;
 	if (op.status.step == Step::Idle) return;
 	auto* const log = BattleLogEvent();
@@ -278,7 +278,10 @@ void sf4e::replaystore::Tick(bool atMainMenu) {
 		else if (late) { spdlog::warn("Replay: the battle log did not start slot {}", op.slot); op.Enter(Step::InLog); }
 		break;
 	case Step::InLog:
-		if (atMainMenu && !log) { op.status.returns++; op.Enter(Step::Idle); }
+		// Back at the main menu, Ember reopens on the Replays screen. A player
+		// who went on into a room from the game's menus is not brought back to it.
+		if (!noRoom) op.Enter(Step::Idle);
+		else if (atMainMenu && !log) { op.status.returns++; op.Enter(Step::Idle); }
 		break;
 	case Step::Idle:
 		break;
