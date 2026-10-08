@@ -139,13 +139,12 @@ void fGameEvents::Install() {
 // same with row 15, which Ember's flow table adds above, opens the local
 // battle log, the list of replays a Versus battle saves into.
 void fMainMenu::GoToLocalBattleLog() {
-	std::uint8_t* const observer = reinterpret_cast<std::uint8_t*>(this);
-	Dimps::GameEvents::Flow::Request(*reinterpret_cast<Dimps::GameEvents::Flow**>(observer + rMainMenu::ObserverFlow), rMainMenu::FlowRowLocalBattleLog);
-	auto* const app = reinterpret_cast<std::uint8_t*>(rMainMenu::exitMethods.GetApp());
-	auto* const sound = **reinterpret_cast<rMainMenu::SoundManager***>(app + rMainMenu::AppSoundManager);
+	rMainMenu* const observer = reinterpret_cast<rMainMenu*>(this);
+	Dimps::GameEvents::Flow::Request(rMainMenu::GetObserverFlow(observer), rMainMenu::FlowRowLocalBattleLog);
+	auto* const sound = rMainMenu::GetAppSoundManager(rMainMenu::exitMethods.GetApp());
 	(sound->*rMainMenu::exitMethods.FadeOut)(*rMainMenu::exitMethods.fadeSeconds);
-	(reinterpret_cast<rMainMenu::MenuPanel*>(observer + rMainMenu::ObserverPanel)->*rMainMenu::exitMethods.Close)(0);
-	*reinterpret_cast<int*>(observer + rMainMenu::ObserverSelection) = 0;
+	(rMainMenu::GetObserverPanel(observer)->*rMainMenu::exitMethods.Close)(0);
+	*rMainMenu::GetObserverSelection(observer) = 0;
 }
 
 // Opens the local battle log from the native main menu, when it is the
@@ -164,9 +163,9 @@ bool fMainMenu::LeaveLocalBattleLog() {
 	rRootEvent* const root = Dimps::App::GetRootEvent();
 	if (!root) return false;
 	char* query[1] = { const_cast<char*>("LocalBattleLog") };
-	auto* const log = reinterpret_cast<std::uint8_t*>(EventBaseWithEC::FindForegroundEvent(root, query, 1));
+	auto* const log = EventBaseWithEC::FindForegroundEvent(root, query, 1);
 	if (!log) return false;
-	Dimps::GameEvents::Flow::Request(*reinterpret_cast<Dimps::GameEvents::Flow**>(log + Dimps::GameEvents::Flow::OnLocalBattleLog), rMainMenu::FlowRowMainMenu);
+	Dimps::GameEvents::Flow::Request(Dimps::GameEvents::Flow::OfLocalBattleLog(log), rMainMenu::FlowRowMainMenu);
 	return true;
 }
 
