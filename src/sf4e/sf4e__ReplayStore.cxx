@@ -16,6 +16,7 @@
 #include "../common/ReplaySlots.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../platform/Utf8.hxx"
+#include "sf4e__BackgroundPlay.hxx"
 #include "sf4e__Game__Battle.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__ReplayCapture.hxx"
@@ -185,6 +186,7 @@ struct Operation {
 		if (status.step == Step::Playing && step != Step::Playing) sf4e::replaycapture::End();
 		status.step = step; waited = 0;
 	}
+	bool Exporting() const { return mode == sf4e::replay::Mode::Export && (status.step == Step::SelectingRow || status.step == Step::Playing); }
 	void Notice(const char* key, bool error) { status.notice = sf4e::loc::T(key); status.noticeError = error; }
 } s_operation;
 
@@ -271,6 +273,7 @@ void sf4e::replaystore::Tick(bool atMainMenu, bool noRoom) {
 		replaycapture::Clear();
 		if (op.mode == replay::Mode::Export) op.mode = replay::Mode::Watch;
 	}
+	BackgroundPlay::HoldForExport(op.Exporting());
 	if (op.status.step == Step::Idle) return;
 	auto* const log = BattleLogEvent();
 	auto* const state = BattleLogState(log);
