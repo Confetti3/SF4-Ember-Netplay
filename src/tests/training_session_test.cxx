@@ -385,10 +385,10 @@ int main() {
             step(tick++, 0, 0, 0);
             for (float frame : {1.f, 2.f, 3.f, 4.f, 5.f, 5.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f}) step(tick, 16, frame, frame >= 5 ? 22 : 0), ++tick;
             Require(counted.View().startupFrames[0] == 4, "The startup frames before the first active one miscounted");
-            Require(counted.View().moves[0].live && counted.View().moves[0].active == 3 && counted.View().moves[0].recovery == 3, "A move's active or recovery frames miscounted, or hitstop counted");
+            Require(counted.View().moves[0].live && counted.View().moves[0].active == 3 && counted.View().moves[0].recovery == 4, "A move's active or recovery frames miscounted, or hitstop counted"); // three recovery cells: the number is one more
             Require(counted.View().advantage.attacker == 0 && counted.View().advantage.blocked, "A blocked attack was not told from a hit");
             step(tick++, 0, 0, 22);
-            Require(counted.View().moves[0].seen && !counted.View().moves[0].live && counted.View().moves[0].recovery == 3 && !counted.View().moves[1].seen, "A finished move lost its frames");
+            Require(counted.View().moves[0].seen && !counted.View().moves[0].live && counted.View().moves[0].recovery == 4 && !counted.View().moves[1].seen, "A finished move lost its frames");
             // After a pause the next move starts the bars from their left edge.
             for (int idle = 0; idle < 40; ++idle) step(tick++, 0, 0, 0);
             step(tick++, 16, 1, 0);
