@@ -1,4 +1,5 @@
 #include "../training/TrainingSession.hxx"
+#include "../training/ConfirmedSamples.hxx"
 #include <cstdio>
 #include <stdexcept>
 using namespace sf4e::training;
@@ -498,6 +499,40 @@ int main() {
             Require(!reply.Replying() && reply.GetView().mode == Mode::Idle && reply.GetView().selected == 5 && reply.GetView().lengths[2] == 4, "A dropped reply kept the selection or touched a slot");
             command.action = Action::Select; command.value = ReplySlot;
             Require(!reply.Apply(command), "The reply's own slot could be selected");
+        }
+        {
+            // A rollback match: every played frame is captured, a replayed one over its first capture,
+            // and a frame is given out once, in order, when its inputs are confirmed.
+            ConfirmedSamples kept;
+            std::array<FighterSample, 2> seen, out;
+            const auto capture = [&](int frame, unsigned status) { seen[0].status = status; seen[0].valid = true; kept.Capture(frame, seen); };
+            int frame = 0;
+            Require(!kept.Next(100, frame, out), "A frame was given before any was captured");
+            capture(1, 0); capture(2, 0); capture(3, 16);
+            Require(!kept.Next(-1, frame, out), "A frame was given with no input confirmed");
+            // Save frame N holds input N - 1: with input 0 confirmed only frame 1 is.
+            Require(kept.Next(0, frame, out) && frame == 1 && !kept.Next(0, frame, out), "Frames were given past the confirmed input");
+            // Frame 3 was a prediction: it is played again as another frame before it is confirmed.
+            capture(3, 0); capture(4, 0);
+            Require(kept.Next(2, frame, out) && frame == 2 && kept.Next(2, frame, out) && frame == 3 && out[0].status == 0 && !kept.Next(2, frame, out),
+                "A predicted frame was given, or the replayed one was not");
+            // Frames nobody captured: it goes on from the oldest one held.
+            capture(10, 16);
+            Require(kept.Next(50, frame, out) && frame == 4 && kept.Next(50, frame, out) && frame == 10 && out[0].status == 16 && !kept.Next(50, frame, out),
+                "A hole in the captured frames stopped the meter");
+            // A long match wraps the slots many times over.
+            for (int at = 11; at < 11 + 5 * ConfirmedSamples::Capacity; ++at) {
+                capture(at, static_cast<unsigned>(at % 7));
+                Require(kept.Next(at - 1, frame, out) && frame == at && out[0].status == static_cast<unsigned>(at % 7), "A frame was lost as the slots wrapped");
+            }
+            // Unconfirmed for longer than the slots hold: the overwritten frames are skipped, none is given twice.
+            for (int at = 400; at < 400 + 2 * ConfirmedSamples::Capacity; ++at) capture(at, 1);
+            int given = 0, last = 0;
+            while (kept.Next(1000, frame, out)) { Require(frame > last, "Frames were given out of order"); last = frame; ++given; }
+            Require(given == ConfirmedSamples::Capacity && last == 399 + 2 * ConfirmedSamples::Capacity, "Overwritten frames were given");
+            // The next match counts from one again.
+            capture(1, 21);
+            Require(kept.Next(0, frame, out) && frame == 1 && out[0].status == 21 && !kept.Next(900, frame, out), "A new match did not start the frames anew");
         }
         std::puts("Training session and frame meter checks passed.");
         return 0;

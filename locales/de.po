@@ -634,6 +634,12 @@ msgstr "Bei Ruf aus dem Training bereit melden"
 msgid "settings.training_auto_ready_detail"
 msgstr "Aus: Wirst du aus dem Training an deinen Tisch gerufen, hast du 15 Sekunden für Bereit, sonst gibst du den Platz auf. Ein: Du wirst sofort bereit gemeldet."
 
+msgid "settings.match_frame_meter"
+msgstr "Frame-Anzeige in Matches"
+
+msgid "settings.match_frame_meter_detail"
+msgstr "Zeigt die Frame-Anzeige aus dem Training über deinen Online-Matches und denen, die du ansiehst. Nur du siehst sie. Sie läuft um die Frames nach, die noch auf die Eingaben des anderen Spielers warten."
+
 msgid "room.training.detail"
 msgstr "Warte im Trainingsmodus, ohne den Raum zu verlassen. Setzt sich ein Kämpfer dir gegenüber, holt dich das Spiel hierher zurück, damit du dich bereit meldest."
 

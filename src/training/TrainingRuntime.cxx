@@ -4,6 +4,8 @@
 #include "TrainingCapture.hxx"
 #include "ComboCapture.hxx"
 #include "ComboTrial.hxx"
+#include "ConfirmedSamples.hxx"
+#include <atomic>
 #include "../common/FighterCatalog.hxx"
 #include "../Dimps/Dimps__Game__Battle__System.hxx"
 #include "../Dimps/Dimps__Game__Battle__Training.hxx"
@@ -43,6 +45,12 @@ int leaveIn = 0;
 // scriptFighter: whose file is held, -1 none. Kept across battles.
 bac::File scriptFiles[2];
 int scriptFighter[2] = {-1, -1};
+// The meter in a rollback match: asked for by the player, and fed only
+// frames whose inputs are confirmed. watching is read on the game thread
+// and set from the overlay's.
+std::atomic<bool> watching{false};
+bool matchShown = false;
+ConfirmedSamples confirmed;
 // Where each attempt of the trial starts, when the player prefers a side.
 bool trialPlaced = false; float trialPlace[2] = {0, 0};
 unsigned attemptsSeen = 0;
@@ -368,6 +376,55 @@ const bac::File& FighterScripts(Native* system, unsigned side) {
         spdlog::warn("Training: no projectile frames for {}: {}", code, error);
     return scriptFiles[side];
 }
+// Both fighters as the game holds them after an update. Only reads.
+// input: the pad of each side this frame, or null. files: whether a move
+// without attack frames may take them from the fighter's script file.
+std::array<FighterSample, 2> ReadFighters(Native* system, const unsigned* input, bool files) {
+    using Actor = Dimps::Game::Battle::Chara::Actor;
+    using Unit = Dimps::Game::Battle::Chara::Unit;
+    Unit* unit = (system->*Native::publicMethods.GetCharaUnit)();
+    std::array<FighterSample, 2> fighters;
+    for (unsigned side = 0; side < 2 && unit; ++side) {
+        Actor* actor = (unit->*Unit::publicMethods.GetActorByIndex)(side);
+        if (!actor) continue;
+        auto& sample = fighters[side];
+        sample.status = (actor->*Actor::publicMethods.GetStatus)();
+        sample.action = (actor->*Actor::publicMethods.GetActionID)();
+        sample.posture = (actor->*Actor::publicMethods.GetActionPosture)();
+        sample.basicActionInhibited = (actor->*Actor::publicMethods.GetBasicActionInhibit)() != 0;
+        Dimps::Math::FixedPoint value{};
+        (system->*Native::publicMethods.GetUnitTimeScale_Fixed)(&value, side);
+        sample.timeScale = Dimps::Math::FixedToFloat(&value);
+        (actor->*Actor::publicMethods.GetActionFrame)(&value);
+        sample.actionFrame = Dimps::Math::FixedToFloat(&value);
+        if (sample.status == Actor::AS_SKILL && sample.action >= 0) {
+            const auto* script = (actor->*Actor::publicMethods.GetActionScript)(sample.action);
+            // Native BAC action header: first/last attack boundary,
+            // interruptible frame, total animation frames. Zero/zero is
+            // common on recovery-only actions and is not 0f startup.
+            if (script && script[1] > script[0] && script[0] < script[3] && script[3] <= 4096) {
+                sample.firstActiveFrame = script[0];
+                sample.lastActiveFrame = script[1];
+                sample.boundaryProvenance = BoundaryProvenance::BacActionHeader;
+            } else if (files && script && script[3] <= 4096 &&
+                bac::ProjectileBoundary(FighterScripts(system, side), sample.action, sample.firstActiveFrame, sample.lastActiveFrame)) {
+                if (sample.firstActiveFrame < script[3]) sample.boundaryProvenance = BoundaryProvenance::BacEffectSpawn;
+                else sample.firstActiveFrame = sample.lastActiveFrame = -1;
+            }
+            if (script && script[2] > 0 && script[2] <= script[3] && script[3] <= 4096) sample.interruptibleFrame = script[2];
+            if (script && script[3] > 0 && script[3] <= 4096) sample.totalFrames = script[3];
+        }
+        (actor->*Actor::publicMethods.GetDamage)(&value);
+        sample.damage = Dimps::Math::FixedToFloat(&value);
+        (actor->*Actor::publicMethods.GetComboDamage)(&value);
+        sample.comboDamage = Dimps::Math::FixedToFloat(&value);
+        (actor->*Actor::publicMethods.GetVitalityAmt_FixedPoint)(&value);
+        sample.health = Dimps::Math::FixedToFloat(&value);
+        if (input) sample.input = input[side] & FightButtons;
+        sample.valid = true;
+    }
+    return fighters;
+}
 void AfterUpdate(Native* system) {
     overriding = false;
     // The native integral field wraps at 16 bits. Count only one accepted
@@ -378,46 +435,8 @@ void AfterUpdate(Native* system) {
         using Actor = Dimps::Game::Battle::Chara::Actor;
         using Unit = Dimps::Game::Battle::Chara::Unit;
         Unit* unit = (system->*Native::publicMethods.GetCharaUnit)();
-        std::array<FighterSample, 2> fighters;
-        for (unsigned side = 0; side < 2 && unit; ++side) {
-            Actor* actor = (unit->*Unit::publicMethods.GetActorByIndex)(side);
-            if (!actor) continue;
-            auto& sample = fighters[side];
-            sample.status = (actor->*Actor::publicMethods.GetStatus)();
-            sample.action = (actor->*Actor::publicMethods.GetActionID)();
-            sample.posture = (actor->*Actor::publicMethods.GetActionPosture)();
-            sample.basicActionInhibited = (actor->*Actor::publicMethods.GetBasicActionInhibit)() != 0;
-            Dimps::Math::FixedPoint value{};
-            (system->*Native::publicMethods.GetUnitTimeScale_Fixed)(&value, side);
-            sample.timeScale = Dimps::Math::FixedToFloat(&value);
-            (actor->*Actor::publicMethods.GetActionFrame)(&value);
-            sample.actionFrame = Dimps::Math::FixedToFloat(&value);
-            if (sample.status == Actor::AS_SKILL && sample.action >= 0) {
-                const auto* script = (actor->*Actor::publicMethods.GetActionScript)(sample.action);
-                // Native BAC action header: first/last attack boundary,
-                // interruptible frame, total animation frames. Zero/zero is
-                // common on recovery-only actions and is not 0f startup.
-                if (script && script[1] > script[0] && script[0] < script[3] && script[3] <= 4096) {
-                    sample.firstActiveFrame = script[0];
-                    sample.lastActiveFrame = script[1];
-                    sample.boundaryProvenance = BoundaryProvenance::BacActionHeader;
-                } else if (script && script[3] <= 4096 &&
-                    bac::ProjectileBoundary(FighterScripts(system, side), sample.action, sample.firstActiveFrame, sample.lastActiveFrame)) {
-                    if (sample.firstActiveFrame < script[3]) sample.boundaryProvenance = BoundaryProvenance::BacEffectSpawn;
-                    else sample.firstActiveFrame = sample.lastActiveFrame = -1;
-                }
-                if (script && script[2] > 0 && script[2] <= script[3] && script[3] <= 4096) sample.interruptibleFrame = script[2];
-                if (script && script[3] > 0 && script[3] <= 4096) sample.totalFrames = script[3];
-            }
-            (actor->*Actor::publicMethods.GetDamage)(&value);
-            sample.damage = Dimps::Math::FixedToFloat(&value);
-            (actor->*Actor::publicMethods.GetComboDamage)(&value);
-            sample.comboDamage = Dimps::Math::FixedToFloat(&value);
-            (actor->*Actor::publicMethods.GetVitalityAmt_FixedPoint)(&value);
-            sample.health = Dimps::Math::FixedToFloat(&value);
-            if (commitInput) sample.input = output[side].raw & FightButtons;
-            sample.valid = true;
-        }
+        const unsigned pads[2] = {output[0].raw, output[1].raw};
+        std::array<FighterSample, 2> fighters = ReadFighters(system, commitInput ? pads : nullptr, true);
         {
             float x[2] = {0, 0};
             for (unsigned side = 0; side < 2 && unit; ++side)
@@ -507,6 +526,32 @@ void AfterUpdate(Native* system) {
     published.commandId=commandId;published.commandAccepted=commandAccepted;
     if(commandId&&!commandAccepted)published.commandError="Practice state changed. The command was not applied.";
 }
+void WatchMatches(bool enabled) { watching = enabled; }
+void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput, unsigned padOne, unsigned padTwo) {
+    if (!watching) {
+        // Turned off mid-match: the meter goes, and starts clean if it is asked for again.
+        if (!matchShown) return;
+        matchShown = false; meter.Reset(); confirmed.Reset();
+        std::lock_guard<std::mutex> lock(mutex); published.watching = false;
+        return;
+    }
+    // ponytail: no script-file fallback here, so a projectile move without
+    // attack frames shows no startup in a match; the file read does not
+    // belong in a rollback frame. Load it at battle start if it is missed.
+    const unsigned pads[2] = {padOne, padTwo};
+    const auto fighters = ReadFighters(system, pads, false);
+    // A spectator plays confirmed inputs only and has no save frame to name one by.
+    if (stateFrame <= 0) meter.Observe(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters);
+    else {
+        confirmed.Capture(stateFrame, fighters);
+        int frame = 0; std::array<FighterSample, 2> next;
+        if (!confirmed.Next(lastConfirmedInput, frame, next)) return;
+        do meter.Observe(frame, next); while (confirmed.Next(lastConfirmedInput, frame, next));
+    }
+    std::lock_guard<std::mutex> lock(mutex);
+    published.meter = meter.View(); published.watching = matchShown = true;
+    for (int side = 0; side < 2; ++side) published.fighters[side] = BattleFighter(system, side);
+}
 void StopCapture() { delete capture; capture = nullptr; }
 void CloseBattle() {
     if (session.GetView().available)
@@ -514,7 +559,7 @@ void CloseBattle() {
     gapResets = 0; leaveIn = 0;
     overriding = false; sampling = false;
     if (checkpoint.used) Battle::SaveState::Free(&checkpoint);
-    session.Reset(); meter.Reset(); EndTrial(); dummyWatch.Reset(); replyAction = -1;
+    session.Reset(); meter.Reset(); confirmed.Reset(); matchShown = false; EndTrial(); dummyWatch.Reset(); replyAction = -1;
     std::lock_guard<std::mutex> lock(mutex); commands.clear(); published = session.GetView();
 }
 } }

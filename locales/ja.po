@@ -634,6 +634,12 @@ msgstr "トレーニングから呼ばれたら自動で準備完了"
 msgid "settings.training_auto_ready_detail"
 msgstr "オフ：トレーニングからテーブルに呼ばれたら、15秒以内に準備完了を押さないと席を失います。オン：すぐに準備完了になります。"
 
+msgid "settings.match_frame_meter"
+msgstr "対戦中のフレームメーター"
+
+msgid "settings.match_frame_meter_detail"
+msgstr "トレーニングのフレームメーターを、自分のオンライン対戦と観戦中の対戦に表示します。自分にだけ見えます。相手の入力を待っているフレームの分だけ遅れて表示されます。"
+
 msgid "room.training.detail"
 msgstr "ルームを出ずにトレーニングモードで待てます。向かいの席に対戦相手が座ると、準備完了のためにここへ戻されます。"
 

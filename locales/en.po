@@ -634,6 +634,12 @@ msgstr "Auto-ready from Training"
 msgid "settings.training_auto_ready_detail"
 msgstr "Off: called out of Training to your table, you have 15 seconds to press Ready, or you give up the seat. On: you are readied at once."
 
+msgid "settings.match_frame_meter"
+msgstr "Frame meter in matches"
+
+msgid "settings.match_frame_meter_detail"
+msgstr "Shows the Training frame meter over your online matches and the ones you watch. Only you see it. It trails the fight by the frames still waiting on the other player's inputs."
+
 msgid "room.training.detail"
 msgstr "Wait in Training mode without leaving the room. When a fighter sits down opposite you, the game brings you back here to ready."
 

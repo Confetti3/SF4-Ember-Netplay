@@ -1763,6 +1763,40 @@ void ChallengerBanner(const training::View& view) {
         draw->AddText(ImGui::GetFont(), size, ImVec2(at.x + offset.x, at.y + offset.y), IM_COL32(10, 10, 10, 255), text);
     draw->AddText(ImGui::GetFont(), size, at, colour, text);
 }
+// The meter's own window, centred, its bottom edge at hudBottom. Takes no
+// input. Returns its top left corner.
+static ImVec2 MeterWindow(const training::MeterView& meter, float hudScale, float width, float hudBottom) {
+    const auto* vp = ImGui::GetMainViewport();
+    ImVec2 hudTop(vp->Pos.x + (vp->Size.x - width) / 2, hudBottom);
+    ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x / 2, hudBottom), ImGuiCond_Always, ImVec2(.5f, 1));
+    ImGui::SetNextWindowSize(ImVec2(width, 0));
+    ImGui::SetNextWindowBgAlpha(.42f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8 * hudScale, 6 * hudScale));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4 * hudScale, 3 * hudScale));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
+    if (ImGui::Begin("Training frame meter", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
+        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing)) {
+        ImGui::SetWindowFontScale(.8f * hudScale / Scale());
+        Meter(meter, hudScale);
+        // Always one line, so the HUD does not jump as measurements come and go.
+        const auto reason=MeasurementReason(meter);
+        // The legend is the more useful line; a reason shows only while a reading is being waited for.
+        if(reason.empty()||!meter.advantage.pending) MeterLegend(meter,hudScale);
+        else ImGui::TextDisabled("%s", FitLabel(reason,ImGui::GetContentRegionAvail().x).c_str());
+        hudTop = ImGui::GetWindowPos();
+        ImGui::SetWindowFontScale(1.f);
+    }
+    ImGui::End();
+    ImGui::PopStyleVar(3);
+    return hudTop;
+}
+// The frame meter alone, over a rollback match.
+void DrawMatchMeter(const training::View& view) {
+    if (!view.watching) return;
+    const auto* vp = ImGui::GetMainViewport();
+    const float hudScale = (std::max)(1.f, (std::min)(1.5f, vp->Size.y / 900.f));
+    MeterWindow(view.meter, hudScale, (std::min)(900 * hudScale, vp->Size.x * .75f), vp->Pos.y + vp->Size.y * TrainingHudBottom);
+}
 TrainingHudInput DrawTrainingHud(const training::View& view) {
     if (!view.available) return {};
     ChallengerBanner(view);
@@ -1776,27 +1810,7 @@ TrainingHudInput DrawTrainingHud(const training::View& view) {
     // The game's super meters and their SUPER! banners start about 17% above
     // the bottom edge and scale with the height, so the meter sits just above them.
     const float hudBottom = vp->Pos.y + vp->Size.y * TrainingHudBottom;
-    ImVec2 hudTop(vp->Pos.x + (vp->Size.x - width) / 2, hudBottom);
-    ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x / 2, hudBottom), ImGuiCond_Always, ImVec2(.5f, 1));
-    ImGui::SetNextWindowSize(ImVec2(width, 0));
-    ImGui::SetNextWindowBgAlpha(.42f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8 * hudScale, 6 * hudScale));
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4 * hudScale, 3 * hudScale));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
-    if (ImGui::Begin("Training frame meter", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
-        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing)) {
-        ImGui::SetWindowFontScale(.8f * hudScale / Scale());
-        Meter(view.meter, hudScale);
-        // Always one line, so the HUD does not jump as measurements come and go.
-        const auto reason=MeasurementReason(view.meter);
-        // The legend is the more useful line; a reason shows only while a reading is being waited for.
-        if(reason.empty()||!view.meter.advantage.pending) MeterLegend(view.meter,hudScale);
-        else ImGui::TextDisabled("%s", FitLabel(reason,ImGui::GetContentRegionAvail().x).c_str());
-        hudTop = ImGui::GetWindowPos();
-        ImGui::SetWindowFontScale(1.f);
-    }
-    ImGui::End();
-    ImGui::PopStyleVar(3);
+    const ImVec2 hudTop = MeterWindow(view.meter, hudScale, width, hudBottom);
     // The one input this HUD takes: a chip that opens the controls for a
     // mouse, as F6 does from the keyboard. It captures the mouse only while
     // the pointer is over it, so the passive meter below never does.

@@ -634,6 +634,12 @@ msgstr "Ponerme listo al llamarme del Entrenamiento"
 msgid "settings.training_auto_ready_detail"
 msgstr "No: si te llaman del Entrenamiento a tu mesa, tienes 15 segundos para presionar Listo o cedes el asiento. Sí: quedas listo al instante."
 
+msgid "settings.match_frame_meter"
+msgstr "Medidor de frames en peleas"
+
+msgid "settings.match_frame_meter_detail"
+msgstr "Muestra el medidor de frames del Entrenamiento sobre tus peleas en línea y las que miras. Solo tú lo ves. Va detrás de la pelea los frames que aún esperan las entradas del otro jugador."
+
 msgid "room.training.detail"
 msgstr "Espera en el modo Entrenamiento sin salir de la sala. Cuando un luchador se siente frente a ti, el juego te trae de vuelta aquí para que te pongas listo."
 

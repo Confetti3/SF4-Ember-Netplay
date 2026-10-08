@@ -634,6 +634,12 @@ msgstr "Rendimi pronto alla chiamata dall'Allenamento"
 msgid "settings.training_auto_ready_detail"
 msgstr "No: chiamato dall'Allenamento al tuo tavolo, hai 15 secondi per premere Pronto, altrimenti cedi il posto. Sì: vieni reso pronto subito."
 
+msgid "settings.match_frame_meter"
+msgstr "Misuratore di frame negli incontri"
+
+msgid "settings.match_frame_meter_detail"
+msgstr "Mostra il misuratore di frame dell'Allenamento sopra i tuoi incontri online e quelli che guardi. Lo vedi solo tu. Segue l'incontro in ritardo dei frame che attendono ancora gli input dell'altro giocatore."
+
 msgid "room.training.detail"
 msgstr "Aspetta in modalità Allenamento senza lasciare la stanza. Quando un lottatore si siede di fronte a te, il gioco ti riporta qui per dichiararti pronto."
 

@@ -31,4 +31,6 @@ struct TrainingHudInput { bool open = false, replay = false, stop = false, point
 // the game's super meters.
 constexpr float TrainingHudBottom = .82f;
 TrainingHudInput DrawTrainingHud(const training::View& view);
+// The frame meter alone, over a rollback match the runtime is watching.
+void DrawMatchMeter(const training::View& view);
 } }

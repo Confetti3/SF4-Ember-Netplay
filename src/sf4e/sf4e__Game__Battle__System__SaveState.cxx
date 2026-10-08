@@ -169,6 +169,15 @@ fSystem::SemanticHashes fSystem::ComputeSemanticHashes(rSystem* src) {
     return out;
 }
 
+void fSystem::CaptureMeterSample(rSystem* src, bool show) {
+    // The inputs the frame was played with are still in the playback slot.
+    const auto& pads = fPadSystem::playbackData[0];
+    int confirmed = -1;
+    if (localPlayerHandle == GGPO_INVALID_HANDLE) { sf4e::training::ObserveMatch(src, 0, -1, pads[0].rawOn, pads[1].rawOn); return; }
+    if (show && !(ggpo && GGPO_SUCCEEDED(ggpo_get_last_confirmed_frame(ggpo, &confirmed)))) confirmed = -1;
+    sf4e::training::ObserveMatch(src, lastGgpoSaveFrame, confirmed, pads[0].rawOn, pads[1].rawOn);
+}
+
 void fSystem::CaptureHashCheckpoint(rSystem* src) {
     // The engine counter is a signed 16-bit field and wraps during a long
     // match. GGPO's save callback uses a monotonic frame identity; spectators

@@ -324,6 +324,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Value("ready-volume",loc::T("settings.ready_sound_volume"),std::to_string(preferences_.readySoundVolume)+"%",loc::T("settings.ready_sound_volume_detail"),v.canEditPreferences&&preferences_.readySound),
    Row("ready-test",loc::T("settings.ready_sound_test"),loc::T("settings.ready_sound_test_detail"),v.canEditPreferences&&preferences_.readySound),
    Value("training-auto-ready",loc::T("settings.training_auto_ready"),preferences_.trainingAutoReady?loc::T("common.on"):loc::T("common.off"),loc::T("settings.training_auto_ready_detail"),v.canEditPreferences),
+   Value("match-frame-meter",loc::T("settings.match_frame_meter"),preferences_.matchFrameMeter?loc::T("common.on"):loc::T("common.off"),loc::T("settings.match_frame_meter_detail"),v.canEditPreferences),
    Value("scale",loc::T("settings.interface_size"),size,reason,v.canEditPreferences),
    Value("language",loc::T("settings.language"),languageValue,languageSaveError_.empty()?std::string(loc::T("settings.language.detail")):languageSaveError_,true)};
   // Select lists the languages by their own names; browsing them changes nothing.
@@ -536,6 +537,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="hud-spacing")preferences_.matchHudRaised=a.delta>0;
   else if(a.id=="ready-sound")preferences_.readySound=a.delta>0;
   else if(a.id=="training-auto-ready")preferences_.trainingAutoReady=a.delta>0;
+  else if(a.id=="match-frame-meter")preferences_.matchFrameMeter=a.delta>0;
   else if(a.id=="background-play")preferences_.backgroundPlay=a.delta>0;
   else if(a.id=="ready-volume")preferences_.readySoundVolume=(std::max)(10,(std::min)(100,preferences_.readySoundVolume+10*a.delta));
   else if(a.id=="scale")preferences_.interfaceScale=(std::max)(1.f,(std::min)(1.5f,preferences_.interfaceScale+.05f*a.delta));

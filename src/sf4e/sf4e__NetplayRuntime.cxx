@@ -219,6 +219,7 @@ void StartHelper() {
             runtime->preferences.matchHudNameOffset = netplay::ReadMatchHudNameOffset(saved);
             runtime->preferences.readySound = saved.value("readySound", true);
             runtime->preferences.trainingAutoReady = saved.value("trainingAutoReady", false);
+            runtime->preferences.matchFrameMeter = saved.value("matchFrameMeter", false);
             const int volume = saved.value("readySoundVolume", 100);
             runtime->preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;
             runtime->preferences.backgroundPlay = saved.value("backgroundPlay", false);

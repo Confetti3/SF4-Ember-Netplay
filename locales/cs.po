@@ -634,6 +634,12 @@ msgstr "Připravit mě při výzvě z Tréninku"
 msgid "settings.training_auto_ready_detail"
 msgstr "Vyp.: po výzvě z Tréninku ke stolu máš 15 sekund na stisk Připraven, jinak se místa vzdáváš. Zap.: jsi připraven hned."
 
+msgid "settings.match_frame_meter"
+msgstr "Měřič snímků v zápasech"
+
+msgid "settings.match_frame_meter_detail"
+msgstr "Zobrazí měřič snímků z Tréninku nad tvými online zápasy a těmi, které sleduješ. Vidíš ho jen ty. Zpožďuje se o snímky, které ještě čekají na vstupy druhého hráče."
+
 msgid "room.training.detail"
 msgstr "Čekej v režimu Trénink, aniž opustíš místnost. Když si naproti tobě sedne bojovník, hra tě vrátí sem, abys potvrdil připravenost."
 

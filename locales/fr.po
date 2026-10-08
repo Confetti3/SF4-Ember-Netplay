@@ -634,6 +634,12 @@ msgstr "Me mettre prêt à l'appel depuis l'Entraînement"
 msgid "settings.training_auto_ready_detail"
 msgstr "Non : appelé depuis l'Entraînement à votre table, vous avez 15 secondes pour appuyer sur Prêt, sinon vous cédez la place. Oui : vous êtes mis prêt aussitôt."
 
+msgid "settings.match_frame_meter"
+msgstr "Compteur de frames en match"
+
+msgid "settings.match_frame_meter_detail"
+msgstr "Affiche le compteur de frames de l'entraînement sur vos matchs en ligne et ceux que vous regardez. Vous seul le voyez. Il suit le combat avec le retard des frames qui attendent encore les entrées de l'autre joueur."
+
 msgid "room.training.detail"
 msgstr "Attendez en mode Entraînement sans quitter le salon. Quand un combattant s'assoit en face de vous, le jeu vous ramène ici pour vous mettre prêt."
 

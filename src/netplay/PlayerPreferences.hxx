@@ -48,6 +48,9 @@ struct PlayerPreferences {
     // Called out of Training to their table, the player is readied at once
     // instead of being given the time to ready themselves.
     bool trainingAutoReady = false;
+    // The training frame meter over the player's own matches and those they
+    // watch. It only reads the game and shows confirmed frames.
+    bool matchFrameMeter = false;
     // Percent of the game's own voice volume, in steps of ten.
     int readySoundVolume = 100;
     // The game's sound and the pads keep working while another window, such

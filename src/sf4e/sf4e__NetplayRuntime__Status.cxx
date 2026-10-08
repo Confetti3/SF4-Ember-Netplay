@@ -292,7 +292,7 @@ std::uint64_t PublishFingerprint() {
     mix(runtime->trainingCallSequence); mix(runtime->trainingReadySequence); mix((runtime->trainingCall.Remaining(GetTickCount64()) + 999) / 1000);
     mix(runtime->recoveringMatch); mix(OverlayPrefs::PersistencePending()); mixString(OverlayPrefs::PersistenceError());
     mix(runtime->services.Snapshot().pending); mixString(runtime->discordStatusId); mix(runtime->discordInvite.Revision());
-    mix(runtime->preferences.showMatchHud); mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudRaised); mix(runtime->preferences.matchHudAnchor); mix(runtime->preferences.matchHudLayout); mix(runtime->preferences.matchHudNameOffset); mix(runtime->preferences.readySound); mix(runtime->preferences.readySoundVolume); mix(runtime->preferences.trainingAutoReady); mix(runtime->preferences.backgroundPlay);
+    mix(runtime->preferences.showMatchHud); mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudRaised); mix(runtime->preferences.matchHudAnchor); mix(runtime->preferences.matchHudLayout); mix(runtime->preferences.matchHudNameOffset); mix(runtime->preferences.readySound); mix(runtime->preferences.readySoundVolume); mix(runtime->preferences.matchFrameMeter); mix(runtime->preferences.trainingAutoReady); mix(runtime->preferences.backgroundPlay);
     mix(static_cast<std::uint64_t>(runtime->input.State())); mix(runtime->input.Ready());
     mix(AtMainMenu());
     return h;

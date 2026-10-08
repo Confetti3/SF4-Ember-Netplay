@@ -634,6 +634,12 @@ msgstr "트레이닝에서 호출되면 자동 준비"
 msgid "settings.training_auto_ready_detail"
 msgstr "끄기: 트레이닝에서 테이블로 호출되면 15초 안에 준비를 눌러야 하며, 아니면 자리를 내줍니다. 켜기: 바로 준비 상태가 됩니다."
 
+msgid "settings.match_frame_meter"
+msgstr "대전 중 프레임 미터"
+
+msgid "settings.match_frame_meter_detail"
+msgstr "트레이닝의 프레임 미터를 내 온라인 대전과 관전 중인 대전 위에 표시합니다. 나에게만 보입니다. 상대의 입력을 아직 기다리는 프레임만큼 늦게 표시됩니다."
+
 msgid "room.training.detail"
 msgstr "방을 나가지 않고 트레이닝 모드에서 기다립니다. 맞은편에 상대가 앉으면 준비할 수 있도록 게임이 여기로 데려옵니다."
 

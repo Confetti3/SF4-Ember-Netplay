@@ -404,6 +404,7 @@ static bool PlayGgpoFrame(rSystem* system) {
     }
     fSystem::CaptureSnapshot(system);
     fSystem::CaptureHashCheckpoint(system);
+    fSystem::CaptureMeterSample(system, true);
     PublishConfirmedNativeMatchResult();
     return true;
 }

@@ -634,6 +634,12 @@ msgstr "Ficar pronto ao ser chamado do Treino"
 msgid "settings.training_auto_ready_detail"
 msgstr "Não: chamado do Treino para a sua mesa, você tem 15 segundos para apertar Pronto, ou cede o lugar. Sim: você fica pronto na hora."
 
+msgid "settings.match_frame_meter"
+msgstr "Medidor de frames nas partidas"
+
+msgid "settings.match_frame_meter_detail"
+msgstr "Mostra o medidor de frames do Treino sobre suas partidas online e as que você assiste. Só você o vê. Ele segue a luta com o atraso dos frames que ainda esperam os comandos do outro jogador."
+
 msgid "room.training.detail"
 msgstr "Espere no modo Treino sem sair da sala. Quando um lutador se sentar à sua frente, o jogo traz você de volta para cá para ficar pronto."
 

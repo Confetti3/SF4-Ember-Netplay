@@ -634,6 +634,12 @@ msgstr "Maak mij gereed bij oproep uit Training"
 msgid "settings.training_auto_ready_detail"
 msgstr "Uit: als je uit Training naar je tafel wordt geroepen, heb je 15 seconden om op Gereed te drukken, anders geef je je plek op. Aan: je wordt meteen gereed gemeld."
 
+msgid "settings.match_frame_meter"
+msgstr "Framemeter in matches"
+
+msgid "settings.match_frame_meter_detail"
+msgstr "Toont de framemeter uit Training over je online matches en de matches die je bekijkt. Alleen jij ziet hem. Hij loopt achter met de frames die nog op de invoer van de andere speler wachten."
+
 msgid "room.training.detail"
 msgstr "Wacht in de Training-modus zonder de kamer te verlaten. Zodra er een vechter tegenover je gaat zitten, haalt de game je hierheen terug om je gereed te melden."
 

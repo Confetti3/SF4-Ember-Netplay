@@ -167,6 +167,9 @@ struct Command {
 };
 struct View {
     bool available = false, ready = false, checkpoint = false, loop = true;
+    // A rollback match whose frame meter is shown: meter and fighters are
+    // filled, nothing else, and no command is taken.
+    bool watching = false;
     std::uint64_t generation = 0;
     // Where Player 1 and Player 2 stand (x), as the adapter reads them each frame.
     float x[2] = {0, 0};

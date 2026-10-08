@@ -244,6 +244,9 @@ namespace sf4e {
 				static SemanticHashes ComputeSemanticHashes(Dimps::Game::Battle::System* src);
 				static CharaSemantics CaptureCharaSemantics(Dimps::Game::Battle::System* src, int side);
 				static void CaptureHashCheckpoint(Dimps::Game::Battle::System* src);
+				// The frame meter's sample of the frame just played. show: off
+				// inside a rollback, where nothing new is confirmed.
+				static void CaptureMeterSample(Dimps::Game::Battle::System* src, bool show);
 				static HashCheckpoint* FindHashCheckpoint(int frameIdx);
 				static void ClearHashCheckpoints();
 				static GGPOPlayerHandle localPlayerHandle;

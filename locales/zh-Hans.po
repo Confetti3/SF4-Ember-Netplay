@@ -634,6 +634,12 @@ msgstr "从训练被叫回时自动准备"
 msgid "settings.training_auto_ready_detail"
 msgstr "关：从训练被叫回牌桌后，你有 15 秒按下准备，否则让出座位。开：立即为你准备。"
 
+msgid "settings.match_frame_meter"
+msgstr "对战中的帧数表"
+
+msgid "settings.match_frame_meter_detail"
+msgstr "在你的在线对战和你观看的对战上显示训练模式的帧数表。只有你能看到。它会落后于对战，落后的是仍在等待对方输入的那些帧。"
+
 msgid "room.training.detail"
 msgstr "不离开房间，在训练模式中等待。有对手在你对面坐下时，游戏会把你带回这里准备。"
 
