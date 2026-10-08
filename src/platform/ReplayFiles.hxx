@@ -14,17 +14,8 @@
 #include <string>
 #include <vector>
 
-#include "../common/ReplayInputs.hxx"
+#include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplaySlots.hxx"
-
-// Nightly's file-safety helper still asks for just the CRC. Keep that API,
-// with the picked commit's single parser for both the time and the CRC.
-namespace sf4e { namespace replayslots {
-inline bool ArchiveNameCrc(const std::wstring& name, std::uint32_t& crc) {
-	std::uint64_t time = 0;
-	return ParseArchiveName(name, time, crc);
-}
-} }
 
 namespace sf4e { namespace platform { namespace replays {
 
@@ -53,15 +44,15 @@ Folders FindFolders();
 // list yet is archived two minutes after it was written, with a record made
 // from its own header. A slot caught while the game is writing it fails the
 // size and CRC check and is copied on a later call. The archive is read
-// through one index kept for this process, which opens a file once and again
-// only when it changed. Returns how many were copied, or -1 when there is
+// through one index kept for this process. Refresh reads bounded contents;
+// summaries are reused only for byte-identical files. Returns how many were copied, or -1 when there is
 // nowhere to copy from or to. The launcher's: it walks every account's slots
 // and the whole archive folder.
 int Archive();
 
 // An archived replay put back into the game's files: the slot it took, the
-// slot record as written (ReplaySlots.hxx: Import), the slot's two bytes and
-// the writes that were made (ReplaySlots.hxx: WritePlan). The indexes are
+// slot record as written (ReplaySlots.hxx: Import) and the slot's two bytes.
+// The prepared transaction and recovery material stay internal. Indexes are
 // read from the signed-in account's folder
 // (Folders::active), the one write stores into.
 //
@@ -90,24 +81,32 @@ int Archive();
 struct Imported {
 	int slot = -1;
 	replayslots::Bytes record, slotBytes;
-	replayslots::WritePlan plan;
 };
-// Why nothing was imported. IndexBehind and NotArchived pass by themselves
-// once the game has saved; the others do not.
-enum class ImportResult { Done, NoFolder, NotAReplay, IndexBehind, NotArchived, IndexDamaged, WriteFailed };
+// Failures distinguish rejection, restored originals and incomplete recovery.
+enum class ImportResult { Done, NoFolder, NotAReplay, IndexBehind, ArchiveFailed, IndexDamaged, RejectedBeforeWrite, FailedRestored, RecoveryIncomplete };
+inline const char* ImportNotice(ImportResult result) {
+ switch (result) {
+ case ImportResult::IndexBehind: return "replays.not_added_yet";
+ case ImportResult::NotAReplay: return "replays.not_added";
+ case ImportResult::ArchiveFailed: return "replays.not_added_archive";
+ case ImportResult::FailedRestored: return "replays.not_added_restored";
+ case ImportResult::RecoveryIncomplete: return "replays.not_added_recovery";
+ case ImportResult::Done: return "";
+ default: return "replays.not_added_files";
+ }
+}
 using Writer = std::function<bool(const std::string& name, const replayslots::Bytes& contents)>;
 using Remover = std::function<bool(const std::string& name)>;
 using Publisher = std::function<bool(const Imported& imported)>;
 ImportResult ImportFile(const std::filesystem::path& file, const Writer& write, const Remover& remove, const Publisher& publish, Imported& out);
 
-// The game's record names no one for an Ember match, so Ember notes the
-// two players itself when a match starts (matches.jsonl in the archive:
-// the start time, both names, P1 first, and whether this PC only watched;
-// the game records a spectated match too, and the two fighters). A replay is
-// saved when the match ends, so it belongs to the last match started before
-// its save time, within an hour, with its two fighters
-// (ReplaySlots.hxx: MatchOf).
+// Capture the active account's slots at the recording boundary. On native
+// close, bind a unique newly saved body to these names; no archive-to-time
+// join is performed. Native metadata has no verified Ember player/session ID,
+// so initial attribution uses account, slot change, fighters and native save
+// time within this match's lifetime. Body-bound notes thereafter are exact.
 void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2);
+void NoteMatchEnd();
 
 // Remembers that an archived replay was played with Watch now (watched.txt in
 // the archive, one file name per line), so the list can say so.
@@ -137,27 +136,18 @@ struct ArchivedReplay {
 // it, those with time and fighters from the replay's header and no names.
 // Any thread may ask and read: WantListing asks for a listing, which starts
 // within two seconds of the one before, and LatestListing is the last one
-// made (null before the first). A listing opens only the files that are new
-// or changed since the one before, so it does not grow with the archive, and
-// nothing a file or folder does there reaches the caller. StopListing ends
+// made (null before the first). A listing reads bounded files and reuses
+// parsed summaries only when their complete contents are unchanged. All of
+// that work stays on the worker. StopListing ends
 // the thread and waits for a listing in progress; called once, at shutdown,
 // and never under the loader lock.
 void WantListing();
 std::shared_ptr<const std::vector<ArchivedReplay>> LatestListing();
 void StopListing();
 
-// One replay read whole (common/ReplayInputs.hxx), for the Inputs and stats
-// screen: match is null for a file that is not one it reads. The lister's
-// thread reads it: WantDetail asks, from any thread, and LatestDetail is the
-// last one read (null before the first). file is the name it was asked by,
-// UTF-8 as the Replays screen names its rows.
-struct ReplayDetail {
-	std::string file;
-	std::shared_ptr<const replayinputs::Match> match;
-	replayinputs::Summary summary;
-	std::shared_ptr<const std::vector<std::string>> logs;
-};
-void WantDetail(const std::string& file);
-std::shared_ptr<const ReplayDetail> LatestDetail();
+// Every screen entry has a new revision. Completion exists even when the
+// worker cannot allocate a detail. The immutable value is shared by all views.
+void WantDetail(const std::string& file, std::uint64_t revision);
+replayinputs::DetailCompletion LatestDetail();
 
 } } }

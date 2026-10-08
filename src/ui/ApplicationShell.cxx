@@ -22,8 +22,6 @@
 #include <utility>
 namespace sf4e { namespace ui {
 namespace {
-// The player's name as Ember noted it, or the side.
-std::string Who(const ShellView::Replay& replay,int side){return replay.names[side].empty()?(side?"P2":"P1"):replay.names[side];}
 constexpr double ErrorSeconds = 5;
 // The launch card names only the settings that differ, in the order the game's
 // own Options menu lists them. Empty means nothing to say.
@@ -351,7 +349,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
     const std::string score=ScoreText(*summary);
     if(!score.empty())rows.back().value=rows.back().value.empty()?score:score+"  "+rows.back().value;
     std::string said=MatchText(*summary);
-    for(int side=0;side<2;side++)said+="\n"+Who(v.replays[i],side)+": "+LookText(summary->players[side])+". "+PressesText(summary->stats[side])+". "+ActivityText(summary->stats[side]);
+    for(int side=0;side<2;side++)said+="\n"+ReplayPlayerName(v.replays[i].names,side)+": "+LookText(summary->players[side])+". "+PressesText(summary->stats[side])+". "+ActivityText(summary->stats[side]);
     rows.back().detail=said+"\n\n"+rows.back().detail;rows.back().detailText=DetailText::Name;
    }
    // Select asks: add it to the game's list, or add it and go straight to the battle log.
@@ -531,36 +529,6 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
  card.members=static_cast<int>(v.room.members.size());
  for(const auto& table:v.room.tables)if(table.phase==room::TablePhase::Playing)++card.activeTables;
  SetMenuPlayerCard(std::move(card));
-}
-// The Inputs and stats screen: the replay's own label and length, for each
-// player the look and what was pressed, and a row a round whose Select opens
-// the round's inputs in the reader. Until the match for that file is handed
-// over the screen says it is being read.
-void ApplicationShell::BuildInputsRows(const ShellView& v,std::vector<MenuEntry>& rows) {
- namespace in=replayinputs;
- try {
- if(v.replayInputsFile!=inputsReplay_.path){rows.push_back(InfoRow("inputs-reading",loc::T("inputs.reading"),"",loc::T("replays.inputs_detail")));return;}
- if(!v.replayInputs||!v.replayInputsLogs||v.replayInputsLogs->size()!=v.replayInputs->rounds.size()){rows.push_back(InfoRow("inputs-none",loc::T("inputs.unreadable"),"",loc::T("inputs.unreadable_detail")));return;}
- const in::Match& match=*v.replayInputs;
- const in::Summary& summary=v.replayInputsSummary;
- const std::string score=ScoreText(summary);
- rows.push_back(InfoRow("inputs-replay",inputsReplay_.label,(score.empty()?"":score+"  ")+MatchText(summary),loc::T("replays.inputs_detail")));
- rows.back().userText=true;
- for(int side=0;side<2;side++){
-  rows.push_back(InfoRow("inputs-p"+std::to_string(side+1),loc::Tf("inputs.buttons",Who(inputsReplay_,side)),PressesText(summary.stats[side]),LookText(summary.players[side])+". "+ActivityText(summary.stats[side])));
-  rows.back().userText=!inputsReplay_.names[side].empty();
- }
- for(std::size_t round=0;round<match.rounds.size();round++){
-  const std::size_t number=round+1;
-  auto row=Row("inputs-round-"+std::to_string(number),loc::Tf("inputs.round",number),std::string(loc::T("inputs.legend"))+"\n\n"+(*v.replayInputsLogs)[round]);
-  row.value=in::Clock(match.rounds[round].frames);row.reading=true;
-  rows.push_back(std::move(row));
- }
- }catch(...){
-  // Preserve nightly's no-partial-detail boundary if constructing UI text
-  // fails after the worker has successfully prepared the replay.
-  rows.clear();rows.push_back(InfoRow("inputs-none",loc::T("inputs.unreadable"),"",loc::T("inputs.unreadable_detail")));
- }
 }
 // The caption an export starts from: the names Ember noted, the date and
 // score on one line, Ember's mark, and the set so far. The set is counted
@@ -977,7 +945,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   }
   else if(a.id.compare(0,7,"replay:")==0&&a.text=="inputs"){
    // Nothing is sent to the game: the screen names the file and is handed its match (ReplayInputsFile).
-   for(const auto& shown:v.replays)if(shown.path==a.id.substr(7)){inputsReplay_=shown;menu_.navigation.Push("replay-inputs");break;}
+   for(const auto& shown:v.replays)if(shown.path==a.id.substr(7)){inputsReplay_=shown;++inputsRevision_;menu_.navigation.Push("replay-inputs");break;}
   }
   else if(a.id.compare(0,7,"replay:")==0&&a.text=="export"){
    // The caption is set up first; Generate on that screen sends the export.

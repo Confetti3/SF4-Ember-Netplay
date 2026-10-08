@@ -132,8 +132,8 @@ namespace sf4e {
 				// A replay is playing that was asked for with the frame meter.
 				bool meterShown = false;
 				std::shared_ptr<const std::vector<platform::replays::ArchivedReplay>> archive;
-				// The replay last read whole, or null (platform::replays::WantDetail).
-				std::shared_ptr<const platform::replays::ReplayDetail> detail;
+				// Completion of the last requested entry (platform::replays::WantDetail).
+				replayinputs::DetailCompletion detail;
 			} replays;
 			bool canOpenRoom = false;
 			bool canReplaceRoom = false;

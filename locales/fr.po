@@ -731,7 +731,7 @@ msgid "replays.inputs_detail"
 msgstr "Montre ce que les deux joueurs ont pressé, image par image, et combien de fois. Lu dans le fichier du replay ; rien n'est rejoué."
 
 msgid "inputs.length_value"
-msgstr "Rounds : {0}, {1}"
+msgstr "Manches : {0}, {1}"
 
 msgid "inputs.buttons"
 msgstr "{0} : pressions de boutons"
@@ -821,7 +821,16 @@ msgid "replays.not_added_yet"
 msgstr "Le jeu n'a pas encore enregistré le dernier match. Réessayez dans un instant."
 
 msgid "replays.not_added_files"
-msgstr "Ce replay n'a pas pu être ajouté : les fichiers de replay du jeu n'ont pas pu être lus ou écrits. Rien n'a été modifié."
+msgstr "Impossible d’ajouter ce replay : les fichiers de replay du jeu n’ont pas pu être lus ou préparés. Aucun fichier de replay du jeu n’a été modifié."
+
+msgid "replays.not_added_archive"
+msgstr "Impossible d’ajouter ce replay, car le replay existant n’a pas pu être sauvegardé et vérifié. Vérifiez le dossier d’archives et l’espace disque disponible."
+
+msgid "replays.not_added_restored"
+msgstr "L’importation a échoué. Les fichiers de replay d’origine du jeu ont été restaurés."
+
+msgid "replays.not_added_recovery"
+msgstr "L’importation a échoué et certains fichiers de replay du jeu n’ont pas pu être restaurés. Les données de récupération ont été conservées. N’importez plus de replays et consultez le journal."
 
 msgid "replays.fighters"
 msgstr "{0} vs {1}"

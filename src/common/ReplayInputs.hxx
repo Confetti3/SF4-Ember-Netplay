@@ -14,7 +14,7 @@
 //   0x20   player 1, and 0x150 after it player 2: fighter, costume, color,
 //          personal action (-1: none), win quote, Ultra and handicap, each
 //          a dword, in the order of the game's own selection record
-//   0x2C6  u16, the round timer; 0x2E0 the rounds setting (1, 3 or 5)
+//   0x2C6  u16, the round timer; 0x2E0 the rounds setting (1, 3, 5, 7, 15 or 99)
 //   0x320  one 0x88-byte record a round, its state as the round starts:
 //          +0x1C the rounds player 1 has won so far, +0x58 player 2's,
 //          +0x7C the bytes of its stream
@@ -30,8 +30,8 @@
 // only one player was a round short of the match; for a deciding round it is
 // byte 49 of the slot record the game wrote (0 player 1, 1 player 2), which
 // agreed with the rounds in all 62 archived matches that have both. The
-// record counts only when it describes the replay it wraps and is one the
-// game wrote (ReplaySlots.hxx: Describes, RecordWinner).
+// record is reconciled with the round history whenever available, and counts
+// only when it describes the replay it wraps and is one the game wrote (ReplaySlots.hxx: Describes, RecordWinner).
 //
 // Everything works on bytes in memory; ReplayInputsTest covers it on a
 // replay built at these offsets.
@@ -93,7 +93,8 @@ inline bool Parse(const std::uint8_t* data, std::size_t size, Match& out) {
 	if (total != size) return false;
 	Match match;
 	match.recordWinner = recordWinner;
-	match.roundsToWin = static_cast<int>((replayslots::ReadU32(data + 0x2E0) + 1) / 2);
+	const std::uint32_t setting = replayslots::ReadU32(data + 0x2E0);
+	match.roundsToWin = setting == 1 || setting == 3 || setting == 5 || setting == 7 || setting == 15 || setting == 99 ? static_cast<int>((setting + 1) / 2) : 0;
 	match.timer = data[0x2C6] | (data[0x2C7] << 8);
 	for (int side = 0; side < 2; side++) {
 		const std::uint8_t* p = data + 0x20 + side * 0x150;
@@ -135,7 +136,7 @@ inline bool Parse(const std::uint8_t* data, std::size_t size, Match& out) {
 // player one win or none (a draw gives both), and nobody has the match
 // before the last round.
 inline bool Score(const Match& match, int score[2]) {
-	if (match.rounds.empty() || match.roundsToWin < 1) return false;
+	if (match.rounds.empty() || match.roundsToWin < 1 || match.roundsToWin > 50) return false;
 	const int last = match.roundsToWin - 1;
 	int before[2] = {0, 0};
 	if (match.rounds.front().wins[0] || match.rounds.front().wins[1]) return false;
@@ -151,7 +152,9 @@ inline bool Score(const Match& match, int score[2]) {
 	}
 	const int* wins = match.rounds.back().wins;
 	const int winner = wins[0] == last && wins[1] < last ? 0 : wins[1] == last && wins[0] < last ? 1 : wins[0] == last ? match.recordWinner : -1;
-	if (winner < 0) return false;
+	if (winner < 0 || winner > 1 || (match.recordWinner >= 0 && match.recordWinner != winner)) return false;
+	// A verified winner must be able to finish the match in this last round.
+	if (wins[winner] != last) return false;
 	score[0] = wins[0] + (winner == 0); score[1] = wins[1] + (winner == 1);
 	return true;
 }

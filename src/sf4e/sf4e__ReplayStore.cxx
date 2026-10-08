@@ -241,13 +241,6 @@ bool sf4e::replaystore::Ready() { return s_entries != nullptr && sf4e::Game::Bat
 
 const sf4e::replaystore::Status& sf4e::replaystore::GetStatus() { return s_operation.status; }
 
-// What the player is told when a replay was not added. Two of the reasons
-// pass by themselves once the game has saved its last match.
-static const char* NotAddedNotice(ImportResult result) {
-	return result == ImportResult::IndexBehind || result == ImportResult::NotArchived ? "replays.not_added_yet" :
-		result == ImportResult::NotAReplay ? "replays.not_added" : "replays.not_added_files";
-}
-
 void sf4e::replaystore::Start(const replay::Request& request, bool atMainMenu, bool noRoom) {
 	Operation& op = s_operation;
 	const bool exporting = request.mode == replay::Mode::Export;
@@ -260,7 +253,7 @@ void sf4e::replaystore::Start(const replay::Request& request, bool atMainMenu, b
 		if (!Ready() || SavesBusy()) { op.Notice("replays.not_ready", true); return; }
 		const std::wstring path = platform::Utf8ToWide(request.path.c_str());
 		const ImportResult result = Import(path, op.slot);
-		if (result != ImportResult::Done) { op.Notice(NotAddedNotice(result), true); return; }
+		if (result != ImportResult::Done) { op.Notice(sf4e::platform::replays::ImportNotice(result), true); return; }
 		// Added is not watched; only a replay that is played is marked so.
 		if (request.mode == replay::Mode::Watch) platform::replays::MarkWatched(path);
 		op.Notice("replays.added", false);

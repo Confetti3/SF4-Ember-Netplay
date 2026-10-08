@@ -821,7 +821,16 @@ msgid "replays.not_added_yet"
 msgstr "O jogo ainda não salvou a última partida. Tente de novo em instantes."
 
 msgid "replays.not_added_files"
-msgstr "Não foi possível adicionar este replay: os arquivos de replay do jogo não puderam ser lidos ou gravados. Nada foi alterado."
+msgstr "Não foi possível adicionar este replay: os arquivos de replay do jogo não puderam ser lidos ou preparados. Nenhum arquivo de replay do jogo foi alterado."
+
+msgid "replays.not_added_archive"
+msgstr "Não foi possível adicionar este replay porque não foi possível criar e verificar uma cópia de segurança do replay existente. Verifique a pasta de arquivo e o espaço disponível no disco."
+
+msgid "replays.not_added_restored"
+msgstr "A importação falhou. Os arquivos de replay originais do jogo foram restaurados."
+
+msgid "replays.not_added_recovery"
+msgstr "A importação falhou e alguns arquivos de replay do jogo não puderam ser restaurados. Os dados de recuperação foram preservados. Pare de importar replays e verifique o registro."
 
 msgid "replays.fighters"
 msgstr "{0} vs {1}"

@@ -328,8 +328,25 @@ static void TestReplayLinks() {
 	CHECK(ParseReplayLink(std::string("ember://replay/open?file=") + std::string(1100, 'a') + ".emberreplay").empty());
 }
 
+static void TestResolvedReplayTargets() {
+ using namespace sf4e::replay_link;
+ const std::string link="C:\\replays\\alias.emberreplay";
+ const auto check=[&](const ReplayTarget& target,const std::string& expected) {
+  CHECK(ResolveReplayPath(link,[&](const std::string& requested) { CHECK(requested==link);return target; })==expected);
+ };
+ check(ReplayTarget("D:\\archive\\real.emberreplay",true,true),"D:\\archive\\real.emberreplay");
+ check(ReplayTarget("R:\\share\\real.emberreplay",false,true),""); // mapped network drive
+ check(ReplayTarget("\\\\server\\share\\real.emberreplay",false,true),""); // junction to network target
+ check(ReplayTarget("\\\\?\\UNC\\server\\real.emberreplay",false,true),"");
+ check(ReplayTarget("C:\\archive\\directory.emberreplay",true,false),"");
+ check(ReplayTarget("C:\\archive\\real.txt",true,true),"");
+ check(ReplayTarget{},""); // missing/broken target
+ CHECK(ResolveReplayPath(link,[](const std::string&)->ReplayTarget {throw 1;}).empty());
+}
+
 int main() {
 	TestReplayLinks();
+ TestResolvedReplayTargets();
 	TestCodesNormalizeLikeTheHelper();
 	TestOnlyTheJoinLinkIsAccepted();
 	TestTheJoinScreenGetsTheShortLink();

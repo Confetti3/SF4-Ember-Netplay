@@ -731,7 +731,7 @@ msgid "replays.inputs_detail"
 msgstr "両プレイヤーが押した内容をフレームごとに表示し、回数を数えます。リプレイファイルから読み取るだけで、再生はしません。"
 
 msgid "inputs.length_value"
-msgstr "{0}ラウンド、{1}"
+msgstr "ラウンド数：{0}、{1}"
 
 msgid "inputs.buttons"
 msgstr "{0}：ボタンを押した回数"
@@ -821,7 +821,16 @@ msgid "replays.not_added_yet"
 msgstr "ゲームが最後の対戦をまだ保存していません。少ししてからもう一度お試しください。"
 
 msgid "replays.not_added_files"
-msgstr "このリプレイを追加できませんでした。ゲームのリプレイファイルを読み書きできませんでした。何も変更されていません。"
+msgstr "このリプレイを追加できませんでした。ゲームのリプレイファイルを読み込むか準備することができませんでした。ゲームのリプレイファイルは変更されていません。"
+
+msgid "replays.not_added_archive"
+msgstr "既存のリプレイをバックアップして確認できなかったため、このリプレイを追加できませんでした。アーカイブフォルダーとディスクの空き容量を確認してください。"
+
+msgid "replays.not_added_restored"
+msgstr "インポートに失敗しました。元のゲームのリプレイファイルは復元されました。"
+
+msgid "replays.not_added_recovery"
+msgstr "インポートに失敗し、一部のゲームのリプレイファイルを復元できませんでした。復元用のデータは保持されています。リプレイのインポートを中止し、ログを確認してください。"
 
 msgid "replays.fighters"
 msgstr "{0} vs {1}"

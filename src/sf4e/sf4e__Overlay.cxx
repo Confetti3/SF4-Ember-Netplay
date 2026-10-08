@@ -277,16 +277,11 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
                 replay.label + "  " + sf4e::loc::Tf("replays.fighters", name(0), name(1)), {replay.names[0], replay.names[1]}, replay.spectated, replay.watched, replay.video, replay.summary, replay.time});
         }
     }
-    // The Inputs and stats screen names a file; the lister reads it once and
-    // the screen is handed the match when it is that file's.
+    // Each entry owns a revision. WantDetail coalesces frames of that entry;
+    // the worker rereads the bounded file before considering its content cache.
     if (shell.Navigation().Screen() == "replay-inputs") {
-        static std::string asked;
-        const std::string& file = shell.ReplayInputsFile();
-        if (file != asked) { asked = file; sf4e::platform::replays::WantDetail(file); }
-        if (snapshot.replays.detail && snapshot.replays.detail->file == file) {
-            view.replayInputsFile = file; view.replayInputs = snapshot.replays.detail->match;
-            view.replayInputsSummary = snapshot.replays.detail->summary; view.replayInputsLogs = snapshot.replays.detail->logs;
-        }
+        sf4e::platform::replays::WantDetail(shell.ReplayInputsFile(), shell.ReplayInputsRevision());
+        view.replayDetail = snapshot.replays.detail;
     }
     view.replaysReady = snapshot.replays.ready;
     view.replayNotice = snapshot.replays.notice; view.replayNoticeError = snapshot.replays.noticeError;

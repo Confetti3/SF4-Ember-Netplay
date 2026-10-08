@@ -821,7 +821,16 @@ msgid "replays.not_added_yet"
 msgstr "Das Spiel hat das letzte Match noch nicht gespeichert. Versuche es gleich noch einmal."
 
 msgid "replays.not_added_files"
-msgstr "Dieses Replay konnte nicht hinzugefügt werden: Die Replay-Dateien des Spiels konnten nicht gelesen oder geschrieben werden. Es wurde nichts geändert."
+msgstr "Dieses Replay konnte nicht hinzugefügt werden: Die Replay-Dateien des Spiels konnten nicht gelesen oder vorbereitet werden. Keine Replay-Dateien des Spiels wurden geändert."
+
+msgid "replays.not_added_archive"
+msgstr "Dieses Replay konnte nicht hinzugefügt werden, weil das vorhandene Replay nicht gesichert und überprüft werden konnte. Prüfe den Archivordner und den freien Speicherplatz."
+
+msgid "replays.not_added_restored"
+msgstr "Der Import ist fehlgeschlagen. Die ursprünglichen Replay-Dateien des Spiels wurden wiederhergestellt."
+
+msgid "replays.not_added_recovery"
+msgstr "Der Import ist fehlgeschlagen und einige Replay-Dateien des Spiels konnten nicht wiederhergestellt werden. Die Wiederherstellungsdaten wurden aufbewahrt. Importiere keine weiteren Replays und prüfe das Protokoll."
 
 msgid "replays.fighters"
 msgstr "{0} vs {1}"

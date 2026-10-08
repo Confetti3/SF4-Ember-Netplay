@@ -346,7 +346,9 @@ inline bool Import(const Bytes& exported, int slot, std::uint32_t now, Bytes& li
 	const std::uint8_t* record = exported.data() + 8;
 	const std::uint8_t* body = exported.data() + kExportHeaderBytes;
 	const std::size_t size = exported.size() - kExportHeaderBytes;
-	if (!Describes(record, body, size) || !PlausibleRecord(record)) return false;
+	// Only 0E 0E is established for an imported saved-match slot. Unknown
+	// external state bytes must never reach the live table.
+	if (!Describes(record, body, size) || !PlausibleRecord(record) || record[kRecordBytes] != 0x0E || record[kRecordBytes + 1] != 0x0E) return false;
 	std::uint8_t* out = const_cast<std::uint8_t*>(target);
 	std::memcpy(out, record, kRecordBytes);
 	WriteU32(out, static_cast<std::uint32_t>(slot));
@@ -355,33 +357,6 @@ inline bool Import(const Bytes& exported, int slot, std::uint32_t now, Bytes& li
 	WriteU32(swan.data(), Crc32(swan.data() + 4, swan.size() - 4));
 	replay.assign(body, body + size);
 	return true;
-}
-
-// A match as Ember noted it when it started (platform/ReplayFiles.hxx:
-// NoteMatchStart): when, the two players' names, their fighters (-1 in a note
-// written before fighters were) and whether this PC only watched.
-struct NotedMatch {
-	std::uint64_t started;
-	std::string names[2];
-	int fighters[2];
-	bool spectated;
-};
-
-// The match a replay saved at `saved` belongs to: the last one that started
-// before the save, within the hour, with the replay's two fighters. Both
-// times are this PC's clock, so the start is never after the save; a replay
-// is saved as its match ends, and in a room the next match has often started
-// by the time it is looked at, which is why the save is the limit. Null when
-// no note fits.
-inline const NotedMatch* MatchOf(const std::vector<NotedMatch>& noted, std::uint64_t saved, const int fighters[2]) {
-	const NotedMatch* match = nullptr;
-	for (const NotedMatch& candidate : noted) {
-		if (candidate.started > saved || saved >= candidate.started + 3600) continue;
-		const bool named = candidate.fighters[0] >= 0 && candidate.fighters[1] >= 0;
-		if (named && (candidate.fighters[0] != fighters[0] || candidate.fighters[1] != fighters[1])) continue;
-		if (!match || candidate.started > match->started) match = &candidate;
-	}
-	return match;
 }
 
 // The files an import changes, as data: each by its name in the save folder,
@@ -413,29 +388,6 @@ inline bool PlanImport(const Bytes& exported, int slot, std::uint32_t now, const
 	if (slot < kListSlots) {
 		plan.push_back({"LIST", list, files.list});
 		plan.push_back({"LIST.0", Sidecar(list), files.listSidecar});
-	}
-	return true;
-}
-
-// Puts back the first `count` files of a plan, last written first. A file that
-// was not there before stays as written: nothing names it once its index is
-// back. False when a file could not be put back.
-template <class Writer> bool UndoPlan(const WritePlan& plan, std::size_t count, const Writer& write) {
-	bool whole = true;
-	for (std::size_t at = count < plan.size() ? count : plan.size(); at-- > 0;)
-		if (!plan[at].before.empty() && !write(plan[at].name, plan[at].before)) whole = false;
-	return whole;
-}
-
-// Writes a plan in order. On the first write that fails, the files written so
-// far are put back and it is false; `undone` then says whether they all were.
-template <class Writer> bool RunPlan(const WritePlan& plan, const Writer& write, bool& undone) {
-	undone = true;
-	for (std::size_t at = 0; at < plan.size(); at++) {
-		if (write(plan[at].name, plan[at].now)) continue;
-		// The failed write may have left the file changed, so it is put back too.
-		undone = UndoPlan(plan, at + 1, write);
-		return false;
 	}
 	return true;
 }

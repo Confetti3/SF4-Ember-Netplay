@@ -168,8 +168,6 @@ static bool StartRuntimeGgpo() {
             if (!captured.name.empty() && member.name == captured.name) captured.link = member.link;
     }
     netplay->spectating = endpoints.localSlot >= 2;
-    sf4e::platform::replays::NoteMatchStart(netplay->matchSides[0].name, netplay->matchSides[1].name, netplay->spectating,
-        netplay->client._matchData.chara[0].charaID, netplay->client._matchData.chara[1].charaID);
     netplay->startScoreKnown = false;
     netplay->startScore[0] = netplay->startScore[1] = 0;
     for (const auto& member : room.members)
@@ -215,6 +213,10 @@ static bool StartRuntimeGgpo() {
             netplay->client._matchData.inputDelay[0], netplay->client._matchData.inputDelay[1],
             endpoints.localSlot, netplay->delay);
         fSystem::StartGGPO(players, static_cast<int>(count), endpoints.localPort, netplay->delay, netplay->client._matchData.rngSeed);
+    }
+    if (fSystem::ggpo != nullptr) {
+        sf4e::platform::replays::NoteMatchStart(netplay->matchSides[0].name, netplay->matchSides[1].name, netplay->spectating,
+            netplay->client._matchData.chara[0].charaID, netplay->client._matchData.chara[1].charaID);
     }
     // The table's Training rule goes into the battle request beside the seed,
     // for the fighters and for whoever watches them.

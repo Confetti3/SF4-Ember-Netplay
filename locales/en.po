@@ -731,7 +731,7 @@ msgid "replays.inputs_detail"
 msgstr "Shows what both players pressed, frame by frame, and counts of it. Read from the replay file; nothing is played."
 
 msgid "inputs.length_value"
-msgstr "{0} rounds, {1}"
+msgstr "Rounds: {0}, {1}"
 
 msgid "inputs.buttons"
 msgstr "{0}: button presses"
@@ -821,7 +821,16 @@ msgid "replays.not_added_yet"
 msgstr "The game has not saved its last match yet. Try again in a moment."
 
 msgid "replays.not_added_files"
-msgstr "This replay could not be added: the game's replay files could not be read or written. Nothing was changed."
+msgstr "This replay could not be added: the game's replay files could not be read or prepared. No game replay files were changed."
+
+msgid "replays.not_added_archive"
+msgstr "This replay could not be added because the existing replay could not be backed up and verified. Check the archive folder and available disk space."
+
+msgid "replays.not_added_restored"
+msgstr "The import failed. The original game replay files were restored."
+
+msgid "replays.not_added_recovery"
+msgstr "The import failed and some game replay files could not be restored. Recovery data has been retained. Stop importing replays and check the log."
 
 msgid "replays.fighters"
 msgstr "{0} vs {1}"

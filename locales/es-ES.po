@@ -731,7 +731,7 @@ msgid "replays.inputs_detail"
 msgstr "Muestra lo que pulsaron ambos jugadores, fotograma a fotograma, y cuántas veces. Se lee del archivo de la repetición; no se reproduce nada."
 
 msgid "inputs.length_value"
-msgstr "Asaltos: {0}, {1}"
+msgstr "Rondas: {0}, {1}"
 
 msgid "inputs.buttons"
 msgstr "{0}: pulsaciones de botones"
@@ -821,7 +821,16 @@ msgid "replays.not_added_yet"
 msgstr "El juego aún no ha guardado el último combate. Inténtalo de nuevo en un momento."
 
 msgid "replays.not_added_files"
-msgstr "No se pudo añadir esta repetición: no se pudieron leer o escribir los archivos de repeticiones del juego. No se ha cambiado nada."
+msgstr "No se pudo añadir esta repetición: no se pudieron leer o preparar los archivos de repetición del juego. No se modificó ningún archivo de repetición del juego."
+
+msgid "replays.not_added_archive"
+msgstr "No se pudo añadir esta repetición porque no se pudo crear y verificar una copia de seguridad de la repetición existente. Revisa la carpeta del archivo y el espacio disponible en disco."
+
+msgid "replays.not_added_restored"
+msgstr "La importación falló. Se restauraron los archivos de repetición originales del juego."
+
+msgid "replays.not_added_recovery"
+msgstr "La importación falló y no se pudieron restaurar algunos archivos de repetición del juego. Se conservaron los datos de recuperación. Deja de importar repeticiones y revisa el registro."
 
 msgid "replays.fighters"
 msgstr "{0} vs {1}"

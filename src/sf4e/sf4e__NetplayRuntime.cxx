@@ -1,5 +1,6 @@
 #include "sf4e__NetplayRuntime.hxx"
 #include "../platform/Utf8.hxx"
+#include "../platform/ReplayPath.hxx"
 #include "../common/HexText.hxx"
 #include "../ui/NetworkFeedback.hxx"
 #include <iterator>
@@ -284,7 +285,7 @@ void StartHelper() {
         wchar_t text[1100] = {};
         const DWORD length = GetEnvironmentVariableW(L"SF4E_REPLAY_LINK", text, static_cast<DWORD>(std::size(text)));
         SetEnvironmentVariableW(L"SF4E_REPLAY_LINK", nullptr);
-        if (length && length < std::size(text)) runtime->replayLinkAsked = platform::WideToUtf8(std::wstring(text, length));
+        if (length && length < std::size(text)) runtime->replayLinkAsked = platform::ResolveReplayFile(platform::WideToUtf8(std::wstring(text, length)));
         if (!runtime->replayLinks.Open()) spdlog::warn("Replays: replay links cannot reach this game");
     }
 	runtime->preferences.inputDelay = GetConfig().inputDelay;

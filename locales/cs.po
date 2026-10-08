@@ -731,7 +731,7 @@ msgid "replays.inputs_detail"
 msgstr "Ukáže, co oba hráči mačkali, snímek po snímku, a kolikrát. Čte se ze souboru záznamu; nic se nepřehrává."
 
 msgid "inputs.length_value"
-msgstr "Kola: {0}, {1}"
+msgstr "Počet kol: {0}, {1}"
 
 msgid "inputs.buttons"
 msgstr "{0}: stisky tlačítek"
@@ -821,7 +821,16 @@ msgid "replays.not_added_yet"
 msgstr "Hra ještě neuložila poslední zápas. Zkus to za chvíli znovu."
 
 msgid "replays.not_added_files"
-msgstr "Tento záznam se nepodařilo přidat: soubory záznamů hry se nepodařilo přečíst nebo zapsat. Nic se nezměnilo."
+msgstr "Záznam nelze přidat: soubory záznamů hry nelze přečíst nebo připravit. Žádné soubory záznamů hry nebyly změněny."
+
+msgid "replays.not_added_archive"
+msgstr "Záznam nelze přidat, protože stávající záznam nelze zálohovat a ověřit. Zkontrolujte složku archivu a volné místo na disku."
+
+msgid "replays.not_added_restored"
+msgstr "Import selhal. Původní soubory záznamů hry byly obnoveny."
+
+msgid "replays.not_added_recovery"
+msgstr "Import selhal a některé soubory záznamů hry nelze obnovit. Data pro obnovu byla zachována. Přestaňte importovat záznamy a zkontrolujte protokol."
 
 msgid "replays.fighters"
 msgstr "{0} vs {1}"

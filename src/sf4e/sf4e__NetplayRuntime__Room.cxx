@@ -1,4 +1,5 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "../platform/ReplayPath.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__ReplayStore.hxx"
 #include "../session/IdentityEvents.hxx"
@@ -464,7 +465,7 @@ void RunReplayRequest(const replay::Request& request) {
 }
 
 void TickReplays() {
-    const std::string link = runtime->replayLinks.Take();
+    const std::string link = platform::ResolveReplayFile(runtime->replayLinks.Take());
     if (!link.empty()) {
         runtime->replayLinkAsked = link;
         spdlog::info("Replays: a link asked for a replay; the Replays screen asks the player");

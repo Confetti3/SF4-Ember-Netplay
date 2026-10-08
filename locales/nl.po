@@ -821,7 +821,16 @@ msgid "replays.not_added_yet"
 msgstr "De game heeft de laatste match nog niet opgeslagen. Probeer het zo meteen opnieuw."
 
 msgid "replays.not_added_files"
-msgstr "Deze replay kon niet worden toegevoegd: de replaybestanden van de game konden niet worden gelezen of geschreven. Er is niets gewijzigd."
+msgstr "Deze replay kon niet worden toegevoegd: de replaybestanden van het spel konden niet worden gelezen of voorbereid. Er zijn geen replaybestanden van het spel gewijzigd."
+
+msgid "replays.not_added_archive"
+msgstr "Deze replay kon niet worden toegevoegd omdat de bestaande replay niet kon worden geback-upt en gecontroleerd. Controleer de archiefmap en de beschikbare schijfruimte."
+
+msgid "replays.not_added_restored"
+msgstr "Het importeren is mislukt. De oorspronkelijke replaybestanden van het spel zijn hersteld."
+
+msgid "replays.not_added_recovery"
+msgstr "Het importeren is mislukt en sommige replaybestanden van het spel konden niet worden hersteld. De herstelgegevens zijn bewaard. Stop met het importeren van replays en controleer het logboek."
 
 msgid "replays.fighters"
 msgstr "{0} vs {1}"

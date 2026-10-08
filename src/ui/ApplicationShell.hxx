@@ -1,5 +1,5 @@
 #pragma once
-#include "../common/ReplayInputs.hxx"
+#include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplayRequest.hxx"
 #include "../common/GameDisplayConfig.hxx"
 #include "../discord/Presence.hxx"
@@ -123,12 +123,8 @@ struct ShellView {
     // is not one that reads (common/ReplayInputs.hxx).
     struct Replay { std::string path, label, names[2]; bool spectated = false, watched = false, video = false; std::optional<replayinputs::Summary> summary; std::uint64_t time = 0; };
     std::vector<Replay> replays;
-    // The replay last read whole for the Inputs and stats screen: its file,
-    // and the match, null when the file is not one that reads.
-    std::string replayInputsFile;
-    std::shared_ptr<const replayinputs::Match> replayInputs;
-    replayinputs::Summary replayInputsSummary;
-    std::shared_ptr<const std::vector<std::string>> replayInputsLogs;
+    // One completion for the screen entry; immutable detail includes all fields.
+    replayinputs::DetailCompletion replayDetail;
     bool replaysReady = false;
     std::string replayNotice;
     bool replayNoticeError = false;
@@ -192,6 +188,7 @@ public:
     MenuNavigation& Navigation() { return menu_.navigation; }
     // The replay file the Inputs and stats screen wants read, as its row named it.
     const std::string& ReplayInputsFile() const { return inputsReplay_.path; }
+    std::uint64_t ReplayInputsRevision() const { return inputsRevision_; }
     // A modal notice is open, and whether it reads as an error (for tests).
     bool NoticeOpen() const { return menu_.NoticeOpen(); }
     bool NoticeError() const { return menu_.NoticeError(); }
@@ -353,6 +350,7 @@ private:
     // was chosen. The lister hands over its match, summary and round logs;
     // drawing the screen never reads, parses or counts the replay.
     ShellView::Replay inputsReplay_;
+    std::uint64_t inputsRevision_ = 0;
     void BuildInputsRows(const ShellView& view,std::vector<MenuEntry>& rows);
     // The Export video screen: the replay it is for and the caption as the
     // player has it, sent with the request when Generate is chosen.

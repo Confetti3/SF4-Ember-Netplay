@@ -731,7 +731,7 @@ msgid "replays.inputs_detail"
 msgstr "Pokazuje, co naciskali obaj gracze, klatka po klatce, i ile razy. Odczytane z pliku powtórki; nic nie jest odtwarzane."
 
 msgid "inputs.length_value"
-msgstr "Rundy: {0}, {1}"
+msgstr "Liczba rund: {0}, {1}"
 
 msgid "inputs.buttons"
 msgstr "{0}: naciśnięcia przycisków"
@@ -821,7 +821,16 @@ msgid "replays.not_added_yet"
 msgstr "Gra nie zapisała jeszcze ostatniego meczu. Spróbuj ponownie za chwilę."
 
 msgid "replays.not_added_files"
-msgstr "Nie udało się dodać tej powtórki: nie można było odczytać lub zapisać plików powtórek gry. Nic nie zostało zmienione."
+msgstr "Nie można dodać tej powtórki: nie można odczytać lub przygotować plików powtórek gry. Żaden plik powtórek gry nie został zmieniony."
+
+msgid "replays.not_added_archive"
+msgstr "Nie można dodać tej powtórki, ponieważ nie udało się utworzyć i zweryfikować kopii zapasowej istniejącej powtórki. Sprawdź folder archiwum i wolne miejsce na dysku."
+
+msgid "replays.not_added_restored"
+msgstr "Import nie powiódł się. Przywrócono oryginalne pliki powtórek gry."
+
+msgid "replays.not_added_recovery"
+msgstr "Import nie powiódł się i nie udało się przywrócić niektórych plików powtórek gry. Zachowano dane do odzyskiwania. Przerwij importowanie powtórek i sprawdź dziennik."
 
 msgid "replays.fighters"
 msgstr "{0} vs {1}"

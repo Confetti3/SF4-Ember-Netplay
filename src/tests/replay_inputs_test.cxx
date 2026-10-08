@@ -96,7 +96,7 @@ static void TestParseAndCount() {
 static void TestScore() {
 	Bytes stream;
 	Record(stream, Both(LP, 0));
-	const auto played = [&](std::initializer_list<std::pair<int, int>> starts, int setting) {
+	const auto played = [&](std::initializer_list<std::pair<int, int>> starts, std::uint32_t setting) {
 		Bytes replay = Replay(std::vector<Bytes>(starts.size(), stream));
 		WriteU32(replay.data() + 0x2E0, setting);
 		std::size_t round = 0;
@@ -144,6 +144,26 @@ static void TestScore() {
 	replay = played({{0, 0}, {1, 0}}, 5);
 	WriteU32(replay.data() + 0x320 + 0x88 + 0x1C, 0x80000000); // must be refused before subtraction
 	CHECK(Parse(replay.data(), replay.size(), match) && !Score(match, score));
+ // Unsupported settings must not expose an arithmetic scoring target.
+ for (const auto setting : {0u, 2u, 4u, 9u, 100u, 0xFFFFFFFFu}) {
+  replay = played({{0, 0}, {1, 0}}, setting);
+  CHECK(Parse(replay.data(), replay.size(), match) && match.roundsToWin == 0 && !Score(match, score));
+ }
+ for (int setting : {1, 3, 5, 7, 15, 99}) {
+  replay = played({{0, 0}}, setting);
+  CHECK(Parse(replay.data(), replay.size(), match) && match.roundsToWin == (setting + 1) / 2);
+ }
+ replay = played({{0, 0}, {1, 0}}, 3);
+ file = wrapped(replay, 1, false);
+ CHECK(Parse(file.data(), file.size(), match) && !Score(match, score));
+ file = wrapped(replay, 0, false);
+ CHECK(Parse(file.data(), file.size(), match) && Score(match, score) && score[0] == 2);
+ replay = played({{0, 0}, {0, 1}}, 3);
+ file = wrapped(replay, 0, false);
+ CHECK(Parse(file.data(), file.size(), match) && !Score(match, score));
+ replay = played({{0, 0}}, 5); // record names a winner before anyone can finish
+ file = wrapped(replay, 1, false);
+ CHECK(Parse(file.data(), file.size(), match) && !Score(match, score));
 	// A draw gives both a round; the round after it decides.
 	replay = played({{0, 0}, {1, 1}}, 3);
 	file = wrapped(replay, 1, false);
@@ -208,37 +228,74 @@ static void TestDetailFailureBoundary() {
 		return std::string(reinterpret_cast<const char*>(encoded.data()), encoded.size());
 	};
 	const std::string path = utf8(file);
-	bool formatted = false;
-	CHECK(ReadDetail(path, [&](const Match& match) { formatted = true; CHECK(match.rounds.size() == 1 && !Log(match.rounds[0]).empty()); }));
-	CHECK(formatted);
-	CHECK(!ReadDetail(path, [](const Match&) { throw std::bad_alloc(); }));
-	CHECK(!ReadDetail(path, [](const Match&) { throw 1; }));
-	// Fail each allocation in the real read/parse/log path, from the initial
-	// byte buffer through construction of the formatted rows.
-	bool reachedSuccess = false;
-	unsigned failures = 0;
-	for (int allocation = 0; allocation < 128; allocation++) {
-		failAllocationAfter = allocation;
-		const bool ok = ReadDetail(path, [](Match& match) {
-			const Summary summary = Summarize(match);
-			auto logs = std::make_shared<std::vector<std::string>>();
-			for (const auto& round : match.rounds) logs->push_back(Log(round));
-			auto played = std::make_shared<const Match>(std::move(match));
-			CHECK(summary.rounds == played->rounds.size() && logs->size() == played->rounds.size());
-		});
-		failAllocationAfter = -1;
-		if (ok) { reachedSuccess = true; break; }
-		++failures;
-	}
-	CHECK(reachedSuccess && failures >= 4);
-	formatted = false;
-	save(Bytes(replay.begin(), replay.end() - 1));
-	CHECK(!ReadDetail(path, [&](const Match&) { formatted = true; }) && !formatted);
-	save(Bytes(sf4e::replayslots::kLargestReplay + sf4e::replayslots::kExportHeaderBytes + 1, 0));
-	CHECK(!ReadDetail(path, [&](const Match&) { formatted = true; }) && !formatted);
-	CHECK(!ReadDetail(utf8(folder / "missing"), [&](const Match&) { formatted = true; }) && !formatted);
-	CHECK(!ReadDetail(utf8(folder), [&](const Match&) { formatted = true; }) && !formatted);
+ DetailCache cache;
+ auto ready = cache.Read(path, 1);
+ CHECK(ready.revision == 1 && ready.state == DetailState::Ready && ready.value && ready.value->match.rounds.size() == 1);
+ CHECK(ready.value->logs.size() == 1 && !ready.value->logs[0].empty());
+ auto reopened = cache.Read(path, 2);
+ CHECK(reopened.revision == 2 && reopened.state == DetailState::Ready && reopened.value == ready.value);
+ // Replace at the same path, size and timestamp. Identity still changes.
+ const auto timestamp = fs::last_write_time(file);
+ Bytes replaced = replay;
+ replaced[0x320 + 0x88] = MP;
+ save(replaced); fs::last_write_time(file, timestamp);
+ auto changed = cache.Read(path, 3);
+ CHECK(changed.state == DetailState::Ready && changed.value != ready.value);
+ CHECK(changed.value->match.rounds[0].runs[0].inputs[0] == MP);
+ CHECK(ready.value->match.rounds[0].runs[0].inputs[0] == LP); // older publication stays immutable
+ save(Bytes(replay.begin(), replay.end() - 1));
+ auto unreadable = cache.Read(path, 4);
+ CHECK(unreadable.revision == 4 && unreadable.state == DetailState::Unreadable && !unreadable.value);
+ save(replay);
+ CHECK(cache.Read(path, 5).state == DetailState::Ready); // repaired without selecting another file
+ // Each allocation from the reader through the initial Detail and its logs
+ // must publish a matching failure completion, never indefinite loading.
+ bool reachedSuccess = false;
+ unsigned failures = 0;
+ for (int allocation = 0; allocation < 128; allocation++) {
+  DetailCache fresh;
+  failAllocationAfter = allocation;
+  const auto result = fresh.Read(path, 6);
+  failAllocationAfter = -1;
+  CHECK(result.revision == 6);
+  if (result.state == DetailState::Ready) { reachedSuccess = true; break; }
+  CHECK((result.state == DetailState::Failed || result.state == DetailState::Unreadable) && !result.value);
+  CHECK(fresh.Read(path, 7).state == DetailState::Ready);
+  ++failures;
+ }
+ CHECK(reachedSuccess && failures >= 4);
+ save(Bytes(sf4e::replayslots::kLargestReplay + sf4e::replayslots::kExportHeaderBytes + 1, 0));
+ CHECK(cache.Read(path, 8).state == DetailState::Unreadable);
+ CHECK(cache.Read(utf8(folder / "missing"), 9).state == DetailState::Unreadable);
+ CHECK(cache.Read(utf8(folder), 10).state == DetailState::Unreadable);
 	fs::remove_all(folder);
+}
+
+static void TestDetailRequestOwnership() {
+ DetailRequests requests;
+ const std::string file(256, 'x');
+ CHECK(requests.Want(file, 1) && requests.Pending());
+ CHECK(!requests.Want(file, 1));
+ auto first = requests.Take();
+ CHECK(first.file == file && first.revision == 1 && !requests.Pending());
+ CHECK(requests.Want(file, 2));
+ requests.Complete({1, DetailState::Unreadable, {}});
+ CHECK(requests.Latest().revision != 1);
+ auto second = requests.Take();
+ requests.Complete({2, DetailState::Unreadable, {}});
+ CHECK(requests.Latest().revision == 2 && requests.Latest().state == DetailState::Unreadable);
+ // Enqueue allocation failure is also a completion. An older worker that
+ // finishes afterward cannot undo it and strand the newest screen loading.
+ DetailRequests failing;
+ failAllocationAfter = 0;
+ const bool enqueued = failing.Want(file, 3);
+ failAllocationAfter = -1;
+ CHECK(!enqueued && !failing.Pending() && failing.Latest().revision == 3 && failing.Latest().state == DetailState::Failed);
+ failing.Complete({second.revision, DetailState::Ready, {}});
+ CHECK(failing.Latest().revision == 3 && failing.Latest().state == DetailState::Failed);
+ CHECK(requests.Want(file, 4));
+ requests.Fail(4); // worker start failure
+ CHECK(!requests.Pending() && requests.Latest().revision == 4 && requests.Latest().state == DetailState::Failed);
 }
 
 // Ember's own rules play longer than the game's: 15 rounds, and a round of
@@ -293,6 +350,7 @@ int main(int argc, char** argv) {
 	TestScore();
 	TestRefusals();
 	TestDetailFailureBoundary();
+ TestDetailRequestOwnership();
 	TestLongRules();
 	TestChoicesInRange();
 	printf("replay_inputs_test: all tests passed\n");
