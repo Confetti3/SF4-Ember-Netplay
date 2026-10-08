@@ -92,3 +92,54 @@ async fn reservations_account_for_bytes_as_well_as_count() {
     store.delivered(&"a".repeat(32)).await.unwrap();
     store.enqueue(&"b".repeat(32), b"{}").await.unwrap();
 }
+
+#[tokio::test]
+async fn leftover_dump_staging_cannot_renew_admission_headroom() {
+    for (dump_count, dump_bytes) in [(1, 32), (4, 8)] {
+        let temp = Temp::new();
+        let store = Store::new(
+            temp.0.clone(),
+            Limits {
+                dump_count,
+                dump_bytes,
+                ..Limits::default()
+            },
+        )
+        .await
+        .unwrap();
+        let a = "a".repeat(32);
+        let b = "b".repeat(32);
+        store
+            .reserve(&a, 2)
+            .await
+            .unwrap()
+            .commit(b"{}", Some(b"MDMP0001"))
+            .await
+            .unwrap();
+        // Model a previous failed write whose staging cleanup also failed.
+        let staging = store.dump_path(&"c".repeat(32)).with_extension("tmp");
+        std::fs::write(&staging, b"MDMPtemp").unwrap();
+        assert!(
+            store
+                .reserve(&b, 2)
+                .await
+                .unwrap()
+                .commit(b"{}", Some(b"MDMP0002"))
+                .await
+                .is_err()
+        );
+        assert!(store.event(&b).await.unwrap().is_none());
+        assert_eq!(std::fs::read(store.dump_path(&a)).unwrap(), b"MDMP0001");
+        assert_eq!(std::fs::read_dir(temp.0.join("dumps")).unwrap().count(), 2);
+        std::fs::remove_file(staging).unwrap();
+        store
+            .reserve(&b, 2)
+            .await
+            .unwrap()
+            .commit(b"{}", Some(b"MDMP0002"))
+            .await
+            .unwrap();
+        assert_eq!(std::fs::read(store.dump_path(&b)).unwrap(), b"MDMP0002");
+        assert_eq!(std::fs::read_dir(temp.0.join("dumps")).unwrap().count(), 1);
+    }
+}

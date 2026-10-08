@@ -153,6 +153,11 @@ be limited, and logs retain UTF-8 tails when trimmed from their start.
 - `<state>/dumps/<id>.dmp`, 0600: raw dump for up to 30 days. Pruned on startup,
   each new dump and every minute; oldest first at 2 GiB or 4096 files. A dump
   can expire sooner, so a path recorded in Bugsink may later be absent.
+  Dump admission counts retained and staged files under the storage lock. It
+  allows one replacement dump above the configured budget (at most 4 MiB, or the
+  dump byte limit if smaller). If retention leaves storage over budget, further
+  dump commits are refused until pruning recovers. The durable report remains
+  accepted and reports without dumps can still be stored.
 - `<state>/outbox/<id>.json`, 0600: pending event JSON, at most 512 files/256 MiB.
   Full capacity rejects new reports; accepted pending events are not evicted.
   A storage reservation holds the capacity lock through commit, so concurrent

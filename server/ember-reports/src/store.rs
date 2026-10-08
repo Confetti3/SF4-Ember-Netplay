@@ -15,6 +15,8 @@ pub struct Store {
     pub root: PathBuf,
     limits: Limits,
     lock: Mutex<Cursor>,
+    #[cfg(test)]
+    deletion_fault: std::sync::Mutex<Option<PathBuf>>,
 }
 #[derive(Default)]
 struct Cursor {
@@ -114,6 +116,9 @@ impl Reservation<'_> {
             .join("outbox")
             .join(format!("{}.json", self.id));
         let dump_path = self.store.dump_path(&self.id);
+        if dump.is_some() {
+            self.store.admit_dump().await?;
+        }
         let result = async {
             // Complete both staged, synced writes before publishing or pruning.
             if let Some(dump) = dump {
@@ -135,7 +140,8 @@ impl Reservation<'_> {
         }
         // The report is now durable. Retention failure cannot turn an accepted
         // write into a rejection after older evidence has already been pruned;
-        // periodic retention retries it. Protect this report from clock skew.
+        // periodic retention retries it. Further dump commits are blocked while
+        // storage is over budget. Protect this report from clock skew.
         if let Some(dump) = dump {
             let _ = self
                 .store
@@ -161,6 +167,8 @@ impl Store {
             root,
             limits,
             lock: Mutex::new(Cursor::default()),
+            #[cfg(test)]
+            deletion_fault: std::sync::Mutex::new(None),
         };
         // A killed write has no accepted report ID; remove its private temporary
         // file on restart. Durable .json events remain untouched.
@@ -182,6 +190,23 @@ impl Store {
         store.prune(SystemTime::now(), 0, 0, None).await?;
         Ok(store)
     }
+    // Called under the reservation lock, before staging either file. Permit
+    // one replacement dump beyond the retained budget so failed publication
+    // never requires deleting older evidence. Headroom is at most one file and
+    // min(DUMP_BYTES, dump_bytes) bytes, enforced by commit's input validation.
+    // Count leftover staging files too: failed cleanup must not renew headroom.
+    async fn admit_dump(&self) -> io::Result<()> {
+        let directory = self.root.join("dumps");
+        let mut files = entries(&directory, "dmp").await?;
+        files.extend(entries(&directory, "tmp").await?);
+        if self.limits.dump_count == 0
+            || files.len() > self.limits.dump_count
+            || files.iter().map(|e| e.bytes).sum::<u64>() > self.limits.dump_bytes
+        {
+            return Err(error("dump storage over budget"));
+        }
+        Ok(())
+    }
     async fn prune(
         &self,
         now: SystemTime,
@@ -199,6 +224,15 @@ impl Store {
                 || total + reserve_bytes > self.limits.dump_bytes
                 || count + reserve_count > self.limits.dump_count
             {
+                // Per-store fault injection keeps retention tests deterministic,
+                // including when run as root; staging/publication still use disk.
+                #[cfg(test)]
+                if self.deletion_fault.lock().unwrap().as_ref() == Some(&file.path) {
+                    return Err(io::Error::new(
+                        io::ErrorKind::PermissionDenied,
+                        "injected dump deletion failure",
+                    ));
+                }
                 fs::remove_file(file.path).await?;
                 total -= file.bytes;
                 count -= 1;
@@ -299,5 +333,119 @@ impl Store {
         }
         let _lock = self.lock.lock().await;
         fs::remove_file(self.root.join("outbox").join(format!("{id}.json"))).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct Temp(PathBuf);
+    impl Temp {
+        fn new() -> Self {
+            let path =
+                std::env::temp_dir().join(format!("ember-reports-test-{}", uuid::Uuid::new_v4()));
+            std::fs::create_dir(&path).unwrap();
+            Self(path)
+        }
+    }
+    impl Drop for Temp {
+        fn drop(&mut self) {
+            assert_eq!(self.0.parent(), Some(std::env::temp_dir().as_path()));
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[tokio::test]
+    async fn persistent_retention_failure_bounds_dump_admission_until_recovery() {
+        // Isolate count and byte limits, then exercise both together. Outbox
+        // delivery frees slots throughout; it cannot mask dump admission bugs.
+        for (dump_count, dump_bytes) in [(1, 32), (4, 8), (1, 8)] {
+            let temp = Temp::new();
+            let store = Store::new(
+                temp.0.clone(),
+                Limits {
+                    outbox_count: 1,
+                    dump_count,
+                    dump_bytes,
+                    ..Limits::default()
+                },
+            )
+            .await
+            .unwrap();
+            let a = "a".repeat(32);
+            let b = "b".repeat(32);
+            store
+                .reserve(&a, 2)
+                .await
+                .unwrap()
+                .commit(b"{}", Some(b"MDMP0001"))
+                .await
+                .unwrap();
+            std::fs::File::options()
+                .write(true)
+                .open(store.dump_path(&a))
+                .unwrap()
+                .set_modified(SystemTime::now() - Duration::from_secs(60))
+                .unwrap();
+            store.delivered(&a).await.unwrap();
+            *store.deletion_fault.lock().unwrap() = Some(store.dump_path(&a));
+
+            // B remains accepted even though pruning A fails after publication.
+            store
+                .reserve(&b, 2)
+                .await
+                .unwrap()
+                .commit(b"{}", Some(b"MDMP0002"))
+                .await
+                .unwrap();
+            assert_eq!(store.event(&b).await.unwrap().unwrap(), b"{}");
+            store.delivered(&b).await.unwrap();
+
+            for attempt in 0..16 {
+                let id = format!("{attempt:032x}");
+                assert!(store.prune_dumps(SystemTime::now()).await.is_err());
+                assert!(
+                    store
+                        .reserve(&id, 2)
+                        .await
+                        .unwrap()
+                        .commit(b"{}", Some(b"MDMPmore"))
+                        .await
+                        .is_err()
+                );
+                assert!(store.event(&id).await.unwrap().is_none());
+                let files: Vec<_> = std::fs::read_dir(temp.0.join("dumps"))
+                    .unwrap()
+                    .map(|e| e.unwrap())
+                    .collect();
+                assert_eq!(files.len(), 2); // No new dump or staging leftovers.
+                let bytes: u64 = files.iter().map(|e| e.metadata().unwrap().len()).sum();
+                assert_eq!(bytes, 16);
+                assert!(files.len() <= dump_count + 1);
+                assert!(bytes <= dump_bytes + 8);
+                assert_eq!(std::fs::read(store.dump_path(&a)).unwrap(), b"MDMP0001");
+                assert_eq!(std::fs::read(store.dump_path(&b)).unwrap(), b"MDMP0002");
+                // New event writes still succeed while deletion keeps failing.
+                store.enqueue(&id, b"{}").await.unwrap();
+                store.delivered(&id).await.unwrap();
+            }
+
+            *store.deletion_fault.lock().unwrap() = None;
+            store.prune_dumps(SystemTime::now()).await.unwrap();
+            assert!(!store.dump_path(&a).exists());
+            assert_eq!(std::fs::read(store.dump_path(&b)).unwrap(), b"MDMP0002");
+            let c = "c".repeat(32);
+            store
+                .reserve(&c, 2)
+                .await
+                .unwrap()
+                .commit(b"{}", Some(b"MDMP0003"))
+                .await
+                .unwrap();
+            assert_eq!(store.event(&c).await.unwrap().unwrap(), b"{}");
+            assert_eq!(std::fs::read(store.dump_path(&c)).unwrap(), b"MDMP0003");
+            assert_eq!(std::fs::read_dir(temp.0.join("dumps")).unwrap().count(), 1);
+        }
     }
 }
