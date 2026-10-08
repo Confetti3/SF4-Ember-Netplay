@@ -1,5 +1,8 @@
 #pragma once
 #include "ReplaySlots.hxx"
+#include "ReplayFileSafety.hxx"
+#include <cstdio>
+#include <ctime>
 #include <utility>
 
 namespace sf4e { namespace replayfiles {
@@ -47,5 +50,28 @@ inline bool NamesForBody(const replayslots::Bytes& note, const replayslots::Byte
  const auto* text=reinterpret_cast<const char*>(note.data()+21+body.size());
  names.players[0].assign(text,p1);names.players[1].assign(text+p1,p2);names.spectated=note[20]!=0;
  out=std::move(names);return true;
+}
+inline std::filesystem::path NamesPath(const std::filesystem::path& archive, const replayslots::Bytes& body) {
+ char key[64] = {};
+ std::snprintf(key, sizeof key, "%08x-%u.names", replayslots::Crc32(body.data(), body.size()), static_cast<unsigned>(body.size()));
+ return archive / ".names" / key;
+}
+inline ReplayNames ReadBodyNames(const std::filesystem::path& archive, const replayslots::Bytes& body) {
+ ReplayNames names;
+ if (archive.empty()) return names;
+ auto note = ReadFile(NamesPath(archive, body), replayslots::kLargestReplay + 21 + 2048);
+ if (note) NamesForBody(*note, body, names);
+ return names;
+}
+inline std::string ReplayDateLabel(std::uint64_t time) {
+ const std::time_t at = static_cast<std::time_t>(time);
+ std::tm local = {};
+#ifdef _WIN32
+ if (localtime_s(&local, &at)) return {};
+#else
+ if (!localtime_r(&at, &local)) return {};
+#endif
+ char label[32] = {};
+ return std::strftime(label, sizeof label, "%Y-%m-%d %H:%M", &local) ? label : std::string();
 }
 } }

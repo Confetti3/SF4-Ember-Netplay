@@ -20,9 +20,11 @@
 
 #include "Utf8.hxx"
 #include "ReplayPath.hxx"
+#include "ReplayPublication.hxx"
 #include "../common/ReplayFileSafety.hxx"
 #include "../common/ReplayInputDetails.hxx"
-#include "../common/ReplayProvenance.hxx"
+#include "../common/ReplayRecordingWorker.hxx"
+#include "../common/ReplayArchiveIndex.hxx"
 
 namespace fs = std::filesystem;
 namespace slots = sf4e::replayslots;
@@ -40,71 +42,43 @@ slots::Bytes LoadFile(const fs::path& path, std::size_t most = kMostReplayBytes)
  return bytes ? std::move(*bytes) : slots::Bytes{};
 }
 
-// Written under another name first, so a cut-off write is never taken for a
-// finished file. The name is this process's and this write's own: the
-// launcher and the game may both be archiving the same replay.
-bool SaveFile(const fs::path& path, const slots::Bytes& contents, bool replaceDamaged = false) {
-	static std::atomic<unsigned> serial{0};
-	const fs::path partial = path.wstring() + L"." + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(++serial) + L".tmp";
- HANDLE handle = CreateFileW(partial.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
- if (handle == INVALID_HANDLE_VALUE) return false;
- DWORD written = 0;
- const bool ok = contents.size() <= MAXDWORD && WriteFile(handle, contents.data(), static_cast<DWORD>(contents.size()), &written, nullptr) &&
-  written == contents.size() && FlushFileBuffers(handle);
- const bool closed = CloseHandle(handle) != 0;
- if (ok && closed && MoveFileExW(partial.c_str(), path.c_str(), MOVEFILE_WRITE_THROUGH | (replaceDamaged ? MOVEFILE_REPLACE_EXISTING : 0))) return true;
- DeleteFileW(partial.c_str());
- return false;
-}
-
-fs::path NamesPath(const fs::path& archive, const slots::Bytes& body) {
- wchar_t key[64] = {};
- StringCchPrintfW(key, 64, L"%08x-%u.names", slots::Crc32(body.data(), body.size()), static_cast<unsigned>(body.size()));
- return archive / L".names" / key;
-}
 void ReadNames(const fs::path& archive, const slots::Bytes& body, ArchivedReplay& replay) {
- replay.names[0].clear(); replay.names[1].clear(); replay.spectated = false;
- auto note = replayfiles::ReadFile(NamesPath(archive, body), slots::kLargestReplay + 21 + 2048);
- replayfiles::ReplayNames names;
- if (note && replayfiles::NamesForBody(*note, body, names)) {
-  replay.names[0] = names.players[0]; replay.names[1] = names.players[1]; replay.spectated = names.spectated;
- }
+ const auto names = replayfiles::ReadBodyNames(archive, body);
+ replay.names[0] = names.players[0]; replay.names[1] = names.players[1]; replay.spectated = names.spectated;
 }
-struct PendingNames {
- fs::path saves, archive;
- std::vector<replayfiles::RecordedSlot> before;
- replayfiles::ReplayNames names;
- std::uint64_t started = 0, ended = 0;
- int fighters[2] = {-1, -1};
-};
-std::mutex namesMutex;
-PendingNames pendingNames;
-std::vector<replayfiles::RecordedSlot> RecordedSlots(const fs::path& saves) {
- std::vector<replayfiles::RecordedSlot> slotsNow;
+replayfiles::RecordingSnapshot RecordingSlots() {
+ const auto folders = FindFolders();
+ replayfiles::RecordingSnapshot snapshot;
+ snapshot.saves = folders.active; snapshot.archive = folders.archive;
+ if (snapshot.saves.empty() || snapshot.archive.empty()) return snapshot;
  for (int slot = kFirstMatchSlot; slot <= kLastMatchSlot; ++slot) {
-  const auto path = saves / std::to_wstring(slot);
+  const auto path = snapshot.saves / std::to_wstring(slot);
   replayfiles::Change body, checksum;
   if (!replayfiles::Snapshot(path, slots::kLargestReplay, body) || !replayfiles::Snapshot(path.wstring() + L".0", 4, checksum))
    throw std::runtime_error("recording slots could not be read");
-  slotsNow.push_back({std::move(body.before), std::move(checksum.before)});
+  snapshot.slots.push_back({std::move(body.before), std::move(checksum.before)});
  }
- return slotsNow;
+ return snapshot;
 }
-// Caller holds namesMutex. Retry only this closed recording before another
-// recording begins, never attach old notes to arbitrary archive files.
-void BindPendingNames() {
- if (pendingNames.saves.empty() || !pendingNames.ended) return;
- const auto after = RecordedSlots(pendingNames.saves);
- const auto* body = replayfiles::RecordedBody(pendingNames.before, after, pendingNames.started, pendingNames.ended, pendingNames.fighters);
- if (!body) return;
- const auto path = NamesPath(pendingNames.archive, *body);
- std::error_code error;
- fs::create_directories(path.parent_path(), error);
- const auto bytes = replayfiles::BindNames(*body, pendingNames.names);
+bool PublishNames(const fs::path& archive, const slots::Bytes& body, const replayfiles::ReplayNames& names) {
+ const auto path = replayfiles::NamesPath(archive, body);
  auto existing = replayfiles::ReadFile(path, slots::kLargestReplay + 21 + 2048);
  replayfiles::ReplayNames bound;
- if (existing && replayfiles::NamesForBody(*existing, *body, bound)) { pendingNames = {}; return; }
- if (!bytes.empty() && SaveFile(path, bytes)) pendingNames = {};
+ if (existing && replayfiles::NamesForBody(*existing, body, bound)) return true;
+ std::error_code error;
+ fs::create_directories(path.parent_path(), error);
+ const auto bytes = replayfiles::BindNames(body, names);
+ return !bytes.empty() && PublishFile(path, bytes);
+}
+std::atomic<replayfiles::RecordingWorker*> provenanceWorker{nullptr};
+replayfiles::RecordingWorker& Provenance() {
+ // Explicit shutdown joins this owner outside the loader lock, as it does
+ // the lister. Shutdown need not create a worker that was never used.
+ static auto* const worker = [] {
+  auto* started = new replayfiles::RecordingWorker(RecordingSlots, PublishNames);
+  provenanceWorker.store(started); return started;
+ }();
+ return *worker;
 }
 
 // "20261005-213503-69991186.emberreplay": the save time (UTC) and the CRC,
@@ -116,98 +90,47 @@ bool ArchiveName(const slots::Bytes& exported, wchar_t (&name)[64]) {
 		utc.tm_year + 1900, utc.tm_mon + 1, utc.tm_mday, utc.tm_hour, utc.tm_min, utc.tm_sec, slots::ReadU32(exported.data() + 8 + 5)));
 }
 
-// What a replay's own file says of it: whose it is, when it was saved, and
-// the CRC of the replay in it. Ember's files sit in the archive root, named
-// by their save time and CRC, and count only when they are the export that
-// name says (WholeArchived); usf4-replay-saver's (.usf4replay, the game's
-// file as it is) may be dropped in any folder under it and tell their time
-// and fighters themselves. False for any other file.
-bool ReadArchiveRow(const fs::path& path, bool inRoot, ArchivedReplay& replay, std::uint32_t& crc, slots::Bytes& body, slots::Bytes& identity) {
- replayfiles::ArchiveFile read;
- if (!replayfiles::ReadArchive(path, inRoot, read)) return false;
- replay = ArchivedReplay{path};
- replay.fighters[0] = read.fighters[0]; replay.fighters[1] = read.fighters[1];
- const std::uint64_t time = read.time;
- crc = read.crc;
- body = std::move(read.body);
-	const __time64_t at = static_cast<__time64_t>(time);
-	tm local = {};
-	char label[32] = { 0 };
-	if (_localtime64_s(&local, &at) || !std::strftime(label, sizeof(label), "%Y-%m-%d %H:%M", &local)) return false;
-	replay.label = label; replay.time = time;
- identity = std::move(read.contents);
-	return true;
-}
-
-// The archive as this process last read it: every replay file by its path,
-// with its complete bytes, so summaries are reused only for identical files.
-// The listing, the archiver and the import's check all read this one
-// index. Refresh reads the folder on the caller's thread; Candidates locates
-// possible backups and Verify freshly reads only those files.
+// The archive index contains only CRC-indexed paths. Parsing and exact-byte
+// cache reuse belong to the serialized worker refresh, bounded to 16 files.
 class ArchiveIndex {
 public:
-	struct Entry { bool replay = false; std::uint32_t crc = 0; ArchivedReplay read; bool summarized = false; slots::Bytes body, identity; };
-
-	// Brings the index up to the folder. The files are read without the lock,
-	// so a thread that only asks is never kept waiting for a disk.
-	std::vector<ArchivedReplay> Refresh(const fs::path& archive) {
-		std::map<std::wstring, Entry> kept, seen;
-		{ std::lock_guard<std::mutex> lock(mutex_); kept = files_; }
-		std::vector<ArchivedReplay> replays;
-		std::error_code ignored;
-		for (fs::recursive_directory_iterator at(archive, fs::directory_options::skip_permission_denied, ignored), end; !ignored && at != end; at.increment(ignored)) {
-			const fs::path& path = at->path();
-			const std::wstring extension = path.extension().wstring();
-			if (extension != L".emberreplay" && extension != L".usf4replay") continue;
-			std::error_code failed;
-			// A directory by a replay's name is not one.
-			if (!at->is_regular_file(failed) || failed) continue;
-			const auto before = kept.find(path.wstring());
-			Entry entry;
-   entry.replay = ReadArchiveRow(path, path.parent_path() == archive, entry.read, entry.crc, entry.body, entry.identity);
-   if (entry.replay) {
-    if (before != kept.end() && before->second.summarized && before->second.identity == entry.identity) entry.read.summary = before->second.read.summary;
-    else {
-     // Worker/launcher only. Add leaves parsing for this refresh.
-     replayinputs::Match played;
-     if (replayinputs::Parse(entry.identity.data(), entry.identity.size(), played)) entry.read.summary = replayinputs::Summarize(played);
-    }
-    entry.summarized = true;
-    ReadNames(archive, entry.body, entry.read); replays.push_back(entry.read);
+ std::vector<ArchivedReplay> Refresh(const fs::path& archive) {
+  std::vector<ArchivedReplay> replays;
+  candidates_.Refresh([&] {
+   std::map<std::uint32_t, replayfiles::ArchiveCandidates::Paths> paths;
+   std::error_code error;
+   for (fs::recursive_directory_iterator at(archive, fs::directory_options::skip_permission_denied, error), end;
+    !error && at != end; at.increment(error)) {
+    const fs::path path = at->path();
+    if (path.extension() != L".emberreplay" && path.extension() != L".usf4replay") continue;
+    replayfiles::ArchiveFile read;
+    if (replayfiles::ReadArchive(path, path.parent_path() == archive, read) != replayfiles::ArchiveState::Valid) continue;
+    ArchivedReplay replay{path};
+    replay.label = replayfiles::ReplayDateLabel(read.time); replay.time = read.time;
+    replay.fighters[0] = read.fighters[0]; replay.fighters[1] = read.fighters[1];
+    replay.summary = summaries_.Read(read.contents);
+    ReadNames(archive, read.Body(), replay);
+    replays.push_back(std::move(replay));
+    paths[read.crc].push_back(path);
    }
-			seen.emplace(path.wstring(), std::move(entry));
-		}
-		std::lock_guard<std::mutex> lock(mutex_);
-		// A file archived while the folder was being read stays known.
-		for (auto& added : added_) seen.emplace(added.first, std::move(added.second));
-		added_.clear();
-		files_ = std::move(seen);
-		return replays;
-	}
- std::vector<fs::path> Candidates(std::uint32_t crc) const {
-  std::lock_guard<std::mutex> lock(mutex_);
-  std::vector<fs::path> paths;
-  const auto append = [&](const std::map<std::wstring, Entry>& files) {
-   for (const auto& file : files) if (file.second.replay && file.second.crc == crc) paths.emplace_back(file.first);
-  };
-  append(files_); append(added_);
-  return paths;
+   replayfiles::ArchiveCandidates::Map seen;
+   for (auto& item : paths) seen.emplace(item.first, std::make_shared<const replayfiles::ArchiveCandidates::Paths>(std::move(item.second)));
+   return seen;
+  });
+  return replays;
  }
  bool Verify(const fs::path& archive, const slots::Bytes& body, replayfiles::BackupEvidence& evidence) const {
-  return replayfiles::VerifyBackup(Candidates(slots::Crc32(body.data(), body.size())), archive, body, evidence);
+  return replayfiles::VerifyBackup(candidates_.Candidates(slots::Crc32(body.data(), body.size())), archive, body, evidence);
  }
-	// A file this process just wrote into the archive.
-	bool Add(const fs::path& path) {
-		Entry entry;
-		entry.replay = ReadArchiveRow(path, true, entry.read, entry.crc, entry.body, entry.identity);
-		if (!entry.replay) return false;
-		std::lock_guard<std::mutex> lock(mutex_);
-		added_[path.wstring()] = std::move(entry);
-		return true;
-	}
+ bool Add(const fs::path& path) {
+  replayfiles::ArchiveFile read;
+  if (replayfiles::ReadArchive(path, true, read) != replayfiles::ArchiveState::Valid) return false;
+  candidates_.Add(read.crc, path);
+  return true;
+ }
 private:
-	mutable std::mutex mutex_;
-	std::map<std::wstring, Entry> files_, added_;
+ replayfiles::ArchiveCandidates candidates_;
+ replayfiles::ArchiveSummaryCache summaries_;
 };
 ArchiveIndex& Index() { static ArchiveIndex index; return index; }
 
@@ -265,11 +188,11 @@ Archived ArchiveSlot(const fs::path& archive, const fs::path& saves, int slot, c
 	if (!fromRecord && fs::file_time_type::clock::now() - fs::last_write_time(file, ignored) < std::chrono::minutes(2)) return Archived::Nothing;
 	if (!fromRecord) spdlog::info("Replays: slot {} holds a replay the game's index does not list; archived from the file alone", slot);
 	fs::create_directories(archive, ignored);
- replayfiles::ArchiveFile existing;
- if (replayfiles::ReadArchive(archive / name, true, existing)) {
-  if (existing.body != now.replay) return Archived::Failed; // valid naming collision: preserve both originals
- } else if (!SaveFile(archive / name, exported, true)) {
-  spdlog::warn("Replays: could not write the copy of slot {}", slot); return Archived::Failed;
+ const fs::path target = archive / name;
+ if (!replayfiles::PublishArchive(now.replay, exported,
+  [&](replayfiles::ArchiveFile& existing) { return replayfiles::ReadArchive(target, true, existing); },
+  [&](const slots::Bytes& bytes) { return PublishFile(target, bytes); })) {
+  spdlog::warn("Replays: could not safely publish the copy of slot {}", slot); return Archived::Failed;
  }
 	if (!Index().Add(archive / name)) { spdlog::warn("Replays: the copy of slot {} could not be verified", slot); return Archived::Failed; }
 	return Archived::Copied;
@@ -457,7 +380,7 @@ ImportResult ImportFile(const fs::path& file, const Writer& write, const Remover
    outcome = applied == replayfiles::ApplyOutcome::FailedRestored ? ImportResult::FailedRestored : ImportResult::RecoveryIncomplete;
    if (outcome == ImportResult::RecoveryIncomplete) {
     failedRecovery.emplace(std::move(transaction)); // move only; no allocation after a failed rollback
-    const bool persisted = SaveFile(failedRecovery->recoveryFile, failedRecovery->recoveryBytes);
+    const bool persisted = PublishFile(failedRecovery->recoveryFile, failedRecovery->recoveryBytes);
     spdlog::error(L"Replays: restoration incomplete; originals retained in this process; recovery file {} {}", failedRecovery->recoveryFile.c_str(), persisted ? L"written" : L"could not be written");
    } else spdlog::error("Replays: import failed; every original file was restored");
    return outcome;
@@ -475,27 +398,22 @@ ImportResult ImportFile(const fs::path& file, const Writer& write, const Remover
 }
 
 void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2) {
- std::lock_guard<std::mutex> lock(namesMutex);
  try {
-  BindPendingNames();
-  pendingNames = {}; // a failed/unattributed recording cannot leak to the next
-  const auto folders = FindFolders();
-  if (folders.active.empty() || folders.archive.empty()) return;
-  PendingNames note;
-  note.saves = folders.active; note.archive = folders.archive;
-  note.before = RecordedSlots(note.saves);
-  note.names = {{p1, p2}, spectating}; note.fighters[0] = fighter1; note.fighters[1] = fighter2;
-  note.started = static_cast<std::uint64_t>(_time64(nullptr));
-  pendingNames = std::move(note);
- } catch (...) { pendingNames = {}; spdlog::warn("Replays: recording provenance could not be captured"); }
+  if (p1.size() > 1024 || p2.size() > 1024) { Provenance().Invalidate(); return; }
+  replayfiles::RecordingBoundary event;
+  event.kind = replayfiles::RecordingBoundary::Kind::Start;
+  event.time = static_cast<std::uint64_t>(_time64(nullptr));
+  event.names = {{p1, p2}, spectating}; event.fighters[0] = fighter1; event.fighters[1] = fighter2;
+  Provenance().Post(std::move(event));
+ } catch (...) { try { Provenance().Invalidate(); } catch (...) {} }
 }
 void NoteMatchEnd() {
- std::lock_guard<std::mutex> lock(namesMutex);
  try {
-  if (pendingNames.saves.empty() || pendingNames.ended) return;
-  pendingNames.ended = static_cast<std::uint64_t>(_time64(nullptr));
-  BindPendingNames();
- } catch (...) { spdlog::warn("Replays: recording provenance could not be bound"); }
+  replayfiles::RecordingBoundary event;
+  event.kind = replayfiles::RecordingBoundary::Kind::End;
+  event.time = static_cast<std::uint64_t>(_time64(nullptr));
+  Provenance().Post(std::move(event));
+ } catch (...) { try { Provenance().Invalidate(); } catch (...) {} }
 }
 
 void MarkWatched(const fs::path& file) {
@@ -534,7 +452,6 @@ std::vector<ArchivedReplay> List(NotesCache& cache) {
 	const Folders folders = FindFolders();
 	if (folders.archive.empty()) return {};
 	std::error_code ignored;
- { std::lock_guard<std::mutex> lock(namesMutex); BindPendingNames(); }
  const fs::path watchedFile = folders.archive / L"watched.txt";
 	const auto watchedWritten = fs::last_write_time(watchedFile, ignored);
 	if (ignored) cache.watched.clear(); else if (watchedWritten != cache.watchedWritten) cache.watched = WatchedNames(watchedFile);
@@ -575,7 +492,8 @@ void ListUntilStopped(Lister& lister) {
 		if (lister.details.Pending()) {
    auto request = lister.details.Take();
 			lock.unlock();
-   const auto detail = details.Read(request.file, request.revision);
+   replayinputs::DetailCompletion detail{request.revision, replayinputs::DetailState::Failed, {}};
+   try { detail = details.Read(request.file, request.revision, FindFolders().archive); } catch (...) {}
    lock.lock();
    lister.details.Complete(detail);
 		}
@@ -588,7 +506,10 @@ void ListUntilStopped(Lister& lister) {
 			catch (const std::exception& e) { spdlog::warn("Replays: the archive was not listed: {}", e.what()); }
 			catch (...) { spdlog::warn("Replays: the archive was not listed"); }
 			lock.lock();
-			if (listed) lister.latest = std::move(listed);
+			if (listed) {
+    auto retired = std::move(lister.latest); lister.latest = std::move(listed);
+    lock.unlock(); retired.reset(); lock.lock();
+   }
 			nextListing = std::chrono::steady_clock::now() + std::chrono::seconds(2);
 		}
 		else if (lister.wanted) lister.wake.wait_until(lock, nextListing, [&] { return lister.stop || lister.details.Pending(); });
@@ -632,6 +553,7 @@ std::shared_ptr<const std::vector<ArchivedReplay>> LatestListing() {
 }
 
 void StopListing() {
+ if (auto* worker = provenanceWorker.load()) worker->Stop();
 	Lister& lister = TheLister();
 	std::thread thread;
 	{

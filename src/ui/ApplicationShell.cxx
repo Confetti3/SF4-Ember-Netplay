@@ -945,7 +945,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   }
   else if(a.id.compare(0,7,"replay:")==0&&a.text=="inputs"){
    // Nothing is sent to the game: the screen names the file and is handed its match (ReplayInputsFile).
-   for(const auto& shown:v.replays)if(shown.path==a.id.substr(7)){inputsReplay_=shown;++inputsRevision_;menu_.navigation.Push("replay-inputs");break;}
+   for(const auto& shown:v.replays)if(shown.path==a.id.substr(7)){inputsFile_=shown.path;++inputsRevision_;menu_.navigation.Push("replay-inputs");break;}
   }
   else if(a.id.compare(0,7,"replay:")==0&&a.text=="export"){
    // The caption is set up first; Generate on that screen sends the export.

@@ -52,4 +52,3 @@ static void Fill(Bytes& list, Bytes& swan, int slot, const Bytes& replay, std::u
 	swan[kSwanSlotBytesOffset + slot * 2] = swan[kSwanSlotBytesOffset + slot * 2 + 1] = 0x0E;
 	Seal(swan);
 }
-

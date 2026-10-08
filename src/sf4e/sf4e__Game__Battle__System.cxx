@@ -698,8 +698,8 @@ void fSystem::CloseBattle() {
     if (!summaryEmitted) {
         EmitRollbackDiagSummary("battle_close_deferred");
     }
-    (_this->*rSystem::publicMethods.CloseBattle)();
     sf4e::platform::replays::NoteMatchEnd();
+    (_this->*rSystem::publicMethods.CloseBattle)();
     sf4e::memento::LogCounters("battle_close_exit");
     sf4e::memento::ResetCounters();
     ResetNativeResultMatch();

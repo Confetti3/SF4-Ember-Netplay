@@ -1,5 +1,9 @@
 #include "shell_journey_support.hxx"
 #include "shell_replay_journey.hxx"
+#include "../ui/ReplaySummaryText.hxx"
+#include <algorithm>
+#include <chrono>
+#include <fstream>
 namespace {
 std::shared_ptr<const sf4e::replayinputs::Detail> InputsFixture(const std::string& file) {
  auto detail=std::make_shared<sf4e::replayinputs::Detail>();detail->file=file;
@@ -36,6 +40,47 @@ void InputsJourney(Harness& h,bool ready) {
  h.FocusOn("inputs-p2");h.FocusOn("inputs-round-1");
  h.view.replayDetail={};h.view.replaysReady=true;
 }
+void InputsReplacementJourney(Harness& h) {
+ namespace fs=std::filesystem;
+ namespace files=sf4e::replayfiles;
+ namespace in=sf4e::replayinputs;
+ const auto folder=fs::temp_directory_path()/("ember-inputs-screen-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+ Check(fs::create_directory(folder)&&fs::create_directory(folder/".names"),"Replacement fixture folder");
+ const auto path=folder/"inputs.usf4replay";
+ const auto body=[](unsigned fighter,unsigned button,std::uint64_t seconds){
+  sf4e::replayslots::Bytes replay(0x320+0x88,0);std::memcpy(replay.data(),"#BRP",4);replay[8]=1;replay[10]=8;
+  const auto native=116444736000000000ull+seconds*10000000ull;
+  sf4e::replayslots::WriteU32(replay.data()+0x10,static_cast<std::uint32_t>(native));
+  sf4e::replayslots::WriteU32(replay.data()+0x14,static_cast<std::uint32_t>(native>>32));
+  sf4e::replayslots::WriteU32(replay.data()+0x20,fighter);sf4e::replayslots::WriteU32(replay.data()+0x170,1);
+  replay[0x18]=1;replay[0x320+0x7C]=3;replay.push_back(static_cast<unsigned char>(button));replay.push_back(0);replay.push_back(0);return replay;
+ };
+ const auto save=[](const fs::path& file,const sf4e::replayslots::Bytes& bytes){
+  std::ofstream out(file,std::ios::binary|std::ios::trunc);out.write(reinterpret_cast<const char*>(bytes.data()),static_cast<std::streamsize>(bytes.size()));out.close();Check(!out.fail(),"Replacement fixture write");
+ };
+ const auto a=body(0,in::LP,1800000000),b=body(25,in::MP,1800000060);
+ save(path,a);save(files::NamesPath(folder,a),files::BindNames(a,{{"Ann","Bob"},false}));
+ in::DetailCache cache;
+ const auto file=path.u8string();const auto first=cache.Read(file,1,folder);
+ Check(first.value!=nullptr,"Original detail unreadable");
+ ShellView::Replay row;row.path=file;row.label=ReplayLabel(first.value->label,first.value->names,first.value->fighters);row.names[0]="Ann";row.names[1]="Bob";
+ const auto written=fs::last_write_time(path);
+ save(path,b);fs::last_write_time(path,written);save(files::NamesPath(folder,b),files::BindNames(b,{{"Carol","Dave"},true}));
+ // The listing still holds A when Inputs requests the current body B.
+ OpenInputs(h,row,true);
+ h.view.replayDetail=cache.Read(file,h.shell.ReplayInputsRevision(),folder);
+ const auto detail=h.view.replayDetail.value;
+ Check(detail&&detail->match.rounds[0].runs[0].inputs[0]==in::MP,"Replacement inputs did not read B");
+ std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});h.Frame();
+ const auto find=[&](const char* id)->const MenuEntry&{const auto at=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});Check(at!=rows.end(),"Replacement Inputs row missing");return *at;};
+ const auto label=ReplayLabel(detail->label,detail->names,detail->fighters);
+ Check(find("inputs-replay").label==label&&label!=row.label,"Inputs displayed A's date/fighters/names above B's stats");
+ Check(find("inputs-p1").label==sf4e::loc::Tf("inputs.buttons","Carol")&&find("inputs-p2").label==sf4e::loc::Tf("inputs.buttons","Dave"),"Inputs displayed stale player names");
+ Check(find("inputs-p1").userText&&detail->fighters[0]==25&&detail->time==1800000060,"Inputs metadata was not body-bound");
+ h.view.replays.clear();h.Frame();
+ Check(find("inputs-replay").label==label,"Listing refresh changed completed Inputs metadata");
+ SetMenuEntriesProbe({});h.view.replayDetail={};h.Press(MenuInput::Back);fs::remove_all(folder);
+}
 }
 void ReplayJourneys() {
  using namespace sf4e;
@@ -66,6 +111,7 @@ void ReplayJourneys() {
    Check(sent.caption.wins[0]==1&&sent.caption.wins[1]==1&&sent.caption.text=="2026-10-06   2-1"&&sent.caption.name[0]=="A","The caption did not start from the replay and the set before it");
    Check(h.shell.Navigation().Screen()=="replays","Generate did not return to the Replays screen");}
   InputsJourney(h,true);
+  InputsReplacementJourney(h);
   // In a room the menu is the room's: a link waits there, and takes the menu once the room is left.
   h.view.replayLink.clear();h.Frame();h.Screen("home");
   h.view.session.room=netplay::RoomState::Joined;h.view.replayLink="D:\\x\\c.usf4replay";h.Frame();

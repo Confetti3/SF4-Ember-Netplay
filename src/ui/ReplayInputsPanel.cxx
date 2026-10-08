@@ -11,16 +11,16 @@ void ApplicationShell::BuildInputsRows(const ShellView& v,std::vector<MenuEntry>
  namespace in=replayinputs;
  try {
  if(v.replayDetail.revision!=inputsRevision_||v.replayDetail.state==replayinputs::DetailState::Pending){rows.push_back(InfoRow("inputs-reading",loc::T("inputs.reading"),"",loc::T("replays.inputs_detail")));return;}
- if(v.replayDetail.state!=replayinputs::DetailState::Ready||!v.replayDetail.value||v.replayDetail.value->file!=inputsReplay_.path){rows.push_back(InfoRow("inputs-none",loc::T("inputs.unreadable"),"",loc::T("inputs.unreadable_detail")));return;}
+ if(v.replayDetail.state!=replayinputs::DetailState::Ready||!v.replayDetail.value||v.replayDetail.value->file!=inputsFile_){rows.push_back(InfoRow("inputs-none",loc::T("inputs.unreadable"),"",loc::T("inputs.unreadable_detail")));return;}
  const auto& detail=*v.replayDetail.value;
  const in::Match& match=detail.match;
  const in::Summary& summary=detail.summary;
  const std::string score=ScoreText(summary);
- rows.push_back(InfoRow("inputs-replay",inputsReplay_.label,(score.empty()?"":score+"  ")+MatchText(summary),loc::T("replays.inputs_detail")));
+ rows.push_back(InfoRow("inputs-replay",ReplayLabel(detail.label,detail.names,detail.fighters),(score.empty()?"":score+"  ")+MatchText(summary),loc::T("replays.inputs_detail")));
  rows.back().userText=true;
  for(int side=0;side<2;side++){
-  rows.push_back(InfoRow("inputs-p"+std::to_string(side+1),loc::Tf("inputs.buttons",ReplayPlayerName(inputsReplay_.names,side)),PressesText(summary.stats[side]),LookText(summary.players[side])+". "+ActivityText(summary.stats[side])));
-  rows.back().userText=!inputsReplay_.names[side].empty();
+  rows.push_back(InfoRow("inputs-p"+std::to_string(side+1),loc::Tf("inputs.buttons",ReplayPlayerName(detail.names,side)),PressesText(summary.stats[side]),LookText(summary.players[side])+". "+ActivityText(summary.stats[side])));
+  rows.back().userText=!detail.names[side].empty();
  }
  for(std::size_t round=0;round<match.rounds.size();round++){
   const std::size_t number=round+1;

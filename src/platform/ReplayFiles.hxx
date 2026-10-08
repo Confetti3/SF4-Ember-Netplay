@@ -100,8 +100,9 @@ using Remover = std::function<bool(const std::string& name)>;
 using Publisher = std::function<bool(const Imported& imported)>;
 ImportResult ImportFile(const std::filesystem::path& file, const Writer& write, const Remover& remove, const Publisher& publish, Imported& out);
 
-// Capture the active account's slots at the recording boundary. On native
-// close, bind a unique newly saved body to these names; no archive-to-time
+// Enqueue recording-boundary facts only. One worker observes the active
+// account's slots and binds delayed saves; a missed baseline receives no names.
+// On native close, bind a unique newly saved body to these names; no archive-to-time
 // join is performed. Native metadata has no verified Ember player/session ID,
 // so initial attribution uses account, slot change, fighters and native save
 // time within this match's lifetime. Body-bound notes thereafter are exact.

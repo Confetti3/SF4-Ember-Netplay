@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ReplaySlots.hxx"
+#include <algorithm>
 
 #include <filesystem>
 #include <fstream>
@@ -46,31 +47,57 @@ inline bool Snapshot(const std::filesystem::path& path, std::size_t most, Change
 
 // The archive reader owns validation for both listing and backup proof.
 struct ArchiveFile {
- replayslots::Bytes contents, body;
+ replayslots::Bytes contents;
+ std::size_t bodyOffset = 0;
  std::uint64_t time = 0;
  std::uint32_t crc = 0;
  int fighters[2] = {-1, -1};
+ bool SameBody(const replayslots::Bytes& body) const {
+  return contents.size() >= bodyOffset && contents.size() - bodyOffset == body.size() &&
+   std::equal(body.begin(), body.end(), contents.begin() + bodyOffset);
+ }
+ replayslots::Bytes Body() const { return {contents.begin() + bodyOffset, contents.end()}; }
 };
-inline bool ReadArchive(const std::filesystem::path& path, bool inRoot, ArchiveFile& out) {
+// Missing and unreadable are different publication decisions. Invalid means
+// the complete bounded file was read successfully but failed validation.
+enum class ArchiveState { Missing, Unreadable, Invalid, Valid };
+inline ArchiveState ReadArchive(const std::filesystem::path& path, bool inRoot, ArchiveFile& out) {
+ std::error_code error;
+ const auto status = std::filesystem::status(path, error);
+ if (status.type() == std::filesystem::file_type::not_found &&
+  (!error || error == std::errc::no_such_file_or_directory)) return ArchiveState::Missing;
+ if (error || !std::filesystem::is_regular_file(status)) return ArchiveState::Unreadable;
  auto bytes = ReadFile(path);
- if (!bytes) return false;
+ if (!bytes) return ArchiveState::Unreadable;
  ArchiveFile read;
  if (path.extension() == L".usf4replay") {
   replayslots::ReplayHeaderInfo header;
-  if (bytes->size() > replayslots::kLargestReplay || !replayslots::ReadReplayHeader(*bytes, header)) return false;
+  if (bytes->size() > replayslots::kLargestReplay || !replayslots::ReadReplayHeader(*bytes, header)) return ArchiveState::Invalid;
   read.time = header.time;
   read.fighters[0] = header.fighters[0]; read.fighters[1] = header.fighters[1];
-  read.body = *bytes;
-  read.crc = replayslots::Crc32(read.body.data(), read.body.size());
+  read.crc = replayslots::Crc32(bytes->data(), bytes->size());
  } else {
-  if (!inRoot || !replayslots::ParseArchiveName(path.filename().wstring(), read.time, read.crc) || !replayslots::WholeArchived(*bytes, read.crc)) return false;
+  if (!inRoot || !replayslots::ParseArchiveName(path.filename().wstring(), read.time, read.crc) || !replayslots::WholeArchived(*bytes, read.crc)) return ArchiveState::Invalid;
   const auto info = replayslots::ReadRecordInfo(bytes->data() + 8);
   read.fighters[0] = info.fighters[0]; read.fighters[1] = info.fighters[1];
-  read.body.assign(bytes->begin() + replayslots::kExportHeaderBytes, bytes->end());
+  read.bodyOffset = replayslots::kExportHeaderBytes;
  }
  read.contents = std::move(*bytes);
  out = std::move(read);
- return true;
+ return ArchiveState::Valid;
+}
+// One publication policy, used with the actual create-only writer. Even a
+// confirmed damaged target is preserved for manual repair: a prior read
+// cannot authorize replacing a file another process may have just published.
+template<class Reader, class CreateOnly>
+bool PublishArchive(const replayslots::Bytes& body, const replayslots::Bytes& exported,
+ const Reader& read, const CreateOnly& createOnly) {
+ ArchiveFile existing;
+ switch (read(existing)) {
+ case ArchiveState::Valid: return existing.SameBody(body);
+ case ArchiveState::Missing: return createOnly(exported);
+ default: return false;
+ }
 }
 struct BackupEvidence { std::filesystem::path path; ArchiveFile replay; };
 // The cached index only locates candidates. Read each candidate now, and
@@ -80,7 +107,7 @@ inline bool VerifyBackup(const std::vector<std::filesystem::path>& candidates, c
  const replayslots::Bytes& body, BackupEvidence& out) {
  for (const auto& path : candidates) {
   ArchiveFile read;
-  if (ReadArchive(path, path.parent_path() == archive, read) && read.body == body) {
+  if (ReadArchive(path, path.parent_path() == archive, read) == ArchiveState::Valid && read.SameBody(body)) {
    out = {path, std::move(read)}; return true;
   }
  }

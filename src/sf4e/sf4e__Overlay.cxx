@@ -7,6 +7,7 @@
 #include "../ui/ApplicationShell.hxx"
 #include "../ui/FighterSelector.hxx"
 #include "../ui/MenuRows.hxx"
+#include "../ui/ReplaySummaryText.hxx"
 #include "../ui/OverlayLifecycle.hxx"
 #include "../ui/OverlayPresentation.hxx"
 #include "../ui/Theme.hxx"
@@ -268,13 +269,8 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     if (shell.Navigation().Screen() == "replays") {
         sf4e::platform::replays::WantListing();
         if (snapshot.replays.archive) for (const auto& replay : *snapshot.replays.archive) {
-            const auto name = [&](int side) {
-                const auto* fighter = sf4e::selection::FindFighter(replay.fighters[side]);
-                const std::string fighterName = fighter ? fighter->name : sf4e::loc::T("common.unavailable");
-                return replay.names[side].empty() ? fighterName : sf4e::loc::Tf("replays.player", replay.names[side], fighterName);
-            };
             view.replays.push_back({sf4e::platform::WideToUtf8(replay.path.wstring()),
-                replay.label + "  " + sf4e::loc::Tf("replays.fighters", name(0), name(1)), {replay.names[0], replay.names[1]}, replay.spectated, replay.watched, replay.video, replay.summary, replay.time});
+                sf4e::ui::ReplayLabel(replay.label, replay.names, replay.fighters), {replay.names[0], replay.names[1]}, replay.spectated, replay.watched, replay.video, replay.summary, replay.time});
         }
     }
     // Each entry owns a revision. WantDetail coalesces frames of that entry;

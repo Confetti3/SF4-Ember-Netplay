@@ -4,10 +4,12 @@
 #include "../platform/ReplayFiles.hxx"
 #include <algorithm>
 #include <chrono>
+#include <iterator>
 #include <map>
 #include <stdexcept>
 #ifdef _WIN32
 #include "../platform/ReplayPath.hxx"
+#include "../platform/ReplayPublication.hxx"
 #endif
 
 static void TestImportWriteRecovery() {
@@ -117,13 +119,13 @@ static void TestVerifiedArchiveAndSnapshots() {
 	const fs::path archive = folder / name;
 	files::ArchiveFile read;
 	CHECK(fs::create_directory(archive));
-	CHECK(!files::ReadArchive(archive, true, read));
+	CHECK(files::ReadArchive(archive, true, read) != files::ArchiveState::Valid);
 #ifdef _WIN32
  CHECK(sf4e::platform::ResolveReplayFile(sf4e::platform::WideToUtf8(archive.wstring())).empty());
 #endif
 	CHECK(fs::remove(archive));
 	save(archive, exported);
-	CHECK(files::ReadArchive(archive, true, read) && read.crc == Crc32(body.data(), body.size()));
+	CHECK(files::ReadArchive(archive, true, read) == files::ArchiveState::Valid && read.crc == Crc32(body.data(), body.size()));
 #ifdef _WIN32
  const auto resolved=sf4e::platform::ResolveReplayFile(sf4e::platform::WideToUtf8(archive.wstring()));
  CHECK(!resolved.empty() && fs::equivalent(fs::u8path(resolved),archive));
@@ -137,24 +139,24 @@ static void TestVerifiedArchiveAndSnapshots() {
  }
 #endif
 	Bytes bad = exported; bad.resize(bad.size() - 1); save(archive, bad);
-	CHECK(!files::ReadArchive(archive, true, read));
+	CHECK(files::ReadArchive(archive, true, read) != files::ArchiveState::Valid);
 	bad = exported; bad.back() ^= 1; save(archive, bad);
-	CHECK(!files::ReadArchive(archive, true, read));
+	CHECK(files::ReadArchive(archive, true, read) != files::ArchiveState::Valid);
 	bad = exported; bad[0] = 'X'; save(archive, bad);
-	CHECK(!files::ReadArchive(archive, true, read));
+	CHECK(files::ReadArchive(archive, true, read) != files::ArchiveState::Valid);
 	bad = exported; bad[8 + 5] ^= 1; save(archive, bad);
-	CHECK(!files::ReadArchive(archive, true, read));
+	CHECK(files::ReadArchive(archive, true, read) != files::ArchiveState::Valid);
 	save(folder / "20261005-213503-00000000.emberreplay", exported);
-	CHECK(!files::ReadArchive(folder / "20261005-213503-00000000.emberreplay", true, read));
+	CHECK(files::ReadArchive(folder / "20261005-213503-00000000.emberreplay", true, read) != files::ArchiveState::Valid);
 	save(folder / "saver.usf4replay", body);
-	CHECK(files::ReadArchive(folder / "saver.usf4replay", false, read) && read.crc == Crc32(body.data(), body.size()));
+	CHECK(files::ReadArchive(folder / "saver.usf4replay", false, read) == files::ArchiveState::Valid && read.crc == Crc32(body.data(), body.size()));
 	save(folder / "saver.usf4replay", {'#', 'B', 'R', 'P'});
-	CHECK(!files::ReadArchive(folder / "saver.usf4replay", false, read));
+	CHECK(files::ReadArchive(folder / "saver.usf4replay", false, read) != files::ArchiveState::Valid);
  // The index located a valid candidate; it is removed/truncated before import.
  save(archive, exported);
  const std::vector<fs::path> indexed{archive};
  files::BackupEvidence proof;
- CHECK(files::VerifyBackup(indexed, folder, body, proof) && proof.replay.body == body);
+ CHECK(files::VerifyBackup(indexed, folder, body, proof) && proof.replay.SameBody(body));
  CHECK(fs::remove(archive));
  CHECK(!files::VerifyBackup(indexed, folder, body, proof));
  save(archive, Bytes(exported.begin(), exported.end()-1));
@@ -169,15 +171,15 @@ static void TestVerifiedArchiveAndSnapshots() {
  Bytes replaced = exported;
  std::copy(other.begin(), other.end(), replaced.begin() + kExportHeaderBytes);
  save(archive, replaced); fs::last_write_time(archive, timestamp);
- CHECK(files::ReadArchive(archive, true, read) && read.body == other);
+ CHECK(files::ReadArchive(archive, true, read) == files::ArchiveState::Valid && read.SameBody(other));
  CHECK(!files::VerifyBackup(indexed, folder, body, proof));
  CHECK(files::VerifyBackup(indexed, folder, other, proof));
  sf4e::replayfiles::ReplayNames names{{"Ann", "Bob"}, false}, named;
- CHECK(!files::NamesForBody(files::BindNames(body, names), read.body, named));
+ CHECK(!files::NamesForBody(files::BindNames(body, names), read.Body(), named));
  save(archive, exported);
  CHECK(files::VerifyBackup(indexed, folder, body, proof));
  fs::remove(archive);
- CHECK(proof.replay.body == body); // transaction retains verified evidence through commit
+ CHECK(proof.replay.SameBody(body)); // transaction retains verified evidence through commit
 	fs::remove_all(folder);
 }
 
@@ -224,11 +226,78 @@ static void TestImportNoticesPreserveOutcomes() {
  notice(ImportResult::NotAReplay, "replays.not_added");
  notice(ImportResult::Done, "");
 }
+static void TestArchivePublicationPolicy() {
+ namespace files = sf4e::replayfiles;
+ const Bytes body = Replay(0, 8000), other = SameCrcDifferentBody(body), exported{1, 2, 3};
+ unsigned writes = 0;
+ const auto create = [&](const Bytes&) { ++writes; return true; };
+ for (auto state : {files::ArchiveState::Unreadable, files::ArchiveState::Invalid}) {
+  CHECK(!files::PublishArchive(body, exported, [&](files::ArchiveFile&) { return state; }, create));
+  CHECK(writes == 0);
+ }
+ CHECK(files::PublishArchive(body, exported, [](files::ArchiveFile&) { return files::ArchiveState::Missing; }, create));
+ CHECK(writes == 1);
+ const auto existing = [&](const Bytes& bytes, files::ArchiveFile& out) { out.contents = bytes; return files::ArchiveState::Valid; };
+ CHECK(files::PublishArchive(body, exported, [&](files::ArchiveFile& out) { return existing(body, out); }, create));
+ CHECK(!files::PublishArchive(body, exported, [&](files::ArchiveFile& out) { return existing(other, out); }, create));
+ CHECK(writes == 1); // equal CRC does not authorize replacement
+ Bytes destination;
+ CHECK(!files::PublishArchive(body, exported, [](files::ArchiveFile&) { return files::ArchiveState::Missing; }, [&](const Bytes&) {
+  destination = other; // another publisher won after the read
+  return false; // create-only publication refuses the now-existing target
+ }));
+ CHECK(destination == other);
+}
+#ifdef _WIN32
+static void TestProductionArchivePublicationRefusal() {
+ namespace fs = std::filesystem;
+ namespace files = sf4e::replayfiles;
+ using sf4e::platform::replays::PublishFile;
+ const auto folder = fs::temp_directory_path() / ("ember-publication-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+ CHECK(fs::create_directory(folder));
+ Bytes list = EmptyList(), swan = EmptySwan(), exported;
+ const Bytes body = Replay(0, 8000);
+ Fill(list, swan, 280, body, 0x44); CHECK(Export(list, swan, 280, body, exported));
+ char name[64] = {};
+ std::snprintf(name, sizeof name, "20261005-213503-%08x.emberreplay", Crc32(body.data(), body.size()));
+ const auto target = folder / name;
+ const auto read = [&](files::ArchiveFile& out) { return files::ReadArchive(target, true, out); };
+ files::ArchiveFile out;
+ CHECK(read(out) == files::ArchiveState::Missing);
+ CHECK(PublishFile(target, exported));
+ // This handle permits deletion but refuses other readers, exactly the
+ // sharing failure that previously enabled unconditional replacement.
+ HANDLE held = CreateFileW(target.c_str(), GENERIC_READ, FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+ CHECK(held != INVALID_HANDLE_VALUE);
+ CHECK(read(out) == files::ArchiveState::Unreadable);
+ unsigned writes = 0;
+ CHECK(!files::PublishArchive(body, exported, read, [&](const Bytes& bytes) { ++writes; return PublishFile(target, bytes); }));
+ CHECK(writes == 0); CHECK(CloseHandle(held));
+ CHECK(files::ReadFile(target).value() == exported);
+ CHECK(fs::remove(target));
+ const Bytes competitor{'p','r','e','s','e','r','v','e'};
+ CHECK(!files::PublishArchive(body, exported, read, [&](const Bytes& bytes) {
+  CHECK(PublishFile(target, competitor)); // destination appeared after Missing
+  return PublishFile(target, bytes);
+ }));
+ CHECK(files::ReadFile(target).value() == competitor);
+ CHECK(read(out) == files::ArchiveState::Invalid);
+ CHECK(!files::PublishArchive(body, exported, read, [&](const Bytes& bytes) { ++writes; return PublishFile(target, bytes); }));
+ CHECK(writes == 0);
+ // Failed publication also removes only its own temporary file.
+ CHECK(std::distance(fs::directory_iterator(folder), fs::directory_iterator{}) == 1);
+ fs::remove_all(folder);
+}
+#endif
 int main() {
  TestImportWriteRecovery();
  TestVerifiedArchiveAndSnapshots();
  TestBodyBoundProvenance();
  TestImportNoticesPreserveOutcomes();
+ TestArchivePublicationPolicy();
+#ifdef _WIN32
+ TestProductionArchivePublicationRefusal();
+#endif
  printf("replay_files_test: all tests passed\n");
  return 0;
 }

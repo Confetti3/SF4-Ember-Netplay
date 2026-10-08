@@ -9,6 +9,14 @@ namespace sf4e { namespace ui {
 // What a replay's file says of its match, as text: the one place it is
 // worded, for the Replays list and the Inputs and stats screen alike.
 inline std::string ReplayPlayerName(const std::string names[2],int side){return names[side].empty()?(side?"P2":"P1"):names[side];}
+inline std::string ReplayLabel(const std::string& date,const std::string names[2],const int fighters[2]) {
+ const auto player=[&](int side) {
+  const auto* fighter=selection::FindFighter(fighters[side]);
+  const std::string name=fighter?fighter->name:loc::T("common.unavailable");
+  return names[side].empty()?name:loc::Tf("replays.player",names[side],name);
+ };
+ return date+"  "+loc::Tf("replays.fighters",player(0),player(1));
+}
 // "2-1", player 1 first, or nothing when the last round's winner is not known.
 inline std::string ScoreText(const replayinputs::Summary& s){return s.scored?std::to_string(s.score[0])+"-"+std::to_string(s.score[1]):std::string();}
 inline std::string MatchText(const replayinputs::Summary& s){const std::string length=replayinputs::Clock(s.frames);const unsigned rounds=s.rounds;return loc::Tf("inputs.length_value",rounds,length);}

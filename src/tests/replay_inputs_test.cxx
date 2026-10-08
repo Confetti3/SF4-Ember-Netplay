@@ -216,38 +216,66 @@ static void TestDetailFailureBoundary() {
 	const fs::path file = folder / "inputs.usf4replay";
 	Bytes stream;
 	Record(stream, Both(LP, 0)); Record(stream, Both(Up, HP));
-	const Bytes replay = Replay({stream});
+	Bytes replay = Replay({stream});
+ const auto date = [](Bytes& body, std::uint64_t seconds) {
+  const auto native = 116444736000000000ull + seconds * 10000000ull;
+  WriteU32(body.data()+0x10, static_cast<std::uint32_t>(native));
+  WriteU32(body.data()+0x14, static_cast<std::uint32_t>(native >> 32));
+ };
+ date(replay, 1800000000);
 	const auto save = [&](const Bytes& bytes) {
 		std::ofstream out(file, std::ios::binary | std::ios::trunc);
 		out.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
 		out.close(); CHECK(!out.fail());
 	};
 	save(replay);
+ CHECK(fs::create_directory(folder / ".names"));
+ const auto note = [&](const Bytes& body, const Bytes& contents) {
+  std::ofstream out(sf4e::replayfiles::NamesPath(folder, body), std::ios::binary | std::ios::trunc);
+  out.write(reinterpret_cast<const char*>(contents.data()), static_cast<std::streamsize>(contents.size()));
+  out.close(); CHECK(!out.fail());
+ };
+ const auto oldNote = sf4e::replayfiles::BindNames(replay, {{"Ann", "Bob"}, false});
+ note(replay, oldNote);
 	const auto utf8 = [](const fs::path& path) {
 		const auto encoded = path.u8string();
 		return std::string(reinterpret_cast<const char*>(encoded.data()), encoded.size());
 	};
 	const std::string path = utf8(file);
  DetailCache cache;
- auto ready = cache.Read(path, 1);
+ auto ready = cache.Read(path, 1, folder);
  CHECK(ready.revision == 1 && ready.state == DetailState::Ready && ready.value && ready.value->match.rounds.size() == 1);
  CHECK(ready.value->logs.size() == 1 && !ready.value->logs[0].empty());
- auto reopened = cache.Read(path, 2);
+ CHECK(ready.value->names[0] == "Ann" && ready.value->names[1] == "Bob" && ready.value->time == 1800000000);
+ CHECK(ready.value->label == sf4e::replayfiles::ReplayDateLabel(1800000000) && ready.value->fighters[0] == 25);
+ auto reopened = cache.Read(path, 2, folder);
  CHECK(reopened.revision == 2 && reopened.state == DetailState::Ready && reopened.value == ready.value);
  // Replace at the same path, size and timestamp. Identity still changes.
  const auto timestamp = fs::last_write_time(file);
  Bytes replaced = replay;
  replaced[0x320 + 0x88] = MP;
+ WriteU32(replaced.data() + 0x20, 0);
+ date(replaced, 1800000060);
+ // Even an old note placed under B's key cannot supply A's names.
+ note(replaced, oldNote);
  save(replaced); fs::last_write_time(file, timestamp);
- auto changed = cache.Read(path, 3);
+ auto changed = cache.Read(path, 3, folder);
  CHECK(changed.state == DetailState::Ready && changed.value != ready.value);
  CHECK(changed.value->match.rounds[0].runs[0].inputs[0] == MP);
+ CHECK(changed.value->names[0].empty() && changed.value->names[1].empty());
+ CHECK(changed.value->label == sf4e::replayfiles::ReplayDateLabel(1800000060) && changed.value->label != ready.value->label);
+ CHECK(changed.value->time == 1800000060 && changed.value->fighters[0] == 0 && changed.value->summary.players[0].fighter == 0);
+ CHECK(ready.value->names[0] == "Ann" && ready.value->fighters[0] == 25);
+ note(replaced, sf4e::replayfiles::BindNames(replaced, {{"Carol", "Dave"}, true}));
+ auto renamed = cache.Read(path, 30, folder);
+ CHECK(renamed.value && renamed.value != changed.value && renamed.value->names[0] == "Carol" && renamed.value->names[1] == "Dave" && renamed.value->spectated);
+ CHECK(changed.value->names[0].empty());
  CHECK(ready.value->match.rounds[0].runs[0].inputs[0] == LP); // older publication stays immutable
  save(Bytes(replay.begin(), replay.end() - 1));
- auto unreadable = cache.Read(path, 4);
+ auto unreadable = cache.Read(path, 4, folder);
  CHECK(unreadable.revision == 4 && unreadable.state == DetailState::Unreadable && !unreadable.value);
  save(replay);
- CHECK(cache.Read(path, 5).state == DetailState::Ready); // repaired without selecting another file
+ CHECK(cache.Read(path, 5, folder).state == DetailState::Ready); // repaired without selecting another file
  // Each allocation from the reader through the initial Detail and its logs
  // must publish a matching failure completion, never indefinite loading.
  bool reachedSuccess = false;
@@ -255,19 +283,19 @@ static void TestDetailFailureBoundary() {
  for (int allocation = 0; allocation < 128; allocation++) {
   DetailCache fresh;
   failAllocationAfter = allocation;
-  const auto result = fresh.Read(path, 6);
+  const auto result = fresh.Read(path, 6, folder);
   failAllocationAfter = -1;
   CHECK(result.revision == 6);
   if (result.state == DetailState::Ready) { reachedSuccess = true; break; }
   CHECK((result.state == DetailState::Failed || result.state == DetailState::Unreadable) && !result.value);
-  CHECK(fresh.Read(path, 7).state == DetailState::Ready);
+  CHECK(fresh.Read(path, 7, folder).state == DetailState::Ready);
   ++failures;
  }
  CHECK(reachedSuccess && failures >= 4);
  save(Bytes(sf4e::replayslots::kLargestReplay + sf4e::replayslots::kExportHeaderBytes + 1, 0));
- CHECK(cache.Read(path, 8).state == DetailState::Unreadable);
- CHECK(cache.Read(utf8(folder / "missing"), 9).state == DetailState::Unreadable);
- CHECK(cache.Read(utf8(folder), 10).state == DetailState::Unreadable);
+ CHECK(cache.Read(path, 8, folder).state == DetailState::Unreadable);
+ CHECK(cache.Read(utf8(folder / "missing"), 9, folder).state == DetailState::Unreadable);
+ CHECK(cache.Read(utf8(folder), 10, folder).state == DetailState::Unreadable);
 	fs::remove_all(folder);
 }
 

@@ -187,7 +187,7 @@ public:
     }
     MenuNavigation& Navigation() { return menu_.navigation; }
     // The replay file the Inputs and stats screen wants read, as its row named it.
-    const std::string& ReplayInputsFile() const { return inputsReplay_.path; }
+    const std::string& ReplayInputsFile() const { return inputsFile_; }
     std::uint64_t ReplayInputsRevision() const { return inputsRevision_; }
     // A modal notice is open, and whether it reads as an error (for tests).
     bool NoticeOpen() const { return menu_.NoticeOpen(); }
@@ -349,7 +349,7 @@ private:
     // The replay the Inputs and stats screen is of, as its row was when it
     // was chosen. The lister hands over its match, summary and round logs;
     // drawing the screen never reads, parses or counts the replay.
-    ShellView::Replay inputsReplay_;
+    std::string inputsFile_;
     std::uint64_t inputsRevision_ = 0;
     void BuildInputsRows(const ShellView& view,std::vector<MenuEntry>& rows);
     // The Export video screen: the replay it is for and the caption as the
