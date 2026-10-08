@@ -506,6 +506,7 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__NetplayRuntime__Tournament.cxx"
     "src/sf4e/sf4e__NetplayRuntime__PublicRooms.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Status.cxx"
+    "src/sf4e/sf4e__NetplayRuntime__SelfTest.cxx"
     "src/sf4e/sf4e__NetplayPresentation.cxx"
     "src/sf4e/sf4e__RuntimeBridge.hxx"
     "src/sf4e/sf4e__RuntimeBridge.cxx"

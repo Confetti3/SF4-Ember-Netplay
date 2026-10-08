@@ -602,6 +602,7 @@ void TickRuntime() {
 	DrainRoomEvents();
 	TickTournament(helperReady);
 	TickReplays();
+	TickSelfTest();
 	PersistTerminalOutcome();
 	DrainActionReplies();
 	RetryPendingAbort();

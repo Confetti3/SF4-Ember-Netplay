@@ -57,6 +57,10 @@ const Status& GetStatus();
 // no room.
 void Start(const replay::Request& request, bool atMainMenu, bool noRoom);
 
+// For the in-game self-test: the write after this many succeed fails once,
+// as a full disk or Steam refusing would. -1 for none.
+void FailWriteForTest(int after);
+
 // Once a game tick: moves the operation on. noRoom as for Start: an operation
 // whose player has gone into a room ends without reopening Ember's menu.
 void Tick(bool atMainMenu, bool noRoom);

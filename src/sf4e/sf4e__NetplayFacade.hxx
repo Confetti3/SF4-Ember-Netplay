@@ -231,6 +231,11 @@ namespace sf4e {
 		// published and is never null. Safe on any thread, before StartHelper
 		// and after StopHelper.
 		std::shared_ptr<const RuntimeSnapshot> GetRuntimeSnapshotShared();
+		// At startup: in a run of the in-game self-test (SF4E_SELFTEST set,
+		// sf4e__NetplayRuntime__SelfTest.cxx) the game counts its window as
+		// in front, so the run goes on behind other windows. Does nothing
+		// otherwise.
+		void InstallSelfTest();
 		// The overlay's frame input, on any thread; never null.
 		std::shared_ptr<const PresentationSnapshot> GetPresentationSnapshotShared();
 		// Game thread, once at the end of every outer tick: expires notices and

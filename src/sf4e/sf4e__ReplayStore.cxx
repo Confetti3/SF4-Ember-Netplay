@@ -51,7 +51,10 @@ struct RemoteStorage {
 	bool FileWrite(const char* name, const void* data, std::int32_t size);
 };
 
+int s_failWriteAfter = -1;
+
 bool WriteThroughSteam(const std::string& name, const sf4e::replayslots::Bytes& contents) {
+	if (s_failWriteAfter >= 0 && s_failWriteAfter-- == 0) { spdlog::warn("Replay: the write of {} fails for the self-test", name); return false; }
 	using Accessor = RemoteStorage* (*)();
 	const HMODULE steam = GetModuleHandleW(L"steam_api.dll");
 	const Accessor accessor = steam ? reinterpret_cast<Accessor>(GetProcAddress(steam, "SteamRemoteStorage")) : nullptr;
@@ -198,6 +201,8 @@ void sf4e::replaystore::Install() {
 	BOOL (ReplayInfoList::* detour)(void*) = &ReplayInfoList::Read;
 	DetourAttach(reinterpret_cast<PVOID*>(&Table::publicMethods.Read), *reinterpret_cast<PVOID*>(&detour));
 }
+
+void sf4e::replaystore::FailWriteForTest(int after) { s_failWriteAfter = after; }
 
 bool sf4e::replaystore::Ready() { return s_entries != nullptr && sf4e::Game::Battle::MatchReplayListWidened(); }
 

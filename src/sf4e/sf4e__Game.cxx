@@ -8,6 +8,7 @@
 #include "../Dimps/Dimps__Game.hxx"
 #include "sf4e__Game.hxx"
 #include "sf4e__ReplayStore.hxx"
+#include "sf4e__NetplayFacade.hxx"
 #include "sf4e__Game__Battle.hxx"
 #include "sf4e__MementoGuards.hxx"
 
@@ -29,6 +30,7 @@ void fGame::Install() {
     Battle::Install();
     GameMementoKey::Install();
     sf4e::replaystore::Install();
+    sf4e::NetplayFacade::InstallSelfTest();
 }
 
 void fKey::Install() {

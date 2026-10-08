@@ -327,6 +327,9 @@ void OpenConnectLink(const std::string& bridge, bool launched = false);
 // replay operation on (sf4e__ReplayStore.hxx).
 void RunReplayRequest(const replay::Request& request);
 void TickReplays();
+// The in-game self-test (sf4e__NetplayRuntime__SelfTest.cxx), once a tick;
+// nothing unless SF4E_SELFTEST names a test.
+void TickSelfTest();
 // Hands a public room link to the interface, which asks for the room's ticket
 // when the player is free. `launched` as for OpenConnectLink.
 void OpenPublicRoomLink(const tournament_link::RoomLink& link, bool launched = false);

@@ -29,5 +29,10 @@ namespace Dimps {
 		static BYTE* soundFocusCheck;
 		// The import slot of GetForegroundWindow that call reads (0x9312AC).
 		static DWORD foregroundWindowImport;
+		// Just before, the frame keeps whether its window is in front in
+		// the app's +4, asking at the same kind of call (0x4042AE). With +4
+		// off the game's events stand still: the title screen stops asking
+		// for Start. Read from the code and seen in the game.
+		static BYTE* activeFocusCheck;
 	};
 }
