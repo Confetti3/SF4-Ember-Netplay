@@ -137,6 +137,16 @@ function RecoverTransaction([string]$Install, [string]$Path, [switch]$InspectOnl
             throw "The recovery backup is missing or damaged: $key"
         }
     }
+    $missingSkipped = ''
+    $missingProperty = $transaction.PSObject.Properties['missingSkipped']
+    if ($missingProperty) {
+        if ($missingProperty.Value -isnot [string]) { throw 'Invalid missing update file.' }
+        $missingSkipped = $missingProperty.Value.Replace('/','\')
+        $null = SafePath $Install $missingSkipped
+        if (!$target.ContainsKey($missingSkipped) -or $seen.ContainsKey($missingSkipped)) {
+            throw 'Invalid missing update file.'
+        }
+    }
     if ($transaction.state -eq 'committed') {
         VerifyFiles $Install $target
         foreach ($key in $seen.Keys) {
@@ -145,6 +155,13 @@ function RecoverTransaction([string]$Install, [string]$Path, [switch]$InspectOnl
         Remove-Item -LiteralPath $Path -Force
         Write-Host 'The completed update transaction was verified.'
         return $true
+    }
+    # The complete journal and backup set are validated above. Persist the
+    # chosen rollback before the first destination changes, so either reader
+    # resumes restoration without reclassifying a partially restored install.
+    if ($transaction.state -ne 'rolling-back') {
+        $transaction.state = 'rolling-back'
+        WriteTransaction $Path $transaction
     }
     foreach ($operation in @($transaction.operations)) {
         $destination = SafePath $Install ([string]$operation.path)
@@ -167,6 +184,14 @@ function RecoverTransaction([string]$Install, [string]$Path, [switch]$InspectOnl
         }
     }
     VerifyFiles $Install $restored
+    if ($missingSkipped) {
+        # The recorded skipped file has no backup. Restoration completes the
+        # operations, but cannot clear the native reader's terminal repair result.
+        $failedPath = SafePath $Install '.ember-update-transaction-v1.json.failed'
+        if (Test-Path -LiteralPath $failedPath -PathType Container) { throw 'Invalid failed update transaction path.' }
+        Move-Item -LiteralPath $Path -Destination $failedPath -Force
+        throw "An update file is missing and has no backup; install the update again: $missingSkipped"
+    }
     Remove-Item -LiteralPath $Path -Force
     Write-Host "The interrupted update was restored from $($transaction.backup)."
     return $true
