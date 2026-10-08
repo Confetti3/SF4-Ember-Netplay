@@ -421,6 +421,15 @@ void Overlay::DrawOverlay() {
     if (snapshot.tournament.connect.sequence!=connectLinkShown && snapshot.atMainMenu && presentation.Available()) {
         presentation.Open(); connectLinkShown=snapshot.tournament.connect.sequence;
     }
+    // A replay link opens the menu at the main menu with no room, where the
+    // shell puts its question on the Replays screen; in a room or in play it
+    // waits until then.
+    static std::string replayLinkShown;
+    if (snapshot.replays.link.empty()) replayLinkShown.clear();
+    else if (snapshot.replays.link != replayLinkShown && snapshot.atMainMenu && presentation.Available() &&
+        snapshot.session.room == sf4e::netplay::RoomState::Idle) {
+        presentation.Open(); replayLinkShown = snapshot.replays.link;
+    }
     // A public room link the player was free to follow opens the menu, where
     // the shell takes them to Public rooms; during play it waits until the
     // player opens Ember, and the shell says so.

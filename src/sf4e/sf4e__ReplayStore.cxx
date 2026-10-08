@@ -290,7 +290,7 @@ bool sf4e::replaystore::Exporting() {
 	return !op.video.empty() && (op.status.step == Step::SelectingRow || op.status.step == Step::Playing);
 }
 
-void sf4e::replaystore::Tick(bool atMainMenu) {
+void sf4e::replaystore::Tick(bool atMainMenu, bool noRoom) {
 	Operation& op = s_operation;
 	// An export's file closes on the encoder's time; its outcome is the notice.
 	if (op.awaited) {
@@ -365,7 +365,10 @@ void sf4e::replaystore::Tick(bool atMainMenu) {
 		else if (late) { spdlog::warn("Replay: the battle log did not start slot {}", op.slot); op.video.clear(); op.Enter(Step::InLog); }
 		break;
 	case Step::InLog:
-		if (atMainMenu && !log) { op.status.returns++; op.Enter(Step::Idle); }
+		// Back at the main menu, Ember reopens on the Replays screen. A player
+		// who went on into a room from the game's menus is not brought back to it.
+		if (!noRoom) op.Enter(Step::Idle);
+		else if (atMainMenu && !log) { op.status.returns++; op.Enter(Step::Idle); }
 		break;
 	case Step::Idle:
 		break;

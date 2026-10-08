@@ -412,6 +412,12 @@ void Journeys() {
    Check(h.shell.Navigation().Screen()=="replay-inputs"&&h.actions.size()==sent,"Inputs and stats did not open its screen, or sent something");
    h.FocusOn("inputs-p2");h.FocusOn("inputs-round-1");
    std::error_code ignored;std::filesystem::remove(file,ignored);}
+  // In a room the menu is the room's: a link waits there, and takes the menu once the room is left.
+  h.view.replayLink.clear();h.Frame();h.Screen("home");
+  h.view.session.room=netplay::RoomState::Joined;h.view.replayLink="D:\\x\\c.usf4replay";h.Frame();
+  Check(h.shell.Navigation().Screen()!="replays","A replay link moved the menu in a room");
+  h.view.session.room=netplay::RoomState::Idle;h.Frame();
+  Check(h.shell.Navigation().Screen()=="replays","A replay link did not open the Replays screen once the room was left");
   h.view.replays.clear();h.view.replaysReady=false;h.view.replayLink.clear();h.Frame();h.actions.push_back(saved);}
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("interface");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-size");h.Press(MenuInput::Right);h.Frame(0,45);
