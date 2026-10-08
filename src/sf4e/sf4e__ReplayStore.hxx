@@ -31,8 +31,9 @@ bool Ready();
 //                 list's own DECIDE plays it; or ten seconds
 //   Playing       the log runs the replay (its Versus and Battle states);
 //                 until it is back on its list, which Ember then leaves for
-//                 the main menu. Ten seconds for the replay to start, two
-//                 for a battle log that went away
+//                 the main menu. Ten seconds for the replay to start, thirty
+//                 for its Versus screen to reach the battle, two for a
+//                 battle log that went away
 //   InLog         the player is in the game's own menus; until the main menu
 //                 is back
 enum class Step { Idle, OpeningLog, SelectingRow, Playing, InLog };

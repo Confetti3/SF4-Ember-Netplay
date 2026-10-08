@@ -143,9 +143,11 @@ bool Named(Dimps::Event::EventBase* state, const char* name) { return state && !
 // The Versus splash waits for its movies and the announcer, which do not
 // finish here; it gets the Start press the player could give it
 // (Dimps__Game.hxx, ReplayBattle).
-void SkipSplash(Dimps::Event::EventBase* versus) {
+// False, doing nothing, while the splash is not yet in the state that takes
+// the press.
+bool SkipSplash(Dimps::Event::EventBase* versus) {
 	ReplayBattle::Splash* const splash = ReplayBattle::GetSplash(versus);
-	if (!splash || *ReplayBattle::GetSplashState(splash) != 1) return;
+	if (!splash || *ReplayBattle::GetSplashState(splash) != 1) return false;
 	const auto& native = ReplayBattle::staticMethods;
 	auto* const voice = ReplayBattle::GetSplashVoice(splash);
 	*ReplayBattle::GetSplashPhase(splash) = 3;
@@ -156,15 +158,18 @@ void SkipSplash(Dimps::Event::EventBase* versus) {
 		if (native.MovieValid(m)) native.MovieSignal(m, "Close", 0);
 	}
 	spdlog::info("Replay: skipped the Versus splash");
+	return true;
 }
 
 // The one operation. waited: ticks in the step's wait. slot: the imported
 // replay to play, for Watch, else -1. started: the log has left its list for
-// the replay. splash: ticks of the Versus state, -1 once skipped.
-constexpr int kPatience = 600, kSplashTicks = 120, kGoneTicks = 120;
+// the replay. splash: ticks of the Versus state, -1 once skipped. versus:
+// ticks since the log left its list without reaching Battle; the splash and
+// the load end inside kVersusTicks (thirty seconds) or the replay is given up.
+constexpr int kPatience = 600, kSplashTicks = 120, kGoneTicks = 120, kVersusTicks = 1800;
 struct Operation {
 	sf4e::replaystore::Status status;
-	int waited = 0, slot = -1, splash = 0;
+	int waited = 0, slot = -1, splash = 0, versus = 0;
 	bool started = false;
 	void Enter(Step step) { status.step = step; waited = 0; }
 	void Notice(const char* key, bool error) { status.notice = sf4e::loc::T(key); status.noticeError = error; }
@@ -228,7 +233,7 @@ void sf4e::replaystore::Start(const replay::Request& request, bool atMainMenu, b
 		return;
 	}
 	op.status.logOpens++;
-	op.started = false; op.splash = 0;
+	op.started = false; op.splash = 0; op.versus = 0;
 	op.Enter(Step::OpeningLog);
 }
 
@@ -254,9 +259,16 @@ void sf4e::replaystore::Tick(bool atMainMenu) {
 			if (op.waited > kGoneTicks) op.Enter(Step::InLog);
 			break;
 		}
-		if (Named(state, "Versus") || Named(state, "Battle")) {
+		if (Named(state, "Battle")) { op.started = true; op.waited = 0; op.versus = 0; }
+		else if (Named(state, "Versus")) {
 			op.started = true; op.waited = 0;
-			if (Named(state, "Versus") && op.splash >= 0 && ++op.splash > kSplashTicks) { SkipSplash(state); op.splash = -1; }
+			// The skip is done once it acted; asked again each tick until then.
+			if (op.splash >= 0 && ++op.splash > kSplashTicks && SkipSplash(state)) op.splash = -1;
+			// Versus is a way to Battle, not a place to stay.
+			if (++op.versus > kVersusTicks) {
+				spdlog::warn("Replay: slot {} stayed on the Versus screen; left to the player", op.slot);
+				op.Enter(Step::InLog);
+			}
 		}
 		else if (Named(state, "Select") && op.started) {
 			// Watched, or left: back to the main menu, where Ember reopens.
