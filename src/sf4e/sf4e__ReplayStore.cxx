@@ -174,9 +174,11 @@ bool Named(Dimps::Event::EventBase* state, const char* name) { return state && !
 // The Versus splash waits for its movies and the announcer, which do not
 // finish here; it gets the Start press the player could give it
 // (Dimps__Game.hxx, ReplayBattle).
-void SkipSplash(Dimps::Event::EventBase* versus) {
+// False, doing nothing, while the splash is not yet in the state that takes
+// the press.
+bool SkipSplash(Dimps::Event::EventBase* versus) {
 	ReplayBattle::Splash* const splash = ReplayBattle::GetSplash(versus);
-	if (!splash || *ReplayBattle::GetSplashState(splash) != 1) return;
+	if (!splash || *ReplayBattle::GetSplashState(splash) != 1) return false;
 	const auto& native = ReplayBattle::staticMethods;
 	auto* const voice = ReplayBattle::GetSplashVoice(splash);
 	*ReplayBattle::GetSplashPhase(splash) = 3;
@@ -187,19 +189,22 @@ void SkipSplash(Dimps::Event::EventBase* versus) {
 		if (native.MovieValid(m)) native.MovieSignal(m, "Close", 0);
 	}
 	spdlog::info("Replay: skipped the Versus splash");
+	return true;
 }
 
 // The one operation. waited: ticks in the step's wait. slot: the imported
 // replay to play, for Watch, else -1. started: the log has left its list for
-// the replay. splash: ticks of the Versus state, -1 once skipped.
+// the replay. splash: ticks of the Versus state, -1 once skipped. versus:
+// ticks in Versus before reaching Battle; the splash and load end inside
+// kVersusTicks (thirty seconds) or the replay is given up.
 // kDecidedTicks: how long an export shows the decided match (the win pose
 // and result) before Ember leaves the replay for the player.
-constexpr int kPatience = 600, kSplashTicks = 120, kGoneTicks = 120, kDecidedTicks = 360;
+constexpr int kPatience = 600, kSplashTicks = 120, kGoneTicks = 120, kVersusTicks = 1800, kDecidedTicks = 360;
 // video: the .mp4 an export writes, empty otherwise; awaited: the capture
 // was started and its outcome is owed.
 struct Operation {
 	sf4e::replaystore::Status status;
-	int waited = 0, slot = -1, splash = 0;
+	int waited = 0, slot = -1, splash = 0, versus = 0;
 	bool started = false, awaited = false, meter = false;
 	// decided: ticks the exported replay's match has been over; -1 once Ember chose to leave.
 	int decided = 0;
@@ -267,7 +272,7 @@ void sf4e::replaystore::Start(const replay::Request& request, bool atMainMenu, b
 		return;
 	}
 	op.status.logOpens++;
-	op.started = false; op.splash = 0; op.decided = 0;
+	op.started = false; op.splash = 0; op.versus = 0; op.decided = 0;
 	if (exporting) {
 		// Ember's encoder writes straight next to the replay.
 		const std::wstring path = platform::Utf8ToWide(request.path.c_str());
@@ -340,9 +345,16 @@ void sf4e::replaystore::Tick(bool atMainMenu) {
 			}
 			if (op.decided < 0) *reinterpret_cast<int*>(reinterpret_cast<std::uint8_t*>(state) + ReplayBattle::BattleEndChoice) = ReplayBattle::EndChoiceLeave;
 		}
-		if (Named(state, "Versus") || Named(state, "Battle")) {
+		if (Named(state, "Battle")) { op.started = true; op.waited = 0; op.versus = 0; }
+		else if (Named(state, "Versus")) {
 			op.started = true; op.waited = 0;
-			if (Named(state, "Versus") && op.splash >= 0 && ++op.splash > kSplashTicks) { SkipSplash(state); op.splash = -1; }
+			// The skip is done once it acted; asked again each tick until then.
+			if (op.splash >= 0 && ++op.splash > kSplashTicks && SkipSplash(state)) op.splash = -1;
+			// Versus is a way to Battle, not a place to stay.
+			if (++op.versus > kVersusTicks) {
+				spdlog::warn("Replay: slot {} stayed on the Versus screen; left to the player", op.slot);
+				op.Enter(Step::InLog);
+			}
 		}
 		else if (Named(state, "Select") && op.started) {
 			// Watched, or left: back to the main menu, where Ember reopens.
