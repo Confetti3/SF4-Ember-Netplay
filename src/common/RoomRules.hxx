@@ -18,9 +18,13 @@ struct Rules {
     bool editionSelect = true;
     std::uint8_t roundCount = 3;
     std::uint16_t roundTime = 99;
+    // Practice with another player: both fighters' health and gauges fill
+    // again and nobody is knocked out. It changes the simulation, so it is
+    // fixed with the other rules when the table prepares a game.
+    bool training = false;
     bool operator==(const Rules& rhs) const {
         return format == rhs.format && rotation == rhs.rotation && editionSelect == rhs.editionSelect &&
-            roundCount == rhs.roundCount && roundTime == rhs.roundTime;
+            roundCount == rhs.roundCount && roundTime == rhs.roundTime && training == rhs.training;
     }
 };
 // A public room's tables start at first to 2, winner stays, so its queue

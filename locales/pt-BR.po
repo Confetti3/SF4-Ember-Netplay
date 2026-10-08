@@ -325,6 +325,12 @@ msgstr "Rounds"
 msgid "rules.round_time"
 msgstr "Tempo do round"
 
+msgid "rules.training"
+msgstr "Treino"
+
+msgid "rules.training.detail"
+msgstr "Ligado: a vida e as barras dos dois lutadores enchem de novo e ninguém é nocauteado, para praticar com outro jogador. Uma partida termina quando um lutador deixa o assento ou o tempo do round acaba, então escolha um tempo de round longo."
+
 msgid "screen.home"
 msgstr "Início"
 

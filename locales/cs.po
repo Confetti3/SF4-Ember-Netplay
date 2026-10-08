@@ -325,6 +325,12 @@ msgstr "Kola"
 msgid "rules.round_time"
 msgstr "Čas kola"
 
+msgid "rules.training"
+msgstr "Trénink"
+
+msgid "rules.training.detail"
+msgstr "Zap.: zdraví a ukazatele obou bojovníků se znovu doplňují a nikdo není knokautován, pro trénink s jiným hráčem. Hra končí, když bojovník opustí místo nebo vyprší čas kola, nastav proto dlouhý čas kola."
+
 msgid "screen.home"
 msgstr "Domů"
 

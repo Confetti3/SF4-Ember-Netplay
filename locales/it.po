@@ -325,6 +325,12 @@ msgstr "Round"
 msgid "rules.round_time"
 msgstr "Durata round"
 
+msgid "rules.training"
+msgstr "Allenamento"
+
+msgid "rules.training.detail"
+msgstr "Attivo: la vita e le barre di entrambi i lottatori si riempiono di nuovo e nessuno va K.O., per esercitarsi con un altro giocatore. Una partita finisce quando un lottatore lascia il posto o scade il tempo del round, quindi scegli un tempo del round lungo."
+
 msgid "screen.home"
 msgstr "Home"
 

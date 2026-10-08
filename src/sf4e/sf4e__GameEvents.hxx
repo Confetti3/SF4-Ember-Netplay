@@ -53,6 +53,11 @@ namespace sf4e {
 			static bool bOverrideNextRandomSeed;
 			static bool bTerminateOnNextLeftBattle;
 			static DWORD nextMatchRandomSeed;
+				// The next battle is played by a table's Training rules:
+				// both fighters' health and gauges fill again and nobody
+				// is knocked out. Part of the simulation, so both sides
+				// and every spectator of a match must set it alike.
+				static bool bNextMatchTraining;
 			static void Install();
 		};
 

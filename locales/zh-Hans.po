@@ -325,6 +325,12 @@ msgstr "回合数"
 msgid "rules.round_time"
 msgstr "回合时间"
 
+msgid "rules.training"
+msgstr "训练"
+
+msgid "rules.training.detail"
+msgstr "开启：双方角色的体力和能量槽会重新回满，且不会被击倒，用于和其他玩家一起练习。角色离开座位或回合时间结束时对局结束，所以请设置较长的回合时间。"
+
 msgid "screen.home"
 msgstr "主页"
 

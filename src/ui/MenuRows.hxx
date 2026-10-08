@@ -56,6 +56,7 @@ inline void RuleRows(std::vector<MenuEntry>& rows,const room::Rules& rules,bool 
     rows.push_back(Value("edition",loc::T("rules.edition_select"),rules.editionSelect?loc::T("common.on"):loc::T("common.off"),reason,enabled));
     rows.push_back(Value("rounds",loc::T("rules.rounds"),std::to_string(rules.roundCount),reason,enabled));
     rows.push_back(Value("time",loc::T("rules.round_time"),std::to_string(rules.roundTime),reason,enabled));
+    rows.push_back(Value("training",loc::T("rules.training"),rules.training?loc::T("common.on"):loc::T("common.off"),enabled?loc::T("rules.training.detail"):reason,enabled));
     rows.push_back(Value("set-length",loc::T("rules.set_length"),SetLengthText(rules.format),enabled?loc::T("rules.set_length.detail"):reason,enabled));
     // Only a set that ends can hand a seat over.
     const bool rotates=rules.format!=room::SetFormat::Unlimited;
@@ -67,6 +68,7 @@ inline bool AdjustRule(room::Rules& rules,const MenuAction& a) {
     if(a.id=="edition") rules.editionSelect=a.delta>0;
     else if(a.id=="rounds") Step(rules.roundCount,{1,3,5,7,15,99},a.delta);
     else if(a.id=="time") Step(rules.roundTime,{30,60,99,300,9999},a.delta);
+    else if(a.id=="training") rules.training=a.delta>0;
     else if(a.id=="set-length") {
         std::vector<int> lengths;
         for(int n=0;n<=room::MaxSetLength;++n) lengths.push_back(n);

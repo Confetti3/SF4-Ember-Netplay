@@ -325,6 +325,12 @@ msgstr "Rounds"
 msgid "rules.round_time"
 msgstr "Temps du round"
 
+msgid "rules.training"
+msgstr "Entraînement"
+
+msgid "rules.training.detail"
+msgstr "Activé : la vie et les jauges des deux combattants se remplissent à nouveau et personne n'est mis K.-O., pour s'exercer avec un autre joueur. Une partie se termine quand un combattant quitte sa place ou quand le temps du round est écoulé ; choisissez donc un temps de round long."
+
 msgid "screen.home"
 msgstr "Accueil"
 

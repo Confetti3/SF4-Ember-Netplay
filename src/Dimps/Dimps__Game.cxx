@@ -37,6 +37,7 @@ void Request::Locate(HMODULE peRoot) {
 	*(PVOID*)&publicMethods.GetRandomSeed = (PVOID)(peRootOffset + 0x285d70);
 	*(PVOID*)&publicMethods.SetIsOnlineBattle = (PVOID)(peRootOffset + 0x284620);
 	*(PVOID*)&publicMethods.SetRandomSeed = (PVOID)(peRootOffset + 0x285300);
+	*(PVOID*)&publicMethods.SetPlayerParam = (PVOID)(peRootOffset + 0x2851a0);
 }
 
 void Control::Locate(HMODULE peRoot) {

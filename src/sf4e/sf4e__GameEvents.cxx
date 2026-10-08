@@ -49,6 +49,7 @@ bool fVsBattle::bSessionSynced = false;
 bool fVsBattle::bOverrideNextRandomSeed = false;
 bool fVsBattle::bTerminateOnNextLeftBattle = false;
 DWORD fVsBattle::nextMatchRandomSeed = 0xffffffff;
+bool fVsBattle::bNextMatchTraining = false;
 bool fVsPreBattle::bSkipToVersus = false;
 
 char* fRootEvent::eventFlowDescription = R"(	Boot, 0, Title,										
@@ -289,10 +290,22 @@ void fVsBattle::PrepareBattleRequest() {
 		if (bOverrideNextRandomSeed) {
 			(r->*Request::publicMethods.SetRandomSeed)(nextMatchRandomSeed);
 		}
+		if (bNextMatchTraining) {
+			// The game's own gauge behaviour, chosen before the battle
+			// exists and never changed in it: nothing is written during a
+			// frame, so a rollback has nothing of ours to restore.
+			for (int player = 0; player < 2; player++) {
+				for (int param : { Request::PP_VITALITY, Request::PP_RECOVERABLE_VITALITY, Request::PP_SUPER_COMBO, Request::PP_REVENGE }) {
+					(r->*Request::publicMethods.SetPlayerParam)(player, param, Request::PM_REFILL);
+				}
+			}
+			spdlog::info("Battle: Training rules, health and gauges refill");
+		}
 	}
 	bForceNextMatchOnline = false;
 	bOverrideNextRandomSeed = false;
 	nextMatchRandomSeed = 0xffffffff;
+	bNextMatchTraining = false;
 }
 
 void fVsBattle::RegisterTasks() {

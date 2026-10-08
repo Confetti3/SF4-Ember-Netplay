@@ -325,6 +325,12 @@ msgstr "Rondas"
 msgid "rules.round_time"
 msgstr "Tiempo ronda"
 
+msgid "rules.training"
+msgstr "Entrenamiento"
+
+msgid "rules.training.detail"
+msgstr "Activado: la vida y los medidores de ambos luchadores se rellenan y nadie cae K.O., para practicar con otro jugador. Una partida termina cuando un luchador deja el asiento o se acaba el tiempo del asalto, así que elige un tiempo de asalto largo."
+
 msgid "screen.home"
 msgstr "Inicio"
 

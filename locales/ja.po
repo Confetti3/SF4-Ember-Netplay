@@ -325,6 +325,12 @@ msgstr "ラウンド"
 msgid "rules.round_time"
 msgstr "タイム"
 
+msgid "rules.training"
+msgstr "トレーニング"
+
+msgid "rules.training.detail"
+msgstr "オン：両方のファイターの体力とゲージが回復し、KOになりません。他のプレイヤーと練習するためのルールです。ファイターが席を離れるかラウンドタイムが切れると試合が終わるので、ラウンドタイムは長く設定してください。"
+
 msgid "screen.home"
 msgstr "ホーム"
 

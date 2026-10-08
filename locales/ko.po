@@ -325,6 +325,12 @@ msgstr "라운드"
 msgid "rules.round_time"
 msgstr "라운드 시간"
 
+msgid "rules.training"
+msgstr "트레이닝"
+
+msgid "rules.training.detail"
+msgstr "켜짐: 두 파이터의 체력과 게이지가 다시 차오르고 아무도 KO되지 않습니다. 다른 플레이어와 연습하기 위한 규칙입니다. 파이터가 자리를 떠나거나 라운드 시간이 끝나면 게임이 끝나므로 라운드 시간을 길게 설정하세요."
+
 msgid "screen.home"
 msgstr "홈"
 

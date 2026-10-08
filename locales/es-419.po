@@ -325,6 +325,12 @@ msgstr "Rondas"
 msgid "rules.round_time"
 msgstr "Tiempo de ronda"
 
+msgid "rules.training"
+msgstr "Entrenamiento"
+
+msgid "rules.training.detail"
+msgstr "Activado: la vida y las barras de ambos peleadores se rellenan y nadie cae K.O., para practicar con otro jugador. Una partida termina cuando un peleador deja el asiento o se acaba el tiempo del round, así que elige un tiempo de round largo."
+
 msgid "screen.home"
 msgstr "Inicio"
 

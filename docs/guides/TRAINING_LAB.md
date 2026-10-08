@@ -72,6 +72,12 @@ Each player row shows `Start N f`. It counts observed advancing frames from the 
 
 **Settings > Frame meter in matches** (off by default) draws the meter over your own online matches and the ones you watch. Only you see it. It reads the game and changes nothing in it. It shows a frame once the other player's inputs for it have arrived, so it trails the fight by the frames still predicted and never shows one that is later played differently. The controls, recordings and hotkeys of Training are not there. A projectile move without attack frames in its script shows no startup in a match.
 
+### Training with another player
+
+A room's host can turn **Training** on in a table's rules (Table options, with the round count and the round time). At that table both fighters' health, Super and Ultra gauges fill again about a second after they are left alone, and nobody is knocked out. Both players and every spectator get the rule from the table; nothing has to be set on their side.
+
+A game under the rule ends when the round time runs out or a fighter leaves the seat, so set the round time to 9999. There is no reset, no dummy and no recording at such a table: the other player is the dummy. Turn **Frame meter in matches** on to see the frames.
+
 ### Opt-in frame-meter capture
 
 Maintainers can set `SF4E_TRAINING_CAPTURE=1` before launching Ember. Offline Training then buffers accepted observations and writes `training-samples-<process>.csv` under `%APPDATA%\sf4e\logs` on a background thread. Rows include the simulation frame, fighter side, status, action ID/frame, posture, time scale, action inhibit, BAC attack start/end with provenance, startup/result state and unavailable reasons. Queue saturation drops capture rows rather than waiting inside simulation. Record the selected fighter editions and the `SSFIV.exe` SHA-256 alongside the CSV; the current native sample does not expose that selection metadata safely.

@@ -3,8 +3,8 @@
 Two players in a room want to practise together: one tries a setup, the other
 holds the pad, neither loses a round, and either can put both fighters back
 where the drill starts. This note says what exists, what the first step built,
-and what the next two steps would change. Steps 2 and 3 are proposals: nothing
-of them is built.
+what the second step built, and what the third would change. Step 3 is a
+proposal: nothing of it is built.
 
 ## What exists
 
@@ -17,8 +17,8 @@ of them is built.
   the sparring room of today.
 - The protocol still carries `trainingMode` (`LobbyData`, `LobbySetSettings`,
   `NetplayConfig`). It is vestigial: the server refuses a request that sets it
-  and the config comment says the long round values replaced it. It is not
-  reused below; see "For a decision".
+  and the config comment says the long round values replaced it. Step 2
+  uses the `LobbyData` field again.
 
 ## Step 1, built: the frame meter in a match
 
@@ -49,66 +49,83 @@ they watch. Only that player sees it.
 
 Whether a meter belongs in a match at all is a decision; see below.
 
-## Step 2, proposed: training rules for a table
+## Step 2, built: the Training rule of a table
 
-A table rule, **Training**, that both sides apply to the same battle: health
-that comes back, gauges that refill, no time over.
+A table rule, **Training**, beside the round count and the round time. With
+it on, both fighters' health, recoverable health, Super and Ultra gauges fill
+again while they are left alone, and nobody is knocked out.
 
-### What has to be true
+### How the game does it
 
-The rule changes the simulation, so it is part of the deterministic state:
-both clients and every spectator must apply the same writes on the same
-frames, and a rollback must replay them.
+The game already has the behaviour and Training mode is only one user of it.
+A battle request holds a table of parameters a player (`Request` +0xF0, 0x2B
+of them, 0x2B8 bytes a player). The fighter's own update reads five of them
+every frame through `Battle::System` (vtable +0x158):
 
-### How
+| Parameter | Gauge |
+| --- | --- |
+| 0x1A | health |
+| 0x1C | recoverable health |
+| 0x1E | Super |
+| 0x21 | Ultra |
+| 0x24 | stun |
 
-- **The rule** travels as the round count and the timer do: a field of the
-  table's rules in the room model, shown to both players before they ready,
-  fixed at the Preparing table and carried in the match's start parameters.
-  A client that does not know it must not be seated at such a table.
-- **Applying it** is a pure function of the game state, run at one fixed
-  point of every simulated frame, in `PlayGgpoFrame` and in the rollback
-  callback alike (the same two places step 1 uses, before the update instead
-  of after). No clock, no local setting, no input from the overlay.
-- **Health and gauges.** The game already has the behaviour: in Training its
-  hit code and gauge code read the 14 options of `Training::Manager` every
-  frame (gauges: 0 normal, 5 max, 7 infinite, 8 refill). Two ways to get it
-  in a Versus battle over rollback:
-  1. *Run the battle as Training.* The game mode goes into the battle request
-     on both sides and the options are set from the rule. Least code of ours
-     in the frame, but Training mode brings its own pause menu, recorder and
-     dummy driver, and none of that has been run under rollback. The pause
-     menu alone would have to be closed off.
-  2. *Stay Versus and write the values.* Each frame, when a fighter is in a
-     neutral state and no combo is counted, set health and gauges to the
-     rule's values through the actor. Needs setters that are not bound yet
-     (only the getters are), and each needs its place in the memento checked
-     so a rollback restores what was written.
+and acts on the value: 0 as in a match, 6 held empty, 7 held full, 8 filled
+again once the fighter has been left alone for a second. With health at 8 the
+hit code also skips the knockout (0x55C89A). In Training mode the same reader
+returns the pause menu's choices instead of the request's.
 
-  The second is the safer one to review: the battle stays the one netplay
-  already runs, and the added writes are few and can be covered by the
-  rollback stress harness (`SF4E_ROLLBACK_STRESS`), which replays frames
-  offline and compares.
-- **Round end.** With health restored on neutral, a round ends only by a
-  combo that kills. Either that stands (a kill ends the round, the long round
-  count absorbs it), or the rule also stops the last hit from killing. The
-  first needs nothing.
-- **Results.** A training table reports no result and counts in no set: the
-  rule switches `PublishConfirmedNativeMatchResult` and the set score off for
-  that match. Rotation at such a table needs a rule of its own: by time, or
-  by a player leaving the seat.
+The request has a setter for them (`Request::SetPlayerParam`, 0x6851A0) that
+refuses a value outside the parameter's range. It sits beside
+`SetRandomSeed`, which netplay already calls.
 
-### Risks
+### What was built
 
-- Anything written per frame outside the memento desyncs on the first
-  rollback. Each write needs a stress run with the state hash compared.
-- The state hash (`CaptureHashCheckpoint`) will catch a client that applies
-  the rule differently, as a desync. That is the wanted failure, not a silent
-  one.
-- A rule one of two builds does not know splits the table. How the room
-  keeps such a client out of the seat has to be settled with the rule; the
-  `SetTraining` action went in without a protocol version step, a rule that
-  changes the simulation cannot.
+- `Request::SetPlayerParam` is bound, with the parameter and value names.
+- `fVsBattle::bNextMatchTraining`, set where the match's seed is taken
+  (`UserApp`, after `StartGGPO` or `StartSpectating`) and applied where the
+  seed is applied (`PrepareBattleRequest`): health, recoverable health, Super
+  and Ultra to 8 for both players. Stun is left as in a match.
+- `room::Rules::training`. On the wire `"training": true`, written only when
+  set and read as off when absent, as the member flag is.
+- It reaches the match the way the round count does: the table's rules into
+  `LobbyData`. That struct already had a `trainingMode` field, left over from
+  an earlier training room and always sent as false; it now carries the rule.
+- A row in the rules list, so it is set and shown where the round time is.
+
+### Why this is safe under rollback
+
+Nothing is written during a frame. The values are chosen before the battle
+exists and never change in it; the game's own update does the filling, on
+state its own memento already saves (health and gauges are what a rollback
+restores today). The two sides and every spectator take the rule from the
+same table rules, at the same point they take the round count from.
+
+A room admits only members whose sidecar has the host's own hash
+(`JR_HASH_INVALID`), so no member of a room lacks the rule. The room protocol
+version is unchanged.
+
+### What it does not do
+
+- **End.** Nobody is knocked out, so a game ends when the round time runs out
+  or a fighter leaves. The result of a timed-out game is reported and scored
+  as any game is. The rule's text tells the host to set a long round time.
+- **Public rooms.** The room server is built from the same sources and needs
+  rebuilding to keep the rule; until then it drops the unknown field and the
+  table plays as a match.
+- The old lobby path still refuses `trainingMode` in `LobbySetSettings`.
+
+### What was checked
+
+- `RoomTrainingFlagTest`: only the host sets it, every member's view carries
+  it, it is written only when set, older rules read as before, a value that
+  is no boolean is refused, and the table still starts.
+- The whole suite and the UI render in every language.
+- Not checked: a battle. The parameter values were read from the program,
+  not seen in play. The first thing to look at with two players is the state
+  hash staying equal with the rule on. A developer checkbox ("Training rules
+  on next battle?") applies the rule to an offline Versus battle, where the
+  rollback stress harness can be run over it.
 
 ## Step 3, proposed: a shared reset and a shared saved position
 
@@ -128,13 +145,14 @@ GGPO's own timeline is the fault ledger entry A-001 ends a match for.
   32-bit words; a spare bit of one carries "reset" and another "save
   position". The overlay sets the bit in the local input before
   `ggpo_add_local_input`; nothing else leaves the overlay.
-- **The effect is part of the frame.** At the fixed point of step 2, a frame
+- **The effect is part of the frame.** At one fixed point of every simulated
+  frame, in `PlayGgpoFrame` and in the rollback callback alike, a frame
   whose synchronized inputs carry the bit applies it. A mispredicted press is
   rolled back like any other input.
 - **Reset without a savestate.** Loading a savestate inside a frame is the
   dangerous part, so the first version avoids it: the reset writes the two
-  positions, the facing, health and gauges, and puts both fighters in their
-  standing state, through the game's own round-start path if one can be
+  positions and the facing (health and gauges fill by themselves under the
+  Training rule) and puts both fighters in their standing state, through the game's own round-start path if one can be
   called, else through setters. The saved position is then six numbers kept
   in a small block that is itself saved and restored with the frame, so a
   rollback across a "save position" press brings back the earlier one.
@@ -152,10 +170,11 @@ GGPO's own timeline is the fault ledger entry A-001 ends a match for.
 
 - The spare input bits must be proven unused by the game: a bit the engine
   reads is a move input.
-- The round-start path may touch state the memento does not cover. Same
-  check as step 2: stress run, hash compared.
-- A reset during a cinematic or a throw: refused, by the same neutral-state
-  test as the health write, until the savestate version exists.
+- The round-start path may touch state the memento does not cover: a stress
+  run with the state hash compared (`SF4E_ROLLBACK_STRESS`) before any match.
+- A reset during a cinematic or a throw: refused, by a test on both
+  fighters' states that is itself part of the frame, until the savestate
+  version exists.
 
 ## What stays offline
 
@@ -169,14 +188,14 @@ the other player.
 1. **A frame meter in real matches.** Step 1 shows frame data during play,
    to one player, about both. It gives no information the game hides, but it
    is a training aid in a match. It can be kept to spectators, or to tables
-   under the step 2 rule once that exists; each is one condition where the
+   under the Training rule; each is one condition where the
    setting is read.
-2. **Which way for step 2:** the battle run as Training, or Versus with
-   written values. This note recommends the second.
-3. **The old `trainingMode` field.** Step 2 could revive it or add a table
-   rule beside the round count. A table rule fits the room model as it is
-   now; the old field belongs to the lobby protocol the rooms replaced.
-4. **Results at a training table:** none at all, as proposed, or a set that
-   is played and not counted.
-5. **Order.** Step 2 is useful alone (spar without rounds ending). Step 3's
-   first version depends on step 2's fixed point and its setters.
+2. **Results at a training table.** A timed-out game is scored like any
+   other. A table under the rule could report no result and count in no set;
+   that is a change to the authority and was left out.
+3. **Stun** is left as in a match. Training mode offers it; it is one more
+   parameter in the same call.
+4. **The old `trainingMode` field** now carries the rule. If it should stay
+   dead, the rule needs a field of its own in `LobbyData`.
+5. **Step 3.** Whether a shared reset is wanted at all, given what it adds
+   to the frame.

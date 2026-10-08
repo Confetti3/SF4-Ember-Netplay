@@ -325,6 +325,12 @@ msgstr "Rounds"
 msgid "rules.round_time"
 msgstr "Round time"
 
+msgid "rules.training"
+msgstr "Training"
+
+msgid "rules.training.detail"
+msgstr "On: both fighters' health and gauges fill again and nobody is knocked out, for practising with another player. A game ends when a fighter leaves the seat or the round time runs out, so set a long round time."
+
 msgid "screen.home"
 msgstr "Home"
 

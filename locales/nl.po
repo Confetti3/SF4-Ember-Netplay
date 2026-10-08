@@ -325,6 +325,12 @@ msgstr "Rondes"
 msgid "rules.round_time"
 msgstr "Rondetijd"
 
+msgid "rules.training"
+msgstr "Training"
+
+msgid "rules.training.detail"
+msgstr "Aan: de gezondheid en meters van beide vechters vullen zich weer en niemand gaat knock-out, om met een andere speler te oefenen. Een game eindigt als een vechter zijn plek verlaat of de rondetijd om is, dus kies een lange rondetijd."
+
 msgid "screen.home"
 msgstr "Start"
 
