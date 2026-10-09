@@ -251,7 +251,7 @@ int main() try {
     Check(row("input-delay").value == "Auto", "Auto showed a delay before measuring the opponent");
     view.autoDelayMeasured = true; view.selectedDelay = 3; frame();
     Check(row("input-delay").value == "Auto (3 frames)" && !row("input-delay").opens &&
-        row("input-delay").detail.find("between 1 and 3 frames") != std::string::npos &&
+        row("input-delay").detail.find(loc::Tf("room.input_delay.auto.detail", AutoInputDelayMinimum, AutoInputDelayMaximum)) != std::string::npos &&
         row("input-delay").detail.find("Match: At least 3 frames") != std::string::npos,
         "Auto did not show its delay and bounds, or still offered the recommendation");
     press(MenuInput::Right);
@@ -297,6 +297,76 @@ int main() try {
     Check(!row("ultra").adjustable, "A fighter with one Ultra still offers to step it");
     Check(!row("appearance").adjustable, "A costume with one color still offers to step it");
     view.ultraSteps = true; view.colorSteps = true; frame();
+    {
+        const auto seatedView = view;
+        view.room.members[0].seat = -1; view.localSlot = -1;
+        view.room.tables[0].p1 = 2; view.room.tables[0].p2 = 3;
+        for (const auto status : {room::MemberStatus::Idle, room::MemberStatus::Queued,
+            room::MemberStatus::WatchingNext, room::MemberStatus::Watching}) {
+            const bool queued = status == room::MemberStatus::Queued;
+            const bool watching = status == room::MemberStatus::WatchingNext || status == room::MemberStatus::Watching;
+            view.room.members[0].status = status;
+            view.room.members[0].table = status == room::MemberStatus::Idle ? -1 : 0;
+            view.room.tables[0].queue = queued ? std::vector<room::MemberId>{1} : std::vector<room::MemberId>{};
+            view.room.tables[0].spectators = watching ? std::vector<room::MemberId>{1} : std::vector<room::MemberId>{};
+            view.session.match = status == room::MemberStatus::Watching ? netplay::MatchState::PostMatch : netplay::MatchState::None;
+            shell.Navigation().Home(); shell.Navigation().Push("room-table"); frame();
+            Check(rows[0].id == "selection" && rows[1].id == "ultra" && rows[2].id == "appearance" &&
+                rows[3].id == "fighter-options" && rows[4].id == (queued ? "unqueue" : "queue"),
+                "Unseated pick rows are missing or not above Queue/Watch");
+            Check(at("stage") == -1, "An unseated member was offered Stage");
+            Check(row("selection").value == view.fighterName && row("ultra").value == view.ultraName &&
+                row("appearance").value == view.appearanceName && row("fighter-options").value == view.fighterOptionsName,
+                "Unseated pick rows did not show the current pick");
+            for (const auto* id : {"selection", "ultra", "appearance", "fighter-options"}) {
+                Check(row(id).enabled, "An editable unseated pick row is disabled");
+                focus(id); press(MenuInput::Select);
+                Check(shell.Navigation().Screen() == "selection", "An unseated pick row did not open selection");
+                Check(EmbeddedReturnContext().openOn == (std::strcmp(id, "selection") == 0 ? "roster" :
+                    std::strcmp(id, "appearance") == 0 ? "costumes" : std::strcmp(id, "ultra") == 0 ? "ultra" : "options"),
+                    "An unseated pick row opened the wrong selection page");
+                shell.Navigation().Home(); shell.Navigation().Push("room-table"); frame();
+            }
+            focus("ultra"); const auto beforeSteps = actions.size(); press(MenuInput::Right);
+            Check(actions.size() == beforeSteps + 1 && actions.back().selectionStep.field == Field::Ultra &&
+                actions.back().selectionStep.delta == 1, "Unseated Right did not step Ultra");
+            focus("appearance"); press(MenuInput::Left);
+            Check(actions.size() == beforeSteps + 2 && actions.back().selectionStep.field == Field::Color &&
+                actions.back().selectionStep.delta == -1, "Unseated Left did not step color");
+            shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
+            const auto beforeShortcut = selectionDraws; press(MenuInput::Fighter);
+            Check(shell.Navigation().Screen() == "selection" && selectionDraws > beforeShortcut,
+                "X/F did not open selection for an unseated member");
+            shell.Navigation().Home(); frame(); focus("selection"); press(MenuInput::Select);
+            Check(shell.Navigation().Screen() == "selection", "Home did not open unseated selection");
+            shell.Navigation().Home(); shell.Navigation().Push("room-table");
+            view.canEditSelection = false; view.selectionLockReason = loc::T("runtime.lock.return_to_menu_fighter"); frame();
+            for (const auto* id : {"selection", "ultra", "appearance", "fighter-options"}) {
+                Check(!row(id).enabled && !row(id).adjustable && row(id).detail == room_controls::SelectionBlocker(view),
+                    "A blocked unseated pick row is enabled or missing its blocker");
+                focus(id); const auto beforeBlocked = selectionDraws; const auto beforeActions = actions.size();
+                press(MenuInput::Select); press(MenuInput::Left); press(MenuInput::Right);
+                Check(shell.Navigation().Screen() == "room-table" && selectionDraws == beforeBlocked && actions.size() == beforeActions,
+                    "A blocked unseated pick row opened or stepped selection");
+            }
+            press(MenuInput::Fighter);
+            Check(shell.Navigation().Screen() == "room-table", "Blocked unseated X/F opened selection");
+            view.canEditSelection = true; view.selectionLockReason.clear(); frame();
+        }
+        // A live watcher can inspect Home selection, but X/F and table edits
+        // wait for the native main menu. The runtime supplies that edit gate.
+        view.session.match = netplay::MatchState::Playing;
+        view.room.tables[0].phase = room::TablePhase::Playing;
+        view.canEditSelection = false; view.selectionLockReason = loc::T("runtime.lock.return_to_menu_fighter"); frame();
+        Check(!row("selection").enabled && row("selection").detail == room_controls::SelectionBlocker(view),
+            "A live watcher could edit from the table page");
+        press(MenuInput::Fighter);
+        Check(shell.Navigation().Screen() == "room-table", "A live watcher's X/F opened selection");
+        shell.Navigation().Home(); frame(); focus("selection"); press(MenuInput::Select);
+        Check(shell.Navigation().Screen() == "selection", "A live watcher could not inspect selection from Home");
+        view = seatedView;
+        shell.Navigation().Home(); shell.Navigation().Push("room-table"); frame();
+    }
     // The host changes the rules in place; nothing is sent until Apply rules,
     // which only appears once something changed.
     Check(row("rounds").enabled && row("time").enabled && row("edition").enabled &&
