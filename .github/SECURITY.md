@@ -1,70 +1,56 @@
-# Security Policy
+# Security policy
 
-## Supported versions
-
-| Version | Supported |
-|---------|-----------|
-| 0.6.x   | Yes (current releases; HTTPS broker on official VPS) |
-| 0.5.x   | Best-effort only — prefer latest 0.6.x |
-| 0.4.x   | Best-effort only |
-| ≤ 0.3.x | No |
-
-Security fixes are published as GitHub releases on [Confetti3/SF4-Ember-Netplay](https://github.com/Confetti3/SF4-Ember-Netplay).
+This policy describes the Ember 1.1.x architecture on the `release` branch.
+Use the latest compatible Ember release for all participants. The retired
+0.6.x launcher, broker, RelayHost and Qt documentation does not describe this
+product. Its previous policy is retained as [historical material](../docs/archive/SECURITY-pre-ember.md).
 
 ## Reporting a vulnerability
 
-**Do not open public GitHub issues for exploitable security bugs.**
+Do not post exploitable bugs, private invitations, credentials or crash dumps
+in public issues. Contact the maintainer (Katie / Confetti3) privately through
+the project's [support community](https://discord.gg/uPNqF5A5uq). Include the
+affected build, impact, reproduction steps and a redacted diagnostic export.
+The maintainer's existing targets are acknowledgement within seven days and a
+fix or mitigation plan within thirty days for critical or high severity reports;
+these are targets, not guarantees. Coordinated disclosure and attribution are
+preferred unless the reporter requests anonymity.
 
-Email or DM the maintainer (Katie / Confetti3) with:
+## Current boundaries
 
-1. Description and impact
-2. Steps to reproduce
-3. Affected version
-4. Optional: suggested fix
+- The launcher injects Sidecar into an owned Steam copy of USFIV. The supported
+  executable fingerprint is checked before fixed-offset hooks are installed.
+  A matching executable or Sidecar hash is compatibility checking, not anti-cheat.
+- Private rooms use Iroh authenticated transport and invitation capabilities.
+  Anyone given a valid invitation may be able to join; keep invitations private.
+  Room peers can still be modified or malicious. Authentication does not make
+  game results or player-controlled state inherently trustworthy.
+- Public rooms depend on bridge admission tickets and a hosted room authority.
+  Identity proofs, bridge sessions and tournament integrations have separate
+  credentials. Public hosting depends on the deployed service and its operators;
+  a local client test does not audit that deployment.
+- Helpers use authenticated, current-user local IPC. The networking helper and
+  optional Discord companion are separate processes. Discord account linking
+  and SDK presence are separate features with separate trust boundaries.
+- Updates validate package inventory and hashes, but still trust the configured
+  GitHub release channel. A checksum beside a download is not independent
+  publisher authentication. Current local development builds are unsigned;
+  inspect the actual release's signatures rather than assuming signing is active.
 
-We aim to acknowledge within **7 days** and provide a fix or mitigation plan within **30 days** for Critical/High issues.
+## Diagnostics and safe use
 
-## Scope
+Use **Help & About → Export diagnostics** for redacted reports. Raw logs and
+especially crash dumps can contain invitations, session material, chat and
+other process memory. Share them privately only when needed. See
+[Saving logs](../docs/guides/SAVING_LOGS.md).
 
-**In scope**
+Keep all files from one build together, close the game before updating, and
+obtain releases from the project's [release page](https://github.com/Confetti3/SF4-Ember-Netplay/releases).
+Do not disable antivirus protection or add blanket folder exclusions. A
+detection needs investigation; signing alone does not prove a file harmless.
+See [Windows Defender guidance](../docs/guides/WINDOWS_DEFENDER.md).
 
-- SF4 Ember Netplay (`Launcher.exe`, `Updater.exe`, `RelayHost.exe`, shipped DLLs)
-- Official room broker and VPS relay operated for the project
-- GitHub release packages (`sf4-ember-netplay-*.zip`)
-
-**Out of scope**
-
-- Upstream [sf4e](https://codeberg.org/adanducci/sf4e) on Codeberg (report to upstream)
-- Ultra Street Fighter IV / Steam client vulnerabilities
-- Cheating in ranked Steam matchmaking (sidecar replaces vanilla online by design)
-- Physical access to a user's PC
-- DDoS at scale against the public broker
-
-## Known limitations (experimental)
-
-This is an **experimental unofficial port** for casual friends-only netplay — **not production-ready software**:
-
-- Official VPS broker uses **HTTPS** (`https://74-208-200-95.nip.io`); custom broker URLs may still be HTTP (requires `SF4E_ALLOW_HTTP_BROKER=1` on the client)
-- Room broker has **no room authentication** (friends-only codes)
-- Room codes are short; active rooms may be listed publicly
-- **Sidecar.dll hash** ensures matching builds between players; it is **not** anti-cheat or code signing
-- Updates trust **GitHub releases** without separate code signatures
-- **Windows Defender** may flag `Sidecar.dll` / `Launcher.exe` as `Program:Win32/Wacapew.A!ml` (heuristic **false positive** on unsigned game hooks). See [docs/guides/WINDOWS_DEFENDER.md](../docs/guides/WINDOWS_DEFENDER.md).
-
-Use only with people you trust until room auth and signed releases are in place.
-
-## Audit status (0.6.x)
-
-A full-stack launcher → VPS security audit was performed against **v0.6.5** (2026-07-28). Critical WebView-era client issues (`applyUpdate` client URLs, unrestricted `openUrl`, default HTTP broker) are mitigated in the current Qt + HTTPS path. Follow-up hardening on this line closes session post-HELLO ACL gaps, broker queue/health rate limits, update redirect host checks, broker post-DNS SSRF filtering, optional relay-manager token + port allowlists, and dashboard cookie compare / body limits. Residual accepted risks remain as listed above (unsigned updates, room-code join model, plaintext game UDP). Detailed findings are kept private and are not published in this repository.
-
-## Safe usage
-
-- Download only from official GitHub Releases
-- If Defender quarantines files, verify release SHA256 hashes and follow [docs/guides/WINDOWS_DEFENDER.md](../docs/guides/WINDOWS_DEFENDER.md) — do not weaken Defender with exclusions; wait for signed releases
-- Keep `Launcher.exe`, `Sidecar.dll`, and Qt runtime files together from the **same zip**
-- Do not point the broker URL at untrusted servers
-- Close the game before applying in-app updates
-
-## Disclosure
-
-We prefer coordinated disclosure. Credit will be given in release notes unless you request anonymity.
+USFIV and Steam vulnerabilities belong to their respective vendors. This
+experimental unofficial project does not promise anti-cheat, protection from
+a compromised local account, or availability against denial-of-service attacks.
+Historical audits of the retired stack do not certify the current code.
