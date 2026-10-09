@@ -9,9 +9,37 @@ Build and package locally; pushing a tag does not trigger a second build or publ
 - Visual Studio 2026 C++ Build Tools with x86/x64 compilers, CMake, Ninja and the Windows SDK.
 - Git, Python 3 and a bootstrapped vcpkg checkout. The manifest and overlay ports pin the dependency inputs.
 - Rust through rustup; `rust/sf4-net/rust-toolchain.toml` pins the toolchain.
+- Node.js 22.18 or later and npm for the locked SDK build and local bridge tests.
 - The official Discord Social SDK archive identified by `cmake/discord-sdk-pin.json`. Obtain it through Discord's developer portal; configuration verifies its SHA-256. The SDK archive is not stored in this repository.
 
 ## Compile, test and stage
+
+Check all prerequisites before starting a build:
+
+```powershell
+pwsh -NoProfile -File ./scripts/check-build-prerequisites.ps1 -WithoutDiscord
+```
+
+For development without the proprietary Discord SDK, run:
+
+```powershell
+pwsh -NoProfile -File ./scripts/build-current.ps1 -WithoutDiscord
+```
+
+This uses a separate `build/current-no-discord` directory and stage, omits the
+Discord companion, and records `discordEnabled: false` in its receipt. It is
+not a complete release package; the release packaging requirements still apply.
+Remove `-WithoutDiscord` and supply the pinned SDK archive for a complete build.
+
+Both commands find vcpkg bundled with Visual Studio when no explicit vcpkg path
+is set. A project-local Rust installation under `build/tools/cargo` and
+`build/tools/rustup` is used when present, without changing the machine PATH.
+Set `SF4E_PYTHON` to an existing `python.exe` if Python 3 is not on PATH.
+Set `SF4E_NODE` to a supported `node.exe` when another Node version is on PATH.
+The prerequisite checker accepts `-JsonOutput <path>` to retain its results.
+
+The game compatibility fingerprint and startup protocol are documented in
+[Game compatibility](GAME_COMPATIBILITY.md).
 
 From the root of a clone of the `release` branch:
 
@@ -31,6 +59,16 @@ The script builds the x86 launcher, sidecar and updater, the x64 Iroh helper and
 
 `-SkipTests` is available for development; packaging rejects a receipt without passing tests.
 The local suite excludes public-network and live Discord tests. Explicit helper network testing is available through `scripts/test-current-network.ps1`; it does not establish actual SF4 gameplay acceptance.
+
+The local gate also runs the standalone short-link and room-supervisor suites,
+compiles the TypeScript SDK with `npm ci`, and requires its bridge integration
+tests against a locally built bridge. It writes `local-tests.xml` (JUnit) beside
+the build receipt. CTest's detailed log retains Rust's internal ignored-test
+counts; the receipt's excluded expression identifies the external suites not run.
+CI separately tests all four Rust components on Linux and Windows, SDK integration,
+Linux room-host IPC, and dependency advisories. Those jobs do not build the native
+game product or establish gameplay acceptance. Run `scripts/test-sdk.ps1` to check
+the SDK alone. Package assembly relocates and validates Markdown file links.
 
 ## Package
 

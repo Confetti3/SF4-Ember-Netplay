@@ -9,8 +9,11 @@ import { fileURLToPath } from "node:url";
 
 import type { BridgeClient, Json, TestPlayer } from "../src/index.ts";
 
-export const binary = fileURLToPath(new URL(`../../../server/ember/target/debug/ember-bridge${process.platform === "win32" ? ".exe" : ""}`, import.meta.url));
+export const binary = process.env.EMBER_BRIDGE_TEST_BINARY || fileURLToPath(new URL(`../../../server/ember/target/debug/ember-bridge${process.platform === "win32" ? ".exe" : ""}`, import.meta.url));
 export const missing = !existsSync(binary) && "build ember-bridge first";
+if (missing && process.env.EMBER_REQUIRE_BRIDGE_TESTS === "1") {
+  throw new Error(`Required SDK integration binary is missing: ${binary}`);
+}
 
 export interface RunningBridge {
   origin: string;

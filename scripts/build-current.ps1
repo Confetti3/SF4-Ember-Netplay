@@ -1,23 +1,26 @@
 param([switch]$SkipTests, [string]$VisualStudioPath = '', [string]$VcpkgRoot = '',
-      [string]$DiscordSdkArchive = $env:SF4E_DISCORD_SDK_ARCHIVE)
+      [string]$DiscordSdkArchive = $env:SF4E_DISCORD_SDK_ARCHIVE, [switch]$WithoutDiscord)
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 . (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')
-$target = Get-EmberBuildTarget $repo
+& (Join-Path $PSScriptRoot 'check-build-prerequisites.ps1') -VisualStudioPath $VisualStudioPath -VcpkgRoot $VcpkgRoot -DiscordSdkArchive $DiscordSdkArchive -WithoutDiscord:$WithoutDiscord
+if ($LASTEXITCODE) { throw 'Build prerequisites are incomplete; see the checks above.' }
+$target = Get-EmberBuildTarget $repo -WithoutDiscord:$WithoutDiscord
 $tools = Get-EmberToolPaths $repo $VisualStudioPath $VcpkgRoot
 . (Join-Path $PSScriptRoot 'BuildProvenance.ps1')
 & (Join-Path $PSScriptRoot 'test-build-provenance.ps1')
 $build = Join-Path $repo $target.buildDirectory
 $stage = Join-Path $repo $target.installDirectory
-if (!$DiscordSdkArchive) { throw 'Set -DiscordSdkArchive or SF4E_DISCORD_SDK_ARCHIVE to the official archive matching cmake/discord-sdk-pin.json.' }
-& (Join-Path $PSScriptRoot 'build-current-dependencies.ps1') -VisualStudioPath $tools.VisualStudioPath -VcpkgRoot $tools.VcpkgRoot
+if (!$WithoutDiscord -and !$DiscordSdkArchive) { throw 'Set -DiscordSdkArchive or SF4E_DISCORD_SDK_ARCHIVE, or use -WithoutDiscord for a development build.' }
+$discordOption = if ($WithoutDiscord) { 'OFF' } else { 'ON' }
+& (Join-Path $PSScriptRoot 'build-current-dependencies.ps1') -VisualStudioPath $tools.VisualStudioPath -VcpkgRoot $tools.VcpkgRoot -WithoutDiscord:$WithoutDiscord
 $dependencies = Join-Path $build 'dependencies'
 $before = Get-SourceFingerprint $repo
 $vs = $tools.VisualStudioPath
 Enter-EmberVcEnvironment $vs
 $cmake = Join-Path $vs 'Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe'
 $ctest = Join-Path (Split-Path $cmake -Parent) 'ctest.exe'
-& $cmake -S $repo -B $build -G Ninja '-U*_DIR' '-UZLIB_*' '-ULIB_DETOURS' '-USF4E_JSON_INCLUDE' '-UFIND_PACKAGE_MESSAGE_DETAILS_*' "-DCMAKE_MAKE_PROGRAM=$vs/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -DCMAKE_BUILD_TYPE=RelWithDebInfo -DSF4E_DEVELOPER_UI=OFF "-DCMAKE_TOOLCHAIN_FILE=$($tools.VcpkgRoot)/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x86-windows-wchar-filenames "-DVCPKG_INSTALLED_DIR=$dependencies" -DVCPKG_MANIFEST_INSTALL=OFF -DSF4E_BUILD_IROH_HELPER=ON -DSF4E_BUILD_DISCORD=ON "-DSF4E_DISCORD_SDK_ARCHIVE=$DiscordSdkArchive" "-DCMAKE_INSTALL_PREFIX=$stage"
+& $cmake -S $repo -B $build -G Ninja '-U*_DIR' '-UZLIB_*' '-ULIB_DETOURS' '-USF4E_JSON_INCLUDE' '-UFIND_PACKAGE_MESSAGE_DETAILS_*' "-DCMAKE_MAKE_PROGRAM=$vs/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -DCMAKE_BUILD_TYPE=RelWithDebInfo -DSF4E_DEVELOPER_UI=OFF "-DCMAKE_TOOLCHAIN_FILE=$($tools.VcpkgRoot)/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x86-windows-wchar-filenames "-DVCPKG_INSTALLED_DIR=$dependencies" -DVCPKG_MANIFEST_INSTALL=OFF -DSF4E_BUILD_IROH_HELPER=ON "-DSF4E_BUILD_DISCORD=$discordOption" "-DSF4E_DISCORD_SDK_ARCHIVE=$DiscordSdkArchive" "-DCMAKE_INSTALL_PREFIX=$stage"
 if ($LASTEXITCODE) { throw 'Configure failed' }
 Assert-CMakeSource $repo $build
 if (Get-Content -LiteralPath (Join-Path $build 'CMakeCache.txt') | Where-Object { $_ -match '^([^#/:]+):[^=]+=.*sf4-display-dxvk' }) {
@@ -29,7 +32,7 @@ if ($LASTEXITCODE) { throw 'Build failed' }
 # receipt names them, so testsPassed never implies they ran (ledger A-015).
 $excludedTests = 'Iroh(Room|Game|Authorized|Recovery)|CustomRoom(FourTables|Spectators)|DiscordSmoke'
 if (!$SkipTests) {
-    & $ctest --test-dir $build --output-on-failure -E $excludedTests
+    & $ctest --test-dir $build --output-on-failure --output-junit (Join-Path $build 'local-tests.xml') -E $excludedTests
     if ($LASTEXITCODE) { throw 'Tests failed' }
 }
 & $cmake --install $build *> (Join-Path $build 'stage.log')
@@ -41,4 +44,4 @@ if ((Get-FileHash -LiteralPath (Join-Path $stage 'GGPO.dll')).Hash -ne $dependen
 $binaries = foreach ($file in Get-ChildItem -LiteralPath $stage -Recurse -File | Where-Object { $_.Extension -in '.exe','.dll' }) {
     [pscustomobject]@{path=$file.FullName.Substring($stage.Length+1);sha256=(Get-FileHash -LiteralPath $file.FullName).Hash}
 }
-[ordered]@{sourceRoot=$repo;buildRoot=$build;stageRoot=$stage;baseRevision=(& git -C $repo rev-parse HEAD);sourceFingerprint=$after;features=$target.features;testsPassed=(!$SkipTests);testsExcluded=$excludedTests;builtUtc=[DateTime]::UtcNow.ToString('o');binaries=@($binaries);dependencies=$dependencyReceipt} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $build 'build-provenance.json')
+[ordered]@{sourceRoot=$repo;buildRoot=$build;stageRoot=$stage;baseRevision=(& git -C $repo rev-parse HEAD);sourceFingerprint=$after;features=@($target.features | Where-Object { !$WithoutDiscord -or $_ -ne 'Discord' });discordEnabled=(!$WithoutDiscord);testsPassed=(!$SkipTests);testsExcluded=$excludedTests;builtUtc=[DateTime]::UtcNow.ToString('o');binaries=@($binaries);dependencies=$dependencyReceipt} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $build 'build-provenance.json')
