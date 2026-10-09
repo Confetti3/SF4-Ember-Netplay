@@ -18,6 +18,7 @@ pub mod lobby;
 pub mod matches;
 pub mod partner;
 pub mod play;
+pub mod relay;
 pub mod report;
 pub mod rooms;
 pub mod sign;

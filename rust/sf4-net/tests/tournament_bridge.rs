@@ -88,6 +88,7 @@ impl Worker {
             dirs.0.join("tournament"),
             false,
             endpoint,
+            Box::new(|| None),
         );
         Self {
             handle,
