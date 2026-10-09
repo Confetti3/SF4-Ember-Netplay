@@ -1,5 +1,6 @@
 #include "github_release_client_internal.hxx"
 #include "../../platform/Elevation.hxx"
+#include "../../common/PrivateTestPackage.hxx"
 
 namespace sf4e {
 namespace launcher {
@@ -495,6 +496,10 @@ namespace launcher {
 
 	UpdateCheckResult CheckForUpdate(UpdateChannel channel) {
 		UpdateCheckResult result;
+		wchar_t packageRoot[MAX_PATH] = {};
+		if (GetLauncherInstallDir(packageRoot, MAX_PATH) && install::PrivateTestPackage(packageRoot)) {
+			result.error = loc::T("update.private_test"); return result;
+		}
 		char installed[64] = { 0 };
 		ReadInstalledVersion(installed, sizeof(installed));
 		result.installedVersion = installed;
@@ -625,6 +630,10 @@ namespace launcher {
         const std::function<bool(std::uint64_t, std::uint64_t)>& progress
 	) {
 		ApplyUpdateResult result;
+		wchar_t packageRoot[MAX_PATH] = {};
+		if (GetLauncherInstallDir(packageRoot, MAX_PATH) && install::PrivateTestPackage(packageRoot)) {
+			result.error = loc::T("update.private_test"); return result;
+		}
 		if ((!zipDownloadUrl || !zipDownloadUrl[0]) && (!zipApiUrl || !zipApiUrl[0])) {
 			result.error = loc::T("update.missing_url");
 			return result;

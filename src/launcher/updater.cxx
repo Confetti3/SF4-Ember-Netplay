@@ -1,5 +1,6 @@
 #include "update/PackageInstaller.hxx"
 #include "../common/PackageInventory.hxx"
+#include "../common/PrivateTestPackage.hxx"
 #include "../platform/Elevation.hxx"
 #include <stdio.h>
 #include <stdlib.h>
@@ -196,6 +197,10 @@ int wmain(int argc, wchar_t** argv) {
 		return 0;
 	}
 
+	if (sf4e::install::PrivateTestPackage(installDir)) {
+		AppendLog("ERROR: public updates are disabled for this private test package; extract a new test ZIP into a separate folder");
+		return 1;
+	}
 	char startLine[1024] = { 0 };
 	char installUtf8[MAX_PATH * 2] = { 0 };
 	char stagingUtf8[MAX_PATH * 2] = { 0 };

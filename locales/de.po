@@ -3582,3 +3582,6 @@ msgstr "Der Raum konnte nicht betreten werden. Vielleicht wurde er gerade geschl
 
 msgid "legend.refresh"
 msgstr "Aktualisieren"
+
+msgid "update.private_test"
+msgstr "Public updates are disabled for this private test build so your local fixes are preserved. Extract a newer test ZIP into a separate folder."

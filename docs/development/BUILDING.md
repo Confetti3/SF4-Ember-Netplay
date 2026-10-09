@@ -50,6 +50,36 @@ pwsh -NoProfile -File ./scripts/package-installer.ps1 -PackageDir dist/sf4-ember
 
 This creates `dist/sf4-ember-netplay-0.8.3-setup.exe` and its `.sha256` sidecar. The first run downloads the Inno Setup compiler named by `scripts/installer/innosetup-pin.json`, verifies its SHA-256 and keeps a private copy under `build/tools`; nothing is installed system-wide (`SF4E_ISCC` names another `ISCC.exe` instead). It bundles the Visual C++ x86 runtime installer of the building toolset. The installer needs no administrator rights, places the package under `%LOCALAPPDATA%\Programs`, and installs the runtime only when the present one is older. It only places the first copy and refuses a folder that already has files in it; updates remain with `Updater.exe` and the ZIP packages. Its uninstaller runs `Updater.exe -InstallDir <folder> -Uninstall`, which removes the files the package inventory names or allows (including any a later update added) and the updater's own state, and leaves the player's files. `scripts/test-installer.ps1 -Installer <setup.exe>` exercises the refusal, the installation and the uninstall in a temporary folder.
 
+## Local disk usage
+
+For private testing, `package-test.py` publishes just three entries in `dist`:
+`PLAY.cmd` opens the current `Game/Launcher.exe`; `Game` is the playable folder;
+`Share with friend.zip` is the current package to send. Build labels remain in
+the package's `BUILD_INFO.txt` and provenance, not in competing launcher paths.
+The previous verified ZIP and checksums live in `build/private-packages`, outside
+the player-facing folder. Only one rollback ZIP is retained.
+
+Candidates are assembled in temporary build storage, never beside the playable
+build, and scratch is cleaned on success or failure. Publication runs after the
+new package passes validation. Failed moves restore the previous layout.
+Added player files follow the new Game folder when they do not conflict with
+new packaged files, without retaining another full copy just for logs/settings.
+Changed packaged files or conflicting player files are preserved under
+`build/private-packages/preserved-<label>` and reported. Public releases and
+unknown or corrupt files are never pruned.
+Keep small validation logs and provenance receipts. Store render screenshots
+as lossless PNG instead of uncompressed BMP when retaining them for review.
+
+The `rust-test-target` and `rust-ember-target` directories inside the selected
+build directory are generated test caches and can grow to tens of gigabytes.
+The CMake Rust tests, room-ticket tool and SDK helper disable Cargo incremental
+compilation (`CARGO_INCREMENTAL=0`) to avoid retaining duplicate incremental
+artifacts; see [Cargo's environment settings](https://doc.rust-lang.org/cargo/reference/environment-variables.html).
+They can be removed while no build or test is running; the next Rust/SDK test
+will compile them again. Keep `rust-target`, the CMake build output,
+dependencies and `build/tools` for normal incremental product builds. Do not
+remove source, artwork, Git history or player data as part of build cleanup.
+
 ## Publish a release
 
 Commit the final source, README and screenshots before the final build. Build from that exact commit, review the package, then push the `release` branch and a version tag pointing to that commit. Keep legacy `main` unchanged. Keep the verified previous full package and checksum in `dist`, then use `scripts/github-release.ps1 -Tag v0.8.3`. It packages a fresh complete ZIP, constructs and validates the mandatory previous-version upgrade ZIP, builds the installer, and uploads all three with SHA-256 sidecars. The script refuses dirty source, mismatched tags, non-published base packages and existing releases.

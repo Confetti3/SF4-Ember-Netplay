@@ -17,6 +17,9 @@ add_library(sf4e_selection STATIC "src/common/FighterCatalog.cxx" "src/common/St
 target_compile_features(sf4e_selection PUBLIC cxx_std_11)
 target_compile_features(sf4e_netplay_core PUBLIC cxx_std_11)
 if(BUILD_TESTING)
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+    add_test(NAME PrivateBuildRetention COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/scripts/test-private-build-retention.py")
+    set_tests_properties(PrivateBuildRetention PROPERTIES TIMEOUT 30)
     add_executable(NativeRepairTimingTest "src/tests/native_repair_timing_test.cxx")
     target_compile_features(NativeRepairTimingTest PRIVATE cxx_std_17)
     add_test(NAME NativeRepairTiming COMMAND NativeRepairTimingTest)
@@ -861,6 +864,11 @@ endif()
 add_executable(Updater
     src/launcher/updater.cxx
 )
+if(BUILD_TESTING)
+    add_test(NAME PrivateTestUpdateGuard COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass
+        -File ${CMAKE_SOURCE_DIR}/scripts/test-private-test-updates.ps1 -Updater $<TARGET_FILE:Updater>)
+    set_tests_properties(PrivateTestUpdateGuard PROPERTIES TIMEOUT 20)
+endif()
 add_library(sf4e_package_installer STATIC src/launcher/update/PackageInstaller.cxx)
 target_compile_features(sf4e_package_installer PUBLIC cxx_std_17)
 target_link_libraries(sf4e_package_installer PUBLIC sf4e_selection nlohmann_json::nlohmann_json bcrypt)

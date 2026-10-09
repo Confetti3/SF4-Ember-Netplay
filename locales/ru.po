@@ -3582,3 +3582,6 @@ msgstr "Не удалось войти в зал. Возможно, он тол�
 
 msgid "legend.refresh"
 msgstr "Обновить"
+
+msgid "update.private_test"
+msgstr "Public updates are disabled for this private test build so your local fixes are preserved. Extract a newer test ZIP into a separate folder."
