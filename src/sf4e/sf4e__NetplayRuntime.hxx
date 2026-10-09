@@ -292,6 +292,17 @@ void CloseRoom();
 void Apply(netplay::EventKind kind, const std::string& error = {});
 bool CanEditLobby();
 bool CanBeginReplacement();
+// Training from the room: at the main menu, with no game of the player's
+// starting or running and no Ready of theirs given or on its way. A game
+// that is over leaves PostMatch behind until the next one, as it does for
+// a Ready. Never from a closed room, nor as a watcher of a game starting
+// (a locked-in spectator whose table holds its start) or being played.
+// The snapshot publishes it, and a Room TrainingEntry is judged by it.
+bool CanTrain(const netplay::Snapshot& session, bool atMainMenu, const room::Snapshot& room, std::uint64_t retired);
+// The game generation this PC was in and has fully left: its session idle, native
+// GGPO gone and any recovery ended (MatchRecovered). 0 while none, or while that
+// teardown is still under way.
+std::uint64_t RetiredMatchGeneration();
 
 // Command dispatch and room events (sf4e__NetplayRuntime__Room.cxx).
 void FailReady(const char* reason);

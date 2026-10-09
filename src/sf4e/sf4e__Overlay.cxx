@@ -7,7 +7,6 @@
 #include "../ui/ApplicationShell.hxx"
 #include "../ui/FighterSelector.hxx"
 #include "../ui/MenuRows.hxx"
-#include "../ui/ReplaySummaryText.hxx"
 #include "../ui/OverlayLifecycle.hxx"
 #include "../ui/OverlayPresentation.hxx"
 #include "../ui/OverlayLayers.hxx"
@@ -16,7 +15,6 @@
 #include "../ui/DeveloperOverlay.hxx"
 #include "../ui/TrainingPanel.hxx"
 #include "../platform/ReplayFiles.hxx"
-#include "../platform/Utf8.hxx"
 #include "../training/TrainingRuntime.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "../common/Localization.hxx"
@@ -264,25 +262,13 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.identityRefusal = snapshot.identityRefusal;
     view.tournament = snapshot.tournament;
     view.publicRooms = snapshot.publicRooms;
-    // The archive is listed off this thread (the runtime's lister); while the
-    // Replays screen shows, a new listing is asked for and the last one
-    // becomes its rows.
-    if (shell.Navigation().Screen() == "replays") {
-        sf4e::platform::replays::WantListing();
-        if (snapshot.replays.archive) for (const auto& replay : *snapshot.replays.archive) {
-            view.replays.push_back({sf4e::platform::WideToUtf8(replay.path.wstring()),
-                sf4e::ui::ReplayLabel(replay.label, replay.names, replay.fighters), {replay.names[0], replay.names[1]}, replay.spectated, replay.watched, replay.video, replay.summary, replay.time});
-        }
-    }
-    // Each entry owns a revision. WantDetail coalesces frames of that entry;
-    // the worker rereads the bounded file before considering its content cache.
-    if (shell.Navigation().Screen() == "replay-inputs") {
-        sf4e::platform::replays::WantDetail(shell.ReplayInputsFile(), shell.ReplayInputsRevision());
-        view.replayDetail = snapshot.replays.detail;
-    }
-    view.replaysReady = snapshot.replays.ready;
-    view.replayNotice = snapshot.replays.notice; view.replayNoticeError = snapshot.replays.noticeError;
-    view.replayLink = snapshot.replays.link;
+    // The archive is listed, and an entry's inputs read, off this thread (the
+    // runtime's workers). The screen on show says what to ask for; the last
+    // listing and detail they made come with the snapshot.
+    const auto replayWants = shell.ReplayWants();
+    if (replayWants.listing) sf4e::platform::replays::WantListing();
+    if (replayWants.detail) sf4e::platform::replays::WantDetail(replayWants.detailFile, replayWants.detailRevision);
+    view.replays = snapshot.replays;
     const auto* fighter = sf4e::selection::FindFighter(lobbyMenuCharaID);
     view.selectedFighter=lobbyMenuCharaID;
     auto summaryPick = sf4e::selection::FromNative(lobbyConditions); summaryPick.fighter = lobbyMenuCharaID;
@@ -318,14 +304,6 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 			sf4e::selection::ToNative(pick, lobbyConditions);
 			return true;
 		}
-		// Training from inside a room: no room command is sent, the game alone
-		// moves, and the menu closes behind it. The runtime's own gate decides.
-		if (action.enterTraining && action.command.kind != sf4e::netplay::CommandKind::StartOffline) {
-			if (!snapshot.canTrain) return false;
-			fMainMenu::RequestTraining(snapshot.session.generation, true);
-			presentation.Close();
-			return true;
-		}
 		sf4e::NetplayFacade::RuntimeCommand request;
 		request.command = std::move(action.command);
         request.service = action.service;
@@ -346,15 +324,11 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		request.character.charaID = static_cast<BYTE>(lobbyMenuCharaID);
 		request.stage = lobbyStageID;
 		request.randomStageExcluded = lobbyStageExcluded;
-		// Training rides on StartOffline: the game is sent on only where that
-		// command can be accepted, outside any room or match and at the main menu.
-		const bool training = action.enterTraining && request.command.kind == sf4e::netplay::CommandKind::StartOffline &&
-			snapshot.atMainMenu && snapshot.session.room == sf4e::netplay::RoomState::Idle &&
-			snapshot.session.match == sf4e::netplay::MatchState::None;
-		const auto generation = request.command.generation;
+		request.training = action.training;
 		if (!sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request))) return false;
-		// The menu acts on it only once the runtime has taken the command, and while this session stands.
-		if (training) fMainMenu::RequestTraining(generation, false);
+		// Training from inside a room: the menu closes behind it while the runtime
+		// sends the game on. Offline, the menu closes as for any offline start.
+		if (action.training == sf4e::TrainingEntry::Room) presentation.Close();
 		return true;
 	}, [&] {
 		DrawNetworkCharaConfig(lobbyConditions, lobbyMenuCharaID,
@@ -448,7 +422,7 @@ void Overlay::DrawOverlay() {
     // operation says the main menu is back (sf4e__ReplayStore.hxx).
     static std::uint64_t logOpensSeen = 0, returnsSeen = 0;
     if (snapshot.replays.logOpens != logOpensSeen) { logOpensSeen = snapshot.replays.logOpens; presentation.Close(); }
-    if (snapshot.replays.returns != returnsSeen) { returnsSeen = snapshot.replays.returns; presentation.Open(); shell.Navigation().Home(); shell.Navigation().Push("replays"); }
+    if (snapshot.replays.returns != returnsSeen) { returnsSeen = snapshot.replays.returns; presentation.Open(); shell.ShowReplays(); }
     if (ImGui::IsKeyPressed(ImGuiKey_F10, false)) presentation.Toggle();
     // Every overlay frame, since the training panel draws art with the menu
     // closed. Pump returns at once when nothing drew art since the last pump.

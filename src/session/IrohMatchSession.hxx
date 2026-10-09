@@ -34,6 +34,18 @@ public:
 			phase_ == Phase::Connecting || phase_ == Phase::Started;
 	}
 	std::uint64_t Generation() const { return generation_; }
+	// The newest generation whose authenticated grant this session took up. It is
+	// set before anything in preparing that grant can fail, while Generation() is
+	// set only once preparation succeeded, so a failed setup reports its abort,
+	// and retires, under this one.
+	std::uint64_t AttemptedGeneration() const { return attempted_; }
+	// That generation once this session has let go of it: idle, with no grant
+	// staged. 0 while it is still being set up, played or torn down.
+	std::uint64_t RetiredGeneration() const {
+		return phase_ == Phase::Idle && pendingGrant_.is_null() && !waitingForProjection_ ? attempted_ : 0;
+	}
+	// Test seam: port reservations fail, as a socket error would.
+	void FailPortReservationForTest(bool fail) { failPortReservation_ = fail; }
 	std::size_t LocalSlot() const { return slot_; }
 	const std::vector<SessionProtocol::ConnectionID>& Roster() const { return roster_; }
 	const std::string& Error() const { return error_; }
@@ -83,7 +95,8 @@ private:
 	Clock clock_;
 	MatchTeardownTiming teardown_;
 	Phase phase_ = Phase::Idle;
-	std::uint64_t generation_ = 0;
+	std::uint64_t generation_ = 0, attempted_ = 0;
+	bool failPortReservation_ = false;
 	std::size_t slot_ = 0;
 	std::vector<SessionProtocol::ConnectionID> roster_;
 	std::vector<Link> links_;

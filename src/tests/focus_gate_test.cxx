@@ -3,6 +3,7 @@
 // reads the foreground window through Ember. All edits land together or none
 // does, and every place made writable is locked again.
 #include "../common/FocusGate.hxx"
+#include "../sf4e/sf4e__BackgroundPlay.hxx"
 #include <cstdint>
 #include <cstring>
 
@@ -91,8 +92,27 @@ static void CheckAllOrNone() {
     }
 }
 
+// What the game keeps doing behind another window. An export is heard even
+// minimized; a watched match runs on but stays muted; the setting alone keeps
+// the sound and the pads but never runs a paused game on.
+static void CheckPolicy() {
+    using sf4e::BackgroundPlay::PolicyFor;
+    const auto none = PolicyFor(false, false, false);
+    CHECK(!none.backgroundInput && !none.keepSound && !none.keepRunning && !none.keepSoundMinimized);
+    const auto setting = PolicyFor(true, false, false);
+    CHECK(setting.backgroundInput && setting.keepSound && !setting.keepRunning && !setting.keepSoundMinimized);
+    const auto exporting = PolicyFor(false, true, false);
+    CHECK(!exporting.backgroundInput && exporting.keepSound && exporting.keepRunning && exporting.keepSoundMinimized);
+    const auto watching = PolicyFor(false, false, true);
+    CHECK(!watching.backgroundInput && !watching.keepSound && watching.keepRunning && !watching.keepSoundMinimized);
+    const auto watchingWithSetting = PolicyFor(true, false, true);
+    CHECK(watchingWithSetting.backgroundInput && watchingWithSetting.keepSound && watchingWithSetting.keepRunning &&
+        !watchingWithSetting.keepSoundMinimized);
+}
+
 int main() {
     CheckTargets();
     CheckAllOrNone();
+    CheckPolicy();
     return 0;
 }

@@ -3,6 +3,13 @@
 #include "../session/IrohRoom.hxx"
 #include "../session/sf4e__SessionClient.hxx"
 #include "../platform/HelperClient.hxx"
+#include "../session/RoomModel.hxx"
+#include "../sf4e/sf4e__NetplayFacade.hxx"
+#include "../sf4e/sf4e__GameEvents.hxx"
+#include "../sf4e/sf4e__NetplayRuntime.hxx"
+#include "../sf4e/sf4e__UserApp.hxx"
+#include "../Dimps/Dimps.hxx"
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <map>
@@ -318,8 +325,246 @@ void TestSpectatorStreamSourceClosed() {
 	std::cout << "TestSpectatorStreamSourceClosed passed\n";
 }
 
-}
+// The runtime with a room of its own: its client connected through a scripted
+// transport and a fake helper room, this PC a member of `authority`'s room, the
+// controller joined and healthy. The runtime itself runs without a helper or a
+// game; there is no main menu, so the test ends a recovery the way
+// ReleaseFinishedMatch would at one.
+struct RuntimeRoom {
+	platform::HelperClient helper;
+	std::shared_ptr<FakeIrohRoom> room = std::make_shared<FakeIrohRoom>(helper);
+	SessionClient::Callbacks callbacks{};
+	std::string name = "Spectator";
+	MockClient* transport = new MockClient();
+	ULONGLONG now = 1000;
+	sf4e::NetplayFacade::internal::Runtime* runtime = nullptr;
+	Dimps::GameEvents::RootEvent* (*originalRoot)() = nullptr;
+	static Dimps::GameEvents::RootEvent* NoRoot() { return nullptr; }
 
+	RuntimeRoom() {
+		sf4e::NetplayConfig config = {};
+		sf4e::NetplayFacade::InitFromPayload(config);
+		sf4e::NetplayFacade::ConfigureHelper({}, ERROR_FILE_NOT_FOUND);
+		sf4e::NetplayFacade::StartHelper();
+		originalRoot = Dimps::App::GetRootEvent;
+		Dimps::App::GetRootEvent = NoRoot;
+		sf4e::NetplayFacade::NotifyRuntimeGameReady();
+		sf4e::NetplayFacade::TickRuntime();
+		runtime = sf4e::NetplayFacade::internal::runtime;
+		CHECK(runtime);
+		sf4e::UserApp::netplay.reset(new sf4e::UserApp::Netplay(callbacks, "build", 30000, name, 0, 0, 2));
+		auto& client = sf4e::UserApp::netplay->client;
+		CHECK(client.Connect(std::unique_ptr<session::ClientTransport>(transport), false) == 0);
+		client.RequireMatchAuthorization();
+		transport->state = session::ConnectionState::Connected;
+		CHECK(client.Step() == 0);
+		protocol::SessionHelloResp hello; hello.cid = {"room", "spectator"};
+		transport->Push(json(hello));
+		CHECK(client.Step() == 0);
+		std::array<std::uint8_t, 16> id{}; id[15] = 1;
+		room->roomId = id;
+		room->localIdentity = std::string(64, 'L');
+		runtime->match.reset(new IrohMatchSession(client, room, [this] { return now; }));
+		runtime->attached = true;
+		CHECK(runtime->controller.Execute({sf4e::netplay::CommandKind::HostRoom, runtime->controller.GetSnapshot().generation, {}}).accepted);
+		sf4e::NetplayFacade::internal::Apply(sf4e::netplay::EventKind::RoomJoined);
+		CHECK(runtime->controller.GetSnapshot().control == sf4e::netplay::Health::Healthy);
+	}
+	~RuntimeRoom() {
+		runtime->attached = false;
+		runtime->match.reset();
+		sf4e::UserApp::netplay.reset();
+		sf4e::NetplayFacade::StopHelper();
+		Dimps::App::GetRootEvent = originalRoot;
+	}
+	SessionClient& Client() { return sf4e::UserApp::netplay->client; }
+	IrohMatchSession& Match() { return *runtime->match; }
+	void Deliver(const json& message) { transport->Push(message); CHECK(Client().Step() == 0); }
+	void Snapshot(const sf4e::room::Snapshot& snapshot) {
+		protocol::RoomSnapshotMessage message; message.snapshot = snapshot;
+		Deliver(json(message));
+	}
+	// The native roster for `generation`: the two fighters, then this PC.
+	void Projection(std::uint64_t generation) {
+		protocol::SessionDataUpdate update;
+		update.lobbyData.members.resize(3);
+		update.lobbyData.members[0].connId = {"room", "p1"};
+		update.lobbyData.members[1].connId = {"room", "p2"};
+		update.lobbyData.members[2].connId = Client()._cid;
+		update.matchGeneration = generation;
+		Deliver(json(update));
+	}
+	json Grant(std::uint64_t generation) {
+		std::vector<protocol::ConnectionID> roster{{"room", "p1"}, {"room", "p2"}, Client()._cid};
+		std::array<std::uint8_t, 32> capability{}; capability[0] = 7;
+		const json link = {{"slot", 0}, {"peer", std::string(64, 'A')}, {"capability", capability}, {"dial", true}};
+		return json{{"type", "game_prepare"}, {"generation", generation}, {"version", 1}, {"room", room->roomId},
+			{"local_identity", room->localIdentity}, {"max_packet", session::GgpoMaximumPacket},
+			{"roster", roster}, {"slot", 2}, {"links", json::array({link})}};
+	}
+	// The room actions this PC sent: Unwatch with keep_watching, for `generation`.
+	int KeptUnwatches(std::uint64_t generation) const {
+		int count = 0;
+		for (const auto& message : transport->sent) {
+			if (message.value("type", json()) != json(protocol::MT_ROOM_ACTION)) continue;
+			const auto action = message.at("action").get<sf4e::room::Action>();
+			if (action.kind == sf4e::room::ActionKind::Unwatch && action.keepWatching && action.matchGeneration == generation) ++count;
+		}
+		return count;
+	}
+};
+
+// A spectator, by choice or queued, saw one game end (the room's own end event,
+// through the runtime) and retired it, and is taken into the next, whose setup
+// then fails before the session records that generation as its own: its port
+// cannot be reserved, or its staged grant's projection never comes. Through the
+// runtime's real failure path, the failure is reported for the generation it
+// attempted, and a refused send is kept and retried for it; the lock release
+// is armed for it too. When that game already ended in the room, nothing more
+// is sent. Training is refused during the teardown and recovery, holds once
+// both are done (Take Go once, then None), and is refused for a newer admission.
+void TestFailedSetupThroughRuntime(bool queued, bool staged, bool alreadyEnded) {
+	namespace room = sf4e::room;
+	namespace facade = sf4e::NetplayFacade;
+	namespace internal = sf4e::NetplayFacade::internal;
+	using Taken = sf4e::GameEvents::TrainingRequest::Taken;
+	auto& record = sf4e::GameEvents::MainMenu::trainingRequest;
+	sf4e::GameEvents::TrainingRequest::Pending seen;
+	const auto none = [&] { return !record.Peek(GetTickCount64(), seen); };
+	if (!none()) record.Consume(seen.serial);
+	room::RoomAuthority authority("Failed setup", 16, 95);
+	const auto join = [&](int index, bool host) {
+		const auto result = authority.Join("Player" + std::to_string(index), room::ConnectionRef{"host", std::to_string(index)}, host);
+		CHECK(result.accepted);
+		return result.snapshot.members.back().id;
+	};
+	const auto act = [&](room::MemberId member, room::ActionKind kind, std::uint64_t generation) {
+		const auto& view = authority.SnapshotView();
+		room::Action action;
+		action.kind = kind; action.roomEpoch = view.roomEpoch; action.revision = view.revision;
+		action.table = 0; action.tableRevision = view.tables[0].revision;
+		action.actionId = member * 1000 + view.revision + 1; action.matchGeneration = generation;
+		return authority.Apply(member, action).accepted;
+	};
+	join(0, true);
+	const auto p1 = join(1, false), p2 = join(2, false), member = join(3, false);
+	for (const auto fighter : {p1, p2}) CHECK(act(fighter, room::ActionKind::Queue, 0));
+	CHECK(act(member, queued ? room::ActionKind::Queue : room::ActionKind::Watch, 0));
+	const auto begin = [&] {
+		for (const auto fighter : {p1, p2}) CHECK(act(fighter, room::ActionKind::Ready, 0));
+		CHECK(authority.BeginMatch(0, p1, p2).accepted);
+		return authority.SnapshotView().tables[0].matchGeneration;
+	};
+	RuntimeRoom r;
+	auto* runtime = r.runtime;
+	sf4e::netplay::Snapshot session;
+	session.generation = {4, 0};
+	session.room = sf4e::netplay::RoomState::Joined;
+	session.control = sf4e::netplay::Health::Healthy;
+	session.match = sf4e::netplay::MatchState::PostMatch;
+	room::Snapshot live;
+	const auto holds = [&](const sf4e::netplay::Generation& generation, bool fromRoom) {
+		return facade::TrainingHolds(fromRoom ? sf4e::TrainingEntry::Room : sf4e::TrainingEntry::Offline, generation, session, true, live,
+			internal::RetiredMatchGeneration());
+	};
+	const auto tick = [&] { internal::TickMatch(); internal::ReleaseFinishedMatch(); };
+
+	// The first game is watched, its end committed by the room's own event, and retired.
+	const auto first = begin();
+	r.Snapshot(authority.SnapshotFor(member));
+	r.Projection(first);
+	r.Deliver(r.Grant(first));
+	r.Deliver(Fixture::Connect(first));
+	tick(); tick();
+	CHECK(r.Match().GetPhase() == Phase::Connecting && r.Match().Generation() == first);
+	const auto ended = authority.EndMatch(0, first, room::MatchResult::P1Win);
+	CHECK(ended.accepted);
+	for (const auto& event : ended.events) {
+		if (event.kind != room::Event::Kind::MatchEnded) continue;
+		protocol::RoomEventMessage message; message.event = event;
+		r.Deliver(json(message));
+	}
+	internal::DrainRoomEvents();
+	CHECK(runtime->committedEndGeneration == first);
+	r.Match().End();
+	r.room->AbandonMatch(first);
+	tick();
+	CHECK(r.Match().GetPhase() == Phase::Idle && internal::RetiredMatchGeneration() == first);
+	for (const auto who : {p1, p2, member}) CHECK(act(who, room::ActionKind::AcknowledgeTerminal, first));
+
+	// The next game takes the member in.
+	const auto second = begin();
+	CHECK(authority.SnapshotFor(member).localMatchGenerations[0] == second);
+	if (alreadyEnded) CHECK(authority.EndMatch(0, second, room::MatchResult::P2Win).accepted);
+	r.Snapshot(authority.SnapshotFor(member));
+	// Its setup fails before the session records it, with the first send refused.
+	if (staged) {
+		r.Deliver(r.Grant(second));
+		tick();
+		CHECK(r.Match().GetPhase() == Phase::Idle && r.Match().AttemptedGeneration() == second);
+		CHECK(internal::RetiredMatchGeneration() == 0);
+		r.now += 30001;
+	} else {
+		r.Match().FailPortReservationForTest(true);
+		r.Projection(second);
+		r.Deliver(r.Grant(second));
+	}
+	r.transport->writable = false;
+	internal::TickMatch();
+	r.Match().FailPortReservationForTest(false);
+	CHECK(r.Match().LastFailure() == (staged ? "match_setup_timeout" : "local_port_unavailable"));
+	CHECK(r.Match().Generation() == first && r.Match().AttemptedGeneration() == second);
+	CHECK(runtime->recoveringMatch);
+	if (alreadyEnded) {
+		// The room already ended that game: no abort, no lock release, nothing kept.
+		CHECK(!runtime->pendingAbort && !runtime->spectatorLockRelease.Pending());
+		r.transport->writable = true;
+		internal::RetryPendingAbort();
+		CHECK(r.KeptUnwatches(second) == 0 && r.KeptUnwatches(first) == 0);
+	} else {
+		// Refused: kept for the attempted game, with its lock release.
+		CHECK(runtime->pendingAbort && runtime->pendingAbort->matchGeneration == second &&
+			runtime->pendingAbort->kind == room::ActionKind::Unwatch && runtime->pendingAbort->keepWatching);
+		CHECK(runtime->spectatorLockRelease.Pending() && runtime->spectatorLockRelease.Generation() == second);
+		CHECK(r.KeptUnwatches(second) == 0);
+		// Retried once the transport takes it, and the room accepts it.
+		r.transport->writable = true;
+		internal::RetryPendingAbort();
+		CHECK(!runtime->pendingAbort && r.KeptUnwatches(second) == 1 && r.KeptUnwatches(first) == 0);
+		auto sent = r.transport->sent.back().at("action").get<room::Action>();
+		// Replayed under this member's own action ids, which the room orders per member.
+		sent.actionId = member * 1000 + authority.SnapshotView().revision + 1;
+		sent.revision = authority.SnapshotView().revision;
+		sent.tableRevision = authority.SnapshotView().tables[0].revision;
+		CHECK(authority.Apply(member, sent).accepted);
+	}
+	live = authority.SnapshotFor(member);
+	// Torn down, but recovery not yet ended: refused.
+	for (int i = 0; i < 8 && r.Match().GetPhase() != Phase::Idle; ++i) { r.now += 100; tick(); }
+	CHECK(r.Match().GetPhase() == Phase::Idle);
+	// (When the room had already ended that game there is nothing left to watch.)
+	CHECK(internal::RetiredMatchGeneration() == 0 && holds(session.generation, true) == alreadyEnded);
+	// Recovery ends (at the main menu, ReleaseFinishedMatch would).
+	runtime->recoveringMatch = false;
+	internal::ResetMatchEntry();
+	internal::Apply(sf4e::netplay::EventKind::MatchRecovered);
+	CHECK(internal::RetiredMatchGeneration() == second);
+	CHECK(holds(session.generation, true));
+	sf4e::GameEvents::MainMenu::RequestTraining(session.generation, true);
+	CHECK(record.Take(GetTickCount64(), holds) == Taken::Go && none());
+	CHECK(record.Take(GetTickCount64(), holds) == Taken::None);
+	// A newer game takes the member in again: refused.
+	if (!alreadyEnded) CHECK(authority.EndMatch(0, second, room::MatchResult::P2Win).accepted);
+	for (const auto who : {p1, p2, member}) act(who, room::ActionKind::AcknowledgeTerminal, second);
+	const auto third = begin();
+	live = authority.SnapshotFor(member);
+	CHECK(live.localMatchGenerations[0] == third && third > second);
+	CHECK(!holds(session.generation, true));
+	sf4e::GameEvents::MainMenu::RequestTraining(session.generation, true);
+	CHECK(record.Take(GetTickCount64(), holds) == Taken::Dropped && none());
+	std::cout << "TestFailedSetupThroughRuntime queued=" << queued << " staged=" << staged << " ended=" << alreadyEnded << " passed\n";
+}
+}
 int main() {
 	TestEarlyConnectSameTick();
 	TestEarlyConnectSeparateTicks();
@@ -328,6 +573,9 @@ int main() {
 	TestSpectatorMissingRoomEndReturnsAtOnce();
 	TestFighterMissingRoomEndIsBounded();
 	TestSpectatorStreamSourceClosed();
+	for (const bool queued : {false, true})
+		for (const bool staged : {false, true}) TestFailedSetupThroughRuntime(queued, staged, false);
+	TestFailedSetupThroughRuntime(false, false, true);
 	std::cout << "Iroh match session tests passed\n";
 	return 0;
 }

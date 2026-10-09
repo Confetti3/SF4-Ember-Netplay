@@ -12,8 +12,11 @@ void ShootReplays(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,co
     page("replays");replayinputs::Summary said;said.scored=true;said.score[0]=2;said.score[1]=1;said.rounds=3;said.frames=131*60;
     said.players[0]={1,2,9,-1,1,0};said.players[1]={2,0,0,-1,0,0};
     for(int side=0;side<2;side++){said.stats[side].frames=said.frames;said.stats[side].actions=700-side*40;said.stats[side].jumps=18;said.stats[side].crouched=said.frames*(54-side*23)/100;for(int b=0;b<6;b++)said.stats[side].presses[b]=101-b*14-side*9;}
-    view.replays={{"a","2026-10-05 23:35",{"Alice","Bob"},false,true,true,said},{"b","2026-10-05 23:36",{},true,false}};
-    view.replaysReady=true;view.replayNotice=loc::T("replays.added");
+    platform::replays::ArchivedReplay alice,other;
+    alice.path="a";alice.label="2026-10-05 23:35";alice.names[0]="Alice";alice.names[1]="Bob";alice.watched=alice.video=true;alice.summary=said;alice.fighters[0]=0;alice.fighters[1]=1;
+    other.path="b";other.label="2026-10-05 23:36";other.spectated=true;other.fighters[0]=2;other.fighters[1]=3;
+    view.replays.archive=std::make_shared<const std::vector<platform::replays::ArchivedReplay>>(std::vector<platform::replays::ArchivedReplay>{alice,other});
+    view.replays.ready=true;view.replays.notice=loc::T("replays.added");
     std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries){rows=entries;});
     page("replays");shell.Navigation().Focus("replay:a",rows);
     draw(nullptr,MenuInput::Select,1);draw("replay-choices");
@@ -24,6 +27,6 @@ void ShootReplays(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,co
     Require(rows.size()==std::size(ids),"Export caption page lost a control");
     for(std::size_t i=0;i<rows.size();++i)Require(rows[i].id==ids[i],"Export caption control order changed");
     SetMenuEntriesProbe({});draw(nullptr,MenuInput::Back,1);draw();
-    view.replays.clear();view.replaysReady=false;view.replayNotice.clear();
+    view.replays=ReplaysView{};
 }
 }

@@ -392,6 +392,13 @@ struct Snapshot {
 	// means no local obligation and prevents an older table receipt from being
 	// used as confirmation for a newer terminal event.
 	std::array<std::uint64_t, TableCount> localTerminalGenerations = {};
+	// For this wire recipient, each table's matchGeneration while it is in the
+	// native roster frozen when that game began, else 0: who watches the game,
+	// which a queued member's status does not say. A host that knows it always
+	// sends it (localMatchGenerationsSent); without it the host did not say,
+	// which is not the same as in no game.
+	bool localMatchGenerationsSent = false;
+	std::array<std::uint64_t, TableCount> localMatchGenerations = {};
 	std::vector<ChatMessage> chat;
 	// The tournament match this room plays at table 0, when it is bound to one.
 	TournamentBinding tournament;

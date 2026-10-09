@@ -3,9 +3,11 @@
 namespace sf4e { namespace NetplayFacade {
 namespace {
 // The room has finished this generation at the table: it committed the end of
-// the current match, or the table's phase has already left the game.
+// this very generation, or the table's phase has already left the game. Not
+// IsRuntimeMatchEndCommitted: that is the last game this PC set up successfully,
+// and a later one whose setup failed would pass for it.
 bool GenerationFinished(const room::Table& table, std::uint64_t generation) {
-	return IsRuntimeMatchEndCommitted() || netplay::GenerationEnded(table, generation);
+	return (generation && runtime->committedEndGeneration == generation) || netplay::GenerationEnded(table, generation);
 }
 
 // Records the lock release a spectator owes the room after its own setup or
@@ -47,7 +49,9 @@ void ReportMatchAbort() {
 	action.roomEpoch = snapshot.roomEpoch; action.revision = snapshot.revision;
 	action.table = static_cast<std::uint8_t>(member->table);
 	action.tableRevision = snapshot.tables[action.table].revision;
-	action.matchGeneration = runtime->match->Generation();
+	// The generation whose grant this PC took up, also when its setup failed
+	// before the session recorded it as its own.
+	action.matchGeneration = runtime->match->AttemptedGeneration();
 	// A game whose end is known needs no abort; the authority would only
 	// answer WrongGeneration.
 	if (GenerationFinished(snapshot.tables[action.table], action.matchGeneration)) {
@@ -271,7 +275,7 @@ void RetryPendingAbort() {
 		const auto& snapshot = UserApp::netplay->client.GetRoomSnapshot();
 		const auto& action = *runtime->pendingAbort;
 		// Kept while the projection lags the generation; its deadline bounds that.
-		const bool current = runtime->match && runtime->match->Generation() == action.matchGeneration &&
+		const bool current = runtime->match && runtime->match->AttemptedGeneration() == action.matchGeneration &&
 			action.table < room::TableCount && snapshot.roomEpoch == action.roomEpoch &&
 			!GenerationFinished(snapshot.tables[action.table], action.matchGeneration);
 		if (!current) {
@@ -437,7 +441,7 @@ void TickMatch() {
 					// failure is ever recorded. Its lock release is owed for the
 					// admitted generation all the same, and is not the action that
 					// retires the link: that one is sent once and lost with the control.
-					if (LocalIsSpectator()) ArmSpectatorLockRelease(runtime->match->Generation(), true);
+					if (LocalIsSpectator()) ArmSpectatorLockRelease(runtime->match->AttemptedGeneration(), true);
 					ReportMatchAbort();
 				}
 				runtime->readyIntent.Withdraw(); runtime->lobbyEditIntent.Clear();

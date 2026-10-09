@@ -82,10 +82,10 @@ bool ApplicationShell::Service(platform::ServiceAction kind, const ShellView& vi
 void ApplicationShell::Refuse(std::string text, std::function<bool(const ShellView&)> stillBlocked) {
     error_ = std::move(text); errorBlockedText_ = error_; errorBlocked_ = std::move(stillBlocked);
 }
-bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit, bool enterTraining) {
+bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit, TrainingEntry training) {
     ShellAction action;
     action.command.kind = kind;
-    action.enterTraining = enterTraining && kind == netplay::CommandKind::StartOffline;
+    action.training = training;
     action.command.generation = view.session.generation;
     action.preferences = preferences_;
     if (kind == netplay::CommandKind::SetLobbySettings) action.preferences.lobby = lobby_;
@@ -308,53 +308,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(PublicRoomsPanel::Owns(screen)){
   title=loc::T("screen.public_rooms");rows=publicRooms_.Rows(v,identity_.UsableBridge(v),identity_.Waiting(),identity_.PublicSetup(),PublicListWidth());
  }else if(screen.compare(0,4,"room")==0){title=v.room.name.empty()?loc::T("screen.room"):v.room.name;NoteUserText(v.room.name);rows=RoomEntries(v);
- }else if(screen=="replay-inputs"){title=loc::T("replays.inputs");BuildInputsRows(v,rows);
- }else if(screen=="replay-export"){
-  // Each part of the caption on or off, with its text; Generate sends it with the export.
-  title=loc::T("export.title");
-  const auto onOff=[](bool on){return std::string(on?loc::T("common.on"):loc::T("common.off"));};
-  const int one=1,two=2;
-  for(const auto* text:{&caption_.name[0],&caption_.name[1],&caption_.text})NoteUserText(*text);
-  rows={Value("cap-names",loc::T("export.names"),onOff(caption_.names),loc::T("export.detail")),
-   TextRow("cap-name1",loc::Tf("export.name",one),caption_.name[0],31,caption_.names),
-   TextRow("cap-name2",loc::Tf("export.name",two),caption_.name[1],31,caption_.names),
-   Value("cap-line",loc::T("export.line"),onOff(caption_.line),loc::T("export.detail")),
-   TextRow("cap-text",loc::T("export.line_text"),caption_.text,60,caption_.line),
-   Value("cap-set",loc::T("export.set"),onOff(caption_.set),loc::T("export.set_detail")),
-   Value("cap-set1",loc::Tf("export.set_wins",one),std::to_string(caption_.wins[0]),loc::T("export.set_detail"),caption_.set),
-   Value("cap-set2",loc::Tf("export.set_wins",two),std::to_string(caption_.wins[1]),loc::T("export.set_detail"),caption_.set),
-   Value("cap-mark",loc::T("export.mark"),onOff(caption_.mark),loc::T("export.detail")),
-   Row("cap-generate",loc::T("export.generate"),loc::T("replays.export_gpu_detail"),idle&&v.replaysReady)};
- }else if(screen=="replays"){
-  title=loc::T("replays.title");
-  if(!v.replayLink.empty()){
-   // A link names a file and nothing is played on its word: Select asks.
-   rows.push_back(Row("replay-link",loc::T("replays.link"),loc::Tf("replays.link_detail",v.replayLink)));
-   rows.back().detailText=DetailText::Name;NoteUserText(v.replayLink);
-   rows.back().choices={{"link-play",loc::T("replays.link_play"),loc::T("replays.watch_detail"),idle&&v.replaysReady},{"link-dismiss",loc::T("replays.link_dismiss"),loc::T("replays.link_dismiss_detail")}};
-   rows.back().chosen=idle&&v.replaysReady?"link-play":"link-dismiss";
-  }
-  rows.push_back(Row("replay-log",loc::T("replays.open_log"),loc::T(idle?"replays.open_log_detail":"replays.open_log_room"),idle&&v.replaysReady));
-  rows.push_back(Row("replay-folder",loc::T("replays.open_folder"),v.services.lastAction==platform::ServiceAction::OpenReplayFolder&&!v.services.message.empty()?v.services.message:loc::T("replays.open_folder_detail"),!v.services.pending));
-  if(v.replays.empty())rows.push_back(InfoRow("replay-none",loc::T("replays.empty"),"",loc::T("replays.empty_detail")));
-  // A row is its file, not its place: the list is listed again while a row's choices are open.
-  // A row is always open: reading its inputs needs nothing of the game. What does is each choice's own.
-  for(std::size_t i=0;i<v.replays.size();i++){rows.push_back(Row("replay:"+v.replays[i].path,v.replays[i].label,loc::T(v.replaysReady?"replays.row_detail":"replays.not_ready")));
-   // The label carries the players' own names. The value says what Ember knows about it.
-   rows.back().userText=true;for(const auto& name:v.replays[i].names)NoteUserText(name);
-   rows.back().value=v.replays[i].watched&&v.replays[i].spectated?loc::T("replays.watched_spectated"):v.replays[i].watched?loc::T("replays.watched"):v.replays[i].spectated?loc::T("replays.spectated"):"";
-   if(v.replays[i].video)rows.back().value=rows.back().value.empty()?loc::T("replays.video"):rows.back().value+", "+loc::T("replays.video");
-   // The score leads the value; the replay's own account of the match leads the detail.
-   if(const auto& summary=v.replays[i].summary){
-    const std::string score=ScoreText(*summary);
-    if(!score.empty())rows.back().value=rows.back().value.empty()?score:score+" · "+rows.back().value;
-    std::string said=MatchText(*summary);
-    for(int side=0;side<2;side++)said+="\n"+ReplayPlayerName(v.replays[i].names,side)+": "+LookText(summary->players[side]);
-    rows.back().detail=said+"\n\n"+rows.back().detail;rows.back().detailText=DetailText::Name;
-   }
-   // Select offers playback, adding to the Battle Log, exporting video, or reading inputs.
-   rows.back().choices={{"watch",loc::T("replays.watch"),loc::T("replays.watch_detail"),idle&&v.replaysReady},{"watch-meter",loc::T("replays.watch_meter"),loc::T("replays.watch_meter_detail"),idle&&v.replaysReady},{"add",loc::T("replays.add"),loc::T("replays.add_detail"),v.replaysReady},{"export",loc::T("replays.export_gpu"),loc::T("replays.export_gpu_detail"),idle&&v.replaysReady},{"inputs",loc::T("replays.inputs"),loc::T("replays.inputs_detail")}};
-   rows.back().chosen=!v.replaysReady?"inputs":idle?"watch":"add";}
+ }else if(ReplaysPanel::Owns(screen)){rows=replays_.Rows(v,screen,idle,title);
  }else if(screen=="settings"){
   title=loc::T("settings.title");rows={Row("player",loc::T("screen.player"),loc::T("settings.player_detail")),Row("defaults",loc::T("screen.defaults"),loc::T("settings.defaults_detail")),Row("interface",loc::T("settings.interface"),loc::T("settings.interface_detail")),Row("training-replays",loc::T("settings.training_replays"),loc::T("settings.training_replays_detail")),Row("discord",loc::T("screen.discord"),loc::T("settings.discord_detail")),
    Row("about",loc::T("home.about"),loc::T("home.about_detail"))};
@@ -526,7 +480,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
      ((!RoomActionsAvailable(v)&&!RoomCheckpointPending(v))||(roomUpdateVisible_&&!seatedTableStatus)) && !committedMatchStatus &&
      !v.controllerUnavailable&&sessionProblem.empty()&&v.error.empty()&&error_.empty())))
   {status=RoomWaitReason(v);statusTone=Tone::Pending;}
- if(screen=="replays"&&!v.replayNotice.empty()&&status.empty()){status=v.replayNotice;statusTone=v.replayNoticeError?Tone::Error:Tone::Success;}
+ if(ReplaysPanel::Owns(screen))replays_.Status(v,screen,status,statusTone);
  return {status,statusTone};
 }
 void ApplicationShell::PublishPlayerCard(const ShellView& v) {
@@ -539,29 +493,6 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
  for(const auto& table:v.room.tables)if(table.phase==room::TablePhase::Playing)++card.activeTables;
  SetMenuPlayerCard(std::move(card));
 }
-// The caption an export starts from: the names Ember noted, the date and
-// score on one line, Ember's mark, and the set so far. The set is counted
-// from the archive: the matches these two played right before this one,
-// each within half an hour of the next, by who won each.
-void ApplicationShell::OpenReplayExport(const ShellView& view,const ShellView::Replay& replay) {
- exportPath_=replay.path;caption_=replay::Caption{};
- caption_.name[0]=replay.names[0];caption_.name[1]=replay.names[1];
- caption_.names=!replay.names[0].empty()&&!replay.names[1].empty();
- const std::string score=replay.summary?ScoreText(*replay.summary):std::string();
- caption_.text=replay.label.substr(0,10)+(score.empty()?"":"   "+score);
- caption_.line=caption_.mark=true;
- std::uint64_t next=replay.time;
- for(const auto& earlier:view.replays){
-  if(!caption_.names||earlier.time>=replay.time)continue;
-  if(next-earlier.time>1800)break; // newest first: nothing older continues the set
-  const bool same=earlier.names[0]==replay.names[0]&&earlier.names[1]==replay.names[1];
-  const bool swapped=earlier.names[0]==replay.names[1]&&earlier.names[1]==replay.names[0];
-  if((!same&&!swapped)||!earlier.summary||!earlier.summary->scored||earlier.summary->score[0]==earlier.summary->score[1])continue;
-  const int winner=earlier.summary->score[0]>earlier.summary->score[1]?0:1;
-  ++caption_.wins[same?winner:1-winner];next=earlier.time;
- }
- caption_.set=caption_.wins[0]+caption_.wins[1]>0;
-}
 void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,const std::string& screen,bool idle,const Submit& submit) {
  using namespace netplay; auto& nav=menu_.navigation;
  // The retry row a failed save adds to every screen stays the shell's.
@@ -573,6 +504,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
   if(a.id=="pr-setup-id"){identity_.ClearPublicSetup();nav.Push("identity");return;}
   if(publicRooms_.Activate(a,nav))return;
  }
+ if(ReplaysPanel::Owns(screen)&&replays_.Activate(a,v,nav,submit,error_))return;
  // An opening room keeps its own screen, with its Stop row, until it joins.
  if(a.id=="online")nav.Push(idle?"online":v.session.room==RoomState::Opening?OpeningScreen(v):"room");
  else if(a.id=="discord-invitation")nav.Push(a.id);
@@ -581,11 +513,6 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?"roster":"";nav.Push(a.id);}
  else if(a.id=="replays")nav.Push(a.id);
  else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
- else if(a.id=="cap-generate"){
-  ShellAction r;r.command.generation=v.session.generation;r.replay={replay::Mode::Export,exportPath_,caption_};r.replay.meter=false;
-  if(!submit(std::move(r)))error_=loc::T("error.queue_failed");else nav.Return();
- }
- else if(a.id=="replay-log"){ShellAction r;r.command.generation=v.session.generation;r.replay.mode=replay::Mode::OpenLog;if(!submit(std::move(r)))error_=loc::T("error.queue_failed");}
  else if(a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="developer")nav.Push(a.id);
  else if(a.id=="pr-create"||a.id=="pr-none")OpenPublicCreate();
  else if(a.id=="host"&&preferences_.roomPublic){error_.clear();publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,preferences_.publicTableRules);}
@@ -593,7 +520,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
  else if(a.id=="offline"||a.id=="controls")Send(CommandKind::StartOffline,v,submit);
  // Training is the offline menus with the game sent on into Training mode.
- else if(a.id=="training")Send(CommandKind::StartOffline,v,submit,true);
+ else if(a.id=="training")Send(CommandKind::StartOffline,v,submit,TrainingEntry::Offline);
  else if(a.id=="paste"){const char* t=ImGui::GetClipboardText();if(t&&*t&&std::strlen(t)<sizeof(invitation_)){std::strcpy(invitation_,t);error_.clear();}else error_=loc::T("error.invitation_invalid");}
  else if(a.id=="capture"||a.id=="keyboard"){ShellAction r;r.command.generation=v.session.generation;r.inputAction=a.id=="capture"?input::Action::BeginCapture:input::Action::UseKeyboard;submit(std::move(r));}
  else if(a.id=="invite-cancel"||a.id=="invite-switch"){ShellAction r;r.command.generation=v.session.generation;r.discordRevision=v.discordRevision;r.discordAction=a.id=="invite-cancel"?discord::InviteAction::Cancel:discord::InviteAction::Switch;if(!submit(std::move(r)))error_=loc::T("error.invitation_changed");}
@@ -616,13 +543,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
  else if(IdentityPanel::Owns(screen))identity_.Accept(a,v);
  else if(a.id=="invite-text")std::snprintf(invitation_,sizeof(invitation_),"%s",a.text.c_str());
  else if(a.id=="language")SetLanguage(std::string(loc::NextPreference(languagePreference_,a.delta)));
- else if(screen=="replay-export"){
-  if(a.id=="cap-names")caption_.names=a.delta>0;else if(a.id=="cap-line")caption_.line=a.delta>0;
-  else if(a.id=="cap-set")caption_.set=a.delta>0;else if(a.id=="cap-mark")caption_.mark=a.delta>0;
-  else if(a.id=="cap-name1")caption_.name[0]=a.text;else if(a.id=="cap-name2")caption_.name[1]=a.text;
-  else if(a.id=="cap-text")caption_.text=a.text;
-  else if(a.id=="cap-set1"||a.id=="cap-set2"){int& wins=caption_.wins[a.id=="cap-set2"];wins=(std::max)(0,(std::min)(99,wins+a.delta));}
- }
+ else if(ReplaysPanel::Owns(screen))replays_.Accept(a);
  else{
   auto prior=preferences_;
   if(a.id=="name")preferences_.displayName=a.text;else if(a.id=="room-name")preferences_.roomName=a.text;
@@ -779,7 +700,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(v.discordPending&&inviteRevision_!=v.discordRevision){inviteRevision_=v.discordRevision;nav.Push("discord-invitation");}
  if(!v.discordPending&&nav.Screen()=="discord-invitation")nav.Return();
  // A replay link takes the menu to its question only with no room: in a room the menu is the room's, and the link waits until it is left.
- if(v.replayLink!=replayLinkSeen_&&(v.replayLink.empty()||v.session.room==netplay::RoomState::Idle)){replayLinkSeen_=v.replayLink;if(!v.replayLink.empty()&&nav.Screen()!="replays"){nav.Home();nav.Push("replays");}}
+ replays_.Update(v,nav);
  if(v.inputCapture!=input::Capture::Idle&&nav.Screen()!="assignment")nav.Push("assignment");
  if(v.inputCapture==input::Capture::Idle&&nav.Screen()=="assignment")nav.Return();
  identity_.Update(v,nav.Screen(),submit,now);
@@ -947,23 +868,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   else if(IdentityPanel::Owns(screen))identity_.Accept(a,v);
   else if(PublicRoomsPanel::Owns(screen))publicRooms_.Choose(a);
   else if(a.id=="language")SetLanguage(a.text);
-  else if(a.id=="replay-link"){
-   ShellAction r;r.command.generation=v.session.generation;
-   if(a.text=="link-play")r.replay={replay::Mode::Watch,v.replayLink};else r.replay.mode=replay::Mode::DismissLink;
-   if(!submit(std::move(r)))error_=loc::T("error.queue_failed");
-  }
-  else if(a.id.compare(0,7,"replay:")==0&&a.text=="inputs"){
-   // Nothing is sent to the game: the screen names the file and is handed its match (ReplayInputsFile).
-   for(const auto& shown:v.replays)if(shown.path==a.id.substr(7)){inputsFile_=shown.path;++inputsRevision_;menu_.navigation.Push("replay-inputs");break;}
-  }
-  else if(a.id.compare(0,7,"replay:")==0&&a.text=="export"){
-   // The caption is set up first; Generate on that screen sends the export.
-   for(const auto& shown:v.replays)if(shown.path==a.id.substr(7)){OpenReplayExport(v,shown);menu_.navigation.Push("replay-export");break;}
-  }
-  else if(a.id.compare(0,7,"replay:")==0&&v.replaysReady){
-   ShellAction r;r.command.generation=v.session.generation;r.replay={(a.text=="watch"||a.text=="watch-meter")?replay::Mode::Watch:replay::Mode::Add,a.id.substr(7)};r.replay.meter=a.text=="watch-meter";
-   if(!submit(std::move(r)))error_=loc::T("error.queue_failed");
-  }
+  else if(ReplaysPanel::Owns(screen))replays_.Choose(a,v,menu_.navigation,submit,error_);
  }else if(a.kind==MenuAction::Activate){
   HandleActivate(a,v,screen,idle,submit);
  }else if(a.kind==MenuAction::Adjust||a.kind==MenuAction::TextAccepted){

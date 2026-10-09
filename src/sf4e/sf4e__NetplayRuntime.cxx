@@ -374,7 +374,8 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 		command.preferences.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.roomAction.text.size() > room::MaximumChatBytes ||
 		command.preferences.roomName.size() > 64 || !command.identity.Valid() || !command.tournament.Valid() ||
 		command.publicTicket.size() > netplay::publicrooms::MaxTicketBytes ||
-		(command.createdRules && !netplay::PlayerPreferences::ValidRules(*command.createdRules))) return false;
+		(command.createdRules && !netplay::PlayerPreferences::ValidRules(*command.createdRules)) ||
+		(command.training == TrainingEntry::Offline && command.command.kind != netplay::CommandKind::StartOffline)) return false;
 	if (command.identity.op != netplay::IdentityOp::None) {
 		const auto bytes = sizeof(RuntimeCommand) + command.identity.Bytes();
 		return bridge::PushCommand(std::move(command), bytes);
@@ -386,7 +387,7 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 	// Gameplay/update commands join this queue when their effect handlers exist.
 	const auto kind = command.command.kind;
 	if (command.inputAction == input::Action::None && command.service == platform::ServiceAction::None && command.previewSoundVolume < 0 && !command.shortInvitation &&
-		command.replay.mode == replay::Mode::None && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
+		command.replay.mode == replay::Mode::None && command.training == TrainingEntry::None && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
 		kind != netplay::CommandKind::LeaveRoom && kind != netplay::CommandKind::StartOffline &&
 		kind != netplay::CommandKind::Ready && kind != netplay::CommandKind::Rematch &&
 		kind != netplay::CommandKind::SavePreferences && kind != netplay::CommandKind::SetLobbySettings &&

@@ -32,9 +32,9 @@ void TrainingFromHome() {
  h.view.preferences=h.actions.back().preferences;h.Frame();
  SetMenuEntriesProbe({});h.Screen("home");
  h.Choose("training");
- Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::StartOffline&&h.actions.back().enterTraining,"Training did not ride on the offline command");
+ Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::StartOffline&&h.actions.back().training==TrainingEntry::Offline,"Training did not ride on the offline command");
  h.Screen("home");h.Choose("offline");
- Check(h.actions.back().command.kind==Kind::StartOffline&&!h.actions.back().enterTraining,"Play offline asked for Training");
+ Check(h.actions.back().command.kind==Kind::StartOffline&&h.actions.back().training==TrainingEntry::None,"Play offline asked for Training");
 }
 // Training from inside a room: the row sends no room command, and a player
 // called back from Training lands on their table, readied for them only once
@@ -53,7 +53,7 @@ void TrainingFromRoom() {
  Check(training!=rows.end()&&training->label==loc::T("room.training")&&std::next(training)->id=="leave","Wait in Training label or position wrong");
  const auto before=h.actions.size();
  h.Choose("room-training");
- Check(h.actions.size()==before+1&&h.actions.back().enterTraining&&h.actions.back().command.kind!=Kind::StartOffline,"Training from the room did not ask for Training alone");
+ Check(h.actions.size()==before+1&&h.actions.back().training==TrainingEntry::Room&&h.actions.back().command.kind!=Kind::StartOffline,"Training from the room did not ask for Training alone");
  // Seated opposite another fighter and called back: the table page, with the time to ready on its Ready row.
  me.table=0;me.seat=0;me.status=room::MemberStatus::Seated;other.table=0;other.seat=1;other.status=room::MemberStatus::Seated;
  h.view.room.members={me,other};h.view.room.tables[0].p1=1;h.view.room.tables[0].p2=2;h.view.room.tables[0].phase=room::TablePhase::Waiting;

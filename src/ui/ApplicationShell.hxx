@@ -1,6 +1,7 @@
 #pragma once
 #include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplayRequest.hxx"
+#include "../common/TrainingEntry.hxx"
 #include "../common/GameDisplayConfig.hxx"
 #include "../discord/Presence.hxx"
 #include "../netplay/InputAssignment.hxx"
@@ -24,6 +25,7 @@
 #include "GameMenu.hxx"
 #include "IdentityPanel.hxx"
 #include "PublicRoomsPanel.hxx"
+#include "ReplaysPanel.hxx"
 
 namespace sf4e { namespace ui {
 
@@ -115,22 +117,11 @@ struct ShellView {
     netplay::tournament::Status tournament;
     // The bridge's public rooms and the answer to the last create or ticket request.
     netplay::publicrooms::Status publicRooms;
-    // Ember's replay archive (platform/ReplayFiles.hxx), newest first; each
-    // is a path for the import action and a label for its row. replaysReady
-    // when one can be put into the game's replay list right now, and the
-    // outcome of the last import as a notice (an error when it failed).
-    // summary: what the replay's own file says of the match, none when it
-    // is not one that reads (common/ReplayInputs.hxx).
-    struct Replay { std::string path, label, names[2]; bool spectated = false, watched = false, video = false; std::optional<replayinputs::Summary> summary; std::uint64_t time = 0; };
-    std::vector<Replay> replays;
-    // One completion for the screen entry; immutable detail includes all fields.
-    replayinputs::DetailCompletion replayDetail;
-    bool replaysReady = false;
-    std::string replayNotice;
-    bool replayNoticeError = false;
-    // The file a replay link asked Ember to play, until the player answers:
-    // the Replays screen opens with the question as its first row.
-    std::string replayLink;
+    // Ember's replay archive, newest first, and what the runtime says of
+    // replays (RuntimeSnapshot::Replays, ui/ReplaysView.hxx), as published.
+    // A replay link's file waits there until the player answers: the Replays
+    // screen opens with the question as its first row.
+    ReplaysView replays;
 };
 
 // The count on a Chat control: a rounded badge ending at `right` (screen x), its top at `top`, the
@@ -153,9 +144,9 @@ struct ShellAction {
     int previewSoundVolume=-1;
     // Asks for the room's short link; nothing else is sent.
     bool shortInvitation=false;
-    // With a StartOffline: once it is accepted, the game's main menu leaves
-    // straight for Training mode.
-    bool enterTraining=false;
+    // Leave for Training mode (common/TrainingEntry.hxx): Offline goes with a
+    // StartOffline, Room alone. The runtime decides whether it still holds.
+    TrainingEntry training=TrainingEntry::None;
     // Steps the chosen Ultra or color by delta (the table page's Ultra and
     // Appearance rows); the overlay applies it to the pick, and nothing is sent.
     struct SelectionStep {
@@ -172,7 +163,7 @@ struct ShellAction {
     // on Create, which the runtime sets once the creator is in it as host.
     std::optional<room::Rules> createdRules;
     // What the Replays screen asks of the game: an archived replay (its
-    // ShellView::Replay::path) to add or to watch, the game's own list, or
+    // file, as its row names it) to add or to watch, the game's own list, or
     // no to a replay link. Nothing is sent to the room.
     replay::Request replay;
 };
@@ -188,9 +179,13 @@ public:
         if(previousRoomState_==netplay::RoomState::Idle)menu_.navigation.Home();
     }
     MenuNavigation& Navigation() { return menu_.navigation; }
+    // The game's battle log, opened from Replays, is back at the main menu: Replays again.
+    void ShowReplays() { ReplaysPanel::Show(menu_.navigation); }
+    // What the screen on show needs the replay workers to read (ReplaysPanel::Wanted).
+    ReplaysPanel::Wants ReplayWants() const { return replays_.Wanted(menu_.navigation.Screen()); }
     // The replay file the Inputs and stats screen wants read, as its row named it.
-    const std::string& ReplayInputsFile() const { return inputsFile_; }
-    std::uint64_t ReplayInputsRevision() const { return inputsRevision_; }
+    const std::string& ReplayInputsFile() const { return replays_.InputsFile(); }
+    std::uint64_t ReplayInputsRevision() const { return replays_.InputsRevision(); }
     // A modal notice is open, and whether it reads as an error (for tests).
     bool NoticeOpen() const { return menu_.NoticeOpen(); }
     bool NoticeError() const { return menu_.NoticeError(); }
@@ -224,6 +219,7 @@ private:
     GameMenu menu_;
     IdentityPanel identity_;
     PublicRoomsPanel publicRooms_;
+    ReplaysPanel replays_;
     // Parts of Draw, in the order it runs them.
     void UpdateRoomTransitions(const ShellView& view,double now);
     bool UpdateRoomFeedback(const ShellView& view);
@@ -348,18 +344,6 @@ private:
     netplay::PlayerPreferences preferences_;
     netplay::LobbySettings lobby_;
     std::string error_;
-    // The replay the Inputs and stats screen is of, as its row was when it
-    // was chosen. The lister hands over its match, summary and round logs;
-    // drawing the screen never reads, parses or counts the replay.
-    std::string inputsFile_;
-    std::uint64_t inputsRevision_ = 0;
-    void BuildInputsRows(const ShellView& view,std::vector<MenuEntry>& rows);
-    // The replay and caption sent when Generate video is chosen.
-    std::string exportPath_;
-    replay::Caption caption_;
-    void OpenReplayExport(const ShellView& view,const ShellView::Replay& replay);
-    // The replay link last seen, so its question opens the Replays screen once.
-    std::string replayLinkSeen_;
     // A shell error has no natural clear point (a paste that failed, an
     // invalid value), so it ends with the screen it appeared on, with the
     // condition a refusal named (Refuse), or a few seconds after it appeared.
@@ -401,7 +385,7 @@ private:
     std::set<room::MemberId> muted_;
     bool Service(platform::ServiceAction action, const ShellView& view, const Submit& submit);
     bool SendRoom(room::Action action, const ShellView& view, const Submit& submit);
-    bool Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit, bool enterTraining = false);
+    bool Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit, TrainingEntry training = TrainingEntry::None);
 };
 
 } }

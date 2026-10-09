@@ -898,8 +898,8 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   }
  if(a.id=="leave"){Send(netplay::CommandKind::LeaveRoom,v,submit);return;}
  if(a.id=="room-training"){
-  // No room command: the overlay sends the game on while the room stays as it is.
-  ShellAction training;training.command.generation=v.session.generation;training.enterTraining=true;
+  // No room command: the runtime sends the game on, if the room still allows it, while the room stays as it is.
+  ShellAction training;training.command.generation=v.session.generation;training.training=TrainingEntry::Room;
   if(!v.canTrain||!submit(std::move(training)))error_=loc::T("room.training.unavailable");
   return;
  }

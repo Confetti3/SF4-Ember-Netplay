@@ -302,6 +302,67 @@ std::uint64_t PublishFingerprint() {
 }
 
 namespace internal {
+// This PC is one of the watchers of a game starting or not yet over: a
+// locked-in spectator whose table holds its start for them, a spectator in the
+// roster frozen at the start (the room says Watching), or a member queued at
+// its table whom that roster took in. The controller moves to Preparing only on
+// the runtime's next tick, so the room says it first. A watcher left out of the
+// game (a receipt of theirs was still open when it began) waits for the next.
+// `retired` is the game this PC already left and tore down (RetiredMatchGeneration):
+// the room may still list it there (a failed stream keeps its place), but it
+// watches nothing of that game now. Any other game still counts.
+static bool AdmittedToWatch(const room::Snapshot& room, std::uint64_t retired) {
+    if (!room.localMember) return false;
+    // A game still being played, or paused over conflicting results (which still
+    // belong to it), and not the one retired here.
+    const auto current = [&](const room::Table& table) {
+        return !netplay::GenerationEnded(table, table.matchGeneration) && !(retired && table.matchGeneration == retired);
+    };
+    for (const auto& member : room.members) {
+        if (member.id != room.localMember) continue;
+        const bool atTable = member.table >= 0 && member.table < static_cast<int>(room.tables.size());
+        if (member.status == room::MemberStatus::Watching && (!atTable || current(room.tables[member.table]))) return true;
+        // Leaving now would stall the start the table holds for them.
+        if (member.spectatorLocked && atTable) {
+            const auto& table = room.tables[member.table];
+            if (table.phase == room::TablePhase::Ready && table.spectatorHold) return true;
+        }
+    }
+    const auto listed = [&](const std::vector<room::MemberId>& list) {
+        return std::find(list.begin(), list.end(), room.localMember) != list.end();
+    };
+    // The host says which game's roster took this PC in. The roster outlives a
+    // spectator who stopped watching (it still owes them the game's end), so it
+    // counts only while they are still among that same table's spectators. A
+    // queued member the game took in stays listed there; one who queues after
+    // they stopped watching is not taken in again.
+    if (room.localMatchGenerationsSent) {
+        for (std::size_t i = 0; i < room.tables.size(); ++i) {
+            const auto& table = room.tables[i];
+            if (current(table) && table.matchGeneration && room.localMatchGenerations[i] == table.matchGeneration &&
+                listed(table.spectators)) return true;
+        }
+        return false;
+    }
+    // An older host does not, and its snapshot cannot tell a watcher the game took
+    // in from one it left out (an open receipt), or one who left the queue or
+    // watched again while still streaming (no longer Watching once paused). Any
+    // place among the spectators of a game not over refuses, erring on its side.
+    for (const auto& table : room.tables)
+        if (current(table) && listed(table.spectators)) return true;
+    return false;
+}
+std::uint64_t RetiredMatchGeneration() {
+    return runtime ? NetplayFacade::RetiredMatchGeneration(runtime->match.get(), Game::Battle::System::ggpo != nullptr, runtime->recoveringMatch) : 0;
+}
+bool CanTrain(const netplay::Snapshot& session, bool atMainMenu, const room::Snapshot& room, std::uint64_t retired) {
+    return atMainMenu && session.room == netplay::RoomState::Joined &&
+        (session.match == netplay::MatchState::None || session.match == netplay::MatchState::PostMatch) &&
+        session.control == netplay::Health::Healthy &&
+        !session.readyPending && !runtime->readyIntent.Parked() && !runtime->pendingAbort &&
+        // A closed room keeps its members until it is left; nobody trains out of it.
+        !room.closed && !AdmittedToWatch(room, retired) && room::TrainingCall::MayTrain(room);
+}
 PostPublishState Publish() {
 	RuntimeSnapshot snapshot;
 	snapshot.session = runtime->controller.GetSnapshot();
@@ -395,15 +456,7 @@ PostPublishState Publish() {
     snapshot.opponentChangedFighter = runtime->opponentFighterWatch.Pending(); snapshot.opponentChangeSequence = runtime->opponentChangeSequence;
     snapshot.trainingCallSequence = runtime->trainingCallSequence; snapshot.trainingReadySequence = runtime->trainingReadySequence;
     snapshot.trainingReadySeconds = static_cast<int>((runtime->trainingCall.Remaining(GetTickCount64()) + 999) / 1000);
-    // Training from the room: at the main menu, with no game of the player's
-    // starting or running and no Ready of theirs given or on its way. A game
-    // that is over leaves PostMatch behind until the next one, as it does for
-    // a Ready.
-    snapshot.canTrain = snapshot.atMainMenu && snapshot.session.room == netplay::RoomState::Joined &&
-        (snapshot.session.match == netplay::MatchState::None || snapshot.session.match == netplay::MatchState::PostMatch) &&
-        snapshot.session.control == netplay::Health::Healthy &&
-        !snapshot.session.readyPending && !runtime->readyIntent.Parked() && !runtime->pendingAbort &&
-        room::TrainingCall::MayTrain(snapshot.room);
+    snapshot.canTrain = CanTrain(snapshot.session, snapshot.atMainMenu, snapshot.room, RetiredMatchGeneration());
 	FillLockReasons(snapshot);
     snapshot.discordPending = runtime->discordInvite.Active();
     snapshot.discordConfirm = runtime->discordInvite.NeedsConfirmation();
@@ -490,6 +543,26 @@ void PublishAndTickDiscordInvite() {
     }
 }
 } // namespace internal
+
+std::uint64_t RetiredMatchGeneration(const session::IrohMatchSession* match, bool ggpoLive, bool recovering) {
+    // Recovery ends (MatchRecovered) only once the session is idle at the main
+    // menu; until then, and while native GGPO lives, nothing is retired yet.
+    return match && !ggpoLive && !recovering ? match->RetiredGeneration() : 0;
+}
+
+bool TrainingHolds(TrainingEntry entry, const netplay::Generation& made, const netplay::Snapshot& session,
+    bool atMainMenu, const room::Snapshot& room, std::uint64_t retiredGeneration) {
+    if (!runtime || !(session.generation == made) || !atMainMenu) return false;
+    return entry == TrainingEntry::Room ? internal::CanTrain(session, atMainMenu, room, retiredGeneration) : entry == TrainingEntry::Offline;
+}
+
+bool TrainingRequestHolds(const netplay::Generation& made, bool fromRoom) {
+    if (!runtime) return false;
+    // The client's room as it is now, which may be newer than the last published snapshot.
+    const bool attached = runtime->attached && UserApp::netplay;
+    return TrainingHolds(fromRoom ? TrainingEntry::Room : TrainingEntry::Offline, made, runtime->controller.GetSnapshot(),
+        internal::AtMainMenu(), attached ? UserApp::netplay->client.GetRoomSnapshot() : room::Snapshot{}, internal::RetiredMatchGeneration());
+}
 
 std::shared_ptr<const RuntimeSnapshot> GetRuntimeSnapshotShared() { return bridge::LatestRuntime(); }
 

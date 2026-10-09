@@ -88,6 +88,13 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 	}
 	// Validate ownership before even a deferred GGPO teardown side effect.
 	if (!(command.command.generation == runtime->controller.GetSnapshot().generation)) return DispatchOutcome::Dropped;
+	// Training from a room sends no room command: the game alone moves, and only
+	// if the room allows it now, not as it was when the player pressed.
+	if (command.training == TrainingEntry::Room) {
+		if (TrainingRequestHolds(command.command.generation, true)) sf4e::GameEvents::MainMenu::RequestTraining(command.command.generation, true);
+		else runtime->error = loc::T("room.training.unavailable");
+		return DispatchOutcome::Dropped;
+	}
     if (command.discordAction != discord::InviteAction::None) {
         if (!runtime->discordInvite.Matches(command.discordRevision)) return DispatchOutcome::Dropped;
         if (command.discordAction == discord::InviteAction::Cancel) runtime->discordInvite.Cancel();
@@ -420,6 +427,9 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 	case netplay::Effect::StartOffline:
 		if (UserApp::netplay || UserApp::server) ShutdownNetplay(true);
 		runtime->offlineRequested = true;
+		// Training offline: the menu is asked only now that the controller took the StartOffline.
+		if (command.training == TrainingEntry::Offline && TrainingRequestHolds(command.command.generation, false))
+			sf4e::GameEvents::MainMenu::RequestTraining(command.command.generation, false);
 		break;
 	default: break;
 	}
@@ -621,7 +631,8 @@ void DrainRoomEvents() {
 					// waits for the writer to report the revision on disk.
 					if (profileMatch) runtime->terminalOutcomeConsumed = false;
 				}
-				if (runtime->match && event.matchGeneration && event.matchGeneration == runtime->match->Generation())
+				// The game this PC took up, also one whose setup failed.
+				if (runtime->match && event.matchGeneration && event.matchGeneration == runtime->match->AttemptedGeneration())
 					runtime->committedEndGeneration = event.matchGeneration;
 				spdlog::log(runtime->matchEndLog.First(event.table, event.matchGeneration) ? spdlog::level::info : spdlog::level::debug,
 					"Room: match ended table={} generation={} result={} replay={}",

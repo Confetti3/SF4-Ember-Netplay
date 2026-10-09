@@ -54,6 +54,14 @@ Snapshot RoomAuthority::SnapshotFor(MemberId member) const {
 				result.localTerminalGenerations[receipt.table], receipt.generation);
 		}
 	}
+	// Always sent, even all zero, so a reader can tell "in no game" from a host
+	// that does not say.
+	result.localMatchGenerationsSent = true;
+	result.localMatchGenerations.fill(0);
+	for (std::size_t i = 0; i < TableCount; ++i)
+		if (std::any_of(activeMatchRecipients_[i].begin(), activeMatchRecipients_[i].end(),
+			[&](const TerminalRecipient& recipient) { return recipient.member == member; }))
+			result.localMatchGenerations[i] = snapshot_.tables[i].matchGeneration;
 	return result;
 }
 

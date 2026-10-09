@@ -15,7 +15,7 @@ namespace sf4e {
 		void Install();
 
 		// The one pending request to leave for Training, whole under one lock: the
-		// overlay posts it, the game thread reads, judges and consumes it. A
+		// runtime posts it, the native menu reads, judges and consumes it. A
 		// consume names the serial it judged, so it never erases a newer request.
 		class TrainingRequest {
 		public:
@@ -42,6 +42,18 @@ namespace sf4e {
 				active_ = false;
 				return true;
 			}
+			// The pending request judged now by `holds(generation, fromRoom)`, and
+			// forgotten either way: Go when it still holds and is the caller's to act
+			// on, Dropped when it no longer does, None when there is none or a newer
+			// one replaced it meanwhile (that one is left alone).
+			enum class Taken { None, Dropped, Go };
+			template<class Holds> Taken Take(ULONGLONG now, const Holds& holds) {
+				Pending request;
+				if (!Peek(now, request)) return Taken::None;
+				const bool go = holds(request.generation, request.fromRoom);
+				if (!Consume(request.serial)) return Taken::None;
+				return go ? Taken::Go : Taken::Dropped;
+			}
 		private:
 			std::mutex lock_;
 			Pending pending_;
@@ -65,20 +77,16 @@ namespace sf4e {
 			// Written by the overlay on the drawing thread, read by the game.
 			static std::atomic<int> bOverrideItemObserverState;
 			// Asks the main menu to leave for Training mode without its
-			// Fight Request question. Any thread; the game thread acts on it
-			// the next time the menu is idle, and forgets it after two
-			// seconds, so a request made where no main menu is up does
-			// nothing later.
-			// `generation` is the session the request was made in; `fromRoom` is
+			// Fight Request question. Posted by the runtime once it has accepted
+			// a TrainingEntry; the game thread acts on it the next time the menu
+			// is idle, and forgets it after two seconds, so a request made where
+			// no main menu is up does nothing later.
+			// `generation` is the session the request was accepted in; `fromRoom` is
 			// true for Training called from a room, false for the offline path.
+			// Just before it moves, the menu asks the runtime whether the request
+			// still holds (NetplayFacade::TrainingRequestHolds) and forgets it
+			// otherwise; the runtime owns that policy.
 			static void RequestTraining(const netplay::Generation& generation, bool fromRoom);
-			// Whether a request still holds in the runtime's latest published state:
-			// the session it was made in must still be current, and a room request
-			// needs the room's own gate open; an offline one needs its StartOffline
-			// accepted. Wait is "not yet", Drop is "no longer, forget it".
-			enum class TrainingVerdict { Proceed, Wait, Drop };
-			static TrainingVerdict JudgeTrainingRequest(const NetplayFacade::RuntimeSnapshot& live,
-				const netplay::Generation& generation, bool fromRoom);
 			static TrainingRequest trainingRequest;
 			static void Install();
 		};

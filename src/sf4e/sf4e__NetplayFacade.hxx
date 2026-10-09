@@ -1,5 +1,6 @@
 #pragma once
 #include "../ui/ControllerNavigation.hxx"
+#include "../ui/ReplaysView.hxx"
 #include "../common/MenuInputCapture.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/StageCatalog.hxx"
@@ -20,6 +21,7 @@
 #include "../platform/ApplicationServices.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../common/ReplayRequest.hxx"
+#include "../common/TrainingEntry.hxx"
 #include "../common/RoomLimits.hxx"
 #include "../session/RoomModel.hxx"
 #include <optional>
@@ -30,6 +32,7 @@
 #include "../Dimps/Dimps__GameEvents.hxx"
 
 namespace sf4e {
+	namespace session { class IrohMatchSession; }
 
 	struct NetplayStatus {
 		bool active = false;
@@ -100,6 +103,9 @@ namespace sf4e {
             // What the Replays screen asks of the game (sf4e__ReplayStore), or
             // the player's answer to a replay link; mode None for every other command.
             replay::Request replay;
+            // Leave the main menu for Training (common/TrainingEntry.hxx). The
+            // runtime judges it when it takes it and only then asks the menu.
+            TrainingEntry training = TrainingEntry::None;
 		};
 		struct RuntimeSnapshot {
             ui::ControllerSample menuController;
@@ -113,28 +119,9 @@ namespace sf4e {
 			bool atMainMenu = false;
 			// A started match is waiting for the player to return to the main menu.
 			bool matchWaitsForMenu = false;
-			// Replays. ready: an archived one can go into the game's replay
-			// list now (the native main menu, the game's table seen, the match
-			// list's 30 slots in place). notice: the outcome of the last
-			// request. logOpens and returns: sf4e__ReplayStore's counts, for
-			// Ember's menu to get out of the way and to come back on. link:
-			// the file a replay link asked for, until the player answers.
-			// archive: the last listing of the archive, or null (platform::replays::WantListing).
-			struct Replays {
-				bool ready = false;
-				std::string notice;
-				bool noticeError = false;
-				std::uint64_t logOpens = 0, returns = 0;
-				std::string link;
-				// The caption of the export that is recording, to draw over the game.
-				replay::Caption caption;
-				bool captionShown = false;
-				// A replay is playing that was asked for with the frame meter.
-				bool meterShown = false;
-				std::shared_ptr<const std::vector<platform::replays::ArchivedReplay>> archive;
-				// Completion of the last requested entry (platform::replays::WantDetail).
-				replayinputs::DetailCompletion detail;
-			} replays;
+			// Replays (ui/ReplaysView.hxx), which the shell is handed as they are.
+			using Replays = ui::ReplaysView;
+			Replays replays;
 			bool canOpenRoom = false;
 			bool canReplaceRoom = false;
 			bool canReady = false;
@@ -253,6 +240,23 @@ namespace sf4e {
 		// Any thread. False when the command is malformed, the queue is full,
 		// or no runtime is accepting commands.
 		bool SubmitRuntimeCommand(RuntimeCommand command);
+		// Game thread. Whether leaving for Training, asked for in session `made`,
+		// holds against `session`, whether the native main menu is up, and `room`:
+		// the same session at the main menu, and for Room the room's own gate open
+		// (the published canTrain is this policy too). etiredGeneration is the game
+		// this PC already left and tore down, whose listing as a watcher no longer
+		// counts (0 for none). False with no runtime.
+		bool TrainingHolds(TrainingEntry entry, const netplay::Generation& made, const netplay::Snapshot& session,
+			bool atMainMenu, const room::Snapshot& room, std::uint64_t retiredGeneration);
+		// Game thread: the same against the live controller, native menu and room.
+		// The runtime asks it before posting a Training request, and the native
+		// menu again just before it moves.
+		bool TrainingRequestHolds(const netplay::Generation& made, bool fromRoom);
+		// The game this PC was in and has fully let go of, for TrainingHolds: match's
+		// retired generation (IrohMatchSession::RetiredGeneration, which names a
+		// setup that failed too), once native GGPO is gone (ggpoLive false) and
+		// recovery has ended (MatchRecovered). 0 otherwise, or with no session.
+		std::uint64_t RetiredMatchGeneration(const session::IrohMatchSession* match, bool ggpoLive, bool recovering);
 		bool IsRuntimeRoomActive();
 		// The room being opened is a public one joined with a ticket, so the host's
 		// refusals are worded for it.

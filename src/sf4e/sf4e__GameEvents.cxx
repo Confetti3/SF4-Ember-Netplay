@@ -183,32 +183,20 @@ void fMainMenu::RequestTraining(const sf4e::netplay::Generation& generation, boo
 	trainingRequest.Post(generation, fromRoom, GetTickCount64(), 2000);
 }
 
-fMainMenu::TrainingVerdict fMainMenu::JudgeTrainingRequest(const sf4e::NetplayFacade::RuntimeSnapshot& live,
-	const sf4e::netplay::Generation& generation, bool fromRoom) {
-	if (!(live.session.generation == generation) || !live.atMainMenu) return TrainingVerdict::Drop;
-	if (fromRoom) return live.canTrain ? TrainingVerdict::Proceed : TrainingVerdict::Drop;
-	// The offline path is sent with its StartOffline, which the controller takes
-	// only outside any room or match; the runtime says so once it has taken it.
-	if (live.session.room != sf4e::netplay::RoomState::Idle || live.session.match != sf4e::netplay::MatchState::None) return TrainingVerdict::Drop;
-	return live.offlineRequested ? TrainingVerdict::Proceed : TrainingVerdict::Wait;
-}
-
 int fMainMenu::GetItemObserverState() {
 	sf4e::NetplayFacade::NotifyRuntimeEventSystemReady();
 	fGameEvents::TrainingRequest::Pending request;
 	if (trainingRequest.Peek(GetTickCount64(), request) &&
 		(this->*rMainMenu::itemObserverMethods.GetItemObserverState)() == rMainMenu::MMIOS_IDLE) {
-		// The request was made from a snapshot and, offline, before the runtime
-		// took its command: act only if it still holds in the live state. It is
-		// forgotten by serial, so a newer request made meanwhile is left alone.
-		const auto live = sf4e::NetplayFacade::bridge::LatestRuntime();
-		const auto verdict = live ? JudgeTrainingRequest(*live, request.generation, request.fromRoom) : TrainingVerdict::Drop;
-		if (verdict == TrainingVerdict::Drop) {
-			if (trainingRequest.Consume(request.serial))
-				spdlog::info("Main menu: Training request dropped, the session it was made in has moved on");
-		}
-		// Wait: the runtime has not taken it yet; look again next frame, within the same two seconds.
-		else if (verdict == TrainingVerdict::Proceed && trainingRequest.Consume(request.serial)) {
+		// The runtime accepted it a tick or more ago, and the room may have changed
+		// since (the session client applies room snapshots after the runtime's tick
+		// without publishing them). The runtime judges it again here, on the game
+		// thread, against the live session and room. It is forgotten either way, by
+		// serial, so a newer request made meanwhile is left alone.
+		const auto taken = trainingRequest.Take(GetTickCount64(), sf4e::NetplayFacade::TrainingRequestHolds);
+		if (taken == fGameEvents::TrainingRequest::Taken::Dropped)
+			spdlog::info("Main menu: Training request dropped, it no longer holds");
+		else if (taken == fGameEvents::TrainingRequest::Taken::Go) {
 			// The game's own selection, with the Fight Request question
 			// switched off for this one call: it then exits to Training
 			// directly, the path it takes where requests are not offered.

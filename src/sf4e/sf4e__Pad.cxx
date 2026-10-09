@@ -4,7 +4,10 @@
 #include "../Dimps/Dimps__Pad.hxx"
 #include "sf4e__Pad.hxx"
 #include "sf4e__BackgroundPlay.hxx"
+#include "sf4e__Game__Battle__System.hxx"
 #include "sf4e__Overlay.hxx"
+#include "sf4e__ReplayStore.hxx"
+#include "sf4e__UserApp.hxx"
 #include "../training/TrainingRuntime.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include <atomic>
@@ -36,7 +39,11 @@ void fSystem::Install() {
 void fSystem::UpdateInputs() {
     const auto sharedSnapshot=sf4e::NetplayFacade::GetRuntimeSnapshotShared();
     const auto& snapshot=*sharedSnapshot;
-    sf4e::BackgroundPlay::BeforePadUpdate(this,snapshot.preferences.backgroundPlay);
+    // A replay exported as a video, and a room's match this PC only watches,
+    // run on behind another window whatever the player's setting says.
+    const bool watching=sf4e::Game::Battle::System::ggpo&&sf4e::UserApp::netplay&&sf4e::UserApp::netplay->spectating;
+    sf4e::BackgroundPlay::BeforePadUpdate(this,sf4e::BackgroundPlay::PolicyFor(snapshot.preferences.backgroundPlay,
+        sf4e::replaystore::Exporting(),watching));
     (this->*rSystem::publicMethods.UpdateInputs)();
     // This is the native input publication boundary (00512180). Both
     // players' held/rising/falling/repeat caches are complete before any

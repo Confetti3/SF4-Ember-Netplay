@@ -431,6 +431,7 @@ void from_json(const nlohmann::json& json, Table& value) {
 void to_json(nlohmann::json& json, const ChatMessage& value) { json = nlohmann::json{{"sequence", value.sequence}, {"sender", value.sender}, {"text", value.text}}; }
 void from_json(const nlohmann::json& json, ChatMessage& value) { value.sequence = ReadU64(json, "sequence"); value.sender = ReadU64(json, "sender"); if (!value.sender) throw std::invalid_argument("room chat sender"); value.text = ReadText(json, "text", MaximumChatBytes, false); }
 void to_json(nlohmann::json& json, const Snapshot& value) { json = nlohmann::json{{"protocol_version", value.protocolVersion}, {"room_epoch", value.roomEpoch}, {"revision", value.revision}, {"name", value.name}, {"capacity", value.capacity}, {"locked", value.locked}, {"closed", value.closed}, {"host", value.host}, {"local_member", value.localMember}, {"members", value.members}, {"tables", value.tables}, {"terminal_pending", value.terminalPending}, {"local_terminal_pending", value.localTerminalPending}, {"local_terminal_generations", value.localTerminalGenerations}, {"chat", value.chat}, {"tournament", value.tournament}};
+	if (value.localMatchGenerationsSent) json["local_match_generations"] = value.localMatchGenerations;
 	if (value.serverOwned) json["server_owned"] = true;
 }
 void from_json(const nlohmann::json& json, Snapshot& value) {
@@ -461,6 +462,18 @@ void from_json(const nlohmann::json& json, Snapshot& value) {
 			if (!generations.at(i).is_number_unsigned()) throw std::invalid_argument("room local terminal generation");
 			value.localTerminalGenerations[i] = generations.at(i).get<std::uint64_t>();
 		}
+	}
+	// Absent from an older host: marked unsent, so the reader knows nothing was said.
+	value.localMatchGenerationsSent = false;
+	value.localMatchGenerations.fill(0);
+	if (json.contains("local_match_generations")) {
+		const auto& generations = json.at("local_match_generations");
+		if (!generations.is_array() || generations.size() != TableCount) throw std::invalid_argument("room local match generations");
+		for (std::size_t i = 0; i < TableCount; ++i) {
+			if (!generations.at(i).is_number_unsigned()) throw std::invalid_argument("room local match generation");
+			value.localMatchGenerations[i] = generations.at(i).get<std::uint64_t>();
+		}
+		value.localMatchGenerationsSent = true;
 	}
 	ReadMemberList(json, "members", value.members, MaximumMembers); std::set<MemberId> memberIds; for (const auto& member : value.members) if (!memberIds.insert(member.id).second) throw std::invalid_argument("room duplicate member");
 	const auto& tables = json.at("tables"); if (!tables.is_array() || tables.size() != TableCount) throw std::invalid_argument("room table count"); tables.get_to(value.tables);
