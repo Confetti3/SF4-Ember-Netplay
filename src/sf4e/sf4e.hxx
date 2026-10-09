@@ -15,9 +15,10 @@ namespace sf4e {
 
 	typedef struct Payload {
 		uint32_t magic = 0x53463442; // SF4 bootstrap, independent of session settings.
-		uint32_t version = 2;
+		uint32_t version = 3;
 		Args args;
 		HANDLE hSyncEvent = NULL;
+		HANDLE hStartupMailbox = NULL;
 		// The launcher's crash dump channel (common/CrashDump.hxx).
 		HANDLE hDumpRequest = NULL;
 		HANDLE hDumpDone = NULL;
@@ -29,7 +30,7 @@ namespace sf4e {
 	} Payload;
 
 	inline bool IsCompatiblePayload(const Payload* payload, size_t length) {
-		return payload && length == sizeof(Payload) && payload->magic == 0x53463442 && payload->version == 2 &&
+		return payload && length == sizeof(Payload) && payload->magic == 0x53463442 && payload->version == 3 &&
 			payload->netplay.version == SF4E_NETPLAY_CONFIG_VERSION;
 	}
 
@@ -37,6 +38,7 @@ namespace sf4e {
 	extern std::mt19937 localRand;
 	extern Args args;
 	extern HANDLE hSyncEvent;
+	extern HANDLE hStartupMailbox;
 
 	void Install(HINSTANCE hinstDll, const Payload* const payload);
 	// After the hook transaction that Install filled has committed: code

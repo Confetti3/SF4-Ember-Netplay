@@ -3244,3 +3244,12 @@ msgstr "Couldn't get into the room. It may have just closed. Refresh and pick an
 
 msgid "legend.refresh"
 msgstr "Refresh"
+
+msgid "launcher.sidecar_failed"
+msgstr "Ember could not initialize its game hooks. The failed launch was stopped. Check sidecar_bootstrap.log and launcher.log in %APPDATA%\\sf4e\\logs, then retry."
+
+msgid "launcher.start_timeout"
+msgstr "Ember did not finish starting within 60 seconds. The failed launch was stopped. Check the launcher and sidecar bootstrap logs in %APPDATA%\\sf4e\\logs, then retry."
+
+msgid "launcher.unsupported_game"
+msgstr "This SSFIV.exe does not match the game build supported by Ember. Select your Steam installation and verify its game files in Steam. Modified executables and other game builds require an explicitly supported Ember version."

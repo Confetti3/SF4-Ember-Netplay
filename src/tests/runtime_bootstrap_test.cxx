@@ -24,6 +24,8 @@ int wmain(int argc, wchar_t** argv) {
 	payload = {};
 	payload.version = 0;
 	CHECK(!IsCompatiblePayload(&payload, sizeof(payload)));
+	payload.version = 2; // Old launchers do not provide a startup result mailbox.
+	CHECK(!IsCompatiblePayload(&payload, sizeof(payload)));
 	payload = {};
 	payload.netplay.version = SF4E_NETPLAY_CONFIG_VERSION - 1;
 	CHECK(!IsCompatiblePayload(&payload, sizeof(payload)));

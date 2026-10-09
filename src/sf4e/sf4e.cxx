@@ -23,6 +23,7 @@ std::mt19937 sf4e::localRand;
 std::string sf4e::sidecarHash;
 sf4e::Args sf4e::args;
 HANDLE sf4e::hSyncEvent;
+HANDLE sf4e::hStartupMailbox;
 
 using rIEmSpriteAction = Dimps::Eva::IEmSpriteAction;
 using rIEmSpriteNode = Dimps::Eva::IEmSpriteNode;
@@ -220,6 +221,7 @@ void sf4e::Install(HINSTANCE hinstDll, const sf4e::Payload* const payload) {
 	if (payload) {
 		sf4e::args = payload->args;
 		sf4e::hSyncEvent = payload->hSyncEvent;
+		sf4e::hStartupMailbox = payload->hStartupMailbox;
 		crash::ConfigureDumpChannel(payload->hDumpRequest, payload->hDumpDone, payload->hDumpMailbox);
 		NetplayFacade::InitFromPayload(payload->netplay);
 		NetplayFacade::ConfigureHelper(payload->helper, payload->helperError);
