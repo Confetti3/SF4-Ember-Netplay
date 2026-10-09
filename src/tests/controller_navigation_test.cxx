@@ -160,8 +160,9 @@ void NativeCapture() {
  for(unsigned i=0;i<sizeof(caches);++i){const bool input=(i>=0x18&&i<0x2c)||(i>=0x68&&i<0x7c);
   Check(caches[i]==(input?0:0x5a),"Native suppression corrupted assignment or missed an input cache");}
  using sf4e::input::MenuContext;using sf4e::input::ControllerMenuAvailable;
- Check(ControllerMenuAvailable(MenuContext::MainMenu)&&!ControllerMenuAvailable(MenuContext::OfflineTraining)&&
-  !ControllerMenuAvailable(MenuContext::Unavailable),"Controller navigation escaped the main-menu context");
+ Check(ControllerMenuAvailable(MenuContext::MainMenu)&&ControllerMenuAvailable(MenuContext::Spectating)&&
+  !ControllerMenuAvailable(MenuContext::OfflineTraining)&&!ControllerMenuAvailable(MenuContext::Unavailable),
+  "Controller navigation escaped the menu/spectator contexts");
  sf4e::input::MenuInputCapture capture;
  Check(!capture.Update(false,16),"Native input suppressed while overlay hidden");
  Check(capture.Update(true,16)&&capture.Update(true,0),"Open overlay not suppressing native input");

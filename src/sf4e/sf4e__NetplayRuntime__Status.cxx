@@ -328,14 +328,17 @@ PostPublishState Publish() {
 	snapshot.matchWaitsForMenu = runtime->match && !runtime->matchEntered && !snapshot.atMainMenu &&
 		runtime->entryDeferredGeneration && runtime->entryDeferredGeneration == runtime->match->Generation() &&
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Started;
-    snapshot.menuContext = snapshot.atMainMenu ? input::MenuContext::MainMenu :
+    const bool spectatorControls = runtime->attached && Game::Battle::System::ggpo && LocalIsSpectator() &&
+        snapshot.session.match == netplay::MatchState::Playing;
+    snapshot.menuContext = spectatorControls ? input::MenuContext::Spectating : snapshot.atMainMenu ? input::MenuContext::MainMenu :
         training::ControlsAvailable() ? input::MenuContext::OfflineTraining : input::MenuContext::Unavailable;
     if(snapshot.atMainMenu) for(int fighter=0;fighter<selection::FighterCount;++fighter)
         snapshot.fighterAvailability[fighter]=Dimps::Selection::ReadAvailability(fighter);
     // The explicit gameplay-device assignment stays authoritative, including
     // keyboard selection, capture, disconnects and local P1/P2 handoff.
     if (snapshot.menuContext != input::MenuContext::Unavailable && snapshot.inputCapture == input::Capture::Idle &&
-        snapshot.session.match != netplay::MatchState::Preparing && snapshot.session.match != netplay::MatchState::Playing) {
+        snapshot.session.match != netplay::MatchState::Preparing &&
+        (snapshot.session.match != netplay::MatchState::Playing || spectatorControls)) {
         auto& sample = snapshot.menuController;
         sample.deviceType = snapshot.inputDevice.type;
         sample.deviceIndex = snapshot.inputDevice.index;
