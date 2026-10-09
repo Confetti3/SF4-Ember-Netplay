@@ -3582,3 +3582,9 @@ msgstr "방에 들어가지 못했습니다. 방금 닫혔을 수 있습니다. 
 
 msgid "legend.refresh"
 msgstr "새로 고침"
+
+msgid "match.loading_detail"
+msgstr "Please wait. The match will start automatically; no buttons are needed."
+
+msgid "match.loading_title"
+msgstr "Starting match..."

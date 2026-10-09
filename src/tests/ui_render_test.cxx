@@ -83,6 +83,12 @@ struct Renderer {
         Require(SUCCEEDED(result), "Readback failed");
         D3DLOCKED_RECT pixels{};
         Require(SUCCEEDED(copy->LockRect(&pixels, nullptr, D3DLOCK_READONLY)), "Surface lock failed");
+        if(name.find("match-loading")!=std::string::npos) {
+            for(int y : {2,height-3})for(int x : {2,width-3}) {
+                const auto corner=*reinterpret_cast<const unsigned*>(static_cast<const char*>(pixels.pBits)+y*pixels.Pitch+x*4);
+                Require((corner&0xffffff)==0x12100f,"Match loading cover left the native screen visible");
+            }
+        }
         if(name.find("training-")!=std::string::npos) {
             const auto corner=*reinterpret_cast<const unsigned*>(static_cast<const char*>(pixels.pBits)+5*pixels.Pitch+5*4);
             Require((corner&0xffffff)==0x2d2f31,"Training rendering altered the game outside its panel");
@@ -535,6 +541,7 @@ int main(int argc, char** argv) {
                     else if(mode==2)(void)DrawTrainingHud(training);
                     else if(mode==5)DrawControllerWarning("Match input blocked: reconnect your controller. If its slot changed, return to the room to reassign it.");
                     else if(mode==4)DrawRecoveryMenu(recoveryMenu,recoveryState,"The selected folder does not contain SSFIV.exe. Choose the installed game folder or close recovery without starting SF4.",recoveryUpdates);
+                    else if(mode==8)DrawMatchLoading();
                     else DrawMatchStrip(matchStrip);
                     CheckStacks();ImGui::Render();renderer.Draw();++frames;
                     if(mode==3)CheckMatchHudFrame(matchStrip,size.w,size.h);
@@ -925,6 +932,8 @@ int main(int argc, char** argv) {
             SetMenuGlyphs(4,0,0);draw("training-hud-directinput");
             Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"DirectInput HUD captured input");
             SetMenuGlyphs(0,0,0);draw("training-hud-keyboard");SetMenuGlyphs(3,0x40000,0x20000);
+            mode=8;draw("match-loading");
+            Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Loading cover unexpectedly created interactive controls");
             mode=3;draw("match-hud");
             ShootMatchHud(matchStrip,draw,[&]{ImGui_ImplDX9_InvalidateDeviceObjects();});
             mode=5;draw("controller-warning");

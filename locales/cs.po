@@ -3582,3 +3582,9 @@ msgstr "Do místnosti se nepodařilo vstoupit. Možná se právě zavřela. Aktu
 
 msgid "legend.refresh"
 msgstr "Aktualizovat"
+
+msgid "match.loading_detail"
+msgstr "Please wait. The match will start automatically; no buttons are needed."
+
+msgid "match.loading_title"
+msgstr "Starting match..."

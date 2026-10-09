@@ -3582,3 +3582,9 @@ msgstr "ルームに入れませんでした。閉じたばかりかもしれま
 
 msgid "legend.refresh"
 msgstr "更新"
+
+msgid "match.loading_detail"
+msgstr "Please wait. The match will start automatically; no buttons are needed."
+
+msgid "match.loading_title"
+msgstr "Starting match..."

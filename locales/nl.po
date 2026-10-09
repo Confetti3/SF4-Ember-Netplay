@@ -3582,3 +3582,9 @@ msgstr "Kon de kamer niet in. Misschien is hij net gesloten. Vernieuw en kies ee
 
 msgid "legend.refresh"
 msgstr "Vernieuwen"
+
+msgid "match.loading_detail"
+msgstr "Please wait. The match will start automatically; no buttons are needed."
+
+msgid "match.loading_title"
+msgstr "Starting match..."

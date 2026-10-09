@@ -3582,3 +3582,9 @@ msgstr "Nie udało się wejść do pokoju. Mógł się właśnie zamknąć. Odś
 
 msgid "legend.refresh"
 msgstr "Odśwież"
+
+msgid "match.loading_detail"
+msgstr "Please wait. The match will start automatically; no buttons are needed."
+
+msgid "match.loading_title"
+msgstr "Starting match..."

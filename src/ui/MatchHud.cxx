@@ -8,10 +8,35 @@
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cfloat>
+#include <cmath>
 #include <string>
 #include <vector>
 
 namespace sf4e { namespace ui {
+void DrawMatchLoading() {
+    const auto* vp = ImGui::GetMainViewport();
+    auto* draw = ImGui::GetForegroundDrawList();
+    const ImVec2 end(vp->Pos.x + vp->Size.x, vp->Pos.y + vp->Size.y);
+    draw->PushClipRect(vp->Pos, end, false);
+    draw->AddRectFilled(vp->Pos, end, IM_COL32(18, 16, 15, 255));
+    const float scale = (std::min)(Scale(), (std::min)(vp->Size.x / 640.f, vp->Size.y / 480.f));
+    const float width = (std::min)(640.f * scale, vp->Size.x - 48.f * scale);
+    const float cx = vp->Pos.x + vp->Size.x * .5f;
+    float y = vp->Pos.y + vp->Size.y * .5f - 48.f * scale;
+    const auto line = [&](ImFont* font, float size, const char* text, ImU32 color) {
+        const auto extent = font->CalcTextSizeA(size, FLT_MAX, width, text);
+        draw->AddText(font, size, ImVec2(cx - extent.x * .5f, y), color, text, nullptr, width);
+        return extent.y;
+    };
+    y += line(HeadingFont(), 28.f * scale, loc::T("match.loading_title"), palette::Ivory) + 16.f * scale;
+    y += line(ImGui::GetFont(), 17.f * scale, loc::T("match.loading_detail"), palette::Muted) + 28.f * scale;
+    const int pulse = static_cast<int>(std::fmod(ImGui::GetTime() * 3, 3));
+    for (int dot = 0; dot < 3; ++dot)
+        draw->AddCircleFilled(ImVec2(cx + (dot - 1) * 16.f * scale, y), 3.f * scale,
+            dot == pulse ? palette::Ember : IM_COL32(75, 57, 44, 255));
+    draw->PopClipRect();
+}
+
 std::string MatchStripStateLine(const MatchStripView& view) {
     // The most urgent condition wins: a hard notice, then a stall (the game
     // is visibly frozen and the player needs to know why), then a warning.
