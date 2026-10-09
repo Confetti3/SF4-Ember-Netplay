@@ -3,6 +3,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <nlohmann/json.hpp>
 
 // Training on Home is the offline command with the game sent on into
 // Training mode; Play offline alone sends the game nowhere.
@@ -51,6 +52,13 @@ void TrainingJourneys() {
  HeadlessImGui imgui;auto& io=imgui.io;
  training::View v;v.available=v.ready=v.checkpoint=true;v.generation=77;v.lengths[0]=20;
  std::vector<training::Command> commands;
+ training::DummyPlan runtimePlan;
+ const auto submit=[&](training::Command c){
+  if(c.action==training::Action::DummyPlan){
+   Check(training::ValidDummyPlan(c.plan),"Reply command failed the runtime validator");runtimePlan=c.plan;
+  }
+  commands.push_back(c);return true;
+ };
  // A saved invalid reply remains an error and never submits an empty plan
  // that would select the recording slot. Also exercise the key decoder at
  // its real loader: Reset F11 must not leave Save on its F11 default.
@@ -60,7 +68,7 @@ void TrainingJourneys() {
  {std::ofstream file(folder/"training.json");file<<R"({"reply":{"when":4,"moves":"not a move"},"keys":{"reset_position":10}})";}
  SetTrainingDirectory(folder.wstring());
  ImGui::NewFrame();
- TrainingHotkeys(v,[&](training::Command c){commands.push_back(c);return true;});
+ TrainingHotkeys(v,submit);
  bool failed=false;const auto notice=TrainingNotice(failed);
  Check(commands.empty()&&failed&&!notice.empty(),"Invalid saved reply silently selected the recording slot");
  Check(TrainingHotkeyBound(10)&&TrainingHotkeyBound(1),"Loaded colliding position keys did not resolve the fallback pair");
@@ -69,7 +77,7 @@ void TrainingJourneys() {
   const ImGuiKey keys[]={ImGuiKey_UpArrow,ImGuiKey_DownArrow,ImGuiKey_LeftArrow,ImGuiKey_RightArrow,ImGuiKey_Enter,ImGuiKey_Escape};
   for(unsigned i=0;i<6;++i)io.AddKeyEvent(keys[i],(held&(1u<<i))!=0);
   ImGui::NewFrame();
-  DrawTrainingFlyout(v,[&](training::Command c){commands.push_back(c);return true;});ImGui::Render();};
+  DrawTrainingFlyout(v,submit);ImGui::Render();};
  auto press=[&](unsigned held){frame();frame(held);frame();};
  auto choose=[&](const char* id){frame();for(int i=0;i<100&&TrainingNavigation().Focus()!=id;++i)press(MenuInput::Up);
   for(int i=0;i<100&&TrainingNavigation().Focus()!=id;++i)press(MenuInput::Down);
@@ -105,7 +113,37 @@ void TrainingJourneys() {
  choose("dummy-action");commands.clear();press(MenuInput::Right);
  Check(commands.size()==1&&commands.back().action==training::Action::DummyState&&commands.back().dummy.action==2,
   "Dummy action row did not edit the logical playback setting");
- commands.clear();choose("reply");press(MenuInput::Right);
+ commands.clear();choose("reply-timing");press(MenuInput::Right);
  Check(commands.empty(),"Editing reply settings submitted an invalid saved reply as an empty typed plan");
+ const auto saved=[&]{std::ifstream file(folder/"training.json");nlohmann::json practice;file>>practice;return practice;};
+ // Even unreadable loaded text must allow Off to reach the runtime.
+ choose("reply");press(MenuInput::Right);
+ Check(commands.size()==1&&runtimePlan.when==0&&!training::DummyReplies(runtimePlan,1,0)&&
+  saved()["reply"]["when"]==0&&saved()["reply"]["moves"]=="not a move","Invalid loaded text prevented Reply Off");
+ const auto edit=[&](const char* text){choose("reply-moves");
+  Check(TrainingNavigation().Editing(),"Reply editor did not open");TrainingNavigation().Draft(text);
+  // InputText keeps a separate buffer while active. Reload the model draft
+  // into that buffer before rendering, or it copies the previous text back.
+  auto* editor=ImGui::FindWindowByName("###EditText");Check(editor!=nullptr,"Reply editor was not drawn");
+  if(auto* input=ImGui::GetInputTextState(editor->GetID("##Draft"))) input->ReloadUserBufAndMoveToEnd();
+  frame();Check(TrainingNavigation().Draft()==text,"Reply draft did not survive rendering");press(MenuInput::Select);
+  Check(!TrainingNavigation().Editing(),"Reply editor did not accept its draft");};
+ // Start with a valid enabled reply, then accept a nonempty line with no
+ // moves. Rejection must preserve the editor, file and runtime together.
+ edit("623HP");choose("reply");press(MenuInput::Right);
+ Check(runtimePlan.when==1&&!runtimePlan.moves[0].empty()&&training::DummyReplies(runtimePlan,1,0),"Valid reply did not become active");
+ const auto active=saved();const auto activeFrames=runtimePlan.moves[0].size();commands.clear();
+ edit("> ,");
+ Check(commands.empty()&&saved()==active&&runtimePlan.when==1&&runtimePlan.moves[0].size()==activeFrames&&
+  !TrainingNotice(failed).empty()&&failed,"Rejected reply partially changed saved settings or runtime");
+ choose("reply-moves");Check(TrainingNavigation().Draft()=="623HP","Rejected reply replaced the editor's accepted text");press(MenuInput::Back);
+ choose("reply");press(MenuInput::Left);
+ Check(commands.size()==1&&runtimePlan.when==0&&runtimePlan.moves[0].empty()&&runtimePlan.moves[1].empty()&&
+  !training::DummyReplies(runtimePlan,1,0)&&saved()["reply"]["when"]==0&&saved()["reply"]["moves"]=="623HP",
+  "Reply Off disagreed with the saved settings or runtime after a rejected edit");
+ // The editor still validates notation while Off; it cannot persist text
+ // that would fail the next time replies are enabled.
+ const auto off=saved();commands.clear();edit("> ,");
+ Check(commands.empty()&&saved()==off&&runtimePlan.when==0,"Reply Off allowed an invalid edit to be saved");
  std::filesystem::remove(folder/"training.json");std::filesystem::remove(folder);
 }

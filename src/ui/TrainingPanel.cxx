@@ -55,7 +55,8 @@ void SavePractice() {
 bool SendPlan(const training::View& view,const TrainingSubmit& submit) {
     Command command; command.action=Action::DummyPlan; command.generation=view.generation; command.plan=lab.plan;
     std::string error;
-    if(!BuildReplyPlan(lab.replyMoves,lab.plan,command.plan,error)) { Notice(loc::Tf("training.invalid",error),true); return false; }
+    // Off needs no moves, even when the saved text cannot be read.
+    if(!BuildReplyPlan(lab.plan.when==0?std::string():lab.replyMoves,lab.plan,command.plan,error)) { Notice(loc::Tf("training.invalid",error),true); return false; }
     const bool sent=submit&&submit(command);
     if(!sent) Notice(loc::T("training.command_rejected"),true);
     return sent;
@@ -179,8 +180,8 @@ void HandleTools(const MenuAction& a,const training::View& view,const TrainingSu
         return;
     }
     if(a.kind==MenuAction::TextAccepted&&a.id=="reply-moves") {
-        std::vector<std::string> steps; std::string error; const auto text=combo::Clean(a.text);
-        if(!text.empty()&&!combo::ParseSteps(text,steps,error)) { Notice(loc::Tf("training.invalid",error.empty()?text:error),true); return; }
+        DummyPlan plan; std::string error; const auto text=combo::Clean(a.text);
+        if(!BuildReplyPlan(text,lab.plan,plan,error)) { Notice(loc::Tf("training.invalid",error),true); return; }
         lab.replyMoves=text; SavePractice();
         SendPlan(view,submit);
         return;

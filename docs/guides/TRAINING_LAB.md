@@ -1,6 +1,6 @@
 # Training lab
 
-Ember adds an offline training overlay. Its frame meter shows native fighter states, action IDs, animation frames, observed action durations, startup and signed recovery advantage. Separate startup/active/recovery coloring remains unavailable, so the complete attack stays orange. New timing behavior still needs gameplay correlation.
+Ember adds an offline training overlay. Its frame meter shows native fighter states, action IDs, animation frames, observed action durations, startup and signed recovery advantage. Authored attack boundaries split startup, active and recovery cells; an attack without a usable boundary stays orange. New timing behavior still needs gameplay correlation.
 
 ## Getting there
 
@@ -33,17 +33,20 @@ The controls are a flyout targeting 820 by 600 logical pixels, bounded by 80% of
 
 ## Read the frame meter
 
-The numbers on the data line are the move's frame data. The cells follow the Startup number: a move with a startup of 3 has three startup cells, the third being the frame it first hits on, so the active cells stand one frame later than the frames they name and the recovery has one cell less than its number. The data line gives each fighter's last move: **Startup** (the frame it first hits on), **Active** and **Recovery** in frames, hitstop left out, so the move's total is startup - 1 + active + recovery. After them comes what the move met and what it was worth: **Hit** or **Block** with the frame advantage, green when ahead and red when behind, or **Whiff** when it touched nothing, which has no advantage to give. A cancel into another attack counts as a new move. Where the HUD is too narrow for the words, a bar in each reading's colour stands for its label.
+The numbers on the data line are the move's frame data. The cells follow the Startup number: a move with a startup of 3 has three startup cells, the third being the frame it first hits on, so the active cells stand one frame later than the frames they name and the recovery has one cell less than its number. Recovery includes its omitted cell when the move completes, including a one-frame recovery with no recovery cells. The data line gives each fighter's last move: **Startup** (the frame it first hits on), **Active** and **Recovery** in frames, hitstop left out, so the move's total is startup - 1 + active + recovery. After them comes what the move met and what it was worth: **Hit** or **Block** with the frame advantage, green when ahead and red when behind, or **Whiff** when it touched nothing, which has no advantage to give. A cancel into another attack counts as a new move. Where the HUD is too narrow for the words, a bar in each reading's colour stands for its label.
 
-Each bar holds up to 120 simulated frames for one fighter, the upper one Player 1's, one cell a frame, with a tick under every tenth. The colours are Street Fighter 6's: green startup, red active, blue recovery, split at the attack boundary of the move's script, counted the way the game's frame data counts: a 3-frame jab has three green cells and is active from the fourth; orange being hit and yellow blocking; an attack whose script gives no boundary stays ember orange, a knockdown purple while the fighter bounces or lies down and light purple while it gets up, a throw or cinematic that holds both fighters beige, movement grey-blue. What the thrower still has to play once the thrown fighter is let go counts and shows as its recovery. Every run of one state shows its length in frames on the bar when it is wide enough. While a fighter is being hit, each hit of the combo is a stretch of its own, parted from the one before by a dark line and counted by itself. Beside each bar runs a lane of what that player pressed, Player 1's above their bar and Player 2's below theirs: a direction as it changes, a button as it goes down, each at the frame it did. Presses too close together to draw apart are moved to the right, in order. A change of native action ID starts a new count. A multi-hit move's gaps between hits read as active. The bars fill from the left and start again there once both fighters have been idle for half a second. The line below is the legend and the meter's state, or says what a pending reading is waiting for; there is no separate frame-inspection page. The flyout contains Dummy Recording, Input History and Close training controls. Save/restore position and its F9 shortcut have been removed following a runtime failure report.
+Each bar holds up to 120 simulated frames for one fighter, the upper one Player 1's, one cell a frame, with a tick under every tenth. The colours are Street Fighter 6's: green startup, red active, blue recovery, split at the attack boundary of the move's script, counted the way the game's frame data counts: a 3-frame jab has three green cells and is active from the fourth; orange being hit and yellow blocking; an attack whose script gives no boundary stays ember orange, a knockdown purple while the fighter bounces or lies down and light purple while it gets up, a throw or cinematic that holds both fighters beige, movement grey-blue. What the thrower still has to play once the thrown fighter is let go counts and shows as its recovery. Every run of one state shows its length in frames on the bar when it is wide enough. While a fighter is being hit, each hit of the combo is a stretch of its own, parted from the one before by a dark line and counted by itself. Beside each bar runs a lane of what that player pressed, Player 1's above their bar and Player 2's below theirs: a direction as it changes, a button as it goes down, each at the frame it did. Presses too close together to draw apart are moved to the right, in order. A change of native action ID starts a new count. A multi-hit move's gaps between hits read as active. The bars fill from the left and start again there once both fighters have been idle for half a second. The line below is the legend and the meter's state, or says what a pending reading is waiting for; there is no separate frame-inspection page. The flyout contains Dummy Recording, Input History, Position and dummy, and Close training controls. Position save/reset and their configurable keys are available in offline Training.
 
 | Color | Native state group |
 | --- | --- |
 | Gray | Standing/crouching neutral |
-| Cyan | Movement, jumping, dashing and posture transitions |
-| Orange | Attack (`AS_SKILL`), all phases combined |
-| Blue | Guard posture or guard damage |
-| Red | Damage, blowback or stun |
+| Gray-blue | Movement and dashes |
+| Green | Authored startup |
+| Red | Authored active frames |
+| Blue | Authored recovery |
+| Ember orange | Attack (`AS_SKILL`) without a usable boundary |
+| Yellow | Guard posture or guard damage |
+| Orange | Damage, blowback or stun |
 | Purple | Bound or down |
 | Light purple | Rise (wakeup) |
 | Bright pink | The frame a fighter can first be hit after a knockdown, and on the other's bar the active frames of a meaty attack that had already passed by then. Each of those is a frame of advantage gained: an attack that is +2 on block with 3 pink frames is +5. From the frame the attack meets the fighter on it is red as any active frame; the Meaty reading is the count of pink frames |
@@ -75,7 +78,7 @@ Each player row shows `Start N f`. It counts observed advancing frames from the 
 
 A room's host can turn **Training** on in a table's rules (Table options, with the round count and the round time). At that table both fighters' health, Super and Ultra gauges fill again about a second after they are left alone, and nobody is knocked out. Both players and every spectator get the rule from the table; nothing has to be set on their side.
 
-A game under the rule ends when the round time runs out or a fighter leaves the seat, so set the round time to 9999. Either player can save where both fighters stand and put both back there: the keys chosen in Training for **Save position** and **Reset position** (F11 and F2 unless changed), or the pad's Select, held half a second to save and tapped to reset. It happens for both players and every spectator on the same frame, and both are told who did it. Until somebody saves, a reset goes back to the start of the round. A line under the frame meter names the keys.
+A game under the rule ends when the round time runs out or a fighter leaves the seat, so set the round time to 9999. Shared position save/reset is disabled in rollback matches. The position keys and pad Select apply only in offline Training; the table rule does not enable them.
 
 There is no dummy and no recording at such a table: the other player is the dummy. Turn **Frame meter in matches** on to see the frames.
 
@@ -103,7 +106,7 @@ The dummy rows (dummy action, guard, counter hit, quick stand, super and revenge
 
 **Dummy reply** makes the dummy act by itself once it is free again: after being hit (a dropped combo), after blocking, on wake-up, or any of them. None starts while a playback or a recording runs.
 
-**Reply moves** is the reply typed in numpad notation (`623HP`, `44`, `2LK > 2LP xx 623HP`), read for the side the dummy faces. Move names are not read, since the reply belongs to whoever the dummy is. While the line is empty the dummy plays the **Reply slot** instead, a dummy recording, once from its first pressed frame.
+**Reply moves** is the reply typed in numpad notation (`623HP`, `44`, `2LK > 2LP xx 623HP`), read for the side the dummy faces. Older saved replies using shared names such as `dash`, `throw` or `focus` migrate to notation when loaded. Character-specific move names are not read. Invalid nonempty text shows an error and is not sent to the dummy. While the line is empty the dummy plays the **Reply slot** instead, a dummy recording, once from its first pressed frame.
 
 Moves are separated by `>` or `,`; `xx` before a move means it cancels the one before it, `~` that it is a follow-up pressed about ten frames into it with no hit to wait for (`@N` moves it), otherwise it links. Notation is numpad or prefix style, any case:
 
@@ -122,7 +125,7 @@ Directions take a few frames each and a button two; between moves the input wait
 
 The reply is timed to the stun. The game does not say how long a stun lasts, so each one is measured the first time it is seen, from the last hit or change of reaction to the free frame, per attacking move and reaction. The first time, the reply starts as the stun ends; from then on its motion goes in while the dummy is still held and its first attack button lands on the first free frame. **Reply timing** moves that frame by up to five either way. A counter hit's longer stun replaces the plain hit's until the plain hit is seen again. Hit again before it is free, the dummy drops the reply it had begun.
 
-While a reply plays the dummy's Training-menu action is set to Stand, so the pad input is the dummy's, and put back after. **Reply chance** (25 to 100%) makes it reply only some of the time. **Vary stance** has the dummy stand or crouch at random each time it recovers, while its action is Stand or Crouch.
+While a reply plays the dummy's Training-menu action is set to Stand, so the pad input is the dummy's, and put back after. The Dummy action row continues to show the chosen setting; editing it during a reply changes what is restored when the reply ends. **Reply chance** (25 to 100%) makes it reply only some of the time. **Vary stance** has the dummy stand or crouch at random each time it recovers, while its action is Stand or Crouch.
 
 Recordings last for the battle, so a reply slot has to be recorded again; reply moves need nothing.
 

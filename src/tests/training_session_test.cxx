@@ -426,7 +426,8 @@ int main() {
         {
             // The omitted recovery frame belongs to completion, even when
             // first=3, last=5 and frames 1..5 contain no Recovery cell.
-            for (unsigned finish : {0u, 3u, 21u}) {
+            // Guard posture completes a move; hit and blockstun interrupt it.
+            for (unsigned finish : {0u, 3u, 14u, 15u, 21u, 22u}) for (int cells : {0, 2}) {
                 FrameMeter counted; std::array<FighterSample, 2> pair;
                 for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = 0; fighter.action = 0; }
                 counted.Observe(0, pair);
@@ -435,10 +436,18 @@ int main() {
                 Require(counted.View().startupFrames[0] == 3 && counted.View().moves[0].active == 2 &&
                     counted.View().moves[0].live && counted.View().moves[0].recovery == 0, "Zero-cell recovery fixture miscounted");
                 for (const auto& frame : counted.View().frames) Require(ClassifyMeter(frame.fighters[0]) != MeterKind::Recovery, "Zero-cell fixture contains a recovery cell");
+                for (int cell = 1; cell <= cells; ++cell) {
+                    pair[0].actionFrame = static_cast<float>(5 + cell); counted.Observe(5 + cell, pair);
+                }
+                Require(counted.View().moves[0].recovery == cells, "Live recovery cells miscounted");
                 pair[0].status = finish; pair[0].action = 0; pair[0].actionFrame = 0;
-                counted.Observe(6, pair); counted.Observe(7, pair);
-                Require(!counted.View().moves[0].live && counted.View().moves[0].recovery == (finish == 21 ? 0 : 1),
+                counted.Observe(6 + cells, pair);
+                const int recovery = cells + (finish == 21 || finish == 22 ? 0 : 1);
+                Require(!counted.View().moves[0].live && counted.View().moves[0].recovery == recovery,
                     "Completion omitted or repeated the one recovery frame, or counted interruption as completion");
+                counted.Observe(7 + cells, pair);
+                pair[0].status = 0; counted.Observe(8 + cells, pair);
+                Require(counted.View().moves[0].recovery == recovery, "A later recovered state changed completed recovery");
             }
         }
         {

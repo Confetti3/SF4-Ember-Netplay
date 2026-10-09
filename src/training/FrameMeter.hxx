@@ -246,9 +246,8 @@ public:
                 // frame with no cell, even when no Recovery cell was seen.
                 // Throws count their sequence directly; interruptions do not
                 // establish a completed move's recovery.
-                const auto phase = ClassifyStatus(sample.status);
                 if (move.live && sample.valid && previous.valid && previous.status == 16 && move.active > 0 &&
-                    (phase == Phase::Neutral || phase == Phase::Movement)) move.recovery = recoveryCells_[side] + 1;
+                    GroundedRecoveryState(sample.status)) move.recovery = recoveryCells_[side] + 1;
                 move.live = false;
             }
             if (sample.valid && previous.valid) {
