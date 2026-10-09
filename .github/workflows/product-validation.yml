@@ -1,0 +1,104 @@
+name: Product validation
+on:
+  push:
+    branches: [release]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: product-validation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  rust:
+    name: Rust (${{ matrix.component }}, ${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [rust/sf4-net, server/ember, server/ember-rooms, server/ember-short]
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install repository toolchain
+        run: |
+          toolchain=$(sed -n 's/^channel = "\([^"]*\)"/\1/p' rust/sf4-net/rust-toolchain.toml)
+          rustup toolchain install "$toolchain" --profile minimal
+          echo "RUSTUP_TOOLCHAIN=$toolchain" >> "$GITHUB_ENV"
+      - name: Windows compiler and resource environment
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          . ./scripts/BuildEnvironment.ps1
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+          $vs = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          Enter-EmberVcEnvironment $vs x64
+          foreach ($name in @('PATH','INCLUDE','LIB','LIBPATH')) {
+            "$name=$([Environment]::GetEnvironmentVariable($name))" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          }
+      - name: Locked component tests
+        run: cargo test --locked --manifest-path '${{ matrix.component }}/Cargo.toml' 2>&1 | tee rust-tests.log
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: rust-${{ strategy.job-index }}
+          path: rust-tests.log
+  typescript-sdk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.19.0'
+      - name: Install repository toolchain
+        shell: bash
+        run: |
+          toolchain=$(sed -n 's/^channel = "\([^"]*\)"/\1/p' rust/sf4-net/rust-toolchain.toml)
+          rustup toolchain install "$toolchain" --profile minimal
+      - name: Compile SDK and require every bridge integration test
+        shell: pwsh
+        run: ./scripts/test-sdk.ps1 *> sdk-tests.log
+      - name: Linux room-host IPC tests
+        run: bash server/roomhost/test-linux.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: sdk-tests
+          path: sdk-tests.log
+  advisories:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.19.0'
+      - name: Install pinned advisory scanner
+        run: cargo install cargo-audit --version 0.22.2 --locked
+      - name: Audit every Rust lockfile and SDK dependency
+        shell: bash
+        run: |
+          mkdir -p advisory-results
+          failed=0
+          for component in rust/sf4-net server/ember server/ember-rooms server/ember-short; do
+            name=$(echo "$component" | tr / -)
+            cargo audit --file "$component/Cargo.lock" --json > "advisory-results/$name.json" || failed=1
+          done
+          (cd sdk/typescript && npm audit --json) > advisory-results/npm.json || failed=1
+          exit "$failed"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: advisory-results
+          path: advisory-results

@@ -33,6 +33,12 @@ $standalone = Join-Path $fixture 'standalone'
 New-Item -ItemType Directory -Path $standalone | Out-Null
 @{sourceDirectory='.';buildDirectory='build/current';installDirectory='build/current/stage'} | ConvertTo-Json | Set-Content (Join-Path $standalone 'build-target.json')
 if ((Get-EmberBuildTarget $standalone).buildDirectory -ne 'build/current') { throw 'Standalone target failed' }
+$development = Get-EmberBuildTarget $standalone -WithoutDiscord
+if ($development.buildDirectory -ne 'build/current-no-discord' -or
+    $development.installDirectory.Replace('\','/') -ne 'build/current-no-discord/stage') {
+    throw 'SDK-free development output is not isolated'
+}
+if ((Get-EmberBuildTarget $standalone).installDirectory -ne 'build/current/stage') { throw 'Development selection changed the release stage' }
 @{sourceDirectory='standalone';buildDirectory='build/current';installDirectory='build/current/stage'} | ConvertTo-Json | Set-Content (Join-Path $fixture 'build-target.json')
 Get-EmberBuildTarget $standalone | Out-Null
 try { Get-EmberBuildTarget $source | Out-Null; throw 'Unexpected acceptance' }

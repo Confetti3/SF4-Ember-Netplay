@@ -41,6 +41,7 @@ if(WIN32)
             # A separate target dir keeps the release helper from rebuilding.
             add_test(NAME HelperRust
                 COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/rust-test-target"
+                    "CARGO_INCREMENTAL=0"
                     "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS=-C target-feature=+crt-static"
                     "${SF4E_CARGO_EXECUTABLE}" test --locked --target x86_64-pc-windows-msvc
                 WORKING_DIRECTORY "${SF4E_HELPER_SOURCE}")
@@ -49,9 +50,22 @@ if(WIN32)
             # is not shipped to players; its tests still gate the build.
             add_test(NAME EmberRust
                 COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/rust-ember-target"
+                    "CARGO_INCREMENTAL=0"
                     "${SF4E_CARGO_EXECUTABLE}" test --locked
                 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/server/ember")
             set_tests_properties(EmberRust PROPERTIES TIMEOUT 1800)
+            foreach(service IN ITEMS ember-short ember-rooms)
+                add_test(NAME ${service}Rust
+                    COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/rust-ember-target"
+                        "CARGO_INCREMENTAL=0"
+                        "${SF4E_CARGO_EXECUTABLE}" test --locked
+                    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/server/${service}")
+                set_tests_properties(${service}Rust PROPERTIES TIMEOUT 1800)
+            endforeach()
+            find_program(SF4E_PWSH_EXECUTABLE pwsh REQUIRED)
+            add_test(NAME BridgeSdk COMMAND "${SF4E_PWSH_EXECUTABLE}" -NoProfile -File
+                "${CMAKE_SOURCE_DIR}/scripts/test-sdk.ps1" -BuildDir "${CMAKE_BINARY_DIR}")
+            set_tests_properties(BridgeSdk PROPERTIES TIMEOUT 1800 RUN_SERIAL TRUE)
         endif()
     endif()
 endif()

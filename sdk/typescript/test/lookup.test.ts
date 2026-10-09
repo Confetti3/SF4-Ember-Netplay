@@ -57,7 +57,20 @@ test("a connection finds players by their connected Discord account", { skip: mi
     const state = new URL(started.authorize_url).searchParams.get("state");
     assert.ok(state);
     const callback = await fetch(`${origin}/v1/discord/callback?code=sdk-code&state=${encodeURIComponent(state)}`);
-    assert.match(await callback.text(), /Discord connected/);
+    const confirmationPage = await callback.text();
+    assert.match(confirmationPage, /Connect this Discord account/);
+    // OAuth alone must not connect an account: the person in the browser
+    // explicitly confirms the Ember identity displayed by the bridge.
+    assert.deepEqual(await provider.lookupPlayers([DISCORD_USER]), []);
+    const confirmation = /name="confirmation" value="([^"]+)"/.exec(confirmationPage)?.[1];
+    assert.ok(confirmation);
+    const connected = await fetch(`${origin}/v1/discord/callback`, {
+      method: "POST",
+      headers: { origin },
+      body: new URLSearchParams({ confirmation, choice: "connect" }),
+    });
+    assert.equal(connected.status, 200);
+    assert.match(await connected.text(), /Discord connected/);
 
     // Found, in the order asked; the ID with no account is left out.
     const found = await provider.lookupPlayers([UNCONNECTED_USER, DISCORD_USER]);

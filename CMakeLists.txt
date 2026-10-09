@@ -638,6 +638,7 @@ if(BUILD_TESTING)
         set(SF4E_ROOM_TICKET_TOOL "${CMAKE_BINARY_DIR}/rust-ember-target/debug/examples/room_ticket.exe")
         add_custom_target(RoomTicketTool
             COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/rust-ember-target"
+                "CARGO_INCREMENTAL=0"
                 "${SF4E_CARGO_EXECUTABLE}" build --locked --example room_ticket -p ember-protocol
             WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/server/ember"
             BYPRODUCTS "${SF4E_ROOM_TICKET_TOOL}"
