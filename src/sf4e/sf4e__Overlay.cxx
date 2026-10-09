@@ -335,12 +335,13 @@ void Overlay::DrawOverlay() {
     const auto& snapshot = *frame->runtime;
     const auto& status = frame->netplay;
     if (sf4e::ui::ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(s_overlayWindow) * snapshot.preferences.interfaceScale)) ImGui_ImplDX9_InvalidateDeviceObjects();
-    presentation.Update(snapshot.atMainMenu, snapshot.session.match, snapshot.offlineRequested, focused);
+    const bool spectatorControls = snapshot.menuContext == sf4e::input::MenuContext::Spectating;
+    presentation.Update(snapshot.atMainMenu, snapshot.session.match, snapshot.offlineRequested, focused, spectatorControls);
     s_menuAvailable = presentation.Available();
     const auto openRequest = s_openRequests.Take();
     if (openRequest != sf4e::ui::OpenRequests::Kind::None && presentation.Available()) {
         presentation.Open();
-        if (openRequest == sf4e::ui::OpenRequests::Kind::Play) shell.ShowPlay();
+        if (openRequest == sf4e::ui::OpenRequests::Kind::Play || spectatorControls) shell.ShowPlay();
     }
     static bool inviteShown=false;
     if (snapshot.discordPending && !inviteShown && snapshot.atMainMenu) { presentation.Open(); inviteShown=true; }
@@ -379,12 +380,18 @@ void Overlay::DrawOverlay() {
     }
     controllerNavigation.Update(snapshot.menuController, sf4e::input::ControllerMenuAvailable(snapshot.menuContext),
         presentation.Visible() || trainingOpen, focused && !assigning);
-    if (controllerNavigation.OpenRequested() && presentation.Available()) presentation.Open();
+    if (controllerNavigation.OpenRequested() && presentation.Available()) {
+        if (spectatorControls && !presentation.Visible()) shell.ShowPlay();
+        presentation.Open();
+    }
     ImGui::NewFrame();
     sf4e::ui::SetMenuInput({controllerNavigation.Buttons(), ImGui::GetTime()});
     sf4e::ui::SetMenuGlyphs(snapshot.menuController.deviceType,snapshot.menuController.selectPhysical,snapshot.menuController.backPhysical);
     if (presentation.Reopened()) shell.ShowPlay();
-    if (ImGui::IsKeyPressed(ImGuiKey_F10, false)) presentation.Toggle();
+    if (ImGui::IsKeyPressed(ImGuiKey_F10, false)) {
+        if (spectatorControls && !presentation.Visible()) shell.ShowPlay();
+        presentation.Toggle();
+    }
     // Every overlay frame, since the training panel draws art with the menu
     // closed. Pump returns at once when nothing drew art since the last pump.
     if (s_selectionArt) s_selectionArt->Pump();

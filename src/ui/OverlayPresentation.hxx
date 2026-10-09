@@ -4,22 +4,28 @@
 
 namespace sf4e { namespace ui {
 
-// Presentation state survives device recreation. Only native menu states may
-// capture input; rendering never changes session or simulation state.
+// Presentation state survives device recreation. Native menus and an explicitly
+// identified live spectator may open the shell; fighters and loading cannot.
 class OverlayPresentation {
 public:
-    void Update(bool atMenu, netplay::MatchState match, bool offline, bool focused) {
+    void Update(bool atMenu, netplay::MatchState match, bool offline, bool focused, bool spectator = false) {
         reopened_ = false;
         const bool fighting = match == netplay::MatchState::Preparing || match == netplay::MatchState::Playing;
+        const bool watching = spectator && match == netplay::MatchState::Playing;
         if (match == netplay::MatchState::PostMatch && previousMatch_ != match) reopen_ = true;
         if (offline && !previousOffline_) requested_ = false;
-        if (fighting) requested_ = false;
+        // Enter every fight with the menu hidden. A spectator can explicitly
+        // reopen it; a stale spectator flag can never enable it while loading.
+        if (fighting && (!watching || previousMatch_ != match)) {
+            requested_ = false;
+            reopen_ = false;
+        }
         // The native foreground query drops for a frame or two during menu
         // transitions. Hiding the shell on each drop re-armed every input gate
         // and strobed the room controls, so availability falls only after a
         // sustained absence. A fight or Play Offline still hides immediately.
         awayFrames_ = atMenu ? 0 : awayFrames_ + 1;
-        available_ = !fighting && (atMenu || (available_ && awayFrames_ < AwayFrames));
+        available_ = watching || (!fighting && (atMenu || (available_ && awayFrames_ < AwayFrames)));
         focused_ = focused;
         if (available_ && reopen_) { requested_ = true; reopen_ = false; reopened_ = true; }
         previousMatch_ = match;

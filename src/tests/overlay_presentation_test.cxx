@@ -39,6 +39,33 @@ int main() {
     OverlayPresentation late;
     late.Update(true, MatchState::Preparing, false, true); CHECK(!late.Visible() && !late.Available());
     late.Update(true, MatchState::PostMatch, false, true); CHECK(late.Visible() && late.Reopened());
+    // Spectators may explicitly open controls during the game, but loading,
+    // offline play, and promotion into a fighter slot must retain the lockout.
+    OverlayPresentation spectator;
+    spectator.Update(false, MatchState::Preparing, false, true, true);
+    spectator.Open(); CHECK(!spectator.Available() && !spectator.Visible());
+    spectator.Update(false, MatchState::Playing, false, true, true);
+    CHECK(spectator.Available() && !spectator.Visible());
+    spectator.Toggle(); CHECK(spectator.Visible());
+    for (int i = 0; i < 120; ++i) spectator.Update(false, MatchState::Playing, false, true, true);
+    CHECK(spectator.Visible());
+    spectator.Update(false, MatchState::Playing, false, false, true);
+    spectator.Toggle(); CHECK(spectator.Visible());
+    spectator.Update(false, MatchState::Playing, false, true, false);
+    spectator.Open(); CHECK(!spectator.Visible() && !spectator.Available());
+    spectator.Update(false, MatchState::Preparing, false, true, true);
+    spectator.Update(false, MatchState::Playing, false, true, true);
+    CHECK(!spectator.Visible());
+    spectator.Open(); CHECK(spectator.Visible());
+    spectator.Update(false, MatchState::PostMatch, false, true, false);
+    spectator.Update(false, MatchState::Preparing, false, true, true);
+    spectator.Update(false, MatchState::Playing, false, true, true);
+    CHECK(spectator.Available() && !spectator.Visible());
+    spectator.Update(false, MatchState::PostMatch, false, true, false);
+    spectator.Update(true, MatchState::PostMatch, false, true, false);
+    CHECK(spectator.Visible());
+    spectator.Update(false, MatchState::None, true, true, false);
+    CHECK(!spectator.Visible());
     // Game-thread open requests wait for the drawing thread and coalesce, Play first.
     using Kind = sf4e::ui::OpenRequests::Kind;
     sf4e::ui::OpenRequests requests;

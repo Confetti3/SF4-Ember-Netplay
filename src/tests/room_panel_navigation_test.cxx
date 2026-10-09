@@ -408,17 +408,35 @@ int main() try {
     focus("unwatch"); press(MenuInput::Select);
     Check(actions.size() == beforeUnwatch + 1 && actions.back().roomAction.kind == room::ActionKind::Unwatch,
         "Stop watching did not emit one unwatch action during the terminal wait");
+
+    // Opening the overlay as a live spectator must use the same departure
+    // action, scoped to this match, never a fighter's AbortMatch action.
+    const auto priorMatchState = view.session.match;
+    const auto priorGeneration = view.room.tables[0].matchGeneration;
+    view.session.match = netplay::MatchState::Playing;
+    view.room.tables[0].phase = room::TablePhase::Playing;
+    view.room.tables[0].matchGeneration = 77;
+    frame(); Check(row("unwatch").enabled, "Live spectator could not stop watching");
+    const auto beforeLiveUnwatch = actions.size();
+    focus("unwatch"); press(MenuInput::Select);
+    Check(actions.size() == beforeLiveUnwatch + 1 && actions.back().roomAction.kind == room::ActionKind::Unwatch &&
+        actions.back().roomAction.matchGeneration == 77 && !actions.back().roomAction.keepWatching,
+        "Live spectator exit did not leave only its current watch");
+    view.session.match = priorMatchState;
+    view.room.tables[0].phase = room::TablePhase::Waiting;
+    view.room.tables[0].matchGeneration = priorGeneration;
+    frame();
     // Lock-in is not admission either: the spectator still returning is who
     // it is for. It sends the wanted value, not a toggle.
     Check(row("lock-spectating").enabled && row("lock-spectating").label == "Lock in to watch",
         "Terminal receipt disabled a spectator's lock-in");
     focus("lock-spectating"); press(MenuInput::Select);
-    Check(actions.size() == beforeUnwatch + 2 && actions.back().roomAction.kind == room::ActionKind::LockSpectating &&
+    Check(actions.size() == beforeUnwatch + 3 && actions.back().roomAction.kind == room::ActionKind::LockSpectating &&
         actions.back().roomAction.locked, "Lock in did not emit one locking action");
     view.room.members[0].spectatorLocked = true; ++view.room.revision; frame();
     Check(row("lock-spectating").label == "Release lock-in", "A locked-in spectator was offered Lock in again");
     press(MenuInput::Select);
-    Check(actions.size() == beforeUnwatch + 3 && !actions.back().roomAction.locked, "Release lock-in did not unlock");
+    Check(actions.size() == beforeUnwatch + 4 && !actions.back().roomAction.locked, "Release lock-in did not unlock");
     view.room.members[0].spectatorLocked = false;
     // A queued member is listed as a spectator of the game it waits out, but
     // the authority refuses it a lock-in, so the panel must not offer one.

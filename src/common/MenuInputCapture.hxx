@@ -2,8 +2,10 @@
 #include <cstdint>
 #include <cstring>
 namespace sf4e { namespace input {
-enum class MenuContext { Unavailable, MainMenu, OfflineTraining };
-inline bool ControllerMenuAvailable(MenuContext context) { return context == MenuContext::MainMenu; }
+enum class MenuContext { Unavailable, MainMenu, OfflineTraining, Spectating };
+inline bool ControllerMenuAvailable(MenuContext context) {
+    return context == MenuContext::MainMenu || context == MenuContext::Spectating;
+}
 // Native Pad::System publishes five adjacent uint32 input caches per player.
 // Keep assignment metadata and provider input untouched for overlay polling.
 inline unsigned NativeMenuHeld(const void* system) {
