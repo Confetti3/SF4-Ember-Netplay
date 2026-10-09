@@ -1,8 +1,22 @@
-# GitHub Actions dependency updates only (no client/runtime impact).
+# Updates are reviewed and tested; exact runtime pins remain intentional.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    open-pull-requests-limit: 5
+  - package-ecosystem: cargo
+    directories:
+      - /rust/sf4-net
+      - /server/ember
+      - /server/ember-rooms
+      - /server/ember-short
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+  - package-ecosystem: npm
+    directory: /sdk/typescript
+    schedule:
+      interval: weekly
     open-pull-requests-limit: 5
