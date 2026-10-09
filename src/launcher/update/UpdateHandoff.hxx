@@ -1,12 +1,13 @@
 #pragma once
-#include "PackageInstaller.hxx"
+#include <atomic>
 
 namespace sf4e { namespace launcher {
-// Preparation may finish work after its last report. Poll once more with the
-// same counters before handing the installation to another process.
+// Preparation may finish work after its last check of `cancel`, and nothing
+// can cancel the installation once another process runs it. Ask once more
+// before handing it over.
 template<class Spawn>
-bool HandoffPreparedUpdate(const PackageProgress& progress, std::uint64_t done, std::uint64_t total, Spawn&& spawn) {
-    if(progress && !progress(done,total)) return false;
+bool HandoffPreparedUpdate(const std::atomic<bool>& cancel, Spawn&& spawn) {
+    if(cancel) return false;
     spawn();
     return true;
 }

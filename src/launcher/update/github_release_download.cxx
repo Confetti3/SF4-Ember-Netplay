@@ -1,100 +1,9 @@
-// Release zip download and SHA-256 verification for the release client.
+// Release zip download and digest comparison for the release client.
 #include "github_release_client_internal.hxx"
 
 namespace sf4e {
 namespace launcher {
 	namespace detail {
-
-		// Streaming SHA-256 of a file, returned as lowercase hex. Used to verify a
-		// downloaded release zip against the digest GitHub publishes for the asset,
-		// so a tampered or corrupted download is rejected before we extract and run
-		// any of its contents.
-		bool ComputeFileSha256Hex(const wchar_t* filePath, std::string& outHex, const PackageProgress& progress) {
-			outHex.clear();
-
-			BCRYPT_ALG_HANDLE hAlg = NULL;
-			if (!NT_SUCCESS(BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_SHA256_ALGORITHM, NULL, 0))) {
-				return false;
-			}
-
-			DWORD cbHashObject = 0;
-			DWORD cbData = 0;
-			DWORD cbHash = 0;
-			bool ok = NT_SUCCESS(BCryptGetProperty(
-						  hAlg, BCRYPT_OBJECT_LENGTH, (PUCHAR)&cbHashObject, sizeof(DWORD), &cbData, 0)) &&
-				NT_SUCCESS(BCryptGetProperty(
-					hAlg, BCRYPT_HASH_LENGTH, (PUCHAR)&cbHash, sizeof(DWORD), &cbData, 0));
-
-			PUCHAR pbHashObject = ok ? (PUCHAR)HeapAlloc(GetProcessHeap(), 0, cbHashObject) : NULL;
-			PUCHAR pbHash = ok ? (PUCHAR)HeapAlloc(GetProcessHeap(), 0, cbHash) : NULL;
-			BCRYPT_HASH_HANDLE hHash = NULL;
-			HANDLE hFile = INVALID_HANDLE_VALUE;
-			if (!pbHashObject || !pbHash) {
-				ok = false;
-			}
-
-			if (ok && !NT_SUCCESS(BCryptCreateHash(hAlg, &hHash, pbHashObject, cbHashObject, NULL, 0, 0))) {
-				ok = false;
-			}
-
-			if (ok) {
-				hFile = CreateFileW(
-					filePath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
-					FILE_FLAG_SEQUENTIAL_SCAN, NULL);
-				if (hFile == INVALID_HANDLE_VALUE) {
-					ok = false;
-				}
-			}
-
-			if (ok) {
-				BYTE buffer[8192];
-				DWORD cbRead = 0;
-				LARGE_INTEGER size = {};
-				GetFileSizeEx(hFile, &size);
-				std::uint64_t hashed = 0;
-				for (;;) {
-					if ((progress && !progress(hashed, static_cast<std::uint64_t>(size.QuadPart))) || !ReadFile(hFile, buffer, sizeof(buffer), &cbRead, NULL)) {
-						ok = false;
-						break;
-					}
-					if (cbRead == 0) {
-						break;
-					}
-					hashed += cbRead;
-					if (!NT_SUCCESS(BCryptHashData(hHash, buffer, cbRead, 0))) {
-						ok = false;
-						break;
-					}
-				}
-			}
-
-			if (ok && !NT_SUCCESS(BCryptFinishHash(hHash, pbHash, cbHash, 0))) {
-				ok = false;
-			}
-
-			if (ok) {
-				char pair[3];
-				for (DWORD i = 0; i < cbHash; i++) {
-					snprintf(pair, sizeof(pair), "%02x", pbHash[i]);
-					outHex += pair;
-				}
-			}
-
-			if (hFile != INVALID_HANDLE_VALUE) {
-				CloseHandle(hFile);
-			}
-			if (hHash) {
-				BCryptDestroyHash(hHash);
-			}
-			if (pbHashObject) {
-				HeapFree(GetProcessHeap(), 0, pbHashObject);
-			}
-			if (pbHash) {
-				HeapFree(GetProcessHeap(), 0, pbHash);
-			}
-			BCryptCloseAlgorithmProvider(hAlg, 0);
-			return ok;
-		}
 
 		// Case-insensitive equality for hex digests.
 		bool HexEqualsIgnoreCase(const std::string& a, const std::string& b) {
@@ -152,7 +61,8 @@ namespace launcher {
 			const char* headers,
 			const wchar_t* zipPath,
 			std::string& outError,
-            const std::function<bool(std::uint64_t, std::uint64_t)>& progress
+			const std::atomic<bool>& cancel,
+			const Progress& progress
 		) {
 			if (!url || !url[0]) {
 				outError = "missing URL";
@@ -168,7 +78,12 @@ namespace launcher {
 				return false;
 			}
 			HttpRequestResult httpResult;
-			if (HttpDownloadUrlUtf8(url, zipPath, 20000, headers, &httpResult, progress)) {
+			// The HTTP helper asks after each block whether to go on.
+			const auto received = [&](std::uint64_t done, std::uint64_t total) {
+				if (progress) progress(UpdateStage::Downloading, done, total);
+				return !cancel;
+			};
+			if (HttpDownloadUrlUtf8(url, zipPath, 20000, headers, &httpResult, received)) {
 				AppendUpdateLog((std::string(label) + " OK").c_str());
 				return true;
 			}
@@ -181,7 +96,8 @@ namespace launcher {
 			const UpdateCheckResult& offer,
 			const wchar_t* zipPath,
 			std::string& outError,
-            const std::function<bool(std::uint64_t, std::uint64_t)>& progress
+			const std::atomic<bool>& cancel,
+			const Progress& progress
 		) {
 			outError.clear();
 			const char* apiHeaders = "Accept: application/octet-stream\r\nUser-Agent: sf4e-updater/1.0\r\n";
@@ -199,18 +115,19 @@ namespace launcher {
 			AppendUpdateLog("download start");
 
 			if (!offer.zipDownloadUrl.empty()) {
-				if (TryHttpDownload("browser", offer.zipDownloadUrl.c_str(), browserHeaders, zipPath, attemptError, progress)) {
+				if (TryHttpDownload("browser", offer.zipDownloadUrl.c_str(), browserHeaders, zipPath, attemptError, cancel, progress)) {
 					return true;
 				}
 				recordFailure("browser");
-				if (progress && !progress(0, 0)) {
-					outError = loc::Tf("update.download_failed", "Cancelled", offer.releaseUrl);
+				if (cancel) {
+					AppendUpdateLog("download cancelled");
+					outError = loc::T("update.cancelled");
 					return false;
 				}
 			}
 
 			if (!offer.zipApiUrl.empty()) {
-				if (TryHttpDownload("api", offer.zipApiUrl.c_str(), apiHeaders, zipPath, attemptError, progress)) {
+				if (TryHttpDownload("api", offer.zipApiUrl.c_str(), apiHeaders, zipPath, attemptError, cancel, progress)) {
 					return true;
 				}
 				recordFailure("api");

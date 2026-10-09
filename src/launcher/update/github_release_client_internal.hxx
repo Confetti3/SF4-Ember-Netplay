@@ -22,18 +22,11 @@
 #include <vector>
 
 #include <windows.h>
-#include <bcrypt.h>
 #include <pathcch.h>
 #include <shellapi.h>
 #include <strsafe.h>
 #include <shlobj.h>
 #include <tlhelp32.h>
-
-#ifndef NT_SUCCESS
-#define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
-#endif
-
-#pragma comment(lib, "bcrypt.lib")
 
 #include <nlohmann/json.hpp>
 
@@ -47,20 +40,18 @@ namespace launcher {
 		void AppendUpdateLog(const char* message);
 		bool WidePathToUtf8(const wchar_t* wide, char* out, int outLen);
 		bool EnsureParentDirectoryExistsW(const wchar_t* filePath, std::string& outError);
-		// Runs a hidden child in a kill-on-close job. `progress` is asked each 250 ms
-		// slice; false, or five minutes, ends the child and its children.
+		// Runs a hidden child in a kill-on-close job. `cancel` is read each 250 ms
+		// slice; it, or five minutes, ends the child and its children.
 		bool RunProcessAndWaitHidden(const wchar_t* application, const wchar_t* cmdLine, DWORD* outExitCode,
-			const std::function<bool(std::uint64_t, std::uint64_t)>& progress);
+			const std::atomic<bool>& cancel);
 
 		// Defined in github_release_validation.cxx.
 		bool IsAllowedUpdateUrl(const char* url);
 		bool FindPackageRoot(const wchar_t* searchRoot, wchar_t* outRoot, int outRootChars);
 		bool ValidateExtractedTree(const wchar_t* extractRoot);
-		bool ValidateStagedPackage(const wchar_t* stagingDir, const PackageProgress& progress = {});
+		bool ValidateStagedPackage(const wchar_t* stagingDir, const std::atomic<bool>& cancel = NeverCancelled, const Progress& progress = {});
 
 		// Defined in github_release_download.cxx.
-		// `progress` hears the bytes hashed; false stops, and the hash fails.
-		bool ComputeFileSha256Hex(const wchar_t* filePath, std::string& outHex, const PackageProgress& progress = {});
 		bool HexEqualsIgnoreCase(const std::string& a, const std::string& b);
 
 	} // namespace detail

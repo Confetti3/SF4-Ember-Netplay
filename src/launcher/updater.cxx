@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <algorithm>
 
 #include <windows.h>
 #include <commctrl.h>
@@ -80,14 +81,29 @@ static bool WaitForProcessExit(DWORD pid, DWORD timeoutMs) {
 	return waitResult == WAIT_OBJECT_0;
 }
 
+// The installer counts each step from zero; one bar gives each step its own
+// share, in order, so it only goes forward. The three passes that hash every
+// file take most of the time; between releases few files are backed up or
+// replaced.
+static int BarPosition(sf4e::launcher::UpdateStage stage, std::uint64_t done, std::uint64_t total) {
+    using sf4e::launcher::UpdateStage;
+    struct Share { UpdateStage stage; int from, to; };
+    constexpr int range = sf4e::launcher::ProgressWindow::Range;
+    static const Share shares[] = { { UpdateStage::Preparing, 0, range * 3 / 10 }, { UpdateStage::Comparing, range * 3 / 10, range * 6 / 10 },
+        { UpdateStage::BackingUp, range * 6 / 10, range * 7 / 10 }, { UpdateStage::Replacing, range * 7 / 10, range * 8 / 10 },
+        { UpdateStage::Confirming, range * 8 / 10, range } };
+    for (const auto& share : shares)
+        if (share.stage == stage) return share.from + (total ? static_cast<int>((share.to - share.from) * (std::min)(done, total) / total) : 0);
+    return 0;
+}
 static bool InstallFiles(const wchar_t* staging, const wchar_t* install, HWND bar) {
     std::string error;
     // A package is thousands of file steps; the bar is told only when it
     // would move, so the window's message queue never fills.
-    if (sf4e::launcher::InstallPackage(staging, install, error, [bar, shown = -1](std::uint64_t done, std::uint64_t total) mutable {
-        const int position = total ? static_cast<int>(done * sf4e::launcher::ProgressWindow::Range / total) : 0;
-        if (bar && position != shown) PostMessageW(bar, PBM_SETPOS, shown = position, 0);
-        return true;
+    if (sf4e::launcher::InstallPackage(staging, install, error, sf4e::launcher::NeverCancelled,
+        [bar, shown = -1](sf4e::launcher::UpdateStage stage, std::uint64_t done, std::uint64_t total) mutable {
+        const int position = BarPosition(stage, done, total);
+        if (bar && position > shown) PostMessageW(bar, PBM_SETPOS, shown = position, 0);
     })) return true;
     AppendLog(error.c_str()); return false;
 }

@@ -25,7 +25,7 @@ namespace launcher {
 		// process runs in a kill-on-close job, so a cancel or timeout ends
 		// anything it started too (ledger A-013).
 		bool RunProcessAndWaitHidden(const wchar_t* application, const wchar_t* cmdLine, DWORD* outExitCode,
-			const std::function<bool(std::uint64_t, std::uint64_t)>& progress) {
+			const std::atomic<bool>& cancel) {
 			constexpr ULONGLONG kTimeoutMs = 5 * 60 * 1000;
 			HANDLE job = CreateJobObjectW(NULL, NULL);
 			JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits = {};
@@ -60,7 +60,7 @@ namespace launcher {
 			const ULONGLONG started = GetTickCount64();
 			bool stopped = false;
 			while (WaitForSingleObject(pi.hProcess, 250) == WAIT_TIMEOUT) {
-				const bool cancelled = progress && !progress(0, 0);
+				const bool cancelled = cancel;
 				if (cancelled || GetTickCount64() - started > kTimeoutMs) {
 					AppendUpdateLog(cancelled ? "process cancelled" : "process timed out");
 					TerminateJobObject(job, 1);
@@ -102,7 +102,7 @@ namespace launcher {
 		}
 
 		static bool ExpandZipArchive(const wchar_t* zipPath, const wchar_t* destDir,
-			const std::function<bool(std::uint64_t, std::uint64_t)>& progress) {
+			const std::atomic<bool>& cancel) {
 			// The system tar by full path: a bare name would be searched for in the
 			// application and current directories first.
 			wchar_t tarPath[MAX_PATH] = { 0 };
@@ -119,7 +119,7 @@ namespace launcher {
 			AppendUpdateLog(cmdUtf8);
 
 			DWORD exitCode = 1;
-			if (!RunProcessAndWaitHidden(tarPath, cmdLine, &exitCode, progress)) {
+			if (!RunProcessAndWaitHidden(tarPath, cmdLine, &exitCode, cancel)) {
 				AppendUpdateLog("tar spawn failed");
 				return false;
 			}
@@ -627,7 +627,8 @@ namespace launcher {
 
 	ApplyUpdateResult DownloadAndApplyUpdate(
 		const UpdateCheckResult& offer,
-        const UpdateProgress& progress,
+        const std::atomic<bool>& cancel,
+        const Progress& progress,
         const char* installingText
 	) {
 		ApplyUpdateResult result;
@@ -722,36 +723,31 @@ namespace launcher {
 			return result;
 		}
 
-		// Each part below reports its own done and total; `at` names the step
-		// they belong to. Once the caller has answered false, so does every
-		// later report, whichever part asks.
-		bool go = true;
-		std::uint64_t preparedDone = 0, preparedTotal = 0;
-		const auto at = [&](UpdateStage step) {
-			return [&, step](std::uint64_t done, std::uint64_t total) {
-				if (step == UpdateStage::Preparing) { preparedDone = done; preparedTotal = total; }
-				return go = go && (!progress || progress(step, done, total));
-			};
+		// Each step reports its own done and total under its stage, starting
+		// with (0, 0). A step that stopped because of a cancel reports that,
+		// whatever failure it ran into.
+		const auto announce = [&](UpdateStage stage) { if (progress) progress(stage, 0, 0); };
+		const auto stopped = [&](std::string failure) {
+			result.error = cancel ? std::string(loc::T("update.cancelled")) : std::move(failure);
+			return result;
 		};
 		std::string downloadError;
 		AppendUpdateLog("DownloadAndApplyUpdate start");
-		if (!DownloadReleaseZip(offer, zipPath, downloadError, at(UpdateStage::Downloading))) {
-			result.error = downloadError;
-			return result;
-		}
+		announce(UpdateStage::Downloading);
+		if (!DownloadReleaseZip(offer, zipPath, downloadError, cancel, progress)) return stopped(downloadError);
 
 		// Verify the download's SHA-256 against the digest GitHub published for the
 		// asset before we extract or run anything from it. A mismatch means the zip
 		// was tampered with or corrupted in transit, so refuse it. Releases that
 		// predate GitHub asset digests provide no expected hash and are refused.
-		at(UpdateStage::Verifying)(0, 0);
+		announce(UpdateStage::Verifying);
 		const std::string& expectedHash = offer.expectedSha256;
 		if (!expectedHash.empty()) {
 			std::string actualHash;
-			if (!ComputeFileSha256Hex(zipPath, actualHash, at(UpdateStage::Verifying))) {
+			try { actualHash = Sha256Hex(zipPath, cancel, progress); }
+			catch (const std::exception&) {
 				AppendUpdateLog("hash computation failed");
-				result.error = loc::T(go ? "update.verify_failed" : "update.cancelled");
-				return result;
+				return stopped(loc::T("update.verify_failed"));
 			}
 			if (!HexEqualsIgnoreCase(actualHash, expectedHash)) {
 				AppendUpdateLog(("hash mismatch expected=" + expectedHash + " actual=" + actualHash).c_str());
@@ -763,21 +759,19 @@ namespace launcher {
 			result.error = loc::T("update.no_digest"); return result;
 		}
 
-		// tar reports nothing, so the stage has no total (the bar is not drawn);
-		// each wait slice still asks whether to go on.
-		const auto extracting = at(UpdateStage::Extracting);
-		extracting(0, 0);
-		const bool extracted = ExpandZipArchive(zipPath, extractDir, extracting);
+		// tar reports nothing, so the stage keeps its (0, 0) and the bar moves
+		// without a total; each wait slice still reads `cancel`.
+		announce(UpdateStage::Extracting);
+		const bool extracted = ExpandZipArchive(zipPath, extractDir, cancel);
 		DeleteFileW(zipPath);
 		if (!extracted) {
 			AppendUpdateLog("extract failed");
 			std::error_code ignored;
 			std::filesystem::remove_all(extractDir, ignored);
-			result.error = loc::T(go ? "update.extract_failed" : "update.cancelled");
-			return result;
+			return stopped(loc::T("update.extract_failed"));
 		}
 		AppendUpdateLog("extract ok");
-		at(UpdateStage::Preparing)(0, 0);
+		announce(UpdateStage::Preparing);
 
 		if (!ValidateExtractedTree(extractDir)) {
 			AppendUpdateLog("extract path validation failed");
@@ -799,10 +793,9 @@ namespace launcher {
 			return result;
 		}
 		AppendUpdateLog(("staging dir: " + std::string(stagingUtf8)).c_str());
-		if (!ValidateStagedPackage(stagingDir, at(UpdateStage::Preparing))) {
+		if (!ValidateStagedPackage(stagingDir, cancel, progress)) {
 			AppendUpdateLog("package validation failed");
-			result.error = loc::T(go ? "update.validation_failed" : "update.cancelled");
-			return result;
+			return stopped(loc::T("update.validation_failed"));
 		}
 		AppendUpdateLog("package validation ok");
 
@@ -815,7 +808,7 @@ namespace launcher {
 		swprintf_s(updaterParams, L"-InstallDir \"%s\" -StagingDir \"%s\" -WaitPid %lu -Status \"%s\"",
 			installDir, stagingDir, GetCurrentProcessId(), status.c_str());
         SpawnResult spawned = SpawnResult::Failed;
-        if (!HandoffPreparedUpdate(at(UpdateStage::Preparing), preparedDone, preparedTotal, [&] {
+        if (!HandoffPreparedUpdate(cancel, [&] {
             spawned = SpawnUpdater(installDir, offer.goesBack ? installDir : stagingDir, updaterParams);
         })) { result.error = loc::T("update.cancelled"); return result; }
         switch (spawned) {

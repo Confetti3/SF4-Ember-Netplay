@@ -176,9 +176,8 @@ void ApplicationServices::Run() {
                 if (!next.update.ok || !next.update.updateAvailable || next.update.expectedSha256.size() != 64) {
                     next.message = loc::T("services.no_verified_update");
                 } else {
-                    const auto result = launcher::DownloadAndApplyUpdate(next.update,
+                    const auto result = launcher::DownloadAndApplyUpdate(next.update, cancelled_,
                         [&](launcher::UpdateStage stage, std::uint64_t done, std::uint64_t total) {
-                            if (cancelled_) return false;
                             std::lock_guard<std::mutex> lock(mutex_);
                             if (stage != state_.updateStage) {
                                 state_.updateStage = stage;
@@ -187,7 +186,6 @@ void ApplicationServices::Run() {
                                     stage == launcher::UpdateStage::Extracting ? "services.extracting" : "services.preparing");
                             }
                             state_.stageDone = done; state_.stageTotal = total;
-                            return true;
                         },
                         loc::T("services.installing"));
                     next.installed = next.succeeded = result.ok;

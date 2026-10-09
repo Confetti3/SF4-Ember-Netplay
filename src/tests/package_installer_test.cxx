@@ -8,6 +8,8 @@
 #include <fstream>
 #include <vector>
 #include <set>
+#include <atomic>
+#include <string>
 #include <iostream>
 #include <cstdlib>
 #include <cctype>
@@ -227,24 +229,80 @@ int wmain(int argc, wchar_t** argv) {
     Write(staging/L"Launcher.exe","new");
     Write(staging/L"docs\\TRAINING_LAB.md","unlisted");
     CHECK(!sf4e::launcher::ValidatePackageFolder(staging,error)); fs::remove(staging/L"docs\\TRAINING_LAB.md"); fs::remove(staging/L"docs");
-    std::uint64_t checked=0,named=0;
-    CHECK(sf4e::launcher::ValidatePackageFolder(staging,error,[&](std::uint64_t done,std::uint64_t total){checked=done;named=total;return true;}));
-    CHECK(named>0 && checked==named);
-    // A pass that is told to stop fails as cancelled, from whichever of its
+    using sf4e::launcher::UpdateStage;
+    std::uint64_t checked=0,named=0; bool preparingOnly=true;
+    const auto preparing=[&](UpdateStage stage,std::uint64_t done,std::uint64_t total){checked=done;named=total;preparingOnly=preparingOnly&&stage==UpdateStage::Preparing;};
+    CHECK(sf4e::launcher::ValidatePackageFolder(staging,error,sf4e::launcher::NeverCancelled,preparing));
+    CHECK(named>0 && checked==named && preparingOnly);
+    // A pass that is cancelled fails as cancelled, from whichever of its
     // threads heard it.
-    CHECK(!sf4e::launcher::ValidatePackageFolder(staging,error,[](std::uint64_t,std::uint64_t){return false;}) && error=="Cancelled");
-    // Cancel arrives after the last preparation report was accepted. The
-    // handoff polls the same counters and never calls the process starter.
-    bool cancelRequested=false, spawned=false;
-    const auto preparing=[&](std::uint64_t done,std::uint64_t total) {
-        checked=done; named=total;
-        if(cancelRequested) return false;
-        if(done==total) cancelRequested=true;
-        return true;
-    };
-    CHECK(sf4e::launcher::ValidatePackageFolder(staging,error,preparing) && cancelRequested && checked==named);
-    CHECK(!sf4e::launcher::HandoffPreparedUpdate(preparing,checked,named,[&]{spawned=true;}) && !spawned);
-    CHECK(sf4e::launcher::HandoffPreparedUpdate({},checked,named,[&]{spawned=true;}) && spawned);
+    // Already cancelled, no file is hashed, so nothing is reported.
+    std::atomic<bool> cancel{true}; unsigned reports=0;
+    CHECK(!sf4e::launcher::ValidatePackageFolder(staging,error,cancel,[&](UpdateStage,std::uint64_t,std::uint64_t){++reports;}) && error=="Cancelled" && reports==0);
+    // Cancel arrives after preparation passed. The handoff reads it once more
+    // and never calls the process starter.
+    cancel=false; bool spawned=false;
+    CHECK(sf4e::launcher::ValidatePackageFolder(staging,error,cancel,preparing) && checked==named);
+    cancel=true;
+    CHECK(!sf4e::launcher::HandoffPreparedUpdate(cancel,[&]{spawned=true;}) && !spawned);
+    CHECK(sf4e::launcher::HandoffPreparedUpdate(sf4e::launcher::NeverCancelled,[&]{spawned=true;}) && spawned);
+    // The one hasher reports the bytes it hashed and stops when cancelled
+    // part way through a file.
+    // A whole number of read blocks, so the end of the file is no extra report.
+    Write(root/L"hashed.bin",std::string(320*1024,'x').c_str());
+    std::uint64_t hashed=0,hashTotal=0; cancel=false;
+    CHECK(sf4e::launcher::Sha256Hex(root/L"hashed.bin",cancel,[&](UpdateStage stage,std::uint64_t done,std::uint64_t total){
+        CHECK(stage==UpdateStage::Verifying && done>hashed); hashed=done; hashTotal=total;
+    })==Sha256(std::string(320*1024,'x')) && hashed==hashTotal && hashTotal==320*1024);
+    hashed=0; bool threw=false;
+    try { sf4e::launcher::Sha256Hex(root/L"hashed.bin",cancel,[&](UpdateStage,std::uint64_t done,std::uint64_t){ hashed=done; cancel=true; }); }
+    catch(const std::exception& failure) { threw=std::string(failure.what())=="Cancelled"; }
+    CHECK(threw && hashed>0 && hashed<hashTotal);
+    // A cancel is heard without a progress callback, an empty file included.
+    Write(root/L"empty.bin",""); threw=false;
+    try { sf4e::launcher::Sha256Hex(root/L"empty.bin",cancel); }
+    catch(const std::exception& failure) { threw=std::string(failure.what())=="Cancelled"; }
+    CHECK(threw);
+    cancel=false;
+    // A cancel reaches a file a package pass's worker is part way through: it
+    // stops before the file's second block, and the pass fails as cancelled.
+    // The file spans four read blocks; `watched` is the copy of it to stop in.
+    {
+        const auto blocks=fs::absolute(root/L"blocks"), blockStaging=blocks/L"staging", blockInstall=blocks/L"install";
+        const fs::path large=sf4e::package::Required[0];
+        constexpr std::uint64_t block=64*1024;
+        fs::create_directories(blockInstall);
+        Package(blockStaging,"first");
+        const auto writeLarge=[&](char fill){ std::ofstream(blockStaging/large,std::ios::binary)<<std::string(4*block,fill); Manifest(blockStaging); };
+        writeLarge('a');
+        CHECK(sf4e::launcher::InstallPackage(blockStaging,blockInstall,error));
+        fs::path watched; std::atomic<bool> armed{true}; std::atomic<unsigned> watchedBlocks{0};
+        sf4e::launcher::testing::HashedBlock=[&](const fs::path& file,std::uint64_t hashed){
+            if(!armed || file.lexically_normal()!=watched.lexically_normal()) return;
+            ++watchedBlocks;
+            if(hashed==block) cancel=true;
+        };
+        const auto watch=[&](const fs::path& file){ watched=file; watchedBlocks=0; cancel=false; };
+        // Checking the package.
+        watch(blockStaging/large);
+        CHECK(!sf4e::launcher::ValidatePackageFolder(blockStaging,error,cancel) && error=="Cancelled" && watchedBlocks==1);
+        // Comparing the folder's copy, the pass that takes an unreadable file
+        // as one to write: a cancel still ends the install, before any change.
+        writeLarge('b'); watch(blockInstall/large);
+        CHECK(!sf4e::launcher::InstallPackage(blockStaging,blockInstall,error,cancel) && watchedBlocks==1);
+        CHECK(error.find("Cancelled. No new update was applied")==0 && !fs::exists(blockInstall/L".ember-update-transaction-v1.json"));
+        CHECK(Read(blockInstall/large)==std::string(4*block,'a'));
+        // Confirming the result, after the files were replaced: the prior files
+        // are restored. Armed once replacing has begun, so the comparing pass
+        // over the same file reads it whole.
+        watch(blockInstall/large); armed=false;
+        CHECK(!sf4e::launcher::InstallPackage(blockStaging,blockInstall,error,cancel,[&](UpdateStage stage,std::uint64_t,std::uint64_t){
+            if(stage==UpdateStage::Replacing) armed=true;
+        }) && watchedBlocks==1 && error=="Cancelled. Previous files restored.");
+        CHECK(Read(blockInstall/large)==std::string(4*block,'a') && !fs::exists(blockInstall/L".ember-update-transaction-v1.json"));
+        sf4e::launcher::testing::HashedBlock=nullptr; cancel=false;
+        fs::remove_all(blocks);
+    }
     // A startup timeout stops a worker still behind its gate, so it cannot
     // create a late window. Both successful and failed starts own no handles
     // after closing; a normal close joins before destroying the owner.
@@ -276,15 +334,20 @@ int wmain(int argc, wchar_t** argv) {
     CloseHandle(progressThread); progressThread=nullptr;
     // This version ships a doc and a selection asset the older one below lacks.
     Write(staging/L"docs\\TRAINING_LAB.md","new"); Write(staging/L"assets\\selection\\sources.json","new"); Manifest(staging);
-    // The bar only goes forward, to a total that is fixed from the first
-    // step: here nearly every file changes and two are removed.
-    std::uint64_t steps=0,lastDone=0,firstTotal=0,lastTotal=0; bool forward=true;
-    const auto watch=[&](std::uint64_t done,std::uint64_t total){
-        if(!steps++) firstTotal=total;
-        forward=forward&&done>=lastDone&&total==firstTotal; lastDone=done; lastTotal=total; return true;
+    // Each step goes forward to its own fixed total, and the steps come in
+    // order: here nearly every file changes and two are removed.
+    std::vector<UpdateStage> stages; std::uint64_t lastDone=0,lastTotal=0; bool forward=true;
+    const auto watch=[&](UpdateStage stage,std::uint64_t done,std::uint64_t total){
+        if(stages.empty() || stages.back()!=stage) {
+            // A step whose report was missed, or that comes back, is out of order.
+            forward=forward&&(stages.empty() || (stages.back()<stage && lastDone==lastTotal));
+            stages.push_back(stage); lastDone=0; lastTotal=total;
+        }
+        forward=forward&&done>lastDone&&done<=total&&total==lastTotal; lastDone=done;
     };
-    CHECK(sf4e::launcher::InstallPackage(staging,install,error,watch));
-    CHECK(steps>0 && lastTotal>0 && lastDone==lastTotal && forward);
+    CHECK(sf4e::launcher::InstallPackage(staging,install,error,sf4e::launcher::NeverCancelled,watch));
+    CHECK(forward && lastDone==lastTotal);
+    CHECK((stages==std::vector<UpdateStage>{UpdateStage::Preparing,UpdateStage::Comparing,UpdateStage::BackingUp,UpdateStage::Replacing,UpdateStage::Confirming}));
     CHECK(Read(install/L"Launcher.exe") == "new" && !fs::exists(install/L"Qt6Core.dll"));
     CHECK(!fs::exists(install/L"dxwrapper.dll") && !fs::exists(install/L"Safe display.cmd"));
     CHECK(Read(install/L"d3d9.dll") == "user-owned-proxy");
@@ -300,9 +363,9 @@ int wmain(int argc, wchar_t** argv) {
     // The same package again writes nothing: the backup set of the update
     // before stays, and no file is rewritten.
     const auto launcherWritten=fs::last_write_time(install/L"Launcher.exe");
-    steps=lastDone=0;
-    CHECK(sf4e::launcher::InstallPackage(staging,install,error,watch));
-    CHECK(steps>0 && lastDone==lastTotal && forward);
+    stages.clear();
+    CHECK(sf4e::launcher::InstallPackage(staging,install,error,sf4e::launcher::NeverCancelled,watch));
+    CHECK(forward && lastDone==lastTotal && (stages==std::vector<UpdateStage>{UpdateStage::Preparing,UpdateStage::Comparing}));
     CHECK(fs::last_write_time(install/L"Launcher.exe")==launcherWritten && !fs::exists(install/L".ember-update-transaction-v1.json"));
     backed=false;
     for (const auto& item : fs::recursive_directory_iterator(install/L".ember-update-backups")) backed=backed||item.path().filename()==L"Qt6Core.dll";
@@ -311,7 +374,10 @@ int wmain(int argc, wchar_t** argv) {
     // and backs up only the file it changes.
     Write(staging/L"Launcher.exe","newer"); Manifest(staging);
     // Told to stop before anything is written, it changes nothing.
-    CHECK(!sf4e::launcher::InstallPackage(staging,install,error,[](std::uint64_t,std::uint64_t){return false;}) && Read(install/L"Launcher.exe")=="new");
+    cancel=true;
+    CHECK(!sf4e::launcher::InstallPackage(staging,install,error,cancel) && Read(install/L"Launcher.exe")=="new");
+    CHECK(error.find("Cancelled. No new update was applied")==0 && !fs::exists(install/L".ember-update-transaction-v1.json"));
+    cancel=false;
     CHECK(sf4e::launcher::InstallPackage(staging,install,error));
     CHECK(Read(install/L"Launcher.exe")=="newer");
     CHECK(std::distance(fs::directory_iterator(install/L".ember-update-backups"), fs::directory_iterator()) == 1);
@@ -616,10 +682,11 @@ int wmain(int argc, wchar_t** argv) {
     Write(sparseStaging/L"Launcher.exe","cancelled-target"); Manifest(sparseStaging);
     const auto priorSparseManifest=Read(sparseInstall/L"MANIFEST.txt");
     bool editedSkipped=false;
-    CHECK(!sf4e::launcher::InstallPackage(sparseStaging,sparseInstall,error,[&](std::uint64_t,std::uint64_t) {
-        if(!fs::exists(sparseJournalPath) || Read(sparseInstall/L"Launcher.exe")!="cancelled-target") return true;
-        Write(sparseInstall/L"sf4-net.exe","edited-during-install"); editedSkipped=true; return false;
+    CHECK(!sf4e::launcher::InstallPackage(sparseStaging,sparseInstall,error,cancel,[&](UpdateStage,std::uint64_t,std::uint64_t) {
+        if(cancel || !fs::exists(sparseJournalPath) || Read(sparseInstall/L"Launcher.exe")!="cancelled-target") return;
+        Write(sparseInstall/L"sf4-net.exe","edited-during-install"); editedSkipped=true; cancel=true;
     }));
+    cancel=false;
     CHECK(editedSkipped && error=="Cancelled. Previous files restored.");
     CHECK(Read(sparseInstall/L"Launcher.exe")=="second" && Read(sparseInstall/L"Updater.exe")=="second");
     CHECK(Read(sparseInstall/L"MANIFEST.txt")==priorSparseManifest && Read(sparseInstall/L"sf4-net.exe")=="edited-during-install");
@@ -629,12 +696,13 @@ int wmain(int argc, wchar_t** argv) {
     // The rollback phase stays durable until every operation is restored.
     Write(sparseStaging/L"Updater.exe","cancelled-updater"); Manifest(sparseStaging);
     HANDLE blockedRestore=INVALID_HANDLE_VALUE;
-    CHECK(!sf4e::launcher::InstallPackage(sparseStaging,sparseInstall,error,[&](std::uint64_t,std::uint64_t) {
-        if(!fs::exists(sparseJournalPath) || Read(sparseInstall/L"Launcher.exe")!="cancelled-target") return true;
+    CHECK(!sf4e::launcher::InstallPackage(sparseStaging,sparseInstall,error,cancel,[&](UpdateStage,std::uint64_t,std::uint64_t) {
+        if(cancel || !fs::exists(sparseJournalPath) || Read(sparseInstall/L"Launcher.exe")!="cancelled-target") return;
         Write(sparseInstall/L"sf4-net.exe","edited-during-rollback");
         blockedRestore=CreateFileW((sparseInstall/L"Launcher.exe").c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
-        CHECK(blockedRestore!=INVALID_HANDLE_VALUE); return false;
+        CHECK(blockedRestore!=INVALID_HANDLE_VALUE); cancel=true;
     }));
+    cancel=false;
     CHECK(error.find("Cancelled. Automatic restore incomplete")!=std::string::npos);
     const auto rollbackJournal=nlohmann::json::parse(Read(sparseJournalPath));
     CHECK(rollbackJournal["state"]=="rolling-back" && rollbackJournal["operations"].size()==3 && !fs::exists(sparseFailed));
@@ -673,11 +741,10 @@ int wmain(int argc, wchar_t** argv) {
     // The same edit after a replacement can fail final verification without
     // cancellation; restoration still returns recorded files to prior bytes.
     editedSkipped=false;
-    CHECK(!sf4e::launcher::InstallPackage(sparseStaging,sparseInstall,error,[&](std::uint64_t,std::uint64_t) {
+    CHECK(!sf4e::launcher::InstallPackage(sparseStaging,sparseInstall,error,sf4e::launcher::NeverCancelled,[&](UpdateStage,std::uint64_t,std::uint64_t) {
         if(!editedSkipped && fs::exists(sparseJournalPath) && Read(sparseInstall/L"Launcher.exe")=="cancelled-target") {
             Write(sparseInstall/L"sf4-net.exe","verification-edit"); editedSkipped=true;
         }
-        return true;
     }));
     CHECK(editedSkipped && error=="Installed update verification failed. Previous files restored.");
     CHECK(Read(sparseInstall/L"Launcher.exe")=="second" && Read(sparseInstall/L"MANIFEST.txt")==priorSparseManifest);

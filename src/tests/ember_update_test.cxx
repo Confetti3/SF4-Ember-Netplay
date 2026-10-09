@@ -3,7 +3,9 @@
 #include <filesystem>
 #include <initializer_list>
 #include <nlohmann/json.hpp>
+#include <atomic>
 #include <chrono>
+#include <thread>
 #include <cstdlib>
 #include <iostream>
 
@@ -158,18 +160,13 @@ int main(int argc, char** argv) {
             CHECK(error.find(offer.releaseUrl) != std::string::npos);
             CHECK(error.find("host is not allowlisted") != std::string::npos);
             CHECK(!std::filesystem::exists(root / L"selected.zip"));
-            // Cancellation between download attempts still names this offer's
-            // page, and does not proceed to the API fallback.
+            // A cancel during the first attempt says so and does not go on to
+            // the API fallback.
+            const std::atomic<bool> cancelled{true};
             unsigned reports = 0;
-            CHECK(!detail::DownloadReleaseZip(offer, (root / L"selected.zip").c_str(), error,
-                [&](std::uint64_t done, std::uint64_t total) {
-                    ++reports;
-                    CHECK(done == 0 && total == 0);
-                    return false;
-                }));
-            CHECK(reports == 1 && error.find("Cancelled") != std::string::npos);
-            CHECK(error.find(offer.releaseUrl) != std::string::npos);
-            CHECK(error.find("api:") == std::string::npos);
+            CHECK(!detail::DownloadReleaseZip(offer, (root / L"selected.zip").c_str(), error, cancelled,
+                [&](UpdateStage, std::uint64_t, std::uint64_t) { ++reports; }));
+            CHECK(reports == 0 && error == sf4e::loc::T("update.cancelled"));
             CHECK(!std::filesystem::exists(root / L"selected.zip"));
         }
         RemoveTempRoot(root);
@@ -221,22 +218,21 @@ int main(int argc, char** argv) {
     list[0]["prerelease"] = true;
     CHECK(ParseGithubReleases(list.dump(), "1.0.2", UpdateChannel::Stable).latestVersion == "v1.1.0");
     CHECK(ParseGithubReleases(list.dump(), "1.0.2", UpdateChannel::Beta).latestVersion == "v1.2.0");
-    // The extraction child still stops when asked: the wait asks each slice with no
-    // numbers (the stage has no total), and a false answer ends the child promptly.
+    // The extraction child stops when cancelled while it is being waited for,
+    // and a stopped child never counts as success.
     {
         wchar_t system[MAX_PATH] = {};
         CHECK(GetSystemDirectoryW(system, MAX_PATH) > 0);
         const std::wstring cmd = std::wstring(system) + L"\\cmd.exe";
-        DWORD exitCode = 0;
-        unsigned asked = 0;
-        CHECK(detail::RunProcessAndWaitHidden(cmd.c_str(), (L"\"" + cmd + L"\" /c exit 0").c_str(), &exitCode,
-            [&](std::uint64_t done, std::uint64_t total) { ++asked; CHECK(done == 0 && total == 0); return true; }));
+        DWORD exitCode = 1;
+        std::atomic<bool> cancel{false};
+        CHECK(detail::RunProcessAndWaitHidden(cmd.c_str(), (L"\"" + cmd + L"\" /c exit 0").c_str(), &exitCode, cancel));
         CHECK(exitCode == 0);
-        asked = 0;
         const auto started = std::chrono::steady_clock::now();
-        CHECK(detail::RunProcessAndWaitHidden(cmd.c_str(), (L"\"" + cmd + L"\" /c ping -n 60 127.0.0.1 >nul").c_str(), &exitCode,
-            [&](std::uint64_t done, std::uint64_t total) { ++asked; CHECK(done == 0 && total == 0); return asked < 2; }));
-        CHECK(exitCode != 0 && asked == 2);
+        std::thread canceller([&] { std::this_thread::sleep_for(std::chrono::milliseconds(600)); cancel = true; });
+        CHECK(detail::RunProcessAndWaitHidden(cmd.c_str(), (L"\"" + cmd + L"\" /c ping -n 60 127.0.0.1 >nul").c_str(), &exitCode, cancel));
+        canceller.join();
+        CHECK(exitCode != 0);
         CHECK(std::chrono::steady_clock::now() - started < std::chrono::seconds(20));
     }
     if (argc > 1 && std::string(argv[1]) == "--live") {

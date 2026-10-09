@@ -5,6 +5,7 @@
 #include <optional>
 #include <cstdint>
 #include "../../common/UpdateChannel.hxx"
+#include "PackageInstaller.hxx"
 
 namespace sf4e {
 namespace launcher {
@@ -81,14 +82,14 @@ namespace launcher {
     // newer than the installed version.
     UpdateCheckResult ParseGithubReleases(const std::string& body, const char* installed, UpdateChannel channel);
 	UpdateCheckResult CheckForUpdate(UpdateChannel channel);
-	// The steps DownloadAndApplyUpdate goes through, for the status line, each
-	// with how far it is: bytes while downloading and verifying, files after.
-	// A total of 0 is not known. Returning false cancels the update.
-	enum class UpdateStage { Downloading, Verifying, Extracting, Preparing };
-	using UpdateProgress = std::function<bool(UpdateStage, std::uint64_t done, std::uint64_t total)>;
+	// Goes through Downloading, Verifying, Extracting and Preparing, reporting
+	// each to `progress` for the status line. Each step starts with a report of
+	// (0, 0). Setting `cancel` stops the update with "update.cancelled", up to
+	// the moment the Updater would start.
 	ApplyUpdateResult DownloadAndApplyUpdate(
 		const UpdateCheckResult& offer,
-        const UpdateProgress& progress = {},
+        const std::atomic<bool>& cancel,
+        const Progress& progress = {},
         // Shown by Updater.exe while it installs; it has no catalogs of its own.
         const char* installingText = ""
 	);
