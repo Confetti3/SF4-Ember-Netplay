@@ -1,70 +1,39 @@
-# Code signing (fix Windows Defender false positives)
+# Release authentication
 
-> **Legacy workflow reference.** Ember 0.8.0 is built and packaged locally as described in [BUILDING.md](BUILDING.md). The tag-triggered Release Windows workflow is retired on `release`; the historical signing setup below does not sign current releases. Signing status must be checked on the actual package binaries.
+Current development builds are unsigned. There is no active SignPath workflow
+in this checkout. The retired configuration is [archived](../archive/signpath-legacy.json);
+the old application checklist is historical, not proof of enrollment or signing.
 
-`Program:Win32/Wacapew.A!ml` on **`Sidecar.dll`** is a **heuristic** flag. Unsigned game-hook DLLs are routinely misclassified. **Authenticode signing** is the reliable fix.
+SHA-256 package checks and build receipts establish consistency with their
+records. They do not establish publisher identity independently of GitHub.
+Authenticode requires a trusted publisher certificate and timestamping service,
+or an approved signing provider. No certificate or provider credentials are
+included here. Signing does not guarantee that antivirus accepts a file.
 
-We do **not** ship Defender folder-exclusion scripts. Do not ask users to run `Add-MpPreference` or disable scanning.
+## Required signing order
 
-## Option A — SignPath Foundation (free for OSS, recommended)
+1. Build and pass the test gate from the final source state.
+2. Copy the verified stage to a separate signing area. Preserve the original
+   build receipt; signing changes the binary hashes.
+3. Sign the project binaries, including `Launcher.exe`, `Sidecar.dll`,
+   `sf4-net.exe`, `Updater.exe`, and `ember-discord.exe` when included.
+   Preserve vendor signatures and redistribution terms for third-party files.
+4. Verify every expected signature and timestamp, then generate a separate
+   signing receipt relating unsigned and signed hashes to the same source.
+5. Generate manifests and archives from the signed files, then validate the
+   final package and installer signatures before publication.
 
-1. Apply: [signpath.org/apply](https://signpath.org/apply)
-2. Repo policy: [`.signpath/signpath.json`](../../.signpath/signpath.json)
-3. Requirements: MIT license, public GitHub, active maintenance, signing policy in repo
-4. After approval: add GitHub secrets (see below) and run **Release Windows** on tag push; binaries are signed as **SignPath Foundation**
+The current package script validates the original build hashes; it intentionally
+rejects a stage modified by signing. A signed-release promotion path and signing
+receipt validation must be implemented and tested when a signing provider is
+available. Do not hand-edit a passing build receipt to bypass this check.
 
-### SignPath GitHub secrets (after approval)
+`scripts/sign-release-binaries.ps1` is a low-level certificate tool, not a
+complete signed-release pipeline. It requires explicit certificate credentials.
+Never commit those credentials or print them in build logs.
 
-| Secret | Purpose |
-|--------|---------|
-| `SIGNPATH_API_TOKEN` | SignPath.io API token |
-| `SIGNPATH_ORGANIZATION_ID` | Your SignPath organization GUID |
-| `SIGNPATH_SIGNING_POLICY_SLUG` | e.g. `release` (matches `.signpath/signpath.json`) |
-
-The workflow [`.github/workflows/release-windows.yml`](https://github.com/Confetti3/SF4-Ember-Netplay/blob/v0.6.5/.github/workflows/release-windows.yml) submits artifacts to SignPath when these secrets are set.
-
-## Option B — Azure Artifact Signing (~$10/month)
-
-1. Create an [Azure Artifact Signing](https://learn.microsoft.com/en-us/azure/artifact-signing/overview) account
-2. Add GitHub secrets (see [`.github/workflows/release-windows.yml`](https://github.com/Confetti3/SF4-Ember-Netplay/blob/v0.6.5/.github/workflows/release-windows.yml)):
-   - `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`
-   - `AZURE_CODESIGNING_ENDPOINT`, `AZURE_CODESIGNING_ACCOUNT`, `AZURE_CODESIGNING_PROFILE`
-3. Run workflow **Release Windows** on a version tag before publishing the zip
-
-## Option C — Your own certificate
-
-```powershell
-# After build + package, with a .pfx on disk:
-$env:SF4E_SIGN_PFX = "C:\path\codesign.pfx"
-$env:SF4E_SIGN_PFX_PASSWORD = "..."
-powershell -File scripts/sign-release-binaries.ps1 -InputDir msvc-out\relwithdebinfo
-```
-
-## Verify signatures after signing
-
-```powershell
-Get-AuthenticodeSignature Launcher.exe, Sidecar.dll, sf4-net.exe, Updater.exe | Format-List
-```
-
-Status should be **Valid** with publisher **SignPath Foundation** (or your org).
-
-## Microsoft false-positive submission (every unsigned release)
-
-Submit **only these files** (not the whole zip):
-
-- `Launcher.exe`
-- `Sidecar.dll`
-- `sf4-net.exe`
-
-```powershell
-powershell -File scripts/prepare-defender-submission.ps1
-```
-
-Upload the output folder at [Microsoft file submission](https://www.microsoft.com/en-us/wdsi/filesubmission) → **Incorrectly detected as malware** → detection `Program:Win32/Wacapew.A!ml`.
-
-## Release policy
-
-- Prefer promoting **Authenticode-signed** builds as GitHub **Latest** when signing is available.
-- Unsigned experimental builds may still ship for friends testing — always verify SHA256 hashes.
-- Defender false positives (Detours injection into USF4): [`docs/guides/WINDOWS_DEFENDER.md`](../guides/WINDOWS_DEFENDER.md)
-- SignPath checklist: [`docs/development/SIGNPATH_APPLY.md`](SIGNPATH_APPLY.md)
+Inspect an artifact in PowerShell with `Get-AuthenticodeSignature`. A successful
+signing command alone is insufficient: require `Valid` on every intended file
+and verify the publisher identity. See [build instructions](BUILDING.md) and
+[Defender guidance](../guides/WINDOWS_DEFENDER.md). Do not ask testers to disable
+protection or add folder exclusions.
