@@ -172,6 +172,8 @@ namespace sf4e {
 			bool practiceMatch = false;
 			// A started match is waiting for the player to return to the main menu.
 			bool matchWaitsForMenu = false;
+			// Native entry is running; ends on native readiness or any cancellation.
+			bool matchLoading = false;
 			// Replays (ui/ReplaysView.hxx), which the shell is handed as they are.
 			using Replays = ui::ReplaysView;
 			Replays replays;
@@ -338,6 +340,8 @@ namespace sf4e {
 		bool IsRuntimePublicJoin();
         bool IsRuntimeRecoveryEnabled();
 		void NotifyRuntimeMatchEnded();
+		// Called on the game thread when the native initialized/loaded barrier opens.
+		void NotifyRuntimeNativeBattleReady();
 		// A netplay battle closed after its GGPO session was already retired, so
 		// NotifyRuntimeMatchEnded had no session to come from.
 		void NotifyRuntimeBattleClosedWithoutSession();

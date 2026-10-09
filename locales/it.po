@@ -6227,3 +6227,9 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+msgid "match.loading_title"
+msgstr "Avvio dell'incontro…"
+
+msgid "match.loading_detail"
+msgstr "Attendi. L'incontro inizierà automaticamente; non è necessario premere alcun pulsante."
