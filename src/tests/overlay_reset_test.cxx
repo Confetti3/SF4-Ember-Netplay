@@ -55,6 +55,28 @@ static int CheckPerFighterPicks() {
         Prefs::Clamp(clamped);
         check(clamped.stageID == 0, "clamping kept an unsupported stage");
     }
+    // Picks of custom content that isn't installed (here none is) go back to the defaults: the original costume with
+    // its color kept, and the default stage.
+    Prefs::Data removed;
+    removed.stageID = sf4e::selection::CustomStageId("C12");
+    removed.lobby.charaID = 0; removed.lobby.costume = 11; removed.lobby.color = 3;
+    removed.fighters[0] = removed.lobby;
+    Prefs::Clamp(removed);
+    check(removed.stageID == 0, "a custom stage that isn't installed stayed picked");
+    check(removed.lobby.costume == 0 && removed.lobby.color == 3 && removed.fighters[0].costume == 0,
+        "a custom costume that isn't installed stayed picked");
+    Prefs::Data removedCustomColor;
+    removedCustomColor.lobby.charaID = 0; removedCustomColor.lobby.costume = 11; removedCustomColor.lobby.color = 30;
+    removedCustomColor.fighters[0] = removedCustomColor.lobby;
+    Prefs::Clamp(removedCustomColor);
+    check(removedCustomColor.lobby.costume == 0 && removedCustomColor.lobby.color == 0,
+        "a custom color of a custom costume that isn't installed stayed picked");
+    Prefs::Data removedColor;
+    removedColor.lobby.charaID = 0; removedColor.lobby.costume = 1; removedColor.lobby.color = 30;
+    removedColor.fighters[0] = removedColor.lobby;
+    Prefs::Clamp(removedColor);
+    check(removedColor.lobby.costume == 1 && removedColor.lobby.color == 0 && removedColor.fighters[0].color == 0,
+        "a custom color that isn't installed stayed picked");
     // Stages taken out of Random round-trip as ids; unknown ids are dropped,
     // and a list that would leave Random nothing is forgotten.
     random.randomStageExcluded = (1u << 0) | (1u << 26);
@@ -62,6 +84,13 @@ static int CheckPerFighterPicks() {
     Prefs::FromJson(Prefs::ToJson(random), pool);
     Prefs::Clamp(pool);
     check(pool.randomStageExcluded == random.randomStageExcluded, "the Random stage pool did not round-trip");
+    // Custom stages taken out of Random are saved in the same list, by id.
+    Prefs::Data customs;
+    sf4e::selection::ExcludeCustomStage(sf4e::selection::CustomStageId("C71"), true, customs.randomCustomExcluded);
+    Prefs::Data customsBack;
+    Prefs::FromJson(Prefs::ToJson(customs), customsBack);
+    check(customsBack.randomCustomExcluded == customs.randomCustomExcluded && customsBack.randomStageExcluded == 0,
+        "custom stages taken out of Random did not round-trip");
     Prefs::Data odd;
     Prefs::FromJson({{"randomStageExcluded", {1, 22, 99, -3, "x"}}}, odd);
     check(odd.randomStageExcluded == (1u << 1), "unknown stages entered the Random exclusions");

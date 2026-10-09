@@ -1960,8 +1960,26 @@ int main() {
 	const json guestPick = server._matchData.chara[1];
 	const json hostPick = server._matchData.chara[0];
 	CHECK(guestPick == json(selection.chara) && hostPick != guestPick);
+	// Costume indices past the game's own (7-98) are custom slots, valid with up to ten colors: each PC shows its
+	// own install of that slot or the original costume.
+	json custom = selection; custom["chara"]["costume"] = 7; custom["chara"]["color"] = 9;
+	transport->Push(2, custom); step();
+	CHECK(server._matchData.chara[1].costume == 7 && server._matchData.chara[1].color == 9);
+	transport->Push(2, json(selection)); step();
+	CHECK(json(server._matchData.chara[1]) == guestPick);
+	// Colors 30-99 (indices 29-98) of any costume are custom colors, valid the same way.
+	json extraColor = selection; extraColor["chara"]["color"] = 29;
+	transport->Push(2, extraColor); step();
+	CHECK(server._matchData.chara[1].costume == 1 && server._matchData.chara[1].color == 29);
+	transport->Push(2, json(selection)); step();
+	CHECK(json(server._matchData.chara[1]) == guestPick);
+	json customSlotColor = custom; customSlotColor["chara"]["color"] = 40;
+	transport->Push(2, customSlotColor); step();
+	CHECK(server._matchData.chara[1].costume == 7 && server._matchData.chara[1].color == 40);
+	transport->Push(2, json(selection)); step();
+	CHECK(json(server._matchData.chara[1]) == guestPick);
 	const std::pair<const char*, int> invalidOptions[] = {
-		{"charaID", 44}, {"costume", 7}, {"color", 22}, {"unc_edition", 0},
+		{"charaID", 44}, {"costume", 99}, {"color", 22}, {"color", 99}, {"unc_edition", 0},
 		{"ultraCombo", 3}, {"personalAction", 10}, {"winQuote", 11}, {"handicap", 5}
 	};
 	for (const auto& option : invalidOptions) {
@@ -1969,6 +1987,9 @@ int main() {
 		transport->Push(2, request); step();
 		CHECK(json(server._matchData.chara[1]) == guestPick);
 	}
+	json customColor = custom; customColor["chara"]["color"] = 10;
+	transport->Push(2, customColor); step();
+	CHECK(json(server._matchData.chara[1]) == guestPick);
 	for (const char* field : {"charaID", "costume", "color", "unc_edition", "ultraCombo",
 		"personalAction", "winQuote", "handicap", "_unused"}) {
 		for (json value : {json(-1), json(256), json(1.5), json(true), json("1"), json(nullptr)}) {

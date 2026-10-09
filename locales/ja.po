@@ -1327,6 +1327,9 @@ msgstr "アレンジ{0}"
 msgid "selection.alternate_pack"
 msgstr "アレンジ{0} / {1}"
 
+msgid "selection.custom"
+msgstr "カスタム{0}"
+
 msgid "selection.stage_count"
 msgstr "{0}ステージ / USFIV"
 

@@ -184,5 +184,72 @@ int main() {
     CHECK(pick.edition == 14 && pick.costume == 0 && pick.color == 0 && pick.ultra == 2);
     pick.edition = 16; CHECK(Normalize(pick, true)); CHECK(pick.ultra == 0);
     CHECK(Normalize(pick, false)); CHECK(pick.edition == 14);
-    std::cout << "44-fighter catalog, edition restrictions, palette bounds, sparse unlocks and saved-choice repair passed\n";
+
+    // Custom costumes: slots 8-99 (indices 7-98) of every fighter, ten colors each, valid picks on the network and
+    // listed only once installed.
+    CHECK(IsCustomCostume(7) && IsCustomCostume(98) && !IsCustomCostume(6) && !IsCustomCostume(99));
+    Pick custom; custom.costume = 11; custom.color = 9;
+    CHECK(Valid(custom, true) && !Normalize(custom, true) && ColorCount(0, 11) == 10);
+    custom.color = 10;
+    CHECK(!Valid(custom, true));
+    Availability installed; installed.ready = true; installed.costumes = 1u; installed.customCostumes = {11};
+    CHECK(AllowedCostumes(0, installed) == (std::vector<int>{0, 11}) && AllowedColors(0, 11, installed).size() == 10);
+    Availability unowned = installed; unowned.costumes = 0;   // a licence-locked fighter (35-43) has no costumes at all
+    CHECK(AllowedCostumes(40, unowned).empty() && AllowedCostumes(40, installed) == (std::vector<int>{0, 11}));
+    CHECK(AllowedCostumes(0, sparse) == (std::vector<int>{0, 1, 6}));
+
+    // Custom colors: colors 30-99 (indices 29-98) of any costume, the game's or a custom one, valid on the network and
+    // listed after the costume's own colors once installed.
+    CHECK(IsCustomColor(29) && IsCustomColor(98) && !IsCustomColor(28) && !IsCustomColor(22) && !IsCustomColor(99));
+    CHECK(ColorInRange(0, 1, 30) && !ColorInRange(0, 1, 15) && !ColorInRange(0, 1, 99) && !ColorInRange(0, 11, 22));
+    CHECK(ColorInRange(0, 11, 29) && ColorInRange(0, 11, 98) && !ColorInRange(0, 11, 10));
+    Pick extra; extra.costume = 1; extra.color = 29;
+    CHECK(Valid(extra, true) && !Normalize(extra, true));
+    extra.costume = 11;
+    CHECK(Valid(extra, true));
+    extra.color = 10;
+    CHECK(!Valid(extra, true));
+    Availability colored; colored.ready = true; colored.costumes = 1u; colored.colors[0] = 1u; colored.customColors[0] = {29, 40};
+    CHECK(AllowedColors(0, 0, colored) == (std::vector<int>{0, 29, 40}));
+    colored.customCostumes = {11}; colored.customColors[11] = {35};
+    CHECK(AllowedColors(0, 11, colored) == (std::vector<int>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 35}));
+
+    // Custom stages: any three capital letters or digits that aren't a game stage's code; the code is the id, so a
+    // custom stage travels as one number. They fall back to a stock stage by rule; Random takes only the ones it is given.
+    const int c12 = CustomStageId("C12"), d12 = CustomStageId("D12"), zzz = CustomStageId("ZZZ");
+    CHECK(c12 == ('C' << 16 | '1' << 8 | '2') && IsCustomStage(c12) && IsCustomStage(d12) && IsCustomStage(zzz));
+    for (const char* bad : {"CHN", "GAS", "SCX", "c12", "C1", "C123", "C-2", ""}) CHECK(CustomStageId(bad) == -1);
+    CHECK(!IsCustomStage(1) && !IsCustomStage(RandomStageId) && !IsCustomStage('C' << 16 | 'H' << 8 | 'N'));
+    CHECK(FindStage(c12) && std::string(FindStage(c12)->code) == "C12" && FindStage(c12)->id == c12 && NormalizeStage(c12) == c12);
+    CHECK(CustomStageFallback(c12) == 16 && CustomStageFallback(d12) == 16);              // the 12th fallback, CNX
+    CHECK(CustomStageFallback(CustomStageId("C05")) == 6 && CustomStageFallback(CustomStageId("C19")) == 1);
+    CHECK(FindStage(CustomStageFallback(zzz)) && !IsCustomStage(CustomStageFallback(zzz)));
+    CHECK(ResolveStage(c12, 0) == c12);
+    for (std::uint32_t roll = 0; roll <= 100; ++roll) CHECK(!IsCustomStage(ResolveStage(RandomStageId, roll)));
+    // Given custom stages join the game's in Random: with one game stage left, rolls land on it or the custom one.
+    std::set<int> withCustom;
+    for (std::uint32_t roll = 0; roll <= 1000; ++roll) withCustom.insert(ResolveStage(RandomStageId, roll, ~(1u << 29), {c12}));
+    CHECK(withCustom == (std::set<int>{29, c12}));
+    CHECK(ResolveStage(RandomStageId, VersusStageCount, 0, {c12}) == c12 && ResolveStage(5, 0, 0, {c12}) == 5);
+    // Taken out of Random by id, earliest first; one put back closes up; a full list puts its earliest back.
+    CustomStageExclusions out{};
+    ExcludeCustomStage(c12, true, out); ExcludeCustomStage(d12, true, out); ExcludeCustomStage(1, true, out);
+    CHECK(CustomStageExcluded(c12, out) && CustomStageExcluded(d12, out) && !CustomStageExcluded(zzz, out) && out[2] == 0);
+    CHECK(CustomStagesInRandom({c12, d12, zzz}, out) == (std::vector<int>{zzz}));
+    ExcludeCustomStage(c12, false, out);
+    CHECK(out[0] == d12 && out[1] == 0 && CustomStagesInRandom({c12, d12}, out) == (std::vector<int>{c12}));
+    for (int n = 0; n < 64; ++n) {
+        const char code[4] = {'E', static_cast<char>('0' + n / 10), static_cast<char>('0' + n % 10), 0};
+        ExcludeCustomStage(CustomStageId(code), true, out);
+    }
+    CHECK(!CustomStageExcluded(d12, out) && CustomStageExcluded(CustomStageId("E00"), out) && CustomStageExcluded(CustomStageId("E63"), out));
+
+    // Names the setup program gives custom content: display only, kept apart per costume and color.
+    CHECK(CustomName(0, 70).empty());
+    SetCustomName(0, 70, -1, "Monster Hunter"); SetCustomName(0, 1, 29, "Steel Blue");
+    CHECK(CustomName(0, 70) == "Monster Hunter" && CustomName(0, 1, 29) == "Steel Blue" && CustomName(0, 1).empty() && CustomName(1, 70).empty());
+    CHECK(std::string(FindStage(d12)->name) == "Custom stage D12");
+    SetCustomStageName(d12, "Testing Stage"); SetCustomStageName(1, "Not custom");
+    CHECK(std::string(FindStage(d12)->name) == "Testing Stage" && std::string(FindStage(1)->name) == "Crowded Downtown");
+    std::cout << "44-fighter catalog, edition restrictions, palette bounds, sparse unlocks, saved-choice repair, custom costumes, stages and names passed\n";
 }

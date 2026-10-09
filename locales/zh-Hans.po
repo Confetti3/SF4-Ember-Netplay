@@ -1327,6 +1327,9 @@ msgstr "替换版 {0}"
 msgid "selection.alternate_pack"
 msgstr "替换版 {0}／{1}"
 
+msgid "selection.custom"
+msgstr "定制 {0}"
+
 msgid "selection.stage_count"
 msgstr "{0} 个场地／USFIV"
 

@@ -1,6 +1,9 @@
 #include "FighterCatalog.hxx"
 #include <algorithm>
+#include <map>
+#include <mutex>
 #include <sstream>
+#include <tuple>
 
 namespace sf4e { namespace selection {
 namespace {
@@ -54,6 +57,7 @@ int CostumeCount(int fighterId) {
     return base ? base + 3 : 0;
 }
 int ColorCount(int fighterId, int costumeId) {
+    if (FindFighter(fighterId) && IsCustomCostume(costumeId)) return CustomColorCount;
     if (costumeId < 0 || costumeId >= CostumeCount(fighterId)) return 0;
     // Native customization builds 12 earlier-costume and 22 later-costume
     // entries at RVA 0x2ec64. Availability further filters profile unlocks.
@@ -192,15 +196,40 @@ std::vector<int> AllowedCostumes(int fighterId, const Availability& availability
     if (availability.ready && !FighterLocked(fighterId, availability))
         for (int costume = 0; costume < CostumeCount(fighterId); ++costume)
             if (availability.costumes & (1u << costume)) result.push_back(costume);
+    // Custom costumes need no licence of their own, only the fighter's.
+    if (availability.ready && !FighterLocked(fighterId, availability) && FindFighter(fighterId))
+        result.insert(result.end(), availability.customCostumes.begin(), availability.customCostumes.end());
     return result;
 }
 std::vector<int> AllowedColors(int fighterId, int costumeId, const Availability& availability) {
     std::vector<int> result;
     const auto costumes = AllowedCostumes(fighterId, availability);
     if (std::find(costumes.begin(), costumes.end(), costumeId) == costumes.end()) return result;
-    for (int color = 0; color < ColorCount(fighterId, costumeId); ++color)
-        if (availability.colors[costumeId] & (1u << color)) result.push_back(color);
+    if (IsCustomCostume(costumeId))
+        for (int color = 0; color < CustomColorCount; ++color) result.push_back(color);
+    else
+        for (int color = 0; color < ColorCount(fighterId, costumeId); ++color)
+            if (availability.colors[costumeId] & (1u << color)) result.push_back(color);
+    if (availability.ready && costumeId < static_cast<int>(availability.customColors.size()))
+        result.insert(result.end(), availability.customColors[costumeId].begin(), availability.customColors[costumeId].end());
     return result;
+}
+// The costume's own colors, or a custom color.
+bool ColorInRange(int fighterId, int costumeId, int color) {
+    return color >= 0 && (color < ColorCount(fighterId, costumeId) || IsCustomColor(color));
+}
+namespace {
+std::mutex customNamesLock;
+std::map<std::tuple<int, int, int>, std::string> customNames;
+}
+void SetCustomName(int fighterId, int costumeId, int colorId, const std::string& name) {
+    std::lock_guard<std::mutex> hold(customNamesLock);
+    customNames[std::make_tuple(fighterId, costumeId, colorId)] = name;
+}
+std::string CustomName(int fighterId, int costumeId, int colorId) {
+    std::lock_guard<std::mutex> hold(customNamesLock);
+    const auto found = customNames.find(std::make_tuple(fighterId, costumeId, colorId));
+    return found == customNames.end() ? std::string() : found->second;
 }
 bool Valid(const Pick& pick, bool editionSelect) {
     // The native menus wrap PA over -1..9 and quotes over -1..10.
@@ -209,8 +238,8 @@ bool Valid(const Pick& pick, bool editionSelect) {
         (pick.winQuote != 255 && (pick.winQuote < 0 || pick.winQuote > 10)) ||
         pick.handicap < 0 || pick.handicap > 4) return false;
     if (!EditionAllowed(pick.fighter, pick.edition, editionSelect) || pick.costume < 0 ||
-        pick.costume >= CostumeCount(pick.fighter) || pick.color < 0 ||
-        pick.color >= ColorCount(pick.fighter, pick.costume)) return false;
+        (pick.costume >= CostumeCount(pick.fighter) && !IsCustomCostume(pick.costume)) ||
+        !ColorInRange(pick.fighter, pick.costume, pick.color)) return false;
     const auto ultras = AllowedUltras(pick.fighter, pick.edition);
     return std::find(ultras.begin(), ultras.end(), pick.ultra) != ultras.end();
 }
@@ -228,8 +257,8 @@ bool Normalize(Pick& pick, bool editionSelect, const Availability* availability)
     if (pick.handicap < 0 || pick.handicap > 4) pick.handicap = 0;
     if (!FindFighter(pick.fighter)) pick.fighter = 0;
     pick.edition = NormalizeEdition(pick.fighter, pick.edition, editionSelect);
-    if (pick.costume < 0 || pick.costume >= CostumeCount(pick.fighter)) pick.costume = 0;
-    if (pick.color < 0 || pick.color >= ColorCount(pick.fighter, pick.costume)) pick.color = 0;
+    if (pick.costume < 0 || (pick.costume >= CostumeCount(pick.fighter) && !IsCustomCostume(pick.costume))) pick.costume = 0;
+    if (!ColorInRange(pick.fighter, pick.costume, pick.color)) pick.color = 0;
     const auto ultras = AllowedUltras(pick.fighter, pick.edition);
     if (std::find(ultras.begin(), ultras.end(), pick.ultra) == ultras.end()) pick.ultra = 0;
     // Unknown availability is not a reason to destroy a saved valid pick.

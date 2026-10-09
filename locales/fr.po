@@ -1327,6 +1327,9 @@ msgstr "Alternatif {0}"
 msgid "selection.alternate_pack"
 msgstr "Alternatif {0} / {1}"
 
+msgid "selection.custom"
+msgstr "Personnalisé {0}"
+
 msgid "selection.stage_count"
 msgstr "{0} NIVEAUX / USFIV"
 

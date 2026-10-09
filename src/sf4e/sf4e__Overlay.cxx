@@ -45,6 +45,7 @@ static bool trainingOpen = false, trainingHud = true;
 static std::atomic<bool> trainingAvailable{false};
 static int lobbyStageID = 0, lobbyMenuCharaID = 0;
 static sf4e::selection::StageMask lobbyStageExcluded = 0;
+static sf4e::selection::CustomStageExclusions lobbyCustomExcluded{};
 // The thread that draws the overlay (NoteMessageThread).
 static std::atomic<DWORD> s_drawThread{0};
 // SF4 can pump the window's messages on another thread than the one that
@@ -130,6 +131,7 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
         sf4e::OverlayPrefs::ToConfirmed(lobbyConditions, prefs.lobby);
         lobbyMenuCharaID = prefs.lobby.charaID; lobbyStageID = prefs.stageID;
         lobbyStageExcluded = prefs.randomStageExcluded;
+        lobbyCustomExcluded = prefs.randomCustomExcluded;
 	}
 }
 
@@ -140,12 +142,13 @@ void DrawNetworkCharaConfig(rVsMode::ConfirmedCharaConditions& charaConditions, 
 	const bool editionSelect = snapshot.session.room == sf4e::netplay::RoomState::Joined ? snapshot.lobbySettings.editionSelect : true;
     int stagedStage = stageId ? *stageId : 0;
     sf4e::selection::StageMask stagedPool = lobbyStageExcluded;
+    sf4e::selection::CustomStageExclusions stagedCustomPool = lobbyCustomExcluded;
 	// The room screens direct the player here when a selection is unusable, so
 	// say what is wrong on this screen too, not only on the table.
 	const std::string selectionError = sf4e::selection::Available(pick, editionSelect, snapshot.fighterAvailability[pick.fighter]) ? std::string() :
 		sf4e::loc::T("runtime.selection_combination_unavailable");
 	s_fighterSelectors[0].Draw(pick, editionSelect, s_selectionArt.get(), [&](int fighter) { return snapshot.fighterAvailability[fighter]; }, stageId ? &stagedStage : nullptr, snapshot.canEditSelection, selectionError,
-		stageId ? &stagedPool : nullptr);
+		stageId ? &stagedPool : nullptr, stageId ? &stagedCustomPool : nullptr);
 	if (snapshot.canEditSelection && pick.fighter != menuCharaID && pick.fighter >= 0 && pick.fighter < sf4e::selection::FighterCount) {
 		// Customization is per fighter: the selector carried the previous
 		// fighter's values over, so restore what this one last used, fitted to
@@ -156,7 +159,7 @@ void DrawNetworkCharaConfig(rVsMode::ConfirmedCharaConditions& charaConditions, 
 	if (snapshot.canEditSelection) {
         sf4e::selection::ToNative(pick, charaConditions);
         menuCharaID = pick.fighter;
-        if (stageId) { *stageId = stagedStage; lobbyStageExcluded = stagedPool; }
+        if (stageId) { *stageId = stagedStage; lobbyStageExcluded = stagedPool; lobbyCustomExcluded = stagedCustomPool; }
     }
 
 }
@@ -311,6 +314,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		request.character.charaID = static_cast<BYTE>(lobbyMenuCharaID);
 		request.stage = lobbyStageID;
 		request.randomStageExcluded = lobbyStageExcluded;
+		request.randomCustomExcluded = lobbyCustomExcluded;
 		return sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request));
 	}, [&] {
 		DrawNetworkCharaConfig(lobbyConditions, lobbyMenuCharaID,
@@ -475,6 +479,7 @@ void Overlay::DrawOverlay() {
     sf4e::OverlayPrefs::Data prefs = s_prefs;
     sf4e::OverlayPrefs::FromConfirmed(prefs.lobby, lobbyConditions); prefs.stageID = lobbyStageID;
     prefs.randomStageExcluded = lobbyStageExcluded;
+    prefs.randomCustomExcluded = lobbyCustomExcluded;
     // Every edit is remembered for the fighter it was made on.
     if (prefs.lobby.charaID < prefs.fighters.size()) prefs.fighters[prefs.lobby.charaID] = prefs.lobby;
     if (memcmp(&prefs, &s_prefs, sizeof(prefs)) != 0 && sf4e::OverlayPrefs::Save(prefs)) s_prefs = prefs;

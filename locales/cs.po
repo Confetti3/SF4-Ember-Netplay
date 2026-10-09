@@ -1327,6 +1327,9 @@ msgstr "Alternativní {0}"
 msgid "selection.alternate_pack"
 msgstr "Alternativní {0} / {1}"
 
+msgid "selection.custom"
+msgstr "Vlastní {0}"
+
 msgid "selection.stage_count"
 msgstr "SCÉNY: {0} / USFIV"
 

@@ -1,4 +1,5 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "sf4e__CustomContent.hxx"
 
 namespace sf4e { namespace NetplayFacade {
 namespace internal {
@@ -331,7 +332,7 @@ PostPublishState Publish() {
     snapshot.menuContext = snapshot.atMainMenu ? input::MenuContext::MainMenu :
         training::ControlsAvailable() ? input::MenuContext::OfflineTraining : input::MenuContext::Unavailable;
     if(snapshot.atMainMenu) for(int fighter=0;fighter<selection::FighterCount;++fighter)
-        snapshot.fighterAvailability[fighter]=Dimps::Selection::ReadAvailability(fighter);
+        snapshot.fighterAvailability[fighter]=custom::ReadAvailability(fighter);
     // The explicit gameplay-device assignment stays authoritative, including
     // keyboard selection, capture, disconnects and local P1/P2 handoff.
     if (snapshot.menuContext != input::MenuContext::Unavailable && snapshot.inputCapture == input::Capture::Idle &&
