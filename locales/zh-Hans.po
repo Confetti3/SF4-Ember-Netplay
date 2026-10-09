@@ -3582,3 +3582,6 @@ msgstr "无法进入房间，它可能刚刚关闭。请刷新后选择其他房
 
 msgid "legend.refresh"
 msgstr "刷新"
+
+msgid "update.private_test"
+msgstr "Public updates are disabled for this private test build so your local fixes are preserved. Extract a newer test ZIP into a separate folder."

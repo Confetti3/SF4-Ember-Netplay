@@ -3582,3 +3582,6 @@ msgstr "Kon de kamer niet in. Misschien is hij net gesloten. Vernieuw en kies ee
 
 msgid "legend.refresh"
 msgstr "Vernieuwen"
+
+msgid "update.private_test"
+msgstr "Public updates are disabled for this private test build so your local fixes are preserved. Extract a newer test ZIP into a separate folder."

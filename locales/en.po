@@ -3244,3 +3244,6 @@ msgstr "Couldn't get into the room. It may have just closed. Refresh and pick an
 
 msgid "legend.refresh"
 msgstr "Refresh"
+
+msgid "update.private_test"
+msgstr "Public updates are disabled for this private test build so your local fixes are preserved. Extract a newer test ZIP into a separate folder."

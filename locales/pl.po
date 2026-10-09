@@ -3582,3 +3582,6 @@ msgstr "Nie udało się wejść do pokoju. Mógł się właśnie zamknąć. Odś
 
 msgid "legend.refresh"
 msgstr "Odśwież"
+
+msgid "update.private_test"
+msgstr "Public updates are disabled for this private test build so your local fixes are preserved. Extract a newer test ZIP into a separate folder."

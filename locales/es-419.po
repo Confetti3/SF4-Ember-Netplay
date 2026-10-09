@@ -3128,3 +3128,6 @@ msgstr "No se pudo entrar a la sala. Puede que acabe de cerrarse. Actualiza y el
 
 msgid "legend.refresh"
 msgstr "Actualizar"
+
+msgid "update.private_test"
+msgstr "Public updates are disabled for this private test build so your local fixes are preserved. Extract a newer test ZIP into a separate folder."

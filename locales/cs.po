@@ -3582,3 +3582,6 @@ msgstr "Do místnosti se nepodařilo vstoupit. Možná se právě zavřela. Aktu
 
 msgid "legend.refresh"
 msgstr "Aktualizovat"
+
+msgid "update.private_test"
+msgstr "Public updates are disabled for this private test build so your local fixes are preserved. Extract a newer test ZIP into a separate folder."
