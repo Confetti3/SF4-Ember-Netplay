@@ -418,6 +418,14 @@ private:
     void FlushChat(const ShellView& view,const Submit& submit);
     void NoteChatGate(ChatGate gate,double now);
     void DrawChatLog(const ShellView& view,bool compact);
+    void DrawRoomChat(const ShellView& view,MenuAction& action,float height);
+    enum class ComposerResult { None, Sent, Released };
+    ComposerResult DrawChatComposer(const ShellView& view,float width,bool inlineBox,bool activate=false);
+    void ReleaseChatComposer();
+    bool roomChatTyping_=false,chatComposerFocus_=false;
+    unsigned chatComposerHeld_=0,chatComposerId_=0;
+    std::uint64_t chatComposerEpoch_=0;
+    std::string chatComposerScreen_;
     void DrawChatScreen(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                         const MenuVisualFeedback& feedback);
     ChatTranscript transcript_;

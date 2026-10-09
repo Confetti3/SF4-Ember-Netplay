@@ -6227,3 +6227,9 @@ msgid "country.ZW"
 msgstr "ジンバブエ"
 
 #. End of the generated country names.
+
+msgid "chat.history"
+msgstr "チャット履歴"
+
+msgid "chat.inline_detail"
+msgstr "ここでルームのチャットを入力できます。Enterで送信、Escでルームの操作に戻ります。"

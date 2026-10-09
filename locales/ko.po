@@ -6227,3 +6227,9 @@ msgid "country.ZW"
 msgstr "짐바브웨"
 
 #. End of the generated country names.
+
+msgid "chat.history"
+msgstr "채팅 기록"
+
+msgid "chat.inline_detail"
+msgstr "여기에서 방 채팅을 입력하세요. Enter로 전송하고 Esc로 방 조작으로 돌아갑니다."

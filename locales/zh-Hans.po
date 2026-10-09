@@ -6227,3 +6227,9 @@ msgid "country.ZW"
 msgstr "津巴布韦"
 
 #. End of the generated country names.
+
+msgid "chat.history"
+msgstr "聊天记录"
+
+msgid "chat.inline_detail"
+msgstr "在此输入房间聊天内容。按 Enter 发送，按 Esc 返回房间操作。"

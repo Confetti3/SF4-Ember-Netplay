@@ -6227,3 +6227,9 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+msgid "chat.history"
+msgstr "Historique du chat"
+
+msgid "chat.inline_detail"
+msgstr "Écrivez ici dans le salon. Entrée envoie le message ; Échap revient aux commandes du salon."
