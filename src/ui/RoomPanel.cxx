@@ -248,7 +248,9 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    const bool ready=room::ReadyCancellable(t,place.seat);
     const auto readyControl=DescribeReady(v,t,place.seat);
     rows.push_back(Row("ready",readyControl.label,readyControl.detail,readyControl.kind!=ReadyControl::None));
-    if(t.spectatorHold)rows.back().detailText=DetailText::Name;
+    const auto timeout=ReadyTimeoutText(v,t);
+    if(!timeout.empty())rows.back().detail=timeout+"\n"+rows.back().detail;
+    if(t.spectatorHold||!timeout.empty())rows.back().detailText=DetailText::Name;
    // Under Ready, in the order a player reads them: their own pick (fighter,
    // Ultra, appearance, fighter options), then the match (P1's stage and the
    // table's rules), then their connection, then leaving. A on Fighter opens

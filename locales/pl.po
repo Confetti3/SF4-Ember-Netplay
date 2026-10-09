@@ -2025,6 +2025,15 @@ msgstr "Czekamy na powrót widzów z potwierdzeniem. Start za {0} s."
 msgid "room.hold.waiting_you"
 msgstr "Mecz czeka na Ciebie: {0} s"
 
+msgid "room.ready_timeout.you"
+msgstr "Zgłoś gotowość w ciągu {0} s, inaczej opuścisz miejsce"
+
+msgid "room.ready_timeout.other"
+msgstr "Czas na gotowość dla {1}: {0} s"
+
+msgid "chat.event.ready_timeout"
+msgstr "{0} opuszcza stół {1}: brak gotowości na czas"
+
 msgid "room.hold.status"
 msgstr "Czekamy na widzów: {0} s"
 

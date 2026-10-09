@@ -30,11 +30,17 @@ nlohmann::json RoomAuthority::Checkpoint() const {
     for (const auto& tombstone : terminalAckTombstones_)
         terminalAckTombstones.push_back({{"table", tombstone.table}, {"generation", tombstone.generation},
             {"member", tombstone.member}, {"endpoint", tombstone.endpoint}, {"incarnation", tombstone.incarnation}});
-    json holdAges = json::array();
+    json holdAges = json::array(), readyAges = json::array();
+    bool readyAged = false;
     for (std::size_t i = 0; i < TableCount; ++i) {
         const auto since = startHeldSince_[i];
         holdAges.push_back(!snapshot_.tables[i].spectatorHold ? std::uint64_t(0) : recoveryPaused_
             ? since : nowMs_ >= since ? nowMs_ - since : 0);
+        const auto readySince = readyWaitingSince_[i];
+        const auto readyAge = !readyWaitingFor_[i] ? std::uint64_t(0) : recoveryPaused_
+            ? readySince : nowMs_ >= readySince ? nowMs_ - readySince : 0;
+        readyAges.push_back(readyAge);
+        readyAged = readyAged || readyAge != 0;
     }
     // Permit timers hold ages paused or not; their samples stay on this
     // process. A begun game's timer carries its window as well, only when
@@ -71,6 +77,9 @@ nlohmann::json RoomAuthority::Checkpoint() const {
         {"chat_times", chatTimes}, {"actions", lastAcceptedActions_},
         {"kicked", kicked_}, {"time", recoveryPaused_ ? 0 : nowMs_}};
     state["snapshot"]["local_member"] = std::uint64_t(0);
+    // Zero ages restore at the receiving clock; unchanged rooms retain their
+    // old checkpoint form. The Waiting pair identifies whether a clock runs.
+    if (readyAged) state["ready_age"] = std::move(readyAges);
     // A live room's permit ages were counted to its permit clock, which can
     // lag "time" after a resume on a lower clock. Only a held permit needs it.
     if (!recoveryPaused_ && permits_.clockKnown && permitHeld) state["permit_clock"] = permits_.clockMs;
@@ -89,6 +98,10 @@ bool RoomAuthority::RestoreCheckpoint(const nlohmann::json& state) {
         RoomAuthority restored("Recovering room");
         state.at("snapshot").get_to(restored.snapshot_);
         if (restored.snapshot_.localMember) return false;
+        for (auto& table : restored.snapshot_.tables) {
+            table.holdRemainingMs = 0;
+            table.readyRemainingMs = 0;
+        }
         restored.nextMemberId_ = ReadU64(state, "next_member");
         restored.nextJoinOrder_ = ReadU64(state, "next_join");
         restored.nextMatchGeneration_ = ReadU64(state, "next_match");
@@ -296,6 +309,16 @@ bool RoomAuthority::RestoreCheckpoint(const nlohmann::json& state) {
         for (const auto& entry : state.at("kicked"))
             if (!restored.kicked_.insert(entry.get<ConnectionRef>()).second) return false;
         if (!restored.LoadServerOwned(state)) return false;
+        restored.RefreshReadyTimers();
+        const auto readyAges = state.value("ready_age", json::array());
+        if (!readyAges.is_array() || (!readyAges.empty() && readyAges.size() != TableCount)) return false;
+        for (std::size_t i = 0; i < readyAges.size(); ++i) {
+            if (!readyAges.at(i).is_number_unsigned()) return false;
+            const auto age = readyAges.at(i).get<std::uint64_t>();
+            if (!restored.recoveryPaused_ && age > restored.nowMs_) return false;
+            if (restored.readyWaitingFor_[i])
+                restored.readyWaitingSince_[i] = restored.recoveryPaused_ ? age : restored.nowMs_ - age;
+        }
         *this = std::move(restored);
         return true;
     } catch (const std::exception&) { return false; }
@@ -345,6 +368,8 @@ void to_json(nlohmann::json& json, const Table& value) { json = nlohmann::json{{
 	if (value.permitWindows[0] || value.permitWindows[1]) json["permit_windows"] = value.permitWindows;
 	// Only in a held table's sent snapshot; older readers skip the key.
 	if (value.holdRemainingMs) json["hold_ms"] = value.holdRemainingMs;
+	if (value.readyRemainingMs) json["ready_ms"] = value.readyRemainingMs;
+	if (value.readyTimeoutRevision) json["ready_timeout"] = {{"member", value.readyTimeoutMember}, {"revision", value.readyTimeoutRevision}};
 }
 void from_json(const nlohmann::json& json, Table& value) {
 	value.id = static_cast<std::uint8_t>(ReadInt(json, "id", 0, static_cast<int>(TableCount - 1)));
@@ -359,6 +384,15 @@ void from_json(const nlohmann::json& json, Table& value) {
 	if (json.contains("ending_watchers")) { ReadMemberList(json, "ending_watchers", value.endingWatchers, MaxSpectators); ValidateMemberIds(value.endingWatchers); }
 	const auto ready = json.at("ready"); if (!ready.is_array() || ready.size() != 2 || !ready.at(0).is_boolean() || !ready.at(1).is_boolean()) throw std::invalid_argument("room readiness");
 	value.ready[0] = ready.at(0).get<bool>(); value.ready[1] = ready.at(1).get<bool>();
+	value.readyRemainingMs = json.contains("ready_ms")
+		? static_cast<std::uint32_t>(ReadInt(json, "ready_ms", 0, static_cast<int>(ReadyTimeoutMs))) : 0;
+	value.readyTimeoutMember = value.readyTimeoutRevision = 0;
+	if (json.contains("ready_timeout")) {
+		value.readyTimeoutMember = ReadU64(json.at("ready_timeout"), "member");
+		value.readyTimeoutRevision = ReadU64(json.at("ready_timeout"), "revision");
+		if (!value.readyTimeoutMember || !value.readyTimeoutRevision || value.readyTimeoutRevision > value.revision)
+			throw std::invalid_argument("room ready timeout");
+	}
 	if (json.contains("input_delay")) {
 		const auto delay = json.at("input_delay");
 		if (!delay.is_array() || delay.size() != 2 || !delay.at(0).is_number_integer() || !delay.at(1).is_number_integer()) throw std::invalid_argument("room input delay");

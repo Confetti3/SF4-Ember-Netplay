@@ -15,7 +15,7 @@
 
 namespace sf4e { namespace ui {
 struct ChatLine {
-    enum class Kind { Message, Joined, Left, NewHost, GameWon, SetWon } kind = Kind::Message;
+    enum class Kind { Message, Joined, Left, NewHost, GameWon, SetWon, ReadyTimeout } kind = Kind::Message;
     // Messages: the room's sequence number, who sent it and under which name.
     std::uint64_t sequence = 0;
     room::MemberId sender = 0;
@@ -44,7 +44,7 @@ public:
 private:
     void Append(ChatLine line);
     void Diff(const room::Snapshot& snapshot);
-    struct SeenTable { room::MemberId p1 = 0, p2 = 0; std::uint32_t score[2] = {0, 0}; std::uint64_t setGeneration = 0; };
+    struct SeenTable { room::MemberId p1 = 0, p2 = 0; std::uint32_t score[2] = {0, 0}; std::uint64_t setGeneration = 0, readyTimeoutRevision = 0; };
     std::deque<ChatLine> lines_;
     std::uint64_t epoch_ = 0, lastSequence_ = 0, readThrough_ = 0;
     room::MemberId host_ = 0;

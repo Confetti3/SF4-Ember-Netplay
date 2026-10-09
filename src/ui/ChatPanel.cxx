@@ -20,6 +20,7 @@ std::string EventText(const ChatLine& line) {
     case ChatLine::Kind::NewHost: return loc::Tf("chat.event.host", name);
     case ChatLine::Kind::GameWon: return loc::Tf("chat.event.game_won", name, line.table + 1, SetScoreText(line.score));
     case ChatLine::Kind::SetWon: return loc::Tf("chat.event.set_won", name, line.table + 1, SetScoreText(line.score));
+    case ChatLine::Kind::ReadyTimeout: return loc::Tf("chat.event.ready_timeout", name, line.table + 1);
     default: return {};
     }
 }

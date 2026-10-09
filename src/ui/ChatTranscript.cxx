@@ -46,6 +46,7 @@ bool ChatTranscript::Update(const room::Snapshot& snapshot) {
         seen.p1 = table.p1; seen.p2 = table.p2;
         seen.score[0] = table.score[0]; seen.score[1] = table.score[1];
         seen.setGeneration = table.lastSet.generation;
+        seen.readyTimeoutRevision = table.readyTimeoutRevision;
     }
     return fresh;
 }
@@ -67,6 +68,11 @@ void ChatTranscript::Diff(const room::Snapshot& snapshot) {
     for (std::size_t i = 0; i < snapshot.tables.size(); ++i) {
         const auto& table = snapshot.tables[i];
         const auto& seen = tables_[i];
+        if (table.readyTimeoutRevision && table.readyTimeoutRevision != seen.readyTimeoutRevision) {
+            auto line = event(ChatLine::Kind::ReadyTimeout, table.readyTimeoutMember);
+            line.table = static_cast<unsigned>(i);
+            Append(std::move(line));
+        }
         // A finished set names its winner and the set's score. Otherwise a game
         // won shows as one seat's score going up between two snapshots with the
         // same pair seated; a draw, a cancelled game or both seats moving say nothing.

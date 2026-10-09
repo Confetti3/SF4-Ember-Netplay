@@ -196,9 +196,12 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		for (auto& member : view.room.members)
 			if (member.status != sf4e::room::MemberStatus::Playing)
 				member.idleSeconds = (std::min)(member.idleSeconds + since, sf4e::room::MaximumIdleSeconds);
-		for (auto& table : view.room.tables)
+		for (auto& table : view.room.tables) {
 			if (table.holdRemainingMs)
 				table.holdRemainingMs = elapsedMs < table.holdRemainingMs ? static_cast<std::uint32_t>(table.holdRemainingMs - elapsedMs) : 1;
+			if (table.readyRemainingMs)
+				table.readyRemainingMs = elapsedMs < table.readyRemainingMs ? static_cast<std::uint32_t>(table.readyRemainingMs - elapsedMs) : 1;
+		}
 	}
 	view.preferences = snapshot.preferences;
 	view.lobbySettings = snapshot.lobbySettings;

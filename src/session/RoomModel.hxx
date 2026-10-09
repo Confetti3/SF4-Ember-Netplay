@@ -47,6 +47,9 @@ constexpr std::size_t MaximumKickedAccounts = 512;
 // room.unlock_spectating.detail; the UI passes SpectatorStartHoldMs / 1000.
 // A held table's snapshot carries what is left of it (Table::holdRemainingMs).
 constexpr std::uint64_t SpectatorStartHoldMs = 10000;
+// A waiting fighter's inactivity limit. room.ready_timeout.you and
+// room.ready_timeout.other quote its remaining seconds; the last 30 s are shown.
+constexpr std::uint64_t ReadyTimeoutMs = 90000;
 
 enum class MemberStatus : std::uint8_t {
 	Idle = 0,
@@ -235,6 +238,12 @@ struct Table {
 	// checkpoints keep zero, and zero is not serialized; a client counts on
 	// from when it received the snapshot.
 	std::uint32_t holdRemainingMs = 0;
+	// Stamped only in SnapshotFor, like holdRemainingMs. Zero means no clock.
+	std::uint32_t readyRemainingMs = 0;
+	// Last timed-out seat departure, for the room chat's snapshot diff. The
+	// table revision distinguishes repeated departures by the same member.
+	MemberId readyTimeoutMember = 0;
+	std::uint64_t readyTimeoutRevision = 0;
 	// A bound table's ready fighters wait, for at most PermitHoldMs, for the
 	// bridge's permit for this reserved generation. Each seat's permit ID is
 	// filled when that fighter's helper has it; the game starts when both name
@@ -673,9 +682,11 @@ private:
 	// A locked-in spectator of this table has not yet acknowledged an earlier
 	// generation, so a start now would leave it out.
 	bool LockedSpectatorReturning(const Table& table) const;
-	// A table deadline (ResultDisputeTimeoutMs, SpectatorStartHoldMs) that
+	// A table deadline (result dispute, spectator hold or Ready timeout) that
 	// started at `since` has passed.
 	bool TimerDue(std::uint64_t since, std::uint64_t timeout, std::uint64_t nowMs) const;
+	MemberId WaitingForReady(const Table& table) const;
+	void RefreshReadyTimers();
 	// The table's permit age at nowMs, without moving its timer.
 	std::uint64_t PermitAgeAt(std::size_t table, std::uint64_t nowMs) const;
 	// Its age at the last time AgePermitHolds was given.
@@ -784,6 +795,8 @@ private:
 	std::array<MatchResult, TableCount> pendingResult_ = {};
 	std::array<std::uint64_t, TableCount> resultPendingSince_ = {};
 	std::array<std::uint64_t, TableCount> startHeldSince_ = {};
+	std::array<std::uint64_t, TableCount> readyWaitingSince_ = {};
+	std::array<MemberId, TableCount> readyWaitingFor_ = {};
 	// Every running table deadline with its timeout, on the owner's monotonic
 	// clock. Recovery turns them into ages and back through this one list.
 	// Permit timers are not among them.
@@ -798,8 +811,8 @@ private:
 	std::deque<TerminalAckTombstone> terminalAckTombstones_;
 	std::map<MemberId, std::uint64_t> lastChatMs_;
 	// When each member last did anything (an age while recovery is paused,
-	// like lastChatMs_). Presentation only: not checkpointed; a restored
-	// room counts from its next tick.
+	// like lastChatMs_). Not checkpointed; a restored room counts from its
+	// next tick. Ready timeout ages separately retain the activity deadline.
 	std::map<MemberId, std::uint64_t> lastActiveMs_;
 	void NoteActive(MemberId member);
 	std::uint32_t IdleSeconds(MemberId member) const;

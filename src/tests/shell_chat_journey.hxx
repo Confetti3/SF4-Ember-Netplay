@@ -65,6 +65,18 @@ void TranscriptLogic(){
  // A draw changes no score, so says nothing.
  const auto quiet=t.Lines().size();s.tables[0].phase=room::TablePhase::Playing;t.Update(s);s.tables[0].phase=room::TablePhase::Waiting;t.Update(s);
  Check(t.Lines().size()==quiet,"A game with no winner was announced");
+ // Timed-out seats name the member and cause once, even if the queue has
+ // already filled the vacancy; an ordinary unseat adds no timeout line.
+ s.tables[0].p2=0;t.Update(s);
+ Check(t.Lines().size()==quiet,"An ordinary unseat was announced as a timeout");
+ s.tables[0].readyTimeoutMember=2;s.tables[0].readyTimeoutRevision=20;
+ t.Update(s);t.Update(s);
+ Check(t.Lines().size()==quiet+1&&t.Lines().back().kind==ChatLine::Kind::ReadyTimeout&&
+  t.Lines().back().name=="Peer"&&t.Lines().back().table==0,"A Ready timeout was not announced once under the fighter's name");
+ s.tables[0].readyTimeoutRevision=30;t.Update(s);
+ Check(t.Lines().size()==quiet+2,"A second timeout of the same fighter was lost");
+ ui::ChatTranscript arrived;arrived.Update(s);
+ Check(arrived.Lines().size()==s.chat.size(),"A new arrival announced an old Ready timeout");
  // Only the newest lines are kept.
  for(unsigned i=0;i<300;++i){
   s.chat.push_back({5+i,2,"Line "+std::to_string(i)});

@@ -591,6 +591,28 @@ int main() try {
     view.room.tables[0].phase = room::TablePhase::Waiting; view.room.tables[0].spectatorHold = false;
     view.room.tables[0].ready[0] = view.room.tables[0].ready[1] = false;
 
+    // Ready timeout: the last 30 seconds on the card and the Ready row.
+    {
+        using sf4e::loc::Tf;
+        auto& table = view.room.tables[0];
+        table.ready[1] = true; table.readyRemainingMs = 30001;
+        Check(room_controls::DescribeTableBanner(view, table).text.empty(), "Ready timeout appeared above 30 seconds");
+        table.readyRemainingMs = 30000;
+        const auto own = Tf("room.ready_timeout.you", 30);
+        Check(room_controls::DescribeTableBanner(view, table).text == own, "The unready fighter did not get their countdown");
+        shell.Navigation().Home(); shell.Navigation().Push("room"); targets.clear(); frame();
+        Check(targets.count("table-0/banner"), "The Ready timeout was not drawn on the table card");
+        shell.Navigation().Push("room-table"); frame();
+        Check(row("ready").detail.find(own) == 0, "The Ready row did not show the countdown");
+        view.room.localMember = 2; table.readyRemainingMs = 29001;
+        Check(room_controls::DescribeTableBanner(view, table).text == Tf("room.ready_timeout.other", 30, "Local"),
+            "The opponent did not see who must ready");
+        view.room.localMember = 99; table.readyRemainingMs = 1;
+        Check(room_controls::DescribeTableBanner(view, table).text == Tf("room.ready_timeout.other", 1, "Local"),
+            "A bystander did not see the final second");
+        view.room.localMember = 1; table.ready[1] = false; table.readyRemainingMs = 0;
+        shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
+    }
     // A held start the host timed: the card and the Ready row name who it
     // waits for and count down, and say that B, Cancel the start, calls it off.
     {

@@ -180,10 +180,21 @@ std::string HoldStatus(const ShellView& v, const room::Table& t) {
     const unsigned seconds = (std::max)(1u, (t.holdRemainingMs + 999) / 1000);
     return HoldingStart(v, t) ? loc::Tf("room.hold.waiting_you", seconds) : loc::Tf("room.hold.status", seconds);
 }
+std::string ReadyTimeoutText(const ShellView& v, const room::Table& t) {
+    if (v.room.closed || t.phase != room::TablePhase::Waiting || !t.p1 || !t.p2 ||
+        t.ready[0] == t.ready[1] || !t.readyRemainingMs || t.readyRemainingMs > 30000) return {};
+    const auto member = t.ready[0] ? t.p2 : t.p1;
+    const auto* fighter = room::FindMember(v.room, member);
+    const unsigned seconds = (t.readyRemainingMs + 999) / 1000;
+    return member == v.room.localMember ? loc::Tf("room.ready_timeout.you", seconds) :
+        loc::Tf("room.ready_timeout.other", seconds, fighter ? fighter->name : loc::T("room.player"));
+}
 TableBanner DescribeTableBanner(const ShellView& v, const room::Table& t) {
     TableBanner banner;
     banner.text = HoldText(v, t);
     if (!banner.text.empty()) return banner;
+    banner.text = ReadyTimeoutText(v, t);
+    if (!banner.text.empty()) { banner.seat = t.ready[0] ? 1 : 0; return banner; }
     const auto place = room::PlaceOf(v.room, v.room.localMember);
     // OpponentFighterWatch keeps the fighter only while the local player sits
     // at this matchup unready, so the seat is the other one at their table.
