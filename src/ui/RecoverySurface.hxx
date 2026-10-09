@@ -1,12 +1,14 @@
 #pragma once
 #include "Theme.hxx"
+#include "LauncherScreen.hxx"
 #include "../launcher/update/InstallOffer.hxx"
 #include "../platform/ProblemReport.hxx"
 #include <functional>
 #include <optional>
 #include <string>
 namespace sf4e { namespace ui {
-// Return true only for an explicit launch retry. Network work stays on the
+// Return true for Start/Retry, a Home launch intent, or unavailable Home UI.
+// Recovery/Updates failures never imply retry. Network work stays on the
 // application worker; no game is created by this presentation surface.
 // `artLog` receives one line per selection image that failed or needed a
 // fallback, as SelectionArt reports it. `messageTone` is the severity of
@@ -16,9 +18,10 @@ namespace sf4e { namespace ui {
 // its report goes at once, logs only, unless the day's automatic reports are
 // used up; otherwise it is offered, and goes only from its preview or Always send.
 // `offer` is the update the player accepted in the game (--install-offer): with
-// `updates`, the window's own check runs as always, and the download starts at
+// an Updates root, the window's own check runs as always, and the download starts at
 // once only if that check finds exactly this release (InstallOfferGate).
-bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates = false,
+bool RunRecovery(std::string message, std::wstring& gameDirectory, LauncherRoot root = LauncherRoot::Recovery,
     std::function<void(const std::string&)> artLog = {}, Tone messageTone = Tone::Error, bool canStart = false,
-    const std::optional<reports::CrashContext>& crash = std::nullopt, const std::optional<launcher::InstallOffer>& offer = std::nullopt);
+    const std::optional<reports::CrashContext>& crash = std::nullopt, const std::optional<launcher::InstallOffer>& offer = std::nullopt,
+    LauncherPage initialPage = LauncherPage::Root, std::function<bool()> pollLaunch = {});
 } }

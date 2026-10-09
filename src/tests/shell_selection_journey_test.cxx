@@ -144,10 +144,10 @@ void PresentationJourneys(){
  h.Screen("profile");h.Choose("main-character");h.Press(MenuInput::Right);h.Press(MenuInput::Select);h.Frame(0,40);
  h.view.preferences=h.actions.back().preferences;h.Frame(0,3);Check(status.find("Profile portrait saved:")==0,"Profile success notice missing");
  h.Frame(0,200);Check(status=="Saved","Success notice did not expire");SetMenuStatusProbe({});
- GameMenu recovery;recovery.navigation=RecoveryNavigation(true);sf4e::platform::ServiceSnapshot state;
+ GameMenu recovery;recovery.navigation=RecoveryNavigation(LauncherRoot::Updates);sf4e::platform::ServiceSnapshot state;
  state.update.ok=state.update.updateAvailable=true;state.update.expectedSha256=std::string(64,'a');state.update.latestVersion="v9.9.9";
  std::vector<MenuEntry> updateRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){updateRows=r;});
- const auto frame=[&](unsigned held=0){SetMenuInput({held,0});ImGui::NewFrame();const auto choice=DrawRecoveryMenu(recovery,state,"",true);ImGui::Render();return choice;};
+ const auto frame=[&](unsigned held=0){SetMenuInput({held,0});ImGui::NewFrame();const auto choice=DrawRecoveryMenu(recovery,state,"",LauncherRoot::Updates);ImGui::Render();return choice;};
  frame();frame();
  // A found update is the first row, named by its version, so Select installs it.
  Check(!updateRows.empty()&&updateRows[0].id=="install"&&updateRows[0].value=="v9.9.9"&&recovery.navigation.Focus()=="install",
@@ -160,8 +160,8 @@ void PresentationJourneys(){
  Check(frame(MenuInput::Select)==RecoveryChoice::Cancel,"Recovery cancellation not reachable");
  // An update found while the window is open takes the highlight once; after
  // that the player's own movement stands, until a newer version is found.
- GameMenu found;found.navigation=RecoveryNavigation(true);sf4e::platform::ServiceSnapshot checking;checking.pending=true;std::string offered;
- const auto show=[&](unsigned held=0){OfferFoundUpdate(found,checking,offered);SetMenuInput({held,0});ImGui::NewFrame();DrawRecoveryMenu(found,checking,"",true);ImGui::Render();};
+ GameMenu found;found.navigation=RecoveryNavigation(LauncherRoot::Updates);sf4e::platform::ServiceSnapshot checking;checking.pending=true;std::string offered;
+ const auto show=[&](unsigned held=0){OfferFoundUpdate(found,checking,offered);SetMenuInput({held,0});ImGui::NewFrame();DrawRecoveryMenu(found,checking,"",LauncherRoot::Updates);ImGui::Render();};
  show();show();Check(found.navigation.Focus()=="check","The updater did not start on its check");
  checking.pending=false;checking.update.ok=checking.update.updateAvailable=true;checking.update.expectedSha256=std::string(64,'a');checking.update.latestVersion="v9.9.9";
  show();show();Check(found.navigation.Focus()=="install","A newly found update did not take the highlight");
@@ -170,9 +170,9 @@ void PresentationJourneys(){
  checking.update.latestVersion="v9.9.10";show();show();Check(found.navigation.Focus()=="install","A newer update did not take the highlight");
  // The channel row: Left and Right pick without saving; Select asks first,
  // with Cancel highlighted, and only a confirmed pick is answered as Channel.
- GameMenu channels;channels.navigation=RecoveryNavigation(true);channels.navigation.Prefer("channel");
+ GameMenu channels;channels.navigation=RecoveryNavigation(LauncherRoot::Updates);channels.navigation.Prefer("channel");
  sf4e::platform::ServiceSnapshot saved;saved.channel=sf4e::launcher::UpdateChannel::Beta;ChannelPick pick;
- const auto pickFrame=[&](unsigned held=0){SetMenuInput({held,0});ImGui::NewFrame();const auto choice=DrawRecoveryMenu(channels,saved,"",true,Tone::Error,false,true,&pick);ImGui::Render();return choice;};
+ const auto pickFrame=[&](unsigned held=0){SetMenuInput({held,0});ImGui::NewFrame();const auto choice=DrawRecoveryMenu(channels,saved,"",LauncherRoot::Updates,Tone::Error,false,true,&pick);ImGui::Render();return choice;};
  const auto press=[&](unsigned held){const auto choice=pickFrame(held);pickFrame();return choice;};
  const auto channelRow=[&]()->const MenuEntry*{for(const auto& e:updateRows)if(e.id=="channel")return &e;return nullptr;};
  pickFrame();pickFrame();Check(channels.navigation.Focus()=="channel","The channel row did not take the highlight");

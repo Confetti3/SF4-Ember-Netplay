@@ -30,7 +30,7 @@ template<class Draw>
 void ShootUpdates(sf4e::ui::GameMenu& menu,sf4e::platform::ServiceSnapshot& state,sf4e::ui::ChannelPick& pick,const Draw& draw) {
     using namespace sf4e;using namespace ui;
     state=platform::ServiceSnapshot{};state.installedVersion="1.1.0-rc1";state.channel=launcher::UpdateChannel::Beta;
-    menu.navigation=RecoveryNavigation(true);menu.navigation.Prefer("channel");pick=ChannelPick{};draw();
+    menu.navigation=RecoveryNavigation(LauncherRoot::Updates);menu.navigation.Prefer("channel");pick=ChannelPick{};draw();
     // Right picks Nightly without saving it; Select asks first, with Nightly's warning.
     draw(nullptr,MenuInput::Right,1);draw("update-channel-pick");
     Require(pick.Shown(state.channel)==launcher::UpdateChannel::Nightly&&state.channel==launcher::UpdateChannel::Beta,"Right did not pick Nightly, or saved it");
@@ -47,7 +47,7 @@ void ShootUpdates(sf4e::ui::GameMenu& menu,sf4e::platform::ServiceSnapshot& stat
     // Stable offers an older version than the Nightly installed: the install row says so.
     state.channel=launcher::UpdateChannel::Stable;state.update.ok=state.update.updateAvailable=state.update.goesBack=true;
     state.update.expectedSha256=std::string(64,'a');state.update.latestVersion="v1.1.2";state.update.releaseNotes=updates::PlainReleaseNotes(RenderReleaseNotes);
-    menu.navigation=RecoveryNavigation(true);menu.navigation.Prefer("install");draw("update-going-back");
+    menu.navigation=RecoveryNavigation(LauncherRoot::Updates);menu.navigation.Prefer("install");draw("update-going-back");
     menu.navigation.Prefer("notes");draw("update-whats-new");
     Require(menu.navigation.Focus()=="notes","What's new is missing from the updater");
     draw(nullptr,MenuInput::Select,1);draw("update-whats-new-reader");
@@ -58,7 +58,7 @@ void ShootUpdates(sf4e::ui::GameMenu& menu,sf4e::platform::ServiceSnapshot& stat
     Require(reader->ScrollMax.y<1||reader->Scroll.y>0,"Held Down did not scroll What's new");
     draw(nullptr,MenuInput::Back,1);draw();
     Require(!menu.navigation.Reading(),"Back did not close What's new");
-    state=platform::ServiceSnapshot{};pick=ChannelPick{};menu.navigation=RecoveryNavigation(true);
+    state=platform::ServiceSnapshot{};pick=ChannelPick{};menu.navigation=RecoveryNavigation(LauncherRoot::Updates);
 }
 template<class Draw,class Page>
 void ShootVersionAndChannel(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,const Draw& draw,const Page& page) {
@@ -100,10 +100,10 @@ void ShootLaunchAndUpdates(sf4e::ui::GameMenu& recoveryMenu,sf4e::platform::Serv
     using namespace sf4e;using namespace ui;
     // The launch window names the version and channel in its corner, as Home does.
     recoveryState.installedVersion="1.1.0-rc1";recoveryState.channel=launcher::UpdateChannel::Beta;
-    mode=4;draw("launch-recovery");recoveryUpdates=true;recoveryMenu.navigation=RecoveryNavigation(true);
+    mode=4;draw("launch-recovery");recoveryUpdates=true;recoveryMenu.navigation=RecoveryNavigation(LauncherRoot::Updates);
     recoveryMenu.navigation.Prefer("channel");draw("update-channel-beta");
     recoveryState.channel=launcher::UpdateChannel::Nightly;recoveryState.installedVersion="1.2.0-nightly20261008";draw("update-channel-nightly");
-    recoveryState.channel=launcher::UpdateChannel::Beta;recoveryState.installedVersion="1.1.0-rc1";recoveryMenu.navigation=RecoveryNavigation(true);recoveryState.update.ok=recoveryState.update.updateAvailable=true;
+    recoveryState.channel=launcher::UpdateChannel::Beta;recoveryState.installedVersion="1.1.0-rc1";recoveryMenu.navigation=RecoveryNavigation(LauncherRoot::Updates);recoveryState.update.ok=recoveryState.update.updateAvailable=true;
     recoveryState.update.expectedSha256=std::string(64,'a');recoveryState.update.latestVersion="v1.0.0";draw("update-available");
     // The found update is the first row, so Select asks to install it.
     draw(nullptr,MenuInput::Select,1);draw("update-confirmation");

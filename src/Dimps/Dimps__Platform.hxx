@@ -2,6 +2,7 @@
 
 #include <deque>
 #include <stdint.h>
+#include <cstdint>
 #include <string>
 #include <windows.h>
 #include <d3d9.h>
@@ -106,7 +107,7 @@ namespace Dimps {
 			// Instance values here
 			void* vtable;
 			HWND hFocusWindow;
-			DWORD workingMem;
+			DWORD adapterOrdinal; // +0x08: D3D adapter used to create/reset the device.
 			DWORD deviceType;
 			DWORD behaviorFlags;
 			IDirect3D9* lpD3D;
@@ -121,6 +122,12 @@ namespace Dimps {
 			static D3DPRESENT_PARAMETERS* GetPresentParameters(D3D* d) {
 				return (D3DPRESENT_PARAMETERS*)((unsigned int)d + 0x1c);
 			}
+			// Display fields read by BuildPresentParameters in the pinned Steam
+			// executable (VA 0x7719d0); these are not simulation/memento state.
+			static DWORD* GetConfiguredWidth(D3D* d) { return (DWORD*)((char*)d + 0x258); }
+			static DWORD* GetConfiguredHeight(D3D* d) { return (DWORD*)((char*)d + 0x25c); }
+			static float* GetConfiguredRefresh(D3D* d) { return (float*)((char*)d + 0x260); }
+			static DWORD* GetConfiguredFullscreen(D3D* d) { return (DWORD*)((char*)d + 0x27c); }
 		};
 
 		struct Main
@@ -169,6 +176,12 @@ namespace Dimps {
 			// (0x780600) starts the "Afx Rendering" thread when it is 1;
 			// otherwise each frame renders on the game thread.
 			static int* GetRenderingThread(Main* m);
+            // The existing writer at 0x77d5f0 reads these framework fields.
+            // Verified against Steam build 834219; separate from D3D's block.
+            static std::uint32_t* GetDisplayWidth(Main* m) { return reinterpret_cast<std::uint32_t*>(reinterpret_cast<char*>(m)+0xe8); }
+            static std::uint32_t* GetDisplayHeight(Main* m) { return reinterpret_cast<std::uint32_t*>(reinterpret_cast<char*>(m)+0xec); }
+            static float* GetDisplayRefresh(Main* m) { return reinterpret_cast<float*>(reinterpret_cast<char*>(m)+0xf0); }
+            static std::uint32_t* GetDisplayFullscreen(Main* m) { return reinterpret_cast<std::uint32_t*>(reinterpret_cast<char*>(m)+0x10c); }
 			// The startup parameters' copy of the flag, which ApplyStartupParams
 			// stores into Main. The rest of Initialize latches it: the graphics
 			// device's app init (0x405210) turns it into deferred resource
