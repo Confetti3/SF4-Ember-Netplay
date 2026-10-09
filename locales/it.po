@@ -3582,3 +3582,120 @@ msgstr "Impossibile entrare nella sala. Potrebbe essersi appena chiusa. Aggiorna
 
 msgid "legend.refresh"
 msgstr "Aggiorna"
+
+msgid "display.auto"
+msgstr "Automatic"
+
+msgid "display.back"
+msgstr "Back without saving"
+
+msgid "display.back_detail"
+msgstr "Return to the launcher and discard unsaved changes."
+
+msgid "display.borderless"
+msgstr "Borderless"
+
+msgid "display.disconnected"
+msgstr "Saved monitor disconnected"
+
+msgid "display.fullscreen"
+msgstr "Fullscreen"
+
+msgid "display.fullscreen_detail"
+msgstr "Exclusive fullscreen changes the display mode. GPU or monitor scaling controls the side bars. Use Borderless for Ember's guaranteed proportional layout."
+
+msgid "display.launch_failed"
+msgstr "The display selection could not be prepared. Open Display Settings and restore native game settings before retrying."
+
+msgid "display.launcher_detail"
+msgstr "Choose windowed, borderless or fullscreen, your monitor, and game resolution."
+
+msgid "display.load_failed"
+msgstr "Saved display settings could not be read. Native game display settings will be used until you save a valid choice."
+
+msgid "display.mode"
+msgstr "Window mode"
+
+msgid "display.mode_detail"
+msgstr "Display changes take effect the next time you start the game."
+
+msgid "display.monitor"
+msgstr "Monitor"
+
+msgid "display.monitor_detail"
+msgstr "Choose the display for the game. A disconnected display falls back to the primary monitor."
+
+msgid "display.native"
+msgstr "Use game settings"
+
+msgid "display.output"
+msgstr "Game image / monitor"
+
+msgid "display.primary"
+msgstr "Primary monitor (automatic)"
+
+msgid "display.proportions"
+msgstr "The 16:9 game image keeps its proportions. Borderless fills the monitor with black bars where needed; Windowed fits inside the desktop work area."
+
+msgid "display.refresh"
+msgstr "Fullscreen refresh rate"
+
+msgid "display.refresh_detail"
+msgstr "Available only in exclusive fullscreen. Windowed and borderless use the Windows refresh rate. The game's simulation remains at 60 FPS."
+
+msgid "display.refresh_monitors"
+msgstr "Refresh displays"
+
+msgid "display.refresh_monitors_detail"
+msgstr "Look for connected monitors and supported fullscreen modes again."
+
+msgid "display.reset"
+msgstr "Restore native game settings"
+
+msgid "display.reset_detail"
+msgstr "Clear Ember's display override. The next launch uses the game's own saved display options."
+
+msgid "display.resolution"
+msgstr "Game resolution"
+
+msgid "display.resolution_detail"
+msgstr "Automatic fits a 16:9 image to the monitor. On 3440 x 1440, borderless uses a 2560 x 1440 image with side bars. Lower resolutions reduce GPU load."
+
+msgid "display.restart"
+msgstr "Settings apply when the game starts. Keep the game's Aspect at AUTO and Frame Rate at FIXED."
+
+msgid "display.save"
+msgstr "Save display settings"
+
+msgid "display.save_detail"
+msgstr "Save this choice for the next game launch. No display mode changes while you edit these controls."
+
+msgid "display.save_failed"
+msgstr "Display settings could not be saved. Your previous settings are unchanged. Try Save again."
+
+msgid "display.saved"
+msgstr "Display settings saved. Return to the launcher and choose Start Game."
+
+msgid "display.title"
+msgstr "Display Settings"
+
+msgid "display.unsaved"
+msgstr "Unsaved changes. Choose Save display settings to use them next launch."
+
+msgid "display.unsupported"
+msgstr "This exclusive fullscreen resolution is unavailable. Choose an advertised resolution or Borderless before saving. At startup, an unavailable saved mode falls back to Borderless."
+
+msgid "display.windowed"
+msgstr "Windowed"
+
+msgid "launcher.close_detail"
+msgstr "Close the launcher without starting the game."
+
+msgid "launcher.home"
+msgstr "SF4 Ember Netplay"
+
+msgid "launcher.start_game"
+msgstr "Start Game"
+
+msgid "launcher.start_game_detail"
+msgstr "Launch Ultra Street Fighter IV with your saved Ember settings."

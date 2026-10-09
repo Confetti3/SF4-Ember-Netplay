@@ -6,7 +6,7 @@
 #include "../common/Localization.hxx"
 
 namespace sf4e { namespace ui {
-enum class RecoveryChoice { None, Folder, Retry, CheckUpdates, Install, Cancel, Close, Channel };
+enum class RecoveryChoice { None, Folder, Retry, CheckUpdates, Install, Cancel, Close, Channel, Display };
 // The root screen names the header's "< Back / ..." breadcrumb (MenuScreenLabel).
 inline MenuNavigation RecoveryNavigation(bool updates) { return MenuNavigation(updates?"updates":"recovery"); }
 // Each newly found update takes the highlight once, so Select installs it
@@ -29,11 +29,13 @@ inline void OfferFoundUpdate(GameMenu& menu,const platform::ServiceSnapshot& sta
 // for the other one, RecoveryChoice::Channel) and the installed version, so an
 // offered version can be read against it.
 inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSnapshot& state,const std::string& message,bool updates,
-    Tone messageTone=Tone::Error,bool canStart=false,bool serviceNewer=true) {
+    Tone messageTone=Tone::Error,bool canStart=false,bool serviceNewer=true,bool home=false) {
     std::vector<MenuEntry> rows;
     if(!updates){
+        if(home)rows.push_back(Row("retry",loc::T("launcher.start_game"),loc::T("launcher.start_game_detail"),!state.pending));
+        rows.push_back(Row("display",loc::T("display.title"),loc::T("display.launcher_detail"),!state.pending));
         rows.push_back(Row("folder",loc::T("recovery.choose_folder"),loc::T("recovery.choose_folder_detail"),!state.pending));
-        rows.push_back(Row("retry",loc::T("recovery.retry"),state.pending?loc::T("recovery.retry_busy"):loc::T("recovery.retry_detail"),!state.pending));
+        if(!home)rows.push_back(Row("retry",loc::T("recovery.retry"),state.pending?loc::T("recovery.retry_busy"):loc::T("recovery.retry_detail"),!state.pending));
     }
     // A found update comes first, named by its version: installing it is
     // what the player came here for.
@@ -52,9 +54,10 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
     if(updates&&canStart)
         rows.push_back(Row("retry",loc::T("updates.start_game"),state.pending?loc::T("recovery.retry_busy"):loc::T("updates.start_game_detail"),!state.pending));
     rows.push_back(Row("close",loc::T("common.close"),state.pending?loc::T("recovery.close_cancels_detail"):
-        loc::T(updates?"updates.close_detail":"recovery.close_detail")));
+        loc::T(updates?"updates.close_detail":home?"launcher.close_detail":"recovery.close_detail")));
     // Back on the root closes the window, so the legend says so.
-    menu.backHint=updates?loc::T("updates.back_close"):loc::T("recovery.back_close");
+    menu.backHint=updates?loc::T("updates.back_close"):home?loc::T("common.close"):loc::T("recovery.back_close");
+    menu.compactDetailLines=home?2:0;
     const auto* vp=ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);
     const std::string windowName=std::string(loc::T("recovery.window"))+"###EmberRecovery";
@@ -67,7 +70,7 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
     // stable-status screen, which recovery is not. fitStatus: launcher messages
     // run to several lines and name the files to move and the folders to look in.
     menu.fitStatus=true;
-    const auto action=menu.Draw(updates?loc::T("updates.title"):loc::T("recovery.title"),rows,status.c_str(),[&](const std::string&){
+    const auto action=menu.Draw(updates?loc::T("updates.title"):home?loc::T("launcher.home"):loc::T("recovery.title"),rows,status.c_str(),[&](const std::string&){
         if(!state.pending||!state.downloadedBytes)return;
         if(state.totalBytes)ImGui::ProgressBar((std::min)(1.f,float(state.downloadedBytes)/state.totalBytes),ImVec2(-1,0));
         const auto progress=loc::Tf("updates.downloaded_mb",state.downloadedBytes/1048576.0);
@@ -77,6 +80,7 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
     if(action.kind==MenuAction::Close)return RecoveryChoice::Close;
     if(action.kind!=MenuAction::Activate)return RecoveryChoice::None;
     if(action.id=="folder")return RecoveryChoice::Folder;
+    if(action.id=="display")return RecoveryChoice::Display;
     if(action.id=="retry")return RecoveryChoice::Retry;
     if(action.id=="check")return RecoveryChoice::CheckUpdates;
     if(action.id=="install")return RecoveryChoice::Install;

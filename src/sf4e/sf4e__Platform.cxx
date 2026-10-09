@@ -21,6 +21,7 @@
 #include "sf4e__Game.hxx"
 #include "BuildIdentity.hxx"
 #include "sf4e__Platform.hxx"
+#include "sf4e__Borderless.hxx"
 #include "sf4e__UserApp.hxx"
 #include "sf4e__Overlay.hxx"
 #include "sf4e__OverlayPrefs.hxx"
@@ -223,6 +224,7 @@ int fD3D::LimitFrame(float frameDelta) {
 // waits for a vblank, so a pacing shift of a few milliseconds costs a whole
 // refresh and the controller overcorrects. It also adds input latency.
 void fD3D::BuildPresentParameters() {
+    sf4e::display::Prepare(this);
     (this->*rD3D::privateMethods.BuildPresentParameters)();
     D3DPRESENT_PARAMETERS* parameters = rD3D::GetPresentParameters(this);
     if (parameters->PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE) {
@@ -239,6 +241,7 @@ void fD3D::RunScene_Render(void* sceneCommandList) {
 
 void fD3D::Destroy() {
     Overlay::FreeOverlay();
+    sf4e::display::RestoreNative(this);
     (this->*rD3D::privateMethods.Destroy)();
 }
 
@@ -249,6 +252,7 @@ DWORD fD3D::Reset() {
         (*rMain::GetWindowData(rMain::staticMethods.GetSingleton()))->hWnd,
         Dimps::Platform::D3D::staticMethods.GetSingleton()->lpD3DDevice
     );
+    sf4e::display::RequestApply((*rMain::GetWindowData(rMain::staticMethods.GetSingleton()))->hWnd);
     return out;
 }
 
@@ -371,6 +375,7 @@ int fMain::Initialize(void* a, void* b, void* c) {
         Dimps::Platform::D3D::staticMethods.GetSingleton()->lpD3DDevice
     );
 
+    sf4e::display::RequestApply((*rMain::GetWindowData(rMain::staticMethods.GetSingleton()))->hWnd);
     sf4e::NetplayFacade::NotifyGameReady();
 
     return rval;
@@ -386,6 +391,7 @@ void fMain::Destroy() {
 }
 
 void WINAPI fMain::RunWindowFunc(rMain* lpMain, HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    if (sf4e::display::WindowMessage(hwnd, uMsg, wParam, lParam)) return;
     if (Overlay::OverlayWindowFunc(hwnd, uMsg, wParam, lParam)) {
         return;
     }

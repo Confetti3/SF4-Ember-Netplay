@@ -1,6 +1,8 @@
 #include "RecoverySurface.hxx"
 #include "RecoveryMenu.hxx"
 #include "RecoveryController.hxx"
+#include "DisplayPanel.hxx"
+#include "../platform/DisplaySettings.hxx"
 #include "SelectionArt.hxx"
 #include "Theme.hxx"
 #include "../common/Localization.hxx"
@@ -69,7 +71,7 @@ bool ChooseDirectory(HWND owner, std::wstring& path) {
 }
 }
 bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates, std::function<void(const std::string&)> artLog,
-    Tone messageTone, bool canStart) {
+    Tone messageTone, bool canStart, bool home, bool openDisplay) {
     const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     WNDCLASSW wc{}; wc.lpfnWndProc = WindowProc; wc.hInstance = GetModuleHandleW(nullptr);
     wc.lpszClassName = L"SF4EmberRecovery"; wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
@@ -95,7 +97,7 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
     ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(window));
     ImGui_ImplWin32_Init(window); ImGui_ImplDX9_Init(device);
     wchar_t executable[32768]={};GetModuleFileNameW(nullptr,executable,32768);
-    auto art=std::make_unique<SelectionArt>(device,gameDirectory,(std::filesystem::path(executable).parent_path()/L"assets"/L"selection").wstring(),std::move(artLog));
+    auto art=std::make_unique<SelectionArt>(device,gameDirectory,(std::filesystem::path(executable).parent_path()/L"assets"/L"selection").wstring(),artLog);
     SetMenuArt(art.get());
     ShowWindow(window, SW_SHOW); UpdateWindow(window);
     platform::ApplicationServices services;
@@ -106,6 +108,20 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
     // a picked folder replaces it.
     bool serviceNewer = false;
     GameMenu menu;menu.navigation=RecoveryNavigation(updates);
+    if (home) menu.rootName = loc::T("launcher.home");
+    display::Preferences savedDisplay;
+    std::string displayError;
+    if (!platform::LoadDisplayPreferences(savedDisplay, displayError)) {
+        if (artLog) artLog("Display settings load failed: " + displayError);
+        if (message.empty()) { message = loc::T("display.load_failed"); messageTone = Tone::Error; }
+    }
+    DisplayPanel displayPanel(platform::DisplayMonitors(), savedDisplay,
+        [&](const display::Preferences& value, std::string& error) {
+            const bool saved = platform::SaveDisplayPreferences(value, error);
+            if (!saved && artLog) artLog("Display settings save failed: " + error);
+            return saved;
+        });
+    if (openDisplay) menu.navigation.Push("display");
     std::string offeredVersion;
     // Released before the window it is bound to is destroyed.
     auto controller=std::make_unique<RecoveryController>(window);
@@ -145,7 +161,15 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
         }
         const auto state = services.Snapshot();
         OfferFoundUpdate(menu,state,offeredVersion);
-        switch(DrawRecoveryMenu(menu,state,message,updates,messageTone,canStart,serviceNewer)) {
+        RecoveryChoice choice = RecoveryChoice::None;
+        if (menu.navigation.Screen() == "display") {
+            displayPanel.Draw(menu);
+            if (displayPanel.RefreshRequested()) displayPanel.Refresh(platform::DisplayMonitors());
+        } else {
+            choice = DrawRecoveryMenu(menu,state,message,updates,messageTone,canStart,serviceNewer,home);
+        }
+        switch(choice) {
+        case RecoveryChoice::Display:displayPanel.Discard();menu.navigation.Push("display");break;
         case RecoveryChoice::Folder:
             // The picker blocks this loop, so the pads are disarmed before it
             // opens: a button held while it was up cannot press on return.

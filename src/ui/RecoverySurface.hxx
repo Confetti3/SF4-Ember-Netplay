@@ -10,5 +10,6 @@ namespace sf4e { namespace ui {
 // `message` (Error unless it only explains why the window opened). `canStart`
 // adds a Start SF4 row to the updater, answered with true like Retry.
 bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates = false,
-    std::function<void(const std::string&)> artLog = {}, Tone messageTone = Tone::Error, bool canStart = false);
+    std::function<void(const std::string&)> artLog = {}, Tone messageTone = Tone::Error, bool canStart = false,
+    bool home = false, bool openDisplay = false);
 } }
