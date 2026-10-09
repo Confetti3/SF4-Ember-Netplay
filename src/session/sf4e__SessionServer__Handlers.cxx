@@ -222,11 +222,7 @@ void SessionServer::HandleRoomAction(session::Connection conn, const json& msg, 
 		for (auto& punch : _roomPunchReady) punch.erase(leavingConnection);
 	}
 	if (result.accepted) {
-		if (actionMessage.action.table < room::TableCount) {
-			const auto& before = priorSnapshot.tables[actionMessage.action.table];
-			const auto& after = result.snapshot.tables[actionMessage.action.table];
-			if (before.p1 != after.p1 || before.p2 != after.p2) _roomMatchData[actionMessage.action.table].Clear();
-		}
+		ForgetReseatedMatchData(SeatedPairsOf(priorSnapshot));
 		// An exact receipt/tombstone retry still commits its room_result so a
 		// lost reply can complete, but it did not change public room state.
 		// Leave a pre-existing dirty flag untouched and avoid another full

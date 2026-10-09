@@ -2025,6 +2025,15 @@ msgstr "Ждём возвращения закреплённых зрителе�
 msgid "room.hold.waiting_you"
 msgstr "Игра ждёт вас: {0} с"
 
+msgid "room.ready_timeout.you"
+msgstr "Подтвердите готовность за {0} с, иначе вы освободите место"
+
+msgid "room.ready_timeout.other"
+msgstr "Бойцу {1} осталось {0} с для подтверждения готовности"
+
+msgid "chat.event.ready_timeout"
+msgstr "{0} покидает стол {1}: готовность не подтверждена вовремя"
+
 msgid "room.hold.status"
 msgstr "Ждём зрителей: {0} с"
 

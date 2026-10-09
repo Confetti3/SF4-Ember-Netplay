@@ -238,6 +238,7 @@ int SessionServer::Step()
 					// A departed locked-in spectator can release a held start.
 					const auto started = StartReadyTables(leave.events);
 					departureEvents.insert(departureEvents.end(), started.begin(), started.end());
+					ForgetReseatedMatchData(SeatedPairsOf(priorSnapshot));
 					BroadcastRoomState(departureEvents);
 				}
 			}

@@ -317,6 +317,13 @@ namespace sf4e {
 		// The last departure from a server-owned room was a Leave that emptied it.
 		bool _serverOwnedLeftEmpty = false;
 		std::map<std::uint8_t, SessionProtocol::MatchData> _roomMatchData;
+		// Who sits at each table, P1 then P2. A table's native match data
+		// (fighters, stage, seed) belongs to the pair that chose it, so after a
+		// room action, a departure or a timer ForgetReseatedMatchData drops it
+		// from every table whose pair is no longer the one in `before`.
+		using SeatedPairs = std::array<std::array<room::MemberId, 2>, room::TableCount>;
+		static SeatedPairs SeatedPairsOf(const room::Snapshot& snapshot);
+		void ForgetReseatedMatchData(const SeatedPairs& before);
 		std::array<std::set<session::Connection>, room::TableCount> _roomBattleLoaded{};
 		std::array<std::set<session::Connection>, room::TableCount> _roomPunchReady{};
 

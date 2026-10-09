@@ -21,6 +21,8 @@ void RoomAuthority::NoteActive(MemberId member) {
 	// behind, so the map stays bounded by the roster.
 	if (!Find(member)) return;
 	lastActiveMs_[member] = recoveryPaused_ ? 0 : nowMs_;
+	for (std::size_t i = 0; i < TableCount; ++i)
+		if (readyWaitingFor_[i] == member) readyWaitingSince_[i] = recoveryPaused_ ? 0 : nowMs_;
 }
 
 std::uint32_t RoomAuthority::IdleSeconds(MemberId member) const {
@@ -35,6 +37,11 @@ Snapshot RoomAuthority::SnapshotFor(MemberId member) const {
 	result.localMember = Find(member) ? member : 0;
 	for (auto& item : result.members) item.idleSeconds = IdleSeconds(item.id);
 	for (std::size_t i = 0; i < TableCount; ++i) {
+		if (readyWaitingFor_[i] && WaitingForReady(snapshot_.tables[i]) == readyWaitingFor_[i]) {
+			const auto since = readyWaitingSince_[i];
+			const auto age = recoveryPaused_ ? since : nowMs_ >= since ? nowMs_ - since : 0;
+			result.tables[i].readyRemainingMs = static_cast<std::uint32_t>(age < ReadyTimeoutMs ? ReadyTimeoutMs - age : 1);
+		}
 		if (!snapshot_.tables[i].spectatorHold) continue;
 		// A paused authority holds ages rather than start times (TimerDue).
 		const auto since = startHeldSince_[i];
@@ -84,6 +91,7 @@ template <typename Visit> void RoomAuthority::ForEachTableTimer(Visit&& visit) {
 	for (std::size_t i = 0; i < TableCount; ++i) {
 		if (snapshot_.tables[i].resultPending) visit(resultPendingSince_[i], ResultDisputeTimeoutMs);
 		if (snapshot_.tables[i].spectatorHold) visit(startHeldSince_[i], SpectatorStartHoldMs);
+		if (readyWaitingFor_[i]) visit(readyWaitingSince_[i], ReadyTimeoutMs);
 	}
 }
 
@@ -359,6 +367,7 @@ Result RoomAuthority::Reject(RejectReason reason) {
 }
 
 Result RoomAuthority::Accept(std::vector<Event> events) {
+	RefreshReadyTimers();
 	Result result;
 	result.accepted = true;
 	result.snapshot = snapshot_;
@@ -793,9 +802,29 @@ Result RoomAuthority::EndMatch(std::uint8_t tableId, std::uint64_t generation, M
 	return Accept({Event{Event::Kind::MatchEnded, tableId, generationValue, 0, result, true}, Event{Event::Kind::SnapshotChanged, tableId, generationValue, 0, result, true}});
 }
 
+MemberId RoomAuthority::WaitingForReady(const Table& table) const {
+	if (snapshot_.closed || BoundTable(table) || table.phase != TablePhase::Waiting ||
+		!table.p1 || !table.p2 || table.ready[0] == table.ready[1] || HasOutstandingTerminalReceipt(table.id)) return 0;
+	const auto member = table.ready[0] ? table.p2 : table.p1;
+	return HasOutstandingTerminalReceiptForMember(member) ? 0 : member;
+}
+
+void RoomAuthority::RefreshReadyTimers() {
+	for (const auto& table : snapshot_.tables) {
+		const auto member = WaitingForReady(table);
+		if (readyWaitingFor_[table.id] == member) continue;
+		readyWaitingFor_[table.id] = member;
+		// Eligibility starts at the opponent's Ready (or when a receipt fence
+		// lifts). Later NoteActive calls restart this same deadline.
+		readyWaitingSince_[table.id] = member && !recoveryPaused_ ? nowMs_ : 0;
+	}
+}
+
 bool RoomAuthority::HasDueTimerTransition(std::uint64_t nowMs) const {
 	for (std::size_t i = 0; i < TableCount; ++i) {
 		const auto& table = snapshot_.tables[i];
+		if (readyWaitingFor_[i] && WaitingForReady(table) == readyWaitingFor_[i] &&
+			TimerDue(readyWaitingSince_[i], ReadyTimeoutMs, nowMs)) return true;
 		if (table.spectatorHold && TimerDue(startHeldSince_[i], SpectatorStartHoldMs, nowMs)) return true;
 		// AdvanceTime(nowMs) brings the permit to this same age first.
 		if (PermitCalledOff(table, PermitAgeAt(i, nowMs))) return true;
@@ -822,7 +851,8 @@ std::vector<Event> RoomAuthority::AdvanceTime(std::uint64_t nowMs) {
 	// A fighter in a game is busy, not idle, and a member the room has no
 	// activity for (after a checkpoint restore) counts from now.
 	for (const auto& member : snapshot_.members)
-		if (member.status == MemberStatus::Playing || !lastActiveMs_.count(member.id)) NoteActive(member.id);
+		if (member.status == MemberStatus::Playing) NoteActive(member.id);
+		else lastActiveMs_.emplace(member.id, nowMs_);
 	std::vector<Event> events;
 	for (std::size_t i = 0; i < TableCount; ++i) {
 		Table& table = snapshot_.tables[i];
@@ -847,6 +877,12 @@ std::vector<Event> RoomAuthority::AdvanceTime(std::uint64_t nowMs) {
 		events.push_back(Event{Event::Kind::SnapshotChanged, table.id, 0, 0, MatchResult::Abort});
 	}
 	ReleaseHeldStarts(events);
+	RefreshReadyTimers();
+	for (auto& table : snapshot_.tables) {
+		const auto member = readyWaitingFor_[table.id];
+		if (!member || !TimerDue(readyWaitingSince_[table.id], ReadyTimeoutMs, nowMs_)) continue;
+		if (ApplyUnqueue(member, &table).accepted) events.push_back(Event{Event::Kind::ReadyTimeout, table.id, 0, member, MatchResult::Abort});
+	}
 	return events;
 }
 
