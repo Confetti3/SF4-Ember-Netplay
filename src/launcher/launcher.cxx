@@ -38,6 +38,8 @@
 #include "../common/Localization.hxx"
 #include "../platform/LocaleWindows.hxx"
 #include "../platform/UiPreferencesStore.hxx"
+#include "../platform/DisplaySettings.hxx"
+#include "../common/EnvFlag.hxx"
 #include "GameLocator.hxx"
 #include "netplay/netplay_persist.hxx"
 #include "update/github_release_client.hxx"
@@ -495,9 +497,9 @@ int ShowLauncherMessage(const char* key, UINT flags) {
 // The recovery screen, with its selection art reporting to launcher.log. The
 // updater offers to start the game when canStart says the launch may go on.
 bool ShowRecovery(std::string message, std::wstring& gameDirectory, bool updates = false,
-	sf4e::ui::Tone tone = sf4e::ui::Tone::Error, bool canStart = false) {
+	sf4e::ui::Tone tone = sf4e::ui::Tone::Error, bool canStart = false, bool home = false, bool display = false) {
 	return sf4e::ui::RunRecovery(std::move(message), gameDirectory, updates,
-		[](const std::string& line) { spdlog::warn("{}", line); }, tone, canStart);
+		[](const std::string& line) { spdlog::warn("{}", line); }, tone, canStart, home, display);
 }
 
 // Lets the /j page on embernetplay.link hand a room link to Ember through
@@ -542,6 +544,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     sf4e::Payload payload{};
     bool offline = false, updates = false, recovery = false, updateError = false, discordLaunch = false;
+    bool play = false, displaySettings = false, nativeDisplay = false;
     DWORD waitPid = 0;
     std::string localeOverride, joinUri;
     CLI::App app("SF4 Ember Netplay for Ultra Street Fighter IV", "Launcher");
@@ -549,6 +552,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     app.add_flag("--discord-launch", discordLaunch, "Start Ember for an accepted Discord invitation.");
     app.add_flag("--console", payload.args.bShowConsole, "Show diagnostic logging.");
     app.add_flag("--offline", offline, "Start at the native game menu without networking.");
+    app.add_flag("--play", play, "Start the game immediately using saved settings.");
+    app.add_flag("--settings", displaySettings, "Open the launcher's display settings.");
+    app.add_flag("--native-display", nativeDisplay, "Use the game's own display settings for this launch only.");
     app.add_flag("--updates", updates, "Open update and recovery controls.");
     app.add_flag("--recovery", recovery, "Open launch recovery controls.");
     app.add_flag("--update-error", updateError, "Show updater recovery after an installation failure.");
@@ -648,6 +654,13 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         !UpdatePath(dllDirectory, pathError, 1024)) {
         ShowRecovery(sf4e::loc::T("launcher.path_failed"), chosenDirectory);
         return 1;
+    }
+    // Normal double-clicks open a real launcher; invitations, Steam launches
+    // and --play retain their direct-start behavior. The same display page is
+    // available from launch recovery, before trying a failed configuration again.
+    if (!updates && !recovery && (displaySettings || (!play && !discordLaunch && joinUri.empty() &&
+        joinCode.empty() && !matchLink.Valid() && !publicRoomLink.Valid() && connectBridge.empty() && steamCommand.empty()))) {
+        if (!ShowRecovery("", chosenDirectory, false, sf4e::ui::Tone::Neutral, true, true, displaySettings)) return 0;
     }
     sf4e::launcher::PersistedSettings settings;
     sf4e::launcher::LoadPersistedSettings(settings);
@@ -750,6 +763,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             sf4e::platform::SteamElevation() == sf4e::platform::Elevation::Elevated;
         if (steamAbove) spdlog::warn("Steam runs as administrator and the launcher does not; the game may not reach Steam");
         DWORD startError = 0;
+        sf4e::display::Preferences display;
+        std::string displayError;
+        if (!nativeDisplay && sf4e::EnvFlag("SF4E_BORDERLESS_TEST")) display.mode = sf4e::display::Mode::Borderless;
+        else if (!nativeDisplay && !sf4e::platform::LoadDisplayPreferences(display, displayError)) spdlog::warn("Display: {}", displayError);
+        if (!sf4e::platform::SetLaunchDisplayPreferences(display)) {
+            dumps.Close();
+            if (!ShowRecovery(sf4e::loc::T("display.launch_failed"), chosenDirectory)) return 0;
+            continue;
+        }
         HANDLE game = CreateSF4Process(payload,helper,discord,helperPath.wstring(),location.directory.data(),location.executable.data(),1,dlls,dumps,startError);
         if (!game) {
             dumps.Close();

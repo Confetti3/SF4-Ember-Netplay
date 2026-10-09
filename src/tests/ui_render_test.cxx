@@ -4,6 +4,7 @@
 #include "../ui/TrainingPanel.hxx"
 #include "../ui/FighterSelector.hxx"
 #include "../ui/RecoveryMenu.hxx"
+#include "../ui/DisplayPanel.hxx"
 #include "../common/Localization.hxx"
 #include "../common/StageCatalog.hxx"
 #include <imgui_internal.h>
@@ -487,6 +488,12 @@ int main(int argc, char** argv) {
             auto& io=ImGui::GetIO();io.IniFilename=nullptr;io.DisplaySize=ImVec2(static_cast<float>(size.w),static_cast<float>(size.h));io.DeltaTime=1.f/60;
             ApplyTheme(size.dpi);ImGui_ImplDX9_Init(renderer.device);
             ApplicationShell shell;ShellView view;bool open=true;
+            display::Monitor displayMonitor;
+            displayMonitor.id="DISPLAY1";displayMonitor.name="Ultrawide monitor";displayMonitor.primary=true;
+            displayMonitor.width=displayMonitor.workWidth=3440;displayMonitor.height=1440;displayMonitor.workHeight=1400;displayMonitor.refresh=144;
+            displayMonitor.modes={{1280,720,60},{1920,1080,60},{2560,1440,60},{2560,1440,144}};
+            display::Preferences displayPreference;displayPreference.mode=display::Mode::Borderless;
+            DisplayPanel displayPanel({displayMonitor},displayPreference,[](const display::Preferences&,std::string&){return true;});
             view.controllerReady=view.canChangeController=view.canEditPreferences=view.canEditSelection=view.canOpenRoom=view.helperReady=true;
             view.controller="Assigned controller";view.preferences.displayName="Ember Player";view.preferences.autoInputDelay=false;view.selectionSummary="Ryu / Original / Color 01 / Ultra I";
             FighterSelector selector;selection::Pick pick;int stage=0;selection::StageMask stagePool=(1u<<0)|(1u<<15);
@@ -535,10 +542,12 @@ int main(int argc, char** argv) {
                     else if(mode==2)(void)DrawTrainingHud(training);
                     else if(mode==5)DrawControllerWarning("Match input blocked: reconnect your controller. If its slot changed, return to the room to reassign it.");
                     else if(mode==4)DrawRecoveryMenu(recoveryMenu,recoveryState,"The selected folder does not contain SSFIV.exe. Choose the installed game folder or close recovery without starting SF4.",recoveryUpdates);
+                    else if(mode==6)displayPanel.Draw(recoveryMenu);
+                    else if(mode==7)DrawRecoveryMenu(recoveryMenu,{},"",false,Tone::Neutral,true,false,true);
                     else DrawMatchStrip(matchStrip);
                     CheckStacks();ImGui::Render();renderer.Draw();++frames;
                     if(mode==3)CheckMatchHudFrame(matchStrip,size.w,size.h);
-                    if((mode==0||mode==4)&&i==settle-1&&settle>=3){
+                    if((mode==0||mode==4||mode==6||mode==7)&&i==settle-1&&settle>=3){
                         const auto* root=FindWindow(mode==0?"EmberShell":"###EmberRecovery");
                         if(root->ScrollMax.y>=1)throw std::runtime_error(std::string("Player menu footer escaped on ")+(mode==0?shell.Navigation().Screen():"recovery")+" by "+std::to_string(root->ScrollMax.y)+" pixels");
                     }
@@ -938,6 +947,14 @@ int main(int argc, char** argv) {
             Require(recoveryMenu.navigation.Confirming()&&!recoveryMenu.navigation.ConfirmSelected(),"Recovery update confirmation is unsafe");
             draw(nullptr,MenuInput::Back,1);draw();recoveryState.pending=true;recoveryState.downloadedBytes=25*1024*1024;recoveryState.totalBytes=100*1024*1024;
             recoveryState.message="Downloading the verified update. You can cancel this operation.";draw("update-downloading");
+            mode=7;recoveryMenu.navigation=RecoveryNavigation(false);recoveryMenu.rootName=loc::T("launcher.home");draw("display-launcher-home");
+            mode=6;recoveryMenu.navigation.Push("display");draw("display-borderless");
+            recoveryMenu.navigation.Focus("display-resolution",displayPanel.Rows());draw(nullptr,MenuInput::Select,1);draw("display-resolution-picker");
+            draw(nullptr,MenuInput::Back,1);draw();
+            ui::MenuAction displayAction;displayAction.kind=ui::MenuAction::Chosen;displayAction.id="display-mode";displayAction.text="3";
+            displayPanel.Handle(displayAction);draw("display-fullscreen");
+            displayAction.text="1";displayPanel.Handle(displayAction);draw("display-windowed");
+            displayAction.text="0";displayPanel.Handle(displayAction);draw("display-native");
             mode=0;shell.Navigation().Home();draw("home-restored");
             auto* main=FindWindow("EmberShell");
             Require(main->Pos.x==0&&main->Pos.y==0&&main->Size.x==size.w&&main->Size.y==size.h,"Shell geometry changed");

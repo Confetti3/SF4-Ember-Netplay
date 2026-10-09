@@ -121,6 +121,12 @@ namespace Dimps {
 			static D3DPRESENT_PARAMETERS* GetPresentParameters(D3D* d) {
 				return (D3DPRESENT_PARAMETERS*)((unsigned int)d + 0x1c);
 			}
+			// Display fields read by BuildPresentParameters in the pinned Steam
+			// executable (VA 0x7719d0); these are not simulation/memento state.
+			static DWORD* GetConfiguredWidth(D3D* d) { return (DWORD*)((char*)d + 0x258); }
+			static DWORD* GetConfiguredHeight(D3D* d) { return (DWORD*)((char*)d + 0x25c); }
+			static float* GetConfiguredRefresh(D3D* d) { return (float*)((char*)d + 0x260); }
+			static DWORD* GetConfiguredFullscreen(D3D* d) { return (DWORD*)((char*)d + 0x27c); }
 		};
 
 		struct Main

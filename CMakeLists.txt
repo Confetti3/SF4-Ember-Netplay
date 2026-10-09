@@ -17,6 +17,9 @@ add_library(sf4e_selection STATIC "src/common/FighterCatalog.cxx" "src/common/St
 target_compile_features(sf4e_selection PUBLIC cxx_std_11)
 target_compile_features(sf4e_netplay_core PUBLIC cxx_std_11)
 if(BUILD_TESTING)
+    add_executable(BorderlessLayoutTest "src/tests/borderless_layout_test.cxx")
+    target_compile_features(BorderlessLayoutTest PRIVATE cxx_std_11)
+    add_test(NAME BorderlessLayout COMMAND BorderlessLayoutTest)
     add_executable(NativeRepairTimingTest "src/tests/native_repair_timing_test.cxx")
     target_compile_features(NativeRepairTimingTest PRIVATE cxx_std_17)
     add_test(NAME NativeRepairTiming COMMAND NativeRepairTimingTest)
@@ -128,6 +131,19 @@ if(BUILD_TESTING)
 endif()
 include("${CMAKE_SOURCE_DIR}/cmake/sf4e_discord.cmake")
 find_package(spdlog CONFIG REQUIRED)
+if(BUILD_TESTING AND WIN32)
+    add_executable(BorderlessWindowTest "src/tests/borderless_window_test.cxx" "src/sf4e/sf4e__Borderless.cxx")
+    target_link_libraries(BorderlessWindowTest PRIVATE spdlog::spdlog sf4e_settings d3d9 user32 gdi32)
+    add_test(NAME BorderlessWindow COMMAND BorderlessWindowTest)
+    add_test(NAME BorderlessDisabled COMMAND BorderlessWindowTest off)
+    add_test(NAME BorderlessDpiUnaware COMMAND BorderlessWindowTest unaware)
+    add_test(NAME BorderlessScaled COMMAND BorderlessWindowTest scaled)
+    add_test(NAME DisplayWindowed COMMAND BorderlessWindowTest windowed)
+    add_test(NAME DisplayWindowedDpiUnaware COMMAND BorderlessWindowTest windowed-unaware)
+    add_test(NAME DisplayMissingMonitor COMMAND BorderlessWindowTest missing-monitor)
+    set_tests_properties(BorderlessWindow BorderlessDisabled BorderlessDpiUnaware BorderlessScaled DisplayWindowed
+        DisplayWindowedDpiUnaware DisplayMissingMonitor PROPERTIES TIMEOUT 20 RUN_SERIAL TRUE SKIP_RETURN_CODE 77)
+endif()
 find_package(fmt CONFIG REQUIRED)
 find_package(wil CONFIG REQUIRED)
 find_package(ZLIB REQUIRED)
@@ -289,9 +305,9 @@ endif()
 # ways around.
 add_library(sf4e_settings STATIC "src/netplay/JsonFileStore.cxx" "src/netplay/SettingsStore.cxx"
     "src/netplay/SettingsWriter.cxx" "src/platform/UiPreferencesStore.cxx"
-    "src/platform/GameDisplaySettings.cxx")
+    "src/platform/GameDisplaySettings.cxx" "src/platform/DisplaySettings.cxx")
 target_compile_features(sf4e_settings PUBLIC cxx_std_17)
-target_link_libraries(sf4e_settings PUBLIC nlohmann_json::nlohmann_json sf4e_localization PRIVATE "shell32" "ole32")
+target_link_libraries(sf4e_settings PUBLIC nlohmann_json::nlohmann_json sf4e_localization PRIVATE "shell32" "ole32" "d3d9")
 if(BUILD_TESTING)
     add_executable(SettingsStoreTest "src/tests/settings_store_test.cxx")
     target_link_libraries(SettingsStoreTest PRIVATE sf4e_settings)
@@ -305,6 +321,7 @@ endif()
 add_library(sf4e_ui STATIC "src/ui/ApplicationShell.cxx" "src/ui/RoomPanel.cxx" "src/ui/RoomControls.cxx" "src/ui/Theme.cxx" "src/ui/MatchHud.cxx" "src/ui/SelectionArt.cxx" "src/ui/FighterSelector.cxx")
 target_sources(sf4e_ui PRIVATE src/ui/Win32Input.cxx src/ui/Win32InputBridge.cxx)
 target_sources(sf4e_ui PRIVATE src/ui/GameMenu.cxx src/ui/MenuDialogs.cxx src/ui/ChatTranscript.cxx src/ui/ChatPanel.cxx)
+target_sources(sf4e_ui PRIVATE src/ui/DisplayPanel.cxx)
 install(DIRECTORY "assets/brand" DESTINATION "assets" FILES_MATCHING PATTERN "*.png")
 install(DIRECTORY "assets/input" DESTINATION "assets" FILES_MATCHING PATTERN "*.png" PATTERN "*.txt")
 target_sources(sf4e_ui PRIVATE src/ui/ControllerNavigation.cxx src/ui/backends/imgui_impl_win32.cpp)
@@ -317,6 +334,10 @@ target_link_libraries(sf4e_ui PUBLIC imgui::imgui sf4e_selection sf4e_room_model
 target_compile_definitions(sf4e_ui PRIVATE SF4E_BUILD_VERSION="${PROJECT_VERSION}")
 if(BUILD_TESTING)
     add_executable(UiRenderTest "src/tests/ui_render_test.cxx")
+    add_executable(DisplaySettingsTest "src/tests/display_settings_test.cxx")
+    target_link_libraries(DisplaySettingsTest PRIVATE sf4e_ui)
+    add_test(NAME DisplaySettings COMMAND DisplaySettingsTest)
+    set_tests_properties(DisplaySettings PROPERTIES TIMEOUT 20)
     target_compile_definitions(UiRenderTest PRIVATE SF4E_TEST_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
     add_executable(ControllerNavigationTest src/tests/controller_navigation_test.cxx)
     target_link_libraries(ControllerNavigationTest PRIVATE sf4e_ui Dimps)
@@ -482,6 +503,8 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__BackgroundPlay.cxx"
     "src/sf4e/sf4e__Platform.hxx"
     "src/sf4e/sf4e__Platform.cxx"
+    "src/sf4e/sf4e__Borderless.hxx"
+    "src/sf4e/sf4e__Borderless.cxx"
     "src/sf4e/sf4e__CrashDiagnostics.hxx"
     "src/sf4e/sf4e__CrashDiagnostics.cxx"
     "src/sf4e/sf4e__UserApp.hxx"
