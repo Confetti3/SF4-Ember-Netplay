@@ -1960,14 +1960,14 @@ int main() {
 	const json guestPick = server._matchData.chara[1];
 	const json hostPick = server._matchData.chara[0];
 	CHECK(guestPick == json(selection.chara) && hostPick != guestPick);
-	// Costume indices past the game's own (7-98) are custom slots, valid with up to ten colours: each PC shows its
+	// Costume indices past the game's own (7-98) are custom slots, valid with up to ten colors: each PC shows its
 	// own install of that slot or the original costume.
 	json custom = selection; custom["chara"]["costume"] = 7; custom["chara"]["color"] = 9;
 	transport->Push(2, custom); step();
 	CHECK(server._matchData.chara[1].costume == 7 && server._matchData.chara[1].color == 9);
 	transport->Push(2, json(selection)); step();
 	CHECK(json(server._matchData.chara[1]) == guestPick);
-	// Colours 30-99 (indices 29-98) of the game's costumes are custom colours, valid the same way.
+	// Colors 30-99 (indices 29-98) of the game's costumes are custom colors, valid the same way.
 	json extraColor = selection; extraColor["chara"]["color"] = 29;
 	transport->Push(2, extraColor); step();
 	CHECK(server._matchData.chara[1].costume == 1 && server._matchData.chara[1].color == 29);

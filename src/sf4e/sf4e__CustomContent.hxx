@@ -16,25 +16,25 @@
 namespace sf4e { namespace custom {
 
 // The file-name hooks (Steam 1.05): the CostumeResourceHolder's load (RVA 0x1e5f80: model, shadow, normals,
-// physics, sound bank), the ColorResourceHolder's (RVA 0x1e5cf0: colour textures, materials), and the stage
+// physics, sound bank), the ColorResourceHolder's (RVA 0x1e5cf0: color textures, materials), and the stage
 // code lookup (RVA 0x2862c0) as the stage loader uses it.
 // Call inside the sidecar's Detours transaction.
 void Install();
 
-// Custom costume indices installed on this PC for a fighter (with all ten colours), ascending. Read once per game
+// Custom costume indices installed on this PC for a fighter (with all ten colors), ascending. Read once per game
 // start (the setup program only changes them while the game is closed). SF4E_IGNORE_CUSTOM=1 in the environment pretends none
 // are installed, to play a player without them (testing with a second copy).
 const std::vector<int>& InstalledCostumes(int fighterId);
 bool CostumeInstalled(int fighterId, int costumeId);
-// Custom colours installed on this PC for one of a fighter's own costumes (battle\chara\<CHR>\<CHR>_<CC>_<NN>.col.emb
-// and .obj.emm, colours 30..99), ascending.
+// Custom colors installed on this PC for one of a fighter's own costumes (battle\chara\<CHR>\<CHR>_<CC>_<NN>.col.emb
+// and .obj.emm, colors 30..99), ascending.
 const std::vector<int>& InstalledColors(int fighterId, int costumeId);
 bool ColorInstalled(int fighterId, int costumeId, int colorId);
 // Custom stage ids installed on this PC (battle\stage\STG_<code>.emz and .tex.emz in the patch folder with a custom
 // code, see StageCatalog), ascending.
 const std::vector<int>& InstalledStages();
 // A fighter's availability for the selectors and the ready check: the game's own (Dimps::Selection) plus the custom
-// costumes, colours and stages installed on this PC, which need no licence.
+// costumes, colors and stages installed on this PC, which need no licence.
 selection::Availability ReadAvailability(int fighterId);
 
 // The stage this PC hands the game for a match's stage id: a stock stage stays; a custom stage plays as its
@@ -44,18 +44,18 @@ selection::Availability ReadAvailability(int fighterId);
 int ApplyStage(int stageId);
 
 // Battle side `side` plays custom costume `custom` of `fighter` as costume `standIn` until EndBattle; likewise custom
-// colour `custom` of one of the fighter's own costumes as colour `standIn`.
+// color `custom` of one of the fighter's own costumes as color `standIn`.
 void SetStandIn(int side, int fighter, int standIn, int custom);
 void SetColorStandIn(int side, int fighter, int costume, int standIn, int custom);
 void EndBattle();
 
 // What this PC hands the game for both picks of a match (fighters and spectators alike):
-// - a custom costume it doesn't have becomes the fighter's original costume in colour 1, a custom colour it doesn't
-//   have colour 1 of that costume; either becomes colour 2 if that would look identical to the other side's pick
-//   (same fighter, costume and colour);
+// - a custom costume it doesn't have becomes the fighter's original costume in color 1, a custom color it doesn't
+//   have color 1 of that costume; either becomes color 2 if that would look identical to the other side's pick
+//   (same fighter, costume and color);
 // - a custom costume it has plays as a stand-in: the fighter's original costume, or in a mirror match where the
 //   other side wears that, the next of the first three it isn't using (the file-name swap can't tell the two
-//   sides' loads apart); a custom colour it has plays as colour 1 the same way, or the next the other side isn't
+//   sides' loads apart); a custom color it has plays as color 1 the same way, or the next the other side isn't
 //   using. Replays record the stand-ins, so they never hold custom content.
 template<class Native> void ApplyPicks(Native (&picks)[2]) {
     bool fellBack[2] = {};

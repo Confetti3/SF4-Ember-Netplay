@@ -185,7 +185,7 @@ int main() {
     pick.edition = 16; CHECK(Normalize(pick, true)); CHECK(pick.ultra == 0);
     CHECK(Normalize(pick, false)); CHECK(pick.edition == 14);
 
-    // Custom costumes: slots 8-99 (indices 7-98) of every fighter, ten colours each, valid picks on the network and
+    // Custom costumes: slots 8-99 (indices 7-98) of every fighter, ten colors each, valid picks on the network and
     // listed only once installed.
     CHECK(IsCustomCostume(7) && IsCustomCostume(98) && !IsCustomCostume(6) && !IsCustomCostume(99));
     Pick custom; custom.costume = 11; custom.color = 9;
@@ -198,16 +198,16 @@ int main() {
     CHECK(AllowedCostumes(40, unowned).empty() && AllowedCostumes(40, installed) == (std::vector<int>{0, 11}));
     CHECK(AllowedCostumes(0, sparse) == (std::vector<int>{0, 1, 6}));
 
-    // Custom colours of the game's own costumes: colours 30-99 (indices 29-98), valid on the network and listed after
-    // the costume's own colours once installed. Custom costumes keep their ten.
+    // Custom colors of the game's own costumes: colors 30-99 (indices 29-98), valid on the network and listed after
+    // the costume's own colors once installed. Custom costumes keep their ten.
     CHECK(IsCustomColor(29) && IsCustomColor(98) && !IsCustomColor(28) && !IsCustomColor(22) && !IsCustomColor(99));
     CHECK(ColorInRange(0, 1, 30) && !ColorInRange(0, 1, 15) && !ColorInRange(0, 1, 99) && !ColorInRange(0, 11, 22));
     Pick extra; extra.costume = 1; extra.color = 29;
     CHECK(Valid(extra, true) && !Normalize(extra, true));
     extra.costume = 11;
     CHECK(!Valid(extra, true));
-    Availability coloured; coloured.ready = true; coloured.costumes = 1u; coloured.colors[0] = 1u; coloured.customColors[0] = {29, 40};
-    CHECK(AllowedColors(0, 0, coloured) == (std::vector<int>{0, 29, 40}));
+    Availability colored; colored.ready = true; colored.costumes = 1u; colored.colors[0] = 1u; colored.customColors[0] = {29, 40};
+    CHECK(AllowedColors(0, 0, colored) == (std::vector<int>{0, 29, 40}));
 
     // Custom stages: any three capital letters or digits that aren't a game stage's code; the code is the id, so a
     // custom stage travels as one number. They fall back to a stock stage by rule and never enter Random.
@@ -222,7 +222,7 @@ int main() {
     CHECK(ResolveStage(c12, 0) == c12);
     for (std::uint32_t roll = 0; roll <= 100; ++roll) CHECK(!IsCustomStage(ResolveStage(RandomStageId, roll)));
 
-    // Names the setup program gives custom content: display only, kept apart per costume and colour.
+    // Names the setup program gives custom content: display only, kept apart per costume and color.
     CHECK(CustomName(0, 70).empty());
     SetCustomName(0, 70, -1, "Monster Hunter"); SetCustomName(0, 1, 29, "Steel Blue");
     CHECK(CustomName(0, 70) == "Monster Hunter" && CustomName(0, 1, 29) == "Steel Blue" && CustomName(0, 1).empty() && CustomName(1, 70).empty());

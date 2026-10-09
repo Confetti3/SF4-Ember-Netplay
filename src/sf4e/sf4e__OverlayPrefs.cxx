@@ -64,7 +64,7 @@ namespace OverlayPrefs {
             selection::ToNative(pick, c);
         }
 
-		// Picks of custom content the setup program has removed since: the original costume (colour kept), colour 1 of
+		// Picks of custom content the setup program has removed since: the original costume (color kept), color 1 of
 		// the costume, and the default stage. The selectors only offer what is installed (scanned once per game start).
 		void DropRemovedCustom(Data& data) {
 			auto costume = [](CharaPick& c) {

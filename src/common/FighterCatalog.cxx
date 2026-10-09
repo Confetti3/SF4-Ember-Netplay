@@ -215,7 +215,7 @@ std::vector<int> AllowedColors(int fighterId, int costumeId, const Availability&
         result.insert(result.end(), availability.customColors[costumeId].begin(), availability.customColors[costumeId].end());
     return result;
 }
-// The costume's own colours, or a custom colour of one of the game's costumes.
+// The costume's own colors, or a custom color of one of the game's costumes.
 bool ColorInRange(int fighterId, int costumeId, int color) {
     return color >= 0 && (color < ColorCount(fighterId, costumeId) || (IsCustomColor(color) && !IsCustomCostume(costumeId)));
 }

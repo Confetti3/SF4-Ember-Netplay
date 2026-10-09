@@ -56,7 +56,7 @@ static int CheckPerFighterPicks() {
         check(clamped.stageID == 0, "clamping kept an unsupported stage");
     }
     // Picks of custom content that isn't installed (here none is) go back to the defaults: the original costume with
-    // its colour kept, and the default stage.
+    // its color kept, and the default stage.
     Prefs::Data removed;
     removed.stageID = sf4e::selection::CustomStageId("C12");
     removed.lobby.charaID = 0; removed.lobby.costume = 11; removed.lobby.color = 3;
@@ -70,7 +70,7 @@ static int CheckPerFighterPicks() {
     removedColor.fighters[0] = removedColor.lobby;
     Prefs::Clamp(removedColor);
     check(removedColor.lobby.costume == 1 && removedColor.lobby.color == 0 && removedColor.fighters[0].color == 0,
-        "a custom colour that isn't installed stayed picked");
+        "a custom color that isn't installed stayed picked");
     // Stages taken out of Random round-trip as ids; unknown ids are dropped,
     // and a list that would leave Random nothing is forgotten.
     random.randomStageExcluded = (1u << 0) | (1u << 26);

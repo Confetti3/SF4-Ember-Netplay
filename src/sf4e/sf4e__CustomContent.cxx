@@ -17,7 +17,7 @@
 
 namespace sf4e { namespace custom {
 namespace {
-// A costume load request (both handlers below take it): type 1 = load, then the fighter, costume and colour.
+// A costume load request (both handlers below take it): type 1 = load, then the fighter, costume and color.
 constexpr int RequestFighter = 0x64 / 4, RequestCostume = 0x68 / 4, RequestColor = 0x6c / 4;
 
 struct StandIn { int fighter = -1, costume = -1, custom = -1; };
@@ -26,7 +26,7 @@ struct ColorStandIn { int fighter = -1, costume = -1, color = -1, custom = -1; }
 std::array<ColorStandIn, 2> colorStandIns;
 
 using Handler = int (__thiscall*)(void*, int*);
-Handler loadModels = nullptr, loadColours = nullptr;
+Handler loadModels = nullptr, loadColors = nullptr;
 
 // While the game builds a stand-in's file names (RYU_02.obj.emo ...), it is given the custom slot (RYU_12 ...).
 int Load(Handler original, void* self, int* request) {
@@ -41,18 +41,18 @@ int Load(Handler original, void* self, int* request) {
     return original(self, request);
 }
 int __fastcall LoadModels(void* self, void*, int* request) { return Load(loadModels, self, request); }
-// The same for a stand-in colour (RYU_01_01.col.emb ...): it is given the custom colour (RYU_01_23 ...).
-int __fastcall LoadColours(void* self, void*, int* request) {
+// The same for a stand-in color (RYU_01_01.col.emb ...): it is given the custom color (RYU_01_23 ...).
+int __fastcall LoadColors(void* self, void*, int* request) {
     if (request && request[0] == 1)
         for (const auto& s : colorStandIns)
             if (s.custom >= 0 && request[RequestFighter] == s.fighter && request[RequestCostume] == s.costume &&
                 request[RequestColor] == s.color) {
                 request[RequestColor] = s.custom;
-                const int result = loadColours(self, request);
+                const int result = loadColors(self, request);
                 request[RequestColor] = s.color;
                 return result;
             }
-    return Load(loadColours, self, request);
+    return Load(loadColors, self, request);
 }
 
 std::array<std::vector<int>, selection::FighterCount> installed;
@@ -125,9 +125,9 @@ void Scan() {
     for (int id = 0; id < selection::FighterCount; id++) {
         const std::string code = selection::FindFighter(id)->code;
         const std::wstring chr(code.begin(), code.end()), folder = root + chr + L"\\";
-        // A colour is <name>.col.emb and <name>.obj.emm.
+        // A color is <name>.col.emb and <name>.obj.emm.
         const auto colorFiles = [&](const std::wstring& name) { return Exists(folder + name + L".col.emb") && Exists(folder + name + L".obj.emm"); };
-        // Custom costumes: <CHR>_<NN>.obj.emo, NN 08..99, with all ten colours (an opponent may pick any of them).
+        // Custom costumes: <CHR>_<NN>.obj.emo, NN 08..99, with all ten colors (an opponent may pick any of them).
         Each(folder + chr + L"_??.obj.emo", [&](const std::wstring& name) {
             const int costume = Number(name, 4) - 1;
             if (name.size() != 14 || !selection::IsCustomCostume(costume)) return;
@@ -138,7 +138,7 @@ void Scan() {
         });
         std::sort(installed[id].begin(), installed[id].end());
         total += static_cast<int>(installed[id].size());
-        // Custom colours of the game's costumes: <CHR>_<CC>_<NN>, NN 30..99.
+        // Custom colors of the game's costumes: <CHR>_<CC>_<NN>, NN 30..99.
         Each(folder + chr + L"_??_??.col.emb", [&](const std::wstring& name) {
             const int costume = Number(name, 4) - 1, colorId = Number(name, 7) - 1;
             if (name.size() != 17 || costume < 0 || costume >= selection::CostumeCount(id) || !selection::IsCustomColor(colorId) ||
@@ -226,7 +226,7 @@ void SetStandIn(int side, int fighter, int standIn, int custom) {
 void SetColorStandIn(int side, int fighter, int costume, int standIn, int custom) {
     if (side < 0 || side > 1) return;
     colorStandIns[side] = { fighter, costume, standIn, custom };
-    if (custom >= 0) spdlog::info("Custom colour: side {} fighter {} costume {} colour {} plays as colour {}", side, fighter, costume + 1, custom + 1, standIn + 1);
+    if (custom >= 0) spdlog::info("Custom color: side {} fighter {} costume {} color {} plays as color {}", side, fighter, costume + 1, custom + 1, standIn + 1);
 }
 
 // Main menu music: a random stage theme from the game's own lobby pool (stages 1-21, as
@@ -252,9 +252,9 @@ void Install() {
     const auto base = reinterpret_cast<std::uintptr_t>(GetModuleHandleW(NULL));
     PickMenuMusic();
     loadModels = reinterpret_cast<Handler>(base + 0x1e5f80);
-    loadColours = reinterpret_cast<Handler>(base + 0x1e5cf0);
+    loadColors = reinterpret_cast<Handler>(base + 0x1e5cf0);
     DetourAttach((PVOID*)&loadModels, (PVOID)LoadModels);
-    DetourAttach((PVOID*)&loadColours, (PVOID)LoadColours);
+    DetourAttach((PVOID*)&loadColors, (PVOID)LoadColors);
     stageCode = reinterpret_cast<StageCode>(base + 0x2862c0);
     loaderBegin = base + 0x1f0d10;
     loaderEnd = base + 0x1f1100;

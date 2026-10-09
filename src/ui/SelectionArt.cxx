@@ -254,7 +254,7 @@ struct SelectionArt::Impl {
         return {assetRoot + L"/" + relative + L"-cutout.png", assetRoot + L"/" + relative + L".png", assetRoot + L"/" + relative + L".jpg"};
     }
     // Custom costumes and stages bring their pictures beside their files in the game's patch folder (the setup
-    // program that installs them puts them there): <CHR>_<NN>_<CC>.png per colour or <CHR>_<NN>.png for all,
+    // program that installs them puts them there): <CHR>_<NN>_<CC>.png per color or <CHR>_<NN>.png for all,
     // STG_<code>.png or .jpg.
     std::wstring PatchFolder(const wchar_t* sub) const { return gameRoot + L"/patch_ae2_tu3/battle/" + sub + L"/"; }
     static std::wstring TwoDigits(int n) { return std::to_wstring(n / 10) + std::to_wstring(n % 10); }
