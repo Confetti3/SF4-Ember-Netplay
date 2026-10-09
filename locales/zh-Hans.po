@@ -2055,16 +2055,13 @@ msgstr "准备再战"
 msgid "room.ready_up"
 msgstr "准备"
 
-msgid "room.selected_delay.detail"
-msgstr "可在 1 至 10 帧间调整，低于 1 为自动，立即生效。"
+
 
 msgid "room.selected_delay.locked"
 msgstr "本场对战的所选延迟已锁定。"
 
-msgid "room.match_delay.at_least"
-msgstr "至少 {0} 帧"
-msgid "room.match_delay.at_least_one"
-msgstr "至少 {0} 帧"
+
+
 
 msgid "room.check_connection.two_players"
 msgstr "检查连接前，两个席位都需要有玩家。"
@@ -2084,8 +2081,7 @@ msgstr "输入延迟"
 msgid "room.input_delay.recommended"
 msgstr "建议：{0}"
 
-msgid "room.input_delay.match"
-msgstr "对战：{0}"
+
 
 msgid "room.input_delay.auto"
 msgstr "自动 ({0})"
@@ -3582,3 +3578,12 @@ msgstr "无法进入房间，它可能刚刚关闭。请刷新后选择其他房
 
 msgid "legend.refresh"
 msgstr "刷新"
+
+msgid "room.input_delay.independent"
+msgstr "Delay applies only to your own inputs."
+
+msgid "room.input_delay.manual.detail"
+msgstr "Choose 0 to 10 frames, or step below 0 for Auto. Ready locks your choice for this match."
+
+msgid "room.input_delay.opponent"
+msgstr "Opponent: {0}"

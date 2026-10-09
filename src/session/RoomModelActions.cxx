@@ -269,7 +269,7 @@ Result RoomAuthority::ApplyReadiness(MemberId member, const Action& action, Tabl
 		table->ready[seat == 0 ? 1 : 0] && HasOutstandingTerminalReceipt(table->id))
 		return Reject(RejectReason::TerminalLedgerFull);
 	if (action.kind == ActionKind::Ready) {
-		// An older client can still ready at 0, which the match never plays at.
+		// Freeze this fighter's own delay, including zero, until Unready.
 		const auto delay = static_cast<std::uint8_t>(PlayableInputDelay(action.inputDelay));
 		table->ready[seat] = true;
 		item->selectedDelay = delay;

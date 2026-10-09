@@ -1886,14 +1886,11 @@ msgid "room.ready_rematch"
 msgstr "Ready for rematch"
 msgid "room.ready_up"
 msgstr "Ready up"
-msgid "room.selected_delay.detail"
-msgstr "Adjust from 1 to 10 frames, or step below 1 for Auto. Changes apply immediately."
+
 msgid "room.selected_delay.locked"
 msgstr "The selected delay is locked for this match."
-msgid "room.match_delay.at_least"
-msgstr "At least {0} frames"
-msgid "room.match_delay.at_least_one"
-msgstr "At least {0} frame"
+
+
 msgid "room.check_connection.two_players"
 msgstr "Both seats need a player before checking the connection."
 msgid "room.check_connection.unready"
@@ -1908,8 +1905,7 @@ msgstr "Input delay"
 msgid "room.input_delay.recommended"
 msgstr "Recommended: {0}"
 
-msgid "room.input_delay.match"
-msgstr "Match: {0}"
+
 
 msgid "room.input_delay.auto"
 msgstr "Auto ({0})"
@@ -3244,3 +3240,12 @@ msgstr "Couldn't get into the room. It may have just closed. Refresh and pick an
 
 msgid "legend.refresh"
 msgstr "Refresh"
+
+msgid "room.input_delay.independent"
+msgstr "Delay applies only to your own inputs."
+
+msgid "room.input_delay.manual.detail"
+msgstr "Choose 0 to 10 frames, or step below 0 for Auto. Ready locks your choice for this match."
+
+msgid "room.input_delay.opponent"
+msgstr "Opponent: {0}"

@@ -392,13 +392,13 @@ void Journeys() {
  Check(h.actions.back().preferences.matchHudAnchor==0,"HUD position did not step back to Bottom center");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-spacing");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudRaised,"HUD spacing did not save");
- // A new profile is on Auto. Right from Auto starts at one frame, and Left from one frame returns to Auto, keeping the number.
+ // New profiles use manual zero; Auto is reached to the left and returns to zero.
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("defaults");h.Choose("delay");
- Check(h.view.preferences.autoInputDelay,"A new profile did not start on Auto");
- h.Press(MenuInput::Right);h.Frame(0,45);
- Check(!h.actions.back().preferences.autoInputDelay&&h.actions.back().preferences.inputDelay==1,"Leaving Auto did not start at one frame");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);
- Check(h.actions.back().preferences.autoInputDelay&&h.actions.back().preferences.inputDelay==1,"Auto delay did not save");
+ Check(!h.view.preferences.autoInputDelay&&h.view.preferences.inputDelay==0,"A new profile did not start at zero");
+ h.Press(MenuInput::Left);h.Frame(0,45);
+ Check(h.actions.back().preferences.autoInputDelay,"Auto delay did not save");
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Right);h.Frame(0,45);
+ Check(!h.actions.back().preferences.autoInputDelay&&h.actions.back().preferences.inputDelay==0,"Leaving Auto did not select zero");
  h.Screen("interface");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("scale");h.Press(MenuInput::Right);
  h.view.settingsError="Disk unavailable";h.Frame(0,45);
@@ -578,11 +578,11 @@ void PresentationJourneys(){
  Check(status=="Saving...","Queued settings falsely reported Saved before acknowledgement");
  h.view.preferences=h.actions.back().preferences;h.Frame();Check(status=="Saved","Acknowledged settings did not report Saved");h.Press(MenuInput::Down);
  Check(h.shell.Navigation().Focus()=="hud-layout","Controller did not move to the row following the mouse-selected row");
- // 0 frames of input delay is withdrawn: Left from a chosen 1 goes to Auto, keeping 1, never to 0.
+ // Left from one frame selects manual zero.
  h.view.preferences.inputDelay=1;h.view.preferences.autoInputDelay=false;h.Screen("defaults");h.FocusOn("delay");const auto delaySaves=h.actions.size();
  h.Press(MenuInput::Left);h.Frame(0,40);
- Check(h.actions.size()>delaySaves&&h.actions.back().preferences.autoInputDelay&&h.actions.back().preferences.inputDelay==1,
-  "Gameplay defaults offered 0 frames of input delay");
+ Check(h.actions.size()>delaySaves&&!h.actions.back().preferences.autoInputDelay&&h.actions.back().preferences.inputDelay==0,
+  "Gameplay defaults did not offer 0 frames of input delay");
  h.view.preferences=h.actions.back().preferences;h.Frame();
  h.Screen("profile");h.Choose("main-character");h.Press(MenuInput::Right);h.Press(MenuInput::Select);h.Frame(0,40);
  h.view.preferences=h.actions.back().preferences;h.Frame(0,3);Check(status.find("Profile portrait saved:")==0,"Profile success notice missing");

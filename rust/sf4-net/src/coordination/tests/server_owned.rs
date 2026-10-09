@@ -218,12 +218,18 @@ async fn only_a_server_owned_room_takes_a_membership_of_seventeen_nodes() {
 #[tokio::test]
 async fn a_member_takes_nothing_from_a_node_that_is_not_its_host() {
     let bus = Arc::new(Bus::default());
+    // The private baseline accepts hostile terms. Give it a separate host:
+    // otherwise its higher-term replies race back into the server-owned room
+    // and invalidate the second proposal before we can check the member.
+    let control_bus = Arc::new(Bus::default());
+    let control_host = host(&control_bus).await;
     let host = host(&bus).await;
     let member = node(&bus, 2, Ownership::Member { host: 1 }).await;
-    let control = node(&bus, 3, Ownership::Private).await;
+    let control = node(&control_bus, 3, Ownership::Private).await;
     add_learner(&host, 2).await;
-    add_learner(&host, 3).await;
+    add_learner(&control_host, 3).await;
     let term = host.current_term();
+    let hostile_term = term.max(control.current_term()) + 5;
     // The member follows the host.
     assert!(
         host.propose(proposal(&host, "first", 0, "state"))
@@ -269,31 +275,41 @@ async fn a_member_takes_nothing_from_a_node_that_is_not_its_host() {
     // Another node claims leadership with a higher term.
     assert!(
         member
-            .dispatch(4, "append", &append(4, term + 5))
+            .dispatch(4, "append", &append(4, hostile_term))
             .await
             .is_err()
     );
     assert!(
         control
-            .dispatch(4, "append", &append(4, term + 5))
+            .dispatch(4, "append", &append(4, hostile_term))
             .await
             .is_ok()
     );
     assert!(
         member
-            .dispatch(4, "snapshot", &snapshot(4, term + 6))
+            .dispatch(4, "snapshot", &snapshot(4, hostile_term + 1))
             .await
             .is_err()
     );
     assert!(
         control
-            .dispatch(4, "snapshot", &snapshot(4, term + 6))
+            .dispatch(4, "snapshot", &snapshot(4, hostile_term + 1))
             .await
             .is_ok()
     );
     // Even the host's own candidacy gets no vote.
-    assert!(member.dispatch(1, "vote", &vote(term + 7)).await.is_err());
-    assert!(control.dispatch(1, "vote", &vote(term + 7)).await.is_ok());
+    assert!(
+        member
+            .dispatch(1, "vote", &vote(hostile_term + 2))
+            .await
+            .is_err()
+    );
+    assert!(
+        control
+            .dispatch(1, "vote", &vote(hostile_term + 2))
+            .await
+            .is_ok()
+    );
 
     // None of it moved the member: same term, same leader, still replicating.
     assert_eq!(member.current_term(), term);
@@ -306,7 +322,7 @@ async fn a_member_takes_nothing_from_a_node_that_is_not_its_host() {
             .accepted
     );
     committed_revision(&member, 2, "the member stopped following the host").await;
-    stop(vec![host, member, control]).await;
+    stop(vec![host, member, control, control_host]).await;
 }
 
 /// A member is bootstrapped by the host's snapshot when it joins after the

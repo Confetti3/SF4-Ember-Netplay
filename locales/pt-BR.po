@@ -1770,14 +1770,11 @@ msgid "room.ready_rematch"
 msgstr "Pronto para revanche"
 msgid "room.ready_up"
 msgstr "Marcar Pronto"
-msgid "room.selected_delay.detail"
-msgstr "Ajuste de 1 a 10 quadros, ou desça abaixo de 1 para Auto. As alterações são aplicadas imediatamente."
+
 msgid "room.selected_delay.locked"
 msgstr "O atraso selecionado está bloqueado nesta partida."
-msgid "room.match_delay.at_least"
-msgstr "Pelo menos {0} quadros"
-msgid "room.match_delay.at_least_one"
-msgstr "Pelo menos {0} quadro"
+
+
 msgid "room.check_connection.two_players"
 msgstr "Os dois lugares precisam de um jogador para verificar a conexão."
 msgid "room.check_connection.unready"
@@ -1792,8 +1789,7 @@ msgstr "Atraso de entrada"
 msgid "room.input_delay.recommended"
 msgstr "Recomendado: {0}"
 
-msgid "room.input_delay.match"
-msgstr "Partida: {0}"
+
 
 msgid "room.input_delay.auto"
 msgstr "Auto ({0})"
@@ -3128,3 +3124,12 @@ msgstr "Não foi possível entrar na sala. Ela pode ter acabado de fechar. Atual
 
 msgid "legend.refresh"
 msgstr "Atualizar"
+
+msgid "room.input_delay.independent"
+msgstr "Delay applies only to your own inputs."
+
+msgid "room.input_delay.manual.detail"
+msgstr "Choose 0 to 10 frames, or step below 0 for Auto. Ready locks your choice for this match."
+
+msgid "room.input_delay.opponent"
+msgstr "Opponent: {0}"

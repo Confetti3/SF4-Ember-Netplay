@@ -2055,16 +2055,13 @@ msgstr "Pronto per la rivincita"
 msgid "room.ready_up"
 msgstr "Mettiti pronto"
 
-msgid "room.selected_delay.detail"
-msgstr "Regola da 1 a 10 frame, o scendi sotto 1 per Auto. Le modifiche si applicano subito."
+
 
 msgid "room.selected_delay.locked"
 msgstr "Il ritardo scelto è bloccato per questa partita."
 
-msgid "room.match_delay.at_least"
-msgstr "Almeno {0} frame"
-msgid "room.match_delay.at_least_one"
-msgstr "Almeno {0} frame"
+
+
 
 msgid "room.check_connection.two_players"
 msgstr "Servono giocatori in entrambi i posti per verificare la connessione."
@@ -2084,8 +2081,7 @@ msgstr "Ritardo di input"
 msgid "room.input_delay.recommended"
 msgstr "Consigliato: {0}"
 
-msgid "room.input_delay.match"
-msgstr "Partita: {0}"
+
 
 msgid "room.input_delay.auto"
 msgstr "Auto ({0})"
@@ -3582,3 +3578,12 @@ msgstr "Impossibile entrare nella sala. Potrebbe essersi appena chiusa. Aggiorna
 
 msgid "legend.refresh"
 msgstr "Aggiorna"
+
+msgid "room.input_delay.independent"
+msgstr "Delay applies only to your own inputs."
+
+msgid "room.input_delay.manual.detail"
+msgstr "Choose 0 to 10 frames, or step below 0 for Auto. Ready locks your choice for this match."
+
+msgid "room.input_delay.opponent"
+msgstr "Opponent: {0}"

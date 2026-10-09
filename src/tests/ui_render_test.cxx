@@ -722,11 +722,11 @@ int main(int argc, char** argv) {
             // Auto on the focused delay row: the delay it resolves to and its bounds.
             draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);
             Require(shell.Navigation().Focus()=="input-delay","Delay control is unreachable at this viewport/DPI");
-            // Auto before its check, Auto once the opponent is measured, then one step Right: 1 frame.
+            // Auto before/after its check, then one step Right: zero, independent of the opponent.
             view.preferences.autoInputDelay=true;view.autoDelayMeasured=false;view.selectedDelay=2;draw("table-delay-auto-unmeasured");
             view.autoDelayMeasured=true;draw("table-delay-auto-measured");
-            view.preferences.autoInputDelay=false;view.autoDelayMeasured=false;view.selectedDelay=1;draw("table-delay-auto-then-one");
-            view.selectedDelay=2;
+            view.preferences.autoInputDelay=false;view.autoDelayMeasured=false;view.selectedDelay=0;view.opponentDelay=5;draw("table-delay-zero-opponent-five");
+            view.selectedDelay=2;view.opponentDelay=-1;
             draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);
             view.recommendedDelay=-1;view.canApplyDelay=false;view.probeStatus="insufficient samples";view.probeSamples=12;view.probeLost=88;
             view.canReady=true;draw("table-delay-manual-ready");

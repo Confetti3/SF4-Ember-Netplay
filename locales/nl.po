@@ -2055,16 +2055,13 @@ msgstr "Klaar voor rematch"
 msgid "room.ready_up"
 msgstr "Klaar melden"
 
-msgid "room.selected_delay.detail"
-msgstr "Stel in van 1 tot 10 frames, of ga onder 1 voor Auto. Wijzigingen gelden meteen."
+
 
 msgid "room.selected_delay.locked"
 msgstr "De gekozen vertraging staat vast voor deze match."
 
-msgid "room.match_delay.at_least"
-msgstr "Minstens {0} frames"
-msgid "room.match_delay.at_least_one"
-msgstr "Minstens {0} frame"
+
+
 
 msgid "room.check_connection.two_players"
 msgstr "Beide plekken moeten bezet zijn om de verbinding te controleren."
@@ -2084,8 +2081,7 @@ msgstr "Invoervertraging"
 msgid "room.input_delay.recommended"
 msgstr "Aanbevolen: {0}"
 
-msgid "room.input_delay.match"
-msgstr "Match: {0}"
+
 
 msgid "room.input_delay.auto"
 msgstr "Auto ({0})"
@@ -3582,3 +3578,12 @@ msgstr "Kon de kamer niet in. Misschien is hij net gesloten. Vernieuw en kies ee
 
 msgid "legend.refresh"
 msgstr "Vernieuwen"
+
+msgid "room.input_delay.independent"
+msgstr "Delay applies only to your own inputs."
+
+msgid "room.input_delay.manual.detail"
+msgstr "Choose 0 to 10 frames, or step below 0 for Auto. Ready locks your choice for this match."
+
+msgid "room.input_delay.opponent"
+msgstr "Opponent: {0}"

@@ -198,10 +198,9 @@ static bool StartRuntimeGgpo() {
             if (committedDelay>sf4e::MaximumInputDelay) return false;
             netplay->delay=committedDelay;
         }
-        // GGPO never starts at 0 frames, which crashes, whoever sent it.
+        // Zero is a valid local input delay. Never substitute the opponent's.
         netplay->delay=static_cast<uint8_t>(sf4e::PlayableInputDelay(netplay->delay));
-        // Both seats carry the shared match delay; the two players' logs
-        // must show the same values here (F-018).
+        // The seat pair agrees across peers; each applies its own entry.
         spdlog::info("Netplay: match delay seats={}/{} local_slot={} applied={}",
             netplay->client._matchData.inputDelay[0], netplay->client._matchData.inputDelay[1],
             endpoints.localSlot, netplay->delay);

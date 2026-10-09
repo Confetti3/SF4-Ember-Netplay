@@ -2055,16 +2055,13 @@ msgstr "Prêt pour la revanche"
 msgid "room.ready_up"
 msgstr "Passer à Prêt"
 
-msgid "room.selected_delay.detail"
-msgstr "Réglez de 1 à 10 trames, ou Auto en dessous de 1. Application immédiate."
+
 
 msgid "room.selected_delay.locked"
 msgstr "Le délai choisi est verrouillé pour ce combat."
 
-msgid "room.match_delay.at_least"
-msgstr "Au moins {0} trames"
-msgid "room.match_delay.at_least_one"
-msgstr "Au moins {0} trame"
+
+
 
 msgid "room.check_connection.two_players"
 msgstr "Il faut un joueur sur chaque place pour vérifier la connexion."
@@ -2084,8 +2081,7 @@ msgstr "Délai d'entrée"
 msgid "room.input_delay.recommended"
 msgstr "Conseillé : {0}"
 
-msgid "room.input_delay.match"
-msgstr "Combat : {0}"
+
 
 msgid "room.input_delay.auto"
 msgstr "Auto ({0})"
@@ -3582,3 +3578,12 @@ msgstr "Impossible d'entrer dans le salon. Il vient peut-être de fermer. Actual
 
 msgid "legend.refresh"
 msgstr "Actualiser"
+
+msgid "room.input_delay.independent"
+msgstr "Delay applies only to your own inputs."
+
+msgid "room.input_delay.manual.detail"
+msgstr "Choose 0 to 10 frames, or step below 0 for Auto. Ready locks your choice for this match."
+
+msgid "room.input_delay.opponent"
+msgstr "Opponent: {0}"

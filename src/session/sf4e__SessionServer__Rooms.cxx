@@ -335,10 +335,9 @@ void SessionServer::ProjectRoomTable(session::Connection connection, std::uint8_
 		update.lobbyData.members.push_back(data);
 	}
 	update.matchData = _roomMatchData[tableId];
-	// The native protocol keeps one delay per seat, and each client applies
-	// the entry for its own slot. Custom rooms fill both with the shared match
-	// delay, so every client plays at it without a protocol change.
-	update.matchData.inputDelay[0] = update.matchData.inputDelay[1] = room::MatchDelay(table);
+	// Preserve each fighter's Ready choice. GGPO applies only the local seat's
+	// delay; the remote input stream already carries its sender's frame stamps.
+	for (int seat = 0; seat < 2; ++seat) update.matchData.inputDelay[seat] = table.inputDelay[seat];
 	update.authorityTerm = _recovery.Authority().term;
 	update.authorityRevision = _recovery.Authority().revision;
 	Respond(connection, json(update));

@@ -37,7 +37,7 @@ struct ShellView {
     bool canReplaceRoom = false;
     bool canEditSelection = false;
     bool canEditPreferences = false, canEditLobby = false, settingsPending = false;
-    int selectedDelay=2, recommendedDelay=-1, opponentDelay=-1;
+    int selectedDelay=0, recommendedDelay=-1, opponentDelay=-1;
     bool autoDelayMeasured=false;
     bool delayLocked=false, canProbe=false, canApplyDelay=false;
     std::string probeStatus;

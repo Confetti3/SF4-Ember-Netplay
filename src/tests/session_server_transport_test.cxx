@@ -1565,6 +1565,7 @@ static void TestCustomRoomDepartures() {
 		value.tableRevision = snapshot->tables[table].revision;
 		value.actionId = ++actionIds[connection];
 		value.target = target;
+		value.inputDelay = connection == 3 ? 5 : 0;
 		protocol::RoomActionMessage message;
 		message.action = value;
 		transport->outgoing.clear();
@@ -1616,6 +1617,16 @@ static void TestCustomRoomDepartures() {
     }
 	action(2, room::ActionKind::Ready, 0);
 	action(3, room::ActionKind::Ready, 0);
+
+    std::set<session::Connection> delayRecipients;
+    for (const auto& sent : transport->outgoing) {
+        if (sent.second.value("type", std::string()) != "data_update") continue;
+        const auto update = sent.second.get<protocol::SessionDataUpdate>();
+        if (sent.first < 2 || sent.first > 4) continue;
+        CHECK(update.matchData.inputDelay[0] == 0 && update.matchData.inputDelay[1] == 5);
+        delayRecipients.insert(sent.first);
+    }
+    CHECK(delayRecipients == std::set<session::Connection>({2, 3, 4}));
 	const auto generation0 = server.RoomSnapshot()->tables[0].matchGeneration;
 	CHECK(server.RoomSnapshot()->tables[0].phase == room::TablePhase::Playing);
 	CHECK(hasMessage("game_prepare", 2) && hasMessage("game_prepare", 3) && hasMessage("game_prepare", 4));

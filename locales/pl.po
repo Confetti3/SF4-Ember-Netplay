@@ -2055,16 +2055,13 @@ msgstr "Gotów do rewanżu"
 msgid "room.ready_up"
 msgstr "Gotowe"
 
-msgid "room.selected_delay.detail"
-msgstr "Ustaw od 1 do 10 klatek, poniżej 1 jest Auto. Zmiany działają od razu."
+
 
 msgid "room.selected_delay.locked"
 msgstr "Wybrane opóźnienie jest zablokowane na tę walkę."
 
-msgid "room.match_delay.at_least"
-msgstr "Co najmniej {0} kl."
-msgid "room.match_delay.at_least_one"
-msgstr "Co najmniej {0} kl."
+
+
 
 msgid "room.check_connection.two_players"
 msgstr "Aby sprawdzić połączenie, oba miejsca muszą być zajęte."
@@ -2084,8 +2081,7 @@ msgstr "Opóźnienie wejścia"
 msgid "room.input_delay.recommended"
 msgstr "Zalecane: {0}"
 
-msgid "room.input_delay.match"
-msgstr "Walka: {0}"
+
 
 msgid "room.input_delay.auto"
 msgstr "Auto ({0})"
@@ -3582,3 +3578,12 @@ msgstr "Nie udało się wejść do pokoju. Mógł się właśnie zamknąć. Odś
 
 msgid "legend.refresh"
 msgstr "Odśwież"
+
+msgid "room.input_delay.independent"
+msgstr "Delay applies only to your own inputs."
+
+msgid "room.input_delay.manual.detail"
+msgstr "Choose 0 to 10 frames, or step below 0 for Auto. Ready locks your choice for this match."
+
+msgid "room.input_delay.opponent"
+msgstr "Opponent: {0}"
