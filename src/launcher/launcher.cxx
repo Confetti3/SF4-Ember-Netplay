@@ -23,7 +23,7 @@
 #include "../platform/Elevation.hxx"
 #include "../platform/LauncherInstance.hxx"
 #include "../platform/Utf8.hxx"
-#include "../platform/VideoLink.hxx"
+#include "../platform/VideoLinkServe.hxx"
 #include "../platform/WineBuiltin.hxx"
 
 #include <CLI/CLI.hpp>
@@ -552,7 +552,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     }
     {
         // Not a launcher start: the game's video export runs its encoder in
-        // this executable (platform/VideoLink.hxx). Before the log, which rotates.
+        // this executable (platform/VideoLinkServe.hxx). Before the log, which rotates.
         int count = 0; auto** arguments = CommandLineToArgvW(GetCommandLineW(), &count);
         const std::wstring link = count == 3 && !wcscmp(arguments[1], L"--encode-video") ? arguments[2] : L"";
         LocalFree(arguments);

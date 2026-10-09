@@ -5,6 +5,8 @@
 // frame count given after the file name.
 // Skips (77) where Windows has no encoder for it.
 #include "../platform/VideoLink.hxx"
+#include "../platform/VideoLinkProtocol.hxx"
+#include "../platform/VideoLinkServe.hxx"
 #include "../platform/VideoTemporary.hxx"
 #include "test_support.hxx"
 
@@ -13,6 +15,7 @@
 #include <mmdeviceapi.h>
 #include <audiopolicy.h>
 #include <wrl/client.h>
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -23,9 +26,84 @@
 #include <iostream>
 #include <vector>
 
+namespace {
+namespace link = sf4e::platform::videolink;
+
+// The longest a Poll took, for the game thread that calls it each frame.
+ULONGLONG s_longestPoll = 0;
+
+// Stop, then Poll as the game does each frame until the encoder's process has
+// closed the file: true when it holds a video.
+bool Finish() {
+	link::Stop();
+	for (;; Sleep(16)) {
+		const ULONGLONG asked = GetTickCount64();
+		const link::Result result = link::Poll();
+		s_longestPoll = (std::max)(s_longestPoll, GetTickCount64() - asked);
+		if (result != link::Result::Pending) return result == link::Result::Done;
+	}
+}
+
+// An encoder that never closes its file, for the game's deadline: it holds
+// the temporary file open, without letting it be removed, until it is ended.
+int Hang(const std::wstring& name) {
+	const HANDLE mapping = OpenFileMappingW(FILE_MAP_READ, FALSE, name.c_str());
+	const auto* shared = mapping ? static_cast<const link::Shared*>(MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, sizeof(link::Shared))) : nullptr;
+	if (!shared) return 2;
+	std::wstring path(shared->file, wcsnlen(shared->file, 1024));
+	if (CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr) == INVALID_HANDLE_VALUE) return 2;
+	Sleep(INFINITE);
+	return 1;
+}
+
+// A game gone by the time its encoder's process looks: the link's shared
+// memory names a temporary file reserved beside file, but the wake event
+// (without wake) or the game's process (game) is not there. The encoder's
+// exit code, or -1 when it was still running ten seconds on.
+int Orphaned(const std::wstring& self, const std::filesystem::path& file, bool wake, DWORD game) {
+	const std::wstring name = L"Local\\sf4e-video-test-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64());
+	const HANDLE mapping = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, sizeof(link::Shared), name.c_str());
+	auto* const shared = mapping ? static_cast<link::Shared*>(MapViewOfFile(mapping, FILE_MAP_ALL_ACCESS, 0, 0, 0)) : nullptr;
+	CHECK(shared);
+	std::wstring temporary;
+	CHECK(link::ReserveTemporary(file.wstring(), temporary));
+	shared->width = 640; shared->height = 360; shared->game = game;
+	wcscpy_s(shared->file, temporary.c_str()); wcscpy_s(shared->final, file.c_str());
+	const HANDLE event = wake ? CreateEventW(nullptr, FALSE, FALSE, link::WakeName(name).c_str()) : nullptr;
+	std::wstring command = L"\"" + self + L"\" --encode-video " + name;
+	STARTUPINFOW startup = {sizeof startup}; PROCESS_INFORMATION process = {};
+	CHECK(CreateProcessW(self.c_str(), &command[0], nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &startup, &process));
+	DWORD code = static_cast<DWORD>(-1);
+	if (WaitForSingleObject(process.hProcess, 10000) == WAIT_OBJECT_0) GetExitCodeProcess(process.hProcess, &code);
+	else { TerminateProcess(process.hProcess, 1); WaitForSingleObject(process.hProcess, 5000); }
+	CloseHandle(process.hThread); CloseHandle(process.hProcess);
+	if (event) CloseHandle(event);
+	UnmapViewOfFile(shared); CloseHandle(mapping);
+	return static_cast<int>(code);
+}
+
+// What is left of an export's temporary files beside file; held counts
+// those a process has open without letting them be removed.
+int Temporaries(const std::filesystem::path& file, int* held = nullptr) {
+	int count = 0;
+	std::error_code error;
+	for (const auto& entry : std::filesystem::directory_iterator(file.parent_path(), error)) {
+		const std::wstring name = entry.path().filename().wstring();
+		if (name.rfind(file.filename().wstring() + L".", 0) != 0 || entry.path().extension() != L".sf4e-video-tmp") continue;
+		count++;
+		const HANDLE probe = CreateFileW(entry.path().c_str(), DELETE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, 0, nullptr);
+		if (probe != INVALID_HANDLE_VALUE) CloseHandle(probe);
+		else if (held && GetLastError() == ERROR_SHARING_VIOLATION) ++*held;
+	}
+	return count;
+}
+}
+
 int wmain(int argc, wchar_t** argv) {
-	namespace link = sf4e::platform::videolink;
-	if (argc == 3 && !wcscmp(argv[1], L"--encode-video")) return link::Serve(argv[2]);
+	if (argc == 3 && !wcscmp(argv[1], L"--encode-video")) {
+		if (std::getenv("SF4E_TEST_ENCODER_HANGS")) return Hang(argv[2]);
+		return link::Serve(argv[2]);
+	}
 	const std::filesystem::path file = argc > 1 ? std::filesystem::path(argv[1]) : std::filesystem::temp_directory_path() / L"ember-video-encoder-test.mp4";
 	const unsigned width = argc > 3 ? _wtoi(argv[2]) : 640, height = argc > 3 ? _wtoi(argv[3]) : 360;
 	const int frames = argc > 4 ? _wtoi(argv[4]) : 180;
@@ -51,7 +129,10 @@ int wmain(int argc, wchar_t** argv) {
 	std::filesystem::remove_all(folder);
 	std::filesystem::remove(file, error);
 	if (link::Start(file.wstring(), width, height, L"no-such-encoder.exe")) { std::cerr << "A missing encoder started\n"; return 1; }
+	const int leftBefore = Temporaries(file);
 	if (!link::Start(file.wstring(), width, height, self)) { std::cerr << "The encoder's process did not start\n"; return 1; }
+	// Not stopped yet: no deadline runs, whatever the encoder is doing.
+	if (link::Poll() != link::Result::Pending) { std::cerr << "An export ended before it was stopped\n"; return 1; }
 	if (link::Start(file.wstring(), width, height, self)) { std::cerr << "A second export started over the first\n"; return 1; }
 
 	// SF4E_TEST_GAP: after the first second no picture is sent for that many
@@ -90,8 +171,9 @@ int wmain(int argc, wchar_t** argv) {
 	if (mixer) mixer->SetMasterVolume(1, nullptr);
 	if (out) { waveOutReset(out); waveOutUnprepareHeader(out, &header, sizeof header); waveOutClose(out); }
 
-	const bool made = link::Finish();
-	if (link::Finish()) { std::cerr << "A finished export finished again\n"; return 1; }
+	const bool made = Finish();
+	if (link::Poll() != link::Result::Failed || Finish()) { std::cerr << "A finished export finished again\n"; return 1; }
+	CHECK(Temporaries(file) == leftBefore);
 	if (!made && !std::filesystem::exists(file, error)) { std::cout << "No encoder here for this size; skipped\n"; return 77; }
 	const auto size = std::filesystem::file_size(file, error);
 	if (!made || error || size < 10000) { std::cerr << "The file is missing or empty\n"; return 1; }
@@ -103,7 +185,45 @@ int wmain(int argc, wchar_t** argv) {
 	CHECK(link::Start(file.wstring(), width, height, self));
 	for (int frame = 0; frame < 120; frame++) { link::Send(luma.data(), pitch, chroma.data(), pitch); Sleep(17); }
 	link::Fail();
-	CHECK(!link::Finish());
+	CHECK(!Finish());
+	CHECK(read(file) == previous);
+	// The failed export's temporary file is gone with it.
+	CHECK(Temporaries(file) == leftBefore);
+	// A player has the earlier video open without letting it be replaced: the
+	// new one cannot take its name, and the encoder's process removes its file
+	// itself, since the game may be gone. No Poll until then, which would.
+	CHECK(link::Start(file.wstring(), width, height, self));
+	const HANDLE watching = CreateFileW(file.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
+	CHECK(watching != INVALID_HANDLE_VALUE);
+	for (int frame = 0; frame < 120; frame++) { link::Send(luma.data(), pitch, chroma.data(), pitch); Sleep(17); }
+	link::Stop();
+	for (const ULONGLONG asked = GetTickCount64(); Temporaries(file) != leftBefore && GetTickCount64() - asked < 20000;) Sleep(50);
+	CHECK(Temporaries(file) == leftBefore);
+	CHECK(!Finish());
+	CloseHandle(watching);
+	CHECK(read(file) == previous);
+	// The game gone before its encoder's process found the wake event, or the
+	// game's process: that process ends at once and removes the temporary file
+	// itself, and the earlier video stays.
+	const int noWake = Orphaned(self, file, false, GetCurrentProcessId()), noGame = Orphaned(self, file, true, 0x7FFFFFFC);
+	CHECK(noWake != -1 && noWake != 0 && noGame != -1 && noGame != 0);
+	CHECK(Temporaries(file) == leftBefore);
+	CHECK(read(file) == previous);
+	// An encoder that does not close the file is ended 30 seconds after Stop
+	// without Poll waiting for it; its temporary file is removed once it has
+	// gone, and the earlier video kept.
+	SetEnvironmentVariableW(L"SF4E_TEST_ENCODER_HANGS", L"1");
+	CHECK(link::Start(file.wstring(), width, height, self));
+	SetEnvironmentVariableW(L"SF4E_TEST_ENCODER_HANGS", nullptr);
+	int held = 0;
+	for (const ULONGLONG asked = GetTickCount64(); !held && GetTickCount64() - asked < 10000; Sleep(50)) { held = 0; Temporaries(file, &held); }
+	CHECK(held == 1);
+	const ULONGLONG stopped = GetTickCount64();
+	s_longestPoll = 0;
+	CHECK(!Finish());
+	CHECK(GetTickCount64() - stopped >= 30000);
+	CHECK(s_longestPoll < 500);
+	CHECK(Temporaries(file) == leftBefore);
 	CHECK(read(file) == previous);
 	std::wcout << L"Encoded " << size << L" bytes to " << file.wstring() << L"\n";
 	return 0;

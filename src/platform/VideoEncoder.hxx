@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <string>
 
 // Ember's own video file: H.264 and AAC in an .mp4 through Media Foundation's
@@ -23,17 +24,32 @@
 // behind is dropped rather than kept, so the memory has a ceiling.
 namespace sf4e { namespace platform { namespace video {
 
-// The performance counter in 100 ns units: the clock of Frame's time.
-long long Clock();
-// Opens the file and starts capturing the sound of the process soundPid.
-// Width and height are even.
-bool Begin(const std::wstring& file, unsigned width, unsigned height, unsigned long soundPid);
-// One NV12 picture (BT.709, 16 to 235) drawn at the Clock time at: height
-// rows of width luma bytes, then height / 2 rows of width chroma bytes.
-void Frame(const void* luma, int lumaPitch, const void* chroma, int chromaPitch, long long at);
-// Closes the file. True when it holds at least one picture.
-bool End();
-// What was opened and how it closed, for the caller's log.
-const std::string& Summary();
+// One file from Begin to End, kept by whoever encodes it (the encoder's end
+// of the link, VideoLinkServe.cxx). Used from one thread; the sound has a
+// thread of its own, which End joins.
+class Encoder {
+public:
+	Encoder();
+	// Closes a file still open, as End does.
+	~Encoder();
+	Encoder(const Encoder&) = delete;
+	Encoder& operator=(const Encoder&) = delete;
+
+	// Opens the file and starts capturing the sound of the process soundPid.
+	// Width and height are even.
+	bool Begin(const std::wstring& file, unsigned width, unsigned height, unsigned long soundPid);
+	// One NV12 picture (BT.709, 16 to 235) drawn at the Clock time at
+	// (VideoLinkProtocol.hxx): height rows of width luma bytes, then height / 2
+	// rows of width chroma bytes.
+	void Frame(const void* luma, int lumaPitch, const void* chroma, int chromaPitch, long long at);
+	// Closes the file. True when it holds at least one picture.
+	bool End();
+	// What was opened and how it closed, for the caller's log.
+	const std::string& Summary() const;
+
+private:
+	struct Impl;
+	std::unique_ptr<Impl> impl_;
+};
 
 } } }

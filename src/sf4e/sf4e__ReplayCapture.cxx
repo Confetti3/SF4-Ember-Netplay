@@ -23,9 +23,6 @@ std::mutex s_lock;
 std::wstring s_file;
 bool s_opened = false;
 bool s_deviceAvailable = true;
-ULONGLONG s_closingSince = 0;
-// The encoder's process may take this long to close its file before it is ended.
-constexpr ULONGLONG kClosePatienceMs = 30000;
 }
 
 namespace sf4e { namespace replaycapture {
@@ -56,7 +53,7 @@ void Frame(IDirect3DDevice9* device) {
 	if (s_state == State::Recording && !s_wanted) {
 		// Asked to stop: the encoder closes the file on its own time.
 		grab::Release();
-		if (s_sending) { link::Stop(); s_closingSince = GetTickCount64(); s_state = State::Closing; }
+		if (s_sending) { link::Stop(); s_state = State::Closing; }
 		else s_state = State::Failed;
 		s_sending = false;
 	}
@@ -72,13 +69,12 @@ void Frame(IDirect3DDevice9* device) {
 		if (!grab::Grab(device, link::Send)) {
 			link::Fail();
 			grab::Release(); s_wanted = false; s_sending = false;
-			s_closingSince = GetTickCount64(); s_state = State::Closing;
+			s_state = State::Closing;
 		}
 	}
 	if (s_state == State::Closing) {
-		bool ok = false;
-		if (link::Closed(ok)) s_state = ok ? State::Done : State::Failed;
-		else if (GetTickCount64() - s_closingSince > kClosePatienceMs) { link::Abort(); s_state = State::Failed; }
+		const link::Result result = link::Poll();
+		if (result != link::Result::Pending) s_state = result == link::Result::Done ? State::Done : State::Failed;
 	}
 }
 
