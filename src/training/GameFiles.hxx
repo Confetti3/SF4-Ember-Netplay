@@ -22,10 +22,6 @@ inline bool ReadFile(const std::filesystem::path& path, std::size_t most, std::v
     bytes = std::move(read);
     return true;
 }
-// A fighter code names folders and files, so it is three capitals or digits.
-inline bool IsFighterCode(const std::string& code) {
-    return code.size() == 3 && std::all_of(code.begin(), code.end(), [](char c) { return (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'); });
-}
 // The folder a fighter's .bcm and .bac are read from. The install is layered
 // (SF4, SSF4, AE and USF4 as resource, dlc and patch folders) and a fighter's
 // files sit in several layers. From the program: USF4 (edition 14) switches
