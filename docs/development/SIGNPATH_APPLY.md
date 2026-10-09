@@ -1,13 +1,13 @@
 # SignPath Foundation application checklist
 
-> **Legacy setup record.** Ember releases use the guarded local process in [BUILDING.md](BUILDING.md). This checklist describes the old launcher's GitHub workflow and does not establish signing for Ember 0.8.0.
+> **Historical application record only.** The referenced workflow is retired and its configuration is archived. This checklist does not establish signing for current Ember builds. Follow [CODE_SIGNING.md](CODE_SIGNING.md) for the current status and outstanding work.
 
 Complete these steps to enable Authenticode signing for release builds.
 
 ## 1. Apply
 
 - [ ] Submit application: [signpath.org/apply](https://signpath.org/apply)
-- [ ] Project policy file: [`.signpath/signpath.json`](../../.signpath/signpath.json)
+- [ ] Historical policy file: [archived configuration](../archive/signpath-legacy.json); do not use it for current artifacts.
 - [ ] Public GitHub repo, MIT license, active maintenance
 
 ## 2. Configure SignPath.io
