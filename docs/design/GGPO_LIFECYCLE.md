@@ -90,7 +90,7 @@ the netplay integration:
 Engine tick
 ├─ fSystem::BattleUpdate (detour)                  [only while a battle exists]
 │  ├─ gate: if (!bUpdateAllowed) return
-│  ├─ if (ggpo && flow != BF__IDLE):               [netplay path]
+│  ├─ if (ggpo && timeline started):              [netplay path]
 │  │  ├─ ggpo_add_local_input(local inputs)
 │  │  │    └─ may return PREDICTION_THRESHOLD → frame silently skipped
 │  │  ├─ ggpo_synchronize_input → playbackData
@@ -245,6 +245,13 @@ gate model.
   adapter metadata on reuse; `SaveState::Load` clears `queuedStops` only.
 
 ## Snapshot (“desync detection v1”) semantics
+
+The deterministic timeline starts at the first non-idle battle update after
+GGPO is Running. Initial idle bootstrap retains its native path. Once started,
+idle frames between rounds also synchronize inputs and advance GGPO, including
+spectator catch-up. Rollback callbacks always replay one native update per GGPO
+frame; bypassing GGPO during forward transition frames breaks that correspondence.
+The session-level timeline latch resets on session start/close, not on rollback.
 
 `CaptureSnapshot` records selected character state every 60 simulated frames
 (also from rollback resim; re-captures overwrite by frame index). Snapshots are

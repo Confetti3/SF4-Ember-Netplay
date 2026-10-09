@@ -190,6 +190,9 @@ void fSystem::CaptureHashCheckpoint(rSystem* src) {
     // values. The GGPO input-confirmation boundary gates exchange, rather
     // than elapsed engine frames (which have a different frame origin).
     sf4e::statehash::PrepareCheckpointIdentity(slot.frameIdx,slot.ggpoStateFrame,slot.sent,stateFrame);
+    slot.engineFrame = rSystem::GetNumFramesSimulated_FixedPoint(src)->integral;
+    slot.flow = *rSystem::staticVars.CurrentBattleFlow;
+    slot.substate = *rSystem::staticVars.CurrentBattleFlowSubstate;
     {
         diag::ScopedTimer _hashTimer(diag::OP_SEMANTIC_HASH);
         slot.hashes = ComputeSemanticHashes(src);
