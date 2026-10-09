@@ -224,6 +224,9 @@ namespace sf4e {
 				struct HashCheckpoint {
 					int frameIdx = -1;
 					int ggpoStateFrame = -1;
+					int engineFrame = -1;
+					unsigned flow = 0;
+					unsigned substate = 0;
 					bool valid = false;
 					bool sent = false;
 					SemanticHashes hashes;

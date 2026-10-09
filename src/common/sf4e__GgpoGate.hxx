@@ -70,6 +70,7 @@ struct GgpoGateModel {
 	uint32_t connectionWarningStartedAtMs;
 	int nativeBattle;                 // NativeBattleOwner
 	uint32_t orphanFrames;            // engine updates driven since orphaning
+	bool timelineStarted;             // native bootstrap finished for this session
 
 	void Reset() {
 		phase = PHASE_NO_SESSION;
@@ -80,6 +81,7 @@ struct GgpoGateModel {
 		connectionWarningStartedAtMs = 0;
 		nativeBattle = NATIVE_BATTLE_OFFLINE;
 		orphanFrames = 0;
+		timelineStarted = false;
 	}
 
 	// --- lifecycle ---
@@ -91,6 +93,7 @@ struct GgpoGateModel {
 		orphanFrames = 0;
 	}
 	void OnSessionStarted() {
+		timelineStarted = false;
 		// A new session clears per-session states but honors an existing
 		// manual pause (the user asked for it; a rematch must not undo it).
 		phase = PHASE_WAITING_FOR_RUNNING;
@@ -111,6 +114,7 @@ struct GgpoGateModel {
 		}
 	}
 	void OnSessionClosed() {
+		timelineStarted = false;
 		phase = PHASE_NO_SESSION;
 		predictionStalled = false;
 		connectionWarningActive = false;
@@ -173,6 +177,19 @@ struct GgpoGateModel {
 
 	void OnPredictionThreshold() { predictionStalled = true; }
 	void OnFrameAccepted() { predictionStalled = false; }
+
+	// Initial native idle frames bootstrap the battle before the first GGPO
+	// save. Once the timeline starts, ALL engine updates belong to it, including
+	// idle frames between rounds. The rollback callback replays one engine
+	// update per GGPO frame; letting forward idle frames escape that timeline
+	// makes the two paths count different frames and read different inputs.
+	// This latch is session state, not rollback state: rewinding into an idle
+	// flow must never reopen the native bootstrap path.
+	bool UsesGgpoTimeline(bool sessionLive, bool nativeIdle) {
+		if (!sessionLive) return false;
+		if (!nativeIdle) timelineStarted = true;
+		return timelineStarted;
+	}
 
 	// --- the one central question ---
 	// May the next deterministic frame advance? Note the prediction stall is

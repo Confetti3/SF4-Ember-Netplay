@@ -417,7 +417,7 @@ static void CatchUpSpectator(rSystem* system) {
     const int extra = sf4e::SpectatorCatchUp::ExtraFrames(backlog);
     int played = 0;
     while (played < extra && fSystem::ggpo && fSystem::MayAdvanceDeterministicFrame() &&
-        *rSystem::staticVars.CurrentBattleFlow != rSystem::BF__IDLE && PlayGgpoFrame(system)) {
+        PlayGgpoFrame(system)) {
         ++played;
     }
     NoteSpectatorBacklog(backlog, played);
@@ -441,7 +441,10 @@ void fSystem::BattleUpdate() {
         return;
     }
 
-    if (ggpo && *rSystem::staticVars.CurrentBattleFlow != BF__IDLE) {
+    // Bootstrap idle is allowed before the first deterministic frame only.
+    // Round-transition idle must use the same inputs/frame accounting as
+    // ggpo_advance_frame_callback, which also replays those engine updates.
+    if (simGate.UsesGgpoTimeline(ggpo != nullptr, *rSystem::staticVars.CurrentBattleFlow == BF__IDLE)) {
         // Pump the network right before the inputs are needed. The outer
         // tick's poll runs after this frame was rendered, so without this
         // pump any remote input that arrived since then is used one frame
@@ -536,7 +539,7 @@ void fSystem::BattleUpdate() {
         }
         sf4e::training::BeforeUpdate(_this, ggpo != nullptr);
         // The stress harness owns the memento keys while it runs. This branch
-        // is also taken with a live session while the flow is idle, so it
+        // is also taken with a live session during initial bootstrap, so it
         // must never run alongside GGPO's own pool.
         if (ggpo || !StressStep(_this)) {
             (_this->*rSystem::publicMethods.BattleUpdate)();
