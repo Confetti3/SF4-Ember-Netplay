@@ -1,13 +1,14 @@
 #pragma once
-#include "ComboBook.hxx"
+#include "MoveNotation.hxx"
 #include "TrainingSession.hxx"
+#include <algorithm>
 #include <vector>
 
-// Turns a combo's steps into pad input the training session can play back,
-// so a typed combo can be watched. Directions take a few frames each and a
-// button two; between moves the input waits on the fight itself: a linked
-// move for the fighter to be able to act again (plus the link gap), a
-// cancelled move for the hit to land. The game decides what comes out.
+// Turns typed moves into pad input the training session can play back.
+// Directions take a few frames each and a button two; between moves the
+// input waits on the fight itself: a linked move for the fighter to be able
+// to act again (plus the link gap), a cancelled move for the hit to land.
+// The game decides what comes out.
 namespace sf4e { namespace combo {
 constexpr unsigned Up = 1, Down = 2, Left = 4, Right = 8;
 constexpr int FollowDelay = 10;

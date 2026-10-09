@@ -1405,7 +1405,7 @@ msgid "training.save_recording"
 msgstr "录制另存为"
 
 msgid "training.save_recording.detail"
-msgstr "把所选槽位以此名称写入连招旁的文件。"
+msgstr "把所选槽位以此名称写入文件。"
 
 msgid "training.load_recording"
 msgstr "载入录制"
@@ -1440,344 +1440,26 @@ msgstr "输入记录"
 msgid "training.input_history.detail"
 msgstr "查看各玩家持续按住的输入。"
 
-msgid "training.combo.title"
-msgstr "连招编辑"
+msgid "training.tools"
+msgstr "位置和木桩"
 
-msgid "training.combo.title.detail"
-msgstr "按招式写下连招，分享并查看所有路线。"
-
-msgid "training.combo.none"
-msgstr "无"
-
-msgid "training.combo.pack"
-msgstr "连招包"
-
-msgid "training.combo.pack.detail"
-msgstr "此角色的一个连招包；其中有 {0} 个连招。左右切换该角色的连招包。"
-
-msgid "training.combo.new_pack"
-msgstr "新建连招包"
-
-msgid "training.combo.combo"
-msgstr "连招"
-
-msgid "training.combo.fighter"
-msgstr "角色"
-
-msgid "training.combo.fighter.detail"
-msgstr "下方连招包和连招所属的角色：只显示并只能选择该角色的内容。对战开始时它跟随玩家1；左右可选择其他角色来查看或编写。"
-
-msgid "training.combo.name"
-msgstr "连招名称"
-
-msgid "training.combo.steps"
-msgstr "招式"
-
-msgid "training.combo.notes"
-msgstr "备注"
-
-msgid "training.combo.add"
-msgstr "添加为新连招"
-
-msgid "training.combo.add.detail"
-msgstr "先询问名称，再把招式作为新连招添加到所选连招包。所选连招保持不变；要覆盖它请用保存连招。招式示例：cr.MK xx HP Hadoken > FADC > cl.HP"
-
-msgid "training.combo.add.unnamed"
-msgstr "尚未命名"
-
-msgid "training.combo.capture.drop"
-msgstr "中断时停止记录"
-
-msgid "training.combo.capture.drop.detail"
-msgstr "开：对手恢复自由的瞬间，记录连招即结束，一次记录就是一个连招，中断后的重试不会接着记在后面。关：持续到 1.5 秒无动作为止，适合不属于单个连招的套路和连续动作。"
-
-msgid "training.combo.trials_loaded"
-msgstr "{0} 还没有连招：已读入游戏自带的 {1} 个试炼。"
-
-msgid "training.combo.save"
-msgstr "保存连招"
-
-msgid "training.combo.save.detail"
-msgstr "把当前输入的名称、招式、备注和木桩设置写入所选连招，覆盖原内容。"
-
-msgid "training.combo.saved"
-msgstr "连招已保存。"
-
-msgid "training.combo.duplicate"
-msgstr "复制一份连招"
-
-msgid "training.combo.duplicate.detail"
-msgstr "在此连招包中紧接所选连招之后添加一份副本，并选中该副本。"
-
-msgid "training.combo.duplicated"
-msgstr "已复制一份连招。"
+msgid "training.tools.detail"
+msgstr "保存和重置位置，设置木桩及其反击。"
 
 msgid "training.match.checkpoint_disabled"
 msgstr "Shared save/reset is disabled during rollback matches in nightly."
 
-msgid "training.combo.copy_suffix"
-msgstr "副本"
-
-msgid "training.combo.tree"
-msgstr "连招树"
-
-msgid "training.combo.tree.detail"
-msgstr "按角色显示连招包中的所有路线。"
-
-msgid "training.combo.tree.empty"
-msgstr "还没有连招。"
-
-msgid "training.combo.copy_combo"
-msgstr "复制连招"
-
-msgid "training.combo.copy_pack"
-msgstr "复制连招包"
-
-msgid "training.combo.copy_all"
-msgstr "复制所有连招包"
-
-msgid "training.combo.copy.detail"
-msgstr "复制为可分享的文本。"
-
-msgid "training.combo.paste"
-msgstr "从剪贴板导入"
-
-msgid "training.combo.paste.detail"
-msgstr "添加已复制的连招、连招包或多个连招包。"
-
-msgid "training.combo.delete"
-msgstr "删除连招"
-
-msgid "training.combo.delete.detail"
-msgstr "从连招包中移除所选连招。"
-
-msgid "training.combo.added"
-msgstr "已添加连招数：{0}。"
-
-msgid "training.combo.exists"
-msgstr "该路线已在连招包中。"
-
-msgid "training.combo.copied"
-msgstr "已复制。"
-
-msgid "training.combo.invalid"
+msgid "training.invalid"
 msgstr "未接受：{0}"
 
-msgid "training.combo.save_failed"
-msgstr "无法保存连招。"
-
-msgid "training.combo.import_trials"
-msgstr "导入游戏试炼"
-
-msgid "training.combo.import_trials.detail"
-msgstr "把游戏自带的上方所选角色的试炼读入两个以该角色命名的连招包：其 Ultra Street Fighter 4 试炼，以及游戏中仍保留的 Ultra 之前的 Street Fighter 4 试炼。没有连招包的角色会在对战开始时自动获得它们。"
-
-msgid "training.combo.export_trial"
-msgstr "将连招包导出为试炼文件"
-
-msgid "training.combo.export_trial.detail"
-msgstr "把此包中上方所选角色的连招写成 {0}，放在连招旁的 trials 文件夹中：最多24个连招，你自己的在前；超过8招的连招会完整写入，未安装滚动列表模组时游戏只显示前8招。替换游戏自带的 {0}（保留备份）后，试炼模式即可使用。"
-
-msgid "training.combo.trials_imported"
-msgstr "已读取试炼：{0}/{1}。已添加连招数：{2}。"
-
-msgid "training.combo.trial_exported"
-msgstr "已写入 {0} 个连招到 {1}。替换 {2}（保留备份），试炼模式会载入它。"
-
-msgid "training.combo.trial_skipped"
-msgstr "已略过或更改：{0}。第一项：{1}"
-
-msgid "training.combo.trial_none"
-msgstr "此包中没有可为 {0} 写入的连招。"
-
-msgid "training.combo.game_file"
-msgstr "无法读取游戏文件：{0}"
-
-msgid "training.combo.trial_failed"
-msgstr "无法写入试炼文件：{0}"
-
-msgid "training.combo.run.start"
-msgstr "开始试炼"
-
-msgid "training.combo.run.start.detail"
-msgstr "以玩家1练习所选连招：招式列表显示在对战画面上，每个招式打出并命中后会被勾选。玩家1必须是该连招的角色。"
-
-msgid "training.combo.run.stop"
-msgstr "停止试炼"
-
-msgid "training.combo.run.stop.detail"
-msgstr "从画面上移除招式列表。"
-
-msgid "training.combo.run.started"
-msgstr "已开始 {0} 的试炼。判定的招式：{1} / {2}"
-
-msgid "training.combo.run.refused"
-msgstr "无法开始试炼：{0}"
-
-msgid "training.combo.run.stopped"
-msgstr "试炼已停止。"
-
-msgid "training.combo.run.count"
-msgstr "完成：{0}。尝试：{1}。成功率：{2}%。"
-
-msgid "training.combo.run.complete"
-msgstr "连招成功"
-
-msgid "training.combo.run.failed"
-msgstr "招式 {0}：{1}"
-
-msgid "training.combo.run.wrong_move"
-msgstr "打出了别的招式"
-
-msgid "training.combo.run.whiffed"
-msgstr "这一招命中之前就打出了下一招"
-
-msgid "training.combo.run.dropped"
-msgstr "连招中断了"
-
-msgid "training.combo.run.unchecked"
-msgstr "{0}（不判定）"
-
-msgid "training.combo.replay"
-msgstr "回放招式"
-
-msgid "training.combo.replay.detail"
-msgstr "将输入的招式或所选连招作为手柄输入回放。时机为估计值：调整连段间隔并观察出了哪些招式。"
-
-msgid "training.combo.replay.by"
-msgstr "回放者"
-
-msgid "training.combo.replay.by.dummy"
-msgstr "木桩（2P）"
-
-msgid "training.combo.replay.by.me"
-msgstr "自己（1P）"
-
-msgid "training.combo.replay.by.detail"
-msgstr "由谁执行招式。左右切换。"
-
-msgid "training.combo.replay.facing"
-msgstr "朝向"
-
-msgid "training.combo.replay.facing.right"
-msgstr "右"
-
-msgid "training.combo.replay.facing.left"
-msgstr "左"
-
-msgid "training.combo.replay.facing.detail"
-msgstr "回放开始时该方的朝向；向前的招式按此读取。"
-
-msgid "training.combo.replay.gap"
-msgstr "时机偏移"
-
-msgid "training.combo.replay.gap.detail"
-msgstr "每个招式在信号（连段为可行动帧，取消为命中）之后额外等待的帧数，叠加在招式自身的 @ 偏移（如 cr.MK@+1）上。"
-
-msgid "training.combo.replay.stopped"
-msgstr "回放已停止。"
-
-msgid "training.combo.replay.started"
-msgstr "已载入槽位 {0} 并开始回放。"
-
-msgid "training.combo.timing"
-msgstr "编辑时机"
-
-msgid "training.combo.timing.detail"
-msgstr "逐招显示所选连招：每招的时机偏移，以及上次回放看到的结果。"
-
-msgid "training.combo.timing.replay.detail"
-msgstr "按当前内容回放所选连招，以更新下方每招的记录。"
-
-msgid "training.combo.tune"
-msgstr "调整派生"
-
-msgid "training.combo.tune.stop"
-msgstr "停止调整"
-
-msgid "training.combo.tune.detail"
-msgstr "一遍遍回放，在后一招仍能连上的前提下，每次让各个 ~ 派生晚一帧，并保留能连上的最长值。需要开启回放前重置并已保存位置。"
-
-msgid "training.combo.tune.none"
-msgstr "没有后面还接着招式的 ~ 派生可调整。"
-
-msgid "training.combo.tune.trying"
-msgstr "正在调整招式 {0}：尝试 @{1}。"
-
-msgid "training.combo.tune.kept"
-msgstr "招式 {0} 保留为 @{1}。"
-
-msgid "training.combo.tune.failed"
-msgstr "招式 {0}：试过的所有长度下，后一招都连不上；偏移已恢复原值。循环到此结束。"
-
-msgid "training.combo.tune.done"
-msgstr "调整完成。"
-
-msgid "training.combo.tune.stopped"
-msgstr "调整已停止。"
-
-msgid "training.combo.timing.select"
-msgstr "请先选择连招。"
-
-msgid "training.combo.timing.none"
-msgstr "尚未回放。"
-
-msgid "training.combo.timing.gave_up"
-msgstr "回放等待此招的信号，但一直没有看到。"
-
-msgid "training.combo.timing.first"
-msgstr "第一招；已连上：{0}。"
-
-msgid "training.combo.timing.cancel"
-msgstr "等待命中 {0} 帧；已连上：{1}。"
-
-msgid "training.combo.timing.link"
-msgstr "等待角色可行动 {0} 帧；已连上：{1}。"
-
-msgid "training.combo.timing.hit"
-msgstr "是"
-
-msgid "training.combo.timing.no_hit"
-msgstr "否"
-
-msgid "training.combo.timing.adjust"
-msgstr "左右各移动一帧。"
-
-msgid "training.combo.timing.drops"
-msgstr "在此中断 {0} 次。"
-
-msgid "training.combo.blocks"
-msgstr "模式编辑器"
-
-msgid "training.combo.blocks.detail"
-msgstr "把招式作为方块排在帧标尺上，像步进音序器：每个方块在其帧按下，回放按这些帧执行。"
-
-msgid "training.combo.blocks.frame"
-msgstr "第 {0} 帧"
-
-msgid "training.combo.blocks.hint"
-msgstr "左右将方块移动一帧；也可用鼠标拖动。选择可编辑该招式。"
-
-msgid "training.combo.blocks.add"
-msgstr "添加招式"
-
-msgid "training.combo.blocks.delete"
-msgstr "删除方块"
-
-msgid "training.combo.blocks.delete.detail"
-msgstr "移除高亮的方块。"
-
-msgid "training.combo.blocks.replay.detail"
-msgstr "按方块的帧回放模式。"
-
-msgid "training.combo.blocks.empty"
-msgstr "还没有招式。在下方添加一个。"
+msgid "training.save_failed"
+msgstr "无法保存文件。"
 
 msgid "training.guide"
 msgstr "关于此画面"
 
 msgid "training.home.guide"
-msgstr "这些操作作用于你当前所在的对战。假想对手录制把手柄输入录到木桩上并回放。输入记录列出各玩家按下的内容。连招编辑可写下连招、为你回放，并以试炼的方式判定你自己的尝试。F6 打开和关闭操作界面，方向键移动，Enter 选择，Esc 返回上一画面。"
+msgstr "这些操作作用于你当前所在的对战。假想对手录制把手柄输入录到木桩上并回放。输入记录列出各玩家按下的内容。位置和木桩可保存和重置位置，并设置木桩及其反击。F6 打开和关闭操作界面，方向键移动，Enter 选择，Esc 返回上一画面。"
 
 msgid "training.recording.guide"
 msgstr "选择一个槽位，然后录制：玩家1的手柄操控木桩，直到你停止。播放让木桩重复该槽位，循环播放则让它不断重复。F7 可不打开此画面直接开始和停止录制。槽位只在本场对战中保留；录制另存为可将其保存为有名称的文件，载入录制可将其取回。"
@@ -1785,391 +1467,163 @@ msgstr "选择一个槽位，然后录制：玩家1的手柄操控木桩，直�
 msgid "training.history.guide"
 msgstr "各玩家的手柄输入，最新的在前，并附每个输入按住的帧数。选择一名玩家即可查看列表。它显示的是按下了什么，不是打出了哪一招。"
 
-msgid "training.combo.guide"
-msgstr "1. 最上方的角色是玩家1的角色；其连招包和连招在它下面的各行。2. 把招式放到招式栏：直接输入，或用记录连招并做出连招。3. 添加为新连招会把它保存到连招包。4. 编辑招式可逐行修改，编辑时机可按帧移动单个招式，回放招式会为你演示。5. 开始试炼会判定你自己的尝试。每一行在高亮时都会显示自己的说明。"
-
-msgid "training.combo.timing.guide"
-msgstr "每招一行。在招式上按左右可让按键提前或延后一帧（@N）。回放招式会回放连招，之后每行显示回放看到的结果：等待了多久、这一招是否连上。在招式上按 F8 可回放到该招为止。添加、复制和移除作用于你最后高亮的招式；在招式所在行按 Insert、D 和 Delete 效果相同。"
-
-msgid "training.combo.moves"
-msgstr "编辑招式"
-
-msgid "training.combo.moves.detail"
-msgstr "连招的招式与可添加的招式并排显示：拖入招式、调整顺序，更改招式的强度、姿势、取消或时机，并循环一组招式。"
-
-msgid "training.combo.moves.guide"
-msgstr "左：连招，每招一行。中：所选招式及其可更改的内容。右：可添加的招式。把右侧的招式拖到连招上，它会排在所落位置的招式之后；双击则添加到所选招式之后。拖动连招中的招式可改变其位置。用按键时：上下在各行间移动，在招式上按选择可重新输入，在招式所在行按 Insert 在其后添加，D 复制，Delete 移除，G 把它加入组。招式栏就是所选连招时，更改会保存到该连招；否则更改留在招式栏，直到执行添加为新连招或保存连招。"
-
-msgid "training.combo.moves.add"
-msgstr "在招式 {0} 后添加"
-
-msgid "training.combo.moves.add_first"
-msgstr "添加第一招"
-
-msgid "training.combo.moves.add.detail"
-msgstr "输入一个招式，或用 > 隔开的多个招式，写法与招式栏相同。它们会排在你最后高亮的招式之后。在招式所在行按 Insert 可打开此项。"
-
-msgid "training.combo.moves.duplicate"
-msgstr "复制招式 {0}"
-
-msgid "training.combo.moves.duplicate.detail"
-msgstr "在该招式之后紧接着添加一份副本。在招式所在行按 D 效果相同。"
-
-msgid "training.combo.moves.remove"
-msgstr "移除招式 {0}"
-
-msgid "training.combo.moves.remove.detail"
-msgstr "把该招式从连招中移除。在招式所在行按 Delete 效果相同。连招至少保留一招。"
-
-msgid "training.combo.moves.move"
-msgstr "移动招式 {0}"
-
-msgid "training.combo.moves.move.value"
-msgstr "前移 / 后移"
-
-msgid "training.combo.moves.move.detail"
-msgstr "左与前一招交换位置，右与后一招交换位置。"
-
-msgid "training.combo.moves.row.detail"
-msgstr "选择可编辑此招式。Insert 在其后添加招式，D 复制，Delete 移除，G 把它加入组。"
-
-msgid "training.combo.moves.group.start"
-msgstr "从招式 {0} 开始组"
-
-msgid "training.combo.moves.group.extend"
-msgstr "将组扩展到招式 {0}"
-
-msgid "training.combo.moves.group.detail"
-msgstr "组是一段相邻的招式，其编号显示在括号中。在一个招式上开始组，再高亮另一个招式并扩展：两者之间的所有招式都会加入。在招式所在行按 G 效果相同。组会保留到你离开此画面为止。"
-
-msgid "training.combo.moves.group.clear"
-msgstr "清除组 {0}"
-
-msgid "training.combo.moves.group.clear.detail"
-msgstr "取消该组。其中的招式仍留在连招中。"
-
-msgid "training.combo.moves.group.duplicate"
-msgstr "复制组 {0}"
-
-msgid "training.combo.moves.group.duplicate.detail"
-msgstr "在组之后紧接着添加一份该组招式的副本。"
-
-msgid "training.combo.moves.group.loops"
-msgstr "循环次数"
-
-msgid "training.combo.moves.group.loops.detail"
-msgstr "组循环后连续播放的次数。左右更改。"
-
-msgid "training.combo.moves.group.loop"
-msgstr "循环组 {0} x{1}"
-
-msgid "training.combo.moves.group.loop.detail"
-msgstr "重复该组的招式，使其连续播放相应的次数。重复的部分会成为普通的行，因此每一遍都可以单独调整时机。"
-
-msgid "training.combo.moves.group.remove"
-msgstr "移除组 {0}"
-
-msgid "training.combo.moves.group.remove.detail"
-msgstr "把该组的所有招式从连招中移除。"
-
-msgid "training.combo.moves.replay.detail"
-msgstr "按当前内容回放招式。F8 效果相同。"
-
-msgid "training.combo.moves.limit"
-msgstr "放不下：一个连招可有 1 到 {0} 招。"
-
-msgid "training.combo.moves.changed"
-msgstr "连招现在有 {0} 招。"
-
-msgid "training.combo.moves.column"
-msgstr "连招"
-
-msgid "training.combo.moves.selected"
-msgstr "招式 {0}"
-
-msgid "training.combo.moves.joins"
-msgstr "与前一招的衔接"
-
-msgid "training.combo.moves.joins.link"
-msgstr "连段"
-
-msgid "training.combo.moves.joins.cancel"
-msgstr "取消 (xx)"
-
-msgid "training.combo.moves.joins.follow"
-msgstr "派生 (~)"
-
-msgid "training.combo.moves.strength"
-msgstr "强度"
-
-msgid "training.combo.moves.stance"
-msgstr "姿势"
-
-msgid "training.combo.moves.offset"
-msgstr "时机（帧）"
-
-msgid "training.combo.moves.type"
-msgstr "输入此招式"
-
-msgid "training.combo.moves.addable"
-msgstr "可添加的招式"
-
-msgid "training.combo.moves.empty"
-msgstr "还没有招式。从右侧拖一个到这里，或双击它。"
-
-msgid "training.combo.moves.add.fadc"
-msgstr "蓄力取消冲刺"
-
-msgid "training.combo.moves.add.rfadc"
-msgstr "红色蓄力取消冲刺"
-
-msgid "training.combo.moves.add.dash"
-msgstr "前冲刺"
-
-msgid "training.combo.moves.add.backdash"
-msgstr "后冲刺"
-
-msgid "training.combo.moves.add.focus"
-msgstr "蓄力攻击"
-
-msgid "training.combo.moves.add.throw"
-msgstr "投技"
-
-msgid "training.combo.steps.detail"
-msgstr "选择后以文本区域打开招式，每招一行。换行与 > 一样用来隔开招式，所以连招写成一行或多行都是同样的内容。在其中按 Enter 换行；Ctrl+Enter 确认。"
+msgid "training.tools.guide"
+msgstr "保存位置会保存当前对战的状态，重置位置则把它放回；手柄的 Select 按一下重置，按住则保存。木桩各行会立即更改游戏的训练设置。木桩反击是木桩恢复自由后自己做的动作：播放反击招式，该行为空时播放反击槽位。"
 
 msgid "edit.instructions.area"
 msgstr "使用键盘输入或粘贴。按 Enter 换行。按 Ctrl+Enter 或确认按钮确认；按 Escape 或控制器上的返回取消。"
 
-msgid "training.combo.blocks.guide"
-msgstr "每个方块是一个招式，位于其按键按下的帧（#N）。上下选择方块，左右将其移动一帧，也可用鼠标拖动。从这里回放时会严格在这些帧按下，而不是等待每次命中，适合需要固定时机的套路。"
-
-msgid "training.combo.save_pos"
+msgid "training.position.save"
 msgstr "保存位置"
 
-msgid "training.combo.save_pos.detail"
+msgid "training.position.save.detail"
 msgstr "保存双方角色当前的状态：位置、体力、能量条、木桩状态。"
 
-msgid "training.combo.reset_pos"
+msgid "training.position.reset"
 msgstr "重置位置"
 
-msgid "training.combo.reset_pos.detail"
+msgid "training.position.reset.detail"
 msgstr "把双方角色放回保存时的位置。"
 
-msgid "training.combo.reset_before"
-msgstr "回放前重置"
-
-msgid "training.combo.reset_before.detail"
-msgstr "每次回放和试炼尝试都从保存的位置开始；每次尝试后恢复该位置。"
-
-msgid "training.combo.side"
-msgstr "玩家1起始位置"
-
-msgid "training.combo.side.any"
-msgstr "当前站位"
-
-msgid "training.combo.side.left"
-msgstr "左侧"
-
-msgid "training.combo.side.right"
-msgstr "右侧"
-
-msgid "training.combo.side.detail"
-msgstr "回放或试炼尝试开始时，以及重置位置之后，玩家1所在的一侧。选左侧或右侧时，如果玩家1在另一侧，就把保存的位置或双方当前的站位以场地中央为轴翻转：在左版边保存的连招会从右版边开始。回放的朝向随之而定。当前站位不会移动任何人。"
-
-msgid "training.combo.position_saved"
+msgid "training.position.saved"
 msgstr "已保存位置。"
 
-msgid "training.combo.position_kept"
-msgstr "已保存位置，并随连招保存。"
-
-msgid "training.combo.position_reset"
+msgid "training.position.reset_done"
 msgstr "已重置位置。"
 
-msgid "training.combo.capture"
-msgstr "记录连招"
+msgid "training.dummy.detail"
+msgstr "左右切换；立即在游戏中生效。"
 
-msgid "training.combo.capture.detail"
-msgstr "记下玩家1做出的招式，写入招式栏，并附上每招在其信号之后第几帧按下（@N）。开启中断时停止记录时，连招中断即结束；否则在 1.5 秒无动作后结束。之后用添加为新连招或保存连招保存它们。"
-
-msgid "training.combo.capture_stop"
-msgstr "停止记录连招"
-
-msgid "training.combo.capture_started"
-msgstr "记录中：以 1P 做出连招。"
-
-msgid "training.combo.capture_wait"
-msgstr "正在结束记录。"
-
-msgid "training.combo.captured"
-msgstr "已把 {0} 招记入招式栏（{1} 招没有名称，已略过）。"
-
-msgid "training.combo.capture_empty"
-msgstr "没有记录到招式。"
-
-msgid "training.combo.setup.detail"
-msgstr "左右切换；立即在游戏中生效并随所选连招保存。游戏设置沿用训练菜单的选择。"
-
-msgid "training.combo.reply"
+msgid "training.reply"
 msgstr "木桩反击"
 
-msgid "training.combo.reply.detail"
-msgstr "木桩恢复自由后自己做的动作，用来惩罚断掉的连招或不安全的收尾：播放反击招式，该行为空时播放反击槽位。回放或录制进行时它会等待，完成的试炼不会被反击。"
+msgid "training.reply.detail"
+msgstr "木桩恢复自由后自己做的动作，用来惩罚断掉的连招或不安全的收尾：播放反击招式，该行为空时播放反击槽位。回放或录制进行时它会等待。"
 
-msgid "training.combo.reply.hit"
+msgid "training.reply.hit"
 msgstr "连招断掉后"
 
-msgid "training.combo.reply.block"
+msgid "training.reply.block"
 msgstr "防御后"
 
-msgid "training.combo.reply.rise"
+msgid "training.reply.rise"
 msgstr "起身时"
 
-msgid "training.combo.reply.any"
+msgid "training.reply.any"
 msgstr "每次恢复时"
 
-msgid "training.combo.reply.slot"
+msgid "training.reply.slot"
 msgstr "反击槽位"
 
-msgid "training.combo.reply.slot.detail"
-msgstr "反击招式为空时作为反击播放的木桩录制，从第一次按键开始。回放招式不会覆盖它。"
+msgid "training.reply.slot.detail"
+msgstr "反击招式为空时作为反击播放的木桩录制，从第一次按键开始。"
 
-msgid "training.combo.reply.chance"
+msgid "training.reply.chance"
 msgstr "反击概率"
 
-msgid "training.combo.reply.chance.detail"
+msgid "training.reply.chance.detail"
 msgstr "木桩反击的频率。低于 100% 时每次尝试都会不同。"
 
-msgid "training.combo.vary_stance"
+msgid "training.reply.vary_stance"
 msgstr "变换姿势"
 
-msgid "training.combo.vary_stance.detail"
+msgid "training.reply.vary_stance.detail"
 msgstr "木桩每次恢复时随机站立或蹲下，让连招在两种姿势上都得到练习。仅在木桩设为站立或蹲下时生效。"
 
-msgid "training.combo.keys"
-msgstr "{0} 回放  {1} 重置  {2} 试炼  {3} 记录"
-
-msgid "training.combo.reply.moves"
+msgid "training.reply.moves"
 msgstr "反击招式"
 
-msgid "training.combo.reply.moves.detail"
+msgid "training.reply.moves.detail"
 msgstr "用数字表示法输入的反击，例如 623HP 或 44，按木桩面对的方向读取。指令在木桩仍被控制时输入，使按键落在它第一个可行动的帧上。留空则使用反击槽位。"
 
-msgid "training.combo.reply.timing"
+msgid "training.reply.timing"
 msgstr "反击时机"
 
-msgid "training.combo.reply.timing.detail"
+msgid "training.reply.timing.detail"
 msgstr "反击按键落在木桩第一个可行动帧之后的帧数。硬直的长度在第一次看到时记下；在此之前，反击在硬直结束时开始。"
 
-msgid "training.combo.reply.slot_busy"
-msgstr "槽位 {0} 里是木桩的反击。请选择另一个槽位来回放招式。"
-
-msgid "training.combo.key.replay"
-msgstr "回放键"
-
-msgid "training.combo.key.reset"
+msgid "training.key.reset"
 msgstr "重置键"
-
-msgid "training.combo.key.trial"
-msgstr "试炼键"
-
-msgid "training.combo.key.record"
-msgstr "记录键"
-
-msgid "training.combo.key.save"
-msgstr "保存键"
-
-msgid "training.combo.key.save.detail"
-msgstr "左右选择在对战中把招式栏保存为所选连招包的新连招的按键：记录连招之后，按一下就能保存刚才做出的内容。它不会覆盖已有的连招；覆盖由保存连招完成。关闭则不设按键。"
-
-msgid "training.combo.key.save.none"
-msgstr "没有可保存的内容：请先记录或输入招式。"
-
-msgid "training.combo.keys.save"
-msgstr "{0} 保存"
 
 msgid "training.challenger"
 msgstr "新的挑战者登场！"
 
-msgid "training.combo.key.detail"
+msgid "training.key.detail"
 msgstr "左右选择在对战中执行此操作的按键。关闭则不设按键。"
 
-msgid "training.combo.setup.game"
-msgstr "游戏设置"
-
-msgid "training.combo.setup.action"
+msgid "training.dummy.action"
 msgstr "木桩"
 
-msgid "training.combo.setup.guard"
+msgid "training.dummy.guard"
 msgstr "防御"
 
-msgid "training.combo.setup.counter"
+msgid "training.dummy.counter"
 msgstr "反击命中"
 
-msgid "training.combo.setup.quick"
+msgid "training.dummy.quick"
 msgstr "快速起身"
 
-msgid "training.combo.setup.super"
+msgid "training.dummy.super"
 msgstr "超级能量"
 
-msgid "training.combo.setup.revenge"
+msgid "training.dummy.revenge"
 msgstr "复仇能量"
 
-msgid "training.combo.setup.stand"
+msgid "training.dummy.stand"
 msgstr "站立"
 
-msgid "training.combo.setup.crouch"
+msgid "training.dummy.crouch"
 msgstr "蹲下"
 
-msgid "training.combo.setup.jump"
+msgid "training.dummy.jump"
 msgstr "跳跃"
 
-msgid "training.combo.setup.cpu"
+msgid "training.dummy.cpu"
 msgstr "CPU"
 
-msgid "training.combo.setup.guard_none"
+msgid "training.dummy.guard_none"
 msgstr "不防御"
 
-msgid "training.combo.setup.guard_first"
+msgid "training.dummy.guard_first"
 msgstr "首次命中后"
 
-msgid "training.combo.setup.guard_all"
+msgid "training.dummy.guard_all"
 msgstr "全部防御"
 
-msgid "training.combo.setup.guard_random"
+msgid "training.dummy.guard_random"
 msgstr "随机"
 
-msgid "training.combo.setup.counter_off"
+msgid "training.dummy.counter_off"
 msgstr "关"
 
-msgid "training.combo.setup.counter_on"
+msgid "training.dummy.counter_on"
 msgstr "开"
 
-msgid "training.combo.setup.counter_random"
+msgid "training.dummy.counter_random"
 msgstr "随机"
 
-msgid "training.combo.setup.quick_quick"
+msgid "training.dummy.quick_quick"
 msgstr "快速"
 
-msgid "training.combo.setup.quick_normal"
+msgid "training.dummy.quick_normal"
 msgstr "正常"
 
-msgid "training.combo.setup.quick_delayed"
+msgid "training.dummy.quick_delayed"
 msgstr "延迟"
 
-msgid "training.combo.setup.quick_random"
+msgid "training.dummy.quick_random"
 msgstr "随机"
 
-msgid "training.combo.setup.gauge_normal"
+msgid "training.dummy.gauge_normal"
 msgstr "正常"
 
-msgid "training.combo.setup.gauge_max"
+msgid "training.dummy.gauge_max"
 msgstr "开局满"
 
-msgid "training.combo.setup.gauge_infinite"
+msgid "training.dummy.gauge_infinite"
 msgstr "无限"
 
-msgid "training.combo.setup.gauge_refill"
+msgid "training.dummy.gauge_refill"
 msgstr "自动回复"
 
 msgid "training.close_controls"

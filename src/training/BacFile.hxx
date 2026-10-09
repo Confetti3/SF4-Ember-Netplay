@@ -9,11 +9,11 @@
 #include <vector>
 #include "ByteReader.hxx"
 
-// The game's script files (<CODE>.bac), read only as far as a trial needs:
-// which hit-data sets a script's hitboxes use, which effect scripts it spawns
-// (a fireball's hitbox lives in one) and which scripts it passes into. The
-// game's Trial mode names a move by those hit-data ids. Owns only the model
-// and its byte layout; it knows nothing of the game or the overlay.
+// The game's script files (<CODE>.bac), read only as far as the frame meter
+// needs: which hit-data sets a script's hitboxes use, which effect scripts it
+// spawns (a fireball's hitbox lives in one) and which scripts it passes into.
+// Owns only the model and its byte layout; it knows nothing of the game or
+// the overlay.
 namespace sf4e { namespace bac {
 // The largest stock file is under 512 KiB.
 constexpr std::size_t MaxBytes = 4 * 1024 * 1024;
@@ -26,9 +26,6 @@ constexpr std::size_t MaxBytes = 4 * 1024 * 1024;
 struct Script { std::vector<std::int32_t> hits, effects, next; std::vector<std::array<int, 2>> spawns; };
 // scripts: indexed by action id. An empty slot is an empty Script.
 struct File { std::vector<Script> scripts, effects; };
-// Adds the ids not already in `to`, keeping order.
-inline void Add(std::vector<std::int32_t>& to, std::int32_t id) { if (std::find(to.begin(), to.end(), id) == to.end()) to.push_back(id); }
-inline void Add(std::vector<std::int32_t>& to, const std::vector<std::int32_t>& from) { for (const auto id : from) Add(to, id); }
 
 namespace detail {
 constexpr std::size_t HeaderSize = 0x28, ScriptHeader = 0x18, ListSize = 12, FlowSize = 8, HitboxSize = 44, EtcSize = 32;
@@ -103,26 +100,6 @@ inline bool Read(const std::uint8_t* bytes, std::size_t size, File& model, std::
         !Table(in, in.U16(0x0E), in.U32(0x18), file.effects, used, error)) return false;
     model = std::move(file);
     return true;
-}
-
-// The hit-data ids a script can hit with, each once: its own hitboxes, those
-// of the effects it spawns, and those of every script it passes into (a
-// throw's hit, a dive's landing).
-inline std::vector<std::int32_t> ScriptHits(const File& file, std::int32_t script) {
-    std::vector<std::int32_t> hits, todo{script};
-    std::vector<char> visited(file.scripts.size());
-    while (!todo.empty()) {
-        const auto index = todo.back();
-        todo.pop_back();
-        if (index < 0 || static_cast<std::size_t>(index) >= file.scripts.size() || visited[static_cast<std::size_t>(index)]) continue;
-        visited[static_cast<std::size_t>(index)] = 1;
-        const Script& now = file.scripts[static_cast<std::size_t>(index)];
-        Add(hits, now.hits);
-        for (const auto effect : now.effects)
-            if (static_cast<std::size_t>(effect) < file.effects.size()) Add(hits, file.effects[static_cast<std::size_t>(effect)].hits);
-        todo.insert(todo.end(), now.next.begin(), now.next.end());
-    }
-    return hits;
 }
 
 // The attack boundary of a script whose attack is an effect it spawns (a

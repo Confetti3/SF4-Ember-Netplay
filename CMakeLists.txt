@@ -299,29 +299,11 @@ if(BUILD_TESTING)
     target_link_libraries(SelectionValueTest PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME SelectionValue COMMAND SelectionValueTest)
     set_tests_properties(SelectionValue PROPERTIES TIMEOUT 15)
-    add_executable(ComboBookTest "src/tests/combo_book_test.cxx")
-    target_compile_features(ComboBookTest PRIVATE cxx_std_14)
-    target_link_libraries(ComboBookTest PRIVATE nlohmann_json::nlohmann_json)
-    add_test(NAME ComboBook COMMAND ComboBookTest)
-    set_tests_properties(ComboBook PROPERTIES TIMEOUT 15)
-    add_executable(BcmFileTest "src/tests/bcm_file_test.cxx")
-    target_compile_features(BcmFileTest PRIVATE cxx_std_17)
-    target_link_libraries(BcmFileTest PRIVATE nlohmann_json::nlohmann_json)
-    add_test(NAME BcmFile COMMAND BcmFileTest)
-    set_tests_properties(BcmFile PROPERTIES TIMEOUT 30)
-    add_executable(ClgFileTest "src/tests/clg_file_test.cxx")
-    target_compile_features(ClgFileTest PRIVATE cxx_std_17)
-    add_test(NAME ClgFile COMMAND ClgFileTest)
-    set_tests_properties(ClgFile PROPERTIES TIMEOUT 60)
-    add_executable(ComboTrialTest "src/tests/combo_trial_test.cxx")
-    target_compile_features(ComboTrialTest PRIVATE cxx_std_17)
-    target_link_libraries(ComboTrialTest PRIVATE nlohmann_json::nlohmann_json)
-    add_test(NAME ComboTrial COMMAND ComboTrialTest)
-    set_tests_properties(ComboTrial PROPERTIES TIMEOUT 30)
-    add_executable(TrialSessionTest "src/tests/trial_session_test.cxx")
-    target_compile_features(TrialSessionTest PRIVATE cxx_std_14)
-    add_test(NAME TrialSession COMMAND TrialSessionTest)
-    set_tests_properties(TrialSession PROPERTIES TIMEOUT 15)
+    add_executable(MoveNotationTest "src/tests/move_notation_test.cxx")
+    target_compile_features(MoveNotationTest PRIVATE cxx_std_14)
+    target_link_libraries(MoveNotationTest PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME MoveNotation COMMAND MoveNotationTest)
+    set_tests_properties(MoveNotation PROPERTIES TIMEOUT 15)
 endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_locales.cmake")
@@ -372,7 +354,7 @@ install(DIRECTORY "assets/brand" DESTINATION "assets" FILES_MATCHING PATTERN "*.
 install(DIRECTORY "assets/input" DESTINATION "assets" FILES_MATCHING PATTERN "*.png" PATTERN "*.txt")
 target_sources(sf4e_ui PRIVATE src/ui/ControllerNavigation.cxx src/ui/backends/imgui_impl_win32.cpp)
 set_source_files_properties(src/ui/backends/imgui_impl_win32.cpp PROPERTIES COMPILE_DEFINITIONS IMGUI_IMPL_WIN32_DISABLE_GAMEPAD)
-target_sources(sf4e_ui PRIVATE src/ui/TrainingPanel.cxx src/ui/ComboBlocks.cxx src/ui/IdentityPanel.cxx src/ui/IdentityConnect.cxx src/ui/PublicRoomsPanel.cxx src/ui/PublicRoomsCards.cxx src/ui/PublicRoomsSetup.cxx src/ui/MatchAnnouncements.cxx)
+target_sources(sf4e_ui PRIVATE src/ui/TrainingPanel.cxx src/ui/TrainingMeter.cxx src/ui/IdentityPanel.cxx src/ui/IdentityConnect.cxx src/ui/PublicRoomsPanel.cxx src/ui/PublicRoomsCards.cxx src/ui/PublicRoomsSetup.cxx src/ui/MatchAnnouncements.cxx)
 target_compile_features(sf4e_ui PUBLIC cxx_std_17)
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_fonts.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_brand.cmake")
@@ -471,8 +453,6 @@ add_library(Dimps STATIC
     "src/Dimps/Dimps__Game__Battle__System.cxx"
     "src/Dimps/Dimps__Game__Battle__Training.hxx"
     "src/Dimps/Dimps__Game__Battle__Training.cxx"
-    "src/Dimps/Dimps__Game__Battle__Trial.hxx"
-    "src/Dimps/Dimps__Game__Battle__Trial.cxx"
     "src/Dimps/Dimps__Game__Battle__Vfx.hxx"
     "src/Dimps/Dimps__Game__Battle__Vfx.cxx"
     "src/Dimps/Dimps__GameEvents.hxx"

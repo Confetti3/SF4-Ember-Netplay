@@ -1405,7 +1405,7 @@ msgid "training.save_recording"
 msgstr "Uložit nahrávku jako"
 
 msgid "training.save_recording.detail"
-msgstr "Zapíše vybraný slot do souboru s tímto názvem vedle vašich komb."
+msgstr "Zapíše vybraný slot do souboru s tímto názvem."
 
 msgid "training.load_recording"
 msgstr "Načíst nahrávku"
@@ -1440,344 +1440,26 @@ msgstr "Historie vstupů"
 msgid "training.input_history.detail"
 msgstr "Prohlédněte si držené vstupy obou hráčů."
 
-msgid "training.combo.title"
-msgstr "Tvorba komb"
+msgid "training.tools"
+msgstr "Pozice a figurína"
 
-msgid "training.combo.title.detail"
-msgstr "Zapisujte komba úder po úderu, sdílejte je a prohlížejte všechny cesty."
-
-msgid "training.combo.none"
-msgstr "Žádné"
-
-msgid "training.combo.pack"
-msgstr "Balíček"
-
-msgid "training.combo.pack.detail"
-msgstr "Balíček komb tohoto bojovníka; počet komb v něm: {0}. Vlevo a Vpravo procházejí balíčky bojovníka."
-
-msgid "training.combo.new_pack"
-msgstr "Nový balíček"
-
-msgid "training.combo.combo"
-msgstr "Kombo"
-
-msgid "training.combo.fighter"
-msgstr "Bojovník"
-
-msgid "training.combo.fighter.detail"
-msgstr "Bojovník, kterému patří balíčky a komba níže: zobrazují se a dají se vybrat jen ta jeho. Při začátku souboje se řídí Hráčem 1; Vlevo a Vpravo vyberou jiného k prohlížení nebo zápisu."
-
-msgid "training.combo.name"
-msgstr "Název komba"
-
-msgid "training.combo.steps"
-msgstr "Údery"
-
-msgid "training.combo.notes"
-msgstr "Poznámky"
-
-msgid "training.combo.add"
-msgstr "Přidat jako nové kombo"
-
-msgid "training.combo.add.detail"
-msgstr "Zeptá se na název a pak přidá údery do vybraného balíčku jako nové kombo. Vybrané kombo zůstane, jak je; přepisuje ho Uložit kombo. Příklad úderů: cr.MK xx HP Hadoken > FADC > cl.HP"
-
-msgid "training.combo.add.unnamed"
-msgstr "zatím bez názvu"
-
-msgid "training.combo.capture.drop"
-msgstr "Nahrávání končí přerušením"
-
-msgid "training.combo.capture.drop.detail"
-msgstr "Zapnuto: Nahrát kombo skončí ve chvíli, kdy je druhý bojovník znovu volný, takže jedna nahrávka je jedno kombo a nový pokus po přerušení se za něj už nezapíše. Vypnuto: běží, dokud se půldruhé sekundy nic neděje, pro setupy a sekvence, které nejsou jedno kombo."
-
-msgid "training.combo.trials_loaded"
-msgstr "{0} zatím bez komb: načteny zkoušky ze hry ({1})."
-
-msgid "training.combo.save"
-msgstr "Uložit kombo"
-
-msgid "training.combo.save.detail"
-msgstr "Zapíše název, údery, poznámky a nastavení figuríny tak, jak jsou zadané, přes vybrané kombo."
-
-msgid "training.combo.saved"
-msgstr "Kombo uloženo."
-
-msgid "training.combo.duplicate"
-msgstr "Duplikovat kombo"
-
-msgid "training.combo.duplicate.detail"
-msgstr "Zkopíruje vybrané kombo do tohoto balíčku hned za něj a vybere kopii."
-
-msgid "training.combo.duplicated"
-msgstr "Kombo duplikováno."
+msgid "training.tools.detail"
+msgstr "Uložte a obnovte pozici, nastavte figurínu a to, co dělá sama."
 
 msgid "training.match.checkpoint_disabled"
 msgstr "Shared save/reset is disabled during rollback matches in nightly."
 
-msgid "training.combo.copy_suffix"
-msgstr "kopie"
-
-msgid "training.combo.tree"
-msgstr "Strom komb"
-
-msgid "training.combo.tree.detail"
-msgstr "Všechny cesty z vašich balíčků podle bojovníka."
-
-msgid "training.combo.tree.empty"
-msgstr "Zatím žádná komba."
-
-msgid "training.combo.copy_combo"
-msgstr "Kopírovat kombo"
-
-msgid "training.combo.copy_pack"
-msgstr "Kopírovat balíček"
-
-msgid "training.combo.copy_all"
-msgstr "Kopírovat všechny balíčky"
-
-msgid "training.combo.copy.detail"
-msgstr "Zkopíruje to jako text ke sdílení."
-
-msgid "training.combo.paste"
-msgstr "Importovat ze schránky"
-
-msgid "training.combo.paste.detail"
-msgstr "Přidá zkopírované kombo, balíček nebo více balíčků."
-
-msgid "training.combo.delete"
-msgstr "Smazat kombo"
-
-msgid "training.combo.delete.detail"
-msgstr "Odebere vybrané kombo z balíčku."
-
-msgid "training.combo.added"
-msgstr "Přidaná komba: {0}."
-
-msgid "training.combo.exists"
-msgstr "Tato cesta už v balíčku je."
-
-msgid "training.combo.copied"
-msgstr "Zkopírováno."
-
-msgid "training.combo.invalid"
+msgid "training.invalid"
 msgstr "Nepřijato: {0}"
 
-msgid "training.combo.save_failed"
-msgstr "Komba se nepodařilo uložit."
-
-msgid "training.combo.import_trials"
-msgstr "Importovat zkoušky ze hry"
-
-msgid "training.combo.import_trials.detail"
-msgstr "Načte vlastní zkoušky hry pro bojovníka zvoleného výše do dvou balíčků pojmenovaných po bojovníkovi: jeho zkoušky z Ultra Street Fighter 4 a zkoušky ze Street Fighter 4, které hra stále obsahuje z doby před Ultra. Bojovník bez balíčku je dostane sám, když začne souboj."
-
-msgid "training.combo.export_trial"
-msgstr "Exportovat balíček jako soubor zkoušek"
-
-msgid "training.combo.export_trial.detail"
-msgstr "Zapíše komba z tohoto balíčku pro bojovníka zvoleného výše jako {0} do složky trials vedle vašich komb: 24 komb, vaše vlastní první; kombo delší než 8 úderů se zapíše celé a hra bez modu posuvného seznamu zobrazí jen prvních 8. Nahradíte-li jím {0} ze hry (nechte si zálohu), režim Zkoušek ho přehraje."
-
-msgid "training.combo.trials_imported"
-msgstr "Načtené zkoušky: {0} z {1}. Přidaná komba: {2}."
-
-msgid "training.combo.trial_exported"
-msgstr "Zapsaná komba: {0}, do {1}. Nahraďte jím {2} a nechte si zálohu; režim Zkoušek ho načte."
-
-msgid "training.combo.trial_skipped"
-msgstr "Vynecháno nebo změněno: {0}. První: {1}"
-
-msgid "training.combo.trial_none"
-msgstr "Žádné kombo z tohoto balíčku se nepodařilo zapsat pro: {0}."
-
-msgid "training.combo.game_file"
-msgstr "Soubory hry se nepodařilo přečíst: {0}"
-
-msgid "training.combo.trial_failed"
-msgstr "Soubor zkoušek se nepodařilo zapsat: {0}"
-
-msgid "training.combo.run.start"
-msgstr "Spustit zkoušku"
-
-msgid "training.combo.run.start.detail"
-msgstr "Trénuj vybrané kombo jako Hráč 1: jeho údery jsou vypsané přes zápas a odškrtávají se, jakmile každý vyjde a zasáhne. Hráč 1 musí být bojovník z tohoto komba."
-
-msgid "training.combo.run.stop"
-msgstr "Zastavit zkoušku"
-
-msgid "training.combo.run.stop.detail"
-msgstr "Odstraní seznam úderů z obrazovky."
-
-msgid "training.combo.run.started"
-msgstr "Zkouška spuštěna, bojovník: {0}. Kontrolované údery: {1} z {2}."
-
-msgid "training.combo.run.refused"
-msgstr "Zkoušku se nepodařilo spustit: {0}"
-
-msgid "training.combo.run.stopped"
-msgstr "Zkouška zastavena."
-
-msgid "training.combo.run.count"
-msgstr "Zvládnuto: {0}. Pokusů: {1}. Úspěšnost: {2} %."
-
-msgid "training.combo.run.complete"
-msgstr "Kombo splněno!"
-
-msgid "training.combo.run.failed"
-msgstr "Úder {0}: {1}"
-
-msgid "training.combo.run.wrong_move"
-msgstr "vyšel jiný úder"
-
-msgid "training.combo.run.whiffed"
-msgstr "další úder vyšel dřív, než tento zasáhl"
-
-msgid "training.combo.run.dropped"
-msgstr "kombo se přerušilo"
-
-msgid "training.combo.run.unchecked"
-msgstr "{0} (bez kontroly)"
-
-msgid "training.combo.replay"
-msgstr "Přehrát údery"
-
-msgid "training.combo.replay.detail"
-msgstr "Přehraje zapsané údery nebo vybrané kombo jako vstup ovladače. Načasování je odhad: změňte mezeru linku a sledujte, které údery vyjdou."
-
-msgid "training.combo.replay.by"
-msgstr "Přehrává"
-
-msgid "training.combo.replay.by.dummy"
-msgstr "Figurína (Hráč 2)"
-
-msgid "training.combo.replay.by.me"
-msgstr "Já (Hráč 1)"
-
-msgid "training.combo.replay.by.detail"
-msgstr "Kdo údery provádí. Vlevo a Vpravo mění."
-
-msgid "training.combo.replay.facing"
-msgstr "Směr"
-
-msgid "training.combo.replay.facing.right"
-msgstr "Vpravo"
-
-msgid "training.combo.replay.facing.left"
-msgstr "Vlevo"
-
-msgid "training.combo.replay.facing.detail"
-msgstr "Kam se ten hráč na začátku dívá; údery vpřed se čtou takto."
-
-msgid "training.combo.replay.gap"
-msgstr "Posun načasování"
-
-msgid "training.combo.replay.gap.detail"
-msgstr "Snímky, které každý úder čeká navíc po svém signálu (volný snímek u linku, zásah u cancelu), k vlastnímu posunu @ úderu jako cr.MK@+1."
-
-msgid "training.combo.replay.stopped"
-msgstr "Přehrávání zastaveno."
-
-msgid "training.combo.replay.started"
-msgstr "Přehrávání načteno do slotu {0} a spuštěno."
-
-msgid "training.combo.timing"
-msgstr "Upravit načasování"
-
-msgid "training.combo.timing.detail"
-msgstr "Vybrané kombo úder po úderu: posun každého úderu a co vidělo poslední přehrání."
-
-msgid "training.combo.timing.replay.detail"
-msgstr "Přehraje vybrané kombo tak, jak je teď, aby se zprávy níže aktualizovaly."
-
-msgid "training.combo.tune"
-msgstr "Ladit návazné údery"
-
-msgid "training.combo.tune.stop"
-msgstr "Zastavit ladění"
-
-msgid "training.combo.tune.detail"
-msgstr "Přehrává opakování za opakováním a každý návazný úder ~ posouvá o snímek později, dokud úder po něm ještě naváže; ponechá nejdelší, který projde. Vyžaduje Obnovit před přehráním s uloženou pozicí."
-
-msgid "training.combo.tune.none"
-msgstr "Není co ladit: žádný návazný úder ~, po kterém následuje další úder."
-
-msgid "training.combo.tune.trying"
-msgstr "Ladí se úder {0}: zkouší se @{1}."
-
-msgid "training.combo.tune.kept"
-msgstr "Úder {0} ponechán na @{1}."
-
-msgid "training.combo.tune.failed"
-msgstr "Úder {0}: úder po něm nenavázal při žádné zkoušené délce; jeho posun je zpět na původní hodnotě. Smyčka tady končí."
-
-msgid "training.combo.tune.done"
-msgstr "Ladění dokončeno."
-
-msgid "training.combo.tune.stopped"
-msgstr "Ladění zastaveno."
-
-msgid "training.combo.timing.select"
-msgstr "Nejdřív vyberte kombo."
-
-msgid "training.combo.timing.none"
-msgstr "Zatím nepřehráno."
-
-msgid "training.combo.timing.gave_up"
-msgstr "Přehrávání čekalo na signál tohoto úderu a nikdy ho nevidělo."
-
-msgid "training.combo.timing.first"
-msgstr "První úder; navázal: {0}."
-
-msgid "training.combo.timing.cancel"
-msgstr "Čekal {0} snímků na zásah; navázal: {1}."
-
-msgid "training.combo.timing.link"
-msgstr "Čekal {0} snímků na uvolnění bojovníka; navázal: {1}."
-
-msgid "training.combo.timing.hit"
-msgstr "ano"
-
-msgid "training.combo.timing.no_hit"
-msgstr "ne"
-
-msgid "training.combo.timing.adjust"
-msgstr "Vlevo a Vpravo posunou o snímek."
-
-msgid "training.combo.timing.drops"
-msgstr "Zde přerušeno {0}krát."
-
-msgid "training.combo.blocks"
-msgstr "Editor vzoru"
-
-msgid "training.combo.blocks.detail"
-msgstr "Údery jako bloky na pravítku snímků, jako v sekvenceru: každý blok stiskne na svém snímku a přehrávání hraje tyto snímky."
-
-msgid "training.combo.blocks.frame"
-msgstr "Snímek {0}"
-
-msgid "training.combo.blocks.hint"
-msgstr "Vlevo a Vpravo posunou blok o snímek; přetáhněte ho myší. Výběr upraví úder."
-
-msgid "training.combo.blocks.add"
-msgstr "Přidat úder"
-
-msgid "training.combo.blocks.delete"
-msgstr "Smazat blok"
-
-msgid "training.combo.blocks.delete.detail"
-msgstr "Odebere zvýrazněný blok."
-
-msgid "training.combo.blocks.replay.detail"
-msgstr "Přehraje vzor na jeho snímcích."
-
-msgid "training.combo.blocks.empty"
-msgstr "Zatím žádné údery. Přidejte jeden níže."
+msgid "training.save_failed"
+msgstr "Soubor se nepodařilo uložit."
 
 msgid "training.guide"
 msgstr "O této obrazovce"
 
 msgid "training.home.guide"
-msgstr "Toto ovládání platí pro souboj, ve kterém právě jste. Nahrávání soupeře nahraje vstup ovladače na figurínu a přehraje ho. Historie vstupů vypisuje, co který hráč stiskl. Tvorba komb komba zapisuje, přehrává je za vás a kontroluje vaše vlastní pokusy jako zkoušky. F6 ovládání otevírá a zavírá, šipky pohybují výběrem, Enter vybírá a Esc vrací o obrazovku zpět."
+msgstr "Toto ovládání platí pro souboj, ve kterém právě jste. Nahrávání soupeře nahraje vstup ovladače na figurínu a přehraje ho. Historie vstupů vypisuje, co který hráč stiskl. Pozice a figurína ukládá a obnovuje pozici a nastavuje figurínu a její odpověď. F6 ovládání otevírá a zavírá, šipky pohybují výběrem, Enter vybírá a Esc vrací o obrazovku zpět."
 
 msgid "training.recording.guide"
 msgstr "Vyberte pozici a pak Nahrát: ovladač Hráče 1 ovládá figurínu, dokud nahrávání nezastavíte. Přehrát nechá figurínu pozici zopakovat a Opakovat přehrávání ji opakuje stále dokola. F7 spouští a zastavuje nahrávání bez otevření této obrazovky. Pozice vydrží jen po tento souboj; Uložit nahrávku jako jednu uchová jako pojmenovaný soubor a Načíst nahrávku ji vrátí."
@@ -1785,391 +1467,163 @@ msgstr "Vyberte pozici a pak Nahrát: ovladač Hráče 1 ovládá figurínu, dok
 msgid "training.history.guide"
 msgstr "Vstupy ovladače každého hráče, nejnovější nahoře, s počtem snímků, po které byl každý držen. Vyberte hráče a přečtěte si seznam. Ukazuje, co bylo stisknuto, ne který úder vyšel."
 
-msgid "training.combo.guide"
-msgstr "1. Bojovník nahoře patří Hráči 1; jeho balíčky a komba jsou řádky pod ním. 2. Zadejte údery do řádku Údery: napište je, nebo použijte Nahrát kombo a kombo proveďte. 3. Přidat jako nové kombo ho uloží do balíčku. 4. Upravit údery ho mění řádek po řádku, Upravit načasování posouvá jednotlivé údery po snímcích, Přehrát údery ho přehraje za vás. 5. Spustit zkoušku kontroluje vaše vlastní pokusy. Každý řádek se sám vysvětlí, když je zvýrazněný."
-
-msgid "training.combo.timing.guide"
-msgstr "Jeden řádek, jeden úder. Vlevo a Vpravo na úderu posunou jeho stisk o snímek dřív nebo později (@N). Přehrát údery kombo přehraje a každý řádek pak ukáže, co přehrání vidělo: jak dlouho čekalo a zda úder navázal. F8 na úderu přehraje kombo až po tento úder. Přidat, Duplikovat a Odebrat platí pro naposledy zvýrazněný úder; na řádku úderu dělají totéž Insert, D a Delete."
-
-msgid "training.combo.moves"
-msgstr "Upravit údery"
-
-msgid "training.combo.moves.detail"
-msgstr "Údery komba vedle úderů, které lze přidat: přetahujte údery dovnitř, měňte jejich pořadí, měňte sílu, postoj, cancel nebo načasování úderu a opakujte skupinu úderů."
-
-msgid "training.combo.moves.guide"
-msgstr "Vlevo: kombo, jeden úder na řádek. Uprostřed: vybraný úder a co se na něm dá změnit. Vpravo: údery, které lze přidat. Přetáhněte úder zprava na kombo a zařadí se za úder, na který dopadne; dvojklik ho přidá za vybraný úder. Přetažením úderu v kombu mu dáte jiné místo. Klávesami: Nahoru a Dolů procházejí řádky, Výběr na úderu ho nechá napsat znovu a na řádku úderu Insert přidá za něj, D duplikuje, Delete odebere, G ho zařadí do skupiny. Změny se ukládají do vybraného komba, dokud je řádek Údery tímto kombem; jinak zůstávají v řádku Údery, dokud nepoužijete Přidat jako nové kombo nebo Uložit kombo."
-
-msgid "training.combo.moves.add"
-msgstr "Přidat za úder {0}"
-
-msgid "training.combo.moves.add_first"
-msgstr "Přidat první úder"
-
-msgid "training.combo.moves.add.detail"
-msgstr "Napište jeden úder, nebo několik oddělených znakem >, jako v řádku Údery. Zařadí se za naposledy zvýrazněný úder. Otevře to i Insert na řádku úderu."
-
-msgid "training.combo.moves.duplicate"
-msgstr "Duplikovat úder {0}"
-
-msgid "training.combo.moves.duplicate.detail"
-msgstr "Vloží kopii hned za úder. Totéž udělá D na řádku úderu."
-
-msgid "training.combo.moves.remove"
-msgstr "Odebrat úder {0}"
-
-msgid "training.combo.moves.remove.detail"
-msgstr "Odebere úder z komba. Totéž udělá Delete na řádku úderu. V kombu vždy zůstane aspoň jeden úder."
-
-msgid "training.combo.moves.move"
-msgstr "Přesunout úder {0}"
-
-msgid "training.combo.moves.move.value"
-msgstr "Dřív / Později"
-
-msgid "training.combo.moves.move.detail"
-msgstr "Vlevo prohodí úder s předchozím, Vpravo s následujícím."
-
-msgid "training.combo.moves.row.detail"
-msgstr "Výběr tento úder upraví. Insert přidá úder za něj, D ho duplikuje, Delete ho odebere, G ho zařadí do skupiny."
-
-msgid "training.combo.moves.group.start"
-msgstr "Začít skupinu úderem {0}"
-
-msgid "training.combo.moves.group.extend"
-msgstr "Rozšířit skupinu po úder {0}"
-
-msgid "training.combo.moves.group.detail"
-msgstr "Skupina je řada sousedních úderů, zobrazená s jejich čísly v závorkách. Začněte ji na jednom úderu, zvýrazněte jiný a rozšiřte ji: přidají se všechny údery mezi nimi. Totéž udělá G na řádku úderu. Skupina vydrží, dokud tuto obrazovku neopustíte."
-
-msgid "training.combo.moves.group.clear"
-msgstr "Zrušit skupinu {0}"
-
-msgid "training.combo.moves.group.clear.detail"
-msgstr "Skupinu zapomene. Její údery v kombu zůstanou."
-
-msgid "training.combo.moves.group.duplicate"
-msgstr "Duplikovat skupinu {0}"
-
-msgid "training.combo.moves.group.duplicate.detail"
-msgstr "Vloží kopii úderů skupiny hned za skupinu."
-
-msgid "training.combo.moves.group.loops"
-msgstr "Počet opakování"
-
-msgid "training.combo.moves.group.loops.detail"
-msgstr "Kolikrát za sebou se skupina po zopakování přehraje. Vlevo a Vpravo to mění."
-
-msgid "training.combo.moves.group.loop"
-msgstr "Opakovat skupinu {0} x{1}"
-
-msgid "training.combo.moves.group.loop.detail"
-msgstr "Zopakuje údery skupiny, aby se přehrály tolikrát za sebou. Z opakování se stanou běžné řádky, takže každé lze načasovat zvlášť."
-
-msgid "training.combo.moves.group.remove"
-msgstr "Odebrat skupinu {0}"
-
-msgid "training.combo.moves.group.remove.detail"
-msgstr "Odebere z komba všechny údery skupiny."
-
-msgid "training.combo.moves.replay.detail"
-msgstr "Přehraje údery tak, jak jsou teď. Totéž udělá F8."
-
-msgid "training.combo.moves.limit"
-msgstr "To se nevejde: kombo má 1 až {0} úderů."
-
-msgid "training.combo.moves.changed"
-msgstr "Počet úderů v kombu: {0}."
-
-msgid "training.combo.moves.column"
-msgstr "Kombo"
-
-msgid "training.combo.moves.selected"
-msgstr "Úder {0}"
-
-msgid "training.combo.moves.joins"
-msgstr "Po předchozím úderu"
-
-msgid "training.combo.moves.joins.link"
-msgstr "Link"
-
-msgid "training.combo.moves.joins.cancel"
-msgstr "Cancel (xx)"
-
-msgid "training.combo.moves.joins.follow"
-msgstr "Návazný úder (~)"
-
-msgid "training.combo.moves.strength"
-msgstr "Síla"
-
-msgid "training.combo.moves.stance"
-msgstr "Postoj"
-
-msgid "training.combo.moves.offset"
-msgstr "Načasování ve snímcích"
-
-msgid "training.combo.moves.type"
-msgstr "Napsat tento úder"
-
-msgid "training.combo.moves.addable"
-msgstr "Údery k přidání"
-
-msgid "training.combo.moves.empty"
-msgstr "Zatím žádné údery. Přetáhněte sem některý zprava nebo na něj dvakrát klikněte."
-
-msgid "training.combo.moves.add.fadc"
-msgstr "Focus cancel a dash"
-
-msgid "training.combo.moves.add.rfadc"
-msgstr "Red focus cancel a dash"
-
-msgid "training.combo.moves.add.dash"
-msgstr "Dash vpřed"
-
-msgid "training.combo.moves.add.backdash"
-msgstr "Dash vzad"
-
-msgid "training.combo.moves.add.focus"
-msgstr "Focus attack"
-
-msgid "training.combo.moves.add.throw"
-msgstr "Hod"
-
-msgid "training.combo.steps.detail"
-msgstr "Výběr otevře údery jako textové pole, jeden úder na řádek. Nový řádek odděluje údery stejně jako >, takže kombo se čte stejně na jednom řádku i na více. Enter tam začne nový řádek; Ctrl+Enter potvrdí."
+msgid "training.tools.guide"
+msgstr "Uložit pozici zachová souboj, jak je teď, a Obnovit pozici ho vrátí; na ovladači Select krátkým stiskem obnoví a podržením uloží. Řádky figuríny mění hned nastavení tréninku ve hře. Odpověď figuríny nechá figurínu jednat samu, jakmile je znovu volná: přehraje Údery odpovědi, nebo pozici odpovědi, když je ten řádek prázdný."
 
 msgid "edit.instructions.area"
 msgstr "Pište nebo vložte text z klávesnice. Enter začne nový řádek. Ctrl+Enter nebo tlačítko Potvrdit potvrdí; Escape nebo Zpět na ovladači zruší."
 
-msgid "training.combo.blocks.guide"
-msgstr "Každý blok je úder na snímku, na kterém se stiskne jeho tlačítko (#N). Nahoru a Dolů vybírají blok, Vlevo a Vpravo ho posunou o snímek a myší ho lze přetáhnout. Přehrání odtud mačká přesně na těchto snímcích a nečeká na každý zásah, pro setupy, které potřebují pevné načasování."
-
-msgid "training.combo.save_pos"
+msgid "training.position.save"
 msgstr "Uložit pozici"
 
-msgid "training.combo.save_pos.detail"
+msgid "training.position.save.detail"
 msgstr "Zachová oba bojovníky, jak jsou teď: místo, zdraví, lišty, stav figuríny."
 
-msgid "training.combo.reset_pos"
+msgid "training.position.reset"
 msgstr "Obnovit pozici"
 
-msgid "training.combo.reset_pos.detail"
+msgid "training.position.reset.detail"
 msgstr "Vrátí oba bojovníky tam, kde byli uloženi."
 
-msgid "training.combo.reset_before"
-msgstr "Obnovit před přehráním"
-
-msgid "training.combo.reset_before.detail"
-msgstr "Každé přehrání a pokus o zkoušku začíná z uložené pozice; po každém pokusu se obnoví."
-
-msgid "training.combo.side"
-msgstr "Hráč 1 začíná"
-
-msgid "training.combo.side.any"
-msgstr "Kde právě stojí"
-
-msgid "training.combo.side.left"
-msgstr "Vlevo"
-
-msgid "training.combo.side.right"
-msgstr "Vpravo"
-
-msgid "training.combo.side.detail"
-msgstr "Strana, na které je Hráč 1, když začíná přehrání nebo pokus o zkoušku, a po Obnovit pozici. Vlevo nebo Vpravo převrátí uloženou pozici, nebo místo, kde oba stojí, kolem středu arény, když je Hráč 1 na opačné straně: kombo uložené v levém rohu začne v pravém rohu. Směr přehrání se řídí podle toho. Kde právě stojí nikým nehýbe."
-
-msgid "training.combo.position_saved"
+msgid "training.position.saved"
 msgstr "Pozice uložena."
 
-msgid "training.combo.position_kept"
-msgstr "Pozice uložena a zůstane u komba."
-
-msgid "training.combo.position_reset"
+msgid "training.position.reset_done"
 msgstr "Pozice obnovena."
 
-msgid "training.combo.capture"
-msgstr "Nahrát kombo"
+msgid "training.dummy.detail"
+msgstr "Vlevo a Vpravo mění; ve hře platí hned."
 
-msgid "training.combo.capture.detail"
-msgstr "Zapisuje údery, které Hráč 1 provádí, do řádku Údery, každý s počtem snímků, o které byl stisknut po svém signálu (@N). Skončí, když se kombo přeruší, pokud je zapnuto Nahrávání končí přerušením, a jinak když se půldruhé sekundy nic neděje. Potom je uchová Přidat jako nové kombo nebo Uložit kombo."
-
-msgid "training.combo.capture_stop"
-msgstr "Zastavit nahrávání komba"
-
-msgid "training.combo.capture_started"
-msgstr "Nahrává se: proveďte kombo jako Hráč 1."
-
-msgid "training.combo.capture_wait"
-msgstr "Nahrávání se ukončuje."
-
-msgid "training.combo.captured"
-msgstr "Do řádku Údery zapsáno {0} úderů ({1} bez názvu vynecháno)."
-
-msgid "training.combo.capture_empty"
-msgstr "Žádné údery nenahrány."
-
-msgid "training.combo.setup.detail"
-msgstr "Vlevo a Vpravo mění; ve hře platí hned a zůstane u vybraného komba. Nastavení hry ponechá volbu z tréninkového menu."
-
-msgid "training.combo.reply"
+msgid "training.reply"
 msgstr "Odpověď figuríny"
 
-msgid "training.combo.reply.detail"
-msgstr "Co figurína udělá sama, jakmile je znovu volná, aby potrestala přerušené kombo nebo riskantní zakončení: přehraje Údery odpovědi, nebo pozici odpovědi, když je ten řádek prázdný. Odpověď čeká, dokud běží přehrávání nebo nahrávání, a splněná zkouška zůstane bez odpovědi."
+msgid "training.reply.detail"
+msgstr "Co figurína udělá sama, jakmile je znovu volná, aby potrestala přerušené kombo nebo riskantní zakončení: přehraje Údery odpovědi, nebo pozici odpovědi, když je ten řádek prázdný. Odpověď čeká, dokud běží přehrávání nebo nahrávání."
 
-msgid "training.combo.reply.hit"
+msgid "training.reply.hit"
 msgstr "Po přerušeném kombu"
 
-msgid "training.combo.reply.block"
+msgid "training.reply.block"
 msgstr "Po bloku"
 
-msgid "training.combo.reply.rise"
+msgid "training.reply.rise"
 msgstr "Při vstávání"
 
-msgid "training.combo.reply.any"
+msgid "training.reply.any"
 msgstr "Vždy po zotavení"
 
-msgid "training.combo.reply.slot"
+msgid "training.reply.slot"
 msgstr "Pozice odpovědi"
 
-msgid "training.combo.reply.slot.detail"
-msgstr "Nahrávka figuríny přehraná jako odpověď, dokud jsou Údery odpovědi prázdné, od prvního stisku. Přehrát údery přes ni nic nenačte."
+msgid "training.reply.slot.detail"
+msgstr "Nahrávka figuríny přehraná jako odpověď, dokud jsou Údery odpovědi prázdné, od prvního stisku."
 
-msgid "training.combo.reply.chance"
+msgid "training.reply.chance"
 msgstr "Šance na odpověď"
 
-msgid "training.combo.reply.chance.detail"
+msgid "training.reply.chance.detail"
 msgstr "Jak často figurína odpovídá. Pod 100 % se to mění pokus od pokusu."
 
-msgid "training.combo.vary_stance"
+msgid "training.reply.vary_stance"
 msgstr "Střídat postoj"
 
-msgid "training.combo.vary_stance.detail"
+msgid "training.reply.vary_stance.detail"
 msgstr "Po každém zotavení figurína náhodně stojí nebo dřepí, aby se kombo cvičilo na obojím. Jen když je figurína nastavena na stoj nebo dřep."
 
-msgid "training.combo.keys"
-msgstr "{0} Přehrát  {1} Obnovit  {2} Zkouška  {3} Nahrát"
-
-msgid "training.combo.reply.moves"
+msgid "training.reply.moves"
 msgstr "Údery odpovědi"
 
-msgid "training.combo.reply.moves.detail"
+msgid "training.reply.moves.detail"
 msgstr "Odpověď zapsaná číselnou notací, například 623HP nebo 44, čtená pro stranu, kam se figurína dívá. Pohyb se zadá, dokud je figurína ještě držena, aby tlačítko padlo na její první volný snímek. Prázdné pole použije pozici odpovědi."
 
-msgid "training.combo.reply.timing"
+msgid "training.reply.timing"
 msgstr "Načasování odpovědi"
 
-msgid "training.combo.reply.timing.detail"
+msgid "training.reply.timing.detail"
 msgstr "Počet snímků po prvním volném snímku figuríny, na který padne tlačítko odpovědi. Délka omráčení se zjistí napoprvé; do té doby odpověď začne, když omráčení skončí."
 
-msgid "training.combo.reply.slot_busy"
-msgstr "Pozice {0} obsahuje odpověď figuríny. Pro přehrání úderů vyber jinou pozici."
-
-msgid "training.combo.key.replay"
-msgstr "Klávesa přehrání"
-
-msgid "training.combo.key.reset"
+msgid "training.key.reset"
 msgstr "Klávesa obnovení"
-
-msgid "training.combo.key.trial"
-msgstr "Klávesa zkoušky"
-
-msgid "training.combo.key.record"
-msgstr "Klávesa nahrávání"
-
-msgid "training.combo.key.save"
-msgstr "Klávesa uložení"
-
-msgid "training.combo.key.save.detail"
-msgstr "Vlevo a Vpravo vyberou klávesu, která během souboje uloží řádek Údery jako nové kombo vybraného balíčku: po Nahrát kombo jedním stiskem uchová, co jste právě zahráli. Nikdy nepřepíše existující kombo; to dělá Uložit kombo. Vypnuto ji nechá bez klávesy."
-
-msgid "training.combo.key.save.none"
-msgstr "Není co uložit: nejdřív údery nahrajte nebo napište."
-
-msgid "training.combo.keys.save"
-msgstr "{0} Uložit"
 
 msgid "training.challenger"
 msgstr "DO RINGU VSTOUPIL NOVÝ BOJOVNÍK!"
 
-msgid "training.combo.key.detail"
+msgid "training.key.detail"
 msgstr "Vlevo a Vpravo vyberou klávesu, která to během souboje provede. Vypnuto ji nechá bez klávesy."
 
-msgid "training.combo.setup.game"
-msgstr "Nastavení hry"
-
-msgid "training.combo.setup.action"
+msgid "training.dummy.action"
 msgstr "Figurína"
 
-msgid "training.combo.setup.guard"
+msgid "training.dummy.guard"
 msgstr "Blok"
 
-msgid "training.combo.setup.counter"
+msgid "training.dummy.counter"
 msgstr "Counter hit"
 
-msgid "training.combo.setup.quick"
+msgid "training.dummy.quick"
 msgstr "Rychlé vstávání"
 
-msgid "training.combo.setup.super"
+msgid "training.dummy.super"
 msgstr "Super lišta"
 
-msgid "training.combo.setup.revenge"
+msgid "training.dummy.revenge"
 msgstr "Revenge lišta"
 
-msgid "training.combo.setup.stand"
+msgid "training.dummy.stand"
 msgstr "Stoj"
 
-msgid "training.combo.setup.crouch"
+msgid "training.dummy.crouch"
 msgstr "Dřep"
 
-msgid "training.combo.setup.jump"
+msgid "training.dummy.jump"
 msgstr "Skok"
 
-msgid "training.combo.setup.cpu"
+msgid "training.dummy.cpu"
 msgstr "CPU"
 
-msgid "training.combo.setup.guard_none"
+msgid "training.dummy.guard_none"
 msgstr "Bez bloku"
 
-msgid "training.combo.setup.guard_first"
+msgid "training.dummy.guard_first"
 msgstr "Po prvním zásahu"
 
-msgid "training.combo.setup.guard_all"
+msgid "training.dummy.guard_all"
 msgstr "Blokovat vše"
 
-msgid "training.combo.setup.guard_random"
+msgid "training.dummy.guard_random"
 msgstr "Náhodně"
 
-msgid "training.combo.setup.counter_off"
+msgid "training.dummy.counter_off"
 msgstr "Vyp."
 
-msgid "training.combo.setup.counter_on"
+msgid "training.dummy.counter_on"
 msgstr "Zap."
 
-msgid "training.combo.setup.counter_random"
+msgid "training.dummy.counter_random"
 msgstr "Náhodně"
 
-msgid "training.combo.setup.quick_quick"
+msgid "training.dummy.quick_quick"
 msgstr "Rychle"
 
-msgid "training.combo.setup.quick_normal"
+msgid "training.dummy.quick_normal"
 msgstr "Normálně"
 
-msgid "training.combo.setup.quick_delayed"
+msgid "training.dummy.quick_delayed"
 msgstr "Zpožděně"
 
-msgid "training.combo.setup.quick_random"
+msgid "training.dummy.quick_random"
 msgstr "Náhodně"
 
-msgid "training.combo.setup.gauge_normal"
+msgid "training.dummy.gauge_normal"
 msgstr "Normální"
 
-msgid "training.combo.setup.gauge_max"
+msgid "training.dummy.gauge_max"
 msgstr "Plná na startu"
 
-msgid "training.combo.setup.gauge_infinite"
+msgid "training.dummy.gauge_infinite"
 msgstr "Nekonečná"
 
-msgid "training.combo.setup.gauge_refill"
+msgid "training.dummy.gauge_refill"
 msgstr "Doplňování"
 
 msgid "training.close_controls"

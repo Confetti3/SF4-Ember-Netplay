@@ -77,11 +77,13 @@ struct FighterSample {
 // What a meter cell shows. An attack is told apart by the script's attack
 // boundary: before it startup, inside it active, after it recovery; Attack
 // alone when the script gives none.
-// The action frame is read after the game's update, when it already counts
-// the frame that update played: the frame a cell stands for is one less. A
-// crouching jab whose script is active from frame 3 so has three startup
-// cells, which is what its frame data says, where reading the counter as it
-// stands gave two and a recovery one too long.
+// The cells follow the frame data's own numbers, for a player who reads the
+// two side by side: a crouching jab with a startup of 3 has three startup
+// cells. Frame data counts the frame a move first hits on as startup, so that
+// third cell is its first active frame, the active cells stand one frame
+// late, and the recovery has one cell less than its number (3, 2 and 6 cells
+// for 3, 2 and 7). MoveFrames::recovery is the number, not the cell count.
+// Checked in the game by the in-game self-test.
 // ponytail: one active stretch per action; a multi-hit move's gaps between
 // hits read as active. Read every hit box if they have to show.
 // Sequence is AS_SEQUENCE: both fighters while a throw or a cinematic plays;
@@ -232,7 +234,10 @@ public:
                     // The attack's first active frame is what a meaty is timed by.
                     if (kind == MeterKind::Active && !move.active) { firstActiveAt_[side] = now; Meaty(side); }
                     if (kind == MeterKind::Active) ++move.active;
-                    else if (kind == MeterKind::Recovery) ++move.recovery;
+                    // The startup cells count the frame the move first hits on, as its
+                    // frame data's startup does, so every later cell stands one frame
+                    // late and the last recovery frame has no cell. The number has it.
+                    else if (kind == MeterKind::Recovery) move.recovery += move.recovery ? 1 : 2;
                 }
             } else if (sample.valid && sample.status == 24 && thrower_[side] && move.seen) {
                 // A throw that connected goes on in the sequence.
