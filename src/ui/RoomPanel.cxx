@@ -205,8 +205,6 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    // Changing fighter needs a seat, so it lives in the table options (and X).
    rows.push_back(Row("options",loc::T("room.table_options"),loc::Tf("room.table_options.detail",OptionsTable(v,selectedTable_)+1)));
    rows.push_back(Row("room-admin",loc::T("room.settings"),loc::T(host?"room.settings.detail":"room.settings.host_only"),host));
-   // Waiting for a seat or an opponent can be done in Training; the room calls the player back.
-   rows.push_back(Row("room-training",loc::T("home.training"),loc::T(v.canTrain?"room.training.detail":"room.training.unavailable"),v.canTrain));
   }else{
    rows.push_back(Row("room-status",loc::T("room.connection_status"),loc::T(v.session.room==netplay::RoomState::Opening?"room.opening":"room.waiting_state"),false));
   }
@@ -221,6 +219,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   }
   // A public room is shared by its page link, which opens it in Ember from a browser or Discord.
   if(s.serverOwned){const auto link=publicRooms_.RoomLink();if(!link.empty())rows.push_back(Row("copy-room-link",loc::T("public.copy_link"),loc::Tf("public.copy_link_detail",link)));}
+  if(s.roomEpoch)rows.push_back(Row("room-training",loc::T("room.training"),loc::T(v.canTrain?"room.training.detail":"room.training.unavailable"),v.canTrain));
   rows.push_back(ConfirmRow("leave",loc::T(v.session.room==netplay::RoomState::Closing?"room.leaving":"room.leave"),
    LeaveRoomDetail(v),v.session.room!=netplay::RoomState::Closing));
   // A public room has no replacement: when its host is gone the room closes.
@@ -239,7 +238,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   const auto rulesRows=[&]{
    if(!rulesDirty_&&rulesRevision_!=t.revision){tableRules_=t.rules;rulesRevision_=t.revision;}
    if(!host||boundTable){
-    rows.push_back(ReadOnlyValue("rules",loc::T("room.table_rules"),loc::Tf("room.rules_summary",static_cast<int>(t.rules.roundCount),static_cast<int>(t.rules.roundTime),
+    rows.push_back(ReadOnlyValue("rules",loc::T("room.table_rules"),loc::Tf(t.rules.training?"room.rules_summary_practice":"room.rules_summary",static_cast<int>(t.rules.roundCount),static_cast<int>(t.rules.roundTime),
      loc::T(t.rules.editionSelect?"common.on":"common.off")),loc::T(boundTable?"room.rules.tournament":"room.rules.host_only")));
     rows.push_back(ReadOnlyValue("set-rules",loc::T("room.table_set"),SetSummaryText(t.rules),
      t.rules.format==room::SetFormat::Unlimited?loc::T("rules.set_length.detail"):RotationDetail(t.rules.rotation)));
@@ -583,9 +582,9 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   // A first-to-N table names its set and rotation where the round settings
   // would be; those stay on the table's rules rows.
   const auto watching=t.spectators.size()+t.watchingNext.size();
-  const std::string footer=t.rules.format==room::SetFormat::Unlimited
+  const std::string footer=(t.rules.training?std::string(loc::T("room.table_footer_practice"))+"     ":std::string())+(t.rules.format==room::SetFormat::Unlimited
    ?loc::Tf("room.table_footer",t.rules.roundCount,t.rules.roundTime,t.queue.size(),watching)
-   :loc::Tf("room.table_footer_set",SetLengthText(t.rules.format),RotationText(t.rules.rotation),t.queue.size(),watching);
+   :loc::Tf("room.table_footer_set",SetLengthText(t.rules.format),RotationText(t.rules.rotation),t.queue.size(),watching));
   if(!choosing&&!ownPlace)text(ImVec2(p.x+12*s,p.y+h-22*s),width-24*s,footer,14*s,palette::Muted);
   if(choosing){
    // The chosen side follows the mouse, and the seat a sit option would take

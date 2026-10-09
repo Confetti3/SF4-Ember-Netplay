@@ -10,6 +10,7 @@
 #include "../ui/ReplaySummaryText.hxx"
 #include "../ui/OverlayLifecycle.hxx"
 #include "../ui/OverlayPresentation.hxx"
+#include "../ui/OverlayLayers.hxx"
 #include "../ui/Theme.hxx"
 #include "../ui/Win32Input.hxx"
 #include "../ui/DeveloperOverlay.hxx"
@@ -462,7 +463,7 @@ void Overlay::DrawOverlay() {
     sf4e::training::WatchMatches(snapshot.preferences.matchFrameMeter || snapshot.replays.meterShown);
     const auto training = sf4e::training::ReadView();
     trainingAvailable = training.available;
-    bool pointer = false;
+    const bool nativePaused = sf4e::battlePause.Paused();
     if (!training.available || !focused) trainingOpen = false;
     if (focused && training.available && !presentation.Visible()) {
         sf4e::ui::SetMenuInput({0, ImGui::GetTime()});
@@ -491,42 +492,18 @@ void Overlay::DrawOverlay() {
             sf4e::ui::TakeForwardedMenuAction();
             sf4e::ui::DrawTrainingFlyout(training, sf4e::training::Submit);
             if(sf4e::ui::TakeForwardedMenuAction().kind==sf4e::ui::MenuAction::Close) trainingOpen=false;
-        } else if (trainingHud) {
-            const auto hud = sf4e::ui::DrawTrainingHud(training);
-            if (hud.open) trainingOpen = true;
-            if (hud.replay) practice(sf4e::training::Action::Play);
-            if (hud.stop) practice(sf4e::training::Action::Stop);
-            pointer = hud.pointer;
         }
     }
-    // Shown survives alt-tab; taking the cursor and keys needs focus.
-    const bool shown = presentation.Visible() || trainingOpen;
-    const bool visible = focused && shown;
-    pointerCapture = focused && !visible && pointer;
-    sf4e::ui::SetOverlayCursorOwnership(visible || pointerCapture);
-    if (capture.exchange(visible) && !visible) { ImGui::GetIO().ClearInputKeys(); ImGui::GetIO().ClearInputMouse(); }
-    // The native menu stays parked under a shown shell, focused or not, so a
-    // pad press while alt-tabbed cannot drive it.
-    fMainMenu::bOverrideItemObserverState = (shown || controllerNavigation.MenuGuard()) ? rMainMenu::MMIOS_TRANSITION : -1;
-    if (!shown && presentation.Available()) {
-        const auto* vp = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x * .5f, vp->Pos.y + 12 * sf4e::ui::Scale()), ImGuiCond_Always, ImVec2(.5f, 0));
-        ImGui::Begin("Ember shortcut", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
-            ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing);
-        ImGui::TextUnformatted(sf4e::loc::T("runtime.open_shortcut")); ImGui::End();
-    }
-    // A started match cannot be entered from Training or Options: say what it is waiting for.
-    if (snapshot.matchWaitsForMenu) {
-        const auto* vp = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x * .5f, vp->Pos.y + 44 * sf4e::ui::Scale()), ImGuiCond_Always, ImVec2(.5f, 0));
-        ImGui::Begin("Ember match waiting", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
-            ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing);
-        ImGui::TextUnformatted(sf4e::loc::T("runtime.return_menu_to_join")); ImGui::End();
-    }
-    // An export's caption, over the replay while it records: it is in the picture.
+    sf4e::ui::OverlayLayersView layers;
+    layers.shellVisible = presentation.Visible(); layers.shellAvailable = presentation.Available();
+    layers.trainingControlsOpen = trainingOpen; layers.nativePaused = nativePaused;
+    layers.focused = focused; layers.trainingHud = trainingHud;
+    layers.matchActive = frame->ggpoSessionActive; layers.matchWaitsForMenu = snapshot.matchWaitsForMenu;
+    layers.showMatchHud = snapshot.preferences.showMatchHud;
+    layers.controllerWarning = snapshot.gameplayInputError; layers.captionShown = snapshot.replays.captionShown;
     if (snapshot.replays.captionShown) {
         const auto& caption = snapshot.replays.caption;
-        sf4e::ui::ExportCaptionView shown;
+        auto& shown = layers.caption;
         for (int side = 0; side < 2 && caption.names; ++side) {
             const std::string wins = caption.set ? std::to_string(caption.wins[side]) : std::string();
             shown.names[side] = wins.empty() ? caption.name[side] : side ? wins + "   " + caption.name[side] : caption.name[side] + "   " + wins;
@@ -534,18 +511,9 @@ void Overlay::DrawOverlay() {
         if (caption.line) shown.line = caption.text;
         if (caption.set && !caption.names) shown.line += (shown.line.empty() ? "" : "   ") + std::to_string(caption.wins[0]) + " - " + std::to_string(caption.wins[1]);
         shown.mark = caption.mark; shown.nameOffset = snapshot.preferences.matchHudNameOffset;
-        sf4e::ui::DrawExportCaption(shown);
     }
-    if (frame->ggpoSessionActive) {
-        sf4e::ui::DrawControllerWarning(snapshot.gameplayInputError);
-        // The frame meter, while the runtime is watching this match for it.
-        if (training.watching && !presentation.Visible()) sf4e::ui::DrawMatchMeter(training);
-        // A Training table's shared reset and save: asked for here, sent with the player's next input.
-        if (focused && !presentation.Visible() && !status.spectator && sf4e::training::MatchPracticeActive()) {
-            sf4e::training::RequestMatchPractice(sf4e::ui::MatchPracticeKeys(
-                (snapshot.menuController.buttons & sf4e::ui::ControllerSample::Chat) != 0));
-        }
-        sf4e::ui::MatchStripView strip;
+    if (layers.matchActive) {
+        auto& strip = layers.match;
         for (int side = 0; side < 2; ++side) { strip.names[side] = status.matchSides[side].name; strip.links[side] = status.matchSides[side].link; }
         if (status.hasMatchScore) strip.score = sf4e::ui::SetScoreText(status.matchScore);
         strip.rollbackFrames = status.rollbackFrames;
@@ -556,12 +524,24 @@ void Overlay::DrawOverlay() {
         strip.notice = status.lastError; strip.noticeSeverity = static_cast<int>(status.lastErrorSeverity);
         strip.connectionWarning = status.connectionWarning; strip.predictionStalled = status.predictionStalled;
         strip.disconnectCountdownMs = status.disconnectCountdownMs;
-        if (snapshot.preferences.showMatchHud) sf4e::ui::DrawMatchStrip(strip);
-        else {
-            // The player hid the telemetry, not the reasons a fight stalls or ends.
-            const auto line = sf4e::ui::MatchStripStateLine(strip);
-            const int severity = strip.noticeSeverity >= 2 ? 2 : (strip.connectionWarning || strip.predictionStalled) ? 1 : strip.noticeSeverity;
-            sf4e::ui::DrawMatchNotice(line, severity);
+    }
+    const auto hud = sf4e::ui::DrawOverlayLayers(layers, training);
+    if (hud.open) trainingOpen = true;
+    // Shown survives alt-tab; taking the cursor and keys needs focus.
+    const bool shown = presentation.Visible() || trainingOpen;
+    const bool passive = sf4e::ui::PassiveOverlayShown(presentation.Visible(), trainingOpen, nativePaused);
+    const bool visible = focused && shown;
+    pointerCapture = focused && !visible && hud.pointer;
+    sf4e::ui::SetOverlayCursorOwnership(visible || pointerCapture);
+    if (capture.exchange(visible) && !visible) { ImGui::GetIO().ClearInputKeys(); ImGui::GetIO().ClearInputMouse(); }
+    // The native menu stays parked under a shown shell, focused or not, so a
+    // pad press while alt-tabbed cannot drive it.
+    fMainMenu::bOverrideItemObserverState = (shown || controllerNavigation.MenuGuard()) ? rMainMenu::MMIOS_TRANSITION : -1;
+    if (layers.matchActive) {
+        // A Training table's shared reset and save: asked for here, sent with the player's next input.
+        if (focused && passive && !status.spectator && sf4e::training::MatchPracticeActive()) {
+            sf4e::training::RequestMatchPractice(sf4e::ui::MatchPracticeKeys(
+                (snapshot.menuController.buttons & sf4e::ui::ControllerSample::Chat) != 0));
         }
     }
     sf4e::OverlayPrefs::Data prefs = s_prefs;

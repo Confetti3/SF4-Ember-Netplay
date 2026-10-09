@@ -193,7 +193,6 @@ MenuInput ReadMenuInput() {
     ApplyMenuGlyphs();
     value.held|=keys; value.keyboard=keys;
     value.acceptText=ImGui::IsKeyPressed(ImGuiKey_Enter,false);
-    value.ctrl=io.KeyCtrl;
     return value;
 }
 void GameMenu::DrawHomeStatusLine(const std::vector<MenuEntry>& entries,const char* status,Tone statusTone,float homeMargin) {
@@ -256,6 +255,15 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     // window takes the same layout decision as the header and the galleries.
     const auto windowSize=ImGui::GetWindowSize();const bool roomy=windowSize.x>=1000*Scale()&&windowSize.x/windowSize.y>=1.5f;
     const float homeMargin=roomy?windowSize.x*.10f:20*Scale();
+    float homeTop=roomy?windowSize.y*.10f:16*Scale();
+    float homeLift=0;
+    if(home&&roomy&&!entries.empty()) {
+        const float rows=entries.size()*(std::max)(44*Scale(),28*Scale()+2*ImGui::GetStyle().FramePadding.y)+(entries.size()-1)*ImGui::GetStyle().ItemSpacing.y;
+        const float footer=MenuLegend(windowSize.x-homeMargin-ImGui::GetStyle().WindowPadding.x,selectGlyph,backGlyph,false,false,menuArt,unit,loc::T("menu.select"),{},backHint.c_str())+
+            8*unit+3*ImGui::GetStyle().ItemSpacing.y+HomeStatusHeight*unit+ImGui::GetStyle().WindowPadding.y;
+        homeLift=(std::min)((std::max)(0.f,homeTop-16*Scale()),(std::max)(0.f,rows+footer-windowSize.y*.61f));
+        homeTop-=homeLift;
+    }
     if(menuArt&&!flyout) {
         const auto art=menuArt->MenuBackdrop();const auto p=ImGui::GetWindowPos(),size=ImGui::GetWindowSize();
         if(art.texture){auto* d=ImGui::GetWindowDrawList();
@@ -266,7 +274,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
             d->AddImage(art.texture,p,ImVec2(p.x+size.x,p.y+size.y),uv0,uv1);
             d->AddRectFilledMultiColor(p,ImVec2(p.x+size.x,p.y+size.y),IM_COL32(16,15,14,220),IM_COL32(16,15,14,75),IM_COL32(16,15,14,110),IM_COL32(16,15,14,235));}
     }
-    if(home)ImGui::SetCursorPos(ImVec2(homeMargin,roomy?windowSize.y*.10f:16*Scale()));
+    if(home)ImGui::SetCursorPos(ImVec2(homeMargin,homeTop));
     if(flyout) {
         ImGui::TextColored(ToneColor(Tone::Pending),"%s",loc::Tf("menu.flyout_title",title).c_str());
         ImGui::Separator();
@@ -305,8 +313,8 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     if(home){
         const float cardWidth=roomy?(std::min)(360*Scale(),windowSize.x*.35f):windowSize.x-2*homeMargin;
         const auto origin=ImGui::GetWindowPos();
-        DrawPlayerCard(ImVec2(origin.x+(roomy?windowSize.x-homeMargin-cardWidth:homeMargin),origin.y+(roomy?windowSize.y*.10f:ImGui::GetCursorPosY())),cardWidth,!roomy);
-        const float start=roomy?(std::max)(ImGui::GetCursorPosY()+36*Scale(),windowSize.y*.39f):ImGui::GetCursorPosY()+110*Scale();
+        DrawPlayerCard(ImVec2(origin.x+(roomy?windowSize.x-homeMargin-cardWidth:homeMargin),origin.y+(roomy?homeTop:ImGui::GetCursorPosY())),cardWidth,!roomy);
+        const float start=roomy?(std::max)(ImGui::GetCursorPosY()+36*Scale(),windowSize.y*.39f-homeLift):ImGui::GetCursorPosY()+110*Scale();
         ImGui::SetCursorPos(ImVec2(homeMargin,start));
     }
     // The legend and the list are measured before the status, so a long status
@@ -410,13 +418,18 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     if(changed) ImGui::SetNextWindowScroll(ImVec2(0,navigation.Scroll()));
     ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(0,0,0,0));
     ImGui::BeginChild("Menu list",ImVec2(listWidth,(std::max)(60.f,ImGui::GetContentRegionAvail().y-footer)),0,ImGuiWindowFlags_NoNavInputs);
+    if(home&&entries.size()*(44*Scale()+ImGui::GetStyle().ItemSpacing.y)-ImGui::GetStyle().ItemSpacing.y>ImGui::GetContentRegionAvail().y)
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,ImVec2(ImGui::GetStyle().FramePadding.x,2*Scale()));
+    else if(home)ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,ImGui::GetStyle().FramePadding);
+    const float homeHeight=home&&!entries.empty()?(std::max)(28*Scale()+2*ImGui::GetStyle().FramePadding.y,
+        (std::min)(44*Scale(),(ImGui::GetContentRegionAvail().y-(entries.size()-1)*ImGui::GetStyle().ItemSpacing.y)/entries.size())):0;
     const float gap=8*Scale();
     const float fullWidth=ImGui::GetContentRegionAvail().x;
     const float cellWidth=(fullWidth-gap*(columns-1))/columns;
     const std::size_t cells=MenuGridCells(entries);
     // Tall appearance cards must fit as a whole in the focused scrolling pane,
     // including their saved marker and caption, even at narrow/high DPI sizes.
-    const float gridHeight=cardHeight>100?(std::min)(cardHeight*Scale(),ImGui::GetContentRegionAvail().y):cardHeight*Scale();
+    const float gridHeight=cardHeight>100?(std::min)(cardHeight*Scale(),ImGui::GetContentRegionAvail().y):cardHeight*(flyout?unit:Scale());
     for(std::size_t i=0;i<entries.size();++i) {
         const auto& e=entries[i]; const bool focused=e.id==navigation.Focus();
         const bool visualEnabled=feedback_.Enabled(e);
@@ -428,7 +441,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         const float textSize=home?28*Scale():ImGui::GetFontSize();
         const bool valueRow=!card&&(e.adjustable||e.text||!e.value.empty());
         const bool stackedValue=valueRow&&rowWidth<420*unit;
-        const float height=gridCell?gridHeight:e.height>0?e.height*unit:(std::max)(home?44*Scale():(stackedValue?64:flyout?42:52)*unit,textSize+2*ImGui::GetStyle().FramePadding.y);
+        const float height=gridCell?gridHeight:e.height>0?e.height*unit:(std::max)(home?homeHeight:(stackedValue?64:flyout?42:52)*unit,textSize+2*ImGui::GetStyle().FramePadding.y);
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize,0);ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,card?cardRounding*unit:0);
         ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign,ImVec2(.03f,.5f));
         ImGui::PushStyleColor(ImGuiCol_Button,focused?(card&&cardRounding>0?ImVec4(.30f,.17f,.09f,.55f):ImVec4(.47f,.28f,.16f,.6f)):ImVec4(.105f,.10f,.095f,home?0.f:.45f));
@@ -492,6 +505,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         }
         ImGui::PopID();
     }
+    if(home)ImGui::PopStyleVar();
     navigation.Scroll()=ImGui::GetScrollY(); ImGui::EndChild();ImGui::PopStyleColor();
     if(wide&&!home) { ImGui::SameLine(0,20*unit); ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(.1f,.09f,.08f,.52f));
         ImGui::BeginChild("Menu detail",ImVec2(0,(std::max)(60.f,available.y-footer))); preview(); ImGui::EndChild(); ImGui::PopStyleColor(); }

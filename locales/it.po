@@ -344,10 +344,10 @@ msgid "rules.round_time"
 msgstr "Durata round"
 
 msgid "rules.training"
-msgstr "Allenamento"
+msgstr "Partita di pratica"
 
 msgid "rules.training.detail"
-msgstr "Attivo: la vita e le barre di entrambi i lottatori si riempiono di nuovo e nessuno va K.O., per esercitarsi con un altro giocatore. Una partita finisce quando un lottatore lascia il posto o scade il tempo del round, quindi scegli un tempo del round lungo."
+msgstr "Salute e barre si ricaricano e nessuno va K.O. La partita termina allo scadere del tempo del round, quindi scegli un tempo lungo."
 
 msgid "screen.home"
 msgstr "Home"
@@ -632,7 +632,7 @@ msgid "home.identity_matches"
 msgstr "Partite del torneo pronte da giocare: {0}"
 
 msgid "home.settings_detail"
-msgstr "Giocatore, controller, impostazioni di gioco, interfaccia, lingua e Discord."
+msgstr "Giocatore, controller, regole predefinite, interfaccia, lingua, allenamento e Discord."
 
 msgid "home.about"
 msgstr "Guida e info"
@@ -650,7 +650,7 @@ msgid "home.replays"
 msgstr "Replay"
 
 msgid "home.replays_detail"
-msgstr "Ogni partita viene salvata. Metti una qualsiasi nel Replay Channel del gioco."
+msgstr "Le tue partite salvate. Guardale, aggiungile al gioco o leggine gli input."
 
 msgid "replays.title"
 msgstr "Replay"
@@ -665,25 +665,25 @@ msgid "replays.add"
 msgstr "Aggiungi al gioco"
 
 msgid "replays.add_detail"
-msgstr "Lo aggiunge all'elenco dei replay del gioco per guardarlo più tardi dal registro degli incontri."
+msgstr "La aggiunge al Battle Log del gioco per guardarla più tardi."
 
 msgid "replays.watch"
 msgstr "Guarda ora"
 
 msgid "replays.watch_detail"
-msgstr "Lo aggiunge all'elenco dei replay del gioco e lo riproduce dal registro degli incontri."
+msgstr "La aggiunge al Battle Log del gioco e la riproduce."
 
 msgid "replays.save_watched"
 msgstr "Salva le partite che guardi"
 
 msgid "replays.save_watched_detail"
-msgstr "Sì: vengono registrate anche le partite che guardi soltanto. No: solo le partite che giochi."
+msgstr "Salva anche le partite che segui da spettatore. Disattivato salva solo quelle che giochi."
 
 msgid "replays.link"
-msgstr "Un link vuole riprodurre un replay"
+msgstr "Riproduci il replay del link"
 
 msgid "replays.link_detail"
-msgstr "Un link ha chiesto a Ember di riprodurre {0}. Riproducilo solo se sai da dove viene il link."
+msgstr "Un link ha chiesto a Ember di riprodurre {0}. Riproducilo solo se ti fidi della fonte del link."
 
 msgid "replays.link_play"
 msgstr "Riproduci"
@@ -692,22 +692,13 @@ msgid "replays.link_dismiss"
 msgstr "Non ora"
 
 msgid "replays.link_dismiss_detail"
-msgstr "Lascia il file dov'è e dimentica il link."
-
-msgid "replays.export_gpu"
-msgstr "Esporta video (GPU)"
-
-msgid "replays.export_gpu_detail"
-msgstr "Lo registra come .mp4 alla dimensione piena dell'immagine del gioco, codificato dalla scheda grafica."
+msgstr "Dimentica il link. Il file resta dov'è."
 
 msgid "replays.exported"
 msgstr "Video salvato: {0}"
 
 msgid "replays.gpu_not_exported"
 msgstr "Nessun video creato. Windows non ha fornito un codificatore H.264, oppure non è stato possibile leggere l'immagine del gioco. Il motivo è nel registro."
-
-msgid "replays.video"
-msgstr "Video"
 
 msgid "replays.open_folder"
 msgstr "Apri la cartella dei replay"
@@ -716,7 +707,7 @@ msgid "replays.open_folder_detail"
 msgstr "Apre l'archivio in Esplora file: replay e video esportati."
 
 msgid "services.opening_replay_folder"
-msgstr "Apertura della cartella dei replay…"
+msgstr "Apertura della cartella dei replay..."
 
 msgid "services.replay_folder_opened"
 msgstr "{0} aperto in Esplora file."
@@ -728,13 +719,10 @@ msgid "replays.inputs"
 msgstr "Input e statistiche"
 
 msgid "replays.inputs_detail"
-msgstr "Mostra cosa hanno premuto i due giocatori, fotogramma per fotogramma, e quante volte. Letto dal file del replay; non viene riprodotto nulla."
+msgstr "Mostra gli input di entrambi i giocatori, frame per frame, con i totali. Non riproduce nulla."
 
 msgid "inputs.length_value"
-msgstr "Round: {0}, {1}"
-
-msgid "inputs.buttons"
-msgstr "{0}: pressioni dei pulsanti"
+msgstr "Round {0} · {1}"
 
 msgid "inputs.activity"
 msgstr "{0} input al minuto, {1} salti, accovacciato per il {2}% del tempo."
@@ -757,62 +745,26 @@ msgstr "Impossibile leggere gli input"
 msgid "inputs.unreadable_detail"
 msgstr "Questo replay è in un formato precedente, oppure il file è danneggiato."
 
-msgid "export.title"
-msgstr "Esporta video"
-
-msgid "export.detail"
-msgstr "Mostrato sopra il gioco durante la registrazione, a schermo e nel video."
-
-msgid "export.names"
-msgstr "Nomi dei giocatori"
-
-msgid "export.name"
-msgstr "Giocatore {0}"
-
-msgid "export.line"
-msgstr "Riga della partita"
-
-msgid "export.line_text"
-msgstr "Testo della riga della partita"
-
-msgid "export.set"
-msgstr "Punteggio del set"
-
-msgid "export.set_detail"
-msgstr "Le vittorie di ciascun giocatore nel set finora, accanto al nome. Contate dalle partite che i due hanno giocato subito prima; modificalo se non è corretto."
-
-msgid "export.set_wins"
-msgstr "Vittorie del giocatore {0}"
-
-msgid "export.mark"
-msgstr "Marchio Ember"
-
-msgid "export.generate"
-msgstr "Genera video"
-
-msgid "replays.frame_meter"
-msgstr "Misuratore di frame"
-
-msgid "replays.frame_meter_detail"
-msgstr "Guarda ora ed Esporta video mostrano il misuratore di frame dell'allenamento sopra il replay. In un'esportazione è anche nel video."
-
 msgid "replays.row_detail"
-msgstr "Seleziona per aggiungerlo all'elenco dei replay del gioco, o per aggiungerlo e guardarlo ora."
+msgstr "Seleziona per guardare, aggiungere al gioco o vedere input e statistiche."
 
+#. The saved replay has already been played back.
 msgid "replays.watched"
-msgstr "Visto"
+msgstr "Vista"
 
+#. The player watched the live match as a spectator, not a replay playback.
 msgid "replays.spectated"
-msgstr "Da spettatore"
+msgstr "Seguita"
 
+#. The player watched the live match as a spectator and has also played its replay.
 msgid "replays.watched_spectated"
-msgstr "Visto, da spettatore"
+msgstr "Seguita, vista"
 
 msgid "replays.not_ready"
 msgstr "Disponibile nel menu principale, fuori da una partita."
 
 msgid "replays.added"
-msgstr "Aggiunto all'elenco dei replay del gioco, con la data in cui è stato giocato."
+msgstr "Aggiunta al Battle Log del gioco, alla data in cui è stata giocata."
 
 msgid "replays.not_added"
 msgstr "Impossibile aggiungere questo replay. Il file potrebbe essere danneggiato."
@@ -821,16 +773,16 @@ msgid "replays.not_added_yet"
 msgstr "Il gioco non ha ancora salvato l'ultimo incontro. Riprova tra un momento."
 
 msgid "replays.not_added_files"
-msgstr "Impossibile aggiungere questo replay: non è stato possibile leggere o preparare i file replay del gioco. Nessun file replay del gioco è stato modificato."
+msgstr "Impossibile aggiungere questo replay perché i file dei replay del gioco non sono stati letti. Nulla è stato modificato."
 
 msgid "replays.not_added_archive"
-msgstr "Impossibile aggiungere questo replay perché non è stato possibile creare e verificare una copia di sicurezza del replay esistente. Controlla la cartella dell’archivio e lo spazio disponibile sul disco."
+msgstr "Impossibile aggiungere questo replay perché non è stato possibile salvare prima il replay attuale del gioco. Controlla lo spazio libero su disco."
 
 msgid "replays.not_added_restored"
-msgstr "Importazione non riuscita. I file replay originali del gioco sono stati ripristinati."
+msgstr "Impossibile aggiungere questo replay. I replay del gioco sono rimasti invariati."
 
 msgid "replays.not_added_recovery"
-msgstr "Importazione non riuscita e alcuni file replay del gioco non sono stati ripristinati. I dati di recupero sono stati conservati. Interrompi l’importazione dei replay e controlla il registro."
+msgstr "Impossibile aggiungere questo replay e ripristinare alcuni replay del gioco. Non aggiungere altri replay ed esporta la diagnostica da Aiuto e informazioni."
 
 msgid "replays.fighters"
 msgstr "{0} vs {1}"
@@ -839,10 +791,10 @@ msgid "replays.player"
 msgstr "{0} ({1})"
 
 msgid "replays.open_log"
-msgstr "Apri il registro degli incontri del gioco"
+msgstr "Apri il Battle Log del gioco"
 
 msgid "replays.open_log_detail"
-msgstr "Esce dal menu di Ember per il registro locale degli incontri del gioco, dove si guardano i replay."
+msgstr "Esce dal menu di Ember e apre il Battle Log del gioco, dove si riproducono i replay."
 
 msgid "replays.open_log_room"
 msgstr "Prima esci dalla stanza."
@@ -850,31 +802,31 @@ msgid "home.training"
 msgstr "Allenamento"
 
 msgid "home.training_detail"
-msgstr "Vai direttamente alla modalità Allenamento, senza la domanda sulle richieste di lotta."
+msgstr "Vai direttamente alla modalità Allenamento del gioco."
 
 msgid "settings.training_auto_ready"
 msgstr "Rendimi pronto alla chiamata dall'Allenamento"
 
 msgid "settings.training_auto_ready_detail"
-msgstr "No: chiamato dall'Allenamento al tuo tavolo, hai 15 secondi per premere Pronto, altrimenti cedi il posto. Sì: vieni reso pronto subito."
+msgstr "Quando la stanza ti richiama dall'allenamento, vieni dichiarato pronto subito. Disattivato ti dà {0} secondi prima di perdere il posto."
 
 msgid "settings.match_frame_meter"
 msgstr "Misuratore di frame negli incontri"
 
 msgid "settings.match_frame_meter_detail"
-msgstr "Mostra il misuratore di frame dell'Allenamento sopra i tuoi incontri online e quelli che guardi. Lo vedi solo tu. Segue l'incontro in ritardo dei frame che attendono ancora gli input dell'altro giocatore."
+msgstr "Mostra l'indicatore dei frame sulle partite online che giochi o segui. Lo vedi solo tu. Può essere indietro di qualche frame rispetto al combattimento."
 
 msgid "room.training.detail"
-msgstr "Aspetta in modalità Allenamento senza lasciare la stanza. Quando un lottatore si siede di fronte a te, il gioco ti riporta qui per dichiararti pronto."
+msgstr "Allenati mentre aspetti. Ember ti richiama quando qualcuno si siede di fronte a te."
 
 msgid "room.training.unavailable"
-msgstr "L'Allenamento dalla stanza richiede il menu principale, nessuno ancora seduto di fronte a te, nessun Pronto dato e nessuna tua partita in avvio."
+msgstr "Disponibile mentre aspetti un avversario, prima di dichiararti pronto."
 
 msgid "room.training_call.ready_in"
-msgstr "Dichiarati pronto entro {0} s, o cedi il posto."
+msgstr "Dichiarati pronto entro {0} s o perdi il posto."
 
 msgid "runtime.training_call.forfeit"
-msgstr "Non ti sei dichiarato pronto in tempo dopo la chiamata dall'Allenamento: il tuo posto è stato ceduto."
+msgstr "Non ti sei dichiarato pronto in tempo dopo l'allenamento, quindi hai lasciato il posto."
 
 msgid "home.choose_controller"
 msgstr "Scegli controller di gioco"
@@ -1422,12 +1374,6 @@ msgstr "Registrazione {0} caricata nello slot {1}."
 msgid "training.recording_none"
 msgstr "Nessuna registrazione salvata."
 
-msgid "training.replay_chip"
-msgstr "F8 Riproduci slot {0}"
-
-msgid "training.stop_chip"
-msgstr "F8 Ferma"
-
 msgid "training.dummy_recording"
 msgstr "Registra manichino"
 
@@ -1440,12 +1386,6 @@ msgstr "Sequenza comandi"
 msgid "training.input_history.detail"
 msgstr "Comandi premuti da ogni giocatore."
 
-msgid "training.tools"
-msgstr "Posizione e manichino"
-
-msgid "training.tools.detail"
-msgstr "Salva e ripristina la posizione, imposta il manichino e cosa fa da solo."
-
 msgid "training.match.checkpoint_disabled"
 msgstr "Shared save/reset is disabled during rollback matches in nightly."
 
@@ -1454,24 +1394,6 @@ msgstr "Non accettato: {0}"
 
 msgid "training.save_failed"
 msgstr "Impossibile salvare il file."
-
-msgid "training.guide"
-msgstr "Su questa schermata"
-
-msgid "training.home.guide"
-msgstr "Questi comandi agiscono sull'incontro in corso. Registra manichino registra i comandi del pad sul manichino e li riproduce. Sequenza comandi elenca cosa ha premuto ogni giocatore. Posizione e manichino salva e ripristina la posizione e imposta il manichino e la sua risposta. F6 apre e chiude i comandi, le frecce spostano, Enter seleziona ed Esc torna indietro di una schermata."
-
-msgid "training.recording.guide"
-msgstr "Scegli uno slot, poi Registra: il pad del Giocatore 1 comanda il manichino finché non fermi. Riproduci fa ripetere lo slot al manichino e Ripeti riproduzione lo fa continuare. F7 avvia e ferma una registrazione senza aprire questa schermata. Gli slot durano solo per questo incontro; Salva registrazione come ne conserva uno in un file con nome e Carica registrazione lo riporta."
-
-msgid "training.history.guide"
-msgstr "I comandi del pad di ogni giocatore, dal più recente, con i frame per cui ciascuno è stato tenuto premuto. Seleziona un giocatore per leggere l'elenco. Mostra cosa è stato premuto, non quale mossa è uscita."
-
-msgid "training.tools.guide"
-msgstr "Salva posizione tiene l'incontro com'è ora e Ripristina posizione lo riporta; sul pad, Select ripristina con un tocco e salva se tenuto premuto. Le righe del manichino cambiano subito le impostazioni di Allenamento del gioco. Risposta del manichino fa agire il manichino da solo appena torna libero: riproduce le Mosse di risposta, o lo slot di risposta se quella riga è vuota."
-
-msgid "edit.instructions.area"
-msgstr "Digita o incolla con la tastiera. Enter va a capo. Ctrl+Enter o il pulsante Accetta conferma; Escape o Back sul controller annulla."
 
 msgid "training.position.save"
 msgstr "Salva posizione"
@@ -4085,3 +4007,102 @@ msgstr "Impossibile entrare nella sala. Potrebbe essersi appena chiusa. Aggiorna
 
 msgid "legend.refresh"
 msgstr "Aggiorna"
+
+msgid "training.frame_data"
+msgstr "Dati dei frame"
+
+msgid "training.frame_data.detail"
+msgstr "Consulta l'ultima mossa di ogni giocatore, il vantaggio e la tempistica del meaty."
+
+msgid "training.color_key"
+msgstr "Legenda colori"
+
+msgid "training.dummy"
+msgstr "Manichino"
+
+msgid "training.position"
+msgstr "Posizione"
+
+msgid "training.start_frames"
+msgstr "Avvio {0} f"
+
+msgid "training.start_unknown"
+msgstr "Avvio --"
+
+msgid "settings.training_replays"
+msgstr "Allenamento e replay"
+
+msgid "settings.training_replays_detail"
+msgstr "Pronto automatico dopo l'allenamento, indicatore dei frame nelle partite e scelta delle partite salvate."
+
+msgid "settings.training_replays_title"
+msgstr "ALLENAMENTO E REPLAY"
+
+msgid "room.table_footer_practice"
+msgstr "Partita di pratica"
+
+msgid "room.rules_summary_practice"
+msgstr "Partita di pratica, {0} round, {1} s, Edition Select {2}"
+
+msgid "inputs.presses_value"
+msgstr "{0} pressioni"
+
+msgid "replays.watch_meter"
+msgstr "Guarda con indicatore dei frame"
+
+msgid "replays.watch_meter_detail"
+msgstr "Riproduce dal Battle Log con l'indicatore dei frame sopra il combattimento."
+
+msgid "room.training"
+msgstr "Attendi in allenamento"
+
+msgid "runtime.practice_saved_name"
+msgstr "{0} ha salvato la posizione"
+
+msgid "runtime.practice_reset_name"
+msgstr "{0} ha ripristinato la posizione"
+
+msgid "replays.export_gpu"
+msgstr "Esporta video (GPU)"
+
+msgid "replays.export_gpu_detail"
+msgstr "Lo registra come .mp4 alla dimensione piena dell'immagine del gioco, codificato dalla scheda grafica."
+
+msgid "replays.video"
+msgstr "Video"
+
+msgid "export.title"
+msgstr "Esporta video"
+
+msgid "export.detail"
+msgstr "Mostrato sopra il gioco durante la registrazione, a schermo e nel video."
+
+msgid "export.names"
+msgstr "Nomi dei giocatori"
+
+msgid "export.name"
+msgstr "Giocatore {0}"
+
+msgid "export.line"
+msgstr "Riga della partita"
+
+msgid "export.line_text"
+msgstr "Testo della riga della partita"
+
+msgid "export.set"
+msgstr "Punteggio del set"
+
+msgid "export.set_detail"
+msgstr "Le vittorie di ciascun giocatore nel set finora, accanto al nome. Contate dalle partite che i due hanno giocato subito prima; modificalo se non è corretto."
+
+msgid "export.set_wins"
+msgstr "Vittorie del giocatore {0}"
+
+msgid "export.mark"
+msgstr "Marchio Ember"
+
+msgid "export.generate"
+msgstr "Genera video"
+
+msgid "training.result"
+msgstr "Risultato"

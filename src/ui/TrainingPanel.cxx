@@ -118,26 +118,27 @@ int StepDummy(int kind,int value,int delta) {
 // A hotkey's key as the hint and its row show it.
 std::string KeyName(int which) { return lab.keys[which]<0?loc::T("common.off"):"F"+std::to_string(lab.keys[which]+1); }
 constexpr const char* ReplyNames[]={"common.off","training.reply.hit","training.reply.block","training.reply.rise","training.reply.any"};
-std::vector<MenuEntry> ToolRows(const training::View& view) {
+std::vector<MenuEntry> ToolRows(const training::View& view,const std::string& screen) {
     LoadPractice();
     auto detailed=[](MenuEntry e,const char* detail){e.detail=detail;return e;};
     const auto& dummy=view.dummy;
-    return {
-        InfoRow("about",loc::T("training.guide"),"",loc::T("training.tools.guide")),
-        Row("save-pos",loc::T("training.position.save"),loc::T("training.position.save.detail"),view.ready),
-        Row("reset-pos",loc::T("training.position.reset"),loc::T("training.position.reset.detail"),view.ready&&view.checkpoint),
+    if(screen=="dummy") return {
         Value("dummy-action",loc::T("training.dummy.action"),DummyLabel(0,dummy.action),loc::T("training.dummy.detail")),
         Value("dummy-guard",loc::T("training.dummy.guard"),DummyLabel(1,dummy.guard),loc::T("training.dummy.detail")),
         Value("dummy-counter",loc::T("training.dummy.counter"),DummyLabel(2,dummy.counterHit),loc::T("training.dummy.detail")),
         Value("dummy-quick",loc::T("training.dummy.quick"),DummyLabel(3,dummy.quickStand),loc::T("training.dummy.detail")),
         Value("dummy-super",loc::T("training.dummy.super"),DummyLabel(4,dummy.super),loc::T("training.dummy.detail")),
-        Value("dummy-revenge",loc::T("training.dummy.revenge"),DummyLabel(4,dummy.revenge),loc::T("training.dummy.detail")),
+        Value("dummy-revenge",loc::T("training.dummy.revenge"),DummyLabel(4,dummy.revenge),loc::T("training.dummy.detail"))};
+    if(screen=="reply") return {
         Value("reply",loc::T("training.reply"),loc::T(ReplyNames[lab.plan.when]),loc::T("training.reply.detail")),
         detailed(TextRow("reply-moves",loc::T("training.reply.moves"),lab.replyMoves,256),loc::T("training.reply.moves.detail")),
         Value("reply-timing",loc::T("training.reply.timing"),(lab.plan.timing>0?"+":"")+std::to_string(lab.plan.timing)+" f",loc::T("training.reply.timing.detail"),lab.plan.when!=0),
-        Value("reply-slot",loc::T("training.reply.slot"),loc::Tf("training.slot",lab.plan.slot+1)+" ("+loc::Tf("training.recorded_frames",view.lengths[lab.plan.slot])+")",loc::T("training.reply.slot.detail"),lab.plan.when!=0&&lab.replyMoves.empty()),
+        Value("reply-slot",loc::T("training.reply.slot"),loc::Tf("training.slot",lab.plan.slot+1),loc::Tf("training.recorded_frames",view.lengths[lab.plan.slot])+"\n"+loc::T("training.reply.slot.detail"),lab.plan.when!=0&&lab.replyMoves.empty()),
         Value("reply-chance",loc::T("training.reply.chance"),std::to_string(lab.plan.chance)+"%",loc::T("training.reply.chance.detail"),lab.plan.when!=0),
-        Value("reply-stance",loc::T("training.reply.vary_stance"),loc::T(lab.plan.varyStance?"common.on":"common.off"),loc::T("training.reply.vary_stance.detail")),
+        Value("reply-stance",loc::T("training.reply.vary_stance"),loc::T(lab.plan.varyStance?"common.on":"common.off"),loc::T("training.reply.vary_stance.detail"))};
+    return {
+        Row("save-pos",loc::T("training.position.save"),loc::T("training.position.save.detail"),view.ready),
+        Row("reset-pos",loc::T("training.position.reset"),loc::T("training.position.reset.detail"),view.ready&&view.checkpoint),
         Value("key-0",loc::T("training.key.reset"),KeyName(ResetKey),loc::T("training.key.detail")),
         // Named by the row it presses, so it needs no words of its own.
         Value("key-1",loc::T("training.position.save"),KeyName(SaveKey),loc::T("training.key.detail"))};
@@ -284,9 +285,7 @@ void DrawTrainingFlyout(const training::View& view,const TrainingSubmit& submit)
     // Compact typography independently of global DPI when the viewport cannot
     // accommodate the preferred panel. Other Ember windows keep their scale.
     const float unit=(std::min)(Scale(),(std::min)(size.x/500.f,size.y/500.f));
-    // Top centre at first, then wherever it was dragged, so it can be moved
-    // off the fight while a playback runs under it.
-    ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+vp->Size.x*.5f,vp->Pos.y+8*unit),ImGuiCond_FirstUseEver,ImVec2(.5f,0));
+    ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+vp->Size.x*.5f,vp->Pos.y+vp->Size.y*.5f),ImGuiCond_Always,ImVec2(.5f,.5f));
     ImGui::SetNextWindowSize(size,ImGuiCond_Always);
     ImGui::PushStyleColor(ImGuiCol_WindowBg,ImVec4(.075f,.07f,.065f,.97f));
     ImGui::PushStyleColor(ImGuiCol_Border,ImVec4(1,.53f,.22f,.8f));
@@ -295,12 +294,8 @@ void DrawTrainingFlyout(const training::View& view,const TrainingSubmit& submit)
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,ImVec2(8*unit,6*unit));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize,unit);
     const auto trainingWindow=std::string(loc::T("training.controls"))+"###TrainingControls";
-    if(ImGui::Begin(trainingWindow.c_str(),nullptr,ImGuiWindowFlags_NoDecoration|
+    if(ImGui::Begin(trainingWindow.c_str(),nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoMove|
         ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs)) {
-        // Dragged out of the viewport, it comes back to the edge.
-        const ImVec2 pos=ImGui::GetWindowPos();
-        const ImVec2 kept((std::max)(vp->Pos.x,(std::min)(pos.x,vp->Pos.x+vp->Size.x-size.x)),(std::max)(vp->Pos.y,(std::min)(pos.y,vp->Pos.y+vp->Size.y-size.y)));
-        if(kept.x!=pos.x||kept.y!=pos.y) ImGui::SetWindowPos(kept);
         ImGui::SetWindowFontScale(unit/Scale());
         // Capture remains global even though presentation is only a flyout.
         ImGui::SetNextFrameWantCaptureKeyboard(true);
@@ -332,14 +327,16 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  trainingMenu.backHint=nav.Screen()==nav.Root()?loc::T("training.close_controls"):"";
  const auto screen=nav.Screen();std::vector<MenuEntry> rows;
  const bool ready=v.ready&&!pending;
+ const bool recordingGrid=screen=="recording"&&ImGui::GetContentRegionAvail().x>=640*ImGui::GetFontSize()/ImGui::GetFont()->FontSize;
  if(screen=="home"){
   rows={Row("recording",loc::T("training.dummy_recording"),loc::T("training.dummy_recording.detail")),
    Row("history",loc::T("training.input_history"),loc::T("training.input_history.detail")),
-   Row("tools",loc::T("training.tools"),loc::T("training.tools.detail")),
-   InfoRow("about",loc::T("training.guide"),"",loc::T("training.home.guide")),
+   Row("frame-data",loc::T("training.frame_data"),loc::T("training.frame_data.detail")),
+   Row("dummy",loc::T("training.dummy"),loc::T("training.dummy.detail")),
+   Row("reply",loc::T("training.reply"),loc::T("training.reply.detail")),
+   Row("tools",loc::T("training.position"),std::string(loc::T("training.position.save.detail"))+"\n"+loc::T("training.position.reset.detail")),
    Row("return",loc::T("training.close_controls"),loc::T("training.close_controls.detail"))};
  }else if(screen=="recording"){
-  rows.push_back(InfoRow("about",loc::T("training.guide"),"",loc::T("training.recording.guide")));
   for(int slot=0;slot<SlotCount;++slot)rows.push_back(Row("slot-"+std::to_string(slot),loc::Tf(slot==v.selected?"training.slot_selected":"training.slot",slot+1),
    loc::Tf("training.recorded_frames",v.lengths[slot]),ready&&v.mode==Mode::Idle));
   auto record=Row("record",loc::T("training.record"),loc::T(v.lengths[v.selected]?"training.record.overwrite":"training.record.detail"),ready);
@@ -352,15 +349,21 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   rows.push_back(TextRow("save-recording",loc::T("training.save_recording"),"",48,v.lengths[v.selected]>0&&!lab.directory.empty()));
   rows.back().detail=loc::T("training.save_recording.detail");
   rows.push_back(Value("load-recording",loc::T("training.load_recording"),recordings.empty()?loc::T("training.recording_none"):recordings[(std::min)(recordingChoice,recordings.size()-1)],loc::T("training.load_recording.detail"),!recordings.empty()&&ready&&v.mode==Mode::Idle));
- }else if(screen=="tools"){
-  rows=ToolRows(v);
+  rows.back().opens=true;
+  for(std::size_t i=0;i<rows.size();++i){rows[i].wide=i>=SlotCount;rows[i].height=recordingGrid?30:0;}
+ }else if(screen=="tools"||screen=="dummy"||screen=="reply"){
+  rows=ToolRows(v,screen);
+ }else if(screen=="frame-data"){
+  rows={Row("p1",loc::T("training.player_one"),TrainingFrameData(v.meter,0)),
+        Row("p2",loc::T("training.player_two"),TrainingFrameData(v.meter,1)),
+        Row("color-key",loc::T("training.color_key"),"")};
+  rows[0].reading=rows[1].reading=rows[2].reading=true;
  }else{
   // The history is longer than the detail pane, so Select opens it in a reader.
-  rows={InfoRow("about",loc::T("training.guide"),"",loc::T("training.history.guide")),
-        Row("p1",loc::T("training.player_one"),loc::T("training.history.detail")),
+  rows={Row("p1",loc::T("training.player_one"),loc::T("training.history.detail")),
         Row("p2",loc::T("training.player_two"),loc::T("training.history.detail")),
         ConfirmRow("clear-history",loc::T("training.clear_history"),loc::T("training.clear_history.detail"),!pending)};
-  rows[1].reading=rows[2].reading=true;
+  rows[0].reading=rows[1].reading=true;
  }
  // F7 on a recorded slot lands on Record with its overwrite question open,
  // answered Cancel until the player chooses otherwise.
@@ -371,16 +374,18 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  const char* modes[]={"training.practice_ready","training.recording_suspended","training.playback_suspended"};
  std::string status=pending?loc::T("training.applying"):!error.empty()?error:!v.ready?loc::T("training.waiting_battle"):loc::T(modes[static_cast<int>(v.mode)]);
  Tone statusTone=pending?Tone::Pending:!error.empty()?Tone::Error:!v.ready?Tone::Pending:Tone::Neutral;
- if((screen=="tools"||screen=="recording")&&!lab.notice.empty()){status=lab.notice;statusTone=lab.failed?Tone::Error:Tone::Success;}
+ if((screen=="tools"||screen=="dummy"||screen=="reply"||screen=="recording")&&!lab.notice.empty()){status=lab.notice;statusTone=lab.failed?Tone::Error:Tone::Success;}
+ trainingMenu.wideListShare=screen=="recording"?.65f:screen=="dummy"||screen=="reply"||screen=="tools"?.58f:.5f;
  const auto a=trainingMenu.Draw(loc::T("training.title"),rows,status.c_str(),[&](const std::string& id){
   if(screen=="history"&&(id=="p1"||id=="p2")){
    for(const auto& run:v.history[id=="p1"?0:1])ImGui::TextWrapped("%u f  %s",run.frames,Buttons(run.buttons).c_str());
   }
- },1,{},GameMenu::Body{},ImGui::GetFontSize()/ImGui::GetFont()->FontSize,100,false,statusTone);
+  if(screen=="frame-data"&&id=="color-key")DrawTrainingColorKey();
+ },recordingGrid?2:1,{},GameMenu::Body{},ImGui::GetFontSize()/ImGui::GetFont()->FontSize,recordingGrid?30:100,false,statusTone);
  if(a.kind==MenuAction::Close||a.id=="return"){ForwardMenuAction({MenuAction::Close});return;}
- if(a.kind==MenuAction::Activate&&screen=="home"&&a.id!="about"){if(a.id=="recording")ListRecordings();nav.Push(a.id);return;}
+ if(a.kind==MenuAction::Activate&&screen=="home"){if(a.id=="recording")ListRecordings();nav.Push(a.id);return;}
  if(screen=="recording"&&HandleRecordingLibrary(a,v,submit))return;
- if(screen=="tools"){HandleTools(a,v,submit);return;}
+ if(screen=="tools"||screen=="dummy"||screen=="reply"){HandleTools(a,v,submit);return;}
  if(a.kind!=MenuAction::Activate&&a.kind!=MenuAction::Adjust)return;
  Command command;command.generation=v.generation;command.requestId=nextRequest++;
  if(a.id.compare(0,5,"slot-")==0){command.action=Action::Select;command.value=std::stoi(a.id.substr(5));}

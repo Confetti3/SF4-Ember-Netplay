@@ -344,10 +344,10 @@ msgid "rules.round_time"
 msgstr "라운드 시간"
 
 msgid "rules.training"
-msgstr "트레이닝"
+msgstr "연습 대전"
 
 msgid "rules.training.detail"
-msgstr "켜짐: 두 파이터의 체력과 게이지가 다시 차오르고 아무도 KO되지 않습니다. 다른 플레이어와 연습하기 위한 규칙입니다. 파이터가 자리를 떠나거나 라운드 시간이 끝나면 게임이 끝나므로 라운드 시간을 길게 설정하세요."
+msgstr "체력과 게이지가 다시 차며 누구도 KO되지 않습니다. 라운드 시간이 끝나면 게임이 종료되므로 시간을 길게 설정하세요."
 
 msgid "screen.home"
 msgstr "홈"
@@ -632,7 +632,7 @@ msgid "home.identity_matches"
 msgstr "플레이할 수 있는 대회 경기: {0}"
 
 msgid "home.settings_detail"
-msgstr "플레이어, 컨트롤러, 게임플레이 기본 설정, 화면, 언어 및 Discord."
+msgstr "플레이어, 컨트롤러, 기본 대전 규칙, 인터페이스, 언어, 트레이닝, Discord."
 
 msgid "home.about"
 msgstr "도움말 및 정보"
@@ -650,7 +650,7 @@ msgid "home.replays"
 msgstr "리플레이"
 
 msgid "home.replays_detail"
-msgstr "모든 매치가 저장됩니다. 어느 것이든 게임의 리플레이 채널에 넣을 수 있습니다."
+msgstr "저장한 대전입니다. 시청하거나 게임에 추가하거나 입력을 확인하세요."
 
 msgid "replays.title"
 msgstr "리플레이"
@@ -665,25 +665,25 @@ msgid "replays.add"
 msgstr "게임에 추가"
 
 msgid "replays.add_detail"
-msgstr "게임의 리플레이 목록에 추가해 나중에 배틀 로그에서 볼 수 있습니다."
+msgstr "나중에 볼 수 있도록 게임의 Battle Log에 추가합니다."
 
 msgid "replays.watch"
 msgstr "지금 보기"
 
 msgid "replays.watch_detail"
-msgstr "게임의 리플레이 목록에 추가하고 배틀 로그에서 재생합니다."
+msgstr "게임의 Battle Log에 추가하고 재생합니다."
 
 msgid "replays.save_watched"
 msgstr "관전한 매치 저장"
 
 msgid "replays.save_watched_detail"
-msgstr "켜기: 관전만 한 매치도 기록합니다. 끄기: 직접 플레이한 매치만 기록합니다."
+msgstr "관전자로 시청한 대전도 저장합니다. 끄면 직접 플레이한 대전만 저장합니다."
 
 msgid "replays.link"
-msgstr "링크가 리플레이 재생을 요청했습니다"
+msgstr "링크의 리플레이 재생"
 
 msgid "replays.link_detail"
-msgstr "링크가 Ember에 {0} 재생을 요청했습니다. 링크의 출처를 아는 경우에만 재생하세요."
+msgstr "링크가 Ember에 {0} 재생을 요청했습니다. 링크 출처를 신뢰할 때만 재생하세요."
 
 msgid "replays.link_play"
 msgstr "재생"
@@ -692,22 +692,13 @@ msgid "replays.link_dismiss"
 msgstr "나중에"
 
 msgid "replays.link_dismiss_detail"
-msgstr "파일은 그대로 두고 링크를 잊습니다."
-
-msgid "replays.export_gpu"
-msgstr "동영상 내보내기 (GPU)"
-
-msgid "replays.export_gpu_detail"
-msgstr "게임 화면 전체 크기의 .mp4로 녹화하며, 그래픽 카드로 인코딩합니다."
+msgstr "링크를 잊습니다. 파일은 원래 위치에 남습니다."
 
 msgid "replays.exported"
 msgstr "동영상 저장됨: {0}"
 
 msgid "replays.gpu_not_exported"
 msgstr "동영상이 만들어지지 않았습니다. Windows에 H.264 인코더가 없거나 게임 화면을 읽지 못했습니다. 이유는 로그에 있습니다."
-
-msgid "replays.video"
-msgstr "동영상"
 
 msgid "replays.open_folder"
 msgstr "리플레이 폴더 열기"
@@ -716,7 +707,7 @@ msgid "replays.open_folder_detail"
 msgstr "탐색기에서 보관함을 엽니다. 리플레이와 내보낸 동영상이 있습니다."
 
 msgid "services.opening_replay_folder"
-msgstr "리플레이 폴더를 여는 중…"
+msgstr "리플레이 폴더 여는 중..."
 
 msgid "services.replay_folder_opened"
 msgstr "탐색기에서 {0}을(를) 열었습니다."
@@ -728,13 +719,10 @@ msgid "replays.inputs"
 msgstr "입력과 통계"
 
 msgid "replays.inputs_detail"
-msgstr "두 플레이어가 누른 것을 프레임 단위로 보여 주고 횟수를 셉니다. 리플레이 파일에서 읽으며 재생하지 않습니다."
+msgstr "두 플레이어가 누른 입력을 프레임별로 합계와 함께 표시합니다. 아무것도 재생하지 않습니다."
 
 msgid "inputs.length_value"
-msgstr "라운드 수: {0}, {1}"
-
-msgid "inputs.buttons"
-msgstr "{0}: 버튼 누른 횟수"
+msgstr "라운드 {0} · {1}"
 
 msgid "inputs.activity"
 msgstr "분당 입력 {0}회, 점프 {1}회, 앉은 시간 {2}%."
@@ -749,7 +737,7 @@ msgid "inputs.reading"
 msgstr "리플레이를 읽는 중..."
 
 msgid "inputs.look_unknown"
-msgstr "외형 알 수 없음"
+msgstr "외형 정보 없음"
 
 msgid "inputs.unreadable"
 msgstr "입력을 읽을 수 없습니다"
@@ -757,62 +745,26 @@ msgstr "입력을 읽을 수 없습니다"
 msgid "inputs.unreadable_detail"
 msgstr "이 리플레이는 예전 형식이거나 파일이 손상되었습니다."
 
-msgid "export.title"
-msgstr "동영상 내보내기"
-
-msgid "export.detail"
-msgstr "녹화하는 동안 화면과 동영상 모두에서 게임 위에 표시됩니다."
-
-msgid "export.names"
-msgstr "플레이어 이름"
-
-msgid "export.name"
-msgstr "플레이어 {0}"
-
-msgid "export.line"
-msgstr "매치 줄"
-
-msgid "export.line_text"
-msgstr "매치 줄 텍스트"
-
-msgid "export.set"
-msgstr "세트 스코어"
-
-msgid "export.set_detail"
-msgstr "이 세트에서 지금까지 각 플레이어가 이긴 횟수를 이름 옆에 표시합니다. 직전에 두 사람이 한 매치에서 셉니다. 맞지 않으면 바꾸세요."
-
-msgid "export.set_wins"
-msgstr "플레이어 {0} 승리 수"
-
-msgid "export.mark"
-msgstr "Ember 표시"
-
-msgid "export.generate"
-msgstr "동영상 만들기"
-
-msgid "replays.frame_meter"
-msgstr "프레임 미터"
-
-msgid "replays.frame_meter_detail"
-msgstr "지금 보기와 동영상 내보내기에서 트레이닝 프레임 미터를 리플레이 위에 표시합니다. 내보내기에서는 동영상에도 들어갑니다."
-
 msgid "replays.row_detail"
-msgstr "선택하여 게임의 리플레이 목록에 추가하거나, 추가하고 지금 봅니다."
+msgstr "선택하여 시청하거나 게임에 추가하거나 입력과 통계를 확인하세요."
 
+#. The saved replay has already been played back.
 msgid "replays.watched"
-msgstr "시청함"
+msgstr "재생 완료"
 
+#. The player watched the live match as a spectator, not a replay playback.
 msgid "replays.spectated"
-msgstr "관전"
+msgstr "관전한 대전"
 
+#. The player watched the live match as a spectator and has also played its replay.
 msgid "replays.watched_spectated"
-msgstr "시청함, 관전"
+msgstr "관전한 대전, 재생 완료"
 
 msgid "replays.not_ready"
 msgstr "매치 중이 아닌 메인 메뉴에서 사용할 수 있습니다."
 
 msgid "replays.added"
-msgstr "플레이한 날짜로 게임 리플레이 목록에 추가했습니다."
+msgstr "게임의 Battle Log에 대전한 날짜로 추가했습니다."
 
 msgid "replays.not_added"
 msgstr "이 리플레이를 추가할 수 없습니다. 파일이 손상되었을 수 있습니다."
@@ -821,16 +773,16 @@ msgid "replays.not_added_yet"
 msgstr "게임이 마지막 대전을 아직 저장하지 않았습니다. 잠시 후 다시 시도하세요."
 
 msgid "replays.not_added_files"
-msgstr "이 리플레이를 추가할 수 없습니다. 게임 리플레이 파일을 읽거나 준비할 수 없습니다. 게임 리플레이 파일은 변경되지 않았습니다."
+msgstr "게임의 리플레이 파일을 읽을 수 없어 이 리플레이를 추가하지 못했습니다. 변경된 내용은 없습니다."
 
 msgid "replays.not_added_archive"
-msgstr "기존 리플레이를 백업하고 확인할 수 없어 이 리플레이를 추가하지 못했습니다. 보관 폴더와 디스크 여유 공간을 확인하세요."
+msgstr "게임의 현재 리플레이를 먼저 저장할 수 없어 이 리플레이를 추가하지 못했습니다. 디스크 여유 공간을 확인하세요."
 
 msgid "replays.not_added_restored"
-msgstr "가져오기에 실패했습니다. 원래 게임 리플레이 파일을 복원했습니다."
+msgstr "이 리플레이를 추가하지 못했습니다. 게임의 리플레이는 그대로입니다."
 
 msgid "replays.not_added_recovery"
-msgstr "가져오기에 실패했으며 일부 게임 리플레이 파일을 복원하지 못했습니다. 복구 데이터를 보관했습니다. 리플레이 가져오기를 중지하고 로그를 확인하세요."
+msgstr "이 리플레이를 추가하지 못했고 게임의 일부 리플레이도 복구하지 못했습니다. 리플레이 추가를 중단하고 도움말 및 정보에서 진단 자료를 내보내세요."
 
 msgid "replays.fighters"
 msgstr "{0} vs {1}"
@@ -839,10 +791,10 @@ msgid "replays.player"
 msgstr "{0} ({1})"
 
 msgid "replays.open_log"
-msgstr "게임의 배틀 로그 열기"
+msgstr "게임의 Battle Log 열기"
 
 msgid "replays.open_log_detail"
-msgstr "Ember 메뉴를 떠나 리플레이를 재생하는 게임의 로컬 배틀 로그로 이동합니다."
+msgstr "Ember 메뉴를 나가 리플레이를 재생하는 게임의 Battle Log를 엽니다."
 
 msgid "replays.open_log_room"
 msgstr "먼저 방에서 나가세요."
@@ -850,31 +802,31 @@ msgid "home.training"
 msgstr "트레이닝"
 
 msgid "home.training_detail"
-msgstr "난입 설정을 묻지 않고 바로 트레이닝 모드로 들어갑니다."
+msgstr "게임의 트레이닝 모드로 바로 이동합니다."
 
 msgid "settings.training_auto_ready"
 msgstr "트레이닝에서 호출되면 자동 준비"
 
 msgid "settings.training_auto_ready_detail"
-msgstr "끄기: 트레이닝에서 테이블로 호출되면 15초 안에 준비를 눌러야 하며, 아니면 자리를 내줍니다. 켜기: 바로 준비 상태가 됩니다."
+msgstr "방에서 트레이닝 중인 플레이어를 부르면 즉시 준비 완료로 설정합니다. 끄면 자리를 잃기 전까지 {0}초 동안 준비할 수 있습니다."
 
 msgid "settings.match_frame_meter"
 msgstr "대전 중 프레임 미터"
 
 msgid "settings.match_frame_meter_detail"
-msgstr "트레이닝의 프레임 미터를 내 온라인 대전과 관전 중인 대전 위에 표시합니다. 나에게만 보입니다. 상대의 입력을 아직 기다리는 프레임만큼 늦게 표시됩니다."
+msgstr "직접 플레이하거나 관전하는 온라인 대전 위에 프레임 미터를 표시합니다. 자신에게만 보이며 대전보다 몇 프레임 늦을 수 있습니다."
 
 msgid "room.training.detail"
-msgstr "방을 나가지 않고 트레이닝 모드에서 기다립니다. 맞은편에 상대가 앉으면 준비할 수 있도록 게임이 여기로 데려옵니다."
+msgstr "기다리는 동안 트레이닝 모드에서 연습하세요. 맞은편에 누군가 앉으면 Ember가 다시 부릅니다."
 
 msgid "room.training.unavailable"
-msgstr "방에서 트레이닝을 하려면 메인 메뉴에 있어야 하고, 맞은편에 아직 아무도 없으며, 준비를 하지 않았고 자신의 게임이 시작 중이 아니어야 합니다."
+msgstr "상대를 기다리는 동안 준비 완료를 누르기 전에 이용할 수 있습니다."
 
 msgid "room.training_call.ready_in"
-msgstr "{0}초 안에 준비하지 않으면 자리를 내줍니다."
+msgstr "{0}초 안에 준비하지 않으면 자리를 잃습니다."
 
 msgid "runtime.training_call.forfeit"
-msgstr "트레이닝에서 호출된 뒤 제때 준비하지 않아 자리를 내주었습니다."
+msgstr "트레이닝 후 제시간에 준비하지 않아 자리에서 나왔습니다."
 
 msgid "home.choose_controller"
 msgstr "게임플레이 컨트롤러 선택"
@@ -1422,12 +1374,6 @@ msgstr "녹화 {0}을(를) 슬롯 {1}에 불러왔습니다."
 msgid "training.recording_none"
 msgstr "저장한 녹화가 없습니다."
 
-msgid "training.replay_chip"
-msgstr "F8 슬롯 {0} 재생"
-
-msgid "training.stop_chip"
-msgstr "F8 정지"
-
 msgid "training.dummy_recording"
 msgstr "더미 녹화"
 
@@ -1440,12 +1386,6 @@ msgstr "입력 기록"
 msgid "training.input_history.detail"
 msgstr "각 플레이어가 누르고 있는 입력을 확인합니다."
 
-msgid "training.tools"
-msgstr "위치와 더미"
-
-msgid "training.tools.detail"
-msgstr "위치를 저장하고 되돌리며, 더미와 더미의 반격을 설정합니다."
-
 msgid "training.match.checkpoint_disabled"
 msgstr "Shared save/reset is disabled during rollback matches in nightly."
 
@@ -1454,24 +1394,6 @@ msgstr "받을 수 없습니다: {0}"
 
 msgid "training.save_failed"
 msgstr "파일을 저장하지 못했습니다."
-
-msgid "training.guide"
-msgstr "이 화면 안내"
-
-msgid "training.home.guide"
-msgstr "이 조작은 지금 하고 있는 대전에 적용됩니다. 더미 녹화는 패드 입력을 더미에 녹화하고 재생합니다. 입력 기록은 각 플레이어가 누른 입력을 보여 줍니다. 위치와 더미는 위치를 저장하고 되돌리며, 더미와 더미의 반격을 설정합니다. F6으로 조작 창을 열고 닫으며, 방향키로 이동하고, Enter로 선택하고, Esc로 이전 화면으로 돌아갑니다."
-
-msgid "training.recording.guide"
-msgstr "슬롯을 고른 뒤 녹화를 선택하면 중지할 때까지 플레이어 1의 패드가 더미를 조작합니다. 재생은 더미가 슬롯을 다시 수행하게 하고, 반복 재생은 계속 반복합니다. F7은 이 화면을 열지 않고 녹화를 시작하고 중지합니다. 슬롯은 현재 대전 동안만 유지됩니다. 녹화 이름 지정 저장은 이름이 있는 파일로 남기고, 녹화 불러오기는 다시 가져옵니다."
-
-msgid "training.history.guide"
-msgstr "각 플레이어의 패드 입력을 최근 것부터, 누르고 있던 프레임 수와 함께 보여 줍니다. 플레이어를 선택하면 목록을 볼 수 있습니다. 누른 입력을 표시하며, 어떤 기술이 나갔는지는 표시하지 않습니다."
-
-msgid "training.tools.guide"
-msgstr "위치 저장은 지금의 대전 상태를 저장하고, 위치 복원은 그 상태로 되돌립니다. 패드의 Select는 짧게 누르면 복원하고 길게 누르면 저장합니다. 더미 줄은 게임의 트레이닝 설정을 바로 바꿉니다. 더미 반격은 더미가 다시 움직일 수 있게 되는 순간 스스로 하는 행동입니다. 반격 기술을 재생하고, 그 줄이 비어 있으면 반격 슬롯을 재생합니다."
-
-msgid "edit.instructions.area"
-msgstr "키보드로 입력하거나 붙여넣으세요. Enter는 줄을 바꿉니다. Ctrl+Enter 또는 수락 버튼으로 확정하고 Esc 또는 컨트롤러의 뒤로 버튼으로 취소합니다."
 
 msgid "training.position.save"
 msgstr "위치 저장"
@@ -4085,3 +4007,102 @@ msgstr "방에 들어가지 못했습니다. 방금 닫혔을 수 있습니다. 
 
 msgid "legend.refresh"
 msgstr "새로 고침"
+
+msgid "training.frame_data"
+msgstr "프레임 데이터"
+
+msgid "training.frame_data.detail"
+msgstr "각 플레이어의 마지막 기술, 프레임 이득과 기상에 겹치는 공격 타이밍을 확인합니다."
+
+msgid "training.color_key"
+msgstr "색상 설명"
+
+msgid "training.dummy"
+msgstr "더미"
+
+msgid "training.position"
+msgstr "위치"
+
+msgid "training.start_frames"
+msgstr "발생 {0} f"
+
+msgid "training.start_unknown"
+msgstr "발생 --"
+
+msgid "settings.training_replays"
+msgstr "트레이닝과 리플레이"
+
+msgid "settings.training_replays_detail"
+msgstr "트레이닝 복귀 시 자동 준비, 대전 중 프레임 미터, 저장할 대전 설정."
+
+msgid "settings.training_replays_title"
+msgstr "트레이닝과 리플레이"
+
+msgid "room.table_footer_practice"
+msgstr "연습 대전"
+
+msgid "room.rules_summary_practice"
+msgstr "연습 대전, {0}라운드, {1}초, Edition Select {2}"
+
+msgid "inputs.presses_value"
+msgstr "버튼 입력 {0}회"
+
+msgid "replays.watch_meter"
+msgstr "프레임 미터와 함께 보기"
+
+msgid "replays.watch_meter_detail"
+msgstr "Battle Log에서 재생하며 대전 위에 프레임 미터를 표시합니다."
+
+msgid "room.training"
+msgstr "트레이닝에서 대기"
+
+msgid "runtime.practice_saved_name"
+msgstr "{0} 님이 위치를 저장했습니다"
+
+msgid "runtime.practice_reset_name"
+msgstr "{0} 님이 위치를 초기화했습니다"
+
+msgid "replays.export_gpu"
+msgstr "동영상 내보내기 (GPU)"
+
+msgid "replays.export_gpu_detail"
+msgstr "게임 화면 전체 크기의 .mp4로 녹화하며, 그래픽 카드로 인코딩합니다."
+
+msgid "replays.video"
+msgstr "동영상"
+
+msgid "export.title"
+msgstr "동영상 내보내기"
+
+msgid "export.detail"
+msgstr "녹화하는 동안 화면과 동영상 모두에서 게임 위에 표시됩니다."
+
+msgid "export.names"
+msgstr "플레이어 이름"
+
+msgid "export.name"
+msgstr "플레이어 {0}"
+
+msgid "export.line"
+msgstr "매치 줄"
+
+msgid "export.line_text"
+msgstr "매치 줄 텍스트"
+
+msgid "export.set"
+msgstr "세트 스코어"
+
+msgid "export.set_detail"
+msgstr "이 세트에서 지금까지 각 플레이어가 이긴 횟수를 이름 옆에 표시합니다. 직전에 두 사람이 한 매치에서 셉니다. 맞지 않으면 바꾸세요."
+
+msgid "export.set_wins"
+msgstr "플레이어 {0} 승리 수"
+
+msgid "export.mark"
+msgstr "Ember 표시"
+
+msgid "export.generate"
+msgstr "동영상 만들기"
+
+msgid "training.result"
+msgstr "결과"

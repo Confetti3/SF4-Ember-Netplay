@@ -17,7 +17,7 @@ std::shared_ptr<const sf4e::replayinputs::Detail> InputsFixture(const std::strin
 void OpenInputs(Harness& h,const ShellView::Replay& read,bool ready) {
  h.view.replayLink.clear();h.view.replays={read};h.view.replaysReady=ready;h.Screen("replays");
  const auto sent=h.actions.size();const std::string row="replay:"+read.path;h.Choose(row.c_str());
- if(ready)for(int i=0;i<2;++i)h.Press(MenuInput::Right);
+ if(ready)for(int i=0;i<4;++i)h.Press(MenuInput::Right);
  h.Press(MenuInput::Select);
  Check(h.shell.Navigation().Screen()=="replay-inputs"&&h.actions.size()==sent&&h.shell.ReplayInputsFile()==read.path,"Inputs and stats did not open without sending a game action");
 }
@@ -75,7 +75,9 @@ void InputsReplacementJourney(Harness& h) {
  const auto find=[&](const char* id)->const MenuEntry&{const auto at=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});Check(at!=rows.end(),"Replacement Inputs row missing");return *at;};
  const auto label=ReplayLabel(detail->label,detail->names,detail->fighters);
  Check(find("inputs-replay").label==label&&label!=row.label,"Inputs displayed A's date/fighters/names above B's stats");
- Check(find("inputs-p1").label==sf4e::loc::Tf("inputs.buttons","Carol")&&find("inputs-p2").label==sf4e::loc::Tf("inputs.buttons","Dave"),"Inputs displayed stale player names");
+ Check(find("inputs-p1").label==sf4e::loc::Tf("replays.player","Carol",sf4e::selection::FindFighter(detail->fighters[0])->name)&&find("inputs-p2").label==sf4e::loc::Tf("replays.player","Dave",sf4e::selection::FindFighter(detail->fighters[1])->name),"Inputs displayed stale player names or fighters");
+ Check(find("inputs-p1").value==sf4e::loc::Tf("inputs.presses_value",1),"Inputs total is not compact or correct");
+ Check(find("inputs-p1").detail.find("LP 0, MP 1, HP 0, LK 0, MK 0, HK 0")!=std::string::npos,"Inputs detail lost per-button counts");
  Check(find("inputs-p1").userText&&detail->fighters[0]==25&&detail->time==1800000060,"Inputs metadata was not body-bound");
  h.view.replays.clear();h.Frame();
  Check(find("inputs-replay").label==label,"Listing refresh changed completed Inputs metadata");
@@ -88,11 +90,18 @@ void ReplayJourneys() {
  // A replay's row is its file: Watch now asks for that path. A link's question opens the screen and is answered with Watch or a dismissal.
  {
   ShellView::Replay shown;shown.path="C:\\r\\a.emberreplay";shown.label="2026-10-06 21:32  Ryu vs Ken";
-  h.view.replays={shown};h.view.replaysReady=true;h.Screen("replays");h.Choose("replay:C:\\r\\a.emberreplay");h.Press(MenuInput::Select);
+  shown.watched=shown.spectated=true;shown.summary=replayinputs::Summary{};shown.summary->scored=true;shown.summary->score[0]=2;shown.summary->score[1]=1;
+  h.view.replays={shown};h.view.replaysReady=true;
+  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shownRows){rows=shownRows;});h.Screen("replays");
+  Check(rows.size()==3&&rows[0].id=="replay-log"&&rows[1].id=="replay-folder","Replays retained settings above the list");
+  Check(rows[2].value=="2-1 · "+std::string(loc::T("replays.watched_spectated")),"Replay score and status separator wrong");
+  Check(rows[2].detail.find("LP ")==std::string::npos,"Replay list still duplicates input totals");
+  Check(rows[2].choices.size()==5&&rows[2].choices[0].id=="watch"&&rows[2].choices[1].id=="watch-meter"&&rows[2].choices[2].id=="add"&&rows[2].choices[3].id=="export"&&rows[2].choices[4].id=="inputs","Replay choice order wrong");
+  SetMenuEntriesProbe({});h.Choose("replay:C:\\r\\a.emberreplay");h.Press(MenuInput::Select);
   Check(h.actions.back().replay.mode==sf4e::replay::Mode::Watch&&h.actions.back().replay.path==shown.path,"Watch now did not ask for the replay's file");
-  Check(!h.actions.back().replay.meter,"Watch now asked for the frame meter with the row off");
-  h.Choose("replay-meter");h.Press(MenuInput::Right);h.Frame();h.Choose("replay:C:\\r\\a.emberreplay");h.Press(MenuInput::Select);
-  Check(h.actions.back().replay.mode==sf4e::replay::Mode::Watch&&h.actions.back().replay.meter,"Watch now did not ask for the frame meter with the row on");
+  Check(!h.actions.back().replay.meter,"Watch now unexpectedly requested the frame meter");
+  h.Choose("replay:C:\\r\\a.emberreplay");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+  Check(h.actions.back().replay.mode==sf4e::replay::Mode::Watch&&h.actions.back().replay.meter,"Watch with frame meter did not request the meter");
   h.Screen("home");h.view.replayLink="D:\\x\\b.usf4replay";h.Frame();
   Check(h.shell.Navigation().Screen()=="replays","A replay link did not open the Replays screen");
   h.Choose("replay-link");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
@@ -103,7 +112,7 @@ void ReplayJourneys() {
   {ShellView::Replay third,second,first;third.path="C:\\r\\c.emberreplay";third.label="2026-10-06 21:40  A (Ryu) vs B (Ken)";third.names[0]="A";third.names[1]="B";third.summary=sf4e::replayinputs::Summary{};third.summary->scored=true;third.summary->score[0]=2;third.summary->score[1]=1;third.time=3000;
    second=third;second.path="C:\\r\\b.emberreplay";second.time=2500;second.summary->score[0]=0;second.summary->score[1]=2;
    first=third;first.path="C:\\r\\a2.emberreplay";first.time=2000;first.names[0]="B";first.names[1]="A";first.summary->score[0]=1;first.summary->score[1]=2;
-   h.view.replayLink.clear();h.view.replays={third,second,first};h.Screen("replays");h.Choose("replay:C:\\r\\c.emberreplay");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+   h.view.replayLink.clear();h.view.replays={third,second,first};h.Screen("replays");h.Choose("replay:C:\\r\\c.emberreplay");for(int i=0;i<3;++i)h.Press(MenuInput::Right);h.Press(MenuInput::Select);
    Check(h.shell.Navigation().Screen()=="replay-export","Export video did not open the caption's screen");
    h.Choose("cap-mark");h.Press(MenuInput::Left);h.Frame();h.Choose("cap-generate");
    const auto& sent=h.actions.back().replay;

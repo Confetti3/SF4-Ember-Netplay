@@ -29,7 +29,7 @@ inline std::string LookText(const replayinputs::Player& p){
 }
 inline std::string PressesText(const replayinputs::Stats& s){
  std::string presses;
- for(int button=0;button<6;button++)presses+=std::string(button?"  ":"")+replayinputs::ButtonNames[button]+" "+std::to_string(s.presses[button]);
+ for(int button=0;button<6;button++)presses+=std::string(button?", ":"")+replayinputs::ButtonNames[button]+" "+std::to_string(s.presses[button]);
  return presses;
 }
 inline std::string ActivityText(const replayinputs::Stats& s){const unsigned perMinute=s.PerMinute(),jumps=s.jumps,crouched=s.CrouchedPercent();return loc::Tf("inputs.activity",perMinute,jumps,crouched);}

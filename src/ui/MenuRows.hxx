@@ -56,12 +56,12 @@ inline void RuleRows(std::vector<MenuEntry>& rows,const room::Rules& rules,bool 
     rows.push_back(Value("edition",loc::T("rules.edition_select"),rules.editionSelect?loc::T("common.on"):loc::T("common.off"),reason,enabled));
     rows.push_back(Value("rounds",loc::T("rules.rounds"),std::to_string(rules.roundCount),reason,enabled));
     rows.push_back(Value("time",loc::T("rules.round_time"),std::to_string(rules.roundTime),reason,enabled));
-    rows.push_back(Value("training",loc::T("rules.training"),rules.training?loc::T("common.on"):loc::T("common.off"),enabled?loc::T("rules.training.detail"):reason,enabled));
     rows.push_back(Value("set-length",loc::T("rules.set_length"),SetLengthText(rules.format),enabled?loc::T("rules.set_length.detail"):reason,enabled));
     // Only a set that ends can hand a seat over.
     const bool rotates=rules.format!=room::SetFormat::Unlimited;
     rows.push_back(Value("rotation",loc::T("rules.rotation"),RotationText(rules.rotation),
         !rotates?loc::T("rules.rotation.needs_set"):enabled?RotationDetail(rules.rotation):reason,enabled&&rotates));
+    rows.push_back(Value("training",loc::T("rules.training"),rules.training?loc::T("common.on"):loc::T("common.off"),enabled?loc::T("rules.training.detail"):reason,enabled));
 }
 inline bool AdjustRule(room::Rules& rules,const MenuAction& a) {
     if(a.kind!=MenuAction::Adjust) return false;

@@ -1,4 +1,5 @@
 #include "sf4e__Game__Battle__System__Internal.hxx"
+#include "../common/BattlePause.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "sf4e__ReplayStore.hxx"
 #include "../common/SpectatorCatchUp.hxx"
@@ -334,7 +335,14 @@ static void AnnouncePractice() {
     const auto state = sf4e::training::MatchPracticeState();
     if (state.count == told) return;
     told = state.count;
-    if (state.by < 0 || state.last == sf4e::training::PracticeStep::None) return;
+    if (state.by < 0 || state.by > 1 || state.last == sf4e::training::PracticeStep::None) return;
+    const auto status = sf4e::NetplayFacade::GetStatus();
+    const auto& name = status.matchSides[state.by].name;
+    if (!name.empty()) {
+        sf4e::NetplayFacade::PushAlert(sf4e::loc::Tf(
+            state.last == sf4e::training::PracticeStep::Save ? "runtime.practice_saved_name" : "runtime.practice_reset_name", name).c_str());
+        return;
+    }
     sf4e::NetplayFacade::PushAlert(sf4e::loc::Tf(
         state.last == sf4e::training::PracticeStep::Save ? "runtime.practice_saved" : "runtime.practice_reset", state.by + 1).c_str());
 }
@@ -643,6 +651,7 @@ void fSystem::CloseBattle() {
     // The engine is closing this battle, so a session retired from here on
     // (now, or later by the spectator drain) leaves no orphan behind.
     const bool netplayBattle = simGate.OnNativeBattleClosed();
+    sf4e::battlePause.CloseBattle();
     sf4e::training::CloseBattle();
     bool summaryEmitted = false;
     LogSaveSlotOccupancy("battle_close_entry");
@@ -710,6 +719,7 @@ void fSystem::CloseBattle() {
 }
 
 void fSystem::OnBattleFlow_BattleStart(System* s) {
+    sf4e::battlePause.StartBattle();
     StressOpenBattle();
     if (nNextBattleStartFlowTarget > -1) {
         rSystem::staticMethods.SetBattleFlow(s, nNextBattleStartFlowTarget);
@@ -767,6 +777,9 @@ void fSystem::SysMain_HandleTrainingModeFeatures() {
 void fSystem::SysMain_UpdatePauseState() {
     if (simGate.LocalControllerOwnsBattle(ggpo != nullptr)) {
         (this->*rSystem::publicMethods.SysMain_UpdatePauseState)();
+        sf4e::battlePause.Publish(sf4e::NativePauseMenuOpen(*rSystem::GetSimulationFlags(this), *rSystem::GetPausingPlayer(this)));
+    } else {
+        sf4e::battlePause.Publish(false);
     }
 }
 

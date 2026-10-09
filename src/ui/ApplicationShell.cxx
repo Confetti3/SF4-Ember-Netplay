@@ -6,6 +6,7 @@
 #include "MenuPresentation.hxx"
 #include "PublicRoomsCards.hxx"
 #include "RoomControls.hxx"
+#include "../session/TrainingCall.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include "../common/ReplayInputs.hxx"
@@ -254,9 +255,9 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Row("profile",loc::T("home.profile"),loc::T("home.profile_detail")),
    Row("identity",loc::T("screen.identity"),identity_.HomeDetail(v)),
    Row("settings",loc::T("home.settings"),loc::T("home.settings_detail")),
+   Row("offline",loc::T("home.offline"),loc::T("home.offline_detail"),idle),
    Row("training",loc::T("home.training"),loc::T("home.training_detail"),idle),
-   Row("replays",loc::T("home.replays"),loc::T("home.replays_detail")),
-   Row("offline",loc::T("home.offline"),loc::T("home.offline_detail"),idle)};
+   Row("replays",loc::T("home.replays"),loc::T("home.replays_detail"))};
   if(opening)rows[0].detail=OpeningCreates(v)?loc::T("room.creating_status"):loc::T("room.joining_status");
   if(!v.controllerReady)rows.insert(rows.begin(),Row("player",loc::T("home.choose_controller"),loc::T("home.choose_controller_detail")));
   // Back leaves a pending invitation's screen without answering it, so Home
@@ -334,8 +335,6 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   }
   rows.push_back(Row("replay-log",loc::T("replays.open_log"),loc::T(idle?"replays.open_log_detail":"replays.open_log_room"),idle&&v.replaysReady));
   rows.push_back(Row("replay-folder",loc::T("replays.open_folder"),v.services.lastAction==platform::ServiceAction::OpenReplayFolder&&!v.services.message.empty()?v.services.message:loc::T("replays.open_folder_detail"),!v.services.pending));
-  rows.push_back(Value("replay-meter",loc::T("replays.frame_meter"),replayMeter_?loc::T("common.on"):loc::T("common.off"),loc::T("replays.frame_meter_detail")));
-  rows.push_back(Value("replay-save-watched",loc::T("replays.save_watched"),preferences_.recordWatched?loc::T("common.on"):loc::T("common.off"),loc::T("replays.save_watched_detail"),v.canEditPreferences));
   if(v.replays.empty())rows.push_back(InfoRow("replay-none",loc::T("replays.empty"),"",loc::T("replays.empty_detail")));
   // A row is its file, not its place: the list is listed again while a row's choices are open.
   // A row is always open: reading its inputs needs nothing of the game. What does is each choice's own.
@@ -347,16 +346,16 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    // The score leads the value; the replay's own account of the match leads the detail.
    if(const auto& summary=v.replays[i].summary){
     const std::string score=ScoreText(*summary);
-    if(!score.empty())rows.back().value=rows.back().value.empty()?score:score+"  "+rows.back().value;
+    if(!score.empty())rows.back().value=rows.back().value.empty()?score:score+" · "+rows.back().value;
     std::string said=MatchText(*summary);
-    for(int side=0;side<2;side++)said+="\n"+ReplayPlayerName(v.replays[i].names,side)+": "+LookText(summary->players[side])+". "+PressesText(summary->stats[side])+". "+ActivityText(summary->stats[side]);
+    for(int side=0;side<2;side++)said+="\n"+ReplayPlayerName(v.replays[i].names,side)+": "+LookText(summary->players[side]);
     rows.back().detail=said+"\n\n"+rows.back().detail;rows.back().detailText=DetailText::Name;
    }
-   // Select asks: add it to the game's list, or add it and go straight to the battle log.
-   rows.back().choices={{"watch",loc::T("replays.watch"),loc::T("replays.watch_detail"),idle&&v.replaysReady},{"export",loc::T("replays.export_gpu"),loc::T("replays.export_gpu_detail"),idle&&v.replaysReady},{"inputs",loc::T("replays.inputs"),loc::T("replays.inputs_detail")},{"add",loc::T("replays.add"),loc::T("replays.add_detail"),v.replaysReady}};
+   // Select offers playback, adding to the Battle Log, exporting video, or reading inputs.
+   rows.back().choices={{"watch",loc::T("replays.watch"),loc::T("replays.watch_detail"),idle&&v.replaysReady},{"watch-meter",loc::T("replays.watch_meter"),loc::T("replays.watch_meter_detail"),idle&&v.replaysReady},{"add",loc::T("replays.add"),loc::T("replays.add_detail"),v.replaysReady},{"export",loc::T("replays.export_gpu"),loc::T("replays.export_gpu_detail"),idle&&v.replaysReady},{"inputs",loc::T("replays.inputs"),loc::T("replays.inputs_detail")}};
    rows.back().chosen=!v.replaysReady?"inputs":idle?"watch":"add";}
  }else if(screen=="settings"){
-  title=loc::T("settings.title");rows={Row("player",loc::T("screen.player"),loc::T("settings.player_detail")),Row("defaults",loc::T("screen.defaults"),loc::T("settings.defaults_detail")),Row("interface",loc::T("settings.interface"),loc::T("settings.interface_detail")),Row("discord",loc::T("screen.discord"),loc::T("settings.discord_detail")),
+  title=loc::T("settings.title");rows={Row("player",loc::T("screen.player"),loc::T("settings.player_detail")),Row("defaults",loc::T("screen.defaults"),loc::T("settings.defaults_detail")),Row("interface",loc::T("settings.interface"),loc::T("settings.interface_detail")),Row("training-replays",loc::T("settings.training_replays"),loc::T("settings.training_replays_detail")),Row("discord",loc::T("screen.discord"),loc::T("settings.discord_detail")),
    Row("about",loc::T("home.about"),loc::T("home.about_detail"))};
  }else if(screen=="player"){
   title=loc::T("player.title");rows={TextRow("name",loc::T("profile.player_name"),preferences_.displayName,31,v.canEditPreferences),
@@ -378,12 +377,15 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Value("ready-sound",loc::T("settings.ready_sound"),preferences_.readySound?loc::T("common.on"):loc::T("common.off"),loc::T("settings.ready_sound_detail"),v.canEditPreferences),
    Value("ready-volume",loc::T("settings.ready_sound_volume"),std::to_string(preferences_.readySoundVolume)+"%",loc::T("settings.ready_sound_volume_detail"),v.canEditPreferences&&preferences_.readySound),
    Row("ready-test",loc::T("settings.ready_sound_test"),loc::T("settings.ready_sound_test_detail"),v.canEditPreferences&&preferences_.readySound),
-   Value("training-auto-ready",loc::T("settings.training_auto_ready"),preferences_.trainingAutoReady?loc::T("common.on"):loc::T("common.off"),loc::T("settings.training_auto_ready_detail"),v.canEditPreferences),
-   Value("match-frame-meter",loc::T("settings.match_frame_meter"),preferences_.matchFrameMeter?loc::T("common.on"):loc::T("common.off"),loc::T("settings.match_frame_meter_detail"),v.canEditPreferences),
    Value("scale",loc::T("settings.interface_size"),size,reason,v.canEditPreferences),
    Value("language",loc::T("settings.language"),languageValue,languageSaveError_.empty()?std::string(loc::T("settings.language.detail")):languageSaveError_,true)};
   // Select lists the languages by their own names; browsing them changes nothing.
   rows.back().choices=LanguageChoices();rows.back().chosen=languagePreference_;
+ }else if(screen=="training-replays"){
+  title=loc::T("settings.training_replays_title");
+  rows={Value("match-frame-meter",loc::T("settings.match_frame_meter"),preferences_.matchFrameMeter?loc::T("common.on"):loc::T("common.off"),loc::T("settings.match_frame_meter_detail"),v.canEditPreferences),
+   Value("training-auto-ready",loc::T("settings.training_auto_ready"),preferences_.trainingAutoReady?loc::T("common.on"):loc::T("common.off"),loc::Tf("settings.training_auto_ready_detail",room::TrainingCall::ReadyWindowMs/1000),v.canEditPreferences),
+   Value("replay-save-watched",loc::T("replays.save_watched"),preferences_.recordWatched?loc::T("common.on"):loc::T("common.off"),loc::T("replays.save_watched_detail"),v.canEditPreferences)};
  }else if(screen=="discord"){
   title=loc::T("discord.title");rows={Value("presence",loc::T("discord.show_activity"),preferences_.discordPresence?loc::T("common.on"):loc::T("common.off"),v.discordStatus,v.canEditPreferences),
    Value("invites",loc::T("discord.allow_invitations"),preferences_.discordInvites?loc::T("common.on"):loc::T("common.off"),preferences_.discordPresence?loc::T("discord.invitation_detail"):loc::T("discord.enable_first"),v.canEditPreferences&&preferences_.discordPresence)};
@@ -426,7 +428,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
 }
 std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,const std::string& screen,bool opening,bool healthyRoom,std::string& title) {
  using namespace netplay;
- const bool personal=screen=="profile"||screen=="main-character"||screen=="settings"||screen=="player"||screen=="defaults"||screen=="interface"||screen=="discord";
+ const bool personal=screen=="profile"||screen=="main-character"||screen=="settings"||screen=="player"||screen=="defaults"||screen=="interface"||screen=="training-replays"||screen=="discord";
  std::string status=saveFailed_?loc::T("common.save_failed"):v.settingsPending||preferencesDirty_||saveQueued_||languageDirty_?loc::T("common.saving"):personal?loc::T("common.saved"):"";
  // Severity travels with the status string. This line is the shell's only
  // feedback channel, so a failure must not render like ordinary text.
@@ -436,6 +438,9 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
   status=OpeningCreates(v)?loc::T("room.creating_status"):loc::T("room.joining_status");statusTone=Tone::Pending;
  }
  // Chat keeps the board's line, so a lost connection shows while typing.
+ if(screen=="room"&&status.empty()&&v.trainingReadySeconds>0){
+  status=loc::Tf("room.training_call.ready_in",v.trainingReadySeconds);statusTone=Tone::Pending;
+ }
  if((screen=="room"||screen=="room-chat")&&status.empty()){
   const bool healthy=v.session.control==Health::Healthy;
   status=!healthy?std::string(loc::T("room.reconnecting")):v.room.tournament.Active()?
@@ -472,6 +477,9 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
    statusTone=Tone::Pending;
   }
   else if(table.phase==room::TablePhase::Closed)status=loc::T("room.table_closed");
+  if(v.trainingReadySeconds>0&&v.room.localMember&&seatedLocal){
+   status=loc::Tf("room.training_call.ready_in",v.trainingReadySeconds);statusTone=Tone::Pending;
+  }
  }
  // A tournament room says what its next game waits for: the other fighter,
  // or the tournament service's go-ahead.
@@ -573,11 +581,11 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="replays")nav.Push(a.id);
  else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
  else if(a.id=="cap-generate"){
-  ShellAction r;r.command.generation=v.session.generation;r.replay={replay::Mode::Export,exportPath_,caption_};r.replay.meter=replayMeter_;
+  ShellAction r;r.command.generation=v.session.generation;r.replay={replay::Mode::Export,exportPath_,caption_};r.replay.meter=false;
   if(!submit(std::move(r)))error_=loc::T("error.queue_failed");else nav.Return();
  }
  else if(a.id=="replay-log"){ShellAction r;r.command.generation=v.session.generation;r.replay.mode=replay::Mode::OpenLog;if(!submit(std::move(r)))error_=loc::T("error.queue_failed");}
- else if(a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="discord"||a.id=="identity"||a.id=="developer")nav.Push(a.id);
+ else if(a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="developer")nav.Push(a.id);
  else if(a.id=="pr-create"||a.id=="pr-none")OpenPublicCreate();
  else if(a.id=="host"&&preferences_.roomPublic){error_.clear();publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,preferences_.publicTableRules);}
  else if(a.id=="host"||a.id=="join-now")Send(a.id=="host"?CommandKind::HostRoom:CommandKind::JoinInvite,v,submit);
@@ -607,7 +615,6 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
  else if(IdentityPanel::Owns(screen))identity_.Accept(a,v);
  else if(a.id=="invite-text")std::snprintf(invitation_,sizeof(invitation_),"%s",a.text.c_str());
  else if(a.id=="language")SetLanguage(std::string(loc::NextPreference(languagePreference_,a.delta)));
- else if(a.id=="replay-meter")replayMeter_=a.delta>0;
  else if(screen=="replay-export"){
   if(a.id=="cap-names")caption_.names=a.delta>0;else if(a.id=="cap-line")caption_.line=a.delta>0;
   else if(a.id=="cap-set")caption_.set=a.delta>0;else if(a.id=="cap-mark")caption_.mark=a.delta>0;
@@ -952,7 +959,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
    for(const auto& shown:v.replays)if(shown.path==a.id.substr(7)){OpenReplayExport(v,shown);menu_.navigation.Push("replay-export");break;}
   }
   else if(a.id.compare(0,7,"replay:")==0&&v.replaysReady){
-   ShellAction r;r.command.generation=v.session.generation;r.replay={a.text=="watch"?replay::Mode::Watch:replay::Mode::Add,a.id.substr(7)};r.replay.meter=replayMeter_&&a.text=="watch";
+   ShellAction r;r.command.generation=v.session.generation;r.replay={(a.text=="watch"||a.text=="watch-meter")?replay::Mode::Watch:replay::Mode::Add,a.id.substr(7)};r.replay.meter=a.text=="watch-meter";
    if(!submit(std::move(r)))error_=loc::T("error.queue_failed");
   }
  }else if(a.kind==MenuAction::Activate){

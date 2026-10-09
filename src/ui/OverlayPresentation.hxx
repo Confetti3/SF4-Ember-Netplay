@@ -1,8 +1,13 @@
 #pragma once
 #include <atomic>
+#include "../common/BattlePause.hxx"
 #include "../netplay/SessionController.hxx"
 
 namespace sf4e { namespace ui {
+
+inline bool PassiveOverlayShown(bool shellVisible, bool trainingControlsOpen, bool nativePaused) {
+    return !shellVisible && !trainingControlsOpen && !nativePaused;
+}
 
 // Presentation state survives device recreation. Only native menu states may
 // capture input; rendering never changes session or simulation state.

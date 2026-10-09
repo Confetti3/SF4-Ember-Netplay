@@ -352,10 +352,7 @@ private:
     std::string inputsFile_;
     std::uint64_t inputsRevision_ = 0;
     void BuildInputsRows(const ShellView& view,std::vector<MenuEntry>& rows);
-    // The Export video screen: the replay it is for and the caption as the
-    // player has it, sent with the request when Generate is chosen.
-    // Replays > Frame meter: sent with Watch now and Generate video. Not saved; off at each start.
-    bool replayMeter_ = false;
+    // The replay and caption sent when Generate video is chosen.
     std::string exportPath_;
     replay::Caption caption_;
     void OpenReplayExport(const ShellView& view,const ShellView::Replay& replay);

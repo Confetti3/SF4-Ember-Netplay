@@ -87,10 +87,11 @@ namespace Dimps {
                 };
 
                 enum SystemSimulationFlags {
-                    // Stub: check CheckAnyMatchingSimulationFlag @ 0x005d9b80
-                    // for more- calls to that are likely helpful for getting
-                    // the semantics here.
-                    SSF_UNK_0x1 = 0x1,
+                    // System+0x1454: pause/Training hold, native online wait,
+                    // and Battle Log replay freeze (CheckAny @ 0x5D9B80).
+                    SSF_PAUSE_OR_HOLD = 0x1,
+                    SSF_NATIVE_ONLINE_WAIT = 0x4,
+                    SSF_REPLAY_FREEZE = 0x8,
                 };
 
                 enum SystemTransitionType {
@@ -186,6 +187,7 @@ namespace Dimps {
                 static Request** GetRequest(System* s);
                 static DWORD* GetSkipRelatedFlags_0xd8c(System* s);
                 static DWORD* GetSimulationFlags(System* s);
+                static int* GetPausingPlayer(System* s);
                 static FixedPoint* GetTransitionProgress(System* s);
                 static FixedPoint* GetTransitionSpeed(System* s);
                 static int* GetTransitionType(System* s);

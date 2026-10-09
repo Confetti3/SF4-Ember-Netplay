@@ -344,10 +344,10 @@ msgid "rules.round_time"
 msgstr "Время раунда"
 
 msgid "rules.training"
-msgstr "Тренировка"
+msgstr "Тренировочный матч"
 
 msgid "rules.training.detail"
-msgstr "Вкл.: здоровье и шкалы обоих бойцов восполняются, и никто не получает нокаут — для тренировки с другим игроком. Игра заканчивается, когда боец покидает место или истекает время раунда, поэтому выберите долгое время раунда."
+msgstr "Здоровье и шкалы пополняются, нокаутов нет. Игра заканчивается, когда истекает время раунда, поэтому выберите большое время раунда."
 
 msgid "screen.home"
 msgstr "Главная"
@@ -632,7 +632,7 @@ msgid "home.identity_matches"
 msgstr "Турнирных матчей готово к игре: {0}"
 
 msgid "home.settings_detail"
-msgstr "Игрок, контроллер, настройки игры, интерфейс, язык и Discord."
+msgstr "Игрок, контроллер, правила по умолчанию, интерфейс, язык, тренировка и Discord."
 
 msgid "home.about"
 msgstr "Справка и сведения"
@@ -650,7 +650,7 @@ msgid "home.replays"
 msgstr "Записи"
 
 msgid "home.replays_detail"
-msgstr "Каждый матч сохраняется. Любой из них можно поместить в Replay Channel игры."
+msgstr "Ваши сохранённые матчи. Смотрите их, добавляйте в игру или изучайте ввод."
 
 msgid "replays.title"
 msgstr "Записи"
@@ -665,25 +665,25 @@ msgid "replays.add"
 msgstr "Добавить в игру"
 
 msgid "replays.add_detail"
-msgstr "Добавляет в список записей игры, чтобы посмотреть позже из журнала боёв."
+msgstr "Добавляет повтор в Battle Log игры для просмотра позже."
 
 msgid "replays.watch"
 msgstr "Смотреть сейчас"
 
 msgid "replays.watch_detail"
-msgstr "Добавляет в список записей игры и воспроизводит её из журнала боёв."
+msgstr "Добавляет повтор в Battle Log игры и воспроизводит его."
 
 msgid "replays.save_watched"
 msgstr "Сохранять просмотренные матчи"
 
 msgid "replays.save_watched_detail"
-msgstr "Вкл.: записываются и матчи, которые вы только смотрите. Выкл.: только матчи, в которых вы играете."
+msgstr "Также сохраняет матчи, которые вы смотрите как зритель. Если выключено, сохраняются только ваши матчи."
 
 msgid "replays.link"
-msgstr "Ссылка хочет воспроизвести реплей"
+msgstr "Воспроизвести повтор по ссылке"
 
 msgid "replays.link_detail"
-msgstr "Ссылка попросила Ember воспроизвести {0}. Воспроизводите его, только если знаете, откуда ссылка."
+msgstr "Ссылка запросила у Ember воспроизведение {0}. Воспроизводите только если доверяете источнику ссылки."
 
 msgid "replays.link_play"
 msgstr "Воспроизвести"
@@ -692,22 +692,13 @@ msgid "replays.link_dismiss"
 msgstr "Не сейчас"
 
 msgid "replays.link_dismiss_detail"
-msgstr "Оставляет файл на месте и забывает ссылку."
-
-msgid "replays.export_gpu"
-msgstr "Экспорт видео (GPU)"
-
-msgid "replays.export_gpu_detail"
-msgstr "Записывает в .mp4 в полном размере изображения игры, кодирует видеокарта."
+msgstr "Забывает ссылку. Файл остаётся на месте."
 
 msgid "replays.exported"
 msgstr "Видео сохранено: {0}"
 
 msgid "replays.gpu_not_exported"
 msgstr "Видео не создано. Windows не предоставила кодировщик H.264, или изображение игры не удалось прочитать. Причина указана в журнале."
-
-msgid "replays.video"
-msgstr "Видео"
 
 msgid "replays.open_folder"
 msgstr "Открыть папку реплеев"
@@ -716,7 +707,7 @@ msgid "replays.open_folder_detail"
 msgstr "Открывает архив в Проводнике: реплеи и экспортированные видео."
 
 msgid "services.opening_replay_folder"
-msgstr "Открывается папка реплеев…"
+msgstr "Открытие папки повторов..."
 
 msgid "services.replay_folder_opened"
 msgstr "{0} открыта в Проводнике."
@@ -728,13 +719,10 @@ msgid "replays.inputs"
 msgstr "Ввод и статистика"
 
 msgid "replays.inputs_detail"
-msgstr "Показывает, что нажимали оба игрока, кадр за кадром, и сколько раз. Читается из файла реплея; ничего не воспроизводится."
+msgstr "Показывает нажатия обоих игроков по кадрам и итоговые числа. Ничего не воспроизводится."
 
 msgid "inputs.length_value"
-msgstr "Раундов: {0}, {1}"
-
-msgid "inputs.buttons"
-msgstr "{0}: нажатия кнопок"
+msgstr "Раундов: {0} · {1}"
 
 msgid "inputs.activity"
 msgstr "{0} вводов в минуту, прыжки: {1}, в приседе {2}% времени."
@@ -757,62 +745,26 @@ msgstr "Не удалось прочитать ввод"
 msgid "inputs.unreadable_detail"
 msgstr "Этот реплей в старом формате, либо файл повреждён."
 
-msgid "export.title"
-msgstr "Экспорт видео"
-
-msgid "export.detail"
-msgstr "Показывается поверх игры во время записи, на экране и в видео."
-
-msgid "export.names"
-msgstr "Имена игроков"
-
-msgid "export.name"
-msgstr "Игрок {0}"
-
-msgid "export.line"
-msgstr "Строка матча"
-
-msgid "export.line_text"
-msgstr "Текст строки матча"
-
-msgid "export.set"
-msgstr "Счёт сета"
-
-msgid "export.set_detail"
-msgstr "Победы каждого игрока в сете на данный момент, рядом с именем. Считаются по матчам, которые эти двое сыграли прямо перед этим; измените, если счёт неверный."
-
-msgid "export.set_wins"
-msgstr "Победы игрока {0}"
-
-msgid "export.mark"
-msgstr "Знак Ember"
-
-msgid "export.generate"
-msgstr "Создать видео"
-
-msgid "replays.frame_meter"
-msgstr "Счётчик кадров"
-
-msgid "replays.frame_meter_detail"
-msgstr "«Смотреть сейчас» и «Экспорт видео» показывают поверх реплея счётчик кадров из тренировки. При экспорте он попадает и в видео."
-
 msgid "replays.row_detail"
-msgstr "Выберите, чтобы добавить в список записей игры, или добавить и посмотреть сейчас."
+msgstr "Выберите, чтобы посмотреть повтор, добавить его в игру или изучить ввод и статистику."
 
+#. The saved replay has already been played back.
 msgid "replays.watched"
-msgstr "Просмотрено"
+msgstr "Видел"
 
+#. The player watched the live match as a spectator, not a replay playback.
 msgid "replays.spectated"
-msgstr "Как зритель"
+msgstr "Наблюдал"
 
+#. The player watched the live match as a spectator and has also played its replay.
 msgid "replays.watched_spectated"
-msgstr "Просмотрено, как зритель"
+msgstr "Наблюдал, видел"
 
 msgid "replays.not_ready"
 msgstr "Доступно в главном меню, вне матча."
 
 msgid "replays.added"
-msgstr "Добавлено в список записей игры под датой, когда матч был сыгран."
+msgstr "Добавлено в Battle Log игры под датой проведения матча."
 
 msgid "replays.not_added"
 msgstr "Не удалось добавить эту запись. Файл может быть повреждён."
@@ -821,16 +773,16 @@ msgid "replays.not_added_yet"
 msgstr "Игра ещё не сохранила последний матч. Попробуйте ещё раз через минуту."
 
 msgid "replays.not_added_files"
-msgstr "Не удалось добавить повтор: файлы повторов игры не удалось прочитать или подготовить. Файлы повторов игры не изменены."
+msgstr "Не удалось добавить повтор: файлы повторов игры не удалось прочитать. Ничего не изменено."
 
 msgid "replays.not_added_archive"
-msgstr "Не удалось добавить повтор, так как не удалось создать и проверить резервную копию существующего повтора. Проверьте папку архива и свободное место на диске."
+msgstr "Не удалось добавить повтор: текущий повтор игры не удалось предварительно сохранить. Проверьте свободное место на диске."
 
 msgid "replays.not_added_restored"
-msgstr "Импорт завершился ошибкой. Исходные файлы повторов игры восстановлены."
+msgstr "Не удалось добавить повтор. Повторы игры остались без изменений."
 
 msgid "replays.not_added_recovery"
-msgstr "Импорт завершился ошибкой, и некоторые файлы повторов игры не удалось восстановить. Данные для восстановления сохранены. Прекратите импорт повторов и проверьте журнал."
+msgstr "Не удалось добавить повтор и восстановить некоторые повторы игры. Не добавляйте больше повторов и экспортируйте диагностику из раздела «Помощь и сведения»."
 
 msgid "replays.fighters"
 msgstr "{0} vs {1}"
@@ -839,10 +791,10 @@ msgid "replays.player"
 msgstr "{0} ({1})"
 
 msgid "replays.open_log"
-msgstr "Открыть журнал боёв игры"
+msgstr "Открыть Battle Log игры"
 
 msgid "replays.open_log_detail"
-msgstr "Выходит из меню Ember в локальный журнал боёв игры, где воспроизводятся записи."
+msgstr "Выходит из меню Ember в Battle Log игры, где воспроизводятся повторы."
 
 msgid "replays.open_log_room"
 msgstr "Сначала выйдите из комнаты."
@@ -850,31 +802,31 @@ msgid "home.training"
 msgstr "Тренировка"
 
 msgid "home.training_detail"
-msgstr "Сразу перейти в режим тренировки, без вопроса о вызовах на бой."
+msgstr "Перейти прямо в режим тренировки игры."
 
 msgid "settings.training_auto_ready"
 msgstr "Готовность при вызове из тренировки"
 
 msgid "settings.training_auto_ready_detail"
-msgstr "Выкл.: после вызова из тренировки к столу у вас 15 секунд, чтобы нажать «Готов», иначе вы уступаете место. Вкл.: готовность ставится сразу."
+msgstr "Когда комната вызывает вас из тренировки, готовность подтверждается сразу. Если выключено, у вас есть {0} секунд, прежде чем вы потеряете место."
 
 msgid "settings.match_frame_meter"
 msgstr "Счётчик кадров в матчах"
 
 msgid "settings.match_frame_meter_detail"
-msgstr "Показывает счётчик кадров из Тренировки поверх ваших онлайн-матчей и тех, что вы смотрите. Его видите только вы. Он отстаёт на кадры, которые ещё ждут ввода другого игрока."
+msgstr "Показывает счётчик кадров поверх онлайн-матчей, в которых вы играете или за которыми наблюдаете. Его видите только вы. Он может отставать от боя на несколько кадров."
 
 msgid "room.training.detail"
-msgstr "Ждите в режиме тренировки, не выходя из комнаты. Когда напротив сядет боец, игра вернёт вас сюда, чтобы подтвердить готовность."
+msgstr "Тренируйтесь, пока ждёте. Ember позовёт вас обратно, когда кто-нибудь сядет напротив."
 
 msgid "room.training.unavailable"
-msgstr "Тренировка из комнаты доступна только в главном меню, пока напротив вас никто не сидит, без поданной готовности и без вашей начинающейся игры."
+msgstr "Доступно, пока вы ждёте соперника, до подтверждения готовности."
 
 msgid "room.training_call.ready_in"
-msgstr "Подтвердите готовность за {0} с, иначе уступите место."
+msgstr "Подтвердите готовность за {0} с, иначе потеряете место."
 
 msgid "runtime.training_call.forfeit"
-msgstr "Вы не подтвердили готовность вовремя после вызова из тренировки, поэтому ваше место освобождено."
+msgstr "Вы не подтвердили готовность вовремя после тренировки и покинули место."
 
 msgid "home.choose_controller"
 msgstr "Выбрать контроллер для боя"
@@ -1422,12 +1374,6 @@ msgstr "Запись {0} загружена в слот {1}."
 msgid "training.recording_none"
 msgstr "Сохранённых записей нет."
 
-msgid "training.replay_chip"
-msgstr "F8 Воспроизвести слот {0}"
-
-msgid "training.stop_chip"
-msgstr "F8 Стоп"
-
 msgid "training.dummy_recording"
 msgstr "Запись манекена"
 
@@ -1440,12 +1386,6 @@ msgstr "История нажатий"
 msgid "training.input_history.detail"
 msgstr "Просмотр удерживаемых кнопок каждого игрока."
 
-msgid "training.tools"
-msgstr "Позиция и манекен"
-
-msgid "training.tools.detail"
-msgstr "Сохраняйте и возвращайте позицию, настраивайте манекена и то, что он делает сам."
-
 msgid "training.match.checkpoint_disabled"
 msgstr "Shared save/reset is disabled during rollback matches in nightly."
 
@@ -1454,24 +1394,6 @@ msgstr "Не принято: {0}"
 
 msgid "training.save_failed"
 msgstr "Не удалось сохранить файл."
-
-msgid "training.guide"
-msgstr "Об этом экране"
-
-msgid "training.home.guide"
-msgstr "Это управление действует на текущий бой. «Запись манекена» записывает ввод с пада на манекена и воспроизводит его. «История нажатий» показывает, что нажимал каждый игрок. «Позиция и манекен» сохраняет и возвращает позицию и настраивает манекена и его ответ. F6 открывает и закрывает управление, стрелки перемещают, Enter выбирает, а Esc возвращает на экран назад."
-
-msgid "training.recording.guide"
-msgstr "Выберите ячейку, затем «Запись»: пад Игрока 1 управляет манекеном, пока вы не остановите. «Пуск» заставляет манекена воспроизвести ячейку, а «Повтор» повторяет её снова и снова. F7 начинает и останавливает запись без открытия этого экрана. Ячейки хранятся только до конца этого боя; «Сохранить запись как» сохраняет запись в файл с именем, а «Загрузить запись» возвращает её."
-
-msgid "training.history.guide"
-msgstr "Нажатия на паде каждого игрока, сначала новые, с числом кадров удержания. Выберите игрока, чтобы прочитать список. Показано, что было нажато, а не какой приём вышел."
-
-msgid "training.tools.guide"
-msgstr "«Сохранить позицию» запоминает бой как есть, а «Вернуть позицию» возвращает его; на паде Select при коротком нажатии возвращает, а при удержании сохраняет. Строки манекена сразу меняют настройки тренировки в игре. «Ответ манекена» заставляет манекена действовать самому, как только он снова свободен: воспроизводит «Приёмы ответа» или ячейку ответа, если эта строка пуста."
-
-msgid "edit.instructions.area"
-msgstr "Введите или вставьте текст с клавиатуры. Enter начинает новую строку. Ctrl+Enter или кнопка «Принять» принимает; Escape или «Назад» на контроллере отменяет."
 
 msgid "training.position.save"
 msgstr "Сохранить позицию"
@@ -4085,3 +4007,102 @@ msgstr "Не удалось войти в зал. Возможно, он тол�
 
 msgid "legend.refresh"
 msgstr "Обновить"
+
+msgid "training.frame_data"
+msgstr "Данные кадров"
+
+msgid "training.frame_data.detail"
+msgstr "Последний приём каждого игрока, преимущество и тайминг атаки при подъёме."
+
+msgid "training.color_key"
+msgstr "Обозначения цветов"
+
+msgid "training.dummy"
+msgstr "Манекен"
+
+msgid "training.position"
+msgstr "Позиция"
+
+msgid "training.start_frames"
+msgstr "Начало: {0} к."
+
+msgid "training.start_unknown"
+msgstr "Начало: --"
+
+msgid "settings.training_replays"
+msgstr "Тренировка и повторы"
+
+msgid "settings.training_replays_detail"
+msgstr "Автоготовность после тренировки, счётчик кадров в матчах и выбор сохраняемых матчей."
+
+msgid "settings.training_replays_title"
+msgstr "ТРЕНИРОВКА И ПОВТОРЫ"
+
+msgid "room.table_footer_practice"
+msgstr "Тренировочный матч"
+
+msgid "room.rules_summary_practice"
+msgstr "Тренировочный матч, раундов: {0}, {1} с, Edition Select {2}"
+
+msgid "inputs.presses_value"
+msgstr "Нажатий: {0}"
+
+msgid "replays.watch_meter"
+msgstr "Смотреть со счётчиком кадров"
+
+msgid "replays.watch_meter_detail"
+msgstr "Воспроизводит повтор из Battle Log со счётчиком кадров поверх боя."
+
+msgid "room.training"
+msgstr "Ждать в тренировке"
+
+msgid "runtime.practice_saved_name"
+msgstr "{0} сохранил позицию"
+
+msgid "runtime.practice_reset_name"
+msgstr "{0} восстановил позицию"
+
+msgid "replays.export_gpu"
+msgstr "Экспорт видео (GPU)"
+
+msgid "replays.export_gpu_detail"
+msgstr "Записывает в .mp4 в полном размере изображения игры, кодирует видеокарта."
+
+msgid "replays.video"
+msgstr "Видео"
+
+msgid "export.title"
+msgstr "Экспорт видео"
+
+msgid "export.detail"
+msgstr "Показывается поверх игры во время записи, на экране и в видео."
+
+msgid "export.names"
+msgstr "Имена игроков"
+
+msgid "export.name"
+msgstr "Игрок {0}"
+
+msgid "export.line"
+msgstr "Строка матча"
+
+msgid "export.line_text"
+msgstr "Текст строки матча"
+
+msgid "export.set"
+msgstr "Счёт сета"
+
+msgid "export.set_detail"
+msgstr "Победы каждого игрока в сете на данный момент, рядом с именем. Считаются по матчам, которые эти двое сыграли прямо перед этим; измените, если счёт неверный."
+
+msgid "export.set_wins"
+msgstr "Победы игрока {0}"
+
+msgid "export.mark"
+msgstr "Знак Ember"
+
+msgid "export.generate"
+msgstr "Создать видео"
+
+msgid "training.result"
+msgstr "Результат"

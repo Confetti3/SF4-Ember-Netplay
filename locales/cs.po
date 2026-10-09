@@ -344,10 +344,10 @@ msgid "rules.round_time"
 msgstr "Čas kola"
 
 msgid "rules.training"
-msgstr "Trénink"
+msgstr "Cvičný zápas"
 
 msgid "rules.training.detail"
-msgstr "Zap.: zdraví a ukazatele obou bojovníků se znovu doplňují a nikdo není knokautován, pro trénink s jiným hráčem. Hra končí, když bojovník opustí místo nebo vyprší čas kola, nastav proto dlouhý čas kola."
+msgstr "Zdraví a ukazatele se doplňují a nikdo není vyřazen. Hra končí po vypršení času kola, proto zvol dlouhý čas kola."
 
 msgid "screen.home"
 msgstr "Domů"
@@ -632,7 +632,7 @@ msgid "home.identity_matches"
 msgstr "Turnajové zápasy připravené ke hře: {0}"
 
 msgid "home.settings_detail"
-msgstr "Hráč, ovladač, výchozí nastavení hry, rozhraní, jazyk a Discord."
+msgstr "Hráč, ovladač, výchozí pravidla, rozhraní, jazyk, trénink a Discord."
 
 msgid "home.about"
 msgstr "Nápověda"
@@ -650,7 +650,7 @@ msgid "home.replays"
 msgstr "Záznamy"
 
 msgid "home.replays_detail"
-msgstr "Každý zápas se ukládá. Kterýkoli vložte do Replay Channel ve hře."
+msgstr "Tvé uložené zápasy. Přehraj je, přidej do hry nebo si přečti jejich vstupy."
 
 msgid "replays.title"
 msgstr "Záznamy"
@@ -665,25 +665,25 @@ msgid "replays.add"
 msgstr "Přidat do hry"
 
 msgid "replays.add_detail"
-msgstr "Přidá do seznamu záznamů hry k pozdějšímu přehrání ze záznamu zápasů."
+msgstr "Přidá záznam do Battle Logu hry pro pozdější přehrání."
 
 msgid "replays.watch"
 msgstr "Přehrát teď"
 
 msgid "replays.watch_detail"
-msgstr "Přidá do seznamu záznamů hry a přehraje ho ze záznamu zápasů."
+msgstr "Přidá záznam do Battle Logu hry a přehraje ho."
 
 msgid "replays.save_watched"
 msgstr "Ukládat sledované zápasy"
 
 msgid "replays.save_watched_detail"
-msgstr "ZAP: nahrávají se i zápasy, které jen sledujete. VYP: jen zápasy, které hrajete."
+msgstr "Ukládá i zápasy, které sleduješ jako divák. Vypnuto ukládá pouze zápasy, které hraješ."
 
 msgid "replays.link"
-msgstr "Odkaz chce přehrát záznam"
+msgstr "Přehrát záznam z odkazu"
 
 msgid "replays.link_detail"
-msgstr "Odkaz požádal Ember o přehrání {0}. Přehrajte ho jen tehdy, když víte, odkud odkaz pochází."
+msgstr "Odkaz požádal Ember o přehrání {0}. Přehraj ho jen tehdy, pokud důvěřuješ zdroji odkazu."
 
 msgid "replays.link_play"
 msgstr "Přehrát"
@@ -692,22 +692,13 @@ msgid "replays.link_dismiss"
 msgstr "Teď ne"
 
 msgid "replays.link_dismiss_detail"
-msgstr "Soubor zůstane na místě a odkaz se zapomene."
-
-msgid "replays.export_gpu"
-msgstr "Exportovat video (GPU)"
-
-msgid "replays.export_gpu_detail"
-msgstr "Nahraje jej jako .mp4 v plné velikosti obrazu hry, kódovaný grafickou kartou."
+msgstr "Zapomene odkaz. Soubor zůstane na svém místě."
 
 msgid "replays.exported"
 msgstr "Video uloženo: {0}"
 
 msgid "replays.gpu_not_exported"
 msgstr "Video nevzniklo. Windows neposkytl kodér H.264, nebo se nepodařilo přečíst obraz hry. Důvod je v protokolu."
-
-msgid "replays.video"
-msgstr "Video"
 
 msgid "replays.open_folder"
 msgstr "Otevřít složku záznamů"
@@ -716,7 +707,7 @@ msgid "replays.open_folder_detail"
 msgstr "Otevře archiv v Průzkumníku: záznamy a exportovaná videa."
 
 msgid "services.opening_replay_folder"
-msgstr "Otevírání složky záznamů…"
+msgstr "Otevírání složky se záznamy..."
 
 msgid "services.replay_folder_opened"
 msgstr "Složka {0} otevřena v Průzkumníku."
@@ -728,13 +719,10 @@ msgid "replays.inputs"
 msgstr "Vstupy a statistiky"
 
 msgid "replays.inputs_detail"
-msgstr "Ukáže, co oba hráči mačkali, snímek po snímku, a kolikrát. Čte se ze souboru záznamu; nic se nepřehrává."
+msgstr "Zobrazí stisky obou hráčů snímek po snímku i celkové počty. Nic se nepřehrává."
 
 msgid "inputs.length_value"
-msgstr "Počet kol: {0}, {1}"
-
-msgid "inputs.buttons"
-msgstr "{0}: stisky tlačítek"
+msgstr "Kola {0} · {1}"
 
 msgid "inputs.activity"
 msgstr "{0} vstupů za minutu, skoky: {1}, v podřepu {2} % času."
@@ -757,62 +745,26 @@ msgstr "Vstupy nelze přečíst"
 msgid "inputs.unreadable_detail"
 msgstr "Tento záznam je ve starším formátu, nebo je jeho soubor poškozený."
 
-msgid "export.title"
-msgstr "Exportovat video"
-
-msgid "export.detail"
-msgstr "Zobrazuje se přes hru při nahrávání, na obrazovce i ve videu."
-
-msgid "export.names"
-msgstr "Jména hráčů"
-
-msgid "export.name"
-msgstr "Hráč {0}"
-
-msgid "export.line"
-msgstr "Řádek zápasu"
-
-msgid "export.line_text"
-msgstr "Text řádku zápasu"
-
-msgid "export.set"
-msgstr "Skóre setu"
-
-msgid "export.set_detail"
-msgstr "Dosavadní výhry každého hráče v setu, vedle jména. Počítá se ze zápasů, které tito dva hráli těsně předtím; pokud nesedí, upravte je."
-
-msgid "export.set_wins"
-msgstr "Výhry hráče {0}"
-
-msgid "export.mark"
-msgstr "Značka Ember"
-
-msgid "export.generate"
-msgstr "Vytvořit video"
-
-msgid "replays.frame_meter"
-msgstr "Měřič snímků"
-
-msgid "replays.frame_meter_detail"
-msgstr "Sledovat teď a Exportovat video zobrazí nad záznamem tréninkový měřič snímků. Při exportu je i ve videu."
-
 msgid "replays.row_detail"
-msgstr "Vyberte pro přidání do seznamu záznamů hry, nebo pro přidání a přehrání teď."
+msgstr "Vyber pro přehrání, přidání do hry nebo zobrazení vstupů a statistik."
 
+#. The saved replay has already been played back.
 msgid "replays.watched"
-msgstr "Zhlédnuto"
+msgstr "Přehráno"
 
+#. The player watched the live match as a spectator, not a replay playback.
 msgid "replays.spectated"
-msgstr "Jako divák"
+msgstr "Sledováno jako divák"
 
+#. The player watched the live match as a spectator and has also played its replay.
 msgid "replays.watched_spectated"
-msgstr "Zhlédnuto, jako divák"
+msgstr "Sledováno jako divák, přehráno"
 
 msgid "replays.not_ready"
 msgstr "Dostupné v hlavním menu, mimo zápas."
 
 msgid "replays.added"
-msgstr "Přidáno do seznamu záznamů hry pod datem, kdy se zápas hrál."
+msgstr "Přidáno do Battle Logu hry pod datem odehrání zápasu."
 
 msgid "replays.not_added"
 msgstr "Tento záznam se nepodařilo přidat. Soubor může být poškozený."
@@ -821,16 +773,16 @@ msgid "replays.not_added_yet"
 msgstr "Hra ještě neuložila poslední zápas. Zkus to za chvíli znovu."
 
 msgid "replays.not_added_files"
-msgstr "Záznam nelze přidat: soubory záznamů hry nelze přečíst nebo připravit. Žádné soubory záznamů hry nebyly změněny."
+msgstr "Tento záznam nelze přidat, protože soubory záznamů hry nelze přečíst. Nic se nezměnilo."
 
 msgid "replays.not_added_archive"
-msgstr "Záznam nelze přidat, protože stávající záznam nelze zálohovat a ověřit. Zkontrolujte složku archivu a volné místo na disku."
+msgstr "Tento záznam nelze přidat, protože současný záznam hry nelze nejprve uložit. Zkontroluj volné místo na disku."
 
 msgid "replays.not_added_restored"
-msgstr "Import selhal. Původní soubory záznamů hry byly obnoveny."
+msgstr "Tento záznam nelze přidat. Záznamy hry zůstaly beze změny."
 
 msgid "replays.not_added_recovery"
-msgstr "Import selhal a některé soubory záznamů hry nelze obnovit. Data pro obnovu byla zachována. Přestaňte importovat záznamy a zkontrolujte protokol."
+msgstr "Tento záznam nelze přidat a některé záznamy hry nelze obnovit. Nepřidávej další záznamy a exportuj diagnostiku z Nápovědy a informací."
 
 msgid "replays.fighters"
 msgstr "{0} vs {1}"
@@ -839,10 +791,10 @@ msgid "replays.player"
 msgstr "{0} ({1})"
 
 msgid "replays.open_log"
-msgstr "Otevřít herní záznam zápasů"
+msgstr "Otevřít Battle Log hry"
 
 msgid "replays.open_log_detail"
-msgstr "Opustí nabídku Emberu a otevře místní záznam zápasů hry, kde se přehrávají záznamy."
+msgstr "Opustí nabídku Emberu a otevře Battle Log hry, kde se přehrávají záznamy."
 
 msgid "replays.open_log_room"
 msgstr "Nejdřív opusťte místnost."
@@ -850,31 +802,31 @@ msgid "home.training"
 msgstr "Trénink"
 
 msgid "home.training_detail"
-msgstr "Přejít rovnou do režimu Trénink, bez otázky na výzvy k zápasu."
+msgstr "Přejít přímo do tréninkového režimu hry."
 
 msgid "settings.training_auto_ready"
 msgstr "Připravit mě při výzvě z Tréninku"
 
 msgid "settings.training_auto_ready_detail"
-msgstr "Vyp.: po výzvě z Tréninku ke stolu máš 15 sekund na stisk Připraven, jinak se místa vzdáváš. Zap.: jsi připraven hned."
+msgstr "Když tě místnost zavolá z tréninku, připravenost se označí ihned. Vypnuto ti dá {0} sekund, než ztratíš místo."
 
 msgid "settings.match_frame_meter"
 msgstr "Měřič snímků v zápasech"
 
 msgid "settings.match_frame_meter_detail"
-msgstr "Zobrazí měřič snímků z Tréninku nad tvými online zápasy a těmi, které sleduješ. Vidíš ho jen ty. Zpožďuje se o snímky, které ještě čekají na vstupy druhého hráče."
+msgstr "Zobrazuje měřič snímků nad online zápasy, které hraješ nebo sleduješ. Vidíš ho jen ty. Může být o několik snímků za soubojem."
 
 msgid "room.training.detail"
-msgstr "Čekej v režimu Trénink, aniž opustíš místnost. Když si naproti tobě sedne bojovník, hra tě vrátí sem, abys potvrdil připravenost."
+msgstr "Trénuj, zatímco čekáš. Ember tě zavolá zpět, když si někdo sedne naproti tobě."
 
 msgid "room.training.unavailable"
-msgstr "Trénink z místnosti vyžaduje hlavní nabídku, zatím nikoho naproti tobě, žádné potvrzené Připraven a žádnou tvou hru, která právě začíná."
+msgstr "Dostupné při čekání na soupeře, než označíš připravenost."
 
 msgid "room.training_call.ready_in"
-msgstr "Potvrď připravenost do {0} s, jinak se místa vzdáváš."
+msgstr "Označ připravenost do {0} s, jinak ztratíš místo."
 
 msgid "runtime.training_call.forfeit"
-msgstr "Po výzvě z Tréninku jsi nepotvrdil připravenost včas, takže tvé místo bylo uvolněno."
+msgstr "Po tréninku jsi včas neoznačil připravenost, a proto jsi opustil místo."
 
 msgid "home.choose_controller"
 msgstr "Vybrat herní ovladač"
@@ -1422,12 +1374,6 @@ msgstr "Nahrávka {0} načtena do slotu {1}."
 msgid "training.recording_none"
 msgstr "Žádné uložené nahrávky."
 
-msgid "training.replay_chip"
-msgstr "F8 Přehrát slot {0}"
-
-msgid "training.stop_chip"
-msgstr "F8 Zastavit"
-
 msgid "training.dummy_recording"
 msgstr "Nahrávání soupeře"
 
@@ -1440,12 +1386,6 @@ msgstr "Historie vstupů"
 msgid "training.input_history.detail"
 msgstr "Prohlédněte si držené vstupy obou hráčů."
 
-msgid "training.tools"
-msgstr "Pozice a figurína"
-
-msgid "training.tools.detail"
-msgstr "Uložte a obnovte pozici, nastavte figurínu a to, co dělá sama."
-
 msgid "training.match.checkpoint_disabled"
 msgstr "Shared save/reset is disabled during rollback matches in nightly."
 
@@ -1454,24 +1394,6 @@ msgstr "Nepřijato: {0}"
 
 msgid "training.save_failed"
 msgstr "Soubor se nepodařilo uložit."
-
-msgid "training.guide"
-msgstr "O této obrazovce"
-
-msgid "training.home.guide"
-msgstr "Toto ovládání platí pro souboj, ve kterém právě jste. Nahrávání soupeře nahraje vstup ovladače na figurínu a přehraje ho. Historie vstupů vypisuje, co který hráč stiskl. Pozice a figurína ukládá a obnovuje pozici a nastavuje figurínu a její odpověď. F6 ovládání otevírá a zavírá, šipky pohybují výběrem, Enter vybírá a Esc vrací o obrazovku zpět."
-
-msgid "training.recording.guide"
-msgstr "Vyberte pozici a pak Nahrát: ovladač Hráče 1 ovládá figurínu, dokud nahrávání nezastavíte. Přehrát nechá figurínu pozici zopakovat a Opakovat přehrávání ji opakuje stále dokola. F7 spouští a zastavuje nahrávání bez otevření této obrazovky. Pozice vydrží jen po tento souboj; Uložit nahrávku jako jednu uchová jako pojmenovaný soubor a Načíst nahrávku ji vrátí."
-
-msgid "training.history.guide"
-msgstr "Vstupy ovladače každého hráče, nejnovější nahoře, s počtem snímků, po které byl každý držen. Vyberte hráče a přečtěte si seznam. Ukazuje, co bylo stisknuto, ne který úder vyšel."
-
-msgid "training.tools.guide"
-msgstr "Uložit pozici zachová souboj, jak je teď, a Obnovit pozici ho vrátí; na ovladači Select krátkým stiskem obnoví a podržením uloží. Řádky figuríny mění hned nastavení tréninku ve hře. Odpověď figuríny nechá figurínu jednat samu, jakmile je znovu volná: přehraje Údery odpovědi, nebo pozici odpovědi, když je ten řádek prázdný."
-
-msgid "edit.instructions.area"
-msgstr "Pište nebo vložte text z klávesnice. Enter začne nový řádek. Ctrl+Enter nebo tlačítko Potvrdit potvrdí; Escape nebo Zpět na ovladači zruší."
 
 msgid "training.position.save"
 msgstr "Uložit pozici"
@@ -4085,3 +4007,102 @@ msgstr "Do místnosti se nepodařilo vstoupit. Možná se právě zavřela. Aktu
 
 msgid "legend.refresh"
 msgstr "Aktualizovat"
+
+msgid "training.frame_data"
+msgstr "Data snímků"
+
+msgid "training.frame_data.detail"
+msgstr "Prohlédněte si poslední útok obou hráčů, výhodu a načasování útoku při vstávání."
+
+msgid "training.color_key"
+msgstr "Význam barev"
+
+msgid "training.dummy"
+msgstr "Tréninkový soupeř"
+
+msgid "training.position"
+msgstr "Pozice"
+
+msgid "training.start_frames"
+msgstr "Náběh {0} sn."
+
+msgid "training.start_unknown"
+msgstr "Náběh --"
+
+msgid "settings.training_replays"
+msgstr "Trénink a záznamy"
+
+msgid "settings.training_replays_detail"
+msgstr "Automatická připravenost po tréninku, měřič snímků v zápasech a výběr ukládaných zápasů."
+
+msgid "settings.training_replays_title"
+msgstr "TRÉNINK A ZÁZNAMY"
+
+msgid "room.table_footer_practice"
+msgstr "Cvičný zápas"
+
+msgid "room.rules_summary_practice"
+msgstr "Cvičný zápas, {0} kol, {1} s, Edition Select {2}"
+
+msgid "inputs.presses_value"
+msgstr "{0} stisknutí"
+
+msgid "replays.watch_meter"
+msgstr "Přehrát s měřičem snímků"
+
+msgid "replays.watch_meter_detail"
+msgstr "Přehraje záznam z Battle Logu s měřičem snímků nad soubojem."
+
+msgid "room.training"
+msgstr "Čekat v tréninku"
+
+msgid "runtime.practice_saved_name"
+msgstr "{0} uložil pozici"
+
+msgid "runtime.practice_reset_name"
+msgstr "{0} obnovil pozici"
+
+msgid "replays.export_gpu"
+msgstr "Exportovat video (GPU)"
+
+msgid "replays.export_gpu_detail"
+msgstr "Nahraje jej jako .mp4 v plné velikosti obrazu hry, kódovaný grafickou kartou."
+
+msgid "replays.video"
+msgstr "Video"
+
+msgid "export.title"
+msgstr "Exportovat video"
+
+msgid "export.detail"
+msgstr "Zobrazuje se přes hru při nahrávání, na obrazovce i ve videu."
+
+msgid "export.names"
+msgstr "Jména hráčů"
+
+msgid "export.name"
+msgstr "Hráč {0}"
+
+msgid "export.line"
+msgstr "Řádek zápasu"
+
+msgid "export.line_text"
+msgstr "Text řádku zápasu"
+
+msgid "export.set"
+msgstr "Skóre setu"
+
+msgid "export.set_detail"
+msgstr "Dosavadní výhry každého hráče v setu, vedle jména. Počítá se ze zápasů, které tito dva hráli těsně předtím; pokud nesedí, upravte je."
+
+msgid "export.set_wins"
+msgstr "Výhry hráče {0}"
+
+msgid "export.mark"
+msgstr "Značka Ember"
+
+msgid "export.generate"
+msgstr "Vytvořit video"
+
+msgid "training.result"
+msgstr "Výsledek"

@@ -91,6 +91,13 @@ DWORD* System::GetSimulationFlags(System* s) {
     return (DWORD*)((unsigned int)s + 0x1454);
 }
 
+int* System::GetPausingPlayer(System* s) {
+    // 0x5DB7BE stores the player after Pause::Unit Open at 0x5DB799.
+    // 0x5DB673 (forced close), 0x5DB8C4 (resume), and 0x5DA896
+    // (CloseBattle/SYS START reset) store -1. Training hold leaves it unset.
+    return (int*)((unsigned int)s + 0x1458);
+}
+
 FixedPoint* System::GetTransitionProgress(System* s) {
     return (FixedPoint*)((unsigned int)s + 0xe24);
 }

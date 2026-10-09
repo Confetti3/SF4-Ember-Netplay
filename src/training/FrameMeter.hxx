@@ -134,6 +134,12 @@ struct MoveFrames { int active = 0, recovery = 0; bool seen = false, live = fals
 // The bars show MeterShown frames; the meter keeps MeterHistory of the
 // exchange, twenty seconds, so a held one can be looked back through.
 constexpr std::size_t MeterShown = 120, MeterHistory = 1200;
+// Short histories align right; longer ones show only the newest cells.
+inline int MeterFrameIndex(std::size_t size, std::size_t cell) {
+    const auto shown = (std::min)(size, MeterShown);
+    const int offset = static_cast<int>(cell) - static_cast<int>(MeterShown - shown);
+    return cell >= MeterShown || offset < 0 ? -1 : static_cast<int>(size - shown) + offset;
+}
 struct MeterFrame {
     std::array<FighterSample, 2> fighters;
     int frame = 0;

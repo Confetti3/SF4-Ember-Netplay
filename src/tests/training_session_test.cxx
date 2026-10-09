@@ -7,6 +7,16 @@ using namespace sf4e::training;
 void Require(bool pass, const char* why) { if (!pass) throw std::runtime_error(why); }
 int main() {
     try {
+        MeterView longHistory;
+        for (int frame = 0; frame < static_cast<int>(MeterHistory); ++frame) longHistory.frames.push_back({{}, frame});
+        for (std::size_t cell = 0; cell < MeterShown; ++cell) {
+            const int index = MeterFrameIndex(longHistory.frames.size(), cell);
+            Require(index == 1080 + static_cast<int>(cell) && longHistory.frames[index].frame == index,
+                "Meter did not draw the newest 120 of 1200 frames");
+        }
+        Require(MeterFrameIndex(0, 119) == -1 && MeterFrameIndex(3, 116) == -1 &&
+            MeterFrameIndex(3, 117) == 0 && MeterFrameIndex(3, 119) == 2 && MeterFrameIndex(1200, 120) == -1,
+            "Short meter history or visible cell boundary wrong");
         // Reproduce action chains through the same per-frame observer used by
         // native training. An internal move change must not discard contact.
         for (int variant = 0; variant < 4; ++variant) {

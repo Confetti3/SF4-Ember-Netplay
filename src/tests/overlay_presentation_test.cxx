@@ -5,6 +5,24 @@
 int main() {
     using sf4e::netplay::MatchState;
     using sf4e::ui::OverlayPresentation;
+    for (unsigned flags = 0; flags < 16; ++flags) {
+        CHECK(sf4e::NativePauseMenuOpen(flags, -1) == false);
+        CHECK(sf4e::NativePauseMenuOpen(flags, 0) == ((flags & 1) != 0));
+        CHECK(sf4e::NativePauseMenuOpen(flags, 1) == ((flags & 1) != 0));
+    }
+    // Training load-state hold, replay Back freeze, and native online wait
+    // must leave the passive overlays visible without a pause-menu player.
+    CHECK(!sf4e::NativePauseMenuOpen(1, -1));
+    CHECK(!sf4e::NativePauseMenuOpen(8, -1));
+    CHECK(!sf4e::NativePauseMenuOpen(4, -1));
+    for (int shell = 0; shell < 2; ++shell)
+        for (int controls = 0; controls < 2; ++controls)
+            for (int paused = 0; paused < 2; ++paused)
+                CHECK(sf4e::ui::PassiveOverlayShown(shell != 0, controls != 0, paused != 0) == (!shell && !controls && !paused));
+    sf4e::SetNativePauseForTest(true); CHECK(sf4e::battlePause.Paused());
+    sf4e::battlePause.CloseBattle(); CHECK(!sf4e::battlePause.Paused());
+    sf4e::SetNativePauseForTest(true);
+    sf4e::battlePause.StartBattle(); CHECK(!sf4e::battlePause.Paused());
     OverlayPresentation menu;
     menu.Update(false, MatchState::None, false, true);
     menu.Open(); CHECK(!menu.Visible());

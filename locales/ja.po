@@ -344,10 +344,10 @@ msgid "rules.round_time"
 msgstr "タイム"
 
 msgid "rules.training"
-msgstr "トレーニング"
+msgstr "練習対戦"
 
 msgid "rules.training.detail"
-msgstr "オン：両方のファイターの体力とゲージが回復し、KOになりません。他のプレイヤーと練習するためのルールです。ファイターが席を離れるかラウンドタイムが切れると試合が終わるので、ラウンドタイムは長く設定してください。"
+msgstr "体力とゲージが回復し、KOは発生しません。ラウンドの制限時間が切れると対戦が終わるので、長い時間に設定してください。"
 
 msgid "screen.home"
 msgstr "ホーム"
@@ -632,7 +632,7 @@ msgid "home.identity_matches"
 msgstr "プレイできる大会の試合：{0}"
 
 msgid "home.settings_detail"
-msgstr "プレイヤー、コントローラー、対戦の初期設定、表示、言語、Discord。"
+msgstr "プレイヤー、コントローラー、対戦の初期設定、表示、言語、トレーニング、Discord。"
 
 msgid "home.about"
 msgstr "ヘルプ・情報"
@@ -650,7 +650,7 @@ msgid "home.replays"
 msgstr "リプレイ"
 
 msgid "home.replays_detail"
-msgstr "すべての対戦が保存されます。どれでもゲームのリプレイチャンネルに入れられます。"
+msgstr "保存した対戦です。再生、ゲームへの追加、入力の確認ができます。"
 
 msgid "replays.title"
 msgstr "リプレイ"
@@ -665,49 +665,40 @@ msgid "replays.add"
 msgstr "ゲームに追加"
 
 msgid "replays.add_detail"
-msgstr "ゲームのリプレイ一覧に追加し、後でバトルログから視聴できます。"
+msgstr "後で見られるように、ゲームのBattle Logに追加します。"
 
 msgid "replays.watch"
 msgstr "今すぐ見る"
 
 msgid "replays.watch_detail"
-msgstr "ゲームのリプレイ一覧に追加し、バトルログから再生します。"
+msgstr "ゲームのBattle Logに追加して再生します。"
 
 msgid "replays.save_watched"
 msgstr "観戦した対戦を保存"
 
 msgid "replays.save_watched_detail"
-msgstr "オン：観戦しただけの対戦も記録します。オフ：自分が対戦したものだけ記録します。"
+msgstr "観戦した対戦も保存します。オフでは自分がプレイした対戦だけを保存します。"
 
 msgid "replays.link"
-msgstr "リンクがリプレイの再生を求めています"
+msgstr "リンクのリプレイを再生"
 
 msgid "replays.link_detail"
-msgstr "リンクがEmberに{0}の再生を求めました。リンクの出どころが分かっている場合だけ再生してください。"
+msgstr "リンクから{0}の再生がEmberに要求されました。リンクの送信元を信頼できる場合だけ再生してください。"
 
 msgid "replays.link_play"
-msgstr "再生する"
+msgstr "再生"
 
 msgid "replays.link_dismiss"
 msgstr "今はしない"
 
 msgid "replays.link_dismiss_detail"
-msgstr "ファイルはそのままにして、リンクを忘れます。"
-
-msgid "replays.export_gpu"
-msgstr "動画を書き出す (GPU)"
-
-msgid "replays.export_gpu_detail"
-msgstr "ゲーム画面そのままの大きさで .mp4 として録画し、グラフィックカードでエンコードします。"
+msgstr "リンクを忘れます。ファイルは元の場所に残ります。"
 
 msgid "replays.exported"
 msgstr "動画を保存しました: {0}"
 
 msgid "replays.gpu_not_exported"
 msgstr "動画は作成されませんでした。Windows に H.264 エンコーダーがないか、ゲームの画面を読み取れませんでした。理由はログにあります。"
-
-msgid "replays.video"
-msgstr "動画"
 
 msgid "replays.open_folder"
 msgstr "リプレイフォルダーを開く"
@@ -716,7 +707,7 @@ msgid "replays.open_folder_detail"
 msgstr "アーカイブをエクスプローラーで開きます。リプレイと書き出した動画があります。"
 
 msgid "services.opening_replay_folder"
-msgstr "リプレイフォルダーを開いています…"
+msgstr "リプレイフォルダーを開いています..."
 
 msgid "services.replay_folder_opened"
 msgstr "{0} をエクスプローラーで開きました。"
@@ -728,13 +719,10 @@ msgid "replays.inputs"
 msgstr "入力と統計"
 
 msgid "replays.inputs_detail"
-msgstr "両プレイヤーが押した内容をフレームごとに表示し、回数を数えます。リプレイファイルから読み取るだけで、再生はしません。"
+msgstr "両プレイヤーの入力をフレームごとに、合計とともに表示します。再生はしません。"
 
 msgid "inputs.length_value"
-msgstr "ラウンド数：{0}、{1}"
-
-msgid "inputs.buttons"
-msgstr "{0}：ボタンを押した回数"
+msgstr "ラウンド数 {0} · {1}"
 
 msgid "inputs.activity"
 msgstr "1分あたり{0}入力、ジャンプ{1}回、しゃがみ{2}%。"
@@ -749,7 +737,7 @@ msgid "inputs.reading"
 msgstr "リプレイを読み込んでいます..."
 
 msgid "inputs.look_unknown"
-msgstr "外見は不明"
+msgstr "外見情報が不明"
 
 msgid "inputs.unreadable"
 msgstr "入力を読み取れません"
@@ -757,62 +745,26 @@ msgstr "入力を読み取れません"
 msgid "inputs.unreadable_detail"
 msgstr "このリプレイは古い形式か、ファイルが壊れています。"
 
-msgid "export.title"
-msgstr "動画を書き出す"
-
-msgid "export.detail"
-msgstr "録画中、画面と動画の両方でゲームの上に表示されます。"
-
-msgid "export.names"
-msgstr "プレイヤー名"
-
-msgid "export.name"
-msgstr "プレイヤー{0}"
-
-msgid "export.line"
-msgstr "対戦の行"
-
-msgid "export.line_text"
-msgstr "対戦の行のテキスト"
-
-msgid "export.set"
-msgstr "セットのスコア"
-
-msgid "export.set_detail"
-msgstr "このセットでの各プレイヤーのこれまでの勝利数を、名前の横に表示します。直前にこの二人が行った対戦から数えます。違う場合は変更してください。"
-
-msgid "export.set_wins"
-msgstr "プレイヤー{0}の勝利数"
-
-msgid "export.mark"
-msgstr "Emberマーク"
-
-msgid "export.generate"
-msgstr "動画を作成"
-
-msgid "replays.frame_meter"
-msgstr "フレームメーター"
-
-msgid "replays.frame_meter_detail"
-msgstr "「今すぐ見る」と「動画を書き出す」で、トレーニングのフレームメーターをリプレイの上に表示します。書き出しでは動画にも入ります。"
-
 msgid "replays.row_detail"
-msgstr "決定で、ゲームのリプレイ一覧に追加するか、追加して今すぐ見るかを選びます。"
+msgstr "選択すると、再生、ゲームへの追加、入力と統計の表示を選べます。"
 
+#. The saved replay has already been played back.
 msgid "replays.watched"
-msgstr "視聴済み"
+msgstr "再生済み"
 
+#. The player watched the live match as a spectator, not a replay playback.
 msgid "replays.spectated"
-msgstr "観戦"
+msgstr "観戦した対戦"
 
+#. The player watched the live match as a spectator and has also played its replay.
 msgid "replays.watched_spectated"
-msgstr "視聴済み、観戦"
+msgstr "観戦した対戦、再生済み"
 
 msgid "replays.not_ready"
 msgstr "対戦中以外のメインメニューで使えます。"
 
 msgid "replays.added"
-msgstr "対戦した日付でゲームのリプレイ一覧に追加しました。"
+msgstr "ゲームのBattle Logに、対戦した日付で追加しました。"
 
 msgid "replays.not_added"
 msgstr "このリプレイを追加できませんでした。ファイルが破損している可能性があります。"
@@ -821,16 +773,16 @@ msgid "replays.not_added_yet"
 msgstr "ゲームが最後の対戦をまだ保存していません。少ししてからもう一度お試しください。"
 
 msgid "replays.not_added_files"
-msgstr "このリプレイを追加できませんでした。ゲームのリプレイファイルを読み込むか準備することができませんでした。ゲームのリプレイファイルは変更されていません。"
+msgstr "ゲームのリプレイファイルを読み取れなかったため、このリプレイを追加できませんでした。変更はありません。"
 
 msgid "replays.not_added_archive"
-msgstr "既存のリプレイをバックアップして確認できなかったため、このリプレイを追加できませんでした。アーカイブフォルダーとディスクの空き容量を確認してください。"
+msgstr "ゲームの現在のリプレイを先に保存できなかったため、このリプレイを追加できませんでした。ディスクの空き容量を確認してください。"
 
 msgid "replays.not_added_restored"
-msgstr "インポートに失敗しました。元のゲームのリプレイファイルは復元されました。"
+msgstr "このリプレイを追加できませんでした。ゲームのリプレイは元のままです。"
 
 msgid "replays.not_added_recovery"
-msgstr "インポートに失敗し、一部のゲームのリプレイファイルを復元できませんでした。復元用のデータは保持されています。リプレイのインポートを中止し、ログを確認してください。"
+msgstr "このリプレイを追加できず、ゲームの一部のリプレイも元に戻せませんでした。リプレイの追加をやめ、「ヘルプと情報」から診断情報をエクスポートしてください。"
 
 msgid "replays.fighters"
 msgstr "{0} vs {1}"
@@ -839,10 +791,10 @@ msgid "replays.player"
 msgstr "{0} ({1})"
 
 msgid "replays.open_log"
-msgstr "ゲームのバトルログを開く"
+msgstr "ゲームのBattle Logを開く"
 
 msgid "replays.open_log_detail"
-msgstr "Ember のメニューを離れ、リプレイを再生できるゲームのローカルバトルログを開きます。"
+msgstr "Emberのメニューを離れ、リプレイを再生するゲームのBattle Logを開きます。"
 
 msgid "replays.open_log_room"
 msgstr "先にルームから退出してください。"
@@ -850,31 +802,31 @@ msgid "home.training"
 msgstr "トレーニング"
 
 msgid "home.training_detail"
-msgstr "乱入設定の確認なしで、すぐにトレーニングモードに入ります。"
+msgstr "ゲームのトレーニングモードに直接進みます。"
 
 msgid "settings.training_auto_ready"
 msgstr "トレーニングから呼ばれたら自動で準備完了"
 
 msgid "settings.training_auto_ready_detail"
-msgstr "オフ：トレーニングからテーブルに呼ばれたら、15秒以内に準備完了を押さないと席を失います。オン：すぐに準備完了になります。"
+msgstr "ルームがトレーニングから呼び戻すと、すぐに準備完了にします。オフでは、席を失うまでに{0}秒の準備時間があります。"
 
 msgid "settings.match_frame_meter"
 msgstr "対戦中のフレームメーター"
 
 msgid "settings.match_frame_meter_detail"
-msgstr "トレーニングのフレームメーターを、自分のオンライン対戦と観戦中の対戦に表示します。自分にだけ見えます。相手の入力を待っているフレームの分だけ遅れて表示されます。"
+msgstr "プレイ中や観戦中のオンライン対戦にフレームメーターを表示します。自分だけに見えます。対戦より数フレーム遅れることがあります。"
 
 msgid "room.training.detail"
-msgstr "ルームを出ずにトレーニングモードで待てます。向かいの席に対戦相手が座ると、準備完了のためにここへ戻されます。"
+msgstr "待っている間にトレーニングで練習できます。向かいの席に誰かが座るとEmberが呼び戻します。"
 
 msgid "room.training.unavailable"
-msgstr "ルームからのトレーニングは、メインメニューにいて、向かいの席にまだ誰もおらず、準備完了を出しておらず、自分の対戦が始まっていないときだけ使えます。"
+msgstr "対戦相手を待っていて、準備完了にする前に利用できます。"
 
 msgid "room.training_call.ready_in"
-msgstr "{0}秒以内に準備完了しないと席を失います。"
+msgstr "{0}秒以内に準備完了にしないと席を失います。"
 
 msgid "runtime.training_call.forfeit"
-msgstr "トレーニングから呼ばれたあと時間内に準備完了しなかったため、席を失いました。"
+msgstr "トレーニング後に時間内に準備完了にしなかったため、席を離れました。"
 
 msgid "home.choose_controller"
 msgstr "対戦用コントローラーを選択"
@@ -1422,12 +1374,6 @@ msgstr "録画{0}をスロット{1}に読み込みました。"
 msgid "training.recording_none"
 msgstr "保存した録画はありません。"
 
-msgid "training.replay_chip"
-msgstr "F8 スロット{0}を再生"
-
-msgid "training.stop_chip"
-msgstr "F8 停止"
-
 msgid "training.dummy_recording"
 msgstr "ダミーレコーディング"
 
@@ -1440,12 +1386,6 @@ msgstr "入力履歴"
 msgid "training.input_history.detail"
 msgstr "各プレイヤーが押しているボタンを確認します。"
 
-msgid "training.tools"
-msgstr "位置とダミー"
-
-msgid "training.tools.detail"
-msgstr "位置を保存して戻し、ダミーとその反撃を設定します。"
-
 msgid "training.match.checkpoint_disabled"
 msgstr "Shared save/reset is disabled during rollback matches in nightly."
 
@@ -1454,24 +1394,6 @@ msgstr "受け付けられません：{0}"
 
 msgid "training.save_failed"
 msgstr "ファイルを保存できませんでした。"
-
-msgid "training.guide"
-msgstr "この画面について"
-
-msgid "training.home.guide"
-msgstr "ここの操作は今の対戦に働きます。ダミーレコーディングはパッド入力をダミーに記録して再生します。入力履歴は各プレイヤーが押した入力を表示します。位置とダミーは位置を保存して戻し、ダミーとその反撃を設定します。F6で操作画面を開閉、方向キーで移動、Enterで選択、Escで前の画面に戻ります。"
-
-msgid "training.recording.guide"
-msgstr "スロットを選んでレコーディング：停止するまでプレイヤー1のパッドでダミーを動かします。再生でダミーがスロットを再生し、ループ再生で繰り返します。F7はこの画面を開かずに記録を開始・停止します。スロットはこの対戦の間だけ残ります。録画を名前を付けて保存で名前付きのファイルとして残し、録画を読み込むで戻せます。"
-
-msgid "training.history.guide"
-msgstr "各プレイヤーのパッド入力を新しい順に、入力ごとの保持フレーム数とともに表示します。プレイヤーを選ぶと一覧を読めます。表示されるのは押した入力で、出た技ではありません。"
-
-msgid "training.tools.guide"
-msgstr "位置を保存は今の対戦の状態を保存し、位置を戻すでその状態に戻します。パッドのSelectは押してすぐ離すと戻し、押したままにすると保存します。ダミーの行はゲームのトレーニング設定をすぐに変更します。ダミーの反撃はダミーが動けるようになった瞬間に自分で行う行動です。反撃の技を再生し、その欄が空なら反撃スロットを再生します。"
-
-msgid "edit.instructions.area"
-msgstr "キーボードで入力または貼り付け。Enterで改行します。Ctrl+Enterか確定ボタンで確定、Escかコントローラーの戻るでキャンセルします。"
 
 msgid "training.position.save"
 msgstr "位置を保存"
@@ -4085,3 +4007,102 @@ msgstr "ルームに入れませんでした。閉じたばかりかもしれま
 
 msgid "legend.refresh"
 msgstr "更新"
+
+msgid "training.frame_data"
+msgstr "フレームデータ"
+
+msgid "training.frame_data.detail"
+msgstr "各プレイヤーの直前の技、フレーム有利差、起き上がりへの重ねのタイミングを確認します。"
+
+msgid "training.color_key"
+msgstr "色の凡例"
+
+msgid "training.dummy"
+msgstr "ダミー"
+
+msgid "training.position"
+msgstr "位置"
+
+msgid "training.start_frames"
+msgstr "発生{0}F"
+
+msgid "training.start_unknown"
+msgstr "発生--"
+
+msgid "settings.training_replays"
+msgstr "トレーニングとリプレイ"
+
+msgid "settings.training_replays_detail"
+msgstr "トレーニング後の自動準備、対戦中のフレームメーター、保存する対戦の設定。"
+
+msgid "settings.training_replays_title"
+msgstr "トレーニングとリプレイ"
+
+msgid "room.table_footer_practice"
+msgstr "練習対戦"
+
+msgid "room.rules_summary_practice"
+msgstr "練習対戦、{0}ラウンド、{1}秒、Edition Select {2}"
+
+msgid "inputs.presses_value"
+msgstr "{0}回のボタン入力"
+
+msgid "replays.watch_meter"
+msgstr "フレームメーター付きで見る"
+
+msgid "replays.watch_meter_detail"
+msgstr "Battle Logから再生し、対戦の上にフレームメーターを表示します。"
+
+msgid "room.training"
+msgstr "トレーニングで待つ"
+
+msgid "runtime.practice_saved_name"
+msgstr "{0}が位置を保存しました"
+
+msgid "runtime.practice_reset_name"
+msgstr "{0}が位置をリセットしました"
+
+msgid "replays.export_gpu"
+msgstr "動画を書き出す (GPU)"
+
+msgid "replays.export_gpu_detail"
+msgstr "ゲーム画面そのままの大きさで .mp4 として録画し、グラフィックカードでエンコードします。"
+
+msgid "replays.video"
+msgstr "動画"
+
+msgid "export.title"
+msgstr "動画を書き出す"
+
+msgid "export.detail"
+msgstr "録画中、画面と動画の両方でゲームの上に表示されます。"
+
+msgid "export.names"
+msgstr "プレイヤー名"
+
+msgid "export.name"
+msgstr "プレイヤー{0}"
+
+msgid "export.line"
+msgstr "対戦の行"
+
+msgid "export.line_text"
+msgstr "対戦の行のテキスト"
+
+msgid "export.set"
+msgstr "セットのスコア"
+
+msgid "export.set_detail"
+msgstr "このセットでの各プレイヤーのこれまでの勝利数を、名前の横に表示します。直前にこの二人が行った対戦から数えます。違う場合は変更してください。"
+
+msgid "export.set_wins"
+msgstr "プレイヤー{0}の勝利数"
+
+msgid "export.mark"
+msgstr "Emberマーク"
+
+msgid "export.generate"
+msgstr "動画を作成"
+
+msgid "training.result"
+msgstr "結果"

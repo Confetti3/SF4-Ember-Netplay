@@ -26,10 +26,13 @@ std::string TrainingKeyHints();
 // What the last position command did, while it is news; empty after a few seconds.
 std::string TrainingNotice(bool& failed);
 MenuNavigation& TrainingNavigation();
-// Passive, except for its chips: open the controls, replay the selected slot,
-// stop playback. pointer: the pointer is over the chips, so the overlay takes
+std::string TrainingFrameData(const training::MeterView& meter, int side);
+void DrawTrainingColorKey();
+void ChallengerBanner(const training::View& view);
+// Passive, except for the chip that opens the controls.
+// pointer: the pointer is over the chip, so the overlay takes
 // the mouse (only) from the game.
-struct TrainingHudInput { bool open = false, replay = false, stop = false, pointer = false; };
+struct TrainingHudInput { bool open = false, pointer = false; };
 // Bottom edge of the frame meter as a fraction of the viewport height, above
 // the game's super meters.
 constexpr float TrainingHudBottom = .82f;

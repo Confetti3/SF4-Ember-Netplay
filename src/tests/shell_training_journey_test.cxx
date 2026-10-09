@@ -1,5 +1,7 @@
 #include "shell_journey_support.hxx"
 #include "shell_additional_journeys.hxx"
+#include "../session/TrainingCall.hxx"
+#include "../training/RecordingFile.hxx"
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -11,6 +13,24 @@ void TrainingFromHome() {
  using namespace sf4e;
  using Kind=netplay::CommandKind;
  Harness h;h.Frame();
+ std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
+ h.Choose("settings");
+ const std::vector<std::string> settings={"player","defaults","interface","training-replays","discord","about"};
+ Check(rows.size()==settings.size(),"Settings row count changed");
+ for(std::size_t i=0;i<settings.size();++i)Check(rows[i].id==settings[i],"Settings order changed");
+ h.Choose("interface");
+ const std::vector<std::string> interfaceRows={"hud","hud-layout","hud-name-offset","hud-size","hud-position","hud-spacing","ready-sound","ready-volume","ready-test","scale","language"};
+ Check(rows.size()==interfaceRows.size(),"Interface no longer has Stable's 11 rows");
+ for(std::size_t i=0;i<interfaceRows.size();++i)Check(rows[i].id==interfaceRows[i],"Interface order changed");
+ h.Press(MenuInput::Back);h.Choose("training-replays");
+ Check(rows.size()==3&&rows[0].id=="match-frame-meter"&&rows[1].id=="training-auto-ready"&&rows[2].id=="replay-save-watched","Training and replays settings order wrong");
+ Check(rows[1].detail==loc::Tf("settings.training_auto_ready_detail",room::TrainingCall::ReadyWindowMs/1000),"Auto-ready detail lost runtime deadline");
+ h.Choose("match-frame-meter");h.Press(MenuInput::Right);h.Frame(0,45);
+ Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.matchFrameMeter,"Match frame meter did not save from new screen");
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("training-auto-ready");h.Press(MenuInput::Right);h.Frame(0,45);
+ Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.trainingAutoReady,"Training auto-ready did not save from new screen");
+ h.view.preferences=h.actions.back().preferences;h.Frame();
+ SetMenuEntriesProbe({});h.Screen("home");
  h.Choose("training");
  Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::StartOffline&&h.actions.back().enterTraining,"Training did not ride on the offline command");
  h.Screen("home");h.Choose("offline");
@@ -27,6 +47,11 @@ void TrainingFromRoom() {
  h.view.session.room=netplay::RoomState::Joined;h.view.session.control=netplay::Health::Healthy;h.view.room.roomEpoch=9;h.view.room.localMember=1;
  for(std::size_t i=0;i<h.view.room.tables.size();++i)h.view.room.tables[i].id=static_cast<std::uint8_t>(i);
  h.view.room.members={me,other};h.view.canTrain=true;h.Frame();
+ std::vector<MenuEntry> rows;std::string status;Tone tone=Tone::Neutral;
+ SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
+ SetMenuStatusProbe([&](const char* text,Tone value){status=text;tone=value;});h.Frame();
+ const auto training=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="room-training";});
+ Check(training!=rows.end()&&training->label==loc::T("room.training")&&std::next(training)->id=="leave","Wait in Training label or position wrong");
  const auto before=h.actions.size();
  h.Choose("room-training");
  Check(h.actions.size()==before+1&&h.actions.back().enterTraining&&h.actions.back().command.kind!=Kind::StartOffline,"Training from the room did not ask for Training alone");
@@ -35,6 +60,11 @@ void TrainingFromRoom() {
  h.view.room.members={me,other};h.view.room.tables[0].p1=1;h.view.room.tables[0].p2=2;h.view.room.tables[0].phase=room::TablePhase::Waiting;
  h.view.canTrain=false;h.view.trainingCallSequence=1;h.view.trainingReadySeconds=15;h.Frame();
  Check(h.shell.Navigation().Screen()=="room-table","A player called back from Training was not shown their table");
+ Check(status==loc::Tf("room.training_call.ready_in",15)&&tone==Tone::Pending,"Training deadline missing from table status");
+ h.Screen("room");Check(status==loc::Tf("room.training_call.ready_in",15)&&tone==Tone::Pending,"Training deadline missing from room status");h.Screen("room-table");
+ h.view.room.tables[0].rules.training=true;h.Frame();
+ const auto rules=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="rules";});
+ Check(rules!=rows.end()&&rules->value==loc::Tf("room.rules_summary_practice",3,99,loc::T("common.on")),"Non-host cannot see Practice match rule");
  // Asked to be readied: nothing until the runtime's gate opens, then one Ready.
  const auto sent=h.actions.size();
  h.view.trainingReadySequence=1;h.Frame();h.Frame();
@@ -46,6 +76,7 @@ void TrainingFromRoom() {
  // A window that closed takes a waiting Ready with it.
  h.view.canReady=false;h.view.trainingReadySequence=2;h.Frame();h.view.trainingReadySeconds=0;h.Frame();h.view.canReady=true;h.Frame();
  Check(h.actions.size()==sent+1,"A Ready outlived its window");
+ SetMenuEntriesProbe({});SetMenuStatusProbe({});
 }
 void TrainingJourneys() {
  using namespace sf4e;
@@ -67,6 +98,9 @@ void TrainingJourneys() {
  std::filesystem::create_directories(folder);
  {std::ofstream file(folder/"training.json");file<<R"({"reply":{"when":4,"moves":"not a move"},"keys":{"reset_position":10}})";}
  SetTrainingDirectory(folder.wstring());
+ std::filesystem::create_directory(folder/"recordings");
+ for(const char* name:{"First","Second"}){std::ofstream file(folder/"recordings"/(std::string(name)+".json"));
+  file<<training::ExportRecording(std::vector<training::Input>(name[0]=='F'?3:7));}
  ImGui::NewFrame();
  TrainingHotkeys(v,submit);
  bool failed=false;const auto notice=TrainingNotice(failed);
@@ -96,6 +130,27 @@ void TrainingJourneys() {
  choose("play");Check(commands.back().action==training::Action::Play&&(TakeForwardedMenuAction().kind!=MenuAction::Close),"Play command dispatch");
  v.commandId=commands.back().requestId;v.commandAccepted=true;frame();Check((TakeForwardedMenuAction().kind==MenuAction::Close),"Accepted playback did not return to practice");
  press(MenuInput::Back);Check(TrainingNavigation().Screen()=="home"&&(TakeForwardedMenuAction().kind!=MenuAction::Close),"Back skipped the training root");
+ // Both sides of the recording grid breakpoint retain list adjustment in
+ // the full-width footer. Load must select the file before submitting it.
+ for(float width:{800.f,1920.f}){
+  io.DisplaySize=ImVec2(width,1080);frame();choose("recording");
+  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});frame();
+  Check((rows[0].height==30)==(width==1920),"Recording breakpoint fixture used the wrong layout");
+  choose("loop");commands.clear();press(MenuInput::Right);
+  Check(commands.size()==1&&commands.back().action==training::Action::Loop&&commands.back().value==1,"Loop Right did not adjust in recording footer");
+  v.commandId=commands.back().requestId;v.commandAccepted=true;frame();
+  commands.clear();press(MenuInput::Left);
+  Check(commands.size()==1&&commands.back().action==training::Action::Loop&&commands.back().value==0,"Loop Left did not adjust in recording footer");
+  v.commandId=commands.back().requestId;v.commandAccepted=true;frame();
+  choose("load-recording");commands.clear();press(MenuInput::Right);
+  const auto load=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="load-recording";});
+  Check(load!=rows.end()&&load->value=="Second"&&commands.empty(),"Load recording Right did not select the second file");
+  press(MenuInput::Select);Check(commands.size()==1&&commands.back().action==training::Action::Load&&commands.back().frames.size()==7,"Load recording submitted the wrong selected file");
+  commands.clear();press(MenuInput::Left);press(MenuInput::Select);
+  Check(commands.size()==1&&commands.back().action==training::Action::Load&&commands.back().frames.size()==3,"Load recording Left did not restore the first file");
+  SetMenuEntriesProbe({});press(MenuInput::Back);
+ }
+ io.DisplaySize=ImVec2(1280,960);frame();
  press(MenuInput::Back);Check((TakeForwardedMenuAction().kind==MenuAction::Close),"Root Back did not return to practice");
  // F7 on a recorded slot asks about overwriting it: Record is focused with its
  // question open on Cancel, and Right then Select sends exactly one Record.
@@ -108,11 +163,12 @@ void TrainingJourneys() {
  TakeForwardedMenuAction();
  // The published action is the logical setting while a reply plays. The
  // row steps from Crouch to Jump, rather than from the temporary Stand.
- press(MenuInput::Back);choose("tools");
+ press(MenuInput::Back);choose("dummy");
  v.mode=training::Mode::Playback;v.dummy.action=1;
  choose("dummy-action");commands.clear();press(MenuInput::Right);
  Check(commands.size()==1&&commands.back().action==training::Action::DummyState&&commands.back().dummy.action==2,
   "Dummy action row did not edit the logical playback setting");
+ press(MenuInput::Back);choose("reply");
  commands.clear();choose("reply-timing");press(MenuInput::Right);
  Check(commands.empty(),"Editing reply settings submitted an invalid saved reply as an empty typed plan");
  const auto saved=[&]{std::ifstream file(folder/"training.json");nlohmann::json practice;file>>practice;return practice;};
@@ -145,5 +201,6 @@ void TrainingJourneys() {
  // that would fail the next time replies are enabled.
  const auto off=saved();commands.clear();edit("> ,");
  Check(commands.empty()&&saved()==off&&runtimePlan.when==0,"Reply Off allowed an invalid edit to be saved");
- std::filesystem::remove(folder/"training.json");std::filesystem::remove(folder);
+ for(const char* name:{"First","Second"})std::filesystem::remove(folder/"recordings"/(std::string(name)+".json"));
+ std::filesystem::remove(folder/"recordings");std::filesystem::remove(folder/"training.json");std::filesystem::remove(folder);
 }

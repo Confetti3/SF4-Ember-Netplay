@@ -19,7 +19,9 @@ void ApplicationShell::BuildInputsRows(const ShellView& v,std::vector<MenuEntry>
  rows.push_back(InfoRow("inputs-replay",ReplayLabel(detail.label,detail.names,detail.fighters),(score.empty()?"":score+"  ")+MatchText(summary),loc::T("replays.inputs_detail")));
  rows.back().userText=true;
  for(int side=0;side<2;side++){
-  rows.push_back(InfoRow("inputs-p"+std::to_string(side+1),loc::Tf("inputs.buttons",ReplayPlayerName(detail.names,side)),PressesText(summary.stats[side]),LookText(summary.players[side])+". "+ActivityText(summary.stats[side])));
+  const auto* fighter=selection::FindFighter(detail.fighters[side]);
+  std::uint64_t presses=0;for(const auto count:summary.stats[side].presses)presses+=count;
+  rows.push_back(InfoRow("inputs-p"+std::to_string(side+1),loc::Tf("replays.player",ReplayPlayerName(detail.names,side),fighter?fighter->name:loc::T("common.unavailable")),loc::Tf("inputs.presses_value",presses),LookText(summary.players[side])+". "+PressesText(summary.stats[side])+". "+ActivityText(summary.stats[side])));
   rows.back().userText=!detail.names[side].empty();
  }
  for(std::size_t round=0;round<match.rounds.size();round++){
