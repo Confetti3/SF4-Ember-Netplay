@@ -3582,3 +3582,9 @@ msgstr "无法进入房间，它可能刚刚关闭。请刷新后选择其他房
 
 msgid "legend.refresh"
 msgstr "刷新"
+
+msgid "chat.history"
+msgstr "Chat history"
+
+msgid "chat.inline_detail"
+msgstr "Type here in the room. Enter sends; Escape returns to room controls."

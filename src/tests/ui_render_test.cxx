@@ -453,10 +453,11 @@ int main(int argc, char** argv) {
         // SF4E_UI_RENDER_QUICK=1 is for a quick look at a change: English at 1920x1080 only.
         const char* quickRun = std::getenv("SF4E_UI_RENDER_QUICK");
         const std::string quickMode = quickRun ? quickRun : "";
-        const bool quick = quickMode == "1" || quickMode == "narrow";
+        const bool quick = quickMode == "1" || quickMode == "narrow" || quickMode == "short";
         // SF4E_UI_RENDER_QUICK=narrow is the same at 640x720, and SF4E_UI_RENDER_SHOTS=text writes only the shots whose name has it.
         const char* shotFilter = std::getenv("SF4E_UI_RENDER_SHOTS");
-        const std::vector<Size> sizes = quickMode == "narrow" ? std::vector<Size>{{640,720,1.5f}} : quick ? std::vector<Size>{{1920,1080,1}} : translations ?
+        // "short" checks English and expanded pseudo labels at 200% scaling.
+        const std::vector<Size> sizes = quickMode == "short" ? std::vector<Size>{{1280,720,2}} : quickMode == "narrow" ? std::vector<Size>{{640,720,1.5f}} : quick ? std::vector<Size>{{1920,1080,1}} : translations ?
             std::vector<Size>{{640,720,1.5f}, {1280,720,1}, {1920,1080,1.5f}} :
             std::vector<Size>{{1280,720,1}, {1920,1080,1}, {1920,1080,1.25f}, {1920,1080,1.5f}, {2560,1440,1.5f}, {640,720,1.5f}, {3440,1440,1}, {3840,2160,1}, {3840,2160,1.5f}, {1280,720,2}};
         int frames = 0;
@@ -472,7 +473,7 @@ int main(int argc, char** argv) {
         // A negative locale is the pseudo catalog.
         struct LocalePass { std::string name; int locale; };
         std::vector<LocalePass> localePasses;
-        if(quick)localePasses={{"en",0}};
+        if(quick&&quickMode!="short")localePasses={{"en",0}};
         else if(!translations)localePasses={{"en",0},{"pseudo",-1}};
         else for(int i=1;i<static_cast<int>(sf4e::loc::Locale::Count);++i)
             localePasses.push_back({sf4e::loc::Tag(static_cast<sf4e::loc::Locale>(i)),i});

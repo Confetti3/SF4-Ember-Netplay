@@ -3582,3 +3582,9 @@ msgstr "방에 들어가지 못했습니다. 방금 닫혔을 수 있습니다. 
 
 msgid "legend.refresh"
 msgstr "새로 고침"
+
+msgid "chat.history"
+msgstr "Chat history"
+
+msgid "chat.inline_detail"
+msgstr "Type here in the room. Enter sends; Escape returns to room controls."

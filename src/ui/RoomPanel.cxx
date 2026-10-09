@@ -198,8 +198,10 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     rows.back().userText=true;}
    rows.push_back(Row("room-members",loc::T("room.members"),loc::Tf("room.member_count",s.members.size(),s.capacity)));
    const unsigned unread=transcript_.Unread(muted_);
-   rows.push_back(Row("room-chat",loc::T("room.chat"),(unread?loc::Tf("room.chat.unread",unread)+" ":std::string())+loc::T("room.chat.detail")));
+   rows.push_back(Row("room-chat",loc::T("chat.history"),(unread?loc::Tf("room.chat.unread",unread)+" ":std::string())+loc::T("room.chat.detail")));
    if(unread)rows.back().value=std::to_string(unread);
+   rows.push_back(Row("inline-chat",loc::T("room.compose_message"),loc::T("chat.inline_detail"),mutableRoom));
+   rows.back().value=chat_;
    // Changing fighter needs a seat, so it lives in the table options (and X).
    rows.push_back(Row("options",loc::T("room.table_options"),loc::Tf("room.table_options.detail",OptionsTable(v,selectedTable_)+1)));
    rows.push_back(Row("room-admin",loc::T("room.settings"),loc::T(host?"room.settings.detail":"room.settings.host_only"),host));
@@ -413,7 +415,9 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  const auto hint=[&](const MenuEntry& e){return feedback.Enabled(e)?"":loc::T(feedback.Pending(e)?"room.updating":"common.unavailable");};
  const auto origin=ImGui::GetCursorScreenPos();
  const float fullHeight=height;
- if(!wide)height=(std::max)(80*s,height-64*s);
+ const bool compactBoard=!wide&&height<230*s;
+ const bool shortBoard=compactBoard&&ImGui::GetContentRegionAvail().x>=540*s;
+ if(!wide&&!compactBoard)height=(std::max)(80*s,height-32*s);
  if(focus.compare(0,6,"table-")==0)selectedTable_=std::stoi(focus.substr(6));
  // B on your own table's card leaves your place there, cancels a start held
  // for a locked-in spectator, or says why a seat cannot be left yet; anywhere
@@ -489,10 +493,13 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    d->AddRectFilled(strip.min[i],strip.max[i],lit?IM_COL32(120,64,30,245):IM_COL32(20,19,18,240),4*s);
    if(lit)d->AddRect(strip.min[i],strip.max[i],palette::Ember,4*s,0,2*s);
    const float stripHeight=strip.max[i].y-strip.min[i].y,optionWidth=strip.max[i].x-strip.min[i].x;
+   const float labelWidth=ImGui::GetFont()->CalcTextSizeA(14*s,FLT_MAX,0,labels[i].c_str()).x;
+   const float labelSize=shortBoard&&labelWidth>optionWidth-12*s?
+    (std::max)(10*s,14*s*(optionWidth-12*s)/labelWidth):14*s;
    // Our own action labels must fit; the probe holds every locale to that.
-   ReportMenuText(("board-strip-"+labels[i]).c_str(),14*s,stripHeight,
-    ImGui::GetFont()->CalcTextSizeA(14*s,FLT_MAX,0,labels[i].c_str()).x,optionWidth-12*s);
-   text(ImVec2(strip.min[i].x+6*s,strip.min[i].y+(stripHeight-14*s)*.5f),optionWidth-12*s,labels[i],14*s,live[i]?palette::Ivory:palette::Muted,true);
+   ReportMenuText(("board-strip-"+labels[i]).c_str(),labelSize,stripHeight,
+    ImGui::GetFont()->CalcTextSizeA(labelSize,FLT_MAX,0,labels[i].c_str()).x,optionWidth-12*s);
+   text(ImVec2(strip.min[i].x+6*s,strip.min[i].y+(stripHeight-labelSize)*.5f),optionWidth-12*s,labels[i],labelSize,live[i]?palette::Ivory:palette::Muted,true);
   }
  };
  const auto tableCard=[&](const MenuEntry& e,float h){
@@ -561,7 +568,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    if(!caption.empty())text(ImVec2(tx,top+23*s),tw,caption,14*s,palette::Muted,true);
    // The fighter who has won sets back to back at this table. A banner takes
    // this line's place when the card is too short for both.
-   const bool thirdLine=!bannerHeight||top+53*s<=bannerTop;
+   const bool thirdLine=top+53*s<=bannerTop;
    if(m&&thirdLine&&t.streakHolder==m->id&&t.streak>=2)text(ImVec2(tx,top+40*s),tw,loc::Tf("room.streak",t.streak),13*s,palette::Ember,true);
    else if(m&&thirdLine&&!t.ready[side]){const auto idle=IdleText(*m);if(!idle.empty())text(ImVec2(tx,top+40*s),tw,idle,13*s,palette::Muted,true);}
   }
@@ -638,7 +645,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   tip();
  };
  std::vector<const MenuEntry*> toolbar;
- for(const auto& e:rows)if(e.id.compare(0,6,"table-")&&e.id.compare(0,7,"member-"))toolbar.push_back(&e);
+ for(const auto& e:rows)if(e.id!="inline-chat"&&e.id.compare(0,6,"table-")&&e.id.compare(0,7,"member-"))toolbar.push_back(&e);
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(6*s,6*s));
  ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(.08f,.075f,.07f,.84f));
  if(wide){
@@ -663,17 +670,9 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   const int memberRows=(std::max)(1,static_cast<int>(((communityHeight-48*s)*.56f-childPadding+ImGui::GetStyle().ItemSpacing.y)/cardPitch));
   ImGui::BeginChild("Member list",ImVec2(0,memberRows*cardPitch-ImGui::GetStyle().ItemSpacing.y+childPadding),0,ImGuiWindowFlags_NoNavInputs);
   for(const auto& e:rows)if(e.id.compare(0,7,"member-")==0)memberCard(e);
-  ImGui::EndChild();ImGui::TextUnformatted(loc::T("room.chat_heading"));
-  if(unread){const auto heading=ImGui::GetItemRectMin();const float lineHeight=ImGui::GetItemRectMax().y-heading.y;
-   DrawUnreadBadge(ImGui::GetItemRectMax().x+8*s+UnreadBadgeWidth(unread),heading.y+(lineHeight-18*s)*.5f,unread);}
-  ImGui::BeginChild("Recent chat",ImVec2(0,0),0,ImGuiWindowFlags_NoNavInputs);
-  // A message asks the atlas for its glyphs only while it is drawn inside the
-  // clip: a muted sender's, and one scrolled out of view, hold none.
-  DrawChatLog(v,true);
-  // Follow new messages only while the reader is already at the bottom.
-  if(ImGui::GetScrollY()>=ImGui::GetScrollMaxY()-1||chatShown_==0)ImGui::SetScrollHereY(1.f);
-  chatShown_=transcript_.Lines().size();
-  ImGui::EndChild();ImGui::EndChild();
+  ImGui::EndChild();
+  DrawRoomChat(v,action,ImGui::GetContentRegionAvail().y);
+  ImGui::EndChild();
   ImGui::SetCursorScreenPos(ImVec2(origin.x+leftWidth+gap,origin.y+communityHeight+gap));
   ImGui::BeginChild("Room actions",ImVec2(rightWidth,toolsHeight),0,ImGuiWindowFlags_NoNavInputs);
   const float w=(ImGui::GetContentRegionAvail().x-(toolColumns-1)*8*s)/toolColumns;
@@ -699,13 +698,26 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   }
   ImGui::EndChild();
  }else{
-  ImGui::BeginChild("Room stacked",ImVec2(0,height),0,ImGuiWindowFlags_NoNavInputs);
+  const float width=ImGui::GetContentRegionAvail().x;
+  const float chatHeight=(std::min)(180*s,(std::max)(ImGui::GetFrameHeight()+ImGui::GetTextLineHeight()+3*gap,height*.36f));
+  // At large interface scales a short window has room for the two panes
+  // beside each other, but not for a battle card above the composer.
+  const float stackWidth=shortBoard?(width-gap)*.5f:width;
+  const float stackHeight=shortBoard?height:(std::max)(1.f,height-chatHeight-gap);
+  ImGui::BeginChild("Room stacked",ImVec2(stackWidth,stackHeight),0,ImGuiWindowFlags_NoNavInputs);
+  const float cardHeight=ImGui::GetContentRegionAvail().y;
   for(const auto& e:rows){
-   if(e.id.compare(0,6,"table-")==0)tableCard(e,(DescribeTableBanner(v,v.room.tables[std::stoi(e.id.substr(6))]).text.empty()?136:136+TableBannerHeight)*s);
+   if(e.id=="inline-chat")continue;
+   if(e.id.compare(0,6,"table-")==0)tableCard(e,(std::min)(cardHeight,(DescribeTableBanner(v,v.room.tables[std::stoi(e.id.substr(6))]).text.empty()?136:136+TableBannerHeight)*s));
    else if(e.id.compare(0,7,"member-")==0)memberCard(e);
    else button(e,ImGui::GetContentRegionAvail().x);
   }
   ImGui::EndChild();
+  ImGui::SetCursorScreenPos(shortBoard?ImVec2(origin.x+stackWidth+gap,origin.y):ImVec2(origin.x,origin.y+stackHeight+gap));
+  ImGui::BeginChild("Room inline chat",ImVec2(shortBoard?width-stackWidth-gap:width,shortBoard?height:height-stackHeight-gap),0,ImGuiWindowFlags_NoNavInputs);
+  DrawRoomChat(v,action,ImGui::GetContentRegionAvail().y);
+  ImGui::EndChild();
+  if(!compactBoard){
   ImGui::SetCursorScreenPos(ImVec2(origin.x,origin.y+height+4*s));
   ImGui::BeginChild("Room action explanation",ImVec2(0,fullHeight-height-4*s));
   const auto selected=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==nav.Focus();});
@@ -726,6 +738,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    ImGui::TextWrapped("%s",explanation.c_str());ImGui::PopStyleColor();
   }
   ImGui::EndChild();
+  }
  }
  ImGui::PopStyleColor();ImGui::PopStyleVar();roomBoardFocus_=nav.Focus();
 }

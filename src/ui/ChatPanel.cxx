@@ -55,7 +55,10 @@ void DrawUnreadBadge(float right, float top, unsigned count) {
 // between two snapshots. Only the session's room state is read from `v`.
 void ApplicationShell::ObserveChat(const ShellView& v, const room::Snapshot& room) {
     if (v.session.room == netplay::RoomState::Idle || !room.roomEpoch) { transcript_.Clear(); pendingChat_.reset(); return; }
-    if (transcript_.Update(room)) pendingChat_.reset();
+    if (transcript_.Update(room)) {
+        pendingChat_.reset(); roomChatTyping_ = roomChatFocus_ = false;
+        roomChatHeld_ = 0; chatShown_ = 0;
+    }
     // The draft goes once the room's chat has the message, and not before: a send the room refuses,
     // or one that never arrives, leaves what was typed where it was. One that arrives after its
     // 8 seconds (ChatInFlight) still takes it, so what was delivered is not left to be sent again.
@@ -72,12 +75,89 @@ void ApplicationShell::ObserveChat(const ShellView& v, const room::Snapshot& roo
     pendingChat_->after = transcript_.LastSequence();
 }
 // The drawn frame's, wherever the player is, so a message that arrives while
-// they are on Home still counts. Only the Chat screen on view reads it.
+// they are on Home still counts. The history screen and interaction with the
+// inline log mark the conversation read.
 void ApplicationShell::UpdateChat(const ShellView& v) {
     const bool onChat = menu_.navigation.Screen() == "room-chat";
+    if (menu_.navigation.Screen() != "room" || !v.room.roomEpoch) {
+        roomChatTyping_ = roomChatFocus_ = false;
+        roomChatHeld_ = 0;
+    }
     if (!onChat) chatOpen_ = false;
     ObserveChat(v, v.room);
     if (onChat) transcript_.MarkRead();
+}
+
+// The board's conversation and composer stay together; sending uses the same
+// acknowledged draft and authority checks as the full-history screen.
+void ApplicationShell::DrawRoomChat(const ShellView& v, MenuAction& action, float height) {
+    const float s = Scale(), gap = ImGui::GetStyle().ItemSpacing.y;
+    const bool canType = RoomActionsAvailable(v) && !menu_.NoticeOpen() && !menu_.navigation.Asking();
+    const bool wasTyping = roomChatTyping_;
+    const unsigned held = menu_.Held(), pressed = held & ~roomChatHeld_;
+    roomChatHeld_ = held;
+    const bool selected = action.kind == MenuAction::Activate && action.id == "inline-chat";
+    if (selected) { roomChatFocus_ = true; action = {}; }
+    ImGui::TextUnformatted(loc::T("room.chat_heading"));
+    const auto unread = transcript_.Unread(muted_);
+    if (unread) DrawUnreadBadge(ImGui::GetItemRectMax().x + 8*s + UnreadBadgeWidth(unread), ImGui::GetItemRectMin().y, unread);
+    const float logHeight = (std::max)(1.f, height - ImGui::GetTextLineHeight() - ImGui::GetFrameHeight() - 2*gap);
+    ImGui::BeginChild("Recent chat", ImVec2(0, logHeight), 0, ImGuiWindowFlags_NoNavInputs);
+    const bool bottom = ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 1;
+    DrawChatLog(v, true);
+    if (bottom || chatShown_ == 0) ImGui::SetScrollHereY(1.f);
+    if (bottom && (wasTyping || ImGui::IsWindowHovered())) transcript_.MarkRead();
+    chatShown_ = transcript_.Lines().size();
+    ImGui::EndChild();
+
+    const float width = ImGui::GetContentRegionAvail().x;
+    const float sendWidth = ImGui::CalcTextSize(loc::T("chat.send")).x + 2*ImGui::GetStyle().FramePadding.x + 8*s;
+    char buffer[sizeof(chat_)]; std::memcpy(buffer, chat_, sizeof(buffer));
+    const auto id = ImGui::GetID("##room-chat-draft");
+    if (roomChatBoxText_ != chat_)
+        if (auto* state = ImGui::GetInputTextState(id)) state->ReloadUserBufAndMoveToEnd();
+    bool fresh = roomChatFocus_ && canType;
+    ImGui::BeginDisabled(!canType);
+    if (fresh) ImGui::SetKeyboardFocusHere();
+    ImGui::SetNextItemWidth((std::max)(1.f, width - sendWidth - gap));
+    const bool edited = ImGui::InputTextWithHint("##room-chat-draft", loc::T("chat.hint"), buffer, sizeof(buffer),
+        ImGuiInputTextFlags_CallbackAlways, CaretToEnd, &fresh);
+    const bool active = ImGui::IsItemActive();
+    // Keyboard focus is applied on the following frame. Keep the caret
+    // request until InputText actually receives it and runs its callback.
+    roomChatFocus_ = fresh && !active;
+    const auto boxMin = ImGui::GetItemRectMin(), boxMax = ImGui::GetItemRectMax();
+    ReportMenuCard("inline-chat", boxMin, boxMax);
+    if (active || menu_.navigation.Focus() == "inline-chat")
+        ImGui::GetWindowDrawList()->AddRect(boxMin, boxMax, palette::Ember, 3*s, 0, 2*s);
+    if (active) menu_.navigation.Prefer("inline-chat");
+    const bool escape = wasTyping && ((pressed & MenuInput::Back) || ImGui::IsKeyPressed(ImGuiKey_Escape, false));
+    if (edited && !escape) std::snprintf(chat_, sizeof(chat_), "%s", buffer);
+    roomChatBoxText_ = chat_;
+    NoteUserText(chat_, UserTextRole::Draft);
+    roomChatTyping_ = active && canType;
+    if (escape) {
+        if (ImGui::GetActiveID() == id) ImGui::ClearActiveID();
+        roomChatTyping_ = false;
+        menu_.navigation.NeutralGate();
+        action = {};
+    }
+    ImGui::SameLine(0, gap);
+    const bool pending = ChatInFlight(ImGui::GetTime()) && pendingChat_->text == chat_;
+    ImGui::BeginDisabled(!HasText(chat_) || pending);
+    const bool clicked = ImGui::Button(loc::T("chat.send"), ImVec2(sendWidth, 0));
+    ReportMenuCard("inline-chat-send", ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+    ImGui::EndDisabled();
+    ImGui::EndDisabled();
+    // InputText releases its active ID on Enter; the key still belongs to the
+    // composer that owned it at the start of this frame.
+    const bool enter = ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false);
+    const bool submit = wasTyping && (active || enter) && !selected && !escape && (pressed & MenuInput::Select);
+    if (canType && submit) roomChatFocus_ = true;
+    if (canType && HasText(chat_) && !pending && (clicked || submit)) {
+        action = {MenuAction::Activate, "compose"};
+        roomChatFocus_ = true;
+    }
 }
 
 // The transcript's lines in the current child, oldest first.
