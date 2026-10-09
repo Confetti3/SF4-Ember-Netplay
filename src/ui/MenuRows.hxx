@@ -1,12 +1,13 @@
 #pragma once
 #include "MenuNavigation.hxx"
 #include "../common/RoomRules.hxx"
-#include "../netplay/PlayerPreferences.hxx"
+#include "../netplay/BoolPreferences.hxx"
 #include "../common/Localization.hxx"
 namespace sf4e { namespace ui {
 inline bool SamePreferences(const netplay::PlayerPreferences& a,const netplay::PlayerPreferences& b) {
-    return a.displayName==b.displayName&&a.mainFighter==b.mainFighter&&a.inputDelay==b.inputDelay&&a.autoInputDelay==b.autoInputDelay&&a.showMatchHud==b.showMatchHud&&
-        a.matchHudSize==b.matchHudSize&&a.matchHudRaised==b.matchHudRaised&&a.matchHudAnchor==b.matchHudAnchor&&a.matchHudLayout==b.matchHudLayout&&a.matchHudNameOffset==b.matchHudNameOffset&&a.readySound==b.readySound&&a.trainingAutoReady==b.trainingAutoReady&&a.matchFrameMeter==b.matchFrameMeter&&a.readySoundVolume==b.readySoundVolume&&a.backgroundPlay==b.backgroundPlay&&a.recordWatched==b.recordWatched&&a.discordPresence==b.discordPresence&&a.discordInvites==b.discordInvites&&a.interfaceScale==b.interfaceScale&&
+    for(const auto& p:netplay::BoolPreferences) if(a.*p.member!=b.*p.member) return false;
+    return a.displayName==b.displayName&&a.mainFighter==b.mainFighter&&a.inputDelay==b.inputDelay&&a.autoInputDelay==b.autoInputDelay&&
+        a.matchHudSize==b.matchHudSize&&a.matchHudAnchor==b.matchHudAnchor&&a.matchHudLayout==b.matchHudLayout&&a.matchHudNameOffset==b.matchHudNameOffset&&a.readySoundVolume==b.readySoundVolume&&a.interfaceScale==b.interfaceScale&&
         a.roomName==b.roomName&&a.roomCapacity==b.roomCapacity&&a.roomPublic==b.roomPublic&&a.tableRules==b.tableRules&&a.publicTableRules==b.publicTableRules;
 }
 inline MenuEntry Row(std::string id,std::string label,std::string detail,bool enabled=true) {

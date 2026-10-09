@@ -1,5 +1,6 @@
 #include "SettingsStore.hxx"
 #include "JsonFileStore.hxx"
+#include "BoolPreferences.hxx"
 
 #define NOMINMAX
 #include <windows.h>
@@ -25,7 +26,8 @@ void RetireLegacy(Json& document) {
     auto& overlay = document["overlay"];
     for (const char* key : {"host", "join", "mainMenu", "windows", "debug"}) overlay.erase(key);
 }
-const char* NetplayKeys[] = { "inputDelay", "autoInputDelay", "editionSelect", "roundCount", "roundTimeIntegral", "showMatchHud", "matchHudSize", "matchHudRaised", "matchHudAnchor", "matchHudLayout", "matchHudNameOffset", "readySound", "readySoundVolume", "trainingAutoReady", "matchFrameMeter", "backgroundPlay", "recordWatched", "discordPresence", "discordInvites", "interfaceScale", "roomDefaults" };
+// With the on/off preferences (BoolPreferences), the keys kept in the netplay section.
+const char* NetplayKeys[] = { "inputDelay", "autoInputDelay", "editionSelect", "roundCount", "roundTimeIntegral", "matchHudSize", "matchHudAnchor", "matchHudLayout", "matchHudNameOffset", "readySoundVolume", "interfaceScale", "roomDefaults" };
 
 void MergeLauncher(Json& document, const Json& launcher) {
     // Only durable preferences enter the new store. Originals/backups retain
@@ -35,9 +37,11 @@ void MergeLauncher(Json& document, const Json& launcher) {
     for(const char* key:{"displayName","mainFighter","onlineRecord"})if(legacy.contains(key)) {
         document["profile"][key]=legacy[key];legacy.erase(key);
     }
-    for (const char* key : NetplayKeys) {
+    const auto netplay = [&](const char* key) {
         if (legacy.contains(key)) { document["netplay"][key] = legacy[key]; legacy.erase(key); }
-    }
+    };
+    for (const char* key : NetplayKeys) netplay(key);
+    for (const auto& preference : BoolPreferences) netplay(preference.key);
     document["legacyLauncher"].update(legacy);
 }
 

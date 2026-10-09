@@ -211,24 +211,16 @@ void StartHelper() {
         // before Auto existed gets it (InputDelayPreference.hxx).
         netplay::ReadInputDelayPreference(saved,runtime->preferences);
         try {
-            runtime->preferences.showMatchHud = saved.value("showMatchHud", true);
+            netplay::ReadBoolPreferences(saved, runtime->preferences);
             const int hudSize = saved.value("matchHudSize", 1);
             runtime->preferences.matchHudSize = hudSize >= 0 && hudSize <= 2 ? hudSize : 1;
-            runtime->preferences.matchHudRaised = saved.value("matchHudRaised", false);
             const int hudAnchor = saved.contains("matchHudAnchor") && saved["matchHudAnchor"].is_number_integer() ? saved["matchHudAnchor"].get<int>() : 0;
             runtime->preferences.matchHudAnchor = hudAnchor >= 0 && hudAnchor <= 4 ? hudAnchor : 0;
             const int hudLayout = saved.contains("matchHudLayout") && saved["matchHudLayout"].is_number_integer() ? saved["matchHudLayout"].get<int>() : 1;
             runtime->preferences.matchHudLayout = hudLayout >= 0 && hudLayout <= 1 ? hudLayout : 1;
             runtime->preferences.matchHudNameOffset = netplay::ReadMatchHudNameOffset(saved);
-            runtime->preferences.readySound = saved.value("readySound", true);
-            runtime->preferences.trainingAutoReady = saved.value("trainingAutoReady", false);
-            runtime->preferences.matchFrameMeter = saved.value("matchFrameMeter", false);
             const int volume = saved.value("readySoundVolume", 100);
             runtime->preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;
-            runtime->preferences.backgroundPlay = saved.value("backgroundPlay", false);
-            runtime->preferences.recordWatched = saved.value("recordWatched", true);
-            runtime->preferences.discordPresence = saved.value("discordPresence", true);
-            runtime->preferences.discordInvites = saved.value("discordInvites", true);
             const int main=saved.contains("mainFighter")&&saved["mainFighter"].is_number_integer()?saved["mainFighter"].get<int>():0;
             runtime->preferences.mainFighter=main>=0&&main<sf4e::selection::FighterCount?main:0;
             const float scale = saved.value("interfaceScale", 1.f);

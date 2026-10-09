@@ -5,12 +5,16 @@
 #include "../netplay/MatchHudPreference.hxx"
 #include "../netplay/JsonFileStore.hxx"
 #include "../platform/DurableFile.hxx"
+#include "../netplay/BoolPreferenceJson.hxx"
 #define NOMINMAX
 #include <windows.h>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <cstdlib>
+#include <algorithm>
+#include <functional>
+#include <iterator>
 
 #include "test_support.hxx"
 #include "temp_root.hxx"
@@ -167,6 +171,65 @@ static void DurableFiles(const Path& root) {
     CHECK(sf4e::netplay::json_file::ReadBytes(folder / L"absent.json", bytes, missing, error) && missing);
     CHECK(!sf4e::netplay::json_file::ReadBytes(folder / L"absent" / L"settings.json", bytes, missing, error) && !missing);
     CHECK(error == "Cannot read settings file.");
+}
+
+// The on/off preferences keep their stored keys and defaults: a settings file
+// with each key true, false or missing loads as that value or the default, and
+// saving it again writes the same keys to the netplay section.
+static void BoolPreferenceRoundTrips(const Path& root) {
+    using sf4e::netplay::PlayerPreferences;
+    const struct { const char* key; bool PlayerPreferences::* member; bool fallback; } expected[] = {
+        {"showMatchHud", &PlayerPreferences::showMatchHud, true}, {"matchHudRaised", &PlayerPreferences::matchHudRaised, false},
+        {"readySound", &PlayerPreferences::readySound, true}, {"trainingAutoReady", &PlayerPreferences::trainingAutoReady, false},
+        {"matchFrameMeter", &PlayerPreferences::matchFrameMeter, false}, {"backgroundPlay", &PlayerPreferences::backgroundPlay, false},
+        {"recordWatched", &PlayerPreferences::recordWatched, true}, {"discordPresence", &PlayerPreferences::discordPresence, true},
+        {"discordInvites", &PlayerPreferences::discordInvites, true}};
+    CHECK(std::size(sf4e::netplay::BoolPreferences) == std::size(expected));
+    for (const auto& entry : expected) {
+        const auto found = std::find_if(std::begin(sf4e::netplay::BoolPreferences), std::end(sf4e::netplay::BoolPreferences),
+            [&](const auto& preference) { return std::string(preference.key) == entry.key; });
+        CHECK(found != std::end(sf4e::netplay::BoolPreferences) && found->member == entry.member && PlayerPreferences().*entry.member == entry.fallback);
+    }
+    int folder = 0;
+    // `saved` is the netplay section of a settings file; `want` gives each key's loaded value, -1 for its default.
+    const auto check = [&](const Json& saved, const std::function<int(std::size_t)>& want) {
+        const auto source = root / (L"bool-load-" + std::to_wstring(folder)), copy = root / (L"bool-save-" + std::to_wstring(folder++));
+        CHECK(std::filesystem::create_directory(source) && std::filesystem::create_directory(copy));
+        Write(source / L"settings.json", Json{{"schemaVersion", 1}, {"profile", Json::object()}, {"netplay", saved},
+            {"overlay", Json::object()}, {"legacyLauncher", Json::object()}}.dump(4));
+        std::string error;
+        Json loaded;
+        CHECK(SettingsStore(source.wstring()).LoadLauncher(loaded, error));
+        PlayerPreferences value;
+        sf4e::netplay::ReadBoolPreferences(loaded, value);
+        for (std::size_t i = 0; i < std::size(expected); ++i)
+            CHECK(value.*expected[i].member == (want(i) < 0 ? expected[i].fallback : want(i) == 1));
+        Json written;
+        sf4e::netplay::WriteBoolPreferences(value, written);
+        CHECK(SettingsStore(copy.wstring()).SaveLauncher(written, error));
+        const auto document = Json::parse(Read(copy / L"settings.json"));
+        PlayerPreferences again;
+        CHECK(SettingsStore(copy.wstring()).LoadLauncher(loaded, error));
+        sf4e::netplay::ReadBoolPreferences(loaded, again);
+        for (const auto& entry : expected) {
+            CHECK(document["netplay"][entry.key] == value.*entry.member && !document["legacyLauncher"].contains(entry.key));
+            CHECK(again.*entry.member == value.*entry.member);
+        }
+    };
+    for (const bool on : {true, false}) {
+        Json saved = Json::object();
+        for (const auto& entry : expected) saved[entry.key] = on;
+        check(saved, [&](std::size_t) { return on ? 1 : 0; });
+    }
+    check(Json::object(), [](std::size_t) { return -1; });
+    // One key away from its default at a time, so each key reaches its own member.
+    for (std::size_t changed = 0; changed < std::size(expected); ++changed)
+        check({{expected[changed].key, !expected[changed].fallback}}, [&](std::size_t i) { return i == changed ? !expected[i].fallback : -1; });
+    // A value of another type is not read as on or off.
+    PlayerPreferences odd;
+    bool threw = false;
+    try { sf4e::netplay::ReadBoolPreferences({{"readySound", 1}}, odd); } catch (const nlohmann::json::exception&) { threw = true; }
+    CHECK(threw);
 }
 
 int main() {
@@ -424,6 +487,7 @@ int main() {
     }
     InputDelayMigrations(root);
     DurableFiles(root);
+    BoolPreferenceRoundTrips(root);
     RemoveTempRoot(root);
     std::cout << "Settings migration, preservation, independent updates and atomic failure checks passed\n";
 }
