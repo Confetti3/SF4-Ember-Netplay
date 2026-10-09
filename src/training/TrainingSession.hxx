@@ -41,6 +41,18 @@ enum class Action { Select, Record, Play, Stop, Clear, Loop, Save, Restore, Clea
 // super, revenge: the gauge settings as the menu stores them, 0 normal, 5
 // max at round start, 7 infinite, 8 refill.
 struct DummyState { int action = -1, guard = -1, quickStand = -1, counterHit = -1, stun = -1, super = -1, revenge = -1; };
+// The logical Training-menu action and its temporary Stand override for
+// reply input. Only the game thread owns this; edits during a reply change
+// what is restored, leaving the native driver on Stand until playback ends.
+class DummyAction {
+public:
+    int Read(int native) const { return saved_ >= 0 ? saved_ : native; }
+    void Set(int& native, int value) { if (saved_ >= 0) saved_ = value; else native = value; }
+    void BeginReply(int& native) { if (saved_ < 0) saved_ = native; native = 0; }
+    void EndReply(int& native) { if (saved_ >= 0) { native = saved_; saved_ = -1; } }
+private:
+    int saved_ = -1;
+};
 constexpr int GaugeValues[] = {0, 5, 7, 8};
 inline bool operator==(const DummyState& a, const DummyState& b) {
     return a.action == b.action && a.guard == b.guard && a.quickStand == b.quickStand && a.counterHit == b.counterHit && a.stun == b.stun &&

@@ -56,9 +56,7 @@ DummyWatch dummyWatch;
 std::minstd_rand dummyRandom{std::random_device{}()};
 // The stretch of stun a reply was last decided for, so each gets one roll.
 unsigned decidedStretch = 0;
-// The dummy's Training-menu action while a reply plays, -1 otherwise: the
-// reply is pad input, which the dummy takes while that setting is Stand.
-int replyAction = -1;
+DummyAction dummyAction;
 // Normal shutdown owns this worker. Never join a thread from a DLL destructor
 // while Windows holds the loader lock.
 TrainingCapture* capture = nullptr;
@@ -118,7 +116,7 @@ int* DummyOptions() {
 void WriteDummyState(const DummyState& state) {
     int* options = DummyOptions();
     if (!options) return;
-    if (state.action >= 0) options[Manager::OPT_ACTION] = state.action;
+    if (state.action >= 0) dummyAction.Set(options[Manager::OPT_ACTION], state.action);
     if (state.guard >= 0) options[Manager::OPT_GUARD] = state.guard;
     if (state.quickStand >= 0) options[Manager::OPT_QUICK_STAND] = state.quickStand;
     if (state.counterHit >= 0) options[Manager::OPT_COUNTER_HIT] = state.counterHit;
@@ -130,7 +128,7 @@ DummyState ReadDummyState(const DummyState& fallback) {
     const int* options = DummyOptions();
     if (!options) return fallback;
     DummyState state;
-    state.action = options[Manager::OPT_ACTION]; state.guard = options[Manager::OPT_GUARD];
+    state.action = dummyAction.Read(options[Manager::OPT_ACTION]); state.guard = options[Manager::OPT_GUARD];
     state.quickStand = options[Manager::OPT_QUICK_STAND]; state.counterHit = options[Manager::OPT_COUNTER_HIT];
     state.stun = options[Manager::OPT_STUN];
     state.super = options[Manager::OPT_SC_GAUGE]; state.revenge = options[Manager::OPT_REVENGE_GAUGE];
@@ -219,6 +217,7 @@ void BeforeUpdate(Native* system, bool networkOwned) {
             WriteDummyState(command.dummy);
         }
     }
+    if (!session.Replying()) if (int* options = DummyOptions()) dummyAction.EndReply(options[Manager::OPT_ACTION]);
     // The pause menu's "exit to main menu", asked for by Ember instead of the
     // player. Only out of a fight that is running: a battle still loading or
     // in its intro is waited for, as that menu cannot be opened there either.
@@ -367,6 +366,7 @@ void AfterUpdate(Native* system) {
             int* options = DummyOptions();
             // Hit again: a reply already begun is dropped, and this stretch decides anew.
             if (seen.held && seen.stretch != decidedStretch) session.StopReply();
+            if (!session.Replying() && options) dummyAction.EndReply(options[Manager::OPT_ACTION]);
             const bool typed = !dummyPlan.moves[0].empty();
             const auto& frames = typed ? dummyPlan.moves[session.GetView().x[1] < session.GetView().x[0] ? 0 : 1] : session.Slot(dummyPlan.slot);
             const int cause = seen.freed ? seen.freed : seen.held;
@@ -374,14 +374,13 @@ void AfterUpdate(Native* system) {
                 decidedStretch = seen.stretch;
                 if (DummyReplies(dummyPlan, cause, dummyRandom()) &&
                     (typed ? session.Reply(frames) : session.Reply(dummyPlan.slot)) && options) {
-                    replyAction = options[Manager::OPT_ACTION]; options[Manager::OPT_ACTION] = 0;
+                    dummyAction.BeginReply(options[Manager::OPT_ACTION]);
                 }
             }
             if (seen.freed && dummyPlan.varyStance && options) {
-                int& action = replyAction >= 0 ? replyAction : options[Manager::OPT_ACTION];
-                if (action == 0 || action == 1) action = dummyRandom() & 1;
+                const int action = dummyAction.Read(options[Manager::OPT_ACTION]);
+                if (action == 0 || action == 1) dummyAction.Set(options[Manager::OPT_ACTION], dummyRandom() & 1);
             }
-            if (replyAction >= 0 && !session.Replying() && options) { options[Manager::OPT_ACTION] = replyAction; replyAction = -1; }
         }
         if (!capture) capture = new TrainingCapture();
         capture->Record(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters, meter.View());
@@ -446,8 +445,9 @@ void CloseBattle() {
     gapResets = 0; leaveIn = 0;
     overriding = false; sampling = false;
     if (checkpoint.used) Battle::SaveState::Free(&checkpoint);
+    if (session.GetView().available) if (int* options = DummyOptions()) dummyAction.EndReply(options[Manager::OPT_ACTION]);
     session.Reset(); meter.Reset(); confirmed.Reset(); matchShown = false;
-    matchPractice = false; practice = PracticeState{}; dummyWatch.Reset(); replyAction = -1;
+    matchPractice = false; practice = PracticeState{}; dummyWatch.Reset(); dummyAction = DummyAction{};
     std::lock_guard<std::mutex> lock(mutex); commands.clear(); published = session.GetView();
 }
 } }

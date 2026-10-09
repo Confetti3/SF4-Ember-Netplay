@@ -6,6 +6,7 @@
 #include "../netplay/JsonFileStore.hxx"
 #include "../training/MoveInputs.hxx"
 #include "../training/RecordingFile.hxx"
+#include "../training/PracticeSettings.hxx"
 #include <algorithm>
 #include <cstdint>
 #include <filesystem>
@@ -38,13 +39,11 @@ struct Lab {
     // What the dummy does by itself, and the keys that reset and save the
     // position as offsets from F1 (-1 unbound): the player's, kept in training.json.
     training::DummyPlan plan; std::string replyMoves;
-    int keys[2]={1,10};
+    std::array<int,2> keys{{1,10}};
 } lab;
 enum { ResetKey, SaveKey };
 constexpr const wchar_t* PracticeFile=L"training.json";
 void Notice(std::string text,bool failed=false) { lab.notice=std::move(text); lab.failed=failed; lab.noticeAt=ImGui::GetTime(); }
-// The keys Ember and Steam leave free.
-bool FreeKey(const nlohmann::json& key) { return key.is_number_integer()&&key>=-1&&key<12&&key!=9&&(key<4||key>7); }
 void SavePractice() {
     if(lab.directory.empty()) return;
     std::string error;
@@ -55,9 +54,11 @@ void SavePractice() {
 // The plan into the game, its typed reply made into input for either facing.
 bool SendPlan(const training::View& view,const TrainingSubmit& submit) {
     Command command; command.action=Action::DummyPlan; command.generation=view.generation; command.plan=lab.plan;
-    std::vector<std::string> steps; std::string error;
-    if(combo::ParseSteps(lab.replyMoves,steps,error)&&!steps.empty()) for(int side=0;side<2;++side) command.plan.moves[side]=combo::Synthesize(steps,side==0,0);
-    return submit&&submit(command);
+    std::string error;
+    if(!BuildReplyPlan(lab.replyMoves,lab.plan,command.plan,error)) { Notice(loc::Tf("training.invalid",error),true); return false; }
+    const bool sent=submit&&submit(command);
+    if(!sent) Notice(loc::T("training.command_rejected"),true);
+    return sent;
 }
 // The dummy's reply and the hotkeys; anything unreadable keeps its default.
 void LoadPractice() {
@@ -72,15 +73,11 @@ void LoadPractice() {
     if(reply.is_object()) {
         lab.plan.when=number("when",0,4,0); lab.plan.slot=number("slot",0,SlotCount-1,0); lab.plan.chance=number("chance",25,100,100);
         lab.plan.timing=number("timing",-MaxReplyTiming,MaxReplyTiming,0); lab.plan.varyStance=reply.value("vary_stance",nlohmann::json(false))==true;
-        if(reply.contains("moves")&&reply["moves"].is_string()) lab.replyMoves=combo::Clean(reply["moves"].get<std::string>());
+        if(reply.contains("moves")&&reply["moves"].is_string()) lab.replyMoves=MigrateReplyMoves(reply["moves"].get<std::string>());
     }
     // An older file lists six keys in a row; these two were its second and its last.
     const auto keys=practice.value("keys",nlohmann::json::object());
-    const bool listed=keys.is_array()&&keys.size()==6;
-    const auto reset=listed?keys[1]:keys.is_object()?keys.value("reset_position",nlohmann::json()):nlohmann::json();
-    const auto save=listed?keys[5]:keys.is_object()?keys.value("save_position",nlohmann::json()):nlohmann::json();
-    if(FreeKey(reset)) lab.keys[ResetKey]=reset.get<int>();
-    if(FreeKey(save)&&(save<0||save!=lab.keys[ResetKey])) lab.keys[SaveKey]=save.get<int>();
+    lab.keys=ReadPositionKeys(keys);
 }
 void SavePosition(const training::View& view,const TrainingSubmit& submit) {
     Command command; command.action=Action::Save; command.generation=view.generation;
@@ -155,7 +152,7 @@ void HandleTools(const MenuAction& a,const training::View& view,const TrainingSu
             else if(a.id=="reply-stance") lab.plan.varyStance=a.delta>0;
             else return;
             SavePractice();
-            if(!SendPlan(view,submit)) Notice(loc::T("training.command_rejected"),true);
+            SendPlan(view,submit);
         }
         else if(a.id=="key-0"||a.id=="key-1") {
             // One key does one thing, so the other row's key is passed over.
@@ -185,7 +182,7 @@ void HandleTools(const MenuAction& a,const training::View& view,const TrainingSu
         std::vector<std::string> steps; std::string error; const auto text=combo::Clean(a.text);
         if(!text.empty()&&!combo::ParseSteps(text,steps,error)) { Notice(loc::Tf("training.invalid",error.empty()?text:error),true); return; }
         lab.replyMoves=text; SavePractice();
-        if(!SendPlan(view,submit)) Notice(loc::T("training.command_rejected"),true);
+        SendPlan(view,submit);
         return;
     }
     if(a.kind!=MenuAction::Activate) return;

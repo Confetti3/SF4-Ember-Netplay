@@ -82,7 +82,7 @@ struct FighterSample {
 // cells. Frame data counts the frame a move first hits on as startup, so that
 // third cell is its first active frame, the active cells stand one frame
 // late, and the recovery has one cell less than its number (3, 2 and 6 cells
-// for 3, 2 and 7). MoveFrames::recovery is the number, not the cell count.
+// for 3, 2 and 7). A completed MoveFrames::recovery is the number, not the cell count.
 // Checked in the game by the in-game self-test.
 // ponytail: one active stretch per action; a multi-hit move's gaps between
 // hits read as active. Read every hit box if they have to show.
@@ -127,8 +127,8 @@ struct FrameAdvantage {
 };
 // A fighter's last attack in advancing frames, hitstop left out: those inside
 // its attack boundary and those after it. Its startup is MeterView's
-// startupFrames, the frames before the first active one, as the game's frame
-// data counts it, so the move's total is startup + active + recovery. seen:
+// startupFrames, including the first active frame, as the game's frame data
+// counts it, so the move's total is startup - 1 + active + recovery. seen:
 // an attack was made; live: it is still going.
 struct MoveFrames { int active = 0, recovery = 0; bool seen = false, live = false; };
 // The bars show MeterShown frames; the meter keeps MeterHistory of the
@@ -163,7 +163,7 @@ struct MeterView {
 class FrameMeter {
 public:
     const MeterView& View() const { return view_; }
-    void Reset() { const bool autoFreeze = view_.autoFreeze; view_ = MeterView{}; view_.autoFreeze = autoFreeze; idleFrames_ = 0; hadActivity_ = false; hasFrame_ = false; observedFrames_ = contactFrame_ = 0; armed_ = {}; recovered_ = {{-1, -1}}; startupElapsed_ = {}; startupPending_ = {}; thrower_ = {}; firstActiveAt_ = wakeAt_ = {{-1, -1}}; }
+    void Reset() { const bool autoFreeze = view_.autoFreeze; view_ = MeterView{}; view_.autoFreeze = autoFreeze; idleFrames_ = 0; hadActivity_ = false; hasFrame_ = false; observedFrames_ = contactFrame_ = 0; armed_ = {}; recovered_ = {{-1, -1}}; startupElapsed_ = {}; startupPending_ = {}; recoveryCells_ = {}; thrower_ = {}; firstActiveAt_ = wakeAt_ = {{-1, -1}}; }
     void SetAutoFreeze(bool enabled) { view_.autoFreeze = enabled; view_.frozen = false; }
     void Observe(int frame, const std::array<FighterSample, 2>& observed) {
         // The native fixed-point integral is a wrapping 16-bit counter. It
@@ -228,22 +228,29 @@ public:
                 const auto kind = ClassifyMeter(sample);
                 const bool began = !previous.valid || previous.status != 16;
                 // A cancel into another attack is a new move; a move's own later scripts are not.
-                if (began || (actionChanged && kind == MeterKind::Startup)) move = MoveFrames{};
+                if (began || (actionChanged && kind == MeterKind::Startup)) { move = MoveFrames{}; recoveryCells_[side] = 0; }
                 move.seen = move.live = true;
                 if (began || actionChanged || sample.actionFrame > previous.actionFrame) {
                     // The attack's first active frame is what a meaty is timed by.
                     if (kind == MeterKind::Active && !move.active) { firstActiveAt_[side] = now; Meaty(side); }
                     if (kind == MeterKind::Active) ++move.active;
-                    // The startup cells count the frame the move first hits on, as its
-                    // frame data's startup does, so every later cell stands one frame
-                    // late and the last recovery frame has no cell. The number has it.
-                    else if (kind == MeterKind::Recovery) move.recovery += move.recovery ? 1 : 2;
+                    else if (kind == MeterKind::Recovery) move.recovery = ++recoveryCells_[side];
                 }
             } else if (sample.valid && sample.status == 24 && thrower_[side] && move.seen) {
                 // A throw that connected goes on in the sequence.
                 move.live = true;
-                if (sample.throwRecovery) ++move.recovery;
-            } else move.live = false;
+                if (sample.throwRecovery) move.recovery = ++recoveryCells_[side];
+            } else {
+                // Startup includes the first active frame, shifting the cells
+                // one frame late. At normal completion count the recovery
+                // frame with no cell, even when no Recovery cell was seen.
+                // Throws count their sequence directly; interruptions do not
+                // establish a completed move's recovery.
+                const auto phase = ClassifyStatus(sample.status);
+                if (move.live && sample.valid && previous.valid && previous.status == 16 && move.active > 0 &&
+                    (phase == Phase::Neutral || phase == Phase::Movement)) move.recovery = recoveryCells_[side] + 1;
+                move.live = false;
+            }
             if (sample.valid && previous.valid) {
                 const bool down = ClassifyStatus(sample.status) == Phase::Down;
                 // A knockdown starts a new meaty reading; the attack that caused it is not one.
@@ -361,6 +368,7 @@ private:
     std::array<bool, 2> armed_{};
     std::array<bool, 2> startupPending_{};
     std::array<int, 2> startupElapsed_{};
+    std::array<int, 2> recoveryCells_{};
     std::array<std::int64_t, 2> recovered_{{-1, -1}};
     std::int64_t observedFrames_ = 0, contactFrame_ = 0;
     unsigned idleFrames_ = 0;

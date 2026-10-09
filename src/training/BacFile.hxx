@@ -1,5 +1,4 @@
 #pragma once
-#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -10,26 +9,24 @@
 #include "ByteReader.hxx"
 
 // The game's script files (<CODE>.bac), read only as far as the frame meter
-// needs: which hit-data sets a script's hitboxes use, which effect scripts it
-// spawns (a fireball's hitbox lives in one) and which scripts it passes into.
+// needs: which effect scripts it spawns (a fireball's hitbox lives in one),
+// when they spawn and whether they can hit.
 // Owns only the model and its byte layout; it knows nothing of the game or
 // the overlay.
 namespace sf4e { namespace bac {
 // The largest stock file is under 512 KiB.
 constexpr std::size_t MaxBytes = 4 * 1024 * 1024;
 
-// hits: hit-data set of every hitbox that can hit. effects: indices into
-// File::effects. next: indices into File::scripts the script passes into by
-// itself (on hit, on landing), not those that wait for another input.
+// canHit: at least one hitbox can hit. effects: indices into File::effects.
 // spawns: one per entry of effects, the frames of the script its spawn
 // command covers, {-1, -1} when the file gives none.
-struct Script { std::vector<std::int32_t> hits, effects, next; std::vector<std::array<int, 2>> spawns; };
+struct Script { bool canHit = false; std::vector<std::int32_t> effects; std::vector<std::array<int, 2>> spawns; };
 // scripts: indexed by action id. An empty slot is an empty Script.
 struct File { std::vector<Script> scripts, effects; };
 
 namespace detail {
 constexpr std::size_t HeaderSize = 0x28, ScriptHeader = 0x18, ListSize = 12, FlowSize = 8, HitboxSize = 44, EtcSize = 32;
-constexpr unsigned Flow = 0, Hitbox = 7, Etc = 10, OnInput = 12;
+constexpr unsigned Flow = 0, Hitbox = 7, Etc = 10;
 
 // One table of scripts. used: bytes read so far. The records of a real file
 // never share bytes, so together they fit in the file; this keeps offsets
@@ -61,16 +58,15 @@ inline bool Table(const ByteReader& in, std::size_t count, std::uint64_t table, 
             if (!in.Has(data, commands * size)) return fail("a script's commands run past the end of the file");
             used += commands * size;
             if (used > in.size) return fail("the scripts overlap");
+            // Flow records are unused by the meter, but still take part in
+            // the command bounds and overlap budget above.
+            if (type == Flow) continue;
             for (std::size_t k = 0; k < commands; ++k) {
                 const std::uint64_t record = data + k * size;
-                if (type == Flow) {
-                    // A pass that waits for another input is that input's own move.
-                    const auto target = static_cast<std::int16_t>(in.U16(record + 4));
-                    if (target >= 0 && in.U16(record) != OnInput) out[i].next.push_back(target);
-                } else if (type == Hitbox) {
+                if (type == Hitbox) {
                     // Type 0 is the box that makes the foe guard; it never hits.
                     const auto id = static_cast<std::int32_t>(in.U32(record + 40));
-                    if (in.data[record + 26] && id >= 0) out[i].hits.push_back(id);
+                    if (in.data[record + 26] && id >= 0) out[i].canHit = true;
                 } else if (in.U16(record) == 0 && in.U16(record + 2) == 2) {
                     const auto effect = static_cast<std::int32_t>(in.U32(record + 4));
                     if (effect < 0) continue;
@@ -117,7 +113,7 @@ inline bool ProjectileBoundary(const File& file, std::int32_t script, int& first
     for (std::size_t i = 0; i < now.effects.size(); ++i) {
         const auto effect = static_cast<std::size_t>(now.effects[i]);
         const auto& spawn = now.spawns[i];
-        if (effect >= file.effects.size() || file.effects[effect].hits.empty() || spawn[0] < 0 || spawn[1] <= spawn[0]) continue;
+        if (effect >= file.effects.size() || !file.effects[effect].canHit || spawn[0] < 0 || spawn[1] <= spawn[0]) continue;
         if (found && spawn[0] + 1 >= first) continue;
         first = spawn[0] + 1; last = spawn[1] + 1; found = true;
     }

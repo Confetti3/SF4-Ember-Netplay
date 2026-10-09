@@ -1,5 +1,8 @@
 #include "shell_journey_support.hxx"
 #include "shell_additional_journeys.hxx"
+#include <chrono>
+#include <filesystem>
+#include <fstream>
 
 // Training on Home is the offline command with the game sent on into
 // Training mode; Play offline alone sends the game nowhere.
@@ -48,6 +51,20 @@ void TrainingJourneys() {
  HeadlessImGui imgui;auto& io=imgui.io;
  training::View v;v.available=v.ready=v.checkpoint=true;v.generation=77;v.lengths[0]=20;
  std::vector<training::Command> commands;
+ // A saved invalid reply remains an error and never submits an empty plan
+ // that would select the recording slot. Also exercise the key decoder at
+ // its real loader: Reset F11 must not leave Save on its F11 default.
+ const auto folder=std::filesystem::temp_directory_path()/("sf4e-shell-training-"+
+  std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+ std::filesystem::create_directories(folder);
+ {std::ofstream file(folder/"training.json");file<<R"({"reply":{"when":4,"moves":"not a move"},"keys":{"reset_position":10}})";}
+ SetTrainingDirectory(folder.wstring());
+ ImGui::NewFrame();
+ TrainingHotkeys(v,[&](training::Command c){commands.push_back(c);return true;});
+ bool failed=false;const auto notice=TrainingNotice(failed);
+ Check(commands.empty()&&failed&&!notice.empty(),"Invalid saved reply silently selected the recording slot");
+ Check(TrainingHotkeyBound(10)&&TrainingHotkeyBound(1),"Loaded colliding position keys did not resolve the fallback pair");
+ ImGui::Render();
  auto frame=[&](unsigned held=0){io.DeltaTime=1.f/60;SetMenuInput({MenuInput::Select,0});
   const ImGuiKey keys[]={ImGuiKey_UpArrow,ImGuiKey_DownArrow,ImGuiKey_LeftArrow,ImGuiKey_RightArrow,ImGuiKey_Enter,ImGuiKey_Escape};
   for(unsigned i=0;i<6;++i)io.AddKeyEvent(keys[i],(held&(1u<<i))!=0);
@@ -81,4 +98,14 @@ void TrainingJourneys() {
  ShowTrainingRecordings();frame();frame();press(MenuInput::Right);press(MenuInput::Select);
  Check(commands.size()==1&&commands.back().action==training::Action::Record,"Confirming the overwrite did not send one Record");
  TakeForwardedMenuAction();
+ // The published action is the logical setting while a reply plays. The
+ // row steps from Crouch to Jump, rather than from the temporary Stand.
+ press(MenuInput::Back);choose("tools");
+ v.mode=training::Mode::Playback;v.dummy.action=1;
+ choose("dummy-action");commands.clear();press(MenuInput::Right);
+ Check(commands.size()==1&&commands.back().action==training::Action::DummyState&&commands.back().dummy.action==2,
+  "Dummy action row did not edit the logical playback setting");
+ commands.clear();choose("reply");press(MenuInput::Right);
+ Check(commands.empty(),"Editing reply settings submitted an invalid saved reply as an empty typed plan");
+ std::filesystem::remove(folder/"training.json");std::filesystem::remove(folder);
 }
