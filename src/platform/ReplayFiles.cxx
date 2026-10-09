@@ -276,7 +276,8 @@ int Archive() {
 
 namespace {
 // Change notifications are armed before preparation, never rearmed. The game
-// checks only kernel event state, without scanning slots or reading files.
+// uses these only to reject invalidated snapshots; exact file checks in Apply
+// establish freshness immediately before any Steam write.
 struct ImportFreshness {
  SaveFolderFreshness saves;
  HANDLE account = nullptr;
@@ -289,7 +290,7 @@ struct ImportFreshness {
    RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\Valve\\Steam\\ActiveProcess", 0, KEY_NOTIFY, &key) == ERROR_SUCCESS &&
    RegNotifyChangeKeyValue(key, FALSE, REG_NOTIFY_CHANGE_LAST_SET, account, TRUE) == ERROR_SUCCESS;
  }
- bool Fresh() const { return saves.Fresh() && WaitForSingleObject(account, 0) == WAIT_TIMEOUT; }
+ bool NotInvalidated() const { return saves.NotInvalidated() && WaitForSingleObject(account, 0) == WAIT_TIMEOUT; }
 };
 PreparedImport PrepareImport(const fs::path& file) {
  PreparedImport transaction;
@@ -305,7 +306,7 @@ PreparedImport PrepareImport(const fs::path& file) {
 		if (saves.empty() || folders.archive.empty()) { spdlog::warn("Replays: no save folder for the Steam account that is signed in"); return ImportResult::NoFolder; }
   auto guard = std::make_shared<ImportFreshness>();
   if (!guard->Arm(saves) || FindFolders().active != saves) return ImportResult::IndexBehind;
-  transaction.fresh = [guard] { return guard->Fresh(); };
+  transaction.notInvalidated = [guard] { return guard->NotInvalidated(); };
 		slots::SlotFiles before;
 		before.list = LoadFile(saves / L"LIST", kMostIndexBytes); before.listSidecar = LoadFile(saves / L"LIST.0", 4);
 		before.swan = LoadFile(saves / L"replays-swan.dat", kMostIndexBytes); before.swanSidecar = LoadFile(saves / L"replays-swan.dat.0", 4);
@@ -384,7 +385,8 @@ PreparedImport PrepareImport(const fs::path& file) {
 		for (const slots::PlannedWrite& step : plan) {
 			replayfiles::Change change;
 			change.name = kSavePrefix + step.name; change.after = step.now;
-			if (!replayfiles::Snapshot(saves / step.name, kMostIndexBytes, change)) return ImportResult::RejectedBeforeWrite;
+			change.path = saves / step.name;
+			if (!replayfiles::Snapshot(change.path, kMostIndexBytes, change)) return ImportResult::RejectedBeforeWrite;
 			// The plan must describe the files we are about to replace. A game
 			// save during preparation requires a fresh plan, never stale indexes.
 			if (change.before != step.before) return ImportResult::IndexBehind;
@@ -432,7 +434,7 @@ ImportResult CommitImport(const ImportTransaction& value, const Writer& write, c
  if (Imports().Failed()) return ImportResult::RecoveryIncomplete;
  if (!value) return ImportResult::RejectedBeforeWrite;
  if (value->result != ImportResult::Done) return value->result;
- const auto applied = replayfiles::Apply(value->changes, value->fresh, write, remove, [&] { return publish(value->imported); });
+ const auto applied = replayfiles::Apply(value->changes, [&] { return value->Fresh(); }, write, remove, [&] { return publish(value->imported); });
  if (applied == replayfiles::ApplyOutcome::RejectedBeforeWrite) return ImportResult::IndexBehind;
  if (applied == replayfiles::ApplyOutcome::Done) { if (watched) Imports().CompleteLater(value); return ImportResult::Done; }
  if (applied == replayfiles::ApplyOutcome::FailedRestored) {

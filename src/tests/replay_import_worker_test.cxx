@@ -32,7 +32,7 @@ static void TestBlockedPreparation(bool archivePublication) {
    CHECK(PublishArchive(body, exported, [](ArchiveFile&) { return ArchiveState::Missing; },
     [&](const Bytes& bytes) { CHECK(bytes == exported); blocked.set_value(); gate.wait(); return true; }));
   }
-  value.result = ImportResult::Done; value.fresh = [] { return true; };
+  value.result = ImportResult::Done; value.notInvalidated = [] { return true; };
   return std::make_shared<const PreparedImport>(std::move(value));
  }, [](const Worker::Value&) {});
  CHECK(worker.Request("selected.emberreplay"));
@@ -52,7 +52,7 @@ static void TestBlockedPreparation(bool archivePublication) {
  CHECK(worker.Take(value) && value && value->imported.slot == 280);
  CHECK(!worker.Take(value)); // one immutable handoff
  unsigned writes = 0, publications = 0;
- CHECK(Apply(value->changes, value->fresh, [&](const std::string&, const Bytes&) { ++writes; return true; },
+ CHECK(Apply(value->changes, value->notInvalidated, [&](const std::string&, const Bytes&) { ++writes; return true; },
   [](const std::string&) { return true; }, [&] { ++publications; return true; }) == ApplyOutcome::Done);
  CHECK(writes == 1 && publications == 1);
 }
@@ -61,17 +61,17 @@ static void TestFreshnessRefusesBeforeWriting() {
  bool fileChanged = false, accountChanged = false;
  PreparedImport value;
  value.changes = {{"280", {1}, {2}, true}};
- value.fresh = [&] { return revision == 7 && !fileChanged && !accountChanged; };
+ value.notInvalidated = [&] { return revision == 7 && !fileChanged && !accountChanged; };
  unsigned writes = 0, removes = 0, publications = 0;
  const auto commit = [&] {
-  return Apply(value.changes, value.fresh, [&](const std::string&, const Bytes&) { ++writes; return true; },
+  return Apply(value.changes, value.notInvalidated, [&](const std::string&, const Bytes&) { ++writes; return true; },
    [&](const std::string&) { ++removes; return true; }, [&] { ++publications; return true; });
  };
  revision = 8; CHECK(commit() == ApplyOutcome::RejectedBeforeWrite);
  revision = 7; fileChanged = true; CHECK(commit() == ApplyOutcome::RejectedBeforeWrite);
  fileChanged = false; accountChanged = true; CHECK(commit() == ApplyOutcome::RejectedBeforeWrite);
  CHECK(writes == 0 && removes == 0 && publications == 0);
- value.fresh = []() -> bool { throw std::runtime_error("freshness unavailable"); };
+ value.notInvalidated = []() -> bool { throw std::runtime_error("freshness unavailable"); };
  CHECK(commit() == ApplyOutcome::RejectedBeforeWrite && writes == 0);
 }
 static void TestRecoveryPublicationIsOffThreadAndBounded() {
@@ -114,16 +114,16 @@ static void TestProductionFolderFreshness() {
  CHECK(fs::create_directory(folder));
  {
   SaveFolderFreshness guard;
-  CHECK(guard.Arm(folder) && guard.Fresh());
-  PreparedImport value; value.changes = {{"280", {}, {1}, false}}; value.fresh = [&] { return guard.Fresh(); };
+  CHECK(guard.Arm(folder) && guard.NotInvalidated());
+  PreparedImport value; value.changes = {{"280", {}, {1}, false}}; value.notInvalidated = [&] { return guard.NotInvalidated(); };
   { std::ofstream changed(folder / "280", std::ios::binary); changed << "new native save"; CHECK(changed.good()); }
-  // Notifications can be delivered asynchronously. Wait only in this fixture;
-  // the game always uses the nonblocking kernel-state freshness check.
+  // This fixture covers notifications as invalidation signals. The handoff
+  // suite separately covers exact bytes when this signal is still pending.
   const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
-  while (guard.Fresh() && std::chrono::steady_clock::now() < deadline) std::this_thread::yield();
-  CHECK(!guard.Fresh());
+  while (guard.NotInvalidated() && std::chrono::steady_clock::now() < deadline) std::this_thread::yield();
+  CHECK(!guard.NotInvalidated());
   unsigned writes = 0;
-  CHECK(Apply(value.changes, value.fresh, [&](const std::string&, const Bytes&) { ++writes; return true; },
+  CHECK(Apply(value.changes, value.notInvalidated, [&](const std::string&, const Bytes&) { ++writes; return true; },
    [](const std::string&) { return true; }, [] { return true; }) == ApplyOutcome::RejectedBeforeWrite);
   CHECK(writes == 0);
  }

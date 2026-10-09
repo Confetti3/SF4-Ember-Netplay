@@ -179,7 +179,15 @@ static void TestVerifiedArchiveAndSnapshots() {
  save(archive, exported);
  CHECK(files::VerifyBackup(indexed, folder, body, proof));
  fs::remove(archive);
- CHECK(proof.replay.SameBody(body)); // transaction retains verified evidence through commit
+ CHECK(proof.replay.SameBody(body)); // memory survives, but no durable backup does
+ CHECK(!files::ImportFilesUnchanged({}, proof));
+ save(archive, exported);
+ CHECK(files::ImportFilesUnchanged({}, proof));
+ // Even an export-header change with the identical body invalidates the
+ // complete archive artifact captured by preparation.
+ replaced = exported; replaced[8 + 17] ^= 1;
+ save(archive, replaced);
+ CHECK(!files::ImportFilesUnchanged({}, proof));
 	fs::remove_all(folder);
 }
 

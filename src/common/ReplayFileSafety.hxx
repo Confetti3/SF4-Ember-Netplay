@@ -15,6 +15,9 @@ struct Change {
 	std::string name;
 	replayslots::Bytes before, after;
 	bool existed = false;
+	// Exact local destination, captured by import preparation; Steam's name
+	// alone does not identify the account's file for commit-time validation.
+	std::filesystem::path path;
 };
 
 // The single bounded reader for indexes, archives, snapshots and detail.
@@ -112,6 +115,23 @@ inline bool VerifyBackup(const std::vector<std::filesystem::path>& candidates, c
   }
  }
  return false;
+}
+
+// Called inside Apply's pre-write gate, on the game owner. Notifications can
+// lag cached writes, so only current exact bytes and existence authorize the
+// prepared overwrite/rollback snapshots. Recheck the whole verified archive
+// artifact too: retained memory is not proof of a surviving durable backup.
+inline bool ImportFilesUnchanged(const std::vector<Change>& changes, const BackupEvidence& backup) {
+ for (const auto& change : changes) {
+  Change current;
+  if (change.path.empty() || !Snapshot(change.path, change.before.size(), current) ||
+   current.existed != change.existed || current.before != change.before) return false;
+ }
+ if (!backup.path.empty()) {
+  const auto current = ReadFile(backup.path, backup.replay.contents.size());
+  if (!current || *current != backup.replay.contents) return false;
+ }
+ return true;
 }
 
 enum class ApplyOutcome { RejectedBeforeWrite, Done, FailedRestored, RecoveryIncomplete };

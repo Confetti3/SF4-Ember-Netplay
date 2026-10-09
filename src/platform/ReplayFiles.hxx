@@ -53,9 +53,10 @@ int Archive();
 
 // Preparation reads slots/indexes, verifies the backup and encodes recovery on
 // the worker. The immutable result is handed once to the game owner. Commit
-// checks freshness then uses the single Apply executor for Steam/live-table
+// rereads exact overwrite targets and the verified backup in the single Apply
+// executor's pre-write gate, then performs Steam/live-table
 // publication and rollback. Incomplete recovery is retained and persisted by
-// the worker, and blocks all further imports. No disk preparation in Commit.
+// the worker, and blocks all further imports. No planning or archive scans in Commit.
 struct Imported {
 	int slot = -1;
 	replayslots::Bytes record, slotBytes;
@@ -83,8 +84,11 @@ struct PreparedImport {
  replayfiles::BackupEvidence backup;
  std::filesystem::path source, recoveryFile;
  replayslots::Bytes recoveryBytes;
- // Armed before any reads; a signaled guard rejects changes during/after preparation.
- std::function<bool()> fresh;
+ // Armed before any reads; notifications only invalidate the owned snapshots.
+ std::function<bool()> notInvalidated;
+ bool Fresh() const {
+  return notInvalidated && notInvalidated() && replayfiles::ImportFilesUnchanged(changes, backup);
+ }
 };
 using ImportTransaction = std::shared_ptr<const PreparedImport>;
 // Done here means queued; only CommitImport reports a completed import.

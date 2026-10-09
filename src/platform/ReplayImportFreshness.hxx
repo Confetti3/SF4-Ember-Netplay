@@ -3,7 +3,8 @@
 #include <filesystem>
 
 namespace sf4e { namespace platform { namespace replays {
-// One-shot guard: armed before reads, never rearmed for a prepared transaction.
+// One-shot invalidation signal: armed before reads, never rearmed for a
+// prepared transaction. Absence of notification is not filesystem proof.
 class SaveFolderFreshness {
 public:
  ~SaveFolderFreshness() { if (change_ != INVALID_HANDLE_VALUE) FindCloseChangeNotification(change_); }
@@ -16,7 +17,7 @@ public:
    FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE);
   return change_ != INVALID_HANDLE_VALUE;
  }
- bool Fresh() const { return change_ != INVALID_HANDLE_VALUE && WaitForSingleObject(change_, 0) == WAIT_TIMEOUT; }
+ bool NotInvalidated() const { return change_ != INVALID_HANDLE_VALUE && WaitForSingleObject(change_, 0) == WAIT_TIMEOUT; }
 private:
  HANDLE change_ = INVALID_HANDLE_VALUE;
 };
