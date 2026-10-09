@@ -53,10 +53,11 @@ void DrawUnreadBadge(float right, float top, unsigned count) {
 // Every frame, drawn or hidden (Background), so the transcript sees each room
 // snapshot whatever the player has open: the room drops a departed member's
 // messages, and a join, a leave or a game won shows only as a difference
-// between two snapshots. Only the session's room state is read from `v`.
+// between two snapshots. Only the session's room state and the room notices
+// are read from `v`.
 void ApplicationShell::ObserveChat(const ShellView& v, const room::Snapshot& room) {
     if (v.session.room == netplay::RoomState::Idle || !room.roomEpoch) { transcript_.Clear(); pendingChat_.reset(); return; }
-    if (transcript_.Update(room)) pendingChat_.reset();
+    if (transcript_.Update(room, v.roomNotices)) pendingChat_.reset();
     // The draft goes once the room's chat has the message, and not before: a send the room refuses,
     // or one that never arrives, leaves what was typed where it was. One that arrives after its
     // 8 seconds (ChatInFlight) still takes it, so what was delivered is not left to be sent again.

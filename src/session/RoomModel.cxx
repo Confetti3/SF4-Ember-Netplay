@@ -881,11 +881,7 @@ std::vector<Event> RoomAuthority::AdvanceTime(std::uint64_t nowMs) {
 	for (auto& table : snapshot_.tables) {
 		const auto member = readyWaitingFor_[table.id];
 		if (!member || !TimerDue(readyWaitingSince_[table.id], ReadyTimeoutMs, nowMs_)) continue;
-		const auto result = ApplyUnqueue(member, &table);
-		if (!result.accepted) continue;
-		table.readyTimeoutMember = member;
-		table.readyTimeoutRevision = table.revision;
-		events.push_back(Event{Event::Kind::SnapshotChanged, table.id, 0, member, MatchResult::Abort});
+		if (ApplyUnqueue(member, &table).accepted) events.push_back(Event{Event::Kind::ReadyTimeout, table.id, 0, member, MatchResult::Abort});
 	}
 	return events;
 }

@@ -163,10 +163,12 @@ void DrawNetworkCharaConfig(rVsMode::ConfirmedCharaConditions& charaConditions, 
 
 // Hidden, the shell still takes identity answers, ends a cancelled Discord
 // sign-in on its service and keeps the room chat. The room is read where the
-// published snapshot holds it, not copied, since this runs every match frame.
+// published snapshot holds it, not copied, since this runs every match frame;
+// only its few notices (at most RoomNoticesKept) are.
 static void ConcealApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snapshot) {
     sf4e::ui::ShellView view;
     view.session = snapshot.session;
+    view.roomNotices = snapshot.roomNotices;
     view.identity = snapshot.identity;
     view.identityTicket = snapshot.identityTicket; view.identityRequest = snapshot.identityRequest;
     view.identityRefusal = snapshot.identityRefusal;
@@ -187,6 +189,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.controllerBack = controllerNavigation.BackRequested();
 	view.session = snapshot.session;
 	view.room = snapshot.room;
+	view.roomNotices = snapshot.roomNotices;
 	// Idle times and start holds were stamped when the snapshot was sent;
 	// count on since. A hold that has run out still holds until the room says
 	// otherwise, so it keeps its last millisecond.

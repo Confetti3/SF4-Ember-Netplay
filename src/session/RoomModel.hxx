@@ -240,10 +240,6 @@ struct Table {
 	std::uint32_t holdRemainingMs = 0;
 	// Stamped only in SnapshotFor, like holdRemainingMs. Zero means no clock.
 	std::uint32_t readyRemainingMs = 0;
-	// Last timed-out seat departure, for the room chat's snapshot diff. The
-	// table revision distinguishes repeated departures by the same member.
-	MemberId readyTimeoutMember = 0;
-	std::uint64_t readyTimeoutRevision = 0;
 	// A bound table's ready fighters wait, for at most PermitHoldMs, for the
 	// bridge's permit for this reserved generation. Each seat's permit ID is
 	// filled when that fighter's helper has it; the game starts when both name
@@ -480,6 +476,9 @@ struct Event {
 	RoomClosed,
 	ResultDisputed,
 	ChatMessage,
+	// AdvanceTime took `member` out of a seat at `table` for not readying
+	// within ReadyTimeoutMs. Every member gets it, for the room chat.
+	ReadyTimeout,
 	};
 	Kind kind = Kind::SnapshotChanged;
 	std::uint8_t table = 0;

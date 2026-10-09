@@ -28,65 +28,68 @@ void TranscriptLogic(){
  for(int i=0;i<4;++i)s.tables[i].id=i;
  s.chat.push_back({1,2,"Said before we arrived"});
  ui::ChatTranscript t;
- Check(t.Update(s)&&t.Lines().size()==1&&t.Unread({})==0,"Joining a room did not take its history in as read, with no events");
- Check(!t.Update(s)&&t.Lines().size()==1,"The same snapshot again changed the transcript");
+ std::vector<ui::RoomNotice> n;
+ Check(t.Update(s,n)&&t.Lines().size()==1&&t.Unread({})==0,"Joining a room did not take its history in as read, with no events");
+ Check(!t.Update(s,n)&&t.Lines().size()==1,"The same snapshot again changed the transcript");
  // A snapshot that repeats old messages adds none; a new one is unread unless it is ours or muted.
  s.chat.push_back({2,2,"Hello"});s.chat.push_back({3,1,"Hi Peer"});
- t.Update(s);t.Update(s);
+ t.Update(s,n);t.Update(s,n);
  Check(t.Lines().size()==3&&t.Lines()[1].text=="Hello"&&t.Lines()[1].name=="Peer"&&!t.Lines()[1].own&&t.Lines()[2].own,"Messages were not added once, by sequence");
  Check(t.Unread({})==1&&t.Unread({2})==0,"Unread counted our own message, or a muted member's");
  t.MarkRead();Check(t.Unread({})==0,"Reading did not clear the unread count");
  // Who comes and goes, and who hosts.
  room::Member third;third.id=3;third.name="Third";s.members.push_back(third);
- t.Update(s);
+ t.Update(s,n);
  Check(t.Lines().back().kind==ChatLine::Kind::Joined&&t.Lines().back().name=="Third","A new member was not announced");
- s.host=2;t.Update(s);
+ s.host=2;t.Update(s,n);
  Check(t.Lines().back().kind==ChatLine::Kind::NewHost&&t.Lines().back().name=="Peer","A new host was not announced");
  // A member's words stay after they go, under the name they had; the room itself drops them.
- s.chat.push_back({4,3,"Bye now"});t.Update(s);
+ s.chat.push_back({4,3,"Bye now"});t.Update(s,n);
  s.members.pop_back();s.chat.pop_back();
- t.Update(s);
+ t.Update(s,n);
  const auto& lines=t.Lines();
  Check(lines.back().kind==ChatLine::Kind::Left&&lines.back().name=="Third"&&lines[lines.size()-2].text=="Bye now"&&lines[lines.size()-2].name=="Third",
   "A member who left lost their messages or their name");
  // Results: a game won is one seat's score going up with the pair unchanged.
- s.tables[0].p1=1;s.tables[0].p2=2;t.Update(s);
+ s.tables[0].p1=1;s.tables[0].p2=2;t.Update(s,n);
  const auto count=t.Lines().size();
- s.tables[0].score[1]=1;t.Update(s);
+ s.tables[0].score[1]=1;t.Update(s,n);
  Check(t.Lines().size()==count+1&&t.Lines().back().kind==ChatLine::Kind::GameWon&&t.Lines().back().name=="Peer"&&t.Lines().back().table==0&&
   t.Lines().back().score[0]==1&&t.Lines().back().score[1]==0,"A game won was not announced with its winner first");
- s.tables[0].score[0]=s.tables[0].score[1]=0;t.Update(s);
+ s.tables[0].score[0]=s.tables[0].score[1]=0;t.Update(s,n);
  Check(t.Lines().size()==count+1,"A score reset was announced");
  // A finished set names its winner and its score, once, and not as a game as well.
  s.tables[0].lastSet.generation=7;s.tables[0].lastSet.p1=1;s.tables[0].lastSet.p2=2;s.tables[0].lastSet.winnerSeat=0;
- s.tables[0].lastSet.score[0]=3;s.tables[0].lastSet.score[1]=1;t.Update(s);t.Update(s);
+ s.tables[0].lastSet.score[0]=3;s.tables[0].lastSet.score[1]=1;t.Update(s,n);t.Update(s,n);
  Check(t.Lines().size()==count+2&&t.Lines().back().kind==ChatLine::Kind::SetWon&&t.Lines().back().name=="Local"&&
   t.Lines().back().score[0]==3&&t.Lines().back().score[1]==1,"A set won was not announced once, with its winner and score");
  // A draw changes no score, so says nothing.
- const auto quiet=t.Lines().size();s.tables[0].phase=room::TablePhase::Playing;t.Update(s);s.tables[0].phase=room::TablePhase::Waiting;t.Update(s);
+ const auto quiet=t.Lines().size();s.tables[0].phase=room::TablePhase::Playing;t.Update(s,n);s.tables[0].phase=room::TablePhase::Waiting;t.Update(s,n);
  Check(t.Lines().size()==quiet,"A game with no winner was announced");
- // Timed-out seats name the member and cause once, even if the queue has
- // already filled the vacancy; an ordinary unseat adds no timeout line.
- s.tables[0].p2=0;t.Update(s);
+ // A Ready timeout arrives as a room notice. It names the member and cause
+ // once, even after the queue has filled the seat; an ordinary unseat says nothing.
+ s.tables[0].p2=0;t.Update(s,n);
  Check(t.Lines().size()==quiet,"An ordinary unseat was announced as a timeout");
- s.tables[0].readyTimeoutMember=2;s.tables[0].readyTimeoutRevision=20;
- t.Update(s);t.Update(s);
+ const auto timeout=[](room::MemberId member,std::uint8_t table){return room::Event{room::Event::Kind::ReadyTimeout,table,0,member,room::MatchResult::Abort};};
+ n.push_back({1,timeout(2,0)});
+ t.Update(s,n);t.Update(s,n);
  Check(t.Lines().size()==quiet+1&&t.Lines().back().kind==ChatLine::Kind::ReadyTimeout&&
   t.Lines().back().name=="Peer"&&t.Lines().back().table==0,"A Ready timeout was not announced once under the fighter's name");
- s.tables[0].readyTimeoutRevision=30;t.Update(s);
- Check(t.Lines().size()==quiet+2,"A second timeout of the same fighter was lost");
- ui::ChatTranscript arrived;arrived.Update(s);
+ // Two timeouts, of the same fighter, between two frames: neither is lost.
+ n.push_back({2,timeout(2,0)});n.push_back({3,timeout(2,1)});t.Update(s,n);
+ Check(t.Lines().size()==quiet+3&&t.Lines()[t.Lines().size()-2].table==0&&t.Lines().back().table==1,"A second timeout of the same fighter was lost");
+ ui::ChatTranscript arrived;arrived.Update(s,n);
  Check(arrived.Lines().size()==s.chat.size(),"A new arrival announced an old Ready timeout");
  // Only the newest lines are kept.
  for(unsigned i=0;i<300;++i){
   s.chat.push_back({5+i,2,"Line "+std::to_string(i)});
   if(s.chat.size()>room::MaximumChatMessages)s.chat.erase(s.chat.begin());
-  t.Update(s);
+  t.Update(s,n);
  }
  Check(t.Lines().size()==ui::ChatTranscript::MaximumLines&&t.Lines().back().text=="Line 299","The transcript is not capped at its newest lines");
  // A different room starts again from its own history.
  s.roomEpoch=6;s.chat.clear();s.chat.push_back({1,2,"New room"});
- Check(t.Update(s)&&t.Lines().size()==1&&t.Lines()[0].text=="New room"&&t.Unread({})==0,"A different room kept the old transcript or counted its history as unread");
+ Check(t.Update(s,n)&&t.Lines().size()==1&&t.Lines()[0].text=="New room"&&t.Unread({})==0,"A different room kept the old transcript or counted its history as unread");
 }
 void ChatJourneys(){
  using namespace sf4e;
@@ -211,25 +214,28 @@ void ChatJourneys(){
   r.members.erase(std::remove_if(r.members.begin(),r.members.end(),[&](const room::Member& m){return m.id==id;}),r.members.end());
   r.chat.erase(std::remove_if(r.chat.begin(),r.chat.end(),[&](const room::ChatMessage& m){return m.sender==id;}),r.chat.end());
  };
- // Hidden on the Chat screen: a member who speaks and goes, a visit and two games all land, and none of it is read.
+ // Hidden on the Chat screen: a member who speaks and goes, a visit, two games and a Ready timeout all land, and none of it is read.
  sequence=0;JoinChatRoom(h,24);h.view.room.tables[0].p1=1;h.view.room.tables[0].p2=2;
  h.Screen("room-chat");h.Frame(0,3);
  hidden(1,1.f/60);say(3,"Before I go");hidden(1,1.f/60);leave(3);hidden(1,1.f/60);
  room::Member fourth;fourth.id=4;fourth.name="Fourth";h.view.room.members.push_back(fourth);hidden(1,1.f/60);leave(4);hidden(1,1.f/60);
  h.view.room.tables[0].score[1]=1;hidden(1,1.f/60);h.view.room.tables[0].score[0]=1;hidden(1,1.f/60);
+ h.view.roomNotices.push_back({1,room::Event{room::Event::Kind::ReadyTimeout,1,0,2,room::MatchResult::Abort}});hidden(1,1.f/60);
  {
   using ui::ChatLine;
   const auto& lines=h.shell.Transcript().Lines();
-  Check(lines.size()==6&&lines[0].kind==ChatLine::Kind::Message&&lines[0].text=="Before I go"&&lines[0].name=="Third"&&
+  Check(lines.size()==7&&lines[0].kind==ChatLine::Kind::Message&&lines[0].text=="Before I go"&&lines[0].name=="Third"&&
    lines[1].kind==ChatLine::Kind::Left&&lines[1].name=="Third","A message sent and taken back by leaving while Ember was hidden was lost");
   Check(lines[2].kind==ChatLine::Kind::Joined&&lines[2].name=="Fourth"&&lines[3].kind==ChatLine::Kind::Left&&lines[3].name=="Fourth",
    "A member who came and went while Ember was hidden was not announced");
   Check(lines[4].kind==ChatLine::Kind::GameWon&&lines[4].name=="Peer"&&lines[5].kind==ChatLine::Kind::GameWon&&lines[5].name=="Local"&&
    lines[5].score[0]==1&&lines[5].score[1]==1,"Games won while Ember was hidden were not announced");
+  Check(lines[6].kind==ChatLine::Kind::ReadyTimeout&&lines[6].name=="Peer"&&lines[6].table==1,
+   "A Ready timeout while Ember was hidden was not announced");
  }
  Check(h.shell.Transcript().Unread({})==1,"Hiding Ember on Chat read the messages that arrived while hidden");
  h.Screen("room");h.Frame();
- Check(row("room-chat").value=="1"&&h.shell.Transcript().Lines().size()==6,"Reopening Ember lost what arrived while hidden, or read it on the board");
+ Check(row("room-chat").value=="1"&&h.shell.Transcript().Lines().size()==7,"Reopening Ember lost what arrived while hidden, or read it on the board");
  h.Screen("room-chat");h.Frame(0,2);
  Check(h.shell.Transcript().Unread({})==0,"Opening Chat after Ember was hidden did not read it");
  // A message sent just before Ember is hidden takes the draft when it arrives, even past its 8 seconds.
