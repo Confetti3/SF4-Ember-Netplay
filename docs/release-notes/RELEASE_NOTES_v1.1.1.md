@@ -17,7 +17,7 @@ Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [
 - **The launcher explains "Steam must be running" when Steam runs as administrator.** When this causes the game to close, the launcher tells you to restart Steam normally. Thanks to OOPMan for finding this cause ([#18](https://github.com/Confetti3/SF4-Ember-Netplay/issues/18)). The original report in #18 had no administrator settings; if that still happens on 1.1.1, please reopen the issue.
 - **Sets of first to 1 through 10.** Set length now offers every first-to value from 1 through 10, equivalent to best of 1, 3, 5 and so on through 19. Tournament matches offer the same range.
 - **DLC choices follow what you own.** Fighter select previously offered DLC costumes based on installed packs. It now offers only the costumes your Steam account owns. Separately sold fighters you do not own keep their roster cards but cannot be picked. A saved pick of one falls back to Ryu. Other players' picks are never checked against what you own.
-- **Public rooms use less of the server.** The room host and its networking helper now sleep while a room is idle. The server now holds up to 30 public rooms, up from 20.
+- **Public rooms use less of the server.** The room host and its networking helper now sleep while a room is idle. Capacity is configured by the service operator; repository deployment budgets do not establish the live server's current limit.
 
 ## Known issues
 
