@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.20)
+cmake_minimum_required (VERSION 3.26)
 
 include("${CMAKE_SOURCE_DIR}/cmake/sf4e_version.cmake")
 
@@ -419,21 +419,7 @@ if(BUILD_TESTING)
     target_link_libraries(Win32CursorTest PRIVATE sf4e_ui)
     add_test(NAME Win32Cursor COMMAND Win32CursorTest)
     target_link_libraries(UiRenderTest PRIVATE sf4e_ui "d3d9" "dbghelp" "psapi")
-    add_test(NAME UiRender COMMAND UiRenderTest)
-    # Every fighter now has a portrait (the packaged cutout stands in for the
-    # game's), and sweeping twenty configurations cycles more art than the
-    # 32 MB selection cache holds, so the run decodes it repeatedly. It takes
-    # about five minutes on its own, so it gets the same budget as the locale
-    # sweep.
-    set_tests_properties(UiRender PROPERTIES TIMEOUT 600)
-    # Each translation at three sizes, in its own run so neither sweep nears
-    # its timeout as languages are added.
-    add_test(NAME UiRenderLocales COMMAND UiRenderTest)
-    set_tests_properties(UiRenderLocales PROPERTIES TIMEOUT 600 ENVIRONMENT "SF4E_UI_RENDER_LOCALES=translations")
-    # The atlas rebuild on its own: every language and scale within the atlas
-    # budget, then random player text through many rebuilds.
-    add_test(NAME UiRenderAtlas COMMAND UiRenderTest)
-    set_tests_properties(UiRenderAtlas PROPERTIES TIMEOUT 300 ENVIRONMENT "SF4E_UI_RENDER_ATLAS_STRESS=150")
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_ui_render_tests.cmake")
     add_executable(SelectionArtTest src/tests/selection_art_test.cxx)
     target_compile_definitions(SelectionArtTest PRIVATE SF4E_TEST_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
     target_link_libraries(SelectionArtTest PRIVATE sf4e_ui "d3d9")
@@ -608,9 +594,10 @@ target_link_libraries(
     PUBLIC imgui::imgui nlohmann_json::nlohmann_json spdlog::spdlog  ggpo::GGPO
 )
 
-# The session server core has no game or helper dependency, so the transport test and
-# the host benchmark compile it directly instead of linking all of Session.
-set(SF4E_SESSION_SERVER_SOURCES
+# The session server core has no game or helper dependency. It is its own
+# library so Session, the room host, the server tests and the host benchmark
+# all link one build of it, with the flags the shipped binaries use.
+add_library(sf4e_session_server STATIC
     "src/session/MatchAuthority.cxx"
     "src/session/sf4e__SessionServer.cxx"
     "src/session/sf4e__SessionServer__Handlers.cxx"
@@ -619,20 +606,27 @@ set(SF4E_SESSION_SERVER_SOURCES
     "src/session/sf4e__SessionServer__Tournament.cxx"
     "src/session/sf4e__SessionProtocol.cxx"
 )
+target_compile_features(sf4e_session_server PUBLIC cxx_std_17)
+target_compile_definitions(sf4e_session_server PRIVATE NOMINMAX)
+target_link_libraries(sf4e_session_server PUBLIC
+    nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")
+# The Iroh room over the session server, shared by Session and the room host.
+# It talks to the helper and still has no game dependency.
+add_library(sf4e_iroh_room STATIC
+    "src/session/IrohRoom.cxx"
+    "src/session/IrohRoomAdapters.cxx"
+    "src/session/IrohRoomCheckpoint.cxx"
+    "src/session/IrohRoomPeers.cxx"
+    "src/session/IrohRoomPublic.cxx"
+    "src/session/IdentityEvents.cxx"
+    "src/session/TournamentAnswers.cxx")
+target_link_libraries(sf4e_iroh_room PUBLIC sf4e_session_server sf4e_helper_platform)
 add_library(Session STATIC
-    ${SF4E_SESSION_SERVER_SOURCES}
     "src/session/sf4e__SessionClient.hxx"
     "src/session/sf4e__SessionClient.cxx"
     "src/session/sf4e__SessionClient__Room.cxx"
     "src/session/sf4e__SessionProtocol.hxx"
     "src/session/sf4e__SessionServer.hxx"
-    "src/session/IrohRoom.cxx"
-    "src/session/IdentityEvents.cxx"
-    "src/session/TournamentAnswers.cxx"
-    "src/session/IrohRoomAdapters.cxx"
-    "src/session/IrohRoomCheckpoint.cxx"
-    "src/session/IrohRoomPeers.cxx"
-    "src/session/IrohRoomPublic.cxx"
     "src/session/IrohMatchSession.cxx"
     "src/session/IrohRoom.hxx"
     "src/session/SessionTransport.hxx"
@@ -641,28 +635,19 @@ target_compile_features(Session PUBLIC cxx_std_17)
 target_link_libraries(
     Session
     PRIVATE Dimps sf4e_common sf4e_helper_platform sf4e_room_model
-    PUBLIC nlohmann_json::nlohmann_json spdlog::spdlog  "ws2_32" sf4e_tournament_play
+    PUBLIC sf4e_iroh_room nlohmann_json::nlohmann_json spdlog::spdlog  "ws2_32" sf4e_tournament_play
 )
 
-# The public room host: the room authority with no game. It compiles the
-# session server and the Iroh room directly and links none of the game
-# libraries (Session would bring Dimps), so the same sources port to Linux.
+# The public room host: the room authority with no game. It links the session
+# server and Iroh room libraries and none of the game libraries (Session would
+# bring Dimps), so the same sources port to Linux.
 add_executable(sf4e-room-host
     "server/roomhost/main.cxx"
     "server/roomhost/RoomHost.cxx"
     "server/roomhost/RoomHostStatus.cxx"
-    "server/roomhost/RoomHostHelperWindows.cxx"
-    ${SF4E_SESSION_SERVER_SOURCES}
-    "src/session/IrohRoom.cxx"
-    "src/session/IrohRoomAdapters.cxx"
-    "src/session/IrohRoomCheckpoint.cxx"
-    "src/session/IrohRoomPeers.cxx"
-    "src/session/IrohRoomPublic.cxx"
-    "src/session/IdentityEvents.cxx"
-    "src/session/TournamentAnswers.cxx")
+    "server/roomhost/RoomHostHelperWindows.cxx")
 target_compile_features(sf4e-room-host PRIVATE cxx_std_17)
-target_link_libraries(sf4e-room-host PRIVATE
-    nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common sf4e_helper_platform "bcrypt")
+target_link_libraries(sf4e-room-host PRIVATE sf4e_iroh_room)
 
 if(BUILD_TESTING)
     add_executable(SessionClientTransportTest "src/tests/session_client_transport_test.cxx")
@@ -793,35 +778,19 @@ if(BUILD_TESTING)
             set_tests_properties(IrohAuthorizedTerminalRecovery IrohAuthorizedTerminalRelayRecovery PROPERTIES TIMEOUT 240 RUN_SERIAL TRUE)
         endif()
     endif()
-    add_executable(SessionServerTransportTest
-        "src/tests/session_server_transport_test.cxx"
-        ${SF4E_SESSION_SERVER_SOURCES})
-    target_link_libraries(SessionServerTransportTest PRIVATE
-        nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")
-    target_compile_features(SessionServerTransportTest PRIVATE cxx_std_14)
+    add_executable(SessionServerTransportTest "src/tests/session_server_transport_test.cxx")
+    target_link_libraries(SessionServerTransportTest PRIVATE sf4e_session_server)
     add_test(NAME SessionServerTransport COMMAND SessionServerTransportTest)
     add_executable(SessionServerModerationTest
-        "src/tests/session_server_moderation_test.cxx"
-        "server/roomhost/RoomHostStatus.cxx"
-        ${SF4E_SESSION_SERVER_SOURCES})
-    target_link_libraries(SessionServerModerationTest PRIVATE
-        nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")
-    target_compile_features(SessionServerModerationTest PRIVATE cxx_std_17)
+        "src/tests/session_server_moderation_test.cxx" "server/roomhost/RoomHostStatus.cxx")
+    target_link_libraries(SessionServerModerationTest PRIVATE sf4e_session_server)
     add_test(NAME SessionServerModeration COMMAND SessionServerModerationTest)
-    add_executable(SessionServerTournamentTest
-        "src/tests/session_server_tournament_test.cxx"
-        ${SF4E_SESSION_SERVER_SOURCES})
-    target_link_libraries(SessionServerTournamentTest PRIVATE
-        nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")
-    target_compile_features(SessionServerTournamentTest PRIVATE cxx_std_17)
+    add_executable(SessionServerTournamentTest "src/tests/session_server_tournament_test.cxx")
+    target_link_libraries(SessionServerTournamentTest PRIVATE sf4e_session_server)
     add_test(NAME SessionServerTournament COMMAND SessionServerTournamentTest)
     # Explicitly invoked host-cost benchmark; not a CTest (see the source).
-    add_executable(RoomHostBench
-        "src/tests/room_host_bench.cxx"
-        ${SF4E_SESSION_SERVER_SOURCES})
-    target_link_libraries(RoomHostBench PRIVATE
-        nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")
-    target_compile_features(RoomHostBench PRIVATE cxx_std_17)
+    add_executable(RoomHostBench "src/tests/room_host_bench.cxx")
+    target_link_libraries(RoomHostBench PRIVATE sf4e_session_server)
     add_executable(GgpoUdpValidationTest "src/tests/ggpo_udp_validation_test.cxx")
     target_link_libraries(GgpoUdpValidationTest PRIVATE ggpo::GGPO "ws2_32")
     add_test(NAME GgpoUdpValidation COMMAND GgpoUdpValidationTest)
@@ -1000,16 +969,17 @@ install(FILES "src/ui/backends/LICENSE.txt" DESTINATION "notices" RENAME "Dear-I
 install(DIRECTORY "assets/selection" DESTINATION "assets" COMPONENT SelectionReferences OPTIONAL
     FILES_MATCHING PATTERN "*.png" PATTERN "*.jpg" PATTERN "*.json" PATTERN "*.md"
     REGEX "/color-[0-9]+\\.(png|jpg)$" EXCLUDE)
-# Keep local builds self-contained when references have been fetched. Copy on
-# each build because image-only changes do not cause Sidecar to relink.
+# Keep local builds self-contained when references have been fetched. Compare
+# on each build because image-only changes do not cause Sidecar to relink, and
+# write only the files whose content changed.
 add_custom_target(SelectionAssets
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/assets/selection" "$<TARGET_FILE_DIR:Sidecar>/assets/selection"
     # The menu art and button prompts the install step ships, so a launch from
     # the build folder does not fall back to text glyphs.
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/assets/brand" "$<TARGET_FILE_DIR:Sidecar>/assets/brand"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/assets/input" "$<TARGET_FILE_DIR:Sidecar>/assets/input"
     VERBATIM)
 add_dependencies(Sidecar SelectionAssets)
@@ -1040,3 +1010,5 @@ set(CPACK_PACKAGE_VENDOR "The ${PROJECT_NAME} Dev Team")
 set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
 set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${PROJECT_NAME} ${PROJECT_DESCRIPTION}")
+
+include("${CMAKE_SOURCE_DIR}/cmake/sf4e_test_scheduling.cmake")
