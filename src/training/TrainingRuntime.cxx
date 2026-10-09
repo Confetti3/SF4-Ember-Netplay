@@ -164,27 +164,9 @@ bool ReadOverride(int side, Input& result) {
     result = output[side]; return true;
 }
 // Applies one command from the panel or the hotkeys; whether it took effect.
+// The session checks every command once, for its battle and whether it can
+// apply now; only then is the game touched.
 static bool Dispatch(Native* system, const Command& command) {
-    if (command.generation == session.GetView().generation && command.action == Action::AutoFreeze) {
-        meter.SetAutoFreeze(command.value != 0); return true;
-    }
-    if (command.generation == session.GetView().generation && command.action == Action::Place) return PlaceFighters(system, command.place);
-    if (command.generation == session.GetView().generation && command.action == Action::DummyPlan) {
-        if (!ValidDummyPlan(command.plan)) return false;
-        dummyPlan = command.plan; return true;
-    }
-    if (command.generation == session.GetView().generation && command.action == Action::Leave) {
-        // Once per battle; value is the announcer's volume in percent, 0 for none.
-        if (leaveIn) return false;
-        leaveIn = LeaveFrames;
-        const bool called = command.value > 0 && Dimps::Sound::PlaySystemCue(Dimps::Sound::SystemCue::HereComesChallenger,
-            Dimps::Sound::SystemChannel::Voice, command.value / 100.f);
-        spdlog::info("Training: leaving for the main menu in {} frames; challenger call {}", LeaveFrames, called ? "played" : "not played");
-        return true;
-    }
-    if (command.generation == session.GetView().generation && command.action == Action::ExportSlot) {
-        exportedSlot = session.GetView().selected; exported = session.Slot(exportedSlot); ++exportId; return true;
-    }
     if (!session.Apply(command)) {
         // A position that was asked for and not saved or put back is the
         // one refusal a player notices without being told.
@@ -194,7 +176,21 @@ static bool Dispatch(Native* system, const Command& command) {
                 command.generation, session.GetView().generation);
         return false;
     }
-    if (command.action == Action::Save) {
+    switch (command.action) {
+    case Action::Place: return PlaceFighters(system, command.place);
+    case Action::DummyPlan: dummyPlan = command.plan; return true;
+    case Action::Leave: {
+        // Once per battle.
+        if (leaveIn) return false;
+        leaveIn = LeaveFrames;
+        const bool called = command.volume > 0 && Dimps::Sound::PlaySystemCue(Dimps::Sound::SystemCue::HereComesChallenger,
+            Dimps::Sound::SystemChannel::Voice, command.volume / 100.f);
+        spdlog::info("Training: leaving for the main menu in {} frames; challenger call {}", LeaveFrames, called ? "played" : "not played");
+        return true;
+    }
+    case Action::ExportSlot:
+        exportedSlot = session.GetView().selected; exported = session.Slot(exportedSlot); ++exportId; return true;
+    case Action::Save: {
         if (checkpoint.used) Battle::SaveState::Free(&checkpoint);
         // A state the memento cannot represent is refused, not kept
         // without its task functors (ledger A-001).
@@ -204,16 +200,16 @@ static bool Dispatch(Native* system, const Command& command) {
         session.SetCheckpoint(checkpoint.used);
         spdlog::info("Training: position {}", saved ? "saved" : "not saved, the game's state could not be taken");
         return saved;
-    } else if (command.action == Action::Restore) {
+    }
+    case Action::Restore: {
         const bool restored = RestoreCheckpoint(system);
         spdlog::info("Training: position {}", restored ? "reset to the saved one" : "not reset");
         return restored;
-    } else if (command.action == Action::ClearHistory) {
-        meter.Reset();
-    } else if (command.action == Action::DummyState) {
-        WriteDummyState(command.dummy);
     }
-    return true;
+    case Action::ClearHistory: meter.Reset(); return true;
+    case Action::DummyState: WriteDummyState(command.dummy); return true;
+    default: return true;
+    }
 }
 void BeforeUpdate(Native* system, bool networkOwned) {
     overriding = false; sampling = false; commitInput = false;

@@ -151,10 +151,10 @@ void TrainingJourneys() {
   std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});frame();
   Check((rows[0].height==30)==(width==1920),"Recording breakpoint fixture used the wrong layout");
   choose("loop");commands.clear();press(MenuInput::Right);
-  Check(commands.size()==1&&commands.back().action==training::Action::Loop&&commands.back().value==1,"Loop Right did not adjust in recording footer");
+  Check(commands.size()==1&&commands.back().action==training::Action::Loop&&commands.back().loop,"Loop Right did not adjust in recording footer");
   v.acks.Note(commands.back().requestId,true);frame();
   commands.clear();press(MenuInput::Left);
-  Check(commands.size()==1&&commands.back().action==training::Action::Loop&&commands.back().value==0,"Loop Left did not adjust in recording footer");
+  Check(commands.size()==1&&commands.back().action==training::Action::Loop&&!commands.back().loop,"Loop Left did not adjust in recording footer");
   v.acks.Note(commands.back().requestId,true);frame();
   choose("load-recording");commands.clear();press(MenuInput::Right);
   const auto load=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="load-recording";});

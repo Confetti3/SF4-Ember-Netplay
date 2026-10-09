@@ -32,7 +32,7 @@ constexpr int MaxWaitFrames = 90, MaxWaitHitFrames = 15;
 using Frame = std::array<Input, 2>;
 struct InputRun { unsigned buttons = 0; unsigned frames = 0; };
 enum class Mode { Idle, Recording, Playback };
-enum class Action { Select, Record, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, AutoFreeze, Load, ExportSlot, DummyState, Place, DummyPlan, Leave };
+enum class Action { Select, Record, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, Load, ExportSlot, DummyState, Place, DummyPlan, Leave };
 // The dummy's behaviour as the game's Training menu sets it; each value is
 // the menu's choice index and -1 leaves that setting as it is. action: stand,
 // crouch, jump, cpu. guard: no block, after first hit, all, random.
@@ -146,14 +146,18 @@ inline bool DummyReplies(const DummyPlan& plan, int cause, unsigned roll) {
 inline bool ReplyDue(const DummySeen& seen, int lead, int timing) {
     return seen.freed || (seen.until >= 0 && seen.until <= lead + 1 - timing);
 }
-// frames: for Load, made-up input for the selected slot; value is the side
-// (0 or 1) that plays it back.
-// Leave: a challenger is waiting, so the battle goes back to the main menu
-// after the announcer's call and a banner; value is the call's volume in
-// percent, 0 for none.
+// Each action reads only the fields named for it; the rest are ignored.
 struct Command {
-    Action action = Action::Stop; int value = 0; std::uint64_t generation = 0; std::uint64_t requestId = 0;
-    std::vector<Input> frames;
+    Action action = Action::Stop; std::uint64_t generation = 0; std::uint64_t requestId = 0;
+    // Select: the slot to choose.
+    int slot = 0;
+    // Loop: whether playback starts again at its end.
+    bool loop = false;
+    // Load: made-up input for the selected slot, and the side (0 or 1) that plays it back.
+    std::vector<Input> frames; int side = 1;
+    // Leave: a challenger is waiting, so the battle goes back to the main menu
+    // after the announcer's call and a banner; the call's volume in percent, 0 for none.
+    int volume = 0;
     // DummyState: the settings to change.
     DummyState dummy;
     // Place: where to put Player 1 and Player 2 (x).
@@ -227,14 +231,19 @@ public:
     }
     void SetCheckpoint(bool saved) { view_.checkpoint = saved; }
     void SetPositions(float x0, float x1) { view_.x[0] = x0; view_.x[1] = x1; }
-    bool Apply(Command command) {
+    // Every command passes here first, and only here is its battle checked.
+    // Place, DummyPlan, Leave and ExportSlot change nothing in the session;
+    // accepted, the runtime carries them out.
+    bool Apply(const Command& command) {
         if (!view_.available || command.generation != view_.generation) return false;
         switch (command.action) {
+        case Action::Place: case Action::Leave: case Action::ExportSlot: return true;
+        case Action::DummyPlan: return ValidDummyPlan(command.plan);
         case Action::Stop: Stop(); return true;
         case Action::Select:
-            if (command.value < 0 || command.value >= SlotCount || view_.mode != Mode::Idle) return false;
-            view_.selected = command.value; return true;
-        case Action::Loop: view_.loop = command.value != 0; return true;
+            if (command.slot < 0 || command.slot >= SlotCount || view_.mode != Mode::Idle) return false;
+            view_.selected = command.slot; return true;
+        case Action::Loop: view_.loop = command.loop; return true;
         case Action::DummyState:
             if (!ValidDummyState(command.dummy)) return false;
             // The adapter writes the game; the view shows the request until
@@ -254,10 +263,10 @@ public:
             Stop(); slots_[view_.selected].clear(); view_.lengths[view_.selected] = 0;
             view_.mode = Mode::Recording; view_.playbackSide = 1; once_[view_.selected] = false; return true;
         case Action::Load:
-            if (view_.mode != Mode::Idle || command.frames.empty()) return false;
+            if (view_.mode != Mode::Idle || command.frames.empty() || (command.side != 0 && command.side != 1)) return false;
             slots_[view_.selected].assign(command.frames.begin(), command.frames.begin() + (std::min)(command.frames.size(), std::size_t(MaxFrames)));
             view_.lengths[view_.selected] = static_cast<int>(slots_[view_.selected].size());
-            view_.playbackSide = command.value & 1; once_[view_.selected] = true; return true;
+            view_.playbackSide = command.side; once_[view_.selected] = true; return true;
         case Action::Play:
             Stop();
             if (slots_[view_.selected].empty()) return false;

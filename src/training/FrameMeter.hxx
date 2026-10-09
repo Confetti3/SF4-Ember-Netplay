@@ -172,13 +172,12 @@ struct MeterView {
     // frames to act in.
     std::array<int, 2> meatyFrames{};
     std::array<bool, 2> meatyValid{};
-    bool frozen = false, autoFreeze = true;
+    bool frozen = false;
 };
 class FrameMeter {
 public:
     const MeterView& View() const { return view_; }
-    void Reset() { const bool autoFreeze = view_.autoFreeze; view_ = MeterView{}; view_.autoFreeze = autoFreeze; idleFrames_ = 0; hadActivity_ = false; hasFrame_ = false; observedFrames_ = contactFrame_ = 0; armed_ = {}; recovered_ = {{-1, -1}}; startupElapsed_ = {}; startupPending_ = {}; recoveryCells_ = {}; thrower_ = {}; firstActiveAt_ = wakeAt_ = {{-1, -1}}; }
-    void SetAutoFreeze(bool enabled) { view_.autoFreeze = enabled; view_.frozen = false; }
+    void Reset() { view_ = MeterView{}; idleFrames_ = 0; hadActivity_ = false; hasFrame_ = false; observedFrames_ = contactFrame_ = 0; armed_ = {}; recovered_ = {{-1, -1}}; startupElapsed_ = {}; startupPending_ = {}; recoveryCells_ = {}; thrower_ = {}; firstActiveAt_ = wakeAt_ = {{-1, -1}}; }
     void Observe(int frame, const std::array<FighterSample, 2>& observed) {
         // The native fixed-point integral is a wrapping 16-bit counter. It
         // becomes negative after 32767; those values must never double as
@@ -289,7 +288,7 @@ public:
             if (view_.frozen || idleFrames_ >= 30) view_.frames.clear();
             view_.frozen = false; idleFrames_ = 0; hadActivity_ = true;
         }
-        if (view_.autoFreeze && hadActivity_ && idleFrames_ >= 30) view_.frozen = true;
+        if (hadActivity_ && idleFrames_ >= 30) view_.frozen = true;
         if (!view_.frozen) {
             view_.frames.push_back({fighters, frame});
             if (view_.frames.size() > MeterHistory) view_.frames.pop_front();

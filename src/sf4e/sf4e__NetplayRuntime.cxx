@@ -577,7 +577,7 @@ static void CallOutOfTraining() {
 		training::Command leave;
 		leave.action = training::Action::Leave;
 		leave.generation = training::ReadView().generation;
-		leave.value = runtime->preferences.readySound ? runtime->preferences.readySoundVolume : 0;
+		leave.volume = runtime->preferences.readySound ? runtime->preferences.readySoundVolume : 0;
 		spdlog::info("Room: a challenger sat down while the player is in Training; the battle is {}",
 			training::Submit(leave) ? "told to leave" : "not told to leave, its queue is full");
 		break;

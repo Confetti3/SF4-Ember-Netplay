@@ -473,7 +473,7 @@ void Overlay::DrawOverlay() {
         if (ImGui::IsKeyPressed(ImGuiKey_F6, false)) trainingOpen = !trainingOpen;
         if (ImGui::IsKeyPressed(ImGuiKey_F5, false)) trainingHud = !trainingHud;
         auto practice = [&](sf4e::training::Action action) {
-            sf4e::training::Submit({action, 0, training.generation});
+            sf4e::training::Submit({action, training.generation});
         };
         // The setter keeps only its first call, and the lookup asks the shell each time.
         // Before the HUD and the hotkeys, which read the lab's settings too.
@@ -587,7 +587,7 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
         focused = w != 0;
         if (!focused) {
             const auto training = sf4e::training::ReadView();
-            sf4e::training::Submit({sf4e::training::Action::Stop, 0, training.generation});
+            sf4e::training::Submit({sf4e::training::Action::Stop, training.generation});
             capture = false; pointerCapture = false;
             activationClick.Reset();
             sf4e::ui::SetOverlayCursorOwnership(false);

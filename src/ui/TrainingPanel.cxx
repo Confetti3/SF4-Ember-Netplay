@@ -283,7 +283,7 @@ bool HandleRecordingLibrary(const MenuAction& a,const training::View& v,const Tr
     if(!netplay::json_file::ReadBytes(RecordingFolder()/(name+".json"),bytes,missing,error)||missing||!training::ImportRecording(bytes,frames,error)) {
         Notice(loc::Tf("training.invalid",error),true); return true;
     }
-    Command load; load.action=Action::Load; load.generation=v.generation; load.value=1; load.frames=frames;
+    Command load; load.action=Action::Load; load.generation=v.generation; load.side=1; load.frames=frames;
     if(submit&&submit(load)) Notice(loc::Tf("training.recording_loaded",name,v.selected+1));
     else Notice(loc::T("training.command_rejected"),true);
     return true;
@@ -406,12 +406,12 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  if(screen=="tools"||screen=="dummy"||screen=="reply"){HandleTools(a,v,submit);return;}
  if(a.kind!=MenuAction::Activate&&a.kind!=MenuAction::Adjust)return;
  Command command;command.generation=v.generation;command.requestId=nextRequest++;
- if(a.id.compare(0,5,"slot-")==0){command.action=Action::Select;command.value=std::stoi(a.id.substr(5));}
+ if(a.id.compare(0,5,"slot-")==0){command.action=Action::Select;command.slot=std::stoi(a.id.substr(5));}
  else if(a.id=="record")command.action=Action::Record;
  else if(a.id=="play")command.action=Action::Play;
  else if(a.id=="stop")command.action=Action::Stop;
  else if(a.id=="clear")command.action=Action::Clear;
- else if(a.id=="loop"){command.action=Action::Loop;command.value=a.delta>0;}
+ else if(a.id=="loop"){command.action=Action::Loop;command.loop=a.delta>0;}
  else if(a.id=="clear-history")command.action=Action::ClearHistory;
  else return;
  if(submit&&submit(command)){

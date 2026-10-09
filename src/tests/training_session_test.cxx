@@ -150,15 +150,17 @@ int main() {
         Require(startup.View().startupFrames[0] == -1, "Reset retained startup");
 
         Session session;
-        Require(!session.Apply({Action::Record, 0, 0}), "Inactive session accepted recording");
+        Require(!session.Apply({Action::Record, 0}), "Inactive session accepted recording");
         session.Enter(); session.SetReady(true);
         const auto generation = session.GetView().generation;
-        auto apply = [&](Action a, int value = 0) { return session.Apply({a, value, generation}); };
-        Require(!apply(Action::Select, -1) && !apply(Action::Select, SlotCount), "Invalid slot accepted");
+        auto apply = [&](Action a) { return session.Apply({a, generation}); };
+        auto select = [&](int slot) { Command c{Action::Select, generation}; c.slot = slot; return session.Apply(c); };
+        auto loop = [&](bool on) { Command c{Action::Loop, generation}; c.loop = on; return session.Apply(c); };
+        Require(!select(-1) && !select(SlotCount), "Invalid slot accepted");
         Require(!apply(Action::Play), "Empty playback accepted");
         // Loaded input plays on the side it names; a recording plays on the dummy again.
         {
-            Command load; load.action = Action::Load; load.generation = session.GetView().generation; load.value = 0;
+            Command load; load.action = Action::Load; load.generation = session.GetView().generation; load.side = 0;
             load.frames = {Input{9, 9}, Input{0x410, 0x410}};
             Require(session.Apply(load) && session.GetView().lengths[session.GetView().selected] == 2, "Load refused");
             Require(apply(Action::Play), "Loaded playback refused");
@@ -176,7 +178,7 @@ int main() {
             apply(Action::Stop);
             // A waiting frame repeats, buttons held, until the fight shows its
             // cue, then its offset's frames more; it gives up after a while.
-            Command timed; timed.action = Action::Load; timed.generation = generation; timed.value = 0;
+            Command timed; timed.action = Action::Load; timed.generation = generation; timed.side = 0;
             timed.frames = {Input{9, 9, 0}, Input{2, 2, WaitActionable, 0}, Input{0x82, 0x82, 0}, Input{8, 8, WaitHit, 2}, Input{0x18, 0x18, 0}};
             Require(session.Apply(timed) && apply(Action::Play), "Timed load refused");
             session.Commit(session.Prepare(physical));
@@ -201,7 +203,7 @@ int main() {
             // With the script predicting the free frame, a link's press lands
             // on that frame plus the offset: before it when negative. A seen
             // free frame still releases it. A hit is never predicted.
-            Command early; early.action = Action::Load; early.generation = generation; early.value = 0;
+            Command early; early.action = Action::Load; early.generation = generation; early.side = 0;
             early.frames = {Input{9, 9, 0}, Input{2, 2, WaitActionable, 0}, Input{0x82, 0x82, 0}, Input{8, 8, WaitActionable, -2}, Input{0x18, 0x18, 0}};
             Require(session.Apply(early) && apply(Action::Play), "Early load refused");
             session.Commit(session.Prepare(physical));
@@ -226,7 +228,7 @@ int main() {
             apply(Action::Stop);
             // A hit landing while the motion before a cancel's wait is still
             // going is kept for that wait; the press that started the move clears it.
-            Command kept; kept.action = Action::Load; kept.generation = generation; kept.value = 0;
+            Command kept; kept.action = Action::Load; kept.generation = generation; kept.side = 0;
             kept.frames = {Input{0x82, 0x82, 0}, Input{2, 2, 0}, Input{0xa, 0xa, 0}, Input{0xa, 0xa, WaitHit, 0}, Input{0x408, 0x408, 0}};
             Require(session.Apply(kept) && apply(Action::Play), "Kept load refused");
             session.Observe(false, true); session.Commit(session.Prepare(physical));
@@ -250,17 +252,17 @@ int main() {
         Require(session.GetView().lengths[0] == 0, "Repeated or paused reads advanced recording");
         session.Commit(output);
         physical[0] = {0x20, 0x20}; session.Commit(session.Prepare(physical));
-        Require(apply(Action::Stop) && apply(Action::Loop, 0) && apply(Action::Play), "Playback start failed");
+        Require(apply(Action::Stop) && loop(false) && apply(Action::Play), "Playback start failed");
         Require(session.Prepare(physical)[1].raw == 0x10, "First recorded frame skipped");
         session.Commit(session.Prepare(physical));
         Require(session.Prepare(physical)[1].raw == 0x20, "Playback order changed");
         session.Commit(session.Prepare(physical));
         Require(session.GetView().mode == Mode::Idle, "Single playback failed to stop");
-        Require(apply(Action::Loop, 1) && apply(Action::Play), "Loop rejected");
+        Require(loop(true) && apply(Action::Play), "Loop rejected");
         for (int i = 0; i < 10; ++i) session.Commit(session.Prepare(physical));
         Require(session.GetView().cursor == 0 && session.GetView().mode == Mode::Playback, "Loop boundary failed");
-        Require(!apply(Action::Select, 1) && !apply(Action::Clear), "Slot mutated during playback");
-        apply(Action::Stop); apply(Action::Select, 1); apply(Action::Record);
+        Require(!select(1) && !apply(Action::Clear), "Slot mutated during playback");
+        apply(Action::Stop); select(1); apply(Action::Record);
         for (int i = 0; i < MaxFrames + 5; ++i) session.Commit(session.Prepare(physical));
         Require(session.GetView().lengths[1] == MaxFrames && session.GetView().mode == Mode::Idle, "Recording limit failed");
         Require(session.GetView().lengths[0] == 2, "Second slot overwrote first");
@@ -270,6 +272,27 @@ int main() {
         Require(apply(Action::Restore) && session.GetView().history[0].empty(), "Reset kept stale history");
         session.Reset(); session.Enter(); session.SetReady(true);
         Require(!apply(Action::Record) && !session.GetView().checkpoint && session.GetView().lengths[0] == 0, "Battle generation isolation failed");
+        // The session is the one check every command passes: one sent for
+        // another battle is refused there, whatever its action, and changes
+        // nothing. The runtime's own actions pass it before the fight starts.
+        {
+            Session checked; checked.Enter();
+            const auto current = checked.GetView().generation;
+            for (int a = 0; a <= static_cast<int>(Action::Leave); ++a) {
+                Command stale{static_cast<Action>(a), current + 1};
+                stale.slot = 3; stale.loop = false; stale.frames = {Input{1, 1}};
+                Require(!checked.Apply(stale), "A command for another battle was accepted");
+                Require(checked.GetView().selected == 0 && checked.GetView().loop && checked.GetView().lengths[0] == 0,
+                    "A command for another battle changed the session");
+            }
+            for (Action a : {Action::Place, Action::Leave, Action::ExportSlot, Action::DummyPlan, Action::DummyState, Action::Loop})
+                Require(checked.Apply({a, current}), "A command for this battle was refused before the fight");
+            Command plan{Action::DummyPlan, current}; plan.plan.slot = SlotCount;
+            Require(!checked.Apply(plan), "An invalid reply plan was accepted");
+            Command load{Action::Load, current}; load.frames = {Input{1, 1}};
+            checked.SetReady(true); load.side = 2;
+            Require(!checked.Apply(load), "Input loaded for a side that does not exist");
+        }
 
         FrameMeter meter;
         std::array<FighterSample, 2> fighters;
@@ -546,12 +569,12 @@ int main() {
             Session reply; reply.Enter(); reply.SetReady(true);
             Command command; command.generation = reply.GetView().generation;
             Require(!reply.Reply(2), "An empty slot replied");
-            command.action = Action::Select; command.value = 2; reply.Apply(command);
+            command.action = Action::Select; command.slot = 2; reply.Apply(command);
             command.action = Action::Record; reply.Apply(command);
             // Two idle frames, as a player leaves before pressing, then two presses.
             for (unsigned buttons : {0u, 0u, 0x10u, 0x20u}) { Frame frame; frame[1].raw = frame[1].mapped = buttons; reply.Commit(frame); }
             command.action = Action::Stop; reply.Apply(command);
-            command.action = Action::Select; command.value = 5; reply.Apply(command);
+            command.action = Action::Select; command.slot = 5; reply.Apply(command);
             Require(reply.Reply(2) && reply.GetView().mode == Mode::Playback && reply.GetView().selected == 2, "The reply did not start");
             Require(!reply.Reply(2), "A reply started over a playback");
             Require(reply.Prepare(Frame{})[1].raw == 0x10 && reply.Prepare(Frame{})[0].raw == 0, "The reply did not start on its first press, on Player 2");
@@ -563,7 +586,7 @@ int main() {
             Require(reply.Reply(dragon) && reply.Replying() && reply.GetView().selected == ReplySlot && reply.Prepare(Frame{})[1].raw == 8, "The typed reply did not start");
             reply.StopReply();
             Require(!reply.Replying() && reply.GetView().mode == Mode::Idle && reply.GetView().selected == 5 && reply.GetView().lengths[2] == 4, "A dropped reply kept the selection or touched a slot");
-            command.action = Action::Select; command.value = ReplySlot;
+            command.action = Action::Select; command.slot = ReplySlot;
             Require(!reply.Apply(command), "The reply's own slot could be selected");
             // Play stops a reply before checking the restored selection.
             for (bool typed : {false, true}) {
@@ -575,9 +598,9 @@ int main() {
                 const auto output = reply.Prepare(physical);
                 Require(output[0].raw == 0x10 && output[1].raw == 0x20, "A refused playback changed physical input");
             }
-            command.action = Action::Select; command.value = 2;
+            command.action = Action::Select; command.slot = 2;
             Require(reply.Apply(command), "The recorded slot could not be selected");
-            command.action = Action::Load; command.value = 0; command.frames = {{0x40, 0x40, 0, 0}};
+            command.action = Action::Load; command.side = 0; command.frames = {{0x40, 0x40, 0, 0}};
             Require(reply.Apply(command) && reply.Reply(dragon), "The reply did not start over a loaded selection");
             command.action = Action::Play;
             Require(reply.Apply(command) && !reply.Replying() && reply.GetView().mode == Mode::Playback &&
