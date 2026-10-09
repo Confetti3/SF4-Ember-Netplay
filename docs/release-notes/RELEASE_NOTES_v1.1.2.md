@@ -33,6 +33,6 @@ Report problems in [Discord](https://discord.gg/uPNqF5A5uq) with `sf4e.log` and 
 
 The full build passed all 108 automated tests. The networking helper and all server (bridge) tests passed. Every change went through code review until it was approved.
 
-A test build of the same code was launched on one PC.
+In game on one PC, this build opened a public room on the 1.1.2 server, and the room listed the creator's region.
 
 A match between two PCs has not yet been tested on this exact build.
