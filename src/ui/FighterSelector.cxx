@@ -221,7 +221,7 @@ bool DrawStageSelector(int& nativeId, SelectionArt* art) {
 }
 
 
-bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt* art,const AvailabilityReader& readAvailability,int* stageId,bool editable,const std::string& selectionError,selection::StageMask* randomStageExcluded) {
+bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt* art,const AvailabilityReader& readAvailability,int* stageId,bool editable,const std::string& selectionError,selection::StageMask* randomStageExcluded,selection::CustomStageExclusions* randomCustomExcluded) {
  using namespace selection;
  bool changed=false;auto& nav=menu_.navigation;
  // A selector the shell has just opened starts on its first page, not on the
@@ -306,7 +306,9 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   for(const auto& stage:StageList())rows.push_back(Saving(Row("stage-"+std::to_string(stage.id),stage.name,stageId?locked:loc::T("selection.only_p1_stage"),editable&&stageId),"menu.hint.save_stage",editable&&stageId));
   for(int id:availability.customStages)rows.push_back(Saving(Row("stage-"+std::to_string(id),FindStage(id)->name,stageId?locked:loc::T("selection.only_p1_stage"),editable&&stageId),"menu.hint.save_stage",editable&&stageId));
   if(stageId&&randomStageExcluded){
-   rows.push_back(Row("random-pool",loc::T("selection.random_pool"),loc::Tf("selection.random_pool.detail",RandomPoolSize(*randomStageExcluded),VersusStageCount)));
+   const int customs=static_cast<int>(availability.customStages.size()),
+    customsIn=randomCustomExcluded?static_cast<int>(CustomStagesInRandom(availability.customStages,*randomCustomExcluded).size()):customs;
+   rows.push_back(Row("random-pool",loc::T("selection.random_pool"),loc::Tf("selection.random_pool.detail",RandomPoolSize(*randomStageExcluded)+customsIn,VersusStageCount+customs)));
    rows.back().wide=true;
   }
   // Derive columns like the roster and the galleries do. A fixed three columns
@@ -320,6 +322,14 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    const bool in=InRandomPool(stage.id,excluded),last=in&&RandomPoolSize(excluded)==1;
    auto row=Row("pool-"+std::to_string(stage.id),stage.name,loc::T(last?"selection.random_pool_last":in?"selection.random_pool_in":"selection.random_pool_out"),
     editable&&randomStageExcluded&&!last);
+   if(row.enabled)row.hint=loc::T(in?"menu.hint.skip_stage":"menu.hint.include_stage");
+   rows.push_back(std::move(row));
+  }
+  // The installed custom stages after them, in Random unless taken out (a game stage keeps the last place).
+  for(int id:availability.customStages){
+   const bool in=!randomCustomExcluded||!CustomStageExcluded(id,*randomCustomExcluded);
+   auto row=Row("pool-"+std::to_string(id),FindStage(id)->name,loc::T(in?"selection.random_pool_in":"selection.random_pool_out"),
+    editable&&randomStageExcluded&&randomCustomExcluded);
    if(row.enabled)row.hint=loc::T(in?"menu.hint.skip_stage":"menu.hint.include_stage");
    rows.push_back(std::move(row));
   }
@@ -403,7 +413,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(min.x+3,min.y+3),ImVec2(max.x-3,max.y-labelHeight),IM_COL32(16,15,14,170));
    DrawCardBadge(ImVec2(min.x+3,min.y+2),max.x-min.x-6,loc::T("selection.not_owned_badge"),"not-owned-badge");
   }
-  if(pool&&!InRandomPool(id,randomStageExcluded?*randomStageExcluded:0)){
+  if(pool&&(IsCustomStage(id)?randomCustomExcluded&&CustomStageExcluded(id,*randomCustomExcluded):!InRandomPool(id,randomStageExcluded?*randomStageExcluded:0))){
    // A skipped stage reads as switched off at a glance: dimmed, and labelled.
    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(min.x+3,min.y+3),ImVec2(max.x-3,max.y-labelHeight),IM_COL32(16,15,14,170));
    DrawCardBadge(ImVec2(min.x+3,min.y+2),max.x-min.x-6,loc::T("selection.random_pool_skipped"),"skipped-badge");
@@ -429,9 +439,13 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   if(screen=="home"||screen=="appearance"||a.id=="random-pool")nav.Push(a.id);
   else if(editable&&randomStageExcluded&&a.id.compare(0,5,"pool-")==0){
    const int id=std::stoi(a.id.substr(5));
-   const StageMask toggled=*randomStageExcluded^(StageMask(1)<<id);
-   // The page disables the last stage left; the check keeps Random from emptying.
-   if(FindStage(id)&&RandomPoolSize(toggled)>0){*randomStageExcluded=toggled;changed=true;}
+   if(IsCustomStage(id)){
+    if(randomCustomExcluded){ExcludeCustomStage(id,!CustomStageExcluded(id,*randomCustomExcluded),*randomCustomExcluded);changed=true;}
+   }else{
+    const StageMask toggled=*randomStageExcluded^(StageMask(1)<<id);
+    // The page disables the last stage left; the check keeps Random from emptying.
+    if(FindStage(id)&&RandomPoolSize(toggled)>0){*randomStageExcluded=toggled;changed=true;}
+   }
   }
   else if(editable&&a.id.compare(0,8,"fighter-")==0){
    pick.fighter=std::stoi(a.id.substr(8));const auto next=readAvailability?readAvailability(pick.fighter):Availability{};

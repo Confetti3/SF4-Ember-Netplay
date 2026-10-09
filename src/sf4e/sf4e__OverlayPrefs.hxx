@@ -6,6 +6,7 @@
 #include <string>
 #include <nlohmann/json.hpp>
 #include "../common/FighterCatalog.hxx"
+#include "../common/StageCatalog.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 
 #include "../Dimps/Dimps__GameEvents.hxx"
@@ -41,6 +42,8 @@ namespace OverlayPrefs {
 		int stageID = 0;
 		// Stages Random skips (selection::StageMask).
 		std::uint32_t randomStageExcluded = 0;
+		// Custom stages Random skips (saved in the same list, by id).
+		selection::CustomStageExclusions randomCustomExcluded{};
 
 		// Lobby match settings (host-editable in the network panel)
 		int lobbyRoundCountIdx = 1;

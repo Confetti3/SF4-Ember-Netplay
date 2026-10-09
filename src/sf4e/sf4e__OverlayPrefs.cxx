@@ -146,8 +146,12 @@ namespace OverlayPrefs {
 		out.stageID = selection::PreferenceStage(j, "stageID", out.stageID);
 		if (j.contains("randomStageExcluded") && j["randomStageExcluded"].is_array()) {
 			std::uint64_t excluded = 0;
-			for (const auto& id : j["randomStageExcluded"])
-				if (id.is_number_integer() && selection::FindStage(id.get<std::int64_t>()) && !selection::IsCustomStage(id.get<std::int64_t>())) excluded |= std::uint64_t(1) << id.get<int>();
+			out.randomCustomExcluded = {};
+			for (const auto& id : j["randomStageExcluded"]) {
+				if (!id.is_number_integer()) continue;
+				if (selection::IsCustomStage(id.get<std::int64_t>())) selection::ExcludeCustomStage(id.get<int>(), true, out.randomCustomExcluded);
+				else if (selection::FindStage(id.get<std::int64_t>())) excluded |= std::uint64_t(1) << id.get<int>();
+			}
 			out.randomStageExcluded = selection::NormalizeRandomExclusions(excluded);
 		}
 
@@ -178,6 +182,8 @@ namespace OverlayPrefs {
 		j["randomStageExcluded"] = nlohmann::json::array();
 		for (const auto& stage : selection::StageList())
 			if (!selection::InRandomPool(stage.id, data.randomStageExcluded)) j["randomStageExcluded"].push_back(stage.id);
+		for (int id : data.randomCustomExcluded)
+			if (id) j["randomStageExcluded"].push_back(id);
 
 		j["lobbySettings"] = {
 			{"roundCountIdx", data.lobbyRoundCountIdx},

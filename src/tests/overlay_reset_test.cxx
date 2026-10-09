@@ -78,6 +78,13 @@ static int CheckPerFighterPicks() {
     Prefs::FromJson(Prefs::ToJson(random), pool);
     Prefs::Clamp(pool);
     check(pool.randomStageExcluded == random.randomStageExcluded, "the Random stage pool did not round-trip");
+    // Custom stages taken out of Random are saved in the same list, by id.
+    Prefs::Data customs;
+    sf4e::selection::ExcludeCustomStage(sf4e::selection::CustomStageId("C71"), true, customs.randomCustomExcluded);
+    Prefs::Data customsBack;
+    Prefs::FromJson(Prefs::ToJson(customs), customsBack);
+    check(customsBack.randomCustomExcluded == customs.randomCustomExcluded && customsBack.randomStageExcluded == 0,
+        "custom stages taken out of Random did not round-trip");
     Prefs::Data odd;
     Prefs::FromJson({{"randomStageExcluded", {1, 22, 99, -3, "x"}}}, odd);
     check(odd.randomStageExcluded == (1u << 1), "unknown stages entered the Random exclusions");

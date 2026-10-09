@@ -23,10 +23,11 @@ public:
     // selectionError explains why the current choice is not usable. The room
     // screens tell the player to open Fighter Select, so Fighter Select has to
     // be able to say what is wrong once they arrive.
-    // randomStageExcluded, given with stageId, adds the Random stage pool page.
+    // randomStageExcluded, given with stageId, adds the Random stage pool page;
+    // randomCustomExcluded lets it take installed custom stages in and out too.
     bool Draw(selection::Pick& pick, bool editionSelect, SelectionArt* art, const AvailabilityReader& readAvailability,
               int* stageId = nullptr, bool editable = true, const std::string& selectionError = {},
-              selection::StageMask* randomStageExcluded = nullptr);
+              selection::StageMask* randomStageExcluded = nullptr, selection::CustomStageExclusions* randomCustomExcluded = nullptr);
 private:
     GameMenu menu_;
     Page page_ = Page::Fighter;

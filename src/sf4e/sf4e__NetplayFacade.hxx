@@ -81,6 +81,7 @@ namespace sf4e {
 			Dimps::GameEvents::VsMode::ConfirmedCharaConditions character = {};
 			int stage = 0;
 			selection::StageMask randomStageExcluded = 0;
+			selection::CustomStageExclusions randomCustomExcluded{};
 			netplay::PlayerPreferences preferences;
 			room::Action roomAction;
             int selectedDelay=-1;

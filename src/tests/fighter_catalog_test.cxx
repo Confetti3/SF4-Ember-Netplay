@@ -210,7 +210,7 @@ int main() {
     CHECK(AllowedColors(0, 0, colored) == (std::vector<int>{0, 29, 40}));
 
     // Custom stages: any three capital letters or digits that aren't a game stage's code; the code is the id, so a
-    // custom stage travels as one number. They fall back to a stock stage by rule and never enter Random.
+    // custom stage travels as one number. They fall back to a stock stage by rule; Random takes only the ones it is given.
     const int c12 = CustomStageId("C12"), d12 = CustomStageId("D12"), zzz = CustomStageId("ZZZ");
     CHECK(c12 == ('C' << 16 | '1' << 8 | '2') && IsCustomStage(c12) && IsCustomStage(d12) && IsCustomStage(zzz));
     for (const char* bad : {"CHN", "GAS", "SCX", "c12", "C1", "C123", "C-2", ""}) CHECK(CustomStageId(bad) == -1);
@@ -221,6 +221,23 @@ int main() {
     CHECK(FindStage(CustomStageFallback(zzz)) && !IsCustomStage(CustomStageFallback(zzz)));
     CHECK(ResolveStage(c12, 0) == c12);
     for (std::uint32_t roll = 0; roll <= 100; ++roll) CHECK(!IsCustomStage(ResolveStage(RandomStageId, roll)));
+    // Given custom stages join the game's in Random: with one game stage left, rolls land on it or the custom one.
+    std::set<int> withCustom;
+    for (std::uint32_t roll = 0; roll <= 1000; ++roll) withCustom.insert(ResolveStage(RandomStageId, roll, ~(1u << 29), {c12}));
+    CHECK(withCustom == (std::set<int>{29, c12}));
+    CHECK(ResolveStage(RandomStageId, VersusStageCount, 0, {c12}) == c12 && ResolveStage(5, 0, 0, {c12}) == 5);
+    // Taken out of Random by id, earliest first; one put back closes up; a full list puts its earliest back.
+    CustomStageExclusions out{};
+    ExcludeCustomStage(c12, true, out); ExcludeCustomStage(d12, true, out); ExcludeCustomStage(1, true, out);
+    CHECK(CustomStageExcluded(c12, out) && CustomStageExcluded(d12, out) && !CustomStageExcluded(zzz, out) && out[2] == 0);
+    CHECK(CustomStagesInRandom({c12, d12, zzz}, out) == (std::vector<int>{zzz}));
+    ExcludeCustomStage(c12, false, out);
+    CHECK(out[0] == d12 && out[1] == 0 && CustomStagesInRandom({c12, d12}, out) == (std::vector<int>{c12}));
+    for (int n = 0; n < 64; ++n) {
+        const char code[4] = {'E', static_cast<char>('0' + n / 10), static_cast<char>('0' + n % 10), 0};
+        ExcludeCustomStage(CustomStageId(code), true, out);
+    }
+    CHECK(!CustomStageExcluded(d12, out) && CustomStageExcluded(CustomStageId("E00"), out) && CustomStageExcluded(CustomStageId("E63"), out));
 
     // Names the setup program gives custom content: display only, kept apart per costume and color.
     CHECK(CustomName(0, 70).empty());

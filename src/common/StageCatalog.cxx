@@ -1,4 +1,5 @@
 #include "StageCatalog.hxx"
+#include <algorithm>
 
 #include <cstdio>
 #include <cstring>
@@ -122,12 +123,30 @@ StageMask NormalizeRandomExclusions(std::uint64_t excluded) {
     const StageMask kept = static_cast<StageMask>(excluded) & known;
     return kept == known ? 0 : kept;
 }
-int ResolveStage(int choice, std::uint32_t roll, StageMask excluded) {
+bool CustomStageExcluded(int id, const CustomStageExclusions& excluded) {
+    return IsCustomStage(id) && std::find(excluded.begin(), excluded.end(), id) != excluded.end();
+}
+void ExcludeCustomStage(int id, bool out, CustomStageExclusions& excluded) {
+    if (!IsCustomStage(id) || CustomStageExcluded(id, excluded) == out) return;
+    if (!out) {
+        std::fill(std::remove(excluded.begin(), excluded.end(), id), excluded.end(), 0);
+        return;
+    }
+    auto place = std::find(excluded.begin(), excluded.end(), 0);
+    if (place == excluded.end()) { std::rotate(excluded.begin(), excluded.begin() + 1, excluded.end()); place = excluded.end() - 1; }
+    *place = id;
+}
+std::vector<int> CustomStagesInRandom(const std::vector<int>& installed, const CustomStageExclusions& excluded) {
+    std::vector<int> in;
+    for (int id : installed) if (IsCustomStage(id) && !CustomStageExcluded(id, excluded)) in.push_back(id);
+    return in;
+}
+int ResolveStage(int choice, std::uint32_t roll, StageMask excluded, const std::vector<int>& customs) {
     if (!IsRandomStage(choice)) return NormalizeStage(choice);
     excluded = NormalizeRandomExclusions(excluded);
-    int pick = static_cast<int>(roll % static_cast<std::uint32_t>(RandomPoolSize(excluded)));
-    for (const auto& stage : StageList())
-        if (InRandomPool(stage.id, excluded) && pick-- == 0) return stage.id;
-    return StageList()[0].id;
+    std::vector<int> pool;
+    for (const auto& stage : StageList()) if (InRandomPool(stage.id, excluded)) pool.push_back(stage.id);
+    for (int id : customs) if (IsCustomStage(id)) pool.push_back(id);
+    return pool[roll % static_cast<std::uint32_t>(pool.size())];
 }
 } }
