@@ -76,6 +76,8 @@ foreach ($file in Get-ChildItem -LiteralPath $art -File -Recurse) {
 & python (Join-Path $PSScriptRoot 'collect-notices.py') --build-dir $BuildDir --output (Join-Path $destination 'notices/THIRD_PARTY_LICENSES.txt')
 if ($LASTEXITCODE -ne 0) { throw 'Dependency notice collection failed' }
 $revision = git -C $repo rev-parse HEAD
+& python (Join-Path $PSScriptRoot 'package-docs.py') --repo $repo --package $destination --revision $revision --quick-start $quickStart
+if ($LASTEXITCODE -ne 0) { throw 'Package documentation validation failed' }
 Set-Content -LiteralPath (Join-Path $destination 'BUILD_INFO.txt') -Encoding UTF8 -Value "SF4 Ember Netplay`nRelease: $VersionLabel`nSource revision: $revision`nSee build-provenance.json for the exact source fingerprint and validation.`n"
 Add-Content -LiteralPath (Join-Path $destination 'BUILD_INFO.txt') -Value "Source: $repo`nSource fingerprint: $($receipt.sourceFingerprint)`nFeatures: $($receipt.features -join ', ')"
 $manifest = Get-ChildItem -LiteralPath $destination -File -Recurse | Sort-Object FullName | ForEach-Object {

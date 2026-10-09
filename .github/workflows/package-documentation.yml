@@ -1,0 +1,21 @@
+name: Package documentation
+on:
+  pull_request:
+    paths:
+      - 'scripts/package-docs.py'
+      - 'scripts/test-package-docs.py'
+      - 'scripts/package-team.ps1'
+      - 'src/common/PackageInventory.inc'
+      - 'docs/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  documentation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - run: python3 scripts/test-package-docs.py
