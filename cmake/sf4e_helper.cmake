@@ -1,5 +1,6 @@
 # The game and Sidecar remain x86. Cargo explicitly builds the shipped helper
 # for x64 Windows, independent of the active CMake/MSVC architecture.
+include("${CMAKE_SOURCE_DIR}/cmake/sf4e_rust_toolchain.cmake")
 option(SF4E_BUILD_IROH_HELPER "Build the bundled x64 Iroh helper" ON)
 if(WIN32)
     add_library(sf4e_helper_platform STATIC
@@ -17,6 +18,7 @@ if(WIN32)
             "${CMAKE_SOURCE_DIR}/server/ember/protocol/src/*.rs")
         add_custom_command(OUTPUT "${SF4E_HELPER_EXECUTABLE}"
             COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/rust-target"
+                "CARGO_INCREMENTAL=0" "RUSTUP_TOOLCHAIN=${SF4E_RUST_CHANNEL}"
                 "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS=-C target-feature=+crt-static"
                 "${SF4E_CARGO_EXECUTABLE}" build --locked --release --target x86_64-pc-windows-msvc
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -50,29 +52,12 @@ if(WIN32)
             endif()
             add_test(NAME HelperRust
                 COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/rust-test-target"
+                    "CARGO_INCREMENTAL=0" "RUSTUP_TOOLCHAIN=${SF4E_RUST_CHANNEL}"
                     "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS=-C target-feature=+crt-static"
                     "${SF4E_CARGO_EXECUTABLE}" test --locked -j ${SF4E_CARGO_TEST_JOBS} --target x86_64-pc-windows-msvc
                 WORKING_DIRECTORY "${SF4E_HELPER_SOURCE}")
             set_tests_properties(HelperRust PROPERTIES TIMEOUT 1800 PROCESSORS ${SF4E_CARGO_TEST_JOBS})
             sf4e_test_locks(HelperRust loopback_udp_ports ember_processes)
-            # The identity protocol and tournament bridge workspace. The bridge
-            # is not shipped to players; its tests still gate the build. The SDK
-            # test builds into the same target directory and runs that bridge.
-            set(SF4E_EMBER_TARGET_DIR "${CMAKE_BINARY_DIR}/rust-ember-target")
-            add_test(NAME EmberRust
-                COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${SF4E_EMBER_TARGET_DIR}"
-                    "${SF4E_CARGO_EXECUTABLE}" test --locked -j ${SF4E_CARGO_TEST_JOBS}
-                WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/server/ember")
-            set_tests_properties(EmberRust PROPERTIES TIMEOUT 1800 PROCESSORS ${SF4E_CARGO_TEST_JOBS})
-            sf4e_test_locks(EmberRust ember_processes)
-            find_program(SF4E_NPM_EXECUTABLE NAMES npm.cmd npm REQUIRED)
-            add_test(NAME BridgeSdk
-                COMMAND ${CMAKE_COMMAND} "-DSOURCE=${CMAKE_SOURCE_DIR}"
-                    "-DCARGO=${SF4E_CARGO_EXECUTABLE}" "-DNPM=${SF4E_NPM_EXECUTABLE}"
-                    "-DEMBER_TARGET=${SF4E_EMBER_TARGET_DIR}" "-DJOBS=${SF4E_CARGO_TEST_JOBS}"
-                    -P "${CMAKE_SOURCE_DIR}/cmake/RunSdkTests.cmake")
-            set_tests_properties(BridgeSdk PROPERTIES TIMEOUT 1800 PROCESSORS ${SF4E_CARGO_TEST_JOBS})
-            sf4e_test_locks(BridgeSdk ember_processes)
         endif()
     endif()
 endif()

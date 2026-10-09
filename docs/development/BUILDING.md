@@ -7,11 +7,39 @@ Build and package locally; pushing a tag does not trigger a second build or publ
 
 - Windows x64 and PowerShell 7 (`pwsh`).
 - Visual Studio 2026 C++ Build Tools with x86/x64 compilers, CMake, Ninja and the Windows SDK.
-- Git, Python 3 and a bootstrapped vcpkg checkout. The manifest and overlay ports pin the dependency inputs.
+- Git, Python 3.12 or later and a bootstrapped vcpkg checkout. The manifest and overlay ports pin the dependency inputs.
 - Rust through rustup; `rust/sf4-net/rust-toolchain.toml` pins the toolchain.
+- Node.js 22.18.x (or newer 22.x), or Node 24 and later and npm for the locked SDK build and local bridge tests.
 - The official Discord Social SDK archive identified by `cmake/discord-sdk-pin.json`. Obtain it through Discord's developer portal; configuration verifies its SHA-256. The SDK archive is not stored in this repository.
 
 ## Compile, test and stage
+
+Check all prerequisites before starting a build:
+
+```powershell
+pwsh -NoProfile -File ./scripts/check-build-prerequisites.ps1 -WithoutDiscord
+```
+
+For development without the proprietary Discord SDK, run:
+
+```powershell
+pwsh -NoProfile -File ./scripts/build-current.ps1 -WithoutDiscord
+```
+
+This uses a separate `build/current-no-discord` directory and stage, omits the
+Discord companion, and records `discordEnabled: false` in its receipt. It is
+not a complete release package; the release packaging requirements still apply.
+Remove `-WithoutDiscord` and supply the pinned SDK archive for a complete build.
+
+Both commands find vcpkg bundled with Visual Studio when no explicit vcpkg path
+is set. A project-local Rust installation under `build/tools/cargo` and
+`build/tools/rustup` is used when present, without changing the machine PATH.
+Set `SF4E_PYTHON` to an existing `python.exe` if Python 3.12 or later is not on PATH.
+Set `SF4E_NODE` to a supported `node.exe` when another Node version is on PATH.
+The prerequisite checker accepts `-JsonOutput <path>` to retain its results.
+
+The game compatibility fingerprint and startup protocol are documented in
+[Game compatibility](GAME_COMPATIBILITY.md).
 
 From the root of a clone of the `release` branch:
 
@@ -31,6 +59,16 @@ The script builds the x86 launcher, sidecar and updater, the x64 Iroh helper and
 
 `-SkipTests` is available for development; packaging rejects a receipt without passing tests.
 The local suite excludes public-network and live Discord tests. Explicit helper network testing is available through `scripts/test-current-network.ps1`; it does not establish actual SF4 gameplay acceptance.
+
+The local gate also runs the standalone short-link and room-supervisor suites,
+compiles the TypeScript SDK with `npm ci`, and requires its bridge integration
+tests against a locally built bridge. It writes `local-tests.xml` (JUnit) beside
+the build receipt. CTest's detailed log retains Rust's internal ignored-test
+counts; the receipt's excluded expression identifies the external suites not run.
+CI separately tests all four Rust components on Linux and Windows, SDK integration,
+Linux room-host IPC, and dependency advisories. Those jobs do not build the native
+game product or establish gameplay acceptance. Run `scripts/test-sdk.ps1` to check
+the SDK alone. Package assembly relocates and validates Markdown file links.
 
 ## Package
 
@@ -57,3 +95,15 @@ Commit the final source, README and screenshots before the final build. Build fr
 A tag such as `v0.8.3-rc1` or `v0.8.3-beta2` publishes a pre-release: the complete ZIP and the installer, no upgrade ZIP, and the release is not marked latest. The CMake product version stays `0.8.3`. The updater offers it on the **Pre-release** channel only. The channel follows the installed version until the player chooses one in the updater, so a pre-release install checks the pre-release channel and is offered the finished `v0.8.3` when it is published. Stable offers finished releases only; to a pre-release install it offers the latest finished release as the way back, and the installed updater makes the folder exactly that package, removing what only the newer version had, under the same lock and journal as an update.
 
 Public release notes must distinguish local tests, helper network tests and observed gameplay. A package or test pass alone is not a clean-machine or two-PC gameplay result.
+
+The local gate forces testing on and requires a nonempty JUnit report with no
+failed, errored or skipped CTest cases. It also checks the expected component
+names, so removing a registration cannot silently reduce the recorded coverage.
+Rust services and the SDK are registered independently of the Windows helper.
+For a deliberately limited core-only configure, set `SF4E_COMPONENT_TESTS=OFF`;
+such a run cannot produce the full build gate's passing receipt.
+
+Tool overrides must name existing executable files. The selected Python and
+Node directories move to the front of PATH even if already present later.
+Every registered Cargo invocation uses the repository Rust toolchain pin,
+including when the machine's default toolchain is different.
