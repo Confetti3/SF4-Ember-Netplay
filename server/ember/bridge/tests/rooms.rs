@@ -8,7 +8,9 @@ use std::sync::Arc;
 
 use common::{
     Bridge, code,
-    public_rooms::{create_room, listing, open_room, player, reason, send, start, ticket},
+    public_rooms::{
+        create_room, create_room_with, listing, open_room, player, reason, send, start, ticket,
+    },
     supervisor::{BUILD, ENDPOINT, Gate, enable, fake_supervisor, report, secrets},
 };
 use ember_bridge::config;
@@ -120,6 +122,68 @@ async fn creating_a_room_asks_the_supervisor_with_the_bridges_ticket_key() {
     assert_eq!(sent["build_id"], BUILD);
     assert_eq!(sent["ticket_key"], keys["keys"][0]["x"]);
     assert_eq!(sent["ticket_kid"], keys["keys"][0]["kid"]);
+}
+
+/// Matches are played player to player, wherever the room host runs, so a
+/// room is listed in the region its creator gave, and in its host's when they
+/// gave none.
+#[tokio::test]
+async fn a_room_is_listed_in_its_creators_region_or_else_its_hosts() {
+    let (bridge, fake) = start().await;
+    let (kate, sam, lee) = (
+        player(&bridge, 1).await,
+        player(&bridge, 2).await,
+        player(&bridge, 3).await,
+    );
+    let body = json!({ "name": "EU Kings", "capacity": 4, "build_id": BUILD, "region": "euc1" });
+    let (status, room) = create_room_with(&bridge, &kate, "198.51.100.1", body).await;
+    assert_eq!(status, StatusCode::CREATED, "{room}");
+    assert_eq!(room["region"], "euc1");
+    let eu = room["room_id"].as_str().unwrap().to_owned();
+    let us = open_room(&bridge, &sam, "198.51.100.2", 4).await;
+    report(&fake, &eu, 1, 0, &[]);
+    report(&fake, &us, 1, 0, &[]);
+    ember_bridge::poll_rooms(bridge.state()).await;
+
+    let region_of = |rooms: &[RoomSummary], room_id: &str| {
+        let room = rooms.iter().find(|room| room.room_id == room_id).unwrap();
+        room.region.clone()
+    };
+    for query in ["", "?detail=1"] {
+        let rooms = listing(&bridge, &lee, query).await;
+        assert_eq!(region_of(&rooms, &eu), "euc1", "{query}");
+        assert_eq!(region_of(&rooms, &us), "use1", "{query}");
+    }
+    // The web rooms page reads the same.
+    let request = bridge.client.get(bridge.url("/v1/rooms/public")).send();
+    let (_, public) = common::read(request.await.unwrap()).await;
+    let public: Vec<RoomSummary> = serde_json::from_value(public["rooms"].clone()).unwrap();
+    assert_eq!(region_of(&public, &eu), "euc1");
+    assert_eq!(region_of(&public, &us), "use1");
+    let (status, admission) = ticket(&bridge, &lee, "198.51.100.3", &eu, BUILD).await;
+    assert_eq!(status, StatusCode::CREATED, "{admission}");
+    assert_eq!(admission["room"]["region"], "euc1");
+}
+
+#[tokio::test]
+async fn a_region_that_is_not_a_relay_code_is_refused() {
+    let (bridge, fake) = start().await;
+    let kate = player(&bridge, 1).await;
+    for region in [
+        json!(""),
+        json!("other"),
+        json!("USE1"),
+        json!("eu-central"),
+        json!(1),
+    ] {
+        let body = json!({ "name": "Room", "capacity": 4, "build_id": BUILD, "region": region });
+        let (status, body) = create_room_with(&bridge, &kate, "198.51.100.1", body).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{region}");
+        assert_eq!(code(&body), "invalid_request", "{region}");
+    }
+    assert!(fake.lock().unwrap().created.is_empty());
+    // None of that used up the creator's one room.
+    open_room(&bridge, &kate, "198.51.100.1", 4).await;
 }
 
 #[tokio::test]
@@ -516,7 +580,10 @@ async fn a_room_still_starting_is_not_closed_by_a_poll() {
                 .post(url)
                 .bearer_auth(token)
                 .header("content-type", "application/json")
-                .body(json!({ "name": "Slow", "capacity": 4, "build_id": BUILD }).to_string())
+                .body(
+                    json!({ "name": "Slow", "capacity": 4, "build_id": BUILD, "region": "aps1" })
+                        .to_string(),
+                )
                 .send()
                 .await
                 .unwrap()
@@ -528,10 +595,29 @@ async fn a_room_still_starting_is_not_closed_by_a_poll() {
     // A second room by the same creator is refused while the first starts.
     let (status, _) = create_room(&bridge, &kate, "198.51.100.1", "Other", 4).await;
     assert_eq!(status, StatusCode::CONFLICT);
+    // A pending room is recorded with its creator's region and no host's, and
+    // is not ticketed, not even to its creator.
+    let pending: String = bridge
+        .state()
+        .db
+        .read(|tx| {
+            Ok(tx.query_row(
+                "SELECT room_id FROM rooms WHERE creator_region = 'aps1' AND region IS NULL",
+                [],
+                |row| row.get(0),
+            )?)
+        })
+        .await
+        .unwrap();
+    let (status, body) = ticket(&bridge, &kate, "198.51.100.1", &pending, BUILD).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
+    assert_eq!(reason(&body), "room_not_found");
     gate.release.notify_one();
     let (status, room) = common::read(creating.await.unwrap()).await;
     assert_eq!(status, StatusCode::CREATED, "{room}");
+    assert_eq!(room["region"], "aps1");
     let room_id = room["room_id"].as_str().unwrap();
+    assert_eq!(room_id, pending);
     report(&fake, room_id, 1, 0, &[]);
     ember_bridge::poll_rooms(bridge.state()).await;
     assert_eq!(listing(&bridge, &kate, "").await.len(), 1);

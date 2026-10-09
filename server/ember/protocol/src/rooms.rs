@@ -14,6 +14,7 @@ use crate::{
     json,
     matches::games_to_win_valid,
     play::{MAX_INVITATION, VERSION, check_build, is_hex},
+    relay,
     sign::Domain,
 };
 
@@ -187,7 +188,8 @@ pub struct RoomSummary {
     pub members: u8,
     pub capacity: u8,
     pub tables_playing: u8,
-    /// The host's relay region code, such as `use1`.
+    /// The room's region code, such as `use1`: its creator's relay region
+    /// when they gave one (`CreateRoom::region`), else its host's.
     pub region: String,
     pub created_at: u64,
     /// What follows is the room host's own report and is only in a listing
@@ -289,13 +291,26 @@ pub struct CreateRoom {
     pub name: String,
     pub capacity: u8,
     pub build_id: String,
+    /// The creator's relay region (`relay::REGIONS`), which the listing shows
+    /// in place of the room host's: matches are played player to player.
+    /// Left out when the creator's region is not known.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub region: Option<String>,
 }
 
 impl CreateRoom {
     pub fn check(&self) -> Result<()> {
         check_room_name(&self.name)?;
         check_capacity(self.capacity)?;
-        check_build(&self.build_id)
+        check_build(&self.build_id)?;
+        if self
+            .region
+            .as_deref()
+            .is_some_and(|code| !relay::is_region(code))
+        {
+            return Err(Error::InvalidField("region"));
+        }
+        Ok(())
     }
 }
 
@@ -388,6 +403,7 @@ impl ConnectionCreateRoom {
             name: self.name.clone(),
             capacity: self.capacity,
             build_id: self.build_id.clone(),
+            region: None,
         }
     }
 
@@ -635,6 +651,7 @@ mod tests {
             name: "Room".into(),
             capacity: 8,
             build_id: "build".into(),
+            region: None,
         };
         assert!(create.check().is_ok());
         for capacity in [0, 1, 17, 255] {
@@ -658,9 +675,24 @@ mod tests {
         assert_eq!(bad.check(), Err(Error::InvalidField("name")));
         let bad = CreateRoom {
             build_id: "".into(),
-            ..create
+            ..create.clone()
         };
         assert_eq!(bad.check(), Err(Error::InvalidField("build_id")));
+        // A creator's region is one of the known codes or left out.
+        for region in relay::REGIONS {
+            let ok = CreateRoom {
+                region: Some(region.into()),
+                ..create.clone()
+            };
+            assert!(ok.check().is_ok(), "{region}");
+        }
+        for region in ["", "other", "USE1", "test", "us-east"] {
+            let bad = CreateRoom {
+                region: Some(region.into()),
+                ..create.clone()
+            };
+            assert_eq!(bad.check(), Err(Error::InvalidField("region")), "{region}");
+        }
 
         let request = TicketRequest {
             endpoint_id: "c".repeat(64),
@@ -868,7 +900,13 @@ te"
     fn unknown_json_fields_are_rejected() {
         let good = br#"{"name":"Room","capacity":8,"build_id":"build"}"#;
         let parsed: CreateRoom = json::parse_as(good, 1024).unwrap();
-        assert_eq!(parsed.capacity, 8);
+        assert_eq!((parsed.capacity, parsed.region.as_deref()), (8, None));
+        // A request without a region is sent as it always was.
+        assert_eq!(serde_json::to_vec(&parsed).unwrap(), good);
+        let regional = br#"{"name":"Room","capacity":8,"build_id":"build","region":"euc1"}"#;
+        let parsed: CreateRoom = json::parse_as(regional, 1024).unwrap();
+        assert_eq!(parsed.region.as_deref(), Some("euc1"));
+        assert_eq!(serde_json::to_vec(&parsed).unwrap(), regional);
         let extra = br#"{"name":"Room","capacity":8,"build_id":"build","owner":"x"}"#;
         assert!(json::parse_as::<CreateRoom>(extra, 1024).is_err());
         let extra = format!(

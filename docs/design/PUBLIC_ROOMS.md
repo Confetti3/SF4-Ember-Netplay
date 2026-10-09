@@ -101,14 +101,19 @@ pub struct RoomSummary {
     pub members: u8,
     pub capacity: u8,           // 2..=16
     pub tables_playing: u8,
-    pub region: String,         // the host's relay region code, e.g. "use1"
+    pub region: String,         // the creator's relay region code, e.g. "use1", else the host's
     pub created_at: u64,
 }
 ```
 
-`POST /v1/rooms` with `CreateRoom { name, capacity, build_id }` returns the
-new room's `RoomSummary` (201). The creator then asks for a ticket like any
-joiner. Refusals: `room_limit` (the caller already owns a room, or
+`POST /v1/rooms` with `CreateRoom { name, capacity, build_id, region? }` returns
+the new room's `RoomSummary` (201). The creator then asks for a ticket like any
+joiner. `region` is the creator's home relay region (`use1`, `usw1`, `euc1` or
+`aps1`), which the helper sends when it has a known one; anything else is
+refused as an invalid request. Matches are played player to player, so the
+listing shows the creator's region, and the room host's own only for a room
+created without one. The bridge keeps the host's region apart (`rooms.region`,
+set once the room is hosted) for its own bookkeeping. Refusals: `room_limit` (the caller already owns a room, or
 the address or the server is at its limit), `unsupported_build` (no room host
 for that build), `invalid_name`.
 
