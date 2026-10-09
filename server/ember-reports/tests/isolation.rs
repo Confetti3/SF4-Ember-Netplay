@@ -2,7 +2,7 @@
 mod support;
 use ember_reports::{
     limits::Gate,
-    symbolicate::{FRAMES, THREADS},
+    symbolicate::{FRAMES, THREADS, WalkStatus},
     worker::Worker,
 };
 use std::{
@@ -75,7 +75,7 @@ async fn long_unknown_module_chain_is_isolated_and_worker_slot_is_reusable() {
             Duration::from_secs(5),
         )
         .await;
-    assert_eq!(short.status, "ok");
+    assert_eq!(short.symbolication(), "ok");
     assert_eq!(short.crash_frames.len(), FRAMES);
     assert!(short.crash_frames.iter().all(|f| f.module == "unknown"));
     let gate = Gate::new(1, 0);
@@ -89,9 +89,9 @@ async fn long_unknown_module_chain_is_isolated_and_worker_slot_is_reusable() {
         .walk(bytes, temp.0.clone(), Duration::from_secs(1))
         .await;
     assert!(
-        matches!(walk.status.as_str(), "timeout" | "worker_failed"),
+        matches!(walk.status, WalkStatus::Timeout | WalkStatus::WorkerFailed),
         "{}",
-        walk.status
+        walk.symbolication()
     );
     assert!(started.elapsed() < Duration::from_secs(5));
     assert!(gate.reserve().is_err());
@@ -104,7 +104,7 @@ async fn long_unknown_module_chain_is_isolated_and_worker_slot_is_reusable() {
             Duration::from_secs(5),
         )
         .await;
-    assert_eq!(healthy.status, "ok");
+    assert_eq!(healthy.symbolication(), "ok");
 }
 
 #[tokio::test]

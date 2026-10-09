@@ -1,4 +1,7 @@
-use crate::{config::Config, store::Store};
+use crate::{
+    config::Config,
+    store::{ReportId, Store},
+};
 use std::time::Duration;
 use tokio::sync::Mutex;
 
@@ -53,15 +56,15 @@ impl Bugsink {
             delivery: Mutex::new(()),
         })
     }
-    pub fn envelope(id: &str, event: &[u8]) -> Vec<u8> {
-        let header = serde_json::json!({ "event_id": id });
+    pub fn envelope(id: &ReportId, event: &[u8]) -> Vec<u8> {
+        let header = serde_json::json!({ "event_id": id.as_str() });
         let item = serde_json::json!({ "type": "event", "length": event.len(), "content_type": "application/json" });
         let mut bytes = format!("{header}\n{item}\n").into_bytes();
         bytes.extend_from_slice(event);
         bytes.push(b'\n');
         bytes
     }
-    async fn send(&self, id: &str, event: &[u8]) -> Delivery {
+    async fn send(&self, id: &ReportId, event: &[u8]) -> Delivery {
         for attempt in 0..3 {
             if attempt > 0 {
                 tokio::time::sleep(Duration::from_millis(if attempt == 1 { 250 } else { 1000 }))
@@ -97,7 +100,7 @@ impl Bugsink {
         }
         Delivery::BackendUnavailable
     }
-    async fn deliver_locked(&self, store: &Store, id: &str) -> Delivery {
+    async fn deliver_locked(&self, store: &Store, id: &ReportId) -> Delivery {
         match store.event(id).await {
             Ok(Some(event)) => match self.send(id, &event).await {
                 Delivery::Delivered => match store.delivered(id).await {
@@ -110,7 +113,7 @@ impl Bugsink {
             Err(_) => Delivery::ReadFailed,
         }
     }
-    pub async fn deliver(&self, store: &Store, id: &str) -> Delivery {
+    pub async fn deliver(&self, store: &Store, id: &ReportId) -> Delivery {
         let _lock = self.delivery.lock().await;
         self.deliver_locked(store, id).await
     }

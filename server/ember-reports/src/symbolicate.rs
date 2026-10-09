@@ -34,7 +34,49 @@ pub struct Thread {
     pub id: u32,
     pub frames: Vec<Frame>,
 }
-#[derive(Default, Deserialize, Serialize)]
+/// How far symbolication got. Symbol problems are kept as separate detail.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum WalkStatus {
+    Ok,
+    // An empty walk describes a report that carried no dump.
+    #[default]
+    NoDump,
+    InvalidDump,
+    InputBudget,
+    WalkFailed,
+    WorkerFailed,
+    WorkerUnsupported,
+    Timeout,
+}
+impl WalkStatus {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Ok => "ok",
+            Self::NoDump => "no_dump",
+            Self::InvalidDump => "invalid_dump",
+            Self::InputBudget => "input_budget",
+            Self::WalkFailed => "walk_failed",
+            Self::WorkerFailed => "worker_failed",
+            Self::WorkerUnsupported => "worker_unsupported",
+            Self::Timeout => "timeout",
+        }
+    }
+    fn parse(label: &str) -> Option<Self> {
+        [
+            Self::Ok,
+            Self::NoDump,
+            Self::InvalidDump,
+            Self::InputBudget,
+            Self::WalkFailed,
+            Self::WorkerFailed,
+            Self::WorkerUnsupported,
+            Self::Timeout,
+        ]
+        .into_iter()
+        .find(|status| status.as_str() == label)
+    }
+}
+#[derive(Default)]
 pub struct Walk {
     pub code: Option<u32>,
     pub reason: Option<String>,
@@ -42,10 +84,92 @@ pub struct Walk {
     pub crashing_thread: Option<u32>,
     pub crash_frames: Vec<Frame>,
     pub threads: Vec<Thread>,
-    pub status: String,
+    pub status: WalkStatus,
+    // Missing or unusable symbols, shown in the event's symbolication text.
+    pub symbol_problems: Option<String>,
     // Worker-to-parent diagnostics only; event::build does not export this field.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub unreadable_symbols: Vec<String>,
+}
+impl Walk {
+    /// The `symbolication` value in the event: the status, or with symbol
+    /// problems "partial: <problems>" after a full walk and
+    /// "<status>: <problems>" otherwise.
+    pub fn symbolication(&self) -> String {
+        match (&self.symbol_problems, self.status) {
+            (None, status) => status.as_str().to_owned(),
+            (Some(problems), WalkStatus::Ok) => format!("partial: {problems}"),
+            (Some(problems), status) => format!("{}: {problems}", status.as_str()),
+        }
+    }
+    // Inverse of symbolication(). Labels never contain ": ".
+    fn from_symbolication(text: &str) -> Option<(WalkStatus, Option<String>)> {
+        match text.split_once(": ") {
+            None => Some((WalkStatus::parse(text)?, None)),
+            Some(("partial", problems)) => Some((WalkStatus::Ok, Some(problems.to_owned()))),
+            Some((label, problems)) => Some((WalkStatus::parse(label)?, Some(problems.to_owned()))),
+        }
+    }
+}
+
+// The worker writes this JSON to its parent. The binary is replaced while an
+// older parent may still run and launch it, so `status` keeps the combined
+// symbolication text both versions understand.
+#[derive(Serialize)]
+struct WalkOut<'a> {
+    code: Option<u32>,
+    reason: &'a Option<String>,
+    address: Option<u64>,
+    crashing_thread: Option<u32>,
+    crash_frames: &'a [Frame],
+    threads: &'a [Thread],
+    status: String,
+    #[serde(skip_serializing_if = "<[String]>::is_empty")]
+    unreadable_symbols: &'a [String],
+}
+#[derive(Deserialize)]
+struct WalkIn {
+    code: Option<u32>,
+    reason: Option<String>,
+    address: Option<u64>,
+    crashing_thread: Option<u32>,
+    crash_frames: Vec<Frame>,
+    threads: Vec<Thread>,
+    status: String,
+    #[serde(default)]
+    unreadable_symbols: Vec<String>,
+}
+impl Serialize for Walk {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        WalkOut {
+            code: self.code,
+            reason: &self.reason,
+            address: self.address,
+            crashing_thread: self.crashing_thread,
+            crash_frames: &self.crash_frames,
+            threads: &self.threads,
+            status: self.symbolication(),
+            unreadable_symbols: &self.unreadable_symbols,
+        }
+        .serialize(serializer)
+    }
+}
+impl<'de> Deserialize<'de> for Walk {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let wire = WalkIn::deserialize(deserializer)?;
+        let (status, symbol_problems) = Walk::from_symbolication(&wire.status)
+            .ok_or_else(|| serde::de::Error::custom("unknown walk status"))?;
+        Ok(Self {
+            code: wire.code,
+            reason: wire.reason,
+            address: wire.address,
+            crashing_thread: wire.crashing_thread,
+            crash_frames: wire.crash_frames,
+            threads: wire.threads,
+            status,
+            symbol_problems,
+            unreadable_symbols: wire.unreadable_symbols,
+        })
+    }
 }
 
 pub fn basename(path: &str) -> &str {
@@ -109,7 +233,7 @@ fn directory(bytes: &[u8]) -> Option<Vec<(u32, usize, usize)>> {
 // corrupt/missing system or thread stream still yields the raw crash facts.
 pub(crate) fn raw_facts(bytes: &[u8]) -> Walk {
     let mut result = Walk {
-        status: "invalid_dump".into(),
+        status: WalkStatus::InvalidDump,
         ..Walk::default()
     };
     if let Some(entries) = directory(bytes)
@@ -249,16 +373,15 @@ impl SymbolProblems {
         if problems.is_empty() {
             return;
         }
-        let details = problems
-            .iter()
-            .map(|(name, problem)| format!("symbols {} for {}", problem.label(), head(name, 256)))
-            .collect::<Vec<_>>()
-            .join("; ");
-        walk.status = if walk.status == "ok" {
-            format!("partial: {details}")
-        } else {
-            format!("{}: {details}", walk.status)
-        };
+        walk.symbol_problems = Some(
+            problems
+                .iter()
+                .map(|(name, problem)| {
+                    format!("symbols {} for {}", problem.label(), head(name, 256))
+                })
+                .collect::<Vec<_>>()
+                .join("; "),
+        );
         walk.unreadable_symbols = problems
             .iter()
             .filter(|(name, problem)| {
@@ -372,7 +495,7 @@ impl SymbolSupplier for LocalSymbols {
 pub(crate) async fn walk(bytes: Vec<u8>, symbols: PathBuf) -> Walk {
     let mut raw = raw_facts(&bytes);
     let Some(bytes) = bounded_dump(bytes) else {
-        raw.status = "input_budget".into();
+        raw.status = WalkStatus::InputBudget;
         return raw;
     };
     let Ok(dump) = Minidump::read(bytes) else {
@@ -432,9 +555,9 @@ pub(crate) async fn walk(bytes: Vec<u8>, symbols: PathBuf) -> Walk {
                     });
                 }
             }
-            raw.status = "ok".into();
+            raw.status = WalkStatus::Ok;
         }
-        Err(_) => raw.status = "walk_failed".into(),
+        Err(_) => raw.status = WalkStatus::WalkFailed,
     }
     problems.apply(&mut raw);
     raw
@@ -460,21 +583,130 @@ mod tests {
             io::Error::from(io::ErrorKind::NotFound),
         );
         let mut walk = Walk {
-            status: "ok".into(),
+            status: WalkStatus::Ok,
             ..Walk::default()
         };
         problems.apply(&mut walk);
         assert_eq!(
-            walk.status,
+            walk.symbolication(),
             "partial: symbols unreadable for Launcher.pdb/ABC1/Launcher.sym; symbols missing for SSFIV.exe/DEF1/SSFIV.exe.sym"
         );
         assert_eq!(walk.unreadable_symbols, [unreadable]);
-        walk.status = "walk_failed".into();
+        walk.status = WalkStatus::WalkFailed;
         problems.apply(&mut walk);
         assert!(
-            walk.status
+            walk.symbolication()
                 .starts_with("walk_failed: symbols unreadable for ")
         );
+    }
+
+    // The worker JSON as both sides read and wrote it before WalkStatus.
+    #[derive(Default, Deserialize, Serialize)]
+    struct LegacyWalk {
+        code: Option<u32>,
+        reason: Option<String>,
+        address: Option<u64>,
+        crashing_thread: Option<u32>,
+        crash_frames: Vec<Frame>,
+        threads: Vec<Thread>,
+        status: String,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        unreadable_symbols: Vec<String>,
+    }
+    fn compatibility_cases() -> Vec<(WalkStatus, Option<&'static str>, &'static str)> {
+        let missing = "symbols missing for SSFIV.exe/DEF1/SSFIV.exe.sym";
+        let both = "symbols unreadable for Launcher.pdb/ABC1/Launcher.sym; symbols missing for SSFIV.exe/DEF1/SSFIV.exe.sym";
+        vec![
+            (WalkStatus::Ok, None, "ok"),
+            (
+                WalkStatus::Ok,
+                Some(missing),
+                "partial: symbols missing for SSFIV.exe/DEF1/SSFIV.exe.sym",
+            ),
+            (WalkStatus::WalkFailed, None, "walk_failed"),
+            (
+                WalkStatus::WalkFailed,
+                Some(both),
+                "walk_failed: symbols unreadable for Launcher.pdb/ABC1/Launcher.sym; symbols missing for SSFIV.exe/DEF1/SSFIV.exe.sym",
+            ),
+            (WalkStatus::InvalidDump, None, "invalid_dump"),
+            (WalkStatus::InputBudget, None, "input_budget"),
+            (WalkStatus::Timeout, None, "timeout"),
+            (WalkStatus::WorkerFailed, None, "worker_failed"),
+        ]
+    }
+    fn frames() -> (Vec<Frame>, Vec<Thread>) {
+        let frame = |i: u64| Frame {
+            instruction: 0x401000 + i,
+            module: "Launcher.exe".into(),
+            offset: 0x1000 + i,
+            function: Some(format!("frame_{i}")),
+            filename: Some("launcher.cpp".into()),
+            line: Some(42),
+        };
+        (
+            vec![frame(0), frame(1)],
+            vec![Thread {
+                id: 9,
+                frames: vec![frame(2)],
+            }],
+        )
+    }
+    fn assert_frames(crash: &[Frame], threads: &[Thread]) {
+        assert_eq!(crash.len(), 2);
+        assert_eq!(crash[1].function.as_deref(), Some("frame_1"));
+        assert_eq!(crash[1].offset, 0x1001);
+        assert_eq!(threads[0].id, 9);
+        assert_eq!(threads[0].frames[0].instruction, 0x401002);
+    }
+
+    #[test]
+    fn new_worker_output_keeps_the_legacy_status_for_an_older_parent() {
+        for (status, problems, text) in compatibility_cases() {
+            let (crash_frames, threads) = frames();
+            let walk = Walk {
+                code: Some(0xc0000005),
+                crashing_thread: Some(7),
+                crash_frames,
+                threads,
+                status,
+                symbol_problems: problems.map(str::to_owned),
+                unreadable_symbols: vec!["Launcher.pdb/ABC1/Launcher.sym".into()],
+                ..Walk::default()
+            };
+            let json = serde_json::to_value(&walk).unwrap();
+            assert_eq!(json["status"], text);
+            assert!(json.get("symbol_problems").is_none());
+            let old: LegacyWalk = serde_json::from_value(json).unwrap();
+            assert_eq!(old.status, text);
+            assert_eq!(old.code, Some(0xc0000005));
+            assert_eq!(old.crashing_thread, Some(7));
+            assert_eq!(old.unreadable_symbols, ["Launcher.pdb/ABC1/Launcher.sym"]);
+            assert_frames(&old.crash_frames, &old.threads);
+        }
+    }
+
+    #[test]
+    fn old_worker_output_decodes_into_the_typed_status() {
+        for (status, problems, text) in compatibility_cases() {
+            let (crash_frames, threads) = frames();
+            let old = LegacyWalk {
+                crash_frames,
+                threads,
+                status: text.into(),
+                ..LegacyWalk::default()
+            };
+            let walk: Walk = serde_json::from_slice(&serde_json::to_vec(&old).unwrap()).unwrap();
+            assert_eq!(walk.status, status);
+            assert_eq!(walk.symbol_problems.as_deref(), problems);
+            assert_eq!(walk.symbolication(), text);
+            assert_frames(&walk.crash_frames, &walk.threads);
+        }
+        let unknown = LegacyWalk {
+            status: "unknown_status".into(),
+            ..LegacyWalk::default()
+        };
+        assert!(serde_json::from_value::<Walk>(serde_json::to_value(unknown).unwrap()).is_err());
     }
 
     fn modules(padded: bool, count: usize, name_bytes: usize, cv_bytes: usize) -> Vec<u8> {

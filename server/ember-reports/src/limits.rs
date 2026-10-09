@@ -1,4 +1,4 @@
-use crate::config::Limits;
+use crate::{config::Limits, refusal::Refusal};
 use axum::http::HeaderMap;
 use std::{
     collections::{HashMap, VecDeque},
@@ -103,21 +103,21 @@ impl Gate {
             workers: Arc::new(Semaphore::new(workers)),
         }
     }
-    pub fn reserve(&self) -> Result<OwnedSemaphorePermit, &'static str> {
+    pub fn reserve(&self) -> Result<OwnedSemaphorePermit, Refusal> {
         self.admission
             .clone()
             .try_acquire_owned()
-            .map_err(|_| "queue_full")
+            .map_err(|_| Refusal::QueueFull)
     }
     pub async fn start(
         &self,
         admission: OwnedSemaphorePermit,
         wait: Duration,
-    ) -> Result<Arc<Ticket>, &'static str> {
+    ) -> Result<Arc<Ticket>, Refusal> {
         let worker = tokio::time::timeout(wait, self.workers.clone().acquire_owned())
             .await
-            .map_err(|_| "queue_timeout")?
-            .map_err(|_| "queue_closed")?;
+            .map_err(|_| Refusal::QueueTimeout)?
+            .map_err(|_| Refusal::QueueClosed)?;
         Ok(Arc::new(Ticket {
             _admission: admission,
             _worker: worker,

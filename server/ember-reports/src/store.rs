@@ -1,7 +1,7 @@
 //! Only raw dumps and pending event JSON are persisted. Atomic writes use 0600.
 use crate::{config::Limits, event::EVENT_BYTES};
 use std::{
-    io,
+    fmt, io,
     path::{Path, PathBuf},
     time::{Duration, SystemTime},
 };
@@ -28,17 +28,39 @@ struct Cursor {
 // never for symbolication or backend HTTP.
 pub struct Reservation<'a> {
     store: &'a Store,
-    id: String,
+    id: ReportId,
     bytes: usize,
     _lock: MutexGuard<'a, Cursor>,
 }
 struct Entry {
+    id: ReportId,
     path: PathBuf,
     modified: SystemTime,
     bytes: u64,
 }
-fn event_id(id: &str) -> bool {
-    id.len() == 32 && id.bytes().all(|b| b.is_ascii_hexdigit())
+/// A report and outbox file name: 32 hex digits, validated once where it enters.
+/// Generated IDs are lowercase UUID hex, the form clients receive.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ReportId(String);
+impl ReportId {
+    pub fn generate() -> Self {
+        Self(uuid::Uuid::new_v4().simple().to_string())
+    }
+    pub fn parse(text: &str) -> Option<Self> {
+        (text.len() == 32 && text.bytes().all(|b| b.is_ascii_hexdigit()))
+            .then(|| Self(text.to_owned()))
+    }
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+impl fmt::Display for ReportId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+fn report_id(path: &Path) -> Option<ReportId> {
+    ReportId::parse(path.file_stem()?.to_str()?)
 }
 fn error(message: &'static str) -> io::Error {
     io::Error::other(message)
@@ -54,12 +76,10 @@ async fn entries(directory: &Path, extension: &str) -> io::Result<Vec<Entry>> {
         // arbitrary files placed there by an operator.
         if metadata.is_file()
             && path.extension().is_some_and(|e| e == extension)
-            && path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .is_some_and(event_id)
+            && let Some(id) = report_id(&path)
         {
             result.push(Entry {
+                id,
                 path,
                 modified: metadata.modified()?,
                 bytes: metadata.len(),
@@ -177,10 +197,7 @@ impl Store {
             while let Some(entry) = dir.next_entry().await? {
                 let path = entry.path();
                 if path.extension().is_some_and(|s| s == "tmp")
-                    && path
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .is_some_and(event_id)
+                    && report_id(&path).is_some()
                     && fs::symlink_metadata(&path).await?.is_file()
                 {
                     fs::remove_file(path).await?;
@@ -244,12 +261,12 @@ impl Store {
         let _lock = self.lock.lock().await;
         self.prune(now, 0, 0, None).await
     }
-    pub fn dump_path(&self, id: &str) -> PathBuf {
+    pub fn dump_path(&self, id: &ReportId) -> PathBuf {
         self.root.join("dumps").join(format!("{id}.dmp"))
     }
-    pub async fn reserve(&self, id: &str, bytes: usize) -> io::Result<Reservation<'_>> {
-        if !event_id(id) || bytes >= EVENT_BYTES {
-            return Err(error("invalid event"));
+    pub async fn reserve(&self, id: &ReportId, bytes: usize) -> io::Result<Reservation<'_>> {
+        if bytes >= EVENT_BYTES {
+            return Err(error("oversized event"));
         }
         let lock = self.lock.lock().await;
         let files = entries(&self.root.join("outbox"), "json").await?;
@@ -272,18 +289,18 @@ impl Store {
         }
         Ok(Reservation {
             store: self,
-            id: id.to_owned(),
+            id: id.clone(),
             bytes,
             _lock: lock,
         })
     }
-    pub async fn enqueue(&self, id: &str, bytes: &[u8]) -> io::Result<()> {
+    pub async fn enqueue(&self, id: &ReportId, bytes: &[u8]) -> io::Result<()> {
         self.reserve(id, bytes.len())
             .await?
             .commit(bytes, None)
             .await
     }
-    pub async fn pending(&self) -> io::Result<Vec<String>> {
+    pub async fn pending(&self) -> io::Result<Vec<ReportId>> {
         let mut cursor = self.lock.lock().await;
         let mut files = entries(&self.root.join("outbox"), "json").await?;
         // Stable lexical cursor, independent of mtime and deletion of the last
@@ -300,15 +317,9 @@ impl Store {
             .take(16)
             .collect();
         cursor.after = selected.last().map(|e| e.path.clone());
-        Ok(selected
-            .into_iter()
-            .filter_map(|e| e.path.file_stem()?.to_str().map(str::to_owned))
-            .collect())
+        Ok(selected.into_iter().map(|e| e.id.clone()).collect())
     }
-    pub async fn event(&self, id: &str) -> io::Result<Option<Vec<u8>>> {
-        if !event_id(id) {
-            return Err(error("invalid id"));
-        }
+    pub async fn event(&self, id: &ReportId) -> io::Result<Option<Vec<u8>>> {
         let _lock = self.lock.lock().await;
         let path = self.root.join("outbox").join(format!("{id}.json"));
         let mut file = match fs::File::open(path).await {
@@ -327,10 +338,7 @@ impl Store {
         }
         Ok(Some(bytes))
     }
-    pub async fn delivered(&self, id: &str) -> io::Result<()> {
-        if !event_id(id) {
-            return Err(error("invalid id"));
-        }
+    pub async fn delivered(&self, id: &ReportId) -> io::Result<()> {
         let _lock = self.lock.lock().await;
         fs::remove_file(self.root.join("outbox").join(format!("{id}.json"))).await
     }
@@ -355,6 +363,32 @@ mod tests {
             let _ = std::fs::remove_dir_all(&self.0);
         }
     }
+    fn repeated(digit: char) -> ReportId {
+        ReportId::parse(&digit.to_string().repeat(32)).unwrap()
+    }
+
+    #[test]
+    fn report_ids_are_exactly_32_hex_digits() {
+        for valid in [
+            "0123456789abcdef0123456789ABCDEF".to_owned(),
+            "f".repeat(32),
+        ] {
+            assert_eq!(ReportId::parse(&valid).unwrap().as_str(), valid);
+        }
+        for invalid in [
+            String::new(),
+            "a".repeat(31),
+            "a".repeat(33),
+            format!("{}g", "a".repeat(31)),
+            format!("../{}", "a".repeat(29)),
+            "00112233-4455-6677-8899-aabbccdd".to_owned(),
+        ] {
+            assert!(ReportId::parse(&invalid).is_none(), "{invalid}");
+        }
+        let generated = ReportId::generate();
+        assert!(ReportId::parse(generated.as_str()).is_some());
+        assert!(!generated.as_str().bytes().any(|b| b.is_ascii_uppercase()));
+    }
 
     #[tokio::test]
     async fn persistent_retention_failure_bounds_dump_admission_until_recovery() {
@@ -373,8 +407,8 @@ mod tests {
             )
             .await
             .unwrap();
-            let a = "a".repeat(32);
-            let b = "b".repeat(32);
+            let a = repeated('a');
+            let b = repeated('b');
             store
                 .reserve(&a, 2)
                 .await
@@ -403,7 +437,7 @@ mod tests {
             store.delivered(&b).await.unwrap();
 
             for attempt in 0..16 {
-                let id = format!("{attempt:032x}");
+                let id = ReportId::parse(&format!("{attempt:032x}")).unwrap();
                 assert!(store.prune_dumps(SystemTime::now()).await.is_err());
                 assert!(
                     store
@@ -435,7 +469,7 @@ mod tests {
             store.prune_dumps(SystemTime::now()).await.unwrap();
             assert!(!store.dump_path(&a).exists());
             assert_eq!(std::fs::read(store.dump_path(&b)).unwrap(), b"MDMP0002");
-            let c = "c".repeat(32);
+            let c = repeated('c');
             store
                 .reserve(&c, 2)
                 .await

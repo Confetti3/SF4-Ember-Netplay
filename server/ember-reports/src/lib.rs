@@ -3,6 +3,7 @@ pub mod config;
 pub mod event;
 pub mod intake;
 pub mod limits;
+pub mod refusal;
 pub mod store;
 pub mod symbolicate;
 pub mod worker;
@@ -11,7 +12,9 @@ use crate::{
     bugsink::Bugsink,
     config::Config,
     limits::{Gate, RateLimiter, Ticket},
-    store::Store,
+    refusal::Refusal,
+    store::{ReportId, Store},
+    symbolicate::{Walk, WalkStatus},
     worker::Worker,
 };
 use axum::{
@@ -44,8 +47,6 @@ pub struct App {
     pub wake: Arc<Notify>,
     worker: Worker,
 }
-#[derive(Clone)]
-struct ReportId(String);
 impl App {
     pub async fn new(config: Config, key: &str) -> Result<Arc<Self>, &'static str> {
         let executable = std::env::current_exe().map_err(|_| "cannot locate symbolicate worker")?;
@@ -83,8 +84,12 @@ impl App {
         }
     }
 }
-fn refusal(status: StatusCode, reason: &'static str) -> Response {
-    (status, Json(serde_json::json!({ "reason": reason }))).into_response()
+fn refusal(status: StatusCode, reason: Refusal) -> Response {
+    (
+        status,
+        Json(serde_json::json!({ "reason": reason.as_str() })),
+    )
+        .into_response()
 }
 pub fn router(app: Arc<App>) -> Router {
     Router::new()
@@ -117,18 +122,19 @@ async fn admission(State(app): State<Arc<App>>, mut request: Request, next: Next
             .get::<ConnectInfo<SocketAddr>>()
             .copied()
         else {
-            return refusal(StatusCode::INTERNAL_SERVER_ERROR, "missing_peer");
+            return refusal(StatusCode::INTERNAL_SERVER_ERROR, Refusal::MissingPeer);
         };
         let address = limits::client_address(peer.ip(), request.headers());
         if let Err(retry) = app.rate.admit(address, Instant::now()) {
-            let mut response = refusal(StatusCode::TOO_MANY_REQUESTS, "rate_limit");
+            let mut response = refusal(StatusCode::TOO_MANY_REQUESTS, Refusal::RateLimit);
             response
                 .headers_mut()
                 .insert(header::RETRY_AFTER, retry.to_string().parse().unwrap());
             return response;
         }
-        let Ok(reservation) = app.gate.reserve() else {
-            return refusal(StatusCode::SERVICE_UNAVAILABLE, "queue_full");
+        let reservation = match app.gate.reserve() {
+            Ok(reservation) => reservation,
+            Err(reason) => return refusal(StatusCode::SERVICE_UNAVAILABLE, reason),
         };
         let ticket = match app
             .gate
@@ -155,7 +161,7 @@ async fn admission(State(app): State<Arc<App>>, mut request: Request, next: Next
     let id = response
         .extensions()
         .get::<ReportId>()
-        .map_or("-", |id| id.0.as_str());
+        .map_or("-", ReportId::as_str);
     eprintln!(
         "method={} status={} size={} report_id={} processing_ms={}",
         method,
@@ -178,16 +184,16 @@ async fn receive(State(app): State<Arc<App>>, request: Request) -> Response {
                 let mut cause: Option<&(dyn std::error::Error + 'static)> = Some(&e);
                 while let Some(error) = cause {
                     if error.is::<http_body_util::LengthLimitError>() {
-                        return (StatusCode::PAYLOAD_TOO_LARGE, "body_too_large");
+                        return (StatusCode::PAYLOAD_TOO_LARGE, Refusal::BodyTooLarge);
                     }
                     cause = error.source();
                 }
-                (StatusCode::BAD_REQUEST, "invalid_body")
+                (StatusCode::BAD_REQUEST, Refusal::InvalidBody)
             })?;
         let request = Request::from_parts(parts, Body::from(bytes));
         let multipart = Multipart::from_request(request, &app)
             .await
-            .map_err(|_| (StatusCode::BAD_REQUEST, "invalid_multipart"))?;
+            .map_err(|_| (StatusCode::BAD_REQUEST, Refusal::InvalidMultipart))?;
         intake::read(multipart).await
     };
     let report = match tokio::time::timeout(
@@ -198,19 +204,19 @@ async fn receive(State(app): State<Arc<App>>, request: Request) -> Response {
     {
         Ok(Ok(report)) => report,
         Ok(Err((status, reason))) => return refusal(status, reason),
-        Err(_) => return refusal(StatusCode::REQUEST_TIMEOUT, "upload_timeout"),
+        Err(_) => return refusal(StatusCode::REQUEST_TIMEOUT, Refusal::UploadTimeout),
     };
     // Finish bounded processing/storage even if the client disconnects after
     // upload. This prevents interrupted atomic writes accumulating on disk.
     tokio::spawn(process(app, report, ticket))
         .await
-        .unwrap_or_else(|_| refusal(StatusCode::SERVICE_UNAVAILABLE, "processing_failed"))
+        .unwrap_or_else(|_| refusal(StatusCode::SERVICE_UNAVAILABLE, Refusal::ProcessingFailed))
 }
 async fn process(app: Arc<App>, report: intake::Report, ticket: Option<Arc<Ticket>>) -> Response {
     // This detached processing task owns admission through worker kill/reap
     // and storage completion, including after the HTTP client disconnects.
     let _ticket = ticket;
-    let id = uuid::Uuid::new_v4().simple().to_string();
+    let id = ReportId::generate();
     let dump_path = report
         .minidump
         .as_ref()
@@ -224,28 +230,31 @@ async fn process(app: Arc<App>, report: intake::Report, ticket: Option<Arc<Ticke
             )
             .await
     } else {
-        symbolicate::Walk {
-            status: "no_dump".into(),
-            ..Default::default()
+        Walk {
+            status: WalkStatus::NoDump,
+            ..Walk::default()
         }
     };
     let event = event::build(&id, &report, &walk, dump_path.as_deref());
     // 202 means the event is durable locally, independent of Bugsink uptime.
     // When capacity is exhausted, refuse instead of evicting accepted events.
-    let reservation = match app.store.reserve(&id, event.len()).await {
-        Ok(reservation) => reservation,
-        Err(_) => return refusal(StatusCode::SERVICE_UNAVAILABLE, "outbox_unavailable"),
+    // Every storage failure is refused alike; its cause never reaches clients.
+    let stored = async {
+        app.store
+            .reserve(&id, event.len())
+            .await?
+            .commit(&event, report.minidump.as_deref())
+            .await
     };
-    if reservation
-        .commit(&event, report.minidump.as_deref())
-        .await
-        .is_err()
-    {
-        return refusal(StatusCode::SERVICE_UNAVAILABLE, "outbox_unavailable");
+    if stored.await.is_err() {
+        return refusal(StatusCode::SERVICE_UNAVAILABLE, Refusal::OutboxUnavailable);
     }
     app.wake.notify_one();
-    let mut response =
-        (StatusCode::ACCEPTED, Json(serde_json::json!({ "id": id }))).into_response();
-    response.extensions_mut().insert(ReportId(id));
+    let mut response = (
+        StatusCode::ACCEPTED,
+        Json(serde_json::json!({ "id": id.as_str() })),
+    )
+        .into_response();
+    response.extensions_mut().insert(id);
     response
 }

@@ -1,5 +1,5 @@
 //! One disposable Linux process per dump. No untrusted parser runs in intake.
-use crate::symbolicate::{Walk, raw_facts};
+use crate::symbolicate::{Walk, WalkStatus, raw_facts};
 #[cfg(target_os = "linux")]
 use std::io;
 use std::{path::PathBuf, time::Duration};
@@ -29,17 +29,17 @@ impl Worker {
                         log_unreadable(&walk);
                         return walk;
                     }
-                    fallback.status = "worker_failed".into();
+                    fallback.status = WalkStatus::WorkerFailed;
                 }
-                Err(Failure::Timeout) => fallback.status = "timeout".into(),
-                Err(Failure::Io) => fallback.status = "worker_failed".into(),
+                Err(Failure::Timeout) => fallback.status = WalkStatus::Timeout,
+                Err(Failure::Io) => fallback.status = WalkStatus::WorkerFailed,
             }
         }
         #[cfg(not(target_os = "linux"))]
         {
             // Fail closed: never silently fall back to in-process parsing.
             let _ = (&self.executable, symbols, deadline);
-            fallback.status = "worker_unsupported".into();
+            fallback.status = WalkStatus::WorkerUnsupported;
         }
         fallback
     }
