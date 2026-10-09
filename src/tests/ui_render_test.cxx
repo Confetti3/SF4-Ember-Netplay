@@ -8,6 +8,7 @@
 #include "../ui/RecoveryMenu.hxx"
 #include "../common/Localization.hxx"
 #include "../common/StageCatalog.hxx"
+#include "ui_render_support.hxx"
 #include <imgui_internal.h>
 #include <imgui_impl_dx9.h>
 #include <windows.h>
@@ -29,8 +30,18 @@
 #include <random>
 #include <thread>
 
-namespace {
 void Require(bool condition, const char* message) { if (!condition) throw std::runtime_error(message); }
+ImGuiWindow* FindWindow(const char* fragment) {
+    for (auto* window : GImGui->Windows)
+        if (window->Active && std::string(window->Name).find(fragment) != std::string::npos) return window;
+    throw std::runtime_error(std::string("Missing UI window: ") + fragment);
+}
+bool WindowDrawn(const char* name) {
+    for (const auto* window : GImGui->Windows)
+        if (window->LastFrameActive==ImGui::GetFrameCount()&&std::string(window->Name).find(name)!=std::string::npos)return true;
+    return false;
+}
+namespace {
 struct Renderer {
     HWND window = nullptr;
     IDirect3D9* d3d = nullptr;
@@ -111,16 +122,6 @@ struct Renderer {
         Require(out.good(), "Screenshot write failed");
     }
 };
-ImGuiWindow* FindWindow(const char* fragment) {
-    for (auto* window : GImGui->Windows)
-        if (window->Active && std::string(window->Name).find(fragment) != std::string::npos) return window;
-    throw std::runtime_error(std::string("Missing UI window: ") + fragment);
-}
-bool WindowDrawn(const char* name) {
-    for (const auto* window : GImGui->Windows)
-        if (window->LastFrameActive==ImGui::GetFrameCount()&&std::string(window->Name).find(name)!=std::string::npos)return true;
-    return false;
-}
 void Activate(const char* windowFragment, const char* label) {
     ImGui::ActivateItemByID(FindWindow(windowFragment)->GetID(label));
 }

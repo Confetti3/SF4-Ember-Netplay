@@ -1,9 +1,9 @@
 #pragma once
-// The Public rooms shots of ui_render_test.cxx, which includes this after its
-// Require. `draw` and `page` are the test's own, `retheme` applies the theme
-// again with the device objects remade, and the flags are the ones the
-// test's submit reads: answer room tickets, hold identity requests, and the
-// ticket of the last one held.
+// The Public rooms shots of ui_render_test.cxx. `draw` and `page` are the
+// test's own, `retheme` applies the theme again with the device objects
+// remade, and the flags are the ones the test's submit reads: answer room
+// tickets, hold identity requests, and the ticket of the last one held.
+#include "ui_render_support.hxx"
 #include "../ui/ApplicationShell.hxx"
 #include <algorithm>
 #include <cstdint>

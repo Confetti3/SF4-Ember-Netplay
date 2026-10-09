@@ -71,4 +71,11 @@ struct Harness {
  void Choose(const char* id){FocusOn(id);Press(MenuInput::Select);}
  void Screen(const char* id){shell.Navigation().Home();if(std::string(id)!="home")shell.Navigation().Push(id);Frame();}
 };
+// A room this player (member 1) has joined, with its tables numbered, and no
+// more: the generation, the control's health, the host, the members and their
+// seats are each journey's own, set where it joins.
+void JoinedRoom(Harness& h,std::uint64_t epoch){
+ h.view.session.room=sf4e::netplay::RoomState::Joined;h.view.room.roomEpoch=epoch;h.view.room.localMember=1;
+ for(std::size_t i=0;i<h.view.room.tables.size();++i)h.view.room.tables[i].id=static_cast<std::uint8_t>(i);
+}
 }

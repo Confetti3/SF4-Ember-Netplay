@@ -1,15 +1,13 @@
 #pragma once
 // Exercise the production draw boundary with each passive layer and each
 // alert in isolation, so one surviving draw cannot mask another missing one.
+#include "ui_render_support.hxx"
+#include "../common/BattlePause.hxx"
+#include "../ui/OverlayLayers.hxx"
+#include <imgui.h>
+// The layers the test draws in `mode` (ui_render_overlay.cxx).
+sf4e::ui::OverlayLayersView OverlayRenderLayers(int mode,const sf4e::ui::MatchStripView& match);
 namespace {
-sf4e::ui::OverlayLayersView OverlayRenderLayers(int mode,const sf4e::ui::MatchStripView& match) {
-    sf4e::ui::OverlayLayersView layers;
-    layers.trainingControlsOpen=mode==1;layers.nativePaused=sf4e::battlePause.Paused();
-    layers.trainingHud=mode==1||mode==2;layers.matchActive=mode==3||mode==5||mode==6;
-    layers.showMatchHud=mode==3;layers.match=match;
-    if(mode==5)layers.controllerWarning="Match input blocked: reconnect your controller. If its slot changed, return to the room to reassign it.";
-    return layers;
-}
 template<class Draw>
 void CheckOverlayVisibility(sf4e::training::View& training,sf4e::ui::OverlayLayersView& layers,
     bool& tooltip,int& mode,const Draw& draw) {

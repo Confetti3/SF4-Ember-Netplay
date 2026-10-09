@@ -1,5 +1,10 @@
 #pragma once
 // Saved replay choices and the restored export caption page, in every render locale.
+#include "ui_render_support.hxx"
+#include "../common/Localization.hxx"
+#include "../ui/ApplicationShell.hxx"
+#include <iterator>
+#include <vector>
 namespace {
 template<class Draw,class Page>
 void ShootReplays(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,const Draw& draw,const Page& page) {

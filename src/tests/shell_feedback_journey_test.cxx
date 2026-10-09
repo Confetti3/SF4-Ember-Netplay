@@ -68,8 +68,7 @@ void SessionReports() {
  loc::SetActive(loc::Locale::Fr);h.Frame();
  Check(status==loc::T("room.catching_up")&&status.find("catching up")==std::string::npos,"The catching-up report stayed English in French");
  loc::SetActive(loc::Locale::En);
- h.view.session.room=netplay::RoomState::Joined;h.view.room.roomEpoch=3;h.view.room.localMember=1;
- h.view.session.control=netplay::Health::Lost;h.view.session.recovery=netplay::Recovery::Recovering;
+ JoinedRoom(h,3);h.view.session.control=netplay::Health::Lost;h.view.session.recovery=netplay::Recovery::Recovering;
  h.view.session.fault=netplay::Fault::ControlRecovering;h.Screen("room");h.Frame();
  Check(status==loc::T("room.control_recovering"),"The room's recovery status is not the catalog's");
  h.view.session.recovery=netplay::Recovery::ReplacementOffered;h.Frame();

@@ -1,10 +1,11 @@
 #pragma once
-// The chat shots of ui_render_test.cxx, which includes this after its Require.
-// `draw` is the test's own. Each scenario is a room of its own (a new epoch, so the
-// shell keeps a fresh transcript for it); the room the caller set up is put back
-// at the end. The sweep runs this at every viewport and locale, so it draws as few
-// frames as it can: messages are pushed together, a frame at a time between the
-// changes of the room that must be seen one by one.
+// The chat shots of ui_render_test.cxx. `draw` is the test's own. Each scenario
+// is a room of its own (a new epoch, so the shell keeps a fresh transcript for
+// it); the room the caller set up is put back at the end. The sweep runs this
+// at every viewport and locale, so it draws as few frames as it can: messages
+// are pushed together, a frame at a time between the changes of the room that
+// must be seen one by one.
+#include "ui_render_support.hxx"
 #include "../ui/ApplicationShell.hxx"
 #include <imgui.h>
 #include <algorithm>

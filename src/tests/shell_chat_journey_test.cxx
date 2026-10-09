@@ -9,10 +9,10 @@ namespace {
 // A joined room of three members (1 is this player) the chat journeys draw.
 void JoinChatRoom(Harness& h,std::uint64_t epoch){
  using namespace sf4e;
- h.view.session.generation.room=1;h.view.session.room=netplay::RoomState::Joined;h.view.session.control=netplay::Health::Healthy;
  h.view.room=room::Snapshot{};
- h.view.room.roomEpoch=epoch;h.view.room.localMember=1;h.view.room.host=1;h.view.room.name="Chat room";h.view.room.revision=3;
- for(int i=0;i<4;++i){h.view.room.tables[i].id=i;h.view.room.tables[i].revision=7;}
+ JoinedRoom(h,epoch);h.view.session.generation.room=1;h.view.session.control=netplay::Health::Healthy;
+ h.view.room.host=1;h.view.room.name="Chat room";h.view.room.revision=3;
+ for(auto& table:h.view.room.tables)table.revision=7;
  for(room::MemberId id=1;id<=3;++id){room::Member m;m.id=id;m.name=id==1?"Local":id==2?"Peer":"Third";h.view.room.members.push_back(m);}
 }
 ImGuiWindow* ActiveWindow(const char* fragment){

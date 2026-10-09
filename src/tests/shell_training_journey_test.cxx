@@ -44,8 +44,7 @@ void TrainingFromRoom() {
  using Kind=netplay::CommandKind;
  Harness h;h.Frame();
  room::Member me,other;me.id=1;me.name="Me";other.id=2;other.name="Other";
- h.view.session.room=netplay::RoomState::Joined;h.view.session.control=netplay::Health::Healthy;h.view.room.roomEpoch=9;h.view.room.localMember=1;
- for(std::size_t i=0;i<h.view.room.tables.size();++i)h.view.room.tables[i].id=static_cast<std::uint8_t>(i);
+ JoinedRoom(h,9);h.view.session.control=netplay::Health::Healthy;
  h.view.room.members={me,other};h.view.canTrain=true;h.Frame();
  std::vector<MenuEntry> rows;std::string status;Tone tone=Tone::Neutral;
  SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});

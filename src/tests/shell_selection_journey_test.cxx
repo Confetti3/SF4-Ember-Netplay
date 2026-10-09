@@ -10,9 +10,9 @@ void KeyboardJourneys(){
  auto& io=ImGui::GetIO();
  const auto key=[&](ImGuiKey k){h.Frame();io.AddKeyEvent(k,true);h.Frame();io.AddKeyEvent(k,false);h.Frame();};
  SetMenuGlyphs(input::PadKeyboard,0,0);
- h.view.session.generation.room=1;h.view.session.room=netplay::RoomState::Joined;h.view.session.control=netplay::Health::Healthy;
- h.view.room.roomEpoch=10;h.view.room.localMember=1;h.view.room.host=1;h.view.room.name="Keys";h.view.room.revision=3;
- for(int i=0;i<4;++i){h.view.room.tables[i].id=i;h.view.room.tables[i].revision=7;}
+ JoinedRoom(h,10);h.view.session.generation.room=1;h.view.session.control=netplay::Health::Healthy;
+ h.view.room.host=1;h.view.room.name="Keys";h.view.room.revision=3;
+ for(auto& table:h.view.room.tables)table.revision=7;
  room::Member local;local.id=1;local.name="Local";local.table=0;local.seat=0;h.view.room.members.push_back(local);
  h.view.room.tables[0].p1=1;
  h.Screen("room");h.FocusOn("table-0");

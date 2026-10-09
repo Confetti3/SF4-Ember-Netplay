@@ -1,6 +1,20 @@
 #pragma once
-// Home and Training render scenarios. Included after the shared render checks;
-// draw uses the production OverlayLayers entry point for passive UI and alerts.
+// Home and Training render scenarios; draw uses the production OverlayLayers
+// entry point for passive UI and alerts.
+#include "ui_render_support.hxx"
+#include "ui_render_match_hud.hxx"
+#include "../common/Localization.hxx"
+#include "../ui/ApplicationShell.hxx"
+#include "../ui/TrainingPanel.hxx"
+#include <imgui.h>
+#include <algorithm>
+#include <array>
+#include <map>
+#include <set>
+#include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
 namespace {
 template<class Size,class Draw>
 void CheckHomeRendering(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,int& mode,const Size& size,const Draw& draw) {

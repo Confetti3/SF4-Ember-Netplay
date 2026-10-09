@@ -1,8 +1,8 @@
 #include "shell_journey_support.hxx"
+#include "shell_additional_journeys.hxx"
 #include <algorithm>
 #include <iterator>
-namespace {
-void Journeys() {
+void RoomJourneys() {
  using namespace sf4e;
  Harness h;h.Frame();
  // Back names where it goes: out of Ember from an idle Home, and while a
@@ -75,9 +75,9 @@ void Journeys() {
  h.Press(MenuInput::Back);Check(h.shell.Navigation().Screen()=="join","Back from Home during a Discord join did not return to Join");
  h.view.session.room=netplay::RoomState::Idle;h.Frame();
  SetMenuStatusProbe({});SetMenuEntriesProbe({});
- h.view.session.generation.room=1;h.view.session.room=netplay::RoomState::Joined;h.view.session.control=netplay::Health::Healthy;
- h.view.room.roomEpoch=10;h.view.room.localMember=1;h.view.room.host=1;h.view.room.name="Test room";h.view.room.revision=3;
- for(int i=0;i<4;++i){h.view.room.tables[i].id=i;h.view.room.tables[i].revision=7;}
+ JoinedRoom(h,10);h.view.session.generation.room=1;h.view.session.control=netplay::Health::Healthy;
+ h.view.room.host=1;h.view.room.name="Test room";h.view.room.revision=3;
+ for(auto& table:h.view.room.tables)table.revision=7;
  room::Member local;local.id=1;local.name="Local";h.view.room.members.push_back(local);
  room::Member peer;peer.id=2;peer.name="Peer";h.view.room.members.push_back(peer);
  h.Frame();h.Screen("room");h.Press(MenuInput::Right);Check(h.shell.Navigation().Focus()=="member-1","Right did not enter member pane");
@@ -446,5 +446,3 @@ void Journeys() {
  h.view.preferences=h.actions.back().preferences;h.Frame();
  Check(h.shell.Navigation().Screen()=="profile","Retried portrait save did not return to Profile");
 }
-}
-void RoomJourneys() { Journeys(); }
