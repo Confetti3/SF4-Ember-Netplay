@@ -1,6 +1,7 @@
 #pragma once
 #include "MoveInputs.hxx"
 #include <array>
+#include <cstdint>
 #include <nlohmann/json.hpp>
 #include <utility>
 
@@ -8,7 +9,10 @@
 namespace sf4e { namespace training {
 // Offsets from F1, -1 unbound. Only keys left free by Ember and Steam.
 inline bool FreePositionKey(const nlohmann::json& key) {
-    return key.is_number_integer() && key >= -1 && key < 12 && key != 9 && (key < 4 || key > 7);
+    // Compare as values: json compares a huge unsigned number as if it were signed.
+    if (!key.is_number_integer() || (key.is_number_unsigned() && key.get<std::uint64_t>() >= 12)) return false;
+    const auto value = key.get<std::int64_t>();
+    return value >= -1 && value < 12 && value != 9 && (value < 4 || value > 7);
 }
 inline std::array<int, 2> ReadPositionKeys(const nlohmann::json& keys) {
     std::array<int, 2> result{{1, 10}};
