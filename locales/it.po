@@ -3582,3 +3582,9 @@ msgstr "Impossibile entrare nella sala. Potrebbe essersi appena chiusa. Aggiorna
 
 msgid "legend.refresh"
 msgstr "Aggiorna"
+
+msgid "match.loading_detail"
+msgstr "Please wait. The match will start automatically; no buttons are needed."
+
+msgid "match.loading_title"
+msgstr "Starting match..."

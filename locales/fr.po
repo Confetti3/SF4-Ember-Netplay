@@ -3582,3 +3582,9 @@ msgstr "Impossible d'entrer dans le salon. Il vient peut-être de fermer. Actual
 
 msgid "legend.refresh"
 msgstr "Actualiser"
+
+msgid "match.loading_detail"
+msgstr "Please wait. The match will start automatically; no buttons are needed."
+
+msgid "match.loading_title"
+msgstr "Starting match..."

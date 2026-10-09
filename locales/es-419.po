@@ -3128,3 +3128,9 @@ msgstr "No se pudo entrar a la sala. Puede que acabe de cerrarse. Actualiza y el
 
 msgid "legend.refresh"
 msgstr "Actualizar"
+
+msgid "match.loading_detail"
+msgstr "Please wait. The match will start automatically; no buttons are needed."
+
+msgid "match.loading_title"
+msgstr "Starting match..."

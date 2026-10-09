@@ -1,4 +1,5 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "../netplay/MatchLoading.hxx"
 
 namespace sf4e { namespace NetplayFacade {
 namespace internal {
@@ -325,6 +326,7 @@ PostPublishState Publish() {
     snapshot.controller = ControllerLabel(snapshot.inputDevice);
 
 	snapshot.atMainMenu = AtMainMenu();
+	snapshot.matchLoading = netplay::MatchLoading(snapshot.session.match, snapshot.atMainMenu, runtime->matchEntered);
 	snapshot.matchWaitsForMenu = runtime->match && !runtime->matchEntered && !snapshot.atMainMenu &&
 		runtime->entryDeferredGeneration && runtime->entryDeferredGeneration == runtime->match->Generation() &&
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Started;

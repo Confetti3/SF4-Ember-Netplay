@@ -108,6 +108,8 @@ namespace sf4e {
 			bool atMainMenu = false;
 			// A started match is waiting for the player to return to the main menu.
 			bool matchWaitsForMenu = false;
+			// Automatic match entry: cover native menus and suppress manual input.
+			bool matchLoading = false;
 			bool canOpenRoom = false;
 			bool canReplaceRoom = false;
 			bool canReady = false;

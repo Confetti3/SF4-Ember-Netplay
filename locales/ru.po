@@ -3582,3 +3582,9 @@ msgstr "Не удалось войти в зал. Возможно, он тол�
 
 msgid "legend.refresh"
 msgstr "Обновить"
+
+msgid "match.loading_detail"
+msgstr "Please wait. The match will start automatically; no buttons are needed."
+
+msgid "match.loading_title"
+msgstr "Starting match..."

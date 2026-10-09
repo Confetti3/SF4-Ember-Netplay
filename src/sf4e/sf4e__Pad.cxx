@@ -48,7 +48,7 @@ void fSystem::UpdateInputs() {
     const bool focused=sf4e::Overlay::HasInputFocus();
     static bool mainArmed=false;
     static int ownerType=-1,ownerIndex=-1;
-    if(!focused||!connected||!snapshot.atMainMenu||snapshot.inputCapture!=sf4e::input::Capture::Idle||
+    if(snapshot.matchLoading||!focused||!connected||!sf4e::input::ControllerMenuAvailable(snapshot.menuContext)||snapshot.inputCapture!=sf4e::input::Capture::Idle||
         ownerType!=device.type||ownerIndex!=device.index) mainArmed=false;
     else if(!physical)mainArmed=true;
     else if(mainArmed&&(physical&PhysicalStart)&&!sf4e::Overlay::CapturesMenuInput()) {
@@ -57,7 +57,8 @@ void fSystem::UpdateInputs() {
     ownerType=device.type;ownerIndex=device.index;
     const unsigned held=sf4e::input::NativeMenuHeld(this);
     static sf4e::input::MenuInputCapture gate;
-    const bool blocked=gate.Update(sf4e::Overlay::CapturesMenuInput(),held);
+    // Gate from the game-thread snapshot as well, before the next drawn frame.
+    const bool blocked=gate.Update(snapshot.matchLoading || sf4e::Overlay::CapturesMenuInput(),held);
     inputBlocked=blocked;
     // Training is keyboard-only. Native Start is untouched while Ember is
     // closed; an open overlay captures all inputs until release.
@@ -79,7 +80,7 @@ unsigned int fSystem::ReadButtons(int pindex, bool raw) {
     static unsigned int held[2][2]{};
     if (pindex < 0 || pindex >= 2) return buttons;
     unsigned int& captured = held[raw ? 1 : 0][pindex];
-    if (sf4e::Overlay::CapturesMenuInput()) { captured = buttons; return 0; }
+    if (inputBlocked || sf4e::Overlay::CapturesMenuInput()) { captured = buttons; return 0; }
     // Release each captured button before returning it to the native menu.
     captured &= buttons;
     return buttons & ~captured;

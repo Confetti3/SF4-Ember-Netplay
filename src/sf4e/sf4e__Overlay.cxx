@@ -399,8 +399,8 @@ void Overlay::DrawOverlay() {
     const auto training = sf4e::training::ReadView();
     trainingAvailable = training.available;
     bool pointer = false;
-    if (!training.available || !focused) trainingOpen = false;
-    if (focused && training.available && !presentation.Visible()) {
+    if (!training.available || !focused || snapshot.matchLoading) trainingOpen = false;
+    if (focused && training.available && !presentation.Visible() && !snapshot.matchLoading) {
         sf4e::ui::SetMenuInput({0, ImGui::GetTime()});
         sf4e::ui::SetMenuGlyphs(sf4e::input::PadKeyboard,0,0);
         if (ImGui::IsKeyPressed(ImGuiKey_F6, false)) trainingOpen = !trainingOpen;
@@ -429,13 +429,15 @@ void Overlay::DrawOverlay() {
     }
     // Shown survives alt-tab; taking the cursor and keys needs focus.
     const bool shown = presentation.Visible() || trainingOpen;
-    const bool visible = focused && shown;
+    const bool visible = focused && (shown || snapshot.matchLoading);
     pointerCapture = focused && !visible && pointer;
     sf4e::ui::SetOverlayCursorOwnership(visible || pointerCapture);
     if (capture.exchange(visible) && !visible) { ImGui::GetIO().ClearInputKeys(); ImGui::GetIO().ClearInputMouse(); }
     // The native menu stays parked under a shown shell, focused or not, so a
     // pad press while alt-tabbed cannot drive it.
-    fMainMenu::bOverrideItemObserverState = (shown || controllerNavigation.MenuGuard()) ? rMainMenu::MMIOS_TRANSITION : -1;
+    // Loading blocks physical inputs, but must release the native observer so
+    // GoToVersusMode can complete its automatic transition.
+    fMainMenu::bOverrideItemObserverState = !snapshot.matchLoading && (shown || controllerNavigation.MenuGuard()) ? rMainMenu::MMIOS_TRANSITION : -1;
     if (!shown && presentation.Available()) {
         const auto* vp = ImGui::GetMainViewport();
         ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x * .5f, vp->Pos.y + 12 * sf4e::ui::Scale()), ImGuiCond_Always, ImVec2(.5f, 0));
@@ -478,6 +480,7 @@ void Overlay::DrawOverlay() {
     // Every edit is remembered for the fighter it was made on.
     if (prefs.lobby.charaID < prefs.fighters.size()) prefs.fighters[prefs.lobby.charaID] = prefs.lobby;
     if (memcmp(&prefs, &s_prefs, sizeof(prefs)) != 0 && sf4e::OverlayPrefs::Save(prefs)) s_prefs = prefs;
+    if (snapshot.matchLoading) sf4e::ui::DrawMatchLoading();
     ImGui::Render(); ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
 
 }
@@ -526,7 +529,8 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
     }
     if (!ImGui::GetCurrentContext()) return 0;
     if (activationClick.Swallow(message, l)) return 0;
-    const auto handled = sf4e::ui::HandleOverlayMessage(window, message, w, l, capture, s_menuAvailable, pointerCapture);
+    const bool loading = focused && sf4e::NetplayFacade::GetRuntimeSnapshotShared()->matchLoading;
+    const auto handled = sf4e::ui::HandleOverlayMessage(window, message, w, l, capture || loading, s_menuAvailable, pointerCapture);
     if (trainingAvailable && w >= VK_F5 && w <= VK_F8 &&
         (message == WM_KEYDOWN || message == WM_KEYUP || message == WM_SYSKEYDOWN || message == WM_SYSKEYUP)) return 1;
     return handled;

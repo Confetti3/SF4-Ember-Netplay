@@ -3244,3 +3244,9 @@ msgstr "Couldn't get into the room. It may have just closed. Refresh and pick an
 
 msgid "legend.refresh"
 msgstr "Refresh"
+
+msgid "match.loading_detail"
+msgstr "Please wait. The match will start automatically; no buttons are needed."
+
+msgid "match.loading_title"
+msgstr "Starting match..."

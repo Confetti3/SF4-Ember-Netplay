@@ -89,6 +89,8 @@ void ConstrainNextWindow(ImVec2 preferredSize);
 void KeepWindowVisible();
 bool BeginToolWindow(const char* name, bool* open = nullptr, ImGuiWindowFlags flags = 0);
 void EndToolWindow();
+// Opaque foreground cover; leaves the native loading pipeline running.
+void DrawMatchLoading();
 
 // Ember's link marks in a size-by-size square at `min`: an Ethernet port in
 // the ready green, Wi-Fi arcs in the accent colour since it is the link to keep
