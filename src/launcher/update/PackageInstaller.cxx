@@ -231,11 +231,18 @@ void ValidateRecoveryBackups(const fs::path& backup, const std::map<std::wstring
             throw InvalidRecoveryEvidence("Update backup is missing or damaged");
     }
 }
-// Restore only recorded operations, after validating their complete backup
-// set. Files left out of the transaction remain exactly as the player left
-// them, even when they changed while this install was running.
-void RestoreOperations(const fs::path& install, const fs::path& backup, const std::map<std::wstring,RecoveryFile>& files) {
+// A backup set whose every needed file matched the journal. Restoration takes
+// only this, so the backups are hashed once and never skipped.
+struct ValidatedBackup { fs::path path; };
+ValidatedBackup ValidateRestoreBackup(const fs::path& backup, const std::map<std::wstring,RecoveryFile>& files) {
     ValidateRecoveryBackups(backup,files,true);
+    return {backup};
+}
+// Restore only recorded operations, from their validated backup set. Files
+// left out of the transaction remain exactly as the player left them, even
+// when they changed while this install was running.
+void RestoreOperations(const fs::path& install, const ValidatedBackup& validated, const std::map<std::wstring,RecoveryFile>& files) {
+    const auto& backup=validated.path;
     for(const auto& [key,file]:files) if(file.operation) {
         const auto path=install/file.relative;
         if(fs::is_directory(path)) throw std::runtime_error("Recovery destination is not a file");
@@ -310,10 +317,17 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
         catch(...) { if(stream.bad()) validating=false; throw; }
         const auto state=transaction.value("state",std::string());
         rollingBack=state=="rolling-back";
-        if(transaction.value("schema",0)!=1 || PathKey(fs::u8path(transaction.value("installation",std::string())))!=PathKey(install) ||
+        // An integer schema only: a reader that converted true or 1.5 to 1
+        // would accept journals the PowerShell reader rejects.
+        const fs::path installation=fs::u8path(transaction.value("installation",std::string()));
+        if(!transaction.contains("schema") || !transaction.at("schema").is_number_integer() || transaction.at("schema")!=1 ||
+            !installation.is_absolute() || PathKey(installation)!=PathKey(install) ||
             (state!="prepared" && state!="committed" && !rollingBack) ||
             !transaction.at("operations").is_array() || transaction.at("operations").empty() || !transaction.at("target").is_object())
             throw std::runtime_error("Invalid pending update transaction");
+        // Paths as written: "." and ".." parts are refused, never normalized
+        // away, here and for the backup below, as both readers check them.
+        CheckPath(installation.root_path(),installation.relative_path());
         const fs::path backup=fs::u8path(transaction.at("backup").get<std::string>());
         if(!backup.is_absolute() || (PathKey(backup.parent_path())!=PathKey(install/L".ember-update-backups") &&
             !(PathKey(backup.parent_path())==PathKey(install.parent_path()) && backup.filename().wstring().find(L"Ember-backup-")==0)))
@@ -321,7 +335,9 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
         CheckPath(backup.root_path(),backup.relative_path());
         // "committed" is written only after every installed file matched the
         // target, so only its removal failed. Files that differ now were
-        // changed afterwards, by the player; they are not ours to undo.
+        // changed afterwards, by the player; they are not ours to undo. The
+        // backup holds only older bytes, and keeping the journal would block
+        // every later update, so it is cleared.
         const bool committed=transaction.at("state")=="committed";
         std::map<std::wstring,RecoveryFile> files;
         for(const auto& item:transaction.at("target").items()) {
@@ -354,7 +370,7 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
         validating=false;
         stream.close();
         if(rollingBack) {
-            RestoreOperations(install,backup,files);
+            RestoreOperations(install,ValidateRestoreBackup(backup,files),files);
         } else if(!committed) {
             ObserveRecoveryFiles(install,files);
             const auto observation=ClassifyRecovery(files);
@@ -364,15 +380,18 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
             case RecoveryOutcome::PreserveReplaced:
                 if(!SetAsideJournal(transactionPath)) throw std::runtime_error("Cannot clear the pending update transaction");
                 error.clear(); return true;
-            case RecoveryOutcome::Restore:
-                ValidateRecoveryBackups(backup,files,true);
+            case RecoveryOutcome::Restore: {
+                const auto validated=ValidateRestoreBackup(backup,files);
                 transaction["state"]="rolling-back";
+                // Only what this look found is carried into the rollback.
+                transaction.erase("missingSkipped");
                 if(!observation.missing.empty()) transaction["missingSkipped"]=observation.missing.generic_u8string();
                 DurableJson(transactionPath,transaction);
                 rollingBack=true;
-                RestoreOperations(install,backup,files);
+                RestoreOperations(install,validated,files);
                 break;
-            case RecoveryOutcome::Completed: break;
+            }
+            case RecoveryOutcome::Completed:
             case RecoveryOutcome::RepairNeeded: break;
             }
             // A skipped file has no prior copy. Completed operations stay at

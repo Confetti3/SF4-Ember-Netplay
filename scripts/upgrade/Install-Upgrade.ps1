@@ -7,11 +7,13 @@ Set-StrictMode -Version Latest
 # is launched across Windows PowerShell and PowerShell 7 hosts.
 Import-Module (Join-Path $PSHOME 'Modules\Microsoft.PowerShell.Utility') -ErrorAction Stop
 
+function ValidRelative([string]$Relative) {
+    return !([IO.Path]::IsPathRooted($Relative) -or $Relative -match '[:*?"<>|]' -or
+        @($Relative -split '[\\/]' | Where-Object { $_ -in '', '.', '..' -or $_.EndsWith('.') -or $_.EndsWith(' ') }).Count)
+}
+
 function SafePath([string]$Root, [string]$Relative) {
-    if ([IO.Path]::IsPathRooted($Relative) -or $Relative -match '[:*?"<>|]' -or
-        @($Relative -split '[\\/]' | Where-Object { $_ -in '', '.', '..' -or $_.EndsWith('.') -or $_.EndsWith(' ') }).Count) {
-        throw "Invalid package path: $Relative"
-    }
+    if (!(ValidRelative $Relative)) { throw "Invalid package path: $Relative" }
     $rootPath = [IO.Path]::GetFullPath($Root).TrimEnd('\','/')
     $path = [IO.Path]::GetFullPath([IO.Path]::Combine($rootPath + '\', $Relative))
     if (!$path.StartsWith($rootPath + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Path escapes the selected folder.' }
@@ -24,6 +26,18 @@ function SafePath([string]$Root, [string]$Relative) {
         $walk = if ($parentDirectory) { $parentDirectory.FullName } else { $null }
     }
     return $path
+}
+
+# A journal's absolute path, checked as written the way the native reader
+# checks it: a drive or UNC root, then no empty, '.', '..' or otherwise invalid
+# part and no linked folder, so nothing is normalized away before the location
+# checks. Returns the full path.
+function AbsolutePath([string]$Value) {
+    if ($Value -match '^([A-Za-z]:)[\\/](.+)$') { return SafePath ($Matches[1] + '\') $Matches[2] }
+    if ($Value -match '^[\\/]{2}([^\\/]+)[\\/]([^\\/]+)[\\/](.+)$' -and (ValidRelative $Matches[2])) {
+        return SafePath "\\$($Matches[1])\$($Matches[2])\" $Matches[3]
+    }
+    throw "Invalid update path: $Value"
 }
 
 function ReadManifest([string]$Path, [string]$Root) {
@@ -97,106 +111,234 @@ function WriteTransaction([string]$Path, $Value) {
     else { [IO.File]::Move($temporary,$Path) }
 }
 
+# Recovery follows the native updater's (PackageInstaller.cxx RecoverLocked)
+# decision for every journal, so either reader leaves a folder the same way;
+# src/tests/data/upgrade-recovery/fixtures.json holds both to that.
+function FileHash([string]$Path) { (Get-FileHash -LiteralPath $Path -Algorithm SHA256 -ErrorAction Stop).Hash }
+
+# What is at a path: Absent, File or Directory. Only "not found" is absence; a
+# path whose status cannot be read (permissions, sharing, I/O) is an error, as
+# in the native reader, so recovery stops with everything left as it was.
+function PathStatus([string]$Path) {
+    # The exception is tested by its own type: Windows PowerShell was seen to
+    # match a typed catch for "not found" to an access-denied failure.
+    try { $attributes = [IO.File]::GetAttributes($Path) }
+    catch {
+        $failure = $_.Exception
+        while ($failure -is [Management.Automation.MethodInvocationException] -and $failure.InnerException) { $failure = $failure.InnerException }
+        if ($failure -is [IO.FileNotFoundException] -or $failure -is [IO.DirectoryNotFoundException]) { return 'Absent' }
+        throw "Cannot read update file during recovery: $Path"
+    }
+    if ($attributes -band [IO.FileAttributes]::Directory) { return 'Directory' }
+    return 'File'
+}
+
+# A journal field by its exact name, as the native reader looks it up, with
+# its JSON value as parsed (an array stays an array); $null when absent.
+function JournalField($Object, [string]$Name) {
+    foreach ($property in $Object.PSObject.Properties) { if ($property.Name -ceq $Name) { return ,$property.Value } }
+    return $null
+}
+
+# Moves a journal that will not be recovered out of the way, kept as evidence
+# when it can be renamed and otherwise removed, as the native reader does, so
+# its failure is reported once and later runs can proceed.
+function SetAsideJournal([string]$Path) {
+    $failedPath = $Path + '.failed'
+    try {
+        if ([IO.File]::Exists($failedPath)) { [IO.File]::Replace($Path, $failedPath, [NullString]::Value) }
+        else { [IO.File]::Move($Path, $failedPath) }
+        return
+    } catch {}
+    try { [IO.File]::Delete($Path) } catch {}
+    if ((PathStatus $Path) -ne 'Absent') { throw 'Cannot clear the pending update transaction.' }
+}
+
+# Backup bytes that disagree with the journal can never be trusted; a missing
+# backup matters only when a restoration needs it. A backup that cannot be
+# read is an ordinary error, and the journal stays for a retry.
+function ValidateBackups([string]$Backup, [hashtable]$Files, [bool]$RequireAll) {
+    foreach ($file in $Files.Values) {
+        if (!$file.Operation -or !$file.Prior) { continue }
+        $source = SafePath $Backup $file.Relative
+        if ((PathStatus $source) -ne 'File') {
+            if ($RequireAll) { throw [IO.InvalidDataException]::new("The recovery backup is missing or damaged: $($file.Relative)") }
+        } elseif ((FileHash $source) -ine $file.Prior) {
+            throw [IO.InvalidDataException]::new("The recovery backup is missing or damaged: $($file.Relative)")
+        }
+    }
+}
+
+# Restores only the recorded operations, from a backup set already validated.
+# A file already at its prior bytes is not written, as it may be held open.
+function RestoreOperations([string]$Install, [string]$Backup, [hashtable]$Files, [string[]]$Order) {
+    $operations = @($Order | ForEach-Object { $Files[$_] } | Where-Object { $_.Operation })
+    foreach ($file in $operations) {
+        if ((PathStatus (SafePath $Install $file.Relative)) -eq 'Directory') { throw "Recovery destination is not a file: $($file.Relative)" }
+    }
+    foreach ($file in $operations) {
+        $destination = SafePath $Install $file.Relative
+        if ($file.Prior) {
+            if ((PathStatus $destination) -eq 'File' -and (FileHash $destination) -ieq $file.Prior) { continue }
+            ReplaceOne (SafePath $Backup $file.Relative) $destination $file.Prior
+        } elseif ((PathStatus $destination) -ne 'Absent') { Remove-Item -LiteralPath $destination -Force }
+    }
+    foreach ($file in $operations) {
+        $destination = SafePath $Install $file.Relative
+        if ($file.Prior) {
+            if ((PathStatus $destination) -ne 'File' -or (FileHash $destination) -ine $file.Prior) { throw "Restored update file failed verification: $($file.Relative)" }
+        } elseif ((PathStatus $destination) -ne 'Absent') {
+            throw "A newly added update file could not be removed during recovery: $($file.Relative)"
+        }
+    }
+}
+
 function RecoverTransaction([string]$Install, [string]$Path, [switch]$InspectOnly) {
-    if (!(Test-Path -LiteralPath $Path)) { return $false }
-    if (!(Test-Path -LiteralPath $Path -PathType Leaf)) { throw 'Invalid update transaction path.' }
-    $transaction = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
-    if ($transaction.schema -ne 1 -or $transaction.installation -ine $Install -or !$transaction.backup -or !$transaction.operations -or
-        $transaction.state -notin 'prepared','committed','rolling-back' -or $transaction.target -isnot [pscustomobject]) {
-        throw 'The pending update transaction is invalid. Preserve the installation and backup for manual recovery.'
-    }
-    if ($InspectOnly) {
-        Write-Host "Pending update recovery is required. Run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" -InstallDir `"$Install`" -RecoverOnly"
-        return $true
-    }
-    CheckClosed $Install
-    $backupRoot = [IO.Path]::GetFullPath([string]$transaction.backup).TrimEnd('\','/')
-    $backupParent = Split-Path $backupRoot -Parent
-    if ($backupParent -ine (Join-Path $Install '.ember-update-backups') -and
-        !($backupParent -ieq (Split-Path $Install -Parent) -and (Split-Path $backupRoot -Leaf) -clike 'Ember-backup-*')) {
-        throw 'Invalid update backup location.'
-    }
-    $target = @{}
-    foreach ($property in $transaction.target.PSObject.Properties) {
-        $null = SafePath $Install $property.Name
-        $key = $property.Name.Replace('/','\')
-        if ($target.ContainsKey($key) -or [string]$property.Value -notmatch '^[a-fA-F0-9]{64}$') { throw 'Invalid target inventory.' }
-        $target[$key] = [string]$property.Value
-    }
-    $seen = @{}
-    foreach ($operation in @($transaction.operations)) {
-        $key = ([string]$operation.path).Replace('/','\')
-        $destination = SafePath $Install $key
-        $source = SafePath $backupRoot $key
-        if ($seen.ContainsKey($key) -or $key -in '.ember-update.lock','.ember-update-transaction-v1.json' -or
-            $key -like '.ember-update-backups*' -or $operation.existed -isnot [bool] -or
-            (Test-Path -LiteralPath $destination -PathType Container)) { throw 'Invalid recovery operation.' }
-        $seen[$key] = $true
-        if (($operation.existed -and [string]$operation.priorSha256 -notmatch '^[a-fA-F0-9]{64}$') -or
-            (!$operation.existed -and [string]$operation.priorSha256 -ne '')) { throw 'Invalid prior hash.' }
-        if ($transaction.state -ne 'committed' -and $operation.existed -and
-            (!(Test-Path -LiteralPath $source -PathType Leaf) -or (Get-FileHash -LiteralPath $source).Hash -ine [string]$operation.priorSha256)) {
-            throw "The recovery backup is missing or damaged: $key"
+    $journalStatus = PathStatus $Path
+    if ($journalStatus -eq 'Absent') { return $false }
+    if ($journalStatus -ne 'File') { throw 'Invalid update transaction path.' }
+    # A journal that cannot be read stays for a retry.
+    $text = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
+    if (!$InspectOnly) { CheckClosed $Install }
+    # Invalid evidence in a journal that is not rolling back is set aside before
+    # any destination changes. An unfinished rollback keeps its journal.
+    $validating = $true; $rollingBack = $false
+    $invalid = 'The pending update transaction is invalid. Preserve the installation and backup for manual recovery.'
+    try {
+        # Exactly what the native reader accepts, checked before any decision:
+        # an object root (ConvertFrom-Json would unroll an array around one),
+        # fields by their exact names and JSON types, never coerced.
+        if (!$text -or !$text.TrimStart().StartsWith('{')) { throw $invalid }
+        $transaction = $text | ConvertFrom-Json
+        $state = JournalField $transaction 'state'
+        $rollingBack = $state -is [string] -and $state -ceq 'rolling-back'
+        $schema = JournalField $transaction 'schema'
+        $operations = JournalField $transaction 'operations'
+        $target = JournalField $transaction 'target'
+        $backup = JournalField $transaction 'backup'
+        $installation = JournalField $transaction 'installation'
+        if ($transaction -isnot [pscustomobject] -or ($schema -isnot [int] -and $schema -isnot [long]) -or $schema -ne 1 -or
+            $installation -isnot [string] -or (AbsolutePath $installation) -ine $Install -or $state -isnot [string] -or $state -cnotin 'prepared','committed','rolling-back' -or
+            $operations -isnot [array] -or $operations.Count -eq 0 -or $target -isnot [pscustomobject] -or $backup -isnot [string]) {
+            throw $invalid
         }
-    }
-    $missingSkipped = ''
-    $missingProperty = $transaction.PSObject.Properties['missingSkipped']
-    if ($missingProperty) {
-        if ($missingProperty.Value -isnot [string]) { throw 'Invalid missing update file.' }
-        $missingSkipped = $missingProperty.Value.Replace('/','\')
-        $null = SafePath $Install $missingSkipped
-        if (!$target.ContainsKey($missingSkipped) -or $seen.ContainsKey($missingSkipped)) {
-            throw 'Invalid missing update file.'
+        if ($InspectOnly) {
+            Write-Host "Pending update recovery is required. Run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" -InstallDir `"$Install`" -RecoverOnly"
+            return $true
         }
-    }
-    if ($transaction.state -eq 'committed') {
-        VerifyFiles $Install $target
-        foreach ($key in $seen.Keys) {
-            if (!$target.ContainsKey($key) -and (Test-Path -LiteralPath (SafePath $Install $key))) { throw "Obsolete file remains in committed update: $key" }
+        $backupRoot = AbsolutePath $backup
+        $backupParent = Split-Path $backupRoot -Parent
+        if ($backupParent -ine (Join-Path $Install '.ember-update-backups') -and
+            !($backupParent -ieq (Split-Path $Install -Parent) -and (Split-Path $backupRoot -Leaf) -clike 'Ember-backup-*')) {
+            throw 'Invalid update backup location.'
+        }
+        # Every target and operation path, keyed and ordered as the native reader
+        # keys them, so both restore, and name a missing file, in the same order.
+        $files = @{}
+        foreach ($property in $target.PSObject.Properties) {
+            $relative = $property.Name.Replace('/','\')
+            $null = SafePath $Install $relative
+            $key = $relative.ToLowerInvariant()
+            if ($files.ContainsKey($key) -or $property.Value -isnot [string] -or $property.Value -notmatch '^[a-fA-F0-9]{64}$') { throw 'Invalid target inventory.' }
+            $files[$key] = [pscustomobject]@{Relative=$relative;Target=$property.Value;Prior='';Operation=$false;State='';Current=''}
+        }
+        foreach ($operation in $operations) {
+            if ($operation -isnot [pscustomobject]) { throw 'Invalid recovery operation.' }
+            $operationPath = JournalField $operation 'path'; $existed = JournalField $operation 'existed'; $prior = JournalField $operation 'priorSha256'
+            if ($operationPath -isnot [string] -or $existed -isnot [bool] -or $prior -isnot [string]) { throw 'Invalid recovery operation.' }
+            $relative = $operationPath.Replace('/','\')
+            $null = SafePath $Install $relative
+            $null = SafePath $backupRoot $relative
+            $key = $relative.ToLowerInvariant()
+            if (($files.ContainsKey($key) -and $files[$key].Operation) -or $key -in '.ember-update.lock','.ember-update-transaction-v1.json' -or
+                $key -like '.ember-update-backups*') { throw 'Invalid recovery operation.' }
+            if (($existed -and $prior -notmatch '^[a-fA-F0-9]{64}$') -or (!$existed -and $prior -ne '')) { throw 'Invalid prior hash.' }
+            if (!$files.ContainsKey($key)) { $files[$key] = [pscustomobject]@{Relative=$relative;Target='';Prior='';Operation=$false;State='';Current=''} }
+            $files[$key].Operation = $true
+            if ($existed) { $files[$key].Prior = $prior }
+        }
+        $order = [string[]]@($files.Keys)
+        [Array]::Sort($order, [StringComparer]::Ordinal)
+        # Only a rollback carries a missing skipped file forward; any other
+        # journal finds missing files by looking at the folder.
+        $missing = ''
+        $missingProperty = @($transaction.PSObject.Properties | Where-Object { $_.Name -ceq 'missingSkipped' })
+        if ($rollingBack -and $missingProperty) {
+            if ($missingProperty[0].Value -isnot [string]) { throw 'Invalid missing update file.' }
+            $missing = $missingProperty[0].Value.Replace('/','\')
+            $null = SafePath $Install $missing
+            $key = $missing.ToLowerInvariant()
+            if (!$files.ContainsKey($key) -or $files[$key].Operation) { throw 'Invalid missing update file.' }
+        }
+        $validating = $false
+        if ($state -ceq 'committed') {
+            # "committed" is written only after every file matched the target.
+            # A file that differs or is gone now was changed afterwards: the
+            # backup holds only older bytes, which would downgrade it, and
+            # keeping the journal would block every later update. It is cleared.
+            Remove-Item -LiteralPath $Path -Force
+            Write-Host 'The completed update transaction was cleared.'
+            return $true
+        }
+        $restored = $rollingBack
+        if ($rollingBack) {
+            ValidateBackups $backupRoot $files $true
+            RestoreOperations $Install $backupRoot $files $order
+        } else {
+            # A prepared journal: look at every recorded file before deciding.
+            $operationsComplete = $true; $targetComplete = $true; $replaced = $false
+            foreach ($key in $order) {
+                $file = $files[$key]
+                $destination = SafePath $Install $file.Relative
+                $status = PathStatus $destination
+                if ($status -eq 'Directory') { $file.State = 'Different' }
+                elseif ($status -eq 'Absent') { $file.State = 'Missing' }
+                else {
+                    try { $file.Current = FileHash $destination } catch { throw "Cannot read update file during recovery: $($file.Relative)" }
+                    $file.State = if ($file.Target -and $file.Current -ieq $file.Target) { 'Matching' } else { 'Different' }
+                }
+                $atTarget = if ($file.Target) { $file.State -eq 'Matching' } else { $file.State -eq 'Missing' }
+                $atPrior = if ($file.Prior) { $file.Current -and $file.Current -ieq $file.Prior } else { $file.State -eq 'Missing' }
+                if ($file.Operation) { $operationsComplete = $operationsComplete -and $atTarget }
+                if ($file.Target) { $targetComplete = $targetComplete -and $atTarget }
+                # Bytes that are neither the update's nor the ones it replaced
+                # mean the folder was replaced since; it is not rolled back.
+                if ($file.State -eq 'Different' -and (!$file.Operation -or !$atPrior)) { $replaced = $true }
+                if (!$file.Operation -and $file.State -eq 'Missing' -and !$missing) { $missing = $file.Relative }
+            }
+            if ($replaced) {
+                ValidateBackups $backupRoot $files $false
+                SetAsideJournal $Path
+                Write-Host 'The folder changed after the interrupted update, so it was left as it is.'
+                return $true
+            }
+            if (!$operationsComplete) {
+                ValidateBackups $backupRoot $files $true
+                # Persist the rollback before the first destination changes, so
+                # either reader resumes it without classifying a partly restored
+                # folder again. A skipped file that is gone has no backup.
+                $transaction.state = 'rolling-back'
+                $transaction.PSObject.Properties.Remove('missingSkipped')
+                if ($missing) { $transaction | Add-Member -NotePropertyName missingSkipped -NotePropertyValue $missing.Replace('\','/') }
+                WriteTransaction $Path $transaction
+                $rollingBack = $true; $restored = $true
+                RestoreOperations $Install $backupRoot $files $order
+            } else { ValidateBackups $backupRoot $files $false }
+        }
+        if ($missing) {
+            SetAsideJournal $Path
+            throw "An update file is missing and has no backup; install the update again: $($missing.Replace('\','/'))"
         }
         Remove-Item -LiteralPath $Path -Force
-        Write-Host 'The completed update transaction was verified.'
+        if ($restored) { Write-Host "The interrupted update was restored from $($transaction.backup)." }
+        else { Write-Host 'The interrupted update had already finished and was verified.' }
         return $true
-    }
-    # The complete journal and backup set are validated above. Persist the
-    # chosen rollback before the first destination changes, so either reader
-    # resumes restoration without reclassifying a partially restored install.
-    if ($transaction.state -ne 'rolling-back') {
-        $transaction.state = 'rolling-back'
-        WriteTransaction $Path $transaction
-    }
-    foreach ($operation in @($transaction.operations)) {
-        $destination = SafePath $Install ([string]$operation.path)
-        if ($operation.existed) {
-            $source = SafePath ([string]$transaction.backup) ([string]$operation.path)
-            if (!(Test-Path -LiteralPath $source -PathType Leaf) -or
-                (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash -ine [string]$operation.priorSha256) {
-                throw "The recovery backup is missing or damaged: $($operation.path)"
-            }
-            ReplaceOne $source $destination ([string]$operation.priorSha256)
-        } elseif (Test-Path -LiteralPath $destination -PathType Leaf) {
-            Remove-Item -LiteralPath $destination -Force
+    } catch {
+        if (!$InspectOnly -and !$rollingBack -and ($validating -or $_.Exception -is [IO.InvalidDataException])) {
+            try { SetAsideJournal $Path } catch {}
         }
+        throw
     }
-    $restored = @{}
-    foreach ($operation in @($transaction.operations)) {
-        if ($operation.existed) { $restored[[string]$operation.path] = [string]$operation.priorSha256 }
-        elseif (Test-Path -LiteralPath (SafePath $Install ([string]$operation.path))) {
-            throw "A newly added update file could not be removed during recovery: $($operation.path)"
-        }
-    }
-    VerifyFiles $Install $restored
-    if ($missingSkipped) {
-        # The recorded skipped file has no backup. Restoration completes the
-        # operations, but cannot clear the native reader's terminal repair result.
-        $failedPath = SafePath $Install '.ember-update-transaction-v1.json.failed'
-        if (Test-Path -LiteralPath $failedPath -PathType Container) { throw 'Invalid failed update transaction path.' }
-        Move-Item -LiteralPath $Path -Destination $failedPath -Force
-        throw "An update file is missing and has no backup; install the update again: $missingSkipped"
-    }
-    Remove-Item -LiteralPath $Path -Force
-    Write-Host "The interrupted update was restored from $($transaction.backup)."
-    return $true
 }
 
 function CheckClosed([string]$Root) {
@@ -312,7 +454,7 @@ $stage = Join-Path $parent ('.ember-upgrade-stage-' + $id)
 $backup = Join-Path $parent ("Ember-backup-$($metadata.from)-" + (Get-Date).ToString('yyyyMMdd-HHmmss', [cultureinfo]::InvariantCulture) + '-' + $id.Substring(0,8))
 $null = [IO.Directory]::CreateDirectory($stage)
 $touched = New-Object 'System.Collections.Generic.List[string]'
-$backupMade = $false
+$backupMade = $false; $committed = $false
 try {
     Write-Host 'Preparing and validating the upgrade...'
     foreach ($relative in $after.Keys) {
@@ -362,16 +504,25 @@ try {
     }
     VerifyFiles $install $after; VerifyAbsent $install $removed
     $transaction.state='committed'; WriteTransaction $transactionPath $transaction
+    $committed = $true
     Remove-Item -LiteralPath $transactionPath -Force
     Write-Host "Upgrade complete: SF4 Ember Netplay $($metadata.to) verified."
     Write-Host "Backup of replaced $($metadata.from) files: $backup"
     Write-Host 'You can now run Launcher.exe from your Ember folder.'
 } catch {
     $failure = $_
-    if ($backupMade -and $touched.Count) {
+    if ($committed) {
+        Write-Warning 'The upgrade was installed and verified; clearing its transaction is pending.'
+    } elseif ($backupMade -and $touched.Count) {
         Write-Warning 'Upgrade failed. Restoring replaced files from the backup.'
         try {
-            if (Test-Path -LiteralPath $transactionPath -PathType Leaf) { $null = RecoverTransaction $install $transactionPath }
+            if (Test-Path -LiteralPath $transactionPath -PathType Leaf) {
+                # This install just failed, so its own writes are undone whatever
+                # the folder looks like now: the rollback is persisted first and
+                # recovery resumes it rather than classifying the folder.
+                $transaction.state = 'rolling-back'; WriteTransaction $transactionPath $transaction
+                $null = RecoverTransaction $install $transactionPath
+            }
             VerifyFiles $install $before
             Write-Warning "The original $($metadata.from) package was restored and verified."
         } catch { Write-Warning "Automatic restore could not finish. Keep the backup at $backup. Restore error: $_" }

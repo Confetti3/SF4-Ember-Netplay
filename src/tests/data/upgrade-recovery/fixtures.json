@@ -1,0 +1,368 @@
+{
+  "comment": "Upgrade journals and the one outcome both recovery readers must reach: Updater.exe (PackageInstaller RecoverLocked) and Install-Upgrade.ps1 -RecoverOnly. Each case is an install folder with this target and these operations; a prior of null means the update added the file. Hashes, paths and the backup set are made by each test. Backup files hold the prior contents unless a case overrides them (null: no backup). Expected files list every recorded path that should exist afterwards; any other is absent. journal: cleared (no journal left), setAside (moved to .failed) or kept. A case may override top-level journal fields (journal; a string \"@sha:<text>\" is the hash of <text>), wrap the journal text (journalText, where {journal} is the generated JSON), and put earlier evidence in the way of .failed (failed: directory, or held for a file open without delete sharing). inaccessible lists files (backup:<path> for a backup) whose status cannot be read during a first recovery, which must fail with every file and the journal unchanged; expect is the outcome of a second recovery once access returns.",
+  "target": {
+    "Launcher.exe": "new-launcher",
+    "Updater.exe": "new-updater",
+    "added.bin": "new-added",
+    "skipped.dll": "same"
+  },
+  "operations": [
+    { "path": "Launcher.exe", "prior": "old-launcher" },
+    { "path": "Updater.exe", "prior": "old-updater" },
+    { "path": "added.bin", "prior": null },
+    { "path": "removed.txt", "prior": "old-removed" }
+  ],
+  "cases": [
+    {
+      "name": "prepared-untouched",
+      "state": "prepared",
+      "install": { "Launcher.exe": "old-launcher", "Updater.exe": "old-updater", "removed.txt": "old-removed", "skipped.dll": "same" },
+      "expect": { "success": true, "journal": "cleared",
+        "files": { "Launcher.exe": "old-launcher", "Updater.exe": "old-updater", "removed.txt": "old-removed", "skipped.dll": "same" } }
+    },
+    {
+      "name": "prepared-partial",
+      "state": "prepared",
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": true, "journal": "cleared",
+        "files": { "Launcher.exe": "old-launcher", "Updater.exe": "old-updater", "removed.txt": "old-removed", "skipped.dll": "same" } }
+    },
+    {
+      "name": "prepared-complete",
+      "state": "prepared",
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": true, "journal": "cleared",
+        "files": { "Launcher.exe": "new-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" } }
+    },
+    {
+      "name": "prepared-complete-backup-gone",
+      "state": "prepared",
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "backup": { "Launcher.exe": null },
+      "expect": { "success": true, "journal": "cleared",
+        "files": { "Launcher.exe": "new-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" } }
+    },
+    {
+      "name": "prepared-replaced-operation",
+      "state": "prepared",
+      "install": { "Launcher.exe": "player-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": true, "journal": "setAside",
+        "files": { "Launcher.exe": "player-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" } }
+    },
+    {
+      "name": "prepared-replaced-added-file",
+      "state": "prepared",
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "player-added", "skipped.dll": "same" },
+      "expect": { "success": true, "journal": "setAside",
+        "files": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "player-added", "skipped.dll": "same" } }
+    },
+    {
+      "name": "prepared-replaced-skipped",
+      "state": "prepared",
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "player-skipped" },
+      "expect": { "success": true, "journal": "setAside",
+        "files": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "player-skipped" } }
+    },
+    {
+      "name": "prepared-partial-missing-skipped",
+      "state": "prepared",
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added" },
+      "expect": { "success": false, "error": "install the update again: skipped.dll", "journal": "setAside",
+        "files": { "Launcher.exe": "old-launcher", "Updater.exe": "old-updater", "removed.txt": "old-removed" } }
+    },
+    {
+      "name": "prepared-complete-missing-skipped",
+      "state": "prepared",
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "new-updater", "added.bin": "new-added" },
+      "expect": { "success": false, "error": "install the update again: skipped.dll", "journal": "setAside",
+        "files": { "Launcher.exe": "new-launcher", "Updater.exe": "new-updater", "added.bin": "new-added" } }
+    },
+    {
+      "name": "prepared-partial-blocked",
+      "state": "prepared",
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "hold": [ "Launcher.exe" ],
+      "expect": { "success": false, "journal": "kept", "state": "rolling-back",
+        "files": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "skipped.dll": "same" } }
+    },
+    {
+      "name": "prepared-missing-skipped-blocked",
+      "state": "prepared",
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added" },
+      "hold": [ "Launcher.exe" ],
+      "expect": { "success": false, "journal": "kept", "state": "rolling-back", "missingSkipped": "skipped.dll",
+        "files": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater" } }
+    },
+    {
+      "name": "prepared-stale-missing-marker",
+      "state": "prepared",
+      "missingSkipped": "skipped.dll",
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": true, "journal": "cleared",
+        "files": { "Launcher.exe": "old-launcher", "Updater.exe": "old-updater", "removed.txt": "old-removed", "skipped.dll": "same" } }
+    },
+    {
+      "name": "prepared-stale-missing-marker-blocked",
+      "state": "prepared",
+      "missingSkipped": "skipped.dll",
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "hold": [ "Launcher.exe" ],
+      "expect": { "success": false, "journal": "kept", "state": "rolling-back",
+        "files": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "skipped.dll": "same" } }
+    },
+    {
+      "name": "prepared-damaged-backup",
+      "state": "prepared",
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "backup": { "Launcher.exe": "tampered" },
+      "expect": { "success": false, "error": "backup is missing or damaged", "journal": "setAside",
+        "files": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "same" } }
+    },
+    {
+      "name": "rolling-back-partial",
+      "state": "rolling-back",
+      "install": { "Launcher.exe": "old-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": true, "journal": "cleared",
+        "files": { "Launcher.exe": "old-launcher", "Updater.exe": "old-updater", "removed.txt": "old-removed", "skipped.dll": "same" } }
+    },
+    {
+      "name": "rolling-back-held-restored-file",
+      "state": "rolling-back",
+      "install": { "Launcher.exe": "old-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "hold": [ "Launcher.exe" ],
+      "expect": { "success": true, "journal": "cleared",
+        "files": { "Launcher.exe": "old-launcher", "Updater.exe": "old-updater", "removed.txt": "old-removed", "skipped.dll": "same" } }
+    },
+    {
+      "name": "rolling-back-skipped-edited",
+      "state": "rolling-back",
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "player-skipped" },
+      "expect": { "success": true, "journal": "cleared",
+        "files": { "Launcher.exe": "old-launcher", "Updater.exe": "old-updater", "removed.txt": "old-removed", "skipped.dll": "player-skipped" } }
+    },
+    {
+      "name": "rolling-back-missing-marker",
+      "state": "rolling-back",
+      "missingSkipped": "skipped.dll",
+      "install": { "Launcher.exe": "old-launcher", "Updater.exe": "new-updater", "added.bin": "new-added" },
+      "expect": { "success": false, "error": "install the update again: skipped.dll", "journal": "setAside",
+        "files": { "Launcher.exe": "old-launcher", "Updater.exe": "old-updater", "removed.txt": "old-removed" } }
+    },
+    {
+      "name": "rolling-back-missing-marker-failed-directory",
+      "state": "rolling-back",
+      "missingSkipped": "skipped.dll",
+      "failed": "directory",
+      "install": { "Launcher.exe": "old-launcher", "Updater.exe": "new-updater", "added.bin": "new-added" },
+      "expect": { "success": false, "error": "install the update again: skipped.dll", "journal": "cleared",
+        "files": { "Launcher.exe": "old-launcher", "Updater.exe": "old-updater", "removed.txt": "old-removed" } }
+    },
+    {
+      "name": "rolling-back-missing-marker-failed-held",
+      "state": "rolling-back",
+      "missingSkipped": "skipped.dll",
+      "failed": "held",
+      "install": { "Launcher.exe": "old-launcher", "Updater.exe": "new-updater", "added.bin": "new-added" },
+      "expect": { "success": false, "error": "install the update again: skipped.dll", "journal": "cleared",
+        "files": { "Launcher.exe": "old-launcher", "Updater.exe": "old-updater", "removed.txt": "old-removed" } }
+    },
+    {
+      "name": "prepared-replaced-failed-held",
+      "state": "prepared",
+      "failed": "held",
+      "install": { "Launcher.exe": "player-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": true, "journal": "cleared",
+        "files": { "Launcher.exe": "player-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" } }
+    },
+    {
+      "name": "malformed-root-array",
+      "state": "rolling-back",
+      "journalText": "[{journal}]",
+      "install": { "Launcher.exe": "player-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": false, "journal": "setAside",
+        "files": { "Launcher.exe": "player-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" } }
+    },
+    {
+      "name": "malformed-schema-string",
+      "state": "prepared",
+      "journal": { "schema": "1" },
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": false, "journal": "setAside",
+        "files": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "same" } }
+    },
+    {
+      "name": "malformed-schema-boolean",
+      "state": "prepared",
+      "journal": { "schema": true },
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": false, "journal": "setAside",
+        "files": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "same" } }
+    },
+    {
+      "name": "malformed-schema-string-rolling-back",
+      "state": "rolling-back",
+      "journal": { "schema": "1" },
+      "install": { "Launcher.exe": "player-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": false, "journal": "kept", "state": "rolling-back",
+        "files": { "Launcher.exe": "player-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" } }
+    },
+    {
+      "name": "malformed-schema-string-failed-directory",
+      "state": "prepared",
+      "journal": { "schema": "1" },
+      "failed": "directory",
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": false, "journal": "cleared",
+        "files": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "same" } }
+    },
+    {
+      "name": "malformed-state-case",
+      "state": "prepared",
+      "journal": { "state": "ROLLING-BACK" },
+      "install": { "Launcher.exe": "player-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": false, "journal": "setAside",
+        "files": { "Launcher.exe": "player-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" } }
+    },
+    {
+      "name": "malformed-operations-object",
+      "state": "rolling-back",
+      "journal": { "operations": { "path": "Launcher.exe", "existed": true, "priorSha256": "@sha:old-launcher" } },
+      "install": { "Launcher.exe": "player-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": false, "journal": "kept", "state": "rolling-back",
+        "files": { "Launcher.exe": "player-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" } }
+    },
+    {
+      "name": "malformed-operation-path-number",
+      "state": "prepared",
+      "journal": { "operations": [ { "path": 17, "existed": false, "priorSha256": "" } ] },
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": false, "journal": "setAside",
+        "files": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "same" } }
+    },
+    {
+      "name": "backup-dotdot-prepared",
+      "state": "prepared",
+      "journal": { "backup": "{install}\\.ember-update-backups\\unused\\..\\fixture" },
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": false, "journal": "setAside",
+        "files": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "same" } }
+    },
+    {
+      "name": "backup-dotdot-rolling-back",
+      "state": "rolling-back",
+      "journal": { "backup": "{install}\\.ember-update-backups\\unused\\..\\fixture" },
+      "install": { "Launcher.exe": "player-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": false, "journal": "kept", "state": "rolling-back",
+        "files": { "Launcher.exe": "player-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" } }
+    },
+    {
+      "name": "backup-dot-rolling-back",
+      "state": "rolling-back",
+      "journal": { "backup": "{install}\\.ember-update-backups\\.\\fixture" },
+      "install": { "Launcher.exe": "player-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": false, "journal": "kept", "state": "rolling-back",
+        "files": { "Launcher.exe": "player-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" } }
+    },
+    {
+      "name": "backup-relative-prepared",
+      "state": "prepared",
+      "journal": { "backup": ".ember-update-backups\\fixture" },
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": false, "journal": "setAside",
+        "files": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "same" } }
+    },
+    {
+      "name": "backup-relative-rolling-back",
+      "state": "rolling-back",
+      "journal": { "backup": ".ember-update-backups\\fixture" },
+      "install": { "Launcher.exe": "player-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": false, "journal": "kept", "state": "rolling-back",
+        "files": { "Launcher.exe": "player-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" } }
+    },
+    {
+      "name": "backup-forward-slashes",
+      "state": "prepared",
+      "journal": { "backup": "{install}/.ember-update-backups/fixture" },
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": true, "journal": "cleared",
+        "files": { "Launcher.exe": "old-launcher", "Updater.exe": "old-updater", "removed.txt": "old-removed", "skipped.dll": "same" } }
+    },
+    {
+      "name": "installation-dotdot-prepared",
+      "state": "prepared",
+      "journal": { "installation": "{install}\\..\\{name}" },
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": false, "journal": "setAside",
+        "files": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "same" } }
+    },
+    {
+      "name": "installation-dotdot-rolling-back",
+      "state": "rolling-back",
+      "journal": { "installation": "{install}\\..\\{name}" },
+      "install": { "Launcher.exe": "player-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": false, "journal": "kept", "state": "rolling-back",
+        "files": { "Launcher.exe": "player-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" } }
+    },
+    {
+      "name": "prepared-backup-inaccessible",
+      "state": "prepared",
+      "inaccessible": [ "backup:Launcher.exe" ],
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": true, "journal": "cleared",
+        "files": { "Launcher.exe": "old-launcher", "Updater.exe": "old-updater", "removed.txt": "old-removed", "skipped.dll": "same" } }
+    },
+    {
+      "name": "prepared-operation-inaccessible",
+      "state": "prepared",
+      "inaccessible": [ "Launcher.exe" ],
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": true, "journal": "cleared",
+        "files": { "Launcher.exe": "old-launcher", "Updater.exe": "old-updater", "removed.txt": "old-removed", "skipped.dll": "same" } }
+    },
+    {
+      "name": "prepared-skipped-inaccessible",
+      "state": "prepared",
+      "inaccessible": [ "skipped.dll" ],
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "old-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": true, "journal": "cleared",
+        "files": { "Launcher.exe": "old-launcher", "Updater.exe": "old-updater", "removed.txt": "old-removed", "skipped.dll": "same" } }
+    },
+    {
+      "name": "rolling-back-backup-inaccessible",
+      "state": "rolling-back",
+      "inaccessible": [ "backup:Updater.exe" ],
+      "install": { "Launcher.exe": "old-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": true, "journal": "cleared",
+        "files": { "Launcher.exe": "old-launcher", "Updater.exe": "old-updater", "removed.txt": "old-removed", "skipped.dll": "same" } }
+    },
+    {
+      "name": "rolling-back-operation-inaccessible",
+      "state": "rolling-back",
+      "inaccessible": [ "Updater.exe" ],
+      "install": { "Launcher.exe": "old-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": true, "journal": "cleared",
+        "files": { "Launcher.exe": "old-launcher", "Updater.exe": "old-updater", "removed.txt": "old-removed", "skipped.dll": "same" } }
+    },
+    {
+      "name": "committed-complete",
+      "state": "committed",
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": true, "journal": "cleared",
+        "files": { "Launcher.exe": "new-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" } }
+    },
+    {
+      "name": "committed-edited-later",
+      "state": "committed",
+      "install": { "Launcher.exe": "player-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" },
+      "expect": { "success": true, "journal": "cleared",
+        "files": { "Launcher.exe": "player-launcher", "Updater.exe": "new-updater", "added.bin": "new-added", "skipped.dll": "same" } }
+    },
+    {
+      "name": "committed-file-gone-later",
+      "state": "committed",
+      "install": { "Launcher.exe": "new-launcher", "Updater.exe": "new-updater", "added.bin": "new-added" },
+      "expect": { "success": true, "journal": "cleared",
+        "files": { "Launcher.exe": "new-launcher", "Updater.exe": "new-updater", "added.bin": "new-added" } }
+    }
+  ]
+}

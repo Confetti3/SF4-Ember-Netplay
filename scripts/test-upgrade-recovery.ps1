@@ -13,6 +13,101 @@ function VerifyRestored([string]$Install,$Transaction) {
   } elseif(Test-Path -LiteralPath $path){throw "New operation file was not removed: $($operation.path)"}
  }
 }
+function Sha([string]$Text){[BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash([Text.Encoding]::UTF8.GetBytes($Text))).Replace('-','')}
+function WriteText([string]$Path,[string]$Text){$null=New-Item -ItemType Directory -Path (Split-Path $Path -Parent) -Force;[IO.File]::WriteAllText($Path,$Text)}
+# A fixture's journal override, with each "@sha:<text>" string as the hash of
+# <text>, and {install} and {name} in other strings as the case's folder and name.
+function ResolveFixture($Value,[string]$Install,[string]$Name) {
+ if($Value -is [string]){if($Value.StartsWith('@sha:')){return Sha $Value.Substring(5)};return $Value.Replace('{install}',$Install).Replace('{name}',$Name)}
+ if($Value -is [array]){return ,[object[]]@($Value|ForEach-Object{ResolveFixture $_ $Install $Name})}
+ if($Value -is [pscustomobject]){$resolved=[ordered]@{};foreach($p in $Value.PSObject.Properties){$resolved[$p.Name]=ResolveFixture $p.Value $Install $Name};return $resolved}
+ return $Value
+}
+# Takes away, or gives back, the current user's right to read a file's
+# attributes and to list its folder (which would grant that anyway), so that
+# not even the file's status can be read.
+function Readable([string]$Path,[bool]$Allow) {
+ $user="$env:USERDOMAIN\$env:USERNAME"
+ # Given back folder first: until it can be listed, icacls cannot find the file.
+ foreach($change in $(if($Allow){@(@((Split-Path $Path -Parent),'/remove:d',$user),@($Path,'/remove:d',$user))}else{@(@($Path,'/deny',"${user}:(RA,R)"),@((Split-Path $Path -Parent),'/deny',"${user}:(RD)"))})){
+  $null=icacls $change[0] $change[1] $change[2];if($LASTEXITCODE){throw "icacls $($change[1]) failed for $($change[0])"}
+ }
+}
+# The journals of src/tests/data/upgrade-recovery/fixtures.json, each in its own
+# folder under $Root, recovered by Install-Upgrade.ps1 -RecoverOnly and held to
+# the outcomes PackageInstallerTest holds native recovery to.
+function RecoveryFixtures([string]$Installer,[string]$Root) {
+ $fixtures=Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\src\tests\data\upgrade-recovery\fixtures.json') -Raw|ConvertFrom-Json
+ $wrong=@()
+ foreach($fixture in $fixtures.cases) {
+  $install=Join-Path $Root $fixture.name;$backup=Join-Path $install '.ember-update-backups\fixture'
+  $journalPath=Join-Path $install '.ember-update-transaction-v1.json';$failedPath=$journalPath+'.failed'
+  $null=New-Item -ItemType Directory -Path $backup -Force
+  $paths=@{};$target=[ordered]@{};$operations=@()
+  foreach($p in $fixtures.target.PSObject.Properties){$target[$p.Name]=Sha $p.Value;$paths[$p.Name]=$true}
+  foreach($op in $fixtures.operations){
+   $operations+=[ordered]@{path=$op.path;existed=$null-ne$op.prior;priorSha256=$(if($null-ne$op.prior){Sha $op.prior}else{''})}
+   if($null-ne$op.prior){WriteText (Join-Path $backup $op.path) $op.prior};$paths[$op.path]=$true
+  }
+  if($fixture.PSObject.Properties['backup']){foreach($p in $fixture.backup.PSObject.Properties){
+   $at=Join-Path $backup $p.Name;if($null-eq$p.Value){Remove-Item -LiteralPath $at -Force}else{WriteText $at $p.Value}
+  }}
+  foreach($p in $fixture.install.PSObject.Properties){WriteText (Join-Path $install $p.Name) $p.Value;$paths[$p.Name]=$true}
+  foreach($p in $fixture.expect.files.PSObject.Properties){$paths[$p.Name]=$true}
+  $journal=[ordered]@{schema=1;state=$fixture.state;installation=$install;backup=$backup;operations=$operations;target=$target}
+  if($fixture.PSObject.Properties['missingSkipped']){$journal.missingSkipped=$fixture.missingSkipped}
+  if($fixture.PSObject.Properties['journal']){foreach($p in $fixture.journal.PSObject.Properties){$journal[$p.Name]=ResolveFixture $p.Value $install $fixture.name}}
+  $text=$journal|ConvertTo-Json -Depth 8
+  if($fixture.PSObject.Properties['journalText']){$text=$fixture.journalText.Replace('{journal}',$text)}
+  WriteText $journalPath $text
+  # Files whose status cannot be read stop recovery with every file and the
+  # journal as they were; it then goes on once access returns.
+  if($fixture.PSObject.Properties['inaccessible']){
+   $blocked=@($fixture.inaccessible|ForEach-Object{if($_.StartsWith('backup:')){Join-Path $backup $_.Substring(7)}else{Join-Path $install $_}})
+   $failure=$null;$denied=$true
+   try {
+    foreach($at in $blocked){Readable $at $false;try{$null=[IO.File]::GetAttributes($at);$denied=$false}catch{}}
+    try{& $Installer -InstallDir $install -RecoverOnly *>$null}catch{$failure=$_.Exception.Message}
+   } finally {foreach($at in $blocked){Readable $at $true}}
+   if(!$denied){$wrong+="Recovery fixture $($fixture.name): a file's status could still be read"}
+   if($null-eq$failure){$wrong+="Recovery fixture $($fixture.name): succeeded while a file could not be read"}
+   if(!(Test-Path -LiteralPath $journalPath -PathType Leaf)-or[IO.File]::ReadAllText($journalPath)-cne$text-or(Test-Path -LiteralPath $failedPath)){$wrong+="Recovery fixture $($fixture.name): journal changed while a file could not be read"}
+   foreach($path in $paths.Keys){
+    $at=Join-Path $install $path;$want=$fixture.install.PSObject.Properties[$path]
+    $have=if(Test-Path -LiteralPath $at -PathType Leaf){[IO.File]::ReadAllText($at)}else{$null}
+    if(($want-and$have-cne$want.Value)-or(!$want-and(Test-Path -LiteralPath $at))){$wrong+="Recovery fixture $($fixture.name): $path changed while a file could not be read"}
+   }
+  }
+  $held=@();if($fixture.PSObject.Properties['hold']){foreach($p in $fixture.hold){$held+=[IO.File]::Open((Join-Path $install $p),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)}}
+  # Earlier evidence in the way of setting the journal aside.
+  $earlier=if($fixture.PSObject.Properties['failed']){$fixture.failed}else{''}
+  if($earlier-eq'directory'){$null=New-Item -ItemType Directory -Path $failedPath -Force}
+  if($earlier-eq'held'){WriteText $failedPath 'earlier-evidence';$held+=[IO.File]::Open($failedPath,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)}
+  $failure=$null
+  try{& $Installer -InstallDir $install -RecoverOnly *>$null}catch{$failure=$_.Exception.Message}finally{foreach($h in $held){$h.Dispose()}}
+  $expect=$fixture.expect;$problems=@()
+  if(($null-eq$failure)-ne[bool]$expect.success){$problems+=$(if($null-ne$failure){"failed: $failure"}else{'succeeded'})}
+  if($expect.PSObject.Properties['error']-and($null-eq$failure-or!$failure.Contains($expect.error))){$problems+="error was: $failure"}
+  $setAside=[IO.File]::Exists($failedPath)-and!($earlier-eq'held'-and[IO.File]::ReadAllText($failedPath)-ceq'earlier-evidence')
+  $outcome=if(Test-Path -LiteralPath $journalPath){if($setAside){'kept and set aside'}else{'kept'}}elseif($setAside){'setAside'}else{'cleared'}
+  if($outcome-cne$expect.journal){$problems+="journal $outcome"}
+  elseif($outcome-eq'kept'){
+   $left=Get-Content -LiteralPath $journalPath -Raw -Encoding UTF8|ConvertFrom-Json
+   if($expect.PSObject.Properties['state']-and$left.state-ne$expect.state){$problems+="journal state $($left.state)"}
+   $leftMissing=if($left.PSObject.Properties['missingSkipped']){[string]$left.missingSkipped}else{''}
+   $wantMissing=if($expect.PSObject.Properties['missingSkipped']){[string]$expect.missingSkipped}else{''}
+   if($leftMissing-cne$wantMissing){$problems+="journal missingSkipped '$leftMissing'"}
+  }
+  foreach($path in $paths.Keys){
+   $at=Join-Path $install $path;$want=$expect.files.PSObject.Properties[$path]
+   $have=if(Test-Path -LiteralPath $at -PathType Leaf){[IO.File]::ReadAllText($at)}else{$null}
+   if(($want-and$have-cne$want.Value)-or(!$want-and(Test-Path -LiteralPath $at))){$problems+="$path is $(if($null-eq$have){'absent'}else{"'$have'"})"}
+  }
+  foreach($p in $problems){$wrong+="Recovery fixture $($fixture.name): $p"}
+ }
+ if($wrong.Count){throw ($wrong -join "`n")}
+ Write-Host "Shared recovery fixtures passed ($(@($fixtures.cases).Count) cases)."
+}
 function NativeRecover([string]$Install) {
  $info=New-Object Diagnostics.ProcessStartInfo
  $info.FileName=$NativeFixture;$info.UseShellExecute=$false;$info.CreateNoWindow=$true
@@ -56,6 +151,12 @@ try {
  Set-Content -LiteralPath (Join-Path $package 'UPGRADE_MANIFEST.txt') -Encoding UTF8 -Value $inventory
  & (Join-Path $package 'Install-Upgrade.ps1') -InstallDir $install -CheckOnly
  if(Test-Path -LiteralPath (Join-Path $install '.ember-update.lock')){throw 'CheckOnly created a lock file'}
+ RecoveryFixtures (Join-Path $package 'Install-Upgrade.ps1') (Join-Path $root 'fixtures')
+ # A journal that cannot be parsed is reported once, then set aside, as natively.
+ $damaged=Join-Path $root 'damaged-journal';$damagedJournal=Join-Path $damaged '.ember-update-transaction-v1.json'
+ WriteText $damagedJournal '{ damaged'
+ $failed=$false;try{& (Join-Path $package 'Install-Upgrade.ps1') -InstallDir $damaged -RecoverOnly *>$null}catch{$failed=$true}
+ if(!$failed-or(Test-Path -LiteralPath $damagedJournal)-or!(Test-Path -LiteralPath ($damagedJournal+'.failed'))){throw 'Damaged journal was not set aside'}
  $start=New-Object Diagnostics.ProcessStartInfo
  # Use the same PowerShell host as the fixture. Launching Windows PowerShell
  # from pwsh through ProcessStartInfo inherits pwsh's PSModulePath verbatim,
@@ -80,6 +181,9 @@ try {
   $launcherBefore=Hash (Join-Path $install 'Launcher.exe')
   $failed=$false;try{& (Join-Path $package 'Install-Upgrade.ps1') -InstallDir $install -RecoverOnly}catch{$failed=$true}
   if(!$failed-or(Hash (Join-Path $install 'Launcher.exe'))-ne$launcherBefore){throw 'Damaged backup evidence changed live files'}
+  # Like native recovery, the damaged journal is set aside, reported once.
+  if((Test-Path -LiteralPath $transactionPath)-or!(Test-Path -LiteralPath ($transactionPath+'.failed'))){throw 'Damaged backup evidence was not set aside'}
+  Remove-Item -LiteralPath ($transactionPath+'.failed')
   Set-Content -LiteralPath $transactionPath -Encoding UTF8 -Value $original
   # A rollback interrupted after restoring Launcher resumes its remaining operations.
   $rollingBack=$original|ConvertFrom-Json
@@ -88,7 +192,8 @@ try {
   $rollingBack|ConvertTo-Json -Depth 8|Set-Content -LiteralPath $transactionPath -Encoding UTF8
  }
  if($boundary-eq 4) {
-  # Released updaters recorded unchanged files too, with no missingSkipped marker.
+  # Released updaters recorded unchanged files too, with no missingSkipped
+  # marker. Every write had finished, so the update is accepted, not undone.
   $legacy=$original|ConvertFrom-Json
   $unchanged=Join-Path $install 'preflight.ps1';$unchangedHash=Hash $unchanged
   Copy-Item -LiteralPath $unchanged -Destination (Join-Path $legacy.backup 'preflight.ps1')
@@ -97,11 +202,12 @@ try {
  }
  if($NativeFixture -and $boundary-eq 3) {
   # Start from a real prepared PowerShell journal. Restore Launcher, then fail
-  # on Updater while a skipped file has been edited since preparation.
+  # on Updater. A skipped file edited once the rollback is persisted is left
+  # alone when native recovery resumes it. (Edited before, it would mean the
+  # folder was replaced, and neither reader would roll back.)
   $prepared=$original|ConvertFrom-Json
   if($prepared.state-ne'prepared'){throw 'Rollback fixture did not start prepared'}
   $skipped=Join-Path $install 'preflight.ps1';$skippedOriginal=Get-Content -LiteralPath $skipped -Raw
-  Set-Content -LiteralPath $skipped -Encoding ASCII -NoNewline -Value 'edited-skipped-file'
   $held=[IO.File]::Open((Join-Path $install 'Updater.exe'),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
   try {
    $failed=$false;try{& (Join-Path $package 'Install-Upgrade.ps1') -InstallDir $install -RecoverOnly}catch{$failed=$true}
@@ -110,6 +216,7 @@ try {
    $rollback=Get-Content -LiteralPath $transactionPath -Raw -Encoding UTF8|ConvertFrom-Json
    if($rollback.state-ne'rolling-back'){throw 'PowerShell restoration did not persist rollback intent'}
    if(Test-Path -LiteralPath ($transactionPath+'.failed')){throw 'Unfinished rollback was set aside'}
+   Set-Content -LiteralPath $skipped -Encoding ASCII -NoNewline -Value 'edited-skipped-file'
    $retry=NativeRecover $install
    if($retry.ExitCode-eq 0-or!(Test-Path -LiteralPath $transactionPath)){throw 'Native retry cleared an unfinished rollback'}
   } finally {$held.Dispose()}
@@ -124,13 +231,17 @@ try {
   & $NativeFixture --recover $install
   if($LASTEXITCODE){throw 'Native recovery rejected PowerShell transaction'}
  } else { & (Join-Path $package 'Install-Upgrade.ps1') -InstallDir $install -RecoverOnly }
- if((Get-Content -Raw (Join-Path $install 'Launcher.exe'))-ne'old-launcher'){throw 'Launcher was not restored'}
- if((Get-Content -Raw (Join-Path $install 'Updater.exe'))-ne'old-updater'){throw 'Updater was not restored'}
- if((Get-Content -Raw (Join-Path $install 'future.bin'))-ne'user-collision'){throw 'Colliding user file was not restored'}
+ if($boundary-eq 4) {
+  foreach($relative in $changed){if((Hash (Join-Path $install $relative))-ine(Hash (Join-Path $payload $relative))){throw "Finished update was undone: $relative"}}
+ } else {
+  if((Get-Content -Raw (Join-Path $install 'Launcher.exe'))-ne'old-launcher'){throw 'Launcher was not restored'}
+  if((Get-Content -Raw (Join-Path $install 'Updater.exe'))-ne'old-updater'){throw 'Updater was not restored'}
+  if((Get-Content -Raw (Join-Path $install 'future.bin'))-ne'user-collision'){throw 'Colliding user file was not restored'}
+ }
  if(Test-Path -LiteralPath (Join-Path $install '.ember-update-transaction-v1.json')){throw 'Recovered transaction was not cleared'}
  if((Get-Content -Raw (Join-Path $install 'Launcher.exe.ember-new'))-ne'user-temporary-name'){throw 'Temporary-name collision was overwritten'}
  if($boundary-eq 4) {
-  # Legacy committed journals still verify the target and clear without rollback.
+  # Legacy committed journals clear without rollback.
   foreach($relative in $changed){Copy-Item -LiteralPath (Join-Path $payload $relative) -Destination (Join-Path $install $relative) -Force}
   $legacy.state='committed'
   $legacy|ConvertTo-Json -Depth 8|Set-Content -LiteralPath $transactionPath -Encoding UTF8

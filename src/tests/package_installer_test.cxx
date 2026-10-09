@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <vector>
+#include <set>
 #include <iostream>
 #include <cstdlib>
 #include <cctype>
@@ -57,6 +58,126 @@ HANDLE WINAPI TrackProgressThread(LPSECURITY_ATTRIBUTES attributes, SIZE_T stack
     return thread;
 }
 HANDLE WINAPI FailProgressThread(LPSECURITY_ATTRIBUTES, SIZE_T, LPTHREAD_START_ROUTINE, LPVOID, DWORD, LPDWORD) { return nullptr; }
+// A fixture's journal override, with each "@sha:<text>" string as the hash of
+// <text>, and {install} and {name} in other strings as the case's folder and name.
+nlohmann::json ResolveFixture(const nlohmann::json& value, const std::string& install, const std::string& name) {
+    if(value.is_string()) {
+        auto text=value.get<std::string>();
+        if(text.rfind("@sha:",0)==0) return Sha256(text.substr(5));
+        for(const auto& [token,with]:{std::make_pair(std::string("{install}"),install),std::make_pair(std::string("{name}"),name)})
+            for(size_t at; (at=text.find(token))!=std::string::npos;) text.replace(at,token.size(),with);
+        return text;
+    }
+    nlohmann::json resolved=value;
+    if(resolved.is_structured()) for(auto item:resolved.items()) item.value()=ResolveFixture(item.value(),install,name);
+    return resolved;
+}
+// Takes away, or gives back, the current user's right to read a file's
+// attributes and to list its folder (which would grant that anyway), so that
+// not even the file's status can be read.
+bool Readable(const fs::path& path, bool allow) {
+    const wchar_t* domain=_wgetenv(L"USERDOMAIN"); const wchar_t* name=_wgetenv(L"USERNAME");
+    if(!domain || !name) return false;
+    const std::wstring user=std::wstring(domain)+L"\\"+name;
+    const auto icacls=[](const fs::path& at,const std::wstring& change){ return _wsystem((L"icacls \""+at.wstring()+L"\" "+change+L" >nul 2>&1").c_str())==0; };
+    // The folder first: until it can be listed, icacls cannot find the file.
+    if(allow) return icacls(path.parent_path(),L"/remove:d \""+user+L"\"") & icacls(path,L"/remove:d \""+user+L"\"");
+    return icacls(path,L"/deny \""+user+L":(RA,R)\"") && icacls(path.parent_path(),L"/deny \""+user+L":(RD)\"");
+}
+// The journals of data/upgrade-recovery/fixtures.json, each in its own folder
+// under `root`, recovered natively. scripts/test-upgrade-recovery.ps1 runs the
+// same cases through Install-Upgrade.ps1 and holds it to the same outcomes.
+// Returns the number of mismatches, each reported with its case.
+int RunRecoveryFixtures(const fs::path& file, const fs::path& root) {
+    const auto fixtures=nlohmann::json::parse(Read(file));
+    int failures=0;
+    for(const auto& fixture:fixtures.at("cases")) {
+        const auto name=fixture.at("name").get<std::string>();
+        const auto install=root/fs::u8path(name), backup=install/L".ember-update-backups"/L"fixture";
+        const auto journalPath=install/L".ember-update-transaction-v1.json", failedPath=install/L".ember-update-transaction-v1.json.failed";
+        fs::create_directories(backup);
+        std::set<std::string> paths;
+        nlohmann::json operations=nlohmann::json::array(), target=nlohmann::json::object();
+        for(const auto& [path,content]:fixtures.at("target").items()) { target[path]=Sha256(content.get<std::string>()); paths.insert(path); }
+        for(const auto& operation:fixtures.at("operations")) {
+            const auto path=operation.at("path").get<std::string>(); const auto& prior=operation.at("prior");
+            operations.push_back({{"path",path},{"existed",!prior.is_null()},{"priorSha256",prior.is_null()?std::string():Sha256(prior.get<std::string>())}});
+            if(!prior.is_null()) Write(backup/fs::u8path(path),prior.get<std::string>().c_str());
+            paths.insert(path);
+        }
+        if(fixture.contains("backup")) for(const auto& [path,content]:fixture.at("backup").items()) {
+            if(content.is_null()) fs::remove(backup/fs::u8path(path)); else Write(backup/fs::u8path(path),content.get<std::string>().c_str());
+        }
+        for(const auto& [path,content]:fixture.at("install").items()) { Write(install/fs::u8path(path),content.get<std::string>().c_str()); paths.insert(path); }
+        const auto& expect=fixture.at("expect");
+        for(const auto& [path,content]:expect.at("files").items()) paths.insert(path);
+        nlohmann::json journal={{"schema",1},{"state",fixture.at("state")},{"installation",install.u8string()},{"backup",backup.u8string()},{"operations",operations},{"target",target}};
+        if(fixture.contains("missingSkipped")) journal["missingSkipped"]=fixture.at("missingSkipped");
+        if(fixture.contains("journal")) for(const auto& [key,value]:fixture.at("journal").items()) journal[key]=ResolveFixture(value,install.u8string(),name);
+        std::string text=journal.dump(2);
+        if(fixture.contains("journalText")) { auto shaped=fixture.at("journalText").get<std::string>(); shaped.replace(shaped.find("{journal}"),9,text); text=shaped; }
+        Write(journalPath,text.c_str());
+        std::vector<std::string> wrong;
+        // Files whose status cannot be read stop recovery with every file and
+        // the journal as they were; it then goes on once access returns.
+        if(fixture.contains("inaccessible")) {
+            std::vector<fs::path> blocked;
+            for(const auto& item:fixture.at("inaccessible")) {
+                const auto relative=item.get<std::string>();
+                blocked.push_back(relative.rfind("backup:",0)==0 ? backup/fs::u8path(relative.substr(7)) : install/fs::u8path(relative));
+            }
+            bool denied=true;
+            for(const auto& at:blocked) {
+                const bool changed=Readable(at,false);
+                std::error_code status; static_cast<void>(fs::status(at,status));
+                denied=denied && changed && status;
+            }
+            std::string blockedError;
+            const bool blockedRecovered=sf4e::launcher::RecoverPackage(install,blockedError);
+            for(const auto& at:blocked) if(!Readable(at,true)) wrong.push_back("access could not be given back to "+at.u8string());
+            if(!denied) wrong.push_back("a file's status could still be read");
+            if(blockedRecovered) wrong.push_back("succeeded while a file could not be read");
+            if(Read(journalPath)!=text || fs::exists(failedPath)) wrong.push_back("journal changed while a file could not be read");
+            for(const auto& path:paths) {
+                const auto& files=fixture.at("install"); const auto at=install/fs::u8path(path);
+                if(files.contains(path) ? !fs::is_regular_file(at) || Read(at)!=files.at(path).get<std::string>() : fs::exists(at))
+                    wrong.push_back(path+" changed while a file could not be read");
+            }
+        }
+        std::vector<HANDLE> held;
+        if(fixture.contains("hold")) for(const auto& path:fixture.at("hold"))
+            held.push_back(CreateFileW((install/fs::u8path(path.get<std::string>())).c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr));
+        // Earlier evidence in the way of setting the journal aside.
+        const auto earlier=fixture.value("failed",std::string());
+        if(earlier=="directory") fs::create_directories(failedPath);
+        if(earlier=="held") {
+            Write(failedPath,"earlier-evidence");
+            held.push_back(CreateFileW(failedPath.c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr));
+        }
+        std::string error;
+        const bool recovered=sf4e::launcher::RecoverPackage(install,error);
+        for(const auto handle:held) if(handle!=INVALID_HANDLE_VALUE) CloseHandle(handle);
+        for(const auto handle:held) if(handle==INVALID_HANDLE_VALUE) wrong.push_back("a held file could not be opened");
+        if(recovered!=expect.at("success").get<bool>()) wrong.push_back(std::string(recovered?"succeeded":"failed")+": "+error);
+        if(expect.contains("error") && error.find(expect.at("error").get<std::string>())==std::string::npos) wrong.push_back("error was: "+error);
+        const bool setAside=fs::is_regular_file(failedPath) && !(earlier=="held" && Read(failedPath)=="earlier-evidence");
+        const std::string outcome=fs::exists(journalPath)?(setAside?"kept and set aside":"kept"):setAside?"setAside":"cleared";
+        if(outcome!=expect.at("journal").get<std::string>()) wrong.push_back("journal "+outcome);
+        else if(outcome=="kept") {
+            const auto left=nlohmann::json::parse(Read(journalPath));
+            if(expect.contains("state") && left.value("state",std::string())!=expect.at("state").get<std::string>()) wrong.push_back("journal state "+left.value("state",std::string()));
+            if(left.value("missingSkipped",std::string())!=expect.value("missingSkipped",std::string())) wrong.push_back("journal missingSkipped "+left.value("missingSkipped",std::string()));
+        }
+        for(const auto& path:paths) {
+            const auto& files=expect.at("files"); const auto at=install/fs::u8path(path);
+            if(files.contains(path) ? !fs::is_regular_file(at) || Read(at)!=files.at(path).get<std::string>() : fs::exists(at))
+                wrong.push_back(path+(fs::exists(at)?" is \""+Read(at)+"\"":" is absent"));
+        }
+        for(const auto& line:wrong) std::cerr<<"Recovery fixture "<<name<<": "<<line<<'\n';
+        failures+=static_cast<int>(wrong.size());
+    }
+    return failures;
+}
 int wmain(int argc, wchar_t** argv) {
     std::string error;
     if (argc == 3 && std::wstring(argv[1]) == L"--recover") {
@@ -82,6 +203,10 @@ int wmain(int argc, wchar_t** argv) {
     const auto root = MakeTempRoot(L"ember-upgrade-test-");
     const auto staging = root/L"staging", install = root/L"install";
     fs::create_directories(staging); fs::create_directories(install);
+    // The recovery outcomes both readers share, found beside this source file.
+    const auto fixtures=fs::path(__FILE__).parent_path()/L"data"/L"upgrade-recovery"/L"fixtures.json";
+    CHECK(fs::is_regular_file(fixtures));
+    CHECK(RunRecoveryFixtures(fixtures,root/L"fixtures")==0);
     Package(staging,"new");
     Write(install/L"Launcher.exe","old"); Write(install/L"Qt6Core.dll","legacy");
     Write(install/L"dxwrapper.dll","previous-display-wrapper");
