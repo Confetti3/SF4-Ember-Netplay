@@ -3,6 +3,8 @@
 #include "../netplay/RoomPreferences.hxx"
 #include "../netplay/InputDelayPreference.hxx"
 #include "../netplay/MatchHudPreference.hxx"
+#include "../netplay/JsonFileStore.hxx"
+#include "../platform/DurableFile.hxx"
 #define NOMINMAX
 #include <windows.h>
 #include <filesystem>
@@ -84,6 +86,87 @@ static void InputDelayMigrations(const Path& root) {
             {{"inputDelay", number}, {"autoInputDelay", on}});
         CHECK(again.autoInputDelay == on && again.inputDelay == number);
     }
+}
+
+static std::size_t Entries(const Path& folder) {
+    return static_cast<std::size_t>(std::distance(std::filesystem::directory_iterator(folder), std::filesystem::directory_iterator{}));
+}
+
+// The byte-level reader and writers under settings, replays and the updater.
+static void DurableFiles(const Path& root) {
+    namespace durable = sf4e::durable;
+    const auto folder = root / L"durable";
+    CHECK(std::filesystem::create_directory(folder));
+    const auto file = folder / L"file.bin";
+
+    // Missing is only an absent file; empty and exactly-at-the-bound files read.
+    CHECK(durable::ReadBounded(file, 8).status == durable::ReadStatus::Missing);
+    Write(file, "");
+    auto read = durable::ReadBounded(file, 8);
+    CHECK(read.status == durable::ReadStatus::Read && read.bytes.empty());
+    Write(file, "12345678");
+    read = durable::ReadBounded(file, 8);
+    CHECK(read.status == durable::ReadStatus::Read && std::string(read.bytes.begin(), read.bytes.end()) == "12345678");
+    CHECK(durable::ReadBounded(file, 7).status == durable::ReadStatus::TooLarge);
+    CHECK(durable::ReadBounded(folder, 8).status == durable::ReadStatus::CannotOpen);
+    // Larger than one read chunk, so the bound holds across several reads.
+    const std::string large(200 * 1024 + 3, 'x');
+    Write(file, large);
+    read = durable::ReadBounded(file, large.size());
+    CHECK(read.status == durable::ReadStatus::Read && read.bytes.size() == large.size());
+    CHECK(durable::ReadBounded(file, large.size() - 1).status == durable::ReadStatus::TooLarge);
+    HANDLE held = CreateFileW(file.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    CHECK(held != INVALID_HANDLE_VALUE);
+    CHECK(durable::ReadBounded(file, large.size()).status == durable::ReadStatus::CannotOpen);
+    CloseHandle(held);
+    CHECK(std::filesystem::remove(file));
+
+    // Create-only publication writes a new file, then refuses an existing one,
+    // leaving it intact and removing its own temporary.
+    const std::string first = "first", second = "second";
+    CHECK(durable::PublishCreateOnly(file, durable::PartialPath(file), first.data(), first.size()));
+    CHECK(Read(file) == first);
+    const auto refused = durable::PublishCreateOnly(file, durable::PartialPath(file), second.data(), second.size());
+    CHECK(!refused && refused.failed == durable::WriteStep::Move);
+    CHECK(Read(file) == first && Entries(folder) == 1);
+
+    // Replacement replaces, unless the destination cannot be replaced.
+    CHECK(durable::PublishReplace(file, durable::PartialPath(file), second.data(), second.size()));
+    CHECK(Read(file) == second && Entries(folder) == 1);
+    held = CreateFileW(file.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    CHECK(held != INVALID_HANDLE_VALUE);
+    const auto blocked = durable::PublishReplace(file, durable::PartialPath(file), first.data(), first.size());
+    CloseHandle(held);
+    CHECK(!blocked && blocked.failed == durable::WriteStep::Move);
+    CHECK(Read(file) == second && Entries(folder) == 1);
+
+    // A temporary name that is already taken belongs to someone else: the
+    // call reports it, so a caller can retry, and touches neither file.
+    const auto taken = folder / L"taken.tmp";
+    Write(taken, "someone else's");
+    const auto occupied = durable::PublishReplace(file, taken, first.data(), first.size());
+    CHECK(!occupied && occupied.failed == durable::WriteStep::Create && occupied.error == ERROR_FILE_EXISTS);
+    CHECK(Read(taken) == "someone else's" && Read(file) == second);
+
+    // A failed write reports its own nonzero error and leaves no file. The
+    // system refuses to read bytes from an unmapped buffer.
+    const auto failed = folder / L"failed.bin";
+    const auto unreadable = durable::WriteNew(failed, nullptr, 16);
+    CHECK(!unreadable && unreadable.failed == durable::WriteStep::Write && unreadable.error != ERROR_SUCCESS);
+    CHECK(!std::filesystem::exists(failed));
+    // More than one write call can take is refused before anything is created.
+    if constexpr (sizeof(std::size_t) > sizeof(DWORD)) {
+        const auto oversize = durable::WriteNew(failed, first.data(), static_cast<std::size_t>(MAXDWORD) + 1);
+        CHECK(!oversize && oversize.failed == durable::WriteStep::Write && oversize.error == ERROR_FILE_TOO_LARGE);
+        CHECK(!std::filesystem::exists(failed));
+    }
+
+    // Settings keep their own missing-file policy: a missing folder is an error.
+    std::string bytes, error;
+    bool missing = false;
+    CHECK(sf4e::netplay::json_file::ReadBytes(folder / L"absent.json", bytes, missing, error) && missing);
+    CHECK(!sf4e::netplay::json_file::ReadBytes(folder / L"absent" / L"settings.json", bytes, missing, error) && !missing);
+    CHECK(error == "Cannot read settings file.");
 }
 
 int main() {
@@ -340,6 +423,7 @@ int main() {
         CHECK(restored.roomName == "Friday room" && restored.roomCapacity == 12);
     }
     InputDelayMigrations(root);
+    DurableFiles(root);
     RemoveTempRoot(root);
     std::cout << "Settings migration, preservation, independent updates and atomic failure checks passed\n";
 }

@@ -20,7 +20,7 @@
 
 #include "Utf8.hxx"
 #include "ReplayPath.hxx"
-#include "ReplayPublication.hxx"
+#include "DurableFile.hxx"
 #include "ReplayRecordingChanges.hxx"
 #include "ReplayImportFreshness.hxx"
 #include "../common/ReplayFileSafety.hxx"
@@ -38,6 +38,13 @@ namespace {
 // The largest files read: an exported replay, and the game's two indexes
 // (76 KB and 44 KB as the game writes them).
 constexpr std::size_t kMostReplayBytes = slots::kLargestReplay + slots::kExportHeaderBytes, kMostIndexBytes = 1 << 20;
+
+// Every file Ember publishes here is create-only: a destination that appears
+// during the write wins, and neither unreadable nor confirmed damaged files
+// are replaced.
+bool PublishFile(const fs::path& path, const slots::Bytes& contents) {
+ return static_cast<bool>(durable::PublishCreateOnly(path, durable::PartialPath(path), contents.data(), contents.size()));
+}
 
 // All ingestion uses replayfiles::ReadFile and its bounded read-error policy.
 slots::Bytes LoadFile(const fs::path& path, std::size_t most = kMostReplayBytes) {

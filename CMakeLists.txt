@@ -16,6 +16,12 @@ add_library(sf4e_netplay_core STATIC "src/netplay/SessionController.cxx" "src/ne
 add_library(sf4e_selection STATIC "src/common/FighterCatalog.cxx" "src/common/StageCatalog.cxx")
 target_compile_features(sf4e_selection PUBLIC cxx_std_11)
 target_compile_features(sf4e_netplay_core PUBLIC cxx_std_11)
+# Durable create-only and replacing file writes (platform/DurableFile.hxx), for
+# replays, settings and the updater's journal. Its bounded reader is header only.
+if(WIN32)
+    add_library(sf4e_durable_file STATIC "src/platform/DurableFile.cxx")
+    target_compile_features(sf4e_durable_file PUBLIC cxx_std_17)
+endif()
 if(BUILD_TESTING)
     add_executable(NativeRepairTimingTest "src/tests/native_repair_timing_test.cxx")
     target_compile_features(NativeRepairTimingTest PRIVATE cxx_std_17)
@@ -102,6 +108,7 @@ if(BUILD_TESTING)
     set_tests_properties(ReplaySlots PROPERTIES TIMEOUT 15)
     add_executable(ReplayFilesTest "src/tests/replay_files_test.cxx")
     target_compile_features(ReplayFilesTest PRIVATE cxx_std_17)
+    target_link_libraries(ReplayFilesTest PRIVATE $<$<PLATFORM_ID:Windows>:sf4e_durable_file>)
     add_test(NAME ReplayFiles COMMAND ReplayFilesTest)
     set_tests_properties(ReplayFiles PROPERTIES TIMEOUT 15)
     add_executable(ReplayArchiveIndexTest "src/tests/replay_archive_index_test.cxx")
@@ -345,10 +352,10 @@ add_library(sf4e_settings STATIC "src/netplay/JsonFileStore.cxx" "src/netplay/Se
     "src/netplay/SettingsWriter.cxx" "src/platform/UiPreferencesStore.cxx"
     "src/platform/GameDisplaySettings.cxx")
 target_compile_features(sf4e_settings PUBLIC cxx_std_17)
-target_link_libraries(sf4e_settings PUBLIC nlohmann_json::nlohmann_json sf4e_localization PRIVATE "shell32" "ole32")
+target_link_libraries(sf4e_settings PUBLIC nlohmann_json::nlohmann_json sf4e_localization PRIVATE sf4e_durable_file "shell32" "ole32")
 if(BUILD_TESTING)
     add_executable(SettingsStoreTest "src/tests/settings_store_test.cxx")
-    target_link_libraries(SettingsStoreTest PRIVATE sf4e_settings)
+    target_link_libraries(SettingsStoreTest PRIVATE sf4e_settings sf4e_durable_file)
     add_test(NAME SettingsStore COMMAND SettingsStoreTest)
     set_tests_properties(SettingsStore PROPERTIES TIMEOUT 15)
     add_executable(UiPreferencesStoreTest "src/tests/ui_preferences_store_test.cxx")
@@ -498,7 +505,7 @@ target_link_libraries(sf4e_common PUBLIC "iphlpapi" "ws2_32" "winhttp")
 # The game's replay files: archiving and importing (platform/ReplayFiles.hxx).
 add_library(sf4e_replay_files STATIC "src/platform/ReplayFiles.cxx" "src/platform/ReplayFiles.hxx" "src/common/ReplaySlots.hxx")
 target_compile_features(sf4e_replay_files PUBLIC cxx_std_17)
-target_link_libraries(sf4e_replay_files PUBLIC spdlog::spdlog PRIVATE shell32 ole32 bcrypt)
+target_link_libraries(sf4e_replay_files PUBLIC spdlog::spdlog PRIVATE sf4e_durable_file shell32 ole32 bcrypt)
 # Ember's own video export: the frame grab in the game (platform/FrameGrab.hxx),
 # the encoder in a Launcher.exe the game starts for it (VideoLink.hxx,
 # VideoEncoder.hxx). Media Foundation and the audio device API are
@@ -952,7 +959,7 @@ add_executable(Updater
 )
 add_library(sf4e_package_installer STATIC src/launcher/update/PackageInstaller.cxx)
 target_compile_features(sf4e_package_installer PUBLIC cxx_std_17)
-target_link_libraries(sf4e_package_installer PUBLIC sf4e_selection nlohmann_json::nlohmann_json bcrypt)
+target_link_libraries(sf4e_package_installer PUBLIC sf4e_selection nlohmann_json::nlohmann_json bcrypt PRIVATE sf4e_durable_file)
 if(BUILD_TESTING)
     add_executable(OverlayPresentationTest src/tests/overlay_presentation_test.cxx)
     target_compile_features(OverlayPresentationTest PRIVATE cxx_std_17)

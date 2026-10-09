@@ -1,5 +1,6 @@
 #include "PackageInstaller.hxx"
 #include "../../common/PackageInventory.hxx"
+#include "../../platform/DurableFile.hxx"
 #include <windows.h>
 #include <bcrypt.h>
 #include <nlohmann/json.hpp>
@@ -162,12 +163,9 @@ std::vector<std::optional<std::string>> HashFiles(const std::vector<fs::path>& f
     return hashes;
 }
 void DurableJson(const fs::path& path, const json& value) {
-    const auto temporary=TemporarySibling(path);
     const auto contents=value.dump(2);
-    HANDLE file=CreateFileW(temporary.c_str(),GENERIC_WRITE,0,nullptr,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,nullptr);
-    if(file==INVALID_HANDLE_VALUE) throw std::runtime_error("Cannot write update transaction");
-    DWORD written=0; const bool ok=WriteFile(file,contents.data(),static_cast<DWORD>(contents.size()),&written,nullptr)&&written==contents.size()&&FlushFileBuffers(file);
-    CloseHandle(file); if(!ok || !MoveFileExW(temporary.c_str(),path.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH)) throw std::runtime_error("Cannot commit update transaction");
+    const auto written=durable::PublishReplace(path,TemporarySibling(path),contents.data(),contents.size());
+    if(!written) throw std::runtime_error(written.failed==durable::WriteStep::Create?"Cannot write update transaction":"Cannot commit update transaction");
 }
 void ReplaceFileVerified(const fs::path& source,const fs::path& destination,const std::string& expected) {
     const auto temporary=TemporarySibling(destination);

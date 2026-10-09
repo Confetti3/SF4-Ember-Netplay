@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ReplaySlots.hxx"
+#include "BoundedRead.hxx"
 #include <algorithm>
 
 #include <filesystem>
@@ -20,31 +21,23 @@ struct Change {
 	std::filesystem::path path;
 };
 
+constexpr std::size_t kMostArchiveBytes = replayslots::kLargestReplay + replayslots::kExportHeaderBytes;
+
 // The single bounded reader for indexes, archives, snapshots and detail.
 // Missing, unreadable, oversized and interrupted reads are failures; an
 // existing empty file is a successful read of zero bytes.
-inline std::optional<replayslots::Bytes> ReadFile(const std::filesystem::path& path, std::size_t most = replayslots::kLargestReplay + replayslots::kExportHeaderBytes) {
-	std::error_code error;
-	if (!std::filesystem::is_regular_file(path, error) || error) return std::nullopt;
-	std::ifstream file(path, std::ios::binary);
-	if (!file) return std::nullopt;
-	replayslots::Bytes bytes(most + 1);
-	file.read(reinterpret_cast<char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
-	if (file.bad() || (!file.eof() && file.fail()) || static_cast<std::size_t>(file.gcount()) > most) return std::nullopt;
-	bytes.resize(static_cast<std::size_t>(file.gcount()));
-	return bytes;
+inline std::optional<replayslots::Bytes> ReadFile(const std::filesystem::path& path, std::size_t most = kMostArchiveBytes) {
+	auto read = durable::ReadBounded(path, most);
+	if (read.status != durable::ReadStatus::Read) return std::nullopt;
+	return std::move(read.bytes);
 }
 
 // Missing files are distinct from empty files; an unreadable file cannot be replaced.
 inline bool Snapshot(const std::filesystem::path& path, std::size_t most, Change& change) {
-	std::error_code error;
-	const auto status = std::filesystem::status(path, error);
-	if (status.type() == std::filesystem::file_type::not_found &&
-		(!error || error == std::errc::no_such_file_or_directory)) { change.existed = false; change.before.clear(); return true; }
-	if (error || !std::filesystem::is_regular_file(status)) return false;
-	auto bytes = ReadFile(path, most);
-	if (!bytes) return false;
-	change.before = std::move(*bytes); change.existed = true;
+	auto read = durable::ReadBounded(path, most);
+	if (read.status == durable::ReadStatus::Missing) { change.existed = false; change.before.clear(); return true; }
+	if (read.status != durable::ReadStatus::Read) return false;
+	change.before = std::move(read.bytes); change.existed = true;
 	return true;
 }
 
@@ -65,27 +58,24 @@ struct ArchiveFile {
 // the complete bounded file was read successfully but failed validation.
 enum class ArchiveState { Missing, Unreadable, Invalid, Valid };
 inline ArchiveState ReadArchive(const std::filesystem::path& path, bool inRoot, ArchiveFile& out) {
- std::error_code error;
- const auto status = std::filesystem::status(path, error);
- if (status.type() == std::filesystem::file_type::not_found &&
-  (!error || error == std::errc::no_such_file_or_directory)) return ArchiveState::Missing;
- if (error || !std::filesystem::is_regular_file(status)) return ArchiveState::Unreadable;
- auto bytes = ReadFile(path);
- if (!bytes) return ArchiveState::Unreadable;
+ auto file = durable::ReadBounded(path, kMostArchiveBytes);
+ if (file.status == durable::ReadStatus::Missing) return ArchiveState::Missing;
+ if (file.status != durable::ReadStatus::Read) return ArchiveState::Unreadable;
+ auto& bytes = file.bytes;
  ArchiveFile read;
  if (path.extension() == L".usf4replay") {
   replayslots::ReplayHeaderInfo header;
-  if (bytes->size() > replayslots::kLargestReplay || !replayslots::ReadReplayHeader(*bytes, header)) return ArchiveState::Invalid;
+  if (bytes.size() > replayslots::kLargestReplay || !replayslots::ReadReplayHeader(bytes, header)) return ArchiveState::Invalid;
   read.time = header.time;
   read.fighters[0] = header.fighters[0]; read.fighters[1] = header.fighters[1];
-  read.crc = replayslots::Crc32(bytes->data(), bytes->size());
+  read.crc = replayslots::Crc32(bytes.data(), bytes.size());
  } else {
-  if (!inRoot || !replayslots::ParseArchiveName(path.filename().wstring(), read.time, read.crc) || !replayslots::WholeArchived(*bytes, read.crc)) return ArchiveState::Invalid;
-  const auto info = replayslots::ReadRecordInfo(bytes->data() + 8);
+  if (!inRoot || !replayslots::ParseArchiveName(path.filename().wstring(), read.time, read.crc) || !replayslots::WholeArchived(bytes, read.crc)) return ArchiveState::Invalid;
+  const auto info = replayslots::ReadRecordInfo(bytes.data() + 8);
   read.fighters[0] = info.fighters[0]; read.fighters[1] = info.fighters[1];
   read.bodyOffset = replayslots::kExportHeaderBytes;
  }
- read.contents = std::move(*bytes);
+ read.contents = std::move(bytes);
  out = std::move(read);
  return ArchiveState::Valid;
 }

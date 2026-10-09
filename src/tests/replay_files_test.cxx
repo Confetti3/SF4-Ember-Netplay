@@ -9,7 +9,7 @@
 #include <stdexcept>
 #ifdef _WIN32
 #include "../platform/ReplayPath.hxx"
-#include "../platform/ReplayPublication.hxx"
+#include "../platform/DurableFile.hxx"
 #endif
 
 static void TestImportWriteRecovery() {
@@ -289,7 +289,8 @@ static void TestArchivePublicationPolicy() {
 static void TestProductionArchivePublicationRefusal() {
  namespace fs = std::filesystem;
  namespace files = sf4e::replayfiles;
- using sf4e::platform::replays::PublishFile;
+ // The production writer: create-only publication through a fresh partial file.
+ const auto PublishFile = [](const fs::path& path, const Bytes& bytes) { return static_cast<bool>(sf4e::durable::PublishCreateOnly(path, sf4e::durable::PartialPath(path), bytes.data(), bytes.size())); };
  const auto folder = fs::temp_directory_path() / ("ember-publication-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
  CHECK(fs::create_directory(folder));
  Bytes list = EmptyList(), swan = EmptySwan(), exported;

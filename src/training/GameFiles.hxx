@@ -1,8 +1,8 @@
 #pragma once
+#include "../common/BoundedRead.hxx"
 #include <algorithm>
 #include <cstdint>
 #include <filesystem>
-#include <fstream>
 #include <string>
 #include <vector>
 
@@ -11,16 +11,15 @@
 namespace sf4e { namespace training {
 // Reads a whole file of at most `most` bytes.
 inline bool ReadFile(const std::filesystem::path& path, std::size_t most, std::vector<std::uint8_t>& bytes, std::string& error) {
-    const auto name = path.filename().u8string();
-    std::ifstream in(path, std::ios::binary | std::ios::ate);
-    const std::streamoff size = in ? static_cast<std::streamoff>(in.tellg()) : -1;
-    if (size < 0) { error = "cannot open " + std::string(name.begin(), name.end()); return false; }
-    if (static_cast<std::uint64_t>(size) > most) { error = std::string(name.begin(), name.end()) + " is too large"; return false; }
-    std::vector<std::uint8_t> read(static_cast<std::size_t>(size));
-    in.seekg(0);
-    if (size && !in.read(reinterpret_cast<char*>(read.data()), size)) { error = "cannot read " + std::string(name.begin(), name.end()); return false; }
-    bytes = std::move(read);
-    return true;
+    const auto u8 = path.filename().u8string();
+    const std::string name(u8.begin(), u8.end());
+    auto read = durable::ReadBounded(path, most);
+    switch (read.status) {
+    case durable::ReadStatus::Read: bytes = std::move(read.bytes); return true;
+    case durable::ReadStatus::TooLarge: error = name + " is too large"; return false;
+    case durable::ReadStatus::CannotRead: error = "cannot read " + name; return false;
+    default: error = "cannot open " + name; return false;
+    }
 }
 // The folder a fighter's .bcm and .bac are read from. The install is layered
 // (SF4, SSF4, AE and USF4 as resource, dlc and patch folders) and a fighter's
