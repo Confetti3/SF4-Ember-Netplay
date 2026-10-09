@@ -114,12 +114,13 @@ inline bool VerifyBackup(const std::vector<std::filesystem::path>& candidates, c
  return false;
 }
 
-enum class ApplyOutcome { Done, FailedRestored, RecoveryIncomplete };
+enum class ApplyOutcome { RejectedBeforeWrite, Done, FailedRestored, RecoveryIncomplete };
 
 // Keep all snapshots until the live table accepts the files. A failed write
 // may have changed its file too, so every attempted write is undone.
-template<class Writer, class Remover, class Publish>
-ApplyOutcome Apply(const std::vector<Change>& changes, const Writer& write, const Remover& remove, const Publish& publish) noexcept {
+template<class Fresh, class Writer, class Remover, class Publish>
+ApplyOutcome Apply(const std::vector<Change>& changes, const Fresh& fresh, const Writer& write, const Remover& remove, const Publish& publish) noexcept {
+	try { if (!fresh()) return ApplyOutcome::RejectedBeforeWrite; } catch (...) { return ApplyOutcome::RejectedBeforeWrite; }
 	std::size_t attempted = 0;
 	bool restored = true;
 	try {

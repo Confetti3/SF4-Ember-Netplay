@@ -46,7 +46,7 @@ static void TestImportWriteRecovery() {
 			if (thrown) throw std::runtime_error("table refused");
 			return false;
 		};
-		CHECK(files::Apply(changes, write, remove, publish) == files::ApplyOutcome::FailedRestored);
+		CHECK(files::Apply(changes, [] { return true; }, write, remove, publish) == files::ApplyOutcome::FailedRestored);
 		CHECK(disk == original);
 		CHECK(publications == (failure == static_cast<int>(changes.size()) ? 1 : 0));
 		const std::size_t count = (std::min)(static_cast<std::size_t>(failure + 1), changes.size());
@@ -54,11 +54,11 @@ static void TestImportWriteRecovery() {
 		for (std::size_t at = 0; at < count; at++) CHECK(undone[at] == changes[count - 1 - at].name);
 	}
 	auto disk = original;
-	CHECK(files::Apply(changes, [&](const std::string& name, const Bytes& bytes) { disk[name] = bytes; return true; },
+	CHECK(files::Apply(changes, [] { return true; }, [&](const std::string& name, const Bytes& bytes) { disk[name] = bytes; return true; },
 		[&](const std::string& name) { disk.erase(name); return true; }, [] { return true; }) == files::ApplyOutcome::Done);
 	for (const auto& change : changes) CHECK(disk.at(change.name) == change.after);
 	int undoAttempts = 0;
-	CHECK(files::Apply(changes, [&](const std::string&, const Bytes&) { return ++undoAttempts <= static_cast<int>(changes.size()); },
+	CHECK(files::Apply(changes, [] { return true; }, [&](const std::string&, const Bytes&) { return ++undoAttempts <= static_cast<int>(changes.size()); },
 		[&](const std::string&) -> bool { ++undoAttempts; throw std::runtime_error("delete stopped"); }, [] { return false; }) == files::ApplyOutcome::RecoveryIncomplete);
 	CHECK(undoAttempts == static_cast<int>(changes.size() * 2));
 }
@@ -213,6 +213,35 @@ static void TestBodyBoundProvenance() {
  CHECK(!files::NamesForBody(corrupt, body, read));
  CHECK(!files::NamesForBody({}, body, read)); // old time-only notes have no identity
 }
+static void TestNamesPublicationRefusesExistingTargets() {
+ namespace fs = std::filesystem;
+ namespace files = sf4e::replayfiles;
+ const auto folder = fs::temp_directory_path() / ("ember-names-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+ CHECK(fs::create_directory(folder));
+ const Bytes body = Replay(2, 800), other = SameCrcDifferentBody(body);
+ files::ReplayNames names{{"Ann", "Bob"}, false};
+ const auto path = folder / "body.names";
+ const auto save = [&](const Bytes& bytes) { std::ofstream file(path, std::ios::binary); file.write(reinterpret_cast<const char*>(bytes.data()), bytes.size()); CHECK(file.good()); };
+ unsigned writes = 0;
+ const auto create = [&](const Bytes&) { ++writes; return false; };
+ save({'d','a','m','a','g','e','d'});
+ CHECK(files::PublishBodyNames(path, body, names, create) == files::NamePublication::Refused && writes == 0);
+ save(files::BindNames(other, names));
+ CHECK(files::PublishBodyNames(path, body, names, create) == files::NamePublication::Refused && writes == 0);
+ save(files::BindNames(body, names));
+ CHECK(files::PublishBodyNames(path, body, names, create) == files::NamePublication::Published && writes == 0);
+#ifdef _WIN32
+ HANDLE held = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+ CHECK(held != INVALID_HANDLE_VALUE);
+ CHECK(files::PublishBodyNames(path, body, names, create) == files::NamePublication::Refused && writes == 0);
+ CHECK(CloseHandle(held));
+#endif
+ CHECK(fs::remove(path));
+ CHECK(files::PublishBodyNames(path, body, names, create) == files::NamePublication::Retryable && writes == 1);
+ CHECK(files::PublishBodyNames(path, body, names, [&](const Bytes&) { save({'r','a','c','e'}); return false; }) == files::NamePublication::Refused);
+ CHECK(files::ReadFile(path).value() == Bytes({'r','a','c','e'}));
+ fs::remove_all(folder);
+}
 static void TestImportNoticesPreserveOutcomes() {
  using namespace sf4e::platform::replays;
  const auto notice = [](ImportResult result, const char* id) { CHECK(std::string(ImportNotice(result)) == id); };
@@ -290,6 +319,7 @@ static void TestProductionArchivePublicationRefusal() {
 }
 #endif
 int main() {
+ TestNamesPublicationRefusesExistingTargets();
  TestImportWriteRecovery();
  TestVerifiedArchiveAndSnapshots();
  TestBodyBoundProvenance();

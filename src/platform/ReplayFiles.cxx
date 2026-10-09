@@ -21,9 +21,12 @@
 #include "Utf8.hxx"
 #include "ReplayPath.hxx"
 #include "ReplayPublication.hxx"
+#include "ReplayRecordingChanges.hxx"
+#include "ReplayImportFreshness.hxx"
 #include "../common/ReplayFileSafety.hxx"
 #include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplayRecordingWorker.hxx"
+#include "../common/ReplayPreparationWorker.hxx"
 #include "../common/ReplayArchiveIndex.hxx"
 
 namespace fs = std::filesystem;
@@ -46,11 +49,21 @@ void ReadNames(const fs::path& archive, const slots::Bytes& body, ArchivedReplay
  const auto names = replayfiles::ReadBodyNames(archive, body);
  replay.names[0] = names.players[0]; replay.names[1] = names.players[1]; replay.spectated = names.spectated;
 }
+std::atomic<replayfiles::RecordingWorker*> provenanceWorker{nullptr};
+std::atomic<RecordingChanges*> recordingChanges{nullptr};
+RecordingChanges& Changes() {
+ static auto* const changes = [] {
+  auto* started = new RecordingChanges([] { if (auto* worker = provenanceWorker.load()) worker->FilesChanged(); });
+  recordingChanges.store(started); return started;
+ }();
+ return *changes;
+}
 replayfiles::RecordingSnapshot RecordingSlots() {
  const auto folders = FindFolders();
  replayfiles::RecordingSnapshot snapshot;
  snapshot.saves = folders.active; snapshot.archive = folders.archive;
  if (snapshot.saves.empty() || snapshot.archive.empty()) return snapshot;
+ if (!Changes().Watch(snapshot.saves)) throw std::runtime_error("recording saves could not be watched");
  for (int slot = kFirstMatchSlot; slot <= kLastMatchSlot; ++slot) {
   const auto path = snapshot.saves / std::to_wstring(slot);
   replayfiles::Change body, checksum;
@@ -60,22 +73,19 @@ replayfiles::RecordingSnapshot RecordingSlots() {
  }
  return snapshot;
 }
-bool PublishNames(const fs::path& archive, const slots::Bytes& body, const replayfiles::ReplayNames& names) {
+replayfiles::NamePublication PublishNames(const fs::path& archive, const slots::Bytes& body, const replayfiles::ReplayNames& names) {
  const auto path = replayfiles::NamesPath(archive, body);
- auto existing = replayfiles::ReadFile(path, slots::kLargestReplay + 21 + 2048);
- replayfiles::ReplayNames bound;
- if (existing && replayfiles::NamesForBody(*existing, body, bound)) return true;
- std::error_code error;
- fs::create_directories(path.parent_path(), error);
- const auto bytes = replayfiles::BindNames(body, names);
- return !bytes.empty() && PublishFile(path, bytes);
+ return replayfiles::PublishBodyNames(path, body, names, [&](const slots::Bytes& bytes) {
+  std::error_code error;
+  fs::create_directories(path.parent_path(), error);
+  return !error && PublishFile(path, bytes);
+ });
 }
-std::atomic<replayfiles::RecordingWorker*> provenanceWorker{nullptr};
 replayfiles::RecordingWorker& Provenance() {
  // Explicit shutdown joins this owner outside the loader lock, as it does
  // the lister. Shutdown need not create a worker that was never used.
  static auto* const worker = [] {
-  auto* started = new replayfiles::RecordingWorker(RecordingSlots, PublishNames);
+  auto* started = new replayfiles::RecordingWorker(RecordingSlots, PublishNames, {}, [](const char* reason) { spdlog::warn("Replays: provenance gave up: {}", reason); });
   provenanceWorker.store(started); return started;
  }();
  return *worker;
@@ -198,17 +208,6 @@ Archived ArchiveSlot(const fs::path& archive, const fs::path& saves, int slot, c
 	return Archived::Copied;
 }
 
-// Recovery lives beyond ImportFile. A failed restoration blocks subsequent
-// imports, preserving both the exact originals and the verified backup body.
-struct PreparedTransaction {
- std::vector<replayfiles::Change> changes;
- replayfiles::BackupEvidence backup;
- fs::path recoveryFile;
- slots::Bytes recoveryBytes;
-};
-std::mutex importMutex;
-std::optional<PreparedTransaction> failedRecovery;
-
 // Pre-encode while no save has been changed. If recovery fails, persist this
 // exact material beside the archive as well as retaining it in this process.
 slots::Bytes RecoveryBytes(const fs::path& saves, const std::vector<replayfiles::Change>& changes) {
@@ -275,11 +274,27 @@ int Archive() {
 	}
 }
 
-ImportResult ImportFile(const fs::path& file, const Writer& write, const Remover& remove, const Publisher& publish, Imported& out) {
- std::lock_guard<std::mutex> transactionLock(importMutex);
- if (failedRecovery) return ImportResult::RecoveryIncomplete;
- ImportResult outcome = ImportResult::RejectedBeforeWrite;
-	try {
+namespace {
+// Change notifications are armed before preparation, never rearmed. The game
+// checks only kernel event state, without scanning slots or reading files.
+struct ImportFreshness {
+ SaveFolderFreshness saves;
+ HANDLE account = nullptr;
+ HKEY key = nullptr;
+ ~ImportFreshness() { if (account) CloseHandle(account); if (key) RegCloseKey(key); }
+ bool Arm(const fs::path& folder) {
+  if (!saves.Arm(folder)) return false;
+  account = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+  return account &&
+   RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\Valve\\Steam\\ActiveProcess", 0, KEY_NOTIFY, &key) == ERROR_SUCCESS &&
+   RegNotifyChangeKeyValue(key, FALSE, REG_NOTIFY_CHANGE_LAST_SET, account, TRUE) == ERROR_SUCCESS;
+ }
+ bool Fresh() const { return saves.Fresh() && WaitForSingleObject(account, 0) == WAIT_TIMEOUT; }
+};
+PreparedImport PrepareImport(const fs::path& file) {
+ PreparedImport transaction;
+ transaction.source = file;
+ const auto prepare = [&]() -> ImportResult {
   const auto resolved = ResolveReplayFile(WideToUtf8(file.wstring()));
   if (resolved.empty()) return ImportResult::NotAReplay;
   const fs::path source = fs::u8path(resolved);
@@ -288,6 +303,9 @@ ImportResult ImportFile(const fs::path& file, const Writer& write, const Remover
 		// indexes are read from that account and no other.
 		const fs::path& saves = folders.active;
 		if (saves.empty() || folders.archive.empty()) { spdlog::warn("Replays: no save folder for the Steam account that is signed in"); return ImportResult::NoFolder; }
+  auto guard = std::make_shared<ImportFreshness>();
+  if (!guard->Arm(saves) || FindFolders().active != saves) return ImportResult::IndexBehind;
+  transaction.fresh = [guard] { return guard->Fresh(); };
 		slots::SlotFiles before;
 		before.list = LoadFile(saves / L"LIST", kMostIndexBytes); before.listSidecar = LoadFile(saves / L"LIST.0", 4);
 		before.swan = LoadFile(saves / L"replays-swan.dat", kMostIndexBytes); before.swanSidecar = LoadFile(saves / L"replays-swan.dat.0", 4);
@@ -337,7 +355,7 @@ ImportResult ImportFile(const fs::path& file, const Writer& write, const Remover
 		// is walked here.
 		const SlotFile held = ReadSlotFile(saves / std::to_wstring(slot));
 		before.replay = held.replay; before.replaySidecar = held.sidecar;
-  PreparedTransaction transaction;
+
   slots::ReplayHeaderInfo header;
   if (slots::ReadReplayHeader(held.replay, header) && !Index().Verify(folders.archive, held.replay, transaction.backup)) {
    if (ArchiveSlot(folders.archive, saves, slot, before.list, before.swan) != Archived::Copied ||
@@ -375,34 +393,63 @@ ImportResult ImportFile(const fs::path& file, const Writer& write, const Remover
   transaction.recoveryBytes = RecoveryBytes(saves, changes);
   static std::atomic<unsigned> recoverySerial{0};
   transaction.recoveryFile = folders.archive / (L"recovery-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(++recoverySerial) + L".ember-recovery");
-  const auto applied = replayfiles::Apply(changes, write, remove, [&] { return publish(imported); });
-  if (applied != replayfiles::ApplyOutcome::Done) {
-   outcome = applied == replayfiles::ApplyOutcome::FailedRestored ? ImportResult::FailedRestored : ImportResult::RecoveryIncomplete;
-   if (outcome == ImportResult::RecoveryIncomplete) {
-    failedRecovery.emplace(std::move(transaction)); // move only; no allocation after a failed rollback
-    const bool persisted = PublishFile(failedRecovery->recoveryFile, failedRecovery->recoveryBytes);
-    spdlog::error(L"Replays: restoration incomplete; originals retained in this process; recovery file {} {}", failedRecovery->recoveryFile.c_str(), persisted ? L"written" : L"could not be written");
-   } else spdlog::error("Replays: import failed; every original file was restored");
-   return outcome;
-  }
-  outcome = ImportResult::Done;
-		out = std::move(imported);
-		spdlog::info(L"Replays: imported {} into slot {}", file.c_str(), slot);
-		return ImportResult::Done;
-	}
-	catch (const std::exception& e) {
-		spdlog::warn("Replays: import stopped: {}", e.what());
-		return outcome;
-	}
- catch (...) { return outcome; }
+  transaction.imported = std::move(imported);
+  return ImportResult::Done;
+ };
+ try { transaction.result = prepare(); }
+ catch (const std::exception& e) { spdlog::warn("Replays: import preparation stopped: {}", e.what()); }
+ catch (...) {}
+ return transaction;
+}
+using ImportWorker = replayfiles::PreparationWorker<PreparedImport>;
+std::atomic<ImportWorker*> importWorker{nullptr};
+ImportWorker& Imports() {
+ static auto* const worker = [] {
+  auto* started = new ImportWorker([](const fs::path& file) { return std::make_shared<const PreparedImport>(PrepareImport(file)); },
+   [](const ImportTransaction& value) {
+    bool persisted = false;
+    try {
+     std::error_code error;
+     fs::create_directories(value->recoveryFile.parent_path(), error);
+     persisted = !error && PublishFile(value->recoveryFile, value->recoveryBytes);
+    } catch (...) {}
+    spdlog::error(L"Replays: restoration incomplete; originals retained in this process; recovery file {} {}", value->recoveryFile.c_str(), persisted ? L"written" : L"could not be written");
+   }, [](const ImportTransaction& value) { MarkWatched(value->source); });
+  importWorker.store(started); return started;
+ }();
+ return *worker;
+}
+}
+ImportResult WantImport(const fs::path& file) {
+ try {
+  auto& worker = Imports();
+  if (worker.Failed()) return ImportResult::RecoveryIncomplete;
+  return worker.Request(file) ? ImportResult::Done : ImportResult::RejectedBeforeWrite;
+ } catch (...) { return ImportResult::RejectedBeforeWrite; }
+}
+bool TakeImport(ImportTransaction& out) { return Imports().Take(out); }
+ImportResult CommitImport(const ImportTransaction& value, const Writer& write, const Remover& remove, const Publisher& publish, bool watched) {
+ if (Imports().Failed()) return ImportResult::RecoveryIncomplete;
+ if (!value) return ImportResult::RejectedBeforeWrite;
+ if (value->result != ImportResult::Done) return value->result;
+ const auto applied = replayfiles::Apply(value->changes, value->fresh, write, remove, [&] { return publish(value->imported); });
+ if (applied == replayfiles::ApplyOutcome::RejectedBeforeWrite) return ImportResult::IndexBehind;
+ if (applied == replayfiles::ApplyOutcome::Done) { if (watched) Imports().CompleteLater(value); return ImportResult::Done; }
+ if (applied == replayfiles::ApplyOutcome::FailedRestored) {
+  spdlog::error("Replays: import failed; every original file was restored");
+  return ImportResult::FailedRestored;
+ }
+ Imports().RetainRecovery(value);
+ return ImportResult::RecoveryIncomplete;
 }
 
-void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2) {
+void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2, bool recordingEnabled) {
  try {
   if (p1.size() > 1024 || p2.size() > 1024) { Provenance().Invalidate(); return; }
   replayfiles::RecordingBoundary event;
   event.kind = replayfiles::RecordingBoundary::Kind::Start;
   event.time = static_cast<std::uint64_t>(_time64(nullptr));
+  event.recordingEnabled = recordingEnabled;
   event.names = {{p1, p2}, spectating}; event.fighters[0] = fighter1; event.fighters[1] = fighter2;
   Provenance().Post(std::move(event));
  } catch (...) { try { Provenance().Invalidate(); } catch (...) {} }
@@ -554,6 +601,8 @@ std::shared_ptr<const std::vector<ArchivedReplay>> LatestListing() {
 
 void StopListing() {
  if (auto* worker = provenanceWorker.load()) worker->Stop();
+ if (auto* changes = recordingChanges.load()) changes->Stop();
+ if (auto* worker = importWorker.load()) worker->Stop();
 	Lister& lister = TheLister();
 	std::thread thread;
 	{

@@ -215,8 +215,12 @@ static bool StartRuntimeGgpo() {
         fSystem::StartGGPO(players, static_cast<int>(count), endpoints.localPort, netplay->delay, netplay->client._matchData.rngSeed);
     }
     if (fSystem::ggpo != nullptr) {
+        auto* const root = App::GetRootEvent();
+        auto* const progress = root ? *RootEvent::GetProgressData(root) : nullptr;
+        const bool recordingEnabled = progress && ProgressData::GetBattleTypeSettings(progress)[ProgressData::NBT_PVP].recordReplay != 0;
         sf4e::platform::replays::NoteMatchStart(netplay->matchSides[0].name, netplay->matchSides[1].name, netplay->spectating,
-            netplay->client._matchData.chara[0].charaID, netplay->client._matchData.chara[1].charaID);
+            netplay->client._matchData.chara[0].charaID, netplay->client._matchData.chara[1].charaID,
+            recordingEnabled);
     }
     // The table's Training rule goes into the battle request beside the seed,
     // for the fighters and for whoever watches them.

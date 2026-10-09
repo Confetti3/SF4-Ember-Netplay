@@ -63,6 +63,27 @@ inline ReplayNames ReadBodyNames(const std::filesystem::path& archive, const rep
  if (note) NamesForBody(*note, body, names);
  return names;
 }
+// Existing unreadable/invalid/different-body targets are terminal refusals.
+// Only a missing destination authorizes a create-only publication attempt.
+enum class NamePublication { Published, Retryable, Refused };
+template<class CreateOnly>
+NamePublication PublishBodyNames(const std::filesystem::path& path, const replayslots::Bytes& body,
+ const ReplayNames& names, const CreateOnly& createOnly) {
+ Change existing;
+ if (!Snapshot(path, replayslots::kLargestReplay + 21 + 2048, existing)) return NamePublication::Refused;
+ if (existing.existed) {
+  ReplayNames bound;
+  return NamesForBody(existing.before, body, bound) ? NamePublication::Published : NamePublication::Refused;
+ }
+ auto bytes = BindNames(body, names);
+ if (bytes.empty()) return NamePublication::Refused;
+ if (createOnly(bytes)) return NamePublication::Published;
+ // A competing create is permanent for this job too; no further temp writes.
+ std::error_code error;
+ const auto status = std::filesystem::status(path, error);
+ if (status.type() != std::filesystem::file_type::not_found || (error && error != std::errc::no_such_file_or_directory)) return NamePublication::Refused;
+ return NamePublication::Retryable;
+}
 inline std::string ReplayDateLabel(std::uint64_t time) {
  const std::time_t at = static_cast<std::time_t>(time);
  std::tm local = {};

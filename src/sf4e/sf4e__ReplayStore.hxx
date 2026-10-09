@@ -24,6 +24,8 @@ bool Ready();
 
 // Where the operation is. One step leads to the next and every wait has an
 // end, so it always comes back to Idle:
+//   PreparingImport worker preparation; commit only while native save/table
+//                 revision and file/account notification guards remain fresh
 //   OpeningLog    the main menu was asked for the battle log; until its list
 //                 is up, or ten seconds
 //   SelectingRow  Watch: until the save controller is free and the list has
@@ -36,7 +38,7 @@ bool Ready();
 //                 battle log that went away
 //   InLog         the player is in the game's own menus; until the main menu
 //                 is back, or they are in a room
-enum class Step { Idle, OpeningLog, SelectingRow, Playing, InLog };
+enum class Step { Idle, PreparingImport, OpeningLog, SelectingRow, Playing, InLog };
 
 // notice: the last request's outcome for the Replays screen, an error when
 // it failed. logOpens: times the battle log was opened from here, which is

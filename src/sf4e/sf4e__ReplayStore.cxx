@@ -1,5 +1,6 @@
 #include "sf4e__ReplayStore.hxx"
 
+#include <atomic>
 #include <cstdint>
 #include <cstring>
 #include <string>
@@ -45,6 +46,12 @@ struct Entry {
 };
 
 std::uint8_t* s_entries = nullptr;
+std::atomic<std::uint64_t> s_saveRevision{0};
+struct SaveController : SaveDataController { void Start(int channel); };
+void SaveController::Start(int channel) {
+ ++s_saveRevision;
+ (this->*SaveDataController::publicMethods.Start)(channel);
+}
 
 // Request a fixed interface version so write, delete and exists have known
 // vtable positions, independent of the game's default storage version.
@@ -93,6 +100,7 @@ bool RemoveThroughSteam(const std::string& name) {
 }
 
 BOOL ReplayInfoList::Read(void* stream) {
+ ++s_saveRevision;
 	const BOOL ok = (this->*publicMethods.Read)(stream);
 	std::uint8_t* const begin = GetEntries(this);
 	std::uint8_t* const end = GetEntriesEnd(this);
@@ -134,8 +142,7 @@ std::uint8_t* EntryOf(int slot) {
 // does not take the record the files are put back: left ahead of the table,
 // the game's next save would write the old record over them.
 using sf4e::platform::replays::ImportResult;
-ImportResult Import(const std::wstring& path, int& slot) {
-	sf4e::platform::replays::Imported imported;
+ImportResult Import(const sf4e::platform::replays::ImportTransaction& prepared, int& slot, bool watched) {
 	slot = -1;
 	const auto publish = [](const sf4e::platform::replays::Imported& value) {
 		std::uint8_t* const entry = EntryOf(value.slot);
@@ -149,10 +156,10 @@ ImportResult Import(const std::wstring& path, int& slot) {
 		std::memcpy(Table::GetEntrySlotBytes(entry), value.slotBytes.data(), 2);
 		return true;
 	};
-	const ImportResult result = sf4e::platform::replays::ImportFile(path, WriteThroughSteam, RemoveThroughSteam, publish, imported);
+	const ImportResult result = sf4e::platform::replays::CommitImport(prepared, WriteThroughSteam, RemoveThroughSteam, publish, watched);
 	if (result != ImportResult::Done) return result;
-	spdlog::info("Replay: slot {} is in the game's table", imported.slot);
-	slot = imported.slot;
+	spdlog::info("Replay: slot {} is in the game's table", prepared->imported.slot);
+	slot = prepared->imported.slot;
 	return ImportResult::Done;
 }
 
@@ -209,6 +216,8 @@ struct Operation {
 	// decided: ticks the exported replay's match has been over; -1 once Ember chose to leave.
 	int decided = 0;
 	std::wstring video;
+	sf4e::replay::Request request;
+	std::uint64_t saveRevision = 0;
 	void Enter(Step step) { status.step = step; waited = 0; }
 	void Notice(const char* key, bool error) { status.notice = sf4e::loc::T(key); status.noticeError = error; }
 } s_operation;
@@ -230,11 +239,36 @@ bool PlayRow(Dimps::Event::EventBase* select, int slot) {
 	return false;
 }
 
+void FinishRequest(const sf4e::replay::Request& request, bool noRoom) {
+ Operation& op = s_operation;
+ const bool exporting = request.mode == sf4e::replay::Mode::Export;
+ const bool import = request.mode != sf4e::replay::Mode::OpenLog;
+ const bool jump = request.mode != sf4e::replay::Mode::Add;
+	if (!jump) return;
+	if (!noRoom || !sf4e::GameEvents::MainMenu::OpenLocalBattleLog()) {
+		// A replay that was added stays added; only the jump did not happen.
+		if (!import) op.Notice("replays.not_ready", true);
+		return;
+	}
+	op.status.logOpens++;
+	op.started = false; op.splash = 0; op.versus = 0; op.decided = 0;
+	if (exporting) {
+		// Ember's encoder writes straight next to the replay.
+		const std::wstring path = sf4e::platform::Utf8ToWide(request.path.c_str());
+		const std::size_t dot = path.find_last_of(L'.');
+		op.video = (dot == std::wstring::npos ? path : path.substr(0, dot)) + L".mp4";
+		op.status.caption = request.caption;
+	}
+	op.Enter(Step::OpeningLog);
+}
+
 }
 
 void sf4e::replaystore::Install() {
 	BOOL (ReplayInfoList::* detour)(void*) = &ReplayInfoList::Read;
 	DetourAttach(reinterpret_cast<PVOID*>(&Table::publicMethods.Read), *reinterpret_cast<PVOID*>(&detour));
+ void (SaveController::* start)(int) = &SaveController::Start;
+ DetourAttach(reinterpret_cast<PVOID*>(&SaveDataController::publicMethods.Start), *reinterpret_cast<PVOID*>(&start));
 }
 
 bool sf4e::replaystore::Ready() { return s_entries != nullptr && sf4e::Game::Battle::MatchReplayListWidened(); }
@@ -252,28 +286,13 @@ void sf4e::replaystore::Start(const replay::Request& request, bool atMainMenu, b
 	if (import) {
 		if (!Ready() || SavesBusy()) { op.Notice("replays.not_ready", true); return; }
 		const std::wstring path = platform::Utf8ToWide(request.path.c_str());
-		const ImportResult result = Import(path, op.slot);
-		if (result != ImportResult::Done) { op.Notice(sf4e::platform::replays::ImportNotice(result), true); return; }
-		// Added is not watched; only a replay that is played is marked so.
-		if (request.mode == replay::Mode::Watch) platform::replays::MarkWatched(path);
-		op.Notice("replays.added", false);
+  op.request = request; op.saveRevision = s_saveRevision.load();
+  const auto queued = platform::replays::WantImport(path);
+  if (queued != ImportResult::Done) { op.Notice(platform::replays::ImportNotice(queued), true); return; }
+  op.Enter(Step::PreparingImport);
+  return;
 	}
-	if (!jump) return;
-	if (!noRoom || !GameEvents::MainMenu::OpenLocalBattleLog()) {
-		// A replay that was added stays added; only the jump did not happen.
-		if (!import) op.Notice("replays.not_ready", true);
-		return;
-	}
-	op.status.logOpens++;
-	op.started = false; op.splash = 0; op.versus = 0; op.decided = 0;
-	if (exporting) {
-		// Ember's encoder writes straight next to the replay.
-		const std::wstring path = platform::Utf8ToWide(request.path.c_str());
-		const std::size_t dot = path.find_last_of(L'.');
-		op.video = (dot == std::wstring::npos ? path : path.substr(0, dot)) + L".mp4";
-		op.status.caption = request.caption;
-	}
-	op.Enter(Step::OpeningLog);
+	FinishRequest(request, noRoom);
 }
 
 bool sf4e::replaystore::MeterWanted() { return s_operation.meter && s_operation.status.step == Step::Playing; }
@@ -297,6 +316,21 @@ void sf4e::replaystore::Tick(bool atMainMenu, bool noRoom) {
 		}
 	}
 	op.status.captionShown = op.awaited && op.status.step == Step::Playing && op.status.caption.Any() && replaycapture::GetState() == replaycapture::State::Recording;
+ if (op.status.step == Step::PreparingImport) {
+  platform::replays::ImportTransaction prepared;
+  if (!platform::replays::TakeImport(prepared)) return;
+  op.Enter(Step::Idle);
+  // Save-controller start/table reload fence the whole preparation interval.
+  // This and the filesystem/account guards are checked before the first write.
+  if (!atMainMenu || !Ready() || SavesBusy() || op.saveRevision != s_saveRevision.load()) {
+   op.Notice("replays.not_added_yet", true); return;
+  }
+  const auto result = Import(prepared, op.slot, op.request.mode == replay::Mode::Watch);
+  if (result != ImportResult::Done) { op.Notice(platform::replays::ImportNotice(result), true); return; }
+  op.Notice("replays.added", false);
+  FinishRequest(op.request, noRoom);
+  return;
+ }
 	if (op.status.step == Step::Idle) return;
 	auto* const log = BattleLogEvent();
 	auto* const state = BattleLogState(log);
@@ -363,6 +397,7 @@ void sf4e::replaystore::Tick(bool atMainMenu, bool noRoom) {
 		if (!noRoom) op.Enter(Step::Idle);
 		else if (atMainMenu && !log) { op.status.returns++; op.Enter(Step::Idle); }
 		break;
+	case Step::PreparingImport:
 	case Step::Idle:
 		break;
 	}

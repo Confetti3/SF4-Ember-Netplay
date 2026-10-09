@@ -16,6 +16,7 @@
 
 #include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplaySlots.hxx"
+#include "../common/ReplayFileSafety.hxx"
 
 namespace sf4e { namespace platform { namespace replays {
 
@@ -50,34 +51,11 @@ Folders FindFolders();
 // and the whole archive folder.
 int Archive();
 
-// An archived replay put back into the game's files: the slot it took, the
-// slot record as written (ReplaySlots.hxx: Import) and the slot's two bytes.
-// The prepared transaction and recovery material stay internal. Indexes are
-// read from the signed-in account's folder
-// (Folders::active), the one write stores into.
-//
-// Nothing is written unless the indexes match their checksum files, no match
-// slot holds a replay the index has not caught up with (the game writes a
-// match's file before its index, and the index would name that slot as the
-// oldest), and the replay the chosen slot holds is in the archive, copied
-// there now if need be. The files are then written in the plan's order, the
-// replay before the indexes that name it; a failed or throwing write puts
-// back every file attempted so far, deleting files that did not exist.
-//
-// The game holds the slots in memory while it runs and writes them back on
-// its next save, so a caller inside the game puts the record into its table
-// too. publish runs after all writes, while the original files are still
-// held for rollback. If it refuses or throws, the same rollback restores
-// the files: the game's next save would otherwise replace their new record.
-//
-// write stores each changed file: its name under the account's Steam Cloud
-// folder (capcom/superstreetfighteriv/ssf4_savedata/<name>) and its bytes.
-// The game reads its files through Steam, which keeps its own index of their
-// sizes, so a file written beside it is read at its old size: inside the
-// game, write goes through Steam's FileWrite.
-//
-// It reads the two indexes, the match slots' files (kept by size and time)
-// and the one file to import; the archive folder is not walked.
+// Preparation reads slots/indexes, verifies the backup and encodes recovery on
+// the worker. The immutable result is handed once to the game owner. Commit
+// checks freshness then uses the single Apply executor for Steam/live-table
+// publication and rollback. Incomplete recovery is retained and persisted by
+// the worker, and blocks all further imports. No disk preparation in Commit.
 struct Imported {
 	int slot = -1;
 	replayslots::Bytes record, slotBytes;
@@ -98,7 +76,21 @@ inline const char* ImportNotice(ImportResult result) {
 using Writer = std::function<bool(const std::string& name, const replayslots::Bytes& contents)>;
 using Remover = std::function<bool(const std::string& name)>;
 using Publisher = std::function<bool(const Imported& imported)>;
-ImportResult ImportFile(const std::filesystem::path& file, const Writer& write, const Remover& remove, const Publisher& publish, Imported& out);
+struct PreparedImport {
+ ImportResult result = ImportResult::RejectedBeforeWrite;
+ Imported imported;
+ std::vector<replayfiles::Change> changes;
+ replayfiles::BackupEvidence backup;
+ std::filesystem::path source, recoveryFile;
+ replayslots::Bytes recoveryBytes;
+ // Armed before any reads; a signaled guard rejects changes during/after preparation.
+ std::function<bool()> fresh;
+};
+using ImportTransaction = std::shared_ptr<const PreparedImport>;
+// Done here means queued; only CommitImport reports a completed import.
+ImportResult WantImport(const std::filesystem::path& file);
+bool TakeImport(ImportTransaction& out);
+ImportResult CommitImport(const ImportTransaction& prepared, const Writer& write, const Remover& remove, const Publisher& publish, bool watched);
 
 // Enqueue recording-boundary facts only. One worker observes the active
 // account's slots and binds delayed saves; a missed baseline receives no names.
@@ -106,7 +98,7 @@ ImportResult ImportFile(const std::filesystem::path& file, const Writer& write, 
 // join is performed. Native metadata has no verified Ember player/session ID,
 // so initial attribution uses account, slot change, fighters and native save
 // time within this match's lifetime. Body-bound notes thereafter are exact.
-void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2);
+void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2, bool recordingEnabled);
 void NoteMatchEnd();
 
 // Remembers that an archived replay was played with Watch now (watched.txt in

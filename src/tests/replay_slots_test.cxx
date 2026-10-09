@@ -342,7 +342,7 @@ static void TestAnImportThatFailsLeavesTheFilesAsTheyWere() {
 		for (int failAt = 0; failAt <= static_cast<int>(plan.size()); failAt++) {
 			Folder folder = start;
 			folder.failAt = failAt == static_cast<int>(plan.size()) ? -1 : failAt; // publication-only refusal has no writer fault
-			CHECK(sf4e::replayfiles::Apply(changes,
+			CHECK(sf4e::replayfiles::Apply(changes, [] { return true; },
 				[&](const std::string& file, const Bytes& contents) { return folder.Write(file, contents); },
 				[&](const std::string& file) { folder.files.erase(file); return true; },
 				[] { return false; }) == sf4e::replayfiles::ApplyOutcome::FailedRestored);
@@ -351,7 +351,7 @@ static void TestAnImportThatFailsLeavesTheFilesAsTheyWere() {
 		// Every write succeeds: the files are the import's, and the slot exports as the new replay.
 		Folder folder = start;
 		const auto write = [&](const std::string& file, const Bytes& contents) { return folder.Write(file, contents); };
-		CHECK(sf4e::replayfiles::Apply(changes, write, [&](const std::string& file) { folder.files.erase(file); return true; }, [] { return true; }) == sf4e::replayfiles::ApplyOutcome::Done);
+		CHECK(sf4e::replayfiles::Apply(changes, [] { return true; }, write, [&](const std::string& file) { folder.files.erase(file); return true; }, [] { return true; }) == sf4e::replayfiles::ApplyOutcome::Done);
 		Bytes again;
 		CHECK(Export(folder.files["LIST"], folder.files["replays-swan.dat"], slot, folder.files[name], again));
 		CHECK(Bytes(again.begin() + kExportHeaderBytes, again.end()) == incoming && folder.files[name + ".0"] == Sidecar(incoming));
@@ -361,7 +361,7 @@ static void TestAnImportThatFailsLeavesTheFilesAsTheyWere() {
 		stuck.failAt = 2; // the third write of the plan fails, then the first put-back does too
 		int calls = 0;
 		const auto failing = [&](const std::string& file, const Bytes& contents) { return ++calls != 4 && stuck.Write(file, contents); };
-		CHECK(sf4e::replayfiles::Apply(changes, failing, [](const std::string&) { return true; }, [] { return true; }) == sf4e::replayfiles::ApplyOutcome::RecoveryIncomplete);
+		CHECK(sf4e::replayfiles::Apply(changes, [] { return true; }, failing, [](const std::string&) { return true; }, [] { return true; }) == sf4e::replayfiles::ApplyOutcome::RecoveryIncomplete);
 	}
 	// A slot that held nothing: newly created files are removed and indexes restored.
 	Bytes list = EmptyList(), swan = EmptySwan(), exported;
@@ -383,7 +383,7 @@ static void TestAnImportThatFailsLeavesTheFilesAsTheyWere() {
 	folder.files = {{"replays-swan.dat", swan}, {"replays-swan.dat.0", Sidecar(swan)}};
 	const auto original = folder.files;
 	folder.failAt = 3;
-	CHECK(sf4e::replayfiles::Apply(changes, write,
+	CHECK(sf4e::replayfiles::Apply(changes, [] { return true; }, write,
 		[&](const std::string& file) { folder.files.erase(file); return true; }, [] { return true; }) == sf4e::replayfiles::ApplyOutcome::FailedRestored);
 	CHECK(folder.files == original);
 	// What Import refuses makes no plan.
