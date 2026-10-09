@@ -205,19 +205,18 @@ std::vector<int> AllowedColors(int fighterId, int costumeId, const Availability&
     std::vector<int> result;
     const auto costumes = AllowedCostumes(fighterId, availability);
     if (std::find(costumes.begin(), costumes.end(), costumeId) == costumes.end()) return result;
-    if (IsCustomCostume(costumeId)) {
+    if (IsCustomCostume(costumeId))
         for (int color = 0; color < CustomColorCount; ++color) result.push_back(color);
-        return result;
-    }
-    for (int color = 0; color < ColorCount(fighterId, costumeId); ++color)
-        if (availability.colors[costumeId] & (1u << color)) result.push_back(color);
+    else
+        for (int color = 0; color < ColorCount(fighterId, costumeId); ++color)
+            if (availability.colors[costumeId] & (1u << color)) result.push_back(color);
     if (availability.ready && costumeId < static_cast<int>(availability.customColors.size()))
         result.insert(result.end(), availability.customColors[costumeId].begin(), availability.customColors[costumeId].end());
     return result;
 }
-// The costume's own colors, or a custom color of one of the game's costumes.
+// The costume's own colors, or a custom color.
 bool ColorInRange(int fighterId, int costumeId, int color) {
-    return color >= 0 && (color < ColorCount(fighterId, costumeId) || (IsCustomColor(color) && !IsCustomCostume(costumeId)));
+    return color >= 0 && (color < ColorCount(fighterId, costumeId) || IsCustomColor(color));
 }
 namespace {
 std::mutex customNamesLock;

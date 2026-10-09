@@ -198,16 +198,21 @@ int main() {
     CHECK(AllowedCostumes(40, unowned).empty() && AllowedCostumes(40, installed) == (std::vector<int>{0, 11}));
     CHECK(AllowedCostumes(0, sparse) == (std::vector<int>{0, 1, 6}));
 
-    // Custom colors of the game's own costumes: colors 30-99 (indices 29-98), valid on the network and listed after
-    // the costume's own colors once installed. Custom costumes keep their ten.
+    // Custom colors: colors 30-99 (indices 29-98) of any costume, the game's or a custom one, valid on the network and
+    // listed after the costume's own colors once installed.
     CHECK(IsCustomColor(29) && IsCustomColor(98) && !IsCustomColor(28) && !IsCustomColor(22) && !IsCustomColor(99));
     CHECK(ColorInRange(0, 1, 30) && !ColorInRange(0, 1, 15) && !ColorInRange(0, 1, 99) && !ColorInRange(0, 11, 22));
+    CHECK(ColorInRange(0, 11, 29) && ColorInRange(0, 11, 98) && !ColorInRange(0, 11, 10));
     Pick extra; extra.costume = 1; extra.color = 29;
     CHECK(Valid(extra, true) && !Normalize(extra, true));
     extra.costume = 11;
+    CHECK(Valid(extra, true));
+    extra.color = 10;
     CHECK(!Valid(extra, true));
     Availability colored; colored.ready = true; colored.costumes = 1u; colored.colors[0] = 1u; colored.customColors[0] = {29, 40};
     CHECK(AllowedColors(0, 0, colored) == (std::vector<int>{0, 29, 40}));
+    colored.customCostumes = {11}; colored.customColors[11] = {35};
+    CHECK(AllowedColors(0, 11, colored) == (std::vector<int>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 35}));
 
     // Custom stages: any three capital letters or digits that aren't a game stage's code; the code is the id, so a
     // custom stage travels as one number. They fall back to a stock stage by rule; Random takes only the ones it is given.

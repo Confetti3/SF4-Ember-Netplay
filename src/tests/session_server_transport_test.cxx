@@ -1967,10 +1967,15 @@ int main() {
 	CHECK(server._matchData.chara[1].costume == 7 && server._matchData.chara[1].color == 9);
 	transport->Push(2, json(selection)); step();
 	CHECK(json(server._matchData.chara[1]) == guestPick);
-	// Colors 30-99 (indices 29-98) of the game's costumes are custom colors, valid the same way.
+	// Colors 30-99 (indices 29-98) of any costume are custom colors, valid the same way.
 	json extraColor = selection; extraColor["chara"]["color"] = 29;
 	transport->Push(2, extraColor); step();
 	CHECK(server._matchData.chara[1].costume == 1 && server._matchData.chara[1].color == 29);
+	transport->Push(2, json(selection)); step();
+	CHECK(json(server._matchData.chara[1]) == guestPick);
+	json customSlotColor = custom; customSlotColor["chara"]["color"] = 40;
+	transport->Push(2, customSlotColor); step();
+	CHECK(server._matchData.chara[1].costume == 7 && server._matchData.chara[1].color == 40);
 	transport->Push(2, json(selection)); step();
 	CHECK(json(server._matchData.chara[1]) == guestPick);
 	const std::pair<const char*, int> invalidOptions[] = {

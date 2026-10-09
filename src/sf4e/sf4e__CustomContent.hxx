@@ -44,7 +44,7 @@ selection::Availability ReadAvailability(int fighterId);
 int ApplyStage(int stageId);
 
 // Battle side `side` plays custom costume `custom` of `fighter` as costume `standIn` until EndBattle; likewise custom
-// color `custom` of one of the fighter's own costumes as color `standIn`.
+// color `custom` of a costume (as the game sees it: a custom costume's stand-in) as color `standIn`.
 void SetStandIn(int side, int fighter, int standIn, int custom);
 void SetColorStandIn(int side, int fighter, int costume, int standIn, int custom);
 void EndBattle();
@@ -55,8 +55,8 @@ void EndBattle();
 //   (same fighter, costume and color);
 // - a custom costume it has plays as a stand-in: the fighter's original costume, or in a mirror match where the
 //   other side wears that, the next of the first three it isn't using (the file-name swap can't tell the two
-//   sides' loads apart); a custom color it has plays as color 1 the same way, or the next the other side isn't
-//   using. Replays record the stand-ins, so they never hold custom content.
+//   sides' loads apart); a custom color it has (of a game costume or a custom one) plays as color 1 the same way,
+//   or the next the other side isn't using. Replays record the stand-ins, so they never hold custom content.
 template<class Native> void ApplyPicks(Native (&picks)[2]) {
     bool fellBack[2] = {};
     for (int i = 0; i < 2; i++)
@@ -64,8 +64,7 @@ template<class Native> void ApplyPicks(Native (&picks)[2]) {
             picks[i].costume = 0;
             picks[i].color = 0;
             fellBack[i] = true;
-        } else if (!selection::IsCustomCostume(picks[i].costume) && selection::IsCustomColor(picks[i].color) &&
-                   !ColorInstalled(picks[i].charaID, picks[i].costume, picks[i].color)) {
+        } else if (selection::IsCustomColor(picks[i].color) && !ColorInstalled(picks[i].charaID, picks[i].costume, picks[i].color)) {
             picks[i].color = 0;
             fellBack[i] = true;
         }
@@ -79,22 +78,21 @@ template<class Native> void ApplyPicks(Native (&picks)[2]) {
         SetStandIn(i, -1, -1, -1);
         SetColorStandIn(i, -1, -1, -1, -1);
         const Native& other = picks[1 - i];
-        if (!selection::IsCustomCostume(picks[i].costume) && selection::IsCustomColor(picks[i].color)) {
+        if (selection::IsCustomCostume(picks[i].costume))
+            for (int standIn : {0, 1, 2})
+                if (other.charaID != picks[i].charaID || other.costume != standIn) {
+                    SetStandIn(i, picks[i].charaID, standIn, picks[i].costume);
+                    picks[i].costume = static_cast<decltype(picks[i].costume)>(standIn);
+                    break;
+                }
+        // then a custom color, on the costume the game sees (a custom costume's stand-in)
+        if (selection::IsCustomColor(picks[i].color))
             for (int standIn : {0, 1, 2})
                 if (other.charaID != picks[i].charaID || other.costume != picks[i].costume || other.color != standIn) {
                     SetColorStandIn(i, picks[i].charaID, picks[i].costume, standIn, picks[i].color);
                     picks[i].color = static_cast<decltype(picks[i].color)>(standIn);
                     break;
                 }
-            continue;
-        }
-        if (!selection::IsCustomCostume(picks[i].costume)) continue;
-        for (int standIn : {0, 1, 2})
-            if (other.charaID != picks[i].charaID || other.costume != standIn) {
-                SetStandIn(i, picks[i].charaID, standIn, picks[i].costume);
-                picks[i].costume = static_cast<decltype(picks[i].costume)>(standIn);
-                break;
-            }
     }
 }
 

@@ -60,7 +60,7 @@ struct Availability {
     std::uint16_t personalActions = 0;
     std::vector<int> customCostumes;    // installed custom costumes (see IsCustomCostume), ascending
     std::vector<int> customStages;      // installed custom stages (StageCatalog's IsCustomStage), ascending
-    std::array<std::vector<int>, 8> customColors;   // installed custom colors of each game costume (IsCustomColor)
+    std::array<std::vector<int>, 99> customColors;  // installed custom colors (IsCustomColor) of each costume (CostumeLimit)
 };
 
 // Custom costumes, added by a separate setup program: slots 8..99 (indices 7..98) of every fighter, ten colors
@@ -70,12 +70,13 @@ constexpr int FirstCustomCostume = 7;
 constexpr int CostumeLimit = 99;
 constexpr int CustomColorCount = 10;
 inline bool IsCustomCostume(int costumeId) { return costumeId >= FirstCustomCostume && costumeId < CostumeLimit; }
-// Custom colors of the game's own costumes, added the same way: colors 30..99 (indices 29..98) of any of them,
-// leaving the game's own (up to 22) room.
-// Each PC shows its own install of that color, or color 1 (sf4e::custom::ApplyPicks).
+// Custom colors, added the same way: colors 30..99 (indices 29..98) of any costume, the game's or a custom one,
+// leaving the game's own colors (up to 22) room.
+// Each PC shows its own install of that color, or the costume's color 1 (sf4e::custom::ApplyPicks).
 constexpr int FirstCustomColor = 29;
 inline bool IsCustomColor(int colorId) { return colorId >= FirstCustomColor && colorId < CostumeLimit; }
-// The costume's own colors, or a custom color of one of the game's costumes.
+static_assert(std::tuple_size<decltype(Availability::customColors)>::value == CostumeLimit, "custom colors for every costume");
+// The costume's own colors, or a custom color.
 bool ColorInRange(int fighterId, int costumeId, int colorId);
 // The names the setup program gives the custom costumes (colorId -1) and colors installed on this PC
 // (sf4e::custom reads them); empty for none. Display only: each PC names what it has.

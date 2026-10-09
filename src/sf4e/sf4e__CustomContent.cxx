@@ -48,7 +48,7 @@ int __fastcall LoadColors(void* self, void*, int* request) {
             if (s.custom >= 0 && request[RequestFighter] == s.fighter && request[RequestCostume] == s.costume &&
                 request[RequestColor] == s.color) {
                 request[RequestColor] = s.custom;
-                const int result = loadColors(self, request);
+                const int result = Load(loadColors, self, request);   // a custom costume's color: its slot too
                 request[RequestColor] = s.color;
                 return result;
             }
@@ -56,7 +56,7 @@ int __fastcall LoadColors(void* self, void*, int* request) {
 }
 
 std::array<std::vector<int>, selection::FighterCount> installed;
-std::array<std::array<std::vector<int>, 8>, selection::FighterCount> installedColors;
+std::array<std::array<std::vector<int>, selection::CostumeLimit>, selection::FighterCount> installedColors;
 std::vector<int> installedStages;
 std::once_flag scanned;
 
@@ -138,11 +138,12 @@ void Scan() {
         });
         std::sort(installed[id].begin(), installed[id].end());
         total += static_cast<int>(installed[id].size());
-        // Custom colors of the game's costumes: <CHR>_<CC>_<NN>, NN 30..99.
+        // Custom colors: <CHR>_<NN>_<CC>, CC 30..99, of one of the game's costumes or an installed custom one.
         Each(folder + chr + L"_??_??.col.emb", [&](const std::wstring& name) {
             const int costume = Number(name, 4) - 1, colorId = Number(name, 7) - 1;
-            if (name.size() != 17 || costume < 0 || costume >= selection::CostumeCount(id) || !selection::IsCustomColor(colorId) ||
-                !colorFiles(name.substr(0, 9))) return;
+            const bool costumeHere = costume >= 0 && (costume < selection::CostumeCount(id) ||
+                std::find(installed[id].begin(), installed[id].end(), costume) != installed[id].end());
+            if (name.size() != 17 || !costumeHere || !selection::IsCustomColor(colorId) || !colorFiles(name.substr(0, 9))) return;
             installedColors[id][costume].push_back(colorId);
             selection::SetCustomName(id, costume, colorId, ReadName(folder + name.substr(0, 9) + L".txt"));
         });
@@ -177,7 +178,7 @@ const std::vector<int>& InstalledStages() {
 
 const std::vector<int>& InstalledColors(int fighterId, int costumeId) {
     static const std::vector<int> none;
-    if (!selection::FindFighter(fighterId) || costumeId < 0 || costumeId >= 8) return none;
+    if (!selection::FindFighter(fighterId) || costumeId < 0 || costumeId >= selection::CostumeLimit) return none;
     std::call_once(scanned, Scan);
     return installedColors[fighterId][costumeId];
 }

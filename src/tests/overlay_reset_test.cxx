@@ -65,6 +65,12 @@ static int CheckPerFighterPicks() {
     check(removed.stageID == 0, "a custom stage that isn't installed stayed picked");
     check(removed.lobby.costume == 0 && removed.lobby.color == 3 && removed.fighters[0].costume == 0,
         "a custom costume that isn't installed stayed picked");
+    Prefs::Data removedCustomColor;
+    removedCustomColor.lobby.charaID = 0; removedCustomColor.lobby.costume = 11; removedCustomColor.lobby.color = 30;
+    removedCustomColor.fighters[0] = removedCustomColor.lobby;
+    Prefs::Clamp(removedCustomColor);
+    check(removedCustomColor.lobby.costume == 0 && removedCustomColor.lobby.color == 0,
+        "a custom color of a custom costume that isn't installed stayed picked");
     Prefs::Data removedColor;
     removedColor.lobby.charaID = 0; removedColor.lobby.costume = 1; removedColor.lobby.color = 30;
     removedColor.fighters[0] = removedColor.lobby;
