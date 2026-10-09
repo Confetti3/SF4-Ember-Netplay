@@ -6227,3 +6227,6 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+msgid "update.private_test"
+msgstr "Openbare updates zijn uitgeschakeld voor dit privétestpakket. Gebruik een aparte map voor officiële versies."

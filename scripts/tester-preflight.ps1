@@ -18,8 +18,13 @@ if ($Interactive) {
     Write-Host ''
     Write-Host 'This optional check confirms that every Ember file was extracted completely and'
     Write-Host 'unchanged. It changes nothing. It does not install, update or start Ember.'
-    Write-Host 'To play, run Launcher.exe. To update, choose Check for updates in Help & about,'
-    Write-Host 'or double-click Updater.exe.'
+    if (Test-Path -LiteralPath (Join-Path $PackageDir 'PRIVATE_TEST_BUILD.txt') -PathType Leaf) {
+        Write-Host 'To play, run Launcher.exe. Public updates are disabled for this private test package.'
+        Write-Host 'Use a separate folder for official releases.'
+    } else {
+        Write-Host 'To play, run Launcher.exe. To update, choose Check for updates in Help & about,'
+        Write-Host 'or double-click Updater.exe.'
+    }
     Write-Host ''
 }
 $package = (Resolve-Path -LiteralPath $PackageDir).Path.TrimEnd('\','/')

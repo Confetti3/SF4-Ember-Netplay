@@ -1,5 +1,6 @@
 #include "github_release_client_internal.hxx"
 #include "UpdateHandoff.hxx"
+#include "../../common/PrivateTestPackage.hxx"
 #include "UpdaterArguments.hxx"
 #include "../../platform/Elevation.hxx"
 #include "../../platform/Utf8.hxx"
@@ -515,6 +516,11 @@ namespace launcher {
 
 	UpdateCheckResult CheckForUpdate(UpdateChannel channel) {
 		UpdateCheckResult result;
+        wchar_t privateDirectory[MAX_PATH] = {};
+        if (GetLauncherInstallDir(privateDirectory, MAX_PATH) && install::PrivateTestPackage(privateDirectory)) {
+            result.error = loc::T("update.private_test");
+            return result;
+        }
 		char installed[64] = { 0 };
 		ReadInstalledVersion(installed, sizeof(installed));
 		result.installedVersion = installed;
@@ -647,6 +653,11 @@ namespace launcher {
         const char* installingText
 	) {
 		ApplyUpdateResult result;
+        wchar_t privateDirectory[MAX_PATH] = {};
+        if (GetLauncherInstallDir(privateDirectory, MAX_PATH) && install::PrivateTestPackage(privateDirectory)) {
+            result.error = loc::T("update.private_test");
+            return result;
+        }
 		if (offer.zipDownloadUrl.empty() && offer.zipApiUrl.empty()) {
 			result.error = loc::T("update.missing_url");
 			return result;

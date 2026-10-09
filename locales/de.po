@@ -6227,3 +6227,6 @@ msgid "country.ZW"
 msgstr "Simbabwe"
 
 #. End of the generated country names.
+
+msgid "update.private_test"
+msgstr "Öffentliche Updates sind für dieses private Testpaket deaktiviert. Verwende für offizielle Versionen einen separaten Ordner."

@@ -50,6 +50,43 @@ pwsh -NoProfile -File ./scripts/package-installer.ps1 -PackageDir dist/sf4-ember
 
 This creates `dist/sf4-ember-netplay-0.8.3-setup.exe` and its `.sha256` sidecar. The first run downloads the Inno Setup compiler named by `scripts/installer/innosetup-pin.json`, verifies its SHA-256 and keeps a private copy under `build/tools`; nothing is installed system-wide (`SF4E_ISCC` names another `ISCC.exe` instead). It bundles the Visual C++ x86 runtime installer of the building toolset. The installer needs no administrator rights, places the package under `%LOCALAPPDATA%\Programs`, and installs the runtime only when the present one is older. It only places the first copy and refuses a folder that already has files in it; updates remain with `Updater.exe` and the ZIP packages. Its uninstaller runs `Updater.exe -InstallDir <folder> -Uninstall`, which removes the files the package inventory names or allows (including any a later update added) and the updater's own state, and leaves the player's files. `scripts/test-installer.ps1 -Installer <setup.exe>` exercises the refusal, the installation and the uninstall in a temporary folder.
 
+## Private SDK-free packages
+
+This route is standalone and does not use the official build designation or
+require the Discord SDK. Configure the normal Windows x86 Ninja build with
+`SF4E_BUILD_DISCORD=OFF` and `BUILD_TESTING=ON`, using the toolchain, dependencies
+and pinned Rust toolchain described above. Python 3.12 or newer is required.
+Add `-DSF4E_BUILD_DISCORD=OFF -DBUILD_TESTING=ON` to the normal CMake configure
+command and use a separate build directory `build/private-test`.
+
+In the same Visual Studio 2026 x86 developer environment, run:
+
+~~~powershell
+.\\scripts\\package-test.ps1 -BuildDir build/private-test -Label my-test -Python C:\\Python312\\python.exe
+~~~
+
+The script rebuilds, requires all exact named tests in `PrivateBuild.ps1` to
+pass (no skips), installs into a new stage and records the tested/staged binary
+hashes, dependency identity, source fingerprint and JUnit report hash.
+`package-team.ps1 -PrivateTest -BuildDir ... -InstallDir ...` uses that same
+receipt gate when invoked directly. It cannot relabel an old receipt against
+new source or binaries. The public assembler's Discord and native inventory
+checks remain required for public packages.
+
+Only `PLAY.cmd`, `Game` and `Share with friend.zip` appear in `dist`. One previous
+verified ZIP lives in `build/private-packages`. Safe player settings/logs follow
+the new Game folder; modified packaged files, obsolete files, unowned programs
+and collisions are preserved individually under `preserved-<label>-<id>`.
+A final non-strict preflight runs after carrying player files forward.
+Existing identical PLAY.cmd is untouched; a new one joins the rename transaction.
+A failed move rolls back. Cleanup failures after commit warn with a recovery
+path and do not block a later publication. Failed candidates are retained with
+a reported path for diagnosis; remove them after inspecting the failure.
+
+Generated build information reports identity and actual validation only.
+Native gameplay, clean-machine and Discord acceptance must be reported separately.
+Keep source, player data and Git history when cleaning build caches.
+
 ## Publish a release
 
 Commit the final source, README and screenshots before the final build. Build from that exact commit, review the package, then push the `release` branch and a version tag pointing to that commit. Keep legacy `main` unchanged. Keep the verified previous full package and checksum in `dist`, then use `scripts/github-release.ps1 -Tag v0.8.3`. It packages a fresh complete ZIP, constructs and validates the mandatory previous-version upgrade ZIP, builds the installer, and uploads all three with SHA-256 sidecars. The script refuses dirty source, mismatched tags, non-published base packages and existing releases.
