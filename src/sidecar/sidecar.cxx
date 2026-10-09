@@ -17,6 +17,8 @@
 
 #include "../Dimps/Dimps.hxx"
 #include "../sf4e/sf4e.hxx"
+#include "../common/GameCompatibility.hxx"
+#include "../common/StartupHandshake.hxx"
 
 #include "sidecar.hxx"
 
@@ -78,11 +80,18 @@ sf4e::Payload* FindPayload() {
 			return payload;
 		}
 	}
-	MessageBoxA(NULL, "Could not find launcher payload!", NULL, MB_OK);
+	BootstrapLog("Could not find launcher payload");
 	return NULL;
 }
 
-static LPCWSTR DETOUR_FAILED_MESSAGE = TEXT("Could not detour targets!");
+static BOOL FailStartup(sf4e::Payload* payload, DWORD error) {
+	SecureZeroMemory(payload->helper.nonce, sizeof(payload->helper.nonce));
+	SecureZeroMemory(payload->discord.nonce, sizeof(payload->discord.nonce));
+	sf4e::startup::Publish(payload->hStartupMailbox, payload->hSyncEvent,
+		sf4e::startup::State::Failed, error);
+	// The launcher owns process cleanup. Never wait on workers under loader lock.
+	return FALSE;
+}
 
 __declspec(dllexport) BOOL WINAPI DllMain(
 	HINSTANCE hinstDLL,
@@ -110,17 +119,24 @@ __declspec(dllexport) BOOL WINAPI DllMain(
 			);
 			BootstrapLog(msg);
 		}
+		if (!payload->hSyncEvent || !payload->hStartupMailbox)
+			return FailStartup(payload, ERROR_INVALID_HANDLE);
+		if (const DWORD compatibilityError = sf4e::compatibility::CheckLoadedGame()) {
+			BootstrapLog("Game executable compatibility validation failed");
+			return FailStartup(payload, compatibilityError);
+		}
 		Dimps::Locate(LocatePERoot());
-		DetourTransactionBegin();
+		error = DetourTransactionBegin();
+		if (error != NO_ERROR) return FailStartup(payload, ERROR_DLL_INIT_FAILED);
 		sf4e::Install(hinstDLL, payload);
 		SecureZeroMemory(payload->helper.nonce, sizeof(payload->helper.nonce));
-		payload = NULL;
+		SecureZeroMemory(payload->discord.nonce, sizeof(payload->discord.nonce));
 		error = DetourTransactionCommit();
 		if (error != NO_ERROR) {
 			char msg[128] = { 0 };
 			sprintf_s(msg, "Sidecar DetourTransactionCommit failed error=%ld", error);
 			BootstrapLog(msg);
-			MessageBox(NULL, DETOUR_FAILED_MESSAGE, NULL, MB_OK);
+			return FailStartup(payload, ERROR_DLL_INIT_FAILED);
 		}
 		else {
 			BootstrapLog("Sidecar install committed");
