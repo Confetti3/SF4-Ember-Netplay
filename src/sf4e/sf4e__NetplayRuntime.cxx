@@ -622,7 +622,7 @@ static void SayTraining() {
 	if (runtime->controller.GetSnapshot().control != netplay::Health::Healthy) return;
 	room::Action say;
 	say.kind = room::ActionKind::SetTraining;
-	say.locked = training;
+	say.inTraining = training;
 	say.roomEpoch = room.roomEpoch;
 	say.revision = room.revision;
 	runtime->trainingSaidAtMs = now;

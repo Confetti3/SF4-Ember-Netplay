@@ -40,7 +40,7 @@ struct Room {
 	Result Apply(MemberId member, ActionKind kind) { return authority.Apply(member, Make(member, kind)); }
 	Result Say(MemberId member, bool training) {
 		auto action = Make(member, ActionKind::SetTraining);
-		action.locked = training;
+		action.inTraining = training;
 		return authority.Apply(member, action);
 	}
 	const Member& member(MemberId id) const {
@@ -101,9 +101,20 @@ int main() {
 		for (const auto& member : old.members) CHECK(!member.training);
 		// The action goes over the wire and back as itself.
 		auto action = room.Make(room.p1, ActionKind::SetTraining);
-		action.locked = true;
-		const Action back = nlohmann::json(action).get<Action>();
-		CHECK(back.kind == ActionKind::SetTraining && back.locked && back.actionId == action.actionId);
+		action.inTraining = true;
+		const nlohmann::json wire = action;
+		// Peers that predate the field read and write the word as "locked".
+		CHECK(wire.at("locked").get<bool>());
+		const Action back = wire.get<Action>();
+		CHECK(back.kind == ActionKind::SetTraining && back.inTraining && !back.locked && back.actionId == action.actionId);
+		nlohmann::json older = wire;
+		older["locked"] = false;
+		CHECK(!older.get<Action>().inTraining);
+		// Another kind's lock is not mistaken for Training.
+		auto lock = room.Make(room.p1, ActionKind::LockSpectating);
+		lock.locked = true;
+		const Action lockBack = nlohmann::json(lock).get<Action>();
+		CHECK(lockBack.locked && !lockBack.inTraining);
 		// A kind past the last known one is still refused.
 		nlohmann::json unknown = action;
 		unknown["kind"] = static_cast<int>(ActionKind::SetTraining) + 1;

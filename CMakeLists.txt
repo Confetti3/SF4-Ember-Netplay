@@ -507,6 +507,8 @@ target_link_libraries(sf4e_replay_files PUBLIC spdlog::spdlog PRIVATE shell32 ol
 add_library(sf4e_video STATIC "src/platform/VideoEncoder.cxx" "src/platform/VideoEncoder.hxx" "src/platform/VideoLink.cxx" "src/platform/VideoLink.hxx" "src/platform/FrameGrab.cxx" "src/platform/FrameGrab.hxx")
 target_compile_features(sf4e_video PUBLIC cxx_std_17)
 target_link_libraries(sf4e_video PUBLIC spdlog::spdlog mfplat mfreadwrite mfuuid mmdevapi d3d11 dxgi ole32 delayimp)
+# The install resolver and the settings root (VideoLink.cxx).
+target_link_libraries(sf4e_video PRIVATE sf4e_common sf4e_settings pathcch shlwapi)
 target_link_options(sf4e_video INTERFACE "/DELAYLOAD:mfplat.dll" "/DELAYLOAD:mfreadwrite.dll" "/DELAYLOAD:MMDevAPI.dll" "/DELAYLOAD:d3d11.dll" "/DELAYLOAD:dxgi.dll")
 if(BUILD_TESTING)
     add_executable(VideoEncoderTest "src/tests/video_encoder_test.cxx")

@@ -53,7 +53,7 @@ namespace launcher {
 
 	const char* UpdateChannelName(UpdateChannel channel);
 	const char* UpdateChannelRepo(UpdateChannel channel);
-	UpdateChannel ResolveUpdateChannel(const std::string& saved, const char* installed);
+	UpdateChannel ResolveUpdateChannel(std::optional<UpdateChannel> saved, const char* installed);
 	// Whether installing `tag` over `installed` is the kind of offer the check
 	// made: an update, or with goBack a step back between two valid versions.
 	bool TransitionOffered(const char* tag, const char* installed, bool goBack);

@@ -2,8 +2,8 @@
 
 Two players in a room want to practise together: one tries a setup, the other
 holds the pad, neither loses a round, and either can put both fighters back
-where the drill starts. The frame meter and Training table rule are retained;
-shared position save/reset is disabled by the `861d83a4` ownership decision.
+where the drill starts. The frame meter and Training table rule are kept;
+shared position save/reset is retired (step 3).
 The implementation checks below do not establish two-machine gameplay acceptance.
 
 ## What exists
@@ -107,7 +107,7 @@ version is unchanged.
 
 ### What it does not do
 
-- **Reset.** Shared position save/reset remains disabled (step 3 below).
+- **Reset.** There is no shared position save/reset (step 3 below).
 - **End.** Nobody is knocked out, so a game ends when the round time runs out
   or a fighter leaves. The result of a timed-out game is reported and scored
   as any game is. The rule's text tells the host to set a long round time.
@@ -128,25 +128,24 @@ version is unchanged.
   on next battle?") applies the rule to an offline Versus battle, where the
   rollback stress harness can be run over it.
 
-## Step 3, disabled: shared position save/reset
+## Step 3, retired: shared position save/reset
 
-The earlier shared checkpoint implementation is disabled by `861d83a4`.
-The offline lab's checkpoint is not owned by the rollback timeline, so it
-cannot be used to save or restore a match's position.
+A shared checkpoint was built and then disabled (`861d83a4`); it is now
+retired and its code is gone. The offline lab's checkpoint is not part of the
+rollback state, so it cannot save or restore a match's position.
 
-- `RequestMatchPractice` ignores requests. `WithMatchPractice` removes the
-  reserved practice bits from local input at a Training table.
-- `BeforeMatchFrame` consumes those bits from both synchronized inputs
-  without saving, loading or changing the fight. Without the rule it leaves
-  the inputs alone.
-- `MatchPracticeKeys` shows that shared position controls are unavailable
-  and returns zero; pad Select does not request a command.
+- Nothing of it is in the rollback save state any more.
+- Two bits of the pad's raw word (`training::ReservedInputBits`) carried the
+  presses. At a Training table `ClearReservedInputBits` still takes them out
+  of the local input before GGPO and out of both synchronized inputs before
+  the game plays a frame, as it did before, so the game never sees them.
+  Without the rule the inputs are left alone.
+- The match HUD says shared save and reset are not available
+  (`DrawMatchPracticeNotice`).
 - The Training table's refill/no-knockout rule and confirmed-frame meter
   remain separate from offline dummy and checkpoint mutations.
 
-Offline Training retains its own Save position and Reset position controls.
-Enabling shared checkpoints would require a separate rollback ownership
-implementation and two-machine gameplay validation.
+Offline Training keeps its own Save position and Reset position controls.
 
 ## What stays offline
 
@@ -168,6 +167,5 @@ or verify. A drill partner is the other player.
    parameter in the same call.
 4. **The old `trainingMode` field** now carries the rule. If it should stay
    dead, the rule needs a field of its own in `LobbyData`.
-5. **The shared reset.** It is disabled. The table rule works without a
-   shared checkpoint, and any future implementation needs explicit ownership
-   within rollback state.
+5. **The shared reset.** Decided: retired. The table rule works without a
+   shared checkpoint.

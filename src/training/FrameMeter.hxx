@@ -21,17 +21,27 @@ inline const char* MeasurementUnavailableName(MeasurementUnavailable reason) {
     default: return "available";
     }
 }
+// Dimps::Game::Battle::Chara::Actor::Status (AS_*), copied so the meter needs
+// no native header; TrainingRuntime.cxx checks that the two agree.
+struct ActorStatus {
+    enum : unsigned {
+        Stand = 0, Crouch = 1, Jump = 2, StandToCrouch = 3, CrouchToStand = 4, StandToJump = 5, JumpToStand = 6,
+        TurnStand = 7, TurnCrouch = 8, TurnWalk = 9, Forward = 10, Backward = 11, FrontDash = 12, BackDash = 13,
+        GuardStand = 14, GuardCrouch = 15, Skill = 16, Stun = 17, Bound = 18, Down = 19, Rise = 20,
+        Damage = 21, DamageGuard = 22, DamageBlow = 23, Sequence = 24
+    };
+};
 inline Phase ClassifyStatus(unsigned status) {
-    // Values are Dimps::Game::Battle::Chara::Actor::Status. Attack is kept
-    // whole: AS_SKILL does not distinguish startup, active and recovery.
+    // Attack is kept whole: Skill does not distinguish startup, active and recovery.
+    using S = ActorStatus;
     switch (status) {
-    case 0: case 1: return Phase::Neutral;
-    case 2: case 3: case 4: case 5: case 6: case 7: case 8:
-    case 9: case 10: case 11: case 12: case 13: return Phase::Movement;
-    case 16: return Phase::Attack;
-    case 14: case 15: case 22: return Phase::Guard;
-    case 17: case 21: case 23: return Phase::Hit;
-    case 18: case 19: case 20: return Phase::Down;
+    case S::Stand: case S::Crouch: return Phase::Neutral;
+    case S::Jump: case S::StandToCrouch: case S::CrouchToStand: case S::StandToJump: case S::JumpToStand: case S::TurnStand:
+    case S::TurnCrouch: case S::TurnWalk: case S::Forward: case S::Backward: case S::FrontDash: case S::BackDash: return Phase::Movement;
+    case S::Skill: return Phase::Attack;
+    case S::GuardStand: case S::GuardCrouch: case S::DamageGuard: return Phase::Guard;
+    case S::Stun: case S::Damage: case S::DamageBlow: return Phase::Hit;
+    case S::Bound: case S::Down: case S::Rise: return Phase::Down;
     default: return Phase::Unknown;
     }
 }
@@ -68,11 +78,6 @@ struct FighterSample {
     bool throwRecovery = false;
     // Also the meter's: the first sample up from a knockdown. The frame a meaty attack meets is the one before it.
     bool wake = false;
-    // The pad as the game took it this frame: the fight buttons and
-    // directions, in the game's own bits (up 1, down 2, left 4, right 8,
-    // LP 0x10, MP 0x20, HP 0x400, LK 0x40, MK 0x80, HK 0x800). A replay's
-    // presses are here as a player's would be.
-    unsigned input = 0;
 };
 // What a meter cell shows. An attack is told apart by the script's attack
 // boundary: before it startup, inside it active, after it recovery; Attack
@@ -84,23 +89,25 @@ struct FighterSample {
 // late, and the recovery has one cell less than its number (3, 2 and 6 cells
 // for 3, 2 and 7). A completed MoveFrames::recovery is the number, not the cell count.
 // Checked in the game by the in-game self-test.
-// ponytail: one active stretch per action; a multi-hit move's gaps between
-// hits read as active. Read every hit box if they have to show.
-// Sequence is AS_SEQUENCE: both fighters while a throw or a cinematic plays;
+// Limitation: one active stretch per action, so a multi-hit move's gaps
+// between hits read as active. Read every hit box if they have to show.
+// Sequence is ActorStatus::Sequence: both fighters while a throw or a cinematic plays;
 // what the thrower has left of it once the other is let go is its recovery.
 // Down is bouncing or lying, Rise getting up. Meaty is the bars' own, never
 // ClassifyMeter's: the frame a fighter is first up, and an attack active on it.
 enum class MeterKind { Neutral, Movement, Startup, Active, Recovery, Attack, Guard, Hit, Down, Rise, Sequence, Meaty, Unknown };
 inline MeterKind ClassifyMeter(const FighterSample& sample) {
+    using S = ActorStatus;
     if (!sample.valid) return MeterKind::Unknown;
-    if (sample.status == 24) return sample.throwRecovery ? MeterKind::Recovery : MeterKind::Sequence;
+    if (sample.status == S::Sequence) return sample.throwRecovery ? MeterKind::Recovery : MeterKind::Sequence;
     switch (ClassifyStatus(sample.status)) {
     case Phase::Neutral: return MeterKind::Neutral;
     // A jump shows as nothing: its frames are the same every time. Walks and dashes show.
-    case Phase::Movement: return sample.status == 2 || sample.status == 5 || sample.status == 6 ? MeterKind::Neutral : MeterKind::Movement;
+    case Phase::Movement:
+        return sample.status == S::Jump || sample.status == S::StandToJump || sample.status == S::JumpToStand ? MeterKind::Neutral : MeterKind::Movement;
     case Phase::Guard: return MeterKind::Guard;
     case Phase::Hit: return MeterKind::Hit;
-    case Phase::Down: return sample.status == 20 ? MeterKind::Rise : MeterKind::Down;
+    case Phase::Down: return sample.status == S::Rise ? MeterKind::Rise : MeterKind::Down;
     case Phase::Attack:
         if (sample.firstActiveFrame < 0 || sample.lastActiveFrame <= sample.firstActiveFrame) return MeterKind::Attack;
         return sample.actionFrame - 1 < sample.firstActiveFrame ? MeterKind::Startup :
@@ -109,9 +116,10 @@ inline MeterKind ClassifyMeter(const FighterSample& sample) {
     }
 }
 inline bool GroundedRecoveryState(unsigned status) {
+    using S = ActorStatus;
     switch (status) {
-    case 0: case 1: case 3: case 4: case 7: case 8: case 9:
-    case 10: case 11: case 14: case 15: return true;
+    case S::Stand: case S::Crouch: case S::StandToCrouch: case S::CrouchToStand: case S::TurnStand: case S::TurnCrouch: case S::TurnWalk:
+    case S::Forward: case S::Backward: case S::GuardStand: case S::GuardCrouch: return true;
     default: return false;
     }
 }
@@ -131,9 +139,9 @@ struct FrameAdvantage {
 // counts it, so the move's total is startup - 1 + active + recovery. seen:
 // an attack was made; live: it is still going.
 struct MoveFrames { int active = 0, recovery = 0; bool seen = false, live = false; };
-// The bars show MeterShown frames; the meter keeps MeterHistory of the
-// exchange, twenty seconds, so a held one can be looked back through.
-constexpr std::size_t MeterShown = 120, MeterHistory = 1200;
+// The bars show MeterShown frames. The meter keeps one more, so the leftmost
+// cell can still tell whether a new action began on it.
+constexpr std::size_t MeterShown = 120, MeterHistory = MeterShown + 1;
 // Short histories align right; longer ones show only the newest cells.
 inline int MeterFrameIndex(std::size_t size, std::size_t cell) {
     const auto shown = (std::min)(size, MeterShown);
@@ -183,13 +191,13 @@ public:
         // Whoever came into a sequence out of an attack is the one throwing.
         for (int side = 0; side < 2; ++side) {
             const auto& previous = view_.current[side];
-            if (!fighters[side].valid || fighters[side].status != 24) thrower_[side] = false;
-            else if (!previous.valid || previous.status != 24) thrower_[side] = previous.valid && previous.status == 16;
+            if (!fighters[side].valid || fighters[side].status != ActorStatus::Sequence) thrower_[side] = false;
+            else if (!previous.valid || previous.status != ActorStatus::Sequence) thrower_[side] = previous.valid && previous.status == ActorStatus::Skill;
         }
         for (int side = 0; side < 2; ++side)
-            fighters[side].throwRecovery = thrower_[side] && fighters[1 - side].valid && fighters[1 - side].status != 24;
+            fighters[side].throwRecovery = thrower_[side] && fighters[1 - side].valid && fighters[1 - side].status != ActorStatus::Sequence;
         for (int side = 0; side < 2; ++side)
-            fighters[side].wake = fighters[side].valid && view_.current[side].valid && view_.current[side].status == 20 && fighters[side].status != 20;
+            fighters[side].wake = fighters[side].valid && view_.current[side].valid && view_.current[side].status == ActorStatus::Rise && fighters[side].status != ActorStatus::Rise;
         const std::int64_t now = observedFrames_++;
         ObserveAdvantage(now, fighters);
         bool neutral = true;
@@ -205,8 +213,8 @@ public:
                 view_.startupFrames[side] = -1; startupPending_[side] = false;
                 view_.startupUnavailable[side] = MeasurementUnavailable::InvalidSample;
                 view_.startupBoundaryProvenance[side] = BoundaryProvenance::None;
-            } else if (sample.status == 16) {
-                if (previous.valid && (previous.status != 16 ||
+            } else if (sample.status == ActorStatus::Skill) {
+                if (previous.valid && (previous.status != ActorStatus::Skill ||
                     (actionChanged && sample.firstActiveFrame >= 0 && !startupPending_[side]))) {
                     startupElapsed_[side] = 0; startupPending_[side] = true;
                     view_.startupFrames[side] = -1;
@@ -219,7 +227,7 @@ public:
                 // A hit can enable hitstop at the end of this very step; use
                 // the observed animation advance instead of the next scale.
                 if (startupPending_[side] &&
-                    (actionChanged || previous.status != 16 || sample.actionFrame > previous.actionFrame)) {
+                    (actionChanged || previous.status != ActorStatus::Skill || sample.actionFrame > previous.actionFrame)) {
                     ++startupElapsed_[side];
                     if (sample.firstActiveFrame >= 0 && sample.actionFrame >= sample.firstActiveFrame) {
                         view_.startupFrames[side] = startupElapsed_[side];
@@ -230,9 +238,9 @@ public:
                 }
             } else startupPending_[side] = false;
             auto& move = view_.moves[side];
-            if (sample.valid && sample.status == 16) {
+            if (sample.valid && sample.status == ActorStatus::Skill) {
                 const auto kind = ClassifyMeter(sample);
-                const bool began = !previous.valid || previous.status != 16;
+                const bool began = !previous.valid || previous.status != ActorStatus::Skill;
                 // A cancel into another attack is a new move; a move's own later scripts are not.
                 if (began || (actionChanged && kind == MeterKind::Startup)) { move = MoveFrames{}; recoveryCells_[side] = 0; }
                 move.seen = move.live = true;
@@ -242,7 +250,7 @@ public:
                     if (kind == MeterKind::Active) ++move.active;
                     else if (kind == MeterKind::Recovery) move.recovery = ++recoveryCells_[side];
                 }
-            } else if (sample.valid && sample.status == 24 && thrower_[side] && move.seen) {
+            } else if (sample.valid && sample.status == ActorStatus::Sequence && thrower_[side] && move.seen) {
                 // A throw that connected goes on in the sequence.
                 move.live = true;
                 if (sample.throwRecovery) move.recovery = ++recoveryCells_[side];
@@ -252,7 +260,7 @@ public:
                 // frame with no cell, even when no Recovery cell was seen.
                 // Throws count their sequence directly; interruptions do not
                 // establish a completed move's recovery.
-                if (move.live && sample.valid && previous.valid && previous.status == 16 && move.active > 0 &&
+                if (move.live && sample.valid && previous.valid && previous.status == ActorStatus::Skill && move.active > 0 &&
                     GroundedRecoveryState(sample.status)) move.recovery = recoveryCells_[side] + 1;
                 move.live = false;
             }
@@ -293,7 +301,7 @@ private:
             view_.advantage = {}; view_.advantage.unavailable = reason; recovered_ = {{-1, -1}};
         };
         for (const auto& sample : fighters) {
-            if (!sample.valid || sample.action < 0 || sample.status > 24 ||
+            if (!sample.valid || sample.action < 0 || sample.status > ActorStatus::Sequence ||
                 sample.timeScale < 0 ||
                 sample.posture < 0) {
                 clear(MeasurementUnavailable::InvalidSample); armed_ = {}; return;
@@ -302,8 +310,8 @@ private:
         for (int side = 0; side < 2; ++side) {
             const auto& sample = fighters[side];
             const auto& previous = view_.current[side];
-            const bool attackStarted = sample.status == 16 && previous.valid &&
-                (previous.status != 16 || previous.action != sample.action || sample.actionFrame < previous.actionFrame);
+            const bool attackStarted = sample.status == ActorStatus::Skill && previous.valid &&
+                (previous.status != ActorStatus::Skill || previous.action != sample.action || sample.actionFrame < previous.actionFrame);
             if (attackStarted) {
                 if (!armed_[side] || view_.advantage.valid) {
                     clear(MeasurementUnavailable::NoContact); armed_ = {}; armed_[side] = true;
@@ -318,11 +326,11 @@ private:
         for (int defender = 0; defender < 2; ++defender) {
             const auto& sample = fighters[defender];
             const auto& previous = view_.current[defender];
-            contacts[defender] = (sample.status == 21 || sample.status == 22 || sample.status == 23) && previous.valid &&
+            contacts[defender] = (sample.status == ActorStatus::Damage || sample.status == ActorStatus::DamageGuard || sample.status == ActorStatus::DamageBlow) && previous.valid &&
                 (sample.status != previous.status || sample.action != previous.action ||
                  sample.actionFrame < previous.actionFrame || sample.comboDamage > previous.comboDamage);
             // A throw connects as its sequence takes both; only the thrown fighter is hit by it.
-            if (sample.status == 24 && previous.valid && previous.status != 24 && armed_[1 - defender]) contacts[defender] = true;
+            if (sample.status == ActorStatus::Sequence && previous.valid && previous.status != ActorStatus::Sequence && armed_[1 - defender]) contacts[defender] = true;
         }
         // A trade/interruption cannot inherit the earlier attack's recovery.
         if ((contacts[0] && contacts[1]) || (contacts[0] && armed_[0]) || (contacts[1] && armed_[1])) {
@@ -346,7 +354,7 @@ private:
         }
         for (int side = 0; side < 2; ++side) {
             const auto& sample = fighters[side];
-            if (view_.advantage.pending && (ClassifyStatus(sample.status) == Phase::Down || sample.status == 23))
+            if (view_.advantage.pending && (ClassifyStatus(sample.status) == Phase::Down || sample.status == ActorStatus::DamageBlow))
                 view_.advantage.knockdown = true;
             if ((armed_[side] || view_.advantage.pending) && recovered_[side] < 0 &&
                 GroundedRecoveryState(sample.status) && sample.posture <= 1 && sample.timeScale > 0 && !sample.basicActionInhibited)

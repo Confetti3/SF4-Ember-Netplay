@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "test_support.hxx"
@@ -48,16 +49,16 @@ int main() {
     CHECK(SaveLanguagePreferenceTo(root.wstring(), "auto", error));
     CHECK(GameSettingsCardHiddenIn(root.wstring()));
     // The update channel shares the file the same way, and is unchosen until saved.
-    CHECK(UpdateChannelPreferenceIn(root.wstring()).empty());
-    CHECK(SaveUpdateChannelPreferenceTo(root.wstring(), "prerelease", error) && UpdateChannelPreferenceIn(root.wstring()) == "prerelease");
+    using sf4e::updates::UpdateChannel;
+    CHECK(!UpdateChannelPreferenceIn(root.wstring()));
+    CHECK(SaveUpdateChannelPreferenceTo(root.wstring(), "prerelease", error) && UpdateChannelPreferenceIn(root.wstring()) == UpdateChannel::Beta);
     CHECK(GameSettingsCardHiddenIn(root.wstring()) && LoadLanguagePreferenceFrom(root.wstring()) == "auto");
-    CHECK(SaveUpdateChannelPreferenceTo(root.wstring(), "stable", error) && UpdateChannelPreferenceIn(root.wstring()) == "stable");
-    CHECK(SaveUpdateChannelPreferenceTo(root.wstring(), "nightly", error) && UpdateChannelPreferenceIn(root.wstring()) == "nightly");
-    CHECK(!SaveUpdateChannelPreferenceTo(root.wstring(), "bogus", error) && UpdateChannelPreferenceIn(root.wstring()) == "nightly");
+    CHECK(SaveUpdateChannelPreferenceTo(root.wstring(), "stable", error) && UpdateChannelPreferenceIn(root.wstring()) == UpdateChannel::Stable);
+    CHECK(SaveUpdateChannelPreferenceTo(root.wstring(), "nightly", error) && UpdateChannelPreferenceIn(root.wstring()) == UpdateChannel::Nightly);
+    CHECK(!SaveUpdateChannelPreferenceTo(root.wstring(), "bogus", error) && UpdateChannelPreferenceIn(root.wstring()) == UpdateChannel::Nightly);
     for (const auto& info : sf4e::updates::kUpdateChannels) {
         CHECK(SaveUpdateChannelPreferenceTo(root.wstring(), info.stored, error));
-        const auto saved = UpdateChannelPreferenceIn(root.wstring());
-        CHECK(saved == info.stored && sf4e::updates::ParseSavedUpdateChannel(saved) == info.channel);
+        CHECK(UpdateChannelPreferenceIn(root.wstring()) == info.channel);
     }
     for (const char* invalidChannel : {"", "beta", "Nightly", " nightly", "stable "})
         CHECK(!SaveUpdateChannelPreferenceTo(root.wstring(), invalidChannel, error));
@@ -65,8 +66,18 @@ int main() {
     const auto unknown = root / L"unknown-channel"; CHECK(std::filesystem::create_directory(unknown));
     for (const char* value : {"\"bogus\"", "\"beta\"", "\"\"", "7", "null"}) {
         Write(unknown / L"ui-preferences.json", std::string("{\"schemaVersion\":1,\"language\":\"de\",\"updateChannel\":") + value + "}");
-        CHECK(UpdateChannelPreferenceIn(unknown.wstring()).empty());
+        CHECK(!UpdateChannelPreferenceIn(unknown.wstring()));
         CHECK(LoadLanguagePreferenceFrom(unknown.wstring()) == "de");
+    }
+    // A file with no channel field, and one that is not a JSON object, are unchosen too.
+    for (const char* body : {"{\"schemaVersion\":1,\"language\":\"de\"}", "[]", "{}"}) {
+        Write(unknown / L"ui-preferences.json", body);
+        CHECK(!UpdateChannelPreferenceIn(unknown.wstring()));
+    }
+    // The stored words load as their channels, "prerelease" being Beta.
+    for (const auto& word : {std::pair<const char*, UpdateChannel>{"stable", UpdateChannel::Stable}, {"prerelease", UpdateChannel::Beta}, {"nightly", UpdateChannel::Nightly}}) {
+        Write(unknown / L"ui-preferences.json", std::string("{\"schemaVersion\":1,\"language\":\"de\",\"updateChannel\":\"") + word.first + "\"}");
+        CHECK(UpdateChannelPreferenceIn(unknown.wstring()) == word.second);
     }
     // A field of the wrong type is not a reason to hide the card, or to throw.
     const auto mistyped = root / L"mistyped"; CHECK(std::filesystem::create_directory(mistyped));

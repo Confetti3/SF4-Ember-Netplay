@@ -100,9 +100,9 @@ struct DummySeen { int freed = 0, held = 0, until = -1; unsigned stretch = 0; };
 // Fed the dummy once per simulated frame. The game does not say how long a
 // stun lasts, so each one is timed the first time it is seen, from its last
 // hit or change of reaction to the free frame, and known from then on.
-// ponytail: one length per attacking move and reaction; a counter hit's extra
-// frames replace it until the plain hit is seen again. Key on the hit's own
-// data if the two ever have to be told apart.
+// Limitation: one length per attacking move and reaction; a counter hit's
+// extra frames replace it until the plain hit is seen again. Key on the hit's
+// own data if the two ever have to be told apart.
 class DummyWatch {
 public:
     // attacker: the other fighter's action id.
@@ -182,14 +182,12 @@ private:
 };
 struct View {
     bool available = false, ready = false, checkpoint = false, loop = true;
-    // A rollback match whose frame meter is shown: meter and fighters are
-    // filled, nothing else, and no command is taken.
+    // A rollback match whose frame meter is shown: the meter is filled,
+    // nothing else, and no command is taken.
     bool watching = false;
     std::uint64_t generation = 0;
     // Where Player 1 and Player 2 stand (x), as the adapter reads them each frame.
     float x[2] = {0, 0};
-    // The fighters of this battle, Player 1 first, as the game numbers them; -1 unknown.
-    int fighters[2] = {-1, -1};
     // The battle has been told to leave for the main menu: a challenger is
     // waiting. Frames left before it goes, 0 when it was not.
     int leavingIn = 0;
@@ -197,7 +195,6 @@ struct View {
     int selected = 0, cursor = 0, playbackSide = 1;
     std::array<int, SlotCount + 1> lengths{};
     std::array<std::deque<InputRun>, 2> history;
-    std::array<std::deque<unsigned>, 2> timeline;
     MeterView meter;
     // ExportSlot: the selected slot's frames, handed over once per request.
     std::uint64_t exportId = 0; int exportedSlot = -1;
@@ -316,9 +313,6 @@ public:
                 history.push_front({buttons, 1});
                 if (history.size() > HistoryRows) history.pop_back();
             }
-            auto& timeline = view_.timeline[side];
-            timeline.push_back(buttons);
-            if (timeline.size() > 120) timeline.pop_front();
         }
         if (view_.mode == Mode::Recording) {
             auto& slot = slots_[view_.selected];
@@ -340,7 +334,7 @@ public:
             if (!met && ++waited_ < (frame.wait == WaitHit ? MaxWaitHitFrames : MaxWaitFrames) + (std::max)(0, static_cast<int>(frame.offset))) return;
             // A hit is kept until the next press starts a move of its own, so
             // one landing while a cancel's motion is still going is not lost.
-            // ponytail: a hit during a held button is dropped; track edges per button if it matters.
+            // Limitation: a hit during a held button is dropped; track edges per button if it matters.
             waited_ = waitedPast_ = 0;
             if ((frame.raw & AttackButtons) && !(lastRaw_ & AttackButtons)) hit_ = false;
             lastRaw_ = frame.raw;
@@ -367,7 +361,6 @@ private:
     }
     void ClearHistory() {
         for (auto& rows : view_.history) rows.clear();
-        for (auto& frames : view_.timeline) frames.clear();
     }
 };
 } }

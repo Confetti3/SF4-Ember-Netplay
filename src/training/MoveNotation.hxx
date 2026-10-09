@@ -8,7 +8,7 @@
 // Moves typed in numpad notation ("2MK", "xx 236HP", "[4]6P"): one move as
 // the inputs it stands for, and a typed line as its moves. Owns only the
 // text and its meaning; it knows nothing of the game or the overlay.
-// The namespace is combo so the fork's combo tools can sit on top of it.
+// The dummy's typed reply is read with it (PracticeSettings.hxx).
 namespace sf4e { namespace combo {
 // Trims, and folds every run of whitespace or control characters to one space.
 inline std::string Clean(const std::string& text) {

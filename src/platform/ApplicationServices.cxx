@@ -12,6 +12,17 @@
 #include <fstream>
 #include <cstring>
 
+namespace {
+// ShellExecute may hand the target to a COM-based handler; give it an apartment.
+bool ShellOpen(const wchar_t* target) {
+    if (!target || !target[0]) return false;
+    const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    const bool opened = reinterpret_cast<INT_PTR>(ShellExecuteW(nullptr, L"open", target, nullptr, nullptr, SW_SHOWNORMAL)) > 32;
+    if (SUCCEEDED(com)) CoUninitialize();
+    return opened;
+}
+}
+
 namespace sf4e { namespace platform {
 std::string DescribeNetwork(const DiagnosticsView& view) {
     // Region code and network class only; never a relay address or an IP.
@@ -151,19 +162,14 @@ void ApplicationServices::Run() {
                     next.closeGame = next.succeeded = true; next.message = loc::T("services.game_closing");
                 }
             } else if (action == ServiceAction::OpenCommunity) {
-                // ShellExecute may hand the URL to a COM-based handler; give it an apartment.
-                const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
                 const std::wstring url = L"https://" + std::wstring(CommunityInvite, CommunityInvite + std::strlen(CommunityInvite));  // ASCII
-                const auto opened = reinterpret_cast<INT_PTR>(ShellExecuteW(nullptr, L"open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL)) > 32;
-                if (SUCCEEDED(com)) CoUninitialize();
+                const bool opened = ShellOpen(url.c_str());
                 next.succeeded = opened;
                 next.message = opened ? loc::T("services.community_opened") : loc::Tf("services.community_failed", CommunityInvite);
             } else if (action == ServiceAction::OpenReplayFolder) {
                 const auto folder = replays::FindFolders().archive;
                 std::error_code ignored; std::filesystem::create_directories(folder, ignored);
-                const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-                const auto opened = !folder.empty() && reinterpret_cast<INT_PTR>(ShellExecuteW(nullptr, L"open", folder.c_str(), nullptr, nullptr, SW_SHOWNORMAL)) > 32;
-                if (SUCCEEDED(com)) CoUninitialize();
+                const bool opened = ShellOpen(folder.c_str());
                 next.succeeded = opened;
                 next.message = opened ? loc::Tf("services.replay_folder_opened", WideToUtf8(folder.wstring())) : loc::T("services.replay_folder_failed");
             } else if (action == ServiceAction::InstallUpdate) {

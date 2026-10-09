@@ -2663,12 +2663,6 @@ msgstr "Networking is unavailable. Offline is available."
 msgid "runtime.room_join_failed"
 msgstr "Could not join the room. Check the invitation and that both players use the same SF4 Ember Netplay package."
 
-msgid "runtime.practice_saved"
-msgstr "P{0} saved the position"
-
-msgid "runtime.practice_reset"
-msgstr "P{0} reset the position"
-
 msgid "room.rules.tournament"
 msgstr "The tournament sets the rules at this table."
 
@@ -3714,12 +3708,6 @@ msgstr "Plays it from the Battle Log with the frame meter over the fight."
 
 msgid "room.training"
 msgstr "Wait in Training"
-
-msgid "runtime.practice_saved_name"
-msgstr "{0} saved the position"
-
-msgid "runtime.practice_reset_name"
-msgstr "{0} reset the position"
 
 msgid "replays.export_gpu"
 msgstr "Export video (GPU)"

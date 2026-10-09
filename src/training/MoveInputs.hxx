@@ -30,9 +30,7 @@ inline unsigned ChosenButtons(const Step& step) {
     return mask;
 }
 // Directions are read for the facing; the buttons of a step are chosen once.
-// offset: frames every move goes on waiting after its cue, added to the
-// move's own "@" offset.
-inline std::vector<training::Input> Synthesize(const std::vector<std::string>& steps, bool facingRight, int offset) {
+inline std::vector<training::Input> Synthesize(const std::vector<std::string>& steps, bool facingRight) {
     std::vector<training::Input> out;
     const auto push = [&](unsigned bits, int frames) { for (; frames > 0 && out.size() < training::MaxFrames; --frames) out.push_back({bits, bits, 0, 0}); };
     const auto wait = [&](unsigned char on, unsigned held, int timing) {
@@ -41,7 +39,7 @@ inline std::vector<training::Input> Synthesize(const std::vector<std::string>& s
     for (std::size_t index = 0; index < steps.size(); ++index) {
         Step step; std::string error;
         if (!ParseStep(steps[index], step, error)) continue;
-        const int timing = step.offset + offset;
+        const int timing = step.offset;
         const unsigned buttons = ChosenButtons(step);
         // A move laid out on a frame ("#45") starts its input so the press
         // lands there, or at once when that frame has passed; it waits for no cue.

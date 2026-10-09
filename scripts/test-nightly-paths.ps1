@@ -87,6 +87,35 @@ Invoke-NightlyLinuxBuild 'C:\Kate''s files\$HOME; & (literal) `tick\build-wsl.sh
     'C:\Kate''s files\$HOME; & (literal) `tick\room-host-src.tgz' 'C:\Kate''s files\$HOME; & (literal) `tick\output dirs'
 Write-Output 'PASS WSL invocation uses --exec and separate unchanged argv'
 
+# Finding Git's bash.exe from git.exe in either layout, and failing when there is none.
+. (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')
+$gitTree = Join-Path ([IO.Path]::GetTempPath()) ('nightly-git-' + [Guid]::NewGuid().ToString('N'))
+try {
+    foreach ($relative in @('cmd\git.exe', 'mingw64\bin\git.exe', 'bin\bash.exe')) {
+        $file = Join-Path $gitTree $relative
+        New-Item -ItemType Directory -Path (Split-Path $file -Parent) -Force | Out-Null
+        Set-Content -LiteralPath $file -Value 'fixture'
+    }
+    $expectedBash = Join-Path $gitTree 'bin\bash.exe'
+    foreach ($relative in @('cmd\git.exe', 'mingw64\bin\git.exe')) {
+        if ((Get-EmberGitBash (Join-Path $gitTree $relative) '') -cne $expectedBash) { throw "Wrong bash.exe found from $relative" }
+    }
+    $explicit = Join-Path $gitTree 'cmd\git.exe'
+    if ((Get-EmberGitBash (Join-Path $gitTree 'cmd\git.exe') $explicit) -cne $explicit) { throw 'Override was not used' }
+    $threw = $false
+    try { Get-EmberGitBash (Join-Path $gitTree 'cmd\git.exe') (Join-Path $gitTree 'missing.exe') | Out-Null } catch { $threw = $true }
+    if (!$threw) { throw 'A missing override did not throw' }
+    Remove-Item -LiteralPath $expectedBash
+    foreach ($relative in @('cmd\git.exe', 'mingw64\bin\git.exe')) {
+        $threw = $false
+        try { Get-EmberGitBash (Join-Path $gitTree $relative) '' | Out-Null } catch { $threw = $true }
+        if (!$threw) { throw "Missing bash.exe did not throw for $relative" }
+    }
+} finally {
+    if (Test-Path -LiteralPath $gitTree) { Remove-Item -LiteralPath $gitTree -Recurse }
+}
+Write-Output 'PASS Git bash.exe is found from cmd and mingw64\bin layouts, an override is honored, and a missing bash.exe throws'
+
 if (!$BashPath) {
     Write-Output 'SKIP Bash syntax/argv check (supply -BashPath to a local bash.exe)'
     return

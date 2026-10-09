@@ -539,13 +539,9 @@ void Overlay::DrawOverlay() {
     // The native menu stays parked under a shown shell, focused or not, so a
     // pad press while alt-tabbed cannot drive it.
     fMainMenu::bOverrideItemObserverState = (shown || controllerNavigation.MenuGuard()) ? rMainMenu::MMIOS_TRANSITION : -1;
-    if (layers.matchActive) {
-        // A Training table's shared reset and save: asked for here, sent with the player's next input.
-        if (focused && passive && !status.spectator && sf4e::training::MatchPracticeActive()) {
-            sf4e::training::RequestMatchPractice(sf4e::ui::MatchPracticeKeys(
-                (snapshot.menuController.buttons & sf4e::ui::ControllerSample::Chat) != 0));
-        }
-    }
+    // A Training table's match has no shared save and reset; the HUD says so.
+    if (layers.matchActive && focused && passive && !status.spectator && sf4e::training::MatchPracticeActive())
+        sf4e::ui::DrawMatchPracticeNotice();
     sf4e::OverlayPrefs::Data prefs = s_prefs;
     sf4e::OverlayPrefs::FromConfirmed(prefs.lobby, lobbyConditions); prefs.stageID = lobbyStageID;
     prefs.randomStageExcluded = lobbyStageExcluded;

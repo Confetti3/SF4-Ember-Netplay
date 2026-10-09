@@ -44,6 +44,8 @@ int wmain(int argc, wchar_t** argv) {
 	CHECK(std::filesystem::exists(first) && std::filesystem::exists(second));
 	CHECK(std::filesystem::remove(first) && std::filesystem::remove(second));
 	CHECK(!link::Start(final.wstring(), width, height, L"no-such-encoder.exe"));
+	// With no encoder named, the install's Launcher.exe is looked up; none beside this test is a clean failure that reserves nothing.
+	if (!std::filesystem::exists(std::filesystem::path(self).parent_path() / L"Launcher.exe")) { CHECK(!link::Start(final.wstring(), width, height)); }
 	CHECK(std::filesystem::file_size(other) == 14);
 	CHECK(std::distance(std::filesystem::directory_iterator(folder), std::filesystem::directory_iterator()) == 1);
 	std::filesystem::remove_all(folder);

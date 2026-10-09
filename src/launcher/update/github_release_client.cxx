@@ -24,7 +24,7 @@ namespace launcher {
 		// cannot hold the update worker, and with it shutdown, forever. The
 		// process runs in a kill-on-close job, so a cancel or timeout ends
 		// anything it started too (ledger A-013).
-		static bool RunProcessAndWaitHidden(const wchar_t* application, const wchar_t* cmdLine, DWORD* outExitCode,
+		bool RunProcessAndWaitHidden(const wchar_t* application, const wchar_t* cmdLine, DWORD* outExitCode,
 			const std::function<bool(std::uint64_t, std::uint64_t)>& progress) {
 			constexpr ULONGLONG kTimeoutMs = 5 * 60 * 1000;
 			HANDLE job = CreateJobObjectW(NULL, NULL);
@@ -99,23 +99,6 @@ namespace launcher {
 				if (updateRoot && _wcsicmp(entry.path().c_str(), currentRoot) == 0) continue;
 				if (updateRoot || updaterCopy || packageZip) std::filesystem::remove_all(entry.path(), error);
 			}
-		}
-
-		// The number of entries the archive's end record names, or 0 when it
-		// cannot be read or the archive is a zip64 one. Entries, not bytes:
-		// a package is thousands of small files, so the count moves evenly.
-		static std::uint64_t ZipEntryCount(const wchar_t* zipPath) {
-			std::ifstream zip(zipPath, std::ios::binary | std::ios::ate);
-			const std::streamoff size = zip.tellg();
-			if (size < 22) return 0;
-			// The record is 22 bytes and a comment of at most 65535 follows it.
-			std::string tail(static_cast<size_t>((std::min<std::streamoff>)(size, 22 + 65535)), '\0');
-			zip.seekg(size - static_cast<std::streamoff>(tail.size()));
-			if (!zip.read(&tail[0], tail.size())) return 0;
-			const size_t record = tail.rfind("PK\x05\x06");
-			if (record == std::string::npos || record + 22 > tail.size()) return 0;
-			const unsigned count = static_cast<unsigned char>(tail[record + 10]) | static_cast<unsigned char>(tail[record + 11]) << 8;
-			return count == 0xFFFF ? 0 : count;
 		}
 
 		static bool ExpandZipArchive(const wchar_t* zipPath, const wchar_t* destDir,
@@ -510,8 +493,8 @@ namespace launcher {
 		return (CompareVersions(*target, *current) < 0) == goBack;
 	}
 
-	UpdateChannel ResolveUpdateChannel(const std::string& saved, const char* installed) {
-		if (const auto channel = ParseSavedUpdateChannel(saved)) return *channel;
+	UpdateChannel ResolveUpdateChannel(std::optional<UpdateChannel> saved, const char* installed) {
+		if (saved) return *saved;
 		const auto version = ParseVersion(installed);
 		const auto kind = version ? ClassifyReleaseKind(*version) : ReleaseKind::Stable;
 		for (const auto& info : kUpdateChannels) if (info.kind == kind) return info.channel;
@@ -780,22 +763,11 @@ namespace launcher {
 			result.error = loc::T("update.no_digest"); return result;
 		}
 
-		// tar reports nothing, so the folder it fills is counted against the
-		// archive's entries each time the wait asks whether to go on.
-		const std::uint64_t entries = ZipEntryCount(zipPath);
+		// tar reports nothing, so the stage has no total (the bar is not drawn);
+		// each wait slice still asks whether to go on.
 		const auto extracting = at(UpdateStage::Extracting);
-		extracting(0, entries);
-		const bool extracted = ExpandZipArchive(zipPath, extractDir, [&](std::uint64_t, std::uint64_t) {
-			std::uint64_t present = 0;
-			if (entries) {
-				std::error_code error;
-				for (std::filesystem::recursive_directory_iterator entry(extractDir, error), end; !error && entry != end; entry.increment(error))
-					if (!entry->is_directory(error)) ++present;
-			}
-			// Release archives list files only; one that lists its folders
-			// too ends a little short of full.
-			return extracting((std::min)(present, entries), entries);
-		});
+		extracting(0, 0);
+		const bool extracted = ExpandZipArchive(zipPath, extractDir, extracting);
 		DeleteFileW(zipPath);
 		if (!extracted) {
 			AppendUpdateLog("extract failed");

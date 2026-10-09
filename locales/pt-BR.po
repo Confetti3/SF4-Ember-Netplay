@@ -2549,12 +2549,6 @@ msgstr "A rede não está disponível. O modo offline está disponível."
 msgid "runtime.room_join_failed"
 msgstr "Não foi possível entrar na sala. Verifique o convite e se os dois jogadores usam o mesmo pacote do SF4 Ember Netplay."
 
-msgid "runtime.practice_saved"
-msgstr "P{0} salvou a posição"
-
-msgid "runtime.practice_reset"
-msgstr "P{0} restaurou a posição"
-
 msgid "room.rules.tournament"
 msgstr "O torneio define as regras desta mesa."
 
@@ -3600,12 +3594,6 @@ msgstr "Reproduz pelo Battle Log com o medidor de frames sobre a luta."
 
 msgid "room.training"
 msgstr "Esperar no treino"
-
-msgid "runtime.practice_saved_name"
-msgstr "{0} salvou a posição"
-
-msgid "runtime.practice_reset_name"
-msgstr "{0} restaurou a posição"
 
 msgid "replays.export_gpu"
 msgstr "Exportar vídeo (GPU)"

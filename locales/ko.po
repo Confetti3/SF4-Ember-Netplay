@@ -2994,12 +2994,6 @@ msgstr "대전 전적을 저장하지 못했습니다. 다음 대전은 시작�
 msgid "runtime.rollback_unsupported_state"
 msgstr "넷플레이에서 지원하지 않는 게임 상태를 저장하지 못했습니다. 대전이 종료되었습니다."
 
-msgid "runtime.practice_saved"
-msgstr "P{0}가 위치를 저장했습니다"
-
-msgid "runtime.practice_reset"
-msgstr "P{0}가 위치를 초기화했습니다"
-
 msgid "runtime.participant_left_room"
 msgstr "대전 참가자가 방을 나갔습니다."
 
@@ -4052,12 +4046,6 @@ msgstr "Battle Log에서 재생하며 대전 위에 프레임 미터를 표시�
 
 msgid "room.training"
 msgstr "트레이닝에서 대기"
-
-msgid "runtime.practice_saved_name"
-msgstr "{0} 님이 위치를 저장했습니다"
-
-msgid "runtime.practice_reset_name"
-msgstr "{0} 님이 위치를 초기화했습니다"
 
 msgid "replays.export_gpu"
 msgstr "동영상 내보내기 (GPU)"

@@ -58,7 +58,7 @@ int main() {
         CHECK(BuildReplyPlan(migrated, settings, plan, error));
         CHECK(plan.when == 4 && plan.slot == 3 && !plan.moves[0].empty());
         for (int side = 0; side < 2; ++side) {
-            const auto expected = sf4e::combo::Synthesize({notation[i]}, side == 0, 0);
+            const auto expected = sf4e::combo::Synthesize({notation[i]}, side == 0);
             CHECK(plan.moves[side].size() == expected.size());
             for (std::size_t frame = 0; frame < expected.size(); ++frame) {
                 const auto& got = plan.moves[side][frame]; const auto& want = expected[frame];

@@ -361,7 +361,7 @@ void fVsBattle::PrepareBattleRequest() {
 		}
 	}
 	bForceNextMatchOnline = false;
-	// With the rule goes the shared save and reset of that battle.
+	// The rule's HUD notice, and the reserved input bits cleared in that battle.
 	sf4e::training::SetMatchPractice(r && bNextMatchTraining);
 	bOverrideNextRandomSeed = false;
 	nextMatchRandomSeed = 0xffffffff;

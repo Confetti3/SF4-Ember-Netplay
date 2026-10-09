@@ -17,7 +17,6 @@
 #include "../common/MatchTelemetry.hxx"
 #include "../common/ReusableRecords.hxx"
 #include "../common/RoomLimits.hxx"
-#include "../training/MatchPractice.hxx"
 #include "../common/sf4e__PacingController.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 
@@ -173,9 +172,6 @@ namespace sf4e {
 
 						Dimps::Game::Battle::GameManager gameManager = { 0 };
 						sf4e::replay::Snapshot replayRecorder = {};
-						// A Training table's shared save and reset: which
-						// presses were down, so one counts once (MatchPractice.hxx).
-						sf4e::training::PracticeState practice = {};
 					};
 					GlobalData d;
 

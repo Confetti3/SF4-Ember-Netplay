@@ -1,6 +1,5 @@
 #include "../training/TrainingSession.hxx"
 #include "../training/ConfirmedSamples.hxx"
-#include "../training/MatchPractice.hxx"
 #include <cstdio>
 #include <stdexcept>
 using namespace sf4e::training;
@@ -11,11 +10,11 @@ int main() {
         for (int frame = 0; frame < static_cast<int>(MeterHistory); ++frame) longHistory.frames.push_back({{}, frame});
         for (std::size_t cell = 0; cell < MeterShown; ++cell) {
             const int index = MeterFrameIndex(longHistory.frames.size(), cell);
-            Require(index == 1080 + static_cast<int>(cell) && longHistory.frames[index].frame == index,
-                "Meter did not draw the newest 120 of 1200 frames");
+            Require(index == static_cast<int>(MeterHistory - MeterShown + cell) && longHistory.frames[index].frame == index,
+                "Meter did not draw the newest 120 frames it keeps");
         }
         Require(MeterFrameIndex(0, 119) == -1 && MeterFrameIndex(3, 116) == -1 &&
-            MeterFrameIndex(3, 117) == 0 && MeterFrameIndex(3, 119) == 2 && MeterFrameIndex(1200, 120) == -1,
+            MeterFrameIndex(3, 117) == 0 && MeterFrameIndex(3, 119) == 2 && MeterFrameIndex(MeterHistory, 120) == -1,
             "Short meter history or visible cell boundary wrong");
         // Reproduce action chains through the same per-frame observer used by
         // native training. An internal move change must not discard contact.
@@ -265,7 +264,7 @@ int main() {
         for (int i = 0; i < MaxFrames + 5; ++i) session.Commit(session.Prepare(physical));
         Require(session.GetView().lengths[1] == MaxFrames && session.GetView().mode == Mode::Idle, "Recording limit failed");
         Require(session.GetView().lengths[0] == 2, "Second slot overwrote first");
-        Require(session.GetView().timeline[0].size() <= 120 && session.GetView().history[0].size() <= HistoryRows, "History unbounded");
+        Require(session.GetView().history[0].size() <= HistoryRows, "History unbounded");
         session.SetReady(false); Require(!apply(Action::Record), "Loading allowed record");
         session.SetReady(true); session.SetCheckpoint(true);
         Require(apply(Action::Restore) && session.GetView().history[0].empty(), "Reset kept stale history");
@@ -620,39 +619,6 @@ int main() {
             // The next match counts from one again.
             capture(1, 21);
             Require(kept.Next(0, frame, out) && frame == 1 && out[0].status == 21 && !kept.Next(900, frame, out), "A new match did not start the frames anew");
-        }
-        {
-            // A Training table's shared save and reset, decided from a frame's inputs and the state that rolls back with it.
-            PracticeState state;
-            const unsigned reset = PracticeReset, save = PracticeSave;
-            // Nothing before the fight, whatever is pressed; the press is remembered as held.
-            Require(DecidePractice(state, reset | save, 0, false) == PracticeStep::None && state.count == 0, "A step was taken before the fight");
-            // The fight begins: the position is saved by nobody, so a reset has one.
-            Require(DecidePractice(state, reset | save, 0, true) == PracticeStep::Save && state.by == -1 && state.count == 1, "The round's start was not saved");
-            // Still held from before: no press.
-            Require(DecidePractice(state, reset | save, 0, true) == PracticeStep::None, "A held button counted as a press");
-            Require(DecidePractice(state, 0, 0, true) == PracticeStep::None, "A release counted as a press");
-            // A press counts once, as it goes down, and says whose it is.
-            Require(DecidePractice(state, 0, reset, true) == PracticeStep::Reset && state.by == 1 && state.last == PracticeStep::Reset && state.count == 2, "Player 2's reset was not taken");
-            Require(DecidePractice(state, 0, reset, true) == PracticeStep::None && state.count == 2, "A reset repeated while held");
-            Require(DecidePractice(state, save, reset, true) == PracticeStep::Save && state.by == 0 && state.count == 3, "Player 1's save was not taken");
-            // Both in one frame is a save, and Player 1's before Player 2's.
-            (void)DecidePractice(state, 0, 0, true);
-            Require(DecidePractice(state, reset, save, true) == PracticeStep::Save && state.by == 1, "A save and a reset in one frame was not a save");
-            (void)DecidePractice(state, 0, 0, true);
-            Require(DecidePractice(state, save, save, true) == PracticeStep::Save && state.by == 0, "Two saves in one frame were not Player 1's");
-            // Other bits of the pad are not its business.
-            (void)DecidePractice(state, 0, 0, true);
-            Require(DecidePractice(state, 0x10 | 0x400 | 0x8, 0xFFFF, true) == PracticeStep::None, "A fight button was taken for a step");
-            // A predicted frame repeats the last input, and a rollback brings the state back: the frame decides as it first did.
-            PracticeState before = state;
-            Require(DecidePractice(state, reset, 0, true) == PracticeStep::Reset, "A reset was not taken");
-            const PracticeState after = state;
-            Require(DecidePractice(state, reset, 0, true) == PracticeStep::None && DecidePractice(state, reset, 0, true) == PracticeStep::None, "A predicted repeat made a press");
-            state = before;
-            Require(DecidePractice(state, reset, 0, true) == PracticeStep::Reset && state.count == after.count && state.held == after.held, "A replayed frame decided otherwise");
-            // The fight over and begun again saves again.
-            Require(DecidePractice(state, 0, 0, false) == PracticeStep::None && DecidePractice(state, 0, 0, true) == PracticeStep::Save && state.by == -1, "A new fight did not save its start");
         }
         {
             // A tracked Record, then an untracked hotkey command and a tracked save

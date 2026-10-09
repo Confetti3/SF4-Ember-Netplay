@@ -1,9 +1,10 @@
 #include "VideoLink.hxx"
 #include "VideoEncoder.hxx"
 #include "VideoTemporary.hxx"
+#include "../common/install_paths.hxx"
+#include "../netplay/SettingsStore.hxx"
 
 #include <windows.h>
-#include <shlobj.h>
 #include <objbase.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -52,6 +53,13 @@ namespace sf4e { namespace platform { namespace videolink {
 
 bool Start(const std::wstring& file, unsigned width, unsigned height, const std::wstring& encoder) {
 	if (s_shared || file.size() >= 1024) return false;
+	std::wstring exe = encoder;
+	if (exe.empty()) {
+		// Launcher.exe in Ember's install, wherever the package layout puts it.
+		wchar_t path[MAX_PATH] = {0};
+		if (!install::ResolveInstallFile(L"Launcher.exe", path, MAX_PATH)) { spdlog::warn("Video: no Launcher.exe in the install for the encoder"); return false; }
+		exe = path;
+	}
 	const std::wstring name = L"Local\\sf4e-video-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount());
 	if (!ReserveTemporary(file, s_partial)) { s_partial.clear(); return false; }
 	const ULONGLONG size = sizeof(Shared) + static_cast<ULONGLONG>(width) * height * 3 / 2 * kSlots;
@@ -63,14 +71,6 @@ bool Start(const std::wstring& file, unsigned width, unsigned height, const std:
 	wcscpy_s(s_shared->file, s_partial.c_str()); wcscpy_s(s_shared->final, file.c_str());
 	s_dropped = 0;
 
-	std::wstring exe = encoder;
-	if (exe.empty()) {
-		// Beside the module this code is in: Sidecar.dll, in Ember's folder.
-		HMODULE self = nullptr; wchar_t path[MAX_PATH] = {0};
-		GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, reinterpret_cast<LPCWSTR>(&Start), &self);
-		GetModuleFileNameW(self, path, MAX_PATH);
-		exe = path; exe.resize(exe.find_last_of(L'\\') + 1); exe += L"Launcher.exe";
-	}
 	std::wstring command = L"\"" + exe + L"\" --encode-video " + name;
 	STARTUPINFOW startup = {sizeof startup}; PROCESS_INFORMATION process = {};
 	if (!CreateProcessW(exe.c_str(), &command[0], nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &startup, &process)) {
@@ -149,10 +149,9 @@ namespace {
 // launcher start, which this is not). One file, written anew each export,
 // beside the others: what was opened, a line every ten seconds, how it closed.
 void LogToFile() {
-	PWSTR appData = nullptr;
-	if (SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &appData) != S_OK) return;
-	const std::wstring folder = std::wstring(appData) + L"\\sf4e\\logs";
-	CoTaskMemFree(appData);
+	const std::wstring root = netplay::SettingsStore::DefaultDirectory();
+	if (root.empty()) return;
+	const std::wstring folder = root + L"\\logs";
 	if (GetFileAttributesW(folder.c_str()) == INVALID_FILE_ATTRIBUTES) return;
 	try {
 		auto logger = spdlog::basic_logger_mt("video-encoder", folder + L"\\video-encoder.log", true);

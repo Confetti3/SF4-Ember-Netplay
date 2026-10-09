@@ -543,9 +543,7 @@ int main(int argc, char** argv) {
             training::FrameMeter meter;std::array<training::FighterSample,2> fighters;
             for(int f=0;f<120;++f){
                 for(int p=0;p<2;++p){auto& s=fighters[p];s.valid=true;s.timeScale=1;s.status=p?(f<40?0:f<65?22:0):(f<30?0:f<70?16:0);
-                    s.action=s.status?100+p:0;s.actionFrame=static_cast<float>(f);s.firstActiveFrame=p?-1:34;s.lastActiveFrame=p?-1:38;s.health=p?920:1000;s.damage=p?80:0;s.comboDamage=p?160:0;
-                    // A quarter circle and a heavy punch, pressed just before the attack starts.
-                    s.input=p?0:f==24||f==25?2u:f==26||f==27?10u:f==28?8u:f>=29&&f<33?0x408u:0u;}
+                    s.action=s.status?100+p:0;s.actionFrame=static_cast<float>(f);s.firstActiveFrame=p?-1:34;s.lastActiveFrame=p?-1:38;s.health=p?920:1000;s.damage=p?80:0;s.comboDamage=p?160:0;}
                 meter.Observe(f,fighters);
             }
             training.meter=meter.View();training.history[0]={{0x14,5},{1,3},{0,16}};training.history[1]={{0x40,2},{0,10}};
@@ -971,6 +969,9 @@ int main(int argc, char** argv) {
             Require(recoveryMenu.navigation.Confirming()&&!recoveryMenu.navigation.ConfirmSelected(),"Recovery update confirmation is unsafe");
             draw(nullptr,MenuInput::Back,1);draw();recoveryState.pending=true;recoveryState.stageDone=25*1024*1024;recoveryState.stageTotal=100*1024*1024;
             recoveryState.message="Downloading the verified update. You can cancel this operation.";draw("update-downloading");
+            // Extracting has no total: a moving bar is drawn instead of a filled one.
+            recoveryState.lastAction=platform::ServiceAction::InstallUpdate;recoveryState.updateStage=launcher::UpdateStage::Extracting;recoveryState.stageDone=recoveryState.stageTotal=0;
+            recoveryState.message="Extracting the update.";draw("update-extracting");
             mode=0;shell.Navigation().Home();draw("home-restored");
             auto* main=FindWindow("EmberShell");
             Require(main->Pos.x==0&&main->Pos.y==0&&main->Size.x==size.w&&main->Size.y==size.h,"Shell geometry changed");

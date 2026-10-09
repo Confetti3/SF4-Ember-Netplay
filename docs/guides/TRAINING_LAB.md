@@ -1,6 +1,6 @@
 # Training lab
 
-Ember adds an offline training overlay. Its frame meter shows native fighter states, action IDs, animation frames, observed action durations, startup and signed recovery advantage. Authored attack boundaries split startup, active and recovery cells; an attack without a usable boundary stays orange. New timing behavior still needs gameplay correlation.
+Ember adds an offline training overlay. Its frame meter shows native fighter states, action IDs, animation frames, observed action durations, startup and signed recovery advantage. Authored attack boundaries give the startup, active and recovery numbers; on the bars an attack is one colour from start to end. New timing behavior still needs gameplay correlation.
 
 ## Getting there
 
@@ -23,34 +23,29 @@ Use the game's main menu to enter **Training** and select both fighters and a st
 | F11 | Save position |
 | Select (pad) | Tap to reset the position, hold half a second to save it |
 
-F2 and F11 are the **Reset position** and **Save position** rows of the Position and dummy screen and work with the controls closed or open, except while a text field is being typed in. The two **key** rows at the end of that screen move each to F1 to F4, F9 or F11, or turn it off; one key does one thing. The HUD's chips name both keys and, for a few seconds, what the last one did.
+F2 and F11 are the **Reset position** and **Save position** rows of the Position screen and work with the controls closed or open, except while a text field is being typed in. The two **key** rows at the end of that screen move each to F1 to F4, F9 or F11, or turn it off; one key does one thing. The HUD's chips name both keys and, for a few seconds, what the last one did.
 
 The passive meter does not capture gameplay input. Training controls use keyboard and mouse only: F6 opens/closes, arrows navigate, Enter selects, and Escape goes back. There is no controller opening shortcut or controller navigation in the flyout. Start retains native pause behavior while Ember is closed. While the flyout is open, all gameplay input is captured, including controllers; closing inputs must release before returning to gameplay. F6 does not request native pause. Recording suspends while the controls are open; playback keeps running under them. Both stop if the game loses focus. F5 through F8 are reserved while in training.
 
-The passive HUD is modelled on Street Fighter 6's frame meter and dressed like this game's own panels: a data line over two slanted meter bars that span its width, under an orange trim. Its prompt shows F6 for controls and F5 to hide the HUD. At 720p it is 900 pixels wide, bounded by 75% of viewport width; its size follows viewport height instead of the main menu's DPI scale. It sits just above the game's super meters, with its bottom edge at 82% of the viewport height, so it no longer covers them.
+The passive HUD is a translucent panel with a row for each player: the frame advantage, the startup, then a bar of rectangular cells across the rest of the width. Under the bars, one line gives the meter's state (`FRAME ADVANTAGE | live`, `held`, `measuring` or `wakeup`) and another says why a reading is unavailable. Above the panel, a chip opens the controls (F6) beside the F5 hint to hide the HUD. At 720p it is 620 pixels wide, bounded by 75% of viewport width; its size follows viewport height (up to one and a half times) instead of the main menu's DPI scale. It sits just above the game's super meters, with its bottom edge at 82% of the viewport height, so it does not cover them.
 
 The controls are a flyout targeting 820 by 600 logical pixels, bounded by 80% of each viewport dimension. It opens at the top centre and can be dragged anywhere inside the viewport, out of the way of a playback. The game stays visible around it: there is no full-screen artwork or dimming. Narrow layouts place details above a scrolling list; headings, command feedback and the button legend remain fixed. Confirmations stay inside the panel with Cancel selected first. Outside clicks neither close the flyout nor pass through into gameplay. Successful Record and Play commands close Ember; close native pause separately if it remains open. Rejected commands remain visible with an explanation.
 
 ## Read the frame meter
 
-The numbers on the data line are the move's frame data. The cells follow the Startup number: a move with a startup of 3 has three startup cells, the third being the frame it first hits on, so the active cells stand one frame later than the frames they name and the recovery has one cell less than its number. Recovery includes its omitted cell when the move completes, including a one-frame recovery with no recovery cells. The data line gives each fighter's last move: **Startup** (the frame it first hits on), **Active** and **Recovery** in frames, hitstop left out, so the move's total is startup - 1 + active + recovery. After them comes what the move met and what it was worth: **Hit** or **Block** with the frame advantage, green when ahead and red when behind, or **Whiff** when it touched nothing, which has no advantage to give. A cancel into another attack counts as a new move. Where the HUD is too narrow for the words, a bar in each reading's colour stands for its label.
+**Frame data** in the training controls (F6) gives each fighter's last move: **Startup** (the frame it first hits on), **Active** and **Recovery** in frames, hitstop left out, so the move's total is startup - 1 + active + recovery. They are counted as the game's frame data counts them: Startup includes the first active frame, and a move that completes has its Recovery count the frame it is free on, so one that ends with no recovery frames left reads 1. After them comes what the move met and what it was worth: **Hit** or **Block** with the frame advantage, or **Whiff** when it touched nothing, which has no advantage to give. A cancel into another attack counts as a new move. What the thrower still has to play once the thrown fighter is let go counts as its recovery. A multi-hit move's gaps between hits count as active. **Meaty** appears after a knockdown: the number of the attack's active frames that had already passed when the other fighter could first be hit. Each is a frame of advantage gained, so an attack that is +2 on block with Meaty 3 is +5. A signed number means the attack missed that frame: +N left the other fighter N frames to act, -N went active N frames before it and was over by then. The same screen holds the colour key.
 
-Each bar holds up to 120 simulated frames for one fighter, the upper one Player 1's, one cell a frame, with a tick under every tenth. The colours are Street Fighter 6's: green startup, red active, blue recovery, split at the attack boundary of the move's script, counted the way the game's frame data counts: a 3-frame jab has three green cells and is active from the fourth; orange being hit and yellow blocking; an attack whose script gives no boundary stays ember orange, a knockdown purple while the fighter bounces or lies down and light purple while it gets up, a throw or cinematic that holds both fighters beige, movement grey-blue. What the thrower still has to play once the thrown fighter is let go counts and shows as its recovery. Every run of one state shows its length in frames on the bar when it is wide enough. While a fighter is being hit, each hit of the combo is a stretch of its own, parted from the one before by a dark line and counted by itself. Beside each bar runs a lane of what that player pressed, Player 1's above their bar and Player 2's below theirs: a direction as it changes, a button as it goes down, each at the frame it did. Presses too close together to draw apart are moved to the right, in order. A change of native action ID starts a new count. A multi-hit move's gaps between hits read as active. The bars fill from the left and start again there once both fighters have been idle for half a second. The line below is the legend and the meter's state, or says what a pending reading is waiting for; there is no separate frame-inspection page. The flyout contains Dummy Recording, Input History, Position and dummy, and Close training controls. Position save/reset and their configurable keys are available in offline Training.
+Each bar holds the last 120 simulated frames for one fighter, the upper one Player 1's, one rectangular cell a frame, with a faint tick every tenth. A cell's colour is the fighter's state group, in the table below. An attack is one colour from start to end: startup, active and recovery are not split on the bar; their numbers are in Frame data. A bright line marks the cell where the native action ID changed, so a cancel or a follow-up starts a stretch of its own. The bars fill from the left and start again there once both fighters have been idle for half a second. The lines below them give the meter's state, or say what a pending reading is waiting for. The controls hold Dummy recording, Input history, Frame data, Dummy, Dummy reply, Position, and Close training controls. Position save/reset and their configurable keys are available in offline Training.
 
-| Color | Native state group |
-| --- | --- |
-| Gray | Standing/crouching neutral |
-| Gray-blue | Movement and dashes |
-| Green | Authored startup |
-| Red | Authored active frames |
-| Blue | Authored recovery |
-| Ember orange | Attack (`AS_SKILL`) without a usable boundary |
-| Yellow | Guard posture or guard damage |
-| Orange | Damage, blowback or stun |
-| Purple | Bound or down |
-| Light purple | Rise (wakeup) |
-| Bright pink | The frame a fighter can first be hit after a knockdown, and on the other's bar the active frames of a meaty attack that had already passed by then. Each of those is a frame of advantage gained: an attack that is +2 on block with 3 pink frames is +5. From the frame the attack meets the fighter on it is red as any active frame; the Meaty reading is the count of pink frames |
-| Beige | Throw or cinematic sequence holding both fighters |
+| Color | Native state group | Colour key (F6) |
+| --- | --- | --- |
+| Dim gray | Standing/crouching neutral, idle | (none) |
+| Light blue | Movement: walks, dashes, jumps, turns, crouching and standing up | Move |
+| Ember orange | Attack (`AS_SKILL`), from startup to the end of recovery | Attack |
+| Blue | Guard posture or guard damage | Block |
+| Red | Damage, blowback or stun | Hit |
+| Purple | Bound, down or rising (wakeup) | Knockdown |
+| Beige | Any other state, chiefly a throw or cinematic sequence holding both fighters | Throw / cinematic |
 
 Guard posture alone is not proof of blockstun. The native animation frame can pause or change rate while simulation frames continue; the passive bar is not a move-table recovery or total-duration lookup.
 
@@ -78,7 +73,7 @@ Each player row shows `Start N f`. It counts observed advancing frames from the 
 
 A room's host can turn **Training** on in a table's rules (Table options, with the round count and the round time). At that table both fighters' health, Super and Ultra gauges fill again about a second after they are left alone, and nobody is knocked out. Both players and every spectator get the rule from the table; nothing has to be set on their side.
 
-A game under the rule ends when the round time runs out or a fighter leaves the seat, so set the round time to 9999. Shared position save/reset is disabled in rollback matches. The position keys and pad Select apply only in offline Training; the table rule does not enable them.
+A game under the rule ends when the round time runs out or a fighter leaves the seat, so set the round time to 9999. There is no shared position save/reset in rollback matches; the match HUD says so. The position keys and pad Select apply only in offline Training; the table rule does not enable them.
 
 There is no dummy and no recording at such a table: the other player is the dummy. Turn **Frame meter in matches** on to see the frames.
 
@@ -96,7 +91,7 @@ Input history shows controller inputs, newest first, with how many simulated fra
 
 ## Position and dummy
 
-Open the training controls (F6) and select **Position and dummy**. Its settings and the two hotkeys are kept in `training.json` beside Ember's settings; dummy recordings saved from the Dummy Recording screen go to `recordings\` next to it.
+Open the training controls (F6) and select **Position** for the position rows and their keys, or **Dummy** for the dummy's settings. These settings and the two hotkeys are kept in `training.json` beside Ember's settings; dummy recordings saved from the Dummy Recording screen go to `recordings\` next to it.
 
 **Save position** keeps both fighters' place, health, meters and dummy state for this battle. **Reset position** restores the saved state. On a pad, a tap of Select resets and a hold of half a second saves.
 

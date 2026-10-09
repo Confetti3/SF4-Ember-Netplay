@@ -7,6 +7,10 @@ $target = Get-EmberBuildTarget $repo
 $tools = Get-EmberToolPaths $repo $VisualStudioPath $VcpkgRoot
 . (Join-Path $PSScriptRoot 'BuildProvenance.ps1')
 & (Join-Path $PSScriptRoot 'test-build-provenance.ps1')
+# The Nightly publisher's tests mock git, gh, ssh, scp and WSL, so they are safe to run here.
+# The Bash checks need Git for Windows' bash.exe; a build without one fails rather than skipping them.
+& (Join-Path $PSScriptRoot 'test-nightly-publication.ps1')
+& (Join-Path $PSScriptRoot 'test-nightly-paths.ps1') -BashPath (Get-EmberGitBash)
 $build = Join-Path $repo $target.buildDirectory
 $stage = Join-Path $repo $target.installDirectory
 if (!$DiscordSdkArchive) { throw 'Set -DiscordSdkArchive or SF4E_DISCORD_SDK_ARCHIVE to the official archive matching cmake/discord-sdk-pin.json.' }

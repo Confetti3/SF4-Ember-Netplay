@@ -2994,12 +2994,6 @@ msgstr "Záznam zápasu se nepodařilo uložit. Další zápas může začít; u
 msgid "runtime.rollback_unsupported_state"
 msgstr "Netplay nedokázal uložit nepodporovaný stav hry. Zápas skončil."
 
-msgid "runtime.practice_saved"
-msgstr "P{0} uložil pozici"
-
-msgid "runtime.practice_reset"
-msgstr "P{0} obnovil pozici"
-
 msgid "runtime.participant_left_room"
 msgstr "Účastník zápasu opustil místnost."
 
@@ -4052,12 +4046,6 @@ msgstr "Přehraje záznam z Battle Logu s měřičem snímků nad soubojem."
 
 msgid "room.training"
 msgstr "Čekat v tréninku"
-
-msgid "runtime.practice_saved_name"
-msgstr "{0} uložil pozici"
-
-msgid "runtime.practice_reset_name"
-msgstr "{0} obnovil pozici"
 
 msgid "replays.export_gpu"
 msgstr "Exportovat video (GPU)"

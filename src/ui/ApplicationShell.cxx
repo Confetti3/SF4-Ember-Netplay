@@ -73,6 +73,7 @@ float PublicListWidth() {
     return available>=820*Scale()?available*.53f:available;
 }
 }
+std::string TrainingReadyText(int seconds) { return loc::Tf("room.training_call.ready_in",seconds); }
 bool ApplicationShell::Service(platform::ServiceAction kind, const ShellView& view, const Submit& submit) {
     ShellAction action; action.service = kind; action.command.generation = view.session.generation;
     if (!submit(std::move(action))) { error_ = loc::T("error.queue_failed"); return false; }
@@ -439,7 +440,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
  }
  // Chat keeps the board's line, so a lost connection shows while typing.
  if(screen=="room"&&status.empty()&&v.trainingReadySeconds>0){
-  status=loc::Tf("room.training_call.ready_in",v.trainingReadySeconds);statusTone=Tone::Pending;
+  status=TrainingReadyText(v.trainingReadySeconds);statusTone=Tone::Pending;
  }
  if((screen=="room"||screen=="room-chat")&&status.empty()){
   const bool healthy=v.session.control==Health::Healthy;
@@ -478,7 +479,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
   }
   else if(table.phase==room::TablePhase::Closed)status=loc::T("room.table_closed");
   if(v.trainingReadySeconds>0&&v.room.localMember&&seatedLocal){
-   status=loc::Tf("room.training_call.ready_in",v.trainingReadySeconds);statusTone=Tone::Pending;
+   status=TrainingReadyText(v.trainingReadySeconds);statusTone=Tone::Pending;
   }
  }
  // A tournament room says what its next game waits for: the other fighter,

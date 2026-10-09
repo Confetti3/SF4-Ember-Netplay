@@ -1,7 +1,9 @@
+#include "../launcher/update/github_release_client_internal.hxx"
 #include "../launcher/update/github_release_download.hxx"
 #include <filesystem>
 #include <initializer_list>
 #include <nlohmann/json.hpp>
+#include <chrono>
 #include <cstdlib>
 #include <iostream>
 
@@ -66,22 +68,22 @@ int main(int argc, char** argv) {
 
     for (const auto& info : kUpdateChannels) {
         CHECK(ParseSavedUpdateChannel(info.stored) == info.channel);
-        CHECK(ResolveUpdateChannel(info.stored, "dev") == info.channel);
+        CHECK(ResolveUpdateChannel(ParseSavedUpdateChannel(info.stored), "dev") == info.channel);
     }
     for (const char* saved : {"", "bogus", "beta", "Nightly", " nightly", "stable "})
         CHECK(!ParseSavedUpdateChannel(saved));
 
     // The chosen channel, or the installed version's kind while none is chosen.
-    CHECK(ResolveUpdateChannel("", "1.0.2") == UpdateChannel::Stable && ResolveUpdateChannel("", "1.1.0-rc1") == UpdateChannel::Beta);
-    CHECK(ResolveUpdateChannel("", "1.1.0-links-sets-test1") == UpdateChannel::Beta && ResolveUpdateChannel("", "dev") == UpdateChannel::Stable);
-    CHECK(ResolveUpdateChannel("stable", "1.1.0-rc1") == UpdateChannel::Stable && ResolveUpdateChannel("prerelease", "1.0.2") == UpdateChannel::Beta);
+    CHECK(ResolveUpdateChannel(std::nullopt, "1.0.2") == UpdateChannel::Stable && ResolveUpdateChannel(std::nullopt, "1.1.0-rc1") == UpdateChannel::Beta);
+    CHECK(ResolveUpdateChannel(std::nullopt, "1.1.0-links-sets-test1") == UpdateChannel::Beta && ResolveUpdateChannel(std::nullopt, "dev") == UpdateChannel::Stable);
+    CHECK(ResolveUpdateChannel(ParseSavedUpdateChannel("stable"), "1.1.0-rc1") == UpdateChannel::Stable && ResolveUpdateChannel(ParseSavedUpdateChannel("prerelease"), "1.0.2") == UpdateChannel::Beta);
     CHECK(std::string(UpdateChannelName(UpdateChannel::Stable)) == "stable" && std::string(UpdateChannelName(UpdateChannel::Beta)) == "prerelease");
-    CHECK(ResolveUpdateChannel("", "v1.2.0-NIGHTLY20261008.2") == UpdateChannel::Nightly);
-    CHECK(ResolveUpdateChannel("nightly", "1.0.2") == UpdateChannel::Nightly);
-    CHECK(ResolveUpdateChannel("stable", "1.2.0-nightly20261008") == UpdateChannel::Stable);
-    CHECK(ResolveUpdateChannel("prerelease", "1.2.0-nightly20261008") == UpdateChannel::Beta);
-    CHECK(ResolveUpdateChannel("bogus", "1.2.0-nightly20261008") == UpdateChannel::Nightly);
-    CHECK(ResolveUpdateChannel("", nullptr) == UpdateChannel::Stable);
+    CHECK(ResolveUpdateChannel(std::nullopt, "v1.2.0-NIGHTLY20261008.2") == UpdateChannel::Nightly);
+    CHECK(ResolveUpdateChannel(ParseSavedUpdateChannel("nightly"), "1.0.2") == UpdateChannel::Nightly);
+    CHECK(ResolveUpdateChannel(ParseSavedUpdateChannel("stable"), "1.2.0-nightly20261008") == UpdateChannel::Stable);
+    CHECK(ResolveUpdateChannel(ParseSavedUpdateChannel("prerelease"), "1.2.0-nightly20261008") == UpdateChannel::Beta);
+    CHECK(ResolveUpdateChannel(ParseSavedUpdateChannel("bogus"), "1.2.0-nightly20261008") == UpdateChannel::Nightly);
+    CHECK(ResolveUpdateChannel(std::nullopt, nullptr) == UpdateChannel::Stable);
     CHECK(std::string(UpdateChannelName(UpdateChannel::Nightly)) == "nightly");
     CHECK(std::string(UpdateChannelRepo(UpdateChannel::Stable)) == kDefaultGithubRepo);
     CHECK(std::string(UpdateChannelRepo(UpdateChannel::Beta)) == kDefaultGithubRepo);
@@ -219,6 +221,24 @@ int main(int argc, char** argv) {
     list[0]["prerelease"] = true;
     CHECK(ParseGithubReleases(list.dump(), "1.0.2", UpdateChannel::Stable).latestVersion == "v1.1.0");
     CHECK(ParseGithubReleases(list.dump(), "1.0.2", UpdateChannel::Beta).latestVersion == "v1.2.0");
+    // The extraction child still stops when asked: the wait asks each slice with no
+    // numbers (the stage has no total), and a false answer ends the child promptly.
+    {
+        wchar_t system[MAX_PATH] = {};
+        CHECK(GetSystemDirectoryW(system, MAX_PATH) > 0);
+        const std::wstring cmd = std::wstring(system) + L"\\cmd.exe";
+        DWORD exitCode = 0;
+        unsigned asked = 0;
+        CHECK(detail::RunProcessAndWaitHidden(cmd.c_str(), (L"\"" + cmd + L"\" /c exit 0").c_str(), &exitCode,
+            [&](std::uint64_t done, std::uint64_t total) { ++asked; CHECK(done == 0 && total == 0); return true; }));
+        CHECK(exitCode == 0);
+        asked = 0;
+        const auto started = std::chrono::steady_clock::now();
+        CHECK(detail::RunProcessAndWaitHidden(cmd.c_str(), (L"\"" + cmd + L"\" /c ping -n 60 127.0.0.1 >nul").c_str(), &exitCode,
+            [&](std::uint64_t done, std::uint64_t total) { ++asked; CHECK(done == 0 && total == 0); return asked < 2; }));
+        CHECK(exitCode != 0 && asked == 2);
+        CHECK(std::chrono::steady_clock::now() - started < std::chrono::seconds(20));
+    }
     if (argc > 1 && std::string(argv[1]) == "--live") {
         result = CheckForUpdate(UpdateChannel::Stable);
         CHECK(result.ok && !result.installedVersion.empty());

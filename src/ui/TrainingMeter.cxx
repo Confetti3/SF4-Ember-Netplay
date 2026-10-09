@@ -211,7 +211,7 @@ void DrawMatchMeter(const training::View& view) {
     MeterWindow(view.meter, hudScale, (std::min)(620 * hudScale, vp->Size.x * .75f), vp->Pos.y + vp->Size.y * TrainingHudBottom);
 }
 // A Training table's match HUD explains why shared position controls are unavailable.
-unsigned MatchPracticeKeys(bool) {
+void DrawMatchPracticeNotice() {
     const auto* vp=ImGui::GetMainViewport();
     const float hudScale=(std::max)(1.f,(std::min)(1.5f,vp->Size.y/900.f));
     ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+vp->Size.x/2,vp->Pos.y+vp->Size.y*TrainingHudBottom+4*hudScale),ImGuiCond_Always,ImVec2(.5f,0));
@@ -226,7 +226,6 @@ unsigned MatchPracticeKeys(bool) {
     }
     ImGui::End();
     ImGui::PopStyleVar(2);
-    return 0;
 }
 TrainingHudInput DrawTrainingHud(const training::View& view) {
     if (!view.available) return {};

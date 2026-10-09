@@ -2994,12 +2994,6 @@ msgstr "Nie udało się zapisać bilansu walk. Następna walka może się zaczą
 msgid "runtime.rollback_unsupported_state"
 msgstr "Gra sieciowa nie mogła zapisać nieobsługiwanego stanu gry. Walka się zakończyła."
 
-msgid "runtime.practice_saved"
-msgstr "P{0} zapisał pozycję"
-
-msgid "runtime.practice_reset"
-msgstr "P{0} przywrócił pozycję"
-
 msgid "runtime.participant_left_room"
 msgstr "Uczestnik walki opuścił pokój."
 
@@ -4052,12 +4046,6 @@ msgstr "Odtwarza powtórkę z Battle Log z miernikiem klatek nad walką."
 
 msgid "room.training"
 msgstr "Czekaj w treningu"
-
-msgid "runtime.practice_saved_name"
-msgstr "{0} zapisał pozycję"
-
-msgid "runtime.practice_reset_name"
-msgstr "{0} przywrócił pozycję"
 
 msgid "replays.export_gpu"
 msgstr "Eksportuj wideo (GPU)"

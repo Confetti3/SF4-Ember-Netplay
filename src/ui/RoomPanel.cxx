@@ -251,7 +251,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    const bool ready=room::ReadyCancellable(t,place.seat);
     const auto readyControl=DescribeReady(v,t,place.seat);
     // Called out of Training, the row says how long there is to ready.
-    rows.push_back(Row("ready",readyControl.label,v.trainingReadySeconds>0?loc::Tf("room.training_call.ready_in",v.trainingReadySeconds)+"\n"+readyControl.detail:readyControl.detail,readyControl.kind!=ReadyControl::None));
+    rows.push_back(Row("ready",readyControl.label,v.trainingReadySeconds>0?TrainingReadyText(v.trainingReadySeconds)+"\n"+readyControl.detail:readyControl.detail,readyControl.kind!=ReadyControl::None));
     if(t.spectatorHold)rows.back().detailText=DetailText::Name;
    // Under Ready, in the order a player reads them: their own pick (fighter,
    // Ultra, appearance, fighter options), then the match (P1's stage and the

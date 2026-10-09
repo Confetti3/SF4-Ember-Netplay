@@ -170,12 +170,10 @@ fSystem::SemanticHashes fSystem::ComputeSemanticHashes(rSystem* src) {
 }
 
 void fSystem::CaptureMeterSample(rSystem* src, bool show) {
-    // The inputs the frame was played with are still in the playback slot.
-    const auto& pads = fPadSystem::playbackData[0];
     int confirmed = -1;
-    if (localPlayerHandle == GGPO_INVALID_HANDLE) { sf4e::training::ObserveMatch(src, 0, -1, pads[0].rawOn, pads[1].rawOn); return; }
+    if (localPlayerHandle == GGPO_INVALID_HANDLE) { sf4e::training::ObserveMatch(src, 0, -1); return; }
     if (show && !(ggpo && GGPO_SUCCEEDED(ggpo_get_last_confirmed_frame(ggpo, &confirmed)))) confirmed = -1;
-    sf4e::training::ObserveMatch(src, lastGgpoSaveFrame, confirmed, pads[0].rawOn, pads[1].rawOn);
+    sf4e::training::ObserveMatch(src, lastGgpoSaveFrame, confirmed);
 }
 
 void fSystem::CaptureHashCheckpoint(rSystem* src) {
@@ -316,7 +314,6 @@ void CopyIntoPlace(fSystem::SaveState* src) {
     *rSystem::staticVars.PreviousBattleFlowSubstateFrame = src->d.PreviousBattleFlowSubstateFrame;
     *rSystem::staticVars.BattleFlowSubstateCallable_aa9258 = src->d.BattleFlowSubstateCallable_aa9258;
     *rSystem::staticVars.BattleFlowCallback_CallEveryFrame_aa9254 = src->d.BattleFlowCallback_CallEveryFrame_aa9254;
-    sf4e::training::SetMatchPracticeState(src->d.practice);
     memcpy_s((system->*rSystem::publicMethods.GetGameManager)(), sizeof(GameManager), &src->d.gameManager, sizeof(GameManager));
 
     // Restore only what the state recorded. An adapter or manager that did
@@ -852,7 +849,6 @@ bool fSystem::SaveState::Save(SaveState* dst, bool temporary) {
     dst->d.BattleFlowSubstateCallable_aa9258 = *rSystem::staticVars.BattleFlowSubstateCallable_aa9258;
     dst->d.BattleFlowCallback_CallEveryFrame_aa9254 = *rSystem::staticVars.BattleFlowCallback_CallEveryFrame_aa9254;
 
-    dst->d.practice = sf4e::training::MatchPracticeState();
     memcpy_s(&dst->d.gameManager, sizeof(GameManager), (system->*rSystem::publicMethods.GetGameManager)(), sizeof(GameManager));
     sf4e::replay::Capture(*Dimps::Game::Battle::ReplaySystem::staticMethods.GetSingleton(), dst->d.replayRecorder);
     if (!temporary && sf4e::crash::HeapCheckEnabled()) sf4e::crash::HeapCheckpoint("save", SimulatedFrame());

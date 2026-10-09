@@ -84,12 +84,11 @@ bool HiddenFrom(const Path& directory) noexcept {
     } catch (...) { return false; }
 }
 
-std::string ChannelFrom(const Path& directory) noexcept {
+std::optional<updates::UpdateChannel> ChannelFrom(const Path& directory) noexcept {
     try {
         const Json value = LoadValid(directory);
-        const std::string channel = value.is_object() ? value.value(UpdateChannelKey, std::string()) : std::string();
-        return updates::ParseSavedUpdateChannel(channel) ? channel : std::string();
-    } catch (...) { return {}; }
+        return updates::ParseSavedUpdateChannel(value.is_object() ? value.value(UpdateChannelKey, std::string()) : std::string());
+    } catch (...) { return std::nullopt; }
 }
 
 // Merges the patch into a valid file and keeps the rest of it, so the language
@@ -235,7 +234,7 @@ bool SaveAnnouncedMatches(const std::vector<AnnouncedMatch>& matches, std::strin
     return SaveAnnouncedTo(netplay::SettingsStore::DefaultDirectory(), matches, error);
 }
 
-std::string UpdateChannelPreference() { return ChannelFrom(netplay::SettingsStore::DefaultDirectory()); }
+std::optional<updates::UpdateChannel> UpdateChannelPreference() { return ChannelFrom(netplay::SettingsStore::DefaultDirectory()); }
 
 bool SaveUpdateChannelPreference(std::string_view channel, std::string& error) {
     return SaveChannelTo(netplay::SettingsStore::DefaultDirectory(), channel, error);
@@ -251,7 +250,7 @@ bool SaveLanguagePreferenceTo(const std::wstring& directory, std::string_view pr
     return SaveLanguageTo(directory, preference, error);
 }
 bool GameSettingsCardHiddenIn(const std::wstring& directory) { return HiddenFrom(directory); }
-std::string UpdateChannelPreferenceIn(const std::wstring& directory) { return ChannelFrom(directory); }
+std::optional<updates::UpdateChannel> UpdateChannelPreferenceIn(const std::wstring& directory) { return ChannelFrom(directory); }
 bool SaveUpdateChannelPreferenceTo(const std::wstring& directory, std::string_view channel, std::string& error) {
     return SaveChannelTo(directory, channel, error);
 }

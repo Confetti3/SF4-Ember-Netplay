@@ -2994,12 +2994,6 @@ msgstr "Не удалось сохранить результат матча. С
 msgid "runtime.rollback_unsupported_state"
 msgstr "Сетевая игра не смогла сохранить неподдерживаемое состояние игры. Матч завершён."
 
-msgid "runtime.practice_saved"
-msgstr "P{0} сохранил позицию"
-
-msgid "runtime.practice_reset"
-msgstr "P{0} сбросил позицию"
-
 msgid "runtime.participant_left_room"
 msgstr "Участник матча покинул зал."
 
@@ -4052,12 +4046,6 @@ msgstr "Воспроизводит повтор из Battle Log со счётч�
 
 msgid "room.training"
 msgstr "Ждать в тренировке"
-
-msgid "runtime.practice_saved_name"
-msgstr "{0} сохранил позицию"
-
-msgid "runtime.practice_reset_name"
-msgstr "{0} восстановил позицию"
 
 msgid "replays.export_gpu"
 msgstr "Экспорт видео (GPU)"

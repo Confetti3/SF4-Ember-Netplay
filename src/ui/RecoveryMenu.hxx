@@ -73,7 +73,9 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
     menu.fitStatus=true;
     const auto action=menu.Draw(updates?loc::T("updates.title"):loc::T("recovery.title"),rows,status.c_str(),[&](const std::string&){
         if(!state.pending)return;
+        // An installing update with no total (extracting, or a step just begun) gets Dear ImGui's moving bar.
         if(state.stageTotal)ImGui::ProgressBar((std::min)(1.f,float(state.stageDone)/state.stageTotal),ImVec2(-1,0));
+        else if(state.lastAction==platform::ServiceAction::InstallUpdate)ImGui::ProgressBar(-1.f*float(ImGui::GetTime()),ImVec2(-1,0));
         if(state.updateStage!=launcher::UpdateStage::Downloading||!state.stageDone)return;
         const auto progress=loc::Tf("updates.downloaded_mb",state.stageDone/1048576.0);
         ImGui::TextWrapped("%s",progress.c_str());

@@ -1,4 +1,5 @@
 #include "VideoEncoder.hxx"
+#include "Utf8.hxx"
 
 #include <windows.h>
 #include <mfapi.h>
@@ -228,9 +229,7 @@ ComPtr<IMFDXGIDeviceManager> PreferredCard(std::string& name) {
 	// The encoder uses the device from its own threads.
 	if (SUCCEEDED(device.As(&threads))) threads->SetMultithreadProtected(TRUE);
 	if (FAILED(MFCreateDXGIDeviceManager(&token, &manager)) || FAILED(manager->ResetDevice(device.Get(), token))) return nullptr;
-	char narrow[256] = {0};
-	WideCharToMultiByte(CP_UTF8, 0, card.Description, -1, narrow, sizeof narrow - 1, nullptr, nullptr);
-	name = narrow;
+	name = sf4e::platform::WideToUtf8(card.Description);
 	return manager;
 }
 
@@ -272,8 +271,7 @@ void LogEncoder() {
 	// A driver's encoder may give no name; its vendor ("VEN_8086" is Intel) tells whose it is.
 	if (!wcscmp(name, L"unnamed")) attributes->GetString(MFT_ENUM_HARDWARE_VENDOR_ID_Attribute, name, 128, nullptr);
 	attributes->GetUINT32(MF_TRANSFORM_ASYNC, &async);
-	char narrow[256] = {0};
-	WideCharToMultiByte(CP_UTF8, 0, name, -1, narrow, sizeof narrow - 1, nullptr, nullptr);
+	const std::string narrow = sf4e::platform::WideToUtf8(name);
 	s_summary = fmt::format("{}x{} {} by '{}' ({}{}), holding up to {} pictures{}", s_width, s_height, s_width > 4096 || s_height > 2160 ? "HEVC" : "H.264", narrow, async ? "hardware" : "software",
 		s_card ? " on " + s_cardName : std::string(", Windows' choice"), s_holdLimit, s_capture ? "" : ", no sound");
 	spdlog::info("Video: {}", s_summary);

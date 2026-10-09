@@ -17,8 +17,8 @@ cargo clippy --all-targets -- -D warnings
 cargo build --release
 ```
 
-This is an independent crate, like `ember-rooms` and `ember-short`. Include
-the generated `Cargo.lock` with the first verified WSL build, then use `--locked`.
+This is an independent crate, like `ember-rooms` and `ember-short`. Its
+`Cargo.lock` is committed; build with `--locked` so the pinned versions are used.
 During the initial Windows edit-only task, `cargo test --offline` and
 `cargo clippy --offline --all-targets -- -D warnings` both stopped at dependency
 resolution: `breakpad-symbols` was missing from the local cache. No build/test
@@ -33,8 +33,8 @@ this crate. The source fix and API review have not yet been built or tested.
 axum is pinned to **0.8.9**, enabling only HTTP/1, Tokio, JSON and multipart.
 reqwest is pinned to **0.13.5**, without default features: Bugsink uses HTTP on
 IPv4 loopback, without TLS, proxies or redirects. Symbol providers have no HTTP
-feature. Other dependency ranges are in `Cargo.toml`; a WSL-generated lockfile
-will record their resolved versions.
+feature. Other dependency ranges are in `Cargo.toml`; the committed lockfile
+records their resolved versions.
 
 API references: [rust-minidump v0.27.0](https://github.com/rust-minidump/rust-minidump/tree/v0.27.0),
 [Breakpad local symbol lookup](https://github.com/rust-minidump/rust-minidump/blob/v0.27.0/breakpad-symbols/src/lib.rs).

@@ -24,6 +24,21 @@ namespace {
 using Native = Dimps::Game::Battle::System;
 using Battle = sf4e::Game::Battle::System;
 using Pad = Dimps::Pad::System;
+// The meter's own copy of the native status values must stay the game's.
+using NativeActor = Dimps::Game::Battle::Chara::Actor;
+static_assert(ActorStatus::Stand == NativeActor::AS_STAND && ActorStatus::Crouch == NativeActor::AS_CROUCH &&
+    ActorStatus::Jump == NativeActor::AS_JUMP && ActorStatus::StandToCrouch == NativeActor::AS_STAND_TO_CROUCH &&
+    ActorStatus::CrouchToStand == NativeActor::AS_CROUCH_TO_STAND && ActorStatus::StandToJump == NativeActor::AS_STAND_TO_JUMP &&
+    ActorStatus::JumpToStand == NativeActor::AS_JUMP_TO_STAND && ActorStatus::TurnStand == NativeActor::AS_TURN__STAND &&
+    ActorStatus::TurnCrouch == NativeActor::AS_TURN__CROUCH && ActorStatus::TurnWalk == NativeActor::AS_TURN__WALK &&
+    ActorStatus::Forward == NativeActor::AS_FORWARD && ActorStatus::Backward == NativeActor::AS_BACKWARD &&
+    ActorStatus::FrontDash == NativeActor::AS_FRONTDASH && ActorStatus::BackDash == NativeActor::AS_BACKDASH &&
+    ActorStatus::GuardStand == NativeActor::AS_GUARD__STAND && ActorStatus::GuardCrouch == NativeActor::AS_GUARD__CROUCH &&
+    ActorStatus::Skill == NativeActor::AS_SKILL && ActorStatus::Stun == NativeActor::AS_STUN &&
+    ActorStatus::Bound == NativeActor::AS_BOUND && ActorStatus::Down == NativeActor::AS_DOWN &&
+    ActorStatus::Rise == NativeActor::AS_RISE && ActorStatus::Damage == NativeActor::AS_DAMAGE &&
+    ActorStatus::DamageGuard == NativeActor::AS_DAMAGE__GUARD && ActorStatus::DamageBlow == NativeActor::AS_DAMAGE__BLOW &&
+    ActorStatus::Sequence == NativeActor::AS_SEQUENCE, "FrameMeter.hxx ActorStatus differs from Actor::Status");
 Session session;
 FrameMeter meter;
 std::uint64_t exportId = 0;
@@ -45,10 +60,9 @@ int scriptFighter[2] = {-1, -1};
 std::atomic<bool> watching{false};
 bool matchShown = false;
 ConfirmedSamples confirmed;
-// A match under a table's Training rule. Shared checkpoints are unavailable;
-// the offline checkpoint does not participate in rollback state ownership.
+// A match under a table's Training rule. It has no shared checkpoint: the
+// offline checkpoint is not part of the rollback state.
 std::atomic<bool> matchPractice{false};
-PracticeState practice;
 // The dummy's own behaviour. The plan is the player's and outlives a battle;
 // offline practice only, so the random numbers need not be reproducible.
 DummyPlan dummyPlan;
@@ -76,8 +90,8 @@ Acks acks;
 // readout (ledger F-006).
 std::uint64_t gapResets = 0;
 // Puts both fighters at an x each, through the root position the engine
-// keeps for them. ponytail: x only, on the ground; add y and facing if
-// they are ever needed.
+// keeps for them. Only x, on the ground; add y and facing if they are ever
+// needed.
 bool PlaceFighters(Native* system, const float* x) {
     using Actor = Dimps::Game::Battle::Chara::Actor;
     using Unit = Dimps::Game::Battle::Chara::Unit;
@@ -244,18 +258,16 @@ void BeforeUpdate(Native* system, bool networkOwned) {
     commitInput = true;
     overriding = session.GetView().mode != Mode::Idle;
 }
-// The fighter a player brought into this battle. The battle's request holds
-// a block a player, Player 1's 0x08 into it and Player 2's 0x2C0, and a
-// block starts with the fighter's id: read off a Training battle of Ken (1)
-// against Hakan (33). -1 when it is no fighter's number.
+// The fighter a player brought into this battle; -1 when the request holds
+// no fighter the catalog knows.
 int BattleFighter(Native* system, int side) {
     auto** request = Native::GetRequest(system);
     if (!request || !*request) return -1;
-    const int id = *(const int*)((const char*)*request + (side ? 0x2C0 : 0x08));
-    return id >= 0 && id < 44 ? id : -1;
+    const int id = Dimps::Game::Request::GetFighterId(*request, side);
+    return selection::FindFighter(id) ? id : -1;
 }
-// ponytail: two files under a megabyte, read in the battle's first sampled
-// frame; a worker if that frame is ever seen to stutter.
+// Two files under a megabyte, read in the battle's first sampled frame; move
+// the read to a worker if that frame is ever seen to stutter.
 const bac::File& FighterScripts(Native* system, unsigned side) {
     const int id = BattleFighter(system, static_cast<int>(side));
     if (id == scriptFighter[side]) return scriptFiles[side];
@@ -273,9 +285,9 @@ const bac::File& FighterScripts(Native* system, unsigned side) {
     return scriptFiles[side];
 }
 // Both fighters as the game holds them after an update. Only reads.
-// input: the pad of each side this frame, or null. files: whether a move
-// without attack frames may take them from the fighter's script file.
-std::array<FighterSample, 2> ReadFighters(Native* system, const unsigned* input, bool files) {
+// files: whether a move without attack frames may take them from the
+// fighter's script file.
+std::array<FighterSample, 2> ReadFighters(Native* system, bool files) {
     using Actor = Dimps::Game::Battle::Chara::Actor;
     using Unit = Dimps::Game::Battle::Chara::Unit;
     Unit* unit = (system->*Native::publicMethods.GetCharaUnit)();
@@ -316,7 +328,6 @@ std::array<FighterSample, 2> ReadFighters(Native* system, const unsigned* input,
         sample.comboDamage = Dimps::Math::FixedToFloat(&value);
         (actor->*Actor::publicMethods.GetVitalityAmt_FixedPoint)(&value);
         sample.health = Dimps::Math::FixedToFloat(&value);
-        if (input) sample.input = input[side] & FightButtons;
         sample.valid = true;
     }
     return fighters;
@@ -331,8 +342,7 @@ void AfterUpdate(Native* system) {
         using Actor = Dimps::Game::Battle::Chara::Actor;
         using Unit = Dimps::Game::Battle::Chara::Unit;
         Unit* unit = (system->*Native::publicMethods.GetCharaUnit)();
-        const unsigned pads[2] = {output[0].raw, output[1].raw};
-        std::array<FighterSample, 2> fighters = ReadFighters(system, commitInput ? pads : nullptr, true);
+        std::array<FighterSample, 2> fighters = ReadFighters(system, true);
         {
             float x[2] = {0, 0};
             for (unsigned side = 0; side < 2 && unit; ++side)
@@ -391,27 +401,16 @@ void AfterUpdate(Native* system) {
     std::lock_guard<std::mutex> lock(mutex); published = session.GetView(); published.meter = meter.View();
     if (published.available) published.dummy = ReadDummyState(published.dummy);
     published.exportId = exportId; published.exportedSlot = exportedSlot; published.exported = exported;
-    for (int side = 0; side < 2; ++side) published.fighters[side] = BattleFighter(system, side);
     published.leavingIn = leaveIn;
     published.acks=acks;
 }
-void SetMatchPractice(bool enabled) { matchPractice = enabled; practice = PracticeState{}; }
+void SetMatchPractice(bool enabled) { matchPractice = enabled; }
 bool MatchPracticeActive() { return matchPractice; }
-void RequestMatchPractice(unsigned) {}
-unsigned WithMatchPractice(unsigned raw) {
-    return matchPractice ? raw & ~PracticeMask : raw;
-}
-PracticeState MatchPracticeState() { return practice; }
-void SetMatchPracticeState(const PracticeState& state) { practice = state; }
-bool BeforeMatchFrame(Native*, unsigned& rawOne, unsigned& rawTwo) {
-    // A match without the rule is not touched, its inputs included.
-    if (!matchPractice) return true;
-    // Consume reserved commands without changing the fight or its checkpoint.
-    rawOne &= ~PracticeMask; rawTwo &= ~PracticeMask;
-    return true;
+unsigned ClearReservedInputBits(unsigned raw) {
+    return matchPractice ? raw & ~ReservedInputBits : raw;
 }
 void WatchMatches(bool enabled) { watching = enabled; }
-void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput, unsigned padOne, unsigned padTwo) {
+void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput) {
     if (!watching) {
         // Turned off mid-match: the meter goes, and starts clean if it is asked for again.
         if (!matchShown) return;
@@ -419,11 +418,10 @@ void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput, unsign
         std::lock_guard<std::mutex> lock(mutex); published.watching = false;
         return;
     }
-    // ponytail: no script-file fallback here, so a projectile move without
-    // attack frames shows no startup in a match; the file read does not
-    // belong in a rollback frame. Load it at battle start if it is missed.
-    const unsigned pads[2] = {padOne, padTwo};
-    const auto fighters = ReadFighters(system, pads, false);
+    // No script-file fallback here, so a projectile move without attack
+    // frames shows no startup in a match; the file read does not belong in a
+    // rollback frame. Load it at battle start if it is missed.
+    const auto fighters = ReadFighters(system, false);
     // A spectator plays confirmed inputs only and has no save frame to name one by.
     if (stateFrame <= 0) meter.Observe(Native::GetNumFramesSimulated_FixedPoint(system)->integral, fighters);
     else {
@@ -434,7 +432,6 @@ void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput, unsign
     }
     std::lock_guard<std::mutex> lock(mutex);
     published.meter = meter.View(); published.watching = matchShown = true;
-    for (int side = 0; side < 2; ++side) published.fighters[side] = BattleFighter(system, side);
 }
 void StopCapture() { delete capture; capture = nullptr; }
 void CloseBattle() {
@@ -445,7 +442,7 @@ void CloseBattle() {
     if (checkpoint.used) Battle::SaveState::Free(&checkpoint);
     if (session.GetView().available) if (int* options = DummyOptions()) dummyAction.EndReply(options[Manager::OPT_ACTION]);
     session.Reset(); meter.Reset(); confirmed.Reset(); matchShown = false;
-    matchPractice = false; practice = PracticeState{}; dummyWatch.Reset(); dummyAction = DummyAction{};
+    matchPractice = false; dummyWatch.Reset(); dummyAction = DummyAction{};
     std::lock_guard<std::mutex> lock(mutex); commands.clear(); published = session.GetView();
 }
 } }

@@ -137,6 +137,8 @@ struct ShellView {
 // height of a line of text. UnreadBadgeWidth is what it takes, for the text beside it to leave room.
 float UnreadBadgeWidth(unsigned count);
 void DrawUnreadBadge(float right,float top,unsigned count);
+// "Ready in N s" for a player called out of Training: ShellView::trainingReadySeconds, in words.
+std::string TrainingReadyText(int seconds);
 
 struct ShellAction {
     netplay::Command command{netplay::CommandKind::HostRoom};

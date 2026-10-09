@@ -87,7 +87,7 @@ Result RoomAuthority::ApplyRename(MemberId member, const Action& action) {
 Result RoomAuthority::ApplySetTraining(MemberId member, const Action& action) {
 	Member* item = Find(member);
 	if (!item) return Reject(RejectReason::UnknownMember);
-	if (item->training != action.locked) { item->training = action.locked; TouchRoom(); }
+	if (item->training != action.inTraining) { item->training = action.inTraining; TouchRoom(); }
 	return Accept();
 }
 

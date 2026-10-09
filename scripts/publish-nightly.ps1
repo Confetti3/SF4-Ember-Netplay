@@ -27,7 +27,7 @@ try {
     . (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')
     $nightlyTarget = Get-EmberBuildTarget $checkoutRoot
     if ($nightlyTarget.channel -ne 'nightly') {
-        throw 'Get-EmberBuildTarget must return .channel = nightly. Use the channel-aware BuildEnvironment.ps1 and the designated Nightly checkout.'
+        throw 'Not the Nightly checkout: build-target.json channels.nightly must be the designated target, and this script must run from it.'
     }
     $nightlyBranch = [string]$nightlyTarget.branch
     if ($nightlyBranch -ne 'nightly') { throw 'channels.nightly.branch must be nightly.' }

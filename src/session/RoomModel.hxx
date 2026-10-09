@@ -96,7 +96,7 @@ enum class ActionKind : std::uint8_t {
 	// (Action::matchGeneration), named by Action::text.
 	PermitReady,
 	// A member's own word that they are in the game's Training mode, on
-	// (Action::locked) or off. It changes what the others are shown and
+	// (Action::inTraining) or off. It changes what the others are shown and
 	// nothing else. Appended so older authorities reject it as an unknown
 	// kind.
 	SetTraining,
@@ -457,6 +457,9 @@ struct Action {
 	Rules rules;
 	std::uint8_t capacity = 0;
 	bool locked = false;
+	// SetTraining: the member is in Training. On the wire it travels as "locked", so peers
+	// that predate this field still read it.
+	bool inTraining = false;
 	MatchResult result = MatchResult::Abort;
 	std::uint64_t matchGeneration = 0;
 	std::uint8_t inputDelay = 2;

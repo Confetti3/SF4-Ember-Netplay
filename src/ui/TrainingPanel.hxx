@@ -1,6 +1,5 @@
 #pragma once
 #include "../training/TrainingSession.hxx"
-#include "../training/MatchPractice.hxx"
 #include <functional>
 #include <string>
 #include <vector>
@@ -44,7 +43,7 @@ constexpr float TrainingHudBottom = .82f;
 TrainingHudInput DrawTrainingHud(const training::View& view);
 // The frame meter alone, over a rollback match the runtime is watching.
 void DrawMatchMeter(const training::View& view);
-// In a match under a table's Training rule: draws the shared position controls'
-// unavailable message. Returns zero; padSelect does not request a command.
-unsigned MatchPracticeKeys(bool padSelect);
+// In a match under a table's Training rule: says that shared save and reset
+// are not available there.
+void DrawMatchPracticeNotice();
 } }

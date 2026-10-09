@@ -44,7 +44,7 @@ int main() {
     CHECK((Tokens("2MK\r\nxx 236HP\n\n5HP >\n FADC\n~ LP") == std::vector<std::string>{"2MK", "xx 236HP", "5HP", "FADC", "~ LP"}));
     CHECK((Steps("2MK\nxx 236HP\n5HP") == Steps("2MK xx 236HP > 5HP")));
     {
-        const auto follow = Synthesize({"236P", "~ 5LP@+2"}, true, 0);
+        const auto follow = Synthesize({"236P", "~ 5LP@+2"}, true);
         for (const auto& frame : follow) CHECK(!frame.wait);
         std::size_t press = 0;
         while (press < follow.size() && follow[press].raw != LP) ++press;
@@ -59,26 +59,26 @@ int main() {
     CHECK(ParseStep("2MK#45", step, error) && step.at == 45 && step.offset == 0 && Canonical(step) == "2MK#45");
     {
         // A dash is two taps, not one hold.
-        const auto dash = Synthesize({"66"}, true, 0);
+        const auto dash = Synthesize({"66"}, true);
         CHECK(dash.size() >= 7 && dash[0].raw == Right && dash[3].raw == 0 && dash[4].raw == Right);
     }
     // A mash: five presses, several buttons cycled a frame each, one button on and off.
     {
         const auto first = [](const std::vector<sf4e::training::Input>& f) { std::size_t i = 0; while (i < f.size() && !f[i].raw) ++i; return i; };
-        const auto piano = Synthesize({"5P(mash)"}, true, 0); const auto p = first(piano);
+        const auto piano = Synthesize({"5P(mash)"}, true); const auto p = first(piano);
         CHECK(p + 5 < piano.size() && piano[p].raw == LP && piano[p + 1].raw == MP && piano[p + 2].raw == HP && piano[p + 3].raw == LP && piano[p + 4].raw == MP && piano[p + 5].raw == 0);
-        const auto one = Synthesize({"5HP(mash)"}, true, 0); const auto o = first(one);
+        const auto one = Synthesize({"5HP(mash)"}, true); const auto o = first(one);
         CHECK(o + 9 < one.size() && one[o].raw == HP && one[o + 1].raw == 0 && one[o + 8].raw == HP && one[o + 9].raw == 0);
-        const auto two = Synthesize({"5LP+MP(mash)"}, true, 0); const auto t = first(two);
+        const auto two = Synthesize({"5LP+MP(mash)"}, true); const auto t = first(two);
         CHECK(two[t].raw == LP && two[t + 1].raw == MP && two[t + 4].raw == LP);
         // An order of its own sets the presses and their count; a repeat gets a frame off between.
         CHECK(ParseStep("5P(mash HP-MP-LP-LP)", step, error) && step.mash && step.mashOrder.size() == 4 && Canonical(step) == "5P(mash HP-MP-LP-LP)");
         CHECK(!ParseStep("5P(mash HP-XX)", step, error) && !ParseStep("5P(mash -)", step, error) && !ParseStep("5P(mash LP-LP-LP-LP-LP-LP-LP-LP-LP-LP-LP)", step, error));
         // Each press may carry its own direction; the dashes are optional.
         CHECK(ParseStep("5K(mash 1MK 1MK 3MK)", step, error) && step.mashOrder.size() == 3 && step.mashOrder[0].direction == '1' && step.mashOrder[2].direction == '3' && Canonical(step) == "5K(mash 1MK-1MK-3MK)");
-        const auto legs = Synthesize({"5K(mash 1MK-1MK-3MK)"}, true, 0); const auto l = first(legs);
+        const auto legs = Synthesize({"5K(mash 1MK-1MK-3MK)"}, true); const auto l = first(legs);
         CHECK(legs[l].raw == (Down | Left | MK) && legs[l + 1].raw == (Down | Left) && legs[l + 2].raw == (Down | Left | MK) && legs[l + 3].raw == (Down | Right) && legs[l + 4].raw == (Down | Right | MK));
-        const auto ordered = Synthesize({"5P(mash HP-MP-LP-LP)"}, true, 0); const auto q = first(ordered);
+        const auto ordered = Synthesize({"5P(mash HP-MP-LP-LP)"}, true); const auto q = first(ordered);
         CHECK(ordered[q].raw == HP && ordered[q + 1].raw == MP && ordered[q + 2].raw == LP && ordered[q + 3].raw == 0 && ordered[q + 4].raw == LP && ordered[q + 5].raw == 0);
     }
     // The red focus cancel: LP+MP+MK, then the dash.
@@ -86,7 +86,7 @@ int main() {
     CHECK(ParseStep("rfadc44@+1", step, error) && step.motion == "44" && Canonical(step) == "RFADC44@+1");
     {
         // The red focus is tapped, then waits for its own hit before the dash.
-        const auto frames = Synthesize({"5HP", "xx RFADC"}, true, 0);
+        const auto frames = Synthesize({"5HP", "xx RFADC"}, true);
         std::size_t press = 0; while (press < frames.size() && frames[press].raw != (LP | MP | MK)) ++press;
         CHECK(press + 4 < frames.size() && frames[press + 2].raw == 0 && frames[press + 4].wait == sf4e::training::WaitHit && frames[press + 5].raw == Right);
     }
@@ -117,7 +117,7 @@ int main() {
     // button on the hit; a linked move holds its first direction through the
     // wait for the free frame.
     {
-        const auto frames = Synthesize(Steps("2MK xx 236HP > 2HP@+2 > [4]6P"), true, 1);
+        const auto frames = Synthesize(Steps("2MK xx 236HP@+1 > 2HP@+3 > [4]6P@+1"), true);
         CHECK(!frames.empty() && frames.size() < 200);
         std::vector<std::string> seen;
         for (const auto& frame : frames) {
@@ -135,12 +135,12 @@ int main() {
         for (const auto& frame : frames) held += frame.raw == Left && !frame.wait;
         CHECK(held == 50 && frames[0].mapped == frames[0].raw);
         // Facing left mirrors forward and back.
-        const auto mirrored = Synthesize(Steps("236HP > 5LP"), false, 0);
+        const auto mirrored = Synthesize(Steps("236HP > 5LP"), false);
         CHECK(mirrored[3].raw == (Down | Left) && mirrored[9].raw == (Left | HP) && mirrored[11].wait == sf4e::training::WaitActionable && mirrored[12].raw == LP);
-        CHECK(Synthesize({}, true, 0).size() == 1 && Synthesize({"nonsense"}, true, 0).size() == 1);
+        CHECK(Synthesize({}, true).size() == 1 && Synthesize({"nonsense"}, true).size() == 1);
         // Moves on frames: the press lands on its frame, no cue is waited for,
         // and a frame already passed starts the move at once.
-        const auto timed = Synthesize(Steps("5LP#10 > 2MK#30 > xx 236HP#42 > 5HP#43"), true, 0);
+        const auto timed = Synthesize(Steps("5LP#10 > 2MK#30 > xx 236HP#42 > 5HP#43"), true);
         CHECK(timed[10].raw == LP && timed[9].raw == 0 && timed[30].raw == (Down | MK) && timed[27].raw == Down && timed[42].raw == (Right | HP));
         for (const auto& frame : timed) CHECK(!frame.wait);
         CHECK(timed[29].raw == Down && timed[31].raw == Down && timed[32].raw == 0 && timed[36].raw == Down);

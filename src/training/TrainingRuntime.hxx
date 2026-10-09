@@ -1,6 +1,5 @@
 #pragma once
 #include "TrainingSession.hxx"
-#include "MatchPractice.hxx"
 
 namespace Dimps { namespace Game { namespace Battle { struct System; } } }
 namespace sf4e { namespace training {
@@ -16,22 +15,22 @@ void AfterUpdate(Dimps::Game::Battle::System* system);
 // its inputs are confirmed. stateFrame: the GGPO save frame of the state
 // just reached, 0 or less for a spectator, who plays confirmed inputs only.
 // lastConfirmedInput: -1 to capture without showing anything yet.
-void ObserveMatch(Dimps::Game::Battle::System* system, int stateFrame, int lastConfirmedInput, unsigned padOne, unsigned padTwo);
+void ObserveMatch(Dimps::Game::Battle::System* system, int stateFrame, int lastConfirmedInput);
 // SetMatchPractice: whether the battle being prepared uses a table's
 // Training rule. Game thread.
 void SetMatchPractice(bool enabled);
-// Any thread: whether such a match is on. Shared checkpoint requests are ignored.
+// Any thread: whether such a match is on, for the HUD's notice that shared
+// save and reset are not available there.
 bool MatchPracticeActive();
-void RequestMatchPractice(unsigned bits);
-// The local pad's raw word as it goes to GGPO, with reserved practice bits removed.
-unsigned WithMatchPractice(unsigned raw);
-// Before the game plays a frame from GGPO's inputs, simulated or
-// resimulated: takes the two bits out of both raw words. Shared save/reset
-// is disabled, so the fight and checkpoint stay as they are. Returns true.
-bool BeforeMatchFrame(Dimps::Game::Battle::System* system, unsigned& rawOne, unsigned& rawTwo);
-// The part of it that is saved and restored with every frame.
-PracticeState MatchPracticeState();
-void SetMatchPracticeState(const PracticeState& state);
+// Two bits of the pad's raw word that once carried a Training table's shared
+// save and reset. The feature is retired; the bits stay reserved and are
+// cleared as before, so the game never sees them.
+constexpr unsigned ReservedInputBits = 0x60000000;
+static_assert((ReservedInputBits & FightButtons) == 0, "reserved bits overlap the fight buttons");
+// At a Training table: the raw word without those bits. Applied to the local
+// pad before it goes to GGPO and to both of GGPO's inputs before the game
+// plays a frame, simulated or resimulated. Any other match is left alone.
+unsigned ClearReservedInputBits(unsigned raw);
 // Whether the player wants that meter. Any thread.
 void WatchMatches(bool enabled);
 void CloseBattle();

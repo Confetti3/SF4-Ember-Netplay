@@ -207,6 +207,16 @@ namespace Dimps {
 			};
 			enum ParamMode { PM_NORMAL = 0, PM_EMPTY = 6, PM_FULL = 7, PM_REFILL = 8 };
 
+			// The fighter a player brought into the battle, as its native id.
+			// Each player has a block in the request, Player 1's at +0x08 and
+			// Player 2's at +0x2C0 (0x2B8 apart, the parameter table's own
+			// stride), and the block starts with that id. Read off a Training
+			// battle of Ken (1) against Hakan (33). Not checked here: the caller
+			// validates it against the fighter catalog.
+			static int GetFighterId(const Request* r, int player) {
+				return *(const int*)((const char*)r + (player ? 0x2C0 : 0x08));
+			}
+
 			static void Locate(HMODULE peRoot);
 			static __publicMethods publicMethods;
 		};
