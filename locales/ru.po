@@ -3554,7 +3554,7 @@ msgid "public.setup_needs_id_detail"
 msgstr "Ваш Ember ID заблокирован. Разблокируйте его в разделе «Учётная запись Ember», а затем снова настройте открытые лобби."
 
 msgid "public.copy_link"
-msgstr "Копировать ссылку на лобби"
+msgstr "Копировать ссылку"
 
 msgid "public.copy_link_detail"
 msgstr "Копирует {0}, чтобы друзья могли войти из браузера или Discord."
