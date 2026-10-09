@@ -1,6 +1,5 @@
 #include "replay_slots_support.hxx"
-#include "../common/ReplayPreparationWorker.hxx"
-#include "../platform/ReplayFiles.hxx"
+#include "../platform/ReplayImportWorker.hxx"
 #include <chrono>
 #include <fstream>
 #include <future>
@@ -9,7 +8,7 @@
 using namespace sf4e::replayfiles;
 using namespace sf4e::platform::replays;
 namespace fs = std::filesystem;
-using Worker = PreparationWorker<PreparedImport>;
+using Worker = ImportWorker;
 
 static void Save(const fs::path& path, const Bytes& bytes) {
  std::ofstream out(path, std::ios::binary | std::ios::trunc);
@@ -38,7 +37,7 @@ struct Handoff {
   Save(backup, body);
  }
  ~Handoff() { std::error_code error; fs::remove_all(root, error); }
- Worker::Value Prepare() {
+ ImportTransaction Prepare() {
   std::promise<void> prepared;
   Worker worker([&](const fs::path&) {
    CHECK(std::this_thread::get_id() != gameThread);
@@ -55,15 +54,15 @@ struct Handoff {
    value.notInvalidated = [] { return true; };
    auto out = std::make_shared<const PreparedImport>(std::move(value));
    prepared.set_value(); return out;
-  }, [](const Worker::Value&) {});
+  }, [](const ImportTransaction&) {});
   CHECK(worker.Request(backup));
   CHECK(prepared.get_future().wait_for(std::chrono::seconds(2)) == std::future_status::ready);
   worker.Stop();
-  Worker::Value value;
+  ImportTransaction value;
   CHECK(worker.Take(value) && value && !worker.Take(value));
   return value;
  }
- ApplyOutcome Commit(const Worker::Value& value, bool accept = true) {
+ ApplyOutcome Commit(const ImportTransaction& value, bool accept = true) {
   return Apply(value->changes, [&] { CHECK(std::this_thread::get_id() == gameThread); return value->Fresh(); },
    [&](const std::string& name, const Bytes& bytes) {
     CHECK(std::this_thread::get_id() == gameThread); ++writes;
@@ -71,7 +70,7 @@ struct Handoff {
     return false;
    }, [&](const std::string&) { ++removes; return false; }, [&] { ++publications; return accept; });
  }
- void RejectWithoutChangingFiles(const Worker::Value& value) {
+ void RejectWithoutChangingFiles(const ImportTransaction& value) {
   std::vector<Change> current;
   for (const auto& file : originals) {
    Change read;

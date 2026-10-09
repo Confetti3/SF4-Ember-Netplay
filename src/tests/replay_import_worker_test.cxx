@@ -1,6 +1,5 @@
 #include "replay_slots_support.hxx"
-#include "../common/ReplayPreparationWorker.hxx"
-#include "../platform/ReplayFiles.hxx"
+#include "../platform/ReplayImportWorker.hxx"
 #include <future>
 #include <chrono>
 #include <fstream>
@@ -12,7 +11,7 @@
 
 using namespace sf4e::replayfiles;
 using namespace sf4e::platform::replays;
-using Worker = PreparationWorker<PreparedImport>;
+using Worker = ImportWorker;
 
 static void TestBlockedPreparation(bool archivePublication) {
  std::promise<void> blocked, release;
@@ -34,13 +33,13 @@ static void TestBlockedPreparation(bool archivePublication) {
   }
   value.result = ImportResult::Done; value.notInvalidated = [] { return true; };
   return std::make_shared<const PreparedImport>(std::move(value));
- }, [](const Worker::Value&) {});
+ }, [](const ImportTransaction&) {});
  CHECK(worker.Request("selected.emberreplay"));
  CHECK(blocked.get_future().wait_for(std::chrono::seconds(2)) == std::future_status::ready);
  // Model outer-tick dispatch: unrelated room requests and a duplicate import
  // continue while preparation/publication is deliberately blocked.
  auto dispatch = std::async(std::launch::async, [&] {
-  Worker::Value value;
+  ImportTransaction value;
   for (int tick = 0; tick < 100; ++tick) {
    CHECK(!worker.Take(value)); CHECK(!worker.Request("duplicate.emberreplay")); ++handled;
   }
@@ -48,7 +47,7 @@ static void TestBlockedPreparation(bool archivePublication) {
  CHECK(dispatch.wait_for(std::chrono::seconds(2)) == std::future_status::ready);
  dispatch.get(); CHECK(handled == 100); release.set_value();
  worker.Stop(); // joins the preparation already in progress
- Worker::Value value;
+ ImportTransaction value;
  CHECK(worker.Take(value) && value && value->imported.slot == 280);
  CHECK(!worker.Take(value)); // one immutable handoff
  unsigned writes = 0, publications = 0;
@@ -80,7 +79,7 @@ static void TestRecoveryPublicationIsOffThreadAndBounded() {
  std::atomic<unsigned> attempts{0};
  const auto gameThread = std::this_thread::get_id();
  Worker worker([](const std::filesystem::path&) { return std::make_shared<const PreparedImport>(); },
-  [&](const Worker::Value& value) {
+  [&](const ImportTransaction& value) {
    CHECK(value->changes[0].before == Bytes({1, 2}));
    CHECK(std::this_thread::get_id() != gameThread);
    ++attempts; persisting.set_value(); gate.wait();
@@ -91,7 +90,7 @@ static void TestRecoveryPublicationIsOffThreadAndBounded() {
  worker.RetainRecovery(value);
  CHECK(persisting.get_future().wait_for(std::chrono::seconds(2)) == std::future_status::ready);
  auto dispatch = std::async(std::launch::async, [&] {
-  Worker::Value out;
+  ImportTransaction out;
   CHECK(worker.Failed() && !worker.Request("next") && !worker.Take(out));
  });
  CHECK(dispatch.wait_for(std::chrono::seconds(2)) == std::future_status::ready);
@@ -101,11 +100,11 @@ static void TestRecoveryPublicationIsOffThreadAndBounded() {
 static void TestFailedPreparationCompletes() {
  std::promise<void> started, release;
  auto gate = release.get_future();
- Worker failing([&](const std::filesystem::path&) -> Worker::Value { started.set_value(); gate.wait(); throw std::bad_alloc(); }, [](const Worker::Value&) {});
+ Worker failing([&](const std::filesystem::path&) -> ImportTransaction { started.set_value(); gate.wait(); throw std::bad_alloc(); }, [](const ImportTransaction&) {});
  CHECK(failing.Request("selected"));
  CHECK(started.get_future().wait_for(std::chrono::seconds(2)) == std::future_status::ready);
  release.set_value(); failing.Stop();
- Worker::Value out; CHECK(failing.Take(out) && !out);
+ ImportTransaction out; CHECK(failing.Take(out) && !out);
 }
 #ifdef _WIN32
 static void TestProductionFolderFreshness() {

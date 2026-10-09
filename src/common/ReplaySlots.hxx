@@ -359,37 +359,4 @@ inline bool Import(const Bytes& exported, int slot, std::uint32_t now, Bytes& li
 	return true;
 }
 
-// The files an import changes, as data: each by its name in the save folder,
-// with the bytes it gets and the bytes it had before anything was changed.
-// The replay and its ".0" come first and the indexes that name it last, so an
-// index never names a file that is not there yet.
-struct PlannedWrite {
-	std::string name;
-	Bytes now, before;
-};
-using WritePlan = std::vector<PlannedWrite>;
-
-// The plan for putting an export into a slot (Import), from the files as they
-// are now: the slot's replay and its ".0", swan and its ".0", and for a slot
-// of LIST that file and its ".0". False, with an empty plan, where Import
-// refuses. A file that was not there has an empty `before`.
-struct SlotFiles {
-	Bytes list, listSidecar, swan, swanSidecar, replay, replaySidecar;
-};
-inline bool PlanImport(const Bytes& exported, int slot, std::uint32_t now, const SlotFiles& files, WritePlan& plan) {
-	plan.clear();
-	Bytes list = files.list, swan = files.swan, replay;
-	if (!Import(exported, slot, now, list, swan, replay)) return false;
-	const std::string name = std::to_string(slot);
-	plan.push_back({name, replay, files.replay});
-	plan.push_back({name + ".0", Sidecar(replay), files.replaySidecar});
-	plan.push_back({"replays-swan.dat", swan, files.swan});
-	plan.push_back({"replays-swan.dat.0", Sidecar(swan), files.swanSidecar});
-	if (slot < kListSlots) {
-		plan.push_back({"LIST", list, files.list});
-		plan.push_back({"LIST.0", Sidecar(list), files.listSidecar});
-	}
-	return true;
-}
-
 } }

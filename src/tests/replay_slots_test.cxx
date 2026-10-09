@@ -316,6 +316,20 @@ struct Folder {
 	}
 };
 
+using sf4e::replayfiles::Change;
+using sf4e::replayfiles::ImportFiles;
+using sf4e::replayfiles::PlanImport;
+// The files an import reads, as its snapshots of them: the indexes all there,
+// and the slot's replay and ".0" only when it holds one.
+static ImportFiles Files(const std::string& name, const Bytes& list, const Bytes& swan, const Bytes& held, bool slotHeld = true) {
+	const auto file = [](const std::string& file, const Bytes& before, bool existed) { Change change; change.name = file; change.before = before; change.existed = existed; return change; };
+	ImportFiles files;
+	files.replay = file(name, held, slotHeld); files.replaySidecar = file(name + ".0", slotHeld ? Sidecar(held) : Bytes(), slotHeld);
+	files.swan = file("replays-swan.dat", swan, true); files.swanSidecar = file("replays-swan.dat.0", Sidecar(swan), true);
+	files.list = file("LIST", list, true); files.listSidecar = file("LIST.0", Sidecar(list), true);
+	return files;
+}
+
 // An import is a plan of writes; a write that fails puts every file back as it
 // was, whichever write it is, and so does undoing a plan that was written.
 static void TestAnImportThatFailsLeavesTheFilesAsTheyWere() {
@@ -326,22 +340,24 @@ static void TestAnImportThatFailsLeavesTheFilesAsTheyWere() {
 		Bytes otherList = EmptyList(), otherSwan = EmptySwan();
 		Fill(otherList, otherSwan, 300, incoming, 0x66);
 		CHECK(Export(otherList, otherSwan, 300, incoming, exported));
-		const SlotFiles before{list, Sidecar(list), swan, Sidecar(swan), held, Sidecar(held)};
 		Folder start;
 		const std::string name = std::to_string(slot);
+		ImportFiles files = Files(name, list, swan, held);
 		start.files = {{name, held}, {name + ".0", Sidecar(held)}, {"replays-swan.dat", swan}, {"replays-swan.dat.0", Sidecar(swan)}, {"LIST", list}, {"LIST.0", Sidecar(list)}};
-		WritePlan plan;
-		CHECK(PlanImport(exported, slot, 1800000000, before, plan));
-		CHECK(plan.size() == (slot < kListSlots ? 6u : 4u) && plan[0].name == name && plan[1].name == name + ".0" && plan[0].before == held);
+		std::vector<Change> changes;
+		CHECK(PlanImport(exported, slot, 1800000000, files, changes));
+		CHECK(changes.size() == (slot < kListSlots ? 6u : 4u) && changes[0].name == name && changes[1].name == name + ".0" && changes[0].before == held);
 		// The replay goes first and the indexes that name it last.
-		CHECK(plan[2].name == "replays-swan.dat" && plan.back().name == (slot < kListSlots ? "LIST.0" : "replays-swan.dat.0"));
-		// Production executes this plan with nightly's exact-file rollback,
-		// including when the live table refuses after every write succeeded.
-		std::vector<sf4e::replayfiles::Change> changes;
-		for (const auto& step : plan) changes.push_back({step.name, step.before, step.now, true});
-		for (int failAt = 0; failAt <= static_cast<int>(plan.size()); failAt++) {
+		CHECK(changes[2].name == "replays-swan.dat" && changes.back().name == (slot < kListSlots ? "LIST.0" : "replays-swan.dat.0"));
+		// Each planned file keeps its name, and the import's bytes are its `after`.
+		CHECK(changes[0].after == files.replay.after && changes[2].after == files.swan.after && ValidSwan(files.swan.after));
+		CHECK(files.replaySidecar.after == Sidecar(files.replay.after) && files.swanSidecar.after == Sidecar(files.swan.after));
+		CHECK(slot < kListSlots ? changes[4].after == files.list.after && changes[5].after == Sidecar(files.list.after) : files.list.after.empty());
+		// Production executes this plan with exact-file rollback, including
+		// when the live table refuses after every write succeeded.
+		for (int failAt = 0; failAt <= static_cast<int>(changes.size()); failAt++) {
 			Folder folder = start;
-			folder.failAt = failAt == static_cast<int>(plan.size()) ? -1 : failAt; // publication-only refusal has no writer fault
+			folder.failAt = failAt == static_cast<int>(changes.size()) ? -1 : failAt; // publication-only refusal has no writer fault
 			CHECK(sf4e::replayfiles::Apply(changes, [] { return true; },
 				[&](const std::string& file, const Bytes& contents) { return folder.Write(file, contents); },
 				[&](const std::string& file) { folder.files.erase(file); return true; },
@@ -369,16 +385,16 @@ static void TestAnImportThatFailsLeavesTheFilesAsTheyWere() {
 	Bytes otherList = EmptyList(), otherSwan = EmptySwan();
 	Fill(otherList, otherSwan, 300, incoming, 0x66);
 	CHECK(Export(otherList, otherSwan, 300, incoming, exported));
-	WritePlan plan;
-	CHECK(PlanImport(exported, 301, 1, SlotFiles{list, Sidecar(list), swan, Sidecar(swan), Bytes(), Bytes()}, plan));
+	ImportFiles files = Files("301", list, swan, Bytes(), false);
+	std::vector<Change> changes;
+	CHECK(PlanImport(exported, 301, 1, files, changes));
+	CHECK(!changes[0].existed && !changes[1].existed && changes[2].existed);
 	Folder folder;
 	folder.files = {{"replays-swan.dat", swan}, {"replays-swan.dat.0", Sidecar(swan)}};
 	folder.failAt = 3;
 	const auto write = [&](const std::string& file, const Bytes& contents) { return folder.Write(file, contents); };
 	// Production's rollback also removes newly created slot files rather
 	// than leaving the imported body behind an empty record.
-	std::vector<sf4e::replayfiles::Change> changes;
-	for (const auto& step : plan) changes.push_back({step.name, step.before, step.now, !step.before.empty()});
 	folder = Folder{};
 	folder.files = {{"replays-swan.dat", swan}, {"replays-swan.dat.0", Sidecar(swan)}};
 	const auto original = folder.files;
@@ -389,7 +405,7 @@ static void TestAnImportThatFailsLeavesTheFilesAsTheyWere() {
 	// What Import refuses makes no plan.
 	Bytes damaged = exported;
 	damaged.back() ^= 1;
-	CHECK(!PlanImport(damaged, 301, 1, SlotFiles{list, Sidecar(list), swan, Sidecar(swan), Bytes(), Bytes()}, plan) && plan.empty());
+	CHECK(!PlanImport(damaged, 301, 1, files, changes) && changes.empty());
 }
 
 // The match just played: its file is on disk and the index still names the

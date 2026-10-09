@@ -1,4 +1,6 @@
-#include "../common/ReplayArchiveIndex.hxx"
+#include "../common/ReplaySummaryCache.hxx"
+#include "../common/ReplayFileSafety.hxx"
+#include "../platform/ReplayArchiveIndex.hxx"
 #include "test_support.hxx"
 #include <chrono>
 #include <fstream>

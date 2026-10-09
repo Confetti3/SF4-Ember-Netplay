@@ -1,5 +1,5 @@
 #include "replay_slots_support.hxx"
-#include "../common/ReplayRecordingWorker.hxx"
+#include "../platform/ReplayRecordingWorker.hxx"
 #include <future>
 #include <chrono>
 

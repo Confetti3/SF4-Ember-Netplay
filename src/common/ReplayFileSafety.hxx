@@ -124,6 +124,30 @@ inline bool ImportFilesUnchanged(const std::vector<Change>& changes, const Backu
  return true;
 }
 
+// The save files an import reads and may replace, each as Snapshot read it,
+// so a missing file stays distinct from an empty one. PlanImport fills in
+// each one's `after`.
+struct ImportFiles { Change replay, replaySidecar, swan, swanSidecar, list, listSidecar; };
+
+// The plan for putting an export into a slot (replayslots::Import), from the
+// files as they are now: the changes in the order they are written, the slot's
+// replay and its ".0" first and the indexes that name it last, so an index
+// never names a file that is not there yet. LIST and its ".0" only for a slot
+// of LIST. False, with no changes, where Import refuses.
+inline bool PlanImport(const replayslots::Bytes& exported, int slot, std::uint32_t now, ImportFiles& files, std::vector<Change>& changes) {
+ changes.clear();
+ replayslots::Bytes list = files.list.before, swan = files.swan.before, replay;
+ if (!replayslots::Import(exported, slot, now, list, swan, replay)) return false;
+ files.replaySidecar.after = replayslots::Sidecar(replay); files.replay.after = std::move(replay);
+ files.swanSidecar.after = replayslots::Sidecar(swan); files.swan.after = std::move(swan);
+ changes = {files.replay, files.replaySidecar, files.swan, files.swanSidecar};
+ if (slot < replayslots::kListSlots) {
+  files.listSidecar.after = replayslots::Sidecar(list); files.list.after = std::move(list);
+  changes.push_back(files.list); changes.push_back(files.listSidecar);
+ }
+ return true;
+}
+
 enum class ApplyOutcome { RejectedBeforeWrite, Done, FailedRestored, RecoveryIncomplete };
 
 // Keep all snapshots until the live table accepts the files. A failed write

@@ -23,11 +23,12 @@
 #include "DurableFile.hxx"
 #include "ReplayRecordingChanges.hxx"
 #include "ReplayImportFreshness.hxx"
+#include "ReplayRecordingWorker.hxx"
+#include "ReplayImportWorker.hxx"
+#include "ReplayArchiveIndex.hxx"
 #include "../common/ReplayFileSafety.hxx"
 #include "../common/ReplayInputDetails.hxx"
-#include "../common/ReplayRecordingWorker.hxx"
-#include "../common/ReplayPreparationWorker.hxx"
-#include "../common/ReplayArchiveIndex.hxx"
+#include "../common/ReplaySummaryCache.hxx"
 
 namespace fs = std::filesystem;
 namespace slots = sf4e::replayslots;
@@ -300,13 +301,20 @@ PreparedImport PrepareImport(const fs::path& file) {
   auto guard = std::make_shared<ImportFreshness>();
   if (!guard->Arm(saves) || FindFolders().active != saves) return ImportResult::IndexBehind;
   transaction.notInvalidated = [guard] { return guard->NotInvalidated(); };
-		slots::SlotFiles before;
-		before.list = LoadFile(saves / L"LIST", kMostIndexBytes); before.listSidecar = LoadFile(saves / L"LIST.0", 4);
-		before.swan = LoadFile(saves / L"replays-swan.dat", kMostIndexBytes); before.swanSidecar = LoadFile(saves / L"replays-swan.dat.0", 4);
+  // Each file the import may replace is snapshotted once and planned on as read.
+  // Commit proceeds only while every one still holds exactly these bytes.
+  replayfiles::ImportFiles files;
+  const auto snapshot = [&](replayfiles::Change& change, const std::string& name) {
+   change.name = kSavePrefix + name; change.path = saves / name;
+   return replayfiles::Snapshot(change.path, kMostIndexBytes, change);
+  };
+  const bool indexesRead = snapshot(files.list, "LIST") && snapshot(files.listSidecar, "LIST.0") &&
+   snapshot(files.swan, "replays-swan.dat") && snapshot(files.swanSidecar, "replays-swan.dat.0");
+  const slots::Bytes &list = files.list.before, &swan = files.swan.before;
 		// An index that is not the one its ".0" names is half written, or
 		// damaged: it is not built on and not written out again.
-		if (!slots::ValidList(before.list) || !slots::ValidSwan(before.swan) ||
-			before.listSidecar != slots::Sidecar(before.list) || before.swanSidecar != slots::Sidecar(before.swan)) {
+		if (!indexesRead || !slots::ValidList(list) || !slots::ValidSwan(swan) ||
+			files.listSidecar.before != slots::Sidecar(list) || files.swanSidecar.before != slots::Sidecar(swan)) {
 			spdlog::warn("Replays: the game's replay index does not match its checksum file; nothing is imported over it");
 			return ImportResult::IndexDamaged;
 		}
@@ -317,7 +325,7 @@ PreparedImport PrepareImport(const fs::path& file) {
 		for (int slot = kFirstMatchSlot; slot <= kLastMatchSlot; slot++) {
 			const fs::path slotFile = saves / std::to_wstring(slot);
 			const SlotFile now = ReadSlotFile(slotFile);
-			if (!slots::FileAheadOfRecord(before.list, before.swan, slot, now.replay, now.sidecar)) continue;
+			if (!slots::FileAheadOfRecord(list, swan, slot, now.replay, now.sidecar)) continue;
 			// An index saved since the file was written is not behind it: the
 			// file is one the game no longer lists, and waits for nothing.
 			std::error_code failed;
@@ -327,7 +335,7 @@ PreparedImport PrepareImport(const fs::path& file) {
 			spdlog::info("Replays: slot {} holds a replay the game has not put in its index yet; the import waits for that", slot);
 			return ImportResult::IndexBehind;
 		}
-		const int slot = slots::SlotToReplace(before.list, before.swan, kFirstMatchSlot, kLastMatchSlot);
+		const int slot = slots::SlotToReplace(list, swan, kFirstMatchSlot, kLastMatchSlot);
 		if (slot < 0) { spdlog::warn("Replays: the game's index has no match slot"); return ImportResult::IndexDamaged; }
 		slots::Bytes exported = LoadFile(source);
 		// usf4-replay-saver keeps the game's replay as it is and the slot
@@ -348,43 +356,36 @@ PreparedImport PrepareImport(const fs::path& file) {
 		// cannot be done. The index is the one the listing keeps; no folder
 		// is walked here.
 		const SlotFile held = ReadSlotFile(saves / std::to_wstring(slot));
-		before.replay = held.replay; before.replaySidecar = held.sidecar;
 
   slots::ReplayHeaderInfo header;
   if (slots::ReadReplayHeader(held.replay, header) && !Index().Verify(folders.archive, held.replay, transaction.backup)) {
-   if (ArchiveSlot(folders.archive, saves, slot, before.list, before.swan) != Archived::Copied ||
+   if (ArchiveSlot(folders.archive, saves, slot, list, swan) != Archived::Copied ||
     !Index().Verify(folders.archive, held.replay, transaction.backup)) {
     spdlog::warn("Replays: slot {} could not be backed up and verified; it is not replaced", slot);
     return ImportResult::ArchiveFailed;
    }
   }
-		slots::WritePlan plan;
-		if (!slots::PlanImport(exported, slot, static_cast<std::uint32_t>(_time64(nullptr)), before, plan)) {
+  // The slot's files exactly as they are, which the replay held in the slot
+  // cache must match: a game save since then requires a fresh plan.
+  const std::string slotName = std::to_string(slot);
+  if (!snapshot(files.replay, slotName) || !snapshot(files.replaySidecar, slotName + ".0")) return ImportResult::RejectedBeforeWrite;
+  if (files.replay.before != held.replay || files.replaySidecar.before != held.sidecar) return ImportResult::IndexBehind;
+  // Execute only this plan, with exact-file snapshots and exception-safe
+  // rollback. Empty and missing files stay distinct.
+  auto& changes = transaction.changes;
+		if (!replayfiles::PlanImport(exported, slot, static_cast<std::uint32_t>(_time64(nullptr)), files, changes)) {
 			spdlog::warn(L"Replays: {} is not a replay Ember can import", file.c_str());
 			return ImportResult::NotAReplay;
 		}
 		// Prepare the live-table record before writing, so an allocation failure
-		// cannot leave the files ahead of the table.
-		const slots::Bytes& swan = plan[2].now;
-		const std::uint8_t* record = slots::Record(slot < slots::kListSlots ? plan[4].now : before.list, swan, slot);
+		// cannot leave the files ahead of the table. A slot of swan leaves LIST as it was.
+		const slots::Bytes& swanAfter = files.swan.after;
+		const std::uint8_t* record = slots::Record(slot < slots::kListSlots ? files.list.after : list, swanAfter, slot);
 		if (!record) return ImportResult::IndexDamaged;
 		Imported imported;
 		imported.slot = slot;
 		imported.record.assign(record, record + slots::kRecordBytes);
-		imported.slotBytes.assign(swan.begin() + slots::kSwanSlotBytesOffset + slot * 2, swan.begin() + slots::kSwanSlotBytesOffset + slot * 2 + 2);
-		// Execute only this plan, with nightly's exact-file snapshots and
-		// exception-safe rollback. Empty and missing files stay distinct.
-		auto& changes = transaction.changes;
-		for (const slots::PlannedWrite& step : plan) {
-			replayfiles::Change change;
-			change.name = kSavePrefix + step.name; change.after = step.now;
-			change.path = saves / step.name;
-			if (!replayfiles::Snapshot(change.path, kMostIndexBytes, change)) return ImportResult::RejectedBeforeWrite;
-			// The plan must describe the files we are about to replace. A game
-			// save during preparation requires a fresh plan, never stale indexes.
-			if (change.before != step.before) return ImportResult::IndexBehind;
-			changes.push_back(std::move(change));
-		}
+		imported.slotBytes.assign(swanAfter.begin() + slots::kSwanSlotBytesOffset + slot * 2, swanAfter.begin() + slots::kSwanSlotBytesOffset + slot * 2 + 2);
   transaction.recoveryBytes = RecoveryBytes(saves, changes);
   static std::atomic<unsigned> recoverySerial{0};
   transaction.recoveryFile = folders.archive / (L"recovery-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(++recoverySerial) + L".ember-recovery");
@@ -396,7 +397,6 @@ PreparedImport PrepareImport(const fs::path& file) {
  catch (...) {}
  return transaction;
 }
-using ImportWorker = replayfiles::PreparationWorker<PreparedImport>;
 std::atomic<ImportWorker*> importWorker{nullptr};
 ImportWorker& Imports() {
  static auto* const worker = [] {
