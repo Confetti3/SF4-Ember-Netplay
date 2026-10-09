@@ -1,4 +1,5 @@
 #include <memory>
+#include "../common/StartupHandshake.hxx"
 #include <vector>
 
 #include <windows.h>
@@ -368,11 +369,8 @@ int fMain::Initialize(void* a, void* b, void* c) {
 	// in Main::Destroy (0x77E6C0), keeps the apartment for the session.
 	const MultithreadedApartment apartment;
 	sf4e::Gamepads::Start();
-    if (sf4e::hSyncEvent != NULL) {
-        SetEvent(sf4e::hSyncEvent);
-        CloseHandle(sf4e::hSyncEvent);
-        sf4e::hSyncEvent = NULL;
-    }
+    sf4e::startup::Publish(sf4e::hStartupMailbox, sf4e::hSyncEvent, sf4e::startup::State::Ready, ERROR_SUCCESS);
+    sf4e::hStartupMailbox = sf4e::hSyncEvent = NULL;
 
     int rval = (this->*(rMain::publicMethods.Initialize))(a, b, c);
 

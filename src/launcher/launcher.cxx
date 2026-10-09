@@ -38,12 +38,15 @@
 #include "../platform/ReplayFiles.hxx"
 #include "../common/ReplayLink.hxx"
 #include "../platform/ReplayPath.hxx"
+#include "../common/GameCompatibility.hxx"
+#include "../common/StartupHandshake.hxx"
 #include "../common/sf4e__NetplayConfig.hxx"
 #include "../common/install_paths.hxx"
 #include "../common/Localization.hxx"
 #include "../platform/LocaleWindows.hxx"
 #include "../platform/UiPreferencesStore.hxx"
 #include "GameLocator.hxx"
+#include "LaunchOutcome.hxx"
 #include "netplay/netplay_persist.hxx"
 #include "update/github_release_client.hxx"
 #include "BuildIdentity.hxx"
@@ -282,7 +285,25 @@ void ArchiveReplays() {
 	if (sf4e::platform::replays::Archive() < 0 && !noted) { noted = true; spdlog::info("Replays: no settings folder, nothing archived"); }
 }
 
-HANDLE CreateSF4Process(
+static void NoteServedDump(const sf4e::crash::DumpChannel& dumps, bool written) {
+    if (written) spdlog::info(L"Wrote the game's crash dump to {}", dumps.written);
+    else spdlog::warn("Could not write the game's full crash dump (Win32 {})", GetLastError());
+    if (!dumps.reportWritten.empty()) spdlog::info(L"Wrote the game's report dump to {}", dumps.reportWritten);
+}
+static sf4e::launcher::GameExit DescribeGameExit(HANDLE process, DWORD code, bool early,
+    bool steamAbove, const sf4e::crash::DumpChannel& dumps, sf4e::reports::CrashContext& report) {
+    const auto result = sf4e::launcher::ClassifyGameExit(code, steamAbove, g_logsDir[0] != 0, early);
+    spdlog::info("Game exited {}with code {:#010x} ({})", early ? "during startup " : "", code, sf4e::crash::ExitCodeName(code));
+    if (result.crashed) {
+        report.exitCode = code; report.smallDump = dumps.reportWritten;
+        if (dumps.exceptionCode) report.exceptionCode = dumps.exceptionCode;
+        if (dumps.crashAddress) report.address = dumps.crashAddress;
+        if (!dumps.written[0] && dumps.reportWritten.empty()) NoteWindowsCrashDump(GetProcessId(process));
+    }
+    return result;
+}
+
+sf4e::launcher::LaunchResult CreateSF4Process(
 	const sf4e::Payload& payload,
 	sf4e::platform::HelperProcess& helper,
     sf4e::platform::HelperProcess& discord,
@@ -291,16 +312,21 @@ HANDLE CreateSF4Process(
 	LPWSTR szExePath,
 	int nDlls,
 	LPCSTR* rlpDlls,
-	sf4e::crash::DumpChannel& dumps,
-	DWORD& startError
+	sf4e::crash::DumpChannel& dumps
 ) {
-	wchar_t szErrorString[1024] = { 0 };
-	DWORD dwError;
+	using sf4e::startup::Outcome;
+	using sf4e::startup::Result;
+	using sf4e::launcher::LaunchResult;
 	STARTUPINFOW si;
 	PROCESS_INFORMATION pi;
 	ZeroMemory(&si, sizeof(si));
 	ZeroMemory(&pi, sizeof(pi));
 	si.cb = sizeof(si);
+	sf4e::compatibility::GameFile gameFile;
+	if (const DWORD error = gameFile.Open(szExePath)) {
+        spdlog::error("Game executable validation failed (Win32 {})", error);
+        return {{error == ERROR_REVISION_MISMATCH ? Outcome::UnsupportedGame : Outcome::ValidationIo, error, 0}};
+    }
 	spdlog::info(
 		L"CreateSF4Process start exe={} gameDir={} mode={} configVersion={} devOverlay={}",
 		szExePath,
@@ -309,10 +335,8 @@ HANDLE CreateSF4Process(
 		payload.netplay.version,
 		(int)payload.netplay.devOverlay
 	);
-	HANDLE hSyncEvent = CreateEventW(NULL, TRUE, FALSE, NULL);
-	if (hSyncEvent == NULL) {
-		spdlog::warn("CreateSF4Process: CreateEventW() could not create game sync handle, game may be unable to access Steam: err {}", GetLastError());
-	}
+	sf4e::startup::Channel startup;
+	if (!startup.Create()) return {{Outcome::BootstrapFailed, GetLastError(), 0}};
 
 	SetLastError(0);
 
@@ -332,15 +356,23 @@ HANDLE CreateSF4Process(
 			rlpDlls,
 			NULL
 		)) {
-		dwError = GetLastError();
-		startError = dwError;
-		StringCchPrintf(szErrorString, 1024, L"DetourCreateProcessWithDllEx failed: %d", dwError);
-        spdlog::error("Could not start the game with Sidecar (Win32 {})", dwError);
-        if (hSyncEvent) CloseHandle(hSyncEvent);
-        return nullptr;
-	}
+		const DWORD error = GetLastError();
+        spdlog::error("Could not start the game with Sidecar (Win32 {})", error);
+        return {{Outcome::CreateFailed, error, 0}};
+    }
 
+    const auto fail = [&](Result status) -> LaunchResult {
+        const auto stopped = sf4e::startup::StopOwnedChild(pi.hProcess, status.error ? status.error : ERROR_DLL_INIT_FAILED);
+        if (!stopped.confirmed || stopped.terminateError)
+            spdlog::error("Failed launch cleanup pid={} confirmed={} terminate_error={} wait={:#x} wait_error={}",
+                pi.dwProcessId, stopped.confirmed, stopped.terminateError, stopped.waitResult, stopped.waitError);
+        else spdlog::info("Failed launch pid={} exit confirmed", pi.dwProcessId);
+        helper.Stop(0); discord.Stop(0);
+        CloseHandle(pi.hThread); CloseHandle(pi.hProcess);
+        return {status, nullptr, stopped, pi.dwProcessId};
+    };
 	sf4e::Payload p = payload;
+	if (!startup.DuplicateTo(pi.hProcess, p.hSyncEvent, p.hStartupMailbox)) return fail({Outcome::BootstrapFailed, GetLastError(), 0});
     wchar_t discordPath[32768] = {};
     if (sf4e::install::ResolveInstallFile(L"ember-discord.exe",discordPath,32768) &&
         discord.Start(discordPath,pi.dwProcessId)) p.discord=discord.Bootstrap();
@@ -351,11 +383,6 @@ HANDLE CreateSF4Process(
 		p.helperError = helper.LastError();
 		spdlog::warn("Networking helper unavailable (Win32 {}). Offline remains available.", p.helperError);
 	}
-	if (hSyncEvent != NULL) {
-		if (!DuplicateHandle(GetCurrentProcess(), hSyncEvent, pi.hProcess, &p.hSyncEvent, 0, false, DUPLICATE_SAME_ACCESS)) {
-			spdlog::warn("CreateSF4Process: DuplicateHandle() could not duplicate game sync handle, game may be unable to access Steam: err {}", GetLastError());
-		}
-	}
 	// Without the channel the game writes its own crash dump.
 	if (dumps.view && !(
 		DuplicateHandle(GetCurrentProcess(), dumps.request, pi.hProcess, &p.hDumpRequest, 0, false, DUPLICATE_SAME_ACCESS) &&
@@ -365,50 +392,30 @@ HANDLE CreateSF4Process(
 		p.hDumpRequest = p.hDumpDone = p.hDumpMailbox = NULL;
 	}
 	if (!DetourCopyPayloadToProcess(pi.hProcess, sf4eSidecar::s_guidSidecarPayload, &p, sizeof(sf4e::Payload))) {
-		StringCchPrintf(szErrorString, 1024, L"DetourCopyPayloadToProcess failed: %d", GetLastError());
+		const DWORD copyError = GetLastError();
 		SecureZeroMemory(p.helper.nonce, sizeof(p.helper.nonce));
         SecureZeroMemory(p.discord.nonce, sizeof(p.discord.nonce));
-		helper.Stop(0); discord.Stop(0);
-		TerminateProcess(pi.hProcess, 9008);
-		CloseHandle(pi.hThread);
-		CloseHandle(pi.hProcess);
-		if (hSyncEvent) CloseHandle(hSyncEvent);
-		return nullptr;
+		return fail({Outcome::BootstrapFailed, copyError, 0});
 	}
 	SecureZeroMemory(p.helper.nonce, sizeof(p.helper.nonce));
         SecureZeroMemory(p.discord.nonce, sizeof(p.discord.nonce));
 
 	if (ResumeThread(pi.hThread) == static_cast<DWORD>(-1)) {
-		helper.Stop(0); discord.Stop(0);
-		TerminateProcess(pi.hProcess, 9007);
-		CloseHandle(pi.hThread);
-		CloseHandle(pi.hProcess);
-		if (hSyncEvent) CloseHandle(hSyncEvent);
-		return NULL;
+		return fail({Outcome::BootstrapFailed, GetLastError(), 0});
 	}
 	spdlog::info("CreateSF4Process resumed pid={}", pi.dwProcessId);
-	if (hSyncEvent != NULL) {
-		HANDLE startupHandles[] = { hSyncEvent, pi.hProcess };
-		DWORD lockWaitResult = WaitForMultipleObjects(2, startupHandles, FALSE, 60 * 1000);
-		if (lockWaitResult == WAIT_OBJECT_0 + 1) {
-			DWORD exitCode = 0;
-			GetExitCodeProcess(pi.hProcess, &exitCode);
-			spdlog::warn("Game exited before Sidecar startup completed (exit code {})", exitCode);
-		}
-		else if (lockWaitResult == WAIT_TIMEOUT) {
-			spdlog::warn("Sidecar startup did not signal within 60 seconds");
-		}
-		else if (lockWaitResult == WAIT_FAILED) {
-			spdlog::warn("Could not wait for Sidecar startup (Win32 {})", GetLastError());
-		}
-		else {
-			spdlog::info("CreateSF4Process received Sidecar sync signal");
-		}
-		CloseHandle(hSyncEvent);
-	}
-
-	CloseHandle(pi.hThread);
-	return pi.hProcess;
+	const auto initialized = sf4e::startup::Await(startup, pi.hProcess, 60 * 1000,
+        dumps.view && g_logsDir[0] ? dumps.request : nullptr,
+        [&] { NoteServedDump(dumps, dumps.Serve(pi.hProcess, g_logsDir)); });
+    if (initialized.outcome != Outcome::Ready && initialized.outcome != Outcome::EarlyExit) {
+        spdlog::error("Sidecar startup failed (outcome {}, Win32 {})", static_cast<int>(initialized.outcome), initialized.error);
+        return fail(initialized);
+    }
+    if (initialized.outcome == Outcome::Ready) spdlog::info("CreateSF4Process received successful Sidecar startup result");
+    // Keep the exited handle: the common exit path logs, classifies and offers
+    // the same crash report whether it died before Ready or after playing.
+    CloseHandle(pi.hThread);
+    return {initialized, pi.hProcess, {true, 0, WAIT_OBJECT_0, 0}, pi.dwProcessId};
 }
 
 int UpdatePath(const wchar_t* const szLauncherDirW, wchar_t* const szErrorStringW, const int nErrorStringLen) {
@@ -796,51 +803,39 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         const bool steamAbove = sf4e::platform::ProcessElevation() == sf4e::platform::Elevation::Normal &&
             sf4e::platform::SteamElevation() == sf4e::platform::Elevation::Elevated;
         if (steamAbove) spdlog::warn("Steam runs as administrator and the launcher does not; the game may not reach Steam");
-        DWORD startError = 0;
-        HANDLE game = CreateSF4Process(payload,helper,discord,helperPath.wstring(),location.directory.data(),location.executable.data(),1,dlls,dumps,startError);
+        const auto launch = CreateSF4Process(payload,helper,discord,helperPath.wstring(),location.directory.data(),location.executable.data(),1,dlls,dumps);
+        HANDLE game = launch.process;
         if (!game) {
             dumps.Close();
-            // ERROR_ELEVATION_REQUIRED: SSFIV.exe is marked to run as administrator.
-            const char* startMessage = startError == ERROR_ELEVATION_REQUIRED ? "launcher.game_runs_as_admin" : "launcher.start_failed";
-            if (!ShowRecovery(sf4e::loc::T(startMessage),chosenDirectory)) return 0;
+            if (!launch.stop.confirmed) {
+                // No retry path while an owned child may still be alive.
+                const auto text = sf4e::platform::Utf8ToWide(sf4e::loc::Tf("launcher.stop_unconfirmed", launch.processId).c_str());
+                MessageBoxW(nullptr, text.c_str(), L"SF4 Ember Netplay", MB_OK | MB_ICONERROR);
+                return 1;
+            }
+            if (!ShowRecovery(sf4e::loc::Tf(sf4e::launcher::StartupMessage(launch.status), launch.status.error),chosenDirectory)) return 0;
             continue;
         }
         // The game's crash handler asks for its dump here and waits for it.
         // Without a logs folder there is nowhere to put one; the game then
         // writes its own after the request fails.
         if (!g_logsDir[0]) dumps.Close();
-        bool dumped = false;
-        dumps.ServeUntilExit(game, g_logsDir, [&](bool written) {
-            if (written) { dumped = true; spdlog::info(L"Wrote the game's crash dump to {}", dumps.written); }
-            else spdlog::warn("Could not write the game's crash dump (Win32 {})", GetLastError());
-        });
+        dumps.ServeUntilExit(game, g_logsDir, [&](bool written) { NoteServedDump(dumps, written); });
         dumps.Close();
         if (g_logsDir[0]) sf4e::crash::PruneDumps(g_logsDir, 5, dumps.reportWritten.c_str());
-        DWORD exitCode = 0; GetExitCodeProcess(game,&exitCode);
-        spdlog::info("Game exited with code {:#010x} ({})", exitCode, sf4e::crash::ExitCodeName(exitCode));
-        const bool crashed = sf4e::crash::IsCrashExit(exitCode);
-        if (crashed) {
-            reportCrash.exitCode = exitCode; reportCrash.smallDump = dumps.reportWritten;
-            if (dumps.exceptionCode) reportCrash.exceptionCode = dumps.exceptionCode;
-            if (dumps.crashAddress) reportCrash.address = dumps.crashAddress;
+        DWORD exitCode = 0;
+        if (!GetExitCodeProcess(game,&exitCode)) {
+            spdlog::error("Could not read game exit code (Win32 {})", GetLastError());
+            discord.Stop(); helper.Stop(); CloseHandle(game);
+            if (ShowRecovery(sf4e::loc::T("launcher.start_failed"),chosenDirectory)) continue;
+            return 0;
         }
-        if (crashed && !dumped) NoteWindowsCrashDump(GetProcessId(game));
+        const bool early = launch.status.outcome == sf4e::startup::Outcome::EarlyExit;
+        const auto exit = DescribeGameExit(game, exitCode, early, steamAbove, dumps, reportCrash);
         discord.Stop(); helper.Stop(); CloseHandle(game);
         ArchiveReplays();
-        // A loader failure never reaches Sidecar's crash record, so the exit
-        // code is the only thing that tells a missing export from a crash.
-        // With Steam above the launcher the game cannot run at all, and how it
-        // exits after SteamAPI_Init fails may look like a crash, so that comes first.
-        // A crash's report reads the logs folder; without one the message
-        // only names the files.
-        const bool reportable = crashed && exitCode != 0xC0000139u && !steamAbove && g_logsDir[0];
-        // Windows code integrity refusing a file (0xC0E90002) is not a crash
-        // either: say what blocked the game and where to allow it.
-        const char* exitMessage = exitCode == 0xC0000139u ? "launcher.game_wrong_dll" :
-            exitCode == 0xC0E90002u ? "launcher.game_blocked_by_windows" :
-            steamAbove ? "launcher.steam_runs_as_admin" : crashed ? (reportable ? "launcher.game_crashed" : "launcher.game_crashed_files") : "launcher.game_error";
-        if (exitCode != 0 && ShowRecovery(sf4e::loc::T(exitMessage),chosenDirectory,false,sf4e::ui::Tone::Error,false,
-            reportable ? std::optional<sf4e::reports::CrashContext>(reportCrash) : std::nullopt)) continue;
+        if ((early || exitCode != 0) && ShowRecovery(sf4e::loc::T(exit.message),chosenDirectory,false,sf4e::ui::Tone::Error,false,
+            exit.reportable ? std::optional<sf4e::reports::CrashContext>(reportCrash) : std::nullopt)) continue;
         return 0;
     }
 }

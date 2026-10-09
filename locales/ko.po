@@ -6227,3 +6227,18 @@ msgid "country.ZW"
 msgstr "짐바브웨"
 
 #. End of the generated country names.
+
+msgid "launcher.sidecar_failed"
+msgstr "게임 후크를 초기화하지 못했습니다(오류 {0}). sidecar_bootstrap.log와 launcher.log를 확인하세요."
+
+msgid "launcher.start_timeout"
+msgstr "시작에 60초 넘게 걸렸습니다. launcher.log와 sidecar_bootstrap.log를 확인하세요."
+
+msgid "launcher.unsupported_game"
+msgstr "지원하지 않는 SSFIV.exe입니다. Steam의 USFIV를 선택하고 게임 파일을 확인하세요."
+
+msgid "launcher.validation_io"
+msgstr "SSFIV.exe를 읽거나 검증할 수 없습니다(Windows 오류 {0}). 파일 접근 권한을 확인한 뒤 다시 시도하세요."
+
+msgid "launcher.stop_unconfirmed"
+msgstr "Windows가 게임 프로세스 {0}의 종료를 확인하지 못했습니다. Ember를 다시 열기 전에 해당 프로세스를 종료하세요. 자세한 내용: launcher.log."

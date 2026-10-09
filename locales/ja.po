@@ -6227,3 +6227,18 @@ msgid "country.ZW"
 msgstr "ジンバブエ"
 
 #. End of the generated country names.
+
+msgid "launcher.sidecar_failed"
+msgstr "ゲームフックを初期化できませんでした（エラー {0}）。sidecar_bootstrap.log と launcher.log を確認してください。"
+
+msgid "launcher.start_timeout"
+msgstr "起動に60秒以上かかりました。launcher.log と sidecar_bootstrap.log を確認してください。"
+
+msgid "launcher.unsupported_game"
+msgstr "この SSFIV.exe は未対応です。Steam版のUSFIVを選び、ゲームファイルを確認してください。"
+
+msgid "launcher.validation_io"
+msgstr "SSFIV.exe を読み取り、検証できません（Windowsエラー {0}）。ファイルへのアクセスを確認し、再試行してください。"
+
+msgid "launcher.stop_unconfirmed"
+msgstr "ゲームプロセス {0} の終了をWindowsが確認できませんでした。Emberを再起動する前に終了してください。詳細：launcher.log。"

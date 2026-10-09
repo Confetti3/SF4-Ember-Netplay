@@ -6227,3 +6227,18 @@ msgid "country.ZW"
 msgstr "津巴布韦"
 
 #. End of the generated country names.
+
+msgid "launcher.sidecar_failed"
+msgstr "Ember 无法初始化游戏挂钩（错误 {0}）。请查看 sidecar_bootstrap.log 和 launcher.log。"
+
+msgid "launcher.start_timeout"
+msgstr "启动耗时超过60秒。请查看 launcher.log 和 sidecar_bootstrap.log。"
+
+msgid "launcher.unsupported_game"
+msgstr "不支持此 SSFIV.exe。请选择您的 Steam 版 USFIV 并验证游戏文件。"
+
+msgid "launcher.validation_io"
+msgstr "无法读取或验证 SSFIV.exe（Windows 错误 {0}）。请检查文件访问权限后重试。"
+
+msgid "launcher.stop_unconfirmed"
+msgstr "Windows 尚未确认游戏进程 {0} 已结束。请先关闭该进程，再重新打开 Ember。详情：launcher.log。"

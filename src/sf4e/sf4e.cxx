@@ -1,3 +1,4 @@
+#include "../platform/FileSha256.hxx"
 #include <random>
 #include <time.h>
 #include <windows.h>
@@ -26,6 +27,7 @@ std::mt19937 sf4e::localRand;
 std::string sf4e::sidecarHash;
 sf4e::Args sf4e::args;
 HANDLE sf4e::hSyncEvent;
+HANDLE sf4e::hStartupMailbox;
 
 using rIEmSpriteAction = Dimps::Eva::IEmSpriteAction;
 using rIEmSpriteNode = Dimps::Eva::IEmSpriteNode;
@@ -38,191 +40,30 @@ using fTask = sf4e::Eva::Task;
 using fTaskCore = sf4e::Eva::TaskCore;
 
 // https://learn.microsoft.com/en-us/windows/win32/seccng/creating-a-hash-with-cng
-#define NT_SUCCESS(Status)          (((NTSTATUS)(Status)) >= 0)
-#define STATUS_UNSUCCESSFUL         ((NTSTATUS)0xC0000001L)
-
-#define SF4E_HASH_BLOCK_SIZE 1024
-
-HRESULT GetHash(HINSTANCE hinstDll, std::string& output) {
-	int i;
-	CHAR hexPair[3];
-	BCRYPT_ALG_HANDLE hAlg = NULL;
-	BCRYPT_HASH_HANDLE hHash = NULL;
-	NTSTATUS status;
-	DWORD cbData = 0;
-	DWORD cbHash = 0;
-	DWORD cbHashObject = 0;
-	DWORD cbRead = 0;
-	PBYTE pbHash = NULL;
-	PBYTE pbHashObject = NULL;
-	HRESULT ret = S_OK;
-	HANDLE hFile = INVALID_HANDLE_VALUE;
-	TCHAR dllPath[MAX_PATH];
-	BYTE rgbFile[SF4E_HASH_BLOCK_SIZE];
-	BOOL bResult = FALSE;
-
-	if (!GetModuleFileName(
-		hinstDll,
-		dllPath,
-		MAX_PATH
-	)) {
-		ret = E_FAIL;
-		goto Cleanup;
-	}
-
-	//open an algorithm handle
-	if (!NT_SUCCESS(status = BCryptOpenAlgorithmProvider(
-		&hAlg,
-		BCRYPT_SHA256_ALGORITHM,
-		NULL,
-		0)))
-	{
-		wprintf(L"**** Error 0x%x returned by BCryptOpenAlgorithmProvider\n", status);
-		ret = E_FAIL;
-		goto Cleanup;
-	}
-
-	//calculate the size of the buffer to hold the hash object
-	if (!NT_SUCCESS(status = BCryptGetProperty(
-		hAlg,
-		BCRYPT_OBJECT_LENGTH,
-		(PBYTE)&cbHashObject,
-		sizeof(DWORD),
-		&cbData,
-		0)))
-	{
-		wprintf(L"**** Error 0x%x returned by BCryptGetProperty\n", status);
-		ret = E_FAIL;
-		goto Cleanup;
-	}
-
-	//allocate the hash object on the heap
-	pbHashObject = (PBYTE)HeapAlloc(GetProcessHeap(), 0, cbHashObject);
-	if (NULL == pbHashObject)
-	{
-		wprintf(L"**** memory allocation failed\n");
-		ret = E_FAIL;
-		goto Cleanup;
-	}
-
-	//calculate the length of the hash
-	if (!NT_SUCCESS(status = BCryptGetProperty(
-		hAlg,
-		BCRYPT_HASH_LENGTH,
-		(PBYTE)&cbHash,
-		sizeof(DWORD),
-		&cbData,
-		0)))
-	{
-		wprintf(L"**** Error 0x%x returned by BCryptGetProperty\n", status);
-		ret = E_FAIL;
-		goto Cleanup;
-	}
-
-	//allocate the hash buffer on the heap
-	pbHash = (PBYTE)HeapAlloc(GetProcessHeap(), 0, cbHash);
-	if (NULL == pbHash)
-	{
-		wprintf(L"**** memory allocation failed\n");
-		ret = E_FAIL;
-		goto Cleanup;
-	}
-
-	//create a hash
-	if (!NT_SUCCESS(status = BCryptCreateHash(
-		hAlg,
-		&hHash,
-		pbHashObject,
-		cbHashObject,
-		NULL,
-		0,
-		0)))
-	{
-		wprintf(L"**** Error 0x%x returned by BCryptCreateHash\n", status);
-		ret = E_FAIL;
-		goto Cleanup;
-	}
-
-	hFile = CreateFile(dllPath,
-		GENERIC_READ,
-		FILE_SHARE_READ,
-		NULL,
-		OPEN_EXISTING,
-		FILE_FLAG_SEQUENTIAL_SCAN,
-		NULL);
-
-	if (INVALID_HANDLE_VALUE == hFile)
-	{
-		ret = E_FAIL;
-		goto Cleanup;
-	}
-
-	while (bResult = ReadFile(hFile, rgbFile, SF4E_HASH_BLOCK_SIZE, &cbRead, NULL)) {
-		if (0 == cbRead)
-		{
-			break;
-		}
-
-		//hash some data
-		if (!NT_SUCCESS(status = BCryptHashData(
-			hHash,
-			rgbFile,
-			cbRead,
-			0)))
-		{
-			wprintf(L"**** Error 0x%x returned by BCryptHashData\n", status);
-			ret = E_FAIL;
-			goto Cleanup;
-		}
-	}
-
-	//close the hash
-	if (!NT_SUCCESS(status = BCryptFinishHash(
-		hHash,
-		pbHash,
-		cbHash,
-		0)))
-	{
-		wprintf(L"**** Error 0x%x returned by BCryptFinishHash\n", status);
-		ret = E_FAIL;
-		goto Cleanup;
-	}
-
-	for (i = 0; i < cbHash; i++) {
-		snprintf(hexPair, 3, "%02hhx", pbHash[i]);
-		output.append(hexPair);
-	}
-
-	ret = S_OK;
-Cleanup:
-
-	if (hAlg) {
-		BCryptCloseAlgorithmProvider(hAlg, 0);
-	}
-
-	if (hHash) {
-		BCryptDestroyHash(hHash);
-	}
-
-	if (pbHash) {
-		HeapFree(GetProcessHeap(), 0, pbHash);
-	}
-
-	if (pbHashObject) {
-		HeapFree(GetProcessHeap(), 0, pbHashObject);
-	}
-
-	if (hFile != INVALID_HANDLE_VALUE) {
-		CloseHandle(hFile);
-	}
-
-	return ret;
+// Sidecar identity and executable compatibility share the handle hasher.
+// This caller opens only its own DLL; GameFile retains the executable lock.
+HRESULT GetHash(HINSTANCE module, std::string& output) {
+    output.clear();
+    wchar_t path[32768];
+    const DWORD length = GetModuleFileNameW(module, path, 32768);
+    if (!length) return HRESULT_FROM_WIN32(GetLastError());
+    if (length >= 32768) return HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
+    HANDLE file = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+    if (file == INVALID_HANDLE_VALUE) return HRESULT_FROM_WIN32(GetLastError());
+    char digest[65];
+    const DWORD error = sf4e::platform::FileSha256(file, digest);
+    CloseHandle(file);
+    if (error) return HRESULT_FROM_WIN32(error);
+    output = digest;
+    return S_OK;
 }
 
-void sf4e::Install(HINSTANCE hinstDll, const sf4e::Payload* const payload) {
+DWORD sf4e::Install(HINSTANCE hinstDll, const sf4e::Payload* const payload) {
 	if (payload) {
 		sf4e::args = payload->args;
 		sf4e::hSyncEvent = payload->hSyncEvent;
+		sf4e::hStartupMailbox = payload->hStartupMailbox;
 		crash::ConfigureDumpChannel(payload->hDumpRequest, payload->hDumpDone, payload->hDumpMailbox);
 		NetplayFacade::InitFromPayload(payload->netplay);
 		NetplayFacade::ConfigureHelper(payload->helper, payload->helperError);
@@ -230,9 +71,7 @@ void sf4e::Install(HINSTANCE hinstDll, const sf4e::Payload* const payload) {
 	}
 
 	HRESULT r = GetHash(hinstDll, sidecarHash);
-	if (r != S_OK) {
-		MessageBox(NULL, TEXT("Could not hash sidecar!"), NULL, MB_OK);
-	}
+	if (FAILED(r)) return HRESULT_CODE(r);
 
 	localRand.seed(time(NULL));
 
@@ -247,6 +86,7 @@ void sf4e::Install(HINSTANCE hinstDll, const sf4e::Payload* const payload) {
 	Platform::Install();
 	UserApp::Install();
 	custom::Install();
+	return ERROR_SUCCESS;
 }
 
 void sf4e::HooksCommitted() {

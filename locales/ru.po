@@ -6228,3 +6228,18 @@ msgid "country.ZW"
 msgstr "Зимбабве"
 
 #. End of the generated country names.
+
+msgid "launcher.sidecar_failed"
+msgstr "Ember не удалось инициализировать перехватчики игры (ошибка {0}). См. sidecar_bootstrap.log и launcher.log."
+
+msgid "launcher.start_timeout"
+msgstr "Запуск занял более 60 секунд. См. launcher.log и sidecar_bootstrap.log."
+
+msgid "launcher.unsupported_game"
+msgstr "Неподдерживаемый SSFIV.exe. Выберите свою копию USFIV из Steam и проверьте файлы игры."
+
+msgid "launcher.validation_io"
+msgstr "Не удалось прочитать или проверить SSFIV.exe (ошибка Windows {0}). Проверьте доступ к файлу и повторите попытку."
+
+msgid "launcher.stop_unconfirmed"
+msgstr "Windows не подтвердила завершение процесса игры {0}. Закройте его перед повторным запуском Ember. Подробности: launcher.log."
