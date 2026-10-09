@@ -101,13 +101,15 @@ bool ArchiveName(const slots::Bytes& exported, wchar_t (&name)[64]) {
 }
 
 // The archive index contains only CRC-indexed paths. Parsing and exact-byte
-// cache reuse belong to the serialized worker refresh, bounded to 16 files.
+// cache reuse belong to the serialized worker refresh, bounded to
+// ArchiveSummaryCache::kCapacity files.
 class ArchiveIndex {
 public:
  std::vector<ArchivedReplay> Refresh(const fs::path& archive) {
   std::vector<ArchivedReplay> replays;
   candidates_.Refresh([&] {
    std::map<std::uint32_t, replayfiles::ArchiveCandidates::Paths> paths;
+   summaries_.NextListing();
    std::error_code error;
    for (fs::recursive_directory_iterator at(archive, fs::directory_options::skip_permission_denied, error), end;
     !error && at != end; at.increment(error)) {
@@ -144,30 +146,14 @@ private:
 };
 ArchiveIndex& Index() { static ArchiveIndex index; return index; }
 
-// A slot of the game's as its files are now, kept by the replay file's size
-// and time so its 50 KB are read and summed once.
+// A slot of the game's as its files are now. The replay file is kept by its
+// size and time so its 50 KB are read and summed once (SlotFileCache); one
+// that could not be read is empty here and read again next time.
 struct SlotFile { slots::Bytes replay, sidecar; };
 SlotFile ReadSlotFile(const fs::path& file) {
-	struct Kept { std::uintmax_t size; fs::file_time_type written; slots::Bytes replay; };
-	static std::mutex mutex;
-	static std::map<std::wstring, Kept> cache;
-	std::error_code failed;
-	const std::uintmax_t size = fs::file_size(file, failed);
-	const fs::file_time_type written = failed ? fs::file_time_type{} : fs::last_write_time(file, failed);
+	static replayfiles::SlotFileCache cache;
 	SlotFile slot;
-	bool kept = false;
-	if (!failed) {
-		// The lock is held only to look and to store, never while a file is read.
-		std::lock_guard<std::mutex> lock(mutex);
-		const auto at = cache.find(file.wstring());
-		kept = at != cache.end() && at->second.size == size && at->second.written == written;
-		if (kept) slot.replay = at->second.replay;
-	}
-	if (!failed && !kept) {
-		slot.replay = LoadFile(file);
-		std::lock_guard<std::mutex> lock(mutex);
-		cache[file.wstring()] = Kept{size, written, slot.replay};
-	}
+	if (auto replay = cache.Read(file, [](const fs::path& path) { return replayfiles::ReadFile(path, kMostReplayBytes); })) slot.replay = std::move(*replay);
 	// Four bytes, and the game writes them after the replay: read every time.
 	slot.sidecar = LoadFile(file.wstring() + L".0", 4);
 	return slot;

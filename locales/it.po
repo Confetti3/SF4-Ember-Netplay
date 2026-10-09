@@ -145,7 +145,7 @@ msgid "updates.channel.nightly"
 msgstr "Nightly"
 
 msgid "updates.channel.nightly_detail"
-msgstr "Versioni di prova giornaliere con le funzionalità più recenti. Potrebbero non funzionare correttamente. Puoi giocare nelle stanze solo con altri giocatori Nightly, e i replay o le combo salvati su Nightly potrebbero non aprirsi dopo il ritorno a una versione precedente."
+msgstr "Versioni di prova giornaliere con le funzionalità più recenti. Potrebbero non funzionare correttamente. Puoi giocare nelle stanze solo con altri giocatori Nightly, e i replay salvati su Nightly potrebbero non aprirsi dopo il ritorno a una versione precedente."
 
 msgid "updates.channel_detail"
 msgstr "Stabile offre solo le versioni definitive. Beta offre anche le versioni beta e candidate, che possono avere più problemi. Tutti quelli con cui giochi devono avere la stessa versione."
@@ -1387,7 +1387,7 @@ msgid "training.input_history.detail"
 msgstr "Comandi premuti da ogni giocatore."
 
 msgid "training.match.checkpoint_disabled"
-msgstr "Shared save/reset is disabled during rollback matches in nightly."
+msgstr "Il salvataggio e il ripristino condivisi della posizione non sono disponibili nelle partite con rollback."
 
 msgid "training.invalid"
 msgstr "Non accettato: {0}"
@@ -1655,9 +1655,6 @@ msgstr "A vuoto"
 
 msgid "training.meter.knockdown"
 msgstr "Atterramento"
-
-msgid "training.meter.wakeup"
-msgstr "Rialzata"
 
 msgid "training.meter.meaty"
 msgstr "Meaty"

@@ -161,6 +161,25 @@ struct Command {
     // DummyPlan: the whole plan, replacing the one before.
     DummyPlan plan;
 };
+// The results of the last few commands sent with a request id. Several can
+// be applied in one game frame, and the overlay may read only the frame
+// after, so each is kept until newer ones push it out; a command without an
+// id leaves them as they are.
+class Acks {
+public:
+    void Note(std::uint64_t id, bool accepted) {
+        if (!id) return;
+        std::rotate(acks_.begin(), acks_.begin() + 1, acks_.end()); acks_.back() = {id, accepted};
+    }
+    // Whether the command with this id has been applied, and if so its result.
+    bool Find(std::uint64_t id, bool& accepted) const {
+        for (const auto& ack : acks_) if (id && ack.id == id) { accepted = ack.accepted; return true; }
+        return false;
+    }
+private:
+    struct Ack { std::uint64_t id = 0; bool accepted = false; };
+    std::array<Ack, 8> acks_{};
+};
 struct View {
     bool available = false, ready = false, checkpoint = false, loop = true;
     // A rollback match whose frame meter is shown: meter and fighters are
@@ -183,9 +202,7 @@ struct View {
     // ExportSlot: the selected slot's frames, handed over once per request.
     std::uint64_t exportId = 0; int exportedSlot = -1;
     std::vector<Input> exported;
-    std::uint64_t commandId = 0;
-    bool commandAccepted = false;
-    std::string commandError;
+    Acks acks;
     // The dummy's current settings, read from the game every frame; all -1
     // until the adapter has read them.
     DummyState dummy;

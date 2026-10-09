@@ -49,6 +49,7 @@ to root and include the credential; remove them after recovery.
 | `/etc/systemd/system/ember-reports.service` | hardened unit and memory/CPU bounds |
 | `/etc/nginx/conf.d/ember-reports.conf` | HTTP-context rate zone |
 | `/etc/nginx/snippets/ember-reports.conf` | exact POST `/report/v1` proxy |
+| `/etc/nginx/snippets/ember-reports-headers.conf` | HSTS, nosniff and no-referrer for the proxy and its 429 response |
 
 The key reaches the service only as
 `$CREDENTIALS_DIRECTORY/bugsink_dsn_key`. Envelope delivery sets `X-Sentry-Auth`
@@ -63,8 +64,9 @@ event ID stays unchanged; remote acceptance followed by a crash before local
 deletion can resend the same ID.
 
 Configuration can tighten limits within hard bounds. Bind and Bugsink are
-IPv4 loopback only. The supplied nginx/unit use the default ports/state path;
-update those together if editing config. `Group=ember-symbols` permits katie to
+IPv4 loopback only, and the bind port must stay 47850 because the supplied
+nginx proxies there; the service refuses to start on any other port. The unit
+uses the default state path, so update both together if editing `state_dir`. `Group=ember-symbols` permits katie to
 traverse state to symbols; `SupplementaryGroups=ember-reports` lets the service
 read private configuration. Reconnect katie's SSH session after setup for the
 new group membership. The service mounts symbols read-only; katie uploads

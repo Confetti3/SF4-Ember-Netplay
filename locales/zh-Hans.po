@@ -145,7 +145,7 @@ msgid "updates.channel.nightly"
 msgstr "夜间版"
 
 msgid "updates.channel.nightly_detail"
-msgstr "每天提供包含最新功能的测试版本，可能无法正常运行。在房间中只能与其他夜间版玩家一起游玩。在夜间版中保存的回放或连招，回退到旧版本后可能无法打开。"
+msgstr "每天提供包含最新功能的测试版本，可能无法正常运行。在房间中只能与其他夜间版玩家一起游玩。在夜间版中保存的回放，回退到旧版本后可能无法打开。"
 
 msgid "updates.channel_detail"
 msgstr "稳定版只提供正式版本。测试版还提供测试版和候选发布版，可能存在更多问题。一起游玩的所有人需要使用相同的版本。"
@@ -1387,7 +1387,7 @@ msgid "training.input_history.detail"
 msgstr "查看各玩家持续按住的输入。"
 
 msgid "training.match.checkpoint_disabled"
-msgstr "Shared save/reset is disabled during rollback matches in nightly."
+msgstr "回滚对战中无法使用共享的位置保存和重置。"
 
 msgid "training.invalid"
 msgstr "未接受：{0}"
@@ -1655,9 +1655,6 @@ msgstr "挥空"
 
 msgid "training.meter.knockdown"
 msgstr "倒地"
-
-msgid "training.meter.wakeup"
-msgstr "起身"
 
 msgid "training.meter.meaty"
 msgstr "压起身"

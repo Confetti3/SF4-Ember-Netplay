@@ -145,7 +145,7 @@ msgid "updates.channel.nightly"
 msgstr "ナイトリー"
 
 msgid "updates.channel.nightly_detail"
-msgstr "最新機能を含む毎日のテストビルドです。正常に動作しない場合があります。ルームではナイトリー版のプレイヤーとだけ対戦できます。ナイトリー版で保存したリプレイやコンボは、以前のバージョンに戻すと開けなくなる場合があります。"
+msgstr "最新機能を含む毎日のテストビルドです。正常に動作しない場合があります。ルームではナイトリー版のプレイヤーとだけ対戦できます。ナイトリー版で保存したリプレイは、以前のバージョンに戻すと開けなくなる場合があります。"
 
 msgid "updates.channel_detail"
 msgstr "安定版は正式リリースのみを提供します。ベータ版はベータ版やリリース候補版も提供しますが、問題が多い場合があります。一緒に遊ぶ全員が同じバージョンである必要があります。"
@@ -1387,7 +1387,7 @@ msgid "training.input_history.detail"
 msgstr "各プレイヤーが押しているボタンを確認します。"
 
 msgid "training.match.checkpoint_disabled"
-msgstr "Shared save/reset is disabled during rollback matches in nightly."
+msgstr "ロールバック対戦では、共有の位置保存と位置リセットは使用できません。"
 
 msgid "training.invalid"
 msgstr "受け付けられません：{0}"
@@ -1655,9 +1655,6 @@ msgstr "空振り"
 
 msgid "training.meter.knockdown"
 msgstr "ダウン"
-
-msgid "training.meter.wakeup"
-msgstr "起き上がり"
 
 msgid "training.meter.meaty"
 msgstr "重ね"

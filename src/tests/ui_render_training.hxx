@@ -83,8 +83,7 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     draw(nullptr,MenuInput::Back,1);draw();
     Require(TrainingNavigation().Screen()=="recording"&&!TrainingNavigation().Confirming(),"Training Back did more than cancel");
     acceptTraining=true;draw(nullptr,MenuInput::Down,1);draw();draw(nullptr,MenuInput::Select,1);draw("training-pending");
-    training.commandId=trainingCommand.requestId;training.commandAccepted=false;
-    training.commandError="Practice command rejected: the battle state changed while the command was pending. Wait until both fighters are ready and try again. This deliberately long explanation must not displace the controls or button legend.";
+    training.acks.Note(trainingCommand.requestId,false);
     draw("training-command-error");Require((TakeForwardedMenuAction().kind!=MenuAction::Close),"Failed training command closed flyout");
     training.ready=false;TrainingNavigation().Home();TrainingNavigation().Push("recording");draw("training-unavailable");
     training.ready=true;training.mode=training::Mode::Recording;draw("training-recording-suspended");training.mode=training::Mode::Idle;
@@ -110,6 +109,30 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     int cells=0;
     for(const auto& vertex:FindWindow("Training frame meter")->DrawList->VtxBuffer){Require(vertex.col!=oldColor,"Meter drew frames older than the newest 120");if(vertex.col==newColor)++cells;}
     Require(cells==2*120*4,"Meter did not draw exactly 120 cells per player");
+    // The F6 colour key must describe the bars: each entry's colour is the one
+    // the meter draws for a status of that phase, and no two entries share one.
+    {
+        const auto keyEntries=TrainingColorKeyEntries();
+        Require(keyEntries.size()==6,"Colour key does not list the phases the bars draw");
+        std::set<unsigned> keyColors;
+        for(const auto& entry:keyEntries) {
+            Require(keyColors.insert(entry.color).second,"Two colour key entries share a colour");
+            Require(*loc::T(entry.label)!=0,"Colour key entry has no label");
+            unsigned status=0;
+            while(status<40&&training::ClassifyStatus(status)!=entry.phase)++status;
+            Require(status<40,"Colour key phase has no native status to draw");
+            training.meter.frames.clear();
+            for(int frame=0;frame<120;++frame) {
+                auto samples=fighters;
+                for(auto& sample:samples){sample.valid=true;sample.status=status;sample.action=1;}
+                training.meter.frames.push_back({samples,frame});
+            }
+            draw();
+            int drawn=0;
+            for(const auto& vertex:FindWindow("Training frame meter")->DrawList->VtxBuffer)if(vertex.col==entry.color)++drawn;
+            Require(drawn>=2*120*4,"Colour key entry is not the colour the bars draw for its phase");
+        }
+    }
     training.meter=savedMeter;
     mode=6;training.watching=true;draw();
     Require(FindWindow("Training frame meter")->Size.x<=620*hudScale+1,"Match meter did not use Stable width");

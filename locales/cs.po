@@ -145,7 +145,7 @@ msgid "updates.channel.nightly"
 msgstr "Nightly"
 
 msgid "updates.channel.nightly_detail"
-msgstr "Denní testovací sestavení s nejnovějšími funkcemi. Mohou obsahovat závažné chyby. V místnostech můžete hrát jen s ostatními hráči Nightly a záznamy nebo komba uložené v Nightly nemusí jít po návratu ke starší verzi otevřít."
+msgstr "Denní testovací sestavení s nejnovějšími funkcemi. Mohou obsahovat závažné chyby. V místnostech můžete hrát jen s ostatními hráči Nightly a záznamy uložené v Nightly nemusí jít po návratu ke starší verzi otevřít."
 
 msgid "updates.channel_detail"
 msgstr "Stabilní kanál nabízí jen hotová vydání. Beta zahrnuje i beta verze a kandidáty na vydání, které mohou mít více problémů. Všichni, s kým hrajete, potřebují stejnou verzi."
@@ -1387,7 +1387,7 @@ msgid "training.input_history.detail"
 msgstr "Prohlédněte si držené vstupy obou hráčů."
 
 msgid "training.match.checkpoint_disabled"
-msgstr "Shared save/reset is disabled during rollback matches in nightly."
+msgstr "Společné uložení a obnovení pozice není v zápasech s rollbackem k dispozici."
 
 msgid "training.invalid"
 msgstr "Nepřijato: {0}"
@@ -1655,9 +1655,6 @@ msgstr "Mimo"
 
 msgid "training.meter.knockdown"
 msgstr "Sražení"
-
-msgid "training.meter.wakeup"
-msgstr "Vstávání"
 
 msgid "training.meter.meaty"
 msgstr "Meaty"

@@ -6,6 +6,7 @@
 // the command queue's lifetime across a runtime restart.
 #include "../sf4e/sf4e__NetplayFacade.hxx"
 #include "../sf4e/sf4e__RuntimeBridge.hxx"
+#include "../sf4e/sf4e__GameEvents.hxx"
 #include "../common/MatchNotice.hxx"
 #include <spdlog/spdlog.h>
 #include <atomic>
@@ -164,12 +165,73 @@ static void TestCommandLifetime() {
 	CHECK(bridge::LatestRuntime() && facade::GetPresentationSnapshotShared()->runtime);
 }
 
+// A Training request is judged against the live state when the menu would act on it.
+static void TestTrainingRequestJudgement() {
+	using Menu = sf4e::GameEvents::MainMenu;
+	using Verdict = Menu::TrainingVerdict;
+	using namespace sf4e::netplay;
+	facade::RuntimeSnapshot live;
+	live.atMainMenu = true;
+	live.session.generation = {4, 0};
+	const Generation made = {4, 0};
+	// From a room: the room's own gate decides, and a session that moved on drops it.
+	live.session.room = RoomState::Joined;
+	live.canTrain = true;
+	CHECK(Menu::JudgeTrainingRequest(live, made, true) == Verdict::Proceed);
+	live.canTrain = false;
+	CHECK(Menu::JudgeTrainingRequest(live, made, true) == Verdict::Drop);
+	live.canTrain = true;
+	live.session.generation = {5, 0};
+	CHECK(Menu::JudgeTrainingRequest(live, made, true) == Verdict::Drop);
+	live.session.generation = made;
+	live.atMainMenu = false;
+	CHECK(Menu::JudgeTrainingRequest(live, made, true) == Verdict::Drop);
+	// Offline: it waits for the runtime to take its StartOffline, and drops if the controller cannot.
+	live = facade::RuntimeSnapshot();
+	live.atMainMenu = true;
+	live.session.generation = made;
+	CHECK(Menu::JudgeTrainingRequest(live, made, false) == Verdict::Wait);
+	live.offlineRequested = true;
+	CHECK(Menu::JudgeTrainingRequest(live, made, false) == Verdict::Proceed);
+	live.session.room = RoomState::Joined;
+	CHECK(Menu::JudgeTrainingRequest(live, made, false) == Verdict::Drop);
+	live.session.room = RoomState::Idle;
+	live.session.match = MatchState::Playing;
+	CHECK(Menu::JudgeTrainingRequest(live, made, false) == Verdict::Drop);
+	live.session.match = MatchState::None;
+	live.session.generation = {4, 1};
+	CHECK(Menu::JudgeTrainingRequest(live, made, false) == Verdict::Drop);
+}
+
+// The pending request is one record: a newer request made while an older one is
+// being judged is neither erased by the older one's consume nor paired with its deadline.
+static void TestTrainingRequestRecord() {
+	using Request = sf4e::GameEvents::TrainingRequest;
+	using sf4e::netplay::Generation;
+	Request request;
+	Request::Pending seen;
+	CHECK(!request.Peek(100, seen));
+	const auto a = request.Post(Generation{1, 0}, true, 100, 2000);
+	CHECK(request.Peek(150, seen) && seen.serial == a && seen.fromRoom && seen.generation == (Generation{1, 0}) && seen.deadline == 2100);
+	// The game thread has A and is judging it; B arrives with its own origin and deadline.
+	const auto b = request.Post(Generation{2, 0}, false, 500, 2000);
+	CHECK(b != a);
+	CHECK(!request.Consume(a));
+	CHECK(request.Peek(600, seen) && seen.serial == b && !seen.fromRoom && seen.generation == (Generation{2, 0}) && seen.deadline == 2500);
+	CHECK(request.Consume(b) && !request.Consume(b) && !request.Peek(600, seen));
+	// A request that ran out is forgotten, and cannot be consumed afterwards.
+	const auto c = request.Post(Generation{3, 0}, true, 1000, 2000);
+	CHECK(!request.Peek(3001, seen) && !request.Consume(c));
+}
+
 int main() {
 	spdlog::set_level(spdlog::level::off);
 	TestNoticeRules();
 	TestPublishedFrameIsACopy();
 	TestTwoThreads();
 	TestCommandLifetime();
+	TestTrainingRequestJudgement();
+	TestTrainingRequestRecord();
 	std::cout << "Presentation snapshot passed\n";
 	return 0;
 }

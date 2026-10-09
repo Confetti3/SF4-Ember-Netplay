@@ -3,6 +3,7 @@
 #include "../training/MatchPractice.hxx"
 #include <functional>
 #include <string>
+#include <vector>
 #include "MenuNavigation.hxx"
 
 namespace sf4e { namespace ui {
@@ -28,6 +29,10 @@ std::string TrainingNotice(bool& failed);
 MenuNavigation& TrainingNavigation();
 std::string TrainingFrameData(const training::MeterView& meter, int side);
 void DrawTrainingColorKey();
+// One row of the F6 colour key: a locale key, the phase it names and the
+// exact colour (ImU32) the frame meter bars draw for that phase.
+struct TrainingKeyEntry { const char* label; training::Phase phase; unsigned color; };
+std::vector<TrainingKeyEntry> TrainingColorKeyEntries();
 void ChallengerBanner(const training::View& view);
 // Passive, except for the chip that opens the controls.
 // pointer: the pointer is over the chip, so the overlay takes

@@ -145,7 +145,7 @@ msgid "updates.channel.nightly"
 msgstr "Nightly"
 
 msgid "updates.channel.nightly_detail"
-msgstr "Tägliche Testversionen mit den neuesten Funktionen. Sie können fehlerhaft sein. In Räumen können Sie nur mit anderen Nightly-Spielern spielen. In Nightly gespeicherte Replays oder Combos lassen sich nach der Rückkehr zu einer älteren Version möglicherweise nicht mehr öffnen."
+msgstr "Tägliche Testversionen mit den neuesten Funktionen. Sie können fehlerhaft sein. In Räumen können Sie nur mit anderen Nightly-Spielern spielen. In Nightly gespeicherte Replays lassen sich nach der Rückkehr zu einer älteren Version möglicherweise nicht mehr öffnen."
 
 msgid "updates.channel_detail"
 msgstr "Stabil bietet nur fertige Versionen an. Beta bietet auch Beta- und Release-Candidate-Versionen an, die mehr Probleme haben können. Alle, mit denen Sie spielen, brauchen dieselbe Version."
@@ -1387,7 +1387,7 @@ msgid "training.input_history.detail"
 msgstr "Gehaltene Eingaben beider Spieler ansehen."
 
 msgid "training.match.checkpoint_disabled"
-msgstr "Shared save/reset is disabled during rollback matches in nightly."
+msgstr "Gemeinsames Speichern und Zurücksetzen der Position ist in Rollback-Matches nicht verfügbar."
 
 msgid "training.invalid"
 msgstr "Nicht angenommen: {0}"
@@ -1655,9 +1655,6 @@ msgstr "Verfehlt"
 
 msgid "training.meter.knockdown"
 msgstr "Knockdown"
-
-msgid "training.meter.wakeup"
-msgstr "Aufstehen"
 
 msgid "training.meter.meaty"
 msgstr "Meaty"

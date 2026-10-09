@@ -722,8 +722,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   if(seated&&v.trainingCallSequence!=trainingCallSeen_)OpenTableOptions(v,place.table);
   trainingCallSeen_=v.trainingCallSequence;
   // The Ready waits for the runtime's gate, and ends with the seat or the window.
+  // A refused submit keeps the request, since the runtime asks for the Ready only once.
   if(!seated||v.trainingReadySeconds<=0)trainingReadySeen_=v.trainingReadySequence;
-  else if(v.trainingReadySequence!=trainingReadySeen_&&v.canReady){selectedTable_=place.table;Send(CommandKind::Ready,v,submit);trainingReadySeen_=v.trainingReadySequence;}
+  else if(v.trainingReadySequence!=trainingReadySeen_&&v.canReady){selectedTable_=place.table;if(Send(CommandKind::Ready,v,submit))trainingReadySeen_=v.trainingReadySequence;}
  }
  if(lastUiTime_ >= 0 && now < lastUiTime_) {
   // DX9 reset recreates ImGui, but these deadlines belong to the surviving shell.

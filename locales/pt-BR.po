@@ -145,7 +145,7 @@ msgid "updates.channel.nightly"
 msgstr "Nightly"
 
 msgid "updates.channel.nightly_detail"
-msgstr "Versões de teste diárias com os recursos mais recentes. Elas podem apresentar falhas. Nas salas, você só pode jogar com outros jogadores do Nightly, e replays ou combos salvos no Nightly podem não abrir após voltar a uma versão anterior."
+msgstr "Versões de teste diárias com os recursos mais recentes. Elas podem apresentar falhas. Nas salas, você só pode jogar com outros jogadores do Nightly, e replays salvos no Nightly podem não abrir após voltar a uma versão anterior."
 
 msgid "updates.channel_detail"
 msgstr "Estável oferece apenas versões finalizadas. Beta também oferece versões beta e candidatas a lançamento, que podem ter mais problemas. Todos com quem você joga precisam da mesma versão."
@@ -1465,9 +1465,6 @@ msgstr "No vazio"
 msgid "training.meter.knockdown"
 msgstr "Queda"
 
-msgid "training.meter.wakeup"
-msgstr "Levantada"
-
 msgid "training.meter.meaty"
 msgstr "Meaty"
 
@@ -1502,7 +1499,7 @@ msgid "training.recording_none"
 msgstr "Nenhuma gravação salva."
 
 msgid "training.match.checkpoint_disabled"
-msgstr "Shared save/reset is disabled during rollback matches in nightly."
+msgstr "O salvamento e a restauração compartilhados da posição não estão disponíveis em partidas com rollback."
 
 msgid "training.invalid"
 msgstr "Não aceito: {0}"

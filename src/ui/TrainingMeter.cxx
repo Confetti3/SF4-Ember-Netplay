@@ -25,6 +25,10 @@ ImU32 PhaseColor(Phase phase) {
     default: return IM_COL32(220, 206, 166, 255);
     }
 }
+// What a bar cell and the F6 colour key both draw for a phase; idle is dimmer.
+ImU32 BarColor(Phase phase) {
+    return (PhaseColor(phase) & ~IM_COL32_A_MASK) | (static_cast<ImU32>(phase == Phase::Neutral ? 130 : 215) << IM_COL32_A_SHIFT);
+}
 ImVec4 AdvantageColor(int frames) {
     return ImGui::ColorConvertU32ToFloat4(frames > 0 ? IM_COL32(118, 224, 160, 255) :
         frames < 0 ? IM_COL32(255, 121, 129, 255) : palette::Ivory);
@@ -75,8 +79,7 @@ void Meter(const MeterView& meter, float hudScale) {
                 const auto& frame = meter.frames[index];
                 const auto& sample = frame.fighters[side];
                 const auto phase = sample.valid ? ClassifyStatus(sample.status) : Phase::Unknown;
-                const ImU32 color =
-                    (PhaseColor(phase) & ~IM_COL32_A_MASK) | (static_cast<ImU32>(phase == Phase::Neutral ? 130 : 215) << IM_COL32_A_SHIFT);
+                const ImU32 color = BarColor(phase);
                 draw->AddRectFilled(ImVec2(origin.x + i * cell, origin.y),
                     ImVec2(origin.x + (i + 1) * cell - (cell >= 3 ? 1.f : 0.f), origin.y + height), color);
                 if (index > 0 && sample.valid && sample.action >= 0 && sample.action != meter.frames[index - 1].fighters[side].action)
@@ -95,23 +98,6 @@ std::string MeasurementReason(const MeterView& meter) {
     for(int side=0;side<2;++side)if(meter.startupFrames[side]<0)
         return "P"+std::to_string(side+1)+" "+Unavailable(loc::T("training.startup"),meter.startupUnavailable[side]);
     return {};
-}
-ImU32 KindColor(MeterKind kind) {
-    switch (kind) {
-    case MeterKind::Neutral: return IM_COL32(70, 74, 78, 255);
-    case MeterKind::Movement: return IM_COL32(120, 150, 160, 255);
-    case MeterKind::Startup: return IM_COL32(60, 196, 110, 255);
-    case MeterKind::Active: return IM_COL32(236, 56, 96, 255);
-    case MeterKind::Recovery: return IM_COL32(60, 120, 232, 255);
-    case MeterKind::Attack: return palette::Ember;
-    case MeterKind::Guard: return IM_COL32(244, 222, 96, 255);
-    case MeterKind::Hit: return IM_COL32(246, 176, 48, 255);
-    case MeterKind::Down: return IM_COL32(150, 92, 196, 255);
-    case MeterKind::Rise: return IM_COL32(216, 184, 240, 255);
-    case MeterKind::Sequence: return IM_COL32(220, 206, 166, 255);
-    case MeterKind::Meaty: return IM_COL32(255, 72, 214, 255);
-    default: return IM_COL32(48, 50, 54, 255);
-    }
 }
 struct Reading { std::string label, value; };
 std::vector<Reading> Readings(const MeterView& meter, int side) {
@@ -148,17 +134,23 @@ std::string TrainingFrameData(const training::MeterView& meter, int side) {
     if (!meter.meatyValid[side]) text += "\n" + std::string(loc::T("training.meter.meaty")) + ": --";
     return text;
 }
+// The key lists the phases the bars draw, with the colour they draw them in.
+// Idle has no entry: it is the dim gap between moves and has no label.
+std::vector<TrainingKeyEntry> TrainingColorKeyEntries() {
+    const std::pair<Phase, const char*> phases[] = {{Phase::Attack, "training.meter.attack"}, {Phase::Hit, "training.meter.hit"},
+        {Phase::Guard, "training.meter.block"}, {Phase::Down, "training.meter.knockdown"}, {Phase::Movement, "training.meter.move"},
+        {Phase::Unknown, "training.meter.throw"}};
+    std::vector<TrainingKeyEntry> entries;
+    for (const auto& phase : phases) entries.push_back({phase.second, phase.first, BarColor(phase.first)});
+    return entries;
+}
 void DrawTrainingColorKey() {
-    const std::pair<MeterKind, const char*> entries[] = {{MeterKind::Startup, "training.startup"}, {MeterKind::Active, "training.meter.active"},
-        {MeterKind::Recovery, "training.meter.recovery"}, {MeterKind::Hit, "training.meter.hit"}, {MeterKind::Guard, "training.meter.block"},
-        {MeterKind::Down, "training.meter.knockdown"}, {MeterKind::Rise, "training.meter.wakeup"}, {MeterKind::Meaty, "training.meter.meaty"},
-        {MeterKind::Sequence, "training.meter.throw"}, {MeterKind::Attack, "training.meter.attack"}, {MeterKind::Movement, "training.meter.move"}};
     const float h = ImGui::GetTextLineHeight();
-    for (const auto& entry : entries) {
+    for (const auto& entry : TrainingColorKeyEntries()) {
         const ImVec2 at = ImGui::GetCursorScreenPos();
-        ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(at.x, at.y + h * .2f), ImVec2(at.x + h * .6f, at.y + h * .8f), KindColor(entry.first));
+        ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(at.x, at.y + h * .2f), ImVec2(at.x + h * .6f, at.y + h * .8f), entry.color);
         ImGui::Dummy(ImVec2(h * .6f, h)); ImGui::SameLine(0, 4 * Scale());
-        ImGui::TextUnformatted(loc::T(entry.second));
+        ImGui::TextUnformatted(loc::T(entry.label));
     }
 }
 // The game's own words for a fight request arriving, across the middle of

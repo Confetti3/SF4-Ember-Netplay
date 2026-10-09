@@ -106,7 +106,7 @@ if(BUILD_TESTING)
     set_tests_properties(ReplayFiles PROPERTIES TIMEOUT 15)
     add_executable(ReplayArchiveIndexTest "src/tests/replay_archive_index_test.cxx")
     target_compile_features(ReplayArchiveIndexTest PRIVATE cxx_std_17)
-    target_link_libraries(ReplayArchiveIndexTest PRIVATE Threads::Threads)
+    target_link_libraries(ReplayArchiveIndexTest PRIVATE Threads::Threads $<$<PLATFORM_ID:Windows>:bcrypt>)
     add_test(NAME ReplayArchiveIndex COMMAND ReplayArchiveIndexTest)
     set_tests_properties(ReplayArchiveIndex PROPERTIES TIMEOUT 15)
     add_executable(ReplayImportWorkerTest "src/tests/replay_import_worker_test.cxx")
@@ -498,7 +498,7 @@ target_link_libraries(sf4e_common PUBLIC "iphlpapi" "ws2_32" "winhttp")
 # The game's replay files: archiving and importing (platform/ReplayFiles.hxx).
 add_library(sf4e_replay_files STATIC "src/platform/ReplayFiles.cxx" "src/platform/ReplayFiles.hxx" "src/common/ReplaySlots.hxx")
 target_compile_features(sf4e_replay_files PUBLIC cxx_std_17)
-target_link_libraries(sf4e_replay_files PUBLIC spdlog::spdlog PRIVATE shell32 ole32)
+target_link_libraries(sf4e_replay_files PUBLIC spdlog::spdlog PRIVATE shell32 ole32 bcrypt)
 # Ember's own video export: the frame grab in the game (platform/FrameGrab.hxx),
 # the encoder in a Launcher.exe the game starts for it (VideoLink.hxx,
 # VideoEncoder.hxx). Media Foundation and the audio device API are

@@ -322,7 +322,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		// moves, and the menu closes behind it. The runtime's own gate decides.
 		if (action.enterTraining && action.command.kind != sf4e::netplay::CommandKind::StartOffline) {
 			if (!snapshot.canTrain) return false;
-			fMainMenu::RequestTraining();
+			fMainMenu::RequestTraining(snapshot.session.generation, true);
 			presentation.Close();
 			return true;
 		}
@@ -351,8 +351,10 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		const bool training = action.enterTraining && request.command.kind == sf4e::netplay::CommandKind::StartOffline &&
 			snapshot.atMainMenu && snapshot.session.room == sf4e::netplay::RoomState::Idle &&
 			snapshot.session.match == sf4e::netplay::MatchState::None;
+		const auto generation = request.command.generation;
 		if (!sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request))) return false;
-		if (training) fMainMenu::RequestTraining();
+		// The menu acts on it only once the runtime has taken the command, and while this session stands.
+		if (training) fMainMenu::RequestTraining(generation, false);
 		return true;
 	}, [&] {
 		DrawNetworkCharaConfig(lobbyConditions, lobbyMenuCharaID,

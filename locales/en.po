@@ -145,7 +145,7 @@ msgid "updates.channel.nightly"
 msgstr "Nightly"
 
 msgid "updates.channel.nightly_detail"
-msgstr "Daily test builds with the newest features. They may break. You can only play rooms with other Nightly players, and replays or combos saved on Nightly may not open after going back."
+msgstr "Daily test builds with the newest features. They may break. You can only play rooms with other Nightly players, and replays saved on Nightly may not open after going back."
 
 msgid "updates.channel_detail"
 msgstr "Stable offers finished releases only. Beta also offers beta and release-candidate builds, which may have more problems. Everyone you play with needs the same version."
@@ -1387,7 +1387,7 @@ msgid "training.input_history.detail"
 msgstr "Inspect each player's held inputs."
 
 msgid "training.match.checkpoint_disabled"
-msgstr "Shared save/reset is disabled during rollback matches in nightly."
+msgstr "Shared save/reset is not available in rollback matches."
 
 msgid "training.invalid"
 msgstr "Not accepted: {0}"
@@ -1655,9 +1655,6 @@ msgstr "Whiff"
 
 msgid "training.meter.knockdown"
 msgstr "Knockdown"
-
-msgid "training.meter.wakeup"
-msgstr "Wakeup"
 
 msgid "training.meter.meaty"
 msgstr "Meaty"

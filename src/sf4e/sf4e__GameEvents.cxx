@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <mutex>
 #include <windows.h>
 #include <detours/detours.h>
 #include <spdlog/spdlog.h>
@@ -12,6 +13,7 @@
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__Game__Battle__System.hxx"
 #include "sf4e__NetplayFacade.hxx"
+#include "sf4e__RuntimeBridge.hxx"
 #include "sf4e__UserApp.hxx"
 #include "../training/TrainingRuntime.hxx"
 
@@ -39,7 +41,7 @@ using fUserApp = sf4e::UserApp;
 
 int (*fMainMenu::OnModeSelectedOverride)(int mode);
 std::atomic<int> fMainMenu::bOverrideItemObserverState{-1};
-std::atomic<ULONGLONG> fMainMenu::trainingRequestedUntil{0};
+fGameEvents::TrainingRequest fMainMenu::trainingRequest;
 void (*fVsBattle::OnTasksRegistered)() = nullptr;
 void (*fVsPreBattle::OnTasksRegistered)() = nullptr;
 
@@ -177,18 +179,36 @@ void fMainMenu::Install() {
 }
 
 
-void fMainMenu::RequestTraining() {
-	trainingRequestedUntil.store(GetTickCount64() + 2000);
+void fMainMenu::RequestTraining(const sf4e::netplay::Generation& generation, bool fromRoom) {
+	trainingRequest.Post(generation, fromRoom, GetTickCount64(), 2000);
+}
+
+fMainMenu::TrainingVerdict fMainMenu::JudgeTrainingRequest(const sf4e::NetplayFacade::RuntimeSnapshot& live,
+	const sf4e::netplay::Generation& generation, bool fromRoom) {
+	if (!(live.session.generation == generation) || !live.atMainMenu) return TrainingVerdict::Drop;
+	if (fromRoom) return live.canTrain ? TrainingVerdict::Proceed : TrainingVerdict::Drop;
+	// The offline path is sent with its StartOffline, which the controller takes
+	// only outside any room or match; the runtime says so once it has taken it.
+	if (live.session.room != sf4e::netplay::RoomState::Idle || live.session.match != sf4e::netplay::MatchState::None) return TrainingVerdict::Drop;
+	return live.offlineRequested ? TrainingVerdict::Proceed : TrainingVerdict::Wait;
 }
 
 int fMainMenu::GetItemObserverState() {
 	sf4e::NetplayFacade::NotifyRuntimeEventSystemReady();
-	if (const ULONGLONG until = trainingRequestedUntil.load()) {
-		if (GetTickCount64() > until) {
-			trainingRequestedUntil.store(0);
+	fGameEvents::TrainingRequest::Pending request;
+	if (trainingRequest.Peek(GetTickCount64(), request) &&
+		(this->*rMainMenu::itemObserverMethods.GetItemObserverState)() == rMainMenu::MMIOS_IDLE) {
+		// The request was made from a snapshot and, offline, before the runtime
+		// took its command: act only if it still holds in the live state. It is
+		// forgotten by serial, so a newer request made meanwhile is left alone.
+		const auto live = sf4e::NetplayFacade::bridge::LatestRuntime();
+		const auto verdict = live ? JudgeTrainingRequest(*live, request.generation, request.fromRoom) : TrainingVerdict::Drop;
+		if (verdict == TrainingVerdict::Drop) {
+			if (trainingRequest.Consume(request.serial))
+				spdlog::info("Main menu: Training request dropped, the session it was made in has moved on");
 		}
-		else if ((this->*rMainMenu::itemObserverMethods.GetItemObserverState)() == rMainMenu::MMIOS_IDLE) {
-			trainingRequestedUntil.store(0);
+		// Wait: the runtime has not taken it yet; look again next frame, within the same two seconds.
+		else if (verdict == TrainingVerdict::Proceed && trainingRequest.Consume(request.serial)) {
 			// The game's own selection, with the Fight Request question
 			// switched off for this one call: it then exits to Training
 			// directly, the path it takes where requests are not offered.

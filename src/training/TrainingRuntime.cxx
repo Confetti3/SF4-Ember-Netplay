@@ -70,8 +70,7 @@ thread_local bool overriding = false;
 bool sampling = false;
 bool commitInput = false;
 int beforeFrame = 0;
-std::uint64_t commandId=0;
-bool commandAccepted=false;
+Acks acks;
 // Updates that advanced more than one frame, each of which resets the frame
 // meter. Logged per battle: a large count explains a missing frame-advantage
 // readout (ledger F-006).
@@ -150,6 +149,58 @@ bool ReadOverride(int side, Input& result) {
     if (!overriding || side < 0 || side >= 2) return false;
     result = output[side]; return true;
 }
+// Applies one command from the panel or the hotkeys; whether it took effect.
+static bool Dispatch(Native* system, const Command& command) {
+    if (command.generation == session.GetView().generation && command.action == Action::AutoFreeze) {
+        meter.SetAutoFreeze(command.value != 0); return true;
+    }
+    if (command.generation == session.GetView().generation && command.action == Action::Place) return PlaceFighters(system, command.place);
+    if (command.generation == session.GetView().generation && command.action == Action::DummyPlan) {
+        if (!ValidDummyPlan(command.plan)) return false;
+        dummyPlan = command.plan; return true;
+    }
+    if (command.generation == session.GetView().generation && command.action == Action::Leave) {
+        // Once per battle; value is the announcer's volume in percent, 0 for none.
+        if (leaveIn) return false;
+        leaveIn = LeaveFrames;
+        const bool called = command.value > 0 && Dimps::Sound::PlaySystemCue(Dimps::Sound::SystemCue::HereComesChallenger,
+            Dimps::Sound::SystemChannel::Voice, command.value / 100.f);
+        spdlog::info("Training: leaving for the main menu in {} frames; challenger call {}", LeaveFrames, called ? "played" : "not played");
+        return true;
+    }
+    if (command.generation == session.GetView().generation && command.action == Action::ExportSlot) {
+        exportedSlot = session.GetView().selected; exported = session.Slot(exportedSlot); ++exportId; return true;
+    }
+    if (!session.Apply(command)) {
+        // A position that was asked for and not saved or put back is the
+        // one refusal a player notices without being told.
+        if (command.action == Action::Save || command.action == Action::Restore)
+            spdlog::info("Training: {} position refused (fight ready={}, saved={}, command for battle {} in battle {})",
+                command.action == Action::Save ? "save" : "reset", session.GetView().ready, session.GetView().checkpoint,
+                command.generation, session.GetView().generation);
+        return false;
+    }
+    if (command.action == Action::Save) {
+        if (checkpoint.used) Battle::SaveState::Free(&checkpoint);
+        // A state the memento cannot represent is refused, not kept
+        // without its task functors (ledger A-001).
+        const bool saved = Battle::SaveState::Save(&checkpoint);
+        // The checkpoint is loaded long after: a voice that had ended by then must not come back with it.
+        if (saved) Battle::SaveState::ForgetFinishedSounds(&checkpoint);
+        session.SetCheckpoint(checkpoint.used);
+        spdlog::info("Training: position {}", saved ? "saved" : "not saved, the game's state could not be taken");
+        return saved;
+    } else if (command.action == Action::Restore) {
+        const bool restored = RestoreCheckpoint(system);
+        spdlog::info("Training: position {}", restored ? "reset to the saved one" : "not reset");
+        return restored;
+    } else if (command.action == Action::ClearHistory) {
+        meter.Reset();
+    } else if (command.action == Action::DummyState) {
+        WriteDummyState(command.dummy);
+    }
+    return true;
+}
 void BeforeUpdate(Native* system, bool networkOwned) {
     overriding = false; sampling = false; commitInput = false;
     const bool available = !networkOwned &&
@@ -164,59 +215,7 @@ void BeforeUpdate(Native* system, bool networkOwned) {
         *Native::GetReadyState(system) == Native::RS_FIGHT);
     std::deque<Command> pending;
     { std::lock_guard<std::mutex> lock(mutex); pending.swap(commands); }
-    for (const auto& command : pending) {
-        commandId=command.requestId; commandAccepted=false;
-        if (command.generation == session.GetView().generation && command.action == Action::AutoFreeze) {
-            meter.SetAutoFreeze(command.value != 0); commandAccepted=true; continue;
-        }
-        if (command.generation == session.GetView().generation && command.action == Action::Place) { commandAccepted = PlaceFighters(system, command.place); continue; }
-        if (command.generation == session.GetView().generation && command.action == Action::DummyPlan) {
-            commandAccepted = ValidDummyPlan(command.plan);
-            if (commandAccepted) dummyPlan = command.plan;
-            continue;
-        }
-        if (command.generation == session.GetView().generation && command.action == Action::Leave) {
-            // Once per battle; value is the announcer's volume in percent, 0 for none.
-            commandAccepted = !leaveIn;
-            if (commandAccepted) {
-                leaveIn = LeaveFrames;
-                const bool called = command.value > 0 && Dimps::Sound::PlaySystemCue(Dimps::Sound::SystemCue::HereComesChallenger,
-                    Dimps::Sound::SystemChannel::Voice, command.value / 100.f);
-                spdlog::info("Training: leaving for the main menu in {} frames; challenger call {}", LeaveFrames, called ? "played" : "not played");
-            }
-            continue;
-        }
-        if (command.generation == session.GetView().generation && command.action == Action::ExportSlot) {
-            exportedSlot = session.GetView().selected; exported = session.Slot(exportedSlot); ++exportId; commandAccepted = true; continue;
-        }
-        if (!session.Apply(command)) {
-            // A position that was asked for and not saved or put back is the
-            // one refusal a player notices without being told.
-            if (command.action == Action::Save || command.action == Action::Restore)
-                spdlog::info("Training: {} position refused (fight ready={}, saved={}, command for battle {} in battle {})",
-                    command.action == Action::Save ? "save" : "reset", session.GetView().ready, session.GetView().checkpoint,
-                    command.generation, session.GetView().generation);
-            continue;
-        }
-        commandAccepted=true;
-        if (command.action == Action::Save) {
-            if (checkpoint.used) Battle::SaveState::Free(&checkpoint);
-            // A state the memento cannot represent is refused, not kept
-            // without its task functors (ledger A-001).
-            commandAccepted = Battle::SaveState::Save(&checkpoint);
-            // The checkpoint is loaded long after: a voice that had ended by then must not come back with it.
-            if (commandAccepted) Battle::SaveState::ForgetFinishedSounds(&checkpoint);
-            session.SetCheckpoint(checkpoint.used);
-            spdlog::info("Training: position {}", commandAccepted ? "saved" : "not saved, the game's state could not be taken");
-        } else if (command.action == Action::Restore) {
-            commandAccepted = RestoreCheckpoint(system);
-            spdlog::info("Training: position {}", commandAccepted ? "reset to the saved one" : "not reset");
-        } else if (command.action == Action::ClearHistory) {
-            meter.Reset();
-        } else if (command.action == Action::DummyState) {
-            WriteDummyState(command.dummy);
-        }
-    }
+    for (const auto& command : pending) acks.Note(command.requestId, Dispatch(system, command));
     if (!session.Replying()) if (int* options = DummyOptions()) dummyAction.EndReply(options[Manager::OPT_ACTION]);
     // The pause menu's "exit to main menu", asked for by Ember instead of the
     // player. Only out of a fight that is running: a battle still loading or
@@ -394,8 +393,7 @@ void AfterUpdate(Native* system) {
     published.exportId = exportId; published.exportedSlot = exportedSlot; published.exported = exported;
     for (int side = 0; side < 2; ++side) published.fighters[side] = BattleFighter(system, side);
     published.leavingIn = leaveIn;
-    published.commandId=commandId;published.commandAccepted=commandAccepted;
-    if(commandId&&!commandAccepted)published.commandError="Practice state changed. The command was not applied.";
+    published.acks=acks;
 }
 void SetMatchPractice(bool enabled) { matchPractice = enabled; practice = PracticeState{}; }
 bool MatchPracticeActive() { return matchPractice; }

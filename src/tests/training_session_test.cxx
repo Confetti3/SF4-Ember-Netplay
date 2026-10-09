@@ -654,6 +654,20 @@ int main() {
             // The fight over and begun again saves again.
             Require(DecidePractice(state, 0, 0, false) == PracticeStep::None && DecidePractice(state, 0, 0, true) == PracticeStep::Save && state.by == -1, "A new fight did not save its start");
         }
+        {
+            // A tracked Record, then an untracked hotkey command and a tracked save
+            // in the same game frame: both tracked results stay readable.
+            Acks acks; bool accepted = false;
+            acks.Note(5, true); acks.Note(0, false); acks.Note(6, false);
+            Require(acks.Find(5, accepted) && accepted, "An untracked command replaced a tracked acknowledgement");
+            Require(acks.Find(6, accepted) && !accepted, "A second tracked acknowledgement in one frame was lost");
+            Require(!acks.Find(0, accepted) && !acks.Find(7, accepted), "An unsent request read as acknowledged");
+            // Only newer tracked results push an old one out.
+            for (int i = 0; i < 7; ++i) acks.Note(0, true);
+            Require(acks.Find(5, accepted), "Untracked commands aged out a tracked acknowledgement");
+            for (std::uint64_t id = 10; id < 17; ++id) acks.Note(id, true);
+            Require(!acks.Find(5, accepted) && acks.Find(6, accepted) && acks.Find(16, accepted), "Acknowledgements did not keep the newest eight");
+        }
         std::puts("Training session and frame meter checks passed.");
         return 0;
     } catch (const std::exception& e) { std::fprintf(stderr, "%s\n", e.what()); return 1; }

@@ -145,7 +145,7 @@ msgid "updates.channel.nightly"
 msgstr "Nightly"
 
 msgid "updates.channel.nightly_detail"
-msgstr "Dagelijkse testversies met de nieuwste functies. Ze kunnen problemen geven. In kamers kun je alleen met andere Nightly-spelers spelen. Replays of combo’s die op Nightly zijn opgeslagen, kun je na terugkeer naar een eerdere versie mogelijk niet meer openen."
+msgstr "Dagelijkse testversies met de nieuwste functies. Ze kunnen problemen geven. In kamers kun je alleen met andere Nightly-spelers spelen. Replays die op Nightly zijn opgeslagen, kun je na terugkeer naar een eerdere versie mogelijk niet meer openen."
 
 msgid "updates.channel_detail"
 msgstr "Stabiel biedt alleen afgewerkte versies aan. Bèta biedt ook bèta- en release-candidateversies aan, die meer problemen kunnen hebben. Iedereen met wie je speelt heeft dezelfde versie nodig."
@@ -1387,7 +1387,7 @@ msgid "training.input_history.detail"
 msgstr "Bekijk de invoer van beide spelers."
 
 msgid "training.match.checkpoint_disabled"
-msgstr "Shared save/reset is disabled during rollback matches in nightly."
+msgstr "Gedeeld opslaan en herstellen van de positie is niet beschikbaar in rollback-wedstrijden."
 
 msgid "training.invalid"
 msgstr "Niet geaccepteerd: {0}"
@@ -1655,9 +1655,6 @@ msgstr "Mis"
 
 msgid "training.meter.knockdown"
 msgstr "Knockdown"
-
-msgid "training.meter.wakeup"
-msgstr "Opstaan"
 
 msgid "training.meter.meaty"
 msgstr "Meaty"

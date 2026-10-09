@@ -1,6 +1,10 @@
 use serde::Deserialize;
 use std::{net::SocketAddr, path::PathBuf};
 
+/// The port deploy/nginx proxies to. nginx hard-codes it, so any other bind
+/// would start cleanly yet receive no traffic.
+pub const BIND_PORT: u16 = 47850;
+
 #[derive(Clone, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
@@ -35,7 +39,7 @@ pub struct Limits {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            bind: "127.0.0.1:47850".parse().unwrap(),
+            bind: SocketAddr::from((std::net::Ipv4Addr::LOCALHOST, BIND_PORT)),
             state_dir: "/var/lib/ember-reports".into(),
             bugsink_base: "http://127.0.0.1:47860".into(),
             bugsink_host: "bugs.embernetplay.link".into(),
@@ -69,8 +73,8 @@ impl Default for Limits {
 
 impl Config {
     pub fn validate(&self) -> Result<(), &'static str> {
-        if self.bind.ip() != std::net::Ipv4Addr::LOCALHOST || self.bind.port() == 0 {
-            return Err("bind must be 127.0.0.1 with a nonzero port");
+        if self.bind.ip() != std::net::Ipv4Addr::LOCALHOST || self.bind.port() != BIND_PORT {
+            return Err("bind must be 127.0.0.1:47850, the port nginx proxies to");
         }
         let url = reqwest::Url::parse(&self.bugsink_base).map_err(|_| "invalid bugsink_base")?;
         if url.scheme() != "http"

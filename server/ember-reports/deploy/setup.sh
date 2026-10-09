@@ -12,6 +12,7 @@ SITE=/etc/nginx/sites-available/embernetplay.link
 UNIT=/etc/systemd/system/ember-reports.service
 ZONE=/etc/nginx/conf.d/ember-reports.conf
 LOCATIONS=/etc/nginx/snippets/ember-reports.conf
+HEADERS=/etc/nginx/snippets/ember-reports-headers.conf
 
 [[ $(id -u) == 0 ]] || { echo "Run with sudo." >&2; exit 1; }
 [[ $# == 1 ]] || { echo "usage: sudo bash setup.sh /root/bugsink-report-key" >&2; exit 2; }
@@ -19,7 +20,7 @@ KEY=$(realpath -e -- "$1")
 [[ -f "$KEY" && ! -L "$1" && $(stat -c %u "$KEY") == 0 ]] || { echo "Credential must be a root-owned regular file." >&2; exit 1; }
 mode=$(stat -c %a "$KEY")
 (( (8#$mode & 077) == 0 )) || { echo "Credential file must have no group/other permissions (use 0600)." >&2; exit 1; }
-for file in bin/ember-reports ember-reports.service config.example.json nginx/ember-reports-zone.conf nginx/ember-reports-locations.conf; do
+for file in bin/ember-reports ember-reports.service config.example.json nginx/ember-reports-zone.conf nginx/ember-reports-locations.conf nginx/ember-reports-headers.conf; do
     [[ -f "$SRC/$file" ]] || { echo "Missing staged $file." >&2; exit 1; }
 done
 [[ -f "$SITE" ]] || { echo "Missing HTTPS site $SITE." >&2; exit 1; }
@@ -47,7 +48,7 @@ install -d -o ember-reports -g ember-reports -m 0700 "$STATE/dumps" "$STATE/outb
 # Preserve the immediate predecessor. The backup is root-private and removed
 # after success; a failed install restores files and the prior service state.
 backup=$(mktemp -d /var/tmp/ember-reports-install.XXXXXX)
-targets=("$LIB/ember-reports" "$UNIT" "$ETC/config.json" "$ETC/bugsink_dsn_key" "$ZONE" "$LOCATIONS" "$SITE")
+targets=("$LIB/ember-reports" "$UNIT" "$ETC/config.json" "$ETC/bugsink_dsn_key" "$ZONE" "$LOCATIONS" "$HEADERS" "$SITE")
 for i in "${!targets[@]}"; do
     [[ ! -e "${targets[$i]}" ]] || cp -a -- "${targets[$i]}" "$backup/$i"
 done
@@ -85,6 +86,7 @@ install -o root -g root -m 0600 "$KEY" "$ETC/bugsink_dsn_key.new"
 mv -f -- "$ETC/bugsink_dsn_key.new" "$ETC/bugsink_dsn_key"
 install -o root -g root -m 0644 "$SRC/nginx/ember-reports-zone.conf" "$ZONE"
 install -o root -g root -m 0644 "$SRC/nginx/ember-reports-locations.conf" "$LOCATIONS"
+install -o root -g root -m 0644 "$SRC/nginx/ember-reports-headers.conf" "$HEADERS"
 python3 - "$SITE" <<'PY'
 import pathlib, re, sys
 path = pathlib.Path(sys.argv[1])

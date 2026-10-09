@@ -40,7 +40,12 @@ struct Lab {
     // position as offsets from F1 (-1 unbound): the player's, kept in training.json.
     training::DummyPlan plan; std::string replyMoves;
     std::array<int,2> keys{{1,10}};
+    // The save or reset sent last, told only once the game says it was done.
+    std::uint64_t position=0,positionGeneration=0; bool positionSave=false;
 } lab;
+// One sequence for every tracked command, so the panel's and the position
+// keys' acknowledgements are never confused.
+std::uint64_t nextRequest=1;
 enum { ResetKey, SaveKey };
 constexpr const wchar_t* PracticeFile=L"training.json";
 void Notice(std::string text,bool failed=false) { lab.notice=std::move(text); lab.failed=failed; lab.noticeAt=ImGui::GetTime(); }
@@ -80,15 +85,24 @@ void LoadPractice() {
     const auto keys=practice.value("keys",nlohmann::json::object());
     lab.keys=ReadPositionKeys(keys);
 }
-void SavePosition(const training::View& view,const TrainingSubmit& submit) {
-    Command command; command.action=Action::Save; command.generation=view.generation;
-    const bool sent=submit&&submit(command);
-    Notice(loc::T(sent?"training.position.saved":"training.command_rejected"),!sent);
+// A queued save or reset can still be refused by the game, or fail there, so
+// its notice waits for the result. The latest attempt owns the notice, so an
+// older request's result arriving later is not shown over it.
+void SendPosition(const training::View& view,const TrainingSubmit& submit,Action action) {
+    lab.position=0;
+    Command command; command.action=action; command.generation=view.generation; command.requestId=nextRequest++;
+    if((action==Action::Restore&&!view.checkpoint)||!submit||!submit(command)) { Notice(loc::T("training.command_rejected"),true); return; }
+    lab.position=command.requestId; lab.positionGeneration=view.generation; lab.positionSave=action==Action::Save;
+    lab.notice.clear();
 }
-void ResetPosition(const training::View& view,const TrainingSubmit& submit) {
-    Command command; command.action=Action::Restore; command.generation=view.generation;
-    const bool sent=view.checkpoint&&submit&&submit(command);
-    Notice(loc::T(sent?"training.position.reset_done":"training.command_rejected"),!sent);
+void SavePosition(const training::View& view,const TrainingSubmit& submit) { SendPosition(view,submit,Action::Save); }
+void ResetPosition(const training::View& view,const TrainingSubmit& submit) { SendPosition(view,submit,Action::Restore); }
+void TakePositionResult(const training::View& view) {
+    bool accepted=false;
+    if(lab.position&&view.generation!=lab.positionGeneration) lab.position=0;
+    if(!lab.position||!view.acks.Find(lab.position,accepted)) return;
+    lab.position=0;
+    Notice(loc::T(!accepted?"training.command_rejected":lab.positionSave?"training.position.saved":"training.position.reset_done"),!accepted);
 }
 // The dummy's settings as the game's Training menu numbers them, and their
 // names: 0 action, 1 guard, 2 counter hit, 3 quick stand, 4 either gauge.
@@ -194,6 +208,8 @@ void HandleTools(const MenuAction& a,const training::View& view,const TrainingSu
 }
 void SetTrainingDirectory(std::wstring directory) { if(lab.directory.empty()) lab.directory=std::move(directory); }
 void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit,bool padSelect) {
+    // Called every frame training is available, so a key's save is told even with the controls closed.
+    TakePositionResult(view);
     if(!view.available||ImGui::GetIO().WantTextInput||ImGui::GetIO().KeyAlt) return;
     LoadPractice();
     // The plan is the player's, so every battle gets it again.
@@ -308,7 +324,7 @@ void DrawTrainingFlyout(const training::View& view,const TrainingSubmit& submit)
 void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  using namespace training;if(!v.available)return;
  auto& nav=trainingMenu.navigation;
- static std::uint64_t generation=0,nextRequest=1,pending=0;
+ static std::uint64_t generation=0,pending=0;
  static bool returnAfter=false;
  static std::string error;
  static int lastFrame=-2;
@@ -316,10 +332,12 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  lastFrame=ImGui::GetFrameCount();
  if(generation!=v.generation){generation=v.generation;nav.Home();nav.Cancel();pending=0;error.clear();}
  if(showRecordings){showRecordings=false;nav.Home();nav.Push("recording");offerOverwrite=true;ListRecordings();}
- if(pending&&v.commandId==pending){
+ TakePositionResult(v);
+ bool accepted=false;
+ if(pending&&v.acks.Find(pending,accepted)){
   pending=0;
-  if(v.commandAccepted){error.clear();if(returnAfter){ForwardMenuAction({MenuAction::Close});return;}}
-  else error=v.commandError;
+  if(accepted){error.clear();if(returnAfter){ForwardMenuAction({MenuAction::Close});return;}}
+  else error=loc::T("training.command_rejected");
  }
  // Its root is the training lab; Back from there closes the controls and
  // returns to the game.
