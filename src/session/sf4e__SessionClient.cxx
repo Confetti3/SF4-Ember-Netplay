@@ -141,6 +141,8 @@ static void ReportHashMismatch(
 		local.hashes.chara[0] == remote.chara0 ? "match" : "MISMATCH",
 		local.hashes.chara[1] == remote.chara1 ? "match" : "MISMATCH"
 	);
+	spdlog::error("Desync v2: local checkpoint ggpo={} engine={} flow={} substate={}",
+		local.ggpoStateFrame, local.engineFrame, local.flow, local.substate);
 	for (int i = 0; i < fSystem::NUM_HASH_CHECKPOINTS; i++) {
 		const fSystem::HashCheckpoint& cp = fSystem::hashCheckpoints[i];
 		if (!cp.valid || cp.frameIdx == local.frameIdx) {
@@ -149,9 +151,9 @@ static void ReportHashMismatch(
 		int distance = cp.frameIdx - local.frameIdx;
 		if (distance >= -90 && distance <= 90) {
 			spdlog::error(
-				"Desync v2: nearby frame {} overall {:016x} flow {:016x} c0 {:016x} c1 {:016x}",
+				"Desync v2: nearby frame {} overall {:016x} flow {:016x} c0 {:016x} c1 {:016x} engine={} nativeFlow={} substate={}",
 				cp.frameIdx, cp.hashes.overall, cp.hashes.flow,
-				cp.hashes.chara[0], cp.hashes.chara[1]
+				cp.hashes.chara[0], cp.hashes.chara[1], cp.engineFrame, cp.flow, cp.substate
 			);
 		}
 	}
