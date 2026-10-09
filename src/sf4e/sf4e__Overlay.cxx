@@ -7,6 +7,7 @@
 #include "../ui/ApplicationShell.hxx"
 #include "../ui/FighterSelector.hxx"
 #include "../ui/MenuRows.hxx"
+#include "../ui/ReplaySummaryText.hxx"
 #include "../ui/OverlayLifecycle.hxx"
 #include "../ui/OverlayPresentation.hxx"
 #include "../ui/Theme.hxx"
@@ -266,35 +267,17 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     // Replays screen shows, a new listing is asked for and the last one
     // becomes its rows.
     if (shell.Navigation().Screen() == "replays") {
-        sf4e::NetplayFacade::WantReplayList();
+        sf4e::platform::replays::WantListing();
         if (snapshot.replays.archive) for (const auto& replay : *snapshot.replays.archive) {
-            const auto name = [&](int side) {
-                const auto* fighter = sf4e::selection::FindFighter(replay.fighters[side]);
-                const std::string fighterName = fighter ? fighter->name : sf4e::loc::T("common.unavailable");
-                return replay.names[side].empty() ? fighterName : sf4e::loc::Tf("replays.player", replay.names[side], fighterName);
-            };
-            // What the replay's own file says: the score, the length, and for
-            // each player the look, the buttons pressed and how busy they were.
-            std::string score, info;
-            if (replay.read) {
-                namespace in = sf4e::replayinputs;
-                if (replay.score[0] >= 0) score = std::to_string(replay.score[0]) + "-" + std::to_string(replay.score[1]);
-                const std::string length = in::Clock(replay.frames);
-                info = (score.empty() ? "" : score + "  ") + sf4e::loc::Tf("inputs.length_value", replay.rounds, length);
-                for (int side = 0; side < 2; side++) {
-                    const auto& player = replay.players[side]; const auto& stats = replay.stats[side];
-                    const int costume = player.costume + 1, color = player.color + 1;
-                    const char* ultra = player.ultra == 0 ? "I" : player.ultra == 1 ? "II" : "W";
-                    const unsigned perMinute = stats.PerMinute(), jumps = stats.jumps, crouched = stats.CrouchedPercent();
-                    std::string presses;
-                    for (int button = 0; button < 6; button++) presses += std::string(button ? " " : "") + in::ButtonNames[button] + " " + std::to_string(stats.presses[button]);
-                    info += std::string("\n") + (side ? "P2 " : "P1 ") + name(side) + ": " + sf4e::loc::Tf("replays.info_look", costume, color, ultra) + ". " + presses + ". " +
-                        sf4e::loc::Tf("inputs.activity", perMinute, jumps, crouched);
-                }
-            }
             view.replays.push_back({sf4e::platform::WideToUtf8(replay.path.wstring()),
-                replay.label + "  " + sf4e::loc::Tf("replays.fighters", name(0), name(1)), {replay.names[0], replay.names[1]}, replay.spectated, replay.watched, replay.video, score, info, replay.time, {replay.score[0], replay.score[1]}});
+                sf4e::ui::ReplayLabel(replay.label, replay.names, replay.fighters), {replay.names[0], replay.names[1]}, replay.spectated, replay.watched, replay.video, replay.summary, replay.time});
         }
+    }
+    // Each entry owns a revision. WantDetail coalesces frames of that entry;
+    // the worker rereads the bounded file before considering its content cache.
+    if (shell.Navigation().Screen() == "replay-inputs") {
+        sf4e::platform::replays::WantDetail(shell.ReplayInputsFile(), shell.ReplayInputsRevision());
+        view.replayDetail = snapshot.replays.detail;
     }
     view.replaysReady = snapshot.replays.ready;
     view.replayNotice = snapshot.replays.notice; view.replayNoticeError = snapshot.replays.noticeError;
@@ -420,6 +403,15 @@ void Overlay::DrawOverlay() {
     static std::uint64_t connectLinkShown=0;
     if (snapshot.tournament.connect.sequence!=connectLinkShown && snapshot.atMainMenu && presentation.Available()) {
         presentation.Open(); connectLinkShown=snapshot.tournament.connect.sequence;
+    }
+    // A replay link opens the menu at the main menu with no room, where the
+    // shell puts its question on the Replays screen; in a room or in play it
+    // waits until then.
+    static std::string replayLinkShown;
+    if (snapshot.replays.link.empty()) replayLinkShown.clear();
+    else if (snapshot.replays.link != replayLinkShown && snapshot.atMainMenu && presentation.Available() &&
+        snapshot.session.room == sf4e::netplay::RoomState::Idle) {
+        presentation.Open(); replayLinkShown = snapshot.replays.link;
     }
     // A public room link the player was free to follow opens the menu, where
     // the shell takes them to Public rooms; during play it waits until the

@@ -1,4 +1,5 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "../platform/ReplayPath.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__ReplayStore.hxx"
 #include "../session/IdentityEvents.hxx"
@@ -452,21 +453,24 @@ static void Retry(Intent& intent, bool helperReady) {
 }
 
 namespace internal {
+// No room joined and none being joined: where the battle log may be opened
+// and where Ember's menu may come back to the Replays screen.
+static bool NoRoom() { return runtime->controller.GetSnapshot().room == netplay::RoomState::Idle && !UserApp::netplay; }
+
 // A replay link's file is played only on the player's word, so any request
 // for it, or a dismissal, answers the question the link left.
 void RunReplayRequest(const replay::Request& request) {
     if (request.mode == replay::Mode::DismissLink || request.path == runtime->replayLinkAsked) runtime->replayLinkAsked.clear();
-    replaystore::Start(request, AtMainMenu(), runtime->controller.GetSnapshot().room == netplay::RoomState::Idle && !UserApp::netplay);
+    replaystore::Start(request, AtMainMenu(), NoRoom());
 }
 
 void TickReplays() {
-    const std::string link = runtime->replayLinks.Take();
+    const std::string link = platform::ResolveReplayFile(runtime->replayLinks.Take());
     if (!link.empty()) {
         runtime->replayLinkAsked = link;
         spdlog::info("Replays: a link asked for a replay; the Replays screen asks the player");
     }
-    if (TakeReplayListWanted()) runtime->replayLister.Want();
-    replaystore::Tick(AtMainMenu());
+    replaystore::Tick(AtMainMenu(), NoRoom());
 }
 
 // A Ready press that cannot be honoured ends its intent and is announced once.

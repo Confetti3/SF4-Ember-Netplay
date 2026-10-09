@@ -730,9 +730,6 @@ msgstr "Entradas y estadísticas"
 msgid "replays.inputs_detail"
 msgstr "Muestra lo que presionaron ambos jugadores, cuadro por cuadro, y cuántas veces. Se lee del archivo de la repetición; no se reproduce nada."
 
-msgid "replays.info_look"
-msgstr "Traje {0}, color {1}, Ultra {2}"
-
 msgid "inputs.length_value"
 msgstr "Rondas: {0}, {1}"
 
@@ -747,6 +744,12 @@ msgstr "Ronda {0}"
 
 msgid "inputs.legend"
 msgstr "Cada línea: el tiempo y lo que P1 y P2 mantienen desde ahí. Direcciones como en un teclado numérico visto en pantalla: 4 es izquierda, 6 derecha, 5 ninguna."
+
+msgid "inputs.reading"
+msgstr "Leyendo la repetición..."
+
+msgid "inputs.look_unknown"
+msgstr "Aspecto desconocido"
 
 msgid "inputs.unreadable"
 msgstr "No se pueden leer las entradas"
@@ -813,6 +816,21 @@ msgstr "Agregada a la lista de repeticiones del juego, con la fecha en que se ju
 
 msgid "replays.not_added"
 msgstr "No se pudo agregar esta repetición. El archivo puede estar dañado."
+
+msgid "replays.not_added_yet"
+msgstr "El juego aún no guardó la última pelea. Inténtalo de nuevo en un momento."
+
+msgid "replays.not_added_files"
+msgstr "No se pudo agregar esta repetición: no se pudieron leer o preparar los archivos de repetición del juego. No se modificó ningún archivo de repetición del juego."
+
+msgid "replays.not_added_archive"
+msgstr "No se pudo agregar esta repetición porque no se pudo respaldar y verificar la repetición existente. Revisa la carpeta del archivo y el espacio disponible en disco."
+
+msgid "replays.not_added_restored"
+msgstr "La importación falló. Se restauraron los archivos de repetición originales del juego."
+
+msgid "replays.not_added_recovery"
+msgstr "La importación falló y no se pudieron restaurar algunos archivos de repetición del juego. Se conservaron los datos de recuperación. Deja de importar repeticiones y revisa el registro."
 
 msgid "replays.fighters"
 msgstr "{0} vs {1}"

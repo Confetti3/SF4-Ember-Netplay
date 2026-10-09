@@ -730,9 +730,6 @@ msgstr "Inputs en statistieken"
 msgid "replays.inputs_detail"
 msgstr "Toont wat beide spelers indrukten, frame voor frame, en hoe vaak. Gelezen uit het replaybestand; er wordt niets afgespeeld."
 
-msgid "replays.info_look"
-msgstr "Kostuum {0}, kleur {1}, Ultra {2}"
-
 msgid "inputs.length_value"
 msgstr "Rondes: {0}, {1}"
 
@@ -747,6 +744,12 @@ msgstr "Ronde {0}"
 
 msgid "inputs.legend"
 msgstr "Elke regel: de tijd, dan wat P1 en P2 vanaf daar vasthouden. Richtingen zoals op een numeriek toetsenblok, gezien op het scherm: 4 is links, 6 is rechts, 5 is geen."
+
+msgid "inputs.reading"
+msgstr "Replay wordt gelezen..."
+
+msgid "inputs.look_unknown"
+msgstr "Uiterlijk onbekend"
 
 msgid "inputs.unreadable"
 msgstr "Inputs kunnen niet worden gelezen"
@@ -813,6 +816,21 @@ msgstr "Toegevoegd aan de replaylijst van het spel, onder de datum waarop hij ge
 
 msgid "replays.not_added"
 msgstr "Deze replay kon niet worden toegevoegd. Het bestand is mogelijk beschadigd."
+
+msgid "replays.not_added_yet"
+msgstr "De game heeft de laatste match nog niet opgeslagen. Probeer het zo meteen opnieuw."
+
+msgid "replays.not_added_files"
+msgstr "Deze replay kon niet worden toegevoegd: de replaybestanden van het spel konden niet worden gelezen of voorbereid. Er zijn geen replaybestanden van het spel gewijzigd."
+
+msgid "replays.not_added_archive"
+msgstr "Deze replay kon niet worden toegevoegd omdat de bestaande replay niet kon worden geback-upt en gecontroleerd. Controleer de archiefmap en de beschikbare schijfruimte."
+
+msgid "replays.not_added_restored"
+msgstr "Het importeren is mislukt. De oorspronkelijke replaybestanden van het spel zijn hersteld."
+
+msgid "replays.not_added_recovery"
+msgstr "Het importeren is mislukt en sommige replaybestanden van het spel konden niet worden hersteld. De herstelgegevens zijn bewaard. Stop met het importeren van replays en controleer het logboek."
 
 msgid "replays.fighters"
 msgstr "{0} vs {1}"

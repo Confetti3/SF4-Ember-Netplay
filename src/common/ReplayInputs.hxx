@@ -8,11 +8,13 @@
 //   0x08   u16 1, u16 8: the layout read here. Replays of another kind
 //          (3, 3; the native online service's) are laid out otherwise and
 //          are refused.
-//   0x18   the number of rounds played, 1 to 7
+//   0x18   the number of rounds played. The game's own rules end at 7;
+//          Ember's go to 99, and how the game lays out such a match has
+//          not been seen, so the only limit kept is the file's own size
 //   0x20   player 1, and 0x150 after it player 2: fighter, costume, color,
 //          personal action (-1: none), win quote, Ultra and handicap, each
 //          a dword, in the order of the game's own selection record
-//   0x2C6  u16, the round timer; 0x2E0 the rounds setting (1, 3 or 5)
+//   0x2C6  u16, the round timer; 0x2E0 the rounds setting (1, 3, 5, 7, 15 or 99)
 //   0x320  one 0x88-byte record a round, its state as the round starts:
 //          +0x1C the rounds player 1 has won so far, +0x58 player 2's,
 //          +0x7C the bytes of its stream
@@ -27,9 +29,9 @@
 // Who won the last round is not in the file. It follows from the rounds when
 // only one player was a round short of the match; for a deciding round it is
 // byte 49 of the slot record the game wrote (0 player 1, 1 player 2), which
-// agreed with the rounds in all 62 archived matches that have both. A record
-// Ember made up (ReplaySlots.hxx: ExportFromReplayAlone) has a title, which
-// the game's own never has, and tells nothing.
+// agreed with the rounds in all 62 archived matches that have both. The
+// record is reconciled with the round history whenever available, and counts
+// only when it describes the replay it wraps and is one the game wrote (ReplaySlots.hxx: Describes, RecordWinner).
 //
 // Everything works on bytes in memory; ReplayInputsTest covers it on a
 // replay built at these offsets.
@@ -57,13 +59,17 @@ constexpr const char* ButtonNames[6] = {"LP", "MP", "HP", "LK", "MK", "HK"};
 struct Run { std::uint32_t frames; std::uint16_t inputs[2]; };
 // wins: the rounds each player has won as this one starts.
 struct Round { std::vector<Run> runs; std::uint32_t frames = 0; int wins[2] = {0, 0}; };
-struct Player { int fighter = -1, costume = 0, color = 0, personalAction = -1, ultra = 0, handicap = 0; };
+// What a player chose, each -1 when the file holds a value no selection
+// could have written (kMost*). The fighter is a native ID.
+struct Player { int fighter = -1, costume = -1, color = -1, personalAction = -1, ultra = -1, handicap = -1; };
+constexpr int kMostFighter = 63, kMostCostume = 15, kMostColor = 31, kMostPersonalAction = 15, kMostUltra = 2, kMostHandicap = 7;
 // roundsToWin: what the match was played to. recordWinner: the winner the
 // slot record names, 0 or 1, or -1 without a record the game wrote.
 struct Match { Player players[2]; std::vector<Round> rounds; int roundsToWin = 2, timer = 99, recordWinner = -1; };
 
-// The longest round kept: ten minutes, far past any timer.
-constexpr std::uint32_t kMostFrames = 36000;
+// The most frames a match is read to: every count of them then fits 32 bits.
+// 99 rounds on a 9999 second timer are 59 million.
+constexpr std::uint32_t kMostFrames = 0x7FFFFFFF;
 
 // Reads a replay file, or an .emberreplay that wraps one. False, with out
 // as it was, for anything else, another layout, or sizes that do not add up.
@@ -71,29 +77,35 @@ inline bool Parse(const std::uint8_t* data, std::size_t size, Match& out) {
 	int recordWinner = -1;
 	if (size >= replayslots::kExportHeaderBytes && !std::memcmp(data, replayslots::kExportMagic, 8)) {
 		const std::uint8_t* record = data + 8;
-		if (!record[26] && record[49] <= 1) recordWinner = record[49];
 		data += replayslots::kExportHeaderBytes; size -= replayslots::kExportHeaderBytes;
+		if (replayslots::Describes(record, data, size)) recordWinner = replayslots::RecordWinner(record);
 	}
 	if (size < 0x320 || std::memcmp(data, "#BRP", 4) || data[8] != 1 || data[9] || data[10] != 8 || data[11]) return false;
 	const std::uint32_t rounds = replayslots::ReadU32(data + 0x18);
-	if (rounds < 1 || rounds > 7) return false;
+	// The round records lie inside the file, and the streams fill the rest of it.
+	if (rounds < 1 || rounds > (size - 0x320) / 0x88) return false;
 	std::size_t at = 0x320 + 0x88 * rounds, total = at;
-	if (size < at) return false;
 	for (std::uint32_t round = 0; round < rounds; round++) {
 		const std::uint32_t bytes = replayslots::ReadU32(data + 0x320 + 0x88 * round + 0x7C);
-		if (bytes % 3 || bytes > size) return false;
+		if (bytes % 3 || bytes > size - total) return false;
 		total += bytes;
 	}
 	if (total != size) return false;
 	Match match;
 	match.recordWinner = recordWinner;
-	match.roundsToWin = static_cast<int>((replayslots::ReadU32(data + 0x2E0) + 1) / 2);
+	const std::uint32_t setting = replayslots::ReadU32(data + 0x2E0);
+	match.roundsToWin = setting == 1 || setting == 3 || setting == 5 || setting == 7 || setting == 15 || setting == 99 ? static_cast<int>((setting + 1) / 2) : 0;
 	match.timer = data[0x2C6] | (data[0x2C7] << 8);
 	for (int side = 0; side < 2; side++) {
 		const std::uint8_t* p = data + 0x20 + side * 0x150;
-		const auto field = [&](int index) { return static_cast<int>(replayslots::ReadU32(p + index * 4)); };
-		match.players[side] = {field(0), field(1), field(2), field(3), field(5), field(6)};
+		// A value past what a selection writes is not shown as one.
+		const auto field = [&](int index, int least, int most) {
+			const int value = static_cast<int>(replayslots::ReadU32(p + index * 4));
+			return value >= least && value <= most ? value : -1;
+		};
+		match.players[side] = {field(0, 0, kMostFighter), field(1, 0, kMostCostume), field(2, 0, kMostColor), field(3, 0, kMostPersonalAction), field(5, 0, kMostUltra), field(6, 0, kMostHandicap)};
 	}
+	std::uint32_t played = 0;
 	for (std::uint32_t round = 0; round < rounds; round++) {
 		Round made;
 		made.wins[0] = static_cast<int>(replayslots::ReadU32(data + 0x320 + 0x88 * round + 0x1C));
@@ -104,8 +116,8 @@ inline bool Parse(const std::uint8_t* data, std::size_t size, Match& out) {
 			const bool repeat = (record & 0x400000) != 0;
 			const std::uint32_t frames = repeat ? record & 0x3FFFFF : 1;
 			const Run run = {frames, {static_cast<std::uint16_t>(record & 0x7FF), static_cast<std::uint16_t>((record >> 11) & 0x7FF)}};
-			made.frames += frames;
-			if (made.frames > kMostFrames) return false;
+			if (frames > kMostFrames - played) return false;
+			made.frames += frames; played += frames;
 			// A repeat lengthens the run before it; one with nothing before it repeats no input.
 			if (repeat && !made.runs.empty()) made.runs.back().frames += frames;
 			else if (repeat) made.runs.push_back({frames, {0, 0}});
@@ -119,15 +131,30 @@ inline bool Parse(const std::uint8_t* data, std::size_t size, Match& out) {
 }
 
 // The rounds each player won. False when the last round's winner is not
-// known: a deciding round without the game's record, or round counts that
-// do not fit the match.
+// known (a deciding round without the game's record) or the rounds are not a
+// match that can have been played: it starts at 0-0, a round gives each
+// player one win or none (a draw gives both), and nobody has the match
+// before the last round.
 inline bool Score(const Match& match, int score[2]) {
-	if (match.rounds.empty()) return false;
-	const int* wins = match.rounds.back().wins;
+	if (match.rounds.empty() || match.roundsToWin < 1 || match.roundsToWin > 50) return false;
 	const int last = match.roundsToWin - 1;
-	if (last < 0 || wins[0] < 0 || wins[1] < 0 || wins[0] > last || wins[1] > last) return false;
+	int before[2] = {0, 0};
+	if (match.rounds.front().wins[0] || match.rounds.front().wins[1]) return false;
+	for (const Round& round : match.rounds) {
+		for (int side = 0; side < 2; side++) {
+			// Validate before subtracting: an arbitrary file's signed count
+			// must not overflow when compared with the preceding round.
+			if (round.wins[side] < 0 || round.wins[side] > last) return false;
+			const int won = round.wins[side] - before[side];
+			if (won < 0 || won > 1) return false;
+			before[side] = round.wins[side];
+		}
+	}
+	const int* wins = match.rounds.back().wins;
 	const int winner = wins[0] == last && wins[1] < last ? 0 : wins[1] == last && wins[0] < last ? 1 : wins[0] == last ? match.recordWinner : -1;
-	if (winner < 0) return false;
+	if (winner < 0 || winner > 1 || (match.recordWinner >= 0 && match.recordWinner != winner)) return false;
+	// A verified winner must be able to finish the match in this last round.
+	if (wins[winner] != last) return false;
 	score[0] = wins[0] + (winner == 0); score[1] = wins[1] + (winner == 1);
 	return true;
 }
@@ -156,6 +183,25 @@ inline Stats Count(const Match& match, int side) {
 		}
 	}
 	return stats;
+}
+
+// What a list shows of a match without its inputs: whether the score is
+// known and what it is, the rounds played, their frames, and for each player
+// the choices and the counts.
+struct Summary {
+	bool scored = false;
+	int score[2] = {0, 0};
+	std::uint32_t rounds = 0, frames = 0;
+	Player players[2];
+	Stats stats[2];
+};
+inline Summary Summarize(const Match& match) {
+	Summary summary;
+	summary.scored = Score(match, summary.score);
+	summary.rounds = static_cast<std::uint32_t>(match.rounds.size());
+	for (const Round& round : match.rounds) summary.frames += round.frames;
+	for (int side = 0; side < 2; side++) { summary.players[side] = match.players[side]; summary.stats[side] = Count(match, side); }
+	return summary;
 }
 
 // "2:41" for a number of frames at 60 a second, and "0:12.35" with hundredths.

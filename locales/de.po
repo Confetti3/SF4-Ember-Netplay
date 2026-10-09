@@ -730,9 +730,6 @@ msgstr "Eingaben und Statistik"
 msgid "replays.inputs_detail"
 msgstr "Zeigt, was beide Spieler gedrückt haben, Frame für Frame, und wie oft. Aus der Replay-Datei gelesen; es wird nichts abgespielt."
 
-msgid "replays.info_look"
-msgstr "Kostüm {0}, Farbe {1}, Ultra {2}"
-
 msgid "inputs.length_value"
 msgstr "Runden: {0}, {1}"
 
@@ -747,6 +744,12 @@ msgstr "Runde {0}"
 
 msgid "inputs.legend"
 msgstr "Jede Zeile: die Zeit, dann was P1 und P2 von da an halten. Richtungen wie auf dem Ziffernblock, vom Bildschirm aus gesehen: 4 ist links, 6 rechts, 5 keine."
+
+msgid "inputs.reading"
+msgstr "Replay wird gelesen..."
+
+msgid "inputs.look_unknown"
+msgstr "Aussehen unbekannt"
 
 msgid "inputs.unreadable"
 msgstr "Eingaben nicht lesbar"
@@ -813,6 +816,21 @@ msgstr "Der Replay-Liste des Spiels hinzugefügt, unter dem Datum, an dem es ges
 
 msgid "replays.not_added"
 msgstr "Dieses Replay konnte nicht hinzugefügt werden. Die Datei ist womöglich beschädigt."
+
+msgid "replays.not_added_yet"
+msgstr "Das Spiel hat das letzte Match noch nicht gespeichert. Versuche es gleich noch einmal."
+
+msgid "replays.not_added_files"
+msgstr "Dieses Replay konnte nicht hinzugefügt werden: Die Replay-Dateien des Spiels konnten nicht gelesen oder vorbereitet werden. Keine Replay-Dateien des Spiels wurden geändert."
+
+msgid "replays.not_added_archive"
+msgstr "Dieses Replay konnte nicht hinzugefügt werden, weil das vorhandene Replay nicht gesichert und überprüft werden konnte. Prüfe den Archivordner und den freien Speicherplatz."
+
+msgid "replays.not_added_restored"
+msgstr "Der Import ist fehlgeschlagen. Die ursprünglichen Replay-Dateien des Spiels wurden wiederhergestellt."
+
+msgid "replays.not_added_recovery"
+msgstr "Der Import ist fehlgeschlagen und einige Replay-Dateien des Spiels konnten nicht wiederhergestellt werden. Die Wiederherstellungsdaten wurden aufbewahrt. Importiere keine weiteren Replays und prüfe das Protokoll."
 
 msgid "replays.fighters"
 msgstr "{0} vs {1}"

@@ -185,8 +185,6 @@ struct Runtime {
     // player answers it (RuntimeSnapshot::replays.link).
     platform::ReplayLinkMailbox replayLinks;
     std::string replayLinkAsked;
-    // Lists the archive for the Replays screen, on its own thread.
-    platform::replays::ArchiveLister replayLister;
     netplay::tournament::OpenedLink openedConnect;
     // Public room links (ember://room/open) likewise: the service and the room.
     platform::PublicRoomLinkMailbox publicRoomLinks;
@@ -334,12 +332,10 @@ void OpenMatchLink(const tournament_link::MatchLink& link);
 // `launched`: the link started Ember, so it was just clicked.
 void OpenConnectLink(const std::string& bridge, bool launched = false);
 // Runs a request from the Replays screen, or the player's answer to a
-// replay link, and once a tick takes links, asks for listings and moves the
+// replay link, and once a tick takes links and moves the
 // replay operation on (sf4e__ReplayStore.hxx).
 void RunReplayRequest(const replay::Request& request);
 void TickReplays();
-// The Replays screen asked for a listing since the last call (NetplayFacade::WantReplayList).
-bool TakeReplayListWanted();
 // Hands a public room link to the interface, which asks for the room's ticket
 // when the player is free. `launched` as for OpenConnectLink.
 void OpenPublicRoomLink(const tournament_link::RoomLink& link, bool launched = false);

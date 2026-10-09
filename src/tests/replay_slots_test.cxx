@@ -4,58 +4,14 @@
 #include "../common/ReplaySlots.hxx"
 #include "../common/ReplayFileSafety.hxx"
 
-#include <chrono>
 #include <algorithm>
 #include <map>
-#include <stdexcept>
 
 #include "test_support.hxx"
 
 using namespace sf4e::replayslots;
 
-static Bytes Replay(std::uint8_t fill, std::size_t size) {
-	Bytes replay(size, fill);
-	std::memcpy(replay.data(), "#BRP", 4);
-	return replay;
-}
-
-static void Seal(Bytes& swan) { WriteU32(swan.data(), Crc32(swan.data() + 4, swan.size() - 4)); }
-
-// Both indexes with every slot empty, the sizes the game writes.
-static Bytes EmptyList() {
-	Bytes list(75958);
-	WriteU32(list.data(), 1);
-	WriteU32(list.data() + 4, kListSlots);
-	for (int slot = 0; slot < kListSlots; slot++) WriteU32(list.data() + kListRecordsOffset + slot * kRecordBytes, slot);
-	return list;
-}
-
-static Bytes EmptySwan() {
-	Bytes swan(44070);
-	std::memcpy(swan.data() + 8, "SRL", 4);
-	std::memcpy(swan.data() + 28, "SRI", 4);
-	for (int slot = kListSlots; slot < kSlots; slot++) WriteU32(swan.data() + kSwanRecordsOffset + (slot - kListSlots) * kRecordBytes, slot);
-	Seal(swan);
-	return swan;
-}
-
-static void Fill(Bytes& list, Bytes& swan, int slot, const Bytes& replay, std::uint8_t meta) {
-	std::uint8_t* record = const_cast<std::uint8_t*>(Record(list, swan, slot));
-	CHECK(record);
-	record[4] = 1;
-	WriteU32(record + 5, Crc32(replay.data(), replay.size()));
-	WriteU32(record + 9, static_cast<std::uint32_t>(replay.size()));
-	WriteU32(record + 13, 1549657440);
-	std::memset(record + 17, meta, kRecordBytes - 17);
-	// What the game shows has to be showable (PlausibleRecord): no title, two
-	// fighters of the roster, 8 February 2019, 20:24.
-	WriteU32(record + 22, 0);
-	record[51] = 0xE3; record[52] = 0x07; record[53] = 2; record[54] = 8;
-	record[71] = meta % 40; record[105] = (meta + 1) % 40;
-	record[123] = 20; record[124] = 24;
-	swan[kSwanSlotBytesOffset + slot * 2] = swan[kSwanSlotBytesOffset + slot * 2 + 1] = 0x0E;
-	Seal(swan);
-}
+#include "replay_slots_support.hxx"
 
 static void TestCrcIsTheOneTheGameWrites() {
 	const char* text = "123456789";
@@ -142,7 +98,7 @@ static void TestExportRefusesWhatDoesNotBelong() {
 static void TestSlotToReplaceFollowsTheGame() {
 	Bytes list = EmptyList(), swan = EmptySwan();
 	CHECK(SlotToReplace(list, swan, 200, 309) == 200); // all empty: the first
-	for (int slot = 200; slot <= 309; slot++) Fill(list, swan, slot, Replay(0x11, 100), 0);
+	for (int slot = 200; slot <= 309; slot++) Fill(list, swan, slot, Replay(0x11, 500), 0);
 	// Record() refuses an unsealed swan, so each write there is sealed at once.
 	for (int slot = 200; slot <= 309; slot++) { WriteU32(const_cast<std::uint8_t*>(Record(list, swan, slot)) + 13, 2000 + slot); Seal(swan); }
 	WriteU32(const_cast<std::uint8_t*>(Record(list, swan, 267)) + 13, 5);
@@ -202,6 +158,12 @@ static void TestImportRefusesDamageAndChangesNothing() {
 	Bytes unused = exported;
 	unused[8 + 4] = 0;
 	CHECK(!Import(unused, 250, 1, list, swan, replay));
+ for (int byte = 0; byte < 2; ++byte) {
+  Bytes invalidState = exported;
+  invalidState[8 + kRecordBytes + byte] = 0xFF;
+  CHECK(!Import(invalidState, 250, 1, list, swan, replay));
+  CHECK(list == listBefore && swan == swanBefore && replay.empty());
+ }
 	CHECK(!Import(exported, 310, 1, list, swan, replay));
 	CHECK(list == listBefore && swan == swanBefore && replay.empty());
 
@@ -296,11 +258,152 @@ static void TestAnImportedReplayIsKnownByItsCrc() {
 	const SlotInfo again = ReadSlot(list, swan, 301);
 	CHECK(again.time != saved && again.crc == Crc32(replay.data(), replay.size()));
 	std::uint32_t crc = 0;
-	CHECK(ArchiveNameCrc(L"20261005-213503-69991186.emberreplay", crc) && crc == 0x69991186);
-	CHECK(!ArchiveNameCrc(L"20261005-213503-69991186.mp4", crc));
-	CHECK(!ArchiveNameCrc(L"20261005-213503-6999118.emberreplayy", crc));
-	CHECK(!ArchiveNameCrc(L"20261005-213503-6999zzzz.emberreplay", crc));
-	CHECK(!ArchiveNameCrc(L"watched.txt", crc));
+	std::uint64_t time = 0;
+	// One reader of the name gives both the save time and the CRC.
+	CHECK(ParseArchiveName(L"20261005-213503-69991186.emberreplay", time, crc) && crc == 0x69991186 && time == 1791236103);
+	CHECK(ParseArchiveName(L"19700101-000000-0000000A.emberreplay", time, crc) && crc == 10 && time == 0);
+	CHECK(ParseArchiveName(L"20240229-235959-ffffffff.emberreplay", time, crc) && crc == 0xFFFFFFFFu && time == 1709251199);
+	CHECK(!ParseArchiveName(L"20261005-213503-69991186.mp4", time, crc));
+	CHECK(!ParseArchiveName(L"20261005-213503-6999118.emberreplayy", time, crc));
+	CHECK(!ParseArchiveName(L"20261005-213503-6999zzzz.emberreplay", time, crc));
+	CHECK(!ParseArchiveName(L"20261305-213503-69991186.emberreplay", time, crc)); // month 13
+	CHECK(!ParseArchiveName(L"2026100x-213503-69991186.emberreplay", time, crc));
+	CHECK(!ParseArchiveName(L"watched.txt", time, crc));
+	// The archive holds it only when the file is that replay: an export whose
+	// record describes its body, under the body's own CRC.
+	CHECK(WholeArchived(exported, Crc32(replay.data(), replay.size())));
+	CHECK(!WholeArchived(exported, Crc32(replay.data(), replay.size()) + 1)); // another name
+	CHECK(!WholeArchived(Bytes(exported.begin(), exported.end() - 1), Crc32(replay.data(), replay.size()))); // cut short
+	CHECK(!WholeArchived(Bytes(), 0) && !WholeArchived(replay, Crc32(replay.data(), replay.size()))); // empty, or not an export
+}
+
+// A record describes a replay only with a whole header and the same fighters.
+static void TestARecordNeedsAWholeReplay() {
+	Bytes list = EmptyList(), swan = EmptySwan(), out;
+	// Only the magic, with the size and CRC the record names: not a replay.
+	Bytes stub = {'#', 'B', 'R', 'P'};
+	std::uint8_t* record = const_cast<std::uint8_t*>(Record(list, swan, 300));
+	record[4] = 1; WriteU32(record + 5, Crc32(stub.data(), stub.size())); WriteU32(record + 9, 4);
+	Seal(swan);
+	CHECK(!Describes(Record(list, swan, 300), stub.data(), stub.size()) && !Export(list, swan, 300, stub, out));
+	// One byte short of the header.
+	const Bytes shortOne = Replay(0x07, kReplayHeaderBytes - 1);
+	Bytes list2 = EmptyList(), swan2 = EmptySwan();
+	Fill(list2, swan2, 301, shortOne, 0);
+	CHECK(!Export(list2, swan2, 301, shortOne, out));
+	// A whole one is described; with another fighter in the record it is not.
+	const Bytes whole = Replay(0x07, kReplayHeaderBytes);
+	Fill(list2, swan2, 302, whole, 0);
+	CHECK(Export(list2, swan2, 302, whole, out));
+	const_cast<std::uint8_t*>(Record(list2, swan2, 302))[71] ^= 1;
+	Seal(swan2);
+	CHECK(!Export(list2, swan2, 302, whole, out));
+	// A fighter outside the roster in the header is nobody's.
+	Bytes odd = Replay(0x07, 2000);
+	WriteU32(odd.data() + 0x170, 200);
+	Fill(list2, swan2, 303, odd, 0);
+	CHECK(!Export(list2, swan2, 303, odd, out));
+}
+
+// The files as an import finds them and as a Writer leaves them.
+struct Folder {
+	std::map<std::string, Bytes> files;
+	int writes = 0, failAt = -1;
+	bool Write(const std::string& name, const Bytes& contents) {
+		if (writes++ == failAt) { files[name] = Bytes{0xDE, 0xAD}; return false; } // a failed write may leave anything
+		files[name] = contents;
+		return true;
+	}
+};
+
+// An import is a plan of writes; a write that fails puts every file back as it
+// was, whichever write it is, and so does undoing a plan that was written.
+static void TestAnImportThatFailsLeavesTheFilesAsTheyWere() {
+	for (int slot : {290, 305}) {
+		Bytes list = EmptyList(), swan = EmptySwan(), exported;
+		const Bytes held = Replay(0x10, 5000), incoming = Replay(0x31, 7000);
+		Fill(list, swan, slot, held, 0x55);
+		Bytes otherList = EmptyList(), otherSwan = EmptySwan();
+		Fill(otherList, otherSwan, 300, incoming, 0x66);
+		CHECK(Export(otherList, otherSwan, 300, incoming, exported));
+		const SlotFiles before{list, Sidecar(list), swan, Sidecar(swan), held, Sidecar(held)};
+		Folder start;
+		const std::string name = std::to_string(slot);
+		start.files = {{name, held}, {name + ".0", Sidecar(held)}, {"replays-swan.dat", swan}, {"replays-swan.dat.0", Sidecar(swan)}, {"LIST", list}, {"LIST.0", Sidecar(list)}};
+		WritePlan plan;
+		CHECK(PlanImport(exported, slot, 1800000000, before, plan));
+		CHECK(plan.size() == (slot < kListSlots ? 6u : 4u) && plan[0].name == name && plan[1].name == name + ".0" && plan[0].before == held);
+		// The replay goes first and the indexes that name it last.
+		CHECK(plan[2].name == "replays-swan.dat" && plan.back().name == (slot < kListSlots ? "LIST.0" : "replays-swan.dat.0"));
+		// Production executes this plan with nightly's exact-file rollback,
+		// including when the live table refuses after every write succeeded.
+		std::vector<sf4e::replayfiles::Change> changes;
+		for (const auto& step : plan) changes.push_back({step.name, step.before, step.now, true});
+		for (int failAt = 0; failAt <= static_cast<int>(plan.size()); failAt++) {
+			Folder folder = start;
+			folder.failAt = failAt == static_cast<int>(plan.size()) ? -1 : failAt; // publication-only refusal has no writer fault
+			CHECK(sf4e::replayfiles::Apply(changes, [] { return true; },
+				[&](const std::string& file, const Bytes& contents) { return folder.Write(file, contents); },
+				[&](const std::string& file) { folder.files.erase(file); return true; },
+				[] { return false; }) == sf4e::replayfiles::ApplyOutcome::FailedRestored);
+			CHECK(folder.files == start.files);
+		}
+		// Every write succeeds: the files are the import's, and the slot exports as the new replay.
+		Folder folder = start;
+		const auto write = [&](const std::string& file, const Bytes& contents) { return folder.Write(file, contents); };
+		CHECK(sf4e::replayfiles::Apply(changes, [] { return true; }, write, [&](const std::string& file) { folder.files.erase(file); return true; }, [] { return true; }) == sf4e::replayfiles::ApplyOutcome::Done);
+		Bytes again;
+		CHECK(Export(folder.files["LIST"], folder.files["replays-swan.dat"], slot, folder.files[name], again));
+		CHECK(Bytes(again.begin() + kExportHeaderBytes, again.end()) == incoming && folder.files[name + ".0"] == Sidecar(incoming));
+		CHECK(ValidSwan(folder.files["replays-swan.dat"]) && folder.files["replays-swan.dat.0"] == Sidecar(folder.files["replays-swan.dat"]));
+		// A write that fails while putting back is told.
+		Folder stuck = start;
+		stuck.failAt = 2; // the third write of the plan fails, then the first put-back does too
+		int calls = 0;
+		const auto failing = [&](const std::string& file, const Bytes& contents) { return ++calls != 4 && stuck.Write(file, contents); };
+		CHECK(sf4e::replayfiles::Apply(changes, [] { return true; }, failing, [](const std::string&) { return true; }, [] { return true; }) == sf4e::replayfiles::ApplyOutcome::RecoveryIncomplete);
+	}
+	// A slot that held nothing: newly created files are removed and indexes restored.
+	Bytes list = EmptyList(), swan = EmptySwan(), exported;
+	const Bytes incoming = Replay(0x31, 7000);
+	Bytes otherList = EmptyList(), otherSwan = EmptySwan();
+	Fill(otherList, otherSwan, 300, incoming, 0x66);
+	CHECK(Export(otherList, otherSwan, 300, incoming, exported));
+	WritePlan plan;
+	CHECK(PlanImport(exported, 301, 1, SlotFiles{list, Sidecar(list), swan, Sidecar(swan), Bytes(), Bytes()}, plan));
+	Folder folder;
+	folder.files = {{"replays-swan.dat", swan}, {"replays-swan.dat.0", Sidecar(swan)}};
+	folder.failAt = 3;
+	const auto write = [&](const std::string& file, const Bytes& contents) { return folder.Write(file, contents); };
+	// Production's rollback also removes newly created slot files rather
+	// than leaving the imported body behind an empty record.
+	std::vector<sf4e::replayfiles::Change> changes;
+	for (const auto& step : plan) changes.push_back({step.name, step.before, step.now, !step.before.empty()});
+	folder = Folder{};
+	folder.files = {{"replays-swan.dat", swan}, {"replays-swan.dat.0", Sidecar(swan)}};
+	const auto original = folder.files;
+	folder.failAt = 3;
+	CHECK(sf4e::replayfiles::Apply(changes, [] { return true; }, write,
+		[&](const std::string& file) { folder.files.erase(file); return true; }, [] { return true; }) == sf4e::replayfiles::ApplyOutcome::FailedRestored);
+	CHECK(folder.files == original);
+	// What Import refuses makes no plan.
+	Bytes damaged = exported;
+	damaged.back() ^= 1;
+	CHECK(!PlanImport(damaged, 301, 1, SlotFiles{list, Sidecar(list), swan, Sidecar(swan), Bytes(), Bytes()}, plan) && plan.empty());
+}
+
+// The match just played: its file is on disk and the index still names the
+// replay the slot held before. No slot is chosen from an index in that state.
+static void TestASlotWhoseIndexIsBehind() {
+	Bytes list = EmptyList(), swan = EmptySwan();
+	const Bytes old = Replay(0x10, 5000), fresh = Replay(0x20, 8000);
+	Fill(list, swan, 301, old, 0x55);
+	CHECK(!FileAheadOfRecord(list, swan, 301, old, Sidecar(old)));    // the record names the file
+	CHECK(FileAheadOfRecord(list, swan, 301, fresh, Sidecar(fresh))); // a whole file the record does not name
+	CHECK(FileAheadOfRecord(list, swan, 302, fresh, Sidecar(fresh))); // and in a slot the index has as empty
+	CHECK(!FileAheadOfRecord(list, swan, 301, fresh, Sidecar(old)));  // a file still being written is nobody's yet
+	CHECK(!FileAheadOfRecord(list, swan, 302, Bytes(), Bytes()));     // no file
+	CHECK(!FileAheadOfRecord(list, swan, 302, Bytes(kLargestReplay), Sidecar(Bytes(kLargestReplay)))); // the game's empty preallocation
 }
 
 // A slot whose file is newer than its record: archived from the file when its
@@ -355,111 +458,10 @@ static void TestImportRefusesAnImplausibleRecord() {
 	CHECK(refused(22, 22)); // a title longer than its field
 }
 
-static void TestImportWriteRecovery() {
-	namespace files = sf4e::replayfiles;
-	const std::vector<files::Change> changes = {
-		{"280", {1, 2, 3}, {9}, true}, {"280.0", {4, 3, 2, 1}, {8}, true},
-		{"replays-swan.dat", {5, 6}, {7}, true}, {"replays-swan.dat.0", {}, {6}, false},
-		{"LIST", {}, {5}, true}, {"LIST.0", {7, 8}, {4}, true}
-	};
-	std::map<std::string, Bytes> original;
-	for (const auto& change : changes) if (change.existed) original[change.name] = change.before;
-	// Each failed write has already changed its file, including a missing file
-	// and a sidecar that did not hold its body's checksum before the import.
-	for (int thrown = 0; thrown < 2; thrown++) for (int failure = 0; failure <= static_cast<int>(changes.size()); failure++) {
-		auto disk = original;
-		int attempts = 0, publications = 0;
-		bool undoing = false;
-		std::vector<std::string> undone;
-		const auto write = [&](const std::string& name, const Bytes& bytes) {
-			disk[name] = bytes;
-			if (undoing) { undone.push_back(name); return true; }
-			if (attempts++ == failure) {
-				undoing = true;
-				if (thrown) throw std::runtime_error("write stopped");
-				return false;
-			}
-			return true;
-		};
-		const auto remove = [&](const std::string& name) { undone.push_back(name); disk.erase(name); return true; };
-		const auto publish = [&] {
-			++publications;
-			undoing = true;
-			for (const auto& change : changes) CHECK(disk.at(change.name) == change.after);
-			if (thrown) throw std::runtime_error("table refused");
-			return false;
-		};
-		bool restored = false;
-		CHECK(!files::Apply(changes, write, remove, publish, restored));
-		CHECK(restored && disk == original);
-		CHECK(publications == (failure == static_cast<int>(changes.size()) ? 1 : 0));
-		const std::size_t count = (std::min)(static_cast<std::size_t>(failure + 1), changes.size());
-		CHECK(undone.size() == count);
-		for (std::size_t at = 0; at < count; at++) CHECK(undone[at] == changes[count - 1 - at].name);
-	}
-	auto disk = original;
-	bool restored = false;
-	CHECK(files::Apply(changes, [&](const std::string& name, const Bytes& bytes) { disk[name] = bytes; return true; },
-		[&](const std::string& name) { disk.erase(name); return true; }, [] { return true; }, restored));
-	for (const auto& change : changes) CHECK(disk.at(change.name) == change.after);
-	int undoAttempts = 0;
-	CHECK(!files::Apply(changes, [&](const std::string&, const Bytes&) { return ++undoAttempts <= static_cast<int>(changes.size()); },
-		[&](const std::string&) -> bool { ++undoAttempts; throw std::runtime_error("delete stopped"); }, [] { return false; }, restored));
-	CHECK(!restored && undoAttempts == static_cast<int>(changes.size() * 2));
-}
-
-static void TestVerifiedArchiveAndSnapshots() {
-	namespace fs = std::filesystem;
-	namespace files = sf4e::replayfiles;
-	const fs::path folder = fs::temp_directory_path() / ("ember-replay-files-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
-	CHECK(fs::create_directory(folder));
-	const auto save = [](const fs::path& path, const Bytes& bytes) {
-		std::ofstream out(path, std::ios::binary | std::ios::trunc);
-		out.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
-		out.close(); CHECK(!out.fail());
-	};
-	files::Change snapshot;
-	CHECK(files::Snapshot(folder / "missing", 100, snapshot) && !snapshot.existed);
-	CHECK(!files::Snapshot(folder, 100, snapshot));
-	save(folder / "empty", {});
-	CHECK(files::Snapshot(folder / "empty", 100, snapshot) && snapshot.existed && snapshot.before.empty());
-	save(folder / "large", Bytes(101, 0x42));
-	CHECK(!files::Snapshot(folder / "large", 100, snapshot));
-	save(folder / "exact", {3, 2, 1});
-	CHECK(files::Snapshot(folder / "exact", 3, snapshot) && snapshot.before == Bytes({3, 2, 1}));
-	Bytes list = EmptyList(), swan = EmptySwan(), exported;
-	const Bytes body = Replay(0, 8000);
-	Fill(list, swan, 280, body, 0x44);
-	CHECK(Export(list, swan, 280, body, exported));
-	char name[64] = {};
-	std::snprintf(name, sizeof name, "20261005-213503-%08x.emberreplay", Crc32(body.data(), body.size()));
-	const fs::path archive = folder / name;
-	std::uint32_t crc = 0;
-	CHECK(fs::create_directory(archive));
-	CHECK(!files::ArchivedCrc(archive, crc));
-	CHECK(fs::remove(archive));
-	save(archive, exported);
-	CHECK(files::ArchivedCrc(archive, crc) && crc == Crc32(body.data(), body.size()));
-	Bytes bad = exported; bad.resize(bad.size() - 1); save(archive, bad);
-	CHECK(!files::ArchivedCrc(archive, crc));
-	bad = exported; bad.back() ^= 1; save(archive, bad);
-	CHECK(!files::ArchivedCrc(archive, crc));
-	bad = exported; bad[0] = 'X'; save(archive, bad);
-	CHECK(!files::ArchivedCrc(archive, crc));
-	bad = exported; bad[8 + 5] ^= 1; save(archive, bad);
-	CHECK(!files::ArchivedCrc(archive, crc));
-	save(folder / "20261005-213503-00000000.emberreplay", exported);
-	CHECK(!files::ArchivedCrc(folder / "20261005-213503-00000000.emberreplay", crc));
-	save(folder / "saver.usf4replay", body);
-	CHECK(files::ArchivedCrc(folder / "saver.usf4replay", crc) && crc == Crc32(body.data(), body.size()));
-	save(folder / "saver.usf4replay", {'#', 'B', 'R', 'P'});
-	CHECK(!files::ArchivedCrc(folder / "saver.usf4replay", crc));
-	fs::remove_all(folder);
-}
-
 int main() {
-	TestImportWriteRecovery();
-	TestVerifiedArchiveAndSnapshots();
+	TestARecordNeedsAWholeReplay();
+	TestAnImportThatFailsLeavesTheFilesAsTheyWere();
+	TestASlotWhoseIndexIsBehind();
 	TestRecordNeverTakesAnotherSlots();
 	TestImportRefusesAnImplausibleRecord();
 	TestASlotFileAheadOfItsRecord();

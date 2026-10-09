@@ -1,4 +1,5 @@
 #include "sf4e__Game__Battle__System__Internal.hxx"
+#include "../platform/ReplayFiles.hxx"
 #include "sf4e__ReplayStore.hxx"
 #include "../common/SpectatorCatchUp.hxx"
 #include "sf4e__MementoGuards.hxx"
@@ -697,6 +698,7 @@ void fSystem::CloseBattle() {
     if (!summaryEmitted) {
         EmitRollbackDiagSummary("battle_close_deferred");
     }
+    sf4e::platform::replays::NoteMatchEnd();
     (_this->*rSystem::publicMethods.CloseBattle)();
     sf4e::memento::LogCounters("battle_close_exit");
     sf4e::memento::ResetCounters();

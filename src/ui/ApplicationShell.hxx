@@ -1,4 +1,5 @@
 #pragma once
+#include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplayRequest.hxx"
 #include "../common/GameDisplayConfig.hxx"
 #include "../discord/Presence.hxx"
@@ -17,6 +18,7 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <memory>
 #include <optional>
 #include "ChatTranscript.hxx"
 #include "GameMenu.hxx"
@@ -117,12 +119,12 @@ struct ShellView {
     // is a path for the import action and a label for its row. replaysReady
     // when one can be put into the game's replay list right now, and the
     // outcome of the last import as a notice (an error when it failed).
-    // score: "2-1", player 1 first, or empty when the replay does not tell.
-    // info: what the replay says of the match, for the row's detail.
-    // time: when it was saved (seconds since 1970). rounds: the rounds each
-    // player won, -1 when unknown; with time, what a set's score is counted from.
-    struct Replay { std::string path, label, names[2]; bool spectated = false, watched = false, video = false; std::string score, info; std::uint64_t time = 0; int rounds[2] = {-1, -1}; };
+    // summary: what the replay's own file says of the match, none when it
+    // is not one that reads (common/ReplayInputs.hxx).
+    struct Replay { std::string path, label, names[2]; bool spectated = false, watched = false, video = false; std::optional<replayinputs::Summary> summary; std::uint64_t time = 0; };
     std::vector<Replay> replays;
+    // One completion for the screen entry; immutable detail includes all fields.
+    replayinputs::DetailCompletion replayDetail;
     bool replaysReady = false;
     std::string replayNotice;
     bool replayNoticeError = false;
@@ -184,6 +186,9 @@ public:
         if(previousRoomState_==netplay::RoomState::Idle)menu_.navigation.Home();
     }
     MenuNavigation& Navigation() { return menu_.navigation; }
+    // The replay file the Inputs and stats screen wants read, as its row named it.
+    const std::string& ReplayInputsFile() const { return inputsFile_; }
+    std::uint64_t ReplayInputsRevision() const { return inputsRevision_; }
     // A modal notice is open, and whether it reads as an error (for tests).
     bool NoticeOpen() const { return menu_.NoticeOpen(); }
     bool NoticeError() const { return menu_.NoticeError(); }
@@ -341,11 +346,12 @@ private:
     netplay::PlayerPreferences preferences_;
     netplay::LobbySettings lobby_;
     std::string error_;
-    // The Inputs and stats screen of the replay last chosen for it, made once
-    // when it opens: the file is read and counted then (common/ReplayInputs.hxx).
-    std::vector<MenuEntry> inputsRows_;
-    bool inputsFailed_ = false;
-    void OpenReplayInputs(const ShellView::Replay& replay) noexcept;
+    // The replay the Inputs and stats screen is of, as its row was when it
+    // was chosen. The lister hands over its match, summary and round logs;
+    // drawing the screen never reads, parses or counts the replay.
+    std::string inputsFile_;
+    std::uint64_t inputsRevision_ = 0;
+    void BuildInputsRows(const ShellView& view,std::vector<MenuEntry>& rows);
     // The Export video screen: the replay it is for and the caption as the
     // player has it, sent with the request when Generate is chosen.
     // Replays > Frame meter: sent with Watch now and Generate video. Not saved; off at each start.

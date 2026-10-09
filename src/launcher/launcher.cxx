@@ -37,6 +37,7 @@
 #include "../common/CrashReport.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../common/ReplayLink.hxx"
+#include "../platform/ReplayPath.hxx"
 #include "../common/sf4e__NetplayConfig.hxx"
 #include "../common/install_paths.hxx"
 #include "../common/Localization.hxx"
@@ -602,7 +603,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         sf4e::tournament_link::ParseConnectLink(joinUri);
     // A replay link names an archived replay to play (common/ReplayLink.hxx).
     const std::string replayLink = joinUri.empty() || !joinCode.empty() || matchLink.Valid() || publicRoomLink.Valid() || !connectBridge.empty() ? std::string() :
-        sf4e::replay_link::ParseReplayLink(joinUri);
+        sf4e::platform::ResolveReplayFile(sf4e::replay_link::ParseReplayLink(joinUri));
     if (!joinCode.empty()) spdlog::info("Started with a room link");
     else if (matchLink.Valid()) spdlog::info("Started with a link to tournament match {}", matchLink.matchId);
     else if (publicRoomLink.Valid()) spdlog::info("Started with a public room link");

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 
 #include <windows.h>
 
@@ -76,6 +77,16 @@ namespace Dimps {
 			// +4 (-1 when never filled, 0x676B70) and the slot's two bytes
 			// at +0x106.
 			static constexpr std::size_t Entries = 0x8, EntriesEnd = 0xC, EntryBytes = 0x108, EntrySlot = 0x4, EntrySlotBytes = 0x106, EntryDeserialize = 2;
+			// The same, read: the vector's two ends, the n-th entry of a
+			// table that starts at `entries`, the slot an entry names and
+			// where its two bytes are.
+			static std::uint8_t* GetEntries(ReplayInfoList* list) { return *reinterpret_cast<std::uint8_t**>(reinterpret_cast<std::uint8_t*>(list) + Entries); }
+			static std::uint8_t* GetEntriesEnd(ReplayInfoList* list) { return *reinterpret_cast<std::uint8_t**>(reinterpret_cast<std::uint8_t*>(list) + EntriesEnd); }
+			static std::uint8_t* GetEntry(std::uint8_t* entries, int at) { return entries + at * EntryBytes; }
+			static std::uint32_t GetEntrySlot(const std::uint8_t* entry) { return *reinterpret_cast<const std::uint32_t*>(entry + EntrySlot); }
+			static std::uint8_t* GetEntrySlotBytes(std::uint8_t* entry) { return entry + EntrySlotBytes; }
+			// An entry's own function that fills it from a stream.
+			static PVOID GetEntryDeserialize(std::uint8_t* entry) { return (*reinterpret_cast<PVOID**>(entry))[EntryDeserialize]; }
 
 			static void Locate(HMODULE peRoot);
 			static __publicMethods publicMethods;
@@ -118,6 +129,22 @@ namespace Dimps {
 			struct List;
 			struct Voice;
 			struct Movie;
+			struct Splash;
+			// The same, read. The battle log's list on its Select state, its
+			// rows (each begins with its slot) and the row it has selected.
+			static List* GetList(void* select) { return *reinterpret_cast<List**>(reinterpret_cast<std::uint8_t*>(select) + SelectList); }
+			static const int* GetRowsBegin(List* list) { return *reinterpret_cast<const int**>(reinterpret_cast<std::uint8_t*>(list) + ListRowsBegin); }
+			static const int* GetRowsEnd(List* list) { return *reinterpret_cast<const int**>(reinterpret_cast<std::uint8_t*>(list) + ListRowsEnd); }
+			static const int* NextRow(const int* row) { return reinterpret_cast<const int*>(reinterpret_cast<const std::uint8_t*>(row) + ListRowBytes); }
+			static int RowIndex(const int* begin, const int* row) { return static_cast<int>((reinterpret_cast<const std::uint8_t*>(row) - reinterpret_cast<const std::uint8_t*>(begin)) / ListRowBytes); }
+			static int* GetSelectedRow(List* list) { return reinterpret_cast<int*>(reinterpret_cast<std::uint8_t*>(list) + ListSelected); }
+			// The Versus state's splash, its state and phase, its announcer
+			// voice and its two movies.
+			static Splash* GetSplash(void* versus) { return *reinterpret_cast<Splash**>(reinterpret_cast<std::uint8_t*>(versus) + VersusSplash); }
+			static int* GetSplashState(Splash* splash) { return reinterpret_cast<int*>(reinterpret_cast<std::uint8_t*>(splash) + SplashState); }
+			static int* GetSplashPhase(Splash* splash) { return reinterpret_cast<int*>(reinterpret_cast<std::uint8_t*>(splash) + SplashPhase); }
+			static Voice* GetSplashVoice(Splash* splash) { return *reinterpret_cast<Voice**>(reinterpret_cast<std::uint8_t*>(splash) + SplashVoice); }
+			static Movie* GetSplashMovie(Splash* splash, int movie) { return reinterpret_cast<Movie*>(reinterpret_cast<std::uint8_t*>(splash) + SplashMovies + movie * 8); }
 			typedef struct __staticMethods {
 				void (__thiscall* PlayRow)(List* list);
 				void (__thiscall* FadeVoice)(Voice* voice, int frames);

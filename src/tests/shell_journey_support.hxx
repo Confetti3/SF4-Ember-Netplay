@@ -14,8 +14,10 @@
 #include "imgui_test_support.hxx"
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <algorithm>
 #include <cstring>
 #include <functional>
+#include <iterator>
 #include <iostream>
 #include <map>
 #include <set>
@@ -25,6 +27,8 @@ using Button=ControllerSample;
 using Kind=sf4e::netplay::CommandKind;
 namespace {
 void Check(bool ok,const char* message){if(!ok)throw std::runtime_error(message);}
+// The fighter drawn right of `fighter` in USFIV's select order, which is where Right goes.
+int DisplayedAfter(int fighter){const int* at=std::find(std::begin(sf4e::selection::RosterDisplayOrder),std::end(sf4e::selection::RosterDisplayOrder),fighter);return at[1];}
 struct Harness {
  ApplicationShell shell;ShellView view;std::vector<ShellAction> actions;bool open=true,accept=true;
  std::function<void()> selection=[]{},developer;

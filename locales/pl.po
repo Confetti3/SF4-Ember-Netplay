@@ -730,11 +730,8 @@ msgstr "Wejścia i statystyki"
 msgid "replays.inputs_detail"
 msgstr "Pokazuje, co naciskali obaj gracze, klatka po klatce, i ile razy. Odczytane z pliku powtórki; nic nie jest odtwarzane."
 
-msgid "replays.info_look"
-msgstr "Kostium {0}, kolor {1}, Ultra {2}"
-
 msgid "inputs.length_value"
-msgstr "Rundy: {0}, {1}"
+msgstr "Liczba rund: {0}, {1}"
 
 msgid "inputs.buttons"
 msgstr "{0}: naciśnięcia przycisków"
@@ -747,6 +744,12 @@ msgstr "Runda {0}"
 
 msgid "inputs.legend"
 msgstr "Każdy wiersz: czas, a potem to, co od tej chwili trzymają P1 i P2. Kierunki jak na klawiaturze numerycznej widzianej na ekranie: 4 to lewo, 6 prawo, 5 brak."
+
+msgid "inputs.reading"
+msgstr "Odczytywanie powtórki..."
+
+msgid "inputs.look_unknown"
+msgstr "Wygląd nieznany"
 
 msgid "inputs.unreadable"
 msgstr "Nie można odczytać wejść"
@@ -813,6 +816,21 @@ msgstr "Dodano do listy powtórek gry pod datą, kiedy mecz został rozegrany."
 
 msgid "replays.not_added"
 msgstr "Nie udało się dodać tej powtórki. Plik może być uszkodzony."
+
+msgid "replays.not_added_yet"
+msgstr "Gra nie zapisała jeszcze ostatniego meczu. Spróbuj ponownie za chwilę."
+
+msgid "replays.not_added_files"
+msgstr "Nie można dodać tej powtórki: nie można odczytać lub przygotować plików powtórek gry. Żaden plik powtórek gry nie został zmieniony."
+
+msgid "replays.not_added_archive"
+msgstr "Nie można dodać tej powtórki, ponieważ nie udało się utworzyć i zweryfikować kopii zapasowej istniejącej powtórki. Sprawdź folder archiwum i wolne miejsce na dysku."
+
+msgid "replays.not_added_restored"
+msgstr "Import nie powiódł się. Przywrócono oryginalne pliki powtórek gry."
+
+msgid "replays.not_added_recovery"
+msgstr "Import nie powiódł się i nie udało się przywrócić niektórych plików powtórek gry. Zachowano dane do odzyskiwania. Przerwij importowanie powtórek i sprawdź dziennik."
 
 msgid "replays.fighters"
 msgstr "{0} vs {1}"

@@ -53,6 +53,8 @@ namespace Dimps {
 		struct Flow {
 			static constexpr std::size_t RequestOffset = 0x9C, OnLocalBattleLog = 0x8;
 			static void Request(Flow* flow, int row);
+			// The local battle log event's own flow.
+			static Flow* OfLocalBattleLog(void* log) { return *reinterpret_cast<Flow**>(reinterpret_cast<std::uint8_t*>(log) + OnLocalBattleLog); }
 		};
 
 		struct MainMenu : Dimps::Event::EventBase {
@@ -111,6 +113,11 @@ namespace Dimps {
 			// panel it closes, the selection it clears, and the sound manager
 			// (a pointer to a pointer) on the app.
 			static constexpr std::size_t ObserverFlow = 0x18, ObserverPanel = 0x8, ObserverSelection = 0x2A8, AppSoundManager = 0x7C;
+			// The same, read, from the item observer and from the app.
+			static Flow* GetObserverFlow(MainMenu* observer) { return *reinterpret_cast<Flow**>(reinterpret_cast<std::uint8_t*>(observer) + ObserverFlow); }
+			static MenuPanel* GetObserverPanel(MainMenu* observer) { return reinterpret_cast<MenuPanel*>(reinterpret_cast<std::uint8_t*>(observer) + ObserverPanel); }
+			static int* GetObserverSelection(MainMenu* observer) { return reinterpret_cast<int*>(reinterpret_cast<std::uint8_t*>(observer) + ObserverSelection); }
+			static SoundManager* GetAppSoundManager(void* app) { return **reinterpret_cast<SoundManager***>(reinterpret_cast<std::uint8_t*>(app) + AppSoundManager); }
 			// The row of the event flow table that is the main menu, and the
 			// one Ember adds for the local battle log (sf4e__GameEvents.cxx).
 			static constexpr int FlowRowMainMenu = 1, FlowRowLocalBattleLog = 15;

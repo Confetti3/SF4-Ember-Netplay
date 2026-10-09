@@ -1,7 +1,7 @@
-#pragma once
+#include "shell_journey_support.hxx"
+#include "shell_additional_journeys.hxx"
 // The room chat through the shell: the transcript a client keeps, the unread
-// count, and the Chat screen's message box. Included by shell_journey_test.cxx
-// after its support header.
+// count, and the Chat screen's message box.
 #include "../ui/ChatTranscript.hxx"
 #include <cmath>
 
@@ -75,6 +75,7 @@ void TranscriptLogic(){
  // A different room starts again from its own history.
  s.roomEpoch=6;s.chat.clear();s.chat.push_back({1,2,"New room"});
  Check(t.Update(s)&&t.Lines().size()==1&&t.Lines()[0].text=="New room"&&t.Unread({})==0,"A different room kept the old transcript or counted its history as unread");
+}
 }
 void ChatJourneys(){
  using namespace sf4e;
@@ -242,5 +243,4 @@ void ChatJourneys(){
  say(1,"Edited later");h.Frame(0,2);
  Check(row("compose").value=="Edited later more","A late arrival took a draft the player had changed");
  SetMenuEntriesProbe({});
-}
 }
