@@ -360,6 +360,21 @@ void TrainingJourneys() {
  Check(commands.back().requestId==older&&told("training.command_rejected",true),"A save the queue refused did not say so");
  v.acks.Note(older,true);frame();
  Check(told("training.command_rejected",true),"An older save's success replaced a newer refusal");
+ // The pad's save then reset, taken in one batch with no position saved yet:
+ // both go to the session in order, which decides the reset once the save
+ // before it has run; nothing turns the reset down here first.
+ {
+  const bool hadCheckpoint=v.checkpoint;v.checkpoint=false;commands.clear();
+  input::TrainingPadEvent save,reset;save.kind=input::TrainingPadEvent::Kind::Save;reset.kind=input::TrainingPadEvent::Kind::Reset;
+  save.generation=reset.generation=v.generation;save.place[0]=120;save.place[1]=420;
+  ImGui::NewFrame();TrainingPadPosition(v,submit,save);TrainingPadPosition(v,submit,reset);ImGui::Render();
+  Check(commands.size()==3&&commands[0].action==training::Action::Place&&commands[1].action==training::Action::Save&&
+   commands[2].action==training::Action::Restore&&commands[2].requestId!=0,"A reset after a save in the same batch was turned down before the session saw it");
+  // The session then refuses the reset only when the save before it failed.
+  v.acks.Note(commands[2].requestId,false);frame();
+  Check(told("training.command_rejected",true),"A refused reset read as done");
+  v.checkpoint=hadCheckpoint;
+ }
  for(const char* name:{"First","Second"})std::filesystem::remove(folder/"recordings"/(std::string(name)+".json"));
  std::filesystem::remove(folder/"recordings");std::filesystem::remove(folder/"training.json");std::filesystem::remove(folder);
 }

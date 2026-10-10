@@ -304,6 +304,17 @@ int main() {
             Command load{Action::Load, current}; load.frames = {Input{1, 1}};
             checked.SetReady(true); load.side = 2;
             Require(!checked.Apply(load), "Input loaded for a side that does not exist");
+            // A save and then a reset, in order, with no position saved before:
+            // the reset is the session's to decide once the save has run.
+            Session positions; positions.Enter(); positions.SetReady(true);
+            const auto battle = positions.GetView().generation;
+            Require(positions.Apply({Action::Save, battle}), "A save was refused");
+            positions.SetCheckpoint(true);
+            Require(positions.Apply({Action::Restore, battle}), "A reset after a save that worked was refused");
+            Session failed; failed.Enter(); failed.SetReady(true);
+            Require(failed.Apply({Action::Save, failed.GetView().generation}), "A save was refused");
+            failed.SetCheckpoint(false);
+            Require(!failed.Apply({Action::Restore, failed.GetView().generation}), "A reset after a failed save was taken");
         }
         // The call out of Training: the battle leaves once, by the countdown,
         // whether its banner ran out or the player chose to go now.

@@ -20,7 +20,12 @@ namespace sf4e {
         std::uint32_t TrainingPadEpoch();
         void PostTrainingPad(const input::TrainingPadEvent& event);
         void DropTrainingPad();
-        bool TrainingControlsOpen();
+        // The training controls' one open state, which the pad's chord and
+        // the overlay both set (TrainingPad.hxx: TrainingFlyout).
+        input::TrainingFlyout& TrainingControls();
+        // Game thread: the pad's chord opened the controls; the input is
+        // taken at once, as RequestMainControls does.
+        void OpenedTrainingControls();
 		void InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice);
 		// Draws the overlay over the game's picture. picture, which takes an
 		// export's picture, runs once each call: after the layers an export's

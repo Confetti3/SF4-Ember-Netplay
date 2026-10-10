@@ -102,7 +102,9 @@ void LoadPractice() {
 void SendPosition(const training::View& view,const TrainingSubmit& submit,Action action) {
     lab.position=0;
     Command command; command.action=action; command.generation=view.generation; command.requestId=nextRequest++;
-    if((action==Action::Restore&&!view.checkpoint)||!submit||!submit(command)) { Notice(loc::T("training.command_rejected"),true); return; }
+    // Whether a reset has a saved position to go to is the session's to say
+    // when it reaches it (Session::Apply), after any save queued before it.
+    if(!submit||!submit(command)) { Notice(loc::T("training.command_rejected"),true); return; }
     lab.position=command.requestId; lab.positionGeneration=view.generation; lab.positionSave=action==Action::Save;
     lab.notice.clear();
 }

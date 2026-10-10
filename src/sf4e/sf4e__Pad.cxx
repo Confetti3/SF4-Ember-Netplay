@@ -66,17 +66,15 @@ void fSystem::UpdateInputs() {
     else if(mainArmed&&(physical&PhysicalStart)&&!sf4e::Overlay::CapturesMenuInput()) {
         mainArmed=false;sf4e::Overlay::RequestMainControls();
     }
-    // Offline Training: the pad's Back and Start (TrainingPad.hxx), posted in
-    // order for the drawing thread. The chord that opens the controls sets the
-    // capture here, so the caches cleared below hide its Start from native
-    // pause in this same frame; a chord that opens nothing (under the call)
-    // still owns its Start, which is cleared from the caches below as well.
-    static sf4e::input::TrainingPadGesture trainingPad;
+    // Offline Training: the pad's Back and Start (TrainingPad.hxx). Each press
+    // keeps the battle and pad owner it went down under, and the position
+    // events it makes are posted in order for the drawing thread with them.
+    // The chord opens or closes the controls in their one state at once and
+    // takes the capture here, so the caches cleared below hide its Start from
+    // native pause in this same frame; a chord that opens nothing (under the
+    // call) still owns its Start, which is cleared from the caches as well.
+    static sf4e::input::TrainingPadInput trainingPad;
     static bool trainingPadOwned=false;
-    // Where the fighters stood, in which battle and under which pad owner, as
-    // the gesture's Back went down: a save made of that press keeps them.
-    static sf4e::training::Place pressPlace;
-    static std::uint32_t pressEpoch=0;
     std::uint32_t ownedByGesture=0;
     const bool training=focused&&connected&&snapshot.menuContext==sf4e::input::MenuContext::OfflineTraining&&
         snapshot.inputCapture==sf4e::input::Capture::Idle&&ownerType==device.type&&ownerIndex==device.index;
@@ -93,19 +91,21 @@ void fSystem::UpdateInputs() {
         const bool free=!sf4e::Overlay::CapturesMenuInput()&&!sf4e::battlePause.Paused();
         const auto call=!goNow.Offered().Live()?sf4e::input::TrainingCall::None:
             free&&device.type==sf4e::input::PadXInput?sf4e::input::TrainingCall::GoNow:sf4e::input::TrainingCall::Called;
-        const auto events=trainingPad.Update(physical,sf4e::Overlay::TrainingControlsOpen(),GetTickCount64()/1000.0,call);
+        const auto place=sf4e::training::ReadPlace();
+        sf4e::input::PadOwner owner;owner.generation=place.generation;owner.epoch=sf4e::Overlay::TrainingPadEpoch();
+        const auto result=trainingPad.Update(physical,sf4e::Overlay::TrainingControls(),GetTickCount64()/1000.0,call,owner,place.x);
+        const auto& events=result.events;
         ownedByGesture=events.owned;
-        using Kind=sf4e::input::TrainingPadEvent::Kind;
-        const auto post=[](Kind kind,const sf4e::training::Place& at,std::uint32_t epoch) {
-            sf4e::input::TrainingPadEvent event;
-            event.kind=kind;event.generation=at.generation;event.epoch=epoch;event.place[0]=at.x[0];event.place[1]=at.x[1];
-            sf4e::Overlay::PostTrainingPad(event);
-        };
-        if(events.down) { pressPlace=sf4e::training::ReadPlace(); pressEpoch=sf4e::Overlay::TrainingPadEpoch(); }
+        if(events.open) sf4e::Overlay::OpenedTrainingControls();
         if(events.goNow&&!goNow.Press(sf4e::input::GoNowGate::Source::Pad,free)) spdlog::info("Training: go now on the pad was not taken");
-        if(events.reset) post(Kind::Reset,pressPlace,pressEpoch);
-        if(events.save) post(Kind::Save,pressPlace,pressEpoch);
-        if(events.open||events.close) post(events.open?Kind::Open:Kind::Close,sf4e::training::ReadPlace(),sf4e::Overlay::TrainingPadEpoch());
+        using Kind=sf4e::input::TrainingPadEvent::Kind;
+        for(const Kind kind:{Kind::Reset,Kind::Save}) {
+            if(kind==Kind::Reset?!events.reset:!events.save) continue;
+            sf4e::input::TrainingPadEvent event;
+            event.kind=kind;event.generation=result.owner.generation;event.epoch=result.owner.epoch;
+            event.place[0]=result.place[0];event.place[1]=result.place[1];
+            sf4e::Overlay::PostTrainingPad(event);
+        }
     }
     ownerType=device.type;ownerIndex=device.index;
     const unsigned held=sf4e::input::NativeMenuHeld(this);

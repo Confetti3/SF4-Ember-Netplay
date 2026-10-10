@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 #include <cstdint>
 #include <mutex>
 #include <vector>
@@ -42,6 +43,9 @@ struct TrainingPadEvents {
     // sample belongs to the gesture: they are cleared from the game's input
     // where it publishes it, down, held and let go.
     std::uint32_t owned = 0;
+    // Back went down this sample, whatever the press turns out to be: the
+    // moment the press takes its owner (TrainingPadInput).
+    bool pressed = false;
     bool Any() const { return down || reset || save || open || close || goNow; }
 };
 class TrainingPadGesture {
@@ -53,7 +57,7 @@ public:
         TrainingPadEvents events;
         const bool back = (physical & PhysicalBack) != 0, start = (physical & PhysicalStart) != 0;
         if (back && !back_) {
-            downAt_ = now; openAtPress_ = open; mine_ = !start;
+            downAt_ = now; openAtPress_ = open; mine_ = !start; events.pressed = true;
             if (call == TrainingCall::GoNow && !open && !start) { events.goNow = true; used_ = true; armed_ = false; }
             else { used_ = open || start; armed_ = !start; events.down = !used_; }
         }
@@ -88,12 +92,12 @@ private:
     double downAt_ = 0;
 };
 
-// What the gesture asked for, one at a time and in order, for the drawing
+// The position the gesture asked for, one at a time and in order, for the drawing
 // thread: each with the Training battle (its generation) and the pad owner
 // (epoch) it was pressed under. A save keeps where the fighters stood as its
 // Back went down.
 struct TrainingPadEvent {
-    enum class Kind : std::uint8_t { Reset, Save, Open, Close };
+    enum class Kind : std::uint8_t { Reset, Save };
     Kind kind = Kind::Reset;
     std::uint64_t generation = 0;
     std::uint32_t epoch = 0;
@@ -121,9 +125,67 @@ public:
         taken.swap(events_);
         return taken;
     }
+    // Whether a taken event's owner is still the pad's, checked as each is
+    // applied: one taken just before the owner changed is not applied.
+    bool Current(const TrainingPadEvent& event) const { return event.epoch == Epoch(); }
 private:
     mutable std::mutex mutex_;
     std::uint32_t epoch_ = 0;
     std::vector<TrainingPadEvent> events_;
+};
+
+// Whether the training controls are meant to be open: the one owner of it
+// for both threads. The pad's gesture decides open or close against it and
+// sets it as its chord is taken, so two chords before a frame open and then
+// close; the overlay sets it for F6, the HUD's chip, the controls' own Back,
+// the call and the loss of focus, and draws what it says.
+class TrainingFlyout {
+public:
+    bool Open() const { return open_.load(); }
+    void Set(bool open) { open_.store(open); }
+private:
+    std::atomic<bool> open_{false};
+};
+
+// Who a Back press belongs to: the Training battle (its generation) and the
+// pad owner (TrainingPadQueue's epoch) it went down under.
+struct PadOwner {
+    std::uint64_t generation = 0;
+    std::uint32_t epoch = 0;
+    bool operator==(const PadOwner& other) const { return generation == other.generation && epoch == other.epoch; }
+    bool operator!=(const PadOwner& other) const { return !(*this == other); }
+};
+// The gesture with its owner, on the game thread. Each Back press takes the
+// owner current as it goes down and keeps it to the end: when the battle or
+// the pad owner changes before the gesture ends (focus lost and back between
+// two polls, another battle), the gesture is dropped, so nothing it would ask
+// for, a reset, a save or the controls, acts under another owner. The chord
+// opens or closes the controls in the flyout's one state as it is taken.
+class TrainingPadInput {
+public:
+    struct Result {
+        TrainingPadEvents events;
+        // The owner and the fighters' places the press went down with.
+        PadOwner owner;
+        float place[2] = {0, 0};
+    };
+    Result Update(std::uint32_t physical, TrainingFlyout& flyout, double now, TrainingCall call, const PadOwner& current, const float (&place)[2]) {
+        if (held_ && current != owner_) gesture_.Reset();
+        Result result;
+        result.events = gesture_.Update(physical, flyout.Open(), now, call);
+        if (result.events.pressed) { owner_ = current; place_[0] = place[0]; place_[1] = place[1]; }
+        held_ = (physical & PhysicalBack) != 0;
+        if (result.events.open) flyout.Set(true);
+        if (result.events.close) flyout.Set(false);
+        result.owner = owner_; result.place[0] = place_[0]; result.place[1] = place_[1];
+        return result;
+    }
+    // The pad changed, lost focus or left Training (TrainingPadGesture::Reset).
+    void Reset() { gesture_.Reset(); held_ = false; }
+private:
+    TrainingPadGesture gesture_;
+    PadOwner owner_;
+    float place_[2] = {0, 0};
+    bool held_ = false;
 };
 } }

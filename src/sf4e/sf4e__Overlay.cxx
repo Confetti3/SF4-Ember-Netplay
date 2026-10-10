@@ -45,11 +45,12 @@ static std::atomic<bool> capture{false};
 static std::atomic<bool> pointerCapture{false};
 static std::atomic<bool> focused{true};
 static sf4e::ui::OpenRequests s_openRequests;
-static bool trainingOpen = false, trainingHud = true;
+static bool trainingHud = true;
+// Whether the training controls are meant to be open, for both threads.
+static sf4e::input::TrainingFlyout s_flyout;
 // The pad's training events from the game thread (TrainingPad.hxx), in order,
 // for the drawing thread, and whether the controls are open, for the game thread.
 static sf4e::input::TrainingPadQueue s_trainingPad;
-static std::atomic<bool> s_trainingOpen{false};
 static std::atomic<bool> trainingAvailable{false};
 // A replay plays with Ember's controls: the window procedure keeps their keys.
 static std::atomic<bool> replayPlayback{false};
@@ -78,11 +79,11 @@ void Overlay::RequestMainControls() { if(focused) { capture=true; s_openRequests
 std::uint32_t Overlay::TrainingPadEpoch() { return s_trainingPad.Epoch(); }
 void Overlay::PostTrainingPad(const sf4e::input::TrainingPadEvent& event) {
     if(!focused) return;
-    if(!s_trainingPad.Post(event)) return;
-    if(event.kind==sf4e::input::TrainingPadEvent::Kind::Open) capture=true;
+    s_trainingPad.Post(event);
 }
 void Overlay::DropTrainingPad() { s_trainingPad.Invalidate(); }
-bool Overlay::TrainingControlsOpen() { return s_trainingOpen.load(); }
+sf4e::input::TrainingFlyout& Overlay::TrainingControls() { return s_flyout; }
+void Overlay::OpenedTrainingControls() { if(focused) capture=true; }
 void Overlay::PushNetplayAlert(const char* message) { if (message) sf4e::NetplayFacade::SetLastError(message); }
 void Overlay::OnClientError(SessionClient::ErrorType type, SessionClient* const, const SessionClient::Callbacks&) {
     PushNetplayAlert(sf4e::loc::T(sf4e::NetplayFacade::IsRuntimePublicJoin() ? SessionClient::PublicJoinRejectionKey(type) : SessionClient::JoinRejectionKey(type)));
@@ -438,7 +439,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         notedOverflows = overflows;
     }
     controllerNavigation.Update(snapshot.menuController, sf4e::input::ControllerMenuAvailable(snapshot.menuContext),
-        presentation.Visible() || trainingOpen, focused && !assigning);
+        presentation.Visible() || s_flyout.Open(), focused && !assigning);
     // Start opens Ember at the main menu only; in Training and over an export it is the game's pause.
     if (controllerNavigation.OpenRequested() && presentation.Available() && sf4e::input::ControllerOpensMenu(snapshot.menuContext)) presentation.Open();
     ImGui::NewFrame();
@@ -488,7 +489,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         if (ImGui::IsKeyPressed(ImGuiKey_F5, false)) send(Command::Meter);
         if (ImGui::IsKeyPressed(ImGuiKey_F9, false)) send(Command::Inputs);
     }
-    if (!training.available || !focused) trainingOpen = false;
+    if (!training.available || !focused) s_flyout.Set(false);
     // Taken every frame, in the order the pad asked, so a press from before
     // the lab was shown never acts later.
     const auto padEvents = s_trainingPad.Take();
@@ -502,43 +503,43 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const auto& call = snapshot.trainingCall;
     const bool called = training.available && training.leavingIn > 0 && call.Live() && call.generation == training.generation && training.leavingCall == call.serial;
     const bool offerGoNow = called && focused && !presentation.Visible() && !nativePaused;
-    if (called) trainingOpen = false;
+    if (called) s_flyout.Set(false);
     // Training's keys and pad stay off during any replay, an export's too.
     if (focused && training.available && !playback.playback && !presentation.Visible()) {
         // The pad drives the controls while they are open, through the same
         // adapter as the shell's menus; the prompts follow the device last used.
-        if (!trainingOpen) sf4e::ui::NoteMenuDevice(snapshot.menuController.buttons);
-        using PadKind = sf4e::input::TrainingPadEvent::Kind;
+        if (!s_flyout.Open()) sf4e::ui::NoteMenuDevice(snapshot.menuController.buttons);
         for (const auto& pad : padEvents) {
-            if (pad.generation != training.generation) continue;
-            if (pad.kind == PadKind::Open && !called) trainingOpen = true;
-            else if (pad.kind == PadKind::Close) trainingOpen = false;
-            else sf4e::ui::TrainingPadPosition(training, sf4e::training::Submit, pad);
+            // Each is applied only under the owner it was pressed under, which
+            // may have changed since the batch was taken.
+            if (pad.generation != training.generation || !s_trainingPad.Current(pad)) continue;
+            sf4e::ui::TrainingPadPosition(training, sf4e::training::Submit, pad);
         }
-        if (ImGui::IsKeyPressed(ImGuiKey_F6, false) && !called) trainingOpen = !trainingOpen;
+        if (ImGui::IsKeyPressed(ImGuiKey_F6, false) && !called) s_flyout.Set(!s_flyout.Open());
         if (ImGui::IsKeyPressed(ImGuiKey_F5, false)) trainingHud = !trainingHud;
         auto practice = [&](sf4e::training::Action action) {
             sf4e::training::Submit({action, training.generation});
         };
         sf4e::ui::TrainingHotkeys(training, sf4e::training::Submit);
         // Not under the call either: F7 could otherwise open the recordings there.
-        if (!trainingOpen && !called && !ImGui::GetIO().WantTextInput) {
+        if (!s_flyout.Open() && !called && !ImGui::GetIO().WantTextInput) {
             if (ImGui::IsKeyPressed(ImGuiKey_F7, false)) {
                 if(training.mode != sf4e::training::Mode::Recording && training.lengths[training.selected]>0) {
-                    sf4e::ui::ShowTrainingRecordings(); trainingOpen=true;
+                    sf4e::ui::ShowTrainingRecordings(); s_flyout.Set(true);
                 } else practice(training.mode == sf4e::training::Mode::Recording ? sf4e::training::Action::Stop : sf4e::training::Action::Record);
             }
             if (ImGui::IsKeyPressed(ImGuiKey_F8, false)) practice(training.mode == sf4e::training::Mode::Playback ? sf4e::training::Action::Stop : sf4e::training::Action::Play);
         }
-        if (trainingOpen) {
+        if (s_flyout.Open()) {
             // Only what this frame's flyout forwards is read below.
             sf4e::ui::TakeForwardedMenuAction();
             sf4e::ui::DrawTrainingFlyout(training, sf4e::training::Submit);
-            if(sf4e::ui::TakeForwardedMenuAction().kind==sf4e::ui::MenuAction::Close) trainingOpen=false;
+            if(sf4e::ui::TakeForwardedMenuAction().kind==sf4e::ui::MenuAction::Close) s_flyout.Set(false);
         }
     }
     sf4e::ui::OverlayLayersView layers;
     layers.shellVisible = presentation.Visible(); layers.shellAvailable = presentation.Available(); layers.exporting = exporting;
+    const bool trainingOpen = s_flyout.Open();
     layers.trainingControlsOpen = trainingOpen; layers.nativePaused = nativePaused;
     layers.focused = focused; layers.trainingHud = trainingHud;
     layers.matchActive = frame->ggpoSessionActive; layers.matchWaitsForMenu = snapshot.matchWaitsForMenu;
@@ -603,11 +604,10 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         strip.disconnectCountdownMs = status.disconnectCountdownMs;
     }
     const auto hud = sf4e::ui::DrawOverlayLayers(layers, training);
-    if (hud.open && !called) trainingOpen = true;
-    s_trainingOpen = trainingOpen;
+    if (hud.open && !called) s_flyout.Set(true);
     // Shown survives alt-tab; taking the cursor and keys needs focus.
-    const bool shown = presentation.Visible() || trainingOpen;
-    const bool passive = sf4e::ui::PassiveOverlayShown(presentation.Visible(), trainingOpen, nativePaused);
+    const bool shown = presentation.Visible() || s_flyout.Open();
+    const bool passive = sf4e::ui::PassiveOverlayShown(presentation.Visible(), s_flyout.Open(), nativePaused);
     const bool visible = focused && shown;
     pointerCapture = focused && !visible && hud.pointer;
     sf4e::ui::SetOverlayCursorOwnership(visible || pointerCapture);

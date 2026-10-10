@@ -282,9 +282,9 @@ void TrainingPadEventOrder(){
  using Kind=TrainingPadEvent::Kind;
  TrainingPadQueue queue;
  const auto event=[&](Kind kind,std::uint64_t generation,float x=0){TrainingPadEvent e;e.kind=kind;e.generation=generation;e.epoch=queue.Epoch();e.place[0]=x;return e;};
- Check(queue.Post(event(Kind::Save,4,120))&&queue.Post(event(Kind::Reset,4))&&queue.Post(event(Kind::Open,4)),"The queue refused a gesture");
+ Check(queue.Post(event(Kind::Save,4,120))&&queue.Post(event(Kind::Reset,4))&&queue.Post(event(Kind::Save,4,200)),"The queue refused a gesture");
  auto taken=queue.Take();
- Check(taken.size()==3&&taken[0].kind==Kind::Save&&taken[0].place[0]==120&&taken[1].kind==Kind::Reset&&taken[2].kind==Kind::Open,
+ Check(taken.size()==3&&taken[0].kind==Kind::Save&&taken[0].place[0]==120&&taken[1].kind==Kind::Reset&&taken[2].kind==Kind::Save&&taken[2].place[0]==200,
   "Gestures between frames were merged or reordered, or a save lost where its press was");
  Check(queue.Take().empty(),"An event was taken twice");
  for(std::size_t i=0;i<TrainingPadQueue::MostEvents;++i)queue.Post(event(Kind::Reset,4));
@@ -296,6 +296,63 @@ void TrainingPadEventOrder(){
  Check(queue.Take().empty(),"An event outlived its pad owner");
  Check(!queue.Post(stale)&&queue.Take().empty(),"An event made under the old owner was posted");
  Check(queue.Post(event(Kind::Reset,5))&&queue.Take().size()==1,"The new owner's event was dropped");
+}
+// Each Back press keeps the owner it went down under: the owner changing
+// before the gesture ends (focus lost and back between two polls, another
+// battle) drops it whole, the controls included. A batch taken before the
+// owner changed is not applied under the new one.
+void TrainingPadOwnership(){
+ using namespace sf4e::input;
+ TrainingPadInput pad;TrainingFlyout flyout;double now=0;
+ const float place[2]={100,300};
+ PadOwner owner;owner.generation=4;owner.epoch=1;
+ const auto step=[&](unsigned physical,const PadOwner& current,double seconds=1.0/60){now+=seconds;return pad.Update(physical,flyout,now,TrainingCall::None,current,place);};
+ const unsigned back=PhysicalBack,both=PhysicalBack|PhysicalStart;
+ auto r=step(back,owner);
+ Check(r.events.pressed&&r.owner==owner&&r.place[0]==100,"A press did not take its owner and place");
+ PadOwner regained=owner;regained.epoch=2;
+ r=step(both,regained);
+ Check(!r.events.open&&!flyout.Open(),"A chord finished under a new pad owner opened the controls");
+ Check(!step(0,regained).events.Any(),"A press from the old owner reset or saved");
+ r=step(back,regained);step(both,regained);
+ Check(flyout.Open(),"A fresh chord under the new owner did not open the controls");
+ step(0,regained);flyout.Set(false);
+ // Another battle while Back is held: no save comes of the old press.
+ step(back,regained);PadOwner next=regained;next.generation=5;
+ Check(!step(back,next,1).events.save&&!step(0,next).events.Any(),"A press from the last battle saved in the next");
+ r=step(back,next);r=step(back,next,.6);
+ Check(r.events.save&&r.owner==next,"A hold under one owner did not save for it");
+ step(0,next);
+ // A batch taken just before the owner changed is not applied.
+ TrainingPadQueue queue;TrainingPadEvent event;event.kind=TrainingPadEvent::Kind::Save;event.generation=5;event.epoch=queue.Epoch();
+ Check(queue.Post(event),"The queue refused an event of its owner");
+ const auto taken=queue.Take();queue.Invalidate();
+ Check(taken.size()==1&&!queue.Current(taken[0]),"An event taken before the owner changed was still current");
+}
+// The controls' open state has one owner. Two chords before a frame open and
+// then close them, from either state; F6 and the controls' own Back act on
+// the same state, and a chord whose Back already closed the controls (a
+// DirectInput pad's Back is the menu's too) does not open them again.
+void TrainingFlyoutOwner(){
+ using namespace sf4e::input;
+ PadOwner owner;owner.generation=1;owner.epoch=1;const float place[2]={0,0};
+ for(const bool start:{false,true}){
+  TrainingPadInput pad;TrainingFlyout flyout;flyout.Set(start);double now=0;
+  const auto step=[&](unsigned physical){now+=1.0/60;return pad.Update(physical,flyout,now,TrainingCall::None,owner,place);};
+  for(int chord=0;chord<2;++chord){step(PhysicalBack);step(PhysicalBack|PhysicalStart);step(0);}
+  Check(flyout.Open()==start,"Two chords before a frame did not open and close the controls");
+  step(PhysicalBack);step(PhysicalBack|PhysicalStart);step(0);
+  Check(flyout.Open()==!start,"One chord did not change the controls");
+  // F6 between chords: the next chord acts on what F6 left.
+  flyout.Set(!flyout.Open());
+  step(PhysicalBack);step(PhysicalBack|PhysicalStart);step(0);
+  Check(flyout.Open()==!start,"A chord after F6 did not act on what F6 left");
+ }
+ TrainingPadInput pad;TrainingFlyout flyout;flyout.Set(true);double now=0;
+ const auto step=[&](unsigned physical){now+=1.0/60;return pad.Update(physical,flyout,now,TrainingCall::None,owner,place);};
+ step(PhysicalBack);flyout.Set(false);// the controls' own Back closed them
+ step(PhysicalBack|PhysicalStart);step(0);
+ Check(!flyout.Open(),"The chord reopened controls its own Back had closed");
 }
 // Go now is taken only for the call that stands and only while the press is
 // nobody else's; the request names that call, so once the call has changed
@@ -584,5 +641,5 @@ void ProfileRecords(){
   "Record after the exact total limit was accepted");
 }
 }
-int main(){try{NativeReader();NavigationModel();NativeCapture();TrainingPadChord();TrainingPadEventOrder();GoNowRequests();CallLifecycleOrder();DialogContract();SelectPrecedence();FlyoutIgnoresChoices();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
+int main(){try{NativeReader();NavigationModel();NativeCapture();TrainingPadChord();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();DialogContract();SelectPrecedence();FlyoutIgnoresChoices();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}
