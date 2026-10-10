@@ -110,7 +110,7 @@ int main() {
     check(Overlay::HasInputFocus(), "display-reset activation was lost while ImGui was absent");
     namespace Capture = sf4e::replaycapture;
     Capture::Release();
-    Capture::Begin(L"unused-capture-reset.mp4", false);
+    Capture::Begin(L"unused-capture-reset.mp4");
     Capture::Frame(device);
     check(Capture::GetState() == Capture::State::Recording, "capture opened while the device was unavailable");
     check(SUCCEEDED(device->Reset(&params)), "hidden DX9 reset failed");

@@ -28,6 +28,9 @@ enum class State { Idle, Recording, Closing, Done, Failed };
 // no encoder is started at all. Failed follows. False, doing nothing, once
 // the file is already closing. Clear: back to Idle after either.
 void Begin(const std::wstring& file, const std::wstring& encoder = std::wstring());
+// Begin once took whether to draw the overlay first; a flag must not become
+// a null encoder path now.
+void Begin(const std::wstring& file, bool) = delete;
 void End();
 bool Cancel();
 void Clear();
