@@ -1,5 +1,8 @@
 #include "../launcher/update/github_release_client_internal.hxx"
 #include "../launcher/update/github_release_download.hxx"
+#include "../common/ReleaseNotesText.hxx"
+#include "../ui/UpdateChannelPick.hxx"
+#include "../ui/VersionLine.hxx"
 #include <filesystem>
 #include <initializer_list>
 #include <nlohmann/json.hpp>
@@ -93,6 +96,86 @@ int main(int argc, char** argv) {
     CHECK(GetUpdateChannelInfo(UpdateChannel::Stable).next == UpdateChannel::Beta);
     CHECK(GetUpdateChannelInfo(UpdateChannel::Beta).next == UpdateChannel::Nightly);
     CHECK(GetUpdateChannelInfo(UpdateChannel::Nightly).next == UpdateChannel::Stable);
+    // The updater's channel row: Left and Right pick without saving and stop
+    // at both ends, so Beta to Stable never passes through Nightly.
+    {
+        using sf4e::ui::ChannelMove;
+        using sf4e::ui::ClassifyChannelMove;
+        sf4e::ui::ChannelPick pick;
+        CHECK(pick.Shown(UpdateChannel::Beta) == UpdateChannel::Beta && !pick.Pending(UpdateChannel::Beta));
+        pick.Step(UpdateChannel::Beta, -1);
+        CHECK(pick.Shown(UpdateChannel::Beta) == UpdateChannel::Stable && pick.Pending(UpdateChannel::Beta));
+        pick.Step(UpdateChannel::Beta, -1);
+        CHECK(pick.Shown(UpdateChannel::Beta) == UpdateChannel::Stable);
+        pick.Step(UpdateChannel::Beta, 1);
+        CHECK(!pick.picked && !pick.Pending(UpdateChannel::Beta));
+        pick.Step(UpdateChannel::Beta, 1); pick.Step(UpdateChannel::Beta, 1);
+        CHECK(pick.Shown(UpdateChannel::Beta) == UpdateChannel::Nightly);
+        // An unconfirmed pick survives idle frames; a channel saved some other way drops it.
+        pick.Settle(UpdateChannel::Beta, false);
+        CHECK(pick.Shown(UpdateChannel::Beta) == UpdateChannel::Nightly);
+        pick.Settle(UpdateChannel::Stable, false);
+        CHECK(!pick.picked && pick.Shown(UpdateChannel::Stable) == UpdateChannel::Stable);
+        // A confirmed pick stays on the row while it is saved and checked, then gives way to the saved channel.
+        pick.Step(UpdateChannel::Stable, 1); pick.applying = true;
+        pick.Settle(UpdateChannel::Stable, true);
+        CHECK(pick.Shown(UpdateChannel::Stable) == UpdateChannel::Beta);
+        pick.Settle(UpdateChannel::Beta, false);
+        CHECK(!pick.picked && !pick.applying && pick.Shown(UpdateChannel::Beta) == UpdateChannel::Beta);
+        // A switch that failed (still the old channel, no longer busy) shows the saved channel again.
+        pick.Step(UpdateChannel::Beta, 1); pick.applying = true;
+        pick.Settle(UpdateChannel::Beta, false);
+        CHECK(!pick.picked && !pick.applying);
+        CHECK(ClassifyChannelMove(UpdateChannel::Beta, UpdateChannel::Beta) == ChannelMove::None);
+        CHECK(ClassifyChannelMove(UpdateChannel::Stable, UpdateChannel::Beta) == ChannelMove::Forward);
+        CHECK(ClassifyChannelMove(UpdateChannel::Stable, UpdateChannel::Nightly) == ChannelMove::ToNightly);
+        CHECK(ClassifyChannelMove(UpdateChannel::Beta, UpdateChannel::Nightly) == ChannelMove::ToNightly);
+        CHECK(ClassifyChannelMove(UpdateChannel::Beta, UpdateChannel::Stable) == ChannelMove::GoesBack);
+        CHECK(ClassifyChannelMove(UpdateChannel::Nightly, UpdateChannel::Beta) == ChannelMove::GoesBack);
+        CHECK(ClassifyChannelMove(UpdateChannel::Nightly, UpdateChannel::Stable) == ChannelMove::GoesBack);
+    }
+    // One line names the version and channel on Home, in the launcher window and in Help and about.
+    CHECK(sf4e::ui::VersionLine("1.2.0", UpdateChannel::Nightly) == "Ember 1.2.0 \xC2\xB7 Nightly");
+    CHECK(sf4e::ui::VersionLine("1.1.2", UpdateChannel::Stable) == "Ember 1.1.2 \xC2\xB7 Stable");
+    CHECK(sf4e::ui::VersionLine("1.2.0-rc1", UpdateChannel::Beta) == "Ember 1.2.0-rc1 \xC2\xB7 Beta");
+    CHECK(sf4e::ui::VersionLine("", UpdateChannel::Stable).empty());
+    // Release notes read as plain text: Markdown marks go, links read as
+    // their text, and what is left is only ever text, never markup or a format.
+    {
+        using sf4e::updates::PlainReleaseNotes;
+        const std::string notes =
+            "## What's new\r\n\r\n"
+            "- **Bold** fix for [rooms](https://x.invalid/y) and `code`\r\n"
+            "  * nested _item_ with snake_case_name\r\n\r\n\r\n\r\n"
+            "> quoted\r\n---\r\n"
+            "<!-- hidden -->Visible<br>line &amp; more\r\n"
+            "![shot](https://x.invalid/img.png)\r\n"
+            "```\r\nraw *code*\r\n```\r\n"
+            "2 * 3 = 6 and 100%s %n {0} \\*kept\\*\r\n"
+            "| a | b |\r\n|---|---|\r\n| 1 | 2 |\r\n"
+            "Intro\r\n### Fixes ###\r\n+ one\r\n";
+        const std::string plain = PlainReleaseNotes(notes);
+        const std::string expected =
+            "What's new\n\n"
+            "- Bold fix for rooms and code\n"
+            "  - nested item with snake_case_name\n\n"
+            "quoted\n\n"
+            "Visible line & more\n"
+            "shot\n"
+            "raw *code*\n"
+            "2 * 3 = 6 and 100%s %n {0} *kept*\n"
+            "a, b\n1, 2\n"
+            "Intro\n\nFixes\n- one";
+        if (plain != expected) std::cerr << "Plain release notes:\n" << plain << '\n';
+        CHECK(plain == expected);
+        // The client's 2,000-byte cut can split a character; emoji and their
+        // joiners are past what the fonts draw; control characters go.
+        CHECK(PlainReleaseNotes("caf\xC3\xA9 \xF0\x9F\x8E\x89 done\x07\tnow \xE2\x9C\x94\xEF\xB8\x8F...\xE2\x80") ==
+            "caf\xC3\xA9  done now \xE2\x9C\x94...");
+        CHECK(PlainReleaseNotes("\xC0\xAF\xED\xA0\x80ok") == "ok");
+        CHECK(PlainReleaseNotes("") == "" && PlainReleaseNotes("\r\n\r\n<!-- only a comment -->\r\n") == "");
+        CHECK(PlainReleaseNotes("Unclosed [link and **bold and `tick") == "Unclosed [link and **bold and `tick");
+    }
     CHECK(ClassifyReleaseKind(*ParseVersion("v1.2.0")) == ReleaseKind::Stable);
     for (const char* tag : {"v1.2.0-rc1", "v1.2.0-beta2", "v1.2.0-links-sets-test1"})
         CHECK(ClassifyReleaseKind(*ParseVersion(tag)) == ReleaseKind::Beta);

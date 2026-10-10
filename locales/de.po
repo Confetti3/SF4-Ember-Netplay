@@ -150,6 +150,12 @@ msgstr "Tägliche Testversionen mit den neuesten Funktionen. Sie können fehlerh
 msgid "updates.channel_detail"
 msgstr "Stabil bietet nur fertige Versionen an. Beta bietet auch Beta- und Release-Candidate-Versionen an, die mehr Probleme haben können. Alle, mit denen Sie spielen, brauchen dieselbe Version."
 
+msgid "updates.channel.switch_detail"
+msgstr "Stellt die Update-Prüfung von {0} auf {1} um und prüft {1} sofort. Installiert wird erst, wenn Sie Laden und installieren wählen."
+
+msgid "updates.channel.going_back"
+msgstr "Der Wechsel von {0} zurück zu {1} kann eine ältere Version als Ihre anbieten. In {0} aufgenommene Replays lassen sich in {1} möglicherweise nicht öffnen."
+
 msgid "updates.installed_version"
 msgstr "Installierte Version"
 
@@ -164,6 +170,15 @@ msgstr "Schließen Sie SF4 vor der Installation. Das Paket wird vorher geprüft.
 
 msgid "updates.unverified"
 msgstr "Dieses Update hat keine Prüfsumme und kann nicht installiert werden."
+
+msgid "updates.install_going_back"
+msgstr "Damit kehren Sie zu einer älteren Version als Ihrer zurück. Mit Ihrer aktuellen Version aufgenommene Replays lassen sich darin möglicherweise nicht öffnen."
+
+msgid "updates.whats_new"
+msgstr "Neuigkeiten"
+
+msgid "updates.whats_new_detail"
+msgstr "Versionshinweise zu {0}."
 
 msgid "updates.cancel"
 msgstr "Vorgang abbrechen"
@@ -1170,6 +1185,15 @@ msgstr "Ember-Discord beitreten"
 msgid "about.discord_detail"
 msgstr "Spieler, Kämpfe und Hilfe unter {0}. Öffnet sich im Browser hinter dem Spiel."
 
+msgid "about.version_line"
+msgstr "Ember {0} · {1}"
+
+msgid "about.version_detail"
+msgstr "Die Ember-Version auf diesem PC. Build {0}."
+
+msgid "about.channel_detail"
+msgstr "Update-Prüfungen nutzen diesen Kanal. Zum Ändern das Spiel schließen und Updater.exe doppelklicken."
+
 msgid "settings.retry_save"
 msgstr "Neu speichern"
 
@@ -2110,6 +2134,21 @@ msgstr "Schließen Sie das Spiel vor der Updateinstallation."
 
 msgid "update.updater_start_failed"
 msgstr "Updater.exe startet nicht. Aus frischer ZIP-Datei neu installieren."
+
+msgid "update.stage.preparing"
+msgstr "Paket wird geprüft..."
+
+msgid "update.stage.comparing"
+msgstr "Dateien werden verglichen..."
+
+msgid "update.stage.backing_up"
+msgstr "Zu ersetzende Dateien werden gesichert..."
+
+msgid "update.stage.replacing"
+msgstr "Dateien werden ersetzt..."
+
+msgid "update.stage.confirming"
+msgstr "Installierte Dateien werden geprüft..."
 
 msgid "room.member_left"
 msgstr "Mitglied weg"
@@ -4024,7 +4063,7 @@ msgid "settings.training_replays"
 msgstr "Training und Replays"
 
 msgid "settings.training_replays_detail"
-msgstr "Automatische Bereitschaft nach dem Training, Frame-Anzeige in Kämpfen und Auswahl der gespeicherten Kämpfe."
+msgstr "Frame-Anzeige in Kämpfen, automatische Bereitschaft nach dem Training und Auswahl der gespeicherten Kämpfe."
 
 msgid "settings.training_replays_title"
 msgstr "TRAINING UND REPLAYS"

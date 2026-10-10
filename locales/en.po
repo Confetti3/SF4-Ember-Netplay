@@ -150,6 +150,12 @@ msgstr "Daily test builds with the newest features. They may break. You can only
 msgid "updates.channel_detail"
 msgstr "Stable offers finished releases only. Beta also offers beta and release-candidate builds, which may have more problems. Everyone you play with needs the same version."
 
+msgid "updates.channel.switch_detail"
+msgstr "Switches update checks from {0} to {1} and checks {1} right away. Nothing is installed until you choose Download and install."
+
+msgid "updates.channel.going_back"
+msgstr "Going back from {0} to {1} can offer a version older than yours. Replays recorded on {0} may not open on {1}."
+
 msgid "updates.installed_version"
 msgstr "Installed version"
 
@@ -164,6 +170,15 @@ msgstr "Close SF4 before installing. The package is verified before installation
 
 msgid "updates.unverified"
 msgstr "This update has no verification checksum and cannot be installed."
+
+msgid "updates.install_going_back"
+msgstr "This goes back to a version older than yours. Replays recorded on your current version may not open on it."
+
+msgid "updates.whats_new"
+msgstr "What's new"
+
+msgid "updates.whats_new_detail"
+msgstr "Release notes for {0}."
 
 msgid "updates.cancel"
 msgstr "Cancel operation"
@@ -1170,6 +1185,15 @@ msgstr "Join the Ember Discord"
 msgid "about.discord_detail"
 msgstr "Players, matches and support at {0}. Opens in your browser behind the game."
 
+msgid "about.version_line"
+msgstr "Ember {0} · {1}"
+
+msgid "about.version_detail"
+msgstr "The Ember version on this PC. Build {0}."
+
+msgid "about.channel_detail"
+msgstr "Update checks use this channel. To change it, close the game and double-click Updater.exe."
+
 msgid "settings.retry_save"
 msgstr "Retry saving"
 
@@ -2055,6 +2079,21 @@ msgid "update.close_game"
 msgstr "Close the game before installing the update."
 msgid "update.updater_start_failed"
 msgstr "Could not start Updater.exe. Reinstall from a fresh zip."
+
+msgid "update.stage.preparing"
+msgstr "Checking the package..."
+
+msgid "update.stage.comparing"
+msgstr "Comparing files..."
+
+msgid "update.stage.backing_up"
+msgstr "Backing up the files it replaces..."
+
+msgid "update.stage.replacing"
+msgstr "Replacing files..."
+
+msgid "update.stage.confirming"
+msgstr "Checking the installed files..."
 
 msgid "room.member_left"
 msgstr "Member left"
@@ -3686,7 +3725,7 @@ msgid "settings.training_replays"
 msgstr "Training and replays"
 
 msgid "settings.training_replays_detail"
-msgstr "Auto-ready from Training, the frame meter in matches, and which matches are saved."
+msgstr "The frame meter in matches, Auto-ready from Training, and which matches are saved."
 
 msgid "settings.training_replays_title"
 msgstr "TRAINING AND REPLAYS"

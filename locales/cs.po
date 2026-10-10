@@ -150,6 +150,12 @@ msgstr "Denní testovací sestavení s nejnovějšími funkcemi. Mohou obsahovat
 msgid "updates.channel_detail"
 msgstr "Stabilní kanál nabízí jen hotová vydání. Beta zahrnuje i beta verze a kandidáty na vydání, které mohou mít více problémů. Všichni, s kým hrajete, potřebují stejnou verzi."
 
+msgid "updates.channel.switch_detail"
+msgstr "Přepne kontrolu aktualizací z {0} na {1} a hned {1} zkontroluje. Nic se nenainstaluje, dokud nezvolíte Stáhnout a nainstalovat."
+
+msgid "updates.channel.going_back"
+msgstr "Návrat z {0} na {1} může nabídnout starší verzi, než máte. Záznamy pořízené v {0} se v {1} nemusí otevřít."
+
 msgid "updates.installed_version"
 msgstr "Nainstalovaná verze"
 
@@ -164,6 +170,15 @@ msgstr "Před instalací zavřete SF4. Balíček se před instalací ověří. V
 
 msgid "updates.unverified"
 msgstr "Tato aktualizace nemá kontrolní součet a nelze ji nainstalovat."
+
+msgid "updates.install_going_back"
+msgstr "Tato verze je starší než vaše. Záznamy pořízené ve vaší současné verzi se v ní nemusí otevřít."
+
+msgid "updates.whats_new"
+msgstr "Novinky"
+
+msgid "updates.whats_new_detail"
+msgstr "Poznámky k verzi {0}."
 
 msgid "updates.cancel"
 msgstr "Zrušit operaci"
@@ -1170,6 +1185,15 @@ msgstr "Připojit se k Discord Ember"
 msgid "about.discord_detail"
 msgstr "Hráči, zápasy a podpora na {0}. Otevře se v prohlížeči za hrou."
 
+msgid "about.version_line"
+msgstr "Ember {0} · {1}"
+
+msgid "about.version_detail"
+msgstr "Verze Emberu v tomto počítači. Sestavení {0}."
+
+msgid "about.channel_detail"
+msgstr "Kontroly aktualizací používají tento kanál. Chcete-li jej změnit, zavřete hru a poklepejte na Updater.exe."
+
 msgid "settings.retry_save"
 msgstr "Uložit znovu"
 
@@ -2110,6 +2134,21 @@ msgstr "Před instalací aktualizace zavřete hru."
 
 msgid "update.updater_start_failed"
 msgstr "Updater.exe se nespustil. Použijte nový ZIP soubor."
+
+msgid "update.stage.preparing"
+msgstr "Kontrola balíčku..."
+
+msgid "update.stage.comparing"
+msgstr "Porovnávání souborů..."
+
+msgid "update.stage.backing_up"
+msgstr "Zálohování nahrazovaných souborů..."
+
+msgid "update.stage.replacing"
+msgstr "Nahrazování souborů..."
+
+msgid "update.stage.confirming"
+msgstr "Kontrola nainstalovaných souborů..."
 
 msgid "room.member_left"
 msgstr "Člen odešel"
@@ -4024,7 +4063,7 @@ msgid "settings.training_replays"
 msgstr "Trénink a záznamy"
 
 msgid "settings.training_replays_detail"
-msgstr "Automatická připravenost po tréninku, měřič snímků v zápasech a výběr ukládaných zápasů."
+msgstr "Měřič snímků v zápasech, automatická připravenost po tréninku a výběr ukládaných zápasů."
 
 msgid "settings.training_replays_title"
 msgstr "TRÉNINK A ZÁZNAMY"

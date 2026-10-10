@@ -6,6 +6,7 @@
 #include "MenuPresentation.hxx"
 #include "PublicRoomsCards.hxx"
 #include "RoomControls.hxx"
+#include "VersionLine.hxx"
 #include "../session/TrainingCall.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
@@ -24,6 +25,8 @@
 namespace sf4e { namespace ui {
 namespace {
 constexpr double ErrorSeconds = 5;
+// The installed version label, or the build's hash for a copy without one (a developer build).
+std::string InstalledVersion(const ShellView& v) { return v.services.installedVersion.empty() ? v.build : v.services.installedVersion; }
 // The launch card names only the settings that differ, in the order the game's
 // own Options menu lists them. Empty means nothing to say.
 std::string GameSettingsAdvice(const gameconfig::DisplaySettings& g) {
@@ -373,6 +376,11 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
     outcome({ServiceAction::ExportDiagnostics},loc::T("about.export_diagnostics_detail")),!v.services.pending),
    ConfirmRow("community",loc::T("about.discord"),
     outcome({ServiceAction::OpenCommunity},loc::Tf("about.discord_detail",platform::CommunityInvite)),!v.services.pending),
+   // The version on this PC and the channel its update checks use, as Home's
+   // corner shows them, above the check itself; the build and how to change
+   // the channel in its pane.
+   InfoRow("version",loc::T("updates.installed_version"),VersionLine(InstalledVersion(v),v.services.channel),
+    (v.build.empty()?std::string(loc::T("updates.installed_version_detail")):loc::Tf("about.version_detail",v.build))+"\n\n"+loc::T("about.channel_detail")),
    Row("updates",loc::T("updates.check"),outcome({ServiceAction::CheckUpdates,ServiceAction::InstallUpdate,ServiceAction::OpenUpdater,ServiceAction::OpenRecovery},
     loc::T("about.updates_detail")),!v.services.pending)};
   if(v.services.update.ok&&v.services.update.updateAvailable)rows.push_back(ConfirmRow("updater",loc::T("about.open_updater"),loc::T("about.open_updater_detail"),v.canEditPreferences&&!v.services.pending));
@@ -842,6 +850,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // Back names where it goes when that is not simply the previous screen:
  // from Home, out of Ember or back to the room; on the board, out of your seat.
  menu_.exitName.clear();menu_.backHint.clear();
+ // Home's corner says which version this is and which channel it follows.
+ menu_.footerNote=screen=="home"?VersionLine(InstalledVersion(v),v.services.channel):std::string();
  if(screen=="home"){
   menu_.exitName=opening?MenuScreenLabel(OpeningScreen(v)):loc::T("screen.game");
   menu_.backHint=loc::Tf("menu.return_to",menu_.exitName);

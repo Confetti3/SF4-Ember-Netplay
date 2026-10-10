@@ -43,7 +43,8 @@ inline bool KeyCapGlyph(const char* glyph) {
 // A screen's own button, shown after the standard ones.
 struct LegendHint { const char* glyph; std::string label; };
 inline float MenuLegend(float width,const char* select,const char* back,bool draw,bool adjustable,SelectionArt* art,float scale=0,
-                        const char* primary=loc::T("menu.select"),const std::vector<LegendHint>& extras={},const char* backText=nullptr) {
+                        const char* primary=loc::T("menu.select"),const std::vector<LegendHint>& extras={},const char* backText=nullptr,
+                        float* lastRowEnd=nullptr) {
     const bool keyboard=!std::strcmp(select,"Enter");
     // A button without its own prompt art (LP, a stick's "1") is drawn as a
     // plain circle, so its label names it.
@@ -87,6 +88,8 @@ inline float MenuLegend(float width,const char* select,const char* back,bool dra
         }
         x+=w;
     }
+    // Where the last row's last label ends, for what shares that row.
+    if(lastRowEnd)*lastRowEnd=(std::max)(0.f,x-24*s);
     return y+height;
 }
 } }

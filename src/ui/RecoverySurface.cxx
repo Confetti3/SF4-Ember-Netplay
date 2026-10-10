@@ -107,6 +107,7 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
     bool serviceNewer = false;
     GameMenu menu;menu.navigation=RecoveryNavigation(updates);
     std::string offeredVersion;
+    ChannelPick channelPick;
     // Released before the window it is bound to is destroyed.
     auto controller=std::make_unique<RecoveryController>(window);
     while (!quit) {
@@ -145,7 +146,7 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
         }
         const auto state = services.Snapshot();
         OfferFoundUpdate(menu,state,offeredVersion);
-        switch(DrawRecoveryMenu(menu,state,message,updates,messageTone,canStart,serviceNewer)) {
+        switch(DrawRecoveryMenu(menu,state,message,updates,messageTone,canStart,serviceNewer,&channelPick)) {
         case RecoveryChoice::Folder:
             // The picker blocks this loop, so the pads are disarmed before it
             // opens: a button held while it was up cannot press on return.
@@ -160,7 +161,11 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
         case RecoveryChoice::Retry:retry=true;quit=true;break;
         case RecoveryChoice::CheckUpdates:serviceNewer=true;services.Request(platform::ServiceAction::CheckUpdates);break;
         case RecoveryChoice::Install:serviceNewer=true;services.Request(platform::ServiceAction::InstallUpdate);break;
-        case RecoveryChoice::Channel:serviceNewer=true;services.Request(platform::ServiceAction::SwitchUpdateChannel);break;
+        // Confirmed: only now is the pick saved and checked. The row keeps
+        // showing it until the worker is done.
+        case RecoveryChoice::Channel:
+            if(channelPick.picked){serviceNewer=true;channelPick.applying=services.SwitchUpdateChannel(*channelPick.picked);}
+            break;
         case RecoveryChoice::Cancel:services.Cancel();break;
         case RecoveryChoice::Close:services.Cancel();quit=true;break;
         default:break;

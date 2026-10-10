@@ -150,6 +150,12 @@ msgstr "Versiones de prueba diarias con las funciones más recientes. Pueden fal
 msgid "updates.channel_detail"
 msgstr "Estable ofrece solo versiones finales. Beta también ofrece versiones beta y candidatas, que pueden tener más problemas. Todos con quienes juegas necesitan la misma versión."
 
+msgid "updates.channel.switch_detail"
+msgstr "Cambia la búsqueda de actualizaciones de {0} a {1} y comprueba {1} de inmediato. No se instala nada hasta que elijas Descargar e instalar."
+
+msgid "updates.channel.going_back"
+msgstr "Volver de {0} a {1} puede ofrecer una versión más antigua que la tuya. Las repeticiones grabadas en {0} podrían no abrirse en {1}."
+
 msgid "updates.installed_version"
 msgstr "Versión instalada"
 
@@ -164,6 +170,15 @@ msgstr "Cierra SF4 antes de instalar. El paquete se verifica antes de la instala
 
 msgid "updates.unverified"
 msgstr "Esta actualización no tiene suma de verificación y no se puede instalar."
+
+msgid "updates.install_going_back"
+msgstr "Esta versión es más antigua que la tuya. Las repeticiones grabadas con tu versión actual podrían no abrirse con ella."
+
+msgid "updates.whats_new"
+msgstr "Novedades"
+
+msgid "updates.whats_new_detail"
+msgstr "Notas de la versión {0}."
 
 msgid "updates.cancel"
 msgstr "Cancelar operación"
@@ -1170,6 +1185,15 @@ msgstr "Unirse al Discord de Ember"
 msgid "about.discord_detail"
 msgstr "Jugadores, partidas y soporte en {0}. Se abre en el navegador detrás del juego."
 
+msgid "about.version_line"
+msgstr "Ember {0} · {1}"
+
+msgid "about.version_detail"
+msgstr "La versión de Ember en este PC. Build {0}."
+
+msgid "about.channel_detail"
+msgstr "Las búsquedas de actualizaciones usan este canal. Para cambiarlo, cierra el juego y haz doble clic en Updater.exe."
+
 msgid "settings.retry_save"
 msgstr "Reintentar"
 
@@ -2110,6 +2134,21 @@ msgstr "Cierra el juego antes de instalar la actualización."
 
 msgid "update.updater_start_failed"
 msgstr "No se pudo iniciar Updater.exe. Reinstala desde un ZIP nuevo."
+
+msgid "update.stage.preparing"
+msgstr "Comprobando el paquete..."
+
+msgid "update.stage.comparing"
+msgstr "Comparando archivos..."
+
+msgid "update.stage.backing_up"
+msgstr "Copiando los archivos que se sustituyen..."
+
+msgid "update.stage.replacing"
+msgstr "Sustituyendo archivos..."
+
+msgid "update.stage.confirming"
+msgstr "Comprobando los archivos instalados..."
 
 msgid "room.member_left"
 msgstr "Ha salido"
@@ -4024,7 +4063,7 @@ msgid "settings.training_replays"
 msgstr "Entrenamiento y repeticiones"
 
 msgid "settings.training_replays_detail"
-msgstr "Listo automático tras el entrenamiento, medidor de frames en partidas y qué partidas se guardan."
+msgstr "Medidor de frames en partidas, listo automático tras el entrenamiento y qué partidas se guardan."
 
 msgid "settings.training_replays_title"
 msgstr "ENTRENAMIENTO Y REPETICIONES"

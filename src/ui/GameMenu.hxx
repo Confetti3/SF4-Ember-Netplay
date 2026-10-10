@@ -76,6 +76,10 @@ public:
     // button reads "< Back / exitName", or backHint when there is no exitName;
     // Home shows its header button only with one.
     std::string exitName;
+    // Small print in the bottom right corner, beside the legend or on a line
+    // of its own under it when the two would crowd each other: Home's (and the
+    // launcher window's) version and channel, in Muted. Empty for none.
+    std::string footerNote;
     // A stable status is normally one or two lines beside or under the header.
     // With this set it is drawn whole, wrapped, in a block that grows to its
     // text (up to most of the window, then it scrolls), so a long launcher

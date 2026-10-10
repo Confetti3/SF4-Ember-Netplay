@@ -78,10 +78,17 @@ void ApplicationServices::Observe(const DiagnosticsView& diagnostics) {
 }
 bool ApplicationServices::Request(ServiceAction action, const DiagnosticsView& diagnostics) {
     std::lock_guard<std::mutex> lock(mutex_);
+    return Start(action, diagnostics, state_.channel);
+}
+bool ApplicationServices::SwitchUpdateChannel(launcher::UpdateChannel channel) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return Start(ServiceAction::SwitchUpdateChannel, {}, channel);
+}
+bool ApplicationServices::Start(ServiceAction action, const DiagnosticsView& diagnostics, launcher::UpdateChannel channel) {
     if (stop_ || state_.pending || action == ServiceAction::None) return false;
     cancelled_ = false;
     state_.updateStage = launcher::UpdateStage::Downloading; state_.stageDone = state_.stageTotal = 0;
-    request_ = action; diagnostics_ = diagnostics; state_.pending = true; state_.succeeded = false; state_.lastAction = action;
+    request_ = action; requestChannel_ = channel; diagnostics_ = diagnostics; state_.pending = true; state_.succeeded = false; state_.lastAction = action;
     state_.message = action == ServiceAction::OpenCommunity ? loc::T("services.opening_community") :
         action == ServiceAction::OpenReplayFolder ? loc::T("services.opening_replay_folder") :
         action == ServiceAction::CheckUpdates || action == ServiceAction::SwitchUpdateChannel ? loc::T("services.checking") :
@@ -92,17 +99,17 @@ bool ApplicationServices::Request(ServiceAction action, const DiagnosticsView& d
 void ApplicationServices::Run() {
     for (;;) {
         ServiceAction action; DiagnosticsView diagnostics; ServiceSnapshot next;
+        launcher::UpdateChannel channel;
         {
             std::unique_lock<std::mutex> lock(mutex_);
             wake_.wait(lock, [&] { return stop_ || request_ != ServiceAction::None; });
             if (stop_) return;
-            action = request_; request_ = ServiceAction::None; diagnostics = diagnostics_; next = state_;
+            action = request_; request_ = ServiceAction::None; channel = requestChannel_; diagnostics = diagnostics_; next = state_;
         }
         try {
             if (action == ServiceAction::SwitchUpdateChannel) {
-                const auto other = launcher::GetUpdateChannelInfo(next.channel).next;
                 std::string saveError;
-                if (SaveUpdateChannelPreference(launcher::UpdateChannelName(other), saveError)) { next.channel = other; action = ServiceAction::CheckUpdates; }
+                if (SaveUpdateChannelPreference(launcher::UpdateChannelName(channel), saveError)) { next.channel = channel; action = ServiceAction::CheckUpdates; }
                 else { next.message = loc::T("common.save_failed"); next.succeeded = false; }
             }
             if (action == ServiceAction::CheckUpdates) {

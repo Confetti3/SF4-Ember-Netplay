@@ -150,6 +150,12 @@ msgstr "每天提供包含最新功能的测试版本，可能无法正常运行
 msgid "updates.channel_detail"
 msgstr "稳定版只提供正式版本。测试版还提供测试版和候选发布版，可能存在更多问题。一起游玩的所有人需要使用相同的版本。"
 
+msgid "updates.channel.switch_detail"
+msgstr "将更新检查从{0}切换到{1}，并立即检查{1}。在你选择“下载并安装”之前不会安装任何内容。"
+
+msgid "updates.channel.going_back"
+msgstr "从{0}回到{1}可能会提供比你当前更旧的版本。在{0}上录制的回放可能无法在{1}上打开。"
+
 msgid "updates.installed_version"
 msgstr "已安装版本"
 
@@ -164,6 +170,15 @@ msgstr "安装前请关闭 SF4。安装包会先经过验证，个人设置将�
 
 msgid "updates.unverified"
 msgstr "此更新没有校验值，无法安装。"
+
+msgid "updates.install_going_back"
+msgstr "这是比你当前更旧的版本。用当前版本录制的回放可能无法在此版本上打开。"
+
+msgid "updates.whats_new"
+msgstr "更新内容"
+
+msgid "updates.whats_new_detail"
+msgstr "{0} 的发行说明。"
 
 msgid "updates.cancel"
 msgstr "取消操作"
@@ -1170,6 +1185,15 @@ msgstr "加入 Ember Discord"
 msgid "about.discord_detail"
 msgstr "在 {0} 查找玩家、对战和支持。浏览器将在游戏后方打开。"
 
+msgid "about.version_line"
+msgstr "Ember {0} · {1}"
+
+msgid "about.version_detail"
+msgstr "此电脑上的 Ember 版本。构建：{0}"
+
+msgid "about.channel_detail"
+msgstr "更新检查使用此频道。要更改，请关闭游戏并双击 Updater.exe。"
+
 msgid "settings.retry_save"
 msgstr "重试保存"
 
@@ -2110,6 +2134,21 @@ msgstr "安装更新前请关闭游戏。"
 
 msgid "update.updater_start_failed"
 msgstr "无法启动 Updater.exe。请从全新 ZIP 包重新安装。"
+
+msgid "update.stage.preparing"
+msgstr "正在检查安装包..."
+
+msgid "update.stage.comparing"
+msgstr "正在比较文件..."
+
+msgid "update.stage.backing_up"
+msgstr "正在备份将被替换的文件..."
+
+msgid "update.stage.replacing"
+msgstr "正在替换文件..."
+
+msgid "update.stage.confirming"
+msgstr "正在检查已安装的文件..."
 
 msgid "room.member_left"
 msgstr "成员已离开"
@@ -4024,7 +4063,7 @@ msgid "settings.training_replays"
 msgstr "训练和录像"
 
 msgid "settings.training_replays_detail"
-msgstr "从训练返回时自动准备、对战帧数表，以及要保存哪些对战。"
+msgstr "对战帧数表、从训练返回时自动准备，以及要保存哪些对战。"
 
 msgid "settings.training_replays_title"
 msgstr "训练和录像"

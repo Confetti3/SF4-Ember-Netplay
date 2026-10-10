@@ -150,6 +150,12 @@ msgstr "Versions de test quotidiennes avec les dernières fonctionnalités. Elle
 msgid "updates.channel_detail"
 msgstr "Stable ne propose que les versions finales. Bêta propose aussi les versions bêta et candidates, qui peuvent comporter plus de problèmes. Toutes les personnes avec qui vous jouez doivent avoir la même version."
 
+msgid "updates.channel.switch_detail"
+msgstr "Passe la recherche de mises à jour de {0} à {1} et vérifie {1} tout de suite. Rien n'est installé avant que vous choisissiez Télécharger et installer."
+
+msgid "updates.channel.going_back"
+msgstr "Revenir de {0} à {1} peut proposer une version plus ancienne que la vôtre. Les replays enregistrés sur {0} risquent de ne pas s'ouvrir sur {1}."
+
 msgid "updates.installed_version"
 msgstr "Version installée"
 
@@ -164,6 +170,15 @@ msgstr "Fermez SF4 avant l'installation. Le paquet est vérifié avant d'être i
 
 msgid "updates.unverified"
 msgstr "Cette mise à jour n'a pas de somme de contrôle et ne peut pas être installée."
+
+msgid "updates.install_going_back"
+msgstr "Cette version est plus ancienne que la vôtre. Les replays enregistrés avec votre version actuelle risquent de ne pas s'ouvrir avec elle."
+
+msgid "updates.whats_new"
+msgstr "Nouveautés"
+
+msgid "updates.whats_new_detail"
+msgstr "Notes de version de {0}."
 
 msgid "updates.cancel"
 msgstr "Annuler l'opération"
@@ -1170,6 +1185,15 @@ msgstr "Rejoindre le Discord Ember"
 msgid "about.discord_detail"
 msgstr "Joueurs, matchs et aide sur {0}. S'ouvre dans votre navigateur derrière le jeu."
 
+msgid "about.version_line"
+msgstr "Ember {0} · {1}"
+
+msgid "about.version_detail"
+msgstr "La version d'Ember sur ce PC. Build {0}."
+
+msgid "about.channel_detail"
+msgstr "La recherche de mises à jour utilise ce canal. Pour le changer, fermez le jeu et double-cliquez sur Updater.exe."
+
 msgid "settings.retry_save"
 msgstr "Ressauvegarder"
 
@@ -2110,6 +2134,21 @@ msgstr "Fermez le jeu avant d'installer la mise à jour."
 
 msgid "update.updater_start_failed"
 msgstr "Updater.exe ne démarre pas. Réinstallez depuis un nouveau ZIP."
+
+msgid "update.stage.preparing"
+msgstr "Vérification du paquet..."
+
+msgid "update.stage.comparing"
+msgstr "Comparaison des fichiers..."
+
+msgid "update.stage.backing_up"
+msgstr "Sauvegarde des fichiers remplacés..."
+
+msgid "update.stage.replacing"
+msgstr "Remplacement des fichiers..."
+
+msgid "update.stage.confirming"
+msgstr "Vérification des fichiers installés..."
 
 msgid "room.member_left"
 msgstr "Membre parti"
@@ -4024,7 +4063,7 @@ msgid "settings.training_replays"
 msgstr "Entraînement et replays"
 
 msgid "settings.training_replays_detail"
-msgstr "Prêt automatiquement après l'entraînement, affichage des frames en match et choix des matchs enregistrés."
+msgstr "Affichage des frames en match, prêt automatiquement après l'entraînement et choix des matchs enregistrés."
 
 msgid "settings.training_replays_title"
 msgstr "ENTRAÎNEMENT ET REPLAYS"

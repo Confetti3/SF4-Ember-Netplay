@@ -150,6 +150,12 @@ msgstr "Ежедневные тестовые сборки с новейшими
 msgid "updates.channel_detail"
 msgstr "Стабильный канал предлагает только готовые выпуски. Бета включает также бета-версии и кандидаты в релиз, в которых может быть больше проблем. Всем, с кем вы играете, нужна та же версия."
 
+msgid "updates.channel.switch_detail"
+msgstr "Переключает проверку обновлений с канала {0} на {1} и сразу проверяет {1}. Ничего не устанавливается, пока вы не выберете «Скачать и установить»."
+
+msgid "updates.channel.going_back"
+msgstr "Возврат с {0} на {1} может предложить версию старше вашей. Записи, сделанные в {0}, могут не открыться в {1}."
+
 msgid "updates.installed_version"
 msgstr "Установленная версия"
 
@@ -164,6 +170,15 @@ msgstr "Закройте SF4 перед установкой. Пакет буд�
 
 msgid "updates.unverified"
 msgstr "У обновления нет контрольной суммы; установить его нельзя."
+
+msgid "updates.install_going_back"
+msgstr "Эта версия старше вашей. Записи, сделанные в текущей версии, могут в ней не открыться."
+
+msgid "updates.whats_new"
+msgstr "Что нового"
+
+msgid "updates.whats_new_detail"
+msgstr "Примечания к выпуску {0}."
 
 msgid "updates.cancel"
 msgstr "Отменить операцию"
@@ -1170,6 +1185,15 @@ msgstr "Вступить в Ember Discord"
 msgid "about.discord_detail"
 msgstr "Игроки, матчи и поддержка: {0}. Страница откроется в браузере за окном игры."
 
+msgid "about.version_line"
+msgstr "Ember {0} · {1}"
+
+msgid "about.version_detail"
+msgstr "Версия Ember на этом ПК. Сборка {0}."
+
+msgid "about.channel_detail"
+msgstr "Проверка обновлений идёт по этому каналу. Чтобы сменить его, закройте игру и дважды щёлкните Updater.exe."
+
 msgid "settings.retry_save"
 msgstr "Сохранить снова"
 
@@ -2110,6 +2134,21 @@ msgstr "Закройте игру перед установкой обновле
 
 msgid "update.updater_start_failed"
 msgstr "Не удалось запустить Updater.exe. Переустановите из нового ZIP."
+
+msgid "update.stage.preparing"
+msgstr "Проверка пакета..."
+
+msgid "update.stage.comparing"
+msgstr "Сравнение файлов..."
+
+msgid "update.stage.backing_up"
+msgstr "Резервное копирование заменяемых файлов..."
+
+msgid "update.stage.replacing"
+msgstr "Замена файлов..."
+
+msgid "update.stage.confirming"
+msgstr "Проверка установленных файлов..."
 
 msgid "room.member_left"
 msgstr "Участник вышел"
@@ -4024,7 +4063,7 @@ msgid "settings.training_replays"
 msgstr "Тренировка и повторы"
 
 msgid "settings.training_replays_detail"
-msgstr "Автоготовность после тренировки, счётчик кадров в матчах и выбор сохраняемых матчей."
+msgstr "Счётчик кадров в матчах, автоготовность после тренировки и выбор сохраняемых матчей."
 
 msgid "settings.training_replays_title"
 msgstr "ТРЕНИРОВКА И ПОВТОРЫ"

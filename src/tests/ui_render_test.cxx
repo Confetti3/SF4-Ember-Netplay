@@ -324,6 +324,7 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 #include "ui_render_training.hxx"
 #include "ui_render_overlay.hxx"
 #include "ui_render_replays.hxx"
+#include "ui_render_updates.hxx"
 
 int main(int argc, char** argv) {
     SetUnhandledExceptionFilter(ReportCrash);
@@ -557,7 +558,7 @@ int main(int argc, char** argv) {
             bool acceptTraining=false,answerTickets=false,holdIdentity=false,overlayTooltip=false;
             std::uint64_t heldTicket=0;
             GameMenu recoveryMenu;recoveryMenu.navigation=RecoveryNavigation(false);
-            platform::ServiceSnapshot recoveryState;bool recoveryUpdates=false;
+            platform::ServiceSnapshot recoveryState;bool recoveryUpdates=false;ChannelPick recoveryPick;
             const auto draw=[&](const char* shot=nullptr,unsigned buttons=0,int settle=3){
                 for(int i=0;i<settle;++i){
                     if(art)art->Pump();SetMenuInput({buttons,0});
@@ -580,7 +581,7 @@ int main(int argc, char** argv) {
                         }
                         return true;},[&]{selector.Draw(pick,true,art.get(),availability,&stage,view.canEditSelection,{},&stagePool);});
                     else if(mode==1)DrawTrainingFlyout(training,[&](training::Command c){trainingCommand=c;return acceptTraining;});
-                    else if(mode==4)DrawRecoveryMenu(recoveryMenu,recoveryState,"The selected folder does not contain SSFIV.exe. Choose the installed game folder or close recovery without starting SF4.",recoveryUpdates);
+                    else if(mode==4)DrawRecoveryMenu(recoveryMenu,recoveryState,"The selected folder does not contain SSFIV.exe. Choose the installed game folder or close recovery without starting SF4.",recoveryUpdates,Tone::Error,false,true,&recoveryPick);
                     if(mode!=0&&mode!=4) {
                         if(mode!=7)overlayLayers=OverlayRenderLayers(mode,matchStrip);
                         (void)DrawOverlayLayers(overlayLayers,training);
@@ -638,6 +639,7 @@ int main(int argc, char** argv) {
             view.gameSettings={};view.showGameSettingsCard=false;
             for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","training-replays","discord","about"})page(screen);
             ShootReplays(shell,view,draw,page);
+            ShootVersionAndChannel(shell,view,draw,page);
             view.preferences.autoInputDelay=true;page("defaults");view.preferences.autoInputDelay=false;
             page("home");
             for(int i=0;i<8;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
@@ -960,7 +962,9 @@ int main(int argc, char** argv) {
             Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Controller warning captured input");
             auto* warning=FindWindow("Controller warning");
             Require(warning->ScrollMax.y<1&&warning->Pos.y+warning->Size.y<size.h,"Controller warning escaped viewport");
-            mode=4;draw("launch-recovery");recoveryUpdates=true;recoveryState.installedVersion="1.1.0-rc1";recoveryState.channel=launcher::UpdateChannel::Beta;recoveryMenu.navigation=RecoveryNavigation(true);
+            // The launch window names the version and channel in its corner, as Home does.
+            recoveryState.installedVersion="1.1.0-rc1";recoveryState.channel=launcher::UpdateChannel::Beta;
+            mode=4;draw("launch-recovery");recoveryUpdates=true;recoveryMenu.navigation=RecoveryNavigation(true);
             recoveryMenu.navigation.Prefer("channel");draw("update-channel-beta");
             recoveryState.channel=launcher::UpdateChannel::Nightly;recoveryState.installedVersion="1.2.0-nightly20261008";draw("update-channel-nightly");
             recoveryState.channel=launcher::UpdateChannel::Beta;recoveryState.installedVersion="1.1.0-rc1";recoveryMenu.navigation=RecoveryNavigation(true);recoveryState.update.ok=recoveryState.update.updateAvailable=true;
@@ -973,6 +977,8 @@ int main(int argc, char** argv) {
             // Extracting has no total: a moving bar is drawn instead of a filled one.
             recoveryState.lastAction=platform::ServiceAction::InstallUpdate;recoveryState.updateStage=launcher::UpdateStage::Extracting;recoveryState.stageDone=recoveryState.stageTotal=0;
             recoveryState.message="Extracting the update.";draw("update-extracting");
+            // The channel picker and its confirms, going back, and What's new (ui_render_updates.hxx).
+            ShootUpdates(recoveryMenu,recoveryState,recoveryPick,draw);
             mode=0;shell.Navigation().Home();draw("home-restored");
             auto* main=FindWindow("EmberShell");
             Require(main->Pos.x==0&&main->Pos.y==0&&main->Size.x==size.w&&main->Size.y==size.h,"Shell geometry changed");

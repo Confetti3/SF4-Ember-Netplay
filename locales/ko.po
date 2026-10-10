@@ -150,6 +150,12 @@ msgstr "최신 기능을 포함한 일일 테스트 빌드입니다. 정상적�
 msgid "updates.channel_detail"
 msgstr "안정 채널은 정식 버전만 제공합니다. 베타 채널은 베타 및 출시 후보 버전도 제공하며 문제가 더 많을 수 있습니다. 함께 플레이하는 모든 사람이 같은 버전이어야 합니다."
 
+msgid "updates.channel.switch_detail"
+msgstr "업데이트 확인 채널을 {0}에서 {1}(으)로 바꾸고 바로 {1}을(를) 확인합니다. 다운로드 및 설치를 선택하기 전에는 아무것도 설치되지 않습니다."
+
+msgid "updates.channel.going_back"
+msgstr "{0}에서 {1}(으)로 돌아가면 지금보다 오래된 버전이 제공될 수 있습니다. {0}에서 녹화한 리플레이는 {1}에서 열리지 않을 수 있습니다."
+
 msgid "updates.installed_version"
 msgstr "설치된 버전"
 
@@ -164,6 +170,15 @@ msgstr "설치 전에 SF4를 닫으세요. 설치 전에 패키지를 검증하�
 
 msgid "updates.unverified"
 msgstr "이 업데이트에는 검증용 체크섬이 없어 설치할 수 없습니다."
+
+msgid "updates.install_going_back"
+msgstr "지금보다 오래된 버전으로 돌아갑니다. 현재 버전에서 녹화한 리플레이는 열리지 않을 수 있습니다."
+
+msgid "updates.whats_new"
+msgstr "새로운 내용"
+
+msgid "updates.whats_new_detail"
+msgstr "{0} 릴리스 노트."
 
 msgid "updates.cancel"
 msgstr "작업 취소"
@@ -1170,6 +1185,15 @@ msgstr "Ember Discord 참가"
 msgid "about.discord_detail"
 msgstr "플레이어, 대전 및 지원: {0}. 게임 뒤에서 브라우저로 엽니다."
 
+msgid "about.version_line"
+msgstr "Ember {0} · {1}"
+
+msgid "about.version_detail"
+msgstr "이 PC의 Ember 버전입니다. 빌드 {0}."
+
+msgid "about.channel_detail"
+msgstr "업데이트 확인에 이 채널을 사용합니다. 바꾸려면 게임을 닫고 Updater.exe를 더블클릭하세요."
+
 msgid "settings.retry_save"
 msgstr "저장 재시도"
 
@@ -2110,6 +2134,21 @@ msgstr "업데이트 설치 전에 게임을 닫으세요."
 
 msgid "update.updater_start_failed"
 msgstr "Updater.exe를 시작하지 못했습니다. 새 ZIP 파일로 다시 설치하세요."
+
+msgid "update.stage.preparing"
+msgstr "패키지 확인 중..."
+
+msgid "update.stage.comparing"
+msgstr "파일 비교 중..."
+
+msgid "update.stage.backing_up"
+msgstr "교체할 파일 백업 중..."
+
+msgid "update.stage.replacing"
+msgstr "파일 교체 중..."
+
+msgid "update.stage.confirming"
+msgstr "설치된 파일 확인 중..."
 
 msgid "room.member_left"
 msgstr "참가자 퇴장"
@@ -4024,7 +4063,7 @@ msgid "settings.training_replays"
 msgstr "트레이닝과 리플레이"
 
 msgid "settings.training_replays_detail"
-msgstr "트레이닝 복귀 시 자동 준비, 대전 중 프레임 미터, 저장할 대전 설정."
+msgstr "대전 중 프레임 미터, 트레이닝 복귀 시 자동 준비, 저장할 대전 설정."
 
 msgid "settings.training_replays_title"
 msgstr "트레이닝과 리플레이"

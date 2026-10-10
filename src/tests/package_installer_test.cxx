@@ -332,6 +332,23 @@ int wmain(int argc, wchar_t** argv) {
     }
     CHECK(!IsWindow(progressBar) && WaitForSingleObject(progressThread,0)==WAIT_OBJECT_0);
     CloseHandle(progressThread); progressThread=nullptr;
+    // Named steps: a label above the bar names the step the installer is at.
+    windowOptions.stages={L"Checking the package...",L"Comparing files..."};
+    {
+        ProgressWindow staged(L"Installing",windowOptions);
+        progressBar=staged.Window();
+        CHECK(progressBar!=nullptr && staged.Label()!=nullptr && GetParent(progressBar)==GetParent(staged.Label()));
+        CHECK(SendMessageW(progressBar,PBM_GETRANGE,FALSE,0)==ProgressWindow::Range);
+        wchar_t text[64]={};
+        GetWindowTextW(staged.Label(),text,64);
+        CHECK(std::wstring(text)==L"Checking the package...");
+        staged.Stage(1); staged.Stage(7);
+        for(int i=0;i<400 && std::wstring(text)!=L"Comparing files...";++i) { Sleep(5); GetWindowTextW(staged.Label(),text,64); }
+        CHECK(std::wstring(text)==L"Comparing files...");
+    }
+    CHECK(!IsWindow(progressBar) && WaitForSingleObject(progressThread,0)==WAIT_OBJECT_0);
+    CloseHandle(progressThread); progressThread=nullptr;
+    windowOptions.stages.clear();
     // This version ships a doc and a selection asset the older one below lacks.
     Write(staging/L"docs\\TRAINING_LAB.md","new"); Write(staging/L"assets\\selection\\sources.json","new"); Manifest(staging);
     // Each step goes forward to its own fixed total, and the steps come in

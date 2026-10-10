@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <algorithm>
+#include <string>
+#include <vector>
 
 #include <windows.h>
 #include <commctrl.h>
@@ -96,12 +98,30 @@ static int BarPosition(sf4e::launcher::UpdateStage stage, std::uint64_t done, st
         if (share.stage == stage) return share.from + (total ? static_cast<int>((share.to - share.from) * (std::min)(done, total) / total) : 0);
     return 0;
 }
-static bool InstallFiles(const wchar_t* staging, const wchar_t* install, HWND bar) {
+// -Stages: one name per installer step, separated by '|'. Anything but one
+// name per step shows no step names.
+static std::vector<std::wstring> StageNames(const wchar_t* names) {
+    std::vector<std::wstring> stages;
+    if (!names || !names[0]) return stages;
+    for (const wchar_t* start = names;; ) {
+        const wchar_t* end = wcschr(start, L'|');
+        stages.emplace_back(start, end ? end : start + wcslen(start));
+        if (!end) break;
+        start = end + 1;
+    }
+    if (stages.size() != std::size(sf4e::launcher::InstallerStages)) stages.clear();
+    return stages;
+}
+static bool InstallFiles(const wchar_t* staging, const wchar_t* install, const sf4e::launcher::ProgressWindow& window) {
     std::string error;
     // A package is thousands of file steps; the bar is told only when it
-    // would move, so the window's message queue never fills.
+    // would move, and the label only when the step changes, so the window's
+    // message queue never fills.
     if (sf4e::launcher::InstallPackage(staging, install, error, sf4e::launcher::NeverCancelled,
-        [bar, shown = -1](sf4e::launcher::UpdateStage stage, std::uint64_t done, std::uint64_t total) mutable {
+        [&window, bar = window.Window(), shown = -1, named = -1](sf4e::launcher::UpdateStage stage, std::uint64_t done, std::uint64_t total) mutable {
+        const auto& stages = sf4e::launcher::InstallerStages;
+        const int step = static_cast<int>(std::find(std::begin(stages), std::end(stages), stage) - std::begin(stages));
+        if (step < static_cast<int>(std::size(stages)) && step != named) window.Stage(static_cast<std::size_t>(named = step));
         const int position = BarPosition(stage, done, total);
         if (bar && position > shown) PostMessageW(bar, PBM_SETPOS, shown = position, 0);
     })) return true;
@@ -134,7 +154,7 @@ static bool StartLauncher(const wchar_t* installDir, const wchar_t* arguments = 
 	return true;
 }
 
-static bool ParseArgs(int argc, wchar_t** argv, wchar_t* installDir, int installDirChars, wchar_t* stagingDir, int stagingDirChars, DWORD* waitPid, bool* recoverOnly, bool* uninstall, const wchar_t** status) {
+static bool ParseArgs(int argc, wchar_t** argv, wchar_t* installDir, int installDirChars, wchar_t* stagingDir, int stagingDirChars, DWORD* waitPid, bool* recoverOnly, bool* uninstall, const wchar_t** status, const wchar_t** stages) {
 	installDir[0] = L'\0';
 	stagingDir[0] = L'\0';
 	*waitPid = 0;
@@ -152,6 +172,7 @@ static bool ParseArgs(int argc, wchar_t** argv, wchar_t* installDir, int install
 			*waitPid = (DWORD)_wtoi(argv[++i]);
 		}
 		else if (_wcsicmp(argv[i], L"-Status") == 0 && i + 1 < argc) { if (argv[++i][0]) *status = argv[i]; }
+		else if (_wcsicmp(argv[i], L"-Stages") == 0 && i + 1 < argc) { *stages = argv[++i]; }
 		else if (_wcsicmp(argv[i], L"-RecoverOnly") == 0) { *recoverOnly = true; }
 		else if (_wcsicmp(argv[i], L"-Uninstall") == 0) { *uninstall = true; }
 	}
@@ -182,6 +203,8 @@ int wmain(int argc, wchar_t** argv) {
 	// The launcher passes this in the player's language; one from before
 	// -Status does not.
 	const wchar_t* status = L"Installing the update...";
+	// The installer's step names, from a launcher new enough to pass them.
+	const wchar_t* stages = nullptr;
 
 	// Players double-click Updater.exe to update. Its own work needs the
 	// launcher's arguments, so a plain start opens the launcher's Updates
@@ -201,7 +224,7 @@ int wmain(int argc, wchar_t** argv) {
 		return 1;
 	}
 
-	if (!ParseArgs(argc, argv, installDir, MAX_PATH, stagingDir, MAX_PATH, &waitPid, &recoverOnly, &uninstall, &status)) {
+	if (!ParseArgs(argc, argv, installDir, MAX_PATH, stagingDir, MAX_PATH, &waitPid, &recoverOnly, &uninstall, &status, &stages)) {
 		AppendLog("ERROR: missing -InstallDir or -StagingDir");
 		return 1;
 	}
@@ -250,7 +273,9 @@ int wmain(int argc, wchar_t** argv) {
 
 	wchar_t title[512] = { 0 };
 	_snwprintf_s(title, _TRUNCATE, L"SF4 Ember Netplay - %s", status);
-	sf4e::launcher::ProgressWindow progress(title);
+	sf4e::launcher::ProgressWindow::Options windowOptions;
+	windowOptions.stages = StageNames(stages);
+	sf4e::launcher::ProgressWindow progress(title, std::move(windowOptions));
 	if (!WaitForProcessExit(waitPid, 30000)) {
 		AppendLog("ERROR: launcher is still running; update cancelled");
         progress.Close();
@@ -261,7 +286,7 @@ int wmain(int argc, wchar_t** argv) {
 
 	Sleep(500);
 
-	const bool installed = InstallFiles(stagingDir, installDir, progress.Window());
+	const bool installed = InstallFiles(stagingDir, installDir, progress);
 	progress.Close();
 	if (!installed) {
         StartLauncher(installDir, L"--updates --update-error");

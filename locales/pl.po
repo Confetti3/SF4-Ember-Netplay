@@ -150,6 +150,12 @@ msgstr "Codzienne wersje testowe z najnowszymi funkcjami. Mogą działać niepra
 msgid "updates.channel_detail"
 msgstr "Kanał stabilny oferuje tylko gotowe wydania. Beta obejmuje także wydania beta i kandydujące, które mogą mieć więcej problemów. Wszyscy, z którymi grasz, muszą mieć tę samą wersję."
 
+msgid "updates.channel.switch_detail"
+msgstr "Przełącza sprawdzanie aktualizacji z {0} na {1} i od razu sprawdza {1}. Nic nie zostanie zainstalowane, dopóki nie wybierzesz Pobierz i zainstaluj."
+
+msgid "updates.channel.going_back"
+msgstr "Powrót z {0} do {1} może zaproponować wersję starszą niż Twoja. Powtórki nagrane w {0} mogą nie otworzyć się w {1}."
+
 msgid "updates.installed_version"
 msgstr "Zainstalowana wersja"
 
@@ -164,6 +170,15 @@ msgstr "Zamknij SF4 przed instalacją. Pakiet zostanie sprawdzony przed zainstal
 
 msgid "updates.unverified"
 msgstr "Ta aktualizacja nie ma sumy kontrolnej, więc nie można jej zainstalować."
+
+msgid "updates.install_going_back"
+msgstr "To wersja starsza niż Twoja. Powtórki nagrane w obecnej wersji mogą się w niej nie otworzyć."
+
+msgid "updates.whats_new"
+msgstr "Co nowego"
+
+msgid "updates.whats_new_detail"
+msgstr "Informacje o wydaniu {0}."
 
 msgid "updates.cancel"
 msgstr "Anuluj operację"
@@ -1170,6 +1185,15 @@ msgstr "Dołącz do Discord Ember"
 msgid "about.discord_detail"
 msgstr "Gracze, walki i pomoc na {0}. Otwiera się w przeglądarce za oknem gry."
 
+msgid "about.version_line"
+msgstr "Ember {0} · {1}"
+
+msgid "about.version_detail"
+msgstr "Wersja Ember na tym komputerze. Kompilacja {0}."
+
+msgid "about.channel_detail"
+msgstr "Aktualizacje są sprawdzane w tym kanale. Aby go zmienić, zamknij grę i kliknij dwukrotnie Updater.exe."
+
 msgid "settings.retry_save"
 msgstr "Ponów zapis"
 
@@ -2110,6 +2134,21 @@ msgstr "Zamknij grę przed instalacją aktualizacji."
 
 msgid "update.updater_start_failed"
 msgstr "Nie można uruchomić Updater.exe. Zainstaluj ponownie z nowego ZIP."
+
+msgid "update.stage.preparing"
+msgstr "Sprawdzanie pakietu..."
+
+msgid "update.stage.comparing"
+msgstr "Porównywanie plików..."
+
+msgid "update.stage.backing_up"
+msgstr "Kopia zapasowa zastępowanych plików..."
+
+msgid "update.stage.replacing"
+msgstr "Zastępowanie plików..."
+
+msgid "update.stage.confirming"
+msgstr "Sprawdzanie zainstalowanych plików..."
 
 msgid "room.member_left"
 msgstr "Uczestnik wyszedł"
@@ -4024,7 +4063,7 @@ msgid "settings.training_replays"
 msgstr "Trening i powtórki"
 
 msgid "settings.training_replays_detail"
-msgstr "Automatyczna gotowość po treningu, miernik klatek w meczach i wybór zapisywanych meczów."
+msgstr "Miernik klatek w meczach, automatyczna gotowość po treningu i wybór zapisywanych meczów."
 
 msgid "settings.training_replays_title"
 msgstr "TRENING I POWTÓRKI"

@@ -11,6 +11,11 @@ inline constexpr wchar_t UpdateTransactionName[] = L".ember-update-transaction-v
 // download, extracts it and prepares (checks the package); the installer
 // checks the package too, then compares, backs up, replaces and confirms.
 enum class UpdateStage { Downloading, Verifying, Extracting, Preparing, Comparing, BackingUp, Replacing, Confirming };
+// The installer's own steps, in order, as Updater.exe's window names them: the
+// launcher passes their names, in the player's language, as -Stages, in this
+// order and separated by '|'.
+inline constexpr UpdateStage InstallerStages[] = { UpdateStage::Preparing, UpdateStage::Comparing, UpdateStage::BackingUp,
+    UpdateStage::Replacing, UpdateStage::Confirming };
 // How far a step is: bytes while downloading and verifying, files after. Each
 // step counts from zero to its own total; a total of 0 is not known.
 using Progress = std::function<void(UpdateStage stage, std::uint64_t done, std::uint64_t total)>;

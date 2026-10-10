@@ -166,6 +166,33 @@ void PresentationJourneys(){
  show(MenuInput::Down);show();Check(found.navigation.Focus()=="check","Moving off the found update did not work");
  show();show();Check(found.navigation.Focus()=="check","The found update took the highlight back after the player moved");
  checking.update.latestVersion="v9.9.10";show();show();Check(found.navigation.Focus()=="install","A newer update did not take the highlight");
+ // The channel row: Left and Right pick without saving; Select asks first,
+ // with Cancel highlighted, and only a confirmed pick is answered as Channel.
+ GameMenu channels;channels.navigation=RecoveryNavigation(true);channels.navigation.Prefer("channel");
+ sf4e::platform::ServiceSnapshot saved;saved.channel=sf4e::launcher::UpdateChannel::Beta;ChannelPick pick;
+ const auto pickFrame=[&](unsigned held=0){SetMenuInput({held,0});ImGui::NewFrame();const auto choice=DrawRecoveryMenu(channels,saved,"",true,Tone::Error,false,true,&pick);ImGui::Render();return choice;};
+ const auto press=[&](unsigned held){const auto choice=pickFrame(held);pickFrame();return choice;};
+ const auto channelRow=[&]()->const MenuEntry*{for(const auto& e:updateRows)if(e.id=="channel")return &e;return nullptr;};
+ pickFrame();pickFrame();Check(channels.navigation.Focus()=="channel","The channel row did not take the highlight");
+ Check(channelRow()&&channelRow()->adjustable&&MenuSelectOpens(*channelRow())==SelectOpens::Nothing,"The saved channel's row offered Select");
+ press(MenuInput::Left);
+ Check(pick.Shown(saved.channel)==sf4e::launcher::UpdateChannel::Stable&&saved.channel==sf4e::launcher::UpdateChannel::Beta,
+  "Left from Beta did not pick Stable, or passed through Nightly");
+ Check(channelRow()&&channelRow()->value==sf4e::loc::T("updates.channel.stable")&&
+  channelRow()->detail.find(sf4e::loc::Tf("updates.channel.going_back",sf4e::loc::T("updates.channel.prerelease"),sf4e::loc::T("updates.channel.stable")))!=std::string::npos,
+  "Picking Stable from Beta did not say what going back means");
+ press(MenuInput::Select);
+ Check(channels.navigation.Confirming()&&!channels.navigation.ConfirmSelected(),"The channel switch did not ask first, on Cancel");
+ Check(press(MenuInput::Select)==RecoveryChoice::None&&!channels.navigation.Confirming(),"Cancel switched the channel");
+ Check(pick.Shown(saved.channel)==sf4e::launcher::UpdateChannel::Stable,"Cancel dropped the pick");
+ press(MenuInput::Right);press(MenuInput::Right);
+ Check(pick.Shown(saved.channel)==sf4e::launcher::UpdateChannel::Nightly,"Right did not reach Nightly");
+ Check(channelRow()->detail.find(sf4e::loc::T("updates.channel.nightly_detail"))!=std::string::npos,"The Nightly pick did not show its warning");
+ press(MenuInput::Right);Check(pick.Shown(saved.channel)==sf4e::launcher::UpdateChannel::Nightly,"Right went past Nightly");
+ press(MenuInput::Select);press(MenuInput::Right);
+ Check(channels.navigation.Confirming()&&channels.navigation.ConfirmSelected(),"Right did not move to the confirm button");
+ Check(press(MenuInput::Select)==RecoveryChoice::Channel&&pick.picked&&*pick.picked==sf4e::launcher::UpdateChannel::Nightly,
+  "The confirmed pick was not answered as Channel");
  SetMenuEntriesProbe({});
 }
 void AppearanceGalleries(){

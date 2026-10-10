@@ -805,8 +805,20 @@ namespace launcher {
 		// a quote in it would end the argument early.
 		std::wstring status = platform::Utf8ToWide(installingText);
 		std::replace(status.begin(), status.end(), L'"', L'\'');
-		swprintf_s(updaterParams, L"-InstallDir \"%s\" -StagingDir \"%s\" -WaitPid %lu -Status \"%s\"",
-			installDir, stagingDir, GetCurrentProcessId(), status.c_str());
+		// The installer's steps by name, for the Updater's window: in
+		// InstallerStages' order, separated by '|', which a name cannot hold.
+		// An Updater.exe from before -Stages ignores it too.
+		std::wstring stages;
+		for (const char* key : { "update.stage.preparing", "update.stage.comparing", "update.stage.backing_up", "update.stage.replacing", "update.stage.confirming" }) {
+			std::wstring name = platform::Utf8ToWide(loc::T(key));
+			std::replace(name.begin(), name.end(), L'"', L'\'');
+			std::replace(name.begin(), name.end(), L'|', L'/');
+			if (!stages.empty()) stages += L'|';
+			stages += name;
+		}
+		static_assert(std::size(InstallerStages) == 5, "one name per installer step");
+		swprintf_s(updaterParams, L"-InstallDir \"%s\" -StagingDir \"%s\" -WaitPid %lu -Status \"%s\" -Stages \"%s\"",
+			installDir, stagingDir, GetCurrentProcessId(), status.c_str(), stages.c_str());
         SpawnResult spawned = SpawnResult::Failed;
         if (!HandoffPreparedUpdate(cancel, [&] {
             spawned = SpawnUpdater(installDir, offer.goesBack ? installDir : stagingDir, updaterParams);

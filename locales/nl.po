@@ -150,6 +150,12 @@ msgstr "Dagelijkse testversies met de nieuwste functies. Ze kunnen problemen gev
 msgid "updates.channel_detail"
 msgstr "Stabiel biedt alleen afgewerkte versies aan. Bèta biedt ook bèta- en release-candidateversies aan, die meer problemen kunnen hebben. Iedereen met wie je speelt heeft dezelfde versie nodig."
 
+msgid "updates.channel.switch_detail"
+msgstr "Zet de updatecontrole van {0} op {1} en controleert {1} meteen. Er wordt niets geïnstalleerd tot je Downloaden en installeren kiest."
+
+msgid "updates.channel.going_back"
+msgstr "Teruggaan van {0} naar {1} kan een oudere versie dan de jouwe aanbieden. Replays opgenomen met {0} openen misschien niet met {1}."
+
 msgid "updates.installed_version"
 msgstr "Geïnstalleerde versie"
 
@@ -164,6 +170,15 @@ msgstr "Sluit SF4 voor de installatie. Het pakket wordt eerst gecontroleerd. Je 
 
 msgid "updates.unverified"
 msgstr "Deze update heeft geen controlesom en kan niet worden geïnstalleerd."
+
+msgid "updates.install_going_back"
+msgstr "Dit is een oudere versie dan de jouwe. Replays opgenomen met je huidige versie openen er misschien niet mee."
+
+msgid "updates.whats_new"
+msgstr "Wat is er nieuw"
+
+msgid "updates.whats_new_detail"
+msgstr "Release-opmerkingen voor {0}."
 
 msgid "updates.cancel"
 msgstr "Bewerking annuleren"
@@ -1170,6 +1185,15 @@ msgstr "Lid worden van Ember Discord"
 msgid "about.discord_detail"
 msgstr "Spelers, matches en hulp op {0}. Opent in je browser achter het spel."
 
+msgid "about.version_line"
+msgstr "Ember {0} · {1}"
+
+msgid "about.version_detail"
+msgstr "De Ember-versie op deze pc. Build {0}."
+
+msgid "about.channel_detail"
+msgstr "Updatecontroles gebruiken dit kanaal. Sluit het spel en dubbelklik op Updater.exe om het te wijzigen."
+
 msgid "settings.retry_save"
 msgstr "Opnieuw opslaan"
 
@@ -2110,6 +2134,21 @@ msgstr "Sluit het spel voordat je de update installeert."
 
 msgid "update.updater_start_failed"
 msgstr "Kon Updater.exe niet starten. Installeer opnieuw vanaf een verse ZIP."
+
+msgid "update.stage.preparing"
+msgstr "Pakket controleren..."
+
+msgid "update.stage.comparing"
+msgstr "Bestanden vergelijken..."
+
+msgid "update.stage.backing_up"
+msgstr "Te vervangen bestanden back-uppen..."
+
+msgid "update.stage.replacing"
+msgstr "Bestanden vervangen..."
+
+msgid "update.stage.confirming"
+msgstr "Geïnstalleerde bestanden controleren..."
 
 msgid "room.member_left"
 msgstr "Lid vertrokken"
@@ -4024,7 +4063,7 @@ msgid "settings.training_replays"
 msgstr "Training en replays"
 
 msgid "settings.training_replays_detail"
-msgstr "Automatisch gereed na Training, de framemeter in wedstrijden en welke wedstrijden worden opgeslagen."
+msgstr "De framemeter in wedstrijden, automatisch gereed na Training en welke wedstrijden worden opgeslagen."
 
 msgid "settings.training_replays_title"
 msgstr "TRAINING EN REPLAYS"

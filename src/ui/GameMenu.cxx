@@ -340,7 +340,28 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     const bool hintsFit=!dialog&&(!std::strcmp(selectGlyph,"A")||KeyboardPrompts())&&!shortcutHints.empty()&&
         MenuLegend(legendWidth,selectGlyph,backGlyph,false,adjustable,menuArt,unit,primary,shortcutHints,back)<=standardLegend;
     const auto& extras=hintsFit?shortcutHints:noHints;
-    const float footer=standardLegend+footerSpacing;
+    // The footer note goes in the bottom right corner, level with the legend's
+    // last row when it fits beside it. Otherwise it takes a line of its own
+    // under the legend while the list keeps its least height and a row more,
+    // and else it is cut to the room beside the legend.
+    const float noteFont=12*unit,noteGap=24*unit;
+    std::string note=flyout?std::string():footerNote;
+    float legendEnd=0;
+    if(!note.empty())MenuLegend(legendWidth,selectGlyph,backGlyph,false,adjustable,menuArt,unit,primary,extras,back,&legendEnd);
+    const float noteWidth=note.empty()?0.f:ImGui::GetFont()->CalcTextSizeA(noteFont,FLT_MAX,0,note.c_str()).x;
+    const float besideRoom=legendWidth-legendEnd-noteGap;
+    const float lineCost=noteFont+6*unit+ImGui::GetStyle().ItemSpacing.y;
+    const bool noteOwnLine=noteWidth>besideRoom&&noteWidth<=legendWidth&&
+        ImGui::GetContentRegionAvail().y-standardLegend-footerSpacing-lineCost>=60+44*unit;
+    if(!note.empty()&&noteWidth>besideRoom&&!noteOwnLine) {
+        if(besideRoom<90*unit)note.clear();
+        else {
+            const char* end=nullptr;auto* font=ImGui::GetFont();
+            font->CalcTextSizeA(noteFont,besideRoom-font->CalcTextSizeA(noteFont,FLT_MAX,0,"...").x-1,0,note.c_str(),nullptr,&end);
+            note=std::string(note.c_str(),end)+"...";
+        }
+    }
+    const float footer=standardLegend+footerSpacing+(noteOwnLine?lineCost:0.f);
     if(flyout || stableStatus) {
         // Bound long command errors without displacing the list or its legend.
         // The room header shares its Back row on wide windows; this decision
@@ -520,8 +541,19 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     }
     const float legendTop=ImGui::GetCursorScreenPos().y;
     ImGui::Dummy(ImVec2(0,8*unit));if(home)ImGui::SetCursorPosX(homeMargin);
+    const auto legendStart=ImGui::GetCursorScreenPos();
     const float legendHeight=MenuLegend(ImGui::GetContentRegionAvail().x,selectGlyph,backGlyph,true,adjustable,menuArt,unit,primary,extras,back);
     ImGui::Dummy(ImVec2(0,legendHeight));
+    if(!note.empty()) {
+        // Right-aligned to the legend's own right edge.
+        const float right=legendStart.x+legendWidth;
+        const float width=ImGui::GetFont()->CalcTextSizeA(noteFont,FLT_MAX,0,note.c_str()).x;
+        const float y=noteOwnLine?ImGui::GetCursorScreenPos().y:legendStart.y+legendHeight-19*unit-noteFont*.5f;
+        const ImVec2 at((std::max)(legendStart.x,right-width),y);
+        ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(),noteFont,at,palette::Muted,note.c_str());
+        ReportMenuCard(note==footerNote?"footer-note":"footer-note/cut",at,ImVec2(at.x+width,at.y+noteFont));
+        if(noteOwnLine)ImGui::Dummy(ImVec2(0,noteFont+6*unit));
+    }
     if(flyout) {
         // The flyout has no choice dialog, so a row that opens one does nothing.
         // Its text rows edit in the same popup as the shell's.

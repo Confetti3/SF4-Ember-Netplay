@@ -13,7 +13,8 @@
 #include <atomic>
 
 namespace sf4e { namespace platform {
-// SwitchUpdateChannel saves the next channel, then checks for an update on it.
+// SwitchUpdateChannel saves the channel ApplicationServices::SwitchUpdateChannel
+// names, then checks for an update on it.
 enum class ServiceAction { None, CheckUpdates, SwitchUpdateChannel, ExportDiagnostics, OpenUpdater, InstallUpdate, OpenRecovery, OpenCommunity, OpenReplayFolder };
 // Community Discord server, shown in Help & About and opened as https://<invite>.
 constexpr const char* CommunityInvite = "discord.gg/uPNqF5A5uq";
@@ -99,15 +100,20 @@ public:
     explicit ApplicationServices(std::wstring diagnosticsDirectory = {});
     ~ApplicationServices();
     bool Request(ServiceAction action, const DiagnosticsView& diagnostics = {});
+    // Saves `channel` as the update channel, then checks for an update on it.
+    bool SwitchUpdateChannel(launcher::UpdateChannel channel);
     ServiceSnapshot Snapshot() const;
     void Cancel() { cancelled_ = true; }
     void Observe(const DiagnosticsView& diagnostics);
 private:
     void Run();
+    // Starts `action` on the worker; the caller holds mutex_.
+    bool Start(ServiceAction action, const DiagnosticsView& diagnostics, launcher::UpdateChannel channel);
     mutable std::mutex mutex_;
     std::condition_variable wake_;
     bool stop_ = false;
     ServiceAction request_ = ServiceAction::None;
+    launcher::UpdateChannel requestChannel_ = launcher::UpdateChannel::Stable;
     DiagnosticsView diagnostics_;
     ServiceSnapshot state_;
     std::wstring diagnosticsDirectory_;
