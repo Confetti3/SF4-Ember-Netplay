@@ -195,6 +195,15 @@ void TrainingPadChord(){
  auto e=step(back);Check(e.down&&!e.reset&&!e.save&&!e.open&&!e.close,"Back did not mark where the fighters stand");
  Check(!step(back,false,.2).Any(),"A short hold did more than wait");
  e=step(0);Check(e.reset&&!e.save&&!e.down,"A tap of Back did not reset");
+ // Tap or hold is the time Back was down, also when the release is the
+ // first sample past half a second (a stalled poll): that is a save.
+ step(back);Check(!step(back,false,.49).Any(),"Back did more than wait under half a second");
+ e=step(0,false,.02);Check(e.save&&!e.reset,"A release past half a second reset instead of saving");
+ step(back);e=step(0,false,.6);Check(e.save&&!e.reset,"A release that was the first sample past half a second reset");
+ step(back);e=step(0,false,.49);Check(e.reset&&!e.save,"A release under half a second saved");
+ // A chord's Back is neither, however long, and a save is made once.
+ step(back);step(both);e=step(0,false,1);Check(!e.save&&!e.reset,"A chord's late release saved or reset");
+ step(back);step(back,false,.6);Check(!step(0).Any(),"A hold saved again as it was let go");
  step(back);Check(!step(back,false,.45).save,"Back saved before half a second");
  e=step(back,false,.06);Check(e.save&&!e.reset,"Holding Back did not save");
  Check(!step(back,false,1).Any(),"Holding Back saved twice");

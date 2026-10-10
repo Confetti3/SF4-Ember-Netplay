@@ -175,16 +175,16 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     // exactly: an attack in Ember, at Stable's alpha.
     {
         training::FighterSample down,attack;down.valid=attack.valid=true;down.status=19;attack.status=16;down.action=attack.action=1;
-        Require(TrainingCellColor(attack,false)==((palette::Ember&~IM_COL32_A_MASK)|(215u<<IM_COL32_A_SHIFT))&&
-            TrainingCellColor(down,false)==IM_COL32(178,123,210,215),"Flat bars left Stable's colours");
+        Require(TrainingCellColor(training::MeterCellOf(attack),false)==((palette::Ember&~IM_COL32_A_MASK)|(215u<<IM_COL32_A_SHIFT))&&
+            TrainingCellColor(training::MeterCellOf(down),false)==IM_COL32(178,123,210,215),"Flat bars left Stable's colours");
         std::map<std::string,std::pair<ImVec2,ImVec2>> bars;
         SetMenuCardProbe([&](const char* id,ImVec2 from,ImVec2 to){bars[id]={from,to};});
         for(const int shown:training::MeterShownChoices)for(bool angled:{true,false}) {
             training::MeterOptions options;options.flat=!angled;options.shown=shown;SetTrainingMeterOptions(options);
             training.meter.frames.clear();
-            for(int frame=0;frame<1200;++frame)training.meter.frames.push_back({{{frame<1200-shown?down:attack,frame<1200-shown?down:attack}},frame});
+            for(int frame=0;frame<1200;++frame)training::AppendMeterFrame(training.meter.frames,{{frame<1200-shown?down:attack,frame<1200-shown?down:attack}},frame);
             draw();
-            const ImU32 oldColor=TrainingCellColor(down,angled),newColor=TrainingCellColor(attack,angled);
+            const ImU32 oldColor=TrainingCellColor(training::MeterCellOf(down),angled),newColor=TrainingCellColor(training::MeterCellOf(attack),angled);
             int cells=0;
             for(const auto& vertex:FindWindow("Training frame meter")->DrawList->VtxBuffer){Require(vertex.col!=oldColor,"Meter drew frames older than the newest it shows");if(vertex.col==newColor)++cells;}
             Require(cells==2*shown*4,"Meter did not draw exactly the frames shown for each player");
@@ -204,17 +204,17 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         // notches show the oldest 60 frames it keeps, and running again
         // shows the newest.
         training.meter.frames.clear();
-        for(int frame=0;frame<121;++frame)training.meter.frames.push_back({{{frame<60?down:attack,frame<60?down:attack}},frame});
+        for(int frame=0;frame<121;++frame)training::AppendMeterFrame(training.meter.frames,{{frame<60?down:attack,frame<60?down:attack}},frame);
         training.meter.frozen=true;draw();
         SetMenuCardProbe([&](const char* id,ImVec2 from,ImVec2 to){bars[id]={from,to};});draw();SetMenuCardProbe({});
         const auto& bar=bars.at("training-bar-1");
         io.AddMousePosEvent((bar.first.x+bar.second.x)/2,(bar.first.y+bar.second.y)/2);io.AddMouseWheelEvent(0,6);draw();
         const auto count=[&](ImU32 colour){int n=0;for(const auto& vertex:FindWindow("Training frame meter")->DrawList->VtxBuffer)if(vertex.col==colour)++n;return n;};
-        Require(count(TrainingCellColor(down,true))==2*59*4&&count(TrainingCellColor(attack,true))==2*1*4,"Scrolling a held meter back did not show its oldest frames");
+        Require(count(TrainingCellColor(training::MeterCellOf(down),true))==2*59*4&&count(TrainingCellColor(training::MeterCellOf(attack),true))==2*1*4,"Scrolling a held meter back did not show its oldest frames");
         io.AddMouseWheelEvent(0,-6);draw();
-        Require(count(TrainingCellColor(attack,true))==2*60*4,"Scrolling forward did not return to the newest frames");
+        Require(count(TrainingCellColor(training::MeterCellOf(attack),true))==2*60*4,"Scrolling forward did not return to the newest frames");
         io.AddMouseWheelEvent(0,6);draw();training.meter.frozen=false;draw();
-        Require(count(TrainingCellColor(attack,true))==2*60*4,"A running meter stayed scrolled back");
+        Require(count(TrainingCellColor(training::MeterCellOf(attack),true))==2*60*4,"A running meter stayed scrolled back");
         io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);draw();
     }
     // The F6 colour key must describe the flat bars: each entry's colour is the
@@ -234,7 +234,7 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
             for(int frame=0;frame<120;++frame) {
                 auto samples=fighters;
                 for(auto& sample:samples){sample.valid=true;sample.status=status;sample.action=1;}
-                training.meter.frames.push_back({samples,frame});
+                training::AppendMeterFrame(training.meter.frames,samples,frame);
             }
             draw();
             int drawn=0;
@@ -261,11 +261,11 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
             Require(*loc::T(entry.label)!=0,"Angled colour key entry has no label");
             const auto found=std::find_if(candidates.begin(),candidates.end(),[&](const training::FighterSample& sample){return training::ClassifyMeter(sample)==entry.kind;});
             Require(found!=candidates.end(),"Angled colour key kind has no sample to draw");
-            Require(TrainingCellColor(*found,true)==entry.color,"Angled colour key entry is not the cell colour of its kind");
+            Require(TrainingCellColor(training::MeterCellOf(*found),true)==entry.color,"Angled colour key entry is not the cell colour of its kind");
             training.meter.frames.clear();
             for(int frame=0;frame<120;++frame) {
                 std::array<training::FighterSample,2> samples{{*found,*found}};
-                training.meter.frames.push_back({samples,frame});
+                training::AppendMeterFrame(training.meter.frames,samples,frame);
             }
             draw();
             int drawn=0;
@@ -274,7 +274,7 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         }
         // Rise is drawn as Knockdown, with no entry of its own.
         training::FighterSample rising;rising.valid=true;rising.status=20;
-        Require(TrainingCellColor(rising,true)==TrainingCellColor(rising,false),"Getting up left the Knockdown colour");
+        Require(TrainingCellColor(training::MeterCellOf(rising),true)==TrainingCellColor(training::MeterCellOf(rising),false),"Getting up left the Knockdown colour");
     }
     training.meter=savedMeter;
     // The default zoom flat, the whole history at once, and the recovery
@@ -301,7 +301,7 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
             if(f>=68&&f<107)s[0]=attack(202,f-67,10,14);
             if(f>=18&&f<38){s[1].status=21;s[1].action=300;s[1].actionFrame=static_cast<float>(f-17);s[1].comboDamage=40;}
             if(f>=64&&f<96){s[1].status=21;s[1].action=300;s[1].actionFrame=static_cast<float>(f<80?f-63:f-79);s[1].comboDamage=f<80?50.f:120.f;}
-            runs.frames.push_back({s,f});
+            training::AppendMeterFrame(runs.frames,s,f);
         }
         runs.startupFrames={{5,-1}};runs.moves[0].seen=true;runs.moves[0].active=4;runs.moves[0].recovery=25;
         runs.advantage.valid=true;runs.advantage.frames={{3,-3}};runs.advantage.attacker=0;

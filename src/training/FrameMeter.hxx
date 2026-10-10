@@ -165,10 +165,59 @@ inline std::size_t MeterBackLimit(std::size_t size, std::size_t window) {
     const auto kept = (std::min)(size, MeterShown);
     return kept > window ? kept - window : 0;
 }
+// What a bar cell shows, resolved once as its frame arrives, so a cell never
+// changes as older frames leave the history and the bars only draw it.
+// kind: the angled bars' (ClassifyMeter, except that holding back from a jump
+// near an attack is a guard status that guards nothing in the air: Neutral).
+// phase: the flat bars' (ClassifyStatus). newAction: a native action began on
+// this frame. split: the frame starts a count of its own inside a run of
+// the same kind: a cancel or a string's next attack, or each hit of a combo.
+// Guarding is one run whatever plays in it. With no frame before it in the
+// bars, neither is set.
+struct MeterCell {
+    MeterKind kind = MeterKind::Unknown;
+    Phase phase = Phase::Unknown;
+    bool newAction = false, split = false;
+    // The status the guard this cell is part of began from, carried from
+    // cell to cell, so a long guard stays what it began as.
+    unsigned guardFrom = ~0u;
+};
+// sample's cell after previous, the sample before it in the bars whose cell
+// was before; no previous for the first cell of the bars.
+inline MeterCell ResolveMeterCell(const FighterSample& sample, const FighterSample* previous, const MeterCell& before) {
+    using S = ActorStatus;
+    MeterCell cell;
+    cell.phase = sample.valid ? ClassifyStatus(sample.status) : Phase::Unknown;
+    cell.kind = ClassifyMeter(sample);
+    const auto guarding = [](const FighterSample& s) { return s.valid && (s.status == S::GuardStand || s.status == S::GuardCrouch); };
+    if (guarding(sample)) cell.guardFrom = previous && guarding(*previous) ? before.guardFrom : previous && previous->valid ? previous->status : sample.status;
+    if (cell.kind == MeterKind::Guard && sample.status != S::DamageGuard &&
+        (sample.posture > 1 || cell.guardFrom == S::Jump || cell.guardFrom == S::StandToJump)) cell.kind = MeterKind::Neutral;
+    if (!previous) return cell;
+    cell.newAction = sample.valid && sample.action >= 0 && sample.action != previous->action;
+    const bool action = cell.newAction && !(cell.kind == MeterKind::Guard && before.kind == MeterKind::Guard);
+    const bool struck = cell.kind == MeterKind::Hit && before.kind == MeterKind::Hit && !action &&
+        (sample.comboDamage > previous->comboDamage || sample.actionFrame < previous->actionFrame);
+    cell.split = action || struck;
+    return cell;
+}
+// A cell from its sample alone, with nothing before it: what the F6 key and
+// tests name a kind's colour by.
+inline MeterCell MeterCellOf(const FighterSample& sample) { return ResolveMeterCell(sample, nullptr, MeterCell{}); }
 struct MeterFrame {
     std::array<FighterSample, 2> fighters;
+    std::array<MeterCell, 2> cells;
     int frame = 0;
 };
+// A frame added after the last of frames, its cells resolved after that one's
+// as the meter resolves them: for bars made by hand, a preview or a test.
+inline void AppendMeterFrame(std::deque<MeterFrame>& frames, const std::array<FighterSample, 2>& fighters, int frame) {
+    MeterFrame added; added.fighters = fighters; added.frame = frame;
+    for (int side = 0; side < 2; ++side)
+        added.cells[side] = frames.empty() ? MeterCellOf(fighters[side]) :
+            ResolveMeterCell(fighters[side], &frames.back().fighters[side], frames.back().cells[side]);
+    frames.push_back(added);
+}
 struct MeterView {
     std::deque<MeterFrame> frames;
     std::array<FighterSample, 2> current;
@@ -194,7 +243,7 @@ struct MeterView {
 class FrameMeter {
 public:
     const MeterView& View() const { return view_; }
-    void Reset() { view_ = MeterView{}; idleFrames_ = 0; hadActivity_ = false; hasFrame_ = false; observedFrames_ = contactFrame_ = 0; armed_ = {}; recovered_ = {{-1, -1}}; startupElapsed_ = {}; startupPending_ = {}; recoveryCells_ = {}; thrower_ = {}; firstActiveAt_ = wakeAt_ = {{-1, -1}}; }
+    void Reset() { view_ = MeterView{}; idleFrames_ = 0; hadActivity_ = false; hasFrame_ = false; observedFrames_ = contactFrame_ = 0; armed_ = {}; recovered_ = {{-1, -1}}; startupElapsed_ = {}; startupPending_ = {}; recoveryCells_ = {}; thrower_ = {}; firstActiveAt_ = wakeAt_ = {{-1, -1}}; lastCells_ = {}; }
     void Observe(int frame, const std::array<FighterSample, 2>& observed) {
         // The native fixed-point integral is a wrapping 16-bit counter. It
         // becomes negative after 32767; those values must never double as
@@ -217,6 +266,7 @@ public:
         const std::int64_t now = observedFrames_++;
         ObserveAdvantage(now, fighters);
         bool neutral = true;
+        std::array<MeterCell, 2> cells;
         for (int side = 0; side < 2; ++side) {
             const auto& sample = fighters[side];
             neutral = neutral && sample.valid && ClassifyStatus(sample.status) == Phase::Neutral;
@@ -297,6 +347,10 @@ public:
                     view_.lastAttackFrames[side] = view_.actionFrames[side];
                 view_.actionFrames[side] = sample.valid && sample.action >= 0 ? 1 : 0;
             }
+            // The cell is resolved now, with the frame before it and the guard
+            // it continues, which the history may no longer hold later.
+            cells[side] = ResolveMeterCell(sample, previous.valid ? &previous : nullptr, lastCells_[side]);
+            lastCells_[side] = cells[side];
             view_.current[side] = sample;
         }
         if (neutral) ++idleFrames_;
@@ -307,7 +361,9 @@ public:
         }
         if (hadActivity_ && idleFrames_ >= 30) view_.frozen = true;
         if (!view_.frozen) {
-            view_.frames.push_back({fighters, frame});
+            // The first cell of the bars has nothing before it to part from.
+            if (view_.frames.empty()) for (auto& cell : cells) cell.newAction = cell.split = false;
+            view_.frames.push_back({fighters, cells, frame});
             if (view_.frames.size() > MeterHistory) view_.frames.pop_front();
         }
     }
@@ -392,6 +448,8 @@ private:
     }
     MeterView view_;
     std::array<bool, 2> thrower_{};
+    // The last cell each side was given (ResolveMeterCell).
+    std::array<MeterCell, 2> lastCells_{};
     // On the clock of accepted observations; -1 none.
     std::array<std::int64_t, 2> firstActiveAt_{{-1, -1}}, wakeAt_{{-1, -1}};
     std::array<bool, 2> armed_{};

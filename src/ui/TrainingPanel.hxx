@@ -39,12 +39,13 @@ void SetTrainingMeterOptions(const training::MeterOptions& options);
 void DrawTrainingColorKey(bool angled);
 // One row of the F6 colour key: a locale key, what it names and the exact
 // colour (ImU32) the frame meter bars draw for it. Flat bars colour a cell by
-// its ClassifyStatus phase; angled bars by its ClassifyMeter kind (an entry
+// its phase; angled bars by its resolved kind (training::MeterCell; an entry
 // names one kind; Knockdown covers Down and Rise).
 struct TrainingKeyEntry { const char* label; training::Phase phase; training::MeterKind kind; unsigned color; };
 std::vector<TrainingKeyEntry> TrainingColorKeyEntries(bool angled);
-// The colour a bar cell draws for a fighter's sample, angled or flat.
-unsigned TrainingCellColor(const training::FighterSample& sample, bool angled);
+// The colour a bar cell draws, angled or flat: the one function the bars and
+// the key both take their colours from.
+unsigned TrainingCellColor(const training::MeterCell& cell, bool angled);
 // Over the battle while it is about to be taken away, with who called and go
 // now under the game's words when the call has them.
 void ChallengerBanner(const training::View& view, const ChallengerCall& call = {});

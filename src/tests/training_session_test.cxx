@@ -7,7 +7,7 @@ void Require(bool pass, const char* why) { if (!pass) throw std::runtime_error(w
 int main() {
     try {
         MeterView longHistory;
-        for (int frame = 0; frame < static_cast<int>(MeterHistory); ++frame) longHistory.frames.push_back({{}, frame});
+        for (int frame = 0; frame < static_cast<int>(MeterHistory); ++frame) AppendMeterFrame(longHistory.frames, {}, frame);
         for (std::size_t cell = 0; cell < MeterShown; ++cell) {
             const int index = MeterFrameIndex(longHistory.frames.size(), cell);
             Require(index == static_cast<int>(MeterHistory - MeterShown + cell) && longHistory.frames[index].frame == index,
@@ -457,6 +457,41 @@ int main() {
             Require(!dummy.Apply(set) && !ValidDummyState(set.dummy), "Counter hit beyond the menu's choices accepted");
         }
         {
+            // The meter resolves each cell as its frame arrives: a guard held
+            // from a jump guards nothing in the air and reads as nothing, and
+            // stays so after the jump has left the kept frames; a grounded
+            // guard and a blocked hit read as guarding. Runs part where a new
+            // action begins (a cancel), never inside a guard, and at each hit
+            // of a combo.
+            FrameMeter resolved; std::array<FighterSample, 2> both;
+            int observed = 0;
+            const auto observe = [&](unsigned p1, int a1, unsigned p2, int a2, float damage = 0, float frame = 1) {
+                for (auto& fighter : both) { fighter = FighterSample{}; fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; }
+                both[0].status = p1; both[0].action = a1; both[0].actionFrame = frame;
+                both[1].status = p2; both[1].action = a2; both[1].comboDamage = damage; both[1].actionFrame = frame;
+                resolved.Observe(observed++, both);
+                return resolved.View().frames.back().cells;
+            };
+            observe(ActorStatus::Jump, 1, ActorStatus::Skill, 9);
+            for (int held = 0; held < static_cast<int>(MeterHistory) + 40; ++held)
+                Require(observe(ActorStatus::GuardStand, 2, ActorStatus::Skill, 9)[0].kind == MeterKind::Neutral, "A guard held from a jump read as guarding");
+            for (const auto& frame : resolved.View().frames)
+                Require(frame.cells[0].kind == MeterKind::Neutral, "A guard from a jump turned to guarding once the jump left the history");
+            Require(observe(ActorStatus::DamageGuard, 3, ActorStatus::Skill, 9)[0].kind == MeterKind::Guard, "A blocked hit did not read as guarding");
+            resolved.Reset(); observed = 0;
+            observe(ActorStatus::Stand, 1, ActorStatus::Skill, 9);
+            Require(observe(ActorStatus::GuardStand, 2, ActorStatus::Skill, 9)[0].kind == MeterKind::Guard, "A grounded guard did not read as guarding");
+            auto cells = observe(ActorStatus::DamageGuard, 3, ActorStatus::Skill, 9);
+            Require(cells[0].kind == MeterKind::Guard && cells[0].newAction && !cells[0].split, "A blocked hit split the guard's run");
+            resolved.Reset(); observed = 0;
+            // A jab cancelled into a special: two counts. A hit and then the combo's next: two counts.
+            observe(ActorStatus::Stand, 1, ActorStatus::Stand, 1);
+            Require(!resolved.View().frames.back().cells[0].split && !resolved.View().frames.back().cells[0].newAction, "The first cell parted from nothing");
+            observe(ActorStatus::Skill, 100, ActorStatus::Damage, 300, 40);
+            cells = observe(ActorStatus::Skill, 100, ActorStatus::Damage, 300, 40, 2);
+            Require(!cells[0].split && !cells[1].split, "A move or a hit split its own run");
+            cells = observe(ActorStatus::Skill, 101, ActorStatus::Damage, 300, 90, 3);
+            Require(cells[0].newAction && cells[0].split && cells[1].split && !cells[1].newAction, "A cancel or a combo's next hit did not start a count");
             // A meter cell tells an attack's startup, active and recovery frames apart by the script's boundary.
             FighterSample attack; attack.valid = true; attack.status = 16; attack.firstActiveFrame = 4; attack.lastActiveFrame = 7;
             const auto at = [&](float frame) { attack.actionFrame = frame; return ClassifyMeter(attack); };

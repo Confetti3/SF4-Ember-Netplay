@@ -67,8 +67,11 @@ public:
             if (call == TrainingCall::None) (openAtPress_ ? events.close : events.open) = true;
             used_ = true; armed_ = false;
         }
-        if (back && !used_ && now - downAt_ >= HoldSeconds) { events.save = true; used_ = true; }
-        if (!back && back_ && !used_) events.reset = true;
+        // Held half a second is a save, whether a sample sees Back still down
+        // then or the release is the first sample past it.
+        const bool held = now - downAt_ >= HoldSeconds;
+        if (back && !used_ && held) { events.save = true; used_ = true; }
+        if (!back && back_ && !used_) (held ? events.save : events.reset) = true;
         if (startOwned_) events.owned |= PhysicalStart;
         if (!start) startOwned_ = false;
         back_ = back; start_ = start;

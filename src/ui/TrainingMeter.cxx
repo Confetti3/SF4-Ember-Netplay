@@ -55,18 +55,6 @@ void Edged(ImDrawList* draw, float size, ImVec2 at, ImU32 colour, const char* te
         draw->AddText(ImGui::GetFont(), size, ImVec2(at.x + offset.x, at.y + offset.y), IM_COL32(10, 10, 10, 255), text);
     draw->AddText(ImGui::GetFont(), size, at, colour, text);
 }
-// A cell of the angled bars: ClassifyMeter's kind, except that holding back
-// in a jump near an attack is a guard status with nothing guarded in the air.
-MeterKind AngledKind(const MeterView& meter, int index, int side) {
-    const auto& sample = meter.frames[index].fighters[side];
-    const auto kind = ClassifyMeter(sample);
-    if (kind != MeterKind::Guard || sample.status == ActorStatus::DamageGuard) return kind;
-    int from = index;
-    while (from > 0 && (meter.frames[from].fighters[side].status == ActorStatus::GuardStand ||
-        meter.frames[from].fighters[side].status == ActorStatus::GuardCrouch)) --from;
-    const unsigned before = meter.frames[from].fighters[side].status;
-    return sample.posture > 1 || before == ActorStatus::Jump || before == ActorStatus::StandToJump ? MeterKind::Neutral : kind;
-}
 // The frames a bar shows: cells across it, and how many of the newest lie
 // to its right while a held meter is scrolled back.
 struct BarWindow { int cells; std::size_t back; };
@@ -91,10 +79,10 @@ void FlatBar(ImDrawList* draw, const MeterView& meter, int side, ImVec2 origin, 
     for (int i = 0; i < window.cells; ++i) {
         const int index = MeterFrameIndex(meter.frames.size(), static_cast<std::size_t>(i), static_cast<std::size_t>(window.cells), window.back);
         if (index < 0) continue;
-        const auto& sample = meter.frames[index].fighters[side];
+        const auto& shown = meter.frames[index].cells[side];
         draw->AddRectFilled(ImVec2(origin.x + i * cell, origin.y),
-            ImVec2(origin.x + (i + 1) * cell - (cell >= 3 ? 1.f : 0.f), origin.y + height), TrainingCellColor(sample, false));
-        if (index > 0 && sample.valid && sample.action >= 0 && sample.action != meter.frames[index - 1].fighters[side].action)
+            ImVec2(origin.x + (i + 1) * cell - (cell >= 3 ? 1.f : 0.f), origin.y + height), TrainingCellColor(shown, false));
+        if (shown.newAction)
             draw->AddLine(ImVec2(origin.x + i * cell, origin.y), ImVec2(origin.x + i * cell, origin.y + height), palette::Ivory, 2);
     }
     CountMarks(draw, origin, cell, height, 0, window.cells);
@@ -122,18 +110,15 @@ void AngledBar(ImDrawList* draw, const MeterView& meter, int side, ImVec2 origin
     for (int i = 0; i < window.cells; ++i) {
         const int index = MeterFrameIndex(meter.frames.size(), static_cast<std::size_t>(i), static_cast<std::size_t>(window.cells), window.back);
         if (index < 0) continue;
-        const auto& sample = meter.frames[index].fighters[side];
-        const auto kind = AngledKind(meter, index, side);
-        quad(i * cell, (i + 1) * cell - (cell >= 3 ? 1.f : 0.f), AngledColor(kind));
-        const auto* previous = index > 0 ? &meter.frames[index - 1].fighters[side] : nullptr;
-        // Guarding is one stretch whatever plays in it: the guard pose, then each blocked hit's own reaction.
-        const bool action = runStart >= 0 && previous && sample.valid && sample.action >= 0 && sample.action != previous->action &&
-            !(kind == MeterKind::Guard && runKind == MeterKind::Guard);
-        const bool struck = runStart >= 0 && previous && kind == MeterKind::Hit && runKind == MeterKind::Hit && !action &&
-            (sample.comboDamage > previous->comboDamage || sample.actionFrame < previous->actionFrame);
-        if ((action || struck) && kind == runKind && kind != MeterKind::Neutral) quad(i * cell - 1, i * cell + 1, IM_COL32(10, 10, 10, 255));
+        // The model resolved each cell as it arrived (training::MeterCell);
+        // the leftmost cell shown starts a run whatever came before it.
+        const auto& shown = meter.frames[index].cells[side];
+        const auto kind = shown.kind;
+        quad(i * cell, (i + 1) * cell - (cell >= 3 ? 1.f : 0.f), TrainingCellColor(shown, true));
+        const bool split = runStart >= 0 && shown.split;
+        if (split && kind == runKind && kind != MeterKind::Neutral) quad(i * cell - 1, i * cell + 1, IM_COL32(10, 10, 10, 255));
         if (runStart < 0) { runStart = i; runKind = kind; }
-        else if (kind != runKind || action || struck) { label(runStart, i, runKind); runStart = i; runKind = kind; }
+        else if (kind != runKind || split) { label(runStart, i, runKind); runStart = i; runKind = kind; }
     }
     if (runStart >= 0) label(runStart, window.cells, runKind);
     CountMarks(draw, origin, cell, height, slant, window.cells);
@@ -251,9 +236,8 @@ std::string TrainingFrameData(const training::MeterView& meter, int side) {
     if (!meter.meatyValid[side]) text += "\n" + std::string(loc::T("training.meter.meaty")) + ": --";
     return text;
 }
-unsigned TrainingCellColor(const training::FighterSample& sample, bool angled) {
-    if (!angled) return BarColor(sample.valid ? ClassifyStatus(sample.status) : Phase::Unknown);
-    return AngledColor(ClassifyMeter(sample));
+unsigned TrainingCellColor(const training::MeterCell& cell, bool angled) {
+    return angled ? AngledColor(cell.kind) : BarColor(cell.phase);
 }
 // The key lists what the bars draw, with the colour they draw it in. Idle has
 // no entry: it is the dim gap between moves and has no label.
@@ -268,8 +252,10 @@ std::vector<TrainingKeyEntry> TrainingColorKeyEntries(bool angled) {
         {Phase::Down, MeterKind::Down, "training.meter.knockdown"}, {Phase::Movement, MeterKind::Movement, "training.meter.move"},
         {Phase::Unknown, MeterKind::Sequence, "training.meter.throw"}};
     std::vector<TrainingKeyEntry> entries;
-    if (angled) for (const auto& named : angledKinds) entries.push_back({named.label, named.phase, named.kind, AngledColor(named.kind)});
-    else for (const auto& named : plain) entries.push_back({named.label, named.phase, named.kind, BarColor(named.phase)});
+    // In the bars' own colours: TrainingCellColor of a cell of that kind or phase.
+    const auto add = [&](const Named& named) { MeterCell cell; cell.kind = named.kind; cell.phase = named.phase; entries.push_back({named.label, named.phase, named.kind, TrainingCellColor(cell, angled)}); };
+    if (angled) for (const auto& named : angledKinds) add(named);
+    else for (const auto& named : plain) add(named);
     return entries;
 }
 void DrawTrainingColorKey(bool angled) {
