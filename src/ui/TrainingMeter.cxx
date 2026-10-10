@@ -282,10 +282,10 @@ void DrawTrainingColorKey(bool angled) {
     }
 }
 // The match is ready: across the middle of the screen while the battle is
-// about to be taken away. Under it, smaller: who sat down, and go now when it
-// can be pressed.
+// about to be taken away, while the call stands. Under it, smaller: who sat
+// down, and go now when it can be pressed.
 void ChallengerBanner(const training::View& view, const ChallengerCall& call) {
-    if (view.leavingIn <= 0) return;
+    if (view.leavingIn <= 0 || !call.called) return;
     const auto* vp = ImGui::GetMainViewport();
     auto* draw = ImGui::GetForegroundDrawList();
     auto* font = ImGui::GetFont();
@@ -324,7 +324,7 @@ void ChallengerBanner(const training::View& view, const ChallengerCall& call) {
         x += whoWidth + gap;
     }
     if (goNow) {
-        DrawInputGlyph(draw, call.goNowGlyph, ImVec2(x, lineY), glyph);
+        DrawPromptGlyph(draw, call.goNowGlyph, ImVec2(x, lineY), glyph, MenuArt(), glyph / 32);
         draw->AddText(font, small, ImVec2(x + glyph + small * .35f, lineY + (glyph - small) / 2), palette::Ivory, goNow);
     }
 }
@@ -339,13 +339,26 @@ void DrawTrainingRoomStatus(const TrainingRoomStatus& status) {
     if (ImGui::Begin("Training room status", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
         ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing)) {
         ImGui::SetWindowFontScale(.8f * hudScale / Scale());
-        const std::string separator = "  \xC2\xB7  ";
-        std::string rest;
-        for (const auto& part : status.parts) rest += (rest.empty() && status.room.empty() ? "" : separator) + part;
-        // The line stays clear of the gauges at the sides; only the room's
-        // name, the player's text, gives way.
-        const float room = (std::max)(ImGui::CalcTextSize("W...").x, vp->Size.x * .4f - ImGui::CalcTextSize(rest.c_str()).x);
-        const std::string line = (status.room.empty() ? std::string() : FitLabel(status.room, room)) + rest;
+        // The players' names give way so the line stays within two fifths of
+        // the screen, clear of the gauges at the sides. Ember's own words keep
+        // their room; the two names share what is left: half each, and either
+        // takes what the other does not need. Each keeps at least a letter and
+        // "...", so where Ember's words alone fill that room (a narrow screen,
+        // a long translation) the line is those words and the two shortest
+        // names; the render test holds every translation within nine tenths of
+        // the screen.
+        const auto width = [](const std::string& text) { return ImGui::CalcTextSize(text.c_str()).x; };
+        const bool hasRoom = !status.room.empty(), hasOpponent = !status.opponent.empty();
+        const std::string mark = "W";
+        const float fixed = width(TrainingRoomLine(status, hasRoom ? mark : std::string(), mark)) - (hasRoom ? width(mark) : 0) - (hasOpponent ? width(mark) : 0);
+        const float spare = (std::max)(0.f, vp->Size.x * .4f - fixed), least = width("W...");
+        const float roomWidth = hasRoom ? width(status.room) : 0, opponentWidth = hasOpponent ? width(status.opponent) : 0;
+        const float half = hasRoom && hasOpponent ? spare / 2 : spare;
+        const float roomFits = (std::min)(roomWidth, (std::max)(half, spare - (std::min)(opponentWidth, half)));
+        const float opponentFits = (std::min)(opponentWidth, spare - roomFits);
+        const std::string line = TrainingRoomLine(status, hasRoom ? FitLabel(status.room, (std::max)(least, roomFits)) : std::string(),
+            hasOpponent ? FitLabel(status.opponent, (std::max)(least, opponentFits)) : std::string());
+        ReportMenuText("training-room-line", ImGui::GetTextLineHeight(), ImGui::GetTextLineHeight(), width(line), vp->Size.x * .9f);
         NoteUserText(line);
         ImGui::TextDisabled("%s", line.c_str());
         ImGui::SetWindowFontScale(1.f);
@@ -409,7 +422,7 @@ void DrawMatchPracticeNotice() {
     ImGui::End();
     ImGui::PopStyleVar(2);
 }
-TrainingHudInput DrawTrainingHud(const training::View& view) {
+TrainingHudInput DrawTrainingHud(const training::View& view, bool called) {
     if (!view.available) return {};
     const auto* vp = ImGui::GetMainViewport();
     // Size the passive HUD to the game viewport; menu/DPI scaling should not
@@ -426,6 +439,10 @@ TrainingHudInput DrawTrainingHud(const training::View& view) {
     // pad press it names the pad's buttons instead: Back and Start open the
     // controls, and Back alone resets or saves the position.
     TrainingHudInput input;
+    // Under the call back from a room the controls cannot open, so the chip
+    // that opens them and its pad hints would be wrong; the call's banner
+    // says what can be pressed then.
+    if (called) return input;
     ImGui::SetNextWindowPos(ImVec2(hudTop.x, hudTop.y - 4 * hudScale), ImGuiCond_Always, ImVec2(0, 1));
     ImGui::SetNextWindowBgAlpha(.42f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(4 * hudScale, 3 * hudScale));

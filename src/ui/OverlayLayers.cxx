@@ -10,7 +10,7 @@ TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training
     TrainingHudInput hud;
     if (passive && view.focused && training.available && view.trainingHud) {
         DrawTrainingRoomStatus(view.trainingRoom);
-        hud = DrawTrainingHud(training);
+        hud = DrawTrainingHud(training, view.challenger.called);
         if (hud.open) passive = false;
     }
     const auto hint = [](const char* name, const char* key, float top) {

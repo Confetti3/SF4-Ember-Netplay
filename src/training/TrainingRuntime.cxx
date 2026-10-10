@@ -149,6 +149,11 @@ DummyState ReadDummyState(const DummyState& fallback) {
     return state;
 }
 View ReadView() { std::lock_guard<std::mutex> lock(mutex); return published; }
+Place ReadPlace() {
+    std::lock_guard<std::mutex> lock(mutex);
+    Place place; place.generation = published.generation; place.x[0] = published.x[0]; place.x[1] = published.x[1];
+    return place;
+}
 bool ControlsAvailable() {
     if(!session.GetView().available || Battle::ggpo) return false;
     auto* system=Native::staticMethods.GetSingleton();
@@ -193,6 +198,11 @@ static bool Dispatch(Native* system, const Command& command) {
         const bool hurried = leaving.Hurry();
         if (hurried) spdlog::info("Training: the player chose to go now");
         return hurried;
+    }
+    case Action::Stay: {
+        const bool stayed = leaving.Cancel();
+        if (stayed) spdlog::info("Training: the call ended before the battle left; it stays");
+        return stayed;
     }
     case Action::ExportSlot:
         exportedSlot = session.GetView().selected; exported = session.Slot(exportedSlot); ++exportId; return true;

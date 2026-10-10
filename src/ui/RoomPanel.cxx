@@ -129,7 +129,7 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
 std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
  using namespace room;
  auto& nav=menu_.navigation; const auto& s=v.room;
- if(roomEpoch_!=s.roomEpoch){roomEpoch_=s.roomEpoch;muted_.clear();chat_[0]=0;selectedTable_=0;rulesDirty_=false;leaveAsk_=-1;leaveAsked_=false;
+ if(roomEpoch_!=s.roomEpoch){roomEpoch_=s.roomEpoch;chat_[0]=0;selectedTable_=0;rulesDirty_=false;leaveAsk_=-1;leaveAsked_=false;
   std::snprintf(roomName_,sizeof(roomName_),"%s",s.name.c_str());roomCapacity_=s.capacity;
   if(const auto* local=Member(s,s.localMember))if(local->table>=0&&local->table<static_cast<int>(s.tables.size()))selectedTable_=local->table;
  }

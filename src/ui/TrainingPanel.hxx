@@ -19,8 +19,10 @@ void ShowTrainingRecordings();
 void SetTrainingDirectory(std::wstring directory);
 // Reset position and save position on keys the player picks (F2 and F11 at
 // first), over the fight or the controls. Also sends the dummy's plan each battle.
-// pad: the pad's Back this frame (TrainingPad.hxx): a tap resets the position, a hold saves it.
-void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit,const input::TrainingPadEvents& pad={});
+void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit);
+// The pad's Back (TrainingPad.hxx): a tap resets the position, a hold saves
+// where the fighters stood as it went down. For the battle it was pressed in only.
+void TrainingPadPosition(const training::View& view,const TrainingSubmit& submit,const input::TrainingPadEvent& pad);
 // Whether a hotkey sits on the key that many after F1, so the game is not given it.
 bool TrainingHotkeyBound(int fromF1);
 // The two hotkeys as the HUD's hint names them, those without a key left out.
@@ -59,7 +61,9 @@ struct TrainingHudInput { bool open = false, pointer = false; };
 // Bottom edge of the frame meter as a fraction of the viewport height, above
 // the game's super meters.
 constexpr float TrainingHudBottom = .82f;
-TrainingHudInput DrawTrainingHud(const training::View& view);
+// called: a room calls the player back (ChallengerCall::called); the chip is
+// not drawn then.
+TrainingHudInput DrawTrainingHud(const training::View& view, bool called = false);
 // The frame meter's window, alone over a rollback match or a replay the
 // runtime is watching, or with the training HUD.
 constexpr const char* FrameMeterWindow = "Training frame meter";

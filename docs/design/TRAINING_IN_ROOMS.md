@@ -32,7 +32,12 @@ is left for a decision.
    Back with Start opens nothing during the call. A View already held when
    the call came ends as the tap or hold it began as. A DirectInput pad's
    Select keeps resetting and saving. Under the game's pause menu or Ember's
-   menu, go now is not offered and Enter stays theirs.
+   menu, go now is not offered and Enter stays theirs. A Start pressed
+   with View held is the gesture's during the call too, so it never opens
+   the game's pause. The chips that open the F6 controls are hidden under
+   the call. If the opponent gets up before the battle has left, the call
+   ends: the banner goes, go now is no longer offered and the player stays
+   in Training.
    The others at the table see "Calling {name} back from Training" on the
    table card until the player is back or readies.
 4. At the main menu the Ember menu opens on their table. The Ready row says
@@ -76,7 +81,17 @@ of its own: see "In Training, as the room shows it" below.
   `training::CloseBattle` clears the lab's state as on any exit. The wait is
   `training::LeaveCountdown`; go now is `Action::LeaveNow`, which only cuts
   that count to its last frame, so the battle leaves once, by this path,
-  whichever ended the wait (`TrainingSessionTest`).
+  whichever ended the wait (`TrainingSessionTest`); `Action::Stay` cancels
+  it when the call ends first.
+- **The call** is `room::TrainingCall`, whose `Identity()` (room epoch,
+  table, opponent and the Training battle) is the one account of it. The
+  runtime offers it to go now's gate (`TrainingCallInput.hxx`) each tick and
+  publishes it in the snapshot; the banner and go now's prompt are drawn only
+  for it. Enter (in the window procedure) and View (in the pad gesture) are
+  taken for go now where they arrive, only while nobody else has the press,
+  and each taken press is a request tagged with the call. The runtime carries
+  out a request only for the call that still stands (`ControllerNavigationTest`,
+  `Win32CursorTest`, `TrainingCallTest`).
 - **Entering Training from the room** uses `fMainMenu::RequestTraining`, the
   same request the Home row makes, without the `StartOffline` command that row
   rides on: that command ends the room.

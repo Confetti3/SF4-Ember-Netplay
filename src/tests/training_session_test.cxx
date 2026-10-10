@@ -290,14 +290,14 @@ int main() {
         {
             Session checked; checked.Enter();
             const auto current = checked.GetView().generation;
-            for (int a = 0; a <= static_cast<int>(Action::LeaveNow); ++a) {
+            for (int a = 0; a <= static_cast<int>(Action::Stay); ++a) {
                 Command stale{static_cast<Action>(a), current + 1};
                 stale.slot = 3; stale.loop = false; stale.frames = {Input{1, 1}};
                 Require(!checked.Apply(stale), "A command for another battle was accepted");
                 Require(checked.GetView().selected == 0 && checked.GetView().loop && checked.GetView().lengths[0] == 0,
                     "A command for another battle changed the session");
             }
-            for (Action a : {Action::Place, Action::Leave, Action::LeaveNow, Action::ExportSlot, Action::DummyPlan, Action::DummyState, Action::Loop})
+            for (Action a : {Action::Place, Action::Leave, Action::LeaveNow, Action::Stay, Action::ExportSlot, Action::DummyPlan, Action::DummyState, Action::Loop})
                 Require(checked.Apply({a, current}), "A command for this battle was refused before the fight");
             Command plan{Action::DummyPlan, current}; plan.plan.slot = SlotCount;
             Require(!checked.Apply(plan), "An invalid reply plan was accepted");
@@ -337,6 +337,18 @@ int main() {
             LeaveCountdown closed;
             closed.Start(120); closed.Reset();
             Require(!closed.Hurry() && leaves(closed, 200) == 0 && closed.Start(120), "A closed battle kept its call");
+            // The call ends before the battle left (the opponent got up): the
+            // battle stays, and go now has nothing left to hurry.
+            LeaveCountdown ended;
+            Require(!ended.Cancel(), "Staying did something with no call");
+            ended.Start(120); leaves(ended, 40);
+            Require(ended.Cancel() && ended.Left() == 0 && !ended.Hurry() && leaves(ended, 200) == 0, "A battle whose call ended still left");
+            // Once it has been told to leave, the call ending changes nothing.
+            ended.Start(120); leaves(ended, 120);
+            Require(!ended.Cancel(), "A battle told to leave was taken as staying");
+            // Hurried by go now and not yet able to leave (the fight is not running): it can still stay.
+            ended.Reset(); ended.Start(120); ended.Hurry();
+            Require(!ended.Tick(false) && ended.Cancel() && !ended.Tick(true), "A hurried battle whose call ended still left");
         }
 
         FrameMeter meter;

@@ -11,6 +11,10 @@
 #include "../training/TrainingRuntime.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "../common/TrainingPad.hxx"
+#include "../common/TrainingCallInput.hxx"
+#include "../common/BattlePause.hxx"
+#include "../common/MenuInputCapture.hxx"
+#include <spdlog/spdlog.h>
 #include <atomic>
 
 namespace rPad = Dimps::Pad;
@@ -62,15 +66,47 @@ void fSystem::UpdateInputs() {
     else if(mainArmed&&(physical&PhysicalStart)&&!sf4e::Overlay::CapturesMenuInput()) {
         mainArmed=false;sf4e::Overlay::RequestMainControls();
     }
-    // Offline Training: the pad's Back and Start (TrainingPad.hxx). The chord
-    // that opens the controls sets the capture here, so the caches cleared
-    // below hide its Start from native pause in this same frame.
+    // Offline Training: the pad's Back and Start (TrainingPad.hxx), posted in
+    // order for the drawing thread. The chord that opens the controls sets the
+    // capture here, so the caches cleared below hide its Start from native
+    // pause in this same frame; a chord that opens nothing (under the call)
+    // still owns its Start, which is cleared from the caches below as well.
     static sf4e::input::TrainingPadGesture trainingPad;
-    if(!focused||!connected||snapshot.menuContext!=sf4e::input::MenuContext::OfflineTraining||
-        snapshot.inputCapture!=sf4e::input::Capture::Idle||ownerType!=device.type||ownerIndex!=device.index) trainingPad.Reset();
-    else if(const auto events=trainingPad.Update(physical,sf4e::Overlay::TrainingControlsOpen(),GetTickCount64()/1000.0,
-        sf4e::Overlay::TrainingCallState());events.Any())
-        sf4e::Overlay::PostTrainingPad(events);
+    static bool trainingPadOwned=false;
+    // Where the fighters stood, in which battle and under which pad owner, as
+    // the gesture's Back went down: a save made of that press keeps them.
+    static sf4e::training::Place pressPlace;
+    static std::uint32_t pressEpoch=0;
+    std::uint32_t ownedByGesture=0;
+    const bool training=focused&&connected&&snapshot.menuContext==sf4e::input::MenuContext::OfflineTraining&&
+        snapshot.inputCapture==sf4e::input::Capture::Idle&&ownerType==device.type&&ownerIndex==device.index;
+    if(!training) {
+        trainingPad.Reset();
+        if(trainingPadOwned) sf4e::Overlay::DropTrainingPad();
+        trainingPadOwned=false;
+    }
+    else {
+        trainingPadOwned=true;
+        // The call back from a room, as its owner offers it now; go now is
+        // the pad's only while nobody else has the press (TrainingCallInput.hxx).
+        auto& goNow=sf4e::input::TrainingGoNow();
+        const bool free=!sf4e::Overlay::CapturesMenuInput()&&!sf4e::battlePause.Paused();
+        const auto call=!goNow.Offered().Live()?sf4e::input::TrainingCall::None:
+            free&&device.type==sf4e::input::PadXInput?sf4e::input::TrainingCall::GoNow:sf4e::input::TrainingCall::Called;
+        const auto events=trainingPad.Update(physical,sf4e::Overlay::TrainingControlsOpen(),GetTickCount64()/1000.0,call);
+        ownedByGesture=events.owned;
+        using Kind=sf4e::input::TrainingPadEvent::Kind;
+        const auto post=[](Kind kind,const sf4e::training::Place& at,std::uint32_t epoch) {
+            sf4e::input::TrainingPadEvent event;
+            event.kind=kind;event.generation=at.generation;event.epoch=epoch;event.place[0]=at.x[0];event.place[1]=at.x[1];
+            sf4e::Overlay::PostTrainingPad(event);
+        };
+        if(events.down) { pressPlace=sf4e::training::ReadPlace(); pressEpoch=sf4e::Overlay::TrainingPadEpoch(); }
+        if(events.goNow&&!goNow.Press(sf4e::input::GoNowGate::Source::Pad,free)) spdlog::info("Training: go now on the pad was not taken");
+        if(events.reset) post(Kind::Reset,pressPlace,pressEpoch);
+        if(events.save) post(Kind::Save,pressPlace,pressEpoch);
+        if(events.open||events.close) post(events.open?Kind::Open:Kind::Close,sf4e::training::ReadPlace(),sf4e::Overlay::TrainingPadEpoch());
+    }
     ownerType=device.type;ownerIndex=device.index;
     const unsigned held=sf4e::input::NativeMenuHeld(this);
     static sf4e::input::MenuInputCapture gate;
@@ -79,6 +115,7 @@ void fSystem::UpdateInputs() {
     // Native Start is untouched while Ember is closed; an open overlay,
     // including the training controls, captures all inputs until release.
     if(blocked)sf4e::input::ClearNativeMenuInputs(this);
+    else if(ownedByGesture&sf4e::input::PhysicalStart)sf4e::input::ClearNativeMenuInputs(this,~sf4e::input::NativeStart);
 }
 
 unsigned int fSystem::ReadButtons(int pindex, bool raw) {

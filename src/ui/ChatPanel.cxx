@@ -54,7 +54,11 @@ void DrawUnreadBadge(float right, float top, unsigned count) {
 // messages, and a join, a leave or a game won shows only as a difference
 // between two snapshots. Only the session's room state is read from `v`.
 void ApplicationShell::ObserveChat(const ShellView& v, const room::Snapshot& room) {
-    if (v.session.room == netplay::RoomState::Idle || !room.roomEpoch) { transcript_.Clear(); pendingChat_.reset(); return; }
+    if (v.session.room == netplay::RoomState::Idle || !room.roomEpoch) { transcript_.Clear(); pendingChat_.reset(); muted_.clear(); mutedEpoch_ = 0; return; }
+    // Seen here whether the shell is drawn or hidden (Background), so a mute
+    // never outlives its room, and the unread count never leaves out a
+    // member of the next room who took a muted member's id.
+    if (mutedEpoch_ != room.roomEpoch) { mutedEpoch_ = room.roomEpoch; muted_.clear(); }
     if (transcript_.Update(room)) pendingChat_.reset();
     // The draft goes once the room's chat has the message, and not before: a send the room refuses,
     // or one that never arrives, leaves what was typed where it was. One that arrives after its

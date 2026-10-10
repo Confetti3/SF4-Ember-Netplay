@@ -30,7 +30,7 @@ void CheckOverlayVisibility(sf4e::training::View& training,sf4e::ui::OverlayLaye
         const auto foreground=[] {return ImGui::GetForegroundDrawList()->VtxBuffer.Size>0;};
         reset();training.available=true;layers.trainingHud=true;
         layers.shellAvailable=layers.matchWaitsForMenu=true;
-        layers.trainingRoom.room="Room";layers.trainingRoom.parts={"Table 1"};draw();
+        layers.trainingRoom.room="Room";layers.trainingRoom.table="Table 1";draw();
         for(const char* window:{"Training frame meter","Training shortcuts","Training room status","Ember shortcut","Ember match waiting"})
             Require(WindowDrawn(window)==passive,"Open window or native pause did not gate a passive training layer or hint");
         Require(!foreground(),"Training visibility fixture unexpectedly drew a foreground layer");
@@ -43,8 +43,11 @@ void CheckOverlayVisibility(sf4e::training::View& training,sf4e::ui::OverlayLaye
             Require(foreground()==passive,"Open window or native pause did not gate the match strip or split HUD");
             Require(!WindowDrawn("Match notice"),"Suppressed ordinary telemetry became a standalone alert");
         }
-        reset();training.leavingIn=120;layers.challenger.opponent="Opponent";draw();
+        reset();training.leavingIn=120;layers.challenger.called=true;layers.challenger.opponent="Opponent";draw();
         Require(foreground(),"Open window or native pause hid challenger banner");
+        // The banner is the call's: a countdown with no call standing draws none.
+        reset();training.leavingIn=120;layers.challenger.opponent="Opponent";draw();
+        Require(!foreground(),"A countdown without a call drew the challenger banner");
         reset();layers.captionShown=true;layers.caption.names[0]="Caption One";layers.caption.names[1]="Caption Two";
         layers.caption.line="Export caption";layers.caption.mark=true;draw();
         Require(WindowDrawn(ExportCaptionWindow),"Open window or native pause hid export caption");

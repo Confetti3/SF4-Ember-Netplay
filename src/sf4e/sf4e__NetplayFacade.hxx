@@ -2,6 +2,7 @@
 #include "../ui/ControllerNavigation.hxx"
 #include "../ui/ReplaysView.hxx"
 #include "../common/MenuInputCapture.hxx"
+#include "../common/TrainingCallInput.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/StageCatalog.hxx"
 #include "../discord/Presence.hxx"
@@ -145,6 +146,9 @@ namespace sf4e {
 			// seconds are what is left to ready, 0 while no window is open.
 			std::uint64_t trainingCallSequence = 0, trainingReadySequence = 0;
 			int trainingReadySeconds = 0;
+			// The call back from Training while it stands (TrainingCall::Identity):
+			// the banner and go now are this call's only.
+			input::CallIdentity trainingCall;
 			// The player may leave for Training without leaving the room.
 			bool canTrain = false;
 			bool canEditSelection = false;

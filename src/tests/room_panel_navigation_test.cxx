@@ -208,6 +208,33 @@ int main() try {
         SetUserGlyphRebuildInterval(std::chrono::milliseconds(250));
         shell.Navigation().Home(); frame();
     }
+    // A mute is the room's own. Muted in one room, then the room changes
+    // while Ember is hidden (as in Training): a member of the next room who
+    // has the same id is counted in the unread chat the training HUD shows.
+    {
+        const auto savedRoom = view.room;
+        room::Member muted; muted.id = 3; muted.name = "Muted";
+        view.room.members.push_back(muted);
+        shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
+        focus("member-3"); press(MenuInput::Select);
+        focus("mute"); press(MenuInput::Select);
+        shell.Navigation().Home(); frame();
+        const unsigned unreadBefore = shell.UnreadChat();
+        view.room.chat.push_back({301, 3, "From the muted member"}); frame();
+        Check(shell.UnreadChat() == unreadBefore, "A muted member's message counted as unread");
+        const auto hidden = [&] {
+            io.DeltaTime = step; ImGui::NewFrame();
+            shell.Background(view, view.room, [&](ShellAction action) { actions.push_back(std::move(action)); return true; });
+            ImGui::Render();
+        };
+        ++view.room.roomEpoch; view.room.chat.clear(); view.room.members.back().name = "Newcomer"; hidden();
+        view.room.chat.push_back({1, 3, "From the next room's member 3"}); hidden();
+        Check(shell.UnreadChat() == 1, "A mute from the last room hid a new member's message");
+        // Seen in the room itself, they are not muted there either.
+        shell.Navigation().Push("room"); frame(); focus("member-3"); press(MenuInput::Select);
+        Check(row("mute").label == loc::T("room.mute_member"), "The next room's member showed as muted");
+        view.room = savedRoom; shell.Navigation().Home(); frame();
+    }
     shell.Navigation().Home(); shell.Navigation().Push("room-table"); frame();
     // One delay row: its value is yours, its detail names the recommendation
     // and the match delay, Left and Right choose, Select applies the recommendation.

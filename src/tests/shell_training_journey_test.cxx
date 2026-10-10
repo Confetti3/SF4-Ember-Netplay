@@ -101,8 +101,14 @@ void TrainingInRoom() {
  for(std::size_t i=0;i<s.tables.size();++i)s.tables[i].id=static_cast<std::uint8_t>(i);
  room::Member me,alex,sam;me.id=1;me.name="Me";alex.id=2;alex.name="Alex";alex.fighter=0;sam.id=3;sam.name="Sam";
  s.members={me,alex,sam};
+ // The line as drawn with both names whole: the room, then Ember's words,
+ // with the opponent's name kept apart so only it and the room's give way.
  const auto line=[&](unsigned unread){const auto status=ui::DescribeTrainingRoom(s,unread);
-  Line all{status.room};all.insert(all.end(),status.parts.begin(),status.parts.end());return all;};
+  Line all;const auto add=[&](const std::string& part){if(!part.empty())all.push_back(part);};
+  add(status.room);add(status.table);add(status.opponent.empty()?status.place:Tf("training.room.opponent",status.opponent));add(status.unread);
+  Check(ui::TrainingRoomLine(status,status.room,status.opponent)==[&]{std::string joined;for(const auto& part:all)joined+=(joined.empty()?"":"  \xC2\xB7  ")+part;return joined;}(),
+   "The room line's parts were not joined in order");
+  return all;};
  Check(ui::DescribeTrainingRoom(room::Snapshot{},2).Empty(),"Training showed a room line with no room");
  Check(line(0)==Line({"Friday Night",T("training.room.not_queued")}),"A member with no place was not told so");
  // Second of three in table 2's queue, with chat waiting.
@@ -114,14 +120,23 @@ void TrainingInRoom() {
  // Seated alone, then with someone opposite.
  s.tables[1].queue.clear();s.tables[1].p1=1;s.members[0].table=1;s.members[0].seat=0;
  Check(line(0)==Line({"Friday Night",Tf("training.room.table",2),T("training.room.waiting")}),"A seated member alone was not told they wait for an opponent");
- Check(ui::DescribeChallenger(s).opponent.empty(),"The banner named an opponent at an empty table");
+ input::CallIdentity called;called.roomEpoch=5;called.table=1;called.opponent=2;called.generation=12;
+ Check(!ui::DescribeChallenger(s,input::CallIdentity{}).called,"The banner showed with no call");
  s.tables[1].p2=2;s.members[1].table=1;s.members[1].seat=1;
  Check(line(1)==Line({"Friday Night",Tf("training.room.table",2),Tf("training.room.opponent","Alex"),Tf("training.room.unread",1u)}),
   "A seated member did not see who sat down opposite");
- const auto call=ui::DescribeChallenger(s);
- Check(call.opponent=="Alex"&&call.fighter==0&&!call.goNowGlyph,"The banner did not name the opponent and their fighter");
+ Check(ui::DescribeTrainingRoom(s,0).opponent=="Alex"&&ui::DescribeTrainingRoom(s,0).place.empty(),"The opponent's name was not kept apart");
+ const auto call=ui::DescribeChallenger(s,called);
+ Check(call.called&&call.opponent=="Alex"&&call.fighter==0&&!call.goNowGlyph,"The banner did not name the opponent and their fighter");
+ // The call is who called, not whoever sits there now: Sam taking Alex's
+ // seat is a new call, and the old one names Alex or nobody, never Sam.
+ s.tables[1].p2=3;s.members[2].table=1;s.members[2].seat=1;
+ Check(ui::DescribeChallenger(s,called).opponent=="Alex","The banner named the member who sits there now, not the one who called");
+ called.roomEpoch=6;
+ Check(!ui::DescribeChallenger(s,called).called,"A call from another room showed its banner");
+ called.roomEpoch=5;s.tables[1].p2=2;
  s.localMember=9;
- Check(ui::DescribeTrainingRoom(s,1).Empty()&&ui::DescribeChallenger(s).opponent.empty(),"A client no longer in the room saw its line");
+ Check(ui::DescribeTrainingRoom(s,1).Empty(),"A client no longer in the room saw its line");
  // Go now's prompt names the device the training HUD's prompts show: View
  // for an Xbox pad, Enter for the keyboard and for a DirectInput pad, whose
  // buttons have no prompt art. The pad's press itself is the training pad

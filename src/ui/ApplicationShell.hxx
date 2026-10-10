@@ -387,7 +387,10 @@ private:
     char roomName_[65] = {}, chat_[257] = {};
     room::Rules tableRules_;
     bool rulesDirty_ = false;
+    // Members this client muted, in the room of mutedEpoch_ only: an id names
+    // someone else in another room (ObserveChat clears them on a new room).
     std::set<room::MemberId> muted_;
+    std::uint64_t mutedEpoch_ = 0;
     bool Service(platform::ServiceAction action, const ShellView& view, const Submit& submit);
     bool SendRoom(room::Action action, const ShellView& view, const Submit& submit);
     bool Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit, TrainingEntry training = TrainingEntry::None);

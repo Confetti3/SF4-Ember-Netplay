@@ -1,5 +1,6 @@
 #pragma once
 #include "RoomModel.hxx"
+#include "../common/TrainingCallInput.hxx"
 #include <cstdint>
 
 namespace sf4e { namespace room {
@@ -31,6 +32,7 @@ public:
         bool atMainMenu = false;
         bool canReady = false;     // the runtime's own gate for a Ready
         bool autoAccept = false;   // the player's choice to be readied at once
+        std::uint64_t generation = 0;  // the Training battle's (training::View)
     };
     // Whether the local player may go to Training from the room: a member
     // who is not readied, not fighting or about to, and whom nobody is
@@ -51,12 +53,13 @@ public:
         const MemberId opponent = at ? (seat ? at->p1 : at->p2) : 0;
         const bool open = at && (at->phase == TablePhase::Idle || at->phase == TablePhase::Waiting);
         const bool waiting = opponent && open && !at->ready[seat];
-        if (state_ != State::Idle && (!waiting || at->id != table_ || opponent != opponent_)) Reset();
+        if (state_ != State::Idle && (!waiting || at->id != table_ || opponent != opponent_ || room.roomEpoch != roomEpoch_)) Reset();
         if (!waiting) return Step::None;
         switch (state_) {
         case State::Idle:
             if (!in.inTraining) return Step::None;
             state_ = State::Called; table_ = at->id; opponent_ = opponent; sinceMs_ = nowMs;
+            roomEpoch_ = room.roomEpoch; generation_ = in.generation;
             return Step::Call;
         case State::Called:
             if (in.atMainMenu) { state_ = State::Window; sinceMs_ = nowMs; readied_ = false; return Step::Open; }
@@ -76,7 +79,15 @@ public:
         return spent >= ReadyWindowMs ? 0 : ReadyWindowMs - spent;
     }
     bool Called() const { return state_ == State::Called; }
-    void Reset() { state_ = State::Idle; table_ = NoTable; opponent_ = 0; sinceMs_ = 0; readied_ = false; }
+    // The call while it stands, from Call until Open or until it ends
+    // without one: who it is for and the Training battle it was sent to.
+    input::CallIdentity Identity() const {
+        input::CallIdentity call;
+        if (state_ != State::Called) return call;
+        call.roomEpoch = roomEpoch_; call.table = table_; call.opponent = opponent_; call.generation = generation_;
+        return call;
+    }
+    void Reset() { state_ = State::Idle; table_ = NoTable; opponent_ = 0; sinceMs_ = 0; readied_ = false; roomEpoch_ = 0; generation_ = 0; }
 private:
     enum class State : std::uint8_t { Idle, Called, Window };
     static constexpr std::uint8_t NoTable = 0xff;
@@ -90,6 +101,7 @@ private:
     State state_ = State::Idle;
     std::uint8_t table_ = NoTable;
     MemberId opponent_ = 0;
+    std::uint64_t roomEpoch_ = 0, generation_ = 0;
     std::uint64_t sinceMs_ = 0;
     bool readied_ = false;
 };

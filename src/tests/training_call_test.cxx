@@ -135,6 +135,39 @@ int main() {
 		auto queued = Room(3, 1, 2); queued.tables[1].queue = {3};
 		CHECK(call.Update(queued, In(true, false), 0) == Step::None);
 	}
+	{
+		// The call's identity is the one account of who called and for which
+		// battle: the room's epoch, the table, the opponent and the battle the
+		// call was sent to, from the call until the window opens.
+		TrainingCall call;
+		auto room = Room(2, 0, 2); room.roomEpoch = 11;
+		auto in = In(true, false); in.generation = 40;
+		CHECK(!call.Identity().Live());
+		room.tables[1].p1 = 1;
+		CHECK(call.Update(room, in, 0) == Step::Call);
+		const auto first = call.Identity();
+		CHECK(first.Live() && first.roomEpoch == 11 && first.table == 1 && first.opponent == 1 && first.generation == 40);
+		// A later battle number while called does not move the call to another battle.
+		in.generation = 41;
+		CHECK(call.Update(room, in, 16) == Step::None && call.Identity() == first);
+		// The opponent leaves: no call stands, and nobody new is called.
+		room.tables[1].p1 = 0;
+		CHECK(call.Update(room, in, 32) == Step::None && !call.Identity().Live());
+		// Another sits down: a new call, never the earlier one.
+		room.tables[1].p1 = 5;
+		CHECK(call.Update(room, in, 48) == Step::Call);
+		const auto second = call.Identity();
+		CHECK(second.Live() && second.opponent == 5 && second != first);
+		// Replaced in one step: the call is the new opponent's at once.
+		room.tables[1].p1 = 6;
+		CHECK(call.Update(room, in, 64) == Step::Call && call.Identity().opponent == 6 && call.Identity() != second);
+		// The room changes under the same seats: the call is the old room's and goes.
+		room.roomEpoch = 12;
+		CHECK(call.Update(room, In(false, false), 80) == Step::None && !call.Identity().Live());
+		// Back at the main menu the window opens and no call stands any more.
+		CHECK(call.Update(room, in, 96) == Step::Call && call.Identity().roomEpoch == 12);
+		CHECK(call.Update(room, In(false, true), 112) == Step::Open && !call.Identity().Live());
+	}
 	if (failures) { std::printf("%d failures\n", failures); return 1; }
 	std::printf("Training call rules passed.\n");
 	return 0;

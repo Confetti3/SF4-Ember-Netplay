@@ -12,13 +12,15 @@ namespace sf4e {
         bool CapturesMenuInput();
         bool HasInputFocus();
         void RequestMainControls();
-        // Game thread: the pad's Back and Start in offline Training. Opening
-        // takes the input at once, as RequestMainControls does.
-        void PostTrainingPad(const input::TrainingPadEvents& events);
+        // Game thread: what the pad's Back and Start ask for in offline
+        // Training, in order (TrainingPad.hxx). Opening takes the input at
+        // once, as RequestMainControls does. An event posted under an epoch
+        // that has gone is dropped: DropTrainingPad, on a change of pad or
+        // context, and the loss of focus end the epoch.
+        std::uint32_t TrainingPadEpoch();
+        void PostTrainingPad(const input::TrainingPadEvent& event);
+        void DropTrainingPad();
         bool TrainingControlsOpen();
-        // Whether a room is calling the player back from Training, and
-        // whether its banner offers go now on the assigned Xbox pad.
-        input::TrainingCall TrainingCallState();
 		void InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice);
 		// Draws the overlay over the game's picture. picture, which takes an
 		// export's picture, runs once each call: after the layers an export's

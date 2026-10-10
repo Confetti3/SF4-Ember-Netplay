@@ -7,6 +7,7 @@
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../common/MenuInputCapture.hxx"
 #include "../common/TrainingPad.hxx"
+#include "../common/TrainingCallInput.hxx"
 #include "../netplay/ProfileRecordJson.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 #include "imgui_test_support.hxx"
@@ -243,6 +244,75 @@ void TrainingPadChord(){
  // Start first is still the game's pause: Back under it is not go now.
  called(start,TrainingCall::GoNow);e=called(both,TrainingCall::GoNow);Check(!e.Any(),"Back pressed under Start went now");
  called(0,TrainingCall::GoNow);
+ // A chord's Start is the gesture's, down, held and let go, whether or not
+ // it opens anything: under the call too, and after go now's Back, so the
+ // game never takes it for its pause. The game's own pause (Start first)
+ // and a Back already held when the gesture began are left to the game.
+ const auto owned=[](const TrainingPadEvents& events){return (events.owned&PhysicalStart)!=0;};
+ for(const TrainingCall call:{TrainingCall::None,TrainingCall::Called,TrainingCall::GoNow}){
+  Check(!owned(called(back,call)),"Back alone took Start from the game");
+  Check(owned(called(both,call))&&owned(called(both,call,1)),"The chord's Start reached the game");
+  Check(owned(called(back,call)),"The chord's Start was not kept from the game as it was let go");
+  Check(!owned(called(back,call))&&!owned(called(0,call)),"Start stayed the gesture's after it was let go");
+  // Back let go before Start: Start stays the gesture's until it is let go.
+  called(back,call);called(both,call);Check(owned(called(start,call)),"The chord's Start went to the game when Back was let go first");
+  Check(owned(called(0,call))&&!owned(called(0,call)),"The chord's Start was not let go with it");
+ }
+ called(start,TrainingCall::None);Check(!owned(called(both,TrainingCall::None))&&!owned(called(start,TrainingCall::None)),"The game's pause Start was taken");
+ called(0,TrainingCall::None);
+ called(back,TrainingCall::None);pad.Reset();Check(!owned(called(both,TrainingCall::None)),"A Back held through a reset took Start");
+ called(0,TrainingCall::None);
+}
+// What the gesture asks for crosses to the drawing thread in order, one event
+// each, with the battle and the pad owner it was pressed under: two gestures
+// between frames stay two, a full queue drops rather than merges, and a
+// change of owner drops what waits and what is still to be posted.
+void TrainingPadEventOrder(){
+ using namespace sf4e::input;
+ using Kind=TrainingPadEvent::Kind;
+ TrainingPadQueue queue;
+ const auto event=[&](Kind kind,std::uint64_t generation,float x=0){TrainingPadEvent e;e.kind=kind;e.generation=generation;e.epoch=queue.Epoch();e.place[0]=x;return e;};
+ Check(queue.Post(event(Kind::Save,4,120))&&queue.Post(event(Kind::Reset,4))&&queue.Post(event(Kind::Open,4)),"The queue refused a gesture");
+ auto taken=queue.Take();
+ Check(taken.size()==3&&taken[0].kind==Kind::Save&&taken[0].place[0]==120&&taken[1].kind==Kind::Reset&&taken[2].kind==Kind::Open,
+  "Gestures between frames were merged or reordered, or a save lost where its press was");
+ Check(queue.Take().empty(),"An event was taken twice");
+ for(std::size_t i=0;i<TrainingPadQueue::MostEvents;++i)queue.Post(event(Kind::Reset,4));
+ Check(!queue.Post(event(Kind::Save,4))&&queue.Take().size()==TrainingPadQueue::MostEvents,"A full queue took one more or merged it");
+ // An owner change between posting and taking drops the waiting event, and
+ // one made under the old owner and posted after is dropped too.
+ const auto stale=event(Kind::Save,4);
+ queue.Post(event(Kind::Reset,4));queue.Invalidate();
+ Check(queue.Take().empty(),"An event outlived its pad owner");
+ Check(!queue.Post(stale)&&queue.Take().empty(),"An event made under the old owner was posted");
+ Check(queue.Post(event(Kind::Reset,5))&&queue.Take().size()==1,"The new owner's event was dropped");
+}
+// Go now is taken only for the call that stands and only while the press is
+// nobody else's; the request names that call, so once the call has changed
+// the call's owner sees it is not for the call that stands now.
+void GoNowRequests(){
+ using namespace sf4e::input;
+ GoNowGate gate;
+ CallIdentity call;call.roomEpoch=7;call.table=1;call.opponent=2;call.generation=40;
+ Check(!gate.Press(GoNowGate::Source::Keyboard,true)&&gate.Take().empty(),"Go now was taken with no call");
+ gate.Offer(call);
+ Check(!gate.Press(GoNowGate::Source::Keyboard,false)&&gate.Take().empty(),"Go now was taken under the pause menu or Ember's menu");
+ Check(gate.Press(GoNowGate::Source::Pad,true)&&gate.Press(GoNowGate::Source::Keyboard,true),"Go now was not taken for the call");
+ auto taken=gate.Take();
+ Check(taken.size()==2&&taken[0].call==call&&taken[0].source==GoNowGate::Source::Pad&&taken[1].source==GoNowGate::Source::Keyboard,"Go now's requests lost their call or their order");
+ // Taken for one call, carried out after another took its place: not that call.
+ gate.Press(GoNowGate::Source::Keyboard,true);
+ CallIdentity next=call;next.opponent=3;gate.Offer(next);
+ taken=gate.Take();
+ Check(taken.size()==1&&taken[0].call!=next,"A go now taken for an earlier call matched the call after it");
+ CallIdentity room=call,table=call,battle=call,nobody=call;room.roomEpoch=8;table.table=2;battle.generation=41;nobody.opponent=0;
+ Check(room!=call&&table!=call&&battle!=call&&nobody!=call&&!nobody.Live(),"Two different calls compared the same");
+ gate.Offer(CallIdentity{});
+ Check(!gate.Press(GoNowGate::Source::Pad,true),"Go now was taken after the call ended");
+ gate.Offer(call);
+ for(std::size_t i=0;i<GoNowGate::MostRequests;++i)gate.Press(GoNowGate::Source::Keyboard,true);
+ Check(!gate.Press(GoNowGate::Source::Keyboard,true),"A press past the bound was taken, and so kept from the game");
+ gate.Take();
 }
 // The rules every GameMenu screen shares with the room: an open dialog owns
 // the legend (Select names its highlighted button, Back cancels, shortcuts
@@ -420,5 +490,5 @@ void ProfileRecords(){
   "Record after the exact total limit was accepted");
 }
 }
-int main(){try{NativeReader();NavigationModel();NativeCapture();TrainingPadChord();DialogContract();SelectPrecedence();FlyoutIgnoresChoices();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
+int main(){try{NativeReader();NavigationModel();NativeCapture();TrainingPadChord();TrainingPadEventOrder();GoNowRequests();DialogContract();SelectPrecedence();FlyoutIgnoresChoices();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

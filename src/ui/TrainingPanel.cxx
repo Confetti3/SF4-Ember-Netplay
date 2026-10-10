@@ -249,7 +249,18 @@ void HandleTools(const MenuAction& a,const training::View& view,const TrainingSu
 }
 }
 void SetTrainingDirectory(std::wstring directory) { if(lab.directory.empty()) lab.directory=std::move(directory); }
-void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit,const input::TrainingPadEvents& pad) {
+void TrainingPadPosition(const training::View& view,const TrainingSubmit& submit,const input::TrainingPadEvent& pad) {
+    if(!view.available||pad.generation!=view.generation) return;
+    using Kind=input::TrainingPadEvent::Kind;
+    LoadPractice();
+    if(pad.kind==Kind::Save) {
+        Command place; place.action=Action::Place; place.generation=pad.generation; place.place[0]=pad.place[0]; place.place[1]=pad.place[1];
+        if(submit) submit(place);
+        SavePosition(view,submit);
+    }
+    else if(pad.kind==Kind::Reset) ResetPosition(view,submit);
+}
+void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit) {
     // Called every frame training is available, so a key's save is told even with the controls closed.
     TakePositionResult(view);
     if(!view.available||ImGui::GetIO().WantTextInput||ImGui::GetIO().KeyAlt) return;
@@ -260,17 +271,6 @@ void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit,con
     const auto pressed=[](int which) { return lab.keys[which]>=0&&ImGui::IsKeyPressed(static_cast<ImGuiKey>(ImGuiKey_F1+lab.keys[which]),false); };
     if(pressed(ResetKey)) ResetPosition(view,submit);
     if(pressed(SaveKey)) SavePosition(view,submit);
-    // The pad's Back: a tap puts the fighters back, and held for half a
-    // second it saves where they stood as it went down, in case the game
-    // moves them on the press.
-    static float down[2]={0,0};
-    if(pad.down) { down[0]=view.x[0]; down[1]=view.x[1]; }
-    if(pad.save) {
-        Command place; place.action=Action::Place; place.generation=view.generation; place.place[0]=down[0]; place.place[1]=down[1];
-        if(submit) submit(place);
-        SavePosition(view,submit);
-    }
-    if(pad.reset) ResetPosition(view,submit);
 }
 training::MeterOptions TrainingMeterOptions() { LoadPractice(); return lab.meter; }
 void SetTrainingMeterOptions(const training::MeterOptions& options) { lab.meter=options; }

@@ -32,7 +32,7 @@ constexpr int MaxWaitFrames = 90, MaxWaitHitFrames = 15;
 using Frame = std::array<Input, 2>;
 struct InputRun { unsigned buttons = 0; unsigned frames = 0; };
 enum class Mode { Idle, Recording, Playback };
-enum class Action { Select, Record, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, Load, ExportSlot, DummyState, Place, DummyPlan, Leave, LeaveNow };
+enum class Action { Select, Record, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, Load, ExportSlot, DummyState, Place, DummyPlan, Leave, LeaveNow, Stay };
 // The dummy's behaviour as the game's Training menu sets it; each value is
 // the menu's choice index and -1 leaves that setting as it is. action: stand,
 // crouch, jump, cpu. guard: no block, after first hit, all, random.
@@ -158,6 +158,7 @@ struct Command {
     // Leave: a challenger is waiting, so the battle goes back to the main menu
     // after the announcer's call and a banner; the call's volume in percent, 0 for none.
     // LeaveNow: the player chose not to wait out that banner (LeaveCountdown::Hurry).
+    // Stay: the call ended before the battle left, so it does not leave (LeaveCountdown::Cancel).
     int volume = 0;
     // DummyState: the settings to change.
     DummyState dummy;
@@ -200,6 +201,12 @@ public:
     bool Hurry() {
         if (left_ <= 1) return false;
         left_ = 1; return true;
+    }
+    // The call it counted for is gone: the battle stays. False once the
+    // battle has been told to leave, or when nothing is counting.
+    bool Cancel() {
+        if (!left_) return false;
+        left_ = 0; return true;
     }
     // Once per battle update. fighting: the fight is running, the only time
     // the pause menu's exit could be used too; the last frame waits for it.
@@ -258,12 +265,12 @@ public:
     void SetCheckpoint(bool saved) { view_.checkpoint = saved; }
     void SetPositions(float x0, float x1) { view_.x[0] = x0; view_.x[1] = x1; }
     // Every command passes here first, and only here is its battle checked.
-    // Place, DummyPlan, Leave, LeaveNow and ExportSlot change nothing in the
+    // Place, DummyPlan, Leave, LeaveNow, Stay and ExportSlot change nothing in the
     // session; accepted, the runtime carries them out.
     bool Apply(const Command& command) {
         if (!view_.available || command.generation != view_.generation) return false;
         switch (command.action) {
-        case Action::Place: case Action::Leave: case Action::LeaveNow: case Action::ExportSlot: return true;
+        case Action::Place: case Action::Leave: case Action::LeaveNow: case Action::Stay: case Action::ExportSlot: return true;
         case Action::DummyPlan: return ValidDummyPlan(command.plan);
         case Action::Stop: Stop(); return true;
         case Action::Select:

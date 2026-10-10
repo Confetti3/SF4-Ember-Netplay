@@ -4,6 +4,10 @@
 namespace Dimps { namespace Game { namespace Battle { struct System; } } }
 namespace sf4e { namespace training {
 View ReadView();
+// Where the fighters stand and the battle they stand in, without the rest of
+// the view: what a pad press keeps for the save it may become. Any thread.
+struct Place { std::uint64_t generation = 0; float x[2] = {0, 0}; };
+Place ReadPlace();
 bool Submit(Command command);
 // Game-thread context guard, including leaving-battle and network ownership.
 bool ControlsAvailable();

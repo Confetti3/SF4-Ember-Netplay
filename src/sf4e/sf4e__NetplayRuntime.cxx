@@ -557,19 +557,43 @@ void internal::PlayChallengerCall(int volumePercent) {
 // unless they turned that off; back at the main menu the shell shows their
 // table and they have the window to ready. Letting it run out gives the seat
 // up, by the same action as the Leave seat row.
+// The call is the one model of who called and for which battle
+// (TrainingCall::Identity). It is offered to go now's gate each tick, a go
+// now taken for it is carried out only while that same call stands, and a
+// call that ends before its battle has left keeps the player in Training.
+static void TakeGoNow(const input::CallIdentity& before, room::TrainingCall::Step step) {
+	auto& gate = input::TrainingGoNow();
+	const input::CallIdentity call = runtime->trainingCall.Identity();
+	gate.Offer(call);
+	if (before.Live() && !call.Live() && step != room::TrainingCall::Step::Open) {
+		training::Command stay; stay.action = training::Action::Stay; stay.generation = before.generation;
+		spdlog::info("Room: the call back from Training ended before the battle left; it {}",
+			training::Submit(stay) ? "stays" : "could not be kept, its queue is full");
+	}
+	for (const auto& request : gate.Take()) {
+		const char* source = request.source == input::GoNowGate::Source::Pad ? "pad" : "Enter";
+		if (!call.Live() || request.call != call) { spdlog::info("Training: go now ({}) was for a call that has ended", source); continue; }
+		training::Command now; now.action = training::Action::LeaveNow; now.generation = call.generation;
+		spdlog::info("Training: go now ({}) {}", source, training::Submit(now) ? "asked for" : "not asked for, the queue is full");
+	}
+}
 static void CallOutOfTraining() {
-	if (!runtime->attached || !UserApp::netplay) { runtime->trainingCall.Reset(); return; }
+	const input::CallIdentity before = runtime->trainingCall.Identity();
+	if (!runtime->attached || !UserApp::netplay) { runtime->trainingCall.Reset(); TakeGoNow(before, room::TrainingCall::Step::None); return; }
 	const auto& room = UserApp::netplay->client.GetRoomSnapshot();
 	room::TrainingCall::Input in;
 	in.inTraining = training::ControlsAvailable();
 	in.atMainMenu = AtMainMenu();
 	in.autoAccept = runtime->preferences.trainingAutoReady;
 	in.canReady = GetRuntimeSnapshotShared()->canReady;
-	switch (runtime->trainingCall.Update(room, in, GetTickCount64())) {
+	in.generation = training::ReadPlace().generation;
+	const auto step = runtime->trainingCall.Update(room, in, GetTickCount64());
+	TakeGoNow(before, step);
+	switch (step) {
 	case room::TrainingCall::Step::Call: {
 		training::Command leave;
 		leave.action = training::Action::Leave;
-		leave.generation = training::ReadView().generation;
+		leave.generation = runtime->trainingCall.Identity().generation;
 		leave.volume = runtime->preferences.readySound ? runtime->preferences.readySoundVolume : 0;
 		spdlog::info("Room: a challenger sat down while the player is in Training; the battle is {}",
 			training::Submit(leave) ? "told to leave" : "not told to leave, its queue is full");

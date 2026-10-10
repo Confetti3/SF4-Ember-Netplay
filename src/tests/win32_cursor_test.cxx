@@ -154,6 +154,60 @@ int main() {
         frame();
         check(!ImGui::IsKeyDown(ImGuiKey_LeftArrow), "a release dropped at the bound left the key held");
 
+        // Go now's Enter on the Training call, routed as the overlay's window
+        // procedure routes it: the go now key first, then the overlay's
+        // handling into the bridge, and what neither keeps goes to the game.
+        // At the call's onset, under the game's pause and at the call's end,
+        // a press is either the call's alone (a request for that call, and
+        // neither the overlay nor the game sees it) or not the call's at all.
+        {
+            sf4e::input::GoNowGate gate;
+            sf4e::ui::GoNowKey key;
+            int gameDowns = 0;
+            const auto route = [&](UINT message, WPARAM w, LPARAM l, bool free) {
+                if (key.Take(message, w, l, gate, free)) return;
+                if (!sf4e::ui::HandleOverlayMessage(window, message, w, l, false, false) && message == WM_KEYDOWN && w == VK_RETURN) ++gameDowns;
+            };
+            const auto enter = [&](bool free, bool repeat = false) {
+                route(WM_KEYDOWN, VK_RETURN, repeat ? (1L << 30) : 0, free);
+                route(WM_CHAR, L'\r', 0, free);
+            };
+            const auto release = [&](bool free) { route(WM_KEYUP, VK_RETURN, 0xC0000000, free); };
+            const auto overlaySawEnter = [&] { frame(); const bool seen = ImGui::IsKeyPressed(ImGuiKey_Enter, false); frame(); return seen; };
+            sf4e::input::CallIdentity call; call.roomEpoch = 3; call.table = 0; call.opponent = 2; call.generation = 9;
+            // Before the call: Enter is the game's and the overlay's, and asks for nothing.
+            enter(true);
+            check(gameDowns == 1 && gate.Take().empty(), "Enter before the call was kept or went now");
+            check(overlaySawEnter(), "Enter before the call did not reach the overlay");
+            release(true); frame();
+            // The call's onset: the next fresh Enter is the call's alone, its
+            // repeats and character too, and its release goes on.
+            gate.Offer(call);
+            enter(true); enter(true, true); enter(true, true);
+            auto requests = gate.Take();
+            check(gameDowns == 1 && requests.size() == 1 && requests[0].call == call, "Enter on the call reached the game or did not go now once");
+            check(!overlaySawEnter(), "Enter taken for go now reached the overlay");
+            release(true); frame();
+            // The game's pause opens: Enter is its menu's, and goes nowhere else.
+            enter(false); enter(false, true);
+            check(gameDowns == 3 && gate.Take().empty(), "Enter under the pause menu went now or was kept from it");
+            release(false); frame();
+            // An Enter held from before the call is not go now when it repeats.
+            gate.Offer(sf4e::input::CallIdentity{});
+            enter(true); gate.Offer(call); enter(true, true);
+            check(gameDowns == 5 && gate.Take().empty(), "A repeat of an Enter held before the call went now");
+            release(true); frame();
+            // The call ends: Enter is the game's again; a request taken just
+            // before the end names the call that has gone.
+            enter(true); release(true);
+            requests = gate.Take();
+            sf4e::input::CallIdentity next = call; next.opponent = 0; gate.Offer(next);
+            check(requests.size() == 1 && requests[0].call == call && requests[0].call != gate.Offered(), "A request outlived its call unmarked");
+            enter(true);
+            check(gameDowns == 6 && gate.Take().empty(), "Enter after the call ended went now");
+            release(true); frame(); frame();
+        }
+
         // A real window procedure on the message thread: releasing the mouse
         // makes Windows send WM_CAPTURECHANGED back into it, and so into the
         // backend, from inside the backend's own ReleaseCapture call. That
