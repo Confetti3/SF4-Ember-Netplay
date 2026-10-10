@@ -109,6 +109,8 @@ Engine tick
    ├─ SessionServer::Step   (host only)
    ├─ step failure → HandleNetplayFailure(closeGgpo=true)  ← control-plane
    │                                                          loss kills GGPO
+   ├─ NetplayFacade::ReconcileTrainingCall (the Training call from the room
+   │    as this tick's updates left it, before the next battle update)
    ├─ NetplayFacade::TickFrame (pending match start, lobby settings,
    │    GGPO sync watchdog, deferred GGPO close, GgpoRelay::Pump)
    ├─ if (ggpo) ggpo_idle(ggpo, 1)                 ← see "ggpo_idle" below

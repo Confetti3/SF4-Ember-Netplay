@@ -1,6 +1,7 @@
 // A player waiting in Training while in a room: when they are called out,
 // the time they get to ready, and what gives the seat up.
 #include "../session/TrainingCall.hxx"
+#include "../training/TrainingSession.hxx"
 
 #include <cstdio>
 
@@ -172,6 +173,50 @@ int main() {
 		// Back at the main menu the window opens and no call stands any more.
 		CHECK(call.Update(room, in, 96) == Step::Call && call.Identity().roomEpoch == 12);
 		CHECK(call.Update(room, In(false, true), 112) == Step::Open && !call.Identity().Live());
+	}
+	{
+		// The call's owner in the outer tick's order: the room's updates land
+		// (SessionClient::Step), the owner reconciles the call with them, and
+		// then the battle updates (its countdown follows the call, then
+		// ticks). Call A stands with one frame left when a snapshot arrives in
+		// which its opponent leaves, or is replaced, with or without a go now
+		// pressed for A: the next battle update follows the room as it is now.
+		using sf4e::training::CallControl;
+		using sf4e::training::LeaveCountdown;
+		const std::uint64_t battle = 40;
+		const auto publish = [](const CallOwner::Result& result) {
+			CallControl control;
+			control.call = result.state.call.serial; control.generation = result.state.call.generation; control.hurry = result.state.hurry;
+			return control;
+		};
+		enum class Change { Leaves, Replaced, ReplacedAfterGoNow };
+		for (const auto change : {Change::Leaves, Change::Replaced, Change::ReplacedAfterGoNow}) {
+			CallOwner owner; sf4e::input::GoNowGate gate; LeaveCountdown countdown;
+			auto room = Room(2, 1, 2); room.roomEpoch = 7;
+			auto in = In(true, false); in.generation = battle;
+			std::uint64_t now = 0;
+			auto published = publish(owner.Reconcile(room, in, now, gate));
+			const auto a = published.call;
+			CHECK(a != 0 && owner.Identity().opponent == 1);
+			for (int frame = 0; frame < 200 && countdown.Left() != 1; ++frame) {
+				countdown.Follow(published, battle, 120); countdown.Tick(true);
+				published = publish(owner.Reconcile(room, in, now += 16, gate));
+			}
+			CHECK(countdown.Left() == 1 && countdown.Call() == a);
+			if (change == Change::ReplacedAfterGoNow) CHECK(gate.Press(sf4e::input::GoNowGate::Source::Keyboard, true));
+			room.tables[1].p1 = change == Change::Leaves ? 0 : 3;
+			room.revision++;
+			published = publish(owner.Reconcile(room, in, now += 16, gate));
+			const bool started = countdown.Follow(published, battle, 120);
+			if (change == Change::Leaves) {
+				CHECK(!published.call && !started && countdown.Left() == 0);
+				CHECK(!countdown.Tick(true) && countdown.Left() == 0);
+			} else {
+				CHECK(published.call != a && started && countdown.Left() == 120 && countdown.Call() == published.call);
+				CHECK(!published.hurry && !countdown.Tick(true) && countdown.Left() == 119);
+				CHECK(owner.Dropped() == (change == Change::ReplacedAfterGoNow ? 1u : 0u));
+			}
+		}
 	}
 	if (failures) { std::printf("%d failures\n", failures); return 1; }
 	std::printf("Training call rules passed.\n");

@@ -86,11 +86,15 @@ of its own: see "In Training, as the room shows it" below.
   by this path, for the call that stands (`TrainingSessionTest`).
 - **The call** is `room::TrainingCall`, whose `Identity()` (room epoch,
   table, opponent, the Training battle and a serial no other call shares) is
-  the one account of it, published in the snapshot. Each tick it is offered
-  to go now's gate, only while the battle the call was sent to still runs in
-  Training (not leaving, not closed, not a later battle), and then set as the
-  battle's call (`training::SetCall`, `TrainingCallInput.hxx: CallLifecycle`)
-  with whether go now was taken for it. That is state the countdown reads,
+  the one account of it, published in the snapshot. Its owner,
+  `room::CallOwner`, reconciles it once every outer tick, right after the
+  room's incoming updates (`SessionClient::Step`) and before the next battle
+  update, so the battle never follows a call the room has already ended or
+  replaced. There it is offered to go now's gate, only while the battle the
+  call was sent to still runs in Training (not leaving, not closed, not a
+  later battle), and then set as the battle's call (`training::SetCall`,
+  `TrainingCallInput.hxx: CallLifecycle`) with whether go now was taken for
+  it. That is state the countdown reads,
   not orders through the Training command queue, so a full queue can neither
   keep an ended call's countdown running nor lose a go now. Enter (in the
   window procedure) and View (in the pad gesture) are taken for go now where

@@ -229,7 +229,7 @@ struct Runtime {
 	// move when the table is to be shown and when a Ready is to be sent for
 	// the player; both are the shell's to act on, since a Ready carries the
 	// selection the shell holds.
-	room::TrainingCall trainingCall;
+	room::CallOwner trainingCall;
 	std::uint64_t trainingCallSequence = 0, trainingReadySequence = 0;
 	// When the room was last told whether the player is in Training.
 	std::uint64_t trainingSaidAtMs = 0;

@@ -233,6 +233,10 @@ namespace sf4e {
 		void NotifyRuntimeEventSystemReady();
 		void StopHelper();
 		void TickRuntime();
+		// Game thread, once every outer tick, after SessionClient::Step and
+		// SessionServer::Step: sets the Training call from the room as those
+		// updates left it, before the next battle update may leave for it.
+		void ReconcileTrainingCall();
 		RuntimeSnapshot GetRuntimeSnapshot();
 		// The published snapshot itself, shared rather than copied. Per-frame
 		// readers (overlay, input) use this; the snapshot is immutable once

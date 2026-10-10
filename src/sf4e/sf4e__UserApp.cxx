@@ -404,6 +404,9 @@ void fUserApp::Steam_PostUpdate() {
         !netplayStepFailed && !serverStepFailed,
         sf4e::loc::T(netplayStepFailed ? "runtime.room_link_lost" : "runtime.session_server_error")
     );
+    // The room's updates of this tick are in: the Training call is reconciled
+    // with them before the next battle update can leave for it.
+    sf4e::NetplayFacade::ReconcileTrainingCall();
 
     {
         diag::ScopedTimer _t(diag::OP_FACADE_TICK_FRAME);

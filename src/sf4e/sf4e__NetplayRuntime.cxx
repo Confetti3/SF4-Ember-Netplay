@@ -560,35 +560,32 @@ void internal::PlayChallengerCall(int volumePercent) {
 // table and they have the window to ready. Letting it run out gives the seat
 // up, by the same action as the Leave seat row.
 // The call is the one model of who called and for which battle
-// (TrainingCall::Identity). Each tick it is offered to go now's gate while its
-// battle still runs in Training, and then set as the battle's call, with any
-// go now taken for it (TrainingCallInput.hxx: CallLifecycle). The battle's
+// (TrainingCall::Identity), and its owner (TrainingCall.hxx: CallOwner) sets
+// it as the battle's call, with any go now taken for it. The battle's
 // countdown follows that state before it ticks (TrainingSession.hxx:
 // LeaveCountdown::Follow), so nothing about the call depends on the Training
-// command queue having room.
-static void RunCall() {
-	static input::CallLifecycle lifecycle;
-	input::CallBattle battle; battle.running = training::ControlsAvailable(); battle.generation = training::ReadPlace().generation;
-	const auto dropped = lifecycle.Dropped();
-	const auto state = lifecycle.Tick(runtime->trainingCall.Identity(), battle, input::TrainingGoNow());
-	if (lifecycle.Dropped() != dropped) spdlog::info("Training: go now was for a call that is no longer offered");
-	training::CallControl control;
-	control.call = state.call.serial; control.generation = state.call.generation; control.hurry = state.hurry;
-	control.volume = runtime->preferences.readySound ? runtime->preferences.readySoundVolume : 0;
-	training::SetCall(control);
-}
+// command queue having room. ReconcileTrainingCall runs this once every outer
+// tick, after the room's incoming updates and before the next battle update,
+// so the battle never follows a call the room has already ended or replaced.
 static void CallOutOfTraining() {
-	if (!runtime->attached || !UserApp::netplay) { runtime->trainingCall.Reset(); RunCall(); return; }
-	const auto& room = UserApp::netplay->client.GetRoomSnapshot();
+	// Out of a room there is no call: an empty room ends any that stood.
+	static const room::Snapshot noRoom;
+	const bool inRoom = runtime->attached && UserApp::netplay;
+	const auto& room = inRoom ? UserApp::netplay->client.GetRoomSnapshot() : noRoom;
 	room::TrainingCall::Input in;
 	in.inTraining = training::ControlsAvailable();
 	in.atMainMenu = AtMainMenu();
 	in.autoAccept = runtime->preferences.trainingAutoReady;
 	in.canReady = GetRuntimeSnapshotShared()->canReady;
 	in.generation = training::ReadPlace().generation;
-	const auto step = runtime->trainingCall.Update(room, in, GetTickCount64());
-	RunCall();
-	switch (step) {
+	const auto dropped = runtime->trainingCall.Dropped();
+	const auto result = runtime->trainingCall.Reconcile(room, in, GetTickCount64(), input::TrainingGoNow());
+	if (runtime->trainingCall.Dropped() != dropped) spdlog::info("Training: go now was for a call that is no longer offered");
+	training::CallControl control;
+	control.call = result.state.call.serial; control.generation = result.state.call.generation; control.hurry = result.state.hurry;
+	control.volume = runtime->preferences.readySound ? runtime->preferences.readySoundVolume : 0;
+	training::SetCall(control);
+	switch (result.step) {
 	case room::TrainingCall::Step::Call:
 		spdlog::info("Room: a challenger sat down while the player is in Training");
 		break;
@@ -638,6 +635,9 @@ static void SayTraining() {
 	runtime->trainingSaidAtMs = now;
 	if (UserApp::netplay->client.SendRoomAction(say) != session::SendResult::Queued)
 		spdlog::info("Room: could not say the player is {} Training; it is said again", training ? "in" : "out of");
+}
+void ReconcileTrainingCall() {
+	if (runtime) CallOutOfTraining();
 }
 void TickRuntime() {
 	if (!runtime) return;
@@ -700,7 +700,6 @@ void TickRuntime() {
 	TickAutoDelay(helperReady);
 	TickCreatedRules(helperReady);
 	CallOutOpponentReady();
-	CallOutOfTraining();
 	SayTraining();
 	TakeJoinLink();
 	PublishAndTickDiscordInvite();

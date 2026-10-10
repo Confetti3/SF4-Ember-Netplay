@@ -108,4 +108,31 @@ private:
     std::uint64_t sinceMs_ = 0;
     bool readied_ = false;
 };
+
+// The call's one owner: the call itself, and what the battle is told of it.
+// Reconcile reads the room as it stands now, then sets the call that stands
+// and any go now taken for it as the state the battle's countdown follows
+// (TrainingSession.hxx: LeaveCountdown::Follow). The runtime reconciles once
+// every outer tick, at one place: after the room's incoming updates
+// (SessionClient::Step) and before the next battle update. So the countdown
+// never runs for a call the room has already ended or replaced, and a go now
+// taken for a call that was replaced is dropped rather than hurrying the next.
+class CallOwner {
+public:
+    struct Result { TrainingCall::Step step = TrainingCall::Step::None; input::CallState state; };
+    Result Reconcile(const Snapshot& room, const TrainingCall::Input& in, std::uint64_t nowMs, input::GoNowGate& gate) {
+        Result result;
+        result.step = call_.Update(room, in, nowMs);
+        input::CallBattle battle; battle.running = in.inTraining; battle.generation = in.generation;
+        result.state = lifecycle_.Tick(call_.Identity(), battle, gate);
+        return result;
+    }
+    std::uint64_t Remaining(std::uint64_t nowMs) const { return call_.Remaining(nowMs); }
+    input::CallIdentity Identity() const { return call_.Identity(); }
+    // Presses taken for a call that was no longer offered, for the log.
+    std::uint64_t Dropped() const { return lifecycle_.Dropped(); }
+private:
+    TrainingCall call_;
+    input::CallLifecycle lifecycle_;
+};
 } }
