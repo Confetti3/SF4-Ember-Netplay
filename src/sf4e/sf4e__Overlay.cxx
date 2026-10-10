@@ -478,7 +478,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     replayPlayback = replayKeys;
     if (focused && replayKeys && !presentation.Visible() && !nativePaused && !ImGui::GetIO().WantTextInput && !ImGui::GetIO().KeyAlt) {
         using sf4e::replaytransport::Command;
-        const auto send = [](Command command) { sf4e::replayplayback::Submit(command, sf4e::replaytransport::Device::Keyboard); };
+        const auto send = [&playback](Command command) { sf4e::replayplayback::Submit(command, sf4e::replaytransport::Device::Keyboard, playback.session); };
         if (ImGui::IsKeyPressed(ImGuiKey_F1, false)) send(Command::TogglePause);
         // Held, F2 steps again after 300 ms, ten times a second.
         for (int steps = ImGui::GetKeyPressedAmount(ImGuiKey_F2, .3f, .1f); steps > 0; --steps) send(Command::Step);

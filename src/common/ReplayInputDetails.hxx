@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ReplayInputs.hxx"
+#include "ReplayInputLane.hxx"
 #include "ReplayFileSafety.hxx"
 #include "ReplayProvenance.hxx"
 #include <memory>
@@ -17,6 +18,9 @@ struct Detail {
  Match match;
  Summary summary;
  std::vector<std::string> logs;
+ // The match's input lanes, built here, off the game thread, for a playback
+ // that shows them (sf4e__ReplayPlayback.hxx).
+ std::shared_ptr<const replaylane::Lanes> lanes;
 };
 enum class DetailState { Pending, Ready, Unreadable, Failed };
 struct DetailCompletion {
@@ -79,6 +83,7 @@ public:
    if (!Parse(read.contents.data(), read.contents.size(), detail->match)) { result.state = DetailState::Unreadable; return result; }
    detail->summary = Summarize(detail->match);
    for (const auto& round : detail->match.rounds) detail->logs.push_back(Log(round));
+   detail->lanes = std::make_shared<const replaylane::Lanes>(replaylane::Build(detail->match));
    identity_ = std::move(read.contents); kept_ = std::move(detail);
    result.state = DetailState::Ready; result.value = kept_;
   } catch (...) {} // scalar completion survives even the initial allocation

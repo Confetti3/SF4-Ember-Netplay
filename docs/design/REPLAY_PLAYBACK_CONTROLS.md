@@ -14,7 +14,7 @@ Ember detours `0x5D7750` (`sf4e__ReplayPlayback.cxx`). During playback in the fi
 
 `replaytransport::Decide` (`common/ReplayTransport.hxx`) picks one of three routes on each call:
 
-- **Original:** the game's function, unchanged. Taken with a GGPO session, when the recorder is not playing back (`ReplaySystem+0x708` is not 1), in Training, outside the fight, and while the pause menu is open (bit `0x1`). Outside the fight the game's function clears the freeze bit, so the introduction, the knockout and the round's end play at 1x.
+- **Original:** the game's function, unchanged. Taken with a GGPO session, when the recorder is not playing back (`ReplaySystem+0x708` is not 1), in Training, outside the fight, and while the pause menu is open (bit `0x1`). With the slow-motion flag set the game's function toggles the freeze bit rather than clearing it, so during playback Ember first takes back a half speed it wrote itself (`replaytransport::Relinquish`) and the game's function then clears the bit: the introduction, the knockout, the round's end and the pause menu run at 1x, and the transport keeps the speed the player chose for when its own cadence resumes. A half speed the player set with Select there is the game's and stays.
 - **FullSpeed:** a video export (`replaystore::Exporting()` or the capture recording). The slow-motion flag is cleared, then the game's function runs, so an export always plays at 1x.
 - **Transport:** everything else, which is a replay in the fight with the pause menu closed.
 
@@ -30,13 +30,17 @@ The game's Select still toggles its half speed in `0x484170`, which flips the sl
 
 Each round starts playing at 1x: the transport resets, and the flag is cleared, while the battle flow is ROUND_START or READY and whenever the recorder's round changes. The battle start and close reset it too. "Play again" starts a battle without a known close, so the battle start also clears the flag when a replay is playing back.
 
+Each battle's playback is a session. Its start and its close begin a new one, which drops the commands still waiting, the pad's held buttons and repeat, the transport, the meter's gate and the strip's first showing; only the input lanes' visibility is kept. Every command carries the session it was made under (`View::session`), and the cadence takes only those of the current session, so a key pressed over an older snapshot never acts on the next playback.
+
+The round, the cursor and the rounds' frames are observed after each battle update (`replayplayback::AfterUpdate`, `replaytransport::ObserveUpdate`), once the Command unit's CMD POST has moved the cursor, never at the cadence call, which runs before it. The strip, the lanes and an export's progress read that observation.
+
 ## Frame meter (P8)
 
 The meter was drawn only with a GGPO session, so "Watch with frame meter" showed nothing offline. It is now drawn during playback when the replay asked for it, and F5 turns it on or off. `FrameMeter::Observe` starts over on any frame that does not follow the last, and a held frame repeats the frame count, so the meter is fed only when the battle's frame counter moved (`replaytransport::AdvanceGate`). This also keeps the meter whole under the game's own half speed.
 
 ## Input lanes
 
-When a Watch request plays, `replaystore::PlayingFile()` names the archived file. The replay detail worker reads it off the game thread (`platform::replays::WantDetail`, with revisions marked by the top bit so they never meet the Replays screen's). `replaylane::Build` turns its `Match` into per-player runs once. The overlay looks up up to 14 rows a side by the recorder's round (`+0x710`) and the frame just played, `cursor - 1` (`+0x714`).
+When a Watch request plays, `replaystore::PlayingFile()` names the archived file. The replay detail worker reads it off the game thread and builds its lanes with it (`replaylane::Build`, once, into `Detail::lanes`); the playback asks as a requester of its own (`platform::replays::DetailFor::Playback`), so its request and completion never meet the Replays screen's, and only takes the finished lanes. The overlay looks up up to 14 rows a side by the recorder's round (`+0x710`) and the frame just played, `cursor - 1` (`+0x714`).
 
 ## Input
 

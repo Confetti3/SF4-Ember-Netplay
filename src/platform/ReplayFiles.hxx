@@ -144,7 +144,10 @@ void StopListing();
 
 // Every screen entry has a new revision. Completion exists even when the
 // worker cannot allocate a detail. The immutable value is shared by all views.
-void WantDetail(const std::string& file, std::uint64_t revision);
-replayinputs::DetailCompletion LatestDetail();
+// Each requester has its own request and completion, so the Replays screen
+// and a playback's input lanes (Playback) never take each other's.
+enum class DetailFor { Screen, Playback };
+void WantDetail(const std::string& file, std::uint64_t revision, DetailFor requester = DetailFor::Screen);
+replayinputs::DetailCompletion LatestDetail(DetailFor requester = DetailFor::Screen);
 
 } } }

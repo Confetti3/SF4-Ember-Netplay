@@ -245,6 +245,12 @@ static void TestDetailFailureBoundary() {
  DetailCache cache;
  auto ready = cache.Read(path, 1, folder);
  CHECK(ready.revision == 1 && ready.state == DetailState::Ready && ready.value && ready.value->match.rounds.size() == 1);
+ // The detail carries its input lanes, built by the worker that read it, so
+ // a playback that shows them builds nothing on the game thread.
+ {
+  const auto built = sf4e::replaylane::Build(ready.value->match);
+  CHECK(ready.value->lanes && ready.value->lanes->rounds[0].size() == built.rounds[0].size() && ready.value->lanes->rounds[1].size() == built.rounds[1].size() && !built.rounds[0].empty());
+ }
  CHECK(ready.value->logs.size() == 1 && !ready.value->logs[0].empty());
  CHECK(ready.value->names[0] == "Ann" && ready.value->names[1] == "Bob" && ready.value->time == 1800000000);
  CHECK(ready.value->label == sf4e::replayfiles::ReplayDateLabel(1800000000) && ready.value->fighters[0] == 25);

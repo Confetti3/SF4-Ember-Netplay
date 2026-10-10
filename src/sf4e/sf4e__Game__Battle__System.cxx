@@ -552,11 +552,13 @@ void fSystem::BattleUpdate() {
             (_this->*rSystem::publicMethods.BattleUpdate)();
         }
         sf4e::training::AfterUpdate(_this);
-        // A replay shown with the frame meter: the frame just played goes to
-        // the meter as a watched match's does, with no input to confirm. A
+        // A replay's playback observes the recorder as this update left it
+        // (the strip, the lanes and an export's progress read it). Shown with
+        // the frame meter, the frame just played goes to the meter as a
+        // watched match's does, with no input to confirm. A
         // frame the replay controls (or the game's half speed) held is not
         // one: the meter would take the repeated frame as a gap and start over.
-        if (sf4e::replayplayback::FeedMeter(_this)) sf4e::training::ObserveMatch(_this, 0, -1);
+        if (sf4e::replayplayback::AfterUpdate(_this)) sf4e::training::ObserveMatch(_this, 0, -1);
     }
 
     if (nExtraFramesToSimulate > 0) {

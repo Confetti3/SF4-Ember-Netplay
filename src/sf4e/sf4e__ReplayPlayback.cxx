@@ -31,37 +31,47 @@ static_assert(transport::kPauseOrHold == rSystem::SSF_PAUSE_OR_HOLD && transport
 static_assert(transport::kRecorderPlaying == sf4e::replay::RecorderPlaying && transport::kRounds == sf4e::replay::kStreams &&
 	transport::kRounds == sf4e::replay::ExportClock::kRounds, "ReplayTransport.hxx recorder fields differ from ReplayRecorder.hxx");
 
-// Commands from any thread, taken at the next cadence call. Bounded: the
-// cadence does not run outside a battle, and nothing waits that long.
-struct Queued { Command command; Device device; };
-std::mutex s_queueMutex;
-std::vector<Queued> s_queue;
-constexpr std::size_t kMostQueued = 16;
+// Commands from any thread, with the session each was made under.
+transport::CommandQueue s_queue;
 
-// The rest is the game thread's.
+// The rest is the game thread's. The session's own state, all of it dropped
+// by BeginSession:
 transport::Transport s_transport;
 transport::View s_view;
 transport::AdvanceGate s_meterGate;
 transport::PadControls s_pad;
 bool s_padActive = false, s_deviceKnown = false;
-// F5 turns the replay's own meter choice the other way; the lanes stay as
-// the player last left them for the rest of the game's run.
-bool s_meterFlipped = false, s_lanesOn = false;
+// F5 turns the replay's own meter choice the other way.
+bool s_meterFlipped = false;
 // The round the transport was last reset for, and whether the fight was
 // reached in this battle (the strip then shows itself once).
 int s_round = -1;
 bool s_reachedFight = false;
 // The ways the detour went this battle, each logged the first time (in-game check 7).
 unsigned s_loggedRoutes = 0;
-// The lanes: the file asked for, the detail request's revision, the lanes.
+// Kept for the game's run: the lanes stay as the player last left them.
+bool s_lanesOn = false;
+// The lanes: the file asked for, the request's revision, the lanes.
 std::string s_laneFile;
-std::uint64_t s_laneRevision = 0, s_laneRequests = 0;
+std::uint64_t s_laneRevision = 0;
+bool s_laneSettled = false;
 std::shared_ptr<const sf4e::replaylane::Lanes> s_lanes;
-// Detail requests from here are told apart from the Replays screen's by the top bit.
-constexpr std::uint64_t kLaneRevisionBit = 0x8000000000000000ull;
 
 void Leave() {
 	s_view.playback = s_view.armed = s_view.exporting = false;
+}
+
+// A playback starts or ends: a new session, and nothing the last one left
+// behind acts in it. Its commands still waiting go; one posted later under
+// its number is refused when it is taken.
+void BeginSession() {
+	s_queue.Clear();
+	++s_view.session;
+	s_transport.Reset();
+	s_meterGate.Reset();
+	s_pad.Reset(); s_padActive = false; s_deviceKnown = false;
+	s_meterFlipped = false; s_round = -1; s_reachedFight = false; s_loggedRoutes = 0;
+	Leave();
 }
 
 const char* RouteName(transport::Route route) {
@@ -110,10 +120,10 @@ void Cadence::Run() {
 		*slow = 0; s_transport.Wrote(false);
 	}
 
-	std::vector<Queued> pending;
-	{ std::lock_guard<std::mutex> lock(s_queueMutex); pending.swap(s_queue); }
+	// Only the commands of this session; one made under another is not its.
+	const auto pending = s_queue.Take(s_view.session);
 	if (route == transport::Route::Transport) s_transport.FoldNative(*slow != 0);
-	for (const Queued& queued : pending) {
+	for (const auto& queued : pending) {
 		// An export plays untouched, and under the pause menu the keys are its.
 		if (context.exporting || context.pauseMenu) continue;
 		if (transport::MovesTransport(queued.command)) {
@@ -133,6 +143,10 @@ void Cadence::Run() {
 		(this->*rSystem::publicMethods.ReplayCadence)();
 		break;
 	case transport::Route::Original:
+		// The pause menu, the knockout, the round's end: the game's own
+		// cadence, without the half speed Ember wrote, so it clears the
+		// freeze bit rather than toggling it. The transport keeps its speed.
+		transport::Relinquish(s_transport, *slow);
 		(this->*rSystem::publicMethods.ReplayCadence)();
 		break;
 	case transport::Route::Transport:
@@ -147,9 +161,6 @@ void Cadence::Run() {
 	s_view.exporting = context.exporting;
 	s_view.paused = s_transport.Paused();
 	s_view.divisor = s_transport.Divisor();
-	s_view.round = recorder->round;
-	s_view.cursor = recorder->cursor;
-	for (int round = 0; round < transport::kRounds; round++) s_view.roundFrames[round] = recorder->streams[round].frames;
 	s_view.meter = sf4e::replaystore::MeterWanted() != s_meterFlipped;
 	s_view.lanes = s_lanesOn;
 }
@@ -161,15 +172,12 @@ void sf4e::replayplayback::Install() {
 	DetourAttach(reinterpret_cast<PVOID*>(&rSystem::publicMethods.ReplayCadence), *reinterpret_cast<PVOID*>(&detour));
 }
 
-void sf4e::replayplayback::Submit(Command command, Device device) {
-	std::lock_guard<std::mutex> lock(s_queueMutex);
-	if (s_queue.size() < kMostQueued) s_queue.push_back({command, device});
+void sf4e::replayplayback::Submit(Command command, Device device, std::uint32_t session) {
+	s_queue.Submit(command, device, session);
 }
 
 void sf4e::replayplayback::StartBattle(Dimps::Game::Battle::System* system) {
-	s_transport.Reset();
-	s_round = -1;
-	s_meterGate.Reset();
+	BeginSession();
 	// "Play again" may start a battle without closing the last one; a half
 	// speed Ember left in the game's flag must not carry over.
 	const sf4e::replay::Recorder* recorder = Game::Battle::System::ggpo ? nullptr : ReplaySystem::staticMethods.GetSingleton();
@@ -182,20 +190,24 @@ void sf4e::replayplayback::StartBattle(Dimps::Game::Battle::System* system) {
 
 void sf4e::replayplayback::CloseBattle() {
 	if (s_view.playback || s_reachedFight) spdlog::info("Replay controls: the battle closed ({} commands taken, {} refused outside the fight)", s_view.taken, s_view.refused);
-	s_transport.Reset();
+	BeginSession();
 	// The game zeroes its half speed flag as it closes (0x5DA5F0).
 	s_transport.Wrote(false);
-	s_meterGate.Reset();
-	s_pad.Reset(); s_padActive = false; s_deviceKnown = false;
-	s_meterFlipped = false; s_round = -1; s_reachedFight = false; s_loggedRoutes = 0;
-	Leave();
-	std::lock_guard<std::mutex> lock(s_queueMutex);
-	s_queue.clear();
 }
 
-bool sf4e::replayplayback::FeedMeter(Dimps::Game::Battle::System* system) {
-	if (!s_view.playback || !s_view.meter) { s_meterGate.Reset(); return false; }
-	return s_meterGate.Advanced(static_cast<std::uint16_t>(rSystem::GetNumFramesSimulated_FixedPoint(system)->integral));
+bool sf4e::replayplayback::AfterUpdate(Dimps::Game::Battle::System* system) {
+	if (!s_view.playback) { s_meterGate.Reset(); return false; }
+	const sf4e::replay::Recorder* recorder = Game::Battle::System::ggpo ? nullptr : ReplaySystem::staticMethods.GetSingleton();
+	if (!recorder) return false;
+	std::uint32_t frames[transport::kRounds];
+	for (int round = 0; round < transport::kRounds; round++) frames[round] = recorder->streams[round].frames;
+	const auto seen = transport::ObserveUpdate(s_meterGate, recorder->round, recorder->cursor, frames,
+		static_cast<std::uint16_t>(rSystem::GetNumFramesSimulated_FixedPoint(system)->integral));
+	s_view.round = seen.round; s_view.cursor = seen.cursor;
+	for (int round = 0; round < transport::kRounds; round++) s_view.roundFrames[round] = seen.roundFrames[round];
+	// A meter turned off starts over when it is turned on again.
+	if (!s_view.meter) { s_meterGate.Reset(); return false; }
+	return seen.advanced;
 }
 
 void sf4e::replayplayback::Tick(int deviceType, int deviceIndex, bool connected) {
@@ -217,28 +229,23 @@ void sf4e::replayplayback::Tick(int deviceType, int deviceIndex, bool connected)
 	else {
 		Command commands[4];
 		const int count = s_pad.Sample(physical, commands);
-		for (int i = 0; i < count; i++) Submit(commands[i], Device::Pad);
+		for (int i = 0; i < count; i++) Submit(commands[i], Device::Pad, s_view.session);
 	}
 
-	// The lanes read the file a Watch request plays, through the worker that
-	// reads replay details, so the game thread opens no file.
+	// The lanes are the replay detail of the file a Watch request plays,
+	// prepared with it by the worker that reads replay details, which the
+	// playback asks as a requester of its own; the game thread only takes them.
 	const std::string& file = replaystore::PlayingFile();
 	if (file != s_laneFile) {
-		s_laneFile = file; s_lanes.reset();
-		if (!file.empty()) {
-			s_laneRevision = kLaneRevisionBit | ++s_laneRequests;
-			platform::replays::WantDetail(file, s_laneRevision);
-		}
+		s_laneFile = file; s_lanes.reset(); s_laneSettled = file.empty();
+		if (!file.empty()) platform::replays::WantDetail(file, ++s_laneRevision, platform::replays::DetailFor::Playback);
 	}
-	if (!s_laneFile.empty() && !s_lanes) {
-		const auto detail = platform::replays::LatestDetail();
-		if (detail.revision == s_laneRevision && detail.state == replayinputs::DetailState::Ready && detail.value && detail.value->file == s_laneFile)
-			s_lanes = std::make_shared<const replaylane::Lanes>(replaylane::Build(detail.value->match));
-		else if (detail.revision == s_laneRevision && detail.state != replayinputs::DetailState::Pending && detail.state != replayinputs::DetailState::Ready) {
-			spdlog::warn("Replay controls: the inputs of {} could not be read; no input lanes for it", s_laneFile);
-			s_laneRevision = 0;
-		}
-	}
+	if (s_laneSettled) return;
+	const auto detail = platform::replays::LatestDetail(platform::replays::DetailFor::Playback);
+	if (detail.revision != s_laneRevision || detail.state == replayinputs::DetailState::Pending) return;
+	s_laneSettled = true;
+	if (detail.state == replayinputs::DetailState::Ready && detail.value && detail.value->file == s_laneFile && detail.value->lanes) s_lanes = detail.value->lanes;
+	else spdlog::warn("Replay controls: the inputs of {} could not be read; no input lanes for it", s_laneFile);
 }
 
 const sf4e::replaytransport::View& sf4e::replayplayback::GetView() { return s_view; }

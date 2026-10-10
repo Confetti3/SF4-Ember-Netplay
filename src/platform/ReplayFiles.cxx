@@ -517,7 +517,9 @@ struct Lister {
 	std::mutex mutex;
 	std::condition_variable wake;
 	bool wanted = false, stop = false;
-	replayinputs::DetailRequests details;
+	// One request and completion per requester (DetailFor).
+	replayinputs::DetailRequests details[2];
+	replayinputs::DetailRequests* PendingDetail() { for (auto& requests : details) if (requests.Pending()) return &requests; return nullptr; }
 	std::thread thread;
 	std::shared_ptr<const std::vector<ArchivedReplay>> latest;
 };
@@ -531,13 +533,13 @@ void ListUntilStopped(Lister& lister) {
 	auto nextListing = std::chrono::steady_clock::now();
 	std::unique_lock<std::mutex> lock(lister.mutex);
 	while (!lister.stop) {
-		if (lister.details.Pending()) {
-   auto request = lister.details.Take();
+		if (auto* requests = lister.PendingDetail()) {
+   auto request = requests->Take();
 			lock.unlock();
    replayinputs::DetailCompletion detail{request.revision, replayinputs::DetailState::Failed, {}};
    try { detail = details.Read(request.file, request.revision, FindFolders().archive); } catch (...) {}
    lock.lock();
-   lister.details.Complete(detail);
+   requests->Complete(detail);
 		}
 		else if (lister.wanted && std::chrono::steady_clock::now() >= nextListing) {
 			lister.wanted = false;
@@ -554,8 +556,8 @@ void ListUntilStopped(Lister& lister) {
    }
 			nextListing = std::chrono::steady_clock::now() + std::chrono::seconds(2);
 		}
-		else if (lister.wanted) lister.wake.wait_until(lock, nextListing, [&] { return lister.stop || lister.details.Pending(); });
-		else lister.wake.wait(lock, [&] { return lister.wanted || lister.stop || lister.details.Pending(); });
+		else if (lister.wanted) lister.wake.wait_until(lock, nextListing, [&] { return lister.stop || lister.PendingDetail(); });
+		else lister.wake.wait(lock, [&] { return lister.wanted || lister.stop || lister.PendingDetail(); });
 	}
 }
 
@@ -574,18 +576,19 @@ void WantListing() {
 	Wake(lister);
 }
 
-void WantDetail(const std::string& file, std::uint64_t revision) {
+void WantDetail(const std::string& file, std::uint64_t revision, DetailFor requester) {
 	Lister& lister = TheLister();
 	std::lock_guard<std::mutex> lock(lister.mutex);
- if (lister.stop || !lister.details.Want(file, revision)) return;
+ auto& details = lister.details[requester == DetailFor::Playback ? 1 : 0];
+ if (lister.stop || !details.Want(file, revision)) return;
  try { Wake(lister); }
- catch (...) { lister.details.Fail(revision); }
+ catch (...) { details.Fail(revision); }
 }
 
-replayinputs::DetailCompletion LatestDetail() {
+replayinputs::DetailCompletion LatestDetail(DetailFor requester) {
 	Lister& lister = TheLister();
 	std::lock_guard<std::mutex> lock(lister.mutex);
-	return lister.details.Latest();
+	return lister.details[requester == DetailFor::Playback ? 1 : 0].Latest();
 }
 
 std::shared_ptr<const std::vector<ArchivedReplay>> LatestListing() {

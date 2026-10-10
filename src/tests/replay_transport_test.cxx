@@ -202,6 +202,113 @@ void TestMeterFedOnlyOnAdvance() {
 	CHECK(fed == advanced && advanced == 60 + 15 + 0 + 5 + 30);
 }
 
+// One battle update, in the order the game runs its tasks: SYS MAIN runs the
+// cadence, which holds or releases; CMD POST moves the recorder's cursor on
+// a released frame; then Ember observes. What it observes is the cursor and
+// the frame that update reached, on release, step and pause alike.
+void TestObservedAfterUpdate() {
+	Transport t;
+	AdvanceGate gate;
+	const std::uint32_t frames[kRounds] = {900, 900};
+	std::uint32_t cursor = 0;
+	std::uint16_t simulated = 100;
+	gate.Advanced(simulated);
+	const auto update = [&] {
+		const bool hold = t.Hold();               // SYS MAIN: the cadence
+		if (!hold) { ++cursor; ++simulated; }     // CMD POST: the cursor moves
+		return ObserveUpdate(gate, 0, cursor, frames, simulated);  // after the update
+	};
+	for (int i = 0; i < 10; i++) {
+		const auto seen = update();
+		CHECK(seen.cursor == cursor && seen.advanced && seen.roundFrames[1] == 900);
+	}
+	t.Apply(Command::TogglePause);
+	const std::uint32_t paused = cursor;
+	for (int i = 0; i < 10; i++) { const auto seen = update(); CHECK(seen.cursor == paused && !seen.advanced); }
+	t.Apply(Command::Step);
+	auto seen = update();
+	CHECK(seen.cursor == paused + 1 && seen.advanced);
+	seen = update();
+	CHECK(seen.cursor == paused + 1 && !seen.advanced);
+	t.Apply(Command::TogglePause); t.Apply(Command::Slower);
+	for (int i = 0; i < 8; i++) { seen = update(); CHECK(seen.cursor == cursor && seen.advanced == (i % 2 == 0)); }
+}
+
+// The game's cadence function as the design reads it: with the half speed
+// flag set it toggles the freeze bit each call; without, it clears it.
+void NativeCadence(unsigned& flags, int slow) {
+	if (slow) flags ^= kReplayFreeze;
+	else flags &= ~kReplayFreeze;
+}
+
+// At 1/2 or 1/4 the pause menu opens and the game's cadence takes over: the
+// freeze bit is released on every call of it, the speed asked for is kept,
+// and it is written again when Ember's cadence resumes. Select pressed under
+// the pause menu stays the game's.
+void TestPauseMenuReleasesFreeze() {
+	for (const int slower : {1, 2}) {
+		Transport t;
+		unsigned flags = 0;
+		int slow = 0;
+		for (int i = 0; i < slower; i++) t.Apply(Command::Slower);
+		// Ember's cadence in the fight.
+		for (int i = 0; i < 6; i++) {
+			t.FoldNative(slow != 0);
+			if (t.Hold()) flags |= kReplayFreeze; else flags &= ~kReplayFreeze;
+			slow = t.SlowFlag() ? 1 : 0;
+		}
+		CHECK(slow == 1);
+		// The pause menu: the game's cadence, handed back each call.
+		flags |= kPauseOrHold;
+		for (int i = 0; i < 7; i++) {
+			Relinquish(t, slow);
+			NativeCadence(flags, slow);
+			CHECK((flags & kReplayFreeze) == 0 && slow == 0);
+		}
+		CHECK(t.Divisor() == (slower == 1 ? 2 : 4));
+		// Closed again: Ember's cadence writes the speed back.
+		flags &= ~kPauseOrHold;
+		t.FoldNative(slow != 0);
+		CHECK(t.Divisor() == (slower == 1 ? 2 : 4) && t.SlowFlag());
+	}
+	// Select under the pause menu sets the game's half speed: it is the game's.
+	Transport t;
+	int slow = 1;
+	Relinquish(t, slow);
+	CHECK(slow == 1);
+	t.FoldNative(slow != 0);
+	CHECK(t.Divisor() == 2);
+}
+
+// Commands are the playback session's they were made under: one posted under
+// an earlier session, even after it ended, never acts on the next.
+void TestSessionQueue() {
+	CommandQueue queue;
+	queue.Submit(Command::TogglePause, Device::Keyboard, 1);
+	queue.Submit(Command::Step, Device::Pad, 1);
+	auto taken = queue.Take(1);
+	CHECK(taken.size() == 2 && taken[0].command == Command::TogglePause && taken[1].device == Device::Pad);
+	// A key pressed over an older snapshot arrives after the next session began.
+	queue.Submit(Command::Step, Device::Keyboard, 1);
+	queue.Submit(Command::Faster, Device::Keyboard, 2);
+	taken = queue.Take(2);
+	CHECK(taken.size() == 1 && taken[0].command == Command::Faster);
+	CHECK(queue.Take(1).empty());
+	for (std::size_t i = 0; i < CommandQueue::kMost + 4; i++) queue.Submit(Command::Step, Device::Pad, 3);
+	queue.Clear();
+	CHECK(queue.Take(3).empty());
+	for (std::size_t i = 0; i < CommandQueue::kMost + 4; i++) queue.Submit(Command::Step, Device::Pad, 3);
+	CHECK(queue.Take(3).size() == CommandQueue::kMost);
+	// A held RT does not repeat into the next session: the pad starts over.
+	PadControls pad;
+	Command out[4];
+	pad.Reset(0);
+	pad.Sample(xinput::RT, out);
+	for (unsigned i = 0; i < kRepeatDelay - 1; i++) pad.Sample(xinput::RT, out);
+	pad.Reset(xinput::RT);
+	for (unsigned i = 0; i < kRepeatDelay * 2; i++) CHECK(pad.Sample(xinput::RT, out) == 0);
+}
+
 void TestPad() {
 	PadControls pad;
 	Command out[4];
@@ -274,6 +381,9 @@ int main() {
 	TestGuard();
 	TestAdvanceGate();
 	TestMeterFedOnlyOnAdvance();
+	TestObservedAfterUpdate();
+	TestPauseMenuReleasesFreeze();
+	TestSessionQueue();
 	TestPad();
 	TestKeys();
 	TestStrip();

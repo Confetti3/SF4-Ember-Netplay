@@ -14,7 +14,10 @@
 //
 // ReplayTransportTest covers every rule here.
 
+#include <algorithm>
 #include <cstdint>
+#include <mutex>
+#include <vector>
 
 #include "PadKind.hxx"
 
@@ -62,8 +65,8 @@ inline bool Playback(const Context& context) {
 //              first, so the video always plays at 1x.
 //   Transport: Ember's cadence; the controls act.
 // Ember's cadence only runs in the fight with the pause menu closed. The
-// game's own then drives the knockout, the round's end and the pause menu,
-// where it clears the freeze bit, so all of those play at 1x.
+// game's own drives the knockout, the round's end and the pause menu, after
+// Ember hands it back (Relinquish), so all of those play at 1x.
 enum class Route { Original, FullSpeed, Transport };
 inline Route Decide(const Context& context) {
 	if (!Playback(context)) return Route::Original;
@@ -131,6 +134,7 @@ public:
 	bool SlowFlag() { written_ = divisor_ != 1; return written_; }
 	// Ember wrote the flag outside the transport (cleared it).
 	void Wrote(bool slow) { written_ = slow; }
+	bool Written() const { return written_; }
 
 private:
 	void SetDivisor(int divisor) { if (divisor != divisor_) { divisor_ = divisor; phase_ = 0; } }
@@ -155,6 +159,62 @@ private:
 	std::uint16_t last_ = 0;
 };
 
+// Commands from any thread for the cadence, each with the playback session
+// it was made under (View::session). Bounded: the cadence does not run
+// outside a battle, and nothing waits that long. Take hands over, in order,
+// only the commands of the session that plays now; one made under an earlier
+// session, even posted after that session ended, is dropped.
+class CommandQueue {
+public:
+	struct Entry { Command command; Device device; std::uint32_t session; };
+	static constexpr std::size_t kMost = 16;
+	void Submit(Command command, Device device, std::uint32_t session) {
+		std::lock_guard<std::mutex> lock(mutex_);
+		if (entries_.size() < kMost) entries_.push_back({command, device, session});
+	}
+	std::vector<Entry> Take(std::uint32_t session) {
+		std::vector<Entry> taken;
+		{ std::lock_guard<std::mutex> lock(mutex_); taken.swap(entries_); }
+		taken.erase(std::remove_if(taken.begin(), taken.end(), [session](const Entry& entry) { return entry.session != session; }), taken.end());
+		return taken;
+	}
+	void Clear() { std::lock_guard<std::mutex> lock(mutex_); entries_.clear(); }
+private:
+	std::mutex mutex_;
+	std::vector<Entry> entries_;
+};
+
+// Handing the cadence back to the game's own function (Route::Original):
+// with its half speed flag set, that function toggles the freeze bit from
+// call to call instead of clearing it, so a half speed Ember wrote is taken
+// back first and the game's function clears the bit; that part plays at 1x.
+// The transport keeps the speed the player asked for and writes it again
+// when Ember's cadence resumes. A half speed the player set with Select
+// outside it is the game's, and stays.
+inline void Relinquish(Transport& transport, int& slow) {
+	if (!transport.Written()) return;
+	slow = 0; transport.Wrote(false);
+}
+
+// What the playback observes of the replay once a battle update is over: the
+// recorder's round and cursor and its rounds' frames as that update left
+// them, the cursor already moved on by the update's CMD POST task, and
+// whether the battle moved on, for the frame meter (AdvanceGate). Taken after
+// the update, never at the cadence call, which runs before CMD POST.
+struct Observation {
+	int round = 0;
+	std::uint32_t cursor = 0;
+	std::uint32_t roundFrames[kRounds] = {};
+	bool advanced = false;
+};
+inline Observation ObserveUpdate(AdvanceGate& gate, int round, std::uint32_t cursor, const std::uint32_t (&roundFrames)[kRounds], std::uint16_t simulated) {
+	Observation seen;
+	seen.round = round; seen.cursor = cursor;
+	for (int i = 0; i < kRounds; i++) seen.roundFrames[i] = roundFrames[i];
+	seen.advanced = gate.Advanced(simulated);
+	return seen;
+}
+
 // The pad's controls, from its physical XInput buttons sampled once a game
 // tick: RB pause or play, RT step (held, again after kRepeatDelay ticks and
 // every kRepeatEvery after), LB the next speed, LT the input lanes. Start and
@@ -169,18 +229,21 @@ public:
 		int count = 0;
 		if (down & input::xinput::RB) out[count++] = Command::TogglePause;
 		if (physical & input::xinput::RT) {
-			if (down & input::xinput::RT) { held_ = 0; out[count++] = Command::Step; }
-			else if (++held_ >= kRepeatDelay && (held_ - kRepeatDelay) % kRepeatEvery == 0) out[count++] = Command::Step;
+			if (down & input::xinput::RT) { held_ = 0; repeating_ = true; out[count++] = Command::Step; }
+			else if (repeating_ && ++held_ >= kRepeatDelay && (held_ - kRepeatDelay) % kRepeatEvery == 0) out[count++] = Command::Step;
 		}
 		if (down & input::xinput::LB) out[count++] = Command::CycleSpeed;
 		if (down & input::xinput::LT) out[count++] = Command::Inputs;
 		return count;
 	}
-	// The buttons held now count as already pressed.
-	void Reset(std::uint32_t held = 0) { previous_ = held; held_ = 0; }
+	// The buttons held now count as already pressed, and a held RT does not
+	// repeat until it is pressed again.
+	void Reset(std::uint32_t held = 0) { previous_ = held; held_ = 0; repeating_ = false; }
 private:
 	std::uint32_t previous_ = 0;
 	unsigned held_ = 0;
+	// RT went down since the last Reset, so holding it steps again.
+	bool repeating_ = false;
 };
 
 // The keyboard's controls during playback: F1 pause or play, F2 step, F3
@@ -197,15 +260,20 @@ inline bool KeepsKey(bool playback, unsigned message, unsigned key) {
 
 // What the game thread publishes for the overlay each tick.
 struct View {
+	// The playback this view is of: it changes each time a battle starts or
+	// closes. A command names the playback it was made under and is taken
+	// only for that one (sf4e__ReplayPlayback.hxx: Submit).
+	std::uint32_t session = 0;
 	bool playback = false;   // Playback(), in a battle
 	bool armed = false;      // the transport acts now (Route::Transport)
 	bool exporting = false;
 	bool paused = false;
 	int divisor = 1;
+	// The round, cursor and rounds' frames as the last battle update left
+	// them (Observation); roundFrames are the recorder's streams' frames
+	// (ReplayRecorder.hxx: Stream::frames), 0 past its last round.
 	int round = 0;
 	std::uint32_t cursor = 0;
-	// Each of the replay's rounds' frames, as the recorder's streams hold
-	// them (ReplayRecorder.hxx: Stream::frames); 0 past its last round.
 	std::uint32_t roundFrames[kRounds] = {};
 	bool meter = false;      // the frame meter is shown (the request, or F5)
 	bool lanes = false;      // the input lanes are asked for (F9, LT)
