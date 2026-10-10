@@ -182,6 +182,23 @@ int main(int argc, char** argv) {
         CHECK(PlainReleaseNotes("Before\n```html\n<!-- unclosed in code\n```\n- Later entry\n") == "Before\n<!-- unclosed in code\n- Later entry");
         CHECK(PlainReleaseNotes("Use `<!-- note -->` in a template") == "Use <!-- note --> in a template");
         CHECK(PlainReleaseNotes("Keep <!-- this open\n- Next entry") == "Keep <!-- this open\n- Next entry");
+        // Comments, code and fences are read in one traversal: an unclosed
+        // comment with a '>' after it stays whole, no later pass taking it for
+        // a tag; a fence closes only on its own marker, at least as long, so a
+        // four-backtick fence keeps a three-backtick example and the comment
+        // in it, and a tilde line does not close a backtick fence.
+        CHECK(PlainReleaseNotes("Keep <!-- this > open") == "Keep <!-- this > open");
+        CHECK(PlainReleaseNotes("Example:\n````md\n```html\n<!-- literal -->\n```\n````\nAfter <!-- gone -->it") ==
+            "Example:\n```html\n<!-- literal -->\n```\nAfter it");
+        CHECK(PlainReleaseNotes("```\ncode\n~~~\nstill code\n```\nafter") == "code\n~~~\nstill code\nafter");
+        CHECK(PlainReleaseNotes("~~~~\na\n~~~\nb\n~~~~\nc") == "a\n~~~\nb\nc");
+        // A fence never left open by a comment: one that would close past a fence is text.
+        CHECK(PlainReleaseNotes("x <!-- a\n````\n-->\n````\ny") == "x <!-- a\n-->\ny");
+        // Code spans close on their own length; a run that closes none is text,
+        // and neither is read as markup afterwards.
+        CHECK(PlainReleaseNotes("``a ` b`` and `<b>` and ``` lone") == "a ` b and <b> and ``` lone");
+        CHECK(PlainReleaseNotes("| `a|b` | c |") == "a|b, c");
+        CHECK(PlainReleaseNotes("\\`not code\\` *x*") == "`not code` x");
         CHECK(PlainReleaseNotes("A <!-- opened\n```\ncode -->\n```\nB") == "A <!-- opened\ncode -->\nB");
         CHECK(PlainReleaseNotes("One <!-- across\ntwo --> three\nFour") == "One\nthree\nFour");
         // A heading's closing hashes go only apart from its words.

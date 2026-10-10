@@ -1,5 +1,6 @@
 #pragma once
 #include <cstddef>
+#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -143,50 +144,118 @@ inline bool RuleLine(const std::string& s,const char* marks) {
     for(const char c:s){if(c==marks[0])++count;else if(!Space(c)&&!std::char_traits<char>::find(marks,std::char_traits<char>::length(marks),c))return false;}
     return count>=3;
 }
-// A fence at the start of the line at `at`: three backticks or tildes after its indent.
-inline bool FenceAt(const std::string& s,std::size_t at) {
-    while(at<s.size()&&Space(s[at]))++at;
-    return StartsWith(s,at,"```")||StartsWith(s,at,"~~~");
+// A fenced code block's fence: its marker, a backtick or a tilde, and how
+// many of it opened the block.
+struct Fence { char marker = 0; std::size_t length = 0; };
+// The line opens a fence: after its indent, three or more of one marker, and
+// for backticks no backtick after them (that is inline code, not a fence).
+inline bool OpensFence(const std::string& line,Fence& fence) {
+    std::size_t at=0;while(at<line.size()&&Space(line[at]))++at;
+    if(at>=line.size()||(line[at]!='`'&&line[at]!='~'))return false;
+    std::size_t run=0;while(at+run<line.size()&&line[at+run]==line[at])++run;
+    if(run<3||(line[at]=='`'&&line.find('`',at+run)!=std::string::npos))return false;
+    fence.marker=line[at];fence.length=run;
+    return true;
 }
-// Whether a line between `from` and `to` starts a fence.
-inline bool FenceBetween(const std::string& s,std::size_t from,std::size_t to) {
-    for(std::size_t line=s.find('\n',from);line!=std::string::npos&&line<to;line=s.find('\n',line+1))
-        if(FenceAt(s,line+1)&&line+1<to)return true;
-    return false;
+// The line closes fence: after its indent, at least as many of the same
+// marker, and nothing but spaces after them.
+inline bool ClosesFence(const std::string& line,const Fence& fence) {
+    std::size_t at=0;while(at<line.size()&&Space(line[at]))++at;
+    std::size_t run=0;while(at+run<line.size()&&line[at+run]==fence.marker)++run;
+    if(run<fence.length)return false;
+    for(std::size_t i=at+run;i<line.size();++i)if(!Space(line[i]))return false;
+    return true;
 }
-// The notes without their HTML comments, read as Markdown reads them: a
-// fenced block and an inline code span are code, whose "<!--" is text. A
-// comment that never closes, or that would close only past a fence, is
-// ambiguous and kept as the text it is. A comment that ran over lines leaves
-// the lines it took empty, so the text after it stays where it was.
-inline std::string WithoutComments(const std::string& s) {
-    std::string out;out.reserve(s.size());
-    bool fenced=false;
-    for(std::size_t i=0;i<s.size();) {
-        if(i==0||s[i-1]=='\n') {
-            const bool fence=FenceAt(s,i);
-            if(fence)fenced=!fenced;
-            if(fence||fenced) {
-                auto end=s.find('\n',i);end=end==std::string::npos?s.size():end+1;
-                out.append(s,i,end-i);i=end;continue;
+// A line of the notes as the one traversal reads them. fence: a fence line,
+// which is not shown; code: a line inside a fenced block, shown as it is.
+// Otherwise text, in which every span the Markdown pass must leave alone (an
+// inline code span's contents, a backtick run that opens none, a comment
+// opener that never closes) stands as a mark, \x01, its number and \x02,
+// that Restore puts back once the pass is done.
+struct NoteLine { std::string text; bool fence = false, code = false; };
+struct NoteTokens { std::vector<NoteLine> lines; std::vector<std::string> kept; };
+inline void Keep(NoteTokens& tokens,std::string& text,std::string span) {
+    text+='\x01';text+=std::to_string(tokens.kept.size());text+='\x02';
+    tokens.kept.push_back(std::move(span));
+}
+// Comments, code spans and fences in one traversal, so no later pass undoes
+// what one of them decided. A fenced block runs to a fence of its own marker
+// at least as long, or to the end. A code span closes with a run of backticks
+// of its own length on its line. A comment closes with "-->", on its line or
+// a later one, never across a fence; it goes, leaving the lines it took
+// empty. A comment that never closes, and a backtick run that closes no
+// span, are ambiguous and stay as the text they are.
+inline NoteTokens Tokenize(const std::string& s) {
+    NoteTokens tokens;
+    std::vector<std::string> raw;
+    for(std::size_t start=0;start<=s.size();) {
+        auto end=s.find('\n',start);if(end==std::string::npos)end=s.size();
+        raw.push_back(s.substr(start,end-start));start=end+1;
+    }
+    Fence fence;bool fenced=false;
+    // A comment that closed on a later line: that line goes on after "-->".
+    bool resume=false;std::size_t resumeAt=0;
+    for(std::size_t line=0;line<raw.size();++line) {
+        const std::string& text=raw[line];
+        std::size_t i=0;
+        if(resume){resume=false;i=resumeAt;}
+        else if(fenced) {
+            if(ClosesFence(text,fence)){fenced=false;tokens.lines.push_back({std::string(),true,false});}
+            else tokens.lines.push_back({text,false,true});
+            continue;
+        }
+        else {
+            Fence opened;
+            if(OpensFence(text,opened)){fenced=true;fence=opened;tokens.lines.push_back({std::string(),true,false});continue;}
+        }
+        NoteLine current;
+        bool jumped=false;
+        while(i<text.size()&&!jumped) {
+            const char c=text[i];
+            // An escaped mark is text, as Inline reads it.
+            if(c=='\\'&&i+1<text.size()&&Punctuation(text[i+1])){current.text.append(text,i,2);i+=2;continue;}
+            if(c=='`') {
+                std::size_t run=0;while(i+run<text.size()&&text[i+run]=='`')++run;
+                std::size_t close=std::string::npos;
+                for(std::size_t at=text.find('`',i+run);at!=std::string::npos;) {
+                    std::size_t length=0;while(at+length<text.size()&&text[at+length]=='`')++length;
+                    if(length==run){close=at;break;}
+                    at=text.find('`',at+length);
+                }
+                if(close==std::string::npos)Keep(tokens,current.text,std::string(run,'`'));
+                else Keep(tokens,current.text,Trim(text.substr(i+run,close-i-run)));
+                i=close==std::string::npos?i+run:close+run;continue;
+            }
+            if(StartsWith(text,i,"<!--")) {
+                // Where it closes: here, or on a later line before any fence opens.
+                std::size_t closeLine=line,closeAt=text.find("-->",i+4);
+                Fence any;
+                while(closeAt==std::string::npos&&++closeLine<raw.size()&&!OpensFence(raw[closeLine],any))closeAt=raw[closeLine].find("-->");
+                if(closeAt==std::string::npos){Keep(tokens,current.text,"<!--");i+=4;continue;}
+                if(closeLine==line){i=closeAt+3;continue;}
+                // The lines it took are empty, and its last goes on after it.
+                tokens.lines.push_back(std::move(current));
+                for(std::size_t empty=line+1;empty<closeLine;++empty)tokens.lines.push_back(NoteLine{});
+                resume=true;resumeAt=closeAt+3;line=closeLine-1;jumped=true;continue;
+            }
+            current.text+=c;++i;
+        }
+        if(!jumped)tokens.lines.push_back(std::move(current));
+    }
+    return tokens;
+}
+// The text with each mark put back as the span it kept.
+inline std::string Restore(const std::string& text,const NoteTokens& tokens) {
+    std::string out;
+    for(std::size_t i=0;i<text.size();) {
+        if(text[i]=='\x01') {
+            const auto end=text.find('\x02',i);
+            if(end!=std::string::npos) {
+                const auto index=static_cast<std::size_t>(std::strtoul(text.substr(i+1,end-i-1).c_str(),nullptr,10));
+                if(index<tokens.kept.size()){out+=tokens.kept[index];i=end+1;continue;}
             }
         }
-        const char c=s[i];
-        if(c=='`') {
-            std::size_t run=0;while(i+run<s.size()&&s[i+run]=='`')++run;
-            const auto lineEnd=s.find('\n',i);
-            const auto close=s.find(std::string(run,'`'),i+run);
-            const auto end=close!=std::string::npos&&close<lineEnd?close+run:i+run;
-            out.append(s,i,end-i);i=end;continue;
-        }
-        if(StartsWith(s,i,"<!--")) {
-            const auto close=s.find("-->",i+4);
-            if(close!=std::string::npos&&!FenceBetween(s,i,close)) {
-                for(std::size_t at=i;at<close;++at)if(s[at]=='\n')out+='\n';
-                i=close+3;continue;
-            }
-        }
-        out+=c;++i;
+        out+=text[i++];
     }
     return out;
 }
@@ -208,19 +277,20 @@ inline std::string HeadingWords(const std::string& heading) {
 // arrive (github_release_client.cxx), so nothing drawn parses them again.
 inline std::string PlainReleaseNotes(const std::string& markdown) {
     using namespace notes_detail;
-    std::string newlines;newlines.reserve(markdown.size());
-    for(const char c:markdown)if(c!='\r')newlines+=c;
-    const std::string text=WithoutComments(newlines);
+    // Line ends as \n, and none of the marks Tokenize uses.
+    std::string text;text.reserve(markdown.size());
+    for(const char c:markdown)if(c!='\r'&&c!='\x01'&&c!='\x02')text+=c;
+    const NoteTokens tokens=Tokenize(text);
+    // Inline Markdown on text whose kept spans are marks, which it leaves be.
+    const auto show=[&](const std::string& s){return Restore(Inline(s),tokens);};
     std::vector<std::string> lines;
-    bool fenced=false;
-    for(std::size_t start=0;start<=text.size();) {
-        auto end=text.find('\n',start);if(end==std::string::npos)end=text.size();
-        const std::string raw=text.substr(start,end-start);start=end+1;
+    for(const auto& line:tokens.lines) {
+        if(line.fence)continue;
+        if(line.code){lines.push_back(line.text);continue;}
+        const std::string& raw=line.text;
         std::size_t indent=0,at=0;
         while(at<raw.size()&&Space(raw[at])){indent+=raw[at]=='\t'?4:1;++at;}
         std::string body=raw.substr(at);
-        if(StartsWith(body,0,"```")||StartsWith(body,0,"~~~")){fenced=!fenced;continue;}
-        if(fenced){lines.push_back(raw);continue;}
         while(!body.empty()&&body[0]=='>'){body.erase(0,1);if(!body.empty()&&body[0]==' ')body.erase(0,1);}
         body=Trim(body);
         // A table's divider row goes; a rule or a heading's underline leaves a blank line.
@@ -230,24 +300,24 @@ inline std::string PlainReleaseNotes(const std::string& markdown) {
         if(hashes>=1&&hashes<=6&&(hashes==body.size()||Space(body[hashes]))) {
             const std::string heading=HeadingWords(Trim(body.substr(hashes)));
             if(!lines.empty()&&!lines.back().empty())lines.emplace_back();
-            lines.push_back(Inline(heading));
+            lines.push_back(show(heading));
             continue;
         }
         const std::string pad((indent/2)*2,' ');
         if(body.size()>=2&&(body[0]=='-'||body[0]=='*'||body[0]=='+')&&Space(body[1])) {
             std::string item=Trim(body.substr(2));
             if(StartsWith(item,0,"[ ] ")||StartsWith(item,0,"[x] ")||StartsWith(item,0,"[X] "))item.erase(0,4);
-            lines.push_back(pad+"- "+Inline(item));
+            lines.push_back(pad+"- "+show(item));
             continue;
         }
         if(body.find('|')!=std::string::npos&&body.front()=='|') {
             std::string row;std::size_t cell=1;
             while(cell<body.size()){auto bar=body.find('|',cell);if(bar==std::string::npos)bar=body.size();
-                const auto value=Trim(body.substr(cell,bar-cell));if(!value.empty()){if(!row.empty())row+=", ";row+=Inline(value);}cell=bar+1;}
+                const auto value=Trim(body.substr(cell,bar-cell));if(!value.empty()){if(!row.empty())row+=", ";row+=show(value);}cell=bar+1;}
             lines.push_back(pad+row);
             continue;
         }
-        lines.push_back(body.empty()?std::string():pad+Inline(body));
+        lines.push_back(body.empty()?std::string():pad+show(body));
     }
     std::string out;
     for(const auto& line:lines) {
