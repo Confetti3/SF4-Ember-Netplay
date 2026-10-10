@@ -2711,7 +2711,7 @@ msgid "identity.local_passphrase"
 msgstr "Wachtwoordzin voor deze pc"
 
 msgid "identity.local_passphrase_detail"
-msgstr "Wine en Proton kunnen de sleutelbeveiliging van Windows niet gebruiken, dus beschermt een wachtwoordzin je sleutel. Je voert hem één keer in bij elke start van het spel."
+msgstr "Wine en Proton (bijvoorbeeld op de Steam Deck) kunnen de gebruikelijke sleutelbeveiliging niet gebruiken, dus beschermt een wachtwoordzin je sleutel. Je voert hem één keer in bij elke start van het spel."
 
 msgid "identity.repeat_passphrase"
 msgstr "Wachtwoordzin herhalen"
@@ -2733,6 +2733,9 @@ msgstr "Ember ID maken"
 
 msgid "identity.enable_detail"
 msgstr "Maakt je sleutel aan op deze pc. Alleen dit Windows-account kan hem gebruiken."
+
+msgid "identity.enable_passphrase_detail"
+msgstr "Maakt je sleutel aan op deze pc, beschermd met de wachtwoordzin hierboven."
 
 msgid "identity.leave_room"
 msgstr "Verlaat de kamer en ga terug naar het hoofdmenu om je Ember ID te wijzigen."

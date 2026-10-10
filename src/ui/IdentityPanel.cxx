@@ -645,8 +645,9 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
             discord.value = loc::T("identity.discord_none"); rows.push_back(std::move(discord));
             if (id.passphraseRequired) local(rows);
             const bool secretOk = !id.passphraseRequired || Matching(newPassphrase_, newConfirm_);
+            const std::string enableDetail = id.passphraseRequired ? loc::T("identity.enable_passphrase_detail") : loc::T("identity.enable_detail");
             rows.push_back(ConfirmRow("id-enable", loc::T("identity.enable"),
-                canEdit ? loc::T("identity.enable_detail") : loc::T("identity.leave_room"), canEdit && !busy && secretOk));
+                canEdit ? enableDetail : loc::T("identity.leave_room"), canEdit && !busy && secretOk));
         }
         if (id.state == "locked") {
             rows.push_back(Secret("id-unlock", loc::T("identity.unlock"), {}, loc::T("identity.unlock_detail"), true));

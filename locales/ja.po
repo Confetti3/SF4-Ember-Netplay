@@ -2711,7 +2711,7 @@ msgid "identity.local_passphrase"
 msgstr "このPCのパスフレーズ"
 
 msgid "identity.local_passphrase_detail"
-msgstr "WineとProtonではWindowsの鍵保護を使えないため、パスフレーズで鍵を保護します。ゲームを起動するたびに一度入力します。"
+msgstr "WineとProton（Steam Deckなど）では通常の鍵保護を使えないため、パスフレーズで鍵を保護します。ゲームを起動するたびに一度入力します。"
 
 msgid "identity.repeat_passphrase"
 msgstr "パスフレーズを再入力"
@@ -2733,6 +2733,9 @@ msgstr "Ember IDを作成"
 
 msgid "identity.enable_detail"
 msgstr "このPCに鍵を作成します。このWindowsアカウントだけが使用できます。"
+
+msgid "identity.enable_passphrase_detail"
+msgstr "上のパスフレーズで保護された鍵をこのPCに作成します。"
 
 msgid "identity.leave_room"
 msgstr "Ember IDを変更するには、ルームから退出してメインメニューに戻ってください。"
