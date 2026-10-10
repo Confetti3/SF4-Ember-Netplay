@@ -4,6 +4,7 @@
 #include "../../platform/Elevation.hxx"
 #include "../../platform/Utf8.hxx"
 #include "../../common/ReleaseNotesText.hxx"
+#include "../LargeAddress.hxx"
 
 namespace sf4e {
 namespace launcher {
@@ -481,7 +482,7 @@ namespace launcher {
 		bool running = false;
 		if (Process32FirstW(snap, &pe)) {
 			do {
-				if (_wcsicmp(pe.szExeFile, L"SSFIV.exe") == 0) {
+				if (_wcsicmp(pe.szExeFile, L"SSFIV.exe") == 0 || _wcsicmp(pe.szExeFile, sf4e::launcher::kLargeAddressExecutableName) == 0) {
 					running = true;
 					break;
 				}
