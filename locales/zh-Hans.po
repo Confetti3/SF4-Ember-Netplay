@@ -4131,6 +4131,45 @@ msgstr "带帧数表观看"
 msgid "replays.watch_meter_detail"
 msgstr "从 Battle Log 播放录像，并在对战上方显示帧数表。"
 
+msgid "replays.controls.play"
+msgstr "播放"
+
+msgid "replays.controls.pause"
+msgstr "暂停"
+
+msgid "replays.controls.paused"
+msgstr "已暂停"
+
+msgid "replays.controls.step"
+msgstr "逐帧"
+
+msgid "replays.controls.speed"
+msgstr "速度"
+
+msgid "replays.controls.speed_full"
+msgstr "1x"
+
+msgid "replays.controls.speed_half"
+msgstr "1/2x"
+
+msgid "replays.controls.speed_quarter"
+msgstr "1/4x"
+
+msgid "replays.controls.inputs"
+msgstr "输入"
+
+msgid "replays.controls.meter"
+msgstr "帧数表"
+
+msgid "replays.controls.round"
+msgstr "第 {0} 回合"
+
+msgid "replays.controls.frame"
+msgstr "第 {0} 帧"
+
+msgid "replays.controls.unavailable"
+msgstr "仅在对战中可用"
+
 msgid "room.training"
 msgstr "在训练中等待"
 

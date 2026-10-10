@@ -4131,6 +4131,45 @@ msgstr "Ver con medidor de frames"
 msgid "replays.watch_meter_detail"
 msgstr "La reproduce desde el Battle Log con el medidor de frames sobre el combate."
 
+msgid "replays.controls.play"
+msgstr "Reproducir"
+
+msgid "replays.controls.pause"
+msgstr "Pausa"
+
+msgid "replays.controls.paused"
+msgstr "En pausa"
+
+msgid "replays.controls.step"
+msgstr "Avanzar"
+
+msgid "replays.controls.speed"
+msgstr "Velocidad"
+
+msgid "replays.controls.speed_full"
+msgstr "1x"
+
+msgid "replays.controls.speed_half"
+msgstr "1/2x"
+
+msgid "replays.controls.speed_quarter"
+msgstr "1/4x"
+
+msgid "replays.controls.inputs"
+msgstr "Entradas"
+
+msgid "replays.controls.meter"
+msgstr "Medidor"
+
+msgid "replays.controls.round"
+msgstr "Asalto {0}"
+
+msgid "replays.controls.frame"
+msgstr "Frame {0}"
+
+msgid "replays.controls.unavailable"
+msgstr "Los controles funcionan durante el combate"
+
 msgid "room.training"
 msgstr "Esperar en entrenamiento"
 

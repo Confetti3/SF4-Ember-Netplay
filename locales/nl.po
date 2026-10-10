@@ -4131,6 +4131,45 @@ msgstr "Bekijken met framemeter"
 msgid "replays.watch_meter_detail"
 msgstr "Speelt de replay af vanuit het Battle Log met de framemeter over het gevecht."
 
+msgid "replays.controls.play"
+msgstr "Afspelen"
+
+msgid "replays.controls.pause"
+msgstr "Pauze"
+
+msgid "replays.controls.paused"
+msgstr "Gepauzeerd"
+
+msgid "replays.controls.step"
+msgstr "Stap"
+
+msgid "replays.controls.speed"
+msgstr "Snelheid"
+
+msgid "replays.controls.speed_full"
+msgstr "1x"
+
+msgid "replays.controls.speed_half"
+msgstr "1/2x"
+
+msgid "replays.controls.speed_quarter"
+msgstr "1/4x"
+
+msgid "replays.controls.inputs"
+msgstr "Invoer"
+
+msgid "replays.controls.meter"
+msgstr "Meter"
+
+msgid "replays.controls.round"
+msgstr "Ronde {0}"
+
+msgid "replays.controls.frame"
+msgstr "Frame {0}"
+
+msgid "replays.controls.unavailable"
+msgstr "Bediening werkt tijdens het gevecht"
+
 msgid "room.training"
 msgstr "Wachten in Training"
 

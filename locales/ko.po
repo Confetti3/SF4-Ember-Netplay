@@ -4131,6 +4131,45 @@ msgstr "프레임 미터와 함께 보기"
 msgid "replays.watch_meter_detail"
 msgstr "Battle Log에서 재생하며 대전 위에 프레임 미터를 표시합니다."
 
+msgid "replays.controls.play"
+msgstr "재생"
+
+msgid "replays.controls.pause"
+msgstr "일시정지"
+
+msgid "replays.controls.paused"
+msgstr "일시정지됨"
+
+msgid "replays.controls.step"
+msgstr "프레임 진행"
+
+msgid "replays.controls.speed"
+msgstr "속도"
+
+msgid "replays.controls.speed_full"
+msgstr "1x"
+
+msgid "replays.controls.speed_half"
+msgstr "1/2x"
+
+msgid "replays.controls.speed_quarter"
+msgstr "1/4x"
+
+msgid "replays.controls.inputs"
+msgstr "입력"
+
+msgid "replays.controls.meter"
+msgstr "미터"
+
+msgid "replays.controls.round"
+msgstr "라운드 {0}"
+
+msgid "replays.controls.frame"
+msgstr "{0}프레임"
+
+msgid "replays.controls.unavailable"
+msgstr "조작은 대전 중에만 가능"
+
 msgid "room.training"
 msgstr "트레이닝에서 대기"
 

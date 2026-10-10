@@ -21,6 +21,13 @@ TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training
     if (passive && view.shellAvailable) hint("Ember shortcut", "runtime.open_shortcut", 12);
     if (passive && view.matchWaitsForMenu) hint("Ember match waiting", "runtime.return_menu_to_join", 44);
     if (view.captionShown) DrawExportCaption(view.caption);
+    // A replay has no GGPO session, so its meter is drawn here, not with the
+    // match's below; the strip and lanes stay out of an export's video.
+    if (!view.matchActive && passive && view.replay.meter && training.watching) DrawMatchMeter(training);
+    if (passive && view.replay.shown) {
+        DrawReplayStrip(view.replay);
+        if (view.replay.lanes) DrawReplayLanes(view.replay);
+    }
     if (view.matchActive) {
         DrawControllerWarning(view.controllerWarning);
         if (passive && training.watching) DrawMatchMeter(training);

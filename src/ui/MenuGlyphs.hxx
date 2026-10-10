@@ -38,7 +38,27 @@ inline const char* PromptAsset(const char* glyph) {
 // The keyboard keys the legend draws as a key cap with their name on it; the
 // prompt art has no letter keys.
 inline bool KeyCapGlyph(const char* glyph) {
-    return !std::strcmp(glyph,"F")||!std::strcmp(glyph,"T")||!std::strcmp(glyph,"C")||!std::strcmp(glyph,"Del");
+    // The function keys F1 to F12 too, which the replay controls use.
+    const bool function=glyph[0]=='F'&&glyph[1]>='1'&&glyph[1]<='9'&&(!glyph[2]||(glyph[1]=='1'&&glyph[2]>='0'&&glyph[2]<='2'&&!glyph[3]));
+    return function||!std::strcmp(glyph,"F")||!std::strcmp(glyph,"T")||!std::strcmp(glyph,"C")||!std::strcmp(glyph,"Del");
+}
+// One prompt in a size-by-size square at `at`: a key cap with its name, the
+// prompt art, or, with neither, the glyph's name. `s` is the caller's scale; `keyFont`,
+// when given, sizes a key cap's name.
+inline void DrawPromptGlyph(ImDrawList* d,const char* glyph,ImVec2 at,float size,SelectionArt* art,float s,float keyFont=0) {
+    if(KeyCapGlyph(glyph)){
+        const ImVec2 capTop(at.x+2*s,at.y+3*s),capBottom(at.x+size-2*s,at.y+size-3*s);
+        d->AddRectFilled(capTop,capBottom,IM_COL32(40,38,36,235),5*s);
+        d->AddRect(capTop,capBottom,palette::Ivory,5*s,0,1.5f*s);
+        // 12 and 16 at the legend's 32-pixel prompts, and in step at other sizes.
+        if(keyFont<=0)keyFont=(std::strlen(glyph)>1?12:16)*size/32;
+        const ImVec2 text=ImGui::GetFont()->CalcTextSizeA(keyFont,FLT_MAX,0,glyph);
+        d->AddText(ImGui::GetFont(),keyFont,ImVec2((capTop.x+capBottom.x-text.x)*.5f,(capTop.y+capBottom.y-text.y)*.5f),palette::Ivory,glyph);
+        return;
+    }
+    const auto icon=art?art->InputPrompt(PromptAsset(glyph)):SelectionImage{};
+    if(icon.texture)d->AddImage(icon.texture,at,ImVec2(at.x+size,at.y+size),icon.uvMin,icon.uvMax);
+    else d->AddText(ImGui::GetFont(),12*size/32,ImVec2(at.x,at.y+8*size/32),palette::Ivory,glyph);
 }
 // A screen's own button, shown after the standard ones.
 struct LegendHint { const char* glyph; std::string label; };
@@ -73,17 +93,7 @@ inline float MenuLegend(float width,const char* select,const char* back,bool dra
             // whole legend can be cut off.
             ReportMenuText(("legend/"+hint.label).c_str(),font,height,w,width);
             auto* d=ImGui::GetWindowDrawList();
-            const auto icon=art&&!KeyCapGlyph(hint.glyph)?art->InputPrompt(PromptAsset(hint.glyph)):SelectionImage{};
-            if(KeyCapGlyph(hint.glyph)){
-                const ImVec2 capTop(start.x+x+2*s,start.y+y+3*s),capBottom(start.x+x+size-2*s,start.y+y+size-3*s);
-                d->AddRectFilled(capTop,capBottom,IM_COL32(40,38,36,235),5*s);
-                d->AddRect(capTop,capBottom,palette::Ivory,5*s,0,1.5f*s);
-                const float keyFont=(std::strlen(hint.glyph)>1?12:16)*s;
-                const ImVec2 text=ImGui::GetFont()->CalcTextSizeA(keyFont,FLT_MAX,0,hint.glyph);
-                d->AddText(ImGui::GetFont(),keyFont,ImVec2((capTop.x+capBottom.x-text.x)*.5f,(capTop.y+capBottom.y-text.y)*.5f),palette::Ivory,hint.glyph);
-            }
-            else if(icon.texture)d->AddImage(icon.texture,ImVec2(start.x+x,start.y+y),ImVec2(start.x+x+size,start.y+y+size),icon.uvMin,icon.uvMax);
-            else d->AddText(ImGui::GetFont(),12*s,ImVec2(start.x+x,start.y+y+8*s),palette::Ivory,hint.glyph);
+            DrawPromptGlyph(d,hint.glyph,ImVec2(start.x+x,start.y+y),size,art,s);
             d->AddText(ImGui::GetFont(),font,ImVec2(start.x+x+size+8*s,start.y+y+(size-font)*.5f),palette::Ivory,hint.label.c_str());
         }
         x+=w;

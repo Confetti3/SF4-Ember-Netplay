@@ -10,6 +10,8 @@
 namespace sf4e { namespace ui {
 class SelectionArt;
 void SetMenuArt(SelectionArt* art);
+// The art SetMenuArt gave, or null; the passive HUD draws its prompts from it.
+SelectionArt* MenuArt();
 // The fallbacks name a button with no known glyph: the game's LP/LK binding,
 // or the recovery window's stick buttons "1"/"2". They must outlive the call.
 void SetMenuGlyphs(int deviceType,unsigned selectPhysical,unsigned backPhysical,const char* selectFallback="LP",const char* backFallback="LK");

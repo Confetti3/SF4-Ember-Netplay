@@ -3793,6 +3793,45 @@ msgstr "Watch with frame meter"
 msgid "replays.watch_meter_detail"
 msgstr "Plays it from the Battle Log with the frame meter over the fight."
 
+msgid "replays.controls.play"
+msgstr "Play"
+
+msgid "replays.controls.pause"
+msgstr "Pause"
+
+msgid "replays.controls.paused"
+msgstr "Paused"
+
+msgid "replays.controls.step"
+msgstr "Step"
+
+msgid "replays.controls.speed"
+msgstr "Speed"
+
+msgid "replays.controls.speed_full"
+msgstr "1x"
+
+msgid "replays.controls.speed_half"
+msgstr "1/2x"
+
+msgid "replays.controls.speed_quarter"
+msgstr "1/4x"
+
+msgid "replays.controls.inputs"
+msgstr "Inputs"
+
+msgid "replays.controls.meter"
+msgstr "Meter"
+
+msgid "replays.controls.round"
+msgstr "Round {0}"
+
+msgid "replays.controls.frame"
+msgstr "Frame {0}"
+
+msgid "replays.controls.unavailable"
+msgstr "Controls work during the fight"
+
 msgid "room.training"
 msgstr "Wait in Training"
 

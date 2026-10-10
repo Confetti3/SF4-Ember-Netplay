@@ -4131,6 +4131,45 @@ msgstr "Mit Frame-Anzeige ansehen"
 msgid "replays.watch_meter_detail"
 msgstr "Spielt das Replay aus dem Battle Log mit der Frame-Anzeige über dem Kampf ab."
 
+msgid "replays.controls.play"
+msgstr "Abspielen"
+
+msgid "replays.controls.pause"
+msgstr "Pause"
+
+msgid "replays.controls.paused"
+msgstr "Pausiert"
+
+msgid "replays.controls.step"
+msgstr "Schritt"
+
+msgid "replays.controls.speed"
+msgstr "Tempo"
+
+msgid "replays.controls.speed_full"
+msgstr "1x"
+
+msgid "replays.controls.speed_half"
+msgstr "1/2x"
+
+msgid "replays.controls.speed_quarter"
+msgstr "1/4x"
+
+msgid "replays.controls.inputs"
+msgstr "Eingaben"
+
+msgid "replays.controls.meter"
+msgstr "Anzeige"
+
+msgid "replays.controls.round"
+msgstr "Runde {0}"
+
+msgid "replays.controls.frame"
+msgstr "Frame {0}"
+
+msgid "replays.controls.unavailable"
+msgstr "Steuerung wirkt nur im Kampf"
+
 msgid "room.training"
 msgstr "Im Training warten"
 

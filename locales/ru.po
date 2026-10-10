@@ -4131,6 +4131,45 @@ msgstr "Смотреть со счётчиком кадров"
 msgid "replays.watch_meter_detail"
 msgstr "Воспроизводит повтор из Battle Log со счётчиком кадров поверх боя."
 
+msgid "replays.controls.play"
+msgstr "Пуск"
+
+msgid "replays.controls.pause"
+msgstr "Пауза"
+
+msgid "replays.controls.paused"
+msgstr "На паузе"
+
+msgid "replays.controls.step"
+msgstr "Шаг"
+
+msgid "replays.controls.speed"
+msgstr "Скорость"
+
+msgid "replays.controls.speed_full"
+msgstr "1x"
+
+msgid "replays.controls.speed_half"
+msgstr "1/2x"
+
+msgid "replays.controls.speed_quarter"
+msgstr "1/4x"
+
+msgid "replays.controls.inputs"
+msgstr "Ввод"
+
+msgid "replays.controls.meter"
+msgstr "Счётчик"
+
+msgid "replays.controls.round"
+msgstr "Раунд {0}"
+
+msgid "replays.controls.frame"
+msgstr "Кадр {0}"
+
+msgid "replays.controls.unavailable"
+msgstr "Управление работает во время боя"
+
 msgid "room.training"
 msgstr "Ждать в тренировке"
 

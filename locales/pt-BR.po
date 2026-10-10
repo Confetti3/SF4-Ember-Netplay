@@ -3679,6 +3679,45 @@ msgstr "Assistir com medidor de frames"
 msgid "replays.watch_meter_detail"
 msgstr "Reproduz pelo Battle Log com o medidor de frames sobre a luta."
 
+msgid "replays.controls.play"
+msgstr "Reproduzir"
+
+msgid "replays.controls.pause"
+msgstr "Pausar"
+
+msgid "replays.controls.paused"
+msgstr "Pausado"
+
+msgid "replays.controls.step"
+msgstr "Avançar"
+
+msgid "replays.controls.speed"
+msgstr "Velocidade"
+
+msgid "replays.controls.speed_full"
+msgstr "1x"
+
+msgid "replays.controls.speed_half"
+msgstr "1/2x"
+
+msgid "replays.controls.speed_quarter"
+msgstr "1/4x"
+
+msgid "replays.controls.inputs"
+msgstr "Comandos"
+
+msgid "replays.controls.meter"
+msgstr "Medidor"
+
+msgid "replays.controls.round"
+msgstr "Round {0}"
+
+msgid "replays.controls.frame"
+msgstr "Frame {0}"
+
+msgid "replays.controls.unavailable"
+msgstr "Os controles funcionam durante a luta"
+
 msgid "room.training"
 msgstr "Esperar no treino"
 

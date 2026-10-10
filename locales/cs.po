@@ -4131,6 +4131,45 @@ msgstr "Přehrát s měřičem snímků"
 msgid "replays.watch_meter_detail"
 msgstr "Přehraje záznam z Battle Logu s měřičem snímků nad soubojem."
 
+msgid "replays.controls.play"
+msgstr "Přehrát"
+
+msgid "replays.controls.pause"
+msgstr "Pozastavit"
+
+msgid "replays.controls.paused"
+msgstr "Pozastaveno"
+
+msgid "replays.controls.step"
+msgstr "Krok"
+
+msgid "replays.controls.speed"
+msgstr "Rychlost"
+
+msgid "replays.controls.speed_full"
+msgstr "1x"
+
+msgid "replays.controls.speed_half"
+msgstr "1/2x"
+
+msgid "replays.controls.speed_quarter"
+msgstr "1/4x"
+
+msgid "replays.controls.inputs"
+msgstr "Vstupy"
+
+msgid "replays.controls.meter"
+msgstr "Měřič"
+
+msgid "replays.controls.round"
+msgstr "Kolo {0}"
+
+msgid "replays.controls.frame"
+msgstr "Snímek {0}"
+
+msgid "replays.controls.unavailable"
+msgstr "Ovládání funguje během boje"
+
 msgid "room.training"
 msgstr "Čekat v tréninku"
 

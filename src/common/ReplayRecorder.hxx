@@ -49,12 +49,34 @@ struct Stream {
 };
 static_assert(sizeof(Stream) == 0x1C && offsetof(Stream, frames) == 0x14, "stream wrapper layout");
 
+// What the recorder is doing (+0x708): playing a replay back, recording a
+// battle, or neither. Netplay, Versus and Training battles record or stop.
+enum RecorderMode : std::int32_t { RecorderStopped = 0, RecorderPlaying = 1, RecorderRecording = 2 };
+
+// The fields after the streams that Ember reads, from playback start
+// (0x5D5CA0), the per-frame call (0x5D5D20) and record or play (0x5D6000).
+// Their names are inferred from that code.
 struct Recorder {
 	const void* vtable;
 	Stream streams[kStreams];
-	std::uint8_t rest[kRecorderBytes - sizeof(void*) - kStreams * sizeof(Stream)];
+	std::uint8_t unknown0[0x708 - 0xC8];
+	// RecorderMode above.
+	std::int32_t mode;
+	// The argument playback was started with; its meaning is not known.
+	std::int32_t playArgument;
+	// The round being played: playback reads stream +4 + 0x1C * round.
+	std::int32_t round;
+	// The next record of the round to play or record. 0x5D5D20 moves it
+	// on after each frame while it is below the stream's frame count, so
+	// the frame just played is cursor - 1.
+	std::uint32_t cursor;
+	// The cursor goes back to 0 at the end of the stream.
+	std::int32_t loop;
+	std::uint8_t rest[kRecorderBytes - 0x71C];
 };
 static_assert(sizeof(Recorder) == kRecorderBytes && offsetof(Recorder, streams) == 4, "recorder layout");
+static_assert(offsetof(Recorder, mode) == 0x708 && offsetof(Recorder, playArgument) == 0x70C && offsetof(Recorder, round) == 0x710 &&
+	offsetof(Recorder, cursor) == 0x714 && offsetof(Recorder, loop) == 0x718, "recorder playback fields");
 
 // Append (0x7831C0) checks only cursor < base + capacity, then writes a
 // pending repeat record and the new value: up to 6 bytes. With the cursor 3

@@ -30,6 +30,7 @@ void System::Locate(HMODULE peRoot) {
     *(PVOID*)&publicMethods.GetUnitByIndex = (PVOID)(peRootOffset + 0x1d9720);
     *(PVOID*)&publicMethods.SysMain_HandleTrainingModeFeatures = (PVOID)(peRootOffset + 0x1dab30);
     *(PVOID*)&publicMethods.SysMain_UpdatePauseState = (PVOID)(peRootOffset + 0x1dbaa0);
+    *(PVOID*)&publicMethods.ReplayCadence = (PVOID)(peRootOffset + 0x1d7750);
     *(PVOID*)&publicMethods.CloseBattle = (PVOID)(peRootOffset + 0x1db3f0);
     *(PVOID*)&publicMethods.IsFight = (PVOID)(peRootOffset + 0x1d9f60);
     *(PVOID*)&publicMethods.IsLeavingBattle = (PVOID)(peRootOffset + 0x1d6a70);
@@ -96,6 +97,10 @@ int* System::GetPausingPlayer(System* s) {
     // 0x5DB673 (forced close), 0x5DB8C4 (resume), and 0x5DA896
     // (CloseBattle/SYS START reset) store -1. Training hold leaves it unset.
     return (int*)((unsigned int)s + 0x1458);
+}
+
+int* System::GetSlowMotion(System* s) {
+    return (int*)((unsigned int)s + 0x1464);
 }
 
 FixedPoint* System::GetTransitionProgress(System* s) {

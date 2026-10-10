@@ -297,6 +297,12 @@ void sf4e::replaystore::Start(const replay::Request& request, bool atMainMenu, b
 
 bool sf4e::replaystore::MeterWanted() { return s_operation.meter && s_operation.status.step == Step::Playing; }
 
+const std::string& sf4e::replaystore::PlayingFile() {
+	static const std::string none;
+	const Operation& op = s_operation;
+	return op.status.step == Step::Playing && op.request.mode == replay::Mode::Watch && op.video.empty() ? op.request.path : none;
+}
+
 bool sf4e::replaystore::Exporting() {
 	const Operation& op = s_operation;
 	return !op.video.empty() && (op.status.step == Step::SelectingRow || op.status.step == Step::Playing);

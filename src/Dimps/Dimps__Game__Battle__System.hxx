@@ -143,6 +143,12 @@ namespace Dimps {
 
                     void (System::* SysMain_HandleTrainingModeFeatures)();
                     void (System::* SysMain_UpdatePauseState)();
+                    // 0x5D7750, called only by SysMain_UpdatePauseState after the
+                    // pause menu check: in a fight with the slow-motion flag set
+                    // (GetSlowMotion) it sets SSF_REPLAY_FREEZE on one call and
+                    // clears it on the next, and otherwise clears it. That is the
+                    // Battle Log's half speed.
+                    void (System::* ReplayCadence)();
                     Eva::TaskCore* (System::* GetTaskCore)(unsigned int index);
                     void (System::* CloseBattle)();
                     bool (System::* IsFight)();
@@ -188,6 +194,12 @@ namespace Dimps {
                 static DWORD* GetSkipRelatedFlags_0xd8c(System* s);
                 static DWORD* GetSimulationFlags(System* s);
                 static int* GetPausingPlayer(System* s);
+                // +0x1464, the Battle Log's half speed: read through vtable
+                // +0x1DC (0x5D9FB0) and written through +0x1E0 (0x5D9FC0), both
+                // plain dword accesses. The replay battle's "BATTLE CHECK SLOW"
+                // task (0x484170) flips it on a Select press in the fight, and
+                // 0x5DA5F0 zeroes it with the simulation flags.
+                static int* GetSlowMotion(System* s);
                 static FixedPoint* GetTransitionProgress(System* s);
                 static FixedPoint* GetTransitionSpeed(System* s);
                 static int* GetTransitionType(System* s);

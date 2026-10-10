@@ -4131,6 +4131,45 @@ msgstr "フレームメーター付きで見る"
 msgid "replays.watch_meter_detail"
 msgstr "Battle Logから再生し、対戦の上にフレームメーターを表示します。"
 
+msgid "replays.controls.play"
+msgstr "再生"
+
+msgid "replays.controls.pause"
+msgstr "一時停止"
+
+msgid "replays.controls.paused"
+msgstr "一時停止中"
+
+msgid "replays.controls.step"
+msgstr "コマ送り"
+
+msgid "replays.controls.speed"
+msgstr "速度"
+
+msgid "replays.controls.speed_full"
+msgstr "1x"
+
+msgid "replays.controls.speed_half"
+msgstr "1/2x"
+
+msgid "replays.controls.speed_quarter"
+msgstr "1/4x"
+
+msgid "replays.controls.inputs"
+msgstr "入力"
+
+msgid "replays.controls.meter"
+msgstr "メーター"
+
+msgid "replays.controls.round"
+msgstr "ラウンド{0}"
+
+msgid "replays.controls.frame"
+msgstr "{0}フレーム"
+
+msgid "replays.controls.unavailable"
+msgstr "操作はファイト中のみ有効"
+
 msgid "room.training"
 msgstr "トレーニングで待つ"
 

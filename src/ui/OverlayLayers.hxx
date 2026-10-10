@@ -1,6 +1,7 @@
 #pragma once
 #include "Theme.hxx"
 #include "TrainingPanel.hxx"
+#include "ReplayPlaybackHud.hxx"
 
 namespace sf4e { namespace ui {
 // Presentation inputs only. The overlay owns hotkeys, commands and capture;
@@ -14,6 +15,8 @@ struct OverlayLayersView {
     bool captionShown = false;
     ExportCaptionView caption;
     MatchStripView match;
+    // A replay the game plays: its controls, lanes and frame meter.
+    ReplayHudView replay;
 };
 TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training::View& training);
 } }

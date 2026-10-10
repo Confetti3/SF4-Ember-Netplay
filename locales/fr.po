@@ -4131,6 +4131,45 @@ msgstr "Voir avec l'affichage des frames"
 msgid "replays.watch_meter_detail"
 msgstr "Lit le replay depuis le Battle Log avec l'affichage des frames sur le combat."
 
+msgid "replays.controls.play"
+msgstr "Lecture"
+
+msgid "replays.controls.pause"
+msgstr "Pause"
+
+msgid "replays.controls.paused"
+msgstr "En pause"
+
+msgid "replays.controls.step"
+msgstr "Avancer"
+
+msgid "replays.controls.speed"
+msgstr "Vitesse"
+
+msgid "replays.controls.speed_full"
+msgstr "1x"
+
+msgid "replays.controls.speed_half"
+msgstr "1/2x"
+
+msgid "replays.controls.speed_quarter"
+msgstr "1/4x"
+
+msgid "replays.controls.inputs"
+msgstr "Entrées"
+
+msgid "replays.controls.meter"
+msgstr "Compteur"
+
+msgid "replays.controls.round"
+msgstr "Round {0}"
+
+msgid "replays.controls.frame"
+msgstr "Frame {0}"
+
+msgid "replays.controls.unavailable"
+msgstr "Les commandes marchent pendant le combat"
+
 msgid "room.training"
 msgstr "Attendre en entraînement"
 

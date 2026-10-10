@@ -325,6 +325,7 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 #include "ui_render_overlay.hxx"
 #include "ui_render_replays.hxx"
 #include "ui_render_updates.hxx"
+#include "ui_render_replay_controls.hxx"
 
 int main(int argc, char** argv) {
     SetUnhandledExceptionFilter(ReportCrash);
@@ -956,6 +957,7 @@ int main(int argc, char** argv) {
             CheckHomeRendering(shell,view,mode,size,draw);
             ShootTraining(training,fighters,trainingCommand,acceptTraining,mode,size,draw,io);
             CheckOverlayVisibility(training,overlayLayers,overlayTooltip,mode,draw);
+            ShootReplayControls(training,overlayLayers,mode,size.h,draw);
             mode=3;draw("match-hud");
             ShootMatchHud(matchStrip,draw,[&]{renderer.Invalidate();});
             mode=5;draw("controller-warning");

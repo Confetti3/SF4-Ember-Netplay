@@ -1,6 +1,8 @@
 #pragma once
 #include "../common/ReplayInputDetails.hxx"
+#include "../common/ReplayInputLane.hxx"
 #include "../common/ReplayRequest.hxx"
+#include "../common/ReplayTransport.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include <cstdint>
 #include <memory>
@@ -25,8 +27,13 @@ struct ReplaysView {
 	// The caption of the export that is recording, to draw over the game.
 	replay::Caption caption;
 	bool captionShown = false;
-	// A replay is playing that was asked for with the frame meter.
+	// A replay is playing with the frame meter shown: asked for
+	// with it, or turned on (F5) during the playback.
 	bool meterShown = false;
+	// The replay controls (sf4e__ReplayPlayback.hxx) as this tick
+	// left them, and the lanes of the replay Ember plays, or null.
+	replaytransport::View playback;
+	std::shared_ptr<const replaylane::Lanes> lanes;
 	std::shared_ptr<const std::vector<platform::replays::ArchivedReplay>> archive;
 	// Completion of the last requested entry (platform::replays::WantDetail).
 	replayinputs::DetailCompletion detail;

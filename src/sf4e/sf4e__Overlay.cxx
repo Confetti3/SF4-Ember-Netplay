@@ -2,6 +2,7 @@
 #include "sf4e__OverlayPrefs.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "sf4e__GameEvents.hxx"
+#include "sf4e__ReplayPlayback.hxx"
 #include "sf4e.hxx"
 #include "../Dimps/Dimps__Selection.hxx"
 #include "../ui/ApplicationShell.hxx"
@@ -51,6 +52,8 @@ static std::atomic<unsigned> s_trainingPad{0};
 static std::atomic<bool> s_trainingOpen{false};
 enum : unsigned { PadDown = 1, PadReset = 2, PadSave = 4, PadOpen = 8, PadClose = 16 };
 static std::atomic<bool> trainingAvailable{false};
+// A replay plays with Ember's controls: the window procedure keeps their keys.
+static std::atomic<bool> replayPlayback{false};
 static int lobbyStageID = 0, lobbyMenuCharaID = 0;
 static sf4e::selection::StageMask lobbyStageExcluded = 0;
 // The thread that draws the overlay (NoteMessageThread).
@@ -457,10 +460,27 @@ void Overlay::DrawOverlay() {
     const auto training = sf4e::training::ReadView();
     trainingAvailable = training.available;
     const bool nativePaused = sf4e::battlePause.Paused();
+    // A replay the game plays, not for a video: its keys are Ember's, read as
+    // the training keys are, and training's own keys stay off.
+    const auto& playback = snapshot.replays.playback;
+    const bool replayKeys = playback.playback && !playback.exporting;
+    replayPlayback = replayKeys;
+    if (focused && replayKeys && !presentation.Visible() && !nativePaused && !ImGui::GetIO().WantTextInput && !ImGui::GetIO().KeyAlt) {
+        using sf4e::replaytransport::Command;
+        const auto send = [](Command command) { sf4e::replayplayback::Submit(command, sf4e::replaytransport::Device::Keyboard); };
+        if (ImGui::IsKeyPressed(ImGuiKey_F1, false)) send(Command::TogglePause);
+        // Held, F2 steps again after 300 ms, ten times a second.
+        for (int steps = ImGui::GetKeyPressedAmount(ImGuiKey_F2, .3f, .1f); steps > 0; --steps) send(Command::Step);
+        if (ImGui::IsKeyPressed(ImGuiKey_F3, false)) send(Command::Slower);
+        if (ImGui::IsKeyPressed(ImGuiKey_F4, false)) send(Command::Faster);
+        if (ImGui::IsKeyPressed(ImGuiKey_F5, false)) send(Command::Meter);
+        if (ImGui::IsKeyPressed(ImGuiKey_F9, false)) send(Command::Inputs);
+    }
     if (!training.available || !focused) trainingOpen = false;
     // Taken every frame, so a press from before the lab was shown never acts later.
     const unsigned padBits = s_trainingPad.exchange(0);
-    if (focused && training.available && !presentation.Visible()) {
+    // Training's keys and pad stay off during any replay, an export's too.
+    if (focused && training.available && !playback.playback && !presentation.Visible()) {
         // The pad drives the controls while they are open, through the same
         // adapter as the shell's menus; the prompts follow the device last used.
         if (!trainingOpen) sf4e::ui::NoteMenuDevice(snapshot.menuController.buttons);
@@ -507,6 +527,33 @@ void Overlay::DrawOverlay() {
         if (caption.set && !caption.names) shown.line += (shown.line.empty() ? "" : "   ") + std::to_string(caption.wins[0]) + " - " + std::to_string(caption.wins[1]);
         shown.mark = caption.mark; shown.nameOffset = snapshot.preferences.matchHudNameOffset;
     }
+    {
+        // The strip shows for a while after each control, and the chip
+        // after one pressed outside the fight; both timed from the counts.
+        static std::uint32_t takenSeen = 0, refusedSeen = 0;
+        static double takenAt = -1, refusedAt = -1;
+        const double now = ImGui::GetTime();
+        if (!replayKeys) { takenAt = refusedAt = -1; }
+        else {
+            if (playback.taken != takenSeen) takenAt = now;
+            if (playback.refused != refusedSeen) refusedAt = now;
+        }
+        takenSeen = playback.taken; refusedSeen = playback.refused;
+        auto& replay = layers.replay;
+        replay.shown = replayKeys;
+        replay.meter = snapshot.replays.meterShown;
+        replay.armed = playback.armed; replay.paused = playback.paused; replay.divisor = playback.divisor;
+        replay.round = playback.round; replay.cursor = playback.cursor;
+        replay.pad = playback.device == sf4e::replaytransport::Device::Pad;
+        replay.inputsKnown = snapshot.replays.lanes != nullptr;
+        replay.stripAlpha = sf4e::replaytransport::StripAlpha(playback.paused, playback.divisor, takenAt < 0 ? -1 : now - takenAt);
+        replay.unavailable = refusedAt >= 0 && now - refusedAt < sf4e::replaytransport::kChipSeconds;
+        replay.lanes = replayKeys && playback.lanes && snapshot.replays.lanes;
+        std::uint32_t played = 0;
+        if (replay.lanes && sf4e::replaylane::PlayedFrame(playback.cursor, played))
+            for (int side = 0; side < 2; ++side)
+                replay.rowCount[side] = sf4e::replaylane::Rows(*snapshot.replays.lanes, side, playback.round, played, replay.rows[side]);
+    }
     if (layers.matchActive) {
         auto& strip = layers.match;
         for (int side = 0; side < 2; ++side) { strip.names[side] = status.matchSides[side].name; strip.links[side] = status.matchSides[side].link; }
@@ -547,7 +594,7 @@ void Overlay::DrawOverlay() {
 }
 void Overlay::FreeOverlay() {
     capture = false; pointerCapture = false;
-    trainingAvailable = false;
+    trainingAvailable = false; replayPlayback = false;
     fMainMenu::bOverrideItemObserverState = -1;
     NoteLifecycleThread("free");
     sf4e::ui::OverlayLifecycle::Change change(s_lifecycle);
@@ -593,7 +640,8 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
     const auto handled = sf4e::ui::HandleOverlayMessage(window, message, w, l, capture, s_menuAvailable, pointerCapture);
     // The position hotkeys only as plain keys, so Alt+F4 still reaches the game.
     const bool plainKey = message == WM_KEYDOWN || message == WM_KEYUP, systemKey = message == WM_SYSKEYDOWN || message == WM_SYSKEYUP;
-    if (trainingAvailable && ((w >= VK_F5 && w <= VK_F8 && (plainKey || systemKey)) ||
+    if (sf4e::replaytransport::KeepsKey(replayPlayback, message, static_cast<unsigned>(w))) return 1;
+    if (trainingAvailable && !replayPlayback && ((w >= VK_F5 && w <= VK_F8 && (plainKey || systemKey)) ||
         (plainKey && w >= VK_F1 && w <= VK_F12 && sf4e::ui::TrainingHotkeyBound(static_cast<int>(w - VK_F1))))) return 1;
     return handled;
 }

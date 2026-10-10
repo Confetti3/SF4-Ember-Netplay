@@ -58,6 +58,8 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME ReplayImportHandoff SOURCES "src/tests/replay_import_handoff_test.cxx" STD 17 LIBS Threads::Threads TIMEOUT 15)
     sf4e_add_unit_test(NAME ReplayProvenance SOURCES "src/tests/replay_provenance_test.cxx" STD 17 LIBS Threads::Threads TIMEOUT 15)
     sf4e_add_unit_test(NAME ReplayInputs SOURCES "src/tests/replay_inputs_test.cxx" STD 17 TIMEOUT 15)
+    sf4e_add_unit_test(NAME ReplayTransport SOURCES "src/tests/replay_transport_test.cxx" STD 14 TIMEOUT 15)
+    sf4e_add_unit_test(NAME ReplayInputLane SOURCES "src/tests/replay_input_lane_test.cxx" STD 17 TIMEOUT 15)
     # The recorder layout is the 32-bit engine's.
     if(CMAKE_SIZEOF_VOID_P EQUAL 4)
         sf4e_add_unit_test(NAME ReplayRecorder SOURCES "src/tests/replay_recorder_test.cxx" STD 14 TIMEOUT 15)
@@ -212,7 +214,7 @@ install(DIRECTORY "assets/input" DESTINATION "assets" FILES_MATCHING PATTERN "*.
 target_sources(sf4e_ui PRIVATE src/ui/ControllerNavigation.cxx src/ui/backends/imgui_impl_win32.cpp)
 set_source_files_properties(src/ui/backends/imgui_impl_win32.cpp PROPERTIES COMPILE_DEFINITIONS IMGUI_IMPL_WIN32_DISABLE_GAMEPAD)
 target_sources(sf4e_ui PRIVATE src/ui/TrainingPanel.cxx src/ui/TrainingMeter.cxx src/ui/IdentityPanel.cxx src/ui/IdentityConnect.cxx src/ui/PublicRoomsPanel.cxx src/ui/PublicRoomsCards.cxx src/ui/PublicRoomsSetup.cxx src/ui/MatchAnnouncements.cxx)
-target_sources(sf4e_ui PRIVATE src/ui/OverlayLayers.cxx)
+target_sources(sf4e_ui PRIVATE src/ui/OverlayLayers.cxx src/ui/ReplayPlaybackHud.cxx)
 target_compile_features(sf4e_ui PUBLIC cxx_std_17)
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_fonts.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_brand.cmake")
@@ -369,6 +371,8 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__Platform.cxx"
     "src/sf4e/sf4e__ReplayStore.hxx"
     "src/sf4e/sf4e__ReplayStore.cxx"
+    "src/sf4e/sf4e__ReplayPlayback.hxx"
+    "src/sf4e/sf4e__ReplayPlayback.cxx"
     "src/sf4e/sf4e__ReplayCapture.hxx"
     "src/sf4e/sf4e__ReplayCapture.cxx"
     "src/sf4e/sf4e__CrashDiagnostics.hxx"

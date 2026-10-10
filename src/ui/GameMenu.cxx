@@ -173,6 +173,7 @@ void PromptGlyph(const char* glyph,float size){
     else ImGui::TextUnformatted(glyph);
 }
 void SetMenuArt(SelectionArt* art) { menuArt=art; }
+SelectionArt* MenuArt() { return menuArt; }
 void ForwardMenuAction(MenuAction action) { forwarded=std::move(action); }
 namespace { EmbeddedReturn embeddedReturn; }
 void SetEmbeddedReturn(EmbeddedReturn context) { embeddedReturn=std::move(context); }

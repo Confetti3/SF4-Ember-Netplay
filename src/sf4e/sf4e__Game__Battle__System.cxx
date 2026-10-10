@@ -1,7 +1,7 @@
 #include "sf4e__Game__Battle__System__Internal.hxx"
 #include "../common/BattlePause.hxx"
 #include "../platform/ReplayFiles.hxx"
-#include "sf4e__ReplayStore.hxx"
+#include "sf4e__ReplayPlayback.hxx"
 #include "../common/SpectatorCatchUp.hxx"
 #include "sf4e__MementoGuards.hxx"
 
@@ -552,9 +552,11 @@ void fSystem::BattleUpdate() {
             (_this->*rSystem::publicMethods.BattleUpdate)();
         }
         sf4e::training::AfterUpdate(_this);
-        // A replay watched with the frame meter: the frame just played goes
-        // to the meter as a watched match's does, with no input to confirm.
-        if (sf4e::replaystore::MeterWanted()) sf4e::training::ObserveMatch(_this, 0, -1);
+        // A replay shown with the frame meter: the frame just played goes to
+        // the meter as a watched match's does, with no input to confirm. A
+        // frame the replay controls (or the game's half speed) held is not
+        // one: the meter would take the repeated frame as a gap and start over.
+        if (sf4e::replayplayback::FeedMeter(_this)) sf4e::training::ObserveMatch(_this, 0, -1);
     }
 
     if (nExtraFramesToSimulate > 0) {
@@ -630,6 +632,7 @@ void fSystem::CloseBattle() {
     const bool netplayBattle = simGate.OnNativeBattleClosed();
     sf4e::battlePause.CloseBattle();
     sf4e::training::CloseBattle();
+    sf4e::replayplayback::CloseBattle();
     bool summaryEmitted = false;
     LogSaveSlotOccupancy("battle_close_entry");
     sf4e::crash::NoteMatchBoundary("battle_close");
@@ -697,6 +700,7 @@ void fSystem::CloseBattle() {
 
 void fSystem::OnBattleFlow_BattleStart(System* s) {
     sf4e::battlePause.StartBattle();
+    sf4e::replayplayback::StartBattle(s);
     StressOpenBattle();
     if (nNextBattleStartFlowTarget > -1) {
         rSystem::staticMethods.SetBattleFlow(s, nNextBattleStartFlowTarget);

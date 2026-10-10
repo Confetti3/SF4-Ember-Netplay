@@ -4131,6 +4131,45 @@ msgstr "Oglądaj z miernikiem klatek"
 msgid "replays.watch_meter_detail"
 msgstr "Odtwarza powtórkę z Battle Log z miernikiem klatek nad walką."
 
+msgid "replays.controls.play"
+msgstr "Odtwórz"
+
+msgid "replays.controls.pause"
+msgstr "Pauza"
+
+msgid "replays.controls.paused"
+msgstr "Wstrzymano"
+
+msgid "replays.controls.step"
+msgstr "Krok"
+
+msgid "replays.controls.speed"
+msgstr "Prędkość"
+
+msgid "replays.controls.speed_full"
+msgstr "1x"
+
+msgid "replays.controls.speed_half"
+msgstr "1/2x"
+
+msgid "replays.controls.speed_quarter"
+msgstr "1/4x"
+
+msgid "replays.controls.inputs"
+msgstr "Wejścia"
+
+msgid "replays.controls.meter"
+msgstr "Miernik"
+
+msgid "replays.controls.round"
+msgstr "Runda {0}"
+
+msgid "replays.controls.frame"
+msgstr "Klatka {0}"
+
+msgid "replays.controls.unavailable"
+msgstr "Sterowanie działa w trakcie walki"
+
 msgid "room.training"
 msgstr "Czekaj w treningu"
 

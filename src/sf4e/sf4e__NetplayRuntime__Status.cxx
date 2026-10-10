@@ -1,5 +1,6 @@
 #include "sf4e__NetplayRuntime.hxx"
 #include "sf4e__ReplayStore.hxx"
+#include "sf4e__ReplayPlayback.hxx"
 
 namespace sf4e { namespace NetplayFacade {
 namespace internal {
@@ -395,7 +396,10 @@ PostPublishState Publish() {
 	snapshot.replays.logOpens = replays.logOpens; snapshot.replays.returns = replays.returns;
 	snapshot.replays.link = runtime->replayLinkAsked;
 	snapshot.replays.captionShown = replays.captionShown;
-	snapshot.replays.meterShown = replaystore::MeterWanted();
+	replayplayback::Tick(snapshot.inputDevice.type, snapshot.inputDevice.index, snapshot.inputDevice.connected);
+	snapshot.replays.playback = replayplayback::GetView();
+	snapshot.replays.meterShown = snapshot.replays.playback.playback && snapshot.replays.playback.meter;
+	if (snapshot.replays.playback.playback) snapshot.replays.lanes = replayplayback::GetLanes();
 	if (replays.captionShown) snapshot.replays.caption = replays.caption;
 	snapshot.replays.archive = platform::replays::LatestListing();
 	snapshot.replays.detail = platform::replays::LatestDetail();

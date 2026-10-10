@@ -61,6 +61,9 @@ bool Exporting();
 // The replay that is playing was asked for with the frame meter: each of its
 // frames is then shown to the meter (sf4e__Game__Battle__System.cxx).
 bool MeterWanted();
+// The archived file a Watch request is playing, while it plays; empty for
+// an export and for a replay the player started from the game's own list.
+const std::string& PlayingFile();
 
 // Runs a request (common/ReplayRequest.hxx: Add, Watch, Export or OpenLog). An export records from the Battle state to the log's return
 // (sf4e__ReplayCapture.hxx) and its outcome becomes the notice. Refused
