@@ -500,7 +500,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // the call's owner (common/TrainingCallInput.hxx); the banner only shows
     // its prompt while it can be pressed.
     const auto& call = snapshot.trainingCall;
-    const bool called = training.available && training.leavingIn > 0 && call.Live() && call.generation == training.generation;
+    const bool called = training.available && training.leavingIn > 0 && call.Live() && call.generation == training.generation && training.leavingCall == call.serial;
     const bool offerGoNow = called && focused && !presentation.Visible() && !nativePaused;
     if (called) trainingOpen = false;
     // Training's keys and pad stay off during any replay, an export's too.

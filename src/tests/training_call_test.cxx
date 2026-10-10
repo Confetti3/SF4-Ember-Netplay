@@ -158,6 +158,11 @@ int main() {
 		CHECK(call.Update(room, in, 48) == Step::Call);
 		const auto second = call.Identity();
 		CHECK(second.Live() && second.opponent == 5 && second != first);
+		// The same opponent getting up and sitting down again is a new call,
+		// with its own serial and so its own countdown.
+		room.tables[1].p1 = 0; call.Update(room, in, 50);
+		room.tables[1].p1 = 5;
+		CHECK(call.Update(room, in, 52) == Step::Call && call.Identity().opponent == 5 && call.Identity().serial != second.serial && call.Identity() != second);
 		// Replaced in one step: the call is the new opponent's at once.
 		room.tables[1].p1 = 6;
 		CHECK(call.Update(room, in, 64) == Step::Call && call.Identity().opponent == 6 && call.Identity() != second);

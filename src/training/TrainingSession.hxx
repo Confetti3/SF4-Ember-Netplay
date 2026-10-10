@@ -159,6 +159,8 @@ struct Command {
     // after the announcer's call and a banner; the call's volume in percent, 0 for none.
     // LeaveNow: the player chose not to wait out that banner (LeaveCountdown::Hurry).
     // Stay: the call ended before the battle left, so it does not leave (LeaveCountdown::Cancel).
+    // call: for those three, the call's serial (input::CallIdentity::serial).
+    std::uint64_t call = 0;
     int volume = 0;
     // DummyState: the settings to change.
     DummyState dummy;
@@ -187,25 +189,29 @@ private:
     std::array<Ack, 8> acks_{};
 };
 // The frames a called player's battle has left before it goes back to the
-// main menu (Action::Leave). Go now (Action::LeaveNow) only shortens the same
-// count, so a battle leaves by one path, once, whichever ended the wait.
+// main menu (Action::Leave). The count belongs to one call (its serial, from
+// the room's call owner): go now (Action::LeaveNow) only shortens that call's
+// count, and staying (Action::Stay) only ends it, so a battle leaves by one
+// path, once, whichever ended the wait. Another call's Leave replaces the
+// count whole, hurry and all: the new call starts its own.
 class LeaveCountdown {
 public:
-    // False while a count is already running.
-    bool Start(int frames) {
-        if (left_ || frames < 1) return false;
-        left_ = frames; return true;
+    // False while this call's count is already running.
+    bool Start(int frames, std::uint64_t call) {
+        if (frames < 1 || (left_ && call_ == call)) return false;
+        left_ = frames; call_ = call; return true;
     }
-    // Go now: the next tick that may leave does. False when nothing is
-    // counting (none started, or it already went) or it is already that tick.
-    bool Hurry() {
-        if (left_ <= 1) return false;
+    // Go now for call: the next tick that may leave does. False for another
+    // call, when nothing is counting (none started, or it already went) or
+    // when it is already that tick.
+    bool Hurry(std::uint64_t call) {
+        if (call != call_ || left_ <= 1) return false;
         left_ = 1; return true;
     }
-    // The call it counted for is gone: the battle stays. False once the
+    // call is gone: the battle stays. False for another call, once the
     // battle has been told to leave, or when nothing is counting.
-    bool Cancel() {
-        if (!left_) return false;
+    bool Cancel(std::uint64_t call) {
+        if (call != call_ || !left_) return false;
         left_ = 0; return true;
     }
     // Once per battle update. fighting: the fight is running, the only time
@@ -213,9 +219,12 @@ public:
     // True on the one update the battle is to be told to leave.
     bool Tick(bool fighting) { return left_ && (left_ > 1 || fighting) && !--left_; }
     int Left() const { return left_; }
-    void Reset() { left_ = 0; }
+    // The call the count is for; 0 when none was started.
+    std::uint64_t Call() const { return left_ ? call_ : 0; }
+    void Reset() { left_ = 0; call_ = 0; }
 private:
     int left_ = 0;
+    std::uint64_t call_ = 0;
 };
 struct View {
     bool available = false, ready = false, checkpoint = false, loop = true;
@@ -228,6 +237,8 @@ struct View {
     // The battle has been told to leave for the main menu: a challenger is
     // waiting. Frames left before it goes, 0 when it was not.
     int leavingIn = 0;
+    // The call the countdown is for (LeaveCountdown::Call), 0 when none.
+    std::uint64_t leavingCall = 0;
     Mode mode = Mode::Idle;
     int selected = 0, cursor = 0, playbackSide = 1;
     std::array<int, SlotCount + 1> lengths{};

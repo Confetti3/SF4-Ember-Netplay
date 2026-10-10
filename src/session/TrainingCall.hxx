@@ -59,7 +59,7 @@ public:
         case State::Idle:
             if (!in.inTraining) return Step::None;
             state_ = State::Called; table_ = at->id; opponent_ = opponent; sinceMs_ = nowMs;
-            roomEpoch_ = room.roomEpoch; generation_ = in.generation;
+            roomEpoch_ = room.roomEpoch; generation_ = in.generation; serial_ = ++calls_;
             return Step::Call;
         case State::Called:
             if (in.atMainMenu) { state_ = State::Window; sinceMs_ = nowMs; readied_ = false; return Step::Open; }
@@ -84,10 +84,10 @@ public:
     input::CallIdentity Identity() const {
         input::CallIdentity call;
         if (state_ != State::Called) return call;
-        call.roomEpoch = roomEpoch_; call.table = table_; call.opponent = opponent_; call.generation = generation_;
+        call.roomEpoch = roomEpoch_; call.table = table_; call.opponent = opponent_; call.generation = generation_; call.serial = serial_;
         return call;
     }
-    void Reset() { state_ = State::Idle; table_ = NoTable; opponent_ = 0; sinceMs_ = 0; readied_ = false; roomEpoch_ = 0; generation_ = 0; }
+    void Reset() { state_ = State::Idle; table_ = NoTable; opponent_ = 0; sinceMs_ = 0; readied_ = false; roomEpoch_ = 0; generation_ = 0; serial_ = 0; }
 private:
     enum class State : std::uint8_t { Idle, Called, Window };
     static constexpr std::uint8_t NoTable = 0xff;
@@ -102,6 +102,9 @@ private:
     std::uint8_t table_ = NoTable;
     MemberId opponent_ = 0;
     std::uint64_t roomEpoch_ = 0, generation_ = 0;
+    // Each call has its own number, never reused: serial_ is the standing
+    // call's, calls_ the last given.
+    std::uint64_t serial_ = 0, calls_ = 0;
     std::uint64_t sinceMs_ = 0;
     bool readied_ = false;
 };

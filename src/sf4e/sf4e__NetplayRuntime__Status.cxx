@@ -292,7 +292,7 @@ std::uint64_t PublishFingerprint() {
     mix(runtime->readyIntent.Armed()); mix(runtime->readyFailureSequence);
     mix(runtime->opponentChangeSequence); mix(static_cast<std::uint64_t>(runtime->opponentFighterWatch.Pending() + 1));
     mix(runtime->trainingCallSequence); mix(runtime->trainingReadySequence); mix((runtime->trainingCall.Remaining(GetTickCount64()) + 999) / 1000);
-    { const auto call = runtime->trainingCall.Identity(); mix(call.roomEpoch); mix(call.opponent); mix(call.generation); mix(call.table); }
+    { const auto call = runtime->trainingCall.Identity(); mix(call.roomEpoch); mix(call.opponent); mix(call.generation); mix(call.table); mix(call.serial); }
     mix(runtime->recoveringMatch); mix(OverlayPrefs::PersistencePending()); mixString(OverlayPrefs::PersistenceError());
     mix(runtime->services.Snapshot().pending); mixString(runtime->discordStatusId); mix(runtime->discordInvite.Revision());
     for (const auto& preference : netplay::BoolPreferences) mix(runtime->preferences.*preference.member);

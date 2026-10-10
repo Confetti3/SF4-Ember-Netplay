@@ -84,14 +84,22 @@ of its own: see "In Training, as the room shows it" below.
   whichever ended the wait (`TrainingSessionTest`); `Action::Stay` cancels
   it when the call ends first.
 - **The call** is `room::TrainingCall`, whose `Identity()` (room epoch,
-  table, opponent and the Training battle) is the one account of it. The
-  runtime offers it to go now's gate (`TrainingCallInput.hxx`) each tick and
-  publishes it in the snapshot; the banner and go now's prompt are drawn only
-  for it. Enter (in the window procedure) and View (in the pad gesture) are
+  table, opponent, the Training battle and a serial no other call shares) is
+  the one account of it, published in the snapshot. Its lifecycle runs in one
+  order each tick (`TrainingCallInput.hxx: CallLifecycle`): a call that ended
+  or was replaced by another (a new opponent, another room) has its countdown
+  ended; the standing call's countdown is started, and the countdown belongs
+  to that call's serial, so a replacement starts a whole one of its own and
+  never inherits the old call's go now; only once that start is queued, and
+  only while the battle the call was sent to still runs in Training (not
+  leaving, not closed, not a later battle), is the call offered to go now's
+  gate. Enter (in the window procedure) and View (in the pad gesture) are
   taken for go now where they arrive, only while nobody else has the press,
-  and each taken press is a request tagged with the call. The runtime carries
-  out a request only for the call that still stands (`ControllerNavigationTest`,
-  `Win32CursorTest`, `TrainingCallTest`).
+  and each taken press is a request tagged with the call. A request goes now
+  only for the call still offered, and `LeaveNow` reaches only that call's
+  countdown. The banner shows only while the countdown is the call's
+  (`ControllerNavigationTest`, `Win32CursorTest`, `TrainingCallTest`,
+  `TrainingSessionTest`).
 - **Entering Training from the room** uses `fMainMenu::RequestTraining`, the
   same request the Home row makes, without the `StartOffline` command that row
   rides on: that command ends the room.

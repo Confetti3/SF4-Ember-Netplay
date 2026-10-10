@@ -186,21 +186,21 @@ static bool Dispatch(Native* system, const Command& command) {
     case Action::Place: return PlaceFighters(system, command.place);
     case Action::DummyPlan: dummyPlan = command.plan; return true;
     case Action::Leave: {
-        // Once per battle.
-        if (!leaving.Start(LeaveFrames)) return false;
+        // Once per call: another call's Leave starts its own count.
+        if (!leaving.Start(LeaveFrames, command.call)) return false;
         const bool called = command.volume > 0 && Dimps::Sound::PlaySystemCue(Dimps::Sound::SystemCue::HereComesChallenger,
             Dimps::Sound::SystemChannel::Voice, command.volume / 100.f);
-        spdlog::info("Training: leaving for the main menu in {} frames; challenger call {}", LeaveFrames, called ? "played" : "not played");
+        spdlog::info("Training: leaving for the main menu in {} frames for call {}; challenger call {}", LeaveFrames, command.call, called ? "played" : "not played");
         return true;
     }
     case Action::LeaveNow: {
         // The countdown below then leaves as it would have at its end.
-        const bool hurried = leaving.Hurry();
+        const bool hurried = leaving.Hurry(command.call);
         if (hurried) spdlog::info("Training: the player chose to go now");
         return hurried;
     }
     case Action::Stay: {
-        const bool stayed = leaving.Cancel();
+        const bool stayed = leaving.Cancel(command.call);
         if (stayed) spdlog::info("Training: the call ended before the battle left; it stays");
         return stayed;
     }
@@ -413,7 +413,7 @@ void AfterUpdate(Native* system) {
     std::lock_guard<std::mutex> lock(mutex); published = session.GetView(); published.meter = meter.View();
     if (published.available) published.dummy = ReadDummyState(published.dummy);
     published.exportId = exportId; published.exportedSlot = exportedSlot; published.exported = exported;
-    published.leavingIn = leaving.Left();
+    published.leavingIn = leaving.Left(); published.leavingCall = leaving.Call();
     published.acks=acks;
 }
 void SetMatchPractice(bool enabled) { matchPractice = enabled; }

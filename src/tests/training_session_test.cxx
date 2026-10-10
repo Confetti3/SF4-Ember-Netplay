@@ -314,41 +314,56 @@ int main() {
                 return fired;
             };
             LeaveCountdown timer;
-            Require(!timer.Hurry() && timer.Left() == 0, "Go now did something with no call");
-            Require(timer.Start(120) && !timer.Start(120), "A second call restarted the countdown");
+            Require(!timer.Hurry(7) && timer.Left() == 0, "Go now did something with no call");
+            Require(timer.Start(120, 7) && !timer.Start(120, 7), "A second call restarted the countdown");
             Require(leaves(timer, 300) == 1 && timer.Left() == 0, "The banner did not end in exactly one leave");
-            Require(!timer.Hurry() && leaves(timer, 10) == 0, "Go now after the battle was told to leave left it again");
+            Require(!timer.Hurry(7) && leaves(timer, 10) == 0, "Go now after the battle was told to leave left it again");
             LeaveCountdown early;
-            early.Start(120);
+            early.Start(120, 7);
             int fired = 0, firedAt = -1;
             for (int frame = 0; frame < 300; ++frame) {
-                if (frame == 30) Require(early.Hurry(), "Go now during the banner was refused");
-                if (frame == 31) Require(!early.Hurry(), "A second go now was taken as another");
+                if (frame == 30) Require(early.Hurry(7), "Go now during the banner was refused");
+                if (frame == 31) Require(!early.Hurry(7), "A second go now was taken as another");
                 if (early.Tick(true)) { ++fired; firedAt = frame; }
             }
             Require(fired == 1 && firedAt == 30, "Go now did not leave once, at once");
             // The timer's own rule holds for go now: the battle is only told to
             // leave from a running fight, as the pause menu's exit is.
             LeaveCountdown intro;
-            intro.Start(120);
-            Require(intro.Hurry() && !intro.Tick(false) && !intro.Tick(false) && intro.Left() == 1, "Go now left a fight that was not running");
+            intro.Start(120, 7);
+            Require(intro.Hurry(7) && !intro.Tick(false) && !intro.Tick(false) && intro.Left() == 1, "Go now left a fight that was not running");
             Require(intro.Tick(true) && !intro.Tick(true), "Go now did not leave once the fight ran");
             // The battle closing forgets a call that never went.
             LeaveCountdown closed;
-            closed.Start(120); closed.Reset();
-            Require(!closed.Hurry() && leaves(closed, 200) == 0 && closed.Start(120), "A closed battle kept its call");
+            closed.Start(120, 7); closed.Reset();
+            Require(!closed.Hurry(7) && leaves(closed, 200) == 0 && closed.Start(120, 7), "A closed battle kept its call");
             // The call ends before the battle left (the opponent got up): the
             // battle stays, and go now has nothing left to hurry.
             LeaveCountdown ended;
-            Require(!ended.Cancel(), "Staying did something with no call");
-            ended.Start(120); leaves(ended, 40);
-            Require(ended.Cancel() && ended.Left() == 0 && !ended.Hurry() && leaves(ended, 200) == 0, "A battle whose call ended still left");
+            Require(!ended.Cancel(7), "Staying did something with no call");
+            ended.Start(120, 7); leaves(ended, 40);
+            Require(ended.Cancel(7) && ended.Left() == 0 && !ended.Hurry(7) && leaves(ended, 200) == 0, "A battle whose call ended still left");
             // Once it has been told to leave, the call ending changes nothing.
-            ended.Start(120); leaves(ended, 120);
-            Require(!ended.Cancel(), "A battle told to leave was taken as staying");
+            ended.Start(120, 7); leaves(ended, 120);
+            Require(!ended.Cancel(7), "A battle told to leave was taken as staying");
             // Hurried by go now and not yet able to leave (the fight is not running): it can still stay.
-            ended.Reset(); ended.Start(120); ended.Hurry();
-            Require(!ended.Tick(false) && ended.Cancel() && !ended.Tick(true), "A hurried battle whose call ended still left");
+            ended.Reset(); ended.Start(120, 7); ended.Hurry(7);
+            Require(!ended.Tick(false) && ended.Cancel(7) && !ended.Tick(true), "A hurried battle whose call ended still left");
+            // The count is its call's. Another call (a new opponent, another
+            // room) replaces it whole: an ordinary count starts over, a count
+            // hurried by the earlier call's go now loses that hurry, and that
+            // call's go now and stay no longer reach it.
+            for (const bool hurried : {false, true}) {
+                LeaveCountdown replaced;
+                replaced.Start(120, 7); leaves(replaced, 30);
+                if (hurried) { Require(replaced.Hurry(7) && !replaced.Tick(false), "The first call's go now was refused"); }
+                Require(replaced.Start(120, 8) && replaced.Left() == 120 && replaced.Call() == 8, "A replacement call did not start its own count");
+                Require(!replaced.Tick(true) && !replaced.Hurry(7) && !replaced.Cancel(7), "The replaced call still reached the new count");
+                Require(replaced.Left() == 119 && leaves(replaced, 300) == 1, "The new call's count did not run its own length");
+            }
+            LeaveCountdown own;
+            own.Start(120, 8);
+            Require(!own.Hurry(7) && own.Left() == 120 && own.Hurry(8) && own.Left() == 1, "Go now reached a count that is not its call's");
         }
 
         FrameMeter meter;
