@@ -3606,7 +3606,7 @@ msgid "identity.local_passphrase"
 msgstr "Heslo pro tento počítač"
 
 msgid "identity.local_passphrase_detail"
-msgstr "Wine a Proton nemohou používat ochranu klíčů Windows, proto váš klíč chrání heslo. Zadáte ho jednou při každém spuštění hry."
+msgstr "Wine a Proton (například na Steam Decku) nemohou používat běžnou ochranu klíčů, proto váš klíč chrání heslo. Zadáte ho jednou při každém spuštění hry."
 
 msgid "identity.repeat_passphrase"
 msgstr "Zopakujte heslo"
@@ -3628,6 +3628,9 @@ msgstr "Vytvořit Ember ID"
 
 msgid "identity.enable_detail"
 msgstr "Vytvoří váš klíč v tomto počítači. Použít ho může jen tento účet Windows."
+
+msgid "identity.enable_passphrase_detail"
+msgstr "Vytvoří váš klíč v tomto počítači, chráněný heslem výše."
 
 msgid "identity.leave_room"
 msgstr "Pro změnu Ember ID opusťte místnost a vraťte se do hlavní nabídky."
