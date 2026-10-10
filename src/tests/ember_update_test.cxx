@@ -201,6 +201,11 @@ int main(int argc, char** argv) {
         CHECK(PlainReleaseNotes("\\`not code\\` *x*") == "`not code` x");
         CHECK(PlainReleaseNotes("A <!-- opened\n```\ncode -->\n```\nB") == "A <!-- opened\ncode -->\nB");
         CHECK(PlainReleaseNotes("One <!-- across\ntwo --> three\nFour") == "One\nthree\nFour");
+        // A comment that never closes is text from its opener to the next
+        // fence or the end: no tag, emphasis or list mark in it is read.
+        CHECK(PlainReleaseNotes("Keep <!-- <b>literal</b> *x* [y](z)") == "Keep <!-- <b>literal</b> *x* [y](z)");
+        CHECK(PlainReleaseNotes("a *em* <!-- <i>one</i>\n- **two**\n# three\n```\ncode\n```\nafter *em*") ==
+            "a em <!-- <i>one</i>\n- **two**\n# three\ncode\nafter em");
         // A heading's closing hashes go only apart from its words.
         CHECK(PlainReleaseNotes("## C#") == "C#" && PlainReleaseNotes("## C# ##") == "C#" && PlainReleaseNotes("### Fixes ###") == "Fixes" &&
             PlainReleaseNotes("# F# and C#") == "F# and C#");

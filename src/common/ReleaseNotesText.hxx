@@ -79,19 +79,15 @@ inline std::size_t EmphasisClose(const std::string& s,std::size_t at,std::size_t
     }
     return std::string::npos;
 }
-// Inline Markdown as the words it shows: emphasis and code marks go, a link
-// or an image reads as its text, HTML tags go and a few entities are spelled out.
+// Inline Markdown as the words it shows: emphasis marks go, a link or an
+// image reads as its text, HTML tags go and a few entities are spelled out.
+// Code spans and every other literal span are Tokenize's: they reach this as
+// marks, which it passes through as they are.
 inline std::string Inline(const std::string& s) {
     std::string out;
     for(std::size_t i=0;i<s.size();) {
         const char c=s[i];
         if(c=='\\'&&i+1<s.size()&&Punctuation(s[i+1])){out+=s[i+1];i+=2;continue;}
-        if(c=='`') {
-            std::size_t run=0;while(i+run<s.size()&&s[i+run]=='`')++run;
-            const auto close=s.find(std::string(run,'`'),i+run);
-            if(close==std::string::npos){out.append(run,'`');i+=run;continue;}
-            out+=Trim(s.substr(i+run,close-i-run));i=close+run;continue;
-        }
         if(c=='['||(c=='!'&&i+1<s.size()&&s[i+1]=='[')) {
             const std::size_t open=c=='!'?i+1:i;
             const auto close=s.find(']',open+1);
@@ -170,8 +166,8 @@ inline bool ClosesFence(const std::string& line,const Fence& fence) {
 // which is not shown; code: a line inside a fenced block, shown as it is.
 // Otherwise text, in which every span the Markdown pass must leave alone (an
 // inline code span's contents, a backtick run that opens none, a comment
-// opener that never closes) stands as a mark, \x01, its number and \x02,
-// that Restore puts back once the pass is done.
+// that never closes, up to the next fence or the end) stands as a mark, \x01,
+// its number and \x02, that Restore puts back once the pass is done.
 struct NoteLine { std::string text; bool fence = false, code = false; };
 struct NoteTokens { std::vector<NoteLine> lines; std::vector<std::string> kept; };
 inline void Keep(NoteTokens& tokens,std::string& text,std::string span) {
@@ -184,7 +180,8 @@ inline void Keep(NoteTokens& tokens,std::string& text,std::string span) {
 // of its own length on its line. A comment closes with "-->", on its line or
 // a later one, never across a fence; it goes, leaving the lines it took
 // empty. A comment that never closes, and a backtick run that closes no
-// span, are ambiguous and stay as the text they are.
+// span, are ambiguous and stay as the text they are: the comment from its
+// opener up to the next fence, or the end, with no Markdown read in it.
 inline NoteTokens Tokenize(const std::string& s) {
     NoteTokens tokens;
     std::vector<std::string> raw;
@@ -231,7 +228,18 @@ inline NoteTokens Tokenize(const std::string& s) {
                 std::size_t closeLine=line,closeAt=text.find("-->",i+4);
                 Fence any;
                 while(closeAt==std::string::npos&&++closeLine<raw.size()&&!OpensFence(raw[closeLine],any))closeAt=raw[closeLine].find("-->");
-                if(closeAt==std::string::npos){Keep(tokens,current.text,"<!--");i+=4;continue;}
+                if(closeAt==std::string::npos) {
+                    // It never closes: from its opener to the fence that
+                    // stopped the search, or the end, every line is text as
+                    // it stands, each kept whole so no Markdown is read in it.
+                    Keep(tokens,current.text,text.substr(i));
+                    tokens.lines.push_back(std::move(current));
+                    for(std::size_t kept=line+1;kept<closeLine;++kept) {
+                        NoteLine literal;Keep(tokens,literal.text,raw[kept]);
+                        tokens.lines.push_back(std::move(literal));
+                    }
+                    line=closeLine-1;jumped=true;continue;
+                }
                 if(closeLine==line){i=closeAt+3;continue;}
                 // The lines it took are empty, and its last goes on after it.
                 tokens.lines.push_back(std::move(current));
