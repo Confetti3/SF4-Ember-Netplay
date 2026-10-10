@@ -503,6 +503,10 @@ void HomeGuides(){
   "Home does not show the ready match first");
  h.Screen("online");
  Check(h.row("identity")->detail==loc::Tf("home.identity_matches",1),"Ember ID does not count the ready match");
+ // In a room the match is not offered on Home: it is played from its own room.
+ h.view.session.room=netplay::RoomState::Joined;h.Screen("home");h.Frame();
+ Check(!h.row("home-matches"),"Home offers a tournament match while in a room");
+ h.view.session.room=netplay::RoomState::Idle;
  h.Screen("home");
  // Read again a minute later.
  const auto reads=h.played().size();h.Frame(0,3700);

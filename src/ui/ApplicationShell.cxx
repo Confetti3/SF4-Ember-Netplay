@@ -270,9 +270,10 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   if(opening)rows[0].detail=OpeningCreates(v)?loc::T("room.creating_status"):loc::T("room.joining_status");
   if(!v.controllerReady)rows.insert(rows.begin(),Row("player",loc::T("home.choose_controller"),loc::T("home.choose_controller_detail")));
   // Ember ID lives under Online play; tournament matches ready to play are
-  // still shown on Home, which leads to them. The count is in the detail: a
+  // still shown on Home, which leads to them, while no room is joined (a
+  // match is played from its own room). The count is in the detail: a
   // value beside the label leaves it too little room in longer languages.
-  if(const int ready=identity_.ReadyMatches(v))
+  if(const int ready=idle?identity_.ReadyMatches(v):0)
    rows.insert(rows.begin(),Row("home-matches",loc::T("screen.tournament_matches"),loc::Tf("home.identity_matches",ready)));
   // Back leaves a pending invitation's screen without answering it, so Home
   // keeps a way back to it until it is answered or expires.
