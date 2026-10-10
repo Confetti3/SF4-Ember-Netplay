@@ -223,7 +223,12 @@ constexpr unsigned kRepeatDelay = 18, kRepeatEvery = 6; // 300 ms, then 10 a sec
 class PadControls {
 public:
 	// Writes what this sample asks for to `out` (room for 4); the count.
-	int Sample(std::uint32_t physical, Command* out) {
+	// blocked: the game's pause menu is open, whose input the buttons are.
+	// They ask for nothing then, and what is held when it closes counts as
+	// already pressed, so neither a press made under the menu nor a held RT
+	// acts once it is gone: each needs a fresh press.
+	int Sample(std::uint32_t physical, Command* out, bool blocked = false) {
+		if (blocked) { Reset(physical); return 0; }
 		const std::uint32_t down = physical & ~previous_;
 		previous_ = physical;
 		int count = 0;

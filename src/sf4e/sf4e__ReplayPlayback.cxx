@@ -12,6 +12,7 @@
 #include "../Dimps/Dimps__Game__Battle__System.hxx"
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../platform/ReplayFiles.hxx"
+#include "../common/BattlePause.hxx"
 #include "sf4e__Game__Battle__System.hxx"
 #include "sf4e__ReplayCapture.hxx"
 #include "sf4e__ReplayStore.hxx"
@@ -228,7 +229,9 @@ void sf4e::replayplayback::Tick(int deviceType, int deviceIndex, bool connected)
 	}
 	else {
 		Command commands[4];
-		const int count = s_pad.Sample(physical, commands);
+		// Under the game's pause menu the pad asks for nothing, so no press
+		// made there waits to act once the menu closes.
+		const int count = s_pad.Sample(physical, commands, battlePause.Paused());
 		for (int i = 0; i < count; i++) Submit(commands[i], Device::Pad, s_view.session);
 	}
 

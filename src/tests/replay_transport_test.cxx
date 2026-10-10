@@ -299,6 +299,20 @@ void TestSessionQueue() {
 	CHECK(queue.Take(3).empty());
 	for (std::size_t i = 0; i < CommandQueue::kMost + 4; i++) queue.Submit(Command::Step, Device::Pad, 3);
 	CHECK(queue.Take(3).size() == CommandQueue::kMost);
+	// The game's pause menu: what the pad does under it asks for nothing, and
+	// once it closes a button held through it needs a fresh press, an RT held
+	// from under it included.
+	{
+		PadControls paused;
+		Command made[4];
+		paused.Reset(0);
+		CHECK(paused.Sample(xinput::RT, made, true) == 0 && paused.Sample(xinput::RT | xinput::RB, made, true) == 0);
+		for (unsigned i = 0; i < kRepeatDelay * 2; i++) CHECK(paused.Sample(xinput::RT | xinput::RB, made, true) == 0);
+		// The menu closes with RT and RB still down: nothing.
+		for (unsigned i = 0; i < kRepeatDelay * 2; i++) CHECK(paused.Sample(xinput::RT | xinput::RB, made) == 0);
+		// Let go and pressed again: the press acts.
+		CHECK(paused.Sample(0, made) == 0 && paused.Sample(xinput::RT, made) == 1 && made[0] == Command::Step);
+	}
 	// A held RT does not repeat into the next session: the pad starts over.
 	PadControls pad;
 	Command out[4];
