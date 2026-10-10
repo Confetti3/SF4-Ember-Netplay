@@ -61,6 +61,9 @@ ApplicationServices::ApplicationServices(std::wstring diagnosticsDirectory) : di
     launcher::ReadInstalledVersion(installed, sizeof(installed));
     state_.installedVersion = installed;
     state_.channel = launcher::ResolveUpdateChannel(UpdateChannelPreference(), installed);
+    history_ = std::make_shared<reports::ReportHistory>(reports::SentReportsPath());
+    const auto history = history_->Load();
+    state_.sentReports = history.sent; state_.sentReadable = history.readable;
     worker_ = std::thread(&ApplicationServices::Run, this);
 }
 ApplicationServices::~ApplicationServices() {
@@ -78,19 +81,45 @@ void ApplicationServices::Observe(const DiagnosticsView& diagnostics) {
     history.push_back(description);
 }
 bool ApplicationServices::Request(ServiceAction action, const DiagnosticsView& diagnostics, std::wstring target) {
+    if (action == ServiceAction::CancelReport) { Cancel(); return true; }
+    if (action == ServiceAction::SendReport || action == ServiceAction::PrepareCrashReport || action == ServiceAction::ReportCrash) return false;
     std::lock_guard<std::mutex> lock(mutex_);
+    if (stop_ || state_.pending) return false;
+    if (action == ServiceAction::PrepareProblemReport)
+        return QueueReport(action, reports::Preparation{std::nullopt, state_.channel});
     return Start(action, diagnostics, state_.channel, std::move(target));
 }
 bool ApplicationServices::SwitchUpdateChannel(launcher::UpdateChannel channel) {
     std::lock_guard<std::mutex> lock(mutex_);
     return Start(ServiceAction::SwitchUpdateChannel, {}, channel);
 }
+bool ApplicationServices::PrepareCrashReport(const reports::CrashContext& crash) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (stop_ || state_.pending) return false;
+    return QueueReport(ServiceAction::PrepareCrashReport, reports::Preparation{crash, state_.channel});
+}
+bool ApplicationServices::ReportCrash(const reports::CrashContext& crash, reports::AutomaticCrash::Consent consent) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (stop_ || state_.pending) return false;
+    return QueueReport(ServiceAction::ReportCrash, reports::AutomaticCrash{consent, crash, state_.channel});
+}
+bool ApplicationServices::SendReport(const reports::Submission& submission) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (stop_ || state_.pending) return false;
+    return QueueReport(ServiceAction::SendReport, submission);
+}
+bool ApplicationServices::QueueReport(ServiceAction action, reports::Operation operation) {
+    if (stop_ || state_.pending || !reports::ReportWorkflow::Begin(operation, state_.reporting)) return false;
+    reportOperation_ = std::move(operation);
+    return Start(action, {}, state_.channel);
+}
 bool ApplicationServices::Start(ServiceAction action, const DiagnosticsView& diagnostics, launcher::UpdateChannel channel, std::wstring target) {
     if (stop_ || state_.pending || action == ServiceAction::None) return false;
     cancelled_ = false;
     state_.updateStage = launcher::UpdateStage::Downloading; state_.stageDone = state_.stageTotal = 0;
     request_ = action; requestChannel_ = channel; diagnostics_ = diagnostics; target_ = std::move(target); state_.pending = true; state_.succeeded = false; state_.lastAction = action;
-    state_.message = action == ServiceAction::OpenCommunity ? loc::T("services.opening_community") :
+    state_.message = reportOperation_ ? state_.reporting.message :
+        action == ServiceAction::OpenCommunity ? loc::T("services.opening_community") :
         action == ServiceAction::OpenReplayFolder || action == ServiceAction::ShowReplayFile ? loc::T("services.opening_replay_folder") :
         action == ServiceAction::CheckUpdates || action == ServiceAction::SwitchUpdateChannel ? loc::T("services.checking") :
         action == ServiceAction::ExportDiagnostics ? loc::T("services.exporting") :
@@ -101,12 +130,14 @@ void ApplicationServices::Run() {
     for (;;) {
         ServiceAction action; DiagnosticsView diagnostics; ServiceSnapshot next; std::wstring target;
         launcher::UpdateChannel channel;
+        std::optional<reports::Operation> reportOperation;
         {
             std::unique_lock<std::mutex> lock(mutex_);
             wake_.wait(lock, [&] { return stop_ || request_ != ServiceAction::None; });
             if (stop_) return;
             action = request_; request_ = ServiceAction::None; channel = requestChannel_; diagnostics = diagnostics_; next = state_;
             target.swap(target_);
+            reportOperation = std::move(reportOperation_); reportOperation_.reset();
         }
         try {
             if (action == ServiceAction::SwitchUpdateChannel) {
@@ -114,7 +145,19 @@ void ApplicationServices::Run() {
                 if (SaveUpdateChannelPreference(launcher::UpdateChannelName(channel), saveError)) { next.channel = channel; action = ServiceAction::CheckUpdates; }
                 else { next.message = loc::T("common.save_failed"); next.succeeded = false; }
             }
-            if (action == ServiceAction::CheckUpdates) {
+            if (reportOperation) {
+                reports::WorkflowDependencies dependencies;
+                dependencies.history = history_;
+                // An automatic send shows as on its way once it is allowed.
+                dependencies.progress = [this](const reports::WorkflowState& reporting) {
+                    std::lock_guard<std::mutex> lock(mutex_); state_.reporting = reporting; state_.message = reporting.message;
+                };
+                next.reporting = reports::ReportWorkflow::Execute(*reportOperation, std::move(next.reporting), [&] { return cancelled_.load(); },
+                    dependencies);
+                const auto history = history_->Load();
+                next.sentReports = history.sent; next.sentReadable = history.readable;
+                next.succeeded = next.reporting.Succeeded(); next.message = next.reporting.message;
+            } else if (action == ServiceAction::CheckUpdates) {
                 next.update = launcher::CheckForUpdate(next.channel); next.succeeded = next.update.ok;
                 next.message = !next.update.ok ? next.update.error : next.update.goesBack ?
                     loc::Tf("services.go_back_available",next.update.latestVersion) : next.update.updateAvailable ?
@@ -212,7 +255,10 @@ void ApplicationServices::Run() {
                 }
             }
         } catch (...) { next.succeeded = false; next.message = loc::T("services.operation_failed"); }
-        if (cancelled_ && !next.installed) { next.succeeded = false; next.message = loc::T("services.operation_cancelled"); }
+        if (cancelled_ && !next.installed && !reportOperation) {
+            next.succeeded = false;
+            next.message = loc::T("services.operation_cancelled");
+        }
         next.pending = false;
         { std::lock_guard<std::mutex> lock(mutex_); next.connectionHistory = std::move(state_.connectionHistory); state_ = std::move(next); }
     }

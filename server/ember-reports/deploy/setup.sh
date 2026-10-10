@@ -139,8 +139,8 @@ systemctl reload nginx
 # for the exact HTTPS route, with TLS/SNI/Host intact and no proxy or DNS hop.
 healthy=0
 deadline=$((SECONDS + 10))
-while (( SECONDS < deadline )); do
-    remaining=$((deadline - SECONDS))
+# Capture once per attempt: curl treats a zero max-time as unlimited.
+while (( (remaining = deadline - SECONDS) > 0 )); do
     if [[ $(curl -sS --noproxy '*' --resolve embernetplay.link:443:127.0.0.1 \
         --connect-timeout 2 --max-time "$remaining" -o /dev/null -w '%{http_code}' \
         https://embernetplay.link/report/v1 || true) == 405 ]]; then

@@ -79,7 +79,7 @@ msgid "launcher.steam_runs_as_admin"
 msgstr "Das Spiel konnte Steam nicht erreichen, weil Steam als Administrator läuft. Beenden Sie Steam, starten Sie es normal neu und versuchen Sie es erneut. Ember als Administrator zu starten geht auch, dann werden aber keine Updates installiert."
 
 msgid "launcher.game_crashed"
-msgstr "Das Spiel ist abgestürzt. Bitte die Dateien aus %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log und sf4e-crash-*.dmp) an das SF4-Ember-Netplay-Team senden und erneut versuchen."
+msgstr "Das Spiel ist abgestürzt. Um bei der Behebung zu helfen, wählen Sie unten Diesen Bericht senden. Oder senden Sie die Dateien aus %APPDATA%\\sf4e\\logs selbst."
 
 msgid "launcher.runtime_shadowed"
 msgstr "Das Spiel würde diese Dateien statt der im Ember-Ordner laden. Eine alte Kopie verhindert den Start (\"entry point ggpo_get_last_confirmed_frame not found\"). Sie stammen von einer anderen Netplay-Mod oder älteren Installation. Verschieben oder benennen Sie sie um und starten Sie Ember erneut:\n\n{0}"
@@ -2844,6 +2844,9 @@ msgstr "Text bearbeiten"
 msgid "edit.instructions"
 msgstr "Mit der Tastatur tippen oder einfügen. Enter oder Controller-Auswahl bestätigt; Escape oder Controller-Back bricht ab."
 
+msgid "edit.instructions_multiline"
+msgstr "Mit der Tastatur schreiben oder einfügen. Enter oder Enter auf dem Ziffernblock fügt eine neue Zeile ein. Ctrl+Enter, Ctrl+Enter auf dem Ziffernblock, die Schaltfläche Annehmen oder Auswählen am Controller bestätigt; Escape oder Zurück am Controller bricht ab."
+
 msgid "edit.updating"
 msgstr "Raum wird aktualisiert. Ihr Entwurf bleibt; Sie können weitertippen oder abbrechen."
 
@@ -4286,3 +4289,189 @@ msgstr "Jetzt los"
 
 msgid "rules.round_time.practice"
 msgstr "Ein Übungskampf endet mit Ablauf der Rundenzeit. Die längste ist {0}."
+
+msgid "reports.setting"
+msgstr "Problemberichte senden"
+
+msgid "reports.setting_detail"
+msgstr "Ein: Nach einem Absturz sendet der Launcher den Bericht ohne Nachfrage, höchstens {0} pro Tag und nie mit dem Absturz-Dump. Aus: Er fragt zuerst."
+
+msgid "reports.problem"
+msgstr "Problem melden"
+
+msgid "reports.problem_detail"
+msgstr "Geschwärzte Logs und Berichtsdetails prüfen, bevor Sie entscheiden, ob sie an Ember gehen."
+
+msgid "reports.title"
+msgstr "Berichtsvorschau"
+
+msgid "reports.preparing"
+msgstr "Berichtsvorschau wird vorbereitet..."
+
+msgid "reports.preview_detail"
+msgstr "Jeden Teil vor dem Senden prüfen. Berichte gehen an embernetplay.link. Rohe Dumps werden bis zu 30 Tage aufbewahrt; verarbeitete Berichte haben eine eigene Aufbewahrungsdauer."
+
+msgid "reports.sending"
+msgstr "Bericht wird gesendet..."
+
+msgid "reports.bytes"
+msgstr "{0} Bytes"
+
+msgid "reports.metadata"
+msgstr "Berichtsdetails"
+
+msgid "reports.dump"
+msgstr "Kleiner Dump"
+
+msgid "reports.dump_detail"
+msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+
+msgid "reports.comment"
+msgstr "Kommentar"
+
+msgid "reports.comment_required"
+msgstr "Beschreiben Sie das Problem vor dem Senden (bis 2000 Zeichen). Ihr Kommentar wird unverändert gesendet."
+
+msgid "reports.comment_optional"
+msgstr "Optional: Beschreiben Sie, was passiert ist (bis 2000 Zeichen). Ihr Kommentar wird unverändert gesendet."
+
+msgid "reports.send"
+msgstr "Senden"
+
+msgid "reports.dont_send"
+msgstr "Nicht senden"
+
+msgid "reports.consent"
+msgstr "Genau die in dieser Vorschau gezeigten Teile an Ember senden, einschließlich Ihres Kommentars und des kleinen Dumps, falls aktiviert?"
+
+msgid "reports.copy_id"
+msgstr "Berichts-ID kopieren"
+
+msgid "reports.close_detail"
+msgstr "Schließt diese Vorschau. Ein vom Server bereits angenommener Upload lässt sich hier nicht zurückziehen."
+
+msgid "reports.sent"
+msgstr "Bericht angenommen. Berichts-ID: {0}"
+
+msgid "reports.invalid"
+msgstr "Dieser Bericht ist ungültig oder zu groß. Prüfen Sie den Kommentar und erstellen Sie eine neue Vorschau."
+
+msgid "reports.invalid_response"
+msgstr "Die Serverantwort enthielt keine gültige Berichts-ID. Möglicherweise hat er Ihren Bericht schon angenommen."
+
+msgid "reports.rate_limited"
+msgstr "Zu viele Berichte. Erneut versuchen in {0} Sekunden."
+
+msgid "reports.unavailable"
+msgstr "Berichte derzeit nicht verfügbar. Später erneut versuchen."
+
+msgid "reports.failed"
+msgstr "Bericht konnte nicht gesendet werden. Verbindung prüfen und erneut versuchen."
+
+msgid "reports.cancelled"
+msgstr "Berichts-Upload abgebrochen. Ein vom Server schon angenommener Bericht bleibt evtl. gespeichert."
+
+msgid "reports.dump_warning"
+msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+
+msgid "launcher.game_crashed_files"
+msgstr "Das Spiel ist abgestürzt. Bitte die Dateien aus %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log und sf4e-crash-*.dmp) an das SF4-Ember-Netplay-Team senden und erneut versuchen."
+
+msgid "launcher.game_crashed_sending"
+msgstr "Das Spiel ist abgestürzt. Problemberichte senden ist eingeschaltet, daher wird ein Bericht ohne Absturz-Dump gesendet. Die Dateien liegen auch in %APPDATA%\\sf4e\\logs."
+
+msgid "reports.settings_title"
+msgstr "Problemberichte"
+
+msgid "reports.settings_detail"
+msgstr "Was ein Absturzbericht enthält, und die gesendeten Berichte."
+
+msgid "reports.sent_list"
+msgstr "Gesendete Berichte"
+
+msgid "reports.sent_list_detail"
+msgstr "Jeder Bericht, den dieser PC gesendet hat: wann, mit welchem Ergebnis und seine Bericht-ID."
+
+msgid "reports.none"
+msgstr "Noch keine Berichte"
+
+msgid "reports.none_detail"
+msgstr "Berichte, die dieser PC sendet, erscheinen hier."
+
+msgid "reports.send_once"
+msgstr "Diesen Bericht senden"
+
+msgid "reports.send_always"
+msgstr "Immer senden"
+
+msgid "reports.send_always_detail"
+msgstr "Sendet diesen Bericht und ab jetzt den Bericht jedes weiteren Absturzes ohne Nachfrage. Ohne Nachfrage gesendete Berichte enthalten nie einen Dump. Höchstens {0} gehen in 24 Stunden ohne Nachfrage raus, und jeder gesendete Bericht zählt mit. Abschalten unter Einstellungen, Problemberichte."
+
+msgid "reports.dump_included"
+msgstr "Absturz-Dump: enthalten."
+
+msgid "reports.dump_not_included"
+msgstr "Absturz-Dump: nicht enthalten."
+
+msgid "reports.row"
+msgstr "Problembericht"
+
+msgid "reports.status.sending"
+msgstr "Wird gesendet"
+
+msgid "reports.status.received"
+msgstr "Empfangen"
+
+msgid "reports.status.refused"
+msgstr "Nicht angenommen"
+
+msgid "reports.status.not_sent"
+msgstr "Nicht gesendet"
+
+msgid "reports.received"
+msgstr "Der Bericht wurde empfangen."
+
+msgid "reports.received_id"
+msgstr "Der Bericht wurde empfangen. Seine ID ist {0}. Geben Sie sie an, wenn Sie das Ember-Team zu diesem Absturz fragen."
+
+msgid "reports.refused"
+msgstr "Der Berichtsdienst hat den Bericht nicht angenommen. Er wird nicht erneut gesendet."
+
+msgid "reports.not_sent"
+msgstr "Der Bericht konnte nicht gesendet werden. Er wird nicht erneut gesendet."
+
+msgid "reports.what_is_sent"
+msgstr "Einladungen, Tokens, Netzwerkadressen, E-Mail sowie Ihr Windows-Benutzername, Profilordner, PC-Name und Spielername werden aus den Logs entfernt.\n\nEinen selbst gesendeten Bericht sehen Sie zuerst vollständig; der kleine Dump geht nur mit, wenn Sie ihn in dieser Vorschau einschalten. Ohne Nachfrage gesendete Berichte enthalten nie einen Dump.\n\nNie gesendet werden: Ihre anderen Dateien, Ihre Replays oder die vollständigen Absturz-Dumps."
+
+msgid "reports.send_once_detail"
+msgstr "Öffnet eine Vorschau genau dessen, was dieser Bericht enthält. Nichts wird gesendet, bis Sie Senden wählen."
+
+msgid "reports.crash_report"
+msgstr "Absturzbericht"
+
+msgid "reports.payload"
+msgstr "Berichte gehen an embernetplay.link. Jeder enthält die Ember-Version und den Build, die Windows-Version, die Absturzdaten und geschwärzte Enden von sf4e.log, launcher.log, sf4e-crash.log und sf4-net.log."
+
+msgid "reports.status.unknown"
+msgstr "Unbekannt"
+
+msgid "reports.interrupted"
+msgstr "Das Senden wurde vor einer Antwort unterbrochen. Der Berichtsdienst hat den Bericht möglicherweise empfangen."
+
+msgid "reports.identity_failed"
+msgstr "Ihr Spielername oder Ihr Windows-Konto konnte nicht gelesen werden, daher wurde der Bericht nicht erstellt. Erneut versuchen."
+
+msgid "reports.history_failed"
+msgstr "Der Verlauf gesendeter Berichte wurde nicht gespeichert, daher wurde der Bericht nicht gesendet. Erneut versuchen."
+
+msgid "reports.history_unreadable"
+msgstr "Verlauf unlesbar"
+
+msgid "reports.history_unreadable_detail"
+msgstr "Die Datei sent-reports.json in %APPDATA%\\sf4e kann nicht gelesen werden, daher wird kein Bericht ohne Nachfrage gesendet. Löschen Sie die Datei für einen neuen Verlauf."
+
+msgid "reports.always_failed"
+msgstr "Immer senden ließ sich nicht einschalten, daher wurde dieser Bericht nicht gesendet. Wählen Sie Diesen Bericht senden, um ihn aus der Vorschau zu senden."
+
+msgid "reports.automatic_unavailable"
+msgstr "Die automatischen Berichte für heute sind aufgebraucht oder der Verlauf ist unlesbar, daher wurde dieser Bericht nicht gesendet. Wählen Sie Diesen Bericht senden, um ihn aus der Vorschau zu senden."

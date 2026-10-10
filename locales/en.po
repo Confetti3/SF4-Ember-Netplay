@@ -79,7 +79,7 @@ msgid "launcher.steam_runs_as_admin"
 msgstr "The game could not reach Steam because Steam is running as administrator. Close Steam, start it again normally, then retry. Starting Ember as administrator also works, but updates will not install that way."
 
 msgid "launcher.game_crashed"
-msgstr "The game crashed. Please send the files in %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log and sf4e-crash-*.dmp) to the SF4 Ember Netplay team, then retry."
+msgstr "The game crashed. To help fix it, choose Send this report below. Or send the files in %APPDATA%\\sf4e\\logs yourself."
 
 msgid "launcher.runtime_shadowed"
 msgstr "The game would load these files instead of the ones in the Ember folder, and an old copy stops the game before it starts (\"entry point ggpo_get_last_confirmed_frame not found\"). They were left by another netplay mod or an older install. Move or rename them, then start Ember again:\n\n{0}"
@@ -2587,6 +2587,9 @@ msgid "edit.title"
 msgstr "Edit text"
 msgid "edit.instructions"
 msgstr "Type or paste with the keyboard. Enter or controller Select accepts; Escape or controller Back cancels."
+msgid "edit.instructions_multiline"
+msgstr "Type or paste with the keyboard. Enter or keypad Enter adds a newline. Ctrl+Enter, Ctrl+keypad Enter, the Accept button or controller Select accepts; Escape or controller Back cancels."
+
 msgid "edit.updating"
 msgstr "Updating room. Your draft is kept; you can continue typing or cancel."
 msgid "common.accept"
@@ -3949,3 +3952,189 @@ msgstr "Go now"
 
 msgid "rules.round_time.practice"
 msgstr "A Practice match ends when its round time runs out. The longest is {0}."
+
+msgid "reports.setting"
+msgstr "Send problem reports"
+
+msgid "reports.setting_detail"
+msgstr "On: after a crash, the launcher sends its report without asking, at most {0} a day, and never with the crash dump. Off: it asks first."
+
+msgid "reports.problem"
+msgstr "Report a problem"
+
+msgid "reports.problem_detail"
+msgstr "Review redacted logs and report details before choosing whether to send them to Ember."
+
+msgid "reports.title"
+msgstr "Report preview"
+
+msgid "reports.preparing"
+msgstr "Preparing a report preview..."
+
+msgid "reports.preview_detail"
+msgstr "Review each part before sending. Reports go to embernetplay.link. Raw dumps are kept for up to 30 days; processed reports have separate retention."
+
+msgid "reports.sending"
+msgstr "Sending your report..."
+
+msgid "reports.bytes"
+msgstr "{0} bytes"
+
+msgid "reports.metadata"
+msgstr "Report details"
+
+msgid "reports.dump"
+msgstr "Small dump"
+
+msgid "reports.dump_detail"
+msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+
+msgid "reports.comment"
+msgstr "Comment"
+
+msgid "reports.comment_required"
+msgstr "Describe the problem before sending (up to 2000 characters). Your comment is sent as written."
+
+msgid "reports.comment_optional"
+msgstr "Optional: describe what happened (up to 2000 characters). Your comment is sent as written."
+
+msgid "reports.send"
+msgstr "Send"
+
+msgid "reports.dont_send"
+msgstr "Don't send"
+
+msgid "reports.consent"
+msgstr "Send exactly the parts shown in this preview to Ember, including your comment and the small dump if enabled?"
+
+msgid "reports.copy_id"
+msgstr "Copy report ID"
+
+msgid "reports.close_detail"
+msgstr "Close this preview. An upload already accepted by the server cannot be withdrawn here."
+
+msgid "reports.sent"
+msgstr "Report accepted. Report ID: {0}"
+
+msgid "reports.invalid"
+msgstr "This report is invalid or too large. Check the comment and try preparing another preview."
+
+msgid "reports.invalid_response"
+msgstr "The server response did not include a valid report ID. It may already have accepted your report."
+
+msgid "reports.rate_limited"
+msgstr "Too many reports. Try again in {0} seconds."
+
+msgid "reports.unavailable"
+msgstr "Reporting is temporarily unavailable. Try again later."
+
+msgid "reports.failed"
+msgstr "The report could not be sent. Check your connection and try again."
+
+msgid "reports.cancelled"
+msgstr "Report upload cancelled. A report already accepted by the server may still be kept."
+
+msgid "reports.dump_warning"
+msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+
+msgid "launcher.game_crashed_files"
+msgstr "The game crashed. Please send the files in %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log and sf4e-crash-*.dmp) to the SF4 Ember Netplay team, then retry."
+
+msgid "launcher.game_crashed_sending"
+msgstr "The game crashed. Send problem reports is on, so a report without the crash dump is being sent. The files are also in %APPDATA%\\sf4e\\logs."
+
+msgid "reports.settings_title"
+msgstr "Problem reports"
+
+msgid "reports.settings_detail"
+msgstr "What a crash report holds, and the reports sent."
+
+msgid "reports.sent_list"
+msgstr "Sent reports"
+
+msgid "reports.sent_list_detail"
+msgstr "Each report this PC sent: when, how it went, and its report ID."
+
+msgid "reports.none"
+msgstr "No reports yet"
+
+msgid "reports.none_detail"
+msgstr "Reports this PC sends are listed here."
+
+msgid "reports.send_once"
+msgstr "Send this report"
+
+msgid "reports.send_always"
+msgstr "Always send"
+
+msgid "reports.send_always_detail"
+msgstr "Send this report now and each later crash's report without asking. Reports sent without asking never include a dump. At most {0} go without asking in 24 hours, and every report sent counts toward that. Turn this off in Settings > Problem reports."
+
+msgid "reports.dump_included"
+msgstr "Crash dump: included."
+
+msgid "reports.dump_not_included"
+msgstr "Crash dump: not included."
+
+msgid "reports.row"
+msgstr "Problem report"
+
+msgid "reports.status.sending"
+msgstr "Sending"
+
+msgid "reports.status.received"
+msgstr "Received"
+
+msgid "reports.status.refused"
+msgstr "Not accepted"
+
+msgid "reports.status.not_sent"
+msgstr "Not sent"
+
+msgid "reports.received"
+msgstr "The report was received."
+
+msgid "reports.received_id"
+msgstr "The report was received. Its ID is {0}. Quote it if you ask the Ember team about this crash."
+
+msgid "reports.refused"
+msgstr "The report service did not accept the report. It will not be sent again."
+
+msgid "reports.not_sent"
+msgstr "The report could not be sent. It will not be sent again."
+
+msgid "reports.what_is_sent"
+msgstr "Invitations, tokens, network addresses, email, and your Windows user name, profile folder, PC name and player name are taken out of the logs.\n\nA report you send yourself is shown in full first, and the small dump goes only when you turn it on in that preview. Reports sent without asking never include a dump.\n\nNever sent: your other files, your replays, or the full crash dumps."
+
+msgid "reports.send_once_detail"
+msgstr "Opens a preview of exactly what this report holds. Nothing is sent until you choose Send."
+
+msgid "reports.crash_report"
+msgstr "Crash report"
+
+msgid "reports.payload"
+msgstr "Reports go to embernetplay.link. Each holds the Ember version and build, the Windows version, the crash details, and redacted tails of sf4e.log, launcher.log, sf4e-crash.log and sf4-net.log."
+
+msgid "reports.status.unknown"
+msgstr "Unknown"
+
+msgid "reports.interrupted"
+msgstr "The send was interrupted before an answer came. The report service may have received it."
+
+msgid "reports.identity_failed"
+msgstr "Your player name or Windows account could not be read, so the report was not prepared. Try again."
+
+msgid "reports.history_failed"
+msgstr "The record of sent reports could not be saved, so the report was not sent. Try again."
+
+msgid "reports.history_unreadable"
+msgstr "Record unreadable"
+
+msgid "reports.history_unreadable_detail"
+msgstr "sent-reports.json in %APPDATA%\\sf4e cannot be read, so no report is sent without asking. Delete the file to start a new record."
+
+msgid "reports.always_failed"
+msgstr "Always send could not be turned on, so this report was not sent. Choose Send this report to send it from its preview."
+
+msgid "reports.automatic_unavailable"
+msgstr "Today's automatic reports are used up, or the record of sent reports cannot be read, so this report was not sent. Choose Send this report to send it from its preview."

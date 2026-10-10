@@ -12,6 +12,7 @@ void NoticeOverDialogs();
 void LanguageSaveFailure();
 void SessionReports();
 void RecoveryWindow();
+void ProblemReportJourneys();
 void SelectorPages();
 void SelectorFromHome();
 void DeveloperSelectors();

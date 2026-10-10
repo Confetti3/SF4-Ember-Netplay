@@ -325,6 +325,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		request.command = std::move(action.command);
         request.service = action.service; request.servicePath = std::move(action.servicePath);
         request.replay = std::move(action.replay);
+        request.reportSubmission = std::move(action.reportSubmission);
         request.inputAction = action.inputAction; request.discordAction = action.discordAction;
         request.discordRevision = action.discordRevision;
 		request.displayName = snapshot.preferences.displayName;

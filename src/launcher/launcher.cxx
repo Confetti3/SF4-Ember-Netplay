@@ -13,6 +13,7 @@
 #include <fstream>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <string>
 #include <thread>
 #include <vector>
@@ -506,10 +507,12 @@ int ShowLauncherMessage(const char* key, UINT flags) {
 
 // The recovery screen, with its selection art reporting to launcher.log. The
 // updater offers to start the game when canStart says the launch may go on.
+// `crash` offers the crash's report from the message (ui/RecoverySurface.hxx).
 bool ShowRecovery(std::string message, std::wstring& gameDirectory, bool updates = false,
-	sf4e::ui::Tone tone = sf4e::ui::Tone::Error, bool canStart = false) {
+	sf4e::ui::Tone tone = sf4e::ui::Tone::Error, bool canStart = false,
+	const std::optional<sf4e::reports::CrashContext>& crash = std::nullopt) {
 	return sf4e::ui::RunRecovery(std::move(message), gameDirectory, updates,
-		[](const std::string& line) { spdlog::warn("{}", line); }, tone, canStart);
+		[](const std::string& line) { spdlog::warn("{}", line); }, tone, canStart, crash);
 }
 
 // Lets the /j page on embernetplay.link hand a room link to Ember through
@@ -776,6 +779,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         sf4e::platform::HelperProcess helper, discord;
         const auto helperPath = std::filesystem::path(installRoot)/L"sf4-net.exe";
         sf4e::crash::DumpChannel dumps;
+        sf4e::reports::CrashContext reportCrash;
+        reportCrash.started = std::filesystem::file_time_type::clock::now();
+        // The small dump a report may carry. It stays on this PC unless the
+        // player turns it on in a report's preview.
+        dumps.reportEnabled = true;
         if (!dumps.Create()) spdlog::warn("Could not create the crash dump channel (Win32 {})", GetLastError());
         // A game started by a normal process cannot reach a Steam that runs as
         // administrator: its SteamAPI_Init fails and it exits.
@@ -805,10 +813,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         });
         dumps.Close();
         archiver.join();
-        if (g_logsDir[0]) sf4e::crash::PruneDumps(g_logsDir, 5);
+        if (g_logsDir[0]) sf4e::crash::PruneDumps(g_logsDir, 5, dumps.reportWritten.c_str());
         DWORD exitCode = 0; GetExitCodeProcess(game,&exitCode);
         spdlog::info("Game exited with code {:#010x} ({})", exitCode, sf4e::crash::ExitCodeName(exitCode));
         const bool crashed = sf4e::crash::IsCrashExit(exitCode);
+        if (crashed) {
+            reportCrash.exitCode = exitCode; reportCrash.smallDump = dumps.reportWritten;
+            if (dumps.exceptionCode) reportCrash.exceptionCode = dumps.exceptionCode;
+            if (dumps.crashAddress) reportCrash.address = dumps.crashAddress;
+        }
         if (crashed && !dumped) NoteWindowsCrashDump(GetProcessId(game));
         discord.Stop(); helper.Stop(); CloseHandle(game);
         ArchiveReplays();
@@ -816,9 +829,13 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // code is the only thing that tells a missing export from a crash.
         // With Steam above the launcher the game cannot run at all, and how it
         // exits after SteamAPI_Init fails may look like a crash, so that comes first.
+        // A crash's report reads the logs folder; without one the message
+        // only names the files.
+        const bool reportable = crashed && exitCode != 0xC0000139u && !steamAbove && g_logsDir[0];
         const char* exitMessage = exitCode == 0xC0000139u ? "launcher.game_wrong_dll" :
-            steamAbove ? "launcher.steam_runs_as_admin" : crashed ? "launcher.game_crashed" : "launcher.game_error";
-        if (exitCode != 0 && ShowRecovery(sf4e::loc::T(exitMessage),chosenDirectory)) continue;
+            steamAbove ? "launcher.steam_runs_as_admin" : crashed ? (reportable ? "launcher.game_crashed" : "launcher.game_crashed_files") : "launcher.game_error";
+        if (exitCode != 0 && ShowRecovery(sf4e::loc::T(exitMessage),chosenDirectory,false,sf4e::ui::Tone::Error,false,
+            reportable ? std::optional<sf4e::reports::CrashContext>(reportCrash) : std::nullopt)) continue;
         return 0;
     }
 }

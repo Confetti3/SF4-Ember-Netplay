@@ -132,3 +132,88 @@ void RecoveryWindow() {
  Check(choice==RecoveryChoice::Retry,"Start SF4 did not answer Retry");
  SetMenuStatusProbe({});SetMenuEntriesProbe({});
 }
+// Problem reports start off, and Left and Right save the setting; Sent reports
+// says when there are none. In the launch window a crash's report is offered
+// beside Retry without taking the focus: Send this report opens its preview,
+// and Always send goes only through a confirmation that starts on Cancel.
+void ProblemReportJourneys() {
+ using namespace sf4e;
+ // The launch window's rows come from the report worker: nothing while an
+ // automatic send is still being allowed, then on its way, then how it went.
+ {
+  platform::ServiceSnapshot worker;
+  Check(!CrashReportView(worker).asking&&!CrashReportView(worker).sending,"A window with no report shows one");
+  worker.reporting.automatic=true;worker.reporting.phase=reports::Phase::Preparing;worker.pending=true;
+  auto view=CrashReportView(worker);
+  Check(!view.asking&&!view.sending&&!view.outcome&&view.failure.empty(),"An automatic send showed before it was allowed");
+  worker.reporting.authorized=true;worker.reporting.phase=reports::Phase::Submitting;
+  Check(CrashReportView(worker).sending,"An allowed automatic send does not show it is on its way");
+  worker.pending=false;worker.reporting.phase=reports::Phase::Sent;worker.reporting.record=reports::Record{};worker.reporting.record->status=reports::Status::Received;
+  Check(CrashReportView(worker).outcome&&!CrashReportView(worker).sending,"A finished send does not say how it went");
+  worker.reporting={};worker.reporting.automatic=true;worker.reporting.offer=true;worker.reporting.phase=reports::Phase::Idle;worker.reporting.preparation=1;
+  Check(CrashReportView(worker).asking,"A report that was not allowed is not offered");
+  worker.reporting.offer=false;worker.reporting.automatic=false;worker.reporting.phase=reports::Phase::Failed;worker.reporting.message="failed";
+  Check(CrashReportView(worker).failure=="failed","A send from the preview that stopped early says nothing");
+ }
+ {
+  Harness h;h.Frame();
+  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
+  h.Choose("settings");h.Choose("problem-reports");
+  Check(h.shell.Navigation().Screen()=="problem-reports"&&rows.size()==2&&rows[0].id=="send-reports","Problem reports did not open from Settings");
+  Check(rows[0].value==loc::T("common.off")&&!h.view.preferences.sendProblemReports,"Problem reports are not off at first");
+  h.FocusOn("send-reports");h.Press(MenuInput::Right);h.Frame(0,45);
+  Check(!h.actions.empty()&&h.actions.back().command.kind==netplay::CommandKind::SavePreferences&&h.actions.back().preferences.sendProblemReports,
+   "Turning problem reports on did not save");
+  h.view.preferences=h.actions.back().preferences;h.Frame();
+  Check(rows[0].value==loc::T("common.on"),"The setting does not show it is on");
+  h.FocusOn("send-reports");h.Press(MenuInput::Left);h.Frame(0,45);
+  Check(h.actions.back().command.kind==netplay::CommandKind::SavePreferences&&!h.actions.back().preferences.sendProblemReports,"Turning problem reports off did not save");
+  h.view.preferences=h.actions.back().preferences;h.Frame();
+  h.Choose("sent-reports");
+  Check(h.shell.Navigation().Screen()=="sent-reports"&&rows.size()==1&&rows[0].id=="sent-none","Sent reports does not say there are none");
+  // Discord keeps only its own rows.
+  h.Screen("discord");h.Frame();
+  Check(std::none_of(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="crash-reports"||e.id=="send-reports";}),"Discord still holds a report setting");
+  SetMenuEntriesProbe({});
+ }
+ HeadlessImGui imgui;auto& io=imgui.io;
+ const std::string message=loc::T("launcher.game_crashed");
+ platform::ServiceSnapshot state;RecoveryReport report;report.asking=true;
+ float text=0,room=0;bool reported=false;
+ SetMenuTextProbe([&](const char* id,float t,float interior,float,float){if(!std::strcmp(id,"command-feedback")){reported=true;text=t;room=interior;}});
+ for(const float dpi:{1.f,1.5f,2.f}){
+  ApplyTheme(dpi);io.Fonts->Build();io.DisplaySize=ImVec2(924*dpi,681*dpi);
+  GameMenu menu;menu.navigation=RecoveryNavigation(false);reported=false;
+  for(int i=0;i<3;++i){ImGui::NewFrame();DrawRecoveryMenu(menu,state,message,false,Tone::Error,false,false,nullptr,report);ImGui::Render();}
+  const auto* window=ImGui::FindWindowByName("###EmberRecovery");
+  Check(reported&&window&&window->ScrollMax.y<1&&text<=room+.5f,"The crash message and its report offer overflowed the launch window");
+ }
+ SetMenuTextProbe({});ApplyTheme(1.f);io.Fonts->Build();io.DisplaySize=ImVec2(1280,960);
+ GameMenu menu;menu.navigation=RecoveryNavigation(false);
+ std::vector<RecoveryChoice> chosen;
+ const auto frame=[&](unsigned held=0){SetMenuInput({held,0});ImGui::NewFrame();
+  const auto choice=DrawRecoveryMenu(menu,state,message,false,Tone::Error,false,false,nullptr,report);if(choice!=RecoveryChoice::None)chosen.push_back(choice);ImGui::Render();};
+ frame();frame();
+ Check(menu.navigation.Focus()!="report"&&menu.navigation.Focus()!="report-always"&&chosen.empty(),"The report offer took the focus or answered by itself");
+ const auto reach=[&](const char* id){for(int i=0;i<20&&menu.navigation.Focus()!=id;++i){frame(MenuInput::Down);frame();}return menu.navigation.Focus()==id;};
+ // Send this report opens the preview at once: nothing is sent from here.
+ Check(reach("report"),"Send this report is unreachable");
+ frame(MenuInput::Select);frame();
+ Check(!menu.navigation.Confirming()&&chosen.size()==1&&chosen[0]==RecoveryChoice::Report,"Send this report did not open the preview");
+ chosen.clear();
+ Check(reach("report-always"),"Always send is unreachable");
+ frame(MenuInput::Select);frame();
+ Check(menu.navigation.Confirming()&&!menu.navigation.ConfirmSelected()&&chosen.empty(),"Always send's confirmation does not start on Cancel");
+ // Select on Cancel sends nothing.
+ frame(MenuInput::Select);frame();
+ Check(!menu.navigation.Confirming()&&chosen.empty(),"Cancel chose Always send");
+ frame(MenuInput::Select);frame();frame(MenuInput::Right);frame();frame(MenuInput::Select);frame();
+ Check(chosen.size()==1&&chosen[0]==RecoveryChoice::AlwaysSend,"Confirming did not answer Always send");
+ // Once sent, the offer is gone and one row says how it went.
+ report={};report.sending=true;state.pending=true;state.lastAction=platform::ServiceAction::SendReport;
+ std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
+ frame();frame();
+ const auto has=[&](const char* id){return std::any_of(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});};
+ Check(!has("report")&&!has("report-always")&&has("report-status"),"The offer stayed while the report was sending");
+ SetMenuEntriesProbe({});
+}

@@ -1,6 +1,7 @@
 #include "RecoverySurface.hxx"
 #include "RecoveryMenu.hxx"
 #include "RecoveryController.hxx"
+#include "ProblemReportPanel.hxx"
 #include "SelectionArt.hxx"
 #include "Theme.hxx"
 #include "../common/Localization.hxx"
@@ -69,7 +70,7 @@ bool ChooseDirectory(HWND owner, std::wstring& path) {
 }
 }
 bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates, std::function<void(const std::string&)> artLog,
-    Tone messageTone, bool canStart) {
+    Tone messageTone, bool canStart, const std::optional<reports::CrashContext>& crash) {
     const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     WNDCLASSW wc{}; wc.lpfnWndProc = WindowProc; wc.hInstance = GetModuleHandleW(nullptr);
     wc.lpszClassName = L"SF4EmberRecovery"; wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
@@ -99,6 +100,12 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
     SetMenuArt(art.get());
     ShowWindow(window, SW_SHOW); UpdateWindow(window);
     platform::ApplicationServices services;
+    // The crash's report: the worker sends it at once when the player turned
+    // reports on and it can be counted, and offers it otherwise. This window
+    // only asks and shows what the worker says.
+    ProblemReportPanel reportPanel; bool reportOpen = false;
+    const bool offerOnly = crash && !services.ReportCrash(*crash, reports::AutomaticCrash::Consent::Existing);
+    bool sendingShown = false;
     if (updates) services.Request(platform::ServiceAction::CheckUpdates);
     bool quit = false, retry = false;
     // Which of the launcher's message and the service's is the newer one: the
@@ -146,7 +153,27 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
         }
         const auto state = services.Snapshot();
         OfferFoundUpdate(menu,state,offeredVersion);
-        switch(DrawRecoveryMenu(menu,state,message,updates,messageTone,canStart,serviceNewer,&channelPick)) {
+        auto reportView = CrashReportView(state);
+        if (offerOnly && !state.reporting.preparation) reportView.asking = true;
+        // Sent without a press: the message says so, and that the dump stayed here.
+        if (state.reporting.automatic && state.reporting.authorized && !std::exchange(sendingShown, true))
+            message = loc::T("launcher.game_crashed_sending");
+        RecoveryChoice choice = RecoveryChoice::None;
+        if (reportOpen) {
+            const auto* vp=ImGui::GetMainViewport(); ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);
+            ImGui::Begin("###EmberReport",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoNavInputs);
+            const auto intent=reportPanel.Draw(state); ImGui::End();
+            if (intent.service==platform::ServiceAction::SendReport) services.SendReport(intent.submission);
+            else if (intent.service==platform::ServiceAction::CancelReport) services.Cancel();
+            if (intent.close) reportOpen=false;
+        } else choice=DrawRecoveryMenu(menu,state,message,updates,messageTone,canStart,serviceNewer,&channelPick,reportView);
+        switch(choice) {
+        case RecoveryChoice::Report:
+            if (crash && services.PrepareCrashReport(*crash)) { reportOpen=true; reportPanel.Open(services.Snapshot().reporting.preparation); }
+            break;
+        case RecoveryChoice::AlwaysSend:
+            if (crash) { serviceNewer=true; services.ReportCrash(*crash, reports::AutomaticCrash::Consent::Confirmed); }
+            break;
         case RecoveryChoice::Folder:
             // The picker blocks this loop, so the pads are disarmed before it
             // opens: a button held while it was up cannot press on return.

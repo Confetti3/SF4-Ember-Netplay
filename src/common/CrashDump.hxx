@@ -48,6 +48,16 @@ constexpr MINIDUMP_TYPE DumpType = MINIDUMP_TYPE(MiniDumpWithIndirectlyReference
 // chat and invitations. Named "...-heap.dmp", and fewer are kept.
 constexpr MINIDUMP_TYPE HeapDumpType = MINIDUMP_TYPE(DumpType | MiniDumpWithPrivateReadWriteMemory);
 constexpr size_t HeapDumpsKept = 2;
+constexpr ULONGLONG ReportDumpLimit = 4 * 1024 * 1024;
+constexpr MINIDUMP_TYPE ReportDumpType = MINIDUMP_TYPE(MiniDumpNormal | MiniDumpWithThreadInfo | MiniDumpWithUnloadedModules);
+
+inline std::wstring ReportDumpPath(const std::wstring& full) {
+	return full.size() >= 4 ? full.substr(0, full.size() - 4) + L"-report.dmp" : std::wstring();
+}
+
+inline bool IsReportDumpName(const std::wstring& name) {
+	return name.size() >= 11 && _wcsicmp(name.c_str() + name.size() - 11, L"-report.dmp") == 0;
+}
 
 // The exception code behind `pointers`, read from `process` when they are its
 // (the launcher serving the game), or 0 when it cannot be read. Allocates nothing.
@@ -72,20 +82,39 @@ inline bool IsHeapDumpName(const wchar_t* name) {
 // crash never costs an earlier one.
 constexpr size_t DumpPathSize = MAX_PATH + 64;
 
-// Writes the dump into `directory` and names the finished file in `path`.
-// The dump is written as "<name>.dmp.partial" and renamed to "<name>.dmp"
-// only once complete, so a ".dmp" is always a whole dump: an interrupted or
-// failed write leaves at most a ".partial", which PruneDumps clears and never
-// counts. No existing file is ever opened or replaced. `clientPointers` is
-// true when `pointers` belongs to `process` rather than to the caller.
-// Allocates nothing itself.
-inline bool WriteDump(HANDLE process, DWORD processId, const wchar_t* directory, DWORD threadId,
-	EXCEPTION_POINTERS* pointers, bool clientPointers, wchar_t (&path)[DumpPathSize]) {
+// Both artifacts use the same staging/publication primitive. The dump type,
+// fallback list, byte limit and deadline are explicit policy, not path rules.
+using DumpWriter = decltype(&MiniDumpWriteDump);
+struct DumpPolicy {
+    const MINIDUMP_TYPE* types;
+    size_t count;
+    ULONGLONG maxBytes = 0;
+    ULONGLONG deadline = 0;
+    DumpWriter writer = MiniDumpWriteDump;
+};
+inline BOOL CALLBACK DumpDeadline(void* parameter, MINIDUMP_CALLBACK_INPUT* input, MINIDUMP_CALLBACK_OUTPUT* output) {
+    if (input->CallbackType == CancelCallback) {
+        const auto deadline = *static_cast<const ULONGLONG*>(parameter);
+        output->CheckCancel = TRUE;
+        output->Cancel = deadline && GetTickCount64() >= deadline;
+    }
+    return TRUE;
+}
+inline HANDLE CreateDumpFile(const wchar_t* path) {
+    // Report names add seven characters to a full dump's bounded path.
+    wchar_t partial[DumpPathSize + 16] = {};
+    if (swprintf_s(partial, L"%s.partial", path) < 0) return INVALID_HANDLE_VALUE;
+    return CreateFileW(partial, GENERIC_WRITE | DELETE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
+}
+// Reserves the full artifact's staging name before the report is written.
+// Leaves a proposed path on a creation failure so report capture can still
+// succeed independently (for example, with a full-file-only failure).
+inline HANDLE ReserveDump(HANDLE process, DWORD processId, const wchar_t* directory,
+    EXCEPTION_POINTERS* pointers, bool clientPointers, wchar_t (&path)[DumpPathSize]) {
 	SYSTEMTIME now;
 	GetLocalTime(&now);
 	const bool heap = ExceptionCodeForDump(process, pointers, clientPointers) == HeapCorruptionCode;
 	const wchar_t* suffix = heap ? L"-heap" : L"";
-	wchar_t partial[DumpPathSize + 8] = {};
 	HANDLE file = INVALID_HANDLE_VALUE;
 	// Two dumps of one process in one millisecond take the next free number.
 	for (int attempt = 0; attempt < 100 && file == INVALID_HANDLE_VALUE; ++attempt) {
@@ -94,32 +123,38 @@ inline bool WriteDump(HANDLE process, DWORD processId, const wchar_t* directory,
 				now.wDay, now.wHour, now.wMinute, now.wSecond, now.wMilliseconds, processId, suffix) :
 			swprintf_s(path, L"%s\\sf4e-crash-%04u%02u%02u-%02u%02u%02u-%03u-%lu-%02d%s.dmp", directory, now.wYear, now.wMonth,
 				now.wDay, now.wHour, now.wMinute, now.wSecond, now.wMilliseconds, processId, attempt, suffix);
-		if (printed < 0 || swprintf_s(partial, L"%s.partial", path) < 0) return false;
+		if (printed < 0) { path[0] = 0; return INVALID_HANDLE_VALUE; }
 		if (GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES) continue;
 		// Nobody else may open the dump until it is published: a reader could
 		// otherwise block the rename and the cleanup.
-		file = CreateFileW(partial, GENERIC_WRITE | DELETE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
-		if (file == INVALID_HANDLE_VALUE && GetLastError() != ERROR_FILE_EXISTS) return false;
+		file = CreateDumpFile(path);
+		if (file == INVALID_HANDLE_VALUE && GetLastError() != ERROR_FILE_EXISTS) return file;
 	}
-	if (file == INVALID_HANDLE_VALUE) return false;
-	MINIDUMP_EXCEPTION_INFORMATION exception = { threadId, pointers, clientPointers ? TRUE : FALSE };
-	// Memory that changes while it is read (a dump of a running process, and
-	// always a dump of oneself) can fail the write with ERROR_PARTIAL_COPY.
-	// Try again (a heap dump with the ordinary type), then with the plain dump,
-	// rather than end up with none.
-	const MINIDUMP_TYPE types[] = { heap ? HeapDumpType : DumpType, DumpType, MiniDumpNormal };
+    if (file == INVALID_HANDLE_VALUE) path[0] = 0;
+    return file;
+}
+// Publishes through the still-held handle, never replacing an existing file.
+// Failure marks the staging file for deletion before releasing that handle.
+inline bool PublishDump(HANDLE file, const wchar_t* path, HANDLE process, DWORD processId,
+    DWORD threadId, EXCEPTION_POINTERS* pointers, bool clientPointers, const DumpPolicy& policy) {
+    if (file == INVALID_HANDLE_VALUE) return false;
+    MINIDUMP_EXCEPTION_INFORMATION exception = { threadId, pointers, clientPointers ? TRUE : FALSE };
+    MINIDUMP_CALLBACK_INFORMATION callback = { DumpDeadline, const_cast<ULONGLONG*>(&policy.deadline) };
 	BOOL written = FALSE;
-	for (const MINIDUMP_TYPE type : types) {
+	for (size_t index = 0; index < policy.count; ++index) {
+        if (policy.deadline && GetTickCount64() >= policy.deadline) break;
 		LARGE_INTEGER start = {};
 		if (!SetFilePointerEx(file, start, nullptr, FILE_BEGIN) || !SetEndOfFile(file)) break;
-		written = MiniDumpWriteDump(process, processId, file, type, pointers ? &exception : nullptr, nullptr, nullptr);
+		written = policy.writer(process, processId, file, policy.types[index], pointers ? &exception : nullptr, nullptr,
+            policy.deadline ? &callback : nullptr);
 		if (written) break;
 	}
 	// Publish through the handle still held, so no other process can come
 	// between the write and the rename. It never replaces a file of that name.
 	bool published = false;
-	if (written && FlushFileBuffers(file)) {
-		alignas(FILE_RENAME_INFO) unsigned char buffer[sizeof(FILE_RENAME_INFO) + DumpPathSize * sizeof(wchar_t)] = {};
+	LARGE_INTEGER size = {};
+	if (written && GetFileSizeEx(file, &size) && (!policy.maxBytes || static_cast<ULONGLONG>(size.QuadPart) <= policy.maxBytes) && FlushFileBuffers(file)) {
+		alignas(FILE_RENAME_INFO) unsigned char buffer[sizeof(FILE_RENAME_INFO) + (DumpPathSize + 8) * sizeof(wchar_t)] = {};
 		auto* rename = reinterpret_cast<FILE_RENAME_INFO*>(buffer);
 		rename->ReplaceIfExists = FALSE;
 		rename->FileNameLength = static_cast<DWORD>(wcslen(path) * sizeof(wchar_t));
@@ -130,10 +165,25 @@ inline bool WriteDump(HANDLE process, DWORD processId, const wchar_t* directory,
 		// Gone once closed, whoever else wanted it.
 		FILE_DISPOSITION_INFO remove = { TRUE };
 		SetFileInformationByHandle(file, FileDispositionInfo, &remove, sizeof(remove));
-		path[0] = L'\0';
 	}
 	CloseHandle(file);
 	return published;
+}
+
+// Ordinary/heap dumps retain the canonical fallback sequence.
+inline bool WriteDump(HANDLE process, DWORD processId, const wchar_t* directory, DWORD threadId,
+    EXCEPTION_POINTERS* pointers, bool clientPointers, wchar_t (&path)[DumpPathSize]) {
+    const bool heap = ExceptionCodeForDump(process, pointers, clientPointers) == HeapCorruptionCode;
+    const MINIDUMP_TYPE types[] = { heap ? HeapDumpType : DumpType, DumpType, MiniDumpNormal };
+    const HANDLE file = ReserveDump(process, processId, directory, pointers, clientPointers, path);
+    const bool saved = PublishDump(file, path, process, processId, threadId, pointers, clientPointers, { types, 3 });
+    if (!saved) path[0] = 0;
+    return saved;
+}
+inline bool FileAbsent(const wchar_t* path) {
+    if (GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES) return false;
+    const DWORD error = GetLastError();
+    return error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND;
 }
 
 // The files in `directory` matching `pattern`, sorted by name.
@@ -153,17 +203,29 @@ inline std::vector<std::wstring> DumpFiles(const wchar_t* directory, const wchar
 // dumps in `directory` (the names sort by time) and clears any unfinished
 // ".partial" left by an interrupted write. Call it once the game has exited.
 // Launcher side only: it allocates.
-inline void PruneDumps(const wchar_t* directory, size_t keep) {
+inline void PruneDumps(const wchar_t* directory, size_t keep, const wchar_t* protectedReport = nullptr) {
 	for (const auto& name : DumpFiles(directory, L"sf4e-crash-*.dmp.partial"))
 		DeleteFileW((std::wstring(directory) + L"\\" + name).c_str());
 	std::vector<std::wstring> ordinary, heap;
 	for (const auto& name : DumpFiles(directory, L"sf4e-crash-*.dmp")) {
 		// "*.dmp" also matches "*.dmp.partial" under 8.3 names; count only whole dumps.
 		if (name.size() < 4 || _wcsicmp(name.c_str() + name.size() - 4, L".dmp") != 0) continue;
+		if (IsReportDumpName(name)) {
+            // A just-captured small dump remains useful even if its full
+            // artifact failed. Keep it until its immutable preview is read.
+            if (protectedReport && std::wstring(directory) + L"\\" + name == protectedReport) continue;
+			const auto full = name.substr(0, name.size() - 11) + L".dmp";
+			if (FileAbsent((std::wstring(directory) + L"\\" + full).c_str()))
+				DeleteFileW((std::wstring(directory) + L"\\" + name).c_str());
+			continue;
+		}
 		(IsHeapDumpName(name.c_str()) ? heap : ordinary).push_back(name);
 	}
 	const auto prune = [directory](const std::vector<std::wstring>& names, size_t kept) {
-		for (size_t i = 0; i + kept < names.size(); ++i) DeleteFileW((std::wstring(directory) + L"\\" + names[i]).c_str());
+		for (size_t i = 0; i + kept < names.size(); ++i) {
+			const auto full = std::wstring(directory) + L"\\" + names[i];
+			if (DeleteFileW(full.c_str()) || FileAbsent(full.c_str())) DeleteFileW(ReportDumpPath(full).c_str());
+		}
 	};
 	prune(ordinary, keep);
 	prune(heap, HeapDumpsKept);
@@ -177,6 +239,10 @@ struct DumpChannel {
 	DumpRequest* view = nullptr;
 	// The dump the last request wrote.
 	wchar_t written[DumpPathSize] = {};
+	std::wstring reportWritten;
+	bool reportEnabled = false;
+	DWORD exceptionCode = 0;
+	uint64_t crashAddress = 0;
 
 	bool Create(bool inheritable = false) {
 		SECURITY_ATTRIBUTES attributes = { sizeof(attributes), nullptr, inheritable ? TRUE : FALSE };
@@ -199,19 +265,50 @@ struct DumpChannel {
 	}
 	// Writes the dump the game asked for into `directory`, then lets the game
 	// go on dying.
-	bool Serve(HANDLE process, const wchar_t* directory) {
-		const DumpRequest asked = *view;
-		view->magic = 0;
-		bool ok = false;
-		written[0] = L'\0';
-		if (asked.magic == DumpRequestMagic)
-			ok = WriteDump(process, GetProcessId(process), directory, asked.threadId,
-				reinterpret_cast<EXCEPTION_POINTERS*>(static_cast<uintptr_t>(asked.exceptionPointers)), true, written);
-		if (!ok) written[0] = L'\0';
-		view->written = ok ? 1 : 0;
-		SetEvent(done);
-		return ok;
-	}
+    // Optional writer/deadline parameters are a bounded fault-injection seam;
+    // production uses DbgHelp and the game's existing 30-second wait budget.
+    bool Serve(HANDLE process, const wchar_t* directory, DumpWriter writer = MiniDumpWriteDump,
+        DWORD budgetMs = DumpRequestWaitMs) {
+        const DumpRequest asked = *view;
+        view->magic = 0;
+        bool ok = false;
+        written[0] = L'\0';
+        reportWritten.clear(); exceptionCode = 0; crashAddress = 0;
+        if (asked.magic == DumpRequestMagic) {
+            const auto deadline = GetTickCount64() + budgetMs;
+            auto* remotePointers = reinterpret_cast<EXCEPTION_POINTERS*>(static_cast<uintptr_t>(asked.exceptionPointers));
+            // Keep exception structures in launcher memory before any slow write.
+            // A game whose wait expires can destroy its pointers during a heap
+            // dump; DbgHelp must never dereference those addresses afterwards.
+            EXCEPTION_POINTERS remote = {}, local = {};
+            EXCEPTION_RECORD record = {}; CONTEXT context = {}; SIZE_T read = 0;
+            EXCEPTION_POINTERS* pointers = nullptr;
+            if (remotePointers && ReadProcessMemory(process, remotePointers, &remote, sizeof(remote), &read) && read == sizeof(remote) &&
+                remote.ExceptionRecord && ReadProcessMemory(process, remote.ExceptionRecord, &record, sizeof(record), &read) && read == sizeof(record)) {
+                exceptionCode = record.ExceptionCode; crashAddress = reinterpret_cast<uintptr_t>(record.ExceptionAddress);
+                record.ExceptionRecord = nullptr;
+                if (remote.ContextRecord && ReadProcessMemory(process, remote.ContextRecord, &context, sizeof(context), &read) && read == sizeof(context)) {
+                    local = { &record, &context }; pointers = &local;
+                }
+            }
+            const DWORD processId = GetProcessId(process);
+            HANDLE fullFile = ReserveDump(process, processId, directory, pointers, false, written);
+            if (reportEnabled && written[0]) {
+                const auto path = ReportDumpPath(written);
+                const MINIDUMP_TYPE type = ReportDumpType;
+                if (PublishDump(CreateDumpFile(path.c_str()), path.c_str(), process, processId, asked.threadId, pointers, false,
+                    { &type, 1, ReportDumpLimit, deadline, writer })) reportWritten = path;
+            }
+            const MINIDUMP_TYPE types[] = { exceptionCode == HeapCorruptionCode ? HeapDumpType : DumpType, DumpType, MiniDumpNormal };
+            ok = PublishDump(fullFile, written, process, processId, asked.threadId, pointers, false, { types, 3, 0, deadline, writer });
+        }
+        if (!ok) written[0] = L'\0';
+        // Either artifact means the request captured evidence. Track the paths
+        // independently; a full failure does not discard a completed report.
+        view->written = ok || !reportWritten.empty() ? 1 : 0;
+        SetEvent(done);
+        return ok;
+    }
 	// Waits for `process` to exit, writing each dump it asks for on the way;
 	// `served(ok)` hears of each request, with the file in `written`.
 	// Without a channel it only waits.

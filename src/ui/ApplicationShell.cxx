@@ -18,6 +18,7 @@
 #include <cfloat>
 #include <cstdio>
 #include <cstring>
+#include <ctime>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -69,6 +70,13 @@ std::string CutUtf8(std::string text,std::size_t limit) {
     if(text.size()<=limit)return text;
     while(limit>0&&(static_cast<unsigned char>(text[limit])&0xC0)==0x80)--limit;
     text.resize(limit);return text;
+}
+// When a report was sent, in this PC's time, as 2026-10-09 14:03.
+std::string ReportTime(std::int64_t time) {
+    const std::time_t at=static_cast<std::time_t>(time);std::tm local{};
+    char text[32]={};
+    if(localtime_s(&local,&at)!=0||!std::strftime(text,sizeof(text),"%Y-%m-%d %H:%M",&local))return "-";
+    return text;
 }
 // The width of the list: the whole window on a narrow one, else the left pane.
 float PublicListWidth() {
@@ -314,7 +322,25 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(ReplaysPanel::Owns(screen)){rows=replays_.Rows(v,screen,idle,title);
  }else if(screen=="settings"){
   title=loc::T("settings.title");rows={Row("player",loc::T("screen.player"),loc::T("settings.player_detail")),Row("defaults",loc::T("screen.defaults"),loc::T("settings.defaults_detail")),Row("interface",loc::T("settings.interface"),loc::T("settings.interface_detail")),Row("training-replays",loc::T("settings.training_replays"),loc::T("settings.training_replays_detail")),Row("discord",loc::T("screen.discord"),loc::T("settings.discord_detail")),
-   Row("about",loc::T("home.about"),loc::T("home.about_detail"))};
+   Row("problem-reports",loc::T("reports.settings_title"),loc::T("reports.settings_detail")),Row("about",loc::T("home.about"),loc::T("home.about_detail"))};
+ }else if(screen=="problem-reports"){
+  // The setting's pane says what a report holds; Select reads it in full.
+  title=loc::T("reports.settings_title");
+  auto send=Value("send-reports",loc::T("reports.setting"),preferences_.sendProblemReports?loc::T("common.on"):loc::T("common.off"),
+   loc::Tf("reports.setting_detail",reports::AutomaticPerDay)+"\n\n"+loc::T("reports.payload")+"\n\n"+loc::T("reports.what_is_sent"),v.canEditPreferences);
+  send.reading=true;
+  rows={send,Row("sent-reports",loc::T("reports.sent_list"),loc::T("reports.sent_list_detail"))};
+  rows.back().value=std::to_string(v.services.sentReports.size());
+ }else if(screen=="sent-reports"){
+  // Newest first: when, how it went, and the ID the report service gave it.
+  title=loc::T("reports.sent_list");
+  const auto& sent=v.services.sentReports;
+  // An unreadable record says so first: it is why nothing goes without asking.
+  if(!v.services.sentReadable)rows.push_back(InfoRow("sent-unreadable",loc::T("reports.history_unreadable"),"",loc::T("reports.history_unreadable_detail")));
+  for(std::size_t i=sent.size();i-->0;)
+   rows.push_back(InfoRow("sent-"+std::to_string(i),ReportTime(sent[i].time),ReportStatusLabel(sent[i].status),
+    std::string(loc::T(sent[i].kind=="problem"?"reports.row":"reports.crash_report"))+"\n\n"+ReportRecordText(sent[i])));
+  if(rows.empty())rows.push_back(InfoRow("sent-none",loc::T("reports.none"),"",loc::T("reports.none_detail")));
  }else if(screen=="player"){
   title=loc::T("player.title");rows={TextRow("name",loc::T("profile.player_name"),preferences_.displayName,31,v.canEditPreferences),
    Row("capture",loc::T("player.change_controller"),loc::Tf("player.change_controller_detail",v.controller),v.canChangeController),
@@ -374,6 +400,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    reading(Row("credits",loc::T("about.ember"),loc::Tf("about.ember_detail",v.build))),
    reading(Row("font",loc::T("about.font_license"),FontLicense())),Row("diagnostics",loc::T("about.export_diagnostics"),
     outcome({ServiceAction::ExportDiagnostics},loc::T("about.export_diagnostics_detail")),!v.services.pending),
+   Row("problem-report",loc::T("reports.problem"),loc::T("reports.problem_detail"),!v.services.pending),
    ConfirmRow("community",loc::T("about.discord"),
     outcome({ServiceAction::OpenCommunity},loc::Tf("about.discord_detail",platform::CommunityInvite)),!v.services.pending),
    // The version on this PC and the channel its update checks use, as Home's
@@ -391,7 +418,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
 }
 std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,const std::string& screen,bool opening,bool healthyRoom,std::string& title) {
  using namespace netplay;
- const bool personal=screen=="profile"||screen=="main-character"||screen=="settings"||screen=="player"||screen=="defaults"||screen=="interface"||screen=="training-replays"||screen=="discord";
+ const bool personal=screen=="profile"||screen=="main-character"||screen=="settings"||screen=="player"||screen=="defaults"||screen=="interface"||screen=="training-replays"||screen=="discord"||screen=="problem-reports";
  std::string status=saveFailed_?loc::T("common.save_failed"):v.settingsPending||preferencesDirty_||saveQueued_||languageDirty_?loc::T("common.saving"):personal?loc::T("common.saved"):"";
  // Severity travels with the status string. This line is the shell's only
  // feedback channel, so a failure must not render like ordinary text.
@@ -521,7 +548,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?"roster":"";nav.Push(a.id);}
  else if(a.id=="replays")nav.Push(a.id);
  else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
- else if(a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="developer")nav.Push(a.id);
+ else if(a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="developer"||a.id=="problem-reports"||a.id=="sent-reports")nav.Push(a.id);
  else if(a.id=="pr-create"||a.id=="pr-none")OpenPublicCreate();
  else if(a.id=="host"&&preferences_.roomPublic){error_.clear();publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,preferences_.publicTableRules);}
  else if(a.id=="host"||a.id=="join-now")Send(a.id=="host"?CommandKind::HostRoom:CommandKind::JoinInvite,v,submit);
@@ -534,6 +561,9 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="invite-cancel"||a.id=="invite-switch"){ShellAction r;r.command.generation=v.session.generation;r.discordRevision=v.discordRevision;r.discordAction=a.id=="invite-cancel"?discord::InviteAction::Cancel:discord::InviteAction::Switch;if(!submit(std::move(r)))error_=loc::T("error.invitation_changed");}
  else if(a.id=="retry-save"){saveFailed_=false;retrySave_=true;preferencesDirty_=true;saveAt_=0;error_.clear();}
  else if(a.id=="diagnostics")Service(platform::ServiceAction::ExportDiagnostics,v,submit);
+ else if(a.id=="problem-report"){
+  if(Service(platform::ServiceAction::PrepareProblemReport,v,submit)){reportPanel_.Open(v.services.reporting.preparation + 1);menu_.navigation.Push("report");}
+ }
  else if(a.id=="ready-test"){
   // The volume on screen, which may not be saved yet.
   ShellAction r;r.command.generation=v.session.generation;r.previewSoundVolume=preferences_.readySoundVolume;
@@ -575,6 +605,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="scale")preferences_.interfaceScale=(std::max)(1.f,(std::min)(1.5f,preferences_.interfaceScale+.05f*a.delta));
   else if(a.id=="hud")preferences_.showMatchHud=a.delta>0;else if(a.id=="presence")preferences_.discordPresence=a.delta>0;
   else if(a.id=="invites")preferences_.discordInvites=a.delta>0;
+  else if(a.id=="send-reports")preferences_.sendProblemReports=a.delta>0;
   else if(a.id=="visibility"){preferences_.roomPublic=a.delta>0;if(preferences_.roomPublic)ApplyPublicDefaultName();} // UpdatePublicBridge asks the Ember ID for what Public needs
   else AdjustRule(screen=="create"&&preferences_.roomPublic?preferences_.publicTableRules:preferences_.tableRules,a);
   if(!preferences_.Valid()){preferences_=prior;error_=loc::T("error.invalid_value");}
@@ -780,6 +811,15 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   ImGui::End();ImGui::PopStyleVar(2);return;
  }
  const std::string screen=nav.Screen();std::string title=loc::T("shell.home_title");
+ if(screen=="report") {
+  const auto intent=reportPanel_.Draw(v.services,error_.empty()?v.error:error_);
+  if(intent.service!=platform::ServiceAction::None){
+   ShellAction action;action.service=intent.service;action.reportSubmission=intent.submission;action.command.generation=v.session.generation;
+   if(!submit(std::move(action)))error_=loc::T("error.queue_failed");else error_.clear();
+  }
+  if(intent.close)nav.Return();
+  ImGui::End();ImGui::PopStyleVar(2);return;
+ }
  const bool idle=v.session.room==RoomState::Idle, opening=v.session.room==RoomState::Opening;
  std::vector<MenuEntry> rows=BuildRows(v,screen,idle,opening,selection,developer,title);
  if(saveFailed_){

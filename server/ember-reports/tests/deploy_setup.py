@@ -11,11 +11,15 @@ import unittest
 
 
 class PublicRouteCheck(unittest.TestCase):
-    def run_check(self, responses):
+    def run_check(self, responses, clock_reads=None):
         setup = (Path(__file__).parents[1] / "deploy/setup.sh").read_text()
         # Exercise the real final setup block, with a restore trap and fake
         # commands. Fake sleep advances Bash's clock, keeping timeouts fast.
         block = setup.split("\nsystemctl reload nginx\n", 1)[1]
+        if clock_reads is not None:
+            # Script each clock read to reproduce expiration between the old
+            # loop's condition and its separate remaining-budget calculation.
+            block = block.replace("SECONDS", "$(clock)")
         prefix = r'''
 set -euo pipefail
 trap 'status=$?; if (( status != 0 )); then echo restored >&2; fi; exit "$status"' EXIT
@@ -24,6 +28,12 @@ SECONDS=0
 calls=0
 systemctl() { echo "$*" >&2; }
 sleep() { SECONDS=$((SECONDS + 1)); }
+clock() {
+    local reads=$(cat "$CLOCK_FILE")
+    echo $((reads + 1)) > "$CLOCK_FILE"
+    local values=($CLOCK_READS)
+    printf '%s' "${values[reads]:-${values[-1]}}"
+}
 curl() {
     printf '%s\n' "$@" >> "$ARGS_LOG"
     calls=$(cat "$CALLS_FILE")
@@ -39,13 +49,22 @@ ETC=/etc/ember-reports
             args_log = Path(directory) / "args"
             calls_file = Path(directory) / "calls"
             calls_file.write_text("0")
+            clock_file = Path(directory) / "clock"
+            clock_file.write_text("0")
             result = subprocess.run(
                 [shutil.which("bash"), "-c", prefix + block],
                 env={**os.environ, "ARGS_LOG": args_log.as_posix(),
-                     "CALLS_FILE": calls_file.as_posix(), "RESPONSES": " ".join(responses)},
+                     "CALLS_FILE": calls_file.as_posix(), "RESPONSES": " ".join(responses),
+                     "CLOCK_FILE": clock_file.as_posix(),
+                     "CLOCK_READS": " ".join(map(str, clock_reads or []))},
                 capture_output=True, text=True, timeout=5,
             )
             args = args_log.read_text() if args_log.exists() else ""
+            arguments = args.splitlines()
+            budgets = [int(arguments[i + 1]) for i, arg in enumerate(arguments)
+                       if arg == "--max-time"]
+            self.assertEqual(len(budgets), int(calls_file.read_text()))
+            self.assertTrue(all(budget > 0 for budget in budgets), budgets)
             return result, int(calls_file.read_text()), args
 
     def test_old_worker_and_transport_error_are_retried(self):
@@ -67,6 +86,26 @@ ETC=/etc/ember-reports
                 self.assertEqual(calls, 10)
                 self.assertIn("restored", result.stderr)
                 self.assertNotIn("installed.", result.stdout)
+
+    def test_deadline_boundary_keeps_curl_budget_positive_and_triggers_restore(self):
+        # Read 0 establishes deadline 10; read 9 leaves one second. The old
+        # loop then read 10 again and passed --max-time 0 to curl.
+        result, calls, args = self.run_check(["404"], clock_reads=[0, 9, 10])
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual(calls, 1)
+        self.assertIn("--max-time\n1\n", args)
+        self.assertIn("Report HTTPS route did not answer 405 within 10 seconds.", result.stderr)
+        self.assertIn("restored", result.stderr)
+        self.assertNotIn("installed.", result.stdout)
+
+    def test_expired_deadline_skips_curl_and_triggers_restore(self):
+        result, calls, args = self.run_check(["405"], clock_reads=[0, 10])
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual(calls, 0)
+        self.assertEqual(args, "")
+        self.assertIn("Report HTTPS route did not answer 405 within 10 seconds.", result.stderr)
+        self.assertIn("restored", result.stderr)
+        self.assertNotIn("installed.", result.stdout)
 
 
 if __name__ == "__main__":

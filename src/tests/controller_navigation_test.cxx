@@ -349,6 +349,21 @@ void DialogContract(){
  Check(menu.navigation.Confirming()&&has("Cancel")&&!has("Fighter")&&!has("Review"),"A confirmation did not take over the legend");
  press(MenuInput::Right);frame();Check(has("Leave room"),"The legend did not name the highlighted confirmation button");
  press(MenuInput::Back);Check(!menu.navigation.Confirming(),"Back did not cancel the confirmation");
+ // The opening press can arrive with pointer movement over the action button.
+ // Preserve Cancel until a later movement deliberately selects that button.
+ imgui.io.AddMousePosEvent(1,1);frame();frame();
+ const auto confirmAt=centres.at("confirm/1");
+ imgui.io.AddMousePosEvent(confirmAt.x,confirmAt.y);frame(MenuInput::Select);frame();
+ Check(menu.navigation.Confirming()&&!menu.navigation.ConfirmSelected(),"Opening pointer movement replaced the safe confirmation default");
+ const auto declined=press(MenuInput::Select);
+ Check(declined.kind==MenuAction::None&&!menu.navigation.Confirming(),"Default confirmation activated the action");
+ press(MenuInput::Select);frame();
+ Check(menu.navigation.Confirming()&&!menu.navigation.ConfirmSelected(),"Reopened confirmation inherited Send or a resting pointer");
+ imgui.io.AddMousePosEvent(confirmAt.x+2,confirmAt.y);frame();
+ Check(menu.navigation.ConfirmSelected(),"Pointer movement after opening did not select the action");
+ const auto confirmed=press(MenuInput::Select);
+ Check(confirmed.kind==MenuAction::Activate&&confirmed.id=="leave","Explicit pointer selection did not confirm the action");
+ imgui.io.AddMousePosEvent(1,1);frame();
  menu.navigation.Focus("name",rows);press(MenuInput::Select);frame();
  Check(menu.navigation.Editing()&&has("Accept")&&has("Cancel"),"The editor legend does not say Accept and Cancel");
  const auto accepted=press(MenuInput::Select);
@@ -440,6 +455,20 @@ void DialogContract(){
   press(MenuInput::Select);frame();
   Check(menu.navigation.Choosing()&&menu.navigation.ChoiceIndex()==1&&visible(),"A reopened list selected its saved option out of view");
   press(MenuInput::Back);}
+ // A notice over an editor owns Enter; the editor resumes with its draft.
+ rows={TextRow("name","Name","Kate",31)};menu.navigation.Focus("name",rows);
+ imgui.io.AddMousePosEvent(1,1);frame();press(MenuInput::Select);frame();
+ menu.ShowNotice("Advice");frame();frame();
+ imgui.io.AddKeyEvent(ImGuiKey_Enter,true);frame();
+ Check(!menu.NoticeOpen()&&menu.navigation.Editing()&&menu.navigation.Draft()=="Kate","Enter did not dismiss only the editor's notice");
+ imgui.io.AddKeyEvent(ImGuiKey_Enter,false);frame();frame();
+ // Single-line editors still accept either Enter key, even with Cancel lit.
+ for(const auto enter:{ImGuiKey_Enter,ImGuiKey_KeypadEnter}) {
+  menu.navigation.EditAccepts(false);imgui.io.AddKeyEvent(enter,true);const auto accepted=frame();
+  Check(accepted.kind==MenuAction::TextAccepted&&accepted.text=="Kate"&&!menu.navigation.Editing(),"Single-line Enter did not accept the draft");
+  imgui.io.AddKeyEvent(enter,false);frame();frame();
+  if(enter==ImGuiKey_Enter){press(MenuInput::Select);frame();}
+ }
  SetMenuTextProbe({});SetMenuCardProbe({});
 }
 // Every screen a Back button can name has a name of its own, not its id.
@@ -472,9 +501,9 @@ void FlyoutIgnoresChoices(){
  press(MenuInput::Select);Check(chosen==0,"A flyout row with choices picked an option");
 }
 void ScreenNames(){
- for(const char* screen:{"home","online","create","join","profile","main-character","selection","settings","player","defaults","interface","training-replays","developer",
+ for(const char* screen:{"home","online","create","join","profile","main-character","selection","settings","player","defaults","interface","training-replays","problem-reports","sent-reports","developer",
    "discord","discord-invitation","public-rooms","identity","identity-backup","linked-accounts","tournament-matches","discord-connect","assignment","about","room","room-table","room-members","room-member","room-chat","room-admin",
-   "roster","appearance","costumes","colors","ultra","stage","options","frame-data","dummy","reply","tools","recording","history","recovery","updates","replays"})
+   "roster","appearance","costumes","colors","ultra","stage","options","frame-data","dummy","reply","tools","recording","history","recovery","updates","replays","report"})
   if(!MenuScreenName(screen))throw std::runtime_error(std::string("Screen without a display name: ")+screen);
 }
 void ProfileRecords(){

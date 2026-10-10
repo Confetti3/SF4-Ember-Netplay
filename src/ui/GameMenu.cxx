@@ -197,7 +197,7 @@ unsigned KeyboardMenuBits() {
         for(const auto& mapping:menuOnly) if(ImGui::IsKeyDown(mapping.key)) bits|=mapping.bit;
     return bits;
 }
-MenuInput ReadMenuInput() {
+MenuInput ReadMenuInput(bool textEditing) {
     auto value=input; value.time=ImGui::GetTime();
     const unsigned keys=KeyboardMenuBits();
     // Typing counts as using the keyboard, though its keys press no menu bit.
@@ -207,8 +207,7 @@ MenuInput ReadMenuInput() {
     if(input.held&~previousPad) keyboardLast=false;
     previousKeys=keys; previousPad=input.held;
     ApplyMenuGlyphs();
-    value.held|=keys; value.keyboard=keys;
-    value.acceptText=ImGui::IsKeyPressed(ImGuiKey_Enter,false);
+    value.held|=textEditing?keys&~MenuInput::Select:keys; value.keyboard=keys;
     return value;
 }
 void GameMenu::DrawHomeStatusLine(const std::vector<MenuEntry>& entries,const char* status,Tone statusTone,float homeMargin) {
@@ -240,7 +239,8 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     const bool modalAtStart=navigation.Editing()||navigation.Asking();
     // A choice belongs to the body that draws it, so the body stays live for it.
     const bool choosingAtStart=navigation.Choosing();
-    auto menuInput=ReadMenuInput(); menuInput.time=now;
+    auto menuInput=ReadMenuInput(navigation.Editing()&&notice_.empty()); menuInput.time=now;
+    ReadEditInput(entries,menuInput);
     // A notice owns the input until dismissed, so the dismissing press can
     // neither activate the focused row nor leak into the list behind it.
     const bool noticeOpen=!notice_.empty();
@@ -257,7 +257,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     } else noticePrevious_=~0u;
     held_=menuInput.held;
     // InputText consumes this frame's characters before the requested acceptance.
-    // The navigation model still owns the neutral gate and Back/Enter ordering.
+    // The navigation model still owns the neutral gate and Back/accept ordering.
     auto action=navigation.Update(menuInput,entries,columns,true,true);
     const bool acceptEditText=action.kind==MenuAction::SubmitText;
     if(acceptEditText)action={};
@@ -301,6 +301,8 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     // Select names the button it highlights.
     std::string dialogSelect,dialogBack;
     const bool dialog=DialogLegend(entries,dialogSelect,dialogBack);
+    const auto editingEntry=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.EditingId();});
+    const char* selectPrompt=KeyboardPrompts()&&notice_.empty()&&navigation.Editing()&&editingEntry!=entries.end()&&editingEntry->multiline?"Ctrl+Enter":selectGlyph;
     // Home's header button leaves Ember, so it is offered only with a place to name.
     if(!home||!exitName.empty()) {
         // A roomy Home has space under its title; a compact one, where the
@@ -352,9 +354,9 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     const float legendWidth=ImGui::GetContentRegionAvail().x;
     // An open dialog takes the screen's shortcuts away.
     const char* back=dialog?dialogBack.c_str():backHint.c_str();
-    const float standardLegend=MenuLegend(legendWidth,selectGlyph,backGlyph,false,adjustable,menuArt,unit,primary,noHints,back);
+    const float standardLegend=MenuLegend(legendWidth,selectPrompt,backGlyph,false,adjustable,menuArt,unit,primary,noHints,back);
     const bool hintsFit=!dialog&&(!std::strcmp(selectGlyph,"A")||KeyboardPrompts())&&!shortcutHints.empty()&&
-        MenuLegend(legendWidth,selectGlyph,backGlyph,false,adjustable,menuArt,unit,primary,shortcutHints,back)<=standardLegend;
+        MenuLegend(legendWidth,selectPrompt,backGlyph,false,adjustable,menuArt,unit,primary,shortcutHints,back)<=standardLegend;
     const auto& extras=hintsFit?shortcutHints:noHints;
     // The footer note goes in the bottom right corner, level with the legend's
     // last row when it fits beside it. Otherwise it takes a line of its own
@@ -363,7 +365,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     const float noteFont=12*unit,noteGap=24*unit;
     std::string note=flyout?std::string():footerNote;
     float legendEnd=0;
-    if(!note.empty())MenuLegend(legendWidth,selectGlyph,backGlyph,false,adjustable,menuArt,unit,primary,extras,back,&legendEnd);
+    if(!note.empty())MenuLegend(legendWidth,selectPrompt,backGlyph,false,adjustable,menuArt,unit,primary,extras,back,&legendEnd);
     const float noteWidth=note.empty()?0.f:ImGui::GetFont()->CalcTextSizeA(noteFont,FLT_MAX,0,note.c_str()).x;
     const float besideRoom=legendWidth-legendEnd-noteGap;
     const float lineCost=noteFont+6*unit+ImGui::GetStyle().ItemSpacing.y;
@@ -569,7 +571,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     const float legendTop=ImGui::GetCursorScreenPos().y;
     ImGui::Dummy(ImVec2(0,8*unit));if(home)ImGui::SetCursorPosX(homeMargin);
     const auto legendStart=ImGui::GetCursorScreenPos();
-    const float legendHeight=MenuLegend(ImGui::GetContentRegionAvail().x,selectGlyph,backGlyph,true,adjustable,menuArt,unit,primary,extras,back);
+    const float legendHeight=MenuLegend(ImGui::GetContentRegionAvail().x,selectPrompt,backGlyph,true,adjustable,menuArt,unit,primary,extras,back);
     ImGui::Dummy(ImVec2(0,legendHeight));
     if(!note.empty()) {
         // Right-aligned to the legend's own right edge.

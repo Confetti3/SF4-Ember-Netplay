@@ -165,7 +165,11 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
             diagnostics.predictionSkippedFrames=performance.skipReasons[diag::SKIP_PREDICTION_THRESHOLD];
         }
         const std::wstring target = command.service == platform::ServiceAction::ShowReplayFile ? platform::Utf8ToWide(command.servicePath.c_str()) : std::wstring();
-        if (!runtime->services.Request(command.service, diagnostics, target)) runtime->error = loc::T("runtime.operation_busy");
+        const bool accepted = command.service == platform::ServiceAction::SendReport ?
+            runtime->services.SendReport(command.reportSubmission) : runtime->services.Request(command.service, diagnostics, target);
+        if (!accepted) runtime->error = loc::T("runtime.operation_busy");
+        else if (command.service == platform::ServiceAction::SendReport || command.service == platform::ServiceAction::PrepareProblemReport ||
+            command.service == platform::ServiceAction::CancelReport) runtime->error.clear();
         return DispatchOutcome::Dropped;
     }
 	const auto kind = command.command.kind;

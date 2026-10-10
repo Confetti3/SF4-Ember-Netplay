@@ -27,7 +27,7 @@ inline const char* PromptAsset(const char* glyph) {
     if(!std::strcmp(glyph,"RT"))return "xbox_rt";
     if(!std::strcmp(glyph,"View"))return "xbox_button_back";
     if(!std::strcmp(glyph,"Start"))return "xbox_button_start";
-    if(!std::strcmp(glyph,"Enter"))return "keyboard_enter";
+    if(!std::strcmp(glyph,"Enter")||!std::strcmp(glyph,"Ctrl+Enter"))return "keyboard_enter";
     if(!std::strcmp(glyph,"Esc"))return "keyboard_escape";
     if(!std::strcmp(glyph,"arrows"))return "keyboard_arrows_all";
     if(!std::strcmp(glyph,"keys-horizontal"))return "keyboard_arrows_horizontal";
@@ -65,10 +65,11 @@ struct LegendHint { const char* glyph; std::string label; };
 inline float MenuLegend(float width,const char* select,const char* back,bool draw,bool adjustable,SelectionArt* art,float scale=0,
                         const char* primary=loc::T("menu.select"),const std::vector<LegendHint>& extras={},const char* backText=nullptr,
                         float* lastRowEnd=nullptr) {
-    const bool keyboard=!std::strcmp(select,"Enter");
+    const bool keyboard=!std::strcmp(select,"Enter")||!std::strcmp(select,"Ctrl+Enter");
     // A button without its own prompt art (LP, a stick's "1") is drawn as a
     // plain circle, so its label names it.
     const auto prefix=[](const char* glyph){
+        if(!std::strcmp(glyph,"Ctrl+Enter"))return std::string("Ctrl+Enter ");
         return !KeyCapGlyph(glyph)&&!std::strcmp(PromptAsset(glyph),"generic_button_circle_fill")?std::string(glyph)+" ":std::string();
     };
     const std::string action=prefix(select)+(primary?primary:"");

@@ -79,7 +79,7 @@ msgid "launcher.steam_runs_as_admin"
 msgstr "Steamが管理者として実行されているため、ゲームがSteamに接続できませんでした。Steamを終了して通常どおり起動し直してから再試行してください。Emberを管理者として起動しても動作しますが、その場合アップデートはインストールされません。"
 
 msgid "launcher.game_crashed"
-msgstr "ゲームがクラッシュしました。%APPDATA%\\sf4e\\logs 内のファイル（sf4e.log、sf4e-crash.log、sf4e-crash-*.dmp）を SF4 Ember Netplay チームに送ってから再試行してください。"
+msgstr "ゲームがクラッシュしました。修正に協力いただける場合は、下の「このレポートを送信」を選んでください。%APPDATA%\\sf4e\\logs のファイルを自分で送ることもできます。"
 
 msgid "launcher.runtime_shadowed"
 msgstr "ゲームがEmberフォルダーの代わりに次のファイルを読み込もうとしています。古いファイルがあると起動前に停止します（\"entry point ggpo_get_last_confirmed_frame not found\"）。別のネット対戦MODまたは古いインストールの残りです。移動または名前を変更してからEmberを再起動してください：\n\n{0}"
@@ -2844,6 +2844,9 @@ msgstr "テキストを編集"
 msgid "edit.instructions"
 msgstr "キーボードで入力または貼り付け。Enterかコントローラーの決定で確定、Escかコントローラーの戻るでキャンセルします。"
 
+msgid "edit.instructions_multiline"
+msgstr "キーボードで入力または貼り付け。EnterかテンキーのEnterで改行します。Ctrl+Enter、Ctrl+テンキーのEnter、承認ボタンかコントローラーの決定で確定、Escかコントローラーの戻るでキャンセルします。"
+
 msgid "edit.updating"
 msgstr "ルームを更新中です。下書きは保持され、入力の続行やキャンセルができます。"
 
@@ -4286,3 +4289,189 @@ msgstr "今すぐ戻る"
 
 msgid "rules.round_time.practice"
 msgstr "練習対戦はラウンドの制限時間が切れると終わります。最長は{0}です。"
+
+msgid "reports.setting"
+msgstr "問題レポートを送信"
+
+msgid "reports.setting_detail"
+msgstr "オン：クラッシュ後、ランチャーが確認なしでレポートを送信します（1日最大{0}件、クラッシュダンプは含めません）。オフ：先に確認します。"
+
+msgid "reports.problem"
+msgstr "問題を報告"
+
+msgid "reports.problem_detail"
+msgstr "個人情報を除いたログとレポートの詳細を確認し、Emberに送信するか決めます。"
+
+msgid "reports.title"
+msgstr "レポートのプレビュー"
+
+msgid "reports.preparing"
+msgstr "レポートのプレビューを準備中..."
+
+msgid "reports.preview_detail"
+msgstr "送信前に各項目を確認してください。レポートはembernetplay.linkに送られます。生のダンプは最大30日間保管され、処理済みレポートの保管期間は別です。"
+
+msgid "reports.sending"
+msgstr "レポートを送信中..."
+
+msgid "reports.bytes"
+msgstr "{0} バイト"
+
+msgid "reports.metadata"
+msgstr "レポートの詳細"
+
+msgid "reports.dump"
+msgstr "小さなダンプ"
+
+msgid "reports.dump_detail"
+msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+
+msgid "reports.comment"
+msgstr "コメント"
+
+msgid "reports.comment_required"
+msgstr "送信前に問題の内容を書いてください（2000文字まで）。コメントは入力どおりに送信されます。"
+
+msgid "reports.comment_optional"
+msgstr "任意：何が起きたか書いてください（2000文字まで）。コメントは入力どおりに送信されます。"
+
+msgid "reports.send"
+msgstr "送信"
+
+msgid "reports.dont_send"
+msgstr "送信しない"
+
+msgid "reports.consent"
+msgstr "このプレビューに表示された内容をそのままEmberに送信しますか？コメントと、オンの場合は小さなダンプも含まれます。"
+
+msgid "reports.copy_id"
+msgstr "レポートIDをコピー"
+
+msgid "reports.close_detail"
+msgstr "このプレビューを閉じます。サーバーが受け付けた送信はここでは取り消せません。"
+
+msgid "reports.sent"
+msgstr "レポートを受け付けました。レポートID：{0}"
+
+msgid "reports.invalid"
+msgstr "このレポートは無効か大きすぎます。コメントを確認し、もう一度プレビューを作成してください。"
+
+msgid "reports.invalid_response"
+msgstr "サーバーの応答に有効なレポートIDがありませんでした。レポートはすでに受け付けられた可能性があります。"
+
+msgid "reports.rate_limited"
+msgstr "レポートが多すぎます。{0}秒後にもう一度お試しください。"
+
+msgid "reports.unavailable"
+msgstr "レポートは一時的に利用できません。後でもう一度お試しください。"
+
+msgid "reports.failed"
+msgstr "レポートを送信できませんでした。接続を確認して、もう一度お試しください。"
+
+msgid "reports.cancelled"
+msgstr "レポートの送信をキャンセルしました。サーバーが受け付け済みのレポートは保持される場合があります。"
+
+msgid "reports.dump_warning"
+msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+
+msgid "launcher.game_crashed_files"
+msgstr "ゲームがクラッシュしました。%APPDATA%\\sf4e\\logs 内のファイル（sf4e.log、sf4e-crash.log、sf4e-crash-*.dmp）を SF4 Ember Netplay チームに送ってから再試行してください。"
+
+msgid "launcher.game_crashed_sending"
+msgstr "ゲームがクラッシュしました。「問題レポートを送信」がオンなので、クラッシュダンプなしのレポートを送信しています。ファイルは %APPDATA%\\sf4e\\logs にもあります。"
+
+msgid "reports.settings_title"
+msgstr "問題レポート"
+
+msgid "reports.settings_detail"
+msgstr "クラッシュレポートの内容と送信済みのレポート。"
+
+msgid "reports.sent_list"
+msgstr "送信済みレポート"
+
+msgid "reports.sent_list_detail"
+msgstr "この PC が送信した各レポートの日時、結果、レポート ID。"
+
+msgid "reports.none"
+msgstr "レポートはまだありません"
+
+msgid "reports.none_detail"
+msgstr "この PC が送信したレポートがここに表示されます。"
+
+msgid "reports.send_once"
+msgstr "このレポートを送信"
+
+msgid "reports.send_always"
+msgstr "常に送信"
+
+msgid "reports.send_always_detail"
+msgstr "このレポートを送信し、今後のクラッシュごとのレポートも確認なしで送信します。確認なしで送るレポートにダンプは含まれません。確認なしで送信されるのは24時間に最大{0}件で、送信したレポートはすべて数に入ります。設定の「問題レポート」でオフにできます。"
+
+msgid "reports.dump_included"
+msgstr "クラッシュダンプ：含む"
+
+msgid "reports.dump_not_included"
+msgstr "クラッシュダンプ：含まない"
+
+msgid "reports.row"
+msgstr "問題レポート"
+
+msgid "reports.status.sending"
+msgstr "送信中"
+
+msgid "reports.status.received"
+msgstr "受信済み"
+
+msgid "reports.status.refused"
+msgstr "受け付けられず"
+
+msgid "reports.status.not_sent"
+msgstr "未送信"
+
+msgid "reports.received"
+msgstr "レポートは受信されました。"
+
+msgid "reports.received_id"
+msgstr "レポートは受信されました。ID は {0} です。このクラッシュについて Ember チームに問い合わせるときに伝えてください。"
+
+msgid "reports.refused"
+msgstr "レポートサービスがレポートを受け付けませんでした。再送信はしません。"
+
+msgid "reports.not_sent"
+msgstr "レポートを送信できませんでした。再送信はしません。"
+
+msgid "reports.what_is_sent"
+msgstr "招待、トークン、ネットワークアドレス、メール、Windowsのユーザー名、プロフィールフォルダー、PC名、プレイヤー名はログから除かれます。\n\n自分で送るレポートは先に全体が表示され、小さなダンプはそのプレビューでオンにした場合だけ送られます。確認なしで送るレポートにダンプは含まれません。\n\n送られないもの：その他のファイル、リプレイ、完全なクラッシュダンプ。"
+
+msgid "reports.send_once_detail"
+msgstr "このレポートの内容をそのまま確認するプレビューを開きます。「送信」を選ぶまで何も送られません。"
+
+msgid "reports.crash_report"
+msgstr "クラッシュレポート"
+
+msgid "reports.payload"
+msgstr "レポートはembernetplay.linkに送られます。各レポートには、Emberのバージョンとビルド、Windowsのバージョン、クラッシュの情報、個人情報を除いたsf4e.log・launcher.log・sf4e-crash.log・sf4-net.logの末尾が含まれます。"
+
+msgid "reports.status.unknown"
+msgstr "不明"
+
+msgid "reports.interrupted"
+msgstr "応答が届く前に送信が中断されました。レポートサービスが受信した可能性があります。"
+
+msgid "reports.identity_failed"
+msgstr "プレイヤー名またはWindowsアカウントを読み取れなかったため、レポートを準備できませんでした。もう一度お試しください。"
+
+msgid "reports.history_failed"
+msgstr "送信済みレポートの記録を保存できなかったため、レポートは送信されませんでした。もう一度お試しください。"
+
+msgid "reports.history_unreadable"
+msgstr "記録を読み取れません"
+
+msgid "reports.history_unreadable_detail"
+msgstr "%APPDATA%\\sf4e の sent-reports.json を読み取れないため、確認なしで送信されるレポートはありません。ファイルを削除すると新しい記録が始まります。"
+
+msgid "reports.always_failed"
+msgstr "「常に送信」をオンにできなかったため、このレポートは送信されませんでした。「このレポートを送信」を選ぶと、プレビューから送信できます。"
+
+msgid "reports.automatic_unavailable"
+msgstr "本日の自動レポートの上限に達したか、送信済みレポートの記録を読み取れないため、このレポートは送信されませんでした。「このレポートを送信」を選ぶと、プレビューから送信できます。"

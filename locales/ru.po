@@ -79,7 +79,7 @@ msgid "launcher.steam_runs_as_admin"
 msgstr "Игра не смогла связаться со Steam, потому что Steam запущен от имени администратора. Закройте Steam, запустите его обычным способом и повторите попытку. Запуск Ember от имени администратора тоже работает, но обновления так не устанавливаются."
 
 msgid "launcher.game_crashed"
-msgstr "Игра аварийно завершилась. Отправьте команде SF4 Ember Netplay файлы из %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log и sf4e-crash-*.dmp) и повторите попытку."
+msgstr "Игра аварийно завершилась. Чтобы помочь с исправлением, выберите ниже «Отправить этот отчёт». Или отправьте файлы из %APPDATA%\\sf4e\\logs сами."
 
 msgid "launcher.runtime_shadowed"
 msgstr "Игра загрузит эти файлы вместо файлов из папки Ember. Старая копия остановит её ещё до запуска (\"entry point ggpo_get_last_confirmed_frame not found\"). Файлы оставлены другим сетевым модом или прежней установкой. Переместите или переименуйте их и снова запустите Ember:\n\n{0}"
@@ -2844,6 +2844,9 @@ msgstr "Изменить текст"
 msgid "edit.instructions"
 msgstr "Введите или вставьте текст с клавиатуры. Enter или «Выбрать» на контроллере принимает; Escape или «Назад» отменяет."
 
+msgid "edit.instructions_multiline"
+msgstr "Введите или вставьте текст с клавиатуры. Enter или Enter на цифровой клавиатуре добавляет новую строку. Ctrl+Enter, Ctrl+Enter на цифровой клавиатуре, кнопка «Принять» или выбор на контроллере подтверждает; Escape или Назад на контроллере отменяет."
+
 msgid "edit.updating"
 msgstr "Зал обновляется. Ваш текст сохранён; можно продолжить ввод или отменить."
 
@@ -4286,3 +4289,189 @@ msgstr "Перейти сейчас"
 
 msgid "rules.round_time.practice"
 msgstr "Тренировочный матч заканчивается, когда истекает время раунда. Самое долгое время: {0}."
+
+msgid "reports.setting"
+msgstr "Отправлять отчёты о проблемах"
+
+msgid "reports.setting_detail"
+msgstr "Вкл.: после сбоя лаунчер отправляет отчёт без вопроса, не больше {0} в день и никогда с дампом сбоя. Выкл.: сначала спрашивает."
+
+msgid "reports.problem"
+msgstr "Сообщить о проблеме"
+
+msgid "reports.problem_detail"
+msgstr "Проверьте очищенные логи и данные отчёта, прежде чем решить, отправлять ли их в Ember."
+
+msgid "reports.title"
+msgstr "Предпросмотр отчёта"
+
+msgid "reports.preparing"
+msgstr "Подготовка предпросмотра отчёта..."
+
+msgid "reports.preview_detail"
+msgstr "Проверьте каждую часть перед отправкой. Отчёты уходят на embernetplay.link. Исходные дампы хранятся до 30 дней; у обработанных отчётов отдельный срок хранения."
+
+msgid "reports.sending"
+msgstr "Отправка отчёта..."
+
+msgid "reports.bytes"
+msgstr "{0} байт"
+
+msgid "reports.metadata"
+msgstr "Данные отчёта"
+
+msgid "reports.dump"
+msgstr "Малый дамп"
+
+msgid "reports.dump_detail"
+msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+
+msgid "reports.comment"
+msgstr "Комментарий"
+
+msgid "reports.comment_required"
+msgstr "Опишите проблему перед отправкой (до 2000 символов). Комментарий отправляется как есть."
+
+msgid "reports.comment_optional"
+msgstr "Необязательно: опишите, что произошло (до 2000 символов). Комментарий отправляется как есть."
+
+msgid "reports.send"
+msgstr "Отправить"
+
+msgid "reports.dont_send"
+msgstr "Не отправлять"
+
+msgid "reports.consent"
+msgstr "Отправить в Ember ровно то, что показано в этом предпросмотре, включая комментарий и малый дамп, если он включён?"
+
+msgid "reports.copy_id"
+msgstr "Копировать ID отчёта"
+
+msgid "reports.close_detail"
+msgstr "Закрывает предпросмотр. Загрузку, уже принятую сервером, здесь отозвать нельзя."
+
+msgid "reports.sent"
+msgstr "Отчёт принят. ID отчёта: {0}"
+
+msgid "reports.invalid"
+msgstr "Отчёт недействителен или слишком велик. Проверьте комментарий и подготовьте новый предпросмотр."
+
+msgid "reports.invalid_response"
+msgstr "Ответ сервера не содержал действительного ID отчёта. Возможно, сервер уже принял ваш отчёт."
+
+msgid "reports.rate_limited"
+msgstr "Слишком много отчётов. Повторите через {0} с."
+
+msgid "reports.unavailable"
+msgstr "Отправка отчётов временно недоступна. Повторите позже."
+
+msgid "reports.failed"
+msgstr "Не удалось отправить отчёт. Проверьте подключение и повторите."
+
+msgid "reports.cancelled"
+msgstr "Загрузка отчёта отменена. Отчёт, уже принятый сервером, всё равно может сохраниться."
+
+msgid "reports.dump_warning"
+msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+
+msgid "launcher.game_crashed_files"
+msgstr "Игра аварийно завершилась. Отправьте команде SF4 Ember Netplay файлы из %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log и sf4e-crash-*.dmp) и повторите попытку."
+
+msgid "launcher.game_crashed_sending"
+msgstr "Игра аварийно завершилась. Включено «Отправлять отчёты о проблемах», поэтому отправляется отчёт без дампа сбоя. Файлы также находятся в %APPDATA%\\sf4e\\logs."
+
+msgid "reports.settings_title"
+msgstr "Отчёты о проблемах"
+
+msgid "reports.settings_detail"
+msgstr "Что содержит отчёт о сбое, и отправленные отчёты."
+
+msgid "reports.sent_list"
+msgstr "Отправленные отчёты"
+
+msgid "reports.sent_list_detail"
+msgstr "Каждый отчёт, отправленный с этого ПК: когда, с каким результатом и его ID."
+
+msgid "reports.none"
+msgstr "Отчётов пока нет"
+
+msgid "reports.none_detail"
+msgstr "Здесь появятся отчёты, отправленные с этого ПК."
+
+msgid "reports.send_once"
+msgstr "Отправить этот отчёт"
+
+msgid "reports.send_always"
+msgstr "Отправлять всегда"
+
+msgid "reports.send_always_detail"
+msgstr "Отправляет этот отчёт, а дальше отчёт о каждом следующем сбое без вопроса. Отчёты, отправленные без вопроса, никогда не содержат дамп. Без вопроса уходит не больше {0} за 24 часа, и учитывается каждый отправленный отчёт. Отключить можно в разделе «Настройки», «Отчёты о проблемах»."
+
+msgid "reports.dump_included"
+msgstr "Дамп сбоя: приложен."
+
+msgid "reports.dump_not_included"
+msgstr "Дамп сбоя: не приложен."
+
+msgid "reports.row"
+msgstr "Отчёт о проблеме"
+
+msgid "reports.status.sending"
+msgstr "Отправка"
+
+msgid "reports.status.received"
+msgstr "Получен"
+
+msgid "reports.status.refused"
+msgstr "Не принят"
+
+msgid "reports.status.not_sent"
+msgstr "Не отправлен"
+
+msgid "reports.received"
+msgstr "Отчёт получен."
+
+msgid "reports.received_id"
+msgstr "Отчёт получен. Его ID: {0}. Назовите его, если будете спрашивать команду Ember об этом сбое."
+
+msgid "reports.refused"
+msgstr "Служба отчётов не приняла отчёт. Повторно он отправлен не будет."
+
+msgid "reports.not_sent"
+msgstr "Не удалось отправить отчёт. Повторно он отправлен не будет."
+
+msgid "reports.what_is_sent"
+msgstr "Приглашения, токены, сетевые адреса, почта, а также ваше имя пользователя Windows, папка профиля, имя ПК и имя игрока удаляются из логов.\n\nОтчёт, который вы отправляете сами, сначала показывается целиком, а малый дамп уходит, только если включить его в этом предпросмотре. Отчёты, отправленные без запроса, дамп не включают.\n\nНикогда не отправляются: ваши другие файлы, повторы и полные дампы сбоев."
+
+msgid "reports.send_once_detail"
+msgstr "Открывает предпросмотр того, что содержит этот отчёт. Ничего не отправляется, пока вы не выберете «Отправить»."
+
+msgid "reports.crash_report"
+msgstr "Отчёт о сбое"
+
+msgid "reports.payload"
+msgstr "Отчёты уходят на embernetplay.link. Каждый содержит версию и сборку Ember, версию Windows, данные о сбое и очищенный конец файлов sf4e.log, launcher.log, sf4e-crash.log и sf4-net.log."
+
+msgid "reports.status.unknown"
+msgstr "Неизвестно"
+
+msgid "reports.interrupted"
+msgstr "Отправка прервана до получения ответа. Служба отчётов могла получить отчёт."
+
+msgid "reports.identity_failed"
+msgstr "Не удалось прочитать ваше имя игрока или учётную запись Windows, поэтому отчёт не подготовлен. Повторите."
+
+msgid "reports.history_failed"
+msgstr "Не удалось сохранить историю отправленных отчётов, поэтому отчёт не отправлен. Повторите."
+
+msgid "reports.history_unreadable"
+msgstr "История не читается"
+
+msgid "reports.history_unreadable_detail"
+msgstr "Файл sent-reports.json в %APPDATA%\\sf4e не читается, поэтому отчёты без вопроса не отправляются. Удалите файл, чтобы начать новую историю."
+
+msgid "reports.always_failed"
+msgstr "Не удалось включить «Отправлять всегда», поэтому отчёт не отправлен. Выберите «Отправить этот отчёт», чтобы отправить его из предпросмотра."
+
+msgid "reports.automatic_unavailable"
+msgstr "Сегодняшние автоматические отчёты исчерпаны, или история отправленных отчётов не читается, поэтому отчёт не отправлен. Выберите «Отправить этот отчёт», чтобы отправить его из предпросмотра."

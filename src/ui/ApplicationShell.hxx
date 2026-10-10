@@ -26,6 +26,7 @@
 #include "IdentityPanel.hxx"
 #include "PublicRoomsPanel.hxx"
 #include "ReplaysPanel.hxx"
+#include "ProblemReportPanel.hxx"
 
 namespace sf4e { namespace ui {
 
@@ -136,6 +137,7 @@ struct ShellAction {
     platform::ServiceAction service = platform::ServiceAction::None;
     // With ShowReplayFile: the archived replay, as its row names it, whose folder opens.
     std::string servicePath;
+    reports::Submission reportSubmission;
             input::Action inputAction = input::Action::None;
     discord::InviteAction discordAction = discord::InviteAction::None;
     std::uint64_t discordRevision = 0;
@@ -225,6 +227,7 @@ private:
     IdentityPanel identity_;
     PublicRoomsPanel publicRooms_;
     ReplaysPanel replays_;
+    ProblemReportPanel reportPanel_;
     // Parts of Draw, in the order it runs them.
     void UpdateRoomTransitions(const ShellView& view,double now);
     bool UpdateRoomFeedback(const ShellView& view);

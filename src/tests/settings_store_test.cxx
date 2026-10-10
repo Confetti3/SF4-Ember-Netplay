@@ -183,7 +183,7 @@ static void BoolPreferenceRoundTrips(const Path& root) {
         {"readySound", &PlayerPreferences::readySound, true}, {"trainingAutoReady", &PlayerPreferences::trainingAutoReady, false},
         {"matchFrameMeter", &PlayerPreferences::matchFrameMeter, false}, {"backgroundPlay", &PlayerPreferences::backgroundPlay, false},
         {"recordWatched", &PlayerPreferences::recordWatched, true}, {"discordPresence", &PlayerPreferences::discordPresence, true},
-        {"discordInvites", &PlayerPreferences::discordInvites, true}};
+        {"discordInvites", &PlayerPreferences::discordInvites, true}, {"sendProblemReports", &PlayerPreferences::sendProblemReports, false}};
     CHECK(std::size(sf4e::netplay::BoolPreferences) == std::size(expected));
     for (const auto& entry : expected) {
         const auto found = std::find_if(std::begin(sf4e::netplay::BoolPreferences), std::end(sf4e::netplay::BoolPreferences),
@@ -318,6 +318,7 @@ int main() {
         CHECK(retired["netplay"]["matchHudAnchor"]==4&&retired["legacyLauncher"]["unknownPreference"]=="retain");
     }
     CHECK(discordDefaults.discordPresence && discordDefaults.discordInvites);
+    CHECK(!discordDefaults.sendProblemReports && !result.value("sendProblemReports",false));
     CHECK(discordDefaults.inputDelay == 2);
     discordDefaults.inputDelay = 0; CHECK(!discordDefaults.Valid());
     discordDefaults.inputDelay = 1; CHECK(discordDefaults.Valid());
@@ -345,6 +346,39 @@ int main() {
     const auto discordSettings=Json::parse(Read(path / L"settings.json"));
     CHECK(discordSettings["netplay"]["discordPresence"]==false);
     CHECK(!discordSettings["legacyLauncher"].contains("discordInvites"));
+    // The first crash report builds kept their opt-in as "crashReports". On, it
+    // only prepared a preview, so it never turns on sending without asking:
+    // only off carries over, and the old key goes either way.
+    const auto oldOptIn=[&](const Json& value) {
+        auto old=Json::parse(Read(path/L"settings.json"));
+        old["netplay"].erase("sendProblemReports"); old["legacyLauncher"].erase("sendProblemReports"); old["netplay"]["crashReports"]=value;
+        Write(path/L"settings.json",old.dump());
+    };
+    for (const bool value : {true, false}) {
+        oldOptIn(value);
+        CHECK(store.LoadLauncher(result,error) && !result.contains("crashReports"));
+        CHECK(value ? !result.contains("sendProblemReports") : result.contains("sendProblemReports") && result["sendProblemReports"]==false);
+        sf4e::netplay::PlayerPreferences loaded; sf4e::netplay::ReadBoolPreferences(result,loaded);
+        CHECK(!loaded.sendProblemReports);
+        CHECK(store.SaveLauncher({{"displayName","Migrated"}},error));
+        const auto saved=Json::parse(Read(path/L"settings.json"));
+        CHECK(!saved["netplay"].contains("crashReports") && !saved["legacyLauncher"].contains("crashReports"));
+        CHECK(value ? !saved["netplay"].contains("sendProblemReports") : saved["netplay"]["sendProblemReports"]==false);
+    }
+    // An old key arriving through a save never turns sending on either.
+    CHECK(store.SaveLauncher({{"crashReports",true}},error));
+    CHECK(store.LoadLauncher(result,error) && !result.value("sendProblemReports",false) && !result.contains("crashReports"));
+    // A value under the current key wins over an old one, either way round.
+    CHECK(store.SaveLauncher({{"sendProblemReports",true}},error));
+    CHECK(store.SaveLauncher({{"crashReports",false}},error));
+    CHECK(store.LoadLauncher(result,error) && result.value("sendProblemReports",false) && !result.contains("crashReports"));
+    {
+        auto both=Json::parse(Read(path/L"settings.json"));
+        both["netplay"]["sendProblemReports"]=false; both["netplay"]["crashReports"]=true;
+        Write(path/L"settings.json",both.dump());
+        CHECK(store.LoadLauncher(result,error) && !result.value("sendProblemReports",true) && !result.contains("crashReports"));
+    }
+    CHECK(!Json::parse(Read(path/L"settings.json"))["legacyLauncher"].contains("crashReports"));
     // Independent consumers merge into the latest complete document.
     SettingsStore second(path.wstring());
     CHECK(store.SaveLauncher({{"displayName", "Changed"}}, error));

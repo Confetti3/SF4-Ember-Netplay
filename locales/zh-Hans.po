@@ -79,7 +79,7 @@ msgid "launcher.steam_runs_as_admin"
 msgstr "Steam 正以管理员身份运行，因此游戏无法连接到 Steam。请关闭 Steam，以普通方式重新启动后重试。以管理员身份启动 Ember 也可以，但这样不会安装更新。"
 
 msgid "launcher.game_crashed"
-msgstr "游戏崩溃了。请将 %APPDATA%\\sf4e\\logs 中的文件（sf4e.log、sf4e-crash.log 和 sf4e-crash-*.dmp）发送给 SF4 Ember Netplay 团队，然后重试。"
+msgstr "游戏崩溃了。如愿协助修复，请选择下方的“发送此报告”。也可以自己发送 %APPDATA%\\sf4e\\logs 中的文件。"
 
 msgid "launcher.runtime_shadowed"
 msgstr "游戏将加载以下文件，而非 Ember 文件夹中的版本。旧版文件会使游戏无法启动（\"entry point ggpo_get_last_confirmed_frame not found\"）。这些文件来自其他联机模组或旧版安装。请移动或重命名后重启 Ember：\n\n{0}"
@@ -2844,6 +2844,9 @@ msgstr "编辑文字"
 msgid "edit.instructions"
 msgstr "使用键盘输入或粘贴。按 Enter 或控制器上的选择确认；按 Escape 或控制器上的返回取消。"
 
+msgid "edit.instructions_multiline"
+msgstr "使用键盘输入或粘贴。Enter或数字键盘Enter插入换行。Ctrl+Enter、Ctrl+数字键盘Enter、接受按钮或控制器选择确认；Escape或控制器返回取消。"
+
 msgid "edit.updating"
 msgstr "正在更新房间。草稿已保留；您可以继续输入或取消。"
 
@@ -4286,3 +4289,189 @@ msgstr "立即前往"
 
 msgid "rules.round_time.practice"
 msgstr "练习对战在回合时间结束时结束。最长为 {0}。"
+
+msgid "reports.setting"
+msgstr "发送问题报告"
+
+msgid "reports.setting_detail"
+msgstr "开：崩溃后，启动器不经询问直接发送报告，每天最多 {0} 份，且从不包含崩溃转储。关：先询问。"
+
+msgid "reports.problem"
+msgstr "报告问题"
+
+msgid "reports.problem_detail"
+msgstr "先查看已去除隐私信息的日志和报告详情，再决定是否发送给 Ember。"
+
+msgid "reports.title"
+msgstr "报告预览"
+
+msgid "reports.preparing"
+msgstr "正在准备报告预览..."
+
+msgid "reports.preview_detail"
+msgstr "发送前请检查每个部分。报告会发送到 embernetplay.link。原始转储最多保留 30 天；处理后的报告另有保留期限。"
+
+msgid "reports.sending"
+msgstr "正在发送报告..."
+
+msgid "reports.bytes"
+msgstr "{0} 字节"
+
+msgid "reports.metadata"
+msgstr "报告详情"
+
+msgid "reports.dump"
+msgstr "小型转储"
+
+msgid "reports.dump_detail"
+msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+
+msgid "reports.comment"
+msgstr "备注"
+
+msgid "reports.comment_required"
+msgstr "发送前请说明问题（最多 2000 个字符）。备注将按原文发送。"
+
+msgid "reports.comment_optional"
+msgstr "可选：说明发生了什么（最多 2000 个字符）。备注将按原文发送。"
+
+msgid "reports.send"
+msgstr "发送"
+
+msgid "reports.dont_send"
+msgstr "不发送"
+
+msgid "reports.consent"
+msgstr "将此预览中显示的内容原样发送给 Ember，包括备注，以及已开启时的小型转储？"
+
+msgid "reports.copy_id"
+msgstr "复制报告 ID"
+
+msgid "reports.close_detail"
+msgstr "关闭此预览。服务器已接受的内容无法在此撤回。"
+
+msgid "reports.sent"
+msgstr "报告已接受。报告 ID：{0}"
+
+msgid "reports.invalid"
+msgstr "此报告无效或过大。请检查备注，再重新准备预览。"
+
+msgid "reports.invalid_response"
+msgstr "服务器响应中没有有效的报告 ID。它可能已接受你的报告。"
+
+msgid "reports.rate_limited"
+msgstr "报告过多。请在 {0} 秒后重试。"
+
+msgid "reports.unavailable"
+msgstr "报告功能暂时不可用。请稍后重试。"
+
+msgid "reports.failed"
+msgstr "无法发送报告。请检查网络连接后重试。"
+
+msgid "reports.cancelled"
+msgstr "已取消发送报告。服务器已接受的报告仍可能被保留。"
+
+msgid "reports.dump_warning"
+msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+
+msgid "launcher.game_crashed_files"
+msgstr "游戏崩溃了。请将 %APPDATA%\\sf4e\\logs 中的文件（sf4e.log、sf4e-crash.log 和 sf4e-crash-*.dmp）发送给 SF4 Ember Netplay 团队，然后重试。"
+
+msgid "launcher.game_crashed_sending"
+msgstr "游戏崩溃了。“发送问题报告”已打开，因此正在发送不含崩溃转储的报告。文件也位于 %APPDATA%\\sf4e\\logs。"
+
+msgid "reports.settings_title"
+msgstr "问题报告"
+
+msgid "reports.settings_detail"
+msgstr "崩溃报告包含的内容，以及已发送的报告。"
+
+msgid "reports.sent_list"
+msgstr "已发送的报告"
+
+msgid "reports.sent_list_detail"
+msgstr "此电脑发送的每份报告：时间、结果和报告 ID。"
+
+msgid "reports.none"
+msgstr "还没有报告"
+
+msgid "reports.none_detail"
+msgstr "此电脑发送的报告会显示在这里。"
+
+msgid "reports.send_once"
+msgstr "发送此报告"
+
+msgid "reports.send_always"
+msgstr "始终发送"
+
+msgid "reports.send_always_detail"
+msgstr "发送此报告，并且以后每次崩溃的报告都不经询问直接发送。未经询问发送的报告从不包含转储。24 小时内未经询问最多发送 {0} 份，每份已发送的报告都计入其中。可在“设置”的“问题报告”中关闭。"
+
+msgid "reports.dump_included"
+msgstr "崩溃转储：已包含。"
+
+msgid "reports.dump_not_included"
+msgstr "崩溃转储：未包含。"
+
+msgid "reports.row"
+msgstr "问题报告"
+
+msgid "reports.status.sending"
+msgstr "正在发送"
+
+msgid "reports.status.received"
+msgstr "已接收"
+
+msgid "reports.status.refused"
+msgstr "未被接受"
+
+msgid "reports.status.not_sent"
+msgstr "未发送"
+
+msgid "reports.received"
+msgstr "报告已被接收。"
+
+msgid "reports.received_id"
+msgstr "报告已被接收。ID 为 {0}。就此崩溃联系 Ember 团队时请提供它。"
+
+msgid "reports.refused"
+msgstr "报告服务未接受该报告。不会再次发送。"
+
+msgid "reports.not_sent"
+msgstr "无法发送报告。不会再次发送。"
+
+msgid "reports.what_is_sent"
+msgstr "邀请、令牌、网络地址、email，以及你的 Windows 用户名、个人资料文件夹、电脑名称和玩家名称都会从日志中去除。\n\n你自己发送的报告会先完整显示，小型转储只有在该预览中开启时才会发送。未经询问发送的报告从不包含转储。\n\n绝不发送：你的其他文件、录像或完整的崩溃转储。"
+
+msgid "reports.send_once_detail"
+msgstr "打开预览，显示此报告包含的全部内容。选择“发送”之前不会发送任何内容。"
+
+msgid "reports.crash_report"
+msgstr "崩溃报告"
+
+msgid "reports.payload"
+msgstr "报告会发送到 embernetplay.link。每份报告包含 Ember 版本和构建号、Windows 版本、崩溃信息，以及已去除隐私信息的 sf4e.log、launcher.log、sf4e-crash.log 和 sf4-net.log 的末尾部分。"
+
+msgid "reports.status.unknown"
+msgstr "未知"
+
+msgid "reports.interrupted"
+msgstr "发送在收到响应前被中断。报告服务可能已接收该报告。"
+
+msgid "reports.identity_failed"
+msgstr "无法读取你的玩家名称或 Windows 账户，因此未准备报告。请重试。"
+
+msgid "reports.history_failed"
+msgstr "无法保存已发送报告的记录，因此未发送该报告。请重试。"
+
+msgid "reports.history_unreadable"
+msgstr "记录无法读取"
+
+msgid "reports.history_unreadable_detail"
+msgstr "无法读取 %APPDATA%\\sf4e 中的 sent-reports.json，因此不会未经询问发送任何报告。删除该文件可开始新的记录。"
+
+msgid "reports.always_failed"
+msgstr "无法开启“始终发送”，因此未发送此报告。选择“发送此报告”即可从预览中发送。"
+
+msgid "reports.automatic_unavailable"
+msgstr "当天的自动报告已用完，或无法读取已发送报告的记录，因此未发送此报告。选择“发送此报告”即可从预览中发送。"

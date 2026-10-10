@@ -79,7 +79,7 @@ msgid "launcher.steam_runs_as_admin"
 msgstr "Hra se nemohla spojit se Steamem, protože Steam běží jako správce. Zavřete Steam, spusťte ho normálně a zkuste to znovu. Spuštění Emberu jako správce také funguje, ale aktualizace se tak neinstalují."
 
 msgid "launcher.game_crashed"
-msgstr "Hra spadla. Pošlete prosím týmu SF4 Ember Netplay soubory ze složky %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log a sf4e-crash-*.dmp) a zkuste to znovu."
+msgstr "Hra spadla. Chcete-li pomoci s opravou, zvolte níže Odeslat toto hlášení. Nebo pošlete soubory ze složky %APPDATA%\\sf4e\\logs sami."
 
 msgid "launcher.runtime_shadowed"
 msgstr "Hra by místo souborů ze složky Ember načetla tyto soubory. Stará kopie ji zastaví ještě před spuštěním (\"entry point ggpo_get_last_confirmed_frame not found\"). Pocházejí z jiného netplay modu nebo starší instalace. Přesuňte je nebo přejmenujte a znovu spusťte Ember:\n\n{0}"
@@ -2844,6 +2844,9 @@ msgstr "Upravit text"
 msgid "edit.instructions"
 msgstr "Pište nebo vložte text z klávesnice. Enter nebo Vybrat na ovladači potvrdí; Escape nebo Zpět na ovladači zruší."
 
+msgid "edit.instructions_multiline"
+msgstr "Pište nebo vložte text klávesnicí. Enter nebo Enter na numerické klávesnici vloží nový řádek. Ctrl+Enter, Ctrl+Enter na numerické klávesnici, tlačítko Přijmout nebo výběr na ovladači potvrdí; Escape nebo Zpět na ovladači zruší."
+
 msgid "edit.updating"
 msgstr "Místnost se aktualizuje. Koncept zůstane zachován; můžete dál psát nebo úpravu zrušit."
 
@@ -4286,3 +4289,189 @@ msgstr "Jít hned"
 
 msgid "rules.round_time.practice"
 msgstr "Cvičný zápas končí po vypršení času kola. Nejdelší je {0}."
+
+msgid "reports.setting"
+msgstr "Odesílat hlášení problémů"
+
+msgid "reports.setting_detail"
+msgstr "ZAP: po pádu spouštěč odešle hlášení bez ptaní, nejvýše {0} denně a nikdy s výpisem pádu. VYP: nejdřív se zeptá."
+
+msgid "reports.problem"
+msgstr "Nahlásit problém"
+
+msgid "reports.problem_detail"
+msgstr "Prohlédněte si upravené logy a údaje hlášení, než se rozhodnete, zda je odeslat Emberu."
+
+msgid "reports.title"
+msgstr "Náhled hlášení"
+
+msgid "reports.preparing"
+msgstr "Připravuje se náhled hlášení..."
+
+msgid "reports.preview_detail"
+msgstr "Před odesláním si prohlédněte každou část. Hlášení jdou na embernetplay.link. Surové výpisy se uchovávají až 30 dní; zpracovaná hlášení mají jinou dobu uchování."
+
+msgid "reports.sending"
+msgstr "Odesílání hlášení..."
+
+msgid "reports.bytes"
+msgstr "{0} bajtů"
+
+msgid "reports.metadata"
+msgstr "Údaje hlášení"
+
+msgid "reports.dump"
+msgstr "Malý výpis"
+
+msgid "reports.dump_detail"
+msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+
+msgid "reports.comment"
+msgstr "Komentář"
+
+msgid "reports.comment_required"
+msgstr "Před odesláním popište problém (až 2000 znaků). Komentář se odešle tak, jak je napsán."
+
+msgid "reports.comment_optional"
+msgstr "Volitelně popište, co se stalo (až 2000 znaků). Komentář se odešle tak, jak je napsán."
+
+msgid "reports.send"
+msgstr "Odeslat"
+
+msgid "reports.dont_send"
+msgstr "Neodesílat"
+
+msgid "reports.consent"
+msgstr "Odeslat Emberu přesně části zobrazené v tomto náhledu, včetně komentáře a případně malého výpisu?"
+
+msgid "reports.copy_id"
+msgstr "Kopírovat ID hlášení"
+
+msgid "reports.close_detail"
+msgstr "Zavře tento náhled. Nahrání, které server už přijal, zde nelze stáhnout zpět."
+
+msgid "reports.sent"
+msgstr "Hlášení přijato. ID hlášení: {0}"
+
+msgid "reports.invalid"
+msgstr "Hlášení je neplatné nebo příliš velké. Zkontrolujte komentář a zkuste připravit nový náhled."
+
+msgid "reports.invalid_response"
+msgstr "Odpověď serveru neobsahovala platné ID hlášení. Server mohl vaše hlášení už přijmout."
+
+msgid "reports.rate_limited"
+msgstr "Příliš mnoho hlášení. Zkuste to znovu za {0} s."
+
+msgid "reports.unavailable"
+msgstr "Odesílání hlášení je dočasně nedostupné. Zkuste to později."
+
+msgid "reports.failed"
+msgstr "Hlášení se nepodařilo odeslat. Zkontrolujte připojení a zkuste to znovu."
+
+msgid "reports.cancelled"
+msgstr "Nahrávání hlášení zrušeno. Hlášení, které server už přijal, může být stále uloženo."
+
+msgid "reports.dump_warning"
+msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+
+msgid "launcher.game_crashed_files"
+msgstr "Hra spadla. Pošlete prosím týmu SF4 Ember Netplay soubory ze složky %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log a sf4e-crash-*.dmp) a zkuste to znovu."
+
+msgid "launcher.game_crashed_sending"
+msgstr "Hra spadla. Odesílání hlášení problémů je zapnuté, proto se odesílá hlášení bez výpisu pádu. Soubory jsou také ve složce %APPDATA%\\sf4e\\logs."
+
+msgid "reports.settings_title"
+msgstr "Hlášení problémů"
+
+msgid "reports.settings_detail"
+msgstr "Co obsahuje hlášení o pádu a odeslaná hlášení."
+
+msgid "reports.sent_list"
+msgstr "Odeslaná hlášení"
+
+msgid "reports.sent_list_detail"
+msgstr "Každé hlášení odeslané z tohoto počítače: kdy, s jakým výsledkem a jeho ID."
+
+msgid "reports.none"
+msgstr "Zatím žádná hlášení"
+
+msgid "reports.none_detail"
+msgstr "Zde se zobrazí hlášení odeslaná z tohoto počítače."
+
+msgid "reports.send_once"
+msgstr "Odeslat toto hlášení"
+
+msgid "reports.send_always"
+msgstr "Odesílat vždy"
+
+msgid "reports.send_always_detail"
+msgstr "Odešle toto hlášení a od teď i hlášení každého dalšího pádu bez ptaní. Hlášení odeslaná bez ptaní nikdy neobsahují výpis. Bez ptaní jich za 24 hodin odejde nejvýše {0} a počítá se každé odeslané hlášení. Vypnete to v: Nastavení, Hlášení problémů."
+
+msgid "reports.dump_included"
+msgstr "Výpis pádu: přiložen."
+
+msgid "reports.dump_not_included"
+msgstr "Výpis pádu: nepřiložen."
+
+msgid "reports.row"
+msgstr "Hlášení problému"
+
+msgid "reports.status.sending"
+msgstr "Odesílá se"
+
+msgid "reports.status.received"
+msgstr "Přijato"
+
+msgid "reports.status.refused"
+msgstr "Nepřijato"
+
+msgid "reports.status.not_sent"
+msgstr "Neodesláno"
+
+msgid "reports.received"
+msgstr "Hlášení bylo přijato."
+
+msgid "reports.received_id"
+msgstr "Hlášení bylo přijato. Jeho ID je {0}. Uveďte ho, až se budete týmu Ember ptát na tento pád."
+
+msgid "reports.refused"
+msgstr "Služba hlášení hlášení nepřijala. Znovu se neodešle."
+
+msgid "reports.not_sent"
+msgstr "Hlášení se nepodařilo odeslat. Znovu se neodešle."
+
+msgid "reports.what_is_sent"
+msgstr "Z logů se odstraní pozvánky, tokeny, síťové adresy, e-mail a vaše uživatelské jméno Windows, složka profilu, název počítače a jméno hráče.\n\nHlášení, které odesíláte sami, se nejdřív zobrazí celé a malý výpis se odešle jen po zapnutí v tomto náhledu. Hlášení odeslaná bez dotazu výpis nikdy neobsahují.\n\nNikdy se neodesílají: vaše další soubory, vaše záznamy ani úplné výpisy pádu."
+
+msgid "reports.send_once_detail"
+msgstr "Otevře náhled přesně toho, co hlášení obsahuje. Nic se neodešle, dokud nezvolíte Odeslat."
+
+msgid "reports.crash_report"
+msgstr "Hlášení o pádu"
+
+msgid "reports.payload"
+msgstr "Hlášení jdou na embernetplay.link. Každé obsahuje verzi a sestavení Emberu, verzi Windows, údaje o pádu a upravený konec souborů sf4e.log, launcher.log, sf4e-crash.log a sf4-net.log."
+
+msgid "reports.status.unknown"
+msgstr "Neznámé"
+
+msgid "reports.interrupted"
+msgstr "Odesílání bylo přerušeno dřív, než přišla odpověď. Služba hlášení mohla hlášení přijmout."
+
+msgid "reports.identity_failed"
+msgstr "Nepodařilo se přečíst vaše jméno hráče nebo účet Windows, proto se hlášení nepřipravilo. Zkuste to znovu."
+
+msgid "reports.history_failed"
+msgstr "Záznam odeslaných hlášení se nepodařilo uložit, proto se hlášení neodeslalo. Zkuste to znovu."
+
+msgid "reports.history_unreadable"
+msgstr "Záznam nelze přečíst"
+
+msgid "reports.history_unreadable_detail"
+msgstr "Soubor sent-reports.json ve složce %APPDATA%\\sf4e nelze přečíst, proto se žádné hlášení neodešle bez ptaní. Smažte soubor a začne se nový záznam."
+
+msgid "reports.always_failed"
+msgstr "Odesílat vždy se nepodařilo zapnout, proto se toto hlášení neodeslalo. Zvolte Odeslat toto hlášení a odešlete ho z náhledu."
+
+msgid "reports.automatic_unavailable"
+msgstr "Dnešní automatická hlášení jsou vyčerpána nebo záznam odeslaných hlášení nelze přečíst, proto se toto hlášení neodeslalo. Zvolte Odeslat toto hlášení a odešlete ho z náhledu."

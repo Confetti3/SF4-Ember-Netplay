@@ -2,6 +2,9 @@
 #include "../launcher/update/github_release_client.hxx"
 #include "../common/NetworkNat.hxx"
 #include "../common/NetworkRoute.hxx"
+#include "ReportWorkflow.hxx"
+#include <memory>
+#include <chrono>
 #include <condition_variable>
 #include <array>
 #include <cstddef>
@@ -17,7 +20,8 @@ namespace sf4e { namespace platform {
 // names, then checks for an update on it.
 // ShowReplayFile opens, in Explorer, the folder that holds the archived
 // replay the request names; only a folder of the archive is opened.
-enum class ServiceAction { None, CheckUpdates, SwitchUpdateChannel, ExportDiagnostics, OpenUpdater, InstallUpdate, OpenRecovery, OpenCommunity, OpenReplayFolder, ShowReplayFile };
+enum class ServiceAction { None, CheckUpdates, SwitchUpdateChannel, ExportDiagnostics, OpenUpdater, InstallUpdate, OpenRecovery, OpenCommunity, OpenReplayFolder, ShowReplayFile,
+    PrepareProblemReport, PrepareCrashReport, SendReport, CancelReport, ReportCrash };
 // Community Discord server, shown in Help & About and opened as https://<invite>.
 constexpr const char* CommunityInvite = "discord.gg/uPNqF5A5uq";
 enum class DiagnosticTiming : std::size_t {
@@ -90,13 +94,19 @@ struct ServiceSnapshot {
     std::string installedVersion;
     launcher::UpdateChannel channel = launcher::UpdateChannel::Stable;
     std::vector<std::string> connectionHistory;
+    reports::WorkflowState reporting;
+    // The reports this PC sent, oldest first: read at start and after each
+    // report operation. Unreadable, it stops every automatic send.
+    std::vector<reports::Record> sentReports;
+    bool sentReadable = true;
 };
 // The home relay and network class, once per export: they rarely change, so
 // the connection history lines leave them out.
 std::string DescribeNetwork(const DiagnosticsView& view);
 std::string DescribeDiagnostics(const DiagnosticsView& view);
-// A single bounded worker owns filesystem, HTTP and process operations. Views
-// contain no invitations, names, capabilities, arbitrary logs or settings.
+// A single bounded worker owns filesystem, HTTP and process operations.
+// Report previews contain only the fixed metadata, redacted log tails and
+// the optional small dump; they are held unchanged until consent.
 class ApplicationServices {
 public:
     explicit ApplicationServices(std::wstring diagnosticsDirectory = {});
@@ -105,13 +115,21 @@ public:
     bool Request(ServiceAction action, const DiagnosticsView& diagnostics = {}, std::wstring target = {});
     // Saves `channel` as the update channel, then checks for an update on it.
     bool SwitchUpdateChannel(launcher::UpdateChannel channel);
+    // The crash's report in a preview, sent only from it.
+    bool PrepareCrashReport(const reports::CrashContext& crash);
+    // The crash's report sent without a press, when the worker finds it
+    // allowed (ReportWorkflow.hxx: AutomaticCrash); otherwise it is offered.
+    bool ReportCrash(const reports::CrashContext& crash, reports::AutomaticCrash::Consent consent);
+    bool SendReport(const reports::Submission& submission);
     ServiceSnapshot Snapshot() const;
     void Cancel() { cancelled_ = true; }
     void Observe(const DiagnosticsView& diagnostics);
 private:
-    void Run();
     // Starts `action` on the worker; the caller holds mutex_.
     bool Start(ServiceAction action, const DiagnosticsView& diagnostics, launcher::UpdateChannel channel, std::wstring target = {});
+    // Starts a report operation through Start; the caller holds mutex_.
+    bool QueueReport(ServiceAction action, reports::Operation operation);
+    void Run();
     mutable std::mutex mutex_;
     std::condition_variable wake_;
     bool stop_ = false;
@@ -119,8 +137,10 @@ private:
     launcher::UpdateChannel requestChannel_ = launcher::UpdateChannel::Stable;
     DiagnosticsView diagnostics_;
     std::wstring target_;
+    std::optional<reports::Operation> reportOperation_;
     ServiceSnapshot state_;
     std::wstring diagnosticsDirectory_;
+    std::shared_ptr<reports::ReportHistory> history_;
     std::atomic<bool> cancelled_{false};
     std::thread worker_;
 };

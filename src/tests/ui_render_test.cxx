@@ -327,6 +327,7 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 #include "ui_render_replays.hxx"
 #include "ui_render_updates.hxx"
 #include "ui_render_replay_controls.hxx"
+#include "ui_render_reports.hxx"
 
 int main(int argc, char** argv) {
     SetUnhandledExceptionFilter(ReportCrash);
@@ -559,8 +560,8 @@ int main(int argc, char** argv) {
             training::Command trainingCommand;
             bool acceptTraining=false,answerTickets=false,holdIdentity=false,overlayTooltip=false;
             std::uint64_t heldTicket=0;
-            GameMenu recoveryMenu;recoveryMenu.navigation=RecoveryNavigation(false);
-            platform::ServiceSnapshot recoveryState;bool recoveryUpdates=false;ChannelPick recoveryPick;
+            GameMenu recoveryMenu;recoveryMenu.navigation=RecoveryNavigation(false);ProblemReportPanel reportPanel;platform::ServiceSnapshot reportState;
+            platform::ServiceSnapshot recoveryState;bool recoveryUpdates=false;ChannelPick recoveryPick;RecoveryReport recoveryReport;std::string recoveryMessage=RecoveryFolderMessage;
             const auto draw=[&](const char* shot=nullptr,unsigned buttons=0,int settle=3){
                 for(int i=0;i<settle;++i){
                     if(art)art->Pump();SetMenuInput({buttons,0});
@@ -583,8 +584,9 @@ int main(int argc, char** argv) {
                         }
                         return true;},[&]{selector.Draw(pick,true,art.get(),availability,&stage,view.canEditSelection,{},&stagePool);});
                     else if(mode==1)DrawTrainingFlyout(training,[&](training::Command c){trainingCommand=c;return acceptTraining;});
-                    else if(mode==4)DrawRecoveryMenu(recoveryMenu,recoveryState,"The selected folder does not contain SSFIV.exe. Choose the installed game folder or close recovery without starting SF4.",recoveryUpdates,Tone::Error,false,true,&recoveryPick);
-                    if(mode!=0&&mode!=4) {
+                    else if(mode==4)DrawRecoveryMenu(recoveryMenu,recoveryState,recoveryMessage,recoveryUpdates,Tone::Error,false,true,&recoveryPick,recoveryReport);
+                    if(mode==8)DrawReportPreviewMode(reportPanel,reportState);
+                    else if(mode!=0&&mode!=4) {
                         if(mode!=7)overlayLayers=OverlayRenderLayers(mode,matchStrip);
                         (void)DrawOverlayLayers(overlayLayers,training);
                     }
@@ -642,6 +644,7 @@ int main(int argc, char** argv) {
             for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","training-replays","discord","about"})page(screen);
             ShootReplays(shell,view,draw,page);
             ShootVersionAndChannel(shell,view,draw,page);
+            ShootReportScreens(shell,view,draw,page,reportPanel,reportState,mode);
             view.preferences.autoInputDelay=true;page("defaults");view.preferences.autoInputDelay=false;
             page("home");
             for(int i=0;i<8;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
@@ -970,8 +973,8 @@ int main(int argc, char** argv) {
             Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Controller warning captured input");
             auto* warning=FindWindow("Controller warning");
             Require(warning->ScrollMax.y<1&&warning->Pos.y+warning->Size.y<size.h,"Controller warning escaped viewport");
-            // The launch window, an update found, downloading and extracting, the
-            // channel picker and its confirms, going back, and What's new (ui_render_updates.hxx).
+            // The crash report's offer (ui_render_reports.hxx), then the launch window and the updater (ui_render_updates.hxx).
+            mode=4;ShootCrashReportOffer(recoveryMenu,recoveryState,recoveryReport,recoveryMessage,draw);
             ShootLaunchAndUpdates(recoveryMenu,recoveryState,recoveryUpdates,recoveryPick,mode,draw);
             mode=0;shell.Navigation().Home();draw("home-restored");
             auto* main=FindWindow("EmberShell");

@@ -1,5 +1,6 @@
 #include "../platform/ApplicationServices.hxx"
 #include "../platform/ReplayFiles.hxx"
+#include "../common/sf4e__NetUtil.hxx"
 #include <windows.h>
 #include <filesystem>
 #include <fstream>
@@ -7,10 +8,14 @@
 #include <cstdlib>
 #include "test_support.hxx"
 #include "temp_root.hxx"
+#include "report_transport_tests.hxx"
+#include "report_workflow_tests.hxx"
 int main() {
+    report_transport_tests::Run();
     namespace fs = std::filesystem;
     using namespace sf4e::platform;
     const auto root = MakeTempRoot(L"ember-services-test-");
+    report_workflow_tests::Run(root);
     {
         // Routes reduce to a category before they reach logs or exports.
         CHECK(sf4e::ClassifyRoute("direct")==sf4e::RouteKind::Direct);
@@ -35,6 +40,13 @@ int main() {
             sf4e::NormalizeRelayRegion("https://use1-1.relay.n0.iroh.link./")=="other");
         ApplicationServices service(root.wstring()); DiagnosticsView view;
         CHECK(!service.Request(ServiceAction::None));
+        CHECK(!service.SendReport({"A problem",false}));
+        CHECK(!service.Request(ServiceAction::SendReport));
+        CHECK(!service.Request(ServiceAction::ReportCrash));
+        CHECK(sf4e::HttpPostReport("github.com","multipart/form-data","body",{}).request.error==sf4e::HttpErrorKind::InvalidArgs);
+        CHECK(sf4e::HttpPostReport("embernetplay.link.evil","multipart/form-data","body",{}).request.error==sf4e::HttpErrorKind::InvalidArgs);
+        CHECK(sf4e::HttpPostReport("embernetplay.link","multipart/form-data","body",[]{return true;}).cancelled);
+        CHECK(std::string(sf4e::ReportIntakeHost)=="embernetplay.link"&&std::wstring(sf4e::ReportIntakePath)==L"/report/v1");
         view.probeState=4; view.probeFailure=8;
         CHECK(DescribeDiagnostics(view).find("Check rejection: Seat or table revision changed")!=std::string::npos);
         view.probeFailure=999;

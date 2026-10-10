@@ -79,7 +79,7 @@ msgid "launcher.steam_runs_as_admin"
 msgstr "Le jeu n'a pas pu joindre Steam, car Steam s'exécute en tant qu'administrateur. Fermez Steam, relancez-le normalement, puis réessayez. Lancer Ember en tant qu'administrateur fonctionne aussi, mais les mises à jour ne s'installent pas ainsi."
 
 msgid "launcher.game_crashed"
-msgstr "Le jeu a planté. Envoyez à l'équipe SF4 Ember Netplay les fichiers de %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log et sf4e-crash-*.dmp), puis réessayez."
+msgstr "Le jeu a planté. Pour aider à corriger le problème, choisissez Envoyer ce rapport ci-dessous. Ou envoyez vous-même les fichiers de %APPDATA%\\sf4e\\logs."
 
 msgid "launcher.runtime_shadowed"
 msgstr "Le jeu chargerait ces fichiers à la place de ceux du dossier Ember. Une ancienne copie bloque son démarrage (\"entry point ggpo_get_last_confirmed_frame not found\"). Ils proviennent d'un autre mod netplay ou d'une ancienne installation. Déplacez-les ou renommez-les, puis relancez Ember :\n\n{0}"
@@ -2844,6 +2844,9 @@ msgstr "Saisie"
 msgid "edit.instructions"
 msgstr "Saisissez ou collez au clavier. Enter ou Sélectionner sur manette valide ; Esc ou Retour sur manette annule."
 
+msgid "edit.instructions_multiline"
+msgstr "Saisissez ou collez avec le clavier. Entrée ou Entrée du pavé numérique ajoute une nouvelle ligne. Ctrl+Entrée, Ctrl+Entrée du pavé numérique, le bouton Valider ou la sélection sur la manette valide ; Échap ou Retour sur la manette annule."
+
 msgid "edit.updating"
 msgstr "Mise à jour du salon. Votre brouillon est conservé ; continuez à écrire ou annulez."
 
@@ -4286,3 +4289,189 @@ msgstr "Y aller"
 
 msgid "rules.round_time.practice"
 msgstr "Un match d'entraînement se termine à la fin du temps du round. Le plus long est {0}."
+
+msgid "reports.setting"
+msgstr "Envoyer les rapports de problèmes"
+
+msgid "reports.setting_detail"
+msgstr "Oui : après un plantage, le lanceur envoie son rapport sans demander, {0} par jour au plus et jamais avec le vidage. Non : il demande d'abord."
+
+msgid "reports.problem"
+msgstr "Signaler un problème"
+
+msgid "reports.problem_detail"
+msgstr "Examinez les journaux expurgés et les détails du rapport avant de décider de les envoyer à Ember."
+
+msgid "reports.title"
+msgstr "Aperçu du rapport"
+
+msgid "reports.preparing"
+msgstr "Préparation de l'aperçu du rapport..."
+
+msgid "reports.preview_detail"
+msgstr "Vérifiez chaque partie avant l'envoi. Les rapports vont à embernetplay.link. Les vidages bruts sont conservés jusqu'à 30 jours ; les rapports traités sont conservés séparément."
+
+msgid "reports.sending"
+msgstr "Envoi de votre rapport..."
+
+msgid "reports.bytes"
+msgstr "{0} octets"
+
+msgid "reports.metadata"
+msgstr "Détails du rapport"
+
+msgid "reports.dump"
+msgstr "Petit vidage"
+
+msgid "reports.dump_detail"
+msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+
+msgid "reports.comment"
+msgstr "Commentaire"
+
+msgid "reports.comment_required"
+msgstr "Décrivez le problème avant l'envoi (2000 caractères max.). Votre commentaire est envoyé tel quel."
+
+msgid "reports.comment_optional"
+msgstr "Facultatif : décrivez ce qui s'est passé (2000 caractères max.). Votre commentaire est envoyé tel quel."
+
+msgid "reports.send"
+msgstr "Envoyer"
+
+msgid "reports.dont_send"
+msgstr "Ne pas envoyer"
+
+msgid "reports.consent"
+msgstr "Envoyer à Ember exactement les parties montrées dans cet aperçu, y compris votre commentaire et le petit vidage s'il est activé ?"
+
+msgid "reports.copy_id"
+msgstr "Copier l'ID du rapport"
+
+msgid "reports.close_detail"
+msgstr "Ferme cet aperçu. Un envoi déjà accepté par le serveur ne peut pas être retiré ici."
+
+msgid "reports.sent"
+msgstr "Rapport accepté. ID du rapport : {0}"
+
+msgid "reports.invalid"
+msgstr "Ce rapport est invalide ou trop volumineux. Vérifiez le commentaire et préparez un autre aperçu."
+
+msgid "reports.invalid_response"
+msgstr "La réponse du serveur ne contenait pas d'ID de rapport valide. Il a peut-être déjà accepté votre rapport."
+
+msgid "reports.rate_limited"
+msgstr "Trop de rapports. Réessayez dans {0} secondes."
+
+msgid "reports.unavailable"
+msgstr "Envoi de rapports momentanément indisponible. Réessayez plus tard."
+
+msgid "reports.failed"
+msgstr "Rapport non envoyé. Vérifiez votre connexion et réessayez."
+
+msgid "reports.cancelled"
+msgstr "Envoi du rapport annulé. Un rapport déjà accepté par le serveur peut quand même être conservé."
+
+msgid "reports.dump_warning"
+msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+
+msgid "launcher.game_crashed_files"
+msgstr "Le jeu a planté. Envoyez à l'équipe SF4 Ember Netplay les fichiers de %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log et sf4e-crash-*.dmp), puis réessayez."
+
+msgid "launcher.game_crashed_sending"
+msgstr "Le jeu a planté. Envoyer les rapports de problèmes est activé : un rapport sans le vidage est en cours d'envoi. Les fichiers se trouvent aussi dans %APPDATA%\\sf4e\\logs."
+
+msgid "reports.settings_title"
+msgstr "Rapports de problèmes"
+
+msgid "reports.settings_detail"
+msgstr "Ce que contient un rapport de plantage, et les rapports envoyés."
+
+msgid "reports.sent_list"
+msgstr "Rapports envoyés"
+
+msgid "reports.sent_list_detail"
+msgstr "Chaque rapport envoyé par ce PC : quand, comment cela s'est passé et son identifiant."
+
+msgid "reports.none"
+msgstr "Aucun rapport pour l'instant"
+
+msgid "reports.none_detail"
+msgstr "Les rapports envoyés par ce PC s'affichent ici."
+
+msgid "reports.send_once"
+msgstr "Envoyer ce rapport"
+
+msgid "reports.send_always"
+msgstr "Toujours envoyer"
+
+msgid "reports.send_always_detail"
+msgstr "Envoie ce rapport et, désormais, le rapport de chaque plantage suivant sans demander. Les rapports envoyés sans demande n'incluent jamais de vidage. {0} au plus partent sans demander en 24 heures, et chaque rapport envoyé compte. Désactivez-le dans Paramètres, Rapports de problèmes."
+
+msgid "reports.dump_included"
+msgstr "Vidage : inclus."
+
+msgid "reports.dump_not_included"
+msgstr "Vidage : non inclus."
+
+msgid "reports.row"
+msgstr "Rapport de problème"
+
+msgid "reports.status.sending"
+msgstr "Envoi"
+
+msgid "reports.status.received"
+msgstr "Reçu"
+
+msgid "reports.status.refused"
+msgstr "Refusé"
+
+msgid "reports.status.not_sent"
+msgstr "Non envoyé"
+
+msgid "reports.received"
+msgstr "Le rapport a été reçu."
+
+msgid "reports.received_id"
+msgstr "Le rapport a été reçu. Son identifiant est {0}. Indiquez-le si vous contactez l'équipe Ember à propos de ce plantage."
+
+msgid "reports.refused"
+msgstr "Le service de rapports n'a pas accepté le rapport. Il ne sera pas renvoyé."
+
+msgid "reports.not_sent"
+msgstr "Le rapport n'a pas pu être envoyé. Il ne sera pas renvoyé."
+
+msgid "reports.what_is_sent"
+msgstr "Les invitations, jetons, adresses réseau, e-mail, ainsi que votre nom d'utilisateur Windows, dossier de profil, nom de PC et nom de joueur sont retirés des journaux.\n\nUn rapport que vous envoyez vous-même est d'abord affiché en entier, et le petit vidage ne part que si vous l'activez dans cet aperçu. Les rapports envoyés sans demande n'incluent jamais de vidage.\n\nJamais envoyés : vos autres fichiers, vos replays ou les vidages complets du plantage."
+
+msgid "reports.send_once_detail"
+msgstr "Ouvre un aperçu de ce que contient ce rapport. Rien n'est envoyé tant que vous ne choisissez pas Envoyer."
+
+msgid "reports.crash_report"
+msgstr "Rapport de plantage"
+
+msgid "reports.payload"
+msgstr "Les rapports vont à embernetplay.link. Chacun contient la version et le build d'Ember, la version de Windows, les données du plantage et la fin expurgée de sf4e.log, launcher.log, sf4e-crash.log et sf4-net.log."
+
+msgid "reports.status.unknown"
+msgstr "Inconnu"
+
+msgid "reports.interrupted"
+msgstr "L'envoi a été interrompu avant qu'une réponse n'arrive. Le service de rapports l'a peut-être reçu."
+
+msgid "reports.identity_failed"
+msgstr "Votre nom de joueur ou votre compte Windows n'a pas pu être lu, donc le rapport n'a pas été préparé. Réessayez."
+
+msgid "reports.history_failed"
+msgstr "L'historique des rapports envoyés n'a pas pu être enregistré, donc le rapport n'a pas été envoyé. Réessayez."
+
+msgid "reports.history_unreadable"
+msgstr "Historique illisible"
+
+msgid "reports.history_unreadable_detail"
+msgstr "Le fichier sent-reports.json dans %APPDATA%\\sf4e est illisible, donc aucun rapport n'est envoyé sans demande. Supprimez-le pour créer un nouvel historique."
+
+msgid "reports.always_failed"
+msgstr "Toujours envoyer n'a pas pu être activé, donc ce rapport n'a pas été envoyé. Choisissez Envoyer ce rapport pour l'envoyer depuis son aperçu."
+
+msgid "reports.automatic_unavailable"
+msgstr "Les rapports automatiques du jour sont épuisés ou l'historique des rapports envoyés est illisible, donc ce rapport n'a pas été envoyé. Choisissez Envoyer ce rapport pour l'envoyer depuis son aperçu."

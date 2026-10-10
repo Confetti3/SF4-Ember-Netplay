@@ -79,7 +79,7 @@ msgid "launcher.steam_runs_as_admin"
 msgstr "O jogo não conseguiu acessar o Steam porque o Steam está sendo executado como administrador. Feche o Steam, abra-o normalmente e tente novamente. Iniciar o Ember como administrador também funciona, mas assim as atualizações não são instaladas."
 
 msgid "launcher.game_crashed"
-msgstr "O jogo travou. Envie para a equipe do SF4 Ember Netplay os arquivos de %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log e sf4e-crash-*.dmp) e tente novamente."
+msgstr "O jogo travou. Para ajudar a corrigir, escolha Enviar este relatório abaixo. Ou envie você mesmo os arquivos de %APPDATA%\\sf4e\\logs."
 
 msgid "launcher.runtime_shadowed"
 msgstr "O jogo carregaria estes arquivos em vez dos da pasta do Ember, e uma cópia antiga encerra o jogo antes de iniciar (\"ponto de entrada ggpo_get_last_confirmed_frame não encontrado\"). Eles ficaram de outro mod de netplay ou de uma instalação anterior. Mova ou renomeie os arquivos e inicie o Ember novamente:\n\n{0}"
@@ -2473,6 +2473,9 @@ msgid "edit.title"
 msgstr "Editar texto"
 msgid "edit.instructions"
 msgstr "Digite ou cole com o teclado. Enter ou Selecionar no controle aceita; Escape ou Voltar cancela."
+msgid "edit.instructions_multiline"
+msgstr "Digite ou cole com o teclado. Enter ou Enter do teclado numérico insere uma nova linha. Ctrl+Enter, Ctrl+Enter do teclado numérico, o botão Aceitar ou Selecionar no controle aceita; Escape ou Voltar no controle cancela."
+
 msgid "edit.updating"
 msgstr "Atualizando sala. Seu rascunho foi mantido; continue digitando ou cancele."
 msgid "common.accept"
@@ -3834,3 +3837,189 @@ msgstr "Ir agora"
 
 msgid "rules.round_time.practice"
 msgstr "Uma partida de prática termina quando o tempo do round acaba. O mais longo é {0}."
+
+msgid "reports.setting"
+msgstr "Enviar relatórios de problemas"
+
+msgid "reports.setting_detail"
+msgstr "Ligado: após uma falha, o inicializador envia o relatório sem perguntar, no máximo {0} por dia, e nunca com o dump da falha. Desligado: ele pergunta antes."
+
+msgid "reports.problem"
+msgstr "Relatar um problema"
+
+msgid "reports.problem_detail"
+msgstr "Revise os logs editados e os detalhes do relatório antes de decidir se os envia ao Ember."
+
+msgid "reports.title"
+msgstr "Prévia do relatório"
+
+msgid "reports.preparing"
+msgstr "Preparando a prévia do relatório..."
+
+msgid "reports.preview_detail"
+msgstr "Revise cada parte antes de enviar. Os relatórios vão para embernetplay.link. Dumps brutos ficam por até 30 dias; relatórios processados têm retenção separada."
+
+msgid "reports.sending"
+msgstr "Enviando seu relatório..."
+
+msgid "reports.bytes"
+msgstr "{0} bytes"
+
+msgid "reports.metadata"
+msgstr "Detalhes do relatório"
+
+msgid "reports.dump"
+msgstr "Dump pequeno"
+
+msgid "reports.dump_detail"
+msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+
+msgid "reports.comment"
+msgstr "Comentário"
+
+msgid "reports.comment_required"
+msgstr "Descreva o problema antes de enviar (até 2000 caracteres). Seu comentário é enviado como escrito."
+
+msgid "reports.comment_optional"
+msgstr "Opcional: descreva o que aconteceu (até 2000 caracteres). Seu comentário é enviado como escrito."
+
+msgid "reports.send"
+msgstr "Enviar"
+
+msgid "reports.dont_send"
+msgstr "Não enviar"
+
+msgid "reports.consent"
+msgstr "Enviar ao Ember exatamente as partes mostradas nesta prévia, incluindo seu comentário e o dump pequeno, se ativado?"
+
+msgid "reports.copy_id"
+msgstr "Copiar ID do relatório"
+
+msgid "reports.close_detail"
+msgstr "Fecha esta prévia. Um envio já aceito pelo servidor não pode ser retirado aqui."
+
+msgid "reports.sent"
+msgstr "Relatório aceito. ID do relatório: {0}"
+
+msgid "reports.invalid"
+msgstr "Este relatório é inválido ou grande demais. Verifique o comentário e tente preparar outra prévia."
+
+msgid "reports.invalid_response"
+msgstr "A resposta do servidor não trouxe um ID de relatório válido. Ele pode já ter aceito seu relatório."
+
+msgid "reports.rate_limited"
+msgstr "Relatórios demais. Tente de novo em {0} segundos."
+
+msgid "reports.unavailable"
+msgstr "Envio de relatórios indisponível por ora. Tente mais tarde."
+
+msgid "reports.failed"
+msgstr "Não foi possível enviar o relatório. Verifique sua conexão e tente de novo."
+
+msgid "reports.cancelled"
+msgstr "Envio do relatório cancelado. Um relatório já aceito pelo servidor ainda pode ser mantido."
+
+msgid "reports.dump_warning"
+msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+
+msgid "launcher.game_crashed_files"
+msgstr "O jogo travou. Envie para a equipe do SF4 Ember Netplay os arquivos de %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log e sf4e-crash-*.dmp) e tente novamente."
+
+msgid "launcher.game_crashed_sending"
+msgstr "O jogo travou. Enviar relatórios de problemas está ligado, então um relatório sem o dump da falha está sendo enviado. Os arquivos também estão em %APPDATA%\\sf4e\\logs."
+
+msgid "reports.settings_title"
+msgstr "Relatórios de problemas"
+
+msgid "reports.settings_detail"
+msgstr "O que um relatório de falha contém e os relatórios enviados."
+
+msgid "reports.sent_list"
+msgstr "Relatórios enviados"
+
+msgid "reports.sent_list_detail"
+msgstr "Cada relatório que este PC enviou: quando, como foi e o ID do relatório."
+
+msgid "reports.none"
+msgstr "Nenhum relatório ainda"
+
+msgid "reports.none_detail"
+msgstr "Os relatórios que este PC enviar aparecem aqui."
+
+msgid "reports.send_once"
+msgstr "Enviar este relatório"
+
+msgid "reports.send_always"
+msgstr "Sempre enviar"
+
+msgid "reports.send_always_detail"
+msgstr "Envia este relatório e, a partir de agora, o relatório de cada falha seguinte sem perguntar. Relatórios enviados sem perguntar nunca incluem dump. No máximo {0} saem sem perguntar em 24 horas, e todo relatório enviado conta. Desligue em Configurações, Relatórios de problemas."
+
+msgid "reports.dump_included"
+msgstr "Dump da falha: incluído."
+
+msgid "reports.dump_not_included"
+msgstr "Dump da falha: não incluído."
+
+msgid "reports.row"
+msgstr "Relatório de problema"
+
+msgid "reports.status.sending"
+msgstr "Enviando"
+
+msgid "reports.status.received"
+msgstr "Recebido"
+
+msgid "reports.status.refused"
+msgstr "Não aceito"
+
+msgid "reports.status.not_sent"
+msgstr "Não enviado"
+
+msgid "reports.received"
+msgstr "O relatório foi recebido."
+
+msgid "reports.received_id"
+msgstr "O relatório foi recebido. O ID é {0}. Informe-o se perguntar à equipe do Ember sobre esta falha."
+
+msgid "reports.refused"
+msgstr "O serviço de relatórios não aceitou o relatório. Ele não será enviado de novo."
+
+msgid "reports.not_sent"
+msgstr "Não foi possível enviar o relatório. Ele não será enviado de novo."
+
+msgid "reports.what_is_sent"
+msgstr "Convites, tokens, endereços de rede, e-mail e seu nome de usuário do Windows, pasta de perfil, nome do PC e nome de jogador são removidos dos logs.\n\nUm relatório que você mesmo envia é mostrado por inteiro antes, e o dump pequeno só vai se você ativá-lo nessa prévia. Relatórios enviados sem perguntar nunca incluem dump.\n\nNunca enviados: seus outros arquivos, seus replays ou os dumps completos da falha."
+
+msgid "reports.send_once_detail"
+msgstr "Abre uma prévia do que este relatório contém. Nada é enviado até você escolher Enviar."
+
+msgid "reports.crash_report"
+msgstr "Relatório de falha"
+
+msgid "reports.payload"
+msgstr "Os relatórios vão para embernetplay.link. Cada um contém a versão e a build do Ember, a versão do Windows, os dados da falha e o final editado de sf4e.log, launcher.log, sf4e-crash.log e sf4-net.log."
+
+msgid "reports.status.unknown"
+msgstr "Desconhecido"
+
+msgid "reports.interrupted"
+msgstr "O envio foi interrompido antes de chegar uma resposta. O serviço de relatórios pode ter recebido o relatório."
+
+msgid "reports.identity_failed"
+msgstr "Não foi possível ler seu nome de jogador ou sua conta do Windows, então o relatório não foi preparado. Tente de novo."
+
+msgid "reports.history_failed"
+msgstr "Não foi possível salvar o histórico de relatórios enviados, então o relatório não foi enviado. Tente de novo."
+
+msgid "reports.history_unreadable"
+msgstr "Histórico ilegível"
+
+msgid "reports.history_unreadable_detail"
+msgstr "Não foi possível ler sent-reports.json em %APPDATA%\\sf4e, então nenhum relatório é enviado sem perguntar. Exclua o arquivo para começar um novo histórico."
+
+msgid "reports.always_failed"
+msgstr "Não foi possível ligar Sempre enviar, então este relatório não foi enviado. Escolha Enviar este relatório para enviá-lo pela prévia."
+
+msgid "reports.automatic_unavailable"
+msgstr "Os relatórios automáticos de hoje acabaram ou o histórico de relatórios enviados não pode ser lido, então este relatório não foi enviado. Escolha Enviar este relatório para enviá-lo pela prévia."

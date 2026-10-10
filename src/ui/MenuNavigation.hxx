@@ -69,6 +69,8 @@ struct MenuEntry {
     // A text row for a passphrase: the editor masks it and opens empty, and
     // its draft is wiped when the editor closes.
     bool secret = false;
+    bool multiline = false;
+    std::string cancelLabel;
     // Row height in unscaled pixels for a list or footer row; 0 keeps the standard
     // height. Grid cells always use the grid's card height.
     float height = 0;
@@ -137,7 +139,8 @@ public:
     Modal Mode() const { return mode_; }
     bool Editing() const { return mode_ == Modal::Edit; }
     // The editor's highlighted button: Accept, unless a moving pointer went to
-    // Cancel. The controller's Select presses it; Enter always accepts.
+    // Cancel. The controller's Select presses it; the editor's keyboard
+    // acceptance gesture always accepts.
     bool EditAccepts() const { return editAccept_; }
     void EditAccepts(bool accept) { if (Editing()) editAccept_ = accept; }
     // A reader is open on this entry; Back closes it.
@@ -264,7 +267,7 @@ public:
         // The reader scrolls with held directions, which its renderer reads.
         if(Reading()) return {};
         if(Editing()) {
-            // Enter is the keyboard's explicit accept. The controller's Select
+            // The editor supplies the keyboard's explicit accept. Pad Select
             // presses the highlighted button, which is Accept unless the
             // pointer moved to Cancel. Directions stay with the text cursor.
             if(!in.acceptText) {

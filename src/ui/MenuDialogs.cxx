@@ -27,11 +27,15 @@ float DialogButtonsHeight(const std::vector<DialogButton>& buttons,float height)
     const float rows=Stacked(buttons)?static_cast<float>(buttons.size()):1.f;
     return rows*height+(rows-1)*ImGui::GetStyle().ItemSpacing.y;
 }
-int DrawDialogButtons(const char* probe,const std::vector<DialogButton>& buttons,int* selected,float height) {
+int DrawDialogButtons(const char* probe,const std::vector<DialogButton>& buttons,int* selected,float height,bool focusOnAppearing) {
     const auto& style=ImGui::GetStyle();const int count=static_cast<int>(buttons.size());
     const bool stacked=Stacked(buttons);
     const float width=stacked?ImGui::GetContentRegionAvail().x:(ImGui::GetContentRegionAvail().x-style.ItemSpacing.x*(count-1))/(std::max)(1,count);
-    const auto delta=ImGui::GetIO().MouseDelta;const bool moved=delta.x!=0||delta.y!=0;
+    // Opening a dialog under a moving pointer must preserve the caller's
+    // default. Only movement after it appears can change the selection.
+    const bool appearing=ImGui::IsWindowAppearing();
+    const auto delta=ImGui::GetIO().MouseDelta;
+    const bool moved=!appearing&&(delta.x!=0||delta.y!=0);
     int clicked=-1;
     for(int i=0;i<count;++i) {
         const auto& button=buttons[i];const float room=width-2*style.FramePadding.x;
@@ -41,8 +45,11 @@ int DrawDialogButtons(const char* probe,const std::vector<DialogButton>& buttons
         ImGui::PushStyleColor(ImGuiCol_Text,EntryTextColor(button.lit));
         ImGui::PushStyleVar(ImGuiStyleVar_DisabledAlpha,1.f);
         ImGui::BeginDisabled(!button.enabled);
+        // Menus own navigation through MenuNavigation (NoNavInputs), so
+        // explicitly focus the default instead of ImGui's automatic nav init.
+        if(focusOnAppearing&&appearing&&selected&&button.enabled&&*selected==i)ImGui::SetKeyboardFocusHere();
         if(ImGui::Button((FitLabel(button.label,room)+"###DialogButton").c_str(),ImVec2(width,height)))clicked=i;
-        if(selected&&moved&&ImGui::IsItemHovered())*selected=i;
+        if(selected&&moved&&ImGui::IsItemHovered(ImGuiHoveredFlags_NoNavOverride))*selected=i;
         ImGui::EndDisabled();ImGui::PopStyleVar();ImGui::PopStyleColor(2);
         const auto measured=ImGui::CalcTextSize(button.label.c_str());
         ReportMenuText((std::string(probe)+"/"+std::to_string(i)).c_str(),measured.y,height-2*style.FramePadding.y,measured.x,room);
@@ -69,7 +76,7 @@ bool GameMenu::DialogLegend(const std::vector<MenuEntry>& entries,std::string& s
     if(!notice_.empty()) {
         // Back declines a notice's alternative, so it reads as closing it.
         select=noticeAlternativeSelected_?noticeAlternative_:loc::T("common.ok");back=loc::T("common.close");
-    } else if(navigation.Editing()) select=navigation.EditAccepts()?loc::T("common.accept"):loc::T("edit.cancel");
+    } else if(navigation.Editing()) select=KeyboardPrompts()||navigation.EditAccepts()?loc::T("common.accept"):loc::T("edit.cancel");
     else if(navigation.Reading()) { select.clear(); back=loc::T("common.close"); }
     else if(navigation.Choosing()) {
         const auto* entry=FindEntry(entries,navigation.DialogId());
@@ -78,7 +85,8 @@ bool GameMenu::DialogLegend(const std::vector<MenuEntry>& entries,std::string& s
             entry->choices[navigation.ChoiceIndex()].label:std::string();
     } else if(navigation.Confirming()) {
         const auto* entry=FindEntry(entries,navigation.DialogId());
-        select=navigation.ConfirmSelected()&&entry?entry->label:std::string(loc::T("common.cancel"));
+        if(entry&&!entry->cancelLabel.empty())back=entry->cancelLabel;
+        select=navigation.ConfirmSelected()&&entry?entry->label:back;
     } else return false;
     return true;
 }
@@ -86,7 +94,8 @@ bool GameMenu::DialogLegend(const std::vector<MenuEntry>& entries,std::string& s
 // and the flyout: the player confirms what the row said, not "Confirm".
 std::vector<DialogButton> GameMenu::ConfirmationButtons(const std::vector<MenuEntry>& entries) const {
     const auto* entry=FindEntry(entries,navigation.DialogId());
-    return {{loc::T("common.cancel")},{entry?entry->label:std::string(loc::T("common.confirm")),entry&&entry->enabled,entry&&feedback_.Enabled(*entry)}};
+    return {{entry&&!entry->cancelLabel.empty()?entry->cancelLabel:std::string(loc::T("common.cancel"))},
+        {entry?entry->label:std::string(loc::T("common.confirm")),entry&&entry->enabled,entry&&feedback_.Enabled(*entry)}};
 }
 void GameMenu::AnswerConfirmation(const std::vector<MenuEntry>& entries,int clicked,int selected,MenuAction& action) {
     navigation.ConfirmSelected(selected==1);
@@ -237,6 +246,14 @@ void GameMenu::DrawNoticeModal(bool noticeOpen) {
     }
     if(noticeOpen&&notice_.empty()) navigation.NeutralGate();
 }
+void GameMenu::ReadEditInput(const std::vector<MenuEntry>& entries,MenuInput& input) const {
+    if(!navigation.Editing()) return;
+    const auto* entry=FindEntry(entries,navigation.EditingId());
+    // Match InputTextMultiline's default: either Enter inserts a newline,
+    // Ctrl with either Enter validates. Single-line editors accept either key.
+    const bool enter=ImGui::IsKeyPressed(ImGuiKey_Enter,false)||ImGui::IsKeyPressed(ImGuiKey_KeypadEnter,false);
+    input.acceptText|=entry&&enter&&(!entry->multiline||ImGui::GetIO().KeyCtrl);
+}
 void GameMenu::DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEditText,MenuAction& action) {
     const std::string editPopup=std::string(loc::T("edit.title"))+"###EditText";
     if(navigation.Editing()&&notice_.empty()) ImGui::OpenPopup(editPopup.c_str());
@@ -245,18 +262,21 @@ void GameMenu::DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEd
         if(!navigation.Editing()) ImGui::CloseCurrentPopup();
         else {
             const auto* entry=FindEntry(entries,navigation.EditingId());
-            const std::size_t limit=entry?(std::min)(std::size_t(4096),entry->textLimit):4096;
+            const std::size_t limit=entry?(std::min)(entry->multiline?std::size_t(8000):std::size_t(4096),entry->textLimit):4096;
             const bool canAccept=entry&&entry->enabled;
             ImGui::TextWrapped("%s",entry?entry->label.c_str():loc::T("edit.title"));
-            ImGui::TextWrapped("%s",loc::T("edit.instructions"));
+            ImGui::TextWrapped("%s",entry&&entry->multiline?loc::T("edit.instructions_multiline"):loc::T("edit.instructions"));
             const bool secret=navigation.EditingSecret();
-            char draft[4097]={}; std::strncpy(draft,navigation.Draft().c_str(),limit);
+            std::vector<char> draft(limit+1,0); std::strncpy(draft.data(),navigation.Draft().c_str(),limit);
             // A masked passphrase draws only asterisks, so its glyphs are never needed.
             if(!secret) NoteUserText(navigation.Draft(),UserTextRole::Draft);
             if(lastEdit_!=navigation.EditingId()) ImGui::SetKeyboardFocusHere();
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-            if(ImGui::InputText(secret?"##Secret":"##Draft",draft,limit+1,secret?ImGuiInputTextFlags_Password:0)) navigation.Draft(draft);
-            if(secret) WipeText(draft,sizeof(draft));
+            const bool changed=entry&&entry->multiline?
+                ImGui::InputTextMultiline("##Draft",draft.data(),draft.size(),ImVec2(-1,4*ImGui::GetTextLineHeightWithSpacing())):
+                ImGui::InputText(secret?"##Secret":"##Draft",draft.data(),draft.size(),secret?ImGuiInputTextFlags_Password:0);
+            if(changed) navigation.Draft(draft.data());
+            if(secret) WipeText(draft.data(),draft.size());
             ImGui::TextDisabled("%s",loc::Tf("edit.bytes",static_cast<unsigned>(navigation.Draft().size()),static_cast<unsigned>(limit)).c_str());
             const bool visualAccept=entry&&feedback_.Enabled(*entry);
             ImGui::BeginChild("Edit feedback",ImVec2(0,2*ImGui::GetTextLineHeightWithSpacing()));
@@ -265,7 +285,7 @@ void GameMenu::DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEd
             // The highlight is what the controller's Select presses; a moving
             // pointer moves it, and the model keeps it.
             int accept=navigation.EditAccepts()?1:0;
-            const int clicked=DrawDialogButtons("edit",{{loc::T("edit.cancel")},{loc::T("common.accept"),canAccept,visualAccept}},&accept,48*Scale());
+            const int clicked=DrawDialogButtons("edit",{{loc::T("edit.cancel")},{loc::T("common.accept"),canAccept,visualAccept}},&accept,48*Scale(),false);
             navigation.EditAccepts(accept==1);
             if(canAccept&&(clicked==1||acceptEditText)) action=navigation.AcceptText(entries);
             else if(clicked==0) navigation.Cancel();

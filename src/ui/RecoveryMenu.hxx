@@ -4,11 +4,37 @@
 #include "Theme.hxx"
 #include "UpdateChannelPick.hxx"
 #include "VersionLine.hxx"
+#include "ProblemReportPanel.hxx"
 #include "../platform/ApplicationServices.hxx"
 #include "../common/Localization.hxx"
+#include <optional>
 
 namespace sf4e { namespace ui {
-enum class RecoveryChoice { None, Folder, Retry, CheckUpdates, Install, Cancel, Close, Channel };
+// Report opens the crash report's preview; AlwaysSend was confirmed.
+enum class RecoveryChoice { None, Folder, Retry, CheckUpdates, Install, Cancel, Close, Channel, Report, AlwaysSend };
+// The crash's report in the launch window: offered (asking), or, once a send
+// was asked for, on its way (sending) and then how it went (outcome, or
+// failure: what stopped it before anything was sent).
+struct RecoveryReport {
+    bool asking = false, sending = false;
+    std::optional<reports::Record> outcome;
+    std::string failure;
+};
+// The crash report's rows from the report worker's state: offered; on its
+// way once the worker allowed it or the player sent it; then how it went.
+inline RecoveryReport CrashReportView(const platform::ServiceSnapshot& state) {
+    const auto& reporting=state.reporting;
+    RecoveryReport view;
+    if(reporting.offer)view.asking=true;
+    else if(reporting.record)view.outcome=reporting.record;
+    // Before the worker allows an automatic send there is nothing to show;
+    // a send from the preview ends the offer when it starts.
+    else if(reporting.automatic?reporting.authorized:reporting.preparation&&reporting.phase!=reports::Phase::Idle){
+        if(reporting.Busy()||state.pending)view.sending=true;
+        else view.failure=reporting.message;
+    }
+    return view;
+}
 // The root screen names the header's "< Back / ..." breadcrumb (MenuScreenLabel).
 inline MenuNavigation RecoveryNavigation(bool updates) { return MenuNavigation(updates?"updates":"recovery"); }
 // Each newly found update takes the highlight once, so Select installs it
@@ -43,8 +69,11 @@ inline std::string ChannelSwitchDetail(launcher::UpdateChannel from,launcher::Up
 // to it (RecoveryChoice::Channel, the pick in channelPick->picked); without
 // one the row only informs. The release notes of the offered version open in
 // a reader from the "What's new" row.
+// `report` adds the crash report's rows after Retry: Send this report, which
+// opens its preview, and Always send, confirmed with Cancel first; or one row
+// saying how the report went.
 inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSnapshot& state,const std::string& message,bool updates,
-    Tone messageTone=Tone::Error,bool canStart=false,bool serviceNewer=true,ChannelPick* channelPick=nullptr) {
+    Tone messageTone=Tone::Error,bool canStart=false,bool serviceNewer=true,ChannelPick* channelPick=nullptr,const RecoveryReport& report={}) {
     if(channelPick)channelPick->Settle(state.channel,state.pending);
     std::vector<MenuEntry> rows;
     // A row that waits while the worker is busy: the status line and the bar
@@ -53,6 +82,16 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
     if(!updates){
         rows.push_back(waits(Row("folder",loc::T("recovery.choose_folder"),loc::T("recovery.choose_folder_detail"),!state.pending)));
         rows.push_back(waits(Row("retry",loc::T("recovery.retry"),state.pending?loc::T("recovery.retry_busy"):loc::T("recovery.retry_detail"),!state.pending)));
+        if(report.asking){
+            rows.push_back(waits(Row("report",loc::T("reports.send_once"),loc::T("reports.send_once_detail"),!state.pending)));
+            // Its confirmation says what every report holds, where it goes and how often.
+            rows.push_back(waits(ConfirmRow("report-always",loc::T("reports.send_always"),
+                std::string(loc::T("reports.payload"))+"\n\n"+loc::Tf("reports.send_always_detail",reports::AutomaticPerDay),!state.pending)));
+        }else if(report.sending||report.outcome||!report.failure.empty()){
+            rows.push_back(InfoRow("report-status",loc::T("reports.crash_report"),
+                report.outcome?ReportStatusLabel(report.outcome->status):report.sending?loc::T("reports.status.sending"):loc::T("reports.status.not_sent"),
+                report.outcome?ReportRecordText(*report.outcome):report.sending?std::string(loc::T("reports.sending")):report.failure));
+        }
     }
     // A found update comes first, named by its version: installing it is
     // what the player came here for.
@@ -123,6 +162,8 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
     if(action.kind==MenuAction::Adjust&&action.id=="channel"&&channelPick&&!state.pending)channelPick->Step(state.channel,action.delta);
     if(action.kind!=MenuAction::Activate)return RecoveryChoice::None;
     if(action.id=="folder")return RecoveryChoice::Folder;
+    if(action.id=="report")return RecoveryChoice::Report;
+    if(action.id=="report-always")return RecoveryChoice::AlwaysSend;
     if(action.id=="retry")return RecoveryChoice::Retry;
     if(action.id=="check")return RecoveryChoice::CheckUpdates;
     if(action.id=="install")return RecoveryChoice::Install;

@@ -15,7 +15,7 @@ inline const char* MenuScreenName(const std::string& screen) {
         {"player",loc::T("screen.player")},{"defaults",loc::T("screen.defaults")},
         {"main-character",loc::T("screen.main_character")},{"about",loc::T("screen.about")},
         {"profile",loc::T("home.profile")},{"settings",loc::T("home.settings")},{"interface",loc::T("settings.interface")},
-        {"training-replays",loc::T("settings.training_replays")},{"discord",loc::T("screen.discord")},{"discord-invitation",loc::T("screen.discord_invitation")},
+        {"training-replays",loc::T("settings.training_replays")},{"problem-reports",loc::T("reports.settings_title")},{"sent-reports",loc::T("reports.sent_list")},{"discord",loc::T("screen.discord")},{"discord-invitation",loc::T("screen.discord_invitation")},
         {"public-rooms",loc::T("screen.public_rooms")},{"identity",loc::T("screen.identity")},{"identity-backup",loc::T("screen.identity_backup")},
         {"linked-accounts",loc::T("screen.linked_accounts")},{"tournament-matches",loc::T("screen.tournament_matches")},{"discord-connect",loc::T("screen.connect_discord")},
         {"assignment",loc::T("screen.assignment")},{"create",loc::T("online.create")},{"join",loc::T("online.join")},
@@ -28,7 +28,8 @@ inline const char* MenuScreenName(const std::string& screen) {
         {"frame-data",loc::T("training.frame_data")},{"dummy",loc::T("training.dummy")},
         {"reply",loc::T("training.reply")},{"tools",loc::T("training.position")},
         {"recording",loc::T("screen.dummy_recording")},{"history",loc::T("screen.input_history")},{"developer","Developer"},
-        {"recovery",loc::T("screen.recovery")},{"updates",loc::T("screen.updates")},{"replays",loc::T("replays.title")},{"replay-inputs",loc::T("replays.inputs")},{"replay-export",loc::T("export.title")}};
+        {"recovery",loc::T("screen.recovery")},{"updates",loc::T("screen.updates")},{"replays",loc::T("replays.title")},{"replay-inputs",loc::T("replays.inputs")},{"replay-export",loc::T("export.title")},
+        {"report",loc::T("reports.title")}};
     for(const auto& name:names)if(screen==name.first)return name.second;
     return nullptr;
 }

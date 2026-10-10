@@ -21,7 +21,21 @@ constexpr int SchemaVersion = 1;
 const char* ObsoleteKeys[] = {"relayRoomCode", "relayHostSecret", "relaySessionPort", "sessionPort", "ggpoPort", "hostPort", "joinPort", "relayHost", "relayPort", "brokerUrl", "useRelay", "netMode", "joinAddr", "roomCode", "hostSecret", "brokerBaseUrl", "lastJoinHost", "lastAdvertiseHost", "simpleUi", "defaultConnectMethod",
     // A staging-only HUD choice (names above the life bars), saved by 1.1.0 test builds.
     "matchHudNames"};
+// "crashReports" was the opt-in of the first crash report builds: on, it only
+// prepared a preview after a crash. Send problem reports on sends without
+// asking, so only an explicit off carries over; on leaves the new key at its
+// default. The old key goes either way.
+void RetireOldReportsKey(Json& document) {
+    for (const char* section : {"netplay", "legacyLauncher"}) {
+        auto& values = document[section];
+        if (!values.contains("crashReports")) continue;
+        if (values["crashReports"] == false && !document["netplay"].contains("sendProblemReports"))
+            document["netplay"]["sendProblemReports"] = false;
+        values.erase("crashReports");
+    }
+}
 void RetireLegacy(Json& document) {
+    RetireOldReportsKey(document);
     for (const char* key : ObsoleteKeys) { document["legacyLauncher"].erase(key); document["netplay"].erase(key); }
     auto& overlay = document["overlay"];
     for (const char* key : {"host", "join", "mainMenu", "windows", "debug"}) overlay.erase(key);

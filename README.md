@@ -115,7 +115,7 @@ Find opponents, organise sets and get help in the [Ember Discord](https://discor
 
 ## License and credits
 
-This project is under the [MIT license](LICENSE), which carries both the SF4 Ember Netplay contributors copyright and the upstream copyright with **Anthony Danducci's sf4e** attribution. Anyone reusing code from this port must keep both notices; see [using code from this port](ATTRIBUTION.md#using-code-from-this-port). [ATTRIBUTION.md](ATTRIBUTION.md) records upstream, dependency, font and artwork credits. Packages include dependency notices, Inter's OFL and Kenney's input-prompt license. Capcom game imagery is separate from the source-code license.
+This project is under the [MIT license](LICENSE), which carries both the SF4 Ember Netplay contributors copyright and the upstream copyright with **Anthony Danducci's sf4e** attribution. Anyone reusing code from this port must keep both notices; see [using code from this port](ATTRIBUTION.md#using-code-from-this-port). [ATTRIBUTION.md](ATTRIBUTION.md) records upstream, dependency, font and artwork credits. Packages include dependency notices (with the Unicode License V3 for the Unicode data used in report redaction), Inter's OFL and Kenney's input-prompt license. Capcom game imagery is separate from the source-code license.
 
 ## External Licenses and Copyright Information
 

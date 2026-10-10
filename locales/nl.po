@@ -79,7 +79,7 @@ msgid "launcher.steam_runs_as_admin"
 msgstr "Het spel kon Steam niet bereiken omdat Steam als administrator draait. Sluit Steam, start het normaal opnieuw en probeer het nogmaals. Ember als administrator starten werkt ook, maar dan worden updates niet geïnstalleerd."
 
 msgid "launcher.game_crashed"
-msgstr "Het spel is gecrasht. Stuur de bestanden uit %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log en sf4e-crash-*.dmp) naar het SF4 Ember Netplay-team en probeer opnieuw."
+msgstr "Het spel is gecrasht. Kies hieronder Dit rapport versturen om te helpen het op te lossen. Of stuur de bestanden uit %APPDATA%\\sf4e\\logs zelf."
 
 msgid "launcher.runtime_shadowed"
 msgstr "Het spel zou deze bestanden laden in plaats van die in de Ember-map. Een oude kopie stopt het spel al voor de start (\"entry point ggpo_get_last_confirmed_frame not found\"). Ze zijn achtergelaten door een andere netplaymod of een oudere installatie. Verplaats of hernoem ze en start Ember opnieuw:\n\n{0}"
@@ -2844,6 +2844,9 @@ msgstr "Tekst bewerken"
 msgid "edit.instructions"
 msgstr "Typ of plak met het toetsenbord. Enter of Kiezen op de controller bevestigt; Escape of controllerknop Terug annuleert."
 
+msgid "edit.instructions_multiline"
+msgstr "Typ of plak met het toetsenbord. Enter of Enter op het numerieke toetsenblok voegt een nieuwe regel toe. Ctrl+Enter, Ctrl+Enter op het numerieke toetsenblok, de knop Accepteren of Selecteren op de controller bevestigt; Escape of Terug op de controller annuleert."
+
 msgid "edit.updating"
 msgstr "Kamer wordt bijgewerkt. Je concept blijft bewaard; je kunt verder typen of annuleren."
 
@@ -4286,3 +4289,189 @@ msgstr "Nu gaan"
 
 msgid "rules.round_time.practice"
 msgstr "Een oefenwedstrijd eindigt als de rondetijd afloopt. De langste is {0}."
+
+msgid "reports.setting"
+msgstr "Probleemrapporten versturen"
+
+msgid "reports.setting_detail"
+msgstr "Aan: na een crash verstuurt de launcher het rapport zonder te vragen, hoogstens {0} per dag en nooit met de crashdump. Uit: hij vraagt het eerst."
+
+msgid "reports.problem"
+msgstr "Probleem melden"
+
+msgid "reports.problem_detail"
+msgstr "Bekijk logs zonder privégegevens en rapportdetails voordat je kiest of ze naar Ember gaan."
+
+msgid "reports.title"
+msgstr "Rapportvoorbeeld"
+
+msgid "reports.preparing"
+msgstr "Rapportvoorbeeld wordt voorbereid..."
+
+msgid "reports.preview_detail"
+msgstr "Bekijk elk onderdeel voor het versturen. Rapporten gaan naar embernetplay.link. Ruwe dumps blijven maximaal 30 dagen bewaard; verwerkte rapporten hebben een aparte bewaartermijn."
+
+msgid "reports.sending"
+msgstr "Je rapport wordt verstuurd..."
+
+msgid "reports.bytes"
+msgstr "{0} bytes"
+
+msgid "reports.metadata"
+msgstr "Rapportdetails"
+
+msgid "reports.dump"
+msgstr "Kleine dump"
+
+msgid "reports.dump_detail"
+msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+
+msgid "reports.comment"
+msgstr "Opmerking"
+
+msgid "reports.comment_required"
+msgstr "Beschrijf het probleem voor het versturen (maximaal 2000 tekens). Je opmerking wordt verstuurd zoals je hem schrijft."
+
+msgid "reports.comment_optional"
+msgstr "Optioneel: beschrijf wat er gebeurde (maximaal 2000 tekens). Je opmerking wordt verstuurd zoals je hem schrijft."
+
+msgid "reports.send"
+msgstr "Versturen"
+
+msgid "reports.dont_send"
+msgstr "Niet versturen"
+
+msgid "reports.consent"
+msgstr "Precies de onderdelen uit dit voorbeeld naar Ember versturen, inclusief je opmerking en de kleine dump als die aan staat?"
+
+msgid "reports.copy_id"
+msgstr "Rapport-ID kopiëren"
+
+msgid "reports.close_detail"
+msgstr "Sluit dit voorbeeld. Een upload die de server al heeft geaccepteerd, kun je hier niet intrekken."
+
+msgid "reports.sent"
+msgstr "Rapport geaccepteerd. Rapport-ID: {0}"
+
+msgid "reports.invalid"
+msgstr "Dit rapport is ongeldig of te groot. Controleer de opmerking en maak een nieuw voorbeeld."
+
+msgid "reports.invalid_response"
+msgstr "Het serverantwoord bevatte geen geldig rapport-ID. Mogelijk heeft de server je rapport al geaccepteerd."
+
+msgid "reports.rate_limited"
+msgstr "Te veel rapporten. Probeer opnieuw over {0} seconden."
+
+msgid "reports.unavailable"
+msgstr "Rapporteren is tijdelijk niet beschikbaar. Probeer het later opnieuw."
+
+msgid "reports.failed"
+msgstr "Rapport kon niet worden verstuurd. Controleer je verbinding en probeer opnieuw."
+
+msgid "reports.cancelled"
+msgstr "Uploaden geannuleerd. Een rapport dat de server al heeft geaccepteerd, kan toch bewaard blijven."
+
+msgid "reports.dump_warning"
+msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+
+msgid "launcher.game_crashed_files"
+msgstr "Het spel is gecrasht. Stuur de bestanden uit %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log en sf4e-crash-*.dmp) naar het SF4 Ember Netplay-team en probeer opnieuw."
+
+msgid "launcher.game_crashed_sending"
+msgstr "Het spel is gecrasht. Probleemrapporten versturen staat aan, dus er wordt een rapport zonder crashdump verstuurd. De bestanden staan ook in %APPDATA%\\sf4e\\logs."
+
+msgid "reports.settings_title"
+msgstr "Probleemrapporten"
+
+msgid "reports.settings_detail"
+msgstr "Wat een crashrapport bevat, en de verzonden rapporten."
+
+msgid "reports.sent_list"
+msgstr "Verzonden rapporten"
+
+msgid "reports.sent_list_detail"
+msgstr "Elk rapport dat deze pc verstuurde: wanneer, hoe het ging en de rapport-ID."
+
+msgid "reports.none"
+msgstr "Nog geen rapporten"
+
+msgid "reports.none_detail"
+msgstr "Rapporten die deze pc verstuurt, staan hier."
+
+msgid "reports.send_once"
+msgstr "Dit rapport versturen"
+
+msgid "reports.send_always"
+msgstr "Altijd versturen"
+
+msgid "reports.send_always_detail"
+msgstr "Verstuurt dit rapport en vanaf nu het rapport van elke volgende crash zonder te vragen. Rapporten die zonder vragen worden verstuurd, bevatten nooit een dump. Hoogstens {0} gaan er in 24 uur zonder vragen weg, en elk verstuurd rapport telt mee. Zet het uit in Instellingen, Probleemrapporten."
+
+msgid "reports.dump_included"
+msgstr "Crashdump: inbegrepen."
+
+msgid "reports.dump_not_included"
+msgstr "Crashdump: niet inbegrepen."
+
+msgid "reports.row"
+msgstr "Probleemrapport"
+
+msgid "reports.status.sending"
+msgstr "Versturen"
+
+msgid "reports.status.received"
+msgstr "Ontvangen"
+
+msgid "reports.status.refused"
+msgstr "Niet geaccepteerd"
+
+msgid "reports.status.not_sent"
+msgstr "Niet verstuurd"
+
+msgid "reports.received"
+msgstr "Het rapport is ontvangen."
+
+msgid "reports.received_id"
+msgstr "Het rapport is ontvangen. De ID is {0}. Noem die als je het Ember-team over deze crash vraagt."
+
+msgid "reports.refused"
+msgstr "De rapportdienst heeft het rapport niet geaccepteerd. Het wordt niet opnieuw verstuurd."
+
+msgid "reports.not_sent"
+msgstr "Het rapport kon niet worden verstuurd. Het wordt niet opnieuw verstuurd."
+
+msgid "reports.what_is_sent"
+msgstr "Uitnodigingen, tokens, netwerkadressen, e-mail en je Windows-gebruikersnaam, profielmap, pc-naam en spelersnaam worden uit de logs gehaald.\n\nEen rapport dat je zelf verstuurt, zie je eerst helemaal; de kleine dump gaat alleen mee als je die in dat voorbeeld aanzet. Rapporten die zonder vragen worden verstuurd, bevatten nooit een dump.\n\nNooit verstuurd: je andere bestanden, je replays of de volledige crashdumps."
+
+msgid "reports.send_once_detail"
+msgstr "Opent een voorbeeld van precies wat dit rapport bevat. Er wordt niets verstuurd tot je Versturen kiest."
+
+msgid "reports.crash_report"
+msgstr "Crashrapport"
+
+msgid "reports.payload"
+msgstr "Rapporten gaan naar embernetplay.link. Elk bevat de Ember-versie en build, de Windows-versie, de crashgegevens en het einde van sf4e.log, launcher.log, sf4e-crash.log en sf4-net.log, zonder privégegevens."
+
+msgid "reports.status.unknown"
+msgstr "Onbekend"
+
+msgid "reports.interrupted"
+msgstr "Het versturen is onderbroken voordat er antwoord kwam. De rapportdienst heeft het rapport mogelijk ontvangen."
+
+msgid "reports.identity_failed"
+msgstr "Je spelersnaam of Windows-account kon niet worden gelezen, dus het rapport is niet voorbereid. Probeer opnieuw."
+
+msgid "reports.history_failed"
+msgstr "Het overzicht van verzonden rapporten is niet opgeslagen, dus het rapport is niet verstuurd. Probeer opnieuw."
+
+msgid "reports.history_unreadable"
+msgstr "Overzicht onleesbaar"
+
+msgid "reports.history_unreadable_detail"
+msgstr "sent-reports.json in %APPDATA%\\sf4e is onleesbaar, dus er gaat geen rapport zonder vragen weg. Verwijder het bestand voor een nieuw overzicht."
+
+msgid "reports.always_failed"
+msgstr "Altijd versturen kon niet worden aangezet, dus dit rapport is niet verstuurd. Kies Dit rapport versturen om het vanuit het voorbeeld te versturen."
+
+msgid "reports.automatic_unavailable"
+msgstr "De automatische rapporten van vandaag zijn op, of het overzicht van verzonden rapporten is onleesbaar, dus dit rapport is niet verstuurd. Kies Dit rapport versturen om het vanuit het voorbeeld te versturen."

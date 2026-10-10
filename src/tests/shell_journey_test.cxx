@@ -7,7 +7,7 @@ int main() {
  try {
   RoomJourneys(); ReplayJourneys(); TrainingFromHome(); TrainingFromRoom(); TrainingInRoom();
   KeyboardJourneys(); ChatJourneys(); NoticeOverDialogs(); LanguageSaveFailure();
-  SessionReports(); RecoveryWindow(); SelectorPages(); SelectorFromHome();
+  SessionReports(); RecoveryWindow(); ProblemReportJourneys(); SelectorPages(); SelectorFromHome();
   DeveloperSelectors(); TrainingJourneys(); PresentationJourneys(); AppearanceGalleries();
   std::cout << "Shell journeys through the renderer passed.\n";
   return 0;

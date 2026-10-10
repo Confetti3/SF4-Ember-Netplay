@@ -79,7 +79,7 @@ msgid "launcher.steam_runs_as_admin"
 msgstr "Steam이 관리자 권한으로 실행 중이어서 게임이 Steam에 연결하지 못했습니다. Steam을 종료하고 일반 방식으로 다시 실행한 뒤 다시 시도하세요. Ember를 관리자 권한으로 실행해도 되지만, 그러면 업데이트가 설치되지 않습니다."
 
 msgid "launcher.game_crashed"
-msgstr "게임이 충돌했습니다. %APPDATA%\\sf4e\\logs 폴더의 파일(sf4e.log, sf4e-crash.log, sf4e-crash-*.dmp)을 SF4 Ember Netplay 팀에 보낸 뒤 다시 시도하세요."
+msgstr "게임이 충돌했습니다. 문제 해결을 도우려면 아래에서 이 보고서 보내기를 선택하세요. %APPDATA%\\sf4e\\logs 폴더의 파일을 직접 보내도 됩니다."
 
 msgid "launcher.runtime_shadowed"
 msgstr "게임이 Ember 폴더의 파일 대신 아래 파일을 불러오며, 오래된 사본 때문에 실행 전에 종료됩니다(\"entry point ggpo_get_last_confirmed_frame not found\"). 다른 넷플레이 모드나 이전 설치의 잔여 파일입니다. 해당 파일을 이동하거나 이름을 바꾼 뒤 Ember를 다시 시작하세요:\n\n{0}"
@@ -2844,6 +2844,9 @@ msgstr "텍스트 편집"
 msgid "edit.instructions"
 msgstr "키보드로 입력하거나 붙여넣으세요. Enter 또는 컨트롤러의 선택으로 확정하고 Esc 또는 컨트롤러의 뒤로 버튼으로 취소합니다."
 
+msgid "edit.instructions_multiline"
+msgstr "키보드로 입력하거나 붙여넣으세요. Enter 또는 숫자 키패드의 Enter로 줄을 바꿉니다. Ctrl+Enter, Ctrl+숫자 키패드의 Enter, 수락 버튼 또는 컨트롤러 선택으로 확정하고, Escape 또는 컨트롤러 뒤로로 취소합니다."
+
 msgid "edit.updating"
 msgstr "방을 업데이트 중입니다. 초안은 유지되며 계속 입력하거나 취소할 수 있습니다."
 
@@ -4286,3 +4289,189 @@ msgstr "지금 가기"
 
 msgid "rules.round_time.practice"
 msgstr "연습 대전은 라운드 시간이 끝나면 종료됩니다. 가장 긴 시간은 {0}입니다."
+
+msgid "reports.setting"
+msgstr "문제 보고서 보내기"
+
+msgid "reports.setting_detail"
+msgstr "켜기: 충돌 후 런처가 묻지 않고 보고서를 보냅니다(하루 최대 {0}건, 크래시 덤프는 제외). 끄기: 먼저 묻습니다."
+
+msgid "reports.problem"
+msgstr "문제 보고"
+
+msgid "reports.problem_detail"
+msgstr "개인정보를 가린 로그와 보고서 세부 정보를 확인한 뒤 Ember로 보낼지 정하세요."
+
+msgid "reports.title"
+msgstr "보고서 미리보기"
+
+msgid "reports.preparing"
+msgstr "보고서 미리보기를 준비하는 중..."
+
+msgid "reports.preview_detail"
+msgstr "보내기 전에 각 항목을 확인하세요. 보고서는 embernetplay.link로 전송됩니다. 원본 덤프는 최대 30일간 보관되며, 처리된 보고서는 보관 기간이 별도입니다."
+
+msgid "reports.sending"
+msgstr "보고서를 보내는 중..."
+
+msgid "reports.bytes"
+msgstr "{0}바이트"
+
+msgid "reports.metadata"
+msgstr "보고서 세부 정보"
+
+msgid "reports.dump"
+msgstr "작은 덤프"
+
+msgid "reports.dump_detail"
+msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+
+msgid "reports.comment"
+msgstr "의견"
+
+msgid "reports.comment_required"
+msgstr "보내기 전에 문제를 설명하세요(2000자까지). 의견은 작성한 그대로 전송됩니다."
+
+msgid "reports.comment_optional"
+msgstr "선택 사항: 어떤 일이 있었는지 설명하세요(2000자까지). 의견은 작성한 그대로 전송됩니다."
+
+msgid "reports.send"
+msgstr "보내기"
+
+msgid "reports.dont_send"
+msgstr "보내지 않기"
+
+msgid "reports.consent"
+msgstr "이 미리보기에 표시된 항목을 그대로 Ember로 보낼까요? 의견과, 켜져 있다면 작은 덤프도 포함됩니다."
+
+msgid "reports.copy_id"
+msgstr "보고서 ID 복사"
+
+msgid "reports.close_detail"
+msgstr "이 미리보기를 닫습니다. 서버가 이미 받은 업로드는 여기서 취소할 수 없습니다."
+
+msgid "reports.sent"
+msgstr "보고서를 받았습니다. 보고서 ID: {0}"
+
+msgid "reports.invalid"
+msgstr "이 보고서는 올바르지 않거나 용량이 한도를 넘었습니다. 의견을 확인하고 미리보기를 다시 만들어 보세요."
+
+msgid "reports.invalid_response"
+msgstr "서버 응답에 올바른 보고서 ID가 없었습니다. 보고서를 이미 받았을 수 있습니다."
+
+msgid "reports.rate_limited"
+msgstr "보고서가 너무 많습니다. {0}초 뒤에 다시 시도하세요."
+
+msgid "reports.unavailable"
+msgstr "지금은 보고서를 보낼 수 없습니다. 나중에 다시 시도하세요."
+
+msgid "reports.failed"
+msgstr "보고서를 보내지 못했습니다. 연결을 확인하고 다시 시도하세요."
+
+msgid "reports.cancelled"
+msgstr "보고서 업로드를 취소했습니다. 서버가 이미 받은 보고서는 남아 있을 수 있습니다."
+
+msgid "reports.dump_warning"
+msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+
+msgid "launcher.game_crashed_files"
+msgstr "게임이 충돌했습니다. %APPDATA%\\sf4e\\logs 폴더의 파일(sf4e.log, sf4e-crash.log, sf4e-crash-*.dmp)을 SF4 Ember Netplay 팀에 보낸 뒤 다시 시도하세요."
+
+msgid "launcher.game_crashed_sending"
+msgstr "게임이 충돌했습니다. 문제 보고서 보내기가 켜져 있어 크래시 덤프 없이 보고서를 보내는 중입니다. 파일은 %APPDATA%\\sf4e\\logs 폴더에도 있습니다."
+
+msgid "reports.settings_title"
+msgstr "문제 보고서"
+
+msgid "reports.settings_detail"
+msgstr "충돌 보고서에 담기는 내용과 보낸 보고서."
+
+msgid "reports.sent_list"
+msgstr "보낸 보고서"
+
+msgid "reports.sent_list_detail"
+msgstr "이 PC가 보낸 각 보고서의 시각, 결과, 보고서 ID."
+
+msgid "reports.none"
+msgstr "아직 보고서가 없습니다"
+
+msgid "reports.none_detail"
+msgstr "이 PC가 보낸 보고서가 여기에 표시됩니다."
+
+msgid "reports.send_once"
+msgstr "이 보고서 보내기"
+
+msgid "reports.send_always"
+msgstr "항상 보내기"
+
+msgid "reports.send_always_detail"
+msgstr "이 보고서를 보내고, 이후 충돌의 보고서도 묻지 않고 보냅니다. 묻지 않고 보내는 보고서에는 덤프가 포함되지 않습니다. 묻지 않고 보내는 보고서는 24시간에 최대 {0}건이며, 보낸 보고서는 모두 이 수에 포함됩니다. 설정의 문제 보고서에서 끌 수 있습니다."
+
+msgid "reports.dump_included"
+msgstr "크래시 덤프: 포함"
+
+msgid "reports.dump_not_included"
+msgstr "크래시 덤프: 제외"
+
+msgid "reports.row"
+msgstr "문제 보고서"
+
+msgid "reports.status.sending"
+msgstr "보내는 중"
+
+msgid "reports.status.received"
+msgstr "수신됨"
+
+msgid "reports.status.refused"
+msgstr "거부됨"
+
+msgid "reports.status.not_sent"
+msgstr "보내지 못함"
+
+msgid "reports.received"
+msgstr "보고서가 수신되었습니다."
+
+msgid "reports.received_id"
+msgstr "보고서가 수신되었습니다. ID는 {0}입니다. 이 충돌에 대해 Ember 팀에 문의할 때 알려 주세요."
+
+msgid "reports.refused"
+msgstr "보고서 서비스가 보고서를 받지 않았습니다. 다시 보내지 않습니다."
+
+msgid "reports.not_sent"
+msgstr "보고서를 보내지 못했습니다. 다시 보내지 않습니다."
+
+msgid "reports.what_is_sent"
+msgstr "초대, 토큰, 네트워크 주소, 이메일, Windows 사용자 이름, 프로필 폴더, PC 이름, 플레이어 이름은 로그에서 제거됩니다.\n\n직접 보내는 보고서는 먼저 전체가 표시되며, 작은 덤프는 그 미리보기에서 켰을 때만 전송됩니다. 묻지 않고 보내는 보고서에는 덤프가 포함되지 않습니다.\n\n전송되지 않는 것: 다른 파일, 리플레이, 전체 크래시 덤프."
+
+msgid "reports.send_once_detail"
+msgstr "이 보고서에 들어갈 내용을 그대로 보여 주는 미리보기를 엽니다. 보내기를 선택하기 전에는 아무것도 전송되지 않습니다."
+
+msgid "reports.crash_report"
+msgstr "크래시 보고서"
+
+msgid "reports.payload"
+msgstr "보고서는 embernetplay.link로 전송됩니다. 각 보고서에는 Ember 버전과 빌드, Windows 버전, 충돌 정보, 개인정보를 가린 sf4e.log, launcher.log, sf4e-crash.log, sf4-net.log의 끝부분이 들어갑니다."
+
+msgid "reports.status.unknown"
+msgstr "알 수 없음"
+
+msgid "reports.interrupted"
+msgstr "응답이 오기 전에 전송이 중단되었습니다. 보고서 서비스가 이미 받았을 수 있습니다."
+
+msgid "reports.identity_failed"
+msgstr "플레이어 이름이나 Windows 계정을 읽지 못해 보고서를 준비하지 못했습니다. 다시 시도하세요."
+
+msgid "reports.history_failed"
+msgstr "보낸 보고서 기록을 저장하지 못해 보고서를 보내지 않았습니다. 다시 시도하세요."
+
+msgid "reports.history_unreadable"
+msgstr "기록을 읽을 수 없음"
+
+msgid "reports.history_unreadable_detail"
+msgstr "%APPDATA%\\sf4e의 sent-reports.json을 읽을 수 없어 묻지 않고 보내는 보고서는 없습니다. 새 기록을 시작하려면 이 파일을 삭제하세요."
+
+msgid "reports.always_failed"
+msgstr "항상 보내기를 켜지 못해 이 보고서를 보내지 않았습니다. 이 보고서 보내기를 선택하면 미리보기에서 보낼 수 있습니다."
+
+msgid "reports.automatic_unavailable"
+msgstr "자동 보고서 한도에 도달했거나 보낸 보고서 기록을 읽을 수 없어 이 보고서를 보내지 않았습니다. 이 보고서 보내기를 선택하면 미리보기에서 보낼 수 있습니다."

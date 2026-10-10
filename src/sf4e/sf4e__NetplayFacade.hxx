@@ -82,6 +82,7 @@ namespace sf4e {
             platform::ServiceAction service = platform::ServiceAction::None;
             // With ShowReplayFile: the archived replay whose folder opens.
             std::string servicePath;
+            reports::Submission reportSubmission;
             input::Action inputAction = input::Action::None;
     discord::InviteAction discordAction = discord::InviteAction::None;
     std::uint64_t discordRevision = 0;

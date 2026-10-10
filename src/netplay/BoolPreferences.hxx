@@ -15,7 +15,7 @@ inline constexpr BoolPreference BoolPreferences[] = {
     {"readySound", &PlayerPreferences::readySound}, {"trainingAutoReady", &PlayerPreferences::trainingAutoReady},
     {"matchFrameMeter", &PlayerPreferences::matchFrameMeter}, {"backgroundPlay", &PlayerPreferences::backgroundPlay},
     {"recordWatched", &PlayerPreferences::recordWatched}, {"discordPresence", &PlayerPreferences::discordPresence},
-    {"discordInvites", &PlayerPreferences::discordInvites},
+    {"discordInvites", &PlayerPreferences::discordInvites}, {"sendProblemReports", &PlayerPreferences::sendProblemReports},
 };
 
 } }

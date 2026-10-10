@@ -79,7 +79,7 @@ msgid "launcher.steam_runs_as_admin"
 msgstr "Gra nie mogła połączyć się ze Steamem, ponieważ Steam działa jako administrator. Zamknij Steam, uruchom go normalnie i spróbuj ponownie. Uruchomienie Embera jako administrator też działa, ale wtedy aktualizacje się nie instalują."
 
 msgid "launcher.game_crashed"
-msgstr "Gra uległa awarii. Wyślij zespołowi SF4 Ember Netplay pliki z %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log i sf4e-crash-*.dmp), a potem spróbuj ponownie."
+msgstr "Gra uległa awarii. Aby pomóc to naprawić, wybierz poniżej Wyślij to zgłoszenie. Możesz też sam wysłać pliki z %APPDATA%\\sf4e\\logs."
 
 msgid "launcher.runtime_shadowed"
 msgstr "Gra załadowałaby te pliki zamiast plików z folderu Ember, a stara kopia blokuje jej start („entry point ggpo_get_last_confirmed_frame not found”). Pozostały po innej modyfikacji sieciowej lub starszej instalacji. Przenieś je albo zmień ich nazwy, a potem uruchom Ember ponownie:\n\n{0}"
@@ -2844,6 +2844,9 @@ msgstr "Edytuj tekst"
 msgid "edit.instructions"
 msgstr "Wpisz lub wklej tekst z klawiatury. Enter lub Wybierz na kontrolerze zatwierdza; Escape lub Powrót na kontrolerze anuluje."
 
+msgid "edit.instructions_multiline"
+msgstr "Wpisz lub wklej tekst klawiaturą. Enter lub Enter na klawiaturze numerycznej dodaje nowy wiersz. Ctrl+Enter, Ctrl+Enter na klawiaturze numerycznej, przycisk Zatwierdź lub wybór na kontrolerze zatwierdza; Escape lub Wstecz na kontrolerze anuluje."
+
 msgid "edit.updating"
 msgstr "Aktualizacja pokoju. Tekst pozostaje; możesz dalej pisać lub anulować."
 
@@ -4286,3 +4289,189 @@ msgstr "Idź teraz"
 
 msgid "rules.round_time.practice"
 msgstr "Mecz treningowy kończy się po upływie czasu rundy. Najdłuższy to {0}."
+
+msgid "reports.setting"
+msgstr "Wysyłaj zgłoszenia problemów"
+
+msgid "reports.setting_detail"
+msgstr "Wł.: po awarii launcher wysyła zgłoszenie bez pytania, najwyżej {0} dziennie i nigdy ze zrzutem awarii. Wył.: najpierw pyta."
+
+msgid "reports.problem"
+msgstr "Zgłoś problem"
+
+msgid "reports.problem_detail"
+msgstr "Przejrzyj zanonimizowane logi i szczegóły zgłoszenia, zanim zdecydujesz, czy wysłać je do Ember."
+
+msgid "reports.title"
+msgstr "Podgląd zgłoszenia"
+
+msgid "reports.preparing"
+msgstr "Przygotowywanie podglądu zgłoszenia..."
+
+msgid "reports.preview_detail"
+msgstr "Przejrzyj każdą część przed wysłaniem. Zgłoszenia trafiają na embernetplay.link. Surowe zrzuty są przechowywane do 30 dni; przetworzone zgłoszenia mają osobny okres przechowywania."
+
+msgid "reports.sending"
+msgstr "Wysyłanie zgłoszenia..."
+
+msgid "reports.bytes"
+msgstr "{0} bajtów"
+
+msgid "reports.metadata"
+msgstr "Szczegóły zgłoszenia"
+
+msgid "reports.dump"
+msgstr "Mały zrzut"
+
+msgid "reports.dump_detail"
+msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+
+msgid "reports.comment"
+msgstr "Komentarz"
+
+msgid "reports.comment_required"
+msgstr "Opisz problem przed wysłaniem (do 2000 znaków). Komentarz zostanie wysłany tak, jak go napiszesz."
+
+msgid "reports.comment_optional"
+msgstr "Opcjonalnie: opisz, co się stało (do 2000 znaków). Komentarz zostanie wysłany tak, jak go napiszesz."
+
+msgid "reports.send"
+msgstr "Wyślij"
+
+msgid "reports.dont_send"
+msgstr "Nie wysyłaj"
+
+msgid "reports.consent"
+msgstr "Wysłać do Ember dokładnie te części, które widać w tym podglądzie, w tym komentarz i mały zrzut, jeśli jest włączony?"
+
+msgid "reports.copy_id"
+msgstr "Kopiuj ID zgłoszenia"
+
+msgid "reports.close_detail"
+msgstr "Zamyka ten podgląd. Przesyłania zaakceptowanego już przez serwer nie można tu wycofać."
+
+msgid "reports.sent"
+msgstr "Zgłoszenie przyjęte. ID zgłoszenia: {0}"
+
+msgid "reports.invalid"
+msgstr "To zgłoszenie jest nieprawidłowe lub zbyt duże. Sprawdź komentarz i przygotuj nowy podgląd."
+
+msgid "reports.invalid_response"
+msgstr "Odpowiedź serwera nie zawierała prawidłowego ID zgłoszenia. Serwer mógł już przyjąć Twoje zgłoszenie."
+
+msgid "reports.rate_limited"
+msgstr "Za dużo zgłoszeń. Spróbuj ponownie za {0} s."
+
+msgid "reports.unavailable"
+msgstr "Zgłaszanie jest chwilowo niedostępne. Spróbuj ponownie później."
+
+msgid "reports.failed"
+msgstr "Nie udało się wysłać zgłoszenia. Sprawdź połączenie i spróbuj ponownie."
+
+msgid "reports.cancelled"
+msgstr "Przesyłanie anulowane. Zgłoszenie przyjęte już przez serwer może nadal być przechowywane."
+
+msgid "reports.dump_warning"
+msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+
+msgid "launcher.game_crashed_files"
+msgstr "Gra uległa awarii. Wyślij zespołowi SF4 Ember Netplay pliki z %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log i sf4e-crash-*.dmp), a potem spróbuj ponownie."
+
+msgid "launcher.game_crashed_sending"
+msgstr "Gra uległa awarii. Opcja Wysyłaj zgłoszenia problemów jest włączona, więc wysyłane jest zgłoszenie bez zrzutu awarii. Pliki są też w %APPDATA%\\sf4e\\logs."
+
+msgid "reports.settings_title"
+msgstr "Zgłoszenia problemów"
+
+msgid "reports.settings_detail"
+msgstr "Co zawiera zgłoszenie awarii i wysłane zgłoszenia."
+
+msgid "reports.sent_list"
+msgstr "Wysłane zgłoszenia"
+
+msgid "reports.sent_list_detail"
+msgstr "Każde zgłoszenie wysłane z tego komputera: kiedy, z jakim skutkiem i jego ID."
+
+msgid "reports.none"
+msgstr "Brak zgłoszeń"
+
+msgid "reports.none_detail"
+msgstr "Tu pojawiają się zgłoszenia wysłane z tego komputera."
+
+msgid "reports.send_once"
+msgstr "Wyślij to zgłoszenie"
+
+msgid "reports.send_always"
+msgstr "Zawsze wysyłaj"
+
+msgid "reports.send_always_detail"
+msgstr "Wysyła to zgłoszenie, a od teraz także zgłoszenie każdej kolejnej awarii bez pytania. Zgłoszenia wysyłane bez pytania nigdy nie zawierają zrzutu. W ciągu 24 godzin bez pytania wyjdzie najwyżej {0}, a liczy się każde wysłane zgłoszenie. Wyłączysz to w: Ustawienia, Zgłoszenia problemów."
+
+msgid "reports.dump_included"
+msgstr "Zrzut awarii: dołączony."
+
+msgid "reports.dump_not_included"
+msgstr "Zrzut awarii: niedołączony."
+
+msgid "reports.row"
+msgstr "Zgłoszenie problemu"
+
+msgid "reports.status.sending"
+msgstr "Wysyłanie"
+
+msgid "reports.status.received"
+msgstr "Odebrane"
+
+msgid "reports.status.refused"
+msgstr "Nieprzyjęte"
+
+msgid "reports.status.not_sent"
+msgstr "Niewysłane"
+
+msgid "reports.received"
+msgstr "Zgłoszenie zostało odebrane."
+
+msgid "reports.received_id"
+msgstr "Zgłoszenie zostało odebrane. Jego ID to {0}. Podaj je, pytając zespół Ember o tę awarię."
+
+msgid "reports.refused"
+msgstr "Usługa zgłoszeń nie przyjęła zgłoszenia. Nie zostanie wysłane ponownie."
+
+msgid "reports.not_sent"
+msgstr "Nie udało się wysłać zgłoszenia. Nie zostanie wysłane ponownie."
+
+msgid "reports.what_is_sent"
+msgstr "Zaproszenia, tokeny, adresy sieciowe, e-mail oraz Twoja nazwa użytkownika Windows, folder profilu, nazwa komputera i nazwa gracza są usuwane z logów.\n\nZgłoszenie wysyłane przez Ciebie jest najpierw pokazane w całości, a mały zrzut trafia tylko wtedy, gdy włączysz go w tym podglądzie. Zgłoszenia wysyłane bez pytania nigdy nie zawierają zrzutu.\n\nNigdy nie wysyłamy: Twoich innych plików, powtórek ani pełnych zrzutów awarii."
+
+msgid "reports.send_once_detail"
+msgstr "Otwiera podgląd dokładnie tego, co zawiera to zgłoszenie. Nic nie jest wysyłane, dopóki nie wybierzesz Wyślij."
+
+msgid "reports.crash_report"
+msgstr "Zgłoszenie awarii"
+
+msgid "reports.payload"
+msgstr "Zgłoszenia trafiają na embernetplay.link. Każde zawiera wersję i build Ember, wersję Windows, dane o awarii oraz zanonimizowaną końcówkę plików sf4e.log, launcher.log, sf4e-crash.log i sf4-net.log."
+
+msgid "reports.status.unknown"
+msgstr "Nieznane"
+
+msgid "reports.interrupted"
+msgstr "Wysyłanie zostało przerwane, zanim przyszła odpowiedź. Usługa zgłoszeń mogła je odebrać."
+
+msgid "reports.identity_failed"
+msgstr "Nie udało się odczytać Twojej nazwy gracza ani konta Windows, więc zgłoszenie nie zostało przygotowane. Spróbuj ponownie."
+
+msgid "reports.history_failed"
+msgstr "Nie udało się zapisać historii wysłanych zgłoszeń, więc zgłoszenie nie zostało wysłane. Spróbuj ponownie."
+
+msgid "reports.history_unreadable"
+msgstr "Historia nieczytelna"
+
+msgid "reports.history_unreadable_detail"
+msgstr "Nie można odczytać pliku sent-reports.json w %APPDATA%\\sf4e, więc żadne zgłoszenie nie jest wysyłane bez pytania. Usuń plik, aby zacząć nową historię."
+
+msgid "reports.always_failed"
+msgstr "Nie udało się włączyć opcji Zawsze wysyłaj, więc to zgłoszenie nie zostało wysłane. Wybierz Wyślij to zgłoszenie, aby wysłać je z podglądu."
+
+msgid "reports.automatic_unavailable"
+msgstr "Dzisiejsze automatyczne zgłoszenia zostały wykorzystane albo nie można odczytać historii wysłanych zgłoszeń, więc to zgłoszenie nie zostało wysłane. Wybierz Wyślij to zgłoszenie, aby wysłać je z podglądu."

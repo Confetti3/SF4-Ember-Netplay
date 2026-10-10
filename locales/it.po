@@ -79,7 +79,7 @@ msgid "launcher.steam_runs_as_admin"
 msgstr "Il gioco non è riuscito a raggiungere Steam perché Steam è in esecuzione come amministratore. Chiudi Steam, riavvialo normalmente e riprova. Avviare Ember come amministratore funziona, ma così gli aggiornamenti non vengono installati."
 
 msgid "launcher.game_crashed"
-msgstr "Il gioco si è bloccato. Invia al team di SF4 Ember Netplay i file in %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log e sf4e-crash-*.dmp), poi riprova."
+msgstr "Il gioco si è bloccato. Per aiutarci a risolvere, scegli Invia questa segnalazione qui sotto. Oppure invia tu i file in %APPDATA%\\sf4e\\logs."
 
 msgid "launcher.runtime_shadowed"
 msgstr "Il gioco caricherebbe questi file anziché quelli nella cartella di Ember; una vecchia copia ne impedisce l'avvio (\"entry point ggpo_get_last_confirmed_frame not found\"). Provengono da un'altra mod netplay o da una vecchia installazione. Spostali o rinominali, poi riavvia Ember:\n\n{0}"
@@ -2844,6 +2844,9 @@ msgstr "Modifica testo"
 msgid "edit.instructions"
 msgstr "Digita o incolla con la tastiera. Enter o Seleziona sul controller conferma; Escape o Back sul controller annulla."
 
+msgid "edit.instructions_multiline"
+msgstr "Scrivi o incolla con la tastiera. Invio o Invio del tastierino numerico aggiunge una nuova riga. Ctrl+Invio, Ctrl+Invio del tastierino numerico, il pulsante Accetta o Seleziona sul controller conferma; Esc o Indietro sul controller annulla."
+
 msgid "edit.updating"
 msgstr "Aggiornamento sala. La bozza resta disponibile; puoi continuare a scrivere o annullare."
 
@@ -4286,3 +4289,189 @@ msgstr "Vai ora"
 
 msgid "rules.round_time.practice"
 msgstr "Una partita di pratica termina allo scadere del tempo del round. Il più lungo è {0}."
+
+msgid "reports.setting"
+msgstr "Invia segnalazioni di problemi"
+
+msgid "reports.setting_detail"
+msgstr "Sì: dopo un crash, il launcher invia la segnalazione senza chiedere, al massimo {0} al giorno e mai con il dump del crash. No: chiede prima."
+
+msgid "reports.problem"
+msgstr "Segnala un problema"
+
+msgid "reports.problem_detail"
+msgstr "Controlla i log oscurati e i dettagli della segnalazione prima di decidere se inviarli a Ember."
+
+msgid "reports.title"
+msgstr "Anteprima segnalazione"
+
+msgid "reports.preparing"
+msgstr "Preparazione dell'anteprima della segnalazione..."
+
+msgid "reports.preview_detail"
+msgstr "Controlla ogni parte prima dell'invio. Le segnalazioni vanno a embernetplay.link. I dump grezzi sono conservati fino a 30 giorni; le segnalazioni elaborate hanno una conservazione separata."
+
+msgid "reports.sending"
+msgstr "Invio della segnalazione..."
+
+msgid "reports.bytes"
+msgstr "{0} byte"
+
+msgid "reports.metadata"
+msgstr "Dettagli segnalazione"
+
+msgid "reports.dump"
+msgstr "Dump piccolo"
+
+msgid "reports.dump_detail"
+msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+
+msgid "reports.comment"
+msgstr "Commento"
+
+msgid "reports.comment_required"
+msgstr "Descrivi il problema prima di inviare (fino a 2000 caratteri). Il commento viene inviato così com'è."
+
+msgid "reports.comment_optional"
+msgstr "Facoltativo: descrivi cosa è successo (fino a 2000 caratteri). Il commento viene inviato così com'è."
+
+msgid "reports.send"
+msgstr "Invia"
+
+msgid "reports.dont_send"
+msgstr "Non inviare"
+
+msgid "reports.consent"
+msgstr "Inviare a Ember esattamente le parti mostrate in questa anteprima, incluso il commento e il dump piccolo se attivo?"
+
+msgid "reports.copy_id"
+msgstr "Copia ID segnalazione"
+
+msgid "reports.close_detail"
+msgstr "Chiude questa anteprima. Un caricamento già accettato dal server non può essere ritirato qui."
+
+msgid "reports.sent"
+msgstr "Segnalazione accettata. ID segnalazione: {0}"
+
+msgid "reports.invalid"
+msgstr "Questa segnalazione non è valida o è troppo grande. Controlla il commento e prova a preparare un'altra anteprima."
+
+msgid "reports.invalid_response"
+msgstr "La risposta del server non conteneva un ID segnalazione valido. Potrebbe aver già accettato la tua segnalazione."
+
+msgid "reports.rate_limited"
+msgstr "Troppe segnalazioni. Riprova tra {0} secondi."
+
+msgid "reports.unavailable"
+msgstr "Segnalazioni temporaneamente non disponibili. Riprova più tardi."
+
+msgid "reports.failed"
+msgstr "Impossibile inviare la segnalazione. Controlla la connessione e riprova."
+
+msgid "reports.cancelled"
+msgstr "Caricamento annullato. Una segnalazione già accettata dal server potrebbe comunque essere conservata."
+
+msgid "reports.dump_warning"
+msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+
+msgid "launcher.game_crashed_files"
+msgstr "Il gioco si è bloccato. Invia al team di SF4 Ember Netplay i file in %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log e sf4e-crash-*.dmp), poi riprova."
+
+msgid "launcher.game_crashed_sending"
+msgstr "Il gioco si è bloccato. Invia segnalazioni di problemi è attivo, quindi è in invio una segnalazione senza il dump del crash. I file sono anche in %APPDATA%\\sf4e\\logs."
+
+msgid "reports.settings_title"
+msgstr "Segnalazioni di problemi"
+
+msgid "reports.settings_detail"
+msgstr "Cosa contiene una segnalazione di crash e le segnalazioni inviate."
+
+msgid "reports.sent_list"
+msgstr "Segnalazioni inviate"
+
+msgid "reports.sent_list_detail"
+msgstr "Ogni segnalazione inviata da questo PC: quando, com'è andata e il suo ID."
+
+msgid "reports.none"
+msgstr "Ancora nessuna segnalazione"
+
+msgid "reports.none_detail"
+msgstr "Qui compaiono le segnalazioni inviate da questo PC."
+
+msgid "reports.send_once"
+msgstr "Invia questa segnalazione"
+
+msgid "reports.send_always"
+msgstr "Invia sempre"
+
+msgid "reports.send_always_detail"
+msgstr "Invia questa segnalazione e, da ora in poi, quella di ogni crash successivo senza chiedere. Le segnalazioni inviate senza chiedere non includono mai un dump. Al massimo {0} partono senza chiedere in 24 ore, e ogni segnalazione inviata conta. Puoi disattivarlo in Impostazioni, Segnalazioni di problemi."
+
+msgid "reports.dump_included"
+msgstr "Dump del crash: incluso."
+
+msgid "reports.dump_not_included"
+msgstr "Dump del crash: non incluso."
+
+msgid "reports.row"
+msgstr "Segnalazione di problema"
+
+msgid "reports.status.sending"
+msgstr "Invio"
+
+msgid "reports.status.received"
+msgstr "Ricevuta"
+
+msgid "reports.status.refused"
+msgstr "Non accettata"
+
+msgid "reports.status.not_sent"
+msgstr "Non inviata"
+
+msgid "reports.received"
+msgstr "La segnalazione è stata ricevuta."
+
+msgid "reports.received_id"
+msgstr "La segnalazione è stata ricevuta. Il suo ID è {0}. Citalo se contatti il team di Ember per questo crash."
+
+msgid "reports.refused"
+msgstr "Il servizio segnalazioni non ha accettato la segnalazione. Non verrà inviata di nuovo."
+
+msgid "reports.not_sent"
+msgstr "Impossibile inviare la segnalazione. Non verrà inviata di nuovo."
+
+msgid "reports.what_is_sent"
+msgstr "Inviti, token, indirizzi di rete, e-mail e il tuo nome utente Windows, la cartella del profilo, il nome del PC e il nome giocatore vengono rimossi dai log.\n\nUna segnalazione inviata da te viene prima mostrata per intero, e il dump piccolo parte solo se lo attivi in quell'anteprima. Le segnalazioni inviate senza chiedere non includono mai un dump.\n\nMai inviati: i tuoi altri file, i tuoi replay o i dump completi del crash."
+
+msgid "reports.send_once_detail"
+msgstr "Apre un'anteprima di ciò che contiene questa segnalazione. Non viene inviato nulla finché non scegli Invia."
+
+msgid "reports.crash_report"
+msgstr "Segnalazione di crash"
+
+msgid "reports.payload"
+msgstr "Le segnalazioni vanno a embernetplay.link. Ognuna contiene la versione e la build di Ember, la versione di Windows, i dati del crash e la parte finale oscurata di sf4e.log, launcher.log, sf4e-crash.log e sf4-net.log."
+
+msgid "reports.status.unknown"
+msgstr "Sconosciuta"
+
+msgid "reports.interrupted"
+msgstr "L'invio è stato interrotto prima che arrivasse una risposta. Il servizio segnalazioni potrebbe averla ricevuta."
+
+msgid "reports.identity_failed"
+msgstr "Impossibile leggere il tuo nome giocatore o l'account Windows, quindi la segnalazione non è stata preparata. Riprova."
+
+msgid "reports.history_failed"
+msgstr "Impossibile salvare lo storico delle segnalazioni inviate, quindi la segnalazione non è stata inviata. Riprova."
+
+msgid "reports.history_unreadable"
+msgstr "Storico illeggibile"
+
+msgid "reports.history_unreadable_detail"
+msgstr "Impossibile leggere sent-reports.json in %APPDATA%\\sf4e, quindi nessuna segnalazione viene inviata senza chiedere. Elimina il file per iniziare un nuovo storico."
+
+msgid "reports.always_failed"
+msgstr "Impossibile attivare Invia sempre, quindi questa segnalazione non è stata inviata. Scegli Invia questa segnalazione per inviarla dall'anteprima."
+
+msgid "reports.automatic_unavailable"
+msgstr "Le segnalazioni automatiche di oggi sono esaurite o lo storico delle segnalazioni inviate è illeggibile, quindi questa non è stata inviata. Scegli Invia questa segnalazione per inviarla dall'anteprima."

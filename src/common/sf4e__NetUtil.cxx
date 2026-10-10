@@ -8,14 +8,24 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <algorithm>
+#include <chrono>
 
 
 
 #pragma comment(lib, "winhttp.lib")
 
 #include "sf4e__NetUtil.hxx"
+#include "ReportHttpRequest.hxx"
 
 namespace sf4e {
+
+    static HINTERNET OpenHttpSession(int timeoutMs, DWORD flags = 0) {
+        HINTERNET session = WinHttpOpen(L"sf4e-updater/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+            WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, flags);
+        if (session) WinHttpSetTimeouts(session, timeoutMs, timeoutMs, timeoutMs, timeoutMs);
+        return session;
+    }
 
 	static void Utf8ToWide(const char* utf8, wchar_t* out, int outChars) {
 		if (!utf8 || !out || outChars <= 0) {
@@ -46,13 +56,7 @@ namespace sf4e {
 		Utf8ToWide(host, wHost, 256);
 		Utf8ToWide(path, wPath, 512);
 
-		HINTERNET hSession = WinHttpOpen(
-			L"sf4e-updater/1.0",
-			WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
-			WINHTTP_NO_PROXY_NAME,
-			WINHTTP_NO_PROXY_BYPASS,
-			0
-		);
+		HINTERNET hSession = OpenHttpSession(timeoutMs);
 		if (!hSession) {
 			return false;
 		}
@@ -264,13 +268,7 @@ namespace sf4e {
 		Utf8ToWide(host, wHost, 256);
 		Utf8ToWide(path, wPath, 2048);
 
-		HINTERNET hSession = WinHttpOpen(
-			L"sf4e-updater/1.0",
-			WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
-			WINHTTP_NO_PROXY_NAME,
-			WINHTTP_NO_PROXY_BYPASS,
-			0
-		);
+		HINTERNET hSession = OpenHttpSession(timeoutMs);
 		if (!hSession) {
 			if (outResult) {
 				outResult->error = HttpErrorKind::OpenFailed;
@@ -432,4 +430,97 @@ namespace sf4e {
 		return true;
 	}
 
+    static bool ReportArgs(const std::string& contentType, const std::string& body) {
+        return !body.empty() && body.size()<=5*1024*1024 && contentType.find_first_of("\r\n")==std::string::npos;
+    }
+
+    // One report upload to `host`:`port`. Only HttpPostReport (the intake over
+    // HTTPS) and the loopback test seam call it.
+    static HttpPostResult PostReport(const wchar_t* host, INTERNET_PORT port, DWORD secure, const std::string& contentType,
+        const std::string& body, const std::function<bool()>& cancelled) {
+        HttpPostResult result;
+        if (cancelled&&cancelled()) { result.cancelled=true; return result; }
+        struct Internet {
+            HINTERNET value;
+            ~Internet() { if(value)WinHttpCloseHandle(value); }
+        };
+        Internet session{OpenHttpSession(20000, WINHTTP_FLAG_ASYNC)};
+        if (!session.value) { result.request.error=HttpErrorKind::OpenFailed; return result; }
+        ApplyWinHttpDownloadOptions(session.value,nullptr);
+        Internet connection{WinHttpConnect(session.value,host,port,0)};
+        if (!connection.value) { result.request.error=HttpErrorKind::ConnectFailed; return result; }
+        HINTERNET request=WinHttpOpenRequest(connection.value,L"POST",ReportIntakePath,nullptr,
+            WINHTTP_NO_REFERER,WINHTTP_DEFAULT_ACCEPT_TYPES,secure);
+        if (!request) { result.request.error=HttpErrorKind::OpenFailed; return result; }
+        ApplyWinHttpDownloadOptions(nullptr,request);
+        DWORD redirects=WINHTTP_OPTION_REDIRECT_POLICY_NEVER;
+        DWORD disable=WINHTTP_DISABLE_COOKIES|WINHTTP_DISABLE_AUTHENTICATION;
+        if (!WinHttpSetOption(request,WINHTTP_OPTION_REDIRECT_POLICY,&redirects,sizeof(redirects)) ||
+            !WinHttpSetOption(request,WINHTTP_OPTION_DISABLE_FEATURE,&disable,sizeof(disable))) {
+            result.request.error=HttpErrorKind::OpenFailed; WinHttpCloseHandle(request); return result;
+        }
+        detail::ReportHttpRequest transport(request);
+        request=nullptr; // ownership and all subsequent request use belong to the coordinator
+        if (!transport.Initialize()) { result.request.error=HttpErrorKind::OpenFailed; return result; }
+        const auto fail=[&](HttpErrorKind kind, DWORD immediateError = 0) {
+            const auto error = immediateError ? immediateError : transport.Error();
+            result.request.error=error==ERROR_WINHTTP_TIMEOUT ? HttpErrorKind::Timeout : kind;
+            result.request.win32Error=error;
+        };
+        wchar_t headers[256]={}; Utf8ToWide(("Content-Type: "+contentType+"\r\n").c_str(),headers,256);
+        if (!transport.Send(headers,static_cast<DWORD>(body.size()),cancelled)) fail(HttpErrorKind::SendFailed);
+        else {
+            std::size_t offset=0;
+            while (offset<body.size()&&result.request.error==HttpErrorKind::None) {
+                DWORD written=0;
+                const DWORD bytes=static_cast<DWORD>((std::min)(std::size_t(65536),body.size()-offset));
+                if (!transport.Write(body.data()+offset,bytes,cancelled) || !(written=transport.Bytes())) fail(HttpErrorKind::SendFailed);
+                else offset+=written;
+            }
+            if (offset==body.size()&&result.request.error==HttpErrorKind::None) {
+                if (!transport.Receive(cancelled)) fail(HttpErrorKind::ReceiveFailed);
+                else {
+                    DWORD status=0,size=sizeof(status);
+                    if (!WinHttpQueryHeaders(transport.Handle(),WINHTTP_QUERY_STATUS_CODE|WINHTTP_QUERY_FLAG_NUMBER,
+                        WINHTTP_HEADER_NAME_BY_INDEX,&status,&size,WINHTTP_NO_HEADER_INDEX)) fail(HttpErrorKind::ReceiveFailed,GetLastError());
+                    result.request.statusCode=static_cast<int>(status);
+                    wchar_t retry[128]={}; size=sizeof(retry);
+                    if (WinHttpQueryHeaders(transport.Handle(),WINHTTP_QUERY_RETRY_AFTER,WINHTTP_HEADER_NAME_BY_INDEX,retry,&size,WINHTTP_NO_HEADER_INDEX)) {
+                        char utf8[512]={}; WideCharToMultiByte(CP_UTF8,0,retry,-1,utf8,sizeof(utf8),nullptr,nullptr); result.retryAfter=utf8;
+                    }
+                    while (result.request.error==HttpErrorKind::None) {
+                        char bytes[1024]; DWORD read=0;
+                        if (!transport.Read(bytes,sizeof(bytes),cancelled)) { fail(HttpErrorKind::ReceiveFailed); break; }
+                        read=transport.Bytes();
+                        if (!read) break;
+                        if (result.body.size()+read>16384) { fail(HttpErrorKind::ReceiveFailed); break; }
+                        result.body.append(bytes,read);
+                    }
+                    result.request.ok=result.request.error==HttpErrorKind::None&&status==202;
+                    if (!result.request.ok&&result.request.error==HttpErrorKind::None) result.request.error=HttpErrorKind::HttpStatus;
+                }
+            }
+        }
+        transport.Close();
+        // A completely received acceptance is still evidence of acceptance if
+        // Cancel arrives during teardown. Never erase that response/receipt.
+        result.cancelled=transport.Cancelled() || (!result.request.ok && cancelled&&cancelled());
+        if (result.cancelled) result.request.ok=false;
+        return result;
+    }
+    HttpPostResult HttpPostReport(const char* host, const std::string& contentType,
+        const std::string& body, const std::function<bool()>& cancelled) {
+        if (!host || strcmp(host,ReportIntakeHost)!=0 || !ReportArgs(contentType,body)) {
+            HttpPostResult result; result.request.error=HttpErrorKind::InvalidArgs; return result;
+        }
+        return PostReport(L"embernetplay.link",INTERNET_DEFAULT_HTTPS_PORT,WINHTTP_FLAG_SECURE,contentType,body,cancelled);
+    }
+
+    HttpPostResult testing::HttpPostReportLoopback(int port, const std::string& contentType,
+        const std::string& body, const std::function<bool()>& cancelled) {
+        if (port<=0||port>65535||!ReportArgs(contentType,body)) {
+            HttpPostResult result; result.request.error=HttpErrorKind::InvalidArgs; return result;
+        }
+        return PostReport(L"127.0.0.1",static_cast<INTERNET_PORT>(port),0,contentType,body,cancelled);
+    }
 } // namespace sf4e

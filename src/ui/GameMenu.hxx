@@ -37,7 +37,8 @@ RosterGrid LayOutRosterGrid(float windowWidth);
 void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing=IM_COL32(38,34,30,255));
 // Set once per overlay frame. Only the visible player screen consumes it.
 void SetMenuInput(MenuInput input);
-MenuInput ReadMenuInput();
+// Editors own keyboard Select and acceptance; pad Select still reaches them.
+MenuInput ReadMenuInput(bool textEditing=false);
 // The MenuInput bits of the menu keys held now; ReadMenuInput adds them to
 // the pad's, and surfaces that only need to know whether the keyboard was
 // used read them alone. While a text field has the keyboard only the arrows,
@@ -155,6 +156,7 @@ private:
     void DrawReader(const std::vector<MenuEntry>& entries,const Detail& detail,float height,unsigned held);
     void DrawChoiceModal(const std::vector<MenuEntry>& entries,MenuAction& action);
     void DrawNoticeModal(bool noticeOpen);
+    void ReadEditInput(const std::vector<MenuEntry>& entries,MenuInput& input) const;
     void DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEditText,MenuAction& action);
     // Clears the notice and runs its action exactly once, whichever of the
     // controller and pointer paths dismissed it.
