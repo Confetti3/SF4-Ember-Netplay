@@ -418,7 +418,7 @@ bool SessionClient::HandleRoomResult(json& msg) {
 	const auto replyId = sent != _sentRoomActions.end() ? sent->callerId : result.actionId;
 	// Seat and watch changes only name the table, so they resend as safely.
 	const auto tableIntent = [](room::ActionKind kind) {
-		return kind == room::ActionKind::Ready || kind == room::ActionKind::Unready ||
+		return kind == room::ActionKind::CancelRematch || kind == room::ActionKind::Ready || kind == room::ActionKind::Unready ||
 			kind == room::ActionKind::Queue || kind == room::ActionKind::Unqueue ||
 			kind == room::ActionKind::Watch || kind == room::ActionKind::Unwatch;
 	};
@@ -452,8 +452,11 @@ bool SessionClient::HandleRoomResult(json& msg) {
 		room::SeatOpponent(_roomSnapshot, sent->table, _roomSnapshot.localMember) : nullptr;
 	const bool matchupChanged = sent != _sentRoomActions.end() && sent->kind == room::ActionKind::Ready && sent->opponent &&
 		(!opponentNow || opponentNow->id != sent->opponent ||
-			(sent->opponentFighter >= 0 && opponentNow->fighter != sent->opponentFighter));
-	if (resendable && !matchupChanged && !result.result.accepted && result.result.reason == room::RejectReason::StaleTable &&
+			(!sent->generation && sent->opponentFighter >= 0 && opponentNow->fighter != sent->opponentFighter));
+    const bool offerChanged = sent != _sentRoomActions.end() && sent->kind == room::ActionKind::Ready && sent->generation &&
+        (_roomSnapshot.tables[sent->table].matchGeneration != sent->generation ||
+         _roomSnapshot.tables[sent->table].rematch.state != room::RematchOffer::Offered);
+	if (resendable && !matchupChanged && !offerChanged && !result.result.accepted && result.result.reason == room::RejectReason::StaleTable &&
 		sent->staleRetries < 3) {
 		// Resend the same request (kind, table, input delay, Lower input lag,
 		// seat) from the fresher snapshot. Copy first: sending may evict `sent`.
@@ -464,6 +467,7 @@ bool SessionClient::HandleRoomResult(json& msg) {
 		const std::uint8_t attempt = sent->staleRetries + 1;
 		auto again = TableAction(kind, sent->table, sent->inputDelay, sent->seat);
 		again.lowerLag = sent->lowerLag;
+		again.matchGeneration = sent->generation;
 		const auto resent = SendRoomAction(again);
 		if (resent == session::SendResult::Queued) {
 			// SendRoomAction just remembered the resend as the newest entry.

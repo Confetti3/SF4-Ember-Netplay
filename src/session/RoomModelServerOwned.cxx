@@ -28,7 +28,7 @@ Result RoomAuthority::CloseServerOwned() {
 	if (!snapshot_.serverOwned) return Reject(RejectReason::Unauthorized);
 	if (snapshot_.closed) return Reject(RejectReason::Closed);
 	snapshot_.closed = true; snapshot_.locked = true;
-	for (auto& table : snapshot_.tables) { table.phase = TablePhase::Closed; Touch(table); }
+	for (auto& table : snapshot_.tables) { ClearReadiness(table); table.phase = TablePhase::Closed; Touch(table); }
 	TouchRoom();
 	return Accept({Event{Event::Kind::RoomClosed, 0, 0, 0, MatchResult::Abort}});
 }

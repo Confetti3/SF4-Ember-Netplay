@@ -705,11 +705,12 @@ session::SendResult SessionClient::Send(nlohmann::json& msg, int64_t* outMessage
 	return _transport->Send(msg.dump(), true, outMessageNum);
 }
 
-session::SendResult SessionClient::Lobby_Ready()
+session::SendResult SessionClient::Lobby_Ready(std::uint64_t rematchGeneration)
 {
 	if (_customRoomsSeen) {
 		auto ready = TableAction(room::ActionKind::Ready, _selectedRoomTable, _selectedDelay);
 		ready.lowerLag = _selectedLowerLag;
+		ready.matchGeneration = rematchGeneration;
 		return SendRoomAction(ready);
 	}
 	LobbyReady msg;

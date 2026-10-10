@@ -251,6 +251,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   rows[0].hint=loc::T("menu.hint.paste");if(!opening)rows[1].hint=loc::T("online.join");
  }else if(PublicRoomsPanel::Owns(screen)){
   title=loc::T("screen.public_rooms");rows=publicRooms_.Rows(v,identity_.UsableBridge(v),identity_.Waiting(),identity_.PublicSetup(),PublicListWidth());
+ }else if(screen=="room-rematch"){title=loc::T("rematch.title");rows=RematchEntries(v);
  }else if(screen.compare(0,4,"room")==0){title=v.room.name.empty()?loc::T("screen.room"):v.room.name;NoteUserText(v.room.name);rows=RoomEntries(v);
  }else if(ReplaysPanel::Owns(screen)){rows=replays_.Rows(v,screen,idle,title);
  }else if(screen=="settings"){
@@ -464,6 +465,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
      !v.controllerUnavailable&&sessionProblem.empty()&&v.error.empty()&&error_.empty())))
   {status=RoomWaitReason(v);statusTone=Tone::Pending;}
  if(ReplaysPanel::Owns(screen))replays_.Status(v,screen,status,statusTone);
+ if(screen=="room-rematch"&&healthyRoom&&error_.empty()&&v.error.empty()&&!v.controllerUnavailable){status=RematchStatus(v);statusTone=Tone::Pending;}
  return {status,statusTone};
 }
 void ApplicationShell::PublishPlayerCard(const ShellView& v) {
@@ -480,6 +482,7 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
 void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,const std::string& screen,bool idle,const Submit& submit) {
  using namespace netplay; auto& nav=menu_.navigation;
  // The retry row a failed save adds to every screen stays the shell's.
+ if(screen=="room-rematch"){RematchAction(a,v,submit);return;}
  if(IdentityPanel::Owns(screen)&&a.id!="retry-save"){identity_.Activate(a,v,nav);return;}
  if(PublicRoomsPanel::Owns(screen)){
   if(a.id=="pr-quick"){QuickJoin(v);return;}
@@ -686,6 +689,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   languageDirty_=false;
  }
  UpdateRoomTransitions(v,now);
+ UpdateRematch(v);
  TrackLiveGames(v,now);
  TrackLockIn(v,now);
  UpdateChat(v,submit);
@@ -773,14 +777,17 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   std::vector<LegendHint>{{"X",loc::T("room.legend_fighter")},{"Y",loc::T("room.legend_options")},{"View",loc::T("room.chat")}};
  if(nav.Screen()=="selection"&&selection){
   // The selector names where its Back goes and shows the room's shortcuts it hands back.
-  SetEmbeddedReturn({MenuScreenLabel(nav.Parent()),inRoom?roomHints:std::vector<LegendHint>{},selectionFresh_,selectionOpenOn_});
+  const bool rematching=nav.Parent()=="room-rematch";
+  SetEmbeddedReturn({MenuScreenLabel(nav.Parent()),inRoom&&!rematching?roomHints:std::vector<LegendHint>{},selectionFresh_,selectionOpenOn_,rematching,rematching?RematchStatus(v):std::string()});
   selectionFresh_=false;selectionOpenOn_.clear();
   // Only what this frame's selector forwards is read below.
   TakeForwardedMenuAction();
   selection();selectionDrawn_=true;
   const auto forwarded=TakeForwardedMenuAction();
-  if(forwarded.kind==MenuAction::Close)nav.Return();
-  else if(forwarded.kind==MenuAction::Shortcut&&inRoom)RoomShortcut(forwarded,v);
+  if(rematching&&forwarded.kind==MenuAction::Activate&&forwarded.id=="selection-confirmed"){
+   nav.Return();ConfirmRematch(v,submit);
+  }else if(forwarded.kind==MenuAction::Close)nav.Return();
+  else if(forwarded.kind==MenuAction::Shortcut&&inRoom&&!rematching)RoomShortcut(forwarded,v);
   ImGui::End();ImGui::PopStyleVar(2);return;
  }
  const std::string screen=nav.Screen();std::string title=loc::T("shell.home_title");
@@ -863,7 +870,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  menu_.typesText=roomScreen&&screen=="room-chat"&&v.room.roomEpoch&&ChatTypable(v);
  // On the country picker a typed letter goes to a country, so letters are no shortcuts there.
  if(screen==CountryPicker::Screen){menu_.typesText=true;if(!nav.Editing())for(const ImWchar typed:ImGui::GetIO().InputQueueCharacters){const auto row=countryPicker_.Jump(typed,nav.Focus());if(!row.empty())nav.Focus(row,rows);}}
- if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints=menu_.typesText&&keys?std::vector<LegendHint>{}:roomHints;
+ if(screen=="room-rematch")menu_.shortcutHints.clear();
+ else if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints=menu_.typesText&&keys?std::vector<LegendHint>{}:roomHints;
  else if(PublicRoomsPanel::Owns(screen)&&publicRooms_.Refreshable(v))menu_.shortcutHints={{keys?"T":"Y",loc::T("legend.refresh")}};
  else menu_.shortcutHints.clear();
  // The keyboard leaves a seat with Delete, so Escape keeps its own word.
@@ -889,7 +897,10 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(PublicRoomsPanel::Owns(screen)&&opening&&nav.Focus()=="pr-opening")nav.Focus("cancel-open",rows);
  auto a=menu_.Draw(title.c_str(),rows,status.c_str(),profilePreview,columns,portraits,board,0,publicToolbar?46:screen=="main-character"?roster.cardHeight:100,stableFeedback,statusTone,screen=="home");
  AnswerDialog(submit);
- if(v.inputCapture!=input::Capture::Idle&&(a.id=="capture-cancel"||a.kind==MenuAction::Returned||a.kind==MenuAction::Close)){
+ if(screen=="room-rematch"&&(a.kind==MenuAction::Returned||a.kind==MenuAction::Close)){
+  nav.Home();nav.Push("room");nav.Push("room-rematch");
+  RematchAction({MenuAction::Activate,"rematch-room"},v,submit);
+ }else if(v.inputCapture!=input::Capture::Idle&&(a.id=="capture-cancel"||a.kind==MenuAction::Returned||a.kind==MenuAction::Close)){
   ShellAction r;r.command.generation=v.session.generation;r.inputAction=input::Action::Cancel;submit(std::move(r));
  }else if(a.kind==MenuAction::Close&&opening){
   // A room being opened keeps its Stop row in reach.
@@ -899,7 +910,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   // behind it is locked there, so Ember stays up (F10 can still hide it).
   if(open&&input::HomeBackHidesShell(v.session.room))*open=false;
  }else if(a.kind==MenuAction::Shortcut){
-  if(inRoom)RoomShortcut(a,v);
+  if(inRoom&&screen!="room-rematch")RoomShortcut(a,v);
   else if(PublicRoomsPanel::Owns(screen))publicRooms_.Shortcut(a,v);
  }else if(a.kind==MenuAction::Chosen){
   if(roomScreen)RoomAction(a,v,submit);
