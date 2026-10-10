@@ -3250,3 +3250,46 @@ msgstr "Couldn't get into the room. It may have just closed. Refresh and pick an
 
 msgid "legend.refresh"
 msgstr "Refresh"
+
+# Between-game choices in an unfinished set.
+msgid "rematch.title"
+msgstr "Next game"
+
+msgid "rematch.score"
+msgstr "Set score: {0} - {1} (FT{2})"
+
+msgid "rematch.choose"
+msgstr "Choose Rematch or change character."
+
+msgid "rematch.waiting"
+msgstr "Ready. Waiting for your opponent."
+
+msgid "rematch.countdown"
+msgstr "Confirm within {0}s."
+
+msgid "rematch.ready_detail"
+msgstr "Keep your character. Your opponent may change theirs. Both confirmations start the next game."
+
+msgid "rematch.character_detail"
+msgstr "Choose a fighter and Ultra to confirm and continue. Back cancels your selection without readying."
+
+msgid "rematch.return"
+msgstr "Return to room"
+
+msgid "rematch.return_detail"
+msgstr "Cancel this rematch for both players. Keep the set score and seats."
+
+msgid "rematch.returning"
+msgstr "Returning to room..."
+
+msgid "rematch.expired"
+msgstr "Rematch timed out. Both players returned to the room; the set score is unchanged."
+
+msgid "rematch.cancelled"
+msgstr "Rematch cancelled. Both players returned to the room."
+
+msgid "rematch.play"
+msgstr "Rematch"
+
+msgid "rematch.character"
+msgstr "Change character"

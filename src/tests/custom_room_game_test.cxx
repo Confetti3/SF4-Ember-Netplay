@@ -48,6 +48,7 @@ int wmain(int argc, wchar_t** argv) {
 	// --late-join: the last member is admitted while game one is being played
 	// (F-017). No room may fail and no match may end early; after the game it
 	// queues for its table and spectates game two.
+	bool quickRematch = false;
 	bool relay = false, perf = false, stallSpectator = false, lateSpectator = false, lateJoin = false;
 	std::size_t count = room::MaxMembers, perTable = 4;
 	int perfFrames = 600, gameCostUs = 1000;
@@ -57,6 +58,7 @@ int wmain(int argc, wchar_t** argv) {
 		const std::wstring arg = argv[i];
 		const auto number = [&]() { CHECK(i + 1 < argc); return std::wcstoul(argv[++i], nullptr, 10); };
 		if (arg == L"--relay-only") relay = true;
+		else if (arg == L"--quick-rematch") quickRematch = true;
 		else if (arg == L"--single-table") perTable = 0;
 		else if (arg == L"--perf") perf = true;
 		else if (arg == L"--stall-spectator") stallSpectator = true;
@@ -180,8 +182,9 @@ int wmain(int argc, wchar_t** argv) {
 	};
 	// A member whose room is Ready gets its server, client connection and
 	// match session; the late joiner does the same in the middle of game one.
+	room::Rules rematchRules;if(quickRematch){rematchRules.format=static_cast<room::SetFormat>(10);CHECK(rematchCycles<10);}
 	const auto attach = [&](std::size_t i) {
-		CHECK(test::ConfigureIrohIntegrationServer(recoveryPeers[i], "authorized-match-test", static_cast<std::uint8_t>(Count)));
+		CHECK(test::ConfigureIrohIntegrationServer(recoveryPeers[i], "authorized-match-test", static_cast<std::uint8_t>(Count), rematchRules));
 		clients[i]->RequireCustomRooms();
 		clients[i]->RequireMatchAuthorization();
 		CHECK(clients[i]->Connect(rooms[i]->Client(), false) == 0);
@@ -423,6 +426,10 @@ int wmain(int argc, wchar_t** argv) {
 					ready.revision = view.revision;
 					ready.table = static_cast<std::uint8_t>(member->table);
 					ready.tableRevision = view.tables[ready.table].revision;
+                    if(quickRematch && cycle>1){
+                        CHECK(view.tables[ready.table].rematch.state==room::RematchOffer::Offered);
+                        ready.matchGeneration=view.tables[ready.table].matchGeneration;
+                    }
 					const auto sent = client->SendRoomAction(ready, &readyActionId);
 					std::cout << "Ready index=" << readyIndex << " table=" << static_cast<unsigned>(ready.table)
 						<< " send=" << static_cast<int>(sent) << " action=" << readyActionId

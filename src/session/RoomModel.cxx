@@ -42,6 +42,11 @@ Snapshot RoomAuthority::SnapshotFor(MemberId member) const {
 			const auto age = recoveryPaused_ ? since : nowMs_ >= since ? nowMs_ - since : 0;
 			result.tables[i].readyRemainingMs = static_cast<std::uint32_t>(age < ReadyTimeoutMs ? ReadyTimeoutMs - age : 1);
 		}
+        if (snapshot_.tables[i].rematch.timed && snapshot_.tables[i].phase == TablePhase::Waiting) {
+            const auto since = rematchSince_[i];
+            const auto age = recoveryPaused_ ? since : nowMs_ >= since ? nowMs_ - since : 0;
+            result.tables[i].rematch.remainingMs = static_cast<std::uint32_t>(age < RematchTimeoutMs ? RematchTimeoutMs - age : 1);
+        }
 		if (!snapshot_.tables[i].spectatorHold) continue;
 		// A paused authority holds ages rather than start times (TimerDue).
 		const auto since = startHeldSince_[i];
@@ -79,7 +84,7 @@ bool RoomAuthority::SetMemberFighter(MemberId member,int fighter,bool* withdrewO
     if(previous<0||!seated){TouchRoom();return true;}
     const int seat=table->p1==member?0:1, other=1-seat;
     auto* opponent=Find(other==0?table->p1:table->p2);
-    if(opponent&&!table->ready[seat]&&ReadyCancellable(*table,other)){
+    if(opponent&&!table->ready[seat]&&!table->rematch.consent[other]&&ReadyCancellable(*table,other)){
         ReleaseReady(*table,other,*opponent);
         SettleReadiness(*table,opponent->id);
         if(withdrewOpponentReady)*withdrewOpponentReady=true;
@@ -92,6 +97,7 @@ template <typename Visit> void RoomAuthority::ForEachTableTimer(Visit&& visit) {
 		if (snapshot_.tables[i].resultPending) visit(resultPendingSince_[i], ResultDisputeTimeoutMs);
 		if (snapshot_.tables[i].spectatorHold) visit(startHeldSince_[i], SpectatorStartHoldMs);
 		if (readyWaitingFor_[i]) visit(readyWaitingSince_[i], ReadyTimeoutMs);
+		if (snapshot_.tables[i].rematch.timed) visit(rematchSince_[i], RematchTimeoutMs);
 	}
 }
 
@@ -368,6 +374,7 @@ Result RoomAuthority::Reject(RejectReason reason) {
 
 Result RoomAuthority::Accept(std::vector<Event> events) {
 	RefreshReadyTimers();
+	RefreshRematchTimers();
 	Result result;
 	result.accepted = true;
 	result.snapshot = snapshot_;
@@ -551,6 +558,8 @@ void RoomAuthority::KeepStreak(Table& table) {
 }
 
 void RoomAuthority::ClearReadiness(Table& table) {
+	table.rematch = {};
+	rematchSince_[table.id] = 0;
 	table.ready[0] = table.ready[1] = false;
 	for (const MemberId seated : {table.p1, table.p2})
 		if (auto* fighter = Find(seated)) fighter->delayLocked = false;
@@ -717,6 +726,8 @@ Result RoomAuthority::BeginMatch(std::uint8_t tableId, MemberId p1, MemberId p2)
 		nextMatchGeneration_ == (std::numeric_limits<std::uint64_t>::max)()) return Reject(table ? RejectReason::WrongPhase : RejectReason::UnknownTable);
 	// A bound table plays the generation its permit names, and its permit
 	// timer runs on until the native start.
+	table->rematch = {};
+	rematchSince_[tableId] = 0;
 	table->matchGeneration = table->permitGeneration ? table->permitGeneration : nextMatchGeneration_++;
 	auto timer = permits_.tables[tableId];
 	timer.windowMs = PermitWindow(*table);
@@ -790,6 +801,8 @@ Result RoomAuthority::EndMatch(std::uint8_t tableId, std::uint64_t generation, M
 	// unlocks their delays.
 	ClearReadiness(*table);
 	if (goal != 0 && winnerSeat >= 0 && table->score[winnerSeat] >= goal) CompleteSet(*table, winnerSeat);
+    else if (goal >= 2 && (winnerSeat >= 0 || result == MatchResult::Draw) && table->p1 && table->p2)
+        table->rematch.state = RematchOffer::Offered;
 	table->phase = table->p1 != 0 && table->p2 != 0 ? TablePhase::Waiting : TablePhase::Idle;
 	table->resultPending = false;
 	resultReporter_[tableId] = 0;
@@ -803,7 +816,7 @@ Result RoomAuthority::EndMatch(std::uint8_t tableId, std::uint64_t generation, M
 }
 
 MemberId RoomAuthority::WaitingForReady(const Table& table) const {
-	if (snapshot_.closed || BoundTable(table) || table.phase != TablePhase::Waiting ||
+	if (snapshot_.closed || BoundTable(table) || table.rematch.state == RematchOffer::Offered || table.phase != TablePhase::Waiting ||
 		!table.p1 || !table.p2 || table.ready[0] == table.ready[1] || HasOutstandingTerminalReceipt(table.id)) return 0;
 	const auto member = table.ready[0] ? table.p2 : table.p1;
 	return HasOutstandingTerminalReceiptForMember(member) ? 0 : member;
@@ -823,6 +836,7 @@ void RoomAuthority::RefreshReadyTimers() {
 bool RoomAuthority::HasDueTimerTransition(std::uint64_t nowMs) const {
 	for (std::size_t i = 0; i < TableCount; ++i) {
 		const auto& table = snapshot_.tables[i];
+		if (RematchDue(table, nowMs)) return true;
 		if (readyWaitingFor_[i] && WaitingForReady(table) == readyWaitingFor_[i] &&
 			TimerDue(readyWaitingSince_[i], ReadyTimeoutMs, nowMs)) return true;
 		if (table.spectatorHold && TimerDue(startHeldSince_[i], SpectatorStartHoldMs, nowMs)) return true;
@@ -876,8 +890,10 @@ std::vector<Event> RoomAuthority::AdvanceTime(std::uint64_t nowMs) {
 		NormalizeTableMembers(table);
 		events.push_back(Event{Event::Kind::SnapshotChanged, table.id, 0, 0, MatchResult::Abort});
 	}
+	ExpireRematches(events);
 	ReleaseHeldStarts(events);
 	RefreshReadyTimers();
+	RefreshRematchTimers();
 	for (auto& table : snapshot_.tables) {
 		const auto member = readyWaitingFor_[table.id];
 		if (!member || !TimerDue(readyWaitingSince_[table.id], ReadyTimeoutMs, nowMs_)) continue;

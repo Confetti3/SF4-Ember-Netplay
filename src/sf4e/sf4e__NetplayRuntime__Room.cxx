@@ -222,6 +222,15 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		// one budget and resubmits it here once the gate reopens.
 		const auto publishedShared = GetRuntimeSnapshotShared();
 		const auto& published = *publishedShared;
+        if (command.roomAction.matchGeneration) {
+            const auto table = command.roomAction.table;
+            if (table >= published.room.tables.size() ||
+                published.room.tables[table].matchGeneration != command.roomAction.matchGeneration ||
+                published.room.tables[table].rematch.state != room::RematchOffer::Offered) {
+                runtime->readyIntent.Clear();
+                return DispatchOutcome::Dropped;
+            }
+        }
 		// A set that ended while the press waited can rotate this player into the
 		// queue. The seat is gone, so the press quietly ends with it.
 		if (attempt == Attempt::Retry && published.session.room == netplay::RoomState::Joined &&
@@ -285,7 +294,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		}
 		return DispatchOutcome::Dropped;
 	}
-	if (kind == netplay::CommandKind::RoomAction && command.roomAction.kind == room::ActionKind::Unready)
+	if (kind == netplay::CommandKind::RoomAction && (command.roomAction.kind == room::ActionKind::Unready || command.roomAction.kind == room::ActionKind::CancelRematch))
 		runtime->readyIntent.Clear();
     if (command.discordRevision) {
         if (kind == netplay::CommandKind::JoinInvite) runtime->discordInvite.Cancel();
@@ -403,7 +412,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 			sent = client.PreBattle_SetEnv(sf4e::localRand()) == session::SendResult::Queued && sent;
 			sent = client.PreBattle_SetStage(selection::ResolveStage(command.stage, sf4e::localRand(), command.randomStageExcluded)) == session::SendResult::Queued && sent;
 		}
-		if (!sent || client.Lobby_Ready() != session::SendResult::Queued) {
+		if (!sent || client.Lobby_Ready(command.roomAction.matchGeneration) != session::SendResult::Queued) {
 			FailReady(loc::T("runtime.match_settings_send_failed"));
 			Apply(netplay::EventKind::ControlLost, loc::T("runtime.match_settings_send_failed"));
 		}

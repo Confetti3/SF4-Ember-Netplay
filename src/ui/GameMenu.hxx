@@ -55,7 +55,7 @@ MenuAction TakeForwardedMenuAction();
 // select for one change ("roster", "ultra", "costumes", "stage" or "options"),
 // so it starts on that page and hands Close back once the pick is made, or on
 // Back from that page.
-struct EmbeddedReturn { std::string exitName; std::vector<LegendHint> shortcutHints; bool fresh=false; std::string openOn; };
+struct EmbeddedReturn { std::string exitName; std::vector<LegendHint> shortcutHints; bool fresh=false; std::string openOn; bool confirmRematch=false; std::string status; };
 void SetEmbeddedReturn(EmbeddedReturn context);
 const EmbeddedReturn& EmbeddedReturnContext();
 bool TakeEmbeddedFresh();

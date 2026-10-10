@@ -476,10 +476,10 @@ int main(int argc, char** argv) {
         // SF4E_UI_RENDER_QUICK=1 is for a quick look at a change: English at 1920x1080 only.
         const char* quickRun = std::getenv("SF4E_UI_RENDER_QUICK");
         const std::string quickMode = quickRun ? quickRun : "";
-        const bool quick = quickMode == "1" || quickMode == "narrow";
+        const bool quick = quickMode == "1" || quickMode == "narrow" || quickMode == "ultrawide";
         // SF4E_UI_RENDER_QUICK=narrow is the same at 640x720, and SF4E_UI_RENDER_SHOTS=text writes only the shots whose name has it.
         const char* shotFilter = std::getenv("SF4E_UI_RENDER_SHOTS");
-        const std::vector<Size> sizes = quickMode == "narrow" ? std::vector<Size>{{640,720,1.5f}} : quick ? std::vector<Size>{{1920,1080,1}} : translations ?
+        const std::vector<Size> sizes = quickMode == "ultrawide" ? std::vector<Size>{{3440,1440,1}} : quickMode == "narrow" ? std::vector<Size>{{640,720,1.5f}} : quick ? std::vector<Size>{{1920,1080,1}} : translations ?
             std::vector<Size>{{640,720,1.5f}, {1280,720,1}, {1920,1080,1.5f}} :
             std::vector<Size>{{1280,720,1}, {1920,1080,1}, {1920,1080,1.25f}, {1920,1080,1.5f}, {2560,1440,1.5f}, {640,720,1.5f}, {3440,1440,1}, {3840,2160,1}, {3840,2160,1.5f}, {1280,720,2}};
         int frames = 0;
@@ -861,6 +861,21 @@ int main(int argc, char** argv) {
             view.session.match=netplay::MatchState::None;view.canReady=false;
             view.room.tables[0].ready[0]=false;view.canEditSelection=true;view.controllerReady=false;page("room-table");draw("table-controller-needed");
             view.controllerReady=view.canReady=true;
+            {
+                const auto saved=view.room.tables[0];const auto match=view.session.match;
+                auto& rematch=view.room.tables[0];rematch.phase=room::TablePhase::Waiting;
+                rematch.rules.format=static_cast<room::SetFormat>(3);rematch.matchGeneration=901;
+                rematch.score[0]=1;rematch.score[1]=1;rematch.rematch.state=room::RematchOffer::Offered;
+                view.session.match=netplay::MatchState::PostMatch;draw("rematch-choices");
+                Require(shell.Navigation().Screen()=="room-rematch","Post-match choices did not open");
+                rematch.ready[0]=true;rematch.rematch.consent[0]=true;rematch.rematch.timed=true;
+                rematch.rematch.remainingMs=9000;draw("rematch-waiting");
+                rematch.ready[0]=false;rematch.rematch.consent[0]=false;rematch.ready[1]=true;
+                shell.Navigation().Push("selection");draw("rematch-selection");
+                rematch.rematch.state=room::RematchOffer::Expired;rematch.ready[1]=false;
+                draw("rematch-timeout");Require(shell.Navigation().Screen()=="room","Timeout did not dismiss selection");
+                view.room.tables[0]=saved;view.session.match=match;draw();
+            }
             const auto roomTitle=view.room.name;view.room.name=std::string(64,'W');page("room");draw("room-long-title");view.room.name=roomTitle;
             page("room");
             if(size.w-40*size.dpi>=820*size.dpi&&size.h/size.dpi>=700) {

@@ -202,6 +202,8 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		for (auto& table : view.room.tables) {
 			if (table.holdRemainingMs)
 				table.holdRemainingMs = elapsedMs < table.holdRemainingMs ? static_cast<std::uint32_t>(table.holdRemainingMs - elapsedMs) : 1;
+			if (table.rematch.remainingMs)
+				table.rematch.remainingMs = elapsedMs < table.rematch.remainingMs ? static_cast<std::uint32_t>(table.rematch.remainingMs - elapsedMs) : 1;
 			if (table.readyRemainingMs)
 				table.readyRemainingMs = elapsedMs < table.readyRemainingMs ? static_cast<std::uint32_t>(table.readyRemainingMs - elapsedMs) : 1;
 		}

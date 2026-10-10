@@ -3591,3 +3591,46 @@ msgstr "방에 들어가지 못했습니다. 방금 닫혔을 수 있습니다. 
 
 msgid "legend.refresh"
 msgstr "새로 고침"
+
+# Between-game choices in an unfinished set.
+msgid "rematch.title"
+msgstr "다음 대전"
+
+msgid "rematch.score"
+msgstr "세트 점수: {0} - {1} (FT{2})"
+
+msgid "rematch.choose"
+msgstr "재대전 또는 캐릭터 변경을 선택하세요."
+
+msgid "rematch.waiting"
+msgstr "준비 완료. 상대를 기다리는 중입니다."
+
+msgid "rematch.countdown"
+msgstr "{0}초 안에 확정하세요."
+
+msgid "rematch.ready_detail"
+msgstr "내 캐릭터를 유지합니다. 상대는 변경할 수 있습니다. 두 플레이어가 확정하면 대전이 시작됩니다."
+
+msgid "rematch.character_detail"
+msgstr "캐릭터와 울트라를 선택하면 확정 후 진행합니다. 뒤로 가면 준비하지 않고 취소합니다."
+
+msgid "rematch.return"
+msgstr "방으로 돌아가기"
+
+msgid "rematch.return_detail"
+msgstr "두 플레이어의 재대전을 취소합니다. 점수와 자리는 유지됩니다."
+
+msgid "rematch.returning"
+msgstr "방으로 돌아가는 중..."
+
+msgid "rematch.expired"
+msgstr "시간이 초과되었습니다. 두 플레이어가 방으로 돌아왔으며 점수는 유지됩니다."
+
+msgid "rematch.cancelled"
+msgstr "재대전이 취소되었습니다. 두 플레이어가 방으로 돌아왔습니다."
+
+msgid "rematch.play"
+msgstr "재대전"
+
+msgid "rematch.character"
+msgstr "캐릭터 변경"

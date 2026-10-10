@@ -98,6 +98,7 @@ enum class ActionKind : std::uint8_t {
 	// A bound table's fighter has the bridge's permit for the reserved game
 	// (Action::matchGeneration), named by Action::text.
 	PermitReady,
+	CancelRematch, // Exact completed generation, from either seated fighter.
 };
 
 enum class RejectReason : std::uint8_t {
@@ -202,6 +203,16 @@ struct SetRecord {
 	MemberId Loser() const { return winnerSeat == 0 ? p2 : p1; }
 };
 
+// The authority offers this only after a confirmed game in an unfinished FT2+.
+// Consent means playing the next game even if the opponent changes character.
+constexpr std::uint64_t RematchTimeoutMs = 30000;
+struct RematchOffer {
+    enum State : std::uint8_t { None, Offered, Cancelled, Expired } state = None;
+    bool consent[2] = {false, false};
+    bool timed = false;
+    std::uint32_t remainingMs = 0; // SnapshotFor only; never a source clock.
+};
+
 struct Table {
 	std::uint8_t id = 0;
 	Rules rules;
@@ -225,6 +236,7 @@ struct Table {
 	// streakHolder has won here. The streak ends when its holder loses a set
 	// or stops fighting at this table.
 	SetRecord lastSet;
+	RematchOffer rematch;
 	MemberId streakHolder = 0;
 	std::uint32_t streak = 0;
 	bool resultPending = false;
@@ -686,6 +698,11 @@ private:
 	bool TimerDue(std::uint64_t since, std::uint64_t timeout, std::uint64_t nowMs) const;
 	MemberId WaitingForReady(const Table& table) const;
 	void RefreshReadyTimers();
+    void RefreshRematchTimers();
+    bool RematchDue(const Table& table, std::uint64_t nowMs) const;
+    void EndRematch(Table& table, RematchOffer::State reason);
+    Result ApplyCancelRematch(MemberId member, const Action& action, Table& table);
+    void ExpireRematches(std::vector<Event>& events);
 	// The table's permit age at nowMs, without moving its timer.
 	std::uint64_t PermitAgeAt(std::size_t table, std::uint64_t nowMs) const;
 	// Its age at the last time AgePermitHolds was given.
@@ -796,6 +813,7 @@ private:
 	std::array<std::uint64_t, TableCount> startHeldSince_ = {};
 	std::array<std::uint64_t, TableCount> readyWaitingSince_ = {};
 	std::array<MemberId, TableCount> readyWaitingFor_ = {};
+	std::array<std::uint64_t, TableCount> rematchSince_ = {};
 	// Every running table deadline with its timeout, on the owner's monotonic
 	// clock. Recovery turns them into ages and back through this one list.
 	// Permit timers are not among them.

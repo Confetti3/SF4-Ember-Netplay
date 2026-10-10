@@ -91,8 +91,26 @@ other rules apply from the next game and keep the score.
 
 The running count, such as 2 - 1, replaces "VS" on the table card and "vs" on
 the match HUD, and the HUD keeps the final count on the screen of the game that
-ended the set. Both fighters must ready again after returning to the room. When
-a fighter leaves their seat, the next queued member takes that seat and the new
+ended the set. After a confirmed game in an unfinished FT2 or longer set, the
+**Next game** screen offers **Rematch**, **Change character**, and **Return to room**.
+Rematch keeps your selection and commits to continuing even if the opponent
+changes character. Change character confirms when you finish choosing your fighter
+and Ultra; backing out does not ready you. Both confirmations start the next game
+without another Ready press. Unready lets you withdraw and change your own fighter.
+
+Once the first player is ready and the previous game's teardown is acknowledged,
+the room enforces a shared 30-second confirmation deadline. Chat, menu changes,
+and withdrawing Ready cannot restart it. Timeout or Return to room cancels both
+players' readiness and returns both to the room, keeping their seats and set score.
+The deadline is retained across room recovery. It does not expire while both
+players are already ready and the next game is synchronizing.
+
+A completed set, cancelled or disputed game, or departed fighter uses the normal
+room flow. Hosts without this feature also use the existing room flow. The native
+cleanup, internal menu transition, GGPO startup, and loading still run; these
+choices remove lobby interaction rather than promising instant loading.
+
+When a fighter leaves their seat, the next queued member takes that seat and the new
 pair starts with fresh win counts. B on your own table card, or
 **Leave seat** in the table options, leaves your seat at once. It asks first
 only when the pair has wins on the board or a queued member would take the seat;

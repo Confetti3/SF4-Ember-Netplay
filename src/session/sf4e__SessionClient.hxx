@@ -119,7 +119,7 @@ namespace sf4e {
 		int64_t _outstandingReadyRequestNumber = -1;
 		bool _snapshotsEnabled = false;
 
-		session::SendResult Lobby_Ready();
+		session::SendResult Lobby_Ready(std::uint64_t rematchGeneration = 0);
 		session::SendResult Lobby_ReportResults(int loserSide);
 		session::SendResult Lobby_ResetRematch();
 		session::SendResult Lobby_SetSettings(

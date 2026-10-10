@@ -30,7 +30,7 @@ struct IrohIntegrationPeer : IrohServerPeer {
 };
 
 inline bool ConfigureIrohIntegrationServer(IrohServerPeer& peer,
-    const std::string& sidecar, std::uint8_t capacity = room::MaximumMembers) {
+    const std::string& sidecar, std::uint8_t capacity = room::MaximumMembers, room::Rules defaults = {}) {
     if (!peer.room || peer.room->GetState() == session::IrohRoom::State::Idle ||
         peer.room->RoomId() == std::array<std::uint8_t, 16>{}) return false;
     const auto roomId = peer.room->RoomId();
@@ -46,7 +46,7 @@ inline bool ConfigureIrohIntegrationServer(IrohServerPeer& peer,
     peer.server->EnableMatchAuthorization(roomId, [room](session::Connection connection) {
         return connection == 1 ? room->LocalIdentity() : room->PeerIdentity(connection);
     }, [room](session::Connection connection) { return room->PeerIncarnation(connection); });
-    peer.server->EnableCustomRooms("Iroh recovery fixture", capacity, room->Epoch());
+    peer.server->EnableCustomRooms("Iroh recovery fixture", capacity, room->Epoch(), defaults);
     return true;
 }
 
