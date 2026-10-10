@@ -7,7 +7,7 @@ int main() {
     using namespace sf4e;
     // Auto holds the recommendation between its bounds.
     CHECK(AutoInputDelay(0) == 1 && AutoInputDelay(1) == 1 && AutoInputDelay(2) == 2 && AutoInputDelay(3) == 3);
-    CHECK(AutoInputDelay(4) == 3 && AutoInputDelay(MaximumInputDelay) == 3);
+    CHECK(AutoInputDelay(4) == 4 && AutoInputDelay(5) == 4 && AutoInputDelay(MaximumInputDelay) == 4);
     for (int recommended = 0; recommended <= MaximumInputDelay; ++recommended)
         CHECK(AutoInputDelay(recommended) >= AutoInputDelayMinimum && AutoInputDelay(recommended) <= AutoInputDelayMaximum);
     // No recommendation, or one outside the delay range, uses Auto's two-frame fallback.

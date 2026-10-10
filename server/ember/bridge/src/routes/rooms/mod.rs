@@ -209,7 +209,11 @@ struct Room {
     members: u8,
     tables_playing: u8,
     created_at: u64,
-    region: Option<String>,
+    /// The room host's relay region, set once the supervisor reports the room
+    /// hosted, so a room without one is not hosted yet.
+    host_region: Option<String>,
+    /// The region its creator gave, which players see in place of the host's.
+    creator_region: Option<String>,
     invitation_sealed: Option<Vec<u8>>,
     creator_ember_id: String,
     opened_at: Option<u64>,
@@ -225,7 +229,8 @@ struct Room {
 }
 
 const COLUMNS: &str = "room_id, name, build_id, capacity, members, tables_playing, created_at, region, invitation_sealed,
-    creator_ember_id, opened_at, closed_at, connection_id, host_name, fighters, locked, set_format, rotation";
+    creator_ember_id, opened_at, closed_at, connection_id, host_name, fighters, locked, set_format, rotation,
+    creator_region";
 
 fn room_of(row: &Row<'_>) -> rusqlite::Result<Room> {
     Ok(Room {
@@ -236,7 +241,8 @@ fn room_of(row: &Row<'_>) -> rusqlite::Result<Room> {
         members: row.get(4)?,
         tables_playing: row.get(5)?,
         created_at: row.get(6)?,
-        region: row.get(7)?,
+        host_region: row.get(7)?,
+        creator_region: row.get(18)?,
         invitation_sealed: row.get(8)?,
         creator_ember_id: row.get(9)?,
         opened_at: row.get(10)?,
@@ -261,8 +267,19 @@ fn load(tx: &Transaction<'_>, room_id: &str) -> Result<Option<Room>> {
 }
 
 impl Room {
-    /// The listing form, once the supervisor has reported the room hosted.
+    /// Whether the supervisor has reported the room hosted.
+    fn hosted(&self) -> bool {
+        self.host_region.is_some()
+    }
+
+    /// The listing form, once the supervisor has reported the room hosted. Its
+    /// region is the creator's when they gave one: players play each other
+    /// directly, wherever the room host runs.
     fn summary(&self) -> Result<RoomSummary> {
+        let host_region = self
+            .host_region
+            .as_ref()
+            .ok_or_else(ApiFailure::unavailable)?;
         let summary = RoomSummary {
             room_id: self.room_id.clone(),
             name: self.name.clone(),
@@ -270,7 +287,7 @@ impl Room {
             members: self.members,
             capacity: self.capacity,
             tables_playing: self.tables_playing,
-            region: self.region.clone().ok_or_else(ApiFailure::unavailable)?,
+            region: self.creator_region.as_ref().unwrap_or(host_region).clone(),
             created_at: self.created_at,
             host_name: None,
             fighters: None,
@@ -539,9 +556,7 @@ pub async fn get(
 /// A hosted room the connection created, or `room_not_found`.
 fn owned(tx: &Transaction<'_>, room_id: &str, connection_id: &str) -> Result<Room> {
     load(tx, room_id)?
-        .filter(|room| {
-            room.connection_id.as_deref() == Some(connection_id) && room.region.is_some()
-        })
+        .filter(|room| room.connection_id.as_deref() == Some(connection_id) && room.hosted())
         .ok_or_else(|| refuse(ember_protocol::rooms::ROOM_NOT_FOUND))
 }
 

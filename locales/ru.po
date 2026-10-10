@@ -43,7 +43,7 @@ msgid "confirm.question"
 msgstr "{0}?"
 
 msgid "confirm.updating"
-msgstr "Зал обновляется. Вы ещё можете отменить действие."
+msgstr "Лобби обновляется. Вы ещё можете отменить действие."
 
 msgid "launcher.update_failed"
 msgstr "Не удалось установить обновление. Закройте игру и прежний лаунчер, затем повторите попытку. См. %TEMP%\\sf4-netplay-update.log; резервные копии находятся в .ember-update-backups."
@@ -287,7 +287,7 @@ msgid "menu.hint.save_main"
 msgstr "Сделать основным"
 
 msgid "menu.hint.save_fighter"
-msgstr "Сохранить персонажа"
+msgstr "Сохранить бойца"
 
 msgid "menu.hint.save_costume"
 msgstr "Сохранить костюм"
@@ -296,22 +296,22 @@ msgid "menu.hint.save_color"
 msgstr "Сохранить цвет"
 
 msgid "menu.hint.save_ultra"
-msgstr "Сохранить Ultra"
+msgstr "Сохранить Ультра"
 
 msgid "menu.hint.save_stage"
-msgstr "Сохранить место"
+msgstr "Сохранить арену"
 
 msgid "menu.hint.skip_stage"
-msgstr "Пропускать место"
+msgstr "Пропускать арену"
 
 msgid "menu.hint.include_stage"
-msgstr "Включить место"
+msgstr "Включить арену"
 
 msgid "menu.hint.paste"
 msgstr "Вставить"
 
 msgid "menu.navigate"
-msgstr "Перейти"
+msgstr "Перемещение"
 
 msgid "menu.adjust"
 msgstr "Настроить"
@@ -329,13 +329,13 @@ msgid "screen.home"
 msgstr "Главная"
 
 msgid "screen.game"
-msgstr "SF4"
+msgstr "Главное меню"
 
 msgid "screen.online"
 msgstr "Игра по сети"
 
 msgid "screen.selection"
-msgstr "Выбор персонажа"
+msgstr "Выбор бойца"
 
 msgid "screen.player"
 msgstr "Игрок и контроллер"
@@ -359,7 +359,7 @@ msgid "screen.assignment"
 msgstr "Назначить контроллер"
 
 msgid "screen.room"
-msgstr "Зал"
+msgstr "Лобби"
 
 msgid "screen.table"
 msgstr "Стол"
@@ -374,7 +374,7 @@ msgid "screen.chat"
 msgstr "Чат"
 
 msgid "screen.room_settings"
-msgstr "Настройки зала"
+msgstr "Настройки лобби"
 
 msgid "screen.dummy_recording"
 msgstr "Запись манекена"
@@ -383,19 +383,19 @@ msgid "screen.input_history"
 msgstr "История нажатий"
 
 msgid "room.wait.leaving"
-msgstr "Выход из зала. Ожидание закрытия соединения..."
+msgstr "Выход из лобби. Ожидание закрытия соединения..."
 
 msgid "room.wait.joining"
-msgstr "Вход в зал. Ожидание других игроков..."
+msgstr "Вход в лобби. Ожидание других игроков..."
 
 msgid "room.wait.closed"
-msgstr "Этот зал закрыт. Вернитесь в «Игру по сети», чтобы войти в другой."
+msgstr "Это лобби закрыто. Вернитесь в «Игру по сети», чтобы войти в другое."
 
 msgid "room.wait.recovering"
-msgstr "Соединение с залом восстанавливается. Вы по-прежнему можете выйти."
+msgstr "Соединение с лобби восстанавливается. Вы по-прежнему можете выйти."
 
 msgid "room.wait.updating"
-msgstr "Зал обновляется. Управление может ненадолго замереть."
+msgstr "Лобби обновляется. Управление может ненадолго замереть."
 
 msgid "connection.checking"
 msgstr "Проверка..."
@@ -542,7 +542,7 @@ msgid "error.queue_failed"
 msgstr "Не удалось поставить действие в очередь. Повторите попытку."
 
 msgid "notice.left_room"
-msgstr "Вы вышли из зала."
+msgstr "Вы вышли из лобби."
 
 msgid "notice.profile_saved"
 msgstr "Портрет профиля сохранён: {0}"
@@ -557,7 +557,7 @@ msgid "settings.auto_save"
 msgstr "Изменения сохраняются сами."
 
 msgid "settings.leave_room_to_edit"
-msgstr "Выйдите из зала, чтобы изменить личные настройки."
+msgstr "Выйдите из лобби, чтобы изменить личные настройки."
 
 msgid "controller.assign_title"
 msgstr "НАЗНАЧИТЬ КОНТРОЛЛЕР"
@@ -578,19 +578,19 @@ msgid "home.online"
 msgstr "Игра по сети"
 
 msgid "home.online_detail"
-msgstr "Создайте зал, войдите в зал или просмотрите открытые залы."
+msgstr "Создайте лобби, войдите в лобби или просмотрите открытые лобби."
 
 msgid "home.return_room"
-msgstr "Вернуться в текущий зал"
+msgstr "Вернуться в текущее лобби"
 
 msgid "home.fighter_select"
-msgstr "Выбор персонажа"
+msgstr "Выбор бойца"
 
 msgid "home.selection_locked"
 msgstr "Вернитесь к своему столу, чтобы узнать состояние выбора."
 
 msgid "home.profile"
-msgstr "Профиль"
+msgstr "Профиль игрока"
 
 msgid "home.profile_detail"
 msgstr "Ваше имя, основной персонаж и локальная статистика подтверждённых сетевых игр."
@@ -617,10 +617,10 @@ msgid "home.about_detail"
 msgstr "Управление, диагностика, обновления и авторы."
 
 msgid "home.offline"
-msgstr "Игра без сети"
+msgstr "Главное меню"
 
 msgid "home.offline_detail"
-msgstr "Открыть меню игры для игры без сети."
+msgstr "Вернуться в оригинальное меню SF4."
 
 msgid "home.choose_controller"
 msgstr "Выбрать контроллер для боя"
@@ -629,7 +629,7 @@ msgid "home.choose_controller_detail"
 msgstr "Перед игрой по сети нужно явно назначить контроллер."
 
 msgid "profile.title"
-msgstr "ПРОФИЛЬ"
+msgstr "ПРОФИЛЬ ИГРОКА"
 
 msgid "profile.player_name"
 msgstr "Имя игрока"
@@ -659,25 +659,25 @@ msgid "profile.choose_main_detail"
 msgstr "Выберите основного персонажа для карточки игрока."
 
 msgid "profile.leave_room_to_edit"
-msgstr "Выйдите из зала, чтобы изменить профиль."
+msgstr "Выйдите из лобби, чтобы изменить профиль."
 
 msgid "online.title"
 msgstr "ИГРА ПО СЕТИ"
 
 msgid "online.create"
-msgstr "Создать зал"
+msgstr "Создать лобби"
 
 msgid "online.create_detail"
-msgstr "Создать закрытый зал."
+msgstr "Создать закрытое лобби."
 
 msgid "online.join"
-msgstr "Войти в зал"
+msgstr "Войти в лобби"
 
 msgid "online.join_detail"
 msgstr "Вставьте приглашение."
 
 msgid "room.create_title"
-msgstr "СОЗДАТЬ ЗАЛ"
+msgstr "СОЗДАТЬ ЛОББИ"
 
 msgid "settings.gameplay_defaults_title"
 msgstr "НАСТРОЙКИ ИГРЫ"
@@ -692,7 +692,7 @@ msgid "settings.input_delay.auto"
 msgstr "Авто"
 
 msgid "room.name"
-msgstr "Название зала"
+msgstr "Название лобби"
 
 msgid "room.capacity"
 msgstr "Вместимость"
@@ -701,7 +701,7 @@ msgid "room.capacity_detail"
 msgstr "Максимум участников, включая зрителей."
 
 msgid "room.stop_creating"
-msgstr "Прекратить создание этого зала."
+msgstr "Прекратить создание этого лобби."
 
 msgid "room.stop_creating_action"
 msgstr "Прекратить создание"
@@ -710,7 +710,7 @@ msgid "room.create_requirements"
 msgstr "Сеть и назначенный контроллер должны быть готовы."
 
 msgid "room.join_title"
-msgstr "ВОЙТИ В ЗАЛ"
+msgstr "ВОЙТИ В ЛОББИ"
 
 msgid "room.paste_invitation"
 msgstr "Вставить приглашение"
@@ -719,7 +719,7 @@ msgid "room.paste_invitation_detail"
 msgstr "Скопируйте приглашение Ember и выберите эту строку."
 
 msgid "room.stop_joining"
-msgstr "Прекратить вход в этот зал."
+msgstr "Прекратить вход в это лобби."
 
 msgid "room.stop_joining_action"
 msgstr "Прекратить вход"
@@ -737,7 +737,7 @@ msgid "settings.player_detail"
 msgstr "Отображаемое имя, назначение контроллера и игра в фоне."
 
 msgid "settings.defaults_detail"
-msgstr "Задержка ввода и параметры новых залов."
+msgstr "Задержка ввода и параметры новых лобби."
 
 msgid "settings.interface"
 msgstr "Интерфейс"
@@ -884,7 +884,7 @@ msgid "discord.allow_invitations"
 msgstr "Разрешить приглашения"
 
 msgid "discord.invitation_detail"
-msgstr "Приглашения открывают доступ к вашему залу."
+msgstr "Приглашения открывают доступ к вашему лобби."
 
 msgid "discord.enable_first"
 msgstr "Сначала включите статус Discord."
@@ -899,13 +899,13 @@ msgid "discord.cancel_invitation"
 msgstr "Отменить приглашение"
 
 msgid "discord.cancel_invitation_detail"
-msgstr "Отклонить приглашение, не выходя из текущего зала."
+msgstr "Отклонить приглашение, не выходя из текущего лобби."
 
 msgid "discord.switch_room"
-msgstr "Перейти в другой зал"
+msgstr "Перейти в другое лобби"
 
 msgid "discord.switch_room_detail"
-msgstr "Выйти из этого зала и войти по приглашению."
+msgstr "Выйти из этого лобби и войти по приглашению."
 
 msgid "discord.wait_game"
 msgstr "Дождитесь завершения текущего боя."
@@ -923,10 +923,10 @@ msgid "about.controls"
 msgstr "Управление"
 
 msgid "about.controls_detail"
-msgstr "Геймпад Xbox: A выбирает, B возвращает назад, независимо от кнопок боя. Другие геймпады: назначенная кнопка LP выбирает, LK возвращает назад. Клавиатура: стрелки, Enter и Escape. D-pad перемещает, влево и вправо меняют значение. Кнопка «Назад» на экране «Главная» скрывает Ember. F10 (или Start на геймпаде) снова открывает его в главном меню игры.\n\nВ комнате A на столе позволяет выбрать место, A на своём месте отмечает «Готов», а B освобождает место или выходит из очереди. На геймпаде Xbox X открывает «Боец», Y открывает «Опции», View открывает «Чат»; повторное нажатие возвращает в комнату.\n\nВ тренировке F6 открывает управление, F5 скрывает HUD, F7 записывает, F8 воспроизводит."
+msgstr "Геймпад Xbox: A выбирает, B возвращает назад, независимо от кнопок боя. Другие геймпады: назначенная кнопка LP выбирает, LK возвращает назад. Клавиатура: стрелки, Enter и Escape. D-pad перемещает, влево и вправо меняют значение. Кнопка «Назад» на экране «Главная» скрывает Ember. F10 (или Start на геймпаде) снова открывает его в главном меню игры.\n\nВ лобби A на столе позволяет выбрать место, A на своём месте отмечает «Готов», а B освобождает место или выходит из очереди. На геймпаде Xbox X открывает «Боец», Y открывает «Опции», View открывает «Чат»; повторное нажатие возвращает в лобби.\n\nВ тренировке F6 открывает управление, F5 скрывает HUD, F7 записывает, F8 воспроизводит."
 
 msgid "about.controls_keyboard"
-msgstr "На клавиатуре Пробел тоже выбирает, а Backspace тоже возвращает назад. В комнате F открывает «Боец», T открывает «Опции», C открывает «Чат». Escape всегда возвращает назад, даже на вашем месте; Delete освобождает место или очередь."
+msgstr "На клавиатуре Пробел тоже выбирает, а Backspace тоже возвращает назад. В лобби F открывает «Боец», T открывает «Опции», C открывает «Чат». Escape всегда возвращает назад, даже на вашем месте; Delete освобождает место или очередь."
 
 msgid "about.ember"
 msgstr "Об Ember"
@@ -950,7 +950,7 @@ msgid "about.open_updater"
 msgstr "Выйти и открыть обновление"
 
 msgid "about.open_updater_detail"
-msgstr "Игра закроется, и откроется обновление. Там выберите «Скачать и установить». Сначала выйдите из зала."
+msgstr "Игра закроется, и откроется обновление. Там выберите «Скачать и установить». Сначала выйдите из лобби."
 
 msgid "about.open_recovery"
 msgstr "Выйти к восстановлению"
@@ -959,7 +959,7 @@ msgid "about.open_recovery_detail"
 msgstr "Закрыть игру и открыть восстановление."
 
 msgid "about.leave_room_first"
-msgstr "Сначала выйдите из зала и вернитесь в главное меню."
+msgstr "Сначала выйдите из лобби и вернитесь в главное меню."
 
 msgid "about.discord"
 msgstr "Вступить в Ember Discord"
@@ -971,16 +971,16 @@ msgid "settings.retry_save"
 msgstr "Сохранить снова"
 
 msgid "room.creating_status"
-msgstr "Создание зала. Ожидание сети..."
+msgstr "Создание лобби. Ожидание сети..."
 
 msgid "room.joining_status"
-msgstr "Вход в зал. Ожидание сети..."
+msgstr "Вход в лобби. Ожидание сети..."
 
 msgid "room.locked_status"
-msgstr "Зал закрыт / вход по приглашению"
+msgstr "Лобби закрыто / вход по приглашению"
 
 msgid "room.private_status"
-msgstr "Закрытый зал / вход по приглашению"
+msgstr "Закрытое лобби / вход по приглашению"
 
 msgid "room.tournament_status"
 msgstr "Турнирный матч, до {0} побед. Войти могут только два его игрока."
@@ -1013,7 +1013,7 @@ msgid "room.result_unresolved_status"
 msgstr "Нет результата / откажитесь или попросите ведущего отменить бой"
 
 msgid "room.preparing_status"
-msgstr "Подготовка матча / выбор персонажей заблокирован"
+msgstr "Подготовка матча / выбор бойцов заблокирован"
 
 msgid "room.waiting_results_status"
 msgstr "Ожидание результатов / следующий матч ещё не готов"
@@ -1040,13 +1040,13 @@ msgid "controller.disconnected_name"
 msgstr "{0} (отключено)"
 
 msgid "room.control_unavailable"
-msgstr "Управление залом недоступно. Замените зал, когда матч завершится."
+msgstr "Управление лобби недоступно. Замените лобби, когда матч завершится."
 
 msgid "room.control_recovering"
-msgstr "Управление залом восстанавливается. Действия в зале приостановлены."
+msgstr "Управление лобби восстанавливается. Действия в лобби приостановлены."
 
 msgid "room.catching_up"
-msgstr "Зал ещё синхронизируется на этом ПК. Действия в зале приостановлены."
+msgstr "Лобби ещё синхронизируется на этом ПК. Действия в лобби приостановлены."
 
 msgid "settings.preview"
 msgstr "Пример"
@@ -1067,7 +1067,7 @@ msgid "error.invalid_value"
 msgstr "Недопустимое значение. Сохранённая настройка не изменилась."
 
 msgid "brand.subtitle"
-msgstr "SF4 / ЗАКРЫТЫЕ ЗАЛЫ И СЕТЕВАЯ ИГРА С ОТКАТОМ"
+msgstr "SF4 / ЗАКРЫТЫЕ ЛОББИ И СЕТЕВАЯ ИГРА С ОТКАТОМ"
 
 msgid "match.waiting_opponent"
 msgstr "Ожидание соперника..."
@@ -1103,7 +1103,7 @@ msgid "card.player"
 msgstr "ИГРОК"
 
 msgid "card.choose_fighter"
-msgstr "Выберите персонажа"
+msgstr "Выберите бойца"
 
 msgid "card.controller_ready"
 msgstr "КОНТРОЛЛЕР ГОТОВ"
@@ -1331,10 +1331,10 @@ msgid "selection.alternate_pack"
 msgstr "Альт. {0} / {1}"
 
 msgid "selection.stage_count"
-msgstr "МЕСТ БИТВЫ: {0} / USFIV"
+msgstr "АРЕН: {0} / USFIV"
 
 msgid "selection.choose_battlefield"
-msgstr "Выберите место битвы."
+msgstr "Выберите арену."
 
 msgid "selection.select_saves"
 msgstr "«Выбрать» сохраняет выбор. «Назад» возвращает без изменения просматриваемого варианта."
@@ -1346,10 +1346,10 @@ msgid "selection.locked_detail"
 msgstr "Выбор заблокирован. Вернитесь к столу, чтобы узнать состояние."
 
 msgid "selection.title"
-msgstr "ВЫБОР ПЕРСОНАЖА"
+msgstr "ВЫБОР БОЙЦА"
 
 msgid "selection.fighter"
-msgstr "Персонаж"
+msgstr "Боец"
 
 msgid "selection.appearance"
 msgstr "Внешний вид"
@@ -1358,37 +1358,37 @@ msgid "selection.appearance_value"
 msgstr "{0} / цвет {1}"
 
 msgid "selection.ultra_combo"
-msgstr "Ultra Combo"
+msgstr "Ультра Комбо"
 
 msgid "selection.ultra_row.detail"
-msgstr "Влево и вправо меняют Ultra Combo здесь. Выбор показывает каждый Ultra Combo с его вводом."
+msgstr "Влево и вправо меняют Ультра Комбо здесь. Выбор показывает каждое Ультра Комбо с его вводом."
 
 msgid "selection.ultra_double"
 msgstr "Ultra Double"
 
 msgid "selection.ultra_one"
-msgstr "Ultra I"
+msgstr "Ультра I"
 
 msgid "selection.ultra_two"
-msgstr "Ultra II"
+msgstr "Ультра II"
 
 msgid "selection.hold"
 msgstr "ДЕРЖАТЬ"
 
 msgid "selection.stage"
-msgstr "Место битвы"
+msgstr "Арена"
 
 msgid "selection.p1_stage"
-msgstr "Место битвы выбирает P1."
+msgstr "Арену выбирает P1."
 
 msgid "selection.additional_options"
 msgstr "Дополнительные настройки"
 
 msgid "selection.additional_options.detail"
-msgstr "Издание, провокация, победный клич и гандикап."
+msgstr "Издание, издёвка, победный клич и гандикап."
 
 msgid "selection.choose_fighter"
-msgstr "ВЫБРАТЬ ПЕРСОНАЖА"
+msgstr "ВЫБРАТЬ БОЙЦА"
 
 msgid "selection.appearance_title"
 msgstr "ВНЕШНИЙ ВИД"
@@ -1427,31 +1427,31 @@ msgid "selection.color"
 msgstr "Цвет {0}"
 
 msgid "selection.ultra_combo_title"
-msgstr "ULTRA COMBO"
+msgstr "УЛЬТРА КОМБО"
 
 msgid "selection.ultra_double.detail"
-msgstr "Оба Ultra Combo с пониженным уроном или эффектом."
+msgstr "Оба Ультра Комбо с пониженным уроном или эффектом."
 
 msgid "selection.saved"
 msgstr "СОХРАНЕНО"
 
 msgid "selection.stage_title"
-msgstr "МЕСТО БИТВЫ"
+msgstr "АРЕНА"
 
 msgid "selection.only_p1_stage"
-msgstr "Только P1 может сменить место битвы."
+msgstr "Только P1 может сменить арену."
 
 msgid "selection.options_title"
-msgstr "НАСТРОЙКИ ПЕРСОНАЖА"
+msgstr "НАСТРОЙКИ БОЙЦА"
 
 msgid "selection.edition"
 msgstr "Издание"
 
 msgid "selection.usfiv_rules"
-msgstr "В зале действуют правила USFIV."
+msgstr "В лобби действуют правила USFIV."
 
 msgid "selection.personal_action"
-msgstr "Провокация"
+msgstr "Издёвка"
 
 msgid "common.none"
 msgstr "Нет"
@@ -1466,25 +1466,25 @@ msgid "selection.random_stage"
 msgstr "Случайно"
 
 msgid "selection.random_stage.detail"
-msgstr "Новое место битвы в каждом матче."
+msgstr "Новая арена в каждом матче."
 
 msgid "selection.random_pool"
-msgstr "Случайные места"
+msgstr "Случайные арены"
 
 msgid "selection.random_pool.detail"
-msgstr "{0} из {1} мест. Случайный выбор идёт только среди них."
+msgstr "{0} из {1} арен. Случайный выбор идёт только среди них."
 
 msgid "selection.random_pool_title"
-msgstr "СЛУЧАЙНЫЕ МЕСТА"
+msgstr "СЛУЧАЙНЫЕ АРЕНЫ"
 
 msgid "selection.random_pool_in"
-msgstr "Случайный выбор может выпасть на это место."
+msgstr "Случайный выбор может выпасть на эту арену."
 
 msgid "selection.random_pool_out"
-msgstr "Случайный выбор пропускает это место."
+msgstr "Случайный выбор пропускает эту арену."
 
 msgid "selection.random_pool_last"
-msgstr "Для случайного выбора нужно хотя бы одно место."
+msgstr "Для случайного выбора нужна хотя бы одна арена."
 
 msgid "selection.random_pool_skipped"
 msgstr "ПРОПУСК"
@@ -1496,7 +1496,7 @@ msgid "selection.saved_value"
 msgstr "Сохранено: {0}"
 
 msgid "selection.ultra_selected"
-msgstr "Это Ultra выбрано."
+msgstr "Это Ультра выбрано."
 
 msgid "selection.preview_save"
 msgstr "Просмотр: «Выбрать» сохранит."
@@ -1526,31 +1526,31 @@ msgid "selection.status_locked"
 msgstr "Выбор заблокирован: вернитесь к столу."
 
 msgid "runtime.room_recovering"
-msgstr "Управление залом восстанавливается. Соединение матча сохранено."
+msgstr "Управление лобби восстанавливается. Соединение матча сохранено."
 
 msgid "runtime.room_lost_fight_continues"
-msgstr "Связь с залом потеряна. Бой продолжается, но реванш и запись результата недоступны."
+msgstr "Связь с лобби потеряна. Бой продолжается, но реванш и запись результата недоступны."
 
 msgid "runtime.returned_room_lost"
-msgstr "Вы вернулись в меню: во время матча связь с залом пропала."
+msgstr "Вы вернулись в меню: во время матча связь с лобби пропала."
 
 msgid "runtime.room_request_failed"
-msgstr "Не удалось отправить запрос залу. Выйдите из зала и попробуйте снова."
+msgstr "Не удалось отправить запрос лобби. Выйдите из лобби и попробуйте снова."
 
 msgid "runtime.build_mismatch"
 msgstr "Версии сборок различаются. У обоих игроков должен быть один и тот же пакет SF4 Ember Netplay."
 
 msgid "runtime.room_full"
-msgstr "Зал заполнен."
+msgstr "Лобби заполнено."
 
 msgid "runtime.selection_combination_unavailable"
-msgstr "Эта комбинация не допускается правилами зала. Выберите другого персонажа, костюм, цвет или издание."
+msgstr "Эта комбинация не допускается правилами лобби. Выберите другого бойца, костюм, цвет или издание."
 
 msgid "runtime.selection_summary"
 msgstr "{0} / {1} / цвет {2} / {3}"
 
 msgid "runtime.selection_unavailable"
-msgstr "Выбор не допускается этими правилами. Откройте «Выбор персонажа» и выберите доступный вариант."
+msgstr "Выбор не допускается этими правилами. Откройте «Выбор бойца» и выберите доступный вариант."
 
 msgid "runtime.open_shortcut"
 msgstr "SF4 Ember Netplay / F10 или Start"
@@ -1558,19 +1558,19 @@ msgid "runtime.return_menu_to_join"
 msgstr "Вернитесь в главное меню, чтобы присоединиться к матчу."
 
 msgid "runtime.waiting_opponent_join"
-msgstr "Ожидание входа соперника в зал..."
+msgstr "Ожидание входа соперника в лобби..."
 
 msgid "runtime.authorized_connection_unavailable"
 msgstr "Авторизованное соединение для матча недоступно."
 
 msgid "runtime.waiting_opponent_start"
-msgstr "Ожидание соперника в зале перед началом матча."
+msgstr "Ожидание соперника в лобби перед началом матча."
 
 msgid "runtime.unsupported_stage"
-msgstr "Зал передал неподдерживаемое место битвы. Сбросьте зал и повторите попытку."
+msgstr "Лобби передало неподдерживаемую арену. Сбросьте лобби и повторите попытку."
 
 msgid "runtime.unsupported_match"
-msgstr "Зал передал неподдерживаемых бойцов или настройки матча. Сбросьте зал и повторите попытку."
+msgstr "Лобби передало неподдерживаемых бойцов или настройки матча. Сбросьте лобби и повторите попытку."
 
 msgid "runtime.netplay_input_failed"
 msgstr "Сбой сетевого ввода. Матч завершён."
@@ -1579,13 +1579,13 @@ msgid "runtime.netplay_sync_failed"
 msgstr "Сбой сетевой синхронизации. Матч завершён."
 
 msgid "runtime.invalid_roster"
-msgstr "Некорректный состав матча. Вернитесь в зал и попробуйте снова."
+msgstr "Некорректный состав матча. Вернитесь в лобби и попробуйте снова."
 
 msgid "runtime.ggpo_start_failed"
-msgstr "Не удалось запустить GGPO. Вернитесь в зал и снова нажмите «Готов»."
+msgstr "Не удалось запустить GGPO. Вернитесь в лобби и снова нажмите «Готов»."
 
 msgid "runtime.ggpo_add_players_failed"
-msgstr "GGPO не смог добавить игроков. Вернитесь в зал и снова нажмите «Готов»."
+msgstr "GGPO не смог добавить игроков. Вернитесь в лобби и снова нажмите «Готов»."
 
 msgid "runtime.rollback_buffer_full"
 msgstr "Буфер отката заполнен. Матч завершён."
@@ -1612,16 +1612,16 @@ msgid "runtime.leaving_spectator"
 msgstr "Выход из режима зрителя."
 
 msgid "runtime.returning_room"
-msgstr "Возвращение в зал."
+msgstr "Возвращение в лобби."
 
 msgid "runtime.table_game_cancelled"
-msgstr "Бой за этим столом отменён. Вернитесь в зал, чтобы снова нажать «Готов»."
+msgstr "Бой за этим столом отменён. Вернитесь в лобби, чтобы снова нажать «Готов»."
 
 msgid "runtime.result_not_recorded"
 msgstr "Не удалось записать результат: стол изменился до подтверждения."
 
 msgid "runtime.participant_left"
-msgstr "Участник матча покинул зал. Бой завершится."
+msgstr "Участник матча покинул лобби. Бой завершится."
 
 msgid "update.github_unreachable"
 msgstr "Не удалось связаться с GitHub. Проверьте интернет и повторите попытку."
@@ -1759,7 +1759,7 @@ msgid "room.terminal_pending"
 msgstr "Ожидание возвращения всех игроков и зрителей из прошлого матча."
 
 msgid "room.leave.detail"
-msgstr "Отключиться от зала и вернуться на главную. Если скрыть Ember, вы останетесь в зале."
+msgstr "Отключиться от лобби и вернуться на главную. Если скрыть Ember, вы останетесь в лобби."
 
 msgid "room.leave.unresolved"
 msgstr " Неустановленный результат не будет записан."
@@ -1831,10 +1831,10 @@ msgid "chat.empty"
 msgstr "Сообщений пока нет. Начните писать ниже."
 
 msgid "chat.event.joined"
-msgstr "{0} вошёл(а) в зал"
+msgstr "{0} вошёл(а) в лобби"
 
 msgid "chat.event.left"
-msgstr "{0} покинул(а) зал"
+msgstr "{0} покинул(а) лобби"
 
 msgid "chat.event.host"
 msgstr "{0} теперь ведущий"
@@ -1846,31 +1846,31 @@ msgid "chat.event.set_won"
 msgstr "{0}: победа в сете за столом {1} ({2})"
 
 msgid "room.fighter_options"
-msgstr "Настройки персонажа"
+msgstr "Настройки бойца"
 
 msgid "room.fighter_options.value"
-msgstr "Провокация {0}, Победный клич {1}"
+msgstr "Издёвка {0}, Победный клич {1}"
 
 msgid "room.settings"
-msgstr "Настройки зала"
+msgstr "Настройки лобби"
 
 msgid "room.settings.detail"
-msgstr "Название, вместимость и доступ в зал."
+msgstr "Название, вместимость и доступ в лобби."
 
 msgid "room.settings.host_only"
-msgstr "Залом может управлять только ведущий."
+msgstr "Лобби может управлять только ведущий."
 
 msgid "room.connection_status"
 msgstr "Состояние соединения"
 
 msgid "room.opening"
-msgstr "Открытие зала..."
+msgstr "Открытие лобби..."
 
 msgid "room.opening_stalled"
-msgstr "Зал не открылся. Проверьте соединение либо остановите операцию и попробуйте снова."
+msgstr "Лобби не открылось. Проверьте соединение либо остановите операцию и попробуйте снова."
 
 msgid "room.waiting_state"
-msgstr "Ожидание состояния зала."
+msgstr "Ожидание состояния лобби."
 
 msgid "room.copy_invitation"
 msgstr "Копировать приглашение"
@@ -1882,25 +1882,25 @@ msgid "room.copy_short_invitation"
 msgstr "Копировать ссылку"
 
 msgid "room.copy_short_invitation.detail"
-msgstr "Короткая ссылка для чата. Сервис ссылок Ember хранит её, пока зал открыт."
+msgstr "Короткая ссылка для чата. Сервис ссылок Ember хранит её, пока лобби открыто."
 
 msgid "room.leaving"
-msgstr "Выход из зала..."
+msgstr "Выход из лобби..."
 
 msgid "room.leave"
-msgstr "Покинуть зал"
+msgstr "Покинуть лобби"
 
 msgid "room.replace"
-msgstr "Заменить зал"
+msgstr "Заменить лобби"
 
 msgid "room.replace.detail"
-msgstr "Закрыть зависший зал и открыть новый. Всем придётся войти снова; прежнее приглашение перестанет работать. Неустановленное состояние зала будет сброшено."
+msgstr "Закрыть зависшее лобби и открыть новое. Всем придётся войти снова; прежнее приглашение перестанет работать. Неустановленное состояние лобби будет сброшено."
 
 msgid "room.replace.waiting"
 msgstr "Прошлый матч ещё закрывается. Замена станет доступна после его завершения."
 
 msgid "room.updating"
-msgstr "Обновление зала..."
+msgstr "Обновление лобби..."
 
 msgid "room.battle_slot"
 msgstr "СТОЛ БОЯ {0}"
@@ -1909,7 +1909,7 @@ msgid "room.looking_for_fight"
 msgstr "Ищет бой"
 
 msgid "room.fighter_not_shared"
-msgstr "Персонаж не показан"
+msgstr "Боец не показан"
 
 msgid "room.suffix_you"
 msgstr " / ВЫ"
@@ -1966,19 +1966,19 @@ msgid "room.short_invitation_unavailable"
 msgstr "Сервис ссылок не ответил, поэтому скопировано полное приглашение."
 
 msgid "room.link_joining"
-msgstr "Вход в зал по ссылке."
+msgstr "Вход в лобби по ссылке."
 
 msgid "room.link_opened"
-msgstr "Открыто по ссылке на зал. Проверьте её и выберите «Войти в зал»."
+msgstr "Открыто по ссылке на лобби. Проверьте её и выберите «Войти в лобби»."
 
 msgid "room.link_waiting"
-msgstr "Открыта ссылка на зал. Она появится на экране входа, когда вы покинете этот зал."
+msgstr "Открыта ссылка на лобби. Она появится на экране входа, когда вы покинете это лобби."
 
 msgid "room.replacement_opening"
-msgstr "Открывается новый зал. Выберите «Копировать приглашение» и отправьте новую ссылку. Старая больше не работает."
+msgstr "Открывается новое лобби. Выберите «Копировать приглашение» и отправьте новую ссылку. Старая больше не работает."
 
 msgid "room.action_rejected"
-msgstr "Зал изменился или отклонил действие. Проверьте текущее состояние и попробуйте снова."
+msgstr "Лобби изменилось или отклонило действие. Проверьте текущее состояние и попробуйте снова."
 
 msgid "room.leave_current_table"
 msgstr "Сначала покиньте текущий стол."
@@ -1996,22 +1996,22 @@ msgid "room.match_active"
 msgstr "Текущий матч готовится или уже идёт. Дождитесь завершения."
 
 msgid "room.waiting_other_seat"
-msgstr "Ожидание соперника на втором месте. Пока ждёте, можно сменить персонажа."
+msgstr "Ожидание соперника на втором месте. Пока ждёте, можно сменить бойца."
 
 msgid "room.controller_required"
 msgstr "Назначьте или подключите контроллер в «Настройки > Игрок и контроллер»."
 
 msgid "room.ready.cancel_detail"
-msgstr "Вы готовы. Отмените готовность, затем выберите «Сменить персонажа»."
+msgstr "Вы готовы. Отмените готовность, затем выберите «Сменить бойца»."
 
 msgid "room.ready.locking"
-msgstr "Ваш персонаж закрепляется. Матч начнётся, когда оба игрока будут готовы."
+msgstr "Ваш боец закрепляется. Матч начнётся, когда оба игрока будут готовы."
 
 msgid "room.ready.lock_detail"
-msgstr "Закрепите персонажа. Матч начнётся, когда оба игрока будут готовы."
+msgstr "Закрепите бойца. Матч начнётся, когда оба игрока будут готовы."
 
 msgid "room.opponent_changed_fighter"
-msgstr "Соперник сменил персонажа на {0}. Проверьте свою ультру, прежде чем нажать «Готов»."
+msgstr "Соперник сменил бойца на {0}. Проверьте своё Ультра, прежде чем нажать «Готов»."
 
 msgid "room.both_ready"
 msgstr "Оба бойца готовы. Матч начинается."
@@ -2027,6 +2027,15 @@ msgstr "Ждём возвращения закреплённых зрителе�
 
 msgid "room.hold.waiting_you"
 msgstr "Игра ждёт вас: {0} с"
+
+msgid "room.ready_timeout.you"
+msgstr "Подтвердите готовность за {0} с, иначе вы освободите место"
+
+msgid "room.ready_timeout.other"
+msgstr "Бойцу {1} осталось {0} с для подтверждения готовности"
+
+msgid "chat.event.ready_timeout"
+msgstr "{0} покидает стол {1}: готовность не подтверждена вовремя"
 
 msgid "room.hold.status"
 msgstr "Ждём зрителей: {0} с"
@@ -2096,13 +2105,13 @@ msgid "room.apply_recommendation.check_first"
 msgstr "Сначала проверьте соединение, чтобы получить рекомендацию."
 
 msgid "room.change_fighter.unready"
-msgstr "Отмените готовность выше, чтобы разблокировать персонажа и внешний вид."
+msgstr "Отмените готовность выше, чтобы разблокировать бойца и внешний вид."
 
 msgid "room.change_fighter.waiting"
 msgstr "Ожидание завершения текущего матча или обновления выбора."
 
 msgid "room.change_fighter.detail"
-msgstr "Выберите персонажа, затем его Ultra Combo. Вернитесь сюда и нажмите «Готов»."
+msgstr "Выберите бойца, затем его Ультра Комбо. Вернитесь сюда и нажмите «Готов»."
 msgid "room.appearance.detail"
 msgstr "Влево и вправо меняют цвет здесь. Выбор открывает костюмы, затем цвета выбранного костюма."
 
@@ -2260,13 +2269,13 @@ msgid "room.kick_member"
 msgstr "Исключить"
 
 msgid "room.kick_member.detail"
-msgstr "Исключить {0} из зала."
+msgstr "Исключить {0} из лобби."
 
 msgid "room.transfer_host"
 msgstr "Сменить ведущего"
 
 msgid "room.transfer_host.detail"
-msgstr "Назначить {0} ведущим зала."
+msgstr "Назначить {0} ведущим лобби."
 
 msgid "room.compose_message"
 msgstr "Написать сообщение"
@@ -2278,25 +2287,25 @@ msgid "room.admission"
 msgstr "Доступ"
 
 msgid "room.locked"
-msgstr "Закрыт"
+msgstr "Закрыто"
 
 msgid "room.open"
-msgstr "Открыт"
+msgstr "Открыто"
 
 msgid "room.admission.detail"
-msgstr "Закрытый зал не принимает новых."
+msgstr "Закрытое лобби не принимает новых."
 
 msgid "room.apply_name"
 msgstr "Сохранить название"
 
 msgid "room.apply_name.detail"
-msgstr "Сохранить название зала."
+msgstr "Сохранить название лобби."
 
 msgid "room.apply_capacity"
 msgstr "Применить лимит"
 
 msgid "room.apply_capacity.detail"
-msgstr "Задать лимит зала."
+msgstr "Задать лимит лобби."
 
 msgid "profile.main_badge"
 msgstr "ОСНОВНОЙ"
@@ -2335,7 +2344,7 @@ msgid "edit.instructions"
 msgstr "Введите или вставьте текст с клавиатуры. Enter или «Выбрать» на контроллере принимает; Escape или «Назад» отменяет."
 
 msgid "edit.updating"
-msgstr "Зал обновляется. Ваш текст сохранён; можно продолжить ввод или отменить."
+msgstr "Лобби обновляется. Ваш текст сохранён; можно продолжить ввод или отменить."
 
 msgid "common.accept"
 msgstr "Принять"
@@ -2353,7 +2362,7 @@ msgid "runtime.interface_preferences_failed"
 msgstr "Не удалось прочитать настройки интерфейса; используются значения по умолчанию."
 
 msgid "runtime.room_defaults_invalid"
-msgstr "Сохранённые параметры залов недопустимы. Исходные настройки сохранены."
+msgstr "Сохранённые параметры лобби недопустимы. Исходные настройки сохранены."
 
 msgid "runtime.network_start_failed"
 msgstr "Не удалось запустить сеть. Игра без сети доступна."
@@ -2371,16 +2380,16 @@ msgid "runtime.gameplay_device_disconnected"
 msgstr "Игровое устройство отключилось. Подключите его до следующего матча."
 
 msgid "runtime.match_input_blocked"
-msgstr "Ввод в матче заблокирован: подключите {0} снова. Если слот изменился, вернитесь в зал и назначьте устройство заново."
+msgstr "Ввод в матче заблокирован: подключите {0} снова. Если слот изменился, вернитесь в лобби и назначьте устройство заново."
 
 msgid "runtime.controller_assignment_unverified"
 msgstr "Не удалось проверить назначение контроллера для матча. Назначьте его снова."
 
 msgid "runtime.recovery_state_failed"
-msgstr "Не удалось применить состояние восстановления зала. Восстановление приостановлено."
+msgstr "Не удалось применить состояние восстановления лобби. Восстановление приостановлено."
 
 msgid "runtime.room_control_recovering"
-msgstr "Управление залом восстанавливается."
+msgstr "Управление лобби восстанавливается."
 
 msgid "discord.connected"
 msgstr "Discord подключён"
@@ -2401,7 +2410,7 @@ msgid "discord.companion_stopped"
 msgstr "Модуль Discord остановлен. На игру это не влияет."
 
 msgid "runtime.room_connection_failed"
-msgstr "Сбой соединения с залом. Зал закрывается; неподтверждённые результаты не будут записаны."
+msgstr "Сбой соединения с лобби. Лобби закрывается; неподтверждённые результаты не будут записаны."
 
 msgid "runtime.operation_busy"
 msgstr "Операция занята. Повторите попытку."
@@ -2413,22 +2422,22 @@ msgid "runtime.spectator_action_retrying"
 msgstr "Не удалось отправить действие зрителя; повторная попытка."
 
 msgid "runtime.return_main_menu"
-msgstr "Вернитесь в главное меню игры, прежде чем открывать зал."
+msgstr "Вернитесь в главное меню игры, прежде чем открывать лобби."
 
 msgid "runtime.tournament_result_saving"
 msgstr "Сохраняется результат последней игры. Повторите попытку через несколько секунд."
 
 msgid "runtime.room_action_failed"
-msgstr "Не удалось отправить действие в зал. Повторите попытку."
+msgstr "Не удалось отправить действие в лобби. Повторите попытку."
 
 msgid "runtime.preferences_queue_failed"
 msgstr "Не удалось поставить сохранение настроек в очередь. Повторите попытку."
 
 msgid "runtime.lobby_settings_send_failed"
-msgstr "Не удалось отправить настройки зала."
+msgstr "Не удалось отправить настройки лобби."
 
 msgid "runtime.room_defaults_save_failed"
-msgstr "Не удалось сохранить параметры залов."
+msgstr "Не удалось сохранить параметры лобби."
 
 msgid "runtime.connection_check_unavailable"
 msgstr "Проверка соединения недоступна. Можно выбрать задержку и нажать «Готов»."
@@ -2437,19 +2446,19 @@ msgid "runtime.delay_save_failed"
 msgstr "Не удалось сохранить задержку ввода."
 
 msgid "runtime.teardown_report_failed"
-msgstr "Не удалось сообщить о завершении матча; зал закрыт."
+msgstr "Не удалось сообщить о завершении матча; лобби закрыто."
 
 msgid "runtime.lobby_defaults_save_failed"
-msgstr "Настройки зала применены, но значения по умолчанию сохранить не удалось."
+msgstr "Настройки лобби применены, но значения по умолчанию сохранить не удалось."
 
 msgid "runtime.lobby_settings_rejected"
-msgstr "Настройки зала отклонены. Проверьте готовность и повторите попытку."
+msgstr "Настройки лобби отклонены. Проверьте готовность и повторите попытку."
 
 msgid "runtime.teardown_timeout"
-msgstr "Время завершения матча истекло; зал закрыт."
+msgstr "Время завершения матча истекло; лобби закрыто."
 
 msgid "runtime.room_catchup_timeout"
-msgstr "Зал не успел синхронизироваться. Последнее действие не применено; попробуйте снова."
+msgstr "Лобби не успело синхронизироваться. Последнее действие не применено; попробуйте снова."
 
 msgid "runtime.previous_match_close_timeout"
 msgstr "Прошлый матч не успел завершиться. Примените настройки стола ещё раз."
@@ -2458,25 +2467,25 @@ msgid "runtime.spectator_close_timeout"
 msgstr "Матч не успел завершиться. Просмотр зрителя остановлен."
 
 msgid "runtime.room_closed"
-msgstr "Зал закрыт."
+msgstr "Лобби закрыто."
 
 msgid "runtime.removed_from_room"
-msgstr "Вас исключили из зала."
+msgstr "Вас исключили из лобби."
 
 msgid "room.reject.closed"
-msgstr "Зал закрыт."
+msgstr "Лобби закрыто."
 
 msgid "room.reject.full"
-msgstr "Зал заполнен."
+msgstr "Лобби заполнено."
 
 msgid "room.reject.admission_locked"
-msgstr "Вход новых участников в зал закрыт."
+msgstr "Вход новых участников в лобби закрыт."
 
 msgid "room.reject.name_taken"
-msgstr "Игрок с таким именем уже в зале. Смените имя в настройках."
+msgstr "Игрок с таким именем уже в лобби. Смените имя в настройках."
 
 msgid "room.reject.stale_room"
-msgstr "Зал изменился до получения вашего действия. Повторите попытку."
+msgstr "Лобби изменилось до получения вашего действия. Повторите попытку."
 
 msgid "room.reject.stale_table"
 msgstr "Стол изменился до получения вашего действия. Повторите попытку."
@@ -2521,10 +2530,10 @@ msgid "room.reject.ledger_full"
 msgstr "Ожидание возвращения всех участников из прошлого матча."
 
 msgid "room.reject.other"
-msgstr "Зал отклонил это действие."
+msgstr "Лобби отклонило это действие."
 
 msgid "runtime.lock.return_to_menu_fighter"
-msgstr "Вернитесь в главное меню игры, чтобы сменить персонажа."
+msgstr "Вернитесь в главное меню игры, чтобы сменить бойца."
 
 msgid "runtime.lock.previous_game_closing"
 msgstr "Ожидание завершения прошлого боя."
@@ -2533,7 +2542,7 @@ msgid "runtime.lock.teardown"
 msgstr "Ожидание выхода игроков и зрителей из прошлого матча."
 
 msgid "runtime.lock.room_recovering"
-msgstr "Ожидание восстановления связи с залом."
+msgstr "Ожидание восстановления связи с лобби."
 
 msgid "runtime.lock.ready_pending"
 msgstr "Ожидание обработки вашей готовности."
@@ -2542,31 +2551,31 @@ msgid "runtime.lock.selection_update"
 msgstr "Ожидание завершения текущего матча или обновления выбора."
 
 msgid "runtime.ready.control_changed"
-msgstr "Управление залом изменилось до принятия вашей готовности. Нажмите «Готов» снова."
+msgstr "Управление лобби изменилось до принятия вашей готовности. Нажмите «Готов» снова."
 
 msgid "runtime.ready.assign_controller"
 msgstr "Назначьте или подключите контроллер перед подтверждением готовности."
 
 msgid "runtime.ready.stage_unavailable"
-msgstr "Выбранное место битвы недоступно. Выберите другое на экране выбора персонажа."
+msgstr "Выбранная арена недоступна. Выберите другую на экране выбора бойца."
 
 msgid "runtime.ready.fighter_unavailable"
-msgstr "Выбранный персонаж недоступен. Выберите другого на экране выбора персонажа."
+msgstr "Выбранный боец недоступен. Выберите другого на экране выбора бойца."
 
 msgid "runtime.ready.selection_unavailable"
-msgstr "Этот выбор персонажа недоступен. Выберите доступные костюм, цвет, издание и Ultra."
+msgstr "Этот выбор бойца недоступен. Выберите доступные костюм, цвет, издание и Ультра."
 
 msgid "runtime.ready.take_seat"
 msgstr "Займите место за столом, прежде чем нажать «Готов»."
 
 msgid "runtime.ready.refused"
-msgstr "Зал отклонил вашу готовность. Нажмите «Готов» снова."
+msgstr "Лобби отклонило вашу готовность. Нажмите «Готов» снова."
 
 msgid "runtime.ready.previous_match_timeout"
-msgstr "Не удалось подтвердить готовность: зал не успел завершить прошлый матч. Нажмите «Готов» снова."
+msgstr "Не удалось подтвердить готовность: лобби не успело завершить прошлый матч. Нажмите «Готов» снова."
 
 msgid "runtime.room_open_failed"
-msgstr "Не удалось открыть зал. Повторите попытку."
+msgstr "Не удалось открыть лобби. Повторите попытку."
 
 msgid "runtime.match_settings_send_failed"
 msgstr "Не удалось отправить настройки матча."
@@ -2578,19 +2587,19 @@ msgid "runtime.rollback_unsupported_state"
 msgstr "Сетевая игра не смогла сохранить неподдерживаемое состояние игры. Матч завершён."
 
 msgid "runtime.participant_left_room"
-msgstr "Участник матча покинул зал."
+msgstr "Участник матча покинул лобби."
 
 msgid "runtime.networking_unavailable"
 msgstr "Сеть недоступна. Игра без сети доступна."
 
 msgid "runtime.room_join_failed"
-msgstr "Не удалось войти в зал. Проверьте приглашение и убедитесь, что у обоих игроков одинаковый пакет SF4 Ember Netplay."
+msgstr "Не удалось войти в лобби. Проверьте приглашение и убедитесь, что у обоих игроков одинаковый пакет SF4 Ember Netplay."
 
 msgid "runtime.invite_expired"
 msgstr "Срок действия приглашения истёк. Попросите хоста скопировать новое."
 
 msgid "runtime.invite_own_room"
-msgstr "Это приглашение ведёт к вашей собственной игре: оно скопировано до того, как вы покинули зал. Попросите хоста скопировать приглашение заново."
+msgstr "Это приглашение ведёт к вашей собственной игре: оно скопировано до того, как вы покинули лобби. Попросите хоста скопировать приглашение заново."
 
 msgid "runtime.invite_other_build"
 msgstr "У хоста другой пакет SF4 Ember Netplay. Обоим игрокам нужна одна и та же версия."
@@ -2602,10 +2611,10 @@ msgid "runtime.invite_short_unavailable"
 msgstr "Не удалось связаться с сервисом ссылок Ember, поэтому эту короткую ссылку не открыть. Попросите у ведущего полное приглашение и вставьте его вместо ссылки."
 
 msgid "runtime.invite_short_unknown"
-msgstr "Для этой короткой ссылки зал не найден. Проверьте код или, если зал закрыт, попросите у ведущего новую ссылку."
+msgstr "Для этой короткой ссылки лобби не найдено. Проверьте код или, если лобби закрыто, попросите у ведущего новую ссылку."
 
 msgid "runtime.room_host_failed"
-msgstr "Не удалось создать зал. Проверьте подключение к интернету и повторите попытку."
+msgstr "Не удалось создать лобби. Проверьте подключение к интернету и повторите попытку."
 
 msgid "runtime.relay_unreachable"
 msgstr "Не удалось связаться с сервером-ретранслятором. Проверьте интернет, брандмауэр или VPN и повторите попытку."
@@ -2614,13 +2623,13 @@ msgid "runtime.relay_unreachable_region"
 msgstr "Не удалось связаться с сервером-ретранслятором ({0}). Проверьте интернет, брандмауэр или VPN и повторите попытку."
 
 msgid "runtime.host_unreachable"
-msgstr "Не удалось связаться с ведущим ни напрямую, ни через ретранслятор. Возможно, зал закрыт или мешает брандмауэр или VPN."
+msgstr "Не удалось связаться с ведущим ни напрямую, ни через ретранслятор. Возможно, лобби закрыто или мешает брандмауэр или VPN."
 
 msgid "runtime.join_control_lost"
 msgstr "С ведущим удалось связаться, но соединение постоянно обрывалось. Проверьте подключение к интернету и повторите попытку."
 
 msgid "runtime.room_connection_lost"
-msgstr "Связь с залом потеряна."
+msgstr "Связь с лобби потеряна."
 
 msgid "runtime.desync_match_ended"
 msgstr "Матч завершён: игры разошлись (рассинхронизация). Выполните «Экспорт диагностики» у обоих игроков."
@@ -2629,7 +2638,7 @@ msgid "runtime.desync_spectator"
 msgstr "Вид зрителя разошёлся с боем. Выйдите и смотрите снова."
 
 msgid "runtime.room_link_lost"
-msgstr "Связь с игровым залом потеряна. Проверьте интернет и повторите попытку."
+msgstr "Связь с игровым лобби потеряна. Проверьте интернет и повторите попытку."
 
 msgid "runtime.session_server_error"
 msgstr "Ошибка сервера сессии. Проверьте интернет и повторите попытку."
@@ -2638,7 +2647,7 @@ msgid "runtime.settings_unreadable"
 msgstr "Не удалось прочитать сохранённые настройки; используются значения по умолчанию."
 
 msgid "screen.identity"
-msgstr "Ember ID"
+msgstr "Учётная запись Ember"
 
 msgid "screen.identity_backup"
 msgstr "Резервные копии"
@@ -2650,7 +2659,7 @@ msgid "screen.tournament_matches"
 msgstr "Турнирные матчи"
 
 msgid "identity.title"
-msgstr "EMBER ID"
+msgstr "УЧЁТНАЯ ЗАПИСЬ EMBER"
 
 msgid "identity.backup_title"
 msgstr "РЕЗЕРВНЫЕ КОПИИ"
@@ -2725,7 +2734,7 @@ msgid "identity.enable_detail"
 msgstr "Создаёт ваш ключ на этом ПК. Использовать его сможет только эта учётная запись Windows."
 
 msgid "identity.leave_room"
-msgstr "Чтобы изменить Ember ID, выйдите из зала и вернитесь в главное меню."
+msgstr "Чтобы изменить Ember ID, выйдите из лобби и вернитесь в главное меню."
 
 msgid "identity.unlock"
 msgstr "Разблокировать"
@@ -2863,7 +2872,7 @@ msgid "identity.connect_discord_detail"
 msgstr "Подключите аккаунт Discord, который знает ваш турнирный сайт, например BluMint, чтобы он нашёл ваш Ember ID. Ember проведёт вас по шагам."
 
 msgid "connect.identity_detail"
-msgstr "Шаг 1 из 3. Ваш Ember ID ещё не готов. Откройте экран «Ember ID», чтобы узнать, чего не хватает."
+msgstr "Шаг 1 из 3. Ваш Ember ID ещё не готов. Откройте экран «Учётная запись Ember», чтобы узнать, чего не хватает."
 
 msgid "connect.trust_detail"
 msgstr "Шаг 2 из 3. Позволяет Ember входить в турнирный сервис Ember по адресу {0} с вашим Ember ID."
@@ -2932,7 +2941,7 @@ msgid "connect.change_detail"
 msgstr "Открывает Discord в браузере, чтобы вместо этого подключить другой аккаунт. Тогда ваш турнирный сайт должен использовать этот аккаунт."
 
 msgid "connect.link_waiting"
-msgstr "Турнирный сайт просит подключить Discord. Ember откроет «Подключить Discord», когда вы выйдете из зала."
+msgstr "Турнирный сайт просит подключить Discord. Ember откроет «Подключить Discord», когда вы выйдете из лобби."
 
 msgid "connect.paste"
 msgstr "Вставить ссылку"
@@ -3109,7 +3118,7 @@ msgid "identity.refused.helper"
 msgstr "Сетевой компонент не запущен, поэтому сейчас нельзя использовать ваш Ember ID."
 
 msgid "identity.refused.leave_room"
-msgstr "Чтобы изменить Ember ID, выйдите из зала и вернитесь в главное меню."
+msgstr "Чтобы изменить Ember ID, выйдите из лобби и вернитесь в главное меню."
 
 msgid "identity.refused.match"
 msgstr "Дождитесь окончания матча."
@@ -3130,16 +3139,16 @@ msgid "tournament.current"
 msgstr "Текущий матч"
 
 msgid "tournament.current_detail"
-msgstr "Бои проходят в зале матча, и каждый результат сам отправляется в турнирный сервис."
+msgstr "Бои проходят в лобби матча, и каждый результат сам отправляется в турнирный сервис."
 
 msgid "tournament.state.claiming"
-msgstr "Поиск зала матча"
+msgstr "Поиск лобби матча"
 
 msgid "tournament.state.opening"
-msgstr "Открытие зала матча"
+msgstr "Открытие лобби матча"
 
 msgid "tournament.state.in_room"
-msgstr "В зале матча"
+msgstr "В лобби матча"
 
 msgid "tournament.state.waiting_opponent"
 msgstr "Ожидание соперника"
@@ -3157,7 +3166,7 @@ msgid "tournament.stop"
 msgstr "Прекратить игру"
 
 msgid "tournament.stop_detail"
-msgstr "Выход из зала матча. Сыграть матч снова можно из этого списка."
+msgstr "Выход из лобби матча. Сыграть матч снова можно из этого списка."
 
 msgid "tournament.needs_service"
 msgstr "Нет турнирного сервиса"
@@ -3178,7 +3187,7 @@ msgid "tournament.play"
 msgstr "Играть"
 
 msgid "tournament.play_detail"
-msgstr "Открывает зал этого матча или входит в него. Результат каждого боя сам отправляется в турнирный сервис."
+msgstr "Открывает лобби этого матча или входит в него. Результат каждого боя сам отправляется в турнирный сервис."
 
 msgid "tournament.organizer_detail"
 msgstr "Результаты этого матча вносит организатор. Он не играется через Ember."
@@ -3193,7 +3202,7 @@ msgid "tournament.expired_detail"
 msgstr "Срок этого матча истёк, а он так и не был сыгран."
 
 msgid "tournament.leave_room_detail"
-msgstr "Чтобы сыграть этот матч, выйдите из своего зала."
+msgstr "Чтобы сыграть этот матч, выйдите из своего лобби."
 
 msgid "tournament.none"
 msgstr "Нет матчей"
@@ -3238,10 +3247,10 @@ msgid "tournament.link_opened"
 msgstr "Сайт турнира открыл матч. Нажмите «Играть», когда будете готовы."
 
 msgid "tournament.assigned_notice"
-msgstr "Для вас готов турнирный матч. Откройте «Ember ID», затем «Турнирные матчи»."
+msgstr "Для вас готов турнирный матч. Откройте «Учётная запись Ember», затем «Турнирные матчи»."
 
 msgid "tournament.link_waiting"
-msgstr "Пришла ссылка на турнирный матч. Выйдите из своего зала и сыграйте его в разделе «Турнирные матчи»."
+msgstr "Пришла ссылка на турнирный матч. Выйдите из своего лобби и сыграйте его в разделе «Турнирные матчи»."
 
 msgid "tournament.failure.link"
 msgstr "Это не ссылка на матч. Скопируйте её снова на сайте турнира."
@@ -3301,28 +3310,28 @@ msgid "room.streak"
 msgstr "Сетов подряд: {0}"
 
 msgid "screen.public_rooms"
-msgstr "Открытые залы"
+msgstr "Открытые лобби"
 
 msgid "online.public_detail"
-msgstr "Просматривайте открытые залы, куда может войти любой, или быстро войдите в зал поблизости."
+msgstr "Просматривайте открытые лобби, куда может войти любой, или быстро войдите в лобби поблизости."
 
 msgid "public.create"
-msgstr "Создать открытый зал"
+msgstr "Создать открытое лобби"
 
 msgid "public.create_detail"
-msgstr "Открывает зал, видимый всем игрокам с Ember ID, и делает вас ведущим. Затем выберите название, размер и правила столов."
+msgstr "Открывает лобби, видимое всем игрокам с Ember ID, и делает вас ведущим. Затем выберите название, размер и правила столов."
 
 msgid "public.create_requirements"
-msgstr "Создаёт открытый зал в сервисе Ember ID, входит в него и задаёт эти правила на всех столах. Потом их можно изменить в настройках стола."
+msgstr "Создаёт открытое лобби в сервисе Ember ID, входит в него и задаёт эти правила на всех столах. Потом их можно изменить в настройках стола."
 
 msgid "public.create_needs_id"
-msgstr "Для открытых залов нужны Ember ID и доверенный сервис. Настройте их в разделе Открытые залы."
+msgstr "Для открытых лобби нужны Ember ID и доверенный сервис. Настройте их в разделе Открытые лобби."
 
 msgid "public.loading"
-msgstr "Загрузка залов..."
+msgstr "Загрузка лобби..."
 
 msgid "public.needs_id_detail"
-msgstr "Создайте Ember ID и добавьте доверенный сервис в разделе Привязанные аккаунты. Открытые залы показывает именно этот сервис."
+msgstr "Создайте Ember ID и добавьте доверенный сервис в разделе Привязанные аккаунты. Открытые лобби показывает именно этот сервис."
 
 msgid "public.room_detail"
 msgstr "{0}\nИгроков: {1}/{2}. Регион: {3}."
@@ -3337,88 +3346,88 @@ msgid "public.visibility"
 msgstr "Доступ"
 
 msgid "public.visibility.private"
-msgstr "Закрытый"
+msgstr "Закрытое"
 
 msgid "public.visibility.public"
-msgstr "Открытый"
+msgstr "Открытое"
 
 msgid "public.visibility_detail"
-msgstr "В закрытый зал входят по приглашению. Открытый зал виден всем игрокам с Ember ID."
+msgstr "В закрытое лобби входят по приглашению. Открытое лобби видно всем игрокам с Ember ID."
 
 msgid "room.public_status"
-msgstr "Открытый зал / войти может любой игрок с Ember ID"
+msgstr "Открытое лобби / войти может любой игрок с Ember ID"
 
 msgid "room.public_locked_status"
-msgstr "Открытый зал, закрыт / новые игроки не могут войти"
+msgstr "Открытое лобби, закрыто / новые игроки не могут войти"
 
 msgid "public.failure.room_full"
-msgstr "Этот зал заполнен."
+msgstr "Это лобби заполнено."
 
 msgid "public.failure.banned"
-msgstr "Вас удалили из этого зала."
+msgstr "Вас удалили из этого лобби."
 
 msgid "public.failure.room_not_found"
-msgstr "Этот зал закрыт."
+msgstr "Это лобби закрыто."
 
 msgid "public.failure.room_not_open"
-msgstr "Этот зал ещё не открыт."
+msgstr "Это лобби ещё не открыто."
 
 msgid "public.failure.room_limit"
-msgstr "Достигнут лимит открытых залов. Повторите попытку позже."
+msgstr "Достигнут лимит открытых лобби. Повторите попытку позже."
 
 msgid "public.failure.unsupported_build"
-msgstr "Открытые залы пока недоступны в этой версии."
+msgstr "Открытые лобби пока недоступны в этой версии."
 
 msgid "public.failure.invalid_name"
-msgstr "Это название зала нельзя использовать. Выберите другое."
+msgstr "Это название лобби нельзя использовать. Выберите другое."
 
 msgid "public.failure.rooms_unavailable"
-msgstr "Открытые залы сейчас недоступны."
+msgstr "Открытые лобби сейчас недоступны."
 
 msgid "public.link_row"
-msgstr "Войти в зал по ссылке"
+msgstr "Войти в лобби по ссылке"
 
 msgid "public.link_row_detail"
-msgstr "Ранее пришла ссылка на зал. Выберите этот пункт, чтобы сейчас запросить этот зал."
+msgstr "Ранее пришла ссылка на лобби. Выберите этот пункт, чтобы сейчас запросить это лобби."
 
 msgid "public.paste_link"
-msgstr "Вставить ссылку на зал"
+msgstr "Вставить ссылку на лобби"
 
 msgid "public.paste_link_detail"
-msgstr "Скопируйте ссылку на зал у бота или на сайте и выберите этот пункт, чтобы войти в этот зал."
+msgstr "Скопируйте ссылку на лобби у бота или на сайте и выберите этот пункт, чтобы войти в это лобби."
 
 msgid "public.failure.link"
-msgstr "Это не ссылка на зал. Скопируйте её снова у бота или на сайте."
+msgstr "Это не ссылка на лобби. Скопируйте её снова у бота или на сайте."
 
 msgid "public.failure.link_service"
-msgstr "Доверьтесь этому сервису в разделе «Привязанные аккаунты» и снова откройте ссылку на зал."
+msgstr "Доверьтесь этому сервису в разделе «Привязанные аккаунты» и снова откройте ссылку на лобби."
 
 msgid "public.link_waiting"
-msgstr "Пришла ссылка на открытый зал. Покиньте свой зал, затем выберите её в разделе «Открытые залы»."
+msgstr "Пришла ссылка на открытое лобби. Покиньте своё лобби, затем выберите её в разделе «Открытые лобби»."
 
 msgid "public.quick"
 msgstr "Быстрый вход"
 
 msgid "public.quick_detail"
-msgstr "Входит в открытый зал поблизости, где больше всего свободных мест."
+msgstr "Входит в открытое лобби поблизости, где больше всего свободных мест."
 
 msgid "public.quick_none"
-msgstr "Сейчас рядом нет открытых залов со свободными местами. Создайте свой, и игроки поблизости его найдут."
+msgstr "Сейчас рядом нет открытых лобби со свободными местами. Создайте своё, и игроки поблизости его найдут."
 
 msgid "public.create_room"
-msgstr "Создать зал"
+msgstr "Создать лобби"
 
 msgid "public.filter"
 msgstr "Показать"
 
 msgid "public.filter_detail"
-msgstr "Выберите, какие залы показывать: все, ближайшие или только со свободными местами."
+msgstr "Выберите, какие лобби показывать: все, ближайшие или только со свободными местами."
 
 msgid "public.filter_label"
 msgstr "Показать: {0}"
 
 msgid "public.filter.all"
-msgstr "Все залы"
+msgstr "Все лобби"
 
 msgid "public.filter.near"
 msgstr "Рядом"
@@ -3427,7 +3436,7 @@ msgid "public.filter.seats"
 msgstr "Свободные места"
 
 msgid "public.filter_near_unknown"
-msgstr "Ember пока не знает ваш регион, поэтому не может определить, какие залы рядом."
+msgstr "Ember пока не знает ваш регион, поэтому не может определить, какие лобби рядом."
 
 msgid "public.near_you"
 msgstr "Рядом"
@@ -3436,10 +3445,10 @@ msgid "public.in_match"
 msgstr "Идёт матч"
 
 msgid "public.locked"
-msgstr "Закрыт"
+msgstr "Закрыто"
 
 msgid "public.full"
-msgstr "Заполнен"
+msgstr "Заполнено"
 
 msgid "public.card_meta"
 msgstr "{0} · {1}"
@@ -3448,7 +3457,7 @@ msgid "public.players"
 msgstr "Игроки"
 
 msgid "public.open_for"
-msgstr "Открыт уже {0}"
+msgstr "Открыто уже {0}"
 
 msgid "public.age_minutes"
 msgstr "{0} мин"
@@ -3463,13 +3472,13 @@ msgid "public.room_detail_match"
 msgstr " Идёт матч."
 
 msgid "public.room_detail_locked"
-msgstr " Зал закрыт."
+msgstr " Лобби закрыто."
 
 msgid "public.room_detail_full"
-msgstr " Зал заполнен."
+msgstr " Лобби заполнено."
 
 msgid "public.status_listed"
-msgstr "Открытых залов: {0}. Обновлено {1}."
+msgstr "Открытых лобби: {0}. Обновлено {1}."
 
 msgid "public.status_filtered"
 msgstr "Показано {0} из {1}. Обновлено {2}."
@@ -3487,16 +3496,16 @@ msgid "public.updating"
 msgstr "Обновление..."
 
 msgid "public.loading_card"
-msgstr "Поиск залов..."
+msgstr "Поиск лобби..."
 
 msgid "public.none_all"
-msgstr "Сейчас нет открытых залов. Создайте свой, и другие смогут его найти."
+msgstr "Сейчас нет открытых лобби. Создайте своё, и другие смогут его найти."
 
 msgid "public.none_filtered"
-msgstr "Нет залов, подходящих под этот фильтр."
+msgstr "Нет лобби, подходящих под этот фильтр."
 
 msgid "public.show_all"
-msgstr "Показать все залы"
+msgstr "Показать все лобби"
 
 msgid "public.try_again"
 msgstr "Повторить"
@@ -3508,16 +3517,16 @@ msgid "public.connecting"
 msgstr "Подключение..."
 
 msgid "public.setup"
-msgstr "Настроить открытые залы"
+msgstr "Настроить открытые лобби"
 
 msgid "public.setup_detail"
-msgstr "Ember создаст ваш Ember ID на этом ПК, если у вас его ещё нет, и будет доверять сервису залов Ember (bridge.embernetplay.link), который показывает залы и пускает вас в них. Убрать его можно в любой момент в разделе «Ember ID > Привязанные аккаунты»."
+msgstr "Ember создаст ваш Ember ID на этом ПК, если у вас его ещё нет, и будет доверять сервису лобби Ember (bridge.embernetplay.link), который показывает лобби и пускает вас в них. Убрать его можно в любой момент в разделе «Учётная запись Ember > Привязанные аккаунты»."
 
 msgid "public.setup_title"
-msgstr "Играйте в открытых залах"
+msgstr "Играйте в открытых лобби"
 
 msgid "public.setup_body"
-msgstr "Открытые залы, куда может войти любой игрок с Ember. Одно нажатие, и всё готово."
+msgstr "Открытые лобби, куда может войти любой игрок с Ember. Одно нажатие, и всё готово."
 
 msgid "public.setup_step.checking"
 msgstr "Проверка вашего Ember ID..."
@@ -3526,43 +3535,43 @@ msgid "public.setup_step.creating"
 msgstr "Создание вашего Ember ID..."
 
 msgid "public.setup_step.finding"
-msgstr "Поиск сервиса залов Ember..."
+msgstr "Поиск сервиса лобби Ember..."
 
 msgid "public.setup_step.trusting"
-msgstr "Добавление сервиса залов Ember в доверенные..."
+msgstr "Добавление сервиса лобби Ember в доверенные..."
 
 msgid "public.setup_retry"
 msgstr "Повторить настройку"
 
 msgid "public.setup_done"
-msgstr "Открытые залы готовы."
+msgstr "Открытые лобби готовы."
 
 msgid "public.setup_needs_id"
 msgstr "Сначала разблокируйте ваш Ember ID"
 
 msgid "public.setup_needs_id_detail"
-msgstr "Ваш Ember ID заблокирован. Разблокируйте его в разделе «Ember ID», а затем снова настройте открытые залы."
+msgstr "Ваш Ember ID заблокирован. Разблокируйте его в разделе «Учётная запись Ember», а затем снова настройте открытые лобби."
 
 msgid "public.copy_link"
-msgstr "Копировать ссылку на зал"
+msgstr "Копировать ссылку"
 
 msgid "public.copy_link_detail"
 msgstr "Копирует {0}, чтобы друзья могли войти из браузера или Discord."
 
 msgid "public.link_copied"
-msgstr "Ссылка на зал скопирована."
+msgstr "Ссылка на лобби скопирована."
 
 msgid "public.default_name"
-msgstr "Зал игрока {0}"
+msgstr "Лобби игрока {0}"
 
 msgid "public.failure.room_locked"
-msgstr "Ведущий закрыл этот зал. Выберите другой."
+msgstr "Ведущий закрыл это лобби. Выберите другое."
 
 msgid "public.failure.unavailable"
-msgstr "Сервис залов не ответил вовремя. Повторите через минуту."
+msgstr "Сервис лобби не ответил вовремя. Повторите через минуту."
 
 msgid "public.failure.untrusted"
-msgstr "Ember не смог проверить ответ сервиса залов и поэтому не вошёл. Повторите; если это повторяется, сообщите нам в Discord."
+msgstr "Ember не смог проверить ответ сервиса лобби и поэтому не вошёл. Повторите; если это повторяется, сообщите нам в Discord."
 
 msgid "public.failure.internal"
 msgstr "Внутри Ember что-то пошло не так. Повторите попытку."
@@ -3571,13 +3580,13 @@ msgid "public.failure.helper"
 msgstr "Сетевой компонент Ember не запущен. Перезапустите игру, если это не проходит."
 
 msgid "public.failure.full_or_locked"
-msgstr "Этот зал только что заполнился или был закрыт. Выберите другой."
+msgstr "Это лобби только что заполнилось или было закрыто. Выберите другое."
 
 msgid "public.failure.turned_away"
-msgstr "Зал отклонил вход. Возможно, вас из него удалили."
+msgstr "Лобби отклонило вход. Возможно, вас из него удалили."
 
 msgid "public.failure.join_failed"
-msgstr "Не удалось войти в зал. Возможно, он только что закрылся. Обновите список и выберите другой."
+msgstr "Не удалось войти в лобби. Возможно, оно только что закрылось. Обновите список и выберите другое."
 
 msgid "legend.refresh"
 msgstr "Обновить"

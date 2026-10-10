@@ -198,6 +198,27 @@ void RequireAtlasWithinBudget(const char* what, float dpi) {
     std::snprintf(message, sizeof(message), "%s at %.2fx bakes a %dx%d atlas, over the 2048x4096 budget", what, dpi, atlas.TexWidth, atlas.TexHeight);
     throw std::runtime_error(message);
 }
+// Check the baked atlas, not just the source fonts' cmaps: reducing its cost
+// must keep the active catalog and the language picker in all three sizes.
+void RequireAtlasCoverage(sf4e::loc::Locale locale, float dpi) {
+    using namespace sf4e;
+    std::string text = loc::DisplayText(locale);
+    for (int i = 0; i < static_cast<int>(loc::Locale::Count); ++i)
+        text += loc::NativeName(static_cast<loc::Locale>(i));
+    ImFontGlyphRangesBuilder characters;
+    characters.AddText(text.c_str());
+    ImVector<ImWchar> ranges;
+    characters.BuildRanges(&ranges);
+    for (auto* font : ImGui::GetIO().Fonts->Fonts)
+        for (int i = 0; i + 1 < ranges.Size && ranges[i]; i += 2)
+            for (unsigned cp = ranges[i]; cp <= ranges[i + 1]; ++cp) {
+                if (cp < 0x20 || font->FindGlyphNoFallback(static_cast<ImWchar>(cp))) continue;
+                char message[160];
+                std::snprintf(message, sizeof(message), "%s at %.2fx lacks U+%04X in the %.0fpx font",
+                    loc::Tag(locale), dpi, cp, font->FontSize);
+                throw std::runtime_error(message);
+            }
+}
 // Drives the atlas rebuild the way play does: between frames, for a changing
 // language and DPI, with player text of characters chosen at random from the
 // whole basic multilingual plane, some of which no font draws. Every rebuild
@@ -250,6 +271,7 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
             ui::SetUserGlyphRetention(std::chrono::milliseconds(1)); Sleep(5);
             ui::ApplyTheme(dpi + .01f); ImGui_ImplDX9_InvalidateDeviceObjects(); ui::ApplyTheme(dpi);
             RequireAtlasWithinBudget(loc::Tag(locale), dpi);
+            RequireAtlasCoverage(locale, dpi);
             ui::SetUserGlyphRetention(std::chrono::milliseconds(60000));
             std::string full;
             for (unsigned i = 0; i < 512; ++i) appendUtf8(full, i % 3 == 0 ? 0x4E00 + i * 7 : i % 3 == 1 ? 0xAC00 + i * 11 : 0x3400 + i * 5);
@@ -257,6 +279,7 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
             Require(ui::ApplyTheme(dpi), "Player text needing 512 glyphs did not rebuild the atlas");
             ImGui_ImplDX9_InvalidateDeviceObjects();
             RequireAtlasWithinBudget((std::string(loc::Tag(locale)) + " with 512 player characters").c_str(), dpi);
+            RequireAtlasCoverage(locale, dpi);
             drawFrame("Player", full, "Draft");
         }
     const float scales[] = {1.f, 1.25f, 1.5f, 2.f, 3.f};

@@ -237,7 +237,9 @@ void SessionServer::AdvanceCustomRoom(std::uint64_t nowMs) {
 		BeginRecoveryCandidate();
 		if (!_recoveryCandidateReady) return;
 	}
+	const auto seated = SeatedPairsOf(_roomAuthority->SnapshotView());
 	auto events = _roomAuthority->AdvanceTime(nowMs);
+	ForgetReseatedMatchData(seated);
 	// An expired spectator hold reports its table ready here.
 	const auto started = StartReadyTables(events);
 	events.insert(events.end(), started.begin(), started.end());
@@ -269,6 +271,18 @@ void SessionServer::AdvanceCustomRoom(std::uint64_t nowMs) {
 		} catch (...) { /* retain the candidate and fail closed */ }
 	}
 	if (_recovery.Enabled()) FinishRecoveryCandidate();
+}
+
+SessionServer::SeatedPairs SessionServer::SeatedPairsOf(const room::Snapshot& snapshot) {
+	SeatedPairs pairs;
+	for (std::size_t i = 0; i < room::TableCount; ++i) pairs[i] = {snapshot.tables[i].p1, snapshot.tables[i].p2};
+	return pairs;
+}
+
+void SessionServer::ForgetReseatedMatchData(const SeatedPairs& before) {
+	const auto now = SeatedPairsOf(_roomAuthority->SnapshotView());
+	for (std::uint8_t table = 0; table < room::TableCount; ++table)
+		if (now[table] != before[table]) _roomMatchData[table].Clear();
 }
 
 void SessionServer::SendRoomProjection(session::Connection connection) {
@@ -391,18 +405,20 @@ void SessionServer::BroadcastRoomState(const std::vector<room::Event>& events) {
 		Respond(client.conn, json(snapshot));
 		for (const auto& event : events) {
 			// The snapshot already carries roster/chat changes. Wire events are
-			// reserved for lifecycle notifications, and table notifications are
-			// scoped to the member's selected table to keep 16-member bursts
-			// within the helper queue bound.
+			// reserved for lifecycle notifications and the Ready timeout's chat
+			// line. Table notifications are scoped to the member's selected table
+			// to keep 16-member bursts within the helper queue bound. A terminal
+			// replay goes to the members its receipt names, and a closed room or
+			// a Ready timeout to everyone: the timeout is a line in every
+			// member's room chat, and a table has at most one per ReadyTimeoutMs.
 			if (event.kind == room::Event::Kind::SnapshotChanged ||
 				event.kind == room::Event::Kind::ChatMessage ||
 				event.kind == room::Event::Kind::MemberRemoved) continue;
 			if (event.kind == room::Event::Kind::MatchEnded && event.terminalReplay) {
 				const auto recipients = _roomAuthority->TerminalMembers(event.table, event.matchGeneration);
 				if (std::find(recipients.begin(), recipients.end(), member->second) == recipients.end()) continue;
-			}
-			if (!(event.kind == room::Event::Kind::MatchEnded && event.terminalReplay) &&
-				event.kind != room::Event::Kind::RoomClosed && RoomTableFor(client.conn) != event.table) continue;
+			} else if (event.kind != room::Event::Kind::RoomClosed && event.kind != room::Event::Kind::ReadyTimeout &&
+				RoomTableFor(client.conn) != event.table) continue;
 			SessionProtocol::RoomEventMessage eventMessage;
 			eventMessage.event = event;
 			Respond(client.conn, json(eventMessage));

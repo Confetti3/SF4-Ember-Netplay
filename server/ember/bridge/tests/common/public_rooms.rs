@@ -51,13 +51,24 @@ pub async fn create_room(
     name: &str,
     capacity: u8,
 ) -> (StatusCode, Json_) {
+    let body = json!({ "name": name, "capacity": capacity, "build_id": BUILD });
+    create_room_with(bridge, player, ip, body).await
+}
+
+/// `POST /v1/rooms` with `body` as it is.
+pub async fn create_room_with(
+    bridge: &Bridge,
+    player: &Player,
+    ip: &str,
+    body: Json_,
+) -> (StatusCode, Json_) {
     send(
         bridge,
         reqwest::Method::POST,
         player.token(),
         ip,
         "/v1/rooms",
-        Some(json!({ "name": name, "capacity": capacity, "build_id": BUILD })),
+        Some(body),
     )
     .await
 }

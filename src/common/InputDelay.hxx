@@ -13,7 +13,7 @@ constexpr int SavedInputDelay(int delay) { return delay < 0 || delay > MaximumIn
 
 // Auto takes the connection check's recommendation, held between these.
 constexpr int AutoInputDelayMinimum = 1;
-constexpr int AutoInputDelayMaximum = 3;
+constexpr int AutoInputDelayMaximum = 4;
 static_assert(AutoInputDelayMinimum >= MinimumInputDelay, "Auto never readies below the smallest delay");
 // The delay Auto readies with. Without a recommendation (-1) it is two
 // frames. Auto is optional and does not change the manual default.

@@ -2028,6 +2028,15 @@ msgstr "Warten auf festgelegte Zuschauer. Start in {0} s."
 msgid "room.hold.waiting_you"
 msgstr "Spiel wartet auf Sie: {0} s"
 
+msgid "room.ready_timeout.you"
+msgstr "Melden Sie sich in {0} s bereit, sonst verlassen Sie den Platz"
+
+msgid "room.ready_timeout.other"
+msgstr "{1} hat noch {0} s, um sich bereit zu melden"
+
+msgid "chat.event.ready_timeout"
+msgstr "{0} hat Tisch {1} verlassen: nicht rechtzeitig bereit"
+
 msgid "room.hold.status"
 msgstr "Warten auf Zuschauer: {0} s"
 

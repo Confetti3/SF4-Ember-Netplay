@@ -2028,6 +2028,15 @@ msgstr "In attesa del ritorno degli spettatori bloccati. Inizia tra {0} s."
 msgid "room.hold.waiting_you"
 msgstr "La partita ti aspetta: {0} s"
 
+msgid "room.ready_timeout.you"
+msgstr "Preparati entro {0} s o lascerai il posto"
+
+msgid "room.ready_timeout.other"
+msgstr "A {1} restano {0} s per prepararsi"
+
+msgid "chat.event.ready_timeout"
+msgstr "{0} ha lasciato il tavolo {1}: non era pronto in tempo"
+
 msgid "room.hold.status"
 msgstr "In attesa degli spettatori: {0} s"
 

@@ -31,6 +31,8 @@ struct ShellView {
     bool controllerUnavailable = false;
     netplay::Snapshot session;
     room::Snapshot room;
+    // The room events the chat shows that no snapshot carries (ChatTranscript).
+    std::vector<RoomNotice> roomNotices;
     netplay::PlayerPreferences preferences;
     netplay::LobbySettings lobbySettings;
     bool helperReady = false, canOpenRoom = false, canReady = false;
@@ -171,8 +173,9 @@ public:
         if (menu_.navigation.EditingSecret()) menu_.navigation.Cancel();
     }
     // Every frame Ember is hidden: Conceal, then the identity requests that
-    // must still finish, with only the session and identity of `view` read,
-    // and `room` taken into the chat transcript as a drawn frame takes it.
+    // must still finish, with only the session, identity and room notices of
+    // `view` read, and `room` taken into the chat transcript as a drawn frame
+    // takes it.
     void Background(const ShellView& view, const room::Snapshot& room, const Submit& submit);
     // Where the language preference is written; the platform store unless a
     // test supplies its own to fail it.

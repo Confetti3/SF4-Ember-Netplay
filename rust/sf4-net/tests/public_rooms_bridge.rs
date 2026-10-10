@@ -62,6 +62,9 @@ struct Fake {
 
 type Supervisor = Arc<Mutex<Fake>>;
 
+/// A helper's home relay region, which the test sets while the helper runs.
+type Region = Arc<Mutex<Option<&'static str>>>;
+
 /// Reads one HTTP/1.1 request: its first line and its body.
 async fn read_request(stream: &mut TcpStream) -> Option<(String, String, Vec<u8>)> {
     let mut data = Vec::new();
@@ -243,7 +246,14 @@ struct Worker {
 type Answer = (bool, Option<String>, Value, Value);
 
 impl Worker {
+    /// A helper whose home relay has no known region.
     fn start(dirs: &Dirs, endpoint: &str) -> Self {
+        Self::start_in(dirs, endpoint, Region::default())
+    }
+
+    /// A helper whose home relay is in whatever region `region` holds when it
+    /// creates a room.
+    fn start_in(dirs: &Dirs, endpoint: &str, region: Region) -> Self {
         let (sender, events) = mpsc::channel(64);
         let (handle, task) = tournament::spawn_in(
             sender,
@@ -251,6 +261,7 @@ impl Worker {
             dirs.0.join("tournament"),
             false,
             endpoint.to_owned(),
+            Box::new(move || *region.lock().unwrap()),
         );
         Self {
             handle,
@@ -402,7 +413,8 @@ async fn create_list_and_join_a_public_room() {
     let (running, origin) = bridge(&dirs.0, Some(url)).await;
     let (kate_endpoint, joiner_endpoint) = ("a".repeat(64), "b".repeat(64));
     let (kate_dirs, joiner_dirs) = (Dirs(dirs.0.join("kate")), Dirs(dirs.0.join("joiner")));
-    let mut kate = Worker::start(&kate_dirs, &kate_endpoint);
+    let kate_region = Region::default();
+    let mut kate = Worker::start_in(&kate_dirs, &kate_endpoint, kate_region.clone());
     let mut joiner = Worker::start(&joiner_dirs, &joiner_endpoint);
     let (kate_id, bridge_id) = kate.join(&origin).await;
     let (joiner_id, _) = joiner.join(&origin).await;
@@ -411,14 +423,17 @@ async fn create_list_and_join_a_public_room() {
     assert!(listed(&ok(kate.list(&bridge_id, BUILD).await)).is_empty());
 
     // Creating answers the creator's admission, whose ticket verifies and
-    // names this helper's endpoint and Ember ID.
+    // names this helper's endpoint and Ember ID. The room is in the creator's
+    // region, not the room host's, and the helper reads that region when it
+    // creates: it was unknown when the helper started.
+    *kate_region.lock().unwrap() = Some("euc1");
     let created = ok(kate.create(&bridge_id, "Friendly matches", 2).await);
     assert_admits(&origin, &bridge_id, &created, &kate_endpoint, &kate_id).await;
     let room_id = created["room"]["room_id"].as_str().unwrap().to_owned();
     assert_eq!(created["room"]["name"], "Friendly matches");
     assert_eq!(created["room"]["capacity"], 2);
     assert_eq!(created["room"]["build_id"], BUILD);
-    assert_eq!(created["room"]["region"], "use1");
+    assert_eq!(created["room"]["region"], "euc1");
     assert_eq!(supervisor.lock().unwrap().created.len(), 1);
     assert_eq!(
         supervisor.lock().unwrap().created[0]["name"],
@@ -444,6 +459,7 @@ async fn create_list_and_join_a_public_room() {
     assert_eq!(rooms[0]["room_id"], room_id.as_str());
     assert_eq!(rooms[0]["members"], 1);
     assert_eq!(rooms[0]["capacity"], 2);
+    assert_eq!(rooms[0]["region"], "euc1");
     // Only the build asked for, written as a query value.
     assert!(listed(&ok(joiner.list(&bridge_id, "build 2&x=y").await)).is_empty());
 
@@ -552,6 +568,8 @@ async fn a_room_that_takes_longer_than_an_ordinary_request_is_still_created() {
 
     let created = ok(worker.create(&bridge_id, "Slow to start", 4).await);
     assert_admits(&origin, &bridge_id, &created, &endpoint, &ember_id).await;
+    // A creator of no known region leaves the room in its host's.
+    assert_eq!(created["room"]["region"], "use1");
     assert_eq!(supervisor.lock().unwrap().created.len(), 1);
     worker.task.abort();
     running.abort();

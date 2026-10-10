@@ -2028,6 +2028,15 @@ msgstr "正在等待锁定观战的观众返回。{0}秒后开始。"
 msgid "room.hold.waiting_you"
 msgstr "对战正在等你：{0}秒"
 
+msgid "room.ready_timeout.you"
+msgstr "请在{0}秒内准备，否则将离开座位"
+
+msgid "room.ready_timeout.other"
+msgstr "{1}还有{0}秒准备"
+
+msgid "chat.event.ready_timeout"
+msgstr "{0}离开了对战位{1}：未及时准备"
+
 msgid "room.hold.status"
 msgstr "正在等待观众：{0}秒"
 

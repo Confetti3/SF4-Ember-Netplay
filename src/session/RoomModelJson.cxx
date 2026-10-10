@@ -30,11 +30,17 @@ nlohmann::json RoomAuthority::Checkpoint() const {
     for (const auto& tombstone : terminalAckTombstones_)
         terminalAckTombstones.push_back({{"table", tombstone.table}, {"generation", tombstone.generation},
             {"member", tombstone.member}, {"endpoint", tombstone.endpoint}, {"incarnation", tombstone.incarnation}});
-    json holdAges = json::array();
+    json holdAges = json::array(), readyAges = json::array();
+    bool readyAged = false;
     for (std::size_t i = 0; i < TableCount; ++i) {
         const auto since = startHeldSince_[i];
         holdAges.push_back(!snapshot_.tables[i].spectatorHold ? std::uint64_t(0) : recoveryPaused_
             ? since : nowMs_ >= since ? nowMs_ - since : 0);
+        const auto readySince = readyWaitingSince_[i];
+        const auto readyAge = !readyWaitingFor_[i] ? std::uint64_t(0) : recoveryPaused_
+            ? readySince : nowMs_ >= readySince ? nowMs_ - readySince : 0;
+        readyAges.push_back(readyAge);
+        readyAged = readyAged || readyAge != 0;
     }
     // Permit timers hold ages paused or not; their samples stay on this
     // process. A begun game's timer carries its window as well, only when
@@ -71,6 +77,9 @@ nlohmann::json RoomAuthority::Checkpoint() const {
         {"chat_times", chatTimes}, {"actions", lastAcceptedActions_},
         {"kicked", kicked_}, {"time", recoveryPaused_ ? 0 : nowMs_}};
     state["snapshot"]["local_member"] = std::uint64_t(0);
+    // Zero ages restore at the receiving clock; unchanged rooms retain their
+    // old checkpoint form. The Waiting pair identifies whether a clock runs.
+    if (readyAged) state["ready_age"] = std::move(readyAges);
     // A live room's permit ages were counted to its permit clock, which can
     // lag "time" after a resume on a lower clock. Only a held permit needs it.
     if (!recoveryPaused_ && permits_.clockKnown && permitHeld) state["permit_clock"] = permits_.clockMs;
@@ -89,6 +98,10 @@ bool RoomAuthority::RestoreCheckpoint(const nlohmann::json& state) {
         RoomAuthority restored("Recovering room");
         state.at("snapshot").get_to(restored.snapshot_);
         if (restored.snapshot_.localMember) return false;
+        for (auto& table : restored.snapshot_.tables) {
+            table.holdRemainingMs = 0;
+            table.readyRemainingMs = 0;
+        }
         restored.nextMemberId_ = ReadU64(state, "next_member");
         restored.nextJoinOrder_ = ReadU64(state, "next_join");
         restored.nextMatchGeneration_ = ReadU64(state, "next_match");
@@ -296,6 +309,16 @@ bool RoomAuthority::RestoreCheckpoint(const nlohmann::json& state) {
         for (const auto& entry : state.at("kicked"))
             if (!restored.kicked_.insert(entry.get<ConnectionRef>()).second) return false;
         if (!restored.LoadServerOwned(state)) return false;
+        restored.RefreshReadyTimers();
+        const auto readyAges = state.value("ready_age", json::array());
+        if (!readyAges.is_array() || (!readyAges.empty() && readyAges.size() != TableCount)) return false;
+        for (std::size_t i = 0; i < readyAges.size(); ++i) {
+            if (!readyAges.at(i).is_number_unsigned()) return false;
+            const auto age = readyAges.at(i).get<std::uint64_t>();
+            if (!restored.recoveryPaused_ && age > restored.nowMs_) return false;
+            if (restored.readyWaitingFor_[i])
+                restored.readyWaitingSince_[i] = restored.recoveryPaused_ ? age : restored.nowMs_ - age;
+        }
         *this = std::move(restored);
         return true;
     } catch (const std::exception&) { return false; }
@@ -345,6 +368,7 @@ void to_json(nlohmann::json& json, const Table& value) { json = nlohmann::json{{
 	if (value.permitWindows[0] || value.permitWindows[1]) json["permit_windows"] = value.permitWindows;
 	// Only in a held table's sent snapshot; older readers skip the key.
 	if (value.holdRemainingMs) json["hold_ms"] = value.holdRemainingMs;
+	if (value.readyRemainingMs) json["ready_ms"] = value.readyRemainingMs;
 }
 void from_json(const nlohmann::json& json, Table& value) {
 	value.id = static_cast<std::uint8_t>(ReadInt(json, "id", 0, static_cast<int>(TableCount - 1)));
@@ -359,6 +383,8 @@ void from_json(const nlohmann::json& json, Table& value) {
 	if (json.contains("ending_watchers")) { ReadMemberList(json, "ending_watchers", value.endingWatchers, MaxSpectators); ValidateMemberIds(value.endingWatchers); }
 	const auto ready = json.at("ready"); if (!ready.is_array() || ready.size() != 2 || !ready.at(0).is_boolean() || !ready.at(1).is_boolean()) throw std::invalid_argument("room readiness");
 	value.ready[0] = ready.at(0).get<bool>(); value.ready[1] = ready.at(1).get<bool>();
+	value.readyRemainingMs = json.contains("ready_ms")
+		? static_cast<std::uint32_t>(ReadInt(json, "ready_ms", 0, static_cast<int>(ReadyTimeoutMs))) : 0;
 	if (json.contains("input_delay")) {
 		const auto delay = json.at("input_delay");
 		if (!delay.is_array() || delay.size() != 2 || !delay.at(0).is_number_integer() || !delay.at(1).is_number_integer()) throw std::invalid_argument("room input delay");
@@ -492,7 +518,7 @@ void from_json(const nlohmann::json& json, Snapshot& value) {
 void to_json(nlohmann::json& json, const Action& value) { json = nlohmann::json{{"kind", static_cast<int>(value.kind)}, {"protocol_version", value.protocolVersion}, {"room_epoch", value.roomEpoch}, {"revision", value.revision}, {"table_revision", value.tableRevision}, {"action_id", value.actionId}, {"table", value.table}, {"seat", value.seat}, {"target", value.target}, {"rules", value.rules}, {"capacity", value.capacity}, {"locked", value.locked}, {"result", static_cast<int>(value.result)}, {"match_generation", value.matchGeneration}, {"input_delay", value.inputDelay}, {"text", value.text}, {"keep_watching", value.keepWatching}}; if (value.startWindowMs) json["start_window_ms"] = value.startWindowMs; }
   void from_json(const nlohmann::json& json, Action& value) { value.kind = static_cast<ActionKind>(ReadInt(json, "kind", 0, static_cast<int>(ActionKind::PermitReady))); value.protocolVersion = static_cast<std::uint32_t>(ReadInt(json, "protocol_version", 0, 100)); value.roomEpoch = ReadU64(json, "room_epoch"); value.revision = ReadU64(json, "revision"); value.tableRevision = ReadU64(json, "table_revision"); value.actionId = ReadU64(json, "action_id"); value.table = static_cast<std::uint8_t>(ReadInt(json, "table", 0, static_cast<int>(TableCount - 1))); value.seat = static_cast<std::int8_t>(ReadInt(json, "seat", -1, 1)); value.target = ReadU64(json, "target"); json.at("rules").get_to(value.rules); value.capacity = static_cast<std::uint8_t>(ReadInt(json, "capacity", 0, static_cast<int>(MaximumMembers))); if (!json.at("locked").is_boolean()) throw std::invalid_argument("room lock field"); value.locked = json.at("locked").get<bool>(); value.result = static_cast<MatchResult>(ReadInt(json, "result", 0, static_cast<int>(MatchResult::Abort))); value.matchGeneration = ReadU64(json, "match_generation"); value.inputDelay = static_cast<std::uint8_t>(json.contains("input_delay") ? ReadInt(json, "input_delay", 0, MaximumInputDelay) : DefaultInputDelay); value.text = ReadText(json, "text", MaximumChatBytes); if (json.contains("keep_watching") && !json.at("keep_watching").is_boolean()) throw std::invalid_argument("room keep watching field"); value.keepWatching = json.contains("keep_watching") ? json.at("keep_watching").get<bool>() : false; value.startWindowMs = json.contains("start_window_ms") ? ReadU64(json, "start_window_ms") : 0; }
   void to_json(nlohmann::json& json, const Event& value) { json = nlohmann::json{{"kind", static_cast<int>(value.kind)}, {"table", value.table}, {"match_generation", value.matchGeneration}, {"member", value.member}, {"result", static_cast<int>(value.result)}, {"terminal_replay", value.terminalReplay}}; }
-  void from_json(const nlohmann::json& json, Event& value) { value.kind = static_cast<Event::Kind>(ReadInt(json, "kind", 0, static_cast<int>(Event::Kind::ChatMessage))); value.table = static_cast<std::uint8_t>(ReadInt(json, "table", 0, static_cast<int>(TableCount - 1))); value.matchGeneration = ReadU64(json, "match_generation"); value.member = ReadU64(json, "member"); value.result = static_cast<MatchResult>(ReadInt(json, "result", 0, static_cast<int>(MatchResult::Abort))); value.terminalReplay = json.contains("terminal_replay") ? json.at("terminal_replay").get<bool>() : false; }
+  void from_json(const nlohmann::json& json, Event& value) { value.kind = static_cast<Event::Kind>(ReadInt(json, "kind", 0, static_cast<int>(Event::Kind::ReadyTimeout))); value.table = static_cast<std::uint8_t>(ReadInt(json, "table", 0, static_cast<int>(TableCount - 1))); value.matchGeneration = ReadU64(json, "match_generation"); value.member = ReadU64(json, "member"); value.result = static_cast<MatchResult>(ReadInt(json, "result", 0, static_cast<int>(MatchResult::Abort))); value.terminalReplay = json.contains("terminal_replay") ? json.at("terminal_replay").get<bool>() : false; }
   void to_json(nlohmann::json& json, const Result& value) { json = nlohmann::json{{"accepted", value.accepted}, {"reason", static_cast<int>(value.reason)}, {"terminal_replay", value.terminalReplay}, {"snapshot", value.snapshot}, {"events", value.events}}; }
 void from_json(const nlohmann::json& json, Result& value) {
 	if (!json.at("accepted").is_boolean()) throw std::invalid_argument("room result accepted");

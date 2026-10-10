@@ -893,9 +893,26 @@ pub fn stable_voter_count(member_count: usize) -> usize {
     }
 }
 
-pub fn recommended_delay(p95_rtt_us: u64) -> u8 {
-    let frames = (p95_rtt_us as f64 / 1000.0 / (2.0 * 16.6667)).ceil() as i64 - 2;
-    frames.clamp(0, 10) as u8
+// RTT bands from players' experience: one frame through 80 ms, then one
+// more frame per 70 ms, capped at ten.
+const DELAY_FIRST_BAND_MS: u64 = 80;
+const DELAY_BAND_STEP_MS: u64 = 70;
+
+fn delay_band(rtt_us: u64) -> u8 {
+    // Round to the nearest whole millisecond, with half milliseconds up:
+    // 80.499 ms counts as 80, and 80.500 ms counts as 81. Avoid overflow.
+    let rtt_ms = rtt_us / 1_000 + u64::from(rtt_us % 1_000 >= 500);
+    (1 + rtt_ms
+        .saturating_sub(DELAY_FIRST_BAND_MS)
+        .div_ceil(DELAY_BAND_STEP_MS))
+    .min(10) as u8
+}
+
+/// Recommend 1..=10 frames from the displayed median's player-experience
+/// RTT band, tolerating one worse band at p95 so occasional spikes do not
+/// overstate the typical ping. A tail more than one band worse raises it.
+pub fn recommended_delay(p50_rtt_us: u64, p95_rtt_us: u64) -> u8 {
+    delay_band(p50_rtt_us).max(delay_band(p95_rtt_us) - 1)
 }
 
 pub fn sha256(bytes: &[u8]) -> [u8; 32] {
@@ -947,17 +964,20 @@ pub fn summarize_probe(samples_us: &[u64], duration: Duration) -> ProbeResult {
     let sample_count = sorted.len() as u32;
     let expected = (duration.as_millis() / PROBE_INTERVAL.as_millis()) as u32;
     let loss_count = expected.saturating_sub(sample_count);
-    let p95 = if sorted.is_empty() {
-        0
+    let (p50, p95) = if sorted.is_empty() {
+        (0, 0)
     } else {
-        let index = ((sorted.len() - 1) * 95).div_ceil(100);
-        sorted[index]
+        // Match probe.rs's displayed p50; retain the existing p95 index.
+        (
+            sorted[((sorted.len() - 1) * 50).div_ceil(100)],
+            sorted[((sorted.len() - 1) * 95).div_ceil(100)],
+        )
     };
     ProbeResult {
         sample_count,
         loss_count,
         p95_rtt_us: p95,
-        recommended_delay: recommended_delay(p95),
+        recommended_delay: recommended_delay(p50, p95),
         status: if sample_count >= expected * 4 / 5 {
             "ready".into()
         } else {
@@ -1101,7 +1121,7 @@ mod tests {
         assert_eq!(below.sample_count, 79);
         assert_eq!(below.loss_count, 21);
         assert_eq!(below.status, "unavailable");
-        assert_eq!(below.recommended_delay, 0);
+        assert_eq!(below.recommended_delay, 1);
 
         let threshold = summarize_probe(&[66_667; 80], PROBE_DURATION);
         assert_eq!(threshold.sample_count, 80);
@@ -1113,12 +1133,89 @@ mod tests {
         assert_eq!(complete.sample_count, 100);
         assert_eq!(complete.loss_count, 0);
         assert_eq!(complete.status, "ready");
-        assert_eq!(complete.recommended_delay, 10);
+        assert_eq!(complete.recommended_delay, 6);
 
-        assert_eq!(recommended_delay(66_666), 0);
-        assert_eq!(recommended_delay(66_667), 1);
-        assert_eq!(recommended_delay(366_667), 9);
-        assert_eq!(recommended_delay(366_668), 10);
-        assert_eq!(recommended_delay(u64::MAX), 10);
+        let empty = summarize_probe(&[], PROBE_DURATION);
+        assert_eq!(empty.status, "unavailable");
+        assert_eq!(empty.recommended_delay, 1);
+    }
+
+    #[test]
+    fn probe_delay_uses_player_bands() {
+        for (rtt_us, delay) in [
+            (0, 1),
+            (1_000, 1),
+            (80_000, 1),
+            (81_000, 2),
+            (150_000, 2),
+            (151_000, 3),
+            (220_000, 3),
+            (221_000, 4),
+            (290_000, 4),
+            (291_000, 5),
+            (360_000, 5),
+            (361_000, 6),
+            (640_000, 9),
+            (641_000, 10),
+            (710_000, 10),
+            (711_000, 10),
+            (u64::MAX, 10),
+        ] {
+            let result = summarize_probe(&[rtt_us; 100], PROBE_DURATION);
+            assert_eq!(result.recommended_delay, delay, "RTT {rtt_us} us");
+        }
+    }
+
+    #[test]
+    fn probe_delay_rounds_half_milliseconds_up() {
+        for (rtt_us, delay) in [
+            (80_400, 1),
+            (80_499, 1),
+            (80_500, 2),
+            (150_499, 2),
+            (150_500, 3),
+            (220_499, 3),
+            (220_500, 4),
+            (290_499, 4),
+            (290_500, 5),
+        ] {
+            let result = summarize_probe(&[rtt_us; 100], PROBE_DURATION);
+            assert_eq!(result.recommended_delay, delay, "RTT {rtt_us} us");
+        }
+    }
+
+    #[test]
+    fn probe_delay_tolerates_one_worse_tail_band() {
+        for (p50, p95, delay) in [
+            (80_000, 150_000, 1),
+            (80_000, 151_000, 2),
+            (80_000, 221_000, 3),
+            (151_000, 151_000, 3),
+        ] {
+            let mut samples = [p50; 100];
+            samples[..10].fill(p95);
+            let result = summarize_probe(&samples, PROBE_DURATION);
+            assert_eq!(result.p95_rtt_us, p95);
+            assert_eq!(result.recommended_delay, delay, "p50 {p50}, p95 {p95}");
+        }
+    }
+
+    #[test]
+    fn probe_delay_median_uses_the_displayed_percentile_index() {
+        // With an even sample count the displayed p50 selects the upper middle.
+        let result = summarize_probe(&[80_000, 151_000], PROBE_DURATION);
+        assert_eq!(result.recommended_delay, 3);
+    }
+
+    #[test]
+    fn datagram_probe_delay_uses_the_same_bands_for_checks_and_benchmarks() {
+        for expected in [100, 600] {
+            let mut samples = vec![80_000; expected as usize];
+            samples[..expected as usize / 10].fill(150_000);
+            let result = summarize_datagram_probe(&samples, expected, expected);
+            assert_eq!(result.status, "ready");
+            assert_eq!(result.loss_count, 0);
+            assert_eq!(result.recommended_delay, 1);
+        }
     }
 }

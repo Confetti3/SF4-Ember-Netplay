@@ -2028,6 +2028,15 @@ msgstr "Wachten op de terugkeer van vastgelegde kijkers. Begint over {0} s."
 msgid "room.hold.waiting_you"
 msgstr "Match wacht op je: {0} s"
 
+msgid "room.ready_timeout.you"
+msgstr "Wees binnen {0} s klaar, anders verlaat je de stoel"
+
+msgid "room.ready_timeout.other"
+msgstr "{1} heeft nog {0} s om klaar te zijn"
+
+msgid "chat.event.ready_timeout"
+msgstr "{0} heeft tafel {1} verlaten: niet op tijd klaar"
+
 msgid "room.hold.status"
 msgstr "Wachten op kijkers: {0} s"
 

@@ -599,6 +599,10 @@ void DrainRoomEvents() {
 					"Room: match ended table={} generation={} result={} replay={}",
 					event.table, event.matchGeneration, static_cast<int>(event.result), event.terminalReplay);
             }
+			if (event.kind == room::Event::Kind::ReadyTimeout) {
+				runtime->roomNotices.push_back({++runtime->roomNoticeSequence, event});
+				if (runtime->roomNotices.size() > Runtime::RoomNoticesKept) runtime->roomNotices.pop_front();
+			}
 			if (event.kind == room::Event::Kind::ResultDisputed)
 				spdlog::warn("Match result: disputed table={} generation={} reporter={} result={}",
 					event.table, event.matchGeneration, event.member, static_cast<int>(event.result));

@@ -2028,6 +2028,15 @@ msgstr "Čeká se na návrat zamčených diváků. Začne za {0} s."
 msgid "room.hold.waiting_you"
 msgstr "Hra na vás čeká: {0} s"
 
+msgid "room.ready_timeout.you"
+msgstr "Připravte se do {0} s, jinak opustíte místo"
+
+msgid "room.ready_timeout.other"
+msgstr "{1} má ještě {0} s na přípravu"
+
+msgid "chat.event.ready_timeout"
+msgstr "{0} opustil(a) stůl {1}: nepřipravil(a) se včas"
+
 msgid "room.hold.status"
 msgstr "Čeká se na diváky: {0} s"
 

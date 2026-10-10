@@ -2028,6 +2028,15 @@ msgstr "관전 확정한 관전자가 돌아오기를 기다리는 중입니다.
 msgid "room.hold.waiting_you"
 msgstr "대전이 기다리는 중: {0}초"
 
+msgid "room.ready_timeout.you"
+msgstr "{0}초 안에 준비하지 않으면 자리에서 나갑니다"
+
+msgid "room.ready_timeout.other"
+msgstr "{1} 님의 준비까지 {0}초 남았습니다"
+
+msgid "chat.event.ready_timeout"
+msgstr "{0}님이 대전 슬롯 {1}에서 나갔습니다: 시간 안에 준비하지 않았습니다"
+
 msgid "room.hold.status"
 msgstr "관전자 대기 중: {0}초"
 

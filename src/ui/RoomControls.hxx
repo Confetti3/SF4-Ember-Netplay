@@ -84,6 +84,8 @@ std::string HoldText(const ShellView& v, const room::Table& t);
 // The same in one short line for the status line, without names, which can be
 // any length: "Waiting for spectators: 7 s", or the spectator's own line.
 std::string HoldStatus(const ShellView& v, const room::Table& t);
+// The last 30 seconds of a waiting fighter's Ready deadline, or empty.
+std::string ReadyTimeoutText(const ShellView& v, const room::Table& t);
 // A highlighted line across a table card, for something the player at it
 // should act on: a held start, or the opponent's new fighter until the player
 // readies or the matchup changes. seat is the side it is about, or -1. Empty
