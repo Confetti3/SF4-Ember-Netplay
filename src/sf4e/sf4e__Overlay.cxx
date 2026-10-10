@@ -528,7 +528,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         if (!s_trainingControls.Open() && !called && !ImGui::GetIO().WantTextInput) {
             if (ImGui::IsKeyPressed(ImGuiKey_F7, false)) {
                 if(training.mode != sf4e::training::Mode::Recording && training.lengths[training.selected]>0) {
-                    sf4e::ui::ShowTrainingRecordings(); s_trainingControls.Open(focus);
+                    sf4e::ui::OpenTrainingRecordings(s_trainingControls, focus);
                 } else practice(training.mode == sf4e::training::Mode::Recording ? sf4e::training::Action::Stop : sf4e::training::Action::Record);
             }
             if (ImGui::IsKeyPressed(ImGuiKey_F8, false)) practice(training.mode == sf4e::training::Mode::Playback ? sf4e::training::Action::Stop : sf4e::training::Action::Play);

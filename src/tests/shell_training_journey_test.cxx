@@ -254,13 +254,23 @@ void TrainingJourneys() {
  }
  io.DisplaySize=ImVec2(1280,960);frame();
  press(MenuInput::Back);Check((TakeForwardedMenuAction().kind==MenuAction::Close),"Root Back did not return to practice");
+ // F7 whose focus period ended before its opening was accepted: nothing
+ // opens and nothing is left asked for, so the next opening under a fresh
+ // token shows the controls as they were, with no overwrite question.
+ input::TrainingControls controls;
+ const auto stale=controls.Sample();controls.LoseFocus();controls.GainFocus();
+ Check(!OpenTrainingRecordings(controls,stale)&&!controls.Open(),"F7 under a focus period that ended opened the controls");
+ Check(controls.Open(controls.Sample()),"The controls did not open under a fresh token");
+ frame();frame();
+ Check(TrainingNavigation().Screen()=="home"&&!TrainingNavigation().Confirming(),"A refused F7 left its recordings for the next opening");
+ controls.Close();
  // F7 on a recorded slot asks about overwriting it: Record is focused with its
  // question open on Cancel, and Right then Select sends exactly one Record.
- commands.clear();ShowTrainingRecordings();frame();frame();
+ commands.clear();Check(OpenTrainingRecordings(controls,controls.Sample()),"F7 did not open the controls");frame();frame();
  Check(TrainingNavigation().Screen()=="recording"&&TrainingNavigation().Focus()=="record"&&TrainingNavigation().Confirming()&&
   !TrainingNavigation().ConfirmSelected(),"F7 on a recorded slot did not ask before overwriting");
  press(MenuInput::Select);Check(commands.empty()&&!TrainingNavigation().Confirming(),"The overwrite question did not default to Cancel");
- ShowTrainingRecordings();frame();frame();press(MenuInput::Right);press(MenuInput::Select);
+ OpenTrainingRecordings(controls,controls.Sample());frame();frame();press(MenuInput::Right);press(MenuInput::Select);
  Check(commands.size()==1&&commands.back().action==training::Action::Record,"Confirming the overwrite did not send one Record");
  TakeForwardedMenuAction();
  // The published action is the logical setting while a reply plays. The

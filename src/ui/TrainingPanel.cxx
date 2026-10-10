@@ -335,7 +335,11 @@ bool HandleRecordingLibrary(const MenuAction& a,const training::View& v,const Tr
 // offerOverwrite: F7 on a recorded slot opened the recordings to ask about overwriting.
 namespace { GameMenu trainingMenu; bool showRecordings=false, offerOverwrite=false; }
 MenuNavigation& TrainingNavigation() { return trainingMenu.navigation; }
-void ShowTrainingRecordings() {showRecordings=true;}
+bool OpenTrainingRecordings(input::TrainingControls& controls, const input::TrainingControls::Token& token) {
+ if(!controls.Open(token)) return false;
+ showRecordings=true;
+ return true;
+}
 void DrawTrainingFlyout(const training::View& view,const TrainingSubmit& submit) {
     if(!view.available)return;
     const auto* vp=ImGui::GetMainViewport();

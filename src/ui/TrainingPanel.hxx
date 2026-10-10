@@ -12,7 +12,10 @@ using TrainingSubmit = std::function<bool(training::Command)>;
 void DrawTrainingPanel(const training::View& view, const TrainingSubmit& submit);
 // Shared by the live overlay and render tests; owns fixed geometry and input focus.
 void DrawTrainingFlyout(const training::View& view, const TrainingSubmit& submit);
-void ShowTrainingRecordings();
+// F7 on a recorded slot: opens the controls under token on their recordings,
+// asking before the slot is overwritten. Refused (the focus period ended),
+// it changes nothing and leaves no request for a later opening.
+bool OpenTrainingRecordings(input::TrainingControls& controls, const input::TrainingControls::Token& token);
 // Where the lab keeps the dummy's reply and the hotkeys (training.json) and
 // the saved recordings. Until this is set they live in memory only, which is
 // what the render tests want.
