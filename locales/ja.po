@@ -685,6 +685,9 @@ msgstr "対戦の初期設定"
 msgid "settings.input_delay"
 msgstr "入力遅延"
 
+msgid "settings.input_delay.zero_warning"
+msgstr "警告：遅延0はまだテスト中で、同期ずれが発生する可能性があります。"
+
 msgid "settings.input_delay.auto"
 msgstr "自動"
 
@@ -2064,16 +2067,13 @@ msgstr "再戦の準備完了"
 msgid "room.ready_up"
 msgstr "準備完了にする"
 
-msgid "room.selected_delay.detail"
-msgstr "1～10Fの範囲で調整します。1より下は自動です。変更はすぐに反映されます。"
+
 
 msgid "room.selected_delay.locked"
 msgstr "この対戦中、選択した遅延は固定されます。"
 
-msgid "room.match_delay.at_least"
-msgstr "{0}F以上"
-msgid "room.match_delay.at_least_one"
-msgstr "{0}F以上"
+
+
 
 msgid "room.check_connection.two_players"
 msgstr "接続確認には両方の席にプレイヤーが必要です。"
@@ -2093,8 +2093,7 @@ msgstr "入力遅延"
 msgid "room.input_delay.recommended"
 msgstr "推奨：{0}"
 
-msgid "room.input_delay.match"
-msgstr "対戦：{0}"
+
 
 msgid "room.input_delay.auto"
 msgstr "自動 ({0})"
@@ -3591,3 +3590,12 @@ msgstr "ルームに入れませんでした。閉じたばかりかもしれま
 
 msgid "legend.refresh"
 msgstr "更新"
+
+msgid "room.input_delay.independent"
+msgstr "Delay applies only to your own inputs."
+
+msgid "room.input_delay.manual.detail"
+msgstr "Choose 0 to 10 frames, or step below 0 for Auto. Ready locks your choice for this match."
+
+msgid "room.input_delay.opponent"
+msgstr "Opponent: {0}"

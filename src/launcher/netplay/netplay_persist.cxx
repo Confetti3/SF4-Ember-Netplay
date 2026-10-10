@@ -41,7 +41,7 @@ namespace launcher {
 		try {
 			std::string name = j.value("displayName", "Player");
 			strncpy_s(out.displayName, name.c_str(), _TRUNCATE);
-			const int delay = j.value("inputDelay", 2);
+			const int delay = j.value("inputDelay", DefaultInputDelay);
 			out.inputDelay = static_cast<uint8_t>(SavedInputDelay(delay));
 			out.editionSelect = (uint8_t)j.value("editionSelect", 1);
 			out.roundCount = j.value("roundCount", 3);

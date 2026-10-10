@@ -39,16 +39,18 @@ readiness with **Unready / unlock fighter**.
 Battle setup, opened from **Table options** (Y on an Xbox pad, T on the
 keyboard), starts with Ready, then your **Change fighter** and **Ultra Combo**
 (Left and Right step the Ultra in place), then **Input delay**. Its value is
-your own delay, and its detail names the recommended delay and the match delay.
-A new profile is on **Auto**: the connection check runs by itself for each
+your own delay, and its detail names the recommendation and the opponent's
+locked delay. New profiles start at **Delay 1**. **Delay 0** remains selectable,
+but is still under testing and may cause desyncs; selecting it shows a warning.
+Existing explicit saved choices, including 0, are preserved. **Auto** is optional: the connection check runs by itself for each
 new opponent, and a Ready pressed meanwhile waits for it to end, for about
 twelve seconds at most. A check that fails is tried once more. You ready with
 its recommendation held between one and four frames, or with two frames if it
 produced none. A rematch, or a change of fighter, keeps the measurement;
 spectators and the queue are never checked or held. **Check
 connection** runs the same five-second measurement by hand. Left and Right
-choose a delay of your own instead, from one to ten, with Auto one step below
-one. A chosen delay is saved, Select applies a valid recommendation to it,
+choose a delay of your own instead, from zero to ten, with Auto one step below
+zero. A chosen delay is saved, Select applies a valid recommendation to it,
 and you can Ready without a usable probe. Ready locks your own delay for that
 game; Unready unlocks it. A route change or a new
 recommendation never changes delay during a fight. The table's rules follow on
@@ -56,11 +58,11 @@ the same page: the host changes Rounds, Round time and Edition Select in place
 and presses **Apply rules**, which appears once something changed; everyone
 else sees them on one line.
 
-Both fighters play each game at the higher of their two Ready delays. A
-fighter's delay decides how much rollback the other fighter sees, so separate
-values favored the fighter who chose less. Input delay's detail shows the
-match delay in use; before your opponent readies it shows "At least" your own
-choice. Each fighter's own delay is kept for the next game.
+Each fighter's delay is independent. With choices of 0 and 5, one fighter adds
+no local input buffering and the other uses five frames. GGPO exchanges the
+resulting frame-stamped inputs; both simulations consume the same input stream.
+A lower delay can require more prediction and rollback at the remote peer.
+Your HUD shows your own applied delay, and each choice is kept for the next game.
 
 Advice requires at least 80 valid replies out of 100 probes from the current
 connection and path. It follows the median round-trip time, the ping the check

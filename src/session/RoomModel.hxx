@@ -175,8 +175,8 @@ struct Member {
     NatClass nat = NatClass::Unknown;
     // The selected delay belongs to this fighter until Ready captures it.
     // Values are deliberately bounded by Action deserialization (0..10).
-    std::uint8_t selectedDelay = 2;
-    std::uint8_t frozenDelay = 2;
+    std::uint8_t selectedDelay = DefaultInputDelay;
+    std::uint8_t frozenDelay = DefaultInputDelay;
     bool delayLocked = false;
     // A spectator who locked in: the next start at its table waits a bounded
     // time for it to finish retiring the previous game. Cleared when it stops
@@ -219,7 +219,7 @@ struct Table {
 	std::vector<MemberId> endingWatchers;
 	bool ready[2] = { false, false };
 	// Immutable per-fighter values captured at the Ready quorum boundary.
-	std::uint8_t inputDelay[2] = { 2, 2 };
+	std::uint8_t inputDelay[2] = { DefaultInputDelay, DefaultInputDelay };
 	std::uint32_t score[2] = { 0, 0 };
 	// First-to-N tables: the last finished set, and how many sets in a row
 	// streakHolder has won here. The streak ends when its holder loses a set
@@ -340,14 +340,6 @@ inline LeavingCost CostOfLeavingSeat(const Table& table) {
 // first saw that game.
 constexpr unsigned StaleGameSeconds = 600;
 
-// Both fighters play at the higher of their Ready delays. A fighter's delay
-// decides how much rollback the other side sees, so separate values gave the
-// lower-delay fighter an advantage. inputDelay keeps each fighter's own choice.
-// A match never plays at 0, whatever an older client readied with.
-inline int MatchDelay(int first, int second) { return PlayableInputDelay(first > second ? first : second); }
-inline std::uint8_t MatchDelay(const Table& table) {
-	return static_cast<std::uint8_t>(MatchDelay(table.inputDelay[0], table.inputDelay[1]));
-}
 // A connection check names the seated pair at the table revision this PC's
 // room view shows. The helper reserves it only against its committed copy of
 // the room, so the check waits until that copy seats the same pair at the same
@@ -455,7 +447,7 @@ struct Action {
 	bool locked = false;
 	MatchResult result = MatchResult::Abort;
 	std::uint64_t matchGeneration = 0;
-	std::uint8_t inputDelay = 2;
+	std::uint8_t inputDelay = DefaultInputDelay;
 	std::string text;
 	// PermitReady: the permit's start window in milliseconds (its start_by
 	// less its issued_at, both on the bridge's clock).

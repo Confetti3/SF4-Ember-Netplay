@@ -227,7 +227,7 @@ namespace sf4e {
 		// A table action stamped with the current snapshot's revisions.
 		room::Action TableAction(room::ActionKind kind, std::uint8_t table, std::uint8_t inputDelay, std::int8_t seat = -1) const;
 		void LogRejectedRoomAction(std::uint64_t actionId, room::RejectReason reason);
-        std::uint8_t _selectedDelay=2;
+        std::uint8_t _selectedDelay=DefaultInputDelay;
 		bool _customRoomsRequired = false;
 		room::MemberProfile _profile;
 		bool _customRoomsSeen = false;

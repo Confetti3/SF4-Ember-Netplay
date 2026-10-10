@@ -11,12 +11,10 @@ namespace sf4e { namespace netplay {
 // and "autoInputDelay" is whether Auto is on. The game always writes both
 // (OverlayPrefs::QueuePlayerPreferences).
 //
-// - A profile from before Auto (1.0.2 and older) has no "autoInputDelay": it
-//   is on Auto, and its number is kept, with a 0 from before 0 was withdrawn
-//   loading as 1. The 0 never turns Auto off, and Auto never reads as 0.
+// - A profile without "autoInputDelay" keeps its saved manual number.
 // - "autoInputDelay": true is Auto; false is the saved number, as chosen.
 // - Anything else under "autoInputDelay" is not a choice the game wrote, so
-//   the profile is on Auto, as one from before Auto is.
+//   the profile uses its manual number. New profiles start at one frame.
 inline void ReadInputDelayPreference(const nlohmann::json& saved, PlayerPreferences& value) {
     if (!saved.is_object()) return;
     const auto delay = saved.find("inputDelay");
@@ -24,7 +22,7 @@ inline void ReadInputDelayPreference(const nlohmann::json& saved, PlayerPreferen
         value.inputDelay = SavedInputDelay(static_cast<int>((std::max)(static_cast<std::int64_t>(-1),
             (std::min)(delay->get<std::int64_t>(), static_cast<std::int64_t>(MaximumInputDelay + 1)))));
     const auto automatic = saved.find("autoInputDelay");
-    value.autoInputDelay = automatic == saved.end() || !automatic->is_boolean() || automatic->get<bool>();
+    value.autoInputDelay = automatic != saved.end() && automatic->is_boolean() && automatic->get<bool>();
 }
 
 } }

@@ -210,16 +210,23 @@ int main() try {
     }
     shell.Navigation().Home(); shell.Navigation().Push("room-table"); frame();
     // One delay row: its value is yours, its detail names the recommendation
-    // and the match delay, Left and Right choose, Select applies the recommendation.
+    // and independent local behavior, Left and Right choose, Select applies the recommendation.
     Check(row("input-delay").enabled && row("input-delay").adjustable && row("input-delay").value == "2 frames",
         "Input delay was not adjustable");
     Check(row("input-delay").detail.find("Recommended: 4 frames") != std::string::npos &&
-        row("input-delay").detail.find("Match: At least 2 frames") != std::string::npos,
+        row("input-delay").detail.find("Delay applies only to your own inputs.") != std::string::npos,
         "Input delay did not name the recommendation, or waited on the opponent's choice wrongly");
     view.opponentDelay = 5; frame();
-    Check(row("input-delay").detail.find("Match: 5 frames") != std::string::npos,
-        "Input delay did not show the higher of both choices as the match delay");
+    Check(row("input-delay").detail.find("Opponent: 5 frames") != std::string::npos && row("input-delay").value == "2 frames",
+        "Opponent delay overwrote the local choice or was not displayed");
     view.opponentDelay = -1; frame();
+    view.selectedDelay = 0; frame();
+    Check(row("input-delay").detail.find(loc::T("settings.input_delay.zero_warning")) == 0,
+        "Room zero delay did not put its warning first");
+    view.selectedDelay = 1; frame();
+    Check(row("input-delay").detail.find(loc::T("settings.input_delay.zero_warning")) == std::string::npos,
+        "Room one-frame delay retained the zero warning");
+    view.selectedDelay = 2; frame();
     Check(row("check-connection").enabled && row("input-delay").opens && row("input-delay").hint == "Apply recommendation",
         "Delay actions were not available");
     focus("check-connection"); press(MenuInput::Select);
@@ -231,32 +238,31 @@ int main() try {
     press(MenuInput::Right);
     Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 3,
         "Manual delay did not submit the bounded value");
-    // 0 frames is not offered: Left from 1 chooses Auto rather than 0, and an
-    // older 0 reads as 1 and steps as 1 does.
+    // Zero is selectable and displayed without raising it to one.
     view.selectedDelay = 0; frame();
-    Check(row("input-delay").value == "1 frame", "Input delay showed 0 frames");
+    Check(row("input-delay").value == "0 frames", "Input delay failed to show 0 frames");
     press(MenuInput::Right);
-    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 2,
-        "An older 0 did not step as 1 frame");
+    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 1,
+        "Zero did not step to one frame");
     press(MenuInput::Left);
     Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == AutoInputDelayChoice,
-        "Left from an older 0 offered 0 frames");
-    // Auto sits before one frame. With it on, the row shows its bounds and,
+        "Left from zero did not choose Auto");
+    // Auto sits before zero frames. With it on, the row shows its bounds and,
     // once the opponent is measured, the delay it resolves to; Select no longer
-    // takes the recommendation, and Right returns to one frame.
-    view.selectedDelay = 1; frame(); press(MenuInput::Left);
+    // takes the recommendation, and Right returns to zero frames.
+    view.selectedDelay = 0; frame(); press(MenuInput::Left);
     Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == AutoInputDelayChoice,
-        "Left from one frame did not choose Auto");
+        "Left from zero did not choose Auto");
     view.preferences.autoInputDelay = true; view.selectedDelay = 2; frame();
     Check(row("input-delay").value == "Auto", "Auto showed a delay before measuring the opponent");
     view.autoDelayMeasured = true; view.selectedDelay = 3; frame();
     Check(row("input-delay").value == "Auto (3 frames)" && !row("input-delay").opens &&
         row("input-delay").detail.find(loc::Tf("room.input_delay.auto.detail", AutoInputDelayMinimum, AutoInputDelayMaximum)) != std::string::npos &&
-        row("input-delay").detail.find("Match: At least 3 frames") != std::string::npos,
+        row("input-delay").detail.find("Delay applies only to your own inputs.") != std::string::npos,
         "Auto did not show its delay and bounds, or still offered the recommendation");
     press(MenuInput::Right);
-    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 1,
-        "Right from Auto did not choose one frame");
+    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 0,
+        "Right from Auto did not choose zero frames");
     view.preferences.autoInputDelay = false; view.autoDelayMeasured = false; view.selectedDelay = 2; frame();
     // Fighter, Ultra and Appearance sit under Ready. Left and Right step the
     // Ultra and the color without leaving the page; Select opens their cards

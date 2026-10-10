@@ -41,48 +41,34 @@ static sf4e::netplay::PlayerPreferences LoadDelay(const Path& root, const std::w
     Json loaded;
     CHECK(store.LoadLauncher(loaded, error));
     sf4e::netplay::PlayerPreferences value;
-    value.inputDelay = sf4e::SavedInputDelay(loaded.value("inputDelay", 2));
+    value.inputDelay = sf4e::SavedInputDelay(loaded.value("inputDelay", sf4e::DefaultInputDelay));
     sf4e::netplay::ReadInputDelayPreference(loaded, value);
     return value;
 }
 
-// Auto is kept apart from the number, so the 0 to 1 migration and Auto never
-// stand for one another. Each case is a settings folder as that version left it.
+// Existing explicit choices survive; absent/invalid values use manual one by default.
 static void InputDelayMigrations(const Path& root) {
     using sf4e::netplay::PlayerPreferences;
-    // 1.0.x saved 0 before 0 was withdrawn: Auto, with 1 kept as the number.
+    const auto fresh = LoadDelay(root, L"delay-new", Json::object());
+    CHECK(!fresh.autoInputDelay && fresh.inputDelay == 1 && fresh.Valid());
     const auto zero = LoadDelay(root, L"delay-zero", {{"inputDelay", 0}});
-    CHECK(zero.autoInputDelay && zero.inputDelay == 1 && zero.Valid());
-    // 1.0.x saved a number: Auto until a number is chosen again; the number is kept.
+    CHECK(!zero.autoInputDelay && zero.inputDelay == 0 && zero.Valid());
     const auto four = LoadDelay(root, L"delay-four", {{"inputDelay", 4}});
-    CHECK(four.autoInputDelay && four.inputDelay == 4 && four.Valid());
-    // Auto chosen, or a new profile saved: Auto, whatever number sits beside it.
-    const auto automatic = LoadDelay(root, L"delay-auto", {{"inputDelay", 1}, {"autoInputDelay", true}});
-    CHECK(automatic.autoInputDelay && automatic.inputDelay == 1);
-    // A number chosen after Auto existed stays that number, 1 included, which
-    // is also where a migrated 0 lands: the flag tells them apart.
-    for (int chosen : {1, 2, 5, sf4e::MaximumInputDelay}) {
-        const auto manual = LoadDelay(root, L"delay-chosen-" + std::to_wstring(chosen), {{"inputDelay", chosen}, {"autoInputDelay", false}});
-        CHECK(!manual.autoInputDelay && manual.inputDelay == chosen && manual.Valid());
-    }
-    // A chosen number written beside a stray 0 (this version never writes
-    // one) still loads as manual at the smallest delay, never as 0.
-    const auto stray = LoadDelay(root, L"delay-stray", {{"inputDelay", 0}, {"autoInputDelay", false}});
-    CHECK(!stray.autoInputDelay && stray.inputDelay == 1);
-    // A value the game never writes under autoInputDelay is Auto.
+    CHECK(!four.autoInputDelay && four.inputDelay == 4 && four.Valid());
     const auto odd = LoadDelay(root, L"delay-odd", {{"inputDelay", 3}, {"autoInputDelay", 0}});
-    CHECK(odd.autoInputDelay && odd.inputDelay == 3);
-    // Out of range or the wrong type keeps the default number.
+    CHECK(!odd.autoInputDelay && odd.inputDelay == 3);
+    for (int invalid : {-1, 11, 99}) {
+        PlayerPreferences fallback;
+        sf4e::netplay::ReadInputDelayPreference({{"inputDelay", invalid}}, fallback);
+        CHECK(fallback.inputDelay == 1 && !fallback.autoInputDelay && fallback.Valid());
+    }
     PlayerPreferences fallback;
-    sf4e::netplay::ReadInputDelayPreference({{"inputDelay", 99}, {"autoInputDelay", false}}, fallback);
-    CHECK(fallback.inputDelay == 2 && !fallback.autoInputDelay);
     sf4e::netplay::ReadInputDelayPreference({{"inputDelay", "3"}}, fallback);
-    CHECK(fallback.inputDelay == 2 && fallback.autoInputDelay);
-    // Saving and loading keeps each choice as it was: the game writes both keys.
-    for (const bool on : {true, false}) for (int number : {1, 3}) {
+    CHECK(fallback.inputDelay == 1 && !fallback.autoInputDelay);
+    for (const bool on : {true, false}) for (int number : {0, 1, 3, 10}) {
         const auto again = LoadDelay(root, L"delay-round-" + std::to_wstring(on) + L"-" + std::to_wstring(number),
             {{"inputDelay", number}, {"autoInputDelay", on}});
-        CHECK(again.autoInputDelay == on && again.inputDelay == number);
+        CHECK(again.autoInputDelay == on && again.inputDelay == number && again.Valid());
     }
 }
 
@@ -172,21 +158,20 @@ int main() {
         CHECK(retired["netplay"]["matchHudAnchor"]==4&&retired["legacyLauncher"]["unknownPreference"]=="retain");
     }
     CHECK(discordDefaults.discordPresence && discordDefaults.discordInvites);
-    CHECK(discordDefaults.inputDelay == 2);
-    discordDefaults.inputDelay = 0; CHECK(!discordDefaults.Valid());
+    CHECK(discordDefaults.inputDelay == 1);
+    discordDefaults.inputDelay = 0; CHECK(discordDefaults.Valid());
     discordDefaults.inputDelay = 1; CHECK(discordDefaults.Valid());
     discordDefaults.inputDelay = 10; CHECK(discordDefaults.Valid());
     discordDefaults.inputDelay = -1; CHECK(!discordDefaults.Valid());
     discordDefaults.inputDelay = 11; CHECK(!discordDefaults.Valid());
     CHECK(store.SaveLauncher({{"inputDelay", 0}}, error));
     CHECK(store.LoadLauncher(result, error) && result["inputDelay"] == 0);
-    // A 0 saved before it was withdrawn plays at 1; out of range is the default.
-    CHECK(sf4e::SavedInputDelay(result["inputDelay"].get<int>()) == 1);
+    // Zero is preserved; out of range falls back to one frame.
+    CHECK(sf4e::SavedInputDelay(result["inputDelay"].get<int>()) == 0);
     CHECK(sf4e::SavedInputDelay(1) == 1 && sf4e::SavedInputDelay(3) == 3 && sf4e::SavedInputDelay(10) == 10);
-    CHECK(sf4e::SavedInputDelay(-1) == 2 && sf4e::SavedInputDelay(11) == 2);
-    // Auto is on until a number is chosen and absent from a profile saved
-    // before it existed. Turning it off is saved beside the delay.
-    CHECK(sf4e::netplay::PlayerPreferences().autoInputDelay && !result.contains("autoInputDelay"));
+    CHECK(sf4e::SavedInputDelay(-1) == 1 && sf4e::SavedInputDelay(11) == 1);
+    // Auto is opt-in and its explicit flag is saved beside the delay.
+    CHECK(!sf4e::netplay::PlayerPreferences().autoInputDelay && !result.contains("autoInputDelay"));
     discordDefaults.inputDelay = 2; discordDefaults.autoInputDelay = false; CHECK(discordDefaults.Valid());
     CHECK(store.SaveLauncher({{"autoInputDelay", false}}, error));
     CHECK(store.LoadLauncher(result, error) && result["autoInputDelay"] == false && result["inputDelay"] == 0);

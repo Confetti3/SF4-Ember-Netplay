@@ -817,7 +817,7 @@ static void TestPlaceAndSeatRules() {
 	CHECK(!CostOfLeavingSeat(fresh).score && CostOfLeavingSeat(fresh).handsOver);
 }
 
-static void TestReadyDelaysShareTheHigherValue() {
+static void TestReadyDelaysStayIndependent() {
 	RoomAuthority authority("Delay", 4, 1);
 	Join(authority, 0, true);
 	const MemberId p1 = Join(authority, 1);
@@ -828,11 +828,12 @@ static void TestReadyDelaysShareTheHigherValue() {
 		action.inputDelay = delay;
 		CHECK(authority.Apply(member, action).accepted);
 	};
-	// Each fighter keeps their own choice; the match uses the higher one.
-	ready(p1, 1); ready(p2, 5);
+	// Each fighter keeps their own choice, including zero.
+	ready(p1, 0); ready(p2, 5);
 	const auto& first = authority.SnapshotView().tables[0];
-	CHECK(first.inputDelay[0] == 1 && first.inputDelay[1] == 5);
-	CHECK(MatchDelay(first) == 5);
+	CHECK(first.inputDelay[0] == 0 && first.inputDelay[1] == 5);
+	CHECK(FindMember(authority.SnapshotView(), p1)->frozenDelay == 0);
+	CHECK(FindMember(authority.SnapshotView(), p2)->frozenDelay == 5);
 	CHECK(authority.BeginMatch(0, p1, p2).accepted);
 	const auto generation = authority.SnapshotView().tables[0].matchGeneration;
 	CHECK(authority.EndMatch(0, generation, MatchResult::P1Win).accepted);
@@ -843,12 +844,12 @@ static void TestReadyDelaysShareTheHigherValue() {
 	}
 	// A rematch takes both fresh choices; the earlier higher value does not stick.
 	ready(p1, 4); ready(p2, 2);
-	CHECK(MatchDelay(authority.SnapshotView().tables[0]) == 4);
+	CHECK(authority.SnapshotView().tables[0].inputDelay[0] == 4);
+	CHECK(authority.SnapshotView().tables[0].inputDelay[1] == 2);
 }
 
-// An older client can still ready at 0, which crashes the match: the room
-// records 1, and a 0 already in a table (a checkpoint) still plays at 1.
-static void TestReadyDelayNeverZero() {
+// Zero survives Ready and checkpoint JSON without normalization.
+static void TestReadyDelayZero() {
 	RoomAuthority authority("Delay", 4, 1);
 	Join(authority, 0, true);
 	const MemberId p1 = Join(authority, 1);
@@ -860,11 +861,10 @@ static void TestReadyDelayNeverZero() {
 		CHECK(authority.Apply(member, action).accepted);
 	}
 	const auto& table = authority.SnapshotView().tables[0];
-	CHECK(table.inputDelay[0] == 1 && table.inputDelay[1] == 1 && MatchDelay(table) == 1);
-	CHECK(FindMember(authority.SnapshotView(), p1)->frozenDelay == 1);
-	Table stored;
-	stored.inputDelay[0] = stored.inputDelay[1] = 0;
-	CHECK(MatchDelay(stored) == 1 && MatchDelay(0, 0) == 1 && MatchDelay(0, 3) == 3);
+	CHECK(table.inputDelay[0] == 0 && table.inputDelay[1] == 0);
+	CHECK(FindMember(authority.SnapshotView(), p1)->frozenDelay == 0);
+	const auto stored = nlohmann::json(table).get<Table>();
+	CHECK(stored.inputDelay[0] == 0 && stored.inputDelay[1] == 0);
 }
 
 // Auto's connection check names the seated pair at the table revision this
@@ -894,8 +894,8 @@ static void TestProbePairCommitted() {
 
 int main() {
     TestProfileMain();
-    TestReadyDelaysShareTheHigherValue();
-    TestReadyDelayNeverZero();
+    TestReadyDelaysStayIndependent();
+    TestReadyDelayZero();
     TestProbePairCommitted();
     TestFighterChangeWithdrawsOpponentReady();
     TestIdleTimeIsStampedPerSnapshot();

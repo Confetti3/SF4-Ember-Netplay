@@ -28,10 +28,10 @@ struct PlayerPreferences {
     std::string displayName = "Player";
     int mainFighter = 0;
     ProfileRecord record;
-    int inputDelay = 2;
+    int inputDelay = DefaultInputDelay;
     // Auto readies with the connection check's delay (AutoInputDelay) instead of
-    // inputDelay. It is on until the player chooses a number.
-    bool autoInputDelay = true;
+    // inputDelay. It is opt-in; new profiles use one frame of delay.
+    bool autoInputDelay = false;
     // On by default so a stall or rollback spike is visible, but Small: the standard strip drew the eye mid-fight.
     bool showMatchHud = true;
     int matchHudSize = 0;

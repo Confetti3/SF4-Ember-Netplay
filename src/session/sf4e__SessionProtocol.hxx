@@ -93,7 +93,7 @@ namespace sf4e {
 			std::array<Dimps::GameEvents::VsMode::ConfirmedCharaConditions, 2> chara;
 			int64_t stageID;
 			DWORD rngSeed;
-			std::array<std::uint8_t, 2> inputDelay = {{ 2, 2 }};
+			std::array<std::uint8_t, 2> inputDelay = {{ 0, 0 }};
 		};
 
 		// What the game could not take in a room's match: its round count or

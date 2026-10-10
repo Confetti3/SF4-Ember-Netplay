@@ -132,7 +132,7 @@ namespace sf4e {
 			bool canEditPreferences = false;
 			bool canEditLobby = false;
 			bool settingsPending = false;
-            int selectedDelay=2, recommendedDelay=-1;
+            int selectedDelay=DefaultInputDelay, recommendedDelay=-1;
             bool autoDelayMeasured=false;
             // The opponent's Ready delay, or -1 until they Ready.
             int opponentDelay=-1;

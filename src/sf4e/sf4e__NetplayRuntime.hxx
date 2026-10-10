@@ -154,7 +154,7 @@ struct Runtime {
     // failure is worded for it. Set with the join, cleared when the room closes.
     bool publicJoin=false;
     std::uint64_t leaveActionId=0, leaveRetryAt=0, leaveDeadline=0;
-    int selectedDelay=2;
+    int selectedDelay=DefaultInputDelay;
     std::uint64_t nextProbeRequest=1;
     // The interface's last identity request: its ticket, the helper request it
     // became (0 when refused) and the catalog id of a refusal.

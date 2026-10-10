@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <initializer_list>
 
 #include "test_support.hxx"
 static int saveFrame = -1, saves = 0, running = 0;
@@ -25,7 +26,9 @@ static unsigned short ReservePort() {
     int size = sizeof(address); CHECK(getsockname(socketValue, reinterpret_cast<sockaddr*>(&address), &size) == 0);
     const auto port = ntohs(address.sin_port); closesocket(socketValue); return port;
 }
-int main() {
+static void RunDelays(int firstDelay, int secondDelay) {
+    running = saves = 0; saveFrame = -1;
+    const int delays[2] = {firstDelay, secondDelay};
     using sf4e::statehash::IsConfirmedCheckpoint;
     CHECK(!IsConfirmedCheckpoint(-1, 100)); CHECK(!IsConfirmedCheckpoint(0, -1));
     CHECK(!IsConfirmedCheckpoint(61, 59)); CHECK(IsConfirmedCheckpoint(61, 60));
@@ -48,7 +51,7 @@ int main() {
         GGPOPlayer player = {}; player.size = sizeof(player); player.type = GGPO_PLAYERTYPE_LOCAL; player.player_num = side + 1;
         auto* local = side == 0 ? session : remote;
         CHECK(ggpo_add_player(local, &player, &handles[side]) == GGPO_OK);
-        CHECK(ggpo_set_frame_delay(local, handles[side], 0) == GGPO_OK);
+        CHECK(ggpo_set_frame_delay(local, handles[side], delays[side]) == GGPO_OK);
         player.type = GGPO_PLAYERTYPE_REMOTE; strcpy_s(player.u.remote.ip_address, "127.0.0.1");
         player.u.remote.port = side == 0 ? localPort : remotePort; GGPOPlayerHandle unused;
         CHECK(ggpo_add_player(side == 0 ? remote : session, &player, &unused) == GGPO_OK);
@@ -58,9 +61,10 @@ int main() {
     while (running < 2 && GetTickCount64() < deadline) { pump(); Sleep(1); }
     CHECK(running == 2);
     for (int frame = 0; frame < 120; ++frame) {
-        unsigned char input = 0, inputs[2]; int disconnected = 0;
-        CHECK(ggpo_add_local_input(session, handles[0], &input, 1) == GGPO_OK);
-        CHECK(ggpo_add_local_input(remote, handles[1], &input, 1) == GGPO_OK);
+        unsigned char input[2] = {static_cast<unsigned char>(frame * 3 + 1), static_cast<unsigned char>(frame * 5 + 2)};
+        unsigned char inputs[2]; int disconnected = 0;
+        CHECK(ggpo_add_local_input(session, handles[0], &input[0], 1) == GGPO_OK);
+        CHECK(ggpo_add_local_input(remote, handles[1], &input[1], 1) == GGPO_OK);
         int remoteConfirmed = -1; const auto frameDeadline = GetTickCount64() + 1000;
         do {
             pump();
@@ -69,8 +73,15 @@ int main() {
             if (confirmed < frame || remoteConfirmed < frame) Sleep(1);
         } while ((confirmed < frame || remoteConfirmed < frame) && GetTickCount64() < frameDeadline);
         CHECK(confirmed == frame && remoteConfirmed == frame);
-        CHECK(ggpo_synchronize_input(session, inputs, sizeof(inputs), &disconnected) == GGPO_OK);
-        CHECK(ggpo_synchronize_input(remote, inputs, sizeof(inputs), &disconnected) == GGPO_OK);
+        for (auto* peer : {session, remote}) {
+            CHECK(ggpo_synchronize_input(peer, inputs, sizeof(inputs), &disconnected) == GGPO_OK);
+            CHECK(!disconnected);
+            for (int side = 0; side < 2; ++side) {
+                const auto expected = frame < delays[side] ? 0 :
+                    static_cast<unsigned char>((frame - delays[side]) * (side ? 5 : 3) + side + 1);
+                CHECK(inputs[side] == expected);
+            }
+        }
         CHECK(ggpo_advance_frame(session) == GGPO_OK);
         CHECK(ggpo_advance_frame(remote) == GGPO_OK);
         CHECK(ggpo_idle(session, 0) == GGPO_OK);
@@ -83,5 +94,11 @@ int main() {
     }
     CHECK(ggpo_close_session(session) == GGPO_OK);
     CHECK(ggpo_close_session(remote) == GGPO_OK); WSACleanup();
-    std::puts("GGPO confirmed-frame accessor and zero-delay boundary tests passed");
+    std::printf("GGPO confirmed inputs preserved independent delays %d/%d for 120 frames\n", firstDelay, secondDelay);
+}
+int main() {
+    RunDelays(0, 0);
+    RunDelays(0, 5);
+    RunDelays(5, 0);
+    RunDelays(0, 10);
 }

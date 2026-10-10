@@ -416,8 +416,9 @@ int wmain(int argc, wchar_t** argv) {
 	});
 	using Phase = session::IrohMatchSession::Phase;
 	for (std::uint64_t cycle = 1; cycle <= 3; ++cycle) {
-		const unsigned p1Delay = static_cast<unsigned>(cycle % 11);
-		const unsigned p2Delay = static_cast<unsigned>((cycle * 3) % 11);
+		// Exercise both zero defaults and either seat choosing a different delay.
+		const unsigned p1Delay = cycle == 3 ? 5u : 0u;
+		const unsigned p2Delay = cycle == 2 ? 5u : 0u;
 		clients[0]->SetSelectedDelay(p1Delay);
 		clients[1]->SetSelectedDelay(p2Delay);
 		for (std::size_t player=0;player<2;++player) {
@@ -442,6 +443,10 @@ int wmain(int argc, wchar_t** argv) {
 		}
 		const auto& readyTable = clients[0]->GetRoomSnapshot().tables[0];
 		CHECK(readyTable.inputDelay[0] == p1Delay && readyTable.inputDelay[1] == p2Delay);
+		for (const auto& client : clients) {
+			CHECK(client->_matchData.inputDelay[0] == p1Delay);
+			CHECK(client->_matchData.inputDelay[1] == p2Delay);
+		}
 		std::cout << "Generation " << cycle << " selected game routes=" << rooms[0]->Game(probePeer).route
 			<< "," << rooms[1]->Game(rooms[0]->LocalIdentity()).route
 			<< " frozen_delays=" << p1Delay << "," << p2Delay << '\n';
@@ -475,7 +480,7 @@ int wmain(int argc, wchar_t** argv) {
 						strcpy_s(player.u.remote.ip_address, "127.0.0.1"); player.u.remote.port = matches[i]->RemotePort(roster[p]);
 					}
 					GGPOPlayerHandle handle; CHECK(ggpo_add_player(ggpo[i], &player, &handle) == GGPO_OK);
-					if (p == slot) { localHandles[i] = handle; CHECK(ggpo_set_frame_delay(ggpo[i], handle, readyTable.inputDelay[slot]) == GGPO_OK); }
+					if (p == slot) { localHandles[i] = handle; CHECK(ggpo_set_frame_delay(ggpo[i], handle, clients[i]->_matchData.inputDelay[slot]) == GGPO_OK); }
 				}
 			}
 		}

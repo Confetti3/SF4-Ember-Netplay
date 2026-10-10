@@ -685,6 +685,9 @@ msgstr "НАСТРОЙКИ ИГРЫ"
 msgid "settings.input_delay"
 msgstr "Задержка ввода"
 
+msgid "settings.input_delay.zero_warning"
+msgstr "Внимание: задержка 0 ещё тестируется и может вызвать рассинхронизацию."
+
 msgid "settings.input_delay.auto"
 msgstr "Авто"
 
@@ -2064,16 +2067,13 @@ msgstr "Готов к реваншу"
 msgid "room.ready_up"
 msgstr "Готов"
 
-msgid "room.selected_delay.detail"
-msgstr "Настройка от 1 до 10 кадров, ниже 1 включается Авто. Изменения применяются сразу."
+
 
 msgid "room.selected_delay.locked"
 msgstr "Выбранная задержка закреплена на этот матч."
 
-msgid "room.match_delay.at_least"
-msgstr "Не менее {0} к."
-msgid "room.match_delay.at_least_one"
-msgstr "Не менее {0} к."
+
+
 
 msgid "room.check_connection.two_players"
 msgstr "Для проверки соединения оба места должны быть заняты."
@@ -2093,8 +2093,7 @@ msgstr "Задержка ввода"
 msgid "room.input_delay.recommended"
 msgstr "Рекомендуется: {0}"
 
-msgid "room.input_delay.match"
-msgstr "Матч: {0}"
+
 
 msgid "room.input_delay.auto"
 msgstr "Авто ({0})"
@@ -3591,3 +3590,12 @@ msgstr "Не удалось войти в лобби. Возможно, оно �
 
 msgid "legend.refresh"
 msgstr "Обновить"
+
+msgid "room.input_delay.independent"
+msgstr "Delay applies only to your own inputs."
+
+msgid "room.input_delay.manual.detail"
+msgstr "Choose 0 to 10 frames, or step below 0 for Auto. Ready locks your choice for this match."
+
+msgid "room.input_delay.opponent"
+msgstr "Opponent: {0}"

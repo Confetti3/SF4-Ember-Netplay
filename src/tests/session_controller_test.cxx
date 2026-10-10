@@ -260,8 +260,8 @@ int main() {
     preferences.displayName = std::string(32, 'x'); CHECK(!preferences.Valid());
     preferences.displayName = "Name\n"; CHECK(!preferences.Valid());
     preferences.displayName = "Player";
-    // 0 frames is withdrawn: it crashes the match.
-    preferences.inputDelay = 0; CHECK(!preferences.Valid());
+    // Zero is valid; negative and oversized delays are rejected.
+    preferences.inputDelay = 0; CHECK(preferences.Valid());
     preferences.inputDelay = 1; CHECK(preferences.Valid());
     preferences.inputDelay = -1; CHECK(!preferences.Valid());
     preferences.inputDelay = 11; CHECK(!preferences.Valid());

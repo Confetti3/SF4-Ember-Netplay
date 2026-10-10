@@ -204,8 +204,7 @@ void StartHelper() {
     if (store.LoadLauncher(saved, settingsError)) {
         if(saved.contains("onlineRecord")&&!netplay::ReadProfileRecord(saved["onlineRecord"],runtime->preferences.record))
             runtime->error=loc::T("runtime.record_invalid");
-        // Auto is on unless a saved false turned it off, so a profile saved
-        // before Auto existed gets it (InputDelayPreference.hxx).
+        // Preserve an explicit Auto choice; new profiles use manual one-frame delay.
         netplay::ReadInputDelayPreference(saved,runtime->preferences);
         try {
             runtime->preferences.showMatchHud = saved.value("showMatchHud", true);

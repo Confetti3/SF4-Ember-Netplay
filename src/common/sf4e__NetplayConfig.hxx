@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include "InputDelay.hxx"
 
 namespace sf4e {
 
@@ -24,7 +25,7 @@ namespace sf4e {
 		uint16_t sessionPort = 23456;
 		char roomKey[NETPLAY_ROOM_KEY_LEN] = { 0 };
 		char displayName[NETPLAY_DISPLAY_NAME_LEN] = { 0 };
-		uint8_t inputDelay = 2;
+		uint8_t inputDelay = DefaultInputDelay;
 		uint16_t ggpoPort = 23457;
 		uint8_t editionSelect = 1;
 		int roundCount = 3;

@@ -9,7 +9,7 @@ namespace launcher {
 
 	struct PersistedSettings {
 		char displayName[NETPLAY_DISPLAY_NAME_LEN] = "Player";
-		uint8_t inputDelay = 2;
+		uint8_t inputDelay = DefaultInputDelay;
 		uint8_t editionSelect = 1;
 		int roundCount = 3;
 		int roundTimeIntegral = 99;
