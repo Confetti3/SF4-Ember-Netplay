@@ -16,6 +16,8 @@ namespace launcher {
 		std::string installedVersion;
 		std::string latestVersion;
 		bool updateAvailable = false;
+		// The release's notes as plain text (common/ReleaseNotesText.hxx:
+		// PlainReleaseNotes), made once as they arrive.
 		std::string releaseNotes;
 		std::string releaseUrl;
 		std::string zipDownloadUrl;

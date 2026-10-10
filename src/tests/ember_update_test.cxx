@@ -175,6 +175,26 @@ int main(int argc, char** argv) {
         CHECK(PlainReleaseNotes("\xC0\xAF\xED\xA0\x80ok") == "ok");
         CHECK(PlainReleaseNotes("") == "" && PlainReleaseNotes("\r\n\r\n<!-- only a comment -->\r\n") == "");
         CHECK(PlainReleaseNotes("Unclosed [link and **bold and `tick") == "Unclosed [link and **bold and `tick");
+        // Comments are taken out only where Markdown has them: a fenced
+        // example and an inline code span keep theirs, an unclosed one inside
+        // a fence takes nothing after it, and one that never closes, or would
+        // close only past a fence, is text.
+        CHECK(PlainReleaseNotes("Before\n```html\n<!-- unclosed in code\n```\n- Later entry\n") == "Before\n<!-- unclosed in code\n- Later entry");
+        CHECK(PlainReleaseNotes("Use `<!-- note -->` in a template") == "Use <!-- note --> in a template");
+        CHECK(PlainReleaseNotes("Keep <!-- this open\n- Next entry") == "Keep <!-- this open\n- Next entry");
+        CHECK(PlainReleaseNotes("A <!-- opened\n```\ncode -->\n```\nB") == "A <!-- opened\ncode -->\nB");
+        CHECK(PlainReleaseNotes("One <!-- across\ntwo --> three\nFour") == "One\nthree\nFour");
+        // A heading's closing hashes go only apart from its words.
+        CHECK(PlainReleaseNotes("## C#") == "C#" && PlainReleaseNotes("## C# ##") == "C#" && PlainReleaseNotes("### Fixes ###") == "Fixes" &&
+            PlainReleaseNotes("# F# and C#") == "F# and C#");
+        // Formatting controls draw nothing and can turn the text around them:
+        // bidirectional embeddings, overrides and isolates, the soft hyphen,
+        // the Arabic letter mark and the interlinear marks all go.
+        for (const char* control : {"\xE2\x80\xAA", "\xE2\x80\xAB", "\xE2\x80\xAC", "\xE2\x80\xAD", "\xE2\x80\xAE", "\xE2\x81\xA6", "\xE2\x81\xA7",
+            "\xE2\x81\xA8", "\xE2\x81\xA9", "\xC2\xAD", "\xD8\x9C", "\xEF\xBF\xB9", "\xE2\x80\x8E", "\xEF\xBB\xBF"})
+            CHECK(PlainReleaseNotes(std::string("ab") + control + "cd") == "abcd");
+        CHECK(PlainReleaseNotes("caf\xC3\xA9 \xE2\x80\x94 \xE6\x97\xA5\xE6\x9C\xAC") == "caf\xC3\xA9 \xE2\x80\x94 \xE6\x97\xA5\xE6\x9C\xAC");
+        CHECK(PlainReleaseNotes("over\xF4\x90\x80\x80long") == "overlong");
     }
     CHECK(ClassifyReleaseKind(*ParseVersion("v1.2.0")) == ReleaseKind::Stable);
     for (const char* tag : {"v1.2.0-rc1", "v1.2.0-beta2", "v1.2.0-links-sets-test1"})

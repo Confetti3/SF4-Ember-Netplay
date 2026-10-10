@@ -796,30 +796,8 @@ int main(int argc, char** argv) {
             view.room.tables[0].phase=room::TablePhase::Waiting;
             view.room.tables[0].ready[0]=view.room.tables[0].ready[1]=false;
             view.room.tables[0].resultPending=false;view.canReady=view.canEditSelection=true;draw("table-rematch");
-            // The host turns Practice match on: round time 9999 comes with it,
-            // and a shorter time is pointed out on its own row.
-            {
-                std::vector<MenuEntry> ruleRows;
-                SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){ruleRows=rows;});
-                const auto rule=[&](const char* id){
-                    const auto found=std::find_if(ruleRows.begin(),ruleRows.end(),[&](const MenuEntry& row){return row.id==id;});
-                    Require(found!=ruleRows.end(),"A table rule row is missing");return *found;};
-                const auto reach=[&](const char* id){
-                    for(int i=0;i<40&&shell.Navigation().Focus()!=id;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
-                    for(int i=0;i<40&&shell.Navigation().Focus()!=id;++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
-                    Require(shell.Navigation().Focus()==id,"A table rule row is unreachable at this viewport/DPI");};
-                const auto step=[&](unsigned direction){draw(nullptr,direction,1);draw(nullptr,0,1);};
-                reach("training");step(MenuInput::Right);draw("table-practice-match");
-                Require(rule("training").value==loc::T("common.on")&&rule("time").value=="9999","Practice match did not bring round time 9999");
-                reach("time");step(MenuInput::Left);draw("table-practice-round-time");
-                Require(rule("time").value=="300"&&rule("time").detail.find(loc::Tf("rules.round_time.practice",9999))==0,
-                    "A short Practice match time was not pointed out");
-                // Back to the table's own rules: nothing is left to apply.
-                step(MenuInput::Left);reach("training");step(MenuInput::Left);draw();
-                Require(rule("time").value=="99"&&rule("training").value==loc::T("common.off"),"The table's rules did not come back");
-                for(const auto& row:ruleRows)Require(row.id!="apply-rules","Restored rules still offered Apply rules");
-                SetMenuEntriesProbe({});
-            }
+            // The host turns Practice match on (ui_render_training_room.hxx).
+            CheckPracticeMatchRules(shell,draw);
             // The opponent's new fighter: a line on the table card, with no modal.
             view.session.match=netplay::MatchState::None;view.opponentChangedFighter=10;++view.opponentChangeSequence;
             const int shownFighter=view.room.members[1].fighter;view.room.members[1].fighter=10;
@@ -992,23 +970,9 @@ int main(int argc, char** argv) {
             Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Controller warning captured input");
             auto* warning=FindWindow("Controller warning");
             Require(warning->ScrollMax.y<1&&warning->Pos.y+warning->Size.y<size.h,"Controller warning escaped viewport");
-            // The launch window names the version and channel in its corner, as Home does.
-            recoveryState.installedVersion="1.1.0-rc1";recoveryState.channel=launcher::UpdateChannel::Beta;
-            mode=4;draw("launch-recovery");recoveryUpdates=true;recoveryMenu.navigation=RecoveryNavigation(true);
-            recoveryMenu.navigation.Prefer("channel");draw("update-channel-beta");
-            recoveryState.channel=launcher::UpdateChannel::Nightly;recoveryState.installedVersion="1.2.0-nightly20261008";draw("update-channel-nightly");
-            recoveryState.channel=launcher::UpdateChannel::Beta;recoveryState.installedVersion="1.1.0-rc1";recoveryMenu.navigation=RecoveryNavigation(true);recoveryState.update.ok=recoveryState.update.updateAvailable=true;
-            recoveryState.update.expectedSha256=std::string(64,'a');recoveryState.update.latestVersion="v1.0.0";draw("update-available");
-            // The found update is the first row, so Select asks to install it.
-            draw(nullptr,MenuInput::Select,1);draw("update-confirmation");
-            Require(recoveryMenu.navigation.Confirming()&&!recoveryMenu.navigation.ConfirmSelected(),"Recovery update confirmation is unsafe");
-            draw(nullptr,MenuInput::Back,1);draw();recoveryState.pending=true;recoveryState.stageDone=25*1024*1024;recoveryState.stageTotal=100*1024*1024;
-            recoveryState.message="Downloading the verified update. You can cancel this operation.";draw("update-downloading");
-            // Extracting has no total: a moving bar is drawn instead of a filled one.
-            recoveryState.lastAction=platform::ServiceAction::InstallUpdate;recoveryState.updateStage=launcher::UpdateStage::Extracting;recoveryState.stageDone=recoveryState.stageTotal=0;
-            recoveryState.message="Extracting the update.";draw("update-extracting");
-            // The channel picker and its confirms, going back, and What's new (ui_render_updates.hxx).
-            ShootUpdates(recoveryMenu,recoveryState,recoveryPick,draw);
+            // The launch window, an update found, downloading and extracting, the
+            // channel picker and its confirms, going back, and What's new (ui_render_updates.hxx).
+            ShootLaunchAndUpdates(recoveryMenu,recoveryState,recoveryUpdates,recoveryPick,mode,draw);
             mode=0;shell.Navigation().Home();draw("home-restored");
             auto* main=FindWindow("EmberShell");
             Require(main->Pos.x==0&&main->Pos.y==0&&main->Size.x==size.w&&main->Size.y==size.h,"Shell geometry changed");

@@ -4,7 +4,6 @@
 #include "Theme.hxx"
 #include "UpdateChannelPick.hxx"
 #include "VersionLine.hxx"
-#include "../common/ReleaseNotesText.hxx"
 #include "../platform/ApplicationServices.hxx"
 #include "../common/Localization.hxx"
 
@@ -68,7 +67,8 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
     // The offered (or current) release's notes, as plain text in a reader the
     // pad and keys scroll. They are GitHub text: only ever drawn as text.
     if(updates&&state.update.ok){
-        const auto notes=updates::PlainReleaseNotes(state.update.releaseNotes);
+        // Plain text already, made once as the check read them.
+        const auto& notes=state.update.releaseNotes;
         if(!notes.empty()){
             auto row=Row("notes",loc::T("updates.whats_new"),loc::Tf("updates.whats_new_detail",state.update.latestVersion)+"\n\n"+notes);
             row.reading=true;row.detailText=DetailText::Chat;rows.push_back(std::move(row));

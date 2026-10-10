@@ -5,6 +5,8 @@
 #include "../common/Localization.hxx"
 #include "../ui/GameMenu.hxx"
 #include "../ui/OverlayLayers.hxx"
+#include "../ui/ApplicationShell.hxx"
+#include <vector>
 #include <imgui.h>
 #include <algorithm>
 #include <cfloat>
@@ -132,5 +134,33 @@ void ShootTrainingRoom(sf4e::training::View& training,sf4e::ui::OverlayLayersVie
         }
     }
     training=saved;layers={};mode=2;draw();
+}
+// The host turns Practice match on at the table screen: round time 9999
+// comes with it, and a shorter time is pointed out on its own row.
+template<class Draw>
+void CheckPracticeMatchRules(sf4e::ui::ApplicationShell& shell,const Draw& draw) {
+    using namespace sf4e;using namespace ui;
+    {
+        std::vector<MenuEntry> ruleRows;
+        SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){ruleRows=rows;});
+        const auto rule=[&](const char* id){
+            const auto found=std::find_if(ruleRows.begin(),ruleRows.end(),[&](const MenuEntry& row){return row.id==id;});
+            Require(found!=ruleRows.end(),"A table rule row is missing");return *found;};
+        const auto reach=[&](const char* id){
+            for(int i=0;i<40&&shell.Navigation().Focus()!=id;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+            for(int i=0;i<40&&shell.Navigation().Focus()!=id;++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
+            Require(shell.Navigation().Focus()==id,"A table rule row is unreachable at this viewport/DPI");};
+        const auto step=[&](unsigned direction){draw(nullptr,direction,1);draw(nullptr,0,1);};
+        reach("training");step(MenuInput::Right);draw("table-practice-match");
+        Require(rule("training").value==loc::T("common.on")&&rule("time").value=="9999","Practice match did not bring round time 9999");
+        reach("time");step(MenuInput::Left);draw("table-practice-round-time");
+        Require(rule("time").value=="300"&&rule("time").detail.find(loc::Tf("rules.round_time.practice",9999))==0,
+            "A short Practice match time was not pointed out");
+        // Back to the table's own rules: nothing is left to apply.
+        step(MenuInput::Left);reach("training");step(MenuInput::Left);draw();
+        Require(rule("time").value=="99"&&rule("training").value==loc::T("common.off"),"The table's rules did not come back");
+        for(const auto& row:ruleRows)Require(row.id!="apply-rules","Restored rules still offered Apply rules");
+        SetMenuEntriesProbe({});
+    }
 }
 }

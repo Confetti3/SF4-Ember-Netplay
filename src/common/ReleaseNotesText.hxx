@@ -15,10 +15,26 @@ inline std::string Trim(const std::string& s) {
     while(b>a&&Space(s[b-1]))--b;
     return s.substr(a,b-a);
 }
-// Valid UTF-8 the menu fonts can draw. A cut through a character (the
-// client keeps the first 2,000 bytes), control characters, emoji past the
-// Basic Multilingual Plane and the invisible joiners and variation selectors
-// that go with them are dropped; a tab reads as a space.
+// Whether a character is shown: one the menu fonts can draw in the Basic
+// Multilingual Plane that is neither a control character nor a formatting
+// control. The formatting controls draw nothing and some change how the
+// text around them reads: the soft hyphen, the Arabic letter mark, the
+// Mongolian vowel separator, the zero-width spaces, joiners and directional
+// marks, the bidirectional embeddings, overrides and isolates, the word
+// joiner and invisible operators, the deprecated format characters, the
+// variation selectors, the byte order mark and the interlinear annotation
+// marks. U+FFFD, which stands for a character lost, goes too.
+inline bool Displayed(unsigned codepoint) {
+    if(codepoint<0xA0||codepoint>0xFFFF||(codepoint>=0xD800&&codepoint<=0xDFFF))return false;
+    static const struct { unsigned from, to; } hidden[]={{0x00AD,0x00AD},{0x061C,0x061C},{0x180E,0x180E},{0x200B,0x200F},
+        {0x202A,0x202E},{0x2060,0x2064},{0x2066,0x206F},{0xFE00,0xFE0F},{0xFEFF,0xFEFF},{0xFFF9,0xFFFB},{0xFFFD,0xFFFD}};
+    for(const auto& range:hidden)if(codepoint>=range.from&&codepoint<=range.to)return false;
+    return true;
+}
+// Valid UTF-8 of what Displayed allows. A cut through a character (the
+// client keeps the first 2,000 bytes), an overlong form or a surrogate is not
+// valid and goes; so do emoji past the Basic Multilingual Plane, which the
+// fonts do not draw. A newline stays and a tab reads as a space.
 inline std::string DrawableUtf8(const std::string& text) {
     std::string out;out.reserve(text.size());
     for(std::size_t i=0;i<text.size();) {
@@ -39,11 +55,10 @@ inline std::string DrawableUtf8(const std::string& text) {
             codepoint=(codepoint<<6)|(next&0x3Fu);
         }
         if(!valid){++i;continue;}
+        // Valid: not overlong, not a surrogate, not past U+10FFFF.
         const unsigned least[]={0,0,0x80,0x800,0x10000};
-        const bool drawable=codepoint>=least[length]&&codepoint<=0xFFFF&&!(codepoint>=0xD800&&codepoint<=0xDFFF)&&
-            codepoint>=0xA0&&!(codepoint>=0x200B&&codepoint<=0x200F)&&!(codepoint>=0x2060&&codepoint<=0x2064)&&
-            !(codepoint>=0xFE00&&codepoint<=0xFE0F)&&codepoint!=0xFEFF&&codepoint!=0xFFFD;
-        if(drawable)out.append(text,i,length);
+        valid=codepoint>=least[length]&&codepoint<=0x10FFFF&&!(codepoint>=0xD800&&codepoint<=0xDFFF);
+        if(valid&&Displayed(codepoint))out.append(text,i,length);
         i+=length;
     }
     return out;
@@ -128,20 +143,74 @@ inline bool RuleLine(const std::string& s,const char* marks) {
     for(const char c:s){if(c==marks[0])++count;else if(!Space(c)&&!std::char_traits<char>::find(marks,std::char_traits<char>::length(marks),c))return false;}
     return count>=3;
 }
+// A fence at the start of the line at `at`: three backticks or tildes after its indent.
+inline bool FenceAt(const std::string& s,std::size_t at) {
+    while(at<s.size()&&Space(s[at]))++at;
+    return StartsWith(s,at,"```")||StartsWith(s,at,"~~~");
+}
+// Whether a line between `from` and `to` starts a fence.
+inline bool FenceBetween(const std::string& s,std::size_t from,std::size_t to) {
+    for(std::size_t line=s.find('\n',from);line!=std::string::npos&&line<to;line=s.find('\n',line+1))
+        if(FenceAt(s,line+1)&&line+1<to)return true;
+    return false;
+}
+// The notes without their HTML comments, read as Markdown reads them: a
+// fenced block and an inline code span are code, whose "<!--" is text. A
+// comment that never closes, or that would close only past a fence, is
+// ambiguous and kept as the text it is. A comment that ran over lines leaves
+// the lines it took empty, so the text after it stays where it was.
+inline std::string WithoutComments(const std::string& s) {
+    std::string out;out.reserve(s.size());
+    bool fenced=false;
+    for(std::size_t i=0;i<s.size();) {
+        if(i==0||s[i-1]=='\n') {
+            const bool fence=FenceAt(s,i);
+            if(fence)fenced=!fenced;
+            if(fence||fenced) {
+                auto end=s.find('\n',i);end=end==std::string::npos?s.size():end+1;
+                out.append(s,i,end-i);i=end;continue;
+            }
+        }
+        const char c=s[i];
+        if(c=='`') {
+            std::size_t run=0;while(i+run<s.size()&&s[i+run]=='`')++run;
+            const auto lineEnd=s.find('\n',i);
+            const auto close=s.find(std::string(run,'`'),i+run);
+            const auto end=close!=std::string::npos&&close<lineEnd?close+run:i+run;
+            out.append(s,i,end-i);i=end;continue;
+        }
+        if(StartsWith(s,i,"<!--")) {
+            const auto close=s.find("-->",i+4);
+            if(close!=std::string::npos&&!FenceBetween(s,i,close)) {
+                for(std::size_t at=i;at<close;++at)if(s[at]=='\n')out+='\n';
+                i=close+3;continue;
+            }
+        }
+        out+=c;++i;
+    }
+    return out;
+}
+// A heading's words: an ATX heading's closing hashes go only as a closing
+// sequence, apart from the words by a space, so "C#" keeps its own.
+inline std::string HeadingWords(const std::string& heading) {
+    std::size_t end=heading.size();
+    while(end>0&&heading[end-1]=='#')--end;
+    if(end==0)return std::string();
+    if(end<heading.size()&&Space(heading[end-1]))return Trim(heading.substr(0,end));
+    return heading;
+}
 }
 // GitHub release notes are Markdown. The updater shows them as plain text
 // that reads cleanly: headings as their words, list items behind a dash, links
 // and images as their text, no emphasis, code or HTML marks, at most one
 // blank line in a row. The result is only ever drawn as text, never as a
-// format string or markup.
+// format string or markup. The update check makes it once, as the notes
+// arrive (github_release_client.cxx), so nothing drawn parses them again.
 inline std::string PlainReleaseNotes(const std::string& markdown) {
     using namespace notes_detail;
-    std::string text;text.reserve(markdown.size());
-    for(std::size_t i=0;i<markdown.size();) {
-        if(StartsWith(markdown,i,"<!--")){const auto end=markdown.find("-->",i+4);i=end==std::string::npos?markdown.size():end+3;continue;}
-        if(markdown[i]!='\r')text+=markdown[i];
-        ++i;
-    }
+    std::string newlines;newlines.reserve(markdown.size());
+    for(const char c:markdown)if(c!='\r')newlines+=c;
+    const std::string text=WithoutComments(newlines);
     std::vector<std::string> lines;
     bool fenced=false;
     for(std::size_t start=0;start<=text.size();) {
@@ -159,10 +228,9 @@ inline std::string PlainReleaseNotes(const std::string& markdown) {
         if(RuleLine(body,"-")||RuleLine(body,"*")||RuleLine(body,"_")||RuleLine(body,"=")){lines.emplace_back();continue;}
         std::size_t hashes=0;while(hashes<body.size()&&body[hashes]=='#')++hashes;
         if(hashes>=1&&hashes<=6&&(hashes==body.size()||Space(body[hashes]))) {
-            std::string heading=Trim(body.substr(hashes));
-            while(!heading.empty()&&heading.back()=='#')heading.pop_back();
+            const std::string heading=HeadingWords(Trim(body.substr(hashes)));
             if(!lines.empty()&&!lines.back().empty())lines.emplace_back();
-            lines.push_back(Inline(Trim(heading)));
+            lines.push_back(Inline(heading));
             continue;
         }
         const std::string pad((indent/2)*2,' ');

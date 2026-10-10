@@ -1,9 +1,11 @@
 #include "../launcher/update/PackageInstaller.hxx"
 #include "../launcher/update/UpdateHandoff.hxx"
 #include "../launcher/update/ProgressWindow.hxx"
+#include "../launcher/update/UpdaterArguments.hxx"
 #include "../common/PackageInventory.hxx"
 #include <windows.h>
 #include <bcrypt.h>
+#include <shellapi.h>
 #include <filesystem>
 #include <fstream>
 #include <vector>
@@ -180,6 +182,68 @@ int RunRecoveryFixtures(const fs::path& file, const fs::path& root) {
     }
     return failures;
 }
+// The Updater's command line and its -Stages field read back as written,
+// through CommandLineToArgvW, whatever the translated text holds; the steps'
+// names, order and bar come from the one table.
+static void TestUpdaterArguments() {
+    using namespace sf4e::launcher;
+    std::string error;
+    const auto parse=[](const std::wstring& arguments){
+        int count=0;
+        LPWSTR* parsed=CommandLineToArgvW((L"\"C:\\Temp\\Updater.exe\" "+arguments).c_str(),&count);
+        std::vector<std::wstring> values;
+        for(int i=1;i<count;++i)values.push_back(parsed[i]);
+        LocalFree(parsed);
+        return values;
+    };
+    const auto value=[](const std::vector<std::wstring>& values,const wchar_t* name)->std::wstring{
+        for(std::size_t i=0;i+1<values.size();++i)if(values[i]==name)return values[i+1];
+        return L"<missing>";
+    };
+    const auto has=[](const std::vector<std::wstring>& values,const wchar_t* name){
+        for(const auto& v:values)if(v==name)return true;
+        return false;
+    };
+    for(const std::wstring& text:{std::wstring(L"Installing \"the\" update..."),std::wstring(L"ends in a backslash\\"),std::wstring(L"a\\\"b\\\\"),
+        std::wstring(L"pipe | and \"quote\" \\\\ "),std::wstring(L"\x65E5\x672C\x8A9E \x00E9")}) {
+        UpdaterArguments in;in.installDir=L"C:\\Games\\Ember\\";in.stagingDir=L"C:\\Temp\\stage dir\\";in.waitPid=4242;in.status=text;
+        for(std::size_t i=0;i<InstallerStepCount;++i)in.stages.push_back(text+L" "+std::to_wstring(i));
+        const bool pipe=text.find(L'|')!=std::wstring::npos;
+        std::wstring line;
+        CHECK(BuildUpdaterArguments(in,line));
+        const auto values=parse(line);
+        CHECK(value(values,L"-InstallDir")==in.installDir&&value(values,L"-StagingDir")==in.stagingDir&&value(values,L"-WaitPid")==L"4242");
+        CHECK(value(values,L"-Status")==text);
+        // A name holding the separator cannot be carried: -Stages is left out, the rest goes.
+        if(pipe)CHECK(!has(values,L"-Stages"));
+        else CHECK(SplitStageNames(value(values,L"-Stages").c_str())==in.stages);
+    }
+    UpdaterArguments in;in.installDir=L"C:\\Ember";in.stagingDir=L"C:\\Stage";
+    in.stages.assign(InstallerStepCount,L"Step");in.stages[2].clear();
+    std::wstring line,field;
+    CHECK(!JoinStageNames(in.stages,field)&&field.empty());
+    CHECK(BuildUpdaterArguments(in,line)&&!has(parse(line),L"-Stages")&&!has(parse(line),L"-Status"));
+    in.stages[2]=L"line\nbreak";CHECK(!JoinStageNames(in.stages,field));
+    in.stages.pop_back();CHECK(!JoinStageNames(in.stages,field));
+    // Anything but one non-empty name per step names none.
+    CHECK(SplitStageNames(L"a|b").empty()&&SplitStageNames(L"a||c|d|e").empty()&&SplitStageNames(nullptr).empty()&&SplitStageNames(L"").empty());
+    CHECK(SplitStageNames(L"a|b|c|d|e").size()==InstallerStepCount);
+    // Recovery: the install folder and the process to wait for only.
+    in=UpdaterArguments{};in.installDir=L"C:\\Ember\\";in.recoverOnly=true;in.waitPid=7;
+    CHECK(BuildUpdaterArguments(in,line));
+    {const auto values=parse(line);CHECK(value(values,L"-InstallDir")==in.installDir&&has(values,L"-RecoverOnly")&&!has(values,L"-StagingDir")&&value(values,L"-WaitPid")==L"7");}
+    // A line longer than Windows starts a process with is refused, not cut.
+    in.status.assign(MostUpdaterArguments,L'x');
+    CHECK(!BuildUpdaterArguments(in,line)&&line.empty());
+    // The bar: each step's share in order, only forward, the whole of it.
+    int last=-1;
+    for(const auto& step:InstallerSteps)for(std::uint64_t done=0;done<=10;++done){
+        const int at=InstallerBarPosition(step.stage,done,10,1000);
+        CHECK(at>=last&&at>=step.from&&at<=step.to);last=at;
+    }
+    CHECK(last==1000&&InstallerBarPosition(UpdateStage::Downloading,5,10,1000)==0&&InstallerStepOf(UpdateStage::Extracting)<0);
+    CHECK(InstallerStepOf(UpdateStage::Replacing)==3&&std::string(InstallerSteps[3].nameKey)=="update.stage.replacing");
+}
 int wmain(int argc, wchar_t** argv) {
     std::string error;
     if (argc == 3 && std::wstring(argv[1]) == L"--recover") {
@@ -202,6 +266,7 @@ int wmain(int argc, wchar_t** argv) {
         std::cout << "Actual package accepted by the native updater inventory and validation\n";
         return 0;
     }
+    TestUpdaterArguments();
     const auto root = MakeTempRoot(L"ember-upgrade-test-");
     const auto staging = root/L"staging", install = root/L"install";
     fs::create_directories(staging); fs::create_directories(install);

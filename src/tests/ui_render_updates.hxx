@@ -6,6 +6,7 @@
 #include "../common/Localization.hxx"
 #include "../ui/ApplicationShell.hxx"
 #include "../ui/RecoveryMenu.hxx"
+#include "../common/ReleaseNotesText.hxx"
 #include <cstring>
 #include <string>
 #include <vector>
@@ -45,7 +46,7 @@ void ShootUpdates(sf4e::ui::GameMenu& menu,sf4e::platform::ServiceSnapshot& stat
     draw(nullptr,MenuInput::Back,1);draw();pick=ChannelPick{};
     // Stable offers an older version than the Nightly installed: the install row says so.
     state.channel=launcher::UpdateChannel::Stable;state.update.ok=state.update.updateAvailable=state.update.goesBack=true;
-    state.update.expectedSha256=std::string(64,'a');state.update.latestVersion="v1.1.2";state.update.releaseNotes=RenderReleaseNotes;
+    state.update.expectedSha256=std::string(64,'a');state.update.latestVersion="v1.1.2";state.update.releaseNotes=updates::PlainReleaseNotes(RenderReleaseNotes);
     menu.navigation=RecoveryNavigation(true);menu.navigation.Prefer("install");draw("update-going-back");
     menu.navigation.Prefer("notes");draw("update-whats-new");
     Require(menu.navigation.Focus()=="notes","What's new is missing from the updater");
@@ -89,5 +90,29 @@ void ShootVersionAndChannel(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellVie
     // Later shots open the controls from the screen's first row.
     shell.Navigation().Focus("help",rows);draw();SetMenuEntriesProbe({});
     view.services=platform::ServiceSnapshot{};view.build=build;shell.Navigation().Home();draw();
+}
+// The launch window (mode 4) and the updater's own sequence: the version
+// and channel in the corner, an update found and its confirm, downloading
+// and extracting, then ShootUpdates. recoveryUpdates: the window shows the
+// updater's rows, as the driver's draw passes it to DrawRecoveryMenu.
+template<class Draw>
+void ShootLaunchAndUpdates(sf4e::ui::GameMenu& recoveryMenu,sf4e::platform::ServiceSnapshot& recoveryState,bool& recoveryUpdates,sf4e::ui::ChannelPick& recoveryPick,int& mode,const Draw& draw) {
+    using namespace sf4e;using namespace ui;
+    // The launch window names the version and channel in its corner, as Home does.
+    recoveryState.installedVersion="1.1.0-rc1";recoveryState.channel=launcher::UpdateChannel::Beta;
+    mode=4;draw("launch-recovery");recoveryUpdates=true;recoveryMenu.navigation=RecoveryNavigation(true);
+    recoveryMenu.navigation.Prefer("channel");draw("update-channel-beta");
+    recoveryState.channel=launcher::UpdateChannel::Nightly;recoveryState.installedVersion="1.2.0-nightly20261008";draw("update-channel-nightly");
+    recoveryState.channel=launcher::UpdateChannel::Beta;recoveryState.installedVersion="1.1.0-rc1";recoveryMenu.navigation=RecoveryNavigation(true);recoveryState.update.ok=recoveryState.update.updateAvailable=true;
+    recoveryState.update.expectedSha256=std::string(64,'a');recoveryState.update.latestVersion="v1.0.0";draw("update-available");
+    // The found update is the first row, so Select asks to install it.
+    draw(nullptr,MenuInput::Select,1);draw("update-confirmation");
+    Require(recoveryMenu.navigation.Confirming()&&!recoveryMenu.navigation.ConfirmSelected(),"Recovery update confirmation is unsafe");
+    draw(nullptr,MenuInput::Back,1);draw();recoveryState.pending=true;recoveryState.stageDone=25*1024*1024;recoveryState.stageTotal=100*1024*1024;
+    recoveryState.message="Downloading the verified update. You can cancel this operation.";draw("update-downloading");
+    // Extracting has no total: a moving bar is drawn instead of a filled one.
+    recoveryState.lastAction=platform::ServiceAction::InstallUpdate;recoveryState.updateStage=launcher::UpdateStage::Extracting;recoveryState.stageDone=recoveryState.stageTotal=0;
+    recoveryState.message="Extracting the update.";draw("update-extracting");
+    ShootUpdates(recoveryMenu,recoveryState,recoveryPick,draw);
 }
 }

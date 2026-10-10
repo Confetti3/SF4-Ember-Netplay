@@ -11,11 +11,44 @@ inline constexpr wchar_t UpdateTransactionName[] = L".ember-update-transaction-v
 // download, extracts it and prepares (checks the package); the installer
 // checks the package too, then compares, backs up, replaces and confirms.
 enum class UpdateStage { Downloading, Verifying, Extracting, Preparing, Comparing, BackingUp, Replacing, Confirming };
-// The installer's own steps, in order, as Updater.exe's window names them: the
-// launcher passes their names, in the player's language, as -Stages, in this
-// order and separated by '|'.
-inline constexpr UpdateStage InstallerStages[] = { UpdateStage::Preparing, UpdateStage::Comparing, UpdateStage::BackingUp,
-    UpdateStage::Replacing, UpdateStage::Confirming };
+// The installer's own steps, in order: the one table of them. Each has the
+// locale key Updater.exe's window names it by, which the launcher passes in
+// the player's language as -Stages (UpdaterArguments.hxx), and its share of
+// that window's bar, in thousandths of it: the three passes that hash every
+// file take most of the time, and between releases few files are backed up
+// or replaced. Adding or reordering a step is a change to this table alone.
+struct InstallerStep { UpdateStage stage; const char* nameKey; int from, to; };
+inline constexpr InstallerStep InstallerSteps[] = {
+    { UpdateStage::Preparing, "update.stage.preparing", 0, 300 },
+    { UpdateStage::Comparing, "update.stage.comparing", 300, 600 },
+    { UpdateStage::BackingUp, "update.stage.backing_up", 600, 700 },
+    { UpdateStage::Replacing, "update.stage.replacing", 700, 800 },
+    { UpdateStage::Confirming, "update.stage.confirming", 800, 1000 } };
+inline constexpr std::size_t InstallerStepCount = sizeof(InstallerSteps) / sizeof(InstallerSteps[0]);
+// The steps follow each other in UpdateStage's order and share the bar
+// whole, each going only forward.
+inline constexpr bool InstallerStepsInOrder() {
+    for (std::size_t i = 0; i < InstallerStepCount; ++i) {
+        if (InstallerSteps[i].from >= InstallerSteps[i].to) return false;
+        if (i == 0 ? InstallerSteps[i].from != 0 : InstallerSteps[i].from != InstallerSteps[i - 1].to ||
+            static_cast<int>(InstallerSteps[i].stage) <= static_cast<int>(InstallerSteps[i - 1].stage)) return false;
+    }
+    return InstallerSteps[InstallerStepCount - 1].to == 1000;
+}
+static_assert(InstallerStepsInOrder(), "installer steps out of order or not sharing the bar whole");
+// stage's place in InstallerSteps, or -1 for a step that is not the installer's.
+inline constexpr int InstallerStepOf(UpdateStage stage) {
+    for (std::size_t i = 0; i < InstallerStepCount; ++i) if (InstallerSteps[i].stage == stage) return static_cast<int>(i);
+    return -1;
+}
+// Where a bar of `range` stands at `done` of `total` in stage; 0 for any other stage.
+inline int InstallerBarPosition(UpdateStage stage, std::uint64_t done, std::uint64_t total, int range) {
+    const int step = InstallerStepOf(stage);
+    if (step < 0) return 0;
+    const auto& share = InstallerSteps[step];
+    const int from = share.from * range / 1000, to = share.to * range / 1000;
+    return from + (total ? static_cast<int>(static_cast<std::uint64_t>(to - from) * (done < total ? done : total) / total) : 0);
+}
 // How far a step is: bytes while downloading and verifying, files after. Each
 // step counts from zero to its own total; a total of 0 is not known.
 using Progress = std::function<void(UpdateStage stage, std::uint64_t done, std::uint64_t total)>;

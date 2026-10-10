@@ -1,7 +1,9 @@
 #include "github_release_client_internal.hxx"
 #include "UpdateHandoff.hxx"
+#include "UpdaterArguments.hxx"
 #include "../../platform/Elevation.hxx"
 #include "../../platform/Utf8.hxx"
+#include "../../common/ReleaseNotesText.hxx"
 
 namespace sf4e {
 namespace launcher {
@@ -384,11 +386,13 @@ namespace launcher {
 		if (!std::filesystem::exists(std::filesystem::path(installDir) / UpdateTransactionName, error))
 			return error ? PendingRecovery::Failed : PendingRecovery::None;
 		AppendUpdateLog("pending update transaction found at launch; starting recovery");
-		wchar_t params[4096] = { 0 };
-		swprintf_s(params, L"-InstallDir \"%s\" -RecoverOnly -WaitPid %lu", installDir, static_cast<unsigned long>(waitPid));
+		UpdaterArguments arguments;
+		arguments.installDir = installDir; arguments.recoverOnly = true; arguments.waitPid = waitPid;
+		std::wstring params;
+		if (!BuildUpdaterArguments(arguments, params)) return PendingRecovery::Failed;
 		// The installed Updater may itself be part of the unfinished
 		// transaction, so it runs from a copy outside the install as usual.
-		switch (SpawnUpdater(installDir, installDir, params)) {
+		switch (SpawnUpdater(installDir, installDir, params.c_str())) {
 		case SpawnResult::Started: return PendingRecovery::Started;
 		case SpawnResult::NotNormalUser: return PendingRecovery::NotNormalUser;
 		default: return PendingRecovery::Failed;
@@ -538,9 +542,12 @@ namespace launcher {
 		result.releaseNotes = Text(release, "body");
 		result.releaseUrl = Text(release, "html_url");
 
+		// Plain text once, here, where the notes arrive: the screens that show
+		// them draw this text and never parse the Markdown again.
 		if (result.releaseNotes.size() > 2000) {
 			result.releaseNotes = result.releaseNotes.substr(0, 2000) + "...";
 		}
+		result.releaseNotes = updates::PlainReleaseNotes(result.releaseNotes);
 
 		if (release.contains("assets") && release["assets"].is_array()) {
 			// GitHub exposes an asset content digest as "sha256:<hex>". Strip
@@ -800,28 +807,24 @@ namespace launcher {
 		AppendUpdateLog("package validation ok");
 
         if (IsGameProcessRunning()) { result.error = loc::T("update.close_game"); return result; }
-		wchar_t updaterParams[4096] = { 0 };
-		// An Updater.exe from before -Status ignores it. The text is ours, but
-		// a quote in it would end the argument early.
-		std::wstring status = platform::Utf8ToWide(installingText);
-		std::replace(status.begin(), status.end(), L'"', L'\'');
-		// The installer's steps by name, for the Updater's window: in
-		// InstallerStages' order, separated by '|', which a name cannot hold.
-		// An Updater.exe from before -Stages ignores it too.
-		std::wstring stages;
-		for (const char* key : { "update.stage.preparing", "update.stage.comparing", "update.stage.backing_up", "update.stage.replacing", "update.stage.confirming" }) {
-			std::wstring name = platform::Utf8ToWide(loc::T(key));
-			std::replace(name.begin(), name.end(), L'"', L'\'');
-			std::replace(name.begin(), name.end(), L'|', L'/');
-			if (!stages.empty()) stages += L'|';
-			stages += name;
+		// The Updater's window text and its steps' names, in the player's
+		// language, passed whole with Windows' quoting (UpdaterArguments.hxx).
+		// An Updater.exe from before -Status or -Stages ignores them.
+		UpdaterArguments arguments;
+		arguments.installDir = installDir; arguments.stagingDir = stagingDir;
+		arguments.waitPid = GetCurrentProcessId();
+		arguments.status = platform::Utf8ToWide(installingText);
+		for (const auto& step : InstallerSteps) arguments.stages.push_back(platform::Utf8ToWide(loc::T(step.nameKey)));
+		std::wstring updaterParams;
+		if (!BuildUpdaterArguments(arguments, updaterParams)) {
+			AppendUpdateLog("the updater's command line would be too long");
+			result.error = loc::T("update.updater_start_failed"); return result;
 		}
-		static_assert(std::size(InstallerStages) == 5, "one name per installer step");
-		swprintf_s(updaterParams, L"-InstallDir \"%s\" -StagingDir \"%s\" -WaitPid %lu -Status \"%s\" -Stages \"%s\"",
-			installDir, stagingDir, GetCurrentProcessId(), status.c_str(), stages.c_str());
+		std::wstring joined;
+		if (!JoinStageNames(arguments.stages, joined)) AppendUpdateLog("the install steps' names cannot be passed; the updater shows its bar alone");
         SpawnResult spawned = SpawnResult::Failed;
         if (!HandoffPreparedUpdate(cancel, [&] {
-            spawned = SpawnUpdater(installDir, offer.goesBack ? installDir : stagingDir, updaterParams);
+            spawned = SpawnUpdater(installDir, offer.goesBack ? installDir : stagingDir, updaterParams.c_str());
         })) { result.error = loc::T("update.cancelled"); return result; }
         switch (spawned) {
         case SpawnResult::Started: break;

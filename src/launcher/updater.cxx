@@ -1,4 +1,5 @@
 #include "update/PackageInstaller.hxx"
+#include "update/UpdaterArguments.hxx"
 #include "update/ProgressWindow.hxx"
 #include "../common/PackageInventory.hxx"
 #include "../platform/Elevation.hxx"
@@ -83,46 +84,17 @@ static bool WaitForProcessExit(DWORD pid, DWORD timeoutMs) {
 	return waitResult == WAIT_OBJECT_0;
 }
 
-// The installer counts each step from zero; one bar gives each step its own
-// share, in order, so it only goes forward. The three passes that hash every
-// file take most of the time; between releases few files are backed up or
-// replaced.
-static int BarPosition(sf4e::launcher::UpdateStage stage, std::uint64_t done, std::uint64_t total) {
-    using sf4e::launcher::UpdateStage;
-    struct Share { UpdateStage stage; int from, to; };
-    constexpr int range = sf4e::launcher::ProgressWindow::Range;
-    static const Share shares[] = { { UpdateStage::Preparing, 0, range * 3 / 10 }, { UpdateStage::Comparing, range * 3 / 10, range * 6 / 10 },
-        { UpdateStage::BackingUp, range * 6 / 10, range * 7 / 10 }, { UpdateStage::Replacing, range * 7 / 10, range * 8 / 10 },
-        { UpdateStage::Confirming, range * 8 / 10, range } };
-    for (const auto& share : shares)
-        if (share.stage == stage) return share.from + (total ? static_cast<int>((share.to - share.from) * (std::min)(done, total) / total) : 0);
-    return 0;
-}
-// -Stages: one name per installer step, separated by '|'. Anything but one
-// name per step shows no step names.
-static std::vector<std::wstring> StageNames(const wchar_t* names) {
-    std::vector<std::wstring> stages;
-    if (!names || !names[0]) return stages;
-    for (const wchar_t* start = names;; ) {
-        const wchar_t* end = wcschr(start, L'|');
-        stages.emplace_back(start, end ? end : start + wcslen(start));
-        if (!end) break;
-        start = end + 1;
-    }
-    if (stages.size() != std::size(sf4e::launcher::InstallerStages)) stages.clear();
-    return stages;
-}
 static bool InstallFiles(const wchar_t* staging, const wchar_t* install, const sf4e::launcher::ProgressWindow& window) {
     std::string error;
     // A package is thousands of file steps; the bar is told only when it
     // would move, and the label only when the step changes, so the window's
-    // message queue never fills.
+    // message queue never fills. The steps, their order and their shares of
+    // the bar are InstallerSteps'.
     if (sf4e::launcher::InstallPackage(staging, install, error, sf4e::launcher::NeverCancelled,
         [&window, bar = window.Window(), shown = -1, named = -1](sf4e::launcher::UpdateStage stage, std::uint64_t done, std::uint64_t total) mutable {
-        const auto& stages = sf4e::launcher::InstallerStages;
-        const int step = static_cast<int>(std::find(std::begin(stages), std::end(stages), stage) - std::begin(stages));
-        if (step < static_cast<int>(std::size(stages)) && step != named) window.Stage(static_cast<std::size_t>(named = step));
-        const int position = BarPosition(stage, done, total);
+        const int step = sf4e::launcher::InstallerStepOf(stage);
+        if (step >= 0 && step != named) window.Stage(static_cast<std::size_t>(named = step));
+        const int position = sf4e::launcher::InstallerBarPosition(stage, done, total, sf4e::launcher::ProgressWindow::Range);
         if (bar && position > shown) PostMessageW(bar, PBM_SETPOS, shown = position, 0);
     })) return true;
     AppendLog(error.c_str()); return false;
@@ -274,7 +246,7 @@ int wmain(int argc, wchar_t** argv) {
 	wchar_t title[512] = { 0 };
 	_snwprintf_s(title, _TRUNCATE, L"SF4 Ember Netplay - %s", status);
 	sf4e::launcher::ProgressWindow::Options windowOptions;
-	windowOptions.stages = StageNames(stages);
+	windowOptions.stages = sf4e::launcher::SplitStageNames(stages);
 	sf4e::launcher::ProgressWindow progress(title, std::move(windowOptions));
 	if (!WaitForProcessExit(waitPid, 30000)) {
 		AppendLog("ERROR: launcher is still running; update cancelled");
