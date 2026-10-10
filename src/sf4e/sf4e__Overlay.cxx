@@ -77,7 +77,6 @@ static bool CapturesInput() { return sf4e::input::CapturesInput(capture.load(), 
 bool Overlay::CapturesMenuInput() { return CapturesInput(); }
 bool Overlay::HasInputFocus() { return focused.load(); }
 void Overlay::RequestMainControls() { if(focused) { capture=true; s_openRequests.Post(sf4e::ui::OpenRequests::Kind::Controls); } }
-std::uint32_t Overlay::TrainingPadEpoch() { return s_trainingControls.Epoch(); }
 void Overlay::PostTrainingPad(const sf4e::input::TrainingPadEvent& event) {
     if(!focused) return;
     s_trainingControls.Post(event);
@@ -373,6 +372,10 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // Skipped while a Reset replaces the context; held until the frame is drawn.
     sf4e::ui::OverlayLifecycle::Frame drawing(s_lifecycle);
     if (!drawing || !ImGui::GetCurrentContext()) return;
+    // The focus period this frame draws under, taken before it reads anything:
+    // the training controls open only under it, so a frame that began before
+    // the focus went never opens them, even once the focus is back.
+    const auto focus = s_trainingControls.Sample();
     // The frame reads only this: the game thread's state as its last tick left it.
     const auto frame = sf4e::NetplayFacade::GetPresentationSnapshotShared();
     const auto& snapshot = *frame->runtime;
@@ -489,7 +492,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         if (ImGui::IsKeyPressed(ImGuiKey_F5, false)) send(Command::Meter);
         if (ImGui::IsKeyPressed(ImGuiKey_F9, false)) send(Command::Inputs);
     }
-    if (!training.available || !focused) s_trainingControls.Set(false);
+    if (!training.available || !focused) s_trainingControls.Close();
     // Taken every frame, in the order the pad asked, so a press from before
     // the lab was shown never acts later.
     const auto padEvents = s_trainingControls.Take();
@@ -503,7 +506,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const auto& call = snapshot.trainingCall;
     const bool called = training.available && training.leavingIn > 0 && call.Live() && call.generation == training.generation && training.leavingCall == call.serial;
     const bool offerGoNow = called && focused && !presentation.Visible() && !nativePaused;
-    if (called) s_trainingControls.Set(false);
+    if (called) s_trainingControls.Close();
     // Training's keys and pad stay off during any replay, an export's too.
     if (focused && training.available && !playback.playback && !presentation.Visible()) {
         // The pad drives the controls while they are open, through the same
@@ -515,7 +518,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
             if (pad.generation != training.generation || !s_trainingControls.Current(pad)) continue;
             sf4e::ui::TrainingPadPosition(training, sf4e::training::Submit, pad);
         }
-        if (ImGui::IsKeyPressed(ImGuiKey_F6, false) && !called) s_trainingControls.Set(!s_trainingControls.Open());
+        if (ImGui::IsKeyPressed(ImGuiKey_F6, false) && !called) s_trainingControls.Toggle(focus);
         if (ImGui::IsKeyPressed(ImGuiKey_F5, false)) trainingHud = !trainingHud;
         auto practice = [&](sf4e::training::Action action) {
             sf4e::training::Submit({action, training.generation});
@@ -525,7 +528,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         if (!s_trainingControls.Open() && !called && !ImGui::GetIO().WantTextInput) {
             if (ImGui::IsKeyPressed(ImGuiKey_F7, false)) {
                 if(training.mode != sf4e::training::Mode::Recording && training.lengths[training.selected]>0) {
-                    sf4e::ui::ShowTrainingRecordings(); s_trainingControls.Set(true);
+                    sf4e::ui::ShowTrainingRecordings(); s_trainingControls.Open(focus);
                 } else practice(training.mode == sf4e::training::Mode::Recording ? sf4e::training::Action::Stop : sf4e::training::Action::Record);
             }
             if (ImGui::IsKeyPressed(ImGuiKey_F8, false)) practice(training.mode == sf4e::training::Mode::Playback ? sf4e::training::Action::Stop : sf4e::training::Action::Play);
@@ -534,7 +537,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
             // Only what this frame's flyout forwards is read below.
             sf4e::ui::TakeForwardedMenuAction();
             sf4e::ui::DrawTrainingFlyout(training, sf4e::training::Submit);
-            if(sf4e::ui::TakeForwardedMenuAction().kind==sf4e::ui::MenuAction::Close) s_trainingControls.Set(false);
+            if(sf4e::ui::TakeForwardedMenuAction().kind==sf4e::ui::MenuAction::Close) s_trainingControls.Close();
         }
     }
     sf4e::ui::OverlayLayersView layers;
@@ -604,7 +607,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         strip.disconnectCountdownMs = status.disconnectCountdownMs;
     }
     const auto hud = sf4e::ui::DrawOverlayLayers(layers, training);
-    if (hud.open && !called) s_trainingControls.Set(true);
+    if (hud.open && !called) s_trainingControls.Open(focus);
     // Shown survives alt-tab; taking the cursor and keys needs focus.
     const bool shown = presentation.Visible() || s_trainingControls.Open();
     const bool passive = sf4e::ui::PassiveOverlayShown(presentation.Visible(), s_trainingControls.Open(), nativePaused);
@@ -682,9 +685,10 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
             sf4e::ui::SetOverlayCursorOwnership(false);
             s_inputBridge.RequestClear();
             // The controls close with the focus, in the same step that ends
-            // the pad owner, so no chord from before can open them again.
+            // the focus period, so nothing sampled before can open them again.
             s_trainingControls.LoseFocus(); s_goNowKey.Reset();
         }
+        else s_trainingControls.GainFocus();
     }
     if (!ImGui::GetCurrentContext()) return 0;
     if (activationClick.Swallow(message, l)) return 0;

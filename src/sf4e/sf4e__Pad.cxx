@@ -42,6 +42,10 @@ void fSystem::Install() {
 }
 
 void fSystem::UpdateInputs() {
+    // The focus period this poll samples under, taken before any input is
+    // read: what the training controls are asked from this poll is accepted
+    // only while it is still current (TrainingPad.hxx: TrainingControls).
+    const auto focus=sf4e::Overlay::TrainingControls().Sample();
     const auto sharedSnapshot=sf4e::NetplayFacade::GetRuntimeSnapshotShared();
     const auto& snapshot=*sharedSnapshot;
     // A replay exported as a video, and a room's match this PC only watches,
@@ -57,7 +61,7 @@ void fSystem::UpdateInputs() {
     unsigned mapped=0,physical=0;
     const bool connected=Dimps::Pad::ReadController(device.type,device.index,mapped,&physical);
     constexpr unsigned PhysicalStart=sf4e::input::NativeStart;
-    const bool focused=sf4e::Overlay::HasInputFocus();
+    const bool focused=focus.focused;
     static bool mainArmed=false;
     static int ownerType=-1,ownerIndex=-1;
     if(!focused||!connected||!snapshot.atMainMenu||snapshot.inputCapture!=sf4e::input::Capture::Idle||
@@ -92,7 +96,7 @@ void fSystem::UpdateInputs() {
         const auto call=!goNow.Offered().Live()?sf4e::input::TrainingCall::None:
             free&&device.type==sf4e::input::PadXInput?sf4e::input::TrainingCall::GoNow:sf4e::input::TrainingCall::Called;
         const auto place=sf4e::training::ReadPlace();
-        sf4e::input::PadOwner owner;owner.generation=place.generation;owner.epoch=sf4e::Overlay::TrainingPadEpoch();
+        sf4e::input::PadOwner owner;owner.generation=place.generation;owner.epoch=focus.epoch;
         const auto result=trainingPad.Update(physical,sf4e::Overlay::TrainingControls(),GetTickCount64()/1000.0,call,owner,place.x);
         const auto& events=result.events;
         ownedByGesture=events.owned;

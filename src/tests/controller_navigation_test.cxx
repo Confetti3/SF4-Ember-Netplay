@@ -317,7 +317,7 @@ void TrainingPadOwnership(){
  Check(!step(0,regained).events.Any(),"A press from the old owner reset or saved");
  r=step(back,regained);step(both,regained);
  Check(controls.Open(),"A fresh chord under the new owner did not open the controls");
- step(0,regained);controls.Set(false);
+ step(0,regained);controls.Close();
  // Another battle while Back is held: no save comes of the old press.
  step(back,regained);PadOwner next=regained;next.generation=5;
  Check(!step(back,next,1).events.save&&!step(0,next).events.Any(),"A press from the last battle saved in the next");
@@ -332,6 +332,7 @@ void TrainingPadOwnership(){
  r=step(both,next);
  Check(!r.events.open&&!controls.Open(),"A chord whose owner went during its update opened the controls");
  step(0,next);
+ controls.GainFocus();
  // Open, then the focus goes and comes back with no frame drawn between:
  // the controls closed with the focus, so the next chord opens them rather
  // than closing what the old owner left open.
@@ -340,9 +341,40 @@ void TrainingPadOwnership(){
  Check(controls.Open(),"The chord did not open the controls");
  controls.LoseFocus();
  Check(!controls.Open(),"The controls stayed open when the focus went");
+ controls.GainFocus();
  PadOwner back2=back1;back2.epoch=controls.Epoch();
  step(back,back2);step(both,back2);step(0,back2);
  Check(controls.Open(),"A chord after the focus came back closed controls the old owner left open");
+ // The focus goes between a poll's focus read and its owner: the owner it
+ // reads after the loss is of a period without the focus, so a token taken
+ // then says so, and the Back recorded under it opens nothing once the focus
+ // is back, with no frame drawn between: the next poll's token is of the new
+ // period, and the press is dropped with its old owner.
+ controls.Close();
+ controls.LoseFocus();
+ Check(!controls.Sample().focused,"A token taken without the focus said it had the focus");
+ PadOwner stale=back2;stale.epoch=controls.Epoch();
+ step(back,stale);
+ controls.GainFocus();
+ PadOwner fresh=stale;fresh.epoch=controls.Sample().epoch;
+ r=step(both,fresh);step(0,fresh);
+ Check(!r.events.open&&!controls.Open(),"A Back sampled as the focus went opened the controls once it came back");
+ step(back,fresh);step(both,fresh);step(0,fresh);
+ Check(controls.Open(),"A chord in the new focus period did not open the controls");
+ // The focus goes between a frame's HUD result and its publication, and
+ // comes back before another frame: the frame's open is refused, as F6's
+ // and F7's are, since its token is of the period that ended.
+ {
+  TrainingControls hud;
+  const auto token=hud.Sample();
+  hud.LoseFocus();hud.GainFocus();
+  Check(!hud.Open(token)&&!hud.Toggle(token)&&!hud.Open()&&!CapturesInput(false,hud),"A frame from before the focus went opened the controls after it came back");
+  Check(hud.Open(hud.Sample())&&hud.Open(),"A frame in the new focus period did not open the controls");
+  Check(hud.Toggle(token)&&!hud.Open(),"F6 under an old token did not close the controls");
+  hud.LoseFocus();
+  const auto unfocused=hud.Sample();
+  Check(!unfocused.focused&&!hud.Open(unfocused)&&!hud.Open(),"A frame without the focus opened the controls");
+ }
  // A batch taken just before the owner changed is not applied.
  TrainingControls queue;TrainingPadEvent event;event.kind=TrainingPadEvent::Kind::Save;event.generation=5;event.epoch=queue.Epoch();
  Check(queue.Post(event),"The queue refused an event of its owner");
@@ -368,7 +400,7 @@ void TrainingFlyoutOwner(){
  using namespace sf4e::input;
  const float place[2]={0,0};
  for(const bool start:{false,true}){
-  TrainingPadInput pad;TrainingControls controls;controls.Set(start);double now=0;
+  TrainingPadInput pad;TrainingControls controls;if(start)controls.Open(controls.Sample());double now=0;
   PadOwner owner;owner.generation=1;owner.epoch=controls.Epoch();
   const auto step=[&](unsigned physical){now+=1.0/60;return pad.Update(physical,controls,now,TrainingCall::None,owner,place);};
   for(int chord=0;chord<2;++chord){step(PhysicalBack);step(PhysicalBack|PhysicalStart);step(0);}
@@ -376,14 +408,14 @@ void TrainingFlyoutOwner(){
   step(PhysicalBack);step(PhysicalBack|PhysicalStart);step(0);
   Check(controls.Open()==!start,"One chord did not change the controls");
   // F6 between chords: the next chord acts on what F6 left.
-  controls.Set(!controls.Open());
+  controls.Toggle(controls.Sample());
   step(PhysicalBack);step(PhysicalBack|PhysicalStart);step(0);
   Check(controls.Open()==!start,"A chord after F6 did not act on what F6 left");
  }
- TrainingPadInput pad;TrainingControls controls;controls.Set(true);double now=0;
+ TrainingPadInput pad;TrainingControls controls;controls.Open(controls.Sample());double now=0;
  PadOwner owner;owner.generation=1;owner.epoch=controls.Epoch();
  const auto step=[&](unsigned physical){now+=1.0/60;return pad.Update(physical,controls,now,TrainingCall::None,owner,place);};
- step(PhysicalBack);controls.Set(false);// the controls' own Back closed them
+ step(PhysicalBack);controls.Close();// the controls' own Back closed them
  step(PhysicalBack|PhysicalStart);step(0);
  Check(!controls.Open(),"The chord reopened controls its own Back had closed");
 }

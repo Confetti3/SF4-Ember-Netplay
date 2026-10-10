@@ -15,8 +15,7 @@ namespace sf4e {
         // Game thread: what the pad's Back and Start ask for in offline
         // Training, in order (TrainingPad.hxx). An event posted under an epoch
         // that has gone is dropped: DropTrainingPad, on a change of pad or
-        // context, and the loss of focus end the epoch.
-        std::uint32_t TrainingPadEpoch();
+        // context, and a change of focus end the epoch.
         void PostTrainingPad(const input::TrainingPadEvent& event);
         void DropTrainingPad();
         // The training controls' one controller: whether they are open, the

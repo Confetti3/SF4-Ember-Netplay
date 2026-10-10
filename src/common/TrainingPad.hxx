@@ -103,37 +103,55 @@ struct TrainingPadEvent {
     std::uint32_t epoch = 0;
     float place[2] = {0, 0};
 };
-// The training controls' one controller, shared by the game thread and the
-// drawing thread. It holds, under one lock:
-// - whether the controls are meant to be open. The pad's chord decides open
-//   or close against it and is accepted only for the pad owner it was
-//   pressed under, so two chords before a frame open and then close; the
-//   overlay sets it for F6, the HUD's chip, the controls' own Back and the
-//   call. Whether Ember takes the game's input follows it directly
+// The training controls' one controller, shared by the game thread, the
+// drawing thread and the window procedure. It holds, under one lock:
+// - whether the window has the focus, and the focus period and pad owner as
+//   one epoch. LoseFocus and GainFocus each end the epoch, and Invalidate
+//   ends it on a change of pad or context. Anything that would open the
+//   controls first samples a Token, before it reads any input or decides
+//   anything, and opens them only while that token's epoch is still the
+//   current one and the window has the focus: a pad poll or a frame that
+//   began before the focus went, or in the focus period before this one,
+//   can never open them;
+// - whether the controls are meant to be open. Closing them needs no token.
+//   The pad's chord decides open or close against them, accepted only under
+//   the epoch it was pressed under, so two chords before a frame open and
+//   then close. Whether Ember takes the game's input follows them directly
 //   (sf4e__Overlay.cxx: CapturesMenuInput), with nothing latched beside it;
-// - the pad owner (its epoch). Invalidate ends it on a change of pad or
-//   context; LoseFocus ends it and closes the controls in the same step, so
-//   no chord pressed before the focus went can open them after;
 // - the position events the pad posts, in order, for the drawing thread.
 //   Bounded: past the bound an event is dropped, never merged into another.
 //   An event posted or applied under an owner that has gone is dropped.
 class TrainingControls {
 public:
     static constexpr std::size_t MostEvents = 16;
+    // The focus period and pad owner an input was sampled under.
+    struct Token { std::uint32_t epoch = 0; bool focused = false; };
+    Token Sample() const { std::lock_guard<std::mutex> lock(mutex_); return Token{epoch_, focused_}; }
     bool Open() const { std::lock_guard<std::mutex> lock(mutex_); return open_; }
-    // The overlay's own changes: F6, the chip, the controls' Back, the call.
-    void Set(bool open) { std::lock_guard<std::mutex> lock(mutex_); open_ = open; }
+    // F6, the HUD's chip, F7's recordings: open under token, or nothing.
+    bool Open(const Token& token) { std::lock_guard<std::mutex> lock(mutex_); return OpenUnder(token.epoch, token.focused); }
+    // F6: closed if open, otherwise opened under token.
+    bool Toggle(const Token& token) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (open_) { open_ = false; return true; }
+        return OpenUnder(token.epoch, token.focused);
+    }
+    // The controls' own Back, the call, leaving Training.
+    void Close() { std::lock_guard<std::mutex> lock(mutex_); open_ = false; }
     // The pad's chord, pressed under epoch: false, changing nothing, when that
-    // owner has gone.
+    // owner has gone, or when it would open them without the focus.
     bool Accept(bool open, std::uint32_t epoch) {
         std::lock_guard<std::mutex> lock(mutex_);
-        if (epoch != epoch_) return false;
-        open_ = open;
-        return true;
+        if (!open) { if (epoch != epoch_) return false; open_ = false; return true; }
+        return OpenUnder(epoch, true);
     }
     std::uint32_t Epoch() const { std::lock_guard<std::mutex> lock(mutex_); return epoch_; }
+    bool Focused() const { std::lock_guard<std::mutex> lock(mutex_); return focused_; }
     void Invalidate() { std::lock_guard<std::mutex> lock(mutex_); ++epoch_; events_.clear(); }
-    void LoseFocus() { std::lock_guard<std::mutex> lock(mutex_); ++epoch_; events_.clear(); open_ = false; }
+    // The window procedure's, on WM_ACTIVATEAPP. Losing the focus closes the
+    // controls in the same step that ends the epoch.
+    void LoseFocus() { std::lock_guard<std::mutex> lock(mutex_); ++epoch_; events_.clear(); open_ = false; focused_ = false; }
+    void GainFocus() { std::lock_guard<std::mutex> lock(mutex_); ++epoch_; events_.clear(); focused_ = true; }
     // False when it is dropped: posted under an owner that has gone, or full.
     bool Post(const TrainingPadEvent& event) {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -151,8 +169,15 @@ public:
     // applied: one taken just before the owner changed is not applied.
     bool Current(const TrainingPadEvent& event) const { return event.epoch == Epoch(); }
 private:
+    bool OpenUnder(std::uint32_t epoch, bool focused) {
+        if (!focused || !focused_ || epoch != epoch_) return false;
+        open_ = true;
+        return true;
+    }
     mutable std::mutex mutex_;
     bool open_ = false;
+    // The window starts with the focus, as the overlay assumes.
+    bool focused_ = true;
     std::uint32_t epoch_ = 0;
     std::vector<TrainingPadEvent> events_;
 };
@@ -165,7 +190,8 @@ private:
 inline bool CapturesInput(bool shellShown, const TrainingControls& controls) { return shellShown || controls.Open(); }
 
 // Who a Back press belongs to: the Training battle (its generation) and the
-// pad owner (TrainingControls' epoch) it went down under.
+// pad owner (the epoch of the TrainingControls token its poll took first) it
+// went down under.
 struct PadOwner {
     std::uint64_t generation = 0;
     std::uint32_t epoch = 0;
