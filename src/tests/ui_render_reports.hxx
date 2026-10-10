@@ -190,7 +190,8 @@ void ShootCrashReportOffer(sf4e::ui::GameMenu& menu,sf4e::platform::ServiceSnaps
     std::string& message,const Draw& draw) {
     using namespace sf4e;using namespace ui;
     const std::string before=message;
-    message=loc::T("launcher.game_crashed");state={};
+    // The launch window's version line stays in its corner beside the offer.
+    message=loc::T("launcher.game_crashed");state={};state.installedVersion="1.1.0-rc1";state.channel=launcher::UpdateChannel::Beta;
     menu=GameMenu{};menu.navigation=RecoveryNavigation(false);
     report={};report.asking=true;
     std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries){rows=entries;});
