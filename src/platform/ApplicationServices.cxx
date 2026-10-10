@@ -225,15 +225,15 @@ void ApplicationServices::Run() {
                 next.succeeded = opened;
                 next.message = opened ? loc::Tf("services.replay_folder_opened", WideToUtf8(folder.wstring())) : loc::T("services.replay_folder_failed");
             } else if (action == ServiceAction::ShowReplayFile) {
-                // The archive's listing named the file; only the folder a handle
-                // reaches is opened, and only one of the archive, held so it
-                // cannot be swapped meanwhile (ReplayPath.hxx).
-                HANDLE held = INVALID_HANDLE_VALUE;
-                const std::wstring folder = ArchiveFolderOf(target, replays::FindFolders().archive.wstring(), held);
-                const bool opened = !folder.empty() && ShellOpen(folder.c_str());
-                if (held != INVALID_HANDLE_VALUE) CloseHandle(held);
+                // The archive's listing named the file; only the folder handles
+                // reach is opened, and only one of the archive by identity. The
+                // replay and its folder stay held through the shell's handoff,
+                // so neither can be moved, emptied or swapped meanwhile
+                // (ReplayPath.hxx: ArchiveFolder).
+                const ArchiveFolder folder = ArchiveFolderOf(target, replays::FindFolders().archive.wstring());
+                const bool opened = !folder.Empty() && ShellOpen(folder.Path().c_str());
                 next.succeeded = opened;
-                next.message = opened ? loc::Tf("services.replay_folder_opened", WideToUtf8(folder)) : loc::T("services.replay_folder_failed");
+                next.message = opened ? loc::Tf("services.replay_folder_opened", WideToUtf8(folder.Path())) : loc::T("services.replay_folder_failed");
             } else if (action == ServiceAction::InstallUpdate) {
                 if (!next.update.ok || !next.update.updateAvailable || next.update.expectedSha256.size() != 64) {
                     next.message = loc::T("services.no_verified_update");

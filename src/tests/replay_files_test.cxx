@@ -12,6 +12,9 @@
 #ifdef _WIN32
 #include "../platform/ReplayPath.hxx"
 #include "../platform/DurableFile.hxx"
+#include <winioctl.h>
+#include <cstdio>
+#include <cstring>
 #endif
 
 static void TestImportWriteRecovery() {
@@ -342,6 +345,41 @@ static std::wstring Junction(const std::filesystem::path& link, const std::files
  CloseHandle(process.hThread); CloseHandle(process.hProcess);
  return fs::is_directory(link)?link.wstring():std::wstring();
 }
+// Turns an empty folder into a junction to target in place, as another
+// program could, with no move or replacement of the folder itself. False when
+// Windows refuses, as it does for a folder that is not empty.
+static bool JunctionInPlace(const std::filesystem::path& folder, const std::filesystem::path& target) {
+ struct MountPoint {
+  DWORD tag; WORD dataLength, reserved;
+  WORD substituteOffset, substituteLength, printOffset, printLength;
+  wchar_t paths[1024];
+ } buffer={};
+ const std::wstring substitute=L"\\??\\"+target.wstring(), print=target.wstring();
+ if(substitute.size()+print.size()+2>1024)return false;
+ buffer.tag=IO_REPARSE_TAG_MOUNT_POINT;
+ buffer.substituteOffset=0;buffer.substituteLength=static_cast<WORD>(substitute.size()*sizeof(wchar_t));
+ buffer.printOffset=static_cast<WORD>((substitute.size()+1)*sizeof(wchar_t));buffer.printLength=static_cast<WORD>(print.size()*sizeof(wchar_t));
+ std::memcpy(buffer.paths,substitute.c_str(),substitute.size()*sizeof(wchar_t));
+ std::memcpy(buffer.paths+substitute.size()+1,print.c_str(),print.size()*sizeof(wchar_t));
+ buffer.dataLength=static_cast<WORD>(8+(substitute.size()+print.size()+2)*sizeof(wchar_t));
+ const HANDLE handle=CreateFileW(folder.c_str(),GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,nullptr,OPEN_EXISTING,
+  FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OPEN_REPARSE_POINT,nullptr);
+ if(handle==INVALID_HANDLE_VALUE)return false;
+ DWORD written=0;
+ const bool set=DeviceIoControl(handle,FSCTL_SET_REPARSE_POINT,&buffer,8+buffer.dataLength,nullptr,0,&written,nullptr)!=0;
+ CloseHandle(handle);
+ return set;
+}
+// Makes an empty folder case-sensitive, as WSL's folders are; false where
+// this account or this Windows cannot.
+static bool CaseSensitive(const std::filesystem::path& folder) {
+ const HANDLE handle=CreateFileW(folder.c_str(),FILE_WRITE_ATTRIBUTES,FILE_SHARE_READ|FILE_SHARE_WRITE,nullptr,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS,nullptr);
+ if(handle==INVALID_HANDLE_VALUE)return false;
+ FILE_CASE_SENSITIVE_INFO info={};info.Flags=FILE_CS_FLAG_CASE_SENSITIVE_DIR;
+ const bool set=SetFileInformationByHandle(handle,FileCaseSensitiveInfo,&info,sizeof info)!=0;
+ CloseHandle(handle);
+ return set;
+}
 static void TestArchiveFolderContainment() {
  namespace fs = std::filesystem;
  using sf4e::platform::ArchiveFolderOf;
@@ -350,13 +388,7 @@ static void TestArchiveFolderContainment() {
  CHECK(fs::create_directories(archive/"sub")&&fs::create_directories(outside));
  const auto touch=[](const fs::path& path) { std::ofstream(path,std::ios::binary)<<"replay"; };
  for(const auto& file:{archive/"a.emberreplay",archive/"sub"/"b.emberreplay",outside/"b.emberreplay",outside/"c.emberreplay"})touch(file);
- const auto shown=[&](const fs::path& file,const fs::path& root) {
-  HANDLE held;
-  const std::wstring opened=ArchiveFolderOf(file.wstring(),root.wstring(),held);
-  CHECK(opened.empty()==(held==INVALID_HANDLE_VALUE));
-  if(held!=INVALID_HANDLE_VALUE)CloseHandle(held);
-  return opened;
- };
+ const auto shown=[&](const fs::path& file,const fs::path& root) { return ArchiveFolderOf(file.wstring(),root.wstring()).Path(); };
  const auto same=[](const std::wstring& opened,const fs::path& want) { return !opened.empty()&&fs::equivalent(fs::path(opened),want); };
  CHECK(same(shown(archive/"a.emberreplay",archive),archive));
  CHECK(same(shown(archive/"sub"/"b.emberreplay",archive),archive/"sub"));
@@ -390,12 +422,36 @@ static void TestArchiveFolderContainment() {
  fs::remove(archive/"sub");
  CHECK(fs::exists(outside/"b.emberreplay"));
  fs::rename(folder/"moved",archive/"sub");
- // While held, the folder being opened cannot be moved or replaced.
- HANDLE held;
- CHECK(!ArchiveFolderOf((archive/"sub"/"b.emberreplay").wstring(),archive.wstring(),held).empty());
- CHECK(!MoveFileW((archive/"sub").c_str(),(folder/"moved").c_str()));
- CloseHandle(held);
- CHECK(MoveFileW((archive/"sub").c_str(),(folder/"moved").c_str()));
+ // While held, through the shell's handoff, the folder cannot be moved, and
+ // the replay can be neither deleted nor moved, so the folder cannot be
+ // emptied and turned into a junction in place either. Let go, all of it can.
+ {
+  const auto held=ArchiveFolderOf((archive/"sub"/"b.emberreplay").wstring(),archive.wstring());
+  CHECK(!held.Empty());
+  CHECK(!MoveFileW((archive/"sub").c_str(),(folder/"moved").c_str()));
+  CHECK(!DeleteFileW((archive/"sub"/"b.emberreplay").c_str())&&!MoveFileW((archive/"sub"/"b.emberreplay").c_str(),(folder/"b.emberreplay").c_str()));
+  CHECK(!JunctionInPlace(archive/"sub",outside)&&!(GetFileAttributesW((archive/"sub").c_str())&FILE_ATTRIBUTE_REPARSE_POINT));
+ }
+ CHECK(DeleteFileW((archive/"sub"/"b.emberreplay").c_str())&&JunctionInPlace(archive/"sub",outside));
+ CHECK(shown(archive/"sub"/"b.emberreplay",archive).empty());
+ fs::remove(archive/"sub");
+ CHECK(fs::exists(outside/"b.emberreplay"));
+ // Two folders whose names differ only in case, in a case-sensitive folder:
+ // the archive's name finds where to look, but only the archive itself, by
+ // identity, holds its replays, not its sibling, nor through a junction.
+ const fs::path sensitive=folder/"sensitive";
+ fs::create_directories(sensitive);
+ if(!CaseSensitive(sensitive))std::printf("replay_files_test: no case-sensitive folder here; that check was skipped\n");
+ else {
+  const fs::path kept=sensitive/"archive", other=sensitive/"Archive";
+  CHECK(fs::create_directory(kept)&&fs::create_directory(other)&&!fs::equivalent(kept,other));
+  touch(kept/"d.emberreplay");touch(other/"e.emberreplay");
+  CHECK(same(shown(kept/"d.emberreplay",kept),kept));
+  CHECK(shown(other/"e.emberreplay",kept).empty());
+  CHECK(!Junction(kept/"linked",other).empty());
+  CHECK(shown(kept/"linked"/"e.emberreplay",kept).empty());
+  fs::remove(kept/"linked");
+ }
  fs::remove(archive/"linked"); fs::remove(archive/"symlinked",linkError);
  CHECK(fs::exists(outside/"c.emberreplay"));
  fs::remove_all(folder);
