@@ -69,10 +69,10 @@ void fSystem::UpdateInputs() {
     // Offline Training: the pad's Back and Start (TrainingPad.hxx). Each press
     // keeps the battle and pad owner it went down under, and the position
     // events it makes are posted in order for the drawing thread with them.
-    // The chord opens or closes the controls in their one state at once and
-    // takes the capture here, so the caches cleared below hide its Start from
-    // native pause in this same frame; a chord that opens nothing (under the
-    // call) still owns its Start, which is cleared from the caches as well.
+    // The chord opens or closes the controls in their controller at once, and
+    // the capture follows that controller, so the caches cleared below hide
+    // its Start from native pause in this same frame; a chord that opens
+    // nothing (under the call) still owns its Start, cleared there as well.
     static sf4e::input::TrainingPadInput trainingPad;
     static bool trainingPadOwned=false;
     std::uint32_t ownedByGesture=0;
@@ -96,7 +96,6 @@ void fSystem::UpdateInputs() {
         const auto result=trainingPad.Update(physical,sf4e::Overlay::TrainingControls(),GetTickCount64()/1000.0,call,owner,place.x);
         const auto& events=result.events;
         ownedByGesture=events.owned;
-        if(events.open) sf4e::Overlay::OpenedTrainingControls();
         if(events.goNow&&!goNow.Press(sf4e::input::GoNowGate::Source::Pad,free)) spdlog::info("Training: go now on the pad was not taken");
         using Kind=sf4e::input::TrainingPadEvent::Kind;
         for(const Kind kind:{Kind::Reset,Kind::Save}) {

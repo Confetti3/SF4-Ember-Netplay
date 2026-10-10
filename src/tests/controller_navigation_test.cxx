@@ -280,15 +280,15 @@ void TrainingPadChord(){
 void TrainingPadEventOrder(){
  using namespace sf4e::input;
  using Kind=TrainingPadEvent::Kind;
- TrainingPadQueue queue;
+ TrainingControls queue;
  const auto event=[&](Kind kind,std::uint64_t generation,float x=0){TrainingPadEvent e;e.kind=kind;e.generation=generation;e.epoch=queue.Epoch();e.place[0]=x;return e;};
  Check(queue.Post(event(Kind::Save,4,120))&&queue.Post(event(Kind::Reset,4))&&queue.Post(event(Kind::Save,4,200)),"The queue refused a gesture");
  auto taken=queue.Take();
  Check(taken.size()==3&&taken[0].kind==Kind::Save&&taken[0].place[0]==120&&taken[1].kind==Kind::Reset&&taken[2].kind==Kind::Save&&taken[2].place[0]==200,
   "Gestures between frames were merged or reordered, or a save lost where its press was");
  Check(queue.Take().empty(),"An event was taken twice");
- for(std::size_t i=0;i<TrainingPadQueue::MostEvents;++i)queue.Post(event(Kind::Reset,4));
- Check(!queue.Post(event(Kind::Save,4))&&queue.Take().size()==TrainingPadQueue::MostEvents,"A full queue took one more or merged it");
+ for(std::size_t i=0;i<TrainingControls::MostEvents;++i)queue.Post(event(Kind::Reset,4));
+ Check(!queue.Post(event(Kind::Save,4))&&queue.Take().size()==TrainingControls::MostEvents,"A full queue took one more or merged it");
  // An owner change between posting and taking drops the waiting event, and
  // one made under the old owner and posted after is dropped too.
  const auto stale=event(Kind::Save,4);
@@ -303,31 +303,62 @@ void TrainingPadEventOrder(){
 // owner changed is not applied under the new one.
 void TrainingPadOwnership(){
  using namespace sf4e::input;
- TrainingPadInput pad;TrainingFlyout flyout;double now=0;
+ TrainingPadInput pad;TrainingControls controls;double now=0;
  const float place[2]={100,300};
- PadOwner owner;owner.generation=4;owner.epoch=1;
- const auto step=[&](unsigned physical,const PadOwner& current,double seconds=1.0/60){now+=seconds;return pad.Update(physical,flyout,now,TrainingCall::None,current,place);};
+ PadOwner owner;owner.generation=4;owner.epoch=controls.Epoch();
+ const auto step=[&](unsigned physical,const PadOwner& current,double seconds=1.0/60){now+=seconds;return pad.Update(physical,controls,now,TrainingCall::None,current,place);};
  const unsigned back=PhysicalBack,both=PhysicalBack|PhysicalStart;
  auto r=step(back,owner);
  Check(r.events.pressed&&r.owner==owner&&r.place[0]==100,"A press did not take its owner and place");
- PadOwner regained=owner;regained.epoch=2;
+ controls.Invalidate();
+ PadOwner regained=owner;regained.epoch=controls.Epoch();
  r=step(both,regained);
- Check(!r.events.open&&!flyout.Open(),"A chord finished under a new pad owner opened the controls");
+ Check(!r.events.open&&!controls.Open(),"A chord finished under a new pad owner opened the controls");
  Check(!step(0,regained).events.Any(),"A press from the old owner reset or saved");
  r=step(back,regained);step(both,regained);
- Check(flyout.Open(),"A fresh chord under the new owner did not open the controls");
- step(0,regained);flyout.Set(false);
+ Check(controls.Open(),"A fresh chord under the new owner did not open the controls");
+ step(0,regained);controls.Set(false);
  // Another battle while Back is held: no save comes of the old press.
  step(back,regained);PadOwner next=regained;next.generation=5;
  Check(!step(back,next,1).events.save&&!step(0,next).events.Any(),"A press from the last battle saved in the next");
  r=step(back,next);r=step(back,next,.6);
  Check(r.events.save&&r.owner==next,"A hold under one owner did not save for it");
  step(0,next);
+ // The focus goes while a chord's update is under way: the poll read its
+ // owner before, and the controller refuses the chord after. The controls
+ // stay closed and nothing of the chord is published.
+ step(back,next);
+ controls.LoseFocus();
+ r=step(both,next);
+ Check(!r.events.open&&!controls.Open(),"A chord whose owner went during its update opened the controls");
+ step(0,next);
+ // Open, then the focus goes and comes back with no frame drawn between:
+ // the controls closed with the focus, so the next chord opens them rather
+ // than closing what the old owner left open.
+ PadOwner back1=next;back1.epoch=controls.Epoch();
+ step(back,back1);step(both,back1);step(0,back1);
+ Check(controls.Open(),"The chord did not open the controls");
+ controls.LoseFocus();
+ Check(!controls.Open(),"The controls stayed open when the focus went");
+ PadOwner back2=back1;back2.epoch=controls.Epoch();
+ step(back,back2);step(both,back2);step(0,back2);
+ Check(controls.Open(),"A chord after the focus came back closed controls the old owner left open");
  // A batch taken just before the owner changed is not applied.
- TrainingPadQueue queue;TrainingPadEvent event;event.kind=TrainingPadEvent::Kind::Save;event.generation=5;event.epoch=queue.Epoch();
+ TrainingControls queue;TrainingPadEvent event;event.kind=TrainingPadEvent::Kind::Save;event.generation=5;event.epoch=queue.Epoch();
  Check(queue.Post(event),"The queue refused an event of its owner");
  const auto taken=queue.Take();queue.Invalidate();
  Check(taken.size()==1&&!queue.Current(taken[0]),"An event taken before the owner changed was still current");
+ // The game's input is taken while the controls are open, read from their
+ // controller as it is now. A frame reads them closed, a chord opens them,
+ // and the frame then publishes its menu's part as not shown: the input is
+ // still taken, so the game's caches are cleared.
+ TrainingControls race;PadOwner live;live.generation=1;live.epoch=race.Epoch();
+ TrainingPadInput chord;double at=0;
+ const bool frameSawOpen=race.Open();
+ chord.Update(back,race,at+=.02,TrainingCall::None,live,place);chord.Update(both,race,at+=.02,TrainingCall::None,live,place);
+ const bool shellShown=frameSawOpen&&false;
+ MenuInputCapture gate;
+ Check(!frameSawOpen&&CapturesInput(shellShown,race)&&gate.Update(CapturesInput(shellShown,race),0),"A frame's late publication released the input the chord took");
 }
 // The controls' open state has one owner. Two chords before a frame open and
 // then close them, from either state; F6 and the controls' own Back act on
@@ -335,24 +366,26 @@ void TrainingPadOwnership(){
 // DirectInput pad's Back is the menu's too) does not open them again.
 void TrainingFlyoutOwner(){
  using namespace sf4e::input;
- PadOwner owner;owner.generation=1;owner.epoch=1;const float place[2]={0,0};
+ const float place[2]={0,0};
  for(const bool start:{false,true}){
-  TrainingPadInput pad;TrainingFlyout flyout;flyout.Set(start);double now=0;
-  const auto step=[&](unsigned physical){now+=1.0/60;return pad.Update(physical,flyout,now,TrainingCall::None,owner,place);};
+  TrainingPadInput pad;TrainingControls controls;controls.Set(start);double now=0;
+  PadOwner owner;owner.generation=1;owner.epoch=controls.Epoch();
+  const auto step=[&](unsigned physical){now+=1.0/60;return pad.Update(physical,controls,now,TrainingCall::None,owner,place);};
   for(int chord=0;chord<2;++chord){step(PhysicalBack);step(PhysicalBack|PhysicalStart);step(0);}
-  Check(flyout.Open()==start,"Two chords before a frame did not open and close the controls");
+  Check(controls.Open()==start,"Two chords before a frame did not open and close the controls");
   step(PhysicalBack);step(PhysicalBack|PhysicalStart);step(0);
-  Check(flyout.Open()==!start,"One chord did not change the controls");
+  Check(controls.Open()==!start,"One chord did not change the controls");
   // F6 between chords: the next chord acts on what F6 left.
-  flyout.Set(!flyout.Open());
+  controls.Set(!controls.Open());
   step(PhysicalBack);step(PhysicalBack|PhysicalStart);step(0);
-  Check(flyout.Open()==!start,"A chord after F6 did not act on what F6 left");
+  Check(controls.Open()==!start,"A chord after F6 did not act on what F6 left");
  }
- TrainingPadInput pad;TrainingFlyout flyout;flyout.Set(true);double now=0;
- const auto step=[&](unsigned physical){now+=1.0/60;return pad.Update(physical,flyout,now,TrainingCall::None,owner,place);};
- step(PhysicalBack);flyout.Set(false);// the controls' own Back closed them
+ TrainingPadInput pad;TrainingControls controls;controls.Set(true);double now=0;
+ PadOwner owner;owner.generation=1;owner.epoch=controls.Epoch();
+ const auto step=[&](unsigned physical){now+=1.0/60;return pad.Update(physical,controls,now,TrainingCall::None,owner,place);};
+ step(PhysicalBack);controls.Set(false);// the controls' own Back closed them
  step(PhysicalBack|PhysicalStart);step(0);
- Check(!flyout.Open(),"The chord reopened controls its own Back had closed");
+ Check(!controls.Open(),"The chord reopened controls its own Back had closed");
 }
 // Go now is taken only for the call that stands and only while the press is
 // nobody else's; the request names that call, so once the call has changed

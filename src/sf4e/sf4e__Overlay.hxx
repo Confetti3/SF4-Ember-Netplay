@@ -13,19 +13,16 @@ namespace sf4e {
         bool HasInputFocus();
         void RequestMainControls();
         // Game thread: what the pad's Back and Start ask for in offline
-        // Training, in order (TrainingPad.hxx). Opening takes the input at
-        // once, as RequestMainControls does. An event posted under an epoch
+        // Training, in order (TrainingPad.hxx). An event posted under an epoch
         // that has gone is dropped: DropTrainingPad, on a change of pad or
         // context, and the loss of focus end the epoch.
         std::uint32_t TrainingPadEpoch();
         void PostTrainingPad(const input::TrainingPadEvent& event);
         void DropTrainingPad();
-        // The training controls' one open state, which the pad's chord and
-        // the overlay both set (TrainingPad.hxx: TrainingFlyout).
-        input::TrainingFlyout& TrainingControls();
-        // Game thread: the pad's chord opened the controls; the input is
-        // taken at once, as RequestMainControls does.
-        void OpenedTrainingControls();
+        // The training controls' one controller: whether they are open, the
+        // pad owner and the position events (TrainingPad.hxx). Whether Ember
+        // takes the game's input follows it directly (CapturesMenuInput).
+        input::TrainingControls& TrainingControls();
 		void InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice);
 		// Draws the overlay over the game's picture. picture, which takes an
 		// export's picture, runs once each call: after the layers an export's

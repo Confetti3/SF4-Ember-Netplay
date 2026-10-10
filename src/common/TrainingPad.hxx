@@ -103,15 +103,37 @@ struct TrainingPadEvent {
     std::uint32_t epoch = 0;
     float place[2] = {0, 0};
 };
-// Between the game thread, which posts, and the drawing thread, which takes.
-// Bounded: past the bound an event is dropped, never merged into another.
-// Invalidate, on focus loss or a change of pad or context, drops what waits
-// and every event still to be posted under the old owner.
-class TrainingPadQueue {
+// The training controls' one controller, shared by the game thread and the
+// drawing thread. It holds, under one lock:
+// - whether the controls are meant to be open. The pad's chord decides open
+//   or close against it and is accepted only for the pad owner it was
+//   pressed under, so two chords before a frame open and then close; the
+//   overlay sets it for F6, the HUD's chip, the controls' own Back and the
+//   call. Whether Ember takes the game's input follows it directly
+//   (sf4e__Overlay.cxx: CapturesMenuInput), with nothing latched beside it;
+// - the pad owner (its epoch). Invalidate ends it on a change of pad or
+//   context; LoseFocus ends it and closes the controls in the same step, so
+//   no chord pressed before the focus went can open them after;
+// - the position events the pad posts, in order, for the drawing thread.
+//   Bounded: past the bound an event is dropped, never merged into another.
+//   An event posted or applied under an owner that has gone is dropped.
+class TrainingControls {
 public:
     static constexpr std::size_t MostEvents = 16;
+    bool Open() const { std::lock_guard<std::mutex> lock(mutex_); return open_; }
+    // The overlay's own changes: F6, the chip, the controls' Back, the call.
+    void Set(bool open) { std::lock_guard<std::mutex> lock(mutex_); open_ = open; }
+    // The pad's chord, pressed under epoch: false, changing nothing, when that
+    // owner has gone.
+    bool Accept(bool open, std::uint32_t epoch) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (epoch != epoch_) return false;
+        open_ = open;
+        return true;
+    }
     std::uint32_t Epoch() const { std::lock_guard<std::mutex> lock(mutex_); return epoch_; }
     void Invalidate() { std::lock_guard<std::mutex> lock(mutex_); ++epoch_; events_.clear(); }
+    void LoseFocus() { std::lock_guard<std::mutex> lock(mutex_); ++epoch_; events_.clear(); open_ = false; }
     // False when it is dropped: posted under an owner that has gone, or full.
     bool Post(const TrainingPadEvent& event) {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -130,25 +152,20 @@ public:
     bool Current(const TrainingPadEvent& event) const { return event.epoch == Epoch(); }
 private:
     mutable std::mutex mutex_;
+    bool open_ = false;
     std::uint32_t epoch_ = 0;
     std::vector<TrainingPadEvent> events_;
 };
 
-// Whether the training controls are meant to be open: the one owner of it
-// for both threads. The pad's gesture decides open or close against it and
-// sets it as its chord is taken, so two chords before a frame open and then
-// close; the overlay sets it for F6, the HUD's chip, the controls' own Back,
-// the call and the loss of focus, and draws what it says.
-class TrainingFlyout {
-public:
-    bool Open() const { return open_.load(); }
-    void Set(bool open) { open_.store(open); }
-private:
-    std::atomic<bool> open_{false};
-};
+// Whether Ember takes the game's input: while its menu is shown with the
+// focus (shellShown, the drawing thread's) or the training controls are
+// open, as their controller says now. Nothing about the controls is latched
+// beside it, so a chord that opens them between a frame's read and its
+// publication is never undone by that frame.
+inline bool CapturesInput(bool shellShown, const TrainingControls& controls) { return shellShown || controls.Open(); }
 
 // Who a Back press belongs to: the Training battle (its generation) and the
-// pad owner (TrainingPadQueue's epoch) it went down under.
+// pad owner (TrainingControls' epoch) it went down under.
 struct PadOwner {
     std::uint64_t generation = 0;
     std::uint32_t epoch = 0;
@@ -160,7 +177,8 @@ struct PadOwner {
 // the pad owner changes before the gesture ends (focus lost and back between
 // two polls, another battle), the gesture is dropped, so nothing it would ask
 // for, a reset, a save or the controls, acts under another owner. The chord
-// opens or closes the controls in the flyout's one state as it is taken.
+// opens or closes the controls, accepted only for the owner it was pressed
+// under: one whose owner went during the update (focus lost) is refused.
 class TrainingPadInput {
 public:
     struct Result {
@@ -169,14 +187,14 @@ public:
         PadOwner owner;
         float place[2] = {0, 0};
     };
-    Result Update(std::uint32_t physical, TrainingFlyout& flyout, double now, TrainingCall call, const PadOwner& current, const float (&place)[2]) {
+    Result Update(std::uint32_t physical, TrainingControls& controls, double now, TrainingCall call, const PadOwner& current, const float (&place)[2]) {
         if (held_ && current != owner_) gesture_.Reset();
         Result result;
-        result.events = gesture_.Update(physical, flyout.Open(), now, call);
+        result.events = gesture_.Update(physical, controls.Open(), now, call);
         if (result.events.pressed) { owner_ = current; place_[0] = place[0]; place_[1] = place[1]; }
         held_ = (physical & PhysicalBack) != 0;
-        if (result.events.open) flyout.Set(true);
-        if (result.events.close) flyout.Set(false);
+        if ((result.events.open || result.events.close) && !controls.Accept(result.events.open, owner_.epoch))
+            result.events.open = result.events.close = false;
         result.owner = owner_; result.place[0] = place_[0]; result.place[1] = place_[1];
         return result;
     }
