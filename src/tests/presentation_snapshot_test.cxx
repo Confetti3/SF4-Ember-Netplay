@@ -175,17 +175,17 @@ static void TestTrainingRequestTake() {
 	using sf4e::netplay::Generation;
 	Request request;
 	Request::Pending seen;
-	const auto holds = [](bool answer) { return [answer](const Generation&, bool) { return answer; }; };
+	const auto holds = [](bool answer) { return [answer](const Generation&) { return answer; }; };
 	CHECK(request.Take(100, holds(true)) == Request::Taken::None);
-	request.Post(Generation{1, 0}, true, 100, 2000);
+	request.Post(Generation{1, 0}, 100, 2000);
 	CHECK(request.Take(150, holds(false)) == Request::Taken::Dropped && !request.Peek(150, seen));
-	request.Post(Generation{1, 0}, true, 200, 2000);
+	request.Post(Generation{1, 0}, 200, 2000);
 	CHECK(request.Take(250, holds(true)) == Request::Taken::Go && !request.Peek(250, seen));
 	CHECK(request.Take(260, holds(true)) == Request::Taken::None);
-	request.Post(Generation{1, 0}, true, 300, 2000);
+	request.Post(Generation{1, 0}, 300, 2000);
 	unsigned long long newer = 0;
-	CHECK(request.Take(350, [&](const Generation&, bool) { newer = request.Post(Generation{2, 0}, false, 350, 2000); return true; }) == Request::Taken::None);
-	CHECK(request.Peek(360, seen) && seen.serial == newer && !seen.fromRoom);
+	CHECK(request.Take(350, [&](const Generation&) { newer = request.Post(Generation{2, 0}, 350, 2000); return true; }) == Request::Taken::None);
+	CHECK(request.Peek(360, seen) && seen.serial == newer && seen.generation == (Generation{2, 0}));
 	CHECK(request.Take(3000, holds(true)) == Request::Taken::None);
 }
 
@@ -243,13 +243,13 @@ static void TestTrainingRoster(const sf4e::netplay::Snapshot& session, const sf4
 		return authority.SnapshotView().tables[0].matchGeneration;
 	};
 	room::Snapshot live = authority.SnapshotFor(queuer);
-	const auto judged = [&](const Generation& generation, bool fromRoom) {
-		return facade::TrainingHolds(fromRoom ? TrainingEntry::Room : TrainingEntry::Offline, generation, session, true, live, 0);
+	const auto judged = [&](const Generation& generation) {
+		return facade::TrainingHolds(TrainingEntry::Room, generation, session, true, live, 0);
 	};
 	// Queued while the table waits: eligible. The game starts and its roster
 	// takes the queued member in: the accepted request is dropped.
-	CHECK(live.localMatchGenerationsSent && judged(made, true));
-	sf4e::GameEvents::MainMenu::RequestTraining(made, true);
+	CHECK(live.localMatchGenerationsSent && judged(made));
+	sf4e::GameEvents::MainMenu::RequestTraining(made);
 	const auto first = begin();
 	CHECK((authority.MatchRoster(0) == std::vector<room::MemberId>{p1, p2, queuer}));
 	live = authority.SnapshotFor(queuer);
@@ -270,8 +270,8 @@ static void TestTrainingRoster(const sf4e::netplay::Snapshot& session, const sf4
 		std::find(table.spectators.begin(), table.spectators.end(), queuer) != table.spectators.end());
 	CHECK(live.localMatchGenerationsSent && live.localMatchGenerations[0] == 0);
 	// Free to train through this game: the request is taken once.
-	CHECK(judged(made, true));
-	sf4e::GameEvents::MainMenu::RequestTraining(made, true);
+	CHECK(judged(made));
+	sf4e::GameEvents::MainMenu::RequestTraining(made);
 	CHECK(record.Take(GetTickCount64(), judged) == Taken::Go && none());
 	CHECK(record.Take(GetTickCount64(), judged) == Taken::None);
 	// The same snapshot from a host that does not say falls back to the lists.
@@ -291,14 +291,14 @@ static void TestTrainingRoster(const sf4e::netplay::Snapshot& session, const sf4
 	const auto third = begin();
 	CHECK((authority.MatchRoster(0) == std::vector<room::MemberId>{p1, p2, watcher}));
 	const auto watcherJudged = [&](const sf4e::netplay::Snapshot& state) {
-		return [&, state](const Generation& generation, bool fromRoom) {
-			return facade::TrainingHolds(fromRoom ? TrainingEntry::Room : TrainingEntry::Offline, generation, state, true, live, 0);
+		return [&, state](const Generation& generation) {
+			return facade::TrainingHolds(TrainingEntry::Room, generation, state, true, live, 0);
 		};
 	};
 	live = authority.SnapshotFor(watcher);
 	CHECK(room::FindMember(live, watcher)->status == room::MemberStatus::Watching);
 	CHECK(!facade::TrainingHolds(TrainingEntry::Room, made, session, true, live, 0));
-	sf4e::GameEvents::MainMenu::RequestTraining(made, true);
+	sf4e::GameEvents::MainMenu::RequestTraining(made);
 	CHECK(record.Take(GetTickCount64(), watcherJudged(session)) == Taken::Dropped && none());
 	CHECK(act(watcher, room::ActionKind::Unwatch, 0));
 	CHECK(authority.SnapshotView().tables[0].phase == room::TablePhase::Playing && authority.SnapshotView().tables[0].matchGeneration == third);
@@ -308,7 +308,7 @@ static void TestTrainingRoster(const sf4e::netplay::Snapshot& session, const sf4
 	auto tornDown = session;
 	tornDown.match = sf4e::netplay::MatchState::PostMatch;
 	CHECK(facade::TrainingHolds(TrainingEntry::Room, made, tornDown, true, live, 0));
-	sf4e::GameEvents::MainMenu::RequestTraining(made, true);
+	sf4e::GameEvents::MainMenu::RequestTraining(made);
 	CHECK(record.Take(GetTickCount64(), watcherJudged(tornDown)) == Taken::Go && none());
 	CHECK(record.Take(GetTickCount64(), watcherJudged(tornDown)) == Taken::None);
 	// They then queue at the same table, its game still being played: queued
@@ -322,7 +322,7 @@ static void TestTrainingRoster(const sf4e::netplay::Snapshot& session, const sf4
 		std::find(requeued.spectators.begin(), requeued.spectators.end(), watcher) == requeued.spectators.end());
 	CHECK(live.localMatchGenerations[0] == third);
 	CHECK(facade::TrainingHolds(TrainingEntry::Room, made, tornDown, true, live, 0));
-	sf4e::GameEvents::MainMenu::RequestTraining(made, true);
+	sf4e::GameEvents::MainMenu::RequestTraining(made);
 	CHECK(record.Take(GetTickCount64(), watcherJudged(tornDown)) == Taken::Go && none());
 	CHECK(record.Take(GetTickCount64(), watcherJudged(tornDown)) == Taken::None);
 	// Still in the game's teardown (the controller not yet back): no Training.
@@ -349,10 +349,10 @@ static void CheckTrainingRows(const std::vector<TrainingRow>& rows, const sf4e::
 		if (holds != row.holds) std::fprintf(stderr, "Training matrix row \"%s\": holds=%d, expected %d\n", row.name, holds, row.holds);
 		CHECK(holds == row.holds);
 		CHECK(!facade::TrainingHolds(TrainingEntry::Room, Generation{made.room + 1, 0}, row.session, true, row.room, row.retired));
-		const auto judged = [&](const Generation& generation, bool fromRoom) {
-			return facade::TrainingHolds(fromRoom ? TrainingEntry::Room : TrainingEntry::Offline, generation, row.session, true, row.room, row.retired);
+		const auto judged = [&](const Generation& generation) {
+			return facade::TrainingHolds(TrainingEntry::Room, generation, row.session, true, row.room, row.retired);
 		};
-		sf4e::GameEvents::MainMenu::RequestTraining(made, true);
+		sf4e::GameEvents::MainMenu::RequestTraining(made);
 		if (row.holds) {
 			CHECK(record.Take(GetTickCount64(), judged) == Taken::Go && none());
 			CHECK(record.Take(GetTickCount64(), judged) == Taken::None);
@@ -617,26 +617,23 @@ static void TestTrainingPolicy() {
 	auto readying = session; readying.readyPending = true;
 	CHECK(!facade::TrainingHolds(TrainingEntry::Room, made, readying, true, alone, 0));
 	CHECK(!facade::TrainingHolds(TrainingEntry::None, made, session, true, alone, 0));
-	sf4e::netplay::Snapshot idle; idle.generation = made;
-	CHECK(facade::TrainingHolds(TrainingEntry::Offline, made, idle, true, {}, 0));
-	CHECK(!facade::TrainingHolds(TrainingEntry::Offline, made, idle, false, {}, 0));
 	// Accepted while alone; the client then applies a newer room snapshot of the
 	// same session, an opponent sat down, before the menu looks: no Training.
 	sf4e::room::Snapshot live = alone;
-	const auto judged = [&](const Generation& generation, bool fromRoom) {
-		return facade::TrainingHolds(fromRoom ? TrainingEntry::Room : TrainingEntry::Offline, generation, session, true, live, 0);
+	const auto judged = [&](const Generation& generation) {
+		return facade::TrainingHolds(TrainingEntry::Room, generation, session, true, live, 0);
 	};
-	CHECK(judged(made, true));
-	sf4e::GameEvents::MainMenu::RequestTraining(made, true);
+	CHECK(judged(made));
+	sf4e::GameEvents::MainMenu::RequestTraining(made);
 	CHECK(record.Peek(GetTickCount64(), seen));
 	const auto first = seen.serial;
 	live = challenged;
 	CHECK(record.Take(GetTickCount64(), judged) == Taken::Dropped && none());
 	// Still alone when the menu looks: one post, one move, nothing left after.
 	live = alone;
-	CHECK(judged(made, true));
-	sf4e::GameEvents::MainMenu::RequestTraining(made, true);
-	CHECK(record.Peek(GetTickCount64(), seen) && seen.serial == first + 1 && seen.fromRoom && seen.generation == made);
+	CHECK(judged(made));
+	sf4e::GameEvents::MainMenu::RequestTraining(made);
+	CHECK(record.Peek(GetTickCount64(), seen) && seen.serial == first + 1 && seen.generation == made);
 	CHECK(record.Take(GetTickCount64(), judged) == Taken::Go && none());
 	CHECK(record.Take(GetTickCount64(), judged) == Taken::None);
 	// In the room at no table: eligible. The client then applies a newer snapshot
@@ -648,8 +645,8 @@ static void TestTrainingPolicy() {
 	unseated.members.resize(1);
 	unseated.members[0].id = 1;
 	live = unseated;
-	CHECK(judged(made, true));
-	sf4e::GameEvents::MainMenu::RequestTraining(made, true);
+	CHECK(judged(made));
+	sf4e::GameEvents::MainMenu::RequestTraining(made);
 	CHECK(!none());
 	auto closed = unseated;
 	closed.closed = true;
@@ -679,11 +676,11 @@ static void TestTrainingPolicy() {
 		watching.members[0].status = sf4e::room::MemberStatus::Watching;
 		CHECK(!facade::TrainingHolds(TrainingEntry::Room, made, after, true, watching, 0));
 		live = waiting;
-		const auto judgedAfter = [&](const Generation& generation, bool fromRoom) {
-			return facade::TrainingHolds(fromRoom ? TrainingEntry::Room : TrainingEntry::Offline, generation, after, true, live, 0);
+		const auto judgedAfter = [&](const Generation& generation) {
+			return facade::TrainingHolds(TrainingEntry::Room, generation, after, true, live, 0);
 		};
-		CHECK(judgedAfter(made, true));
-		sf4e::GameEvents::MainMenu::RequestTraining(made, true);
+		CHECK(judgedAfter(made));
+		sf4e::GameEvents::MainMenu::RequestTraining(made);
 		live = watching;
 		CHECK(record.Take(GetTickCount64(), judgedAfter) == Taken::Dropped && none());
 		// Listed among the spectators but left out of this game's roster: free until
@@ -708,8 +705,8 @@ static void TestTrainingPolicy() {
 		unlocked.members[0].spectatorLocked = false;
 		CHECK(facade::TrainingHolds(TrainingEntry::Room, made, after, true, unlocked, 0));
 		live = waiting;
-		CHECK(judgedAfter(made, true));
-		sf4e::GameEvents::MainMenu::RequestTraining(made, true);
+		CHECK(judgedAfter(made));
+		sf4e::GameEvents::MainMenu::RequestTraining(made);
 		live = holding;
 		CHECK(record.Take(GetTickCount64(), judgedAfter) == Taken::Dropped && none());
 	}
@@ -732,8 +729,8 @@ static void TestTrainingPolicy() {
 	admitted.tables[0].spectators = {4, 1};
 	CHECK(!facade::TrainingHolds(TrainingEntry::Room, made, session, true, admitted, 0));
 	live = queued;
-	CHECK(judged(made, true));
-	sf4e::GameEvents::MainMenu::RequestTraining(made, true);
+	CHECK(judged(made));
+	sf4e::GameEvents::MainMenu::RequestTraining(made);
 	live = admitted;
 	CHECK(record.Take(GetTickCount64(), judged) == Taken::Dropped && none());
 	// Once the host says, its roster decides, not the lists.
@@ -753,8 +750,8 @@ static void TestTrainingPolicy() {
 static Dimps::GameEvents::RootEvent* NoRootEvent() { return nullptr; }
 
 // Through the real queue: the runtime refuses a room entry outside a room and
-// one made in another session, and with no main menu up an offline entry only
-// starts offline. None of them reaches the native menu.
+// one made in another session, and Play offline only starts offline. None of
+// them reaches the native menu.
 static void TestRuntimeJudgesTraining() {
 	using sf4e::TrainingEntry;
 	namespace netplay = sf4e::netplay;
@@ -780,17 +777,15 @@ static void TestRuntimeJudgesTraining() {
 	facade::TickRuntime();
 	CHECK(!record.Peek(GetTickCount64(), seen));
 	CHECK(facade::GetRuntimeSnapshot().session.room == netplay::RoomState::Idle);
-	// An offline entry must ride on its StartOffline.
+	// Play offline sends the game to its own menus, Training among them, and
+	// asks the menu for nothing.
 	facade::RuntimeCommand offline;
-	offline.command = {netplay::CommandKind::HostRoom, current, {}};
-	offline.training = TrainingEntry::Offline;
-	CHECK(!facade::SubmitRuntimeCommand(offline));
-	offline.command.kind = netplay::CommandKind::StartOffline;
+	offline.command = {netplay::CommandKind::StartOffline, current, {}};
 	CHECK(facade::SubmitRuntimeCommand(offline));
 	facade::TickRuntime();
 	CHECK(facade::GetRuntimeSnapshot().offlineRequested && !record.Peek(GetTickCount64(), seen));
 	// The menu's own question, live: no main menu is up, so nothing holds.
-	CHECK(!facade::TrainingRequestHolds(current, true) && !facade::TrainingRequestHolds(current, false));
+	CHECK(!facade::TrainingRequestHolds(current));
 	TestTrainingPolicy();
 	facade::StopHelper();
 	Dimps::App::GetRootEvent = originalRoot;
@@ -804,16 +799,16 @@ static void TestTrainingRequestRecord() {
 	Request request;
 	Request::Pending seen;
 	CHECK(!request.Peek(100, seen));
-	const auto a = request.Post(Generation{1, 0}, true, 100, 2000);
-	CHECK(request.Peek(150, seen) && seen.serial == a && seen.fromRoom && seen.generation == (Generation{1, 0}) && seen.deadline == 2100);
-	// The game thread has A and is judging it; B arrives with its own origin and deadline.
-	const auto b = request.Post(Generation{2, 0}, false, 500, 2000);
+	const auto a = request.Post(Generation{1, 0}, 100, 2000);
+	CHECK(request.Peek(150, seen) && seen.serial == a && seen.generation == (Generation{1, 0}) && seen.deadline == 2100);
+	// The game thread has A and is judging it; B arrives with its own session and deadline.
+	const auto b = request.Post(Generation{2, 0}, 500, 2000);
 	CHECK(b != a);
 	CHECK(!request.Consume(a));
-	CHECK(request.Peek(600, seen) && seen.serial == b && !seen.fromRoom && seen.generation == (Generation{2, 0}) && seen.deadline == 2500);
+	CHECK(request.Peek(600, seen) && seen.serial == b && seen.generation == (Generation{2, 0}) && seen.deadline == 2500);
 	CHECK(request.Consume(b) && !request.Consume(b) && !request.Peek(600, seen));
 	// A request that ran out is forgotten, and cannot be consumed afterwards.
-	const auto c = request.Post(Generation{3, 0}, true, 1000, 2000);
+	const auto c = request.Post(Generation{3, 0}, 1000, 2000);
 	CHECK(!request.Peek(3001, seen) && !request.Consume(c));
 }
 

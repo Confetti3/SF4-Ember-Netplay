@@ -617,7 +617,7 @@ msgid "home.online"
 msgstr "온라인 플레이"
 
 msgid "home.online_detail"
-msgstr "방을 만들거나 참가하거나 공개 방을 둘러보세요."
+msgstr "방을 만들거나 참가하고, 공개 방을 둘러보거나, 대회용 Ember ID를 설정하세요."
 
 msgid "home.return_room"
 msgstr "현재 방으로 돌아갑니다."
@@ -659,7 +659,7 @@ msgid "home.offline"
 msgstr "오프라인 플레이"
 
 msgid "home.offline_detail"
-msgstr "게임의 오프라인 메뉴를 엽니다."
+msgstr "트레이닝, 대전, 아케이드 등 게임의 오프라인 모드입니다."
 
 msgid "home.replays"
 msgstr "리플레이"
@@ -819,12 +819,6 @@ msgstr "Ember 메뉴를 나가 리플레이를 재생하는 게임의 Battle Log
 
 msgid "replays.open_log_room"
 msgstr "먼저 방에서 나가세요."
-msgid "home.training"
-msgstr "트레이닝"
-
-msgid "home.training_detail"
-msgstr "게임의 트레이닝 모드로 바로 이동합니다."
-
 msgid "settings.training_auto_ready"
 msgstr "트레이닝에서 호출되면 자동 준비"
 

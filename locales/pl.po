@@ -617,7 +617,7 @@ msgid "home.online"
 msgstr "Gra online"
 
 msgid "home.online_detail"
-msgstr "Utwórz pokój, dołącz do pokoju albo przeglądaj pokoje publiczne."
+msgstr "Utwórz pokój, dołącz do pokoju, przeglądaj pokoje publiczne albo skonfiguruj Ember ID do turniejów."
 
 msgid "home.return_room"
 msgstr "Wróć do bieżącego pokoju."
@@ -659,7 +659,7 @@ msgid "home.offline"
 msgstr "Graj offline"
 
 msgid "home.offline_detail"
-msgstr "Otwórz menu gry offline."
+msgstr "Trening, Versus, Arcade i inne tryby offline gry."
 
 msgid "home.replays"
 msgstr "Powtórki"
@@ -819,12 +819,6 @@ msgstr "Opuszcza menu Ember i otwiera Battle Log gry, gdzie odtwarzane są powt�
 
 msgid "replays.open_log_room"
 msgstr "Najpierw opuść pokój."
-msgid "home.training"
-msgstr "Trening"
-
-msgid "home.training_detail"
-msgstr "Przejdź prosto do trybu treningowego gry."
-
 msgid "settings.training_auto_ready"
 msgstr "Gotowość po wezwaniu z Treningu"
 

@@ -217,7 +217,7 @@ A bridge whose configuration has `discord` (the Discord application's
 `client_id`, with `<origin>/v1/discord/callback` in its redirect list) and
 whose integration secrets hold the client secret lists `discord` in its
 capabilities `features`. A player then connects their Discord account from
-Ember (Ember ID on the home menu, then Discord). A platform can send the
+Ember (Online play, then Ember ID, then Discord). A platform can send the
 player there directly: the link `ember://discord/connect?bridge=<bridge_id>`,
 offered by the page `https://embernetplay.link/start#<bridge_id>`, opens
 Ember's Connect Discord screen for that bridge. At an idle menu it creates the

@@ -179,8 +179,8 @@ void fMainMenu::Install() {
 }
 
 
-void fMainMenu::RequestTraining(const sf4e::netplay::Generation& generation, bool fromRoom) {
-	trainingRequest.Post(generation, fromRoom, GetTickCount64(), 2000);
+void fMainMenu::RequestTraining(const sf4e::netplay::Generation& generation) {
+	trainingRequest.Post(generation, GetTickCount64(), 2000);
 }
 
 int fMainMenu::GetItemObserverState() {

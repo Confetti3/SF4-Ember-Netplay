@@ -617,7 +617,7 @@ msgid "home.online"
 msgstr "オンライン対戦"
 
 msgid "home.online_detail"
-msgstr "ルームを作成・参加するか、公開ルームを探します。"
+msgstr "ルームを作成・参加するか、公開ルームを探すか、大会用のEmber IDを設定します。"
 
 msgid "home.return_room"
 msgstr "現在のルームに戻る"
@@ -659,7 +659,7 @@ msgid "home.offline"
 msgstr "オフラインで遊ぶ"
 
 msgid "home.offline_detail"
-msgstr "ゲーム本体のオフラインメニューを開きます。"
+msgstr "トレーニング、対戦、アーケードなど、ゲーム本体のオフラインモードです。"
 
 msgid "home.replays"
 msgstr "リプレイ"
@@ -819,12 +819,6 @@ msgstr "Emberのメニューを離れ、リプレイを再生するゲームのB
 
 msgid "replays.open_log_room"
 msgstr "先にルームから退出してください。"
-msgid "home.training"
-msgstr "トレーニング"
-
-msgid "home.training_detail"
-msgstr "ゲームのトレーニングモードに直接進みます。"
-
 msgid "settings.training_auto_ready"
 msgstr "トレーニングから呼ばれたら自動で準備完了"
 

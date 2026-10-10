@@ -463,8 +463,8 @@ void TestFailedSetupThroughRuntime(bool queued, bool staged, bool alreadyEnded) 
 	session.control = sf4e::netplay::Health::Healthy;
 	session.match = sf4e::netplay::MatchState::PostMatch;
 	room::Snapshot live;
-	const auto holds = [&](const sf4e::netplay::Generation& generation, bool fromRoom) {
-		return facade::TrainingHolds(fromRoom ? sf4e::TrainingEntry::Room : sf4e::TrainingEntry::Offline, generation, session, true, live,
+	const auto holds = [&](const sf4e::netplay::Generation& generation) {
+		return facade::TrainingHolds(sf4e::TrainingEntry::Room, generation, session, true, live,
 			internal::RetiredMatchGeneration());
 	};
 	const auto tick = [&] { internal::TickMatch(); internal::ReleaseFinishedMatch(); };
@@ -543,14 +543,14 @@ void TestFailedSetupThroughRuntime(bool queued, bool staged, bool alreadyEnded) 
 	for (int i = 0; i < 8 && r.Match().GetPhase() != Phase::Idle; ++i) { r.now += 100; tick(); }
 	CHECK(r.Match().GetPhase() == Phase::Idle);
 	// (When the room had already ended that game there is nothing left to watch.)
-	CHECK(internal::RetiredMatchGeneration() == 0 && holds(session.generation, true) == alreadyEnded);
+	CHECK(internal::RetiredMatchGeneration() == 0 && holds(session.generation) == alreadyEnded);
 	// Recovery ends (at the main menu, ReleaseFinishedMatch would).
 	runtime->recoveringMatch = false;
 	internal::ResetMatchEntry();
 	internal::Apply(sf4e::netplay::EventKind::MatchRecovered);
 	CHECK(internal::RetiredMatchGeneration() == second);
-	CHECK(holds(session.generation, true));
-	sf4e::GameEvents::MainMenu::RequestTraining(session.generation, true);
+	CHECK(holds(session.generation));
+	sf4e::GameEvents::MainMenu::RequestTraining(session.generation);
 	CHECK(record.Take(GetTickCount64(), holds) == Taken::Go && none());
 	CHECK(record.Take(GetTickCount64(), holds) == Taken::None);
 	// A newer game takes the member in again: refused.
@@ -559,8 +559,8 @@ void TestFailedSetupThroughRuntime(bool queued, bool staged, bool alreadyEnded) 
 	const auto third = begin();
 	live = authority.SnapshotFor(member);
 	CHECK(live.localMatchGenerations[0] == third && third > second);
-	CHECK(!holds(session.generation, true));
-	sf4e::GameEvents::MainMenu::RequestTraining(session.generation, true);
+	CHECK(!holds(session.generation));
+	sf4e::GameEvents::MainMenu::RequestTraining(session.generation);
 	CHECK(record.Take(GetTickCount64(), holds) == Taken::Dropped && none());
 	std::cout << "TestFailedSetupThroughRuntime queued=" << queued << " staged=" << staged << " ended=" << alreadyEnded << " passed\n";
 }

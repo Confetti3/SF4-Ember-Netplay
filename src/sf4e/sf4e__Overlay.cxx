@@ -345,7 +345,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		request.training = action.training;
 		if (!sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request))) return false;
 		// Training from inside a room: the menu closes behind it while the runtime
-		// sends the game on. Offline, the menu closes as for any offline start.
+		// sends the game on.
 		if (action.training == sf4e::TrainingEntry::Room) presentation.Close();
 		return true;
 	}, [&] {

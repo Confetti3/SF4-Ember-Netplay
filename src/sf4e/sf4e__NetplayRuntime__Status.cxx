@@ -561,14 +561,14 @@ std::uint64_t RetiredMatchGeneration(const session::IrohMatchSession* match, boo
 bool TrainingHolds(TrainingEntry entry, const netplay::Generation& made, const netplay::Snapshot& session,
     bool atMainMenu, const room::Snapshot& room, std::uint64_t retiredGeneration) {
     if (!runtime || !(session.generation == made) || !atMainMenu) return false;
-    return entry == TrainingEntry::Room ? internal::CanTrain(session, atMainMenu, room, retiredGeneration) : entry == TrainingEntry::Offline;
+    return entry == TrainingEntry::Room && internal::CanTrain(session, atMainMenu, room, retiredGeneration);
 }
 
-bool TrainingRequestHolds(const netplay::Generation& made, bool fromRoom) {
+bool TrainingRequestHolds(const netplay::Generation& made) {
     if (!runtime) return false;
     // The client's room as it is now, which may be newer than the last published snapshot.
     const bool attached = runtime->attached && UserApp::netplay;
-    return TrainingHolds(fromRoom ? TrainingEntry::Room : TrainingEntry::Offline, made, runtime->controller.GetSnapshot(),
+    return TrainingHolds(TrainingEntry::Room, made, runtime->controller.GetSnapshot(),
         internal::AtMainMenu(), attached ? UserApp::netplay->client.GetRoomSnapshot() : room::Snapshot{}, internal::RetiredMatchGeneration());
 }
 

@@ -34,8 +34,8 @@ carries no uptime promise yet.
 ## Player lookup
 
 Ember supports one sign-in method: **Discord**. A player connects their
-Discord account to their Ember ID once, from the home menu: **Ember ID**,
-then **Discord**. This uses Ember's own bridge, the staging bridge above,
+Discord account to their Ember ID once, from the home menu: **Online play**,
+**Ember ID**, then **Discord**. This uses Ember's own bridge, the staging bridge above,
 by default. The lookup answers only `discord`:
 
 ```json
@@ -142,15 +142,16 @@ for a match.
    `sf4-ember-netplay-1.1.0-tournament-test5.zip` separately. Testers need this
    build because the current public release has no Ember ID or Discord.
 3. **Connect Discord:** start Ember and open the connect link, or use
-   **Ember ID > Discord** from Home. Sign in with the same Discord account
+   **Online play > Ember ID > Discord** from Home. Sign in with the same Discord account
    used on BluMint, then return to BluMint to register again.
 4. **Paste fallback:** the `/start` and `/m` web pages currently return 404.
    Testers can copy the getting started page URL from the table and use
    **Paste link** in Connect Discord. They can also copy the returned
-   `matchUrl` and use the paste action in **Ember ID > Tournament matches**.
+   `matchUrl` and use the paste action in **Online play > Ember ID > Tournament matches**.
    Pasting these URLs works without loading the web pages.
-5. **Play:** assigned matches also appear automatically, with a notice on
-   Home and a list under **Ember ID > Tournament matches**. Open the assigned
+5. **Play:** assigned matches also appear automatically, with a notice and a
+   **Tournament matches** row on Home, and a list under
+   **Online play > Ember ID > Tournament matches**. Open the assigned
    match and press **Play**. Check status and the submitted result on BluMint.
 
 Both web pages go live with the first public Ember release that includes

@@ -148,8 +148,8 @@ struct ShellAction {
     int previewSoundVolume=-1;
     // Asks for the room's short link; nothing else is sent.
     bool shortInvitation=false;
-    // Leave for Training mode (common/TrainingEntry.hxx): Offline goes with a
-    // StartOffline, Room alone. The runtime decides whether it still holds.
+    // Leave a joined room's menu for Training mode (common/TrainingEntry.hxx);
+    // sent alone. The runtime decides whether it still holds.
     TrainingEntry training=TrainingEntry::None;
     // Steps the chosen Ultra or color by delta (the table page's Ultra and
     // Appearance rows); the overlay applies it to the pick, and nothing is sent.
@@ -396,7 +396,7 @@ private:
     std::uint64_t mutedEpoch_ = 0;
     bool Service(platform::ServiceAction action, const ShellView& view, const Submit& submit);
     bool SendRoom(room::Action action, const ShellView& view, const Submit& submit);
-    bool Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit, TrainingEntry training = TrainingEntry::None);
+    bool Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit);
 };
 
 } }

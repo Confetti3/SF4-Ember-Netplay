@@ -960,7 +960,23 @@ int main(int argc, char** argv) {
                 view.preferences.roomPublic=true;view.preferences.roomName="Open Mic";shell.Navigation().Home();draw(nullptr,0,4);
                 page("create");draw(nullptr,0,8);draw("create-public");
                 view.preferences.roomPublic=false;view.preferences.roomName="Private room";shell.Navigation().Home();draw(nullptr,0,4);
+                {
+                    // Home leads with a tournament match ready to play; Ember ID itself is
+                    // under Online play. A match link names the service the matches are read from.
+                    id=netplay::IdentityView{};id.known=true;id.state="ready";
+                    id.bridges={{"brg_00000000-0000-4000-8000-000000000001","https://bridge.embernetplay.link","Ember"}};
+                    t=netplay::tournament::Status{};t.list.bridge=id.bridges[0].id;
+                    netplay::tournament::Assignment ready;ready.matchId="emt_1";ready.state="ready";ready.profile="ember-room-v1";ready.gamesToWin=2;
+                    t.list.items={ready};t.link.bridge=id.bridges[0].id;t.link.match="emt_1";t.link.sequence=101;draw(nullptr,0,2);
+                    std::vector<MenuEntry> homeRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){homeRows=rows;});
+                    shell.Navigation().Home();draw(nullptr,0,2);draw("home-tournament-match");
+                    Require(!homeRows.empty()&&homeRows[0].id=="home-matches"&&homeRows[0].detail==loc::Tf("home.identity_matches",1),"Home does not lead with the ready tournament match");
+                    SetMenuEntriesProbe({});
+                }
+                // The match link stays the one already opened, so clearing the rest does not open it again.
+                const auto seenLink=view.tournament.link.sequence;
                 view.identity=netplay::IdentityView{};view.tournament=netplay::tournament::Status{};view.publicRooms=netplay::publicrooms::Status{};
+                view.tournament.link.sequence=seenLink;
             }
             CheckHomeRendering(shell,view,mode,size,draw);
             ShootTraining(training,fighters,trainingCommand,acceptTraining,mode,size,draw,io);

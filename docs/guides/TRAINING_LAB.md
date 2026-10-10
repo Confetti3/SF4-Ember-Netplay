@@ -4,7 +4,7 @@ Ember adds an offline training overlay. Its frame meter shows native fighter sta
 
 ## Getting there
 
-**Training** on Ember's Home sends the game straight into Training mode, to the fighter select, without the main menu's Fight Request question. It is offered outside a room and a match, like **Play offline**, and rides on the same command: the game's own Training selection is made for the player with that question switched off for the one call, which is the path the game takes by itself where fight requests cannot be made. Choosing Training in the game's own menu still asks.
+Offline, choose **Play offline** on Ember's Home, then Training in the game's own menu. The lab comes on with the game's Training mode, however it was entered. In a room, **Wait in Training** sends the game straight into Training mode without the main menu's Fight Request question, while the room stays joined (see TRAINING_IN_ROOMS.md in docs/design).
 
 ## Open the lab
 

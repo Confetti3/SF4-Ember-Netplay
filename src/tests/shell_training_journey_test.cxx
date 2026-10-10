@@ -10,9 +10,10 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 
-// Training on Home is the offline command with the game sent on into
-// Training mode; Play offline alone sends the game nowhere.
-void TrainingFromHome() {
+// The Training settings have their own screen. Offline, Training is the
+// game's own mode under Play offline: Home has no Training row, and Play
+// offline sends the game nowhere further.
+void TrainingSettingsAndHome() {
  using namespace sf4e;
  using Kind=netplay::CommandKind;
  Harness h;h.Frame();
@@ -33,11 +34,10 @@ void TrainingFromHome() {
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("training-auto-ready");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.trainingAutoReady,"Training auto-ready did not save from new screen");
  h.view.preferences=h.actions.back().preferences;h.Frame();
- SetMenuEntriesProbe({});h.Screen("home");
- h.Choose("training");
- Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::StartOffline&&h.actions.back().training==TrainingEntry::Offline,"Training did not ride on the offline command");
- h.Screen("home");h.Choose("offline");
- Check(h.actions.back().command.kind==Kind::StartOffline&&h.actions.back().training==TrainingEntry::None,"Play offline asked for Training");
+ h.Screen("home");
+ Check(std::none_of(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="training";}),"Home still has its own Training row");
+ SetMenuEntriesProbe({});h.Choose("offline");
+ Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::StartOffline&&h.actions.back().training==TrainingEntry::None,"Play offline asked for Training");
 }
 // Training from inside a room: the row sends no room command, and a player
 // called back from Training lands on their table, readied for them only once

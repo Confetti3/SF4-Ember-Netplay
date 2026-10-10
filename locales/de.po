@@ -617,7 +617,7 @@ msgid "home.online"
 msgstr "Online-Spiel"
 
 msgid "home.online_detail"
-msgstr "Erstellen Sie einen Raum, treten Sie einem bei oder durchsuchen Sie öffentliche Räume."
+msgstr "Erstellen Sie einen Raum, treten Sie einem bei, durchsuchen Sie öffentliche Räume oder richten Sie die Ember ID für Turniere ein."
 
 msgid "home.return_room"
 msgstr "Zum aktuellen Raum zurückkehren."
@@ -659,7 +659,7 @@ msgid "home.offline"
 msgstr "Offline spielen"
 
 msgid "home.offline_detail"
-msgstr "Native Offline-Menüs öffnen."
+msgstr "Training, Versus, Arcade und die anderen Offline-Modi des Spiels."
 
 msgid "home.replays"
 msgstr "Replays"
@@ -819,12 +819,6 @@ msgstr "Verlässt Embers Menü und öffnet den Battle Log des Spiels zur Replay-
 
 msgid "replays.open_log_room"
 msgstr "Verlasse zuerst den Raum."
-msgid "home.training"
-msgstr "Training"
-
-msgid "home.training_detail"
-msgstr "Direkt zum Trainingsmodus des Spiels wechseln."
-
 msgid "settings.training_auto_ready"
 msgstr "Bei Ruf aus dem Training bereit melden"
 

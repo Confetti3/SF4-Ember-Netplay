@@ -19,11 +19,11 @@ namespace sf4e {
 		// consume names the serial it judged, so it never erases a newer request.
 		class TrainingRequest {
 		public:
-			struct Pending { netplay::Generation generation; bool fromRoom = false; ULONGLONG deadline = 0; unsigned long long serial = 0; };
+			struct Pending { netplay::Generation generation; ULONGLONG deadline = 0; unsigned long long serial = 0; };
 			// Replaces any pending request; returns its serial.
-			unsigned long long Post(const netplay::Generation& generation, bool fromRoom, ULONGLONG now, ULONGLONG lifetime) {
+			unsigned long long Post(const netplay::Generation& generation, ULONGLONG now, ULONGLONG lifetime) {
 				std::lock_guard<std::mutex> guard(lock_);
-				pending_ = Pending{ generation, fromRoom, now + lifetime, ++serial_ };
+				pending_ = Pending{ generation, now + lifetime, ++serial_ };
 				active_ = true;
 				return serial_;
 			}
@@ -42,7 +42,7 @@ namespace sf4e {
 				active_ = false;
 				return true;
 			}
-			// The pending request judged now by `holds(generation, fromRoom)`, and
+			// The pending request judged now by `holds(generation)`, and
 			// forgotten either way: Go when it still holds and is the caller's to act
 			// on, Dropped when it no longer does, None when there is none or a newer
 			// one replaced it meanwhile (that one is left alone).
@@ -50,7 +50,7 @@ namespace sf4e {
 			template<class Holds> Taken Take(ULONGLONG now, const Holds& holds) {
 				Pending request;
 				if (!Peek(now, request)) return Taken::None;
-				const bool go = holds(request.generation, request.fromRoom);
+				const bool go = holds(request.generation);
 				if (!Consume(request.serial)) return Taken::None;
 				return go ? Taken::Go : Taken::Dropped;
 			}
@@ -78,15 +78,14 @@ namespace sf4e {
 			static std::atomic<int> bOverrideItemObserverState;
 			// Asks the main menu to leave for Training mode without its
 			// Fight Request question. Posted by the runtime once it has accepted
-			// a TrainingEntry; the game thread acts on it the next time the menu
-			// is idle, and forgets it after two seconds, so a request made where
+			// a room's TrainingEntry; the game thread acts on it the next time the
+			// menu is idle, and forgets it after two seconds, so a request made where
 			// no main menu is up does nothing later.
-			// `generation` is the session the request was accepted in; `fromRoom` is
-			// true for Training called from a room, false for the offline path.
+			// `generation` is the session the request was accepted in.
 			// Just before it moves, the menu asks the runtime whether the request
 			// still holds (NetplayFacade::TrainingRequestHolds) and forgets it
 			// otherwise; the runtime owns that policy.
-			static void RequestTraining(const netplay::Generation& generation, bool fromRoom);
+			static void RequestTraining(const netplay::Generation& generation);
 			static TrainingRequest trainingRequest;
 			static void Install();
 		};

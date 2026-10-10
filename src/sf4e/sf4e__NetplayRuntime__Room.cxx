@@ -91,7 +91,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 	// Training from a room sends no room command: the game alone moves, and only
 	// if the room allows it now, not as it was when the player pressed.
 	if (command.training == TrainingEntry::Room) {
-		if (TrainingRequestHolds(command.command.generation, true)) sf4e::GameEvents::MainMenu::RequestTraining(command.command.generation, true);
+		if (TrainingRequestHolds(command.command.generation)) sf4e::GameEvents::MainMenu::RequestTraining(command.command.generation);
 		else runtime->error = loc::T("room.training.unavailable");
 		return DispatchOutcome::Dropped;
 	}
@@ -432,9 +432,6 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 	case netplay::Effect::StartOffline:
 		if (UserApp::netplay || UserApp::server) ShutdownNetplay(true);
 		runtime->offlineRequested = true;
-		// Training offline: the menu is asked only now that the controller took the StartOffline.
-		if (command.training == TrainingEntry::Offline && TrainingRequestHolds(command.command.generation, false))
-			sf4e::GameEvents::MainMenu::RequestTraining(command.command.generation, false);
 		break;
 	default: break;
 	}

@@ -617,7 +617,7 @@ msgid "home.online"
 msgstr "Online spelen"
 
 msgid "home.online_detail"
-msgstr "Maak een kamer, doe mee aan een kamer of bekijk de openbare kamers."
+msgstr "Maak een kamer, doe mee aan een kamer, bekijk de openbare kamers of stel je Ember ID in voor toernooien."
 
 msgid "home.return_room"
 msgstr "Keer terug naar je huidige kamer."
@@ -659,7 +659,7 @@ msgid "home.offline"
 msgstr "Offline spelen"
 
 msgid "home.offline_detail"
-msgstr "Open de offline spelmenu’s."
+msgstr "Training, Versus, Arcade en de andere offline modi van het spel."
 
 msgid "home.replays"
 msgstr "Replays"
@@ -819,12 +819,6 @@ msgstr "Verlaat Embers menu en opent het Battle Log van het spel, waar replays w
 
 msgid "replays.open_log_room"
 msgstr "Verlaat eerst de kamer."
-msgid "home.training"
-msgstr "Training"
-
-msgid "home.training_detail"
-msgstr "Ga direct naar de Training-modus van het spel."
-
 msgid "settings.training_auto_ready"
 msgstr "Maak mij gereed bij oproep uit Training"
 

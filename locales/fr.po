@@ -617,7 +617,7 @@ msgid "home.online"
 msgstr "Jeu en ligne"
 
 msgid "home.online_detail"
-msgstr "Créez un salon, rejoignez-en un ou parcourez les salons publics."
+msgstr "Créez un salon, rejoignez-en un, parcourez les salons publics ou configurez votre Ember ID pour les tournois."
 
 msgid "home.return_room"
 msgstr "Retourner à votre salon actuel."
@@ -659,7 +659,7 @@ msgid "home.offline"
 msgstr "Jouer hors ligne"
 
 msgid "home.offline_detail"
-msgstr "Ouvrir les menus hors ligne du jeu."
+msgstr "Entraînement, Versus, Arcade et les autres modes hors ligne du jeu."
 
 msgid "home.replays"
 msgstr "Replays"
@@ -819,12 +819,6 @@ msgstr "Quitte le menu d'Ember pour le Battle Log du jeu, où les replays sont l
 
 msgid "replays.open_log_room"
 msgstr "Quittez d'abord le salon."
-msgid "home.training"
-msgstr "Entraînement"
-
-msgid "home.training_detail"
-msgstr "Accéder directement au mode Entraînement du jeu."
-
 msgid "settings.training_auto_ready"
 msgstr "Me mettre prêt à l'appel depuis l'Entraînement"
 

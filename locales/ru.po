@@ -617,7 +617,7 @@ msgid "home.online"
 msgstr "Игра по сети"
 
 msgid "home.online_detail"
-msgstr "Создайте зал, войдите в зал или просмотрите открытые залы."
+msgstr "Создайте зал, войдите в зал, просмотрите открытые залы или настройте Ember ID для турниров."
 
 msgid "home.return_room"
 msgstr "Вернуться в текущий зал"
@@ -659,7 +659,7 @@ msgid "home.offline"
 msgstr "Игра без сети"
 
 msgid "home.offline_detail"
-msgstr "Открыть меню игры для игры без сети."
+msgstr "Тренировка, Versus, Аркада и другие режимы игры без сети."
 
 msgid "home.replays"
 msgstr "Записи"
@@ -819,12 +819,6 @@ msgstr "Выходит из меню Ember в Battle Log игры, где вос
 
 msgid "replays.open_log_room"
 msgstr "Сначала выйдите из комнаты."
-msgid "home.training"
-msgstr "Тренировка"
-
-msgid "home.training_detail"
-msgstr "Перейти прямо в режим тренировки игры."
-
 msgid "settings.training_auto_ready"
 msgstr "Готовность при вызове из тренировки"
 

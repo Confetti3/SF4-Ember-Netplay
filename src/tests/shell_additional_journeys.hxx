@@ -4,7 +4,7 @@ void KeyboardJourneys();
 void PresentationJourneys();
 void AppearanceGalleries();
 void ChatJourneys();
-void TrainingFromHome();
+void TrainingSettingsAndHome();
 void TrainingFromRoom();
 void TrainingInRoom();
 void TrainingJourneys();

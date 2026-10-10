@@ -93,10 +93,9 @@ bool ApplicationShell::Service(platform::ServiceAction kind, const ShellView& vi
 void ApplicationShell::Refuse(std::string text, std::function<bool(const ShellView&)> stillBlocked) {
     error_ = std::move(text); errorBlockedText_ = error_; errorBlocked_ = std::move(stillBlocked);
 }
-bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit, TrainingEntry training) {
+bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit) {
     ShellAction action;
     action.command.kind = kind;
-    action.training = training;
     action.command.generation = view.session.generation;
     action.preferences = preferences_;
     if (kind == netplay::CommandKind::SetLobbySettings) action.preferences.lobby = lobby_;
@@ -265,13 +264,16 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Row("selection",loc::T("home.fighter_select"),v.canEditSelection?v.selectionSummary:
     v.selectionLockReason.empty()?loc::T("home.selection_locked"):v.selectionLockReason,bool(selection)),
    Row("profile",loc::T("home.profile"),loc::T("home.profile_detail")),
-   Row("identity",loc::T("screen.identity"),identity_.HomeDetail(v)),
    Row("settings",loc::T("home.settings"),loc::T("home.settings_detail")),
    Row("offline",loc::T("home.offline"),loc::T("home.offline_detail"),idle),
-   Row("training",loc::T("home.training"),loc::T("home.training_detail"),idle),
    Row("replays",loc::T("home.replays"),loc::T("home.replays_detail"))};
   if(opening)rows[0].detail=OpeningCreates(v)?loc::T("room.creating_status"):loc::T("room.joining_status");
   if(!v.controllerReady)rows.insert(rows.begin(),Row("player",loc::T("home.choose_controller"),loc::T("home.choose_controller_detail")));
+  // Ember ID lives under Online play; tournament matches ready to play are
+  // still shown on Home, which leads to them. The count is in the detail: a
+  // value beside the label leaves it too little room in longer languages.
+  if(const int ready=identity_.ReadyMatches(v))
+   rows.insert(rows.begin(),Row("home-matches",loc::T("screen.tournament_matches"),loc::Tf("home.identity_matches",ready)));
   // Back leaves a pending invitation's screen without answering it, so Home
   // keeps a way back to it until it is answered or expires.
   if(v.discordPending)rows.insert(rows.begin(),Row("discord-invitation",loc::T("discord.invitation_pending"),loc::T("discord.invitation_pending_detail")));
@@ -291,9 +293,11 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(screen=="online"){
   title=loc::T("online.title");rows={Row("create",loc::T("online.create"),loc::T("online.create_detail"),v.canOpenRoom),Row("join",loc::T("online.join"),loc::T("online.join_detail"),v.canOpenRoom),
    Row("public-rooms",loc::T("screen.public_rooms"),loc::T("online.public_detail"),v.canOpenRoom),
-   Row("relay",loc::T("network.relay"),loc::T("network.relay_detail")),Row("network",loc::T("network.status"),DescribeNatDetail(v.netReport))};
+   Row("identity",loc::T("screen.identity"),identity_.EntryDetail(v))};
   // Where this PC connects and how its network treats a direct path, for information only.
-  rows[3].info=rows[4].info=true;rows[3].value=DescribeRelay(v.netReport);rows[4].value=DescribeNat(v.netReport.nat);
+  auto relay=Row("relay",loc::T("network.relay"),loc::T("network.relay_detail"));relay.info=true;relay.value=DescribeRelay(v.netReport);
+  auto network=Row("network",loc::T("network.status"),DescribeNatDetail(v.netReport));network.info=true;network.value=DescribeNat(v.netReport.nat);
+  rows.push_back(std::move(relay));rows.push_back(std::move(network));
  }else if(screen=="create"||screen=="defaults"){
   title=screen=="create"?loc::T("room.create_title"):loc::T("settings.gameplay_defaults_title");const bool can=screen=="create"?v.canOpenRoom:v.canEditPreferences;
   // A public room is made by the service with the public default rules; the
@@ -543,6 +547,8 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  // An opening room keeps its own screen, with its Stop row, until it joins.
  if(a.id=="online")nav.Push(idle?"online":v.session.room==RoomState::Opening?OpeningScreen(v):"room");
  else if(a.id=="discord-invitation")nav.Push(a.id);
+ // The matches screen, by way of Online play and Ember ID so Back goes there.
+ else if(a.id=="home-matches"){nav.Push("online");nav.Push("identity");nav.Push("tournament-matches");}
  else if(a.id=="profile"||a.id=="main-character")nav.Push(a.id);
  else if(a.id.compare(0,5,"main-")==0&&v.canEditPreferences){preferences_.mainFighter=std::stoi(a.id.substr(5));preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?"roster":"";nav.Push(a.id);}
@@ -554,8 +560,6 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="host"||a.id=="join-now")Send(a.id=="host"?CommandKind::HostRoom:CommandKind::JoinInvite,v,submit);
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
  else if(a.id=="offline"||a.id=="controls")Send(CommandKind::StartOffline,v,submit);
- // Training is the offline menus with the game sent on into Training mode.
- else if(a.id=="training")Send(CommandKind::StartOffline,v,submit,TrainingEntry::Offline);
  else if(a.id=="paste"){const char* t=ImGui::GetClipboardText();if(t&&*t&&std::strlen(t)<sizeof(invitation_)){std::strcpy(invitation_,t);error_.clear();}else error_=loc::T("error.invitation_invalid");}
  else if(a.id=="capture"||a.id=="keyboard"){ShellAction r;r.command.generation=v.session.generation;r.inputAction=a.id=="capture"?input::Action::BeginCapture:input::Action::UseKeyboard;submit(std::move(r));}
  else if(a.id=="invite-cancel"||a.id=="invite-switch"){ShellAction r;r.command.generation=v.session.generation;r.discordRevision=v.discordRevision;r.discordAction=a.id=="invite-cancel"?discord::InviteAction::Cancel:discord::InviteAction::Switch;if(!submit(std::move(r)))error_=loc::T("error.invitation_changed");}
@@ -764,7 +768,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   matchLinkSequence_=v.tournament.link.sequence;
   identity_.OpenMatch(v.tournament.link.bridge,v.tournament.link.match);
   if(v.session.room==RoomState::Idle){
-   if(nav.Screen()!="tournament-matches"){nav.Home();nav.Push("identity");nav.Push("tournament-matches");}
+   if(nav.Screen()!="tournament-matches"){nav.Home();nav.Push("online");nav.Push("identity");nav.Push("tournament-matches");}
    notice_=loc::T("tournament.link_opened");noticeTone_=Tone::Success;
   }else{notice_=loc::T("tournament.link_waiting");noticeTone_=Tone::Pending;}
   noticeUntil_=now+15;
@@ -787,7 +791,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   // during play or waited for a room asks first.
   const bool fresh=!pendingConnectStale_&&!v.tournament.connect.confirm;
   identity_.OpenDiscord(pendingConnect_,fresh);pendingConnect_.clear();pendingConnectStale_=false;
-  if(nav.Screen()!="discord-connect"){nav.Home();nav.Push("identity");nav.Push("discord-connect");}
+  if(nav.Screen()!="discord-connect"){nav.Home();nav.Push("online");nav.Push("identity");nav.Push("discord-connect");}
  }
  const auto* vp=ImGui::GetMainViewport();ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);

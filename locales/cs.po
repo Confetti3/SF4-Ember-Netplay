@@ -617,7 +617,7 @@ msgid "home.online"
 msgstr "Hra online"
 
 msgid "home.online_detail"
-msgstr "Vytvořte místnost, připojte se k nějaké nebo procházejte veřejné místnosti."
+msgstr "Vytvořte místnost, připojte se k nějaké, procházejte veřejné místnosti nebo si nastavte Ember ID pro turnaje."
 
 msgid "home.return_room"
 msgstr "Vrátit se do aktuální místnosti."
@@ -659,7 +659,7 @@ msgid "home.offline"
 msgstr "Hrát offline"
 
 msgid "home.offline_detail"
-msgstr "Otevřít nabídky hry offline."
+msgstr "Trénink, Versus, Arcade a další offline režimy hry."
 
 msgid "home.replays"
 msgstr "Záznamy"
@@ -819,12 +819,6 @@ msgstr "Opustí nabídku Emberu a otevře Battle Log hry, kde se přehrávají z
 
 msgid "replays.open_log_room"
 msgstr "Nejdřív opusťte místnost."
-msgid "home.training"
-msgstr "Trénink"
-
-msgid "home.training_detail"
-msgstr "Přejít přímo do tréninkového režimu hry."
-
 msgid "settings.training_auto_ready"
 msgstr "Připravit mě při výzvě z Tréninku"
 

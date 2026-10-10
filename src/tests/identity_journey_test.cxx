@@ -11,7 +11,7 @@ void IdentityJourneys() {
  Journey h;auto& id=h.view.identity;id.known=true;id.state="disabled";id.passphraseRequired=true;h.Frame();
  // An answer to the newest identity request sent so far, which must exist.
  const auto answer=[&](bool ok=true,const char* failure=""){Check(!h.sent().empty(),"No identity request to answer");h.answer(ok,failure);};
- h.Screen("home");h.Choose("identity");Check(h.shell.Navigation().Screen()=="identity","Home does not open the Ember ID screen");
+ h.Screen("online");h.Choose("identity");Check(h.shell.Navigation().Screen()=="identity","Online play does not open the Ember ID screen");
  Check(h.sent().size()==1&&h.sent().back()->op==IdentityOp::Status,"Opening the Ember ID screen did not ask for its status");
  answer();
  // Under Wine the key needs a passphrase, typed twice, before it can be created.

@@ -617,7 +617,7 @@ msgid "home.online"
 msgstr "在线对战"
 
 msgid "home.online_detail"
-msgstr "创建或加入房间，或浏览公开房间。"
+msgstr "创建或加入房间、浏览公开房间，或设置用于赛事的 Ember ID。"
 
 msgid "home.return_room"
 msgstr "返回当前房间。"
@@ -659,7 +659,7 @@ msgid "home.offline"
 msgstr "离线游玩"
 
 msgid "home.offline_detail"
-msgstr "打开游戏原有的离线菜单。"
+msgstr "训练、对战、街机等游戏原有的离线模式。"
 
 msgid "home.replays"
 msgstr "回放"
@@ -819,12 +819,6 @@ msgstr "离开 Ember 菜单，打开用于播放录像的游戏 Battle Log。"
 
 msgid "replays.open_log_room"
 msgstr "请先离开房间。"
-msgid "home.training"
-msgstr "训练"
-
-msgid "home.training_detail"
-msgstr "直接进入游戏的训练模式。"
-
 msgid "settings.training_auto_ready"
 msgstr "从训练被叫回时自动准备"
 

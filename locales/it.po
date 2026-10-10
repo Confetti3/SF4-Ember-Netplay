@@ -617,7 +617,7 @@ msgid "home.online"
 msgstr "Gioco online"
 
 msgid "home.online_detail"
-msgstr "Crea una sala, entra in una o sfoglia le sale pubbliche."
+msgstr "Crea una sala, entra in una, sfoglia le sale pubbliche o configura il tuo Ember ID per i tornei."
 
 msgid "home.return_room"
 msgstr "Torna alla sala attuale."
@@ -659,7 +659,7 @@ msgid "home.offline"
 msgstr "Gioca offline"
 
 msgid "home.offline_detail"
-msgstr "Apri i menu offline del gioco."
+msgstr "Allenamento, Versus, Arcade e le altre modalità offline del gioco."
 
 msgid "home.replays"
 msgstr "Replay"
@@ -819,12 +819,6 @@ msgstr "Esce dal menu di Ember e apre il Battle Log del gioco, dove si riproduco
 
 msgid "replays.open_log_room"
 msgstr "Prima esci dalla stanza."
-msgid "home.training"
-msgstr "Allenamento"
-
-msgid "home.training_detail"
-msgstr "Vai direttamente alla modalità Allenamento del gioco."
-
 msgid "settings.training_auto_ready"
 msgstr "Rendimi pronto alla chiamata dall'Allenamento"
 

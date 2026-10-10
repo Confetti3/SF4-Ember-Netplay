@@ -253,8 +253,8 @@ namespace sf4e {
 		bool SubmitRuntimeCommand(RuntimeCommand command);
 		// Game thread. Whether leaving for Training, asked for in session `made`,
 		// holds against `session`, whether the native main menu is up, and `room`:
-		// the same session at the main menu, and for Room the room's own gate open
-		// (the published canTrain is this policy too). etiredGeneration is the game
+		// a Room entry, the same session at the main menu and the room's own gate
+		// open (the published canTrain is this policy too). retiredGeneration is the game
 		// this PC already left and tore down, whose listing as a watcher no longer
 		// counts (0 for none). False with no runtime.
 		bool TrainingHolds(TrainingEntry entry, const netplay::Generation& made, const netplay::Snapshot& session,
@@ -262,7 +262,7 @@ namespace sf4e {
 		// Game thread: the same against the live controller, native menu and room.
 		// The runtime asks it before posting a Training request, and the native
 		// menu again just before it moves.
-		bool TrainingRequestHolds(const netplay::Generation& made, bool fromRoom);
+		bool TrainingRequestHolds(const netplay::Generation& made);
 		// The game this PC was in and has fully let go of, for TrainingHolds: match's
 		// retired generation (IrohMatchSession::RetiredGeneration, which names a
 		// setup that failed too), once native GGPO is gone (ggpoLive false) and

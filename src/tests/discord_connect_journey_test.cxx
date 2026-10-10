@@ -17,6 +17,7 @@ void DiscordAndFirstLink(){
  // No Ember ID yet: the link opens the matches screen, which says to create one.
  h.view.tournament.link.bridge="brg_1";h.view.tournament.link.match="emt_1";h.view.tournament.link.sequence=1;h.Frame(0,3);
  Check(h.shell.Navigation().Screen()=="tournament-matches"&&h.row("id-linked-unavailable"),"A new player's match link did not ask for an Ember ID");
+ Check(h.trail()=="home>online>identity>tournament-matches","A match link did not open the matches under Online play and Ember ID");
  for(int i=0;i<6;++i)h.answer();
  Check(h.status!=loc::T("tournament.failure.link_service"),"A new player's match link asked to trust a service");
  // With an ID, the address field starts on Ember's own service.
@@ -79,7 +80,7 @@ void DiscordConnectLink(){
  // A link the player just clicked runs by itself up to Discord's page.
  h.Screen("home");const auto start=h.sent().size();
  h.view.tournament.connect.sequence=2;h.Frame(0,2);
- Check(h.shell.Navigation().Screen()=="discord-connect"&&h.shell.Navigation().Parent()=="identity","A connect link did not open Connect Discord under Ember ID");
+ Check(h.shell.Navigation().Screen()=="discord-connect"&&h.trail()=="home>online>identity>discord-connect","A connect link did not open Connect Discord under Online play and Ember ID");
  Check(h.until(IdentityOp::Enable),"The link did not create the Ember ID by itself");
  Check(h.row("dc-progress")!=nullptr,"Connect Discord does not show it is setting up");
  h.ready();h.answer();
@@ -422,18 +423,22 @@ void RetainedChangesStayTheirs(){
    Check(!(h.sent()[i]->op==IdentityOp::LinkList&&h.sent()[i]->bridge=="brg_1"),"An earlier change's follow-up read was queued");
  }
 }
-// Ember ID is on Home. Its screen leads with the matches, then Discord on
-// Ember's own service, showing the connected account, which Connect Discord
-// can also disconnect.
-void EmberIdFromHome(){
+// Ember ID is under Online play, after Public rooms. Its screen leads with the
+// matches, then Discord on Ember's own service, showing the connected account,
+// which Connect Discord can also disconnect. Back goes to Online play.
+void EmberIdFromOnline(){
  using namespace sf4e;using netplay::IdentityOp;
  Journey h;auto& id=h.view.identity;id.known=true;id.state="ready";
  h.identify();
  const std::string ember="https://bridge.embernetplay.link";
  id.bridges={{"brg_1",ember,"Ember"}};h.Frame();
  h.Screen("home");
- Check(h.row("identity")!=nullptr,"Home has no Ember ID entry");
- h.Choose("identity");Check(h.shell.Navigation().Screen()=="identity","Ember ID on Home did not open its screen");
+ Check(!h.row("identity"),"Home still has its own Ember ID row");
+ h.Screen("online");
+ Check(h.row("identity")&&h.index("identity")==h.index("public-rooms")+1&&h.index("relay")==h.index("identity")+1&&h.index("network")==h.index("relay")+1,
+  "Ember ID is not between Public rooms and the route rows on Online play");
+ Check(!h.row("identity")->info&&h.row("relay")->info&&h.row("network")->info,"The route rows lost their information role");
+ h.Choose("identity");Check(h.shell.Navigation().Screen()=="identity"&&h.trail()=="home>online>identity","Ember ID on Online play did not open its screen");
  Check(h.until(IdentityOp::BridgeInspect)&&h.sent().back()->origin==ember,"The Ember ID screen did not read Ember's own service");
  id.inspected=id.bridges[0];id.inspectedDiscord=true;h.answer();
  Check(h.until(IdentityOp::DiscordStatus)&&h.sent().back()->bridge=="brg_1","The Ember ID screen did not read the Discord account");
@@ -453,10 +458,13 @@ void EmberIdFromHome(){
  // Back on the Ember ID screen it reads Not connected.
  h.shell.Navigation().Return();h.Frame(0,2);for(int i=0;i<8;++i)h.answer();
  Check(h.row("discord-connect")&&h.row("discord-connect")->value==loc::T("identity.discord_none"),"The Ember ID screen still shows the account");
+ h.shell.Navigation().Return();h.Frame();
+ Check(h.shell.Navigation().Screen()=="online","Back from Ember ID did not return to Online play");
 }
-// Home guides the player: Ember ID says to start there before setup, and,
-// once matches are read in the background, how many are ready to play, with
-// a notice for each new one. The matches screen's empty states lead to
+// The player is guided: Ember ID on Online play says to start there before
+// setup, and, once matches are read in the background, how many are ready to
+// play, with a notice for each new one and a Home row while any is ready,
+// which leads to the matches. The matches screen's empty states lead to
 // Connect Discord.
 void HomeGuides(){
  using namespace sf4e;using netplay::IdentityOp;using netplay::tournament::Command;
@@ -472,22 +480,39 @@ void HomeGuides(){
  const auto tries=h.sent().size();h.Frame(0,1900);
  Check(h.sent().size()>tries&&h.sent().back()->op==IdentityOp::Status,"Home did not read the state again after a failure");
  id.known=true;h.answer();
- Check(h.row("identity")&&h.row("identity")->detail==loc::T("home.identity_start"),"Home does not say to start at Ember ID");
+ Check(!h.row("home-matches"),"Home shows matches before there is an ID");
+ h.Screen("online");
+ Check(h.row("identity")&&h.row("identity")->detail==loc::T("home.identity_start"),"Ember ID does not say to start there");
+ h.Screen("home");
  // With an ID and Ember's service, the matches are read in the background.
  h.ready();
  id.bridges={{"brg_1",ember,"Ember"}};h.Frame(0,2);
  Check(h.sent().back()->op==IdentityOp::BridgeList,"Home did not learn the services");
  h.answer();h.Frame(0,2);
  Check(!h.played().empty()&&h.played().back()->op==Command::Op::Refresh&&h.played().back()->bridgeId=="brg_1","Home did not read the matches");
- Check(h.row("identity")->detail==loc::T("home.identity_detail"),"Home says to start with an ID and a service");
+ Check(!h.row("home-matches"),"Home shows a matches row with no match ready");
+ h.Screen("online");
+ Check(h.row("identity")->detail==loc::T("home.identity_detail"),"Ember ID says to start with an ID and a service");
+ h.Screen("home");
  auto& t=h.view.tournament;t.list.bridge="brg_1";
  netplay::tournament::Assignment match;match.matchId="emt_1";match.state="ready";match.profile="ember-room-v1";match.gamesToWin=2;
  t.list.items={match};h.Frame(0,2);
  Check(h.status==loc::T("tournament.assigned_notice"),"A new match was not announced");
- Check(h.row("identity")->detail==loc::Tf("home.identity_matches",1),"Home does not count the ready match");
+ Check(h.row("home-matches")&&h.index("home-matches")==0&&h.row("home-matches")->label==loc::T("screen.tournament_matches")&&
+  h.row("home-matches")->detail==loc::Tf("home.identity_matches",1),
+  "Home does not show the ready match first");
+ h.Screen("online");
+ Check(h.row("identity")->detail==loc::Tf("home.identity_matches",1),"Ember ID does not count the ready match");
+ h.Screen("home");
  // Read again a minute later.
  const auto reads=h.played().size();h.Frame(0,3700);
  Check(h.played().size()>reads&&h.played().back()->op==Command::Op::Refresh,"The matches were not read again");
+ // The Home row opens the matches, with Back through Ember ID and Online play.
+ h.Choose("home-matches");
+ Check(h.trail()=="home>online>identity>tournament-matches","The Home matches row did not open the matches under Online play and Ember ID");
+ // Once none is ready, the row goes.
+ t.list.items.clear();h.Screen("home");h.Frame(0,2);
+ Check(!h.row("home-matches"),"Home kept its matches row with no match ready");
  }
  // The matches screen's empty states lead to Connect Discord.
  Journey fresh;auto& other=fresh.view.identity;other.known=true;other.state="disabled";
@@ -519,7 +544,9 @@ void StaleMatches(){
   h.answer();h.Frame(0,2);h.view.tournament.list.bridge="brg_1";
  };
  const auto told=[](const Journey& h){return h.status==loc::T("tournament.assigned_notice");};
- const auto count=[](const Journey& h,int n){return h.row("identity")->detail==(n?loc::Tf("home.identity_matches",n):std::string(loc::T("home.identity_detail")));};
+ // Home's matches row: absent with none ready, else it gives the count.
+ const auto count=[](const Journey& h,int n){const auto* row=h.row("home-matches");
+  return n?row&&row->detail==loc::Tf("home.identity_matches",n):!row;};
  {
  Journey h;start(h);auto& t=h.view.tournament;
  // None of these is a match to go and play.
@@ -894,5 +921,5 @@ void OnboardingRecovers(){
 }
 void RunDiscordConnectJourneys(){
  DiscordAndFirstLink();DiscordConnectLink();DiscordWaitsForItsService();DiscordConnectKeepsItsService();FirstSignInRetires();ConnectReadsRecover();
- RetainedChangesStayTheirs();EmberIdFromHome();HomeGuides();StaleMatches();AnnouncementSaveRetries();OnboardingGuards();OnboardingSteps();CancelReachesTheService();OnboardingRecovers();DiscordConnectPastedLink();
+ RetainedChangesStayTheirs();EmberIdFromOnline();HomeGuides();StaleMatches();AnnouncementSaveRetries();OnboardingGuards();OnboardingSteps();CancelReachesTheService();OnboardingRecovers();DiscordConnectPastedLink();
 }
