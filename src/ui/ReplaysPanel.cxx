@@ -45,9 +45,16 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
    Value("cap-set1",loc::Tf("export.set_wins",one),std::to_string(caption_.wins[0]),loc::T("export.set_detail"),caption_.set),
    Value("cap-set2",loc::Tf("export.set_wins",two),std::to_string(caption_.wins[1]),loc::T("export.set_detail"),caption_.set),
    Value("cap-mark",loc::T("export.mark"),onOff(caption_.mark),loc::T("export.detail")),
-   Row("cap-generate",loc::T("export.generate"),loc::T("replays.export_gpu_detail"),idle&&r.ready)};
+   Value("cap-meter",loc::T("export.meter"),onOff(meter_),loc::T("export.meter_detail")),
+   Row("cap-generate",loc::T("export.generate"),loc::T("export.generate_detail"),idle&&r.ready)};
  }else{
   title=loc::T("replays.title");
+  // A running export comes first: how far it has got, and Cancel while
+  // cancelling can still keep its video from being made.
+  if(r.exportStage!=replay::ExportStage::None){
+   rows.push_back(InfoRow("export-progress",loc::T("export.running"),ExportStageText(r.exportStage,r.exportFrames,exportTotal_),loc::T("export.running_detail")));
+   if(replay::ExportCancellable(r.exportStage))rows.push_back(ConfirmRow("export-cancel",loc::T("export.cancel"),loc::T("export.cancel_detail")));
+  }
   if(!r.link.empty()){
    // A link names a file and nothing is played on its word: Select asks.
    rows.push_back(Row("replay-link",loc::T("replays.link"),loc::Tf("replays.link_detail",r.link)));
@@ -60,11 +67,12 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
   if(!r.archive||r.archive->empty())rows.push_back(InfoRow("replay-none",loc::T("replays.empty"),"",loc::T("replays.empty_detail")));
   // A row is its file, not its place: the list is listed again while a row's choices are open.
   // A row is always open: reading its inputs needs nothing of the game. What does is each choice's own.
-  if(r.archive)for(const auto& replay:*r.archive){rows.push_back(Row("replay:"+PathOf(replay),ReplayLabel(replay.label,replay.names,replay.fighters),loc::T(r.ready?"replays.row_detail":"replays.not_ready")));
-   // The label carries the players' own names. The value says what Ember knows about it.
+  if(r.archive)for(const auto& replay:*r.archive){rows.push_back(Row("replay:"+PathOf(replay),ReplayRowLabel(replay.label,replay.names,replay.fighters),loc::T(r.ready?"replays.row_detail":"replays.not_ready")));
+   // The label carries the players' own names, the portraits their fighters. The value says what Ember knows about it.
    rows.back().userText=true;for(const auto& name:replay.names)NoteUserText(name);
-   rows.back().value=replay.watched&&replay.spectated?loc::T("replays.watched_spectated"):replay.watched?loc::T("replays.watched"):replay.spectated?loc::T("replays.spectated"):"";
-   if(replay.video)rows.back().value=rows.back().value.empty()?loc::T("replays.video"):rows.back().value+", "+loc::T("replays.video");
+   const auto known=[&](int side){return selection::FindFighter(replay.fighters[side])?replay.fighters[side]:-1;};
+   rows.back().fighter1=known(0);rows.back().fighter2=known(1);
+   rows.back().value=ReplayTagsText(replay.spectated,replay.watched,replay.video);
    // The score leads the value; the replay's own account of the match leads the detail.
    if(const auto& summary=replay.summary){
     const std::string score=ScoreText(*summary);
@@ -73,8 +81,9 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
     for(int side=0;side<2;side++)said+="\n"+ReplayPlayerName(replay.names,side)+": "+LookText(summary->players[side]);
     rows.back().detail=said+"\n\n"+rows.back().detail;rows.back().detailText=DetailText::Name;
    }
-   // Select offers playback, adding to the Battle Log, exporting video, or reading inputs.
-   rows.back().choices={{"watch",loc::T("replays.watch"),loc::T("replays.watch_detail"),idle&&r.ready},{"watch-meter",loc::T("replays.watch_meter"),loc::T("replays.watch_meter_detail"),idle&&r.ready},{"add",loc::T("replays.add"),loc::T("replays.add_detail"),r.ready},{"export",loc::T("replays.export_gpu"),loc::T("replays.export_gpu_detail"),idle&&r.ready},{"inputs",loc::T("replays.inputs"),loc::T("replays.inputs_detail")}};
+   // Select offers playback, adding to the Battle Log, exporting video, reading inputs, or its file in Explorer.
+   rows.back().choices={{"watch",loc::T("replays.watch"),loc::T("replays.watch_detail"),idle&&r.ready},{"watch-meter",loc::T("replays.watch_meter"),loc::T("replays.watch_meter_detail"),idle&&r.ready},{"add",loc::T("replays.add"),loc::T("replays.add_detail"),r.ready},{"export",loc::T("replays.export_gpu"),loc::T("replays.export_gpu_detail"),idle&&r.ready},{"inputs",loc::T("replays.inputs"),loc::T("replays.inputs_detail")},
+    {"show-folder",loc::T("replays.show_folder"),loc::T("replays.show_folder_detail"),!v.services.pending}};
    rows.back().chosen=!r.ready?"inputs":idle?"watch":"add";}
  }
  return rows;
@@ -118,7 +127,7 @@ void ReplaysPanel::InputsRows(const ShellView& v,std::vector<MenuEntry>& rows) c
 // from the archive: the matches these two played right before this one,
 // each within half an hour of the next, by who won each.
 void ReplaysPanel::OpenExport(const ShellView& v,const platform::replays::ArchivedReplay& replay) {
- exportPath_=PathOf(replay);caption_=replay::Caption{};
+ exportPath_=PathOf(replay);caption_=replay::Caption{};exportTotal_=replay.summary?replay.summary->frames:0;
  caption_.name[0]=replay.names[0];caption_.name[1]=replay.names[1];
  caption_.names=!replay.names[0].empty()&&!replay.names[1].empty();
  const std::string score=replay.summary?ScoreText(*replay.summary):std::string();
@@ -137,9 +146,17 @@ void ReplaysPanel::OpenExport(const ShellView& v,const platform::replays::Archiv
  caption_.set=caption_.wins[0]+caption_.wins[1]>0;
 }
 bool ReplaysPanel::Activate(const MenuAction& a,const ShellView& v,MenuNavigation& nav,const Submit& submit,std::string& error) {
+ // Any other request from these screens takes the status line back from Show in folder.
+ if(a.id=="cap-generate"||a.id=="export-cancel"||a.id=="replay-log")folderAsked_=false;
  if(a.id=="cap-generate"){
-  ShellAction r;r.command.generation=v.session.generation;r.replay={replay::Mode::Export,exportPath_,caption_};r.replay.meter=false;
+  ShellAction r;r.command.generation=v.session.generation;r.replay={replay::Mode::Export,exportPath_,caption_};r.replay.meter=meter_;
   if(!submit(std::move(r)))error=loc::T("error.queue_failed");else nav.Return();
+  return true;
+ }
+ if(a.id=="export-cancel"){
+  // Confirmed on the row. The game keeps no video of it; the notice says so once the encoder has gone.
+  ShellAction r;r.command.generation=v.session.generation;r.replay.mode=replay::Mode::CancelExport;
+  if(!submit(std::move(r)))error=loc::T("error.queue_failed");
   return true;
  }
  if(a.id=="replay-log"){ShellAction r;r.command.generation=v.session.generation;r.replay.mode=replay::Mode::OpenLog;if(!submit(std::move(r)))error=loc::T("error.queue_failed");return true;}
@@ -148,12 +165,14 @@ bool ReplaysPanel::Activate(const MenuAction& a,const ShellView& v,MenuNavigatio
 void ReplaysPanel::Accept(const MenuAction& a) {
  if(a.id=="cap-names")caption_.names=a.delta>0;else if(a.id=="cap-line")caption_.line=a.delta>0;
  else if(a.id=="cap-set")caption_.set=a.delta>0;else if(a.id=="cap-mark")caption_.mark=a.delta>0;
+ else if(a.id=="cap-meter")meter_=a.delta>0;
  else if(a.id=="cap-name1")caption_.name[0]=a.text;else if(a.id=="cap-name2")caption_.name[1]=a.text;
  else if(a.id=="cap-text")caption_.text=a.text;
  else if(a.id=="cap-set1"||a.id=="cap-set2"){int& wins=caption_.wins[a.id=="cap-set2"];wins=(std::max)(0,(std::min)(99,wins+a.delta));}
 }
 void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,MenuNavigation& nav,const Submit& submit,std::string& error) {
  if(a.id=="replay-link"){
+  folderAsked_=false;
   ShellAction r;r.command.generation=v.session.generation;
   if(a.text=="link-play")r.replay={replay::Mode::Watch,v.replays.link};else r.replay.mode=replay::Mode::DismissLink;
   if(!submit(std::move(r)))error=loc::T("error.queue_failed");
@@ -161,7 +180,12 @@ void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,MenuNavigation&
  }
  if(a.id.compare(0,7,"replay:")!=0)return;
  const std::string path=a.id.substr(7);
- if(a.text=="inputs"){
+ folderAsked_=a.text=="show-folder";
+ if(a.text=="show-folder"){
+  // Explorer opens on the replay's own folder: the archive, or a usf4-replay-saver folder in it.
+  ShellAction r;r.command.generation=v.session.generation;r.service=platform::ServiceAction::ShowReplayFile;r.servicePath=path;
+  if(!submit(std::move(r))){folderAsked_=false;error=loc::T("error.queue_failed");}
+ }else if(a.text=="inputs"){
   // Nothing is sent to the game: the screen names the file and is handed its match (InputsFile).
   if(Find(v,path)){inputsFile_=path;++inputsRevision_;nav.Push("replay-inputs");}
  }else if(a.text=="export"){
@@ -173,7 +197,13 @@ void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,MenuNavigation&
  }
 }
 bool ReplaysPanel::Status(const ShellView& v,const std::string& screen,std::string& status,Tone& tone) const {
- if(screen!="replays"||v.replays.notice.empty()||!status.empty())return false;
+ if(screen!="replays"||!status.empty())return false;
+ // Show in folder answers until the next request from this screen.
+ const auto& services=v.services;
+ if(folderAsked_&&services.lastAction==platform::ServiceAction::ShowReplayFile&&!services.message.empty()){
+  status=services.message;tone=services.pending?Tone::Pending:services.succeeded?Tone::Success:Tone::Error;return true;
+ }
+ if(v.replays.notice.empty())return false;
  status=v.replays.notice;tone=v.replays.noticeError?Tone::Error:Tone::Success;return true;
 }
 } }

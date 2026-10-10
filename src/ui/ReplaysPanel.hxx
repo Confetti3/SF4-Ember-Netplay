@@ -13,9 +13,10 @@ struct ShellAction;
 enum class Tone;
 
 // Ember's replay archive: the Replays list and what Select offers on a row
-// (watch, add to the game's list, export a video, read its inputs), the
-// export's caption page, the Inputs and stats screen, and the question a
-// replay link asks. It reads ShellView::replays as the runtime published it;
+// (watch, add to the game's list, export a video, read its inputs, show its
+// file in Explorer), the export's caption page, a running export's progress
+// and Cancel, the Inputs and stats screen, and the question a replay link
+// asks. It reads ShellView::replays as the runtime published it;
 // the archive's listing and an entry's detail are made off the drawing
 // thread by workers the caller owns, which Wanted says to ask.
 class ReplaysPanel {
@@ -44,8 +45,9 @@ public:
     void Accept(const MenuAction& action);
     // An option chosen on a replay's row or on the link's question.
     void Choose(const MenuAction& action, const ShellView& view, MenuNavigation& navigation, const Submit& submit, std::string& error);
-    // The last request's outcome on the Replays screen, once nothing else has
-    // anything to say: only an empty `status` takes it.
+    // The last request's outcome on the Replays screen (Show in folder's, or
+    // the game's), once nothing else has anything to say: only an empty
+    // `status` takes it.
     bool Status(const ShellView& view, const std::string& screen, std::string& status, Tone& tone) const;
     // The replay file the Inputs and stats screen wants read, as its row named it.
     const std::string& InputsFile() const { return inputsFile_; }
@@ -58,9 +60,15 @@ private:
     // drawing the screen never reads, parses or counts the replay.
     std::string inputsFile_;
     std::uint64_t inputsRevision_ = 0;
-    // The replay and caption sent when Generate video is chosen.
+    // The replay and caption sent when Generate video is chosen, with the
+    // frame meter when its row is on (kept from one export to the next), and
+    // the replay's length that a running export's progress is shown against.
     std::string exportPath_;
     replay::Caption caption_;
+    bool meter_ = false;
+    std::uint32_t exportTotal_ = 0;
+    // Show in folder was the last thing asked here: the status line has its answer.
+    bool folderAsked_ = false;
     // The replay link last seen, so its question opens the Replays screen once.
     std::string linkSeen_;
 };

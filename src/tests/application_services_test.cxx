@@ -1,4 +1,5 @@
 #include "../platform/ApplicationServices.hxx"
+#include "../platform/ReplayFiles.hxx"
 #include <windows.h>
 #include <filesystem>
 #include <fstream>
@@ -117,6 +118,17 @@ int main() {
         for(const auto* forbidden:{"invitation","capability","identity","arbitrary log"}) {
             CHECK(contents.find(forbidden)==std::string::npos);
             CHECK(performance.find(forbidden)==std::string::npos);
+        }
+        // Show in folder opens only a folder of the replay archive: a file
+        // elsewhere, one that climbs out of it, or none is refused, and
+        // nothing is opened.
+        const auto climbing=(replays::FindFolders().archive/L".."/L"elsewhere.emberreplay").wstring();
+        for(const std::wstring outside:{std::wstring(L"C:\\Windows\\win.ini"),climbing,std::wstring()}){
+            CHECK(service.Request(ServiceAction::ShowReplayFile,{},outside));
+            const auto folderDeadline=GetTickCount64()+5000;
+            while(service.Snapshot().pending&&GetTickCount64()<folderDeadline)Sleep(1);
+            const auto shown=service.Snapshot();
+            CHECK(!shown.pending&&!shown.succeeded&&shown.lastAction==ServiceAction::ShowReplayFile&&!shown.message.empty());
         }
     }
     RemoveTempRoot(root);

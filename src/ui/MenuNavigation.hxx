@@ -74,6 +74,13 @@ struct MenuEntry {
     float height = 0;
     // A disabled row's pane says nothing more than its detail does: no "Unavailable".
     bool quiet = false;
+    // A match's row (a replay): each side's fighter as a small native
+    // portrait at that end of the row, player 1 on the left. -1 for both
+    // draws none; -1 for one draws an unknown fighter on that side. Two
+    // scalars, not an array: MSVC fails on brace-initialized entries
+    // ({{"a"},{"b"}}) whose type has an array member initializer.
+    int fighter1 = -1, fighter2 = -1;
+    bool Match() const { return fighter1 >= 0 || fighter2 >= 0; }
 };
 // What Select does on an entry, decided in one place so navigation and the
 // legend agree. A reader wins over text, text over choices, choices over a

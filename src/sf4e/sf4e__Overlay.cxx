@@ -69,10 +69,13 @@ static sf4e::ui::OverlayLifecycle s_lifecycle;
 // Whether the menu can open now, published by the drawing thread for the
 // window procedure (F10 is the game's key otherwise).
 static std::atomic<bool> s_menuAvailable{false};
+// The last frame drew Ember's menu or the training controls (ShellShown).
+static std::atomic<bool> s_shellShown{false};
 static rVsMode::ConfirmedCharaConditions lobbyConditions = {0,0,0,0,0,0,0,0,14};
 
 bool Overlay::CapturesMenuInput() { return capture.load(); }
 bool Overlay::HasInputFocus() { return focused.load(); }
+bool Overlay::ShellShown() { return s_shellShown.load(); }
 void Overlay::RequestMainControls() { if(focused) { capture=true; s_openRequests.Post(sf4e::ui::OpenRequests::Kind::Controls); } }
 void Overlay::PostTrainingPad(const sf4e::input::TrainingPadEvents& events) {
     if(!focused) return;
@@ -321,7 +324,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		}
 		sf4e::NetplayFacade::RuntimeCommand request;
 		request.command = std::move(action.command);
-        request.service = action.service;
+        request.service = action.service; request.servicePath = std::move(action.servicePath);
         request.replay = std::move(action.replay);
         request.inputAction = action.inputAction; request.discordAction = action.discordAction;
         request.discordRevision = action.discordRevision;
@@ -368,7 +371,10 @@ void Overlay::DrawOverlay() {
     const auto& snapshot = *frame->runtime;
     const auto& status = frame->netplay;
     if (sf4e::ui::ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(s_overlayWindow) * snapshot.preferences.interfaceScale)) ImGui_ImplDX9_InvalidateDeviceObjects();
-    presentation.Update(snapshot.atMainMenu, snapshot.session.match, snapshot.offlineRequested, focused);
+    // A replay being exported can be followed or cancelled from Ember's menu,
+    // so the menu stays available over the battle log while it runs.
+    const bool exporting = snapshot.replays.exportStage != sf4e::replay::ExportStage::None;
+    presentation.Update(snapshot.atMainMenu || exporting, snapshot.session.match, snapshot.offlineRequested, focused);
     s_menuAvailable = presentation.Available();
     const auto openRequest = s_openRequests.Take();
     if (openRequest != sf4e::ui::OpenRequests::Kind::None && presentation.Available()) {
@@ -427,8 +433,8 @@ void Overlay::DrawOverlay() {
     }
     controllerNavigation.Update(snapshot.menuController, sf4e::input::ControllerMenuAvailable(snapshot.menuContext),
         presentation.Visible() || trainingOpen, focused && !assigning);
-    // Start opens Ember at the main menu only; in Training it is the game's pause.
-    if (controllerNavigation.OpenRequested() && presentation.Available() && snapshot.atMainMenu) presentation.Open();
+    // Start opens Ember at the main menu only; in Training and over an export it is the game's pause.
+    if (controllerNavigation.OpenRequested() && presentation.Available() && sf4e::input::ControllerOpensMenu(snapshot.menuContext)) presentation.Open();
     ImGui::NewFrame();
     sf4e::ui::SetMenuInput({controllerNavigation.Buttons(), ImGui::GetTime()});
     sf4e::ui::SetMenuGlyphs(snapshot.menuController.deviceType,snapshot.menuController.selectPhysical,snapshot.menuController.backPhysical);
@@ -510,7 +516,8 @@ void Overlay::DrawOverlay() {
         }
     }
     sf4e::ui::OverlayLayersView layers;
-    layers.shellVisible = presentation.Visible(); layers.shellAvailable = presentation.Available();
+    // The shortcut hint would be in an export's video, so it is not drawn over one.
+    layers.shellVisible = presentation.Visible(); layers.shellAvailable = presentation.Available() && !exporting;
     layers.trainingControlsOpen = trainingOpen; layers.nativePaused = nativePaused;
     layers.focused = focused; layers.trainingHud = trainingHud;
     layers.matchActive = frame->ggpoSessionActive; layers.matchWaitsForMenu = snapshot.matchWaitsForMenu;
@@ -572,6 +579,7 @@ void Overlay::DrawOverlay() {
     s_trainingOpen = trainingOpen;
     // Shown survives alt-tab; taking the cursor and keys needs focus.
     const bool shown = presentation.Visible() || trainingOpen;
+    s_shellShown = shown;
     const bool passive = sf4e::ui::PassiveOverlayShown(presentation.Visible(), trainingOpen, nativePaused);
     const bool visible = focused && shown;
     pointerCapture = focused && !visible && hud.pointer;
@@ -593,7 +601,7 @@ void Overlay::DrawOverlay() {
 
 }
 void Overlay::FreeOverlay() {
-    capture = false; pointerCapture = false;
+    capture = false; pointerCapture = false; s_shellShown = false;
     trainingAvailable = false; replayPlayback = false;
     fMainMenu::bOverrideItemObserverState = -1;
     NoteLifecycleThread("free");

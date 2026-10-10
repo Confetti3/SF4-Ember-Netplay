@@ -736,6 +736,12 @@ msgstr "入力と統計"
 msgid "replays.inputs_detail"
 msgstr "両プレイヤーの入力をフレームごとに、合計とともに表示します。再生はしません。"
 
+msgid "replays.show_folder"
+msgstr "フォルダーで表示"
+
+msgid "replays.show_folder_detail"
+msgstr "このリプレイがあるフォルダーをエクスプローラーで開きます。"
+
 msgid "inputs.length_value"
 msgstr "ラウンド数 {0} · {1}"
 
@@ -764,7 +770,7 @@ msgid "replays.row_detail"
 msgstr "選択すると、再生、ゲームへの追加、入力と統計の表示を選べます。"
 
 #. The saved replay has already been played back.
-msgid "replays.watched"
+msgid "replays.seen"
 msgstr "再生済み"
 
 #. The player watched the live match as a spectator, not a replay playback.
@@ -772,7 +778,7 @@ msgid "replays.spectated"
 msgstr "観戦した対戦"
 
 #. The player watched the live match as a spectator and has also played its replay.
-msgid "replays.watched_spectated"
+msgid "replays.spectated_seen"
 msgstr "観戦した対戦、再生済み"
 
 msgid "replays.not_ready"
@@ -4214,6 +4220,42 @@ msgstr "Emberマーク"
 
 msgid "export.generate"
 msgstr "動画を作成"
+
+msgid "export.meter"
+msgstr "フレームメーター"
+
+msgid "export.meter_detail"
+msgstr "トレーニングのフレームメーターを対戦の上に表示します。画面と動画の両方に表示されます。"
+
+msgid "export.generate_detail"
+msgstr "リプレイを再生し、その横に .mp4 として録画します。録画中は F10 で Ember を開き、進み具合の確認や中止ができます。"
+
+msgid "export.running"
+msgstr "動画を書き出し中"
+
+msgid "export.running_detail"
+msgstr "リプレイを再生しながら録画しています。このメニューを開いている間、動画には字幕とフレームメーターが入りません。"
+
+msgid "export.starting"
+msgstr "開始しています..."
+
+msgid "export.finishing"
+msgstr "動画を仕上げています..."
+
+msgid "export.cancelling"
+msgstr "中止しています..."
+
+msgid "export.progress"
+msgstr "{0} / {1}"
+
+msgid "export.cancel"
+msgstr "書き出しを中止"
+
+msgid "export.cancel_detail"
+msgstr "録画を止め、未完成の動画を削除します。リプレイは最後まで再生されます。"
+
+msgid "export.cancelled"
+msgstr "書き出しを中止しました。動画は保存されていません。"
 
 msgid "training.result"
 msgstr "結果"

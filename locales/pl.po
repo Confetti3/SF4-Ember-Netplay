@@ -736,6 +736,12 @@ msgstr "Wejścia i statystyki"
 msgid "replays.inputs_detail"
 msgstr "Pokazuje naciśnięcia obu graczy klatka po klatce wraz z sumami. Nic nie jest odtwarzane."
 
+msgid "replays.show_folder"
+msgstr "Pokaż w folderze"
+
+msgid "replays.show_folder_detail"
+msgstr "Otwiera w Eksploratorze folder z tą powtórką."
+
 msgid "inputs.length_value"
 msgstr "Rundy {0} · {1}"
 
@@ -764,7 +770,7 @@ msgid "replays.row_detail"
 msgstr "Wybierz, aby obejrzeć, dodać do gry lub zobaczyć wejścia i statystyki."
 
 #. The saved replay has already been played back.
-msgid "replays.watched"
+msgid "replays.seen"
 msgstr "Obejrzany"
 
 #. The player watched the live match as a spectator, not a replay playback.
@@ -772,7 +778,7 @@ msgid "replays.spectated"
 msgstr "Oglądany jako widz"
 
 #. The player watched the live match as a spectator and has also played its replay.
-msgid "replays.watched_spectated"
+msgid "replays.spectated_seen"
 msgstr "Oglądany jako widz, obejrzany"
 
 msgid "replays.not_ready"
@@ -4214,6 +4220,42 @@ msgstr "Znak Ember"
 
 msgid "export.generate"
 msgstr "Utwórz wideo"
+
+msgid "export.meter"
+msgstr "Miernik klatek"
+
+msgid "export.meter_detail"
+msgstr "Pokazuje treningowy miernik klatek nad walką, na ekranie i w wideo."
+
+msgid "export.generate_detail"
+msgstr "Odtwarza powtórkę i nagrywa ją jako .mp4 obok niej. Podczas nagrywania F10 otwiera Ember, by śledzić postęp lub anulować."
+
+msgid "export.running"
+msgstr "Eksport wideo"
+
+msgid "export.running_detail"
+msgstr "Powtórka jest nagrywana podczas odtwarzania. Gdy to menu jest otwarte, wideo nie zawiera podpisu ani miernika klatek."
+
+msgid "export.starting"
+msgstr "Uruchamianie..."
+
+msgid "export.finishing"
+msgstr "Kończenie wideo..."
+
+msgid "export.cancelling"
+msgstr "Anulowanie..."
+
+msgid "export.progress"
+msgstr "{0} / {1}"
+
+msgid "export.cancel"
+msgstr "Anuluj eksport"
+
+msgid "export.cancel_detail"
+msgstr "Zatrzymuje nagrywanie i usuwa niedokończone wideo. Powtórka odtwarza się do końca."
+
+msgid "export.cancelled"
+msgstr "Eksport anulowany. Nie zapisano żadnego wideo."
 
 msgid "training.result"
 msgstr "Wynik"

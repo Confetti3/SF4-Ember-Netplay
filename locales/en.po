@@ -736,6 +736,12 @@ msgstr "Inputs and stats"
 msgid "replays.inputs_detail"
 msgstr "Shows what both players pressed, frame by frame, with totals. Nothing is played."
 
+msgid "replays.show_folder"
+msgstr "Show in folder"
+
+msgid "replays.show_folder_detail"
+msgstr "Opens the folder that holds this replay in Explorer."
+
 msgid "inputs.length_value"
 msgstr "Rounds {0} · {1}"
 
@@ -763,17 +769,17 @@ msgstr "This replay is in an older format, or its file is damaged."
 msgid "replays.row_detail"
 msgstr "Select to watch it, add it to the game, or see its inputs and stats."
 
-#. The saved replay has already been played back.
-msgid "replays.watched"
+#. A saved replay that has been played with Watch now.
+msgid "replays.seen"
 msgstr "Seen"
 
-#. The player watched the live match as a spectator, not a replay playback.
+#. A match this PC only watched live, as a spectator; not a replay played back.
 msgid "replays.spectated"
-msgstr "Watched"
+msgstr "Spectated"
 
-#. The player watched the live match as a spectator and has also played its replay.
-msgid "replays.watched_spectated"
-msgstr "Watched, seen"
+#. A match watched live as a spectator whose replay has also been played with Watch now.
+msgid "replays.spectated_seen"
+msgstr "Spectated, seen"
 
 msgid "replays.not_ready"
 msgstr "Available at the main menu, outside a match."
@@ -3876,6 +3882,43 @@ msgstr "Ember mark"
 
 msgid "export.generate"
 msgstr "Generate video"
+
+msgid "export.meter"
+msgstr "Frame meter"
+
+msgid "export.meter_detail"
+msgstr "Shows the Training frame meter over the fight, on screen and in the video."
+
+msgid "export.generate_detail"
+msgstr "Plays the replay and records it as an .mp4 next to it. While it records, F10 opens Ember to follow it or cancel it."
+
+msgid "export.running"
+msgstr "Exporting video"
+
+msgid "export.running_detail"
+msgstr "The replay is recorded as it plays. While this menu is open, the video leaves out the caption and the frame meter."
+
+msgid "export.starting"
+msgstr "Starting..."
+
+msgid "export.finishing"
+msgstr "Finishing the video..."
+
+msgid "export.cancelling"
+msgstr "Cancelling..."
+
+#. An export's progress: the fight recorded so far, then the replay's length, as 1:02 / 2:41.
+msgid "export.progress"
+msgstr "{0} / {1}"
+
+msgid "export.cancel"
+msgstr "Cancel export"
+
+msgid "export.cancel_detail"
+msgstr "Stops recording and deletes the unfinished video. The replay plays on to its end."
+
+msgid "export.cancelled"
+msgstr "Export cancelled. No video was saved."
 
 msgid "training.result"
 msgstr "Result"

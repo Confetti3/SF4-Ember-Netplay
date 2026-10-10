@@ -164,7 +164,8 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
             diagnostics.predictionStalls=performance.predictionStalls;
             diagnostics.predictionSkippedFrames=performance.skipReasons[diag::SKIP_PREDICTION_THRESHOLD];
         }
-        if (!runtime->services.Request(command.service, diagnostics)) runtime->error = loc::T("runtime.operation_busy");
+        const std::wstring target = command.service == platform::ServiceAction::ShowReplayFile ? platform::Utf8ToWide(command.servicePath.c_str()) : std::wstring();
+        if (!runtime->services.Request(command.service, diagnostics, target)) runtime->error = loc::T("runtime.operation_busy");
         return DispatchOutcome::Dropped;
     }
 	const auto kind = command.command.kind;

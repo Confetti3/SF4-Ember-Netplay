@@ -736,6 +736,12 @@ msgstr "Comandos e estatísticas"
 msgid "replays.inputs_detail"
 msgstr "Mostra o que ambos os jogadores pressionaram, frame a frame, com os totais. Nada é reproduzido."
 
+msgid "replays.show_folder"
+msgstr "Mostrar na pasta"
+
+msgid "replays.show_folder_detail"
+msgstr "Abre no Explorador a pasta que contém este replay."
+
 msgid "inputs.length_value"
 msgstr "Rounds {0} · {1}"
 
@@ -764,16 +770,16 @@ msgid "replays.row_detail"
 msgstr "Selecione para assistir, adicionar ao jogo ou ver os comandos e estatísticas."
 
 #. The saved replay has already been played back.
-msgid "replays.watched"
+msgid "replays.seen"
 msgstr "Vista"
 
 #. The player watched the live match as a spectator, not a replay playback.
 msgid "replays.spectated"
-msgstr "Assistida"
+msgstr "Como espectador"
 
 #. The player watched the live match as a spectator and has also played its replay.
-msgid "replays.watched_spectated"
-msgstr "Assistida, vista"
+msgid "replays.spectated_seen"
+msgstr "Como espectador, vista"
 
 msgid "replays.not_ready"
 msgstr "Disponível no menu principal, fora de uma partida."
@@ -3762,6 +3768,42 @@ msgstr "Marca do Ember"
 
 msgid "export.generate"
 msgstr "Gerar vídeo"
+
+msgid "export.meter"
+msgstr "Medidor de frames"
+
+msgid "export.meter_detail"
+msgstr "Mostra o medidor de frames do treino sobre a luta, na tela e no vídeo."
+
+msgid "export.generate_detail"
+msgstr "Reproduz o replay e grava como .mp4 ao lado dele. Durante a gravação, F10 abre o Ember para acompanhar ou cancelar."
+
+msgid "export.running"
+msgstr "Exportando vídeo"
+
+msgid "export.running_detail"
+msgstr "O replay é gravado enquanto é reproduzido. Enquanto este menu estiver aberto, o vídeo fica sem a legenda e sem o medidor de frames."
+
+msgid "export.starting"
+msgstr "Iniciando..."
+
+msgid "export.finishing"
+msgstr "Finalizando o vídeo..."
+
+msgid "export.cancelling"
+msgstr "Cancelando..."
+
+msgid "export.progress"
+msgstr "{0} / {1}"
+
+msgid "export.cancel"
+msgstr "Cancelar exportação"
+
+msgid "export.cancel_detail"
+msgstr "Para a gravação e apaga o vídeo inacabado. O replay continua até o fim."
+
+msgid "export.cancelled"
+msgstr "Exportação cancelada. Nenhum vídeo foi salvo."
 
 msgid "training.result"
 msgstr "Resultado"

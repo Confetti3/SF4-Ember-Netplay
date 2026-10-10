@@ -20,9 +20,12 @@ enum class State { Idle, Recording, Closing, Done, Failed };
 // Game thread. Begin: record from the next rendered frame into file, an
 // .mp4; withOverlay when the frame is to be taken after Ember's overlay is
 // drawn (an export's caption) instead of before it. End: stop and close the file; Done or Failed follows
-// without the game thread waiting. Clear: back to Idle after either.
+// without the game thread waiting. Cancel: stop and keep no file, as a failed
+// capture does (the link removes its temporary file); Failed follows. False,
+// doing nothing, once the file is already closing. Clear: back to Idle after either.
 void Begin(const std::wstring& file, bool withOverlay);
 void End();
+bool Cancel();
 void Clear();
 State GetState();
 

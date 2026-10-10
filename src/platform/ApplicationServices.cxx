@@ -76,21 +76,21 @@ void ApplicationServices::Observe(const DiagnosticsView& diagnostics) {
     if (history.size() == 16) history.erase(history.begin());
     history.push_back(description);
 }
-bool ApplicationServices::Request(ServiceAction action, const DiagnosticsView& diagnostics) {
+bool ApplicationServices::Request(ServiceAction action, const DiagnosticsView& diagnostics, std::wstring target) {
     std::lock_guard<std::mutex> lock(mutex_);
-    return Start(action, diagnostics, state_.channel);
+    return Start(action, diagnostics, state_.channel, std::move(target));
 }
 bool ApplicationServices::SwitchUpdateChannel(launcher::UpdateChannel channel) {
     std::lock_guard<std::mutex> lock(mutex_);
     return Start(ServiceAction::SwitchUpdateChannel, {}, channel);
 }
-bool ApplicationServices::Start(ServiceAction action, const DiagnosticsView& diagnostics, launcher::UpdateChannel channel) {
+bool ApplicationServices::Start(ServiceAction action, const DiagnosticsView& diagnostics, launcher::UpdateChannel channel, std::wstring target) {
     if (stop_ || state_.pending || action == ServiceAction::None) return false;
     cancelled_ = false;
     state_.updateStage = launcher::UpdateStage::Downloading; state_.stageDone = state_.stageTotal = 0;
-    request_ = action; requestChannel_ = channel; diagnostics_ = diagnostics; state_.pending = true; state_.succeeded = false; state_.lastAction = action;
+    request_ = action; requestChannel_ = channel; diagnostics_ = diagnostics; target_ = std::move(target); state_.pending = true; state_.succeeded = false; state_.lastAction = action;
     state_.message = action == ServiceAction::OpenCommunity ? loc::T("services.opening_community") :
-        action == ServiceAction::OpenReplayFolder ? loc::T("services.opening_replay_folder") :
+        action == ServiceAction::OpenReplayFolder || action == ServiceAction::ShowReplayFile ? loc::T("services.opening_replay_folder") :
         action == ServiceAction::CheckUpdates || action == ServiceAction::SwitchUpdateChannel ? loc::T("services.checking") :
         action == ServiceAction::ExportDiagnostics ? loc::T("services.exporting") :
         action == ServiceAction::InstallUpdate ? loc::T("services.downloading") : loc::T("services.opening_updater");
@@ -98,13 +98,14 @@ bool ApplicationServices::Start(ServiceAction action, const DiagnosticsView& dia
 }
 void ApplicationServices::Run() {
     for (;;) {
-        ServiceAction action; DiagnosticsView diagnostics; ServiceSnapshot next;
+        ServiceAction action; DiagnosticsView diagnostics; ServiceSnapshot next; std::wstring target;
         launcher::UpdateChannel channel;
         {
             std::unique_lock<std::mutex> lock(mutex_);
             wake_.wait(lock, [&] { return stop_ || request_ != ServiceAction::None; });
             if (stop_) return;
             action = request_; request_ = ServiceAction::None; channel = requestChannel_; diagnostics = diagnostics_; next = state_;
+            target.swap(target_);
         }
         try {
             if (action == ServiceAction::SwitchUpdateChannel) {
@@ -177,6 +178,17 @@ void ApplicationServices::Run() {
                 const auto folder = replays::FindFolders().archive;
                 std::error_code ignored; std::filesystem::create_directories(folder, ignored);
                 const bool opened = ShellOpen(folder.c_str());
+                next.succeeded = opened;
+                next.message = opened ? loc::Tf("services.replay_folder_opened", WideToUtf8(folder.wstring())) : loc::T("services.replay_folder_failed");
+            } else if (action == ServiceAction::ShowReplayFile) {
+                // The archive's listing named the file; anything outside the
+                // archive, or no folder at all, is not opened.
+                const auto archive = replays::FindFolders().archive.lexically_normal();
+                const auto folder = std::filesystem::path(target).parent_path().lexically_normal();
+                const auto relative = folder.lexically_relative(archive);
+                std::error_code ignored;
+                const bool inside = !target.empty() && !relative.empty() && *relative.begin() != L".." && std::filesystem::is_directory(folder, ignored);
+                const bool opened = inside && ShellOpen(folder.c_str());
                 next.succeeded = opened;
                 next.message = opened ? loc::Tf("services.replay_folder_opened", WideToUtf8(folder.wstring())) : loc::T("services.replay_folder_failed");
             } else if (action == ServiceAction::InstallUpdate) {

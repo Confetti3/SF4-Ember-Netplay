@@ -236,6 +236,7 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME PublicRoomsJourney SOURCES src/tests/public_rooms_journey_test.cxx src/tests/public_rooms_setup_journey_test.cxx
         LIBS sf4e_ui Dimps TIMEOUT 30)
     sf4e_add_unit_test(NAME RoomPanelNavigation SOURCES src/tests/room_panel_navigation_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30)
+    sf4e_add_unit_test(NAME ReplayScreenText SOURCES src/tests/replay_screen_text_test.cxx LIBS sf4e_ui Dimps TIMEOUT 15)
     sf4e_add_unit_test(NAME NetworkFeedback SOURCES src/tests/network_feedback_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30)
     sf4e_add_unit_test(NAME NativeSelectionAvailability SOURCES src/tests/native_selection_availability_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30)
     sf4e_add_unit_test(NAME WineBuiltin SOURCES src/tests/wine_builtin_test.cxx STD 17)

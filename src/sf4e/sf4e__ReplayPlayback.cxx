@@ -95,7 +95,7 @@ void Cadence::Run() {
 	}
 	DWORD* const flags = rSystem::GetSimulationFlags(system);
 	int* const slow = rSystem::GetSlowMotion(system);
-	context.exporting = sf4e::replaystore::Exporting() || sf4e::replaycapture::GetState() == sf4e::replaycapture::State::Recording;
+	context.exporting = sf4e::replaystore::ExportPlaying() || sf4e::replaycapture::GetState() == sf4e::replaycapture::State::Recording;
 	context.fight = (system->*rSystem::publicMethods.IsFight)();
 	context.pauseMenu = (*flags & transport::kPauseOrHold) != 0;
 	const transport::Route route = transport::Decide(context);

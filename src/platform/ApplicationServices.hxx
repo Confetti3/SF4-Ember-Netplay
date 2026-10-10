@@ -15,7 +15,9 @@
 namespace sf4e { namespace platform {
 // SwitchUpdateChannel saves the channel ApplicationServices::SwitchUpdateChannel
 // names, then checks for an update on it.
-enum class ServiceAction { None, CheckUpdates, SwitchUpdateChannel, ExportDiagnostics, OpenUpdater, InstallUpdate, OpenRecovery, OpenCommunity, OpenReplayFolder };
+// ShowReplayFile opens, in Explorer, the folder that holds the archived
+// replay the request names; only a folder of the archive is opened.
+enum class ServiceAction { None, CheckUpdates, SwitchUpdateChannel, ExportDiagnostics, OpenUpdater, InstallUpdate, OpenRecovery, OpenCommunity, OpenReplayFolder, ShowReplayFile };
 // Community Discord server, shown in Help & About and opened as https://<invite>.
 constexpr const char* CommunityInvite = "discord.gg/uPNqF5A5uq";
 enum class DiagnosticTiming : std::size_t {
@@ -99,7 +101,8 @@ class ApplicationServices {
 public:
     explicit ApplicationServices(std::wstring diagnosticsDirectory = {});
     ~ApplicationServices();
-    bool Request(ServiceAction action, const DiagnosticsView& diagnostics = {});
+    // target: the file a ShowReplayFile request names; nothing else reads it.
+    bool Request(ServiceAction action, const DiagnosticsView& diagnostics = {}, std::wstring target = {});
     // Saves `channel` as the update channel, then checks for an update on it.
     bool SwitchUpdateChannel(launcher::UpdateChannel channel);
     ServiceSnapshot Snapshot() const;
@@ -108,13 +111,14 @@ public:
 private:
     void Run();
     // Starts `action` on the worker; the caller holds mutex_.
-    bool Start(ServiceAction action, const DiagnosticsView& diagnostics, launcher::UpdateChannel channel);
+    bool Start(ServiceAction action, const DiagnosticsView& diagnostics, launcher::UpdateChannel channel, std::wstring target = {});
     mutable std::mutex mutex_;
     std::condition_variable wake_;
     bool stop_ = false;
     ServiceAction request_ = ServiceAction::None;
     launcher::UpdateChannel requestChannel_ = launcher::UpdateChannel::Stable;
     DiagnosticsView diagnostics_;
+    std::wstring target_;
     ServiceSnapshot state_;
     std::wstring diagnosticsDirectory_;
     std::atomic<bool> cancelled_{false};

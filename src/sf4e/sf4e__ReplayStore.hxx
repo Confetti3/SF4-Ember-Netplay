@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 
+#include "../common/ReplayExport.hxx"
 #include "../common/ReplayRequest.hxx"
 
 // The game's replay table while it runs, so an archived replay put into the
@@ -53,11 +54,21 @@ struct Status {
 	// (while the replay's battle records).
 	replay::Caption caption;
 	bool captionShown = false;
+	// How far the export has got, and the frames recorded so far of its
+	// rounds' fighting (BF__FIGHT), at 60 a second: what the Replays screen
+	// shows against the replay's length (common/ReplayInputs.hxx:
+	// Summary::frames), leaving out the intros and the knockouts.
+	replay::ExportStage exportStage = replay::ExportStage::None;
+	std::uint32_t exportFrames = 0;
 };
 const Status& GetStatus();
 // A playback that is being made into a video is running: the game is then
 // kept playing and sounding behind another window (sf4e__BackgroundPlay.cxx).
 bool Exporting();
+// An export's replay is playing, recording or cancelled: a cancelled one
+// plays on to its end, and the replay controls stay off for all of it
+// (sf4e__ReplayPlayback.cxx).
+bool ExportPlaying();
 // The replay that is playing was asked for with the frame meter: each of its
 // frames is then shown to the meter (sf4e__Game__Battle__System.cxx).
 bool MeterWanted();
@@ -66,7 +77,9 @@ bool MeterWanted();
 const std::string& PlayingFile();
 
 // Runs a request (common/ReplayRequest.hxx: Add, Watch, Export or OpenLog). An export records from the Battle state to the log's return
-// (sf4e__ReplayCapture.hxx) and its outcome becomes the notice. Refused
+// (sf4e__ReplayCapture.hxx) and its outcome becomes the notice. CancelExport
+// is taken wherever the game is: the running export keeps no video, and the
+// replay plays on to its end, which Ember leaves as it leaves an export's. Refused
 // with a notice while another runs, or where it cannot be done: an import
 // writes the game's table and files, so only at the native main menu with
 // the save controller free; the battle log leaves Ember's menu, so only with

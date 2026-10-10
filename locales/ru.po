@@ -736,6 +736,12 @@ msgstr "Ввод и статистика"
 msgid "replays.inputs_detail"
 msgstr "Показывает нажатия обоих игроков по кадрам и итоговые числа. Ничего не воспроизводится."
 
+msgid "replays.show_folder"
+msgstr "Показать в папке"
+
+msgid "replays.show_folder_detail"
+msgstr "Открывает в Проводнике папку с этим реплеем."
+
 msgid "inputs.length_value"
 msgstr "Раундов: {0} · {1}"
 
@@ -764,16 +770,16 @@ msgid "replays.row_detail"
 msgstr "Выберите, чтобы посмотреть повтор, добавить его в игру или изучить ввод и статистику."
 
 #. The saved replay has already been played back.
-msgid "replays.watched"
+msgid "replays.seen"
 msgstr "Видел"
 
 #. The player watched the live match as a spectator, not a replay playback.
 msgid "replays.spectated"
-msgstr "Наблюдал"
+msgstr "Как зритель"
 
 #. The player watched the live match as a spectator and has also played its replay.
-msgid "replays.watched_spectated"
-msgstr "Наблюдал, видел"
+msgid "replays.spectated_seen"
+msgstr "Как зритель, видел"
 
 msgid "replays.not_ready"
 msgstr "Доступно в главном меню, вне матча."
@@ -4214,6 +4220,42 @@ msgstr "Знак Ember"
 
 msgid "export.generate"
 msgstr "Создать видео"
+
+msgid "export.meter"
+msgstr "Счётчик кадров"
+
+msgid "export.meter_detail"
+msgstr "Показывает тренировочный счётчик кадров поверх боя, на экране и в видео."
+
+msgid "export.generate_detail"
+msgstr "Воспроизводит реплей и записывает его в .mp4 рядом с ним. Во время записи F10 открывает Ember, чтобы следить за ней или отменить её."
+
+msgid "export.running"
+msgstr "Экспорт видео"
+
+msgid "export.running_detail"
+msgstr "Реплей записывается во время воспроизведения. Пока это меню открыто, в видео нет подписи и счётчика кадров."
+
+msgid "export.starting"
+msgstr "Запуск..."
+
+msgid "export.finishing"
+msgstr "Завершение видео..."
+
+msgid "export.cancelling"
+msgstr "Отмена..."
+
+msgid "export.progress"
+msgstr "{0} / {1}"
+
+msgid "export.cancel"
+msgstr "Отменить экспорт"
+
+msgid "export.cancel_detail"
+msgstr "Останавливает запись и удаляет незаконченное видео. Реплей доиграет до конца."
+
+msgid "export.cancelled"
+msgstr "Экспорт отменён. Видео не сохранено."
 
 msgid "training.result"
 msgstr "Результат"

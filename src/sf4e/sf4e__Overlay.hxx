@@ -10,6 +10,9 @@ namespace sf4e {
 	namespace Overlay {
         bool CapturesMenuInput();
         bool HasInputFocus();
+        // The last overlay frame drew Ember's menu or the training controls,
+        // which a captioned export leaves out of its video (sf4e__Platform.cxx).
+        bool ShellShown();
         void RequestMainControls();
         // Game thread: the pad's Back and Start in offline Training. Opening
         // takes the input at once, as RequestMainControls does.

@@ -161,9 +161,12 @@ void NativeCapture() {
  for(unsigned i=0;i<sizeof(caches);++i){const bool input=(i>=0x18&&i<0x2c)||(i>=0x68&&i<0x7c);
   Check(caches[i]==(input?0:0x5a),"Native suppression corrupted assignment or missed an input cache");}
  using sf4e::input::MenuContext;using sf4e::input::ControllerMenuAvailable;
- // The pad drives the main menu and the training controls, nothing else.
+ // The pad drives the main menu, the training controls and a menu opened over an export, nothing else.
  Check(ControllerMenuAvailable(MenuContext::MainMenu)&&ControllerMenuAvailable(MenuContext::OfflineTraining)&&
-  !ControllerMenuAvailable(MenuContext::Unavailable),"Controller navigation escaped its contexts");
+  ControllerMenuAvailable(MenuContext::ReplayExport)&&!ControllerMenuAvailable(MenuContext::Unavailable),"Controller navigation escaped its contexts");
+ // During an export the pad drives a menu F10 opened, but Start stays the game's pause.
+ Check(!sf4e::input::ControllerOpensMenu(MenuContext::ReplayExport)&&
+  sf4e::input::ControllerOpensMenu(MenuContext::MainMenu)&&!sf4e::input::ControllerOpensMenu(MenuContext::OfflineTraining),"Start opened Ember over an export");
  sf4e::input::MenuInputCapture capture;
  Check(!capture.Update(false,16),"Native input suppressed while overlay hidden");
  Check(capture.Update(true,16)&&capture.Update(true,0),"Open overlay not suppressing native input");

@@ -736,6 +736,12 @@ msgstr "Vstupy a statistiky"
 msgid "replays.inputs_detail"
 msgstr "Zobrazí stisky obou hráčů snímek po snímku i celkové počty. Nic se nepřehrává."
 
+msgid "replays.show_folder"
+msgstr "Zobrazit ve složce"
+
+msgid "replays.show_folder_detail"
+msgstr "Otevře v Průzkumníku složku, ve které je tento záznam."
+
 msgid "inputs.length_value"
 msgstr "Kola {0} · {1}"
 
@@ -764,7 +770,7 @@ msgid "replays.row_detail"
 msgstr "Vyber pro přehrání, přidání do hry nebo zobrazení vstupů a statistik."
 
 #. The saved replay has already been played back.
-msgid "replays.watched"
+msgid "replays.seen"
 msgstr "Přehráno"
 
 #. The player watched the live match as a spectator, not a replay playback.
@@ -772,7 +778,7 @@ msgid "replays.spectated"
 msgstr "Sledováno jako divák"
 
 #. The player watched the live match as a spectator and has also played its replay.
-msgid "replays.watched_spectated"
+msgid "replays.spectated_seen"
 msgstr "Sledováno jako divák, přehráno"
 
 msgid "replays.not_ready"
@@ -4214,6 +4220,42 @@ msgstr "Značka Ember"
 
 msgid "export.generate"
 msgstr "Vytvořit video"
+
+msgid "export.meter"
+msgstr "Měřič snímků"
+
+msgid "export.meter_detail"
+msgstr "Zobrazí měřič snímků z tréninku přes souboj, na obrazovce i ve videu."
+
+msgid "export.generate_detail"
+msgstr "Přehraje záznam a nahraje ho jako .mp4 vedle něj. Během nahrávání otevře F10 Ember, kde lze průběh sledovat nebo export zrušit."
+
+msgid "export.running"
+msgstr "Export videa"
+
+msgid "export.running_detail"
+msgstr "Záznam se nahrává během přehrávání. Dokud je tato nabídka otevřená, video neobsahuje popisky ani měřič snímků."
+
+msgid "export.starting"
+msgstr "Spouštění..."
+
+msgid "export.finishing"
+msgstr "Dokončování videa..."
+
+msgid "export.cancelling"
+msgstr "Rušení..."
+
+msgid "export.progress"
+msgstr "{0} / {1}"
+
+msgid "export.cancel"
+msgstr "Zrušit export"
+
+msgid "export.cancel_detail"
+msgstr "Zastaví nahrávání a smaže nedokončené video. Záznam se přehraje do konce."
+
+msgid "export.cancelled"
+msgstr "Export zrušen. Žádné video nebylo uloženo."
 
 msgid "training.result"
 msgstr "Výsledek"

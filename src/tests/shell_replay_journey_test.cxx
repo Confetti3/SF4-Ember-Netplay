@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <chrono>
 #include <fstream>
+#include <iterator>
 #include <memory>
 namespace {
 using Archived=sf4e::platform::replays::ArchivedReplay;
@@ -102,16 +103,30 @@ void ReplayJourneys() {
  {
   auto shown=Listed("C:\\r\\a.emberreplay","2026-10-06 21:32");
   shown.watched=shown.spectated=true;shown.summary=replayinputs::Summary{};shown.summary->scored=true;shown.summary->score[0]=2;shown.summary->score[1]=1;
+  shown.fighters[0]=0;shown.fighters[1]=99;shown.names[0]="Ann";
   List(h,{shown});h.view.replays.ready=true;
   // Only the Replays screen asks the lister for a listing; Home asks for nothing.
   Check(!h.shell.ReplayWants().listing&&!h.shell.ReplayWants().detail,"Home asked the replay workers for something");
   std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shownRows){rows=shownRows;});h.Screen("replays");
   Check(h.shell.ReplayWants().listing&&!h.shell.ReplayWants().detail,"The Replays screen did not ask for a listing");
   Check(rows.size()==3&&rows[0].id=="replay-log"&&rows[1].id=="replay-folder","Replays retained settings above the list");
-  Check(rows[2].value=="2-1 · "+std::string(loc::T("replays.watched_spectated")),"Replay score and status separator wrong");
-  Check(rows[2].id=="replay:C:\\r\\a.emberreplay"&&rows[2].label==ReplayLabel(shown.label,shown.names,shown.fighters),"Replay row lost its file or its label");
+  Check(rows[2].value=="2-1 · "+std::string(loc::T("replays.spectated_seen")),"Replay score and status separator wrong");
+  Check(rows[2].id=="replay:C:\\r\\a.emberreplay"&&rows[2].label==ReplayRowLabel(shown.label,shown.names,shown.fighters),"Replay row lost its file or its label");
+  // The portraits show the fighters, so the label names the players: a noted name, else the fighter.
+  Check(rows[2].label==shown.label+"  "+loc::Tf("replays.fighters",std::string("Ann"),std::string(loc::T("common.unavailable"))),"Replay row label did not name its players");
+  Check(rows[2].Match()&&rows[2].fighter1==0&&rows[2].fighter2==-1,"Replay row did not carry its fighters for the portraits, or kept an unknown one");
+  Check(rows[0].fighter1==-1&&!rows[0].Match(),"A plain row drew portraits");
   Check(rows[2].detail.find("LP ")==std::string::npos,"Replay list still duplicates input totals");
-  Check(rows[2].choices.size()==5&&rows[2].choices[0].id=="watch"&&rows[2].choices[1].id=="watch-meter"&&rows[2].choices[2].id=="add"&&rows[2].choices[3].id=="export"&&rows[2].choices[4].id=="inputs","Replay choice order wrong");
+  Check(rows[2].choices.size()==6&&rows[2].choices[0].id=="watch"&&rows[2].choices[1].id=="watch-meter"&&rows[2].choices[2].id=="add"&&rows[2].choices[3].id=="export"&&rows[2].choices[4].id=="inputs"&&rows[2].choices[5].id=="show-folder","Replay choice order wrong");
+  // Show in folder asks the services for the row's own file, and its answer is the status line.
+  {const auto sent=h.actions.size();h.Choose("replay:C:\\r\\a.emberreplay");for(int i=0;i<5;++i)h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+   Check(h.actions.size()==sent+1&&h.actions.back().service==platform::ServiceAction::ShowReplayFile&&h.actions.back().servicePath=="C:\\r\\a.emberreplay"&&h.actions.back().replay.mode==sf4e::replay::Mode::None,"Show in folder did not ask for the replay's file");
+   std::string status;Tone tone=Tone::Neutral;SetMenuStatusProbe([&](const char* text,Tone value){status=text;tone=value;});
+   h.view.services.lastAction=platform::ServiceAction::ShowReplayFile;h.view.services.message="Opened C:\\r in Explorer.";h.view.services.succeeded=true;h.Frame();
+   Check(status=="Opened C:\\r in Explorer."&&tone==Tone::Success,"Show in folder's answer was not the status");
+   h.view.services.succeeded=false;h.view.services.message="Not opened.";h.Frame();
+   Check(status=="Not opened."&&tone==Tone::Error,"Show in folder's failure was not an error");
+   SetMenuStatusProbe({});h.view.services={};}
   SetMenuEntriesProbe({});h.Choose("replay:C:\\r\\a.emberreplay");h.Press(MenuInput::Select);
   Check(h.actions.back().replay.mode==sf4e::replay::Mode::Watch&&h.actions.back().replay.path=="C:\\r\\a.emberreplay","Watch now did not ask for the replay's file");
   Check(!h.actions.back().replay.meter,"Watch now unexpectedly requested the frame meter");
@@ -134,7 +149,7 @@ void ReplayJourneys() {
    h.Screen("home");Check(status!="Not added.","The replay notice showed outside Replays");
    SetMenuStatusProbe({});h.view.replays.notice.clear();h.view.replays.noticeError=false;h.Screen("replays");}
   // Export video opens the caption's screen; the set so far is counted from the two matches before, the line is the date and score, and Generate sends all of it.
-  {auto third=Listed("C:\\r\\c.emberreplay","2026-10-06 21:40"),second=third,first=third;third.names[0]="A";third.names[1]="B";third.summary=sf4e::replayinputs::Summary{};third.summary->scored=true;third.summary->score[0]=2;third.summary->score[1]=1;third.time=3000;
+  {auto third=Listed("C:\\r\\c.emberreplay","2026-10-06 21:40"),second=third,first=third;third.names[0]="A";third.names[1]="B";third.summary=sf4e::replayinputs::Summary{};third.summary->scored=true;third.summary->score[0]=2;third.summary->score[1]=1;third.summary->frames=161*60;third.time=3000;
    second=third;second.path=std::filesystem::u8path("C:\\r\\b.emberreplay");second.time=2500;second.summary->score[0]=0;second.summary->score[1]=2;
    first=third;first.path=std::filesystem::u8path("C:\\r\\a2.emberreplay");first.time=2000;first.names[0]="B";first.names[1]="A";first.summary->score[0]=1;first.summary->score[1]=2;
    h.view.replays.link.clear();List(h,{third,second,first});h.Screen("replays");h.Choose("replay:C:\\r\\c.emberreplay");for(int i=0;i<3;++i)h.Press(MenuInput::Right);h.Press(MenuInput::Select);
@@ -143,7 +158,40 @@ void ReplayJourneys() {
    const auto& sent=h.actions.back().replay;
    Check(sent.mode==sf4e::replay::Mode::Export&&sent.path=="C:\\r\\c.emberreplay"&&sent.caption.names&&sent.caption.line&&!sent.caption.mark&&sent.caption.set,"Generate did not send the export with its caption");
    Check(sent.caption.wins[0]==1&&sent.caption.wins[1]==1&&sent.caption.text=="2026-10-06   2-1"&&sent.caption.name[0]=="A","The caption did not start from the replay and the set before it");
-   Check(h.shell.Navigation().Screen()=="replays","Generate did not return to the Replays screen");}
+   Check(h.shell.Navigation().Screen()=="replays","Generate did not return to the Replays screen");
+   Check(!sent.meter,"Generate sent the frame meter that was off");
+   // The export screen's Frame meter row goes with Generate, and is kept for the next export.
+   h.Choose("replay:C:\\r\\c.emberreplay");for(int i=0;i<3;++i)h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+   h.FocusOn("cap-meter");h.Press(MenuInput::Right);h.Choose("cap-generate");
+   Check(h.actions.back().replay.mode==sf4e::replay::Mode::Export&&h.actions.back().replay.meter,"Generate did not send the frame meter");
+   {std::vector<MenuEntry> page;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& e){page=e;});
+    h.Choose("replay:C:\\r\\c.emberreplay");for(int i=0;i<3;++i)h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+    const auto meter=std::find_if(page.begin(),page.end(),[](const MenuEntry& e){return e.id=="cap-meter";});
+    Check(meter!=page.end()&&meter->value==loc::T("common.on")&&std::prev(page.end())->id=="cap-generate","The Frame meter row was not kept on, before Generate");
+    SetMenuEntriesProbe({});h.Press(MenuInput::Back);
+    Check(h.shell.Navigation().Screen()=="replays","Back from the export screen did not return to Replays");}
+   // While it runs, Replays leads with its progress against the replay's length, and Cancel export asks first.
+   {std::vector<MenuEntry> shownRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& e){shownRows=e;});
+    const auto row=[&](const char* id)->const MenuEntry*{for(const auto& e:shownRows)if(e.id==id)return &e;return nullptr;};
+    h.view.replays.ready=false;h.view.replays.exportStage=sf4e::replay::ExportStage::Starting;h.Frame();
+    Check(!shownRows.empty()&&shownRows[0].id=="export-progress"&&shownRows[0].value==loc::T("export.starting")&&row("export-cancel"),"A starting export did not lead the Replays screen with its Cancel");
+    h.view.replays.exportStage=sf4e::replay::ExportStage::Recording;h.view.replays.exportFrames=62*60;h.Frame();
+    Check(shownRows[0].value=="1:02 / 2:41","The export's progress was not shown against the replay's length");
+    const auto sent=h.actions.size();
+    h.FocusOn("export-cancel");h.Press(MenuInput::Select);
+    Check(h.shell.Navigation().Confirming()&&h.actions.size()==sent,"Cancel export did not ask first");
+    h.Press(MenuInput::Select);
+    Check(h.actions.size()==sent&&!h.shell.Navigation().Confirming(),"Cancel focused first did not keep the export");
+    h.FocusOn("export-cancel");h.Press(MenuInput::Select);h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+    Check(h.actions.size()==sent+1&&h.actions.back().replay.mode==sf4e::replay::Mode::CancelExport&&h.actions.back().replay.path.empty(),"Confirming Cancel export did not cancel it");
+    // Once the encoder closes the file, or is ending a cancelled one, there is nothing to cancel.
+    h.view.replays.exportStage=sf4e::replay::ExportStage::Cancelling;h.Frame();
+    Check(shownRows[0].value==loc::T("export.cancelling")&&!row("export-cancel"),"A cancelling export still offered Cancel");
+    h.view.replays.exportStage=sf4e::replay::ExportStage::Finishing;h.Frame();
+    Check(shownRows[0].value==loc::T("export.finishing")&&!row("export-cancel"),"A finishing export still offered Cancel");
+    h.view.replays.exportStage=sf4e::replay::ExportStage::None;h.view.replays.exportFrames=0;h.view.replays.ready=true;h.Frame();
+    Check(!row("export-progress")&&!row("export-cancel"),"The export's rows outlived it");
+    SetMenuEntriesProbe({});}}
   InputsJourney(h,true);
   InputsReplacementJourney(h);
   // In a room the menu is the room's: a link waits there, and takes the menu once the room is left.

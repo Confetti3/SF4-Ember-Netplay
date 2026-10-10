@@ -477,19 +477,25 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         const auto start=ImGui::GetCursorScreenPos();
         const float textSize=home?28*Scale():ImGui::GetFontSize();
         const bool valueRow=!card&&(e.adjustable||e.text||!e.value.empty());
-        const bool stackedValue=valueRow&&rowWidth<420*unit;
+        // A match's row keeps a portrait square at each end; its text sits between them.
+        const bool match=!gridCell&&!home&&e.Match();
+        const float faceInset=6*unit,faceGap=8*unit;
+        const float stackedFace=match?48*unit:0,faceEnd=match?faceInset+stackedFace+faceGap:0;
+        const bool stackedValue=valueRow&&rowWidth-2*faceEnd<420*unit;
         const float height=gridCell?gridHeight:e.height>0?e.height*unit:(std::max)(home?homeHeight:(stackedValue?64:flyout?42:52)*unit,textSize+2*ImGui::GetStyle().FramePadding.y);
+        const float face=match?(std::min)(stackedFace,height-8*unit):0,lead=match?faceInset+face+faceGap:0;
+        const float innerWidth=rowWidth-2*lead;
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize,0);ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,card?cardRounding*unit:0);
         ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign,ImVec2(.03f,.5f));
         ImGui::PushStyleColor(ImGuiCol_Button,focused?(card&&cardRounding>0?ImVec4(.30f,.17f,.09f,.55f):ImVec4(.47f,.28f,.16f,.6f)):ImVec4(.105f,.10f,.095f,home?0.f:.45f));
         ImGui::PushStyleColor(ImGuiCol_Text,EntryTextColor(visualEnabled));
         if(home)ImGui::PushFont(HeadingFont());
-        const float textWidth=rowWidth-2*ImGui::GetStyle().FramePadding.x;
+        const float textWidth=innerWidth-2*ImGui::GetStyle().FramePadding.x;
         const float valueWidth=valueRow?(stackedValue?textWidth:(std::min)(textWidth*.45f,200*unit)):0;
         const float labelWidth=valueRow&&!stackedValue?textWidth-valueWidth-16*unit:textWidth;
         const std::string label=FitLabel(e.label,labelWidth);
         const std::string value=FitLabel(e.value.empty()?loc::T("common.not_set"):e.value,(std::max)(1.f,valueWidth-(e.adjustable?52*unit:0)));
-        const auto geometry=LayOutRow(start,rowWidth,height,stackedValue,valueWidth,unit);
+        const auto geometry=LayOutRow(ImVec2(start.x+lead,start.y),innerWidth,height,stackedValue,valueWidth,unit);
         if(ImGui::Button("##entry",ImVec2(rowWidth,height))&&!modalAtStart&&!navigation.Editing()&&!navigation.Asking()) {
             // One intent per click, settled before anything changes: a value's
             // arrow adjusts it; anything else on the row is Select.
@@ -517,6 +523,11 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
                     ImGui::GetWindowDrawList()->AddText(ImVec2(geometry.valueMin.x,y),visualEnabled?palette::Ember:palette::Muted,"<");
                     ImGui::GetWindowDrawList()->AddText(ImVec2(geometry.valueMax.x-12*unit,y),visualEnabled?palette::Ember:palette::Muted,">");
                 }
+            }
+            if(match&&rowVisible){
+                const float top=start.y+(height-face)*.5f;
+                DrawCharacterPortrait(e.fighter1,ImVec2(start.x+faceInset,top),ImVec2(start.x+faceInset+face,top+face));
+                DrawCharacterPortrait(e.fighter2,ImVec2(start.x+rowWidth-faceInset-face,top),ImVec2(start.x+rowWidth-faceInset,top+face));
             }
         }
         // Row text is drawn through the draw list, so it is not hoverable and an

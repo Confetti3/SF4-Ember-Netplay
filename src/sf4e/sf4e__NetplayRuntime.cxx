@@ -373,7 +373,7 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 	if (command.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.command.invitation.size() > 4096 ||
 		command.preferences.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.roomAction.text.size() > room::MaximumChatBytes ||
 		command.preferences.roomName.size() > 64 || !command.identity.Valid() || !command.tournament.Valid() ||
-		command.publicTicket.size() > netplay::publicrooms::MaxTicketBytes ||
+		command.publicTicket.size() > netplay::publicrooms::MaxTicketBytes || command.servicePath.size() > 4096 ||
 		(command.createdRules && !netplay::PlayerPreferences::ValidRules(*command.createdRules)) ||
 		(command.training == TrainingEntry::Offline && command.command.kind != netplay::CommandKind::StartOffline)) return false;
 	if (command.identity.op != netplay::IdentityOp::None) {
@@ -395,7 +395,7 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 		kind != netplay::CommandKind::CheckConnection && kind != netplay::CommandKind::ApplyDelay) return false;
 	const auto bytes = sizeof(RuntimeCommand) + command.displayName.size() + command.command.invitation.size() +
 		command.preferences.displayName.size() + command.preferences.roomName.size() + command.roomAction.text.size() + command.publicTicket.size() +
-		command.replay.path.size() + command.replay.caption.name[0].size() + command.replay.caption.name[1].size() + command.replay.caption.text.size();
+		command.servicePath.size() + command.replay.path.size() + command.replay.caption.name[0].size() + command.replay.caption.name[1].size() + command.replay.caption.text.size();
 	return bridge::PushCommand(std::move(command), bytes);
 }
 

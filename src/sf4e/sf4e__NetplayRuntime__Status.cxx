@@ -400,6 +400,7 @@ PostPublishState Publish() {
 	snapshot.replays.playback = replayplayback::GetView();
 	snapshot.replays.meterShown = snapshot.replays.playback.playback && snapshot.replays.playback.meter;
 	if (snapshot.replays.playback.playback) snapshot.replays.lanes = replayplayback::GetLanes();
+	snapshot.replays.exportStage = replays.exportStage; snapshot.replays.exportFrames = replays.exportFrames;
 	if (replays.captionShown) snapshot.replays.caption = replays.caption;
 	snapshot.replays.archive = platform::replays::LatestListing();
 	snapshot.replays.detail = platform::replays::LatestDetail();
@@ -407,7 +408,8 @@ PostPublishState Publish() {
 		runtime->entryDeferredGeneration && runtime->entryDeferredGeneration == runtime->match->Generation() &&
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Started;
     snapshot.menuContext = snapshot.atMainMenu ? input::MenuContext::MainMenu :
-        training::ControlsAvailable() ? input::MenuContext::OfflineTraining : input::MenuContext::Unavailable;
+        training::ControlsAvailable() ? input::MenuContext::OfflineTraining :
+        snapshot.replays.exportStage != replay::ExportStage::None ? input::MenuContext::ReplayExport : input::MenuContext::Unavailable;
     if(snapshot.atMainMenu) for(int fighter=0;fighter<selection::FighterCount;++fighter)
         snapshot.fighterAvailability[fighter]=Dimps::Selection::ReadAvailability(fighter);
     // The explicit gameplay-device assignment stays authoritative, including

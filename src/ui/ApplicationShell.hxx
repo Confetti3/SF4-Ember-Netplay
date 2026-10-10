@@ -134,6 +134,8 @@ std::string TrainingReadyText(int seconds);
 struct ShellAction {
     netplay::Command command{netplay::CommandKind::HostRoom};
     platform::ServiceAction service = platform::ServiceAction::None;
+    // With ShowReplayFile: the archived replay, as its row names it, whose folder opens.
+    std::string servicePath;
             input::Action inputAction = input::Action::None;
     discord::InviteAction discordAction = discord::InviteAction::None;
     std::uint64_t discordRevision = 0;

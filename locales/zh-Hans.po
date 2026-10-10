@@ -736,6 +736,12 @@ msgstr "输入与统计"
 msgid "replays.inputs_detail"
 msgstr "逐帧显示双方的按键输入及总计。不会播放对战。"
 
+msgid "replays.show_folder"
+msgstr "在文件夹中显示"
+
+msgid "replays.show_folder_detail"
+msgstr "在资源管理器中打开存放此录像的文件夹。"
+
 msgid "inputs.length_value"
 msgstr "回合 {0} · {1}"
 
@@ -764,7 +770,7 @@ msgid "replays.row_detail"
 msgstr "选择以观看、添加到游戏，或查看输入和统计。"
 
 #. The saved replay has already been played back.
-msgid "replays.watched"
+msgid "replays.seen"
 msgstr "已播放"
 
 #. The player watched the live match as a spectator, not a replay playback.
@@ -772,7 +778,7 @@ msgid "replays.spectated"
 msgstr "曾观战"
 
 #. The player watched the live match as a spectator and has also played its replay.
-msgid "replays.watched_spectated"
+msgid "replays.spectated_seen"
 msgstr "曾观战、已播放"
 
 msgid "replays.not_ready"
@@ -4214,6 +4220,42 @@ msgstr "Ember 标记"
 
 msgid "export.generate"
 msgstr "生成视频"
+
+msgid "export.meter"
+msgstr "帧数表"
+
+msgid "export.meter_detail"
+msgstr "在对战画面上显示训练模式的帧数表，屏幕和视频中都有。"
+
+msgid "export.generate_detail"
+msgstr "播放录像并在其旁边录制为 .mp4。录制期间按 F10 打开 Ember，可查看进度或取消。"
+
+msgid "export.running"
+msgstr "正在导出视频"
+
+msgid "export.running_detail"
+msgstr "录像在播放时录制。此菜单打开期间，视频中不含字幕和帧数表。"
+
+msgid "export.starting"
+msgstr "正在开始..."
+
+msgid "export.finishing"
+msgstr "正在完成视频..."
+
+msgid "export.cancelling"
+msgstr "正在取消..."
+
+msgid "export.progress"
+msgstr "{0} / {1}"
+
+msgid "export.cancel"
+msgstr "取消导出"
+
+msgid "export.cancel_detail"
+msgstr "停止录制并删除未完成的视频。录像会继续播放到结束。"
+
+msgid "export.cancelled"
+msgstr "已取消导出。没有保存视频。"
 
 msgid "training.result"
 msgstr "结果"

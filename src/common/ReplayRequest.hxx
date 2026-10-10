@@ -14,7 +14,8 @@ namespace sf4e { namespace replay {
 // Ember's encoder.
 // OpenLog: open the battle log; no path.
 // DismissLink: the player declined the replay a link asked for; no path.
-enum class Mode { None, Add, Watch, Export, OpenLog, DismissLink };
+// CancelExport: stop the running export and keep no video of it; no path.
+enum class Mode { None, Add, Watch, Export, OpenLog, DismissLink, CancelExport };
 
 // What an export draws over the game while it records, on screen and so in
 // the video: each part on or off, with the text the player left in it.

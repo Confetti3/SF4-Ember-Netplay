@@ -17,6 +17,8 @@ using sf4e::replaycapture::State;
 // What the game thread asks: under s_lock with the file, since Frame reads both.
 std::atomic<State> s_state{State::Idle};
 std::atomic<bool> s_wanted{false}, s_sending{false}, s_afterOverlay{false};
+// The stop that was asked keeps no file: the link fails instead of closing.
+std::atomic<bool> s_discard{false};
 // The grab and the link, and everything below: the render thread's, under
 // s_lock so a reset on another thread waits for a frame in progress.
 std::mutex s_lock;
@@ -30,12 +32,19 @@ namespace sf4e { namespace replaycapture {
 void Begin(const std::wstring& file, bool withOverlay) {
 	std::lock_guard<std::mutex> lock(s_lock);
 	if (s_state != State::Idle) return;
-	s_file = file; s_opened = false; s_sending = false; s_afterOverlay = withOverlay;
+	s_file = file; s_opened = false; s_sending = false; s_afterOverlay = withOverlay; s_discard = false;
 	s_wanted = true;
 	s_state = State::Recording;
 }
 
 void End() { s_wanted = false; }
+
+bool Cancel() {
+	std::lock_guard<std::mutex> lock(s_lock);
+	if (s_state != State::Recording) return false;
+	s_discard = true; s_wanted = false;
+	return true;
+}
 
 void Clear() {
 	const State state = s_state;
@@ -51,9 +60,11 @@ void Frame(IDirect3DDevice9* device) {
 	if (seen != State::Recording && seen != State::Closing) return;
 	std::lock_guard<std::mutex> lock(s_lock);
 	if (s_state == State::Recording && !s_wanted) {
-		// Asked to stop: the encoder closes the file on its own time.
+		// Asked to stop: the encoder closes the file on its own time, or, for
+		// a cancel, ends without keeping it (the link's one removal, as for
+		// a failed grab).
 		grab::Release();
-		if (s_sending) { link::Stop(); s_state = State::Closing; }
+		if (s_sending) { if (s_discard) link::Fail(); else link::Stop(); s_state = State::Closing; }
 		else s_state = State::Failed;
 		s_sending = false;
 	}
