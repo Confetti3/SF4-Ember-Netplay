@@ -622,6 +622,96 @@ msgstr "Play offline"
 msgid "home.offline_detail"
 msgstr "Open the native offline menus."
 
+msgid "home.replays"
+msgstr "Replays"
+
+msgid "home.replays_detail"
+msgstr "Every match is saved. Put any of them into the game's Replay Channel."
+
+msgid "replays.title"
+msgstr "Replays"
+
+msgid "replays.empty"
+msgstr "No replays yet"
+
+msgid "replays.empty_detail"
+msgstr "A match is saved here when it ends."
+
+msgid "replays.add"
+msgstr "Add to game"
+
+msgid "replays.add_detail"
+msgstr "Adds it to the game's replay list to watch later from the battle log."
+
+msgid "replays.watch"
+msgstr "Watch now"
+
+msgid "replays.watch_detail"
+msgstr "Adds it to the game's replay list and plays it from the battle log."
+
+msgid "replays.save_watched"
+msgstr "Save matches you watch"
+
+msgid "replays.save_watched_detail"
+msgstr "On: matches you only watch are recorded too. Off: only the matches you play."
+
+msgid "replays.link"
+msgstr "A link wants to play a replay"
+
+msgid "replays.link_detail"
+msgstr "A link asked Ember to play {0}. Play it only if you know where the link came from."
+
+msgid "replays.link_play"
+msgstr "Play it"
+
+msgid "replays.link_dismiss"
+msgstr "Not now"
+
+msgid "replays.link_dismiss_detail"
+msgstr "Leaves the file where it is and forgets the link."
+
+msgid "replays.row_detail"
+msgstr "Select to add it to the game's replay list, or to add it and watch it now."
+
+msgid "replays.watched"
+msgstr "Watched"
+
+msgid "replays.spectated"
+msgstr "Spectated"
+
+msgid "replays.watched_spectated"
+msgstr "Watched, spectated"
+
+msgid "replays.not_ready"
+msgstr "Available at the main menu, outside a match."
+
+msgid "replays.added"
+msgstr "Added to the game's replay list, under the date it was played."
+
+msgid "replays.not_added"
+msgstr "This replay could not be added. The file may be damaged."
+
+msgid "replays.not_added_yet"
+msgstr "The game has not saved its last match yet. Try again in a moment."
+
+msgid "replays.not_added_files"
+msgstr "This replay could not be added: the game's replay files could not be read or written. Nothing was changed."
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "Open the game's battle log"
+
+msgid "replays.open_log_detail"
+msgstr "Leaves Ember's menu for the game's local battle log, where replays play."
+
+msgid "replays.open_log_room"
+msgstr "Leave the room first."
+
 msgid "home.choose_controller"
 msgstr "Choose gameplay controller"
 

@@ -19,6 +19,8 @@
 #include "../netplay/PublicRooms.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../platform/ApplicationServices.hxx"
+#include "../platform/ReplayFiles.hxx"
+#include "../common/ReplayRequest.hxx"
 #include "../common/RoomLimits.hxx"
 #include "../session/RoomModel.hxx"
 #include <optional>
@@ -96,6 +98,9 @@ namespace sf4e {
             std::string publicTicket;
             // With the JoinInvite of a public room just created: the table rules chosen on Create.
             std::optional<room::Rules> createdRules;
+            // What the Replays screen asks of the game (sf4e__ReplayStore), or
+            // the player's answer to a replay link; mode None for every other command.
+            replay::Request replay;
 		};
 		struct RuntimeSnapshot {
             ui::ControllerSample menuController;
@@ -111,6 +116,21 @@ namespace sf4e {
 			bool atMainMenu = false;
 			// A started match is waiting for the player to return to the main menu.
 			bool matchWaitsForMenu = false;
+			// Replays. ready: an archived one can go into the game's replay
+			// list now (the native main menu, the game's table seen, the match
+			// list's 30 slots in place). notice: the outcome of the last
+			// request. logOpens and returns: sf4e__ReplayStore's counts, for
+			// Ember's menu to get out of the way and to come back on. link:
+			// the file a replay link asked for, until the player answers.
+			// archive: the last listing of the archive, or null (platform::replays::WantListing).
+			struct Replays {
+				bool ready = false;
+				std::string notice;
+				bool noticeError = false;
+				std::uint64_t logOpens = 0, returns = 0;
+				std::string link;
+				std::shared_ptr<const std::vector<platform::replays::ArchivedReplay>> archive;
+			} replays;
 			bool canOpenRoom = false;
 			bool canReplaceRoom = false;
 			bool canReady = false;
@@ -214,6 +234,11 @@ namespace sf4e {
 		// published and is never null. Safe on any thread, before StartHelper
 		// and after StopHelper.
 		std::shared_ptr<const RuntimeSnapshot> GetRuntimeSnapshotShared();
+		// At startup: in a run of the in-game self-test (SF4E_SELFTEST set,
+		// sf4e__NetplayRuntime__SelfTest.cxx) the game counts its window as
+		// in front, so the run goes on behind other windows. Does nothing
+		// otherwise.
+		void InstallSelfTest();
 		// The overlay's frame input, on any thread; never null.
 		std::shared_ptr<const PresentationSnapshot> GetPresentationSnapshotShared();
 		// Game thread, once at the end of every outer tick: expires notices and

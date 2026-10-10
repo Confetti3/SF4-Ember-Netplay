@@ -13,6 +13,8 @@
 #include "../ui/Win32Input.hxx"
 #include "../ui/DeveloperOverlay.hxx"
 #include "../ui/TrainingPanel.hxx"
+#include "../platform/ReplayFiles.hxx"
+#include "../platform/Utf8.hxx"
 #include "../training/TrainingRuntime.hxx"
 #include "../common/Localization.hxx"
 #include "../platform/GameDisplaySettings.hxx"
@@ -263,6 +265,24 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.identityRefusal = snapshot.identityRefusal;
     view.tournament = snapshot.tournament;
     view.publicRooms = snapshot.publicRooms;
+    // The archive is listed off this thread (the runtime's lister); while the
+    // Replays screen shows, a new listing is asked for and the last one
+    // becomes its rows.
+    if (shell.Navigation().Screen() == "replays") {
+        sf4e::platform::replays::WantListing();
+        if (snapshot.replays.archive) for (const auto& replay : *snapshot.replays.archive) {
+            const auto name = [&](int side) {
+                const auto* fighter = sf4e::selection::FindFighter(replay.fighters[side]);
+                const std::string fighterName = fighter ? fighter->name : sf4e::loc::T("common.unavailable");
+                return replay.names[side].empty() ? fighterName : sf4e::loc::Tf("replays.player", replay.names[side], fighterName);
+            };
+            view.replays.push_back({sf4e::platform::WideToUtf8(replay.path.wstring()),
+                replay.label + "  " + sf4e::loc::Tf("replays.fighters", name(0), name(1)), {replay.names[0], replay.names[1]}, replay.spectated, replay.watched});
+        }
+    }
+    view.replaysReady = snapshot.replays.ready;
+    view.replayNotice = snapshot.replays.notice; view.replayNoticeError = snapshot.replays.noticeError;
+    view.replayLink = snapshot.replays.link;
     const auto* fighter = sf4e::selection::FindFighter(lobbyMenuCharaID);
     view.selectedFighter=lobbyMenuCharaID;
     auto summaryPick = sf4e::selection::FromNative(lobbyConditions); summaryPick.fighter = lobbyMenuCharaID;
@@ -301,6 +321,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		sf4e::NetplayFacade::RuntimeCommand request;
 		request.command = std::move(action.command);
         request.service = action.service;
+        request.replay = std::move(action.replay);
         request.inputAction = action.inputAction; request.discordAction = action.discordAction;
         request.discordRevision = action.discordRevision;
 		request.displayName = snapshot.preferences.displayName;
@@ -363,6 +384,15 @@ void Overlay::DrawOverlay() {
     if (snapshot.tournament.connect.sequence!=connectLinkShown && snapshot.atMainMenu && presentation.Available()) {
         presentation.Open(); connectLinkShown=snapshot.tournament.connect.sequence;
     }
+    // A replay link opens the menu at the main menu with no room, where the
+    // shell puts its question on the Replays screen; in a room or in play it
+    // waits until then.
+    static std::string replayLinkShown;
+    if (snapshot.replays.link.empty()) replayLinkShown.clear();
+    else if (snapshot.replays.link != replayLinkShown && snapshot.atMainMenu && presentation.Available() &&
+        snapshot.session.room == sf4e::netplay::RoomState::Idle) {
+        presentation.Open(); replayLinkShown = snapshot.replays.link;
+    }
     // A public room link the player was free to follow opens the menu, where
     // the shell takes them to Public rooms; during play it waits until the
     // player opens Ember, and the shell says so.
@@ -390,6 +420,12 @@ void Overlay::DrawOverlay() {
     sf4e::ui::SetMenuInput({controllerNavigation.Buttons(), ImGui::GetTime()});
     sf4e::ui::SetMenuGlyphs(snapshot.menuController.deviceType,snapshot.menuController.selectPhysical,snapshot.menuController.backPhysical);
     if (presentation.Reopened()) shell.ShowPlay();
+    // The game's battle log was opened from the Replays screen: Ember's menu
+    // gets out of the way, and comes back on that screen when the replay
+    // operation says the main menu is back (sf4e__ReplayStore.hxx).
+    static std::uint64_t logOpensSeen = 0, returnsSeen = 0;
+    if (snapshot.replays.logOpens != logOpensSeen) { logOpensSeen = snapshot.replays.logOpens; presentation.Close(); }
+    if (snapshot.replays.returns != returnsSeen) { returnsSeen = snapshot.replays.returns; presentation.Open(); shell.Navigation().Home(); shell.Navigation().Push("replays"); }
     if (ImGui::IsKeyPressed(ImGuiKey_F10, false)) presentation.Toggle();
     // Every overlay frame, since the training panel draws art with the menu
     // closed. Pump returns at once when nothing drew art since the last pump.

@@ -50,6 +50,9 @@ struct PlayerPreferences {
     // The game's sound and the pads keep working while another window, such
     // as OBS, is in front (sf4e__BackgroundPlay.cxx).
     bool backgroundPlay = false;
+    // A match this PC only watches is recorded too, like one it plays
+    // (sf4e__UserApp.cxx: StartMatchFromLobby).
+    bool recordWatched = true;
     bool discordPresence = true, discordInvites = true;
     float interfaceScale = 1.f;
     LobbySettings lobby;

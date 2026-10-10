@@ -1,4 +1,5 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "sf4e__ReplayStore.hxx"
 
 namespace sf4e { namespace NetplayFacade {
 namespace internal {
@@ -292,7 +293,7 @@ std::uint64_t PublishFingerprint() {
     mix(runtime->opponentChangeSequence); mix(runtime->roomNoticeSequence); mix(static_cast<std::uint64_t>(runtime->opponentFighterWatch.Pending() + 1));
     mix(runtime->recoveringMatch); mix(OverlayPrefs::PersistencePending()); mixString(OverlayPrefs::PersistenceError());
     mix(runtime->services.Snapshot().pending); mixString(runtime->discordStatusId); mix(runtime->discordInvite.Revision());
-    mix(runtime->preferences.showMatchHud); mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudRaised); mix(runtime->preferences.matchHudAnchor); mix(runtime->preferences.matchHudLayout); mix(runtime->preferences.matchHudNameOffset); mix(runtime->preferences.readySound); mix(runtime->preferences.readySoundVolume); mix(runtime->preferences.backgroundPlay);
+    mix(runtime->preferences.showMatchHud); mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudRaised); mix(runtime->preferences.matchHudAnchor); mix(runtime->preferences.matchHudLayout); mix(runtime->preferences.matchHudNameOffset); mix(runtime->preferences.readySound); mix(runtime->preferences.readySoundVolume); mix(runtime->preferences.backgroundPlay); mix(runtime->preferences.recordWatched);
     mix(static_cast<std::uint64_t>(runtime->input.State())); mix(runtime->input.Ready());
     mix(AtMainMenu());
     return h;
@@ -326,6 +327,12 @@ PostPublishState Publish() {
     snapshot.controller = ControllerLabel(snapshot.inputDevice);
 
 	snapshot.atMainMenu = AtMainMenu();
+	const replaystore::Status& replays = replaystore::GetStatus();
+	snapshot.replays.ready = snapshot.atMainMenu && replays.step == replaystore::Step::Idle && replaystore::Ready();
+	snapshot.replays.notice = replays.notice; snapshot.replays.noticeError = replays.noticeError;
+	snapshot.replays.logOpens = replays.logOpens; snapshot.replays.returns = replays.returns;
+	snapshot.replays.link = runtime->replayLinkAsked;
+	snapshot.replays.archive = platform::replays::LatestListing();
 	snapshot.matchWaitsForMenu = runtime->match && !runtime->matchEntered && !snapshot.atMainMenu &&
 		runtime->entryDeferredGeneration && runtime->entryDeferredGeneration == runtime->match->Generation() &&
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Started;

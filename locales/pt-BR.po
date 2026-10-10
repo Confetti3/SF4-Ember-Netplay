@@ -622,6 +622,96 @@ msgstr "Jogar offline"
 msgid "home.offline_detail"
 msgstr "Abra os menus offline nativos."
 
+msgid "home.replays"
+msgstr "Replays"
+
+msgid "home.replays_detail"
+msgstr "Toda partida é salva. Coloque qualquer uma delas no Replay Channel do jogo."
+
+msgid "replays.title"
+msgstr "Replays"
+
+msgid "replays.empty"
+msgstr "Nenhum replay ainda"
+
+msgid "replays.empty_detail"
+msgstr "Uma partida é salva aqui quando termina."
+
+msgid "replays.add"
+msgstr "Adicionar ao jogo"
+
+msgid "replays.add_detail"
+msgstr "Adiciona à lista de replays do jogo para assistir depois no registro de batalhas."
+
+msgid "replays.watch"
+msgstr "Assistir agora"
+
+msgid "replays.watch_detail"
+msgstr "Adiciona à lista de replays do jogo e o reproduz a partir do registro de batalhas."
+
+msgid "replays.save_watched"
+msgstr "Salvar partidas que você assiste"
+
+msgid "replays.save_watched_detail"
+msgstr "Ligado: as partidas que você só assiste também são gravadas. Desligado: só as partidas que você joga."
+
+msgid "replays.link"
+msgstr "Um link quer reproduzir um replay"
+
+msgid "replays.link_detail"
+msgstr "Um link pediu ao Ember para reproduzir {0}. Reproduza apenas se você sabe de onde veio o link."
+
+msgid "replays.link_play"
+msgstr "Reproduzir"
+
+msgid "replays.link_dismiss"
+msgstr "Agora não"
+
+msgid "replays.link_dismiss_detail"
+msgstr "Deixa o arquivo onde está e esquece o link."
+
+msgid "replays.row_detail"
+msgstr "Selecione para adicionar à lista de replays do jogo, ou para adicionar e assistir agora."
+
+msgid "replays.watched"
+msgstr "Assistido"
+
+msgid "replays.spectated"
+msgstr "Assistido como espectador"
+
+msgid "replays.watched_spectated"
+msgstr "Assistido, como espectador"
+
+msgid "replays.not_ready"
+msgstr "Disponível no menu principal, fora de uma partida."
+
+msgid "replays.added"
+msgstr "Adicionado à lista de replays do jogo, na data em que foi jogado."
+
+msgid "replays.not_added"
+msgstr "Não foi possível adicionar este replay. O arquivo pode estar danificado."
+
+msgid "replays.not_added_yet"
+msgstr "O jogo ainda não salvou a última partida. Tente de novo em instantes."
+
+msgid "replays.not_added_files"
+msgstr "Não foi possível adicionar este replay: os arquivos de replay do jogo não puderam ser lidos ou gravados. Nada foi alterado."
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "Abrir o registro de batalhas do jogo"
+
+msgid "replays.open_log_detail"
+msgstr "Sai do menu do Ember para o registro de batalhas local do jogo, onde os replays são reproduzidos."
+
+msgid "replays.open_log_room"
+msgstr "Saia da sala primeiro."
+
 msgid "home.choose_controller"
 msgstr "Escolher controle de jogo"
 
