@@ -73,13 +73,10 @@ static sf4e::ui::OverlayLifecycle s_lifecycle;
 // Whether the menu can open now, published by the drawing thread for the
 // window procedure (F10 is the game's key otherwise).
 static std::atomic<bool> s_menuAvailable{false};
-// The last frame drew Ember's menu or the training controls (ShellShown).
-static std::atomic<bool> s_shellShown{false};
 static rVsMode::ConfirmedCharaConditions lobbyConditions = {0,0,0,0,0,0,0,0,14};
 
 bool Overlay::CapturesMenuInput() { return capture.load(); }
 bool Overlay::HasInputFocus() { return focused.load(); }
-bool Overlay::ShellShown() { return s_shellShown.load(); }
 void Overlay::RequestMainControls() { if(focused) { capture=true; s_openRequests.Post(sf4e::ui::OpenRequests::Kind::Controls); } }
 void Overlay::PostTrainingPad(const sf4e::input::TrainingPadEvents& events) {
     if(!focused) return;
@@ -365,7 +362,13 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 }
 
 
-void Overlay::DrawOverlay() {
+void Overlay::DrawOverlay(const std::function<void()>& picture) {
+    // Once each call, wherever the frame ends: with nothing drawn, before it.
+    struct Capture {
+        const std::function<void()>& take; bool taken = false;
+        void operator()() { if (!taken) { taken = true; if (take) take(); } }
+        ~Capture() { (*this)(); }
+    } captureOnce{picture};
     s_drawThread.store(GetCurrentThreadId());
 
     // Skipped while a Reset replaces the context; held until the frame is drawn.
@@ -541,8 +544,7 @@ void Overlay::DrawOverlay() {
         }
     }
     sf4e::ui::OverlayLayersView layers;
-    // The shortcut hint would be in an export's video, so it is not drawn over one.
-    layers.shellVisible = presentation.Visible(); layers.shellAvailable = presentation.Available() && !exporting;
+    layers.shellVisible = presentation.Visible(); layers.shellAvailable = presentation.Available(); layers.exporting = exporting;
     layers.trainingControlsOpen = trainingOpen; layers.nativePaused = nativePaused;
     layers.focused = focused; layers.trainingHud = trainingHud;
     layers.matchActive = frame->ggpoSessionActive; layers.matchWaitsForMenu = snapshot.matchWaitsForMenu;
@@ -611,7 +613,6 @@ void Overlay::DrawOverlay() {
     s_trainingOpen = trainingOpen;
     // Shown survives alt-tab; taking the cursor and keys needs focus.
     const bool shown = presentation.Visible() || trainingOpen;
-    s_shellShown = shown;
     const bool passive = sf4e::ui::PassiveOverlayShown(presentation.Visible(), trainingOpen, nativePaused);
     const bool visible = focused && shown;
     pointerCapture = focused && !visible && hud.pointer;
@@ -629,11 +630,18 @@ void Overlay::DrawOverlay() {
     // Every edit is remembered for the fighter it was made on.
     if (prefs.lobby.charaID < prefs.fighters.size()) prefs.fighters[prefs.lobby.charaID] = prefs.lobby;
     if (memcmp(&prefs, &s_prefs, sizeof(prefs)) != 0 && sf4e::OverlayPrefs::Save(prefs)) s_prefs = prefs;
-    ImGui::Render(); ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
+    // An export takes its picture between the layers its video holds and
+    // the rest of Ember, so the menu and the HUD are never in it.
+    ImGui::Render();
+    sf4e::ui::ExportPasses passes;
+    sf4e::ui::SplitExportPasses(*ImGui::GetDrawData(), passes);
+    if (passes.video.CmdListsCount) ImGui_ImplDX9_RenderDrawData(&passes.video);
+    captureOnce();
+    if (passes.rest.CmdListsCount) ImGui_ImplDX9_RenderDrawData(&passes.rest);
 
 }
 void Overlay::FreeOverlay() {
-    capture = false; pointerCapture = false; s_shellShown = false;
+    capture = false; pointerCapture = false;
     trainingAvailable = false; replayPlayback = false; goNowOffered = false; s_trainingCall = 0;
     fMainMenu::bOverrideItemObserverState = -1;
     NoteLifecycleThread("free");

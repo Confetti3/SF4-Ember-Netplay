@@ -60,6 +60,9 @@ struct TrainingHudInput { bool open = false, pointer = false; };
 // the game's super meters.
 constexpr float TrainingHudBottom = .82f;
 TrainingHudInput DrawTrainingHud(const training::View& view);
+// The frame meter's window, alone over a rollback match or a replay the
+// runtime is watching, or with the training HUD.
+constexpr const char* FrameMeterWindow = "Training frame meter";
 // The frame meter alone, over a rollback match the runtime is watching.
 void DrawMatchMeter(const training::View& view);
 // In a match under a table's Training rule: says that shared save and reset

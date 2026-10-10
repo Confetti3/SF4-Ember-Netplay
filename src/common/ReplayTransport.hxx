@@ -22,6 +22,8 @@ namespace sf4e { namespace replaytransport {
 
 // The recorder's modes (ReplayRecorder.hxx: RecorderMode); 1 plays a replay back.
 constexpr int kRecorderPlaying = 1;
+// The recorder's round streams (ReplayRecorder.hxx: kStreams).
+constexpr int kRounds = 7;
 // Battle flows (Dimps::Game::Battle::System::BattleFlow) the transport
 // reads; sf4e__ReplayPlayback.cxx checks they agree.
 constexpr int kFlowReady = 1, kFlowFight = 2, kFlowRoundStart = 14;
@@ -202,6 +204,9 @@ struct View {
 	int divisor = 1;
 	int round = 0;
 	std::uint32_t cursor = 0;
+	// Each of the replay's rounds' frames, as the recorder's streams hold
+	// them (ReplayRecorder.hxx: Stream::frames); 0 past its last round.
+	std::uint32_t roundFrames[kRounds] = {};
 	bool meter = false;      // the frame meter is shown (the request, or F5)
 	bool lanes = false;      // the input lanes are asked for (F9, LT)
 	Device device = Device::Keyboard;  // where the last command came from

@@ -66,7 +66,6 @@ private:
     std::string exportPath_;
     replay::Caption caption_;
     bool meter_ = false;
-    std::uint32_t exportTotal_ = 0;
     // Show in folder was the last thing asked here: the status line has its answer.
     bool folderAsked_ = false;
     // The replay link last seen, so its question opens the Replays screen once.

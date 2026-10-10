@@ -2,6 +2,7 @@
 
 #include <windows.h>
 #include <d3d9.h>
+#include <functional>
 
 #include "../session/sf4e__SessionClient.hxx"
 #include "../common/TrainingPad.hxx"
@@ -10,9 +11,6 @@ namespace sf4e {
 	namespace Overlay {
         bool CapturesMenuInput();
         bool HasInputFocus();
-        // The last overlay frame drew Ember's menu or the training controls,
-        // which a captioned export leaves out of its video (sf4e__Platform.cxx).
-        bool ShellShown();
         void RequestMainControls();
         // Game thread: the pad's Back and Start in offline Training. Opening
         // takes the input at once, as RequestMainControls does.
@@ -22,7 +20,11 @@ namespace sf4e {
         // whether its banner offers go now on the assigned Xbox pad.
         input::TrainingCall TrainingCallState();
 		void InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice);
-		void DrawOverlay();
+		// Draws the overlay over the game's picture. picture, which takes an
+		// export's picture, runs once each call: after the layers an export's
+		// video takes and before the rest of Ember (ui/OverlayLayers.hxx:
+		// SplitExportPasses), or before anything when the overlay draws nothing.
+		void DrawOverlay(const std::function<void()>& picture);
 		void FreeOverlay();
 		void OnClientError(SessionClient::ErrorType errType, SessionClient* const client, const SessionClient::Callbacks& callbacks);
 		void PushNetplayAlert(const char* msg);

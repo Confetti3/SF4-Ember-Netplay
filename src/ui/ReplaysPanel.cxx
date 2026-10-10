@@ -52,7 +52,7 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
   // A running export comes first: how far it has got, and Cancel while
   // cancelling can still keep its video from being made.
   if(r.exportStage!=replay::ExportStage::None){
-   rows.push_back(InfoRow("export-progress",loc::T("export.running"),ExportStageText(r.exportStage,r.exportFrames,exportTotal_),loc::T("export.running_detail")));
+   rows.push_back(InfoRow("export-progress",loc::T("export.running"),ExportStageText(r.exportStage,r.exportFrames,r.exportTotal),loc::T("export.running_detail")));
    if(replay::ExportCancellable(r.exportStage))rows.push_back(ConfirmRow("export-cancel",loc::T("export.cancel"),loc::T("export.cancel_detail")));
   }
   if(!r.link.empty()){
@@ -127,7 +127,7 @@ void ReplaysPanel::InputsRows(const ShellView& v,std::vector<MenuEntry>& rows) c
 // from the archive: the matches these two played right before this one,
 // each within half an hour of the next, by who won each.
 void ReplaysPanel::OpenExport(const ShellView& v,const platform::replays::ArchivedReplay& replay) {
- exportPath_=PathOf(replay);caption_=replay::Caption{};exportTotal_=replay.summary?replay.summary->frames:0;
+ exportPath_=PathOf(replay);caption_=replay::Caption{};
  caption_.name[0]=replay.names[0];caption_.name[1]=replay.names[1];
  caption_.names=!replay.names[0].empty()&&!replay.names[1].empty();
  const std::string score=replay.summary?ScoreText(*replay.summary):std::string();

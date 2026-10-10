@@ -161,6 +161,10 @@ struct ExportCaptionView {
     bool mark = false;
     int nameOffset = 0;
 };
+// Drawn in a window of its own, ExportCaptionWindow, that takes no input, so
+// an export can take it into its video apart from the rest of Ember
+// (OverlayLayers.hxx: SplitExportPasses).
+constexpr const char* ExportCaptionWindow = "Export caption";
 void DrawExportCaption(const ExportCaptionView& view);
 void DrawControllerWarning(const std::string& message);
 struct DiagnosticStripView {

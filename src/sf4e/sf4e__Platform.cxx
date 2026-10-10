@@ -31,7 +31,6 @@
 #include "../common/sf4e__RollbackDiagnostics.hxx"
 #include "../common/FrameShiftMailbox.hxx"
 #include "../common/EnvFlag.hxx"
-#include "../common/ReplayExport.hxx"
 
 namespace rPlatform = Dimps::Platform;
 using rD3D = rPlatform::D3D;
@@ -237,14 +236,12 @@ void fD3D::BuildPresentParameters() {
 
 void fD3D::RunScene_Render(void* sceneCommandList) {
     (this->*rD3D::privateMethods.RunScene_Render)(sceneCommandList);
-    // An export is the game's picture as it is before Ember draws on it,
-    // unless it has a caption or the frame meter, which Ember draws. Ember's
-    // menu stays out of the video (common/ReplayExport.hxx: ExportGrabOf).
-    const bool drawsOverlay = sf4e::replaycapture::AfterOverlay();
-    const bool menuShown = Overlay::ShellShown();
-    if (sf4e::replay::ExportGrabOf(drawsOverlay, menuShown, menuShown).beforeOverlay) sf4e::replaycapture::Frame(lpD3DDevice);
-    Overlay::DrawOverlay();
-    if (sf4e::replay::ExportGrabOf(drawsOverlay, menuShown, Overlay::ShellShown()).afterOverlay) sf4e::replaycapture::Frame(lpD3DDevice);
+    // An export is the game's picture with only the layers Ember draws for
+    // its video, its caption and the frame meter: the overlay draws those,
+    // the picture is taken, and then the rest of Ember, so its menu and HUD
+    // never reach the video (sf4e__Overlay.hxx: DrawOverlay).
+    IDirect3DDevice9* const device = lpD3DDevice;
+    Overlay::DrawOverlay([device] { sf4e::replaycapture::Frame(device); });
 }
 
 void fD3D::Destroy() {

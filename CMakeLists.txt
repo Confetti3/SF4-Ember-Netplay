@@ -374,8 +374,6 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__ReplayStore.cxx"
     "src/sf4e/sf4e__ReplayPlayback.hxx"
     "src/sf4e/sf4e__ReplayPlayback.cxx"
-    "src/sf4e/sf4e__ReplayCapture.hxx"
-    "src/sf4e/sf4e__ReplayCapture.cxx"
     "src/sf4e/sf4e__CrashDiagnostics.hxx"
     "src/sf4e/sf4e__CrashDiagnostics.cxx"
     "src/sf4e/sf4e__UserApp.hxx"

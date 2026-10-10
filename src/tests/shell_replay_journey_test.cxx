@@ -175,7 +175,7 @@ void ReplayJourneys() {
     const auto row=[&](const char* id)->const MenuEntry*{for(const auto& e:shownRows)if(e.id==id)return &e;return nullptr;};
     h.view.replays.ready=false;h.view.replays.exportStage=sf4e::replay::ExportStage::Starting;h.Frame();
     Check(!shownRows.empty()&&shownRows[0].id=="export-progress"&&shownRows[0].value==loc::T("export.starting")&&row("export-cancel"),"A starting export did not lead the Replays screen with its Cancel");
-    h.view.replays.exportStage=sf4e::replay::ExportStage::Recording;h.view.replays.exportFrames=62*60;h.Frame();
+    h.view.replays.exportStage=sf4e::replay::ExportStage::Recording;h.view.replays.exportFrames=62*60;h.view.replays.exportTotal=161*60;h.Frame();
     Check(shownRows[0].value=="1:02 / 2:41","The export's progress was not shown against the replay's length");
     const auto sent=h.actions.size();
     h.FocusOn("export-cancel");h.Press(MenuInput::Select);
@@ -189,7 +189,7 @@ void ReplayJourneys() {
     Check(shownRows[0].value==loc::T("export.cancelling")&&!row("export-cancel"),"A cancelling export still offered Cancel");
     h.view.replays.exportStage=sf4e::replay::ExportStage::Finishing;h.Frame();
     Check(shownRows[0].value==loc::T("export.finishing")&&!row("export-cancel"),"A finishing export still offered Cancel");
-    h.view.replays.exportStage=sf4e::replay::ExportStage::None;h.view.replays.exportFrames=0;h.view.replays.ready=true;h.Frame();
+    h.view.replays.exportStage=sf4e::replay::ExportStage::None;h.view.replays.exportFrames=h.view.replays.exportTotal=0;h.view.replays.ready=true;h.Frame();
     Check(!row("export-progress")&&!row("export-cancel"),"The export's rows outlived it");
     SetMenuEntriesProbe({});}}
   InputsJourney(h,true);

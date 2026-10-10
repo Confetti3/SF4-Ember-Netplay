@@ -20,7 +20,8 @@ bool Start(const std::wstring& file, unsigned width, unsigned height, const std:
 // One picture, as VideoEncoder's Frame takes it. Dropped while the encoder
 // is still opening or when all slots are full.
 void Send(const void* luma, int lumaPitch, const void* chroma, int chromaPitch);
-// Asks the encoder to close the file, without waiting for it.
+// Asks the encoder to close the file, without waiting for it. After Fail
+// the file is still discarded.
 void Stop();
 // A picture capture failed: stop and discard the temporary video.
 void Fail();

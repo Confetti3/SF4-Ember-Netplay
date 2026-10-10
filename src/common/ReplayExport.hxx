@@ -4,6 +4,8 @@
 // the Replays screen shows it, and what its end is called. Nothing here
 // touches the game or the encoder, so the rules are tested on their own.
 
+#include <cstdint>
+
 namespace sf4e { namespace replay {
 
 // None: no export. Starting: the battle log is opening the replay; nothing
@@ -39,20 +41,34 @@ inline ExportEnd ExportEndOf(bool done, bool cancelled) {
 	return {"replays.gpu_not_exported", true};
 }
 
-// An export takes its picture after Ember's overlay when Ember draws into
-// the video: the caption, or the frame meter (drawn over a replay by
-// OverlayLayers.cxx). Otherwise it is the game's picture alone.
-inline bool ExportDrawsOverlay(bool caption, bool meter) { return caption || meter; }
-
-// Which picture a frame of the export takes, around Ember's overlay
-// (sf4e__Platform.cxx). drawsOverlay: ExportDrawsOverlay. menuBefore: Ember's
-// menu was shown on the last frame; menuAfter: it is shown on this one. The
-// menu, opened over an export to follow or cancel it, stays out of the video:
-// while it is shown the picture is taken before the overlay, and the frame it
-// opens on is not taken at all.
-struct ExportGrab { bool beforeOverlay, afterOverlay; };
-inline ExportGrab ExportGrabOf(bool drawsOverlay, bool menuBefore, bool menuAfter) {
-	return {!drawsOverlay || menuBefore, drawsOverlay && !menuBefore && !menuAfter};
-}
+// How far an export's replay has played, from what the recorder it plays
+// from says (ReplayRecorder.hxx) as the playback observes it after each
+// battle update (sf4e__ReplayPlayback.hxx): the frames of the rounds before
+// the one playing and the farthest that one has got, out of all its rounds'
+// frames. The same counts as the replay's length (ReplayInputs.hxx:
+// Summary::frames), intros and knockouts left out. A paused or held replay
+// leaves the cursor where it is, and a cursor that goes back to the start
+// of its round never takes the export back. Reset for each export.
+class ExportClock {
+public:
+	static constexpr int kRounds = 7;
+	void Reset() { *this = ExportClock(); }
+	// round, cursor: the recorder's; frames: each round's frame count.
+	void Observe(int round, std::uint32_t cursor, const std::uint32_t (&frames)[kRounds]) {
+		if (round < 0 || round >= kRounds) return;
+		total_ = 0;
+		for (const std::uint32_t count : frames) total_ += count;
+		if (round != round_) { round_ = round; farthest_ = 0; }
+		if (cursor > farthest_) farthest_ = cursor;
+		played_ = 0;
+		for (int before = 0; before < round; before++) played_ += frames[before];
+		played_ += farthest_ < frames[round] ? farthest_ : frames[round];
+	}
+	std::uint32_t Played() const { return played_; }
+	std::uint32_t Total() const { return total_; }
+private:
+	int round_ = -1;
+	std::uint32_t farthest_ = 0, played_ = 0, total_ = 0;
+};
 
 } }

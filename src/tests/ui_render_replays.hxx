@@ -52,7 +52,7 @@ void ShootReplays(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,co
     // which asks first with Cancel focused.
     SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries){rows=entries;});
     view.replays.ready=false;view.replays.notice.clear();
-    view.replays.exportStage=replay::ExportStage::Recording;view.replays.exportFrames=62*60;
+    view.replays.exportStage=replay::ExportStage::Recording;view.replays.exportFrames=62*60;view.replays.exportTotal=131*60;
     page("replays");draw("replay-export-progress");
     Require(rows.size()>=2&&rows[0].id=="export-progress"&&rows[0].value==ExportProgressText(62*60,131*60)&&rows[1].id=="export-cancel","Export progress or Cancel missing");
     shell.Navigation().Focus("export-cancel",rows);draw();

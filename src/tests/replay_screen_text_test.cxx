@@ -72,19 +72,35 @@ int main() {
 	Check(std::string(cancelled.key) == "export.cancelled" && !cancelled.error, "A cancelled export was not reported as cancelled");
 	Check(std::string(failed.key) == "replays.gpu_not_exported" && failed.error, "A failed export was not an error");
 
-	// The frame meter, like the caption, is drawn into the video: the picture
-	// is taken after Ember's overlay, unless Ember's menu is over the export.
-	Check(replay::ExportDrawsOverlay(false, true) && replay::ExportDrawsOverlay(true, false) && !replay::ExportDrawsOverlay(false, false),
-		"An export with the frame meter or a caption did not take Ember's overlay");
-	const auto meterFrame = replay::ExportGrabOf(replay::ExportDrawsOverlay(false, true), false, false);
-	Check(!meterFrame.beforeOverlay && meterFrame.afterOverlay, "An export with the frame meter left it out of the video");
-	const auto plainFrame = replay::ExportGrabOf(false, false, false);
-	Check(plainFrame.beforeOverlay && !plainFrame.afterOverlay, "A plain export took Ember's overlay");
-	const auto menuFrame = replay::ExportGrabOf(true, true, true), opening = replay::ExportGrabOf(true, false, true);
-	Check(menuFrame.beforeOverlay && !menuFrame.afterOverlay, "Ember's menu over an export went into the video");
-	Check(!opening.beforeOverlay && !opening.afterOverlay, "The frame Ember's menu opened on went into the video");
-	Check(replay::ExportGrabOf(false, true, true).beforeOverlay && replay::ExportGrabOf(false, false, true).beforeOverlay,
-		"A plain export lost frames to Ember's menu");
+	// The export's progress is the replay's own clock: rounds before the one
+	// playing, and how far it has got, against all its rounds.
+	{
+		const std::uint32_t frames[replay::ExportClock::kRounds] = {600, 900, 300};
+		replay::ExportClock clock;
+		Check(clock.Played() == 0 && clock.Total() == 0, "A new export had progress");
+		clock.Observe(0, 100, frames);
+		Check(clock.Played() == 100 && clock.Total() == 1800, "The first round's frames were not the progress");
+		// Paused, held or at the native pause menu: the cursor stands, and so does the export.
+		for (int tick = 0; tick < 50; tick++) clock.Observe(0, 100, frames);
+		Check(clock.Played() == 100, "A paused replay moved the export on");
+		clock.Observe(0, 600, frames);
+		// The next round starts its cursor over; the rounds before still count.
+		clock.Observe(1, 0, frames);
+		Check(clock.Played() == 600, "A new round took the export back");
+		clock.Observe(1, 450, frames);
+		Check(clock.Played() == 1050, "The second round's frames did not add to the first's");
+		// A cursor that goes back to its round's start (the stream's end) does not take it back.
+		clock.Observe(1, 0, frames);
+		Check(clock.Played() == 1050, "A cursor reset took the export back");
+		// Never past a round's own length, nor the replay's.
+		clock.Observe(2, 5000, frames);
+		Check(clock.Played() == 1800 && clock.Played() <= clock.Total(), "The export ran past its replay");
+		// The capture closing leaves the last progress; a new export starts over.
+		clock.Observe(-1, 0, frames);
+		Check(clock.Played() == 1800, "An unknown round changed the progress");
+		clock.Reset();
+		Check(clock.Played() == 0 && clock.Total() == 0, "A new export kept the last one's progress");
+	}
 
 	if (failures) std::printf("%d replay screen check(s) failed\n", failures);
 	else std::printf("Replay screen text: all checks passed\n");

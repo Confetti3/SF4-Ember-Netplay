@@ -54,12 +54,11 @@ struct Status {
 	// (while the replay's battle records).
 	replay::Caption caption;
 	bool captionShown = false;
-	// How far the export has got, and the frames recorded so far of its
-	// rounds' fighting (BF__FIGHT), at 60 a second: what the Replays screen
-	// shows against the replay's length (common/ReplayInputs.hxx:
-	// Summary::frames), leaving out the intros and the knockouts.
+	// How far the export has got, and the frames of its replay played so
+	// far out of all of them, at 60 a second (common/ReplayExport.hxx:
+	// ExportClock): what the Replays screen shows. Total is 0 until known.
 	replay::ExportStage exportStage = replay::ExportStage::None;
-	std::uint32_t exportFrames = 0;
+	std::uint32_t exportFrames = 0, exportTotal = 0;
 };
 const Status& GetStatus();
 // A playback that is being made into a video is running: the game is then

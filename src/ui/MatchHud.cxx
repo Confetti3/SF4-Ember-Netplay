@@ -294,8 +294,15 @@ void DrawMatchStrip(const MatchStripView& view) {
     DrawStateLine(view,draw,spot.pos.x,w,spot.stateTop,s);
 }
 void DrawExportCaption(const ExportCaptionView& view) {
-    auto* draw=ImGui::GetForegroundDrawList();
     const auto screen=MainScreen();
+    // The whole screen, transparent: only the plates, the line and the mark show.
+    ImGui::SetNextWindowPos(screen.pos);ImGui::SetNextWindowSize(screen.size);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(0,0));ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize,0.f);
+    const bool begun=ImGui::Begin(ExportCaptionWindow,nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoBackground|
+        ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoFocusOnAppearing|ImGuiWindowFlags_NoBringToFrontOnFocus|ImGuiWindowFlags_NoNav);
+    ImGui::PopStyleVar(2);
+    if(!begun){ImGui::End();return;}
+    auto* draw=ImGui::GetWindowDrawList();
     // The game's 16:9 image inside the window, in its 720p units, as PlaceSplit measures it.
     const float gs=(std::min)(screen.size.y/720.f,screen.size.x/1280.f);
     const float gx0=screen.pos.x+(screen.size.x-1280*gs)*.5f,gy0=screen.pos.y+(screen.size.y-720*gs)*.5f;
@@ -320,6 +327,7 @@ void DrawExportCaption(const ExportCaptionView& view) {
         const float size=13*gs,pad=7*gs;const std::string mark="EMBER";
         boxed(mark,size,gx0+1280*gs-TextWidth(size,mark)-2*pad-8*gs,gy0+720*gs-19*gs-6*gs,pad,19*gs,palette::Ember);
     }
+    ImGui::End();
 }
 void DrawMatchStripPreview(const MatchStripView& view) {
     const auto available=ImGui::GetContentRegionAvail();

@@ -20,6 +20,7 @@
 #include "sf4e__Game__Battle.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__ReplayCapture.hxx"
+#include "sf4e__ReplayPlayback.hxx"
 
 namespace {
 
@@ -217,6 +218,8 @@ struct Operation {
 	// decided: ticks the exported replay's match has been over; -1 once Ember chose to leave.
 	int decided = 0;
 	std::wstring video;
+	// How far the export's replay has played (status.exportFrames, exportTotal).
+	sf4e::replay::ExportClock clock;
 	sf4e::replay::Request request;
 	std::uint64_t saveRevision = 0;
 	void Enter(Step step) { status.step = step; waited = 0; }
@@ -252,7 +255,8 @@ void FinishRequest(const sf4e::replay::Request& request, bool noRoom) {
 		return;
 	}
 	op.status.logOpens++;
-	op.started = false; op.splash = 0; op.versus = 0; op.decided = 0; op.status.exportFrames = 0;
+	op.started = false; op.splash = 0; op.versus = 0; op.decided = 0;
+	op.clock.Reset(); op.status.exportFrames = op.status.exportTotal = 0;
 	if (exporting) {
 		// Ember's encoder writes straight next to the replay.
 		const std::wstring path = sf4e::platform::Utf8ToWide(request.path.c_str());
@@ -345,6 +349,13 @@ void sf4e::replaystore::Tick(bool atMainMenu, bool noRoom) {
 	const bool reaching = op.status.step == Step::OpeningLog || op.status.step == Step::SelectingRow || op.status.step == Step::Playing;
 	op.status.exportStage = replay::ExportStageOf(!op.video.empty() && (op.awaited || reaching), op.awaited, recording, op.cancelled);
 	op.status.captionShown = op.awaited && op.status.step == Step::Playing && op.status.caption.Any() && recording && !op.cancelled;
+	// The replay's own clock, as the playback observed the recorder after the
+	// last battle update: it stands still while the replay is paused.
+	const replaytransport::View& playback = replayplayback::GetView();
+	if (op.awaited && recording && playback.playback) {
+		op.clock.Observe(playback.round, playback.cursor, playback.roundFrames);
+		op.status.exportFrames = op.clock.Played(); op.status.exportTotal = op.clock.Total();
+	}
  if (op.status.step == Step::PreparingImport) {
   platform::replays::ImportTransaction prepared;
   if (!platform::replays::TakeImport(prepared)) return;
@@ -382,7 +393,7 @@ void sf4e::replaystore::Tick(bool atMainMenu, bool noRoom) {
 		}
 		// The fight is loading: record from here to the log's return.
 		if (Named(state, "Battle") && !op.video.empty() && !op.awaited) {
-			replaycapture::Begin(op.video, replay::ExportDrawsOverlay(op.status.caption.Any(), op.meter));
+			replaycapture::Begin(op.video);
 			op.awaited = true;
 			spdlog::info("Replay: encoding the playback");
 		}
@@ -394,7 +405,6 @@ void sf4e::replaystore::Tick(bool atMainMenu, bool noRoom) {
 		if (Named(state, "Battle") && (op.awaited || op.cancelled)) {
 			using Flow = Dimps::Game::Battle::System;
 			const DWORD flow = *Flow::staticVars.CurrentBattleFlow;
-			if (flow == Flow::BF__FIGHT && recording) op.status.exportFrames++;
 			const bool over = flow == Flow::BF__MATCH_RESULT || flow == Flow::BF__MATCH_OVER || flow == Flow::BF__BTL_OVER || flow == Flow::BF__GAME_OVER;
 			if (!over && op.decided >= 0) op.decided = 0;
 			else if (op.decided >= 0 && ++op.decided > kDecidedTicks) {

@@ -16,23 +16,22 @@ using sf4e::replaycapture::State;
 
 // What the game thread asks: under s_lock with the file, since Frame reads both.
 std::atomic<State> s_state{State::Idle};
-std::atomic<bool> s_wanted{false}, s_sending{false}, s_afterOverlay{false};
-// The stop that was asked keeps no file: the link fails instead of closing.
-std::atomic<bool> s_discard{false};
-// The grab and the link, and everything below: the render thread's, under
-// s_lock so a reset on another thread waits for a frame in progress.
+std::atomic<bool> s_wanted{false};
+// The grab, the link and everything below: under s_lock, so a reset on
+// another thread waits for a frame in progress, and a cancel on the game
+// thread reaches the link that Frame opened.
 std::mutex s_lock;
-std::wstring s_file;
-bool s_opened = false;
+std::wstring s_file, s_encoder;
+bool s_opened = false, s_sending = false;
 bool s_deviceAvailable = true;
 }
 
 namespace sf4e { namespace replaycapture {
 
-void Begin(const std::wstring& file, bool withOverlay) {
+void Begin(const std::wstring& file, const std::wstring& encoder) {
 	std::lock_guard<std::mutex> lock(s_lock);
 	if (s_state != State::Idle) return;
-	s_file = file; s_opened = false; s_sending = false; s_afterOverlay = withOverlay; s_discard = false;
+	s_file = file; s_encoder = encoder; s_opened = false; s_sending = false;
 	s_wanted = true;
 	s_state = State::Recording;
 }
@@ -42,7 +41,13 @@ void End() { s_wanted = false; }
 bool Cancel() {
 	std::lock_guard<std::mutex> lock(s_lock);
 	if (s_state != State::Recording) return false;
-	s_discard = true; s_wanted = false;
+	s_wanted = false;
+	// The encoder discards its file from here, whether or not another frame
+	// is drawn: on its own when the game goes (VideoLinkServe.cxx). The grab's
+	// surfaces are the render thread's, which lets go of them on its next
+	// Frame. With nothing open yet, nothing will be.
+	if (s_sending) link::Fail();
+	else s_state = State::Failed;
 	return true;
 }
 
@@ -53,18 +58,15 @@ void Clear() {
 
 State GetState() { return s_state; }
 
-bool AfterOverlay() { return s_afterOverlay && s_state == State::Recording; }
-
 void Frame(IDirect3DDevice9* device) {
 	const State seen = s_state;
 	if (seen != State::Recording && seen != State::Closing) return;
 	std::lock_guard<std::mutex> lock(s_lock);
 	if (s_state == State::Recording && !s_wanted) {
-		// Asked to stop: the encoder closes the file on its own time, or, for
-		// a cancel, ends without keeping it (the link's one removal, as for
-		// a failed grab).
+		// Asked to stop: the encoder closes the file on its own time. After a
+		// Cancel it was already told to discard it, which Stop leaves as it is.
 		grab::Release();
-		if (s_sending) { if (s_discard) link::Fail(); else link::Stop(); s_state = State::Closing; }
+		if (s_sending) { link::Stop(); s_state = State::Closing; }
 		else s_state = State::Failed;
 		s_sending = false;
 	}
@@ -74,7 +76,7 @@ void Frame(IDirect3DDevice9* device) {
 			// The first frame tells the picture's size.
 			s_opened = true;
 			unsigned width = 0, height = 0;
-			s_sending = grab::Open(device, width, height) && link::Start(s_file, width, height);
+			s_sending = grab::Open(device, width, height) && link::Start(s_file, width, height, s_encoder);
 			if (!s_sending) { grab::Release(); s_wanted = false; s_state = State::Failed; return; }
 		}
 		if (!grab::Grab(device, link::Send)) {

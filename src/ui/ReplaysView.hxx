@@ -35,10 +35,10 @@ struct ReplaysView {
 	// left them, and the lanes of the replay Ember plays, or null.
 	replaytransport::View playback;
 	std::shared_ptr<const replaylane::Lanes> lanes;
-	// The running export: how far it has got and the frames of its rounds
-	// recorded so far (sf4e__ReplayStore.hxx: Status).
+	// The running export: how far it has got, and the frames of its replay
+	// played so far out of all of them, 0 until known (sf4e__ReplayStore.hxx: Status).
 	replay::ExportStage exportStage = replay::ExportStage::None;
-	std::uint32_t exportFrames = 0;
+	std::uint32_t exportFrames = 0, exportTotal = 0;
 	std::shared_ptr<const std::vector<platform::replays::ArchivedReplay>> archive;
 	// Completion of the last requested entry (platform::replays::WantDetail).
 	replayinputs::DetailCompletion detail;

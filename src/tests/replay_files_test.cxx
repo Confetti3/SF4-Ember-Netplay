@@ -4,6 +4,8 @@
 #include "../platform/ReplayFiles.hxx"
 #include <algorithm>
 #include <chrono>
+#include <cwctype>
+#include <fstream>
 #include <iterator>
 #include <map>
 #include <stdexcept>
@@ -326,6 +328,78 @@ static void TestProductionArchivePublicationRefusal() {
  CHECK(std::distance(fs::directory_iterator(folder), fs::directory_iterator{}) == 1);
  fs::remove_all(folder);
 }
+// Show in folder (ApplicationServices: ShowReplayFile) opens only a folder of
+// the archive as a handle reaches it when asked: a junction or link out of
+// it, a path that climbs out, a missing archive, a network path and a folder
+// swapped for a junction after the listing are all refused, and a name in
+// other case is the same folder.
+static std::wstring Junction(const std::filesystem::path& link, const std::filesystem::path& target) {
+ namespace fs = std::filesystem;
+ std::wstring command=L"cmd.exe /c mklink /J \""+link.wstring()+L"\" \""+target.wstring()+L"\" >nul";
+ STARTUPINFOW startup={sizeof startup}; PROCESS_INFORMATION process={};
+ if(!CreateProcessW(nullptr,&command[0],nullptr,nullptr,FALSE,CREATE_NO_WINDOW,nullptr,nullptr,&startup,&process))return {};
+ WaitForSingleObject(process.hProcess,10000);
+ CloseHandle(process.hThread); CloseHandle(process.hProcess);
+ return fs::is_directory(link)?link.wstring():std::wstring();
+}
+static void TestArchiveFolderContainment() {
+ namespace fs = std::filesystem;
+ using sf4e::platform::ArchiveFolderOf;
+ const fs::path folder=fs::temp_directory_path()/("ember-archive-folder-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+ const fs::path archive=folder/"archive", outside=folder/"outside";
+ CHECK(fs::create_directories(archive/"sub")&&fs::create_directories(outside));
+ const auto touch=[](const fs::path& path) { std::ofstream(path,std::ios::binary)<<"replay"; };
+ for(const auto& file:{archive/"a.emberreplay",archive/"sub"/"b.emberreplay",outside/"b.emberreplay",outside/"c.emberreplay"})touch(file);
+ const auto shown=[&](const fs::path& file,const fs::path& root) {
+  HANDLE held;
+  const std::wstring opened=ArchiveFolderOf(file.wstring(),root.wstring(),held);
+  CHECK(opened.empty()==(held==INVALID_HANDLE_VALUE));
+  if(held!=INVALID_HANDLE_VALUE)CloseHandle(held);
+  return opened;
+ };
+ const auto same=[](const std::wstring& opened,const fs::path& want) { return !opened.empty()&&fs::equivalent(fs::path(opened),want); };
+ CHECK(same(shown(archive/"a.emberreplay",archive),archive));
+ CHECK(same(shown(archive/"sub"/"b.emberreplay",archive),archive/"sub"));
+ // Case does not make another folder, of the archive or the file.
+ std::wstring upper=archive.wstring(), lower=(archive/"SUB"/"B.EMBERREPLAY").wstring();
+ for(auto& c:upper)c=static_cast<wchar_t>(towupper(c));
+ CHECK(same(shown(archive/"a.emberreplay",upper),archive));
+ CHECK(same(shown(lower,archive),archive/"sub"));
+ CHECK(shown(archive/".."/"outside"/"c.emberreplay",archive).empty());
+ CHECK(shown(outside/"c.emberreplay",archive).empty());
+ CHECK(shown(archive/"a.emberreplay",fs::path()).empty());
+ CHECK(shown(archive/"a.emberreplay",folder/"missing").empty());
+ CHECK(shown(archive/"a.txt",archive).empty());
+ // A network path, even to this PC, is not a drive of this PC.
+ const std::wstring drive=archive.wstring().substr(0,1);
+ CHECK(shown(L"\\\\localhost\\"+drive+L"$"+archive.wstring().substr(2)+L"\\a.emberreplay",archive).empty());
+ CHECK(shown(L"\\\\?\\"+(archive/"a.emberreplay").wstring(),archive).empty());
+ // A junction beneath the archive that leads out of it.
+ CHECK(!Junction(archive/"linked",outside).empty());
+ CHECK(shown(archive/"linked"/"c.emberreplay",archive).empty());
+ // A link out of the archive, where this account may make one.
+ std::error_code linkError;
+ fs::create_directory_symlink(outside,archive/"symlinked",linkError);
+ if(!linkError)CHECK(shown(archive/"symlinked"/"c.emberreplay",archive).empty());
+ // Listed while it was a folder of the archive, swapped for a junction out
+ // of it before Show in folder: refused, since it is checked when asked.
+ CHECK(same(shown(archive/"sub"/"b.emberreplay",archive),archive/"sub"));
+ fs::rename(archive/"sub",folder/"moved");
+ CHECK(!Junction(archive/"sub",outside).empty());
+ CHECK(shown(archive/"sub"/"b.emberreplay",archive).empty());
+ fs::remove(archive/"sub");
+ CHECK(fs::exists(outside/"b.emberreplay"));
+ fs::rename(folder/"moved",archive/"sub");
+ // While held, the folder being opened cannot be moved or replaced.
+ HANDLE held;
+ CHECK(!ArchiveFolderOf((archive/"sub"/"b.emberreplay").wstring(),archive.wstring(),held).empty());
+ CHECK(!MoveFileW((archive/"sub").c_str(),(folder/"moved").c_str()));
+ CloseHandle(held);
+ CHECK(MoveFileW((archive/"sub").c_str(),(folder/"moved").c_str()));
+ fs::remove(archive/"linked"); fs::remove(archive/"symlinked",linkError);
+ CHECK(fs::exists(outside/"c.emberreplay"));
+ fs::remove_all(folder);
+}
 #endif
 int main() {
  TestNamesPublicationRefusesExistingTargets();
@@ -336,6 +410,7 @@ int main() {
  TestArchivePublicationPolicy();
 #ifdef _WIN32
  TestProductionArchivePublicationRefusal();
+ TestArchiveFolderContainment();
 #endif
  printf("replay_files_test: all tests passed\n");
  return 0;

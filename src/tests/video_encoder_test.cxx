@@ -8,10 +8,12 @@
 #include "../platform/VideoLinkProtocol.hxx"
 #include "../platform/VideoLinkServe.hxx"
 #include "../platform/VideoTemporary.hxx"
+#include "../sf4e/sf4e__ReplayCapture.hxx"
 #include "test_support.hxx"
 
 #include <windows.h>
 #include <mmsystem.h>
+#include <d3d9.h>
 #include <mmdeviceapi.h>
 #include <audiopolicy.h>
 #include <wrl/client.h>
@@ -97,12 +99,49 @@ int Temporaries(const std::filesystem::path& file, int* held = nullptr) {
 	}
 	return count;
 }
+
+// A game that cancels its export through the capture
+// (sf4e__ReplayCapture.hxx) and then draws no frame again: it ends at once,
+// as when the player cancels and closes the game. First a cancel before the
+// first frame, which starts no encoder at all. 77 without a Direct3D 9
+// device; 2 or 3 when the capture misbehaves.
+int CancelledGame(const std::wstring& self, const std::filesystem::path& file) {
+	namespace capture = sf4e::replaycapture;
+	const HWND window = CreateWindowA("STATIC", "video export cancel test", WS_OVERLAPPEDWINDOW, 0, 0, 64, 64, nullptr, nullptr, nullptr, nullptr);
+	IDirect3D9* d3d = Direct3DCreate9(D3D_SDK_VERSION);
+	IDirect3DDevice9* device = nullptr;
+	D3DPRESENT_PARAMETERS p = {};
+	p.Windowed = TRUE; p.SwapEffect = D3DSWAPEFFECT_DISCARD; p.BackBufferFormat = D3DFMT_X8R8G8B8; p.BackBufferWidth = 640; p.BackBufferHeight = 360; p.hDeviceWindow = window;
+	if (!d3d || FAILED(d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window, D3DCREATE_HARDWARE_VERTEXPROCESSING, &p, &device))) return 77;
+	const int before = Temporaries(file);
+	capture::Begin(file.wstring(), self);
+	if (!capture::Cancel() || capture::GetState() != capture::State::Failed) return 2;
+	capture::Frame(device);
+	if (capture::GetState() != capture::State::Failed || Temporaries(file) != before) return 2;
+	capture::Clear();
+	// Two seconds of pictures, so the encoder has opened and has a video to
+	// save, then the cancel, and the game is gone without another frame.
+	capture::Begin(file.wstring(), self);
+	for (int frame = 0; frame < 120; frame++) {
+		device->Clear(0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_XRGB(frame * 2, 0, 255 - frame * 2), 1.0f, 0);
+		capture::Frame(device);
+		Sleep(17);
+	}
+	if (capture::GetState() != capture::State::Recording) return 3;
+	if (!capture::Cancel()) return 2;
+	ExitProcess(0);
+}
 }
 
 int wmain(int argc, wchar_t** argv) {
 	if (argc == 3 && !wcscmp(argv[1], L"--encode-video")) {
 		if (std::getenv("SF4E_TEST_ENCODER_HANGS")) return Hang(argv[2]);
 		return link::Serve(argv[2]);
+	}
+	if (argc == 3 && !wcscmp(argv[1], L"--cancelled-export")) {
+		wchar_t game[MAX_PATH] = {0};
+		GetModuleFileNameW(nullptr, game, MAX_PATH);
+		return CancelledGame(game, argv[2]);
 	}
 	const std::filesystem::path file = argc > 1 ? std::filesystem::path(argv[1]) : std::filesystem::temp_directory_path() / L"ember-video-encoder-test.mp4";
 	const unsigned width = argc > 3 ? _wtoi(argv[2]) : 640, height = argc > 3 ? _wtoi(argv[3]) : 360;
@@ -209,6 +248,24 @@ int wmain(int argc, wchar_t** argv) {
 	CHECK(noWake != -1 && noWake != 0 && noGame != -1 && noGame != 0);
 	CHECK(Temporaries(file) == leftBefore);
 	CHECK(read(file) == previous);
+	// A game cancels its export and is gone without drawing again: the
+	// encoder still discards the video, the earlier one stays, and the
+	// temporary file goes with the encoder's process.
+	{
+		std::wstring command = L"\"" + std::wstring(self) + L"\" --cancelled-export \"" + file.wstring() + L"\"";
+		STARTUPINFOW startup = {sizeof startup}; PROCESS_INFORMATION game = {};
+		CHECK(CreateProcessW(self, &command[0], nullptr, nullptr, FALSE, 0, nullptr, nullptr, &startup, &game));
+		DWORD code = 1;
+		CHECK(WaitForSingleObject(game.hProcess, 30000) == WAIT_OBJECT_0 && GetExitCodeProcess(game.hProcess, &code));
+		CloseHandle(game.hThread); CloseHandle(game.hProcess);
+		if (code == 77) std::cout << "No Direct3D 9 device here; the cancelled export was skipped\n";
+		else {
+			CHECK(code == 0);
+			for (const ULONGLONG asked = GetTickCount64(); Temporaries(file) != leftBefore && GetTickCount64() - asked < 20000;) Sleep(50);
+			CHECK(Temporaries(file) == leftBefore);
+			CHECK(read(file) == previous);
+		}
+	}
 	// An encoder that does not close the file is ended 30 seconds after Stop
 	// without Poll waiting for it; its temporary file is removed once it has
 	// gone, and the earlier video kept.

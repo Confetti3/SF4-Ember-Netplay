@@ -28,7 +28,8 @@ static_assert(transport::kFlowReady == rSystem::BF__READY && transport::kFlowFig
 	transport::kFlowRoundStart == rSystem::BF__ROUND_START, "ReplayTransport.hxx flows differ from the native ones");
 static_assert(transport::kPauseOrHold == rSystem::SSF_PAUSE_OR_HOLD && transport::kReplayFreeze == rSystem::SSF_REPLAY_FREEZE,
 	"ReplayTransport.hxx simulation flags differ from the native ones");
-static_assert(transport::kRecorderPlaying == sf4e::replay::RecorderPlaying, "ReplayTransport.hxx recorder mode differs from ReplayRecorder.hxx");
+static_assert(transport::kRecorderPlaying == sf4e::replay::RecorderPlaying && transport::kRounds == sf4e::replay::kStreams &&
+	transport::kRounds == sf4e::replay::ExportClock::kRounds, "ReplayTransport.hxx recorder fields differ from ReplayRecorder.hxx");
 
 // Commands from any thread, taken at the next cadence call. Bounded: the
 // cadence does not run outside a battle, and nothing waits that long.
@@ -148,6 +149,7 @@ void Cadence::Run() {
 	s_view.divisor = s_transport.Divisor();
 	s_view.round = recorder->round;
 	s_view.cursor = recorder->cursor;
+	for (int round = 0; round < transport::kRounds; round++) s_view.roundFrames[round] = recorder->streams[round].frames;
 	s_view.meter = sf4e::replaystore::MeterWanted() != s_meterFlipped;
 	s_view.lanes = s_lanesOn;
 }

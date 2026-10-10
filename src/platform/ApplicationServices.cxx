@@ -4,6 +4,7 @@
 #include "../netplay/SettingsStore.hxx"
 #include "../common/Localization.hxx"
 #include "ReplayFiles.hxx"
+#include "ReplayPath.hxx"
 #include "Utf8.hxx"
 #include <windows.h>
 #include <objbase.h>
@@ -181,16 +182,15 @@ void ApplicationServices::Run() {
                 next.succeeded = opened;
                 next.message = opened ? loc::Tf("services.replay_folder_opened", WideToUtf8(folder.wstring())) : loc::T("services.replay_folder_failed");
             } else if (action == ServiceAction::ShowReplayFile) {
-                // The archive's listing named the file; anything outside the
-                // archive, or no folder at all, is not opened.
-                const auto archive = replays::FindFolders().archive.lexically_normal();
-                const auto folder = std::filesystem::path(target).parent_path().lexically_normal();
-                const auto relative = folder.lexically_relative(archive);
-                std::error_code ignored;
-                const bool inside = !target.empty() && !relative.empty() && *relative.begin() != L".." && std::filesystem::is_directory(folder, ignored);
-                const bool opened = inside && ShellOpen(folder.c_str());
+                // The archive's listing named the file; only the folder a handle
+                // reaches is opened, and only one of the archive, held so it
+                // cannot be swapped meanwhile (ReplayPath.hxx).
+                HANDLE held = INVALID_HANDLE_VALUE;
+                const std::wstring folder = ArchiveFolderOf(target, replays::FindFolders().archive.wstring(), held);
+                const bool opened = !folder.empty() && ShellOpen(folder.c_str());
+                if (held != INVALID_HANDLE_VALUE) CloseHandle(held);
                 next.succeeded = opened;
-                next.message = opened ? loc::Tf("services.replay_folder_opened", WideToUtf8(folder.wstring())) : loc::T("services.replay_folder_failed");
+                next.message = opened ? loc::Tf("services.replay_folder_opened", WideToUtf8(folder)) : loc::T("services.replay_folder_failed");
             } else if (action == ServiceAction::InstallUpdate) {
                 if (!next.update.ok || !next.update.updateAvailable || next.update.expectedSha256.size() != 64) {
                     next.message = loc::T("services.no_verified_update");

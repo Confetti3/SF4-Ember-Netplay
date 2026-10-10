@@ -1,6 +1,7 @@
 #include "OverlayLayers.hxx"
 #include "OverlayPresentation.hxx"
 #include "../common/Localization.hxx"
+#include <cstring>
 
 namespace sf4e { namespace ui {
 TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training::View& training) {
@@ -23,8 +24,9 @@ TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training
     if (passive && view.matchWaitsForMenu) hint("Ember match waiting", "runtime.return_menu_to_join", 44);
     if (view.captionShown) DrawExportCaption(view.caption);
     // A replay has no GGPO session, so its meter is drawn here, not with the
-    // match's below; the strip and lanes stay out of an export's video.
-    if (!view.matchActive && passive && view.replay.meter && training.watching) DrawMatchMeter(training);
+    // match's below. An export's stays drawn under a window, since it is in
+    // the video; the strip and lanes are never drawn over an export.
+    if (!view.matchActive && (passive || view.exporting) && view.replay.meter && training.watching) DrawMatchMeter(training);
     if (passive && view.replay.shown) {
         DrawReplayStrip(view.replay);
         if (view.replay.lanes) DrawReplayLanes(view.replay);
@@ -45,5 +47,18 @@ TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training
         }
     }
     return hud;
+}
+
+void SplitExportPasses(const ImDrawData& all, ExportPasses& passes) {
+    for (ImDrawData* pass : {&passes.video, &passes.rest}) {
+        pass->Clear();
+        pass->Valid = all.Valid; pass->DisplayPos = all.DisplayPos; pass->DisplaySize = all.DisplaySize;
+        pass->FramebufferScale = all.FramebufferScale; pass->OwnerViewport = all.OwnerViewport;
+    }
+    for (ImDrawList* list : all.CmdLists) {
+        const char* owner = list->_OwnerName ? list->_OwnerName : "";
+        const bool video = !std::strcmp(owner, ExportCaptionWindow) || !std::strcmp(owner, FrameMeterWindow);
+        (video ? passes.video : passes.rest).AddDrawList(list);
+    }
 }
 } }
