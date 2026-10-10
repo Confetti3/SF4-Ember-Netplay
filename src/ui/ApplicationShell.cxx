@@ -787,12 +787,12 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // Home renders its status in the small-print line below the list instead.
  const bool stableFeedback=screen!="home";
  // With the message box holding the keyboard, F, T and C type letters, so the keys are not offered there.
- if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints=screen=="room-chat"&&keys&&RoomActionsAvailable(v)?std::vector<LegendHint>{}:roomHints;
+ if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints=(screen=="room-chat"||roomChatTyping_)&&keys&&RoomActionsAvailable(v)?std::vector<LegendHint>{}:roomHints;
  else if(PublicRoomsPanel::Owns(screen)&&publicRooms_.Refreshable(v))menu_.shortcutHints={{keys?"T":"Y",loc::T("legend.refresh")}};
  else menu_.shortcutHints.clear();
  // The keyboard leaves a seat with Delete, so Escape keeps its own word.
  const char* placeExit=screen=="room"&&v.room.roomEpoch?PlaceExitLabel(v):"";
- if(keys&&*placeExit)menu_.shortcutHints.insert(menu_.shortcutHints.begin(),{"Del",placeExit});
+ if(keys&&*placeExit&&!roomChatTyping_)menu_.shortcutHints.insert(menu_.shortcutHints.begin(),{"Del",placeExit});
  // Back names where it goes when that is not simply the previous screen:
  // from Home, out of Ember or back to the room; on the board, out of your seat.
  menu_.exitName.clear();menu_.backHint.clear();
@@ -805,6 +805,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(v.inputCapture!=input::Capture::Idle){SetMenuGlyphs(input::PadKeyboard,0,0);menu_.backHint=loc::T("common.cancel");}
  // An opening public room's card is information, so the cursor waits on its Stop row.
  if(PublicRoomsPanel::Owns(screen)&&opening&&nav.Focus()=="pr-opening")nav.Focus("cancel-open",rows);
+ // The inline composer owns its arrows, Enter and Escape until it releases
+ // focus. Require neutral input before any held key can act on a battle slot.
+ if(screen=="room"&&roomChatTyping_)nav.NeutralGate();
  auto a=menu_.Draw(title.c_str(),rows,status.c_str(),profilePreview,columns,portraits,board,0,publicToolbar?46:screen=="main-character"?roster.cardHeight:100,stableFeedback,statusTone,screen=="home");
  if(v.inputCapture!=input::Capture::Idle&&(a.id=="capture-cancel"||a.kind==MenuAction::Returned||a.kind==MenuAction::Close)){
   ShellAction r;r.command.generation=v.session.generation;r.inputAction=input::Action::Cancel;submit(std::move(r));

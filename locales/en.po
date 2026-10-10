@@ -3250,3 +3250,9 @@ msgstr "Couldn't get into the room. It may have just closed. Refresh and pick an
 
 msgid "legend.refresh"
 msgstr "Refresh"
+
+msgid "chat.history"
+msgstr "Chat history"
+
+msgid "chat.inline_detail"
+msgstr "Type here in the room. Enter sends; Escape returns to room controls."

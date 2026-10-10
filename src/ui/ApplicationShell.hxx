@@ -259,6 +259,10 @@ private:
     void ObserveChat(const ShellView& view,const room::Snapshot& room);
     void UpdateChat(const ShellView& view);
     void DrawChatLog(const ShellView& view,bool compact);
+    void DrawRoomChat(const ShellView& view,MenuAction& action,float height);
+    bool roomChatTyping_=false,roomChatFocus_=false;
+    unsigned roomChatHeld_=0;
+    std::string roomChatBoxText_;
     void DrawChatScreen(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                         const MenuVisualFeedback& feedback);
     ChatTranscript transcript_;

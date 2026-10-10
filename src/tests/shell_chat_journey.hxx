@@ -91,9 +91,77 @@ void TranscriptLogic(){
  s.roomEpoch=6;s.chat.clear();s.chat.push_back({1,2,"New room"});
  Check(t.Update(s,n)&&t.Lines().size()==1&&t.Lines()[0].text=="New room"&&t.Unread({})==0,"A different room kept the old transcript or counted its history as unread");
 }
+void InlineChatJourneys(){
+ using namespace sf4e;
+ for(const int layout:{0,1,2}){
+  const bool narrow=layout!=0;
+  Harness h;auto& io=ImGui::GetIO();
+  if(narrow){io.DisplaySize=ImVec2(layout==1?640:1280,720);ApplyTheme(layout==1?1.5f:2.f);}
+  h.Frame();JoinChatRoom(h,narrow?32:31);
+  h.view.room.tables[0].p1=1;h.view.room.tables[0].p2=2;
+  h.view.room.members[0].table=0;h.view.room.members[0].seat=0;
+  h.view.room.members[1].table=0;h.view.room.members[1].seat=1;
+  std::map<std::string,std::pair<ImVec2,ImVec2>> boxes;
+  std::vector<MenuEntry> rows;
+  SetMenuCardProbe([&](const char* id,ImVec2 a,ImVec2 b){boxes[id]={a,b};});
+  SetMenuEntriesProbe([&](const std::vector<MenuEntry>& value){rows=value;});
+  const auto draft=[&]{for(const auto& row:rows)if(row.id=="inline-chat")return row.value;return std::string("missing");};
+  const auto key=[&](ImGuiKey k){h.Frame();io.AddKeyEvent(k,true);h.Frame();io.AddKeyEvent(k,false);h.Frame(0,2);};
+  const auto click=[&](const char* id){
+   Check(boxes.count(id)!=0,"Inline chat control was not drawn");
+   const auto box=boxes.at(id);
+   Check(box.first.y>=0&&box.second.y<=io.DisplaySize.y&&box.second.x<=io.DisplaySize.x,"Inline chat escaped the screen");
+   const auto* pane=ActiveWindow("Room inline chat");
+   if(pane&&std::strstr(pane->Name,"Recent chat"))pane=pane->ParentWindow;
+   if(pane){
+    if(box.first.y<pane->InnerClipRect.Min.y||box.second.y>pane->InnerClipRect.Max.y)std::cerr<<"Inline layout "<<layout<<" box "<<box.first.y<<","<<box.second.y<<" clip "<<pane->InnerClipRect.Min.y<<","<<pane->InnerClipRect.Max.y<<"\n";
+    Check(box.first.y>=pane->InnerClipRect.Min.y&&box.second.y<=pane->InnerClipRect.Max.y,"Inline chat input was clipped by its pane");
+   }
+   io.AddMousePosEvent((box.first.x+box.second.x)*.5f,(box.first.y+box.second.y)*.5f);h.Frame();
+   io.AddMouseButtonEvent(0,true);h.Frame();io.AddMouseButtonEvent(0,false);h.Frame(0,3);
+  };
+  h.Screen("room");h.Frame(0,3);
+  if(narrow){
+   const auto* stack=ActiveWindow("Room stacked");
+   Check(stack&&boxes.at("table-0").first.y>=stack->InnerClipRect.Min.y-1&&boxes.at("table-0").second.y<=stack->InnerClipRect.Max.y+1,
+    "Pinned inline chat clipped the focused battle card");
+  }
+  Check(!io.WantTextInput,"The room stole typing focus before the player chose chat");
+  click("inline-chat");Check(io.WantTextInput,"Clicking the room's input did not allow typing");
+  h.actions.clear(); // Ignore joining-room preference synchronization.
+  io.AddInputCharactersUTF8("Hello from the main room");h.Frame(0,3);
+  Check(draft()=="Hello from the main room","Inline text did not reach the shared draft");
+  key(ImGuiKey_F);key(ImGuiKey_T);key(ImGuiKey_C);key(ImGuiKey_UpArrow);key(ImGuiKey_DownArrow);
+  if(h.shell.Navigation().Screen()!="room"||h.shell.Navigation().Focus()!="inline-chat"||!h.actions.empty())
+   std::cerr<<"Inline state: screen="<<h.shell.Navigation().Screen()<<" focus="<<h.shell.Navigation().Focus()<<" actions="<<h.actions.size()<<" typing="<<io.WantTextInput<<"\n";
+  Check(h.shell.Navigation().Screen()=="room"&&h.shell.Navigation().Focus()=="inline-chat"&&h.actions.empty(),"Typing triggered a room shortcut or seat action");
+  key(ImGuiKey_Enter);
+  Check(h.actions.size()==1&&h.actions.back().roomAction.kind==room::ActionKind::Chat&&h.actions.back().roomAction.text==draft(),"Inline Enter did not send only chat");
+  key(ImGuiKey_KeypadEnter);Check(h.actions.size()==1,"Inline Enter repeated an unacknowledged message");
+  h.view.room.chat.push_back({1,1,"Hello from the main room"});h.Frame(0,3);
+  Check(draft().empty(),"Acknowledged inline message stayed in the draft");
+  io.AddInputCharactersUTF8("Keep this draft");h.Frame(0,2);key(ImGuiKey_Escape);
+  Check(h.shell.Navigation().Screen()=="room"&&h.open&&draft()=="Keep this draft"&&!io.WantTextInput,"Inline Escape left the room or lost the draft");
+  h.Choose("inline-chat");h.Frame(0,3);io.AddInputCharactersUTF8(" again");h.Frame(0,3);
+  Check(draft()=="Keep this draft again","Returning to inline chat replaced the saved draft");
+  click("inline-chat-send");
+  Check(h.actions.size()==2&&h.actions.back().roomAction.text=="Keep this draft again","Inline Send button did not dispatch the draft");
+  h.view.session.control=netplay::Health::Lost;h.Frame(0,3);key(ImGuiKey_Enter);
+  Check(h.actions.size()==2&&draft()=="Keep this draft again","Lost control sent inline chat or lost its draft");
+  h.view.session.control=netplay::Health::Healthy;h.Frame(0,3);
+  // The normal navigation path can focus the composer without opening history.
+  h.Choose("inline-chat");h.Frame(0,3);
+  Check(h.shell.Navigation().Screen()=="room"&&io.WantTextInput,"Controller selection did not focus inline chat");
+  h.Press(MenuInput::Back);h.Frame(0,2);
+  Check(h.shell.Navigation().Screen()=="room"&&!io.WantTextInput&&h.actions.size()==2,"Controller Back escaped the composer into a seat action");
+  JoinChatRoom(h,34);h.Frame(0,3);Check(draft().empty(),"A new room inherited an inline draft");
+  SetMenuCardProbe({});SetMenuEntriesProbe({});
+ }
+}
 void ChatJourneys(){
  using namespace sf4e;
  TranscriptLogic();
+ InlineChatJourneys();
  Harness h;h.Frame();
  auto& io=ImGui::GetIO();
  const auto key=[&](ImGuiKey k){h.Frame();io.AddKeyEvent(k,true);h.Frame();io.AddKeyEvent(k,false);h.Frame();};

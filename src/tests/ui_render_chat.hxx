@@ -50,6 +50,7 @@ void ShootChat(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,const
     view.room.chat.erase(std::remove_if(view.room.chat.begin(),view.room.chat.end(),[](const room::ChatMessage& m){return m.sender==5;}),view.room.chat.end());
     draw(nullptr,0,1);
     view.room.host=2;say(3,"Nice set!");draw(nullptr,0,1);
+    draw("chat-inline-board",0,3);
     open("room-chat");draw("chat-conversation",0,3);
     Require(shell.Transcript().Lines().size()>=12,"The chat transcript did not keep the room's events and messages");
     Require(FindWindow("Chat transcript")!=nullptr,"The Chat screen has no transcript");

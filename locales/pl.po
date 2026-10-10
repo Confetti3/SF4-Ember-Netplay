@@ -3591,3 +3591,9 @@ msgstr "Nie udało się wejść do pokoju. Mógł się właśnie zamknąć. Odś
 
 msgid "legend.refresh"
 msgstr "Odśwież"
+
+msgid "chat.history"
+msgstr "Chat history"
+
+msgid "chat.inline_detail"
+msgstr "Type here in the room. Enter sends; Escape returns to room controls."

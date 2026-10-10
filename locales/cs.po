@@ -3591,3 +3591,9 @@ msgstr "Do místnosti se nepodařilo vstoupit. Možná se právě zavřela. Aktu
 
 msgid "legend.refresh"
 msgstr "Aktualizovat"
+
+msgid "chat.history"
+msgstr "Chat history"
+
+msgid "chat.inline_detail"
+msgstr "Type here in the room. Enter sends; Escape returns to room controls."

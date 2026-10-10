@@ -3591,3 +3591,9 @@ msgstr "Impossibile entrare nella sala. Potrebbe essersi appena chiusa. Aggiorna
 
 msgid "legend.refresh"
 msgstr "Aggiorna"
+
+msgid "chat.history"
+msgstr "Chat history"
+
+msgid "chat.inline_detail"
+msgstr "Type here in the room. Enter sends; Escape returns to room controls."
