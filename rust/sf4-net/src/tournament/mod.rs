@@ -226,6 +226,10 @@ impl Failure {
 
 type Outcome = Result<Option<Value>, Failure>;
 
+/// This helper's relay region, read when it creates a public room: a known
+/// code (`ember_protocol::relay::REGIONS`), or `None` when it has none.
+pub type HomeRegion = Box<dyn Fn() -> Option<&'static str> + Send + Sync>;
+
 struct Job {
     request_id: u64,
     request: Request,
@@ -278,16 +282,19 @@ pub(crate) struct Shared {
     endpoint_id: String,
     /// Names this helper run in claims and reports.
     instance_id: String,
+    home_region: HomeRegion,
 }
 
 /// Starts the worker on the per-user stores. The identity store is opened on
 /// a blocking thread; nothing is created until the user enables an identity.
-/// `endpoint_id` is this helper run's Iroh endpoint.
+/// `endpoint_id` is this helper run's Iroh endpoint, and `home_region` reads
+/// its relay region.
 pub fn spawn(
     events: mpsc::Sender<Event>,
     endpoint_id: String,
+    home_region: HomeRegion,
 ) -> (Handle, tokio::task::JoinHandle<()>) {
-    spawn_with(events, endpoint_id, || {
+    spawn_with(events, endpoint_id, home_region, || {
         let dir = tournament_directory();
         (
             Identity::open_default(),
@@ -313,8 +320,9 @@ pub fn spawn_in(
     tournament_dir: PathBuf,
     wine: bool,
     endpoint_id: String,
+    home_region: HomeRegion,
 ) -> (Handle, tokio::task::JoinHandle<()>) {
-    spawn_with(events, endpoint_id, move || {
+    spawn_with(events, endpoint_id, home_region, move || {
         (
             Identity::open(identity_dir, wine, identity::Cost::DEFAULT),
             bridges::Store::open(tournament_dir.clone()),
@@ -326,6 +334,7 @@ pub fn spawn_in(
 fn spawn_with(
     events: mpsc::Sender<Event>,
     endpoint_id: String,
+    home_region: HomeRegion,
     open: impl FnOnce() -> (Identity, bridges::Store, spool::Spool) + Send + 'static,
 ) -> (Handle, tokio::task::JoinHandle<()>) {
     let (jobs, mut receiver) = mpsc::channel::<Job>(QUEUE);
@@ -351,6 +360,7 @@ fn spawn_with(
             spool,
             endpoint_id,
             instance_id: ember_protocol::encoding::prefixed_id("ins", random),
+            home_region,
         });
         // An initial status lets the native side render without asking.
         respond(&events, &shared, 0, "identity_status", Ok(None)).await;

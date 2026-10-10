@@ -22,8 +22,12 @@ pub async fn run_on_port<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
     let (events, mut outbound) = mpsc::channel::<Event>(IPC_QUEUE_CAPACITY);
     let (failed_ipc, failure) = watch::channel(false);
     let writer_failed = failed_ipc.clone();
-    let (tournament, tournament_task) =
-        crate::tournament::spawn(events.clone(), endpoint.id().to_string());
+    let relays = endpoint.clone();
+    let (tournament, tournament_task) = crate::tournament::spawn(
+        events.clone(),
+        endpoint.id().to_string(),
+        Box::new(move || network::known_home_region(&relays)),
+    );
     let reader_task = tokio::spawn(async move {
         let mut last_id = 1;
         while let Ok(mut frame) = wire::read_ipc(&mut reader).await {

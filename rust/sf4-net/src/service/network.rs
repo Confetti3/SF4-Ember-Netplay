@@ -95,6 +95,14 @@ pub(super) fn home_relay_connected(endpoint: &Endpoint) -> bool {
     home_relay(endpoint).is_some_and(|(_, connected)| connected)
 }
 
+/// The home relay's region when it is a known one, which is what a public
+/// room's creator gives the bridge as the room's region.
+pub(super) fn known_home_region(endpoint: &Endpoint) -> Option<&'static str> {
+    home_relay(endpoint)
+        .map(|(region, _)| region)
+        .filter(|region| ember_protocol::relay::is_region(region))
+}
+
 pub(super) fn network_summary(endpoint: &Endpoint) -> NetworkSummary {
     let facts = endpoint.net_report().get().as_ref().map(NetFacts::of);
     summarize(home_relay(endpoint), facts)

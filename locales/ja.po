@@ -2025,6 +2025,15 @@ msgstr "観戦確定中の観戦者の復帰を待っています。{0}秒後に
 msgid "room.hold.waiting_you"
 msgstr "対戦があなたを待機中：{0}秒"
 
+msgid "room.ready_timeout.you"
+msgstr "{0}秒以内に準備完了しないと席を離れます"
+
+msgid "room.ready_timeout.other"
+msgstr "{1}の準備完了まで残り{0}秒"
+
+msgid "chat.event.ready_timeout"
+msgstr "{0}が対戦席{1}を離れました：時間内に準備完了しませんでした"
+
 msgid "room.hold.status"
 msgstr "観戦者を待機中：{0}秒"
 

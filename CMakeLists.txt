@@ -4,7 +4,7 @@ include("${CMAKE_SOURCE_DIR}/cmake/sf4e_version.cmake")
 
 project (
     sf4e
-    VERSION 1.1.1
+    VERSION 1.1.2
     DESCRIPTION "SF4 Ember Netplay: private rollback rooms and an in-game overlay for Ultra Street Fighter IV."
     HOMEPAGE_URL "https://github.com/Confetti3/SF4-Ember-Netplay"
 )
@@ -220,6 +220,10 @@ if(BUILD_TESTING)
     target_link_libraries(RoomSpectatorLockTest PRIVATE sf4e_room_model)
     add_test(NAME RoomSpectatorLock COMMAND RoomSpectatorLockTest)
     set_tests_properties(RoomSpectatorLock PROPERTIES TIMEOUT 30)
+    add_executable(RoomReadyTimeoutTest "src/tests/room_ready_timeout_test.cxx")
+    target_link_libraries(RoomReadyTimeoutTest PRIVATE sf4e_room_model)
+    add_test(NAME RoomReadyTimeout COMMAND RoomReadyTimeoutTest)
+    set_tests_properties(RoomReadyTimeout PROPERTIES TIMEOUT 30)
     add_executable(CreatedRulesTest "src/tests/created_rules_test.cxx")
     target_link_libraries(CreatedRulesTest PRIVATE sf4e_room_model)
     add_test(NAME CreatedRules COMMAND CreatedRulesTest)
@@ -713,6 +717,13 @@ if(BUILD_TESTING)
         nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")
     target_compile_features(SessionServerModerationTest PRIVATE cxx_std_17)
     add_test(NAME SessionServerModeration COMMAND SessionServerModerationTest)
+    add_executable(SessionServerReadyTimeoutTest
+        "src/tests/session_server_ready_timeout_test.cxx"
+        ${SF4E_SESSION_SERVER_SOURCES})
+    target_link_libraries(SessionServerReadyTimeoutTest PRIVATE
+        nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")
+    target_compile_features(SessionServerReadyTimeoutTest PRIVATE cxx_std_17)
+    add_test(NAME SessionServerReadyTimeout COMMAND SessionServerReadyTimeoutTest)
     add_executable(SessionServerTournamentTest
         "src/tests/session_server_tournament_test.cxx"
         ${SF4E_SESSION_SERVER_SOURCES})

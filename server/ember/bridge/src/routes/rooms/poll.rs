@@ -195,7 +195,7 @@ fn apply(
         if let (Some(before), Some(after)) = (before, load(tx, &room.room_id)?)
             && after.connection_id.is_some()
             && after.closed_at.is_none()
-            && after.region.is_some()
+            && after.hosted()
         {
             // At most one event per poll: opening says the counts too. What a
             // connection's view carries is the counts, the name and the

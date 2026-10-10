@@ -4,7 +4,7 @@
 namespace sf4e { namespace ui {
 void ChatTranscript::Clear() {
     lines_.clear();
-    epoch_ = lastSequence_ = readThrough_ = 0;
+    epoch_ = lastSequence_ = readThrough_ = lastNotice_ = 0;
     host_ = 0;
     names_.clear();
     present_.clear();
@@ -14,7 +14,15 @@ void ChatTranscript::Append(ChatLine line) {
     lines_.push_back(std::move(line));
     while (lines_.size() > MaximumLines) lines_.pop_front();
 }
-bool ChatTranscript::Update(const room::Snapshot& snapshot) {
+ChatLine ChatTranscript::EventLine(ChatLine::Kind kind, room::MemberId who) const {
+    ChatLine line;
+    line.kind = kind;
+    line.sender = who;
+    const auto name = names_.find(who);
+    if (name != names_.end()) line.name = name->second;
+    return line;
+}
+bool ChatTranscript::Update(const room::Snapshot& snapshot, const std::vector<RoomNotice>& notices) {
     const bool fresh = snapshot.roomEpoch != epoch_;
     if (fresh) { Clear(); epoch_ = snapshot.roomEpoch; }
     if (!snapshot.roomEpoch) return fresh;
@@ -22,6 +30,15 @@ bool ChatTranscript::Update(const room::Snapshot& snapshot) {
     // What happened in the room comes first: a member who joined and spoke in
     // the same snapshot is announced before the words.
     if (!fresh) Diff(snapshot);
+    // Notices already kept when this player arrived are another room's, or history.
+    for (const auto& notice : notices) {
+        if (notice.sequence <= lastNotice_) continue;
+        lastNotice_ = notice.sequence;
+        if (fresh || notice.event.kind != room::Event::Kind::ReadyTimeout) continue;
+        auto line = EventLine(ChatLine::Kind::ReadyTimeout, notice.event.member);
+        line.table = notice.event.table;
+        Append(std::move(line));
+    }
     // The room numbers its messages from 1 and keeps the newest hundred.
     for (const auto& message : snapshot.chat) {
         if (message.sequence <= lastSequence_) continue;
@@ -52,18 +69,10 @@ bool ChatTranscript::Update(const room::Snapshot& snapshot) {
 void ChatTranscript::Diff(const room::Snapshot& snapshot) {
     std::set<room::MemberId> now;
     for (const auto& member : snapshot.members) now.insert(member.id);
-    const auto event = [&](ChatLine::Kind kind, room::MemberId who) {
-        ChatLine line;
-        line.kind = kind;
-        line.sender = who;
-        const auto name = names_.find(who);
-        if (name != names_.end()) line.name = name->second;
-        return line;
-    };
     // A member who left and one who was removed read the same: the snapshot does not say which.
-    for (const auto id : present_) if (!now.count(id)) Append(event(ChatLine::Kind::Left, id));
-    for (const auto& member : snapshot.members) if (!present_.count(member.id)) Append(event(ChatLine::Kind::Joined, member.id));
-    if (host_ && snapshot.host && snapshot.host != host_) Append(event(ChatLine::Kind::NewHost, snapshot.host));
+    for (const auto id : present_) if (!now.count(id)) Append(EventLine(ChatLine::Kind::Left, id));
+    for (const auto& member : snapshot.members) if (!present_.count(member.id)) Append(EventLine(ChatLine::Kind::Joined, member.id));
+    if (host_ && snapshot.host && snapshot.host != host_) Append(EventLine(ChatLine::Kind::NewHost, snapshot.host));
     for (std::size_t i = 0; i < snapshot.tables.size(); ++i) {
         const auto& table = snapshot.tables[i];
         const auto& seen = tables_[i];
@@ -73,7 +82,7 @@ void ChatTranscript::Diff(const room::Snapshot& snapshot) {
         if (table.lastSet.generation && table.lastSet.generation != seen.setGeneration) {
             const auto winner = table.lastSet.Winner();
             if (!winner || !names_.count(winner)) continue;
-            auto line = event(ChatLine::Kind::SetWon, winner);
+            auto line = EventLine(ChatLine::Kind::SetWon, winner);
             line.table = static_cast<unsigned>(i);
             const int seat = table.lastSet.winnerSeat;
             line.score[0] = table.lastSet.score[seat]; line.score[1] = table.lastSet.score[1 - seat];
@@ -82,7 +91,7 @@ void ChatTranscript::Diff(const room::Snapshot& snapshot) {
             const bool first = table.score[0] > seen.score[0], second = table.score[1] > seen.score[1];
             const auto winner = first ? table.p1 : table.p2;
             if (first == second || !winner || !names_.count(winner)) continue;
-            auto line = event(ChatLine::Kind::GameWon, winner);
+            auto line = EventLine(ChatLine::Kind::GameWon, winner);
             line.table = static_cast<unsigned>(i);
             const int seat = first ? 0 : 1;
             line.score[0] = table.score[seat]; line.score[1] = table.score[1 - seat];

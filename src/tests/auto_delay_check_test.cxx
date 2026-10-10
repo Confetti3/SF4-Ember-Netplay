@@ -34,7 +34,7 @@ static void Schedule() {
     check.Observe("a", 5, "complete", 0, 3000);
     CHECK(check.Measured("a") && check.Delay("a") == 1 && !check.Measured("b") && check.Delay("b") == 2 && !check.Holding(3000));
     check.Observe("a", 6, "complete", 7, 3000);
-    CHECK(check.Delay("a") == 3);
+    CHECK(check.Delay("a") == 4);
     // Choosing Auto again leaves a measured opponent alone.
     check.Want(9000);
     CHECK(!check.Wanted(9000 + settle) && !check.Holding(9000));

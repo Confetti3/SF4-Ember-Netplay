@@ -20,6 +20,7 @@ std::string EventText(const ChatLine& line) {
     case ChatLine::Kind::NewHost: return loc::Tf("chat.event.host", name);
     case ChatLine::Kind::GameWon: return loc::Tf("chat.event.game_won", name, line.table + 1, SetScoreText(line.score));
     case ChatLine::Kind::SetWon: return loc::Tf("chat.event.set_won", name, line.table + 1, SetScoreText(line.score));
+    case ChatLine::Kind::ReadyTimeout: return loc::Tf("chat.event.ready_timeout", name, line.table + 1);
     default: return {};
     }
 }
@@ -52,10 +53,11 @@ void DrawUnreadBadge(float right, float top, unsigned count) {
 // Every frame, drawn or hidden (Background), so the transcript sees each room
 // snapshot whatever the player has open: the room drops a departed member's
 // messages, and a join, a leave or a game won shows only as a difference
-// between two snapshots. Only the session's room state is read from `v`.
+// between two snapshots. Only the session's room state and the room notices
+// are read from `v`.
 void ApplicationShell::ObserveChat(const ShellView& v, const room::Snapshot& room) {
     if (v.session.room == netplay::RoomState::Idle || !room.roomEpoch) { transcript_.Clear(); pendingChat_.reset(); return; }
-    if (transcript_.Update(room)) {
+    if (transcript_.Update(room, v.roomNotices)) {
         pendingChat_.reset(); roomChatTyping_ = roomChatFocus_ = false;
         roomChatHeld_ = 0; chatShown_ = 0;
     }

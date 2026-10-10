@@ -2025,6 +2025,15 @@ msgstr "En attente du retour des spectateurs verrouillés. Lancement dans {0} s.
 msgid "room.hold.waiting_you"
 msgstr "Le combat vous attend : {0} s"
 
+msgid "room.ready_timeout.you"
+msgstr "Soyez prêt dans {0} s ou vous quitterez la place"
+
+msgid "room.ready_timeout.other"
+msgstr "Il reste {0} s à {1} pour se préparer"
+
+msgid "chat.event.ready_timeout"
+msgstr "{0} a quitté la table {1} : pas prêt à temps"
+
 msgid "room.hold.status"
 msgstr "Attente des spectateurs : {0} s"
 

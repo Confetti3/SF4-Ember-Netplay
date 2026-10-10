@@ -1,5 +1,6 @@
 #pragma once
 #include "../ui/ControllerNavigation.hxx"
+#include "../ui/ChatTranscript.hxx"
 #include "../common/MenuInputCapture.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/StageCatalog.hxx"
@@ -104,6 +105,8 @@ namespace sf4e {
 			room::Snapshot room;
 			// When `room` arrived (GetTickCount64); idle times count on from it.
 			std::uint64_t roomReceivedMs = 0;
+			// The newest room events for the chat, oldest first.
+			std::vector<ui::RoomNotice> roomNotices;
 			bool helperReady = false;
 			bool atMainMenu = false;
 			// A started match is waiting for the player to return to the main menu.
