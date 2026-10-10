@@ -68,7 +68,8 @@ void fSystem::UpdateInputs() {
     static sf4e::input::TrainingPadGesture trainingPad;
     if(!focused||!connected||snapshot.menuContext!=sf4e::input::MenuContext::OfflineTraining||
         snapshot.inputCapture!=sf4e::input::Capture::Idle||ownerType!=device.type||ownerIndex!=device.index) trainingPad.Reset();
-    else if(const auto events=trainingPad.Update(physical,sf4e::Overlay::TrainingControlsOpen(),GetTickCount64()/1000.0);events.Any())
+    else if(const auto events=trainingPad.Update(physical,sf4e::Overlay::TrainingControlsOpen(),GetTickCount64()/1000.0,
+        sf4e::Overlay::TrainingCallState());events.Any())
         sf4e::Overlay::PostTrainingPad(events);
     ownerType=device.type;ownerIndex=device.index;
     const unsigned held=sf4e::input::NativeMenuHeld(this);

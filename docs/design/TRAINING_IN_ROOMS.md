@@ -14,11 +14,27 @@ is left for a decision.
    closes and the game goes to the Training fighter select. The room stays
    joined.
 2. They train. Their place in the room does not change: queued, or seated
-   alone.
+   alone. A muted line under the game's timer says where they stand: the
+   room's name, the table, "Queued 2 of 3", "Waiting for an opponent" or
+   the opponent's name, and the room chat's unread count. It is read from
+   the room snapshot the overlay already has, hides under any open window,
+   and goes with the rest of the training HUD on F5.
 3. A fighter sits down opposite them. Over the battle: the announcer's
-   challenger call (unless the ready sound is off) and the banner "A NEW
-   WARRIOR HAS ENTERED THE RING!" for two seconds. Then the battle ends as the
-   pause menu's "exit to main menu" ends it.
+   challenger call (unless the ready sound is off) and the banner "Your
+   match is ready" for two seconds, with the opponent's name and fighter
+   under it. Then the battle ends as the pause menu's "exit to
+   main menu" ends it. **Go now** on the banner (Enter, or View on an Xbox
+   pad; other pads are shown Enter) ends it at once instead, by the same
+   countdown, so nothing after it changes. The F6 controls close for the
+   call, and the banner's Enter is not passed to the game. View goes through
+   the training pad gesture (`TrainingPad.hxx`), which takes a fresh View
+   press for go now alone: it does not also reset or save the position, and
+   Back with Start opens nothing during the call. A View already held when
+   the call came ends as the tap or hold it began as. A DirectInput pad's
+   Select keeps resetting and saving. Under the game's pause menu or Ember's
+   menu, go now is not offered and Enter stays theirs.
+   The others at the table see "Calling {name} back from Training" on the
+   table card until the player is back or readies.
 4. At the main menu the Ember menu opens on their table. The Ready row says
    how many seconds are left: 15.
 5. They press Ready and the match starts the usual way. If the 15 seconds run
@@ -57,7 +73,10 @@ of its own: see "In Training, as the room shows it" below.
 - **Leaving the battle** (`TrainingRuntime.cxx`): the battle system's exit
   type is set to `BET_PAUSE_TOMAINMENU` and its ready state to `RS_ISLEAVING`,
   only once the fight is running. The game's own teardown follows, and
-  `training::CloseBattle` clears the lab's state as on any exit.
+  `training::CloseBattle` clears the lab's state as on any exit. The wait is
+  `training::LeaveCountdown`; go now is `Action::LeaveNow`, which only cuts
+  that count to its last frame, so the battle leaves once, by this path,
+  whichever ended the wait (`TrainingSessionTest`).
 - **Entering Training from the room** uses `fMainMenu::RequestTraining`, the
   same request the Home row makes, without the `StartOffline` command that row
   rides on: that command ends the room.
@@ -123,7 +142,8 @@ authority refuses it, quietly, and its members show as idle as before.
 
 - **Two players in one room.** The call from a real opponent sitting down, the
   menu opening on the table, the Ready and the forfeit have not been run end
-  to end in the game.
+  to end in the game. Nor have go now, the room line in Training, and the
+  "Calling {name} back" line on the opponent's table.
 - A player who sits in Training's fighter select is not in a battle and is not
   called until one starts. Their opponent waits, as an opponent waits today
   for a member who is away from the menu.

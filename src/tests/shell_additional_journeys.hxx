@@ -6,6 +6,7 @@ void AppearanceGalleries();
 void ChatJourneys();
 void TrainingFromHome();
 void TrainingFromRoom();
+void TrainingInRoom();
 void TrainingJourneys();
 void NoticeOverDialogs();
 void LanguageSaveFailure();

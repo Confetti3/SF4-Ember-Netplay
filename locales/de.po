@@ -362,7 +362,7 @@ msgid "rules.training"
 msgstr "Übungskampf"
 
 msgid "rules.training.detail"
-msgstr "Gesundheit und Leisten werden aufgefüllt und niemand wird K. o. geschlagen. Ein Spiel endet mit Ablauf der Rundenzeit. Wähle daher eine lange Rundenzeit."
+msgstr "Gesundheit und Leisten werden aufgefüllt und niemand wird K. o. geschlagen. Ein Spiel endet mit Ablauf der Rundenzeit, daher setzt das Einschalten die Rundenzeit auf 9999."
 
 msgid "screen.home"
 msgstr "Startseite"
@@ -1513,7 +1513,7 @@ msgid "training.key.reset"
 msgstr "Taste Zurücksetzen"
 
 msgid "training.challenger"
-msgstr "EIN NEUER KÄMPFER BETRITT DEN RING!"
+msgstr "Dein Match ist bereit"
 
 msgid "training.key.detail"
 msgstr "Links und Rechts wählen die Taste, die dies im Kampf auslöst. Aus lässt es ohne Taste."
@@ -4259,3 +4259,30 @@ msgstr "Export abgebrochen. Es wurde kein Video gespeichert."
 
 msgid "training.result"
 msgstr "Ergebnis"
+
+msgid "training.room.table"
+msgstr "Tisch {0}"
+
+msgid "training.room.waiting"
+msgstr "Warte auf einen Gegner"
+
+msgid "training.room.opponent"
+msgstr "Gegner: {0}"
+
+msgid "training.room.queued"
+msgstr "Warteschlange: {0} von {1}"
+
+msgid "training.room.not_queued"
+msgstr "Nicht in der Warteschlange"
+
+msgid "training.room.unread"
+msgstr "{0} ungelesen"
+
+msgid "room.training_call.calling"
+msgstr "{0} wird aus dem Training zurückgerufen"
+
+msgid "training.go_now"
+msgstr "Jetzt los"
+
+msgid "rules.round_time.practice"
+msgstr "Ein Übungskampf endet mit Ablauf der Rundenzeit. Die längste ist {0}."

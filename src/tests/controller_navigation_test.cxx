@@ -213,6 +213,36 @@ void TrainingPadChord(){
  // After a reset of the gesture, a Back still held counts only once pressed again.
  step(back);pad.Reset();Check(!step(back,false,1).Any()&&!step(0).Any(),"A Back held through a reset acted");
  Check(step(back).down,"Back did not work again after a reset");step(0);
+ // Called back by a room, with go now offered on this pad: a fresh Back is
+ // go now and nothing else, held or not, and no chord follows it.
+ const auto called=[&](unsigned physical,TrainingCall call,double seconds=1.0/60){now+=seconds;return pad.Update(physical,false,now,call);};
+ e=called(back,TrainingCall::GoNow);Check(e.goNow&&!e.down&&!e.reset&&!e.save&&!e.open,"A fresh Back under the call did not go now alone");
+ Check(!called(back,TrainingCall::GoNow,1).Any(),"Holding go now's Back saved or went now twice");
+ Check(!called(both,TrainingCall::GoNow).Any(),"Start after go now's Back opened the controls");
+ Check(!called(back,TrainingCall::GoNow).Any()&&!called(0,TrainingCall::GoNow).Any(),"Letting go of go now's Back reset the position");
+ // The banner ends while go now's Back is still held: its release does nothing.
+ called(back,TrainingCall::GoNow);
+ Check(!called(back,TrainingCall::None,1).Any()&&!called(0,TrainingCall::None).Any(),"Go now's Back saved or reset after the banner went");
+ // A Back held from before the call is not go now; it ends as the tap or
+ // hold it began as.
+ e=called(back,TrainingCall::None);Check(e.down,"Back did not begin a tap");
+ e=called(back,TrainingCall::GoNow);Check(!e.goNow,"A Back held from before the call went now");
+ e=called(0,TrainingCall::GoNow);Check(e.reset&&!e.goNow,"A tap begun before the call did not end as a tap");
+ called(back,TrainingCall::None);e=called(back,TrainingCall::GoNow,.6);Check(e.save&&!e.goNow,"A hold begun before the call did not save");
+ called(0,TrainingCall::GoNow);
+ // Under the call the chord opens nothing, whether go now is offered on this
+ // pad or not, and its Back neither resets nor saves.
+ for(const TrainingCall call:{TrainingCall::Called,TrainingCall::GoNow}){
+  called(back,TrainingCall::None);e=called(both,call);Check(!e.open&&!e.close&&!e.goNow,"Back then Start opened the controls under the call");
+  Check(!called(both,call,1).Any()&&!called(0,call).Any(),"The chord under the call saved or reset");
+ }
+ // Called with go now not offered on this pad (a DirectInput pad, or under a
+ // window): Back stays the position's.
+ e=called(back,TrainingCall::Called);Check(e.down&&!e.goNow,"Back went now where go now is not offered");
+ Check(called(0,TrainingCall::Called).reset,"Back under the call without go now did not reset");
+ // Start first is still the game's pause: Back under it is not go now.
+ called(start,TrainingCall::GoNow);e=called(both,TrainingCall::GoNow);Check(!e.Any(),"Back pressed under Start went now");
+ called(0,TrainingCall::GoNow);
 }
 // The rules every GameMenu screen shares with the room: an open dialog owns
 // the legend (Select names its highlighted button, Back cancels, shortcuts

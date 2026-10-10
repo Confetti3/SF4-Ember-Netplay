@@ -362,7 +362,7 @@ msgid "rules.training"
 msgstr "Partida de práctica"
 
 msgid "rules.training.detail"
-msgstr "La salud y las barras se rellenan y nadie queda fuera de combate. La partida acaba al agotarse el tiempo del asalto, así que elige un tiempo largo."
+msgstr "La salud y las barras se rellenan y nadie queda fuera de combate. La partida acaba al agotarse el tiempo del asalto, así que al activarlo el tiempo pasa a 9999."
 
 msgid "screen.home"
 msgstr "Inicio"
@@ -1513,7 +1513,7 @@ msgid "training.key.reset"
 msgstr "Tecla Restablecer"
 
 msgid "training.challenger"
-msgstr "¡UN NUEVO LUCHADOR HA ENTRADO AL RING!"
+msgstr "Tu partida está lista"
 
 msgid "training.key.detail"
 msgstr "Izquierda y Derecha eligen la tecla que hace esto durante el combate. Desactivado la deja sin tecla."
@@ -4259,3 +4259,30 @@ msgstr "Exportación cancelada. No se guardó ningún vídeo."
 
 msgid "training.result"
 msgstr "Resultado"
+
+msgid "training.room.table"
+msgstr "Mesa {0}"
+
+msgid "training.room.waiting"
+msgstr "Esperando rival"
+
+msgid "training.room.opponent"
+msgstr "Rival: {0}"
+
+msgid "training.room.queued"
+msgstr "En cola: {0} de {1}"
+
+msgid "training.room.not_queued"
+msgstr "Fuera de la cola"
+
+msgid "training.room.unread"
+msgstr "{0} sin leer"
+
+msgid "room.training_call.calling"
+msgstr "Llamando a {0} desde el entrenamiento"
+
+msgid "training.go_now"
+msgstr "Ir ya"
+
+msgid "rules.round_time.practice"
+msgstr "Una partida de práctica acaba al agotarse el tiempo del asalto. El más largo es {0}."

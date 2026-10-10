@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include "MenuNavigation.hxx"
+#include "TrainingInRoom.hxx"
 
 namespace sf4e { namespace ui {
 using TrainingSubmit = std::function<bool(training::Command)>;
@@ -42,7 +43,15 @@ struct TrainingKeyEntry { const char* label; training::Phase phase; training::Me
 std::vector<TrainingKeyEntry> TrainingColorKeyEntries(bool angled);
 // The colour a bar cell draws for a fighter's sample, angled or flat.
 unsigned TrainingCellColor(const training::FighterSample& sample, bool angled);
-void ChallengerBanner(const training::View& view);
+// Over the battle while it is about to be taken away, with who called and go
+// now under the game's words when the call has them.
+void ChallengerBanner(const training::View& view, const ChallengerCall& call = {});
+// Top of the room line as a fraction of the viewport height: under the game's
+// timer, round markers and name logos, which end about a quarter of the way down.
+constexpr float TrainingRoomStatusTop = .26f;
+// Where a member waiting in Training stands in their room, on one muted line.
+// Passive: takes no input.
+void DrawTrainingRoomStatus(const TrainingRoomStatus& status);
 // Passive, except for the chip that opens the controls.
 // pointer: the pointer is over the chip, so the overlay takes
 // the mouse (only) from the game.

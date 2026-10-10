@@ -24,6 +24,7 @@ Use the game's main menu to enter **Training** and select both fighters and a st
 | F2 | Reset position: back to the saved state |
 | F11 | Save position |
 | Back (pad) | Tap to reset the position, hold half a second to save it |
+| Enter, or View on an Xbox pad | While a room calls you back ("Your match is ready"): go now instead of waiting out the banner |
 
 F2 and F11 are the **Reset position** and **Save position** rows of the Position screen and work with the controls closed or open, except while a text field is being typed in. The two **key** rows at the end of that screen move each to F1 to F4, F9 or F11, or turn it off; one key does one thing. The HUD's chips name both keys and, for a few seconds, what the last one did.
 
@@ -98,7 +99,7 @@ Each player row shows `Start N f`. It counts observed advancing frames from the 
 
 A room's host can turn **Training** on in a table's rules (Table options, with the round count and the round time). At that table both fighters' health, Super and Ultra gauges fill again about a second after they are left alone, and nobody is knocked out. Both players and every spectator get the rule from the table; nothing has to be set on their side.
 
-A game under the rule ends when the round time runs out or a fighter leaves the seat, so set the round time to 9999. There is no shared position save/reset in rollback matches; the match HUD says so. The position keys and pad Back apply only in offline Training; the table rule does not enable them.
+A game under the rule ends when the round time runs out or a fighter leaves the seat, so turning the rule on sets the round time to 9999; the Round time row points it out if the host shortens it again. There is no shared position save/reset in rollback matches; the match HUD says so. The position keys and pad Back apply only in offline Training; the table rule does not enable them.
 
 There is no dummy and no recording at such a table: the other player is the dummy. Turn **Frame meter in matches** on to see the frames.
 

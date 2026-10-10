@@ -184,6 +184,18 @@ TableBanner DescribeTableBanner(const ShellView& v, const room::Table& t) {
     TableBanner banner;
     banner.text = HoldText(v, t);
     if (!banner.text.empty()) return banner;
+    // A fighter waiting in Training is being called back to an opponent who
+    // sat down (TrainingCall's rule): everyone at the table can see why the
+    // game has not started. The trainee is not told about themselves.
+    if (t.p1 && t.p2 && (t.phase == room::TablePhase::Idle || t.phase == room::TablePhase::Waiting)) {
+        for (int seat = 0; seat < 2; ++seat) {
+            const auto* trainee = room::FindMember(v.room, seat ? t.p2 : t.p1);
+            if (!trainee || !trainee->training || t.ready[seat] || trainee->id == v.room.localMember) continue;
+            banner.text = loc::Tf("room.training_call.calling", trainee->name);
+            banner.seat = seat;
+            return banner;
+        }
+    }
     const auto place = room::PlaceOf(v.room, v.room.localMember);
     // OpponentFighterWatch keeps the fighter only while the local player sits
     // at this matchup unready, so the seat is the other one at their table.

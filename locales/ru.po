@@ -362,7 +362,7 @@ msgid "rules.training"
 msgstr "Тренировочный матч"
 
 msgid "rules.training.detail"
-msgstr "Здоровье и шкалы пополняются, нокаутов нет. Игра заканчивается, когда истекает время раунда, поэтому выберите большое время раунда."
+msgstr "Здоровье и шкалы пополняются, нокаутов нет. Игра заканчивается, когда истекает время раунда, поэтому включение ставит время раунда 9999."
 
 msgid "screen.home"
 msgstr "Главная"
@@ -1513,7 +1513,7 @@ msgid "training.key.reset"
 msgstr "Клавиша позиции"
 
 msgid "training.challenger"
-msgstr "НОВЫЙ БОЕЦ ВЫХОДИТ НА РИНГ!"
+msgstr "Ваш матч готов"
 
 msgid "training.key.detail"
 msgstr "Влево и Вправо выбирают клавишу, которая делает это во время боя. «Выкл.» оставляет без клавиши."
@@ -4259,3 +4259,30 @@ msgstr "Экспорт отменён. Видео не сохранено."
 
 msgid "training.result"
 msgstr "Результат"
+
+msgid "training.room.table"
+msgstr "Стол {0}"
+
+msgid "training.room.waiting"
+msgstr "Ожидание соперника"
+
+msgid "training.room.opponent"
+msgstr "Соперник: {0}"
+
+msgid "training.room.queued"
+msgstr "В очереди: {0} из {1}"
+
+msgid "training.room.not_queued"
+msgstr "Не в очереди"
+
+msgid "training.room.unread"
+msgstr "Непрочитано: {0}"
+
+msgid "room.training_call.calling"
+msgstr "Вызов {0} из тренировки"
+
+msgid "training.go_now"
+msgstr "Перейти сейчас"
+
+msgid "rules.round_time.practice"
+msgstr "Тренировочный матч заканчивается, когда истекает время раунда. Самое долгое время: {0}."

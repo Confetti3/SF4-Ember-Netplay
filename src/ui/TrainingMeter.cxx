@@ -2,6 +2,7 @@
 #include "Theme.hxx"
 #include "GameMenu.hxx"
 #include "MenuRows.hxx"
+#include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cfloat>
@@ -280,23 +281,77 @@ void DrawTrainingColorKey(bool angled) {
         ImGui::TextUnformatted(loc::T(entry.label));
     }
 }
-// The game's own words for a fight request arriving, across the middle of
-// the screen while the battle is about to be taken away.
-void ChallengerBanner(const training::View& view) {
+// The match is ready: across the middle of the screen while the battle is
+// about to be taken away. Under it, smaller: who sat down, and go now when it
+// can be pressed.
+void ChallengerBanner(const training::View& view, const ChallengerCall& call) {
     if (view.leavingIn <= 0) return;
     const auto* vp = ImGui::GetMainViewport();
     auto* draw = ImGui::GetForegroundDrawList();
+    auto* font = ImGui::GetFont();
     const char* text = loc::T("training.challenger");
     const float size = vp->Size.y * .075f;
-    const ImVec2 extent = ImGui::GetFont()->CalcTextSizeA(size, FLT_MAX, 0, text);
-    const float y = vp->Pos.y + vp->Size.y * .42f, band = size * 1.8f;
-    draw->AddRectFilled(ImVec2(vp->Pos.x, y - (band - extent.y) / 2), ImVec2(vp->Pos.x + vp->Size.x, y + (band + extent.y) / 2), IM_COL32(0, 0, 0, 170));
+    const ImVec2 extent = font->CalcTextSizeA(size, FLT_MAX, 0, text);
+    const float small = size * .4f, glyph = small * 1.4f, gap = small * 1.5f;
+    const char* goNow = call.goNowGlyph ? loc::T("training.go_now") : nullptr;
+    const float goWidth = goNow ? glyph + small * .35f + font->CalcTextSizeA(small, FLT_MAX, 0, goNow).x : 0;
+    if (goNow) ReportMenuText("challenger-go-now", small, glyph, goWidth, vp->Size.x * .9f);
+    std::string who = call.opponent;
+    if (const auto* fighter = who.empty() ? nullptr : selection::FindFighter(call.fighter)) who += "  \xC2\xB7  " + std::string(fighter->name);
+    // Only the name gives way, so go now is never pushed off the screen.
+    const float whoRoom = vp->Size.x * .9f - goWidth - (goNow ? gap : 0);
+    if (!who.empty() && font->CalcTextSizeA(small, FLT_MAX, 0, who.c_str()).x > whoRoom) {
+        const char* end = nullptr;
+        font->CalcTextSizeA(small, (std::max)(1.f, whoRoom - font->CalcTextSizeA(small, FLT_MAX, 0, "...").x), 0, who.c_str(), nullptr, &end);
+        who = std::string(who.c_str(), end) + "...";
+    }
+    const float whoWidth = who.empty() ? 0 : font->CalcTextSizeA(small, FLT_MAX, 0, who.c_str()).x;
+    const bool second = !who.empty() || goNow;
+    const float y = vp->Pos.y + vp->Size.y * .42f, band = size * 1.8f, below = second ? glyph + size * .3f : 0;
+    draw->AddRectFilled(ImVec2(vp->Pos.x, y - (band - extent.y) / 2), ImVec2(vp->Pos.x + vp->Size.x, y + (band + extent.y) / 2 + below), IM_COL32(0, 0, 0, 170));
     const ImVec2 at(vp->Pos.x + (vp->Size.x - extent.x) / 2, y);
     // Lit and dim by turns, as the game's banner flashes.
     const ImU32 colour = (view.leavingIn / 8) % 2 ? IM_COL32(255, 214, 72, 255) : palette::Ember;
     for (const ImVec2 offset : {ImVec2(-2, 0), ImVec2(2, 0), ImVec2(0, -2), ImVec2(0, 2)})
-        draw->AddText(ImGui::GetFont(), size, ImVec2(at.x + offset.x, at.y + offset.y), IM_COL32(10, 10, 10, 255), text);
-    draw->AddText(ImGui::GetFont(), size, at, colour, text);
+        draw->AddText(font, size, ImVec2(at.x + offset.x, at.y + offset.y), IM_COL32(10, 10, 10, 255), text);
+    draw->AddText(font, size, at, colour, text);
+    if (!second) return;
+    const float lineY = y + extent.y + size * .25f;
+    float x = vp->Pos.x + (vp->Size.x - whoWidth - goWidth - (whoWidth && goWidth ? gap : 0)) / 2;
+    if (!who.empty()) {
+        NoteUserText(call.opponent);
+        draw->AddText(font, small, ImVec2(x, lineY + (glyph - small) / 2), palette::Ivory, who.c_str());
+        x += whoWidth + gap;
+    }
+    if (goNow) {
+        DrawInputGlyph(draw, call.goNowGlyph, ImVec2(x, lineY), glyph);
+        draw->AddText(font, small, ImVec2(x + glyph + small * .35f, lineY + (glyph - small) / 2), palette::Ivory, goNow);
+    }
+}
+void DrawTrainingRoomStatus(const TrainingRoomStatus& status) {
+    if (status.Empty()) return;
+    const auto* vp = ImGui::GetMainViewport();
+    const float hudScale = (std::max)(1.f, (std::min)(1.5f, vp->Size.y / 900.f));
+    ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x / 2, vp->Pos.y + vp->Size.y * TrainingRoomStatusTop), ImGuiCond_Always, ImVec2(.5f, 0));
+    ImGui::SetNextWindowBgAlpha(.42f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(6 * hudScale, 3 * hudScale));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
+    if (ImGui::Begin("Training room status", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
+        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing)) {
+        ImGui::SetWindowFontScale(.8f * hudScale / Scale());
+        const std::string separator = "  \xC2\xB7  ";
+        std::string rest;
+        for (const auto& part : status.parts) rest += (rest.empty() && status.room.empty() ? "" : separator) + part;
+        // The line stays clear of the gauges at the sides; only the room's
+        // name, the player's text, gives way.
+        const float room = (std::max)(ImGui::CalcTextSize("W...").x, vp->Size.x * .4f - ImGui::CalcTextSize(rest.c_str()).x);
+        const std::string line = (status.room.empty() ? std::string() : FitLabel(status.room, room)) + rest;
+        NoteUserText(line);
+        ImGui::TextDisabled("%s", line.c_str());
+        ImGui::SetWindowFontScale(1.f);
+    }
+    ImGui::End();
+    ImGui::PopStyleVar(2);
 }
 // The meter's own window, centred, its bottom edge at hudBottom. Takes no
 // input. Returns its top left corner.

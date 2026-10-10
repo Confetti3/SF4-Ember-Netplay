@@ -362,7 +362,7 @@ msgid "rules.training"
 msgstr "Cvičný zápas"
 
 msgid "rules.training.detail"
-msgstr "Zdraví a ukazatele se doplňují a nikdo není vyřazen. Hra končí po vypršení času kola, proto zvol dlouhý čas kola."
+msgstr "Zdraví a ukazatele se doplňují a nikdo není vyřazen. Hra končí po vypršení času kola, proto zapnutí nastaví čas kola na 9999."
 
 msgid "screen.home"
 msgstr "Domů"
@@ -1513,7 +1513,7 @@ msgid "training.key.reset"
 msgstr "Klávesa obnovení"
 
 msgid "training.challenger"
-msgstr "DO RINGU VSTOUPIL NOVÝ BOJOVNÍK!"
+msgstr "Tvůj zápas je připraven"
 
 msgid "training.key.detail"
 msgstr "Vlevo a Vpravo vyberou klávesu, která to během souboje provede. Vypnuto ji nechá bez klávesy."
@@ -4259,3 +4259,30 @@ msgstr "Export zrušen. Žádné video nebylo uloženo."
 
 msgid "training.result"
 msgstr "Výsledek"
+
+msgid "training.room.table"
+msgstr "Stůl {0}"
+
+msgid "training.room.waiting"
+msgstr "Čeká se na soupeře"
+
+msgid "training.room.opponent"
+msgstr "Soupeř: {0}"
+
+msgid "training.room.queued"
+msgstr "Ve frontě: {0}. z {1}"
+
+msgid "training.room.not_queued"
+msgstr "Mimo frontu"
+
+msgid "training.room.unread"
+msgstr "Nepřečtené: {0}"
+
+msgid "room.training_call.calling"
+msgstr "Volá se {0} zpět z tréninku"
+
+msgid "training.go_now"
+msgstr "Jít hned"
+
+msgid "rules.round_time.practice"
+msgstr "Cvičný zápas končí po vypršení času kola. Nejdelší je {0}."

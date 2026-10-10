@@ -362,7 +362,7 @@ msgid "rules.training"
 msgstr "Practice match"
 
 msgid "rules.training.detail"
-msgstr "Health and gauges refill and nobody is knocked out. A game ends when its round time runs out, so pair it with a long round time."
+msgstr "Health and gauges refill and nobody is knocked out. A game ends when its round time runs out, so turning it on sets round time to 9999."
 
 msgid "screen.home"
 msgstr "Home"
@@ -1513,7 +1513,7 @@ msgid "training.key.reset"
 msgstr "Reset key"
 
 msgid "training.challenger"
-msgstr "A NEW WARRIOR HAS ENTERED THE RING!"
+msgstr "Your match is ready"
 
 msgid "training.key.detail"
 msgstr "Left and Right pick the key that does this over the fight. Off leaves it without one."
@@ -3922,3 +3922,30 @@ msgstr "Export cancelled. No video was saved."
 
 msgid "training.result"
 msgstr "Result"
+
+msgid "training.room.table"
+msgstr "Table {0}"
+
+msgid "training.room.waiting"
+msgstr "Waiting for an opponent"
+
+msgid "training.room.opponent"
+msgstr "Opponent: {0}"
+
+msgid "training.room.queued"
+msgstr "Queued {0} of {1}"
+
+msgid "training.room.not_queued"
+msgstr "Not queued"
+
+msgid "training.room.unread"
+msgstr "{0} unread"
+
+msgid "room.training_call.calling"
+msgstr "Calling {0} back from Training"
+
+msgid "training.go_now"
+msgstr "Go now"
+
+msgid "rules.round_time.practice"
+msgstr "A Practice match ends when its round time runs out. The longest is {0}."

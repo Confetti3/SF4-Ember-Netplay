@@ -80,6 +80,17 @@ void DrawPlayerCard(ImVec2 p,float width,bool compact) {
 }
 }
 void SetMenuPlayerCard(PlayerCardView view){playerCard=std::move(view);}
+void DrawInputGlyph(ImDrawList* d,const char* glyph,ImVec2 min,float size){
+    const auto icon=menuArt&&!KeyCapGlyph(glyph)?menuArt->InputPrompt(PromptAsset(glyph)):SelectionImage{};
+    if(icon.texture){d->AddImage(icon.texture,min,ImVec2(min.x+size,min.y+size),icon.uvMin,icon.uvMax);return;}
+    // No art (a key cap, or the art not loaded yet): the glyph's name on a key cap.
+    const ImVec2 capTop(min.x+size*.06f,min.y+size*.1f),capBottom(min.x+size*.94f,min.y+size*.9f);
+    d->AddRectFilled(capTop,capBottom,IM_COL32(40,38,36,235),size*.15f);
+    d->AddRect(capTop,capBottom,palette::Ivory,size*.15f,0,(std::max)(1.f,size*.045f));
+    const float font=size*(std::strlen(glyph)>1?.34f:.5f);
+    const ImVec2 text=ImGui::GetFont()->CalcTextSizeA(font,FLT_MAX,0,glyph);
+    d->AddText(ImGui::GetFont(),font,ImVec2((capTop.x+capBottom.x-text.x)*.5f,(capTop.y+capBottom.y-text.y)*.5f),palette::Ivory,glyph);
+}
 float DrawCardBadge(ImVec2 p,float width,const char* text,const char* probe,bool rightAligned){
     // Shrunk to the card like its caption, so a long translation stays whole.
     const float s=Scale(),pad=4*s,natural=ImGui::GetFontSize();

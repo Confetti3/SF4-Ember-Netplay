@@ -23,6 +23,9 @@ struct PlayerCardView {
     bool recordAvailable=true;
 };
 void SetMenuPlayerCard(PlayerCardView view);
+// One prompt glyph (MenuGlyphs: "Enter", "View", "A"...) as a size square at
+// min, in its packaged art, or as a key cap with its name until the art loads.
+void DrawInputGlyph(ImDrawList* list,const char* glyph,ImVec2 min,float size);
 void DrawMainPortrait(int fighter,bool saved,ImVec2 min,ImVec2 max);
 // A card's corner marker (SAVED, MAIN), fitted to the card's width. `at` is its
 // top-left corner, or its top-right when rightAligned. Returns the badge's drawn width.

@@ -323,6 +323,7 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 #include "ui_render_chat.hxx"
 #include "ui_render_training.hxx"
 #include "ui_render_overlay.hxx"
+#include "ui_render_training_room.hxx"
 #include "ui_render_replays.hxx"
 #include "ui_render_updates.hxx"
 #include "ui_render_replay_controls.hxx"
@@ -795,12 +796,38 @@ int main(int argc, char** argv) {
             view.room.tables[0].phase=room::TablePhase::Waiting;
             view.room.tables[0].ready[0]=view.room.tables[0].ready[1]=false;
             view.room.tables[0].resultPending=false;view.canReady=view.canEditSelection=true;draw("table-rematch");
+            // The host turns Practice match on: round time 9999 comes with it,
+            // and a shorter time is pointed out on its own row.
+            {
+                std::vector<MenuEntry> ruleRows;
+                SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){ruleRows=rows;});
+                const auto rule=[&](const char* id){
+                    const auto found=std::find_if(ruleRows.begin(),ruleRows.end(),[&](const MenuEntry& row){return row.id==id;});
+                    Require(found!=ruleRows.end(),"A table rule row is missing");return *found;};
+                const auto reach=[&](const char* id){
+                    for(int i=0;i<40&&shell.Navigation().Focus()!=id;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+                    for(int i=0;i<40&&shell.Navigation().Focus()!=id;++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
+                    Require(shell.Navigation().Focus()==id,"A table rule row is unreachable at this viewport/DPI");};
+                const auto step=[&](unsigned direction){draw(nullptr,direction,1);draw(nullptr,0,1);};
+                reach("training");step(MenuInput::Right);draw("table-practice-match");
+                Require(rule("training").value==loc::T("common.on")&&rule("time").value=="9999","Practice match did not bring round time 9999");
+                reach("time");step(MenuInput::Left);draw("table-practice-round-time");
+                Require(rule("time").value=="300"&&rule("time").detail.find(loc::Tf("rules.round_time.practice",9999))==0,
+                    "A short Practice match time was not pointed out");
+                // Back to the table's own rules: nothing is left to apply.
+                step(MenuInput::Left);reach("training");step(MenuInput::Left);draw();
+                Require(rule("time").value=="99"&&rule("training").value==loc::T("common.off"),"The table's rules did not come back");
+                for(const auto& row:ruleRows)Require(row.id!="apply-rules","Restored rules still offered Apply rules");
+                SetMenuEntriesProbe({});
+            }
             // The opponent's new fighter: a line on the table card, with no modal.
             view.session.match=netplay::MatchState::None;view.opponentChangedFighter=10;++view.opponentChangeSequence;
             const int shownFighter=view.room.members[1].fighter;view.room.members[1].fighter=10;
             page("room");draw("room-opponent-changed");view.room.members[1].fighter=shownFighter;
             Require(!shell.NoticeOpen(),"The opponent's new fighter opened a modal notice");
-            view.opponentChangedFighter=-1;page("room-table");view.session.match=netplay::MatchState::PostMatch;draw();
+            view.opponentChangedFighter=-1;
+            // The opponent waits in Training and is being called back.
+            view.room.members[1].training=true;page("room");draw("room-training-call");view.room.members[1].training=false;page("room-table");view.session.match=netplay::MatchState::PostMatch;draw();
             // Applied terminal receipts remain a committed eligibility fence
             // until native/socket/helper retirement and explicit ACK.  Render
             // the waiting reason at every viewport/DPI so it cannot disappear
@@ -958,6 +985,7 @@ int main(int argc, char** argv) {
             ShootTraining(training,fighters,trainingCommand,acceptTraining,mode,size,draw,io);
             CheckOverlayVisibility(training,overlayLayers,overlayTooltip,mode,draw);
             ShootReplayControls(training,overlayLayers,mode,size.h,draw);
+            ShootTrainingRoom(training,overlayLayers,mode,size,draw);
             mode=3;draw("match-hud");
             ShootMatchHud(matchStrip,draw,[&]{renderer.Invalidate();});
             mode=5;draw("controller-warning");

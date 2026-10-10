@@ -17,6 +17,11 @@ struct OverlayLayersView {
     MatchStripView match;
     // A replay the game plays: its controls, lanes and frame meter.
     ReplayHudView replay;
+    // A member waiting in Training: where they stand in their room, drawn
+    // with the training HUD; empty outside a room.
+    TrainingRoomStatus trainingRoom;
+    // The call back from Training: who called, and go now's glyph.
+    ChallengerCall challenger;
 };
 TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training::View& training);
 } }

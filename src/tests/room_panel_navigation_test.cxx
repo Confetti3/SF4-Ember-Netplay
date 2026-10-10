@@ -541,6 +541,36 @@ int main() try {
         targets.clear(); frame(); frame();
         Check(!targets.count("table-0/banner") && row("table-0").id == "table-0", "The opponent's new fighter stayed on the card");
     }
+    // The opponent is in Training and is being called back: the table says so
+    // on their seat, to everyone but them, until they come back or ready.
+    {
+        auto& table = view.room.tables[0];
+        const auto calling = sf4e::loc::Tf("room.training_call.calling", "Peer");
+        Check(table.p1 == 1 && table.p2 == 2 && table.phase == room::TablePhase::Waiting, "The Training call fixture is not a waiting pair");
+        view.room.members[1].training = true; ++view.room.revision;
+        shell.Navigation().Home(); shell.Navigation().Push("room"); targets.clear(); frame(); frame();
+        auto banner = room_controls::DescribeTableBanner(view, table);
+        Check(banner.text == calling && banner.seat == 1, "The table did not say the opponent is being called back from Training");
+        Check(targets.count("table-0/banner"), "The Training call was not drawn on the table card");
+        Check(room_controls::DescribeTableBanner(view, view.room.tables[1]).text.empty(), "Another table said the opponent is being called back");
+        // A member watching sees it too; the trainee is not told about themselves.
+        view.room.localMember = 3;
+        Check(room_controls::DescribeTableBanner(view, table).text == calling, "A watcher was not told the fighter is being called back");
+        view.room.localMember = 2;
+        Check(room_controls::DescribeTableBanner(view, table).text.empty(), "The trainee was told they are being called back");
+        view.room.localMember = 1;
+        // Not while the seat opposite is empty, once they readied, or once a game is under way.
+        table.p2 = 0;
+        Check(room_controls::DescribeTableBanner(view, table).text.empty(), "A Training call was shown with nobody opposite");
+        table.p2 = 2; table.ready[1] = true;
+        Check(room_controls::DescribeTableBanner(view, table).text.empty(), "A readied fighter was still being called back");
+        table.ready[1] = false; table.phase = room::TablePhase::Playing;
+        Check(room_controls::DescribeTableBanner(view, table).text.empty(), "A Training call was shown over a game");
+        table.phase = room::TablePhase::Waiting;
+        // It goes with the flag.
+        view.room.members[1].training = false; ++view.room.revision; targets.clear(); frame(); frame();
+        Check(!targets.count("table-0/banner"), "The Training call stayed on the card after the opponent came back");
+    }
     // A notice with no heading is not an error; ShowError is.
     {
         GameMenu menu;

@@ -362,7 +362,7 @@ msgid "rules.training"
 msgstr "Mecz treningowy"
 
 msgid "rules.training.detail"
-msgstr "Zdrowie i paski się odnawiają, a nikt nie zostaje znokautowany. Gra kończy się po upływie czasu rundy, więc wybierz długi czas rundy."
+msgstr "Zdrowie i paski się odnawiają, a nikt nie zostaje znokautowany. Gra kończy się po upływie czasu rundy, więc włączenie ustawia czas rundy na 9999."
 
 msgid "screen.home"
 msgstr "Start"
@@ -1513,7 +1513,7 @@ msgid "training.key.reset"
 msgstr "Klawisz przywracania"
 
 msgid "training.challenger"
-msgstr "NOWY WOJOWNIK WKROCZYŁ NA RING!"
+msgstr "Twój mecz jest gotowy"
 
 msgid "training.key.detail"
 msgstr "Lewo i Prawo wybierają klawisz, który robi to podczas walki. Wyłączone zostawia bez klawisza."
@@ -4259,3 +4259,30 @@ msgstr "Eksport anulowany. Nie zapisano żadnego wideo."
 
 msgid "training.result"
 msgstr "Wynik"
+
+msgid "training.room.table"
+msgstr "Stół {0}"
+
+msgid "training.room.waiting"
+msgstr "Czekam na przeciwnika"
+
+msgid "training.room.opponent"
+msgstr "Przeciwnik: {0}"
+
+msgid "training.room.queued"
+msgstr "W kolejce: {0} z {1}"
+
+msgid "training.room.not_queued"
+msgstr "Poza kolejką"
+
+msgid "training.room.unread"
+msgstr "Nieprzeczytane: {0}"
+
+msgid "room.training_call.calling"
+msgstr "Wzywanie {0} z treningu"
+
+msgid "training.go_now"
+msgstr "Idź teraz"
+
+msgid "rules.round_time.practice"
+msgstr "Mecz treningowy kończy się po upływie czasu rundy. Najdłuższy to {0}."

@@ -4,10 +4,11 @@
 
 namespace sf4e { namespace ui {
 TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training::View& training) {
-    ChallengerBanner(training);
+    ChallengerBanner(training, view.challenger);
     bool passive = PassiveOverlayShown(view.shellVisible, view.trainingControlsOpen, view.nativePaused);
     TrainingHudInput hud;
     if (passive && view.focused && training.available && view.trainingHud) {
+        DrawTrainingRoomStatus(view.trainingRoom);
         hud = DrawTrainingHud(training);
         if (hud.open) passive = false;
     }

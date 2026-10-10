@@ -362,7 +362,7 @@ msgid "rules.training"
 msgstr "Partida de prática"
 
 msgid "rules.training.detail"
-msgstr "A vida e as barras se enchem e ninguém sofre nocaute. A partida termina quando o tempo do round acaba, então escolha um tempo longo."
+msgstr "A vida e as barras se enchem e ninguém sofre nocaute. A partida termina quando o tempo do round acaba, então ativar define o tempo como 9999."
 
 msgid "screen.home"
 msgstr "Início"
@@ -1658,7 +1658,7 @@ msgid "training.key.reset"
 msgstr "Tecla Restaurar"
 
 msgid "training.challenger"
-msgstr "UM NOVO LUTADOR ENTROU NO RINGUE!"
+msgstr "Sua partida está pronta"
 
 msgid "training.key.detail"
 msgstr "Esquerda e Direita escolhem a tecla que faz isso durante a luta. Desativado deixa sem tecla."
@@ -3807,3 +3807,30 @@ msgstr "Exportação cancelada. Nenhum vídeo foi salvo."
 
 msgid "training.result"
 msgstr "Resultado"
+
+msgid "training.room.table"
+msgstr "Mesa {0}"
+
+msgid "training.room.waiting"
+msgstr "Esperando um oponente"
+
+msgid "training.room.opponent"
+msgstr "Oponente: {0}"
+
+msgid "training.room.queued"
+msgstr "Na fila: {0} de {1}"
+
+msgid "training.room.not_queued"
+msgstr "Fora da fila"
+
+msgid "training.room.unread"
+msgstr "{0} não lidas"
+
+msgid "room.training_call.calling"
+msgstr "Chamando {0} de volta do treino"
+
+msgid "training.go_now"
+msgstr "Ir agora"
+
+msgid "rules.round_time.practice"
+msgstr "Uma partida de prática termina quando o tempo do round acaba. O mais longo é {0}."

@@ -362,7 +362,7 @@ msgid "rules.training"
 msgstr "Partita di pratica"
 
 msgid "rules.training.detail"
-msgstr "Salute e barre si ricaricano e nessuno va K.O. La partita termina allo scadere del tempo del round, quindi scegli un tempo lungo."
+msgstr "Salute e barre si ricaricano e nessuno va K.O. La partita termina allo scadere del tempo del round, quindi attivarla imposta il tempo a 9999."
 
 msgid "screen.home"
 msgstr "Home"
@@ -1513,7 +1513,7 @@ msgid "training.key.reset"
 msgstr "Tasto Ripristina"
 
 msgid "training.challenger"
-msgstr "UN NUOVO GUERRIERO È SALITO SUL RING!"
+msgstr "La tua partita è pronta"
 
 msgid "training.key.detail"
 msgstr "Sinistra e Destra scelgono il tasto che fa questo durante lo scontro. Disattivato lo lascia senza tasto."
@@ -4259,3 +4259,30 @@ msgstr "Esportazione annullata. Nessun video è stato salvato."
 
 msgid "training.result"
 msgstr "Risultato"
+
+msgid "training.room.table"
+msgstr "Tavolo {0}"
+
+msgid "training.room.waiting"
+msgstr "In attesa di un avversario"
+
+msgid "training.room.opponent"
+msgstr "Avversario: {0}"
+
+msgid "training.room.queued"
+msgstr "In coda: {0} di {1}"
+
+msgid "training.room.not_queued"
+msgstr "Non in coda"
+
+msgid "training.room.unread"
+msgstr "{0} da leggere"
+
+msgid "room.training_call.calling"
+msgstr "Richiamo di {0} dall'allenamento"
+
+msgid "training.go_now"
+msgstr "Vai ora"
+
+msgid "rules.round_time.practice"
+msgstr "Una partita di pratica termina allo scadere del tempo del round. Il più lungo è {0}."

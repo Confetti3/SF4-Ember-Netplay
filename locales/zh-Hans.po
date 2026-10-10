@@ -362,7 +362,7 @@ msgid "rules.training"
 msgstr "练习对战"
 
 msgid "rules.training.detail"
-msgstr "体力和能量槽会恢复，双方都不会被击倒。回合时间结束时对战才结束，因此请设置较长的回合时间。"
+msgstr "体力和能量槽会恢复，双方都不会被击倒。回合时间结束时对战才结束，因此开启后回合时间会设为 9999。"
 
 msgid "screen.home"
 msgstr "主页"
@@ -1513,7 +1513,7 @@ msgid "training.key.reset"
 msgstr "重置键"
 
 msgid "training.challenger"
-msgstr "新的挑战者登场！"
+msgstr "你的对战已就绪"
 
 msgid "training.key.detail"
 msgstr "左右选择在对战中执行此操作的按键。关闭则不设按键。"
@@ -4259,3 +4259,30 @@ msgstr "已取消导出。没有保存视频。"
 
 msgid "training.result"
 msgstr "结果"
+
+msgid "training.room.table"
+msgstr "对战席 {0}"
+
+msgid "training.room.waiting"
+msgstr "等待对手"
+
+msgid "training.room.opponent"
+msgstr "对手：{0}"
+
+msgid "training.room.queued"
+msgstr "排队 {0}/{1}"
+
+msgid "training.room.not_queued"
+msgstr "未排队"
+
+msgid "training.room.unread"
+msgstr "{0} 条未读"
+
+msgid "room.training_call.calling"
+msgstr "正在将 {0} 从训练中召回"
+
+msgid "training.go_now"
+msgstr "立即前往"
+
+msgid "rules.round_time.practice"
+msgstr "练习对战在回合时间结束时结束。最长为 {0}。"

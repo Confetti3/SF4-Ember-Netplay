@@ -53,10 +53,17 @@ inline std::string SetSummaryText(const room::Rules& rules) {
     if(rules.format==room::SetFormat::Unlimited) return SetLengthText(rules.format);
     return loc::Tf("rules.set_summary",SetLengthText(rules.format),RotationText(rules.rotation));
 }
+// The longest round time a table offers, which a Practice match wants.
+constexpr int PracticeRoundTime=9999;
 inline void RuleRows(std::vector<MenuEntry>& rows,const room::Rules& rules,bool enabled,const char* reason) {
     rows.push_back(Value("edition",loc::T("rules.edition_select"),rules.editionSelect?loc::T("common.on"):loc::T("common.off"),reason,enabled));
     rows.push_back(Value("rounds",loc::T("rules.rounds"),std::to_string(rules.roundCount),reason,enabled));
-    rows.push_back(Value("time",loc::T("rules.round_time"),std::to_string(rules.roundTime),reason,enabled));
+    // A Practice match ends only when its round time runs out, so a shorter
+    // time than the longest is pointed out where it is set.
+    std::string timeDetail=reason;
+    if(enabled&&rules.training&&rules.roundTime!=PracticeRoundTime)
+        timeDetail=loc::Tf("rules.round_time.practice",PracticeRoundTime)+(*reason?"\n"+timeDetail:std::string());
+    rows.push_back(Value("time",loc::T("rules.round_time"),std::to_string(rules.roundTime),timeDetail,enabled));
     rows.push_back(Value("set-length",loc::T("rules.set_length"),SetLengthText(rules.format),enabled?loc::T("rules.set_length.detail"):reason,enabled));
     // Only a set that ends can hand a seat over.
     const bool rotates=rules.format!=room::SetFormat::Unlimited;
@@ -69,7 +76,12 @@ inline bool AdjustRule(room::Rules& rules,const MenuAction& a) {
     if(a.id=="edition") rules.editionSelect=a.delta>0;
     else if(a.id=="rounds") Step(rules.roundCount,{1,3,5,7,15,99},a.delta);
     else if(a.id=="time") Step(rules.roundTime,{30,60,99,300,9999},a.delta);
-    else if(a.id=="training") rules.training=a.delta>0;
+    else if(a.id=="training") {
+        // Turning Practice match on sets the longest round time with it, in
+        // view on the Round time row; turning it off leaves the time as it is.
+        if(a.delta>0&&!rules.training) rules.roundTime=PracticeRoundTime;
+        rules.training=a.delta>0;
+    }
     else if(a.id=="set-length") {
         std::vector<int> lengths;
         for(int n=0;n<=room::MaxSetLength;++n) lengths.push_back(n);

@@ -362,7 +362,7 @@ msgid "rules.training"
 msgstr "Match d'entraînement"
 
 msgid "rules.training.detail"
-msgstr "La vie et les jauges se remplissent et personne ne subit de K.-O. La partie se termine à la fin du temps du round. Choisissez donc un temps long."
+msgstr "La vie et les jauges se remplissent et personne ne subit de K.-O. La partie se termine à la fin du temps du round : l'activer règle donc le temps sur 9999."
 
 msgid "screen.home"
 msgstr "Accueil"
@@ -1513,7 +1513,7 @@ msgid "training.key.reset"
 msgstr "Touche Rétablir"
 
 msgid "training.challenger"
-msgstr "UN NOUVEAU COMBATTANT ENTRE SUR LE RING !"
+msgstr "Votre match est prêt"
 
 msgid "training.key.detail"
 msgstr "Gauche et Droite choisissent la touche qui fait cela pendant le combat. Désactivé la laisse sans touche."
@@ -4259,3 +4259,30 @@ msgstr "Export annulé. Aucune vidéo n'a été enregistrée."
 
 msgid "training.result"
 msgstr "Résultat"
+
+msgid "training.room.table"
+msgstr "Table {0}"
+
+msgid "training.room.waiting"
+msgstr "En attente d'un adversaire"
+
+msgid "training.room.opponent"
+msgstr "Adversaire : {0}"
+
+msgid "training.room.queued"
+msgstr "File : {0} sur {1}"
+
+msgid "training.room.not_queued"
+msgstr "Hors de la file"
+
+msgid "training.room.unread"
+msgstr "{0} non lu(s)"
+
+msgid "room.training_call.calling"
+msgstr "Rappel de {0} depuis l'entraînement"
+
+msgid "training.go_now"
+msgstr "Y aller"
+
+msgid "rules.round_time.practice"
+msgstr "Un match d'entraînement se termine à la fin du temps du round. Le plus long est {0}."

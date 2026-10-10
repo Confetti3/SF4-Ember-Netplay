@@ -50,10 +50,14 @@ static bool trainingOpen = false, trainingHud = true;
 // the drawing thread takes each frame, and whether the controls are open, for it.
 static std::atomic<unsigned> s_trainingPad{0};
 static std::atomic<bool> s_trainingOpen{false};
-enum : unsigned { PadDown = 1, PadReset = 2, PadSave = 4, PadOpen = 8, PadClose = 16 };
+enum : unsigned { PadDown = 1, PadReset = 2, PadSave = 4, PadOpen = 8, PadClose = 16, PadGoNow = 32 };
 static std::atomic<bool> trainingAvailable{false};
 // A replay plays with Ember's controls: the window procedure keeps their keys.
 static std::atomic<bool> replayPlayback{false};
+// The Training call's banner offers go now, whose Enter the game is not given.
+static std::atomic<bool> goNowOffered{false};
+// The call as the pad's gesture is told it (TrainingPad.hxx: TrainingCall).
+static std::atomic<int> s_trainingCall{0};
 static int lobbyStageID = 0, lobbyMenuCharaID = 0;
 static sf4e::selection::StageMask lobbyStageExcluded = 0;
 // The thread that draws the overlay (NoteMessageThread).
@@ -81,8 +85,9 @@ void Overlay::PostTrainingPad(const sf4e::input::TrainingPadEvents& events) {
     if(!focused) return;
     if(events.open) capture=true;
     s_trainingPad.fetch_or((events.down?PadDown:0u)|(events.reset?PadReset:0u)|(events.save?PadSave:0u)|
-        (events.open?PadOpen:0u)|(events.close?PadClose:0u));
+        (events.open?PadOpen:0u)|(events.close?PadClose:0u)|(events.goNow?PadGoNow:0u));
 }
+sf4e::input::TrainingCall Overlay::TrainingCallState() { return static_cast<sf4e::input::TrainingCall>(s_trainingCall.load()); }
 bool Overlay::TrainingControlsOpen() { return s_trainingOpen.load(); }
 void Overlay::PushNetplayAlert(const char* message) { if (message) sf4e::NetplayFacade::SetLastError(message); }
 void Overlay::OnClientError(SessionClient::ErrorType type, SessionClient* const, const SessionClient::Callbacks&) {
@@ -485,6 +490,25 @@ void Overlay::DrawOverlay() {
     if (!training.available || !focused) trainingOpen = false;
     // Taken every frame, so a press from before the lab was shown never acts later.
     const unsigned padBits = s_trainingPad.exchange(0);
+    // Called back from Training (TRAINING_IN_ROOMS.md): the banner can be cut
+    // short with go now, which only shortens the runtime's own countdown. The
+    // controls close for the call and cannot open again under it, so its key
+    // never presses one of their rows; the window procedure keeps its Enter
+    // from the game. The game's pause menu keeps its own Enter. On an Xbox
+    // pad, View goes now too: the pad's gesture takes a fresh View press for
+    // it alone (TrainingPad.hxx), so that press never resets, saves or opens.
+    const bool called = training.available && training.leavingIn > 0;
+    const bool offerGoNow = called && focused && !presentation.Visible() && !nativePaused;
+    if (called) trainingOpen = false;
+    const bool enter = ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false);
+    if (offerGoNow && (enter || (padBits & PadGoNow))) {
+        sf4e::training::Command now; now.action = sf4e::training::Action::LeaveNow; now.generation = training.generation;
+        spdlog::info("Training: go now ({}) {}", (padBits & PadGoNow) ? "pad" : "Enter",
+            sf4e::training::Submit(now) ? "asked for" : "not asked for, the queue is full");
+    }
+    goNowOffered = offerGoNow;
+    s_trainingCall = static_cast<int>(!called ? sf4e::input::TrainingCall::None :
+        offerGoNow && snapshot.menuController.deviceType == sf4e::input::PadXInput ? sf4e::input::TrainingCall::GoNow : sf4e::input::TrainingCall::Called);
     // Training's keys and pad stay off during any replay, an export's too.
     if (focused && training.available && !playback.playback && !presentation.Visible()) {
         // The pad drives the controls while they are open, through the same
@@ -492,15 +516,16 @@ void Overlay::DrawOverlay() {
         if (!trainingOpen) sf4e::ui::NoteMenuDevice(snapshot.menuController.buttons);
         sf4e::input::TrainingPadEvents pad;
         pad.down = (padBits & PadDown) != 0; pad.reset = (padBits & PadReset) != 0; pad.save = (padBits & PadSave) != 0;
-        if (padBits & PadOpen) trainingOpen = true;
+        if ((padBits & PadOpen) && !called) trainingOpen = true;
         if (padBits & PadClose) trainingOpen = false;
-        if (ImGui::IsKeyPressed(ImGuiKey_F6, false)) trainingOpen = !trainingOpen;
+        if (ImGui::IsKeyPressed(ImGuiKey_F6, false) && !called) trainingOpen = !trainingOpen;
         if (ImGui::IsKeyPressed(ImGuiKey_F5, false)) trainingHud = !trainingHud;
         auto practice = [&](sf4e::training::Action action) {
             sf4e::training::Submit({action, training.generation});
         };
         sf4e::ui::TrainingHotkeys(training, sf4e::training::Submit, pad);
-        if (!trainingOpen && !ImGui::GetIO().WantTextInput) {
+        // Not under the call either: F7 could otherwise open the recordings there.
+        if (!trainingOpen && !called && !ImGui::GetIO().WantTextInput) {
             if (ImGui::IsKeyPressed(ImGuiKey_F7, false)) {
                 if(training.mode != sf4e::training::Mode::Recording && training.lengths[training.selected]>0) {
                     sf4e::ui::ShowTrainingRecordings(); trainingOpen=true;
@@ -522,6 +547,13 @@ void Overlay::DrawOverlay() {
     layers.focused = focused; layers.trainingHud = trainingHud;
     layers.matchActive = frame->ggpoSessionActive; layers.matchWaitsForMenu = snapshot.matchWaitsForMenu;
     layers.showMatchHud = snapshot.preferences.showMatchHud;
+    // Waiting in Training from a room: where the player stands there, and on
+    // the call who sat down. The room is the snapshot's; the unread count is
+    // the room screen's own.
+    const bool inRoom = snapshot.session.room == sf4e::netplay::RoomState::Joined;
+    if (training.available && inRoom) layers.trainingRoom = sf4e::ui::DescribeTrainingRoom(snapshot.room, shell.UnreadChat());
+    if (called && inRoom) layers.challenger = sf4e::ui::DescribeChallenger(snapshot.room);
+    if (offerGoNow) layers.challenger.goNowGlyph = sf4e::ui::GoNowGlyph(sf4e::ui::MenuPromptDevice());
     layers.controllerWarning = snapshot.gameplayInputError; layers.captionShown = snapshot.replays.captionShown;
     if (snapshot.replays.captionShown) {
         const auto& caption = snapshot.replays.caption;
@@ -575,7 +607,7 @@ void Overlay::DrawOverlay() {
         strip.disconnectCountdownMs = status.disconnectCountdownMs;
     }
     const auto hud = sf4e::ui::DrawOverlayLayers(layers, training);
-    if (hud.open) trainingOpen = true;
+    if (hud.open && !called) trainingOpen = true;
     s_trainingOpen = trainingOpen;
     // Shown survives alt-tab; taking the cursor and keys needs focus.
     const bool shown = presentation.Visible() || trainingOpen;
@@ -602,7 +634,7 @@ void Overlay::DrawOverlay() {
 }
 void Overlay::FreeOverlay() {
     capture = false; pointerCapture = false; s_shellShown = false;
-    trainingAvailable = false; replayPlayback = false;
+    trainingAvailable = false; replayPlayback = false; goNowOffered = false; s_trainingCall = 0;
     fMainMenu::bOverrideItemObserverState = -1;
     NoteLifecycleThread("free");
     sf4e::ui::OverlayLifecycle::Change change(s_lifecycle);
@@ -651,5 +683,8 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
     if (sf4e::replaytransport::KeepsKey(replayPlayback, message, static_cast<unsigned>(w))) return 1;
     if (trainingAvailable && !replayPlayback && ((w >= VK_F5 && w <= VK_F8 && (plainKey || systemKey)) ||
         (plainKey && w >= VK_F1 && w <= VK_F12 && sf4e::ui::TrainingHotkeyBound(static_cast<int>(w - VK_F1))))) return 1;
+    // Go now's Enter is not also the game's. Its release still reaches the
+    // game, so a key held from before the call is never left down there.
+    if (goNowOffered && message == WM_KEYDOWN && w == VK_RETURN) return 1;
     return handled;
 }

@@ -46,9 +46,10 @@ int exportedSlot = -1;
 std::vector<Input> exported;
 // Leave: frames until the battle is sent to the main menu, 0 when it is not.
 // The announcer's call and the banner play first, as the game's own fight
-// request lets its banner play before it takes the battle away.
+// request lets its banner play before it takes the battle away; go now cuts
+// the banner short.
 constexpr int LeaveFrames = 120;
-int leaveIn = 0;
+LeaveCountdown leaving;
 // Each fighter's script file, for the moves whose native header names no
 // attack frames: a fireball's hitbox is in the effect the move spawns.
 // scriptFighter: whose file is held, -1 none. Kept across battles.
@@ -181,12 +182,17 @@ static bool Dispatch(Native* system, const Command& command) {
     case Action::DummyPlan: dummyPlan = command.plan; return true;
     case Action::Leave: {
         // Once per battle.
-        if (leaveIn) return false;
-        leaveIn = LeaveFrames;
+        if (!leaving.Start(LeaveFrames)) return false;
         const bool called = command.volume > 0 && Dimps::Sound::PlaySystemCue(Dimps::Sound::SystemCue::HereComesChallenger,
             Dimps::Sound::SystemChannel::Voice, command.volume / 100.f);
         spdlog::info("Training: leaving for the main menu in {} frames; challenger call {}", LeaveFrames, called ? "played" : "not played");
         return true;
+    }
+    case Action::LeaveNow: {
+        // The countdown below then leaves as it would have at its end.
+        const bool hurried = leaving.Hurry();
+        if (hurried) spdlog::info("Training: the player chose to go now");
+        return hurried;
     }
     case Action::ExportSlot:
         exportedSlot = session.GetView().selected; exported = session.Slot(exportedSlot); ++exportId; return true;
@@ -230,7 +236,7 @@ void BeforeUpdate(Native* system, bool networkOwned) {
     // The pause menu's "exit to main menu", asked for by Ember instead of the
     // player. Only out of a fight that is running: a battle still loading or
     // in its intro is waited for, as that menu cannot be opened there either.
-    if (leaveIn && (leaveIn > 1 || session.GetView().ready) && !--leaveIn) {
+    if (leaving.Tick(session.GetView().ready)) {
         *Native::GetBattleExitType(system) = Native::BET_PAUSE_TOMAINMENU;
         *Native::GetReadyState(system) = Native::RS_ISLEAVING;
         spdlog::info("Training: battle told to leave for the main menu");
@@ -397,7 +403,7 @@ void AfterUpdate(Native* system) {
     std::lock_guard<std::mutex> lock(mutex); published = session.GetView(); published.meter = meter.View();
     if (published.available) published.dummy = ReadDummyState(published.dummy);
     published.exportId = exportId; published.exportedSlot = exportedSlot; published.exported = exported;
-    published.leavingIn = leaveIn;
+    published.leavingIn = leaving.Left();
     published.acks=acks;
 }
 void SetMatchPractice(bool enabled) { matchPractice = enabled; }
@@ -433,7 +439,7 @@ void StopCapture() { delete capture; capture = nullptr; }
 void CloseBattle() {
     if (session.GetView().available)
         spdlog::info("Training: frame meter reset {} times on multi-frame updates this battle", gapResets);
-    gapResets = 0; leaveIn = 0;
+    gapResets = 0; leaving.Reset();
     overriding = false; sampling = false;
     if (checkpoint.used) Battle::SaveState::Free(&checkpoint);
     if (session.GetView().available) if (int* options = DummyOptions()) dummyAction.EndReply(options[Manager::OPT_ACTION]);

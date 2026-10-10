@@ -32,7 +32,7 @@ constexpr int MaxWaitFrames = 90, MaxWaitHitFrames = 15;
 using Frame = std::array<Input, 2>;
 struct InputRun { unsigned buttons = 0; unsigned frames = 0; };
 enum class Mode { Idle, Recording, Playback };
-enum class Action { Select, Record, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, Load, ExportSlot, DummyState, Place, DummyPlan, Leave };
+enum class Action { Select, Record, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, Load, ExportSlot, DummyState, Place, DummyPlan, Leave, LeaveNow };
 // The dummy's behaviour as the game's Training menu sets it; each value is
 // the menu's choice index and -1 leaves that setting as it is. action: stand,
 // crouch, jump, cpu. guard: no block, after first hit, all, random.
@@ -157,6 +157,7 @@ struct Command {
     std::vector<Input> frames; int side = 1;
     // Leave: a challenger is waiting, so the battle goes back to the main menu
     // after the announcer's call and a banner; the call's volume in percent, 0 for none.
+    // LeaveNow: the player chose not to wait out that banner (LeaveCountdown::Hurry).
     int volume = 0;
     // DummyState: the settings to change.
     DummyState dummy;
@@ -183,6 +184,31 @@ public:
 private:
     struct Ack { std::uint64_t id = 0; bool accepted = false; };
     std::array<Ack, 8> acks_{};
+};
+// The frames a called player's battle has left before it goes back to the
+// main menu (Action::Leave). Go now (Action::LeaveNow) only shortens the same
+// count, so a battle leaves by one path, once, whichever ended the wait.
+class LeaveCountdown {
+public:
+    // False while a count is already running.
+    bool Start(int frames) {
+        if (left_ || frames < 1) return false;
+        left_ = frames; return true;
+    }
+    // Go now: the next tick that may leave does. False when nothing is
+    // counting (none started, or it already went) or it is already that tick.
+    bool Hurry() {
+        if (left_ <= 1) return false;
+        left_ = 1; return true;
+    }
+    // Once per battle update. fighting: the fight is running, the only time
+    // the pause menu's exit could be used too; the last frame waits for it.
+    // True on the one update the battle is to be told to leave.
+    bool Tick(bool fighting) { return left_ && (left_ > 1 || fighting) && !--left_; }
+    int Left() const { return left_; }
+    void Reset() { left_ = 0; }
+private:
+    int left_ = 0;
 };
 struct View {
     bool available = false, ready = false, checkpoint = false, loop = true;
@@ -232,12 +258,12 @@ public:
     void SetCheckpoint(bool saved) { view_.checkpoint = saved; }
     void SetPositions(float x0, float x1) { view_.x[0] = x0; view_.x[1] = x1; }
     // Every command passes here first, and only here is its battle checked.
-    // Place, DummyPlan, Leave and ExportSlot change nothing in the session;
-    // accepted, the runtime carries them out.
+    // Place, DummyPlan, Leave, LeaveNow and ExportSlot change nothing in the
+    // session; accepted, the runtime carries them out.
     bool Apply(const Command& command) {
         if (!view_.available || command.generation != view_.generation) return false;
         switch (command.action) {
-        case Action::Place: case Action::Leave: case Action::ExportSlot: return true;
+        case Action::Place: case Action::Leave: case Action::LeaveNow: case Action::ExportSlot: return true;
         case Action::DummyPlan: return ValidDummyPlan(command.plan);
         case Action::Stop: Stop(); return true;
         case Action::Select:

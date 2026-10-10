@@ -85,9 +85,9 @@ std::string HoldText(const ShellView& v, const room::Table& t);
 // any length: "Waiting for spectators: 7 s", or the spectator's own line.
 std::string HoldStatus(const ShellView& v, const room::Table& t);
 // A highlighted line across a table card, for something the player at it
-// should act on: a held start, or the opponent's new fighter until the player
-// readies or the matchup changes. seat is the side it is about, or -1. Empty
-// text: none.
+// should act on or wait for: a held start, a seated fighter being called back
+// from Training, or the opponent's new fighter until the player readies or
+// the matchup changes. seat is the side it is about, or -1. Empty text: none.
 struct TableBanner {
     std::string text;
     int seat = -1;

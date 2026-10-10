@@ -3,6 +3,8 @@
 #include "../session/TrainingCall.hxx"
 #include "../training/PracticeSettings.hxx"
 #include "../training/RecordingFile.hxx"
+#include "../ui/MenuRows.hxx"
+#include "../ui/TrainingInRoom.hxx"
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -88,6 +90,61 @@ void TrainingFromRoom() {
  h.view.trainingReadySequence=4;h.accept=false;h.Frame();h.view.trainingReadySeconds=0;h.Frame();h.accept=true;h.Frame();h.Frame();
  Check(readies()==4,"A refused Ready kept retrying after its window closed");
  SetMenuEntriesProbe({});SetMenuStatusProbe({});
+}
+// Waiting in Training from a room: the line the HUD shows about the room, who
+// the call's banner names, go now's press and glyph, and the round time a
+// Practice match takes.
+void TrainingInRoom() {
+ using namespace sf4e;using loc::T;using loc::Tf;
+ using Line=std::vector<std::string>;
+ room::Snapshot s;s.roomEpoch=5;s.name="Friday Night";s.localMember=1;
+ for(std::size_t i=0;i<s.tables.size();++i)s.tables[i].id=static_cast<std::uint8_t>(i);
+ room::Member me,alex,sam;me.id=1;me.name="Me";alex.id=2;alex.name="Alex";alex.fighter=0;sam.id=3;sam.name="Sam";
+ s.members={me,alex,sam};
+ const auto line=[&](unsigned unread){const auto status=ui::DescribeTrainingRoom(s,unread);
+  Line all{status.room};all.insert(all.end(),status.parts.begin(),status.parts.end());return all;};
+ Check(ui::DescribeTrainingRoom(room::Snapshot{},2).Empty(),"Training showed a room line with no room");
+ Check(line(0)==Line({"Friday Night",T("training.room.not_queued")}),"A member with no place was not told so");
+ // Second of three in table 2's queue, with chat waiting.
+ s.tables[1].queue={3,1,2};
+ Check(line(3)==Line({"Friday Night",Tf("training.room.table",2),Tf("training.room.queued",2,3),Tf("training.room.unread",3u)}),
+  "A queued member's line did not give the table, the place in the queue and the unread chat");
+ s.tables[1].queue={1};
+ Check(line(0)==Line({"Friday Night",Tf("training.room.table",2),Tf("training.room.queued",1,1)}),"The first in the queue was not told so, or unread 0 was shown");
+ // Seated alone, then with someone opposite.
+ s.tables[1].queue.clear();s.tables[1].p1=1;s.members[0].table=1;s.members[0].seat=0;
+ Check(line(0)==Line({"Friday Night",Tf("training.room.table",2),T("training.room.waiting")}),"A seated member alone was not told they wait for an opponent");
+ Check(ui::DescribeChallenger(s).opponent.empty(),"The banner named an opponent at an empty table");
+ s.tables[1].p2=2;s.members[1].table=1;s.members[1].seat=1;
+ Check(line(1)==Line({"Friday Night",Tf("training.room.table",2),Tf("training.room.opponent","Alex"),Tf("training.room.unread",1u)}),
+  "A seated member did not see who sat down opposite");
+ const auto call=ui::DescribeChallenger(s);
+ Check(call.opponent=="Alex"&&call.fighter==0&&!call.goNowGlyph,"The banner did not name the opponent and their fighter");
+ s.localMember=9;
+ Check(ui::DescribeTrainingRoom(s,1).Empty()&&ui::DescribeChallenger(s).opponent.empty(),"A client no longer in the room saw its line");
+ // Go now's prompt names the device the training HUD's prompts show: View
+ // for an Xbox pad, Enter for the keyboard and for a DirectInput pad, whose
+ // buttons have no prompt art. The pad's press itself is the training pad
+ // gesture's (ControllerNavigationTest: TrainingPadChord).
+ Check(std::string(ui::GoNowGlyph(input::PadXInput))=="View","An Xbox pad was not offered View");
+ Check(std::string(ui::GoNowGlyph(input::PadDirectInput))=="Enter","A DirectInput pad was offered a pad button");
+ Check(std::string(ui::GoNowGlyph(input::PadKeyboard))=="Enter","A keyboard player was offered a pad button");
+ // Practice match takes the longest round time with it; off, the time stays.
+ {
+  room::Rules rules;rules.roundTime=99;
+  MenuAction adjust;adjust.kind=MenuAction::Adjust;adjust.id="training";adjust.delta=1;
+  Check(AdjustRule(rules,adjust)&&rules.training&&rules.roundTime==PracticeRoundTime,"Practice match did not set round time 9999");
+  rules.roundTime=300;
+  Check(AdjustRule(rules,adjust)&&rules.roundTime==300,"Practice match, already on, reset a round time the host chose");
+  const auto time=[&]{std::vector<MenuEntry> rows;RuleRows(rows,rules,true,"Applies on Apply rules.");
+   return *std::find_if(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="time";});};
+  Check(time().detail==Tf("rules.round_time.practice",PracticeRoundTime)+"\nApplies on Apply rules.","A short Practice match time was not pointed out");
+  adjust.delta=-1;
+  Check(AdjustRule(rules,adjust)&&!rules.training&&rules.roundTime==300,"Turning Practice match off changed the round time");
+  Check(time().detail=="Applies on Apply rules.","A plain table's round time was told about Practice match");
+  rules.training=true;rules.roundTime=PracticeRoundTime;
+  Check(time().detail=="Applies on Apply rules.","Round time 9999 was still pointed out");
+ }
 }
 void TrainingJourneys() {
  using namespace sf4e;

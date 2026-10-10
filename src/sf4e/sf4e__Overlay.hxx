@@ -18,6 +18,9 @@ namespace sf4e {
         // takes the input at once, as RequestMainControls does.
         void PostTrainingPad(const input::TrainingPadEvents& events);
         bool TrainingControlsOpen();
+        // Whether a room is calling the player back from Training, and
+        // whether its banner offers go now on the assigned Xbox pad.
+        input::TrainingCall TrainingCallState();
 		void InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice);
 		void DrawOverlay();
 		void FreeOverlay();

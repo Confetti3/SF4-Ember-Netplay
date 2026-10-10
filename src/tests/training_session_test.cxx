@@ -290,20 +290,53 @@ int main() {
         {
             Session checked; checked.Enter();
             const auto current = checked.GetView().generation;
-            for (int a = 0; a <= static_cast<int>(Action::Leave); ++a) {
+            for (int a = 0; a <= static_cast<int>(Action::LeaveNow); ++a) {
                 Command stale{static_cast<Action>(a), current + 1};
                 stale.slot = 3; stale.loop = false; stale.frames = {Input{1, 1}};
                 Require(!checked.Apply(stale), "A command for another battle was accepted");
                 Require(checked.GetView().selected == 0 && checked.GetView().loop && checked.GetView().lengths[0] == 0,
                     "A command for another battle changed the session");
             }
-            for (Action a : {Action::Place, Action::Leave, Action::ExportSlot, Action::DummyPlan, Action::DummyState, Action::Loop})
+            for (Action a : {Action::Place, Action::Leave, Action::LeaveNow, Action::ExportSlot, Action::DummyPlan, Action::DummyState, Action::Loop})
                 Require(checked.Apply({a, current}), "A command for this battle was refused before the fight");
             Command plan{Action::DummyPlan, current}; plan.plan.slot = SlotCount;
             Require(!checked.Apply(plan), "An invalid reply plan was accepted");
             Command load{Action::Load, current}; load.frames = {Input{1, 1}};
             checked.SetReady(true); load.side = 2;
             Require(!checked.Apply(load), "Input loaded for a side that does not exist");
+        }
+        // The call out of Training: the battle leaves once, by the countdown,
+        // whether its banner ran out or the player chose to go now.
+        {
+            const auto leaves = [](LeaveCountdown& countdown, int frames) {
+                int fired = 0;
+                for (int frame = 0; frame < frames; ++frame) if (countdown.Tick(true)) ++fired;
+                return fired;
+            };
+            LeaveCountdown timer;
+            Require(!timer.Hurry() && timer.Left() == 0, "Go now did something with no call");
+            Require(timer.Start(120) && !timer.Start(120), "A second call restarted the countdown");
+            Require(leaves(timer, 300) == 1 && timer.Left() == 0, "The banner did not end in exactly one leave");
+            Require(!timer.Hurry() && leaves(timer, 10) == 0, "Go now after the battle was told to leave left it again");
+            LeaveCountdown early;
+            early.Start(120);
+            int fired = 0, firedAt = -1;
+            for (int frame = 0; frame < 300; ++frame) {
+                if (frame == 30) Require(early.Hurry(), "Go now during the banner was refused");
+                if (frame == 31) Require(!early.Hurry(), "A second go now was taken as another");
+                if (early.Tick(true)) { ++fired; firedAt = frame; }
+            }
+            Require(fired == 1 && firedAt == 30, "Go now did not leave once, at once");
+            // The timer's own rule holds for go now: the battle is only told to
+            // leave from a running fight, as the pause menu's exit is.
+            LeaveCountdown intro;
+            intro.Start(120);
+            Require(intro.Hurry() && !intro.Tick(false) && !intro.Tick(false) && intro.Left() == 1, "Go now left a fight that was not running");
+            Require(intro.Tick(true) && !intro.Tick(true), "Go now did not leave once the fight ran");
+            // The battle closing forgets a call that never went.
+            LeaveCountdown closed;
+            closed.Start(120); closed.Reset();
+            Require(!closed.Hurry() && leaves(closed, 200) == 0 && closed.Start(120), "A closed battle kept its call");
         }
 
         FrameMeter meter;

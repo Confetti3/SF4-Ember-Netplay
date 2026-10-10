@@ -362,7 +362,7 @@ msgid "rules.training"
 msgstr "연습 대전"
 
 msgid "rules.training.detail"
-msgstr "체력과 게이지가 다시 차며 누구도 KO되지 않습니다. 라운드 시간이 끝나면 게임이 종료되므로 시간을 길게 설정하세요."
+msgstr "체력과 게이지가 다시 차며 누구도 KO되지 않습니다. 라운드 시간이 끝나면 게임이 종료되므로 켜면 라운드 시간이 9999로 설정됩니다."
 
 msgid "screen.home"
 msgstr "홈"
@@ -1513,7 +1513,7 @@ msgid "training.key.reset"
 msgstr "위치 복원 키"
 
 msgid "training.challenger"
-msgstr "새로운 도전자가 나타났습니다!"
+msgstr "대전이 준비되었습니다"
 
 msgid "training.key.detail"
 msgstr "좌우로 대전 중에 이 동작을 하는 키를 고릅니다. 끄기는 키 없이 둡니다."
@@ -4259,3 +4259,30 @@ msgstr "내보내기를 취소했습니다. 동영상은 저장되지 않았습�
 
 msgid "training.result"
 msgstr "결과"
+
+msgid "training.room.table"
+msgstr "테이블 {0}"
+
+msgid "training.room.waiting"
+msgstr "상대를 기다리는 중"
+
+msgid "training.room.opponent"
+msgstr "상대: {0}"
+
+msgid "training.room.queued"
+msgstr "대기열 {0}/{1}"
+
+msgid "training.room.not_queued"
+msgstr "대기열 없음"
+
+msgid "training.room.unread"
+msgstr "읽지 않음 {0}"
+
+msgid "room.training_call.calling"
+msgstr "{0} 님을 트레이닝에서 부르는 중"
+
+msgid "training.go_now"
+msgstr "지금 가기"
+
+msgid "rules.round_time.practice"
+msgstr "연습 대전은 라운드 시간이 끝나면 종료됩니다. 가장 긴 시간은 {0}입니다."

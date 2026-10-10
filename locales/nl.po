@@ -362,7 +362,7 @@ msgid "rules.training"
 msgstr "Oefenwedstrijd"
 
 msgid "rules.training.detail"
-msgstr "Gezondheid en meters vullen zich aan en niemand gaat knock-out. Een spel eindigt als de rondetijd afloopt, dus kies een lange rondetijd."
+msgstr "Gezondheid en meters vullen zich aan en niemand gaat knock-out. Een spel eindigt als de rondetijd afloopt, dus aanzetten zet de rondetijd op 9999."
 
 msgid "screen.home"
 msgstr "Start"
@@ -1513,7 +1513,7 @@ msgid "training.key.reset"
 msgstr "Toets herstellen"
 
 msgid "training.challenger"
-msgstr "EEN NIEUWE STRIJDER BETREEDT DE RING!"
+msgstr "Je wedstrijd staat klaar"
 
 msgid "training.key.detail"
 msgstr "Links en Rechts kiezen de toets die dit tijdens het gevecht doet. Uit laat het zonder toets."
@@ -4259,3 +4259,30 @@ msgstr "Export geannuleerd. Er is geen video opgeslagen."
 
 msgid "training.result"
 msgstr "Resultaat"
+
+msgid "training.room.table"
+msgstr "Tafel {0}"
+
+msgid "training.room.waiting"
+msgstr "Wacht op een tegenstander"
+
+msgid "training.room.opponent"
+msgstr "Tegenstander: {0}"
+
+msgid "training.room.queued"
+msgstr "Wachtrij: {0} van {1}"
+
+msgid "training.room.not_queued"
+msgstr "Niet in de wachtrij"
+
+msgid "training.room.unread"
+msgstr "{0} ongelezen"
+
+msgid "room.training_call.calling"
+msgstr "{0} wordt teruggeroepen uit Training"
+
+msgid "training.go_now"
+msgstr "Nu gaan"
+
+msgid "rules.round_time.practice"
+msgstr "Een oefenwedstrijd eindigt als de rondetijd afloopt. De langste is {0}."

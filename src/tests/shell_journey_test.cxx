@@ -5,7 +5,7 @@
 
 int main() {
  try {
-  RoomJourneys(); ReplayJourneys(); TrainingFromHome(); TrainingFromRoom();
+  RoomJourneys(); ReplayJourneys(); TrainingFromHome(); TrainingFromRoom(); TrainingInRoom();
   KeyboardJourneys(); ChatJourneys(); NoticeOverDialogs(); LanguageSaveFailure();
   SessionReports(); RecoveryWindow(); SelectorPages(); SelectorFromHome();
   DeveloperSelectors(); TrainingJourneys(); PresentationJourneys(); AppearanceGalleries();

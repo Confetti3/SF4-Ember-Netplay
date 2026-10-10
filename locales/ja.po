@@ -362,7 +362,7 @@ msgid "rules.training"
 msgstr "練習対戦"
 
 msgid "rules.training.detail"
-msgstr "体力とゲージが回復し、KOは発生しません。ラウンドの制限時間が切れると対戦が終わるので、長い時間に設定してください。"
+msgstr "体力とゲージが回復し、KOは発生しません。ラウンドの制限時間が切れると対戦が終わるので、オンにするとタイムが9999になります。"
 
 msgid "screen.home"
 msgstr "ホーム"
@@ -1513,7 +1513,7 @@ msgid "training.key.reset"
 msgstr "位置を戻すキー"
 
 msgid "training.challenger"
-msgstr "新たな挑戦者が現れました！"
+msgstr "対戦の準備ができました"
 
 msgid "training.key.detail"
 msgstr "左右で、対戦中にこの操作を行うキーを選びます。オフにするとキーなしになります。"
@@ -4259,3 +4259,30 @@ msgstr "書き出しを中止しました。動画は保存されていません
 
 msgid "training.result"
 msgstr "結果"
+
+msgid "training.room.table"
+msgstr "対戦席{0}"
+
+msgid "training.room.waiting"
+msgstr "対戦相手を待っています"
+
+msgid "training.room.opponent"
+msgstr "対戦相手: {0}"
+
+msgid "training.room.queued"
+msgstr "順番待ち {0}/{1}"
+
+msgid "training.room.not_queued"
+msgstr "順番待ちなし"
+
+msgid "training.room.unread"
+msgstr "未読 {0} 件"
+
+msgid "room.training_call.calling"
+msgstr "{0}をトレーニングから呼び戻しています"
+
+msgid "training.go_now"
+msgstr "今すぐ戻る"
+
+msgid "rules.round_time.practice"
+msgstr "練習対戦はラウンドの制限時間が切れると終わります。最長は{0}です。"

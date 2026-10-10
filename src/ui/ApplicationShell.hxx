@@ -193,6 +193,9 @@ public:
     bool NoticeError() const { return menu_.NoticeError(); }
     // What this client keeps of the room chat (for tests).
     const ChatTranscript& Transcript() const { return transcript_; }
+    // The room chat's unread count, as the room screen's Chat row shows it.
+    // Kept while the shell is hidden (Background), so the training HUD can say it.
+    unsigned UnreadChat() const { return transcript_.Unread(muted_); }
     // The shell is not being drawn (the overlay is hidden): nothing typed into
     // a passphrase field may wait in it until it next opens.
     void Conceal() {

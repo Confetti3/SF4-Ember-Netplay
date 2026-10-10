@@ -50,6 +50,8 @@ The controls hold Dummy recording, Input history, Frame data, Dummy, Dummy reply
 
 F5 toggles the passive training meter, F6 the controls, F7 record/stop and F8 play/stop. F2 resets and F11 saves the position until moved on the Position page. F7 opens the recording menu for confirmation when a slot is occupied. See [Training lab](TRAINING_LAB.md).
 
+When a room calls you back from Training, the banner offers Go now: Enter, or View on an Xbox pad, leaves at once instead of after its two seconds. That View press only goes now; it does not also reset or save the position. During the call Back and Start do not open the training controls. Other pads are shown Enter, and their Select still resets and saves.
+
 ## Runtime acceptance checklist
 
 These checks require your physical controllers and a running game; synthetic tests are not substitutes:
