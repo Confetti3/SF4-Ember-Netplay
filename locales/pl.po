@@ -1734,6 +1734,24 @@ msgstr "Powrót na HUD"
 msgid "training.meter.hud_recovery.detail"
 msgstr "Pokazuje powrót ostatniego ruchu każdej postaci obok startu na mierniku."
 
+msgid "training.meter.hud_numbers"
+msgstr "Liczby na HUD"
+
+msgid "training.meter.hud_bars"
+msgstr "Paski na HUD"
+
+msgid "training.meter.hud_state"
+msgstr "Stan na HUD"
+
+msgid "training.meter.hud_shortcuts"
+msgstr "Skróty na HUD"
+
+msgid "training.meter.hud_status"
+msgstr "Nagrywanie na HUD"
+
+msgid "training.meter.hud_part.detail"
+msgstr "Pokazuje tę część HUD treningu podczas walki. F5 ukrywa cały HUD."
+
 msgid "training.recovery_frames"
 msgstr "Powr. {0} kl."
 
@@ -4103,6 +4121,12 @@ msgstr "Dane klatek"
 
 msgid "training.frame_data.detail"
 msgstr "Sprawdź ostatni ruch każdego gracza, przewagę i moment ataku przy wstawaniu."
+
+msgid "training.hud"
+msgstr "HUD"
+
+msgid "training.hud.detail"
+msgstr "Włącz lub wyłącz części HUD podczas walki."
 
 msgid "training.color_key"
 msgstr "Legenda kolorów"

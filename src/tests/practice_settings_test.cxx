@@ -117,5 +117,13 @@ int main() {
         const auto read = ReadMeterOptions(json::parse(MeterOptionsJson(options).dump()));
         CHECK(read.flat == options.flat && read.recovery == options.recovery && read.shown == options.shown);
     }
+    // Every part of the HUD shows unless it is saved as a literal false, and
+    // a round trip keeps each one apart from the others.
+    for (const auto& part : HudParts) {
+        for (const json& kept : {json(), json(true), json(0), json("false")}) CHECK(ReadMeterOptions(json{{part.key, kept}}).*part.shown);
+        MeterOptions off; off.*part.shown = false;
+        const auto read = ReadMeterOptions(json::parse(MeterOptionsJson(off).dump()));
+        for (const auto& other : HudParts) CHECK(read.*other.shown == (&other != &part));
+    }
     return 0;
 }

@@ -25,7 +25,7 @@ inline const char* MenuScreenName(const std::string& screen) {
         {"roster",loc::T("selection.fighter")},{"appearance",loc::T("selection.appearance")},
         {"costumes",loc::T("selection.costume_gallery")},{"colors",loc::T("selection.color_gallery")},
         {"ultra",loc::T("selection.ultra_combo")},{"stage",loc::T("selection.stage")},{"options",loc::T("selection.additional_options")},
-        {"frame-data",loc::T("training.frame_data")},{"dummy",loc::T("training.dummy")},
+        {"frame-data",loc::T("training.frame_data")},{"hud",loc::T("training.hud")},{"dummy",loc::T("training.dummy")},
         {"reply",loc::T("training.reply")},{"tools",loc::T("training.position")},
         {"recording",loc::T("screen.dummy_recording")},{"history",loc::T("screen.input_history")},{"developer","Developer"},
         {"recovery",loc::T("screen.recovery")},{"updates",loc::T("screen.updates")},{"replays",loc::T("replays.title")},{"replay-inputs",loc::T("replays.inputs")},{"replay-export",loc::T("export.title")},

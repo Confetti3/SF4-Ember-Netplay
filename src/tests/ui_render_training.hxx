@@ -67,20 +67,21 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     training.dummy.action=1;training.dummy.guard=2;training.dummy.counterHit=1;training.dummy.quickStand=3;training.dummy.super=5;training.dummy.revenge=7;
     std::vector<MenuEntry> trainingRows;
     SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){trainingRows=rows;});
-    for(const char* screen:{"home","recording","history","frame-data","dummy","reply","tools"}){
+    for(const char* screen:{"home","recording","history","frame-data","hud","dummy","reply","tools"}){
         TrainingNavigation().Home();if(std::string(screen)!="home")TrainingNavigation().Push(screen);draw((std::string("training-")+screen).c_str());
         for(const auto& row:trainingRows)Require(row.id!="about","Training guide row survived the page split");
         if(std::string(screen)=="dummy")Require(trainingRows.size()==6,"Dummy page lost one of its own rows");
         if(std::string(screen)=="reply")Require(trainingRows.size()==7,"Reply page lost one of its own rows");
         if(std::string(screen)=="tools")Require(trainingRows.size()==4,"Position page lost one of its own rows");
         if(std::string(screen)=="frame-data")Require(trainingRows.size()==6,"Frame data page lost one of its own rows");
+        if(std::string(screen)=="hud")Require(trainingRows.size()==5,"HUD page lost one of its parts");
         if(std::string(screen)=="reply")for(const auto& row:trainingRows)if(row.id=="reply-slot"){
             Require(row.value==loc::Tf("training.slot",1),"Reply slot value includes recorded frame count");
             Require(row.detail.find(loc::Tf("training.recorded_frames",120))!=std::string::npos,"Reply slot detail lost recorded frame count");
         }
         if(std::string(screen)=="home") {
-            const char* ids[]={"recording","history","frame-data","dummy","reply","tools","return"};
-            Require(trainingRows.size()==7,"Training home lost a tool page");
+            const char* ids[]={"recording","history","frame-data","hud","dummy","reply","tools","return"};
+            Require(trainingRows.size()==8,"Training home lost a tool page");
             for(std::size_t i=0;i<trainingRows.size();++i)Require(trainingRows[i].id==ids[i],"Training home page order wrong");
         }
         if(size.w==1920&&size.h==1080&&size.dpi==1.5f) {
@@ -116,6 +117,12 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         focus("color-key");draw("training-color-key-flat");
         SetTrainingMeterOptions({});
     }
+    // The HUD page: every part is on at first, and Left turns the focused one off.
+    TrainingNavigation().Home();TrainingNavigation().Push("hud");draw();
+    for(int i=0;i<5;++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
+    draw(nullptr,MenuInput::Left,1);draw(nullptr,0,1);
+    Require(!TrainingMeterOptions().numbers&&TrainingMeterOptions().bars,"HUD page did not turn its first part off");
+    SetTrainingMeterOptions({});
     // The reply's pick list: Right from the reply slot picks the first preset,
     // which is sent to the dummy as typed notation is; Left goes back.
     {
@@ -161,7 +168,7 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     mode=2;draw("training-hud");
     Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Passive training HUD captured input");
     CheckMatchHudScales();
-    const float hudScale=(std::max)(1.f,(std::min)(1.5f,size.h/900.f));
+    const float hudScale=TrainingHudScale();
     auto* hud=FindWindow("Training frame meter");Require(hud->Size.x<=620*hudScale+1&&hud->Size.x<=size.w*.76f&&hud->Size.y<size.h*.17f,"Passive HUD too large");
     Require(hud->Pos.y+hud->Size.y<=size.h*.82f+1,"Training HUD covers the game's super meters");
     auto* chips=FindWindow("Training shortcuts");
@@ -286,6 +293,23 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         Require(hud->Pos.y+hud->Size.y<=size.h*.82f+1,"Meter option moved the HUD over the game's super meters");
     }
     SetTrainingMeterOptions({});
+    // A recording and a playback add their strip, and the meter stays clear of the gauges.
+    const float whole=hud->Size.y;
+    for(const auto& shot:{std::make_pair("training-hud-recording",training::Mode::Recording),std::make_pair("training-hud-playback",training::Mode::Playback)}) {
+        training.mode=shot.second;training.cursor=45;draw(shot.first);
+        Require(hud->Size.y>whole&&hud->Size.y<size.h*.17f&&hud->Pos.y+hud->Size.y<=size.h*.82f+1,"Recording strip is missing or made the HUD too large");
+    }
+    training.mode=training::Mode::Idle;training.cursor=0;
+    // The HUD's parts: the bars alone are a smaller meter with no chip over it, and with every part off nothing is drawn.
+    training::MeterOptions parts;parts.numbers=parts.state=parts.shortcuts=false;SetTrainingMeterOptions(parts);draw("training-hud-bars");
+    Require(hud->Size.y<whole*.7f&&chips->LastFrameActive!=ImGui::GetFrameCount(),"HUD parts did not turn off");
+    parts.bars=false;SetTrainingMeterOptions(parts);draw();
+    Require(hud->LastFrameActive!=ImGui::GetFrameCount(),"HUD drew with every part off");
+    SetTrainingMeterOptions({});
+    // A small window: the HUD shrinks with it and keeps its place over the gauges.
+    io.DisplaySize=ImVec2(640,480);draw("training-hud-small");
+    Require(hud->Size.x<=640*.76f&&hud->Size.y<480*.17f&&hud->Pos.y+hud->Size.y<=480*.82f+1,"Training HUD does not fit a small window");
+    io.DisplaySize=ImVec2(static_cast<float>(size.w),static_cast<float>(size.h));draw();
     // Run lengths and counting marks: P1's jab and a special it cancels into
     // each count their own startup, active and recovery; P2's two hits of the
     // combo count apart; every fifth and tenth cell boundary is marked.

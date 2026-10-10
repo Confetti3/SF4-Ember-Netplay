@@ -1735,6 +1735,24 @@ msgstr "Восстановление на HUD"
 msgid "training.meter.hud_recovery.detail"
 msgstr "Показывает восстановление последнего приёма каждого бойца рядом с началом на шкале."
 
+msgid "training.meter.hud_numbers"
+msgstr "Числа на HUD"
+
+msgid "training.meter.hud_bars"
+msgstr "Полосы на HUD"
+
+msgid "training.meter.hud_state"
+msgstr "Состояние на HUD"
+
+msgid "training.meter.hud_shortcuts"
+msgstr "Клавиши на HUD"
+
+msgid "training.meter.hud_status"
+msgstr "Запись на HUD"
+
+msgid "training.meter.hud_part.detail"
+msgstr "Показывает эту часть HUD тренировки во время боя. F5 скрывает весь HUD."
+
 msgid "training.recovery_frames"
 msgstr "Восст.: {0} к."
 
@@ -4104,6 +4122,12 @@ msgstr "Данные кадров"
 
 msgid "training.frame_data.detail"
 msgstr "Последний приём каждого игрока, преимущество и тайминг атаки при подъёме."
+
+msgid "training.hud"
+msgstr "HUD"
+
+msgid "training.hud.detail"
+msgstr "Включайте и выключайте части HUD во время боя."
 
 msgid "training.color_key"
 msgstr "Обозначения цветов"

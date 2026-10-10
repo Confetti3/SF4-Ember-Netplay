@@ -1734,6 +1734,24 @@ msgstr "HUDに硬直を表示"
 msgid "training.meter.hud_recovery.detail"
 msgstr "各キャラクターの最後の技の硬直を、メーターの発生の横に表示します。"
 
+msgid "training.meter.hud_numbers"
+msgstr "HUDに数値を表示"
+
+msgid "training.meter.hud_bars"
+msgstr "HUDにバーを表示"
+
+msgid "training.meter.hud_state"
+msgstr "HUDに状態を表示"
+
+msgid "training.meter.hud_shortcuts"
+msgstr "HUDにショートカットを表示"
+
+msgid "training.meter.hud_status"
+msgstr "HUDに記録を表示"
+
+msgid "training.meter.hud_part.detail"
+msgstr "対戦中にトレーニングHUDのこの項目を表示します。F5 で HUD 全体を隠します。"
+
 msgid "training.recovery_frames"
 msgstr "硬直{0}F"
 
@@ -4103,6 +4121,12 @@ msgstr "フレームデータ"
 
 msgid "training.frame_data.detail"
 msgstr "各プレイヤーの直前の技、フレーム有利差、起き上がりへの重ねのタイミングを確認します。"
+
+msgid "training.hud"
+msgstr "HUD"
+
+msgid "training.hud.detail"
+msgstr "対戦中のHUDの項目をオン・オフします。"
 
 msgid "training.color_key"
 msgstr "色の凡例"

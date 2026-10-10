@@ -396,6 +396,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   rows={Row("recording",loc::T("training.dummy_recording"),loc::T("training.dummy_recording.detail")),
    Row("history",loc::T("training.input_history"),loc::T("training.input_history.detail")),
    Row("frame-data",loc::T("training.frame_data"),loc::T("training.frame_data.detail")),
+   Row("hud",loc::T("training.hud"),loc::T("training.hud.detail")),
    Row("dummy",loc::T("training.dummy"),loc::T("training.dummy.detail")),
    Row("reply",loc::T("training.reply"),loc::T("training.reply.detail")),
    Row("tools",loc::T("training.position"),std::string(loc::T("training.position.save.detail"))+"\n"+loc::T("training.position.reset.detail")),
@@ -427,6 +428,9 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
         Value("frames-shown",loc::T("training.meter.frames_shown"),std::to_string(lab.meter.shown),loc::T("training.meter.frames_shown.detail")),
         Value("hud-recovery",loc::T("training.meter.hud_recovery"),onOff(lab.meter.recovery),loc::T("training.meter.hud_recovery.detail"))};
   rows[0].reading=rows[1].reading=rows[2].reading=true;
+ }else if(screen=="hud"){
+  LoadPractice();
+  for(const auto& part:HudParts)rows.push_back(Value(part.key,loc::T(part.label),loc::T(lab.meter.*part.shown?"common.on":"common.off"),loc::T("training.meter.hud_part.detail")));
  }else{
   // The history is longer than the detail pane, so Select opens it in a reader.
   rows={Row("p1",loc::T("training.player_one"),loc::T("training.history.detail")),
@@ -460,6 +464,8 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  if(a.kind==MenuAction::Activate&&screen=="home"){if(a.id=="recording")ListRecordings();nav.Push(a.id);return;}
  if(screen=="recording"&&HandleRecordingLibrary(a,v,submit))return;
  if(screen=="tools"||screen=="dummy"||screen=="reply"){HandleTools(a,v,submit);return;}
+ // A part of the HUD: Off, then On.
+ if(screen=="hud"&&a.kind==MenuAction::Adjust)for(const auto& part:HudParts)if(a.id==part.key){lab.meter.*part.shown=a.delta>0;SavePractice();return;}
  if(screen=="frame-data"&&a.kind==MenuAction::Adjust&&(a.id=="meter-style"||a.id=="frames-shown"||a.id=="hud-recovery")){
   // Angled first, then Flat; 60, 90, then 120 frames; Recovery Off, then On.
   if(a.id=="meter-style")lab.meter.flat=a.delta>0;

@@ -122,7 +122,10 @@ inline MeterKind ClassifyMeter(const FighterSample& sample) {
 // shown: the frames across the bar's width, 60, 90 or 120. Fewer frames make
 // each cell wider and easier to count; 120 is the whole history at once.
 constexpr int MeterShownChoices[] = {60, 90, 120};
-struct MeterOptions { bool flat = false, recovery = false; int shown = 60; };
+// The HUD's parts, each shown until it is turned off: numbers (the readings
+// beside the bars), the bars, state (the line under them), shortcuts (the
+// chip and its hint) and status (the strip a recording or a playback adds).
+struct MeterOptions { bool flat = false, recovery = false; int shown = 60; bool numbers = true, bars = true, state = true, shortcuts = true, status = true; };
 inline bool GroundedRecoveryState(unsigned status) {
     using S = ActorStatus;
     switch (status) {

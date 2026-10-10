@@ -1734,6 +1734,24 @@ msgstr "Erholung im HUD"
 msgid "training.meter.hud_recovery.detail"
 msgstr "Zeigt die Erholung der letzten Aktion jedes Kämpfers neben ihrem Start im Meter."
 
+msgid "training.meter.hud_numbers"
+msgstr "Zahlen im HUD"
+
+msgid "training.meter.hud_bars"
+msgstr "Balken im HUD"
+
+msgid "training.meter.hud_state"
+msgstr "Status im HUD"
+
+msgid "training.meter.hud_shortcuts"
+msgstr "Kürzel im HUD"
+
+msgid "training.meter.hud_status"
+msgstr "Aufnahme im HUD"
+
+msgid "training.meter.hud_part.detail"
+msgstr "Zeigt diesen Teil des Trainings-HUD im Kampf. F5 blendet das ganze HUD aus."
+
 msgid "training.recovery_frames"
 msgstr "Erh. {0} F"
 
@@ -4103,6 +4121,12 @@ msgstr "Framedaten"
 
 msgid "training.frame_data.detail"
 msgstr "Zeigt den letzten Angriff jedes Spielers, den Framevorteil und das Meaty-Timing."
+
+msgid "training.hud"
+msgstr "HUD"
+
+msgid "training.hud.detail"
+msgstr "Teile des HUD im Kampf ein- oder ausschalten."
 
 msgid "training.color_key"
 msgstr "Farblegende"

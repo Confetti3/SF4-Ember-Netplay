@@ -1734,6 +1734,24 @@ msgstr "HUD에 경직 표시"
 msgid "training.meter.hud_recovery.detail"
 msgstr "각 캐릭터의 마지막 기술 경직을 미터의 발생 옆에 표시합니다."
 
+msgid "training.meter.hud_numbers"
+msgstr "HUD에 숫자 표시"
+
+msgid "training.meter.hud_bars"
+msgstr "HUD에 막대 표시"
+
+msgid "training.meter.hud_state"
+msgstr "HUD에 상태 표시"
+
+msgid "training.meter.hud_shortcuts"
+msgstr "HUD에 단축키 표시"
+
+msgid "training.meter.hud_status"
+msgstr "HUD에 녹화 표시"
+
+msgid "training.meter.hud_part.detail"
+msgstr "대전 중 트레이닝 HUD의 이 항목을 표시합니다. F5로 HUD 전체를 숨깁니다."
+
 msgid "training.recovery_frames"
 msgstr "경직 {0} f"
 
@@ -4103,6 +4121,12 @@ msgstr "프레임 데이터"
 
 msgid "training.frame_data.detail"
 msgstr "각 플레이어의 마지막 기술, 프레임 이득과 기상에 겹치는 공격 타이밍을 확인합니다."
+
+msgid "training.hud"
+msgstr "HUD"
+
+msgid "training.hud.detail"
+msgstr "대전 중 HUD의 항목을 켜거나 끕니다."
 
 msgid "training.color_key"
 msgstr "색상 설명"

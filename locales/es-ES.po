@@ -1734,6 +1734,24 @@ msgstr "Recuperación en el HUD"
 msgid "training.meter.hud_recovery.detail"
 msgstr "Muestra la recuperación del último movimiento de cada luchador junto a su inicio en el medidor."
 
+msgid "training.meter.hud_numbers"
+msgstr "Números en el HUD"
+
+msgid "training.meter.hud_bars"
+msgstr "Barras en el HUD"
+
+msgid "training.meter.hud_state"
+msgstr "Estado en el HUD"
+
+msgid "training.meter.hud_shortcuts"
+msgstr "Atajos en el HUD"
+
+msgid "training.meter.hud_status"
+msgstr "Grabación en el HUD"
+
+msgid "training.meter.hud_part.detail"
+msgstr "Muestra esta parte del HUD de entrenamiento durante el combate. F5 lo oculta todo."
+
 msgid "training.recovery_frames"
 msgstr "Rec. {0} f"
 
@@ -4103,6 +4121,12 @@ msgstr "Datos de fotogramas"
 
 msgid "training.frame_data.detail"
 msgstr "Consulta el último movimiento de cada jugador, su ventaja y el momento del meaty."
+
+msgid "training.hud"
+msgstr "HUD"
+
+msgid "training.hud.detail"
+msgstr "Activa o desactiva partes del HUD durante el combate."
 
 msgid "training.color_key"
 msgstr "Clave de colores"

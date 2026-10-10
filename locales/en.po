@@ -1734,6 +1734,24 @@ msgstr "Recovery on HUD"
 msgid "training.meter.hud_recovery.detail"
 msgstr "Shows the recovery of each fighter's last move beside its startup on the meter."
 
+msgid "training.meter.hud_numbers"
+msgstr "Numbers on HUD"
+
+msgid "training.meter.hud_bars"
+msgstr "Bars on HUD"
+
+msgid "training.meter.hud_state"
+msgstr "State on HUD"
+
+msgid "training.meter.hud_shortcuts"
+msgstr "Shortcuts on HUD"
+
+msgid "training.meter.hud_status"
+msgstr "Recording on HUD"
+
+msgid "training.meter.hud_part.detail"
+msgstr "Shows this part of the training HUD over the fight. F5 hides all of it."
+
 msgid "training.recovery_frames"
 msgstr "Rec {0} f"
 
@@ -3762,6 +3780,12 @@ msgstr "Frame data"
 
 msgid "training.frame_data.detail"
 msgstr "Read each player's last move, advantage and meaty timing."
+
+msgid "training.hud"
+msgstr "HUD"
+
+msgid "training.hud.detail"
+msgstr "Turn parts of the HUD over the fight on or off."
 
 msgid "training.color_key"
 msgstr "Color key"

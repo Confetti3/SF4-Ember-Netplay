@@ -1734,6 +1734,24 @@ msgstr "在 HUD 显示硬直"
 msgid "training.meter.hud_recovery.detail"
 msgstr "在计量条上起手旁显示每名角色最后一招的硬直。"
 
+msgid "training.meter.hud_numbers"
+msgstr "在 HUD 显示数值"
+
+msgid "training.meter.hud_bars"
+msgstr "在 HUD 显示帧数条"
+
+msgid "training.meter.hud_state"
+msgstr "在 HUD 显示状态"
+
+msgid "training.meter.hud_shortcuts"
+msgstr "在 HUD 显示快捷键"
+
+msgid "training.meter.hud_status"
+msgstr "在 HUD 显示录制"
+
+msgid "training.meter.hud_part.detail"
+msgstr "在对战中显示训练 HUD 的这一项。F5 隐藏整个 HUD。"
+
 msgid "training.recovery_frames"
 msgstr "硬直 {0} 帧"
 
@@ -4103,6 +4121,12 @@ msgstr "帧数数据"
 
 msgid "training.frame_data.detail"
 msgstr "查看双方上一招的帧数优势和压起身时机。"
+
+msgid "training.hud"
+msgstr "HUD"
+
+msgid "training.hud.detail"
+msgstr "开关对战中 HUD 的各项。"
 
 msgid "training.color_key"
 msgstr "颜色图例"

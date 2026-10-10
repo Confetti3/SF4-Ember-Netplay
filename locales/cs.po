@@ -1734,6 +1734,24 @@ msgstr "Zotavení na HUD"
 msgid "training.meter.hud_recovery.detail"
 msgstr "Zobrazí na měřiči zotavení posledního pohybu každého bojovníka vedle náběhu."
 
+msgid "training.meter.hud_numbers"
+msgstr "Čísla na HUD"
+
+msgid "training.meter.hud_bars"
+msgstr "Pruhy na HUD"
+
+msgid "training.meter.hud_state"
+msgstr "Stav na HUD"
+
+msgid "training.meter.hud_shortcuts"
+msgstr "Zkratky na HUD"
+
+msgid "training.meter.hud_status"
+msgstr "Nahrávání na HUD"
+
+msgid "training.meter.hud_part.detail"
+msgstr "Zobrazí tuto část tréninkového HUD během souboje. F5 skryje celý HUD."
+
 msgid "training.recovery_frames"
 msgstr "Zot. {0} sn."
 
@@ -4103,6 +4121,12 @@ msgstr "Data snímků"
 
 msgid "training.frame_data.detail"
 msgstr "Prohlédněte si poslední útok obou hráčů, výhodu a načasování útoku při vstávání."
+
+msgid "training.hud"
+msgstr "HUD"
+
+msgid "training.hud.detail"
+msgstr "Zapněte nebo vypněte části HUD během souboje."
 
 msgid "training.color_key"
 msgstr "Význam barev"

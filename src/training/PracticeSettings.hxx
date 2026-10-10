@@ -27,9 +27,15 @@ inline std::array<int, 2> ReadPositionKeys(const nlohmann::json& keys) {
     if (result[0] >= 0 && result[0] == result[1]) result[1] = result[0] == 10 ? 1 : 10;
     return result;
 }
+// A part of the HUD: its name in training.json, which is its row on the HUD
+// page too, and that row's label.
+struct HudPart { const char* key; const char* label; bool MeterOptions::* shown; };
+constexpr HudPart HudParts[] = {{"hud_numbers", "training.meter.hud_numbers", &MeterOptions::numbers}, {"hud_bars", "training.meter.hud_bars", &MeterOptions::bars},
+    {"hud_state", "training.meter.hud_state", &MeterOptions::state}, {"hud_shortcuts", "training.meter.hud_shortcuts", &MeterOptions::shortcuts},
+    {"hud_status", "training.meter.hud_status", &MeterOptions::status}};
 // The meter's drawing options: angled unless the style is "flat", the
-// recovery number only for a literal true, and 60 frames shown unless 90 or
-// 120 is saved.
+// recovery number only for a literal true, 60 frames shown unless 90 or 120
+// is saved, and every part of the HUD unless it is saved as a literal false.
 inline MeterOptions ReadMeterOptions(const nlohmann::json& meter) {
     MeterOptions options;
     if (!meter.is_object()) return options;
@@ -37,10 +43,13 @@ inline MeterOptions ReadMeterOptions(const nlohmann::json& meter) {
     options.recovery = meter.value("hud_recovery", nlohmann::json(false)) == true;
     const auto shown = meter.value("frames_shown", nlohmann::json());
     for (const int choice : MeterShownChoices) if (shown.is_number_integer() && shown == choice) options.shown = choice;
+    for (const auto& part : HudParts) options.*part.shown = meter.value(part.key, nlohmann::json(true)) != false;
     return options;
 }
 inline nlohmann::json MeterOptionsJson(const MeterOptions& options) {
-    return {{"style", options.flat ? "flat" : "angled"}, {"hud_recovery", options.recovery}, {"frames_shown", options.shown}};
+    nlohmann::json meter{{"style", options.flat ? "flat" : "angled"}, {"hud_recovery", options.recovery}, {"frames_shown", options.shown}};
+    for (const auto& part : HudParts) meter[part.key] = options.*part.shown;
+    return meter;
 }
 // Old replies accepted these shared names without a fighter database.
 // Resolve them only when loading a saved reply; new input uses notation.
