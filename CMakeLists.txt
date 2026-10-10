@@ -868,6 +868,10 @@ if(BUILD_TESTING)
     target_compile_features(GameLocatorTest PRIVATE cxx_std_17)
     add_test(NAME GameLocator COMMAND GameLocatorTest)
     set_tests_properties(GameLocator PROPERTIES TIMEOUT 15)
+    add_executable(LargeAddressTest src/tests/large_address_test.cxx)
+    target_compile_features(LargeAddressTest PRIVATE cxx_std_17)
+    add_test(NAME LargeAddress COMMAND LargeAddressTest)
+    set_tests_properties(LargeAddress PROPERTIES TIMEOUT 15)
 endif()
 add_executable(Updater
     src/launcher/updater.cxx

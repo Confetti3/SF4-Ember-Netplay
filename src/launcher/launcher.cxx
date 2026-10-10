@@ -39,6 +39,7 @@
 #include "../platform/LocaleWindows.hxx"
 #include "../platform/UiPreferencesStore.hxx"
 #include "GameLocator.hxx"
+#include "LargeAddress.hxx"
 #include "netplay/netplay_persist.hxx"
 #include "update/github_release_client.hxx"
 #include "BuildIdentity.hxx"
@@ -261,12 +262,18 @@ void CreateAppIDFile(LPWSTR szGuiltyDirectory) {
 void NoteWindowsCrashDump(DWORD processId) {
 	PWSTR localAppData = NULL;
 	if (SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &localAppData) != S_OK) return;
-	wchar_t name[64] = {}, path[MAX_PATH] = {};
-	StringCchPrintfW(name, 64, L"CrashDumps\\SSFIV.exe.%lu.dmp", processId);
-	const bool named = SUCCEEDED(PathCchCombine(path, MAX_PATH, localAppData, name));
+	// Windows names the dump after the executable that ran.
+	const wchar_t* const executables[] = {sf4e::launcher::kGameExecutableName, sf4e::launcher::kLargeAddressExecutableName};
+	bool found = false;
+	for (const wchar_t* executable : executables) {
+		wchar_t name[64] = {}, path[MAX_PATH] = {};
+		StringCchPrintfW(name, 64, L"CrashDumps\\%s.%lu.dmp", executable, processId);
+		if (FAILED(PathCchCombine(path, MAX_PATH, localAppData, name)) || GetFileAttributesW(path) == INVALID_FILE_ATTRIBUTES) continue;
+		spdlog::info(L"Windows wrote a crash dump to {}", path);
+		found = true;
+	}
 	CoTaskMemFree(localAppData);
-	if (named && GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES) spdlog::info(L"Windows wrote a crash dump to {}", path);
-	else spdlog::info("No crash dump from Sidecar or Windows Error Reporting; see USER_NETPLAY.md to turn on LocalDumps");
+	if (!found) spdlog::info("No crash dump from Sidecar or Windows Error Reporting; see USER_NETPLAY.md to turn on LocalDumps");
 }
 
 HANDLE CreateSF4Process(
@@ -749,8 +756,18 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         const bool steamAbove = sf4e::platform::ProcessElevation() == sf4e::platform::Elevation::Normal &&
             sf4e::platform::SteamElevation() == sf4e::platform::Elevation::Elevated;
         if (steamAbove) spdlog::warn("Steam runs as administrator and the launcher does not; the game may not reach Steam");
+        // SF4E_LARGE_ADDRESS=1 starts a copy of the game that Windows gives
+        // 4 GB of address space instead of 2 GB (LargeAddress.hxx). Off unless
+        // asked for: the game has not been run this way widely.
+        std::wstring executable = location.executable;
+        wchar_t largeAddress[2] = {};
+        if (GetEnvironmentVariableW(L"SF4E_LARGE_ADDRESS", largeAddress, 2) == 1 && largeAddress[0] == L'1') {
+            executable = sf4e::launcher::LargeAddressExecutable(location.directory, location.executable);
+            if (executable == location.executable) spdlog::warn("Large address space not applied (the game already has it, or its copy could not be written); starting the game as installed");
+            else spdlog::info(L"Starting the large-address copy of the game: {}", executable.c_str());
+        }
         DWORD startError = 0;
-        HANDLE game = CreateSF4Process(payload,helper,discord,helperPath.wstring(),location.directory.data(),location.executable.data(),1,dlls,dumps,startError);
+        HANDLE game = CreateSF4Process(payload,helper,discord,helperPath.wstring(),location.directory.data(),executable.data(),1,dlls,dumps,startError);
         if (!game) {
             dumps.Close();
             // ERROR_ELEVATION_REQUIRED: SSFIV.exe is marked to run as administrator.
