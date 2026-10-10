@@ -220,6 +220,13 @@ int main() try {
     Check(row("input-delay").detail.find("Opponent: 5 frames") != std::string::npos && row("input-delay").value == "2 frames",
         "Opponent delay overwrote the local choice or was not displayed");
     view.opponentDelay = -1; frame();
+    view.selectedDelay = 0; frame();
+    Check(row("input-delay").detail.find(loc::T("settings.input_delay.zero_warning")) == 0,
+        "Room zero delay did not put its warning first");
+    view.selectedDelay = 1; frame();
+    Check(row("input-delay").detail.find(loc::T("settings.input_delay.zero_warning")) == std::string::npos,
+        "Room one-frame delay retained the zero warning");
+    view.selectedDelay = 2; frame();
     Check(row("check-connection").enabled && row("input-delay").opens && row("input-delay").hint == "Apply recommendation",
         "Delay actions were not available");
     focus("check-connection"); press(MenuInput::Select);

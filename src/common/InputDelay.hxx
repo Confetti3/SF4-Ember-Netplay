@@ -6,9 +6,9 @@ namespace sf4e {
 constexpr int MaximumInputDelay = 10;
 // Manual delay is local to each fighter. Zero adds no input buffering.
 constexpr int MinimumInputDelay = 0;
-constexpr int DefaultInputDelay = 0;
+constexpr int DefaultInputDelay = 1;
 constexpr int PlayableInputDelay(int delay) { return delay < MinimumInputDelay ? MinimumInputDelay : delay; }
-// Invalid saved values fall back to the zero-delay default.
+// Invalid saved values fall back to the one-frame default; explicit zero survives.
 constexpr int SavedInputDelay(int delay) { return delay < 0 || delay > MaximumInputDelay ? DefaultInputDelay : delay; }
 
 // Auto takes the connection check's recommendation, held between these.

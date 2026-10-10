@@ -685,6 +685,9 @@ msgstr "STANDAARD SPEL"
 msgid "settings.input_delay"
 msgstr "Invoervertraging"
 
+msgid "settings.input_delay.zero_warning"
+msgstr "Waarschuwing: vertraging 0 wordt nog getest en kan desynchronisatie veroorzaken."
+
 msgid "settings.input_delay.auto"
 msgstr "Auto"
 

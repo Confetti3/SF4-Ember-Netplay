@@ -392,13 +392,23 @@ void Journeys() {
  Check(h.actions.back().preferences.matchHudAnchor==0,"HUD position did not step back to Bottom center");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-spacing");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudRaised,"HUD spacing did not save");
- // New profiles use manual zero; Auto is reached to the left and returns to zero.
+ // New profiles use one frame. Zero warns; Auto stays one step below zero.
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("defaults");h.Choose("delay");
- Check(!h.view.preferences.autoInputDelay&&h.view.preferences.inputDelay==0,"A new profile did not start at zero");
+ Check(!h.view.preferences.autoInputDelay&&h.view.preferences.inputDelay==1,"A new profile did not start at one frame");
+ std::string delayDetail;
+ SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){for(const auto& row:rows)if(row.id=="delay")delayDetail=row.detail;});
+ h.Frame();Check(delayDetail.find(loc::T("settings.input_delay.zero_warning"))==std::string::npos,"Default delay showed the zero warning");
+ h.Press(MenuInput::Left);h.Frame(0,45);
+ Check(h.actions.back().preferences.inputDelay==0&&!h.actions.back().preferences.autoInputDelay,"Zero delay did not save");
+ Check(delayDetail.find(loc::T("settings.input_delay.zero_warning"))!=std::string::npos,"Selecting zero did not show its warning");
+ h.view.preferences=h.actions.back().preferences;h.Frame();
  h.Press(MenuInput::Left);h.Frame(0,45);
  Check(h.actions.back().preferences.autoInputDelay,"Auto delay did not save");
+ Check(delayDetail.find(loc::T("settings.input_delay.zero_warning"))==std::string::npos,"Auto showed the zero warning");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Right);h.Frame(0,45);
  Check(!h.actions.back().preferences.autoInputDelay&&h.actions.back().preferences.inputDelay==0,"Leaving Auto did not select zero");
+ Check(delayDetail.find(loc::T("settings.input_delay.zero_warning"))!=std::string::npos,"Leaving Auto for zero did not warn");
+ SetMenuEntriesProbe({});
  h.Screen("interface");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("scale");h.Press(MenuInput::Right);
  h.view.settingsError="Disk unavailable";h.Frame(0,45);

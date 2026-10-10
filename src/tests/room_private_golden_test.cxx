@@ -3,7 +3,7 @@
 // each step the SHA-256 of the room snapshot's JSON and of the authority's
 // Checkpoint() JSON are compared with the values the f95cef2 sources produced for
 // this same script, after checking and normalizing the intentional delay-default
-// change from 2 to 0. `--print` writes the table in the form kGolden below. The
+// change from 2 to 1. `--print` writes the table in the form kGolden below. The
 // script uses only API that exists at f95cef2 and fixed times, so it can be
 // built against either revision.
 #include "../session/SessionRecovery.hxx"
@@ -103,13 +103,13 @@ void NormalizeDelayDefaults(nlohmann::json& snapshot) {
 	// compare every other byte against the original, independently captured oracle.
 	for (auto& member : snapshot.at("members")) {
 		for (const char* key : {"selected_delay", "frozen_delay"}) {
-			if (member.at(key) != 0) throw std::runtime_error("Private room did not retain Delay 0");
+			if (member.at(key) != 1) throw std::runtime_error("Private room did not retain Delay 1");
 			member[key] = 2;
 		}
 	}
 	for (auto& table : snapshot.at("tables")) {
-		if (table.at("input_delay") != nlohmann::json::array({0, 0}))
-			throw std::runtime_error("Private table did not retain Delay 0");
+		if (table.at("input_delay") != nlohmann::json::array({1, 1}))
+			throw std::runtime_error("Private table did not retain Delay 1");
 		table["input_delay"] = nlohmann::json::array({2, 2});
 	}
 }

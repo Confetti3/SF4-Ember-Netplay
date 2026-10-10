@@ -685,6 +685,9 @@ msgstr "SPIELVORGABEN"
 msgid "settings.input_delay"
 msgstr "Eingabeverzögerung"
 
+msgid "settings.input_delay.zero_warning"
+msgstr "Warnung: Verzögerung 0 wird noch getestet und kann Desynchronisationen verursachen."
+
 msgid "settings.input_delay.auto"
 msgstr "Auto"
 

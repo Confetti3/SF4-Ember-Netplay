@@ -40,8 +40,9 @@ Battle setup, opened from **Table options** (Y on an Xbox pad, T on the
 keyboard), starts with Ready, then your **Change fighter** and **Ultra Combo**
 (Left and Right step the Ultra in place), then **Input delay**. Its value is
 your own delay, and its detail names the recommendation and the opponent's
-locked delay. New profiles start at **Delay 0**. Existing explicit saved choices
-are preserved. **Auto** is optional: the connection check runs by itself for each
+locked delay. New profiles start at **Delay 1**. **Delay 0** remains selectable,
+but is still under testing and may cause desyncs; selecting it shows a warning.
+Existing explicit saved choices, including 0, are preserved. **Auto** is optional: the connection check runs by itself for each
 new opponent, and a Ready pressed meanwhile waits for it to end, for about
 twelve seconds at most. A check that fails is tried once more. You ready with
 its recommendation held between one and three frames, or with two frames if it

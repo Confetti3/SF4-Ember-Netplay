@@ -685,6 +685,9 @@ msgstr "НАСТРОЙКИ ИГРЫ"
 msgid "settings.input_delay"
 msgstr "Задержка ввода"
 
+msgid "settings.input_delay.zero_warning"
+msgstr "Внимание: задержка 0 ещё тестируется и может вызвать рассинхронизацию."
+
 msgid "settings.input_delay.auto"
 msgstr "Авто"
 

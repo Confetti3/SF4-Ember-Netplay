@@ -685,6 +685,9 @@ msgstr "RÉGLAGES PAR DÉFAUT"
 msgid "settings.input_delay"
 msgstr "Latence d'entrée"
 
+msgid "settings.input_delay.zero_warning"
+msgstr "Attention : le délai 0 est encore en test et peut provoquer des désynchronisations."
+
 msgid "settings.input_delay.auto"
 msgstr "Auto"
 

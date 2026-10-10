@@ -46,11 +46,11 @@ static sf4e::netplay::PlayerPreferences LoadDelay(const Path& root, const std::w
     return value;
 }
 
-// Existing explicit choices survive; absent/invalid flags use manual zero by default.
+// Existing explicit choices survive; absent/invalid values use manual one by default.
 static void InputDelayMigrations(const Path& root) {
     using sf4e::netplay::PlayerPreferences;
     const auto fresh = LoadDelay(root, L"delay-new", Json::object());
-    CHECK(!fresh.autoInputDelay && fresh.inputDelay == 0 && fresh.Valid());
+    CHECK(!fresh.autoInputDelay && fresh.inputDelay == 1 && fresh.Valid());
     const auto zero = LoadDelay(root, L"delay-zero", {{"inputDelay", 0}});
     CHECK(!zero.autoInputDelay && zero.inputDelay == 0 && zero.Valid());
     const auto four = LoadDelay(root, L"delay-four", {{"inputDelay", 4}});
@@ -60,11 +60,11 @@ static void InputDelayMigrations(const Path& root) {
     for (int invalid : {-1, 11, 99}) {
         PlayerPreferences fallback;
         sf4e::netplay::ReadInputDelayPreference({{"inputDelay", invalid}}, fallback);
-        CHECK(fallback.inputDelay == 0 && !fallback.autoInputDelay && fallback.Valid());
+        CHECK(fallback.inputDelay == 1 && !fallback.autoInputDelay && fallback.Valid());
     }
     PlayerPreferences fallback;
     sf4e::netplay::ReadInputDelayPreference({{"inputDelay", "3"}}, fallback);
-    CHECK(fallback.inputDelay == 0 && !fallback.autoInputDelay);
+    CHECK(fallback.inputDelay == 1 && !fallback.autoInputDelay);
     for (const bool on : {true, false}) for (int number : {0, 1, 3, 10}) {
         const auto again = LoadDelay(root, L"delay-round-" + std::to_wstring(on) + L"-" + std::to_wstring(number),
             {{"inputDelay", number}, {"autoInputDelay", on}});
@@ -158,7 +158,7 @@ int main() {
         CHECK(retired["netplay"]["matchHudAnchor"]==4&&retired["legacyLauncher"]["unknownPreference"]=="retain");
     }
     CHECK(discordDefaults.discordPresence && discordDefaults.discordInvites);
-    CHECK(discordDefaults.inputDelay == 0);
+    CHECK(discordDefaults.inputDelay == 1);
     discordDefaults.inputDelay = 0; CHECK(discordDefaults.Valid());
     discordDefaults.inputDelay = 1; CHECK(discordDefaults.Valid());
     discordDefaults.inputDelay = 10; CHECK(discordDefaults.Valid());
@@ -166,10 +166,10 @@ int main() {
     discordDefaults.inputDelay = 11; CHECK(!discordDefaults.Valid());
     CHECK(store.SaveLauncher({{"inputDelay", 0}}, error));
     CHECK(store.LoadLauncher(result, error) && result["inputDelay"] == 0);
-    // Zero is preserved; out of range falls back to zero.
+    // Zero is preserved; out of range falls back to one frame.
     CHECK(sf4e::SavedInputDelay(result["inputDelay"].get<int>()) == 0);
     CHECK(sf4e::SavedInputDelay(1) == 1 && sf4e::SavedInputDelay(3) == 3 && sf4e::SavedInputDelay(10) == 10);
-    CHECK(sf4e::SavedInputDelay(-1) == 0 && sf4e::SavedInputDelay(11) == 0);
+    CHECK(sf4e::SavedInputDelay(-1) == 1 && sf4e::SavedInputDelay(11) == 1);
     // Auto is opt-in and its explicit flag is saved beside the delay.
     CHECK(!sf4e::netplay::PlayerPreferences().autoInputDelay && !result.contains("autoInputDelay"));
     discordDefaults.inputDelay = 2; discordDefaults.autoInputDelay = false; CHECK(discordDefaults.Valid());

@@ -26,10 +26,11 @@ int main() {
     // Zero steps Right to 1 and Left to Auto.
     CHECK(StepInputDelay(false, 0, 1) == 1 && StepInputDelay(false, 0, -1) == AutoInputDelayChoice);
     // The Auto choice is never a delay the room or a saved profile could hold.
-    CHECK(AutoInputDelayChoice < 0 && SavedInputDelay(AutoInputDelayChoice) == 0);
-    // Zero survives play and persistence; invalid saved values use zero.
+    CHECK(AutoInputDelayChoice < 0 && SavedInputDelay(AutoInputDelayChoice) == 1);
+    CHECK(DefaultInputDelay == 1);
+    // Zero survives play and persistence; invalid saved values use one frame.
     CHECK(PlayableInputDelay(0) == MinimumInputDelay && PlayableInputDelay(3) == 3);
-    CHECK(SavedInputDelay(0) == 0 && SavedInputDelay(4) == 4 && SavedInputDelay(-1) == 0 && SavedInputDelay(MaximumInputDelay + 1) == 0);
+    CHECK(SavedInputDelay(0) == 0 && SavedInputDelay(4) == 4 && SavedInputDelay(-1) == 1 && SavedInputDelay(MaximumInputDelay + 1) == 1);
     static_assert(AutoInputDelay(-1) == 2 && PlayableInputDelay(0) == 0, "constant expressions");
     std::cout << "Auto delay bounds and delay row steps passed\n";
 }

@@ -685,6 +685,9 @@ msgstr "VÝCHOZÍ NASTAVENÍ HRY"
 msgid "settings.input_delay"
 msgstr "Zpoždění vstupu"
 
+msgid "settings.input_delay.zero_warning"
+msgstr "Upozornění: zpoždění 0 se stále testuje a může způsobit desynchronizaci."
+
 msgid "settings.input_delay.auto"
 msgstr "Auto"
 

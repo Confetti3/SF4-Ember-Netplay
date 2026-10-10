@@ -30,7 +30,7 @@ struct PlayerPreferences {
     ProfileRecord record;
     int inputDelay = DefaultInputDelay;
     // Auto readies with the connection check's delay (AutoInputDelay) instead of
-    // inputDelay. It is opt-in; new profiles use zero delay.
+    // inputDelay. It is opt-in; new profiles use one frame of delay.
     bool autoInputDelay = false;
     // On by default so a stall or rollback spike is visible, but Small: the standard strip drew the eye mid-fight.
     bool showMatchHud = true;

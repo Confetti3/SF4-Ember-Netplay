@@ -14,7 +14,7 @@ namespace sf4e { namespace netplay {
 // - A profile without "autoInputDelay" keeps its saved manual number.
 // - "autoInputDelay": true is Auto; false is the saved number, as chosen.
 // - Anything else under "autoInputDelay" is not a choice the game wrote, so
-//   the profile uses its manual number. New profiles start at zero.
+//   the profile uses its manual number. New profiles start at one frame.
 inline void ReadInputDelayPreference(const nlohmann::json& saved, PlayerPreferences& value) {
     if (!saved.is_object()) return;
     const auto delay = saved.find("inputDelay");

@@ -286,6 +286,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     const auto check=DescribeConnectionCheck(v);
     const bool opponentReady=v.opponentDelay>=0&&v.opponentDelay<=MaximumInputDelay;
     std::string delayDetail=loc::Tf("room.input_delay.recommended",check.value);
+    if(!autoDelay&&selectedDelay==0)delayDetail=std::string(loc::T("settings.input_delay.zero_warning"))+"\n"+delayDetail;
     delayDetail+='\n'; delayDetail+=loc::T("room.input_delay.independent");
     if(opponentReady)delayDetail+="\n"+loc::Tf("room.input_delay.opponent",FramesText(v.opponentDelay));
     if(!delayEditable)delayDetail+="\n"+(v.delayLocked?std::string(loc::T("room.selected_delay.locked")):reason);

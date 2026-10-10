@@ -685,6 +685,9 @@ msgstr "GAMEPLAY DEFAULTS"
 msgid "settings.input_delay"
 msgstr "Input delay"
 
+msgid "settings.input_delay.zero_warning"
+msgstr "Warning: Delay 0 is still under testing and may cause desyncs."
+
 msgid "settings.input_delay.auto"
 msgstr "Auto"
 

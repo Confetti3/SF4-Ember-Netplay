@@ -685,6 +685,9 @@ msgstr "PADRÕES DE JOGO"
 msgid "settings.input_delay"
 msgstr "Atraso de entrada"
 
+msgid "settings.input_delay.zero_warning"
+msgstr "Aviso: o atraso 0 ainda está em testes e pode causar dessincronizações."
+
 msgid "settings.input_delay.auto"
 msgstr "Auto"
 

@@ -685,6 +685,9 @@ msgstr "对战默认设置"
 msgid "settings.input_delay"
 msgstr "输入延迟"
 
+msgid "settings.input_delay.zero_warning"
+msgstr "警告：延迟0仍在测试中，可能导致不同步。"
+
 msgid "settings.input_delay.auto"
 msgstr "自动"
 

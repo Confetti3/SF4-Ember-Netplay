@@ -685,6 +685,9 @@ msgstr "IMPOSTAZIONI DI GIOCO"
 msgid "settings.input_delay"
 msgstr "Ritardo input"
 
+msgid "settings.input_delay.zero_warning"
+msgstr "Attenzione: il ritardo 0 è ancora in fase di test e può causare desincronizzazioni."
+
 msgid "settings.input_delay.auto"
 msgstr "Auto"
 

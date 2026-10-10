@@ -685,6 +685,9 @@ msgstr "対戦の初期設定"
 msgid "settings.input_delay"
 msgstr "入力遅延"
 
+msgid "settings.input_delay.zero_warning"
+msgstr "警告：遅延0はまだテスト中で、同期ずれが発生する可能性があります。"
+
 msgid "settings.input_delay.auto"
 msgstr "自動"
 
