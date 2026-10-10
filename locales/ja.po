@@ -1141,7 +1141,7 @@ msgid "about.controls"
 msgstr "操作方法"
 
 msgid "about.controls_detail"
-msgstr "Xboxパッド：Aで選択、Bで戻ります。対戦用のボタン設定は関係ありません。ほかのパッド：割り当てたLPで選択、LKで戻ります。キーボード：方向キー、Enter、Escape。D-padで移動、左右で値を変更します。ホームで戻るとEmberを隠します。ゲームのメインメニューでは、F10（パッドではStart）でもう一度開けます。\n\nルームでは、テーブルでAを押すと席を選べ、自分の席でAを押すと準備完了になり、Bで席または順番待ちを離れます。XboxパッドではXでキャラ、Yで設定、Viewでチャットを開き、もう一度押すとルームに戻ります。\n\nトレーニングではF6で操作パネルを開き、F5でHUDを隠し、F7でレコーディング、F8で再生します。"
+msgstr "Xboxパッド：Aで選択、Bで戻ります。対戦用のボタン設定は関係ありません。ほかのパッド：割り当てたLPで選択、LKで戻ります。キーボード：方向キー、Enter、Escape。D-padで移動、左右で値を変更します。ホームで戻るとEmberを隠します。ゲームのメインメニューでは、F10（パッドではStart）でもう一度開けます。\n\nルームでは、テーブルでAを押すと席を選べ、自分の席でAを押すと準備完了になり、Bで席または順番待ちを離れます。XboxパッドではXでキャラ、Yで設定、Viewでチャットを開き、もう一度押すとルームに戻ります。\n\nトレーニングではF6で操作パネルを開き、F5でHUDを隠し、F7でレコーディング、F8で再生します。パッドではViewかSelectを押したままStartを押します。"
 
 msgid "about.controls_keyboard"
 msgstr "キーボードでは Space でも選択、Backspace でも戻ります。ルームでは F でキャラ、T で設定、C でチャットを開きます。Esc は自分の席の上でも常に戻ります。Delete で席や順番待ちから抜けます。"
@@ -1377,6 +1377,12 @@ msgstr "F6 トレーニング操作"
 msgid "training.hide_hint"
 msgstr "F5 HUDを隠す"
 
+msgid "training.controls_chip"
+msgstr "トレーニング操作"
+
+msgid "training.pad_hint"
+msgstr "押す：位置を戻す　長押し：保存"
+
 msgid "training.save_recording"
 msgstr "録画を名前を付けて保存"
 
@@ -1481,6 +1487,15 @@ msgstr "反撃の技"
 
 msgid "training.reply.moves.detail"
 msgstr "テンキー表記で入力する反撃です。例: 623HP、44。ダミーの向きに合わせて読みます。ダミーがまだ動けない間にコマンドを入れ、動ける最初のフレームにボタンが重なります。空なら反撃スロットを使います。"
+
+msgid "training.reply.move"
+msgstr "反撃のプリセット"
+
+msgid "training.reply.move.detail"
+msgstr "左右でよく使う反撃をテンキー表記で選びます。ダミーの向きに合わせて読みます。反撃スロットは記録を再生し、カスタムは入力した技を使います。選択で反撃の技を開いて入力します。"
+
+msgid "training.reply.custom"
+msgstr "カスタム"
 
 msgid "training.reply.timing"
 msgstr "反撃のタイミング"
@@ -1691,6 +1706,39 @@ msgstr "攻撃"
 
 msgid "training.meter.move"
 msgstr "移動"
+
+msgid "training.meter.attack_unsplit"
+msgstr "攻撃（区分なし）"
+
+msgid "training.meter.style"
+msgstr "メーターの表示"
+
+msgid "training.meter.style.detail"
+msgstr "斜めは攻撃を発生・持続・硬直で色分けし、各区間のフレーム数を表示します。フラットは攻撃全体を1色で表示します。"
+
+msgid "training.meter.style.angled"
+msgstr "斜め"
+
+msgid "training.meter.style.flat"
+msgstr "フラット"
+
+msgid "training.meter.frames_shown"
+msgstr "表示フレーム数"
+
+msgid "training.meter.frames_shown.detail"
+msgstr "同じ幅に表示するフレーム数です。少ないほど1フレームが広く数えやすくなり、120では履歴全体を表示します。メーターの停止中は、バーの上でマウスホイールを回すとさかのぼれます。"
+
+msgid "training.meter.hud_recovery"
+msgstr "HUDに硬直を表示"
+
+msgid "training.meter.hud_recovery.detail"
+msgstr "各キャラクターの最後の技の硬直を、メーターの発生の横に表示します。"
+
+msgid "training.recovery_frames"
+msgstr "硬直{0}F"
+
+msgid "training.recovery_unknown"
+msgstr "硬直--"
 
 msgid "training.neutral"
 msgstr "入力なし"

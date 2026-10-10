@@ -1141,7 +1141,7 @@ msgid "about.controls"
 msgstr "Besturing"
 
 msgid "about.controls_detail"
-msgstr "Xbox-controller: A kiest en B gaat terug, los van de vechtknoppen. Andere controllers: de toegewezen LP kiest en LK gaat terug. Toetsenbord: pijltjes, Enter en Escape. De D-pad beweegt; links en rechts passen een waarde aan. Terug op het scherm Start verbergt Ember. F10, of de knop Start op de controller, opent Ember weer in het hoofdmenu van het spel.\n\nIn een kamer kies je met A op een tafel een plek, meld je je met A op je eigen plek klaar en verlaat B je plek of de wachtrij. Op een Xbox-controller opent X Vechter, Y Opties en View Chat; druk er nogmaals op om terug te gaan naar de kamer.\n\nIn training opent F6 de besturing, verbergt F5 de HUD, neemt F7 op en speelt F8 af."
+msgstr "Xbox-controller: A kiest en B gaat terug, los van de vechtknoppen. Andere controllers: de toegewezen LP kiest en LK gaat terug. Toetsenbord: pijltjes, Enter en Escape. De D-pad beweegt; links en rechts passen een waarde aan. Terug op het scherm Start verbergt Ember. F10, of de knop Start op de controller, opent Ember weer in het hoofdmenu van het spel.\n\nIn een kamer kies je met A op een tafel een plek, meld je je met A op je eigen plek klaar en verlaat B je plek of de wachtrij. Op een Xbox-controller opent X Vechter, Y Opties en View Chat; druk er nogmaals op om terug te gaan naar de kamer.\n\nIn training opent F6 de besturing, verbergt F5 de HUD, neemt F7 op en speelt F8 af. Op een controller: houd View of Select vast en druk op Start."
 
 msgid "about.controls_keyboard"
 msgstr "Op het toetsenbord selecteert Spatie ook en gaat Backspace ook terug. In een kamer opent F Vechter, T Opties en C Chat. Escape gaat altijd terug, ook op je eigen plaats; Delete verlaat je plaats of wachtrij."
@@ -1377,6 +1377,12 @@ msgstr "F6 Trainingsbesturing"
 msgid "training.hide_hint"
 msgstr "F5 HUD verbergen"
 
+msgid "training.controls_chip"
+msgstr "Trainingsbesturing"
+
+msgid "training.pad_hint"
+msgstr "Tik: herstel, houd: opslaan"
+
 msgid "training.save_recording"
 msgstr "Opname opslaan als"
 
@@ -1481,6 +1487,15 @@ msgstr "Antwoordmoves"
 
 msgid "training.reply.moves.detail"
 msgstr "Het antwoord getypt als moves in numpadnotatie, zoals 623HP of 44, gelezen voor de kant waar de dummy naar kijkt. De beweging gaat erin terwijl de dummy nog vastzit, zodat de knop op zijn eerste vrije frame valt. Leeg gebruikt het antwoordslot."
+
+msgid "training.reply.move"
+msgstr "Antwoordvoorkeuze"
+
+msgid "training.reply.move.detail"
+msgstr "Links en rechts kiezen een gangbaar antwoord in numpadnotatie, gelezen voor de kant waar de dummy naar kijkt. Antwoordslot speelt de opname; Eigen houdt de getypte moves. Kiezen opent Antwoordmoves om er een te typen."
+
+msgid "training.reply.custom"
+msgstr "Eigen"
 
 msgid "training.reply.timing"
 msgstr "Antwoordtiming"
@@ -1691,6 +1706,39 @@ msgstr "Aanval"
 
 msgid "training.meter.move"
 msgstr "Beweging"
+
+msgid "training.meter.attack_unsplit"
+msgstr "Aanval, niet gesplitst"
+
+msgid "training.meter.style"
+msgstr "Meterstijl"
+
+msgid "training.meter.style.detail"
+msgstr "Schuin kleurt een aanval naar aanloop, actief en herstel en zet de lengte van elk stuk erop. Vlak tekent de hele aanval in één kleur."
+
+msgid "training.meter.style.angled"
+msgstr "Schuin"
+
+msgid "training.meter.style.flat"
+msgstr "Vlak"
+
+msgid "training.meter.frames_shown"
+msgstr "Getoonde frames"
+
+msgid "training.meter.frames_shown.detail"
+msgstr "Hoeveel frames de balken op dezelfde breedte tonen. Minder maakt elk frame breder en makkelijker te tellen; 120 toont de hele geschiedenis. Als de meter stilstaat, scrolt het muiswiel boven de balken terug."
+
+msgid "training.meter.hud_recovery"
+msgstr "Herstel op de HUD"
+
+msgid "training.meter.hud_recovery.detail"
+msgstr "Toont het herstel van de laatste move van elke vechter naast de start op de meter."
+
+msgid "training.recovery_frames"
+msgstr "Herst. {0} f"
+
+msgid "training.recovery_unknown"
+msgstr "Herst. --"
 
 msgid "training.neutral"
 msgstr "Neutraal"

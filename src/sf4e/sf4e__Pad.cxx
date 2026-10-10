@@ -10,6 +10,7 @@
 #include "sf4e__UserApp.hxx"
 #include "../training/TrainingRuntime.hxx"
 #include "sf4e__NetplayFacade.hxx"
+#include "../common/TrainingPad.hxx"
 #include <atomic>
 
 namespace rPad = Dimps::Pad;
@@ -61,13 +62,21 @@ void fSystem::UpdateInputs() {
     else if(mainArmed&&(physical&PhysicalStart)&&!sf4e::Overlay::CapturesMenuInput()) {
         mainArmed=false;sf4e::Overlay::RequestMainControls();
     }
+    // Offline Training: the pad's Back and Start (TrainingPad.hxx). The chord
+    // that opens the controls sets the capture here, so the caches cleared
+    // below hide its Start from native pause in this same frame.
+    static sf4e::input::TrainingPadGesture trainingPad;
+    if(!focused||!connected||snapshot.menuContext!=sf4e::input::MenuContext::OfflineTraining||
+        snapshot.inputCapture!=sf4e::input::Capture::Idle||ownerType!=device.type||ownerIndex!=device.index) trainingPad.Reset();
+    else if(const auto events=trainingPad.Update(physical,sf4e::Overlay::TrainingControlsOpen(),GetTickCount64()/1000.0);events.Any())
+        sf4e::Overlay::PostTrainingPad(events);
     ownerType=device.type;ownerIndex=device.index;
     const unsigned held=sf4e::input::NativeMenuHeld(this);
     static sf4e::input::MenuInputCapture gate;
     const bool blocked=gate.Update(sf4e::Overlay::CapturesMenuInput(),held);
     inputBlocked=blocked;
-    // Training is keyboard-only. Native Start is untouched while Ember is
-    // closed; an open overlay captures all inputs until release.
+    // Native Start is untouched while Ember is closed; an open overlay,
+    // including the training controls, captures all inputs until release.
     if(blocked)sf4e::input::ClearNativeMenuInputs(this);
 }
 

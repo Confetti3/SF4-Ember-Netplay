@@ -1,5 +1,7 @@
 #include "../training/PracticeSettings.hxx"
 #include "test_support.hxx"
+#include <cctype>
+#include <string>
 
 using namespace sf4e::training;
 using nlohmann::json;
@@ -79,5 +81,41 @@ int main() {
         CHECK(result.moves[0].size() == 1 && result.moves[0][0].raw == 0x10 && result.moves[1][0].raw == 0x10);
     }
     CHECK(BuildReplyPlan("", settings, result, error) && result.moves[0].empty() && result.moves[1].empty() && result.slot == 3);
+
+    // Every reply preset, 214K and 236P included, is notation the parser and
+    // the plan builder take as typed text, and reads back as itself however
+    // it is spelled; text that is no preset, or none, picks none.
+    CHECK(ReplyPresetCount == 9);
+    for (int i = 0; i < ReplyPresetCount; ++i) {
+        DummyPlan plan; error.clear();
+        CHECK(BuildReplyPlan(ReplyPresets[i], settings, plan, error) && !plan.moves[0].empty() && !plan.moves[1].empty());
+        CHECK(ReplyPresetIndex(ReplyPresets[i]) == i);
+        std::string lower;
+        for (const char* c = ReplyPresets[i]; *c; ++c) lower += static_cast<char>(std::tolower(static_cast<unsigned char>(*c)));
+        CHECK(ReplyPresetIndex("  " + lower + " ") == i);
+        // Saved and loaded again, as training.json keeps the typed text.
+        CHECK(ReplyPresetIndex(MigrateReplyMoves(json(ReplyPresets[i]).get<std::string>())) == i);
+        for (int j = 0; j < i; ++j) CHECK(ReplyPresetIndex(ReplyPresets[j]) != i);
+    }
+    CHECK(ReplyPresetIndex(MigrateReplyMoves("throw")) == 3 && ReplyPresetIndex(MigrateReplyMoves("dash")) == 2);
+    CHECK(ReplyPresetIndex("5LP+LK") == 3 && ReplyPresetIndex("cr.LK") == 6);
+    for (const char* none : {"", "  ", "623HP", "2LK > 623P", "not a move", "8LP"}) CHECK(ReplyPresetIndex(none) < 0);
+
+    // The meter's options: angled bars and no recovery number unless saved
+    // as flat and true, and a round trip keeps each one apart from the other.
+    for (const char* defaults : {"null", "{}", "[]", "true", R"({"style":"Flat","hud_recovery":"true"})", R"({"style":1,"hud_recovery":1})",
+        R"({"style":"angled","hud_recovery":false})"}) {
+        const auto options = ReadMeterOptions(json::parse(defaults));
+        CHECK(!options.flat && !options.recovery);
+    }
+    CHECK(ReadMeterOptions(json::parse(R"({"style":"flat"})")).flat);
+    for (const char* shown : {"{}", R"({"frames_shown":30})", R"({"frames_shown":"90"})", R"({"frames_shown":90.5})", R"({"frames_shown":-60})"})
+        CHECK(ReadMeterOptions(json::parse(shown)).shown == 60);
+    for (const int choice : MeterShownChoices) CHECK(ReadMeterOptions(json{{"frames_shown", choice}}).shown == choice);
+    for (int bits = 0; bits < 4; ++bits) {
+        MeterOptions options; options.flat = (bits & 1) != 0; options.recovery = (bits & 2) != 0; options.shown = bits == 3 ? 120 : 90;
+        const auto read = ReadMeterOptions(json::parse(MeterOptionsJson(options).dump()));
+        CHECK(read.flat == options.flat && read.recovery == options.recovery && read.shown == options.shown);
+    }
     return 0;
 }

@@ -1141,7 +1141,7 @@ msgid "about.controls"
 msgstr "Steuerung"
 
 msgid "about.controls_detail"
-msgstr "Xbox-Controller: A wählt aus, B geht zurück, unabhängig von der Kampfbelegung. Andere Controller: das zugewiesene LP wählt aus, LK geht zurück. Tastatur: Pfeiltasten, Enter und Escape. Das D-pad bewegt; Links und Rechts ändern einen Wert. Zurück auf der Startseite blendet Ember aus. F10, oder Start am Controller, öffnet es wieder im Hauptmenü des Spiels.\n\nIn einem Raum wählen Sie mit A auf einem Tisch einen Platz, A auf Ihrem eigenen Platz setzt Sie auf Bereit und B verlässt Ihren Platz oder die Warteliste. Am Xbox-Controller öffnet X Kämpfer, Y Optionen und View Chat; erneutes Drücken führt zurück in den Raum.\n\nIm Training öffnet F6 die Steuerung, F5 blendet das HUD aus, F7 nimmt auf und F8 spielt ab."
+msgstr "Xbox-Controller: A wählt aus, B geht zurück, unabhängig von der Kampfbelegung. Andere Controller: das zugewiesene LP wählt aus, LK geht zurück. Tastatur: Pfeiltasten, Enter und Escape. Das D-pad bewegt; Links und Rechts ändern einen Wert. Zurück auf der Startseite blendet Ember aus. F10, oder Start am Controller, öffnet es wieder im Hauptmenü des Spiels.\n\nIn einem Raum wählen Sie mit A auf einem Tisch einen Platz, A auf Ihrem eigenen Platz setzt Sie auf Bereit und B verlässt Ihren Platz oder die Warteliste. Am Xbox-Controller öffnet X Kämpfer, Y Optionen und View Chat; erneutes Drücken führt zurück in den Raum.\n\nIm Training öffnet F6 die Steuerung, F5 blendet das HUD aus, F7 nimmt auf und F8 spielt ab. Am Controller: View oder Select halten und Start drücken."
 
 msgid "about.controls_keyboard"
 msgstr "Auf der Tastatur wählt auch die Leertaste und Rücktaste geht ebenfalls zurück. Im Raum öffnet F den Kämpfer, T die Optionen und C den Chat. Escape geht immer zurück, auch auf dem eigenen Platz; Entf verlässt deinen Platz oder die Warteschlange."
@@ -1377,6 +1377,12 @@ msgstr "F6 Trainingssteuerung"
 msgid "training.hide_hint"
 msgstr "F5 HUD ausblenden"
 
+msgid "training.controls_chip"
+msgstr "Trainingssteuerung"
+
+msgid "training.pad_hint"
+msgstr "Tippen: zurück, halten: sichern"
+
 msgid "training.save_recording"
 msgstr "Aufnahme speichern als"
 
@@ -1481,6 +1487,15 @@ msgstr "Antwortzüge"
 
 msgid "training.reply.moves.detail"
 msgstr "Die Antwort als Züge in Numpad-Notation, etwa 623HP oder 44, gelesen für die Seite, in die der Dummy blickt. Die Bewegung wird eingegeben, solange der Dummy noch festhängt, damit die Taste auf seinen ersten freien Frame fällt. Leer nutzt den Antwort-Slot."
+
+msgid "training.reply.move"
+msgstr "Antwortvorlage"
+
+msgid "training.reply.move.detail"
+msgstr "Links und Rechts wählen eine gängige Antwort in Numpad-Notation, gelesen für die Seite, in die der Dummy blickt. Antwort-Slot spielt die Aufnahme; Eigene behält die getippten Züge. Auswählen öffnet Antwortzüge zum Tippen."
+
+msgid "training.reply.custom"
+msgstr "Eigene"
 
 msgid "training.reply.timing"
 msgstr "Antwort-Timing"
@@ -1691,6 +1706,39 @@ msgstr "Angriff"
 
 msgid "training.meter.move"
 msgstr "Bewegung"
+
+msgid "training.meter.attack_unsplit"
+msgstr "Angriff, ungeteilt"
+
+msgid "training.meter.style"
+msgstr "Meterstil"
+
+msgid "training.meter.style.detail"
+msgstr "Schräg färbt einen Angriff nach Start, Aktiv und Erholung und schreibt die Länge jedes Abschnitts darauf. Flach zeichnet den ganzen Angriff in einer Farbe."
+
+msgid "training.meter.style.angled"
+msgstr "Schräg"
+
+msgid "training.meter.style.flat"
+msgstr "Flach"
+
+msgid "training.meter.frames_shown"
+msgstr "Gezeigte Frames"
+
+msgid "training.meter.frames_shown.detail"
+msgstr "Wie viele Frames die Balken auf gleicher Breite zeigen. Weniger machen jeden Frame breiter und leichter zu zählen; 120 zeigt den ganzen Verlauf. Ist das Meter angehalten, blättert das Mausrad über den Balken zurück."
+
+msgid "training.meter.hud_recovery"
+msgstr "Erholung im HUD"
+
+msgid "training.meter.hud_recovery.detail"
+msgstr "Zeigt die Erholung der letzten Aktion jedes Kämpfers neben ihrem Start im Meter."
+
+msgid "training.recovery_frames"
+msgstr "Erh. {0} F"
+
+msgid "training.recovery_unknown"
+msgstr "Erh. --"
 
 msgid "training.neutral"
 msgstr "Neutral"

@@ -42,11 +42,13 @@ Before starting a match, Ember rechecks the device and verifies native P1/P2 bin
 
 ## Practice
 
-In offline training, F6 opens/closes Ember's controls. Use keyboard arrows, Enter and Escape, or the mouse. Escape returns one level, closing the flyout at its root. Training has no controller binding; Start affects only native pause while the flyout is closed. An open flyout captures gameplay input everywhere, including controllers. Held closing buttons must return to neutral before gameplay resumes.
+In offline training, F6 opens and closes Ember's training controls from the keyboard. On the assigned pad, hold Back and press Start within half a second to do the same: View and Start on an Xbox pad, Select and Start on a DirectInput pad, whose physical Back and Start the game normalizes to the same buttons. Inside, the pad works as in the other menus: the D-pad moves, A selects and B goes back on an Xbox pad, LP and LK on a DirectInput pad, Left and Right change values, and B at the root closes the controls. Keyboard arrows, Enter and Escape, and the mouse, work too. The legend and the training HUD's chips show the buttons of whichever device was used last. Typing a recording's name or reply moves needs a keyboard.
 
-Dummy Recording has eight slots, playback, loop and clear; Input History exposes each player's runs. The save-position section and separate frame panel are removed; use the passive bar for frame data. Occupied recording overwrite and clearing require confirmation. Record and Play close Ember only after the game thread accepts the command. Failure stays on screen. Recording/playback is suspended while controls are open and while closing inputs drain. Close native pause separately before practice resumes.
+The chord takes nothing from the pad's other uses. Start pressed on its own still opens only the game's pause, and Back alone still resets the position on a tap and saves it on a half-second hold. Start counts only when Back is already held, a Back used for the chord neither resets nor saves (a Start later than half a second comes after the save), and the chord's Start never reaches the game, so it does not pause it. An open flyout captures gameplay input everywhere, including controllers. Held closing buttons must return to neutral before gameplay resumes.
 
-F5 toggles the passive training meter, F6 controls, F7 record/stop and F8 play/stop. F9 restore is removed. F7 opens the recording menu for confirmation when a slot is occupied.
+The controls hold Dummy recording, Input history, Frame data, Dummy, Dummy reply and Position. Dummy Recording has eight slots, playback, loop and clear, and saves and loads recordings by name; Input History exposes each player's runs; Frame data gives each fighter's last move, the colour key, the meter's style and how many frames it shows; Position saves and resets the fighters, on two keys of your choice. Occupied recording overwrite and clearing require confirmation. Record and Play close Ember only after the game thread accepts the command. Failure stays on screen. Recording is suspended while the controls are open and while closing inputs drain; playback keeps running under them. Close native pause separately before practice resumes.
+
+F5 toggles the passive training meter, F6 the controls, F7 record/stop and F8 play/stop. F2 resets and F11 saves the position until moved on the Position page. F7 opens the recording menu for confirmation when a slot is occupied. See [Training lab](TRAINING_LAB.md).
 
 ## Runtime acceptance checklist
 
@@ -54,8 +56,8 @@ These checks require your physical controllers and a running game; synthetic tes
 
 - XInput: A selects and B returns even with remapped fighting controls; X, Y and View never activate a menu row, and only open Change fighter, Table options and Chat inside a room. DirectInput retains mapped LP/LK. Check release/open, directional repeat, focus restoration, disconnect/reconnect and explicit reassignment.
 - Native main menu: no cursor movement, selection or Back action underneath the visible overlay; no held close-button leak on return.
-- Training: Start opens only native pause. F6 opens/closes Ember; keyboard arrows/Enter/Escape navigate. Controller presses cannot open or operate the training flyout.
-- Training isolation: navigation never moves fighters or enters recordings; recording/playback resumes cleanly after accepted commands and release.
+- Training: Start alone opens only native pause, and Back alone resets on a tap and saves on a hold. Back held, then Start, opens and closes the controls without pausing, resetting or saving, on XInput and DirectInput. Inside, the D-pad, A/B (LP/LK on DirectInput) and Left/Right work, and the legend and HUD chips follow the last device. F6 and keyboard arrows/Enter/Escape still work.
+- Training isolation: navigation, by keys or pad, never moves fighters or enters recordings; recording/playback resumes cleanly after accepted commands and release.
 - Rooms: create/join, seat chooser, queue/watch and Lock in to watch, Ready/Unready/rematch, B leaving a seat or queue place, host rules, stale/rejected commands, safe leave, Discord cancellation/switching and two-PC play.
 - Settings: rapid changes coalesce, failed persistence displays Retry, and a restart reloads accepted settings.
 - Match input: test the same controller as both P1 and P2, after rematches, and after disconnect/reconnect. Press a second controller to confirm it cannot control the local fighter. Check the warning on a changed native device slot.

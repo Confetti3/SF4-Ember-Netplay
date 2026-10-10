@@ -1141,7 +1141,7 @@ msgid "about.controls"
 msgstr "Controles"
 
 msgid "about.controls_detail"
-msgstr "Controle Xbox: A seleciona e B volta, independentemente dos botões de luta. Outros controles: o LP mapeado seleciona e o LK volta. Teclado: setas, Enter e Escape. O direcional move; Esquerda e Direita mudam um valor. Voltar no Início oculta o Ember. F10, ou Start no controle, o abre de novo no menu principal do jogo.\n\nEm uma sala, A em uma mesa permite escolher um lugar, A no seu próprio lugar marca Pronto e B sai do seu lugar ou da fila. Em um controle Xbox, X abre Lutador, Y abre Opções e View abre Bate-papo; pressione de novo para voltar à sala.\n\nNo treino, F6 abre os controles, F5 oculta o HUD, F7 grava e F8 reproduz."
+msgstr "Controle Xbox: A seleciona e B volta, independentemente dos botões de luta. Outros controles: o LP mapeado seleciona e o LK volta. Teclado: setas, Enter e Escape. O direcional move; Esquerda e Direita mudam um valor. Voltar no Início oculta o Ember. F10, ou Start no controle, o abre de novo no menu principal do jogo.\n\nEm uma sala, A em uma mesa permite escolher um lugar, A no seu próprio lugar marca Pronto e B sai do seu lugar ou da fila. Em um controle Xbox, X abre Lutador, Y abre Opções e View abre Bate-papo; pressione de novo para voltar à sala.\n\nNo treino, F6 abre os controles, F5 oculta o HUD, F7 grava e F8 reproduz. No controle, segure View ou Select e pressione Start."
 
 msgid "about.controls_keyboard"
 msgstr "No teclado, Espaço também seleciona e Backspace também volta. Numa sala, F abre Lutador, T abre Opções e C abre Bate-papo. Esc sempre volta, mesmo no seu próprio lugar; Delete deixa seu lugar ou a fila."
@@ -1374,6 +1374,12 @@ msgid "training.open_chip"
 msgstr "F6 Controles de treino"
 msgid "training.hide_hint"
 msgstr "F5 Ocultar HUD"
+
+msgid "training.controls_chip"
+msgstr "Controles de treino"
+
+msgid "training.pad_hint"
+msgstr "Toque: restaurar, segure: salvar"
 msgid "training.dummy_recording"
 msgstr "Gravação do boneco"
 msgid "training.dummy_recording.detail"
@@ -1501,6 +1507,39 @@ msgstr "Ataque"
 msgid "training.meter.move"
 msgstr "Movimento"
 
+msgid "training.meter.attack_unsplit"
+msgstr "Ataque não dividido"
+
+msgid "training.meter.style"
+msgstr "Estilo do medidor"
+
+msgid "training.meter.style.detail"
+msgstr "Inclinado colore um ataque por inicialização, ativo e recuperação e escreve a duração de cada trecho. Plano desenha o ataque inteiro em uma só cor."
+
+msgid "training.meter.style.angled"
+msgstr "Inclinado"
+
+msgid "training.meter.style.flat"
+msgstr "Plano"
+
+msgid "training.meter.frames_shown"
+msgstr "Quadros mostrados"
+
+msgid "training.meter.frames_shown.detail"
+msgstr "Quantos quadros as barras mostram na mesma largura. Menos deixa cada quadro mais largo e fácil de contar; 120 mostra todo o histórico. Com o medidor parado, a roda do mouse sobre as barras volta no tempo."
+
+msgid "training.meter.hud_recovery"
+msgstr "Recuperação no HUD"
+
+msgid "training.meter.hud_recovery.detail"
+msgstr "Mostra a recuperação do último golpe de cada lutador ao lado do início no medidor."
+
+msgid "training.recovery_frames"
+msgstr "Rec. {0} q"
+
+msgid "training.recovery_unknown"
+msgstr "Rec. --"
+
 msgid "training.save_recording"
 msgstr "Salvar gravação como"
 
@@ -1593,6 +1632,15 @@ msgstr "Golpes de resposta"
 
 msgid "training.reply.moves.detail"
 msgstr "A resposta digitada em notação numérica, como 623HP ou 44, lida para o lado que o boneco encara. O movimento entra enquanto o boneco ainda está preso, para o botão cair no primeiro frame livre. Vazio usa o espaço de resposta."
+
+msgid "training.reply.move"
+msgstr "Resposta predefinida"
+
+msgid "training.reply.move.detail"
+msgstr "Esquerda e direita escolhem uma resposta comum em notação numérica, lida para o lado para onde o boneco olha. Espaço de resposta toca a gravação; Personalizada mantém os golpes digitados. Selecionar abre Golpes de resposta para digitar um."
+
+msgid "training.reply.custom"
+msgstr "Personalizada"
 
 msgid "training.reply.timing"
 msgstr "Ajuste da resposta"

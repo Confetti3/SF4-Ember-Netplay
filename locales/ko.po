@@ -1141,7 +1141,7 @@ msgid "about.controls"
 msgstr "조작법"
 
 msgid "about.controls_detail"
-msgstr "Xbox 패드: A로 선택, B로 뒤로 갑니다. 대전 버튼 설정과는 무관합니다. 다른 패드: 지정된 LP로 선택, LK로 뒤로 갑니다. 키보드: 방향키, Enter, Esc. D-pad로 이동하고 좌/우로 값을 바꿉니다. 홈에서 뒤로를 누르면 Ember가 숨겨집니다. 게임 메인 메뉴에서 F10(패드는 Start)으로 다시 엽니다.\n\n방에서는 테이블에서 A로 자리를 고르고, 내 자리에서 A로 준비하고, B로 자리나 대기열에서 나갑니다. Xbox 패드에서는 X가 캐릭터, Y가 옵션, View가 채팅을 열며, 다시 누르면 방으로 돌아갑니다.\n\n트레이닝에서는 F6으로 조작 창을 열고, F5로 HUD를 숨기고, F7로 녹화하고, F8로 재생합니다."
+msgstr "Xbox 패드: A로 선택, B로 뒤로 갑니다. 대전 버튼 설정과는 무관합니다. 다른 패드: 지정된 LP로 선택, LK로 뒤로 갑니다. 키보드: 방향키, Enter, Esc. D-pad로 이동하고 좌/우로 값을 바꿉니다. 홈에서 뒤로를 누르면 Ember가 숨겨집니다. 게임 메인 메뉴에서 F10(패드는 Start)으로 다시 엽니다.\n\n방에서는 테이블에서 A로 자리를 고르고, 내 자리에서 A로 준비하고, B로 자리나 대기열에서 나갑니다. Xbox 패드에서는 X가 캐릭터, Y가 옵션, View가 채팅을 열며, 다시 누르면 방으로 돌아갑니다.\n\n트레이닝에서는 F6으로 조작 창을 열고, F5로 HUD를 숨기고, F7로 녹화하고, F8로 재생합니다. 패드에서는 View 또는 Select를 누른 채 Start를 누릅니다."
 
 msgid "about.controls_keyboard"
 msgstr "키보드에서는 Space로도 선택하고 Backspace로도 돌아갑니다. 방에서는 F로 캐릭터, T로 옵션, C로 채팅을 엽니다. Esc는 내 자리에서도 항상 돌아가며, Delete로 자리나 대기열에서 나갑니다."
@@ -1377,6 +1377,12 @@ msgstr "F6 트레이닝 조작"
 msgid "training.hide_hint"
 msgstr "F5 HUD 숨기기"
 
+msgid "training.controls_chip"
+msgstr "트레이닝 조작"
+
+msgid "training.pad_hint"
+msgstr "누르기: 복원, 길게: 저장"
+
 msgid "training.save_recording"
 msgstr "녹화 이름 지정 저장"
 
@@ -1481,6 +1487,15 @@ msgstr "반격 기술"
 
 msgid "training.reply.moves.detail"
 msgstr "숫자 표기로 입력하는 반격입니다. 예: 623HP, 44. 더미가 보는 방향에 맞춰 읽습니다. 더미가 아직 움직일 수 없는 동안 커맨드를 넣어, 움직일 수 있는 첫 프레임에 버튼이 들어갑니다. 비워 두면 반격 슬롯을 씁니다."
+
+msgid "training.reply.move"
+msgstr "반격 프리셋"
+
+msgid "training.reply.move.detail"
+msgstr "좌우로 자주 쓰는 반격을 숫자 패드 표기로 고릅니다. 더미가 보는 방향 기준으로 읽습니다. 반격 슬롯은 녹화를 재생하고, 사용자 지정은 입력한 기술을 씁니다. 선택하면 반격 기술을 열어 입력합니다."
+
+msgid "training.reply.custom"
+msgstr "사용자 지정"
 
 msgid "training.reply.timing"
 msgstr "반격 타이밍"
@@ -1691,6 +1706,39 @@ msgstr "공격"
 
 msgid "training.meter.move"
 msgstr "이동"
+
+msgid "training.meter.attack_unsplit"
+msgstr "공격(구분 없음)"
+
+msgid "training.meter.style"
+msgstr "미터 스타일"
+
+msgid "training.meter.style.detail"
+msgstr "기울임은 공격을 발생, 지속, 경직으로 나누어 색칠하고 각 구간의 길이를 표시합니다. 평면은 공격 전체를 한 색으로 표시합니다."
+
+msgid "training.meter.style.angled"
+msgstr "기울임"
+
+msgid "training.meter.style.flat"
+msgstr "평면"
+
+msgid "training.meter.frames_shown"
+msgstr "표시 프레임"
+
+msgid "training.meter.frames_shown.detail"
+msgstr "같은 너비에 표시할 프레임 수입니다. 적을수록 한 프레임이 넓어져 세기 쉽고, 120은 기록 전체를 보여 줍니다. 미터가 멈춘 동안 막대 위에서 마우스 휠로 이전 기록을 볼 수 있습니다."
+
+msgid "training.meter.hud_recovery"
+msgstr "HUD에 경직 표시"
+
+msgid "training.meter.hud_recovery.detail"
+msgstr "각 캐릭터의 마지막 기술 경직을 미터의 발생 옆에 표시합니다."
+
+msgid "training.recovery_frames"
+msgstr "경직 {0} f"
+
+msgid "training.recovery_unknown"
+msgstr "경직 --"
 
 msgid "training.neutral"
 msgstr "중립"

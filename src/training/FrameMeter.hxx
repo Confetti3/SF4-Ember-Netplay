@@ -115,6 +115,14 @@ inline MeterKind ClassifyMeter(const FighterSample& sample) {
     default: return MeterKind::Unknown;
     }
 }
+// How the bars are drawn, chosen on the Frame data page and kept in
+// training.json. Angled bars, the default, colour an attack's cells by
+// ClassifyMeter's startup, active and recovery and print each run's length;
+// flat is Stable's bars. recovery adds the last move's recovery to each row.
+// shown: the frames across the bar's width, 60, 90 or 120. Fewer frames make
+// each cell wider and easier to count; 120 is the whole history at once.
+constexpr int MeterShownChoices[] = {60, 90, 120};
+struct MeterOptions { bool flat = false, recovery = false; int shown = 60; };
 inline bool GroundedRecoveryState(unsigned status) {
     using S = ActorStatus;
     switch (status) {
@@ -143,10 +151,19 @@ struct MoveFrames { int active = 0, recovery = 0; bool seen = false, live = fals
 // cell can still tell whether a new action began on it.
 constexpr std::size_t MeterShown = 120, MeterHistory = MeterShown + 1;
 // Short histories align right; longer ones show only the newest cells.
-inline int MeterFrameIndex(std::size_t size, std::size_t cell) {
-    const auto shown = (std::min)(size, MeterShown);
-    const int offset = static_cast<int>(cell) - static_cast<int>(MeterShown - shown);
-    return cell >= MeterShown || offset < 0 ? -1 : static_cast<int>(size - shown) + offset;
+// window: the cells across the bar; back: how many of the newest frames lie
+// to the right of it, while a held meter is scrolled back.
+inline int MeterFrameIndex(std::size_t size, std::size_t cell, std::size_t window = MeterShown, std::size_t back = 0) {
+    const auto end = size > back ? size - back : 0;
+    const auto shown = (std::min)(end, window);
+    const int offset = static_cast<int>(cell) - static_cast<int>(window - shown);
+    return cell >= window || offset < 0 ? -1 : static_cast<int>(end - shown) + offset;
+}
+// How far back a held meter can scroll with window cells across the bar: to
+// the oldest of the MeterShown frames it keeps.
+inline std::size_t MeterBackLimit(std::size_t size, std::size_t window) {
+    const auto kept = (std::min)(size, MeterShown);
+    return kept > window ? kept - window : 0;
 }
 struct MeterFrame {
     std::array<FighterSample, 2> fighters;

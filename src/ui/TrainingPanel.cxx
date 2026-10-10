@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <filesystem>
+#include <iterator>
 #include <string>
 #include <utility>
 #include <vector>
@@ -39,6 +40,11 @@ struct Lab {
     // What the dummy does by itself, and the keys that reset and save the
     // position as offsets from F1 (-1 unbound): the player's, kept in training.json.
     training::DummyPlan plan; std::string replyMoves;
+    // The last reply typed that is no preset, which Custom on the pick list
+    // brings back; pickCustom: Custom is picked with nothing typed yet.
+    std::string customMoves; bool pickCustom=false;
+    // How the frame meter is drawn (the Frame data page's two options).
+    training::MeterOptions meter;
     std::array<int,2> keys{{1,10}};
     // The save or reset sent last, told only once the game says it was done.
     std::uint64_t position=0,positionGeneration=0; bool positionSave=false;
@@ -53,7 +59,8 @@ void SavePractice() {
     if(lab.directory.empty()) return;
     std::string error;
     const nlohmann::json practice{{"reply",{{"when",lab.plan.when},{"slot",lab.plan.slot},{"chance",lab.plan.chance},{"timing",lab.plan.timing},
-        {"vary_stance",lab.plan.varyStance},{"moves",lab.replyMoves}}},{"keys",{{"reset_position",lab.keys[ResetKey]},{"save_position",lab.keys[SaveKey]}}}};
+        {"vary_stance",lab.plan.varyStance},{"moves",lab.replyMoves},{"custom",lab.customMoves}}},{"keys",{{"reset_position",lab.keys[ResetKey]},{"save_position",lab.keys[SaveKey]}}},
+        {"meter",MeterOptionsJson(lab.meter)}};
     if(!netplay::json_file::Publish(lab.directory,PracticeFile,practice,error)) Notice(loc::T("training.save_failed"),true);
 }
 // The plan into the game, its typed reply made into input for either facing.
@@ -67,10 +74,11 @@ bool SendPlan(const training::View& view,const TrainingSubmit& submit) {
     return sent;
 }
 // The dummy's reply and the hotkeys; anything unreadable keeps its default.
+// Not until the directory is known, so a lookup before it is set (the match
+// meter, a test) does not stop the file being read once it is.
 void LoadPractice() {
-    if(lab.loaded) return;
+    if(lab.loaded||lab.directory.empty()) return;
     lab.loaded=true;
-    if(lab.directory.empty()) return;
     std::string bytes,error; bool missing=false;
     nlohmann::json practice;
     if(!netplay::json_file::ReadBytes(lab.directory/PracticeFile,bytes,missing,error)||missing||!netplay::json_file::Parse(bytes,practice,error)||!practice.is_object()) return;
@@ -80,10 +88,13 @@ void LoadPractice() {
         lab.plan.when=number("when",0,4,0); lab.plan.slot=number("slot",0,SlotCount-1,0); lab.plan.chance=number("chance",25,100,100);
         lab.plan.timing=number("timing",-MaxReplyTiming,MaxReplyTiming,0); lab.plan.varyStance=reply.value("vary_stance",nlohmann::json(false))==true;
         if(reply.contains("moves")&&reply["moves"].is_string()) lab.replyMoves=MigrateReplyMoves(reply["moves"].get<std::string>());
+        if(reply.contains("custom")&&reply["custom"].is_string()) lab.customMoves=MigrateReplyMoves(reply["custom"].get<std::string>());
+        else if(!lab.replyMoves.empty()&&ReplyPresetIndex(lab.replyMoves)<0) lab.customMoves=lab.replyMoves;
     }
     // An older file lists six keys in a row; these two were its second and its last.
     const auto keys=practice.value("keys",nlohmann::json::object());
     lab.keys=ReadPositionKeys(keys);
+    lab.meter=ReadMeterOptions(practice.value("meter",nlohmann::json::object()));
 }
 // A queued save or reset can still be refused by the game, or fail there, so
 // its notice waits for the result. The latest attempt owns the notice, so an
@@ -132,9 +143,35 @@ int StepDummy(int kind,int value,int delta) {
 // A hotkey's key as the hint and its row show it.
 std::string KeyName(int which) { return lab.keys[which]<0?loc::T("common.off"):"F"+std::to_string(lab.keys[which]+1); }
 constexpr const char* ReplyNames[]={"common.off","training.reply.hit","training.reply.block","training.reply.rise","training.reply.any"};
+// Where the reply's pick list stands: 0 the reply slot (no moves), then the
+// presets, then Custom for anything else. A saved reply that spells a preset
+// shows as that preset.
+constexpr int ReplyCustom=ReplyPresetCount+1;
+int ReplyPick() {
+    if(lab.replyMoves.empty()) return lab.pickCustom?ReplyCustom:0;
+    const int preset=ReplyPresetIndex(lab.replyMoves);
+    return preset<0?ReplyCustom:preset+1;
+}
+std::string ReplyPickName(int pick) {
+    return pick==0?loc::T("training.reply.slot"):pick==ReplyCustom?loc::T("training.reply.custom"):ReplyPresets[pick-1];
+}
+// Select on the pick list opens Reply moves' field on the next frame, once its row exists.
+bool openReplyEditor=false;
+// Left and Right step the pick list. A preset goes through the same parser and
+// checks as typed text; Custom brings back the last reply typed that is no
+// preset, or none until one is typed.
+void PickReply(const training::View& view,const TrainingSubmit& submit,int step) {
+    const int count=ReplyCustom+1, pick=(ReplyPick()+count+step)%count;
+    const std::string text=pick==0?std::string():pick==ReplyCustom?lab.customMoves:std::string(ReplyPresets[pick-1]);
+    DummyPlan plan; std::string error;
+    if(!BuildReplyPlan(text,lab.plan,plan,error)) { Notice(loc::Tf("training.invalid",error),true); return; }
+    lab.pickCustom=pick==ReplyCustom; lab.replyMoves=text; SavePractice();
+    SendPlan(view,submit);
+}
 std::vector<MenuEntry> ToolRows(const training::View& view,const std::string& screen) {
     LoadPractice();
     auto detailed=[](MenuEntry e,const char* detail){e.detail=detail;return e;};
+    auto opening=[](MenuEntry e){e.opens=true;return e;};
     const auto& dummy=view.dummy;
     if(screen=="dummy") return {
         Value("dummy-action",loc::T("training.dummy.action"),DummyLabel(0,dummy.action),loc::T("training.dummy.detail")),
@@ -145,6 +182,7 @@ std::vector<MenuEntry> ToolRows(const training::View& view,const std::string& sc
         Value("dummy-revenge",loc::T("training.dummy.revenge"),DummyLabel(4,dummy.revenge),loc::T("training.dummy.detail"))};
     if(screen=="reply") return {
         Value("reply",loc::T("training.reply"),loc::T(ReplyNames[lab.plan.when]),loc::T("training.reply.detail")),
+        opening(Value("reply-move",loc::T("training.reply.move"),ReplyPickName(ReplyPick()),loc::T("training.reply.move.detail"))),
         detailed(TextRow("reply-moves",loc::T("training.reply.moves"),lab.replyMoves,256),loc::T("training.reply.moves.detail")),
         Value("reply-timing",loc::T("training.reply.timing"),(lab.plan.timing>0?"+":"")+std::to_string(lab.plan.timing)+" f",loc::T("training.reply.timing.detail"),lab.plan.when!=0),
         Value("reply-slot",loc::T("training.reply.slot"),loc::Tf("training.slot",lab.plan.slot+1),loc::Tf("training.recorded_frames",view.lengths[lab.plan.slot])+"\n"+loc::T("training.reply.slot.detail"),lab.plan.when!=0&&lab.replyMoves.empty()),
@@ -161,6 +199,7 @@ void HandleTools(const MenuAction& a,const training::View& view,const TrainingSu
     if(a.kind==MenuAction::Adjust) {
         const int step=a.delta>0?1:-1;
         if(a.id.compare(0,5,"reply")==0) {
+            if(a.id=="reply-move") { PickReply(view,submit,step); return; }
             if(a.id=="reply") lab.plan.when=(lab.plan.when+5+step)%5;
             else if(a.id=="reply-slot") lab.plan.slot=(lab.plan.slot+SlotCount+step)%SlotCount;
             else if(a.id=="reply-chance") lab.plan.chance=(std::max)(25,(std::min)(100,lab.plan.chance+25*step));
@@ -197,17 +236,20 @@ void HandleTools(const MenuAction& a,const training::View& view,const TrainingSu
     if(a.kind==MenuAction::TextAccepted&&a.id=="reply-moves") {
         DummyPlan plan; std::string error; const auto text=combo::Clean(a.text);
         if(!BuildReplyPlan(text,lab.plan,plan,error)) { Notice(loc::Tf("training.invalid",error),true); return; }
-        lab.replyMoves=text; SavePractice();
+        lab.replyMoves=text; lab.pickCustom=false;
+        if(!text.empty()&&ReplyPresetIndex(text)<0) lab.customMoves=text;
+        SavePractice();
         SendPlan(view,submit);
         return;
     }
     if(a.kind!=MenuAction::Activate) return;
-    if(a.id=="save-pos") SavePosition(view,submit);
+    if(a.id=="reply-move") openReplyEditor=true;
+    else if(a.id=="save-pos") SavePosition(view,submit);
     else if(a.id=="reset-pos") ResetPosition(view,submit);
 }
 }
 void SetTrainingDirectory(std::wstring directory) { if(lab.directory.empty()) lab.directory=std::move(directory); }
-void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit,bool padSelect) {
+void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit,const input::TrainingPadEvents& pad) {
     // Called every frame training is available, so a key's save is told even with the controls closed.
     TakePositionResult(view);
     if(!view.available||ImGui::GetIO().WantTextInput||ImGui::GetIO().KeyAlt) return;
@@ -218,20 +260,20 @@ void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit,boo
     const auto pressed=[](int which) { return lab.keys[which]>=0&&ImGui::IsKeyPressed(static_cast<ImGuiKey>(ImGuiKey_F1+lab.keys[which]),false); };
     if(pressed(ResetKey)) ResetPosition(view,submit);
     if(pressed(SaveKey)) SavePosition(view,submit);
-    // The pad's Select: a tap puts the fighters back, and held for half a
-    // second it saves where they stand. Where that is, is taken as the button
-    // goes down, in case the game moves them on the press.
-    static double downAt=-1; static bool saved=false; static float down[2]={0,0};
-    const double now=ImGui::GetTime();
-    if(padSelect&&downAt<0) { downAt=now; saved=false; down[0]=view.x[0]; down[1]=view.x[1]; }
-    if(padSelect&&!saved&&now-downAt>=.5) {
-        saved=true;
+    // The pad's Back: a tap puts the fighters back, and held for half a
+    // second it saves where they stood as it went down, in case the game
+    // moves them on the press.
+    static float down[2]={0,0};
+    if(pad.down) { down[0]=view.x[0]; down[1]=view.x[1]; }
+    if(pad.save) {
         Command place; place.action=Action::Place; place.generation=view.generation; place.place[0]=down[0]; place.place[1]=down[1];
         if(submit) submit(place);
         SavePosition(view,submit);
     }
-    if(!padSelect&&downAt>=0) { if(!saved&&now-downAt<.5) ResetPosition(view,submit); downAt=-1; }
+    if(pad.reset) ResetPosition(view,submit);
 }
+training::MeterOptions TrainingMeterOptions() { LoadPractice(); return lab.meter; }
+void SetTrainingMeterOptions(const training::MeterOptions& options) { lab.meter=options; }
 bool TrainingHotkeyBound(int fromF1) { return fromF1>=0&&(lab.keys[ResetKey]==fromF1||lab.keys[SaveKey]==fromF1); }
 std::string TrainingKeyHints() {
     std::string hints;
@@ -294,8 +336,6 @@ MenuNavigation& TrainingNavigation() { return trainingMenu.navigation; }
 void ShowTrainingRecordings() {showRecordings=true;}
 void DrawTrainingFlyout(const training::View& view,const TrainingSubmit& submit) {
     if(!view.available)return;
-    SetMenuInput({0,ImGui::GetTime()});
-    SetMenuGlyphs(input::PadKeyboard,0,0);
     const auto* vp=ImGui::GetMainViewport();
     const ImVec2 size((std::min)(820*Scale(),vp->Size.x*.8f),(std::min)(600*Scale(),vp->Size.y*.8f));
     // Compact typography independently of global DPI when the viewport cannot
@@ -372,9 +412,14 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  }else if(screen=="tools"||screen=="dummy"||screen=="reply"){
   rows=ToolRows(v,screen);
  }else if(screen=="frame-data"){
+  LoadPractice();
+  const auto onOff=[](bool on){return std::string(loc::T(on?"common.on":"common.off"));};
   rows={Row("p1",loc::T("training.player_one"),TrainingFrameData(v.meter,0)),
         Row("p2",loc::T("training.player_two"),TrainingFrameData(v.meter,1)),
-        Row("color-key",loc::T("training.color_key"),"")};
+        Row("color-key",loc::T("training.color_key"),""),
+        Value("meter-style",loc::T("training.meter.style"),loc::T(lab.meter.flat?"training.meter.style.flat":"training.meter.style.angled"),loc::T("training.meter.style.detail")),
+        Value("frames-shown",loc::T("training.meter.frames_shown"),std::to_string(lab.meter.shown),loc::T("training.meter.frames_shown.detail")),
+        Value("hud-recovery",loc::T("training.meter.hud_recovery"),onOff(lab.meter.recovery),loc::T("training.meter.hud_recovery.detail"))};
   rows[0].reading=rows[1].reading=rows[2].reading=true;
  }else{
   // The history is longer than the detail pane, so Select opens it in a reader.
@@ -389,6 +434,11 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   offerOverwrite=false;
   if(screen=="recording"){nav.Focus("record",rows);nav.Choose(rows);}
  }
+ // Select on the reply's pick list (Custom above all) opens the typed field.
+ if(openReplyEditor){
+  openReplyEditor=false;
+  if(screen=="reply"){nav.Focus("reply-moves",rows);nav.Choose(rows);}
+ }
  const char* modes[]={"training.practice_ready","training.recording_suspended","training.playback_suspended"};
  std::string status=pending?loc::T("training.applying"):!error.empty()?error:!v.ready?loc::T("training.waiting_battle"):loc::T(modes[static_cast<int>(v.mode)]);
  Tone statusTone=pending?Tone::Pending:!error.empty()?Tone::Error:!v.ready?Tone::Pending:Tone::Neutral;
@@ -398,12 +448,19 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   if(screen=="history"&&(id=="p1"||id=="p2")){
    for(const auto& run:v.history[id=="p1"?0:1])ImGui::TextWrapped("%u f  %s",run.frames,Buttons(run.buttons).c_str());
   }
-  if(screen=="frame-data"&&id=="color-key")DrawTrainingColorKey();
+  if(screen=="frame-data"&&id=="color-key")DrawTrainingColorKey(!lab.meter.flat);
  },recordingGrid?2:1,{},GameMenu::Body{},ImGui::GetFontSize()/ImGui::GetFont()->FontSize,recordingGrid?30:100,false,statusTone);
  if(a.kind==MenuAction::Close||a.id=="return"){ForwardMenuAction({MenuAction::Close});return;}
  if(a.kind==MenuAction::Activate&&screen=="home"){if(a.id=="recording")ListRecordings();nav.Push(a.id);return;}
  if(screen=="recording"&&HandleRecordingLibrary(a,v,submit))return;
  if(screen=="tools"||screen=="dummy"||screen=="reply"){HandleTools(a,v,submit);return;}
+ if(screen=="frame-data"&&a.kind==MenuAction::Adjust&&(a.id=="meter-style"||a.id=="frames-shown"||a.id=="hud-recovery")){
+  // Angled first, then Flat; 60, 90, then 120 frames; Recovery Off, then On.
+  if(a.id=="meter-style")lab.meter.flat=a.delta>0;
+  else if(a.id=="frames-shown")Step(lab.meter.shown,{std::begin(MeterShownChoices),std::end(MeterShownChoices)},a.delta);
+  else lab.meter.recovery=a.delta>0;
+  SavePractice();return;
+ }
  if(a.kind!=MenuAction::Activate&&a.kind!=MenuAction::Adjust)return;
  Command command;command.generation=v.generation;command.requestId=nextRequest++;
  if(a.id.compare(0,5,"slot-")==0){command.action=Action::Select;command.slot=std::stoi(a.id.substr(5));}

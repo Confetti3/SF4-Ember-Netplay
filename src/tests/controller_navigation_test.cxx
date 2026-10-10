@@ -6,6 +6,7 @@
 #include "../ui/MenuPresentation.hxx"
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../common/MenuInputCapture.hxx"
+#include "../common/TrainingPad.hxx"
 #include "../netplay/ProfileRecordJson.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 #include "imgui_test_support.hxx"
@@ -160,8 +161,9 @@ void NativeCapture() {
  for(unsigned i=0;i<sizeof(caches);++i){const bool input=(i>=0x18&&i<0x2c)||(i>=0x68&&i<0x7c);
   Check(caches[i]==(input?0:0x5a),"Native suppression corrupted assignment or missed an input cache");}
  using sf4e::input::MenuContext;using sf4e::input::ControllerMenuAvailable;
- Check(ControllerMenuAvailable(MenuContext::MainMenu)&&!ControllerMenuAvailable(MenuContext::OfflineTraining)&&
-  !ControllerMenuAvailable(MenuContext::Unavailable),"Controller navigation escaped the main-menu context");
+ // The pad drives the main menu and the training controls, nothing else.
+ Check(ControllerMenuAvailable(MenuContext::MainMenu)&&ControllerMenuAvailable(MenuContext::OfflineTraining)&&
+  !ControllerMenuAvailable(MenuContext::Unavailable),"Controller navigation escaped its contexts");
  sf4e::input::MenuInputCapture capture;
  Check(!capture.Update(false,16),"Native input suppressed while overlay hidden");
  Check(capture.Update(true,16)&&capture.Update(true,0),"Open overlay not suppressing native input");
@@ -176,6 +178,38 @@ void NativeCapture() {
  device.buttons=0;adapter.Update(device,true,true,true);device.buttons=32;
  adapter.Update(device,true,true,true);adapter.Update(device,true,false,true);Check(adapter.MenuGuard(),"Main-menu suppression not drained");
  device.buttons=0;adapter.Update(device,true,false,true);Check(!adapter.MenuGuard(),"Main menu never released");
+}
+// The pad in offline Training: Back tapped resets, held saves, and Start
+// pressed while Back is held opens the controls or closes them. None of the
+// three clashes with another: the chord never resets or saves, a hold saves
+// once, and the game's pause (Start first) never opens or resets.
+void TrainingPadChord(){
+ using namespace sf4e::input;
+ TrainingPadGesture pad;double now=0;
+ const auto step=[&](unsigned physical,bool open=false,double seconds=1.0/60){now+=seconds;return pad.Update(physical,open,now);};
+ const unsigned back=PhysicalBack,start=PhysicalStart,both=back|start;
+ auto e=step(back);Check(e.down&&!e.reset&&!e.save&&!e.open&&!e.close,"Back did not mark where the fighters stand");
+ Check(!step(back,false,.2).Any(),"A short hold did more than wait");
+ e=step(0);Check(e.reset&&!e.save&&!e.down,"A tap of Back did not reset");
+ step(back);Check(!step(back,false,.45).save,"Back saved before half a second");
+ e=step(back,false,.06);Check(e.save&&!e.reset,"Holding Back did not save");
+ Check(!step(back,false,1).Any(),"Holding Back saved twice");
+ Check(!step(0).Any(),"Letting go of a hold also reset");
+ step(back);e=step(both);Check(e.open&&!e.close&&!e.reset&&!e.save,"Back then Start did not open the controls");
+ Check(!step(both,true,1).Any(),"The chord also saved or acted twice");
+ Check(!step(back,true).Any()&&!step(0,true).Any(),"Letting go after the chord reset the position");
+ e=step(back,true);Check(!e.Any(),"Back alone acted while the controls were open");
+ Check(!step(back,true,1).Any()&&!step(0,true).Any(),"Back held or tapped in the controls reset or saved");
+ step(back,true);e=step(both,true);Check(e.close&&!e.open,"Back then Start did not close the controls");step(0);
+ // A DirectInput pad's Back is also the menu's Back: the controls may close
+ // before Start comes, and the chord must not open them again.
+ step(back,true);e=step(both,false);Check(e.close&&!e.open,"The chord reopened controls its own Back had closed");step(0);
+ // Start first is the game's pause: Back under it does nothing here.
+ step(start);e=step(both);Check(!e.Any(),"Back pressed under Start acted");
+ Check(!step(both,false,1).Any()&&!step(start).Any()&&!step(0).Any(),"Start then Back reset, saved or opened");
+ // After a reset of the gesture, a Back still held counts only once pressed again.
+ step(back);pad.Reset();Check(!step(back,false,1).Any()&&!step(0).Any(),"A Back held through a reset acted");
+ Check(step(back).down,"Back did not work again after a reset");step(0);
 }
 // The rules every GameMenu screen shares with the room: an open dialog owns
 // the legend (Select names its highlighted button, Back cancels, shortcuts
@@ -353,5 +387,5 @@ void ProfileRecords(){
   "Record after the exact total limit was accepted");
 }
 }
-int main(){try{NativeReader();NavigationModel();NativeCapture();DialogContract();SelectPrecedence();FlyoutIgnoresChoices();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
+int main(){try{NativeReader();NavigationModel();NativeCapture();TrainingPadChord();DialogContract();SelectPrecedence();FlyoutIgnoresChoices();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

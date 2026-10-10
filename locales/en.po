@@ -1141,7 +1141,7 @@ msgid "about.controls"
 msgstr "Controls"
 
 msgid "about.controls_detail"
-msgstr "Xbox pad: A selects, B goes back, and the fighting buttons do not matter. Other pads: the LP you mapped selects and LK goes back. Keyboard: arrows, Enter and Escape. The D-pad moves; Left and Right change a value. Back at Home hides Ember. F10, or Start on a pad, opens it again at the game's main menu.\n\nIn a room, A on a table lets you pick a seat, A on your own seat readies up, and B leaves your seat or queue place. On an Xbox pad, X opens Fighter, Y opens Options and View opens Chat; press it again to return to the room.\n\nIn training, F6 opens the controls, F5 hides the HUD, F7 records and F8 plays."
+msgstr "Xbox pad: A selects, B goes back, and the fighting buttons do not matter. Other pads: the LP you mapped selects and LK goes back. Keyboard: arrows, Enter and Escape. The D-pad moves; Left and Right change a value. Back at Home hides Ember. F10, or Start on a pad, opens it again at the game's main menu.\n\nIn a room, A on a table lets you pick a seat, A on your own seat readies up, and B leaves your seat or queue place. On an Xbox pad, X opens Fighter, Y opens Options and View opens Chat; press it again to return to the room.\n\nIn training, F6 opens the controls, F5 hides the HUD, F7 records and F8 plays. On a pad, hold View or Select and press Start."
 
 msgid "about.controls_keyboard"
 msgstr "On the keyboard, Space also selects and Backspace also goes back. In a room, F opens Fighter, T opens Options and C opens Chat. Escape always goes back, even on your own seat; Delete leaves your seat or queue place."
@@ -1377,6 +1377,12 @@ msgstr "F6 Training controls"
 msgid "training.hide_hint"
 msgstr "F5 Hide HUD"
 
+msgid "training.controls_chip"
+msgstr "Training controls"
+
+msgid "training.pad_hint"
+msgstr "Tap reset, hold save"
+
 msgid "training.save_recording"
 msgstr "Save recording as"
 
@@ -1481,6 +1487,15 @@ msgstr "Reply moves"
 
 msgid "training.reply.moves.detail"
 msgstr "The reply typed as moves in numpad notation, such as 623HP or 44, read for the side the dummy faces. The motion goes in while the dummy is still held, so the button lands on its first free frame. Empty uses the reply slot."
+
+msgid "training.reply.move"
+msgstr "Reply preset"
+
+msgid "training.reply.move.detail"
+msgstr "Left and Right pick a common reply in numpad notation, read for the side the dummy faces. Reply slot plays the recording; Custom keeps the moves you typed. Select opens Reply moves to type one."
+
+msgid "training.reply.custom"
+msgstr "Custom"
 
 msgid "training.reply.timing"
 msgstr "Reply timing"
@@ -1691,6 +1706,39 @@ msgstr "Attack"
 
 msgid "training.meter.move"
 msgstr "Move"
+
+msgid "training.meter.attack_unsplit"
+msgstr "Attack, not split"
+
+msgid "training.meter.style"
+msgstr "Meter style"
+
+msgid "training.meter.style.detail"
+msgstr "Angled colors an attack by startup, active and recovery and prints each run's length on it. Flat draws the whole attack in one color."
+
+msgid "training.meter.style.angled"
+msgstr "Angled"
+
+msgid "training.meter.style.flat"
+msgstr "Flat"
+
+msgid "training.meter.frames_shown"
+msgstr "Frames shown"
+
+msgid "training.meter.frames_shown.detail"
+msgstr "How many frames the bars show across the same width. Fewer make each frame wider and easier to count; 120 shows the whole history. While the meter is held, the mouse wheel over the bars scrolls back through it."
+
+msgid "training.meter.hud_recovery"
+msgstr "Recovery on HUD"
+
+msgid "training.meter.hud_recovery.detail"
+msgstr "Shows the recovery of each fighter's last move beside its startup on the meter."
+
+msgid "training.recovery_frames"
+msgstr "Rec {0} f"
+
+msgid "training.recovery_unknown"
+msgstr "Rec --"
 
 msgid "training.neutral"
 msgstr "Neutral"

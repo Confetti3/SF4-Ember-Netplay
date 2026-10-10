@@ -157,6 +157,21 @@ void SetMenuGlyphs(int type,unsigned select,unsigned back,const char* selectFall
     ApplyMenuGlyphs();
 }
 bool KeyboardPrompts(){ return !std::strcmp(selectGlyph,"Enter"); }
+void NoteMenuDevice(unsigned padHeld){
+    const unsigned keys=KeyboardMenuBits();
+    bool functionKey=false;
+    for(int key=ImGuiKey_F1;key<=ImGuiKey_F12;++key) functionKey|=ImGui::IsKeyPressed(static_cast<ImGuiKey>(key),false);
+    if((keys&~previousKeys)||functionKey) keyboardLast=true;
+    if(padHeld&~previousPad) keyboardLast=false;
+    previousKeys=keys; previousPad=padHeld;
+    ApplyMenuGlyphs();
+}
+int MenuPromptDevice(){ return KeyboardPrompts()?input::PadKeyboard:menuDeviceType; }
+void PromptGlyph(const char* glyph,float size){
+    const auto icon=menuArt?menuArt->InputPrompt(PromptAsset(glyph)):SelectionImage{};
+    if(icon.texture) ImGui::Image(icon.texture,ImVec2(size,size),icon.uvMin,icon.uvMax);
+    else ImGui::TextUnformatted(glyph);
+}
 void SetMenuArt(SelectionArt* art) { menuArt=art; }
 void ForwardMenuAction(MenuAction action) { forwarded=std::move(action); }
 namespace { EmbeddedReturn embeddedReturn; }

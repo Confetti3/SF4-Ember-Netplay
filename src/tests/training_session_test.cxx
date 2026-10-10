@@ -16,6 +16,18 @@ int main() {
         Require(MeterFrameIndex(0, 119) == -1 && MeterFrameIndex(3, 116) == -1 &&
             MeterFrameIndex(3, 117) == 0 && MeterFrameIndex(3, 119) == 2 && MeterFrameIndex(MeterHistory, 120) == -1,
             "Short meter history or visible cell boundary wrong");
+        // A zoomed bar shows its newest cells; scrolled back, older ones, no
+        // further than the oldest of the 120 kept.
+        for (const std::size_t window : {60u, 90u}) {
+            Require(MeterFrameIndex(MeterHistory, window - 1, window) == static_cast<int>(MeterHistory) - 1 &&
+                MeterFrameIndex(MeterHistory, 0, window) == static_cast<int>(MeterHistory - window) &&
+                MeterFrameIndex(MeterHistory, window, window) == -1, "Zoomed meter did not show its newest frames");
+            const auto limit = MeterBackLimit(MeterHistory, window);
+            Require(limit == MeterShown - window && MeterFrameIndex(MeterHistory, 0, window, limit) == 1 &&
+                MeterFrameIndex(MeterHistory, window - 1, window, limit) == static_cast<int>(window), "Scrolled meter left the kept history");
+        }
+        Require(MeterBackLimit(MeterHistory, MeterShown) == 0 && MeterBackLimit(30, 60) == 0 && MeterFrameIndex(30, 59, 60) == 29 &&
+            MeterFrameIndex(30, 29, 60) == -1, "Short history did not align right in a zoomed meter");
         // Reproduce action chains through the same per-frame observer used by
         // native training. An internal move change must not discard contact.
         for (int variant = 0; variant < 4; ++variant) {

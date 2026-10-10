@@ -1,4 +1,5 @@
 #pragma once
+#include "FrameMeter.hxx"
 #include "MoveInputs.hxx"
 #include <array>
 #include <cstdint>
@@ -25,6 +26,21 @@ inline std::array<int, 2> ReadPositionKeys(const nlohmann::json& keys) {
     // already owns F11, including when Save was missing or invalid.
     if (result[0] >= 0 && result[0] == result[1]) result[1] = result[0] == 10 ? 1 : 10;
     return result;
+}
+// The meter's drawing options: angled unless the style is "flat", the
+// recovery number only for a literal true, and 60 frames shown unless 90 or
+// 120 is saved.
+inline MeterOptions ReadMeterOptions(const nlohmann::json& meter) {
+    MeterOptions options;
+    if (!meter.is_object()) return options;
+    options.flat = meter.value("style", nlohmann::json()) == "flat";
+    options.recovery = meter.value("hud_recovery", nlohmann::json(false)) == true;
+    const auto shown = meter.value("frames_shown", nlohmann::json());
+    for (const int choice : MeterShownChoices) if (shown.is_number_integer() && shown == choice) options.shown = choice;
+    return options;
+}
+inline nlohmann::json MeterOptionsJson(const MeterOptions& options) {
+    return {{"style", options.flat ? "flat" : "angled"}, {"hud_recovery", options.recovery}, {"frames_shown", options.shown}};
 }
 // Old replies accepted these shared names without a fighter database.
 // Resolve them only when loading a saved reply; new input uses notation.
@@ -57,6 +73,21 @@ inline std::string MigrateReplyMoves(const std::string& text) {
     line.clear();
     for (const auto& step : steps) line += (line.empty() ? "" : " > ") + step;
     return line;
+}
+// The dummy reply's pick list: generic notation that reads the same for every
+// fighter (a reversal, back and forward dashes, a throw, jumps, a low jab and
+// two quarter circles). Character-specific names are not read, so none are offered.
+constexpr const char* ReplyPresets[] = {"623P", "44", "66", "LP+LK", "8", "9", "2LK", "214K", "236P"};
+constexpr int ReplyPresetCount = static_cast<int>(sizeof(ReplyPresets) / sizeof(*ReplyPresets));
+// The preset a reply's text spells, compared by its parsed moves, so a saved
+// "lp+lk" or "throw" (migrated to 5LP+LK) is the LP+LK preset; -1 for none,
+// including empty or unreadable text.
+inline int ReplyPresetIndex(const std::string& text) {
+    std::vector<std::string> steps, preset; std::string error;
+    if (!combo::ParseSteps(text, steps, error) || steps.empty()) return -1;
+    for (int i = 0; i < ReplyPresetCount; ++i)
+        if (combo::ParseSteps(ReplyPresets[i], preset, error) && preset == steps) return i;
+    return -1;
 }
 // Empty text selects a recording. Invalid nonempty text is never that path,
 // and leaves the output plan alone so no partial reply can be submitted.

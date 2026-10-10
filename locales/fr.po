@@ -1141,7 +1141,7 @@ msgid "about.controls"
 msgstr "Commandes"
 
 msgid "about.controls_detail"
-msgstr "Manette Xbox : A sélectionne et B revient, quels que soient les boutons de combat. Autres manettes : le LP associé sélectionne et le LK revient. Clavier : flèches, Enter et Esc. Le D-pad déplace ; gauche et droite changent une valeur. Retour à l'Accueil masque Ember. F10, ou Start sur la manette, le rouvre au menu principal du jeu.\n\nDans un salon, A sur une table permet de choisir une place, A sur votre propre place passe à Prêt, et B quitte votre place ou la file. Sur une manette Xbox, X ouvre Combattant, Y ouvre Options et View ouvre Chat ; appuyez de nouveau pour revenir au salon.\n\nÀ l'entraînement, F6 ouvre les commandes, F5 masque le HUD, F7 enregistre et F8 lit."
+msgstr "Manette Xbox : A sélectionne et B revient, quels que soient les boutons de combat. Autres manettes : le LP associé sélectionne et le LK revient. Clavier : flèches, Enter et Esc. Le D-pad déplace ; gauche et droite changent une valeur. Retour à l'Accueil masque Ember. F10, ou Start sur la manette, le rouvre au menu principal du jeu.\n\nDans un salon, A sur une table permet de choisir une place, A sur votre propre place passe à Prêt, et B quitte votre place ou la file. Sur une manette Xbox, X ouvre Combattant, Y ouvre Options et View ouvre Chat ; appuyez de nouveau pour revenir au salon.\n\nÀ l'entraînement, F6 ouvre les commandes, F5 masque le HUD, F7 enregistre et F8 lit. À la manette, maintenez View ou Select et appuyez sur Start."
 
 msgid "about.controls_keyboard"
 msgstr "Au clavier, Espace sélectionne aussi et Retour arrière revient aussi. Dans un salon, F ouvre Combattant, T ouvre Options et C ouvre Chat. Échap revient toujours, même sur votre propre place ; Suppr quitte votre place ou votre file."
@@ -1377,6 +1377,12 @@ msgstr "F6 Entraînement"
 msgid "training.hide_hint"
 msgstr "F5 Masquer HUD"
 
+msgid "training.controls_chip"
+msgstr "Entraînement"
+
+msgid "training.pad_hint"
+msgstr "Appui : rétablir, maintien : sauver"
+
 msgid "training.save_recording"
 msgstr "Enregistrer la prise sous"
 
@@ -1481,6 +1487,15 @@ msgstr "Coups de riposte"
 
 msgid "training.reply.moves.detail"
 msgstr "La riposte saisie en notation numérique, comme 623HP ou 44, lue selon le côté où regarde le mannequin. Le mouvement est entré pendant que le mannequin est encore bloqué, pour que le bouton tombe sur sa première frame libre. Vide : l'emplacement de riposte est utilisé."
+
+msgid "training.reply.move"
+msgstr "Riposte prédéfinie"
+
+msgid "training.reply.move.detail"
+msgstr "Gauche et droite choisissent une riposte courante en notation numpad, lue pour le côté où regarde le mannequin. Empl. de riposte joue l'enregistrement ; Personnalisée garde les coups saisis. Sélectionner ouvre Coups de riposte pour en saisir un."
+
+msgid "training.reply.custom"
+msgstr "Personnalisée"
 
 msgid "training.reply.timing"
 msgstr "Timing de riposte"
@@ -1691,6 +1706,39 @@ msgstr "Attaque"
 
 msgid "training.meter.move"
 msgstr "Déplacement"
+
+msgid "training.meter.attack_unsplit"
+msgstr "Attaque non détaillée"
+
+msgid "training.meter.style"
+msgstr "Style de la jauge"
+
+msgid "training.meter.style.detail"
+msgstr "Incliné colore une attaque selon le démarrage, l'actif et la récupération et inscrit la durée de chaque segment. Plat dessine toute l'attaque d'une seule couleur."
+
+msgid "training.meter.style.angled"
+msgstr "Incliné"
+
+msgid "training.meter.style.flat"
+msgstr "Plat"
+
+msgid "training.meter.frames_shown"
+msgstr "Frames affichées"
+
+msgid "training.meter.frames_shown.detail"
+msgstr "Combien de frames les barres montrent sur la même largeur. Moins de frames les rend plus larges et faciles à compter ; 120 montre tout l'historique. Jauge figée, la molette sur les barres remonte en arrière."
+
+msgid "training.meter.hud_recovery"
+msgstr "Récupération sur le HUD"
+
+msgid "training.meter.hud_recovery.detail"
+msgstr "Affiche la récupération du dernier coup de chaque combattant à côté de son début sur la jauge."
+
+msgid "training.recovery_frames"
+msgstr "Récup. {0} tr."
+
+msgid "training.recovery_unknown"
+msgstr "Récup. --"
 
 msgid "training.neutral"
 msgstr "Neutre"

@@ -1141,7 +1141,7 @@ msgid "about.controls"
 msgstr "Sterowanie"
 
 msgid "about.controls_detail"
-msgstr "Kontroler Xbox: A wybiera, B cofa, niezależnie od przycisków walki. Inne kontrolery: przypisany LP wybiera, LK cofa. Klawiatura: strzałki, Enter i Escape. D-pad porusza; Lewo i Prawo zmieniają wartość. Powrót na ekranie Start ukrywa Ember. F10 (lub przycisk Start na kontrolerze) otwiera go ponownie w menu głównym gry.\n\nW pokoju A na stole pozwala wybrać miejsce, A na własnym miejscu ustawia Gotowe, a B opuszcza miejsce lub kolejkę. Na kontrolerze Xbox X otwiera Postać, Y otwiera Opcje, a View otwiera Czat; naciśnij ponownie, aby wrócić do pokoju.\n\nW treningu F6 otwiera sterowanie, F5 ukrywa HUD, F7 nagrywa, a F8 odtwarza."
+msgstr "Kontroler Xbox: A wybiera, B cofa, niezależnie od przycisków walki. Inne kontrolery: przypisany LP wybiera, LK cofa. Klawiatura: strzałki, Enter i Escape. D-pad porusza; Lewo i Prawo zmieniają wartość. Powrót na ekranie Start ukrywa Ember. F10 (lub przycisk Start na kontrolerze) otwiera go ponownie w menu głównym gry.\n\nW pokoju A na stole pozwala wybrać miejsce, A na własnym miejscu ustawia Gotowe, a B opuszcza miejsce lub kolejkę. Na kontrolerze Xbox X otwiera Postać, Y otwiera Opcje, a View otwiera Czat; naciśnij ponownie, aby wrócić do pokoju.\n\nW treningu F6 otwiera sterowanie, F5 ukrywa HUD, F7 nagrywa, a F8 odtwarza. Na padzie przytrzymaj View lub Select i naciśnij Start."
 
 msgid "about.controls_keyboard"
 msgstr "Na klawiaturze Spacja też wybiera, a Backspace też cofa. W pokoju F otwiera Postać, T Opcje, a C Czat. Escape zawsze cofa, także na twoim miejscu; Delete opuszcza miejsce lub kolejkę."
@@ -1377,6 +1377,12 @@ msgstr "F6 Sterowanie treningiem"
 msgid "training.hide_hint"
 msgstr "F5 Ukryj HUD"
 
+msgid "training.controls_chip"
+msgstr "Sterowanie treningiem"
+
+msgid "training.pad_hint"
+msgstr "Stuknij: przywróć, przytrzymaj: zapisz"
+
 msgid "training.save_recording"
 msgstr "Zapisz nagranie jako"
 
@@ -1481,6 +1487,15 @@ msgstr "Ciosy odpowiedzi"
 
 msgid "training.reply.moves.detail"
 msgstr "Odpowiedź wpisana w notacji numerycznej, np. 623HP lub 44, czytana dla strony, w którą patrzy manekin. Ruch jest wprowadzany, gdy manekin jest jeszcze unieruchomiony, aby przycisk trafił w jego pierwszą wolną klatkę. Puste pole używa slotu odpowiedzi."
+
+msgid "training.reply.move"
+msgstr "Gotowa odpowiedź"
+
+msgid "training.reply.move.detail"
+msgstr "W lewo i w prawo wybierają typową odpowiedź w zapisie numerycznym, czytaną dla strony, w którą patrzy manekin. Slot odpowiedzi odtwarza nagranie; Własna zachowuje wpisane ciosy. Wybór otwiera Ciosy odpowiedzi, by wpisać własną."
+
+msgid "training.reply.custom"
+msgstr "Własna"
 
 msgid "training.reply.timing"
 msgstr "Synchronizacja odpowiedzi"
@@ -1691,6 +1706,39 @@ msgstr "Atak"
 
 msgid "training.meter.move"
 msgstr "Ruch"
+
+msgid "training.meter.attack_unsplit"
+msgstr "Atak, niepodzielony"
+
+msgid "training.meter.style"
+msgstr "Styl miernika"
+
+msgid "training.meter.style.detail"
+msgstr "Ukośny koloruje atak według startu, aktywnych klatek i powrotu i podaje długość każdego odcinka. Płaski rysuje cały atak jednym kolorem."
+
+msgid "training.meter.style.angled"
+msgstr "Ukośny"
+
+msgid "training.meter.style.flat"
+msgstr "Płaski"
+
+msgid "training.meter.frames_shown"
+msgstr "Pokazane klatki"
+
+msgid "training.meter.frames_shown.detail"
+msgstr "Ile klatek pokazują paski na tej samej szerokości. Mniej to szersze klatki, łatwiejsze do policzenia; 120 pokazuje całą historię. Gdy miernik jest zatrzymany, kółko myszy nad paskami przewija wstecz."
+
+msgid "training.meter.hud_recovery"
+msgstr "Powrót na HUD"
+
+msgid "training.meter.hud_recovery.detail"
+msgstr "Pokazuje powrót ostatniego ruchu każdej postaci obok startu na mierniku."
+
+msgid "training.recovery_frames"
+msgstr "Powr. {0} kl."
+
+msgid "training.recovery_unknown"
+msgstr "Powr. --"
 
 msgid "training.neutral"
 msgstr "Neutralnie"

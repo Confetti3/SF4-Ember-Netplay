@@ -1,6 +1,7 @@
 #include "shell_journey_support.hxx"
 #include "shell_additional_journeys.hxx"
 #include "../session/TrainingCall.hxx"
+#include "../training/PracticeSettings.hxx"
 #include "../training/RecordingFile.hxx"
 #include <chrono>
 #include <filesystem>
@@ -119,7 +120,8 @@ void TrainingJourneys() {
  Check(commands.empty()&&failed&&!notice.empty(),"Invalid saved reply silently selected the recording slot");
  Check(TrainingHotkeyBound(10)&&TrainingHotkeyBound(1),"Loaded colliding position keys did not resolve the fallback pair");
  ImGui::Render();
- auto frame=[&](unsigned held=0){io.DeltaTime=1.f/60;SetMenuInput({MenuInput::Select,0});
+ // Keys only: the pad's own journey is below.
+ auto frame=[&](unsigned held=0){io.DeltaTime=1.f/60;SetMenuInput({0,0});
   const ImGuiKey keys[]={ImGuiKey_UpArrow,ImGuiKey_DownArrow,ImGuiKey_LeftArrow,ImGuiKey_RightArrow,ImGuiKey_Enter,ImGuiKey_Escape};
   for(unsigned i=0;i<6;++i)io.AddKeyEvent(keys[i],(held&(1u<<i))!=0);
   ImGui::NewFrame();
@@ -132,6 +134,21 @@ void TrainingJourneys() {
  Check(TrainingNavigation().Focus()=="recording","Removed save-position section is still in training navigation");
  press(MenuInput::Down);
  Check(TrainingNavigation().Focus()=="history","Removed frame panel is still in training navigation");
+ // The pad drives the controls as the keys do: a press moves the highlight
+ // and turns the prompts to the pad's, Select opens a page, Back returns, and
+ // Back at the root closes the controls.
+ {
+  SetMenuGlyphs(3,0x40000,0x20000);
+  const auto padFrame=[&](unsigned held){io.DeltaTime=1.f/60;SetMenuInput({held,0});ImGui::NewFrame();DrawTrainingFlyout(v,submit);ImGui::Render();};
+  const auto padPress=[&](unsigned held){padFrame(0);padFrame(held);padFrame(0);};
+  padPress(MenuInput::Up);
+  Check(TrainingNavigation().Focus()=="recording"&&!KeyboardPrompts(),"The pad did not move the training controls or take their prompts");
+  padPress(MenuInput::Select);Check(TrainingNavigation().Screen()=="recording","Pad Select did not open a training page");
+  padPress(MenuInput::Back);Check(TrainingNavigation().Screen()=="home","Pad Back did not return to the training root");
+  TakeForwardedMenuAction();padPress(MenuInput::Back);
+  Check(TakeForwardedMenuAction().kind==MenuAction::Close,"Pad Back at the root did not close the training controls");
+  SetMenuGlyphs(1,0,0);
+ }
  choose("recording");choose("record");press(MenuInput::Select);Check(commands.empty(),"Overwrite default not Cancel");
  choose("record");
  io.AddMousePosEvent(5,5);frame();io.AddMouseButtonEvent(0,true);frame();io.AddMouseButtonEvent(0,false);frame();
@@ -214,6 +231,35 @@ void TrainingJourneys() {
  // that would fail the next time replies are enabled.
  const auto off=saved();commands.clear();edit("> ,");
  Check(commands.empty()&&saved()==off&&runtimePlan.when==0,"Reply Off allowed an invalid edit to be saved");
+ // The pick list: the typed reply that is no preset shows as Custom; a preset
+ // is sent and saved as the same text typed would be; Custom brings the typed
+ // reply back; Select opens the typed field; a preset typed in another
+ // spelling shows as that preset.
+ {
+  const auto focus=[&](const char* id){frame();for(int i=0;i<100&&TrainingNavigation().Focus()!=id;++i)press(MenuInput::Up);
+   for(int i=0;i<100&&TrainingNavigation().Focus()!=id;++i)press(MenuInput::Down);Check(TrainingNavigation().Focus()==id,"Training entry unreachable");};
+  std::vector<MenuEntry> replyRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){replyRows=rows;});
+  const auto pick=[&]{frame();for(const auto& row:replyRows)if(row.id=="reply-move")return row.value;return std::string();};
+  focus("reply");press(MenuInput::Right);
+  Check(runtimePlan.when==1&&!runtimePlan.moves[0].empty(),"The typed reply was not turned back on");
+  Check(pick()==loc::T("training.reply.custom"),"A typed reply that is no preset did not show as Custom");
+  focus("reply-move");commands.clear();press(MenuInput::Right);
+  Check(pick()==loc::T("training.reply.slot")&&saved()["reply"]["moves"]==""&&saved()["reply"]["custom"]=="623HP"&&
+   runtimePlan.moves[0].empty(),"Custom did not step on to the reply slot");
+  press(MenuInput::Right);
+  training::DummyPlan typed;std::string error;
+  Check(training::BuildReplyPlan("623P",runtimePlan,typed,error),"The first preset is not notation");
+  Check(pick()=="623P"&&saved()["reply"]["moves"]=="623P"&&commands.back().action==training::Action::DummyPlan&&
+   runtimePlan.moves[0].size()==typed.moves[0].size()&&runtimePlan.moves[1].size()==typed.moves[1].size(),"The first preset was not sent and saved as typed text");
+  press(MenuInput::Left);press(MenuInput::Left);
+  Check(pick()==loc::T("training.reply.custom")&&saved()["reply"]["moves"]=="623HP"&&!runtimePlan.moves[0].empty(),"Custom did not bring the typed reply back");
+  press(MenuInput::Select);frame();
+  Check(TrainingNavigation().Editing()&&TrainingNavigation().Focus()=="reply-moves"&&TrainingNavigation().Draft()=="623HP","Select on the pick list did not open the typed field");
+  press(MenuInput::Back);Check(!TrainingNavigation().Editing(),"The typed field did not close");
+  edit("lp+lk");
+  Check(pick()=="LP+LK"&&saved()["reply"]["custom"]=="623HP","A preset typed in another spelling did not show as that preset");
+  SetMenuEntriesProbe({});
+ }
  // A position is told saved or reset only once the game has done it: a
  // refusal or a failed save after the queue took it never reads as success.
  press(MenuInput::Back);choose("tools");

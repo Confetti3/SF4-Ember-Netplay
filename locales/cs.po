@@ -1141,7 +1141,7 @@ msgid "about.controls"
 msgstr "Ovládání"
 
 msgid "about.controls_detail"
-msgstr "Ovladač Xbox: A vybírá, B se vrací, nezávisle na bojových tlačítkách. Jiné ovladače: přiřazené LP vybírá, LK se vrací. Klávesnice: šipky, Enter a Escape. D-pad pohybuje; vlevo a vpravo mění hodnotu. Zpět na obrazovce Domů skryje Ember. F10, nebo Start na ovladači, ho znovu otevře v hlavní nabídce hry.\n\nV místnosti A na stole umožní vybrat místo, A na vlastním místě nastaví Připraven a B uvolní místo nebo opustí frontu. Na ovladači Xbox X otevře Bojovník, Y otevře Možnosti a View otevře Chat; dalším stiskem se vrátíte do místnosti.\n\nV tréninku F6 otevře ovládání, F5 skryje HUD, F7 nahrává a F8 přehrává."
+msgstr "Ovladač Xbox: A vybírá, B se vrací, nezávisle na bojových tlačítkách. Jiné ovladače: přiřazené LP vybírá, LK se vrací. Klávesnice: šipky, Enter a Escape. D-pad pohybuje; vlevo a vpravo mění hodnotu. Zpět na obrazovce Domů skryje Ember. F10, nebo Start na ovladači, ho znovu otevře v hlavní nabídce hry.\n\nV místnosti A na stole umožní vybrat místo, A na vlastním místě nastaví Připraven a B uvolní místo nebo opustí frontu. Na ovladači Xbox X otevře Bojovník, Y otevře Možnosti a View otevře Chat; dalším stiskem se vrátíte do místnosti.\n\nV tréninku F6 otevře ovládání, F5 skryje HUD, F7 nahrává a F8 přehrává. Na ovladači podržte View nebo Select a stiskněte Start."
 
 msgid "about.controls_keyboard"
 msgstr "Na klávesnici také Mezerník vybírá a Backspace vrací zpět. V místnosti F otevře Bojovníka, T Možnosti a C Chat. Escape vždy vrací zpět, i na vašem vlastním místě; Delete opustí vaše místo nebo frontu."
@@ -1377,6 +1377,12 @@ msgstr "F6 Ovládání tréninku"
 msgid "training.hide_hint"
 msgstr "F5 Skrýt HUD"
 
+msgid "training.controls_chip"
+msgstr "Ovládání tréninku"
+
+msgid "training.pad_hint"
+msgstr "Klepnutí obnoví, podržení uloží"
+
 msgid "training.save_recording"
 msgstr "Uložit nahrávku jako"
 
@@ -1481,6 +1487,15 @@ msgstr "Údery odpovědi"
 
 msgid "training.reply.moves.detail"
 msgstr "Odpověď zapsaná číselnou notací, například 623HP nebo 44, čtená pro stranu, kam se figurína dívá. Pohyb se zadá, dokud je figurína ještě držena, aby tlačítko padlo na její první volný snímek. Prázdné pole použije pozici odpovědi."
+
+msgid "training.reply.move"
+msgstr "Předvolba odpovědi"
+
+msgid "training.reply.move.detail"
+msgstr "Vlevo a vpravo vyberou běžnou odpověď v numpad zápisu, čtenou pro stranu, kam figurína hledí. Pozice odpovědi přehraje nahrávku; Vlastní ponechá napsané údery. Vybrat otevře Údery odpovědi k napsání."
+
+msgid "training.reply.custom"
+msgstr "Vlastní"
 
 msgid "training.reply.timing"
 msgstr "Načasování odpovědi"
@@ -1691,6 +1706,39 @@ msgstr "Útok"
 
 msgid "training.meter.move"
 msgstr "Pohyb"
+
+msgid "training.meter.attack_unsplit"
+msgstr "Útok, nerozdělený"
+
+msgid "training.meter.style"
+msgstr "Styl měřiče"
+
+msgid "training.meter.style.detail"
+msgstr "Šikmý obarví útok podle náběhu, aktivních snímků a zotavení a ke každému úseku napíše jeho délku. Plochý kreslí celý útok jednou barvou."
+
+msgid "training.meter.style.angled"
+msgstr "Šikmý"
+
+msgid "training.meter.style.flat"
+msgstr "Plochý"
+
+msgid "training.meter.frames_shown"
+msgstr "Zobrazené snímky"
+
+msgid "training.meter.frames_shown.detail"
+msgstr "Kolik snímků pruhy ukážou na stejné šířce. Méně snímků je širších a snáz se počítají; 120 ukáže celou historii. Když je měřič zastavený, kolečko myši nad pruhy jí listuje zpět."
+
+msgid "training.meter.hud_recovery"
+msgstr "Zotavení na HUD"
+
+msgid "training.meter.hud_recovery.detail"
+msgstr "Zobrazí na měřiči zotavení posledního pohybu každého bojovníka vedle náběhu."
+
+msgid "training.recovery_frames"
+msgstr "Zot. {0} sn."
+
+msgid "training.recovery_unknown"
+msgstr "Zot. --"
 
 msgid "training.neutral"
 msgstr "Neutrál"

@@ -44,6 +44,15 @@ unsigned KeyboardMenuBits();
 // True while the legend shows keyboard keys: the gameplay device is the
 // keyboard, or a key moved the menu after the pad last did.
 bool KeyboardPrompts();
+// While no menu reads input (the training HUD over a fight), the prompts
+// still follow the device last used: a press of the pad's (padHeld, its
+// ControllerSample buttons), or a menu key or F-key.
+void NoteMenuDevice(unsigned padHeld);
+// The device the prompts are drawn for: PadKeyboard, or the pad's type.
+int MenuPromptDevice();
+// A prompt glyph ("View", "Start") at the cursor, size high, as the legend
+// draws it; its name as text when the art is missing.
+void PromptGlyph(const char* glyph,float size);
 // An embedded screen (fighter select, the training flyout) hands its parent
 // what it does not handle itself: Close, or a shortcut the parent owns.
 void ForwardMenuAction(MenuAction action);

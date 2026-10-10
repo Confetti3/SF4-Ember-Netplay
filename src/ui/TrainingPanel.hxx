@@ -1,5 +1,6 @@
 #pragma once
 #include "../training/TrainingSession.hxx"
+#include "../common/TrainingPad.hxx"
 #include <functional>
 #include <string>
 #include <vector>
@@ -17,8 +18,8 @@ void ShowTrainingRecordings();
 void SetTrainingDirectory(std::wstring directory);
 // Reset position and save position on keys the player picks (F2 and F11 at
 // first), over the fight or the controls. Also sends the dummy's plan each battle.
-// padSelect: the pad's Select button is down; a tap resets the position and a hold saves it.
-void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit,bool padSelect=false);
+// pad: the pad's Back this frame (TrainingPad.hxx): a tap resets the position, a hold saves it.
+void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit,const input::TrainingPadEvents& pad={});
 // Whether a hotkey sits on the key that many after F1, so the game is not given it.
 bool TrainingHotkeyBound(int fromF1);
 // The two hotkeys as the HUD's hint names them, those without a key left out.
@@ -27,11 +28,20 @@ std::string TrainingKeyHints();
 std::string TrainingNotice(bool& failed);
 MenuNavigation& TrainingNavigation();
 std::string TrainingFrameData(const training::MeterView& meter, int side);
-void DrawTrainingColorKey();
-// One row of the F6 colour key: a locale key, the phase it names and the
-// exact colour (ImU32) the frame meter bars draw for that phase.
-struct TrainingKeyEntry { const char* label; training::Phase phase; unsigned color; };
-std::vector<TrainingKeyEntry> TrainingColorKeyEntries();
+// The Frame data page's choices for drawing the meter, as training.json keeps
+// them; the training HUD and the match meter read them every frame. Set is for
+// tests, as the page sets them.
+training::MeterOptions TrainingMeterOptions();
+void SetTrainingMeterOptions(const training::MeterOptions& options);
+void DrawTrainingColorKey(bool angled);
+// One row of the F6 colour key: a locale key, what it names and the exact
+// colour (ImU32) the frame meter bars draw for it. Flat bars colour a cell by
+// its ClassifyStatus phase; angled bars by its ClassifyMeter kind (an entry
+// names one kind; Knockdown covers Down and Rise).
+struct TrainingKeyEntry { const char* label; training::Phase phase; training::MeterKind kind; unsigned color; };
+std::vector<TrainingKeyEntry> TrainingColorKeyEntries(bool angled);
+// The colour a bar cell draws for a fighter's sample, angled or flat.
+unsigned TrainingCellColor(const training::FighterSample& sample, bool angled);
 void ChallengerBanner(const training::View& view);
 // Passive, except for the chip that opens the controls.
 // pointer: the pointer is over the chip, so the overlay takes

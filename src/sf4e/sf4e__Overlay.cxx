@@ -45,6 +45,11 @@ static std::atomic<bool> pointerCapture{false};
 static std::atomic<bool> focused{true};
 static sf4e::ui::OpenRequests s_openRequests;
 static bool trainingOpen = false, trainingHud = true;
+// The pad's training events from the game thread (TrainingPad.hxx), as bits
+// the drawing thread takes each frame, and whether the controls are open, for it.
+static std::atomic<unsigned> s_trainingPad{0};
+static std::atomic<bool> s_trainingOpen{false};
+enum : unsigned { PadDown = 1, PadReset = 2, PadSave = 4, PadOpen = 8, PadClose = 16 };
 static std::atomic<bool> trainingAvailable{false};
 static int lobbyStageID = 0, lobbyMenuCharaID = 0;
 static sf4e::selection::StageMask lobbyStageExcluded = 0;
@@ -66,6 +71,13 @@ static rVsMode::ConfirmedCharaConditions lobbyConditions = {0,0,0,0,0,0,0,0,14};
 bool Overlay::CapturesMenuInput() { return capture.load(); }
 bool Overlay::HasInputFocus() { return focused.load(); }
 void Overlay::RequestMainControls() { if(focused) { capture=true; s_openRequests.Post(sf4e::ui::OpenRequests::Kind::Controls); } }
+void Overlay::PostTrainingPad(const sf4e::input::TrainingPadEvents& events) {
+    if(!focused) return;
+    if(events.open) capture=true;
+    s_trainingPad.fetch_or((events.down?PadDown:0u)|(events.reset?PadReset:0u)|(events.save?PadSave:0u)|
+        (events.open?PadOpen:0u)|(events.close?PadClose:0u));
+}
+bool Overlay::TrainingControlsOpen() { return s_trainingOpen.load(); }
 void Overlay::PushNetplayAlert(const char* message) { if (message) sf4e::NetplayFacade::SetLastError(message); }
 void Overlay::OnClientError(SessionClient::ErrorType type, SessionClient* const, const SessionClient::Callbacks&) {
     PushNetplayAlert(sf4e::loc::T(sf4e::NetplayFacade::IsRuntimePublicJoin() ? SessionClient::PublicJoinRejectionKey(type) : SessionClient::JoinRejectionKey(type)));
@@ -412,7 +424,8 @@ void Overlay::DrawOverlay() {
     }
     controllerNavigation.Update(snapshot.menuController, sf4e::input::ControllerMenuAvailable(snapshot.menuContext),
         presentation.Visible() || trainingOpen, focused && !assigning);
-    if (controllerNavigation.OpenRequested() && presentation.Available()) presentation.Open();
+    // Start opens Ember at the main menu only; in Training it is the game's pause.
+    if (controllerNavigation.OpenRequested() && presentation.Available() && snapshot.atMainMenu) presentation.Open();
     ImGui::NewFrame();
     sf4e::ui::SetMenuInput({controllerNavigation.Buttons(), ImGui::GetTime()});
     sf4e::ui::SetMenuGlyphs(snapshot.menuController.deviceType,snapshot.menuController.selectPhysical,snapshot.menuController.backPhysical);
@@ -435,26 +448,32 @@ void Overlay::DrawOverlay() {
         cancel.inputAction = sf4e::input::Action::Cancel;
         sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(cancel));
     }
+    // The setter keeps only its first call, and the lookup asks the shell each time.
+    // Before the HUD, the match meter and the hotkeys, which read the lab's settings.
+    static bool trainingDirectorySet=false;
+    if(!trainingDirectorySet) { sf4e::ui::SetTrainingDirectory(sf4e::netplay::SettingsStore::DefaultDirectory()); trainingDirectorySet=true; }
     // The meter in a match is the player's choice; the runtime reads nothing for it otherwise.
     sf4e::training::WatchMatches(snapshot.preferences.matchFrameMeter || snapshot.replays.meterShown);
     const auto training = sf4e::training::ReadView();
     trainingAvailable = training.available;
     const bool nativePaused = sf4e::battlePause.Paused();
     if (!training.available || !focused) trainingOpen = false;
+    // Taken every frame, so a press from before the lab was shown never acts later.
+    const unsigned padBits = s_trainingPad.exchange(0);
     if (focused && training.available && !presentation.Visible()) {
-        sf4e::ui::SetMenuInput({0, ImGui::GetTime()});
-        sf4e::ui::SetMenuGlyphs(sf4e::input::PadKeyboard,0,0);
+        // The pad drives the controls while they are open, through the same
+        // adapter as the shell's menus; the prompts follow the device last used.
+        if (!trainingOpen) sf4e::ui::NoteMenuDevice(snapshot.menuController.buttons);
+        sf4e::input::TrainingPadEvents pad;
+        pad.down = (padBits & PadDown) != 0; pad.reset = (padBits & PadReset) != 0; pad.save = (padBits & PadSave) != 0;
+        if (padBits & PadOpen) trainingOpen = true;
+        if (padBits & PadClose) trainingOpen = false;
         if (ImGui::IsKeyPressed(ImGuiKey_F6, false)) trainingOpen = !trainingOpen;
         if (ImGui::IsKeyPressed(ImGuiKey_F5, false)) trainingHud = !trainingHud;
         auto practice = [&](sf4e::training::Action action) {
             sf4e::training::Submit({action, training.generation});
         };
-        // The setter keeps only its first call, and the lookup asks the shell each time.
-        // Before the HUD and the hotkeys, which read the lab's settings too.
-        static bool trainingDirectorySet=false;
-        if(!trainingDirectorySet) { sf4e::ui::SetTrainingDirectory(sf4e::netplay::SettingsStore::DefaultDirectory()); trainingDirectorySet=true; }
-        sf4e::ui::TrainingHotkeys(training, sf4e::training::Submit,
-            !trainingOpen && (snapshot.menuController.buttons & sf4e::ui::ControllerSample::Chat) != 0);
+        sf4e::ui::TrainingHotkeys(training, sf4e::training::Submit, pad);
         if (!trainingOpen && !ImGui::GetIO().WantTextInput) {
             if (ImGui::IsKeyPressed(ImGuiKey_F7, false)) {
                 if(training.mode != sf4e::training::Mode::Recording && training.lengths[training.selected]>0) {
@@ -503,6 +522,7 @@ void Overlay::DrawOverlay() {
     }
     const auto hud = sf4e::ui::DrawOverlayLayers(layers, training);
     if (hud.open) trainingOpen = true;
+    s_trainingOpen = trainingOpen;
     // Shown survives alt-tab; taking the cursor and keys needs focus.
     const bool shown = presentation.Visible() || trainingOpen;
     const bool passive = sf4e::ui::PassiveOverlayShown(presentation.Visible(), trainingOpen, nativePaused);

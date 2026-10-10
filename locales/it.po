@@ -1141,7 +1141,7 @@ msgid "about.controls"
 msgstr "Comandi"
 
 msgid "about.controls_detail"
-msgstr "Controller Xbox: A seleziona e B torna indietro, indipendentemente dai tasti di combattimento. Altri controller: l'LP assegnato seleziona e l'LK torna indietro. Tastiera: frecce, Enter e Escape. Il D-pad si muove; Sinistra e Destra cambiano un valore. Indietro nella Home nasconde Ember. F10, o Start sul controller, lo riapre nel menu principale del gioco.\n\nIn una sala, A su un tavolo permette di scegliere un posto, A sul tuo posto ti mette pronto e B lascia il posto o la coda. Su un controller Xbox, X apre Lottatore, Y apre Opzioni e View apre Chat; premilo di nuovo per tornare alla sala.\n\nNell'allenamento, F6 apre i comandi, F5 nasconde l'HUD, F7 registra e F8 riproduce."
+msgstr "Controller Xbox: A seleziona e B torna indietro, indipendentemente dai tasti di combattimento. Altri controller: l'LP assegnato seleziona e l'LK torna indietro. Tastiera: frecce, Enter e Escape. Il D-pad si muove; Sinistra e Destra cambiano un valore. Indietro nella Home nasconde Ember. F10, o Start sul controller, lo riapre nel menu principale del gioco.\n\nIn una sala, A su un tavolo permette di scegliere un posto, A sul tuo posto ti mette pronto e B lascia il posto o la coda. Su un controller Xbox, X apre Lottatore, Y apre Opzioni e View apre Chat; premilo di nuovo per tornare alla sala.\n\nNell'allenamento, F6 apre i comandi, F5 nasconde l'HUD, F7 registra e F8 riproduce. Sul controller, tieni View o Select e premi Start."
 
 msgid "about.controls_keyboard"
 msgstr "Da tastiera, anche Spazio seleziona e Backspace torna indietro. In una stanza, F apre Lottatore, T apre Opzioni e C apre Chat. Esc torna sempre indietro, anche sul tuo posto; Canc lascia il tuo posto o la coda."
@@ -1377,6 +1377,12 @@ msgstr "F6 Comandi allenamento"
 msgid "training.hide_hint"
 msgstr "F5 Nascondi HUD"
 
+msgid "training.controls_chip"
+msgstr "Comandi allenamento"
+
+msgid "training.pad_hint"
+msgstr "Tocca: ripristina, tieni: salva"
+
 msgid "training.save_recording"
 msgstr "Salva registrazione come"
 
@@ -1481,6 +1487,15 @@ msgstr "Mosse di risposta"
 
 msgid "training.reply.moves.detail"
 msgstr "La risposta scritta in notazione numerica, come 623HP o 44, letta per il lato verso cui guarda il manichino. Il movimento viene inserito mentre il manichino è ancora bloccato, così il tasto cade sul suo primo frame libero. Vuoto usa lo slot di risposta."
+
+msgid "training.reply.move"
+msgstr "Risposta predefinita"
+
+msgid "training.reply.move.detail"
+msgstr "Sinistra e destra scelgono una risposta comune in notazione numerica, letta per il lato verso cui guarda il manichino. Slot di risposta riproduce la registrazione; Personalizzata tiene le mosse scritte. Seleziona apre Mosse di risposta per scriverne una."
+
+msgid "training.reply.custom"
+msgstr "Personalizzata"
 
 msgid "training.reply.timing"
 msgstr "Tempismo della risposta"
@@ -1691,6 +1706,39 @@ msgstr "Attacco"
 
 msgid "training.meter.move"
 msgstr "Movimento"
+
+msgid "training.meter.attack_unsplit"
+msgstr "Attacco non diviso"
+
+msgid "training.meter.style"
+msgstr "Stile del misuratore"
+
+msgid "training.meter.style.detail"
+msgstr "Inclinato colora un attacco per avvio, attivo e recupero e scrive la durata di ogni tratto. Piatto disegna tutto l'attacco in un solo colore."
+
+msgid "training.meter.style.angled"
+msgstr "Inclinato"
+
+msgid "training.meter.style.flat"
+msgstr "Piatto"
+
+msgid "training.meter.frames_shown"
+msgstr "Frame mostrati"
+
+msgid "training.meter.frames_shown.detail"
+msgstr "Quanti frame mostrano le barre nella stessa larghezza. Meno frame sono più larghi e facili da contare; 120 mostra tutta la cronologia. A misuratore fermo, la rotellina sopra le barre scorre indietro."
+
+msgid "training.meter.hud_recovery"
+msgstr "Recupero nell'HUD"
+
+msgid "training.meter.hud_recovery.detail"
+msgstr "Mostra il recupero dell'ultima mossa di ogni lottatore accanto al suo avvio nel misuratore."
+
+msgid "training.recovery_frames"
+msgstr "Rec. {0} f"
+
+msgid "training.recovery_unknown"
+msgstr "Rec. --"
 
 msgid "training.neutral"
 msgstr "Neutrale"
