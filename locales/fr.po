@@ -3591,3 +3591,46 @@ msgstr "Impossible d'entrer dans le salon. Il vient peut-être de fermer. Actual
 
 msgid "legend.refresh"
 msgstr "Actualiser"
+
+# Between-game choices in an unfinished set.
+msgid "rematch.title"
+msgstr "Partie suivante"
+
+msgid "rematch.score"
+msgstr "Score : {0} - {1} (FT{2})"
+
+msgid "rematch.choose"
+msgstr "Choisissez la revanche ou changez de personnage."
+
+msgid "rematch.waiting"
+msgstr "Prêt. En attente de votre adversaire."
+
+msgid "rematch.countdown"
+msgstr "Confirmez sous {0}s."
+
+msgid "rematch.ready_detail"
+msgstr "Gardez votre personnage. Votre adversaire peut changer le sien. La partie commence après les deux confirmations."
+
+msgid "rematch.character_detail"
+msgstr "Choisissez le personnage et l’Ultra pour confirmer et continuer. Retour annule sans vous déclarer prêt."
+
+msgid "rematch.return"
+msgstr "Retour au salon"
+
+msgid "rematch.return_detail"
+msgstr "Annulez la revanche pour les deux joueurs. Le score et les places sont conservés."
+
+msgid "rematch.returning"
+msgstr "Retour au salon..."
+
+msgid "rematch.expired"
+msgstr "Délai dépassé. Les deux joueurs sont de retour au salon ; le score est conservé."
+
+msgid "rematch.cancelled"
+msgstr "Revanche annulée. Les deux joueurs sont de retour au salon."
+
+msgid "rematch.play"
+msgstr "Revanche"
+
+msgid "rematch.character"
+msgstr "Changer de personnage"

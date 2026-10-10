@@ -530,6 +530,33 @@ int main() {
 			firstAccepted.result.accepted = true; firstAccepted.result.snapshot = current;
 			roomTransport->Push(json(firstAccepted)); CHECK(roomClient.Step() == 0);
 			CHECK(roomClient.TakeActionReply(actionReply) && actionReply.accepted);
+            // Quick-rematch consent survives a character change, and every
+            // stale-revision retry keeps the completed generation fence.
+            const auto savedTable = current.tables[0];
+            current.tables[0].matchGeneration = 77;
+            current.tables[0].rules.format = static_cast<room::SetFormat>(2);
+            current.tables[0].phase = room::TablePhase::Waiting;
+            current.tables[0].rematch.state = room::RematchOffer::Offered;
+            show(3);
+            CHECK(roomClient.Lobby_Ready(77) == session::SendResult::Queued);
+            CHECK(staleWith(4) == 1);
+            CHECK(roomTransport->sent.back().at("action").at("match_generation") == 77);
+            current.tables[0].rematch.state = room::RematchOffer::Expired;
+            CHECK(staleWith(5) == 0);
+            CHECK(roomClient.TakeActionReply(actionReply) && !actionReply.accepted);
+            // Returning to the room supersedes an earlier Ready, even when
+            // the Ready's rejection arrives before the cancellation snapshot.
+            current.tables[0].rematch.state = room::RematchOffer::Offered;
+            show(3);CHECK(roomClient.Lobby_Ready(77) == session::SendResult::Queued);
+            const auto pendingReady = roomTransport->sent.back().at("action").at("action_id").get<std::uint64_t>();
+            room::Action cancel;cancel.kind=room::ActionKind::CancelRematch;cancel.matchGeneration=77;
+            CHECK(roomClient.SendRoomAction(cancel)==session::SendResult::Queued);
+            protocol::RoomResultMessage rejected;rejected.actionId=pendingReady;
+            rejected.result.reason=room::RejectReason::StaleTable;rejected.result.snapshot=current;
+            const auto beforeCancel=roomTransport->sent.size();roomTransport->Push(json(rejected));CHECK(roomClient.Step()==0);
+            CHECK(roomTransport->sent.size()==beforeCancel);
+            CHECK(roomClient.TakeActionReply(actionReply)&&actionReply.superseded);
+            current.tables[0]=savedTable;
 			// A fighter the opponent already showed, changed: not resent.
 			show(3);
 			CHECK(roomClient.Lobby_Ready() == session::SendResult::Queued);

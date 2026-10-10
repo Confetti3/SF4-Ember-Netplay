@@ -143,7 +143,7 @@ if(BUILD_TESTING)
     set_tests_properties(HeapCorruptionCapture PROPERTIES TIMEOUT 90)
 endif()
 
-add_library(sf4e_room_model STATIC "src/session/RoomModel.cxx" "src/session/RoomModelActions.cxx" "src/session/RoomModelJson.cxx" "src/session/RoomModelTournament.cxx" "src/session/RoomModelServerOwned.cxx" "src/session/RoomDigest.cxx")
+add_library(sf4e_room_model STATIC "src/session/RoomModel.cxx" "src/session/RoomModelActions.cxx" "src/session/RoomModelJson.cxx" "src/session/RoomModelRematch.cxx" "src/session/RoomModelTournament.cxx" "src/session/RoomModelServerOwned.cxx" "src/session/RoomDigest.cxx")
 target_compile_features(sf4e_room_model PUBLIC cxx_std_14)
 target_link_libraries(sf4e_room_model PUBLIC nlohmann_json::nlohmann_json "bcrypt")
 # Playing a bridge-run tournament match: a pure state machine the runtime ticks.
@@ -220,6 +220,11 @@ if(BUILD_TESTING)
     target_link_libraries(RoomSpectatorLockTest PRIVATE sf4e_room_model)
     add_test(NAME RoomSpectatorLock COMMAND RoomSpectatorLockTest)
     set_tests_properties(RoomSpectatorLock PROPERTIES TIMEOUT 30)
+    add_executable(RoomRematchTest "src/tests/room_rematch_test.cxx")
+    target_link_libraries(RoomRematchTest PRIVATE sf4e_room_model)
+    add_test(NAME RoomRematch COMMAND RoomRematchTest)
+    set_tests_properties(RoomRematch PROPERTIES TIMEOUT 30)
+
     add_executable(RoomReadyTimeoutTest "src/tests/room_ready_timeout_test.cxx")
     target_link_libraries(RoomReadyTimeoutTest PRIVATE sf4e_room_model)
     add_test(NAME RoomReadyTimeout COMMAND RoomReadyTimeoutTest)
@@ -306,7 +311,7 @@ if(BUILD_TESTING)
     add_test(NAME UiPreferencesStore COMMAND UiPreferencesStoreTest)
 endif()
 
-add_library(sf4e_ui STATIC "src/ui/ApplicationShell.cxx" "src/ui/RoomPanel.cxx" "src/ui/RoomControls.cxx" "src/ui/Theme.cxx" "src/ui/MatchHud.cxx" "src/ui/SelectionArt.cxx" "src/ui/FighterSelector.cxx")
+add_library(sf4e_ui STATIC "src/ui/ApplicationShell.cxx" "src/ui/RematchPanel.cxx" "src/ui/RoomPanel.cxx" "src/ui/RoomControls.cxx" "src/ui/Theme.cxx" "src/ui/MatchHud.cxx" "src/ui/SelectionArt.cxx" "src/ui/FighterSelector.cxx")
 target_sources(sf4e_ui PRIVATE src/ui/Win32Input.cxx src/ui/Win32InputBridge.cxx)
 target_sources(sf4e_ui PRIVATE src/ui/GameMenu.cxx src/ui/MenuDialogs.cxx src/ui/ChatTranscript.cxx src/ui/ChatPanel.cxx)
 install(DIRECTORY "assets/brand" DESTINATION "assets" FILES_MATCHING PATTERN "*.png")
@@ -338,6 +343,11 @@ if(BUILD_TESTING)
     target_link_libraries(PublicRoomsJourneyTest PRIVATE sf4e_ui Dimps)
     add_test(NAME PublicRoomsJourney COMMAND PublicRoomsJourneyTest)
     set_tests_properties(PublicRoomsJourney PROPERTIES TIMEOUT 30)
+    add_executable(RematchNavigationTest src/tests/rematch_navigation_test.cxx)
+    target_link_libraries(RematchNavigationTest PRIVATE sf4e_ui Dimps)
+    add_test(NAME RematchNavigation COMMAND RematchNavigationTest)
+    set_tests_properties(RematchNavigation PROPERTIES TIMEOUT 30)
+
     add_executable(RoomPanelNavigationTest src/tests/room_panel_navigation_test.cxx)
     target_link_libraries(RoomPanelNavigationTest PRIVATE sf4e_ui Dimps)
     add_test(NAME RoomPanelNavigation COMMAND RoomPanelNavigationTest)
@@ -659,6 +669,12 @@ if(BUILD_TESTING)
             # Six games after sixteen serialized admissions and table setup.
             # Each individual fixture phase retains its 45-second deadline.
             set_tests_properties(CustomRoomFourTables CustomRoomSpectators CustomRoomFourTablesRelay CustomRoomSpectatorsRelay PROPERTIES TIMEOUT 1800 RUN_SERIAL TRUE)
+            # Continue an unfinished set with generation-scoped Ready and two spectators.
+            add_test(NAME CustomRoomQuickRematch COMMAND CustomRoomGameTest "${SF4E_HELPER_EXECUTABLE}"
+                --quick-rematch --single-table --members 4 --cycles 6)
+            add_test(NAME CustomRoomQuickRematchRelay COMMAND CustomRoomGameTest "${SF4E_HELPER_EXECUTABLE}"
+                --quick-rematch --single-table --members 4 --cycles 6 --relay-only)
+            set_tests_properties(CustomRoomQuickRematch CustomRoomQuickRematchRelay PROPERTIES TIMEOUT 600 RUN_SERIAL TRUE)
             # A spectator that never sets up must not hold the fighters' start.
             add_test(NAME CustomRoomStalledSpectator COMMAND CustomRoomGameTest "${SF4E_HELPER_EXECUTABLE}"
                 --members 6 --single-table --cycles 2 --stall-spectator)

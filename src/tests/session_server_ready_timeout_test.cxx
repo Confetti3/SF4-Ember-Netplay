@@ -158,9 +158,59 @@ void TestTimeoutReachesEveryMemberOnCommit() {
 			}) == 1);
 	}
 }
+
+// A quick-rematch deadline cancels readiness without unseating either fighter.
+// A candidate must not expose its timeout until the room commit is activated.
+void TestRematchTimeoutCommitsForBothPlayers() {
+    Room r(3,true);
+    const auto act=[&](session::Connection connection,room::ActionKind kind,std::uint64_t generation=0){
+        const auto snapshot=*r.server.RoomSnapshot();room::Action a;
+        a.kind=kind;a.roomEpoch=snapshot.roomEpoch;a.revision=snapshot.revision;
+        a.tableRevision=snapshot.tables[0].revision;a.actionId=++r.actionId;a.matchGeneration=generation;
+        a.rules.format=static_cast<room::SetFormat>(2);a.result=room::MatchResult::P1Win;
+        protocol::RoomActionMessage message;message.action=a;r.Send(connection,json(message));
+    };
+    r.server.AdvanceCustomRoom(1000);act(1,room::ActionKind::SetRules);
+    SeatWithConditions(r);
+    // The transport mock does not drive native battles. Import a completed
+    // authority game, then exercise the server's real Ready/timer/commit path.
+    auto checkpoint=r.server.Checkpoint();room::RoomAuthority model("Completed");
+    CHECK(model.RestoreCheckpoint(checkpoint.at("room")));model.ResumeRecovery(1000);
+    const auto apply=[&](room::MemberId member,room::ActionKind kind,std::uint64_t generation=0){
+        room::Action a;a.kind=kind;a.roomEpoch=model.SnapshotView().roomEpoch;
+        a.revision=model.SnapshotView().revision;a.tableRevision=model.SnapshotView().tables[0].revision;
+        a.actionId=++r.actionId;a.matchGeneration=generation;CHECK(model.Apply(member,a).accepted);
+    };
+    apply(r.Member(2),room::ActionKind::Ready);CHECK(model.BeginMatch(0,r.Member(1),r.Member(2)).accepted);
+    const auto generation=model.SnapshotView().tables[0].matchGeneration;
+    CHECK(model.EndMatch(0,generation,room::MatchResult::P1Win).accepted);
+    for(auto c:{1ull,2ull,3ull})apply(r.Member(c),room::ActionKind::AcknowledgeTerminal,generation);
+    checkpoint["room"]=model.Checkpoint();CHECK(r.server.RestoreCheckpoint(checkpoint));
+    CHECK(r.server.RoomSnapshot()->tables[0].rematch.state==room::RematchOffer::Offered);
+    act(1,room::ActionKind::Ready,generation);
+    CHECK(r.server.RoomSnapshot()->tables[0].ready[0]);
+    r.transport->outgoing.clear();r.server.AdvanceCustomRoom(31000);
+    CHECK(r.server.HasRecoveryCandidate()&&r.transport->outgoing.empty());
+    r.Commit();
+    const auto& table=r.server.RoomSnapshot()->tables[0];
+    CHECK(table.rematch.state==room::RematchOffer::Expired);
+    CHECK(table.p1==r.Member(1)&&table.p2==r.Member(2)&&table.score[0]==1);
+    CHECK(!table.ready[0]&&!table.ready[1]);
+    for(auto c:{1ull,2ull}){
+        bool saw=false;
+        for(const auto& sent:r.transport->outgoing)if(sent.first==c&&sent.second.value("type",std::string())=="room_snapshot"){
+            const auto snapshot=sent.second.at("snapshot").get<room::Snapshot>();
+            CHECK(snapshot.tables[0].rematch.state==room::RematchOffer::Expired);
+            CHECK(sent.second.contains("_commit"));saw=true;
+        }
+        CHECK(saw);
+    }
+}
+
 }
 
 int main() {
+	TestRematchTimeoutCommitsForBothPlayers();
 	TestTimeoutProjectsLikeAnExplicitUnseat();
 	TestTimeoutReachesEveryMemberOnCommit();
 	std::puts("SessionServerReadyTimeout test passed");

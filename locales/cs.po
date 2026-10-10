@@ -3591,3 +3591,46 @@ msgstr "Do místnosti se nepodařilo vstoupit. Možná se právě zavřela. Aktu
 
 msgid "legend.refresh"
 msgstr "Aktualizovat"
+
+# Between-game choices in an unfinished set.
+msgid "rematch.title"
+msgstr "Další hra"
+
+msgid "rematch.score"
+msgstr "Skóre: {0} - {1} (FT{2})"
+
+msgid "rematch.choose"
+msgstr "Zvolte odvetu nebo změňte postavu."
+
+msgid "rematch.waiting"
+msgstr "Připraveno. Čekání na soupeře."
+
+msgid "rematch.countdown"
+msgstr "Potvrďte do {0}s."
+
+msgid "rematch.ready_detail"
+msgstr "Ponechte si postavu. Soupeř může svou změnit. Hra začne po obou potvrzeních."
+
+msgid "rematch.character_detail"
+msgstr "Vyberte postavu a Ultra pro potvrzení a pokračování. Zpět zruší výběr bez potvrzení připravenosti."
+
+msgid "rematch.return"
+msgstr "Zpět do místnosti"
+
+msgid "rematch.return_detail"
+msgstr "Zrušte odvetu pro oba hráče. Skóre i místa zůstanou zachována."
+
+msgid "rematch.returning"
+msgstr "Návrat do místnosti..."
+
+msgid "rematch.expired"
+msgstr "Čas vypršel. Oba hráči se vrátili do místnosti; skóre se nezměnilo."
+
+msgid "rematch.cancelled"
+msgstr "Odveta zrušena. Oba hráči se vrátili do místnosti."
+
+msgid "rematch.play"
+msgstr "Odveta"
+
+msgid "rematch.character"
+msgstr "Změnit postavu"

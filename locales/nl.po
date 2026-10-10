@@ -3591,3 +3591,46 @@ msgstr "Kon de kamer niet in. Misschien is hij net gesloten. Vernieuw en kies ee
 
 msgid "legend.refresh"
 msgstr "Vernieuwen"
+
+# Between-game choices in an unfinished set.
+msgid "rematch.title"
+msgstr "Volgende wedstrijd"
+
+msgid "rematch.score"
+msgstr "Stand: {0} - {1} (FT{2})"
+
+msgid "rematch.choose"
+msgstr "Kies revanche of wissel van personage."
+
+msgid "rematch.waiting"
+msgstr "Klaar. Wachten op je tegenstander."
+
+msgid "rematch.countdown"
+msgstr "Bevestig binnen {0}s."
+
+msgid "rematch.ready_detail"
+msgstr "Behoud je personage. Je tegenstander mag wisselen. De wedstrijd start na beide bevestigingen."
+
+msgid "rematch.character_detail"
+msgstr "Kies personage en Ultra om te bevestigen en door te gaan. Terug annuleert zonder je klaar te melden."
+
+msgid "rematch.return"
+msgstr "Terug naar de kamer"
+
+msgid "rematch.return_detail"
+msgstr "Annuleer de revanche voor beiden. Stand en plaatsen blijven behouden."
+
+msgid "rematch.returning"
+msgstr "Terug naar de kamer..."
+
+msgid "rematch.expired"
+msgstr "Tijd verstreken. Beide spelers zijn terug in de kamer; de stand is behouden."
+
+msgid "rematch.cancelled"
+msgstr "Revanche geannuleerd. Beide spelers zijn terug in de kamer."
+
+msgid "rematch.play"
+msgstr "Revanche"
+
+msgid "rematch.character"
+msgstr "Personage wisselen"

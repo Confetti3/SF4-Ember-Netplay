@@ -242,6 +242,18 @@ private:
     // Shows a refusal that stays true for as long as stillBlocked says so.
     void Refuse(std::string text, std::function<bool(const ShellView&)> stillBlocked = {});
     void TrackLiveGames(const ShellView& view, double now);
+    void UpdateRematch(const ShellView& view);
+    std::vector<MenuEntry> RematchEntries(const ShellView& view) const;
+    std::string RematchStatus(const ShellView& view) const;
+    void RematchAction(const MenuAction& action, const ShellView& view, const Submit& submit);
+    void ConfirmRematch(const ShellView& view, const Submit& submit);
+    struct RematchScreen {
+        std::uint64_t epoch = 0, generation = 0;
+        int table = -1;
+        bool cancelling = false;
+        bool submitting = false;
+        std::uint64_t failureSequence = 0;
+    } rematchScreen_;
     // A lock-in the room cleared other than by the player's Release (they
     // stopped watching, moved, or their spectator view dropped) gets a notice
     // saying why.

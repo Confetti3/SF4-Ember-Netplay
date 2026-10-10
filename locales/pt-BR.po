@@ -3134,3 +3134,46 @@ msgstr "Não foi possível entrar na sala. Ela pode ter acabado de fechar. Atual
 
 msgid "legend.refresh"
 msgstr "Atualizar"
+
+# Between-game choices in an unfinished set.
+msgid "rematch.title"
+msgstr "Próxima partida"
+
+msgid "rematch.score"
+msgstr "Placar: {0} - {1} (FT{2})"
+
+msgid "rematch.choose"
+msgstr "Escolha revanche ou troque de personagem."
+
+msgid "rematch.waiting"
+msgstr "Pronto. Aguardando o oponente."
+
+msgid "rematch.countdown"
+msgstr "Confirme em {0}s."
+
+msgid "rematch.ready_detail"
+msgstr "Mantenha seu personagem. O oponente pode trocar o dele. A partida começa após as duas confirmações."
+
+msgid "rematch.character_detail"
+msgstr "Escolha personagem e Ultra para confirmar e continuar. Voltar cancela sem marcar pronto."
+
+msgid "rematch.return"
+msgstr "Voltar à sala"
+
+msgid "rematch.return_detail"
+msgstr "Cancele a revanche para ambos. O placar e os lugares são mantidos."
+
+msgid "rematch.returning"
+msgstr "Voltando à sala..."
+
+msgid "rematch.expired"
+msgstr "Tempo esgotado. Ambos voltaram à sala; o placar foi mantido."
+
+msgid "rematch.cancelled"
+msgstr "Revanche cancelada. Ambos voltaram à sala."
+
+msgid "rematch.play"
+msgstr "Revanche"
+
+msgid "rematch.character"
+msgstr "Trocar personagem"

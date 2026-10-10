@@ -8,7 +8,7 @@ using namespace detail;
 Result RoomAuthority::ApplyClose(MemberId member) {
 	if (!IsHost(member)) return Reject(RejectReason::NotHost);
 	snapshot_.closed = true; snapshot_.locked = true;
-	for (auto& table : snapshot_.tables) { table.phase = TablePhase::Closed; Touch(table); }
+	for (auto& table : snapshot_.tables) { ClearReadiness(table); table.phase = TablePhase::Closed; Touch(table); }
 	TouchRoom();
 	return Accept({Event{Event::Kind::RoomClosed, 0, 0, member, MatchResult::Abort}});
 }
@@ -248,6 +248,9 @@ Result RoomAuthority::ApplyLeaveGame(MemberId member, Table* table) {
 
 Result RoomAuthority::ApplyReadiness(MemberId member, const Action& action, Table* table, Member* item) {
 	if (!IsParticipant(*table, member)) return Reject(RejectReason::NotSeated);
+    if (action.kind == ActionKind::Ready && action.matchGeneration &&
+        (action.matchGeneration != table->matchGeneration || table->rematch.state != RematchOffer::Offered || RematchDue(*table, nowMs_)))
+        return Reject(RejectReason::WrongGeneration);
 	if (action.kind == ActionKind::Ready && HasOutstandingTerminalReceiptForMember(member)) return Reject(RejectReason::TerminalLedgerFull);
 	if (table->phase != TablePhase::Waiting && table->phase != TablePhase::Ready) return Reject(RejectReason::WrongPhase);
 	const int seat = table->p1 == member ? 0 : 1;
@@ -272,6 +275,7 @@ Result RoomAuthority::ApplyReadiness(MemberId member, const Action& action, Tabl
 		// An older client can still ready at 0, which the match never plays at.
 		const auto delay = static_cast<std::uint8_t>(PlayableInputDelay(action.inputDelay));
 		table->ready[seat] = true;
+		table->rematch.consent[seat] = action.matchGeneration != 0;
 		item->selectedDelay = delay;
 		item->frozenDelay = delay;
 		item->delayLocked = true;
@@ -284,6 +288,7 @@ Result RoomAuthority::ApplyReadiness(MemberId member, const Action& action, Tabl
 
 void RoomAuthority::ReleaseReady(Table& table, int seat, Member& item) {
 	table.ready[seat] = false;
+	table.rematch.consent[seat] = false;
 	item.delayLocked = false;
 	table.inputDelay[seat] = item.selectedDelay;
 }
@@ -410,7 +415,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	const bool generationScopedUnwatch = action.kind == ActionKind::Unwatch && action.matchGeneration != 0;
 	// PermitReady names its reserved generation, so the other fighter's
 	// permit arriving first does not make it stale.
-	if (IsTableAction(action.kind) && action.kind != ActionKind::RecordResult && action.kind != ActionKind::MatchFinished && action.kind != ActionKind::CancelResult && action.kind != ActionKind::AbortMatch && action.kind != ActionKind::AcknowledgeTerminal && action.kind != ActionKind::PermitReady && !generationScopedUnwatch) {
+	if (IsTableAction(action.kind) && action.kind != ActionKind::RecordResult && action.kind != ActionKind::MatchFinished && action.kind != ActionKind::CancelResult && action.kind != ActionKind::AbortMatch && action.kind != ActionKind::AcknowledgeTerminal && action.kind != ActionKind::PermitReady && action.kind != ActionKind::CancelRematch && !generationScopedUnwatch) {
 		const Table* table = FindTable(action.table);
 		if (!table) return Reject(RejectReason::UnknownTable);
 		if (action.tableRevision != table->revision) return Reject(RejectReason::StaleTable);
@@ -469,6 +474,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (generationScopedUnwatch && (table->phase != TablePhase::Playing && table->phase != TablePhase::Paused ||
 		action.matchGeneration != table->matchGeneration)) return Reject(RejectReason::WrongGeneration);
 	if (generationScopedUnwatch && action.keepWatching) return ApplyLeaveGame(member, table);
+	if (action.kind == ActionKind::CancelRematch) return ApplyCancelRematch(member, action, *table);
 	if (action.kind == ActionKind::SetRules) return ApplySetRules(member, action, table);
 	if (action.kind == ActionKind::Queue) return ApplyQueue(member, action, table);
 	if (action.kind == ActionKind::Unqueue) return ApplyUnqueue(member, table);

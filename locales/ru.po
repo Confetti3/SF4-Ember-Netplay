@@ -3591,3 +3591,46 @@ msgstr "Не удалось войти в лобби. Возможно, оно �
 
 msgid "legend.refresh"
 msgstr "Обновить"
+
+# Between-game choices in an unfinished set.
+msgid "rematch.title"
+msgstr "Следующая игра"
+
+msgid "rematch.score"
+msgstr "Счёт: {0} - {1} (FT{2})"
+
+msgid "rematch.choose"
+msgstr "Выберите реванш или смените персонажа."
+
+msgid "rematch.waiting"
+msgstr "Готово. Ожидание соперника."
+
+msgid "rematch.countdown"
+msgstr "Подтвердите за {0}с."
+
+msgid "rematch.ready_detail"
+msgstr "Сохраните своего персонажа. Соперник может сменить своего. Игра начнётся после обоих подтверждений."
+
+msgid "rematch.character_detail"
+msgstr "Выберите персонажа и Ultra для подтверждения. Назад отменяет выбор без готовности."
+
+msgid "rematch.return"
+msgstr "Вернуться в комнату"
+
+msgid "rematch.return_detail"
+msgstr "Отмените реванш для обоих игроков. Счёт и места сохраняются."
+
+msgid "rematch.returning"
+msgstr "Возврат в комнату..."
+
+msgid "rematch.expired"
+msgstr "Время истекло. Оба игрока вернулись в комнату; счёт сохранён."
+
+msgid "rematch.cancelled"
+msgstr "Реванш отменён. Оба игрока вернулись в комнату."
+
+msgid "rematch.play"
+msgstr "Реванш"
+
+msgid "rematch.character"
+msgstr "Сменить персонажа"
