@@ -496,6 +496,42 @@ void CallLifecycleOrder(){
   Check(!gate.Offered().Live()&&!gate.Press(GoNowGate::Source::Keyboard,true),"Go now was offered for a battle that has gone");
  }
 }
+// View's go now is a pad action as the chord is: put to the call's gate only
+// under the focus period its poll sampled, in the same step that checks it.
+// A View sampled as the focus went, whether the focus is back yet or not,
+// never hurries the call; a fresh press under the current period does, once.
+void GoNowFocus(){
+ using namespace sf4e::input;
+ const float place[2]={0,0};
+ for(const bool regain:{false,true}){
+  TrainingControls controls;TrainingPadInput pad;GoNowGate gate;CallLifecycle lifecycle;sf4e::training::LeaveCountdown countdown;
+  CallBattle battle;battle.running=true;battle.generation=40;
+  CallIdentity a;a.roomEpoch=7;a.table=1;a.opponent=2;a.generation=40;a.serial=1;
+  const auto tick=[&]{
+   const auto state=lifecycle.Tick(a,battle,gate);
+   sf4e::training::CallControl control;control.call=state.call.serial;control.generation=state.call.generation;control.hurry=state.hurry;
+   countdown.Follow(control,battle.generation,120);
+   return countdown.Tick(true);
+  };
+  tick();
+  Check(gate.Offered()==a&&countdown.Left()==119,"The call was not offered");
+  double now=0;
+  // The poll samples its token, the focus goes (and comes back), and then View is read.
+  const auto token=controls.Sample();
+  controls.LoseFocus();if(regain)controls.GainFocus();
+  PadOwner owner;owner.generation=40;owner.epoch=token.epoch;
+  const auto stale=pad.Update(PhysicalBack,controls,now+=.02,TrainingCall::GoNow,owner,place);
+  Check(stale.events.goNow,"View under the call did not ask for go now");
+  Check(!controls.PressGoNow(stale.owner.epoch,gate,GoNowGate::Source::Pad,true)&&gate.Take().empty(),"A View sampled as the focus went was taken for go now");
+  Check(!tick()&&countdown.Left()==118,"A View sampled as the focus went hurried the call");
+  pad.Update(0,controls,now+=.02,TrainingCall::GoNow,owner,place);
+  if(!regain)controls.GainFocus();
+  owner.epoch=controls.Sample().epoch;
+  const auto fresh=pad.Update(PhysicalBack,controls,now+=.02,TrainingCall::GoNow,owner,place);
+  Check(fresh.events.goNow&&controls.PressGoNow(fresh.owner.epoch,gate,GoNowGate::Source::Pad,true),"A fresh View was not taken for go now");
+  Check(tick()&&!tick()&&countdown.Left()==0,"A fresh go now did not leave once");
+ }
+}
 // The rules every GameMenu screen shares with the room: an open dialog owns
 // the legend (Select names its highlighted button, Back cancels, shortcuts
 // go), pad Select accepts a draft, information rows offer no Select, a reader
@@ -701,5 +737,5 @@ void ProfileRecords(){
   "Record after the exact total limit was accepted");
 }
 }
-int main(){try{NativeReader();NavigationModel();NativeCapture();TrainingPadChord();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();DialogContract();SelectPrecedence();FlyoutIgnoresChoices();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
+int main(){try{NativeReader();NavigationModel();NativeCapture();TrainingPadChord();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();DialogContract();SelectPrecedence();FlyoutIgnoresChoices();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

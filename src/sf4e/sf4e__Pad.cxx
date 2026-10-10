@@ -100,7 +100,10 @@ void fSystem::UpdateInputs() {
         const auto result=trainingPad.Update(physical,sf4e::Overlay::TrainingControls(),GetTickCount64()/1000.0,call,owner,place.x);
         const auto& events=result.events;
         ownedByGesture=events.owned;
-        if(events.goNow&&!goNow.Press(sf4e::input::GoNowGate::Source::Pad,free)) spdlog::info("Training: go now on the pad was not taken");
+        // View's go now is accepted, as the chord is, only under the focus
+        // period its press was sampled in.
+        if(events.goNow&&!sf4e::Overlay::TrainingControls().PressGoNow(result.owner.epoch,goNow,sf4e::input::GoNowGate::Source::Pad,free))
+            spdlog::info("Training: go now on the pad was not taken");
         using Kind=sf4e::input::TrainingPadEvent::Kind;
         for(const Kind kind:{Kind::Reset,Kind::Save}) {
             if(kind==Kind::Reset?!events.reset:!events.save) continue;

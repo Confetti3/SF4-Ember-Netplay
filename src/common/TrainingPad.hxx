@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <mutex>
 #include <vector>
+#include "TrainingCallInput.hxx"
 
 // The assigned pad in offline Training, outside Ember's own menu input. It
 // reads the physical Back and Start bits, which the native pad layer gives the
@@ -138,6 +139,15 @@ public:
     }
     // The controls' own Back, the call, leaving Training.
     void Close() { std::lock_guard<std::mutex> lock(mutex_); open_ = false; }
+    // View's go now on the call, pressed under epoch: put to the call's gate
+    // only while that epoch is still current and the window has the focus,
+    // decided in the same step as the press, so a View sampled in a focus
+    // period that has ended never reaches the call.
+    bool PressGoNow(std::uint32_t epoch, GoNowGate& gate, GoNowGate::Source source, bool free) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (!focused_ || epoch != epoch_) return false;
+        return gate.Press(source, free);
+    }
     // The pad's chord, pressed under epoch: false, changing nothing, when that
     // owner has gone, or when it would open them without the focus.
     bool Accept(bool open, std::uint32_t epoch) {
