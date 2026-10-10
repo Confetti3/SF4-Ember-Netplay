@@ -290,14 +290,14 @@ int main() {
         {
             Session checked; checked.Enter();
             const auto current = checked.GetView().generation;
-            for (int a = 0; a <= static_cast<int>(Action::Stay); ++a) {
+            for (int a = 0; a <= static_cast<int>(Action::DummyPlan); ++a) {
                 Command stale{static_cast<Action>(a), current + 1};
                 stale.slot = 3; stale.loop = false; stale.frames = {Input{1, 1}};
                 Require(!checked.Apply(stale), "A command for another battle was accepted");
                 Require(checked.GetView().selected == 0 && checked.GetView().loop && checked.GetView().lengths[0] == 0,
                     "A command for another battle changed the session");
             }
-            for (Action a : {Action::Place, Action::Leave, Action::LeaveNow, Action::Stay, Action::ExportSlot, Action::DummyPlan, Action::DummyState, Action::Loop})
+            for (Action a : {Action::Place, Action::ExportSlot, Action::DummyPlan, Action::DummyState, Action::Loop})
                 Require(checked.Apply({a, current}), "A command for this battle was refused before the fight");
             Command plan{Action::DummyPlan, current}; plan.plan.slot = SlotCount;
             Require(!checked.Apply(plan), "An invalid reply plan was accepted");
@@ -316,65 +316,67 @@ int main() {
             failed.SetCheckpoint(false);
             Require(!failed.Apply({Action::Restore, failed.GetView().generation}), "A reset after a failed save was taken");
         }
-        // The call out of Training: the battle leaves once, by the countdown,
-        // whether its banner ran out or the player chose to go now.
+        // The call out of Training: the countdown follows the call that stands
+        // for the battle, as state read before every tick, so the battle
+        // leaves once, for that call, whether its banner ran out or the
+        // player chose go now; a call that ended never takes it away; and a
+        // go now chosen while the battle's command queue is full still acts.
         {
-            const auto leaves = [](LeaveCountdown& countdown, int frames) {
+            const std::uint64_t battle = 40;
+            const auto call = [&](std::uint64_t serial, bool hurry = false) { CallControl c; c.call = serial; c.generation = battle; c.hurry = hurry; return c; };
+            // One update: the countdown follows the state, then ticks.
+            const auto update = [&](LeaveCountdown& countdown, const CallControl& control, bool fighting = true) {
+                countdown.Follow(control, battle, 120);
+                return countdown.Tick(fighting);
+            };
+            const auto leaves = [&](LeaveCountdown& countdown, const CallControl& control, int frames) {
                 int fired = 0;
-                for (int frame = 0; frame < frames; ++frame) if (countdown.Tick(true)) ++fired;
+                for (int frame = 0; frame < frames; ++frame) if (update(countdown, control)) ++fired;
                 return fired;
             };
             LeaveCountdown timer;
-            Require(!timer.Hurry(7) && timer.Left() == 0, "Go now did something with no call");
-            Require(timer.Start(120, 7) && !timer.Start(120, 7), "A second call restarted the countdown");
-            Require(leaves(timer, 300) == 1 && timer.Left() == 0, "The banner did not end in exactly one leave");
-            Require(!timer.Hurry(7) && leaves(timer, 10) == 0, "Go now after the battle was told to leave left it again");
+            Require(leaves(timer, CallControl{}, 300) == 0, "The battle left with no call");
+            Require(timer.Follow(call(7), battle, 120) && !timer.Follow(call(7), battle, 120), "The call's countdown started twice");
+            Require(leaves(timer, call(7), 300) == 1 && timer.Left() == 0, "The banner did not end in exactly one leave");
+            // Go now: the next update that may leave does, once.
             LeaveCountdown early;
-            early.Start(120, 7);
             int fired = 0, firedAt = -1;
-            for (int frame = 0; frame < 300; ++frame) {
-                if (frame == 30) Require(early.Hurry(7), "Go now during the banner was refused");
-                if (frame == 31) Require(!early.Hurry(7), "A second go now was taken as another");
-                if (early.Tick(true)) { ++fired; firedAt = frame; }
-            }
+            for (int frame = 0; frame < 300; ++frame) if (update(early, call(7, frame >= 30))) { ++fired; firedAt = frame; }
             Require(fired == 1 && firedAt == 30, "Go now did not leave once, at once");
-            // The timer's own rule holds for go now: the battle is only told to
-            // leave from a running fight, as the pause menu's exit is.
+            // Go now only leaves from a running fight, as the pause menu's exit does.
             LeaveCountdown intro;
-            intro.Start(120, 7);
-            Require(intro.Hurry(7) && !intro.Tick(false) && !intro.Tick(false) && intro.Left() == 1, "Go now left a fight that was not running");
-            Require(intro.Tick(true) && !intro.Tick(true), "Go now did not leave once the fight ran");
-            // The battle closing forgets a call that never went.
-            LeaveCountdown closed;
-            closed.Start(120, 7); closed.Reset();
-            Require(!closed.Hurry(7) && leaves(closed, 200) == 0 && closed.Start(120, 7), "A closed battle kept its call");
-            // The call ends before the battle left (the opponent got up): the
-            // battle stays, and go now has nothing left to hurry.
-            LeaveCountdown ended;
-            Require(!ended.Cancel(7), "Staying did something with no call");
-            ended.Start(120, 7); leaves(ended, 40);
-            Require(ended.Cancel(7) && ended.Left() == 0 && !ended.Hurry(7) && leaves(ended, 200) == 0, "A battle whose call ended still left");
-            // Once it has been told to leave, the call ending changes nothing.
-            ended.Start(120, 7); leaves(ended, 120);
-            Require(!ended.Cancel(7), "A battle told to leave was taken as staying");
-            // Hurried by go now and not yet able to leave (the fight is not running): it can still stay.
-            ended.Reset(); ended.Start(120, 7); ended.Hurry(7);
-            Require(!ended.Tick(false) && ended.Cancel(7) && !ended.Tick(true), "A hurried battle whose call ended still left");
-            // The count is its call's. Another call (a new opponent, another
-            // room) replaces it whole: an ordinary count starts over, a count
-            // hurried by the earlier call's go now loses that hurry, and that
-            // call's go now and stay no longer reach it.
+            Require(!update(intro, call(7, true), false) && !update(intro, call(7, true), false) && intro.Left() == 1, "Go now left a fight that was not running");
+            Require(update(intro, call(7, true)) && !update(intro, call(7, true)), "Go now did not leave once the fight ran");
+            // The call ends on the countdown's last frame, while the fight is
+            // not running: the next update stops it, before it could tick.
+            LeaveCountdown last;
+            for (int frame = 0; frame < 119; ++frame) update(last, call(7), false);
+            Require(last.Left() == 1, "The countdown did not reach its last frame");
+            Require(!update(last, CallControl{}) && last.Left() == 0 && leaves(last, CallControl{}, 200) == 0, "A call that ended took the battle away");
+            // A go now chosen when the command queue would have been full is
+            // state, not a message: once the countdown runs, it takes effect,
+            // once and for its own call.
+            LeaveCountdown waiting;
+            Require(!update(waiting, call(7, true), false) && waiting.Left() == 1 && waiting.Call() == 7, "A go now chosen before the countdown ran was lost");
+            Require(update(waiting, call(7, true)) && leaves(waiting, call(7, true), 300) == 0, "Go now took the battle away twice");
+            // Another call replaces the count whole, its hurry and all, and
+            // the earlier call's go now never reaches it.
             for (const bool hurried : {false, true}) {
                 LeaveCountdown replaced;
-                replaced.Start(120, 7); leaves(replaced, 30);
-                if (hurried) { Require(replaced.Hurry(7) && !replaced.Tick(false), "The first call's go now was refused"); }
-                Require(replaced.Start(120, 8) && replaced.Left() == 120 && replaced.Call() == 8, "A replacement call did not start its own count");
-                Require(!replaced.Tick(true) && !replaced.Hurry(7) && !replaced.Cancel(7), "The replaced call still reached the new count");
-                Require(replaced.Left() == 119 && leaves(replaced, 300) == 1, "The new call's count did not run its own length");
+                leaves(replaced, call(7, hurried), hurried ? 0 : 30);
+                if (hurried) update(replaced, call(7, true), false);
+                Require(replaced.Follow(call(8), battle, 120) && replaced.Left() == 120 && replaced.Call() == 8, "A replacement call did not start its own count");
+                Require(!update(replaced, call(8)) && replaced.Left() == 119, "The replaced call's go now reached the new count");
+                Require(leaves(replaced, call(8), 300) == 1, "The new call's count did not run its own length");
             }
-            LeaveCountdown own;
-            own.Start(120, 8);
-            Require(!own.Hurry(7) && own.Left() == 120 && own.Hurry(8) && own.Left() == 1, "Go now reached a count that is not its call's");
+            // A call for another battle is no call for this one.
+            CallControl elsewhere = call(9); elsewhere.generation = battle + 1;
+            LeaveCountdown other;
+            Require(!other.Follow(elsewhere, battle, 120) && leaves(other, elsewhere, 300) == 0, "A call for another battle took this one away");
+            // The battle closing forgets the call.
+            LeaveCountdown closed;
+            closed.Follow(call(7), battle, 120); closed.Reset();
+            Require(closed.Left() == 0 && closed.Call() == 0 && closed.Follow(call(7), battle, 120), "A closed battle kept its call");
         }
 
         FrameMeter meter;

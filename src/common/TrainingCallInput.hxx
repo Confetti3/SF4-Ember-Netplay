@@ -61,44 +61,42 @@ private:
     CallIdentity offered_;
     std::vector<Request> requests_;
 };
-// What the call's lifecycle asks the Training battle for, each for one call:
-// Leave starts its countdown, Stay ends it, LeaveNow shortens it.
-enum class CallOrder : std::uint8_t { Leave, Stay, LeaveNow };
+
 // The Training battle as the game thread sees it now: running in Training
 // and not leaving, and its generation.
 struct CallBattle { bool running = false; std::uint64_t generation = 0; };
+// What the battle is told of the call, as state it reads before every
+// countdown tick (training::CallControl): the call that stands, or none, and
+// whether go now was chosen for it.
+struct CallState { CallIdentity call; bool hurry = false; };
 
-// The call's lifecycle, one game tick at a time and in one order:
-// 1. a call that ended, or was replaced by another, has its countdown ended;
-// 2. the call that stands has its countdown started, once;
-// 3. only once that start is queued, and only while the battle it was sent
-//    to still runs in Training (not leaving, not closed, not another one),
-//    is the call offered to go now's gate; otherwise nothing is offered and
-//    Enter and View are the game's again;
-// 4. the presses taken for exactly the offered call go now.
-// So a press is never taken for a countdown not yet queued, a battle that
-// has gone, or a call that is not the one counting. order(kind, call) queues
-// one order and says whether it was queued; a start not queued is asked
-// again next tick. opened: the call ended by reaching the main menu, where
-// its battle has left and there is nothing to end.
+// The call's lifecycle, one game tick at a time. The call that stands is
+// the battle's to follow, and so is a go now chosen for it: both are state
+// the caller publishes each tick, never orders a full queue could refuse, so
+// a call that ended stops its countdown and a press taken for a call takes
+// effect once that call's countdown runs, however busy the battle's command
+// queue is. The call is offered to go now's gate only while the battle it was
+// sent to still runs in Training (not leaving, not closed, not another one);
+// otherwise Enter and View are the game's again. A press taken for exactly
+// the offered call is that call's go now; any other is dropped.
 class CallLifecycle {
 public:
-    template<class Order>
-    void Tick(const CallIdentity& before, const CallIdentity& after, bool opened, const CallBattle& battle, GoNowGate& gate, const Order& order) {
-        if (before.Live() && before != after && !opened) order(CallOrder::Stay, before);
-        if (after.Live() && started_ != after.serial && order(CallOrder::Leave, after)) started_ = after.serial;
+    CallState Tick(const CallIdentity& call, const CallBattle& battle, GoNowGate& gate) {
+        if (call.serial != state_.call.serial || !call.Live()) { state_.call = call.Live() ? call : CallIdentity{}; state_.hurry = false; }
         CallIdentity offer;
-        if (after.Live() && started_ == after.serial && battle.running && battle.generation == after.generation) offer = after;
+        if (call.Live() && battle.running && battle.generation == call.generation) offer = call;
         gate.Offer(offer);
         for (const auto& request : gate.Take()) {
-            if (offer.Live() && request.call == offer) order(CallOrder::LeaveNow, offer);
+            if (offer.Live() && request.call == offer) state_.hurry = true;
             else ++dropped_;
         }
+        return state_;
     }
     // Presses taken for a call that was no longer offered, for the log.
     std::uint64_t Dropped() const { return dropped_; }
 private:
-    std::uint64_t started_ = 0, dropped_ = 0;
+    CallState state_;
+    std::uint64_t dropped_ = 0;
 };
 
 // The game's one gate, shared by the window procedure, the pad and the runtime.

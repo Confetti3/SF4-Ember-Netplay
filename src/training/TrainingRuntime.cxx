@@ -44,12 +44,14 @@ FrameMeter meter;
 std::uint64_t exportId = 0;
 int exportedSlot = -1;
 std::vector<Input> exported;
-// Leave: frames until the battle is sent to the main menu, 0 when it is not.
+// Frames until the battle is sent to the main menu, 0 when it is not.
 // The announcer's call and the banner play first, as the game's own fight
 // request lets its banner play before it takes the battle away; go now cuts
 // the banner short.
 constexpr int LeaveFrames = 120;
 LeaveCountdown leaving;
+// The call that stands for this battle, as the room's call owner last set it (SetCall).
+CallControl callControl;
 // Each fighter's script file, for the moves whose native header names no
 // attack frames: a fireball's hitbox is in the effect the move spawns.
 // scriptFighter: whose file is held, -1 none. Kept across battles.
@@ -149,6 +151,7 @@ DummyState ReadDummyState(const DummyState& fallback) {
     return state;
 }
 View ReadView() { std::lock_guard<std::mutex> lock(mutex); return published; }
+void SetCall(const CallControl& call) { std::lock_guard<std::mutex> lock(mutex); callControl = call; }
 Place ReadPlace() {
     std::lock_guard<std::mutex> lock(mutex);
     Place place; place.generation = published.generation; place.x[0] = published.x[0]; place.x[1] = published.x[1];
@@ -185,25 +188,6 @@ static bool Dispatch(Native* system, const Command& command) {
     switch (command.action) {
     case Action::Place: return PlaceFighters(system, command.place);
     case Action::DummyPlan: dummyPlan = command.plan; return true;
-    case Action::Leave: {
-        // Once per call: another call's Leave starts its own count.
-        if (!leaving.Start(LeaveFrames, command.call)) return false;
-        const bool called = command.volume > 0 && Dimps::Sound::PlaySystemCue(Dimps::Sound::SystemCue::HereComesChallenger,
-            Dimps::Sound::SystemChannel::Voice, command.volume / 100.f);
-        spdlog::info("Training: leaving for the main menu in {} frames for call {}; challenger call {}", LeaveFrames, command.call, called ? "played" : "not played");
-        return true;
-    }
-    case Action::LeaveNow: {
-        // The countdown below then leaves as it would have at its end.
-        const bool hurried = leaving.Hurry(command.call);
-        if (hurried) spdlog::info("Training: the player chose to go now");
-        return hurried;
-    }
-    case Action::Stay: {
-        const bool stayed = leaving.Cancel(command.call);
-        if (stayed) spdlog::info("Training: the call ended before the battle left; it stays");
-        return stayed;
-    }
     case Action::ExportSlot:
         exportedSlot = session.GetView().selected; exported = session.Slot(exportedSlot); ++exportId; return true;
     case Action::Save: {
@@ -243,6 +227,16 @@ void BeforeUpdate(Native* system, bool networkOwned) {
     { std::lock_guard<std::mutex> lock(mutex); pending.swap(commands); }
     for (const auto& command : pending) acks.Note(command.requestId, Dispatch(system, command));
     if (!session.Replying()) if (int* options = DummyOptions()) dummyAction.EndReply(options[Manager::OPT_ACTION]);
+    // The countdown follows the call that stands for this battle, before it
+    // ticks, so a call that has ended can never take the battle away and a
+    // go now taken for the call is never lost (TrainingSession.hxx).
+    CallControl call;
+    { std::lock_guard<std::mutex> lock(mutex); call = callControl; }
+    if (leaving.Follow(call, session.GetView().generation, LeaveFrames)) {
+        const bool called = call.volume > 0 && Dimps::Sound::PlaySystemCue(Dimps::Sound::SystemCue::HereComesChallenger,
+            Dimps::Sound::SystemChannel::Voice, call.volume / 100.f);
+        spdlog::info("Training: leaving for the main menu in {} frames for call {}; challenger call {}", LeaveFrames, call.call, called ? "played" : "not played");
+    }
     // The pause menu's "exit to main menu", asked for by Ember instead of the
     // player. Only out of a fight that is running: a battle still loading or
     // in its intro is waited for, as that menu cannot be opened there either.

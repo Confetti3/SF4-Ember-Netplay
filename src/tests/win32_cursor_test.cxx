@@ -212,17 +212,16 @@ int main() {
             // closed, so Enter is the game's again; so it is in a later
             // Training battle, which the call was not sent to.
             sf4e::input::CallLifecycle lifecycle;
-            const auto order = [](sf4e::input::CallOrder, const sf4e::input::CallIdentity&) { return true; };
             call.serial = 5;
-            lifecycle.Tick(sf4e::input::CallIdentity{}, call, false, sf4e::input::CallBattle{true, call.generation}, gate, order);
+            lifecycle.Tick(call, sf4e::input::CallBattle{true, call.generation}, gate);
             enter(true); release(true);
             check(gameDowns == 6 && gate.Offered() == call, "Enter was not go now while the call's battle ran");
-            lifecycle.Tick(call, call, false, sf4e::input::CallBattle{false, call.generation}, gate, order);
+            lifecycle.Tick(call, sf4e::input::CallBattle{false, call.generation}, gate);
             check(lifecycle.Dropped() == 1, "A press taken just before the battle closed went now for it");
             enter(true); release(true);
             check(gameDowns == 7 && gate.Take().empty(), "Enter after the call's battle closed was kept from the game");
             check(overlaySawEnter(), "Enter after the call's battle closed did not reach the overlay");
-            lifecycle.Tick(call, call, false, sf4e::input::CallBattle{true, call.generation + 1}, gate, order);
+            lifecycle.Tick(call, sf4e::input::CallBattle{true, call.generation + 1}, gate);
             enter(true); release(true);
             check(gameDowns == 8 && gate.Take().empty(), "Enter in a later Training battle went now for the old call");
             frame(); frame();

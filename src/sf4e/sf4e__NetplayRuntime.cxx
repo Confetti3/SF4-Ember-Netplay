@@ -560,35 +560,25 @@ void internal::PlayChallengerCall(int volumePercent) {
 // table and they have the window to ready. Letting it run out gives the seat
 // up, by the same action as the Leave seat row.
 // The call is the one model of who called and for which battle
-// (TrainingCall::Identity). Its lifecycle runs in one place and order each
-// tick (TrainingCallInput.hxx: CallLifecycle): an ended or replaced call's
-// countdown ends, the standing call's countdown starts, and only then, while
-// its battle still runs in Training, is it offered to go now's gate, whose
-// presses for it go now.
-static void RunCall(const input::CallIdentity& before, room::TrainingCall::Step step) {
+// (TrainingCall::Identity). Each tick it is offered to go now's gate while its
+// battle still runs in Training, and then set as the battle's call, with any
+// go now taken for it (TrainingCallInput.hxx: CallLifecycle). The battle's
+// countdown follows that state before it ticks (TrainingSession.hxx:
+// LeaveCountdown::Follow), so nothing about the call depends on the Training
+// command queue having room.
+static void RunCall() {
 	static input::CallLifecycle lifecycle;
-	const auto view = training::ReadPlace();
-	input::CallBattle battle; battle.running = training::ControlsAvailable(); battle.generation = view.generation;
+	input::CallBattle battle; battle.running = training::ControlsAvailable(); battle.generation = training::ReadPlace().generation;
 	const auto dropped = lifecycle.Dropped();
-	lifecycle.Tick(before, runtime->trainingCall.Identity(), step == room::TrainingCall::Step::Open, battle, input::TrainingGoNow(),
-		[](input::CallOrder kind, const input::CallIdentity& call) {
-		training::Command order; order.generation = call.generation; order.call = call.serial;
-		if (kind == input::CallOrder::Leave) {
-			order.action = training::Action::Leave;
-			order.volume = runtime->preferences.readySound ? runtime->preferences.readySoundVolume : 0;
-		}
-		else order.action = kind == input::CallOrder::Stay ? training::Action::Stay : training::Action::LeaveNow;
-		const bool queued = training::Submit(order);
-		spdlog::info("Room: call {} {}{}", call.serial,
-			kind == input::CallOrder::Leave ? "starts its countdown" : kind == input::CallOrder::Stay ? "ended before the battle left" : "goes now",
-			queued ? "" : "; not queued, the queue is full");
-		return queued;
-	});
+	const auto state = lifecycle.Tick(runtime->trainingCall.Identity(), battle, input::TrainingGoNow());
 	if (lifecycle.Dropped() != dropped) spdlog::info("Training: go now was for a call that is no longer offered");
+	training::CallControl control;
+	control.call = state.call.serial; control.generation = state.call.generation; control.hurry = state.hurry;
+	control.volume = runtime->preferences.readySound ? runtime->preferences.readySoundVolume : 0;
+	training::SetCall(control);
 }
 static void CallOutOfTraining() {
-	const input::CallIdentity before = runtime->trainingCall.Identity();
-	if (!runtime->attached || !UserApp::netplay) { runtime->trainingCall.Reset(); RunCall(before, room::TrainingCall::Step::None); return; }
+	if (!runtime->attached || !UserApp::netplay) { runtime->trainingCall.Reset(); RunCall(); return; }
 	const auto& room = UserApp::netplay->client.GetRoomSnapshot();
 	room::TrainingCall::Input in;
 	in.inTraining = training::ControlsAvailable();
@@ -597,7 +587,7 @@ static void CallOutOfTraining() {
 	in.canReady = GetRuntimeSnapshotShared()->canReady;
 	in.generation = training::ReadPlace().generation;
 	const auto step = runtime->trainingCall.Update(room, in, GetTickCount64());
-	RunCall(before, step);
+	RunCall();
 	switch (step) {
 	case room::TrainingCall::Step::Call:
 		spdlog::info("Room: a challenger sat down while the player is in Training");

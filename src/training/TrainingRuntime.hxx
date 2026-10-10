@@ -8,6 +8,10 @@ View ReadView();
 // the view: what a pad press keeps for the save it may become. Any thread.
 struct Place { std::uint64_t generation = 0; float x[2] = {0, 0}; };
 Place ReadPlace();
+// The call back from Training that stands for the battle, as the room's call
+// owner holds it, set each tick and read before every countdown tick
+// (TrainingSession.hxx: CallControl). Any thread.
+void SetCall(const CallControl& call);
 bool Submit(Command command);
 // Game-thread context guard, including leaving-battle and network ownership.
 bool ControlsAvailable();

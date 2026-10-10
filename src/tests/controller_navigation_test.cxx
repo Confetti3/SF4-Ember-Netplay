@@ -381,60 +381,55 @@ void GoNowRequests(){
  Check(!gate.Press(GoNowGate::Source::Keyboard,true),"A press past the bound was taken, and so kept from the game");
  gate.Take();
 }
-// The call's lifecycle drives the battle's countdown (TrainingSession.hxx:
-// LeaveCountdown) in order: a press is never taken before its call's
-// countdown is queued, always shortens that call's own countdown, and a call
-// replaced by another, or a battle that has gone, takes no press.
+// The call's lifecycle sets the call and its go now as state the battle's
+// countdown follows (TrainingSession.hxx: LeaveCountdown::Follow), so no
+// part of the call is lost to a full command queue: a press taken for the
+// call shortens that call's countdown once it runs, a call that ended stops
+// it, a replacement starts a whole one, and a battle that has gone takes no
+// press.
 void CallLifecycleOrder(){
  using namespace sf4e::input;
  GoNowGate gate;CallLifecycle lifecycle;sf4e::training::LeaveCountdown countdown;
- bool full=false;std::vector<CallOrder> orders;
- const auto order=[&](CallOrder kind,const CallIdentity& call){
-  if(full)return false;
-  orders.push_back(kind);
-  if(kind==CallOrder::Leave)countdown.Start(120,call.serial);
-  else if(kind==CallOrder::Stay)countdown.Cancel(call.serial);
-  else countdown.Hurry(call.serial);
-  return true;
- };
  CallBattle battle;battle.running=true;battle.generation=40;
+ // One game tick then one battle update, as the game runs them.
+ const auto tick=[&](const CallIdentity& call,bool fighting=true){
+  const auto state=lifecycle.Tick(call,battle,gate);
+  sf4e::training::CallControl control;control.call=state.call.serial;control.generation=state.call.generation;control.hurry=state.hurry;
+  countdown.Follow(control,battle.generation,120);
+  return countdown.Tick(fighting);
+ };
  CallIdentity none,first;first.roomEpoch=7;first.table=1;first.opponent=2;first.generation=40;first.serial=1;
- // The first tick of the call: an Enter before it is the game's, its
- // countdown is queued before the call is offered, and a press after it
- // shortens that countdown on the next tick.
- Check(!gate.Press(GoNowGate::Source::Keyboard,true),"Go now was taken before the call's countdown was queued");
- lifecycle.Tick(none,first,false,battle,gate,order);
- Check(orders==std::vector<CallOrder>{CallOrder::Leave}&&countdown.Left()==120&&gate.Offered()==first,"The call was offered before its countdown, or not at all");
+ Check(!gate.Press(GoNowGate::Source::Keyboard,true),"Go now was taken before the call stood");
+ tick(first,false);
+ Check(countdown.Left()==119&&countdown.Call()==1&&gate.Offered()==first,"The call did not start its countdown or was not offered");
+ // A press taken for the call shortens its own countdown, and only once.
  Check(gate.Press(GoNowGate::Source::Keyboard,true),"Go now was not taken once the call was offered");
- lifecycle.Tick(first,first,false,battle,gate,order);
- Check(orders.back()==CallOrder::LeaveNow&&countdown.Left()==1&&countdown.Call()==1,"Go now did not shorten its call's countdown");
- // Replaced by another opponent while hurried: the old count ends, the new
- // call starts its own whole, and a press made for the old call is dropped.
+ Check(!tick(first,false)&&countdown.Left()==1,"Go now did not shorten its call's countdown");
+ Check(tick(first)&&!tick(first)&&countdown.Left()==0,"Go now did not leave once");
+ // Replaced by another opponent while hurried: the new call starts its own
+ // whole count without the old call's go now, and a press for the old call
+ // is dropped.
+ sf4e::training::LeaveCountdown fresh;countdown=fresh;
+ tick(first,false);gate.Press(GoNowGate::Source::Pad,true);tick(first,false);
+ Check(countdown.Left()==1,"The first call's go now did not take");
  CallIdentity second=first;second.opponent=3;second.serial=2;
  gate.Press(GoNowGate::Source::Pad,true);
- orders.clear();lifecycle.Tick(first,second,false,battle,gate,order);
- Check(orders==std::vector<CallOrder>({CallOrder::Stay,CallOrder::Leave})&&countdown.Left()==120&&countdown.Call()==2,"A replacement call kept the old countdown or its hurry");
- Check(lifecycle.Dropped()==1&&gate.Offered()==second,"A press for the replaced call went now");
+ Check(!tick(second,false)&&countdown.Left()==119&&countdown.Call()==2&&lifecycle.Dropped()==1,"A replacement call kept the old countdown or its go now");
  // Another room under the same seats: the same, as a new call.
  CallIdentity third=second;third.roomEpoch=8;third.serial=3;
- countdown.Hurry(2);
- orders.clear();lifecycle.Tick(second,third,false,battle,gate,order);
- Check(orders==std::vector<CallOrder>({CallOrder::Stay,CallOrder::Leave})&&countdown.Left()==120&&countdown.Call()==3,"A new room's call kept the old countdown");
- // A start the battle's queue could not take is asked again, and the call
- // is not offered until it is queued.
- CallIdentity fourth=third;fourth.opponent=4;fourth.serial=4;
- full=true;lifecycle.Tick(third,fourth,false,battle,gate,order);
- Check(!gate.Offered().Live()&&!gate.Press(GoNowGate::Source::Keyboard,true),"A call was offered before its countdown was queued");
- full=false;orders.clear();lifecycle.Tick(fourth,fourth,false,battle,gate,order);
- Check(orders==std::vector<CallOrder>{CallOrder::Leave}&&gate.Offered()==fourth,"A refused start was not asked again");
+ tick(third,false);
+ Check(countdown.Left()==119&&countdown.Call()==3,"A new room's call kept the old countdown");
+ // The call ends on the countdown's last frame: the next battle update
+ // stops it before it could take the battle away.
+ for(int frame=0;frame<200&&countdown.Left()>1;++frame)tick(third,false);
+ Check(countdown.Left()==1,"The countdown did not reach its last frame");
+ Check(!tick(none)&&countdown.Left()==0&&!tick(none),"A call that ended took the battle away");
  // The battle leaves, closes or another starts: nothing is offered, though the call stands.
+ CallIdentity fourth=third;fourth.opponent=4;fourth.serial=4;
  for(const CallBattle gone:{CallBattle{false,40},CallBattle{true,41}}){
-  lifecycle.Tick(fourth,fourth,false,gone,gate,order);
+  lifecycle.Tick(fourth,gone,gate);
   Check(!gate.Offered().Live()&&!gate.Press(GoNowGate::Source::Keyboard,true),"Go now was offered for a battle that has gone");
  }
- // Reaching the main menu ends the call without staying.
- orders.clear();lifecycle.Tick(fourth,none,true,battle,gate,order);
- Check(orders.empty()&&!gate.Offered().Live(),"The call's arrival was taken as it ending early");
 }
 // The rules every GameMenu screen shares with the room: an open dialog owns
 // the legend (Select names its highlighted button, Back cancels, shortcuts

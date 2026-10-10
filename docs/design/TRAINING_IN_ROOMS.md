@@ -79,27 +79,27 @@ of its own: see "In Training, as the room shows it" below.
   type is set to `BET_PAUSE_TOMAINMENU` and its ready state to `RS_ISLEAVING`,
   only once the fight is running. The game's own teardown follows, and
   `training::CloseBattle` clears the lab's state as on any exit. The wait is
-  `training::LeaveCountdown`; go now is `Action::LeaveNow`, which only cuts
-  that count to its last frame, so the battle leaves once, by this path,
-  whichever ended the wait (`TrainingSessionTest`); `Action::Stay` cancels
-  it when the call ends first.
+  `training::LeaveCountdown`, which follows the call that stands for the
+  battle before every tick (`LeaveCountdown::Follow`): a new call starts a
+  whole count, the call ending stops it unless the battle was already told
+  to leave, and go now cuts it to its last frame, so the battle leaves once,
+  by this path, for the call that stands (`TrainingSessionTest`).
 - **The call** is `room::TrainingCall`, whose `Identity()` (room epoch,
   table, opponent, the Training battle and a serial no other call shares) is
-  the one account of it, published in the snapshot. Its lifecycle runs in one
-  order each tick (`TrainingCallInput.hxx: CallLifecycle`): a call that ended
-  or was replaced by another (a new opponent, another room) has its countdown
-  ended; the standing call's countdown is started, and the countdown belongs
-  to that call's serial, so a replacement starts a whole one of its own and
-  never inherits the old call's go now; only once that start is queued, and
-  only while the battle the call was sent to still runs in Training (not
-  leaving, not closed, not a later battle), is the call offered to go now's
-  gate. Enter (in the window procedure) and View (in the pad gesture) are
-  taken for go now where they arrive, only while nobody else has the press,
-  and each taken press is a request tagged with the call. A request goes now
-  only for the call still offered, and `LeaveNow` reaches only that call's
-  countdown. The banner shows only while the countdown is the call's
-  (`ControllerNavigationTest`, `Win32CursorTest`, `TrainingCallTest`,
-  `TrainingSessionTest`).
+  the one account of it, published in the snapshot. Each tick it is offered
+  to go now's gate, only while the battle the call was sent to still runs in
+  Training (not leaving, not closed, not a later battle), and then set as the
+  battle's call (`training::SetCall`, `TrainingCallInput.hxx: CallLifecycle`)
+  with whether go now was taken for it. That is state the countdown reads,
+  not orders through the Training command queue, so a full queue can neither
+  keep an ended call's countdown running nor lose a go now. Enter (in the
+  window procedure) and View (in the pad gesture) are taken for go now where
+  they arrive, only while nobody else has the press, and each taken press is
+  a request tagged with the call; it goes now only for the call still
+  offered. A replacement call (a new opponent, another room) starts a whole
+  countdown of its own, without the old call's go now. The banner shows only
+  while the countdown is the call's (`ControllerNavigationTest`,
+  `Win32CursorTest`, `TrainingCallTest`, `TrainingSessionTest`).
 - **Entering Training from the room** uses `fMainMenu::RequestTraining`, the
   same request the Home row makes, without the `StartOffline` command that row
   rides on: that command ends the room.

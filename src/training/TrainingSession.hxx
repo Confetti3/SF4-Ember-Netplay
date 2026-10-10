@@ -32,7 +32,7 @@ constexpr int MaxWaitFrames = 90, MaxWaitHitFrames = 15;
 using Frame = std::array<Input, 2>;
 struct InputRun { unsigned buttons = 0; unsigned frames = 0; };
 enum class Mode { Idle, Recording, Playback };
-enum class Action { Select, Record, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, Load, ExportSlot, DummyState, Place, DummyPlan, Leave, LeaveNow, Stay };
+enum class Action { Select, Record, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, Load, ExportSlot, DummyState, Place, DummyPlan };
 // The dummy's behaviour as the game's Training menu sets it; each value is
 // the menu's choice index and -1 leaves that setting as it is. action: stand,
 // crouch, jump, cpu. guard: no block, after first hit, all, random.
@@ -155,13 +155,6 @@ struct Command {
     bool loop = false;
     // Load: made-up input for the selected slot, and the side (0 or 1) that plays it back.
     std::vector<Input> frames; int side = 1;
-    // Leave: a challenger is waiting, so the battle goes back to the main menu
-    // after the announcer's call and a banner; the call's volume in percent, 0 for none.
-    // LeaveNow: the player chose not to wait out that banner (LeaveCountdown::Hurry).
-    // Stay: the call ended before the battle left, so it does not leave (LeaveCountdown::Cancel).
-    // call: for those three, the call's serial (input::CallIdentity::serial).
-    std::uint64_t call = 0;
-    int volume = 0;
     // DummyState: the settings to change.
     DummyState dummy;
     // Place: where to put Player 1 and Player 2 (x).
@@ -188,42 +181,50 @@ private:
     struct Ack { std::uint64_t id = 0; bool accepted = false; };
     std::array<Ack, 8> acks_{};
 };
+// The call back from Training as the room's call owner holds it for this
+// battle, published each tick (TrainingRuntime.hxx: SetCall) and read before
+// every countdown tick: the call's serial (0: no call stands), the battle it
+// was sent to, whether the player chose go now for it, and the announcer's
+// volume in percent, 0 for none. It is state, not a message: nothing about
+// the call is lost when the Training command queue is full.
+struct CallControl {
+    std::uint64_t call = 0, generation = 0;
+    bool hurry = false;
+    int volume = 0;
+};
 // The frames a called player's battle has left before it goes back to the
-// main menu (Action::Leave). The count belongs to one call (its serial, from
-// the room's call owner): go now (Action::LeaveNow) only shortens that call's
-// count, and staying (Action::Stay) only ends it, so a battle leaves by one
-// path, once, whichever ended the wait. Another call's Leave replaces the
-// count whole, hurry and all: the new call starts its own.
+// main menu. The count follows the call that stands for this battle, once
+// per battle update, before it ticks: a call it has not counted for starts a
+// whole count of its own (a new opponent or another room starts over, without
+// the old call's go now); the call ending stops it, unless the battle was
+// already told to leave; the call's go now shortens it to the next tick that
+// may leave, once. So a battle leaves by one path, once, for the call that
+// stands, whichever ended the wait.
 class LeaveCountdown {
 public:
-    // False while this call's count is already running.
-    bool Start(int frames, std::uint64_t call) {
-        if (frames < 1 || (left_ && call_ == call)) return false;
-        left_ = frames; call_ = call; return true;
-    }
-    // Go now for call: the next tick that may leave does. False for another
-    // call, when nothing is counting (none started, or it already went) or
-    // when it is already that tick.
-    bool Hurry(std::uint64_t call) {
-        if (call != call_ || left_ <= 1) return false;
-        left_ = 1; return true;
-    }
-    // call is gone: the battle stays. False for another call, once the
-    // battle has been told to leave, or when nothing is counting.
-    bool Cancel(std::uint64_t call) {
-        if (call != call_ || !left_) return false;
-        left_ = 0; return true;
+    // control: what was published; battle: this battle's generation; frames:
+    // the count a new call starts with. True when a new count started, for
+    // the caller to play the call's announcer.
+    bool Follow(const CallControl& control, std::uint64_t battle, int frames) {
+        const std::uint64_t call = control.generation == battle ? control.call : 0;
+        bool started = false;
+        if (!call) left_ = 0;
+        else if (call != call_ && frames > 0) { left_ = frames; started = true; }
+        call_ = call;
+        if (call && control.hurry && left_ > 1) left_ = 1;
+        return started;
     }
     // Once per battle update. fighting: the fight is running, the only time
     // the pause menu's exit could be used too; the last frame waits for it.
     // True on the one update the battle is to be told to leave.
     bool Tick(bool fighting) { return left_ && (left_ > 1 || fighting) && !--left_; }
     int Left() const { return left_; }
-    // The call the count is for; 0 when none was started.
+    // The call the count is for; 0 when none is counting.
     std::uint64_t Call() const { return left_ ? call_ : 0; }
     void Reset() { left_ = 0; call_ = 0; }
 private:
     int left_ = 0;
+    // The call last followed, counting or already told to leave.
     std::uint64_t call_ = 0;
 };
 struct View {
@@ -276,12 +277,12 @@ public:
     void SetCheckpoint(bool saved) { view_.checkpoint = saved; }
     void SetPositions(float x0, float x1) { view_.x[0] = x0; view_.x[1] = x1; }
     // Every command passes here first, and only here is its battle checked.
-    // Place, DummyPlan, Leave, LeaveNow, Stay and ExportSlot change nothing in the
+    // Place, DummyPlan and ExportSlot change nothing in the
     // session; accepted, the runtime carries them out.
     bool Apply(const Command& command) {
         if (!view_.available || command.generation != view_.generation) return false;
         switch (command.action) {
-        case Action::Place: case Action::Leave: case Action::LeaveNow: case Action::Stay: case Action::ExportSlot: return true;
+        case Action::Place: case Action::ExportSlot: return true;
         case Action::DummyPlan: return ValidDummyPlan(command.plan);
         case Action::Stop: Stop(); return true;
         case Action::Select:
