@@ -745,6 +745,12 @@ msgstr "Język, HUD walki i rozmiar interfejsu."
 msgid "settings.discord_detail"
 msgstr "Aktywność i zaproszenia."
 
+msgid "settings.lobby_music"
+msgstr "Niekończąca się muzyka lobby"
+
+msgid "settings.lobby_music_detail"
+msgstr "Menu odtwarza losowy motyw areny lub postaci zamiast własnej muzyki, po każdej walce nowy. Zmiana obowiązuje po następnej walce."
+
 msgid "player.title"
 msgstr "GRACZ I KONTROLER"
 

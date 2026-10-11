@@ -50,6 +50,9 @@ struct PlayerPreferences {
     // The game's sound and the pads keep working while another window, such
     // as OBS, is in front (sf4e__BackgroundPlay.cxx).
     bool backgroundPlay = false;
+    // The main menu plays a stage or character theme, another one after every
+    // match, instead of its own track (sf4e__MenuMusic.cxx).
+    bool endlessLobbyMusic = true;
     bool discordPresence = true, discordInvites = true;
     float interfaceScale = 1.f;
     LobbySettings lobby;

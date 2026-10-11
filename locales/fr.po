@@ -745,6 +745,12 @@ msgstr "Langue, HUD du combat et taille d'interface."
 msgid "settings.discord_detail"
 msgstr "Activité et invitations."
 
+msgid "settings.lobby_music"
+msgstr "Musique de salon sans fin"
+
+msgid "settings.lobby_music_detail"
+msgstr "Le menu joue le thème d'un niveau ou d'un personnage au hasard au lieu de sa propre musique, un nouveau après chaque combat. Un changement s'applique après le prochain combat."
+
 msgid "player.title"
 msgstr "JOUEUR ET MANETTE"
 

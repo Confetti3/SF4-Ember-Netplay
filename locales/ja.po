@@ -745,6 +745,12 @@ msgstr "言語、対戦HUD、画面サイズ。"
 msgid "settings.discord_detail"
 msgstr "アクティビティと招待。"
 
+msgid "settings.lobby_music"
+msgstr "エンドレスロビーBGM"
+
+msgid "settings.lobby_music_detail"
+msgstr "メニューで専用BGMの代わりにランダムなステージBGMかキャラBGMを流し、対戦ごとに曲が変わります。変更は次の対戦後に反映されます。"
+
 msgid "player.title"
 msgstr "プレイヤーとコントローラー"
 

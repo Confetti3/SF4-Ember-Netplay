@@ -745,6 +745,12 @@ msgstr "语言、对战 HUD 和界面大小。"
 msgid "settings.discord_detail"
 msgstr "动态和邀请。"
 
+msgid "settings.lobby_music"
+msgstr "无尽大厅音乐"
+
+msgid "settings.lobby_music_detail"
+msgstr "菜单播放随机场地或角色的主题曲而非自身音乐，每场对战后更换。更改在下一场对战后生效。"
+
 msgid "player.title"
 msgstr "玩家与控制器"
 

@@ -1,6 +1,7 @@
 #include "sf4e__Game__Battle__System__Internal.hxx"
 #include "../common/SpectatorCatchUp.hxx"
 #include "sf4e__MementoGuards.hxx"
+#include "sf4e__MenuMusic.hxx"
 
 // Native result state is captured in GGPO saves, including resimulation. The
 // history is rewound to each restored state; the emitted latch is deliberately
@@ -619,6 +620,7 @@ void fSystem::CloseBattle() {
     // (now, or later by the spectator drain) leaves no orphan behind.
     const bool netplayBattle = simGate.OnNativeBattleClosed();
     sf4e::training::CloseBattle();
+    sf4e::MenuMusic::Pick();
     bool summaryEmitted = false;
     LogSaveSlotOccupancy("battle_close_entry");
     sf4e::crash::NoteMatchBoundary("battle_close");
