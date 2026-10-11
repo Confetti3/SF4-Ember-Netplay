@@ -62,7 +62,49 @@ void fPlatform::Install() {
     Sound::Install();
 }
 
+namespace {
+// SF4E_VULKAN=1 draws the game through Vulkan: the game's one Direct3DCreate9
+// call goes to DXVK, a Direct3D 9 implementation on Vulkan, in place of the
+// system's. DXVK is not part of the package; it is used when its 32-bit
+// d3d9.dll sits beside Sidecar.dll under the name below (a name of its own, so
+// nothing loads it by accident). The game folder and SSFIV.exe are untouched.
+// Anything missing or failing falls back to the system's Direct3D 9.
+// See docs/development/VULKAN_RENDERER.md.
+constexpr wchar_t kVulkanLibraryName[] = L"dxvk_d3d9.dll";
+IDirect3D9* (WINAPI* s_systemDirect3DCreate9)(UINT) = nullptr;
+
+IDirect3D9* WINAPI VulkanDirect3DCreate9(UINT sdkVersion) {
+    // Loaded here and not at install: install runs inside Sidecar's DllMain.
+    wchar_t path[MAX_PATH] = {};
+    HMODULE sidecar = nullptr;
+    HMODULE dxvk = nullptr;
+    if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+            (LPCWSTR)&VulkanDirect3DCreate9, &sidecar) &&
+        GetModuleFileNameW(sidecar, path, MAX_PATH) < MAX_PATH && PathRemoveFileSpecW(path) &&
+        PathAppendW(path, kVulkanLibraryName)) {
+        dxvk = LoadLibraryW(path);
+    }
+    const auto create = dxvk ? (IDirect3D9* (WINAPI*)(UINT))GetProcAddress(dxvk, "Direct3DCreate9") : nullptr;
+    if (!create) {
+        spdlog::warn(L"Display: SF4E_VULKAN is set but {} could not be loaded (Win32 {}); using the system's Direct3D 9", path, GetLastError());
+        return s_systemDirect3DCreate9(sdkVersion);
+    }
+    if (IDirect3D9* d3d = create(sdkVersion)) {
+        spdlog::info(L"Display: drawing through Vulkan (DXVK, {})", path);
+        return d3d;
+    }
+    spdlog::warn("Display: DXVK could not start (no usable Vulkan driver?); using the system's Direct3D 9");
+    return s_systemDirect3DCreate9(sdkVersion);
+}
+}
+
 void fD3D::Install() {
+    if (sf4e::EnvFlag("SF4E_VULKAN")) {
+        // The game imports d3d9.dll, so it is mapped before Sidecar's DllMain runs.
+        const HMODULE d3d9 = GetModuleHandleW(L"d3d9.dll");
+        s_systemDirect3DCreate9 = d3d9 ? (IDirect3D9* (WINAPI*)(UINT))GetProcAddress(d3d9, "Direct3DCreate9") : nullptr;
+        if (s_systemDirect3DCreate9) DetourAttach((PVOID*)&s_systemDirect3DCreate9, &VulkanDirect3DCreate9);
+    }
     void (fD3D:: * _fDestroy)() = &Destroy;
     DWORD(fD3D:: * _fReset)() = &Reset;
     void(fD3D:: * _fRunScene_Render)(void*) = &RunScene_Render;
