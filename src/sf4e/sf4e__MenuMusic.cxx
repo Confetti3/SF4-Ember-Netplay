@@ -23,11 +23,17 @@ void sf4e::MenuMusic::Use(bool endless) {
     else *Entry() = menuTrack;
 }
 
-// A stage of the game's lobby pool (stages 1-21, as
-// Dimps::GameEvents::Network::LobbySoundPlayer picks them).
+// The game's lobby themes (Dimps::GameEvents::Network::LobbySoundPlayer): a
+// stage of its pool (stages 1-21) or a fighter with a theme in the game's
+// files (BGM_<CHR>_2CH.csb), both in one pick.
 void sf4e::MenuMusic::Pick() {
     if (!on) return;
+    static const char* const fighters[] = {"ADN", "AGL", "BLK", "BLR", "BOS", "BSN", "CDY", "CHB", "CMY", "CNL", "DAN", "DDL",
+        "DJY", "DSM", "FLN", "GEN", "GKI", "GKN", "GUL", "GUY", "HKN", "HND", "HWK", "IBK", "JHA", "JRI", "KEN", "MKT", "RIC",
+        "ROS", "RYU", "SGT", "SKR", "VEG", "ZGF"};
     static char theme[48];
-    std::snprintf(theme, sizeof(theme), "battle/sound/bgm/BGM_%s.csb", selection::FindStage(1 + GetTickCount() % 21)->code);
+    const unsigned pick = GetTickCount() % (21 + sizeof(fighters) / sizeof(*fighters));
+    if (pick < 21) std::snprintf(theme, sizeof(theme), "battle/sound/bgm/BGM_%s.csb", selection::FindStage(1 + pick)->code);
+    else std::snprintf(theme, sizeof(theme), "battle/sound/bgm/BGM_%s_2CH.csb", fighters[pick - 21]);
     *Entry() = theme;
 }

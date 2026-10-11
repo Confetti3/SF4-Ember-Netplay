@@ -749,7 +749,7 @@ msgid "settings.lobby_music"
 msgstr "엔드리스 로비 음악"
 
 msgid "settings.lobby_music_detail"
-msgstr "메뉴에서 기본 음악 대신 무작위 스테이지 테마를 재생하며, 대전이 끝날 때마다 바뀝니다. 변경은 다음 대전 후에 적용됩니다."
+msgstr "메뉴에서 기본 음악 대신 무작위 스테이지 테마나 캐릭터 테마를 재생하며, 대전이 끝날 때마다 바뀝니다. 변경은 다음 대전 후에 적용됩니다."
 
 msgid "player.title"
 msgstr "플레이어 및 컨트롤러"

@@ -749,7 +749,7 @@ msgid "settings.lobby_music"
 msgstr "Música de sala sin fin"
 
 msgid "settings.lobby_music_detail"
-msgstr "El menú reproduce el tema de una fase al azar en lugar de su propia música, uno nuevo tras cada partida. Un cambio se aplica tras la siguiente partida."
+msgstr "El menú reproduce el tema de una fase o un personaje al azar en lugar de su propia música, uno nuevo tras cada partida. Un cambio se aplica tras la siguiente partida."
 
 msgid "player.title"
 msgstr "JUGADOR Y MANDO"

@@ -749,7 +749,7 @@ msgid "settings.lobby_music"
 msgstr "Musique de salon sans fin"
 
 msgid "settings.lobby_music_detail"
-msgstr "Le menu joue le thème d'un niveau au hasard au lieu de sa propre musique, un nouveau après chaque combat. Un changement s'applique après le prochain combat."
+msgstr "Le menu joue le thème d'un niveau ou d'un personnage au hasard au lieu de sa propre musique, un nouveau après chaque combat. Un changement s'applique après le prochain combat."
 
 msgid "player.title"
 msgstr "JOUEUR ET MANETTE"

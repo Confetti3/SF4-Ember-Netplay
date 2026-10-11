@@ -749,7 +749,7 @@ msgid "settings.lobby_music"
 msgstr "エンドレスロビーBGM"
 
 msgid "settings.lobby_music_detail"
-msgstr "メニューで専用BGMの代わりにランダムなステージBGMを流し、対戦ごとに曲が変わります。変更は次の対戦後に反映されます。"
+msgstr "メニューで専用BGMの代わりにランダムなステージBGMかキャラBGMを流し、対戦ごとに曲が変わります。変更は次の対戦後に反映されます。"
 
 msgid "player.title"
 msgstr "プレイヤーとコントローラー"

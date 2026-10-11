@@ -749,7 +749,7 @@ msgid "settings.lobby_music"
 msgstr "Musica della lobby infinita"
 
 msgid "settings.lobby_music_detail"
-msgstr "Il menu riproduce il tema di un livello casuale al posto della sua musica, uno nuovo dopo ogni partita. Una modifica vale dalla prossima partita."
+msgstr "Il menu riproduce il tema di un livello o di un personaggio casuale al posto della sua musica, uno nuovo dopo ogni partita. Una modifica vale dalla prossima partita."
 
 msgid "player.title"
 msgstr "GIOCATORE E CONTROLLER"

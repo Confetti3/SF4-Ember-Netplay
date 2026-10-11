@@ -1,8 +1,8 @@
 #pragma once
 
 // Endless lobby music (Settings > Endless lobby music, on by default): the main
-// menu plays a stage theme from the game's lobby pool instead of looping its
-// menu track, another one after every match. Nothing on disk changes.
+// menu plays a stage or character theme of the game's lobby instead of looping
+// its menu track, another one after every match. Nothing on disk changes.
 namespace sf4e {
 	namespace MenuMusic {
 		// Game thread, at start-up and when the setting is saved: a theme, or

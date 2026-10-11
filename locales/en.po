@@ -749,7 +749,7 @@ msgid "settings.lobby_music"
 msgstr "Endless lobby music"
 
 msgid "settings.lobby_music_detail"
-msgstr "The menu plays a random stage theme instead of its own music, a new one after every match. A change applies after the next match."
+msgstr "The menu plays a random stage or character theme instead of its own music, a new one after every match. A change applies after the next match."
 
 msgid "player.title"
 msgstr "PLAYER & CONTROLLER"
