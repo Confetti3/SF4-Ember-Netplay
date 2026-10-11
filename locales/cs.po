@@ -745,6 +745,12 @@ msgstr "Jazyk, HUD zápasu a velikost rozhraní."
 msgid "settings.discord_detail"
 msgstr "Aktivita a pozvánky."
 
+msgid "settings.lobby_music"
+msgstr "Nekonečná hudba v lobby"
+
+msgid "settings.lobby_music_detail"
+msgstr "Menu místo své hudby hraje hudbu náhodné scény, po každém zápase jinou. Změna platí od příštího zápasu."
+
 msgid "player.title"
 msgstr "HRÁČ A OVLADAČ"
 

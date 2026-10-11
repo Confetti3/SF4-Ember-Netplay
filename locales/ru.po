@@ -745,6 +745,12 @@ msgstr "Язык, HUD матча и размер интерфейса."
 msgid "settings.discord_detail"
 msgstr "Статус и приглашения."
 
+msgid "settings.lobby_music"
+msgstr "Бесконечная музыка лобби"
+
+msgid "settings.lobby_music_detail"
+msgstr "В меню вместо его музыки играет случайная тема арены, после каждого матча новая. Изменение вступает в силу после следующего матча."
+
 msgid "player.title"
 msgstr "ИГРОК И КОНТРОЛЛЕР"
 

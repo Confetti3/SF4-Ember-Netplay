@@ -745,6 +745,12 @@ msgstr "Sprache, Kampf-HUD und Oberflächengröße."
 msgid "settings.discord_detail"
 msgstr "Aktivität und Einladungen."
 
+msgid "settings.lobby_music"
+msgstr "Endlose Lobby-Musik"
+
+msgid "settings.lobby_music_detail"
+msgstr "Das Menü spielt statt seiner eigenen Musik das Thema einer zufälligen Stage, nach jedem Kampf ein neues. Eine Änderung gilt nach dem nächsten Kampf."
+
 msgid "player.title"
 msgstr "SPIELER & CONTROLLER"
 

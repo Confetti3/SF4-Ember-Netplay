@@ -745,6 +745,12 @@ msgstr "Taal, Match-HUD en interfacegrootte."
 msgid "settings.discord_detail"
 msgstr "Activiteit en uitnodigingen."
 
+msgid "settings.lobby_music"
+msgstr "Eindeloze lobbymuziek"
+
+msgid "settings.lobby_music_detail"
+msgstr "Het menu speelt het thema van een willekeurig level in plaats van zijn eigen muziek, na elke match een nieuw. Een wijziging geldt na de volgende match."
+
 msgid "player.title"
 msgstr "SPELER EN CONTROLLER"
 

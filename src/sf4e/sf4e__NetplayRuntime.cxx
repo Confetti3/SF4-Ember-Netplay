@@ -1,6 +1,7 @@
 #include "sf4e__NetplayRuntime.hxx"
 #include "../common/HexText.hxx"
 #include "../ui/NetworkFeedback.hxx"
+#include "sf4e__MenuMusic.hxx"
 
 namespace sf4e { namespace NetplayFacade {
 namespace {
@@ -221,6 +222,7 @@ void StartHelper() {
             const int volume = saved.value("readySoundVolume", 100);
             runtime->preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;
             runtime->preferences.backgroundPlay = saved.value("backgroundPlay", false);
+            runtime->preferences.endlessLobbyMusic = saved.value("endlessLobbyMusic", true);
             runtime->preferences.discordPresence = saved.value("discordPresence", true);
             runtime->preferences.discordInvites = saved.value("discordInvites", true);
             const int main=saved.contains("mainFighter")&&saved["mainFighter"].is_number_integer()?saved["mainFighter"].get<int>():0;
@@ -229,6 +231,7 @@ void StartHelper() {
             runtime->preferences.interfaceScale = scale >= 1.f && scale <= 1.5f ? scale : 1.f;
         } catch (...) { runtime->error = loc::T("runtime.interface_preferences_failed"); }
     }
+    MenuMusic::Use(runtime->preferences.endlessLobbyMusic);
     runtime->offlineRequested = EnvFlag("SF4E_START_OFFLINE");
     {
         // Read once and cleared, so the helper never inherits the code.

@@ -1,4 +1,5 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "sf4e__MenuMusic.hxx"
 #include "../session/IdentityEvents.hxx"
 #include "../platform/Utf8.hxx"
 #include <cwchar>
@@ -307,6 +308,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         command.preferences.record=runtime->preferences.record;
 		if (OverlayPrefs::SavePlayerPreferences(command.preferences)) {
 			runtime->preferences = command.preferences;
+			MenuMusic::Use(runtime->preferences.endlessLobbyMusic);
 			runtime->displayName = command.preferences.displayName;
 			runtime->error.clear();
 		} else runtime->error = loc::T("runtime.preferences_queue_failed");

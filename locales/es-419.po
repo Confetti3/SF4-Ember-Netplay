@@ -745,6 +745,12 @@ msgstr "Idioma, HUD de partida y tamaño de la interfaz."
 msgid "settings.discord_detail"
 msgstr "Actividad e invitaciones."
 
+msgid "settings.lobby_music"
+msgstr "Música de lobby sin fin"
+
+msgid "settings.lobby_music_detail"
+msgstr "El menú reproduce el tema de un escenario al azar en lugar de su propia música, uno nuevo después de cada partida. Un cambio se aplica tras la siguiente partida."
+
 msgid "player.title"
 msgstr "JUGADOR Y CONTROL"
 
