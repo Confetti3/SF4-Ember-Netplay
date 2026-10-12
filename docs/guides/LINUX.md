@@ -52,3 +52,7 @@ Run `install-linux.sh` again, or extract the new zip over the `Ember` folder. **
 - Updater log, when an in-app update was attempted: `pfx/drive_c/users/steamuser/Temp/sf4-netplay-update.log`.
 
 See [troubleshooting](TROUBLESHOOTING.md) for everything that is not Linux-specific.
+
+## Credits
+
+The Proton-in-the-game-prefix method comes from Discord user **@gyro bart**, who worked it out and wrote it up for the community. Thanks also to a second Discord tester who prefers to stay hidden, like Gouken on the vanilla SF4 select screen: everyone knows they are there, nobody gets to see them.
