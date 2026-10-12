@@ -42,7 +42,7 @@ Alternative without a Steam entry: `protontricks-launch --appid 45760 /path/to/p
 
 ## Updating
 
-Run `install-linux.sh` again, or extract the new zip over the `Ember` folder. **The in-app updater does not work under Proton**: the launcher extracts updates with Windows' `tar.exe`, which Wine and Proton do not ship, so "Download and install" fails after the download. All players in a room need the same release, so update when Windows players do.
+The in-app updater (Updater.exe, or the launcher's Updates window) works under Proton from the release after 1.1.2 on: the launcher extracts packages itself where Windows' `tar.exe` is missing. An older install updates once by hand: run `install-linux.sh` again, or extract the new zip over the `Ember` folder. All players in a room need the same release, so update when Windows players do.
 
 ## Differences from Windows
 
