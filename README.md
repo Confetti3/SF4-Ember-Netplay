@@ -62,7 +62,7 @@ An in-game capture supplied by the project owner, showing Ember's frame meter, p
 
 ## Get started
 
-You need **Windows 10 or later (x64)**, an owned **Steam copy of Ultra Street Fighter IV**, and the **latest Microsoft Visual C++ x86 runtime** (the launcher will not start with an older one and offers the download). The game is not included. Linux players: see [Ember on Linux](docs/guides/LINUX.md).
+You need **Windows 10 or later (x64)**, an owned **Steam copy of Ultra Street Fighter IV**, and the **latest Microsoft Visual C++ x86 runtime** (the launcher will not start with an older one and offers the download). The game is not included.
 
 1. For a fresh installation, [download the complete v1.2.0 ZIP](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v1.2.0/sf4-ember-netplay-1.2.0.zip) and its [SHA-256 checksum](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v1.2.0/sf4-ember-netplay-1.2.0.zip.sha256). Choose a release package, not GitHub's source-code download. Alternatively, [setup.exe](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v1.2.0/sf4-ember-netplay-1.2.0-setup.exe) installs Ember into an empty folder with a Start menu entry and an uninstaller.
 2. Extract everything into a **new writable folder**. Keep your old launcher installation separate; moving from the legacy launcher to Ember is a fresh install.

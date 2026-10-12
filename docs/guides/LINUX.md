@@ -40,6 +40,16 @@ Press Play. Ember starts, finds the game in the same prefix and launches it. If 
 
 Alternative without a Steam entry: `protontricks-launch --appid 45760 /path/to/pfx/drive_c/Ember/Launcher.exe`. Playtime is not tracked that way.
 
+### Simpler variant: Ember in its own prefix
+
+Extract the zip anywhere (Downloads is fine), add `Launcher.exe` as a non-Steam game and force Proton, with no launch option. Steam gives Ember its own prefix and the launcher still finds the game through Steam. This is the method in the README's Steam Deck section and is confirmed on a Steam Deck. The difference from the steps above: playtime is counted on the Ember entry, not on USFIV, and the install script does not apply.
+
+## 4. Ember ID passphrase
+
+Open **Ember ID** and create a passphrase. Wine and Proton cannot use Windows' key protection, so the passphrase protects your key instead. Ember asks for it once each time the game starts. Rooms and everything else work after that.
+
+No keyboard on a Steam Deck: hold the **Steam** button and press **X** for the on-screen keyboard. External controller: Guide + **X** on Xbox-style pads, **PS** + **Square** on PlayStation pads.
+
 ## Updating
 
 The in-app updater (Updater.exe, or the launcher's Updates window) works under Proton from the release after 1.1.2 on: the launcher extracts packages itself where Windows' `tar.exe` is missing. An older install updates once by hand: run `install-linux.sh` again, or extract the new zip over the `Ember` folder. All players in a room need the same release, so update when Windows players do.
@@ -55,4 +65,4 @@ See [troubleshooting](TROUBLESHOOTING.md) for everything that is not Linux-speci
 
 ## Credits
 
-The Proton-in-the-game-prefix method comes from Discord user **@gyro bart**, who worked it out and wrote it up for the community. Thanks also to a second Discord tester who prefers to stay hidden, like Gouken on the vanilla SF4 select screen: everyone knows they are there, nobody gets to see them.
+The Proton-in-the-game-prefix method comes from Discord user **@gyro bart**, who worked it out and wrote it up for the community. The own-prefix variant, the passphrase note and the Steam Deck keys come from the Steam Deck instructions in the README. Thanks also to a second Discord tester who prefers to stay hidden, like Gouken on the vanilla SF4 select screen: everyone knows they are there, nobody gets to see them.
