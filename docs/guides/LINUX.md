@@ -15,7 +15,7 @@ curl -fLO https://raw.githubusercontent.com/Confetti3/SF4-Ember-Netplay/release/
 bash install-linux.sh
 ```
 
-The script finds your Steam library (native, Flatpak or Snap), downloads the latest release zip, checks it against the published SHA-256, extracts it to `compatdata/45760/pfx/drive_c/Ember`, verifies every file against the package manifest, and prints the exact Steam launch option for step 3. Pass a version to install a specific release, for example `bash install-linux.sh 1.1.2`. It needs `curl`, `sha256sum` and either `unzip` or `python3`.
+The script finds your Steam library (native, Flatpak or Snap), downloads the latest release zip, checks it against the published SHA-256, extracts it to `compatdata/45760/pfx/drive_c/Ember`, verifies every file against the package manifest, and then, if Steam is closed, adds the Steam entry of step 3 itself: name, launch option, Proton, and Ember artwork for the library (`scripts/steam-shortcut.py`, standard Python only, so it runs on a Steam Deck). With Steam open it prints the manual steps instead. `EMBER_NAME` sets the entry's name and `EMBER_PROTON` the compatibility tool (`proton_experimental` by default, `proton_10` for a numbered one). Pass a version to install a specific release, for example `bash install-linux.sh 1.1.2`. It needs `curl`, `sha256sum` and either `unzip` or `python3`.
 
 ### By hand
 
@@ -25,6 +25,8 @@ The script finds your Steam library (native, Flatpak or Snap), downloads the lat
 4. Check the download if you like: `sha256sum -c sf4-ember-netplay-<version>.zip.sha256`.
 
 ## 3. Add Ember to Steam
+
+The script did this when Steam was closed; skip to Play. By hand:
 
 1. Steam → **Add a Non-Steam Game** → Browse → `.../compatdata/45760/pfx/drive_c/Ember/Launcher.exe`.
 2. Right-click the new entry → **Properties**. Rename it, then set **Launch options** to the compatdata folder of the game (everything before `/pfx`):

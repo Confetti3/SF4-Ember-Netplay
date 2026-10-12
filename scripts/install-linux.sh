@@ -5,7 +5,8 @@
 #   scripts/install-linux.sh [version]      e.g. 1.1.2; default: latest release
 #
 # Environment: STEAM_ROOT (Steam install, autodetected), EMBER_DIR (folder name
-# inside drive_c, default Ember).
+# inside drive_c, default Ember), EMBER_NAME (Steam entry name), EMBER_PROTON
+# (compatibility tool id, default proton_experimental; proton_10 for a numbered one).
 set -euo pipefail
 
 REPO=Confetti3/SF4-Ember-Netplay
@@ -61,7 +62,16 @@ mkdir -p "$TARGET" && cp -a "$SRC"/. "$TARGET"/
 echo
 echo "Ember $VERSION is in $TARGET"
 echo
-echo "One-time Steam setup (skip if already done):"
+# Steam entry with artwork and Proton, written while Steam is closed; otherwise the manual steps.
+HERE=$(dirname "$(realpath "$0")")
+SHORTCUT=$HERE/steam-shortcut.py
+[ -f "$SHORTCUT" ] || { SHORTCUT=$WORK/steam-shortcut.py; curl -fsSL -o "$SHORTCUT" "https://raw.githubusercontent.com/$REPO/release/scripts/steam-shortcut.py" || SHORTCUT=; }
+if [ -n "$SHORTCUT" ] && command -v python3 >/dev/null && ! pgrep -x steam >/dev/null && python3 -I "$SHORTCUT" --steam "$STEAM_ROOT" --exe "$TARGET/Launcher.exe" --name "${EMBER_NAME:-Ember}" \
+	--launch-options "STEAM_COMPAT_DATA_PATH=\"$COMPAT\" %command%" --compat "${EMBER_PROTON:-proton_experimental}" --art "$TARGET/assets/brand/ember-menu-background.png"; then
+	echo "Start Steam and play the ${EMBER_NAME:-Ember} entry; Ember and USFIV start together."
+	exit 0
+fi
+echo "Steam entry not written (Steam running, or python3 missing). Close Steam and run this again, or by hand:"
 echo "  1. Steam > Add a Non-Steam Game > Browse > $TARGET/Launcher.exe"
 echo "  2. Properties > Launch options:"
 echo "       STEAM_COMPAT_DATA_PATH=\"$COMPAT\" %command%"
