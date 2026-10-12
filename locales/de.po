@@ -1779,6 +1779,12 @@ msgstr "Kürzel im HUD"
 msgid "training.meter.hud_status"
 msgstr "Aufnahme im HUD"
 
+msgid "training.meter.hud_readings"
+msgstr "Framedaten im HUD"
+
+msgid "training.meter.hud_legend"
+msgstr "Farblegende im HUD"
+
 msgid "training.meter.hud_part.detail"
 msgstr "Zeigt diesen Teil des Trainings-HUD im Kampf. F5 blendet das ganze HUD aus."
 

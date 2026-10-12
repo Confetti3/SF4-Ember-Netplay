@@ -1780,6 +1780,12 @@ msgstr "Клавиши на HUD"
 msgid "training.meter.hud_status"
 msgstr "Запись на HUD"
 
+msgid "training.meter.hud_readings"
+msgstr "Данные кадров на HUD"
+
+msgid "training.meter.hud_legend"
+msgstr "Обозначения цветов на HUD"
+
 msgid "training.meter.hud_part.detail"
 msgstr "Показывает эту часть HUD тренировки во время боя. F5 скрывает весь HUD."
 

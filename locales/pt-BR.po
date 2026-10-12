@@ -1569,6 +1569,12 @@ msgstr "Atalhos no HUD"
 msgid "training.meter.hud_status"
 msgstr "Gravação no HUD"
 
+msgid "training.meter.hud_readings"
+msgstr "Dados de quadros no HUD"
+
+msgid "training.meter.hud_legend"
+msgstr "Legenda de cores no HUD"
+
 msgid "training.meter.hud_part.detail"
 msgstr "Mostra esta parte do HUD de treino durante a luta. F5 oculta todo o HUD."
 

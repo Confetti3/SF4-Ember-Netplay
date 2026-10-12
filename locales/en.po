@@ -1779,6 +1779,12 @@ msgstr "Shortcuts on HUD"
 msgid "training.meter.hud_status"
 msgstr "Recording on HUD"
 
+msgid "training.meter.hud_readings"
+msgstr "Frame data on HUD"
+
+msgid "training.meter.hud_legend"
+msgstr "Color key on HUD"
+
 msgid "training.meter.hud_part.detail"
 msgstr "Shows this part of the training HUD over the fight. F5 hides all of it."
 

@@ -32,11 +32,12 @@ inline std::array<int, 2> ReadPositionKeys(const nlohmann::json& keys) {
 struct HudPart { const char* key; const char* label; bool MeterOptions::* shown; };
 constexpr HudPart HudParts[] = {{"hud_numbers", "training.meter.hud_numbers", &MeterOptions::numbers}, {"hud_bars", "training.meter.hud_bars", &MeterOptions::bars},
     {"hud_state", "training.meter.hud_state", &MeterOptions::state}, {"hud_shortcuts", "training.meter.hud_shortcuts", &MeterOptions::shortcuts},
-    {"hud_status", "training.meter.hud_status", &MeterOptions::status}};
+    {"hud_status", "training.meter.hud_status", &MeterOptions::status}, {"hud_readings", "training.meter.hud_readings", &MeterOptions::readings},
+    {"hud_legend", "training.meter.hud_legend", &MeterOptions::legend}};
 // The meter's drawing options: angled unless the style is "flat", the
 // recovery number only for a literal true, 60 frames shown unless 90 or 120
-// is saved, every part of the HUD unless it is saved as a literal false, and
-// the standard size unless another one is saved.
+// is saved, each part of the HUD as MeterOptions starts it unless a literal
+// true or false is saved, and the standard size unless another one is saved.
 inline MeterOptions ReadMeterOptions(const nlohmann::json& meter) {
     MeterOptions options;
     if (!meter.is_object()) return options;
@@ -44,7 +45,7 @@ inline MeterOptions ReadMeterOptions(const nlohmann::json& meter) {
     options.recovery = meter.value("hud_recovery", nlohmann::json(false)) == true;
     const auto shown = meter.value("frames_shown", nlohmann::json());
     for (const int choice : MeterShownChoices) if (shown.is_number_integer() && shown == choice) options.shown = choice;
-    for (const auto& part : HudParts) options.*part.shown = meter.value(part.key, nlohmann::json(true)) != false;
+    for (const auto& part : HudParts) { const auto saved = meter.value(part.key, nlohmann::json()); if (saved.is_boolean()) options.*part.shown = saved.get<bool>(); }
     const auto size = meter.value("hud_size", nlohmann::json());
     for (int choice = 0; choice < HudSizes; ++choice) if (size.is_number_integer() && size == choice) options.size = choice;
     return options;

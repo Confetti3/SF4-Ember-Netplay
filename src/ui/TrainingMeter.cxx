@@ -290,12 +290,16 @@ std::vector<TrainingKeyEntry> TrainingColorKeyEntries(bool angled) {
     else for (const auto& named : plain) add(named);
     return entries;
 }
-void DrawTrainingColorKey(bool angled) {
+// A key entry's colour, as a square the text's height, with its label to follow on the line.
+static void KeySwatch(const TrainingKeyEntry& entry, float gap) {
     const float h = ImGui::GetTextLineHeight();
+    const ImVec2 at = ImGui::GetCursorScreenPos();
+    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(at.x, at.y + h * .2f), ImVec2(at.x + h * .6f, at.y + h * .8f), entry.color);
+    ImGui::Dummy(ImVec2(h * .6f, h)); ImGui::SameLine(0, gap);
+}
+void DrawTrainingColorKey(bool angled) {
     for (const auto& entry : TrainingColorKeyEntries(angled)) {
-        const ImVec2 at = ImGui::GetCursorScreenPos();
-        ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(at.x, at.y + h * .2f), ImVec2(at.x + h * .6f, at.y + h * .8f), entry.color);
-        ImGui::Dummy(ImVec2(h * .6f, h)); ImGui::SameLine(0, 4 * Scale());
+        KeySwatch(entry, 4 * Scale());
         ImGui::TextUnformatted(loc::T(entry.label));
     }
 }
@@ -392,6 +396,32 @@ void DrawTrainingRoomStatus(const TrainingRoomStatus& status) {
     ImGui::End();
     ImGui::PopStyleVar(2);
 }
+// A fighter's last move on one line of the HUD, as the Frame data page counts
+// it: each reading's name dimmed, its number after it. A reading that does
+// not fit the line starts the next one.
+static void ReadingsLine(const training::MeterView& meter, int side, float hudScale) {
+    const float right = ImGui::GetCursorScreenPos().x + ImGui::GetContentRegionAvail().x, gap = 10 * hudScale, inner = 4 * hudScale;
+    ImGui::TextDisabled("P%d", side + 1);
+    for (const auto& reading : Readings(meter, side)) {
+        const float need = gap + ImGui::CalcTextSize(reading.label.c_str()).x + (reading.value.empty() ? 0 : inner + ImGui::CalcTextSize(reading.value.c_str()).x);
+        if (ImGui::GetItemRectMax().x + need <= right) ImGui::SameLine(0, gap);
+        ImGui::TextDisabled("%s", reading.label.c_str());
+        if (!reading.value.empty()) { ImGui::SameLine(0, inner); ImGui::TextUnformatted(reading.value.c_str()); }
+    }
+}
+// The colour key of the style drawn, across the HUD: as many entries on a
+// line as fit, then the next line.
+static void LegendLines(bool angled, float hudScale) {
+    const float h = ImGui::GetTextLineHeight(), right = ImGui::GetCursorScreenPos().x + ImGui::GetContentRegionAvail().x, gap = 10 * hudScale;
+    bool first = true;
+    for (const auto& entry : TrainingColorKeyEntries(angled)) {
+        const float need = h * .6f + 4 * hudScale + ImGui::CalcTextSize(loc::T(entry.label)).x;
+        if (!first && ImGui::GetItemRectMax().x + gap + need <= right) ImGui::SameLine(0, gap);
+        first = false;
+        KeySwatch(entry, 4 * hudScale);
+        ImGui::TextDisabled("%s", loc::T(entry.label));
+    }
+}
 // What the lab is doing while it records or plays a slot: a red dot or a green
 // arrow, the slot, how far along it is and, for the keyboard, the key that
 // stops it, over a line that fills as the slot does.
@@ -426,7 +456,7 @@ static ImVec2 MeterWindow(const training::View& view, float hudScale, float widt
     // The dummy's typed reply plays from a slot of its own and is no playback of the player's.
     const bool strip = options.status && view.mode != training::Mode::Idle && view.selected < training::SlotCount;
     // With every part off there is no window to draw.
-    if (!strip && !options.numbers && !options.bars && !options.state) return hudTop;
+    if (!strip && !options.numbers && !options.bars && !options.state && !options.readings && !options.legend) return hudTop;
     ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x / 2, hudBottom), ImGuiCond_Always, ImVec2(.5f, 1));
     ImGui::SetNextWindowSize(ImVec2(width, 0));
     ImGui::SetNextWindowBgAlpha(TrainingHudBackground);
@@ -437,7 +467,9 @@ static ImVec2 MeterWindow(const training::View& view, float hudScale, float widt
         ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing)) {
         ImGui::SetWindowFontScale(.8f * hudScale / Scale());
         if (strip) ModeStrip(view, hudScale);
+        if (options.readings) for (int side = 0; side < 2; ++side) ReadingsLine(meter, side, hudScale);
         if (options.numbers || options.bars) Meter(meter, hudScale, options);
+        if (options.legend) LegendLines(!options.flat, hudScale);
         if (options.state) {
             ImGui::TextDisabled("%s", loc::Tf("training.frame_advantage",
                 loc::T(meter.advantage.pending ? "training.measuring" : meter.advantage.knockdown ? "training.wakeup" : meter.frozen ? "training.held" : "training.live")).c_str());

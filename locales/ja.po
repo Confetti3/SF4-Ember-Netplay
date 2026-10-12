@@ -1779,6 +1779,12 @@ msgstr "HUDにショートカットを表示"
 msgid "training.meter.hud_status"
 msgstr "HUDに記録を表示"
 
+msgid "training.meter.hud_readings"
+msgstr "HUDにフレームデータを表示"
+
+msgid "training.meter.hud_legend"
+msgstr "HUDに色の凡例を表示"
+
 msgid "training.meter.hud_part.detail"
 msgstr "対戦中にトレーニングHUDのこの項目を表示します。F5 で HUD 全体を隠します。"
 

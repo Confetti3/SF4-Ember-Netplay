@@ -87,7 +87,7 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         if(std::string(screen)=="reply")Require(trainingRows.size()==7,"Reply page lost one of its own rows");
         if(std::string(screen)=="tools")Require(trainingRows.size()==4,"Position page lost one of its own rows");
         if(std::string(screen)=="frame-data")Require(trainingRows.size()==6,"Frame data page lost one of its own rows");
-        if(std::string(screen)=="hud")Require(trainingRows.size()==6&&trainingRows[0].id=="hud-size","HUD page lost its size or one of its parts");
+        if(std::string(screen)=="hud")Require(trainingRows.size()==8&&trainingRows[0].id=="hud-size","HUD page lost its size or one of its parts");
         if(std::string(screen)=="reply")for(const auto& row:trainingRows)if(row.id=="reply-slot"){
             Require(row.value==loc::Tf("training.slot",1),"Reply slot value includes recorded frame count");
             Require(row.detail.find(loc::Tf("training.recorded_frames",120))!=std::string::npos,"Reply slot detail lost recorded frame count");
@@ -322,6 +322,12 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     Require(hud->Size.y<whole*.7f&&chips->LastFrameActive!=ImGui::GetFrameCount(),"HUD parts did not turn off");
     parts.bars=false;SetTrainingMeterOptions(parts);draw();
     Require(hud->LastFrameActive!=ImGui::GetFrameCount(),"HUD drew with every part off");
+    // The frame data and the colour key are off at first; turned on they add
+    // their lines above and below the bars, within the meter's width and clear of the gauges.
+    training::MeterOptions full;full.readings=full.legend=true;SetTrainingMeterOptions(full);draw("training-hud-full");
+    Require(hud->Size.y>whole&&hud->Size.x<=620*hudScale+1&&hud->Pos.y+hud->Size.y<=size.h*.82f+1,"Frame data and colour key did not show on the HUD or moved it over the gauges");
+    full.numbers=full.bars=full.state=false;SetTrainingMeterOptions(full);draw();
+    Require(hud->LastFrameActive==ImGui::GetFrameCount(),"Frame data and colour key alone drew no HUD");
     SetTrainingMeterOptions({});
     // A small window: the HUD shrinks with it and keeps its place over the
     // gauges, at every size and while it records.

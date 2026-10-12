@@ -1779,6 +1779,12 @@ msgstr "Zkratky na HUD"
 msgid "training.meter.hud_status"
 msgstr "Nahrávání na HUD"
 
+msgid "training.meter.hud_readings"
+msgstr "Data snímků na HUD"
+
+msgid "training.meter.hud_legend"
+msgstr "Význam barev na HUD"
+
 msgid "training.meter.hud_part.detail"
 msgstr "Zobrazí tuto část tréninkového HUD během souboje. F5 skryje celý HUD."
 

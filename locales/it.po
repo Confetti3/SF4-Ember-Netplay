@@ -1779,6 +1779,12 @@ msgstr "Scorciatoie nell'HUD"
 msgid "training.meter.hud_status"
 msgstr "Registrazione nell'HUD"
 
+msgid "training.meter.hud_readings"
+msgstr "Dati dei frame nell'HUD"
+
+msgid "training.meter.hud_legend"
+msgstr "Legenda colori nell'HUD"
+
 msgid "training.meter.hud_part.detail"
 msgstr "Mostra questa parte dell'HUD di allenamento durante lo scontro. F5 nasconde tutto l'HUD."
 

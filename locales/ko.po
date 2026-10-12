@@ -1779,6 +1779,12 @@ msgstr "HUD에 단축키 표시"
 msgid "training.meter.hud_status"
 msgstr "HUD에 녹화 표시"
 
+msgid "training.meter.hud_readings"
+msgstr "HUD에 프레임 데이터 표시"
+
+msgid "training.meter.hud_legend"
+msgstr "HUD에 색상 설명 표시"
+
 msgid "training.meter.hud_part.detail"
 msgstr "대전 중 트레이닝 HUD의 이 항목을 표시합니다. F5로 HUD 전체를 숨깁니다."
 

@@ -1779,6 +1779,12 @@ msgstr "Raccourcis sur le HUD"
 msgid "training.meter.hud_status"
 msgstr "Enregistrement sur le HUD"
 
+msgid "training.meter.hud_readings"
+msgstr "Données de frames sur le HUD"
+
+msgid "training.meter.hud_legend"
+msgstr "Légende sur le HUD"
+
 msgid "training.meter.hud_part.detail"
 msgstr "Affiche cet élément du HUD d'entraînement pendant le combat. F5 masque tout le HUD."
 

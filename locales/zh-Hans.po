@@ -1779,6 +1779,12 @@ msgstr "在 HUD 显示快捷键"
 msgid "training.meter.hud_status"
 msgstr "在 HUD 显示录制"
 
+msgid "training.meter.hud_readings"
+msgstr "在 HUD 显示帧数数据"
+
+msgid "training.meter.hud_legend"
+msgstr "在 HUD 显示颜色图例"
+
 msgid "training.meter.hud_part.detail"
 msgstr "在对战中显示训练 HUD 的这一项。F5 隐藏整个 HUD。"
 

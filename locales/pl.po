@@ -1779,6 +1779,12 @@ msgstr "Skróty na HUD"
 msgid "training.meter.hud_status"
 msgstr "Nagrywanie na HUD"
 
+msgid "training.meter.hud_readings"
+msgstr "Dane klatek na HUD"
+
+msgid "training.meter.hud_legend"
+msgstr "Legenda kolorów na HUD"
+
 msgid "training.meter.hud_part.detail"
 msgstr "Pokazuje tę część HUD treningu podczas walki. F5 ukrywa cały HUD."
 

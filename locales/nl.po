@@ -1779,6 +1779,12 @@ msgstr "Sneltoetsen op de HUD"
 msgid "training.meter.hud_status"
 msgstr "Opname op de HUD"
 
+msgid "training.meter.hud_readings"
+msgstr "Framegegevens op de HUD"
+
+msgid "training.meter.hud_legend"
+msgstr "Kleurenlegenda op de HUD"
+
 msgid "training.meter.hud_part.detail"
 msgstr "Toont dit onderdeel van de trainings-HUD tijdens het gevecht. F5 verbergt de hele HUD."
 

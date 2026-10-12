@@ -116,13 +116,17 @@ int main() {
         const auto read = ReadMeterOptions(json::parse(MeterOptionsJson(options).dump()));
         CHECK(read.flat == options.flat && read.recovery == options.recovery && read.shown == options.shown);
     }
-    // Every part of the HUD shows unless it is saved as a literal false, and
-    // a round trip keeps each one apart from the others.
+    // Every part of the HUD is as MeterOptions starts it (the frame data and
+    // the colour key off, the rest shown) unless a literal true or false is
+    // saved, and a round trip keeps each one apart from the others.
+    const MeterOptions start;
+    CHECK(!start.readings && !start.legend && start.numbers && start.bars && start.state && start.shortcuts && start.status);
     for (const auto& part : HudParts) {
-        for (const json& kept : {json(), json(true), json(0), json("false")}) CHECK(ReadMeterOptions(json{{part.key, kept}}).*part.shown);
-        MeterOptions off; off.*part.shown = false;
-        const auto read = ReadMeterOptions(json::parse(MeterOptionsJson(off).dump()));
-        for (const auto& other : HudParts) CHECK(read.*other.shown == (&other != &part));
+        for (const json& kept : {json(), json(0), json("false"), json("true")}) CHECK(ReadMeterOptions(json{{part.key, kept}}).*part.shown == start.*part.shown);
+        for (const bool saved : {false, true}) CHECK(ReadMeterOptions(json{{part.key, saved}}).*part.shown == saved);
+        MeterOptions flipped; flipped.*part.shown = !(flipped.*part.shown);
+        const auto read = ReadMeterOptions(json::parse(MeterOptionsJson(flipped).dump()));
+        for (const auto& other : HudParts) CHECK(read.*other.shown == (start.*other.shown != (&other == &part)));
     }
     // The HUD is standard size unless small (0) or large (2) is saved, and keeps its size through a round trip.
     for (const json& size : {json(), json(3), json(-1), json(1.5), json("2"), json(true)}) CHECK(ReadMeterOptions(json{{"hud_size", size}}).size == 1);
