@@ -5,8 +5,9 @@ Steam must be closed. Standard library only, so it runs on a Steam Deck.
 
   steam-shortcut.py --steam ~/.steam/steam --exe /path/Ember/Launcher.exe \
       [--name Ember] [--launch-options '...'] [--compat proton_experimental] [--art image.png]
+      [--wide/--portrait/--hero/--logo/--icon picture] [--tag Fighting] [--hidden] [--no-overlay] [--vr]
 """
-import argparse, glob, os, re, shutil, struct, subprocess, sys, zlib
+import argparse, glob, json, os, re, shutil, struct, subprocess, sys, zlib
 
 # Binary VDF: 0x00 map, 0x01 string, 0x02 int32, 0x08 end of map.
 def read_vdf(data, at=0):
@@ -35,7 +36,16 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--steam", required=True); p.add_argument("--exe", required=True)
     p.add_argument("--name", default="Ember"); p.add_argument("--launch-options", default="")
-    p.add_argument("--compat", default="proton_experimental"); p.add_argument("--art")
+    p.add_argument("--compat", default="proton_experimental", help="Proton tool id; empty string leaves Steam's default")
+    p.add_argument("--art", help="one picture for every slot that has no picture of its own")
+    p.add_argument("--wide", help="920x430 capsule"); p.add_argument("--portrait", help="600x900 library tile")
+    p.add_argument("--hero", help="1920x620 banner"); p.add_argument("--logo", help="transparent PNG over the hero")
+    p.add_argument("--logo-position", default="BottomLeft", choices=["BottomLeft", "CenterCenter", "UpperCenter"])
+    p.add_argument("--logo-size", default="40,50", help="logo width,height as percent of the hero")
+    p.add_argument("--icon", help="square PNG for list view, taskbar and the Deck's left bar")
+    p.add_argument("--tag", action="append", default=[], help="collection to put the entry in; repeatable")
+    p.add_argument("--hidden", action="store_true"); p.add_argument("--no-overlay", action="store_true")
+    p.add_argument("--vr", action="store_true", help="start through SteamVR")
     a = p.parse_args()
     if subprocess.run(["pgrep", "-x", "steam"], capture_output=True).returncode == 0:
         sys.exit("Steam is running; close it first, it overwrites shortcuts.vdf on exit")
@@ -50,16 +60,26 @@ def main():
         slot = next((k for k, e in entries.items() if e.get("AppName") == a.name or e.get("appname") == a.name), str(len(entries)))
         entry = entries.get(slot, {})
         entry.update({"appid": struct.unpack("<i", struct.pack("<I", appid))[0], "AppName": a.name, "Exe": exe, "StartDir": start,
-            "icon": os.path.abspath(a.art) if a.art else entry.get("icon", ""), "ShortcutPath": "", "LaunchOptions": a.launch_options,
-            "IsHidden": 0, "AllowDesktopConfig": 1, "AllowOverlay": 1, "OpenVR": 0, "Devkit": 0, "DevkitGameID": "",
-            "DevkitOverrideAppID": 0, "LastPlayTime": entry.get("LastPlayTime", 0), "FlatpakAppID": "", "tags": entry.get("tags", {})})
+            "icon": os.path.abspath(a.icon or a.art) if a.icon or a.art else entry.get("icon", ""), "ShortcutPath": "", "LaunchOptions": a.launch_options,
+            "IsHidden": int(a.hidden), "AllowDesktopConfig": 1, "AllowOverlay": int(not a.no_overlay), "OpenVR": int(a.vr), "Devkit": 0, "DevkitGameID": "",
+            "DevkitOverrideAppID": 0, "LastPlayTime": entry.get("LastPlayTime", 0), "FlatpakAppID": "",
+            "tags": {str(i): t for i, t in enumerate(a.tag)} if a.tag else entry.get("tags", {})})
         entries[slot] = entry
         if os.path.exists(path): shutil.copy(path, path + ".bak")
         open(path, "wb").write(write_vdf(root))
-        if a.art:
-            grid = os.path.join(user, "config", "grid"); os.makedirs(grid, exist_ok=True)
-            ext = os.path.splitext(a.art)[1]
-            for suffix in ("", "p", "_hero"): shutil.copy(a.art, os.path.join(grid, "%d%s%s" % (appid, suffix, ext)))
+        # Steam reads these by name on start; gif, webp and apng animate in the library.
+        pictures = {"": a.wide or a.art, "p": a.portrait or a.art, "_hero": a.hero or a.art, "_logo": a.logo, "_icon": a.icon}
+        grid = os.path.join(user, "config", "grid")
+        for suffix, picture in pictures.items():
+            if not picture: continue
+            os.makedirs(grid, exist_ok=True)
+            for stale in glob.glob(os.path.join(grid, "%d%s.*" % (appid, suffix))):
+                if not stale.endswith(".json"): os.remove(stale)
+            shutil.copy(picture, os.path.join(grid, "%d%s%s" % (appid, suffix, os.path.splitext(picture)[1].lower())))
+        if a.logo:
+            width, height = (int(v) for v in a.logo_size.split(","))
+            json.dump({"nVersion": 1, "logoPosition": {"pinnedPosition": a.logo_position, "nWidthPct": width, "nHeightPct": height}},
+                open(os.path.join(grid, "%d.json" % appid), "w"))
         print("shortcut %s (appid %d) written for user %s" % (a.name, appid, os.path.basename(user)))
     if a.compat:
         config = os.path.join(a.steam, "config", "config.vdf"); text = open(config, encoding="utf-8").read()
