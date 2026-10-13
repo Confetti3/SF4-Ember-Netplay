@@ -7,7 +7,9 @@
 # Environment: STEAM_ROOT (Steam install, autodetected), EMBER_DIR (folder name
 # inside drive_c, default Ember), EMBER_NAME (Steam entry name), EMBER_PROTON
 # (compatibility tool id, default proton_experimental; proton_10 for a numbered one),
-# EMBER_ENTRY=game (the USFIV entry starts Ember; no separate shortcut).
+# EMBER_ENTRY=game (the USFIV entry starts Ember; no separate shortcut), EMBER_ART
+# (picture for the Steam entry; default the package's menu background; set empty to
+# keep the pictures already in Steam), EMBER_LOGO, EMBER_ICON (optional pictures).
 set -euo pipefail
 
 REPO=Confetti3/SF4-Ember-Netplay
@@ -73,7 +75,8 @@ if [ -n "$SHORTCUT" ] && command -v python3 >/dev/null && ! pgrep -x steam >/dev
 		python3 -I "$SHORTCUT" --steam "$STEAM_ROOT" --exe "$TARGET/Launcher.exe" --game "$APPID" && { echo "Start Steam and play Ultra Street Fighter IV; it starts Ember now. Clear its launch options to undo."; exit 0; }
 	else
 		python3 -I "$SHORTCUT" --steam "$STEAM_ROOT" --exe "$TARGET/Launcher.exe" --name "${EMBER_NAME:-Ember}" \
-			--launch-options "STEAM_COMPAT_DATA_PATH=\"$COMPAT\" %command%" --compat "${EMBER_PROTON:-proton_experimental}" --art "$TARGET/assets/brand/ember-menu-background.png" \
+			--launch-options "STEAM_COMPAT_DATA_PATH=\"$COMPAT\" %command%" --compat "${EMBER_PROTON:-proton_experimental}" \
+			--art "${EMBER_ART-$TARGET/assets/brand/ember-menu-background.png}" --logo "${EMBER_LOGO-}" --icon "${EMBER_ICON-}" \
 			&& { echo "Start Steam and play the ${EMBER_NAME:-Ember} entry; Ember and USFIV start together."; exit 0; }
 	fi
 fi
