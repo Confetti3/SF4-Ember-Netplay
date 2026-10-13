@@ -6,7 +6,8 @@
 #
 # Environment: STEAM_ROOT (Steam install, autodetected), EMBER_DIR (folder name
 # inside drive_c, default Ember), EMBER_NAME (Steam entry name), EMBER_PROTON
-# (compatibility tool id, default proton_experimental; proton_10 for a numbered one).
+# (compatibility tool id, default proton_experimental; proton_10 for a numbered one),
+# EMBER_ENTRY=game (the USFIV entry starts Ember; no separate shortcut).
 set -euo pipefail
 
 REPO=Confetti3/SF4-Ember-Netplay
@@ -62,14 +63,19 @@ mkdir -p "$TARGET" && cp -a "$SRC"/. "$TARGET"/
 echo
 echo "Ember $VERSION is in $TARGET"
 echo
-# Steam entry with artwork and Proton, written while Steam is closed; otherwise the manual steps.
+# Steam entry, written while Steam is closed; otherwise the manual steps. EMBER_ENTRY=game
+# makes the game's own USFIV entry start Ember instead of adding a shortcut.
 HERE=$(dirname "$(realpath "$0")")
 SHORTCUT=$HERE/steam-shortcut.py
 [ -f "$SHORTCUT" ] || { SHORTCUT=$WORK/steam-shortcut.py; curl -fsSL -o "$SHORTCUT" "https://raw.githubusercontent.com/$REPO/release/scripts/steam-shortcut.py" || SHORTCUT=; }
-if [ -n "$SHORTCUT" ] && command -v python3 >/dev/null && ! pgrep -x steam >/dev/null && python3 -I "$SHORTCUT" --steam "$STEAM_ROOT" --exe "$TARGET/Launcher.exe" --name "${EMBER_NAME:-Ember}" \
-	--launch-options "STEAM_COMPAT_DATA_PATH=\"$COMPAT\" %command%" --compat "${EMBER_PROTON:-proton_experimental}" --art "$TARGET/assets/brand/ember-menu-background.png"; then
-	echo "Start Steam and play the ${EMBER_NAME:-Ember} entry; Ember and USFIV start together."
-	exit 0
+if [ -n "$SHORTCUT" ] && command -v python3 >/dev/null && ! pgrep -x steam >/dev/null; then
+	if [ "${EMBER_ENTRY:-shortcut}" = game ]; then
+		python3 -I "$SHORTCUT" --steam "$STEAM_ROOT" --exe "$TARGET/Launcher.exe" --game "$APPID" && { echo "Start Steam and play Ultra Street Fighter IV; it starts Ember now. Clear its launch options to undo."; exit 0; }
+	else
+		python3 -I "$SHORTCUT" --steam "$STEAM_ROOT" --exe "$TARGET/Launcher.exe" --name "${EMBER_NAME:-Ember}" \
+			--launch-options "STEAM_COMPAT_DATA_PATH=\"$COMPAT\" %command%" --compat "${EMBER_PROTON:-proton_experimental}" --art "$TARGET/assets/brand/ember-menu-background.png" \
+			&& { echo "Start Steam and play the ${EMBER_NAME:-Ember} entry; Ember and USFIV start together."; exit 0; }
+	fi
 fi
 echo "Steam entry not written (Steam running, or python3 missing). Close Steam and run this again, or by hand:"
 echo "  1. Steam > Add a Non-Steam Game > Browse > $TARGET/Launcher.exe"

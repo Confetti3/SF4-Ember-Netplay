@@ -6,6 +6,8 @@ Steam must be closed. Standard library only, so it runs on a Steam Deck.
   steam-shortcut.py --steam ~/.steam/steam --exe /path/Ember/Launcher.exe \
       [--name Ember] [--launch-options '...'] [--compat proton_experimental] [--art image.png]
       [--wide/--portrait/--hero/--logo/--icon picture] [--tag Fighting] [--hidden] [--no-overlay] [--vr]
+  steam-shortcut.py --steam ~/.steam/steam --exe /path/Ember/Launcher.exe --game 45760
+      (the game's own Steam entry starts Ember; no shortcut, no artwork needed)
 """
 import argparse, glob, json, os, re, shutil, struct, subprocess, sys, zlib
 
@@ -46,11 +48,33 @@ def main():
     p.add_argument("--tag", action="append", default=[], help="collection to put the entry in; repeatable")
     p.add_argument("--hidden", action="store_true"); p.add_argument("--no-overlay", action="store_true")
     p.add_argument("--vr", action="store_true", help="start through SteamVR")
+    p.add_argument("--game", type=int, metavar="APPID", help="no shortcut: make this Steam game's own entry start the exe instead (Ember: 45760)")
     a = p.parse_args()
     if subprocess.run(["pgrep", "-x", "steam"], capture_output=True).returncode == 0:
         sys.exit("Steam is running; close it first, it overwrites shortcuts.vdf on exit")
     users = [d for d in glob.glob(os.path.join(a.steam, "userdata", "*")) if os.path.basename(d).isdigit() and os.path.basename(d) != "0" and os.path.isdir(os.path.join(d, "config"))]
     if not users: sys.exit("no Steam user under %s/userdata; log in to Steam once" % a.steam)
+    if a.game:
+        # Steam runs the launch options with %command% expanded to Proton's full
+        # command line; this swaps the game's exe for ours inside that line.
+        option = "bash -c 'exec \"${@/*SSFIV.exe/%s}\"' -- %%command%%" % os.path.abspath(a.exe)
+        for user in users:
+            config = os.path.join(user, "config", "localconfig.vdf")
+            if not os.path.exists(config): continue
+            text = open(config, encoding="utf-8").read()
+            m = re.search(r'"%d"\s*\{[ \t]*\n' % a.game, text)
+            if m:
+                depth, end = 1, m.end()  # The game's block, nested maps included.
+                while depth: depth += {"{": 1, "}": -1}.get(text[end], 0); end += 1
+                block = re.sub(r'^[ \t]*"LaunchOptions"[ \t]+"(?:[^"\\]|\\.)*"[ \t]*\n', "", text[m.end():end], flags=re.M)
+                text = text[:m.end()] + '\t\t\t\t\t\t"LaunchOptions"\t\t"%s"\n' % option.replace('"', '\\"') + block + text[end:]
+            else:
+                m = re.search(r'"apps"\s*\{[ \t]*\n', text)
+                if not m: sys.exit("%s has no apps section; start the game once from Steam" % config)
+                text = text[:m.end()] + '\t\t\t\t\t"%d"\n\t\t\t\t\t{\n\t\t\t\t\t\t"LaunchOptions"\t\t"%s"\n\t\t\t\t\t}\n' % (a.game, option.replace('"', '\\"')) + text[m.end():]
+            shutil.copy(config, config + ".bak"); open(config, "w", encoding="utf-8").write(text)
+            print("game %d starts %s for user %s" % (a.game, a.exe, os.path.basename(user)))
+        return
     exe = '"%s"' % os.path.abspath(a.exe); start = '"%s"' % os.path.dirname(os.path.abspath(a.exe))
     appid = shortcut_appid(exe, a.name)
     for user in users:

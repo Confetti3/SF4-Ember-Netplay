@@ -42,6 +42,16 @@ Press Play. Ember starts, finds the game in the same prefix and launches it. If 
 
 Alternative without a Steam entry: `protontricks-launch --appid 45760 /path/to/pfx/drive_c/Ember/Launcher.exe`. Playtime is not tracked that way.
 
+### Variant: the USFIV entry starts Ember
+
+No separate entry at all: `EMBER_ENTRY=game bash install-linux.sh` (or `steam-shortcut.py --game 45760 --exe .../Ember/Launcher.exe`) sets the game's own launch options so Play on Ultra Street Fighter IV runs Ember, which then starts the game. Steam's artwork, playtime, overlay and controller settings for the game all apply. By hand: Properties → Launch options of USFIV:
+
+```
+bash -c 'exec "${@/*SSFIV.exe//path/to/compatdata/45760/pfx/drive_c/Ember/Launcher.exe}"' -- %command%
+```
+
+Clear the launch options to get the plain game back.
+
 ### Simpler variant: Ember in its own prefix
 
 Extract the zip anywhere (Downloads is fine), add `Launcher.exe` as a non-Steam game and force Proton, with no launch option. Steam gives Ember its own prefix and the launcher still finds the game through Steam. This is the method in the README's Steam Deck section and is confirmed on a Steam Deck. The difference from the steps above: playtime is counted on the Ember entry, not on USFIV, and the install script does not apply.
