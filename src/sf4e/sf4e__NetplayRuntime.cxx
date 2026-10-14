@@ -62,9 +62,11 @@ bool AtMainMenu() {
 }
 
 // The native screen in front ("MainMenu", "Option", ...), empty while the
-// foreground is changing or before the event system is up. Game thread.
+// foreground is changing or before the event system is up. It asks the event
+// system itself (Dimps::App::RootEventReady), so it also answers on the title
+// screen, before the main menu publishes eventSystemReady. Game thread.
 static std::string NativeForegroundName() {
-	if (!runtime || !runtime->ready || !runtime->eventSystemReady) return {};
+	if (!runtime || !runtime->ready || !Dimps::App::RootEventReady()) return {};
 	auto* root = Dimps::App::GetRootEvent();
 	if (!root) return {};
 	using Dimps::Event::EventController;

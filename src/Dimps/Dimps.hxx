@@ -15,6 +15,15 @@ namespace Dimps {
 	struct App {
 		static void Locate(HMODULE peRoot);
 		static GameEvents::RootEvent* (*GetRootEvent)();
+		// GetRootEvent takes the event system's singleton (0xA85690, built on
+		// the first call of 0x405840, which bit 0 of 0xA856A0 records), asks
+		// the object at its +4 (0xA85694) for the current event through that
+		// object's virtual +0xA8, and returns the event when it is named
+		// "Game". It reads the name before it checks the event, so it faults
+		// while the game is starting and there is none. This takes the same
+		// steps with the checks, building nothing: true once GetRootEvent can
+		// be called.
+		static bool RootEventReady();
 
 		// The application's own handler for the window's messages (0x4033E0),
 		// which the window procedure 0x77EB20 calls first. Its WM_KILLFOCUS
