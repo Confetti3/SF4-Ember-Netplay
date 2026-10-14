@@ -424,6 +424,43 @@ void fVsPreBattle::RegisterTasks() {
 	}
 }
 
+bool fVsPreBattle::GoToVersus(const VersusSettings& settings, void (*onTasksRegistered)()) {
+	using Dimps::Game::ProgressData;
+	rRootEvent* root = Dimps::App::GetRootEvent();
+	char* query[] = { "MainMenu" };
+	rMainMenu* mainMenu = root ? (rMainMenu*)EventBaseWithEC::FindForegroundEvent(root, query, 1) : nullptr;
+	if (!mainMenu) return false;
+	ProgressData* progress = *rRootEvent::GetProgressData(root);
+	*ProgressData::GetNextBattleType(progress) = ProgressData::NBT_PVP;
+	ProgressData::BattleTypeSettings& battle = ProgressData::GetBattleTypeSettings(progress)[ProgressData::NBT_PVP];
+	battle.editionSelect = settings.editionSelect;
+	battle.rounds = settings.rounds;
+	battle.timeLimit = settings.timeLimit;
+	if (settings.recordReplay) battle.recordReplay = *settings.recordReplay;
+	fVsBattle::nextRequest = settings.next;
+	fVsBattle::OnTasksRegistered = settings.onBattleTasksRegistered;
+	bSkipToVersus = true;
+	OnTasksRegistered = onTasksRegistered;
+	(rMainMenu::ToItemObserver(mainMenu)->*rMainMenu::itemObserverMethods.GoToVersusMode)();
+	return true;
+}
+
+bool fVsPreBattle::SetSides(const rVsMode::ConfirmedCharaConditions (&sides)[2], int stage) {
+	// The pre-battle event is only ever made inside VS mode.
+	char* query[] = { "VSMode" };
+	rVsMode* mode = (rVsMode*)EventBaseWithEC::FindForegroundEvent(Dimps::App::GetRootEvent(), query, 1);
+	if (!mode) return false;
+	rVsMode::ConfirmedPlayerConditions* conditions = rVsMode::GetConfirmedPlayerConditions(mode);
+	for (int i = 0; i < 2; i++) {
+		*rVsMode::ConfirmedPlayerConditions::GetCharaID(&conditions[i]) = sides[i].charaID;
+		*rVsMode::ConfirmedPlayerConditions::GetSideActive(&conditions[i]) = 1;
+		*rVsMode::ConfirmedPlayerConditions::GetCharaConditions(&conditions[i]) = sides[i];
+	}
+	(rVsMode::GetStageName(mode)->*Dimps::Platform::dString::publicMethods.assign)(Dimps::stageCodes[stage], 4);
+	*rVsMode::GetStageCode(mode) = stage;
+	return true;
+}
+
 void fVsStageSelect::Install() {
 	DetourAttach((PVOID*)&rVsStageSelect::staticMethods.Factory, &Factory);
 }

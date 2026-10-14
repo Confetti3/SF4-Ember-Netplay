@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <atomic>
 #include <mutex>
+#include <optional>
 
 #include "../Dimps/Dimps__GameEvents.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
@@ -130,6 +131,28 @@ namespace sf4e {
 		{
 			static void (*OnTasksRegistered)();
 			static bool bSkipToVersus;
+			// The PVP battle settings a Versus battle from the main menu gets;
+			// no recordReplay keeps the game's own. next and
+			// onBattleTasksRegistered become VsBattle's nextRequest and
+			// OnTasksRegistered for that battle.
+			struct VersusSettings {
+				BOOL editionSelect = FALSE;
+				int rounds = 1;
+				Dimps::Math::FixedPoint timeLimit{};
+				std::optional<BOOL> recordReplay;
+				sf4e::battle::NextRequest next;
+				void (*onBattleTasksRegistered)() = nullptr;
+			};
+			// A Versus battle from the main menu with no select screens, as a
+			// room's match is entered: the settings go into the PVP battle type,
+			// chosen for the next battle, the battle's request and callback are
+			// armed, and VS mode skips to the battle and calls onTasksRegistered
+			// once its tasks are registered, where SetSides gives it the fighters
+			// and the stage. False, with nothing written, when the main menu is
+			// not in front.
+			static bool GoToVersus(const VersusSettings& settings, void (*onTasksRegistered)());
+			// False when VS mode is not in front.
+			static bool SetSides(const Dimps::GameEvents::VsMode::ConfirmedCharaConditions (&sides)[2], int stage);
 
 			void RegisterTasks();
 			static void Install();
