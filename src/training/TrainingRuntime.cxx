@@ -72,6 +72,8 @@ std::atomic<bool> watching{false};
 // The frames the meter keeps, as the Frame data page chose (SetMeterHistory).
 std::atomic<int> meterHistory{static_cast<int>(MeterHistory)};
 std::atomic<bool> meterContinuous{false};
+// The in-game self-test's: the lab also runs in an offline Versus battle.
+bool versusForTest = false;
 bool matchShown = false;
 ConfirmedSamples confirmed;
 // A Practice room's match. It has no shared checkpoint: the
@@ -305,8 +307,9 @@ static bool Dispatch(Native* system, const Command& command) {
 }
 void BeforeUpdate(Native* system, bool networkOwned) {
     overriding = false; sampling = false; commitInput = false; following = false;
+    const int gameMode = (system->*Native::publicMethods.GetGameMode)();
     const bool available = !networkOwned &&
-        (system->*Native::publicMethods.GetGameMode)() == Dimps::Game::Battle::GAMEMODE_TRAINING &&
+        (gameMode == Dimps::Game::Battle::GAMEMODE_TRAINING || (versusForTest && gameMode == Dimps::Game::Battle::GAMEMODE_VERSUS)) &&
         !(system->*Native::publicMethods.IsLeavingBattle)();
     if (!available) {
         if (session.GetView().available) CloseBattle();
@@ -524,6 +527,7 @@ bool MatchPracticeActive() { return matchPractice; }
 unsigned ClearReservedInputBits(unsigned raw) {
     return matchPractice ? raw & ~ReservedInputBits : raw;
 }
+void AllowOfflineVersusForTest() { versusForTest = true; }
 void WatchMatches(bool enabled) { watching = enabled; }
 void SetMeterHistory(int frames, bool continuous) { meterHistory = frames; meterContinuous = continuous; }
 void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput, const unsigned* inputs) {
