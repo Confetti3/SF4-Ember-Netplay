@@ -19,6 +19,8 @@ int main() {
     try {
         Require(selftest::Parse(L"training") == selftest::Test::Training, "training names the training test");
         Require(selftest::Parse(L"") == selftest::Test::None, "no name, no test");
+        Require(selftest::Parse(L"room-host") == selftest::Test::RoomHost && selftest::Parse(L"room-guest") == selftest::Test::RoomGuest,
+            "each side of the room test has its name");
         Require(selftest::Parse(L"Training") == selftest::Test::None && selftest::Parse(L"trainingx") == selftest::Test::None,
             "only the exact name starts a test");
         // Ryu's crouching LP as the bars draw it, Player 2 standing and then blocking.

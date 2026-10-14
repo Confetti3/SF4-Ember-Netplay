@@ -10,11 +10,16 @@
 // closes itself at the end. Without the variable nothing here runs.
 namespace sf4e { namespace selftest {
 
-enum class Test { None, Training };
+enum class Test { None, Training, RoomHost, RoomGuest };
 
 // The test a name names; None for a name no test has. scripts/run-selftest.ps1
 // checks its -Test against the same names.
-inline Test Parse(const std::wstring& name) { return name == L"training" ? Test::Training : Test::None; }
+inline Test Parse(const std::wstring& name) {
+	if (name == L"training") return Test::Training;
+	if (name == L"room-host") return Test::RoomHost;
+	if (name == L"room-guest") return Test::RoomGuest;
+	return Test::None;
+}
 
 // The test SF4E_SELFTEST names, read once. A name no test has is logged.
 // Any thread.

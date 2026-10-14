@@ -54,6 +54,26 @@ The battle saves no replay and the lab keeps its slots in memory only, so
 the test writes nothing to the saves. The copy is made all the same, since
 the run goes through the title screen of the signed-in account.
 
+## The room test
+
+Two PCs play one game of a private room through the runtime's commands, the
+ones the room's controls send:
+
+```powershell
+# PC 1
+scripts\run-selftest.ps1 -PackageDir <stage> -Test room-host -Invite <file>
+# PC 2, once the host's file has been copied to it
+scripts\run-selftest.ps1 -PackageDir <stage> -Test room-guest -Invite <file>
+```
+
+The host opens a private room with a fixed input delay and one round, and
+writes its invitation to the `-Invite` file. Copy that file to the other PC
+(the guest waits up to three minutes for it). Each side sits, the host as
+Player 1 and the guest as Player 2, readies as Ryu and waits for the match
+to go live. The host then ends the game and both leave the room. Hosting,
+the names the two sides take and the controller a room needs write Ember's
+settings, so the script copies them first and puts them back after the run.
+
 ## The title screen
 
 The title screen learns from its Start which device, and so which profile,

@@ -16,6 +16,7 @@
 #include "../training/MoveInputs.hxx"
 #include "../training/TrainingRuntime.hxx"
 #include "sf4e__GameEvents.hxx"
+#include "sf4e__NetplayFacade.hxx"
 
 // The training test: the frame meter against moves whose frame data is known,
 // typed in numpad notation and played by the lab, a recording and its
@@ -23,6 +24,13 @@
 // against Ryu is entered the way a room's match is, with no menu, and the lab
 // is let into that battle. It uses only what the lab's own controls send
 // (training::Submit) and reads.
+//
+// The room test: two PCs play one game of a private room through the
+// runtime's commands, the ones the room's controls send. room-host opens the
+// room and writes its invitation to the file SF4E_SELFTEST_INVITE names; the
+// runner copies it to the other PC, where room-guest joins with it. Each sits,
+// readies as Ryu and plays until the match is live; the host then ends the
+// game and both leave.
 namespace sf4e { namespace selftest {
 namespace {
 
@@ -33,7 +41,7 @@ using training::Mode;
 constexpr int kSecond = 60;
 // Frames the test records before it stops the recording.
 constexpr int kRecorded = 8 * kSecond;
-enum class Stage { Off, ToMainMenu, ToBattle, Move, Starting, Settling, Measure, Record, Standby, Recording, Replaying, SavePosition, Dash, Dashed, Reset, Closing };
+enum class Stage { Off, ToMainMenu, ToBattle, Move, Starting, Settling, Measure, Record, Standby, Recording, Replaying, SavePosition, Dash, Dashed, Reset, RoomSetup, RoomJoin, RoomOpening, RoomSeat, RoomReady, RoomPlaying, RoomEnding, RoomLeaving, Closing };
 
 // Ryu's crouching LP: startup 3, active 2, recovery 7. The numbers on the
 // meter's line have to be these. Its cells follow the startup number
@@ -52,7 +60,7 @@ struct Run {
 	int recorded = 0, reached = 0;
 	float saved = 0, dashed = 0;
 	std::string screen;
-	std::wstring resultFile;
+	std::wstring resultFile, inviteFile;
 	std::vector<std::string> lines;
 } s_run;
 
@@ -156,6 +164,51 @@ void WatchScreen(const std::string& screen) {
 	spdlog::info("SelfTest: screen {}", screen.empty() ? "none" : screen);
 }
 
+// The room test's side of the runtime: its snapshot, and commands as the
+// room's controls build them, tagged with the current generation so a stale
+// one is dropped as a stale press would be.
+using NetplayFacade::RuntimeCommand;
+using netplay::CommandKind;
+bool Host() { return Requested() == Test::RoomHost; }
+std::shared_ptr<const NetplayFacade::RuntimeSnapshot> Now() { return NetplayFacade::GetRuntimeSnapshotShared(); }
+RuntimeCommand Command(CommandKind kind) {
+	const auto now = Now();
+	RuntimeCommand request;
+	request.command = { kind, now->session.generation, {} };
+	request.preferences = now->preferences;
+	request.displayName = now->preferences.displayName;
+	return request;
+}
+RuntimeCommand Room(room::ActionKind kind) {
+	RuntimeCommand request = Command(CommandKind::RoomAction);
+	const auto& room = Now()->room;
+	request.roomAction.kind = kind; request.roomAction.table = 0;
+	request.roomAction.roomEpoch = room.roomEpoch; request.roomAction.revision = room.revision;
+	request.roomAction.tableRevision = room.tables[0].revision;
+	// Ending a game names the game it ends, as the room's own controls do.
+	if (kind == room::ActionKind::AbortMatch) request.roomAction.matchGeneration = room.tables[0].matchGeneration;
+	return request;
+}
+// A waiting step sends again every few seconds: the runtime drops a command
+// whose generation moved on, and the room refuses one with a stale revision.
+bool Again(int seconds) { return s_run.waited % (seconds * kSecond) == 1; }
+// Each side its own name, since a room refuses a second member of the same
+// name; a fixed delay, so Ready does not wait for the connection check; one round.
+netplay::PlayerPreferences RoomPreferences() {
+	netplay::PlayerPreferences preferences = Now()->preferences;
+	preferences.displayName = Host() ? "SelfTest host" : "SelfTest guest";
+	preferences.autoInputDelay = false;
+	preferences.inputDelay = 2;
+	preferences.tableRules.roundCount = 1;
+	return preferences;
+}
+std::string ReadInvitation() {
+	std::ifstream in(s_run.inviteFile);
+	std::string invitation;
+	std::getline(in, invitation);
+	return invitation;
+}
+
 void Begin() {
 	s_run.resultFile = Environment(L"SF4E_SELFTEST_RESULT");
 	// A run that cannot leave its outcome is not run: the game closes at once.
@@ -164,8 +217,97 @@ void Begin() {
 		Fail("result file", "'" + platform::WideToUtf8(s_run.resultFile) + "' cannot be written", Stage::Closing);
 		return;
 	}
-	spdlog::info("SelfTest: training, result to '{}'", platform::WideToUtf8(s_run.resultFile));
+	spdlog::info("SelfTest: {}, result to '{}'", platform::WideToUtf8(Environment(L"SF4E_SELFTEST")), platform::WideToUtf8(s_run.resultFile));
 	Enter(Stage::ToMainMenu);
+}
+
+
+// The room test, one step a tick from the main menu on. The host opens the
+// room and the guest joins it; the rest is the same on both sides.
+void TickRoom() {
+	Run& run = s_run;
+	const auto now = Now();
+	const int seat = Host() ? 0 : 1;
+	switch (run.stage) {
+	case Stage::RoomSetup: {
+		// A room needs a controller: the keyboard, when none was kept, asked
+		// for as the controller page asks.
+		if (!now->controllerReady) {
+			if (Again(3)) { RuntimeCommand request; request.command.generation = now->session.generation; request.inputAction = input::Action::UseKeyboard; NetplayFacade::SubmitRuntimeCommand(std::move(request)); }
+			if (Late(15)) Fail("controller", "none could be assigned", Stage::Closing);
+			break;
+		}
+		if (!now->helperReady || !now->canOpenRoom) { if (Late(60)) Fail("room", "rooms never became available: " + now->helperError, Stage::Closing); break; }
+		run.inviteFile = Environment(L"SF4E_SELFTEST_INVITE");
+		if (run.inviteFile.empty()) { Fail("room", "SF4E_SELFTEST_INVITE is not set", Stage::Closing); break; }
+		RuntimeCommand request = Command(Host() ? CommandKind::HostRoom : CommandKind::SavePreferences);
+		request.preferences = RoomPreferences();
+		request.displayName = request.preferences.displayName;
+		NetplayFacade::SubmitRuntimeCommand(std::move(request));
+		Enter(Host() ? Stage::RoomOpening : Stage::RoomJoin);
+		break;
+	}
+	case Stage::RoomJoin: {
+		// The guest's settings first, then the invitation from the other PC.
+		if (now->preferences.displayName != RoomPreferences().displayName) { if (Late(10)) Fail("room", "the guest's settings were not taken", Stage::Closing); break; }
+		const std::string invitation = ReadInvitation();
+		if (invitation.empty()) { if (Late(180)) Fail("room", "no invitation arrived from the host", Stage::Closing); break; }
+		RuntimeCommand request = Command(CommandKind::JoinInvite);
+		request.command.invitation = invitation;
+		NetplayFacade::SubmitRuntimeCommand(std::move(request));
+		Enter(Stage::RoomOpening);
+		break;
+	}
+	case Stage::RoomOpening:
+		if (now->session.room == netplay::RoomState::Joined && (!Host() || !now->invitation.empty())) {
+			if (Host()) {
+				std::ofstream out(run.inviteFile, std::ios::trunc);
+				out << now->invitation << '\n';
+				out.flush();
+				if (!out) { Fail("room", "the invitation could not be written", Stage::Closing); break; }
+			}
+			Say(true, "room", now->room.name);
+			Enter(Stage::RoomSeat);
+		}
+		else if (!now->session.error.empty()) Fail("room", now->session.error, Stage::Closing);
+		else if (Late(60)) Fail("room", "never joined", Stage::Closing);
+		break;
+	case Stage::RoomSeat:
+		// The host takes Player 1's seat at the first table, the guest Player 2's.
+		if (now->localSlot == seat) { Say(true, "seat", "Player " + std::to_string(seat + 1)); Enter(Stage::RoomReady); break; }
+		if (Again(3)) { RuntimeCommand request = Room(room::ActionKind::Queue); request.roomAction.seat = static_cast<std::int8_t>(seat); NetplayFacade::SubmitRuntimeCommand(std::move(request)); }
+		if (Late(30)) Fail("seat", now->helperError.empty() ? "never taken" : now->helperError, Stage::RoomLeaving);
+		break;
+	case Stage::RoomReady: {
+		// Ready as Ryu on the first stage once both seats are filled, until the
+		// match is live: a Ready parked while the room settles is sent again.
+		if (now->session.match == netplay::MatchState::Playing) { Say(true, "match live"); Enter(Stage::RoomPlaying); break; }
+		const auto& table = now->room.tables[0];
+		if (table.p1 && table.p2 && now->session.match == netplay::MatchState::None && !now->session.readyPending && Again(5)) {
+			RuntimeCommand request = Command(CommandKind::Ready);
+			request.character.charaID = 0; request.character.unc_edition = Dimps::Game::Battle::ED_USF4;
+			NetplayFacade::SubmitRuntimeCommand(std::move(request));
+		}
+		if (Late(120)) Fail("match", now->readyFailure.empty() ? "never went live" : now->readyFailure, Stage::RoomLeaving);
+		break;
+	}
+	case Stage::RoomPlaying:
+		// Five seconds of the game, then the host ends it, as End game does.
+		if (Late(5)) Enter(Stage::RoomEnding);
+		break;
+	case Stage::RoomEnding:
+		if (now->session.match != netplay::MatchState::Playing && now->session.match != netplay::MatchState::Preparing) { Say(true, "match end"); Enter(Stage::RoomLeaving); }
+		else if (Host() && Again(5)) NetplayFacade::SubmitRuntimeCommand(Room(room::ActionKind::AbortMatch));
+		else if (Late(60)) Fail("match end", "the game never ended", Stage::RoomLeaving);
+		break;
+	case Stage::RoomLeaving:
+		if (now->session.room == netplay::RoomState::Idle) { Say(true, "left the room"); Finish(); break; }
+		if (Again(3)) NetplayFacade::SubmitRuntimeCommand(Command(CommandKind::LeaveRoom));
+		if (Late(30)) Fail("leave", "the room never let go", Stage::Closing);
+		break;
+	default:
+		break;
+	}
 }
 
 }
@@ -182,8 +324,9 @@ Test Requested() {
 
 void Tick(bool atMainMenu, const std::string& screen) {
 	Run& run = s_run;
-	if (run.stage == Stage::Off) { if (Requested() != Test::Training) return; Begin(); }
+	if (run.stage == Stage::Off) { if (Requested() == Test::None) return; Begin(); }
 	run.waited++;
+	if (run.stage >= Stage::RoomSetup && run.stage < Stage::Closing) { TickRoom(); return; }
 	const training::View view = training::ReadView();
 	const bool neutral = view.meter.current[0].valid && training::ClassifyStatus(view.meter.current[0].status) == training::Phase::Neutral;
 	switch (run.stage) {
@@ -196,7 +339,8 @@ void Tick(bool atMainMenu, const std::string& screen) {
 		WatchScreen(screen);
 		if (atMainMenu) {
 			Say(true, "main menu");
-			if (EnterBattle()) Enter(Stage::ToBattle); else Fail("battle", "the main menu was not in front", Stage::Closing);
+			if (Requested() != Test::Training) Enter(Stage::RoomSetup);
+			else if (EnterBattle()) Enter(Stage::ToBattle); else Fail("battle", "the main menu was not in front", Stage::Closing);
 		}
 		else if (Late(180)) Fail("main menu", "never reached", Stage::Closing);
 		break;
