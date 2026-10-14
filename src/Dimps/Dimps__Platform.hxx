@@ -172,6 +172,9 @@ namespace Dimps {
 			} Win32_WindowData;
 
 			static Win32_WindowData** GetWindowData(Main* m);
+			// Asks the game to close, as its window's close button does; nothing
+			// before Main is up.
+			static void Close();
 			// SYSTEM/RenderingThread, set from config.ini inside Initialize
 			// (0x780380) and read only through the vtable's 0xA4 getter. Run
 			// (0x780600) starts the "Afx Rendering" thread when it is 1;

@@ -82,6 +82,11 @@ Main::Win32_WindowData** Main::GetWindowData(Main* m) {
     return (Win32_WindowData**)((unsigned int)m + 0x490);
 }
 
+void Main::Close() {
+    Main* main = staticMethods.GetSingleton();
+    if (main) PostMessageW((*GetWindowData(main))->hWnd, WM_CLOSE, 0, 0);
+}
+
 int* Main::GetRenderingThread(Main* m) {
     return (int*)((unsigned int)m + 0x110);
 }
