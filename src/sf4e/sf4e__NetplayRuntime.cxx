@@ -755,8 +755,7 @@ void TickRuntime() {
 	}
 	if (runtime->services.Snapshot().closeGame && !runtime->updateClosing) {
 		runtime->updateClosing = true;
-		auto* main = Dimps::Platform::Main::staticMethods.GetSingleton();
-		if (main) PostMessageW((*Dimps::Platform::Main::GetWindowData(main))->hWnd, WM_CLOSE, 0, 0);
+		Dimps::Platform::Main::Close();
 	}
 	// Advance the host authority before the following SessionServer::Step()
 	// consumes room actions. This drives result-dispute and chat-rate deadlines
