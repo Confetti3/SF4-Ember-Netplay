@@ -212,6 +212,31 @@ static void PublishDiscordPresence(const RuntimeSnapshot& snapshot) {
     }
 }
 
+static void PublishSteamPresence(const RuntimeSnapshot& snapshot) {
+    if (!runtime->steamRuntime.Attached()) return;
+    if (!runtime->preferences.steamPresence) { runtime->steamRuntime.ClearPresence(); return; }
+    steam_presence::Input input;
+    input.attached = true;
+    input.enabled = runtime->preferences.steamPresence;
+    input.invites = runtime->preferences.steamInvites;
+    input.session = snapshot.session;
+    input.room = snapshot.room;
+    // A public room admits by ticket, so its invitation alone would admit
+    // nobody; only a direct room's short link becomes a Steam connect value.
+    if (runtime->room && !snapshot.room.serverOwned) {
+        const auto code = steam_join::FromShortLink(runtime->room->ShortInvitation());
+        if (!code.empty()) {
+            input.code = steam_join::ConnectString(code);
+            input.codeGeneration = snapshot.session.generation.room;
+        }
+    }
+    const auto presence = steam_presence::Describe(input);
+    // Runtime::Publish() already elides a call when nothing changed, so this
+    // tick calls it unconditionally; the wrapper decides whether Steam is
+    // actually touched.
+    runtime->steamRuntime.Publish(presence.status, presence.connect);
+}
+
 static void TraceSnapshot(const RuntimeSnapshot& snapshot) {
     {
         diag::ScopedTimer traceTimer(diag::OP_TRACE_ENQUEUE);
@@ -373,6 +398,14 @@ PostPublishState Publish() {
 		snapshot.shortInvitationFailures = runtime->room->ShortInvitationFailures();
 	}
 	FillRoomView(snapshot);
+    snapshot.steamAttached = runtime->steamRuntime.Attached();
+    snapshot.steamStatus = loc::T(snapshot.steamAttached ? "steam.connected" : "steam.unavailable");
+    // Only copied while actually worth inviting into: Steam's friend list
+    // read is cheap, but there is nothing useful to show it for otherwise.
+    if (snapshot.steamAttached && snapshot.session.room == netplay::RoomState::Joined && !snapshot.room.serverOwned)
+        snapshot.steamFriends = runtime->steamRuntime.Friends();
+    snapshot.steamInviteSent = runtime->steamInviteSent;
+    snapshot.steamInviteSequence = runtime->steamInviteSequence;
     snapshot.canChangeController = snapshot.canEditSelection && !runtime->readyIntent.Parked() &&
         !snapshot.session.readyPending && !runtime->lobbyEditIntent.Parked() && !runtime->pendingAbort;
     snapshot.readyGate = snapshot.readyGate && snapshot.controllerReady;
@@ -388,6 +421,7 @@ PostPublishState Publish() {
         (snapshot.session.match == netplay::MatchState::None || snapshot.session.match == netplay::MatchState::PostMatch);
     snapshot.discordStatus = loc::T(runtime->discordStatusId);
 	PublishDiscordPresence(snapshot);
+	PublishSteamPresence(snapshot);
 	TraceSnapshot(snapshot);
     PostPublishState result{snapshot.session,snapshot.discordCanSwitch,snapshot.canOpenRoom};
     bridge::PublishRuntime(std::make_shared<const RuntimeSnapshot>(std::move(snapshot)));
@@ -463,6 +497,28 @@ void PublishAndTickDiscordInvite() {
         invite.preferences=runtime->preferences;
         invite.discordRevision=runtime->discordInvite.Revision();
         SubmitRuntimeCommand(std::move(invite));
+    }
+}
+
+void TickSteamRuntime() {
+    // Retried at a bounded cadence (once a second), never every frame: the
+    // game's own Steam initialization may still be in progress, or this copy
+    // may not be running under Steam at all.
+    const auto now = GetTickCount64();
+    if (!runtime->steamRuntime.Attached() && now >= runtime->steamAttachRetryAt) {
+        if (runtime->steamRuntime.Attach()) spdlog::info("Steam: attached to the game's steam_api.dll");
+        runtime->steamAttachRetryAt = now + 1000;
+    }
+    steam::JoinRequest request;
+    if (runtime->steamRuntime.TakeJoinRequest(request)) {
+        // Never logged: the friend SteamID and the join code both stay out of
+        // the log, matching the browser join-link mailbox's own handling.
+        runtime->pendingJoinLink = join_link::ShortLink(request.code);
+        ++runtime->pendingJoinSequence;
+        const auto session = runtime->controller.GetSnapshot();
+        runtime->pendingJoinFree = session.room == netplay::RoomState::Idle && session.match == netplay::MatchState::None;
+        runtime->pendingJoinArrived = std::chrono::steady_clock::now();
+        spdlog::info("Room: a room link arrived from a Steam invite");
     }
 }
 } // namespace internal

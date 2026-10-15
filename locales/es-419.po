@@ -327,6 +327,12 @@ msgstr "Discord"
 msgid "screen.discord_invitation"
 msgstr "Invitación de Discord"
 
+msgid "screen.steam"
+msgstr "Steam"
+
+msgid "screen.steam_invite"
+msgstr "Invitar a un amigo de Steam"
+
 msgid "screen.assignment"
 msgstr "Asignar control"
 
@@ -717,6 +723,9 @@ msgstr "Idioma, HUD de partida y tamaño de la interfaz."
 msgid "settings.discord_detail"
 msgstr "Actividad e invitaciones."
 
+msgid "settings.steam_detail"
+msgstr "Actividad e invitaciones."
+
 msgid "player.title"
 msgstr "JUGADOR Y CONTROL"
 
@@ -863,6 +872,45 @@ msgstr "Invitación pendiente"
 
 msgid "discord.invitation_pending_detail"
 msgstr "Esperando el menú principal, la red y el control asignado."
+
+msgid "steam.show_activity"
+msgstr "Mostrar actividad"
+
+msgid "steam.allow_invitations"
+msgstr "Permitir invitaciones"
+
+msgid "steam.invitation_detail"
+msgstr "Las invitaciones dan acceso a tu sala."
+
+msgid "steam.enable_first"
+msgstr "Primero activa la actividad de Steam."
+
+msgid "steam.title"
+msgstr "STEAM"
+
+msgid "steam.invite_friend"
+msgstr "Invitar a un amigo de Steam"
+
+msgid "steam.invite_friend_detail"
+msgstr "Elige un amigo de tu lista de amigos de Steam para invitarlo a esta sala."
+
+msgid "steam.invite_friend_action"
+msgstr "Enviar invitación"
+
+msgid "steam.no_friends"
+msgstr "No hay amigos disponibles"
+
+msgid "steam.no_friends.detail"
+msgstr "Steam no informó amigos para invitar en este momento."
+
+msgid "steam.friend_unnamed"
+msgstr "Amigo de Steam"
+
+msgid "steam.invite_sent"
+msgstr "Invitación enviada"
+
+msgid "steam.invite_failed"
+msgstr "No se pudo enviar la invitación."
 
 msgid "about.title"
 msgstr "AYUDA E INFORMACIÓN"
@@ -1948,6 +1996,10 @@ msgid "discord.invalid_event"
 msgstr "Discord envió un evento local no válido."
 msgid "discord.companion_stopped"
 msgstr "El auxiliar de Discord se detuvo. El juego no se ve afectado."
+msgid "steam.connected"
+msgstr "Steam conectado"
+msgid "steam.unavailable"
+msgstr "Steam no está disponible. El juego no se ve afectado."
 msgid "runtime.room_connection_failed"
 msgstr "Falló la conexión de la sala. La sala se está cerrando; los resultados no confirmados no serán registrados."
 msgid "runtime.operation_busy"

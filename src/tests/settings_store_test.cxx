@@ -155,6 +155,7 @@ int main() {
         CHECK(retired["netplay"]["matchHudAnchor"]==4&&retired["legacyLauncher"]["unknownPreference"]=="retain");
     }
     CHECK(discordDefaults.discordPresence && discordDefaults.discordInvites);
+    CHECK(discordDefaults.steamPresence && discordDefaults.steamInvites);
     CHECK(discordDefaults.inputDelay == 2);
     discordDefaults.inputDelay = 0; CHECK(!discordDefaults.Valid());
     discordDefaults.inputDelay = 1; CHECK(discordDefaults.Valid());
@@ -182,6 +183,12 @@ int main() {
     const auto discordSettings=Json::parse(Read(path / L"settings.json"));
     CHECK(discordSettings["netplay"]["discordPresence"]==false);
     CHECK(!discordSettings["legacyLauncher"].contains("discordInvites"));
+    CHECK(store.SaveLauncher({{"steamPresence",false},{"steamInvites",false}},error));
+    CHECK(store.LoadLauncher(result,error));
+    CHECK(result["steamPresence"]==false && result["steamInvites"]==false);
+    const auto steamSettings=Json::parse(Read(path / L"settings.json"));
+    CHECK(steamSettings["netplay"]["steamPresence"]==false);
+    CHECK(!steamSettings["legacyLauncher"].contains("steamInvites"));
     // Independent consumers merge into the latest complete document.
     SettingsStore second(path.wstring());
     CHECK(store.SaveLauncher({{"displayName", "Changed"}}, error));

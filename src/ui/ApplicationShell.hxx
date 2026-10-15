@@ -1,6 +1,7 @@
 #pragma once
 #include "../common/GameDisplayConfig.hxx"
 #include "../discord/Presence.hxx"
+#include "../platform/SteamRuntime.hxx"
 #include "../netplay/InputAssignment.hxx"
 #include "../netplay/SessionController.hxx"
 #include "../netplay/PlayerPreferences.hxx"
@@ -78,6 +79,11 @@ struct ShellView {
     bool discordPending = false, discordConfirm = false, discordCanSwitch = false;
     std::uint64_t discordRevision = 0;
     std::string discordStatus;
+    bool steamAttached = false;
+    std::string steamStatus;
+    std::vector<steam::Friend> steamFriends;
+    bool steamInviteSent = false;
+    std::uint64_t steamInviteSequence = 0;
             input::Capture inputCapture = input::Capture::Idle;
             input::Device inputDevice;
             bool canChangeController = false, controllerReady = false;
@@ -141,6 +147,8 @@ struct ShellAction {
     // With the JoinInvite of a public room just created: the table rules chosen
     // on Create, which the runtime sets once the creator is in it as host.
     std::optional<room::Rules> createdRules;
+    // Invite a Steam friend to the current room's short link; 0 otherwise.
+    std::uint64_t steamInviteFriendId = 0;
 };
 
 class ApplicationShell {
@@ -343,6 +351,9 @@ private:
     bool roomLinkOpening_=false;
     Tone noticeTone_=Tone::Success;
     std::uint64_t roomEpoch_ = 0, rulesRevision_ = 0, nextActionId_ = 1, readyFailureSequence_ = 0;
+    // The last "Invite Steam friend" send result seen, so a new one fires
+    // the room notice exactly once.
+    std::uint64_t steamInviteSeen_ = 0;
     int selectedTable_ = 0, roomCapacity_ = 16;
     char roomName_[65] = {}, chat_[257] = {};
     room::Rules tableRules_;

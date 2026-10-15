@@ -327,6 +327,12 @@ msgstr "Discord"
 msgid "screen.discord_invitation"
 msgstr "Discordの招待"
 
+msgid "screen.steam"
+msgstr "Steam"
+
+msgid "screen.steam_invite"
+msgstr "Steamフレンドを招待"
+
 msgid "screen.assignment"
 msgstr "コントローラーの割り当て"
 
@@ -717,6 +723,9 @@ msgstr "言語、対戦HUD、画面サイズ。"
 msgid "settings.discord_detail"
 msgstr "アクティビティと招待。"
 
+msgid "settings.steam_detail"
+msgstr "アクティビティと招待。"
+
 msgid "player.title"
 msgstr "プレイヤーとコントローラー"
 
@@ -863,6 +872,45 @@ msgstr "招待を保留中"
 
 msgid "discord.invitation_pending_detail"
 msgstr "メインメニュー、通信、割り当て済みコントローラーを待っています。"
+
+msgid "steam.show_activity"
+msgstr "アクティビティを表示"
+
+msgid "steam.allow_invitations"
+msgstr "招待を許可"
+
+msgid "steam.invitation_detail"
+msgstr "招待を送ると、あなたのルームへの参加手段が共有されます。"
+
+msgid "steam.enable_first"
+msgstr "先にSteamのアクティビティを有効にしてください。"
+
+msgid "steam.title"
+msgstr "Steam"
+
+msgid "steam.invite_friend"
+msgstr "Steamフレンドを招待"
+
+msgid "steam.invite_friend_detail"
+msgstr "Steamのフレンドリストからフレンドを選んで、このルームに招待します。"
+
+msgid "steam.invite_friend_action"
+msgstr "招待を送信"
+
+msgid "steam.no_friends"
+msgstr "招待できるフレンドがいません"
+
+msgid "steam.no_friends.detail"
+msgstr "現在、Steamから招待可能なフレンドが報告されていません。"
+
+msgid "steam.friend_unnamed"
+msgstr "Steamフレンド"
+
+msgid "steam.invite_sent"
+msgstr "招待を送信しました"
+
+msgid "steam.invite_failed"
+msgstr "招待を送信できませんでした。"
 
 msgid "about.title"
 msgstr "ヘルプ・情報"
@@ -2341,6 +2389,10 @@ msgstr "Discordから無効なローカルイベントを受信しました。"
 
 msgid "discord.companion_stopped"
 msgstr "Discordの連携プログラムが停止しました。対戦には影響しません。"
+msgid "steam.connected"
+msgstr "Steamに接続しました"
+msgid "steam.unavailable"
+msgstr "Steamを利用できません。対戦には影響しません。"
 
 msgid "runtime.room_connection_failed"
 msgstr "ルームへの接続に失敗しました。ルームを閉じます。未確定の結果は記録されません。"

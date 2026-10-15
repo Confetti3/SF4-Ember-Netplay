@@ -96,6 +96,16 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         PlayChallengerCall((std::min)(command.previewSoundVolume, 100));
         return DispatchOutcome::Dropped;
     }
+    if (command.steamInviteFriendId != 0) {
+        // Never a room admission channel by itself: the invited friend still
+        // goes through the room's own join checks, same as any other link.
+        const auto* view = GetRuntimeSnapshotShared().get();
+        const auto code = runtime->room && !view->room.serverOwned ? steam_join::FromShortLink(runtime->room->ShortInvitation()) : std::string();
+        runtime->steamInviteSent = !code.empty() && runtime->preferences.steamInvites &&
+            runtime->steamRuntime.Invite(command.steamInviteFriendId, steam_join::ConnectString(code));
+        ++runtime->steamInviteSequence;
+        return DispatchOutcome::Dropped;
+    }
     if (command.shortInvitation) {
         // The answer, or the failure, reaches the interface through the snapshot.
         if (runtime->room) runtime->room->RequestShortInvitation();

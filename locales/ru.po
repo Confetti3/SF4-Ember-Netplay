@@ -327,6 +327,12 @@ msgstr "Discord"
 msgid "screen.discord_invitation"
 msgstr "Приглашение Discord"
 
+msgid "screen.steam"
+msgstr "Steam"
+
+msgid "screen.steam_invite"
+msgstr "Пригласить друга из Steam"
+
 msgid "screen.assignment"
 msgstr "Назначить контроллер"
 
@@ -717,6 +723,9 @@ msgstr "Язык, HUD матча и размер интерфейса."
 msgid "settings.discord_detail"
 msgstr "Статус и приглашения."
 
+msgid "settings.steam_detail"
+msgstr "Статус и приглашения."
+
 msgid "player.title"
 msgstr "ИГРОК И КОНТРОЛЛЕР"
 
@@ -863,6 +872,45 @@ msgstr "Приглашение ожидает"
 
 msgid "discord.invitation_pending_detail"
 msgstr "Ожидание главного меню, сети и назначенного контроллера."
+
+msgid "steam.show_activity"
+msgstr "Показывать статус"
+
+msgid "steam.allow_invitations"
+msgstr "Разрешить приглашения"
+
+msgid "steam.invitation_detail"
+msgstr "Приглашения открывают доступ к вашему залу."
+
+msgid "steam.enable_first"
+msgstr "Сначала включите статус Steam."
+
+msgid "steam.title"
+msgstr "STEAM"
+
+msgid "steam.invite_friend"
+msgstr "Пригласить друга"
+
+msgid "steam.invite_friend_detail"
+msgstr "Выберите друга из списка друзей Steam, чтобы пригласить его в этот зал."
+
+msgid "steam.invite_friend_action"
+msgstr "Отправить приглашение"
+
+msgid "steam.no_friends"
+msgstr "Нет доступных друзей"
+
+msgid "steam.no_friends.detail"
+msgstr "Steam сейчас не сообщает о друзьях для приглашения."
+
+msgid "steam.friend_unnamed"
+msgstr "Друг из Steam"
+
+msgid "steam.invite_sent"
+msgstr "Приглашение отправлено"
+
+msgid "steam.invite_failed"
+msgstr "Не удалось отправить приглашение."
 
 msgid "about.title"
 msgstr "СПРАВКА И СВЕДЕНИЯ"
@@ -2341,6 +2389,10 @@ msgstr "Discord прислал неверное локальное событи�
 
 msgid "discord.companion_stopped"
 msgstr "Модуль Discord остановлен. На игру это не влияет."
+msgid "steam.connected"
+msgstr "Steam подключён"
+msgid "steam.unavailable"
+msgstr "Steam недоступен. На игру это не влияет."
 
 msgid "runtime.room_connection_failed"
 msgstr "Сбой соединения с залом. Зал закрывается; неподтверждённые результаты не будут записаны."

@@ -242,6 +242,7 @@ namespace OverlayPrefs {
 			{"editionSelect", preferences.lobby.editionSelect ? 1 : 0}, {"roundCount", preferences.lobby.roundCount},
 			{"roundTimeIntegral", preferences.lobby.roundTime}, {"showMatchHud", preferences.showMatchHud},
 			{"discordPresence", preferences.discordPresence}, {"discordInvites", preferences.discordInvites},
+			{"steamPresence", preferences.steamPresence}, {"steamInvites", preferences.steamInvites},
             {"matchHudSize",preferences.matchHudSize},{"matchHudRaised",preferences.matchHudRaised},{"matchHudAnchor",preferences.matchHudAnchor},{"matchHudLayout",preferences.matchHudLayout},{"readySound",preferences.readySound},{"readySoundVolume",preferences.readySoundVolume},
             {"interfaceScale", preferences.interfaceScale}, {"roomDefaults", netplay::RoomPreferences(preferences)}};
         if(preferences.record.available)values["onlineRecord"]=netplay::ProfileRecordJson(preferences.record);

@@ -4,6 +4,7 @@
 #include "../common/FighterCatalog.hxx"
 #include "../common/StageCatalog.hxx"
 #include "../discord/Presence.hxx"
+#include "../platform/SteamRuntime.hxx"
 #include "../netplay/InputAssignment.hxx"
 
 #include "../common/sf4e__NetplayConfig.hxx"
@@ -95,6 +96,8 @@ namespace sf4e {
             std::string publicTicket;
             // With the JoinInvite of a public room just created: the table rules chosen on Create.
             std::optional<room::Rules> createdRules;
+            // Invite a Steam friend to the current room's short link; 0 for every other command.
+            std::uint64_t steamInviteFriendId = 0;
 		};
 		struct RuntimeSnapshot {
             ui::ControllerSample menuController;
@@ -167,6 +170,17 @@ namespace sf4e {
     bool discordPending = false, discordConfirm = false, discordCanSwitch = false;
     std::uint64_t discordRevision = 0;
     std::string discordStatus;
+    // Steam Rich Presence/invites: whether SteamRuntime attached this session,
+    // its localized status text, and (only while worth inviting into a room)
+    // the copied immediate-friends list for the invite screen.
+    bool steamAttached = false;
+    std::string steamStatus;
+    std::vector<steam::Friend> steamFriends;
+    // The last "Invite Steam friend" send: Steam accepted the request, or it
+    // did not (never whether the friend actually joined). The sequence
+    // changes per attempt so a repeated identical result still shows.
+    bool steamInviteSent = false;
+    std::uint64_t steamInviteSequence = 0;
             input::Capture inputCapture = input::Capture::Idle;
             input::Device inputDevice;
             bool canChangeController = false, controllerReady = false;

@@ -327,6 +327,12 @@ msgstr "Discord"
 msgid "screen.discord_invitation"
 msgstr "Discord invitation"
 
+msgid "screen.steam"
+msgstr "Steam"
+
+msgid "screen.steam_invite"
+msgstr "Invite Steam friend"
+
 msgid "screen.assignment"
 msgstr "Assign controller"
 
@@ -717,6 +723,9 @@ msgstr "Language, match HUD and interface size."
 msgid "settings.discord_detail"
 msgstr "Activity and invitations."
 
+msgid "settings.steam_detail"
+msgstr "Activity and invitations."
+
 msgid "player.title"
 msgstr "PLAYER & CONTROLLER"
 
@@ -863,6 +872,45 @@ msgstr "Invitation pending"
 
 msgid "discord.invitation_pending_detail"
 msgstr "Waiting for the main menu, network, and assigned controller."
+
+msgid "steam.show_activity"
+msgstr "Show activity"
+
+msgid "steam.allow_invitations"
+msgstr "Allow invitations"
+
+msgid "steam.invitation_detail"
+msgstr "Invitations share access to your room."
+
+msgid "steam.enable_first"
+msgstr "Enable Steam activity first."
+
+msgid "steam.title"
+msgstr "STEAM"
+
+msgid "steam.invite_friend"
+msgstr "Invite Steam friend"
+
+msgid "steam.invite_friend_detail"
+msgstr "Choose a friend from your Steam friends list to invite to this room."
+
+msgid "steam.invite_friend_action"
+msgstr "Send invitation"
+
+msgid "steam.no_friends"
+msgstr "No friends available"
+
+msgid "steam.no_friends.detail"
+msgstr "Steam reported no friends to invite right now."
+
+msgid "steam.friend_unnamed"
+msgstr "Steam friend"
+
+msgid "steam.invite_sent"
+msgstr "Invitation sent"
+
+msgid "steam.invite_failed"
+msgstr "The invitation could not be sent."
 
 msgid "about.title"
 msgstr "HELP & ABOUT"
@@ -2064,6 +2112,10 @@ msgid "discord.invalid_event"
 msgstr "Discord sent an invalid local event."
 msgid "discord.companion_stopped"
 msgstr "Discord companion stopped. Gameplay is unaffected."
+msgid "steam.connected"
+msgstr "Steam connected"
+msgid "steam.unavailable"
+msgstr "Steam unavailable. Gameplay is unaffected."
 msgid "runtime.room_connection_failed"
 msgstr "Room connection failed. The room is closing; unconfirmed results will not be recorded."
 msgid "runtime.operation_busy"

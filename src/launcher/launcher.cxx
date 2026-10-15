@@ -18,6 +18,7 @@
 #include <filesystem>
 #include "../ui/RecoverySurface.hxx"
 #include "../platform/JoinLinkMailbox.hxx"
+#include "../common/SteamJoin.hxx"
 #include "../common/WipeText.hxx"
 #include "../platform/LauncherInstance.hxx"
 #include "../platform/Utf8.hxx"
@@ -571,14 +572,21 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // The link is a room's short code, never logged, a tournament match, a
     // public room of a service (its IDs are not logged either), or a
     // tournament service asking the player to connect Discord.
-    const std::string joinCode = joinUri.empty() ? std::string() : sf4e::join_link::ParseUri(joinUri);
-    const auto matchLink = joinUri.empty() || !joinCode.empty() ? sf4e::tournament_link::MatchLink() :
+    const std::string explicitJoinCode = joinUri.empty() ? std::string() : sf4e::join_link::ParseUri(joinUri);
+    const auto matchLink = joinUri.empty() || !explicitJoinCode.empty() ? sf4e::tournament_link::MatchLink() :
         sf4e::tournament_link::ParseLink(joinUri);
-    const auto publicRoomLink = joinUri.empty() || !joinCode.empty() || matchLink.Valid() ? sf4e::tournament_link::RoomLink() :
+    const auto publicRoomLink = joinUri.empty() || !explicitJoinCode.empty() || matchLink.Valid() ? sf4e::tournament_link::RoomLink() :
         sf4e::tournament_link::ParseRoomLink(joinUri);
-    const std::string connectBridge = joinUri.empty() || !joinCode.empty() || matchLink.Valid() || publicRoomLink.Valid() ? std::string() :
+    const std::string connectBridge = joinUri.empty() || !explicitJoinCode.empty() || matchLink.Valid() || publicRoomLink.Valid() ? std::string() :
         sf4e::tournament_link::ParseConnectLink(joinUri);
-    if (!joinCode.empty()) spdlog::info("Started with a room link");
+    // A friend's Steam invite acceptance appends the connect string to this
+    // launcher's own command line (Steam launch option: "Launcher.exe" %command%),
+    // never as --join-link. Exactly one valid ember://join/... token anywhere in
+    // the unused remainder is accepted; see src/common/SteamJoin.hxx.
+    const std::string steamJoinCode = joinUri.empty() ? sf4e::steam_join::FromLauncherRemainder(steamCommand) : std::string();
+    const std::string joinCode = explicitJoinCode.empty() ? steamJoinCode : explicitJoinCode;
+    if (!explicitJoinCode.empty()) spdlog::info("Started with a room link");
+    else if (!steamJoinCode.empty()) spdlog::info("Started with a Steam invite link");
     else if (matchLink.Valid()) spdlog::info("Started with a link to tournament match {}", matchLink.matchId);
     else if (publicRoomLink.Valid()) spdlog::info("Started with a public room link");
     else if (!connectBridge.empty()) spdlog::info("Started with a link to connect Discord on service {}", connectBridge);

@@ -69,6 +69,14 @@ if(BUILD_TESTING)
     target_compile_features(JoinLinkTest PRIVATE cxx_std_11)
     add_test(NAME JoinLink COMMAND JoinLinkTest)
     set_tests_properties(JoinLink PROPERTIES TIMEOUT 15)
+    add_executable(SteamJoinTest "src/tests/steam_join_test.cxx")
+    target_compile_features(SteamJoinTest PRIVATE cxx_std_11)
+    add_test(NAME SteamJoin COMMAND SteamJoinTest)
+    set_tests_properties(SteamJoin PROPERTIES TIMEOUT 15)
+    add_executable(SteamIdentityTest "src/tests/steam_identity_test.cxx")
+    target_compile_features(SteamIdentityTest PRIVATE cxx_std_11)
+    add_test(NAME SteamIdentity COMMAND SteamIdentityTest)
+    set_tests_properties(SteamIdentity PROPERTIES TIMEOUT 15)
     add_executable(RollbackAuditTest "src/tests/rollback_audit_test.cxx")
     target_compile_features(RollbackAuditTest PRIVATE cxx_std_14)
     add_test(NAME RollbackAudit COMMAND RollbackAuditTest)
@@ -164,6 +172,17 @@ if(BUILD_TESTING)
     add_executable(DiscordPresenceTest src/tests/discord_presence_test.cxx)
     target_link_libraries(DiscordPresenceTest PRIVATE sf4e_room_model)
     add_test(NAME DiscordPresence COMMAND DiscordPresenceTest)
+    add_executable(SteamPresenceTest src/tests/steam_presence_test.cxx)
+    target_link_libraries(SteamPresenceTest PRIVATE sf4e_room_model)
+    add_test(NAME SteamPresence COMMAND SteamPresenceTest)
+    set_tests_properties(SteamPresence PROPERTIES TIMEOUT 15)
+    # x86 only: SteamRuntime wraps USF4's 32-bit steam_api.dll ABI (see
+    # src/platform/SteamAbi.hxx). The test drives it through a fake
+    # ISteamUser017/ISteamFriends014, never the real DLL.
+    add_executable(SteamRuntimeTest "src/tests/steam_runtime_test.cxx" "src/platform/SteamRuntime.cxx")
+    target_compile_features(SteamRuntimeTest PRIVATE cxx_std_17)
+    add_test(NAME SteamRuntime COMMAND SteamRuntimeTest)
+    set_tests_properties(SteamRuntime PROPERTIES TIMEOUT 15)
     include(ExternalProject)
     string(REGEX REPLACE "/VC/.*$" "" discord_vs_instance "${CMAKE_CXX_COMPILER}")
     ExternalProject_Add(DiscordBridgeFixture
@@ -493,6 +512,9 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__NetplayRuntime__PublicRooms.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Status.cxx"
     "src/sf4e/sf4e__NetplayPresentation.cxx"
+    "src/platform/SteamAbi.hxx"
+    "src/platform/SteamRuntime.hxx"
+    "src/platform/SteamRuntime.cxx"
     "src/sf4e/sf4e__RuntimeBridge.hxx"
     "src/sf4e/sf4e__RuntimeBridge.cxx"
 )

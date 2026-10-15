@@ -583,7 +583,7 @@ int main(int argc, char** argv) {
             draw(nullptr,MenuInput::Back,1);draw();
             Require(ImGui::GetTopMostPopupModal()==nullptr,"Game settings card did not close");
             view.gameSettings={};view.showGameSettingsCard=false;
-            for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","discord","about"})page(screen);
+            for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","discord","steam","about"})page(screen);
             view.preferences.autoInputDelay=true;page("defaults");view.preferences.autoInputDelay=false;
             page("home");
             for(int i=0;i<8;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
@@ -670,7 +670,7 @@ int main(int argc, char** argv) {
                 view.room.members.push_back(m);}
             const char* sampleChat[]={"Welcome! Grab a table or join a queue.","Good games. I'll watch the next one.","Ready for another set?","Let's run it back!"};
             for(int i=0;i<20;++i)view.room.chat.push_back({static_cast<std::uint64_t>(i+1),static_cast<room::MemberId>(i%16+1),readmeShots?sampleChat[i%4]:"Ready for the next set? This is a longer chat message for narrow-layout inspection."});
-            draw();for(const char* screen:{"room","room-table","room-members","room-chat","room-admin"})page(screen);
+            draw();view.steamAttached=true;view.steamFriends={{76561197960287930ull,"Ryu Fan"}};for(const char* screen:{"room","room-table","room-members","room-chat","room-admin","steam-invite"})page(screen);
             ShootChat(shell,view,draw);
             // The seat chooser on an empty table, for a member with no seat.
             view.room.tables[0].p1=5;view.room.members[0].table=-1;view.room.members[0].seat=-1;

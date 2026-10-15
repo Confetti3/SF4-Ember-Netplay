@@ -42,6 +42,7 @@ struct PlayerPreferences {
     // Percent of the game's own voice volume, in steps of ten.
     int readySoundVolume = 100;
     bool discordPresence = true, discordInvites = true;
+    bool steamPresence = true, steamInvites = true;
     float interfaceScale = 1.f;
     LobbySettings lobby;
     std::string roomName = "Private room";
