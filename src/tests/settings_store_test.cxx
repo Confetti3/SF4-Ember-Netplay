@@ -198,6 +198,7 @@ static void BoolPreferenceRoundTrips(const Path& root) {
     const struct { const char* key; bool PlayerPreferences::* member; bool fallback; } expected[] = {
         {"showMatchHud", &PlayerPreferences::showMatchHud, true}, {"matchHudRaised", &PlayerPreferences::matchHudRaised, false},
         {"readySound", &PlayerPreferences::readySound, true}, {"trainingAutoReady", &PlayerPreferences::trainingAutoReady, false},
+        {"watchedPicture", &PlayerPreferences::watchedPicture, false},
         {"matchFrameMeter", &PlayerPreferences::matchFrameMeter, false}, {"backgroundPlay", &PlayerPreferences::backgroundPlay, false},
         {"lowerInputLag", &PlayerPreferences::lowerInputLag, false}, {"lowerKeyboardLag", &PlayerPreferences::lowerKeyboardLag, false},
         {"fasterDisplay", &PlayerPreferences::fasterDisplay, true},

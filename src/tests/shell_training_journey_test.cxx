@@ -28,7 +28,7 @@ void TrainingSettingsAndHome() {
  Check(rows.size()==interfaceRows.size(),"Interface no longer has Stable's 11 rows");
  for(std::size_t i=0;i<interfaceRows.size();++i)Check(rows[i].id==interfaceRows[i],"Interface order changed");
  h.Press(MenuInput::Back);h.Choose("training-replays");
- Check(rows.size()==3&&rows[0].id=="match-frame-meter"&&rows[1].id=="training-auto-ready"&&rows[2].id=="replay-save-watched","Training and replays settings order wrong");
+ Check(rows.size()==4&&rows[0].id=="match-frame-meter"&&rows[1].id=="training-auto-ready"&&rows[2].id=="replay-save-watched"&&rows[3].id=="watched-picture","Training and replays settings order wrong");
  Check(rows[1].detail==loc::Tf("settings.training_auto_ready_detail",room::TrainingCall::ReadyWindowMs/1000),"Auto-ready detail lost runtime deadline");
  h.Choose("match-frame-meter");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.matchFrameMeter,"Match frame meter did not save from new screen");

@@ -31,11 +31,14 @@ constexpr ImU32 Ready = IM_COL32(164, 206, 160, 255);
 inline ImVec4 DialogButtonColor(bool selected) { return selected ? ImVec4(.5f,.25f,.1f,1) : ImVec4(.15f,.14f,.13f,1); }
 // Row and button text for an entry that can, or cannot, be activated right now.
 inline ImVec4 EntryTextColor(bool enabled) { return enabled ? ImVec4(.95f,.92f,.87f,1) : ImVec4(.55f,.52f,.48f,1); }
-// Ember over a game the player watches (ShellView::watchedGame) lets the game
+// Ember over a game the player watches (ShellView::SeeThrough) lets the game
 // show through: the shell's window and the room board's and Chat's panels are
 // lighter, and the menu art is left out. Their text keeps its own backing.
+// With the game's picture in a corner instead, the menu is opaque.
 constexpr float WatchedMatchWindowAlpha = .72f;
-inline ImVec4 BoardPanelColor(bool watchedMatch) { return ImVec4(.08f,.075f,.07f,watchedMatch ? .6f : .84f); }
+// The watched game's picture in the menu's corner: its share of the screen's width and height.
+constexpr float WatchedPictureShare = .25f;
+inline ImVec4 BoardPanelColor(bool seeThrough) { return ImVec4(.08f,.075f,.07f,seeThrough ? .6f : .84f); }
 
 // Call between frames. A true result requires backend font texture recreation.
 // Text is drawn at Windows' DPI scale for the window times the player's

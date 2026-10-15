@@ -555,7 +555,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  std::vector<const MenuEntry*> toolbar;
  for(const auto& e:rows)if(e.id.compare(0,6,"table-")&&e.id.compare(0,7,"member-"))toolbar.push_back(&e);
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(6*s,6*s));
- ImGui::PushStyleColor(ImGuiCol_ChildBg,BoardPanelColor(v.watchedGame.Active()));
+ ImGui::PushStyleColor(ImGuiCol_ChildBg,BoardPanelColor(v.SeeThrough()));
  if(wide){
   // The battle slots take the whole height on the left. Members, chat and the
   // room's actions share the right, and the focused row's explanation runs

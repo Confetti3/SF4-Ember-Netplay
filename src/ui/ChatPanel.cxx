@@ -237,7 +237,7 @@ void ApplicationShell::DrawChatScreen(const ShellView& v, const std::vector<Menu
 
     ImGui::SetCursorPosX(x);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8 * s, 6 * s));
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, BoardPanelColor(v.watchedGame.Active()));
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, BoardPanelColor(v.SeeThrough()));
     ImGui::BeginChild("Chat transcript", ImVec2(width, logHeight), ImGuiChildFlags_AlwaysUseWindowPadding, ImGuiWindowFlags_NoNavInputs);
     ReportMenuCard("chat-transcript", ImGui::GetWindowPos(), ImVec2(ImGui::GetWindowPos().x + ImGui::GetWindowSize().x, ImGui::GetWindowPos().y + ImGui::GetWindowSize().y));
     // Opening the screen shows the newest message; after that the view follows new ones only while it is at the bottom.
