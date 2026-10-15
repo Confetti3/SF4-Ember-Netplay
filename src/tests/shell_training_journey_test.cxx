@@ -20,7 +20,7 @@ void TrainingSettingsAndHome() {
  Harness h;h.Frame();
  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
  h.Choose("settings");
- const std::vector<std::string> settings={"player","defaults","interface","training-replays","discord","problem-reports","about"};
+ const std::vector<std::string> settings={"player","defaults","interface","training-replays","discord","steam","problem-reports","about"};
  Check(rows.size()==settings.size(),"Settings row count changed");
  for(std::size_t i=0;i<settings.size();++i)Check(rows[i].id==settings[i],"Settings order changed");
  h.Choose("interface");

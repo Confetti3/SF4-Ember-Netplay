@@ -295,6 +295,9 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.discordPending=snapshot.discordPending; view.discordConfirm=snapshot.discordConfirm;
     view.discordRevision=snapshot.discordRevision;
     view.discordCanSwitch=snapshot.discordCanSwitch; view.discordStatus=snapshot.discordStatus;
+    view.steamAttached=snapshot.steamAttached; view.steamStatus=snapshot.steamStatus;
+    view.steamFriends=snapshot.steamFriends;
+    view.steamInviteSent=snapshot.steamInviteSent; view.steamInviteSequence=snapshot.steamInviteSequence;
     view.inputDevice = snapshot.inputDevice;
     view.inputCapture = snapshot.inputCapture;
     view.controllerReady = snapshot.controllerReady;
@@ -363,6 +366,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
         request.tournament = std::move(action.tournament);
         request.publicTicket = std::move(action.publicTicket);
         request.createdRules = action.createdRules;
+        request.steamInviteFriendId = action.steamInviteFriendId;
         request.practiceRoom = action.practiceRoom;
 		request.character = lobbyConditions;
 		request.character.charaID = static_cast<BYTE>(lobbyMenuCharaID);

@@ -53,6 +53,9 @@
 #include "../platform/LocaleWindows.hxx"
 #include "../platform/JoinLinkMailbox.hxx"
 #include "../platform/UiPreferencesStore.hxx"
+#include "../platform/SteamRuntime.hxx"
+#include "../common/SteamJoin.hxx"
+#include "../netplay/SteamPresence.hxx"
 #include <algorithm>
 #include <deque>
 #include <map>
@@ -118,6 +121,19 @@ struct Runtime {
     ULONGLONG discordLastPublish = 0;
     std::array<std::uint64_t,8> discordPresenceKey{};
     bool discordPresenceKeyValid=false;
+
+    // Steam Rich Presence/invites, wrapping USF4's own already-loaded
+    // steam_api.dll (see docs/design/STEAM_IDENTITY_AND_INVITES.md). Attach()
+    // is retried at a bounded cadence (once a second) until it succeeds, since
+    // the game's Steam initialization may still be in progress when
+    // StartHelper runs, or USF4 may not be running under Steam at all.
+    steam::Runtime steamRuntime;
+    ULONGLONG steamAttachRetryAt = 0;
+    // The last "Invite Steam friend" send's result and a sequence that
+    // changes per attempt, so the interface's notice fires again even on an
+    // identical outcome.
+    bool steamInviteSent = false;
+    std::uint64_t steamInviteSequence = 0;
 
     input::Assignment input;
     bool inputInitialized = false;
@@ -408,6 +424,9 @@ PostPublishState Publish();
 PostPublishState PublishThrottled();
 void PumpDiscordClient();
 void PublishAndTickDiscordInvite();
+// Attach retry (once a second) and the incoming-invite mailbox drain
+// (sf4e__NetplayRuntime__Status.cxx); presence publish happens inside Publish().
+void TickSteamRuntime();
 } // namespace internal
 using namespace internal;
 } } // namespace sf4e::NetplayFacade

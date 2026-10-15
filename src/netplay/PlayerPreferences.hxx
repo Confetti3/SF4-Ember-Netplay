@@ -71,6 +71,7 @@ struct PlayerPreferences {
     // (sf4e__UserApp.cxx: StartMatchFromLobby).
     bool recordWatched = true;
     bool discordPresence = true, discordInvites = true;
+    bool steamPresence = true, steamInvites = true;
     // The launcher sends a crash's report without asking, logs only and at most
     // three a day (platform/ReportWorkflow.hxx). Off until the player turns it
     // on in Settings, Problem reports, or chooses Always send after a crash.

@@ -54,6 +54,8 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME HelperErrorScope SOURCES "src/tests/helper_error_scope_test.cxx" STD 11 TIMEOUT 15)
     sf4e_add_unit_test(NAME RecoveryProgress SOURCES "src/tests/recovery_progress_test.cxx" STD 17 TIMEOUT 15)
     sf4e_add_unit_test(NAME JoinLink SOURCES "src/tests/join_link_test.cxx" STD 11 TIMEOUT 15)
+    sf4e_add_unit_test(NAME SteamJoin SOURCES "src/tests/steam_join_test.cxx" STD 11 TIMEOUT 15)
+    sf4e_add_unit_test(NAME SteamIdentity SOURCES "src/tests/steam_identity_test.cxx" STD 11 TIMEOUT 15)
     sf4e_add_unit_test(NAME RollbackAudit SOURCES "src/tests/rollback_audit_test.cxx" STD 14 TIMEOUT 15)
     sf4e_add_unit_test(NAME AfterimageMemento SOURCES "src/tests/afterimage_memento_test.cxx" STD 14 TIMEOUT 15)
     sf4e_add_unit_test(NAME MementoGuards SOURCES "src/tests/memento_guards_test.cxx" STD 14 TIMEOUT 15)
@@ -135,6 +137,11 @@ if(BUILD_TESTING)
 endif()
 if(BUILD_TESTING)
     sf4e_add_unit_test(NAME DiscordPresence SOURCES src/tests/discord_presence_test.cxx LIBS sf4e_room_model)
+    sf4e_add_unit_test(NAME SteamPresence SOURCES src/tests/steam_presence_test.cxx LIBS sf4e_room_model TIMEOUT 15)
+    # x86 only: SteamRuntime wraps USF4's 32-bit steam_api.dll ABI (see
+    # src/platform/SteamAbi.hxx). The test drives it through a fake
+    # ISteamUser017/ISteamFriends014, never the real DLL.
+    sf4e_add_unit_test(NAME SteamRuntime SOURCES "src/tests/steam_runtime_test.cxx" "src/platform/SteamRuntime.cxx" STD 17 TIMEOUT 15)
     include(ExternalProject)
     string(REGEX REPLACE "/VC/.*$" "" discord_vs_instance "${CMAKE_CXX_COMPILER}")
     ExternalProject_Add(DiscordBridgeFixture
@@ -429,6 +436,9 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__NetplayRuntime__PublicRooms.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Status.cxx"
     "src/sf4e/sf4e__NetplayPresentation.cxx"
+    "src/platform/SteamAbi.hxx"
+    "src/platform/SteamRuntime.hxx"
+    "src/platform/SteamRuntime.cxx"
     "src/sf4e/sf4e__RuntimeBridge.hxx"
     "src/sf4e/sf4e__RuntimeBridge.cxx"
 )

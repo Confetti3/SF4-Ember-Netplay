@@ -315,6 +315,7 @@ void StartHelper() {
     }
     SecureZeroMemory(&pendingDiscord, sizeof(pendingDiscord));
 	SecureZeroMemory(pendingBootstrap.nonce, sizeof(pendingBootstrap.nonce));
+	TickSteamRuntime(); // first attach attempt now rather than waiting out the retry cadence
 	Publish();
 }
 
@@ -326,6 +327,7 @@ void StopHelper() {
     // The archive's lister holds files open while it reads; it is ended and waited for here.
     platform::replays::StopListing();
 	if (!runtime) return;
+    runtime->steamRuntime.Detach();
     if (runtime->discordClient) {
         runtime->discordClient->Send("{\"type\":\"shutdown\"}");
         runtime->discordClient->Stop();
@@ -726,6 +728,7 @@ void TickRuntime() {
 	CallOutOpponentReady();
 	SayTraining();
 	TakeJoinLink();
+	TickSteamRuntime();
 	PublishAndTickDiscordInvite();
 }
 

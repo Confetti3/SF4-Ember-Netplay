@@ -388,6 +388,12 @@ msgstr "Discord"
 msgid "screen.discord_invitation"
 msgstr "Discord-Einladung"
 
+msgid "screen.steam"
+msgstr "Steam"
+
+msgid "screen.steam_invite"
+msgstr "Steam-Freund einladen"
+
 msgid "screen.assignment"
 msgstr "Controller zuweisen"
 
@@ -963,6 +969,9 @@ msgstr "Sprache, Kampf-HUD und Oberflächengröße."
 msgid "settings.discord_detail"
 msgstr "Aktivität und Einladungen."
 
+msgid "settings.steam_detail"
+msgstr "Aktivität und Einladungen."
+
 msgid "player.title"
 msgstr "SPIELER & CONTROLLER"
 
@@ -1148,6 +1157,45 @@ msgstr "Einladung offen"
 
 msgid "discord.invitation_pending_detail"
 msgstr "Warten auf Hauptmenü, Netzwerk und zugewiesenen Controller."
+
+msgid "steam.show_activity"
+msgstr "Aktivität zeigen"
+
+msgid "steam.allow_invitations"
+msgstr "Einladungen erlauben"
+
+msgid "steam.invitation_detail"
+msgstr "Einladungen gewähren Zugriff auf Ihren Raum."
+
+msgid "steam.enable_first"
+msgstr "Erst Steam-Aktivität aktivieren."
+
+msgid "steam.title"
+msgstr "STEAM"
+
+msgid "steam.invite_friend"
+msgstr "Steam-Freund einladen"
+
+msgid "steam.invite_friend_detail"
+msgstr "Wählen Sie einen Freund aus Ihrer Steam-Freundesliste, um ihn in diesen Raum einzuladen."
+
+msgid "steam.invite_friend_action"
+msgstr "Einladung senden"
+
+msgid "steam.no_friends"
+msgstr "Keine Freunde verfügbar"
+
+msgid "steam.no_friends.detail"
+msgstr "Steam meldet aktuell keine Freunde zum Einladen."
+
+msgid "steam.friend_unnamed"
+msgstr "Steam-Freund"
+
+msgid "steam.invite_sent"
+msgstr "Einladung gesendet"
+
+msgid "steam.invite_failed"
+msgstr "Die Einladung konnte nicht gesendet werden."
 
 msgid "about.title"
 msgstr "HILFE & INFO"
@@ -3008,6 +3056,10 @@ msgstr "Ungültiges lokales Discord-Ereignis."
 
 msgid "discord.companion_stopped"
 msgstr "Discord-Begleitprozess beendet. Spiel unbeeinträchtigt."
+msgid "steam.connected"
+msgstr "Steam verbunden"
+msgid "steam.unavailable"
+msgstr "Steam nicht verfügbar. Spiel unbeeinträchtigt."
 
 msgid "runtime.room_connection_failed"
 msgstr "Raumverbindung fehlgeschlagen. Raum wird geschlossen; unbestätigte Ergebnisse werden nicht erfasst."

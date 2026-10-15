@@ -388,6 +388,12 @@ msgstr "Discord"
 msgid "screen.discord_invitation"
 msgstr "Invitation Discord"
 
+msgid "screen.steam"
+msgstr "Steam"
+
+msgid "screen.steam_invite"
+msgstr "Inviter un ami Steam"
+
 msgid "screen.assignment"
 msgstr "Attribuer une manette"
 
@@ -963,6 +969,9 @@ msgstr "Langue, HUD du combat et taille d'interface."
 msgid "settings.discord_detail"
 msgstr "Activité et invitations."
 
+msgid "settings.steam_detail"
+msgstr "Activité et invitations."
+
 msgid "player.title"
 msgstr "JOUEUR ET MANETTE"
 
@@ -1148,6 +1157,45 @@ msgstr "Invitation en attente"
 
 msgid "discord.invitation_pending_detail"
 msgstr "Attente du menu principal, du réseau et d'une manette attribuée."
+
+msgid "steam.show_activity"
+msgstr "Afficher l'activité"
+
+msgid "steam.allow_invitations"
+msgstr "Invitations"
+
+msgid "steam.invitation_detail"
+msgstr "Les invitations donnent accès à votre salon."
+
+msgid "steam.enable_first"
+msgstr "Activez d'abord l'activité Steam."
+
+msgid "steam.title"
+msgstr "STEAM"
+
+msgid "steam.invite_friend"
+msgstr "Inviter un ami Steam"
+
+msgid "steam.invite_friend_detail"
+msgstr "Choisissez un ami dans votre liste d'amis Steam à inviter dans ce salon."
+
+msgid "steam.invite_friend_action"
+msgstr "Envoyer l'invitation"
+
+msgid "steam.no_friends"
+msgstr "Aucun ami disponible"
+
+msgid "steam.no_friends.detail"
+msgstr "Steam ne signale aucun ami à inviter pour le moment."
+
+msgid "steam.friend_unnamed"
+msgstr "Ami Steam"
+
+msgid "steam.invite_sent"
+msgstr "Invitation envoyée"
+
+msgid "steam.invite_failed"
+msgstr "L'invitation n'a pas pu être envoyée."
 
 msgid "about.title"
 msgstr "AIDE ET INFOS"
@@ -3008,6 +3056,10 @@ msgstr "Discord a envoyé un événement local invalide."
 
 msgid "discord.companion_stopped"
 msgstr "Le compagnon Discord s'est arrêté. Le jeu n'est pas affecté."
+msgid "steam.connected"
+msgstr "Steam connecté"
+msgid "steam.unavailable"
+msgstr "Steam indisponible. Le jeu n'est pas affecté."
 
 msgid "runtime.room_connection_failed"
 msgstr "Échec de la connexion au salon. Il va fermer ; les résultats non confirmés ne seront pas enregistrés."

@@ -149,7 +149,13 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
  if(roomEpoch_!=s.roomEpoch){roomEpoch_=s.roomEpoch;chat_[0]=0;selectedTable_=0;rulesDirty_=false;leaveAsk_=-1;leaveAsked_=false;
   std::snprintf(roomName_,sizeof(roomName_),"%s",s.name.c_str());roomCapacity_=s.capacity;
   if(const auto* local=Member(s,s.localMember))if(local->table>=0&&local->table<static_cast<int>(s.tables.size()))selectedTable_=local->table;
+  steamInviteSeen_=v.steamInviteSequence;
  }
+ // Steam accepted or refused the invite request (never whether the friend
+ // actually joined); shown once, same as other room notices.
+ if(v.steamInviteSequence!=steamInviteSeen_){steamInviteSeen_=v.steamInviteSequence;
+  notice_=loc::T(v.steamInviteSent?"steam.invite_sent":"steam.invite_failed");
+  noticeTone_=v.steamInviteSent?Tone::Success:Tone::Error;noticeUntil_=ImGui::GetTime()+3;}
  std::vector<MenuEntry> rows;
   const bool mutableRoom=RoomActionsAvailable(v);
   const bool host=mutableRoom&&s.host==s.localMember;
@@ -236,6 +242,9 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
    // Once made, the detail shows the link itself so it can be read out.
    rows.push_back(Row("copy-short",loc::T("room.copy_short_invitation"),v.shortInvitation.empty()?std::string(loc::T("room.copy_short_invitation.detail")):
     v.shortInvitation.substr(v.shortInvitation.find("//")==std::string::npos?0:v.shortInvitation.find("//")+2),!v.invitation.empty()));
+   if(v.steamAttached)rows.push_back(Row("steam-invite",loc::T("steam.invite_friend"),
+    !v.preferences.steamInvites?loc::T("steam.enable_first"):v.shortInvitation.empty()?std::string(loc::T("room.copy_short_invitation.detail")):loc::T("steam.invite_friend_detail"),
+    v.preferences.steamInvites&&!v.shortInvitation.empty()));
   }
   // A public room is shared by its page link, which opens it in Ember from a browser or Discord.
   if(s.serverOwned){const auto link=publicRooms_.RoomLink();if(!link.empty())rows.push_back(Row("copy-room-link",loc::T("public.copy_link"),loc::Tf("public.copy_link_detail",link)));}
@@ -394,6 +403,14 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   rows.push_back(Value("lock",loc::T("room.admission"),loc::T(s.locked?"room.locked":"room.open"),loc::T("room.admission.detail"),host));
   rows.push_back(Row("apply-name",loc::T("room.apply_name"),loc::T("room.apply_name.detail"),host&&roomName_[0]));
   rows.push_back(Row("apply-capacity",loc::T("room.apply_capacity"),loc::T("room.apply_capacity.detail"),host&&roomCapacity_>=static_cast<int>(s.members.size())));
+ }else if(screen=="steam-invite"){
+  // Never identified by persona name: the row's id carries the SteamID, and
+  // only that id is ever sent to Invite().
+  if(v.steamFriends.empty())rows.push_back(Row("steam-no-friends",loc::T("steam.no_friends"),loc::T("steam.no_friends.detail"),false));
+  for(const auto& friendRow:v.steamFriends)
+   rows.push_back(Row("steam-friend-"+std::to_string(friendRow.steamId),
+    friendRow.personaName.empty()?std::string(loc::T("steam.friend_unnamed")):friendRow.personaName,
+    loc::T("steam.invite_friend_action"),v.preferences.steamInvites&&!v.shortInvitation.empty()));
  }
  if(!active) {
   for(auto& row:rows)if(row.id=="selection"||row.id=="ultra"||row.id=="appearance"||row.id=="stage"||row.id=="fighter-options"||row.id=="check-connection"||
@@ -867,7 +884,15 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   return;
  }
  if(a.id.compare(0,7,"member-")==0){selectedMember_=std::stoull(a.id.substr(7));nav.Push("room-member");return;}
- if(a.id=="room-members"||a.id=="room-chat"||a.id=="room-admin"){nav.Push(a.id);return;}
+ if(a.id=="room-members"||a.id=="room-chat"||a.id=="room-admin"||a.id=="steam-invite"){nav.Push(a.id);return;}
+ if(a.id.compare(0,13,"steam-friend-")==0){
+  ShellAction request;request.command.generation=v.session.generation;
+  request.steamInviteFriendId=std::stoull(a.id.substr(13));
+  if(!submit(std::move(request))){error_=loc::T("error.queue_failed");return;}
+  // Steam's own accept/refuse arrives on a later snapshot (steamInviteSequence);
+  // leaving the friend list now matches "return to the room screen after a send".
+  error_.clear();nav.Return();return;
+ }
   if(a.id=="copy"){ImGui::SetClipboardText(v.invitation.c_str());error_.clear();shortCopyPending_=false;notice_=loc::T("room.invitation_copied");noticeTone_=Tone::Success;noticeUntil_=ImGui::GetTime()+3;return;}
   if(a.id=="copy-short"){CopyShortInvitation(v,submit);return;}
   if(a.id=="copy-room-link"){

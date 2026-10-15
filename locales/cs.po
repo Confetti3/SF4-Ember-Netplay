@@ -388,6 +388,12 @@ msgstr "Discord"
 msgid "screen.discord_invitation"
 msgstr "Pozvánka Discord"
 
+msgid "screen.steam"
+msgstr "Steam"
+
+msgid "screen.steam_invite"
+msgstr "Pozvat přítele ze Steamu"
+
 msgid "screen.assignment"
 msgstr "Přiřadit ovladač"
 
@@ -963,6 +969,9 @@ msgstr "Jazyk, HUD zápasu a velikost rozhraní."
 msgid "settings.discord_detail"
 msgstr "Aktivita a pozvánky."
 
+msgid "settings.steam_detail"
+msgstr "Aktivita a pozvánky."
+
 msgid "player.title"
 msgstr "HRÁČ A OVLADAČ"
 
@@ -1148,6 +1157,45 @@ msgstr "Čekající pozvánka"
 
 msgid "discord.invitation_pending_detail"
 msgstr "Čeká se na hlavní nabídku, síť a přiřazený ovladač."
+
+msgid "steam.show_activity"
+msgstr "Zobrazit aktivitu"
+
+msgid "steam.allow_invitations"
+msgstr "Povolit pozvánky"
+
+msgid "steam.invitation_detail"
+msgstr "Pozvánky zpřístupní vaši místnost dalším lidem."
+
+msgid "steam.enable_first"
+msgstr "Nejprve zapněte aktivitu na Steamu."
+
+msgid "steam.title"
+msgstr "STEAM"
+
+msgid "steam.invite_friend"
+msgstr "Pozvat přítele ze Steamu"
+
+msgid "steam.invite_friend_detail"
+msgstr "Vyberte přítele ze svého seznamu přátel na Steamu a pozvěte ho do této místnosti."
+
+msgid "steam.invite_friend_action"
+msgstr "Odeslat pozvánku"
+
+msgid "steam.no_friends"
+msgstr "Žádní dostupní přátelé"
+
+msgid "steam.no_friends.detail"
+msgstr "Steam nyní nehlásí žádné přátele k pozvání."
+
+msgid "steam.friend_unnamed"
+msgstr "Přítel ze Steamu"
+
+msgid "steam.invite_sent"
+msgstr "Pozvánka odeslána"
+
+msgid "steam.invite_failed"
+msgstr "Pozvánku se nepodařilo odeslat."
 
 msgid "about.title"
 msgstr "NÁPOVĚDA"
@@ -3008,6 +3056,10 @@ msgstr "Discord odeslal neplatnou místní událost."
 
 msgid "discord.companion_stopped"
 msgstr "Pomocná aplikace Discord se zastavila. Hraní tím není ovlivněno."
+msgid "steam.connected"
+msgstr "Steam připojen"
+msgid "steam.unavailable"
+msgstr "Steam není dostupný. Hraní tím není ovlivněno."
 
 msgid "runtime.room_connection_failed"
 msgstr "Spojení s místností selhalo. Místnost se zavírá; nepotvrzené výsledky se nezaznamenají."

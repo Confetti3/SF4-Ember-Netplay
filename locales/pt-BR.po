@@ -388,6 +388,12 @@ msgstr "Discord"
 msgid "screen.discord_invitation"
 msgstr "Convite do Discord"
 
+msgid "screen.steam"
+msgstr "Steam"
+
+msgid "screen.steam_invite"
+msgstr "Convidar amigo do Steam"
+
 msgid "screen.assignment"
 msgstr "Atribuir controle"
 
@@ -963,6 +969,9 @@ msgstr "Idioma, HUD da partida e tamanho da interface."
 msgid "settings.discord_detail"
 msgstr "Atividade e convites."
 
+msgid "settings.steam_detail"
+msgstr "Atividade e convites."
+
 msgid "player.title"
 msgstr "JOGADOR E CONTROLE"
 
@@ -1148,6 +1157,45 @@ msgstr "Convite pendente"
 
 msgid "discord.invitation_pending_detail"
 msgstr "Aguardando o menu principal, a rede e o controle atribuído."
+
+msgid "steam.show_activity"
+msgstr "Mostrar atividade"
+
+msgid "steam.allow_invitations"
+msgstr "Permitir convites"
+
+msgid "steam.invitation_detail"
+msgstr "Os convites dão acesso à sua sala."
+
+msgid "steam.enable_first"
+msgstr "Ative primeiro a atividade do Steam."
+
+msgid "steam.title"
+msgstr "STEAM"
+
+msgid "steam.invite_friend"
+msgstr "Convidar amigo do Steam"
+
+msgid "steam.invite_friend_detail"
+msgstr "Escolha um amigo da sua lista de amigos do Steam para convidar para esta sala."
+
+msgid "steam.invite_friend_action"
+msgstr "Enviar convite"
+
+msgid "steam.no_friends"
+msgstr "Nenhum amigo disponível"
+
+msgid "steam.no_friends.detail"
+msgstr "O Steam não retornou amigos para convidar agora."
+
+msgid "steam.friend_unnamed"
+msgstr "Amigo do Steam"
+
+msgid "steam.invite_sent"
+msgstr "Convite enviado"
+
+msgid "steam.invite_failed"
+msgstr "Não foi possível enviar o convite."
 
 msgid "about.title"
 msgstr "AJUDA E INFORMAÇÕES"
@@ -2607,6 +2655,10 @@ msgid "discord.invalid_event"
 msgstr "O Discord enviou um evento local inválido."
 msgid "discord.companion_stopped"
 msgstr "O auxiliar do Discord parou. O jogo não foi afetado."
+msgid "steam.connected"
+msgstr "Steam conectado"
+msgid "steam.unavailable"
+msgstr "Steam indisponível. O jogo não foi afetado."
 msgid "runtime.room_connection_failed"
 msgstr "A conexão da sala falhou. A sala está fechando; resultados não confirmados não serão registrados."
 msgid "runtime.operation_busy"

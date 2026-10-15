@@ -388,6 +388,12 @@ msgstr "Discord"
 msgid "screen.discord_invitation"
 msgstr "Zaproszenie Discord"
 
+msgid "screen.steam"
+msgstr "Steam"
+
+msgid "screen.steam_invite"
+msgstr "Zaproś znajomego ze Steam"
+
 msgid "screen.assignment"
 msgstr "Przypisz kontroler"
 
@@ -963,6 +969,9 @@ msgstr "Język, HUD walki i rozmiar interfejsu."
 msgid "settings.discord_detail"
 msgstr "Aktywność i zaproszenia."
 
+msgid "settings.steam_detail"
+msgstr "Aktywność i zaproszenia."
+
 msgid "player.title"
 msgstr "GRACZ I KONTROLER"
 
@@ -1148,6 +1157,45 @@ msgstr "Oczekujące zaproszenie"
 
 msgid "discord.invitation_pending_detail"
 msgstr "Czekanie na menu główne, sieć i przypisany kontroler."
+
+msgid "steam.show_activity"
+msgstr "Pokaż aktywność"
+
+msgid "steam.allow_invitations"
+msgstr "Zezwalaj na zaproszenia"
+
+msgid "steam.invitation_detail"
+msgstr "Zaproszenia dają dostęp do twojego pokoju."
+
+msgid "steam.enable_first"
+msgstr "Najpierw włącz aktywność Steam."
+
+msgid "steam.title"
+msgstr "STEAM"
+
+msgid "steam.invite_friend"
+msgstr "Zaproś znajomego"
+
+msgid "steam.invite_friend_detail"
+msgstr "Wybierz znajomego z listy znajomych Steam, aby zaprosić go do tego pokoju."
+
+msgid "steam.invite_friend_action"
+msgstr "Wyślij zaproszenie"
+
+msgid "steam.no_friends"
+msgstr "Brak dostępnych znajomych"
+
+msgid "steam.no_friends.detail"
+msgstr "Steam nie zgłosił teraz żadnych znajomych do zaproszenia."
+
+msgid "steam.friend_unnamed"
+msgstr "Znajomy ze Steam"
+
+msgid "steam.invite_sent"
+msgstr "Zaproszenie wysłane"
+
+msgid "steam.invite_failed"
+msgstr "Nie udało się wysłać zaproszenia."
 
 msgid "about.title"
 msgstr "POMOC I INFORMACJE"
@@ -3008,6 +3056,10 @@ msgstr "Discord wysłał błędne lokalne zdarzenie."
 
 msgid "discord.companion_stopped"
 msgstr "Moduł Discord zatrzymał się. Gra działa bez zmian."
+msgid "steam.connected"
+msgstr "Połączono ze Steam"
+msgid "steam.unavailable"
+msgstr "Steam jest niedostępny. Gra działa bez zmian."
 
 msgid "runtime.room_connection_failed"
 msgstr "Połączenie z pokojem nie powiodło się. Pokój jest zamykany; niepotwierdzone wyniki nie zostaną zapisane."

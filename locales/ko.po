@@ -388,6 +388,12 @@ msgstr "Discord"
 msgid "screen.discord_invitation"
 msgstr "Discord 초대"
 
+msgid "screen.steam"
+msgstr "Steam"
+
+msgid "screen.steam_invite"
+msgstr "Steam 친구 초대"
+
 msgid "screen.assignment"
 msgstr "컨트롤러 지정"
 
@@ -963,6 +969,9 @@ msgstr "언어, 대전 HUD와 화면 크기입니다."
 msgid "settings.discord_detail"
 msgstr "활동 표시와 초대입니다."
 
+msgid "settings.steam_detail"
+msgstr "활동 표시와 초대입니다."
+
 msgid "player.title"
 msgstr "플레이어 및 컨트롤러"
 
@@ -1148,6 +1157,45 @@ msgstr "초대 대기 중"
 
 msgid "discord.invitation_pending_detail"
 msgstr "메인 메뉴, 네트워크 및 지정된 컨트롤러를 기다립니다."
+
+msgid "steam.show_activity"
+msgstr "활동 표시"
+
+msgid "steam.allow_invitations"
+msgstr "초대 허용"
+
+msgid "steam.invitation_detail"
+msgstr "초대를 받으면 상대가 내 방에 들어올 수 있습니다."
+
+msgid "steam.enable_first"
+msgstr "먼저 Steam 활동 표시를 켜세요."
+
+msgid "steam.title"
+msgstr "STEAM"
+
+msgid "steam.invite_friend"
+msgstr "Steam 친구 초대"
+
+msgid "steam.invite_friend_detail"
+msgstr "Steam 친구 목록에서 친구를 선택해 이 방으로 초대합니다."
+
+msgid "steam.invite_friend_action"
+msgstr "초대 보내기"
+
+msgid "steam.no_friends"
+msgstr "초대할 수 있는 친구가 없습니다"
+
+msgid "steam.no_friends.detail"
+msgstr "현재 Steam에서 초대할 친구를 찾지 못했습니다."
+
+msgid "steam.friend_unnamed"
+msgstr "Steam 친구"
+
+msgid "steam.invite_sent"
+msgstr "초대를 보냈습니다"
+
+msgid "steam.invite_failed"
+msgstr "초대를 보내지 못했습니다."
 
 msgid "about.title"
 msgstr "도움말 및 정보"
@@ -3008,6 +3056,10 @@ msgstr "Discord에서 잘못된 로컬 이벤트를 보냈습니다."
 
 msgid "discord.companion_stopped"
 msgstr "Discord 보조 프로그램이 중지되었습니다. 게임플레이에는 영향이 없습니다."
+msgid "steam.connected"
+msgstr "Steam 연결됨"
+msgid "steam.unavailable"
+msgstr "Steam를 사용할 수 없습니다. 게임플레이에는 영향이 없습니다."
 
 msgid "runtime.room_connection_failed"
 msgstr "방 연결에 실패했습니다. 방을 닫는 중이며 미확정 결과는 기록되지 않습니다."

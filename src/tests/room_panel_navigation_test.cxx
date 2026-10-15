@@ -1373,6 +1373,50 @@ int main() try {
         "A server-owned room not joined from the list offers an invitation or a room link");
     view.room.serverOwned = false;
 
+    {
+        // Steam invite friend picker: absent unless Steam is attached, and the
+        // row stays disabled until invites are allowed and a short invitation
+        // exists to send (the same gate the row's own detail text explains).
+        view.steamAttached = false;
+        shell.Navigation().Home(); frame(); shell.Navigation().Push("room"); frame(); frame();
+        Check(!offers("steam-invite"), "Steam not attached still offered its invite row");
+
+        view.steamAttached = true; view.preferences.steamInvites = true; view.shortInvitation.clear();
+        frame(); frame();
+        Check(offers("steam-invite") && !row("steam-invite").enabled,
+            "Steam invite row enabled without a short invitation to send");
+
+        view.shortInvitation = "https://e.gg/ABCD1234";
+        frame(); frame();
+        Check(row("steam-invite").enabled, "Steam invite row stayed disabled once a short invitation existed");
+
+        view.preferences.steamInvites = false; frame(); frame();
+        Check(!row("steam-invite").enabled, "Steam invite row ignored the disabled invites preference");
+        view.preferences.steamInvites = true; frame(); frame();
+
+        focus("steam-invite"); press(MenuInput::Select);
+        Check(shell.Navigation().Screen() == "steam-invite", "The Steam invite row did not open its friend list");
+        Check(rows.size() == 1 && rows[0].id == "steam-no-friends",
+            "An empty Steam friends list did not explain why there is nothing to pick");
+
+        steam::Friend buddy; buddy.steamId = 76561197960287930ull; buddy.personaName = "Ryu Fan";
+        view.steamFriends = {buddy};
+        frame();
+        Check(row("steam-friend-76561197960287930").label == "Ryu Fan",
+            "A Steam friend's row did not show their persona name");
+
+        focus("steam-friend-76561197960287930"); press(MenuInput::Select);
+        Check(shell.Navigation().Screen() == "room", "Sending a Steam invite did not return to the room");
+        Check(!actions.empty() && actions.back().steamInviteFriendId == 76561197960287930ull,
+            "Selecting a friend did not submit the invite with their SteamID");
+
+        view.steamInviteSent = true; ++view.steamInviteSequence; frame();
+        Check(menuStatus == "Invitation sent", "A successful Steam invite did not notify the player");
+        view.steamInviteSent = false; ++view.steamInviteSequence; frame();
+        Check(menuStatus == "The invitation could not be sent.", "A failed Steam invite did not notify the player");
+        view.steamAttached = false; view.steamFriends.clear(); view.shortInvitation.clear();
+    }
+
     SetMenuStatusProbe({}); SetMenuCardProbe({}); SetMenuEntriesProbe({});
     std::cout << "Room controls and uninterrupted controller, keyboard, mouse and queue frames passed.\n";
     return 0;

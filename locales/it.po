@@ -388,6 +388,12 @@ msgstr "Discord"
 msgid "screen.discord_invitation"
 msgstr "Invito Discord"
 
+msgid "screen.steam"
+msgstr "Steam"
+
+msgid "screen.steam_invite"
+msgstr "Invita un amico di Steam"
+
 msgid "screen.assignment"
 msgstr "Assegna controller"
 
@@ -963,6 +969,9 @@ msgstr "Lingua, HUD partita e dimensioni UI."
 msgid "settings.discord_detail"
 msgstr "Attività e inviti."
 
+msgid "settings.steam_detail"
+msgstr "Attività e inviti."
+
 msgid "player.title"
 msgstr "GIOCATORE E CONTROLLER"
 
@@ -1148,6 +1157,45 @@ msgstr "Invito in attesa"
 
 msgid "discord.invitation_pending_detail"
 msgstr "In attesa del menu principale, della rete e di un controller assegnato."
+
+msgid "steam.show_activity"
+msgstr "Mostra attività"
+
+msgid "steam.allow_invitations"
+msgstr "Consenti inviti"
+
+msgid "steam.invitation_detail"
+msgstr "Gli inviti danno accesso alla tua sala."
+
+msgid "steam.enable_first"
+msgstr "Attiva prima l'attività Steam."
+
+msgid "steam.title"
+msgstr "STEAM"
+
+msgid "steam.invite_friend"
+msgstr "Invita un amico di Steam"
+
+msgid "steam.invite_friend_detail"
+msgstr "Scegli un amico dalla tua lista amici di Steam da invitare in questa sala."
+
+msgid "steam.invite_friend_action"
+msgstr "Invia invito"
+
+msgid "steam.no_friends"
+msgstr "Nessun amico disponibile"
+
+msgid "steam.no_friends.detail"
+msgstr "Steam non ha segnalato amici da invitare al momento."
+
+msgid "steam.friend_unnamed"
+msgstr "Amico di Steam"
+
+msgid "steam.invite_sent"
+msgstr "Invito inviato"
+
+msgid "steam.invite_failed"
+msgstr "Non è stato possibile inviare l'invito."
 
 msgid "about.title"
 msgstr "GUIDA E INFO"
@@ -3008,6 +3056,10 @@ msgstr "Evento locale Discord non valido."
 
 msgid "discord.companion_stopped"
 msgstr "Componente Discord arrestato. Il gioco non ne risente."
+msgid "steam.connected"
+msgstr "Steam connesso"
+msgid "steam.unavailable"
+msgstr "Steam non disponibile. Il gioco non ne risente."
 
 msgid "runtime.room_connection_failed"
 msgstr "Connessione alla sala fallita. La sala si chiuderà; i risultati non confermati non saranno registrati."

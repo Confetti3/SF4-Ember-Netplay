@@ -388,6 +388,12 @@ msgstr "Discord"
 msgid "screen.discord_invitation"
 msgstr "Discord 邀请"
 
+msgid "screen.steam"
+msgstr "Steam"
+
+msgid "screen.steam_invite"
+msgstr "邀请 Steam 好友"
+
 msgid "screen.assignment"
 msgstr "分配控制器"
 
@@ -963,6 +969,9 @@ msgstr "语言、对战 HUD 和界面大小。"
 msgid "settings.discord_detail"
 msgstr "动态和邀请。"
 
+msgid "settings.steam_detail"
+msgstr "动态和邀请。"
+
 msgid "player.title"
 msgstr "玩家与控制器"
 
@@ -1148,6 +1157,45 @@ msgstr "邀请待处理"
 
 msgid "discord.invitation_pending_detail"
 msgstr "等待主菜单、网络和已分配的控制器就绪。"
+
+msgid "steam.show_activity"
+msgstr "显示动态"
+
+msgid "steam.allow_invitations"
+msgstr "允许邀请"
+
+msgid "steam.invitation_detail"
+msgstr "邀请会分享您房间的访问权限。"
+
+msgid "steam.enable_first"
+msgstr "请先启用 Steam 动态。"
+
+msgid "steam.title"
+msgstr "STEAM"
+
+msgid "steam.invite_friend"
+msgstr "邀请 Steam 好友"
+
+msgid "steam.invite_friend_detail"
+msgstr "从您的 Steam 好友列表中选择一位好友邀请加入此房间。"
+
+msgid "steam.invite_friend_action"
+msgstr "发送邀请"
+
+msgid "steam.no_friends"
+msgstr "没有可邀请的好友"
+
+msgid "steam.no_friends.detail"
+msgstr "Steam 目前没有报告可邀请的好友。"
+
+msgid "steam.friend_unnamed"
+msgstr "Steam 好友"
+
+msgid "steam.invite_sent"
+msgstr "邀请已发送"
+
+msgid "steam.invite_failed"
+msgstr "邀请发送失败。"
 
 msgid "about.title"
 msgstr "帮助与关于"
@@ -3008,6 +3056,10 @@ msgstr "Discord 发送了无效的本地事件。"
 
 msgid "discord.companion_stopped"
 msgstr "Discord 辅助程序已停止，不影响对战。"
+msgid "steam.connected"
+msgstr "Steam 已连接"
+msgid "steam.unavailable"
+msgstr "Steam 不可用，不影响对战。"
 
 msgid "runtime.room_connection_failed"
 msgstr "房间连接失败。房间即将关闭；未确认的结果不会计入记录。"

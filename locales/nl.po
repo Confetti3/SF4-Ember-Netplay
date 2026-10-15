@@ -388,6 +388,12 @@ msgstr "Discord"
 msgid "screen.discord_invitation"
 msgstr "Discord-uitnodiging"
 
+msgid "screen.steam"
+msgstr "Steam"
+
+msgid "screen.steam_invite"
+msgstr "Steam-vriend uitnodigen"
+
 msgid "screen.assignment"
 msgstr "Controller toewijzen"
 
@@ -963,6 +969,9 @@ msgstr "Taal, Match-HUD en interfacegrootte."
 msgid "settings.discord_detail"
 msgstr "Activiteit en uitnodigingen."
 
+msgid "settings.steam_detail"
+msgstr "Activiteit en uitnodigingen."
+
 msgid "player.title"
 msgstr "SPELER EN CONTROLLER"
 
@@ -1148,6 +1157,45 @@ msgstr "Uitnodiging wacht"
 
 msgid "discord.invitation_pending_detail"
 msgstr "Wachten op het hoofdmenu, het netwerk en een toegewezen controller."
+
+msgid "steam.show_activity"
+msgstr "Activiteit tonen"
+
+msgid "steam.allow_invitations"
+msgstr "Uitnodigingen toestaan"
+
+msgid "steam.invitation_detail"
+msgstr "Uitnodigingen geven toegang tot je kamer."
+
+msgid "steam.enable_first"
+msgstr "Schakel eerst Steam-activiteit in."
+
+msgid "steam.title"
+msgstr "STEAM"
+
+msgid "steam.invite_friend"
+msgstr "Steam-vriend uitnodigen"
+
+msgid "steam.invite_friend_detail"
+msgstr "Kies een vriend uit je Steam-vriendenlijst om uit te nodigen voor deze kamer."
+
+msgid "steam.invite_friend_action"
+msgstr "Uitnodiging versturen"
+
+msgid "steam.no_friends"
+msgstr "Geen vrienden beschikbaar"
+
+msgid "steam.no_friends.detail"
+msgstr "Steam meldt op dit moment geen vrienden om uit te nodigen."
+
+msgid "steam.friend_unnamed"
+msgstr "Steam-vriend"
+
+msgid "steam.invite_sent"
+msgstr "Uitnodiging verstuurd"
+
+msgid "steam.invite_failed"
+msgstr "De uitnodiging kon niet worden verstuurd."
 
 msgid "about.title"
 msgstr "HULP EN INFO"
@@ -3008,6 +3056,10 @@ msgstr "Discord stuurde een ongeldige gebeurtenis."
 
 msgid "discord.companion_stopped"
 msgstr "Discord-hulp gestopt. Spel blijft werken."
+msgid "steam.connected"
+msgstr "Steam verbonden"
+msgid "steam.unavailable"
+msgstr "Steam niet beschikbaar. Spel blijft werken."
 
 msgid "runtime.room_connection_failed"
 msgstr "Kamerverbinding mislukt. De kamer wordt gesloten; onbevestigde uitslagen worden niet vastgelegd."
