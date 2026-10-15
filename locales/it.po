@@ -790,6 +790,12 @@ msgstr "Salva le partite che guardi"
 msgid "replays.save_watched_detail"
 msgstr "Salva anche le partite che segui da spettatore. Disattivato salva solo quelle che giochi."
 
+msgid "settings.watched_picture"
+msgstr "Partita seguita in un angolo"
+
+msgid "settings.watched_picture_detail"
+msgstr "Con il menu di Ember aperto su una partita che guardi, la mostra piccola in alto a destra su un menu opaco invece che attenuata dietro."
+
 msgid "replays.link"
 msgstr "Riproduci il replay del link"
 

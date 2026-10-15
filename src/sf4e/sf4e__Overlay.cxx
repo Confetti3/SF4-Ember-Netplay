@@ -17,6 +17,7 @@
 #include "../ui/DeveloperOverlay.hxx"
 #include "../ui/TrainingPanel.hxx"
 #include "../platform/ReplayFiles.hxx"
+#include "../Dimps/Dimps__Platform.hxx"
 #include "../training/TrainingRuntime.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "../common/MatchFrameMeter.hxx"
@@ -39,6 +40,26 @@ using rVsMode = Dimps::GameEvents::VsMode;
 static HWND s_overlayWindow = nullptr;
 static sf4e::ui::ControllerNavigation controllerNavigation;
 static std::unique_ptr<sf4e::ui::SelectionArt> s_selectionArt;
+// The watched game's picture (ShellView::watchedPicture): the render target
+// copied at its own size, which also resolves a multisampled one, then
+// filtered down. Made at the first size seen and let go with the overlay,
+// which a Reset (also a change of resolution) or the device going frees.
+static IDirect3DTexture9* s_watchedFull = nullptr, * s_watchedShown = nullptr;
+static bool s_watchedFailed = false;
+static ImTextureID WatchedPicture(unsigned width, unsigned height) {
+	IDirect3DDevice9* device = Dimps::Platform::D3D::staticMethods.GetSingleton()->lpD3DDevice;
+	IDirect3DSurface9* target = nullptr, * full = nullptr, * shown = nullptr;
+	D3DSURFACE_DESC desc{};
+	const bool done = !s_watchedFailed && SUCCEEDED(device->GetRenderTarget(0, &target)) && SUCCEEDED(target->GetDesc(&desc)) &&
+		(s_watchedFull || SUCCEEDED(device->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_RENDERTARGET, desc.Format, D3DPOOL_DEFAULT, &s_watchedFull, nullptr))) &&
+		(s_watchedShown || SUCCEEDED(device->CreateTexture(width, height, 1, D3DUSAGE_RENDERTARGET, desc.Format, D3DPOOL_DEFAULT, &s_watchedShown, nullptr))) &&
+		SUCCEEDED(s_watchedFull->GetSurfaceLevel(0, &full)) && SUCCEEDED(s_watchedShown->GetSurfaceLevel(0, &shown)) &&
+		SUCCEEDED(device->StretchRect(target, nullptr, full, nullptr, D3DTEXF_NONE)) && SUCCEEDED(device->StretchRect(full, nullptr, shown, nullptr, D3DTEXF_LINEAR));
+	for (auto* surface : {target, full, shown}) if (surface) surface->Release();
+	// Once: the menu then stays translucent until the overlay is made again.
+	if (!done && !s_watchedFailed) { s_watchedFailed = true; spdlog::warn("Overlay: no {}x{} picture of the watched game's {}x{} frame", width, height, desc.Width, desc.Height); }
+	return done ? reinterpret_cast<ImTextureID>(s_watchedShown) : ImTextureID{};
+}
 static sf4e::ui::FighterSelector s_fighterSelectors[3];
 static sf4e::ui::ApplicationShell shell;
 static sf4e::ui::OverlayPresentation presentation;
@@ -285,6 +306,11 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.trainingReadySeconds = snapshot.trainingReadySeconds; view.canTrain = snapshot.canTrain;
     view.practiceFight = snapshot.menuContext == sf4e::input::MenuContext::PracticeMatch;
     view.watchedGame = snapshot.watchedGame;
+    // Taken before Ember draws anything this frame, so it holds the game's picture alone.
+    if (view.watchedGame.Active() && snapshot.preferences.watchedPicture) {
+        const auto& size = ImGui::GetMainViewport()->Size;
+        view.watchedPicture = WatchedPicture(static_cast<unsigned>(size.x * sf4e::ui::WatchedPictureShare), static_cast<unsigned>(size.y * sf4e::ui::WatchedPictureShare));
+    }
     view.lockInDrops = snapshot.lockInDrops;
 	view.canEditPreferences = snapshot.canEditPreferences;
 	view.canEditLobby = snapshot.canEditLobby;
@@ -779,6 +805,8 @@ void Overlay::FreeOverlay() {
     controllerNavigation.Reset();
     sf4e::ui::SetMenuArt(nullptr);
     s_selectionArt.reset();
+    for (auto** texture : {&s_watchedFull, &s_watchedShown}) if (*texture) { (*texture)->Release(); *texture = nullptr; }
+    s_watchedFailed = false;
     ImGui_ImplDX9_Shutdown(); ImGui_ImplWin32_Shutdown(); ImGui::DestroyContext();
 }
 // ImGui's input queue is not thread-safe: the window messages that feed it

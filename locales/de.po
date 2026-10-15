@@ -790,6 +790,12 @@ msgstr "Zugeschaute Matches speichern"
 msgid "replays.save_watched_detail"
 msgstr "Speichert auch Kämpfe, denen du als Zuschauer zusiehst. Aus speichert nur Kämpfe, die du selbst spielst."
 
+msgid "settings.watched_picture"
+msgstr "Zugeschautes Spiel in der Ecke"
+
+msgid "settings.watched_picture_detail"
+msgstr "Öffnest du Embers Menü über einem Spiel, dem du zuschaust, erscheint es klein oben rechts über einem deckenden Menü statt abgedunkelt dahinter."
+
 msgid "replays.link"
 msgstr "Replay aus dem Link abspielen"
 

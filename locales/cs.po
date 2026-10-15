@@ -790,6 +790,12 @@ msgstr "Ukládat sledované zápasy"
 msgid "replays.save_watched_detail"
 msgstr "Ukládá i zápasy, které sleduješ jako divák. Vypnuto ukládá pouze zápasy, které hraješ."
 
+msgid "settings.watched_picture"
+msgstr "Sledovaná hra v rohu"
+
+msgid "settings.watched_picture_detail"
+msgstr "Když otevřete menu Emberu nad hrou, kterou sledujete, zobrazí ji zmenšenou v pravém horním rohu nad plným menu místo ztlumené za ním."
+
 msgid "replays.link"
 msgstr "Přehrát záznam z odkazu"
 

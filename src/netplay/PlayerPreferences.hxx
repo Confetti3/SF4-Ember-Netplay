@@ -54,6 +54,9 @@ struct PlayerPreferences {
     // Called out of Training to their table, the player is readied at once
     // instead of being given the time to ready themselves.
     bool trainingAutoReady = false;
+    // Ember's menu over a game the player watches shows it small in its top
+    // right corner over an opaque menu, instead of dimmed behind the menu.
+    bool watchedPicture = false;
     // The training frame meter over the player's own matches and those they
     // watch. It only reads the game and shows confirmed frames.
     bool matchFrameMeter = false;

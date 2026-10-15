@@ -790,6 +790,12 @@ msgstr "Enregistrer les matchs regardés"
 msgid "replays.save_watched_detail"
 msgstr "Enregistre aussi les matchs que vous suivez en spectateur. Désactivé, seuls les matchs que vous jouez sont enregistrés."
 
+msgid "settings.watched_picture"
+msgstr "Partie regardée dans un coin"
+
+msgid "settings.watched_picture_detail"
+msgstr "Avec le menu d'Ember ouvert sur une partie que vous regardez, l'affiche en petit en haut à droite sur un menu opaque au lieu d'assombrie derrière."
+
 msgid "replays.link"
 msgstr "Lire le replay du lien"
 

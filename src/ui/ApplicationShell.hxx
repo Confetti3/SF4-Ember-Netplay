@@ -1,4 +1,5 @@
 #pragma once
+#include <imgui.h>
 #include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplayRequest.hxx"
 #include "../common/TrainingEntry.hxx"
@@ -148,6 +149,12 @@ struct ShellView {
     // input::MenuContext::WatchedMatch): Ember's menu is open over it, and Stop
     // watching leaves it. Empty when nothing is watched.
     netplay::WatchedGame watchedGame;
+    // That game's picture, for the menu's top right corner over an opaque
+    // menu (PlayerPreferences::watchedPicture); null when it is not wanted or
+    // could not be taken.
+    ImTextureID watchedPicture{};
+    // Ember's menu shows the watched game through itself, dimmed, instead.
+    bool SeeThrough() const { return watchedGame.Active() && !watchedPicture; }
     // Lock-ins lost to a failure of this member's spectator view
     // (RuntimeSnapshot::lockInDrops); each new count is told once.
     std::uint64_t lockInDrops = 0;

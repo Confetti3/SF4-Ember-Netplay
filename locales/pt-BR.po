@@ -790,6 +790,12 @@ msgstr "Salvar partidas que você assiste"
 msgid "replays.save_watched_detail"
 msgstr "Também salva as partidas que você assiste como espectador. Desativado salva apenas as que você joga."
 
+msgid "settings.watched_picture"
+msgstr "Partida assistida no canto"
+
+msgid "settings.watched_picture_detail"
+msgstr "Com o menu do Ember aberto sobre uma partida que você assiste, mostra ela pequena no canto superior direito sobre um menu opaco em vez de escurecida atrás."
+
 msgid "replays.link"
 msgstr "Reproduzir o replay do link"
 
