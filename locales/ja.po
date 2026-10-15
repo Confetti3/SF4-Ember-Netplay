@@ -1970,6 +1970,18 @@ msgstr "HUDにショートカットを表示"
 msgid "training.meter.hud_status"
 msgstr "HUDに記録を表示"
 
+msgid "training.meter.hud_inputs"
+msgstr "HUDに入力を表示"
+
+msgid "training.meter.inputs_stick"
+msgstr "スティック"
+
+msgid "training.meter.inputs_arrows"
+msgstr "矢印"
+
+msgid "training.meter.inputs_both"
+msgstr "ハイブリッド"
+
 msgid "training.meter.classic_data"
 msgstr "HUDのデータ行"
 

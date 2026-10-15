@@ -1970,6 +1970,18 @@ msgstr "Scorciatoie nell'HUD"
 msgid "training.meter.hud_status"
 msgstr "Registrazione nell'HUD"
 
+msgid "training.meter.hud_inputs"
+msgstr "Input nell'HUD"
+
+msgid "training.meter.inputs_stick"
+msgstr "Levetta"
+
+msgid "training.meter.inputs_arrows"
+msgstr "Frecce"
+
+msgid "training.meter.inputs_both"
+msgstr "Ibrido"
+
 msgid "training.meter.classic_data"
 msgstr "Riga dati sull'HUD"
 

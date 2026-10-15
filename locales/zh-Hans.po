@@ -1970,6 +1970,18 @@ msgstr "在 HUD 显示快捷键"
 msgid "training.meter.hud_status"
 msgstr "在 HUD 显示录制"
 
+msgid "training.meter.hud_inputs"
+msgstr "在 HUD 显示输入"
+
+msgid "training.meter.inputs_stick"
+msgstr "摇杆"
+
+msgid "training.meter.inputs_arrows"
+msgstr "箭头"
+
+msgid "training.meter.inputs_both"
+msgstr "混合"
+
 msgid "training.meter.classic_data"
 msgstr "HUD 数据行"
 

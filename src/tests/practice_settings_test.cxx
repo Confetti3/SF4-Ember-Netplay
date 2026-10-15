@@ -168,6 +168,12 @@ int main() {
         const auto read = ReadMeterOptions(json::parse(MeterOptionsJson(off).dump()));
         for (const auto& other : HudParts) CHECK(read.*other.shown == (&other != &part));
     }
+    // No input display unless one is saved by name, and a round trip keeps each.
+    for (const json& inputs : {json(), json("Stick"), json(1), json(true)}) CHECK(ReadMeterOptions(json{{"hud_inputs", inputs}}).inputs == InputDisplay::Off);
+    for (const auto inputs : {InputDisplay::Off, InputDisplay::Stick, InputDisplay::Arrows, InputDisplay::Both}) {
+        MeterOptions saved; saved.inputs = inputs;
+        CHECK(ReadMeterOptions(json::parse(MeterOptionsJson(saved).dump())).inputs == inputs);
+    }
     // The HUD is standard size unless small (0) or large (2) is saved, and keeps its size through a round trip.
     for (const json& size : {json(), json(3), json(-1), json(1.5), json("2"), json(true)}) CHECK(ReadMeterOptions(json{{"hud_size", size}}).size == 1);
     for (int size = 0; size < HudSizes; ++size) {

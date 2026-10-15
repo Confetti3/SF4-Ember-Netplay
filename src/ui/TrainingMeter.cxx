@@ -409,8 +409,6 @@ void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& op
     const auto inputs = [&](int side, float x0) {
         float cursor = x0;
         unsigned before = 0;
-
-        static const ImU32 colours[] = {IM_COL32(96, 176, 255, 255), IM_COL32(255, 214, 72, 255), IM_COL32(255, 96, 96, 255)};
         for (int i = 0; i < cells; ++i) {
             const int at = index(i);
             if (at < 0) continue;
@@ -427,7 +425,7 @@ void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& op
             for (int button = 0; button < static_cast<int>(gamepads::AttackMasks.size()); ++button) {
                 if (!(now & gamepads::AttackMasks[button]) || (before & gamepads::AttackMasks[button])) continue;
                 const float spot = place();
-                if (spot >= 0) cursor = spot + glyphs::Disc(draw, ImVec2(spot, y), lane, button < 3 ? 'P' : 'K', colours[button % 3], IM_COL32(255, 255, 255, 255));
+                if (spot >= 0) cursor = spot + glyphs::Disc(draw, ImVec2(spot, y), lane, button < 3 ? 'P' : 'K', glyphs::Strength[button % 3], IM_COL32(255, 255, 255, 255));
             }
             before = now;
         }
@@ -763,6 +761,77 @@ void DrawMatchKeysNotice(std::initializer_list<const char*> keys) {
     ImGui::End();
     ImGui::PopStyleVar(2);
 }
+// Each fighter's pad beside the meter, P1 left and P2 right of it: the stick
+// in an octagonal gate with a fading line through the directions it took
+// over the last InputTrail frames, eight arrows with the held one lit, or
+// both, and the six buttons, lit while held. It reads the session's input history
+// (View::history), which a match does not keep.
+constexpr int InputTrail = 16;
+// A pad's direction on the screen, as the lanes read its bits: x to the right, y down.
+static ImVec2 Way(unsigned held) {
+    return ImVec2(static_cast<float>(((held & 8) ? 1 : 0) - ((held & 4) ? 1 : 0)), static_cast<float>(((held & 2) ? 1 : 0) - ((held & 1) ? 1 : 0)));
+}
+static void DrawInputDisplay(const training::View& view, InputDisplay shown, float hudScale, float hudLeft, float width, float hudBottom) {
+    // Both takes a larger square, so the gate in the arrows' middle stays readable.
+    const float r = (shown == InputDisplay::Both ? 34 : 24) * hudScale, disc = 18 * hudScale, gap = 3 * hudScale, pad = 6 * hudScale;
+    const float inner = 2 * r + 2 * gap + 3 * (disc + gap), outer = inner + 2 * pad;
+    // On a narrow screen there is no room beside the meter; the screen's edge wins.
+    const auto* vp = ImGui::GetMainViewport();
+    for (int side = 0; side < 2; ++side) {
+        const auto& history = view.history[side];
+        const float x = side ? (std::min)(hudLeft + width + gap, vp->Pos.x + vp->Size.x - outer) : (std::max)(hudLeft - gap - outer, vp->Pos.x);
+        ImGui::SetNextWindowPos(ImVec2(x, hudBottom), ImGuiCond_Always, ImVec2(0, 1));
+        ImGui::SetNextWindowBgAlpha(TrainingHudBackground);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(pad, pad));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
+        if (ImGui::Begin(InputDisplayWindows[side], nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
+            ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing)) {
+            auto* draw = ImGui::GetWindowDrawList();
+            const ImVec2 at = ImGui::GetCursorScreenPos(), centre(at.x + r, at.y + r);
+            const unsigned now = history.empty() ? 0 : history.front().buttons;
+            // Thick arrows round the edge, the held one lit; Both keeps their middle for a smaller gate.
+            const bool arrows = shown != InputDisplay::Stick, gated = shown != InputDisplay::Arrows;
+            if (arrows) {
+                const ImVec2 held = Way(now);
+                const float h = r * (gated ? .42f : .62f), step = r - h / 2;
+                for (int dx = -1; dx <= 1; ++dx) for (int dy = -1; dy <= 1; ++dy) if (dx || dy)
+                    glyphs::BoldArrow(draw, ImVec2(centre.x + dx * step, centre.y + dy * step), h, static_cast<char>('5' + dx - 3 * dy),
+                        held.x == dx && held.y == dy ? palette::Ember : IM_COL32(96, 98, 104, 255));
+            }
+            if (gated) {
+                const float g = arrows ? r * .45f : r, unit = g / r;
+                // The gate's corners point the eight ways the stick goes.
+                ImVec2 gate[8];
+                for (int i = 0; i < 8; ++i) gate[i] = ImVec2(centre.x + g * std::cos(i * .785398f), centre.y + g * std::sin(i * .785398f));
+                draw->AddConvexPolyFilled(gate, 8, IM_COL32(86, 88, 94, 220));
+                draw->AddPolyline(gate, 8, IM_COL32(150, 152, 158, 255), ImDrawFlags_Closed, 1.5f * hudScale);
+                draw->AddCircleFilled(centre, 2 * hudScale * unit, IM_COL32(150, 152, 158, 255));
+                // A run ends on a button too; the line takes a point only where the direction changes.
+                ImVec2 trail[InputTrail];
+                int points = 0;
+                unsigned frames = 0;
+                for (const auto& run : history) {
+                    const ImVec2 way = Way(run.buttons);
+                    const float reach = (way.x && way.y ? .7071f : 1.f) * g * .8f;
+                    const ImVec2 at(centre.x + way.x * reach, centre.y + way.y * reach);
+                    if (!points || at.x != trail[points - 1].x || at.y != trail[points - 1].y) trail[points++] = at;
+                    if ((frames += run.frames) >= InputTrail) break;
+                }
+                for (int i = 1; i < points; ++i)
+                    draw->AddLine(trail[i - 1], trail[i], (palette::Ember & ~IM_COL32_A_MASK) | (static_cast<ImU32>(230 - 200 * i / points) << IM_COL32_A_SHIFT), 3 * hudScale * unit);
+                const ImVec2 ball = points ? trail[0] : centre;
+                draw->AddCircleFilled(ball, 6 * hudScale * unit, palette::Ember);
+                draw->AddCircle(ball, 6 * hudScale * unit, IM_COL32(20, 20, 20, 255), 0, 1);
+            }
+            for (int button = 0; button < static_cast<int>(gamepads::AttackMasks.size()); ++button)
+                glyphs::Disc(draw, ImVec2(at.x + 2 * r + 2 * gap + button % 3 * (disc + gap), centre.y + (button < 3 ? -disc - gap / 2 : gap / 2)), disc,
+                    button < 3 ? 'P' : 'K', glyphs::Strength[button % 3], (now & gamepads::AttackMasks[button]) ? IM_COL32(255, 255, 255, 255) : IM_COL32(255, 255, 255, 70));
+            ImGui::Dummy(ImVec2(inner, 2 * r));
+        }
+        ImGui::End();
+        ImGui::PopStyleVar(2);
+    }
+}
 static_assert(training::MeterOptions{}.position == static_cast<int>(TrainingHudBottom * 100 + .5f), "The meter's default place left the super meters' edge");
 float TrainingMeterBottom() { return TrainingMeterOptions().position / 100.f; }
 TrainingHudInput DrawTrainingHud(const training::View& view, bool called) {
@@ -776,6 +845,7 @@ TrainingHudInput DrawTrainingHud(const training::View& view, bool called) {
     const auto options = TrainingMeterOptions();
     const float hudBottom = vp->Pos.y + vp->Size.y * TrainingMeterBottom();
     const ImVec2 hudTop = MeterWindow(view, hudScale, width, hudBottom, options);
+    if (options.inputs != InputDisplay::Off) DrawInputDisplay(view, options.inputs, hudScale, hudTop.x, width, hudBottom);
     return DrawTrainingShortcuts(view, called, hudTop.x, hudTop.y, width, hudScale);
 }
 } }

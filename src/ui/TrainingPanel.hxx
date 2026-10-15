@@ -117,5 +117,7 @@ void DrawMatchMeter(const training::View& view);
 // screen. A Practice match says that shared save and reset are not available
 // and that End practice ends it; a watched game, that Stop watching leaves it.
 constexpr const char* MatchKeysWindow = "Match keys";
+// Each fighter's input display beside the training HUD's meter, P1 and P2.
+constexpr const char* InputDisplayWindows[2] = {"Input display P1", "Input display P2"};
 void DrawMatchKeysNotice(std::initializer_list<const char*> keys);
 } }

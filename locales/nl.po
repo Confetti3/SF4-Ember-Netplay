@@ -1970,6 +1970,18 @@ msgstr "Sneltoetsen op de HUD"
 msgid "training.meter.hud_status"
 msgstr "Opname op de HUD"
 
+msgid "training.meter.hud_inputs"
+msgstr "Invoer op de HUD"
+
+msgid "training.meter.inputs_stick"
+msgstr "Stick"
+
+msgid "training.meter.inputs_arrows"
+msgstr "Pijlen"
+
+msgid "training.meter.inputs_both"
+msgstr "Hybride"
+
 msgid "training.meter.classic_data"
 msgstr "Datalijn op HUD"
 

@@ -37,6 +37,10 @@ constexpr HudPart HudParts[] = {{"hud_numbers", "training.meter.hud_numbers", &M
 constexpr HudPart ClassicParts[] = {{"classic_data", "training.meter.classic_data", &MeterOptions::classicData},
     {"classic_inputs", "training.meter.classic_inputs", &MeterOptions::classicInputs}, {"classic_colors", "training.meter.classic_colors", &MeterOptions::classicColors},
     {"classic_extras", "training.meter.classic_extras", &MeterOptions::classicExtras}, {"classic_slant", "training.meter.classic_slant", &MeterOptions::classicSlant}};
+// The input displays: each one's name in training.json and its label.
+struct InputDisplayChoice { const char* key; const char* label; };
+constexpr InputDisplayChoice InputDisplayChoices[InputDisplays] = {{"off", "common.off"}, {"stick", "training.meter.inputs_stick"},
+    {"arrows", "training.meter.inputs_arrows"}, {"both", "training.meter.inputs_both"}};
 // The meter's drawing options: angled unless the style is "flat", the
 // recovery number only for a literal true, 60 frames shown unless 90 or 120
 // is saved, every part of the HUD unless it is saved as a literal false, and
@@ -52,6 +56,8 @@ inline MeterOptions ReadMeterOptions(const nlohmann::json& meter) {
     const auto history = meter.value("history_frames", nlohmann::json());
     for (const int choice : MeterHistoryChoices) if (history.is_number_integer() && history == choice) options.history = choice;
     options.continuous = meter.value("after_pause", nlohmann::json()) == "continue";
+    const auto inputs = meter.value("hud_inputs", nlohmann::json());
+    for (int choice = 0; choice < InputDisplays; ++choice) if (inputs == InputDisplayChoices[choice].key) options.inputs = static_cast<InputDisplay>(choice);
     options.smooth = meter.value("scroll", nlohmann::json()) == "smooth";
     const auto position = meter.value("position", nlohmann::json()), barHeight = meter.value("bar_height", nlohmann::json());
     for (const int choice : MeterPositions) if (position.is_number_integer() && position == choice) options.position = choice;
@@ -64,6 +70,7 @@ inline MeterOptions ReadMeterOptions(const nlohmann::json& meter) {
 }
 inline nlohmann::json MeterOptionsJson(const MeterOptions& options) {
     nlohmann::json meter{{"style", options.style == MeterStyle::Classic ? "classic" : options.style == MeterStyle::Flat ? "flat" : "angled"}, {"hud_recovery", options.recovery}, {"frames_shown", options.shown}, {"hud_size", options.size}, {"history_frames", options.history}, {"after_pause", options.continuous ? "continue" : "start_over"}, {"scroll", options.smooth ? "smooth" : "pages"},
+        {"hud_inputs", InputDisplayChoices[static_cast<int>(options.inputs)].key},
         {"position", options.position}, {"bar_height", options.barHeight}};
     for (const auto& part : HudParts) meter[part.key] = options.*part.shown;
     for (const auto& part : ClassicParts) meter[part.key] = options.*part.shown;

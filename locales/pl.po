@@ -1970,6 +1970,18 @@ msgstr "Skróty na HUD"
 msgid "training.meter.hud_status"
 msgstr "Nagrywanie na HUD"
 
+msgid "training.meter.hud_inputs"
+msgstr "Wejścia na HUD"
+
+msgid "training.meter.inputs_stick"
+msgstr "Drążek"
+
+msgid "training.meter.inputs_arrows"
+msgstr "Strzałki"
+
+msgid "training.meter.inputs_both"
+msgstr "Hybryda"
+
 msgid "training.meter.classic_data"
 msgstr "Wiersz danych na HUD"
 

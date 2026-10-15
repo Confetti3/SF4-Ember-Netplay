@@ -1767,6 +1767,18 @@ msgstr "Atalhos no HUD"
 msgid "training.meter.hud_status"
 msgstr "Gravação no HUD"
 
+msgid "training.meter.hud_inputs"
+msgstr "Entradas no HUD"
+
+msgid "training.meter.inputs_stick"
+msgstr "Alavanca"
+
+msgid "training.meter.inputs_arrows"
+msgstr "Setas"
+
+msgid "training.meter.inputs_both"
+msgstr "Híbrido"
+
 msgid "training.meter.classic_data"
 msgstr "Linha de dados no HUD"
 

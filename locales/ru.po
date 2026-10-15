@@ -1971,6 +1971,18 @@ msgstr "Клавиши на HUD"
 msgid "training.meter.hud_status"
 msgstr "Запись на HUD"
 
+msgid "training.meter.hud_inputs"
+msgstr "Ввод на HUD"
+
+msgid "training.meter.inputs_stick"
+msgstr "Стик"
+
+msgid "training.meter.inputs_arrows"
+msgstr "Стрелки"
+
+msgid "training.meter.inputs_both"
+msgstr "Гибрид"
+
 msgid "training.meter.classic_data"
 msgstr "Строка данных на HUD"
 

@@ -1970,6 +1970,18 @@ msgstr "Zkratky na HUD"
 msgid "training.meter.hud_status"
 msgstr "Nahrávání na HUD"
 
+msgid "training.meter.hud_inputs"
+msgstr "Vstupy na HUD"
+
+msgid "training.meter.inputs_stick"
+msgstr "Páčka"
+
+msgid "training.meter.inputs_arrows"
+msgstr "Šipky"
+
+msgid "training.meter.inputs_both"
+msgstr "Hybrid"
+
 msgid "training.meter.classic_data"
 msgstr "Řádek dat na HUD"
 

@@ -1970,6 +1970,18 @@ msgstr "Kürzel im HUD"
 msgid "training.meter.hud_status"
 msgstr "Aufnahme im HUD"
 
+msgid "training.meter.hud_inputs"
+msgstr "Eingaben im HUD"
+
+msgid "training.meter.inputs_stick"
+msgstr "Stick"
+
+msgid "training.meter.inputs_arrows"
+msgstr "Pfeile"
+
+msgid "training.meter.inputs_both"
+msgstr "Hybrid"
+
 msgid "training.meter.classic_data"
 msgstr "Datenzeile im HUD"
 

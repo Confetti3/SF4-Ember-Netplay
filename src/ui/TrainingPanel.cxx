@@ -463,6 +463,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   LoadPractice();
   rows.push_back(Value("hud-size",loc::T("training.meter.hud_size"),loc::T(sizes[lab.meter.size]),loc::T("training.meter.hud_size.detail")));
   for(const auto& part:HudParts)rows.push_back(Value(part.key,loc::T(part.label),loc::T(lab.meter.*part.shown?"common.on":"common.off"),loc::T("training.meter.hud_part.detail")));
+  rows.push_back(Value("hud-inputs",loc::T("training.meter.hud_inputs"),loc::T(InputDisplayChoices[static_cast<int>(lab.meter.inputs)].label),loc::T("training.meter.hud_part.detail")));
   // The meter's own settings, Ember's beside the HUD's, on a page of their own.
   rows.push_back(Row("meter-settings",loc::T("training.meter.settings"),loc::T("training.meter.settings.detail")));
  }else if(screen=="meter-settings"){
@@ -528,6 +529,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-position"){Step(lab.meter.position,{std::begin(MeterPositions),std::end(MeterPositions)},a.delta);SavePractice();return;}
  if(screen=="meter-classic"&&a.kind==MenuAction::Adjust&&a.id=="bar-height"){Step(lab.meter.barHeight,{std::begin(ClassicBarHeights),std::end(ClassicBarHeights)},a.delta);SavePractice();return;}
  if(screen=="hud"&&a.kind==MenuAction::Adjust&&a.id=="hud-size"){lab.meter.size=(std::max)(0,(std::min)(HudSizes-1,lab.meter.size+a.delta));SavePractice();return;}
+ if(screen=="hud"&&a.kind==MenuAction::Adjust&&a.id=="hud-inputs"){Step(lab.meter.inputs,{0,1,2,3},a.delta);SavePractice();return;}
  const auto turn=[&](const auto& parts){for(const auto& part:parts)if(a.id==part.key){lab.meter.*part.shown=a.delta>0;SavePractice();return true;}return false;};
  if(screen=="hud"&&a.kind==MenuAction::Adjust&&turn(HudParts))return;
  if(screen=="meter-classic"&&a.kind==MenuAction::Adjust&&turn(ClassicParts))return;

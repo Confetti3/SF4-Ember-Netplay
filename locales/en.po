@@ -1970,6 +1970,18 @@ msgstr "Shortcuts on HUD"
 msgid "training.meter.hud_status"
 msgstr "Recording on HUD"
 
+msgid "training.meter.hud_inputs"
+msgstr "Inputs on HUD"
+
+msgid "training.meter.inputs_stick"
+msgstr "Stick"
+
+msgid "training.meter.inputs_arrows"
+msgstr "Arrows"
+
+msgid "training.meter.inputs_both"
+msgstr "Hybrid"
+
 msgid "training.meter.classic_data"
 msgstr "Data line on HUD"
 

@@ -7,6 +7,8 @@
 // a disc per button in its strength colour. Drawn with the draw list, so no
 // glyph has to exist in a font.
 namespace sf4e { namespace ui { namespace glyphs {
+// Light, medium and heavy, as the meter's lanes and the input display colour them.
+constexpr ImU32 Strength[] = {IM_COL32(96, 176, 255, 255), IM_COL32(255, 214, 72, 255), IM_COL32(255, 96, 96, 255)};
 inline ImU32 Tinted(ImU32 colour, ImU32 tint) {
     return (colour & ~IM_COL32_A_MASK) | (tint & IM_COL32_A_MASK);
 }
@@ -27,6 +29,15 @@ inline float Arrow(ImDrawList* draw, ImVec2 at, float h, char digit, bool held, 
     // A held direction sits in a box, as the game's charge icons do.
     if (held) draw->AddRect(at, ImVec2(at.x + h, at.y + h), tint, 2, 0, 1);
     return h;
+}
+// A thick arrow centred on centre, h long, as the game's input display draws
+// a direction: a broad stem and a wide head.
+inline void BoldArrow(ImDrawList* draw, ImVec2 centre, float h, char digit, ImU32 colour) {
+    const float a = Angle(digit) * 3.14159265f, c = std::cos(a), s = std::sin(a);
+    const float len = h * .5f, head = h * .48f, stem = h * .17f;
+    const auto p = [&](float x, float y) { return ImVec2(centre.x + x * c - y * s, centre.y + x * s + y * c); };
+    draw->AddQuadFilled(p(-len, -stem), p(len - head, -stem), p(len - head, stem), p(-len, stem), colour);
+    draw->AddTriangleFilled(p(len, 0), p(len - head, -head), p(len - head, head), colour);
 }
 inline float Disc(ImDrawList* draw, ImVec2 at, float h, char kind, ImU32 colour, ImU32 tint) {
     const ImVec2 centre(at.x + h / 2, at.y + h / 2);

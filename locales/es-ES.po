@@ -1970,6 +1970,18 @@ msgstr "Atajos en el HUD"
 msgid "training.meter.hud_status"
 msgstr "Grabación en el HUD"
 
+msgid "training.meter.hud_inputs"
+msgstr "Entradas en el HUD"
+
+msgid "training.meter.inputs_stick"
+msgstr "Palanca"
+
+msgid "training.meter.inputs_arrows"
+msgstr "Flechas"
+
+msgid "training.meter.inputs_both"
+msgstr "Híbrido"
+
 msgid "training.meter.classic_data"
 msgstr "Línea de datos en el HUD"
 

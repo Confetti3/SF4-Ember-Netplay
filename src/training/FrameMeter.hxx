@@ -177,7 +177,11 @@ constexpr int HudSizes = 3;
 // The bars' style: angled, the default; Stable's flat bars; or the first meter's.
 enum class MeterStyle { Angled, Flat, Classic };
 constexpr int MeterStyles = 3;
+// Each fighter's input display beside the meter (InputDisplayChoices).
+enum class InputDisplay { Off, Stick, Arrows, Both };
+constexpr int InputDisplays = 4;
 struct MeterOptions { MeterStyle style = MeterStyle::Angled; bool recovery = false; int shown = 60; bool numbers = true, bars = true, state = true, shortcuts = true, status = true; int size = 1;
+    InputDisplay inputs = InputDisplay::Off;
     bool classicData = true, classicInputs = true, classicColors = true, classicExtras = true, classicSlant = true;
     // The frames the meter keeps, one of MeterHistoryChoices.
     int history = 1200;

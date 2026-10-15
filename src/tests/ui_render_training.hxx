@@ -87,7 +87,7 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         if(std::string(screen)=="reply")Require(trainingRows.size()==6,"Reply page lost one of its own rows");
         if(std::string(screen)=="tools")Require(trainingRows.size()==4,"Position page lost one of its own rows");
         if(std::string(screen)=="frame-data")Require(trainingRows.size()==6,"Frame data page lost one of its own rows");
-        if(std::string(screen)=="hud")Require(trainingRows.size()==7&&trainingRows[0].id=="hud-size"&&trainingRows[6].id=="meter-settings","HUD page lost its size or one of its parts");
+        if(std::string(screen)=="hud")Require(trainingRows.size()==8&&trainingRows[0].id=="hud-size"&&trainingRows[7].id=="meter-settings","HUD page lost its size or one of its parts");
         // The reply plays the slots that are on, so its page has no slot of its own.
         if(std::string(screen)=="reply")for(const auto& row:trainingRows)Require(row.id!="reply-slot","The reply page kept a slot of its own");
         // Each slot says whether it is on, or that it is empty, with its frames in the detail.
@@ -343,6 +343,18 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     Require(hud->Size.y<whole*.7f&&chips->LastFrameActive!=ImGui::GetFrameCount(),"HUD parts did not turn off");
     parts.bars=false;SetTrainingMeterOptions(parts);draw();
     Require(hud->LastFrameActive!=ImGui::GetFrameCount(),"HUD drew with every part off");
+    SetTrainingMeterOptions({});
+    // The input display: one pad a side, on the screen, beside the meter where there is room.
+    parts=training::MeterOptions{};
+    for(const auto inputs:{training::InputDisplay::Stick,training::InputDisplay::Arrows,training::InputDisplay::Both}){
+        parts.inputs=inputs;SetTrainingMeterOptions(parts);
+        draw(inputs==training::InputDisplay::Stick?"training-hud-inputs-stick":inputs==training::InputDisplay::Arrows?"training-hud-inputs-arrows":"training-hud-inputs-both");
+        for(const char* name:InputDisplayWindows){
+            auto* pad=FindWindow(name);
+            Require(pad&&pad->LastFrameActive==ImGui::GetFrameCount()&&pad->Pos.x>=0&&pad->Pos.x+pad->Size.x<=size.w+1&&pad->Pos.y+pad->Size.y<=size.h*.82f+1,"Input display left the screen or covers the super meters");
+            if(size.w>=1280)Require(pad->Pos.x+pad->Size.x<=hud->Pos.x||pad->Pos.x>=hud->Pos.x+hud->Size.x,"Input display covers the meter");
+        }
+    }
     SetTrainingMeterOptions({});
     // A small window: the HUD shrinks with it and keeps its place over the
     // gauges, at every size and while it records.

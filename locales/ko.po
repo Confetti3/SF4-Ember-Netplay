@@ -1970,6 +1970,18 @@ msgstr "HUD에 단축키 표시"
 msgid "training.meter.hud_status"
 msgstr "HUD에 녹화 표시"
 
+msgid "training.meter.hud_inputs"
+msgstr "HUD에 입력 표시"
+
+msgid "training.meter.inputs_stick"
+msgstr "스틱"
+
+msgid "training.meter.inputs_arrows"
+msgstr "화살표"
+
+msgid "training.meter.inputs_both"
+msgstr "하이브리드"
+
 msgid "training.meter.classic_data"
 msgstr "HUD 데이터 줄"
 
