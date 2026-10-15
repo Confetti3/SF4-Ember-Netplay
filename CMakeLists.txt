@@ -34,6 +34,7 @@ if(BUILD_TESTING)
     find_package(Threads REQUIRED)
     sf4e_add_unit_test(NAME TrainingSession SOURCES "src/tests/training_session_test.cxx" STD 14)
     sf4e_add_unit_test(NAME FrameMeterRun SOURCES "src/tests/frame_meter_run_test.cxx" STD 14)
+    sf4e_add_unit_test(NAME SelfTest SOURCES "src/tests/selftest_test.cxx" STD 14)
     sf4e_add_unit_test(NAME FocusCancel SOURCES "src/tests/focus_cancel_test.cxx" STD 14)
     sf4e_add_unit_test(NAME TrainingReply SOURCES "src/tests/training_reply_test.cxx" STD 14)
     sf4e_add_unit_test(NAME TrainingFacing SOURCES "src/tests/training_facing_test.cxx" STD 14)
@@ -457,6 +458,8 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__ReplayStore.cxx"
     "src/sf4e/sf4e__ReplayPlayback.hxx"
     "src/sf4e/sf4e__ReplayPlayback.cxx"
+    "src/sf4e/sf4e__SelfTest.hxx"
+    "src/sf4e/sf4e__SelfTest.cxx"
     "src/sf4e/sf4e__CrashDiagnostics.hxx"
     "src/sf4e/sf4e__CrashDiagnostics.cxx"
     "src/sf4e/sf4e__UserApp.hxx"
