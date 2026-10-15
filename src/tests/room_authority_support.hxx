@@ -1,7 +1,6 @@
 #pragma once
 // Shared by the room authority suites: the checks and the members they seat.
 #include "../session/RoomModel.hxx"
-#include "../session/RoomCommit.hxx"
 #include "../common/MatchSide.hxx"
 
 #include <cstdio>

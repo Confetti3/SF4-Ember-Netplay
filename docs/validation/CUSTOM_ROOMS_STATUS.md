@@ -54,7 +54,7 @@ One private Iroh room admits up to 16 members and owns four independent versus
 tables. Members can play, watch, queue, or remain idle. A game uses one local
 instance at a time; queued members watch from the next game. A table with no
 set length keeps the same two fighters seated, game after game, until one
-leaves. A first-to-N table (1, 2, 3 or 5) ends the set when a fighter reaches N
+leaves. A first-to-N table (1 to 10) ends the set when a fighter reaches N
 wins and rotates its seats by the table's rule (winner stays, loser stays or
 both rotate): the fighters it sends away join the back of the queue and the
 next queued members sit down. Only members who joined the queue are seated.

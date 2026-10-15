@@ -1,0 +1,10 @@
+[Unit]
+Description=Check public rooms for idle lone hosts every 30 seconds
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=30s
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

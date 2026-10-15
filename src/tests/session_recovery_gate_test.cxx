@@ -327,6 +327,19 @@ int main() {
 		assert(!CheckpointOmitsSession(checkpoint({row("host", 7, false), row(self.c_str(), 5, false)}), self));
 		assert(!CheckpointOmitsSession(nlohmann::json::object(), self));
 		assert(!CheckpointOmitsSession(checkpoint({row("host", 7, false)}), ""));
+		// Activation binds to the endpoint's one active row. A member that left
+		// a match and rejoined has its old frozen row too, which is history.
+		using sf4e::session::ActiveRosterRow;
+		sf4e::session::RosterRow active;
+		assert(ActiveRosterRow(checkpoint({row("host", 7, false), row(self.c_str(), 5, true), row(self.c_str(), 9, false)}).at("members"), self, active));
+		assert(active.member && active.incarnation == 9);
+		assert(ActiveRosterRow(checkpoint({row(self.c_str(), 9, false), row(self.c_str(), 5, true)}).at("members"), self, active));
+		assert(active.member && active.incarnation == 9);
+		assert(ActiveRosterRow(checkpoint({row("host", 7, false), row(self.c_str(), 5, true)}).at("members"), self, active) && !active.member);
+		assert(!ActiveRosterRow(checkpoint({row(self.c_str(), 5, false), row(self.c_str(), 9, false)}).at("members"), self, active));
+		auto malformed = checkpoint({row("host", 7, false), row(self.c_str(), 0, true)});
+		assert(!ActiveRosterRow(malformed.at("members"), self, active));
+		assert(!ActiveRosterRow(nlohmann::json::object(), self, active));
 	}
 	std::cout << "Session recovery gate test passed\n";
 	return 0;

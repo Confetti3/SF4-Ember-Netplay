@@ -54,7 +54,7 @@ impl Actor {
         )?;
         let own = session.advertise().await;
         self.remember_admission(own);
-        self.recovery = Some(session);
+        self.install_recovery(session).await;
         Ok(invite)
     }
 
@@ -85,8 +85,22 @@ impl Actor {
                 .ok_or_else(|| failed("invitation coordination route missing"))?,
             primary_endpoint: invite.endpoint(),
         });
-        self.recovery = Some(session);
+        self.install_recovery(session).await;
         Ok(())
+    }
+
+    /// Makes `session` the room's coordination. A follower's Raft store
+    /// commits on its own task, so each commit wakes the actor to hand the
+    /// checkpoint to the native side; the forwarding ends with the store.
+    pub(super) async fn install_recovery(&mut self, session: crate::recovery::RecoverySession) {
+        let mut commits = session.coordinator.committed_changes().await;
+        let wake = self.wake.clone();
+        tokio::spawn(async move {
+            while commits.changed().await.is_ok() {
+                wake.notify_one();
+            }
+        });
+        self.recovery = Some(session);
     }
 
     pub(super) async fn emit_coordination_state(&mut self) -> io::Result<()> {
@@ -193,7 +207,18 @@ impl Actor {
         self.applied_admission_members
             .extend(applied_history.iter().copied());
         let retired_for_broadcast = self.pending_retired_incarnations.clone();
-        if let Some(retained) = self.committed_roster(committed.checkpoint.as_bytes()) {
+        // The roster is parsed once per commit; the refresh runs every second.
+        let roster = match &self.refresh_roster {
+            Some((room, seen, roster)) if *room == recovery.room && seen.same_commit(&committed) => {
+                roster.clone()
+            }
+            _ => {
+                let roster = self.committed_roster(committed.checkpoint().as_bytes());
+                self.refresh_roster = Some((recovery.room, committed.clone(), roster.clone()));
+                roster
+            }
+        };
+        if let Some(retained) = roster {
             // A leave hands authority to a single voter, and a room that
             // shrinks keeps the voters it had; the leader moves the voter
             // count to the one the room should have from here until it
@@ -204,11 +229,11 @@ impl Actor {
             self.schedule_membership_reconciliation(
                 retained,
                 state.term,
-                committed.revision,
+                committed.revision(),
                 restore_voters,
             );
         } else {
-            self.schedule_pending_membership_reconciliation(state.term, committed.revision);
+            self.schedule_pending_membership_reconciliation(state.term, committed.revision());
         }
         let became_local_leader = state.leader_local
             && self
@@ -421,11 +446,8 @@ impl Actor {
             && current_term == key.term
             && current_leader == key.leader
             && refresh.state.incarnation == key.incarnation
-            && refresh.state.revision == refresh.committed.revision
-            && committed_now.revision == refresh.committed.revision
-            && committed_now.term == refresh.committed.term
-            && committed_now.request == refresh.committed.request
-            && committed_now.checkpoint == refresh.committed.checkpoint;
+            && refresh.state.revision == refresh.committed.revision()
+            && committed_now.same_commit(&refresh.committed);
         let grace = self.leader_loss_grace();
         let failed_leader = if current && !refresh.state.writable {
             current_leader

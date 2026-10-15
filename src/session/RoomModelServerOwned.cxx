@@ -18,7 +18,7 @@ bool ValidAccount(const std::string& account) {
 }
 
 bool RoomAuthority::SetServerOwned() {
-	if (snapshot_.closed || !snapshot_.members.empty() || snapshot_.host != 0 || nextMemberId_ != 1) return false;
+	if (snapshot_.closed || snapshot_.practice || !snapshot_.members.empty() || snapshot_.host != 0 || nextMemberId_ != 1) return false;
 	snapshot_.serverOwned = true;
 	return true;
 }

@@ -1,10 +1,14 @@
 #include "Win32InputBridge.hxx"
+#include <cfloat>
 
 namespace sf4e { namespace ui {
-void ApplyWin32Input(ImGuiIO& io, const Win32Input& input) {
+void ApplyWin32Input(ImGuiIO& io, const Win32Input& input, ImVec2 mouseScale) {
     switch (input.kind) {
     case Win32Input::MouseSource: io.AddMouseSourceEvent(static_cast<ImGuiMouseSource>(input.a)); break;
-    case Win32Input::MousePos: io.AddMousePosEvent(input.x, input.y); break;
+    case Win32Input::MousePos:
+        // -FLT_MAX means no mouse and stays that way.
+        io.AddMousePosEvent(input.x > -FLT_MAX ? input.x * mouseScale.x : input.x, input.y > -FLT_MAX ? input.y * mouseScale.y : input.y);
+        break;
     case Win32Input::MouseButton: io.AddMouseButtonEvent(input.a, input.b != 0); break;
     case Win32Input::MouseWheel: io.AddMouseWheelEvent(input.x, input.y); break;
     case Win32Input::Key:
@@ -17,9 +21,9 @@ void ApplyWin32Input(ImGuiIO& io, const Win32Input& input) {
     }
 }
 
-void DeliverWin32Input(Win32InputBridge* bridge, ImGuiIO& io, const Win32Input& input) {
+void DeliverWin32Input(Win32InputBridge* bridge, ImGuiIO& io, const Win32Input& input, ImVec2 mouseScale) {
     if (bridge) bridge->Push(input);
-    else ApplyWin32Input(io, input);
+    else ApplyWin32Input(io, input, mouseScale);
 }
 
 namespace { std::atomic<bool> cursorOwned{true}; }
@@ -46,7 +50,7 @@ void Win32InputBridge::RequestClear() {
     clear_ = true;
 }
 
-void Win32InputBridge::ApplyTo(ImGuiIO& io) {
+void Win32InputBridge::ApplyTo(ImGuiIO& io, ImVec2 mouseScale) {
     std::vector<Win32Input> input;
     bool clear = false;
     {
@@ -56,6 +60,6 @@ void Win32InputBridge::ApplyTo(ImGuiIO& io) {
         clear_ = false;
     }
     if (clear) { io.ClearInputKeys(); io.ClearInputMouse(); }
-    for (const auto& event : input) ApplyWin32Input(io, event);
+    for (const auto& event : input) ApplyWin32Input(io, event, mouseScale);
 }
 } }

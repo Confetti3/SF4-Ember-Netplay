@@ -28,17 +28,16 @@ cancel input ordering, held input across transitions, directional repeat reset,
 diagonal navigation, scroll preservation, alternating checkpoint/recovery
 feedback, immediate hard unavailability, feedback scope changes and clock rebasing.
 
-Reproduce from the repository root (no Windows/game/renderer dependency):
+The fixture runs as `UiPolish` in the core-only tests, which need no Windows,
+game or renderer. Reproduce from the repository root:
 
 ```sh
-cmake -S src/tests/ui-polish -B build/ui-polish
-cmake --build build/ui-polish
-ctest --test-dir build/ui-polish --output-on-failure
+cmake -S . -B build/core -DSF4E_CORE_TESTS_ONLY=ON
+cmake --build build/core --target UiPolishTest
+ctest --test-dir build/core -R UiPolish --output-on-failure
 ```
 
-For a multi-configuration generator, supply `--config Release` to the build and
-`-C Release` to CTest. This small standalone project does not replace or alter
-the existing native suite. Its count is not 357 separate CTest cases.
+Its 357 checks are one CTest case.
 
 After merging the current `release` checkpoint/performance work into the polish
 branch, the same standalone fixture passed under Windows/MSVC. The designated

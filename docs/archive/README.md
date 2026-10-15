@@ -26,7 +26,7 @@ git fetch origin --tags
 git switch -c restored-work refs/tags/archive/feat/async-ui-and-update-verification
 ```
 
-[Legacy main](https://github.com/Confetti3/SF4-Ember-Netplay/tree/main) remains at `c6f2f1907f396c40a8542cc056e3bafa2adb3bde`. Existing release tags, releases and local feature checkouts are preserved.
+[Legacy main](https://github.com/Confetti3/SF4-Ember-Netplay/tree/c6f2f1907f396c40a8542cc056e3bafa2adb3bde) remains at `c6f2f1907f396c40a8542cc056e3bafa2adb3bde`. Existing release tags, releases and local feature checkouts are preserved.
 
 ## Historical documentation
 

@@ -4,16 +4,16 @@
   <p><strong>Your room. Your rivals. One more game.</strong></p>
   <p>Private rollback rooms and a controller-first overlay for Ultra Street Fighter IV.</p>
   <p>
-    <a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/tag/v1.0.2"><img alt="Release 1.0.2" src="https://img.shields.io/badge/release-1.0.2-e97835?style=flat-square&labelColor=242321"></a>
+    <a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/tag/v1.2.0"><img alt="Release 1.2.0" src="https://img.shields.io/badge/release-1.2.0-e97835?style=flat-square&labelColor=242321"></a>
     <img alt="Windows x64" src="https://img.shields.io/badge/platform-Windows_x64-e97835?style=flat-square&labelColor=242321">
     <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-e97835?style=flat-square&labelColor=242321"></a>
     <a href="https://discord.gg/uPNqF5A5uq"><img alt="Join the Discord" src="https://img.shields.io/badge/discord-join-e97835?style=flat-square&labelColor=242321&logo=discord&logoColor=white"></a>
   </p>
   <p>
-    <strong><a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v1.0.2/sf4-ember-netplay-1.0.2.zip">Download v1.0.2 for Windows</a></strong>
+    <strong><a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v1.2.0/sf4-ember-netplay-1.2.0.zip">Download v1.2.0 for Windows</a></strong>
     &nbsp; · &nbsp; <a href="#get-started">Get started</a>
     &nbsp; · &nbsp; <a href="docs/guides/USER_NETPLAY.md">Player guide</a>
-    &nbsp; · &nbsp; <a href="docs/release-notes/RELEASE_NOTES_v1.0.2.md">Release notes</a>
+    &nbsp; · &nbsp; <a href="docs/release-notes/RELEASE_NOTES_v1.2.0.md">Release notes</a>
     &nbsp; · &nbsp; <a href="https://discord.gg/uPNqF5A5uq">Discord</a>
   </p>
 </div>
@@ -32,6 +32,7 @@ An **experimental unofficial port** of **[sf4e](https://codeberg.org/adanducci/s
 | Four battle tables, queues and spectators | Player profile, main fighter and confirmed online record |
 | Room chat and short invitations | SF4 controller assignment, including DirectInput sticks |
 | Iroh networking and Discord invitations | Controller prompts and interface settings |
+| Practice rooms and Wait in Training | Replay library with video export |
 
 ### A room for the whole group
 
@@ -63,7 +64,7 @@ An in-game capture supplied by the project owner, showing Ember's frame meter, p
 
 You need **Windows 10 or later (x64)**, an owned **Steam copy of Ultra Street Fighter IV**, and the **latest Microsoft Visual C++ x86 runtime** (the launcher will not start with an older one and offers the download). The game is not included.
 
-1. For a fresh installation, [download the complete v1.0.2 ZIP](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v1.0.2/sf4-ember-netplay-1.0.2.zip) and its [SHA-256 checksum](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v1.0.2/sf4-ember-netplay-1.0.2.zip.sha256). Choose a release package, not GitHub's source-code download.
+1. For a fresh installation, [download the complete v1.2.0 ZIP](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v1.2.0/sf4-ember-netplay-1.2.0.zip) and its [SHA-256 checksum](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v1.2.0/sf4-ember-netplay-1.2.0.zip.sha256). Choose a release package, not GitHub's source-code download. Alternatively, [setup.exe](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v1.2.0/sf4-ember-netplay-1.2.0-setup.exe) installs Ember into an empty folder with a Start menu entry and an uninstaller.
 2. Extract everything into a **new writable folder**. Keep your old launcher installation separate; moving from the legacy launcher to Ember is a fresh install.
 3. Run `preflight.cmd`, then `Launcher.exe`. Successful startup goes directly to the game. If needed, select the folder containing `SSFIV.exe` in launch recovery.
 4. At the main menu, choose your controller and player name. Use **Online play → Create room**, then copy the invitation. Guests choose **Join room** and paste it.
@@ -89,7 +90,7 @@ Back returns through menus, and from Home it hides Ember. On your own table card
 
 Existing Ember preferences remain under `%APPDATA%\sf4e`. Help & About provides the version, update checking, attribution and redacted diagnostic exports. Ember updates use the renamed repository and verify the downloaded ZIP's SHA-256 before installation.
 
-**`release` is the current Ember branch.** [Legacy `main`](https://github.com/Confetti3/SF4-Ember-Netplay/tree/main) preserves the previous SF4 Netplay Launcher. Its releases and [archived README](docs/archive/README-pre-ember.md) remain available. Legacy in-place upgrades to Ember are not supported; follow the fresh-install steps above.
+**`release` is the current Ember branch.** [Legacy `main`](https://github.com/Confetti3/SF4-Ember-Netplay/tree/c6f2f1907f396c40a8542cc056e3bafa2adb3bde) preserves the previous SF4 Netplay Launcher. Its releases and [archived README](docs/archive/README-pre-ember.md) remain available. Legacy in-place upgrades to Ember are not supported; follow the fresh-install steps above.
 
 Browse the [branch archive](docs/archive/README.md) for all retired development branches, preserved as tagged snapshots with their original commit history.
 
@@ -100,11 +101,14 @@ Ember remains experimental. Local builds, automated UI and transport tests, and 
 | Guide | What it covers |
 | --- | --- |
 | [Player guide](docs/guides/USER_NETPLAY.md) | Hosting, joining, controls and day-to-day play |
+| [Training lab](docs/guides/TRAINING_LAB.md) | Frame meter, dummy recording and dummy replies, with a notation cheat sheet |
 | [Custom rooms](docs/guides/CUSTOM_ROOMS.md) | Tables, queues, spectators and room behavior |
 | [Discord integration](docs/guides/DISCORD.md) | Presence, invitations and privacy |
 | [Troubleshooting](docs/guides/TROUBLESHOOTING.md) | Startup, connections and diagnostics |
 | [Saving logs](docs/guides/SAVING_LOGS.md) | Save logs and diagnostics from both players for a bug report |
 | [Build and package](docs/development/BUILDING.md) | Reproducible local builds and release provenance |
+| [Server](server/README.md) | Everything that runs on the Ember server: bridge, public rooms, short links, hosting |
+| [Server traffic](docs/development/SERVER_TRAFFIC.md) | Diagrams of what travels between the Ember server and players, for public and private rooms |
 | [All documentation](docs/README.md) | Design notes, validation results, reports and release notes |
 
 ## Community
@@ -113,7 +117,7 @@ Find opponents, organise sets and get help in the [Ember Discord](https://discor
 
 ## License and credits
 
-This project is under the [MIT license](LICENSE), which carries both the SF4 Ember Netplay contributors copyright and the upstream copyright with **Anthony Danducci's sf4e** attribution. Anyone reusing code from this port must keep both notices; see [using code from this port](ATTRIBUTION.md#using-code-from-this-port). [ATTRIBUTION.md](ATTRIBUTION.md) records upstream, dependency, font and artwork credits. Packages include dependency notices, Inter's OFL and Kenney's input-prompt license. Capcom game imagery is separate from the source-code license.
+This project is under the [MIT license](LICENSE), which carries both the SF4 Ember Netplay contributors copyright and the upstream copyright with **Anthony Danducci's sf4e** attribution. Anyone reusing code from this port must keep both notices; see [using code from this port](ATTRIBUTION.md#using-code-from-this-port). [ATTRIBUTION.md](ATTRIBUTION.md) records upstream, dependency, font and artwork credits. Packages include dependency notices (with the Unicode License V3 for the Unicode data used in report redaction), Inter's OFL and Kenney's input-prompt license. Capcom game imagery is separate from the source-code license.
 
 ## External Licenses and Copyright Information
 

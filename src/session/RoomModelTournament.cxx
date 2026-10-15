@@ -26,7 +26,7 @@ bool TournamentBinding::Valid() const {
 		return IsLowerHex(value.endpoint, 64) && IsIdentifier(value.emberId, 64);
 	};
 	return IsIdentifier(matchId, 64) && assignmentGeneration && bindingRevision &&
-		(gamesToWin == 1 || gamesToWin == 2 || gamesToWin == 3 || gamesToWin == 5) &&
+		ValidGamesToWin(gamesToWin) &&
 		fighter(fighters[0]) && fighter(fighters[1]) &&
 		fighters[0].endpoint != fighters[1].endpoint && fighters[0].emberId != fighters[1].emberId;
 }
@@ -65,7 +65,7 @@ void from_json(const nlohmann::json& json, TournamentBinding& value) {
 	value.matchId = ReadText(json, "match_id", 64, false);
 	value.assignmentGeneration = ReadU64(json, "assignment_generation");
 	value.bindingRevision = ReadU64(json, "binding_revision");
-	value.gamesToWin = static_cast<std::uint8_t>(ReadInt(json, "games_to_win", 1, 5));
+	value.gamesToWin = static_cast<std::uint8_t>(ReadInt(json, "games_to_win", 1, MaxSetLength));
 	const auto& fighters = json.at("fighters");
 	if (!fighters.is_array() || fighters.size() != 2) throw std::invalid_argument("room tournament fighters");
 	for (std::size_t slot = 0; slot < 2; ++slot) {
@@ -202,6 +202,8 @@ bool RoomAuthority::PermitCalledOff(const Table& table, std::uint64_t ageMs) con
 Result RoomAuthority::BindTournament(const TournamentBinding& binding) {
 	if (!binding.Valid()) return Reject(RejectReason::InvalidRules);
 	if (snapshot_.closed) return Reject(RejectReason::Closed);
+	// A tournament match is scored; a Practice room's games end only on time.
+	if (snapshot_.practice) return Reject(RejectReason::Unauthorized);
 	auto& current = snapshot_.tournament;
 	if (current.Active()) {
 		// A room plays one match; a newer binding for it replaces the old one.

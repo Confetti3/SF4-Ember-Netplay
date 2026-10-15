@@ -164,6 +164,23 @@ int main() {
 	protocol::RoomSnapshotMessage roomMessage; roomMessage.snapshot = roomSnapshot;
 	roomTransport->Push(json(roomMessage)); CHECK(roomClient.Step() == 0);
 	CHECK(roomClient._lobbyData.members.size() == 2 && roomClient._lobbyData.members[1].name == "Guest");
+	CHECK(!roomClient._lobbyData.trainingMode && roomClient._lobbyData.roundTime.integral == room::DefaultRoundTime);
+	{
+		// A Practice room's table projects a Practice match at the longest
+		// round time, whatever time its rules hold.
+		SessionClient practiceClient(callbacks, "build", 30000, roomName);
+		practiceClient.RequireCustomRooms();
+		auto* practiceTransport = new MockClient();
+		CHECK(practiceClient.Connect(std::unique_ptr<session::ClientTransport>(practiceTransport), false) == 0);
+		practiceTransport->state = session::ConnectionState::Connected;
+		CHECK(practiceClient.Step() == 0);
+		practiceTransport->Push(json(roomHello)); CHECK(practiceClient.Step() == 0);
+		auto practice = roomSnapshot;
+		practice.practice = true; practice.tables[0].rules.roundTime = 60;
+		protocol::RoomSnapshotMessage practiceMessage; practiceMessage.snapshot = practice;
+		practiceTransport->Push(json(practiceMessage)); CHECK(practiceClient.Step() == 0);
+		CHECK(practiceClient._lobbyData.trainingMode && practiceClient._lobbyData.roundTime.integral == room::PracticeRoundTime);
+	}
 	{
 		// The client advertises roomChatDelta, and a snapshot marked
 		// chat_unchanged keeps the chat it holds.

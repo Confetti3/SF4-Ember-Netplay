@@ -1,0 +1,392 @@
+// A replay's inputs and what is counted from them, on a replay built at the
+// offsets ReplayInputs.hxx reads. With a file name, prints that replay
+// instead: its players, its rounds and what each player pressed.
+
+#include "../common/ReplayInputs.hxx"
+#include "../common/ReplayInputDetails.hxx"
+
+#include <fstream>
+#include <initializer_list>
+#include <iterator>
+#include <utility>
+#include <chrono>
+#include <cstdlib>
+#include <new>
+#include <memory>
+
+#include "test_support.hxx"
+
+using namespace sf4e::replayinputs;
+using sf4e::replayslots::Bytes;
+using sf4e::replayslots::WriteU32;
+
+static int failAllocationAfter = -1;
+void* operator new(std::size_t size) {
+	if (failAllocationAfter == 0) throw std::bad_alloc();
+	if (failAllocationAfter > 0) --failAllocationAfter;
+	if (void* memory = std::malloc(size ? size : 1)) return memory;
+	throw std::bad_alloc();
+}
+void operator delete(void* memory) noexcept { std::free(memory); }
+void operator delete(void* memory, std::size_t) noexcept { std::free(memory); }
+void* operator new[](std::size_t size) { return ::operator new(size); }
+void operator delete[](void* memory) noexcept { std::free(memory); }
+void operator delete[](void* memory, std::size_t) noexcept { std::free(memory); }
+
+static void Record(Bytes& stream, std::uint32_t value) {
+	for (int i = 0; i < 3; i++) stream.push_back(static_cast<std::uint8_t>(value >> (8 * i)));
+}
+static std::uint32_t Both(unsigned p1, unsigned p2) { return p1 | (p2 << 11); }
+
+static Bytes Replay(const std::vector<Bytes>& streams) {
+	Bytes replay(0x320 + 0x88 * streams.size(), 0);
+	std::memcpy(replay.data(), "#BRP", 4);
+	replay[8] = 1; replay[10] = 8;
+	WriteU32(replay.data() + 0x18, static_cast<std::uint32_t>(streams.size()));
+	// Player 1: fighter 25, costume 2, color 9, personal action 3, Ultra 1. Player 2: fighter 1, no personal action.
+	const std::uint32_t p1[] = {25, 2, 9, 3, 44, 1, 0}, p2[] = {1, 0, 0, 0xFFFFFFFF, 50, 0, 2};
+	for (int i = 0; i < 7; i++) { WriteU32(replay.data() + 0x20 + i * 4, p1[i]); WriteU32(replay.data() + 0x170 + i * 4, p2[i]); }
+	for (std::size_t round = 0; round < streams.size(); round++) {
+		WriteU32(replay.data() + 0x320 + 0x88 * round + 0x7C, static_cast<std::uint32_t>(streams[round].size()));
+		replay.insert(replay.end(), streams[round].begin(), streams[round].end());
+	}
+	return replay;
+}
+
+static void TestParseAndCount() {
+	Bytes first, second;
+	// Round 1: nothing for 10 frames, P1 crouches for 5, presses LP for 2 while crouching, then HP alone; P2 jumps.
+	Record(first, Both(0, 0)); Record(first, 0x400000 | 9);
+	Record(first, Both(Down, 0)); Record(first, 0x400000 | 4);
+	Record(first, Both(Down | LP, 0)); Record(first, Both(Down | LP, 0));
+	Record(first, Both(HP, Up | Right));
+	// Round 2: P1 presses LP twice, a frame apart.
+	Record(second, Both(LP, 0)); Record(second, Both(0, 0)); Record(second, Both(LP, 0)); Record(second, 0x400000 | 57);
+	const Bytes replay = Replay({first, second});
+
+	Match match;
+	CHECK(Parse(replay.data(), replay.size(), match));
+	CHECK(match.players[0].fighter == 25 && match.players[0].costume == 2 && match.players[0].color == 9 && match.players[0].personalAction == 3 && match.players[0].ultra == 1);
+	CHECK(match.players[1].fighter == 1 && match.players[1].personalAction == -1 && match.players[1].handicap == 2);
+	CHECK(match.rounds.size() == 2 && match.rounds[0].frames == 18 && match.rounds[1].frames == 60);
+	// Equal records in a row and their repeats are one run.
+	CHECK(match.rounds[0].runs.size() == 4 && match.rounds[0].runs[0].frames == 10 && match.rounds[0].runs[2].frames == 2);
+	CHECK(match.rounds[0].runs[3].inputs[0] == HP && match.rounds[0].runs[3].inputs[1] == (Up | Right));
+
+	const Stats p1 = Count(match, 0), p2 = Count(match, 1);
+	CHECK(p1.frames == 78 && p1.presses[0] == 3 && p1.presses[2] == 1 && p1.jumps == 0 && p1.crouched == 7);
+	CHECK(p1.actions == 5 && p1.CrouchedPercent() == 8); // four presses and the crouch
+	CHECK(p2.jumps == 1 && p2.actions == 1 && p2.presses[0] == 0);
+	CHECK(p1.PerMinute() == 5 * 3600 / 78);
+
+	CHECK(Notation(0) == "5" && Notation(Down | Right | LP | MK) == "3 LP+MK" && Notation(Up | Left) == "7" && Notation(Select) == "5 SEL");
+	CHECK(Clock(161 * 60) == "2:41" && Clock(12 * 60 + 21, true) == "0:12.35");
+	CHECK(Log(match.rounds[0]) == "0:00.00   P1 5   P2 5\n0:00.16   P1 2   P2 5\n0:00.25   P1 2 LP   P2 5\n0:00.28   P1 5 HP   P2 9\n");
+
+	// Wrapped as an .emberreplay it reads the same.
+	Bytes wrapped(sf4e::replayslots::kExportMagic, sf4e::replayslots::kExportMagic + 8);
+	wrapped.resize(sf4e::replayslots::kExportHeaderBytes, 0);
+	wrapped.insert(wrapped.end(), replay.begin(), replay.end());
+	Match again;
+	CHECK(Parse(wrapped.data(), wrapped.size(), again) && again.rounds.size() == 2 && again.rounds[1].frames == 60);
+}
+
+// The score: from the rounds when one player was a round short, from the
+// game's record for a deciding round, and unknown without that record.
+static void TestScore() {
+	Bytes stream;
+	Record(stream, Both(LP, 0));
+	const auto played = [&](std::initializer_list<std::pair<int, int>> starts, std::uint32_t setting) {
+		Bytes replay = Replay(std::vector<Bytes>(starts.size(), stream));
+		WriteU32(replay.data() + 0x2E0, setting);
+		std::size_t round = 0;
+		for (const auto& start : starts) { WriteU32(replay.data() + 0x320 + 0x88 * round + 0x1C, start.first); WriteU32(replay.data() + 0x320 + 0x88 * round + 0x58, start.second); round++; }
+		return replay;
+	};
+	// The export Ember makes up for a replay without a record, as it is; or,
+	// for the game's own, the same record without its title and with a winner.
+	const auto wrapped = [](const Bytes& replay, int winner, bool made) {
+		Bytes file;
+		CHECK(sf4e::replayslots::ExportFromReplayAlone(replay, file));
+		std::uint8_t* record = file.data() + 8;
+		CHECK(sf4e::replayslots::MadeUp(record) && sf4e::replayslots::RecordWinner(record) == -1);
+		if (!made) {
+			std::memset(record + 22, 0, 25);
+			record[49] = static_cast<std::uint8_t>(winner);
+			CHECK(!sf4e::replayslots::MadeUp(record) && sf4e::replayslots::RecordWinner(record) == winner);
+		}
+		return file;
+	};
+	Match match;
+	int score[2] = {-1, -1};
+	Bytes replay = played({{0, 0}, {0, 1}}, 3); // player 2 took both
+	CHECK(Parse(replay.data(), replay.size(), match) && match.roundsToWin == 2 && Score(match, score) && score[0] == 0 && score[1] == 2);
+	replay = played({{0, 0}, {1, 0}, {1, 1}}, 3); // a deciding round
+	CHECK(Parse(replay.data(), replay.size(), match) && !Score(match, score));
+	Bytes file = wrapped(replay, 1, false);
+	CHECK(Parse(file.data(), file.size(), match) && Score(match, score) && score[0] == 1 && score[1] == 2);
+	file = wrapped(replay, 0, false);
+	CHECK(Parse(file.data(), file.size(), match) && Score(match, score) && score[0] == 2 && score[1] == 1);
+	file = wrapped(replay, 0, true); // a record Ember made up
+	CHECK(Parse(file.data(), file.size(), match) && !Score(match, score));
+	replay = played({{0, 0}, {1, 0}, {2, 0}}, 5); // first to three
+	CHECK(Parse(replay.data(), replay.size(), match) && Score(match, score) && score[0] == 3 && score[1] == 0);
+	replay = played({{0, 0}, {3, 0}}, 3); // more rounds won than the match has
+	CHECK(Parse(replay.data(), replay.size(), match) && !Score(match, score));
+	// Rounds that cannot have been played: a match that starts a round up,
+	// a count that goes down, and two rounds won in one.
+	replay = played({{1, 0}}, 3);
+	CHECK(Parse(replay.data(), replay.size(), match) && !Score(match, score));
+	replay = played({{0, 0}, {1, 0}, {0, 1}}, 3);
+	CHECK(Parse(replay.data(), replay.size(), match) && !Score(match, score));
+	replay = played({{0, 0}, {2, 0}}, 5);
+	CHECK(Parse(replay.data(), replay.size(), match) && !Score(match, score));
+	replay = played({{0, 0}, {1, 0}}, 5);
+	WriteU32(replay.data() + 0x320 + 0x88 + 0x1C, 0x80000000); // must be refused before subtraction
+	CHECK(Parse(replay.data(), replay.size(), match) && !Score(match, score));
+ // Unsupported settings must not expose an arithmetic scoring target.
+ for (const auto setting : {0u, 2u, 4u, 9u, 100u, 0xFFFFFFFFu}) {
+  replay = played({{0, 0}, {1, 0}}, setting);
+  CHECK(Parse(replay.data(), replay.size(), match) && match.roundsToWin == 0 && !Score(match, score));
+ }
+ for (int setting : {1, 3, 5, 7, 15, 99}) {
+  replay = played({{0, 0}}, setting);
+  CHECK(Parse(replay.data(), replay.size(), match) && match.roundsToWin == (setting + 1) / 2);
+ }
+ replay = played({{0, 0}, {1, 0}}, 3);
+ file = wrapped(replay, 1, false);
+ CHECK(Parse(file.data(), file.size(), match) && !Score(match, score));
+ file = wrapped(replay, 0, false);
+ CHECK(Parse(file.data(), file.size(), match) && Score(match, score) && score[0] == 2);
+ replay = played({{0, 0}, {0, 1}}, 3);
+ file = wrapped(replay, 0, false);
+ CHECK(Parse(file.data(), file.size(), match) && !Score(match, score));
+ replay = played({{0, 0}}, 5); // record names a winner before anyone can finish
+ file = wrapped(replay, 1, false);
+ CHECK(Parse(file.data(), file.size(), match) && !Score(match, score));
+	// A draw gives both a round; the round after it decides.
+	replay = played({{0, 0}, {1, 1}}, 3);
+	file = wrapped(replay, 1, false);
+	CHECK(Parse(file.data(), file.size(), match) && Score(match, score) && score[0] == 1 && score[1] == 2);
+	// A record that describes another replay names no winner for this one.
+	file = wrapped(replay, 1, false);
+	file[8 + 5] ^= 1; // its CRC
+	CHECK(Parse(file.data(), file.size(), match) && !Score(match, score));
+	// What a list keeps of a match.
+	replay = played({{0, 0}, {0, 1}}, 3);
+	CHECK(Parse(replay.data(), replay.size(), match));
+	const Summary summary = Summarize(match);
+	CHECK(summary.scored && summary.score[1] == 2 && summary.rounds == 2 && summary.frames == 2 && summary.stats[0].presses[0] == 2 && summary.players[0].fighter == 25);
+}
+
+static void TestRefusals() {
+	Bytes stream;
+	Record(stream, Both(LP, 0));
+	const Bytes replay = Replay({stream});
+	Match match;
+	match.rounds.resize(5);
+	Bytes bad = replay;
+	bad[8] = 3; bad[10] = 3; // the other layout
+	CHECK(!Parse(bad.data(), bad.size(), match));
+	bad = replay; bad.push_back(0); // a byte the rounds do not account for
+	CHECK(!Parse(bad.data(), bad.size(), match));
+	bad = replay; WriteU32(bad.data() + 0x18, 9); // more round records than the file holds
+	CHECK(!Parse(bad.data(), bad.size(), match));
+	bad = replay; WriteU32(bad.data() + 0x18, 0xFFFFFFFF);
+	CHECK(!Parse(bad.data(), bad.size(), match));
+	bad = Replay({stream, stream}); WriteU32(bad.data() + 0x320 + 0x7C, 0xFFFFFFFC); // stream lengths that wrap
+	WriteU32(bad.data() + 0x320 + 0x88 + 0x7C, 8);
+	CHECK(!Parse(bad.data(), bad.size(), match));
+	bad = replay; bad[0] = 'X';
+	CHECK(!Parse(bad.data(), bad.size(), match));
+	CHECK(!Parse(replay.data(), 0x100, match));
+	// Repeats that add up past what a count of frames holds.
+	Bytes endless;
+	Record(endless, Both(LP, 0));
+	for (int i = 0; i < 513; i++) Record(endless, 0x400000 | 0x3FFFFF);
+	bad = Replay({endless});
+	CHECK(!Parse(bad.data(), bad.size(), match));
+	CHECK(match.rounds.size() == 5); // untouched by every refusal
+}
+
+static void TestDetailFailureBoundary() {
+	namespace fs = std::filesystem;
+	const fs::path folder = fs::temp_directory_path() / ("ember-replay-inputs-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+	CHECK(fs::create_directory(folder));
+	const fs::path file = folder / "inputs.usf4replay";
+	Bytes stream;
+	Record(stream, Both(LP, 0)); Record(stream, Both(Up, HP));
+	Bytes replay = Replay({stream});
+ const auto date = [](Bytes& body, std::uint64_t seconds) {
+  const auto native = 116444736000000000ull + seconds * 10000000ull;
+  WriteU32(body.data()+0x10, static_cast<std::uint32_t>(native));
+  WriteU32(body.data()+0x14, static_cast<std::uint32_t>(native >> 32));
+ };
+ date(replay, 1800000000);
+	const auto save = [&](const Bytes& bytes) {
+		std::ofstream out(file, std::ios::binary | std::ios::trunc);
+		out.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+		out.close(); CHECK(!out.fail());
+	};
+	save(replay);
+ CHECK(fs::create_directory(folder / ".names"));
+ const auto note = [&](const Bytes& body, const Bytes& contents) {
+  std::ofstream out(sf4e::replayfiles::NamesPath(folder, body), std::ios::binary | std::ios::trunc);
+  out.write(reinterpret_cast<const char*>(contents.data()), static_cast<std::streamsize>(contents.size()));
+  out.close(); CHECK(!out.fail());
+ };
+ const auto oldNote = sf4e::replayfiles::BindNames(replay, {{"Ann", "Bob"}, false});
+ note(replay, oldNote);
+	const auto utf8 = [](const fs::path& path) {
+		const auto encoded = path.u8string();
+		return std::string(reinterpret_cast<const char*>(encoded.data()), encoded.size());
+	};
+	const std::string path = utf8(file);
+ DetailCache cache;
+ auto ready = cache.Read(path, 1, folder);
+ CHECK(ready.revision == 1 && ready.state == DetailState::Ready && ready.value && ready.value->match.rounds.size() == 1);
+ // The detail carries its input lanes, built by the worker that read it, so
+ // a playback that shows them builds nothing on the game thread.
+ {
+  const auto built = sf4e::replaylane::Build(ready.value->match);
+  CHECK(ready.value->lanes && ready.value->lanes->rounds[0].size() == built.rounds[0].size() && ready.value->lanes->rounds[1].size() == built.rounds[1].size() && !built.rounds[0].empty());
+ }
+ CHECK(ready.value->logs.size() == 1 && !ready.value->logs[0].empty());
+ CHECK(ready.value->names[0] == "Ann" && ready.value->names[1] == "Bob" && ready.value->time == 1800000000);
+ CHECK(ready.value->label == sf4e::replayfiles::ReplayDateLabel(1800000000) && ready.value->fighters[0] == 25);
+ auto reopened = cache.Read(path, 2, folder);
+ CHECK(reopened.revision == 2 && reopened.state == DetailState::Ready && reopened.value == ready.value);
+ // Replace at the same path, size and timestamp. Identity still changes.
+ const auto timestamp = fs::last_write_time(file);
+ Bytes replaced = replay;
+ replaced[0x320 + 0x88] = MP;
+ WriteU32(replaced.data() + 0x20, 0);
+ date(replaced, 1800000060);
+ // Even an old note placed under B's key cannot supply A's names.
+ note(replaced, oldNote);
+ save(replaced); fs::last_write_time(file, timestamp);
+ auto changed = cache.Read(path, 3, folder);
+ CHECK(changed.state == DetailState::Ready && changed.value != ready.value);
+ CHECK(changed.value->match.rounds[0].runs[0].inputs[0] == MP);
+ CHECK(changed.value->names[0].empty() && changed.value->names[1].empty());
+ CHECK(changed.value->label == sf4e::replayfiles::ReplayDateLabel(1800000060) && changed.value->label != ready.value->label);
+ CHECK(changed.value->time == 1800000060 && changed.value->fighters[0] == 0 && changed.value->summary.players[0].fighter == 0);
+ CHECK(ready.value->names[0] == "Ann" && ready.value->fighters[0] == 25);
+ note(replaced, sf4e::replayfiles::BindNames(replaced, {{"Carol", "Dave"}, true}));
+ auto renamed = cache.Read(path, 30, folder);
+ CHECK(renamed.value && renamed.value != changed.value && renamed.value->names[0] == "Carol" && renamed.value->names[1] == "Dave" && renamed.value->spectated);
+ CHECK(changed.value->names[0].empty());
+ CHECK(ready.value->match.rounds[0].runs[0].inputs[0] == LP); // older publication stays immutable
+ save(Bytes(replay.begin(), replay.end() - 1));
+ auto unreadable = cache.Read(path, 4, folder);
+ CHECK(unreadable.revision == 4 && unreadable.state == DetailState::Unreadable && !unreadable.value);
+ save(replay);
+ CHECK(cache.Read(path, 5, folder).state == DetailState::Ready); // repaired without selecting another file
+ // Each allocation from the reader through the initial Detail and its logs
+ // must publish a matching failure completion, never indefinite loading.
+ bool reachedSuccess = false;
+ unsigned failures = 0;
+ for (int allocation = 0; allocation < 128; allocation++) {
+  DetailCache fresh;
+  failAllocationAfter = allocation;
+  const auto result = fresh.Read(path, 6, folder);
+  failAllocationAfter = -1;
+  CHECK(result.revision == 6);
+  if (result.state == DetailState::Ready) { reachedSuccess = true; break; }
+  CHECK((result.state == DetailState::Failed || result.state == DetailState::Unreadable) && !result.value);
+  CHECK(fresh.Read(path, 7, folder).state == DetailState::Ready);
+  ++failures;
+ }
+ CHECK(reachedSuccess && failures >= 4);
+ save(Bytes(sf4e::replayslots::kLargestReplay + sf4e::replayslots::kExportHeaderBytes + 1, 0));
+ CHECK(cache.Read(path, 8, folder).state == DetailState::Unreadable);
+ CHECK(cache.Read(utf8(folder / "missing"), 9, folder).state == DetailState::Unreadable);
+ CHECK(cache.Read(utf8(folder), 10, folder).state == DetailState::Unreadable);
+	fs::remove_all(folder);
+}
+
+static void TestDetailRequestOwnership() {
+ DetailRequests requests;
+ const std::string file(256, 'x');
+ CHECK(requests.Want(file, 1) && requests.Pending());
+ CHECK(!requests.Want(file, 1));
+ auto first = requests.Take();
+ CHECK(first.file == file && first.revision == 1 && !requests.Pending());
+ CHECK(requests.Want(file, 2));
+ requests.Complete({1, DetailState::Unreadable, {}});
+ CHECK(requests.Latest().revision != 1);
+ auto second = requests.Take();
+ requests.Complete({2, DetailState::Unreadable, {}});
+ CHECK(requests.Latest().revision == 2 && requests.Latest().state == DetailState::Unreadable);
+ // Enqueue allocation failure is also a completion. An older worker that
+ // finishes afterward cannot undo it and strand the newest screen loading.
+ DetailRequests failing;
+ failAllocationAfter = 0;
+ const bool enqueued = failing.Want(file, 3);
+ failAllocationAfter = -1;
+ CHECK(!enqueued && !failing.Pending() && failing.Latest().revision == 3 && failing.Latest().state == DetailState::Failed);
+ failing.Complete({second.revision, DetailState::Ready, {}});
+ CHECK(failing.Latest().revision == 3 && failing.Latest().state == DetailState::Failed);
+ CHECK(requests.Want(file, 4));
+ requests.Fail(4); // worker start failure
+ CHECK(!requests.Pending() && requests.Latest().revision == 4 && requests.Latest().state == DetailState::Failed);
+}
+
+// Ember's own rules play longer than the game's: 15 rounds, and a round of
+// the 9999 second timer, are read like any other.
+static void TestLongRules() {
+	Bytes stream, timed;
+	Record(stream, Both(LP, 0));
+	Record(timed, Both(0, 0)); Record(timed, 0x400000 | (9999 * 60 - 1));
+	std::vector<Bytes> streams(15, stream);
+	streams.back() = timed;
+	const Bytes replay = Replay(streams);
+	Match match;
+	CHECK(Parse(replay.data(), replay.size(), match) && match.rounds.size() == 15 && match.rounds.back().frames == 9999 * 60);
+	CHECK(Clock(match.rounds.back().frames) == "166:39");
+}
+
+// A choice no selection writes is kept as unknown, not shown as one.
+static void TestChoicesInRange() {
+	Bytes stream;
+	Record(stream, Both(LP, 0));
+	Bytes replay = Replay({stream});
+	WriteU32(replay.data() + 0x20 + 4, 0x7FFFFFFF); // player 1's costume
+	WriteU32(replay.data() + 0x20 + 8, 0xFFFFFFFF); // and color
+	WriteU32(replay.data() + 0x170 + 5 * 4, 3);    // player 2's Ultra
+	Match match;
+	CHECK(Parse(replay.data(), replay.size(), match));
+	CHECK(match.players[0].costume == -1 && match.players[0].color == -1 && match.players[0].ultra == 1);
+	CHECK(match.players[1].ultra == -1 && match.players[1].costume == 0);
+}
+
+int main(int argc, char** argv) {
+	if (argc > 1) {
+		std::ifstream file(argv[1], std::ios::binary);
+		const Bytes bytes((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+		Match match;
+		if (!Parse(bytes.data(), bytes.size(), match)) { printf("not a replay this reads\n"); return 1; }
+		for (int side = 0; side < 2; side++) {
+			const Stats stats = Count(match, side);
+			printf("P%d fighter %d costume %d color %d ultra %d: %u a minute, %u jumps, crouched %u%%,", side + 1, match.players[side].fighter,
+				match.players[side].costume, match.players[side].color, match.players[side].ultra, stats.PerMinute(), stats.jumps, stats.CrouchedPercent());
+			for (int button = 0; button < 6; button++) printf(" %s %u", ButtonNames[button], stats.presses[button]);
+			printf("\n");
+		}
+		int score[2] = {-1, -1};
+		if (Score(match, score)) printf("score %d-%d\n", score[0], score[1]); else printf("score unknown\n");
+		for (std::size_t round = 0; round < match.rounds.size(); round++)
+			printf("round %u: %s, %u changes\n", static_cast<unsigned>(round + 1), Clock(match.rounds[round].frames).c_str(), static_cast<unsigned>(match.rounds[round].runs.size()));
+		if (argc > 2) printf("%s", Log(match.rounds[0]).c_str());
+		return 0;
+	}
+	TestParseAndCount();
+	TestScore();
+	TestRefusals();
+	TestDetailFailureBoundary();
+ TestDetailRequestOwnership();
+	TestLongRules();
+	TestChoicesInRange();
+	printf("replay_inputs_test: all tests passed\n");
+	return 0;
+}

@@ -1,6 +1,6 @@
 #include "netplay_persist.hxx"
 #include "../../netplay/SettingsStore.hxx"
-#include "../../common/InputDelay.hxx"
+#include "../../netplay/InputDelayPreference.hxx"
 
 #include <fstream>
 #include <random>
@@ -41,8 +41,7 @@ namespace launcher {
 		try {
 			std::string name = j.value("displayName", "Player");
 			strncpy_s(out.displayName, name.c_str(), _TRUNCATE);
-			const int delay = j.value("inputDelay", 2);
-			out.inputDelay = static_cast<uint8_t>(SavedInputDelay(delay));
+			out.inputDelay = static_cast<uint8_t>(netplay::ReadSavedInputDelay(j));
 			out.editionSelect = (uint8_t)j.value("editionSelect", 1);
 			out.roundCount = j.value("roundCount", 3);
 			out.roundTimeIntegral = j.value("roundTimeIntegral", 99);

@@ -69,6 +69,7 @@ bool IrohRoom::Begin(bool host) {
 	pendingCheckpointAck_=nullptr;
     pendingCommittedMarker_=nullptr;
     appliedEffects_.clear(); deliveredEffects_.clear(); effectRecipients_.clear(); effectsRevision_=0; receivedRevision_=0;
+    loadWindow_.Reset();
     pendingPublicEffects_.clear();
     pendingTerminalReplayEffects_.clear(); terminalReplayInFlight_.clear();
     deliveredTerminalReplays_.clear();
@@ -86,7 +87,7 @@ bool IrohRoom::Begin(bool host) {
 	localNextId_ = serverLocalNextId_ = 2;
 	peers_.clear();
 	memberIncarnations_.clear();
-	committedMembers_.clear(); haveCommittedMembers_=false;
+	committedMembers_.clear(); haveCommittedMembers_=false; committedLiveMembers_=0;
 	closed_.clear();
 	serverMessages_.clear();
 	clientMessages_.clear();
@@ -508,7 +509,7 @@ bool IrohRoom::ConsumeCoordinationEvent(const json& event, const std::string& ty
         const unsigned expected=probe_.benchmark?600:100;
         const int recommendation=event.at("recommended_delay");
         probe_.recommended=(probe_.status=="complete" || probe_.status=="ready") && probe_.samples>=expected*4/5 &&
-            probe_.samples<=expected && probe_.samples+probe_.lost==expected && recommendation>=0 && recommendation<=MaximumInputDelay ? PlayableInputDelay(recommendation) : -1;
+            probe_.samples<=expected && probe_.samples+probe_.lost==expected && recommendation>=RecommendedInputDelayMinimum && recommendation<=MaximumInputDelay ? recommendation : -1;
         return true;
     }
     return true;
@@ -638,6 +639,24 @@ bool IrohRoom::Queue(std::deque<Message>& destination, Message message) {
 		return false;
 	}
 	return true;
+}
+
+// Once a minute unless the applied roster is empty: commits made and applied
+// here, commits waiting to apply, and how full a room control's send queue got
+// (queue_full at its capacity drops room messages).
+void IrohRoom::LogLoad(const RoomLoadWindow::Report& report) {
+	RoomLoadWindow::Room room;
+	if (haveCommittedMembers_) room.liveMembers = committedLiveMembers_;
+	room.staged = committedCheckpoints_.size() + decoding_.size();
+	room.revision = coordination_.revision; room.applied = effectsRevision_;
+	room.markerParked = !pendingCommittedMarker_.is_null();
+	const auto line = loadWindow_.Add(report, GetTickCount64(), room);
+	if (!line) return;
+	spdlog::info("Room: load over {} s members={} revision={} commits={} applied={} staged={} marker_parked={} "
+		"control_queue_peak={} event_queue_free_min={}", line->seconds,
+		line->room.liveMembers ? std::to_string(*line->room.liveMembers) : std::string("-"), line->room.revision,
+		line->commits, line->applied, line->room.staged, line->room.markerParked,
+		line->controlQueuePeak ? std::to_string(*line->controlQueuePeak) : std::string("-"), line->eventQueueFreeMin);
 }
 
 // The three long Poll branches. Each returns false when Poll must stop for
@@ -799,6 +818,7 @@ void IrohRoom::Poll() {
 				helperLoad_.actorTickLagMaxUs = event.at("actor_tick_lag_max_us").get<std::uint64_t>();
 				helperLoad_.actorTickBodyMaxUs = event.at("actor_tick_body_max_us").get<std::uint64_t>();
 				helperLoad_.eventQueueFreeMin = event.at("event_queue_free_min").get<std::uint64_t>();
+				LogLoad(RoomLoadWindow::Read(event));
 				continue;
 			}
 			// Gameplay is independent of room health. Its lifecycle and counters

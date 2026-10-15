@@ -2,7 +2,7 @@
 // is the committed one, so a kick that is still an uncommitted candidate (and may
 // be discarded) is never reported or forwarded. Also the status line's budget.
 #include "../session/sf4e__SessionServer.hxx"
-#include "../roomhost/RoomHostStatus.hxx"
+#include "../../server/roomhost/RoomHostStatus.hxx"
 #include <array>
 #include <string>
 

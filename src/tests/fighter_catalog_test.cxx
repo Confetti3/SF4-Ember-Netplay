@@ -1,4 +1,6 @@
 #include "../common/FighterCatalog.hxx"
+#include "../common/InstalledContent.hxx"
+#include "../common/StageCatalog.hxx"
 #include "../common/SelectionAssetPath.hxx"
 #include <climits>
 #include <cstdlib>
@@ -40,21 +42,27 @@ int main() {
     }
     CHECK(resolved == stageIds);
     CHECK(FindStage(ResolveStage(RandomStageId, UINT32_MAX)) != nullptr);
-    // Excluded stages never come up, a fixed choice ignores the pool, and a
-    // pool emptied by exclusions (or by unknown bits alone) is the full list.
-    const StageMask noTrainingOrSkyscraper = (1u << 0) | (1u << 15);
-    CHECK(RandomPoolSize(0) == VersusStageCount && RandomPoolSize(noTrainingOrSkyscraper) == VersusStageCount - 2);
-    CHECK(!InRandomPool(0, noTrainingOrSkyscraper) && InRandomPool(1, noTrainingOrSkyscraper) && !InRandomPool(22, 0));
+    // Stages taken out of the Random pool never come up, a fixed choice ignores the pool, and a pool can't take every
+    // game stage out: the last is refused, and a saved list that takes them all out puts them all back.
+    const RandomPool noTrainingOrSkyscraper(std::vector<std::int64_t>{0, 15});
+    CHECK(RandomPool().Count({}) == VersusStageCount && noTrainingOrSkyscraper.Count({}) == VersusStageCount - 2);
+    CHECK(!noTrainingOrSkyscraper.Contains(0) && noTrainingOrSkyscraper.Contains(1) && !RandomPool().Contains(22));
+    std::vector<std::int64_t> allButJurassic, everyStage;
+    for (const auto& stage : StageList()) { everyStage.push_back(stage.id); if (stage.id != 29) allButJurassic.push_back(stage.id); }
+    const RandomPool onlyJurassic(allButJurassic);
     std::set<int> pooled;
     for (std::uint32_t roll = 0; roll <= 1000; ++roll) {
         pooled.insert(ResolveStage(RandomStageId, roll, noTrainingOrSkyscraper));
         CHECK(ResolveStage(0, roll, noTrainingOrSkyscraper) == 0);
-        CHECK(ResolveStage(RandomStageId, roll, ~(1u << 29)) == 29);
+        CHECK(ResolveStage(RandomStageId, roll, onlyJurassic) == 29);
     }
     CHECK(pooled.size() == static_cast<std::size_t>(VersusStageCount - 2) && !pooled.count(0) && !pooled.count(15));
-    CHECK(NormalizeRandomExclusions(0xFFFFFFFFull) == 0 && NormalizeRandomExclusions(1ull << 22) == 0);
-    CHECK(NormalizeRandomExclusions(noTrainingOrSkyscraper | (1ull << 40)) == noTrainingOrSkyscraper);
-    for (std::uint32_t roll = 0; roll <= 100; ++roll) CHECK(FindStage(ResolveStage(RandomStageId, roll, ~0u)) != nullptr);
+    CHECK(RandomPool(everyStage).Excluded().empty() && RandomPool(everyStage).Count({}) == VersusStageCount);
+    CHECK(RandomPool(std::vector<std::int64_t>{22, std::int64_t(1) << 40, 0, 0, -3}).Excluded() == std::vector<int>{0});
+    RandomPool lastLeft(allButJurassic);
+    CHECK(!lastLeft.CanToggle(29) && !lastLeft.Toggle(29) && lastLeft.Contains(29) && !lastLeft.Toggle(22));
+    CHECK(lastLeft.Toggle(1) && lastLeft.Contains(1) && lastLeft.CanToggle(29) && lastLeft.Toggle(29) && !lastLeft.Contains(29));
+    CHECK(RandomPool() == RandomPool() && noTrainingOrSkyscraper != RandomPool());
     CHECK(std::string(FindStage(24)->code) == "DET" && std::string(FindStage(29)->code) == "JUR");
     CHECK(IsSelectionAssetPath(L"assets\\selection\\stage-sources.json"));
     CHECK(IsSelectionAssetPath(L"assets\\selection\\ultra-sources.json"));
@@ -165,9 +173,9 @@ int main() {
         CHECK(!Valid(pick, true)); CHECK(Normalize(pick, true)); CHECK(Valid(pick, true));
     }
     // Unlocks can have holes: selecting by a count would expose locked options.
-    Availability sparse; sparse.personalActions = 1; sparse.ready = true; sparse.costumes = (1u << 1) | (1u << 6);
+    Availability sparse; sparse.personalActions = 1; sparse.ready = true; sparse.costumes = 1u | (1u << 1) | (1u << 6);
     sparse.colors[1] = (1u << 0) | (1u << 9); sparse.colors[6] = (1u << 12) | (1u << 21);
-    CHECK(AllowedCostumes(0, sparse) == (std::vector<int>{1, 6}));
+    CHECK(AllowedCostumes(0, sparse) == (std::vector<int>{0, 1, 6}));
     CHECK(AllowedColors(0, 6, sparse) == (std::vector<int>{12, 21}));
     Pick pick; pick.costume = 6; pick.color = 20;
     CHECK(!Available(pick, true, sparse)); CHECK(Normalize(pick, true, &sparse));
@@ -184,5 +192,138 @@ int main() {
     CHECK(pick.edition == 14 && pick.costume == 0 && pick.color == 0 && pick.ultra == 2);
     pick.edition = 16; CHECK(Normalize(pick, true)); CHECK(pick.ultra == 0);
     CHECK(Normalize(pick, false)); CHECK(pick.edition == 14);
-    std::cout << "44-fighter catalog, edition restrictions, palette bounds, sparse unlocks and saved-choice repair passed\n";
+
+    // Custom costumes: slots 8-99 (indices 7-98) of every fighter, ten colors each, valid picks on the network and
+    // listed only once installed.
+    CHECK(IsCustomCostume(7) && IsCustomCostume(98) && !IsCustomCostume(6) && !IsCustomCostume(99));
+    Pick custom; custom.costume = 11; custom.color = 9;
+    CHECK(Valid(custom, true) && !Normalize(custom, true) && ColorCount(0, 11) == 10);
+    custom.color = 10;
+    CHECK(!Valid(custom, true));
+    // The custom content installed on this PC comes in beside the native availability, which stays the game's own.
+    Availability owned; owned.ready = true; owned.costumes = 1u;
+    InstalledContent content; content.costumes[0] = {11}; content.costumes[40] = {11};
+    CHECK(AllowedCostumes(0, owned, &content) == (std::vector<int>{0, 11}) && AllowedColors(0, 11, owned, &content).size() == 10);
+    CHECK(AllowedCostumes(0, owned) == std::vector<int>{0} && AllowedColors(0, 11, owned).empty());
+    Availability unowned = owned; unowned.costumes = 0;   // a licence-locked fighter (35-43) has no costumes at all
+    CHECK(AllowedCostumes(40, unowned, &content).empty() && AllowedCostumes(40, owned, &content) == (std::vector<int>{0, 11}));
+    CHECK(AllowedCostumes(0, sparse) == (std::vector<int>{0, 1, 6}));
+    Pick customPick; customPick.costume = 11; customPick.personalAction = 255;
+    owned.personalActions = 1;
+    CHECK(Available(customPick, true, owned, &content) && !Available(customPick, true, owned));
+
+    // Custom colors: colors 30-99 (indices 29-98) of any costume, the game's or a custom one, valid on the network and
+    // listed after the costume's own colors once installed.
+    CHECK(IsCustomColor(29) && IsCustomColor(98) && !IsCustomColor(28) && !IsCustomColor(22) && !IsCustomColor(99));
+    CHECK(ColorInRange(0, 1, 30) && !ColorInRange(0, 1, 15) && !ColorInRange(0, 1, 99) && !ColorInRange(0, 11, 22));
+    CHECK(ColorInRange(0, 11, 29) && ColorInRange(0, 11, 98) && !ColorInRange(0, 11, 10));
+    Pick extra; extra.costume = 1; extra.color = 29;
+    CHECK(Valid(extra, true) && !Normalize(extra, true));
+    extra.costume = 11;
+    CHECK(Valid(extra, true));
+    extra.color = 10;
+    CHECK(!Valid(extra, true));
+    Availability colored; colored.ready = true; colored.costumes = 1u; colored.colors[0] = 1u;
+    InstalledContent colors; colors.colors[std::make_pair(0, 0)] = {29, 40};
+    CHECK(AllowedColors(0, 0, colored, &colors) == (std::vector<int>{0, 29, 40}));
+    colors.costumes[0] = {11}; colors.colors[std::make_pair(0, 11)] = {35};
+    CHECK(AllowedColors(0, 11, colored, &colors) == (std::vector<int>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 35}));
+    CHECK(colors.HasColor(0, 0, 40) && !colors.HasColor(0, 0, 41) && !colors.HasColor(1, 0, 40) && colors.HasCostume(0, 11) && !colors.HasCostume(0, 12));
+
+    // Custom stages: any three capital letters or digits that aren't a game stage's code; the code is the id, so a
+    // custom stage travels as one number. Checking one allocates nothing and needs nothing installed; they fall back
+    // to a stock stage by rule; Random takes only the installed ones it is given.
+    const int c12 = CustomStageId("C12"), d12 = CustomStageId("D12"), zzz = CustomStageId("ZZZ");
+    CHECK(c12 == ('C' << 16 | '1' << 8 | '2') && IsCustomStage(c12) && IsCustomStage(d12) && IsCustomStage(zzz));
+    for (const char* bad : {"CHN", "GAS", "SCX", "JUR", "c12", "C1", "C123", "C-2", ""}) CHECK(CustomStageId(bad) == -1);
+    CHECK(!IsCustomStage(1) && !IsCustomStage(RandomStageId) && !IsCustomStage('C' << 16 | 'H' << 8 | 'N'));
+    CHECK(!FindStage(c12) && ValidStage(c12) && ValidStage(1) && !ValidStage(22) && !ValidStage(RandomStageId) && !ValidStage(-1));
+    CHECK(StageCode(c12) == "C12" && StageCode(24) == "DET" && StageCode(22).empty() && NormalizeStage(c12) == c12);
+    CHECK(CustomStageFallback(c12) == 16 && CustomStageFallback(d12) == 16);              // the 12th fallback, CNX
+    CHECK(CustomStageFallback(CustomStageId("C05")) == 6 && CustomStageFallback(CustomStageId("C19")) == 1);
+    CHECK(FindStage(CustomStageFallback(zzz)) && !IsCustomStage(CustomStageFallback(zzz)));
+    CHECK(ResolveStage(c12, 0) == c12);
+    for (std::uint32_t roll = 0; roll <= 100; ++roll) CHECK(!IsCustomStage(ResolveStage(RandomStageId, roll)));
+    // Installed custom stages join the game's in Random: with one game stage left, rolls land on it or the custom one.
+    std::set<int> withCustom;
+    for (std::uint32_t roll = 0; roll <= 1000; ++roll) withCustom.insert(ResolveStage(RandomStageId, roll, onlyJurassic, {c12}));
+    CHECK(withCustom == (std::set<int>{29, c12}));
+    CHECK(ResolveStage(RandomStageId, VersusStageCount, RandomPool(), {c12}) == c12 && ResolveStage(5, 0, RandomPool(), {c12}) == 5);
+    // Taken out of Random and put back by id, any number of them: nothing taken out ever comes back on its own.
+    RandomPool out;
+    CHECK(out.Toggle(c12) && out.Toggle(d12) && !out.Contains(c12) && !out.Contains(d12) && out.Contains(zzz));
+    CHECK(out.Stages({c12, d12, zzz}).back() == zzz && out.Count({c12, d12, zzz}) == VersusStageCount + 1);
+    CHECK(out.Toggle(c12) && out.Contains(c12));
+    for (int n = 0; n < 100; ++n) {
+        const char code[4] = {'E', static_cast<char>('0' + n / 10), static_cast<char>('0' + n % 10), 0};
+        CHECK(out.Toggle(CustomStageId(code)));
+    }
+    CHECK(!out.Contains(d12) && !out.Contains(CustomStageId("E00")) && !out.Contains(CustomStageId("E99")) && out.Excluded().size() == 101);
+    CHECK(RandomPool(std::vector<std::int64_t>(out.Excluded().begin(), out.Excluded().end())) == out);
+    // A stage taken out that isn't installed (any more) changes nothing in Random, and keeps its place for later.
+    CHECK(out.Count({}) == VersusStageCount && out.Count({zzz}) == VersusStageCount + 1);
+
+    // Names the setup program gives custom content: display only, kept apart per costume, color and stage.
+    InstalledContent named;
+    named.names[std::make_tuple(0, 70, -1)] = "Monster Hunter"; named.names[std::make_tuple(0, 1, 29)] = "Steel Blue";
+    named.stageNames[d12] = "Testing Stage";
+    CHECK(named.Name(0, 70) == "Monster Hunter" && named.Name(0, 1, 29) == "Steel Blue" && named.Name(0, 1).empty() && named.Name(1, 70).empty());
+    CHECK(named.StageName(d12) == "Testing Stage" && named.StageName(c12).empty() && named.StageName(1).empty());
+
+    // What each PC shows for a match's two picks, from what it has installed (here: Ryu's custom costume 12, his
+    // Original's custom color 30, and color 36 of costume 12).
+    InstalledContent here;
+    here.costumes[0] = {11}; here.colors[std::make_pair(0, 0)] = {29}; here.colors[std::make_pair(0, 11)] = {35};
+    {   // mixed: Ryu's costume 12 (installed) plays as his Original, Ken's costume 12 (not installed) falls back
+        const Look picks[2] = {Look(0, 11, 3), Look(1, 11, 3)};
+        const Appearance a = ResolveAppearance(picks, here);
+        CHECK(a.shown[0] == Look(0, 0, 3) && a.costumes[0].fighter == 0 && a.costumes[0].standIn == 0 && a.costumes[0].custom == 11);
+        CHECK(a.shown[1] == Look(1, 0, 0) && a.costumes[1].custom == -1 && a.colors[1].custom == -1 && a.colors[0].custom == -1);
+    }
+    {   // a custom color it doesn't have becomes color 1; the second side then takes color 2, not to look the same
+        const Look picks[2] = {Look(0, 0, 0), Look(0, 0, 40)};
+        const Appearance a = ResolveAppearance(picks, here);
+        CHECK(a.shown[0] == Look(0, 0, 0) && a.shown[1] == Look(0, 0, 1) && a.colors[1].custom == -1);
+    }
+    {   // a mirror match on one custom slot and color: the second side takes color 2, and the sides play the slot as
+        // different stand-ins (the file-name swap tells them apart by costume)
+        const Look picks[2] = {Look(0, 11, 0), Look(0, 11, 0)};
+        const Appearance a = ResolveAppearance(picks, here);
+        CHECK(a.shown[0] == Look(0, 0, 0) && a.shown[1] == Look(0, 1, 1));
+        CHECK(a.costumes[0].custom == 11 && a.costumes[0].standIn == 0 && a.costumes[1].custom == 11 && a.costumes[1].standIn == 1);
+    }
+    {   // the same on the game's own costumes: color 1 against color 1 makes the second color 2; color 2 against color 2
+        // makes it color 1; any other color the same way, color 1
+        Look picks[2] = {Look(5, 2, 0), Look(5, 2, 0)};
+        CHECK(ResolveAppearance(picks, here).shown[1] == Look(5, 2, 1) && ResolveAppearance(picks, here).shown[0] == Look(5, 2, 0));
+        picks[0].color = picks[1].color = 1;
+        CHECK(ResolveAppearance(picks, here).shown[1] == Look(5, 2, 0) && ResolveAppearance(picks, here).shown[0] == Look(5, 2, 1));
+        picks[0].color = picks[1].color = 6;
+        CHECK(ResolveAppearance(picks, here).shown[1] == Look(5, 2, 0));
+        picks[1].color = 7;   // different colors stay as picked
+        CHECK(ResolveAppearance(picks, here).shown[1] == Look(5, 2, 7));
+    }
+    {   // a mirror on one custom color the PC has: the second side takes color 1, the first plays the custom color as color 2
+        const Look picks[2] = {Look(0, 0, 29), Look(0, 0, 29)};
+        const Appearance a = ResolveAppearance(picks, here);
+        CHECK(a.shown[1] == Look(0, 0, 0) && a.colors[1].custom == -1);
+        CHECK(a.shown[0] == Look(0, 0, 1) && a.colors[0].standIn == 1 && a.colors[0].custom == 29);
+    }
+    {   // a custom color on a custom costume: the costume's stand-in first, then the color on it
+        const Look picks[2] = {Look(0, 11, 35), Look(1, 0, 0)};
+        const Appearance a = ResolveAppearance(picks, here);
+        CHECK(a.shown[0] == Look(0, 0, 0) && a.costumes[0].custom == 11);
+        CHECK(a.colors[0].fighter == 0 && a.colors[0].costume == 0 && a.colors[0].standIn == 0 && a.colors[0].custom == 35);
+    }
+    {   // a custom color against the same costume's color 1: the next color stands in
+        const Look picks[2] = {Look(0, 0, 29), Look(0, 0, 0)};
+        const Appearance a = ResolveAppearance(picks, here);
+        CHECK(a.shown[0] == Look(0, 0, 1) && a.colors[0].standIn == 1 && a.colors[0].custom == 29 && a.shown[1] == Look(0, 0, 0));
+    }
+    {   // nothing installed: both fall back, and the second side still takes color 2, as on a PC that has them
+        const Look picks[2] = {Look(0, 11, 35), Look(0, 11, 35)};
+        const Appearance a = ResolveAppearance(picks, InstalledContent());
+        CHECK(a.shown[0] == Look(0, 0, 0) && a.shown[1] == Look(0, 0, 1) && a.costumes[0].custom == -1 && a.costumes[1].custom == -1);
+    }
+    std::cout << "44-fighter catalog, edition restrictions, palette bounds, sparse unlocks, saved-choice repair, Random pool, custom costumes, stages, names and appearance passed\n";
 }

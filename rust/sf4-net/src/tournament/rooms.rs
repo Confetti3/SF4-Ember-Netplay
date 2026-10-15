@@ -149,9 +149,10 @@ fn ticket_request(shared: &Shared, build: &str) -> Result<TicketRequest, Failure
     Ok(request)
 }
 
-/// Opens a room and takes its creator's ticket in one step. A room opened
-/// but not entered is closed by the supervisor, so a failed ticket needs no
-/// cleanup here.
+/// Opens a room and takes its creator's ticket in one step. The room is
+/// placed in this helper's relay region when it has a known one. A room
+/// opened but not entered is closed by the supervisor, so a failed ticket
+/// needs no cleanup here.
 pub async fn create(
     shared: &Arc<Shared>,
     bridge_id: &str,
@@ -163,6 +164,7 @@ pub async fn create(
         name: name.to_owned(),
         capacity,
         build_id: build.to_owned(),
+        region: (shared.home_region)().map(str::to_owned),
     };
     command.check().map_err(|error| match error {
         ProtocolError::InvalidField("name") => Failure::new(INVALID_NAME),

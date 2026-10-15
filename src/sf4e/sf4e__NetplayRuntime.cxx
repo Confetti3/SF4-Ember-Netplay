@@ -1,6 +1,11 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "sf4e__GameEvents.hxx"
+#include "../platform/Utf8.hxx"
+#include "../platform/ReplayPath.hxx"
 #include "../common/HexText.hxx"
 #include "../ui/NetworkFeedback.hxx"
+#include "sf4e__AwayAlert.hxx"
+#include <iterator>
 
 namespace sf4e { namespace NetplayFacade {
 namespace {
@@ -15,8 +20,10 @@ namespace internal {
 // and the launcher's owned job reaps the helper.
 Runtime* runtime = nullptr;
 
-// The battle of the granted match is no longer entered, or never was.
+// The battle of the granted match is no longer entered, or never was. What
+// the entry armed for the battle request goes with it (battle::NextRequest).
 void ResetMatchEntry() {
+	sf4e::GameEvents::VsBattle::nextRequest = {};
 	runtime->matchEntered = false;
 	runtime->enteredGeneration = 0;
 	runtime->sessionlessCloseGeneration = 0;
@@ -49,6 +56,7 @@ void CloseRoom() {
     const bool abandon=runtime->replacementPending || (runtime->room && runtime->room->Coordination().active &&
         !runtime->room->Coordination().writable);
     runtime->recovery=session::RoomRecoveryRuntime{};
+    runtime->recoveryProgress=session::RecoveryProgress{};
     runtime->observedAuthorityTerm=0;
     runtime->leaveRequested=runtime->leaveAcknowledged=false;
     runtime->publicJoin=false;
@@ -153,7 +161,7 @@ void AttachRoom() {
 		}, [room](session::Connection connection) { return room->PeerIncarnation(connection); });
 		auto rules = runtime->preferences.tableRules;
 		UserApp::server->EnableCustomRooms(runtime->preferences.roomName,
-			static_cast<std::uint8_t>(runtime->preferences.roomCapacity), runtime->room->Epoch(), rules);
+			static_cast<std::uint8_t>(runtime->preferences.roomCapacity), runtime->room->Epoch(), rules, runtime->practiceRoom);
         const auto& authority=runtime->room->Coordination();
         if(authority.active) UserApp::server->SetAuthority(authority.term,authority.revision,
             authority.writable && authority.leaderLocal && authority.rebound);
@@ -204,25 +212,20 @@ void StartHelper() {
     if (store.LoadLauncher(saved, settingsError)) {
         if(saved.contains("onlineRecord")&&!netplay::ReadProfileRecord(saved["onlineRecord"],runtime->preferences.record))
             runtime->error=loc::T("runtime.record_invalid");
-        // Auto is on unless a saved false turned it off, so a profile saved
-        // before Auto existed gets it (InputDelayPreference.hxx).
+        // The delay and Auto load from settings here, never from the
+        // launcher's config copy of the delay (InputDelayPreference.hxx).
         netplay::ReadInputDelayPreference(saved,runtime->preferences);
         try {
-            runtime->preferences.showMatchHud = saved.value("showMatchHud", true);
+            netplay::ReadBoolPreferences(saved, runtime->preferences);
             const int hudSize = saved.value("matchHudSize", 1);
             runtime->preferences.matchHudSize = hudSize >= 0 && hudSize <= 2 ? hudSize : 1;
-            runtime->preferences.matchHudRaised = saved.value("matchHudRaised", false);
             const int hudAnchor = saved.contains("matchHudAnchor") && saved["matchHudAnchor"].is_number_integer() ? saved["matchHudAnchor"].get<int>() : 0;
             runtime->preferences.matchHudAnchor = hudAnchor >= 0 && hudAnchor <= 4 ? hudAnchor : 0;
             const int hudLayout = saved.contains("matchHudLayout") && saved["matchHudLayout"].is_number_integer() ? saved["matchHudLayout"].get<int>() : 1;
             runtime->preferences.matchHudLayout = hudLayout >= 0 && hudLayout <= 1 ? hudLayout : 1;
-            runtime->preferences.readySound = saved.value("readySound", true);
+            runtime->preferences.matchHudNameOffset = netplay::ReadMatchHudNameOffset(saved);
             const int volume = saved.value("readySoundVolume", 100);
             runtime->preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;
-            runtime->preferences.discordPresence = saved.value("discordPresence", true);
-            runtime->preferences.discordInvites = saved.value("discordInvites", true);
-            runtime->preferences.steamPresence = saved.value("steamPresence", true);
-            runtime->preferences.steamInvites = saved.value("steamInvites", true);
             const int main=saved.contains("mainFighter")&&saved["mainFighter"].is_number_integer()?saved["mainFighter"].get<int>():0;
             runtime->preferences.mainFighter=main>=0&&main<sf4e::selection::FighterCount?main:0;
             const float scale = saved.value("interfaceScale", 1.f);
@@ -273,12 +276,19 @@ void StartHelper() {
         if (length && length < sizeof(text)) OpenConnectLink(std::string(text, length), true);
         if (!runtime->connectLinks.Open()) spdlog::warn("Tournament: Discord connect links from the browser cannot reach this game");
     }
-	runtime->preferences.inputDelay = GetConfig().inputDelay;
+    {
+        // A replay link likewise: the file's path. The launcher sets it as
+        // wide text, so it is read as wide text: a path need not be ASCII.
+        wchar_t text[1100] = {};
+        const DWORD length = GetEnvironmentVariableW(L"SF4E_REPLAY_LINK", text, static_cast<DWORD>(std::size(text)));
+        SetEnvironmentVariableW(L"SF4E_REPLAY_LINK", nullptr);
+        if (length && length < std::size(text)) runtime->replayLinkAsked = platform::ResolveReplayFile(platform::WideToUtf8(std::wstring(text, length)));
+        if (!runtime->replayLinks.Open()) spdlog::warn("Replays: replay links cannot reach this game");
+    }
 	runtime->preferences.lobby.editionSelect = GetConfig().editionSelect != 0;
 	runtime->preferences.lobby.roundCount = GetConfig().roundCount;
 	runtime->preferences.lobby.roundTime = GetConfig().roundTimeIntegral;
 	if (!runtime->preferences.lobby.Valid()) runtime->preferences.lobby = {};
-	runtime->preferences.inputDelay = SavedInputDelay(runtime->preferences.inputDelay);
 	{
 		nlohmann::json saved;
 		std::string error;
@@ -314,6 +324,8 @@ void NotifyRuntimeEventSystemReady() { if (runtime) runtime->eventSystemReady = 
 
 void StopHelper() {
     training::StopCapture();
+    // The archive's lister holds files open while it reads; it is ended and waited for here.
+    platform::replays::StopListing();
 	if (!runtime) return;
     runtime->steamRuntime.Detach();
     if (runtime->discordClient) {
@@ -366,28 +378,33 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 	if (command.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.command.invitation.size() > 4096 ||
 		command.preferences.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.roomAction.text.size() > room::MaximumChatBytes ||
 		command.preferences.roomName.size() > 64 || !command.identity.Valid() || !command.tournament.Valid() ||
-		command.publicTicket.size() > netplay::publicrooms::MaxTicketBytes ||
-		(command.createdRules && !netplay::PlayerPreferences::ValidRules(*command.createdRules))) return false;
+		command.publicTicket.size() > netplay::publicrooms::MaxTicketBytes || command.servicePath.size() > 4096 ||
+		command.reportSubmission.comment.size() > 8000 ||
+		(command.createdRules && !command.createdRules->Valid())) return false;
 	if (command.identity.op != netplay::IdentityOp::None) {
-		const auto bytes = sizeof(RuntimeCommand) + command.identity.Bytes();
+		const auto bytes = sizeof(RuntimeCommand) + command.identity.Bytes() + command.reportSubmission.comment.size();
 		return bridge::PushCommand(std::move(command), bytes);
 	}
 	if (command.tournament.op != netplay::tournament::Command::Op::None) {
-		const auto bytes = sizeof(RuntimeCommand) + command.tournament.Bytes();
+		const auto bytes = sizeof(RuntimeCommand) + command.tournament.Bytes() + command.reportSubmission.comment.size();
 		return bridge::PushCommand(std::move(command), bytes);
 	}
 	// Gameplay/update commands join this queue when their effect handlers exist.
 	const auto kind = command.command.kind;
-	if (command.inputAction == input::Action::None && command.service == platform::ServiceAction::None && command.previewSoundVolume < 0 && !command.shortInvitation && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
+	if (command.inputAction == input::Action::None && command.service == platform::ServiceAction::None && command.previewSoundVolume < 0 && !command.shortInvitation &&
+		command.replay.mode == replay::Mode::None && command.training == TrainingEntry::None && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
 		kind != netplay::CommandKind::LeaveRoom && kind != netplay::CommandKind::StartOffline &&
 		kind != netplay::CommandKind::Ready && kind != netplay::CommandKind::Rematch &&
 		kind != netplay::CommandKind::SavePreferences && kind != netplay::CommandKind::SetLobbySettings &&
 		kind != netplay::CommandKind::RoomAction && kind != netplay::CommandKind::ReplaceRoom &&
 		kind != netplay::CommandKind::CheckConnection && kind != netplay::CommandKind::ApplyDelay) return false;
 	const auto bytes = sizeof(RuntimeCommand) + command.displayName.size() + command.command.invitation.size() +
-		command.preferences.displayName.size() + command.preferences.roomName.size() + command.roomAction.text.size() + command.publicTicket.size();
+		command.preferences.displayName.size() + command.preferences.roomName.size() + command.roomAction.text.size() + command.publicTicket.size() +
+		command.servicePath.size() + command.replay.path.size() + command.replay.caption.name[0].size() + command.replay.caption.name[1].size() + command.replay.caption.text.size() +
+		command.reportSubmission.comment.size();
 	return bridge::PushCommand(std::move(command), bytes);
 }
+
 
 bool IsRuntimeRoomActive() { return runtime && runtime->attached; }
 bool IsRuntimePublicJoin() { return runtime && runtime->publicJoin; }
@@ -419,6 +436,21 @@ static void ObserveCoordination() {
             if (UserApp::server) { diag::ScopedTimer timer(diag::OP_ROOM_RECOVERY_TICK); recovered=runtime->recovery.Tick(*UserApp::server,*runtime->room); }
             if (!recovered)
                 runtime->error=loc::T("runtime.recovery_state_failed");
+            const auto& recoveryError=runtime->recovery.Error();
+            switch (runtime->recoveryProgress.Observe(!recovered,recoveryError,runtime->recovery.AppliedRevision())) {
+            case session::RecoveryProgress::Change::Failed:
+                spdlog::warn("Room: recovery failed: {} (room revision {}, applied {}, {} more staged)",recoveryError,
+                    authority.revision,runtime->recovery.AppliedRevision(),runtime->room->CommittedCheckpointsBehindHead());
+                break;
+            case session::RecoveryProgress::Change::Waiting:
+                spdlog::info("Room: recovery import accepted at applied revision {}; waiting: {}",
+                    runtime->recovery.AppliedRevision(),recoveryError);
+                break;
+            case session::RecoveryProgress::Change::Resumed:
+                spdlog::info("Room: recovery applies commits again at revision {}",runtime->recovery.AppliedRevision());
+                break;
+            case session::RecoveryProgress::Change::None: break;
+            }
             const auto appliedAuthority=runtime->room->Coordination();
             const bool connected=appliedAuthority.writable && appliedAuthority.rebound;
             const bool applied=!UserApp::server || runtime->recovery.CaughtUp(appliedAuthority);
@@ -511,17 +543,23 @@ static void SettleRoomState(bool helperReady) {
         RuntimeCommand replacement;
         replacement.command={netplay::CommandKind::HostRoom,runtime->controller.GetSnapshot().generation,{}};
         replacement.preferences=runtime->preferences;
+        replacement.practiceRoom=runtime->practiceRoom;
         if(SubmitRuntimeCommand(std::move(replacement))) runtime->replacementPending=false;
     }
 }
 
 // The other fighter at this player's table readied first: the game's own
-// announcer says a challenger is here, unless the player turned it off.
+// announcer says a challenger is here, unless the player turned it off. With
+// the window behind another or minimized, where the game may be muted and
+// its announcer does not speak outside the main menu, Ember's own alert
+// says it too (sf4e__AwayAlert.hxx).
 static void CallOutOpponentReady() {
 	if (!runtime->attached || !UserApp::netplay) { runtime->readyChime = {}; runtime->opponentFighterWatch = {}; return; }
 	const auto& room = UserApp::netplay->client.GetRoomSnapshot();
-	if (runtime->readyChime.Update(room, GetTickCount64()) && runtime->preferences.readySound)
-		PlayChallengerCall(runtime->preferences.readySoundVolume);
+	if (runtime->readyChime.Update(room, GetTickCount64())) {
+		if (runtime->preferences.readySound) PlayChallengerCall(runtime->preferences.readySoundVolume);
+		AwayAlert::Announce(runtime->preferences.readySound, runtime->preferences.readySoundVolume, "the opponent readied");
+	}
 	if (runtime->opponentFighterWatch.Update(room)) {
 		++runtime->opponentChangeSequence;
 		spdlog::info("Room: the opponent changed fighter to {}", runtime->opponentFighterWatch.Pending());
@@ -540,6 +578,92 @@ void internal::PlayChallengerCall(int volumePercent) {
 	if (!Dimps::Sound::PlaySystemCue(Dimps::Sound::SystemCue::HereComesChallenger, Dimps::Sound::SystemChannel::Voice, volumePercent / 100.f))
 		spdlog::info("Room: challenger call not played; the game's sound system is not up");
 	else spdlog::info("Room: challenger call played");
+}
+// A player in a room may wait in Training (TrainingCall.hxx). Another fighter
+// sitting down opposite them takes them out of it, with the announcer's call
+// unless they turned that off; back at the main menu the shell shows their
+// table and they have the window to ready. Letting it run out gives the seat
+// up, by the same action as the Leave seat row.
+// The call is the one model of who called and for which battle
+// (TrainingCall::Identity), and its owner (TrainingCall.hxx: CallOwner) sets
+// it as the battle's call, with any go now taken for it. The battle's
+// countdown follows that state before it ticks (TrainingSession.hxx:
+// LeaveCountdown::Follow), so nothing about the call depends on the Training
+// command queue having room. ReconcileTrainingCall runs this once every outer
+// tick, after the room's incoming updates and before the next battle update,
+// so the battle never follows a call the room has already ended or replaced.
+static void CallOutOfTraining() {
+	// Out of a room there is no call: an empty room ends any that stood.
+	static const room::Snapshot noRoom;
+	const bool inRoom = runtime->attached && UserApp::netplay;
+	const auto& room = inRoom ? UserApp::netplay->client.GetRoomSnapshot() : noRoom;
+	room::TrainingCall::Input in;
+	in.inTraining = training::ControlsAvailable();
+	in.atMainMenu = AtMainMenu();
+	in.autoAccept = runtime->preferences.trainingAutoReady;
+	in.canReady = GetRuntimeSnapshotShared()->canReady;
+	in.generation = training::ReadPlace().generation;
+	const auto dropped = runtime->trainingCall.Dropped();
+	const auto result = runtime->trainingCall.Reconcile(room, in, GetTickCount64(), input::TrainingGoNow());
+	if (runtime->trainingCall.Dropped() != dropped) spdlog::info("Training: go now was for a call that is no longer offered");
+	training::CallControl control;
+	control.call = result.state.call.serial; control.generation = result.state.call.generation; control.hurry = result.state.hurry;
+	control.volume = runtime->preferences.readySound ? runtime->preferences.readySoundVolume : 0;
+	training::SetCall(control);
+	switch (result.step) {
+	case room::TrainingCall::Step::Call:
+		spdlog::info("Room: a challenger sat down while the player is in Training");
+		AwayAlert::Announce(runtime->preferences.readySound, runtime->preferences.readySoundVolume, "a challenger sat down while in Training");
+		break;
+	case room::TrainingCall::Step::Open:
+		++runtime->trainingCallSequence;
+		spdlog::info("Room: back from Training; {} s to ready", room::TrainingCall::ReadyWindowMs / 1000);
+		break;
+	case room::TrainingCall::Step::Ready:
+		++runtime->trainingReadySequence;
+		break;
+	case room::TrainingCall::Step::Forfeit: {
+		const auto mine = room::PlaceOf(room, room.localMember);
+		if (mine.kind != room::Place::Kind::Seat || mine.table < 0 || mine.table >= static_cast<int>(room.tables.size())) break;
+		RuntimeCommand forfeit;
+		forfeit.command = {netplay::CommandKind::RoomAction, runtime->controller.GetSnapshot().generation, {}};
+		forfeit.preferences = runtime->preferences;
+		forfeit.roomAction.kind = room::ActionKind::Unqueue;
+		forfeit.roomAction.table = static_cast<std::uint8_t>(mine.table);
+		forfeit.roomAction.roomEpoch = room.roomEpoch;
+		forfeit.roomAction.revision = room.revision;
+		forfeit.roomAction.tableRevision = room.tables[mine.table].revision;
+		const bool queued = SubmitRuntimeCommand(std::move(forfeit));
+		PushAlert(loc::T("runtime.training_call.forfeit"), NoticeSeverity::Info);
+		spdlog::info("Room: not readied in time after the call from Training; the seat is {}", queued ? "given up" : "not given up, the command queue is full");
+		break;
+	}
+	default: break;
+	}
+}
+// The room is told when the local player is in a Training battle and when
+// they no longer are, so the others see why a member is not answering. What
+// the room's own snapshot says of the player is what is compared, so a word
+// that was lost or refused is said again, at most every two seconds.
+static void SayTraining() {
+	if (!runtime->attached || !UserApp::netplay) { runtime->trainingSaidAtMs = 0; return; }
+	const auto& room = UserApp::netplay->client.GetRoomSnapshot();
+	const auto* me = room::FindMember(room, room.localMember);
+	const bool training = training::ControlsAvailable();
+	const auto now = GetTickCount64();
+	if (!me || !room.roomEpoch || me->training == training || now - runtime->trainingSaidAtMs < 2000) return;
+	if (runtime->controller.GetSnapshot().control != netplay::Health::Healthy) return;
+	room::Action say;
+	say.kind = room::ActionKind::SetTraining;
+	say.inTraining = training;
+	say.roomEpoch = room.roomEpoch;
+	say.revision = room.revision;
+	runtime->trainingSaidAtMs = now;
+	if (UserApp::netplay->client.SendRoomAction(say) != session::SendResult::Queued)
+		spdlog::info("Room: could not say the player is {} Training; it is said again", training ? "in" : "out of");
+}
+void ReconcileTrainingCall() {
+	if (runtime) CallOutOfTraining();
 }
 void TickRuntime() {
 	if (!runtime) return;
@@ -587,6 +711,7 @@ void TickRuntime() {
 	DrainCommands(helperReady);
 	DrainRoomEvents();
 	TickTournament(helperReady);
+	TickReplays();
 	PersistTerminalOutcome();
 	DrainActionReplies();
 	RetryPendingAbort();
@@ -601,6 +726,7 @@ void TickRuntime() {
 	TickAutoDelay(helperReady);
 	TickCreatedRules(helperReady);
 	CallOutOpponentReady();
+	SayTraining();
 	TakeJoinLink();
 	TickSteamRuntime();
 	PublishAndTickDiscordInvite();

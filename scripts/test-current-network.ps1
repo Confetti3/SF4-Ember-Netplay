@@ -13,7 +13,7 @@ $target = Get-EmberBuildTarget $repo
 $build = Join-Path $repo $target.buildDirectory
 $helper = Join-Path $build 'sf4-net.exe'
 if (!$OutputDirectory) {
-    $OutputDirectory = Join-Path $build ('network-tests-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
+    $OutputDirectory = Join-Path $build ('network-tests-' + (Get-Date).ToString('yyyyMMdd-HHmmss-fff', [cultureinfo]::InvariantCulture))
 }
 if (Test-Path -LiteralPath $OutputDirectory) { throw "Run directory already exists: $OutputDirectory" }
 $OutputDirectory = (New-Item -ItemType Directory -Path $OutputDirectory).FullName

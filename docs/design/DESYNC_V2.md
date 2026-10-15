@@ -34,8 +34,13 @@ checkpoints; it does not replace v1 until it has demonstrated reliability.
 - `GameMementoKey` object bytes — mix stable payload with process-local
   ownership metadata.
 - Sound maps — pointer-keyed by process-local adapter addresses.
-- RNG: the *evolving* RNG state has not been located; the initial match
-  seed is not it and hashing it would prove nothing.
+- RNG: the evolving battle RNG is the EmRandom seed at `System+0x54`. The
+  System memento does not save it and neither does `SaveState`, so it
+  already differs between peers after rollbacks of different depth. Its
+  known consumers are presentation (stage scripts, stage objects, effect
+  signals, voice lines); see
+  `docs/reports/2026-10-10_reverse-USF4-stage-quality-report.md`. Hashing
+  it would report that divergence as a desync.
 - Any raw struct memory (padding, uninitialized bytes), wall-clock values,
   log/overlay/presentation state.
 
@@ -73,6 +78,22 @@ legacy snapshot machinery untouched. It does **not** terminate the match by
 default. `SF4E_STRICT_DESYNC=1` enables strict debug termination, and only
 when *both* peers are players — a spectator mismatch can never end the two
 players' fight.
+
+Remote hashes are compared in frame order, so the first mismatch a battle
+reports is its earliest. It also logs the frames from the checkpoint before
+it up to it, one `Desync v2: frame` line each, as that PC played them:
+GGPO state frame, engine frame, how many times the frame was simulated
+(`passes`, above 1 when a rollback re-simulated it), both players'
+inputs (mapped/raw), which fighter the engine simulates first
+(`first`, System+0xD74), which leads the chara unit's update order (`leader`,
+Unit+0x10), and both fighters' hashed values in the order the header line
+names. Every frame is traced (`FrameTrace`, 256 frames), not only the
+checkpoints: each is sampled as soon as it is simulated, before GGPO saves it
+and may poll and roll back over it, and a re-simulated frame replaces its
+sample, so a row always pairs a state with the inputs that made it. The
+checkpoint hash is computed from the same sample. Diffing the two PCs' lines gives the first frame and field where
+they parted and what was pressed on it; differing inputs on a frame both PCs
+confirmed would mean the input path, not the save state, parted them.
 
 ## Compatibility
 

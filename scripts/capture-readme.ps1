@@ -7,7 +7,7 @@ $target = Get-EmberBuildTarget $repo
 $build = Join-Path $repo $target.buildDirectory
 $renderer = Join-Path $build 'UiRenderTest.exe'
 if (!(Test-Path -LiteralPath (Join-Path $GameRoot 'SSFIV.exe'))) { throw 'GameRoot must be the owned Steam USF4 installation.' }
-$captures = Join-Path $build ('readme-captures-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+$captures = Join-Path $build ('readme-captures-' + (Get-Date).ToString('yyyyMMdd-HHmmss', [cultureinfo]::InvariantCulture))
 New-Item -ItemType Directory -Path $captures | Out-Null
 & $renderer "$captures/" $GameRoot (Join-Path $repo 'assets/selection') --readme-shots
 if ($LASTEXITCODE) { throw 'README UI rendering failed.' }

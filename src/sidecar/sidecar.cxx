@@ -124,6 +124,7 @@ __declspec(dllexport) BOOL WINAPI DllMain(
 		}
 		else {
 			BootstrapLog("Sidecar install committed");
+			sf4e::HooksCommitted();
 		}
 		break;
 

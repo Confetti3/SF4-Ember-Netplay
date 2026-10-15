@@ -35,10 +35,12 @@ const char* StatusName(room::MemberStatus status) {
 }
 // "Idle 4 min" for a member who has done nothing in the room for a minute
 // or more while waiting (not in a game, not ready, not watching one), else
-// empty.
+// empty. A waiting member who said they are in Training is shown as that
+// instead: it is why they are quiet.
 std::string IdleText(const room::Member& member) {
     const bool waiting = member.status == room::MemberStatus::Idle || member.status == room::MemberStatus::Queued ||
         member.status == room::MemberStatus::Seated;
+    if (waiting && member.training) return loc::T("room.in_training");
     if (!waiting || member.idleSeconds < 60) return {};
     const unsigned minutes = member.idleSeconds / 60;
     return minutes < 60 ? loc::Tf("room.idle_minutes", minutes) : loc::Tf("room.idle_hours", minutes / 60, minutes % 60);
@@ -72,6 +74,23 @@ bool HasChatText(const char* text) {
 bool ChoosesSeat(const room::Snapshot& s) {
     return Member(s, s.localMember) && room::PlaceOf(s, s.localMember).kind == room::Place::Kind::None;
 }
+// The same local pick is editable before and after taking a seat. Select
+// opens its page; Left and Right step only the Ultra and color in place.
+void SelectionRows(std::vector<MenuEntry>& rows,const ShellView& v) {
+ const bool canChange=RoomActionsAvailable(v)&&v.canEditSelection&&!v.room.localTerminalPending;
+ rows.push_back(Row("selection",loc::T("selection.fighter"),canChange?
+  std::string(loc::T("room.change_fighter.detail"))+"\n"+v.selectionSummary:SelectionBlocker(v),canChange));
+ rows.back().value=v.fighterName;
+ const auto stepRow=[&](const char* id,const char* label,const std::string& value,const char* detail,bool steps){
+  rows.push_back(Value(id,label,value,canChange?detail:SelectionBlocker(v),canChange));
+  rows.back().adjustable=canChange&&steps;rows.back().opens=true;
+ };
+ stepRow("ultra",loc::T("selection.ultra_combo"),v.ultraName,loc::T("selection.ultra_row.detail"),v.ultraSteps);
+ stepRow("appearance",loc::T("selection.appearance"),v.appearanceName,loc::T("room.appearance.detail"),v.colorSteps);
+ rows.push_back(Value("fighter-options",loc::T("room.fighter_options"),v.fighterOptionsName,
+  canChange?std::string(loc::T("selection.additional_options.detail")):SelectionBlocker(v),canChange));
+ rows.back().adjustable=false;rows.back().opens=true;
+}
 }
 bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, const Submit& submit) {
     // Button disabled state is a rendering affordance; keyboard/controller
@@ -95,7 +114,7 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
     }
     const bool localSeated = mine.kind == room::Place::Kind::Seat && mine.table == static_cast<int>(action.table);
     if ((action.kind == room::ActionKind::Queue || action.kind == room::ActionKind::Watch) && localSeated) return false;
-    if (action.kind == room::ActionKind::AbortMatch && (!localSeated || table.phase != room::TablePhase::Paused)) return false;
+    if (action.kind == room::ActionKind::AbortMatch && AbandonableAt(view, table) == AbandonableGame::None) return false;
     if (action.kind == room::ActionKind::Unqueue && localSeated) {
         // The same rule B and the Leave seat row read.
         const auto hold = room::LeavingSeatHold(table, mine.seat, GameLive(view), PostMatch(view));
@@ -127,7 +146,7 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
 std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
  using namespace room;
  auto& nav=menu_.navigation; const auto& s=v.room;
- if(roomEpoch_!=s.roomEpoch){roomEpoch_=s.roomEpoch;muted_.clear();chat_[0]=0;selectedTable_=0;rulesDirty_=false;leaveAsk_=-1;leaveAsked_=false;
+ if(roomEpoch_!=s.roomEpoch){roomEpoch_=s.roomEpoch;chat_[0]=0;selectedTable_=0;rulesDirty_=false;leaveAsk_=-1;leaveAsked_=false;
   std::snprintf(roomName_,sizeof(roomName_),"%s",s.name.c_str());roomCapacity_=s.capacity;
   if(const auto* local=Member(s,s.localMember))if(local->table>=0&&local->table<static_cast<int>(s.tables.size()))selectedTable_=local->table;
   steamInviteSeen_=v.steamInviteSequence;
@@ -200,6 +219,9 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     if(!leaveAsked_){if(nav.Ask("table-"+std::to_string(leaveAsk_),rows))leaveAsked_=true;else leaveAsk_=-1;}
     else if(!nav.Choosing()){leaveAsk_=-1;leaveAsked_=false;}
    }
+   // Over a Practice match it fights in, a fighter can end the game.
+   if(mine.kind==Place::Kind::Seat&&AbandonableAt(v,s.tables[mine.table])==AbandonableGame::Practice)
+    rows.push_back(ConfirmRow("end-practice",loc::T("room.end_practice"),loc::T("room.end_practice.detail"),mutableRoom));
    for(const auto& m:s.members){rows.push_back(Row("member-"+std::to_string(m.id),loc::Tf(m.id==s.localMember?"room.member_you":"room.member",m.name),loc::Tf(m.host?"room.member_status_host":"room.member_status",StatusName(m.status))));
     rows.back().userText=true;}
    rows.push_back(Row("room-members",loc::T("room.members"),loc::Tf("room.member_count",s.members.size(),s.capacity)));
@@ -226,6 +248,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   }
   // A public room is shared by its page link, which opens it in Ember from a browser or Discord.
   if(s.serverOwned){const auto link=publicRooms_.RoomLink();if(!link.empty())rows.push_back(Row("copy-room-link",loc::T("public.copy_link"),loc::Tf("public.copy_link_detail",link)));}
+  if(s.roomEpoch)rows.push_back(Row("room-training",loc::T("room.training"),loc::T(v.canTrain?"room.training.detail":"room.training.unavailable"),v.canTrain));
   rows.push_back(ConfirmRow("leave",loc::T(v.session.room==netplay::RoomState::Closing?"room.leaving":"room.leave"),
    LeaveRoomDetail(v),v.session.room!=netplay::RoomState::Closing));
   // A public room has no replacement: when its host is gone the room closes.
@@ -244,46 +267,33 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   const auto rulesRows=[&]{
    if(!rulesDirty_&&rulesRevision_!=t.revision){tableRules_=t.rules;rulesRevision_=t.revision;}
    if(!host||boundTable){
-    rows.push_back(ReadOnlyValue("rules",loc::T("room.table_rules"),loc::Tf("room.rules_summary",static_cast<int>(t.rules.roundCount),static_cast<int>(t.rules.roundTime),
+    rows.push_back(ReadOnlyValue("rules",loc::T("room.table_rules"),loc::Tf(s.practice?"room.rules_summary_practice":"room.rules_summary",static_cast<int>(t.rules.roundCount),static_cast<int>(room::MatchRoundTime(s,t)),
      loc::T(t.rules.editionSelect?"common.on":"common.off")),loc::T(boundTable?"room.rules.tournament":"room.rules.host_only")));
     rows.push_back(ReadOnlyValue("set-rules",loc::T("room.table_set"),SetSummaryText(t.rules),
      t.rules.format==room::SetFormat::Unlimited?loc::T("rules.set_length.detail"):RotationDetail(t.rules.rotation)));
     return;
    }
-   RuleRows(rows,tableRules_,!active,loc::T(active?"room.rules.finish_game":"room.rules.apply_note"));
+   RuleRows(rows,tableRules_,!active,loc::T(active?"room.rules.finish_game":"room.rules.apply_note"),s.practice);
    if(rulesDirty_)rows.push_back(Row("apply-rules",loc::T("room.apply_rules"),loc::T("room.apply_rules.detail"),!active));
   };
   if(seated){
    const bool ready=room::ReadyCancellable(t,place.seat);
     const auto readyControl=DescribeReady(v,t,place.seat);
-    rows.push_back(Row("ready",readyControl.label,readyControl.detail,readyControl.kind!=ReadyControl::None));
-    if(t.spectatorHold)rows.back().detailText=DetailText::Name;
+    // A Training call's window or the room's Ready timeout: the row says how
+    // long there is to ready.
+    const auto deadline=DescribeReadyDeadline(v,t);
+    const auto timeout=deadline.seat==place.seat?deadline.text:std::string();
+    rows.push_back(Row("ready",readyControl.label,timeout.empty()?readyControl.detail:timeout+"\n"+readyControl.detail,readyControl.kind!=ReadyControl::None));
+    if(t.spectatorHold||!timeout.empty())rows.back().detailText=DetailText::Name;
    // Under Ready, in the order a player reads them: their own pick (fighter,
    // Ultra, appearance, fighter options), then the match (P1's stage and the
-   // table's rules), then their connection, then leaving. A on Fighter opens
-   // the roster, then the Ultra; A on Appearance opens the costumes, then
-   // their colors; Fighter options and Stage open their own pages. Left and
-   // Right step the Ultra and the color in place.
+   // table's rules), then their connection, then leaving.
+   SelectionRows(rows,v);
    const bool canChange=mutableRoom&&v.canEditSelection&&!s.localTerminalPending;
-   rows.push_back(Row("selection",loc::T("selection.fighter"),canChange?
-    std::string(loc::T("room.change_fighter.detail"))+"\n"+v.selectionSummary:SelectionBlocker(v),canChange));
-   rows.back().value=v.fighterName;
-   const auto stepRow=[&](const char* id,const char* label,const std::string& value,const char* detail,bool steps){
-    rows.push_back(Value(id,label,value,canChange?detail:SelectionBlocker(v),canChange));
-    rows.back().adjustable=canChange&&steps;rows.back().opens=true;
-   };
-   stepRow("ultra",loc::T("selection.ultra_combo"),v.ultraName,loc::T("selection.ultra_row.detail"),v.ultraSteps);
-   stepRow("appearance",loc::T("selection.appearance"),v.appearanceName,loc::T("room.appearance.detail"),v.colorSteps);
-   // These two show their value; Select opens the page. Nothing steps them in place.
-   const auto pageRow=[&](const char* id,const char* label,const std::string& value,const std::string& detail,bool enabled){
-    rows.push_back(Value(id,label,value,detail,enabled));
-    rows.back().adjustable=false;rows.back().opens=true;
-   };
-   pageRow("fighter-options",loc::T("room.fighter_options"),v.fighterOptionsName,
-    canChange?std::string(loc::T("selection.additional_options.detail")):SelectionBlocker(v),canChange);
    const bool stageOwner=v.localSlot==0;
-   pageRow("stage",loc::T("selection.stage"),v.stageName,
-    !canChange?SelectionBlocker(v):loc::T(stageOwner?"selection.p1_stage":"selection.only_p1_stage"),canChange&&stageOwner);
+   rows.push_back(Value("stage",loc::T("selection.stage"),v.stageName,
+    !canChange?SelectionBlocker(v):loc::T(stageOwner?"selection.p1_stage":"selection.only_p1_stage"),canChange&&stageOwner));
+   rows.back().adjustable=false;rows.back().opens=true;
    rulesRows();
     // One delay row: Left and Right choose it, Select takes the recommendation.
     // Auto sits before the smallest delay. It shows a number once the check
@@ -329,9 +339,10 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
     }
     // The authority accepts AbortMatch from either fighter. Offer it only once
     // the result is Paused, so a fighter can never cut a live game short.
-    if(t.phase==TablePhase::Paused)rows.push_back(ConfirmRow("abandon-result",loc::T("room.abandon_result"),
+    if(AbandonableAt(v,t)==AbandonableGame::Unresolved)rows.push_back(ConfirmRow("abandon-result",loc::T("room.abandon_result"),
      loc::T("room.abandon_result.detail"),mutableRoom));
    }else{
+    SelectionRows(rows,v);
     // Enablement asks the same fence SendRoom dispatches through, so the row
     // and the dispatch guard cannot drift apart.
     const auto tableRow=[&](room::ActionKind kind,const char* id,const char* label){
@@ -384,7 +395,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   // The one row: the message box is drawn by DrawChatScreen, and Enter in it is this row's Select. It is
   // there to send once there is something to send, and not again while that same text is on its way.
   rows.push_back(Row("compose",loc::T("room.compose_message"),loc::T("chat.detail"),
-   mutableRoom&&HasChatText(chat_)&&!(ChatInFlight(ImGui::GetTime())&&pendingChat_->text==chat_)));
+   ChatTypable(v)&&HasChatText(chat_)&&!queuedChat_&&!(ChatInFlight(ImGui::GetTime())&&pendingChat_->text==chat_)));
   rows.back().value=chat_;rows.back().hint=loc::T("chat.send");
  }else if(screen=="room-admin"){
   rows.push_back(TextRow("rename",loc::T("room.name"),roomName_,64,host));
@@ -595,9 +606,9 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   // A first-to-N table names its set and rotation where the round settings
   // would be; those stay on the table's rules rows.
   const auto watching=t.spectators.size()+t.watchingNext.size();
-  const std::string footer=t.rules.format==room::SetFormat::Unlimited
-   ?loc::Tf("room.table_footer",t.rules.roundCount,t.rules.roundTime,t.queue.size(),watching)
-   :loc::Tf("room.table_footer_set",SetLengthText(t.rules.format),RotationText(t.rules.rotation),t.queue.size(),watching);
+  const std::string footer=(v.room.practice?std::string(loc::T("room.table_footer_practice"))+"     ":std::string())+(t.rules.format==room::SetFormat::Unlimited
+   ?loc::Tf("room.table_footer",t.rules.roundCount,room::MatchRoundTime(v.room,t),t.queue.size(),watching)
+   :loc::Tf("room.table_footer_set",SetLengthText(t.rules.format),RotationText(t.rules.rotation),t.queue.size(),watching));
   if(!choosing&&!ownPlace)text(ImVec2(p.x+12*s,p.y+h-22*s),width-24*s,footer,14*s,palette::Muted);
   if(choosing){
    // The chosen side follows the mouse, and the seat a sit option would take
@@ -861,6 +872,8 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   return;
  }
  if(a.id=="options"){OpenTableOptions(v,OptionsTable(v,selectedTable_));return;}
+ // End practice is about the member's own table, wherever the board's focus is.
+ if(a.id=="end-practice")selectedTable_=OptionsTable(v,selectedTable_);
  if(a.id=="leave-place"){
   const auto exit=ExitFromPlace(v);if(exit.table<0)return;
   selectedTable_=exit.table;
@@ -918,6 +931,12 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
    return;
   }
  if(a.id=="leave"){Send(netplay::CommandKind::LeaveRoom,v,submit);return;}
+ if(a.id=="room-training"){
+  // No room command: the runtime sends the game on, if the room still allows it, while the room stays as it is.
+  ShellAction training;training.command.generation=v.session.generation;training.training=TrainingEntry::Room;
+  if(!v.canTrain||!submit(std::move(training)))error_=loc::T("room.training.unavailable");
+  return;
+ }
  if(a.id=="mute"){if(muted_.count(selectedMember_))muted_.erase(selectedMember_);else muted_.insert(selectedMember_);return;}
  if(a.id=="rename"){std::snprintf(roomName_,sizeof(roomName_),"%s",a.text.c_str());return;}
  if(a.id=="room-capacity"){roomCapacity_=(std::max)(2,(std::min)(16,roomCapacity_+a.delta));return;}
@@ -936,7 +955,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   else if(a.id=="kick"){request.kind=ActionKind::Kick;request.target=selectedMember_;}
   else if(a.id=="transfer-host"){request.kind=ActionKind::TransferHost;request.target=selectedMember_;}
  else if(a.id=="cancel-result")request.kind=ActionKind::CancelResult;
- else if(a.id=="abandon-result")request.kind=ActionKind::AbortMatch;
+ else if(a.id=="abandon-result"||a.id=="end-practice")request.kind=ActionKind::AbortMatch;
  else if(a.id=="apply-rules"){
   // Applying clears Ready, so rules equal to the table's are never sent.
   if(tableRules_==v.room.tables[selectedTable_].rules){rulesDirty_=false;return;}
@@ -947,13 +966,13 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  else if(a.id=="lock"){request.kind=ActionKind::Lock;request.locked=a.delta<0;}
  else if(a.id=="compose"){
   // The draft stays in the box until the room's chat has it (ObserveChat); the same text is not sent twice while it is on its way.
-  if(!HasChatText(chat_)||(ChatInFlight(ImGui::GetTime())&&pendingChat_->text==chat_))return;
-  request.kind=ActionKind::Chat;request.text=chat_;
+  // A room that cannot take it yet holds it, and FlushChat sends it then; one held is the only one accepted.
+  if(!HasChatText(chat_)||queuedChat_||(ChatInFlight(ImGui::GetTime())&&pendingChat_->text==chat_))return;
+  queuedChat_=QueuedChat{chat_};FlushChat(v,submit);return;
  }
  else if(a.id=="ready"){ToggleReady(v,submit);return;}
  else return;
  if(SendRoom(std::move(request),v,submit)){
-  if(a.id=="compose")pendingChat_=PendingChat{chat_,transcript_.LastSequence(),ImGui::GetTime()};
   if(a.id=="apply-rules")rulesDirty_=false;
  }else if(error_.empty())error_=loc::T("room.action_rejected");
 }

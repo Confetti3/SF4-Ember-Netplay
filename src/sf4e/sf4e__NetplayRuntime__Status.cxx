@@ -1,4 +1,8 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "sf4e__ReplayStore.hxx"
+#include "sf4e__ReplayPlayback.hxx"
+#include "../netplay/PublishCadence.hxx"
+#include "sf4e__CustomContent.hxx"
 
 namespace sf4e { namespace NetplayFacade {
 namespace internal {
@@ -56,6 +60,7 @@ static void FillRoomView(RuntimeSnapshot& snapshot) {
 	if (runtime->attached && UserApp::netplay) {
 		snapshot.room = UserApp::netplay->client.GetRoomSnapshot();
 		snapshot.roomReceivedMs = UserApp::netplay->client.RoomSnapshotReceivedMs();
+		snapshot.roomNotices.assign(runtime->roomNotices.begin(), runtime->roomNotices.end());
 		if (snapshot.room.roomEpoch) {
 			for (const auto& member : snapshot.room.members) {
 				netplay::MemberView view(member.name);
@@ -287,11 +292,19 @@ static void TraceSnapshot(const RuntimeSnapshot& snapshot) {
     }
 }
 
-// Publish() deep-copies the room snapshot, preferences and member list. In a
-// menu it must run every tick (it samples the menu controller), but during a
-// fight nothing reads the snapshot except the match HUD and input fault
-// check, so republish only when an input to it changed, or every sixth tick
-// as a backstop for anything the fingerprint does not cover.
+// Where the game is for Ember's menu (input::MenuContext): what Publish
+// says, and what PublishThrottled schedules by.
+input::MenuContext MenuContextNow(bool atMainMenu) {
+    // A Practice match is this PC's to end only while it fights in it, under rollback.
+    const bool practiceFight = training::MatchPracticeActive() && Game::Battle::System::ggpo && !LocalIsSpectator();
+    return atMainMenu ? input::MenuContext::MainMenu :
+        training::ControlsAvailable() ? input::MenuContext::OfflineTraining :
+        replaystore::GetStatus().exportStage != replay::ExportStage::None ? input::MenuContext::ReplayExport :
+        practiceFight ? input::MenuContext::PracticeMatch : input::MenuContext::Unavailable;
+}
+
+// What a throttled fight republishes on (netplay::PublishCadence): every input
+// to the snapshot the match HUD and the input fault check read.
 std::uint64_t PublishFingerprint() {
     std::uint64_t h = 1469598103934665603ULL;
     const auto mix = [&](std::uint64_t v) { h ^= v; h *= 1099511628211ULL; };
@@ -313,10 +326,13 @@ std::uint64_t PublishFingerprint() {
     mix(runtime->match ? static_cast<std::uint64_t>(runtime->match->GetPhase()) : 0);
     mix(runtime->readyIntent.Parked() != nullptr); mix(runtime->lobbyEditIntent.Parked() != nullptr); mix(runtime->pendingAbort != nullptr);
     mix(runtime->readyIntent.Armed()); mix(runtime->readyFailureSequence);
-    mix(runtime->opponentChangeSequence); mix(static_cast<std::uint64_t>(runtime->opponentFighterWatch.Pending() + 1));
+    mix(runtime->opponentChangeSequence); mix(runtime->roomNoticeSequence); mix(static_cast<std::uint64_t>(runtime->opponentFighterWatch.Pending() + 1));
+    mix(runtime->trainingCallSequence); mix(runtime->trainingReadySequence); mix((runtime->trainingCall.Remaining(GetTickCount64()) + 999) / 1000);
+    { const auto call = runtime->trainingCall.Identity(); mix(call.roomEpoch); mix(call.opponent); mix(call.generation); mix(call.table); mix(call.serial); }
     mix(runtime->recoveringMatch); mix(OverlayPrefs::PersistencePending()); mixString(OverlayPrefs::PersistenceError());
     mix(runtime->services.Snapshot().pending); mixString(runtime->discordStatusId); mix(runtime->discordInvite.Revision());
-    mix(runtime->preferences.showMatchHud); mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudRaised); mix(runtime->preferences.matchHudAnchor); mix(runtime->preferences.matchHudLayout); mix(runtime->preferences.readySound); mix(runtime->preferences.readySoundVolume);
+    for (const auto& preference : netplay::BoolPreferences) mix(runtime->preferences.*preference.member);
+    mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudAnchor); mix(runtime->preferences.matchHudLayout); mix(runtime->preferences.matchHudNameOffset); mix(runtime->preferences.readySoundVolume);
     mix(static_cast<std::uint64_t>(runtime->input.State())); mix(runtime->input.Ready());
     mix(AtMainMenu());
     return h;
@@ -324,6 +340,67 @@ std::uint64_t PublishFingerprint() {
 }
 
 namespace internal {
+// This PC is one of the watchers of a game starting or not yet over: a
+// locked-in spectator whose table holds its start for them, a spectator in the
+// roster frozen at the start (the room says Watching), or a member queued at
+// its table whom that roster took in. The controller moves to Preparing only on
+// the runtime's next tick, so the room says it first. A watcher left out of the
+// game (a receipt of theirs was still open when it began) waits for the next.
+// `retired` is the game this PC already left and tore down (RetiredMatchGeneration):
+// the room may still list it there (a failed stream keeps its place), but it
+// watches nothing of that game now. Any other game still counts.
+static bool AdmittedToWatch(const room::Snapshot& room, std::uint64_t retired) {
+    if (!room.localMember) return false;
+    // A game still being played, or paused over conflicting results (which still
+    // belong to it), and not the one retired here.
+    const auto current = [&](const room::Table& table) {
+        return !netplay::GenerationEnded(table, table.matchGeneration) && !(retired && table.matchGeneration == retired);
+    };
+    for (const auto& member : room.members) {
+        if (member.id != room.localMember) continue;
+        const bool atTable = member.table >= 0 && member.table < static_cast<int>(room.tables.size());
+        if (member.status == room::MemberStatus::Watching && (!atTable || current(room.tables[member.table]))) return true;
+        // Leaving now would stall the start the table holds for them.
+        if (member.spectatorLocked && atTable) {
+            const auto& table = room.tables[member.table];
+            if (table.phase == room::TablePhase::Ready && table.spectatorHold) return true;
+        }
+    }
+    const auto listed = [&](const std::vector<room::MemberId>& list) {
+        return std::find(list.begin(), list.end(), room.localMember) != list.end();
+    };
+    // The host says which game's roster took this PC in. The roster outlives a
+    // spectator who stopped watching (it still owes them the game's end), so it
+    // counts only while they are still among that same table's spectators. A
+    // queued member the game took in stays listed there; one who queues after
+    // they stopped watching is not taken in again.
+    if (room.localMatchGenerationsSent) {
+        for (std::size_t i = 0; i < room.tables.size(); ++i) {
+            const auto& table = room.tables[i];
+            if (current(table) && table.matchGeneration && room.localMatchGenerations[i] == table.matchGeneration &&
+                listed(table.spectators)) return true;
+        }
+        return false;
+    }
+    // An older host does not, and its snapshot cannot tell a watcher the game took
+    // in from one it left out (an open receipt), or one who left the queue or
+    // watched again while still streaming (no longer Watching once paused). Any
+    // place among the spectators of a game not over refuses, erring on its side.
+    for (const auto& table : room.tables)
+        if (current(table) && listed(table.spectators)) return true;
+    return false;
+}
+std::uint64_t RetiredMatchGeneration() {
+    return runtime ? NetplayFacade::RetiredMatchGeneration(runtime->match.get(), Game::Battle::System::ggpo != nullptr, runtime->recoveringMatch) : 0;
+}
+bool CanTrain(const netplay::Snapshot& session, bool atMainMenu, const room::Snapshot& room, std::uint64_t retired) {
+    return atMainMenu && session.room == netplay::RoomState::Joined &&
+        (session.match == netplay::MatchState::None || session.match == netplay::MatchState::PostMatch) &&
+        session.control == netplay::Health::Healthy &&
+        !session.readyPending && !runtime->readyIntent.Parked() && !runtime->pendingAbort &&
+        // A closed room keeps its members until it is left; nobody trains out of it.
+        !room.closed && !AdmittedToWatch(room, retired) && room::TrainingCall::MayTrain(room);
+}
 PostPublishState Publish() {
 	RuntimeSnapshot snapshot;
 	snapshot.session = runtime->controller.GetSnapshot();
@@ -350,17 +427,32 @@ PostPublishState Publish() {
     snapshot.controller = ControllerLabel(snapshot.inputDevice);
 
 	snapshot.atMainMenu = AtMainMenu();
+	snapshot.practiceMatch = training::MatchPracticeActive();
+	const replaystore::Status& replays = replaystore::GetStatus();
+	snapshot.replays.ready = snapshot.atMainMenu && replays.step == replaystore::Step::Idle && replaystore::Ready();
+	snapshot.replays.notice = replays.notice; snapshot.replays.noticeError = replays.noticeError;
+	snapshot.replays.logOpens = replays.logOpens; snapshot.replays.returns = replays.returns;
+	snapshot.replays.link = runtime->replayLinkAsked;
+	snapshot.replays.captionShown = replays.captionShown;
+	replayplayback::Tick(snapshot.inputDevice.type, snapshot.inputDevice.index, snapshot.inputDevice.connected);
+	snapshot.replays.playback = replayplayback::GetView();
+	snapshot.replays.meterShown = snapshot.replays.playback.playback && snapshot.replays.playback.meter;
+	if (snapshot.replays.playback.playback) snapshot.replays.lanes = replayplayback::GetLanes();
+	snapshot.replays.exportStage = replays.exportStage; snapshot.replays.exportFrames = replays.exportFrames; snapshot.replays.exportTotal = replays.exportTotal;
+	if (replays.captionShown) snapshot.replays.caption = replays.caption;
+	snapshot.replays.archive = platform::replays::LatestListing();
+	snapshot.replays.detail = platform::replays::LatestDetail();
 	snapshot.matchWaitsForMenu = runtime->match && !runtime->matchEntered && !snapshot.atMainMenu &&
 		runtime->entryDeferredGeneration && runtime->entryDeferredGeneration == runtime->match->Generation() &&
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Started;
-    snapshot.menuContext = snapshot.atMainMenu ? input::MenuContext::MainMenu :
-        training::ControlsAvailable() ? input::MenuContext::OfflineTraining : input::MenuContext::Unavailable;
+    snapshot.menuContext = MenuContextNow(snapshot.atMainMenu);
     if(snapshot.atMainMenu) for(int fighter=0;fighter<selection::FighterCount;++fighter)
         snapshot.fighterAvailability[fighter]=Dimps::Selection::ReadAvailability(fighter);
+    snapshot.installedContent = custom::Installed();
     // The explicit gameplay-device assignment stays authoritative, including
     // keyboard selection, capture, disconnects and local P1/P2 handoff.
     if (snapshot.menuContext != input::MenuContext::Unavailable && snapshot.inputCapture == input::Capture::Idle &&
-        snapshot.session.match != netplay::MatchState::Preparing && snapshot.session.match != netplay::MatchState::Playing) {
+        !input::FightKeepsMenuAway(netplay::Fighting(snapshot.session.match), snapshot.menuContext)) {
         auto& sample = snapshot.menuController;
         sample.deviceType = snapshot.inputDevice.type;
         sample.deviceIndex = snapshot.inputDevice.index;
@@ -413,6 +505,10 @@ PostPublishState Publish() {
     snapshot.readyRequested = runtime->readyIntent.Armed();
     snapshot.readyFailure = runtime->readyFailure; snapshot.readyFailureSequence = runtime->readyFailureSequence;
     snapshot.opponentChangedFighter = runtime->opponentFighterWatch.Pending(); snapshot.opponentChangeSequence = runtime->opponentChangeSequence;
+    snapshot.trainingCallSequence = runtime->trainingCallSequence; snapshot.trainingReadySequence = runtime->trainingReadySequence;
+    snapshot.trainingReadySeconds = static_cast<int>((runtime->trainingCall.Remaining(GetTickCount64()) + 999) / 1000);
+    snapshot.trainingCall = runtime->trainingCall.Identity();
+    snapshot.canTrain = CanTrain(snapshot.session, snapshot.atMainMenu, snapshot.room, RetiredMatchGeneration());
 	FillLockReasons(snapshot);
     snapshot.discordPending = runtime->discordInvite.Active();
     snapshot.discordConfirm = runtime->discordInvite.NeedsConfirmation();
@@ -430,18 +526,10 @@ PostPublishState Publish() {
 
 PostPublishState PublishThrottled() {
     static PostPublishState cached;
-    static std::uint64_t fingerprint = 0;
-    static unsigned ticksSincePublish = 0;
-    if (!Game::Battle::System::ggpo) {
-        fingerprint = 0; ticksSincePublish = 0;
-        cached = Publish();
-        return cached;
-    }
-    const auto now = PublishFingerprint();
-    if (now != fingerprint || ++ticksSincePublish >= 6) {
-        fingerprint = now; ticksSincePublish = 0;
-        cached = Publish();
-    }
+    static netplay::PublishCadence cadence;
+    // Every tick where the pad drives Ember's menu, since the snapshot carries its sample.
+    const bool padDrivesMenu = !Game::Battle::System::ggpo || input::ControllerMenuAvailable(MenuContextNow(AtMainMenu()));
+    if (cadence.Due(padDrivesMenu, PublishFingerprint)) cached = Publish();
     return cached;
 }
 
@@ -522,6 +610,26 @@ void TickSteamRuntime() {
     }
 }
 } // namespace internal
+
+std::uint64_t RetiredMatchGeneration(const session::IrohMatchSession* match, bool ggpoLive, bool recovering) {
+    // Recovery ends (MatchRecovered) only once the session is idle at the main
+    // menu; until then, and while native GGPO lives, nothing is retired yet.
+    return match && !ggpoLive && !recovering ? match->RetiredGeneration() : 0;
+}
+
+bool TrainingHolds(TrainingEntry entry, const netplay::Generation& made, const netplay::Snapshot& session,
+    bool atMainMenu, const room::Snapshot& room, std::uint64_t retiredGeneration) {
+    if (!runtime || !(session.generation == made) || !atMainMenu) return false;
+    return entry == TrainingEntry::Room && internal::CanTrain(session, atMainMenu, room, retiredGeneration);
+}
+
+bool TrainingRequestHolds(const netplay::Generation& made) {
+    if (!runtime) return false;
+    // The client's room as it is now, which may be newer than the last published snapshot.
+    const bool attached = runtime->attached && UserApp::netplay;
+    return TrainingHolds(TrainingEntry::Room, made, runtime->controller.GetSnapshot(),
+        internal::AtMainMenu(), attached ? UserApp::netplay->client.GetRoomSnapshot() : room::Snapshot{}, internal::RetiredMatchGeneration());
+}
 
 std::shared_ptr<const RuntimeSnapshot> GetRuntimeSnapshotShared() { return bridge::LatestRuntime(); }
 

@@ -77,6 +77,7 @@ namespace sf4e {
 			bool editionSelect = true;
 			int roundCount = 3;
 			FixedPoint roundTime = { 0, 99 };
+			// A room table's games are Practice matches (room::Snapshot::practice).
 			bool trainingMode = false;
 			std::vector<MemberData> members;
 
@@ -94,7 +95,15 @@ namespace sf4e {
 			int64_t stageID;
 			DWORD rngSeed;
 			std::array<std::uint8_t, 2> inputDelay = {{ 2, 2 }};
+			// A room's match plays with Lower input lag (room::MatchLowerLag).
+			bool lowerInputLag = false;
 		};
+
+		// What the game could not take in a room's match: its round count or
+		// time, its stage, or either fighter. Every value is one the game's own
+		// menus offer, or it is refused before any of it is written.
+		enum class MatchProblem { None, Settings, Stage, Fighter };
+		MatchProblem FindMatchProblem(const LobbyData& lobby, const MatchData& match);
 
 		enum MessageType {
 			MT_SESSION_HELLO,
@@ -258,7 +267,6 @@ namespace sf4e {
 			bool editionSelect = true;
 			int32_t roundCount = 3;
 			FixedPoint roundTime = { 0, 99 };
-			bool trainingMode = false;
 		};
 
 		struct PreBattleSetEnv {
@@ -391,7 +399,7 @@ namespace sf4e {
 		// added (e.g. trainingMode) deserializes with that field's default
 		// instead of throwing on the missing key.
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LobbyData, id, editionSelect, roundCount, roundTime, trainingMode, members);
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(MatchData, readyMessageNum, chara, stageID, rngSeed, inputDelay);
+		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(MatchData, readyMessageNum, chara, stageID, rngSeed, inputDelay, lowerInputLag);
 
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionHelloMsg, type, cid, authenticatedEndpoint, incarnation, admission);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(SessionHelloResp, type, cid, roomMember, authenticatedEndpoint, incarnation);
@@ -403,7 +411,7 @@ namespace sf4e {
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyAllReady, type);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyReportResults, type, loserSide);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LobbyReset, type);
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LobbySetSettings, type, editionSelect, roundCount, roundTime, trainingMode);
+		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LobbySetSettings, type, editionSelect, roundCount, roundTime);
 
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PreBattleSetChara, type, chara);
 		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PreBattleSetEnv, type, rngSeed);

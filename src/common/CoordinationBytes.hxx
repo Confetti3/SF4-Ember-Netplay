@@ -7,14 +7,14 @@
 #include <windows.h>
 #include <bcrypt.h>
 #else
-// Off Windows the room host has no CNG; the session layer's dependency-free
-// SHA-256 (the reference the Windows path is tested against) is the digest.
-#include "../session/SessionRecovery.hxx"
+// Off Windows the room host has no CNG; the dependency-free SHA-256 (the
+// reference the Windows path is tested against) is the digest.
+#include "Sha256.hxx"
 #endif
 
 namespace sf4e { namespace coordination {
 #ifndef _WIN32
-inline std::string Sha256(const std::string& bytes) { return session::recovery_detail::Sha256Portable(bytes); }
+inline std::string Sha256(const std::string& bytes) { return Sha256Portable(bytes); }
 #else
 inline std::string Sha256(const std::string& bytes) {
     if (bytes.size() > (std::numeric_limits<ULONG>::max)()) return {};

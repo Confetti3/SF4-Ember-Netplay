@@ -1,5 +1,5 @@
 // The SDK against the real ember-bridge binary (built by
-// `cargo build -p ember-bridge` in rust/ember). Skipped when it is absent.
+// `cargo build -p ember-bridge` in server/ember). Skipped when it is absent.
 import assert from "node:assert/strict";
 import { createServer, type IncomingHttpHeaders } from "node:http";
 import { test } from "node:test";

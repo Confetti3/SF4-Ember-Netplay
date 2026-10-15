@@ -51,6 +51,13 @@ for package in sorted(metadata['packages'], key=lambda item: (item['name'], item
         # that declaration and the source attribution rather than inventing text.
         sections.append('The crate archive declares the license above in Cargo.toml and contains no separate license text.\n')
     count += 1
+# Data compiled into Ember itself, with its notice checked in beside it. These
+# ride in this file rather than as files of their own, so a package keeps the
+# file set that older installed builds accept from an update.
+embedded = [('Unicode Character Database data (problem-report redaction tables, '
+             'src/platform/ReportUnicodeTables.hxx)', repo / 'src' / 'platform' / 'Unicode-License.txt')]
+for name, license_path in embedded:
+    sections.append(f'\n=== {name} ===\n' + license_path.read_text(encoding='utf-8'))
 args.output.parent.mkdir(parents=True, exist_ok=True)
 args.output.write_text('\n'.join(sections), encoding='utf-8')
-print(f'Collected notices for {len(native)} native packages and {count} Rust dependencies.')
+print(f'Collected notices for {len(native)} native packages, {len(embedded)} embedded data set and {count} Rust dependencies.')

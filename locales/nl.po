@@ -69,11 +69,17 @@ msgstr "SF4 Ember Netplay draait al. Zie je het niet? Sluit Launcher.exe en SSFI
 msgid "launcher.start_failed"
 msgstr "Starten of injectie mislukt. Bekijk het launcherlogboek in %APPDATA%\\sf4e\\logs\\launcher.log en probeer opnieuw."
 
+msgid "launcher.game_runs_as_admin"
+msgstr "SSFIV.exe is ingesteld om als administrator te draaien, daarom kan Ember het niet starten. Klik in de spelmap met de rechtermuisknop op SSFIV.exe, open Eigenschappen en dan Compatibiliteit, en zet \"Dit programma als administrator uitvoeren\" uit, ook onder \"Instellingen voor alle gebruikers wijzigen\". Probeer het daarna opnieuw."
+
 msgid "launcher.game_error"
 msgstr "Spel afgesloten met een fout. Bekijk het launcherlogboek in %APPDATA%\\sf4e\\logs\\launcher.log en probeer opnieuw."
 
+msgid "launcher.steam_runs_as_admin"
+msgstr "Het spel kon Steam niet bereiken omdat Steam als administrator draait. Sluit Steam, start het normaal opnieuw en probeer het nogmaals. Ember als administrator starten werkt ook, maar dan worden updates niet geïnstalleerd."
+
 msgid "launcher.game_crashed"
-msgstr "Het spel is gecrasht. Stuur de bestanden uit %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log en sf4e-crash-*.dmp) naar het SF4 Ember Netplay-team en probeer opnieuw."
+msgstr "Het spel is gecrasht. Kies hieronder Dit rapport versturen om te helpen het op te lossen. Of stuur de bestanden uit %APPDATA%\\sf4e\\logs zelf."
 
 msgid "launcher.runtime_shadowed"
 msgstr "Het spel zou deze bestanden laden in plaats van die in de Ember-map. Een oude kopie stopt het spel al voor de start (\"entry point ggpo_get_last_confirmed_frame not found\"). Ze zijn achtergelaten door een andere netplaymod of een oudere installatie. Verplaats of hernoem ze en start Ember opnieuw:\n\n{0}"
@@ -126,6 +132,36 @@ msgstr "Er loopt al een bewerking."
 msgid "updates.check_detail"
 msgstr "Zoek naar een nieuwer Ember-pakket."
 
+msgid "updates.channel"
+msgstr "Updatekanaal"
+
+msgid "updates.channel.stable"
+msgstr "Stabiel"
+
+msgid "updates.channel.prerelease"
+msgstr "Bèta"
+
+msgid "updates.channel.nightly"
+msgstr "Nightly"
+
+msgid "updates.channel.nightly_detail"
+msgstr "Dagelijkse testversies met de nieuwste functies. Ze kunnen problemen geven. In kamers kun je alleen met andere Nightly-spelers spelen. Replays die op Nightly zijn opgeslagen, kun je na terugkeer naar een eerdere versie mogelijk niet meer openen."
+
+msgid "updates.channel_detail"
+msgstr "Stabiel biedt alleen afgewerkte versies aan. Bèta biedt ook bèta- en release-candidateversies aan, die meer problemen kunnen hebben. Iedereen met wie je speelt heeft dezelfde versie nodig."
+
+msgid "updates.channel.switch_detail"
+msgstr "Zet de updatecontrole van {0} op {1} en controleert {1} meteen. Er wordt niets geïnstalleerd tot je Downloaden en installeren kiest."
+
+msgid "updates.channel.going_back"
+msgstr "Teruggaan van {0} naar {1} kan een oudere versie dan de jouwe aanbieden. Replays opgenomen met {0} openen misschien niet met {1}."
+
+msgid "updates.installed_version"
+msgstr "Geïnstalleerde versie"
+
+msgid "updates.installed_version_detail"
+msgstr "De Ember-versie op deze pc."
+
 msgid "updates.install"
 msgstr "Downloaden en installeren"
 
@@ -134,6 +170,15 @@ msgstr "Sluit SF4 voor de installatie. Het pakket wordt eerst gecontroleerd. Je 
 
 msgid "updates.unverified"
 msgstr "Deze update heeft geen controlesom en kan niet worden geïnstalleerd."
+
+msgid "updates.install_going_back"
+msgstr "Dit is een oudere versie dan de jouwe. Replays opgenomen met je huidige versie openen er misschien niet mee."
+
+msgid "updates.whats_new"
+msgstr "Wat is er nieuw"
+
+msgid "updates.whats_new_detail"
+msgstr "Release-opmerkingen voor {0}."
 
 msgid "updates.cancel"
 msgstr "Bewerking annuleren"
@@ -178,13 +223,29 @@ msgid "services.exporting"
 msgstr "Diagnostiek exporteren..."
 
 msgid "services.downloading"
-msgstr "Update downloaden en controleren..."
+msgstr "Update downloaden..."
+
+msgid "services.verifying"
+msgstr "Download controleren..."
+
+msgid "services.extracting"
+msgstr "Update uitpakken..."
+
+msgid "services.preparing"
+msgstr "Update voorbereiden..."
+
+msgid "services.installing"
+msgstr "Update installeren..."
 
 msgid "services.opening_updater"
 msgstr "Updater openen..."
 
 msgid "services.update_available"
 msgstr "Update beschikbaar: {0}"
+
+msgid "services.go_back_available"
+msgstr "Je kunt teruggaan naar {0}"
+
 
 msgid "services.up_to_date"
 msgstr "Je bent up-to-date."
@@ -556,7 +617,7 @@ msgid "home.online"
 msgstr "Online spelen"
 
 msgid "home.online_detail"
-msgstr "Maak een kamer, doe mee aan een kamer of bekijk de openbare kamers."
+msgstr "Maak een kamer, doe mee aan een kamer, bekijk de openbare kamers of stel je Ember ID in voor toernooien."
 
 msgid "home.return_room"
 msgstr "Keer terug naar je huidige kamer."
@@ -586,7 +647,7 @@ msgid "home.identity_matches"
 msgstr "Toernooiwedstrijden klaar om te spelen: {0}"
 
 msgid "home.settings_detail"
-msgstr "Speler, controller, standaard spelinstellingen, interface, taal en Discord."
+msgstr "Speler, controller, standaardspelregels, interface, taal, training en Discord."
 
 msgid "home.about"
 msgstr "Hulp en info"
@@ -598,7 +659,192 @@ msgid "home.offline"
 msgstr "Offline spelen"
 
 msgid "home.offline_detail"
-msgstr "Open de offline spelmenu’s."
+msgstr "Training, Versus, Arcade en de andere offline modi van het spel."
+
+msgid "home.replays"
+msgstr "Replays"
+
+msgid "home.replays_detail"
+msgstr "Je opgeslagen wedstrijden. Bekijk ze, voeg ze toe aan het spel of lees hun invoer."
+
+msgid "replays.title"
+msgstr "Replays"
+
+msgid "replays.empty"
+msgstr "Nog geen replays"
+
+msgid "replays.empty_detail"
+msgstr "Een match wordt hier opgeslagen als hij eindigt."
+
+msgid "replays.add"
+msgstr "Aan spel toevoegen"
+
+msgid "replays.add_detail"
+msgstr "Voegt de replay toe aan het Battle Log van het spel om later te bekijken."
+
+msgid "replays.watch"
+msgstr "Nu bekijken"
+
+msgid "replays.watch_detail"
+msgstr "Voegt de replay toe aan het Battle Log van het spel en speelt deze af."
+
+msgid "replays.save_watched"
+msgstr "Matches waar je naar kijkt opslaan"
+
+msgid "replays.save_watched_detail"
+msgstr "Slaat ook wedstrijden op die je als toeschouwer bekijkt. Uit slaat alleen wedstrijden op die je zelf speelt."
+
+msgid "replays.link"
+msgstr "Replay uit de link afspelen"
+
+msgid "replays.link_detail"
+msgstr "Een link heeft Ember gevraagd om {0} af te spelen. Speel deze alleen af als je de bron van de link vertrouwt."
+
+msgid "replays.link_play"
+msgstr "Afspelen"
+
+msgid "replays.link_dismiss"
+msgstr "Nu niet"
+
+msgid "replays.link_dismiss_detail"
+msgstr "Vergeet de link. Het bestand blijft waar het is."
+
+msgid "replays.exported"
+msgstr "Video opgeslagen: {0}"
+
+msgid "replays.gpu_not_exported"
+msgstr "Er is geen video gemaakt. Windows gaf geen H.264-encoder, of het beeld van het spel kon niet worden gelezen. De reden staat in het logboek."
+
+msgid "replays.open_folder"
+msgstr "Replaymap openen"
+
+msgid "replays.open_folder_detail"
+msgstr "Opent het archief in Verkenner: replays en geëxporteerde video's."
+
+msgid "services.opening_replay_folder"
+msgstr "Replaymap openen..."
+
+msgid "services.replay_folder_opened"
+msgstr "{0} geopend in Verkenner."
+
+msgid "services.replay_folder_failed"
+msgstr "De replaymap kon niet worden geopend."
+
+msgid "replays.inputs"
+msgstr "Inputs en statistieken"
+
+msgid "replays.inputs_detail"
+msgstr "Toont wat beide spelers indrukten, frame voor frame, met totalen. Er wordt niets afgespeeld."
+
+msgid "replays.show_folder"
+msgstr "Tonen in map"
+
+msgid "replays.show_folder_detail"
+msgstr "Opent de map met deze replay in Verkenner."
+
+msgid "inputs.length_value"
+msgstr "Rondes {0} · {1}"
+
+msgid "inputs.activity"
+msgstr "{0} inputs per minuut, {1} sprongen, {2}% van de tijd gehurkt."
+
+msgid "inputs.round"
+msgstr "Ronde {0}"
+
+msgid "inputs.legend"
+msgstr "Elke regel: de tijd, dan wat P1 en P2 vanaf daar vasthouden. Richtingen zoals op een numeriek toetsenblok, gezien op het scherm: 4 is links, 6 is rechts, 5 is geen."
+
+msgid "inputs.reading"
+msgstr "Replay wordt gelezen..."
+
+msgid "inputs.look_unknown"
+msgstr "Uiterlijk onbekend"
+
+msgid "inputs.unreadable"
+msgstr "Inputs kunnen niet worden gelezen"
+
+msgid "inputs.unreadable_detail"
+msgstr "Deze replay heeft een ouder formaat, of het bestand is beschadigd."
+
+msgid "replays.row_detail"
+msgstr "Selecteer om te bekijken, aan het spel toe te voegen of invoer en statistieken te lezen."
+
+#. The saved replay has already been played back.
+msgid "replays.seen"
+msgstr "Gezien"
+
+#. The player watched the live match as a spectator, not a replay playback.
+msgid "replays.spectated"
+msgstr "Als toeschouwer"
+
+#. The player watched the live match as a spectator and has also played its replay.
+msgid "replays.spectated_seen"
+msgstr "Als toeschouwer, gezien"
+
+msgid "replays.not_ready"
+msgstr "Beschikbaar in het hoofdmenu, buiten een match."
+
+msgid "replays.added"
+msgstr "Toegevoegd aan het Battle Log van het spel, onder de datum waarop de wedstrijd is gespeeld."
+
+msgid "replays.not_added"
+msgstr "Deze replay kon niet worden toegevoegd. Het bestand is mogelijk beschadigd."
+
+msgid "replays.not_added_yet"
+msgstr "De game heeft de laatste match nog niet opgeslagen. Probeer het zo meteen opnieuw."
+
+msgid "replays.not_added_files"
+msgstr "Deze replay kon niet worden toegevoegd omdat de replaybestanden van het spel niet konden worden gelezen. Er is niets gewijzigd."
+
+msgid "replays.not_added_archive"
+msgstr "Deze replay kon niet worden toegevoegd omdat de huidige replay van het spel niet eerst kon worden opgeslagen. Controleer de vrije schijfruimte."
+
+msgid "replays.not_added_restored"
+msgstr "Deze replay kon niet worden toegevoegd. De replays van het spel zijn ongewijzigd."
+
+msgid "replays.not_added_recovery"
+msgstr "Deze replay kon niet worden toegevoegd en sommige replays van het spel konden niet worden hersteld. Voeg geen replays meer toe en exporteer diagnostiek via Hulp en info."
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "Battle Log van het spel openen"
+
+msgid "replays.open_log_detail"
+msgstr "Verlaat Embers menu en opent het Battle Log van het spel, waar replays worden afgespeeld."
+
+msgid "replays.open_log_room"
+msgstr "Verlaat eerst de kamer."
+msgid "settings.training_auto_ready"
+msgstr "Maak mij gereed bij oproep uit Training"
+
+msgid "settings.training_auto_ready_detail"
+msgstr "Als de kamer je uit Training terugroept, word je direct gereed gemeld. Uit geeft je {0} seconden voordat je je plaats verliest."
+
+msgid "settings.match_frame_meter"
+msgstr "Framemeter in matches"
+
+msgid "settings.match_frame_meter_detail"
+msgstr "Toont de framemeter over onlinewedstrijden die je speelt of bekijkt. Alleen jij ziet deze. De meter kan enkele frames achterlopen op het gevecht."
+
+msgid "settings.match_frame_meter_private"
+msgstr "Alleen in privékamers."
+
+msgid "room.training.detail"
+msgstr "Oefen in Training terwijl je wacht. Ember roept je terug zodra iemand tegenover je gaat zitten."
+
+msgid "room.training.unavailable"
+msgstr "Beschikbaar terwijl je op een tegenstander wacht, voordat je je gereed meldt."
+
+msgid "room.training_call.ready_in"
+msgstr "Meld je binnen {0} s gereed of je verliest je plaats."
+
+msgid "runtime.training_call.forfeit"
+msgstr "Je hebt je na Training niet op tijd gereed gemeld en hebt daarom je plaats verlaten."
 
 msgid "home.choose_controller"
 msgstr "Kies spelcontroller"
@@ -709,7 +955,7 @@ msgid "settings.title"
 msgstr "INSTELLINGEN"
 
 msgid "settings.player_detail"
-msgstr "Schermnaam en controllertoewijzing."
+msgstr "Schermnaam, controllertoewijzing en spelen op de achtergrond."
 
 msgid "settings.defaults_detail"
 msgstr "Invoervertraging en kamerstandaard."
@@ -741,6 +987,30 @@ msgstr "Toetsenbord"
 msgid "player.use_keyboard_detail"
 msgstr "Wijs het toetsenbord toe als speelapparaat. Je controller bedient de menu's van Ember dan niet meer, tot je hem opnieuw toewijst."
 
+msgid "player.background_play"
+msgstr "Op de achtergrond spelen"
+
+msgid "player.background_play_detail"
+msgstr "Het geluid van het spel en je controller blijven werken terwijl een ander venster, zoals OBS, op de voorgrond staat. Het toetsenbord en de menu's van Ember hebben nog steeds het spelvenster nodig. Gebruik de venstermodus: in volledig scherm wordt het spel nog steeds geminimaliseerd."
+
+msgid "player.lower_input_lag"
+msgstr "Minder invoervertraging (experimenteel)"
+
+msgid "player.lower_input_lag_detail"
+msgstr "Experimenteel. Haalt een frame vertraging weg dat het spel aan elke invoer toevoegt. In een kamer geldt het alleen als beide spelers het aanzetten, en dan ook voor wie kijkt. Offline gevechten en Training volgen alleen deze instelling."
+
+msgid "player.lower_keyboard_lag"
+msgstr "Toetsenbord sneller (experimenteel)"
+
+msgid "player.lower_keyboard_lag_detail"
+msgstr "Experimenteel. Het spel leest het toetsenbord een frame later dan een controller; dit haalt dat frame weg. Het geldt alleen voor het toetsenbord, en alleen op deze pc: de andere speler hoeft het niet aan te zetten."
+
+msgid "player.faster_display"
+msgstr "Sneller beeld (1 frame minder)"
+
+msgid "player.faster_display_detail"
+msgstr "Het spel toont elk frame zodra het klaar is, in plaats van een frame later. Zet het uit als het spel op deze pc onder 60 fps zakt. Het geldt alleen op deze pc: de andere speler hoeft het niet aan te zetten. Wijzigingen gelden vanaf de volgende keer dat het spel start."
+
 msgid "player.native_menus"
 msgstr "Spelmenu's openen"
 
@@ -767,6 +1037,21 @@ msgstr "Indeling match-HUD"
 
 msgid "settings.match_hud_layout_detail"
 msgstr "Ember-strook toont alles in één paneel. Gesplitst zet elke naam onder zijn levensbalk."
+
+msgid "settings.name_offset"
+msgstr "Hoogte namen"
+
+msgid "settings.name_offset_detail"
+msgstr "Verschuift de namen van de gesplitste indeling omhoog of omlaag. Gebruik dit als ze PLAYER 1 en PLAYER 2 missen omdat de HUD-positie in het spel is gewijzigd."
+
+msgid "name_offset.default"
+msgstr "Standaard"
+
+msgid "name_offset.up"
+msgstr "Omhoog {0}"
+
+msgid "name_offset.down"
+msgstr "Omlaag {0}"
 
 msgid "hud_layout.strip"
 msgstr "Ember-strook"
@@ -919,7 +1204,7 @@ msgid "about.controls"
 msgstr "Besturing"
 
 msgid "about.controls_detail"
-msgstr "Xbox-controller: A kiest en B gaat terug, los van de vechtknoppen. Andere controllers: de toegewezen LP kiest en LK gaat terug. Toetsenbord: pijltjes, Enter en Escape. De D-pad beweegt; links en rechts passen een waarde aan. Terug op het scherm Start verbergt Ember. F10, of de knop Start op de controller, opent Ember weer in het hoofdmenu van het spel.\n\nIn een kamer kies je met A op een tafel een plek, meld je je met A op je eigen plek klaar en verlaat B je plek of de wachtrij. Op een Xbox-controller opent X Vechter, Y Opties en View Chat; druk er nogmaals op om terug te gaan naar de kamer.\n\nIn training opent F6 de besturing, verbergt F5 de HUD, neemt F7 op en speelt F8 af."
+msgstr "Xbox-controller: A kiest en B gaat terug, los van de vechtknoppen. Andere controllers: de toegewezen LP kiest en LK gaat terug. Toetsenbord: pijltjes, Enter en Escape. De D-pad beweegt; links en rechts passen een waarde aan. Terug op het scherm Start verbergt Ember. F10, of de knop Start op de controller, opent Ember weer in het hoofdmenu van het spel.\n\nIn een kamer kies je met A op een tafel een plek, meld je je met A op je eigen plek klaar en verlaat B je plek of de wachtrij. Op een Xbox-controller opent X Vechter, Y Opties en View Chat; druk er nogmaals op om terug te gaan naar de kamer.\n\nIn training opent F6 de besturing, verbergt F5 de HUD, neemt F7 op en speelt F8 af. Op een controller: houd View of Select vast en druk op Start."
 
 msgid "about.controls_keyboard"
 msgstr "Op het toetsenbord selecteert Spatie ook en gaat Backspace ook terug. In een kamer opent F Vechter, T Opties en C Chat. Escape gaat altijd terug, ook op je eigen plaats; Delete verlaat je plaats of wachtrij."
@@ -962,6 +1247,15 @@ msgstr "Lid worden van Ember Discord"
 
 msgid "about.discord_detail"
 msgstr "Spelers, matches en hulp op {0}. Opent in je browser achter het spel."
+
+msgid "about.version_line"
+msgstr "Ember {0} · {1}"
+
+msgid "about.version_detail"
+msgstr "De Ember-versie op deze pc. Build {0}."
+
+msgid "about.channel_detail"
+msgstr "Updatecontroles gebruiken dit kanaal. Sluit het spel en dubbelklik op Updater.exe om het te wijzigen."
 
 msgid "settings.retry_save"
 msgstr "Opnieuw opslaan"
@@ -1140,23 +1434,239 @@ msgstr "EMBER / {0}"
 msgid "training.controls"
 msgstr "Trainingsbesturing"
 
-msgid "training.open_chip"
-msgstr "F6 Trainingsbesturing"
-
 msgid "training.hide_hint"
-msgstr "F5 HUD verbergen"
+msgstr "HUD verbergen"
+
+msgid "training.controls_chip"
+msgstr "Trainingsbesturing"
+
+msgid "training.pad_hint"
+msgstr "Tik: herstel, houd: opslaan"
+
+msgid "training.hint.reset"
+msgstr "Herstellen"
+
+msgid "training.hint.save"
+msgstr "Opslaan"
+
+msgid "training.save_recording"
+msgstr "Opname opslaan als"
+
+msgid "training.save_recording.detail"
+msgstr "Schrijft het gekozen slot naar een bestand met deze naam."
+
+msgid "training.load_recording"
+msgstr "Opname laden"
+
+msgid "training.load_recording.detail"
+msgstr "Links en Rechts kiezen een opgeslagen opname; Selecteren laadt hem in het gekozen slot."
+
+msgid "training.mirror"
+msgstr "Gekozen opname spiegelen"
+
+msgid "training.mirror.detail"
+msgstr "Wisselt links en rechts in dit slot, voor een opgeslagen opname die verkeerd om speelt."
+
+msgid "training.recording_saved"
+msgstr "Opname opgeslagen als {0}."
+
+msgid "training.recording_loaded"
+msgstr "Opname {0} geladen in slot {1}."
+
+msgid "training.recording_none"
+msgstr "Geen opgeslagen opnames."
 
 msgid "training.dummy_recording"
 msgstr "Dummyopname"
 
 msgid "training.dummy_recording.detail"
-msgstr "Neem P1-besturing op voor P2. Stel de dummy in het spel in op bediening door speler/controller."
+msgstr "Neem P1-besturing op voor P2 en speel die af. Geen spelinstelling nodig: Ember geeft de dummy tijdens opnemen of afspelen aan de P2-invoer."
 
 msgid "training.input_history"
 msgstr "Invoergeschiedenis"
 
 msgid "training.input_history.detail"
 msgstr "Bekijk de invoer van beide spelers."
+
+msgid "training.match.checkpoint_disabled"
+msgstr "Gedeeld opslaan en herstellen van de positie is niet beschikbaar in rollback-wedstrijden."
+
+msgid "training.match.end_hint"
+msgstr "Start of F10 opent Ember, waar Oefenen stoppen deze partij beëindigt."
+
+msgid "training.invalid"
+msgstr "Niet geaccepteerd: {0}"
+
+msgid "training.save_failed"
+msgstr "Het bestand kon niet worden opgeslagen."
+
+msgid "training.position.save"
+msgstr "Positie opslaan"
+
+msgid "training.position.save.detail"
+msgstr "Bewaart beide vechters zoals ze nu zijn: plek, leven, meters, dummy-toestand."
+
+msgid "training.position.reset"
+msgstr "Positie herstellen"
+
+msgid "training.position.reset.detail"
+msgstr "Zet beide vechters terug waar ze zijn opgeslagen."
+
+msgid "training.position.saved"
+msgstr "Positie opgeslagen."
+
+msgid "training.position.reset_done"
+msgstr "Positie hersteld."
+
+msgid "training.dummy.detail"
+msgstr "Links en Rechts veranderen het; het geldt meteen in de game."
+
+msgid "training.reply"
+msgstr "Dummy-antwoord"
+
+msgid "training.reply.detail"
+msgstr "Wat de dummy uit zichzelf doet zodra hij weer vrij is, om een gedropte combo of een onveilig einde af te straffen: hij speelt Antwoordmoves af, of het antwoordslot als die regel leeg is. Het wacht terwijl een replay of opname loopt."
+
+msgid "training.reply.hit"
+msgstr "Na een gedropte combo"
+
+msgid "training.reply.block"
+msgstr "Na het blokken"
+
+msgid "training.reply.rise"
+msgstr "Bij het opstaan"
+
+msgid "training.reply.any"
+msgstr "Telkens als hij herstelt"
+
+msgid "training.reply.slot"
+msgstr "Antwoordslot"
+
+msgid "training.reply.slot.detail"
+msgstr "De dummyopname die als antwoord wordt afgespeeld zolang Antwoordmoves leeg is, vanaf de eerste druk."
+
+msgid "training.reply.slot_empty"
+msgstr "Slot {0} is leeg, dus de dummy reageert niet. Neem het op of kies een actie."
+
+msgid "training.reply.chance"
+msgstr "Antwoordkans"
+
+msgid "training.reply.chance.detail"
+msgstr "Hoe vaak de dummy antwoordt. Onder 100% verschilt het van poging tot poging."
+
+msgid "training.reply.vary_stance"
+msgstr "Houding afwisselen"
+
+msgid "training.reply.vary_stance.detail"
+msgstr "Telkens als de dummy herstelt, staat of hurkt hij willekeurig, zodat je de combo op beide oefent. Alleen als de dummy op staan of hurken staat."
+
+msgid "training.reply.moves"
+msgstr "Antwoordmoves"
+
+msgid "training.reply.moves.detail"
+msgstr "Het antwoord getypt als moves in numpadnotatie, zoals 623HP of 44, gelezen voor de kant waar de dummy naar kijkt. Bewegingswoorden werken ook: qcf, qcb, dp, rdp, hcf en hcb, zoals qcfP of dp+HP. De beweging gaat erin terwijl de dummy nog vastzit, zodat de knop op zijn eerste vrije frame valt. [1] houdt een richting vast tot de volgende move, [1]20f houdt hem 20 frames vast en 10f wacht: [1] > 3HP blokt laag tot de dummy vrij is en drukt dan 3HP. Leeg gebruikt het antwoordslot."
+
+msgid "training.reply.move"
+msgstr "Antwoordvoorkeuze"
+
+msgid "training.reply.move.detail"
+msgstr "Links en rechts kiezen een gangbaar antwoord in numpadnotatie, gelezen voor de kant waar de dummy naar kijkt. Antwoordslot speelt de opname; Eigen houdt de getypte moves. Kiezen opent Antwoordmoves om er een te typen."
+
+msgid "training.reply.custom"
+msgstr "Eigen"
+
+msgid "training.reply.timing"
+msgstr "Antwoordtiming"
+
+msgid "training.reply.timing.detail"
+msgstr "Frames na het eerste vrije frame van de dummy waarop de knop van het antwoord valt. Hoe lang een stun duurt wordt de eerste keer geleerd; tot dan begint het antwoord als de stun eindigt."
+
+msgid "training.key.reset"
+msgstr "Toets herstellen"
+
+msgid "training.challenger"
+msgstr "Je wedstrijd staat klaar"
+
+msgid "training.key.detail"
+msgstr "Links en Rechts kiezen de toets die dit tijdens het gevecht doet. Uit laat het zonder toets."
+
+msgid "training.dummy.action"
+msgstr "Dummy"
+
+msgid "training.dummy.guard"
+msgstr "Blok"
+
+msgid "training.dummy.counter"
+msgstr "Counter hit"
+
+msgid "training.dummy.quick"
+msgstr "Snel opstaan"
+
+msgid "training.dummy.super"
+msgstr "Supermeter"
+
+msgid "training.dummy.revenge"
+msgstr "Revengemeter"
+
+msgid "training.dummy.stand"
+msgstr "Staan"
+
+msgid "training.dummy.crouch"
+msgstr "Hurken"
+
+msgid "training.dummy.jump"
+msgstr "Springen"
+
+msgid "training.dummy.cpu"
+msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "Mens"
+
+msgid "training.dummy.guard_none"
+msgstr "Niet blokken"
+
+msgid "training.dummy.guard_first"
+msgstr "Na de eerste treffer"
+
+msgid "training.dummy.guard_all"
+msgstr "Alles blokken"
+
+msgid "training.dummy.guard_random"
+msgstr "Willekeurig"
+
+msgid "training.dummy.counter_off"
+msgstr "Uit"
+
+msgid "training.dummy.counter_on"
+msgstr "Aan"
+
+msgid "training.dummy.counter_random"
+msgstr "Willekeurig"
+
+msgid "training.dummy.quick_quick"
+msgstr "Snel"
+
+msgid "training.dummy.quick_normal"
+msgstr "Normaal"
+
+msgid "training.dummy.quick_delayed"
+msgstr "Vertraagd"
+
+msgid "training.dummy.quick_random"
+msgstr "Willekeurig"
+
+msgid "training.dummy.gauge_normal"
+msgstr "Normaal"
+
+msgid "training.dummy.gauge_max"
+msgstr "Vol bij start"
+
+msgid "training.dummy.gauge_infinite"
+msgstr "Oneindig"
+
+msgid "training.dummy.gauge_refill"
+msgstr "Bijvullen"
 
 msgid "training.close_controls"
 msgstr "Trainingsbesturing sluiten"
@@ -1186,7 +1696,10 @@ msgid "training.play"
 msgstr "Afspelen"
 
 msgid "training.play.detail"
-msgstr "Speel het gekozen slot af en ga terug naar training. Richtingen zijn absoluut, niet gespiegeld."
+msgstr "Speel het gekozen slot af en ga terug naar training. Opnames volgen de kant waar de dummy naar kijkt. Links en Rechts kiezen of het herhaalt."
+
+msgid "training.play.once"
+msgstr "Eén keer"
 
 msgid "training.slot_empty"
 msgstr "Dit slot is leeg."
@@ -1199,9 +1712,6 @@ msgstr "Stop opname of afspelen."
 
 msgid "training.loop"
 msgstr "Herhalen"
-
-msgid "training.loop.detail"
-msgstr "Herhaal de gekozen opname."
 
 msgid "training.clear_recording"
 msgstr "Gekozen opname wissen"
@@ -1231,7 +1741,7 @@ msgid "training.recording_suspended"
 msgstr "Opname gepauzeerd zolang de besturing open is"
 
 msgid "training.playback_suspended"
-msgstr "Afspelen gepauzeerd zolang de besturing open is"
+msgstr "Afspelen loopt; opnemen wacht tot de besturing dicht is"
 
 msgid "training.applying"
 msgstr "Opdracht uitvoeren..."
@@ -1245,14 +1755,95 @@ msgstr "TRAININGSLAB"
 msgid "training.command_rejected"
 msgstr "De trainingsopdracht is geweigerd. Controleer de status en probeer opnieuw."
 
-msgid "training.start_frames"
-msgstr "Start {0} f"
-
-msgid "training.start_unknown"
-msgstr "Start --"
-
 msgid "training.startup"
 msgstr "Aanloop"
+
+msgid "training.meter.active"
+msgstr "Actief"
+
+msgid "training.meter.recovery"
+msgstr "Herstel"
+
+msgid "training.meter.hit"
+msgstr "Hit"
+
+msgid "training.meter.block"
+msgstr "Block"
+
+msgid "training.meter.whiff"
+msgstr "Mis"
+
+msgid "training.meter.knockdown"
+msgstr "Knockdown"
+
+msgid "training.meter.meaty"
+msgstr "Meaty"
+
+msgid "training.meter.throw"
+msgstr "Worp / filmpje"
+
+msgid "training.meter.attack"
+msgstr "Aanval"
+
+msgid "training.meter.move"
+msgstr "Beweging"
+
+msgid "training.meter.attack_unsplit"
+msgstr "Aanval, niet gesplitst"
+
+msgid "training.meter.style"
+msgstr "Meterstijl"
+
+msgid "training.meter.style.detail"
+msgstr "Schuin kleurt een aanval naar aanloop, actief en herstel en zet de lengte van elk stuk erop. Vlak tekent de hele aanval in één kleur."
+
+msgid "training.meter.style.angled"
+msgstr "Schuin"
+
+msgid "training.meter.style.flat"
+msgstr "Vlak"
+
+msgid "training.meter.frames_shown"
+msgstr "Getoonde frames"
+
+msgid "training.meter.frames_shown.detail"
+msgstr "Hoeveel frames de balken op dezelfde breedte tonen. Minder maakt elk frame breder en makkelijker te tellen; 120 toont de hele geschiedenis. Als de meter stilstaat, scrolt het muiswiel boven de balken terug."
+
+msgid "training.meter.hud_recovery"
+msgstr "Herstel op de HUD"
+
+msgid "training.meter.hud_recovery.detail"
+msgstr "Toont het herstel van de laatste move van elke vechter naast de start op de meter."
+
+msgid "training.meter.hud_numbers"
+msgstr "Getallen op de HUD"
+
+msgid "training.meter.hud_bars"
+msgstr "Balken op de HUD"
+
+msgid "training.meter.hud_state"
+msgstr "Status op de HUD"
+
+msgid "training.meter.hud_shortcuts"
+msgstr "Sneltoetsen op de HUD"
+
+msgid "training.meter.hud_status"
+msgstr "Opname op de HUD"
+
+msgid "training.meter.hud_part.detail"
+msgstr "Toont dit onderdeel van de trainings-HUD tijdens het gevecht. F5 verbergt de hele HUD."
+
+msgid "training.meter.hud_size"
+msgstr "HUD-grootte"
+
+msgid "training.meter.hud_size.detail"
+msgstr "Stelt de grootte van de tekst en balken van de trainings-HUD in. Interfacegrootte maakt hem ook groter."
+
+msgid "training.recovery_frames"
+msgstr "Herst. {0} f"
+
+msgid "training.recovery_unknown"
+msgstr "Herst. --"
 
 msgid "training.neutral"
 msgstr "Neutraal"
@@ -1296,6 +1887,9 @@ msgstr "live"
 msgid "training.advantage"
 msgstr "Voordeel"
 
+msgid "training.last_advantage"
+msgstr "Laatste voordeel"
+
 msgid "selection.preview_unavailable"
 msgstr "Voorbeeld\nniet beschikbaar"
 
@@ -1325,6 +1919,9 @@ msgstr "Alternatief {0}"
 
 msgid "selection.alternate_pack"
 msgstr "Alternatief {0} / {1}"
+
+msgid "selection.custom"
+msgstr "Aangepast {0}"
 
 msgid "selection.stage_count"
 msgstr "{0} LEVELS / USFIV"
@@ -1412,6 +2009,12 @@ msgstr "Wachten op beschikbare outfits en kleuren uit het spel."
 
 msgid "selection.no_colors"
 msgstr "Geen kleuren vrij voor deze outfit."
+
+msgid "selection.not_owned"
+msgstr "Niet in je bezit op Steam."
+
+msgid "selection.not_owned_badge"
+msgstr "NIET IN BEZIT"
 
 msgid "selection.color"
 msgstr "Kleur {0}"
@@ -1553,11 +2156,17 @@ msgstr "Wachten tot tegenstander de lobby betreedt..."
 msgid "runtime.authorized_connection_unavailable"
 msgstr "De toegestane matchverbinding is niet beschikbaar."
 
+msgid "runtime.input_lag_unavailable"
+msgstr "Deze pc kon de invoertiming van het spel niet instellen zoals deze wedstrijd vraagt (Minder invoervertraging), dus de wedstrijd is gestopt. Het spel opnieuw starten zou het moeten oplossen."
+
 msgid "runtime.waiting_opponent_start"
 msgstr "Wachten op tegenstander in de lobby voordat de match kan beginnen."
 
 msgid "runtime.unsupported_stage"
 msgstr "De kamer gaf een niet-ondersteund level door. Stel de lobby opnieuw in en probeer het opnieuw."
+
+msgid "runtime.unsupported_match"
+msgstr "De kamer gaf niet-ondersteunde vechters of wedstrijdinstellingen door. Stel de lobby opnieuw in en probeer het opnieuw."
 
 msgid "runtime.netplay_input_failed"
 msgstr "Netplay-invoer mislukt. De match is afgelopen."
@@ -1604,6 +2213,9 @@ msgstr "Terug naar de kamer."
 msgid "runtime.table_game_cancelled"
 msgstr "Partij geannuleerd. Ga terug naar de kamer en meld je weer klaar."
 
+msgid "runtime.practice_ended"
+msgstr "Oefenen gestopt. Ga terug naar de kamer en meld je weer klaar."
+
 msgid "runtime.result_not_recorded"
 msgstr "De uitslag kon niet worden vastgelegd: de tafel veranderde voor bevestiging."
 
@@ -1613,8 +2225,6 @@ msgstr "Matchdeelnemer verliet de kamer. De partij eindigt."
 msgid "update.github_unreachable"
 msgstr "GitHub is niet bereikbaar. Controleer je internetverbinding en probeer opnieuw."
 
-msgid "update.no_version_tag"
-msgstr "De GitHub-release heeft geen versietag."
 
 msgid "update.no_zip_asset"
 msgstr "Nieuwste release mist een SF4 Ember Netplay-ZIP."
@@ -1627,6 +2237,9 @@ msgstr "Download-URL ontbreekt."
 
 msgid "update.missing_version"
 msgstr "Versietag ontbreekt."
+
+msgid "update.not_offered"
+msgstr "Deze versie is niet de aangeboden versie. Controleer opnieuw op updates."
 
 msgid "update.close_sf4"
 msgstr "Sluit Ultra Street Fighter IV voor je een update installeert."
@@ -1687,6 +2300,39 @@ msgstr "Sluit het spel voordat je de update installeert."
 msgid "update.updater_start_failed"
 msgstr "Kon Updater.exe niet starten. Installeer opnieuw vanaf een verse ZIP."
 
+msgid "update.stage.preparing"
+msgstr "Pakket controleren..."
+
+msgid "update.stage.comparing"
+msgstr "Bestanden vergelijken..."
+
+msgid "update.stage.backing_up"
+msgstr "Te vervangen bestanden back-uppen..."
+
+msgid "update.stage.replacing"
+msgstr "Bestanden vervangen..."
+
+msgid "update.stage.confirming"
+msgstr "Geïnstalleerde bestanden controleren..."
+
+msgid "update.notice.waiting_launcher"
+msgstr "Wachten tot SF4 Ember Netplay is gesloten..."
+
+msgid "update.notice.waiting_file"
+msgstr "Wachten tot een ander programma {0} vrijgeeft..."
+
+msgid "update.notice.restoring"
+msgstr "Vorige bestanden terugzetten..."
+
+msgid "update.notice.elapsed"
+msgstr "{0} verstreken"
+
+msgid "update.notice.reopens"
+msgstr "SF4 Ember Netplay opent weer zodra dit klaar is."
+
+msgid "update.notice.recovering"
+msgstr "Onderbroken update afronden..."
+
 msgid "room.member_left"
 msgstr "Lid vertrokken"
 
@@ -1719,6 +2365,9 @@ msgstr "{0} min inactief"
 
 msgid "room.idle_hours"
 msgstr "{0} u {1} min inactief"
+
+msgid "room.in_training"
+msgstr "In Training"
 
 msgid "room.phase.waiting"
 msgstr "Wachten op spelers"
@@ -2014,6 +2663,15 @@ msgstr "Wachten op de terugkeer van vastgelegde kijkers. Begint over {0} s."
 msgid "room.hold.waiting_you"
 msgstr "Match wacht op je: {0} s"
 
+msgid "room.ready_timeout.you"
+msgstr "Wees binnen {0} s klaar, anders verlaat je de stoel"
+
+msgid "room.ready_timeout.other"
+msgstr "{1} heeft nog {0} s om klaar te zijn"
+
+msgid "chat.event.ready_timeout"
+msgstr "{0} heeft tafel {1} verlaten: niet op tijd klaar"
+
 msgid "room.hold.status"
 msgstr "Wachten op kijkers: {0} s"
 
@@ -2045,7 +2703,7 @@ msgid "room.ready_up"
 msgstr "Klaar melden"
 
 msgid "room.selected_delay.detail"
-msgstr "Stel in van 1 tot 10 frames, of ga onder 1 voor Auto. Wijzigingen gelden meteen."
+msgstr "Stel in van 0 tot 10 frames, of ga onder 0 voor Auto. 0 voegt geen vertraging toe en vraagt een stabiele, lage ping."
 
 msgid "room.selected_delay.locked"
 msgstr "De gekozen vertraging staat vast voor deze match."
@@ -2131,6 +2789,12 @@ msgstr "Onbesliste partij opgeven"
 
 msgid "room.abandon_result.detail"
 msgstr "Geen uitslag. Beide spelers blijven zitten en kunnen zich weer klaar melden."
+
+msgid "room.end_practice"
+msgstr "Oefenen stoppen"
+
+msgid "room.end_practice.detail"
+msgstr "Beëindigt deze oefenwedstrijd nu voor beide spelers. Geen uitslag. Beide spelers blijven zitten en kunnen zich weer klaar melden."
 
 msgid "room.leave_queue"
 msgstr "Wachtrij verlaten"
@@ -2323,6 +2987,9 @@ msgstr "Tekst bewerken"
 
 msgid "edit.instructions"
 msgstr "Typ of plak met het toetsenbord. Enter of Kiezen op de controller bevestigt; Escape of controllerknop Terug annuleert."
+
+msgid "edit.instructions_multiline"
+msgstr "Typ of plak met het toetsenbord. Enter of Enter op het numerieke toetsenblok voegt een nieuwe regel toe. Ctrl+Enter, Ctrl+Enter op het numerieke toetsenblok, de knop Accepteren of Selecteren op de controller bevestigt; Escape of Terug op de controller annuleert."
 
 msgid "edit.updating"
 msgstr "Kamer wordt bijgewerkt. Je concept blijft bewaard; je kunt verder typen of annuleren."
@@ -3575,3 +4242,399 @@ msgstr "Kon de kamer niet in. Misschien is hij net gesloten. Vernieuw en kies ee
 
 msgid "legend.refresh"
 msgstr "Vernieuwen"
+
+msgid "training.frame_data"
+msgstr "Framegegevens"
+
+msgid "training.frame_data.detail"
+msgstr "Bekijk de laatste aanval van elke speler, het framevoordeel en de timing van een meaty."
+
+msgid "training.hud"
+msgstr "HUD"
+
+msgid "training.hud.detail"
+msgstr "Zet onderdelen van de HUD tijdens het gevecht aan of uit."
+
+msgid "training.color_key"
+msgstr "Kleurenlegenda"
+
+msgid "training.dummy"
+msgstr "Trainingspop"
+
+msgid "training.position"
+msgstr "Positie"
+
+msgid "training.start_frames"
+msgstr "Start {0} f"
+
+msgid "training.start_unknown"
+msgstr "Start --"
+
+msgid "settings.training_replays"
+msgstr "Training en replays"
+
+msgid "settings.training_replays_detail"
+msgstr "De framemeter in wedstrijden, automatisch gereed na Training en welke wedstrijden worden opgeslagen."
+
+msgid "settings.training_replays_title"
+msgstr "TRAINING EN REPLAYS"
+
+msgid "room.table_footer_practice"
+msgstr "Oefenwedstrijd"
+
+msgid "room.rules_summary_practice"
+msgstr "Oefenwedstrijd, {0} rondes, {1} s, Edition Select {2}"
+
+msgid "room.practice"
+msgstr "Oefenkamer"
+
+msgid "room.practice.detail"
+msgstr "Elk spel in de kamer is een oefenwedstrijd: gezondheid en meters vullen zich aan, niemand gaat knock-out en de rondetijd is {0}. Dat blijft zo zolang de kamer open is. Sluit de kamer en maak een nieuwe om normale wedstrijden te spelen."
+
+msgid "room.practice_status"
+msgstr "Oefenkamer / alleen op uitnodiging"
+
+msgid "room.practice_locked_status"
+msgstr "Oefenkamer op slot / op uitnodiging"
+
+msgid "inputs.presses_value"
+msgstr "{0} knopdrukken"
+
+msgid "replays.watch_meter"
+msgstr "Bekijken met framemeter"
+
+msgid "replays.watch_meter_detail"
+msgstr "Speelt de replay af vanuit het Battle Log met de framemeter over het gevecht."
+
+msgid "replays.controls.play"
+msgstr "Afspelen"
+
+msgid "replays.controls.pause"
+msgstr "Pauze"
+
+msgid "replays.controls.paused"
+msgstr "Gepauzeerd"
+
+msgid "replays.controls.step"
+msgstr "Stap"
+
+msgid "replays.controls.speed"
+msgstr "Snelheid"
+
+msgid "replays.controls.speed_full"
+msgstr "1x"
+
+msgid "replays.controls.speed_half"
+msgstr "1/2x"
+
+msgid "replays.controls.speed_quarter"
+msgstr "1/4x"
+
+msgid "replays.controls.inputs"
+msgstr "Invoer"
+
+msgid "replays.controls.meter"
+msgstr "Meter"
+
+msgid "replays.controls.round"
+msgstr "Ronde {0}"
+
+msgid "replays.controls.frame"
+msgstr "Frame {0}"
+
+msgid "replays.controls.unavailable"
+msgstr "Bediening werkt tijdens het gevecht"
+
+msgid "room.training"
+msgstr "Wachten in Training"
+
+msgid "replays.export_gpu"
+msgstr "Video exporteren (GPU)"
+
+msgid "replays.export_gpu_detail"
+msgstr "Neemt hem op als .mp4 op de volledige beeldgrootte van het spel, gecodeerd door je grafische kaart."
+
+msgid "replays.video"
+msgstr "Video"
+
+msgid "export.title"
+msgstr "Video exporteren"
+
+msgid "export.detail"
+msgstr "Wordt tijdens het opnemen over het spel getoond, op het scherm en in de video."
+
+msgid "export.names"
+msgstr "Spelersnamen"
+
+msgid "export.name"
+msgstr "Speler {0}"
+
+msgid "export.line"
+msgstr "Matchregel"
+
+msgid "export.line_text"
+msgstr "Tekst van de matchregel"
+
+msgid "export.set"
+msgstr "Setstand"
+
+msgid "export.set_detail"
+msgstr "De overwinningen van elke speler in de set tot nu toe, naast de naam. Geteld uit de matches die deze twee vlak hiervoor speelden; pas hem aan als hij niet klopt."
+
+msgid "export.set_wins"
+msgstr "Overwinningen speler {0}"
+
+msgid "export.mark"
+msgstr "Ember-merk"
+
+msgid "export.generate"
+msgstr "Video maken"
+
+msgid "export.meter"
+msgstr "Framemeter"
+
+msgid "export.meter_detail"
+msgstr "Toont de framemeter uit de training over het gevecht, op het scherm en in de video."
+
+msgid "export.generate_detail"
+msgstr "Speelt de replay af en neemt hem op als .mp4 ernaast. Tijdens het opnemen opent F10 Ember om het te volgen of te annuleren."
+
+msgid "export.running"
+msgstr "Video wordt geëxporteerd"
+
+msgid "export.running_detail"
+msgstr "De replay wordt opgenomen terwijl hij speelt. Zolang dit menu open is, ontbreken het bijschrift en de framemeter in de video."
+
+msgid "export.starting"
+msgstr "Bezig met starten..."
+
+msgid "export.finishing"
+msgstr "Video wordt afgerond..."
+
+msgid "export.cancelling"
+msgstr "Bezig met annuleren..."
+
+msgid "export.progress"
+msgstr "{0} / {1}"
+
+msgid "export.cancel"
+msgstr "Export annuleren"
+
+msgid "export.cancel_detail"
+msgstr "Stopt de opname en verwijdert de onvoltooide video. De replay speelt door tot het einde."
+
+msgid "export.cancelled"
+msgstr "Export geannuleerd. Er is geen video opgeslagen."
+
+msgid "training.result"
+msgstr "Resultaat"
+
+msgid "training.room.table"
+msgstr "Tafel {0}"
+
+msgid "training.room.waiting"
+msgstr "Wacht op een tegenstander"
+
+msgid "training.room.opponent"
+msgstr "Tegenstander: {0}"
+
+msgid "training.room.queued"
+msgstr "Wachtrij: {0} van {1}"
+
+msgid "training.room.not_queued"
+msgstr "Niet in de wachtrij"
+
+msgid "training.room.unread"
+msgstr "{0} ongelezen"
+
+msgid "room.training_call.calling"
+msgstr "{0} wordt teruggeroepen uit Training"
+
+msgid "training.go_now"
+msgstr "Nu gaan"
+
+msgid "reports.setting"
+msgstr "Probleemrapporten versturen"
+
+msgid "reports.setting_detail"
+msgstr "Aan: na een crash verstuurt de launcher het rapport zonder te vragen, hoogstens {0} per dag en nooit met de crashdump. Uit: hij vraagt het eerst."
+
+msgid "reports.problem"
+msgstr "Probleem melden"
+
+msgid "reports.problem_detail"
+msgstr "Bekijk logs zonder privégegevens en rapportdetails voordat je kiest of ze naar Ember gaan."
+
+msgid "reports.title"
+msgstr "Rapportvoorbeeld"
+
+msgid "reports.preparing"
+msgstr "Rapportvoorbeeld wordt voorbereid..."
+
+msgid "reports.preview_detail"
+msgstr "Bekijk elk onderdeel voor het versturen. Rapporten gaan naar embernetplay.link. Ruwe dumps blijven maximaal 30 dagen bewaard; verwerkte rapporten hebben een aparte bewaartermijn."
+
+msgid "reports.sending"
+msgstr "Je rapport wordt verstuurd..."
+
+msgid "reports.bytes"
+msgstr "{0} bytes"
+
+msgid "reports.metadata"
+msgstr "Rapportdetails"
+
+msgid "reports.dump"
+msgstr "Kleine dump"
+
+msgid "reports.dump_detail"
+msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+
+msgid "reports.comment"
+msgstr "Opmerking"
+
+msgid "reports.comment_required"
+msgstr "Beschrijf het probleem voor het versturen (maximaal 2000 tekens). Je opmerking wordt verstuurd zoals je hem schrijft."
+
+msgid "reports.comment_optional"
+msgstr "Optioneel: beschrijf wat er gebeurde (maximaal 2000 tekens). Je opmerking wordt verstuurd zoals je hem schrijft."
+
+msgid "reports.send"
+msgstr "Versturen"
+
+msgid "reports.dont_send"
+msgstr "Niet versturen"
+
+msgid "reports.consent"
+msgstr "Precies de onderdelen uit dit voorbeeld naar Ember versturen, inclusief je opmerking en de kleine dump als die aan staat?"
+
+msgid "reports.copy_id"
+msgstr "Rapport-ID kopiëren"
+
+msgid "reports.close_detail"
+msgstr "Sluit dit voorbeeld. Een upload die de server al heeft geaccepteerd, kun je hier niet intrekken."
+
+msgid "reports.sent"
+msgstr "Rapport geaccepteerd. Rapport-ID: {0}"
+
+msgid "reports.invalid"
+msgstr "Dit rapport is ongeldig of te groot. Controleer de opmerking en maak een nieuw voorbeeld."
+
+msgid "reports.invalid_response"
+msgstr "Het serverantwoord bevatte geen geldig rapport-ID. Mogelijk heeft de server je rapport al geaccepteerd."
+
+msgid "reports.rate_limited"
+msgstr "Te veel rapporten. Probeer opnieuw over {0} seconden."
+
+msgid "reports.unavailable"
+msgstr "Rapporteren is tijdelijk niet beschikbaar. Probeer het later opnieuw."
+
+msgid "reports.failed"
+msgstr "Rapport kon niet worden verstuurd. Controleer je verbinding en probeer opnieuw."
+
+msgid "reports.cancelled"
+msgstr "Uploaden geannuleerd. Een rapport dat de server al heeft geaccepteerd, kan toch bewaard blijven."
+
+msgid "reports.dump_warning"
+msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+
+msgid "launcher.game_crashed_files"
+msgstr "Het spel is gecrasht. Stuur de bestanden uit %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log en sf4e-crash-*.dmp) naar het SF4 Ember Netplay-team en probeer opnieuw."
+
+msgid "launcher.game_crashed_sending"
+msgstr "Het spel is gecrasht. Probleemrapporten versturen staat aan, dus er wordt een rapport zonder crashdump verstuurd. De bestanden staan ook in %APPDATA%\\sf4e\\logs."
+
+msgid "reports.settings_title"
+msgstr "Probleemrapporten"
+
+msgid "reports.settings_detail"
+msgstr "Wat een crashrapport bevat, en de verzonden rapporten."
+
+msgid "reports.sent_list"
+msgstr "Verzonden rapporten"
+
+msgid "reports.sent_list_detail"
+msgstr "Elk rapport dat deze pc verstuurde: wanneer, hoe het ging en de rapport-ID."
+
+msgid "reports.none"
+msgstr "Nog geen rapporten"
+
+msgid "reports.none_detail"
+msgstr "Rapporten die deze pc verstuurt, staan hier."
+
+msgid "reports.send_once"
+msgstr "Dit rapport versturen"
+
+msgid "reports.send_always"
+msgstr "Altijd versturen"
+
+msgid "reports.send_always_detail"
+msgstr "Verstuurt dit rapport en vanaf nu het rapport van elke volgende crash zonder te vragen. Rapporten die zonder vragen worden verstuurd, bevatten nooit een dump. Hoogstens {0} gaan er in 24 uur zonder vragen weg, en elk verstuurd rapport telt mee. Zet het uit in Instellingen, Probleemrapporten."
+
+msgid "reports.dump_included"
+msgstr "Crashdump: inbegrepen."
+
+msgid "reports.dump_not_included"
+msgstr "Crashdump: niet inbegrepen."
+
+msgid "reports.row"
+msgstr "Probleemrapport"
+
+msgid "reports.status.sending"
+msgstr "Versturen"
+
+msgid "reports.status.received"
+msgstr "Ontvangen"
+
+msgid "reports.status.refused"
+msgstr "Niet geaccepteerd"
+
+msgid "reports.status.not_sent"
+msgstr "Niet verstuurd"
+
+msgid "reports.received"
+msgstr "Het rapport is ontvangen."
+
+msgid "reports.received_id"
+msgstr "Het rapport is ontvangen. De ID is {0}. Noem die als je het Ember-team over deze crash vraagt."
+
+msgid "reports.refused"
+msgstr "De rapportdienst heeft het rapport niet geaccepteerd. Het wordt niet opnieuw verstuurd."
+
+msgid "reports.not_sent"
+msgstr "Het rapport kon niet worden verstuurd. Het wordt niet opnieuw verstuurd."
+
+msgid "reports.what_is_sent"
+msgstr "Uitnodigingen, tokens, netwerkadressen, e-mail en je Windows-gebruikersnaam, profielmap, pc-naam en spelersnaam worden uit de logs gehaald.\n\nEen rapport dat je zelf verstuurt, zie je eerst helemaal; de kleine dump gaat alleen mee als je die in dat voorbeeld aanzet. Rapporten die zonder vragen worden verstuurd, bevatten nooit een dump.\n\nNooit verstuurd: je andere bestanden, je replays of de volledige crashdumps."
+
+msgid "reports.send_once_detail"
+msgstr "Opent een voorbeeld van precies wat dit rapport bevat. Er wordt niets verstuurd tot je Versturen kiest."
+
+msgid "reports.crash_report"
+msgstr "Crashrapport"
+
+msgid "reports.payload"
+msgstr "Rapporten gaan naar embernetplay.link. Elk bevat de Ember-versie en build, de Windows-versie, de crashgegevens en het einde van sf4e.log, launcher.log, sf4e-crash.log en sf4-net.log, zonder privégegevens."
+
+msgid "reports.status.unknown"
+msgstr "Onbekend"
+
+msgid "reports.interrupted"
+msgstr "Het versturen is onderbroken voordat er antwoord kwam. De rapportdienst heeft het rapport mogelijk ontvangen."
+
+msgid "reports.identity_failed"
+msgstr "Je spelersnaam of Windows-account kon niet worden gelezen, dus het rapport is niet voorbereid. Probeer opnieuw."
+
+msgid "reports.history_failed"
+msgstr "Het overzicht van verzonden rapporten is niet opgeslagen, dus het rapport is niet verstuurd. Probeer opnieuw."
+
+msgid "reports.history_unreadable"
+msgstr "Overzicht onleesbaar"
+
+msgid "reports.history_unreadable_detail"
+msgstr "sent-reports.json in %APPDATA%\\sf4e is onleesbaar, dus er gaat geen rapport zonder vragen weg. Verwijder het bestand voor een nieuw overzicht."
+
+msgid "reports.always_failed"
+msgstr "Altijd versturen kon niet worden aangezet, dus dit rapport is niet verstuurd. Kies Dit rapport versturen om het vanuit het voorbeeld te versturen."
+
+msgid "reports.automatic_unavailable"
+msgstr "De automatische rapporten van vandaag zijn op, of het overzicht van verzonden rapporten is onleesbaar, dus dit rapport is niet verstuurd. Kies Dit rapport versturen om het vanuit het voorbeeld te versturen."

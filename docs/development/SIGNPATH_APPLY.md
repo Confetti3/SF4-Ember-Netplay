@@ -34,7 +34,7 @@ git tag v0.6.5
 git push origin v0.6.5
 ```
 
-Workflow [`.github/workflows/release-windows.yml`](../../.github/workflows/release-windows.yml) builds, signs via SignPath (when secrets are set), verifies Authenticode, and packages the zip.
+Workflow [`.github/workflows/release-windows.yml`](https://github.com/Confetti3/SF4-Ember-Netplay/blob/v0.6.5/.github/workflows/release-windows.yml) builds, signs via SignPath (when secrets are set), verifies Authenticode, and packages the zip.
 
 ## 5. Publish and promote
 

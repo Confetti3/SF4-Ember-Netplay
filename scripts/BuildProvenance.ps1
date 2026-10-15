@@ -1,7 +1,9 @@
 $ErrorActionPreference = 'Stop'
 function Get-SourceFingerprint([string]$SourceRoot) {
-    $paths = @(& git -C $SourceRoot ls-files --cached --others --exclude-standard) | Sort-Object -Unique
+    $paths = [string[]]@(& git -C $SourceRoot ls-files --cached --others --exclude-standard)
     if ($LASTEXITCODE) { throw 'Source inventory failed' }
+    # Fingerprints serialize paths in ordinal order, with exact duplicate removal.
+    $paths = [Collections.Generic.SortedSet[string]]::new($paths, [StringComparer]::Ordinal)
     $lines = foreach ($relative in $paths) {
         $path = Join-Path $SourceRoot $relative
         if (Test-Path -LiteralPath $path -PathType Leaf) { "$relative $((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash)" }

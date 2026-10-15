@@ -6,7 +6,11 @@
 #include "../ui/MenuPresentation.hxx"
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../common/MenuInputCapture.hxx"
+#include "../common/TrainingPad.hxx"
+#include "../common/TrainingCallInput.hxx"
+#include "../training/TrainingSession.hxx"
 #include "../netplay/ProfileRecordJson.hxx"
+#include "../netplay/PublishCadence.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 #include "imgui_test_support.hxx"
 #include <imgui.h>
@@ -160,8 +164,20 @@ void NativeCapture() {
  for(unsigned i=0;i<sizeof(caches);++i){const bool input=(i>=0x18&&i<0x2c)||(i>=0x68&&i<0x7c);
   Check(caches[i]==(input?0:0x5a),"Native suppression corrupted assignment or missed an input cache");}
  using sf4e::input::MenuContext;using sf4e::input::ControllerMenuAvailable;
- Check(ControllerMenuAvailable(MenuContext::MainMenu)&&!ControllerMenuAvailable(MenuContext::OfflineTraining)&&
-  !ControllerMenuAvailable(MenuContext::Unavailable),"Controller navigation escaped the main-menu context");
+ // The pad drives the main menu, the training controls and a menu opened over an export, nothing else.
+ Check(ControllerMenuAvailable(MenuContext::MainMenu)&&ControllerMenuAvailable(MenuContext::OfflineTraining)&&
+  ControllerMenuAvailable(MenuContext::ReplayExport)&&!ControllerMenuAvailable(MenuContext::Unavailable),"Controller navigation escaped its contexts");
+ // During an export the pad drives a menu F10 opened, but Start stays the game's pause.
+ Check(!sf4e::input::ControllerOpensMenu(MenuContext::ReplayExport)&&
+  sf4e::input::ControllerOpensMenu(MenuContext::MainMenu)&&!sf4e::input::ControllerOpensMenu(MenuContext::OfflineTraining),"Start opened Ember over an export");
+ // Over a Practice match this PC fights, Start opens Ember and the pad drives it;
+ // the fight keeps the menu away from every other context.
+ Check(ControllerMenuAvailable(MenuContext::PracticeMatch)&&sf4e::input::ControllerOpensMenu(MenuContext::PracticeMatch)&&
+  sf4e::input::MenuShownIn(MenuContext::PracticeMatch)&&!sf4e::input::MenuShownIn(MenuContext::OfflineTraining),"Start could not open Ember over a Practice match");
+ for(const auto context:{MenuContext::Unavailable,MenuContext::MainMenu,MenuContext::OfflineTraining,MenuContext::ReplayExport,MenuContext::PracticeMatch}){
+  Check(sf4e::input::FightKeepsMenuAway(true,context)==(context!=MenuContext::PracticeMatch)&&!sf4e::input::FightKeepsMenuAway(false,context),
+   "A fight kept the menu away where it is shown over the fight, or let it in elsewhere");
+ }
  sf4e::input::MenuInputCapture capture;
  Check(!capture.Update(false,16),"Native input suppressed while overlay hidden");
  Check(capture.Update(true,16)&&capture.Update(true,0),"Open overlay not suppressing native input");
@@ -176,6 +192,433 @@ void NativeCapture() {
  device.buttons=0;adapter.Update(device,true,true,true);device.buttons=32;
  adapter.Update(device,true,true,true);adapter.Update(device,true,false,true);Check(adapter.MenuGuard(),"Main-menu suppression not drained");
  device.buttons=0;adapter.Update(device,true,false,true);Check(!adapter.MenuGuard(),"Main menu never released");
+ // The overlay enables the adapter whatever the window's focus (only a device
+ // being assigned stops it): behind another window Start opens the hidden
+ // menu and the shown menu takes presses, with no refocus between.
+ ControllerNavigation behind;ControllerSample pad{0,0,true,0};
+ behind.Update(pad,true,false,true);behind.Update(pad,true,false,true);
+ pad.buttons=ControllerSample::Menu;behind.Update(pad,true,false,true);
+ Check(behind.OpenRequested(),"Start did not open the menu behind another window");
+ pad.buttons=0;behind.Update(pad,true,true,true);
+ pad.buttons=ControllerSample::Down;behind.Update(pad,true,true,true);
+ Check(behind.Buttons()==ControllerSample::Down&&behind.FocusRequested(),"The shown menu ignored the pad behind another window");
+}
+// The menu reads the pad from the runtime's published snapshot, published as
+// netplay::PublishCadence says. Over a Practice fight the pad drives Ember's
+// menu, so every tick is published: a Select or a Back pressed and released
+// between two otherwise scheduled publications reaches the menu, once each,
+// for no longer than it was held. A fight without menu navigation stays
+// throttled, its fingerprint unchanged.
+void PracticeFightPresses(){
+ using sf4e::input::MenuContext;
+ // The first two ticks find the pad and arm the menu. Each press lasts one
+ // tick and none falls on a backstop tick (0, 6, 12).
+ const std::uint32_t ticks[]={0,0,Button::Confirm,0,Button::Back,0,0,0,Button::Confirm,0,Button::Back,0,0};
+ constexpr unsigned count=sizeof(ticks)/sizeof(ticks[0]);
+ for(const auto context:{MenuContext::PracticeMatch,MenuContext::Unavailable}){
+  const bool navigable=sf4e::input::ControllerMenuAvailable(context);
+  sf4e::netplay::PublishCadence cadence;ControllerNavigation nav;
+  ControllerSample published;published.deviceType=sf4e::input::PadXInput;published.deviceIndex=0;published.connected=true;
+  unsigned publications=0,selects=0,selectTicks=0,backs=0;std::uint32_t previous=0;
+  for(const auto buttons:ticks){
+   if(cadence.Due(navigable,[]{return std::uint64_t{7};})){++publications;published.buttons=buttons;}
+   nav.Update(published,navigable,true,true);
+   const auto out=nav.Buttons();
+   if(out&Button::Confirm){++selectTicks;if(!(previous&Button::Confirm))++selects;}
+   if(nav.BackRequested())++backs;
+   previous=out;
+  }
+  if(navigable)Check(publications==count&&selects==2&&selectTicks==2&&backs==2,
+   "A press between scheduled publications was lost or held over a Practice fight");
+  else Check(publications==3,"A fight without menu navigation was no longer throttled");
+ }
+}
+// The pad in offline Training: Back tapped resets, held saves, and Start
+// pressed while Back is held opens the controls or closes them. None of the
+// three clashes with another: the chord never resets or saves, a hold saves
+// once, and the game's pause (Start first) never opens or resets.
+void TrainingPadChord(){
+ using namespace sf4e::input;
+ TrainingPadGesture pad;double now=0;
+ const auto step=[&](unsigned physical,bool open=false,double seconds=1.0/60){now+=seconds;return pad.Update(physical,open,now);};
+ const unsigned back=PhysicalBack,start=PhysicalStart,both=back|start;
+ auto e=step(back);Check(e.down&&!e.reset&&!e.save&&!e.open&&!e.close,"Back did not mark where the fighters stand");
+ Check(!step(back,false,.2).Any(),"A short hold did more than wait");
+ e=step(0);Check(e.reset&&!e.save&&!e.down,"A tap of Back did not reset");
+ // Tap or hold is the time Back was down, also when the release is the
+ // first sample past half a second (a stalled poll): that is a save.
+ step(back);Check(!step(back,false,.49).Any(),"Back did more than wait under half a second");
+ e=step(0,false,.02);Check(e.save&&!e.reset,"A release past half a second reset instead of saving");
+ step(back);e=step(0,false,.6);Check(e.save&&!e.reset,"A release that was the first sample past half a second reset");
+ step(back);e=step(0,false,.49);Check(e.reset&&!e.save,"A release under half a second saved");
+ // A chord's Back is neither, however long, and a save is made once.
+ step(back);step(both);e=step(0,false,1);Check(!e.save&&!e.reset,"A chord's late release saved or reset");
+ step(back);step(back,false,.6);Check(!step(0).Any(),"A hold saved again as it was let go");
+ step(back);Check(!step(back,false,.45).save,"Back saved before half a second");
+ e=step(back,false,.06);Check(e.save&&!e.reset,"Holding Back did not save");
+ Check(!step(back,false,1).Any(),"Holding Back saved twice");
+ Check(!step(0).Any(),"Letting go of a hold also reset");
+ step(back);e=step(both);Check(e.open&&!e.close&&!e.reset&&!e.save,"Back then Start did not open the controls");
+ Check(!step(both,true,1).Any(),"The chord also saved or acted twice");
+ Check(!step(back,true).Any()&&!step(0,true).Any(),"Letting go after the chord reset the position");
+ e=step(back,true);Check(!e.Any(),"Back alone acted while the controls were open");
+ Check(!step(back,true,1).Any()&&!step(0,true).Any(),"Back held or tapped in the controls reset or saved");
+ step(back,true);e=step(both,true);Check(e.close&&!e.open,"Back then Start did not close the controls");step(0);
+ // A DirectInput pad's Back is also the menu's Back: the controls may close
+ // before Start comes, and the chord must not open them again.
+ step(back,true);e=step(both,false);Check(e.close&&!e.open,"The chord reopened controls its own Back had closed");step(0);
+ // Start first is the game's pause: Back under it does nothing here.
+ step(start);e=step(both);Check(!e.Any(),"Back pressed under Start acted");
+ Check(!step(both,false,1).Any()&&!step(start).Any()&&!step(0).Any(),"Start then Back reset, saved or opened");
+ // After a reset of the gesture, a Back still held counts only once pressed again.
+ step(back);pad.Reset();Check(!step(back,false,1).Any()&&!step(0).Any(),"A Back held through a reset acted");
+ Check(step(back).down,"Back did not work again after a reset");step(0);
+ // Called back by a room, with go now offered on this pad: a fresh Back is
+ // go now and nothing else, held or not, and no chord follows it.
+ const auto called=[&](unsigned physical,TrainingCall call,double seconds=1.0/60){now+=seconds;return pad.Update(physical,false,now,call);};
+ e=called(back,TrainingCall::GoNow);Check(e.goNow&&!e.down&&!e.reset&&!e.save&&!e.open,"A fresh Back under the call did not go now alone");
+ Check(!called(back,TrainingCall::GoNow,1).Any(),"Holding go now's Back saved or went now twice");
+ Check(!called(both,TrainingCall::GoNow).Any(),"Start after go now's Back opened the controls");
+ Check(!called(back,TrainingCall::GoNow).Any()&&!called(0,TrainingCall::GoNow).Any(),"Letting go of go now's Back reset the position");
+ // The banner ends while go now's Back is still held: its release does nothing.
+ called(back,TrainingCall::GoNow);
+ Check(!called(back,TrainingCall::None,1).Any()&&!called(0,TrainingCall::None).Any(),"Go now's Back saved or reset after the banner went");
+ // A Back held from before the call is not go now; it ends as the tap or
+ // hold it began as.
+ e=called(back,TrainingCall::None);Check(e.down,"Back did not begin a tap");
+ e=called(back,TrainingCall::GoNow);Check(!e.goNow,"A Back held from before the call went now");
+ e=called(0,TrainingCall::GoNow);Check(e.reset&&!e.goNow,"A tap begun before the call did not end as a tap");
+ called(back,TrainingCall::None);e=called(back,TrainingCall::GoNow,.6);Check(e.save&&!e.goNow,"A hold begun before the call did not save");
+ called(0,TrainingCall::GoNow);
+ // Under the call the chord opens nothing, whether go now is offered on this
+ // pad or not, and its Back neither resets nor saves.
+ for(const TrainingCall call:{TrainingCall::Called,TrainingCall::GoNow}){
+  called(back,TrainingCall::None);e=called(both,call);Check(!e.open&&!e.close&&!e.goNow,"Back then Start opened the controls under the call");
+  Check(!called(both,call,1).Any()&&!called(0,call).Any(),"The chord under the call saved or reset");
+ }
+ // Called with go now not offered on this pad (a DirectInput pad, or under a
+ // window): Back stays the position's.
+ e=called(back,TrainingCall::Called);Check(e.down&&!e.goNow,"Back went now where go now is not offered");
+ Check(called(0,TrainingCall::Called).reset,"Back under the call without go now did not reset");
+ // Start first is still the game's pause: Back under it is not go now.
+ called(start,TrainingCall::GoNow);e=called(both,TrainingCall::GoNow);Check(!e.Any(),"Back pressed under Start went now");
+ called(0,TrainingCall::GoNow);
+ // A chord's Start is the gesture's, down, held and let go, whether or not
+ // it opens anything: under the call too, and after go now's Back, so the
+ // game never takes it for its pause. The game's own pause (Start first)
+ // and a Back already held when the gesture began are left to the game.
+ const auto owned=[](const TrainingPadEvents& events){return (events.owned&PhysicalStart)!=0;};
+ for(const TrainingCall call:{TrainingCall::None,TrainingCall::Called,TrainingCall::GoNow}){
+  Check(!owned(called(back,call)),"Back alone took Start from the game");
+  Check(owned(called(both,call))&&owned(called(both,call,1)),"The chord's Start reached the game");
+  Check(owned(called(back,call)),"The chord's Start was not kept from the game as it was let go");
+  Check(!owned(called(back,call))&&!owned(called(0,call)),"Start stayed the gesture's after it was let go");
+  // Back let go before Start: Start stays the gesture's until it is let go.
+  called(back,call);called(both,call);Check(owned(called(start,call)),"The chord's Start went to the game when Back was let go first");
+  Check(owned(called(0,call))&&!owned(called(0,call)),"The chord's Start was not let go with it");
+ }
+ called(start,TrainingCall::None);Check(!owned(called(both,TrainingCall::None))&&!owned(called(start,TrainingCall::None)),"The game's pause Start was taken");
+ called(0,TrainingCall::None);
+ called(back,TrainingCall::None);pad.Reset();Check(!owned(called(both,TrainingCall::None)),"A Back held through a reset took Start");
+ called(0,TrainingCall::None);
+}
+// What the gesture asks for crosses to the drawing thread in order, one event
+// each, with the battle and the pad owner it was pressed under: two gestures
+// between frames stay two, a full queue drops rather than merges, and a
+// change of owner drops what waits and what is still to be posted.
+void TrainingPadEventOrder(){
+ using namespace sf4e::input;
+ using Kind=TrainingPadEvent::Kind;
+ TrainingControls queue;
+ const auto event=[&](Kind kind,std::uint64_t generation,float x=0){TrainingPadEvent e;e.kind=kind;e.generation=generation;e.epoch=queue.Epoch();e.place[0]=x;return e;};
+ Check(queue.Post(event(Kind::Save,4,120))&&queue.Post(event(Kind::Reset,4))&&queue.Post(event(Kind::Save,4,200)),"The queue refused a gesture");
+ auto taken=queue.Take();
+ Check(taken.size()==3&&taken[0].kind==Kind::Save&&taken[0].place[0]==120&&taken[1].kind==Kind::Reset&&taken[2].kind==Kind::Save&&taken[2].place[0]==200,
+  "Gestures between frames were merged or reordered, or a save lost where its press was");
+ Check(queue.Take().empty(),"An event was taken twice");
+ for(std::size_t i=0;i<TrainingControls::MostEvents;++i)queue.Post(event(Kind::Reset,4));
+ Check(!queue.Post(event(Kind::Save,4))&&queue.Take().size()==TrainingControls::MostEvents,"A full queue took one more or merged it");
+ // An owner change between posting and taking drops the waiting event, and
+ // one made under the old owner and posted after is dropped too.
+ const auto stale=event(Kind::Save,4);
+ queue.Post(event(Kind::Reset,4));queue.Invalidate();
+ Check(queue.Take().empty(),"An event outlived its pad owner");
+ Check(!queue.Post(stale)&&queue.Take().empty(),"An event made under the old owner was posted");
+ Check(queue.Post(event(Kind::Reset,5))&&queue.Take().size()==1,"The new owner's event was dropped");
+}
+// Each Back press keeps the owner it went down under: the owner changing
+// before the gesture ends (focus lost and back between two polls, another
+// battle) drops it whole, the controls included. A batch taken before the
+// owner changed is not applied under the new one.
+void TrainingPadOwnership(){
+ using namespace sf4e::input;
+ TrainingPadInput pad;TrainingControls controls;double now=0;
+ const float place[2]={100,300};
+ PadOwner owner;owner.generation=4;owner.epoch=controls.Epoch();
+ const auto step=[&](unsigned physical,const PadOwner& current,double seconds=1.0/60){now+=seconds;return pad.Update(physical,controls,now,TrainingCall::None,current,place);};
+ const unsigned back=PhysicalBack,both=PhysicalBack|PhysicalStart;
+ auto r=step(back,owner);
+ Check(r.events.pressed&&r.owner==owner&&r.place[0]==100,"A press did not take its owner and place");
+ controls.Invalidate();
+ PadOwner regained=owner;regained.epoch=controls.Epoch();
+ r=step(both,regained);
+ Check(!r.events.open&&!controls.Open(),"A chord finished under a new pad owner opened the controls");
+ Check(!step(0,regained).events.Any(),"A press from the old owner reset or saved");
+ r=step(back,regained);step(both,regained);
+ Check(controls.Open(),"A fresh chord under the new owner did not open the controls");
+ step(0,regained);controls.Close();
+ // Another battle while Back is held: no save comes of the old press.
+ step(back,regained);PadOwner next=regained;next.generation=5;
+ Check(!step(back,next,1).events.save&&!step(0,next).events.Any(),"A press from the last battle saved in the next");
+ r=step(back,next);r=step(back,next,.6);
+ Check(r.events.save&&r.owner==next,"A hold under one owner did not save for it");
+ step(0,next);
+ // The focus goes while a chord's update is under way: the poll read its
+ // owner before, and the controller refuses the chord after. The controls
+ // stay closed and nothing of the chord is published.
+ step(back,next);
+ controls.LoseFocus();
+ r=step(both,next);
+ Check(!r.events.open&&!controls.Open(),"A chord whose owner went during its update opened the controls");
+ step(0,next);
+ controls.GainFocus();
+ // Open, then the focus goes and comes back with no frame drawn between:
+ // the controls closed with the focus, so the next chord opens them rather
+ // than closing what the old owner left open.
+ PadOwner back1=next;back1.epoch=controls.Epoch();
+ step(back,back1);step(both,back1);step(0,back1);
+ Check(controls.Open(),"The chord did not open the controls");
+ controls.LoseFocus();
+ Check(!controls.Open(),"The controls stayed open when the focus went");
+ controls.GainFocus();
+ PadOwner back2=back1;back2.epoch=controls.Epoch();
+ step(back,back2);step(both,back2);step(0,back2);
+ Check(controls.Open(),"A chord after the focus came back closed controls the old owner left open");
+ // The focus goes between a poll's focus read and its owner: the owner it
+ // reads after the loss is of a period without the focus, so a token taken
+ // then says so, and the Back recorded under it opens nothing once the focus
+ // is back, with no frame drawn between: the next poll's token is of the new
+ // period, and the press is dropped with its old owner.
+ controls.Close();
+ controls.LoseFocus();
+ Check(!controls.Sample().focused,"A token taken without the focus said it had the focus");
+ PadOwner stale=back2;stale.epoch=controls.Epoch();
+ step(back,stale);
+ controls.GainFocus();
+ PadOwner fresh=stale;fresh.epoch=controls.Sample().epoch;
+ r=step(both,fresh);step(0,fresh);
+ Check(!r.events.open&&!controls.Open(),"A Back sampled as the focus went opened the controls once it came back");
+ step(back,fresh);step(both,fresh);step(0,fresh);
+ Check(controls.Open(),"A chord in the new focus period did not open the controls");
+ // The focus goes between a frame's HUD result and its publication, and
+ // comes back before another frame: the frame's open is refused, as F6's
+ // and F7's are, since its token is of the period that ended.
+ {
+  TrainingControls hud;
+  const auto token=hud.Sample();
+  hud.LoseFocus();hud.GainFocus();
+  Check(!hud.Open(token)&&!hud.Toggle(token)&&!hud.Open()&&!CapturesInput(false,hud),"A frame from before the focus went opened the controls after it came back");
+  Check(hud.Open(hud.Sample())&&hud.Open(),"A frame in the new focus period did not open the controls");
+  Check(hud.Toggle(token)&&!hud.Open(),"F6 under an old token did not close the controls");
+  hud.LoseFocus();
+  const auto unfocused=hud.Sample();
+  Check(!unfocused.focused&&!hud.Open(unfocused)&&!hud.Open(),"A frame without the focus opened the controls");
+ }
+ // A batch taken just before the owner changed is not applied.
+ TrainingControls queue;TrainingPadEvent event;event.kind=TrainingPadEvent::Kind::Save;event.generation=5;event.epoch=queue.Epoch();
+ Check(queue.Post(event),"The queue refused an event of its owner");
+ const auto taken=queue.Take();queue.Invalidate();
+ Check(taken.size()==1&&!queue.Current(taken[0]),"An event taken before the owner changed was still current");
+ // The game's input is taken while the controls are open, read from their
+ // controller as it is now. A frame reads them closed, a chord opens them,
+ // and the frame then publishes its menu's part as not shown: the input is
+ // still taken, so the game's caches are cleared.
+ TrainingControls race;PadOwner live;live.generation=1;live.epoch=race.Epoch();
+ TrainingPadInput chord;double at=0;
+ const bool frameSawOpen=race.Open();
+ chord.Update(back,race,at+=.02,TrainingCall::None,live,place);chord.Update(both,race,at+=.02,TrainingCall::None,live,place);
+ const bool shellShown=frameSawOpen&&false;
+ MenuInputCapture gate;
+ Check(!frameSawOpen&&CapturesInput(shellShown,race)&&gate.Update(CapturesInput(shellShown,race),0),"A frame's late publication released the input the chord took");
+}
+// The controls' open state has one owner. Two chords before a frame open and
+// then close them, from either state; F6 and the controls' own Back act on
+// the same state, and a chord whose Back already closed the controls (a
+// DirectInput pad's Back is the menu's too) does not open them again.
+void TrainingFlyoutOwner(){
+ using namespace sf4e::input;
+ const float place[2]={0,0};
+ for(const bool start:{false,true}){
+  TrainingPadInput pad;TrainingControls controls;if(start)controls.Open(controls.Sample());double now=0;
+  PadOwner owner;owner.generation=1;owner.epoch=controls.Epoch();
+  const auto step=[&](unsigned physical){now+=1.0/60;return pad.Update(physical,controls,now,TrainingCall::None,owner,place);};
+  for(int chord=0;chord<2;++chord){step(PhysicalBack);step(PhysicalBack|PhysicalStart);step(0);}
+  Check(controls.Open()==start,"Two chords before a frame did not open and close the controls");
+  step(PhysicalBack);step(PhysicalBack|PhysicalStart);step(0);
+  Check(controls.Open()==!start,"One chord did not change the controls");
+  // F6 between chords: the next chord acts on what F6 left.
+  controls.Toggle(controls.Sample());
+  step(PhysicalBack);step(PhysicalBack|PhysicalStart);step(0);
+  Check(controls.Open()==!start,"A chord after F6 did not act on what F6 left");
+ }
+ TrainingPadInput pad;TrainingControls controls;controls.Open(controls.Sample());double now=0;
+ PadOwner owner;owner.generation=1;owner.epoch=controls.Epoch();
+ const auto step=[&](unsigned physical){now+=1.0/60;return pad.Update(physical,controls,now,TrainingCall::None,owner,place);};
+ step(PhysicalBack);controls.Close();// the controls' own Back closed them
+ step(PhysicalBack|PhysicalStart);step(0);
+ Check(!controls.Open(),"The chord reopened controls its own Back had closed");
+}
+// Go now is taken only for the call that stands and only while the press is
+// nobody else's; the request names that call, so once the call has changed
+// the call's owner sees it is not for the call that stands now.
+void GoNowRequests(){
+ using namespace sf4e::input;
+ GoNowGate gate;
+ CallIdentity call;call.roomEpoch=7;call.table=1;call.opponent=2;call.generation=40;
+ Check(!gate.Press(GoNowGate::Source::Keyboard,true)&&gate.Take().empty(),"Go now was taken with no call");
+ gate.Offer(call);
+ Check(!gate.Press(GoNowGate::Source::Keyboard,false)&&gate.Take().empty(),"Go now was taken under the pause menu or Ember's menu");
+ Check(gate.Press(GoNowGate::Source::Pad,true)&&gate.Press(GoNowGate::Source::Keyboard,true),"Go now was not taken for the call");
+ auto taken=gate.Take();
+ Check(taken.size()==2&&taken[0].call==call&&taken[0].source==GoNowGate::Source::Pad&&taken[1].source==GoNowGate::Source::Keyboard,"Go now's requests lost their call or their order");
+ // Taken for one call, carried out after another took its place: not that call.
+ gate.Press(GoNowGate::Source::Keyboard,true);
+ CallIdentity next=call;next.opponent=3;gate.Offer(next);
+ taken=gate.Take();
+ Check(taken.size()==1&&taken[0].call!=next,"A go now taken for an earlier call matched the call after it");
+ CallIdentity room=call,table=call,battle=call,nobody=call;room.roomEpoch=8;table.table=2;battle.generation=41;nobody.opponent=0;
+ Check(room!=call&&table!=call&&battle!=call&&nobody!=call&&!nobody.Live(),"Two different calls compared the same");
+ gate.Offer(CallIdentity{});
+ Check(!gate.Press(GoNowGate::Source::Pad,true),"Go now was taken after the call ended");
+ gate.Offer(call);
+ for(std::size_t i=0;i<GoNowGate::MostRequests;++i)gate.Press(GoNowGate::Source::Keyboard,true);
+ Check(!gate.Press(GoNowGate::Source::Keyboard,true),"A press past the bound was taken, and so kept from the game");
+ gate.Take();
+}
+// The call's lifecycle sets the call and its go now as state the battle's
+// countdown follows (TrainingSession.hxx: LeaveCountdown::Follow), so no
+// part of the call is lost to a full command queue: a press taken for the
+// call shortens that call's countdown once it runs, a call that ended stops
+// it, a replacement starts a whole one, and a battle that has gone takes no
+// press.
+void CallLifecycleOrder(){
+ using namespace sf4e::input;
+ GoNowGate gate;CallLifecycle lifecycle;sf4e::training::LeaveCountdown countdown;
+ CallBattle battle;battle.running=true;battle.generation=40;
+ // One game tick then one battle update, as the game runs them.
+ const auto tick=[&](const CallIdentity& call,bool fighting=true){
+  const auto state=lifecycle.Tick(call,battle,gate);
+  sf4e::training::CallControl control;control.call=state.call.serial;control.generation=state.call.generation;control.hurry=state.hurry;
+  countdown.Follow(control,battle.generation,120);
+  return countdown.Tick(fighting);
+ };
+ CallIdentity none,first;first.roomEpoch=7;first.table=1;first.opponent=2;first.generation=40;first.serial=1;
+ Check(!gate.Press(GoNowGate::Source::Keyboard,true),"Go now was taken before the call stood");
+ tick(first,false);
+ Check(countdown.Left()==119&&countdown.Call()==1&&gate.Offered()==first,"The call did not start its countdown or was not offered");
+ // A press taken for the call shortens its own countdown, and only once.
+ Check(gate.Press(GoNowGate::Source::Keyboard,true),"Go now was not taken once the call was offered");
+ Check(!tick(first,false)&&countdown.Left()==1,"Go now did not shorten its call's countdown");
+ Check(tick(first)&&!tick(first)&&countdown.Left()==0,"Go now did not leave once");
+ // Replaced by another opponent while hurried: the new call starts its own
+ // whole count without the old call's go now, and a press for the old call
+ // is dropped.
+ sf4e::training::LeaveCountdown fresh;countdown=fresh;
+ tick(first,false);gate.Press(GoNowGate::Source::Pad,true);tick(first,false);
+ Check(countdown.Left()==1,"The first call's go now did not take");
+ CallIdentity second=first;second.opponent=3;second.serial=2;
+ gate.Press(GoNowGate::Source::Pad,true);
+ Check(!tick(second,false)&&countdown.Left()==119&&countdown.Call()==2&&lifecycle.Dropped()==1,"A replacement call kept the old countdown or its go now");
+ // Another room under the same seats: the same, as a new call.
+ CallIdentity third=second;third.roomEpoch=8;third.serial=3;
+ tick(third,false);
+ Check(countdown.Left()==119&&countdown.Call()==3,"A new room's call kept the old countdown");
+ // The call ends on the countdown's last frame: the next battle update
+ // stops it before it could take the battle away.
+ for(int frame=0;frame<200&&countdown.Left()>1;++frame)tick(third,false);
+ Check(countdown.Left()==1,"The countdown did not reach its last frame");
+ Check(!tick(none)&&countdown.Left()==0&&!tick(none),"A call that ended took the battle away");
+ // The battle leaves, closes or another starts: nothing is offered, though the call stands.
+ CallIdentity fourth=third;fourth.opponent=4;fourth.serial=4;
+ for(const CallBattle gone:{CallBattle{false,40},CallBattle{true,41}}){
+  lifecycle.Tick(fourth,gone,gate);
+  Check(!gate.Offered().Live()&&!gate.Press(GoNowGate::Source::Keyboard,true),"Go now was offered for a battle that has gone");
+ }
+}
+// View's go now is a pad action as the chord is: put to the call's gate only
+// under the focus period its poll sampled, in the same step that checks it.
+// A View sampled as the focus went, whether the focus is back yet or not,
+// never hurries the call; a fresh press under the current period does, once.
+void GoNowFocus(){
+ using namespace sf4e::input;
+ const float place[2]={0,0};
+ for(const bool regain:{false,true}){
+  TrainingControls controls;TrainingPadInput pad;GoNowGate gate;CallLifecycle lifecycle;sf4e::training::LeaveCountdown countdown;
+  CallBattle battle;battle.running=true;battle.generation=40;
+  CallIdentity a;a.roomEpoch=7;a.table=1;a.opponent=2;a.generation=40;a.serial=1;
+  const auto tick=[&]{
+   const auto state=lifecycle.Tick(a,battle,gate);
+   sf4e::training::CallControl control;control.call=state.call.serial;control.generation=state.call.generation;control.hurry=state.hurry;
+   countdown.Follow(control,battle.generation,120);
+   return countdown.Tick(true);
+  };
+  tick();
+  Check(gate.Offered()==a&&countdown.Left()==119,"The call was not offered");
+  double now=0;
+  // The poll samples its token, the focus goes (and comes back), and then View is read.
+  const auto token=controls.Sample();
+  controls.LoseFocus();if(regain)controls.GainFocus();
+  PadOwner owner;owner.generation=40;owner.epoch=token.epoch;
+  const auto stale=pad.Update(PhysicalBack,controls,now+=.02,TrainingCall::GoNow,owner,place);
+  Check(stale.events.goNow,"View under the call did not ask for go now");
+  Check(!controls.PressGoNow(stale.owner.epoch,a,gate,GoNowGate::Source::Pad,true)&&gate.Take().empty(),"A View sampled as the focus went was taken for go now");
+  Check(!tick()&&countdown.Left()==118,"A View sampled as the focus went hurried the call");
+  pad.Update(0,controls,now+=.02,TrainingCall::GoNow,owner,place);
+  if(!regain)controls.GainFocus();
+  owner.epoch=controls.Sample().epoch;
+  const auto fresh=pad.Update(PhysicalBack,controls,now+=.02,TrainingCall::GoNow,owner,place);
+  Check(fresh.events.goNow&&controls.PressGoNow(fresh.owner.epoch,a,gate,GoNowGate::Source::Pad,true),"A fresh View was not taken for go now");
+  Check(tick()&&!tick()&&countdown.Left()==0,"A fresh go now did not leave once");
+ }
+}
+// Behind another window go now comes through the same gesture and the same
+// check: a fresh View under the call is taken without the focus; a View held
+// as the focus went (and came back, and went again) between two polls is
+// not; a View read under a call the room has since replaced is not; and the
+// gesture's reset, save and controls are still refused there.
+void GoNowBehind(){
+ using namespace sf4e::input;
+ const float place[2]={0,0};
+ TrainingControls controls;TrainingPadInput pad;GoNowGate gate;
+ CallIdentity a;a.roomEpoch=7;a.table=1;a.opponent=2;a.generation=40;a.serial=1;
+ CallIdentity b=a;b.opponent=3;b.serial=2;
+ double now=0;
+ controls.LoseFocus();
+ gate.Offer(a);
+ PadOwner owner;owner.generation=40;owner.epoch=controls.Sample().epoch;
+ pad.Update(0,controls,now+=.02,TrainingCall::GoNow,owner,place);
+ const auto fresh=pad.Update(PhysicalBack,controls,now+=.02,TrainingCall::GoNow,owner,place);
+ Check(fresh.events.goNow&&controls.PressGoNow(fresh.owner.epoch,a,gate,GoNowGate::Source::Pad,true),"A fresh View behind another window was not taken for go now");
+ Check(gate.Take().size()==1,"Go now behind another window did not reach the call once");
+ // Held: the focus comes and goes between two polls. The press keeps its old
+ // owner, the gesture drops it, and the View still held is not go now.
+ const auto heldOwner=controls.Sample().epoch;
+ controls.GainFocus();controls.LoseFocus();
+ owner.epoch=controls.Sample().epoch;
+ const auto held=pad.Update(PhysicalBack,controls,now+=.02,TrainingCall::GoNow,owner,place);
+ Check(!held.events.goNow&&heldOwner!=owner.epoch,"A View held across a focus change was taken as a fresh press");
+ Check(!controls.PressGoNow(heldOwner,a,gate,GoNowGate::Source::Pad,true),"A View read under an ended focus period was taken");
+ // The call is replaced between the poll that read View and the press.
+ pad.Update(0,controls,now+=.02,TrainingCall::GoNow,owner,place);
+ const auto read=pad.Update(PhysicalBack,controls,now+=.02,TrainingCall::GoNow,owner,place);
+ gate.Offer(b);
+ Check(read.events.goNow&&!controls.PressGoNow(read.owner.epoch,a,gate,GoNowGate::Source::Pad,true)&&gate.Take().empty(),
+  "A View read under a call since replaced went now for its replacement");
+ // Reset, save and the controls' chord ask nothing of an unfocused window.
+ pad.Update(0,controls,now+=.02,TrainingCall::None,owner,place);
+ pad.Update(PhysicalBack,controls,now+=.02,TrainingCall::None,owner,place);
+ const auto chord=pad.Update(PhysicalBack|PhysicalStart,controls,now+=.02,TrainingCall::None,owner,place);
+ Check(!chord.events.open&&!controls.Open(),"The controls opened behind another window");
 }
 // The rules every GameMenu screen shares with the room: an open dialog owns
 // the legend (Select names its highlighted button, Back cancels, shortcuts
@@ -203,6 +646,21 @@ void DialogContract(){
  Check(menu.navigation.Confirming()&&has("Cancel")&&!has("Fighter")&&!has("Review"),"A confirmation did not take over the legend");
  press(MenuInput::Right);frame();Check(has("Leave room"),"The legend did not name the highlighted confirmation button");
  press(MenuInput::Back);Check(!menu.navigation.Confirming(),"Back did not cancel the confirmation");
+ // The opening press can arrive with pointer movement over the action button.
+ // Preserve Cancel until a later movement deliberately selects that button.
+ imgui.io.AddMousePosEvent(1,1);frame();frame();
+ const auto confirmAt=centres.at("confirm/1");
+ imgui.io.AddMousePosEvent(confirmAt.x,confirmAt.y);frame(MenuInput::Select);frame();
+ Check(menu.navigation.Confirming()&&!menu.navigation.ConfirmSelected(),"Opening pointer movement replaced the safe confirmation default");
+ const auto declined=press(MenuInput::Select);
+ Check(declined.kind==MenuAction::None&&!menu.navigation.Confirming(),"Default confirmation activated the action");
+ press(MenuInput::Select);frame();
+ Check(menu.navigation.Confirming()&&!menu.navigation.ConfirmSelected(),"Reopened confirmation inherited Send or a resting pointer");
+ imgui.io.AddMousePosEvent(confirmAt.x+2,confirmAt.y);frame();
+ Check(menu.navigation.ConfirmSelected(),"Pointer movement after opening did not select the action");
+ const auto confirmed=press(MenuInput::Select);
+ Check(confirmed.kind==MenuAction::Activate&&confirmed.id=="leave","Explicit pointer selection did not confirm the action");
+ imgui.io.AddMousePosEvent(1,1);frame();
  menu.navigation.Focus("name",rows);press(MenuInput::Select);frame();
  Check(menu.navigation.Editing()&&has("Accept")&&has("Cancel"),"The editor legend does not say Accept and Cancel");
  const auto accepted=press(MenuInput::Select);
@@ -294,6 +752,20 @@ void DialogContract(){
   press(MenuInput::Select);frame();
   Check(menu.navigation.Choosing()&&menu.navigation.ChoiceIndex()==1&&visible(),"A reopened list selected its saved option out of view");
   press(MenuInput::Back);}
+ // A notice over an editor owns Enter; the editor resumes with its draft.
+ rows={TextRow("name","Name","Kate",31)};menu.navigation.Focus("name",rows);
+ imgui.io.AddMousePosEvent(1,1);frame();press(MenuInput::Select);frame();
+ menu.ShowNotice("Advice");frame();frame();
+ imgui.io.AddKeyEvent(ImGuiKey_Enter,true);frame();
+ Check(!menu.NoticeOpen()&&menu.navigation.Editing()&&menu.navigation.Draft()=="Kate","Enter did not dismiss only the editor's notice");
+ imgui.io.AddKeyEvent(ImGuiKey_Enter,false);frame();frame();
+ // Single-line editors still accept either Enter key, even with Cancel lit.
+ for(const auto enter:{ImGuiKey_Enter,ImGuiKey_KeypadEnter}) {
+  menu.navigation.EditAccepts(false);imgui.io.AddKeyEvent(enter,true);const auto accepted=frame();
+  Check(accepted.kind==MenuAction::TextAccepted&&accepted.text=="Kate"&&!menu.navigation.Editing(),"Single-line Enter did not accept the draft");
+  imgui.io.AddKeyEvent(enter,false);frame();frame();
+  if(enter==ImGuiKey_Enter){press(MenuInput::Select);frame();}
+ }
  SetMenuTextProbe({});SetMenuCardProbe({});
 }
 // Every screen a Back button can name has a name of its own, not its id.
@@ -326,9 +798,9 @@ void FlyoutIgnoresChoices(){
  press(MenuInput::Select);Check(chosen==0,"A flyout row with choices picked an option");
 }
 void ScreenNames(){
- for(const char* screen:{"home","online","create","join","profile","main-character","selection","settings","player","defaults","interface","developer",
+ for(const char* screen:{"home","online","create","join","profile","main-character","selection","settings","player","defaults","interface","training-replays","problem-reports","sent-reports","developer",
    "discord","discord-invitation","steam","steam-invite","public-rooms","identity","identity-backup","linked-accounts","tournament-matches","discord-connect","assignment","about","room","room-table","room-members","room-member","room-chat","room-admin",
-   "roster","appearance","costumes","colors","ultra","stage","options","recording","history","recovery","updates"})
+   "roster","appearance","costumes","colors","ultra","stage","options","frame-data","hud","dummy","reply","tools","recording","history","recovery","updates","replays","report"})
   if(!MenuScreenName(screen))throw std::runtime_error(std::string("Screen without a display name: ")+screen);
 }
 void ProfileRecords(){
@@ -353,5 +825,5 @@ void ProfileRecords(){
   "Record after the exact total limit was accepted");
 }
 }
-int main(){try{NativeReader();NavigationModel();NativeCapture();DialogContract();SelectPrecedence();FlyoutIgnoresChoices();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
+int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();TrainingPadChord();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();SelectPrecedence();FlyoutIgnoresChoices();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

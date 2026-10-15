@@ -50,9 +50,11 @@ void IrohRoom::SubmitCommittedCheckpoint(const coordination::TransferIdentity& r
     // ignored while it decodes. A failed decode gives the revision back.
     decoding_.push_back({ticket,identity,receivedRevision_});
     receivedRevision_=identity.revision;
-    const std::string bytes=checkpointReceiver_.Bytes();
+    // Taken, not copied, and moved on to the worker: a commit's bytes exist
+    // once from the receiver to the decode.
+    std::string bytes=checkpointReceiver_.TakeBytes();
     checkpointReceiver_.Reset();
-    if(decodeOffThread_ && decoder_.Submit(ticket,bytes)) return;
+    if(decodeOffThread_ && decoder_.Submit(ticket,std::move(bytes))) return;
     // The worker is disabled or its thread could not start. Decode inline from
     // now on; this one can complete inline only if nothing older is still
     // decoding, because results are matched oldest first. Otherwise fail it
@@ -96,9 +98,11 @@ void IrohRoom::StageCommittedCheckpoint(const coordination::TransferIdentity& id
     auto& journal=decoded.journal;
     std::map<room::MemberId,room::ConnectionRef> recipients;
     std::set<std::string> committedMembers;
+    std::size_t liveMembers=0;
     for(const auto& member:proposal.checkpoint.at("members")) {
         const auto& data=member.at("data");
         committedMembers.insert(data.at("authenticatedEndpoint").get<std::string>());
+        if(!member.value("frozen",false)) ++liveMembers;
         if(data.value("authenticatedEndpoint",std::string())==localIdentity_)
             recipients.emplace(member.at("member").get<room::MemberId>(),member.at("endpoint").get<room::ConnectionRef>());
     }
@@ -117,7 +121,7 @@ void IrohRoom::StageCommittedCheckpoint(const coordination::TransferIdentity& id
         }
     }
     committedCheckpoints_.push_back({identity,std::move(proposal),std::move(journal),
-        std::move(recipients),std::move(committedMembers)});
+        std::move(recipients),std::move(committedMembers),liveMembers});
     if (identity.transfer==proposalIdentity_.transfer && identity.term==proposalIdentity_.term) {
         proposalBytes_.clear(); proposalStatus_="committed";
     }
@@ -147,25 +151,11 @@ bool IrohRoom::BuildTerminalReplayEffects(const StagedCheckpoint& staged,
     const auto receipts=roomState.at("terminal_receipts");
     if (!receipts.is_array() || receipts.size()>64 || !coordination_.active || !coordination_.rebound ||
         identity.term==0 || identity.revision==0 || localIdentity_.empty()) return false;
-    if (!checkpoint.contains("members") || !checkpoint.at("members").is_array()) return false;
-
-    struct LocalMember { room::MemberId id=0; room::ConnectionRef endpoint; std::uint64_t incarnation=0; };
-    std::vector<LocalMember> localMembers;
-    for (const auto& row : checkpoint.at("members")) {
-        if (!row.is_object() || !row.contains("member") || !row.contains("endpoint") || !row.contains("data")) return false;
-        const auto member=row.at("member").get<room::MemberId>();
-        const auto endpoint=row.at("endpoint").get<room::ConnectionRef>();
-        const auto data=row.at("data");
-        const auto authenticated=data.value("authenticatedEndpoint",std::string());
-        const auto incarnation=row.value("incarnation",data.value("incarnation",std::uint64_t(0)));
-        if (!member || endpoint.host.empty() || endpoint.user.empty() || !incarnation) return false;
-        if (authenticated==localIdentity_)
-            localMembers.push_back({member,endpoint,incarnation});
-    }
-    if (localMembers.size()>1) return false;
-    if (localMembers.empty()) return true;
-    const auto local=localMembers.front();
-    const auto stagedRecipient=staged.recipients.find(local.id);
+    if (!checkpoint.contains("members")) return false;
+    RosterRow local;
+    if (!ActiveRosterRow(checkpoint.at("members"),localIdentity_,local)) return false;
+    if (!local.member) return true;
+    const auto stagedRecipient=staged.recipients.find(local.member);
     if (stagedRecipient==staged.recipients.end() || !(stagedRecipient->second==local.endpoint)) return false;
 
     std::uint64_t roomEpoch=identity.epoch;
@@ -179,7 +169,7 @@ bool IrohRoom::BuildTerminalReplayEffects(const StagedCheckpoint& staged,
         if (deliveredTerminalReplays_.count(key) || alreadyPending || alreadyInFlight) return true;
         TerminalReplayEffect effect;
         effect.key=key; effect.roomEpoch=roomEpoch; effect.generation=generation;
-        effect.activationRevision=identity.revision; effect.recipient=local.id;
+        effect.activationRevision=identity.revision; effect.recipient=local.member;
         effect.endpoint=local.endpoint; effect.type=type; effect.payloadDigest=PayloadDigest(payload);
         effect.publicPayload=payload;
         effects.push_back(std::move(effect));
@@ -206,9 +196,9 @@ bool IrohRoom::BuildTerminalReplayEffects(const StagedCheckpoint& staged,
             const auto endpoint=recipient.at("endpoint").get<room::ConnectionRef>();
             const auto incarnation=recipient.at("incarnation").get<std::uint64_t>();
             if (!member || !incarnation || endpoint.host.empty() || endpoint.user.empty() || !seen.insert(member).second) return false;
-            if (member!=local.id || recipient.value("acknowledged",false)) continue;
+            if (member!=local.member || recipient.value("acknowledged",false)) continue;
             if (!(endpoint==local.endpoint) || incarnation!=local.incarnation) return false;
-            TerminalReplayKey roomKey{static_cast<std::uint8_t>(table),generation,local.id,local.endpoint,local.incarnation,"room_event"};
+            TerminalReplayKey roomKey{static_cast<std::uint8_t>(table),generation,local.member,local.endpoint,local.incarnation,"room_event"};
             TerminalReplayKey gameKey=roomKey; gameKey.type="game_end";
             activeKeys.insert(roomKey); activeKeys.insert(gameKey);
             SessionProtocol::RoomEventMessage event;
@@ -232,6 +222,7 @@ bool IrohRoom::ActivateCommittedCheckpoint(const coordination::TransferIdentity&
     appliedEffects_=std::move(staged.effects);
     effectsRevision_=identity.revision;
     committedMembers_=std::move(staged.members);
+    committedLiveMembers_=staged.liveMembers;
     receivedRevision_=(std::max)(receivedRevision_,identity.revision);
     haveCommittedMembers_=true;
     for(auto& peer:peers_) if(committedMembers_.count(peer.second.identity)) peer.second.admitted=true;

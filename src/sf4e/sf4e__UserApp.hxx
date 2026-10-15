@@ -44,7 +44,11 @@ namespace sf4e {
         static void Steam_PostUpdate();
         static void StartIrohSession(std::unique_ptr<session::ClientTransport> transport,
             uint16_t port, std::string& name, uint8_t deviceType, uint8_t deviceIdx, uint8_t delay);
-        static bool EnterAuthorizedMatch();
+        // Deferred: not yet (no opponent, or away from the main menu).
+        // Rejected: the room's match is one the game cannot take; nothing of
+        // it was written, and the caller leaves the game.
+        enum class MatchEntry { Deferred, Entered, Rejected };
+        static MatchEntry EnterAuthorizedMatch();
         static void ShutdownNetplay(bool closeGgpo = true);
         static void ResetLobbyForRematch();
         static void TryStartPendingMatch();

@@ -57,6 +57,12 @@ converted to WOFF2 by [scripts/build-web-assets.py](scripts/build-web-assets.py)
 Subsetting keeps Inter's name, which is not a Reserved Font Name. The license is
 served beside them as `/assets/fonts/OFL.txt`.
 
+Problem-report redaction matches names with case folding and word-character
+tables generated from Unicode Character Database data
+([scripts/generate-report-unicode.py](scripts/generate-report-unicode.py)), under
+the [Unicode License V3](src/platform/Unicode-License.txt). Packages include it
+in `notices/THIRD_PARTY_LICENSES.txt`.
+
 See [README.md](README.md#external-licenses-and-copyright-information) for dependency and trademark notices (Capcom, Valve, Microsoft, etc.). Packages include `notices/THIRD_PARTY_LICENSES.txt` and the Discord Social SDK notice in `notices/Discord-SDK.txt`.
 
 You must own *Ultra Street Fighter IV* on Steam to play.

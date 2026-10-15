@@ -231,6 +231,11 @@ static void TestSetServerOwnedNeedsAFreshRoom() {
 	const auto member = Join(emptied, 0, true);
 	CHECK(emptied.Leave(member).accepted);
 	CHECK(!emptied.SetServerOwned());
+	// Only a player creates a Practice room, so none is ever a public one.
+	RoomAuthority practice("Practice", 8, 1, Rules(), true);
+	CHECK(!practice.SetServerOwned() && !practice.SnapshotView().serverOwned);
+	RoomAuthority fresh("Fresh", 8, 1);
+	CHECK(fresh.SetServerOwned() && !fresh.SnapshotView().practice);
 }
 
 static void TestCheckpointRoundTrip() {
@@ -278,6 +283,13 @@ static void TestCheckpointRoundTrip() {
 	auto privateWithAccounts = checkpoint;
 	privateWithAccounts["snapshot"].erase("server_owned");
 	CHECK(!RoomAuthority("Other").RestoreCheckpoint(privateWithAccounts));
+	// A public room is never a Practice room, also when its checkpoint says so;
+	// the room it would restore into is left as it was.
+	auto practice = checkpoint;
+	practice["snapshot"]["practice"] = true;
+	RoomAuthority untouched("Other");
+	CHECK(!untouched.RestoreCheckpoint(practice));
+	CHECK(!untouched.SnapshotView().practice && !untouched.SnapshotView().serverOwned && untouched.SnapshotView().members.empty());
 }
 
 static bool Mentions(const nlohmann::json& value, const char* text) {

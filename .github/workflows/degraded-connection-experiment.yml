@@ -31,7 +31,7 @@ jobs:
         run: cmake -S src/tests/degraded-connection -B build/policies -DCMAKE_BUILD_TYPE=Release
       - name: Build portable tests
         run: cmake --build build/policies --config Release
-      - name: Run new and existing pacing tests
+      - name: Run the degraded-connection policy tests
         run: ctest --test-dir build/policies -C Release --output-on-failure
       - name: Check complete GGPO patch stack
         if: runner.os != 'Windows'

@@ -4,6 +4,7 @@
 // corrected frames can be compared byte for byte with a recording that never
 // mispredicted.
 #include <cstdint>
+#include <cstring>
 #include <vector>
 
 #include "../common/ReplayRecorder.hxx"
@@ -85,16 +86,16 @@ void TestRollbackRewritesTheTail() {
 
 void TestRestoreBringsBackRecorderFields() {
 	FakeRecorder live;
-	live.recorder.rest[0] = 7;
+	live.recorder.unknown0[0] = 7;
 	live.recorder.streams[2].frames = 30;
 	rp::Snapshot saved{};
 	rp::Capture(live.recorder, saved);
 
-	live.recorder.rest[0] = 9;
+	live.recorder.unknown0[0] = 9;
 	live.recorder.streams[2].frames = 45;
 	Append(live.codecs[2], 5);
 	CHECK(rp::Restore(saved, live.recorder));
-	CHECK(live.recorder.rest[0] == 7);
+	CHECK(live.recorder.unknown0[0] == 7);
 	CHECK(live.recorder.streams[2].frames == 30);
 	CHECK(live.codecs[2].frames == 0);
 	CHECK(live.codecs[2].cursor == live.buffers[2].data());
@@ -105,18 +106,18 @@ void TestRestoreRefusesReallocatedStreams() {
 	rp::Snapshot saved{};
 	rp::Capture(live.recorder, saved);
 	Append(live.codecs[0], 1);
-	live.recorder.rest[0] = 3;
+	live.recorder.unknown0[0] = 3;
 
 	rp::Codec moved = live.codecs[4];
 	live.recorder.streams[4].codec = &moved;
 	CHECK(!rp::Restore(saved, live.recorder));
-	CHECK(live.recorder.rest[0] == 3 && live.codecs[0].frames == 1);
+	CHECK(live.recorder.unknown0[0] == 3 && live.codecs[0].frames == 1);
 
 	live.recorder.streams[4].codec = &live.codecs[4];
 	std::vector<std::uint8_t> other(kCapacity);
 	live.recorder.streams[6].buffer = other.data();
 	CHECK(!rp::Restore(saved, live.recorder));
-	CHECK(live.recorder.rest[0] == 3 && live.codecs[0].frames == 1);
+	CHECK(live.recorder.unknown0[0] == 3 && live.codecs[0].frames == 1);
 }
 
 // The engine's append checks only that the cursor is inside the stream, then
@@ -159,6 +160,22 @@ void TestAppendStaysInsideTheStream() {
 	CHECK(!rp::CanAppend(empty));
 }
 
+// The playback fields Ember reads sit at the engine's offsets inside the
+// recorder, and a save state carries them with the rest of it.
+void TestPlaybackFields() {
+	static_assert(offsetof(rp::Recorder, cursor) + sizeof(std::uint32_t) <= rp::kRecorderBytes, "cursor inside the recorder");
+	rp::Recorder live{};
+	auto* bytes = reinterpret_cast<std::uint8_t*>(&live);
+	const auto put = [&](std::size_t at, std::int32_t value) { std::memcpy(bytes + at, &value, sizeof(value)); };
+	put(0x708, rp::RecorderPlaying); put(0x70C, 5); put(0x710, 2); put(0x714, 2477); put(0x718, 1);
+	CHECK(live.mode == rp::RecorderPlaying && live.playArgument == 5 && live.round == 2 && live.cursor == 2477u && live.loop == 1);
+	rp::Snapshot saved{};
+	rp::Capture(live, saved);
+	live.round = 3; live.cursor = 9;
+	CHECK(rp::Restore(saved, live));
+	CHECK(live.round == 2 && live.cursor == 2477u && live.mode == rp::RecorderPlaying);
+}
+
 void TestUnallocatedStreamsRestore() {
 	rp::Recorder live{};
 	live.rest[10] = 1;
@@ -177,5 +194,6 @@ int main() {
 	TestRestoreRefusesReallocatedStreams();
 	TestUnallocatedStreamsRestore();
 	TestAppendStaysInsideTheStream();
+	TestPlaybackFields();
 	return 0;
 }

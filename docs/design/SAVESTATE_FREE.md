@@ -131,6 +131,3 @@ Compare characters with the same stage, costume, delay and route. With the
 legacy path, `restore.effect` / `restore.vfx` include the two restores inside
 every release. A character whose effects are expensive to restore (for
 example a persistent aura) shows up there.
-
-The ownership protocol for both paths is modelled in
-`src/tests/savestate_ownership_test.cxx`.

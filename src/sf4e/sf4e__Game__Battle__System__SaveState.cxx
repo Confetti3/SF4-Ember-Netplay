@@ -120,10 +120,15 @@ fSystem::CharaSemantics fSystem::CaptureCharaSemantics(rSystem* src, int side) {
 // across peers, plus action id, action frame, posture and time scale).
 // Explicitly EXCLUDED: the battle-flow function pointers,
 // the raw GameManager block (shallow pointer fields), GameMementoKey bytes,
-// sound maps (process-local pointer keys), RNG (the evolving RNG state has
-// not been located; the match seed alone is not it), and all
-// presentation/log/overlay state.
+// sound maps (process-local pointer keys), the battle RNG (System+0x54, not
+// saved in any memento and read only by presentation, see DESYNC_V2.md),
+// and all presentation/log/overlay state.
 fSystem::SemanticHashes fSystem::ComputeSemanticHashes(rSystem* src) {
+    const CharaSemantics chara[2] = { CaptureCharaSemantics(src, 0), CaptureCharaSemantics(src, 1) };
+    return ComputeSemanticHashes(src, chara);
+}
+
+fSystem::SemanticHashes fSystem::ComputeSemanticHashes(rSystem* src, const CharaSemantics chara[2]) {
     using sf4e::statehash::Hasher;
     SemanticHashes out;
 
@@ -155,7 +160,7 @@ fSystem::SemanticHashes fSystem::ComputeSemanticHashes(rSystem* src) {
 
     for (int i = 0; i < 2; i++) {
         Hasher ch;
-        for (uint32_t word : CaptureCharaSemantics(src, i).v) {
+        for (uint32_t word : chara[i].v) {
             ch.U32(word);
         }
         out.chara[i] = ch.Value();
@@ -169,32 +174,55 @@ fSystem::SemanticHashes fSystem::ComputeSemanticHashes(rSystem* src) {
     return out;
 }
 
-void fSystem::CaptureHashCheckpoint(rSystem* src) {
-    // The engine counter is a signed 16-bit field and wraps during a long
-    // match. GGPO's save callback uses a monotonic frame identity; spectators
-    // have no save callback, so the confirmed input boundary plus one is the
-    // equivalent state frame.
-    int stateFrame = lastGgpoSaveFrame;
-    if (localPlayerHandle == GGPO_INVALID_HANDLE) {
-        int confirmed = -1;
-        stateFrame = ggpo && GGPO_SUCCEEDED(ggpo_get_last_confirmed_frame(ggpo, &confirmed))
-            ? sf4e::statehash::SpectatorCheckpointStateFrame(confirmed) : -1;
+void fSystem::CaptureMeterSample(rSystem* src, bool show) {
+    int confirmed = -1;
+    if (localPlayerHandle == GGPO_INVALID_HANDLE) { sf4e::training::ObserveMatch(src, 0, -1); return; }
+    if (show && !(ggpo && GGPO_SUCCEEDED(ggpo_get_last_confirmed_frame(ggpo, &confirmed)))) confirmed = -1;
+    sf4e::training::ObserveMatch(src, ggpoTimeline.Held(), confirmed);
+}
+
+// The GGPO state frame the frame just simulated reaches. The engine counter is
+// a signed 16-bit field and wraps during a long match; this frame identity
+// does not. A spectator has no save callback: the input it simulated is the
+// confirmed one it just consumed.
+static int SimulatedStateFrame() {
+    if (fSystem::localPlayerHandle != GGPO_INVALID_HANDLE) {
+        return fSystem::ggpoTimeline.Next();
     }
+    int confirmed = -1;
+    return fSystem::ggpo && GGPO_SUCCEEDED(ggpo_get_last_confirmed_frame(fSystem::ggpo, &confirmed))
+        ? sf4e::statehash::StateFrameAfterInput(confirmed) : -1;
+}
+
+static void CaptureHashCheckpoint(rSystem* src, int stateFrame, const fSystem::CharaSemantics chara[2]) {
     const int ringIndex = sf4e::statehash::CheckpointRingIndex(stateFrame);
     if (ringIndex < 0) {
         return;
     }
-    HashCheckpoint& slot =
-        hashCheckpoints[ringIndex];
+    fSystem::HashCheckpoint& slot = fSystem::hashCheckpoints[ringIndex];
     // Rollback resimulation legitimately re-captures a frame with corrected
     // values. The GGPO input-confirmation boundary gates exchange, rather
     // than elapsed engine frames (which have a different frame origin).
     sf4e::statehash::PrepareCheckpointIdentity(slot.frameIdx,slot.ggpoStateFrame,slot.sent,stateFrame);
+    slot.engineFrame = rSystem::GetNumFramesSimulated_FixedPoint(src)->integral;
+    slot.flow = *rSystem::staticVars.CurrentBattleFlow;
+    slot.substate = *rSystem::staticVars.CurrentBattleFlowSubstate;
     {
         diag::ScopedTimer _hashTimer(diag::OP_SEMANTIC_HASH);
-        slot.hashes = ComputeSemanticHashes(src);
+        slot.hashes = fSystem::ComputeSemanticHashes(src, chara);
     }
     slot.valid = true;
+}
+
+void fSystem::CaptureSimulatedFrame(rSystem* src, const fPadSystem::Inputs inputs[2]) {
+    const int stateFrame = SimulatedStateFrame();
+    CharaUnit* unit = (src->*rSystem::publicMethods.GetCharaUnit)();
+    if (stateFrame <= 0 || !unit || !unit->playerActors[0] || !unit->playerActors[1]) {
+        return;
+    }
+    const CharaSemantics chara[2] = { CaptureCharaSemantics(src, 0), CaptureCharaSemantics(src, 1) };
+    TraceFrame(src, stateFrame, inputs, chara);
+    CaptureHashCheckpoint(src, stateFrame, chara);
 }
 
 fSystem::HashCheckpoint* fSystem::FindHashCheckpoint(int frameIdx) {
@@ -211,6 +239,7 @@ void fSystem::ClearHashCheckpoints() {
     for (int i = 0; i < NUM_HASH_CHECKPOINTS; i++) {
         hashCheckpoints[i] = HashCheckpoint();
     }
+    ClearFrameTrace();
 }
 
 void fSystem::CaptureSnapshot(rSystem* src) {
@@ -697,6 +726,31 @@ bool fSystem::SaveState::Load(SaveState* src) {
     }
     if (sf4e::crash::HeapCheckEnabled()) sf4e::crash::HeapCheckpoint("load", src->simulationFrame);
     return !sf4e::Game::MementoFailure::restore;
+}
+
+void fSystem::SaveState::ForgetFinishedSounds(SaveState* state) {
+    int forgotten = 0;
+    for (auto& saved : state->criPlayerState) {
+        auto& sound = saved.second;
+        if (!sound.bLive) continue;
+        // Still playing: a live real sound of the same request whose player
+        // has not run out. The real players are asked themselves, by the
+        // game's own check, since their records are live until stopped too.
+        bool playing = false;
+        for (auto managerIter = fSoundPlayerManager::shadowManagerMap.begin();
+            !playing && managerIter != fSoundPlayerManager::shadowManagerMap.end(); managerIter++) {
+            rSoundPlayerManager* realManager = managerIter->second;
+            rSoundPlayerManager::CriPlayerAdapter* realPlayers = *rSoundPlayerManager::GetAdapters(realManager);
+            for (int i = 0; !playing && i < *rSoundPlayerManager::GetNumAdapters(realManager); i++) {
+                const auto real = fSoundPlayerManager::adapterToCurrentSound.find(&realPlayers[i]);
+                playing = real != fSoundPlayerManager::adapterToCurrentSound.end() && real->second.bLive &&
+                    fSoundPlayerManager::DeferredSoundRequest::IsEqual(&sound, &real->second) &&
+                    (realPlayers[i].*rSoundPlayerManager::CriPlayerAdapter::publicMethods.IsStillPlaying)();
+            }
+        }
+        if (!playing) { sound.bLive = false; ++forgotten; }
+    }
+    if (forgotten) spdlog::info("SaveState: {} sounds that had ended are not kept as playing in this state", forgotten);
 }
 
 bool fSystem::SaveState::Save(SaveState* dst, bool temporary) {

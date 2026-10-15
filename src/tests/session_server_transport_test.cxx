@@ -1,4 +1,5 @@
 #include "../session/sf4e__SessionServer.hxx"
+#include "../session/RoomRecoveryRuntime.hxx"
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -11,6 +12,7 @@
 
 #include "test_support.hxx"
 #include "server_transport_support.hxx"
+#include "fake_helper_pipe.hxx"
 
 using namespace sf4e;
 namespace protocol = sf4e::SessionProtocol;
@@ -1728,6 +1730,8 @@ static void TestCustomRoomDepartures() {
 	for (const char* key : {"room", "members", "cids", "room_members", "peer_identities", "match_authorities"}) {
 		auto damaged = checkpoint; damaged[key] = nullptr;
 		CHECK(!recovery.RestoreCheckpoint(damaged));
+		// The refusal names the part it stopped at, for the field log.
+		CHECK(recovery.RestoreRefusal() == key);
 		CHECK(recovery.Checkpoint() == checkpoint);
 	}
 	// Duplicate native preparation acknowledgments after recovery cannot
@@ -1887,7 +1891,202 @@ static void TestServerOwnedRoom() {
 	CHECK(server._connectionAccounts.empty());
 }
 
+// Two fighters and a spectator at table 0 of a room whose replicas import
+// every recovery checkpoint. Connections 16 apart share an authenticated
+// endpoint, as one player rejoining does; each has its own incarnation.
+enum class SetupStage { Preparing, P1Prepared, FightersPrepared, AllPrepared, Started };
+
+struct ParticipantRoom {
+	MockTransport* transport = new MockTransport();
+	SessionServer server{"custom-room", "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(transport)};
+	std::array<std::uint8_t, 16> room{{1}};
+	std::uint64_t actionId = 0, generation = 0;
+	static std::string IdentityOf(session::Connection connection) {
+		std::string identity(64, '0'); identity[63] = "0123456789abcdef"[static_cast<std::size_t>(connection) & 15]; return identity;
+	}
+	static std::uint64_t IncarnationOf(session::Connection connection) { return connection; }
+
+	explicit ParticipantRoom(SetupStage stage) {
+		server.EnableMatchAuthorization(room, IdentityOf, IncarnationOf);
+		server.EnableCustomRooms("Departed participant", 16, 9);
+		CHECK(server.Listen(0) == 0);
+		for (session::Connection connection = 1; connection <= 4; ++connection) Join(connection);
+		Act(2, room::ActionKind::Queue); Act(3, room::ActionKind::Queue); Act(4, room::ActionKind::Watch);
+		Act(2, room::ActionKind::Ready); Act(3, room::ActionKind::Ready);
+		generation = server.RoomSnapshot()->tables[0].matchGeneration;
+		if (stage >= SetupStage::P1Prepared) Acknowledge(2, "game_prepared", {{"spectators_optional", true}});
+		if (stage >= SetupStage::FightersPrepared) Acknowledge(3, "game_prepared");
+		if (stage >= SetupStage::AllPrepared) Acknowledge(4, "game_prepared");
+		if (stage >= SetupStage::Started) { Acknowledge(2, "game_ready"); Acknowledge(3, "game_ready"); }
+	}
+	void Step() { CHECK(server.Step() == 0); }
+	void Join(session::Connection connection) {
+		transport->Push(connection, json(protocol::SessionHelloMsg())); Step();
+		protocol::SessionJoinRequest request;
+		request.username = "Member" + std::to_string(connection); request.sidecarHash = "build"; request.port = 30000;
+		request.customRooms = true; request.roomProtocol = room::ProtocolVersion;
+		transport->Push(connection, json(request)); Step();
+		CHECK(server.roomMembers.count(connection) == 1);
+	}
+	void Act(session::Connection connection, room::ActionKind kind) {
+		const auto* snapshot = server.RoomSnapshot();
+		protocol::RoomActionMessage message;
+		message.action.kind = kind; message.action.roomEpoch = snapshot->roomEpoch; message.action.revision = snapshot->revision;
+		message.action.table = 0; message.action.tableRevision = snapshot->tables[0].revision; message.action.actionId = ++actionId;
+		transport->Push(connection, json(message)); Step();
+	}
+	void Acknowledge(session::Connection connection, const char* type, json extra = json::object()) {
+		extra["type"] = type; extra["generation"] = generation; transport->Push(connection, extra); Step();
+	}
+	void Depart(session::Connection connection, bool disconnect) {
+		if (disconnect) { transport->disconnected.push_back(connection); Step(); }
+		else Act(connection, room::ActionKind::Leave);
+		CHECK(server.roomMembers.count(connection) == 0);
+	}
+	static std::size_t FrozenRows(const json& checkpoint) {
+		return std::count_if(checkpoint.at("members").begin(), checkpoint.at("members").end(),
+			[](const json& row) { return row.value("frozen", false); });
+	}
+	// A replica restores the checkpoint and rebinds every active row, as a
+	// member's recovery import does before it activates the commit.
+	static bool Imports(SessionServer& replica, const json& checkpoint) {
+		if (!replica.RestoreRecoveryCheckpoint(checkpoint)) return false;
+		std::vector<SessionServer::StableRebind> bindings;
+		session::Connection handle = 200;
+		for (const auto& row : checkpoint.at("members")) {
+			if (row.value("frozen", false)) continue;
+			bindings.emplace_back(row.at("member").get<room::MemberId>(), handle++,
+				row.at("data").get<protocol::MemberData>().connId, row.at("incarnation").get<std::uint64_t>());
+		}
+		return replica.RebindMembers(bindings);
+	}
+	std::unique_ptr<SessionServer> Replica() const {
+		auto replica = std::make_unique<SessionServer>("custom-room", "build", true, 3, Dimps::Math::FixedPoint{0, 99},
+			std::unique_ptr<session::ServerTransport>(new MockTransport()));
+		replica->EnableMatchAuthorization(room, IdentityOf, IncarnationOf);
+		return replica;
+	}
+	bool Imports(const json& checkpoint) const { return Imports(*Replica(), checkpoint); }
+};
+
+// A member that leaves while its table's match authority still names it keeps
+// a frozen row: a spectator that left before the start stays a departed
+// participant until the generation ends. Without the row no replica could
+// import the room's checkpoints, and every member's room stalled behind it.
+static void TestParticipantDepartureCheckpoint(SetupStage stage, bool disconnect) {
+	ParticipantRoom fixture(stage);
+	auto& server = fixture.server;
+	const auto spectator = server.roomMembers.at(4);
+	fixture.Depart(4, disconnect);
+	CHECK(server.roomFrozenMembers.count(spectator) == 1 && server.roomFrozenMembers.at(spectator).incarnation != 0);
+	CHECK(fixture.Imports(server.RecoveryCheckpoint()));
+	if (stage == SetupStage::Started) return;
+	// A fighter leaving ends the generation before the start, and the row with it.
+	fixture.Depart(3, true);
+	CHECK(server.roomFrozenMembers.empty());
+	CHECK(fixture.Imports(server.RecoveryCheckpoint()));
+}
+
+// The rejoined member's own game applies `commits` (revisions 1, 2, ...) the
+// way production does: the scripted helper hands them over through IrohRoom's
+// event handling (transfer, commit marker, decode, staging), and
+// RoomRecoveryRuntime imports, rebinds and activates them against a replica
+// server. Returns the revision it applied up to.
+static std::uint64_t ApplyAsRejoinedMember(const ParticipantRoom& fixture, const std::vector<json>& commits,
+	session::Connection self) {
+	FakeHelperPipe pipe;
+	platform::HelperClient helper;
+	pipe.Connect(helper);
+	session::IrohRoom room(helper);
+	CHECK(room.Join("invitation", "build"));
+	const std::array<std::uint8_t, 16> id{{9}};
+	const std::string leader(64, 'a');
+	std::map<std::string, std::uint64_t> incarnations;
+	for (const auto& row : commits.front().at("members"))
+		if (!row.value("frozen", false))
+			incarnations[row.at("data").at("authenticatedEndpoint").get<std::string>()] = row.at("incarnation").get<std::uint64_t>();
+	pipe.Send({{"type", "status"}, {"request_id", 1}, {"endpoint", ParticipantRoom::IdentityOf(self)}, {"fixed_port", 0}});
+	pipe.Send({{"type", "coordination_state"}, {"epoch", 1}, {"room", id}, {"term", 1}, {"revision", commits.size()},
+		{"incarnation", ParticipantRoom::IncarnationOf(self)}, {"leader", leader}, {"writable", true}, {"leader_local", false}});
+	pipe.Send({{"type", "control_rebound"}, {"epoch", 1}, {"room", id}, {"leader", leader},
+		{"member_incarnations", incarnations}, {"members", json::array()}});
+	for (std::uint64_t revision = 1; revision <= commits.size(); ++revision) {
+		session::SessionProposal proposal;
+		proposal.request = revision; proposal.term = 1; proposal.baseRevision = revision - 1;
+		proposal.checkpoint = commits[revision - 1]; proposal.effectsDigest = session::EffectsDigest({});
+		const auto bytes = json(proposal).dump();
+		const json transfer{{"epoch", 1}, {"room", id}, {"transfer", revision}, {"term", 1},
+			{"base_revision", revision - 1}, {"revision", revision}};
+		auto message = [&](const char* type) { auto value = transfer; value["type"] = type; return value; };
+		auto begin = message("checkpoint_begin"); begin["length"] = bytes.size(); begin["digest"] = coordination::Sha256(bytes);
+		pipe.Send(begin);
+		for (std::size_t offset = 0; offset < bytes.size(); offset += coordination::CheckpointChunk) {
+			auto chunk = message("checkpoint_chunk");
+			chunk["offset"] = offset; chunk["data"] = coordination::Encode(bytes.substr(offset, coordination::CheckpointChunk));
+			pipe.Send(chunk);
+		}
+		auto end = begin; end["type"] = "checkpoint_end"; pipe.Send(end);
+		auto committed = begin; committed["type"] = "checkpoint_committed"; pipe.Send(committed);
+	}
+	const auto replica = fixture.Replica();
+	session::RoomRecoveryRuntime recovery;
+	for (int tick = 0; tick < 5000 && recovery.AppliedRevision() < commits.size(); ++tick) {
+		CHECK(recovery.Tick(*replica, room));
+		pipe.Drain();
+		Sleep(1);
+	}
+	CHECK(recovery.Error().empty() && !room.CheckpointPending());
+	return recovery.AppliedRevision();
+}
+
+// The spectator leaves before the start and rejoins, again and again, while
+// that generation still names its endpoint. Each rejoin is a new member and
+// incarnation. The endpoint never has more than one frozen row, and every
+// commit imports in order on one replica, the generation's cleanup commit
+// included. The rejoined member's own game then activates the rejoin commit
+// even as a room host from before this change sent it, with the old frozen
+// row beside the new active one, and applies the cleanup commit behind it.
+static void TestRejoinAfterPreStartDeparture() {
+	ParticipantRoom fixture(SetupStage::FightersPrepared);
+	auto& server = fixture.server;
+	const auto replica = fixture.Replica();
+	const auto endpoint = ParticipantRoom::IdentityOf(4);
+	session::Connection spectator = 4;
+	json frozenRow, rejoined;
+	for (int cycle = 0; cycle < 6; ++cycle) {
+		fixture.Depart(spectator, cycle % 2 == 0);
+		const auto departed = server.RecoveryCheckpoint();
+		CHECK(server.roomFrozenMembers.size() == 1 && ParticipantRoom::FrozenRows(departed) == 1);
+		CHECK(ParticipantRoom::Imports(*replica, departed));
+		for (const auto& row : departed.at("members")) if (row.value("frozen", false)) frozenRow = row;
+		spectator += 16;
+		fixture.Join(spectator);
+		// The live row restores the endpoint's participations; the frozen one goes.
+		rejoined = server.RecoveryCheckpoint();
+		CHECK(server.roomFrozenMembers.empty() && ParticipantRoom::FrozenRows(rejoined) == 0);
+		session::RosterRow active;
+		CHECK(session::ActiveRosterRow(rejoined.at("members"), endpoint, active) &&
+			active.member == server.roomMembers.at(spectator) && active.incarnation == spectator);
+		CHECK(ParticipantRoom::Imports(*replica, rejoined));
+	}
+	CHECK(server.RoomSnapshot()->tables[0].matchGeneration == fixture.generation);
+	// The generation ends; its cleanup commit imports behind the rejoin.
+	fixture.Depart(3, true);
+	const auto cleanup = server.RecoveryCheckpoint();
+	session::RosterRow active;
+	CHECK(session::ActiveRosterRow(cleanup.at("members"), endpoint, active) && active.incarnation == spectator);
+	CHECK(ParticipantRoom::Imports(*replica, cleanup));
+	auto withFrozen = rejoined;
+	withFrozen.at("members").push_back(frozenRow);
+	CHECK(ParticipantRoom::FrozenRows(withFrozen) == 1);
+	CHECK(ApplyAsRejoinedMember(fixture, {withFrozen, cleanup}, spectator) == 2);
+}
+
 int main() {
+	for (const auto stage : {SetupStage::Preparing, SetupStage::P1Prepared, SetupStage::FightersPrepared,
+		SetupStage::AllPrepared, SetupStage::Started})
+		for (const bool disconnect : {true, false}) TestParticipantDepartureCheckpoint(stage, disconnect);
+	TestRejoinAfterPreStartDeparture();
 	TestServerOwnedRoom();
 	auto* transport = new MockTransport();
 	SessionServer server("room", "build", true, 3, {0, 99},
@@ -1924,11 +2123,14 @@ int main() {
 
 	protocol::LobbySetSettings settings;
 	settings.roundCount = 5;
-	settings.trainingMode = true;
 	transport->Push(2, json(settings)); step();
 	CHECK(server._lobbyData.roundCount == 3);
-	transport->Push(10000000001ULL, json(settings)); step();
-	CHECK(server._lobbyData.roundCount == 5 && server._lobbyData.trainingMode);
+	// The trainingMode an older build still sends is not read: a lobby's games
+	// are never Practice matches; only a Practice room's are.
+	json older = settings;
+	older["trainingMode"] = true;
+	transport->Push(10000000001ULL, older); step();
+	CHECK(server._lobbyData.roundCount == 5 && !server._lobbyData.trainingMode);
 	protocol::PreBattleSetStage stage;
 	for (const auto& option : selection::StageList()) {
 		stage.stageID = option.id;
@@ -1960,8 +2162,26 @@ int main() {
 	const json guestPick = server._matchData.chara[1];
 	const json hostPick = server._matchData.chara[0];
 	CHECK(guestPick == json(selection.chara) && hostPick != guestPick);
+	// Costume indices past the game's own (7-98) are custom slots, valid with up to ten colors: each PC shows its
+	// own install of that slot or the original costume.
+	json custom = selection; custom["chara"]["costume"] = 7; custom["chara"]["color"] = 9;
+	transport->Push(2, custom); step();
+	CHECK(server._matchData.chara[1].costume == 7 && server._matchData.chara[1].color == 9);
+	transport->Push(2, json(selection)); step();
+	CHECK(json(server._matchData.chara[1]) == guestPick);
+	// Colors 30-99 (indices 29-98) of any costume are custom colors, valid the same way.
+	json extraColor = selection; extraColor["chara"]["color"] = 29;
+	transport->Push(2, extraColor); step();
+	CHECK(server._matchData.chara[1].costume == 1 && server._matchData.chara[1].color == 29);
+	transport->Push(2, json(selection)); step();
+	CHECK(json(server._matchData.chara[1]) == guestPick);
+	json customSlotColor = custom; customSlotColor["chara"]["color"] = 40;
+	transport->Push(2, customSlotColor); step();
+	CHECK(server._matchData.chara[1].costume == 7 && server._matchData.chara[1].color == 40);
+	transport->Push(2, json(selection)); step();
+	CHECK(json(server._matchData.chara[1]) == guestPick);
 	const std::pair<const char*, int> invalidOptions[] = {
-		{"charaID", 44}, {"costume", 7}, {"color", 22}, {"unc_edition", 0},
+		{"charaID", 44}, {"costume", 99}, {"color", 22}, {"color", 99}, {"unc_edition", 0},
 		{"ultraCombo", 3}, {"personalAction", 10}, {"winQuote", 11}, {"handicap", 5}
 	};
 	for (const auto& option : invalidOptions) {
@@ -1969,6 +2189,9 @@ int main() {
 		transport->Push(2, request); step();
 		CHECK(json(server._matchData.chara[1]) == guestPick);
 	}
+	json customColor = custom; customColor["chara"]["color"] = 10;
+	transport->Push(2, customColor); step();
+	CHECK(json(server._matchData.chara[1]) == guestPick);
 	for (const char* field : {"charaID", "costume", "color", "unc_edition", "ultraCombo",
 		"personalAction", "winQuote", "handicap", "_unused"}) {
 		for (json value : {json(-1), json(256), json(1.5), json(true), json("1"), json(nullptr)}) {
@@ -2050,7 +2273,6 @@ int main() {
 	server.EnableMatchAuthorization(room, [](session::Connection connection) {
 		return std::string(64, connection == 10000000001ULL ? '1' : static_cast<char>('0' + connection));
 	});
-	settings.trainingMode = false;
 	settings.editionSelect = true;
 	settings.roundCount = 7;
 	settings.roundTime = {0, 99};

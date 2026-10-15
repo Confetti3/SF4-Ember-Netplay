@@ -441,9 +441,10 @@ void DrawVsBattleWindow(bool* pOpen) {
 	ImGui::Checkbox("Block termination?", &fVsBattle::bBlockTermination);
 	ImGui::Checkbox("Force next battle online?", &fVsBattle::bForceNextMatchOnline);
 	ImGui::Checkbox("Skip results menu on next result?", &fVsBattle::bTerminateOnNextLeftBattle);
-	ImGui::Checkbox("Override next random seed?", &fVsBattle::bOverrideNextRandomSeed);
-	if (fVsBattle::bOverrideNextRandomSeed) {
-		sf4e::ui::InputInt("Next match random seed", (int*)&fVsBattle::nextMatchRandomSeed);
+	ImGui::Checkbox("Training rules on next battle?", &fVsBattle::nextRequest.training);
+	ImGui::Checkbox("Override next random seed?", &fVsBattle::nextRequest.overrideSeed);
+	if (fVsBattle::nextRequest.overrideSeed) {
+		sf4e::ui::InputInt("Next match random seed", (int*)&fVsBattle::nextRequest.seed);
 	}
 
 	End();

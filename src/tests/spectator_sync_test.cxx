@@ -271,19 +271,6 @@ static void SpectatorLockReleaseLifecycle() {
 	std::cout << "SpectatorLockRelease passed\n";
 }
 
-static void SetupFailureOwesLockRelease() {
-	// A spectator's local failure of an admitted generation owes its lock release,
-	// with no battle or GGPO session needed to have been reached.
-	CHECK(netplay::SpectatorFailureOwesLockRelease(true, 4, false));
-	// A finished game, a fighter, or no admitted generation owe nothing.
-	CHECK(!netplay::SpectatorFailureOwesLockRelease(true, 4, true));
-	CHECK(!netplay::SpectatorFailureOwesLockRelease(false, 4, false));
-	CHECK(!netplay::SpectatorFailureOwesLockRelease(true, 0, false));
-	// A spectator that only played out the game is silent at the close.
-	CHECK(netplay::SessionlessCloseAction(true, 4, 4, 4, false, true, true, false, false) == netplay::SessionlessClose::EndView);
-	std::cout << "SetupFailureOwesLockRelease passed\n";
-}
-
 static void StaleEntryIsReleased() {
 	// A newer grant while the entry of an older generation is still held and its
 	// battle is gone: release the old one so the new grant is entered.
@@ -305,7 +292,6 @@ int main() {
 	SpectatorExit();
 	SessionlessCloseRules();
 	SpectatorLockReleaseLifecycle();
-	SetupFailureOwesLockRelease();
 	StaleEntryIsReleased();
 	std::cout << "Spectator sync tests passed\n";
 	return 0;

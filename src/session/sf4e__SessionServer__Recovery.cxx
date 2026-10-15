@@ -69,22 +69,22 @@ bool SessionServer::RestoreCheckpoint(const json& value) {
 			value.at("identity") != _identity || value.at("build") != _sidecarHash ||
 			value.at("authorized") != _matchAuthorizationConfigured ||
 			value.at("authorization_room").get<decltype(_matchAuthorizationRoom)>() != _matchAuthorizationRoom)
-			return false;
+			return RefuseRestore("header");
 		// The temporary owns no transport. Rejected imports cannot partially
 		// replace live state, disconnect peers, or publish native match effects.
 		SessionServer candidate(_identity, _sidecarHash, true, 3, {0, 99}, nullptr);
 		candidate._roomAuthority.reset(new room::RoomAuthority("Recovering room"));
-		if (!candidate._roomAuthority->RestoreCheckpoint(value.at("room"))) return false;
+		if (!candidate._roomAuthority->RestoreCheckpoint(value.at("room"))) return RefuseRestore("room");
 		const auto& snapshot = candidate._roomAuthority->SnapshotView();
 		const auto readMap = [&](const char* key, auto& destination, std::size_t maximum) {
 			const auto& rows = value.at(key);
-			if (!rows.is_array() || rows.size() > maximum) return false;
+			if (!rows.is_array() || rows.size() > maximum) return RefuseRestore(key);
 			for (const auto& row : rows) {
-				if (!row.is_array() || row.size() != 2 || !row[0].is_number_unsigned()) return false;
+				if (!row.is_array() || row.size() != 2 || !row[0].is_number_unsigned()) return RefuseRestore(key);
 				using Map = typename std::decay<decltype(destination)>::type;
 				const auto keyValue = row[0].get<typename Map::key_type>();
 				if (static_cast<std::uint64_t>(keyValue) != row[0].get<std::uint64_t>() ||
-					!destination.emplace(keyValue, row[1].get<typename Map::mapped_type>()).second) return false;
+					!destination.emplace(keyValue, row[1].get<typename Map::mapped_type>()).second) return RefuseRestore(key);
 			}
 			return true;
 		};
@@ -97,7 +97,7 @@ bool SessionServer::RestoreCheckpoint(const json& value) {
 		for (const auto& mapping : candidate.cidMap) {
 			const auto& cid = mapping.second;
 			if (!mapping.first || cid.host != _identity || cid.user.empty() || cid.user.size() > 256 ||
-				!cids.emplace(cid.host, cid.user).second) return false;
+				!cids.emplace(cid.host, cid.user).second) return RefuseRestore("cids");
 		}
 		std::set<room::MemberId> memberIds;
 		for (const auto& mapping : candidate.roomMembers) {
@@ -106,31 +106,31 @@ bool SessionServer::RestoreCheckpoint(const json& value) {
 			const auto cid = candidate.cidMap.find(mapping.first);
 			if (member == snapshot.members.end() || cid == candidate.cidMap.end() ||
 				member->connection.host != cid->second.host || member->connection.user != cid->second.user ||
-				!memberIds.insert(mapping.second).second) return false;
+				!memberIds.insert(mapping.second).second) return RefuseRestore("room_members");
 		}
-		if (memberIds.size() != snapshot.members.size()) return false;
+		if (memberIds.size() != snapshot.members.size()) return RefuseRestore("room_members");
 		for (const auto& mapping : candidate.roomSelectedTables)
-			if (!candidate.roomMembers.count(mapping.first) || mapping.second >= room::TableCount) return false;
+			if (!candidate.roomMembers.count(mapping.first) || mapping.second >= room::TableCount) return RefuseRestore("selected_tables");
 		for (const auto& mapping : candidate._roomMatchData)
-			if (mapping.first >= room::TableCount) return false;
+			if (mapping.first >= room::TableCount) return RefuseRestore("table_matches");
 		std::set<std::string> identities;
 		for (const auto& mapping : candidate.roomPeerIdentities) {
 			if (!memberIds.count(mapping.first) || mapping.second.empty() || mapping.second.size() > 256 ||
-				!identities.insert(mapping.second).second) return false;
+				!identities.insert(mapping.second).second) return RefuseRestore("peer_identities");
 		}
-		if (candidate.roomPeerIdentities.size() != memberIds.size()) return false;
+		if (candidate.roomPeerIdentities.size() != memberIds.size()) return RefuseRestore("peer_identities");
 		const auto& bans = value.at("bans");
-		if (!bans.is_array()) return false;
+		if (!bans.is_array()) return RefuseRestore("bans");
 		for (const auto& entry : bans) {
 			const auto identity = entry.get<std::string>();
 			if (identity.empty() || identity.size() > 256 || identities.count(identity) ||
-				!candidate.roomBannedIdentities.insert(identity).second) return false;
+				!candidate.roomBannedIdentities.insert(identity).second) return RefuseRestore("bans");
 		}
 		const auto& members = value.at("members");
-		if (!members.is_array() || members.size() != memberIds.size()) return false;
+		if (!members.is_array() || members.size() != memberIds.size()) return RefuseRestore("members");
 		std::set<session::Connection> connections;
 		for (const auto& row : members) {
-			if (!row.at("connection").is_number_unsigned() || !row.at("flags").is_number_unsigned()) return false;
+			if (!row.at("connection").is_number_unsigned() || !row.at("flags").is_number_unsigned()) return RefuseRestore("members");
 			SessionMember member{};
 			member.conn = row.at("connection").get<session::Connection>();
 			member.data = row.at("data").get<SessionProtocol::MemberData>();
@@ -138,18 +138,18 @@ bool SessionServer::RestoreCheckpoint(const json& value) {
 			if (!candidate.roomMembers.count(member.conn) || !connections.insert(member.conn).second ||
 				!(candidate.cidMap.at(member.conn) == member.data.connId) ||
 				member.data.name.size() > 256 || member.data.ip.size() > 256 ||
-				(member.data.flags & ~std::uint64_t(SessionProtocol::MF_BATTLE_LOADED))) return false;
+				(member.data.flags & ~std::uint64_t(SessionProtocol::MF_BATTLE_LOADED))) return RefuseRestore("members");
 			candidate.clients.push_back(std::move(member));
 		}
 		const auto readSets = [&](const char* key, auto& destination) {
 			const auto& rows = value.at(key);
-			if (!rows.is_array() || rows.size() != room::TableCount) return false;
+			if (!rows.is_array() || rows.size() != room::TableCount) return RefuseRestore(key);
 			for (std::size_t i = 0; i < room::TableCount; ++i) {
-				if (!rows[i].is_array() || rows[i].size() > room::MaxMembers) return false;
+				if (!rows[i].is_array() || rows[i].size() > room::MaxMembers) return RefuseRestore(key);
 				for (const auto& entry : rows[i]) {
-					if (!entry.is_number_unsigned()) return false;
+					if (!entry.is_number_unsigned()) return RefuseRestore(key);
 					const auto connection = entry.get<session::Connection>();
-					if (!connections.count(connection) || !destination[i].insert(connection).second) return false;
+					if (!connections.count(connection) || !destination[i].insert(connection).second) return RefuseRestore(key);
 				}
 			}
 			return true;
@@ -157,23 +157,24 @@ bool SessionServer::RestoreCheckpoint(const json& value) {
 		if (!readSets("battle_loaded", candidate._roomBattleLoaded) ||
 			!readSets("punch_ready", candidate._roomPunchReady)) return false;
 		candidate._lobbyData = value.at("lobby").get<SessionProtocol::LobbyData>();
-		if (candidate._lobbyData.id.host != _identity || candidate._lobbyData.members.size() > room::MaxMembers) return false;
+		if (candidate._lobbyData.id.host != _identity || candidate._lobbyData.members.size() > room::MaxMembers) return RefuseRestore("lobby");
 		for (std::size_t i = 0; i < candidate._lobbyData.members.size(); ++i)
 			candidate._lobbyData.members[i].flags = value.at("lobby").at("members")[i].at("flags").get<std::uint64_t>();
 		candidate._matchData = value.at("match").get<SessionProtocol::MatchData>();
 		const auto punch = value.at("legacy_punch_ready").get<std::array<bool, 2>>();
 		candidate._dataDirty = value.at("dirty").get<bool>();
 		const auto& authorities = value.at("match_authorities");
-		if (!authorities.is_array() || authorities.size() != room::TableCount) return false;
+		if (!authorities.is_array() || authorities.size() != room::TableCount) return RefuseRestore("match_authorities");
 		const auto restoreAuthority = [&](const json& data, std::unique_ptr<session::MatchAuthority>& authority) {
 			if (data.is_null()) return !_matchAuthorizationConfigured;
 			if (!_matchAuthorizationConfigured) return false;
 			authority.reset(new session::MatchAuthority(_matchAuthorizationRoom, _matchAuthorizationIdentity));
 			return authority->RestoreCheckpoint(data);
 		};
-		if (!restoreAuthority(value.at("legacy_authority"), candidate._matchAuthority)) return false;
+		if (!restoreAuthority(value.at("legacy_authority"), candidate._matchAuthority)) return RefuseRestore("legacy_authority");
 		for (std::size_t i = 0; i < room::TableCount; ++i)
-			if (!restoreAuthority(authorities[i], candidate._roomMatchAuthorities[i])) return false;
+			if (!restoreAuthority(authorities[i], candidate._roomMatchAuthorities[i]))
+				return RefuseRestore("match_authority " + std::to_string(i));
 		_roomAuthority = std::move(candidate._roomAuthority);
 		clients = std::move(candidate.clients); cidMap = std::move(candidate.cidMap);
 		roomMembers = std::move(candidate.roomMembers); roomSelectedTables = std::move(candidate.roomSelectedTables);
@@ -186,7 +187,7 @@ bool SessionServer::RestoreCheckpoint(const json& value) {
 		_punchReady[0] = punch[0]; _punchReady[1] = punch[1]; _dataDirty = candidate._dataDirty;
 		_departingConnections.clear(); _afterDataMessages.clear();
 		return true;
-	} catch (const std::exception&) { return false; }
+	} catch (const std::exception& error) { return RefuseRestore(std::string("checkpoint: ") + error.what()); }
 }
 
 json SessionServer::RecoveryCheckpoint() const {
@@ -277,12 +278,12 @@ json SessionServer::RecoveryCheckpoint() const {
 bool SessionServer::RestoreRecoveryCheckpoint(const json& value) {
 	try {
 		auto history = value.value("effect_journal", std::vector<session::EffectEnvelope>{});
-		if (json(history).dump().size() > session::MaxEffectJournalBytes) return false;
+		if (json(history).dump().size() > session::MaxEffectJournalBytes) return RefuseRestore("effect_journal");
 		const auto authority = value.value("authority", json::object());
 		if (authority.empty()) return RestoreRecoveryState(value, std::move(history), nullptr);
 		const session::AuthorityStamp stamp{authority.value("term", 0ULL), authority.value("revision", 0ULL), authority.value("writable", false)};
 		return RestoreRecoveryState(value, std::move(history), &stamp);
-	} catch (const std::exception&) { return false; }
+	} catch (const std::exception& error) { return RefuseRestore(std::string("recovery: ") + error.what()); }
 }
 
 bool SessionServer::RestoreRecoveryCheckpoint(const json& value,
@@ -294,10 +295,12 @@ bool SessionServer::RestoreRecoveryState(const json& value,
 	std::vector<session::EffectEnvelope> incomingHistory, const session::AuthorityStamp* authority) {
 	try {
 		if (value.value("schema", std::string()) != "session-recovery-v2" || !value.at("room").is_object() ||
-			!value.at("members").is_array() || value.at("members").size() > room::MaximumMembers + room::TableCount * room::MaxMatchParticipants) return false;
-		if (incomingHistory.size() > session::MaxEffectJournalEntries) return false;
+			!value.at("members").is_array() || value.at("members").size() > room::MaximumMembers + room::TableCount * room::MaxMatchParticipants)
+			return RefuseRestore("schema");
+		if (incomingHistory.size() > session::MaxEffectJournalEntries) return RefuseRestore("effect_journal");
 		for (const auto& effect : incomingHistory)
-			if (effect.term == 0 || effect.recipient == 0 || !session::recovery_detail::IsSha256(effect.payloadDigest)) return false;
+			if (effect.term == 0 || effect.recipient == 0 || !session::recovery_detail::IsSha256(effect.payloadDigest))
+				return RefuseRestore("effect_journal");
 		// Everything but the recovery envelope. The journal is the bulk of a
 		// checkpoint and RestoreCheckpoint does not read it, so it is not copied.
 		json legacy = json::object();
@@ -312,7 +315,7 @@ bool SessionServer::RestoreRecoveryState(const json& value,
 		for (const auto& row : value.at("members")) {
 			const auto member = row.at("member").get<room::MemberId>();
 			const auto endpoint = row.at("endpoint").get<room::ConnectionRef>();
-			if (!member || !synthetic.emplace(member, SyntheticConnection(member)).second) return false;
+			if (!member || !synthetic.emplace(member, SyntheticConnection(member)).second) return RefuseRestore("members");
 			SessionProtocol::MemberData data = row.at("data").get<SessionProtocol::MemberData>();
 			data.connId = {endpoint.host, endpoint.user}; data.roomMember = member;
 			data.authenticatedEndpoint = row.value("authenticated_endpoint", data.authenticatedEndpoint);
@@ -327,18 +330,18 @@ bool SessionServer::RestoreRecoveryState(const json& value,
 		legacy["members"] = std::move(legacyMembers); legacy["cids"] = std::move(cids); legacy["room_members"] = std::move(roomMemberRows);
 		for (const auto& row : value.value("selected_members", json::array())) {
 			const auto member = row.at("member").get<room::MemberId>();
-			if (!synthetic.count(member) || row.at("table").get<std::uint64_t>() >= room::TableCount) return false;
+			if (!synthetic.count(member) || row.at("table").get<std::uint64_t>() >= room::TableCount) return RefuseRestore("selected_members");
 			selected.push_back({synthetic.at(member), row.at("table")});
 		}
 		legacy["selected_tables"] = std::move(selected);
 		const auto readPendingSets = [&](const char* key, auto& target) {
 			const auto rows = value.value(key, json::array());
-			if (!rows.is_array() || rows.size() != room::TableCount) return false;
+			if (!rows.is_array() || rows.size() != room::TableCount) return RefuseRestore(key);
 			for (std::size_t i = 0; i < room::TableCount; ++i) {
-				if (!rows[i].is_array()) return false;
+				if (!rows[i].is_array()) return RefuseRestore(key);
 				for (const auto& id : rows[i]) {
 					const auto member = id.get<room::MemberId>();
-					if (!synthetic.count(member) || !target[i].insert(member).second) return false;
+					if (!synthetic.count(member) || !target[i].insert(member).second) return RefuseRestore(key);
 				}
 			}
 			return true;
@@ -357,7 +360,8 @@ bool SessionServer::RestoreRecoveryState(const json& value,
 			}
 			legacy[output] = std::move(result); return legacy[output];
 		};
-		if (decodeSets("battle_loaded_members", "battle_loaded").is_null() || decodeSets("punch_ready_members", "punch_ready").is_null()) return false;
+		if (decodeSets("battle_loaded_members", "battle_loaded").is_null() || decodeSets("punch_ready_members", "punch_ready").is_null())
+			return RefuseRestore("pending_sets");
 		const auto convertAuthority = [&](const json& portable) {
 			if (portable.is_null()) return json(nullptr);
 			return session::MatchAuthority::LocalCheckpoint(portable, [&](const SessionProtocol::ConnectionID& endpoint) {
@@ -366,10 +370,10 @@ bool SessionServer::RestoreRecoveryState(const json& value,
 			});
 		};
 		json authorities = json::array();
-		for (const auto& authority : value.at("match_authorities")) { auto converted = convertAuthority(authority); if (converted.is_discarded()) return false; authorities.push_back(std::move(converted)); }
+		for (const auto& authority : value.at("match_authorities")) { auto converted = convertAuthority(authority); if (converted.is_discarded()) return RefuseRestore("match_authorities"); authorities.push_back(std::move(converted)); }
 		legacy["match_authorities"] = std::move(authorities);
 		legacy["legacy_authority"] = convertAuthority(value.value("legacy_authority", json(nullptr)));
-		if (legacy["legacy_authority"].is_discarded()) return false;
+		if (legacy["legacy_authority"].is_discarded()) return RefuseRestore("legacy_authority");
 		const auto previousAuthorityTerm = _recovery.Authority().term;
 		// A commit made before an outage must not take back the time a
 		// permit's window has already run here. While a candidate is open its
@@ -419,7 +423,7 @@ bool SessionServer::RestoreRecoveryState(const json& value,
 		if (_preparationCancellationRequested) RememberInterruptedPreparations();
 		_passiveTimerClock = 0;
 		return true;
-	} catch (const std::exception&) { return false; }
+	} catch (const std::exception& error) { return RefuseRestore(std::string("recovery: ") + error.what()); }
 }
 
 void SessionServer::BeginRecoveryCandidate() {

@@ -18,6 +18,9 @@ struct Journey:Harness {
  const MenuEntry* row(const char* name)const{const auto it=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==name;});return it==rows.end()?nullptr:&*it;}
  bool has(const char* name)const{return row(name)!=nullptr;}
  std::ptrdiff_t index(const char* name)const{return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==name;})-rows.begin();}
+ // The screens Back walks through from here, as "home>online>identity".
+ std::string trail(){auto nav=shell.Navigation();std::string out=nav.Screen();
+  for(int i=0;i<8&&nav.Return().kind==MenuAction::Returned;++i)out=nav.Screen()+">"+out;return out;}
  // The identity requests and tournament commands submitted so far.
  std::vector<const sf4e::netplay::IdentityRequest*> sent()const{std::vector<const sf4e::netplay::IdentityRequest*> out;for(const auto& a:actions)if(a.identity.op!=IdentityOp::None)out.push_back(&a.identity);return out;}
  std::vector<const sf4e::netplay::tournament::Command*> played()const{

@@ -5,6 +5,8 @@
 #include "../netplay/BoundedMailbox.hxx"
 #include "../common/WipeText.hxx"
 #include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <mutex>
 #include <thread>
 
@@ -46,9 +48,30 @@ public:
 #endif
     bool Send(const std::string& payload, uint64_t* requestId = nullptr);
     bool TryReceive(HelperMessage& message) { return incoming_.TryPop(message); }
+    // Returns at once while an event waits for TryReceive or the worker has
+    // failed, otherwise when either happens or after `timeoutMs`. A consumer
+    // that takes a bounded batch with TryReceive and then waits here sleeps
+    // only when there is nothing left to take.
+    void WaitForIncoming(unsigned timeoutMs) {
+        std::unique_lock<std::mutex> lock(arrivalMutex_);
+        arrival_.wait_for(lock, std::chrono::milliseconds(timeoutMs),
+            [this] { return !incoming_.Empty() || state_.load() == HelperState::Failed; });
+    }
     HelperState State() const { return state_.load(); }
     void Stop();
 private:
+    // The worker, after pushing to incoming_ or setting Failed. Taking the
+    // lock orders the change before a waiter's check of it, so the wakeup
+    // cannot fall between that check and the wait.
+    void NotifyIncoming() {
+        { std::lock_guard<std::mutex> lock(arrivalMutex_); }
+        arrival_.notify_all();
+    }
+    // Every exit of the worker on an error, on both platforms.
+    void MarkFailed() {
+        state_ = HelperState::Failed;
+        NotifyIncoming();
+    }
 #ifdef _WIN32
     void Run(HelperBootstrap bootstrap);
     bool Transfer(HANDLE pipe, void* data, DWORD size, bool write);
@@ -64,6 +87,9 @@ private:
     // The worker polls the read end beside the helper's pipe; Stop writes to
     // the other end, and the pipe's own fds are closed only once it has gone.
     int stopPipe_[2] = {-1, -1};
+    // Send writes a byte here after queueing, so the worker wakes to write
+    // instead of looking at the queue on a timer.
+    int wakePipe_[2] = {-1, -1};
     int readFd_ = -1, writeFd_ = -1;
     std::atomic<int> error_{0};
 #endif
@@ -74,6 +100,8 @@ private:
     bool started_ = false;
     netplay::BoundedMailbox<OutgoingMessage> outgoing_;
     netplay::BoundedMailbox<HelperMessage> incoming_;
+    std::mutex arrivalMutex_;
+    std::condition_variable arrival_;
 };
 
 } }

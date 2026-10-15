@@ -5,7 +5,6 @@
 // (0x6EE9A0) and release (0x6ED610) exactly.
 #include "../common/GfxActionPoolState.hxx"
 #include <cstdint>
-#include <cstring>
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -72,16 +71,6 @@ static void TestRollbackKeepsOneOwner() {
     for (std::uint32_t i = s.pool.used; i < s.pool.max; ++i) CHECK(!s.pool.useIndex[s.pool.free[i] - s.pool.raw]);
 }
 
-static void TestFlagsAloneGaveTwoOwners() {
-    // The old restore, for the record: flags back, stack left as it was.
-    Storage s(4);
-    Action* a = s.Allocate();
-    std::vector<std::uint8_t> flags(s.useIndex);
-    s.Release(a);
-    std::memcpy(s.pool.useIndex, flags.data(), flags.size());
-    CHECK(s.Allocate() == a); // handed out while still marked live
-}
-
 static void TestEdges() {
     for (std::uint32_t max : {1u, 5u, static_cast<std::uint32_t>(MaxActions)}) {
         Storage s(max);
@@ -125,7 +114,6 @@ static void TestRejectsWithoutWriting() {
 
 int main() {
     TestRollbackKeepsOneOwner();
-    TestFlagsAloneGaveTwoOwners();
     TestEdges();
     TestRejectsWithoutWriting();
     std::cout << "GFx action pool passed\n";

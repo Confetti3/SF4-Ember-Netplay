@@ -1,6 +1,10 @@
 #pragma once
 #include "../ui/ControllerNavigation.hxx"
+#include "../ui/ReplaysView.hxx"
+#include "../ui/ChatTranscript.hxx"
 #include "../common/MenuInputCapture.hxx"
+#include "../common/TrainingCallInput.hxx"
+#include "../common/InstalledContent.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/StageCatalog.hxx"
 #include "../discord/Presence.hxx"
@@ -19,6 +23,9 @@
 #include "../netplay/PublicRooms.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../platform/ApplicationServices.hxx"
+#include "../platform/ReplayFiles.hxx"
+#include "../common/ReplayRequest.hxx"
+#include "../common/TrainingEntry.hxx"
 #include "../common/RoomLimits.hxx"
 #include "../session/RoomModel.hxx"
 #include <optional>
@@ -29,6 +36,7 @@
 #include "../Dimps/Dimps__GameEvents.hxx"
 
 namespace sf4e {
+	namespace session { class IrohMatchSession; }
 
 	struct NetplayStatus {
 		bool active = false;
@@ -75,13 +83,17 @@ namespace sf4e {
 		struct RuntimeCommand {
 			netplay::Command command;
             platform::ServiceAction service = platform::ServiceAction::None;
+            // With ShowReplayFile: the archived replay whose folder opens.
+            std::string servicePath;
+            reports::Submission reportSubmission;
             input::Action inputAction = input::Action::None;
     discord::InviteAction discordAction = discord::InviteAction::None;
     std::uint64_t discordRevision = 0;
 			std::string displayName;
 			Dimps::GameEvents::VsMode::ConfirmedCharaConditions character = {};
 			int stage = 0;
-			selection::StageMask randomStageExcluded = 0;
+			// The stages Random may land on (P1 resolves Random with it).
+			selection::RandomPool randomPool;
 			netplay::PlayerPreferences preferences;
 			room::Action roomAction;
             int selectedDelay=-1;
@@ -98,19 +110,38 @@ namespace sf4e {
             std::optional<room::Rules> createdRules;
             // Invite a Steam friend to the current room's short link; 0 for every other command.
             std::uint64_t steamInviteFriendId = 0;
+            // With HostRoom: the room is a Practice room for its life (room::Snapshot::practice).
+            bool practiceRoom = false;
+            // What the Replays screen asks of the game (sf4e__ReplayStore), or
+            // the player's answer to a replay link; mode None for every other command.
+            replay::Request replay;
+            // Leave the main menu for Training (common/TrainingEntry.hxx). The
+            // runtime judges it when it takes it and only then asks the menu.
+            TrainingEntry training = TrainingEntry::None;
 		};
 		struct RuntimeSnapshot {
             ui::ControllerSample menuController;
             input::MenuContext menuContext = input::MenuContext::Unavailable;
             std::array<selection::Availability,selection::FighterCount> fighterAvailability;
+            // The custom content installed on this PC: built once at the scan and shared, never copied.
+            selection::InstalledContentPtr installedContent;
 			netplay::Snapshot session;
 			room::Snapshot room;
 			// When `room` arrived (GetTickCount64); idle times count on from it.
 			std::uint64_t roomReceivedMs = 0;
+			// The newest room events for the chat, oldest first.
+			std::vector<ui::RoomNotice> roomNotices;
 			bool helperReady = false;
 			bool atMainMenu = false;
+			// The battle being played or watched is a Practice room's game, as
+			// fixed when the battle was prepared
+			// (training::MatchPracticeActive).
+			bool practiceMatch = false;
 			// A started match is waiting for the player to return to the main menu.
 			bool matchWaitsForMenu = false;
+			// Replays (ui/ReplaysView.hxx), which the shell is handed as they are.
+			using Replays = ui::ReplaysView;
+			Replays replays;
 			bool canOpenRoom = false;
 			bool canReplaceRoom = false;
 			bool canReady = false;
@@ -127,6 +158,16 @@ namespace sf4e {
 			// readied (-1: none); the sequence changes per change.
 			int opponentChangedFighter = -1;
 			std::uint64_t opponentChangeSequence = 0;
+			// Called out of Training: the sequences change when the table is
+			// to be shown and when the player is to be readied, and the
+			// seconds are what is left to ready, 0 while no window is open.
+			std::uint64_t trainingCallSequence = 0, trainingReadySequence = 0;
+			int trainingReadySeconds = 0;
+			// The call back from Training while it stands (TrainingCall::Identity):
+			// the banner and go now are this call's only.
+			input::CallIdentity trainingCall;
+			// The player may leave for Training without leaving the room.
+			bool canTrain = false;
 			bool canEditSelection = false;
             std::string selectionLockReason;
 			bool canEditPreferences = false;
@@ -219,6 +260,10 @@ namespace sf4e {
 		void NotifyRuntimeEventSystemReady();
 		void StopHelper();
 		void TickRuntime();
+		// Game thread, once every outer tick, after SessionClient::Step and
+		// SessionServer::Step: sets the Training call from the room as those
+		// updates left it, before the next battle update may leave for it.
+		void ReconcileTrainingCall();
 		RuntimeSnapshot GetRuntimeSnapshot();
 		// The published snapshot itself, shared rather than copied. Per-frame
 		// readers (overlay, input) use this; the snapshot is immutable once
@@ -233,6 +278,23 @@ namespace sf4e {
 		// Any thread. False when the command is malformed, the queue is full,
 		// or no runtime is accepting commands.
 		bool SubmitRuntimeCommand(RuntimeCommand command);
+		// Game thread. Whether leaving for Training, asked for in session `made`,
+		// holds against `session`, whether the native main menu is up, and `room`:
+		// a Room entry, the same session at the main menu and the room's own gate
+		// open (the published canTrain is this policy too). retiredGeneration is the game
+		// this PC already left and tore down, whose listing as a watcher no longer
+		// counts (0 for none). False with no runtime.
+		bool TrainingHolds(TrainingEntry entry, const netplay::Generation& made, const netplay::Snapshot& session,
+			bool atMainMenu, const room::Snapshot& room, std::uint64_t retiredGeneration);
+		// Game thread: the same against the live controller, native menu and room.
+		// The runtime asks it before posting a Training request, and the native
+		// menu again just before it moves.
+		bool TrainingRequestHolds(const netplay::Generation& made);
+		// The game this PC was in and has fully let go of, for TrainingHolds: match's
+		// retired generation (IrohMatchSession::RetiredGeneration, which names a
+		// setup that failed too), once native GGPO is gone (ggpoLive false) and
+		// recovery has ended (MatchRecovered). 0 otherwise, or with no session.
+		std::uint64_t RetiredMatchGeneration(const session::IrohMatchSession* match, bool ggpoLive, bool recovering);
 		bool IsRuntimeRoomActive();
 		// The room being opened is a public one joined with a ticket, so the host's
 		// refusals are worded for it.

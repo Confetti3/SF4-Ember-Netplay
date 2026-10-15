@@ -355,6 +355,54 @@ async fn simultaneous_authority_claims_share_one_fresh_read_barrier() {
 }
 
 #[tokio::test]
+async fn a_follower_announces_each_commit_and_shares_its_checkpoint() {
+    let (_bus, nodes) = cluster(3).await;
+    let mut commits = nodes[1].committed_changes().await;
+    let empty = nodes[1].committed().await;
+    assert_eq!((empty.revision, empty.digest()), (0, [0; 32]));
+    assert!(
+        nodes[0]
+            .propose(proposal(&nodes[0], "one", 0, "first state"))
+            .await
+            .unwrap()
+            .accepted
+    );
+    // The follower applies on its own task; nothing polls it.
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while *commits.borrow_and_update() != 1 {
+            commits.changed().await.unwrap();
+        }
+    })
+    .await
+    .expect("the follower's commit was announced");
+    // One shared value per commit: a second look is the same value, and its
+    // digest is the checkpoint's.
+    let first = nodes[1].committed().await;
+    assert_eq!((first.revision, first.request.as_str()), (1, "one"));
+    assert_eq!(first.checkpoint, "first state");
+    assert_eq!(first.digest(), crate::recovery::sha256(b"first state"));
+    let again = nodes[1].committed().await;
+    assert!(Arc::ptr_eq(&first, &again) && first.same_commit(&again));
+    assert!(!first.same_commit(&empty));
+
+    // An installed snapshot announces its revision too.
+    let mut store = nodes[0].store.clone();
+    let snapshot = store.build_snapshot().await.unwrap();
+    let mut restored = Store::default();
+    let mut restored_commits = restored.committed_changes().await;
+    restored
+        .install_snapshot(&snapshot.meta, snapshot.snapshot)
+        .await
+        .unwrap();
+    assert!(restored_commits.has_changed().unwrap());
+    assert_eq!(*restored_commits.borrow_and_update(), 1);
+    // A value rebuilt from a snapshot is still the same commit.
+    let rebuilt = restored.committed().await;
+    assert!(!Arc::ptr_eq(&rebuilt, &first) && rebuilt.same_commit(&first));
+    stop(nodes).await;
+}
+
+#[tokio::test]
 async fn commitment_deduplication_and_checkpoint_transfer() {
     let (_, nodes) = cluster(1).await;
     let request = proposal(&nodes[0], "one", 0, "complete private room state");

@@ -5,6 +5,10 @@
 // deliver window messages on either. A frame and a window message share the
 // context; creating or freeing it excludes both, so a Reset can no longer free
 // the context, its fonts or the portrait textures under a frame being drawn.
+// With Faster display on (the default), Ember runs the game with its render
+// thread off (sf4e__Platform.cxx), so all three come on the game thread, where
+// every guard passes in turn. Turned off, the game may draw on its own thread
+// again, which the guards are for.
 //
 // A frame never waits: while the context is being replaced it is skipped. A
 // message does wait, since the input bridge must see every key release

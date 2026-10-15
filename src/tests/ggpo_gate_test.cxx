@@ -374,7 +374,39 @@ static void TestAbortLatchResetDropsPending() {
 	CHECK(!latch.pending);
 }
 
+// Model one native round transition with a save before it. Native idle still
+// advances the engine, as it does in BattleUpdate's old bypass branch. Replaying
+// the resulting GGPO frame count must land on the same engine state. The old
+// (session && !idle) routing loses three transition frames in this fixture.
+static void TestRoundTransitionUsesOneTimeline() {
+	GgpoGateModel gate{};
+	gate.OnSessionStarted();
+	CHECK(!gate.UsesGgpoTimeline(true, true)); // preserve initial bootstrap
+	gate.OnRunning();
+	CHECK(!gate.UsesGgpoTimeline(true, true));
+	CHECK(gate.UsesGgpoTimeline(true, false));
+	int engine = 0, ggpoFrames = 0;
+	const auto idleAt = [](int frame) { return frame >= 2 && frame < 5; };
+	for (int tick = 0; tick < 8; ++tick) {
+		if (gate.UsesGgpoTimeline(true, idleAt(engine))) ++ggpoFrames;
+		++engine;
+	}
+	int replayEngine = 0;
+	for (int frame = 0; frame < ggpoFrames; ++frame) ++replayEngine;
+	CHECK(ggpoFrames == 8);
+	CHECK(replayEngine == engine);
+	// A rollback into idle keeps the latch; a rematch gets a new bootstrap.
+	CHECK(gate.UsesGgpoTimeline(true, true));
+	gate.OnSessionClosed();
+	CHECK(!gate.UsesGgpoTimeline(false, false));
+	gate.OnSessionStarted();
+	CHECK(!gate.UsesGgpoTimeline(true, true));
+	gate.Reset();
+	CHECK(!gate.timelineStarted);
+}
+
 int main() {
+	TestRoundTransitionUsesOneTimeline();
 	TestAbortLatchOutsideCallbackIsImmediate();
 	TestAbortLatchInsideCallbackDefers();
 	TestAbortLatchNestedCallbacks();

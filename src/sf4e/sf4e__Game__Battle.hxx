@@ -1,6 +1,7 @@
 #pragma once
 
 #include <map>
+#include <string>
 #include <vector>
 #include <windows.h>
 
@@ -18,6 +19,14 @@ namespace sf4e {
 			using Dimps::Eva::Task;
 
 			void Install();
+			// Gives Versus battles 30 replay slots instead of 10 (sf4e__Game__Battle.cxx);
+			// after Dimps::Locate, which binds the tables.
+			void WidenMatchReplayList();
+			const std::string& MatchReplayListNote();
+			// The match list is slots 280 to 309. False on another build of the
+			// game, where those slots are not all the match list's and nothing
+			// may be imported into them (platform/ReplayFiles.hxx).
+			bool MatchReplayListWidened();
 
 			struct IUnit : Dimps::Game::Battle::IUnit {
 				// In order for the compiler to construct this method

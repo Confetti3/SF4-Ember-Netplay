@@ -2,6 +2,7 @@
 #include <iostream>
 #include "test_support.hxx"
 using sf4e::netplay::AutoDelayCheck;
+using sf4e::netplay::PlayedGame;
 static const std::uint64_t settle = AutoDelayCheck::SettleMs, giveUp = AutoDelayCheck::GiveUpMs,
     retry = AutoDelayCheck::RetryMs, hold = AutoDelayCheck::HoldMs, returnMs = AutoDelayCheck::ReturnMs;
 
@@ -34,7 +35,7 @@ static void Schedule() {
     check.Observe("a", 5, "complete", 0, 3000);
     CHECK(check.Measured("a") && check.Delay("a") == 1 && !check.Measured("b") && check.Delay("b") == 2 && !check.Holding(3000));
     check.Observe("a", 6, "complete", 7, 3000);
-    CHECK(check.Delay("a") == 3);
+    CHECK(check.Delay("a") == 4);
     // Choosing Auto again leaves a measured opponent alone.
     check.Want(9000);
     CHECK(!check.Wanted(9000 + settle) && !check.Holding(9000));
@@ -192,6 +193,95 @@ static void Spectators() {
     CHECK(!check.Wanted(30000 + settle) && !check.Holding(30000 + settle));
 }
 
+// A game played against `opponent`, as GamePing summarizes it: `polls` polls
+// at `ms`, a tenth of them at `tailMs`.
+static PlayedGame Game(const std::string& opponent, std::uint32_t polls, int ms, int tailMs) {
+    sf4e::GamePing ping;
+    for (std::uint32_t i = 0; i < polls; ++i) ping.Add(i < polls / 10 ? tailMs : ms);
+    return PlayedGame{1, opponent, ping.Summarize()};
+}
+
+// The room keeps its last check result, and the tick offers it again every
+// time: it must count once, so a game played after it decides, until a newer
+// check measures again.
+static void ChecksCountOnce() {
+    const std::uint32_t polls = sf4e::GamePing::MinimumSamples;
+    AutoDelayCheck check;
+    check.Seat("a", 10, 1, 0);
+    check.Observe("a", 1, "complete", 1, 6000);
+    CHECK(check.Delay("a") == 1);
+    CHECK(check.Played(true, Game("a", polls, 300, 300)) && check.Delay("a") == 4);
+    for (int tick = 0; tick < 3; ++tick) check.Observe("a", 1, "complete", 1, 7000 + tick);
+    CHECK(check.Delay("a") == 4);
+    // The game lowers it too, and the stored check does not raise it back.
+    CHECK(check.Played(true, Game("a", polls, 60, 60)) && check.Delay("a") == 1);
+    check.Observe("a", 1, "complete", 3, 8000);
+    CHECK(check.Delay("a") == 1);
+    // A check made afterwards is newer than the game and replaces it, once.
+    check.Observe("a", 2, "complete", 3, 9000);
+    CHECK(check.Delay("a") == 3);
+    CHECK(check.Played(true, Game("a", polls, 60, 60)) && check.Delay("a") == 1);
+    check.Observe("a", 2, "complete", 3, 9100);
+    CHECK(check.Delay("a") == 1);
+    // An older request than the one taken is stale, whichever way it reads.
+    check.Observe("a", 1, "complete", 4, 9200);
+    CHECK(check.Delay("a") == 1);
+}
+
+// Auto follows the link a game played over. A set on a link that worsens
+// raises the next game's delay, one that clears lowers it at once, and a game
+// that reported too little moves nothing.
+static void Games() {
+    const std::uint32_t polls = sf4e::GamePing::MinimumSamples;
+    AutoDelayCheck check;
+    check.Seat("a", 10, 1, 0);
+    check.Observe("a", 1, "complete", 1, 6000);
+    CHECK(check.Delay("a") == 1);
+    // Game 1 played at 70 ms, game 2 at 120, game 3 at 200 with a bad tail.
+    CHECK(check.Played(true, Game("a", polls, 70, 80)) && check.Delay("a") == 1);
+    check.Seat("a", 15, 2, 60000);
+    CHECK(check.Played(true, Game("a", polls, 120, 140)) && check.Delay("a") == 2);
+    check.Seat("a", 20, 3, 120000);
+    CHECK(check.Played(true, Game("a", polls, 200, 300)) && check.Delay("a") == 4 && check.Measured("a"));
+    // The link clears: the next game's Auto is the lower delay straight away.
+    CHECK(check.Played(true, Game("a", polls * 4, 60, 70)) && check.Delay("a") == 1);
+    // Auto stays within its own bounds however bad the link was.
+    CHECK(check.Played(true, Game("a", polls, 900, 900)) && check.Delay("a") == sf4e::AutoInputDelayMaximum);
+
+    // Too few polls, an empty game, someone else or nobody keep what was there.
+    CHECK(!check.Played(true, Game("a", polls - 1, 60, 60)) && check.Delay("a") == sf4e::AutoInputDelayMaximum);
+    CHECK(!check.Played(true, PlayedGame{1, "a", sf4e::GamePing().Summarize()}) && check.Delay("a") == sf4e::AutoInputDelayMaximum);
+    CHECK(!check.Played(true, Game("b", polls, 60, 60)) && !check.Played(true, Game("", polls, 60, 60)));
+    CHECK(check.Delay("a") == sf4e::AutoInputDelayMaximum && !check.Measured("b") && check.Delay("b") == 2);
+    // An opponent never measured is not measured by a short game either, but a full one measures it.
+    AutoDelayCheck unmeasured;
+    unmeasured.Seat("a", 10, 1, 0);
+    CHECK(!unmeasured.Played(true, Game("a", polls - 1, 150, 150)) && !unmeasured.Measured("a") && unmeasured.Delay("a") == 2);
+    CHECK(unmeasured.Played(true, Game("a", polls, 150, 150)) && unmeasured.Measured("a") && unmeasured.Delay("a") == 2);
+    CHECK(unmeasured.Played(true, Game("a", polls, 90, 90)) && unmeasured.Delay("a") == 2 && unmeasured.Played(true, Game("a", polls, 80, 80)) &&
+        unmeasured.Delay("a") == 1);
+    // The next opponent starts over: a game against the last one means nothing for them.
+    unmeasured.Seat("b", 20, 2, 60000);
+    CHECK(!unmeasured.Measured("b") && !unmeasured.Played(true, Game("a", polls, 300, 300)) && unmeasured.Delay("b") == 2);
+
+    // A game ends against A and the table seats B before the tick takes it: A's
+    // ping says nothing about B, who stays unmeasured and still gets a check.
+    AutoDelayCheck rotated;
+    rotated.Seat("a", 10, 1, 0);
+    rotated.Observe("a", 1, "complete", 1, 6000);
+    const PlayedGame played = Game("a", polls, 300, 300);
+    rotated.Seat("b", 20, 2, 60000);
+    CHECK(!rotated.Played(true, played) && !rotated.Measured("b") && rotated.Delay("b") == 2);
+    CHECK(rotated.Wanted(60000 + AutoDelayCheck::SettleMs));
+
+    // A fighter on a chosen delay does not feed Auto: it keeps what the check measured.
+    AutoDelayCheck chosen;
+    chosen.Seat("a", 10, 1, 0);
+    chosen.Observe("a", 1, "complete", 1, 6000);
+    CHECK(!chosen.Played(false, Game("a", polls, 300, 300)) && chosen.Delay("a") == 1);
+    CHECK(chosen.Played(true, Game("a", polls, 300, 300)) && chosen.Delay("a") == 4);
+}
+
 int main() {
     Schedule();
     RetryOnce();
@@ -199,5 +289,7 @@ int main() {
     RevisionMoves();
     Opponents();
     Spectators();
+    ChecksCountOnce();
+    Games();
     std::cout << "Auto delay check passed\n";
 }

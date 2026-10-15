@@ -222,11 +222,7 @@ void SessionServer::HandleRoomAction(session::Connection conn, const json& msg, 
 		for (auto& punch : _roomPunchReady) punch.erase(leavingConnection);
 	}
 	if (result.accepted) {
-		if (actionMessage.action.table < room::TableCount) {
-			const auto& before = priorSnapshot.tables[actionMessage.action.table];
-			const auto& after = result.snapshot.tables[actionMessage.action.table];
-			if (before.p1 != after.p1 || before.p2 != after.p2) _roomMatchData[actionMessage.action.table].Clear();
-		}
+		ForgetReseatedMatchData(SeatedPairsOf(priorSnapshot));
 		// An exact receipt/tombstone retry still commits its room_result so a
 		// lost reply can complete, but it did not change public room state.
 		// Leave a pre-existing dirty flag untouched and avoid another full
@@ -475,7 +471,7 @@ void SessionServer::HandleLobbySetSettings(session::Connection conn, const json&
 			const auto& time = msg.at("roundTime");
 			// Validate before get_to narrows JSON numbers into game fields.
 			if (!rounds.is_number_integer() || rounds < 1 || rounds > 99 ||
-				!msg.at("editionSelect").is_boolean() || !msg.at("trainingMode").is_boolean() ||
+				!msg.at("editionSelect").is_boolean() ||
 				!time.at("integral").is_number_integer() || time.at("integral") < 30 || time.at("integral") > 9999 ||
 				!time.at("fractional").is_number_integer() || time.at("fractional") != 0) return;
 		}
@@ -494,20 +490,18 @@ void SessionServer::HandleLobbySetSettings(session::Connection conn, const json&
 		settings.editionSelect = request.editionSelect;
 		settings.roundCount = request.roundCount;
 		settings.roundTime = request.roundTime.integral;
-		if (!settings.Valid() || request.roundTime.fractional != 0 || request.trainingMode ||
+		if (!settings.Valid() || request.roundTime.fractional != 0 ||
 			_matchAuthority->GetPhase() != session::MatchAuthority::Phase::Idle ||
 			_matchData.readyMessageNum[0] != -1 || _matchData.readyMessageNum[1] != -1) return;
 	}
 	_lobbyData.editionSelect = request.editionSelect;
 	_lobbyData.roundCount = request.roundCount;
 	_lobbyData.roundTime = request.roundTime;
-	_lobbyData.trainingMode = request.trainingMode;
 	spdlog::info(
-		"Server: lobby settings set by host: edition={} rounds={} time={} training={}",
+		"Server: lobby settings set by host: edition={} rounds={} time={}",
 		request.editionSelect,
 		request.roundCount,
-		request.roundTime.integral,
-		request.trainingMode
+		request.roundTime.integral
 	);
 	_dataDirty = true;
 }

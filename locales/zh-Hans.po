@@ -69,11 +69,17 @@ msgstr "SF4 Ember Netplay 已在运行。如找不到窗口，请在任务管理
 msgid "launcher.start_failed"
 msgstr "游戏启动或注入失败。请查看启动器日志（%APPDATA%\\sf4e\\logs\\launcher.log）后重试。"
 
+msgid "launcher.game_runs_as_admin"
+msgstr "SSFIV.exe 被设置为以管理员身份运行，因此 Ember 无法启动它。请在游戏文件夹中右键单击 SSFIV.exe，打开“属性”中的“兼容性”，取消勾选“以管理员身份运行此程序”，“更改所有用户的设置”中也要取消。然后重试。"
+
 msgid "launcher.game_error"
 msgstr "游戏异常退出。请查看启动器日志（%APPDATA%\\sf4e\\logs\\launcher.log）后重试。"
 
+msgid "launcher.steam_runs_as_admin"
+msgstr "Steam 正以管理员身份运行，因此游戏无法连接到 Steam。请关闭 Steam，以普通方式重新启动后重试。以管理员身份启动 Ember 也可以，但这样不会安装更新。"
+
 msgid "launcher.game_crashed"
-msgstr "游戏崩溃了。请将 %APPDATA%\\sf4e\\logs 中的文件（sf4e.log、sf4e-crash.log 和 sf4e-crash-*.dmp）发送给 SF4 Ember Netplay 团队，然后重试。"
+msgstr "游戏崩溃了。如愿协助修复，请选择下方的“发送此报告”。也可以自己发送 %APPDATA%\\sf4e\\logs 中的文件。"
 
 msgid "launcher.runtime_shadowed"
 msgstr "游戏将加载以下文件，而非 Ember 文件夹中的版本。旧版文件会使游戏无法启动（\"entry point ggpo_get_last_confirmed_frame not found\"）。这些文件来自其他联机模组或旧版安装。请移动或重命名后重启 Ember：\n\n{0}"
@@ -126,6 +132,36 @@ msgstr "已有操作正在进行。"
 msgid "updates.check_detail"
 msgstr "检查是否有新版 Ember 安装包。"
 
+msgid "updates.channel"
+msgstr "更新频道"
+
+msgid "updates.channel.stable"
+msgstr "稳定版"
+
+msgid "updates.channel.prerelease"
+msgstr "测试版"
+
+msgid "updates.channel.nightly"
+msgstr "夜间版"
+
+msgid "updates.channel.nightly_detail"
+msgstr "每天提供包含最新功能的测试版本，可能无法正常运行。在房间中只能与其他夜间版玩家一起游玩。在夜间版中保存的回放，回退到旧版本后可能无法打开。"
+
+msgid "updates.channel_detail"
+msgstr "稳定版只提供正式版本。测试版还提供测试版和候选发布版，可能存在更多问题。一起游玩的所有人需要使用相同的版本。"
+
+msgid "updates.channel.switch_detail"
+msgstr "将更新检查从{0}切换到{1}，并立即检查{1}。在你选择“下载并安装”之前不会安装任何内容。"
+
+msgid "updates.channel.going_back"
+msgstr "从{0}回到{1}可能会提供比你当前更旧的版本。在{0}上录制的回放可能无法在{1}上打开。"
+
+msgid "updates.installed_version"
+msgstr "已安装版本"
+
+msgid "updates.installed_version_detail"
+msgstr "此电脑上的 Ember 版本。"
+
 msgid "updates.install"
 msgstr "下载并安装"
 
@@ -134,6 +170,15 @@ msgstr "安装前请关闭 SF4。安装包会先经过验证，个人设置将�
 
 msgid "updates.unverified"
 msgstr "此更新没有校验值，无法安装。"
+
+msgid "updates.install_going_back"
+msgstr "这是比你当前更旧的版本。用当前版本录制的回放可能无法在此版本上打开。"
+
+msgid "updates.whats_new"
+msgstr "更新内容"
+
+msgid "updates.whats_new_detail"
+msgstr "{0} 的发行说明。"
 
 msgid "updates.cancel"
 msgstr "取消操作"
@@ -178,13 +223,29 @@ msgid "services.exporting"
 msgstr "正在导出诊断信息..."
 
 msgid "services.downloading"
-msgstr "正在下载并验证更新..."
+msgstr "正在下载更新..."
+
+msgid "services.verifying"
+msgstr "正在验证下载..."
+
+msgid "services.extracting"
+msgstr "正在解压更新..."
+
+msgid "services.preparing"
+msgstr "正在准备更新..."
+
+msgid "services.installing"
+msgstr "正在安装更新..."
 
 msgid "services.opening_updater"
 msgstr "正在打开更新程序..."
 
 msgid "services.update_available"
 msgstr "有可用更新：{0}"
+
+msgid "services.go_back_available"
+msgstr "可以回退到 {0}"
+
 
 msgid "services.up_to_date"
 msgstr "已是最新版本。"
@@ -556,7 +617,7 @@ msgid "home.online"
 msgstr "在线对战"
 
 msgid "home.online_detail"
-msgstr "创建或加入房间，或浏览公开房间。"
+msgstr "创建或加入房间、浏览公开房间，或设置用于赛事的 Ember ID。"
 
 msgid "home.return_room"
 msgstr "返回当前房间。"
@@ -586,7 +647,7 @@ msgid "home.identity_matches"
 msgstr "可进行的赛事对局：{0}"
 
 msgid "home.settings_detail"
-msgstr "玩家、控制器、对战默认设置、界面、语言和 Discord。"
+msgstr "玩家、控制器、默认对战规则、界面、语言、训练和 Discord。"
 
 msgid "home.about"
 msgstr "帮助与关于"
@@ -598,7 +659,192 @@ msgid "home.offline"
 msgstr "离线游玩"
 
 msgid "home.offline_detail"
-msgstr "打开游戏原有的离线菜单。"
+msgstr "训练、对战、街机等游戏原有的离线模式。"
+
+msgid "home.replays"
+msgstr "回放"
+
+msgid "home.replays_detail"
+msgstr "你保存的对战。可以观看、添加到游戏或查看输入。"
+
+msgid "replays.title"
+msgstr "回放"
+
+msgid "replays.empty"
+msgstr "还没有回放"
+
+msgid "replays.empty_detail"
+msgstr "对战结束后会保存到这里。"
+
+msgid "replays.add"
+msgstr "添加到游戏"
+
+msgid "replays.add_detail"
+msgstr "添加到游戏的 Battle Log，以便稍后观看。"
+
+msgid "replays.watch"
+msgstr "立即观看"
+
+msgid "replays.watch_detail"
+msgstr "添加到游戏的 Battle Log 并播放。"
+
+msgid "replays.save_watched"
+msgstr "保存观战的对战"
+
+msgid "replays.save_watched_detail"
+msgstr "也保存你以观众身份观看的对战。关闭时只保存你参加的对战。"
+
+msgid "replays.link"
+msgstr "播放链接中的录像"
+
+msgid "replays.link_detail"
+msgstr "一个链接请求 Ember 播放 {0}。只有信任链接来源时才播放。"
+
+msgid "replays.link_play"
+msgstr "播放"
+
+msgid "replays.link_dismiss"
+msgstr "暂不"
+
+msgid "replays.link_dismiss_detail"
+msgstr "忘记此链接。文件仍留在原处。"
+
+msgid "replays.exported"
+msgstr "视频已保存：{0}"
+
+msgid "replays.gpu_not_exported"
+msgstr "未生成视频。Windows 没有提供 H.264 编码器，或无法读取游戏画面。原因见日志。"
+
+msgid "replays.open_folder"
+msgstr "打开录像文件夹"
+
+msgid "replays.open_folder_detail"
+msgstr "在资源管理器中打开存档：录像和导出的视频。"
+
+msgid "services.opening_replay_folder"
+msgstr "正在打开录像文件夹..."
+
+msgid "services.replay_folder_opened"
+msgstr "已在资源管理器中打开 {0}。"
+
+msgid "services.replay_folder_failed"
+msgstr "无法打开录像文件夹。"
+
+msgid "replays.inputs"
+msgstr "输入与统计"
+
+msgid "replays.inputs_detail"
+msgstr "逐帧显示双方的按键输入及总计。不会播放对战。"
+
+msgid "replays.show_folder"
+msgstr "在文件夹中显示"
+
+msgid "replays.show_folder_detail"
+msgstr "在资源管理器中打开存放此录像的文件夹。"
+
+msgid "inputs.length_value"
+msgstr "回合 {0} · {1}"
+
+msgid "inputs.activity"
+msgstr "每分钟 {0} 次输入，跳跃 {1} 次，{2}% 的时间在下蹲。"
+
+msgid "inputs.round"
+msgstr "第 {0} 回合"
+
+msgid "inputs.legend"
+msgstr "每一行：时间，以及此后 P1 和 P2 按住的输入。方向按屏幕上的数字小键盘表示：4 为左，6 为右，5 为无。"
+
+msgid "inputs.reading"
+msgstr "正在读取回放..."
+
+msgid "inputs.look_unknown"
+msgstr "外观未知"
+
+msgid "inputs.unreadable"
+msgstr "无法读取输入"
+
+msgid "inputs.unreadable_detail"
+msgstr "此回放为旧格式，或文件已损坏。"
+
+msgid "replays.row_detail"
+msgstr "选择以观看、添加到游戏，或查看输入和统计。"
+
+#. The saved replay has already been played back.
+msgid "replays.seen"
+msgstr "已播放"
+
+#. The player watched the live match as a spectator, not a replay playback.
+msgid "replays.spectated"
+msgstr "曾观战"
+
+#. The player watched the live match as a spectator and has also played its replay.
+msgid "replays.spectated_seen"
+msgstr "曾观战、已播放"
+
+msgid "replays.not_ready"
+msgstr "在主菜单（非对战中）可用。"
+
+msgid "replays.added"
+msgstr "已按对战日期添加到游戏的 Battle Log。"
+
+msgid "replays.not_added"
+msgstr "无法添加此回放。文件可能已损坏。"
+
+msgid "replays.not_added_yet"
+msgstr "游戏尚未保存上一场对战。请稍后再试。"
+
+msgid "replays.not_added_files"
+msgstr "无法添加此录像，因为无法读取游戏的录像文件。没有做任何更改。"
+
+msgid "replays.not_added_archive"
+msgstr "无法添加此录像，因为无法先保存游戏当前的录像。请检查磁盘剩余空间。"
+
+msgid "replays.not_added_restored"
+msgstr "无法添加此录像。游戏的录像保持原样。"
+
+msgid "replays.not_added_recovery"
+msgstr "无法添加此录像，且游戏的部分录像无法恢复。请停止添加录像，并从“帮助和关于”导出诊断信息。"
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "打开游戏的 Battle Log"
+
+msgid "replays.open_log_detail"
+msgstr "离开 Ember 菜单，打开用于播放录像的游戏 Battle Log。"
+
+msgid "replays.open_log_room"
+msgstr "请先离开房间。"
+msgid "settings.training_auto_ready"
+msgstr "从训练被叫回时自动准备"
+
+msgid "settings.training_auto_ready_detail"
+msgstr "房间叫你从训练返回时，会立即自动准备。关闭时，你有 {0} 秒准备，超时会失去座位。"
+
+msgid "settings.match_frame_meter"
+msgstr "对战中的帧数表"
+
+msgid "settings.match_frame_meter_detail"
+msgstr "在你参加或观看的在线对战上方显示帧数表。只有你能看到，可能比对战延迟几帧。"
+
+msgid "settings.match_frame_meter_private"
+msgstr "仅限私人房间。"
+
+msgid "room.training.detail"
+msgstr "等待时可在训练模式中练习。有人坐到对面时，Ember 会叫你回来。"
+
+msgid "room.training.unavailable"
+msgstr "等待对手且尚未准备时可用。"
+
+msgid "room.training_call.ready_in"
+msgstr "请在 {0} 秒内准备，否则会失去座位。"
+
+msgid "runtime.training_call.forfeit"
+msgstr "你在训练后未及时准备，因此离开了座位。"
 
 msgid "home.choose_controller"
 msgstr "选择对战控制器"
@@ -709,7 +955,7 @@ msgid "settings.title"
 msgstr "设置"
 
 msgid "settings.player_detail"
-msgstr "显示名称和控制器分配。"
+msgstr "显示名称、控制器分配和后台游玩。"
 
 msgid "settings.defaults_detail"
 msgstr "输入延迟和新房间默认设置。"
@@ -741,6 +987,30 @@ msgstr "使用键盘"
 msgid "player.use_keyboard_detail"
 msgstr "将键盘设为对战设备。在重新指定之前，控制器将无法操作 Ember 菜单。"
 
+msgid "player.background_play"
+msgstr "后台游玩"
+
+msgid "player.background_play_detail"
+msgstr "当 OBS 等其他窗口位于前台时，游戏声音和控制器仍可正常使用。键盘和 Ember 菜单仍需要游戏窗口。请使用窗口模式：全屏时游戏仍会最小化。"
+
+msgid "player.lower_input_lag"
+msgstr "降低输入延迟（实验性）"
+
+msgid "player.lower_input_lag_detail"
+msgstr "实验性功能。去掉游戏给每个输入添加的 1 帧延迟。在房间中，只有双方玩家都开启时才生效，届时观战者也会一起生效。离线对战和训练只按此设置。"
+
+msgid "player.lower_keyboard_lag"
+msgstr "降低键盘延迟（实验性）"
+
+msgid "player.lower_keyboard_lag_detail"
+msgstr "实验性功能。游戏读取键盘比读取控制器晚 1 帧；此选项去掉这一帧。只影响键盘，且只影响这台电脑：对方玩家无需开启。"
+
+msgid "player.faster_display"
+msgstr "更快显示（减少 1 帧延迟）"
+
+msgid "player.faster_display_detail"
+msgstr "游戏在每一帧准备好后立即显示，而不是晚 1 帧显示。如果游戏在这台电脑上低于 60 fps，请关闭此选项。只影响这台电脑：对方玩家无需开启。更改将在下次启动游戏时生效。"
+
 msgid "player.native_menus"
 msgstr "打开游戏菜单"
 
@@ -767,6 +1037,21 @@ msgstr "对战 HUD 布局"
 
 msgid "settings.match_hud_layout_detail"
 msgstr "Ember 条将所有信息放在一个面板中。分开会把每个名字放在其体力条下方。"
+
+msgid "settings.name_offset"
+msgstr "名字高度"
+
+msgid "settings.name_offset_detail"
+msgstr "上下移动分开布局中的名字。游戏自身的 HUD 位置改过、名字没有盖住 PLAYER 1 和 PLAYER 2 时使用。"
+
+msgid "name_offset.default"
+msgstr "默认"
+
+msgid "name_offset.up"
+msgstr "上移 {0}"
+
+msgid "name_offset.down"
+msgstr "下移 {0}"
 
 msgid "hud_layout.strip"
 msgstr "Ember 条"
@@ -919,7 +1204,7 @@ msgid "about.controls"
 msgstr "操作说明"
 
 msgid "about.controls_detail"
-msgstr "Xbox 手柄：按 A 选择，按 B 返回，不受格斗按键设置影响。其他手柄：按已映射的 LP 选择，LK 返回。键盘：方向键、Enter 和 Escape。D-pad 移动，左／右调整数值。在主页按返回会隐藏 Ember；在游戏主菜单按 F10（手柄按 Start）可再次打开。\n\n在房间里，在牌桌上按 A 可选择席位，在自己的席位上按 A 表示准备，按 B 离开席位或队列。Xbox 手柄上，X 打开角色，Y 打开选项，View 打开聊天，再按一次返回房间。\n\n训练中，F6 打开控制面板，F5 隐藏 HUD，F7 录制，F8 回放。"
+msgstr "Xbox 手柄：按 A 选择，按 B 返回，不受格斗按键设置影响。其他手柄：按已映射的 LP 选择，LK 返回。键盘：方向键、Enter 和 Escape。D-pad 移动，左／右调整数值。在主页按返回会隐藏 Ember；在游戏主菜单按 F10（手柄按 Start）可再次打开。\n\n在房间里，在牌桌上按 A 可选择席位，在自己的席位上按 A 表示准备，按 B 离开席位或队列。Xbox 手柄上，X 打开角色，Y 打开选项，View 打开聊天，再按一次返回房间。\n\n训练中，F6 打开控制面板，F5 隐藏 HUD，F7 录制，F8 回放。手柄上按住 View 或 Select 再按 Start。"
 
 msgid "about.controls_keyboard"
 msgstr "键盘上，空格键也可选择，Backspace 也可返回。在房间中，F 打开角色，T 打开选项，C 打开聊天。Esc 始终返回，即使在你自己的座位上；Delete 离开座位或排队位置。"
@@ -962,6 +1247,15 @@ msgstr "加入 Ember Discord"
 
 msgid "about.discord_detail"
 msgstr "在 {0} 查找玩家、对战和支持。浏览器将在游戏后方打开。"
+
+msgid "about.version_line"
+msgstr "Ember {0} · {1}"
+
+msgid "about.version_detail"
+msgstr "此电脑上的 Ember 版本。构建：{0}"
+
+msgid "about.channel_detail"
+msgstr "更新检查使用此频道。要更改，请关闭游戏并双击 Updater.exe。"
 
 msgid "settings.retry_save"
 msgstr "重试保存"
@@ -1140,23 +1434,239 @@ msgstr "EMBER / {0}"
 msgid "training.controls"
 msgstr "训练操作"
 
-msgid "training.open_chip"
-msgstr "F6 训练操作"
-
 msgid "training.hide_hint"
-msgstr "F5 隐藏 HUD"
+msgstr "隐藏 HUD"
+
+msgid "training.controls_chip"
+msgstr "训练操作"
+
+msgid "training.pad_hint"
+msgstr "轻按重置，按住保存"
+
+msgid "training.hint.reset"
+msgstr "重置"
+
+msgid "training.hint.save"
+msgstr "保存"
+
+msgid "training.save_recording"
+msgstr "录制另存为"
+
+msgid "training.save_recording.detail"
+msgstr "把所选槽位以此名称写入文件。"
+
+msgid "training.load_recording"
+msgstr "载入录制"
+
+msgid "training.load_recording.detail"
+msgstr "左右选择已保存的录制；选择后载入到所选槽位。"
+
+msgid "training.mirror"
+msgstr "镜像所选录制"
+
+msgid "training.mirror.detail"
+msgstr "交换此槽位中的左右方向，用于播放方向相反的已保存录制。"
+
+msgid "training.recording_saved"
+msgstr "录制已保存为 {0}。"
+
+msgid "training.recording_loaded"
+msgstr "录制 {0} 已载入槽位 {1}。"
+
+msgid "training.recording_none"
+msgstr "没有已保存的录制。"
 
 msgid "training.dummy_recording"
 msgstr "假想对手录制"
 
 msgid "training.dummy_recording.detail"
-msgstr "将 P1 的操作录制到 P2。请在游戏设置中将假想对手设为玩家／控制器控制。"
+msgstr "将 P1 的操作录制到 P2 并回放。无需更改游戏设置：录制或回放时，Ember 会让假想对手接受 P2 的输入。"
 
 msgid "training.input_history"
 msgstr "输入记录"
 
 msgid "training.input_history.detail"
 msgstr "查看各玩家持续按住的输入。"
+
+msgid "training.match.checkpoint_disabled"
+msgstr "回滚对战中无法使用共享的位置保存和重置。"
+
+msgid "training.match.end_hint"
+msgstr "按 Start 或 F10 打开 Ember，选择“结束练习”即可结束本场对战。"
+
+msgid "training.invalid"
+msgstr "未接受：{0}"
+
+msgid "training.save_failed"
+msgstr "无法保存文件。"
+
+msgid "training.position.save"
+msgstr "保存位置"
+
+msgid "training.position.save.detail"
+msgstr "保存双方角色当前的状态：位置、体力、能量条、木桩状态。"
+
+msgid "training.position.reset"
+msgstr "重置位置"
+
+msgid "training.position.reset.detail"
+msgstr "把双方角色放回保存时的位置。"
+
+msgid "training.position.saved"
+msgstr "已保存位置。"
+
+msgid "training.position.reset_done"
+msgstr "已重置位置。"
+
+msgid "training.dummy.detail"
+msgstr "左右切换；立即在游戏中生效。"
+
+msgid "training.reply"
+msgstr "木桩反击"
+
+msgid "training.reply.detail"
+msgstr "木桩恢复自由后自己做的动作，用来惩罚断掉的连招或不安全的收尾：播放反击招式，该行为空时播放反击槽位。回放或录制进行时它会等待。"
+
+msgid "training.reply.hit"
+msgstr "连招断掉后"
+
+msgid "training.reply.block"
+msgstr "防御后"
+
+msgid "training.reply.rise"
+msgstr "起身时"
+
+msgid "training.reply.any"
+msgstr "每次恢复时"
+
+msgid "training.reply.slot"
+msgstr "反击槽位"
+
+msgid "training.reply.slot.detail"
+msgstr "反击招式为空时作为反击播放的木桩录制，从第一次按键开始。"
+
+msgid "training.reply.slot_empty"
+msgstr "槽位 {0} 为空，假想对手无法反击。请先录制或选择一个招式。"
+
+msgid "training.reply.chance"
+msgstr "反击概率"
+
+msgid "training.reply.chance.detail"
+msgstr "木桩反击的频率。低于 100% 时每次尝试都会不同。"
+
+msgid "training.reply.vary_stance"
+msgstr "变换姿势"
+
+msgid "training.reply.vary_stance.detail"
+msgstr "木桩每次恢复时随机站立或蹲下，让连招在两种姿势上都得到练习。仅在木桩设为站立或蹲下时生效。"
+
+msgid "training.reply.moves"
+msgstr "反击招式"
+
+msgid "training.reply.moves.detail"
+msgstr "用数字表示法输入的反击，例如 623HP 或 44，按木桩面对的方向读取。也可使用 qcf、qcb、dp、rdp、hcf、hcb 等缩写，例如 qcfP 或 dp+HP。指令在木桩仍被控制时输入，使按键落在它第一个可行动的帧上。[1] 保持一个方向直到下一招，[1]20f 保持 20 帧，10f 等待：例如 [1] > 3HP。留空则使用反击槽位。"
+
+msgid "training.reply.move"
+msgstr "预设反击"
+
+msgid "training.reply.move.detail"
+msgstr "左右键以小键盘记法选择常用反击，按木人面向的一侧解读。反击槽位播放录制；自定义保留你输入的招式。选择打开反击招式进行输入。"
+
+msgid "training.reply.custom"
+msgstr "自定义"
+
+msgid "training.reply.timing"
+msgstr "反击时机"
+
+msgid "training.reply.timing.detail"
+msgstr "反击按键落在木桩第一个可行动帧之后的帧数。硬直的长度在第一次看到时记下；在此之前，反击在硬直结束时开始。"
+
+msgid "training.key.reset"
+msgstr "重置键"
+
+msgid "training.challenger"
+msgstr "你的对战已就绪"
+
+msgid "training.key.detail"
+msgstr "左右选择在对战中执行此操作的按键。关闭则不设按键。"
+
+msgid "training.dummy.action"
+msgstr "木桩"
+
+msgid "training.dummy.guard"
+msgstr "防御"
+
+msgid "training.dummy.counter"
+msgstr "反击命中"
+
+msgid "training.dummy.quick"
+msgstr "快速起身"
+
+msgid "training.dummy.super"
+msgstr "超级能量"
+
+msgid "training.dummy.revenge"
+msgstr "复仇能量"
+
+msgid "training.dummy.stand"
+msgstr "站立"
+
+msgid "training.dummy.crouch"
+msgstr "蹲下"
+
+msgid "training.dummy.jump"
+msgstr "跳跃"
+
+msgid "training.dummy.cpu"
+msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "玩家操作"
+
+msgid "training.dummy.guard_none"
+msgstr "不防御"
+
+msgid "training.dummy.guard_first"
+msgstr "首次命中后"
+
+msgid "training.dummy.guard_all"
+msgstr "全部防御"
+
+msgid "training.dummy.guard_random"
+msgstr "随机"
+
+msgid "training.dummy.counter_off"
+msgstr "关"
+
+msgid "training.dummy.counter_on"
+msgstr "开"
+
+msgid "training.dummy.counter_random"
+msgstr "随机"
+
+msgid "training.dummy.quick_quick"
+msgstr "快速"
+
+msgid "training.dummy.quick_normal"
+msgstr "正常"
+
+msgid "training.dummy.quick_delayed"
+msgstr "延迟"
+
+msgid "training.dummy.quick_random"
+msgstr "随机"
+
+msgid "training.dummy.gauge_normal"
+msgstr "正常"
+
+msgid "training.dummy.gauge_max"
+msgstr "开局满"
+
+msgid "training.dummy.gauge_infinite"
+msgstr "无限"
+
+msgid "training.dummy.gauge_refill"
+msgstr "自动回复"
 
 msgid "training.close_controls"
 msgstr "关闭训练操作"
@@ -1186,7 +1696,10 @@ msgid "training.play"
 msgstr "播放"
 
 msgid "training.play.detail"
-msgstr "播放所选槽位并返回练习。方向为绝对方向，不会镜像。"
+msgstr "播放所选槽位并返回练习。录制会按木桩面对的方向播放。左右选择是否循环。"
+
+msgid "training.play.once"
+msgstr "单次"
 
 msgid "training.slot_empty"
 msgstr "此槽位为空。"
@@ -1199,9 +1712,6 @@ msgstr "停止录制或播放。"
 
 msgid "training.loop"
 msgstr "循环播放"
-
-msgid "training.loop.detail"
-msgstr "重复播放所选录制。"
 
 msgid "training.clear_recording"
 msgstr "清除所选录制"
@@ -1231,7 +1741,7 @@ msgid "training.recording_suspended"
 msgstr "打开操作界面时暂停录制"
 
 msgid "training.playback_suspended"
-msgstr "打开操作界面时暂停播放"
+msgstr "回放进行中；录制等待操作界面关闭"
 
 msgid "training.applying"
 msgstr "正在执行指令..."
@@ -1245,14 +1755,95 @@ msgstr "训练室"
 msgid "training.command_rejected"
 msgstr "练习指令未被接受。请检查状态后重试。"
 
-msgid "training.start_frames"
-msgstr "起手 {0} 帧"
-
-msgid "training.start_unknown"
-msgstr "起手 --"
-
 msgid "training.startup"
 msgstr "起手"
+
+msgid "training.meter.active"
+msgstr "持续"
+
+msgid "training.meter.recovery"
+msgstr "硬直"
+
+msgid "training.meter.hit"
+msgstr "命中"
+
+msgid "training.meter.block"
+msgstr "防御"
+
+msgid "training.meter.whiff"
+msgstr "挥空"
+
+msgid "training.meter.knockdown"
+msgstr "倒地"
+
+msgid "training.meter.meaty"
+msgstr "压起身"
+
+msgid "training.meter.throw"
+msgstr "投技 / 演出"
+
+msgid "training.meter.attack"
+msgstr "攻击"
+
+msgid "training.meter.move"
+msgstr "移动"
+
+msgid "training.meter.attack_unsplit"
+msgstr "攻击（未区分）"
+
+msgid "training.meter.style"
+msgstr "计量条样式"
+
+msgid "training.meter.style.detail"
+msgstr "倾斜按起手、持续和硬直为攻击着色，并标出每段的帧数。平直将整个攻击画成同一颜色。"
+
+msgid "training.meter.style.angled"
+msgstr "倾斜"
+
+msgid "training.meter.style.flat"
+msgstr "平直"
+
+msgid "training.meter.frames_shown"
+msgstr "显示帧数"
+
+msgid "training.meter.frames_shown.detail"
+msgstr "计量条在同样宽度内显示的帧数。越少则每帧越宽、越好数；120 显示全部记录。计量条停住时，在条上滚动鼠标滚轮可向前回看。"
+
+msgid "training.meter.hud_recovery"
+msgstr "在 HUD 显示硬直"
+
+msgid "training.meter.hud_recovery.detail"
+msgstr "在计量条上起手旁显示每名角色最后一招的硬直。"
+
+msgid "training.meter.hud_numbers"
+msgstr "在 HUD 显示数值"
+
+msgid "training.meter.hud_bars"
+msgstr "在 HUD 显示帧数条"
+
+msgid "training.meter.hud_state"
+msgstr "在 HUD 显示状态"
+
+msgid "training.meter.hud_shortcuts"
+msgstr "在 HUD 显示快捷键"
+
+msgid "training.meter.hud_status"
+msgstr "在 HUD 显示录制"
+
+msgid "training.meter.hud_part.detail"
+msgstr "在对战中显示训练 HUD 的这一项。F5 隐藏整个 HUD。"
+
+msgid "training.meter.hud_size"
+msgstr "HUD 大小"
+
+msgid "training.meter.hud_size.detail"
+msgstr "设置训练 HUD 文字和条的大小。界面大小也会放大它。"
+
+msgid "training.recovery_frames"
+msgstr "硬直 {0} 帧"
+
+msgid "training.recovery_unknown"
+msgstr "硬直 --"
 
 msgid "training.neutral"
 msgstr "待机"
@@ -1296,6 +1887,9 @@ msgstr "实时"
 msgid "training.advantage"
 msgstr "优势"
 
+msgid "training.last_advantage"
+msgstr "上次优势"
+
 msgid "selection.preview_unavailable"
 msgstr "预览\n不可用"
 
@@ -1325,6 +1919,9 @@ msgstr "替换版 {0}"
 
 msgid "selection.alternate_pack"
 msgstr "替换版 {0}／{1}"
+
+msgid "selection.custom"
+msgstr "定制 {0}"
 
 msgid "selection.stage_count"
 msgstr "{0} 个场地／USFIV"
@@ -1412,6 +2009,12 @@ msgstr "等待游戏读取可用服装和颜色。"
 
 msgid "selection.no_colors"
 msgstr "此服装没有已解锁的颜色。"
+
+msgid "selection.not_owned"
+msgstr "未在 Steam 上拥有。"
+
+msgid "selection.not_owned_badge"
+msgstr "未拥有"
 
 msgid "selection.color"
 msgstr "颜色 {0}"
@@ -1553,11 +2156,17 @@ msgstr "等待对手加入大厅..."
 msgid "runtime.authorized_connection_unavailable"
 msgstr "授权的对战连接不可用。"
 
+msgid "runtime.input_lag_unavailable"
+msgstr "这台电脑无法按本场对战的要求设置游戏的输入时机（降低输入延迟），因此对战已停止。重新启动游戏应能解决。"
+
 msgid "runtime.waiting_opponent_start"
 msgstr "等待对手进入大厅，对战才能开始。"
 
 msgid "runtime.unsupported_stage"
 msgstr "房间提供的场地不受支持。请重置大厅后重试。"
+
+msgid "runtime.unsupported_match"
+msgstr "房间提供的角色或对战设置不受支持。请重置大厅后重试。"
 
 msgid "runtime.netplay_input_failed"
 msgstr "联机输入失败，对战已结束。"
@@ -1604,6 +2213,9 @@ msgstr "正在返回房间。"
 msgid "runtime.table_game_cancelled"
 msgstr "此对战席的对战已取消。请返回房间重新准备。"
 
+msgid "runtime.practice_ended"
+msgstr "练习已结束。请返回房间重新准备。"
+
 msgid "runtime.result_not_recorded"
 msgstr "无法记录结果：确认前对战席已变化。"
 
@@ -1613,8 +2225,6 @@ msgstr "一名参赛玩家离开房间，对战即将结束。"
 msgid "update.github_unreachable"
 msgstr "无法连接 GitHub。请检查网络后重试。"
 
-msgid "update.no_version_tag"
-msgstr "GitHub 发行版没有版本标签。"
 
 msgid "update.no_zip_asset"
 msgstr "最新发行版没有 SF4 Ember Netplay ZIP 文件。"
@@ -1627,6 +2237,9 @@ msgstr "缺少下载 URL。"
 
 msgid "update.missing_version"
 msgstr "缺少版本标签。"
+
+msgid "update.not_offered"
+msgstr "此版本不是所提供的版本。请重新检查更新。"
 
 msgid "update.close_sf4"
 msgstr "安装更新前请关闭《终极街头霸王IV》。"
@@ -1687,6 +2300,39 @@ msgstr "安装更新前请关闭游戏。"
 msgid "update.updater_start_failed"
 msgstr "无法启动 Updater.exe。请从全新 ZIP 包重新安装。"
 
+msgid "update.stage.preparing"
+msgstr "正在检查安装包..."
+
+msgid "update.stage.comparing"
+msgstr "正在比较文件..."
+
+msgid "update.stage.backing_up"
+msgstr "正在备份将被替换的文件..."
+
+msgid "update.stage.replacing"
+msgstr "正在替换文件..."
+
+msgid "update.stage.confirming"
+msgstr "正在检查已安装的文件..."
+
+msgid "update.notice.waiting_launcher"
+msgstr "正在等待 SF4 Ember Netplay 关闭..."
+
+msgid "update.notice.waiting_file"
+msgstr "正在等待其他程序释放 {0}..."
+
+msgid "update.notice.restoring"
+msgstr "正在恢复之前的文件..."
+
+msgid "update.notice.elapsed"
+msgstr "已用时 {0}"
+
+msgid "update.notice.reopens"
+msgstr "完成后 SF4 Ember Netplay 会再次打开。"
+
+msgid "update.notice.recovering"
+msgstr "正在完成被中断的更新..."
+
 msgid "room.member_left"
 msgstr "成员已离开"
 
@@ -1719,6 +2365,9 @@ msgstr "已闲置 {0} 分钟"
 
 msgid "room.idle_hours"
 msgstr "已闲置 {0} 小时 {1} 分钟"
+
+msgid "room.in_training"
+msgstr "训练中"
 
 msgid "room.phase.waiting"
 msgstr "等待对战玩家"
@@ -2014,6 +2663,15 @@ msgstr "正在等待锁定观战的观众返回。{0}秒后开始。"
 msgid "room.hold.waiting_you"
 msgstr "对战正在等你：{0}秒"
 
+msgid "room.ready_timeout.you"
+msgstr "请在{0}秒内准备，否则将离开座位"
+
+msgid "room.ready_timeout.other"
+msgstr "{1}还有{0}秒准备"
+
+msgid "chat.event.ready_timeout"
+msgstr "{0}离开了对战位{1}：未及时准备"
+
 msgid "room.hold.status"
 msgstr "正在等待观众：{0}秒"
 
@@ -2045,7 +2703,7 @@ msgid "room.ready_up"
 msgstr "准备"
 
 msgid "room.selected_delay.detail"
-msgstr "可在 1 至 10 帧间调整，低于 1 为自动，立即生效。"
+msgstr "可在 0 至 10 帧间调整，低于 0 为自动。0 不增加延迟，需要稳定且较低的网络延迟。"
 
 msgid "room.selected_delay.locked"
 msgstr "本场对战的所选延迟已锁定。"
@@ -2131,6 +2789,12 @@ msgstr "放弃结果未定的对战"
 
 msgid "room.abandon_result.detail"
 msgstr "不记录结果。双方仍留在席位，可重新准备。"
+
+msgid "room.end_practice"
+msgstr "结束练习"
+
+msgid "room.end_practice.detail"
+msgstr "立即为双方结束本场练习对战。不记录结果。双方仍留在席位，可重新准备。"
 
 msgid "room.leave_queue"
 msgstr "退出队列"
@@ -2323,6 +2987,9 @@ msgstr "编辑文字"
 
 msgid "edit.instructions"
 msgstr "使用键盘输入或粘贴。按 Enter 或控制器上的选择确认；按 Escape 或控制器上的返回取消。"
+
+msgid "edit.instructions_multiline"
+msgstr "使用键盘输入或粘贴。Enter或数字键盘Enter插入换行。Ctrl+Enter、Ctrl+数字键盘Enter、接受按钮或控制器选择确认；Escape或控制器返回取消。"
 
 msgid "edit.updating"
 msgstr "正在更新房间。草稿已保留；您可以继续输入或取消。"
@@ -3575,3 +4242,399 @@ msgstr "无法进入房间，它可能刚刚关闭。请刷新后选择其他房
 
 msgid "legend.refresh"
 msgstr "刷新"
+
+msgid "training.frame_data"
+msgstr "帧数数据"
+
+msgid "training.frame_data.detail"
+msgstr "查看双方上一招的帧数优势和压起身时机。"
+
+msgid "training.hud"
+msgstr "HUD"
+
+msgid "training.hud.detail"
+msgstr "开关对战中 HUD 的各项。"
+
+msgid "training.color_key"
+msgstr "颜色图例"
+
+msgid "training.dummy"
+msgstr "训练人偶"
+
+msgid "training.position"
+msgstr "位置"
+
+msgid "training.start_frames"
+msgstr "起手 {0} 帧"
+
+msgid "training.start_unknown"
+msgstr "起手 --"
+
+msgid "settings.training_replays"
+msgstr "训练和录像"
+
+msgid "settings.training_replays_detail"
+msgstr "对战帧数表、从训练返回时自动准备，以及要保存哪些对战。"
+
+msgid "settings.training_replays_title"
+msgstr "训练和录像"
+
+msgid "room.table_footer_practice"
+msgstr "练习对战"
+
+msgid "room.rules_summary_practice"
+msgstr "练习对战，{0} 回合，{1} 秒，Edition Select {2}"
+
+msgid "room.practice"
+msgstr "练习房间"
+
+msgid "room.practice.detail"
+msgstr "房间内的每场对战都是练习对战：体力和能量槽会恢复，双方都不会被击倒，回合时间为 {0}。房间开启期间不会改变。要进行普通对战，请关闭房间并重新创建。"
+
+msgid "room.practice_status"
+msgstr "练习房间／仅限邀请"
+
+msgid "room.practice_locked_status"
+msgstr "练习房间已锁定／仅限邀请"
+
+msgid "inputs.presses_value"
+msgstr "{0} 次按键"
+
+msgid "replays.watch_meter"
+msgstr "带帧数表观看"
+
+msgid "replays.watch_meter_detail"
+msgstr "从 Battle Log 播放录像，并在对战上方显示帧数表。"
+
+msgid "replays.controls.play"
+msgstr "播放"
+
+msgid "replays.controls.pause"
+msgstr "暂停"
+
+msgid "replays.controls.paused"
+msgstr "已暂停"
+
+msgid "replays.controls.step"
+msgstr "逐帧"
+
+msgid "replays.controls.speed"
+msgstr "速度"
+
+msgid "replays.controls.speed_full"
+msgstr "1x"
+
+msgid "replays.controls.speed_half"
+msgstr "1/2x"
+
+msgid "replays.controls.speed_quarter"
+msgstr "1/4x"
+
+msgid "replays.controls.inputs"
+msgstr "输入"
+
+msgid "replays.controls.meter"
+msgstr "帧数表"
+
+msgid "replays.controls.round"
+msgstr "第 {0} 回合"
+
+msgid "replays.controls.frame"
+msgstr "第 {0} 帧"
+
+msgid "replays.controls.unavailable"
+msgstr "仅在对战中可用"
+
+msgid "room.training"
+msgstr "在训练中等待"
+
+msgid "replays.export_gpu"
+msgstr "导出视频 (GPU)"
+
+msgid "replays.export_gpu_detail"
+msgstr "以游戏画面的完整尺寸录制为 .mp4，由显卡编码。"
+
+msgid "replays.video"
+msgstr "视频"
+
+msgid "export.title"
+msgstr "导出视频"
+
+msgid "export.detail"
+msgstr "录制时显示在游戏画面上，屏幕和视频中都有。"
+
+msgid "export.names"
+msgstr "玩家名称"
+
+msgid "export.name"
+msgstr "玩家 {0}"
+
+msgid "export.line"
+msgstr "对战信息行"
+
+msgid "export.line_text"
+msgstr "对战信息行文字"
+
+msgid "export.set"
+msgstr "局数比分"
+
+msgid "export.set_detail"
+msgstr "每位玩家在本轮对局中目前的胜场数，显示在名称旁。根据这两位玩家刚才连续进行的对战统计；如不正确请修改。"
+
+msgid "export.set_wins"
+msgstr "玩家 {0} 胜场"
+
+msgid "export.mark"
+msgstr "Ember 标记"
+
+msgid "export.generate"
+msgstr "生成视频"
+
+msgid "export.meter"
+msgstr "帧数表"
+
+msgid "export.meter_detail"
+msgstr "在对战画面上显示训练模式的帧数表，屏幕和视频中都有。"
+
+msgid "export.generate_detail"
+msgstr "播放录像并在其旁边录制为 .mp4。录制期间按 F10 打开 Ember，可查看进度或取消。"
+
+msgid "export.running"
+msgstr "正在导出视频"
+
+msgid "export.running_detail"
+msgstr "录像在播放时录制。此菜单打开期间，视频中不含字幕和帧数表。"
+
+msgid "export.starting"
+msgstr "正在开始..."
+
+msgid "export.finishing"
+msgstr "正在完成视频..."
+
+msgid "export.cancelling"
+msgstr "正在取消..."
+
+msgid "export.progress"
+msgstr "{0} / {1}"
+
+msgid "export.cancel"
+msgstr "取消导出"
+
+msgid "export.cancel_detail"
+msgstr "停止录制并删除未完成的视频。录像会继续播放到结束。"
+
+msgid "export.cancelled"
+msgstr "已取消导出。没有保存视频。"
+
+msgid "training.result"
+msgstr "结果"
+
+msgid "training.room.table"
+msgstr "对战席 {0}"
+
+msgid "training.room.waiting"
+msgstr "等待对手"
+
+msgid "training.room.opponent"
+msgstr "对手：{0}"
+
+msgid "training.room.queued"
+msgstr "排队 {0}/{1}"
+
+msgid "training.room.not_queued"
+msgstr "未排队"
+
+msgid "training.room.unread"
+msgstr "{0} 条未读"
+
+msgid "room.training_call.calling"
+msgstr "正在将 {0} 从训练中召回"
+
+msgid "training.go_now"
+msgstr "立即前往"
+
+msgid "reports.setting"
+msgstr "发送问题报告"
+
+msgid "reports.setting_detail"
+msgstr "开：崩溃后，启动器不经询问直接发送报告，每天最多 {0} 份，且从不包含崩溃转储。关：先询问。"
+
+msgid "reports.problem"
+msgstr "报告问题"
+
+msgid "reports.problem_detail"
+msgstr "先查看已去除隐私信息的日志和报告详情，再决定是否发送给 Ember。"
+
+msgid "reports.title"
+msgstr "报告预览"
+
+msgid "reports.preparing"
+msgstr "正在准备报告预览..."
+
+msgid "reports.preview_detail"
+msgstr "发送前请检查每个部分。报告会发送到 embernetplay.link。原始转储最多保留 30 天；处理后的报告另有保留期限。"
+
+msgid "reports.sending"
+msgstr "正在发送报告..."
+
+msgid "reports.bytes"
+msgstr "{0} 字节"
+
+msgid "reports.metadata"
+msgstr "报告详情"
+
+msgid "reports.dump"
+msgstr "小型转储"
+
+msgid "reports.dump_detail"
+msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+
+msgid "reports.comment"
+msgstr "备注"
+
+msgid "reports.comment_required"
+msgstr "发送前请说明问题（最多 2000 个字符）。备注将按原文发送。"
+
+msgid "reports.comment_optional"
+msgstr "可选：说明发生了什么（最多 2000 个字符）。备注将按原文发送。"
+
+msgid "reports.send"
+msgstr "发送"
+
+msgid "reports.dont_send"
+msgstr "不发送"
+
+msgid "reports.consent"
+msgstr "将此预览中显示的内容原样发送给 Ember，包括备注，以及已开启时的小型转储？"
+
+msgid "reports.copy_id"
+msgstr "复制报告 ID"
+
+msgid "reports.close_detail"
+msgstr "关闭此预览。服务器已接受的内容无法在此撤回。"
+
+msgid "reports.sent"
+msgstr "报告已接受。报告 ID：{0}"
+
+msgid "reports.invalid"
+msgstr "此报告无效或过大。请检查备注，再重新准备预览。"
+
+msgid "reports.invalid_response"
+msgstr "服务器响应中没有有效的报告 ID。它可能已接受你的报告。"
+
+msgid "reports.rate_limited"
+msgstr "报告过多。请在 {0} 秒后重试。"
+
+msgid "reports.unavailable"
+msgstr "报告功能暂时不可用。请稍后重试。"
+
+msgid "reports.failed"
+msgstr "无法发送报告。请检查网络连接后重试。"
+
+msgid "reports.cancelled"
+msgstr "已取消发送报告。服务器已接受的报告仍可能被保留。"
+
+msgid "reports.dump_warning"
+msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+
+msgid "launcher.game_crashed_files"
+msgstr "游戏崩溃了。请将 %APPDATA%\\sf4e\\logs 中的文件（sf4e.log、sf4e-crash.log 和 sf4e-crash-*.dmp）发送给 SF4 Ember Netplay 团队，然后重试。"
+
+msgid "launcher.game_crashed_sending"
+msgstr "游戏崩溃了。“发送问题报告”已打开，因此正在发送不含崩溃转储的报告。文件也位于 %APPDATA%\\sf4e\\logs。"
+
+msgid "reports.settings_title"
+msgstr "问题报告"
+
+msgid "reports.settings_detail"
+msgstr "崩溃报告包含的内容，以及已发送的报告。"
+
+msgid "reports.sent_list"
+msgstr "已发送的报告"
+
+msgid "reports.sent_list_detail"
+msgstr "此电脑发送的每份报告：时间、结果和报告 ID。"
+
+msgid "reports.none"
+msgstr "还没有报告"
+
+msgid "reports.none_detail"
+msgstr "此电脑发送的报告会显示在这里。"
+
+msgid "reports.send_once"
+msgstr "发送此报告"
+
+msgid "reports.send_always"
+msgstr "始终发送"
+
+msgid "reports.send_always_detail"
+msgstr "发送此报告，并且以后每次崩溃的报告都不经询问直接发送。未经询问发送的报告从不包含转储。24 小时内未经询问最多发送 {0} 份，每份已发送的报告都计入其中。可在“设置”的“问题报告”中关闭。"
+
+msgid "reports.dump_included"
+msgstr "崩溃转储：已包含。"
+
+msgid "reports.dump_not_included"
+msgstr "崩溃转储：未包含。"
+
+msgid "reports.row"
+msgstr "问题报告"
+
+msgid "reports.status.sending"
+msgstr "正在发送"
+
+msgid "reports.status.received"
+msgstr "已接收"
+
+msgid "reports.status.refused"
+msgstr "未被接受"
+
+msgid "reports.status.not_sent"
+msgstr "未发送"
+
+msgid "reports.received"
+msgstr "报告已被接收。"
+
+msgid "reports.received_id"
+msgstr "报告已被接收。ID 为 {0}。就此崩溃联系 Ember 团队时请提供它。"
+
+msgid "reports.refused"
+msgstr "报告服务未接受该报告。不会再次发送。"
+
+msgid "reports.not_sent"
+msgstr "无法发送报告。不会再次发送。"
+
+msgid "reports.what_is_sent"
+msgstr "邀请、令牌、网络地址、email，以及你的 Windows 用户名、个人资料文件夹、电脑名称和玩家名称都会从日志中去除。\n\n你自己发送的报告会先完整显示，小型转储只有在该预览中开启时才会发送。未经询问发送的报告从不包含转储。\n\n绝不发送：你的其他文件、录像或完整的崩溃转储。"
+
+msgid "reports.send_once_detail"
+msgstr "打开预览，显示此报告包含的全部内容。选择“发送”之前不会发送任何内容。"
+
+msgid "reports.crash_report"
+msgstr "崩溃报告"
+
+msgid "reports.payload"
+msgstr "报告会发送到 embernetplay.link。每份报告包含 Ember 版本和构建号、Windows 版本、崩溃信息，以及已去除隐私信息的 sf4e.log、launcher.log、sf4e-crash.log 和 sf4-net.log 的末尾部分。"
+
+msgid "reports.status.unknown"
+msgstr "未知"
+
+msgid "reports.interrupted"
+msgstr "发送在收到响应前被中断。报告服务可能已接收该报告。"
+
+msgid "reports.identity_failed"
+msgstr "无法读取你的玩家名称或 Windows 账户，因此未准备报告。请重试。"
+
+msgid "reports.history_failed"
+msgstr "无法保存已发送报告的记录，因此未发送该报告。请重试。"
+
+msgid "reports.history_unreadable"
+msgstr "记录无法读取"
+
+msgid "reports.history_unreadable_detail"
+msgstr "无法读取 %APPDATA%\\sf4e 中的 sent-reports.json，因此不会未经询问发送任何报告。删除该文件可开始新的记录。"
+
+msgid "reports.always_failed"
+msgstr "无法开启“始终发送”，因此未发送此报告。选择“发送此报告”即可从预览中发送。"
+
+msgid "reports.automatic_unavailable"
+msgstr "当天的自动报告已用完，或无法读取已发送报告的记录，因此未发送此报告。选择“发送此报告”即可从预览中发送。"

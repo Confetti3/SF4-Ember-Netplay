@@ -1,5 +1,8 @@
+#include <cstdint>
+#include <mutex>
 #include <windows.h>
 #include <detours/detours.h>
+#include <spdlog/spdlog.h>
 
 #include "../Dimps/Dimps.hxx"
 #include "../Dimps/Dimps__Event.hxx"
@@ -10,7 +13,9 @@
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__Game__Battle__System.hxx"
 #include "sf4e__NetplayFacade.hxx"
+#include "sf4e__RuntimeBridge.hxx"
 #include "sf4e__UserApp.hxx"
+#include "../training/TrainingRuntime.hxx"
 
 using Dimps::Game::Request;
 
@@ -36,6 +41,7 @@ using fUserApp = sf4e::UserApp;
 
 int (*fMainMenu::OnModeSelectedOverride)(int mode);
 std::atomic<int> fMainMenu::bOverrideItemObserverState{-1};
+fGameEvents::TrainingRequest fMainMenu::trainingRequest;
 void (*fVsBattle::OnTasksRegistered)() = nullptr;
 void (*fVsPreBattle::OnTasksRegistered)() = nullptr;
 
@@ -44,9 +50,8 @@ bool fVsBattle::bBlockTermination = false;
 bool fVsBattle::bForceNextMatchOnline = false;
 bool fVsBattle::bSessionSentLoaded = false;
 bool fVsBattle::bSessionSynced = false;
-bool fVsBattle::bOverrideNextRandomSeed = false;
 bool fVsBattle::bTerminateOnNextLeftBattle = false;
-DWORD fVsBattle::nextMatchRandomSeed = 0xffffffff;
+sf4e::battle::NextRequest fVsBattle::nextRequest;
 bool fVsPreBattle::bSkipToVersus = false;
 
 char* fRootEvent::eventFlowDescription = R"(	Boot, 0, Title,										
@@ -81,6 +86,7 @@ LogoDolby, 0, LogoCRI, BLACK, 10.0f, BLACK, 10.0f
 MainMenu, 14, Benchmark, BLACK, 30.0f, BLACK, 30.0f			
 	Benchmark, 0, MainMenu, BLACK, 30.0f, BLACK, 30.0f			
 MainMenu, 13, Manual, BLACK, 30.0f, BLACK, 30.0f			
+MainMenu, 15, LocalBattleLog, BLACK, 30.0f, BLACK, 30.0f
 	Manual, 0, MainMenu, BLACK, 30.0f, BLACK, 30.0f			
 	PlayerTitleSetting, 0, MainMenu, BLACK, 30.0f, BLACK, 30.0f			
 	PlayerTitleSetting, 1, Option, BLACK, 30.0f, BLACK, 30.0f			
@@ -128,6 +134,41 @@ void fGameEvents::Install() {
 	VsStageSelect::Install();
 }
 
+// The main menu's own jump to Versus (0x6131A0) asks the flow for its row
+// 2, fades the menu sound, closes the menu and clears its selection. The
+// same with row 15, which Ember's flow table adds above, opens the local
+// battle log, the list of replays a Versus battle saves into.
+void fMainMenu::GoToLocalBattleLog() {
+	rMainMenu* const observer = reinterpret_cast<rMainMenu*>(this);
+	Dimps::GameEvents::Flow::Request(rMainMenu::GetObserverFlow(observer), rMainMenu::FlowRowLocalBattleLog);
+	auto* const sound = rMainMenu::GetAppSoundManager(rMainMenu::exitMethods.GetApp());
+	(sound->*rMainMenu::exitMethods.FadeOut)(*rMainMenu::exitMethods.fadeSeconds);
+	(rMainMenu::GetObserverPanel(observer)->*rMainMenu::exitMethods.Close)(0);
+	*rMainMenu::GetObserverSelection(observer) = 0;
+}
+
+// Opens the local battle log from the native main menu, when it is the
+// foreground event. False, doing nothing, otherwise.
+bool fMainMenu::OpenLocalBattleLog() {
+	rRootEvent* const root = Dimps::App::GetRootEvent();
+	if (!root) return false;
+	char* query[1] = { const_cast<char*>("MainMenu") };
+	rMainMenu* const mainMenu = reinterpret_cast<rMainMenu*>(EventBaseWithEC::FindForegroundEvent(root, query, 1));
+	if (!mainMenu) return false;
+	static_cast<fMainMenu*>(rMainMenu::ToItemObserver(mainMenu))->GoToLocalBattleLog();
+	return true;
+}
+
+bool fMainMenu::LeaveLocalBattleLog() {
+	rRootEvent* const root = Dimps::App::GetRootEvent();
+	if (!root) return false;
+	char* query[1] = { const_cast<char*>("LocalBattleLog") };
+	auto* const log = EventBaseWithEC::FindForegroundEvent(root, query, 1);
+	if (!log) return false;
+	Dimps::GameEvents::Flow::Request(Dimps::GameEvents::Flow::OfLocalBattleLog(log), rMainMenu::FlowRowMainMenu);
+	return true;
+}
+
 void fMainMenu::Install() {
 	int (fMainMenu:: * _fGetItemObserverState)() = &GetItemObserverState;
 	void (fMainMenu:: * _fOnModeSelected)(int) = &OnModeSelected;
@@ -136,8 +177,37 @@ void fMainMenu::Install() {
 }
 
 
+void fMainMenu::RequestTraining(const sf4e::netplay::Generation& generation) {
+	trainingRequest.Post(generation, GetTickCount64(), 2000);
+}
+
 int fMainMenu::GetItemObserverState() {
 	sf4e::NetplayFacade::NotifyRuntimeEventSystemReady();
+	fGameEvents::TrainingRequest::Pending request;
+	if (trainingRequest.Peek(GetTickCount64(), request) &&
+		(this->*rMainMenu::itemObserverMethods.GetItemObserverState)() == rMainMenu::MMIOS_IDLE) {
+		// The runtime accepted it a tick or more ago, and the room may have changed
+		// since (the session client applies room snapshots after the runtime's tick
+		// without publishing them). The runtime judges it again here, on the game
+		// thread, against the live session and room. It is forgotten either way, by
+		// serial, so a newer request made meanwhile is left alone.
+		const auto taken = trainingRequest.Take(GetTickCount64(), sf4e::NetplayFacade::TrainingRequestHolds);
+		if (taken == fGameEvents::TrainingRequest::Taken::Dropped)
+			spdlog::info("Main menu: Training request dropped, it no longer holds");
+		else if (taken == fGameEvents::TrainingRequest::Taken::Go) {
+			// The game's own selection, with the Fight Request question
+			// switched off for this one call: it then exits to Training
+			// directly, the path it takes where requests are not offered.
+			// The value goes back in case the menu stays (the call does
+			// nothing unless the menu is idle).
+			DWORD* offered = rMainMenu::GetFightRequestOffered(rMainMenu::FromItemObserver(this));
+			const DWORD was = *offered;
+			*offered = 0;
+			(this->*rMainMenu::itemObserverMethods.OnModeSelected)(rMainMenu::MMI_TRAINING);
+			*offered = was;
+			spdlog::info("Main menu: entering Training without the Fight Request question (it was {})", was ? "offered" : "not offered");
+		}
+	}
 	const int overridden = bOverrideItemObserverState.load();
 	if (overridden != -1) {
 		return overridden;
@@ -257,17 +327,29 @@ BOOL fVsBattle::IsTerminationComplete() {
 void fVsBattle::PrepareBattleRequest() {
 	(this->*rVsBattle::privateMethods.PrepareBattleRequest)();
 	Request* r = *rVsBattle::GetRequest(this);
+	const auto next = nextRequest.Take();
 	if (r) {
 		if (bForceNextMatchOnline) {
 			(r->*Request::publicMethods.SetIsOnlineBattle)(TRUE);
 		}
-		if (bOverrideNextRandomSeed) {
-			(r->*Request::publicMethods.SetRandomSeed)(nextMatchRandomSeed);
+		if (next.overrideSeed) {
+			(r->*Request::publicMethods.SetRandomSeed)(next.seed);
+		}
+		if (next.training) {
+			// The game's own gauge behaviour, chosen before the battle
+			// exists and never changed in it: nothing is written during a
+			// frame, so a rollback has nothing of ours to restore.
+			for (int player = 0; player < 2; player++) {
+				for (int param : { Request::PP_VITALITY, Request::PP_RECOVERABLE_VITALITY, Request::PP_SUPER_COMBO, Request::PP_REVENGE }) {
+					(r->*Request::publicMethods.SetPlayerParam)(player, param, Request::PM_REFILL);
+				}
+			}
+			spdlog::info("Battle: Training rules, health and gauges refill");
 		}
 	}
 	bForceNextMatchOnline = false;
-	bOverrideNextRandomSeed = false;
-	nextMatchRandomSeed = 0xffffffff;
+	// The rule's HUD notice, and the reserved input bits cleared in that battle.
+	sf4e::training::SetMatchPractice(r && next.training);
 }
 
 void fVsBattle::RegisterTasks() {

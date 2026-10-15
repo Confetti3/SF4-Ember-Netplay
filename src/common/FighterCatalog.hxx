@@ -54,13 +54,32 @@ struct Pick {
 // variants, and newer costumes also expose the numbered palettes 13 through 22.
 struct Availability {
     bool ready = false;
+    // Costumes the player's Steam licences cover. Bit 0 is the fighter itself.
     std::uint32_t costumes = 0;
     std::array<std::uint32_t, 8> colors{};
     std::uint16_t personalActions = 0;
 };
+// The custom content installed on this PC (InstalledContent.hxx); the selection queries below take it alongside the
+// native availability, and without it offer the game's own content only.
+struct InstalledContent;
+
+// Custom costumes, added by a separate setup program: slots 8..99 (indices 7..98) of every fighter, ten colors
+// each. Any of them is a valid pick on the network; each PC shows its own install of that slot, or the
+// fighter's original costume (ResolveAppearance).
+constexpr int FirstCustomCostume = 7;
+constexpr int CostumeLimit = 99;
+constexpr int CustomColorCount = 10;
+inline bool IsCustomCostume(int costumeId) { return costumeId >= FirstCustomCostume && costumeId < CostumeLimit; }
+// Custom colors, added the same way: colors 30..99 (indices 29..98) of any costume, the game's or a custom one,
+// leaving the game's own colors (up to 22) room.
+// Each PC shows its own install of that color, or the costume's color 1 (ResolveAppearance).
+constexpr int FirstCustomColor = 29;
+inline bool IsCustomColor(int colorId) { return colorId >= FirstCustomColor && colorId < CostumeLimit; }
+// The costume's own colors, or a custom color.
+bool ColorInRange(int fighterId, int costumeId, int colorId);
 
 int BaseCostumeCount(int fighterId);
-int CostumeCount(int fighterId);
+int CostumeCount(int fighterId);      // the game's own costumes
 int ColorCount(int fighterId, int costumeId);
 const char* CostumePack(int fighterId, int costumeId);
 std::vector<int> AllowedUltras(int fighterId, int editionId);
@@ -74,15 +93,18 @@ std::vector<UltraCommand> UltraCommands(int fighterId, int ultraId, int editionI
 // Facing-neutral short notation for a token string: "236 236 + PPP" is
 // "QCF x2 + PPP", "~4 6 4 6 + KKK" is "Charge B, F, B, F + KKK".
 std::string UltraNotation(const std::string& tokens);
-std::vector<int> AllowedCostumes(int fighterId, const Availability& availability);
-std::vector<int> AllowedColors(int fighterId, int costumeId, const Availability& availability);
+// The player does not own this fighter. Only 35-43 are sold separately;
+// unknown availability is not locked.
+bool FighterLocked(int fighterId, const Availability& availability);
+std::vector<int> AllowedCostumes(int fighterId, const Availability& availability, const InstalledContent* installed = nullptr);
+std::vector<int> AllowedColors(int fighterId, int costumeId, const Availability& availability, const InstalledContent* installed = nullptr);
 std::vector<int> AllowedPersonalActions(const Availability& availability);
 // Network validity uses the game's supported options; local availability also
 // applies the current player's unlock/DLC state. Never compare a peer's DLC
 // ownership against the receiving player's ownership.
 bool Valid(const Pick& pick, bool editionSelect);
-bool Available(const Pick& pick, bool editionSelect, const Availability& availability);
-bool Normalize(Pick& pick, bool editionSelect, const Availability* availability = nullptr);
+bool Available(const Pick& pick, bool editionSelect, const Availability& availability, const InstalledContent* installed = nullptr);
+bool Normalize(Pick& pick, bool editionSelect, const Availability* availability = nullptr, const InstalledContent* installed = nullptr);
 
 template<class Native> Pick FromNative(const Native& native) {
     Pick pick;

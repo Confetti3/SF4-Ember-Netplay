@@ -10,6 +10,7 @@ fn load(tag: u64) -> Event {
         actor_tick_lag_max_us: 0,
         actor_tick_body_max_us: 0,
         event_queue_free_min: 0,
+        control_queue_peak: 0,
     }
 }
 

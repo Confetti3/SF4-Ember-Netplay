@@ -1,5 +1,10 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "../platform/ReplayPath.hxx"
+#include "sf4e__GameEvents.hxx"
+#include "sf4e__ReplayStore.hxx"
+#include "sf4e__CustomContent.hxx"
 #include "../session/IdentityEvents.hxx"
+#include "../platform/ReplayFiles.hxx"
 #include "../platform/Utf8.hxx"
 #include <cwchar>
 
@@ -84,6 +89,13 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 	}
 	// Validate ownership before even a deferred GGPO teardown side effect.
 	if (!(command.command.generation == runtime->controller.GetSnapshot().generation)) return DispatchOutcome::Dropped;
+	// Training from a room sends no room command: the game alone moves, and only
+	// if the room allows it now, not as it was when the player pressed.
+	if (command.training == TrainingEntry::Room) {
+		if (TrainingRequestHolds(command.command.generation)) sf4e::GameEvents::MainMenu::RequestTraining(command.command.generation);
+		else runtime->error = loc::T("room.training.unavailable");
+		return DispatchOutcome::Dropped;
+	}
     if (command.discordAction != discord::InviteAction::None) {
         if (!runtime->discordInvite.Matches(command.discordRevision)) return DispatchOutcome::Dropped;
         if (command.discordAction == discord::InviteAction::Cancel) runtime->discordInvite.Cancel();
@@ -104,6 +116,10 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         runtime->steamInviteSent = !code.empty() && runtime->preferences.steamInvites &&
             runtime->steamRuntime.Invite(command.steamInviteFriendId, steam_join::ConnectString(code));
         ++runtime->steamInviteSequence;
+        return DispatchOutcome::Dropped;
+    }
+    if (command.replay.mode != replay::Mode::None) {
+        RunReplayRequest(command.replay);
         return DispatchOutcome::Dropped;
     }
     if (command.shortInvitation) {
@@ -159,7 +175,12 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
             diagnostics.predictionStalls=performance.predictionStalls;
             diagnostics.predictionSkippedFrames=performance.skipReasons[diag::SKIP_PREDICTION_THRESHOLD];
         }
-        if (!runtime->services.Request(command.service, diagnostics)) runtime->error = loc::T("runtime.operation_busy");
+        const std::wstring target = command.service == platform::ServiceAction::ShowReplayFile ? platform::Utf8ToWide(command.servicePath.c_str()) : std::wstring();
+        const bool accepted = command.service == platform::ServiceAction::SendReport ?
+            runtime->services.SendReport(command.reportSubmission) : runtime->services.Request(command.service, diagnostics, target);
+        if (!accepted) runtime->error = loc::T("runtime.operation_busy");
+        else if (command.service == platform::ServiceAction::SendReport || command.service == platform::ServiceAction::PrepareProblemReport ||
+            command.service == platform::ServiceAction::CancelReport) runtime->error.clear();
         return DispatchOutcome::Dropped;
     }
 	const auto kind = command.command.kind;
@@ -245,11 +266,13 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 				(published.localSlot >= 0 && published.localSlot < 2 && client->LocalSelectionLocked(published.localSlot))));
 		if (inFlight) return DispatchOutcome::Dropped;
 		const char* refusal = nullptr;
+		const auto availability = command.character.charaID < 44 ?
+			Dimps::Selection::ReadAvailability(command.character.charaID) : selection::Availability{};
+		const auto installed = custom::Installed();
 		if (!runtime->input.Ready()) refusal = loc::T("runtime.ready.assign_controller");
-		else if (!selection::IsRandomStage(command.stage) && !selection::FindStage(command.stage)) refusal = loc::T("runtime.ready.stage_unavailable");
-		else if (command.character.charaID >= 44) refusal = loc::T("runtime.ready.fighter_unavailable");
-		else if (!selection::Available(selection::FromNative(command.character), published.lobbySettings.editionSelect,
-			Dimps::Selection::ReadAvailability(command.character.charaID)))
+		else if (!selection::IsRandomStage(command.stage) && !selection::ValidStage(command.stage)) refusal = loc::T("runtime.ready.stage_unavailable");
+		else if (command.character.charaID >= 44 || selection::FighterLocked(command.character.charaID, availability)) refusal = loc::T("runtime.ready.fighter_unavailable");
+		else if (!selection::Available(selection::FromNative(command.character), published.lobbySettings.editionSelect, availability, installed.get()))
 			refusal = loc::T("runtime.ready.selection_unavailable");
 		else if (published.session.room != netplay::RoomState::Joined || published.localSlot < 0 || published.localSlot > 1)
 			refusal = loc::T("runtime.ready.take_seat");
@@ -323,7 +346,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 	case netplay::Effect::SetLobbySettings: {
 		const auto& settings = command.preferences.lobby;
 		if (UserApp::netplay->client.Lobby_SetSettings(settings.editionSelect, settings.roundCount,
-			{0, static_cast<short>(settings.roundTime)}, false) == session::SendResult::Queued) {
+			{0, static_cast<short>(settings.roundTime)}) == session::SendResult::Queued) {
 			runtime->pendingLobbySettings.reset(new netplay::LobbySettings(settings));
 			runtime->lobbySettingsDeadline = GetTickCount64() + 15000;
 		} else runtime->error = loc::T("runtime.lobby_settings_send_failed");
@@ -339,6 +362,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		}
 		runtime->displayName = runtime->preferences.displayName;
 		runtime->error.clear(); runtime->offlineRequested = false;
+		runtime->practiceRoom = decision.effect == netplay::Effect::HostRoom && command.practiceRoom;
 		// A public room's admission carries the bridge's signed ticket, which the
 		// helper presents to the room host; a ticket that is not an object is no admission.
 		const auto ticket = command.publicTicket.empty() ? nlohmann::json() : nlohmann::json::parse(command.publicTicket, nullptr, false);
@@ -359,13 +383,13 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         if(IsRuntimeRecoveryEnabled() && runtime->attached && UserApp::netplay &&
             UserApp::netplay->client.GetRoomSnapshot().localMember) {
             runtime->leaveRequested=true;
-            CancelDeferredGgpoClose();
-            Game::Battle::System::RetireGgpoSession("leave_room");
-            if(runtime->match) runtime->match->Abort();
+            CancelLocalMatch(GgpoEnd::Retire("leave_room"));
         } else CloseRoom();
         break;
     case netplay::Effect::ReplaceRoom:
         runtime->replacementPending=true;
+        // The replacement is the same kind of room as the one it replaces.
+        runtime->practiceRoom=UserApp::netplay && UserApp::netplay->client.GetRoomSnapshot().practice;
         CancelDeferredGgpoClose();
         Game::Battle::System::RetireGgpoSession("replacement_room");
         if(runtime->match) runtime->match->BeginReplacement();
@@ -391,9 +415,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         }
         const bool automatic=selected==AutoInputDelayChoice;
         if(!automatic) {
-            // A 0 (an older recommendation) plays at the smallest delay.
-            if(selected<0 || selected>MaximumInputDelay) break;
-            selected=PlayableInputDelay(selected);
+            if(selected<MinimumInputDelay || selected>MaximumInputDelay) break;
             runtime->selectedDelay=selected;
             runtime->preferences.inputDelay=selected;
         }
@@ -407,10 +429,11 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 	case netplay::Effect::SendReady: {
 		auto& client = UserApp::netplay->client;
         client.SetSelectedDelay(ReadyDelay());
+        client.SetSelectedLowerLag(runtime->preferences.lowerInputLag);
 		bool sent = client.PreBattle_SetChara(command.character) == session::SendResult::Queued;
 		if (!client._lobbyData.members.empty() && client._lobbyData.members[0].connId == client._cid) {
 			sent = client.PreBattle_SetEnv(sf4e::localRand()) == session::SendResult::Queued && sent;
-			sent = client.PreBattle_SetStage(selection::ResolveStage(command.stage, sf4e::localRand(), command.randomStageExcluded)) == session::SendResult::Queued && sent;
+			sent = client.PreBattle_SetStage(selection::ResolveStage(command.stage, sf4e::localRand(), command.randomPool, custom::Installed()->stages)) == session::SendResult::Queued && sent;
 		}
 		if (!sent || client.Lobby_Ready() != session::SendResult::Queued) {
 			FailReady(loc::T("runtime.match_settings_send_failed"));
@@ -454,6 +477,26 @@ static void Retry(Intent& intent, bool helperReady) {
 }
 
 namespace internal {
+// No room joined and none being joined: where the battle log may be opened
+// and where Ember's menu may come back to the Replays screen.
+static bool NoRoom() { return runtime->controller.GetSnapshot().room == netplay::RoomState::Idle && !UserApp::netplay; }
+
+// A replay link's file is played only on the player's word, so any request
+// for it, or a dismissal, answers the question the link left.
+void RunReplayRequest(const replay::Request& request) {
+    if (request.mode == replay::Mode::DismissLink || request.path == runtime->replayLinkAsked) runtime->replayLinkAsked.clear();
+    replaystore::Start(request, AtMainMenu(), NoRoom());
+}
+
+void TickReplays() {
+    const std::string link = platform::ResolveReplayFile(runtime->replayLinks.Take());
+    if (!link.empty()) {
+        runtime->replayLinkAsked = link;
+        spdlog::info("Replays: a link asked for a replay; the Replays screen asks the player");
+    }
+    replaystore::Tick(AtMainMenu(), NoRoom());
+}
+
 // A Ready press that cannot be honoured ends its intent and is announced once.
 void FailReady(const char* reason) {
 	runtime->readyIntent.Clear();
@@ -512,6 +555,24 @@ static bool RequestAutoCheck(const std::string& peer, std::uint64_t revision) {
     return true;
 }
 
+// The game that just ended, taken once and logged once per game: old -> new
+// delay Auto readies with. It stays local to this PC, like the check's: the
+// room commits the higher of the two seats' Ready delays. The game names its
+// own opponent, so it cannot be credited to whoever sits down after it.
+static void TakeFinishedGame() {
+    if(!runtime->finishedGame) return;
+    const auto game=*runtime->finishedGame;
+    runtime->finishedGame.reset();
+    auto& check=runtime->autoDelayCheck;
+    const int before=check.Delay(game.opponent);
+    if(check.Played(runtime->preferences.autoInputDelay,game))
+        spdlog::info("Auto delay: game {} ping median={} ms p95={} ms samples={}: delay {} -> {}",
+            game.generation,game.ping.medianMs,game.ping.p95Ms,game.ping.samples,before,check.Delay(game.opponent));
+    else
+        spdlog::info("Auto delay: game {} ping median={} ms p95={} ms samples={}: delay kept",
+            game.generation,game.ping.medianMs,game.ping.p95Ms,game.ping.samples);
+}
+
 // Follows the seated opponent and their check results. With Auto on, a due
 // check is asked for once the table has settled and this PC holds the pair;
 // one that ends without a recommendation is asked for once more.
@@ -523,6 +584,7 @@ void TickAutoDelay(bool helperReady) {
     const auto peer=coordinated ? CurrentProbePeer(revision,&tableIndex) : std::string();
     const auto now=GetTickCount64();
     auto& check=runtime->autoDelayCheck;
+    TakeFinishedGame();
     check.Seat(peer,revision,runtime->nextProbeRequest,now);
     if(peer.empty()) return;
     const auto& probe=runtime->room->Probe();
@@ -602,12 +664,17 @@ void DrainRoomEvents() {
 					// waits for the writer to report the revision on disk.
 					if (profileMatch) runtime->terminalOutcomeConsumed = false;
 				}
-				if (runtime->match && event.matchGeneration && event.matchGeneration == runtime->match->Generation())
+				// The game this PC took up, also one whose setup failed.
+				if (runtime->match && event.matchGeneration && event.matchGeneration == runtime->match->AttemptedGeneration())
 					runtime->committedEndGeneration = event.matchGeneration;
 				spdlog::log(runtime->matchEndLog.First(event.table, event.matchGeneration) ? spdlog::level::info : spdlog::level::debug,
 					"Room: match ended table={} generation={} result={} replay={}",
 					event.table, event.matchGeneration, static_cast<int>(event.result), event.terminalReplay);
             }
+			if (event.kind == room::Event::Kind::ReadyTimeout) {
+				runtime->roomNotices.push_back({++runtime->roomNoticeSequence, event});
+				if (runtime->roomNotices.size() > Runtime::RoomNoticesKept) runtime->roomNotices.pop_front();
+			}
 			if (event.kind == room::Event::Kind::ResultDisputed)
 				spdlog::warn("Match result: disputed table={} generation={} reporter={} result={}",
 					event.table, event.matchGeneration, event.member, static_cast<int>(event.result));
@@ -615,7 +682,7 @@ void DrainRoomEvents() {
 				event.matchGeneration != runtime->match->Generation() ||
 				(event.result != room::MatchResult::Abort && event.result != room::MatchResult::Cancel)) continue;
 			runtime->readyIntent.Withdraw(); runtime->lobbyEditIntent.Clear();
-			AbortLocalMatch(loc::T("runtime.table_game_cancelled"));
+			EndUnscoredMatch(event.result);
 		}
 	}
 }

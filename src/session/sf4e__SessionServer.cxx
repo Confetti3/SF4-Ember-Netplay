@@ -76,17 +76,13 @@ void SessionServer::CaptureFrozenMember(room::MemberId member, const room::Snaps
 	if (!member) return;
 	const auto priorMember = std::find_if(prior.members.begin(), prior.members.end(),
 		[&](const room::Member& value) { return value.id == member; });
-	if (priorMember == prior.members.end()) return;
-	bool frozenSlot = false;
-	const SessionProtocol::ConnectionID endpoint{priorMember->connection.host, priorMember->connection.user};
-	for (std::uint8_t table = 0; table < room::TableCount; ++table) {
-		const auto* authority = _roomMatchAuthorities[table].get();
-		if (authority && authority->HasStartedSpectator(endpoint)) {
-			frozenSlot = true;
-			break;
-		}
-	}
-	if (!frozenSlot) return;
+	// Authorities name participants by endpoint, and a restore maps every
+	// participation of an endpoint through one row, so an endpoint already
+	// frozen by an earlier departure needs no second row.
+	if (priorMember == prior.members.end() ||
+		!MatchAuthorityNames({priorMember->connection.host, priorMember->connection.user}) ||
+		std::any_of(roomFrozenMembers.begin(), roomFrozenMembers.end(),
+			[&](const auto& frozen) { return frozen.second.endpoint == priorMember->connection; })) return;
 	FrozenMember frozen;
 	frozen.endpoint = priorMember->connection;
 	frozen.data.connId = {frozen.endpoint.host, frozen.endpoint.user};
@@ -107,14 +103,25 @@ void SessionServer::CaptureFrozenMember(room::MemberId member, const room::Snaps
 	roomFrozenMembers[member] = std::move(frozen);
 }
 
+bool SessionServer::MatchAuthorityNames(const SessionProtocol::ConnectionID& endpoint) const {
+	const auto names = [&](const std::unique_ptr<session::MatchAuthority>& authority) {
+		return authority && authority->HasParticipant(endpoint);
+	};
+	return names(_matchAuthority) || std::any_of(_roomMatchAuthorities.begin(), _roomMatchAuthorities.end(), names);
+}
+
+// A row goes once no authority names its endpoint, or once the endpoint is on
+// the roster again: a member that rejoined restores those participations
+// through its live row, and a second row for the endpoint is not history.
 void SessionServer::PruneFrozenMembers() {
+	const auto onRoster = [&](const room::ConnectionRef& endpoint) {
+		if (!_roomAuthority) return false;
+		const auto& members = _roomAuthority->SnapshotView().members;
+		return std::any_of(members.begin(), members.end(), [&](const room::Member& member) { return member.connection == endpoint; });
+	};
 	for (auto frozen = roomFrozenMembers.begin(); frozen != roomFrozenMembers.end();) {
-		const SessionProtocol::ConnectionID endpoint{frozen->second.endpoint.host, frozen->second.endpoint.user};
-		bool referenced = false;
-		for (const auto& authority : _roomMatchAuthorities)
-			if (authority && authority->HasStartedSpectator(endpoint)) { referenced = true; break; }
-		if (!referenced && _matchAuthority && _matchAuthority->HasStartedSpectator(endpoint)) referenced = true;
-		if (referenced) ++frozen;
+		const auto& endpoint = frozen->second.endpoint;
+		if (!onRoster(endpoint) && MatchAuthorityNames({endpoint.host, endpoint.user})) ++frozen;
 		else frozen = roomFrozenMembers.erase(frozen);
 	}
 }
@@ -238,6 +245,7 @@ int SessionServer::Step()
 					// A departed locked-in spectator can release a held start.
 					const auto started = StartReadyTables(leave.events);
 					departureEvents.insert(departureEvents.end(), started.begin(), started.end());
+					ForgetReseatedMatchData(SeatedPairsOf(priorSnapshot));
 					BroadcastRoomState(departureEvents);
 				}
 			}
@@ -387,9 +395,8 @@ int SessionServer::Step()
 	}
 
 	// Room actions and connection closes can end the last authority reference
-	// during this poll.  Keep frozen spectators while any Started authority
-	// still owns their native slot, then prune the derived cache at the command
-	// boundary.
+	// during this poll.  Keep frozen members while any authority still names
+	// them, then prune the derived cache at the command boundary.
 	PruneFrozenMembers();
 	if (_recovery.Enabled()) FinishRecoveryCandidate();
 	return _transportFailed ? -1 : 0;

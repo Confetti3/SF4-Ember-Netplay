@@ -69,11 +69,17 @@ msgstr "SF4 Ember Netplayはすでに起動しています。画面に見えな�
 msgid "launcher.start_failed"
 msgstr "ゲームの起動または組み込みに失敗しました。ランチャーのログ（%APPDATA%\\sf4e\\logs\\launcher.log）を確認して再試行してください。"
 
+msgid "launcher.game_runs_as_admin"
+msgstr "SSFIV.exeが管理者として実行する設定になっているため、Emberから起動できません。ゲームフォルダーのSSFIV.exeを右クリックして「プロパティ」の「互換性」を開き、「管理者としてこのプログラムを実行する」をオフにしてください（「全ユーザーの設定を変更」の中も同様です）。その後、再試行してください。"
+
 msgid "launcher.game_error"
 msgstr "ゲームがエラーで終了しました。ランチャーのログ（%APPDATA%\\sf4e\\logs\\launcher.log）を確認して再試行してください。"
 
+msgid "launcher.steam_runs_as_admin"
+msgstr "Steamが管理者として実行されているため、ゲームがSteamに接続できませんでした。Steamを終了して通常どおり起動し直してから再試行してください。Emberを管理者として起動しても動作しますが、その場合アップデートはインストールされません。"
+
 msgid "launcher.game_crashed"
-msgstr "ゲームがクラッシュしました。%APPDATA%\\sf4e\\logs 内のファイル（sf4e.log、sf4e-crash.log、sf4e-crash-*.dmp）を SF4 Ember Netplay チームに送ってから再試行してください。"
+msgstr "ゲームがクラッシュしました。修正に協力いただける場合は、下の「このレポートを送信」を選んでください。%APPDATA%\\sf4e\\logs のファイルを自分で送ることもできます。"
 
 msgid "launcher.runtime_shadowed"
 msgstr "ゲームがEmberフォルダーの代わりに次のファイルを読み込もうとしています。古いファイルがあると起動前に停止します（\"entry point ggpo_get_last_confirmed_frame not found\"）。別のネット対戦MODまたは古いインストールの残りです。移動または名前を変更してからEmberを再起動してください：\n\n{0}"
@@ -126,6 +132,36 @@ msgstr "別の操作を実行中です。"
 msgid "updates.check_detail"
 msgstr "新しいEmberパッケージを確認します。"
 
+msgid "updates.channel"
+msgstr "アップデートチャンネル"
+
+msgid "updates.channel.stable"
+msgstr "安定版"
+
+msgid "updates.channel.prerelease"
+msgstr "ベータ版"
+
+msgid "updates.channel.nightly"
+msgstr "ナイトリー"
+
+msgid "updates.channel.nightly_detail"
+msgstr "最新機能を含む毎日のテストビルドです。正常に動作しない場合があります。ルームではナイトリー版のプレイヤーとだけ対戦できます。ナイトリー版で保存したリプレイは、以前のバージョンに戻すと開けなくなる場合があります。"
+
+msgid "updates.channel_detail"
+msgstr "安定版は正式リリースのみを提供します。ベータ版はベータ版やリリース候補版も提供しますが、問題が多い場合があります。一緒に遊ぶ全員が同じバージョンである必要があります。"
+
+msgid "updates.channel.switch_detail"
+msgstr "アップデートの確認先を{0}から{1}に切り替え、すぐに{1}を確認します。「ダウンロードしてインストール」を選ぶまで何もインストールされません。"
+
+msgid "updates.channel.going_back"
+msgstr "{0}から{1}に戻すと、今より古いバージョンが提示される場合があります。{0}で記録したリプレイは{1}で開けない場合があります。"
+
+msgid "updates.installed_version"
+msgstr "インストール済みバージョン"
+
+msgid "updates.installed_version_detail"
+msgstr "このPCのEmberのバージョンです。"
+
 msgid "updates.install"
 msgstr "ダウンロードしてインストール"
 
@@ -134,6 +170,15 @@ msgstr "インストール前にSF4を閉じてください。パッケージは
 
 msgid "updates.unverified"
 msgstr "このアップデートには検証用チェックサムがないため、インストールできません。"
+
+msgid "updates.install_going_back"
+msgstr "今より古いバージョンに戻します。現在のバージョンで記録したリプレイは開けない場合があります。"
+
+msgid "updates.whats_new"
+msgstr "更新内容"
+
+msgid "updates.whats_new_detail"
+msgstr "{0}のリリースノート。"
 
 msgid "updates.cancel"
 msgstr "操作をキャンセル"
@@ -178,13 +223,29 @@ msgid "services.exporting"
 msgstr "診断情報を出力中..."
 
 msgid "services.downloading"
-msgstr "更新をダウンロードして検証中..."
+msgstr "更新をダウンロード中..."
+
+msgid "services.verifying"
+msgstr "ダウンロードを検証中..."
+
+msgid "services.extracting"
+msgstr "更新を展開中..."
+
+msgid "services.preparing"
+msgstr "更新を準備中..."
+
+msgid "services.installing"
+msgstr "更新をインストール中..."
 
 msgid "services.opening_updater"
 msgstr "アップデーターを起動中..."
 
 msgid "services.update_available"
 msgstr "アップデートがあります：{0}"
+
+msgid "services.go_back_available"
+msgstr "{0} に戻すことができます"
+
 
 msgid "services.up_to_date"
 msgstr "最新版です。"
@@ -556,7 +617,7 @@ msgid "home.online"
 msgstr "オンライン対戦"
 
 msgid "home.online_detail"
-msgstr "ルームを作成・参加するか、公開ルームを探します。"
+msgstr "ルームを作成・参加するか、公開ルームを探すか、大会用のEmber IDを設定します。"
 
 msgid "home.return_room"
 msgstr "現在のルームに戻る"
@@ -586,7 +647,7 @@ msgid "home.identity_matches"
 msgstr "プレイできる大会の試合：{0}"
 
 msgid "home.settings_detail"
-msgstr "プレイヤー、コントローラー、対戦の初期設定、表示、言語、Discord。"
+msgstr "プレイヤー、コントローラー、対戦の初期設定、表示、言語、トレーニング、Discord。"
 
 msgid "home.about"
 msgstr "ヘルプ・情報"
@@ -598,7 +659,192 @@ msgid "home.offline"
 msgstr "オフラインで遊ぶ"
 
 msgid "home.offline_detail"
-msgstr "ゲーム本体のオフラインメニューを開きます。"
+msgstr "トレーニング、対戦、アーケードなど、ゲーム本体のオフラインモードです。"
+
+msgid "home.replays"
+msgstr "リプレイ"
+
+msgid "home.replays_detail"
+msgstr "保存した対戦です。再生、ゲームへの追加、入力の確認ができます。"
+
+msgid "replays.title"
+msgstr "リプレイ"
+
+msgid "replays.empty"
+msgstr "リプレイはまだありません"
+
+msgid "replays.empty_detail"
+msgstr "対戦が終わるとここに保存されます。"
+
+msgid "replays.add"
+msgstr "ゲームに追加"
+
+msgid "replays.add_detail"
+msgstr "後で見られるように、ゲームのBattle Logに追加します。"
+
+msgid "replays.watch"
+msgstr "今すぐ見る"
+
+msgid "replays.watch_detail"
+msgstr "ゲームのBattle Logに追加して再生します。"
+
+msgid "replays.save_watched"
+msgstr "観戦した対戦を保存"
+
+msgid "replays.save_watched_detail"
+msgstr "観戦した対戦も保存します。オフでは自分がプレイした対戦だけを保存します。"
+
+msgid "replays.link"
+msgstr "リンクのリプレイを再生"
+
+msgid "replays.link_detail"
+msgstr "リンクから{0}の再生がEmberに要求されました。リンクの送信元を信頼できる場合だけ再生してください。"
+
+msgid "replays.link_play"
+msgstr "再生"
+
+msgid "replays.link_dismiss"
+msgstr "今はしない"
+
+msgid "replays.link_dismiss_detail"
+msgstr "リンクを忘れます。ファイルは元の場所に残ります。"
+
+msgid "replays.exported"
+msgstr "動画を保存しました: {0}"
+
+msgid "replays.gpu_not_exported"
+msgstr "動画は作成されませんでした。Windows に H.264 エンコーダーがないか、ゲームの画面を読み取れませんでした。理由はログにあります。"
+
+msgid "replays.open_folder"
+msgstr "リプレイフォルダーを開く"
+
+msgid "replays.open_folder_detail"
+msgstr "アーカイブをエクスプローラーで開きます。リプレイと書き出した動画があります。"
+
+msgid "services.opening_replay_folder"
+msgstr "リプレイフォルダーを開いています..."
+
+msgid "services.replay_folder_opened"
+msgstr "{0} をエクスプローラーで開きました。"
+
+msgid "services.replay_folder_failed"
+msgstr "リプレイフォルダーを開けませんでした。"
+
+msgid "replays.inputs"
+msgstr "入力と統計"
+
+msgid "replays.inputs_detail"
+msgstr "両プレイヤーの入力をフレームごとに、合計とともに表示します。再生はしません。"
+
+msgid "replays.show_folder"
+msgstr "フォルダーで表示"
+
+msgid "replays.show_folder_detail"
+msgstr "このリプレイがあるフォルダーをエクスプローラーで開きます。"
+
+msgid "inputs.length_value"
+msgstr "ラウンド数 {0} · {1}"
+
+msgid "inputs.activity"
+msgstr "1分あたり{0}入力、ジャンプ{1}回、しゃがみ{2}%。"
+
+msgid "inputs.round"
+msgstr "ラウンド{0}"
+
+msgid "inputs.legend"
+msgstr "各行：時間と、そこからP1とP2が押し続けている入力。方向は画面から見たテンキー表記です。4が左、6が右、5は入力なし。"
+
+msgid "inputs.reading"
+msgstr "リプレイを読み込んでいます..."
+
+msgid "inputs.look_unknown"
+msgstr "外見情報が不明"
+
+msgid "inputs.unreadable"
+msgstr "入力を読み取れません"
+
+msgid "inputs.unreadable_detail"
+msgstr "このリプレイは古い形式か、ファイルが壊れています。"
+
+msgid "replays.row_detail"
+msgstr "選択すると、再生、ゲームへの追加、入力と統計の表示を選べます。"
+
+#. The saved replay has already been played back.
+msgid "replays.seen"
+msgstr "再生済み"
+
+#. The player watched the live match as a spectator, not a replay playback.
+msgid "replays.spectated"
+msgstr "観戦した対戦"
+
+#. The player watched the live match as a spectator and has also played its replay.
+msgid "replays.spectated_seen"
+msgstr "観戦した対戦、再生済み"
+
+msgid "replays.not_ready"
+msgstr "対戦中以外のメインメニューで使えます。"
+
+msgid "replays.added"
+msgstr "ゲームのBattle Logに、対戦した日付で追加しました。"
+
+msgid "replays.not_added"
+msgstr "このリプレイを追加できませんでした。ファイルが破損している可能性があります。"
+
+msgid "replays.not_added_yet"
+msgstr "ゲームが最後の対戦をまだ保存していません。少ししてからもう一度お試しください。"
+
+msgid "replays.not_added_files"
+msgstr "ゲームのリプレイファイルを読み取れなかったため、このリプレイを追加できませんでした。変更はありません。"
+
+msgid "replays.not_added_archive"
+msgstr "ゲームの現在のリプレイを先に保存できなかったため、このリプレイを追加できませんでした。ディスクの空き容量を確認してください。"
+
+msgid "replays.not_added_restored"
+msgstr "このリプレイを追加できませんでした。ゲームのリプレイは元のままです。"
+
+msgid "replays.not_added_recovery"
+msgstr "このリプレイを追加できず、ゲームの一部のリプレイも元に戻せませんでした。リプレイの追加をやめ、「ヘルプと情報」から診断情報をエクスポートしてください。"
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "ゲームのBattle Logを開く"
+
+msgid "replays.open_log_detail"
+msgstr "Emberのメニューを離れ、リプレイを再生するゲームのBattle Logを開きます。"
+
+msgid "replays.open_log_room"
+msgstr "先にルームから退出してください。"
+msgid "settings.training_auto_ready"
+msgstr "トレーニングから呼ばれたら自動で準備完了"
+
+msgid "settings.training_auto_ready_detail"
+msgstr "ルームがトレーニングから呼び戻すと、すぐに準備完了にします。オフでは、席を失うまでに{0}秒の準備時間があります。"
+
+msgid "settings.match_frame_meter"
+msgstr "対戦中のフレームメーター"
+
+msgid "settings.match_frame_meter_detail"
+msgstr "プレイ中や観戦中のオンライン対戦にフレームメーターを表示します。自分だけに見えます。対戦より数フレーム遅れることがあります。"
+
+msgid "settings.match_frame_meter_private"
+msgstr "プライベートルームのみ。"
+
+msgid "room.training.detail"
+msgstr "待っている間にトレーニングで練習できます。向かいの席に誰かが座るとEmberが呼び戻します。"
+
+msgid "room.training.unavailable"
+msgstr "対戦相手を待っていて、準備完了にする前に利用できます。"
+
+msgid "room.training_call.ready_in"
+msgstr "{0}秒以内に準備完了にしないと席を失います。"
+
+msgid "runtime.training_call.forfeit"
+msgstr "トレーニング後に時間内に準備完了にしなかったため、席を離れました。"
 
 msgid "home.choose_controller"
 msgstr "対戦用コントローラーを選択"
@@ -709,7 +955,7 @@ msgid "settings.title"
 msgstr "設定"
 
 msgid "settings.player_detail"
-msgstr "表示名とコントローラーの割り当て。"
+msgstr "表示名、コントローラーの割り当て、バックグラウンドでのプレイ。"
 
 msgid "settings.defaults_detail"
 msgstr "入力遅延と新規ルームの初期設定。"
@@ -741,6 +987,30 @@ msgstr "キーボードを使う"
 msgid "player.use_keyboard_detail"
 msgstr "キーボードを対戦用のデバイスに割り当てます。割り当て直すまで、コントローラーではEmberのメニューを操作できなくなります。"
 
+msgid "player.background_play"
+msgstr "バックグラウンドでプレイ"
+
+msgid "player.background_play_detail"
+msgstr "OBSなど別のウィンドウが前面にあっても、ゲームの音とコントローラーは動作し続けます。キーボードとEmberのメニューにはゲームのウィンドウが必要です。ウィンドウモードを使ってください。フルスクリーンでは最小化されます。"
+
+msgid "player.lower_input_lag"
+msgstr "入力遅延を減らす（実験的）"
+
+msgid "player.lower_input_lag_detail"
+msgstr "実験的な機能です。ゲームがすべての入力に加える1フレームの遅延をなくします。ルームでは両方のプレイヤーがオンにした場合のみ適用され、そのときは観戦者にも適用されます。オフラインの対戦とトレーニングはこの設定だけに従います。"
+
+msgid "player.lower_keyboard_lag"
+msgstr "キーボードの遅延を減らす（実験的）"
+
+msgid "player.lower_keyboard_lag_detail"
+msgstr "実験的な機能です。ゲームはキーボードをコントローラーより1フレーム遅れて読み取ります。これはその1フレームをなくします。キーボードだけに、このPCだけに影響します。相手がオンにする必要はありません。"
+
+msgid "player.faster_display"
+msgstr "表示の高速化（遅延1フレーム減）"
+
+msgid "player.faster_display_detail"
+msgstr "ゲームが各フレームを1フレーム遅れて表示する代わりに、準備ができしだい表示します。このPCでゲームが60fpsを下回る場合はオフにしてください。このPCだけに影響します。相手がオンにする必要はありません。変更は次にゲームを起動したときに反映されます。"
+
 msgid "player.native_menus"
 msgstr "ゲーム本体のメニューを開く"
 
@@ -767,6 +1037,21 @@ msgstr "対戦HUDのレイアウト"
 
 msgid "settings.match_hud_layout_detail"
 msgstr "Emberストリップはすべてを1つのパネルに表示します。分割は各名前を体力ゲージの下に表示します。"
+
+msgid "settings.name_offset"
+msgstr "名前の高さ"
+
+msgid "settings.name_offset_detail"
+msgstr "分割レイアウトの名前を上下に動かします。ゲーム側のHUD位置を変えていて、PLAYER 1/PLAYER 2 に重ならないときに使います。"
+
+msgid "name_offset.default"
+msgstr "標準"
+
+msgid "name_offset.up"
+msgstr "上へ {0}"
+
+msgid "name_offset.down"
+msgstr "下へ {0}"
 
 msgid "hud_layout.strip"
 msgstr "Emberストリップ"
@@ -919,7 +1204,7 @@ msgid "about.controls"
 msgstr "操作方法"
 
 msgid "about.controls_detail"
-msgstr "Xboxパッド：Aで選択、Bで戻ります。対戦用のボタン設定は関係ありません。ほかのパッド：割り当てたLPで選択、LKで戻ります。キーボード：方向キー、Enter、Escape。D-padで移動、左右で値を変更します。ホームで戻るとEmberを隠します。ゲームのメインメニューでは、F10（パッドではStart）でもう一度開けます。\n\nルームでは、テーブルでAを押すと席を選べ、自分の席でAを押すと準備完了になり、Bで席または順番待ちを離れます。XboxパッドではXでキャラ、Yで設定、Viewでチャットを開き、もう一度押すとルームに戻ります。\n\nトレーニングではF6で操作パネルを開き、F5でHUDを隠し、F7でレコーディング、F8で再生します。"
+msgstr "Xboxパッド：Aで選択、Bで戻ります。対戦用のボタン設定は関係ありません。ほかのパッド：割り当てたLPで選択、LKで戻ります。キーボード：方向キー、Enter、Escape。D-padで移動、左右で値を変更します。ホームで戻るとEmberを隠します。ゲームのメインメニューでは、F10（パッドではStart）でもう一度開けます。\n\nルームでは、テーブルでAを押すと席を選べ、自分の席でAを押すと準備完了になり、Bで席または順番待ちを離れます。XboxパッドではXでキャラ、Yで設定、Viewでチャットを開き、もう一度押すとルームに戻ります。\n\nトレーニングではF6で操作パネルを開き、F5でHUDを隠し、F7でレコーディング、F8で再生します。パッドではViewかSelectを押したままStartを押します。"
 
 msgid "about.controls_keyboard"
 msgstr "キーボードでは Space でも選択、Backspace でも戻ります。ルームでは F でキャラ、T で設定、C でチャットを開きます。Esc は自分の席の上でも常に戻ります。Delete で席や順番待ちから抜けます。"
@@ -962,6 +1247,15 @@ msgstr "EmberのDiscordに参加"
 
 msgid "about.discord_detail"
 msgstr "プレイヤー、対戦、サポート：{0}。ゲームの背後でブラウザーを開きます。"
+
+msgid "about.version_line"
+msgstr "Ember {0} · {1}"
+
+msgid "about.version_detail"
+msgstr "このPCのEmberのバージョン。ビルド：{0}"
+
+msgid "about.channel_detail"
+msgstr "アップデートの確認にはこのチャンネルを使います。変更するには、ゲームを閉じてUpdater.exeをダブルクリックしてください。"
 
 msgid "settings.retry_save"
 msgstr "保存を再試行"
@@ -1140,23 +1434,239 @@ msgstr "EMBER / {0}"
 msgid "training.controls"
 msgstr "トレーニング操作"
 
-msgid "training.open_chip"
-msgstr "F6 トレーニング操作"
-
 msgid "training.hide_hint"
-msgstr "F5 HUDを隠す"
+msgstr "HUDを隠す"
+
+msgid "training.controls_chip"
+msgstr "トレーニング操作"
+
+msgid "training.pad_hint"
+msgstr "押す：位置を戻す　長押し：保存"
+
+msgid "training.hint.reset"
+msgstr "位置を戻す"
+
+msgid "training.hint.save"
+msgstr "位置を保存"
+
+msgid "training.save_recording"
+msgstr "録画を名前を付けて保存"
+
+msgid "training.save_recording.detail"
+msgstr "選択中のスロットを、この名前のファイルとして保存します。"
+
+msgid "training.load_recording"
+msgstr "録画を読み込む"
+
+msgid "training.load_recording.detail"
+msgstr "左右で保存した録画を選び、決定で選択中のスロットに読み込みます。"
+
+msgid "training.mirror"
+msgstr "選択中の記録を左右反転"
+
+msgid "training.mirror.detail"
+msgstr "このスロットの左右を入れ替えます。保存した録画が反対向きに再生されるときに使います。"
+
+msgid "training.recording_saved"
+msgstr "録画を{0}として保存しました。"
+
+msgid "training.recording_loaded"
+msgstr "録画{0}をスロット{1}に読み込みました。"
+
+msgid "training.recording_none"
+msgstr "保存した録画はありません。"
 
 msgid "training.dummy_recording"
 msgstr "ダミーレコーディング"
 
 msgid "training.dummy_recording.detail"
-msgstr "P1の操作をP2として記録します。ゲーム本体のダミーを「プレイヤー/コントローラー操作」に設定してください。"
+msgstr "P1の操作をP2として記録し、再生します。ゲーム側の設定は不要です。記録中と再生中はEmberがダミーをP2の入力に切り替えます。"
 
 msgid "training.input_history"
 msgstr "入力履歴"
 
 msgid "training.input_history.detail"
 msgstr "各プレイヤーが押しているボタンを確認します。"
+
+msgid "training.match.checkpoint_disabled"
+msgstr "ロールバック対戦では、共有の位置保存と位置リセットは使用できません。"
+
+msgid "training.match.end_hint"
+msgstr "StartかF10でEmberを開き、「練習を終了」でこの対戦を終了できます。"
+
+msgid "training.invalid"
+msgstr "受け付けられません：{0}"
+
+msgid "training.save_failed"
+msgstr "ファイルを保存できませんでした。"
+
+msgid "training.position.save"
+msgstr "位置を保存"
+
+msgid "training.position.save.detail"
+msgstr "両キャラクターの現在の状態（位置、体力、ゲージ、ダミーの状態）を保存します。"
+
+msgid "training.position.reset"
+msgstr "位置を戻す"
+
+msgid "training.position.reset.detail"
+msgstr "両キャラクターを保存した状態に戻します。"
+
+msgid "training.position.saved"
+msgstr "位置を保存しました。"
+
+msgid "training.position.reset_done"
+msgstr "位置を戻しました。"
+
+msgid "training.dummy.detail"
+msgstr "左右で変更します。すぐにゲームに反映されます。"
+
+msgid "training.reply"
+msgstr "ダミーの反撃"
+
+msgid "training.reply.detail"
+msgstr "ダミーが動けるようになった瞬間に自分で行う行動です。落としたコンボや隙のある締めに反撃します。反撃の技を再生し、その欄が空なら反撃スロットを再生します。再生中や記録中は待機します。"
+
+msgid "training.reply.hit"
+msgstr "コンボを落とした後"
+
+msgid "training.reply.block"
+msgstr "ガード後"
+
+msgid "training.reply.rise"
+msgstr "起き上がり"
+
+msgid "training.reply.any"
+msgstr "復帰するたび"
+
+msgid "training.reply.slot"
+msgstr "反撃スロット"
+
+msgid "training.reply.slot.detail"
+msgstr "反撃の技が空のとき、反撃として再生するダミーの記録です。最初の入力から再生します。"
+
+msgid "training.reply.slot_empty"
+msgstr "スロット{0}が空なので、ダミーは反撃しません。記録するか技を選んでください。"
+
+msgid "training.reply.chance"
+msgstr "反撃の確率"
+
+msgid "training.reply.chance.detail"
+msgstr "ダミーが反撃する頻度です。100%未満では試行ごとに変わります。"
+
+msgid "training.reply.vary_stance"
+msgstr "姿勢を変える"
+
+msgid "training.reply.vary_stance.detail"
+msgstr "ダミーが復帰するたびに立ちかしゃがみをランダムに選び、両方でコンボを練習できます。ダミーが立ちかしゃがみに設定されているときだけ働きます。"
+
+msgid "training.reply.moves"
+msgstr "反撃の技"
+
+msgid "training.reply.moves.detail"
+msgstr "テンキー表記で入力する反撃です。例: 623HP、44。ダミーの向きに合わせて読みます。qcf、qcb、dp、rdp、hcf、hcbも使えます。例: qcfP、dp+HP。ダミーがまだ動けない間にコマンドを入れ、動ける最初のフレームにボタンが重なります。[1]で次の技まで方向を入れ続け、[1]20fで20フレーム入れ、10fで待ちます。例: [1] > 3HP。空なら反撃スロットを使います。"
+
+msgid "training.reply.move"
+msgstr "反撃のプリセット"
+
+msgid "training.reply.move.detail"
+msgstr "左右でよく使う反撃をテンキー表記で選びます。ダミーの向きに合わせて読みます。反撃スロットは記録を再生し、カスタムは入力した技を使います。選択で反撃の技を開いて入力します。"
+
+msgid "training.reply.custom"
+msgstr "カスタム"
+
+msgid "training.reply.timing"
+msgstr "反撃のタイミング"
+
+msgid "training.reply.timing.detail"
+msgstr "ダミーが動ける最初のフレームから、反撃のボタンが入るまでのフレーム数です。硬直の長さは最初に見たときに覚えます。それまでは硬直が終わった時点で反撃を始めます。"
+
+msgid "training.key.reset"
+msgstr "位置を戻すキー"
+
+msgid "training.challenger"
+msgstr "対戦の準備ができました"
+
+msgid "training.key.detail"
+msgstr "左右で、対戦中にこの操作を行うキーを選びます。オフにするとキーなしになります。"
+
+msgid "training.dummy.action"
+msgstr "ダミー"
+
+msgid "training.dummy.guard"
+msgstr "ガード"
+
+msgid "training.dummy.counter"
+msgstr "カウンターヒット"
+
+msgid "training.dummy.quick"
+msgstr "クイックスタンド"
+
+msgid "training.dummy.super"
+msgstr "スーパーゲージ"
+
+msgid "training.dummy.revenge"
+msgstr "リベンジゲージ"
+
+msgid "training.dummy.stand"
+msgstr "立ち"
+
+msgid "training.dummy.crouch"
+msgstr "しゃがみ"
+
+msgid "training.dummy.jump"
+msgstr "ジャンプ"
+
+msgid "training.dummy.cpu"
+msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "人間"
+
+msgid "training.dummy.guard_none"
+msgstr "ガードなし"
+
+msgid "training.dummy.guard_first"
+msgstr "初段後"
+
+msgid "training.dummy.guard_all"
+msgstr "すべてガード"
+
+msgid "training.dummy.guard_random"
+msgstr "ランダム"
+
+msgid "training.dummy.counter_off"
+msgstr "オフ"
+
+msgid "training.dummy.counter_on"
+msgstr "オン"
+
+msgid "training.dummy.counter_random"
+msgstr "ランダム"
+
+msgid "training.dummy.quick_quick"
+msgstr "クイック"
+
+msgid "training.dummy.quick_normal"
+msgstr "通常"
+
+msgid "training.dummy.quick_delayed"
+msgstr "遅延"
+
+msgid "training.dummy.quick_random"
+msgstr "ランダム"
+
+msgid "training.dummy.gauge_normal"
+msgstr "通常"
+
+msgid "training.dummy.gauge_max"
+msgstr "開始時に最大"
+
+msgid "training.dummy.gauge_infinite"
+msgstr "無限"
+
+msgid "training.dummy.gauge_refill"
+msgstr "自動回復"
 
 msgid "training.close_controls"
 msgstr "トレーニング操作を閉じる"
@@ -1186,7 +1696,10 @@ msgid "training.play"
 msgstr "再生"
 
 msgid "training.play.detail"
-msgstr "選択中のスロットを再生して練習に戻ります。方向は左右反転されません。"
+msgstr "選択中のスロットを再生して練習に戻ります。記録はダミーの向きに合わせて再生されます。左右で繰り返すかを選びます。"
+
+msgid "training.play.once"
+msgstr "1回"
 
 msgid "training.slot_empty"
 msgstr "このスロットは空です。"
@@ -1199,9 +1712,6 @@ msgstr "記録または再生を停止します。"
 
 msgid "training.loop"
 msgstr "ループ再生"
-
-msgid "training.loop.detail"
-msgstr "選択中の記録を繰り返し再生します。"
 
 msgid "training.clear_recording"
 msgstr "選択中の記録を消去"
@@ -1231,7 +1741,7 @@ msgid "training.recording_suspended"
 msgstr "操作画面を開いている間、記録は一時停止します"
 
 msgid "training.playback_suspended"
-msgstr "操作画面を開いている間、再生は一時停止します"
+msgstr "再生中。録画は操作画面を閉じるまで待機します"
 
 msgid "training.applying"
 msgstr "操作を適用中..."
@@ -1245,14 +1755,95 @@ msgstr "トレーニングラボ"
 msgid "training.command_rejected"
 msgstr "練習操作が受け付けられませんでした。状態を確認して再試行してください。"
 
-msgid "training.start_frames"
-msgstr "発生{0}F"
-
-msgid "training.start_unknown"
-msgstr "発生--"
-
 msgid "training.startup"
 msgstr "発生"
+
+msgid "training.meter.active"
+msgstr "持続"
+
+msgid "training.meter.recovery"
+msgstr "硬直"
+
+msgid "training.meter.hit"
+msgstr "ヒット"
+
+msgid "training.meter.block"
+msgstr "ガード"
+
+msgid "training.meter.whiff"
+msgstr "空振り"
+
+msgid "training.meter.knockdown"
+msgstr "ダウン"
+
+msgid "training.meter.meaty"
+msgstr "重ね"
+
+msgid "training.meter.throw"
+msgstr "投げ / 演出"
+
+msgid "training.meter.attack"
+msgstr "攻撃"
+
+msgid "training.meter.move"
+msgstr "移動"
+
+msgid "training.meter.attack_unsplit"
+msgstr "攻撃（区分なし）"
+
+msgid "training.meter.style"
+msgstr "メーターの表示"
+
+msgid "training.meter.style.detail"
+msgstr "斜めは攻撃を発生・持続・硬直で色分けし、各区間のフレーム数を表示します。フラットは攻撃全体を1色で表示します。"
+
+msgid "training.meter.style.angled"
+msgstr "斜め"
+
+msgid "training.meter.style.flat"
+msgstr "フラット"
+
+msgid "training.meter.frames_shown"
+msgstr "表示フレーム数"
+
+msgid "training.meter.frames_shown.detail"
+msgstr "同じ幅に表示するフレーム数です。少ないほど1フレームが広く数えやすくなり、120では履歴全体を表示します。メーターの停止中は、バーの上でマウスホイールを回すとさかのぼれます。"
+
+msgid "training.meter.hud_recovery"
+msgstr "HUDに硬直を表示"
+
+msgid "training.meter.hud_recovery.detail"
+msgstr "各キャラクターの最後の技の硬直を、メーターの発生の横に表示します。"
+
+msgid "training.meter.hud_numbers"
+msgstr "HUDに数値を表示"
+
+msgid "training.meter.hud_bars"
+msgstr "HUDにバーを表示"
+
+msgid "training.meter.hud_state"
+msgstr "HUDに状態を表示"
+
+msgid "training.meter.hud_shortcuts"
+msgstr "HUDにショートカットを表示"
+
+msgid "training.meter.hud_status"
+msgstr "HUDに記録を表示"
+
+msgid "training.meter.hud_part.detail"
+msgstr "対戦中にトレーニングHUDのこの項目を表示します。F5 で HUD 全体を隠します。"
+
+msgid "training.meter.hud_size"
+msgstr "HUDのサイズ"
+
+msgid "training.meter.hud_size.detail"
+msgstr "トレーニングHUDの文字とバーの大きさを変えます。画面サイズでも大きくなります。"
+
+msgid "training.recovery_frames"
+msgstr "硬直{0}F"
+
+msgid "training.recovery_unknown"
+msgstr "硬直--"
 
 msgid "training.neutral"
 msgstr "入力なし"
@@ -1296,6 +1887,9 @@ msgstr "リアルタイム"
 msgid "training.advantage"
 msgstr "硬直差"
 
+msgid "training.last_advantage"
+msgstr "前回の硬直差"
+
 msgid "selection.preview_unavailable"
 msgstr "プレビューを\n表示できません"
 
@@ -1325,6 +1919,9 @@ msgstr "アレンジ{0}"
 
 msgid "selection.alternate_pack"
 msgstr "アレンジ{0} / {1}"
+
+msgid "selection.custom"
+msgstr "カスタム{0}"
 
 msgid "selection.stage_count"
 msgstr "{0}ステージ / USFIV"
@@ -1412,6 +2009,12 @@ msgstr "ゲーム本体のコスチュームとカラーの使用可否を確認
 
 msgid "selection.no_colors"
 msgstr "このコスチュームには使用可能なカラーがありません。"
+
+msgid "selection.not_owned"
+msgstr "Steamで所有していません。"
+
+msgid "selection.not_owned_badge"
+msgstr "未所有"
 
 msgid "selection.color"
 msgstr "カラー{0}"
@@ -1553,11 +2156,17 @@ msgstr "対戦相手のロビー参加を待っています..."
 msgid "runtime.authorized_connection_unavailable"
 msgstr "許可された対戦接続を利用できません。"
 
+msgid "runtime.input_lag_unavailable"
+msgstr "この対戦に必要な入力タイミング（入力遅延を減らす）をこのPCで設定できなかったため、対戦を中止しました。ゲームを再起動すると直るはずです。"
+
 msgid "runtime.waiting_opponent_start"
 msgstr "対戦開始前に相手がロビーに来るのを待っています。"
 
 msgid "runtime.unsupported_stage"
 msgstr "ルームから非対応のステージが指定されました。ロビーをリセットして再試行してください。"
+
+msgid "runtime.unsupported_match"
+msgstr "ルームから非対応のキャラクターまたは対戦設定が指定されました。ロビーをリセットして再試行してください。"
 
 msgid "runtime.netplay_input_failed"
 msgstr "ネット対戦の入力処理に失敗しました。対戦を終了しました。"
@@ -1604,6 +2213,9 @@ msgstr "ルームに戻っています。"
 msgid "runtime.table_game_cancelled"
 msgstr "この対戦席のゲームはキャンセルされました。ルームに戻って再度準備完了にしてください。"
 
+msgid "runtime.practice_ended"
+msgstr "練習を終了しました。ルームに戻って再度準備完了にしてください。"
+
 msgid "runtime.result_not_recorded"
 msgstr "確定前に対戦席が変更されたため、結果を記録できませんでした。"
 
@@ -1613,8 +2225,6 @@ msgstr "対戦参加者がルームから退出しました。ゲームを終了
 msgid "update.github_unreachable"
 msgstr "GitHubに接続できませんでした。インターネット接続を確認して再試行してください。"
 
-msgid "update.no_version_tag"
-msgstr "GitHubのリリースにバージョンタグがありません。"
 
 msgid "update.no_zip_asset"
 msgstr "最新リリースにSF4 Ember NetplayのZIPファイルがありません。"
@@ -1627,6 +2237,9 @@ msgstr "ダウンロードURLがありません。"
 
 msgid "update.missing_version"
 msgstr "バージョンタグがありません。"
+
+msgid "update.not_offered"
+msgstr "このバージョンは提示されたものではありません。もう一度アップデートを確認してください。"
 
 msgid "update.close_sf4"
 msgstr "更新をインストールする前にUltra Street Fighter IVを閉じてください。"
@@ -1687,6 +2300,39 @@ msgstr "更新をインストールする前にゲームを閉じてください
 msgid "update.updater_start_failed"
 msgstr "Updater.exeを起動できませんでした。新しいZIPから再インストールしてください。"
 
+msgid "update.stage.preparing"
+msgstr "パッケージを確認中..."
+
+msgid "update.stage.comparing"
+msgstr "ファイルを比較中..."
+
+msgid "update.stage.backing_up"
+msgstr "置き換えるファイルをバックアップ中..."
+
+msgid "update.stage.replacing"
+msgstr "ファイルを置き換え中..."
+
+msgid "update.stage.confirming"
+msgstr "インストールしたファイルを確認中..."
+
+msgid "update.notice.waiting_launcher"
+msgstr "SF4 Ember Netplay の終了を待っています..."
+
+msgid "update.notice.waiting_file"
+msgstr "別のプログラムが {0} を解放するのを待っています..."
+
+msgid "update.notice.restoring"
+msgstr "以前のファイルを復元中..."
+
+msgid "update.notice.elapsed"
+msgstr "経過時間 {0}"
+
+msgid "update.notice.reopens"
+msgstr "完了すると SF4 Ember Netplay がもう一度開きます。"
+
+msgid "update.notice.recovering"
+msgstr "中断された更新を完了中..."
+
 msgid "room.member_left"
 msgstr "メンバーが退出しました"
 
@@ -1719,6 +2365,9 @@ msgstr "{0}分間操作なし"
 
 msgid "room.idle_hours"
 msgstr "{0}時間{1}分間操作なし"
+
+msgid "room.in_training"
+msgstr "トレーニング中"
 
 msgid "room.phase.waiting"
 msgstr "対戦者を待機中"
@@ -2014,6 +2663,15 @@ msgstr "観戦確定中の観戦者の復帰を待っています。{0}秒後に
 msgid "room.hold.waiting_you"
 msgstr "対戦があなたを待機中：{0}秒"
 
+msgid "room.ready_timeout.you"
+msgstr "{0}秒以内に準備完了しないと席を離れます"
+
+msgid "room.ready_timeout.other"
+msgstr "{1}の準備完了まで残り{0}秒"
+
+msgid "chat.event.ready_timeout"
+msgstr "{0}が対戦席{1}を離れました：時間内に準備完了しませんでした"
+
 msgid "room.hold.status"
 msgstr "観戦者を待機中：{0}秒"
 
@@ -2045,7 +2703,7 @@ msgid "room.ready_up"
 msgstr "準備完了にする"
 
 msgid "room.selected_delay.detail"
-msgstr "1～10Fの範囲で調整します。1より下は自動です。変更はすぐに反映されます。"
+msgstr "0～10Fの範囲で調整します。0より下は自動です。0は遅延を加えず、低く安定したPingが必要です。"
 
 msgid "room.selected_delay.locked"
 msgstr "この対戦中、選択した遅延は固定されます。"
@@ -2131,6 +2789,12 @@ msgstr "未確定の対戦を破棄"
 
 msgid "room.abandon_result.detail"
 msgstr "結果は記録されません。両者は着席したままで、再び準備完了にできます。"
+
+msgid "room.end_practice"
+msgstr "練習を終了"
+
+msgid "room.end_practice.detail"
+msgstr "この練習対戦を両者とも今すぐ終了します。結果は記録されません。両者は着席したままで、再び準備完了にできます。"
 
 msgid "room.leave_queue"
 msgstr "順番待ちをやめる"
@@ -2323,6 +2987,9 @@ msgstr "テキストを編集"
 
 msgid "edit.instructions"
 msgstr "キーボードで入力または貼り付け。Enterかコントローラーの決定で確定、Escかコントローラーの戻るでキャンセルします。"
+
+msgid "edit.instructions_multiline"
+msgstr "キーボードで入力または貼り付け。EnterかテンキーのEnterで改行します。Ctrl+Enter、Ctrl+テンキーのEnter、承認ボタンかコントローラーの決定で確定、Escかコントローラーの戻るでキャンセルします。"
 
 msgid "edit.updating"
 msgstr "ルームを更新中です。下書きは保持され、入力の続行やキャンセルができます。"
@@ -3575,3 +4242,399 @@ msgstr "ルームに入れませんでした。閉じたばかりかもしれま
 
 msgid "legend.refresh"
 msgstr "更新"
+
+msgid "training.frame_data"
+msgstr "フレームデータ"
+
+msgid "training.frame_data.detail"
+msgstr "各プレイヤーの直前の技、フレーム有利差、起き上がりへの重ねのタイミングを確認します。"
+
+msgid "training.hud"
+msgstr "HUD"
+
+msgid "training.hud.detail"
+msgstr "対戦中のHUDの項目をオン・オフします。"
+
+msgid "training.color_key"
+msgstr "色の凡例"
+
+msgid "training.dummy"
+msgstr "ダミー"
+
+msgid "training.position"
+msgstr "位置"
+
+msgid "training.start_frames"
+msgstr "発生{0}F"
+
+msgid "training.start_unknown"
+msgstr "発生--"
+
+msgid "settings.training_replays"
+msgstr "トレーニングとリプレイ"
+
+msgid "settings.training_replays_detail"
+msgstr "対戦中のフレームメーター、トレーニング後の自動準備、保存する対戦の設定。"
+
+msgid "settings.training_replays_title"
+msgstr "トレーニングとリプレイ"
+
+msgid "room.table_footer_practice"
+msgstr "練習対戦"
+
+msgid "room.rules_summary_practice"
+msgstr "練習対戦、{0}ラウンド、{1}秒、Edition Select {2}"
+
+msgid "room.practice"
+msgstr "練習ルーム"
+
+msgid "room.practice.detail"
+msgstr "ルーム内の対戦はすべて練習対戦です。体力とゲージが回復し、KOは発生せず、タイムは{0}です。ルームが開いている間は変わりません。通常の対戦をするには、ルームを閉じて新しく作成してください。"
+
+msgid "room.practice_status"
+msgstr "練習ルーム / 招待者のみ"
+
+msgid "room.practice_locked_status"
+msgstr "練習ルームはロック中 / 招待者のみ"
+
+msgid "inputs.presses_value"
+msgstr "{0}回のボタン入力"
+
+msgid "replays.watch_meter"
+msgstr "フレームメーター付きで見る"
+
+msgid "replays.watch_meter_detail"
+msgstr "Battle Logから再生し、対戦の上にフレームメーターを表示します。"
+
+msgid "replays.controls.play"
+msgstr "再生"
+
+msgid "replays.controls.pause"
+msgstr "一時停止"
+
+msgid "replays.controls.paused"
+msgstr "一時停止中"
+
+msgid "replays.controls.step"
+msgstr "コマ送り"
+
+msgid "replays.controls.speed"
+msgstr "速度"
+
+msgid "replays.controls.speed_full"
+msgstr "1x"
+
+msgid "replays.controls.speed_half"
+msgstr "1/2x"
+
+msgid "replays.controls.speed_quarter"
+msgstr "1/4x"
+
+msgid "replays.controls.inputs"
+msgstr "入力"
+
+msgid "replays.controls.meter"
+msgstr "メーター"
+
+msgid "replays.controls.round"
+msgstr "ラウンド{0}"
+
+msgid "replays.controls.frame"
+msgstr "{0}フレーム"
+
+msgid "replays.controls.unavailable"
+msgstr "操作はファイト中のみ有効"
+
+msgid "room.training"
+msgstr "トレーニングで待つ"
+
+msgid "replays.export_gpu"
+msgstr "動画を書き出す (GPU)"
+
+msgid "replays.export_gpu_detail"
+msgstr "ゲーム画面そのままの大きさで .mp4 として録画し、グラフィックカードでエンコードします。"
+
+msgid "replays.video"
+msgstr "動画"
+
+msgid "export.title"
+msgstr "動画を書き出す"
+
+msgid "export.detail"
+msgstr "録画中、画面と動画の両方でゲームの上に表示されます。"
+
+msgid "export.names"
+msgstr "プレイヤー名"
+
+msgid "export.name"
+msgstr "プレイヤー{0}"
+
+msgid "export.line"
+msgstr "対戦の行"
+
+msgid "export.line_text"
+msgstr "対戦の行のテキスト"
+
+msgid "export.set"
+msgstr "セットのスコア"
+
+msgid "export.set_detail"
+msgstr "このセットでの各プレイヤーのこれまでの勝利数を、名前の横に表示します。直前にこの二人が行った対戦から数えます。違う場合は変更してください。"
+
+msgid "export.set_wins"
+msgstr "プレイヤー{0}の勝利数"
+
+msgid "export.mark"
+msgstr "Emberマーク"
+
+msgid "export.generate"
+msgstr "動画を作成"
+
+msgid "export.meter"
+msgstr "フレームメーター"
+
+msgid "export.meter_detail"
+msgstr "トレーニングのフレームメーターを対戦の上に表示します。画面と動画の両方に表示されます。"
+
+msgid "export.generate_detail"
+msgstr "リプレイを再生し、その横に .mp4 として録画します。録画中は F10 で Ember を開き、進み具合の確認や中止ができます。"
+
+msgid "export.running"
+msgstr "動画を書き出し中"
+
+msgid "export.running_detail"
+msgstr "リプレイを再生しながら録画しています。このメニューを開いている間、動画には字幕とフレームメーターが入りません。"
+
+msgid "export.starting"
+msgstr "開始しています..."
+
+msgid "export.finishing"
+msgstr "動画を仕上げています..."
+
+msgid "export.cancelling"
+msgstr "中止しています..."
+
+msgid "export.progress"
+msgstr "{0} / {1}"
+
+msgid "export.cancel"
+msgstr "書き出しを中止"
+
+msgid "export.cancel_detail"
+msgstr "録画を止め、未完成の動画を削除します。リプレイは最後まで再生されます。"
+
+msgid "export.cancelled"
+msgstr "書き出しを中止しました。動画は保存されていません。"
+
+msgid "training.result"
+msgstr "結果"
+
+msgid "training.room.table"
+msgstr "対戦席{0}"
+
+msgid "training.room.waiting"
+msgstr "対戦相手を待っています"
+
+msgid "training.room.opponent"
+msgstr "対戦相手: {0}"
+
+msgid "training.room.queued"
+msgstr "順番待ち {0}/{1}"
+
+msgid "training.room.not_queued"
+msgstr "順番待ちなし"
+
+msgid "training.room.unread"
+msgstr "未読 {0} 件"
+
+msgid "room.training_call.calling"
+msgstr "{0}をトレーニングから呼び戻しています"
+
+msgid "training.go_now"
+msgstr "今すぐ戻る"
+
+msgid "reports.setting"
+msgstr "問題レポートを送信"
+
+msgid "reports.setting_detail"
+msgstr "オン：クラッシュ後、ランチャーが確認なしでレポートを送信します（1日最大{0}件、クラッシュダンプは含めません）。オフ：先に確認します。"
+
+msgid "reports.problem"
+msgstr "問題を報告"
+
+msgid "reports.problem_detail"
+msgstr "個人情報を除いたログとレポートの詳細を確認し、Emberに送信するか決めます。"
+
+msgid "reports.title"
+msgstr "レポートのプレビュー"
+
+msgid "reports.preparing"
+msgstr "レポートのプレビューを準備中..."
+
+msgid "reports.preview_detail"
+msgstr "送信前に各項目を確認してください。レポートはembernetplay.linkに送られます。生のダンプは最大30日間保管され、処理済みレポートの保管期間は別です。"
+
+msgid "reports.sending"
+msgstr "レポートを送信中..."
+
+msgid "reports.bytes"
+msgstr "{0} バイト"
+
+msgid "reports.metadata"
+msgstr "レポートの詳細"
+
+msgid "reports.dump"
+msgstr "小さなダンプ"
+
+msgid "reports.dump_detail"
+msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+
+msgid "reports.comment"
+msgstr "コメント"
+
+msgid "reports.comment_required"
+msgstr "送信前に問題の内容を書いてください（2000文字まで）。コメントは入力どおりに送信されます。"
+
+msgid "reports.comment_optional"
+msgstr "任意：何が起きたか書いてください（2000文字まで）。コメントは入力どおりに送信されます。"
+
+msgid "reports.send"
+msgstr "送信"
+
+msgid "reports.dont_send"
+msgstr "送信しない"
+
+msgid "reports.consent"
+msgstr "このプレビューに表示された内容をそのままEmberに送信しますか？コメントと、オンの場合は小さなダンプも含まれます。"
+
+msgid "reports.copy_id"
+msgstr "レポートIDをコピー"
+
+msgid "reports.close_detail"
+msgstr "このプレビューを閉じます。サーバーが受け付けた送信はここでは取り消せません。"
+
+msgid "reports.sent"
+msgstr "レポートを受け付けました。レポートID：{0}"
+
+msgid "reports.invalid"
+msgstr "このレポートは無効か大きすぎます。コメントを確認し、もう一度プレビューを作成してください。"
+
+msgid "reports.invalid_response"
+msgstr "サーバーの応答に有効なレポートIDがありませんでした。レポートはすでに受け付けられた可能性があります。"
+
+msgid "reports.rate_limited"
+msgstr "レポートが多すぎます。{0}秒後にもう一度お試しください。"
+
+msgid "reports.unavailable"
+msgstr "レポートは一時的に利用できません。後でもう一度お試しください。"
+
+msgid "reports.failed"
+msgstr "レポートを送信できませんでした。接続を確認して、もう一度お試しください。"
+
+msgid "reports.cancelled"
+msgstr "レポートの送信をキャンセルしました。サーバーが受け付け済みのレポートは保持される場合があります。"
+
+msgid "reports.dump_warning"
+msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+
+msgid "launcher.game_crashed_files"
+msgstr "ゲームがクラッシュしました。%APPDATA%\\sf4e\\logs 内のファイル（sf4e.log、sf4e-crash.log、sf4e-crash-*.dmp）を SF4 Ember Netplay チームに送ってから再試行してください。"
+
+msgid "launcher.game_crashed_sending"
+msgstr "ゲームがクラッシュしました。「問題レポートを送信」がオンなので、クラッシュダンプなしのレポートを送信しています。ファイルは %APPDATA%\\sf4e\\logs にもあります。"
+
+msgid "reports.settings_title"
+msgstr "問題レポート"
+
+msgid "reports.settings_detail"
+msgstr "クラッシュレポートの内容と送信済みのレポート。"
+
+msgid "reports.sent_list"
+msgstr "送信済みレポート"
+
+msgid "reports.sent_list_detail"
+msgstr "この PC が送信した各レポートの日時、結果、レポート ID。"
+
+msgid "reports.none"
+msgstr "レポートはまだありません"
+
+msgid "reports.none_detail"
+msgstr "この PC が送信したレポートがここに表示されます。"
+
+msgid "reports.send_once"
+msgstr "このレポートを送信"
+
+msgid "reports.send_always"
+msgstr "常に送信"
+
+msgid "reports.send_always_detail"
+msgstr "このレポートを送信し、今後のクラッシュごとのレポートも確認なしで送信します。確認なしで送るレポートにダンプは含まれません。確認なしで送信されるのは24時間に最大{0}件で、送信したレポートはすべて数に入ります。設定の「問題レポート」でオフにできます。"
+
+msgid "reports.dump_included"
+msgstr "クラッシュダンプ：含む"
+
+msgid "reports.dump_not_included"
+msgstr "クラッシュダンプ：含まない"
+
+msgid "reports.row"
+msgstr "問題レポート"
+
+msgid "reports.status.sending"
+msgstr "送信中"
+
+msgid "reports.status.received"
+msgstr "受信済み"
+
+msgid "reports.status.refused"
+msgstr "受け付けられず"
+
+msgid "reports.status.not_sent"
+msgstr "未送信"
+
+msgid "reports.received"
+msgstr "レポートは受信されました。"
+
+msgid "reports.received_id"
+msgstr "レポートは受信されました。ID は {0} です。このクラッシュについて Ember チームに問い合わせるときに伝えてください。"
+
+msgid "reports.refused"
+msgstr "レポートサービスがレポートを受け付けませんでした。再送信はしません。"
+
+msgid "reports.not_sent"
+msgstr "レポートを送信できませんでした。再送信はしません。"
+
+msgid "reports.what_is_sent"
+msgstr "招待、トークン、ネットワークアドレス、メール、Windowsのユーザー名、プロフィールフォルダー、PC名、プレイヤー名はログから除かれます。\n\n自分で送るレポートは先に全体が表示され、小さなダンプはそのプレビューでオンにした場合だけ送られます。確認なしで送るレポートにダンプは含まれません。\n\n送られないもの：その他のファイル、リプレイ、完全なクラッシュダンプ。"
+
+msgid "reports.send_once_detail"
+msgstr "このレポートの内容をそのまま確認するプレビューを開きます。「送信」を選ぶまで何も送られません。"
+
+msgid "reports.crash_report"
+msgstr "クラッシュレポート"
+
+msgid "reports.payload"
+msgstr "レポートはembernetplay.linkに送られます。各レポートには、Emberのバージョンとビルド、Windowsのバージョン、クラッシュの情報、個人情報を除いたsf4e.log・launcher.log・sf4e-crash.log・sf4-net.logの末尾が含まれます。"
+
+msgid "reports.status.unknown"
+msgstr "不明"
+
+msgid "reports.interrupted"
+msgstr "応答が届く前に送信が中断されました。レポートサービスが受信した可能性があります。"
+
+msgid "reports.identity_failed"
+msgstr "プレイヤー名またはWindowsアカウントを読み取れなかったため、レポートを準備できませんでした。もう一度お試しください。"
+
+msgid "reports.history_failed"
+msgstr "送信済みレポートの記録を保存できなかったため、レポートは送信されませんでした。もう一度お試しください。"
+
+msgid "reports.history_unreadable"
+msgstr "記録を読み取れません"
+
+msgid "reports.history_unreadable_detail"
+msgstr "%APPDATA%\\sf4e の sent-reports.json を読み取れないため、確認なしで送信されるレポートはありません。ファイルを削除すると新しい記録が始まります。"
+
+msgid "reports.always_failed"
+msgstr "「常に送信」をオンにできなかったため、このレポートは送信されませんでした。「このレポートを送信」を選ぶと、プレビューから送信できます。"
+
+msgid "reports.automatic_unavailable"
+msgstr "本日の自動レポートの上限に達したか、送信済みレポートの記録を読み取れないため、このレポートは送信されませんでした。「このレポートを送信」を選ぶと、プレビューから送信できます。"

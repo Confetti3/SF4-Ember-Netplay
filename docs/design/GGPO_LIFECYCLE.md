@@ -90,7 +90,7 @@ the netplay integration:
 Engine tick
 ├─ fSystem::BattleUpdate (detour)                  [only while a battle exists]
 │  ├─ gate: if (!bUpdateAllowed) return
-│  ├─ if (ggpo && flow != BF__IDLE):               [netplay path]
+│  ├─ if (ggpo && timeline started):              [netplay path]
 │  │  ├─ ggpo_add_local_input(local inputs)
 │  │  │    └─ may return PREDICTION_THRESHOLD → frame silently skipped
 │  │  ├─ ggpo_synchronize_input → playbackData
@@ -109,6 +109,8 @@ Engine tick
    ├─ SessionServer::Step   (host only)
    ├─ step failure → HandleNetplayFailure(closeGgpo=true)  ← control-plane
    │                                                          loss kills GGPO
+   ├─ NetplayFacade::ReconcileTrainingCall (the Training call from the room
+   │    as this tick's updates left it, before the next battle update)
    ├─ NetplayFacade::TickFrame (pending match start, lobby settings,
    │    GGPO sync watchdog, deferred GGPO close, GgpoRelay::Pump)
    ├─ if (ggpo) ggpo_idle(ggpo, 1)                 ← see "ggpo_idle" below
@@ -245,6 +247,13 @@ gate model.
   adapter metadata on reuse; `SaveState::Load` clears `queuedStops` only.
 
 ## Snapshot (“desync detection v1”) semantics
+
+The deterministic timeline starts at the first non-idle battle update after
+GGPO is Running. Initial idle bootstrap retains its native path. Once started,
+idle frames between rounds also synchronize inputs and advance GGPO, including
+spectator catch-up. Rollback callbacks always replay one native update per GGPO
+frame; bypassing GGPO during forward transition frames breaks that correspondence.
+The session-level timeline latch resets on session start/close, not on rollback.
 
 `CaptureSnapshot` records selected character state every 60 simulated frames
 (also from rollback resim; re-captures overwrite by frame index). Snapshots are

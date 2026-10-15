@@ -11,7 +11,7 @@ use std::{
     io::{self, Cursor, Read, Write},
     ops::RangeBounds,
     pin::Pin,
-    sync::Arc,
+    sync::{Arc, OnceLock},
     time::{Duration, Instant},
 };
 
@@ -30,7 +30,7 @@ use openraft::{
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, watch};
 
 mod server_owned;
 pub use server_owned::Ownership;
@@ -59,6 +59,8 @@ const RECENT_REQUESTS: usize = 128;
 const SNAPSHOT_MAGIC: [u8; 8] = *b"sf4rs001";
 const SNAPSHOT_HEADER_BYTES: usize = SNAPSHOT_MAGIC.len() + size_of::<u64>() + 32;
 const AUTHORITY_CLAIM_COALESCE: Duration = Duration::from_millis(500);
+/// The same for the sole voter of a server-owned room; see `authority_claim`.
+const HOST_AUTHORITY_CLAIM_COALESCE: Duration = Duration::from_millis(2500);
 
 openraft::declare_raft_types!(pub RoomTypes: D = Proposal, R = Receipt, Node = BasicNode);
 pub type RoomRaft = Raft<RoomTypes>;
@@ -201,12 +203,70 @@ pub struct Receipt {
     pub accepted: bool,
     pub revision: u64,
 }
-#[derive(Clone, Default, Serialize, Deserialize)]
+/// The committed checkpoint. The store holds it behind an `Arc` and replaces
+/// it whole on each commit, so a reader takes a coherent value without
+/// copying the checkpoint, which can weigh a mebibyte.
+/// Its fields are private and it has no `Clone`: a value is built whole and
+/// never changed, which the cached digest relies on.
+#[derive(Default, Serialize, Deserialize)]
 pub struct Committed {
-    pub revision: u64,
-    pub checkpoint: String,
-    pub request: String,
-    pub term: u64,
+    revision: u64,
+    checkpoint: String,
+    request: String,
+    term: u64,
+    /// The checkpoint's SHA-256, hashed on first use.
+    #[serde(skip)]
+    digest: OnceLock<[u8; 32]>,
+}
+
+impl Committed {
+    pub fn revision(&self) -> u64 {
+        self.revision
+    }
+
+    pub fn checkpoint(&self) -> &str {
+        &self.checkpoint
+    }
+
+    pub fn request(&self) -> &str {
+        &self.request
+    }
+
+    pub fn term(&self) -> u64 {
+        self.term
+    }
+
+    fn new(revision: u64, checkpoint: String, request: String, term: u64) -> Self {
+        Self {
+            revision,
+            checkpoint,
+            request,
+            term,
+            digest: OnceLock::new(),
+        }
+    }
+
+    /// The SHA-256 of the checkpoint, all zeroes for none.
+    pub fn digest(&self) -> [u8; 32] {
+        *self.digest.get_or_init(|| {
+            if self.checkpoint.is_empty() {
+                [0; 32]
+            } else {
+                crate::recovery::sha256(self.checkpoint.as_bytes())
+            }
+        })
+    }
+
+    /// The same commit. The store hands out one shared value per commit, so
+    /// this is almost always the pointer test; the field comparison covers a
+    /// value rebuilt by an installed snapshot.
+    pub fn same_commit(&self, other: &Self) -> bool {
+        std::ptr::eq(self, other)
+            || (self.revision == other.revision
+                && self.term == other.term
+                && self.request == other.request
+                && self.checkpoint == other.checkpoint)
+    }
 }
 
 /// Small coordination-only entries do not advance the native checkpoint
@@ -273,7 +333,7 @@ struct Machine {
     /// next membership, in ascending incarnation order.
     #[serde(default)]
     departed_order: Vec<u64>,
-    committed: Committed,
+    committed: Arc<Committed>,
     recent: Vec<(String, [u8; 32], Receipt)>,
     #[serde(default)]
     probes: Vec<ProbeReservation>,
@@ -315,6 +375,8 @@ struct Memory {
     snapshot: Option<(SnapshotMeta<u64, BasicNode>, Vec<u8>)>,
     /// The most nodes an installed snapshot's membership may hold.
     max_nodes: usize,
+    /// The committed revision, published for `Store::committed_changes`.
+    commits: watch::Sender<u64>,
 }
 impl Memory {
     fn new(max_nodes: usize) -> Self {
@@ -325,7 +387,18 @@ impl Memory {
             machine: Machine::default(),
             snapshot: None,
             max_nodes,
+            commits: watch::Sender::new(0),
         }
+    }
+
+    /// Tells `committed_changes` readers when the committed revision moved.
+    fn publish_commit(&self) {
+        let revision = self.machine.committed.revision;
+        self.commits.send_if_modified(|published| {
+            let moved = *published != revision;
+            *published = revision;
+            moved
+        });
     }
 }
 
@@ -396,8 +469,17 @@ impl Store {
         Self(Arc::new(Mutex::new(Memory::new(max_nodes))))
     }
 
-    pub async fn committed(&self) -> Committed {
+    /// The committed checkpoint, shared: taking it copies nothing, so the
+    /// actor can look on every tick.
+    pub async fn committed(&self) -> Arc<Committed> {
         self.0.lock().await.machine.committed.clone()
+    }
+
+    /// Follows the committed revision: it changes when an entry or an
+    /// installed snapshot moves it, so a reader can wait for that instead of
+    /// asking on a timer.
+    pub async fn committed_changes(&self) -> watch::Receiver<u64> {
+        self.0.lock().await.commits.subscribe()
     }
 
     /// The membership entry applied by the state machine.  OpenRaft's
@@ -490,9 +572,9 @@ impl Store {
         target_endpoint: &str,
         pair_revision: u64,
     ) -> bool {
-        let checkpoint = self.committed().await.checkpoint;
+        let committed = self.committed().await;
         committed_probe_pair_bound(
-            &checkpoint,
+            &committed.checkpoint,
             source_incarnation,
             target_incarnation,
             source_endpoint,
@@ -766,12 +848,12 @@ impl RaftStorage<RoomTypes> for Store {
                             accepted: true,
                             revision: proposal.base + 1,
                         };
-                        machine.committed = Committed {
-                            revision: receipt.revision,
-                            checkpoint: proposal.checkpoint.clone(),
-                            request: proposal.request.clone(),
-                            term: proposal.term,
-                        };
+                        machine.committed = Arc::new(Committed::new(
+                            receipt.revision,
+                            proposal.checkpoint.clone(),
+                            proposal.request.clone(),
+                            proposal.term,
+                        ));
                         machine.recent.push((
                             proposal.dedup_key().to_owned(),
                             proposal.digest(),
@@ -785,6 +867,7 @@ impl RaftStorage<RoomTypes> for Store {
             }
             receipts.push(receipt);
         }
+        memory.publish_commit();
         Ok(receipts)
     }
     async fn get_snapshot_builder(&mut self) -> Self {
@@ -853,6 +936,7 @@ impl RaftStorage<RoomTypes> for Store {
         let mut memory = self.0.lock().await;
         memory.machine = machine;
         memory.snapshot = Some((meta.clone(), bytes));
+        memory.publish_commit();
         Ok(())
     }
     async fn get_current_snapshot(&mut self) -> Result<Option<Snapshot<RoomTypes>>, StoreError> {
@@ -1012,8 +1096,19 @@ impl Coordinator {
             // but healthy first chunk otherwise strands a fresh learner.
             install_snapshot_timeout: 9_000,
             max_payload_entries: 1,
-            snapshot_policy: SnapshotPolicy::LogsSinceLast(8),
-            max_in_snapshot_log_to_keep: 2,
+            // Every log entry carries a whole checkpoint, so the entries kept
+            // between snapshots are most of a helper's memory. The host of a
+            // server-owned room is its only voter and its members are
+            // learners that are sent a snapshot when they fall behind, so it
+            // keeps few; a private room keeps enough to serve a slow voter.
+            snapshot_policy: SnapshotPolicy::LogsSinceLast(match ownership {
+                Ownership::Host => 3,
+                _ => 8,
+            }),
+            max_in_snapshot_log_to_keep: match ownership {
+                Ownership::Host => 1,
+                _ => 2,
+            },
             // OpenRaft awaits one InstallSnapshot RPC before issuing the next.
             // Batch the same four 16 KiB transport fragments allowed by the
             // checkpoint credit window so relay RTT is paid once per window,
@@ -1079,11 +1174,11 @@ impl Coordinator {
             .await?;
         let claim: AuthorityClaim = serde_json::from_slice(&bytes)
             .map_err(|_| io::Error::other("invalid authority claim"))?;
-        let committed = self.store.committed().await;
+        let revision = self.store.committed().await.revision;
         if claim.incarnation != leader
             || claim.leader != Some(leader)
             || claim.term < metrics.current_term
-            || claim.revision < committed.revision
+            || claim.revision < revision
         {
             return Err(io::Error::other("room quorum proof is stale"));
         }
@@ -1104,14 +1199,22 @@ impl Coordinator {
     pub async fn authority_claim(&self) -> io::Result<AuthorityClaim> {
         let mut cached = self.authority_claims.lock().await;
         let metrics = self.raft.metrics().borrow().clone();
-        let committed = self.committed().await;
+        let revision = self.committed().await.revision;
         let voters = self.store.applied_voters().await;
         let members = self.store.applied_members().await;
+        // The host of a server-owned room is its only voter, so its barrier
+        // confirms nothing a follower could contradict; its once-a-second
+        // health check reuses a claim for longer.
+        let coalesce = if matches!(self.ownership, Ownership::Host) {
+            HOST_AUTHORITY_CLAIM_COALESCE
+        } else {
+            AUTHORITY_CLAIM_COALESCE
+        };
         if let Some((completed, claim)) = cached.as_ref()
-            && completed.elapsed() <= AUTHORITY_CLAIM_COALESCE
+            && completed.elapsed() <= coalesce
             && claim.term == metrics.current_term
             && claim.leader == metrics.current_leader
-            && claim.revision == committed.revision
+            && claim.revision == revision
             && claim.voters == voters
             && claim.members == members
         {
@@ -1122,12 +1225,12 @@ impl Coordinator {
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         self.read_barrier().await?;
         let metrics = self.raft.metrics().borrow().clone();
-        let committed = self.committed().await;
+        let revision = self.committed().await.revision;
         let claim = AuthorityClaim {
             incarnation: self.incarnation,
             term: metrics.current_term,
             leader: metrics.current_leader,
-            revision: committed.revision,
+            revision,
             voters: self.store.applied_voters().await,
             members: self.store.applied_members().await,
         };
@@ -1193,8 +1296,12 @@ impl Coordinator {
             .learner_ids()
             .collect()
     }
-    pub async fn committed(&self) -> Committed {
+    pub async fn committed(&self) -> Arc<Committed> {
         self.store.committed().await
+    }
+
+    pub async fn committed_changes(&self) -> watch::Receiver<u64> {
+        self.store.committed_changes().await
     }
     #[allow(clippy::too_many_arguments)]
     pub async fn probe_reserved(

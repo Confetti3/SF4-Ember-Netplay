@@ -2,6 +2,7 @@
 use std::{fmt, io};
 
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
+use ember_protocol::relay;
 use iroh::{EndpointAddr, EndpointId, RelayUrl, TransportAddr};
 use serde::{Deserialize, Serialize};
 use subtle::ConstantTimeEq;
@@ -34,16 +35,14 @@ const RELAYS: [&str; 4] = [
     "https://aps1-1.relay.n0.iroh.link./",
 ];
 
-// Short region codes for the pinned relays, in RELAYS order. The native side
-// shows these instead of a relay address.
-const RELAY_REGIONS: [&str; 4] = ["use1", "usw1", "euc1", "aps1"];
-
-/// The region code of a pinned relay, or "other" for any other URL.
+/// The region code of a pinned relay (`relay::REGIONS`, in RELAYS order), or
+/// "other" for any other URL. The native side shows these instead of a relay
+/// address.
 pub fn relay_region(relay: &RelayUrl) -> &'static str {
     RELAYS
         .iter()
         .position(|url| url.parse::<RelayUrl>().is_ok_and(|pinned| pinned == *relay))
-        .map_or("other", |index| RELAY_REGIONS[index])
+        .map_or("other", |index| relay::REGIONS[index])
 }
 
 /// The route a selected path reports outside the helper: `direct` for an IP
@@ -595,8 +594,8 @@ mod tests {
 
     #[test]
     fn relay_regions_are_stable_codes_and_never_a_url() {
-        assert_eq!(RELAYS.len(), RELAY_REGIONS.len());
-        for (url, code) in RELAYS.iter().zip(RELAY_REGIONS) {
+        assert_eq!(RELAYS.len(), relay::REGIONS.len());
+        for (url, code) in RELAYS.iter().zip(relay::REGIONS) {
             assert_eq!(relay_region(&url.parse().unwrap()), code);
         }
         // Every relay of the pinned release has a code of its own.
@@ -620,7 +619,7 @@ mod tests {
         let ip = |addr: &str| TransportAddr::Ip(addr.parse().unwrap());
         assert_eq!(public_route(Some(&ip("203.0.113.7:45760"))), "direct");
         assert_eq!(public_route(Some(&ip("[2001:db8::1]:57845"))), "direct");
-        for (url, code) in RELAYS.iter().zip(RELAY_REGIONS) {
+        for (url, code) in RELAYS.iter().zip(relay::REGIONS) {
             let relay = TransportAddr::Relay(url.parse().unwrap());
             assert_eq!(public_route(Some(&relay)), format!("relay:{code}"));
         }

@@ -5,6 +5,7 @@ export {
   BridgeError,
   type BridgeClientOptions,
   type FoundPlayer,
+  type GamesToWin,
   type Lobby,
   type LobbyPlayer,
   type LobbyStanding,

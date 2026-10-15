@@ -49,9 +49,11 @@ int Battle::orderedEditions[NUM_VALID_EDITIONS] = {
 };
 
 Battle::ValidEditions* Battle::validEditionsPerChara;
+BYTE* Battle::Network::inputStoreFrame;
 void Battle::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
 	validEditionsPerChara = (ValidEditions*)(peRootOffset + 0x539ba8);
+	Network::inputStoreFrame = (BYTE*)(peRootOffset + 0x1cfbb6);
 
 	Action::Locate(peRoot);
 	Camera::Locate(peRoot);

@@ -5,7 +5,8 @@
 // the same 12-symbol Crockford base32 code the helper reads from a short link
 // (rust/sf4-net/src/short_invite.rs); this side only checks its shape and
 // turns it back into the https link the Join screen shows. Nothing here joins
-// a room: the player still confirms with Join room.
+// a room; what the shell does with a link, a direct join when the player is
+// free, is ApplicationShell::UpdateJoinLink's.
 //
 // Pure component: no Windows, game or helper dependencies, unit tested.
 

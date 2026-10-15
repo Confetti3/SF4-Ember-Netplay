@@ -69,11 +69,17 @@ msgstr "SF4 Ember Netplay è già in esecuzione. Se non lo vedi, termina Launche
 msgid "launcher.start_failed"
 msgstr "Avvio o iniezione del gioco non riusciti. Controlla il log del launcher in %APPDATA%\\sf4e\\logs\\launcher.log e riprova."
 
+msgid "launcher.game_runs_as_admin"
+msgstr "SSFIV.exe è impostato per l'esecuzione come amministratore, quindi Ember non può avviarlo. Fai clic destro su SSFIV.exe nella cartella del gioco, apri Proprietà e poi Compatibilità, e deseleziona \"Esegui questo programma come amministratore\", anche in \"Modifica impostazioni per tutti gli utenti\". Poi riprova."
+
 msgid "launcher.game_error"
 msgstr "Il gioco si è chiuso con un errore. Controlla il log del launcher in %APPDATA%\\sf4e\\logs\\launcher.log e riprova."
 
+msgid "launcher.steam_runs_as_admin"
+msgstr "Il gioco non è riuscito a raggiungere Steam perché Steam è in esecuzione come amministratore. Chiudi Steam, riavvialo normalmente e riprova. Avviare Ember come amministratore funziona, ma così gli aggiornamenti non vengono installati."
+
 msgid "launcher.game_crashed"
-msgstr "Il gioco si è bloccato. Invia al team di SF4 Ember Netplay i file in %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log e sf4e-crash-*.dmp), poi riprova."
+msgstr "Il gioco si è bloccato. Per aiutarci a risolvere, scegli Invia questa segnalazione qui sotto. Oppure invia tu i file in %APPDATA%\\sf4e\\logs."
 
 msgid "launcher.runtime_shadowed"
 msgstr "Il gioco caricherebbe questi file anziché quelli nella cartella di Ember; una vecchia copia ne impedisce l'avvio (\"entry point ggpo_get_last_confirmed_frame not found\"). Provengono da un'altra mod netplay o da una vecchia installazione. Spostali o rinominali, poi riavvia Ember:\n\n{0}"
@@ -126,6 +132,36 @@ msgstr "Operazione già in corso."
 msgid "updates.check_detail"
 msgstr "Cerca un pacchetto Ember più recente."
 
+msgid "updates.channel"
+msgstr "Canale di aggiornamento"
+
+msgid "updates.channel.stable"
+msgstr "Stabile"
+
+msgid "updates.channel.prerelease"
+msgstr "Beta"
+
+msgid "updates.channel.nightly"
+msgstr "Nightly"
+
+msgid "updates.channel.nightly_detail"
+msgstr "Versioni di prova giornaliere con le funzionalità più recenti. Potrebbero non funzionare correttamente. Puoi giocare nelle stanze solo con altri giocatori Nightly, e i replay salvati su Nightly potrebbero non aprirsi dopo il ritorno a una versione precedente."
+
+msgid "updates.channel_detail"
+msgstr "Stabile offre solo le versioni definitive. Beta offre anche le versioni beta e candidate, che possono avere più problemi. Tutti quelli con cui giochi devono avere la stessa versione."
+
+msgid "updates.channel.switch_detail"
+msgstr "Passa la ricerca degli aggiornamenti da {0} a {1} e controlla subito {1}. Non viene installato nulla finché non scegli Scarica e installa."
+
+msgid "updates.channel.going_back"
+msgstr "Tornare da {0} a {1} può proporre una versione più vecchia della tua. I replay registrati su {0} potrebbero non aprirsi su {1}."
+
+msgid "updates.installed_version"
+msgstr "Versione installata"
+
+msgid "updates.installed_version_detail"
+msgstr "La versione di Ember su questo PC."
+
 msgid "updates.install"
 msgstr "Scarica e installa"
 
@@ -134,6 +170,15 @@ msgstr "Chiudi SF4 prima di installare. Il pacchetto viene verificato prima dell
 
 msgid "updates.unverified"
 msgstr "L'aggiornamento non ha un checksum di verifica e non può essere installato."
+
+msgid "updates.install_going_back"
+msgstr "Questa versione è più vecchia della tua. I replay registrati con la versione attuale potrebbero non aprirsi."
+
+msgid "updates.whats_new"
+msgstr "Novità"
+
+msgid "updates.whats_new_detail"
+msgstr "Note di rilascio di {0}."
 
 msgid "updates.cancel"
 msgstr "Annulla operazione"
@@ -178,13 +223,29 @@ msgid "services.exporting"
 msgstr "Esportazione diagnostica..."
 
 msgid "services.downloading"
-msgstr "Download e verifica dell'aggiornamento..."
+msgstr "Download dell'aggiornamento..."
+
+msgid "services.verifying"
+msgstr "Verifica del download..."
+
+msgid "services.extracting"
+msgstr "Estrazione dell'aggiornamento..."
+
+msgid "services.preparing"
+msgstr "Preparazione dell'aggiornamento..."
+
+msgid "services.installing"
+msgstr "Installazione dell'aggiornamento..."
 
 msgid "services.opening_updater"
 msgstr "Apertura aggiornamento..."
 
 msgid "services.update_available"
 msgstr "Aggiornamento disponibile: {0}"
+
+msgid "services.go_back_available"
+msgstr "Puoi tornare a {0}"
+
 
 msgid "services.up_to_date"
 msgstr "Versione aggiornata."
@@ -556,7 +617,7 @@ msgid "home.online"
 msgstr "Gioco online"
 
 msgid "home.online_detail"
-msgstr "Crea una sala, entra in una o sfoglia le sale pubbliche."
+msgstr "Crea una sala, entra in una, sfoglia le sale pubbliche o configura il tuo Ember ID per i tornei."
 
 msgid "home.return_room"
 msgstr "Torna alla sala attuale."
@@ -586,7 +647,7 @@ msgid "home.identity_matches"
 msgstr "Partite del torneo pronte da giocare: {0}"
 
 msgid "home.settings_detail"
-msgstr "Giocatore, controller, impostazioni di gioco, interfaccia, lingua e Discord."
+msgstr "Giocatore, controller, regole predefinite, interfaccia, lingua, allenamento e Discord."
 
 msgid "home.about"
 msgstr "Guida e info"
@@ -598,7 +659,192 @@ msgid "home.offline"
 msgstr "Gioca offline"
 
 msgid "home.offline_detail"
-msgstr "Apri i menu offline del gioco."
+msgstr "Allenamento, Versus, Arcade e le altre modalità offline del gioco."
+
+msgid "home.replays"
+msgstr "Replay"
+
+msgid "home.replays_detail"
+msgstr "Le tue partite salvate. Guardale, aggiungile al gioco o leggine gli input."
+
+msgid "replays.title"
+msgstr "Replay"
+
+msgid "replays.empty"
+msgstr "Ancora nessun replay"
+
+msgid "replays.empty_detail"
+msgstr "Una partita viene salvata qui quando finisce."
+
+msgid "replays.add"
+msgstr "Aggiungi al gioco"
+
+msgid "replays.add_detail"
+msgstr "La aggiunge al Battle Log del gioco per guardarla più tardi."
+
+msgid "replays.watch"
+msgstr "Guarda ora"
+
+msgid "replays.watch_detail"
+msgstr "La aggiunge al Battle Log del gioco e la riproduce."
+
+msgid "replays.save_watched"
+msgstr "Salva le partite che guardi"
+
+msgid "replays.save_watched_detail"
+msgstr "Salva anche le partite che segui da spettatore. Disattivato salva solo quelle che giochi."
+
+msgid "replays.link"
+msgstr "Riproduci il replay del link"
+
+msgid "replays.link_detail"
+msgstr "Un link ha chiesto a Ember di riprodurre {0}. Riproducilo solo se ti fidi della fonte del link."
+
+msgid "replays.link_play"
+msgstr "Riproduci"
+
+msgid "replays.link_dismiss"
+msgstr "Non ora"
+
+msgid "replays.link_dismiss_detail"
+msgstr "Dimentica il link. Il file resta dov'è."
+
+msgid "replays.exported"
+msgstr "Video salvato: {0}"
+
+msgid "replays.gpu_not_exported"
+msgstr "Nessun video creato. Windows non ha fornito un codificatore H.264, oppure non è stato possibile leggere l'immagine del gioco. Il motivo è nel registro."
+
+msgid "replays.open_folder"
+msgstr "Apri la cartella dei replay"
+
+msgid "replays.open_folder_detail"
+msgstr "Apre l'archivio in Esplora file: replay e video esportati."
+
+msgid "services.opening_replay_folder"
+msgstr "Apertura della cartella dei replay..."
+
+msgid "services.replay_folder_opened"
+msgstr "{0} aperto in Esplora file."
+
+msgid "services.replay_folder_failed"
+msgstr "Impossibile aprire la cartella dei replay."
+
+msgid "replays.inputs"
+msgstr "Input e statistiche"
+
+msgid "replays.inputs_detail"
+msgstr "Mostra gli input di entrambi i giocatori, frame per frame, con i totali. Non riproduce nulla."
+
+msgid "replays.show_folder"
+msgstr "Mostra nella cartella"
+
+msgid "replays.show_folder_detail"
+msgstr "Apre in Esplora file la cartella che contiene questo replay."
+
+msgid "inputs.length_value"
+msgstr "Round {0} · {1}"
+
+msgid "inputs.activity"
+msgstr "{0} input al minuto, {1} salti, accovacciato per il {2}% del tempo."
+
+msgid "inputs.round"
+msgstr "Round {0}"
+
+msgid "inputs.legend"
+msgstr "Ogni riga: il tempo, poi cosa tengono premuto P1 e P2 da lì in poi. Direzioni come su un tastierino numerico visto a schermo: 4 è sinistra, 6 destra, 5 nessuna."
+
+msgid "inputs.reading"
+msgstr "Lettura del replay..."
+
+msgid "inputs.look_unknown"
+msgstr "Aspetto sconosciuto"
+
+msgid "inputs.unreadable"
+msgstr "Impossibile leggere gli input"
+
+msgid "inputs.unreadable_detail"
+msgstr "Questo replay è in un formato precedente, oppure il file è danneggiato."
+
+msgid "replays.row_detail"
+msgstr "Seleziona per guardare, aggiungere al gioco o vedere input e statistiche."
+
+#. The saved replay has already been played back.
+msgid "replays.seen"
+msgstr "Vista"
+
+#. The player watched the live match as a spectator, not a replay playback.
+msgid "replays.spectated"
+msgstr "Da spettatore"
+
+#. The player watched the live match as a spectator and has also played its replay.
+msgid "replays.spectated_seen"
+msgstr "Da spettatore, vista"
+
+msgid "replays.not_ready"
+msgstr "Disponibile nel menu principale, fuori da una partita."
+
+msgid "replays.added"
+msgstr "Aggiunta al Battle Log del gioco, alla data in cui è stata giocata."
+
+msgid "replays.not_added"
+msgstr "Impossibile aggiungere questo replay. Il file potrebbe essere danneggiato."
+
+msgid "replays.not_added_yet"
+msgstr "Il gioco non ha ancora salvato l'ultimo incontro. Riprova tra un momento."
+
+msgid "replays.not_added_files"
+msgstr "Impossibile aggiungere questo replay perché i file dei replay del gioco non sono stati letti. Nulla è stato modificato."
+
+msgid "replays.not_added_archive"
+msgstr "Impossibile aggiungere questo replay perché non è stato possibile salvare prima il replay attuale del gioco. Controlla lo spazio libero su disco."
+
+msgid "replays.not_added_restored"
+msgstr "Impossibile aggiungere questo replay. I replay del gioco sono rimasti invariati."
+
+msgid "replays.not_added_recovery"
+msgstr "Impossibile aggiungere questo replay e ripristinare alcuni replay del gioco. Non aggiungere altri replay ed esporta la diagnostica da Aiuto e informazioni."
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "Apri il Battle Log del gioco"
+
+msgid "replays.open_log_detail"
+msgstr "Esce dal menu di Ember e apre il Battle Log del gioco, dove si riproducono i replay."
+
+msgid "replays.open_log_room"
+msgstr "Prima esci dalla stanza."
+msgid "settings.training_auto_ready"
+msgstr "Rendimi pronto alla chiamata dall'Allenamento"
+
+msgid "settings.training_auto_ready_detail"
+msgstr "Quando la stanza ti richiama dall'allenamento, vieni dichiarato pronto subito. Disattivato ti dà {0} secondi prima di perdere il posto."
+
+msgid "settings.match_frame_meter"
+msgstr "Misuratore di frame negli incontri"
+
+msgid "settings.match_frame_meter_detail"
+msgstr "Mostra l'indicatore dei frame sulle partite online che giochi o segui. Lo vedi solo tu. Può essere indietro di qualche frame rispetto al combattimento."
+
+msgid "settings.match_frame_meter_private"
+msgstr "Solo nelle sale private."
+
+msgid "room.training.detail"
+msgstr "Allenati mentre aspetti. Ember ti richiama quando qualcuno si siede di fronte a te."
+
+msgid "room.training.unavailable"
+msgstr "Disponibile mentre aspetti un avversario, prima di dichiararti pronto."
+
+msgid "room.training_call.ready_in"
+msgstr "Dichiarati pronto entro {0} s o perdi il posto."
+
+msgid "runtime.training_call.forfeit"
+msgstr "Non ti sei dichiarato pronto in tempo dopo l'allenamento, quindi hai lasciato il posto."
 
 msgid "home.choose_controller"
 msgstr "Scegli controller di gioco"
@@ -709,7 +955,7 @@ msgid "settings.title"
 msgstr "IMPOSTAZIONI"
 
 msgid "settings.player_detail"
-msgstr "Nome visualizzato e assegnazione controller."
+msgstr "Nome visualizzato, assegnazione controller e gioco in background."
 
 msgid "settings.defaults_detail"
 msgstr "Ritardo input e nuove sale."
@@ -741,6 +987,30 @@ msgstr "Usa tastiera"
 msgid "player.use_keyboard_detail"
 msgstr "Assegna la tastiera come dispositivo di gioco. Il controller non muoverà più i menu di Ember finché non lo assegni di nuovo."
 
+msgid "player.background_play"
+msgstr "Gioca in background"
+
+msgid "player.background_play_detail"
+msgstr "L'audio del gioco e il controller continuano a funzionare mentre un'altra finestra, come OBS, è in primo piano. La tastiera e i menu di Ember richiedono ancora la finestra del gioco. Usa la modalità finestra: a schermo intero il gioco si riduce comunque a icona."
+
+msgid "player.lower_input_lag"
+msgstr "Riduci il ritardo di input (sperimentale)"
+
+msgid "player.lower_input_lag_detail"
+msgstr "Sperimentale. Rimuove un frame di ritardo che il gioco aggiunge a ogni input. In una stanza vale solo se entrambi i giocatori lo attivano, e allora anche per chi guarda. Le battaglie offline e l'Allenamento seguono solo questa opzione."
+
+msgid "player.lower_keyboard_lag"
+msgstr "Riduci il ritardo tastiera (sperimentale)"
+
+msgid "player.lower_keyboard_lag_detail"
+msgstr "Sperimentale. Il gioco legge la tastiera un frame dopo un controller; questo rimuove quel frame. Riguarda solo la tastiera, e solo su questo PC: l'altro giocatore non deve attivarlo."
+
+msgid "player.faster_display"
+msgstr "Immagine più rapida (1 frame in meno)"
+
+msgid "player.faster_display_detail"
+msgstr "Il gioco mostra ogni frame appena è pronto, invece di un frame dopo. Disattivalo se il gioco scende sotto i 60 fps su questo PC. Riguarda solo questo PC: l'altro giocatore non deve attivarlo. Le modifiche valgono dal prossimo avvio del gioco."
+
 msgid "player.native_menus"
 msgstr "Apri menu del gioco"
 
@@ -767,6 +1037,21 @@ msgstr "Layout HUD"
 
 msgid "settings.match_hud_layout_detail"
 msgstr "La barra Ember tiene tutto in un pannello. Diviso mette ogni nome sotto la sua barra della vita."
+
+msgid "settings.name_offset"
+msgstr "Altezza dei nomi"
+
+msgid "settings.name_offset_detail"
+msgstr "Sposta in alto o in basso i nomi del layout diviso. Usalo quando non coprono PLAYER 1 e PLAYER 2 perché la posizione dell'HUD nel gioco è stata cambiata."
+
+msgid "name_offset.default"
+msgstr "Predefinita"
+
+msgid "name_offset.up"
+msgstr "Su {0}"
+
+msgid "name_offset.down"
+msgstr "Giù {0}"
 
 msgid "hud_layout.strip"
 msgstr "Barra Ember"
@@ -919,7 +1204,7 @@ msgid "about.controls"
 msgstr "Comandi"
 
 msgid "about.controls_detail"
-msgstr "Controller Xbox: A seleziona e B torna indietro, indipendentemente dai tasti di combattimento. Altri controller: l'LP assegnato seleziona e l'LK torna indietro. Tastiera: frecce, Enter e Escape. Il D-pad si muove; Sinistra e Destra cambiano un valore. Indietro nella Home nasconde Ember. F10, o Start sul controller, lo riapre nel menu principale del gioco.\n\nIn una sala, A su un tavolo permette di scegliere un posto, A sul tuo posto ti mette pronto e B lascia il posto o la coda. Su un controller Xbox, X apre Lottatore, Y apre Opzioni e View apre Chat; premilo di nuovo per tornare alla sala.\n\nNell'allenamento, F6 apre i comandi, F5 nasconde l'HUD, F7 registra e F8 riproduce."
+msgstr "Controller Xbox: A seleziona e B torna indietro, indipendentemente dai tasti di combattimento. Altri controller: l'LP assegnato seleziona e l'LK torna indietro. Tastiera: frecce, Enter e Escape. Il D-pad si muove; Sinistra e Destra cambiano un valore. Indietro nella Home nasconde Ember. F10, o Start sul controller, lo riapre nel menu principale del gioco.\n\nIn una sala, A su un tavolo permette di scegliere un posto, A sul tuo posto ti mette pronto e B lascia il posto o la coda. Su un controller Xbox, X apre Lottatore, Y apre Opzioni e View apre Chat; premilo di nuovo per tornare alla sala.\n\nNell'allenamento, F6 apre i comandi, F5 nasconde l'HUD, F7 registra e F8 riproduce. Sul controller, tieni View o Select e premi Start."
 
 msgid "about.controls_keyboard"
 msgstr "Da tastiera, anche Spazio seleziona e Backspace torna indietro. In una stanza, F apre Lottatore, T apre Opzioni e C apre Chat. Esc torna sempre indietro, anche sul tuo posto; Canc lascia il tuo posto o la coda."
@@ -962,6 +1247,15 @@ msgstr "Entra nell'Ember Discord"
 
 msgid "about.discord_detail"
 msgstr "Giocatori, partite e assistenza su {0}. Si apre nel browser dietro al gioco."
+
+msgid "about.version_line"
+msgstr "Ember {0} · {1}"
+
+msgid "about.version_detail"
+msgstr "La versione di Ember su questo PC. Build {0}."
+
+msgid "about.channel_detail"
+msgstr "La ricerca degli aggiornamenti usa questo canale. Per cambiarlo, chiudi il gioco e fai doppio clic su Updater.exe."
 
 msgid "settings.retry_save"
 msgstr "Riprova"
@@ -1140,23 +1434,239 @@ msgstr "EMBER / {0}"
 msgid "training.controls"
 msgstr "Comandi allenamento"
 
-msgid "training.open_chip"
-msgstr "F6 Comandi allenamento"
-
 msgid "training.hide_hint"
-msgstr "F5 Nascondi HUD"
+msgstr "Nascondi HUD"
+
+msgid "training.controls_chip"
+msgstr "Comandi allenamento"
+
+msgid "training.pad_hint"
+msgstr "Tocca: ripristina, tieni: salva"
+
+msgid "training.hint.reset"
+msgstr "Ripristina"
+
+msgid "training.hint.save"
+msgstr "Salva"
+
+msgid "training.save_recording"
+msgstr "Salva registrazione come"
+
+msgid "training.save_recording.detail"
+msgstr "Scrive lo slot selezionato in un file con questo nome."
+
+msgid "training.load_recording"
+msgstr "Carica registrazione"
+
+msgid "training.load_recording.detail"
+msgstr "Sinistra e Destra scelgono una registrazione salvata; Seleziona la carica nello slot selezionato."
+
+msgid "training.mirror"
+msgstr "Specchia registrazione scelta"
+
+msgid "training.mirror.detail"
+msgstr "Scambia sinistra e destra in questo slot, per una registrazione salvata che esce al contrario."
+
+msgid "training.recording_saved"
+msgstr "Registrazione salvata come {0}."
+
+msgid "training.recording_loaded"
+msgstr "Registrazione {0} caricata nello slot {1}."
+
+msgid "training.recording_none"
+msgstr "Nessuna registrazione salvata."
 
 msgid "training.dummy_recording"
 msgstr "Registra manichino"
 
 msgid "training.dummy_recording.detail"
-msgstr "Registra i comandi di G1 su G2. Imposta il manichino del gioco su controllo Giocatore/controller."
+msgstr "Registra i comandi di G1 su G2 e poi riproducili. Nessuna impostazione del gioco è necessaria: Ember affida il manichino ai comandi di G2 durante la registrazione o la riproduzione."
 
 msgid "training.input_history"
 msgstr "Sequenza comandi"
 
 msgid "training.input_history.detail"
 msgstr "Comandi premuti da ogni giocatore."
+
+msgid "training.match.checkpoint_disabled"
+msgstr "Il salvataggio e il ripristino condivisi della posizione non sono disponibili nelle partite con rollback."
+
+msgid "training.match.end_hint"
+msgstr "Start o F10 apre Ember, dove Termina pratica chiude questa partita."
+
+msgid "training.invalid"
+msgstr "Non accettato: {0}"
+
+msgid "training.save_failed"
+msgstr "Impossibile salvare il file."
+
+msgid "training.position.save"
+msgstr "Salva posizione"
+
+msgid "training.position.save.detail"
+msgstr "Tiene i due lottatori come sono ora: posto, vita, barre, stato del manichino."
+
+msgid "training.position.reset"
+msgstr "Ripristina posizione"
+
+msgid "training.position.reset.detail"
+msgstr "Riporta i due lottatori dove sono stati salvati."
+
+msgid "training.position.saved"
+msgstr "Posizione salvata."
+
+msgid "training.position.reset_done"
+msgstr "Posizione ripristinata."
+
+msgid "training.dummy.detail"
+msgstr "Sinistra e Destra lo cambiano; vale subito nel gioco."
+
+msgid "training.reply"
+msgstr "Risposta del manichino"
+
+msgid "training.reply.detail"
+msgstr "Cosa fa il manichino da solo appena torna libero, per punire una combo sbagliata o una chiusura rischiosa: riproduce le Mosse di risposta, o lo slot di risposta se quella riga è vuota. Attende mentre è in corso una riproduzione o una registrazione."
+
+msgid "training.reply.hit"
+msgstr "Dopo una combo sbagliata"
+
+msgid "training.reply.block"
+msgstr "Dopo una parata"
+
+msgid "training.reply.rise"
+msgstr "Al rialzo"
+
+msgid "training.reply.any"
+msgstr "Ogni volta che si riprende"
+
+msgid "training.reply.slot"
+msgstr "Slot di risposta"
+
+msgid "training.reply.slot.detail"
+msgstr "La registrazione del manichino riprodotta come risposta finché Mosse di risposta è vuoto, dalla sua prima pressione."
+
+msgid "training.reply.slot_empty"
+msgstr "Lo slot {0} è vuoto, quindi il manichino non risponde. Registralo o scegli una mossa."
+
+msgid "training.reply.chance"
+msgstr "Probabilità di risposta"
+
+msgid "training.reply.chance.detail"
+msgstr "Quanto spesso risponde il manichino. Sotto il 100% cambia da un tentativo all'altro."
+
+msgid "training.reply.vary_stance"
+msgstr "Varia la posizione"
+
+msgid "training.reply.vary_stance.detail"
+msgstr "Ogni volta che il manichino si riprende, resta in piedi o accovacciato a caso, così la combo si prova su entrambe. Solo se il manichino è impostato su in piedi o accovacciato."
+
+msgid "training.reply.moves"
+msgstr "Mosse di risposta"
+
+msgid "training.reply.moves.detail"
+msgstr "La risposta scritta in notazione numerica, come 623HP o 44, letta per il lato verso cui guarda il manichino. Valgono anche i nomi dei movimenti: qcf, qcb, dp, rdp, hcf e hcb, come qcfP o dp+HP. Il movimento viene inserito mentre il manichino è ancora bloccato, così il tasto cade sul suo primo frame libero. [1] tiene una direzione fino alla mossa successiva, [1]20f la tiene 20 frame e 10f aspetta: [1] > 3HP para in basso finché il manichino è libero, poi preme 3HP. Vuoto usa lo slot di risposta."
+
+msgid "training.reply.move"
+msgstr "Risposta predefinita"
+
+msgid "training.reply.move.detail"
+msgstr "Sinistra e destra scelgono una risposta comune in notazione numerica, letta per il lato verso cui guarda il manichino. Slot di risposta riproduce la registrazione; Personalizzata tiene le mosse scritte. Seleziona apre Mosse di risposta per scriverne una."
+
+msgid "training.reply.custom"
+msgstr "Personalizzata"
+
+msgid "training.reply.timing"
+msgstr "Tempismo della risposta"
+
+msgid "training.reply.timing.detail"
+msgstr "Frame dopo il primo frame libero del manichino in cui cade il tasto della risposta. La durata di uno stordimento si impara la prima volta; fino ad allora la risposta parte quando finisce."
+
+msgid "training.key.reset"
+msgstr "Tasto Ripristina"
+
+msgid "training.challenger"
+msgstr "La tua partita è pronta"
+
+msgid "training.key.detail"
+msgstr "Sinistra e Destra scelgono il tasto che fa questo durante lo scontro. Disattivato lo lascia senza tasto."
+
+msgid "training.dummy.action"
+msgstr "Manichino"
+
+msgid "training.dummy.guard"
+msgstr "Parata"
+
+msgid "training.dummy.counter"
+msgstr "Counter hit"
+
+msgid "training.dummy.quick"
+msgstr "Rialzo rapido"
+
+msgid "training.dummy.super"
+msgstr "Barra super"
+
+msgid "training.dummy.revenge"
+msgstr "Barra revenge"
+
+msgid "training.dummy.stand"
+msgstr "In piedi"
+
+msgid "training.dummy.crouch"
+msgstr "Accovacciato"
+
+msgid "training.dummy.jump"
+msgstr "Salto"
+
+msgid "training.dummy.cpu"
+msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "Umano"
+
+msgid "training.dummy.guard_none"
+msgstr "Nessuna parata"
+
+msgid "training.dummy.guard_first"
+msgstr "Dopo il primo colpo"
+
+msgid "training.dummy.guard_all"
+msgstr "Para tutto"
+
+msgid "training.dummy.guard_random"
+msgstr "Casuale"
+
+msgid "training.dummy.counter_off"
+msgstr "No"
+
+msgid "training.dummy.counter_on"
+msgstr "Sì"
+
+msgid "training.dummy.counter_random"
+msgstr "Casuale"
+
+msgid "training.dummy.quick_quick"
+msgstr "Rapido"
+
+msgid "training.dummy.quick_normal"
+msgstr "Normale"
+
+msgid "training.dummy.quick_delayed"
+msgstr "Ritardato"
+
+msgid "training.dummy.quick_random"
+msgstr "Casuale"
+
+msgid "training.dummy.gauge_normal"
+msgstr "Normale"
+
+msgid "training.dummy.gauge_max"
+msgstr "Piena all'inizio"
+
+msgid "training.dummy.gauge_infinite"
+msgstr "Infinita"
+
+msgid "training.dummy.gauge_refill"
+msgstr "Ricarica"
 
 msgid "training.close_controls"
 msgstr "Chiudi comandi allenamento"
@@ -1186,7 +1696,10 @@ msgid "training.play"
 msgstr "Riproduci"
 
 msgid "training.play.detail"
-msgstr "Riproduci lo slot scelto e torna all'allenamento. Le direzioni sono assolute, non speculari."
+msgstr "Riproduci lo slot scelto e torna all'allenamento. Le registrazioni seguono il lato verso cui guarda il manichino. Sinistra e Destra scelgono se si ripete."
+
+msgid "training.play.once"
+msgstr "Una volta"
 
 msgid "training.slot_empty"
 msgstr "Questo slot è vuoto."
@@ -1199,9 +1712,6 @@ msgstr "Ferma registrazione o riproduzione."
 
 msgid "training.loop"
 msgstr "Ripeti riproduzione"
-
-msgid "training.loop.detail"
-msgstr "Ripeti la registrazione scelta."
 
 msgid "training.clear_recording"
 msgstr "Cancella registrazione scelta"
@@ -1231,7 +1741,7 @@ msgid "training.recording_suspended"
 msgstr "Registrazione sospesa con comandi aperti"
 
 msgid "training.playback_suspended"
-msgstr "Riproduzione sospesa con comandi aperti"
+msgstr "Riproduzione in corso; la registrazione attende la chiusura dei comandi"
 
 msgid "training.applying"
 msgstr "Applicazione comando..."
@@ -1245,14 +1755,95 @@ msgstr "ALLENAMENTO"
 msgid "training.command_rejected"
 msgstr "Comando di allenamento rifiutato. Controlla lo stato e riprova."
 
-msgid "training.start_frames"
-msgstr "Avvio {0} f"
-
-msgid "training.start_unknown"
-msgstr "Avvio --"
-
 msgid "training.startup"
 msgstr "Avvio"
+
+msgid "training.meter.active"
+msgstr "Attivo"
+
+msgid "training.meter.recovery"
+msgstr "Recupero"
+
+msgid "training.meter.hit"
+msgstr "Colpo"
+
+msgid "training.meter.block"
+msgstr "Parata"
+
+msgid "training.meter.whiff"
+msgstr "A vuoto"
+
+msgid "training.meter.knockdown"
+msgstr "Atterramento"
+
+msgid "training.meter.meaty"
+msgstr "Meaty"
+
+msgid "training.meter.throw"
+msgstr "Presa / filmato"
+
+msgid "training.meter.attack"
+msgstr "Attacco"
+
+msgid "training.meter.move"
+msgstr "Movimento"
+
+msgid "training.meter.attack_unsplit"
+msgstr "Attacco non diviso"
+
+msgid "training.meter.style"
+msgstr "Stile del misuratore"
+
+msgid "training.meter.style.detail"
+msgstr "Inclinato colora un attacco per avvio, attivo e recupero e scrive la durata di ogni tratto. Piatto disegna tutto l'attacco in un solo colore."
+
+msgid "training.meter.style.angled"
+msgstr "Inclinato"
+
+msgid "training.meter.style.flat"
+msgstr "Piatto"
+
+msgid "training.meter.frames_shown"
+msgstr "Frame mostrati"
+
+msgid "training.meter.frames_shown.detail"
+msgstr "Quanti frame mostrano le barre nella stessa larghezza. Meno frame sono più larghi e facili da contare; 120 mostra tutta la cronologia. A misuratore fermo, la rotellina sopra le barre scorre indietro."
+
+msgid "training.meter.hud_recovery"
+msgstr "Recupero nell'HUD"
+
+msgid "training.meter.hud_recovery.detail"
+msgstr "Mostra il recupero dell'ultima mossa di ogni lottatore accanto al suo avvio nel misuratore."
+
+msgid "training.meter.hud_numbers"
+msgstr "Numeri nell'HUD"
+
+msgid "training.meter.hud_bars"
+msgstr "Barre nell'HUD"
+
+msgid "training.meter.hud_state"
+msgstr "Stato nell'HUD"
+
+msgid "training.meter.hud_shortcuts"
+msgstr "Scorciatoie nell'HUD"
+
+msgid "training.meter.hud_status"
+msgstr "Registrazione nell'HUD"
+
+msgid "training.meter.hud_part.detail"
+msgstr "Mostra questa parte dell'HUD di allenamento durante lo scontro. F5 nasconde tutto l'HUD."
+
+msgid "training.meter.hud_size"
+msgstr "Dim. HUD"
+
+msgid "training.meter.hud_size.detail"
+msgstr "Imposta la dimensione del testo e delle barre dell'HUD di allenamento. Anche Dim. interfaccia lo ingrandisce."
+
+msgid "training.recovery_frames"
+msgstr "Rec. {0} f"
+
+msgid "training.recovery_unknown"
+msgstr "Rec. --"
 
 msgid "training.neutral"
 msgstr "Neutrale"
@@ -1296,6 +1887,9 @@ msgstr "Ora"
 msgid "training.advantage"
 msgstr "Vantaggio"
 
+msgid "training.last_advantage"
+msgstr "Ultimo vantaggio"
+
 msgid "selection.preview_unavailable"
 msgstr "Anteprima\nnon disponibile"
 
@@ -1325,6 +1919,9 @@ msgstr "Alternativo {0}"
 
 msgid "selection.alternate_pack"
 msgstr "Alternativo {0} / {1}"
+
+msgid "selection.custom"
+msgstr "Personalizzato {0}"
 
 msgid "selection.stage_count"
 msgstr "{0} LIVELLI / USFIV"
@@ -1412,6 +2009,12 @@ msgstr "In attesa dei costumi e colori disponibili nel gioco."
 
 msgid "selection.no_colors"
 msgstr "Nessun colore sbloccato per questo costume."
+
+msgid "selection.not_owned"
+msgstr "Non posseduto su Steam."
+
+msgid "selection.not_owned_badge"
+msgstr "NON POSSEDUTO"
 
 msgid "selection.color"
 msgstr "Colore {0}"
@@ -1553,11 +2156,17 @@ msgstr "In attesa che l'avversario entri nella sala..."
 msgid "runtime.authorized_connection_unavailable"
 msgstr "Connessione autorizzata alla partita non disponibile."
 
+msgid "runtime.input_lag_unavailable"
+msgstr "Questo PC non è riuscito a impostare il tempo di input del gioco come richiede questo incontro (Riduci il ritardo di input), quindi l'incontro è stato interrotto. Riavviare il gioco dovrebbe risolvere."
+
 msgid "runtime.waiting_opponent_start"
 msgstr "In attesa dell'avversario nella sala per iniziare la partita."
 
 msgid "runtime.unsupported_stage"
 msgstr "La sala ha scelto un livello non supportato. Reimposta la sala e riprova."
+
+msgid "runtime.unsupported_match"
+msgstr "La sala ha scelto lottatori o impostazioni di incontro non supportati. Reimposta la sala e riprova."
 
 msgid "runtime.netplay_input_failed"
 msgstr "Errore nei comandi netplay. Partita terminata."
@@ -1604,6 +2213,9 @@ msgstr "Ritorno alla sala."
 msgid "runtime.table_game_cancelled"
 msgstr "Partita al tavolo annullata. Torna alla sala per selezionare Pronto."
 
+msgid "runtime.practice_ended"
+msgstr "Pratica terminata. Torna alla sala per selezionare Pronto."
+
 msgid "runtime.result_not_recorded"
 msgstr "Impossibile registrare il risultato: il tavolo è cambiato prima della conferma."
 
@@ -1613,8 +2225,6 @@ msgstr "Un partecipante ha lasciato la sala. La partita finirà."
 msgid "update.github_unreachable"
 msgstr "Impossibile raggiungere GitHub. Controlla la connessione e riprova."
 
-msgid "update.no_version_tag"
-msgstr "La versione GitHub non ha un tag."
 
 msgid "update.no_zip_asset"
 msgstr "L'ultima versione non ha un file ZIP SF4 Ember Netplay."
@@ -1627,6 +2237,9 @@ msgstr "URL di download mancante."
 
 msgid "update.missing_version"
 msgstr "Tag versione mancante."
+
+msgid "update.not_offered"
+msgstr "Questa versione non è quella offerta. Controlla di nuovo gli aggiornamenti."
 
 msgid "update.close_sf4"
 msgstr "Chiudi Ultra Street Fighter IV prima di installare un aggiornamento."
@@ -1687,6 +2300,39 @@ msgstr "Chiudi il gioco prima di installare l'aggiornamento."
 msgid "update.updater_start_failed"
 msgstr "Impossibile avviare Updater.exe. Reinstalla da un nuovo ZIP."
 
+msgid "update.stage.preparing"
+msgstr "Controllo del pacchetto..."
+
+msgid "update.stage.comparing"
+msgstr "Confronto dei file..."
+
+msgid "update.stage.backing_up"
+msgstr "Backup dei file da sostituire..."
+
+msgid "update.stage.replacing"
+msgstr "Sostituzione dei file..."
+
+msgid "update.stage.confirming"
+msgstr "Controllo dei file installati..."
+
+msgid "update.notice.waiting_launcher"
+msgstr "In attesa della chiusura di SF4 Ember Netplay..."
+
+msgid "update.notice.waiting_file"
+msgstr "In attesa che un altro programma rilasci {0}..."
+
+msgid "update.notice.restoring"
+msgstr "Ripristino dei file precedenti..."
+
+msgid "update.notice.elapsed"
+msgstr "{0} trascorsi"
+
+msgid "update.notice.reopens"
+msgstr "SF4 Ember Netplay si riaprirà al termine."
+
+msgid "update.notice.recovering"
+msgstr "Completamento di un aggiornamento interrotto..."
+
 msgid "room.member_left"
 msgstr "Membro uscito"
 
@@ -1719,6 +2365,9 @@ msgstr "Inattivo da {0} min"
 
 msgid "room.idle_hours"
 msgstr "Inattivo da {0} h {1} min"
+
+msgid "room.in_training"
+msgstr "In allenamento"
 
 msgid "room.phase.waiting"
 msgstr "In attesa dei giocatori"
@@ -2014,6 +2663,15 @@ msgstr "In attesa del ritorno degli spettatori bloccati. Inizia tra {0} s."
 msgid "room.hold.waiting_you"
 msgstr "La partita ti aspetta: {0} s"
 
+msgid "room.ready_timeout.you"
+msgstr "Preparati entro {0} s o lascerai il posto"
+
+msgid "room.ready_timeout.other"
+msgstr "A {1} restano {0} s per prepararsi"
+
+msgid "chat.event.ready_timeout"
+msgstr "{0} ha lasciato il tavolo {1}: non era pronto in tempo"
+
 msgid "room.hold.status"
 msgstr "In attesa degli spettatori: {0} s"
 
@@ -2045,7 +2703,7 @@ msgid "room.ready_up"
 msgstr "Mettiti pronto"
 
 msgid "room.selected_delay.detail"
-msgstr "Regola da 1 a 10 frame, o scendi sotto 1 per Auto. Le modifiche si applicano subito."
+msgstr "Regola da 0 a 10 frame, o scendi sotto 0 per Auto. 0 non aggiunge ritardo e richiede un ping basso e stabile."
 
 msgid "room.selected_delay.locked"
 msgstr "Il ritardo scelto è bloccato per questa partita."
@@ -2131,6 +2789,12 @@ msgstr "Abbandona partita irrisolta"
 
 msgid "room.abandon_result.detail"
 msgstr "Nessun risultato sarà registrato. Entrambi restano seduti e possono rimettersi pronti."
+
+msgid "room.end_practice"
+msgstr "Termina pratica"
+
+msgid "room.end_practice.detail"
+msgstr "Termina subito questa partita di pratica per entrambi. Nessun risultato sarà registrato. Entrambi restano seduti e possono rimettersi pronti."
 
 msgid "room.leave_queue"
 msgstr "Esci dalla coda"
@@ -2323,6 +2987,9 @@ msgstr "Modifica testo"
 
 msgid "edit.instructions"
 msgstr "Digita o incolla con la tastiera. Enter o Seleziona sul controller conferma; Escape o Back sul controller annulla."
+
+msgid "edit.instructions_multiline"
+msgstr "Scrivi o incolla con la tastiera. Invio o Invio del tastierino numerico aggiunge una nuova riga. Ctrl+Invio, Ctrl+Invio del tastierino numerico, il pulsante Accetta o Seleziona sul controller conferma; Esc o Indietro sul controller annulla."
 
 msgid "edit.updating"
 msgstr "Aggiornamento sala. La bozza resta disponibile; puoi continuare a scrivere o annullare."
@@ -3575,3 +4242,399 @@ msgstr "Impossibile entrare nella sala. Potrebbe essersi appena chiusa. Aggiorna
 
 msgid "legend.refresh"
 msgstr "Aggiorna"
+
+msgid "training.frame_data"
+msgstr "Dati dei frame"
+
+msgid "training.frame_data.detail"
+msgstr "Consulta l'ultima mossa di ogni giocatore, il vantaggio e la tempistica del meaty."
+
+msgid "training.hud"
+msgstr "HUD"
+
+msgid "training.hud.detail"
+msgstr "Attiva o disattiva parti dell'HUD durante lo scontro."
+
+msgid "training.color_key"
+msgstr "Legenda colori"
+
+msgid "training.dummy"
+msgstr "Manichino"
+
+msgid "training.position"
+msgstr "Posizione"
+
+msgid "training.start_frames"
+msgstr "Avvio {0} f"
+
+msgid "training.start_unknown"
+msgstr "Avvio --"
+
+msgid "settings.training_replays"
+msgstr "Allenamento e replay"
+
+msgid "settings.training_replays_detail"
+msgstr "Indicatore dei frame nelle partite, pronto automatico dopo l'allenamento e scelta delle partite salvate."
+
+msgid "settings.training_replays_title"
+msgstr "ALLENAMENTO E REPLAY"
+
+msgid "room.table_footer_practice"
+msgstr "Partita di pratica"
+
+msgid "room.rules_summary_practice"
+msgstr "Partita di pratica, {0} round, {1} s, Edition Select {2}"
+
+msgid "room.practice"
+msgstr "Sala di pratica"
+
+msgid "room.practice.detail"
+msgstr "Ogni partita nella sala è una partita di pratica: salute e barre si ricaricano, nessuno va K.O. e il tempo del round è {0}. Resta così finché la sala è aperta. Per giocare partite normali, chiudi la sala e creane una nuova."
+
+msgid "room.practice_status"
+msgstr "Sala di pratica / solo inviti"
+
+msgid "room.practice_locked_status"
+msgstr "Sala di pratica bloccata / solo inviti"
+
+msgid "inputs.presses_value"
+msgstr "{0} pressioni"
+
+msgid "replays.watch_meter"
+msgstr "Guarda con indicatore dei frame"
+
+msgid "replays.watch_meter_detail"
+msgstr "Riproduce dal Battle Log con l'indicatore dei frame sopra il combattimento."
+
+msgid "replays.controls.play"
+msgstr "Riproduci"
+
+msgid "replays.controls.pause"
+msgstr "Pausa"
+
+msgid "replays.controls.paused"
+msgstr "In pausa"
+
+msgid "replays.controls.step"
+msgstr "Avanza"
+
+msgid "replays.controls.speed"
+msgstr "Velocità"
+
+msgid "replays.controls.speed_full"
+msgstr "1x"
+
+msgid "replays.controls.speed_half"
+msgstr "1/2x"
+
+msgid "replays.controls.speed_quarter"
+msgstr "1/4x"
+
+msgid "replays.controls.inputs"
+msgstr "Input"
+
+msgid "replays.controls.meter"
+msgstr "Misuratore"
+
+msgid "replays.controls.round"
+msgstr "Round {0}"
+
+msgid "replays.controls.frame"
+msgstr "Frame {0}"
+
+msgid "replays.controls.unavailable"
+msgstr "I comandi funzionano durante l'incontro"
+
+msgid "room.training"
+msgstr "Attendi in allenamento"
+
+msgid "replays.export_gpu"
+msgstr "Esporta video (GPU)"
+
+msgid "replays.export_gpu_detail"
+msgstr "Lo registra come .mp4 alla dimensione piena dell'immagine del gioco, codificato dalla scheda grafica."
+
+msgid "replays.video"
+msgstr "Video"
+
+msgid "export.title"
+msgstr "Esporta video"
+
+msgid "export.detail"
+msgstr "Mostrato sopra il gioco durante la registrazione, a schermo e nel video."
+
+msgid "export.names"
+msgstr "Nomi dei giocatori"
+
+msgid "export.name"
+msgstr "Giocatore {0}"
+
+msgid "export.line"
+msgstr "Riga della partita"
+
+msgid "export.line_text"
+msgstr "Testo della riga della partita"
+
+msgid "export.set"
+msgstr "Punteggio del set"
+
+msgid "export.set_detail"
+msgstr "Le vittorie di ciascun giocatore nel set finora, accanto al nome. Contate dalle partite che i due hanno giocato subito prima; modificalo se non è corretto."
+
+msgid "export.set_wins"
+msgstr "Vittorie del giocatore {0}"
+
+msgid "export.mark"
+msgstr "Marchio Ember"
+
+msgid "export.generate"
+msgstr "Genera video"
+
+msgid "export.meter"
+msgstr "Indicatore dei frame"
+
+msgid "export.meter_detail"
+msgstr "Mostra l'indicatore dei frame dell'allenamento sopra il combattimento, a schermo e nel video."
+
+msgid "export.generate_detail"
+msgstr "Riproduce il replay e lo registra come .mp4 accanto a esso. Durante la registrazione, F10 apre Ember per seguirla o annullarla."
+
+msgid "export.running"
+msgstr "Esportazione video"
+
+msgid "export.running_detail"
+msgstr "Il replay viene registrato mentre viene riprodotto. Finché questo menu è aperto, il video non include la didascalia né l'indicatore dei frame."
+
+msgid "export.starting"
+msgstr "Avvio..."
+
+msgid "export.finishing"
+msgstr "Completamento del video..."
+
+msgid "export.cancelling"
+msgstr "Annullamento..."
+
+msgid "export.progress"
+msgstr "{0} / {1}"
+
+msgid "export.cancel"
+msgstr "Annulla esportazione"
+
+msgid "export.cancel_detail"
+msgstr "Interrompe la registrazione ed elimina il video incompleto. Il replay continua fino alla fine."
+
+msgid "export.cancelled"
+msgstr "Esportazione annullata. Nessun video è stato salvato."
+
+msgid "training.result"
+msgstr "Risultato"
+
+msgid "training.room.table"
+msgstr "Tavolo {0}"
+
+msgid "training.room.waiting"
+msgstr "In attesa di un avversario"
+
+msgid "training.room.opponent"
+msgstr "Avversario: {0}"
+
+msgid "training.room.queued"
+msgstr "In coda: {0} di {1}"
+
+msgid "training.room.not_queued"
+msgstr "Non in coda"
+
+msgid "training.room.unread"
+msgstr "{0} da leggere"
+
+msgid "room.training_call.calling"
+msgstr "Richiamo di {0} dall'allenamento"
+
+msgid "training.go_now"
+msgstr "Vai ora"
+
+msgid "reports.setting"
+msgstr "Invia segnalazioni di problemi"
+
+msgid "reports.setting_detail"
+msgstr "Sì: dopo un crash, il launcher invia la segnalazione senza chiedere, al massimo {0} al giorno e mai con il dump del crash. No: chiede prima."
+
+msgid "reports.problem"
+msgstr "Segnala un problema"
+
+msgid "reports.problem_detail"
+msgstr "Controlla i log oscurati e i dettagli della segnalazione prima di decidere se inviarli a Ember."
+
+msgid "reports.title"
+msgstr "Anteprima segnalazione"
+
+msgid "reports.preparing"
+msgstr "Preparazione dell'anteprima della segnalazione..."
+
+msgid "reports.preview_detail"
+msgstr "Controlla ogni parte prima dell'invio. Le segnalazioni vanno a embernetplay.link. I dump grezzi sono conservati fino a 30 giorni; le segnalazioni elaborate hanno una conservazione separata."
+
+msgid "reports.sending"
+msgstr "Invio della segnalazione..."
+
+msgid "reports.bytes"
+msgstr "{0} byte"
+
+msgid "reports.metadata"
+msgstr "Dettagli segnalazione"
+
+msgid "reports.dump"
+msgstr "Dump piccolo"
+
+msgid "reports.dump_detail"
+msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+
+msgid "reports.comment"
+msgstr "Commento"
+
+msgid "reports.comment_required"
+msgstr "Descrivi il problema prima di inviare (fino a 2000 caratteri). Il commento viene inviato così com'è."
+
+msgid "reports.comment_optional"
+msgstr "Facoltativo: descrivi cosa è successo (fino a 2000 caratteri). Il commento viene inviato così com'è."
+
+msgid "reports.send"
+msgstr "Invia"
+
+msgid "reports.dont_send"
+msgstr "Non inviare"
+
+msgid "reports.consent"
+msgstr "Inviare a Ember esattamente le parti mostrate in questa anteprima, incluso il commento e il dump piccolo se attivo?"
+
+msgid "reports.copy_id"
+msgstr "Copia ID segnalazione"
+
+msgid "reports.close_detail"
+msgstr "Chiude questa anteprima. Un caricamento già accettato dal server non può essere ritirato qui."
+
+msgid "reports.sent"
+msgstr "Segnalazione accettata. ID segnalazione: {0}"
+
+msgid "reports.invalid"
+msgstr "Questa segnalazione non è valida o è troppo grande. Controlla il commento e prova a preparare un'altra anteprima."
+
+msgid "reports.invalid_response"
+msgstr "La risposta del server non conteneva un ID segnalazione valido. Potrebbe aver già accettato la tua segnalazione."
+
+msgid "reports.rate_limited"
+msgstr "Troppe segnalazioni. Riprova tra {0} secondi."
+
+msgid "reports.unavailable"
+msgstr "Segnalazioni temporaneamente non disponibili. Riprova più tardi."
+
+msgid "reports.failed"
+msgstr "Impossibile inviare la segnalazione. Controlla la connessione e riprova."
+
+msgid "reports.cancelled"
+msgstr "Caricamento annullato. Una segnalazione già accettata dal server potrebbe comunque essere conservata."
+
+msgid "reports.dump_warning"
+msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+
+msgid "launcher.game_crashed_files"
+msgstr "Il gioco si è bloccato. Invia al team di SF4 Ember Netplay i file in %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log e sf4e-crash-*.dmp), poi riprova."
+
+msgid "launcher.game_crashed_sending"
+msgstr "Il gioco si è bloccato. Invia segnalazioni di problemi è attivo, quindi è in invio una segnalazione senza il dump del crash. I file sono anche in %APPDATA%\\sf4e\\logs."
+
+msgid "reports.settings_title"
+msgstr "Segnalazioni di problemi"
+
+msgid "reports.settings_detail"
+msgstr "Cosa contiene una segnalazione di crash e le segnalazioni inviate."
+
+msgid "reports.sent_list"
+msgstr "Segnalazioni inviate"
+
+msgid "reports.sent_list_detail"
+msgstr "Ogni segnalazione inviata da questo PC: quando, com'è andata e il suo ID."
+
+msgid "reports.none"
+msgstr "Ancora nessuna segnalazione"
+
+msgid "reports.none_detail"
+msgstr "Qui compaiono le segnalazioni inviate da questo PC."
+
+msgid "reports.send_once"
+msgstr "Invia questa segnalazione"
+
+msgid "reports.send_always"
+msgstr "Invia sempre"
+
+msgid "reports.send_always_detail"
+msgstr "Invia questa segnalazione e, da ora in poi, quella di ogni crash successivo senza chiedere. Le segnalazioni inviate senza chiedere non includono mai un dump. Al massimo {0} partono senza chiedere in 24 ore, e ogni segnalazione inviata conta. Puoi disattivarlo in Impostazioni, Segnalazioni di problemi."
+
+msgid "reports.dump_included"
+msgstr "Dump del crash: incluso."
+
+msgid "reports.dump_not_included"
+msgstr "Dump del crash: non incluso."
+
+msgid "reports.row"
+msgstr "Segnalazione di problema"
+
+msgid "reports.status.sending"
+msgstr "Invio"
+
+msgid "reports.status.received"
+msgstr "Ricevuta"
+
+msgid "reports.status.refused"
+msgstr "Non accettata"
+
+msgid "reports.status.not_sent"
+msgstr "Non inviata"
+
+msgid "reports.received"
+msgstr "La segnalazione è stata ricevuta."
+
+msgid "reports.received_id"
+msgstr "La segnalazione è stata ricevuta. Il suo ID è {0}. Citalo se contatti il team di Ember per questo crash."
+
+msgid "reports.refused"
+msgstr "Il servizio segnalazioni non ha accettato la segnalazione. Non verrà inviata di nuovo."
+
+msgid "reports.not_sent"
+msgstr "Impossibile inviare la segnalazione. Non verrà inviata di nuovo."
+
+msgid "reports.what_is_sent"
+msgstr "Inviti, token, indirizzi di rete, e-mail e il tuo nome utente Windows, la cartella del profilo, il nome del PC e il nome giocatore vengono rimossi dai log.\n\nUna segnalazione inviata da te viene prima mostrata per intero, e il dump piccolo parte solo se lo attivi in quell'anteprima. Le segnalazioni inviate senza chiedere non includono mai un dump.\n\nMai inviati: i tuoi altri file, i tuoi replay o i dump completi del crash."
+
+msgid "reports.send_once_detail"
+msgstr "Apre un'anteprima di ciò che contiene questa segnalazione. Non viene inviato nulla finché non scegli Invia."
+
+msgid "reports.crash_report"
+msgstr "Segnalazione di crash"
+
+msgid "reports.payload"
+msgstr "Le segnalazioni vanno a embernetplay.link. Ognuna contiene la versione e la build di Ember, la versione di Windows, i dati del crash e la parte finale oscurata di sf4e.log, launcher.log, sf4e-crash.log e sf4-net.log."
+
+msgid "reports.status.unknown"
+msgstr "Sconosciuta"
+
+msgid "reports.interrupted"
+msgstr "L'invio è stato interrotto prima che arrivasse una risposta. Il servizio segnalazioni potrebbe averla ricevuta."
+
+msgid "reports.identity_failed"
+msgstr "Impossibile leggere il tuo nome giocatore o l'account Windows, quindi la segnalazione non è stata preparata. Riprova."
+
+msgid "reports.history_failed"
+msgstr "Impossibile salvare lo storico delle segnalazioni inviate, quindi la segnalazione non è stata inviata. Riprova."
+
+msgid "reports.history_unreadable"
+msgstr "Storico illeggibile"
+
+msgid "reports.history_unreadable_detail"
+msgstr "Impossibile leggere sent-reports.json in %APPDATA%\\sf4e, quindi nessuna segnalazione viene inviata senza chiedere. Elimina il file per iniziare un nuovo storico."
+
+msgid "reports.always_failed"
+msgstr "Impossibile attivare Invia sempre, quindi questa segnalazione non è stata inviata. Scegli Invia questa segnalazione per inviarla dall'anteprima."
+
+msgid "reports.automatic_unavailable"
+msgstr "Le segnalazioni automatiche di oggi sono esaurite o lo storico delle segnalazioni inviate è illeggibile, quindi questa non è stata inviata. Scegli Invia questa segnalazione per inviarla dall'anteprima."

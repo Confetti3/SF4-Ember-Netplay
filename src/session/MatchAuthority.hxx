@@ -41,10 +41,12 @@ public:
 	bool RebindConnection(const SessionProtocol::ConnectionID& endpoint, Connection connection);
 	bool MemberDeparted(const Send& send);
 	bool MemberDeparted(Connection connection, const Send& send);
-	// A Started spectator remains in the frozen native roster after its control
-	// member leaves or switches tables. Resolve this from the authority's
-	// authenticated endpoint list rather than the mutable room projection.
-	bool HasStartedSpectator(const SessionProtocol::ConnectionID& endpoint) const;
+	// A participant stays in the native roster after its control member leaves
+	// or switches tables, until the generation ends: a Started spectator keeps
+	// its slot, and one that left before the start stays as departed. Resolve
+	// this from the authority's authenticated endpoint list rather than the
+	// mutable room projection.
+	bool HasParticipant(const SessionProtocol::ConnectionID& endpoint) const;
 	// The generation's native roster: the connections it was begun with, in slot
 	// order, minus any that left or were left out of the start. Empty when Idle.
 	std::vector<Connection> LiveParticipants() const;

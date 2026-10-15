@@ -52,7 +52,7 @@ impl Spool {
         Self { dir }
     }
 
-    fn usable(&self) -> bool {
+    pub(crate) fn usable(&self) -> bool {
         !self.dir.as_os_str().is_empty() && self.dir.is_absolute()
     }
 

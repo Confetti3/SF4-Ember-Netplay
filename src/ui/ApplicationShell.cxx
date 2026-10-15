@@ -6,18 +6,29 @@
 #include "MenuPresentation.hxx"
 #include "PublicRoomsCards.hxx"
 #include "RoomControls.hxx"
+#include "VersionLine.hxx"
+#include "../session/TrainingCall.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
+#include "../common/MatchFrameMeter.hxx"
+#include "../common/ReplayInputs.hxx"
 #include "../platform/LocaleWindows.hxx"
+#include "ReplaySummaryText.hxx"
 #include "../platform/UiPreferencesStore.hxx"
 #include <imgui.h>
 #include <cfloat>
 #include <cstdio>
 #include <cstring>
+#include <ctime>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <utility>
 namespace sf4e { namespace ui {
 namespace {
 constexpr double ErrorSeconds = 5;
+// The installed version label, or the build's hash for a copy without one (a developer build).
+std::string InstalledVersion(const ShellView& v) { return v.services.installedVersion.empty() ? v.build : v.services.installedVersion; }
 // The launch card names only the settings that differ, in the order the game's
 // own Options menu lists them. Empty means nothing to say.
 std::string GameSettingsAdvice(const gameconfig::DisplaySettings& g) {
@@ -45,6 +56,12 @@ std::string SessionProblem(const netplay::Snapshot& session) {
     default:return {};
     }
 }
+// The room's own status line: the kind of room it is, and whether it is locked.
+const char* RoomStatusKey(const room::Snapshot& room) {
+    if(room.serverOwned)return room.locked?"room.public_locked_status":"room.public_status";
+    if(room.practice)return room.locked?"room.practice_locked_status":"room.practice_status";
+    return room.locked?"room.locked_status":"room.private_status";
+}
 // "Automatic" first, then every locale by its own name.
 std::vector<MenuChoice> LanguageChoices() {
     std::vector<MenuChoice> choices;std::string preference="auto";
@@ -61,12 +78,20 @@ std::string CutUtf8(std::string text,std::size_t limit) {
     while(limit>0&&(static_cast<unsigned char>(text[limit])&0xC0)==0x80)--limit;
     text.resize(limit);return text;
 }
+// When a report was sent, in this PC's time, as 2026-10-09 14:03.
+std::string ReportTime(std::int64_t time) {
+    const std::time_t at=static_cast<std::time_t>(time);std::tm local{};
+    char text[32]={};
+    if(localtime_s(&local,&at)!=0||!std::strftime(text,sizeof(text),"%Y-%m-%d %H:%M",&local))return "-";
+    return text;
+}
 // The width of the list: the whole window on a narrow one, else the left pane.
 float PublicListWidth() {
     const float available=ImGui::GetContentRegionAvail().x;
     return available>=820*Scale()?available*.53f:available;
 }
 }
+std::string TrainingReadyText(int seconds) { return loc::Tf("room.training_call.ready_in",seconds); }
 bool ApplicationShell::Service(platform::ServiceAction kind, const ShellView& view, const Submit& submit) {
     ShellAction action; action.service = kind; action.command.generation = view.session.generation;
     if (!submit(std::move(action))) { error_ = loc::T("error.queue_failed"); return false; }
@@ -88,6 +113,7 @@ bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, co
         action.preferences.lobby.roundCount = action.preferences.tableRules.roundCount;
         action.preferences.lobby.roundTime = action.preferences.tableRules.roundTime;
     }
+    action.practiceRoom = kind == netplay::CommandKind::HostRoom && createPractice_;
     if (kind == netplay::CommandKind::JoinInvite) action.command.invitation = invitation_;
     // A room opened here is not the public one the panel joined.
     if (kind == netplay::CommandKind::JoinInvite || kind == netplay::CommandKind::HostRoom) publicRooms_.ForgetCurrent();
@@ -114,6 +140,9 @@ void ApplicationShell::UpdateRoomTransitions(const ShellView& v,double now) {
  // Join, with a pending status, instead of seeing a bare placeholder list.
  if(v.session.room==RoomState::Joined&&previousRoomState_!=RoomState::Joined&&nav.Screen().compare(0,4,"room")!=0){nav.Home();nav.Push("room");}
  previousRoomState_=v.session.room;
+ // Opened over a Practice match this PC fights: the board, at End practice.
+ if(hidden_&&v.practiceFight){nav.Home();nav.Push("room");nav.Prefer("end-practice");}
+ hidden_=false;
   if(!(generation_==v.session.generation)) {
   const bool roomChanged=generation_.room!=v.session.generation.room;
   generation_=v.session.generation; nav.Cancel(); error_.clear();notice_.clear();
@@ -246,11 +275,17 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Row("selection",loc::T("home.fighter_select"),v.canEditSelection?v.selectionSummary:
     v.selectionLockReason.empty()?loc::T("home.selection_locked"):v.selectionLockReason,bool(selection)),
    Row("profile",loc::T("home.profile"),loc::T("home.profile_detail")),
-   Row("identity",loc::T("screen.identity"),identity_.HomeDetail(v)),
    Row("settings",loc::T("home.settings"),loc::T("home.settings_detail")),
-   Row("offline",loc::T("home.offline"),loc::T("home.offline_detail"),idle)};
+   Row("offline",loc::T("home.offline"),loc::T("home.offline_detail"),idle),
+   Row("replays",loc::T("home.replays"),loc::T("home.replays_detail"))};
   if(opening)rows[0].detail=OpeningCreates(v)?loc::T("room.creating_status"):loc::T("room.joining_status");
   if(!v.controllerReady)rows.insert(rows.begin(),Row("player",loc::T("home.choose_controller"),loc::T("home.choose_controller_detail")));
+  // Ember ID lives under Online play; tournament matches ready to play are
+  // still shown on Home, which leads to them, while no room is joined (a
+  // match is played from its own room). The count is in the detail: a
+  // value beside the label leaves it too little room in longer languages.
+  if(const int ready=idle?identity_.ReadyMatches(v):0)
+   rows.insert(rows.begin(),Row("home-matches",loc::T("screen.tournament_matches"),loc::Tf("home.identity_matches",ready)));
   // Back leaves a pending invitation's screen without answering it, so Home
   // keeps a way back to it until it is answered or expires.
   if(v.discordPending)rows.insert(rows.begin(),Row("discord-invitation",loc::T("discord.invitation_pending"),loc::T("discord.invitation_pending_detail")));
@@ -270,9 +305,11 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(screen=="online"){
   title=loc::T("online.title");rows={Row("create",loc::T("online.create"),loc::T("online.create_detail"),v.canOpenRoom),Row("join",loc::T("online.join"),loc::T("online.join_detail"),v.canOpenRoom),
    Row("public-rooms",loc::T("screen.public_rooms"),loc::T("online.public_detail"),v.canOpenRoom),
-   Row("relay",loc::T("network.relay"),loc::T("network.relay_detail")),Row("network",loc::T("network.status"),DescribeNatDetail(v.netReport))};
+   Row("identity",loc::T("screen.identity"),identity_.EntryDetail(v))};
   // Where this PC connects and how its network treats a direct path, for information only.
-  rows[3].info=rows[4].info=true;rows[3].value=DescribeRelay(v.netReport);rows[4].value=DescribeNat(v.netReport.nat);
+  auto relay=Row("relay",loc::T("network.relay"),loc::T("network.relay_detail"));relay.info=true;relay.value=DescribeRelay(v.netReport);
+  auto network=Row("network",loc::T("network.status"),DescribeNatDetail(v.netReport));network.info=true;network.value=DescribeNat(v.netReport.nat);
+  rows.push_back(std::move(relay));rows.push_back(std::move(network));
  }else if(screen=="create"||screen=="defaults"){
   title=screen=="create"?loc::T("room.create_title"):loc::T("settings.gameplay_defaults_title");const bool can=screen=="create"?v.canOpenRoom:v.canEditPreferences;
   // A public room is made by the service with the public default rules; the
@@ -281,11 +318,14 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   const std::string bridge=publicRoom?identity_.UsableBridge(v):std::string();
   if(screen=="defaults")rows.push_back(preferences_.autoInputDelay?Value("delay",loc::T("settings.input_delay"),loc::T("settings.input_delay.auto"),
    loc::Tf("room.input_delay.auto.detail",AutoInputDelayMinimum,AutoInputDelayMaximum)+"\n"+reason,can):
-   Value("delay",loc::T("settings.input_delay"),std::to_string(preferences_.inputDelay),reason,can));
+   Value("delay",loc::T("settings.input_delay"),std::to_string(preferences_.inputDelay),std::string(loc::T("room.selected_delay.detail"))+"\n"+reason,can));
   if(screen=="create")rows.push_back(Value("visibility",loc::T("public.visibility"),loc::T(publicRoom?"public.visibility.public":"public.visibility.private"),loc::T("public.visibility_detail"),can));
   rows.push_back(TextRow("room-name",loc::T("room.name"),preferences_.roomName,64,can));
   rows.push_back(Value("capacity",loc::T("room.capacity"),std::to_string(preferences_.roomCapacity),loc::T("room.capacity_detail"),can));
-  RuleRows(rows,publicRoom?preferences_.publicTableRules:preferences_.tableRules,can,reason);
+  // Only a private room can be a Practice room, which has no round time to choose.
+  const bool privateCreate=screen=="create"&&!publicRoom,practice=privateCreate&&createPractice_;
+  if(privateCreate)rows.push_back(PracticeRoomRow(practice,can));
+  RuleRows(rows,publicRoom?preferences_.publicTableRules:preferences_.tableRules,can,reason,practice);
   if(screen=="create"){rows.push_back(opening?ConfirmRow("cancel-open",loc::T("room.stop_creating_action"),loc::T("room.stop_creating"),true):
    Row("host",loc::T(publicRoom?"public.create":"online.create"),loc::T(!publicRoom?"room.create_requirements":bridge.empty()?"public.create_needs_id":"public.create_requirements"),
     can&&preferences_.Valid()&&!publicRooms_.Busy()&&(!publicRoom||!bridge.empty())));
@@ -298,13 +338,36 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(PublicRoomsPanel::Owns(screen)){
   title=loc::T("screen.public_rooms");rows=publicRooms_.Rows(v,identity_.UsableBridge(v),identity_.Waiting(),identity_.PublicSetup(),PublicListWidth());
  }else if(screen.compare(0,4,"room")==0||screen=="steam-invite"){title=v.room.name.empty()?loc::T("screen.room"):v.room.name;NoteUserText(v.room.name);rows=RoomEntries(v);
+ }else if(ReplaysPanel::Owns(screen)){rows=replays_.Rows(v,screen,idle,title);
  }else if(screen=="settings"){
-  title=loc::T("settings.title");rows={Row("player",loc::T("screen.player"),loc::T("settings.player_detail")),Row("defaults",loc::T("screen.defaults"),loc::T("settings.defaults_detail")),Row("interface",loc::T("settings.interface"),loc::T("settings.interface_detail")),Row("discord",loc::T("screen.discord"),loc::T("settings.discord_detail")),Row("steam",loc::T("screen.steam"),loc::T("settings.steam_detail")),
-   Row("about",loc::T("home.about"),loc::T("home.about_detail"))};
+  title=loc::T("settings.title");rows={Row("player",loc::T("screen.player"),loc::T("settings.player_detail")),Row("defaults",loc::T("screen.defaults"),loc::T("settings.defaults_detail")),Row("interface",loc::T("settings.interface"),loc::T("settings.interface_detail")),Row("training-replays",loc::T("settings.training_replays"),loc::T("settings.training_replays_detail")),Row("discord",loc::T("screen.discord"),loc::T("settings.discord_detail")),Row("steam",loc::T("screen.steam"),loc::T("settings.steam_detail")),
+   Row("problem-reports",loc::T("reports.settings_title"),loc::T("reports.settings_detail")),Row("about",loc::T("home.about"),loc::T("home.about_detail"))};
+ }else if(screen=="problem-reports"){
+  // The setting's pane says what a report holds; Select reads it in full.
+  title=loc::T("reports.settings_title");
+  auto send=Value("send-reports",loc::T("reports.setting"),preferences_.sendProblemReports?loc::T("common.on"):loc::T("common.off"),
+   loc::Tf("reports.setting_detail",reports::AutomaticPerDay)+"\n\n"+loc::T("reports.payload")+"\n\n"+loc::T("reports.what_is_sent"),v.canEditPreferences);
+  send.reading=true;
+  rows={send,Row("sent-reports",loc::T("reports.sent_list"),loc::T("reports.sent_list_detail"))};
+  rows.back().value=std::to_string(v.services.sentReports.size());
+ }else if(screen=="sent-reports"){
+  // Newest first: when, how it went, and the ID the report service gave it.
+  title=loc::T("reports.sent_list");
+  const auto& sent=v.services.sentReports;
+  // An unreadable record says so first: it is why nothing goes without asking.
+  if(!v.services.sentReadable)rows.push_back(InfoRow("sent-unreadable",loc::T("reports.history_unreadable"),"",loc::T("reports.history_unreadable_detail")));
+  for(std::size_t i=sent.size();i-->0;)
+   rows.push_back(InfoRow("sent-"+std::to_string(i),ReportTime(sent[i].time),ReportStatusLabel(sent[i].status),
+    std::string(loc::T(sent[i].kind=="problem"?"reports.row":"reports.crash_report"))+"\n\n"+ReportRecordText(sent[i])));
+  if(rows.empty())rows.push_back(InfoRow("sent-none",loc::T("reports.none"),"",loc::T("reports.none_detail")));
  }else if(screen=="player"){
   title=loc::T("player.title");rows={TextRow("name",loc::T("profile.player_name"),preferences_.displayName,31,v.canEditPreferences),
    Row("capture",loc::T("player.change_controller"),loc::Tf("player.change_controller_detail",v.controller),v.canChangeController),
    ConfirmRow("keyboard",loc::T("player.use_keyboard"),loc::T("player.use_keyboard_detail"),v.canChangeController),
+   Value("background-play",loc::T("player.background_play"),preferences_.backgroundPlay?loc::T("common.on"):loc::T("common.off"),loc::T("player.background_play_detail"),v.canEditPreferences),
+   Value("lower-input-lag",loc::T("player.lower_input_lag"),preferences_.lowerInputLag?loc::T("common.on"):loc::T("common.off"),loc::T("player.lower_input_lag_detail"),v.canEditPreferences),
+   Value("lower-keyboard-lag",loc::T("player.lower_keyboard_lag"),preferences_.lowerKeyboardLag?loc::T("common.on"):loc::T("common.off"),loc::T("player.lower_keyboard_lag_detail"),v.canEditPreferences),
+   Value("faster-display",loc::T("player.faster_display"),preferences_.fasterDisplay?loc::T("common.on"):loc::T("common.off"),loc::T("player.faster_display_detail"),v.canEditPreferences),
    Row("controls",loc::T("player.native_menus"),loc::T("player.native_menus_detail"),idle)};
  }else if(screen=="interface"){
   title=loc::T("settings.interface_title");char size[32];std::snprintf(size,sizeof(size),"%.2fx",preferences_.interfaceScale);
@@ -313,6 +376,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    std::string(loc::NativeName(loc::ResolveLocale(languagePreference_,{},{})));
   rows={Value("hud",loc::T("settings.match_hud"),preferences_.showMatchHud?loc::T("common.on"):loc::T("common.off"),reason,v.canEditPreferences),
    Value("hud-layout",loc::T("settings.match_hud_layout"),MatchStripLayoutName(preferences_.matchHudLayout),loc::T("settings.match_hud_layout_detail"),v.canEditPreferences),
+   Value("hud-name-offset",loc::T("settings.name_offset"),MatchHudNameOffsetText(preferences_.matchHudNameOffset),loc::T("settings.name_offset_detail"),v.canEditPreferences&&preferences_.matchHudLayout==1),
    Value("hud-size",loc::T("settings.match_hud_size"),hudSizes[(std::max)(0,(std::min)(2,preferences_.matchHudSize))],loc::T("settings.match_hud_size_detail"),v.canEditPreferences),
    Value("hud-position",loc::T("settings.match_hud_position"),MatchStripAnchorName(preferences_.matchHudAnchor),loc::T("settings.match_hud_position_detail"),v.canEditPreferences),
    Value("hud-spacing",loc::T("settings.edge_spacing"),preferences_.matchHudRaised?loc::T("spacing.raised"):loc::T("spacing.normal"),loc::T("settings.edge_spacing_detail"),v.canEditPreferences),
@@ -323,6 +387,12 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    Value("language",loc::T("settings.language"),languageValue,languageSaveError_.empty()?std::string(loc::T("settings.language.detail")):languageSaveError_,true)};
   // Select lists the languages by their own names; browsing them changes nothing.
   rows.back().choices=LanguageChoices();rows.back().chosen=languagePreference_;
+ }else if(screen=="training-replays"){
+  title=loc::T("settings.training_replays_title");
+  rows={Value("match-frame-meter",loc::T("settings.match_frame_meter"),preferences_.matchFrameMeter?loc::T("common.on"):loc::T("common.off"),
+    loc::T(match_frame_meter::Allowed(v.room.serverOwned)?"settings.match_frame_meter_detail":"settings.match_frame_meter_private"),v.canEditPreferences),
+   Value("training-auto-ready",loc::T("settings.training_auto_ready"),preferences_.trainingAutoReady?loc::T("common.on"):loc::T("common.off"),loc::Tf("settings.training_auto_ready_detail",room::TrainingCall::ReadyWindowMs/1000),v.canEditPreferences),
+   Value("replay-save-watched",loc::T("replays.save_watched"),preferences_.recordWatched?loc::T("common.on"):loc::T("common.off"),loc::T("replays.save_watched_detail"),v.canEditPreferences)};
  }else if(screen=="discord"){
   title=loc::T("discord.title");rows={Value("presence",loc::T("discord.show_activity"),preferences_.discordPresence?loc::T("common.on"):loc::T("common.off"),v.discordStatus,v.canEditPreferences),
    Value("invites",loc::T("discord.allow_invitations"),preferences_.discordInvites?loc::T("common.on"):loc::T("common.off"),preferences_.discordPresence?loc::T("discord.invitation_detail"):loc::T("discord.enable_first"),v.canEditPreferences&&preferences_.discordPresence)};
@@ -356,8 +426,14 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    reading(Row("credits",loc::T("about.ember"),loc::Tf("about.ember_detail",v.build))),
    reading(Row("font",loc::T("about.font_license"),FontLicense())),Row("diagnostics",loc::T("about.export_diagnostics"),
     outcome({ServiceAction::ExportDiagnostics},loc::T("about.export_diagnostics_detail")),!v.services.pending),
+   Row("problem-report",loc::T("reports.problem"),loc::T("reports.problem_detail"),!v.services.pending),
    ConfirmRow("community",loc::T("about.discord"),
     outcome({ServiceAction::OpenCommunity},loc::Tf("about.discord_detail",platform::CommunityInvite)),!v.services.pending),
+   // The version on this PC and the channel its update checks use, as Home's
+   // corner shows them, above the check itself; the build and how to change
+   // the channel in its pane.
+   InfoRow("version",loc::T("updates.installed_version"),VersionLine(InstalledVersion(v),v.services.channel),
+    (v.build.empty()?std::string(loc::T("updates.installed_version_detail")):loc::Tf("about.version_detail",v.build))+"\n\n"+loc::T("about.channel_detail")),
    Row("updates",loc::T("updates.check"),outcome({ServiceAction::CheckUpdates,ServiceAction::InstallUpdate,ServiceAction::OpenUpdater,ServiceAction::OpenRecovery},
     loc::T("about.updates_detail")),!v.services.pending)};
   if(v.services.update.ok&&v.services.update.updateAvailable)rows.push_back(ConfirmRow("updater",loc::T("about.open_updater"),loc::T("about.open_updater_detail"),v.canEditPreferences&&!v.services.pending));
@@ -368,7 +444,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
 }
 std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,const std::string& screen,bool opening,bool healthyRoom,std::string& title) {
  using namespace netplay;
- const bool personal=screen=="profile"||screen=="main-character"||screen=="settings"||screen=="player"||screen=="defaults"||screen=="interface"||screen=="discord"||screen=="steam";
+ const bool personal=screen=="profile"||screen=="main-character"||screen=="settings"||screen=="player"||screen=="defaults"||screen=="interface"||screen=="training-replays"||screen=="discord"||screen=="steam"||screen=="problem-reports";
  std::string status=saveFailed_?loc::T("common.save_failed"):v.settingsPending||preferencesDirty_||saveQueued_||languageDirty_?loc::T("common.saving"):personal?loc::T("common.saved"):"";
  // Severity travels with the status string. This line is the shell's only
  // feedback channel, so a failure must not render like ordinary text.
@@ -378,12 +454,18 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
   status=OpeningCreates(v)?loc::T("room.creating_status"):loc::T("room.joining_status");statusTone=Tone::Pending;
  }
  // Chat keeps the board's line, so a lost connection shows while typing.
+ if(screen=="room"&&status.empty()){
+  const auto place=room::PlaceOf(v.room,v.room.localMember);
+  if(place.kind==room::Place::Kind::Seat){
+   const auto deadline=room_controls::DescribeReadyDeadline(v,v.room.tables[place.table]);
+   if(deadline.seat==place.seat){status=deadline.text;statusTone=Tone::Pending;}
+  }
+ }
  if((screen=="room"||screen=="room-chat")&&status.empty()){
   const bool healthy=v.session.control==Health::Healthy;
   status=!healthy?std::string(loc::T("room.reconnecting")):v.room.tournament.Active()?
    loc::Tf("room.tournament_status",static_cast<int>(v.room.tournament.gamesToWin)):
-   std::string(loc::T(v.room.serverOwned?(v.room.locked?"room.public_locked_status":"room.public_status"):
-    v.room.locked?"room.locked_status":"room.private_status"));
+   std::string(loc::T(RoomStatusKey(v.room)));
   if(!healthy)statusTone=Tone::Pending;
  }
  if(screen=="room-table"){
@@ -414,6 +496,10 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
    statusTone=Tone::Pending;
   }
   else if(table.phase==room::TablePhase::Closed)status=loc::T("room.table_closed");
+  const auto deadline=room_controls::DescribeReadyDeadline(v,table);
+  if(seatedLocal&&deadline.seconds&&(deadline.seat?table.p2:table.p1)==v.room.localMember){
+   status=deadline.text;statusTone=Tone::Pending;
+  }
  }
  // A tournament room says what its next game waits for: the other fighter,
  // or the tournament service's go-ahead.
@@ -459,6 +545,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
      ((!RoomActionsAvailable(v)&&!RoomCheckpointPending(v))||(roomUpdateVisible_&&!seatedTableStatus)) && !committedMatchStatus &&
      !v.controllerUnavailable&&sessionProblem.empty()&&v.error.empty()&&error_.empty())))
   {status=RoomWaitReason(v);statusTone=Tone::Pending;}
+ if(ReplaysPanel::Owns(screen))replays_.Status(v,screen,status,statusTone);
  return {status,statusTone};
 }
 void ApplicationShell::PublishPlayerCard(const ShellView& v) {
@@ -482,13 +569,19 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
   if(a.id=="pr-setup-id"){identity_.ClearPublicSetup();nav.Push("identity");return;}
   if(publicRooms_.Activate(a,nav))return;
  }
+ if(ReplaysPanel::Owns(screen)&&replays_.Activate(a,v,nav,submit,error_))return;
  // An opening room keeps its own screen, with its Stop row, until it joins.
  if(a.id=="online")nav.Push(idle?"online":v.session.room==RoomState::Opening?OpeningScreen(v):"room");
  else if(a.id=="discord-invitation")nav.Push(a.id);
+ // The matches screen, by way of Online play and Ember ID so Back goes there.
+ else if(a.id=="home-matches"){nav.Push("online");nav.Push("identity");nav.Push("tournament-matches");}
  else if(a.id=="profile"||a.id=="main-character")nav.Push(a.id);
  else if(a.id.compare(0,5,"main-")==0&&v.canEditPreferences){preferences_.mainFighter=std::stoi(a.id.substr(5));preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?"roster":"";nav.Push(a.id);}
- else if(a.id=="settings"||a.id=="about"||a.id=="create"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="discord"||a.id=="steam"||a.id=="identity"||a.id=="developer")nav.Push(a.id);
+ else if(a.id=="replays")nav.Push(a.id);
+ else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
+ else if(a.id=="create")OpenCreate();
+ else if(a.id=="settings"||a.id=="about"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="training-replays"||a.id=="discord"||a.id=="steam"||a.id=="identity"||a.id=="developer"||a.id=="problem-reports"||a.id=="sent-reports")nav.Push(a.id);
  else if(a.id=="pr-create"||a.id=="pr-none")OpenPublicCreate();
  else if(a.id=="host"&&preferences_.roomPublic){error_.clear();publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,preferences_.publicTableRules);}
  else if(a.id=="host"||a.id=="join-now")Send(a.id=="host"?CommandKind::HostRoom:CommandKind::JoinInvite,v,submit);
@@ -499,6 +592,9 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="invite-cancel"||a.id=="invite-switch"){ShellAction r;r.command.generation=v.session.generation;r.discordRevision=v.discordRevision;r.discordAction=a.id=="invite-cancel"?discord::InviteAction::Cancel:discord::InviteAction::Switch;if(!submit(std::move(r)))error_=loc::T("error.invitation_changed");}
  else if(a.id=="retry-save"){saveFailed_=false;retrySave_=true;preferencesDirty_=true;saveAt_=0;error_.clear();}
  else if(a.id=="diagnostics")Service(platform::ServiceAction::ExportDiagnostics,v,submit);
+ else if(a.id=="problem-report"){
+  if(Service(platform::ServiceAction::PrepareProblemReport,v,submit)){reportPanel_.Open(v.services.reporting.preparation + 1);menu_.navigation.Push("report");}
+ }
  else if(a.id=="ready-test"){
   // The volume on screen, which may not be saved yet.
   ShellAction r;r.command.generation=v.session.generation;r.previewSoundVolume=preferences_.readySoundVolume;
@@ -516,6 +612,9 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
  else if(IdentityPanel::Owns(screen))identity_.Accept(a,v);
  else if(a.id=="invite-text")std::snprintf(invitation_,sizeof(invitation_),"%s",a.text.c_str());
  else if(a.id=="language")SetLanguage(std::string(loc::NextPreference(languagePreference_,a.delta)));
+ else if(ReplaysPanel::Owns(screen))replays_.Accept(a);
+ // Create's own choice, never one of the saved preferences.
+ else if(a.id=="practice-room")createPractice_=a.delta>0;
  else{
   auto prior=preferences_;
   if(a.id=="name")preferences_.displayName=a.text;else if(a.id=="room-name")preferences_.roomName=a.text;
@@ -526,16 +625,25 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
    preferences_.autoInputDelay=next==AutoInputDelayChoice;if(!preferences_.autoInputDelay)preferences_.inputDelay=next;
   }
   else if(a.id=="hud-layout")preferences_.matchHudLayout=(std::max)(0,(std::min)(1,preferences_.matchHudLayout+a.delta));
+  else if(a.id=="hud-name-offset")preferences_.matchHudNameOffset=(std::max)(-netplay::MaxMatchHudNameOffset,(std::min)(netplay::MaxMatchHudNameOffset,preferences_.matchHudNameOffset+2*a.delta));
   else if(a.id=="hud-size")preferences_.matchHudSize=(std::max)(0,(std::min)(2,preferences_.matchHudSize+a.delta));
   else if(a.id=="hud-position")preferences_.matchHudAnchor=(std::max)(0,(std::min)(4,preferences_.matchHudAnchor+a.delta));
   else if(a.id=="hud-spacing")preferences_.matchHudRaised=a.delta>0;
   else if(a.id=="ready-sound")preferences_.readySound=a.delta>0;
+  else if(a.id=="training-auto-ready")preferences_.trainingAutoReady=a.delta>0;
+  else if(a.id=="match-frame-meter")preferences_.matchFrameMeter=a.delta>0;
+  else if(a.id=="background-play")preferences_.backgroundPlay=a.delta>0;
+  else if(a.id=="lower-input-lag")preferences_.lowerInputLag=a.delta>0;
+  else if(a.id=="lower-keyboard-lag")preferences_.lowerKeyboardLag=a.delta>0;
+  else if(a.id=="faster-display")preferences_.fasterDisplay=a.delta>0;
+  else if(a.id=="replay-save-watched")preferences_.recordWatched=a.delta>0;
   else if(a.id=="ready-volume")preferences_.readySoundVolume=(std::max)(10,(std::min)(100,preferences_.readySoundVolume+10*a.delta));
   else if(a.id=="scale")preferences_.interfaceScale=(std::max)(1.f,(std::min)(1.5f,preferences_.interfaceScale+.05f*a.delta));
   else if(a.id=="hud")preferences_.showMatchHud=a.delta>0;else if(a.id=="presence")preferences_.discordPresence=a.delta>0;
   else if(a.id=="invites")preferences_.discordInvites=a.delta>0;
   else if(a.id=="steam-presence")preferences_.steamPresence=a.delta>0;
   else if(a.id=="steam-invites")preferences_.steamInvites=a.delta>0;
+  else if(a.id=="send-reports")preferences_.sendProblemReports=a.delta>0;
   else if(a.id=="visibility"){preferences_.roomPublic=a.delta>0;if(preferences_.roomPublic)ApplyPublicDefaultName();} // UpdatePublicBridge asks the Ember ID for what Public needs
   else AdjustRule(screen=="create"&&preferences_.roomPublic?preferences_.publicTableRules:preferences_.tableRules,a);
   if(!preferences_.Valid()){preferences_=prior;error_=loc::T("error.invalid_value");}
@@ -560,10 +668,13 @@ void ApplicationShell::UpdatePublicBridge(const ShellView& v,const std::string& 
 }
 
 // Create public room opens Create on Public, which stays the default until changed.
+void ApplicationShell::OpenCreate() {
+ createPractice_=false;menu_.navigation.Push("create");
+}
 void ApplicationShell::OpenPublicCreate() {
  if(!preferences_.roomPublic){preferences_.roomPublic=true;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
  ApplyPublicDefaultName();
- error_.clear();menu_.navigation.Push("create");
+ error_.clear();OpenCreate();
 }
 // The room still has the private default name, which would list as "Private room":
 // a public room is named for its host instead, within the name's own limit.
@@ -595,7 +706,7 @@ void ApplicationShell::SetLanguage(std::string preference) {
  languageDirty_=true;languageSaveError_.clear();languageSaveAt_=ImGui::GetTime()+.45;
 }
 void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,const Submit& submit) {
- Conceal();
+ Conceal();hidden_=true;
  // Not read: the player is not looking at Chat while Ember is hidden, whatever screen it was left on.
  ObserveChat(v,room);
  identity_.Hidden(v,submit,ImGui::GetTime());
@@ -605,6 +716,18 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  using namespace netplay; auto& nav=menu_.navigation;
  const double now = ImGui::GetTime();
  if(!languageSeeded_){languagePreference_=loc::ValidPreference(v.languagePreference)?v.languagePreference:"auto";languageSeeded_=true;}
+ // Called out of Training: the player's own table is shown, where the Ready
+ // row carries the time left, and a player who asked for it is readied.
+ if(v.trainingCallSequence!=trainingCallSeen_||v.trainingReadySequence!=trainingReadySeen_){
+  const auto place=room::PlaceOf(v.room,v.room.localMember);
+  const bool seated=v.session.room==RoomState::Joined&&place.kind==room::Place::Kind::Seat&&place.table>=0&&place.table<static_cast<int>(v.room.tables.size());
+  if(seated&&v.trainingCallSequence!=trainingCallSeen_)OpenTableOptions(v,place.table);
+  trainingCallSeen_=v.trainingCallSequence;
+  // The Ready waits for the runtime's gate, and ends with the seat or the window.
+  // A refused submit keeps the request, since the runtime asks for the Ready only once.
+  if(!seated||v.trainingReadySeconds<=0)trainingReadySeen_=v.trainingReadySequence;
+  else if(v.trainingReadySequence!=trainingReadySeen_&&v.canReady){selectedTable_=place.table;if(Send(CommandKind::Ready,v,submit))trainingReadySeen_=v.trainingReadySequence;}
+ }
  if(lastUiTime_ >= 0 && now < lastUiTime_) {
   // DX9 reset recreates ImGui, but these deadlines belong to the surviving shell.
   // Keep raw-clock users in RoomAction in the same epoch, including queued saves.
@@ -640,7 +763,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  UpdateRoomTransitions(v,now);
  TrackLiveGames(v,now);
  TrackLockIn(v,now);
- UpdateChat(v);
+ UpdateChat(v,submit);
  const bool healthyRoom=UpdateRoomFeedback(v);
  UpdatePreferenceSave(v,submit);
  UpdateShortCopy(v,now);
@@ -656,6 +779,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  }
  if(v.discordPending&&inviteRevision_!=v.discordRevision){inviteRevision_=v.discordRevision;nav.Push("discord-invitation");}
  if(!v.discordPending&&nav.Screen()=="discord-invitation")nav.Return();
+ // A replay link takes the menu to its question only with no room: in a room the menu is the room's, and the link waits until it is left.
+ replays_.Update(v,nav);
  if(v.inputCapture!=input::Capture::Idle&&nav.Screen()!="assignment")nav.Push("assignment");
  if(v.inputCapture==input::Capture::Idle&&nav.Screen()=="assignment")nav.Return();
  identity_.Update(v,nav.Screen(),submit,now);
@@ -680,7 +805,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   matchLinkSequence_=v.tournament.link.sequence;
   identity_.OpenMatch(v.tournament.link.bridge,v.tournament.link.match);
   if(v.session.room==RoomState::Idle){
-   if(nav.Screen()!="tournament-matches"){nav.Home();nav.Push("identity");nav.Push("tournament-matches");}
+   if(nav.Screen()!="tournament-matches"){nav.Home();nav.Push("online");nav.Push("identity");nav.Push("tournament-matches");}
    notice_=loc::T("tournament.link_opened");noticeTone_=Tone::Success;
   }else{notice_=loc::T("tournament.link_waiting");noticeTone_=Tone::Pending;}
   noticeUntil_=now+15;
@@ -703,7 +828,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   // during play or waited for a room asks first.
   const bool fresh=!pendingConnectStale_&&!v.tournament.connect.confirm;
   identity_.OpenDiscord(pendingConnect_,fresh);pendingConnect_.clear();pendingConnectStale_=false;
-  if(nav.Screen()!="discord-connect"){nav.Home();nav.Push("identity");nav.Push("discord-connect");}
+  if(nav.Screen()!="discord-connect"){nav.Home();nav.Push("online");nav.Push("identity");nav.Push("discord-connect");}
  }
  const auto* vp=ImGui::GetMainViewport();ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);
@@ -727,6 +852,15 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   ImGui::End();ImGui::PopStyleVar(2);return;
  }
  const std::string screen=nav.Screen();std::string title=loc::T("shell.home_title");
+ if(screen=="report") {
+  const auto intent=reportPanel_.Draw(v.services,error_.empty()?v.error:error_);
+  if(intent.service!=platform::ServiceAction::None){
+   ShellAction action;action.service=intent.service;action.reportSubmission=intent.submission;action.command.generation=v.session.generation;
+   if(!submit(std::move(action)))error_=loc::T("error.queue_failed");else error_.clear();
+  }
+  if(intent.close)nav.Return();
+  ImGui::End();ImGui::PopStyleVar(2);return;
+ }
  const bool idle=v.session.room==RoomState::Idle, opening=v.session.room==RoomState::Opening;
  std::vector<MenuEntry> rows=BuildRows(v,screen,idle,opening,selection,developer,title);
  if(saveFailed_){
@@ -773,7 +907,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   ImGui::TextUnformatted(loc::T("settings.preview"));
   MatchStripView preview;preview.names[0]=loc::T("settings.player_one");preview.names[1]=loc::T("settings.player_two");
   preview.pingMs=68;preview.rollbackFrames=2;preview.appliedDelay=3;
-  preview.size=preferences_.matchHudSize;preview.raised=preferences_.matchHudRaised;preview.anchor=preferences_.matchHudAnchor;preview.layout=preferences_.matchHudLayout;
+  preview.size=preferences_.matchHudSize;preview.raised=preferences_.matchHudRaised;preview.anchor=preferences_.matchHudAnchor;preview.layout=preferences_.matchHudLayout;preview.nameOffset=preferences_.matchHudNameOffset;
   preview.spectators=2;
   DrawMatchStripPreview(preview);
  };
@@ -788,7 +922,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // Home renders its status in the small-print line below the list instead.
  const bool stableFeedback=screen!="home";
  // With the message box holding the keyboard, F, T and C type letters, so the keys are not offered there.
- if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints=screen=="room-chat"&&keys&&RoomActionsAvailable(v)?std::vector<LegendHint>{}:roomHints;
+ menu_.typesText=roomScreen&&screen=="room-chat"&&v.room.roomEpoch&&ChatTypable(v);
+ if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints=menu_.typesText&&keys?std::vector<LegendHint>{}:roomHints;
  else if(PublicRoomsPanel::Owns(screen)&&publicRooms_.Refreshable(v))menu_.shortcutHints={{keys?"T":"Y",loc::T("legend.refresh")}};
  else menu_.shortcutHints.clear();
  // The keyboard leaves a seat with Delete, so Escape keeps its own word.
@@ -797,6 +932,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // Back names where it goes when that is not simply the previous screen:
  // from Home, out of Ember or back to the room; on the board, out of your seat.
  menu_.exitName.clear();menu_.backHint.clear();
+ // Home's corner says which version this is and which channel it follows.
+ menu_.footerNote=screen=="home"?VersionLine(InstalledVersion(v),v.services.channel):std::string();
  if(screen=="home"){
   menu_.exitName=opening?MenuScreenLabel(OpeningScreen(v)):loc::T("screen.game");
   menu_.backHint=loc::Tf("menu.return_to",menu_.exitName);
@@ -823,6 +960,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   else if(IdentityPanel::Owns(screen))identity_.Accept(a,v);
   else if(PublicRoomsPanel::Owns(screen))publicRooms_.Choose(a);
   else if(a.id=="language")SetLanguage(a.text);
+  else if(ReplaysPanel::Owns(screen))replays_.Choose(a,v,menu_.navigation,submit,error_);
  }else if(a.kind==MenuAction::Activate){
   HandleActivate(a,v,screen,idle,submit);
  }else if(a.kind==MenuAction::Adjust||a.kind==MenuAction::TextAccepted){

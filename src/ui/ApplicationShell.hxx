@@ -1,4 +1,7 @@
 #pragma once
+#include "../common/ReplayInputDetails.hxx"
+#include "../common/ReplayRequest.hxx"
+#include "../common/TrainingEntry.hxx"
 #include "../common/GameDisplayConfig.hxx"
 #include "../discord/Presence.hxx"
 #include "../platform/SteamRuntime.hxx"
@@ -17,11 +20,14 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <memory>
 #include <optional>
 #include "ChatTranscript.hxx"
 #include "GameMenu.hxx"
 #include "IdentityPanel.hxx"
 #include "PublicRoomsPanel.hxx"
+#include "ReplaysPanel.hxx"
+#include "ProblemReportPanel.hxx"
 
 namespace sf4e { namespace ui {
 
@@ -32,6 +38,8 @@ struct ShellView {
     bool controllerUnavailable = false;
     netplay::Snapshot session;
     room::Snapshot room;
+    // The room events the chat shows that no snapshot carries (ChatTranscript).
+    std::vector<RoomNotice> roomNotices;
     netplay::PlayerPreferences preferences;
     netplay::LobbySettings lobbySettings;
     bool helperReady = false, canOpenRoom = false, canReady = false;
@@ -103,7 +111,16 @@ struct ShellView {
     // (-1: none), and a sequence that changes per change.
     int opponentChangedFighter = -1;
     std::uint64_t opponentChangeSequence = 0;
+    // Called out of Training to the player's table (RuntimeSnapshot's fields
+    // of the same names): show the table, ready the player, the seconds left
+    // to ready, and whether Training can be entered from the room.
+    std::uint64_t trainingCallSequence = 0, trainingReadySequence = 0;
+    int trainingReadySeconds = 0;
+    bool canTrain = false;
     int selectedFighter = 0;
+    // This PC fights in a Practice match now (input::MenuContext::PracticeMatch):
+    // Ember's menu is open over the fight, and End practice ends the game.
+    bool practiceFight = false;
     // The Ember identity (RuntimeSnapshot::identity and its request fields).
     netplay::IdentityView identity;
     std::uint64_t identityTicket = 0, identityRequest = 0;
@@ -112,16 +129,26 @@ struct ShellView {
     netplay::tournament::Status tournament;
     // The bridge's public rooms and the answer to the last create or ticket request.
     netplay::publicrooms::Status publicRooms;
+    // Ember's replay archive, newest first, and what the runtime says of
+    // replays (RuntimeSnapshot::Replays, ui/ReplaysView.hxx), as published.
+    // A replay link's file waits there until the player answers: the Replays
+    // screen opens with the question as its first row.
+    ReplaysView replays;
 };
 
 // The count on a Chat control: a rounded badge ending at `right` (screen x), its top at `top`, the
 // height of a line of text. UnreadBadgeWidth is what it takes, for the text beside it to leave room.
 float UnreadBadgeWidth(unsigned count);
 void DrawUnreadBadge(float right,float top,unsigned count);
+// "Ready in N s" for a player called out of Training: ShellView::trainingReadySeconds, in words.
+std::string TrainingReadyText(int seconds);
 
 struct ShellAction {
     netplay::Command command{netplay::CommandKind::HostRoom};
     platform::ServiceAction service = platform::ServiceAction::None;
+    // With ShowReplayFile: the archived replay, as its row names it, whose folder opens.
+    std::string servicePath;
+    reports::Submission reportSubmission;
             input::Action inputAction = input::Action::None;
     discord::InviteAction discordAction = discord::InviteAction::None;
     std::uint64_t discordRevision = 0;
@@ -132,6 +159,9 @@ struct ShellAction {
     int previewSoundVolume=-1;
     // Asks for the room's short link; nothing else is sent.
     bool shortInvitation=false;
+    // Leave a joined room's menu for Training mode (common/TrainingEntry.hxx);
+    // sent alone. The runtime decides whether it still holds.
+    TrainingEntry training=TrainingEntry::None;
     // Steps the chosen Ultra or color by delta (the table page's Ultra and
     // Appearance rows); the overlay applies it to the pick, and nothing is sent.
     struct SelectionStep {
@@ -149,7 +179,17 @@ struct ShellAction {
     std::optional<room::Rules> createdRules;
     // Invite a Steam friend to the current room's short link; 0 otherwise.
     std::uint64_t steamInviteFriendId = 0;
+    // With HostRoom: the room is a Practice room for its life (room::Snapshot::practice).
+    bool practiceRoom = false;
+    // What the Replays screen asks of the game: an archived replay (its
+    // file, as its row names it) to add or to watch, the game's own list, or
+    // no to a replay link. Nothing is sent to the room.
+    replay::Request replay;
 };
+
+// Why the room chat can or cannot send now (ChatGateOf). Only Writable lets a message go; Recovering and
+// CatchingUp hold one the player entered (queuedChat_) until the room can take it.
+enum class ChatGate { NotJoined, Recovering, CatchingUp, Writable };
 
 class ApplicationShell {
 public:
@@ -162,11 +202,21 @@ public:
         if(previousRoomState_==netplay::RoomState::Idle)menu_.navigation.Home();
     }
     MenuNavigation& Navigation() { return menu_.navigation; }
+    // The game's battle log, opened from Replays, is back at the main menu: Replays again.
+    void ShowReplays() { ReplaysPanel::Show(menu_.navigation); }
+    // What the screen on show needs the replay workers to read (ReplaysPanel::Wanted).
+    ReplaysPanel::Wants ReplayWants() const { return replays_.Wanted(menu_.navigation.Screen()); }
+    // The replay file the Inputs and stats screen wants read, as its row named it.
+    const std::string& ReplayInputsFile() const { return replays_.InputsFile(); }
+    std::uint64_t ReplayInputsRevision() const { return replays_.InputsRevision(); }
     // A modal notice is open, and whether it reads as an error (for tests).
     bool NoticeOpen() const { return menu_.NoticeOpen(); }
     bool NoticeError() const { return menu_.NoticeError(); }
     // What this client keeps of the room chat (for tests).
     const ChatTranscript& Transcript() const { return transcript_; }
+    // The room chat's unread count, as the room screen's Chat row shows it.
+    // Kept while the shell is hidden (Background), so the training HUD can say it.
+    unsigned UnreadChat() const { return transcript_.Unread(muted_); }
     // The shell is not being drawn (the overlay is hidden): nothing typed into
     // a passphrase field may wait in it until it next opens.
     void Conceal() {
@@ -179,13 +229,16 @@ public:
         if (menu_.navigation.EditingSecret()) menu_.navigation.Cancel();
     }
     // Every frame Ember is hidden: Conceal, then the identity requests that
-    // must still finish, with only the session and identity of `view` read,
-    // and `room` taken into the chat transcript as a drawn frame takes it.
+    // must still finish, with only the session, identity and room notices of
+    // `view` read, and `room` taken into the chat transcript as a drawn frame
+    // takes it.
     void Background(const ShellView& view, const room::Snapshot& room, const Submit& submit);
     // Where the language preference is written; the platform store unless a
     // test supplies its own to fail it.
     using LanguageSaver = std::function<bool(const std::string& preference, std::string& diagnostic)>;
     void SetLanguageSaver(LanguageSaver saver) { languageSaver_ = std::move(saver); }
+    // Where chat availability changes are written; nowhere unless the overlay or a test supplies one.
+    void SetChatLog(std::function<void(const std::string&)> log) { chatLog_ = std::move(log); }
     // Where the tournament matches already announced are kept; the platform store unless a test supplies its own.
     void SetAnnouncedStore(IdentityPanel::AnnouncedLoader loader, IdentityPanel::AnnouncedSaver saver) {
         identity_.SetAnnouncedStore(std::move(loader), std::move(saver));
@@ -195,6 +248,8 @@ private:
     GameMenu menu_;
     IdentityPanel identity_;
     PublicRoomsPanel publicRooms_;
+    ReplaysPanel replays_;
+    ProblemReportPanel reportPanel_;
     // Parts of Draw, in the order it runs them.
     void UpdateRoomTransitions(const ShellView& view,double now);
     bool UpdateRoomFeedback(const ShellView& view);
@@ -228,6 +283,8 @@ private:
         const auto kind=publicRooms_.OpeningKind();
         return kind?*kind==PublicRoomsPanel::OpenKind::Create:view.session.isHost;
     }
+    // The Create screen, with Practice room off (createPractice_).
+    void OpenCreate();
     // Create on Public: Create public room, the empty list's card and Quick join's notice all open it.
     void OpenPublicCreate();
     // A public room still named with the default is named for its host.
@@ -262,7 +319,10 @@ private:
     // own body (DrawChatScreen); the board's Recent chat panel shows the same lines. ObserveChat takes
     // in the room every frame, drawn or hidden; UpdateChat is the drawn frame's, which also reads it.
     void ObserveChat(const ShellView& view,const room::Snapshot& room);
-    void UpdateChat(const ShellView& view);
+    void UpdateChat(const ShellView& view,const Submit& submit);
+    // Sends the message the player queued once the room can take it (see queuedChat_).
+    void FlushChat(const ShellView& view,const Submit& submit);
+    void NoteChatGate(ChatGate gate,double now);
     void DrawChatLog(const ShellView& view,bool compact);
     void DrawChatScreen(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                         const MenuVisualFeedback& feedback);
@@ -274,6 +334,20 @@ private:
     struct PendingChat { std::string text; std::uint64_t after = 0; double since = 0; };
     std::optional<PendingChat> pendingChat_;
     bool ChatInFlight(double now) const { return pendingChat_ && now >= pendingChat_->since && now - pendingChat_->since <= 8; }
+    // A message entered while the room could not take it, apart from the draft the player keeps editing and
+    // from pendingChat_, whose receipt is still looked for. It goes out once, when the room can (FlushChat),
+    // and no other is accepted until then. A retry of text that arrives first is not sent. It stays held
+    // until the runtime has taken it: a refused submission is tried again after a second, then after one
+    // more each time, to at most MaximumChatRetrySeconds. It lasts as long as the member is in the same open
+    // room, whether or not Ember is shown.
+    struct QueuedChat { std::string text; double retryAt = 0; unsigned attempts = 0; };
+    static constexpr double MaximumChatRetrySeconds = 5;
+    std::optional<QueuedChat> queuedChat_;
+    // Chat availability changes go to the log at most once a second, with how many they cover.
+    ChatGate chatGate_ = ChatGate::NotJoined, chatGateLogged_ = ChatGate::NotJoined;
+    double chatGateLoggedAt_ = -1e9;
+    unsigned chatGateChanges_ = 0;
+    std::function<void(const std::string&)> chatLog_;
     // The Chat screen has been drawn since the player last left it.
     bool chatOpen_=false;
     // The text the message box last held. ImGui ignores the buffer it is given while the box has the
@@ -295,6 +369,9 @@ private:
     bool roomUpdateVisible_ = false;
     std::map<std::string,std::string> roomDetails_;
     char invitation_[4097] = {};
+    // Create's Practice room choice for the private room it opens. Never saved:
+    // every visit to Create starts with it off.
+    bool createPractice_ = false;
     bool preferencesDirty_ = false;
     bool publicBridgeAsked_ = false; // the public-room service was asked for in this stay on a screen that needs it
     // Quick join's notice chose Create room: Draw opens it on the next frame, outside the menu's own draw.
@@ -343,6 +420,10 @@ private:
     // that arrived while the player was free joins by itself, for as long
     // as the runtime offers that.
     std::uint64_t joinLinkSeen_=0;
+    // Ember was hidden on the last frame (Background): the next drawn one opens it.
+    bool hidden_=true;
+    // The training call's sequences as last acted on.
+    std::uint64_t trainingCallSeen_=0,trainingReadySeen_=0;
     std::string joinLink_;
     bool joinLinkDirect_=false;
     // A public room link from the browser: the last one seen, and whether
@@ -358,7 +439,10 @@ private:
     char roomName_[65] = {}, chat_[257] = {};
     room::Rules tableRules_;
     bool rulesDirty_ = false;
+    // Members this client muted, in the room of mutedEpoch_ only: an id names
+    // someone else in another room (ObserveChat clears them on a new room).
     std::set<room::MemberId> muted_;
+    std::uint64_t mutedEpoch_ = 0;
     bool Service(platform::ServiceAction action, const ShellView& view, const Submit& submit);
     bool SendRoom(room::Action action, const ShellView& view, const Submit& submit);
     bool Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit);

@@ -113,9 +113,10 @@ namespace sf4e {
 			std::function<std::uint64_t(session::Connection)> incarnation = {});
 		// Enables the multi-table room authority while retaining the legacy
 		// two-player path until this method is called by the room bootstrap.
+		// practice makes it a Practice room for its life (room::Snapshot::practice).
 		void EnableCustomRooms(const std::string& name = "Private room",
 			std::uint8_t capacity = static_cast<std::uint8_t>(room::MaximumMembers),
-			std::uint64_t roomEpoch = 1, room::Rules defaults = room::Rules());
+			std::uint64_t roomEpoch = 1, room::Rules defaults = room::Rules(), bool practice = false);
 		// Server-owned mode, for a room host process with no player host: no
 		// connection is the local host, and every join names an account (the
 		// player's Ember ID) that the embedding process supplied for that
@@ -158,6 +159,8 @@ namespace sf4e {
 		// which is what bounds its encoded size.
 		bool RestoreRecoveryCheckpoint(const nlohmann::json& checkpoint,
 			std::vector<session::EffectEnvelope> journal, const session::AuthorityStamp& authority);
+		// Which part of the checkpoint the last refused restore stopped at.
+		const std::string& RestoreRefusal() const { return _restoreRefusal; }
 
 		// Root/helper authority bridge. A proposal is made only after the owner
 		// has privately applied a poll/timer command and journaled its effects.
@@ -218,10 +221,12 @@ namespace sf4e {
 		// is tracked separately so UI/native projections remain CID-compatible.
 		std::map<room::MemberId, std::string> roomPeerIdentities;
 		std::map<room::MemberId, std::uint64_t> roomIncarnations;
-		// A spectator can leave after native Started while its frozen slot and
-		// departed endpoint remain in MatchAuthority. Keep that stable tombstone
-		// outside the public RoomModel roster so portable recovery can restore the
-		// authority without treating the departed peer as a live room member.
+		// A member can leave while a match authority still names it: a Started
+		// spectator keeps its frozen slot, and one that left before the start stays
+		// a departed participant until the generation ends. Keep that stable
+		// tombstone outside the public RoomModel roster so portable recovery can
+		// restore the authority without treating the departed peer as a live room
+		// member.
 		struct FrozenMember {
 			room::ConnectionRef endpoint;
 			SessionProtocol::MemberData data;
@@ -239,6 +244,8 @@ namespace sf4e {
 		std::uint64_t _incarnation = 1;
 		session::SessionRecoveryGate _recovery;
 		mutable std::uint64_t _recoveryCheckpointBuilds = 0;
+		std::string _restoreRefusal;
+		bool RefuseRestore(std::string part) { _restoreRefusal = std::move(part); return false; }
 		bool _recoveryCandidateReady = false;
 		bool _recoveryFlushing = false;
 		nlohmann::json _recoveryBaseline;
@@ -303,6 +310,8 @@ namespace sf4e {
 		bool RestoreRecoveryState(const nlohmann::json& checkpoint,
 			std::vector<session::EffectEnvelope> journal, const session::AuthorityStamp* authority);
 		void CaptureFrozenMember(room::MemberId member, const room::Snapshot& prior);
+		// Whether any match authority still names this endpoint as a participant.
+		bool MatchAuthorityNames(const SessionProtocol::ConnectionID& endpoint) const;
 		// Drops a member the room removed: its connection, identity and slots.
 		void ForgetRoomMember(room::MemberId member);
 		void PruneFrozenMembers();
@@ -317,6 +326,13 @@ namespace sf4e {
 		// The last departure from a server-owned room was a Leave that emptied it.
 		bool _serverOwnedLeftEmpty = false;
 		std::map<std::uint8_t, SessionProtocol::MatchData> _roomMatchData;
+		// Who sits at each table, P1 then P2. A table's native match data
+		// (fighters, stage, seed) belongs to the pair that chose it, so after a
+		// room action, a departure or a timer ForgetReseatedMatchData drops it
+		// from every table whose pair is no longer the one in `before`.
+		using SeatedPairs = std::array<std::array<room::MemberId, 2>, room::TableCount>;
+		static SeatedPairs SeatedPairsOf(const room::Snapshot& snapshot);
+		void ForgetReseatedMatchData(const SeatedPairs& before);
 		std::array<std::set<session::Connection>, room::TableCount> _roomBattleLoaded{};
 		std::array<std::set<session::Connection>, room::TableCount> _roomPunchReady{};
 

@@ -14,8 +14,10 @@
 #include "imgui_test_support.hxx"
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <algorithm>
 #include <cstring>
 #include <functional>
+#include <iterator>
 #include <iostream>
 #include <map>
 #include <set>
@@ -25,6 +27,8 @@ using Button=ControllerSample;
 using Kind=sf4e::netplay::CommandKind;
 namespace {
 void Check(bool ok,const char* message){if(!ok)throw std::runtime_error(message);}
+// The fighter drawn right of `fighter` in USFIV's select order, which is where Right goes.
+int DisplayedAfter(int fighter){const int* at=std::find(std::begin(sf4e::selection::RosterDisplayOrder),std::end(sf4e::selection::RosterDisplayOrder),fighter);return at[1];}
 struct Harness {
  ApplicationShell shell;ShellView view;std::vector<ShellAction> actions;bool open=true,accept=true;
  std::function<void()> selection=[]{},developer;
@@ -67,4 +71,11 @@ struct Harness {
  void Choose(const char* id){FocusOn(id);Press(MenuInput::Select);}
  void Screen(const char* id){shell.Navigation().Home();if(std::string(id)!="home")shell.Navigation().Push(id);Frame();}
 };
+// A room this player (member 1) has joined, with its tables numbered, and no
+// more: the generation, the control's health, the host, the members and their
+// seats are each journey's own, set where it joins.
+void JoinedRoom(Harness& h,std::uint64_t epoch){
+ h.view.session.room=sf4e::netplay::RoomState::Joined;h.view.room.roomEpoch=epoch;h.view.room.localMember=1;
+ for(std::size_t i=0;i<h.view.room.tables.size();++i)h.view.room.tables[i].id=static_cast<std::uint8_t>(i);
+}
 }

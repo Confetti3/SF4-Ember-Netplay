@@ -1,13 +1,28 @@
 #include "ApplicationServices.hxx"
+#include "UiPreferencesStore.hxx"
 #include "../common/install_paths.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "../common/Localization.hxx"
+#include "ReplayFiles.hxx"
+#include "ReplayPath.hxx"
+#include "Utf8.hxx"
 #include <windows.h>
 #include <objbase.h>
 #include <shellapi.h>
 #include <filesystem>
 #include <fstream>
 #include <cstring>
+
+namespace {
+// ShellExecute may hand the target to a COM-based handler; give it an apartment.
+bool ShellOpen(const wchar_t* target) {
+    if (!target || !target[0]) return false;
+    const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    const bool opened = reinterpret_cast<INT_PTR>(ShellExecuteW(nullptr, L"open", target, nullptr, nullptr, SW_SHOWNORMAL)) > 32;
+    if (SUCCEEDED(com)) CoUninitialize();
+    return opened;
+}
+}
 
 namespace sf4e { namespace platform {
 std::string DescribeNetwork(const DiagnosticsView& view) {
@@ -41,7 +56,16 @@ std::string DescribeDiagnostics(const DiagnosticsView& view) {
         " | Gameplay direct/relay links: " + std::to_string(view.directLinks) + "/" + std::to_string(view.relayedLinks) +
         " | Route changes/local drops/send pressure: " + std::to_string(view.routeChanges) + "/" + std::to_string(view.localDrops) + "/" + std::to_string(view.sendPressure);
 }
-ApplicationServices::ApplicationServices(std::wstring diagnosticsDirectory) : diagnosticsDirectory_(std::move(diagnosticsDirectory)), worker_(&ApplicationServices::Run, this) {}
+ApplicationServices::ApplicationServices(std::wstring diagnosticsDirectory) : diagnosticsDirectory_(std::move(diagnosticsDirectory)) {
+    char installed[64] = {};
+    launcher::ReadInstalledVersion(installed, sizeof(installed));
+    state_.installedVersion = installed;
+    state_.channel = launcher::ResolveUpdateChannel(UpdateChannelPreference(), installed);
+    history_ = std::make_shared<reports::ReportHistory>(reports::SentReportsPath());
+    const auto history = history_->Load();
+    state_.sentReports = history.sent; state_.sentReadable = history.readable;
+    worker_ = std::thread(&ApplicationServices::Run, this);
+}
 ApplicationServices::~ApplicationServices() {
     Cancel();
     { std::lock_guard<std::mutex> lock(mutex_); stop_ = true; }
@@ -56,31 +80,87 @@ void ApplicationServices::Observe(const DiagnosticsView& diagnostics) {
     if (history.size() == 16) history.erase(history.begin());
     history.push_back(description);
 }
-bool ApplicationServices::Request(ServiceAction action, const DiagnosticsView& diagnostics) {
+bool ApplicationServices::Request(ServiceAction action, const DiagnosticsView& diagnostics, std::wstring target) {
+    if (action == ServiceAction::CancelReport) { Cancel(); return true; }
+    if (action == ServiceAction::SendReport || action == ServiceAction::PrepareCrashReport || action == ServiceAction::ReportCrash) return false;
     std::lock_guard<std::mutex> lock(mutex_);
+    if (stop_ || state_.pending) return false;
+    if (action == ServiceAction::PrepareProblemReport)
+        return QueueReport(action, reports::Preparation{std::nullopt, state_.channel});
+    return Start(action, diagnostics, state_.channel, std::move(target));
+}
+bool ApplicationServices::SwitchUpdateChannel(launcher::UpdateChannel channel) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return Start(ServiceAction::SwitchUpdateChannel, {}, channel);
+}
+bool ApplicationServices::PrepareCrashReport(const reports::CrashContext& crash) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (stop_ || state_.pending) return false;
+    return QueueReport(ServiceAction::PrepareCrashReport, reports::Preparation{crash, state_.channel});
+}
+bool ApplicationServices::ReportCrash(const reports::CrashContext& crash, reports::AutomaticCrash::Consent consent) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (stop_ || state_.pending) return false;
+    return QueueReport(ServiceAction::ReportCrash, reports::AutomaticCrash{consent, crash, state_.channel});
+}
+bool ApplicationServices::SendReport(const reports::Submission& submission) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (stop_ || state_.pending) return false;
+    return QueueReport(ServiceAction::SendReport, submission);
+}
+bool ApplicationServices::QueueReport(ServiceAction action, reports::Operation operation) {
+    if (stop_ || state_.pending || !reports::ReportWorkflow::Begin(operation, state_.reporting)) return false;
+    reportOperation_ = std::move(operation);
+    return Start(action, {}, state_.channel);
+}
+bool ApplicationServices::Start(ServiceAction action, const DiagnosticsView& diagnostics, launcher::UpdateChannel channel, std::wstring target) {
     if (stop_ || state_.pending || action == ServiceAction::None) return false;
     cancelled_ = false;
-    state_.downloadedBytes = state_.totalBytes = 0;
-    request_ = action; diagnostics_ = diagnostics; state_.pending = true; state_.succeeded = false; state_.lastAction = action;
-    state_.message = action == ServiceAction::OpenCommunity ? loc::T("services.opening_community") :
-        action == ServiceAction::CheckUpdates ? loc::T("services.checking") :
+    state_.updateStage = launcher::UpdateStage::Downloading; state_.stageDone = state_.stageTotal = 0;
+    request_ = action; requestChannel_ = channel; diagnostics_ = diagnostics; target_ = std::move(target); state_.pending = true; state_.succeeded = false; state_.lastAction = action;
+    state_.message = reportOperation_ ? state_.reporting.message :
+        action == ServiceAction::OpenCommunity ? loc::T("services.opening_community") :
+        action == ServiceAction::OpenReplayFolder || action == ServiceAction::ShowReplayFile ? loc::T("services.opening_replay_folder") :
+        action == ServiceAction::CheckUpdates || action == ServiceAction::SwitchUpdateChannel ? loc::T("services.checking") :
         action == ServiceAction::ExportDiagnostics ? loc::T("services.exporting") :
         action == ServiceAction::InstallUpdate ? loc::T("services.downloading") : loc::T("services.opening_updater");
     wake_.notify_one(); return true;
 }
 void ApplicationServices::Run() {
     for (;;) {
-        ServiceAction action; DiagnosticsView diagnostics; ServiceSnapshot next;
+        ServiceAction action; DiagnosticsView diagnostics; ServiceSnapshot next; std::wstring target;
+        launcher::UpdateChannel channel;
+        std::optional<reports::Operation> reportOperation;
         {
             std::unique_lock<std::mutex> lock(mutex_);
             wake_.wait(lock, [&] { return stop_ || request_ != ServiceAction::None; });
             if (stop_) return;
-            action = request_; request_ = ServiceAction::None; diagnostics = diagnostics_; next = state_;
+            action = request_; request_ = ServiceAction::None; channel = requestChannel_; diagnostics = diagnostics_; next = state_;
+            target.swap(target_);
+            reportOperation = std::move(reportOperation_); reportOperation_.reset();
         }
         try {
-            if (action == ServiceAction::CheckUpdates) {
-                next.update = launcher::CheckForUpdate(); next.succeeded = next.update.ok;
-                next.message = !next.update.ok ? next.update.error : next.update.updateAvailable ?
+            if (action == ServiceAction::SwitchUpdateChannel) {
+                std::string saveError;
+                if (SaveUpdateChannelPreference(launcher::UpdateChannelName(channel), saveError)) { next.channel = channel; action = ServiceAction::CheckUpdates; }
+                else { next.message = loc::T("common.save_failed"); next.succeeded = false; }
+            }
+            if (reportOperation) {
+                reports::WorkflowDependencies dependencies;
+                dependencies.history = history_;
+                // An automatic send shows as on its way once it is allowed.
+                dependencies.progress = [this](const reports::WorkflowState& reporting) {
+                    std::lock_guard<std::mutex> lock(mutex_); state_.reporting = reporting; state_.message = reporting.message;
+                };
+                next.reporting = reports::ReportWorkflow::Execute(*reportOperation, std::move(next.reporting), [&] { return cancelled_.load(); },
+                    dependencies);
+                const auto history = history_->Load();
+                next.sentReports = history.sent; next.sentReadable = history.readable;
+                next.succeeded = next.reporting.Succeeded(); next.message = next.reporting.message;
+            } else if (action == ServiceAction::CheckUpdates) {
+                next.update = launcher::CheckForUpdate(next.channel); next.succeeded = next.update.ok;
+                next.message = !next.update.ok ? next.update.error : next.update.goesBack ?
+                    loc::Tf("services.go_back_available",next.update.latestVersion) : next.update.updateAvailable ?
                     loc::Tf("services.update_available",next.update.latestVersion) : loc::T("services.up_to_date");
             } else if (action == ServiceAction::ExportDiagnostics) {
                 const auto directory = diagnosticsDirectory_.empty() ? std::filesystem::path(netplay::SettingsStore::DefaultDirectory()) / L"diagnostics" : std::filesystem::path(diagnosticsDirectory_);
@@ -134,32 +214,51 @@ void ApplicationServices::Run() {
                     next.closeGame = next.succeeded = true; next.message = loc::T("services.game_closing");
                 }
             } else if (action == ServiceAction::OpenCommunity) {
-                // ShellExecute may hand the URL to a COM-based handler; give it an apartment.
-                const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
                 const std::wstring url = L"https://" + std::wstring(CommunityInvite, CommunityInvite + std::strlen(CommunityInvite));  // ASCII
-                const auto opened = reinterpret_cast<INT_PTR>(ShellExecuteW(nullptr, L"open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL)) > 32;
-                if (SUCCEEDED(com)) CoUninitialize();
+                const bool opened = ShellOpen(url.c_str());
                 next.succeeded = opened;
                 next.message = opened ? loc::T("services.community_opened") : loc::Tf("services.community_failed", CommunityInvite);
+            } else if (action == ServiceAction::OpenReplayFolder) {
+                const auto folder = replays::FindFolders().archive;
+                std::error_code ignored; std::filesystem::create_directories(folder, ignored);
+                const bool opened = ShellOpen(folder.c_str());
+                next.succeeded = opened;
+                next.message = opened ? loc::Tf("services.replay_folder_opened", WideToUtf8(folder.wstring())) : loc::T("services.replay_folder_failed");
+            } else if (action == ServiceAction::ShowReplayFile) {
+                // The archive's listing named the file; only the folder handles
+                // reach is opened, and only one of the archive by identity. The
+                // replay and its folder stay held through the shell's handoff,
+                // so neither can be moved, emptied or swapped meanwhile
+                // (ReplayPath.hxx: ArchiveFolder).
+                const ArchiveFolder folder = ArchiveFolderOf(target, replays::FindFolders().archive.wstring());
+                const bool opened = !folder.Empty() && ShellOpen(folder.Path().c_str());
+                next.succeeded = opened;
+                next.message = opened ? loc::Tf("services.replay_folder_opened", WideToUtf8(folder.Path())) : loc::T("services.replay_folder_failed");
             } else if (action == ServiceAction::InstallUpdate) {
                 if (!next.update.ok || !next.update.updateAvailable || next.update.expectedSha256.size() != 64) {
                     next.message = loc::T("services.no_verified_update");
                 } else {
-                    const auto result = launcher::DownloadAndApplyUpdate(next.update.zipDownloadUrl.c_str(), next.update.zipApiUrl.c_str(),
-                        next.update.latestVersion.c_str(), next.update.expectedSha256.c_str(),
-                        [&](std::uint64_t received, std::uint64_t total) {
-                            if (cancelled_) return false;
-                            next.downloadedBytes = received; next.totalBytes = total;
+                    const auto result = launcher::DownloadAndApplyUpdate(next.update, cancelled_,
+                        [&](launcher::UpdateStage stage, std::uint64_t done, std::uint64_t total) {
                             std::lock_guard<std::mutex> lock(mutex_);
-                            state_.downloadedBytes = received; state_.totalBytes = total;
-                            return true;
-                        });
+                            if (stage != state_.updateStage) {
+                                state_.updateStage = stage;
+                                state_.message = loc::T(stage == launcher::UpdateStage::Downloading ? "services.downloading" :
+                                    stage == launcher::UpdateStage::Verifying ? "services.verifying" :
+                                    stage == launcher::UpdateStage::Extracting ? "services.extracting" : "services.preparing");
+                            }
+                            state_.stageDone = done; state_.stageTotal = total;
+                        },
+                        loc::T("services.installing"));
                     next.installed = next.succeeded = result.ok;
                     next.message = result.ok ? loc::T("services.update_prepared") : result.error;
                 }
             }
         } catch (...) { next.succeeded = false; next.message = loc::T("services.operation_failed"); }
-        if (cancelled_ && !next.installed) { next.succeeded = false; next.message = loc::T("services.operation_cancelled"); }
+        if (cancelled_ && !next.installed && !reportOperation) {
+            next.succeeded = false;
+            next.message = loc::T("services.operation_cancelled");
+        }
         next.pending = false;
         { std::lock_guard<std::mutex> lock(mutex_); next.connectionHistory = std::move(state_.connectionHistory); state_ = std::move(next); }
     }

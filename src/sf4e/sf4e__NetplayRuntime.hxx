@@ -10,6 +10,7 @@
 //   sf4e__NetplayRuntime__Tournament.cxx  playing a bridge-run tournament match
 //   sf4e__NetplayRuntime__PublicRooms.cxx the bridge's public room list and admissions
 #include "sf4e__NetplayFacade.hxx"
+#include "sf4e__ReplayStore.hxx"
 #include "sf4e__RuntimeBridge.hxx"
 #include "sf4e__InputDevices.hxx"
 #include "../Dimps/Dimps__Selection.hxx"
@@ -25,7 +26,9 @@
 #include "../session/IrohRoom.hxx"
 #include "../session/IrohMatchSession.hxx"
 #include "../session/RoomRecoveryRuntime.hxx"
+#include "../session/RecoveryProgress.hxx"
 #include "../session/ReadyChime.hxx"
+#include "../session/TrainingCall.hxx"
 #include "../netplay/AutoDelayCheck.hxx"
 #include "../netplay/CreatedRules.hxx"
 #include "../netplay/BoundedMailbox.hxx"
@@ -39,6 +42,8 @@
 #include "../netplay/ProfileRecordJson.hxx"
 #include "../netplay/RoomPreferences.hxx"
 #include "../netplay/InputDelayPreference.hxx"
+#include "../netplay/MatchHudPreference.hxx"
+#include "../netplay/BoolPreferenceJson.hxx"
 #include "../common/SpectatorPolicy.hxx"
 #include "../common/StageCatalog.hxx"
 #include "../common/EnvFlag.hxx"
@@ -52,6 +57,7 @@
 #include "../common/SteamJoin.hxx"
 #include "../netplay/SteamPresence.hxx"
 #include <algorithm>
+#include <deque>
 #include <map>
 #include <mutex>
 #include <optional>
@@ -163,6 +169,9 @@ struct Runtime {
     std::uint64_t finishActionId=0, finishRetryAt=0;
 	std::optional<room::Action> matchFinishedAction;
     bool replacementPending=false;
+    // The Practice choice of the room this PC hosts: the player's on Create,
+    // the closed room's for a replacement, false for a room it joins.
+    bool practiceRoom=false;
     bool leaveRequested=false, leaveAcknowledged=false;
     // The room being opened is a public one joined with a ticket, so a refusal or
     // failure is worded for it. Set with the join, cleared when the room closes.
@@ -193,15 +202,23 @@ struct Runtime {
     netplay::tournament::OpenedLink openedLink;
     // Discord connect links (ember://discord/connect) likewise: the service.
     platform::ConnectLinkMailbox connectLinks;
+    // Replay links (common/ReplayLink.hxx) from the launcher, and the file
+    // the last one asked for: a question on the Replays screen until the
+    // player answers it (RuntimeSnapshot::replays.link).
+    platform::ReplayLinkMailbox replayLinks;
+    std::string replayLinkAsked;
     netplay::tournament::OpenedLink openedConnect;
     // Public room links (ember://room/open) likewise: the service and the room.
     platform::PublicRoomLinkMailbox publicRoomLinks;
     netplay::tournament::OpenedRoomLink openedRoomLink;
     netplay::AutoDelayCheck autoDelayCheck;
+    // The game that just ended, until TickAutoDelay takes it.
+    std::optional<netplay::PlayedGame> finishedGame;
     // The table rules chosen when creating a public room, set on its tables
     // once the creator is in it as host (TickCreatedRules).
     netplay::CreatedRules createdRules;
     session::RoomRecoveryRuntime recovery;
+    session::RecoveryProgress recoveryProgress;
     std::uint64_t observedAuthorityTerm=0;
 	// A terminal receipt is released only after its local outcome has been
 	// persisted and native/helper teardown has reached Idle. MatchEnded itself
@@ -232,6 +249,19 @@ struct Runtime {
 	// The opponent's fighter changed between games; the sequence moves per change.
 	room::OpponentFighterWatch opponentFighterWatch;
 	std::uint64_t opponentChangeSequence = 0;
+	// A player waiting in Training is called to their table. The sequences
+	// move when the table is to be shown and when a Ready is to be sent for
+	// the player; both are the shell's to act on, since a Ready carries the
+	// selection the shell holds.
+	room::CallOwner trainingCall;
+	std::uint64_t trainingCallSequence = 0, trainingReadySequence = 0;
+	// When the room was last told whether the player is in Training.
+	std::uint64_t trainingSaidAtMs = 0;
+	// The newest RoomNoticesKept room events for the chat, numbered from 1 by
+	// roomNoticeSequence. The interface takes each once by its number.
+	static constexpr std::size_t RoomNoticesKept = 16;
+	std::deque<ui::RoomNotice> roomNotices;
+	std::uint64_t roomNoticeSequence = 0;
 	Intent lobbyEditIntent{15000, Intent::Completion::OnDispatch};
 	std::string readyFailure;
 	std::uint64_t readyFailureSequence = 0;
@@ -291,6 +321,17 @@ void CloseRoom();
 void Apply(netplay::EventKind kind, const std::string& error = {});
 bool CanEditLobby();
 bool CanBeginReplacement();
+// Training from the room: at the main menu, with no game of the player's
+// starting or running and no Ready of theirs given or on its way. A game
+// that is over leaves PostMatch behind until the next one, as it does for
+// a Ready. Never from a closed room, nor as a watcher of a game starting
+// (a locked-in spectator whose table holds its start) or being played.
+// The snapshot publishes it, and a Room TrainingEntry is judged by it.
+bool CanTrain(const netplay::Snapshot& session, bool atMainMenu, const room::Snapshot& room, std::uint64_t retired);
+// The game generation this PC was in and has fully left: its session idle, native
+// GGPO gone and any recovery ended (MatchRecovered). 0 while none, or while that
+// teardown is still under way.
+std::uint64_t RetiredMatchGeneration();
 
 // Command dispatch and room events (sf4e__NetplayRuntime__Room.cxx).
 void FailReady(const char* reason);
@@ -313,7 +354,26 @@ void TickAutoDelay(bool helperReady);
 void TickCreatedRules(bool helperReady);
 
 // The match lifecycle (sf4e__NetplayRuntime__Match.cxx).
+// How a cancelled game's GGPO session ends: aborted if one is live, with a
+// reason the player reads (empty says nothing), or retired quietly under a
+// diagnostics label.
+struct GgpoEnd {
+    const char* text;
+    NoticeSeverity severity;
+    bool retire;
+    static GgpoEnd Abort(const char* reason, NoticeSeverity severity = NoticeSeverity::Error) { return {reason, severity, false}; }
+    static GgpoEnd Retire(const char* label) { return {label, NoticeSeverity::Info, true}; }
+};
+// The one way this PC gives up its part in the current game. Nothing its
+// entry armed for the battle request survives (battle::NextRequest), the
+// spectator drain hold is dropped, the GGPO session ends as `end` says, and
+// the match session aborts. Reporting to the room, leaving the room and
+// recovery stay with the caller.
+void CancelLocalMatch(GgpoEnd end);
+// CancelLocalMatch, and the game is recovered from (recoveringMatch).
 void AbortLocalMatch(const char* reason, NoticeSeverity severity = NoticeSeverity::Error);
+// The room ended this PC's game with no result: retire it and say so.
+void EndUnscoredMatch(room::MatchResult result);
 void RetireFinishedMatch(const char* label);
 void RetryPendingAbort();
 void RetrySpectatorLockRelease();
@@ -331,6 +391,11 @@ void TickTournament(bool helperReady);
 void OpenMatchLink(const tournament_link::MatchLink& link);
 // `launched`: the link started Ember, so it was just clicked.
 void OpenConnectLink(const std::string& bridge, bool launched = false);
+// Runs a request from the Replays screen, or the player's answer to a
+// replay link, and once a tick takes links and moves the
+// replay operation on (sf4e__ReplayStore.hxx).
+void RunReplayRequest(const replay::Request& request);
+void TickReplays();
 // Hands a public room link to the interface, which asks for the room's ticket
 // when the player is free. `launched` as for OpenConnectLink.
 void OpenPublicRoomLink(const tournament_link::RoomLink& link, bool launched = false);

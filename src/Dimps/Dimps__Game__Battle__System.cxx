@@ -30,6 +30,7 @@ void System::Locate(HMODULE peRoot) {
     *(PVOID*)&publicMethods.GetUnitByIndex = (PVOID)(peRootOffset + 0x1d9720);
     *(PVOID*)&publicMethods.SysMain_HandleTrainingModeFeatures = (PVOID)(peRootOffset + 0x1dab30);
     *(PVOID*)&publicMethods.SysMain_UpdatePauseState = (PVOID)(peRootOffset + 0x1dbaa0);
+    *(PVOID*)&publicMethods.ReplayCadence = (PVOID)(peRootOffset + 0x1d7750);
     *(PVOID*)&publicMethods.CloseBattle = (PVOID)(peRootOffset + 0x1db3f0);
     *(PVOID*)&publicMethods.IsFight = (PVOID)(peRootOffset + 0x1d9f60);
     *(PVOID*)&publicMethods.IsLeavingBattle = (PVOID)(peRootOffset + 0x1d6a70);
@@ -83,12 +84,32 @@ Request** System::GetRequest(System* s) {
     return (Request**)((unsigned int)s + 0x98);
 }
 
+int* System::GetPlayerControl(System* s, int side) {
+    BYTE* players = *(BYTE**)((unsigned int)s + 0x9c);
+    return players ? (int*)(players + side * 0x2b8 + 0x1c) : nullptr;
+}
+
+int* System::GetMenuPlayerControl(System* s, int side) {
+    return (int*)((unsigned int)s + 0x6d8 + side * 0x2b8 + 0x1c);
+}
+
 DWORD* System::GetSkipRelatedFlags_0xd8c(System* s) {
     return (DWORD*)((unsigned int)s + 0xd8c);
 }
 
 DWORD* System::GetSimulationFlags(System* s) {
     return (DWORD*)((unsigned int)s + 0x1454);
+}
+
+int* System::GetPausingPlayer(System* s) {
+    // 0x5DB7BE stores the player after Pause::Unit Open at 0x5DB799.
+    // 0x5DB673 (forced close), 0x5DB8C4 (resume), and 0x5DA896
+    // (CloseBattle/SYS START reset) store -1. Training hold leaves it unset.
+    return (int*)((unsigned int)s + 0x1458);
+}
+
+int* System::GetSlowMotion(System* s) {
+    return (int*)((unsigned int)s + 0x1464);
 }
 
 FixedPoint* System::GetTransitionProgress(System* s) {

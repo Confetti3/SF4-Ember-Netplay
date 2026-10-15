@@ -186,9 +186,9 @@ void SessionClient::ProjectSelectedRoomTable() {
 	_lobbyData.members.clear();
 	_lobbyData.editionSelect = table.rules.editionSelect;
 	_lobbyData.roundCount = table.rules.roundCount;
-	_lobbyData.roundTime.integral = table.rules.roundTime;
+	_lobbyData.roundTime.integral = room::MatchRoundTime(_roomSnapshot, table);
 	_lobbyData.roundTime.fractional = 0;
-	_lobbyData.trainingMode = false;
+	_lobbyData.trainingMode = _roomSnapshot.practice;
 	for (const auto id : {table.p1, table.p2}) {
 		if (!id) {
 			_lobbyData.members.push_back(SessionProtocol::MemberData{});
@@ -245,7 +245,7 @@ void SessionClient::RememberSentRoomAction(const room::Action& action) {
 		if (sent.actionId == action.actionId) return;
 	if (_sentRoomActions.size() >= 32) _sentRoomActions.pop_front();
 	_sentRoomActions.push_back({action.actionId, action.kind, action.table, action.matchGeneration,
-		action.inputDelay, action.seat, action.actionId});
+		action.inputDelay, action.lowerLag, action.seat, action.actionId});
 	if (action.kind == room::ActionKind::Ready)
 		if (const auto* opponent = room::SeatOpponent(_roomSnapshot, action.table, _roomSnapshot.localMember)) {
 			_sentRoomActions.back().opponent = opponent->id;
@@ -450,14 +450,16 @@ bool SessionClient::HandleRoomResult(json& msg) {
 			(sent->opponentFighter >= 0 && opponentNow->fighter != sent->opponentFighter));
 	if (resendable && !matchupChanged && !result.result.accepted && result.result.reason == room::RejectReason::StaleTable &&
 		sent->staleRetries < 3) {
-		// Resend the same request (kind, table, input delay, seat) from the
-		// fresher snapshot. Copy first: sending may evict `sent`.
+		// Resend the same request (kind, table, input delay, Lower input lag,
+		// seat) from the fresher snapshot. Copy first: sending may evict `sent`.
 		const auto kind = sent->kind;
 		const auto callerId = sent->callerId;
 		const auto opponent = sent->opponent;
 		const auto opponentFighter = sent->opponentFighter;
 		const std::uint8_t attempt = sent->staleRetries + 1;
-		const auto resent = SendRoomAction(TableAction(kind, sent->table, sent->inputDelay, sent->seat));
+		auto again = TableAction(kind, sent->table, sent->inputDelay, sent->seat);
+		again.lowerLag = sent->lowerLag;
+		const auto resent = SendRoomAction(again);
 		if (resent == session::SendResult::Queued) {
 			// SendRoomAction just remembered the resend as the newest entry.
 			_sentRoomActions.back().callerId = callerId;
@@ -486,10 +488,14 @@ bool SessionClient::HandleRoomResult(json& msg) {
 		const bool staleReport = sent != _sentRoomActions.end() &&
 			(sent->kind == room::ActionKind::MatchFinished || sent->kind == room::ActionKind::RecordResult) &&
 			(result.result.reason == room::RejectReason::WrongGeneration || result.result.reason == room::RejectReason::DuplicateResult);
+		// The Training word is sent by the runtime, not pressed: a refusal
+		// is retried there and is nothing for the player to read.
+		const bool presence = sent != _sentRoomActions.end() && sent->kind == room::ActionKind::SetTraining;
 		const char* text = RoomRejectText(result.result.reason);
-		if (text[0] && !staleReport && !superseded) _roomError = text;
+		if (text[0] && !staleReport && !superseded && !presence) _roomError = text;
 	}
-	else { _roomError.clear(); }
+	// Nor does its acceptance answer an error some other action left.
+	else if (sent == _sentRoomActions.end() || sent->kind != room::ActionKind::SetTraining) { _roomError.clear(); }
 	if (_callbacks.OnRoomSnapshot) _callbacks.OnRoomSnapshot(this, _roomSnapshot, _callbacks);
 	return true;
 }

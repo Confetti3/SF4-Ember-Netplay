@@ -96,6 +96,9 @@ public:
     std::size_t Offset() const { return bytes_.size(); }
     const TransferIdentity& Identity() const { return identity_; }
     const std::string& Bytes() const { return bytes_; }
+    // The received bytes, leaving the receiver empty: a complete transfer is
+    // handed on, not copied, since it can weigh a mebibyte.
+    std::string TakeBytes() { std::string taken; taken.swap(bytes_); return taken; }
 private:
     TransferIdentity identity_;
     std::string bytes_;

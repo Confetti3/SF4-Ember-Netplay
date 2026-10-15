@@ -208,6 +208,33 @@ int main() try {
         SetUserGlyphRebuildInterval(std::chrono::milliseconds(250));
         shell.Navigation().Home(); frame();
     }
+    // A mute is the room's own. Muted in one room, then the room changes
+    // while Ember is hidden (as in Training): a member of the next room who
+    // has the same id is counted in the unread chat the training HUD shows.
+    {
+        const auto savedRoom = view.room;
+        room::Member muted; muted.id = 3; muted.name = "Muted";
+        view.room.members.push_back(muted);
+        shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
+        focus("member-3"); press(MenuInput::Select);
+        focus("mute"); press(MenuInput::Select);
+        shell.Navigation().Home(); frame();
+        const unsigned unreadBefore = shell.UnreadChat();
+        view.room.chat.push_back({301, 3, "From the muted member"}); frame();
+        Check(shell.UnreadChat() == unreadBefore, "A muted member's message counted as unread");
+        const auto hidden = [&] {
+            io.DeltaTime = step; ImGui::NewFrame();
+            shell.Background(view, view.room, [&](ShellAction action) { actions.push_back(std::move(action)); return true; });
+            ImGui::Render();
+        };
+        ++view.room.roomEpoch; view.room.chat.clear(); view.room.members.back().name = "Newcomer"; hidden();
+        view.room.chat.push_back({1, 3, "From the next room's member 3"}); hidden();
+        Check(shell.UnreadChat() == 1, "A mute from the last room hid a new member's message");
+        // Seen in the room itself, they are not muted there either.
+        shell.Navigation().Push("room"); frame(); focus("member-3"); press(MenuInput::Select);
+        Check(row("mute").label == loc::T("room.mute_member"), "The next room's member showed as muted");
+        view.room = savedRoom; shell.Navigation().Home(); frame();
+    }
     shell.Navigation().Home(); shell.Navigation().Push("room-table"); frame();
     // One delay row: its value is yours, its detail names the recommendation
     // and the match delay, Left and Right choose, Select applies the recommendation.
@@ -231,32 +258,33 @@ int main() try {
     press(MenuInput::Right);
     Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 3,
         "Manual delay did not submit the bounded value");
-    // 0 frames is not offered: Left from 1 chooses Auto rather than 0, and an
-    // older 0 reads as 1 and steps as 1 does.
+    // 0 frames can be chosen: Left from 1 chooses 0, the row shows it and
+    // says what it needs, and Right from 0 steps back to 1.
+    view.selectedDelay = 1; frame(); press(MenuInput::Left);
+    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 0,
+        "Left from one frame did not choose 0 frames");
     view.selectedDelay = 0; frame();
-    Check(row("input-delay").value == "1 frame", "Input delay showed 0 frames");
+    Check(row("input-delay").value == "0 frames" && row("input-delay").detail.find(loc::T("room.selected_delay.detail")) != std::string::npos,
+        "Input delay did not show 0 frames and what it needs");
     press(MenuInput::Right);
-    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 2,
-        "An older 0 did not step as 1 frame");
+    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 1,
+        "Right from 0 frames did not choose one frame");
+    // Auto sits before 0 frames. With it on, the row shows its bounds and,
+    // once the opponent is measured, the delay it resolves to; Select no longer
+    // takes the recommendation, and Right returns to 0 frames.
     press(MenuInput::Left);
     Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == AutoInputDelayChoice,
-        "Left from an older 0 offered 0 frames");
-    // Auto sits before one frame. With it on, the row shows its bounds and,
-    // once the opponent is measured, the delay it resolves to; Select no longer
-    // takes the recommendation, and Right returns to one frame.
-    view.selectedDelay = 1; frame(); press(MenuInput::Left);
-    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == AutoInputDelayChoice,
-        "Left from one frame did not choose Auto");
+        "Left from 0 frames did not choose Auto");
     view.preferences.autoInputDelay = true; view.selectedDelay = 2; frame();
     Check(row("input-delay").value == "Auto", "Auto showed a delay before measuring the opponent");
     view.autoDelayMeasured = true; view.selectedDelay = 3; frame();
     Check(row("input-delay").value == "Auto (3 frames)" && !row("input-delay").opens &&
-        row("input-delay").detail.find("between 1 and 3 frames") != std::string::npos &&
+        row("input-delay").detail.find(loc::Tf("room.input_delay.auto.detail", AutoInputDelayMinimum, AutoInputDelayMaximum)) != std::string::npos &&
         row("input-delay").detail.find("Match: At least 3 frames") != std::string::npos,
         "Auto did not show its delay and bounds, or still offered the recommendation");
     press(MenuInput::Right);
-    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 1,
-        "Right from Auto did not choose one frame");
+    Check(actions.back().command.kind == netplay::CommandKind::ApplyDelay && actions.back().selectedDelay == 0,
+        "Right from Auto did not choose 0 frames");
     view.preferences.autoInputDelay = false; view.autoDelayMeasured = false; view.selectedDelay = 2; frame();
     // Fighter, Ultra and Appearance sit under Ready. Left and Right step the
     // Ultra and the color without leaving the page; Select opens their cards
@@ -297,6 +325,92 @@ int main() try {
     Check(!row("ultra").adjustable, "A fighter with one Ultra still offers to step it");
     Check(!row("appearance").adjustable, "A costume with one color still offers to step it");
     view.ultraSteps = true; view.colorSteps = true; frame();
+    {
+        const auto seatedView = view;
+        view.room.members[0].seat = -1; view.localSlot = -1;
+        view.room.tables[0].p1 = 2; view.room.tables[0].p2 = 3;
+        // What the runtime shows while a pick cannot change, and not the generic wait text.
+        const std::string lockReason = loc::T("runtime.lock.return_to_menu_fighter");
+        Check(!lockReason.empty() && lockReason != loc::T("room.change_fighter.waiting"), "The runtime lock text is not distinct");
+        // The local member's place built as the authority derives each status:
+        // queued is the queue, watching next the watching-next list, and watching
+        // the spectator list of a live game.
+        const auto becomes = [&](room::MemberStatus status) {
+            const std::vector<room::MemberId> self{1}, nobody;
+            auto& table = view.room.tables[0];
+            const bool live = status == room::MemberStatus::Watching;
+            view.room.members[0].status = status;
+            view.room.members[0].table = status == room::MemberStatus::Idle ? -1 : 0;
+            table.queue = status == room::MemberStatus::Queued ? self : nobody;
+            table.watchingNext = status == room::MemberStatus::WatchingNext ? self : nobody;
+            table.spectators = live ? self : nobody;
+            table.phase = live ? room::TablePhase::Playing : room::TablePhase::Waiting;
+            view.session.match = live ? netplay::MatchState::Playing : netplay::MatchState::None;
+        };
+        const auto walk = [&](unsigned key, const std::vector<std::string>& ids) {
+            for (const auto& id : ids) {
+                press(key);
+                Check(shell.Navigation().Focus() == id, "Up/Down did not walk the unseated pick rows into Queue/Watch");
+            }
+        };
+        for (const auto status : {room::MemberStatus::Idle, room::MemberStatus::Queued,
+            room::MemberStatus::WatchingNext, room::MemberStatus::Watching}) {
+            const bool queued = status == room::MemberStatus::Queued;
+            becomes(status);
+            shell.Navigation().Home(); shell.Navigation().Push("room-table"); frame();
+            Check(rows[0].id == "selection" && rows[1].id == "ultra" && rows[2].id == "appearance" &&
+                rows[3].id == "fighter-options" && rows[4].id == (queued ? "unqueue" : "queue"),
+                "Unseated pick rows are missing or not above Queue/Watch");
+            focus("selection");
+            walk(MenuInput::Down, {"ultra", "appearance", "fighter-options", rows[4].id});
+            walk(MenuInput::Up, {"fighter-options", "appearance", "ultra", "selection"});
+            Check(at("stage") == -1, "An unseated member was offered Stage");
+            Check(row("selection").value == view.fighterName && row("ultra").value == view.ultraName &&
+                row("appearance").value == view.appearanceName && row("fighter-options").value == view.fighterOptionsName,
+                "Unseated pick rows did not show the current pick");
+            for (const auto* id : {"selection", "ultra", "appearance", "fighter-options"}) {
+                Check(row(id).enabled, "An editable unseated pick row is disabled");
+                focus(id); press(MenuInput::Select);
+                Check(shell.Navigation().Screen() == "selection", "An unseated pick row did not open selection");
+                Check(EmbeddedReturnContext().openOn == (std::strcmp(id, "selection") == 0 ? "roster" :
+                    std::strcmp(id, "appearance") == 0 ? "costumes" : std::strcmp(id, "ultra") == 0 ? "ultra" : "options"),
+                    "An unseated pick row opened the wrong selection page");
+                shell.Navigation().Home(); shell.Navigation().Push("room-table"); frame();
+            }
+            focus("ultra"); const auto beforeSteps = actions.size(); press(MenuInput::Right);
+            Check(actions.size() == beforeSteps + 1 && actions.back().selectionStep.field == Field::Ultra &&
+                actions.back().selectionStep.delta == 1 && shell.Navigation().Focus() == "ultra",
+                "Unseated Right did not step Ultra in place");
+            focus("appearance"); press(MenuInput::Left);
+            Check(actions.size() == beforeSteps + 2 && actions.back().selectionStep.field == Field::Color &&
+                actions.back().selectionStep.delta == -1 && shell.Navigation().Focus() == "appearance",
+                "Unseated Left did not step color in place");
+            shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
+            const auto beforeShortcut = selectionDraws; press(MenuInput::Fighter);
+            Check(shell.Navigation().Screen() == "selection" && selectionDraws > beforeShortcut,
+                "X/F did not open selection for an unseated member");
+            shell.Navigation().Home(); frame(); focus("selection"); press(MenuInput::Select);
+            Check(shell.Navigation().Screen() == "selection", "Home did not open unseated selection");
+            shell.Navigation().Home(); shell.Navigation().Push("room-table");
+            view.canEditSelection = false; view.selectionLockReason = lockReason; frame();
+            for (const auto* id : {"selection", "ultra", "appearance", "fighter-options"}) {
+                Check(!row(id).enabled && !row(id).adjustable && row(id).detail == lockReason,
+                    "A blocked unseated pick row is enabled or missing the runtime's reason");
+                focus(id); const auto beforeBlocked = selectionDraws; const auto beforeActions = actions.size();
+                press(MenuInput::Select); press(MenuInput::Left); press(MenuInput::Right);
+                Check(shell.Navigation().Screen() == "room-table" && selectionDraws == beforeBlocked && actions.size() == beforeActions,
+                    "A blocked unseated pick row opened or stepped selection");
+            }
+            press(MenuInput::Fighter);
+            Check(shell.Navigation().Screen() == "room-table", "Blocked unseated X/F opened selection");
+            // Home still lets a blocked member inspect the pick, a live watcher included.
+            shell.Navigation().Home(); frame(); focus("selection"); press(MenuInput::Select);
+            Check(shell.Navigation().Screen() == "selection", "A blocked unseated member could not inspect selection from Home");
+            view.canEditSelection = true; view.selectionLockReason.clear();
+        }
+        view = seatedView;
+        shell.Navigation().Home(); shell.Navigation().Push("room-table"); frame();
+    }
     // The host changes the rules in place; nothing is sent until Apply rules,
     // which only appears once something changed.
     Check(row("rounds").enabled && row("time").enabled && row("edition").enabled &&
@@ -541,6 +655,36 @@ int main() try {
         targets.clear(); frame(); frame();
         Check(!targets.count("table-0/banner") && row("table-0").id == "table-0", "The opponent's new fighter stayed on the card");
     }
+    // The opponent is in Training and is being called back: the table says so
+    // on their seat, to everyone but them, until they come back or ready.
+    {
+        auto& table = view.room.tables[0];
+        const auto calling = sf4e::loc::Tf("room.training_call.calling", "Peer");
+        Check(table.p1 == 1 && table.p2 == 2 && table.phase == room::TablePhase::Waiting, "The Training call fixture is not a waiting pair");
+        view.room.members[1].training = true; ++view.room.revision;
+        shell.Navigation().Home(); shell.Navigation().Push("room"); targets.clear(); frame(); frame();
+        auto banner = room_controls::DescribeTableBanner(view, table);
+        Check(banner.text == calling && banner.seat == 1, "The table did not say the opponent is being called back from Training");
+        Check(targets.count("table-0/banner"), "The Training call was not drawn on the table card");
+        Check(room_controls::DescribeTableBanner(view, view.room.tables[1]).text.empty(), "Another table said the opponent is being called back");
+        // A member watching sees it too; the trainee is not told about themselves.
+        view.room.localMember = 3;
+        Check(room_controls::DescribeTableBanner(view, table).text == calling, "A watcher was not told the fighter is being called back");
+        view.room.localMember = 2;
+        Check(room_controls::DescribeTableBanner(view, table).text.empty(), "The trainee was told they are being called back");
+        view.room.localMember = 1;
+        // Not while the seat opposite is empty, once they readied, or once a game is under way.
+        table.p2 = 0;
+        Check(room_controls::DescribeTableBanner(view, table).text.empty(), "A Training call was shown with nobody opposite");
+        table.p2 = 2; table.ready[1] = true;
+        Check(room_controls::DescribeTableBanner(view, table).text.empty(), "A readied fighter was still being called back");
+        table.ready[1] = false; table.phase = room::TablePhase::Playing;
+        Check(room_controls::DescribeTableBanner(view, table).text.empty(), "A Training call was shown over a game");
+        table.phase = room::TablePhase::Waiting;
+        // It goes with the flag.
+        view.room.members[1].training = false; ++view.room.revision; targets.clear(); frame(); frame();
+        Check(!targets.count("table-0/banner"), "The Training call stayed on the card after the opponent came back");
+    }
     // A notice with no heading is not an error; ShowError is.
     {
         GameMenu menu;
@@ -591,6 +735,42 @@ int main() try {
     view.room.tables[0].phase = room::TablePhase::Waiting; view.room.tables[0].spectatorHold = false;
     view.room.tables[0].ready[0] = view.room.tables[0].ready[1] = false;
 
+    // Ready timeout: the last 30 seconds on the card and the Ready row.
+    {
+        using sf4e::loc::Tf;
+        auto& table = view.room.tables[0];
+        table.ready[1] = true; table.readyRemainingMs = 30001;
+        Check(room_controls::DescribeTableBanner(view, table).text.empty(), "Ready timeout appeared above 30 seconds");
+        table.readyRemainingMs = 30000;
+        const auto own = Tf("room.ready_timeout.you", 30);
+        Check(room_controls::DescribeTableBanner(view, table).text == own, "The unready fighter did not get their countdown");
+        shell.Navigation().Home(); shell.Navigation().Push("room"); targets.clear(); frame();
+        Check(targets.count("table-0/banner"), "The Ready timeout was not drawn on the table card");
+        shell.Navigation().Push("room-table"); frame();
+        Check(row("ready").detail.find(own) == 0, "The Ready row did not show the countdown");
+        view.room.localMember = 2; table.readyRemainingMs = 29001;
+        Check(room_controls::DescribeTableBanner(view, table).text == Tf("room.ready_timeout.other", 30, "Local"),
+            "The opponent did not see who must ready");
+        view.room.localMember = 99; table.readyRemainingMs = 1;
+        Check(room_controls::DescribeTableBanner(view, table).text == Tf("room.ready_timeout.other", 1, "Local"),
+            "A bystander did not see the final second");
+        // A Training call's window and the room's deadline both take the seat,
+        // so the local fighter is told the one that ends first.
+        view.room.localMember = 1; table.readyRemainingMs = 5000; view.trainingReadySeconds = 15;
+        auto deadline = room_controls::DescribeReadyDeadline(view, table);
+        Check(!deadline.training && deadline.seat == 0 && deadline.text == Tf("room.ready_timeout.you", 5),
+            "A longer Training window hid the room's deadline");
+        table.readyRemainingMs = 20000; view.trainingReadySeconds = 4;
+        deadline = room_controls::DescribeReadyDeadline(view, table);
+        Check(deadline.training && deadline.seat == 0 && deadline.seconds == 4, "A shorter Training window was not the deadline");
+        // Away in Training does not hide the room's last seconds from others.
+        view.trainingReadySeconds = 0; view.room.localMember = 99; view.room.members[0].training = true; table.readyRemainingMs = 1000;
+        Check(room_controls::DescribeTableBanner(view, table).text == Tf("room.ready_timeout.other", 1, "Local"),
+            "The Training call hid the final second of the room's deadline");
+        view.room.members[0].training = false;
+        view.room.localMember = 1; table.ready[1] = false; table.readyRemainingMs = 0;
+        shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
+    }
     // A held start the host timed: the card and the Ready row name who it
     // waits for and count down, and say that B, Cancel the start, calls it off.
     {
@@ -1006,6 +1186,42 @@ int main() try {
     press(MenuInput::Right); press(MenuInput::Select);
     Check(actions.size() == beforeAbandon + 1 && actions.back().roomAction.kind == room::ActionKind::AbortMatch &&
         actions.back().roomAction.matchGeneration == 9, "Confirmed abandon did not submit a generation-scoped AbortMatch");
+    // A live game is never cut short by its own fighter, except a Practice
+    // match this PC fights in, which ends only when its round time runs out.
+    // Ember opened over that fight lands on the board at End practice, which
+    // ends the live game with the same generation-scoped AbortMatch.
+    view.room.tables[0].phase = room::TablePhase::Playing; view.session.match = netplay::MatchState::Playing;
+    ++view.room.tables[0].revision; ++view.room.revision;
+    shell.Navigation().Home(); shell.Navigation().Push("room"); for (int i = 0; i < 3; ++i) frame();
+    Check(!hasRow("end-practice"), "A live game that is no Practice match offered End practice");
+    shell.Background(view, view.room, [&](ShellAction action) { actions.push_back(std::move(action)); return true; });
+    view.practiceFight = true; shell.Navigation().Home();
+    for (int i = 0; i < 3; ++i) frame();
+    Check(shell.Navigation().Screen() == "room" && shell.Navigation().Focus() == "end-practice" &&
+        row("end-practice").enabled && row("end-practice").confirm,
+        "Ember opened over a Practice match did not land on End practice");
+    // Other submissions (a preference save) may ride along; only the aborts count.
+    const auto abortsSince = [&](std::size_t from) {
+        std::vector<room::Action> aborts;
+        for (std::size_t i = from; i < actions.size(); ++i)
+            if (actions[i].command.kind == netplay::CommandKind::RoomAction && actions[i].roomAction.kind == room::ActionKind::AbortMatch)
+                aborts.push_back(actions[i].roomAction);
+        return aborts;
+    };
+    const auto beforeEnd = actions.size(); press(MenuInput::Select);
+    Check(abortsSince(beforeEnd).empty(), "End practice did not ask first");
+    press(MenuInput::Right); press(MenuInput::Select);
+    const auto ended = abortsSince(beforeEnd);
+    Check(ended.size() == 1 && ended[0].table == 0 && ended[0].matchGeneration == 9,
+        "End practice did not submit a generation-scoped AbortMatch for the fighter's own table");
+    // Navigating within the shown menu keeps where the player went; only a new opening lands on End practice.
+    shell.Navigation().Home(); frame();
+    Check(shell.Navigation().Screen() != "room", "A drawn frame moved the player back to End practice");
+    view.practiceFight = false; view.session.match = netplay::MatchState::None;
+    shell.Navigation().Home(); shell.Navigation().Push("room"); for (int i = 0; i < 3; ++i) frame();
+    Check(!hasRow("end-practice"), "End practice outlived the Practice match's fight");
+    view.room.tables[0].phase = room::TablePhase::Paused; ++view.room.tables[0].revision; ++view.room.revision;
+    for (int i = 0; i < 3; ++i) frame();
     view.room.tables[0].p1 = 3; view.room.members[0].seat = -1; view.room.tables[0].spectators = {1};
     ++view.room.tables[0].revision; ++view.room.revision;
     for (int i = 0; i < 5; ++i) frame();

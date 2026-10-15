@@ -1,5 +1,8 @@
 #include "SessionPlainTypes.hxx"
 #include "sf4e__SessionProtocol.hxx"
+#include "../common/FighterCatalog.hxx"
+#include "../common/StageCatalog.hxx"
+#include "../netplay/PlayerPreferences.hxx"
 
 namespace sf4e {
 	namespace SessionProtocol {
@@ -25,6 +28,18 @@ namespace sf4e {
 			{}
 		};
 
+		MatchProblem FindMatchProblem(const LobbyData& lobby, const MatchData& match) {
+			netplay::LobbySettings settings;
+			settings.editionSelect = lobby.editionSelect;
+			settings.roundCount = lobby.roundCount;
+			settings.roundTime = lobby.roundTime.integral;
+			if (!settings.Valid() || lobby.roundTime.fractional != 0) return MatchProblem::Settings;
+			if (!selection::ValidStage(match.stageID)) return MatchProblem::Stage;
+			for (const auto& chara : match.chara)
+				if (!selection::Valid(selection::FromNative(chara), lobby.editionSelect)) return MatchProblem::Fighter;
+			return MatchProblem::None;
+		}
+
 		MatchData::MatchData()
 		{
 			Clear();
@@ -38,6 +53,7 @@ namespace sf4e {
 			memset(chara.data(), 0, sizeof(Dimps::GameEvents::VsMode::ConfirmedCharaConditions) * 2);
 			chara[0].unc_edition = chara[1].unc_edition = 14; // USFIV default; edition 0 is not selectable.
 			inputDelay[0] = inputDelay[1] = 2;
+			lowerInputLag = false;
 		}
 
 		void MatchData::ClearReady() {

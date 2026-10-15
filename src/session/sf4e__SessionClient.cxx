@@ -141,6 +141,9 @@ static void ReportHashMismatch(
 		local.hashes.chara[0] == remote.chara0 ? "match" : "MISMATCH",
 		local.hashes.chara[1] == remote.chara1 ? "match" : "MISMATCH"
 	);
+	spdlog::error("Desync v2: local checkpoint ggpo={} engine={} flow={} substate={}",
+		local.ggpoStateFrame, local.engineFrame, local.flow, local.substate);
+	fSystem::LogFrameTrace(local.frameIdx);
 	for (int i = 0; i < fSystem::NUM_HASH_CHECKPOINTS; i++) {
 		const fSystem::HashCheckpoint& cp = fSystem::hashCheckpoints[i];
 		if (!cp.valid || cp.frameIdx == local.frameIdx) {
@@ -149,9 +152,9 @@ static void ReportHashMismatch(
 		int distance = cp.frameIdx - local.frameIdx;
 		if (distance >= -90 && distance <= 90) {
 			spdlog::error(
-				"Desync v2: nearby frame {} overall {:016x} flow {:016x} c0 {:016x} c1 {:016x}",
+				"Desync v2: nearby frame {} overall {:016x} flow {:016x} c0 {:016x} c1 {:016x} engine={} nativeFlow={} substate={}",
 				cp.frameIdx, cp.hashes.overall, cp.hashes.flow,
-				cp.hashes.chara[0], cp.hashes.chara[1]
+				cp.hashes.chara[0], cp.hashes.chara[1], cp.engineFrame, cp.flow, cp.substate
 			);
 		}
 	}
@@ -692,12 +695,11 @@ int SessionClient::Step()
 						cp.sent = true;
 					}
 				}
-				auto pendingIter = pendingRemoteHashes.find(cp.frameIdx);
-				if (pendingIter != pendingRemoteHashes.end()) {
-					ReportHashMismatch(this, cp, pendingIter->second);
-					pendingRemoteHashes.erase(pendingIter);
-				}
 			}
+			sf4e::statehash::ReconcileRemoteHashes(pendingRemoteHashes, confirmedInput, fSystem::FindHashCheckpoint,
+				[this](const fSystem::HashCheckpoint& local, const SessionProtocol::BattleHashV2& remote) {
+					ReportHashMismatch(this, local, remote);
+				});
 		}
 	}
 	TrySendPendingJoinRequest();
@@ -712,7 +714,9 @@ session::SendResult SessionClient::Send(nlohmann::json& msg, int64_t* outMessage
 session::SendResult SessionClient::Lobby_Ready()
 {
 	if (_customRoomsSeen) {
-		return SendRoomAction(TableAction(room::ActionKind::Ready, _selectedRoomTable, _selectedDelay));
+		auto ready = TableAction(room::ActionKind::Ready, _selectedRoomTable, _selectedDelay);
+		ready.lowerLag = _selectedLowerLag;
+		return SendRoomAction(ready);
 	}
 	LobbyReady msg;
 	json j = msg;
@@ -760,8 +764,7 @@ session::SendResult SessionClient::Lobby_ResetRematch()
 session::SendResult SessionClient::Lobby_SetSettings(
 	bool editionSelect,
 	int roundCount,
-	Dimps::Math::FixedPoint roundTime,
-	bool trainingMode
+	Dimps::Math::FixedPoint roundTime
 )
 {
 	if (_customRoomsSeen) {
@@ -781,7 +784,6 @@ session::SendResult SessionClient::Lobby_SetSettings(
 	msg.editionSelect = editionSelect;
 	msg.roundCount = roundCount;
 	msg.roundTime = roundTime;
-	msg.trainingMode = trainingMode;
 	json j = msg;
 	session::SendResult result = Send(j, nullptr);
 	if (result != session::SendResult::Queued) {
@@ -817,7 +819,7 @@ session::SendResult SessionClient::PreBattle_SetChara(const Dimps::GameEvents::V
 
 session::SendResult SessionClient::PreBattle_SetStage(int32_t stageID)
 {
-	if (!selection::FindStage(stageID)) return session::SendResult::InvalidPayload;
+	if (!selection::ValidStage(stageID)) return session::SendResult::InvalidPayload;
 	SessionProtocol::PreBattleSetStage msg;
 	msg.stageID = stageID;
 	json j = msg;

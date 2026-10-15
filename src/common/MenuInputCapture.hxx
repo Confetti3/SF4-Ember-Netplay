@@ -2,8 +2,33 @@
 #include <cstdint>
 #include <cstring>
 namespace sf4e { namespace input {
-enum class MenuContext { Unavailable, MainMenu, OfflineTraining };
-inline bool ControllerMenuAvailable(MenuContext context) { return context == MenuContext::MainMenu; }
+// Where the game is for Ember's menu.
+// ReplayExport: a replay is being exported in the game's battle log. Ember's
+// menu can be opened there with F10 to follow or cancel it, and the pad then
+// drives it; Start stays the game's, whose pause it opens, so it does not
+// open Ember's menu there.
+// PracticeMatch: a Practice room's game (room::Snapshot::practice) that
+// this PC fights in. Such a game ends only when its round time runs out, so
+// Start or F10 opens Ember's menu over the fight, where a fighter ends it
+// (End practice). The game has no pause under rollback for Start to open.
+enum class MenuContext { Unavailable, MainMenu, OfflineTraining, ReplayExport, PracticeMatch };
+// The pad drives Ember's menus at the main menu, the training controls in
+// offline Training (opened there by Back and Start, TrainingPad.hxx), and the
+// menu opened over an export or a Practice match. Start opens Ember at the
+// main menu and over a Practice match.
+inline bool ControllerMenuAvailable(MenuContext context) { return context != MenuContext::Unavailable; }
+inline bool ControllerOpensMenu(MenuContext context) {
+    return context == MenuContext::MainMenu || context == MenuContext::PracticeMatch;
+}
+// Where Ember's menu can be shown: offline Training has its own controls.
+inline bool MenuShownIn(MenuContext context) {
+    return context == MenuContext::MainMenu || context == MenuContext::ReplayExport || context == MenuContext::PracticeMatch;
+}
+// A room game being prepared or played keeps Ember's menu away, except one
+// where the menu is shown over the fight itself.
+inline bool FightKeepsMenuAway(bool fighting, MenuContext context) {
+    return fighting && context != MenuContext::PracticeMatch;
+}
 // Native Pad::System publishes five adjacent uint32 input caches per player.
 // Keep assignment metadata and provider input untouched for overlay polling.
 inline unsigned NativeMenuHeld(const void* system) {

@@ -126,7 +126,15 @@ namespace Dimps {
 		struct Main
 		{
 			typedef struct __privateMethods {
-				// TODO
+				// Puts the display keys, SYSTEM/RenderingThread among them, into
+				// the config.ini the game then saves: on exit (Destroy) and from
+				// its display options (0x77E680).
+				void (Main::* WriteDisplayConfig)();
+				// Copies the startup parameters into Main, the RenderingThread
+				// flag among them (0x780380). Initialize calls it once, after
+				// reading config.ini and before the app init that latches the
+				// flag (StartupRenderingThread).
+				int (Main::* ApplyStartupParams)(void* params);
 			} __privateMethods;
 
 			typedef struct __publicMethods {
@@ -150,10 +158,24 @@ namespace Dimps {
 			typedef struct Win32_WindowData {
 				void* field_0x0;
 				HWND hWnd;
-				char field_0x8[44];
+				char field_0x8[0x3c];
+				// Set on WM_SETFOCUS, cleared on WM_KILLFOCUS (0x77EB20).
+				int hasFocus;
 			} Win32_WindowData;
 
 			static Win32_WindowData** GetWindowData(Main* m);
+			// SYSTEM/RenderingThread, set from config.ini inside Initialize
+			// (0x780380) and read only through the vtable's 0xA4 getter. Run
+			// (0x780600) starts the "Afx Rendering" thread when it is 1;
+			// otherwise each frame renders on the game thread.
+			static int* GetRenderingThread(Main* m);
+			// The startup parameters' copy of the flag, which ApplyStartupParams
+			// stores into Main. The rest of Initialize latches it: the graphics
+			// device's app init (0x405210) turns it into deferred resource
+			// releases (device+0xAA4), which only a frame with the flag still on
+			// drains (0x405580). Changing Main's flag after Initialize leaves the
+			// releases queued for good.
+			static int* StartupRenderingThread(void* params);
 		};
 
 		struct GFxApp
@@ -192,6 +214,7 @@ namespace Dimps {
 			typedef struct __publicMethods {
 				// arg2 and arg3 are almost always 0 and -1, respectively
 				void* (Allocator::* Allocate)(size_t size, DWORD arg2, DWORD arg3);
+				void (Allocator::* Free)(void* block);
 			} __publicMethods;
 
 			typedef struct __staticMethods {

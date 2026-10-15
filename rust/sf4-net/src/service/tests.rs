@@ -279,7 +279,64 @@ fn test_actor(endpoint: Endpoint, events: mpsc::Sender<Event>) -> Actor {
         short: ShortLinks::default(),
         public: None,
         coordination_port: None,
+        refresh_roster: None,
+        wake: Arc::new(Notify::new()),
     }
+}
+
+#[tokio::test]
+async fn an_arrival_brings_the_tick_forward_but_keeps_an_overdue_one() {
+    let now = Instant::now();
+    // Due in a second: an arrival makes it due now.
+    let later = tokio::time::sleep_until(now + Duration::from_secs(1));
+    tokio::pin!(later);
+    tick_now(later.as_mut());
+    assert!(later.deadline() <= Instant::now());
+    // Already 100 ms late: it stays due when it was, so its lag is reported.
+    let overdue_at = now - Duration::from_millis(100);
+    let overdue = tokio::time::sleep_until(overdue_at);
+    tokio::pin!(overdue);
+    tick_now(overdue.as_mut());
+    assert_eq!(overdue.deadline(), overdue_at);
+}
+
+#[tokio::test]
+async fn leaving_a_room_lets_go_of_its_cached_checkpoint() {
+    let (events, _native) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let mut actor = test_actor(endpoint().await, events);
+    let committed = Arc::new(crate::coordination::Committed::default());
+    actor.room = Some([45; 16]);
+    actor.refresh_roster = Some(([45; 16], committed.clone(), None));
+    assert_eq!(Arc::strong_count(&committed), 2);
+    actor.clear_room();
+    assert!(actor.refresh_roster.is_none());
+    assert_eq!(Arc::strong_count(&committed), 1);
+}
+
+#[tokio::test]
+async fn the_tick_slows_only_when_nothing_is_left_for_it() {
+    let (events, mut native) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let mut actor = test_actor(endpoint().await, events);
+    assert_eq!(actor.tick_period(), IDLE_TICK);
+    actor.room = Some([44; 16]);
+    assert_eq!(actor.tick_period(), ROOM_TICK);
+    // The native side drains the queue without telling the actor, so held
+    // lifecycle events keep the tick short until they have moved.
+    for _ in 0..=IPC_QUEUE_CAPACITY {
+        actor
+            .emit(Event::HelperLoad {
+                epoch: 0,
+                actor_tick_lag_max_us: 0,
+                actor_tick_body_max_us: 0,
+                event_queue_free_min: 0,
+                control_queue_peak: 0,
+            })
+            .unwrap();
+    }
+    assert_eq!(actor.tick_period(), FAST_TICK);
+    while native.try_recv().is_ok() {}
+    actor.events.flush().unwrap();
+    assert_eq!(actor.tick_period(), ROOM_TICK);
 }
 
 #[tokio::test]
@@ -599,9 +656,16 @@ async fn completed_receiver_accepts_exact_retry_before_delayed_commit_marker() {
         source.outgoing_transfer.as_mut().unwrap().started =
             tokio::time::Instant::now() - CHECKPOINT_TRANSFER_TIMEOUT - Duration::from_millis(1);
         source.expire_checkpoint_transfers();
+        // Every chunk was acknowledged; only the final marker is missing.
+        let progress = format!(
+            "revision={} begun=true acked={len}/{len} in_flight=0",
+            transfer.revision,
+            len = transfer.bytes.len()
+        );
         assert!(matches!(
             source_rx.recv().await,
-            Some(Event::Error { code, .. }) if code == "checkpoint_send_timeout"
+            Some(Event::Error { code, reason, .. })
+                if code == "checkpoint_send_timeout" && reason.as_deref() == Some(progress.as_str())
         ));
 
         target
@@ -3611,7 +3675,7 @@ async fn expired_probe_authorization_completion_never_installs_or_dials() {
             Ok(ProbeAuthorization {
                 term: recovery.coordinator.current_term(),
                 leader: recovery.coordinator.current_leader(),
-                revision: recovery.committed().await.revision,
+                revision: recovery.committed().await.revision(),
                 expires: now().unwrap() + 60,
                 // Its window has run out on the monotonic clock, whatever the wall
                 // clock says.
@@ -3707,6 +3771,8 @@ async fn service_replays_committed_checkpoint_to_each_native_owner() {
             short: ShortLinks::default(),
             public: None,
             coordination_port: None,
+            refresh_roster: None,
+            wake: Arc::new(Notify::new()),
         };
         let mut host_actor = make_actor(host.clone(), host_events_tx);
         let invite = host_actor.setup_host_recovery(seed).await.unwrap();
@@ -3998,6 +4064,8 @@ async fn closing_room_does_not_poison_new_room_on_same_endpoint() {
         short: ShortLinks::default(),
         public: None,
         coordination_port: None,
+        refresh_roster: None,
+        wake: Arc::new(Notify::new()),
     };
     actor
         .command(Request {
@@ -4126,6 +4194,8 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
             short: ShortLinks::default(),
             public: None,
             coordination_port: None,
+            refresh_roster: None,
+            wake: Arc::new(Notify::new()),
         };
         let service = tokio::spawn(async move {
             let result = actor.run(command_rx, failure).await;
@@ -4479,6 +4549,8 @@ async fn actor_admits_full_sixteen_member_room_and_fifteen_game_links() {
             short: ShortLinks::default(),
             public: None,
             coordination_port: None,
+            refresh_roster: None,
+            wake: Arc::new(Notify::new()),
         };
         let service = tokio::spawn(async move {
             let result = actor.run(command_rx, failure).await;
@@ -5182,7 +5254,7 @@ async fn removing_a_voter_does_not_wait_for_an_unreachable_voter() {
         let retained = BTreeSet::from([host.id(), dead_primary.id()]);
         actor.committed_native_members = Some(retained.clone());
         let term = recovery.state().await.term;
-        let revision = recovery.committed().await.revision;
+        let revision = recovery.committed().await.revision();
         actor.spawn_membership_operation(retained, term, revision);
         // The replacement voter set leaves out the voter that cannot answer,
         // so the change commits instead of waiting on it.
@@ -5273,7 +5345,7 @@ async fn a_probe_reservation_wait_does_not_block_the_actor() {
                 request: "roster".into(),
                 dedup_id: "roster".into(),
                 term: state.term,
-                base: recovery.committed().await.revision,
+                base: recovery.committed().await.revision(),
                 checkpoint: roster.to_string(),
                 admin: None,
             })
@@ -5636,7 +5708,7 @@ impl ReservationFixture {
                 request: "roster".into(),
                 dedup_id: "roster".into(),
                 term: state.term,
-                base: recovery.committed().await.revision,
+                base: recovery.committed().await.revision(),
                 checkpoint: roster.to_string(),
                 admin: None,
             })
@@ -6033,7 +6105,7 @@ impl ReservationFixture {
                 request: format!("roster:{revision}"),
                 dedup_id: format!("roster:{revision}"),
                 term: self.term,
-                base: self.recovery.committed().await.revision,
+                base: self.recovery.committed().await.revision(),
                 checkpoint: roster.to_string(),
                 admin: None,
             })
@@ -6471,6 +6543,10 @@ async fn flushed_departure_behind_more_than_one_poll_budget(replacement: bool) {
         fixture.actor.poll_controls().await.unwrap();
         drain(&mut fixture.events, &mut order);
         assert!(!order.iter().any(|entry| entry == "departed"));
+        // Nothing signals the frames past the budget again, so the next tick
+        // comes soon rather than at the room's slow period.
+        assert!(fixture.actor.controls[&remote_id].has_queued());
+        assert_eq!(fixture.actor.tick_period(), FAST_TICK);
 
         let (mut replacement_worker, mut replacement_id) = (None, 0);
         if replacement {
@@ -7395,6 +7471,120 @@ async fn a_short_link_that_cannot_be_opened_says_why() {
     assert!(events.try_recv().is_err());
     assert_eq!(guest.room, None);
     own.close().await;
+}
+
+fn nested_json(depth: usize) -> String {
+    format!("{}{}", "[".repeat(depth), "]".repeat(depth))
+}
+
+#[test]
+fn json_nested_past_the_native_limit_is_not_handed_on() {
+    let ok = |text: &str| native_json_depth_ok(text.as_bytes());
+    assert!(ok(&nested_json(MAX_NATIVE_JSON_DEPTH)));
+    assert!(!ok(&nested_json(MAX_NATIVE_JSON_DEPTH + 1)));
+    assert!(!ok(&format!("{{\"a\":{}", "{".repeat(64 * 1024))));
+    // Brackets inside strings, escaped quotes included, are text.
+    let quoted = format!("{{\"name\":\"\\\"{}\"}}", "[".repeat(1000));
+    assert!(ok(&quoted));
+    assert!(ok(r#"{"kind":"room","members":[{"data":{"name":"a]]]"}}]}"#));
+}
+
+/// Both paths that find a committed checkpoint, the watcher and the
+/// proposal's completion, export it through `start_outgoing_checkpoint`.
+#[tokio::test]
+async fn a_checkpoint_nested_past_the_native_limit_is_passed_over_once() {
+    let endpoint = endpoint().await;
+    let (events, mut receiver) = mpsc::channel(IPC_QUEUE_CAPACITY);
+    let mut actor = test_actor(endpoint.clone(), events);
+    let room = [46; 16];
+    actor.epoch = 1;
+    actor.room = Some(room);
+    let deep = nested_json(MAX_NATIVE_JSON_DEPTH + 1).into_bytes();
+    let deep = CheckpointTransfer::new(room, 17, 3, 7, 8, deep).unwrap();
+
+    actor.start_outgoing_checkpoint(deep);
+
+    assert!(actor.outgoing_transfer.is_none());
+    assert_eq!(actor.last_exported_revision, 8);
+    assert!(receiver.try_recv().is_err());
+    // The next revision exports as usual.
+    let next = CheckpointTransfer::new(room, 18, 3, 8, 9, b"{\"checkpoint\":{}}".to_vec()).unwrap();
+    actor.start_outgoing_checkpoint(next);
+    assert!(matches!(
+        receiver.recv().await,
+        Some(Event::CheckpointBegin { transfer: 18, revision: 9, .. })
+    ));
+    endpoint.close().await;
+}
+
+/// A peer's message nested past the limit, bare or as a native control's
+/// payload, is dropped; the route stays open and later messages arrive.
+#[tokio::test]
+async fn a_control_message_nested_past_the_native_limit_is_dropped() {
+    timeout(Duration::from_secs(60), async {
+        let mut fixture = ReservationFixture::start().await;
+        let remote_id = fixture.remote.id();
+        let (remote_side, accepted) = tokio::join!(
+            async {
+                let connection = fixture
+                    .remote
+                    .connect(address(&fixture.host), CONTROL_ALPN)
+                    .await
+                    .unwrap();
+                transport::connect_control_on(connection, &fixture.invite)
+                    .await
+                    .unwrap()
+            },
+            async {
+                let connection = fixture.host.accept().await.unwrap().await.unwrap();
+                transport::accept_control(connection, &fixture.invite)
+                    .await
+                    .unwrap()
+            }
+        );
+        fixture
+            .actor
+            .controls
+            .insert(remote_id, ControlWorker::start(accepted));
+        let remote_worker = ControlWorker::start(remote_side);
+        let deep = nested_json(MAX_NATIVE_JSON_DEPTH + 1);
+        // A native control carries its payload as a JSON string or as raw JSON.
+        let quoted = serde_json::json!({
+            "type": "native_control",
+            "message_id": 7,
+            "payload": deep,
+        })
+        .to_string();
+        let raw = format!(r#"{{"type":"native_control","message_id":8,"payload":{deep}}}"#);
+        for (offset, payload) in [deep.clone(), quoted, raw, "[\"after\"]".to_string()]
+            .into_iter()
+            .enumerate()
+        {
+            remote_worker
+                .try_send(ControlFrame {
+                    message_id: TRANSPORT_MESSAGE_ID_BASE + offset as u64,
+                    payload: payload.into_bytes(),
+                })
+                .unwrap();
+        }
+        let mut delivered = Vec::new();
+        while !delivered.iter().any(|payload: &String| payload == "[\"after\"]") {
+            fixture.actor.poll_controls().await.unwrap();
+            while let Ok(event) = fixture.events.try_recv() {
+                match event {
+                    Event::Message { payload, .. } => delivered.push(payload),
+                    Event::ControlClosed { .. } => panic!("the route closed"),
+                    _ => (),
+                }
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        assert_eq!(delivered, vec!["[\"after\"]".to_string()]);
+        assert!(fixture.actor.controls.contains_key(&remote_id));
+        drop(remote_worker);
+    })
+    .await
+    .unwrap();
 }
 
 mod join_deadline;

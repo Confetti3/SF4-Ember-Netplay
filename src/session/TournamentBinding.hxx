@@ -50,7 +50,7 @@ struct TournamentBinding {
 
 	bool Active() const { return !matchId.empty(); }
 	// Well formed: a match, two distinct 64-hex endpoints and Ember IDs, and a
-	// first-to-1, 2, 3 or 5 set.
+	// set of first to 1 through room::MaxSetLength.
 	bool Valid() const;
 	// The slot `endpoint` holds, or -1.
 	int SlotOf(const std::string& endpoint) const;

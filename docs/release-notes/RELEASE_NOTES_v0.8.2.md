@@ -27,7 +27,7 @@ The development candidate was tested in a local two-PC SF4 session. The tester c
 - Optional connection checks and benchmarks can still return Unavailable even when a match works. One local test succeeded from the guest but failed from the host. Firewall permission and differences between the PCs' clocks are under investigation; this release does not claim to fix that failure. A delay recommendation remains optional, and selected delay is never changed automatically.
 - The attempted external frame-time capture produced no usable CSV. Displayed FPS, remaining input-lag reports, different-network play and long-duration stability still need testing.
 
-When reporting a problem, save diagnostics and logs from both PCs using the [log collection guide](https://github.com/Confetti3/SF4-Ember-Netplay/blob/release/docs/SAVING_LOGS.md).
+When reporting a problem, save diagnostics and logs from both PCs using the [log collection guide](https://github.com/Confetti3/SF4-Ember-Netplay/blob/v0.8.2/docs/SAVING_LOGS.md).
 
 Ember remains experimental.
 

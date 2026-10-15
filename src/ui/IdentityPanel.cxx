@@ -152,16 +152,20 @@ void IdentityPanel::OpenMatch(const std::string& bridge, const std::string& matc
     IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list));
 }
 
-std::string IdentityPanel::HomeDetail(const ShellView& v) const {
+int IdentityPanel::ReadyMatches(const ShellView& v) const {
+    const auto& id = v.identity;
+    if (!id.known || id.state != "ready" || (servicesKnown_ && id.bridges.empty())) return 0;
+    const auto& list = v.tournament.list;
+    if (list.bridge != bridge_) return 0;
+    return static_cast<int>(std::count_if(list.items.begin(), list.items.end(),
+        [&](const netplay::tournament::Assignment& match) { return match.Playable(v.unixNow); }));
+}
+
+std::string IdentityPanel::EntryDetail(const ShellView& v) const {
     const auto& id = v.identity;
     if (id.known && id.state == "disabled") return loc::T("home.identity_start");
-    if (id.known && id.state == "ready") {
-        if (servicesKnown_ && id.bridges.empty()) return loc::T("home.identity_start");
-        const auto& list = v.tournament.list;
-        const auto ready = list.bridge == bridge_ ? std::count_if(list.items.begin(), list.items.end(),
-            [&](const netplay::tournament::Assignment& match) { return match.Playable(v.unixNow); }) : 0;
-        if (ready > 0) return loc::Tf("home.identity_matches", static_cast<int>(ready));
-    }
+    if (id.known && id.state == "ready" && servicesKnown_ && id.bridges.empty()) return loc::T("home.identity_start");
+    if (const int ready = ReadyMatches(v)) return loc::Tf("home.identity_matches", ready);
     return loc::T("home.identity_detail");
 }
 

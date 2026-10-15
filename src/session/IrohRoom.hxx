@@ -4,6 +4,7 @@
 #include "../platform/HelperClient.hxx"
 #include "CheckpointTransfer.hxx"
 #include "SessionRecovery.hxx"
+#include "RoomLoadWindow.hxx"
 #include "CheckpointDecodeWorker.hxx"
 #include "../common/NetworkNat.hxx"
 #include "../common/NetworkRoute.hxx"
@@ -194,6 +195,9 @@ public:
     }
     virtual bool ReadyForMatch() const;
     bool ProposalInFlight() const { return !proposalBytes_.empty(); }
+    // A received commit is being decoded on the worker thread, or is staged
+    // and not yet activated: work that completes without a helper event.
+    bool CheckpointPending() const { return !decoding_.empty() || !committedCheckpoints_.empty(); }
     bool RequestProbe(const std::string& peer, std::uint64_t request, std::uint64_t pairRevision, bool benchmark=false);
     Connection ConnectionForIdentity(const std::string& identity) const;
     std::map<Connection,std::string> ControlIdentities() const;
@@ -269,6 +273,8 @@ private:
 	std::map<std::string, std::uint64_t> memberIncarnations_;
 	std::set<std::string> committedMembers_;
 	bool haveCommittedMembers_ = false;
+	// Active rows in the applied commit's roster: members, not frozen history.
+	std::size_t committedLiveMembers_ = 0;
 	bool Begin(bool host);
 	bool Command(const std::string& payload);
 	SendResult SendRemote(Connection connection, const std::string& payload, std::int64_t* id);
@@ -289,6 +295,7 @@ private:
         std::vector<EffectEnvelope> effects;
         std::map<room::MemberId,room::ConnectionRef> recipients;
         std::set<std::string> members;
+        std::size_t liveMembers=0;
     };
     // A terminal replay is keyed by the immutable recipient identity, rather
     // than a transient helper connection.  This lets a later checkpoint
@@ -400,6 +407,8 @@ private:
     void StageCommittedCheckpoint(const coordination::TransferIdentity& identity,
         CheckpointDecodeWorker::Result&& decoded);
     HelperLoadSnapshot helperLoad_;
+    RoomLoadWindow loadWindow_;
+    void LogLoad(const RoomLoadWindow::Report& report);
     std::deque<PendingDecode> decoding_;
     std::uint64_t nextDecodeTicket_=1;
     // SF4E_ROOM_WORKER=0 decodes inline on the game thread instead.

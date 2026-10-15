@@ -19,6 +19,7 @@ vcpkg_from_github(
         "assert-handler.patch"
         "spectator-catch-up.patch"
         "bound-input-decoding.patch"
+        "sync-retry-timer.patch"
 )
 
 # One canonical policy is compiled by both GGPO and the portable tests.

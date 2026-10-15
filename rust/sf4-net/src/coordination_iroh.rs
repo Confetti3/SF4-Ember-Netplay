@@ -246,6 +246,10 @@ impl IrohRpc {
             builder
                 .clear_ip_transports()
                 .portmapper_config(PortmapperConfig::Disabled)
+        } else if port.is_some() {
+            // An exact port is a headless room host's, on a server with a
+            // public address and no gateway to map it on (transport.rs).
+            builder.portmapper_config(PortmapperConfig::Disabled)
         } else {
             builder
         };

@@ -13,6 +13,7 @@
 #include <fstream>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 #include <filesystem>
@@ -20,8 +21,10 @@
 #include "../platform/JoinLinkMailbox.hxx"
 #include "../common/SteamJoin.hxx"
 #include "../common/WipeText.hxx"
+#include "../platform/Elevation.hxx"
 #include "../platform/LauncherInstance.hxx"
 #include "../platform/Utf8.hxx"
+#include "../platform/VideoLinkServe.hxx"
 #include "../platform/WineBuiltin.hxx"
 
 #include <CLI/CLI.hpp>
@@ -33,6 +36,9 @@
 #include "../sidecar/sidecar.hxx"
 #include "../common/CrashDump.hxx"
 #include "../common/CrashReport.hxx"
+#include "../platform/ReplayFiles.hxx"
+#include "../common/ReplayLink.hxx"
+#include "../platform/ReplayPath.hxx"
 #include "../common/sf4e__NetplayConfig.hxx"
 #include "../common/install_paths.hxx"
 #include "../common/Localization.hxx"
@@ -269,6 +275,14 @@ void NoteWindowsCrashDump(DWORD processId) {
 	else spdlog::info("No crash dump from Sidecar or Windows Error Reporting; see USER_NETPLAY.md to turn on LocalDumps");
 }
 
+// Copies every match replay into Ember's archive (platform/ReplayFiles.hxx)
+// so the game's slots are not the only copy: before a game run, and after it
+// for what Sidecar could not copy while it ran. Never blocks a start.
+void ArchiveReplays() {
+	static bool noted = false;
+	if (sf4e::platform::replays::Archive() < 0 && !noted) { noted = true; spdlog::info("Replays: no settings folder, nothing archived"); }
+}
+
 HANDLE CreateSF4Process(
 	const sf4e::Payload& payload,
 	sf4e::platform::HelperProcess& helper,
@@ -278,7 +292,8 @@ HANDLE CreateSF4Process(
 	LPWSTR szExePath,
 	int nDlls,
 	LPCSTR* rlpDlls,
-	sf4e::crash::DumpChannel& dumps
+	sf4e::crash::DumpChannel& dumps,
+	DWORD& startError
 ) {
 	wchar_t szErrorString[1024] = { 0 };
 	DWORD dwError;
@@ -319,6 +334,7 @@ HANDLE CreateSF4Process(
 			NULL
 		)) {
 		dwError = GetLastError();
+		startError = dwError;
 		StringCchPrintf(szErrorString, 1024, L"DetourCreateProcessWithDllEx failed: %d", dwError);
         spdlog::error("Could not start the game with Sidecar (Win32 {})", dwError);
         if (hSyncEvent) CloseHandle(hSyncEvent);
@@ -492,10 +508,12 @@ int ShowLauncherMessage(const char* key, UINT flags) {
 
 // The recovery screen, with its selection art reporting to launcher.log. The
 // updater offers to start the game when canStart says the launch may go on.
+// `crash` offers the crash's report from the message (ui/RecoverySurface.hxx).
 bool ShowRecovery(std::string message, std::wstring& gameDirectory, bool updates = false,
-	sf4e::ui::Tone tone = sf4e::ui::Tone::Error, bool canStart = false) {
+	sf4e::ui::Tone tone = sf4e::ui::Tone::Error, bool canStart = false,
+	const std::optional<sf4e::reports::CrashContext>& crash = std::nullopt) {
 	return sf4e::ui::RunRecovery(std::move(message), gameDirectory, updates,
-		[](const std::string& line) { spdlog::warn("{}", line); }, tone, canStart);
+		[](const std::string& line) { spdlog::warn("{}", line); }, tone, canStart, crash);
 }
 
 // Lets the /j page on embernetplay.link hand a room link to Ember through
@@ -535,6 +553,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         if (ShowLauncherMessage("launcher.runtime_outdated", MB_YESNO | MB_ICONERROR) == IDYES)
             ShellExecuteW(nullptr, L"open", L"https://aka.ms/vc14/vc_redist.x86.exe", nullptr, nullptr, SW_SHOWNORMAL);
         return 1;
+    }
+    {
+        // Not a launcher start: the game's video export runs its encoder in
+        // this executable (platform/VideoLinkServe.hxx). Before the log, which rotates.
+        int count = 0; auto** arguments = CommandLineToArgvW(GetCommandLineW(), &count);
+        const std::wstring link = count == 3 && !wcscmp(arguments[1], L"--encode-video") ? arguments[2] : L"";
+        LocalFree(arguments);
+        if (!link.empty()) return sf4e::platform::videolink::Serve(link);
     }
     ConfigureLauncherLogging();
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
@@ -585,12 +611,16 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // the unused remainder is accepted; see src/common/SteamJoin.hxx.
     const std::string steamJoinCode = joinUri.empty() ? sf4e::steam_join::FromLauncherRemainder(steamCommand) : std::string();
     const std::string joinCode = explicitJoinCode.empty() ? steamJoinCode : explicitJoinCode;
+    // A replay link names an archived replay to play (common/ReplayLink.hxx).
+    const std::string replayLink = joinUri.empty() || !joinCode.empty() || matchLink.Valid() || publicRoomLink.Valid() || !connectBridge.empty() ? std::string() :
+        sf4e::platform::ResolveReplayFile(sf4e::replay_link::ParseReplayLink(joinUri));
     if (!explicitJoinCode.empty()) spdlog::info("Started with a room link");
     else if (!steamJoinCode.empty()) spdlog::info("Started with a Steam invite link");
     else if (matchLink.Valid()) spdlog::info("Started with a link to tournament match {}", matchLink.matchId);
     else if (publicRoomLink.Valid()) spdlog::info("Started with a public room link");
     else if (!connectBridge.empty()) spdlog::info("Started with a link to connect Discord on service {}", connectBridge);
-    else if (!joinUri.empty()) spdlog::info("Ignored a link that is not an Ember room, tournament match, public room or Discord connect link");
+    else if (!replayLink.empty()) spdlog::info("Started with a link to a replay");
+    else if (!joinUri.empty()) spdlog::info("Ignored a link that is not an Ember room, tournament match, public room, Discord connect or replay link");
     sf4e::WipeText(joinUri);
     sf4e::platform::LauncherInstance instance;
     std::wstring chosenDirectory;
@@ -626,6 +656,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // where the player decides.
         if (!connectBridge.empty() && sf4e::platform::DeliverConnectLink(connectBridge)) {
             spdlog::info("Handed the Discord connect link to the running game");
+            return 0;
+        }
+        // A replay link goes to the running game, which plays it from its main menu.
+        if (!replayLink.empty() && sf4e::platform::DeliverReplayLink(replayLink)) {
+            spdlog::info("Handed the replay link to the running game");
             return 0;
         }
         // A Discord invite reaches the running copy, so a second start for it
@@ -678,6 +713,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // A connect link as the service's ID.
     SetEnvironmentVariableW(L"SF4E_CONNECT_LINK", connectBridge.empty() ? nullptr :
         sf4e::platform::Utf8ToWide(connectBridge.c_str()).c_str());
+    // A replay link as the file's path.
+    SetEnvironmentVariableW(L"SF4E_REPLAY_LINK", replayLink.empty() ? nullptr :
+        sf4e::platform::Utf8ToWide(replayLink.c_str()).c_str());
     // A folder picked in recovery on an earlier launch comes before the search.
     sf4e::launcher::RememberedFolder remembered{sf4e::platform::Utf8ToWide(settings.gameDirectory.c_str())};
     const auto exists = [](const std::wstring& path) { return PathFileExistsW(path.c_str()) != FALSE; };
@@ -743,16 +781,30 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             if (!ShowRecovery(sf4e::loc::Tf("launcher.runtime_shadowed", sf4e::platform::WideToUtf8(listed)), chosenDirectory)) return 0;
             continue;
         }
+        ArchiveReplays();
         const char* dlls[] = {sidecarAnsi};
         CreateAppIDFile(location.directory.data());
         sf4e::platform::HelperProcess helper, discord;
         const auto helperPath = std::filesystem::path(installRoot)/L"sf4-net.exe";
         sf4e::crash::DumpChannel dumps;
+        sf4e::reports::CrashContext reportCrash;
+        reportCrash.started = std::filesystem::file_time_type::clock::now();
+        // The small dump a report may carry. It stays on this PC unless the
+        // player turns it on in a report's preview.
+        dumps.reportEnabled = true;
         if (!dumps.Create()) spdlog::warn("Could not create the crash dump channel (Win32 {})", GetLastError());
-        HANDLE game = CreateSF4Process(payload,helper,discord,helperPath.wstring(),location.directory.data(),location.executable.data(),1,dlls,dumps);
+        // A game started by a normal process cannot reach a Steam that runs as
+        // administrator: its SteamAPI_Init fails and it exits.
+        const bool steamAbove = sf4e::platform::ProcessElevation() == sf4e::platform::Elevation::Normal &&
+            sf4e::platform::SteamElevation() == sf4e::platform::Elevation::Elevated;
+        if (steamAbove) spdlog::warn("Steam runs as administrator and the launcher does not; the game may not reach Steam");
+        DWORD startError = 0;
+        HANDLE game = CreateSF4Process(payload,helper,discord,helperPath.wstring(),location.directory.data(),location.executable.data(),1,dlls,dumps,startError);
         if (!game) {
             dumps.Close();
-            if (!ShowRecovery(sf4e::loc::T("launcher.start_failed"),chosenDirectory)) return 0;
+            // ERROR_ELEVATION_REQUIRED: SSFIV.exe is marked to run as administrator.
+            const char* startMessage = startError == ERROR_ELEVATION_REQUIRED ? "launcher.game_runs_as_admin" : "launcher.start_failed";
+            if (!ShowRecovery(sf4e::loc::T(startMessage),chosenDirectory)) return 0;
             continue;
         }
         // The game's crash handler asks for its dump here and waits for it.
@@ -765,16 +817,29 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             else spdlog::warn("Could not write the game's crash dump (Win32 {})", GetLastError());
         });
         dumps.Close();
-        if (g_logsDir[0]) sf4e::crash::PruneDumps(g_logsDir, 5);
+        if (g_logsDir[0]) sf4e::crash::PruneDumps(g_logsDir, 5, dumps.reportWritten.c_str());
         DWORD exitCode = 0; GetExitCodeProcess(game,&exitCode);
         spdlog::info("Game exited with code {:#010x} ({})", exitCode, sf4e::crash::ExitCodeName(exitCode));
         const bool crashed = sf4e::crash::IsCrashExit(exitCode);
+        if (crashed) {
+            reportCrash.exitCode = exitCode; reportCrash.smallDump = dumps.reportWritten;
+            if (dumps.exceptionCode) reportCrash.exceptionCode = dumps.exceptionCode;
+            if (dumps.crashAddress) reportCrash.address = dumps.crashAddress;
+        }
         if (crashed && !dumped) NoteWindowsCrashDump(GetProcessId(game));
         discord.Stop(); helper.Stop(); CloseHandle(game);
+        ArchiveReplays();
         // A loader failure never reaches Sidecar's crash record, so the exit
         // code is the only thing that tells a missing export from a crash.
-        const char* exitMessage = exitCode == 0xC0000139u ? "launcher.game_wrong_dll" : crashed ? "launcher.game_crashed" : "launcher.game_error";
-        if (exitCode != 0 && ShowRecovery(sf4e::loc::T(exitMessage),chosenDirectory)) continue;
+        // With Steam above the launcher the game cannot run at all, and how it
+        // exits after SteamAPI_Init fails may look like a crash, so that comes first.
+        // A crash's report reads the logs folder; without one the message
+        // only names the files.
+        const bool reportable = crashed && exitCode != 0xC0000139u && !steamAbove && g_logsDir[0];
+        const char* exitMessage = exitCode == 0xC0000139u ? "launcher.game_wrong_dll" :
+            steamAbove ? "launcher.steam_runs_as_admin" : crashed ? (reportable ? "launcher.game_crashed" : "launcher.game_crashed_files") : "launcher.game_error";
+        if (exitCode != 0 && ShowRecovery(sf4e::loc::T(exitMessage),chosenDirectory,false,sf4e::ui::Tone::Error,false,
+            reportable ? std::optional<sf4e::reports::CrashContext>(reportCrash) : std::nullopt)) continue;
         return 0;
     }
 }

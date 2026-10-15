@@ -156,7 +156,7 @@ Plate MakePlate(const MatchStripView& view,int side,float edge,float y,float k,f
     p.x0=p.right?edge-w:edge;p.x1=p.x0+w;p.y0=y;p.y1=y+height;
     return p;
 }
-void DrawPlate(ImDrawList* draw,const Plate& p){
+void DrawPlate(ImDrawList* draw,const Plate& p,bool withLink=true){
     const float k=p.k,glyph=p.font*.9f,gap=6*k;
     // Opaque: the plate hides the game's own PLAYER label.
     draw->AddRectFilled(ImVec2(p.x0,p.y0),ImVec2(p.x1,p.y1),IM_COL32(20,19,18,255),5*k);
@@ -169,7 +169,7 @@ void DrawPlate(ImDrawList* draw,const Plate& p){
     const float nameWidth=TextWidth(p.font,p.name);
     const float nameX=p.right?p.x1-14*k-nameWidth:p.x0+14*k;
     const float glyphX=p.right?nameX-gap-glyph:nameX+nameWidth+gap;
-    DrawNetworkLinkGlyph(draw,ImVec2(glyphX,p.y0+(p.y1-p.y0-glyph)*.5f),glyph,p.link);
+    if(withLink)DrawNetworkLinkGlyph(draw,ImVec2(glyphX,p.y0+(p.y1-p.y0-glyph)*.5f),glyph,p.link);
     if(p.name.empty())return;
     auto* font=DiagnosticFont();
     const float textY=p.y0+(p.y1-p.y0-p.font)*.5f;
@@ -220,7 +220,7 @@ void DrawTelemetry(ImDrawList* draw,const Telemetry& t,ImVec2 p){
     }
 }
 struct SplitPlaced {
-    Plate plates[2];Telemetry tel;PanelSpot spot;bool hasState=false;
+    Plate plates[2];Telemetry tel;PanelSpot spot;bool hasState=false,panelBelow=false;
 };
 SplitPlaced PlaceSplit(const MatchStripView& view,const Screen& screen){
     NoteUserText(view.names[0]);NoteUserText(view.names[1]);
@@ -234,19 +234,27 @@ SplitPlaced PlaceSplit(const MatchStripView& view,const Screen& screen){
     // the "N WINS" streak text (from x 428, mirrored to x 852), above the life bar (top y 98).
     // The plate always fills y 74..95 and at least the label's width, and the name is the
     // label's size (20 units) whatever the HUD size setting, which scales only the panel.
+    // USF4's own HUD position option moves the label row; the player's name offset follows it.
     const float k=gs*20.f/SplitName;
-    const float y=gy0+74*gs,height=21*gs,maxName=274*gs,minName=108*gs;
+    const float y=gy0+(74+view.nameOffset)*gs,height=21*gs,maxName=274*gs,minName=108*gs;
     out.plates[0]=MakePlate(view,0,gx0+146*gs,y,k,maxName,minName,height);
     out.plates[1]=MakePlate(view,1,gx0+1134*gs,y,k,maxName,minName,height);
     // A top-anchored panel and its state line end above the plates. On a short screen
     // the band above them is too low for that at the usual scale, so the viewport term
-    // shrinks until the Large footprint fits; the three sizes stay distinct.
-    const float topLimit=y-4*gs;
-    float viewport=ViewportScale(screen.size.y);
-    if(view.anchor>=3)viewport=(std::min)(viewport,(topLimit-screen.pos.y)/((SplitHeight+MatchStateHeight+4)*SizeFactors[2]));
+    // shrinks until the Large footprint fits; the three sizes stay distinct. When names
+    // moved up leave less than half the usual scale, the panel goes to the bottom corner
+    // on its side instead, where it stays readable.
+    const float topLimit=y-4*gs,usual=ViewportScale(screen.size.y);
+    float viewport=usual;
+    auto placed=view;
+    if(view.anchor>=3){
+        const float fit=(topLimit-screen.pos.y)/((SplitHeight+MatchStateHeight+4)*SizeFactors[2]);
+        if(fit<usual*.5f){placed.anchor=view.anchor==3?1:2;out.panelBelow=true;}
+        else viewport=(std::min)(viewport,fit);
+    }
     const float s=viewport*SizeFactor(view);
     out.tel=MakeTelemetry(view,s,screen.size.x*.8f);
-    out.spot=PlacePanel(view,screen,out.tel.w,out.tel.h,s,topLimit);
+    out.spot=PlacePanel(placed,screen,out.tel.w,out.tel.h,s,topLimit);
     out.hasState=!MatchStripStateLine(view).empty();
     return out;
 }
@@ -263,6 +271,7 @@ MatchStripBounds MatchStripGeometry(const MatchStripView& view,ImVec2 screenPos,
     for(int side=0;side<2;++side){const auto& p=placed.plates[side];bounds.names[side]={p.x0,p.y0,p.x1,p.y1,true};}
     const float s=placed.tel.s;
     bounds.panel={placed.spot.pos.x,placed.spot.pos.y,placed.spot.pos.x+placed.tel.w,placed.spot.pos.y+placed.tel.h,true};
+    bounds.panelScale=s;bounds.panelBelow=placed.panelBelow;
     if(placed.hasState){
         bounds.panel.y0=(std::min)(bounds.panel.y0,placed.spot.stateTop);
         bounds.panel.y1=(std::max)(bounds.panel.y1,placed.spot.stateTop+MatchStateHeight*s);
@@ -283,6 +292,42 @@ void DrawMatchStrip(const MatchStripView& view) {
     const auto spot=PlacePanel(view,screen,w,MatchHeight*s,s,FLT_MAX);
     PaintMatchStrip(view,draw,spot.pos,w,s);
     DrawStateLine(view,draw,spot.pos.x,w,spot.stateTop,s);
+}
+void DrawExportCaption(const ExportCaptionView& view) {
+    const auto screen=MainScreen();
+    // The whole screen, transparent: only the plates, the line and the mark show.
+    ImGui::SetNextWindowPos(screen.pos);ImGui::SetNextWindowSize(screen.size);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(0,0));ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize,0.f);
+    const bool begun=ImGui::Begin(ExportCaptionWindow,nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoBackground|
+        ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoFocusOnAppearing|ImGuiWindowFlags_NoBringToFrontOnFocus|ImGuiWindowFlags_NoNav);
+    ImGui::PopStyleVar(2);
+    if(!begun){ImGui::End();return;}
+    auto* draw=ImGui::GetWindowDrawList();
+    // The game's 16:9 image inside the window, in its 720p units, as PlaceSplit measures it.
+    const float gs=(std::min)(screen.size.y/720.f,screen.size.x/1280.f);
+    const float gx0=screen.pos.x+(screen.size.x-1280*gs)*.5f,gy0=screen.pos.y+(screen.size.y-720*gs)*.5f;
+    MatchStripView plates;plates.layout=1;plates.nameOffset=view.nameOffset;
+    plates.names[0]=view.names[0];plates.names[1]=view.names[1];
+    const auto placed=PlaceSplit(plates,screen);
+    for(const auto& plate:placed.plates)if(!plate.name.empty())DrawPlate(draw,plate,false);
+    auto* font=DiagnosticFont();
+    const auto boxed=[&](const std::string& text,float size,float x,float y,float padX,float height,ImU32 color){
+        draw->AddRectFilled(ImVec2(x,y),ImVec2(x+TextWidth(size,text)+2*padX,y+height),IM_COL32(20,19,18,235),4*gs);
+        draw->AddText(font,size,ImVec2(x+padX+gs,y+(height-size)*.5f+gs),IM_COL32(0,0,0,190),text.c_str());
+        draw->AddText(font,size,ImVec2(x+padX,y+(height-size)*.5f),color,text.c_str());
+    };
+    if(!view.line.empty()){
+        // Over the timer, in the band above the K.O. sign (which starts 43 units down).
+        NoteUserText(view.line);
+        const float size=16*gs,pad=10*gs;
+        const auto text=FitText(view.line,520*gs,size);
+        boxed(text,size,gx0+640*gs-TextWidth(size,text)*.5f-pad,gy0+10*gs,pad,24*gs,palette::Ivory);
+    }
+    if(view.mark){
+        const float size=13*gs,pad=7*gs;const std::string mark="EMBER";
+        boxed(mark,size,gx0+1280*gs-TextWidth(size,mark)-2*pad-8*gs,gy0+720*gs-19*gs-6*gs,pad,19*gs,palette::Ember);
+    }
+    ImGui::End();
 }
 void DrawMatchStripPreview(const MatchStripView& view) {
     const auto available=ImGui::GetContentRegionAvail();
@@ -308,6 +353,10 @@ void DrawMatchStripPreview(const MatchStripView& view) {
 }
 const char* MatchStripLayoutName(int layout) {
     return loc::T(layout==1?"hud_layout.split":"hud_layout.strip");
+}
+std::string MatchHudNameOffsetText(int offset) {
+    if(offset==0)return loc::T("name_offset.default");
+    return loc::Tf(offset<0?"name_offset.up":"name_offset.down",offset<0?-offset:offset);
 }
 const char* MatchStripAnchorName(int anchor) {
     const char* names[]={loc::T("hud_position.bottom_center"),loc::T("hud_position.bottom_left"),loc::T("hud_position.bottom_right"),loc::T("hud_position.top_left"),loc::T("hud_position.top_right")};

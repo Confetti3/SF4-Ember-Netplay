@@ -45,7 +45,7 @@ implemented, and how it differs from the draft, is in `STATUS.md` there.
 
 ## Run a local bridge
 
-From `rust/ember` (the bridge build needs the Visual Studio C++ tools for its
+From `server/ember` (the bridge build needs the Visual Studio C++ tools for its
 bundled SQLite):
 
 ```sh
@@ -63,7 +63,7 @@ prints a token once; the bridge keeps only a keyed hash. Keep
 Loopback `http` is accepted only because `init` sets `allow_loopback_http`
 and `allow_private_webhooks` for local work. A deployed bridge uses an
 `https` origin with both off, and `mock_browser` off.
-`rust/ember/bridge/deploy` holds the staging deployment: a systemd unit, an
+`server/ember/bridge/deploy` holds the staging deployment: a systemd unit, an
 nginx site, a daily backup and `setup.sh`.
 
 `bridge.json` also takes `match_expiry_hours`, how long a match nobody plays
@@ -98,7 +98,7 @@ end to end against any bridge.
 ## Create and decide matches
 
 - `POST /v1/matches` (provider, `Idempotency-Key` required) takes the two
-  linked participants, the set length (`games_to_win` of 1, 2, 3 or 5) and the
+  linked participants, the set length (`games_to_win` of 1 to 10) and the
   rules profile: `ember-room-v1` for a match played in Ember (next section) or
   `organizer-reported-v1` for one an organizer decides. Retrying with the same
   key or the same `external_match_id` returns the same match.
@@ -217,7 +217,7 @@ A bridge whose configuration has `discord` (the Discord application's
 `client_id`, with `<origin>/v1/discord/callback` in its redirect list) and
 whose integration secrets hold the client secret lists `discord` in its
 capabilities `features`. A player then connects their Discord account from
-Ember (Ember ID on the home menu, then Discord). A platform can send the
+Ember (Online play, then Ember ID, then Discord). A platform can send the
 player there directly: the link `ember://discord/connect?bridge=<bridge_id>`,
 offered by the page `https://embernetplay.link/start#<bridge_id>`, opens
 Ember's Connect Discord screen for that bridge. At an idle menu it creates the
@@ -360,7 +360,7 @@ fires. Lobbies go beyond the EMBER-TB-001 package; `"lobbies"` in the
 capabilities `features` and `lobby_rotations` say a bridge has them.
 
 - `POST /v1/lobbies` (provider, `Idempotency-Key`) takes `external_lobby_id`,
-  `games_to_win` (1, 2, 3 or 5), `rotation` and `required_build_id`, with
+  `games_to_win` (1 to 10), `rotation` and `required_build_id`, with
   optional display `metadata` such as `title`.
 - `POST /v1/lobbies/{id}/queue` adds a linked player who asked to play:
   `{"participant_id": "...", "ember_id": "..."}`. Nobody is queued without
@@ -497,7 +497,7 @@ events, and players their own matches, links, lobbies and tournaments.
 
 ## Discord and Twitch
 
-`rust/ember/notifier` is a ready-made subscriber that posts news to a
+`server/ember/notifier` is a ready-made subscriber that posts news to a
 Discord channel and to Twitch chat. With a `bot` section it is also a room
 bot: `/room` in Discord and `!room` in Twitch chat open a public Ember room
 and answer with its link. Configure it with a JSON file:

@@ -1,26 +1,33 @@
 #include "github_release_client_internal.hxx"
+#include "UpdateHandoff.hxx"
+#include "UpdaterArguments.hxx"
 #include "../../platform/Elevation.hxx"
+#include "../../platform/Utf8.hxx"
+#include "../../common/ReleaseNotesText.hxx"
 
 namespace sf4e {
 namespace launcher {
 
 	namespace detail {
 
-		static void GetGithubRepo(char* outRepo, int outRepoLen) {
+		// Development builds can override any channel's repository.
+		static void GetGithubRepo(UpdateChannel channel, char* outRepo, int outRepoLen) {
+#ifndef NDEBUG
 			const char* env = getenv("SF4E_GITHUB_REPO");
 			if (env && env[0]) {
 				strncpy_s(outRepo, outRepoLen, env, _TRUNCATE);
 				return;
 			}
-			strncpy_s(outRepo, outRepoLen, kDefaultGithubRepo, _TRUNCATE);
+#endif
+			strncpy_s(outRepo, outRepoLen, UpdateChannelRepo(channel), _TRUNCATE);
 		}
 
 		// Waits in short slices so a cancel (launcher closing) or a hung process
 		// cannot hold the update worker, and with it shutdown, forever. The
 		// process runs in a kill-on-close job, so a cancel or timeout ends
 		// anything it started too (ledger A-013).
-		static bool RunProcessAndWaitHidden(const wchar_t* application, const wchar_t* cmdLine, DWORD* outExitCode,
-			const std::function<bool(std::uint64_t, std::uint64_t)>& progress) {
+		bool RunProcessAndWaitHidden(const wchar_t* application, const wchar_t* cmdLine, DWORD* outExitCode,
+			const std::atomic<bool>& cancel) {
 			constexpr ULONGLONG kTimeoutMs = 5 * 60 * 1000;
 			HANDLE job = CreateJobObjectW(NULL, NULL);
 			JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits = {};
@@ -55,7 +62,7 @@ namespace launcher {
 			const ULONGLONG started = GetTickCount64();
 			bool stopped = false;
 			while (WaitForSingleObject(pi.hProcess, 250) == WAIT_TIMEOUT) {
-				const bool cancelled = progress && !progress(0, 0);
+				const bool cancelled = cancel;
 				if (cancelled || GetTickCount64() - started > kTimeoutMs) {
 					AppendUpdateLog(cancelled ? "process cancelled" : "process timed out");
 					TerminateJobObject(job, 1);
@@ -97,7 +104,7 @@ namespace launcher {
 		}
 
 		static bool ExpandZipArchive(const wchar_t* zipPath, const wchar_t* destDir,
-			const std::function<bool(std::uint64_t, std::uint64_t)>& progress) {
+			const std::atomic<bool>& cancel) {
 			// The system tar by full path: a bare name would be searched for in the
 			// application and current directories first.
 			wchar_t tarPath[MAX_PATH] = { 0 };
@@ -114,7 +121,7 @@ namespace launcher {
 			AppendUpdateLog(cmdUtf8);
 
 			DWORD exitCode = 1;
-			if (!RunProcessAndWaitHidden(tarPath, cmdLine, &exitCode, progress)) {
+			if (!RunProcessAndWaitHidden(tarPath, cmdLine, &exitCode, cancel)) {
 				AppendUpdateLog("tar spawn failed");
 				return false;
 			}
@@ -130,15 +137,16 @@ namespace launcher {
 		// The updater must not run from the directory it is about to rewrite:
 		// Windows refuses to replace the image of a running executable, so the
 		// old in-place launch made its own replacement the expected failure.
-		// Copy the staged (new, already validated) updater to a unique directory
-		// outside the replacement set and run that. This also means an upgrade
-		// started from an older install executes the new updater implementation
-		// rather than the one already on disk. Updater.exe imports only system
-		// DLLs and the MSVC runtime, so the single file is self-sufficient.
-		static bool StageUpdaterOutsideInstall(const wchar_t* installDir, const wchar_t* stagingDir,
+		// Copy the updater in updaterDir (the staged, already validated one for
+		// an update, so an upgrade runs the new implementation; the installed
+		// one when going back, since it knows every file its version added) to
+		// a unique directory outside the replacement set and run that.
+		// Updater.exe imports only system DLLs and the MSVC runtime, so the
+		// single file is self-sufficient.
+		static bool StageUpdaterOutsideInstall(const wchar_t* installDir, const wchar_t* updaterDir,
 			wchar_t* outPath, size_t outLen) {
 			wchar_t source[MAX_PATH] = { 0 };
-			if (FAILED(PathCchCombine(source, MAX_PATH, stagingDir, L"Updater.exe")) ||
+			if (FAILED(PathCchCombine(source, MAX_PATH, updaterDir, L"Updater.exe")) ||
 				GetFileAttributesW(source) == INVALID_FILE_ATTRIBUTES) {
 				// Fall back to the installed copy only if the package lacks one.
 				if (FAILED(PathCchCombine(source, MAX_PATH, installDir, L"Updater.exe")) ||
@@ -169,6 +177,13 @@ namespace launcher {
 			return true;
 		}
 
+		// The Updater window's step names and notices in the player's language,
+		// for an install and a recovery alike (UpdaterArguments.hxx).
+		static void AddUpdaterTexts(UpdaterArguments& arguments) {
+			for (const auto& step : InstallerSteps) arguments.stages.push_back(platform::Utf8ToWide(loc::T(step.nameKey)));
+			for (const auto& notice : UpdaterNotices) arguments.notices.push_back(platform::Utf8ToWide(loc::T(notice.key)));
+		}
+
 		// Every Updater start asks this first, so installing and recovering an
 		// interrupted update decide the same way (see platform/Elevation.hxx).
 		static bool UpdaterMayRun() {
@@ -181,12 +196,12 @@ namespace launcher {
 		}
 
 		enum class SpawnResult { Started, Failed, NotNormalUser };
-		static SpawnResult SpawnUpdater(const wchar_t* installDir, const wchar_t* stagingDir, const wchar_t* params) {
+		static SpawnResult SpawnUpdater(const wchar_t* installDir, const wchar_t* updaterDir, const wchar_t* params) {
 			if (!UpdaterMayRun()) {
 				return SpawnResult::NotNormalUser;
 			}
 			wchar_t updaterPath[MAX_PATH] = { 0 };
-			if (!StageUpdaterOutsideInstall(installDir, stagingDir, updaterPath, MAX_PATH)) {
+			if (!StageUpdaterOutsideInstall(installDir, updaterDir, updaterPath, MAX_PATH)) {
 				return SpawnResult::Failed;
 			}
 
@@ -378,11 +393,14 @@ namespace launcher {
 		if (!std::filesystem::exists(std::filesystem::path(installDir) / UpdateTransactionName, error))
 			return error ? PendingRecovery::Failed : PendingRecovery::None;
 		AppendUpdateLog("pending update transaction found at launch; starting recovery");
-		wchar_t params[4096] = { 0 };
-		swprintf_s(params, L"-InstallDir \"%s\" -RecoverOnly -WaitPid %lu", installDir, static_cast<unsigned long>(waitPid));
+		UpdaterArguments arguments;
+		arguments.installDir = installDir; arguments.recoverOnly = true; arguments.waitPid = waitPid;
+		AddUpdaterTexts(arguments);
+		std::wstring params;
+		if (!BuildUpdaterArguments(arguments, params)) return PendingRecovery::Failed;
 		// The installed Updater may itself be part of the unfinished
 		// transaction, so it runs from a copy outside the install as usual.
-		switch (SpawnUpdater(installDir, installDir, params)) {
+		switch (SpawnUpdater(installDir, installDir, params.c_str())) {
 		case SpawnResult::Started: return PendingRecovery::Started;
 		case SpawnResult::NotNormalUser: return PendingRecovery::NotNormalUser;
 		default: return PendingRecovery::Failed;
@@ -473,103 +491,177 @@ namespace launcher {
 		return running;
 	}
 
-	UpdateCheckResult CheckForUpdate() {
+	ReleaseKind ClassifyReleaseKind(const Version& version) {
+		if (!version.prerelease) return ReleaseKind::Stable;
+		return version.word == "nightly" ? ReleaseKind::Nightly : ReleaseKind::Beta;
+	}
+
+	const char* UpdateChannelName(UpdateChannel channel) { return GetUpdateChannelInfo(channel).stored; }
+	const char* UpdateChannelRepo(UpdateChannel channel) { return GetUpdateChannelInfo(channel).repo; }
+
+	bool TransitionOffered(const char* tag, const char* installed, bool goBack) {
+		const auto target = ParseVersion(tag), current = ParseVersion(installed);
+		if (!target || !current) return !goBack;
+		return (CompareVersions(*target, *current) < 0) == goBack;
+	}
+
+	UpdateChannel ResolveUpdateChannel(std::optional<UpdateChannel> saved, const char* installed) {
+		if (saved) return *saved;
+		const auto version = ParseVersion(installed);
+		const auto kind = version ? ClassifyReleaseKind(*version) : ReleaseKind::Stable;
+		for (const auto& info : kUpdateChannels) if (info.kind == kind) return info.channel;
+		return UpdateChannel::Stable;
+	}
+
+	UpdateCheckResult CheckForUpdate(UpdateChannel channel) {
 		UpdateCheckResult result;
 		char installed[64] = { 0 };
 		ReadInstalledVersion(installed, sizeof(installed));
 		result.installedVersion = installed;
 
 		char repo[128] = { 0 };
-		GetGithubRepo(repo, sizeof(repo));
+		GetGithubRepo(channel, repo, sizeof(repo));
 
+		// GitHub's "latest" never names a pre-release and follows a flag, not
+		// the version, so each channel reads the newest releases and chooses.
 		char path[256] = { 0 };
-		snprintf(path, sizeof(path), "/repos/%s/releases/latest", repo);
+		snprintf(path, sizeof(path), "/repos/%s/releases?per_page=20", repo);
 
-		char body[65536] = { 0 };
+		std::vector<char> body(1024 * 1024);
 		const char* headers = "Accept: application/vnd.github+json\r\nUser-Agent: sf4e-updater/1.0\r\n";
-		if (!HttpGetUtf8WithHeaders("api.github.com", 443, true, path, 15000, headers, body, sizeof(body))) {
+		if (!HttpGetUtf8WithHeaders("api.github.com", 443, true, path, 15000, headers, body.data(), static_cast<int>(body.size()))) {
 			result.error = loc::T("update.github_unreachable");
 			return result;
 		}
 
-        return ParseGithubReleaseResponse(body, installed);
-    }
+		return ParseGithubReleases(body.data(), installed, channel);
+	}
 
-    UpdateCheckResult ParseGithubReleaseResponse(const std::string& body, const char* installed) {
-        UpdateCheckResult result;
-        if (!installed) installed = "";
-        result.installedVersion = installed;
-		try {
-			nlohmann::json release = nlohmann::json::parse(body);
-			result.latestVersion = release.value("tag_name", "");
-			result.releaseNotes = release.value("body", "");
-			result.releaseUrl = release.value("html_url", "");
+	// A string field of a release or asset; GitHub sends null for an empty one.
+	static std::string Text(const nlohmann::json& object, const char* key) {
+		const auto field = object.find(key);
+		return field != object.end() && field->is_string() ? field->get<std::string>() : std::string();
+	}
 
-			if (result.releaseNotes.size() > 2000) {
-				result.releaseNotes = result.releaseNotes.substr(0, 2000) + "...";
-			}
+	// Fills result from one release object whose tag is a version; ok once it
+	// has a package. Whether that is an update is the caller's question.
+	static void ReadRelease(const nlohmann::json& release, UpdateCheckResult& result) {
+		result.latestVersion = Text(release, "tag_name");
+		result.releaseNotes = Text(release, "body");
+		result.releaseUrl = Text(release, "html_url");
 
-			if (result.latestVersion.empty()) {
-				result.error = loc::T("update.no_version_tag");
-				return result;
-			}
+		// Plain text once, here, where the notes arrive: the screens that show
+		// them draw this text and never parse the Markdown again.
+		if (result.releaseNotes.size() > 2000) {
+			result.releaseNotes = result.releaseNotes.substr(0, 2000) + "...";
+		}
+		result.releaseNotes = updates::PlainReleaseNotes(result.releaseNotes);
 
-			if (release.contains("assets") && release["assets"].is_array()) {
-				// GitHub exposes an asset content digest as "sha256:<hex>". Strip
-				// the prefix so we store bare lowercase hex (empty for older
-				// releases whose assets predate the digest field).
-				auto parseSha256Digest = [](const std::string& digest) -> std::string {
-					const std::string prefix = "sha256:";
-					if (digest.size() > prefix.size() &&
-						digest.compare(0, prefix.size(), prefix) == 0) {
-						return digest.substr(prefix.size());
-					}
-					return "";
-				};
-				for (const auto& asset : release["assets"]) {
-					std::string name = asset.value("name", "");
-					if (name.size() < 4 || name.compare(name.size()-4, 4, ".zip") != 0) {
-						continue;
-					}
-					if (name.compare(0, strlen(kReleaseZipPrefix), kReleaseZipPrefix) == 0) {
-						result.zipDownloadUrl = asset.value("browser_download_url", "");
-						result.zipApiUrl = asset.value("url", "");
-						result.expectedSha256 = parseSha256Digest(asset.value("digest", ""));
-						break;
-					}
-
+		if (release.contains("assets") && release["assets"].is_array()) {
+			// GitHub exposes an asset content digest as "sha256:<hex>". Strip
+			// the prefix so we store bare lowercase hex (empty for older
+			// releases whose assets predate the digest field).
+			auto parseSha256Digest = [](const std::string& digest) -> std::string {
+				const std::string prefix = "sha256:";
+				if (digest.size() > prefix.size() &&
+					digest.compare(0, prefix.size(), prefix) == 0) {
+					return digest.substr(prefix.size());
+				}
+				return "";
+			};
+			for (const auto& asset : release["assets"]) {
+				if (!asset.is_object()) continue;
+				std::string name = Text(asset, "name");
+				if (name.size() < 4 || name.compare(name.size()-4, 4, ".zip") != 0) {
+					continue;
+				}
+				if (name.compare(0, strlen(kReleaseZipPrefix), kReleaseZipPrefix) == 0) {
+					result.zipDownloadUrl = Text(asset, "browser_download_url");
+					result.zipApiUrl = Text(asset, "url");
+					result.expectedSha256 = parseSha256Digest(Text(asset, "digest"));
+					break;
 				}
 
 			}
 
-			if (result.zipDownloadUrl.empty()) {
-				result.error = loc::T("update.no_zip_asset");
-				return result;
-			}
+		}
 
-			result.updateAvailable = CompareVersions(result.latestVersion.c_str(), installed) > 0;
-			result.ok = true;
+		if (result.zipDownloadUrl.empty()) {
+			result.error = loc::T("update.no_zip_asset");
+			return;
+		}
+
+		result.ok = true;
+	}
+
+	UpdateCheckResult ParseGithubReleases(const std::string& body, const char* installed, UpdateChannel channel) {
+		UpdateCheckResult best;
+		const auto& info = GetUpdateChannelInfo(channel);
+		if (!installed) installed = "";
+		try {
+			Version bestVersion;
+			const auto releases = nlohmann::json::parse(body);
+			if (!releases.is_array()) throw std::runtime_error("not a release list");
+			const auto flag = [](const nlohmann::json& release, const char* key) {
+				const auto field = release.find(key);
+				return field != release.end() && field->is_boolean() && field->get<bool>();
+			};
+			for (const auto& release : releases) {
+				if (!release.is_object() || flag(release, "draft")) continue;
+				const auto version = ParseVersion(Text(release, "tag_name").c_str());
+				// Stable takes neither a pre-release tag nor a release GitHub marks as one.
+				if (!version || !info.Accepts(ClassifyReleaseKind(*version)) ||
+					(info.skipGithubPrerelease && flag(release, "prerelease"))) continue;
+				UpdateCheckResult candidate;
+				ReadRelease(release, candidate);
+				if (candidate.ok && (!best.ok || CompareVersions(*version, bestVersion) > 0)) {
+					best = std::move(candidate);
+					bestVersion = *version;
+				}
+			}
+			if (best.ok) {
+				// A build without a version label, such as a developer build,
+				// is offered the channel's best release. An installed kind the
+				// channel does not accept can go back to its best release.
+				const auto current = ParseVersion(installed);
+				const int order = current ? CompareVersions(bestVersion, *current) : 1;
+				best.goesBack = order < 0 && current && !info.Accepts(ClassifyReleaseKind(*current));
+				best.updateAvailable = order > 0 || best.goesBack;
+			}
+			else {
+				best.error = loc::T("update.no_zip_asset");
+			}
 		}
 		catch (...) {
-			result.error = loc::T("update.parse_failed");
+			best = {};
+			best.error = loc::T("update.parse_failed");
 		}
-		return result;
+		best.installedVersion = installed;
+		return best;
 	}
 
 	ApplyUpdateResult DownloadAndApplyUpdate(
-		const char* zipDownloadUrl,
-		const char* zipApiUrl,
-		const char* latestVersionTag,
-		const char* expectedSha256,
-        const std::function<bool(std::uint64_t, std::uint64_t)>& progress
+		const UpdateCheckResult& offer,
+        const std::atomic<bool>& cancel,
+        const Progress& progress,
+        const char* installingText
 	) {
 		ApplyUpdateResult result;
-		if ((!zipDownloadUrl || !zipDownloadUrl[0]) && (!zipApiUrl || !zipApiUrl[0])) {
+		if (offer.zipDownloadUrl.empty() && offer.zipApiUrl.empty()) {
 			result.error = loc::T("update.missing_url");
 			return result;
 		}
-		if (!latestVersionTag || !latestVersionTag[0]) {
+		if (offer.latestVersion.empty()) {
 			result.error = loc::T("update.missing_version");
+			return result;
+		}
+		// The check decided whether this is an update or a step back; an
+		// install is only ever given the kind it was offered.
+		char installedVersion[64] = { 0 };
+		ReadInstalledVersion(installedVersion, sizeof(installedVersion));
+		if (!TransitionOffered(offer.latestVersion.c_str(), installedVersion, offer.goesBack)) {
+			AppendUpdateLog("install refused: not the offered kind of version change");
+			result.error = loc::T("update.not_offered");
 			return result;
 		}
 		if (IsGameProcessRunning()) {
@@ -589,7 +681,7 @@ namespace launcher {
 		}
 
 		char safeTag[64] = { 0 };
-		SanitizeTagForPath(latestVersionTag, safeTag, sizeof(safeTag));
+		SanitizeTagForPath(offer.latestVersion.c_str(), safeTag, sizeof(safeTag));
 
 		wchar_t tempRoot[MAX_PATH] = { 0 };
 		std::string tempPathError;
@@ -646,34 +738,31 @@ namespace launcher {
 			return result;
 		}
 
+		// Each step reports its own done and total under its stage, starting
+		// with (0, 0). A step that stopped because of a cancel reports that,
+		// whatever failure it ran into.
+		const auto announce = [&](UpdateStage stage) { if (progress) progress(stage, 0, 0); };
+		const auto stopped = [&](std::string failure) {
+			result.error = cancel ? std::string(loc::T("update.cancelled")) : std::move(failure);
+			return result;
+		};
 		std::string downloadError;
 		AppendUpdateLog("DownloadAndApplyUpdate start");
-		if (!DownloadReleaseZip(zipApiUrl, zipDownloadUrl, zipPath, downloadError, progress)) {
-			char repo[128] = { 0 };
-			GetGithubRepo(repo, sizeof(repo));
-			char releasePage[256] = { 0 };
-			snprintf(
-				releasePage,
-				sizeof(releasePage),
-				"https://github.com/%s/releases/tag/%s",
-				repo,
-				latestVersionTag
-			);
-			result.error = loc::Tf("update.download_failed", downloadError, releasePage);
-			return result;
-		}
+		announce(UpdateStage::Downloading);
+		if (!DownloadReleaseZip(offer, zipPath, downloadError, cancel, progress)) return stopped(downloadError);
 
 		// Verify the download's SHA-256 against the digest GitHub published for the
 		// asset before we extract or run anything from it. A mismatch means the zip
 		// was tampered with or corrupted in transit, so refuse it. Releases that
 		// predate GitHub asset digests provide no expected hash and are refused.
-		std::string expectedHash = (expectedSha256 && expectedSha256[0]) ? expectedSha256 : "";
+		announce(UpdateStage::Verifying);
+		const std::string& expectedHash = offer.expectedSha256;
 		if (!expectedHash.empty()) {
 			std::string actualHash;
-			if (!ComputeFileSha256Hex(zipPath, actualHash)) {
+			try { actualHash = Sha256Hex(zipPath, cancel, progress); }
+			catch (const std::exception&) {
 				AppendUpdateLog("hash computation failed");
-				result.error = loc::T("update.verify_failed");
-				return result;
+				return stopped(loc::T("update.verify_failed"));
 			}
 			if (!HexEqualsIgnoreCase(actualHash, expectedHash)) {
 				AppendUpdateLog(("hash mismatch expected=" + expectedHash + " actual=" + actualHash).c_str());
@@ -685,16 +774,19 @@ namespace launcher {
 			result.error = loc::T("update.no_digest"); return result;
 		}
 
-		const bool extracted = ExpandZipArchive(zipPath, extractDir, progress);
+		// tar reports nothing, so the stage keeps its (0, 0) and the bar moves
+		// without a total; each wait slice still reads `cancel`.
+		announce(UpdateStage::Extracting);
+		const bool extracted = ExpandZipArchive(zipPath, extractDir, cancel);
 		DeleteFileW(zipPath);
 		if (!extracted) {
 			AppendUpdateLog("extract failed");
 			std::error_code ignored;
 			std::filesystem::remove_all(extractDir, ignored);
-			result.error = loc::T("update.extract_failed");
-			return result;
+			return stopped(loc::T("update.extract_failed"));
 		}
 		AppendUpdateLog("extract ok");
+		announce(UpdateStage::Preparing);
 
 		if (!ValidateExtractedTree(extractDir)) {
 			AppendUpdateLog("extract path validation failed");
@@ -716,19 +808,35 @@ namespace launcher {
 			return result;
 		}
 		AppendUpdateLog(("staging dir: " + std::string(stagingUtf8)).c_str());
-		if (!ValidateStagedPackage(stagingDir)) {
+		if (!ValidateStagedPackage(stagingDir, cancel, progress)) {
 			AppendUpdateLog("package validation failed");
-			result.error = loc::T("update.validation_failed");
-			return result;
+			return stopped(loc::T("update.validation_failed"));
 		}
 		AppendUpdateLog("package validation ok");
 
-        if (progress && !progress(0,0)) { result.error = loc::T("update.cancelled"); return result; }
         if (IsGameProcessRunning()) { result.error = loc::T("update.close_game"); return result; }
-		wchar_t updaterParams[4096] = { 0 };
-		swprintf_s(updaterParams, L"-InstallDir \"%s\" -StagingDir \"%s\" -WaitPid %lu",
-			installDir, stagingDir, GetCurrentProcessId());
-        switch (SpawnUpdater(installDir, stagingDir, updaterParams)) {
+		// The Updater's window text, its steps' names and its notices, in the
+		// player's language, passed whole with Windows' quoting
+		// (UpdaterArguments.hxx). An Updater.exe from before any of them
+		// ignores it.
+		UpdaterArguments arguments;
+		arguments.installDir = installDir; arguments.stagingDir = stagingDir;
+		arguments.waitPid = GetCurrentProcessId();
+		arguments.status = platform::Utf8ToWide(installingText);
+		AddUpdaterTexts(arguments);
+		std::wstring updaterParams;
+		if (!BuildUpdaterArguments(arguments, updaterParams)) {
+			AppendUpdateLog("the updater's command line would be too long");
+			result.error = loc::T("update.updater_start_failed"); return result;
+		}
+		std::wstring joined;
+		if (!JoinNames(arguments.stages, InstallerStepCount, joined) || !JoinNames(arguments.notices, UpdaterNoticeCount, joined))
+			AppendUpdateLog("the updater's texts cannot all be passed; it shows those in English");
+        SpawnResult spawned = SpawnResult::Failed;
+        if (!HandoffPreparedUpdate(cancel, [&] {
+            spawned = SpawnUpdater(installDir, offer.goesBack ? installDir : stagingDir, updaterParams.c_str());
+        })) { result.error = loc::T("update.cancelled"); return result; }
+        switch (spawned) {
         case SpawnResult::Started: break;
         case SpawnResult::NotNormalUser: result.error = loc::T("update.elevated"); return result;
         default: result.error = loc::T("update.updater_start_failed"); return result;

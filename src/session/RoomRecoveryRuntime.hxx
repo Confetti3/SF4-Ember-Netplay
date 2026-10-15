@@ -78,8 +78,9 @@ public:
                         if(applied) { needsRebind_=true; }
                     }
                 }
-                if(!applied) throw std::runtime_error(matchingLocalCandidate
-                    ? "local committed candidate rejected" : "replicated checkpoint import rejected");
+                if(!applied) throw std::runtime_error(matchingLocalCandidate ? std::string("local committed candidate rejected") :
+                    "replicated checkpoint import of revision "+std::to_string(committed.identity.revision)+
+                    " rejected: "+server.RestoreRefusal());
                 // A replicated import is still private until every stable
                 // member has been rebound.  Activate the room journal only
                 // after that native boundary succeeds; a missing peer leaves

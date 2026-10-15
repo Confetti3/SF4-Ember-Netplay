@@ -2,8 +2,10 @@
 // A game-style fallback clears the OS cursor if overlay handling falls through.
 #include "../ui/Win32Input.hxx"
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <imgui_impl_win32.h>
 #include <atomic>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <thread>
@@ -109,6 +111,20 @@ int main() {
         unsigned char* pixels = nullptr; int width = 0, height = 0;
         io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
         const auto frame = [] { ImGui_ImplWin32_NewFrame(); ImGui::NewFrame(); ImGui::EndFrame(); };
+        const auto pressed = [] { return ImGui::IsKeyDown(ImGuiKey_LeftArrow) || ImGui::IsMouseDown(0); };
+        // Once a sender has finished: one frame moves everything the bridge
+        // holds into ImGui, which applies one change per key or button a frame
+        // and holds later input behind it, so frames run until its queue is
+        // empty. Returns how many of those frames saw a press held.
+        const auto drain = [&] {
+            int held = 0;
+            for (int i = 0; i < 20000; ++i) {
+                frame();
+                if (pressed()) ++held;
+                if (!GImGui->InputEventsQueue.Size) break;
+            }
+            return held;
+        };
         sf4e::ui::Win32InputBridge bridge;
         ImGui_ImplWin32_SetInputBridge(&bridge);
         frame();
@@ -125,12 +141,11 @@ int main() {
             ImGui_ImplWin32_WndProcHandler(window, WM_KEYDOWN, VK_RIGHT, 0);
             sent = true;
         });
-        while (!sent) { frame(); if (ImGui::IsKeyDown(ImGuiKey_LeftArrow) || ImGui::IsMouseDown(0)) ++pressesSeen; }
+        // Frames run while the thread sends, and after it, until all it sent
+        // is applied: the sender may finish before the first of them.
+        while (!sent) { frame(); if (pressed()) ++pressesSeen; }
         messages.join();
-        // ImGui applies one transition per key each frame, so the queued
-        // presses and releases take several frames to play out.
-        for (int i = 0; i < 20000 && (ImGui::IsKeyDown(ImGuiKey_LeftArrow) || ImGui::IsMouseDown(0) || !ImGui::IsKeyDown(ImGuiKey_RightArrow)); ++i) frame();
-        frame();
+        pressesSeen += drain();
         check(pressesSeen > 0, "no press from the message thread reached a frame");
         check(!ImGui::IsKeyDown(ImGuiKey_LeftArrow) && !ImGui::IsMouseDown(0), "a release from the message thread was lost");
         check(ImGui::IsKeyDown(ImGuiKey_RightArrow), "the last press from the message thread was lost");
@@ -152,6 +167,79 @@ int main() {
         check(bridge.Overflows() == overflowsBefore + 1, "the input bound did not trip");
         frame();
         check(!ImGui::IsKeyDown(ImGuiKey_LeftArrow), "a release dropped at the bound left the key held");
+
+        // Go now's Enter on the Training call, routed as the overlay's window
+        // procedure routes it: the go now key first, then the overlay's
+        // handling into the bridge, and what neither keeps goes to the game.
+        // At the call's onset, under the game's pause and at the call's end,
+        // a press is either the call's alone (a request for that call, and
+        // neither the overlay nor the game sees it) or not the call's at all.
+        {
+            sf4e::input::GoNowGate gate;
+            sf4e::ui::GoNowKey key;
+            int gameDowns = 0;
+            const auto route = [&](UINT message, WPARAM w, LPARAM l, bool free) {
+                if (key.Take(message, w, l, gate, free)) return;
+                if (!sf4e::ui::HandleOverlayMessage(window, message, w, l, false, false) && message == WM_KEYDOWN && w == VK_RETURN) ++gameDowns;
+            };
+            const auto enter = [&](bool free, bool repeat = false) {
+                route(WM_KEYDOWN, VK_RETURN, repeat ? (1L << 30) : 0, free);
+                route(WM_CHAR, L'\r', 0, free);
+            };
+            const auto release = [&](bool free) { route(WM_KEYUP, VK_RETURN, 0xC0000000, free); };
+            const auto overlaySawEnter = [&] { frame(); const bool seen = ImGui::IsKeyPressed(ImGuiKey_Enter, false); frame(); return seen; };
+            sf4e::input::CallIdentity call; call.roomEpoch = 3; call.table = 0; call.opponent = 2; call.generation = 9;
+            // Before the call: Enter is the game's and the overlay's, and asks for nothing.
+            enter(true);
+            check(gameDowns == 1 && gate.Take().empty(), "Enter before the call was kept or went now");
+            check(overlaySawEnter(), "Enter before the call did not reach the overlay");
+            release(true); frame();
+            // The call's onset: the next fresh Enter is the call's alone, its
+            // repeats and character too, and its release goes on.
+            gate.Offer(call);
+            enter(true); enter(true, true); enter(true, true);
+            auto requests = gate.Take();
+            check(gameDowns == 1 && requests.size() == 1 && requests[0].call == call, "Enter on the call reached the game or did not go now once");
+            check(!overlaySawEnter(), "Enter taken for go now reached the overlay");
+            release(true); frame();
+            // The game's pause opens: Enter is its menu's, and goes nowhere else.
+            enter(false); enter(false, true);
+            check(gameDowns == 3 && gate.Take().empty(), "Enter under the pause menu went now or was kept from it");
+            release(false); frame();
+            // An Enter held from before the call is not go now when it repeats.
+            gate.Offer(sf4e::input::CallIdentity{});
+            enter(true); gate.Offer(call); enter(true, true);
+            check(gameDowns == 5 && gate.Take().empty(), "A repeat of an Enter held before the call went now");
+            release(true); frame();
+            // The call ends: Enter is the game's again; a request taken just
+            // before the end names the call that has gone.
+            enter(true); release(true);
+            requests = gate.Take();
+            sf4e::input::CallIdentity next = call; next.opponent = 0; gate.Offer(next);
+            check(requests.size() == 1 && requests[0].call == call && requests[0].call != gate.Offered(), "A request outlived its call unmarked");
+            enter(true);
+            check(gameDowns == 6 && gate.Take().empty(), "Enter after the call ended went now");
+            release(true); frame(); frame();
+            // The call's lifecycle sets the offer. The player leaves Training
+            // for character select while the opponent stays seated: the call
+            // still stands (that is not the main menu), but its battle has
+            // closed, so Enter is the game's again; so it is in a later
+            // Training battle, which the call was not sent to.
+            sf4e::input::CallLifecycle lifecycle;
+            call.serial = 5;
+            lifecycle.Tick(call, sf4e::input::CallBattle{true, call.generation}, gate);
+            enter(true); release(true);
+            check(gameDowns == 6 && gate.Offered() == call, "Enter was not go now while the call's battle ran");
+            lifecycle.Tick(call, sf4e::input::CallBattle{false, call.generation}, gate);
+            check(lifecycle.Dropped() == 1, "A press taken just before the battle closed went now for it");
+            enter(true); release(true);
+            check(gameDowns == 7 && gate.Take().empty(), "Enter after the call's battle closed was kept from the game");
+            check(overlaySawEnter(), "Enter after the call's battle closed did not reach the overlay");
+            lifecycle.Tick(call, sf4e::input::CallBattle{true, call.generation + 1}, gate);
+            enter(true); release(true);
+            check(gameDowns == 8 && gate.Take().empty(), "Enter in a later Training battle went now for the old call");
+            frame(); frame();
+        }
 
         // A real window procedure on the message thread: releasing the mouse
         // makes Windows send WM_CAPTURECHANGED back into it, and so into the
@@ -192,8 +280,27 @@ int main() {
         owner.join();
         check(captured, "the test window never held the capture, so its release was not exercised");
         check(captureChanges >= 50, "releasing the capture did not re-enter the window procedure");
-        for (int i = 0; i < 1000 && ImGui::IsMouseDown(0); ++i) frame();
+        // Every press is applied before the mouse moves below, or the moves
+        // would wait behind them.
+        drain();
         check(!ImGui::IsMouseDown(0), "a release from the capturing window was lost");
+
+        // The game can draw at another size than its window's client area (a window the
+        // screen clips, a borderless tool, a 16:10 desktop). With that render size ImGui
+        // lays out in the game's pixels, and the mouse lands on what is drawn under it.
+        RECT client{}; GetClientRect(window, &client);
+        const float renderW = 1920, renderH = 1080;
+        ImGui_ImplWin32_SetRenderSize(renderW, renderH);
+        ImGui_ImplWin32_WndProcHandler(window, WM_MOUSEMOVE, 0, MAKELPARAM(100, 50));
+        frame();
+        check(io.DisplaySize.x == renderW && io.DisplaySize.y == renderH, "the render size did not become the display size");
+        const float wantX = 100 * renderW / client.right, wantY = 50 * renderH / client.bottom;
+        check(std::fabs(io.MousePos.x - wantX) < 1 && std::fabs(io.MousePos.y - wantY) < 1, "the mouse was not scaled to the render size");
+        ImGui_ImplWin32_SetRenderSize(0, 0);
+        ImGui_ImplWin32_WndProcHandler(window, WM_MOUSEMOVE, 0, MAKELPARAM(100, 50));
+        frame();
+        check(io.DisplaySize.x == client.right && io.DisplaySize.y == client.bottom, "without a render size the display is not the client area");
+        check(io.MousePos.x == 100 && io.MousePos.y == 50, "without a render size the mouse was scaled");
         ImGui_ImplWin32_SetInputBridge(nullptr);
     }
     SetCursor(previous);

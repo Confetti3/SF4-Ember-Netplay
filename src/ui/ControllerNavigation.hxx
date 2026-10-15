@@ -55,7 +55,9 @@ class ControllerNavigation {
 public:
     // Call before ImGui::NewFrame, after the platform backend. Only this adapter
     // supplies gamepad keys; physical keyboard input remains independently owned.
-    void Update(const ControllerSample& sample, bool atMainMenu, bool visible, bool focused);
+    // While not enabled (a device being assigned) nothing is read, and a
+    // button held when it is enabled again waits for its release.
+    void Update(const ControllerSample& sample, bool atMainMenu, bool visible, bool enabled);
     void Reset();
     bool MenuGuard() const { return menuGuard_; }
     bool BackRequested() const { return backRequested_; }

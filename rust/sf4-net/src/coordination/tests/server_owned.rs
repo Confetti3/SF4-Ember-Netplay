@@ -233,6 +233,14 @@ async fn a_member_takes_nothing_from_a_node_that_is_not_its_host() {
     );
     committed_revision(&member, 1, "the member did not take the host's commit").await;
 
+    // The ordinary learner is a comparison fixture, not part of the room
+    // whose continued replication is asserted below. Stop replication to it
+    // before changing its term, so its responses cannot affect that room.
+    host.raft
+        .change_membership(openraft::ChangeMembers::RemoveNodes(BTreeSet::from([3])), false)
+        .await
+        .unwrap();
+
     let append = |source: u64, term: u64| {
         let request = AppendEntriesRequest::<RoomTypes> {
             vote: Vote::new_committed(term, source),

@@ -102,7 +102,7 @@ npm test
 ```
 
 The tests that use a bridge (`bridge`, `play`, `lookup`, `rooms` and `results`)
-run against the real one when `rust/ember/target/debug/ember-bridge` exists
+run against the real one when `server/ember/target/debug/ember-bridge` exists
 (`cargo build -p ember-bridge`) and are skipped otherwise. Node 22.18 or later runs the TypeScript sources
 directly, as long as it was built with TypeScript support: some Linux
 distribution packages leave it out (`node -p process.features.typescript`

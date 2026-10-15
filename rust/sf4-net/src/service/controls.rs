@@ -435,7 +435,7 @@ impl Actor {
                     .await?;
                     self.remember_admission(admission.clone());
                     self.remember_admission(session.advertise().await);
-                    self.recovery = Some(session);
+                    self.install_recovery(session).await;
                     // Accepted here and now: the authority's own binding.
                     self.bind_control_session(peer, admission.incarnation)?;
                     self.last_coordination_state = None;
@@ -717,12 +717,18 @@ impl Actor {
                             if coordination.unwrap_or(false) {
                                 // Any roster mutation is published by its
                                 // authenticated asynchronous completion.
+                            } else if !native_json_depth_ok(payload.as_bytes()) {
+                                // Nested past what the native side can copy:
+                                // dropped here, the route stays open.
                             } else if let Ok(native) =
                                 serde_json::from_str::<NativeControlMessage>(&payload)
                                 && native.kind == "native_control"
                                 && native.message_id > 1
                                 && !native.payload.is_empty()
                             {
+                                if !native_json_depth_ok(native.payload.as_bytes()) {
+                                    continue;
+                                }
                                 self.emit(Event::Message {
                                     epoch: self.epoch,
                                     peer,
@@ -903,7 +909,10 @@ impl Actor {
     ) -> io::Result<()> {
         let peer = channel.connection.remote_id();
         self.opening = false;
-        self.controls.insert(peer, ControlWorker::start(channel));
+        self.controls.insert(
+            peer,
+            ControlWorker::start_waking(channel, self.wake.clone()),
+        );
         if let Some(invite) = joined_invite.as_ref() {
             self.room_invite = Some(invite.clone());
             // sf4e2/emd2 intentionally omits the private

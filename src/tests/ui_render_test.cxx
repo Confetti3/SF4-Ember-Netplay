@@ -2,10 +2,13 @@
 #include "../ui/ApplicationShell.hxx"
 #include "../ui/Theme.hxx"
 #include "../ui/TrainingPanel.hxx"
+#include "../ui/OverlayPresentation.hxx"
+#include "../ui/OverlayLayers.hxx"
 #include "../ui/FighterSelector.hxx"
 #include "../ui/RecoveryMenu.hxx"
 #include "../common/Localization.hxx"
 #include "../common/StageCatalog.hxx"
+#include "ui_render_support.hxx"
 #include <imgui_internal.h>
 #include <imgui_impl_dx9.h>
 #include <windows.h>
@@ -27,13 +30,25 @@
 #include <random>
 #include <thread>
 
-namespace {
 void Require(bool condition, const char* message) { if (!condition) throw std::runtime_error(message); }
+ImGuiWindow* FindWindow(const char* fragment) {
+    for (auto* window : GImGui->Windows)
+        if (window->Active && std::string(window->Name).find(fragment) != std::string::npos) return window;
+    throw std::runtime_error(std::string("Missing UI window: ") + fragment);
+}
+bool WindowDrawn(const char* name) {
+    for (const auto* window : GImGui->Windows)
+        if (window->LastFrameActive==ImGui::GetFrameCount()&&std::string(window->Name).find(name)!=std::string::npos)return true;
+    return false;
+}
+namespace {
 struct Renderer {
     HWND window = nullptr;
     IDirect3D9* d3d = nullptr;
     IDirect3DDevice9* device = nullptr;
-    Renderer() {
+    bool headless = false, hardwareVertices = false;
+    Renderer(bool withoutDevice = false) : headless(withoutDevice) {
+        if (headless) return;
         window = CreateWindowA("STATIC", "SF4 UI rendering check", WS_OVERLAPPEDWINDOW,
             0, 0, 2560, 1440, nullptr, nullptr, GetModuleHandle(nullptr), nullptr);
         Require(window != nullptr, "Hidden window creation failed");
@@ -43,11 +58,24 @@ struct Renderer {
         p.Windowed = TRUE; p.SwapEffect = D3DSWAPEFFECT_DISCARD;
         p.BackBufferFormat = D3DFMT_A8R8G8B8; p.BackBufferWidth = 2560; p.BackBufferHeight = 1440;
         p.hDeviceWindow = window;
-        Require(SUCCEEDED(d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window,
-            D3DCREATE_SOFTWARE_VERTEXPROCESSING, &p, &device)), "DX9 device creation failed");
+        // Transforming ImGui's vertices on the CPU cost about 9 ms a frame,
+        // nearly all of the sweeps' time, so the GPU does it where it can.
+        D3DCAPS9 caps{};
+        hardwareVertices = SUCCEEDED(d3d->GetDeviceCaps(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, &caps)) &&
+            (caps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT);
+        const HRESULT hr = d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window,
+            hardwareVertices ? D3DCREATE_HARDWARE_VERTEXPROCESSING : D3DCREATE_SOFTWARE_VERTEXPROCESSING, &p, &device);
+        char message[64];
+        std::snprintf(message, sizeof(message), "DX9 device creation failed (0x%08lx)", static_cast<unsigned long>(hr));
+        Require(SUCCEEDED(hr), message);
     }
     ~Renderer() { if (device) device->Release(); if (d3d) d3d->Release(); if (window) DestroyWindow(window); }
+    void Init() { if (!headless) ImGui_ImplDX9_Init(device); }
+    void NewFrame() { if (!headless) ImGui_ImplDX9_NewFrame(); }
+    void Invalidate() { if (!headless) ImGui_ImplDX9_InvalidateDeviceObjects(); }
+    void Shutdown() { if (!headless) ImGui_ImplDX9_Shutdown(); }
     void Resize(int width, int height) {
+        if (headless) return;
         D3DPRESENT_PARAMETERS params{};
         params.Windowed = TRUE; params.SwapEffect = D3DSWAPEFFECT_DISCARD;
         params.BackBufferFormat = D3DFMT_A8R8G8B8;
@@ -68,12 +96,13 @@ struct Renderer {
         }
     }
     void Draw() {
+        if (headless) return;
         device->Clear(0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_XRGB(45, 47, 49), 1.f, 0);
         Require(SUCCEEDED(device->BeginScene()), "BeginScene failed");
         ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
         device->EndScene();
     }
-    void Capture(const std::string& name, int width, int height) {
+    void Capture(const std::string& name, int width, int height, bool trainingOverlay = false) {
         IDirect3DSurface9 *target = nullptr, *copy = nullptr;
         Require(SUCCEEDED(device->GetRenderTarget(0, &target)), "GetRenderTarget failed");
         HRESULT result = device->CreateOffscreenPlainSurface(width, height, D3DFMT_A8R8G8B8,
@@ -83,7 +112,7 @@ struct Renderer {
         Require(SUCCEEDED(result), "Readback failed");
         D3DLOCKED_RECT pixels{};
         Require(SUCCEEDED(copy->LockRect(&pixels, nullptr, D3DLOCK_READONLY)), "Surface lock failed");
-        if(name.find("training-")!=std::string::npos) {
+        if(trainingOverlay) {
             const auto corner=*reinterpret_cast<const unsigned*>(static_cast<const char*>(pixels.pBits)+5*pixels.Pitch+5*4);
             Require((corner&0xffffff)==0x2d2f31,"Training rendering altered the game outside its panel");
         }
@@ -101,11 +130,6 @@ struct Renderer {
         Require(out.good(), "Screenshot write failed");
     }
 };
-ImGuiWindow* FindWindow(const char* fragment) {
-    for (auto* window : GImGui->Windows)
-        if (window->Active && std::string(window->Name).find(fragment) != std::string::npos) return window;
-    throw std::runtime_error(std::string("Missing UI window: ") + fragment);
-}
 void Activate(const char* windowFragment, const char* label) {
     ImGui::ActivateItemByID(FindWindow(windowFragment)->GetID(label));
 }
@@ -174,8 +198,12 @@ LONG WINAPI ReportCrash(EXCEPTION_POINTERS* info) {
             std::fprintf(stderr, "\n");
         }
     }
-    const HANDLE dump = CreateFileA("UiRenderTest-crash.dmp", GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    // Render shards run side by side in one folder, so each names its own dump.
+    char dumpName[64];
+    std::snprintf(dumpName, sizeof(dumpName), "UiRenderTest-crash-%lu.dmp", GetCurrentProcessId());
+    const HANDLE dump = CreateFileA(dumpName, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (dump != INVALID_HANDLE_VALUE) {
+        std::fprintf(stderr, "Crash dump: %s\n", dumpName);
         MINIDUMP_EXCEPTION_INFORMATION exception{GetCurrentThreadId(), info, FALSE};
         MiniDumpWriteDump(process, GetCurrentProcessId(), dump, MiniDumpWithIndirectlyReferencedMemory, &exception, nullptr, nullptr);
         CloseHandle(dump);
@@ -198,6 +226,27 @@ void RequireAtlasWithinBudget(const char* what, float dpi) {
     std::snprintf(message, sizeof(message), "%s at %.2fx bakes a %dx%d atlas, over the 2048x4096 budget", what, dpi, atlas.TexWidth, atlas.TexHeight);
     throw std::runtime_error(message);
 }
+// Check the baked atlas, not just the source fonts' cmaps: reducing its cost
+// must keep the active catalog and the language picker in all three sizes.
+void RequireAtlasCoverage(sf4e::loc::Locale locale, float dpi) {
+    using namespace sf4e;
+    std::string text = loc::DisplayText(locale);
+    for (int i = 0; i < static_cast<int>(loc::Locale::Count); ++i)
+        text += loc::NativeName(static_cast<loc::Locale>(i));
+    ImFontGlyphRangesBuilder characters;
+    characters.AddText(text.c_str());
+    ImVector<ImWchar> ranges;
+    characters.BuildRanges(&ranges);
+    for (auto* font : ImGui::GetIO().Fonts->Fonts)
+        for (int i = 0; i + 1 < ranges.Size && ranges[i]; i += 2)
+            for (unsigned cp = ranges[i]; cp <= ranges[i + 1]; ++cp) {
+                if (cp < 0x20 || font->FindGlyphNoFallback(static_cast<ImWchar>(cp))) continue;
+                char message[160];
+                std::snprintf(message, sizeof(message), "%s at %.2fx lacks U+%04X in the %.0fpx font",
+                    loc::Tag(locale), dpi, cp, font->FontSize);
+                throw std::runtime_error(message);
+            }
+}
 // Drives the atlas rebuild the way play does: between frames, for a changing
 // language and DPI, with player text of characters chosen at random from the
 // whole basic multilingual plane, some of which no font draws. Every rebuild
@@ -212,7 +261,7 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
     auto& io = ImGui::GetIO();
     io.IniFilename = nullptr; io.DisplaySize = ImVec2(1280, 720); io.DeltaTime = 1.f / 60;
     ui::ApplyTheme(1.f);
-    ImGui_ImplDX9_Init(renderer.device);
+    renderer.Init();
     const auto appendUtf8 = [](std::string& out, unsigned cp) {
         if (cp < 0x80) out += static_cast<char>(cp);
         else if (cp < 0x800) { out += static_cast<char>(0xC0 | (cp >> 6)); out += static_cast<char>(0x80 | (cp & 0x3F)); }
@@ -233,7 +282,7 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
         return text;
     };
     const auto drawFrame = [&](const std::string& name, const std::string& chat, const std::string& draft) {
-        ImGui_ImplDX9_NewFrame(); ImGui::NewFrame();
+        renderer.NewFrame(); ImGui::NewFrame();
         ImGui::Begin("Atlas stress");
         ImGui::PushFont(ui::HeadingFont()); ImGui::TextWrapped("%s", name.c_str()); ImGui::PopFont();
         ImGui::TextWrapped("%s", chat.c_str());
@@ -248,15 +297,17 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
         for (const float dpi : {1.f, 1.25f, 1.5f, 2.f, 3.f}) {
             loc::SetActive(locale);
             ui::SetUserGlyphRetention(std::chrono::milliseconds(1)); Sleep(5);
-            ui::ApplyTheme(dpi + .01f); ImGui_ImplDX9_InvalidateDeviceObjects(); ui::ApplyTheme(dpi);
+            ui::ApplyTheme(dpi + .01f); renderer.Invalidate(); ui::ApplyTheme(dpi);
             RequireAtlasWithinBudget(loc::Tag(locale), dpi);
+            RequireAtlasCoverage(locale, dpi);
             ui::SetUserGlyphRetention(std::chrono::milliseconds(60000));
             std::string full;
             for (unsigned i = 0; i < 512; ++i) appendUtf8(full, i % 3 == 0 ? 0x4E00 + i * 7 : i % 3 == 1 ? 0xAC00 + i * 11 : 0x3400 + i * 5);
             ui::NoteUserText(full);
             Require(ui::ApplyTheme(dpi), "Player text needing 512 glyphs did not rebuild the atlas");
-            ImGui_ImplDX9_InvalidateDeviceObjects();
+            renderer.Invalidate();
             RequireAtlasWithinBudget((std::string(loc::Tag(locale)) + " with 512 player characters").c_str(), dpi);
+            RequireAtlasCoverage(locale, dpi);
             drawFrame("Player", full, "Draft");
         }
     const float scales[] = {1.f, 1.25f, 1.5f, 2.f, 3.f};
@@ -267,14 +318,14 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
         ui::SetUserGlyphRetention(retentions[rng() % std::size(retentions)]);
         const std::string name = randomText(1 + rng() % 24), chat = randomText(rng() % 160), draft = randomText(rng() % 40);
         ui::NoteUserText(name); ui::NoteUserText(chat, ui::UserTextRole::Chat); ui::NoteUserText(draft, ui::UserTextRole::Draft);
-        if (ui::ApplyTheme(scales[rng() % std::size(scales)])) { ImGui_ImplDX9_InvalidateDeviceObjects(); ++rebuilds; }
+        if (ui::ApplyTheme(scales[rng() % std::size(scales)])) { renderer.Invalidate(); ++rebuilds; }
         RequireAtlasWithinBudget("Random player text", ImGui::GetIO().FontGlobalScale);
         drawFrame(name, chat, draft);
         if (rng() % 8 == 0) Sleep(35);
     }
     Require(rebuilds > iterations / 8, "The atlas stress never rebuilt the atlas");
     std::printf("Atlas stress: %d frames, %d atlas rebuilds.\n", iterations, rebuilds);
-    ImGui_ImplDX9_Shutdown(); ImGui::DestroyContext();
+    renderer.Shutdown(); ImGui::DestroyContext();
     loc::SetActive(loc::Locale::En);
 }
 }
@@ -282,11 +333,21 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 #include "ui_render_public_rooms.hxx"
 #include "ui_render_match_hud.hxx"
 #include "ui_render_chat.hxx"
+#include "ui_render_training.hxx"
+#include "ui_render_overlay.hxx"
+#include "ui_render_training_room.hxx"
+#include "ui_render_replays.hxx"
+#include "ui_render_custom_content.hxx"
+#include "ui_render_updates.hxx"
+#include "ui_render_replay_controls.hxx"
+#include "ui_render_reports.hxx"
 
 int main(int argc, char** argv) {
     SetUnhandledExceptionFilter(ReportCrash);
     try {
-        Renderer renderer;
+        const bool headless = std::getenv("SF4E_UI_RENDER_HEADLESS") != nullptr;
+        Require(!headless || argc == 1, "Headless UI checks cannot capture images");
+        Renderer renderer(headless);
         if (const char* stress = std::getenv("SF4E_UI_RENDER_ATLAS_STRESS")) { StressAtlas(renderer, std::atoi(stress), 1); return 0; }
         const std::string output = argc > 1 ? argv[1] : "";
         const bool trainingShotsOnly = argc > 2 && std::string(argv[2]) == "--training-shots-only";
@@ -429,20 +490,22 @@ int main(int argc, char** argv) {
             } while (std::chrono::steady_clock::now() < originalDeadline);
             Require(originalLoaded, "Original outfit preview failed");
         }
-        if(!art)art.reset(new sf4e::ui::SelectionArt(renderer.device,L"",L"" SF4E_TEST_ASSET_ROOT));
-        sf4e::ui::SetMenuArt(art.get());
-        const auto brandDeadline=std::chrono::steady_clock::now()+std::chrono::seconds(5);
-        while(!art->MenuBackdrop().texture&&std::chrono::steady_clock::now()<brandDeadline){
-            art->Pump();std::this_thread::sleep_for(std::chrono::milliseconds(5));
-        }
-        Require(art->MenuBackdrop().texture!=0,"Ember background failed to load");
-        const char* promptAssets[]={"xbox_button_color_a","xbox_button_color_b","xbox_button_color_x","xbox_button_color_y",
-            "xbox_lb","xbox_rb","xbox_lt","xbox_rt","xbox_dpad","xbox_dpad_horizontal","keyboard_enter","keyboard_escape",
-            "keyboard_arrows_all","keyboard_arrows_horizontal","generic_button_circle_fill","xbox_button_back","xbox_button_start"};
-        for(const auto* prompt:promptAssets){
-            const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(3);
-            while(!art->InputPrompt(prompt).texture&&std::chrono::steady_clock::now()<deadline){art->Pump();std::this_thread::sleep_for(std::chrono::milliseconds(5));}
-            Require(art->InputPrompt(prompt).texture!=0,"Packaged Kenney prompt failed to load");
+        if(!headless) {
+            if(!art)art.reset(new sf4e::ui::SelectionArt(renderer.device,L"",L"" SF4E_TEST_ASSET_ROOT));
+            sf4e::ui::SetMenuArt(art.get());
+            const auto brandDeadline=std::chrono::steady_clock::now()+std::chrono::seconds(5);
+            while(!art->MenuBackdrop().texture&&std::chrono::steady_clock::now()<brandDeadline){
+                art->Pump();std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            }
+            Require(art->MenuBackdrop().texture!=0,"Ember background failed to load");
+            const char* promptAssets[]={"xbox_button_color_a","xbox_button_color_b","xbox_button_color_x","xbox_button_color_y",
+                "xbox_lb","xbox_rb","xbox_lt","xbox_rt","xbox_dpad","xbox_dpad_horizontal","keyboard_enter","keyboard_escape",
+                "keyboard_arrows_all","keyboard_arrows_horizontal","generic_button_circle_fill","xbox_button_back","xbox_button_start"};
+            for(const auto* prompt:promptAssets){
+                const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(3);
+                while(!art->InputPrompt(prompt).texture&&std::chrono::steady_clock::now()<deadline){art->Pump();std::this_thread::sleep_for(std::chrono::milliseconds(5));}
+                Require(art->InputPrompt(prompt).texture!=0,"Packaged Kenney prompt failed to load");
+            }
         }
         struct Size { int w, h; float dpi; };
         // English and the padded pseudo locale sweep every size. The
@@ -453,12 +516,14 @@ int main(int argc, char** argv) {
         // SF4E_UI_RENDER_QUICK=1 is for a quick look at a change: English at 1920x1080 only.
         const char* quickRun = std::getenv("SF4E_UI_RENDER_QUICK");
         const std::string quickMode = quickRun ? quickRun : "";
-        const bool quick = quickMode == "1" || quickMode == "narrow";
-        // SF4E_UI_RENDER_QUICK=narrow is the same at 640x720, and SF4E_UI_RENDER_SHOTS=text writes only the shots whose name has it.
+        const bool quick = quickMode == "1" || quickMode == "narrow" || quickMode == "720";
+        // SF4E_UI_RENDER_QUICK=narrow is the same at 640x720, =720 at 1280x720 and 100%, and SF4E_UI_RENDER_SHOTS=text writes only the shots whose name has it.
         const char* shotFilter = std::getenv("SF4E_UI_RENDER_SHOTS");
-        const std::vector<Size> sizes = quickMode == "narrow" ? std::vector<Size>{{640,720,1.5f}} : quick ? std::vector<Size>{{1920,1080,1}} : translations ?
+        const std::vector<Size> sizes = quickMode == "narrow" ? std::vector<Size>{{640,720,1.5f}} : quickMode == "720" ? std::vector<Size>{{1280,720,1}} : quick ? std::vector<Size>{{1920,1080,1}} : translations ?
             std::vector<Size>{{640,720,1.5f}, {1280,720,1}, {1920,1080,1.5f}} :
             std::vector<Size>{{1280,720,1}, {1920,1080,1}, {1920,1080,1.25f}, {1920,1080,1.5f}, {2560,1440,1.5f}, {640,720,1.5f}, {3440,1440,1}, {3840,2160,1}, {3840,2160,1.5f}, {1280,720,2}};
+        std::printf("UI backend: %s\n", headless ? "headless ImGui geometry" :
+            renderer.hardwareVertices ? "DX9" : "DX9, vertices on the CPU");
         int frames = 0;
         // Overflows are collected rather than thrown, so one run lists every
         // row a translation needs shortened, with the locale and size it hit.
@@ -485,11 +550,12 @@ int main(int argc, char** argv) {
             probeContext=localePass.name+" "+std::to_string(size.w)+"x"+std::to_string(size.h)+"@"+std::to_string(static_cast<int>(size.dpi*100))+"%";
             renderer.Resize(size.w,size.h);ImGui::CreateContext();
             auto& io=ImGui::GetIO();io.IniFilename=nullptr;io.DisplaySize=ImVec2(static_cast<float>(size.w),static_cast<float>(size.h));io.DeltaTime=1.f/60;
-            ApplyTheme(size.dpi);ImGui_ImplDX9_Init(renderer.device);
+            ApplyTheme(size.dpi);renderer.Init();
             ApplicationShell shell;ShellView view;bool open=true;
             view.controllerReady=view.canChangeController=view.canEditPreferences=view.canEditSelection=view.canOpenRoom=view.helperReady=true;
             view.controller="Assigned controller";view.preferences.displayName="Ember Player";view.preferences.autoInputDelay=false;view.selectionSummary="Ryu / Original / Color 01 / Ultra I";
-            FighterSelector selector;selection::Pick pick;int stage=0;selection::StageMask stagePool=(1u<<0)|(1u<<15);
+            FighterSelector selector;selection::Pick pick;int stage=0;selection::RandomPool stagePool(std::vector<std::int64_t>{0,15});
+            const selection::InstalledContent* selectorContent=nullptr;
             auto availability=[](int id){selection::Availability a;a.ready=true;a.personalActions=0x3ff;
                 for(int c=0;c<selection::CostumeCount(id);++c){a.costumes|=1u<<c;a.colors[c]=(1u<<selection::ColorCount(id,c))-1;}return a;};
             training::View training;training.available=training.ready=training.checkpoint=true;training.generation=static_cast<unsigned>(size.w+size.dpi*100);
@@ -497,25 +563,26 @@ int main(int argc, char** argv) {
             training::FrameMeter meter;std::array<training::FighterSample,2> fighters;
             for(int f=0;f<120;++f){
                 for(int p=0;p<2;++p){auto& s=fighters[p];s.valid=true;s.timeScale=1;s.status=p?(f<40?0:f<65?22:0):(f<30?0:f<70?16:0);
-                    s.action=s.status?100+p:0;s.actionFrame=static_cast<float>(f);s.firstActiveFrame=p?-1:34;s.health=p?920:1000;s.damage=p?80:0;s.comboDamage=p?160:0;}
+                    s.action=s.status?100+p:0;s.actionFrame=static_cast<float>(f);s.firstActiveFrame=p?-1:34;s.lastActiveFrame=p?-1:38;s.health=p?920:1000;s.damage=p?80:0;s.comboDamage=p?160:0;}
                 meter.Observe(f,fighters);
             }
             training.meter=meter.View();training.history[0]={{0x14,5},{1,3},{0,16}};training.history[1]={{0x40,2},{0,10}};
             int mode=0;
+            OverlayLayersView overlayLayers;
             MatchStripView matchStrip;matchStrip.names[0]="Player One";matchStrip.names[1]="Player Two";
             matchStrip.links[0]=NetworkLink::Wired;matchStrip.links[1]=NetworkLink::Wireless;
             matchStrip.pingMs=68;matchStrip.rollbackFrames=2;matchStrip.appliedDelay=3;
             training::Command trainingCommand;
-            bool acceptTraining=false,answerTickets=false,holdIdentity=false;
+            bool acceptTraining=false,answerTickets=false,holdIdentity=false,overlayTooltip=false;
             std::uint64_t heldTicket=0;
-            GameMenu recoveryMenu;recoveryMenu.navigation=RecoveryNavigation(false);
-            platform::ServiceSnapshot recoveryState;bool recoveryUpdates=false;
+            GameMenu recoveryMenu;recoveryMenu.navigation=RecoveryNavigation(false);ProblemReportPanel reportPanel;platform::ServiceSnapshot reportState;
+            platform::ServiceSnapshot recoveryState;bool recoveryUpdates=false;ChannelPick recoveryPick;RecoveryReport recoveryReport;std::string recoveryMessage=RecoveryFolderMessage;
             const auto draw=[&](const char* shot=nullptr,unsigned buttons=0,int settle=3){
                 for(int i=0;i<settle;++i){
                     if(art)art->Pump();SetMenuInput({buttons,0});
                     if(mode==1){const ImGuiKey keys[]={ImGuiKey_UpArrow,ImGuiKey_DownArrow,ImGuiKey_LeftArrow,ImGuiKey_RightArrow,ImGuiKey_Enter,ImGuiKey_Escape};
                         for(unsigned key=0;key<6;++key)io.AddKeyEvent(keys[key],(buttons&(1u<<key))!=0);}
-                    ImGui_ImplDX9_NewFrame();ImGui::NewFrame();
+                    renderer.NewFrame();ImGui::NewFrame();
                     if(mode==0)shell.Draw(view,&open,[&](ShellAction a){
                         // An identity request is answered at once, successfully.
                         if(a.identity.op!=netplay::IdentityOp::None){
@@ -530,12 +597,19 @@ int main(int argc, char** argv) {
                             view.publicRooms.answered=a.tournament.request;view.publicRooms.failure.clear();
                             view.publicRooms.admission.room.id=a.tournament.roomId;
                         }
-                        return true;},[&]{selector.Draw(pick,true,art.get(),availability,&stage,view.canEditSelection,{},&stagePool);});
+                        return true;},[&]{selector.Draw(pick,true,art.get(),availability,&stage,view.canEditSelection,{},&stagePool,selectorContent);});
                     else if(mode==1)DrawTrainingFlyout(training,[&](training::Command c){trainingCommand=c;return acceptTraining;});
-                    else if(mode==2)(void)DrawTrainingHud(training);
-                    else if(mode==5)DrawControllerWarning("Match input blocked: reconnect your controller. If its slot changed, return to the room to reassign it.");
-                    else if(mode==4)DrawRecoveryMenu(recoveryMenu,recoveryState,"The selected folder does not contain SSFIV.exe. Choose the installed game folder or close recovery without starting SF4.",recoveryUpdates);
-                    else DrawMatchStrip(matchStrip);
+                    else if(mode==4)DrawRecoveryMenu(recoveryMenu,recoveryState,recoveryMessage,recoveryUpdates,Tone::Error,false,true,&recoveryPick,recoveryReport);
+                    if(mode==8)DrawReportPreviewMode(reportPanel,reportState);
+                    else if(mode!=0&&mode!=4) {
+                        if(mode!=7)overlayLayers=OverlayRenderLayers(mode,matchStrip);
+                        (void)DrawOverlayLayers(overlayLayers,training);
+                        if(mode==9)DrawMatchPracticeNotice();
+                    }
+                    if(overlayTooltip) {
+                        ImGui::Begin("Open window tooltip");ImGui::TextUnformatted("Detail");
+                        ImGui::SetTooltip("Open window detail");ImGui::End();
+                    }
                     CheckStacks();ImGui::Render();renderer.Draw();++frames;
                     if(mode==3)CheckMatchHudFrame(matchStrip,size.w,size.h);
                     if((mode==0||mode==4)&&i==settle-1&&settle>=3){
@@ -545,7 +619,7 @@ int main(int argc, char** argv) {
                     if(mode==1){
                         auto* flyout=FindWindow("###TrainingControls");
                         Require(flyout->Size.x<=size.w*.8f+1&&flyout->Size.y<=size.h*.8f+1,"Training flyout covers too much game");
-                        Require(std::abs(flyout->Pos.x*2+flyout->Size.x-size.w)<=2&&std::abs(flyout->Pos.y*2+flyout->Size.y-size.h)<=2,"Training flyout is not centered");
+                        Require(std::abs(flyout->Pos.x*2+flyout->Size.x-size.w)<=2&&std::abs(flyout->Pos.y*2+flyout->Size.y-size.h)<=2,"Training flyout is not centred");
                         Require(flyout->ScrollMax.y<1,"Training footer displaced by overflowing content");
                         Require(ImGui::GetTopMostPopupModal()==nullptr,"Training confirmation dims the game viewport");
                         for(auto* window:GImGui->Windows){
@@ -566,7 +640,7 @@ int main(int argc, char** argv) {
                             ((std::string(shot)=="table-delay-checking" || std::string(shot)=="table-delay-retry" ||
                               std::string(shot)=="table-recover-updating" || std::string(shot)=="table-recover-leaving") &&
                              ((size.w==1280&&size.dpi==1) || (size.w==1920&&size.dpi==1.5f) || size.w==640))))
-                        renderer.Capture(output+shot+"-"+localePass.name+"-"+std::to_string(size.w)+"-"+std::to_string(static_cast<int>(size.dpi*100))+".bmp",size.w,size.h);
+                        renderer.Capture(output+shot+"-"+localePass.name+"-"+std::to_string(size.w)+"-"+std::to_string(static_cast<int>(size.dpi*100))+".bmp",size.w,size.h,mode==1||mode==2);
                 }
             };
             const auto page=[&](const char* screen){shell.Navigation().Home();if(std::string(screen)!="home")shell.Navigation().Push(screen);draw(screen);};
@@ -583,7 +657,10 @@ int main(int argc, char** argv) {
             draw(nullptr,MenuInput::Back,1);draw();
             Require(ImGui::GetTopMostPopupModal()==nullptr,"Game settings card did not close");
             view.gameSettings={};view.showGameSettingsCard=false;
-            for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","discord","steam","about"})page(screen);
+            for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","training-replays","discord","steam","about"})page(screen);
+            ShootReplays(shell,view,draw,page);
+            ShootVersionAndChannel(shell,view,draw,page);
+            ShootReportScreens(shell,view,draw,page,reportPanel,reportState,mode);
             view.preferences.autoInputDelay=true;page("defaults");view.preferences.autoInputDelay=false;
             page("home");
             for(int i=0;i<8;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
@@ -597,7 +674,7 @@ int main(int argc, char** argv) {
             Require(shell.Navigation().Reading(),"About's controls did not open in the reader");
             draw(nullptr,MenuInput::Back,1);draw();Require(!shell.Navigation().Reading(),"Back did not close the reader");
             page("interface");
-            for(int i=0;i<10&&shell.Navigation().Focus()!="language";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+            for(int i=0;i<12&&shell.Navigation().Focus()!="language";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
             draw(nullptr,MenuInput::Select,1);draw("language-choice");
             Require(shell.Navigation().Choosing(),"Select on Language did not open the list");
             draw(nullptr,MenuInput::Back,1);draw();
@@ -647,7 +724,8 @@ int main(int argc, char** argv) {
             // opens on the Training Stage, which the fixture skips).
             selector.Navigation().Home();selector.Navigation().Push("random-pool");draw();
             draw(nullptr,MenuInput::Select,1);draw();
-            Require(stagePool==(1u<<15),"Select did not put a skipped stage back in the Random pool");
+            Require(stagePool.Excluded()==std::vector<int>{15},"Select did not put a skipped stage back in the Random pool");
+            ShootCustomContent(selector,pick,stage,stagePool,selectorContent,draw);
             selector.Navigation().Home();selector.Navigation().Push("roster");draw();
             // The grid opens on its first card (not Ryu in USFIV's order), so two steps right land on a fighter other than the saved Ryu.
             const int saved=pick.fighter;draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);draw(nullptr,MenuInput::Right,1);draw("fighter-focus");
@@ -722,10 +800,10 @@ int main(int argc, char** argv) {
             // Auto on the focused delay row: the delay it resolves to and its bounds.
             draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);
             Require(shell.Navigation().Focus()=="input-delay","Delay control is unreachable at this viewport/DPI");
-            // Auto before its check, Auto once the opponent is measured, then one step Right: 1 frame.
+            // Auto before its check, Auto once the opponent is measured, then one step Right: 0 frames.
             view.preferences.autoInputDelay=true;view.autoDelayMeasured=false;view.selectedDelay=2;draw("table-delay-auto-unmeasured");
             view.autoDelayMeasured=true;draw("table-delay-auto-measured");
-            view.preferences.autoInputDelay=false;view.autoDelayMeasured=false;view.selectedDelay=1;draw("table-delay-auto-then-one");
+            view.preferences.autoInputDelay=false;view.autoDelayMeasured=false;view.selectedDelay=0;draw("table-delay-auto-then-zero");
             view.selectedDelay=2;
             draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);
             view.recommendedDelay=-1;view.canApplyDelay=false;view.probeStatus="insufficient samples";view.probeSamples=12;view.probeLost=88;
@@ -738,12 +816,20 @@ int main(int argc, char** argv) {
             view.room.tables[0].phase=room::TablePhase::Waiting;
             view.room.tables[0].ready[0]=view.room.tables[0].ready[1]=false;
             view.room.tables[0].resultPending=false;view.canReady=view.canEditSelection=true;draw("table-rematch");
+            // The same table in a Practice room (ui_render_training_room.hxx).
+            CheckPracticeRoomRules(view,draw);
             // The opponent's new fighter: a line on the table card, with no modal.
             view.session.match=netplay::MatchState::None;view.opponentChangedFighter=10;++view.opponentChangeSequence;
             const int shownFighter=view.room.members[1].fighter;view.room.members[1].fighter=10;
             page("room");draw("room-opponent-changed");view.room.members[1].fighter=shownFighter;
             Require(!shell.NoticeOpen(),"The opponent's new fighter opened a modal notice");
-            view.opponentChangedFighter=-1;page("room-table");view.session.match=netplay::MatchState::PostMatch;draw();
+            view.opponentChangedFighter=-1;
+            // The opponent waits in Training and is being called back.
+            // A fighter's own Practice match: Ember over the fight offers End practice on the board.
+            view.room.tables[0].phase=room::TablePhase::Playing;view.session.match=netplay::MatchState::Playing;view.practiceFight=true;
+            view.room.practice=true;page("room");draw("room-practice-fight");view.room.practice=false;
+            view.practiceFight=false;view.session.match=netplay::MatchState::None;view.room.tables[0].phase=room::TablePhase::Waiting;
+            view.room.members[1].training=true;page("room");draw("room-training-call");view.room.members[1].training=false;page("room-table");view.session.match=netplay::MatchState::PostMatch;draw();
             // Applied terminal receipts remain a committed eligibility fence
             // until native/socket/helper retirement and explicit ACK.  Render
             // the waiting reason at every viewport/DPI so it cannot disappear
@@ -891,61 +977,55 @@ int main(int argc, char** argv) {
                 page("tournament-matches");draw(nullptr,0,4);draw("tournament-matches-none");
                 id.state="disabled";page("linked-accounts");draw("linked-accounts-no-id");
                 // Public rooms: the list, the card states, the setup cards and the room link (ui_render_public_rooms.hxx).
-                ShootPublicRooms(shell,view,draw,page,[&]{if(ApplyTheme(size.dpi))ImGui_ImplDX9_InvalidateDeviceObjects();},answerTickets,holdIdentity,heldTicket);
+                ShootPublicRooms(shell,view,draw,page,[&]{if(ApplyTheme(size.dpi))renderer.Invalidate();},answerTickets,holdIdentity,heldTicket);
                 view.preferences.roomPublic=true;view.preferences.roomName="Open Mic";shell.Navigation().Home();draw(nullptr,0,4);
                 page("create");draw(nullptr,0,8);draw("create-public");
                 view.preferences.roomPublic=false;view.preferences.roomName="Private room";shell.Navigation().Home();draw(nullptr,0,4);
+                {
+                    // Home leads with a tournament match ready to play; Ember ID itself is
+                    // under Online play. A match link names the service the matches are read from.
+                    id=netplay::IdentityView{};id.known=true;id.state="ready";
+                    id.bridges={{"brg_00000000-0000-4000-8000-000000000001","https://bridge.embernetplay.link","Ember"}};
+                    t=netplay::tournament::Status{};t.list.bridge=id.bridges[0].id;
+                    netplay::tournament::Assignment ready;ready.matchId="emt_1";ready.state="ready";ready.profile="ember-room-v1";ready.gamesToWin=2;
+                    t.list.items={ready};t.link.bridge=id.bridges[0].id;t.link.match="emt_1";t.link.sequence=101;draw(nullptr,0,2);
+                    std::vector<MenuEntry> homeRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){homeRows=rows;});
+                    shell.Navigation().Home();draw(nullptr,0,2);draw("home-tournament-match");
+                    Require(!homeRows.empty()&&homeRows[0].id=="home-matches"&&homeRows[0].detail==loc::Tf("home.identity_matches",1),"Home does not lead with the ready tournament match");
+                    SetMenuEntriesProbe({});
+                }
+                // The match link stays the one already opened, so clearing the rest does not open it again.
+                const auto seenLink=view.tournament.link.sequence;
                 view.identity=netplay::IdentityView{};view.tournament=netplay::tournament::Status{};view.publicRooms=netplay::publicrooms::Status{};
+                view.tournament.link.sequence=seenLink;
             }
-            mode=1;TrainingNavigation().Home();draw("training-home");
-            Require(TrainingNavigation().Focus()=="recording","Removed practice position still occupies training root");
-            for(const char* screen:{"recording","history"}){
-                TrainingNavigation().Home();TrainingNavigation().Push(screen);draw((std::string("training-")+screen).c_str());
-            }
-            TrainingNavigation().Home();TrainingNavigation().Push("recording");draw();
-            // Returning restores the prior selection, which may be below Record.
-            for(int i=0;i<20;++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
-            for(int i=0;i<30&&TrainingNavigation().Focus()!="record";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
-            Require(TrainingNavigation().Focus()=="record","Recording action unreachable");
-            draw(nullptr,MenuInput::Select,1);draw("training-overwrite-confirmation");
-            Require(TrainingNavigation().Confirming()&&!TrainingNavigation().ConfirmSelected(),"Training overwrite default is not Cancel");
-            draw(nullptr,MenuInput::Back,1);draw();
-            Require(TrainingNavigation().Screen()=="recording"&&!TrainingNavigation().Confirming(),"Training Back did more than cancel");
-            acceptTraining=true;draw(nullptr,MenuInput::Down,1);draw();draw(nullptr,MenuInput::Select,1);draw("training-pending");
-            training.commandId=trainingCommand.requestId;training.commandAccepted=false;
-            training.commandError="Practice command rejected: the battle state changed while the command was pending. Wait until both fighters are ready and try again. This deliberately long explanation must not displace the controls or button legend.";
-            draw("training-command-error");Require((TakeForwardedMenuAction().kind!=MenuAction::Close),"Failed training command closed flyout");
-            training.ready=false;TrainingNavigation().Home();TrainingNavigation().Push("recording");draw("training-unavailable");
-            training.ready=true;training.mode=training::Mode::Recording;draw("training-recording-suspended");training.mode=training::Mode::Idle;
-            mode=2;draw("training-hud");
-            Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Passive training HUD captured input");
-            CheckMatchHudScales();
-            auto* hud=FindWindow("Training frame meter");Require(hud->Size.x<=size.w*.76f&&hud->Size.y<size.h*.13f,"Passive HUD too large");
-            Require(hud->Pos.y+hud->Size.y<=size.h*.83f,"Training HUD covers the game's super meters");
-            SetMenuGlyphs(4,0,0);draw("training-hud-directinput");
-            Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"DirectInput HUD captured input");
-            SetMenuGlyphs(0,0,0);draw("training-hud-keyboard");SetMenuGlyphs(3,0x40000,0x20000);
+            CheckHomeRendering(shell,view,mode,size,draw);
+            ShootTraining(training,fighters,trainingCommand,acceptTraining,mode,size,draw,io,[&](float dpi){ApplyTheme(dpi);renderer.Invalidate();});
+            CheckOverlayVisibility(training,overlayLayers,overlayTooltip,mode,draw);
+            ShootReplayControls(training,overlayLayers,mode,size.h,draw);
+            ShootTrainingRoom(training,overlayLayers,mode,size,draw);
             mode=3;draw("match-hud");
-            ShootMatchHud(matchStrip,draw,[&]{ImGui_ImplDX9_InvalidateDeviceObjects();});
+            ShootMatchHud(matchStrip,draw,[&]{renderer.Invalidate();});
             mode=5;draw("controller-warning");
             Require(!io.WantCaptureKeyboard&&!io.WantCaptureMouse,"Controller warning captured input");
             auto* warning=FindWindow("Controller warning");
             Require(warning->ScrollMax.y<1&&warning->Pos.y+warning->Size.y<size.h,"Controller warning escaped viewport");
-            mode=4;draw("launch-recovery");recoveryUpdates=true;recoveryMenu.navigation=RecoveryNavigation(true);recoveryState.update.ok=recoveryState.update.updateAvailable=true;
-            recoveryState.update.expectedSha256=std::string(64,'a');recoveryState.update.latestVersion="v1.0.0";draw("update-available");
-            // The found update is the first row, so Select asks to install it.
-            draw(nullptr,MenuInput::Select,1);draw("update-confirmation");
-            Require(recoveryMenu.navigation.Confirming()&&!recoveryMenu.navigation.ConfirmSelected(),"Recovery update confirmation is unsafe");
-            draw(nullptr,MenuInput::Back,1);draw();recoveryState.pending=true;recoveryState.downloadedBytes=25*1024*1024;recoveryState.totalBytes=100*1024*1024;
-            recoveryState.message="Downloading the verified update. You can cancel this operation.";draw("update-downloading");
+            // A Practice match's notice: no shared reset there, and how a fighter ends the game.
+            mode=9;draw("match-practice-notice");
+            const auto* practiceNotice=FindWindow("Match practice keys");
+            Require(WindowDrawn("Match practice keys")&&practiceNotice->Pos.x>=0&&practiceNotice->Pos.x+practiceNotice->Size.x<=size.w&&
+                practiceNotice->Pos.y+practiceNotice->Size.y<=size.h,"The Practice match notice left the screen");
+            // The crash report's offer (ui_render_reports.hxx), then the launch window and the updater (ui_render_updates.hxx).
+            mode=4;ShootCrashReportOffer(recoveryMenu,recoveryState,recoveryReport,recoveryMessage,draw);
+            ShootLaunchAndUpdates(recoveryMenu,recoveryState,recoveryUpdates,recoveryPick,mode,draw);
             mode=0;shell.Navigation().Home();draw("home-restored");
             auto* main=FindWindow("EmberShell");
             Require(main->Pos.x==0&&main->Pos.y==0&&main->Size.x==size.w&&main->Size.y==size.h,"Shell geometry changed");
             const float padding=ImGui::GetStyle().WindowPadding.x;
-            ApplyTheme(size.dpi+.25f);ApplyTheme(size.dpi);ImGui_ImplDX9_InvalidateDeviceObjects();
+            ApplyTheme(size.dpi+.25f);ApplyTheme(size.dpi);renderer.Invalidate();
             Require(ImGui::GetStyle().WindowPadding.x==padding,"DPI scaling accumulated");draw();
-            ImGui_ImplDX9_InvalidateDeviceObjects();renderer.Resize(size.w,size.h);draw();
-            ImGui_ImplDX9_Shutdown();ImGui::DestroyContext();
+            renderer.Invalidate();renderer.Resize(size.w,size.h);draw();
+            renderer.Shutdown();ImGui::DestroyContext();
         }
         }
         sf4e::loc::SetActive(sf4e::loc::Locale::En);
@@ -955,7 +1035,7 @@ int main(int argc, char** argv) {
             std::fprintf(stderr,"UI render check failed: %d menu rows overflow\n",static_cast<int>(overflows.size()));
             return 1;
         }
-        std::printf("Localized controller-first UI render checks passed: %d DX9 frames across %d locale/viewport/DPI configurations.\n",
+        std::printf("Localized controller-first UI render checks passed: %d frames across %d locale/viewport/DPI configurations.\n",
             frames,static_cast<int>(localePasses.size()*sizes.size()));
         return 0;
     }catch(const std::exception& error){std::fprintf(stderr,"UI render check failed: %s\n",error.what());return 1;}

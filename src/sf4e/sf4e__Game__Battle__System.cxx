@@ -1,6 +1,13 @@
 #include "sf4e__Game__Battle__System__Internal.hxx"
+#include "../common/BattlePause.hxx"
+#include "../platform/ReplayFiles.hxx"
+#include "sf4e__ReplayPlayback.hxx"
+#include "sf4e__InputLag.hxx"
 #include "../common/SpectatorCatchUp.hxx"
 #include "sf4e__MementoGuards.hxx"
+#include "sf4e__CustomContent.hxx"
+
+static_assert(sf4e::NativePauseOrHoldFlag == rSystem::SSF_PAUSE_OR_HOLD, "BattlePause.hxx flag differs from the native one");
 
 // Native result state is captured in GGPO saves, including resimulation. The
 // history is rewound to each restored state; the emitted latch is deliberately
@@ -106,7 +113,7 @@ int fSystem::nNextBattleStartFlowTarget = -1;
 int fSystem::nRandomizeLocalInputsEveryXFramesInGGPO = 0;
 
 GGPOPlayerHandle fSystem::localPlayerHandle = GGPO_INVALID_HANDLE;
-int fSystem::lastGgpoSaveFrame = -1;
+sf4e::statehash::GgpoTimeline fSystem::ggpoTimeline;
 GGPOSession* fSystem::ggpo = nullptr;
 sf4e::gate::GgpoGateModel fSystem::simGate = { sf4e::gate::PHASE_NO_SESSION };
 // Zeroed (so disabled) until ResetPacerForSession initializes it.
@@ -361,29 +368,29 @@ static bool PlayGgpoFrame(rSystem* system) {
         return false;
     }
     NoteDisconnectFlags(disconnect_flags);
-    {
-        PlaybackFrameScopeGuard _playbackGuard;
-        fPadSystem::playbackFrame = 0;
-        fPadSystem::playbackData[0][0] = ggpoInputs[0];
-        fPadSystem::playbackData[0][1] = ggpoInputs[1];
-        if (fSoundPlayerManager::bUsePureSounds) {
-            fSoundPlayerManager::SyncState();
-        }
-        {
+    // The game is never shown the reserved bits (TrainingRuntime.hxx).
+    ggpoInputs[0].rawOn = sf4e::training::ClearReservedInputBits(ggpoInputs[0].rawOn);
+    ggpoInputs[1].rawOn = sf4e::training::ClearReservedInputBits(ggpoInputs[1].rawOn);
+    const GGPOErrorCode err = sf4e::statehash::GgpoTimeline::Simulate(
+        [&] {
+            // Playback mode is off again (the guard) before
+            // ggpo_advance_frame: the save callback and any nested GGPO work
+            // must not read the stale playback inputs.
+            PlaybackFrameScopeGuard _playbackGuard;
+            fPadSystem::playbackFrame = 0;
+            fPadSystem::playbackData[0][0] = ggpoInputs[0];
+            fPadSystem::playbackData[0][1] = ggpoInputs[1];
+            if (fSoundPlayerManager::bUsePureSounds) {
+                fSoundPlayerManager::SyncState();
+            }
             diag::ScopedTimer _t(diag::OP_ENGINE_BATTLE_UPDATE);
             (system->*rSystem::publicMethods.BattleUpdate)();
-        }
-        // Playback mode must be off before ggpo_advance_frame: the
-        // save callback and any nested GGPO work must not read the
-        // stale playback inputs. The guard also restores on every
-        // early exit above.
-        fPadSystem::playbackFrame = -1;
-    }
-    GGPOErrorCode err;
-    {
-        diag::ScopedTimer _t(diag::OP_ADVANCE_FRAME_API);
-        err = ggpo_advance_frame(fSystem::ggpo);
-    }
+        },
+        [&] { fSystem::CaptureSimulatedFrame(system, ggpoInputs); },
+        [&] {
+            diag::ScopedTimer _t(diag::OP_ADVANCE_FRAME_API);
+            return ggpo_advance_frame(fSystem::ggpo);
+        });
     if (diag::Enabled()) {
         diag::G().RecordGgpoResult(diag::CALL_ADVANCE_FRAME, (int)err);
     }
@@ -403,7 +410,7 @@ static bool PlayGgpoFrame(rSystem* system) {
         fSoundPlayerManager::SyncState();
     }
     fSystem::CaptureSnapshot(system);
-    fSystem::CaptureHashCheckpoint(system);
+    fSystem::CaptureMeterSample(system, true);
     PublishConfirmedNativeMatchResult();
     return true;
 }
@@ -417,7 +424,7 @@ static void CatchUpSpectator(rSystem* system) {
     const int extra = sf4e::SpectatorCatchUp::ExtraFrames(backlog);
     int played = 0;
     while (played < extra && fSystem::ggpo && fSystem::MayAdvanceDeterministicFrame() &&
-        *rSystem::staticVars.CurrentBattleFlow != rSystem::BF__IDLE && PlayGgpoFrame(system)) {
+        PlayGgpoFrame(system)) {
         ++played;
     }
     NoteSpectatorBacklog(backlog, played);
@@ -433,6 +440,7 @@ void fSystem::BattleUpdate() {
     static fPadSystem::Inputs randomInputs = { 0, 0 };
 
     diag::ScopedTimer _updateTimer(diag::OP_DETOURED_BATTLE_UPDATE);
+    sf4e::InputLag::BeforeBattleFrame(sf4e::NetplayFacade::GetRuntimeSnapshotShared()->preferences.lowerInputLag);
 
     if (!MayAdvanceDeterministicFrame()) {
         if (ggpo && diag::Enabled()) {
@@ -441,7 +449,10 @@ void fSystem::BattleUpdate() {
         return;
     }
 
-    if (ggpo && *rSystem::staticVars.CurrentBattleFlow != BF__IDLE) {
+    // Bootstrap idle is allowed before the first deterministic frame only.
+    // Round-transition idle must use the same inputs/frame accounting as
+    // ggpo_advance_frame_callback, which also replays those engine updates.
+    if (simGate.UsesGgpoTimeline(ggpo != nullptr, *rSystem::staticVars.CurrentBattleFlow == BF__IDLE)) {
         // Pump the network right before the inputs are needed. The outer
         // tick's poll runs after this frame was rendered, so without this
         // pump any remote input that arrived since then is used one frame
@@ -475,6 +486,7 @@ void fSystem::BattleUpdate() {
                         if(sf4e::NetplayFacade::IsRuntimeRoomActive())
                             sf4e::NetplayFacade::ReadRuntimeMatchInput(i,inputs.mappedOn,inputs.rawOn);
                         else inputs = { (p->*padMethods.GetButtons_MappedOn)(i), (p->*padMethods.GetButtons_RawOn)(i) };
+                        inputs.rawOn = sf4e::training::ClearReservedInputBits(inputs.rawOn);
                     }
                     {
                         diag::ScopedTimer _t(diag::OP_ADD_LOCAL_INPUT);
@@ -536,12 +548,19 @@ void fSystem::BattleUpdate() {
         }
         sf4e::training::BeforeUpdate(_this, ggpo != nullptr);
         // The stress harness owns the memento keys while it runs. This branch
-        // is also taken with a live session while the flow is idle, so it
+        // is also taken with a live session during initial bootstrap, so it
         // must never run alongside GGPO's own pool.
         if (ggpo || !StressStep(_this)) {
             (_this->*rSystem::publicMethods.BattleUpdate)();
         }
         sf4e::training::AfterUpdate(_this);
+        // A replay's playback observes the recorder as this update left it
+        // (the strip, the lanes and an export's progress read it). Shown with
+        // the frame meter, the frame just played goes to the meter as a
+        // watched match's does, with no input to confirm. A
+        // frame the replay controls (or the game's half speed) held is not
+        // one: the meter would take the repeated frame as a gap and start over.
+        if (sf4e::replayplayback::AfterUpdate(_this)) sf4e::training::ObserveMatch(_this, 0, -1);
     }
 
     if (nExtraFramesToSimulate > 0) {
@@ -615,7 +634,11 @@ void fSystem::CloseBattle() {
     // The engine is closing this battle, so a session retired from here on
     // (now, or later by the spectator drain) leaves no orphan behind.
     const bool netplayBattle = simGate.OnNativeBattleClosed();
+    sf4e::battlePause.CloseBattle();
     sf4e::training::CloseBattle();
+    sf4e::replayplayback::CloseBattle();
+    sf4e::InputLag::CloseBattle();
+    sf4e::custom::EndBattle();
     bool summaryEmitted = false;
     LogSaveSlotOccupancy("battle_close_entry");
     sf4e::crash::NoteMatchBoundary("battle_close");
@@ -631,7 +654,7 @@ void fSystem::CloseBattle() {
             static_cast<int>(candidate.result),
             candidate.frame,
             confirmedInput,
-            lastGgpoSaveFrame
+            ggpoTimeline.Held()
         );
         simGate.OnBattleClosing();
         // Decide defer *before* close so a prior spectator defer flag cannot
@@ -670,6 +693,7 @@ void fSystem::CloseBattle() {
     if (!summaryEmitted) {
         EmitRollbackDiagSummary("battle_close_deferred");
     }
+    sf4e::platform::replays::NoteMatchEnd();
     (_this->*rSystem::publicMethods.CloseBattle)();
     sf4e::memento::LogCounters("battle_close_exit");
     sf4e::memento::ResetCounters();
@@ -681,6 +705,8 @@ void fSystem::CloseBattle() {
 }
 
 void fSystem::OnBattleFlow_BattleStart(System* s) {
+    sf4e::battlePause.StartBattle();
+    sf4e::replayplayback::StartBattle(s);
     StressOpenBattle();
     if (nNextBattleStartFlowTarget > -1) {
         rSystem::staticMethods.SetBattleFlow(s, nNextBattleStartFlowTarget);
@@ -738,6 +764,9 @@ void fSystem::SysMain_HandleTrainingModeFeatures() {
 void fSystem::SysMain_UpdatePauseState() {
     if (simGate.LocalControllerOwnsBattle(ggpo != nullptr)) {
         (this->*rSystem::publicMethods.SysMain_UpdatePauseState)();
+        sf4e::battlePause.Publish(sf4e::NativePauseMenuOpen(*rSystem::GetSimulationFlags(this), *rSystem::GetPausingPlayer(this)));
+    } else {
+        sf4e::battlePause.Publish(false);
     }
 }
 

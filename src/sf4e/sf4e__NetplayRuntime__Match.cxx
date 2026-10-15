@@ -1,11 +1,14 @@
 #include "sf4e__NetplayRuntime.hxx"
+#include "sf4e__GameEvents.hxx"
 
 namespace sf4e { namespace NetplayFacade {
 namespace {
 // The room has finished this generation at the table: it committed the end of
-// the current match, or the table's phase has already left the game.
+// this very generation, or the table's phase has already left the game. Not
+// IsRuntimeMatchEndCommitted: that is the last game this PC set up successfully,
+// and a later one whose setup failed would pass for it.
 bool GenerationFinished(const room::Table& table, std::uint64_t generation) {
-	return IsRuntimeMatchEndCommitted() || netplay::GenerationEnded(table, generation);
+	return (generation && runtime->committedEndGeneration == generation) || netplay::GenerationEnded(table, generation);
 }
 
 // Records the lock release a spectator owes the room after its own setup or
@@ -47,7 +50,9 @@ void ReportMatchAbort() {
 	action.roomEpoch = snapshot.roomEpoch; action.revision = snapshot.revision;
 	action.table = static_cast<std::uint8_t>(member->table);
 	action.tableRevision = snapshot.tables[action.table].revision;
-	action.matchGeneration = runtime->match->Generation();
+	// The generation whose grant this PC took up, also when its setup failed
+	// before the session recorded it as its own.
+	action.matchGeneration = runtime->match->AttemptedGeneration();
 	// A game whose end is known needs no abort; the authority would only
 	// answer WrongGeneration.
 	if (GenerationFinished(snapshot.tables[action.table], action.matchGeneration)) {
@@ -85,9 +90,19 @@ static void HandleSessionlessClose(std::uint64_t closedGeneration) {
 	}
 	ReportMatchAbort();
 	runtime->readyIntent.Withdraw(); runtime->lobbyEditIntent.Clear();
-	CancelDeferredGgpoClose();
-	runtime->match->Abort();
-	runtime->recoveringMatch = true;
+	// The battle already closed its session, so there is nothing to abort but the match.
+	internal::AbortLocalMatch("");
+}
+
+// The room's match is one the game cannot take, and nothing of it was
+// written. Leave this game as a failed setup does: the room hears of it, the
+// session is retired, and the next game enters as usual.
+static void RejectMatchEntry() {
+	spdlog::warn("Netplay: leaving generation {}: the game cannot take its match", runtime->match->Generation());
+	if (LocalIsSpectator()) ArmSpectatorLockRelease(runtime->match->Generation(), true);
+	ReportMatchAbort();
+	runtime->readyIntent.Withdraw(); runtime->lobbyEditIntent.Clear();
+	internal::AbortLocalMatch(loc::T("runtime.unsupported_match"), NoticeSeverity::Warning);
 }
 
 // The entry into a started match waits for the main menu. Say so once, and
@@ -142,6 +157,11 @@ void NotifyRuntimeMatchEnded() {
 	// Called from battle teardown: defer owning-object changes until TickRuntime.
 	if (!runtime || !runtime->match) return;
 	runtime->matchEnded = true;
+	// Retiring the session next resets the telemetry the ping comes from. The
+	// opponent is the match's own, not whoever the table seats by the time the
+	// tick takes this.
+	runtime->finishedGame = netplay::PlayedGame{runtime->match->Generation(), runtime->match->OpponentPeer(),
+		Game::Battle::System::matchTelemetry.pings.Summarize()};
 	if (!UserApp::netplay || runtime->match->Generation() == 0) return;
 	const auto& snapshot = UserApp::netplay->client.GetRoomSnapshot();
 	if (!snapshot.roomEpoch || !snapshot.localMember) return;
@@ -241,10 +261,35 @@ namespace internal {
 // Retire this client from the current game. The room-facing half of leaving a
 // match is ReportMatchAbort; this is the local half, and every caller needs
 // both deferral state and the session torn down in the same order.
-void AbortLocalMatch(const char* reason, NoticeSeverity severity) {
+void CancelLocalMatch(GgpoEnd end) {
+	// A game this PC left before its battle was prepared gives that battle,
+	// or any later one, nothing of the match.
+	sf4e::GameEvents::VsBattle::nextRequest = {};
 	CancelDeferredGgpoClose();
-	if (Game::Battle::System::ggpo) Game::Battle::System::AbortGgpoMatch(reason, severity);
-	runtime->match->Abort(); runtime->recoveringMatch = true;
+	if (end.retire) Game::Battle::System::RetireGgpoSession(end.text);
+	else if (Game::Battle::System::ggpo) Game::Battle::System::AbortGgpoMatch(end.text, end.severity);
+	if (runtime->match) runtime->match->Abort();
+}
+
+void AbortLocalMatch(const char* reason, NoticeSeverity severity) {
+	CancelLocalMatch(GgpoEnd::Abort(reason, severity));
+	runtime->recoveringMatch = true;
+}
+
+// The room ended the game this PC is in with no result (Abort or Cancel). The
+// notice follows from that outcome, not from the session: whatever is left of
+// the session is retired first, quietly, and the notice is published after,
+// also when no session was left (its setup never reached GGPO, or the battle
+// already closed it). A PC that had already left the game said why then.
+void EndUnscoredMatch(room::MatchResult result) {
+	const bool alreadyLeft = runtime->recoveringMatch;
+	AbortLocalMatch("");
+	if (alreadyLeft) return;
+	// A Practice room's game has no result to lose: a fighter ending it (End
+	// practice), or losing the link, only ends the practice.
+	if (result == room::MatchResult::Abort && UserApp::netplay && UserApp::netplay->client.GetRoomSnapshot().practice)
+		PushAlert(loc::T("runtime.practice_ended"), NoticeSeverity::Info);
+	else PushAlert(loc::T("runtime.table_game_cancelled"), NoticeSeverity::Error);
 }
 
 // The counterpart for a game that is already over: end it, and any spectator
@@ -260,7 +305,7 @@ void RetryPendingAbort() {
 		const auto& snapshot = UserApp::netplay->client.GetRoomSnapshot();
 		const auto& action = *runtime->pendingAbort;
 		// Kept while the projection lags the generation; its deadline bounds that.
-		const bool current = runtime->match && runtime->match->Generation() == action.matchGeneration &&
+		const bool current = runtime->match && runtime->match->AttemptedGeneration() == action.matchGeneration &&
 			action.table < room::TableCount && snapshot.roomEpoch == action.roomEpoch &&
 			!GenerationFinished(snapshot.tables[action.table], action.matchGeneration);
 		if (!current) {
@@ -426,19 +471,17 @@ void TickMatch() {
 					// failure is ever recorded. Its lock release is owed for the
 					// admitted generation all the same, and is not the action that
 					// retires the link: that one is sent once and lost with the control.
-					if (LocalIsSpectator()) ArmSpectatorLockRelease(runtime->match->Generation(), true);
+					if (LocalIsSpectator()) ArmSpectatorLockRelease(runtime->match->AttemptedGeneration(), true);
 					ReportMatchAbort();
 				}
 				runtime->readyIntent.Withdraw(); runtime->lobbyEditIntent.Clear();
-				CancelDeferredGgpoClose();
-				if (Game::Battle::System::ggpo) Game::Battle::System::AbortGgpoMatch(runtime->error.c_str());
-				runtime->match->Abort();
 				if (teardownTimedOut) {
+					CancelLocalMatch(GgpoEnd::Abort(runtime->error.c_str()));
 					runtime->error = loc::T("runtime.teardown_timeout");
                     runtime->controller.Execute({netplay::CommandKind::LeaveRoom,
                         runtime->controller.GetSnapshot().generation, {}});
                     CloseRoom();
-				} else runtime->recoveringMatch = true;
+				} else AbortLocalMatch(runtime->error.c_str());
 			} else {
 				const auto matchState = runtime->controller.GetSnapshot().match;
 				Apply(matchState == netplay::MatchState::Playing || matchState == netplay::MatchState::Preparing ?
@@ -471,8 +514,10 @@ void TickMatch() {
 				Apply(netplay::EventKind::MatchEnded);
 			if (phase == session::IrohMatchSession::Phase::Started && !runtime->matchEntered) {
 				Apply(netplay::EventKind::GameplayReady);
-				runtime->matchEntered = UserApp::EnterAuthorizedMatch();
+				const auto entry = UserApp::EnterAuthorizedMatch();
+				runtime->matchEntered = entry == UserApp::MatchEntry::Entered;
 				if (runtime->matchEntered) runtime->enteredGeneration = runtime->match->Generation();
+				else if (entry == UserApp::MatchEntry::Rejected) RejectMatchEntry();
 				else if (!AtMainMenu()) ObserveDeferredEntry();
 			}
 			if (runtime->matchEntered && GetGgpoSyncPhase() == GgpoSyncPhase::Running) Apply(netplay::EventKind::MatchStarted);

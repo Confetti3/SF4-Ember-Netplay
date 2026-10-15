@@ -20,7 +20,9 @@ struct Win32Input {
         return input;
     }
 };
-void ApplyWin32Input(ImGuiIO& io, const Win32Input& input);
+// `mouseScale` maps window client coordinates to ImGui's display coordinates
+// (they differ when the game draws at another size than its window).
+void ApplyWin32Input(ImGuiIO& io, const Win32Input& input, ImVec2 mouseScale = ImVec2(1, 1));
 
 // SF4 can deliver window messages on another thread than the one that draws.
 // Handed this bridge (ImGui_ImplWin32_SetInputBridge), the Win32 backend keeps
@@ -43,7 +45,7 @@ public:
     // queued after still applies.
     void RequestClear();
     // Drawing thread.
-    void ApplyTo(ImGuiIO& io);
+    void ApplyTo(ImGuiIO& io, ImVec2 mouseScale = ImVec2(1, 1));
 private:
     std::mutex lock_;
     std::vector<Win32Input> queued_;
@@ -52,7 +54,7 @@ private:
 };
 // The backend's route for one event: into the bridge when it has one,
 // otherwise straight to io.
-void DeliverWin32Input(Win32InputBridge* bridge, ImGuiIO& io, const Win32Input& input);
+void DeliverWin32Input(Win32InputBridge* bridge, ImGuiIO& io, const Win32Input& input, ImVec2 mouseScale = ImVec2(1, 1));
 
 // Whether the backend may set the OS cursor. Set from either thread, so it is
 // kept here rather than in io.ConfigFlags.

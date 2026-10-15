@@ -90,6 +90,7 @@ struct GgpoCallbackScope : sf4e::gate::AbortLatch::Scope {
 };
 
 static sf4e::SpectatorPolicy s_spectatorPolicy;
+static sf4e::SpectatorStreamWatch s_streamWatch;
 
 std::size_t fSystem::SpectatorStreamCount() {
     // players[0] is the local handle only on P1, which is the only client that
@@ -99,10 +100,22 @@ std::size_t fSystem::SpectatorStreamCount() {
 }
 
 void fSystem::PollSpectators() {
-    if (!SpectatorStreamCount()) return;
     const auto now = GetTickCount64();
+    using StreamStep = sf4e::SpectatorStreamWatch::Step;
+    const auto streamStep = ggpo ? s_streamWatch.Poll(now, MatchResultKnown()) : StreamStep::Wait;
+    if (streamStep != StreamStep::Wait) {
+        const bool lost = streamStep == StreamStep::EndLost;
+        spdlog::log(lost ? spdlog::level::err : spdlog::level::info, "GGPO: spectator stream not synchronized within {} ms ({})",
+            sf4e::SpectatorPolicy::StreamSyncTimeoutMs, lost ? "stream lost" : "the match result was already recorded");
+        AbortGgpoMatch(lost ? sf4e::loc::T("runtime.spectator_stream_lost") : "");
+        return;
+    }
+    if (!SpectatorStreamCount()) return;
     const auto drop = [&](int handle, const char* reason) {
-        spdlog::info("GGPO: dropping spectator handle {} ({})", handle, reason);
+        GGPONetworkStats stats = {};
+        ggpo_get_network_stats(ggpo, handle, &stats);
+        spdlog::info("GGPO: dropping spectator handle {} ({}; ping {} ms, backlog {} frames)",
+            handle, reason, stats.network.ping, stats.network.send_queue_len);
         const auto result = ggpo_disconnect_player(ggpo, handle);
         if (!GGPO_SUCCEEDED(result) && result != GGPO_ERRORCODE_PLAYER_DISCONNECTED)
             spdlog::warn("GGPO: spectator handle {} could not be dropped: {}", handle, (int)result);
@@ -112,7 +125,7 @@ void fSystem::PollSpectators() {
     for (const auto handle : s_spectatorPolicy.Handles()) {
         GGPONetworkStats stats = {};
         if (!GGPO_SUCCEEDED(ggpo_get_network_stats(ggpo, handle, &stats))) continue;
-        if (s_spectatorPolicy.Sample(handle, stats.network.send_queue_len)) drop(handle, "too far behind");
+        if (s_spectatorPolicy.Sample(handle, stats.network.send_queue_len, stats.network.ping)) drop(handle, "too far behind");
     }
 }
 
@@ -330,7 +343,7 @@ bool fSystem::DrainPendingAbort() {
     return true;
 }
 
-void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int frameDelay, DWORD rngSeed) {
+void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int frameDelay) {
     matchTelemetry.Reset();
     rollbackHud.Reset();
     if (!inPlayers || numPlayers < 2 || numPlayers > static_cast<int>(sf4e::room::MaxMatchParticipants)) {
@@ -360,13 +373,14 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
         SaveState::Reclaim(&saveStates[i], "start_ggpo", i);
     }
     simGate.OnSessionStarted();
+    s_streamWatch.Start(GetTickCount64(), false);
     ResetPacerForSession();
     s_lastDisconnectFlags = 0;
     s_disconnectTimeoutMs = 0;
     s_abortLatch.Reset();
     sf4e::memento::DiscardPendingAbort();
     localPlayerHandle = GGPO_INVALID_HANDLE;
-    lastGgpoSaveFrame = -1;
+    ggpoTimeline.Reset();
 
     GGPOSessionCallbacks cb = { 0 };
     cb.begin_game = ggpo_begin_game_callback;
@@ -439,11 +453,9 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
 
     nNextBattleStartFlowTarget = BF__MATCH_START;
     fVsBattle::bTerminateOnNextLeftBattle = true;
-    fVsBattle::bOverrideNextRandomSeed = true;
-    fVsBattle::nextMatchRandomSeed = rngSeed;
 }
 
-void fSystem::StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port, DWORD rngSeed) {
+void fSystem::StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port) {
     rollbackHud.Reset();
     diag::InitFromEnvironment();
     sf4e::NetplayFacade::CancelDeferredGgpoClose();
@@ -466,11 +478,12 @@ void fSystem::StartSpectating(unsigned short localport, int num_players, char* h
     s_disconnectTimeoutMs = 0;
     s_abortLatch.Reset();
     sf4e::memento::DiscardPendingAbort();
+    s_streamWatch.Start(GetTickCount64(), true);
     // No fighter handles on a spectator client; stale ones from an earlier
     // match must not classify the host stream's events.
     for (auto& player : players) { player = {}; player.handle = GGPO_INVALID_HANDLE; }
     localPlayerHandle = GGPO_INVALID_HANDLE;
-    lastGgpoSaveFrame = -1;
+    ggpoTimeline.Reset();
     GGPOSessionCallbacks cb = { 0 };
     cb.begin_game = ggpo_begin_game_callback;
     cb.advance_frame = ggpo_advance_frame_callback;
@@ -502,8 +515,6 @@ void fSystem::StartSpectating(unsigned short localport, int num_players, char* h
 
     nNextBattleStartFlowTarget = BF__MATCH_START;
     fVsBattle::bTerminateOnNextLeftBattle = true;
-    fVsBattle::bOverrideNextRandomSeed = true;
-    fVsBattle::nextMatchRandomSeed = rngSeed;
 }
 
 bool fSystem::ggpo_begin_game_callback(const char*)
@@ -607,6 +618,10 @@ bool fSystem::ggpo_advance_frame_callback(int)
         return true;
     }
     NoteDisconnectFlags(disconnect_flags);
+    // As in a frame of the present (PlayGgpoFrame): the game is never shown
+    // the reserved bits.
+    inputs[0].rawOn = sf4e::training::ClearReservedInputBits(inputs[0].rawOn);
+    inputs[1].rawOn = sf4e::training::ClearReservedInputBits(inputs[1].rawOn);
 
     // Restored on every exit; rollback resimulation must never leak
     // playback mode into subsequent engine work.
@@ -620,12 +635,13 @@ bool fSystem::ggpo_advance_frame_callback(int)
     // if it called fSystem::BattleUpdate, it'd be restricted to the same
     // update-halting that the detoured method is.
     rSystem* system = rSystem::staticMethods.GetSingleton();
-    {
-        diag::ScopedTimer _t(diag::OP_ENGINE_BATTLE_UPDATE);
-        (system->*rSystem::publicMethods.BattleUpdate)();
-    }
-
-    result = ggpo_advance_frame(ggpo);
+    result = sf4e::statehash::GgpoTimeline::Simulate(
+        [&] {
+            diag::ScopedTimer _t(diag::OP_ENGINE_BATTLE_UPDATE);
+            (system->*rSystem::publicMethods.BattleUpdate)();
+        },
+        [&] { CaptureSimulatedFrame(system, inputs); },
+        [&] { return ggpo_advance_frame(ggpo); });
     if (diag::Enabled()) {
         diag::G().RecordGgpoResult(diag::CALL_ADVANCE_FRAME, (int)result);
     }
@@ -637,7 +653,7 @@ bool fSystem::ggpo_advance_frame_callback(int)
         ++s_window.resimFrames;
         s_window.maxDepth = (std::max)(s_window.maxDepth, ++s_window.depth);
         CaptureSnapshot(system);
-        CaptureHashCheckpoint(system);
+        CaptureMeterSample(system, false);
     }
 
     return true;
@@ -653,7 +669,7 @@ bool fSystem::ggpo_load_game_state_callback(unsigned char* buffer, int len)
     ++s_window.rollbacks;
     s_window.depth = 0;
     SaveState* state = (SaveState*)buffer;
-    if (!SaveState::Load(state)) {
+    if (!ggpoTimeline.Load(state->ggpoFrame, [&] { return SaveState::Load(state); })) {
         // The engine now holds a partly restored timeline; re-simulating
         // from it would desync, so end the match instead (ledger A-001).
         AbortGgpoMatch(sf4e::loc::T("runtime.rollback_unsupported_state"));
@@ -665,7 +681,7 @@ bool fSystem::ggpo_load_game_state_callback(unsigned char* buffer, int len)
 bool fSystem::ggpo_save_game_state_callback(unsigned char** buffer, int* len, int* checksum, int frame)
 {
     GgpoCallbackScope _callbackScope;
-    lastGgpoSaveFrame = frame;
+    ggpoTimeline.Saved(frame);
     // No GGPO callback allocates data, then hands ownership to GGPO-
     // sf4e preallocates and manages all its savestates, and the memory
     // allocation all happens internally. Consequently the memory
@@ -820,7 +836,8 @@ bool fSystem::ggpo_on_event_callback(GGPOEvent* info) {
         }
         break;
     case GGPO_EVENTCODE_RUNNING:
-        s_spectatorPolicy.OnRunning();
+        s_spectatorPolicy.OnRunning(GetTickCount64());
+        s_streamWatch.OnRunning();
         simGate.OnRunning();
         spdlog::info("GGPO: Running");
         sf4e::NetplayFacade::NotifyGgpoSyncPhase(sf4e::GgpoSyncPhase::Running);

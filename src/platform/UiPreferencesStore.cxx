@@ -1,6 +1,7 @@
 #include "UiPreferencesStore.hxx"
 
 #include "../common/Localization.hxx"
+#include "../common/UpdateChannel.hxx"
 #include "../netplay/JsonFileStore.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include <algorithm>
@@ -19,6 +20,7 @@ constexpr int SchemaVersion = 1;
 const wchar_t* Filename = L"ui-preferences.json";
 const char* HideGameSettingsCard = "hideGameSettingsCard";
 const char* AnnouncedMatches = "announcedMatches";
+const char* UpdateChannelKey = "updateChannel";
 // A match id and a service id are never longer than this on the wire.
 constexpr std::size_t MaxMatchIdBytes = 64, MaxBridgeIdBytes = 256;
 
@@ -82,6 +84,13 @@ bool HiddenFrom(const Path& directory) noexcept {
     } catch (...) { return false; }
 }
 
+std::optional<updates::UpdateChannel> ChannelFrom(const Path& directory) noexcept {
+    try {
+        const Json value = LoadValid(directory);
+        return updates::ParseSavedUpdateChannel(value.is_object() ? value.value(UpdateChannelKey, std::string()) : std::string());
+    } catch (...) { return std::nullopt; }
+}
+
 // Merges the patch into a valid file and keeps the rest of it, so the language
 // and the hidden card cannot overwrite each other. Field contracts belong to
 // the callers below; this only writes what it is given.
@@ -120,6 +129,11 @@ bool SaveTo(const Path& directory, const Json& patch, std::string& error) noexce
         error = "UI preferences could not be saved. The previous file has been preserved.";
         return false;
     }
+}
+
+bool SaveChannelTo(const Path& directory, std::string_view channel, std::string& error) {
+    if (!updates::ParseSavedUpdateChannel(channel)) { error = "Unknown update channel."; return false; }
+    return SaveTo(directory, {{UpdateChannelKey, std::string(channel)}}, error);
 }
 
 bool SaveLanguageTo(const Path& directory, std::string_view preference, std::string& error) noexcept {
@@ -220,6 +234,12 @@ bool SaveAnnouncedMatches(const std::vector<AnnouncedMatch>& matches, std::strin
     return SaveAnnouncedTo(netplay::SettingsStore::DefaultDirectory(), matches, error);
 }
 
+std::optional<updates::UpdateChannel> UpdateChannelPreference() { return ChannelFrom(netplay::SettingsStore::DefaultDirectory()); }
+
+bool SaveUpdateChannelPreference(std::string_view channel, std::string& error) {
+    return SaveChannelTo(netplay::SettingsStore::DefaultDirectory(), channel, error);
+}
+
 bool HideGameSettingsCardForever(std::string& error) {
     return HideCardIn(netplay::SettingsStore::DefaultDirectory(), error);
 }
@@ -230,6 +250,10 @@ bool SaveLanguagePreferenceTo(const std::wstring& directory, std::string_view pr
     return SaveLanguageTo(directory, preference, error);
 }
 bool GameSettingsCardHiddenIn(const std::wstring& directory) { return HiddenFrom(directory); }
+std::optional<updates::UpdateChannel> UpdateChannelPreferenceIn(const std::wstring& directory) { return ChannelFrom(directory); }
+bool SaveUpdateChannelPreferenceTo(const std::wstring& directory, std::string_view channel, std::string& error) {
+    return SaveChannelTo(directory, channel, error);
+}
 bool HideGameSettingsCardIn(const std::wstring& directory, std::string& error) {
     return HideCardIn(directory, error);
 }

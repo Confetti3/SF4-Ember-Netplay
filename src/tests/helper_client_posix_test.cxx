@@ -114,6 +114,84 @@ int main() {
         client.Stop();
     }
 
+    // A frame from the helper ends WaitForIncoming at once, long before its
+    // timeout, and a wait with nothing arriving lasts the timeout: the room
+    // host sleeps on this instead of ticking.
+    {
+        Pipes p;
+        HelperClient client;
+        CHECK(client.Start(p.fromHelper[0], p.toHelper[1]));
+        p.fromHelper[0] = p.toHelper[1] = -1;
+        uint64_t before = GetTickCount64();
+        client.WaitForIncoming(200);
+        uint64_t took = GetTickCount64() - before;
+        CHECK(took >= 150 && took < 1000);
+        const std::string payload = "{\"type\":\"ready\"}";
+        std::string frame(14, '\0');
+        const uint32_t length = static_cast<uint32_t>(10 + payload.size());
+        for (int i = 0; i < 4; ++i) { frame[i] = static_cast<char>(length >> (24 - 8 * i)); }
+        frame[5] = 1;
+        frame[13] = 2; // message id 2
+        frame += payload;
+        std::thread([&] {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            CHECK(write(p.fromHelper[1], frame.data(), frame.size()) == static_cast<ssize_t>(frame.size()));
+        }).detach();
+        before = GetTickCount64();
+        client.WaitForIncoming(5000);
+        took = GetTickCount64() - before;
+        std::printf("event: WaitForIncoming returned after %llu ms\n", static_cast<unsigned long long>(took));
+        CHECK(took >= 50 && took < 1000);
+        HelperMessage message;
+        CHECK(client.TryReceive(message));
+        CHECK(message.id == 2 && message.payload == payload);
+        CHECK(!client.TryReceive(message));
+        // Nothing new: the next wait runs out.
+        before = GetTickCount64();
+        client.WaitForIncoming(100);
+        took = GetTickCount64() - before;
+        CHECK(took >= 80);
+        std::this_thread::sleep_for(std::chrono::milliseconds(150));
+        client.Stop();
+    }
+
+    // Events left behind by a consumer that takes a bounded batch keep
+    // WaitForIncoming from sleeping, with nothing new arriving; once all are
+    // taken it waits again.
+    {
+        Pipes p;
+        HelperClient client;
+        CHECK(client.Start(p.fromHelper[0], p.toHelper[1]));
+        p.fromHelper[0] = p.toHelper[1] = -1;
+        const std::string payload = "{\"type\":\"ready\"}";
+        std::string frames;
+        for (uint64_t id = 2; id <= 4; ++id) {
+            std::string frame(14, '\0');
+            const uint32_t length = static_cast<uint32_t>(10 + payload.size());
+            for (int i = 0; i < 4; ++i) { frame[i] = static_cast<char>(length >> (24 - 8 * i)); }
+            frame[5] = 1;
+            for (int i = 0; i < 8; ++i) { frame[6 + i] = static_cast<char>(id >> (56 - 8 * i)); }
+            frames += frame + payload;
+        }
+        CHECK(write(p.fromHelper[1], frames.data(), frames.size()) == static_cast<ssize_t>(frames.size()));
+        // Let the worker queue all three.
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        HelperMessage message;
+        CHECK(client.TryReceive(message) && message.id == 2);
+        uint64_t before = GetTickCount64();
+        client.WaitForIncoming(2000);
+        uint64_t took = GetTickCount64() - before;
+        std::printf("queued: WaitForIncoming returned after %llu ms with events left\n", static_cast<unsigned long long>(took));
+        CHECK(took < 100);
+        CHECK(client.TryReceive(message) && message.id == 3);
+        CHECK(client.TryReceive(message) && message.id == 4);
+        before = GetTickCount64();
+        client.WaitForIncoming(100);
+        took = GetTickCount64() - before;
+        CHECK(took >= 80);
+        client.Stop();
+    }
+
     std::printf(failures ? "helper_client_posix_test: %d failure(s)\n" : "helper_client_posix_test: ok\n", failures);
     return failures ? 1 : 0;
 }

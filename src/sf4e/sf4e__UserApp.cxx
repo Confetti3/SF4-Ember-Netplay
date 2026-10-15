@@ -15,6 +15,7 @@
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../Dimps/Dimps__UserApp.hxx"
 #include "../common/StageCatalog.hxx"
+#include "../platform/ReplayFiles.hxx"
 #include "../common/Localization.hxx"
 #include "../common/sf4e__RollbackDiagnostics.hxx"
 #include "../session/sf4e__SessionClient.hxx"
@@ -24,9 +25,11 @@
 #include "sf4e__Game__Battle.hxx"
 #include "sf4e__Game__Battle__System.hxx"
 #include "sf4e__GameEvents.hxx"
+#include "sf4e__InputLag.hxx"
 #include "sf4e__Overlay.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "sf4e__UserApp.hxx"
+#include "sf4e__CustomContent.hxx"
 #include "sf4e__Pad.hxx"
 
 
@@ -55,20 +58,54 @@ std::unique_ptr<fUserApp::Netplay> fUserApp::netplay;
 std::unique_ptr<SessionServer> fUserApp::server;
 static bool s_pendingMatchStart = false;
 
-static bool StartMatchFromLobby(SessionClient* const client) {
+// The room's match checked as the game would take it, logged and named to the
+// player when it cannot be: the catalog id of the notice, or nullptr.
+static const char* RejectedMatch(const SessionClient& client, const char* where) {
+    const auto& lobby = client._lobbyData;
+    const auto& match = client._matchData;
+    switch (SessionProtocol::FindMatchProblem(lobby, match)) {
+    case SessionProtocol::MatchProblem::None:
+        return nullptr;
+    case SessionProtocol::MatchProblem::Stage:
+        spdlog::error("{}: rejected unsupported stage ID {}", where, match.stageID);
+        return "runtime.unsupported_stage";
+    case SessionProtocol::MatchProblem::Settings:
+        spdlog::error("{}: rejected match settings rounds={} time={}.{}", where,
+            lobby.roundCount, lobby.roundTime.integral, lobby.roundTime.fractional);
+        break;
+    case SessionProtocol::MatchProblem::Fighter:
+        spdlog::error("{}: rejected fighters {}/{}/{} and {}/{}/{} (fighter/costume/edition)", where,
+            match.chara[0].charaID, match.chara[0].costume, match.chara[0].unc_edition,
+            match.chara[1].charaID, match.chara[1].costume, match.chara[1].unc_edition);
+        break;
+    }
+    return "runtime.unsupported_match";
+}
+
+using MatchEntry = fUserApp::MatchEntry;
+
+static MatchEntry StartMatchFromLobby(SessionClient* const client) {
     sf4e::NetplayFacade::ClearBattleState();
     fVsBattle::bSessionSynced = false;
     fVsBattle::bSessionSentLoaded = false;
+    // Only an entered match arms the next battle; any other answer leaves it empty.
+    fVsBattle::nextRequest = {};
 
     if (!client || client->_lobbyData.members.size() < 2) {
         spdlog::info("Client: deferring match start until opponent joins the lobby");
         sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.waiting_opponent_join"));
-        return false;
+        return MatchEntry::Deferred;
+    }
+    // Before anything of the match reaches the game: its settings go into the
+    // battle settings below and its stage and fighters into VS mode.
+    if (const char* notice = RejectedMatch(*client, "Client")) {
+        sf4e::NetplayFacade::PushAlert(sf4e::loc::T(notice));
+        return MatchEntry::Rejected;
     }
 
     RootEvent* root = App::GetRootEvent();
     if (!root) {
-        return false;
+        return MatchEntry::Deferred;
     }
     char* mainMenuQuery[1] = { "MainMenu" };
     rMainMenu* mainMenu = (rMainMenu*)EventBaseWithEC::FindForegroundEvent(
@@ -77,7 +114,7 @@ static bool StartMatchFromLobby(SessionClient* const client) {
         1
     );
     if (!mainMenu) {
-        return false;
+        return MatchEntry::Deferred;
     }
 
     ProgressData* progressData = *RootEvent::GetProgressData(root);
@@ -86,16 +123,29 @@ static bool StartMatchFromLobby(SessionClient* const client) {
     BattleTypeSettings->editionSelect = client->_lobbyData.editionSelect;
     BattleTypeSettings->rounds = client->_lobbyData.roundCount;
     BattleTypeSettings->timeLimit = client->_lobbyData.roundTime;
+    // The seed and Training rules join the battle request beside the
+    // settings above, for the fighters and for whoever watches them. The
+    // game prepares that request before the battle registers its tasks,
+    // where GGPO starts, so they cannot wait for GGPO.
+    fVsBattle::nextRequest = sf4e::battle::NextRequest::ForMatch(client->_lobbyData.trainingMode, client->_matchData.rngSeed);
+    // A Versus battle saves its own replay when this is set (0x63CA40), and
+    // Sidecar copies each one out of the game's slots as it is saved
+    // (platform/ReplayFiles.hxx). A match this PC only
+    // watches is recorded unless the player turned that off.
+    sf4e::NetplayFacade::RuntimeMatchEndpoints seats;
+    const bool watching = sf4e::NetplayFacade::GetRuntimeMatchEndpoints(seats) && seats.localSlot >= 2;
+    BattleTypeSettings->recordReplay = !watching || sf4e::NetplayFacade::GetRuntimeSnapshotShared()->preferences.recordWatched;
     spdlog::info(
-        "Netplay: starting match with rounds={} time={}",
+        "Netplay: starting match with rounds={} time={} training={}",
         client->_lobbyData.roundCount,
-        client->_lobbyData.roundTime.integral
+        client->_lobbyData.roundTime.integral,
+        client->_lobbyData.trainingMode
     );
     fVsPreBattle::bSkipToVersus = true;
     fVsPreBattle::OnTasksRegistered = fUserApp::_OnVsPreBattleTasksRegistered;
     fVsBattle::OnTasksRegistered = fUserApp::_OnVsBattleTasksRegistered;
     (rMainMenu::ToItemObserver(mainMenu)->*rMainMenu::itemObserverMethods.GoToVersusMode)();
-    return true;
+    return MatchEntry::Entered;
 }
 
 sf4e::UserApp::Netplay::Netplay(
@@ -113,6 +163,24 @@ sf4e::UserApp::Netplay::Netplay(
     delay(_delay)
 {}
 
+// The table the local member sits or watches at, if any.
+static const sf4e::room::Table* LocalTable(const sf4e::room::Snapshot& room) {
+    for (const auto& member : room.members)
+        if (member.id == room.localMember && member.table >= 0 && member.table < static_cast<std::int8_t>(sf4e::room::TableCount))
+            return &room.tables[member.table];
+    return nullptr;
+}
+
+// Every PC simulating the match, fighters and spectators alike, reads inputs
+// the match's way from its first frame.
+static bool StartMatchInputLag() {
+    const auto& netplay = fUserApp::netplay;
+    bool seats[2] = {false, false};
+    if (const auto* table = LocalTable(netplay->client.GetRoomSnapshot()))
+        for (int side = 0; side < 2; ++side) seats[side] = table->lowerLag[side];
+    return sf4e::InputLag::StartMatch(netplay->client._matchData.lowerInputLag, seats);
+}
+
 static bool StartRuntimeGgpo() {
     static_assert(sizeof(sf4e::Pad::System::Inputs) == sf4e::session::GgpoInputBytes, "Recalculate gameplay packet admission when SF4 inputs change");
     sf4e::NetplayFacade::RuntimeMatchEndpoints endpoints;
@@ -129,18 +197,16 @@ static bool StartRuntimeGgpo() {
             if (!captured.name.empty() && member.name == captured.name) captured.link = member.link;
     }
     netplay->spectating = endpoints.localSlot >= 2;
-    netplay->startScoreKnown = false;
     netplay->startScore[0] = netplay->startScore[1] = 0;
-    for (const auto& member : room.members)
-        if (member.id == room.localMember && member.table >= 0 && member.table < static_cast<std::int8_t>(sf4e::room::TableCount)) {
-            netplay->startScoreKnown = true;
-            for (int side = 0; side < 2; ++side) netplay->startScore[side] = room.tables[member.table].score[side];
-        }
+    const auto* table = LocalTable(room);
+    netplay->startScoreKnown = table != nullptr;
+    if (table)
+        for (int side = 0; side < 2; ++side) netplay->startScore[side] = table->score[side];
     if (endpoints.localSlot >= 2) {
         if (!endpoints.remotePorts[0]) return false;
         sf4e::NetplayFacade::ReleaseRuntimePortToGgpo();
         char loopback[] = "127.0.0.1";
-        fSystem::StartSpectating(endpoints.localPort, 2, loopback, endpoints.remotePorts[0], netplay->client._matchData.rngSeed);
+        fSystem::StartSpectating(endpoints.localPort, 2, loopback, endpoints.remotePorts[0]);
     } else {
         GGPOPlayer players[sf4e::room::MaxMatchParticipants] = {};
         const auto slots = endpoints.localSlot == 0 ? endpoints.participantCount : 2;
@@ -166,14 +232,20 @@ static bool StartRuntimeGgpo() {
             if (committedDelay>sf4e::MaximumInputDelay) return false;
             netplay->delay=committedDelay;
         }
-        // GGPO never starts at 0 frames, which crashes, whoever sent it.
-        netplay->delay=static_cast<uint8_t>(sf4e::PlayableInputDelay(netplay->delay));
         // Both seats carry the shared match delay; the two players' logs
         // must show the same values here (F-018).
         spdlog::info("Netplay: match delay seats={}/{} local_slot={} applied={}",
             netplay->client._matchData.inputDelay[0], netplay->client._matchData.inputDelay[1],
             endpoints.localSlot, netplay->delay);
-        fSystem::StartGGPO(players, static_cast<int>(count), endpoints.localPort, netplay->delay, netplay->client._matchData.rngSeed);
+        fSystem::StartGGPO(players, static_cast<int>(count), endpoints.localPort, netplay->delay);
+    }
+    if (fSystem::ggpo != nullptr) {
+        auto* const root = App::GetRootEvent();
+        auto* const progress = root ? *RootEvent::GetProgressData(root) : nullptr;
+        const bool recordingEnabled = progress && ProgressData::GetBattleTypeSettings(progress)[ProgressData::NBT_PVP].recordReplay != 0;
+        sf4e::platform::replays::NoteMatchStart(netplay->matchSides[0].name, netplay->matchSides[1].name, netplay->spectating,
+            netplay->client._matchData.chara[0].charaID, netplay->client._matchData.chara[1].charaID,
+            recordingEnabled);
     }
     sf4e::NetplayFacade::ReportGgpoTransport( "127.0.0.1", endpoints.remotePorts[endpoints.localSlot == 0 ? 1 : 0]);
     sf4e::NetplayFacade::ResetGgpoBattleWatch();
@@ -185,7 +257,11 @@ void fUserApp::_OnVsBattleTasksRegistered() {
     // Every netplay battle passes here once, before any session exists, so a
     // start that fails below still ends in a battle that leaves (F-016).
     fSystem::simGate.OnNetplayBattleClaimed();
-    if (!sf4e::NetplayFacade::IsRuntimeRoomActive() || !StartRuntimeGgpo())
+    if (!sf4e::NetplayFacade::IsRuntimeRoomActive())
+        fSystem::AbortGgpoMatch(sf4e::loc::T("runtime.authorized_connection_unavailable"));
+    else if (!StartMatchInputLag())
+        fSystem::AbortGgpoMatch(sf4e::loc::T("runtime.input_lag_unavailable"));
+    else if (!StartRuntimeGgpo())
         fSystem::AbortGgpoMatch(sf4e::loc::T("runtime.authorized_connection_unavailable"));
 }
 
@@ -202,9 +278,11 @@ void fUserApp::_OnVsPreBattleTasksRegistered()
         sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.waiting_opponent_start"));
         return;
     }
-    if (!sf4e::selection::FindStage(netplay->client._matchData.stageID)) {
-        spdlog::error("VsPreBattle: rejected unsupported stage ID {}", netplay->client._matchData.stageID);
-        sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.unsupported_stage"));
+    // Entry refused such a match before VS mode began. This keeps the bytes
+    // out of the game should they change after entry, which a session that
+    // takes host updates until the battle allows.
+    if (const char* notice = RejectedMatch(netplay->client, "VsPreBattle")) {
+        sf4e::NetplayFacade::PushAlert(sf4e::loc::T(notice));
         return;
     }
     size_t charaConditionSize = sizeof(rVsMode::ConfirmedCharaConditions);
@@ -222,33 +300,42 @@ void fUserApp::_OnVsPreBattleTasksRegistered()
 
     Dimps::Platform::dString* stageName = rVsMode::GetStageName(mode);
     rVsMode::ConfirmedPlayerConditions* conditions = rVsMode::GetConfirmedPlayerConditions(mode);
+    // What this PC shows: custom costumes and colors it has play as stand-ins, ones it doesn't have become the
+    // original (the match data stays as sent).
+    rVsMode::ConfirmedCharaConditions shown[2] = { netplay->client._matchData.chara[0], netplay->client._matchData.chara[1] };
+    const sf4e::selection::Look picks[2] = {
+        sf4e::selection::Look(shown[0].charaID, shown[0].costume, shown[0].color),
+        sf4e::selection::Look(shown[1].charaID, shown[1].costume, shown[1].color) };
+    const auto appearance = sf4e::selection::ResolveAppearance(picks, *sf4e::custom::Installed());
+    sf4e::custom::UseAppearance(appearance);
     for (int i = 0; i < 2; i++) {
-        *(rVsMode::ConfirmedPlayerConditions::GetCharaID(&conditions[i])) = netplay->client._matchData.chara[i].charaID;
+        shown[i].costume = static_cast<BYTE>(appearance.shown[i].costume);
+        shown[i].color = static_cast<BYTE>(appearance.shown[i].color);
+    }
+    for (int i = 0; i < 2; i++) {
+        *(rVsMode::ConfirmedPlayerConditions::GetCharaID(&conditions[i])) = shown[i].charaID;
         *(rVsMode::ConfirmedPlayerConditions::GetSideActive(&conditions[i])) = 1;
         rVsMode::ConfirmedCharaConditions* charaConditions = rVsMode::ConfirmedPlayerConditions::GetCharaConditions(&conditions[i]);
-        memcpy_s(charaConditions, charaConditionSize, &netplay->client._matchData.chara[i], charaConditionSize);
+        memcpy_s(charaConditions, charaConditionSize, &shown[i], charaConditionSize);
     }
 
-    (stageName->*Dimps::Platform::dString::publicMethods.assign)(Dimps::stageCodes[netplay->client._matchData.stageID], 4);
-    *(rVsMode::GetStageCode(mode)) = netplay->client._matchData.stageID;
+    // A custom stage plays as its fallback stage, loading its own files if this PC has them.
+    const int stage = sf4e::custom::ApplyStage(static_cast<int>(netplay->client._matchData.stageID));
+    (stageName->*Dimps::Platform::dString::publicMethods.assign)(Dimps::stageCodes[stage], 4);
+    *(rVsMode::GetStageCode(mode)) = stage;
 }
 
 void OnReady(sf4e::SessionClient* const client, const sf4e::SessionClient::Callbacks& c) {
-    if (!StartMatchFromLobby(client)) {
-        s_pendingMatchStart = true;
-        spdlog::info("Client: deferring match start until main menu");
-    }
-    else {
-        s_pendingMatchStart = false;
-    }
+    s_pendingMatchStart = StartMatchFromLobby(client) == MatchEntry::Deferred;
+    if (s_pendingMatchStart) spdlog::info("Client: deferring match start until main menu");
 }
 
 void OnBattleSynced(SessionClient* const client, const sf4e::SessionClient::Callbacks& callbacks) {
     fVsBattle::bSessionSynced = true;
 }
 
-bool fUserApp::EnterAuthorizedMatch() {
-    return netplay && StartMatchFromLobby(&netplay->client);
+MatchEntry fUserApp::EnterAuthorizedMatch() {
+    return netplay ? StartMatchFromLobby(&netplay->client) : MatchEntry::Deferred;
 }
 
 sf4e::SessionClient::Callbacks clientCallbacks = {
@@ -294,7 +381,7 @@ void fUserApp::TryStartPendingMatch() {
     if (netplay->client._lobbyData.members.size() < 2) {
         return;
     }
-    if (StartMatchFromLobby(&netplay->client)) {
+    if (StartMatchFromLobby(&netplay->client) != MatchEntry::Deferred) {
         s_pendingMatchStart = false;
     }
 }
@@ -357,6 +444,9 @@ void fUserApp::Steam_PostUpdate() {
         !netplayStepFailed && !serverStepFailed,
         sf4e::loc::T(netplayStepFailed ? "runtime.room_link_lost" : "runtime.session_server_error")
     );
+    // The room's updates of this tick are in: the Training call is reconciled
+    // with them before the next battle update can leave for it.
+    sf4e::NetplayFacade::ReconcileTrainingCall();
 
     {
         diag::ScopedTimer _t(diag::OP_FACADE_TICK_FRAME);
@@ -463,7 +553,7 @@ void fUserApp::Steam_PostUpdate() {
                 wallMs,
                 outerTickMs,
                 simulationFrame,
-                fSystem::lastGgpoSaveFrame,
+                fSystem::ggpoTimeline.Held(),
                 sf4e::gate::PhaseName(fSystem::simGate.phase),
                 fSystem::simGate.predictionStalled,
                 fSystem::simGate.connectionWarningActive,

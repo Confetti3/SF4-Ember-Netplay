@@ -4,16 +4,16 @@ The second play test captured a native winner but could not send it because the 
 
 ## Scope and evidence
 
-[Authorized local scope](../../build/current/debug-result-210347/scope.md). No process memory was changed. Existing packages were preserved.
+Authorized local scope: `build/current/debug-result-210347/scope.md` (local only). No process memory was changed. Existing packages were preserved.
 
-E-001: [Live state summary](../../build/current/debug-result-210347/evidence.json), SHA-256 `f5ffdb8d31a12ee77468765b95f16f6ebc6c99de90f6bf6733fd45f570a94e10`. The game loaded Sidecar from package `ember-result-rematch-fix-20260910-210347`; its SHA-256 was `D07ADE9756C3A6D9389FA5229CD6A08D94ACA13E162B0E126ADB53401308728C`. ReadProcessMemory and the matching PDB showed:
+E-001: Live state summary `build/current/debug-result-210347/evidence.json` (local only), SHA-256 `f5ffdb8d31a12ee77468765b95f16f6ebc6c99de90f6bf6733fd45f570a94e10`. The game loaded Sidecar from package `ember-result-rematch-fix-20260910-210347`; its SHA-256 was `D07ADE9756C3A6D9389FA5229CD6A08D94ACA13E162B0E126ADB53401308728C`. ReadProcessMemory and the matching PDB showed:
 
 - `room_server_receive_queue`, with room state Failed but writable/rebound still true.
 - Winner captured and pending, result/finish action IDs zero: neither report had been queued.
 - Leave requested, native GGPO socket released, coordinator Ending, helper close not dispatched.
 - The pending proposal contained one battle hash. Its 176-entry history retained 82 hashes and 40 battle snapshots.
 
-The [retained probe](../../build/current/debug-result-210347/read-stalled-state.py) is specific to PID 27048 and that module/PDB layout; its live run cannot be replayed after the process exits. The JSON summary is the portable evidence.
+The retained probe `build/current/debug-result-210347/read-stalled-state.py` (local only) is specific to PID 27048 and that module/PDB layout; its live run cannot be replayed after the process exits. The JSON summary is the portable evidence.
 
 E-002: `room_message_queue_test.cxx` drove the production queue policy with 300 verification frames while its consumer was paused. Before the repair it failed on the queue limit. After the repair it passed and preserved ordered result, finish, and leave messages.
 

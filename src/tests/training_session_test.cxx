@@ -1,10 +1,33 @@
 #include "../training/TrainingSession.hxx"
+#include "../training/ConfirmedSamples.hxx"
 #include <cstdio>
 #include <stdexcept>
 using namespace sf4e::training;
 void Require(bool pass, const char* why) { if (!pass) throw std::runtime_error(why); }
 int main() {
     try {
+        MeterView longHistory;
+        for (int frame = 0; frame < static_cast<int>(MeterHistory); ++frame) AppendMeterFrame(longHistory.frames, {}, frame);
+        for (std::size_t cell = 0; cell < MeterShown; ++cell) {
+            const int index = MeterFrameIndex(longHistory.frames.size(), cell);
+            Require(index == static_cast<int>(MeterHistory - MeterShown + cell) && longHistory.frames[index].frame == index,
+                "Meter did not draw the newest 120 frames it keeps");
+        }
+        Require(MeterFrameIndex(0, 119) == -1 && MeterFrameIndex(3, 116) == -1 &&
+            MeterFrameIndex(3, 117) == 0 && MeterFrameIndex(3, 119) == 2 && MeterFrameIndex(MeterHistory, 120) == -1,
+            "Short meter history or visible cell boundary wrong");
+        // A zoomed bar shows its newest cells; scrolled back, older ones, no
+        // further than the oldest of the 120 kept.
+        for (const std::size_t window : {60u, 90u}) {
+            Require(MeterFrameIndex(MeterHistory, window - 1, window) == static_cast<int>(MeterHistory) - 1 &&
+                MeterFrameIndex(MeterHistory, 0, window) == static_cast<int>(MeterHistory - window) &&
+                MeterFrameIndex(MeterHistory, window, window) == -1, "Zoomed meter did not show its newest frames");
+            const auto limit = MeterBackLimit(MeterHistory, window);
+            Require(limit == MeterShown - window && MeterFrameIndex(MeterHistory, 0, window, limit) == 1 &&
+                MeterFrameIndex(MeterHistory, window - 1, window, limit) == static_cast<int>(window), "Scrolled meter left the kept history");
+        }
+        Require(MeterBackLimit(MeterHistory, MeterShown) == 0 && MeterBackLimit(30, 60) == 0 && MeterFrameIndex(30, 59, 60) == 29 &&
+            MeterFrameIndex(30, 29, 60) == -1, "Short history did not align right in a zoomed meter");
         // Reproduce action chains through the same per-frame observer used by
         // native training. An internal move change must not discard contact.
         for (int variant = 0; variant < 4; ++variant) {
@@ -139,12 +162,99 @@ int main() {
         Require(startup.View().startupFrames[0] == -1, "Reset retained startup");
 
         Session session;
-        Require(!session.Apply({Action::Record, 0, 0}), "Inactive session accepted recording");
+        Require(!session.Apply({Action::Record, 0}), "Inactive session accepted recording");
         session.Enter(); session.SetReady(true);
         const auto generation = session.GetView().generation;
-        auto apply = [&](Action a, int value = 0) { return session.Apply({a, value, generation}); };
-        Require(!apply(Action::Select, -1) && !apply(Action::Select, SlotCount), "Invalid slot accepted");
+        auto apply = [&](Action a) { return session.Apply({a, generation}); };
+        auto select = [&](int slot) { Command c{Action::Select, generation}; c.slot = slot; return session.Apply(c); };
+        auto loop = [&](bool on) { Command c{Action::Loop, generation}; c.loop = on; return session.Apply(c); };
+        Require(!select(-1) && !select(SlotCount), "Invalid slot accepted");
         Require(!apply(Action::Play), "Empty playback accepted");
+        // Loaded input plays on the side it names; a recording plays on the dummy again.
+        {
+            Command load; load.action = Action::Load; load.generation = session.GetView().generation; load.side = 0;
+            load.frames = {Input{9, 9}, Input{0x410, 0x410}};
+            Require(session.Apply(load) && session.GetView().lengths[session.GetView().selected] == 2, "Load refused");
+            Require(apply(Action::Play), "Loaded playback refused");
+            Frame physical{}; physical[0] = {1, 1}; physical[1] = {2, 2};
+            auto frame = session.Prepare(physical);
+            Require(frame[0].raw == 9 && frame[1].raw == 2, "Loaded input did not replace Player 1");
+            session.Commit(frame); frame = session.Prepare(physical);
+            Require(frame[0].raw == 0x410, "Loaded input did not advance");
+            Command empty; empty.action = Action::Load; empty.generation = load.generation;
+            Require(!session.Apply(empty), "Empty load accepted while playing");
+            // Loaded input follows the loop choice as a recording does.
+            Require(session.GetView().loop, "Loop is not the default");
+            session.Commit(frame);
+            Require(session.GetView().mode == Mode::Playback && session.GetView().cursor == 0, "Loaded input did not loop");
+            apply(Action::Stop);
+            // A waiting frame repeats, buttons held, until the fight shows its
+            // cue, then its offset's frames more; it gives up after a while.
+            Command timed; timed.action = Action::Load; timed.generation = generation; timed.side = 0;
+            timed.frames = {Input{9, 9, 0}, Input{2, 2, WaitActionable, 0}, Input{0x82, 0x82, 0}, Input{8, 8, WaitHit, 2}, Input{0x18, 0x18, 0}};
+            Require(session.Apply(timed) && apply(Action::Play), "Timed load refused");
+            session.Commit(session.Prepare(physical));
+            for (int held = 0; held < 5; ++held) { session.Observe(false, false); session.Commit(session.Prepare(physical)); }
+            Require(session.Prepare(physical)[0].raw == 2 && session.GetView().cursor == 1, "Waiting frame did not hold its direction");
+            session.Observe(true, false); session.Commit(session.Prepare(physical));
+            Require(session.Prepare(physical)[0].raw == 0x82, "Free frame did not release the wait");
+            session.Commit(session.Prepare(physical));
+            session.Observe(false, true); session.Commit(session.Prepare(physical));
+            session.Observe(false, false); session.Commit(session.Prepare(physical));
+            Require(session.GetView().cursor == 3, "Late offset did not hold after the hit");
+            session.Observe(false, false); session.Commit(session.Prepare(physical));
+            Require(session.Prepare(physical)[0].raw == 0x18, "Late offset held too long");
+            apply(Action::Stop);
+            // A press waiting for a hit that never comes goes stale quickly.
+            Require(session.Apply(timed) && apply(Action::Play), "Timed load refused again");
+            for (int i = 0; i < 3; ++i) { session.Observe(true, false); session.Commit(session.Prepare(physical)); }
+            // The give-up spans the cue's frames plus the offset's.
+            for (int i = 0; i < MaxWaitHitFrames + 2; ++i) { session.Observe(false, false); session.Commit(session.Prepare(physical)); }
+            Require(session.Prepare(physical)[0].raw == 0x18, "Waiting for a hit never gave up");
+            apply(Action::Stop);
+            // With the script predicting the free frame, a link's press lands
+            // on that frame plus the offset: before it when negative. A seen
+            // free frame still releases it. A hit is never predicted.
+            Command early; early.action = Action::Load; early.generation = generation; early.side = 0;
+            early.frames = {Input{9, 9, 0}, Input{2, 2, WaitActionable, 0}, Input{0x82, 0x82, 0}, Input{8, 8, WaitActionable, -2}, Input{0x18, 0x18, 0}};
+            Require(session.Apply(early) && apply(Action::Play), "Early load refused");
+            session.Commit(session.Prepare(physical));
+            session.Observe(false, false, 5); session.Commit(session.Prepare(physical));
+            session.Observe(false, false, 2); session.Commit(session.Prepare(physical));
+            Require(session.GetView().cursor == 1, "Press went before the free frame");
+            session.Observe(false, false, 1); session.Commit(session.Prepare(physical));
+            Require(session.Prepare(physical)[0].raw == 0x82 && session.GetView().cursor == 2, "Press did not land on the predicted free frame");
+            session.Commit(session.Prepare(physical));
+            session.Observe(false, false, 8); session.Commit(session.Prepare(physical));
+            session.Observe(false, false, 4); session.Commit(session.Prepare(physical));
+            Require(session.GetView().cursor == 3, "Early press went before its frames");
+            session.Observe(false, false, 3); session.Commit(session.Prepare(physical));
+            Require(session.GetView().cursor == 4, "Press did not land two frames before the free frame");
+            apply(Action::Stop);
+            Require(session.Apply(early) && apply(Action::Play), "Early load refused again");
+            session.Commit(session.Prepare(physical));
+            session.Observe(true, false); session.Commit(session.Prepare(physical));
+            session.Commit(session.Prepare(physical));
+            session.Observe(true, false, 7); session.Commit(session.Prepare(physical));
+            Require(session.GetView().cursor == 4, "Seen free frame did not release an early press");
+            apply(Action::Stop);
+            // A hit landing while the motion before a cancel's wait is still
+            // going is kept for that wait; the press that started the move clears it.
+            Command kept; kept.action = Action::Load; kept.generation = generation; kept.side = 0;
+            kept.frames = {Input{0x82, 0x82, 0}, Input{2, 2, 0}, Input{0xa, 0xa, 0}, Input{0xa, 0xa, WaitHit, 0}, Input{0x408, 0x408, 0}};
+            Require(session.Apply(kept) && apply(Action::Play), "Kept load refused");
+            session.Observe(false, true); session.Commit(session.Prepare(physical));
+            session.Observe(false, false); session.Commit(session.Prepare(physical));
+            session.Observe(false, true); session.Commit(session.Prepare(physical));
+            session.Observe(false, false); session.Commit(session.Prepare(physical));
+            Require(session.GetView().cursor == 4, "A hit during the motion was lost");
+            apply(Action::Stop);
+            Require(session.Apply(kept) && apply(Action::Play), "Kept load refused again");
+            session.Observe(false, true); session.Commit(session.Prepare(physical));
+            for (int i = 0; i < 3; ++i) { session.Observe(false, false); session.Commit(session.Prepare(physical)); }
+            Require(session.GetView().cursor == 3, "A hit before the press counted for the move after it");
+            apply(Action::Stop);
+        }
         Require(!apply(Action::Restore), "Missing checkpoint restored");
         Require(apply(Action::Record), "Record rejected");
         Frame physical{{Input{0x10, 0x10}, Input{0x80, 0x80}}};
@@ -154,30 +264,125 @@ int main() {
         Require(session.GetView().lengths[0] == 0, "Repeated or paused reads advanced recording");
         session.Commit(output);
         physical[0] = {0x20, 0x20}; session.Commit(session.Prepare(physical));
-        Require(apply(Action::Stop) && apply(Action::Loop, 0) && apply(Action::Play), "Playback start failed");
+        Require(apply(Action::Stop) && loop(false) && apply(Action::Play), "Playback start failed");
         Require(session.Prepare(physical)[1].raw == 0x10, "First recorded frame skipped");
         session.Commit(session.Prepare(physical));
         Require(session.Prepare(physical)[1].raw == 0x20, "Playback order changed");
         session.Commit(session.Prepare(physical));
         Require(session.GetView().mode == Mode::Idle, "Single playback failed to stop");
-        Require(apply(Action::Loop, 1) && apply(Action::Play), "Loop rejected");
+        Require(loop(true) && apply(Action::Play), "Loop rejected");
         for (int i = 0; i < 10; ++i) session.Commit(session.Prepare(physical));
         Require(session.GetView().cursor == 0 && session.GetView().mode == Mode::Playback, "Loop boundary failed");
-        Require(!apply(Action::Select, 1) && !apply(Action::Clear), "Slot mutated during playback");
-        apply(Action::Stop); apply(Action::Select, 1); apply(Action::Record);
+        Require(!select(1) && !apply(Action::Clear), "Slot mutated during playback");
+        apply(Action::Stop); select(1); apply(Action::Record);
         for (int i = 0; i < MaxFrames + 5; ++i) session.Commit(session.Prepare(physical));
         Require(session.GetView().lengths[1] == MaxFrames && session.GetView().mode == Mode::Idle, "Recording limit failed");
         Require(session.GetView().lengths[0] == 2, "Second slot overwrote first");
-        Require(session.GetView().timeline[0].size() <= 120 && session.GetView().history[0].size() <= HistoryRows, "History unbounded");
+        Require(session.GetView().history[0].size() <= HistoryRows, "History unbounded");
         session.SetReady(false); Require(!apply(Action::Record), "Loading allowed record");
         session.SetReady(true); session.SetCheckpoint(true);
         Require(apply(Action::Restore) && session.GetView().history[0].empty(), "Reset kept stale history");
         session.Reset(); session.Enter(); session.SetReady(true);
         Require(!apply(Action::Record) && !session.GetView().checkpoint && session.GetView().lengths[0] == 0, "Battle generation isolation failed");
+        // The session is the one check every command passes: one sent for
+        // another battle is refused there, whatever its action, and changes
+        // nothing. The runtime's own actions pass it before the fight starts.
+        {
+            Session checked; checked.Enter();
+            const auto current = checked.GetView().generation;
+            for (int a = 0; a <= static_cast<int>(Action::DummyPlan); ++a) {
+                Command stale{static_cast<Action>(a), current + 1};
+                stale.slot = 3; stale.loop = false; stale.frames = {Input{1, 1}};
+                Require(!checked.Apply(stale), "A command for another battle was accepted");
+                Require(checked.GetView().selected == 0 && checked.GetView().loop && checked.GetView().lengths[0] == 0,
+                    "A command for another battle changed the session");
+            }
+            for (Action a : {Action::Place, Action::ExportSlot, Action::DummyPlan, Action::DummyState, Action::Loop})
+                Require(checked.Apply({a, current}), "A command for this battle was refused before the fight");
+            Command plan{Action::DummyPlan, current}; plan.plan.slot = SlotCount;
+            Require(!checked.Apply(plan), "An invalid reply plan was accepted");
+            Command load{Action::Load, current}; load.frames = {Input{1, 1}};
+            checked.SetReady(true); load.side = 2;
+            Require(!checked.Apply(load), "Input loaded for a side that does not exist");
+            // A save and then a reset, in order, with no position saved before:
+            // the reset is the session's to decide once the save has run.
+            Session positions; positions.Enter(); positions.SetReady(true);
+            const auto battle = positions.GetView().generation;
+            Require(positions.Apply({Action::Save, battle}), "A save was refused");
+            positions.SetCheckpoint(true);
+            Require(positions.Apply({Action::Restore, battle}), "A reset after a save that worked was refused");
+            Session failed; failed.Enter(); failed.SetReady(true);
+            Require(failed.Apply({Action::Save, failed.GetView().generation}), "A save was refused");
+            failed.SetCheckpoint(false);
+            Require(!failed.Apply({Action::Restore, failed.GetView().generation}), "A reset after a failed save was taken");
+        }
+        // The call out of Training: the countdown follows the call that stands
+        // for the battle, as state read before every tick, so the battle
+        // leaves once, for that call, whether its banner ran out or the
+        // player chose go now; a call that ended never takes it away; and a
+        // go now chosen while the battle's command queue is full still acts.
+        {
+            const std::uint64_t battle = 40;
+            const auto call = [&](std::uint64_t serial, bool hurry = false) { CallControl c; c.call = serial; c.generation = battle; c.hurry = hurry; return c; };
+            // One update: the countdown follows the state, then ticks.
+            const auto update = [&](LeaveCountdown& countdown, const CallControl& control, bool fighting = true) {
+                countdown.Follow(control, battle, 120);
+                return countdown.Tick(fighting);
+            };
+            const auto leaves = [&](LeaveCountdown& countdown, const CallControl& control, int frames) {
+                int fired = 0;
+                for (int frame = 0; frame < frames; ++frame) if (update(countdown, control)) ++fired;
+                return fired;
+            };
+            LeaveCountdown timer;
+            Require(leaves(timer, CallControl{}, 300) == 0, "The battle left with no call");
+            Require(timer.Follow(call(7), battle, 120) && !timer.Follow(call(7), battle, 120), "The call's countdown started twice");
+            Require(leaves(timer, call(7), 300) == 1 && timer.Left() == 0, "The banner did not end in exactly one leave");
+            // Go now: the next update that may leave does, once.
+            LeaveCountdown early;
+            int fired = 0, firedAt = -1;
+            for (int frame = 0; frame < 300; ++frame) if (update(early, call(7, frame >= 30))) { ++fired; firedAt = frame; }
+            Require(fired == 1 && firedAt == 30, "Go now did not leave once, at once");
+            // Go now only leaves from a running fight, as the pause menu's exit does.
+            LeaveCountdown intro;
+            Require(!update(intro, call(7, true), false) && !update(intro, call(7, true), false) && intro.Left() == 1, "Go now left a fight that was not running");
+            Require(update(intro, call(7, true)) && !update(intro, call(7, true)), "Go now did not leave once the fight ran");
+            // The call ends on the countdown's last frame, while the fight is
+            // not running: the next update stops it, before it could tick.
+            LeaveCountdown last;
+            for (int frame = 0; frame < 119; ++frame) update(last, call(7), false);
+            Require(last.Left() == 1, "The countdown did not reach its last frame");
+            Require(!update(last, CallControl{}) && last.Left() == 0 && leaves(last, CallControl{}, 200) == 0, "A call that ended took the battle away");
+            // A go now chosen when the command queue would have been full is
+            // state, not a message: once the countdown runs, it takes effect,
+            // once and for its own call.
+            LeaveCountdown waiting;
+            Require(!update(waiting, call(7, true), false) && waiting.Left() == 1 && waiting.Call() == 7, "A go now chosen before the countdown ran was lost");
+            Require(update(waiting, call(7, true)) && leaves(waiting, call(7, true), 300) == 0, "Go now took the battle away twice");
+            // Another call replaces the count whole, its hurry and all, and
+            // the earlier call's go now never reaches it.
+            for (const bool hurried : {false, true}) {
+                LeaveCountdown replaced;
+                leaves(replaced, call(7, hurried), hurried ? 0 : 30);
+                if (hurried) update(replaced, call(7, true), false);
+                Require(replaced.Follow(call(8), battle, 120) && replaced.Left() == 120 && replaced.Call() == 8, "A replacement call did not start its own count");
+                Require(!update(replaced, call(8)) && replaced.Left() == 119, "The replaced call's go now reached the new count");
+                Require(leaves(replaced, call(8), 300) == 1, "The new call's count did not run its own length");
+            }
+            // A call for another battle is no call for this one.
+            CallControl elsewhere = call(9); elsewhere.generation = battle + 1;
+            LeaveCountdown other;
+            Require(!other.Follow(elsewhere, battle, 120) && leaves(other, elsewhere, 300) == 0, "A call for another battle took this one away");
+            // The battle closing forgets the call.
+            LeaveCountdown closed;
+            closed.Follow(call(7), battle, 120); closed.Reset();
+            Require(closed.Left() == 0 && closed.Call() == 0 && closed.Follow(call(7), battle, 120), "A closed battle kept its call");
+        }
 
         FrameMeter meter;
         std::array<FighterSample, 2> fighters;
         fighters[0].valid = fighters[1].valid = true;
+        fighters[0].posture = fighters[1].posture = 0;
         fighters[0].status = 16; fighters[1].status = 22;
         fighters[0].action = 100; fighters[1].action = 200;
         for (int i = 0; i < 5; ++i) meter.Observe(i, fighters);
@@ -188,10 +393,20 @@ int main() {
         fighters[0].status = fighters[1].status = 0;
         for (int i = 6; i < 50; ++i) meter.Observe(i, fighters);
         Require(meter.View().frozen && meter.View().frames.back().frame == 34, "Idle did not hold exchange");
-        fighters[0].status = 16; meter.Observe(50, fighters);
-        Require(!meter.View().frozen && meter.View().frames.size() == 1, "Next exchange did not resume");
-        for (int i = 51; i < 200; ++i) meter.Observe(i, fighters);
-        Require(meter.View().frames.size() == 120, "Frame meter unbounded");
+        // A whiff, a walk and a jump leave the held bars as they are; contact
+        // replaces them with the exchange it ends, which the cancel at frame 5
+        // began and which no reading ever closed.
+        fighters[0].status = 16; fighters[0].action = 102; meter.Observe(50, fighters);
+        fighters[0].status = 10; fighters[0].action = 5; meter.Observe(51, fighters);
+        fighters[0].status = 0; fighters[0].action = 0; meter.Observe(52, fighters);
+        fighters[0].status = 2; fighters[0].action = 6; meter.Observe(53, fighters);
+        Require(meter.View().frozen && meter.View().frames.back().frame == 34, "A whiff, a walk or a jump replaced the held exchange");
+        fighters[0].status = 16; fighters[0].action = 103; meter.Observe(54, fighters);
+        fighters[1].status = 22; fighters[1].action = 201; meter.Observe(55, fighters);
+        Require(!meter.View().frozen && meter.View().frames.size() == 51 && meter.View().frames.front().frame == 5 &&
+            meter.View().frames.back().frame == 55, "Contact did not put its own exchange in the held one's place");
+        for (int i = 56; i < 156 + static_cast<int>(MeterHistory); ++i) meter.Observe(i, fighters);
+        Require(meter.View().frames.size() == MeterHistory, "Frame meter unbounded");
         meter.Observe(10, fighters);
         Require(meter.View().frames.size() == 1 && meter.View().stateFrames[0] == 1, "Timeline crossed reset");
         fighters[0].valid = false; meter.Observe(11, fighters);
@@ -264,6 +479,372 @@ int main() {
         Require(!meter.View().advantage.valid, "Advantage crossed a simulation gap");
         exchange(0, 22, 10, 15); meter.Reset();
         Require(!meter.View().advantage.valid, "Practice reset retained advantage");
+        // The last reading is shown through a whiff and a walk, still shown
+        // while the next exchange is measured, and replaced by its reading.
+        exchange(0, 22, 10, 15);
+        fighters[0].status = 16; fighters[0].action = 100; meter.Observe(16, fighters);
+        fighters[0].status = 0; fighters[0].action = 0; meter.Observe(17, fighters);
+        fighters[1].status = 10; fighters[1].action = 5; meter.Observe(18, fighters);
+        Require(!meter.View().advantage.valid && ShownAdvantage(meter.View()).valid && ShownAdvantage(meter.View()).frames[0] == 5,
+            "A whiff or a walk took the last reading away");
+        fighters[1].status = 16; fighters[1].action = 201; meter.Observe(19, fighters);
+        fighters[0].status = 21; fighters[0].action = 101; meter.Observe(20, fighters);
+        Require(meter.View().advantage.pending && ShownAdvantage(meter.View()).frames[0] == 5 && ShownAdvantage(meter.View()).attacker == 0,
+            "A new exchange did not show the last reading while it was measured");
+        fighters[1].status = 0; fighters[1].action = 0; meter.Observe(21, fighters);
+        fighters[0].status = 0; fighters[0].action = 0; meter.Observe(22, fighters);
+        Require(meter.View().lastAdvantage.valid && ShownAdvantage(meter.View()).frames[0] == -1 && ShownAdvantage(meter.View()).attacker == 1,
+            "The next reading did not replace the last one");
+        // A reset (the reset key's checkpoint, Clear history, the battle's end)
+        // and a gap in the frames clear the last reading and the bars.
+        meter.Reset();
+        Require(!ShownAdvantage(meter.View()).valid && meter.View().frames.empty(), "A reset kept the last reading or its bars");
+        exchange(0, 22, 10, 15); meter.Observe(18, fighters);
+        Require(!ShownAdvantage(meter.View()).valid && meter.View().frames.size() == 1, "The last reading crossed a simulation gap");
+        // Dummy settings: a request within the menu's choices shows in the
+        // view until the adapter's read-back; -1 leaves a setting alone.
+        {
+            Session dummy; dummy.Enter();
+            Command set; set.action = Action::DummyState; set.generation = dummy.GetView().generation;
+            set.dummy.action = 1; set.dummy.guard = 2; set.dummy.counterHit = 1;
+            Require(dummy.Apply(set), "Dummy settings refused");
+            DummyState expected; expected.action = 1; expected.guard = 2; expected.counterHit = 1;
+            Require(dummy.GetView().dummy == expected, "Dummy settings not shown");
+            set.dummy = DummyState{}; set.dummy.stun = 2;
+            Require(dummy.Apply(set) && dummy.GetView().dummy.action == 1 && dummy.GetView().dummy.stun == 2, "Unchanged dummy setting was cleared");
+            set.dummy = DummyState{}; set.dummy.action = 6;
+            Require(dummy.Apply(set) && dummy.GetView().dummy.action == 6, "The menu's own playback refused as a dummy action");
+            set.dummy.action = 7;
+            Require(!dummy.Apply(set), "A dummy action beyond the menu's choices accepted");
+            set.dummy = DummyState{}; set.dummy.counterHit = 3;
+            Require(!dummy.Apply(set) && !ValidDummyState(set.dummy), "Counter hit beyond the menu's choices accepted");
+        }
+        {
+            // The meter resolves each cell as its frame arrives: a guard held
+            // from a jump guards nothing in the air and reads as nothing, and
+            // stays so after the jump has left the kept frames; a grounded
+            // guard and a blocked hit read as guarding. Runs part where a new
+            // action begins (a cancel), never inside a guard, and at each hit
+            // of a combo.
+            FrameMeter resolved; std::array<FighterSample, 2> both;
+            int observed = 0;
+            const auto observe = [&](unsigned p1, int a1, unsigned p2, int a2, float damage = 0, float frame = 1) {
+                for (auto& fighter : both) { fighter = FighterSample{}; fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; }
+                both[0].status = p1; both[0].action = a1; both[0].actionFrame = frame;
+                both[1].status = p2; both[1].action = a2; both[1].comboDamage = damage; both[1].actionFrame = frame;
+                resolved.Observe(observed++, both);
+                return resolved.View().frames.back().cells;
+            };
+            observe(ActorStatus::Jump, 1, ActorStatus::Skill, 9);
+            for (int held = 0; held < static_cast<int>(MeterHistory) + 40; ++held)
+                Require(observe(ActorStatus::GuardStand, 2, ActorStatus::Skill, 9)[0].kind == MeterKind::Neutral, "A guard held from a jump read as guarding");
+            for (const auto& frame : resolved.View().frames)
+                Require(frame.cells[0].kind == MeterKind::Neutral, "A guard from a jump turned to guarding once the jump left the history");
+            Require(observe(ActorStatus::DamageGuard, 3, ActorStatus::Skill, 9)[0].kind == MeterKind::Guard, "A blocked hit did not read as guarding");
+            resolved.Reset(); observed = 0;
+            observe(ActorStatus::Stand, 1, ActorStatus::Skill, 9);
+            Require(observe(ActorStatus::GuardStand, 2, ActorStatus::Skill, 9)[0].kind == MeterKind::Guard, "A grounded guard did not read as guarding");
+            auto cells = observe(ActorStatus::DamageGuard, 3, ActorStatus::Skill, 9);
+            Require(cells[0].kind == MeterKind::Guard && cells[0].newAction && !cells[0].split, "A blocked hit split the guard's run");
+            resolved.Reset(); observed = 0;
+            // A jab cancelled into a special: two counts. A hit and then the combo's next: two counts.
+            observe(ActorStatus::Stand, 1, ActorStatus::Stand, 1);
+            Require(!resolved.View().frames.back().cells[0].split && !resolved.View().frames.back().cells[0].newAction, "The first cell parted from nothing");
+            observe(ActorStatus::Skill, 100, ActorStatus::Damage, 300, 40);
+            cells = observe(ActorStatus::Skill, 100, ActorStatus::Damage, 300, 40, 2);
+            Require(!cells[0].split && !cells[1].split, "A move or a hit split its own run");
+            cells = observe(ActorStatus::Skill, 101, ActorStatus::Damage, 300, 90, 3);
+            Require(cells[0].newAction && cells[0].split && cells[1].split && !cells[1].newAction, "A cancel or a combo's next hit did not start a count");
+            // A meter cell tells an attack's startup, active and recovery frames apart by the script's boundary.
+            FighterSample attack; attack.valid = true; attack.status = 16; attack.firstActiveFrame = 4; attack.lastActiveFrame = 7;
+            const auto at = [&](float frame) { attack.actionFrame = frame; return ClassifyMeter(attack); };
+            // The counter is read after the update: a script active from frame 4 has four startup cells.
+            Require(at(4) == MeterKind::Startup && at(5) == MeterKind::Active && at(7) == MeterKind::Active && at(8) == MeterKind::Recovery, "Attack frames misfiled");
+            // A move of 4 startup, 3 active, 4 recovery frames, blocked on its first active frame with two frames of hitstop.
+            FrameMeter counted; std::array<FighterSample, 2> pair;
+            const auto step = [&](int tick, unsigned status, float frame, unsigned other) {
+                for (auto& fighter : pair) { fighter = FighterSample{}; fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.basicActionInhibited = false; fighter.action = 0; }
+                pair[0].status = status; pair[0].action = status == 16 ? 100 : 0; pair[0].actionFrame = frame; pair[0].firstActiveFrame = status == 16 ? 4 : -1; pair[0].lastActiveFrame = status == 16 ? 7 : -1;
+                pair[1].status = other; pair[1].action = other ? 200 : 0; pair[1].actionFrame = static_cast<float>(tick);
+                counted.Observe(tick, pair);
+            };
+            int tick = 0;
+            step(tick++, 0, 0, 0);
+            for (float frame : {1.f, 2.f, 3.f, 4.f, 5.f, 5.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f}) step(tick, 16, frame, frame >= 5 ? 22 : 0), ++tick;
+            Require(counted.View().startupFrames[0] == 4, "The startup frames before the first active one miscounted");
+            Require(counted.View().moves[0].live && counted.View().moves[0].active == 3 && counted.View().moves[0].recovery == 3, "A live move's active or recovery cells miscounted, or hitstop counted");
+            Require(counted.View().advantage.attacker == 0 && counted.View().advantage.blocked, "A blocked attack was not told from a hit");
+            step(tick++, 0, 0, 22);
+            Require(counted.View().moves[0].seen && !counted.View().moves[0].live && counted.View().moves[0].recovery == 4 && !counted.View().moves[1].seen, "A finished move lost its frames");
+            // After a pause the next move's frames start counting at once, while
+            // the bars keep the blocked move until the new one makes contact,
+            // and then start from their left edge with it.
+            for (int idle = 0; idle < 40; ++idle) step(tick++, 0, 0, 0);
+            const auto held = counted.View().frames.size();
+            step(tick++, 16, 1, 0);
+            Require(counted.View().frozen && counted.View().frames.size() == held && counted.View().moves[0].active == 0 && counted.View().advantage.attacker == -1,
+                "A new move after a pause took the old bars or kept the old frames");
+            step(tick++, 16, 2, 22);
+            Require(!counted.View().frozen && counted.View().frames.size() == 2, "The new move's contact did not start the bars from it");
+            // A projectile thrown after a held exchange: its startup and its
+            // thrower's recovery stay kept through the idle frames it travels,
+            // and its contact shows them.
+            {
+                FrameMeter thrown; std::array<FighterSample, 2> fireball; int at = 0;
+                const auto frameOf = [&](unsigned own, unsigned other) {
+                    for (int side = 0; side < 2; ++side) {
+                        auto& fighter = fireball[side]; fighter = FighterSample{};
+                        fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.basicActionInhibited = false;
+                        fighter.status = side ? other : own; fighter.action = fighter.status ? 100 + side : 0; fighter.actionFrame = static_cast<float>(at);
+                    }
+                    thrown.Observe(at++, fireball);
+                };
+                frameOf(16, 0); frameOf(16, 22); frameOf(0, 22);
+                for (int idle = 0; idle < 40; ++idle) frameOf(0, 0);
+                Require(thrown.View().frozen, "The blocked exchange before the projectile was not held");
+                const int thrownAt = at;
+                for (int move = 0; move < 6; ++move) frameOf(16, 0);
+                for (int travel = 0; travel < 20; ++travel) frameOf(0, 0);
+                Require(thrown.View().frozen, "The projectile's flight took the held exchange away");
+                frameOf(0, 21);
+                Require(!thrown.View().frozen && thrown.View().frames.front().frame == thrownAt && thrown.View().frames.size() == 27 &&
+                    thrown.View().frames.front().cells[0].phase == Phase::Attack, "The projectile's startup and recovery were lost before it landed");
+            }
+            // One thrown while the bars run, whose flight outlasts the half
+            // second that holds them: from a fresh meter, and soon after an
+            // exchange that was measured.
+            for (const bool after : {false, true}) {
+                FrameMeter live; std::array<FighterSample, 2> fireball; int at = 0;
+                const auto frameOf = [&](unsigned own, unsigned other) {
+                    for (int side = 0; side < 2; ++side) {
+                        auto& fighter = fireball[side]; fighter = FighterSample{};
+                        fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.basicActionInhibited = false;
+                        fighter.status = side ? other : own; fighter.action = fighter.status ? 100 + side : 0; fighter.actionFrame = static_cast<float>(at);
+                    }
+                    live.Observe(at++, fireball);
+                };
+                frameOf(0, 0); frameOf(0, 0);
+                if (after) {
+                    frameOf(16, 0); frameOf(16, 0); frameOf(16, 22); frameOf(0, 22); frameOf(0, 0);
+                    Require(live.View().advantage.valid, "The exchange before the projectile was not measured");
+                    for (int idle = 0; idle < 5; ++idle) frameOf(0, 0);
+                }
+                Require(!live.View().frozen, "The bars were held before the projectile");
+                const int thrownAt = at;
+                for (int move = 0; move < 6; ++move) frameOf(16, 0);
+                for (int travel = 0; travel < 35; ++travel) frameOf(0, 0);
+                Require(live.View().frozen, "Idle frames during the flight did not hold the bars");
+                frameOf(0, 21);
+                Require(!live.View().frozen && live.View().frames.front().frame == thrownAt && live.View().frames.size() == 42 &&
+                    live.View().frames.front().cells[0].phase == Phase::Attack, "A projectile thrown while the bars ran lost its frames when they were held");
+            }
+            attack.lastActiveFrame = -1;
+            Require(at(5) == MeterKind::Attack, "An attack with no boundary was split");
+            attack.status = 22;
+            Require(at(5) == MeterKind::Guard && ClassifyMeter(FighterSample{}) == MeterKind::Unknown, "A blocking or missing fighter misfiled");
+            attack.status = 24;
+            Require(at(5) == MeterKind::Sequence, "A throw's sequence was not told from an unknown state");
+            attack.status = 19; Require(at(5) == MeterKind::Down, "Lying down misfiled");
+            attack.status = 20; Require(at(5) == MeterKind::Rise, "Getting up was not told from lying down");
+            // A throw: 3 startup frames, 5 frames holding the other, who is let go to fall while the thrower takes 4 more.
+            counted.Reset(); tick = 0;
+            step(tick++, 0, 0, 0);
+            for (float frame : {1.f, 2.f, 3.f}) step(tick++, 16, frame, 0);
+            for (int held = 0; held < 5; ++held) step(tick++, 24, 0, 24);
+            Require(ClassifyMeter(counted.View().current[0]) == MeterKind::Sequence && counted.View().advantage.attacker == 0 && counted.View().advantage.pending, "A throw that connected was not a contact");
+            for (int free = 0; free < 4; ++free) step(tick++, 24, 0, 19);
+            Require(ClassifyMeter(counted.View().current[0]) == MeterKind::Recovery && ClassifyMeter(counted.View().current[1]) == MeterKind::Down &&
+                counted.View().moves[0].live && counted.View().moves[0].recovery == 4, "The thrower's frames after the throw were not its recovery");
+            // The thrower is free 6 frames before the other is up.
+            for (int idle = 0; idle < 6; ++idle) step(tick++, 0, 0, 20);
+            Require(!counted.View().moves[0].live && counted.View().moves[0].recovery == 4 && !counted.View().meatyValid[0], "A throw's recovery was lost, or a meaty read before any attack");
+            step(tick++, 0, 0, 0);
+            Require(counted.View().advantage.valid && counted.View().advantage.knockdown && counted.View().advantage.frames[0] == 6, "A throw's knockdown advantage miscounted");
+            // Down again, and an attack that first is active in the frame before the other is seen up,
+            // the frame it can be hit on: a meaty that meets it with its first active frame.
+            for (int down = 0; down < 3; ++down) step(tick++, 0, 0, 19);
+            for (float frame : {1.f, 2.f, 3.f, 4.f, 5.f}) step(tick++, 16, frame, 20);
+            step(tick++, 16, 6, 0);
+            Require(counted.View().meatyValid[0] && counted.View().meatyFrames[0] == 0 && !counted.View().meatyValid[1], "Meaty timing miscounted");
+            Require(counted.View().frames.back().fighters[1].wake && !counted.View().frames.back().fighters[0].wake && !counted.View().frames[counted.View().frames.size() - 2].fighters[1].wake, "The first frame up was not marked, or more than it");
+        }
+        {
+            // The omitted recovery frame belongs to completion, even when
+            // first=3, last=5 and frames 1..5 contain no Recovery cell.
+            // Guard posture completes a move; hit and blockstun interrupt it.
+            for (unsigned finish : {0u, 3u, 14u, 15u, 21u, 22u}) for (int cells : {0, 2}) {
+                FrameMeter counted; std::array<FighterSample, 2> pair;
+                for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = 0; fighter.action = 0; }
+                counted.Observe(0, pair);
+                pair[0].status = 16; pair[0].action = 100; pair[0].firstActiveFrame = 3; pair[0].lastActiveFrame = 5;
+                for (int frame = 1; frame <= 5; ++frame) { pair[0].actionFrame = static_cast<float>(frame); counted.Observe(frame, pair); }
+                Require(counted.View().startupFrames[0] == 3 && counted.View().moves[0].active == 2 &&
+                    counted.View().moves[0].live && counted.View().moves[0].recovery == 0, "Zero-cell recovery fixture miscounted");
+                for (const auto& frame : counted.View().frames) Require(ClassifyMeter(frame.fighters[0]) != MeterKind::Recovery, "Zero-cell fixture contains a recovery cell");
+                for (int cell = 1; cell <= cells; ++cell) {
+                    pair[0].actionFrame = static_cast<float>(5 + cell); counted.Observe(5 + cell, pair);
+                }
+                Require(counted.View().moves[0].recovery == cells, "Live recovery cells miscounted");
+                pair[0].status = finish; pair[0].action = 0; pair[0].actionFrame = 0;
+                counted.Observe(6 + cells, pair);
+                const int recovery = cells + (finish == 21 || finish == 22 ? 0 : 1);
+                Require(!counted.View().moves[0].live && counted.View().moves[0].recovery == recovery,
+                    "Completion omitted or repeated the one recovery frame, or counted interruption as completion");
+                counted.Observe(7 + cells, pair);
+                pair[0].status = 0; counted.Observe(8 + cells, pair);
+                Require(counted.View().moves[0].recovery == recovery, "A later recovered state changed completed recovery");
+            }
+        }
+        {
+            // Ember plays Player 2 in a recording, a playback on its side and a
+            // reply; a playback on Player 1's side leaves the dummy alone.
+            Session drive; drive.Enter(); drive.SetReady(true);
+            const auto send = [&](Action action) { Command command; command.action = action; command.generation = drive.GetView().generation; return drive.Apply(command); };
+            Require(!DrivesDummy(drive.GetView()), "An idle session played Player 2");
+            Require(send(Action::Record) && DrivesDummy(drive.GetView()), "A recording did not play Player 2");
+            drive.Commit(drive.Prepare(Frame{{Input{0x10, 0x10}, Input{}}}));
+            Require(send(Action::Stop) && send(Action::Play) && DrivesDummy(drive.GetView()), "A playback on Player 2's side did not play Player 2");
+            send(Action::Stop);
+            Command load; load.action = Action::Load; load.generation = drive.GetView().generation; load.frames = {{0x10, 0x10, 0, 0}}; load.side = 0;
+            Require(drive.Apply(load) && send(Action::Play) && !DrivesDummy(drive.GetView()), "A playback on Player 1's side played Player 2");
+            send(Action::Stop);
+            // The reply keeps the schedule it began with until it ends.
+            ReplySchedule schedule; schedule.start = 0; schedule.anchor = 0; schedule.timing = 4;
+            Require(drive.Reply(std::vector<Input>{{0x10, 0x10, 0, 0}}, schedule) && DrivesDummy(drive.GetView()) && drive.Schedule().timing == 4,
+                "A reply did not play Player 2 by its schedule");
+            // A save and a reset leave a recording running; a reset ends a reply.
+            drive.SetCheckpoint(true);
+            Require(send(Action::Save) && drive.Replying(), "A save ended a reply");
+            Require(send(Action::Restore) && !drive.Replying() && drive.GetView().mode == Mode::Idle && drive.Schedule().anchor == -1,
+                "A reset left a reply playing, or its schedule");
+            Require(send(Action::Record) && send(Action::Save) && send(Action::Restore) && drive.GetView().mode == Mode::Recording,
+                "A save or a reset stopped a recording");
+        }
+        {
+            // A reset starts a playback again from its first frame, and a wait
+            // in it needs its cue from the restored timeline: neither a hit the
+            // reset undid nor part of a wait's offset after one survives it.
+            Session rewind; rewind.Enter(); rewind.SetReady(true); rewind.SetCheckpoint(true);
+            const auto send = [&](Action action) { Command command; command.action = action; command.generation = rewind.GetView().generation; return rewind.Apply(command); };
+            Command load; load.action = Action::Load; load.generation = rewind.GetView().generation; load.side = 1;
+            load.frames = {Input{2, 2, 0}, Input{8, 8, WaitHit, 2}, Input{0x18, 0x18, 0}};
+            Require(rewind.Apply(load) && send(Action::Play), "The waiting playback did not start");
+            const auto step = [&](bool hit) { rewind.Observe(false, hit); rewind.Commit(rewind.Prepare(Frame{})); };
+            const auto waits = [&] { for (int frame = 0; frame < 3; ++frame) step(false); return rewind.GetView().cursor == 1; };
+            const auto cued = [&] { step(true); step(false); step(false); return rewind.GetView().cursor == 2; };
+            // A hit before the wait, then a reset to before it.
+            step(true);
+            Require(rewind.GetView().cursor == 1, "The playback did not reach its wait");
+            Require(send(Action::Restore) && rewind.GetView().mode == Mode::Playback && rewind.GetView().cursor == 0, "A reset did not start the playback again");
+            step(false);
+            Require(waits(), "A hit the reset undid answered the wait");
+            Require(cued(), "A hit after the reset did not answer the wait");
+            // A reset during the wait's offset after its hit.
+            Require(send(Action::Stop) && send(Action::Play), "The waiting playback did not start again");
+            step(false); step(true); step(false);
+            Require(rewind.GetView().cursor == 1, "The wait's offset ended early");
+            Require(send(Action::Restore) && rewind.GetView().cursor == 0, "A reset did not start the playback again");
+            step(false);
+            Require(waits(), "Part of an offset the reset undid carried over");
+            Require(cued(), "The wait after the reset did not take its own cue and offset");
+        }
+        {
+            // The dummy's own reply plays a slot or typed moves (its watch, schedule and trace: training_reply_test.cxx).
+            // 623HP: three directions of three frames, then the button.
+            std::vector<Input> dragon;
+            for (unsigned bits : {8u, 8u, 8u, 2u, 2u, 2u, 10u, 10u, 10u, 0x40au, 10u, 0u}) dragon.push_back({bits, bits, 0, 0});
+
+            Session reply; reply.Enter(); reply.SetReady(true);
+            Command command; command.generation = reply.GetView().generation;
+            Require(!reply.Reply(2, ReplySchedule{}), "An empty slot replied");
+            command.action = Action::Select; command.slot = 2; reply.Apply(command);
+            command.action = Action::Record; reply.Apply(command);
+            // Two idle frames, as a player leaves before pressing, then two presses.
+            for (unsigned buttons : {0u, 0u, 0x10u, 0x20u}) { Frame frame; frame[1].raw = frame[1].mapped = buttons; reply.Commit(frame); }
+            command.action = Action::Stop; reply.Apply(command);
+            command.action = Action::Select; command.slot = 5; reply.Apply(command);
+            Require(reply.Reply(2, ReplySchedule{}) && reply.GetView().mode == Mode::Playback && reply.GetView().selected == 2, "The reply did not start");
+            Require(!reply.Reply(2, ReplySchedule{}), "A reply started over a playback");
+            Require(reply.Prepare(Frame{})[1].raw == 0x10 && reply.Prepare(Frame{})[0].raw == 0, "The reply did not start on its first press, on Player 2");
+            reply.Commit(reply.Prepare(Frame{}));
+            Require(reply.Prepare(Frame{})[1].raw == 0x20, "The reply did not advance");
+            reply.Commit(reply.Prepare(Frame{}));
+            Require(reply.GetView().mode == Mode::Idle && reply.GetView().selected == 5, "The reply looped or kept the selection");
+            // The typed reply has a slot of its own; hit again, it is dropped.
+            Require(reply.Reply(dragon, ReplySchedule{}) && reply.Replying() && reply.GetView().selected == ReplySlot && reply.Prepare(Frame{})[1].raw == 4, "The typed reply did not start, or not for the dummy facing left");
+            reply.StopReply();
+            Require(!reply.Replying() && reply.GetView().mode == Mode::Idle && reply.GetView().selected == 5 && reply.GetView().lengths[2] == 4, "A dropped reply kept the selection or touched a slot");
+            command.action = Action::Select; command.slot = ReplySlot;
+            Require(!reply.Apply(command), "The reply's own slot could be selected");
+            // Play stops a reply before checking the restored selection.
+            for (bool typed : {false, true}) {
+                Require(typed ? reply.Reply(dragon, ReplySchedule{}) : reply.Reply(2, ReplySchedule{}), "The reply did not start over an empty selection");
+                command.action = Action::Play;
+                Require(!reply.Apply(command) && !reply.Replying() && reply.GetView().mode == Mode::Idle &&
+                    reply.GetView().selected == 5 && reply.GetView().cursor == 0, "Play started on an empty restored slot");
+                Frame physical; physical[0] = {0x10, 0x10, 0, 0}; physical[1] = {0x20, 0x20, 0, 0};
+                const auto output = reply.Prepare(physical);
+                Require(output[0].raw == 0x10 && output[1].raw == 0x20, "A refused playback changed physical input");
+            }
+            command.action = Action::Select; command.slot = 2;
+            Require(reply.Apply(command), "The recorded slot could not be selected");
+            command.action = Action::Load; command.side = 0; command.frames = {{0x40, 0x40, 0, 0}};
+            Require(reply.Apply(command) && reply.Reply(dragon, ReplySchedule{}), "The reply did not start over a loaded selection");
+            command.action = Action::Play;
+            Require(reply.Apply(command) && !reply.Replying() && reply.GetView().mode == Mode::Playback &&
+                reply.GetView().selected == 2 && reply.GetView().playbackSide == 0 && reply.GetView().cursor == 0,
+                "Play did not restart the restored slot and side");
+            Require(reply.Prepare(Frame{})[0].raw == 0x40 && reply.Prepare(Frame{})[1].raw == 0,
+                "Play used the reply instead of the restored recording");
+        }
+        {
+            // A rollback match: every played frame is captured, a replayed one over its first capture,
+            // and a frame is given out once, in order, when its inputs are confirmed.
+            ConfirmedSamples kept;
+            std::array<FighterSample, 2> seen, out;
+            const auto capture = [&](int frame, unsigned status) { seen[0].status = status; seen[0].valid = true; kept.Capture(frame, seen); };
+            int frame = 0;
+            Require(!kept.Next(100, frame, out), "A frame was given before any was captured");
+            capture(1, 0); capture(2, 0); capture(3, 16);
+            Require(!kept.Next(-1, frame, out), "A frame was given with no input confirmed");
+            // Save frame N holds input N - 1: with input 0 confirmed only frame 1 is.
+            Require(kept.Next(0, frame, out) && frame == 1 && !kept.Next(0, frame, out), "Frames were given past the confirmed input");
+            // Frame 3 was a prediction: it is played again as another frame before it is confirmed.
+            capture(3, 0); capture(4, 0);
+            Require(kept.Next(2, frame, out) && frame == 2 && kept.Next(2, frame, out) && frame == 3 && out[0].status == 0 && !kept.Next(2, frame, out),
+                "A predicted frame was given, or the replayed one was not");
+            // Frames nobody captured: it goes on from the oldest one held.
+            capture(10, 16);
+            Require(kept.Next(50, frame, out) && frame == 4 && kept.Next(50, frame, out) && frame == 10 && out[0].status == 16 && !kept.Next(50, frame, out),
+                "A hole in the captured frames stopped the meter");
+            // A long match wraps the slots many times over.
+            for (int at = 11; at < 11 + 5 * ConfirmedSamples::Capacity; ++at) {
+                capture(at, static_cast<unsigned>(at % 7));
+                Require(kept.Next(at - 1, frame, out) && frame == at && out[0].status == static_cast<unsigned>(at % 7), "A frame was lost as the slots wrapped");
+            }
+            // Unconfirmed for longer than the slots hold: the overwritten frames are skipped, none is given twice.
+            for (int at = 400; at < 400 + 2 * ConfirmedSamples::Capacity; ++at) capture(at, 1);
+            int given = 0, last = 0;
+            while (kept.Next(1000, frame, out)) { Require(frame > last, "Frames were given out of order"); last = frame; ++given; }
+            Require(given == ConfirmedSamples::Capacity && last == 399 + 2 * ConfirmedSamples::Capacity, "Overwritten frames were given");
+            // The next match counts from one again.
+            capture(1, 21);
+            Require(kept.Next(0, frame, out) && frame == 1 && out[0].status == 21 && !kept.Next(900, frame, out), "A new match did not start the frames anew");
+        }
+        {
+            // A tracked Record, then an untracked hotkey command and a tracked save
+            // in the same game frame: both tracked results stay readable.
+            Acks acks; bool accepted = false;
+            acks.Note(5, true); acks.Note(0, false); acks.Note(6, false);
+            Require(acks.Find(5, accepted) && accepted, "An untracked command replaced a tracked acknowledgement");
+            Require(acks.Find(6, accepted) && !accepted, "A second tracked acknowledgement in one frame was lost");
+            Require(!acks.Find(0, accepted) && !acks.Find(7, accepted), "An unsent request read as acknowledged");
+            // Only newer tracked results push an old one out.
+            for (int i = 0; i < 7; ++i) acks.Note(0, true);
+            Require(acks.Find(5, accepted), "Untracked commands aged out a tracked acknowledgement");
+            for (std::uint64_t id = 10; id < 17; ++id) acks.Note(id, true);
+            Require(!acks.Find(5, accepted) && acks.Find(6, accepted) && acks.Find(16, accepted), "Acknowledgements did not keep the newest eight");
+        }
         std::puts("Training session and frame meter checks passed.");
         return 0;
     } catch (const std::exception& e) { std::fprintf(stderr, "%s\n", e.what()); return 1; }

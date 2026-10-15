@@ -20,10 +20,14 @@ void Locate(HMODULE executable) {
 }
 
 std::uint32_t CostumeAvailabilityMask(std::uint32_t nativeFlags) {
-    // Steam 1.05: 69FBD0 -> 69FFD0 validates saved/match costumes against
-    // the low ownership byte (also used by 684750 and 6A0820). The high
-    // menu mask can omit owned DLC while Ember is open at the main menu.
-    return nativeFlags & 0xff;
+    // Steam 1.05: 6A0970 rebuilds these masks at the title, after a content
+    // update and after the Marketplace. Bits 16-23 come from slot 0 of the
+    // Steam contents (40A2D0: the EXCOSFLAG/EXCHARAFLAG licence bitset AND
+    // the data bitset), and the native costume menu reads them (69FF90).
+    // The low byte is slot 1, the data bitset alone (EXCOSDATA), which every
+    // install has for every pack, so it is not ownership. Bit 16 is also the
+    // fighter's own licence: 6A0970 sets it for 35-43 only from EXCHARAFLAG.
+    return (nativeFlags >> 16) & 0xff;
 }
 
 sf4e::selection::Availability ReadAvailability(int fighterId) {

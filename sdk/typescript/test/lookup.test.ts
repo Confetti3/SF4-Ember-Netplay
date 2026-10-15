@@ -1,5 +1,5 @@
 // Player lookup by Discord account against the real ember-bridge (built by
-// `cargo build -p ember-bridge` in rust/ember), with a stand-in for Discord's
+// `cargo build -p ember-bridge` in server/ember), with a stand-in for Discord's
 // token and user endpoints. Skipped when the binary is absent.
 import assert from "node:assert/strict";
 import { createServer } from "node:http";

@@ -10,6 +10,8 @@
 namespace sf4e { namespace ui {
 class SelectionArt;
 void SetMenuArt(SelectionArt* art);
+// The art SetMenuArt gave, or null; the passive HUD draws its prompts from it.
+SelectionArt* MenuArt();
 // The fallbacks name a button with no known glyph: the game's LP/LK binding,
 // or the recovery window's stick buttons "1"/"2". They must outlive the call.
 void SetMenuGlyphs(int deviceType,unsigned selectPhysical,unsigned backPhysical,const char* selectFallback="LP",const char* backFallback="LK");
@@ -35,15 +37,23 @@ RosterGrid LayOutRosterGrid(float windowWidth);
 void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing=IM_COL32(38,34,30,255));
 // Set once per overlay frame. Only the visible player screen consumes it.
 void SetMenuInput(MenuInput input);
-MenuInput ReadMenuInput();
+// Editors own keyboard Select and acceptance; pad Select still reaches them.
+MenuInput ReadMenuInput(bool textEditing=false,bool typesText=false);
 // The MenuInput bits of the menu keys held now; ReadMenuInput adds them to
 // the pad's, and surfaces that only need to know whether the keyboard was
 // used read them alone. While a text field has the keyboard only the arrows,
-// Enter and Escape count, so typing never presses a menu key.
-unsigned KeyboardMenuBits();
+// Enter and Escape count, so typing never presses a menu key; typesText
+// says a field holds the keyboard even before ImGui has activated it.
+unsigned KeyboardMenuBits(bool typesText=false);
 // True while the legend shows keyboard keys: the gameplay device is the
 // keyboard, or a key moved the menu after the pad last did.
 bool KeyboardPrompts();
+// While no menu reads input (the training HUD over a fight), the prompts
+// still follow the device last used: a press of the pad's (padHeld, its
+// ControllerSample buttons), or a menu key or F-key.
+void NoteMenuDevice(unsigned padHeld);
+// The device the prompts are drawn for: PadKeyboard, or the pad's type.
+int MenuPromptDevice();
 // An embedded screen (fighter select, the training flyout) hands its parent
 // what it does not handle itself: Close, or a shortcut the parent owns.
 void ForwardMenuAction(MenuAction action);
@@ -65,6 +75,10 @@ public:
     // The Xbox X/Y/View hints for the screen being drawn; other devices have
     // no such buttons, so they are shown only with the A/B glyphs.
     std::vector<LegendHint> shortcutHints;
+    // A text box on this screen holds the keyboard whether or not ImGui has
+    // activated it this frame, so letters, Space, Backspace and Delete are
+    // text and never menu keys.
+    bool typesText = false;
     // What Back does on this screen when it is not the usual return; empty
     // for Back.
     std::string backHint;
@@ -76,6 +90,10 @@ public:
     // button reads "< Back / exitName", or backHint when there is no exitName;
     // Home shows its header button only with one.
     std::string exitName;
+    // Small print in the bottom right corner, beside the legend or on a line
+    // of its own under it when the two would crowd each other: Home's (and the
+    // launcher window's) version and channel, in Muted. Empty for none.
+    std::string footerNote;
     // A stable status is normally one or two lines beside or under the header.
     // With this set it is drawn whole, wrapped, in a block that grows to its
     // text (up to most of the window, then it scrolls), so a long launcher
@@ -140,6 +158,7 @@ private:
     void DrawReader(const std::vector<MenuEntry>& entries,const Detail& detail,float height,unsigned held);
     void DrawChoiceModal(const std::vector<MenuEntry>& entries,MenuAction& action);
     void DrawNoticeModal(bool noticeOpen);
+    void ReadEditInput(const std::vector<MenuEntry>& entries,MenuInput& input) const;
     void DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEditText,MenuAction& action);
     // Clears the notice and runs its action exactly once, whichever of the
     // controller and pointer paths dismissed it.

@@ -57,6 +57,29 @@ int wmain(int argc, wchar_t** argv) {
         CloseHandle(process); client.Stop(); helper.Stop(0);
         CHECK(!helper.IsRunning());
     }
+    // A helper that dies while the client waits for events ends the wait at
+    // once with the client Failed, not when the wait runs out: the room host
+    // sleeps here between ticks.
+    {
+        HelperProcess helper;
+        CHECK(helper.Start(executable, GetCurrentProcessId()));
+        HelperClient client;
+        CHECK(client.Start(helper.Bootstrap()));
+        CHECK(WaitConnected(client));
+        std::thread killer([&helper] { Sleep(300); helper.Stop(0); });
+        const ULONGLONG started = GetTickCount64();
+        HelperMessage message;
+        while (client.State() != HelperState::Failed && GetTickCount64() - started < 10000) {
+            while (client.TryReceive(message)) {}
+            client.WaitForIncoming(5000);
+        }
+        const ULONGLONG took = GetTickCount64() - started;
+        std::printf("helper killed: WaitForIncoming saw Failed after %llu ms\n", took);
+        CHECK(client.State() == HelperState::Failed);
+        CHECK(took < 3000);
+        killer.join();
+        client.Stop();
+    }
     // Authentication failures must never reach the command service.
     for (int mode = 0; mode < 3; ++mode) {
         HelperProcess helper;

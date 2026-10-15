@@ -467,11 +467,9 @@ Connection MatchAuthority::Fighter(std::size_t seat) const {
 	return participants_[seat].connection;
 }
 
-bool MatchAuthority::HasStartedSpectator(const SessionProtocol::ConnectionID& endpoint) const {
-	if (phase_ != Phase::Started) return false;
-	for (std::size_t slot = 2; slot < participants_.size(); ++slot)
-		if (participants_[slot].member == endpoint) return true;
-	return false;
+bool MatchAuthority::HasParticipant(const SessionProtocol::ConnectionID& endpoint) const {
+	return phase_ != Phase::Idle && std::any_of(participants_.begin(), participants_.end(),
+		[&](const Participant& participant) { return participant.member == endpoint; });
 }
 
 } }

@@ -1,113 +1,89 @@
-cmake_minimum_required (VERSION 3.20)
+cmake_minimum_required (VERSION 3.26)
 
 include("${CMAKE_SOURCE_DIR}/cmake/sf4e_version.cmake")
 
 project (
     sf4e
-    VERSION 1.1.0
+    VERSION 1.2.0
     DESCRIPTION "SF4 Ember Netplay: private rollback rooms and an in-game overlay for Ultra Street Fighter IV."
     HOMEPAGE_URL "https://github.com/Confetti3/SF4-Ember-Netplay"
 )
 
 include(CTest)
+include("${CMAKE_SOURCE_DIR}/cmake/sf4e_tests.cmake")
 
 option(SF4E_CORE_TESTS_ONLY "Build game-independent migration tests without Windows/game dependencies" OFF)
 add_library(sf4e_netplay_core STATIC "src/netplay/SessionController.cxx" "src/netplay/MatchResultOutbox.cxx")
-add_library(sf4e_selection STATIC "src/common/FighterCatalog.cxx" "src/common/StageCatalog.cxx")
+add_library(sf4e_selection STATIC "src/common/FighterCatalog.cxx" "src/common/StageCatalog.cxx" "src/common/InstalledContent.cxx")
 target_compile_features(sf4e_selection PUBLIC cxx_std_11)
 target_compile_features(sf4e_netplay_core PUBLIC cxx_std_11)
+# Durable create-only and replacing file writes (platform/DurableFile.hxx), for
+# replays, settings and the updater's journal. Its bounded reader is header only.
+if(WIN32)
+    add_library(sf4e_durable_file STATIC "src/platform/DurableFile.cxx")
+    target_compile_features(sf4e_durable_file PUBLIC cxx_std_17)
+    add_library(sf4e_custom_content_files STATIC "src/platform/CustomContentFiles.cxx")
+    target_link_libraries(sf4e_custom_content_files PUBLIC sf4e_selection)
+endif()
 if(BUILD_TESTING)
-    add_executable(NativeRepairTimingTest "src/tests/native_repair_timing_test.cxx")
-    target_compile_features(NativeRepairTimingTest PRIVATE cxx_std_17)
-    add_test(NAME NativeRepairTiming COMMAND NativeRepairTimingTest)
+    if(WIN32)
+        sf4e_add_unit_test(NAME CustomContentFiles SOURCES "src/tests/custom_content_files_test.cxx"
+            STD 17 LIBS sf4e_custom_content_files TIMEOUT 15)
+    endif()
+    sf4e_add_unit_test(NAME NativeRepairTiming SOURCES "src/tests/native_repair_timing_test.cxx" STD 17)
     find_package(Threads REQUIRED)
-    add_executable(TrainingSessionTest "src/tests/training_session_test.cxx")
-    target_compile_features(TrainingSessionTest PRIVATE cxx_std_14)
-    add_test(NAME TrainingSession COMMAND TrainingSessionTest)
-    add_executable(FighterCatalogTest "src/tests/fighter_catalog_test.cxx")
-    target_link_libraries(FighterCatalogTest PRIVATE sf4e_selection)
-    add_test(NAME FighterCatalog COMMAND FighterCatalogTest)
-    set_tests_properties(FighterCatalog PROPERTIES TIMEOUT 15)
-    add_executable(SessionControllerTest "src/tests/session_controller_test.cxx")
-    target_link_libraries(SessionControllerTest PRIVATE sf4e_netplay_core Threads::Threads)
-    add_test(NAME SessionController COMMAND SessionControllerTest)
-    set_tests_properties(SessionController PROPERTIES TIMEOUT 15)
-    add_executable(RollbackHudTest "src/tests/rollback_hud_test.cxx")
-    add_test(NAME RollbackHud COMMAND RollbackHudTest)
-    add_executable(HudMementoBoundsTest "src/tests/hud_memento_bounds_test.cxx")
-    add_test(NAME HudMementoBounds COMMAND HudMementoBoundsTest)
-    add_executable(VfxObjectMementoTest "src/tests/vfx_object_memento_test.cxx")
-    add_test(NAME VfxObjectMemento COMMAND VfxObjectMementoTest)
-    add_executable(GfxActionPoolTest "src/tests/gfx_action_pool_test.cxx")
-    target_compile_features(GfxActionPoolTest PRIVATE cxx_std_14)
-    add_test(NAME GfxActionPool COMMAND GfxActionPoolTest)
-    add_executable(SoundReconcileTest "src/tests/sound_reconcile_test.cxx")
-    add_test(NAME SoundReconcile COMMAND SoundReconcileTest)
-    add_executable(ReusableRecordsTest "src/tests/reusable_records_test.cxx")
-    add_test(NAME ReusableRecords COMMAND ReusableRecordsTest)
-    add_executable(NativeMatchResultTest "src/tests/native_match_result_test.cxx")
-    target_compile_features(NativeMatchResultTest PRIVATE cxx_std_11)
-    add_test(NAME NativeMatchResult COMMAND NativeMatchResultTest)
-    set_tests_properties(NativeMatchResult PROPERTIES TIMEOUT 15)
-    add_executable(UiPolishTest "src/tests/ui-polish/ui_polish_test.cxx")
-    target_compile_features(UiPolishTest PRIVATE cxx_std_14)
-    add_test(NAME UiPolish COMMAND UiPolishTest)
-    set_tests_properties(UiPolish PROPERTIES TIMEOUT 10)
-    add_executable(GgpoGateTest "src/tests/ggpo_gate_test.cxx" "src/common/sf4e__GgpoGate.cxx")
-    target_compile_features(GgpoGateTest PRIVATE cxx_std_11)
-    add_test(NAME GgpoGate COMMAND GgpoGateTest)
-    set_tests_properties(GgpoGate PROPERTIES TIMEOUT 15)
-    add_executable(CrashReportTest "src/tests/crash_report_test.cxx")
-    target_compile_features(CrashReportTest PRIVATE cxx_std_11)
-    add_test(NAME CrashReport COMMAND CrashReportTest)
-    set_tests_properties(CrashReport PROPERTIES TIMEOUT 15)
-    add_executable(HelperErrorScopeTest "src/tests/helper_error_scope_test.cxx")
-    target_compile_features(HelperErrorScopeTest PRIVATE cxx_std_11)
-    add_test(NAME HelperErrorScope COMMAND HelperErrorScopeTest)
-    set_tests_properties(HelperErrorScope PROPERTIES TIMEOUT 15)
-    add_executable(JoinLinkTest "src/tests/join_link_test.cxx")
-    target_compile_features(JoinLinkTest PRIVATE cxx_std_11)
-    add_test(NAME JoinLink COMMAND JoinLinkTest)
-    set_tests_properties(JoinLink PROPERTIES TIMEOUT 15)
-    add_executable(SteamJoinTest "src/tests/steam_join_test.cxx")
-    target_compile_features(SteamJoinTest PRIVATE cxx_std_11)
-    add_test(NAME SteamJoin COMMAND SteamJoinTest)
-    set_tests_properties(SteamJoin PROPERTIES TIMEOUT 15)
-    add_executable(SteamIdentityTest "src/tests/steam_identity_test.cxx")
-    target_compile_features(SteamIdentityTest PRIVATE cxx_std_11)
-    add_test(NAME SteamIdentity COMMAND SteamIdentityTest)
-    set_tests_properties(SteamIdentity PROPERTIES TIMEOUT 15)
-    add_executable(RollbackAuditTest "src/tests/rollback_audit_test.cxx")
-    target_compile_features(RollbackAuditTest PRIVATE cxx_std_14)
-    add_test(NAME RollbackAudit COMMAND RollbackAuditTest)
-    set_tests_properties(RollbackAudit PROPERTIES TIMEOUT 15)
-    add_executable(AfterimageMementoTest "src/tests/afterimage_memento_test.cxx")
-    target_compile_features(AfterimageMementoTest PRIVATE cxx_std_14)
-    add_test(NAME AfterimageMemento COMMAND AfterimageMementoTest)
-    set_tests_properties(AfterimageMemento PROPERTIES TIMEOUT 15)
-    add_executable(MementoGuardsTest "src/tests/memento_guards_test.cxx")
-    target_compile_features(MementoGuardsTest PRIVATE cxx_std_14)
-    add_test(NAME MementoGuards COMMAND MementoGuardsTest)
-    set_tests_properties(MementoGuards PROPERTIES TIMEOUT 15)
+    sf4e_add_unit_test(NAME TrainingSession SOURCES "src/tests/training_session_test.cxx" STD 14)
+    sf4e_add_unit_test(NAME TrainingReply SOURCES "src/tests/training_reply_test.cxx" STD 14)
+    sf4e_add_unit_test(NAME TrainingFacing SOURCES "src/tests/training_facing_test.cxx" STD 14)
+    sf4e_add_unit_test(NAME FighterCatalog SOURCES "src/tests/fighter_catalog_test.cxx" LIBS sf4e_selection TIMEOUT 15)
+    sf4e_add_unit_test(NAME SessionController SOURCES "src/tests/session_controller_test.cxx" LIBS sf4e_netplay_core Threads::Threads TIMEOUT 15)
+    sf4e_add_unit_test(NAME RollbackHud SOURCES "src/tests/rollback_hud_test.cxx")
+    sf4e_add_unit_test(NAME HudMementoBounds SOURCES "src/tests/hud_memento_bounds_test.cxx")
+    sf4e_add_unit_test(NAME VfxObjectMemento SOURCES "src/tests/vfx_object_memento_test.cxx")
+    sf4e_add_unit_test(NAME FocusGate SOURCES "src/tests/focus_gate_test.cxx")
+    sf4e_add_unit_test(NAME AwayAlert SOURCES "src/tests/away_alert_test.cxx")
+    sf4e_add_unit_test(NAME InputLagControl SOURCES "src/tests/input_lag_control_test.cxx")
+    sf4e_add_unit_test(NAME MatchFrameMeter SOURCES "src/tests/match_frame_meter_test.cxx")
+    sf4e_add_unit_test(NAME GfxActionPool SOURCES "src/tests/gfx_action_pool_test.cxx" STD 14)
+    sf4e_add_unit_test(NAME SoundReconcile SOURCES "src/tests/sound_reconcile_test.cxx")
+    sf4e_add_unit_test(NAME ReusableRecords SOURCES "src/tests/reusable_records_test.cxx")
+    sf4e_add_unit_test(NAME NativeMatchResult SOURCES "src/tests/native_match_result_test.cxx" STD 11 TIMEOUT 15)
+    sf4e_add_unit_test(NAME UiPolish SOURCES "src/tests/ui-polish/ui_polish_test.cxx" STD 14 TIMEOUT 10)
+    sf4e_add_unit_test(NAME GgpoGate SOURCES "src/tests/ggpo_gate_test.cxx" "src/common/sf4e__GgpoGate.cxx" STD 11 TIMEOUT 15)
+    sf4e_add_unit_test(NAME CrashReport SOURCES "src/tests/crash_report_test.cxx" STD 11 TIMEOUT 15)
+    sf4e_add_unit_test(NAME HelperErrorScope SOURCES "src/tests/helper_error_scope_test.cxx" STD 11 TIMEOUT 15)
+    sf4e_add_unit_test(NAME RecoveryProgress SOURCES "src/tests/recovery_progress_test.cxx" STD 17 TIMEOUT 15)
+    sf4e_add_unit_test(NAME JoinLink SOURCES "src/tests/join_link_test.cxx" STD 11 TIMEOUT 15)
+    sf4e_add_unit_test(NAME SteamJoin SOURCES "src/tests/steam_join_test.cxx" STD 11 TIMEOUT 15)
+    sf4e_add_unit_test(NAME SteamIdentity SOURCES "src/tests/steam_identity_test.cxx" STD 11 TIMEOUT 15)
+    sf4e_add_unit_test(NAME RollbackAudit SOURCES "src/tests/rollback_audit_test.cxx" STD 14 TIMEOUT 15)
+    sf4e_add_unit_test(NAME AfterimageMemento SOURCES "src/tests/afterimage_memento_test.cxx" STD 14 TIMEOUT 15)
+    sf4e_add_unit_test(NAME MementoGuards SOURCES "src/tests/memento_guards_test.cxx" STD 14 TIMEOUT 15)
+    sf4e_add_unit_test(NAME PacingController SOURCES "src/tests/pacing_controller_test.cxx" STD 11 TIMEOUT 15)
+    # The cache the Discord SDK is unpacked into (cmake/sf4e_verified_unpack.cmake).
+    add_test(NAME VerifiedUnpack COMMAND "${CMAKE_COMMAND}" "-DSOURCE_DIR=${CMAKE_SOURCE_DIR}"
+        "-DWORK=${CMAKE_BINARY_DIR}/verified-unpack-test" -P "${CMAKE_SOURCE_DIR}/src/tests/verified_unpack_test.cmake")
+    set_tests_properties(VerifiedUnpack PROPERTIES TIMEOUT 30)
     # The public room soak's verdict (src/tests/soak), on made-up rooms.
-    add_executable(SoakVerdictTest "src/tests/soak/soak_verdict_test.cxx" "src/tests/soak/soak_verdict.cxx")
-    target_compile_features(SoakVerdictTest PRIVATE cxx_std_17)
-    add_test(NAME SoakVerdict COMMAND SoakVerdictTest)
-    set_tests_properties(SoakVerdict PROPERTIES TIMEOUT 15)
-    add_executable(InputDelayTest "src/tests/input_delay_test.cxx")
-    target_compile_features(InputDelayTest PRIVATE cxx_std_11)
-    add_test(NAME InputDelay COMMAND InputDelayTest)
-    set_tests_properties(InputDelay PROPERTIES TIMEOUT 15)
-    add_executable(AutoDelayCheckTest "src/tests/auto_delay_check_test.cxx")
-    target_compile_features(AutoDelayCheckTest PRIVATE cxx_std_11)
-    add_test(NAME AutoDelayCheck COMMAND AutoDelayCheckTest)
-    set_tests_properties(AutoDelayCheck PROPERTIES TIMEOUT 15)
+    sf4e_add_unit_test(NAME SoakVerdict SOURCES "src/tests/soak/soak_verdict_test.cxx" "src/tests/soak/soak_verdict.cxx" STD 17 TIMEOUT 15)
+    sf4e_add_unit_test(NAME InputDelay SOURCES "src/tests/input_delay_test.cxx" STD 11 TIMEOUT 15)
+    sf4e_add_unit_test(NAME AutoDelayCheck SOURCES "src/tests/auto_delay_check_test.cxx" STD 11 TIMEOUT 15)
+    sf4e_add_unit_test(NAME GamePing SOURCES "src/tests/game_ping_test.cxx" STD 11 TIMEOUT 15)
+    sf4e_add_unit_test(NAME ReplaySlots SOURCES "src/tests/replay_slots_test.cxx" STD 17 TIMEOUT 15)
+    sf4e_add_unit_test(NAME ReplayFiles SOURCES "src/tests/replay_files_test.cxx" STD 17
+        LIBS $<$<PLATFORM_ID:Windows>:sf4e_durable_file> TIMEOUT 15)
+    sf4e_add_unit_test(NAME ReplayArchiveIndex SOURCES "src/tests/replay_archive_index_test.cxx" STD 17
+        LIBS Threads::Threads $<$<PLATFORM_ID:Windows>:bcrypt> TIMEOUT 15)
+    sf4e_add_unit_test(NAME ReplayArchivePass SOURCES "src/tests/replay_archive_pass_test.cxx" STD 17 LIBS Threads::Threads TIMEOUT 60)
+    sf4e_add_unit_test(NAME ReplayImportWorker SOURCES "src/tests/replay_import_worker_test.cxx" STD 17 LIBS Threads::Threads TIMEOUT 15)
+    sf4e_add_unit_test(NAME ReplayImportHandoff SOURCES "src/tests/replay_import_handoff_test.cxx" STD 17 LIBS Threads::Threads TIMEOUT 15)
+    sf4e_add_unit_test(NAME ReplayProvenance SOURCES "src/tests/replay_provenance_test.cxx" STD 17 LIBS Threads::Threads TIMEOUT 15)
+    sf4e_add_unit_test(NAME ReplayInputs SOURCES "src/tests/replay_inputs_test.cxx" STD 17 TIMEOUT 15)
+    sf4e_add_unit_test(NAME ReplayTransport SOURCES "src/tests/replay_transport_test.cxx" STD 14 TIMEOUT 15)
+    sf4e_add_unit_test(NAME ReplayInputLane SOURCES "src/tests/replay_input_lane_test.cxx" STD 17 TIMEOUT 15)
     # The recorder layout is the 32-bit engine's.
     if(CMAKE_SIZEOF_VOID_P EQUAL 4)
-        add_executable(ReplayRecorderTest "src/tests/replay_recorder_test.cxx")
-        target_compile_features(ReplayRecorderTest PRIVATE cxx_std_14)
-        add_test(NAME ReplayRecorder COMMAND ReplayRecorderTest)
-        set_tests_properties(ReplayRecorder PROPERTIES TIMEOUT 15)
+        sf4e_add_unit_test(NAME ReplayRecorder SOURCES "src/tests/replay_recorder_test.cxx" STD 14 TIMEOUT 15)
     endif()
 endif()
 if(SF4E_CORE_TESTS_ONLY)
@@ -127,10 +103,8 @@ find_package(ggpo CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 if(BUILD_TESTING)
-    add_executable(CheckpointTransferTest "src/tests/checkpoint_transfer_test.cxx")
-    target_compile_features(CheckpointTransferTest PRIVATE cxx_std_17)
-    target_link_libraries(CheckpointTransferTest PRIVATE nlohmann_json::nlohmann_json bcrypt)
-    add_test(NAME CheckpointTransfer COMMAND CheckpointTransferTest)
+    sf4e_add_unit_test(NAME CheckpointTransfer SOURCES "src/tests/checkpoint_transfer_test.cxx" STD 17 LIBS nlohmann_json::nlohmann_json bcrypt)
+    sf4e_add_unit_test(NAME RoomLoadWindow SOURCES "src/tests/room_load_window_test.cxx" STD 17 LIBS nlohmann_json::nlohmann_json)
 endif()
 include("${CMAKE_SOURCE_DIR}/cmake/sf4e_discord.cmake")
 find_package(spdlog CONFIG REQUIRED)
@@ -157,32 +131,17 @@ add_library(sf4e_tournament_play STATIC "src/netplay/TournamentPlay.cxx")
 target_compile_features(sf4e_tournament_play PUBLIC cxx_std_17)
 target_link_libraries(sf4e_tournament_play PUBLIC sf4e_room_model)
 if(BUILD_TESTING)
-    add_executable(RoomMessageQueueTest "src/tests/room_message_queue_test.cxx")
-    target_link_libraries(RoomMessageQueueTest PRIVATE sf4e_room_model)
-    add_test(NAME RoomMessageQueue COMMAND RoomMessageQueueTest)
-    add_executable(MatchResultOutboxTest "src/tests/match_result_outbox_test.cxx")
-    target_link_libraries(MatchResultOutboxTest PRIVATE sf4e_netplay_core sf4e_room_model)
-    add_test(NAME MatchResultOutbox COMMAND MatchResultOutboxTest)
-    set_tests_properties(MatchResultOutbox PROPERTIES TIMEOUT 15)
-    add_executable(ParkedIntentTest "src/tests/parked_intent_test.cxx")
-    add_test(NAME ParkedIntent COMMAND ParkedIntentTest)
-    set_tests_properties(ParkedIntent PROPERTIES TIMEOUT 15)
+    sf4e_add_unit_test(NAME RoomMessageQueue SOURCES "src/tests/room_message_queue_test.cxx" LIBS sf4e_room_model)
+    sf4e_add_unit_test(NAME MatchResultOutbox SOURCES "src/tests/match_result_outbox_test.cxx" LIBS sf4e_netplay_core sf4e_room_model TIMEOUT 15)
+    sf4e_add_unit_test(NAME ParkedIntent SOURCES "src/tests/parked_intent_test.cxx" TIMEOUT 15)
 endif()
 if(BUILD_TESTING)
-    add_executable(DiscordPresenceTest src/tests/discord_presence_test.cxx)
-    target_link_libraries(DiscordPresenceTest PRIVATE sf4e_room_model)
-    add_test(NAME DiscordPresence COMMAND DiscordPresenceTest)
-    add_executable(SteamPresenceTest src/tests/steam_presence_test.cxx)
-    target_link_libraries(SteamPresenceTest PRIVATE sf4e_room_model)
-    add_test(NAME SteamPresence COMMAND SteamPresenceTest)
-    set_tests_properties(SteamPresence PROPERTIES TIMEOUT 15)
+    sf4e_add_unit_test(NAME DiscordPresence SOURCES src/tests/discord_presence_test.cxx LIBS sf4e_room_model)
+    sf4e_add_unit_test(NAME SteamPresence SOURCES src/tests/steam_presence_test.cxx LIBS sf4e_room_model TIMEOUT 15)
     # x86 only: SteamRuntime wraps USF4's 32-bit steam_api.dll ABI (see
     # src/platform/SteamAbi.hxx). The test drives it through a fake
     # ISteamUser017/ISteamFriends014, never the real DLL.
-    add_executable(SteamRuntimeTest "src/tests/steam_runtime_test.cxx" "src/platform/SteamRuntime.cxx")
-    target_compile_features(SteamRuntimeTest PRIVATE cxx_std_17)
-    add_test(NAME SteamRuntime COMMAND SteamRuntimeTest)
-    set_tests_properties(SteamRuntime PROPERTIES TIMEOUT 15)
+    sf4e_add_unit_test(NAME SteamRuntime SOURCES "src/tests/steam_runtime_test.cxx" "src/platform/SteamRuntime.cxx" STD 17 TIMEOUT 15)
     include(ExternalProject)
     string(REGEX REPLACE "/VC/.*$" "" discord_vs_instance "${CMAKE_CXX_COMPILER}")
     ExternalProject_Add(DiscordBridgeFixture
@@ -204,47 +163,22 @@ if(BUILD_TESTING)
     target_link_libraries(DiscordSmokeTest PRIVATE sf4e_helper_platform nlohmann_json::nlohmann_json)
 endif()
 if(BUILD_TESTING)
-    add_executable(RoomAuthorityTest "src/tests/room_authority_test.cxx")
-    target_link_libraries(RoomAuthorityTest PRIVATE sf4e_room_model)
-    add_test(NAME RoomAuthority COMMAND RoomAuthorityTest)
-    set_tests_properties(RoomAuthority PROPERTIES TIMEOUT 30)
-    add_executable(RoomSetsTest "src/tests/room_sets_test.cxx")
-    target_link_libraries(RoomSetsTest PRIVATE sf4e_room_model)
-    add_test(NAME RoomSets COMMAND RoomSetsTest)
-    add_executable(RoomTournamentTest "src/tests/room_tournament_test.cxx")
-    target_link_libraries(RoomTournamentTest PRIVATE sf4e_room_model)
-    add_test(NAME RoomTournament COMMAND RoomTournamentTest)
-    add_executable(TournamentPlayTest "src/tests/tournament_play_test.cxx")
-    target_link_libraries(TournamentPlayTest PRIVATE sf4e_tournament_play)
-    add_test(NAME TournamentPlay COMMAND TournamentPlayTest)
-    add_executable(TournamentFuzzTest "src/tests/tournament_fuzz_test.cxx" "src/session/TournamentAnswers.cxx")
-    target_link_libraries(TournamentFuzzTest PRIVATE sf4e_tournament_play nlohmann_json::nlohmann_json)
-    add_test(NAME TournamentFuzz COMMAND TournamentFuzzTest)
-    set_tests_properties(TournamentFuzz PROPERTIES TIMEOUT 300)
-    set_tests_properties(RoomSets PROPERTIES TIMEOUT 30)
-    add_executable(RoomLifecycleTest "src/tests/room_lifecycle_test.cxx")
-    target_link_libraries(RoomLifecycleTest PRIVATE sf4e_room_model)
-    add_test(NAME RoomLifecycle COMMAND RoomLifecycleTest)
-    set_tests_properties(RoomLifecycle PROPERTIES TIMEOUT 30)
-    add_executable(RoomServerOwnedTest "src/tests/room_server_owned_test.cxx")
-    target_link_libraries(RoomServerOwnedTest PRIVATE sf4e_room_model)
-    add_test(NAME RoomServerOwned COMMAND RoomServerOwnedTest)
-    add_executable(RoomPrivateGoldenTest "src/tests/room_private_golden_test.cxx")
-    target_link_libraries(RoomPrivateGoldenTest PRIVATE sf4e_room_model)
-    add_test(NAME RoomPrivateGolden COMMAND RoomPrivateGoldenTest)
-    set_tests_properties(RoomServerOwned PROPERTIES TIMEOUT 30)
-    add_executable(RoomSpectatorLockTest "src/tests/room_spectator_lock_test.cxx")
-    target_link_libraries(RoomSpectatorLockTest PRIVATE sf4e_room_model)
-    add_test(NAME RoomSpectatorLock COMMAND RoomSpectatorLockTest)
-    set_tests_properties(RoomSpectatorLock PROPERTIES TIMEOUT 30)
-    add_executable(CreatedRulesTest "src/tests/created_rules_test.cxx")
-    target_link_libraries(CreatedRulesTest PRIVATE sf4e_room_model)
-    add_test(NAME CreatedRules COMMAND CreatedRulesTest)
-    set_tests_properties(CreatedRules PROPERTIES TIMEOUT 30)
-    add_executable(ReadyChimeTest "src/tests/ready_chime_test.cxx")
-    target_link_libraries(ReadyChimeTest PRIVATE sf4e_room_model)
-    add_test(NAME ReadyChime COMMAND ReadyChimeTest)
-    set_tests_properties(ReadyChime PROPERTIES TIMEOUT 30)
+    sf4e_add_unit_test(NAME RoomAuthority SOURCES "src/tests/room_authority_test.cxx" LIBS sf4e_room_model TIMEOUT 30)
+    sf4e_add_unit_test(NAME RoomSnapshot SOURCES "src/tests/room_snapshot_test.cxx" LIBS sf4e_room_model TIMEOUT 30)
+    sf4e_add_unit_test(NAME RoomSets SOURCES "src/tests/room_sets_test.cxx" LIBS sf4e_room_model TIMEOUT 30)
+    sf4e_add_unit_test(NAME RoomTournament SOURCES "src/tests/room_tournament_test.cxx" LIBS sf4e_room_model)
+    sf4e_add_unit_test(NAME TournamentPlay SOURCES "src/tests/tournament_play_test.cxx" LIBS sf4e_tournament_play)
+    sf4e_add_unit_test(NAME TournamentFuzz SOURCES "src/tests/tournament_fuzz_test.cxx" "src/session/TournamentAnswers.cxx"
+        LIBS sf4e_tournament_play nlohmann_json::nlohmann_json TIMEOUT 300)
+    sf4e_add_unit_test(NAME RoomLifecycle SOURCES "src/tests/room_lifecycle_test.cxx" LIBS sf4e_room_model TIMEOUT 30)
+    sf4e_add_unit_test(NAME RoomServerOwned SOURCES "src/tests/room_server_owned_test.cxx" LIBS sf4e_room_model TIMEOUT 30)
+    sf4e_add_unit_test(NAME RoomPrivateGolden SOURCES "src/tests/room_private_golden_test.cxx" LIBS sf4e_room_model)
+    sf4e_add_unit_test(NAME RoomSpectatorLock SOURCES "src/tests/room_spectator_lock_test.cxx" LIBS sf4e_room_model TIMEOUT 30)
+    sf4e_add_unit_test(NAME RoomReadyTimeout SOURCES "src/tests/room_ready_timeout_test.cxx" LIBS sf4e_room_model TIMEOUT 30)
+    sf4e_add_unit_test(NAME CreatedRules SOURCES "src/tests/created_rules_test.cxx" LIBS sf4e_room_model TIMEOUT 30)
+    sf4e_add_unit_test(NAME ReadyChime SOURCES "src/tests/ready_chime_test.cxx" LIBS sf4e_room_model TIMEOUT 30)
+    sf4e_add_unit_test(NAME TrainingCall SOURCES "src/tests/training_call_test.cxx" LIBS sf4e_room_model TIMEOUT 30)
+    sf4e_add_unit_test(NAME RoomTrainingFlag SOURCES "src/tests/room_training_flag_test.cxx" LIBS sf4e_room_model TIMEOUT 30)
     add_executable(SessionRecoveryGateTest "src/tests/session_recovery_gate_test.cxx")
     target_compile_features(SessionRecoveryGateTest PRIVATE cxx_std_14)
     target_link_libraries(SessionRecoveryGateTest PRIVATE sf4e_room_model)
@@ -254,28 +188,20 @@ if(BUILD_TESTING)
         target_compile_options(SessionRecoveryGateTest PRIVATE -UNDEBUG)
     endif()
     add_test(NAME SessionRecoveryGate COMMAND SessionRecoveryGateTest)
-    add_executable(CheckpointDecodeWorkerTest "src/tests/checkpoint_decode_worker_test.cxx")
-    target_compile_features(CheckpointDecodeWorkerTest PRIVATE cxx_std_14)
-    target_link_libraries(CheckpointDecodeWorkerTest PRIVATE sf4e_room_model)
-    add_test(NAME CheckpointDecodeWorker COMMAND CheckpointDecodeWorkerTest)
-    add_executable(SpectatorPolicyTest "src/tests/spectator_policy_test.cxx")
-    add_test(NAME SpectatorPolicy COMMAND SpectatorPolicyTest)
-    add_executable(SpectatorSyncTest "src/tests/spectator_sync_test.cxx")
-    target_compile_features(SpectatorSyncTest PRIVATE cxx_std_14)
-    target_link_libraries(SpectatorSyncTest PRIVATE sf4e_room_model)
-    add_test(NAME SpectatorSync COMMAND SpectatorSyncTest)
-    set_tests_properties(SpectatorSync PROPERTIES TIMEOUT 15)
-    add_executable(GameDisplayConfigTest "src/tests/game_display_config_test.cxx")
-    target_compile_features(GameDisplayConfigTest PRIVATE cxx_std_17)
-    add_test(NAME GameDisplayConfig COMMAND GameDisplayConfigTest)
-    set_tests_properties(CheckpointDecodeWorker PROPERTIES TIMEOUT 30)
+    sf4e_add_unit_test(NAME CheckpointDecodeWorker SOURCES "src/tests/checkpoint_decode_worker_test.cxx" STD 14 LIBS sf4e_room_model TIMEOUT 30)
+    sf4e_add_unit_test(NAME SpectatorPolicy SOURCES "src/tests/spectator_policy_test.cxx")
+    sf4e_add_unit_test(NAME NextBattleRequest SOURCES "src/tests/next_battle_request_test.cxx" STD 14 TIMEOUT 15)
+    sf4e_add_unit_test(NAME SpectatorSync SOURCES "src/tests/spectator_sync_test.cxx" STD 14 LIBS sf4e_room_model TIMEOUT 15)
+    sf4e_add_unit_test(NAME GameDisplayConfig SOURCES "src/tests/game_display_config_test.cxx" STD 17)
+    sf4e_add_unit_test(NAME FrameRateWindow SOURCES "src/tests/frame_rate_window_test.cxx" STD 17)
 endif()
 
 if(BUILD_TESTING)
-    add_executable(SelectionValueTest "src/tests/selection_value_test.cxx")
-    target_link_libraries(SelectionValueTest PRIVATE nlohmann_json::nlohmann_json)
-    add_test(NAME SelectionValue COMMAND SelectionValueTest)
-    set_tests_properties(SelectionValue PROPERTIES TIMEOUT 15)
+    sf4e_add_unit_test(NAME SelectionValue SOURCES "src/tests/selection_value_test.cxx" LIBS nlohmann_json::nlohmann_json TIMEOUT 15)
+    sf4e_add_unit_test(NAME MoveNotation SOURCES "src/tests/move_notation_test.cxx" STD 14 LIBS nlohmann_json::nlohmann_json TIMEOUT 15)
+    sf4e_add_unit_test(NAME BacFile SOURCES "src/tests/bac_file_test.cxx" STD 14 TIMEOUT 15)
+    sf4e_add_unit_test(NAME PracticeSettings SOURCES "src/tests/practice_settings_test.cxx" STD 14 LIBS nlohmann_json::nlohmann_json TIMEOUT 15)
+    sf4e_add_unit_test(NAME TrainingDummyControl SOURCES "src/tests/training_dummy_control_test.cxx" STD 14 LIBS nlohmann_json::nlohmann_json)
 endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_locales.cmake")
@@ -295,10 +221,7 @@ if(BUILD_TESTING)
     # EmbeddedFonts.hxx: coverage is checked against the font bytes that ship.
     target_include_directories(LocalizationTest PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
     add_test(NAME Localization COMMAND LocalizationTest "${CMAKE_SOURCE_DIR}")
-    add_executable(GameLanguageTest "src/tests/game_language_test.cxx")
-    target_link_libraries(GameLanguageTest PRIVATE sf4e_localization)
-    add_test(NAME GameLanguage COMMAND GameLanguageTest)
-    set_tests_properties(GameLanguage PROPERTIES TIMEOUT 15)
+    sf4e_add_unit_test(NAME GameLanguage SOURCES "src/tests/game_language_test.cxx" LIBS sf4e_localization TIMEOUT 15)
 endif()
 
 # The UI preference store is a settings store that validates one localization
@@ -308,74 +231,62 @@ add_library(sf4e_settings STATIC "src/netplay/JsonFileStore.cxx" "src/netplay/Se
     "src/netplay/SettingsWriter.cxx" "src/platform/UiPreferencesStore.cxx"
     "src/platform/GameDisplaySettings.cxx")
 target_compile_features(sf4e_settings PUBLIC cxx_std_17)
-target_link_libraries(sf4e_settings PUBLIC nlohmann_json::nlohmann_json sf4e_localization PRIVATE "shell32" "ole32")
+target_link_libraries(sf4e_settings PUBLIC nlohmann_json::nlohmann_json sf4e_localization PRIVATE sf4e_durable_file "shell32" "ole32")
 if(BUILD_TESTING)
-    add_executable(SettingsStoreTest "src/tests/settings_store_test.cxx")
-    target_link_libraries(SettingsStoreTest PRIVATE sf4e_settings)
-    add_test(NAME SettingsStore COMMAND SettingsStoreTest)
-    set_tests_properties(SettingsStore PROPERTIES TIMEOUT 15)
-    add_executable(UiPreferencesStoreTest "src/tests/ui_preferences_store_test.cxx")
-    target_link_libraries(UiPreferencesStoreTest PRIVATE sf4e_settings)
-    add_test(NAME UiPreferencesStore COMMAND UiPreferencesStoreTest)
+    # It takes 2 s alone. Its saves are flushed writes, which take up to ten
+    # times as long while other tests and builds use the disk.
+    sf4e_add_unit_test(NAME SettingsStore SOURCES "src/tests/settings_store_test.cxx" LIBS sf4e_settings sf4e_durable_file TIMEOUT 60)
+    sf4e_add_unit_test(NAME UiPreferencesStore SOURCES "src/tests/ui_preferences_store_test.cxx" LIBS sf4e_settings)
 endif()
 
-add_library(sf4e_ui STATIC "src/ui/ApplicationShell.cxx" "src/ui/RoomPanel.cxx" "src/ui/RoomControls.cxx" "src/ui/Theme.cxx" "src/ui/MatchHud.cxx" "src/ui/SelectionArt.cxx" "src/ui/FighterSelector.cxx")
+add_library(sf4e_ui STATIC "src/ui/ApplicationShell.cxx" "src/ui/ReplaysPanel.cxx" "src/ui/RoomPanel.cxx" "src/ui/RoomControls.cxx" "src/ui/Theme.cxx" "src/ui/MatchHud.cxx" "src/ui/SelectionArt.cxx" "src/ui/FighterSelector.cxx")
 target_sources(sf4e_ui PRIVATE src/ui/Win32Input.cxx src/ui/Win32InputBridge.cxx)
 target_sources(sf4e_ui PRIVATE src/ui/GameMenu.cxx src/ui/MenuDialogs.cxx src/ui/ChatTranscript.cxx src/ui/ChatPanel.cxx)
 install(DIRECTORY "assets/brand" DESTINATION "assets" FILES_MATCHING PATTERN "*.png")
 install(DIRECTORY "assets/input" DESTINATION "assets" FILES_MATCHING PATTERN "*.png" PATTERN "*.txt")
 target_sources(sf4e_ui PRIVATE src/ui/ControllerNavigation.cxx src/ui/backends/imgui_impl_win32.cpp)
 set_source_files_properties(src/ui/backends/imgui_impl_win32.cpp PROPERTIES COMPILE_DEFINITIONS IMGUI_IMPL_WIN32_DISABLE_GAMEPAD)
-target_sources(sf4e_ui PRIVATE src/ui/TrainingPanel.cxx src/ui/IdentityPanel.cxx src/ui/IdentityConnect.cxx src/ui/PublicRoomsPanel.cxx src/ui/PublicRoomsCards.cxx src/ui/PublicRoomsSetup.cxx src/ui/MatchAnnouncements.cxx)
+target_sources(sf4e_ui PRIVATE src/ui/TrainingPanel.cxx src/ui/TrainingMeter.cxx src/ui/TrainingShortcuts.cxx src/ui/IdentityPanel.cxx src/ui/IdentityConnect.cxx src/ui/PublicRoomsPanel.cxx src/ui/PublicRoomsCards.cxx src/ui/PublicRoomsSetup.cxx src/ui/MatchAnnouncements.cxx)
+target_sources(sf4e_ui PRIVATE src/ui/OverlayLayers.cxx src/ui/ReplayPlaybackHud.cxx src/ui/TrainingInRoom.cxx)
 target_compile_features(sf4e_ui PUBLIC cxx_std_17)
+target_sources(sf4e_ui PRIVATE src/ui/ProblemReportPanel.cxx)
+add_library(sf4e_problem_report STATIC src/platform/ProblemReport.cxx)
+target_compile_features(sf4e_problem_report PUBLIC cxx_std_17)
+target_link_libraries(sf4e_problem_report PUBLIC nlohmann_json::nlohmann_json)
+target_link_libraries(sf4e_ui PUBLIC sf4e_problem_report)
+if(BUILD_TESTING)
+    sf4e_add_unit_test(NAME ProblemReport SOURCES "src/tests/problem_report_test.cxx" LIBS sf4e_problem_report TIMEOUT 30)
+endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_fonts.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_brand.cmake")
 target_link_libraries(sf4e_ui PUBLIC imgui::imgui sf4e_selection sf4e_room_model sf4e_localization sf4e_settings PRIVATE ZLIB::ZLIB "windowscodecs" "ole32" "d3d9")
 target_compile_definitions(sf4e_ui PRIVATE SF4E_BUILD_VERSION="${PROJECT_VERSION}")
 if(BUILD_TESTING)
-    add_executable(UiRenderTest "src/tests/ui_render_test.cxx")
+    # The scenario fragments' non-template parts compile on their own; the
+    # scenarios still run in the order ui_render_test.cxx calls them.
+    add_executable(UiRenderTest "src/tests/ui_render_test.cxx" "src/tests/ui_render_match_hud.cxx" "src/tests/ui_render_overlay.cxx")
     target_compile_definitions(UiRenderTest PRIVATE SF4E_TEST_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
-    add_executable(ControllerNavigationTest src/tests/controller_navigation_test.cxx)
-    target_link_libraries(ControllerNavigationTest PRIVATE sf4e_ui Dimps)
-    add_test(NAME ControllerNavigation COMMAND ControllerNavigationTest)
-    set_tests_properties(ControllerNavigation PROPERTIES TIMEOUT 30)
-    add_executable(ShellJourneyTest src/tests/shell_journey_test.cxx)
-    target_link_libraries(ShellJourneyTest PRIVATE sf4e_ui Dimps)
-    add_test(NAME ShellJourney COMMAND ShellJourneyTest)
-    set_tests_properties(ShellJourney PROPERTIES TIMEOUT 30)
-    add_executable(IdentityJourneyTest src/tests/identity_journey_test.cxx src/tests/discord_connect_journey_test.cxx)
-    target_link_libraries(IdentityJourneyTest PRIVATE sf4e_ui Dimps)
-    add_test(NAME IdentityJourney COMMAND IdentityJourneyTest)
-    set_tests_properties(IdentityJourney PROPERTIES TIMEOUT 30)
-    add_executable(PublicRoomsJourneyTest src/tests/public_rooms_journey_test.cxx src/tests/public_rooms_setup_journey_test.cxx)
-    target_link_libraries(PublicRoomsJourneyTest PRIVATE sf4e_ui Dimps)
-    add_test(NAME PublicRoomsJourney COMMAND PublicRoomsJourneyTest)
-    set_tests_properties(PublicRoomsJourney PROPERTIES TIMEOUT 30)
-    add_executable(RoomPanelNavigationTest src/tests/room_panel_navigation_test.cxx)
-    target_link_libraries(RoomPanelNavigationTest PRIVATE sf4e_ui Dimps)
-    add_test(NAME RoomPanelNavigation COMMAND RoomPanelNavigationTest)
-    set_tests_properties(RoomPanelNavigation PROPERTIES TIMEOUT 30)
-    add_executable(NetworkFeedbackTest src/tests/network_feedback_test.cxx)
-    target_link_libraries(NetworkFeedbackTest PRIVATE sf4e_ui Dimps)
-    add_test(NAME NetworkFeedback COMMAND NetworkFeedbackTest)
-    set_tests_properties(NetworkFeedback PROPERTIES TIMEOUT 30)
-    add_executable(NativeSelectionAvailabilityTest src/tests/native_selection_availability_test.cxx)
-    target_link_libraries(NativeSelectionAvailabilityTest PRIVATE sf4e_ui Dimps)
-    add_test(NAME NativeSelectionAvailability COMMAND NativeSelectionAvailabilityTest)
-    set_tests_properties(NativeSelectionAvailability PROPERTIES TIMEOUT 30)
-    add_executable(WineBuiltinTest src/tests/wine_builtin_test.cxx)
-    target_compile_features(WineBuiltinTest PRIVATE cxx_std_17)
-    add_test(NAME WineBuiltin COMMAND WineBuiltinTest)
-    add_executable(Win32CursorTest src/tests/win32_cursor_test.cxx)
-    target_link_libraries(Win32CursorTest PRIVATE sf4e_ui)
-    add_test(NAME Win32Cursor COMMAND Win32CursorTest)
+    sf4e_add_unit_test(NAME ControllerNavigation SOURCES src/tests/controller_navigation_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30)
+    sf4e_add_unit_test(NAME ShellJourney SOURCES src/tests/shell_journey_test.cxx src/tests/shell_replay_journey_test.cxx
+        src/tests/shell_room_journey_test.cxx src/tests/shell_selection_journey_test.cxx
+        src/tests/shell_chat_journey_test.cxx src/tests/shell_training_journey_test.cxx
+        src/tests/shell_feedback_journey_test.cxx src/tests/shell_selector_journey_test.cxx
+        LIBS sf4e_ui Dimps TIMEOUT 30)
+    sf4e_add_unit_test(NAME IdentityJourney SOURCES src/tests/identity_journey_test.cxx src/tests/discord_connect_journey_test.cxx
+        LIBS sf4e_ui Dimps TIMEOUT 30)
+    sf4e_add_unit_test(NAME PublicRoomsJourney SOURCES src/tests/public_rooms_journey_test.cxx src/tests/public_rooms_setup_journey_test.cxx
+        LIBS sf4e_ui Dimps TIMEOUT 30)
+    sf4e_add_unit_test(NAME RoomPanelNavigation SOURCES src/tests/room_panel_navigation_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30)
+    sf4e_add_unit_test(NAME ReplayScreenText SOURCES src/tests/replay_screen_text_test.cxx LIBS sf4e_ui Dimps TIMEOUT 15)
+    sf4e_add_unit_test(NAME NetworkFeedback SOURCES src/tests/network_feedback_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30)
+    sf4e_add_unit_test(NAME NativeSelectionAvailability SOURCES src/tests/native_selection_availability_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30)
+    sf4e_add_unit_test(NAME WineBuiltin SOURCES src/tests/wine_builtin_test.cxx STD 17)
+    sf4e_add_unit_test(NAME Win32Cursor SOURCES src/tests/win32_cursor_test.cxx LIBS sf4e_ui)
     target_link_libraries(UiRenderTest PRIVATE sf4e_ui "d3d9" "dbghelp" "psapi")
     add_test(NAME UiRender COMMAND UiRenderTest)
-    # Every fighter now has a portrait (the packaged cutout stands in for the
-    # game's), and sweeping twenty configurations cycles more art than the
-    # 32 MB selection cache holds, so the run decodes it repeatedly. It takes
-    # about five minutes on its own, so it gets the same budget as the locale
-    # sweep.
+    # Each sweep takes under a minute with the GPU transforming vertices. The
+    # budgets cover an adapter without hardware transform, where the CPU does
+    # it and a sweep takes several minutes.
     set_tests_properties(UiRender PROPERTIES TIMEOUT 600)
     # Each translation at three sizes, in its own run so neither sweep nears
     # its timeout as languages are added.
@@ -454,11 +365,11 @@ add_library(sf4e_common STATIC
     "src/common/install_paths.hxx"
 )
 target_link_libraries(sf4e_common PUBLIC "iphlpapi" "ws2_32" "winhttp")
+include("${CMAKE_SOURCE_DIR}/cmake/sf4e_replays.cmake")
+include("${CMAKE_SOURCE_DIR}/cmake/sf4e_video.cmake")
 if(BUILD_TESTING)
-    add_executable(NetworkLinkTest "src/tests/network_link_test.cxx")
-    target_link_libraries(NetworkLinkTest PRIVATE sf4e_common)
-    add_test(NAME NetworkLink COMMAND NetworkLinkTest)
-    set_tests_properties(NetworkLink PROPERTIES TIMEOUT 30)
+    sf4e_add_unit_test(NAME NetworkLink SOURCES "src/tests/network_link_test.cxx" LIBS sf4e_common TIMEOUT 30)
+    sf4e_add_unit_test(NAME HttpPostCancel SOURCES "src/tests/http_post_cancel_test.cxx" STD 17 LIBS sf4e_common ws2_32 TIMEOUT 60)
 endif()
 
 add_library(sf4e STATIC
@@ -479,6 +390,7 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__Game__Battle__Hud.cxx"
     "src/sf4e/sf4e__Game__Battle__System.hxx"
     "src/sf4e/sf4e__Game__Battle__System.cxx"
+    "src/sf4e/sf4e__Game__Battle__System__FrameTrace.cxx"
     "src/sf4e/sf4e__Game__Battle__System__Ggpo.cxx"
     "src/sf4e/sf4e__Game__Battle__System__RollbackStress.cxx"
     "src/sf4e/sf4e__Game__Battle__System__SaveState.cxx"
@@ -495,12 +407,24 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__OverlayPrefs.cxx"
     "src/sf4e/sf4e__Pad.hxx"
     "src/sf4e/sf4e__Pad.cxx"
+    "src/sf4e/sf4e__BackgroundPlay.hxx"
+    "src/sf4e/sf4e__BackgroundPlay.cxx"
+    "src/sf4e/sf4e__AwayAlert.hxx"
+    "src/sf4e/sf4e__AwayAlert.cxx"
+    "src/sf4e/sf4e__InputLag.hxx"
+    "src/sf4e/sf4e__InputLag.cxx"
     "src/sf4e/sf4e__Platform.hxx"
     "src/sf4e/sf4e__Platform.cxx"
+    "src/sf4e/sf4e__ReplayStore.hxx"
+    "src/sf4e/sf4e__ReplayStore.cxx"
+    "src/sf4e/sf4e__ReplayPlayback.hxx"
+    "src/sf4e/sf4e__ReplayPlayback.cxx"
     "src/sf4e/sf4e__CrashDiagnostics.hxx"
     "src/sf4e/sf4e__CrashDiagnostics.cxx"
     "src/sf4e/sf4e__UserApp.hxx"
     "src/sf4e/sf4e__UserApp.cxx"
+    "src/sf4e/sf4e__CustomContent.hxx"
+    "src/sf4e/sf4e__CustomContent.cxx"
     "src/sf4e/sf4e__NetplayFacade.hxx"
     "src/sf4e/sf4e__NetplayFacade.cxx"
     "src/sf4e/sf4e__NetplayRuntime.hxx"
@@ -524,16 +448,17 @@ if(SF4E_DEVELOPER_UI)
     target_sources(sf4e PRIVATE "src/sf4e/sf4e__DeveloperOverlay.cxx" "src/sf4e/sf4e__DeveloperOverlay__Battle.cxx" "src/sf4e/sf4e__DeveloperOverlay__System.cxx")
     target_compile_definitions(sf4e PRIVATE SF4E_DEVELOPER_UI=1)
 endif()
-target_link_libraries(sf4e PRIVATE sf4e_netplay_core sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization)
+target_link_libraries(sf4e PRIVATE sf4e_custom_content_files sf4e_replay_files sf4e_video_capture sf4e_netplay_core sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization)
 target_link_libraries(
     sf4e
-    PRIVATE ${LIB_DETOURS} Session sf4e_common "Kernel32" "ws2_32" "Mswsock" "AdvApi32" "Shlwapi" "pathcch" "shell32" "Bcrypt" "Xinput9_1_0" "iphlpapi" "Dbghelp"
+    PRIVATE ${LIB_DETOURS} Session sf4e_common "Kernel32" "ws2_32" "Mswsock" "AdvApi32" "Shlwapi" "pathcch" "shell32" "Bcrypt" "Xinput9_1_0" "iphlpapi" "Dbghelp" "Winmm"
     PUBLIC imgui::imgui nlohmann_json::nlohmann_json spdlog::spdlog  ggpo::GGPO
 )
 
-# The session server core has no game or helper dependency, so the transport test and
-# the host benchmark compile it directly instead of linking all of Session.
-set(SF4E_SESSION_SERVER_SOURCES
+# The session server core has no game or helper dependency. It is its own
+# library so Session, the room host, the server tests and the host benchmark
+# all link one build of it, with the flags the shipped binaries use.
+add_library(sf4e_session_server STATIC
     "src/session/MatchAuthority.cxx"
     "src/session/sf4e__SessionServer.cxx"
     "src/session/sf4e__SessionServer__Handlers.cxx"
@@ -542,20 +467,27 @@ set(SF4E_SESSION_SERVER_SOURCES
     "src/session/sf4e__SessionServer__Tournament.cxx"
     "src/session/sf4e__SessionProtocol.cxx"
 )
+target_compile_features(sf4e_session_server PUBLIC cxx_std_17)
+target_compile_definitions(sf4e_session_server PRIVATE NOMINMAX)
+target_link_libraries(sf4e_session_server PUBLIC
+    nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")
+# The Iroh room over the session server, shared by Session and the room host.
+# It talks to the helper and still has no game dependency.
+add_library(sf4e_iroh_room STATIC
+    "src/session/IrohRoom.cxx"
+    "src/session/IrohRoomAdapters.cxx"
+    "src/session/IrohRoomCheckpoint.cxx"
+    "src/session/IrohRoomPeers.cxx"
+    "src/session/IrohRoomPublic.cxx"
+    "src/session/IdentityEvents.cxx"
+    "src/session/TournamentAnswers.cxx")
+target_link_libraries(sf4e_iroh_room PUBLIC sf4e_session_server sf4e_helper_platform)
 add_library(Session STATIC
-    ${SF4E_SESSION_SERVER_SOURCES}
     "src/session/sf4e__SessionClient.hxx"
     "src/session/sf4e__SessionClient.cxx"
     "src/session/sf4e__SessionClient__Room.cxx"
     "src/session/sf4e__SessionProtocol.hxx"
     "src/session/sf4e__SessionServer.hxx"
-    "src/session/IrohRoom.cxx"
-    "src/session/IdentityEvents.cxx"
-    "src/session/TournamentAnswers.cxx"
-    "src/session/IrohRoomAdapters.cxx"
-    "src/session/IrohRoomCheckpoint.cxx"
-    "src/session/IrohRoomPeers.cxx"
-    "src/session/IrohRoomPublic.cxx"
     "src/session/IrohMatchSession.cxx"
     "src/session/IrohRoom.hxx"
     "src/session/SessionTransport.hxx"
@@ -564,48 +496,37 @@ target_compile_features(Session PUBLIC cxx_std_17)
 target_link_libraries(
     Session
     PRIVATE Dimps sf4e_common sf4e_helper_platform sf4e_room_model
-    PUBLIC nlohmann_json::nlohmann_json spdlog::spdlog  "ws2_32" sf4e_tournament_play
+    PUBLIC sf4e_iroh_room nlohmann_json::nlohmann_json spdlog::spdlog  "ws2_32" sf4e_tournament_play
 )
 
-# The public room host: the room authority with no game. It compiles the
-# session server and the Iroh room directly and links none of the game
-# libraries (Session would bring Dimps), so the same sources port to Linux.
+# The public room host: the room authority with no game. It links the session
+# server and Iroh room libraries and none of the game libraries (Session would
+# bring Dimps), so the same sources port to Linux.
 add_executable(sf4e-room-host
-    "src/roomhost/main.cxx"
-    "src/roomhost/RoomHost.cxx"
-    "src/roomhost/RoomHostStatus.cxx"
-    "src/roomhost/RoomHostHelperWindows.cxx"
-    ${SF4E_SESSION_SERVER_SOURCES}
-    "src/session/IrohRoom.cxx"
-    "src/session/IrohRoomAdapters.cxx"
-    "src/session/IrohRoomCheckpoint.cxx"
-    "src/session/IrohRoomPeers.cxx"
-    "src/session/IrohRoomPublic.cxx"
-    "src/session/IdentityEvents.cxx"
-    "src/session/TournamentAnswers.cxx")
+    "server/roomhost/main.cxx"
+    "server/roomhost/RoomHost.cxx"
+    "server/roomhost/RoomHostStatus.cxx"
+    "server/roomhost/RoomHostHelperWindows.cxx")
 target_compile_features(sf4e-room-host PRIVATE cxx_std_17)
-target_link_libraries(sf4e-room-host PRIVATE
-    nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common sf4e_helper_platform "bcrypt")
+target_link_libraries(sf4e-room-host PRIVATE sf4e_iroh_room)
 
 if(BUILD_TESTING)
-    add_executable(SessionClientTransportTest "src/tests/session_client_transport_test.cxx")
-    target_compile_features(SessionClientTransportTest PRIVATE cxx_std_17)
-    target_link_libraries(SessionClientTransportTest PRIVATE Session sf4e Dimps "d3d9")
-    add_test(NAME SessionClientTransport COMMAND SessionClientTransportTest)
-    add_executable(IrohMatchSessionTest "src/tests/iroh_match_session_test.cxx")
-    target_compile_features(IrohMatchSessionTest PRIVATE cxx_std_17)
-    target_link_libraries(IrohMatchSessionTest PRIVATE Session sf4e Dimps "d3d9")
-    add_test(NAME IrohMatchSession COMMAND IrohMatchSessionTest)
+    sf4e_add_unit_test(NAME SessionClientTransport SOURCES "src/tests/session_client_transport_test.cxx" STD 17 LIBS Session sf4e Dimps "d3d9")
+    sf4e_add_unit_test(NAME IrohMatchSession SOURCES "src/tests/iroh_match_session_test.cxx" STD 17 LIBS Session sf4e sf4e_localization Dimps "d3d9" LOCKS ember_runtime)
+    sf4e_add_unit_test(NAME MatchProblem SOURCES "src/tests/match_problem_test.cxx" STD 17 LIBS Session sf4e Dimps "d3d9")
     add_executable(AbortNoticeTest "src/tests/abort_notice_test.cxx")
     target_compile_features(AbortNoticeTest PRIVATE cxx_std_17)
     target_link_libraries(AbortNoticeTest PRIVATE Session sf4e sf4e_localization Dimps "d3d9")
     add_test(NAME AbortNotice COMMAND AbortNoticeTest)
     set_tests_properties(AbortNotice PROPERTIES TIMEOUT 15 PASS_REGULAR_EXPRESSION "Abort notice passed")
+    sf4e_test_locks(AbortNotice loopback_udp_ports)
     add_executable(PresentationSnapshotTest "src/tests/presentation_snapshot_test.cxx")
     target_compile_features(PresentationSnapshotTest PRIVATE cxx_std_17)
     target_link_libraries(PresentationSnapshotTest PRIVATE Session sf4e sf4e_localization Dimps "d3d9")
     add_test(NAME PresentationSnapshot COMMAND PresentationSnapshotTest)
-    set_tests_properties(PresentationSnapshot PROPERTIES TIMEOUT 30 PASS_REGULAR_EXPRESSION "Presentation snapshot passed")
+    # Its two-thread check keeps both threads busy for three seconds.
+    set_tests_properties(PresentationSnapshot PROPERTIES TIMEOUT 30 PROCESSORS 2 PASS_REGULAR_EXPRESSION "Presentation snapshot passed")
+    sf4e_test_locks(PresentationSnapshot ember_runtime)
     if(SF4E_BUILD_IROH_HELPER)
         # Explicitly invoked comparison tool; network workloads are not CTest
         # unit tests, and the benchmark executable is not installed in packages.
@@ -620,6 +541,7 @@ if(BUILD_TESTING)
         target_link_libraries(RuntimeBootstrapTest PRIVATE Session sf4e sf4e_localization Dimps sf4e_helper_platform "d3d9")
         add_dependencies(RuntimeBootstrapTest IrohHelper)
         add_test(NAME RuntimeBootstrap COMMAND RuntimeBootstrapTest "${SF4E_HELPER_EXECUTABLE}")
+        sf4e_test_locks(RuntimeBootstrap loopback_udp_ports ember_processes ember_runtime)
         set_tests_properties(RuntimeBootstrap PROPERTIES TIMEOUT 30)
         add_executable(IrohRoomIntegrationTest "src/tests/iroh_room_integration_test.cxx")
         target_link_libraries(IrohRoomIntegrationTest PRIVATE Session sf4e Dimps sf4e_helper_platform "d3d9")
@@ -641,7 +563,7 @@ if(BUILD_TESTING)
         add_executable(PublicRoomHostTest "src/tests/public_room_host_test.cxx")
         target_link_libraries(PublicRoomHostTest PRIVATE Session sf4e Dimps sf4e_room_model "d3d9")
         add_dependencies(PublicRoomHostTest IrohHelper sf4e-room-host)
-        # The soak harness for public rooms on a remote host (src/roomhost/soak).
+        # The soak harness for public rooms on a remote host (server/roomhost/soak).
         # Not a test: it needs room hosts running elsewhere, so it is not
         # registered with add_test.
         add_executable(PublicRoomSoakTest "src/tests/public_room_soak_test.cxx" "src/tests/soak/soak_common.cxx"
@@ -653,7 +575,7 @@ if(BUILD_TESTING)
         add_custom_target(RoomTicketTool
             COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/rust-ember-target"
                 "${SF4E_CARGO_EXECUTABLE}" build --locked --example room_ticket -p ember-protocol
-            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/rust/ember"
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/server/ember"
             BYPRODUCTS "${SF4E_ROOM_TICKET_TOOL}"
             VERBATIM COMMENT "Build the room ticket test tool")
         option(SF4E_NETWORK_TESTS "Run tests requiring public Iroh relay/address lookup" OFF)
@@ -712,104 +634,70 @@ if(BUILD_TESTING)
             set_tests_properties(IrohAuthorizedTerminalRecovery IrohAuthorizedTerminalRelayRecovery PROPERTIES TIMEOUT 240 RUN_SERIAL TRUE)
         endif()
     endif()
-    add_executable(SessionServerTransportTest
-        "src/tests/session_server_transport_test.cxx"
-        ${SF4E_SESSION_SERVER_SOURCES})
-    target_link_libraries(SessionServerTransportTest PRIVATE
-        nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")
-    target_compile_features(SessionServerTransportTest PRIVATE cxx_std_14)
-    add_test(NAME SessionServerTransport COMMAND SessionServerTransportTest)
-    add_executable(SessionServerModerationTest
-        "src/tests/session_server_moderation_test.cxx"
-        "src/roomhost/RoomHostStatus.cxx"
-        ${SF4E_SESSION_SERVER_SOURCES})
-    target_link_libraries(SessionServerModerationTest PRIVATE
-        nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")
-    target_compile_features(SessionServerModerationTest PRIVATE cxx_std_17)
-    add_test(NAME SessionServerModeration COMMAND SessionServerModerationTest)
-    add_executable(SessionServerTournamentTest
-        "src/tests/session_server_tournament_test.cxx"
-        ${SF4E_SESSION_SERVER_SOURCES})
-    target_link_libraries(SessionServerTournamentTest PRIVATE
-        nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")
-    target_compile_features(SessionServerTournamentTest PRIVATE cxx_std_17)
-    add_test(NAME SessionServerTournament COMMAND SessionServerTournamentTest)
+    sf4e_add_unit_test(NAME SessionServerTransport SOURCES "src/tests/session_server_transport_test.cxx" STD 17 LIBS sf4e_iroh_room)
+    sf4e_add_unit_test(NAME SessionServerModeration SOURCES "src/tests/session_server_moderation_test.cxx" "server/roomhost/RoomHostStatus.cxx"
+        LIBS sf4e_session_server)
+    sf4e_add_unit_test(NAME SessionServerReadyTimeout SOURCES "src/tests/session_server_ready_timeout_test.cxx" LIBS sf4e_session_server)
+    sf4e_add_unit_test(NAME LowerInputLag SOURCES "src/tests/lower_input_lag_test.cxx" LIBS sf4e_session_server)
+    sf4e_add_unit_test(NAME PracticeRoomProjection SOURCES "src/tests/practice_room_projection_test.cxx" LIBS sf4e_session_server)
+    sf4e_add_unit_test(NAME SessionServerTournament SOURCES "src/tests/session_server_tournament_test.cxx" LIBS sf4e_session_server)
     # Explicitly invoked host-cost benchmark; not a CTest (see the source).
-    add_executable(RoomHostBench
-        "src/tests/room_host_bench.cxx"
-        ${SF4E_SESSION_SERVER_SOURCES})
-    target_link_libraries(RoomHostBench PRIVATE
-        nlohmann_json::nlohmann_json spdlog::spdlog sf4e_selection sf4e_room_model sf4e_common "bcrypt")
-    target_compile_features(RoomHostBench PRIVATE cxx_std_17)
-    add_executable(GgpoUdpValidationTest "src/tests/ggpo_udp_validation_test.cxx")
-    target_link_libraries(GgpoUdpValidationTest PRIVATE ggpo::GGPO "ws2_32")
-    add_test(NAME GgpoUdpValidation COMMAND GgpoUdpValidationTest)
-    set_tests_properties(GgpoUdpValidation PROPERTIES TIMEOUT 15)
-    add_executable(GgpoInputBitsTest "src/tests/ggpo_input_bits_test.cxx")
-    add_test(NAME GgpoInputBits COMMAND GgpoInputBitsTest)
-    set_tests_properties(GgpoInputBits PROPERTIES TIMEOUT 15)
+    add_executable(RoomHostBench "src/tests/room_host_bench.cxx")
+    target_link_libraries(RoomHostBench PRIVATE sf4e_session_server)
+    sf4e_add_unit_test(NAME GgpoUdpValidation SOURCES "src/tests/ggpo_udp_validation_test.cxx" LIBS ggpo::GGPO "ws2_32" TIMEOUT 15 LOCKS loopback_udp_ports)
+    sf4e_add_unit_test(NAME GgpoInputBits SOURCES "src/tests/ggpo_input_bits_test.cxx" TIMEOUT 15)
     add_executable(GgpoSpectatorCapacityTest "src/tests/ggpo_spectator_capacity_test.cxx")
     target_link_libraries(GgpoSpectatorCapacityTest PRIVATE ggpo::GGPO "ws2_32")
     add_test(NAME GgpoSpectatorCapacity COMMAND GgpoSpectatorCapacityTest)
     set_tests_properties(GgpoSpectatorCapacity PROPERTIES TIMEOUT 15 PASS_REGULAR_EXPRESSION "GGPO spectator capacity passed")
-    add_executable(GgpoConfirmedFrameTest "src/tests/ggpo_confirmed_frame_test.cxx")
-    target_link_libraries(GgpoConfirmedFrameTest PRIVATE ggpo::GGPO "ws2_32")
-    add_test(NAME GgpoConfirmedFrame COMMAND GgpoConfirmedFrameTest)
-    set_tests_properties(GgpoConfirmedFrame PROPERTIES TIMEOUT 15)
-    add_executable(GgpoPendingOutputTest "src/tests/ggpo_pending_output_test.cxx")
-    target_link_libraries(GgpoPendingOutputTest PRIVATE ggpo::GGPO "ws2_32")
-    add_test(NAME GgpoPendingOutput COMMAND GgpoPendingOutputTest)
-    set_tests_properties(GgpoPendingOutput PROPERTIES TIMEOUT 15)
-    add_executable(GgpoInputGapTest "src/tests/ggpo_input_gap_test.cxx")
-    target_link_libraries(GgpoInputGapTest PRIVATE ggpo::GGPO "ws2_32")
-    add_test(NAME GgpoInputGap COMMAND GgpoInputGapTest)
-    set_tests_properties(GgpoInputGap PROPERTIES TIMEOUT 15)
+    sf4e_test_locks(GgpoSpectatorCapacity loopback_udp_ports)
+    sf4e_add_unit_test(NAME GgpoConfirmedFrame SOURCES "src/tests/ggpo_confirmed_frame_test.cxx" LIBS ggpo::GGPO "ws2_32" TIMEOUT 15 LOCKS loopback_udp_ports)
+    sf4e_add_unit_test(NAME GgpoPendingOutput SOURCES "src/tests/ggpo_pending_output_test.cxx" LIBS ggpo::GGPO "ws2_32" TIMEOUT 15 LOCKS loopback_udp_ports)
+    sf4e_add_unit_test(NAME GgpoInputGap SOURCES "src/tests/ggpo_input_gap_test.cxx" LIBS ggpo::GGPO "ws2_32" TIMEOUT 15 LOCKS loopback_udp_ports)
     add_executable(GgpoSpectatorHandleControlTest "src/tests/ggpo_spectator_handle_control_test.cxx")
     target_link_libraries(GgpoSpectatorHandleControlTest PRIVATE ggpo::GGPO "ws2_32")
     add_test(NAME GgpoSpectatorHandleControl COMMAND GgpoSpectatorHandleControlTest)
     set_tests_properties(GgpoSpectatorHandleControl PROPERTIES TIMEOUT 15 PASS_REGULAR_EXPRESSION "GGPO spectator handle control passed")
-    add_executable(GgpoDisconnectBeforeInputTest "src/tests/ggpo_disconnect_before_input_test.cxx")
-    target_link_libraries(GgpoDisconnectBeforeInputTest PRIVATE ggpo::GGPO "ws2_32")
-    add_test(NAME GgpoDisconnectBeforeInput COMMAND GgpoDisconnectBeforeInputTest)
-    set_tests_properties(GgpoDisconnectBeforeInput PROPERTIES TIMEOUT 15)
-    add_executable(GgpoOutageToleranceTest "src/tests/ggpo_outage_tolerance_test.cxx")
-    target_link_libraries(GgpoOutageToleranceTest PRIVATE ggpo::GGPO "ws2_32")
-    add_test(NAME GgpoOutageTolerance COMMAND GgpoOutageToleranceTest)
-    set_tests_properties(GgpoOutageTolerance PROPERTIES TIMEOUT 45)
+    sf4e_test_locks(GgpoSpectatorHandleControl loopback_udp_ports)
+    sf4e_add_unit_test(NAME GgpoDisconnectBeforeInput SOURCES "src/tests/ggpo_disconnect_before_input_test.cxx" LIBS ggpo::GGPO "ws2_32" TIMEOUT 15 LOCKS loopback_udp_ports)
+    sf4e_add_unit_test(NAME GgpoOutageTolerance SOURCES "src/tests/ggpo_outage_tolerance_test.cxx" LIBS ggpo::GGPO "ws2_32" TIMEOUT 45 LOCKS loopback_udp_ports)
+    sf4e_add_unit_test(NAME GgpoSyncRetry SOURCES "src/tests/ggpo_sync_retry_test.cxx" LIBS ggpo::GGPO "ws2_32" TIMEOUT 45 LOCKS loopback_udp_ports)
+    # Rollback correctness under zero and unequal input delays (docs/validation/ZERO_DELAY_AUDIT.md).
+    # The arguments are P1 delay, P2 delay, one-way ms, jitter ms, drop every N, frames, input hold
+    # frames and the corrupt-restore control; the plain run is 0/5 under jitter and loss.
+    sf4e_add_unit_test(NAME GgpoDelayRollback SOURCES "src/tests/ggpo_delay_rollback_test.cxx" LIBS ggpo::GGPO "ws2_32" "winmm" STD 17 TIMEOUT 50 LOCKS loopback_udp_ports)
+    add_test(NAME GgpoDelayRollbackZeroZero COMMAND GgpoDelayRollbackTest 0 0 20 0 0 300 8)
+    set_tests_properties(GgpoDelayRollbackZeroZero PROPERTIES TIMEOUT 50)
+    sf4e_test_locks(GgpoDelayRollbackZeroZero loopback_udp_ports)
+    add_test(NAME GgpoDelayRollbackZeroOne COMMAND GgpoDelayRollbackTest 0 1 40 30 17 300 1)
+    set_tests_properties(GgpoDelayRollbackZeroOne PROPERTIES TIMEOUT 50)
+    sf4e_test_locks(GgpoDelayRollbackZeroOne loopback_udp_ports)
+    add_test(NAME GgpoDelayRollbackFiveZero COMMAND GgpoDelayRollbackTest 5 0 40 30 17 300 1)
+    set_tests_properties(GgpoDelayRollbackFiveZero PROPERTIES TIMEOUT 50)
+    sf4e_test_locks(GgpoDelayRollbackFiveZero loopback_udp_ports)
+    # The control restores a wrong digest and exits 0 only when every frame was confirmed, a restore
+    # ran and the digests then disagreed with the oracle.
+    add_test(NAME GgpoDelayRollbackCorruptRestore COMMAND GgpoDelayRollbackTest 0 0 25 0 0 180 8 1)
+    set_tests_properties(GgpoDelayRollbackCorruptRestore PROPERTIES TIMEOUT 50)
+    sf4e_test_locks(GgpoDelayRollbackCorruptRestore loopback_udp_ports)
     add_executable(GgpoSpectatorBacklogTest "src/tests/ggpo_spectator_backlog_test.cxx")
     target_link_libraries(GgpoSpectatorBacklogTest PRIVATE ggpo::GGPO "ws2_32")
     add_test(NAME GgpoSpectatorBacklog COMMAND GgpoSpectatorBacklogTest)
     set_tests_properties(GgpoSpectatorBacklog PROPERTIES TIMEOUT 30 PASS_REGULAR_EXPRESSION "GGPO spectator backlog passed")
+    sf4e_test_locks(GgpoSpectatorBacklog loopback_udp_ports)
 
-    add_executable(RollbackDiagnosticsTest "src/tests/rollback_diagnostics_test.cxx")
-    target_link_libraries(RollbackDiagnosticsTest PRIVATE sf4e_common)
-    add_test(NAME RollbackDiagnostics COMMAND RollbackDiagnosticsTest)
-    set_tests_properties(RollbackDiagnostics PROPERTIES TIMEOUT 15)
-
-    add_executable(PacingControllerTest "src/tests/pacing_controller_test.cxx")
-    add_test(NAME PacingController COMMAND PacingControllerTest)
-    set_tests_properties(PacingController PROPERTIES TIMEOUT 15)
-
-    add_executable(StateHashTest "src/tests/state_hash_test.cxx")
-    add_test(NAME StateHash COMMAND StateHashTest)
-    set_tests_properties(StateHash PROPERTIES TIMEOUT 15)
-
-    add_executable(SaveStateOwnershipTest "src/tests/savestate_ownership_test.cxx")
-    add_test(NAME SaveStateOwnership COMMAND SaveStateOwnershipTest)
-    set_tests_properties(SaveStateOwnership PROPERTIES TIMEOUT 15)
+    sf4e_add_unit_test(NAME RollbackDiagnostics SOURCES "src/tests/rollback_diagnostics_test.cxx" LIBS sf4e_common TIMEOUT 15)
+    sf4e_add_unit_test(NAME StateHash SOURCES "src/tests/state_hash_test.cxx" TIMEOUT 15)
+    sf4e_add_unit_test(NAME FrameTrace SOURCES "src/tests/frame_trace_test.cxx" STD 14 TIMEOUT 15)
 endif()
 
-add_library(sf4e_app_services STATIC src/platform/ApplicationServices.cxx src/launcher/update/github_release_client.cxx src/launcher/update/github_release_validation.cxx src/launcher/update/github_release_download.cxx)
+add_library(sf4e_app_services STATIC src/platform/ApplicationServices.cxx src/platform/ReportWorkflow.cxx src/platform/ReportHistory.cxx src/launcher/update/github_release_client.cxx src/launcher/update/github_release_validation.cxx src/launcher/update/github_release_download.cxx)
 target_compile_features(sf4e_app_services PUBLIC cxx_std_17)
 target_compile_definitions(sf4e_app_services PRIVATE SF4E_APP_VERSION="${PROJECT_VERSION}")
-target_link_libraries(sf4e_app_services PUBLIC sf4e_settings sf4e_localization PRIVATE sf4e_common sf4e_selection spdlog::spdlog nlohmann_json::nlohmann_json WIL::WIL pathcch shell32 shlwapi bcrypt)
+target_link_libraries(sf4e_app_services PUBLIC sf4e_settings sf4e_localization sf4e_replay_files sf4e_problem_report PRIVATE sf4e_common sf4e_selection sf4e_package_installer sf4e_durable_file spdlog::spdlog nlohmann_json::nlohmann_json WIL::WIL pathcch shell32 shlwapi bcrypt ole32)
 if(BUILD_TESTING)
-    add_executable(ApplicationServicesTest src/tests/application_services_test.cxx)
-    target_link_libraries(ApplicationServicesTest PRIVATE sf4e_app_services)
-    add_test(NAME ApplicationServices COMMAND ApplicationServicesTest)
-    add_executable(EmberUpdateTest src/tests/ember_update_test.cxx)
-    target_link_libraries(EmberUpdateTest PRIVATE sf4e_app_services nlohmann_json::nlohmann_json)
-    add_test(NAME EmberUpdate COMMAND EmberUpdateTest)
+    sf4e_add_unit_test(NAME ApplicationServices SOURCES src/tests/application_services_test.cxx LIBS sf4e_app_services)
+    sf4e_add_unit_test(NAME EmberUpdate SOURCES src/tests/ember_update_test.cxx LIBS sf4e_app_services nlohmann_json::nlohmann_json)
 endif()
 target_link_libraries(sf4e PRIVATE sf4e_app_services)
 add_library(sf4e_recovery STATIC src/ui/RecoverySurface.cxx src/ui/RecoveryController.cxx)
@@ -817,13 +705,12 @@ target_compile_features(sf4e_recovery PUBLIC cxx_std_17)
 # XInput is loaded at run time; DirectInput 8 is on every supported Windows.
 target_link_libraries(sf4e_recovery PUBLIC sf4e_ui sf4e_app_services sf4e_localization PRIVATE d3d9 ole32 shell32 dinput8 dxguid)
 if(BUILD_TESTING)
-    add_executable(RecoveryControllerTest src/tests/recovery_controller_test.cxx)
-    target_link_libraries(RecoveryControllerTest PRIVATE sf4e_recovery)
-    add_test(NAME RecoveryController COMMAND RecoveryControllerTest)
-    set_tests_properties(RecoveryController PROPERTIES TIMEOUT 30)
+    sf4e_add_unit_test(NAME RecoveryController SOURCES src/tests/recovery_controller_test.cxx LIBS sf4e_recovery TIMEOUT 30)
 endif()
 add_executable(Launcher WIN32 src/launcher/launcher.cxx src/launcher/netplay/netplay_persist.cxx src/launcher/GameLocator.cxx)
-target_link_libraries(Launcher PRIVATE sf4e_helper_platform sf4e_settings sf4e_recovery sf4e_localization)
+target_link_libraries(Launcher PRIVATE sf4e_helper_platform sf4e_settings sf4e_recovery sf4e_localization sf4e_replay_files sf4e_video_encoder)
+# As the video export's encoder (platform/VideoLink.hxx) it holds a second of 4K frames: 4 GB of addresses instead of 2.
+target_link_options(Launcher PRIVATE "/LARGEADDRESSAWARE")
 set(_SF4E_LAUNCHER_EXE_TARGET Launcher)
 target_include_directories(${_SF4E_LAUNCHER_EXE_TARGET} PRIVATE "src/common" "src/launcher")
 		target_link_libraries(${_SF4E_LAUNCHER_EXE_TARGET} PRIVATE
@@ -862,47 +749,45 @@ add_custom_target(sf4e_build_identity
         -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_build_identity.cmake"
     BYPRODUCTS "${SF4E_BUILD_IDENTITY_DIR}/BuildIdentity.hxx"
     VERBATIM)
-foreach(target sf4e Launcher)
+foreach(target sf4e Launcher sf4e_app_services)
     add_dependencies(${target} sf4e_build_identity)
     target_include_directories(${target} PRIVATE "${SF4E_BUILD_IDENTITY_DIR}")
 endforeach()
 if(BUILD_TESTING)
-    add_executable(GameLocatorTest src/tests/game_locator_test.cxx src/launcher/GameLocator.cxx src/common/SteamKeyValues.cxx)
-    target_compile_features(GameLocatorTest PRIVATE cxx_std_17)
-    add_test(NAME GameLocator COMMAND GameLocatorTest)
-    set_tests_properties(GameLocator PROPERTIES TIMEOUT 15)
+    sf4e_add_unit_test(NAME GameLocator SOURCES src/tests/game_locator_test.cxx src/launcher/GameLocator.cxx src/common/SteamKeyValues.cxx STD 17 TIMEOUT 15)
 endif()
-add_executable(Updater
+# A Windows program, not a console one: a console the launcher asks to start
+# hidden still opens as an empty terminal where Windows Terminal is the
+# default, and the progress window is all the player should see. wmain stays
+# its entry point.
+add_executable(Updater WIN32
     src/launcher/updater.cxx
 )
+target_link_options(Updater PRIVATE "/ENTRY:wmainCRTStartup")
+# Updater.exe's run under its window, with the process boundaries passed in
+# so tests drive it.
+add_library(sf4e_updater_run STATIC src/launcher/update/UpdaterRun.cxx)
+target_compile_features(sf4e_updater_run PUBLIC cxx_std_17)
+target_link_libraries(sf4e_updater_run PUBLIC sf4e_package_installer comctl32 user32)
 add_library(sf4e_package_installer STATIC src/launcher/update/PackageInstaller.cxx)
 target_compile_features(sf4e_package_installer PUBLIC cxx_std_17)
-target_link_libraries(sf4e_package_installer PUBLIC sf4e_selection nlohmann_json::nlohmann_json bcrypt)
+target_link_libraries(sf4e_package_installer PUBLIC sf4e_selection nlohmann_json::nlohmann_json bcrypt PRIVATE sf4e_durable_file)
 if(BUILD_TESTING)
-    add_executable(OverlayPresentationTest src/tests/overlay_presentation_test.cxx)
-    target_compile_features(OverlayPresentationTest PRIVATE cxx_std_17)
-    add_test(NAME OverlayPresentation COMMAND OverlayPresentationTest)
-    add_executable(OverlayResetTest src/tests/overlay_reset_test.cxx)
-    target_link_libraries(OverlayResetTest PRIVATE Session sf4e Dimps sf4e_helper_platform d3d9)
-    add_test(NAME OverlayReset COMMAND OverlayResetTest)
-    set_tests_properties(OverlayReset PROPERTIES TIMEOUT 30)
-    add_executable(OverlayLifecycleTest src/tests/overlay_lifecycle_test.cxx)
-    target_compile_features(OverlayLifecycleTest PRIVATE cxx_std_17)
-    add_test(NAME OverlayLifecycle COMMAND OverlayLifecycleTest)
-    set_tests_properties(OverlayLifecycle PROPERTIES TIMEOUT 30)
-    add_executable(SoundPoolRestoreTest src/tests/sound_pool_restore_test.cxx)
-    target_link_libraries(SoundPoolRestoreTest PRIVATE Session sf4e Dimps sf4e_helper_platform d3d9)
-    add_test(NAME SoundPoolRestore COMMAND SoundPoolRestoreTest)
-    set_tests_properties(SoundPoolRestore PROPERTIES TIMEOUT 15)
-    add_executable(PackageInstallerTest src/tests/package_installer_test.cxx)
-    target_link_libraries(PackageInstallerTest PRIVATE sf4e_package_installer)
-    add_test(NAME PackageInstaller COMMAND PackageInstallerTest)
+    sf4e_add_unit_test(NAME OverlayPresentation SOURCES src/tests/overlay_presentation_test.cxx STD 17)
+    sf4e_add_unit_test(NAME OverlayReset SOURCES src/tests/overlay_reset_test.cxx LIBS Session sf4e Dimps sf4e_helper_platform d3d9 TIMEOUT 30 LOCKS ember_runtime)
+    sf4e_add_unit_test(NAME OverlayPadCapture SOURCES src/tests/overlay_pad_capture_test.cxx LIBS Session sf4e Dimps sf4e_helper_platform d3d9 TIMEOUT 30 LOCKS ember_runtime)
+    sf4e_add_unit_test(NAME OverlayLifecycle SOURCES src/tests/overlay_lifecycle_test.cxx STD 17 TIMEOUT 30)
+    # Its stress test keeps three threads busy throughout.
+    set_tests_properties(OverlayLifecycle PROPERTIES PROCESSORS 3)
+    sf4e_add_unit_test(NAME SoundPoolRestore SOURCES src/tests/sound_pool_restore_test.cxx LIBS Session sf4e Dimps sf4e_helper_platform d3d9 TIMEOUT 15)
+    sf4e_add_unit_test(NAME PackageInstaller SOURCES src/tests/package_installer_test.cxx LIBS sf4e_package_installer shell32)
+    sf4e_add_unit_test(NAME ProgressWindow SOURCES src/tests/progress_window_test.cxx LIBS comctl32 user32 STD 17 TIMEOUT 30)
+    sf4e_add_unit_test(NAME UpdaterRun SOURCES src/tests/updater_run_test.cxx LIBS sf4e_updater_run STD 17 TIMEOUT 60)
     add_test(NAME UpgradeRecoveryPowerShell COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${CMAKE_SOURCE_DIR}/scripts/test-upgrade-recovery.ps1 -NativeFixture $<TARGET_FILE:PackageInstallerTest>)
     set_tests_properties(UpgradeRecoveryPowerShell PROPERTIES TIMEOUT 120)
-    add_test(NAME FramePacingCaptureValidation COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File ${CMAKE_SOURCE_DIR}/scripts/test-capture-frame-pacing.ps1)
-    set_tests_properties(FramePacingCaptureValidation PROPERTIES TIMEOUT 60)
+    sf4e_test_locks(UpgradeRecoveryPowerShell ember_processes)
 endif()
-target_link_libraries(Updater PRIVATE sf4e_package_installer sf4e_selection "pathcch" "shell32")
+target_link_libraries(Updater PRIVATE sf4e_updater_run sf4e_selection "pathcch" "shell32")
 set_target_properties(Updater PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 sf4e_configure_windows_version(Updater "SF4 Ember Netplay Updater" "Updater.exe" "VFT_APP")
 
@@ -917,16 +802,17 @@ install(FILES "src/ui/backends/LICENSE.txt" DESTINATION "notices" RENAME "Dear-I
 install(DIRECTORY "assets/selection" DESTINATION "assets" COMPONENT SelectionReferences OPTIONAL
     FILES_MATCHING PATTERN "*.png" PATTERN "*.jpg" PATTERN "*.json" PATTERN "*.md"
     REGEX "/color-[0-9]+\\.(png|jpg)$" EXCLUDE)
-# Keep local builds self-contained when references have been fetched. Copy on
-# each build because image-only changes do not cause Sidecar to relink.
+# Keep local builds self-contained when references have been fetched. Compare
+# on each build because image-only changes do not cause Sidecar to relink, and
+# write only the files whose content changed.
 add_custom_target(SelectionAssets
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/assets/selection" "$<TARGET_FILE_DIR:Sidecar>/assets/selection"
     # The menu art and button prompts the install step ships, so a launch from
     # the build folder does not fall back to text glyphs.
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/assets/brand" "$<TARGET_FILE_DIR:Sidecar>/assets/brand"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/assets/input" "$<TARGET_FILE_DIR:Sidecar>/assets/input"
     VERBATIM)
 add_dependencies(Sidecar SelectionAssets)

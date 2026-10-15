@@ -47,6 +47,9 @@ constexpr std::size_t MaximumKickedAccounts = 512;
 // room.unlock_spectating.detail; the UI passes SpectatorStartHoldMs / 1000.
 // A held table's snapshot carries what is left of it (Table::holdRemainingMs).
 constexpr std::uint64_t SpectatorStartHoldMs = 10000;
+// A waiting fighter's inactivity limit. room.ready_timeout.you and
+// room.ready_timeout.other quote its remaining seconds; the last 30 s are shown.
+constexpr std::uint64_t ReadyTimeoutMs = 90000;
 
 enum class MemberStatus : std::uint8_t {
 	Idle = 0,
@@ -95,6 +98,11 @@ enum class ActionKind : std::uint8_t {
 	// A bound table's fighter has the bridge's permit for the reserved game
 	// (Action::matchGeneration), named by Action::text.
 	PermitReady,
+	// A member's own word that they are in the game's Training mode, on
+	// (Action::inTraining) or off. It changes what the others are shown and
+	// nothing else. Appended so older authorities reject it as an unknown
+	// kind.
+	SetTraining,
 };
 
 enum class RejectReason : std::uint8_t {
@@ -179,6 +187,10 @@ struct Member {
     // time for it to finish retiring the previous game. Cleared when it stops
     // watching that table.
     bool spectatorLocked = false;
+    // The member said they are in the game's Training mode (SetTraining). It
+    // ends by their word, or when a game of theirs starts. Optional on the
+    // wire and written only when set, so a state without it reads as before.
+    bool training = false;
     // Seconds since the member last did anything in the room (joined, sent a
     // room action, showed a fighter), as of the moment the snapshot was sent;
     // a member in a game counts as active. Stamped per recipient when sent,
@@ -217,6 +229,8 @@ struct Table {
 	bool ready[2] = { false, false };
 	// Immutable per-fighter values captured at the Ready quorum boundary.
 	std::uint8_t inputDelay[2] = { 2, 2 };
+	// Each fighter's Lower input lag at Ready; off until they ready with it.
+	bool lowerLag[2] = { false, false };
 	std::uint32_t score[2] = { 0, 0 };
 	// First-to-N tables: the last finished set, and how many sets in a row
 	// streakHolder has won here. The streak ends when its holder loses a set
@@ -235,6 +249,8 @@ struct Table {
 	// checkpoints keep zero, and zero is not serialized; a client counts on
 	// from when it received the snapshot.
 	std::uint32_t holdRemainingMs = 0;
+	// Stamped only in SnapshotFor, like holdRemainingMs. Zero means no clock.
+	std::uint32_t readyRemainingMs = 0;
 	// A bound table's ready fighters wait, for at most PermitHoldMs, for the
 	// bridge's permit for this reserved generation. Each seat's permit ID is
 	// filled when that fighter's helper has it; the game starts when both name
@@ -338,11 +354,13 @@ constexpr unsigned StaleGameSeconds = 600;
 // Both fighters play at the higher of their Ready delays. A fighter's delay
 // decides how much rollback the other side sees, so separate values gave the
 // lower-delay fighter an advantage. inputDelay keeps each fighter's own choice.
-// A match never plays at 0, whatever an older client readied with.
-inline int MatchDelay(int first, int second) { return PlayableInputDelay(first > second ? first : second); }
+inline int MatchDelay(int first, int second) { return first > second ? first : second; }
 inline std::uint8_t MatchDelay(const Table& table) {
 	return static_cast<std::uint8_t>(MatchDelay(table.inputDelay[0], table.inputDelay[1]));
 }
+// Lower input lag changes how the battle plays, so every PC that plays or
+// watches a match must agree on it: it is on only when both fighters chose it.
+inline bool MatchLowerLag(const Table& table) { return table.lowerLag[0] && table.lowerLag[1]; }
 // A connection check names the seated pair at the table revision this PC's
 // room view shows. The helper reserves it only against its committed copy of
 // the room, so the check waits until that copy seats the same pair at the same
@@ -369,6 +387,11 @@ struct Snapshot {
 	// No player's game runs this room's authority: the room host process does. It
 	// is serialized only when true, so a private room's wire form is unchanged.
 	bool serverOwned = false;
+	// Every game in the room is a Practice match: both fighters' health and
+	// gauges fill again, nobody is knocked out, and a game lasts the longest
+	// round time. Chosen by the player who created a private room and fixed
+	// for its life; never a public or tournament room. Serialized only when true.
+	bool practice = false;
 	MemberId host = 0;
 	MemberId localMember = 0;
 	std::vector<Member> members;
@@ -383,10 +406,30 @@ struct Snapshot {
 	// means no local obligation and prevents an older table receipt from being
 	// used as confirmation for a newer terminal event.
 	std::array<std::uint64_t, TableCount> localTerminalGenerations = {};
+	// For this wire recipient, each table's matchGeneration while it is in the
+	// native roster frozen when that game began, else 0: who watches the game,
+	// which a queued member's status does not say. A host that knows it always
+	// sends it (localMatchGenerationsSent); without it the host did not say,
+	// which is not the same as in no game.
+	bool localMatchGenerationsSent = false;
+	std::array<std::uint64_t, TableCount> localMatchGenerations = {};
 	std::vector<ChatMessage> chat;
 	// The tournament match this room plays at table 0, when it is bound to one.
 	TournamentBinding tournament;
 };
+
+// Only a player creates a Practice room, so it is never public (server
+// owned) or a tournament's. Every snapshot read from the wire or a
+// checkpoint holds to it, as the actions that make the other kinds do.
+inline bool PracticeKindValid(const Snapshot& room) {
+	return !room.practice || (!room.serverOwned && !room.tournament.Active());
+}
+
+// The round time a table's games are played at: its rules', or in a Practice
+// room the longest, since its games end only when the time runs out.
+inline std::uint16_t MatchRoundTime(const Snapshot& room, const Table& table) {
+	return room.practice ? PracticeRoundTime : table.rules.roundTime;
+}
 
 inline const Member* FindMember(const Snapshot& snapshot, MemberId id) {
 	const auto found = std::find_if(snapshot.members.begin(), snapshot.members.end(),
@@ -448,9 +491,14 @@ struct Action {
 	Rules rules;
 	std::uint8_t capacity = 0;
 	bool locked = false;
+	// SetTraining: the member is in Training. On the wire it travels as "locked", so peers
+	// that predate this field still read it.
+	bool inTraining = false;
 	MatchResult result = MatchResult::Abort;
 	std::uint64_t matchGeneration = 0;
 	std::uint8_t inputDelay = 2;
+	// Ready: the fighter has Lower input lag on. Written only when set.
+	bool lowerLag = false;
 	std::string text;
 	// PermitReady: the permit's start window in milliseconds (its start_by
 	// less its issued_at, both on the bridge's clock).
@@ -471,6 +519,9 @@ struct Event {
 	RoomClosed,
 	ResultDisputed,
 	ChatMessage,
+	// AdvanceTime took `member` out of a seat at `table` for not readying
+	// within ReadyTimeoutMs. Every member gets it, for the room chat.
+	ReadyTimeout,
 	};
 	Kind kind = Kind::SnapshotChanged;
 	std::uint8_t table = 0;
@@ -493,8 +544,9 @@ struct Result {
 
 class RoomAuthority {
 public:
+	// practice is the room's for its life (Snapshot::practice); nothing changes it later.
 	RoomAuthority(std::string name, std::uint8_t capacity = static_cast<std::uint8_t>(MaximumMembers),
-		std::uint64_t roomEpoch = 1, Rules defaults = Rules());
+		std::uint64_t roomEpoch = 1, Rules defaults = Rules(), bool practice = false);
 
 	const Snapshot& SnapshotView() const { return snapshot_; }
 	Snapshot SnapshotCopy() const { return snapshot_; }
@@ -502,7 +554,8 @@ public:
 	std::uint64_t NextMemberId() const { return nextMemberId_; }
 
 	// Marks a fresh room server-owned (see RoomModelServerOwned.cxx). False, and
-	// no change, once anyone has joined or the room has closed.
+	// no change, once anyone has joined or the room has closed, or for a
+	// Practice room, which only a player creates.
 	bool SetServerOwned();
 	bool ServerOwned() const { return snapshot_.serverOwned; }
 	// Accounts a kick removed for the room's life; empty unless server-owned.
@@ -659,6 +712,7 @@ private:
 	Result ApplyCancelResult(MemberId member, const Action& action, Table* table);
 	Result ApplyAbortMatch(MemberId member, const Action& action, Table* table);
 	Result ApplyLockSpectating(MemberId member, const Action& action, Table* table, Member* item);
+	Result ApplySetTraining(MemberId member, const Action& action);
 	Result ApplyPermitReady(MemberId member, const Action& action, Table* table);
 	// Table 0 of a room bound to a tournament match.
 	bool BoundTable(const Table& table) const;
@@ -673,9 +727,11 @@ private:
 	// A locked-in spectator of this table has not yet acknowledged an earlier
 	// generation, so a start now would leave it out.
 	bool LockedSpectatorReturning(const Table& table) const;
-	// A table deadline (ResultDisputeTimeoutMs, SpectatorStartHoldMs) that
+	// A table deadline (result dispute, spectator hold or Ready timeout) that
 	// started at `since` has passed.
 	bool TimerDue(std::uint64_t since, std::uint64_t timeout, std::uint64_t nowMs) const;
+	MemberId WaitingForReady(const Table& table) const;
+	void RefreshReadyTimers();
 	// The table's permit age at nowMs, without moving its timer.
 	std::uint64_t PermitAgeAt(std::size_t table, std::uint64_t nowMs) const;
 	// Its age at the last time AgePermitHolds was given.
@@ -716,7 +772,10 @@ private:
 	// Ends a streak whose holder no longer fights at the table.
 	void KeepStreak(Table& table);
 	void RemoveFromTable(MemberId member, bool preserveSpectator = false);
-	// Ready flags and the delay locks that go with them.
+	// A seat's Ready, what it captured for the match, and the delay lock of
+	// whoever sits there. Every readiness reset goes through it.
+	void ClearSeatReadiness(Table& table, int seat);
+	// Both seats' readiness.
 	void ClearReadiness(Table& table);
 	// The bookkeeping that ends a live generation: watchers who asked for the next
 	// game join the spectators, members whose place ended with this game leave
@@ -762,7 +821,6 @@ private:
 	static bool FightersOutstanding(const TerminalReceipt& receipt);
 	bool HasOutstandingTerminalReceipt(std::uint8_t table) const;
 	bool HasOutstandingTerminalReceiptForMember(MemberId member) const;
-	bool ValidRules(const Rules& rules) const;
 	bool ValidTable(std::uint8_t table) const;
 	// Server-owned rules, in RoomModelServerOwned.cxx. Join's account checks,
 	// the departure of the last member, and the checkpoint's account fields.
@@ -784,6 +842,8 @@ private:
 	std::array<MatchResult, TableCount> pendingResult_ = {};
 	std::array<std::uint64_t, TableCount> resultPendingSince_ = {};
 	std::array<std::uint64_t, TableCount> startHeldSince_ = {};
+	std::array<std::uint64_t, TableCount> readyWaitingSince_ = {};
+	std::array<MemberId, TableCount> readyWaitingFor_ = {};
 	// Every running table deadline with its timeout, on the owner's monotonic
 	// clock. Recovery turns them into ages and back through this one list.
 	// Permit timers are not among them.
@@ -798,8 +858,8 @@ private:
 	std::deque<TerminalAckTombstone> terminalAckTombstones_;
 	std::map<MemberId, std::uint64_t> lastChatMs_;
 	// When each member last did anything (an age while recovery is paused,
-	// like lastChatMs_). Presentation only: not checkpointed; a restored
-	// room counts from its next tick.
+	// like lastChatMs_). Not checkpointed; a restored room counts from its
+	// next tick. Ready timeout ages separately retain the activity deadline.
 	std::map<MemberId, std::uint64_t> lastActiveMs_;
 	void NoteActive(MemberId member);
 	std::uint32_t IdleSeconds(MemberId member) const;

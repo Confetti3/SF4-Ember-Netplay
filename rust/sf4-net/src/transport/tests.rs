@@ -260,6 +260,23 @@ async fn control_workers_bound_both_directions_and_backpressure_the_consumer() {
             }),
             Err(QueueError::Full)
         );
+        // The full queue is the peak. Reading it starts the count over, but the
+        // frames still waiting behind the blocked writer are in the next count.
+        assert_eq!(sender.take_queue_peak(), CONTROL_QUEUE_CAPACITY);
+        assert_eq!(sender.take_queue_peak(), CONTROL_QUEUE_CAPACITY);
+        // The writer drains the queue with nothing more sent: the window that
+        // began full still reads full, and the one after it reads empty.
+        let mut expected = 2;
+        while expected < CONTROL_QUEUE_CAPACITY as u64 + 2 {
+            if let Some(frame) = receiver.try_receive() {
+                assert_eq!(frame.message_id, expected);
+                expected += 1;
+            } else {
+                tokio::task::yield_now().await;
+            }
+        }
+        assert_eq!(sender.take_queue_peak(), CONTROL_QUEUE_CAPACITY);
+        assert_eq!(sender.take_queue_peak(), 0);
         assert_eq!(
             sender.try_send(ControlFrame {
                 message_id: 1000,
@@ -282,7 +299,6 @@ async fn control_workers_bound_both_directions_and_backpressure_the_consumer() {
             tokio::task::yield_now().await;
         }
         assert!(!receiver.is_closed());
-        let mut expected = 2;
         while expected < end {
             if let Some(frame) = receiver.try_receive() {
                 assert_eq!(frame.message_id, expected);
@@ -293,6 +309,10 @@ async fn control_workers_bound_both_directions_and_backpressure_the_consumer() {
         }
         assert!(!receiver.is_closed());
         assert_eq!(receiver.rejected(), 0);
+        // Every frame arrived, so the queue has drained: once the window that
+        // saw it busy is read, the next one is empty.
+        assert!(sender.take_queue_peak() > 0);
+        assert_eq!(sender.take_queue_peak(), 0);
         drop(sender);
         drop(receiver);
         a.close().await;

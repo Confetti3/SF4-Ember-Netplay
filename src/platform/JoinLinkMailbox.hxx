@@ -31,6 +31,8 @@ inline const wchar_t* MatchLinkEventName() { return L"Local\\SF4EmberMatchLinkRe
 inline const wchar_t* PublicRoomLinkSectionName() { return L"Local\\SF4EmberPublicRoomLink"; }
 inline const wchar_t* PublicRoomLinkEventName() { return L"Local\\SF4EmberPublicRoomLinkReady"; }
 inline const wchar_t* ConnectLinkSectionName() { return L"Local\\SF4EmberConnectLink"; }
+inline const wchar_t* ReplayLinkSectionName() { return L"Local\\SF4EmberReplayLink"; }
+inline const wchar_t* ReplayLinkEventName() { return L"Local\\SF4EmberReplayLinkReady"; }
 inline const wchar_t* ConnectLinkEventName() { return L"Local\\SF4EmberConnectLinkReady"; }
 inline std::wstring JoinLinkLockName(const wchar_t* section) { return std::wstring(section) + L"Lock"; }
 inline bool JoinLinkLocked(DWORD wait) { return wait == WAIT_OBJECT_0 || wait == WAIT_ABANDONED; }
@@ -51,6 +53,11 @@ struct PublicRoomLinkSlot {
 
 struct ConnectLinkSlot {
 	char bridge[48];
+};
+
+// Replay links: the file's path, UTF-8 (common/ReplayLink.hxx).
+struct ReplayLinkSlot {
+	char file[1024];
 };
 
 // The game's end of one slot. Open once; Take on the game thread, as often as wanted.
@@ -227,6 +234,32 @@ public:
 private:
 	SlotMailbox<ConnectLinkSlot> slots_;
 };
+
+// Replay links: the file to play.
+class ReplayLinkMailbox {
+public:
+	ReplayLinkMailbox(const wchar_t* section = ReplayLinkSectionName(), const wchar_t* ready = ReplayLinkEventName())
+		: slots_(section, ready) {}
+	bool Open() { return slots_.Open(); }
+	// The newest file since the last call, or "".
+	std::string Take() {
+		ReplayLinkSlot slot;
+		if (!slots_.Take(slot)) return std::string();
+		char file[sizeof(slot.file) + 1] = {};
+		std::memcpy(file, slot.file, sizeof(slot.file));
+		return std::string(file);
+	}
+private:
+	SlotMailbox<ReplayLinkSlot> slots_;
+};
+
+inline bool DeliverReplayLink(const std::string& file,
+	const wchar_t* sectionName = ReplayLinkSectionName(), const wchar_t* readyName = ReplayLinkEventName()) {
+	ReplayLinkSlot slot = {};
+	if (file.empty() || file.size() >= sizeof(slot.file)) return false;
+	std::memcpy(slot.file, file.data(), file.size());
+	return DeliverSlot(slot, sectionName, readyName);
+}
 
 inline bool DeliverConnectLink(const std::string& bridge,
 	const wchar_t* sectionName = ConnectLinkSectionName(), const wchar_t* readyName = ConnectLinkEventName()) {

@@ -251,7 +251,7 @@ paste box, either form of the link works.
 
 ## The notifier as a room bot
 
-`rust/ember/notifier` keeps posting events and gains, both optional:
+`server/ember/notifier` keeps posting events and gains, both optional:
 
 - `bot`: `{ "bridge_api": "<origin>", "credential": "env:NAME", "build_id":
   "...", "capacity": 8 }`, the provider credential of a connection with

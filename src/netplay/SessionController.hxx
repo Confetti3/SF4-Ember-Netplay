@@ -9,6 +9,8 @@ namespace sf4e { namespace netplay {
 // membership, settings, readiness, and match conditions.
 enum class RoomState { Idle, Opening, Joined, Closing, Lost };
 enum class MatchState { None, Preparing, Playing, PostMatch, Failed };
+// A game being prepared or played.
+inline bool Fighting(MatchState state) { return state == MatchState::Preparing || state == MatchState::Playing; }
 enum class Health { Offline, Connecting, Healthy, Lost };
 enum class Recovery { None, Recovering, ReplacementOffered };
 enum class Page { Home, Host, Join, Lobby, Match, PostMatch, Settings, Diagnostics };

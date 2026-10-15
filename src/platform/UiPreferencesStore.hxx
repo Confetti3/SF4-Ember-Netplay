@@ -2,9 +2,12 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include "../common/UpdateChannel.hxx"
 
 namespace sf4e { namespace platform {
 
@@ -16,6 +19,11 @@ bool SaveLanguagePreference(std::string_view preference, std::string& error);
 // The player chose "Don't show again" on the recommended game settings card.
 bool GameSettingsCardHidden();
 bool HideGameSettingsCardForever(std::string& error);
+// The chosen update channel (stored as "stable", "prerelease" or "nightly"), or
+// nothing while none was chosen: files written before the channel existed, and
+// unknown stored text, included.
+std::optional<updates::UpdateChannel> UpdateChannelPreference();
+bool SaveUpdateChannelPreference(std::string_view channel, std::string& error);
 
 // A tournament match Ember already told the player is ready to play, so a
 // restart does not tell them again. `until` is the unix second after which the
@@ -50,6 +58,8 @@ bool SaveLanguagePreferenceTo(const std::wstring& directory,
     std::string_view preference, std::string& error);
 bool GameSettingsCardHiddenIn(const std::wstring& directory);
 bool HideGameSettingsCardIn(const std::wstring& directory, std::string& error);
+std::optional<updates::UpdateChannel> UpdateChannelPreferenceIn(const std::wstring& directory);
+bool SaveUpdateChannelPreferenceTo(const std::wstring& directory, std::string_view channel, std::string& error);
 std::vector<AnnouncedMatch> LoadAnnouncedMatchesFrom(const std::wstring& directory);
 bool SaveAnnouncedMatchesTo(const std::wstring& directory, const std::vector<AnnouncedMatch>& matches, std::string& error);
 }

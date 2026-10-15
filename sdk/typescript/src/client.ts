@@ -49,10 +49,13 @@ export interface Participant {
  */
 export type RulesProfile = "organizer-reported-v1" | "ember-room-v1";
 
+/** A set of first to N games: 1 to 10, so best of 1 to best of 19. */
+export type GamesToWin = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+
 export interface MatchSpec {
   external_match_id: string;
   participants: [Participant, Participant];
-  games_to_win: 1 | 2 | 3 | 5;
+  games_to_win: GamesToWin;
   required_build_id: string;
   /** Defaults to `organizer-reported-v1`. */
   native_rules_profile?: RulesProfile;
@@ -64,7 +67,7 @@ export type Rotation = "winner_stays" | "loser_stays" | "both_rotate";
 
 export interface LobbySpec {
   external_lobby_id: string;
-  games_to_win: 1 | 2 | 3 | 5;
+  games_to_win: GamesToWin;
   rotation: Rotation;
   required_build_id: string;
   metadata?: { [key: string]: string };
@@ -135,9 +138,9 @@ export type TournamentFormat = "single_elimination" | "double_elimination" | "ro
 export interface TournamentSpec {
   external_tournament_id: string;
   format: TournamentFormat;
-  games_to_win: 1 | 2 | 3 | 5;
+  games_to_win: GamesToWin;
   /** The final (single elimination) or grand final and reset (double elimination). Defaults to `games_to_win`. */
-  finals_games_to_win?: 1 | 2 | 3 | 5;
+  finals_games_to_win?: GamesToWin;
   /** Double elimination: a second grand final when the losers-bracket player wins the first. Default true. */
   grand_final_reset?: boolean;
   required_build_id: string;

@@ -19,10 +19,12 @@ namespace sf4e {
 			DWORD Reset();
 			void RunScene_Render(void* sceneCommandList);
 			int LimitFrame(float frameDelta);
+			int LimitPacedFrame(float frameDelta);
 			void BuildPresentParameters();
 
-			// Rift pacing hand-off with the game tick; the limiter may run on
-			// the rendering thread. A request applies to the next limiter call
+			// Rift pacing hand-off with the game tick. The limiter runs after
+			// Present on the game thread (0x7716E0), whatever the game's
+			// RenderingThread setting. A request applies to the next limiter call
 			// (positive: longer frame). Take returns what the limiter really
 			// changed since the last take. Cancel drops anything in flight so
 			// it cannot reach a reset controller.
@@ -50,7 +52,9 @@ namespace sf4e {
 			static void Install();
 
 			int Initialize(void*, void*, void*);
+			int ApplyStartupParams(void* params);
 			void Destroy();
+			void WriteDisplayConfig();
 			static void WINAPI RunWindowFunc(Dimps::Platform::Main* lpMain, HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 		};
 

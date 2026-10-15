@@ -65,9 +65,12 @@ public:
     void ClearPublicSetup() { setup_.Clear(); }
     // The row the matches screen should focus, once it is among `rows`.
     std::string TakeFocus(const std::vector<MenuEntry>& rows);
-    // The Home entry's line: where to start, how many matches are ready to
-    // play, or what the screens hold.
-    std::string HomeDetail(const ShellView& view) const;
+    // The Ember ID row's line (on Online play): where to start, how many
+    // matches are ready to play, or what the screens hold.
+    std::string EntryDetail(const ShellView& view) const;
+    // Tournament matches ready to play on the service the matches are read
+    // from; 0 without a ready ID and a service. Home shows a row while any are.
+    int ReadyMatches(const ShellView& view) const;
     // A playable match the player has not been told about yet: true once for
     // each new one, except while the matches screen already shows them (see
     // MatchAnnouncements, which remembers them across restarts).

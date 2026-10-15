@@ -80,6 +80,17 @@ Result RoomAuthority::ApplyRename(MemberId member, const Action& action) {
 	snapshot_.name = action.text; TouchRoom(); return Accept();
 }
 
+// The action carries the wanted value rather than a toggle, as LockSpectating
+// does, and the member's action watermark already refuses an older copy. It
+// is the member's alone to say and binds nobody: no seat, queue or start
+// depends on it.
+Result RoomAuthority::ApplySetTraining(MemberId member, const Action& action) {
+	Member* item = Find(member);
+	if (!item) return Reject(RejectReason::UnknownMember);
+	if (item->training != action.inTraining) { item->training = action.inTraining; TouchRoom(); }
+	return Accept();
+}
+
 Result RoomAuthority::ApplyAcknowledgeTerminal(MemberId member, const Action& action) {
 	if (!action.matchGeneration) return Reject(RejectReason::WrongGeneration);
 	for (auto& receipt : terminalReceipts_) {
@@ -116,7 +127,7 @@ Result RoomAuthority::ApplyAcknowledgeTerminal(MemberId member, const Action& ac
 
 Result RoomAuthority::ApplySetRules(MemberId member, const Action& action, Table* table) {
 	if (!CanEditRules(member)) return Reject(RejectReason::NotHost);
-	if (table->phase == TablePhase::Playing || table->phase == TablePhase::Ready || table->phase == TablePhase::Paused || !ValidRules(action.rules)) return Reject(RejectReason::InvalidRules);
+	if (table->phase == TablePhase::Playing || table->phase == TablePhase::Ready || table->phase == TablePhase::Paused || !action.rules.Valid()) return Reject(RejectReason::InvalidRules);
 	// A different set length or rotation starts a new set. Round count, time and
 	// edition apply from the next game and keep the score.
 	const bool newSet = action.rules.format != table->rules.format || action.rules.rotation != table->rules.rotation;
@@ -269,13 +280,12 @@ Result RoomAuthority::ApplyReadiness(MemberId member, const Action& action, Tabl
 		table->ready[seat == 0 ? 1 : 0] && HasOutstandingTerminalReceipt(table->id))
 		return Reject(RejectReason::TerminalLedgerFull);
 	if (action.kind == ActionKind::Ready) {
-		// An older client can still ready at 0, which the match never plays at.
-		const auto delay = static_cast<std::uint8_t>(PlayableInputDelay(action.inputDelay));
 		table->ready[seat] = true;
-		item->selectedDelay = delay;
-		item->frozenDelay = delay;
+		item->selectedDelay = action.inputDelay;
+		item->frozenDelay = action.inputDelay;
 		item->delayLocked = true;
-		table->inputDelay[seat] = delay;
+		table->inputDelay[seat] = action.inputDelay;
+		table->lowerLag[seat] = action.lowerLag;
 	} else {
 		ReleaseReady(*table, seat, *item);
 	}
@@ -283,8 +293,7 @@ Result RoomAuthority::ApplyReadiness(MemberId member, const Action& action, Tabl
 }
 
 void RoomAuthority::ReleaseReady(Table& table, int seat, Member& item) {
-	table.ready[seat] = false;
-	item.delayLocked = false;
+	ClearSeatReadiness(table, seat);
 	table.inputDelay[seat] = item.selectedDelay;
 }
 
@@ -428,6 +437,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (action.kind == ActionKind::Kick) return ApplyKick(member, action);
 	if (action.kind == ActionKind::Chat) return ApplyChat(member, action);
 	if (action.kind == ActionKind::Rename) return ApplyRename(member, action);
+	if (action.kind == ActionKind::SetTraining) return ApplySetTraining(member, action);
 	Table* table = FindTable(action.table);
 	if (!table) return Reject(RejectReason::UnknownTable);
 	Member* item = Find(member);

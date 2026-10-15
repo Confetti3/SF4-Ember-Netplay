@@ -1,4 +1,5 @@
 #include "../common/Localization.hxx"
+#include "../launcher/update/UpdaterArguments.hxx"
 #include "../ui/Theme.hxx"
 #include "EmbeddedFonts.hxx"
 
@@ -187,6 +188,35 @@ int main(int argc, char** argv) {
             CHECK(Placeholders(entry.second) == Placeholders(catalogs[i][entry.first]));
         }
     }
+    // Channel warnings and go-back offers have localized prose in every
+    // non-English catalog. Product channel names may be shared across locales.
+    for (std::size_t i = 1; i < count; ++i) {
+        CHECK(catalogs[i]["updates.channel.nightly_detail"] != catalogs[0]["updates.channel.nightly_detail"]);
+        CHECK(catalogs[i]["services.go_back_available"] != catalogs[0]["services.go_back_available"]);
+        const auto& beta = catalogs[i]["updates.channel.prerelease"];
+        CHECK(catalogs[i]["updates.channel_detail"].find(beta) != std::string::npos);
+    }
+    // These warnings intentionally ship in English in every catalog until
+    // translated. Both the dump row and final consent state the actual risk.
+    for (std::size_t i = 0; i < count; ++i) {
+        for (const auto* key : {"reports.dump_detail", "reports.dump_warning"}) {
+            CHECK(catalogs[i].at(key) == catalogs[0].at(key));
+            for (const auto* exposure : {"private memory", "credentials", "invitations", "paths", "identifiers"})
+                CHECK(catalogs[i].at(key).find(exposure) != std::string::npos);
+        }
+        CHECK(catalogs[i].at("reports.dump_detail").find("not shown in the text preview") != std::string::npos);
+        CHECK(catalogs[i].at("reports.dump_warning").find("not text-previewed") != std::string::npos);
+    }
+    // Updater.exe has no catalog: what it shows when the launcher passed no
+    // text is the English catalog's (ASCII, so compared as bytes).
+    const auto english = [](const wchar_t* text) {
+        std::string bytes;
+        for (; *text; ++text) bytes += static_cast<char>(*text);
+        return bytes;
+    };
+    CHECK(catalogs[0].at("services.installing") == english(sf4e::launcher::DefaultUpdaterStatus));
+    for (const auto& step : sf4e::launcher::InstallerSteps) CHECK(catalogs[0].at(step.nameKey) == english(step.english));
+    for (const auto& notice : sf4e::launcher::UpdaterNotices) CHECK(catalogs[0].at(notice.key) == english(notice.english));
     for (std::size_t i = 0; i < count; ++i) {
         const auto locale = static_cast<Locale>(i);
         std::vector<unsigned> text = Codepoints(NativeName(locale));

@@ -52,6 +52,7 @@ struct Options {
     bool rift = false;
     bool continuous = true; // --coarse selects the GGPO timesync event
     int jitterMs = 0, burstMs = 0, burstEveryMs = 0, inputDelay = 2;
+    int secondInputDelay = -1; // --second-input-delay; otherwise both use inputDelay
     double fastHz = 60.5;
     std::wstring output;
 };
@@ -1071,7 +1072,8 @@ json RunRift(const Options& options) {
         GGPOPlayer player{}; player.size = sizeof(player); player.type = GGPO_PLAYERTYPE_LOCAL; player.player_num = index + 1;
         bool ok = ggpo_start_session(&context.session, &callbacks, "rift-benchmark", 2, 1, index ? secondPort : firstPort) == GGPO_OK &&
             ggpo_add_player(context.session, &player, &context.local) == GGPO_OK &&
-            ggpo_set_frame_delay(context.session, context.local, options.inputDelay) == GGPO_OK;
+            ggpo_set_frame_delay(context.session, context.local,
+                index && options.secondInputDelay >= 0 ? options.secondInputDelay : options.inputDelay) == GGPO_OK;
         player.type = GGPO_PLAYERTYPE_REMOTE; player.player_num = 2 - index;
         strcpy_s(player.u.remote.ip_address, "127.0.0.1"); player.u.remote.port = proxy.Port();
         ok = ok && ggpo_add_player(context.session, &player, &self.remote) == GGPO_OK;
@@ -1137,10 +1139,15 @@ json RunRift(const Options& options) {
         std::sort(magnitudes.begin(), magnitudes.end());
         const double mean = magnitudes.empty() ? 0.0 :
             std::accumulate(magnitudes.begin(), magnitudes.end(), 0.0) / static_cast<double>(magnitudes.size());
+        const auto tail = peer.riftSamples.begin() +
+            (peer.riftSamples.size() > 300 ? peer.riftSamples.size() - 300 : 0);
+        const double signedTail = tail == peer.riftSamples.end() ? 0.0 :
+            std::accumulate(tail, peer.riftSamples.end(), 0.0) / static_cast<double>(peer.riftSamples.end() - tail);
         return json{{"frames", peer.context.acceptedFrames}, {"rollback_frames", peer.context.advances},
             {"rollback_loads", peer.context.loads}, {"max_rollback_depth", peer.context.maxReplayDepth},
             {"prediction_stall_ticks", peer.stallTicks}, {"fatal_errors", peer.context.fatalErrors},
             {"mean_abs_rift_frames", mean},
+            {"mean_signed_rift_last_300_ticks", signedTail},
             {"p95_abs_rift_frames", magnitudes.empty() ? 0.0 : magnitudes[magnitudes.size() * 95 / 100]},
             {"pacing_wait_ms", peer.pacer.msSlowedTotal}, {"pacing_speedup_ms", peer.pacer.msSpedUpTotal},
             {"timesync_recommendations", peer.pacer.recommendationsReceived},
@@ -1155,7 +1162,9 @@ json RunRift(const Options& options) {
     result["rollback_imbalance"] = a + b ? static_cast<double>(a > b ? a - b : b - a) / static_cast<double>(a + b) : 0.0;
     result["schedule"] = json{{"delay_ms", options.delayMs}, {"jitter_ms", options.jitterMs}, {"drop_every", options.dropEvery},
         {"burst_ms", options.burstMs}, {"burst_every_ms", options.burstEveryMs}, {"fast_hz", options.fastHz},
-        {"input_delay", options.inputDelay}, {"frames", options.frames}};
+        {"input_delay", options.inputDelay},
+        {"second_input_delay", options.secondInputDelay < 0 ? options.inputDelay : options.secondInputDelay},
+        {"frames", options.frames}};
     result["wire_proxy"] = json{{"received", proxy.Received()}, {"forwarded", proxy.Forwarded()}, {"dropped", proxy.Dropped()}};
     return result;
 }
@@ -1566,6 +1575,7 @@ Options ParseOptions(int argc, wchar_t** argv) {
         else if (auto v = value(L"--burst-ms")) options.burstMs = std::max(0, std::stoi(*v));
         else if (auto v = value(L"--burst-every-ms")) options.burstEveryMs = std::max(0, std::stoi(*v));
         else if (auto v = value(L"--input-delay")) options.inputDelay = std::clamp(std::stoi(*v), 0, 10);
+        else if (auto v = value(L"--second-input-delay")) options.secondInputDelay = std::clamp(std::stoi(*v), 0, 10);
         else if (auto v = value(L"--fast-hz")) options.fastHz = std::clamp(std::stod(*v), 30.0, 120.0);
     }
     return options;

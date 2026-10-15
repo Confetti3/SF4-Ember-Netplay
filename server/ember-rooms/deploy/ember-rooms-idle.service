@@ -1,0 +1,36 @@
+[Unit]
+Description=Close public rooms a lone host has left idle
+After=ember-rooms.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/lib/ember-rooms/idle-close.py --idle-minutes 15
+# Runs as a throwaway user; systemd hands it copies of the two root-only files
+# it needs.
+DynamicUser=yes
+LoadCredential=config.json:/etc/ember-rooms/config.json
+LoadCredential=supervisor.secret:/etc/ember-rooms/supervisor.secret
+# When each quiet room was first seen, kept between runs.
+StateDirectory=ember-rooms-idle
+
+# It only talks to the supervisor on loopback.
+IPAddressAllow=localhost
+IPAddressDeny=any
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+SystemCallArchitectures=native

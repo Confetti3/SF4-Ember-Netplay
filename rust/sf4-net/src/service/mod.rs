@@ -16,7 +16,7 @@ use iroh::{
 use serde::{Deserialize, Serialize};
 use tokio::{
     io::{AsyncRead, AsyncWrite, AsyncWriteExt},
-    sync::{mpsc, watch},
+    sync::{Notify, mpsc, watch},
     task::{AbortHandle, JoinSet},
     time::{Instant, interval, timeout},
 };
@@ -49,6 +49,19 @@ pub const MAX_GAME_LINKS: usize = 15;
 /// intentionally not detached from the actor's shutdown scope.
 pub const MAX_TASKS: usize = MAX_CONTROL_PEERS + MAX_GAME_LINKS + 8;
 const CONTROL_POLL_BUDGET: usize = 20;
+/// How long the actor waits between looks at its queues while a game runs
+/// or a checkpoint is in flight: gameplay links and checkpoint chunks wait
+/// behind it, so it is short.
+const FAST_TICK: Duration = Duration::from_millis(2);
+/// The same with a room open and nothing in flight. Everything that arrives
+/// wakes the loop on its own (commands, completions, control frames), so the
+/// tick only bounds the timers the pumps keep.
+const ROOM_TICK: Duration = Duration::from_millis(25);
+/// The same with no room: nothing waits on the tick at all.
+const IDLE_TICK: Duration = Duration::from_millis(50);
+/// With a room open but no game, `HelperLoad` goes out every this many
+/// seconds instead of every second.
+const IDLE_LOAD_REPORT_SECS: u64 = 5;
 /// How long a replacement control waits behind the worker it supersedes. The
 /// old worker is closed at once, so its reader ends and its queue drains within
 /// a few polls; the limit only bounds a worker whose session binding never
@@ -89,6 +102,40 @@ const MAX_RETIRED_INCARNATIONS: usize = crate::coordination::MAX_RETIRED_MEMBER_
 // native logical message ID is carried in `NativeControlMessage` so C++ can
 // preserve its IPC correlation without sharing the QUIC frame counter.
 const TRANSPORT_MESSAGE_ID_BASE: u64 = 2;
+/// How deep the JSON handed to the native side may nest: the depth at which
+/// serde_json stops. The native side copies and prints what it parses
+/// recursively, on a thread stack sized for real messages.
+const MAX_NATIVE_JSON_DEPTH: usize = 128;
+
+/// Whether `text` nests no deeper than MAX_NATIVE_JSON_DEPTH. Only brackets
+/// outside strings count; whether it is valid JSON is for the native side.
+fn native_json_depth_ok(text: &[u8]) -> bool {
+    let (mut depth, mut in_string, mut escaped) = (0usize, false, false);
+    for &byte in text {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\' {
+                escaped = true;
+            } else if byte == b'"' {
+                in_string = false;
+            }
+            continue;
+        }
+        match byte {
+            b'"' => in_string = true,
+            b'[' | b'{' => {
+                depth += 1;
+                if depth > MAX_NATIVE_JSON_DEPTH {
+                    return false;
+                }
+            }
+            b']' | b'}' => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+    }
+    true
+}
 
 mod checkpoints;
 mod controls;
@@ -206,7 +253,7 @@ struct CoordinationRefresh {
     applied_members: BTreeSet<u64>,
     applied_history: BTreeSet<u64>,
     retired: BTreeSet<u64>,
-    committed: crate::coordination::Committed,
+    committed: Arc<crate::coordination::Committed>,
     /// The applied membership is a joint configuration nobody finished.
     joint: bool,
 }
@@ -677,11 +724,66 @@ struct Actor {
     public: Option<crate::public_room::PublicRoom>,
     /// Exact UDP port for this process's coordination endpoint when hosting.
     coordination_port: Option<u16>,
+    /// The roster the committed checkpoint named the last time a
+    /// coordination refresh parsed one, with the room and the commit it came
+    /// from, so a refresh of the same commit parses nothing.
+    refresh_roster: Option<(
+        [u8; 16],
+        Arc<crate::coordination::Committed>,
+        Option<BTreeSet<EndpointId>>,
+    )>,
+    /// Signalled when work arrives that no other arm of the actor's loop
+    /// sees: a control's reader queued a frame, or the room's Raft store
+    /// committed (`install_recovery`). The loop ticks at once.
+    wake: Arc<Notify>,
+}
+
+/// Brings the actor's next tick forward to now. A tick already overdue keeps
+/// its deadline, so the lag it reports still counts from when it was due.
+fn tick_now(tick: std::pin::Pin<&mut tokio::time::Sleep>) {
+    let now = Instant::now();
+    if tick.deadline() > now {
+        tick.reset(now);
+    }
 }
 
 impl Actor {
     fn emit(&self, event: Event) -> io::Result<()> {
         self.events.emit(event)
+    }
+
+    /// How long until the next tick, from what the pumps have to do. A
+    /// public room host spends its life at `ROOM_TICK`; a helper waiting for
+    /// a room at `IDLE_TICK`.
+    fn tick_period(&self) -> Duration {
+        let checkpoint_in_flight = self.incoming_transfer.is_some()
+            || self.outgoing_transfer.is_some()
+            || self.pending_checkpoint_proposal.is_some()
+            || self.pending_checkpoint_retry.is_some()
+            || self.pending_checkpoint_ack.is_some()
+            || self.pending_checkpoint_committed.is_some();
+        // Work the last tick left behind: frames past a control's poll
+        // budget, or held back while the event queue to the native side is
+        // full. Neither signals again, and the native side drains that queue
+        // without telling the actor, so both are looked at again soon.
+        let work_left = self.events.has_backlog()
+            || self.controls.values().any(ControlWorker::has_queued);
+        if !self.games.is_empty()
+            || !self.pending_game_admissions.is_empty()
+            || checkpoint_in_flight
+            || work_left
+            || self.opening
+        {
+            FAST_TICK
+        } else if self.room.is_some()
+            || !self.controls.is_empty()
+            || !self.parked_controls.is_empty()
+            || self.retirement_started.is_some()
+        {
+            ROOM_TICK
+        } else {
+            IDLE_TICK
+        }
     }
     fn error(&self, request_id: u64, code: &str) -> io::Result<()> {
         self.error_at(request_id, self.epoch, code)
@@ -761,6 +863,8 @@ impl Actor {
         self.short.clear();
         self.host_address = None;
         self.room = None;
+        // The cached roster holds the room's whole checkpoint.
+        self.refresh_roster = None;
         self.opening = false;
         self.controls.clear();
         self.clear_parked_controls();
@@ -1318,12 +1422,16 @@ impl Actor {
         mut commands: mpsc::Receiver<Request>,
         mut failed_ipc: watch::Receiver<bool>,
     ) -> io::Result<()> {
-        let mut tick = interval(Duration::from_millis(2));
-        tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        // The next tick is set after every tick (`tick_period`), and an
+        // arrival on any other arm brings it forward (`tick_now`), so the loop
+        // is woken by work and the timer only bounds the pumps' timers.
+        let tick = tokio::time::sleep_until(Instant::now());
+        tokio::pin!(tick);
+        let wake = self.wake.clone();
         let mut statistics = interval(Duration::from_secs(1));
-        // Load over the current statistics second; see Event::HelperLoad.
-        let (mut tick_lag_max, mut tick_body_max) = (Duration::ZERO, Duration::ZERO);
-        let mut event_free_min = usize::MAX;
+        let mut statistics_ticks: u64 = 0;
+        // Load since the last HelperLoad report; see Event::HelperLoad.
+        let mut load = stall::LoadWindow::default();
         // The last network summary the native side was sent; see network.rs.
         let mut reported_network = None;
         let busy = stall::Busy::new(self.events.sender());
@@ -1333,6 +1441,7 @@ impl Actor {
                 _ = failed_ipc.changed() => return Err(failed("IPC disconnected")),
                 request = commands.recv() => match request {
                     Some(request) => {
+                        tick_now(tick.as_mut());
                         let _step = busy.enter(stall::command_stage(&request.command));
                         let id = request.id;
                         match request.command {
@@ -1366,6 +1475,7 @@ impl Actor {
                     None => return Err(failed("IPC disconnected")),
                 },
                 incoming = self.endpoint.accept() => {
+                    tick_now(tick.as_mut());
                     let _step = busy.enter("accept");
                     let Some(incoming) = incoming else { return Err(failed("endpoint closed")); };
                     if self.tasks.len() >= MAX_TASKS
@@ -1385,15 +1495,19 @@ impl Actor {
                     });
                 }
                 result = self.tasks.join_next(), if !self.tasks.is_empty() => {
+                    tick_now(tick.as_mut());
                     let _step = busy.enter(match &result { Some(Ok(completion)) => stall::completion_stage(completion), _ => "task" });
                     match result { Some(Ok(completion)) => self.completed(completion).await?,
                         Some(Err(error)) if error.is_cancelled() => (), _ => return Err(failed("helper worker failed")) }
                 }
-                scheduled = tick.tick() => {
+                // A control queued a frame or the room committed: tick now.
+                _ = wake.notified() => tick_now(tick.as_mut()),
+                () = &mut tick => {
                     let _step = busy.enter("tick");
                     let started = Instant::now();
-                    tick_lag_max = tick_lag_max.max(started.saturating_duration_since(scheduled));
-                    event_free_min = event_free_min.min(self.events.capacity());
+                    load.tick(started.saturating_duration_since(tick.deadline()), self.events.capacity());
+                    // Before poll_controls, which drops departed controls.
+                    load.control_queue(self.controls.values().map(ControlWorker::take_queue_peak).max().unwrap_or(0));
                     self.events.flush()?;
                     self.expire_departure_grace();
                     self.start_next_admission_operation();
@@ -1409,10 +1523,12 @@ impl Actor {
                     self.pump_outgoing_checkpoint();
                     busy.stage("tick:pump_committed_checkpoint");
                     self.pump_committed_checkpoint().await?;
-                    tick_body_max = tick_body_max.max(started.elapsed());
+                    load.body(started.elapsed());
+                    tick.as_mut().reset(Instant::now() + self.tick_period());
                 },
                 _ = statistics.tick() => {
                     let _step = busy.enter("statistics");
+                    statistics_ticks = statistics_ticks.wrapping_add(1);
                     self.emit_coordination_state().await?;
                     if let Ok(time) = now() {
                         self.renew_invitation(time);
@@ -1424,15 +1540,16 @@ impl Actor {
                     if reported_network.as_ref() != Some(&summary) && self.emit_bulk(summary.clone().into()) {
                         reported_network = Some(summary);
                     }
-                    let micros = |value: Duration| u64::try_from(value.as_micros()).unwrap_or(u64::MAX);
-                    let (lag, body) = (micros(tick_lag_max), micros(tick_body_max));
-                    let free = if event_free_min == usize::MAX { self.events.capacity() } else { event_free_min } as u64;
-                    (tick_lag_max, tick_body_max, event_free_min) = (Duration::ZERO, Duration::ZERO, usize::MAX);
                     // While a room is open, not only during a match: a report that
-                    // stops at match end must mean the actor stopped (F-008).
-                    if (self.room.is_some() || !self.games.is_empty()) && self.events.has_headroom() {
-                        self.emit(Event::HelperLoad { epoch: self.epoch, actor_tick_lag_max_us: lag,
-                            actor_tick_body_max_us: body, event_queue_free_min: free })?;
+                    // stops at match end must mean the actor stopped (F-008). With
+                    // no game it comes every few seconds rather than every second,
+                    // and covers every second since the last one sent.
+                    let due = !self.games.is_empty()
+                        || (self.room.is_some() && statistics_ticks % IDLE_LOAD_REPORT_SECS == 0);
+                    if due && self.events.has_headroom() {
+                        self.emit(load.report(self.epoch, self.events.capacity()))?;
+                    } else if self.room.is_none() && self.games.is_empty() {
+                        load.clear();
                     }
                     for (peer, slot) in &self.games {
                         if !self.events.has_headroom() { break; }

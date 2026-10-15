@@ -110,6 +110,9 @@ namespace Dimps {
 				struct Unit {
 					char pad[0x64f4];
 				};
+				// The per-frame input store's choice of frame to store under,
+				// `mov edx, [esi+2Ch]` at 0x5CFBB6 (common/InputLagEdit.hxx).
+				extern BYTE* inputStoreFrame;
 			}
 
 			namespace Pause {

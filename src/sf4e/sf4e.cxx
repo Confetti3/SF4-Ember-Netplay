@@ -8,13 +8,16 @@
 #include "../Dimps/Dimps__Platform.hxx"
 
 #include "sf4e.hxx"
+#include "sf4e__BackgroundPlay.hxx"
 #include "sf4e__CrashDiagnostics.hxx"
 #include "sf4e__Event.hxx"
 #include "sf4e__Game.hxx"
 #include "sf4e__GameEvents.hxx"
+#include "sf4e__InputLag.hxx"
 #include "sf4e__Pad.hxx"
 #include "sf4e__Platform.hxx"
 #include "sf4e__UserApp.hxx"
+#include "sf4e__CustomContent.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "../common/MementoGuards.hxx"
 
@@ -236,8 +239,16 @@ void sf4e::Install(HINSTANCE hinstDll, const sf4e::Payload* const payload) {
 	Game::Install();
 	GameEvents::Install();
 	Pad::Install();
+	BackgroundPlay::Install();
+	InputLag::Install();
 	Platform::Install();
 	UserApp::Install();
+	custom::Install();
+}
+
+void sf4e::HooksCommitted() {
+	BackgroundPlay::Activate();
+	InputLag::Activate();
 }
 
 void fIEmSpriteAction::RecordToAdditionalMemento(rIEmSpriteAction* a, AdditionalMemento& m) {

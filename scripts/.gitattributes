@@ -1,0 +1,4 @@
+# These dedicated Bash scripts must survive Windows autocrlf checkouts.
+build-nightly-room-hosts.sh text eol=lf
+stage-nightly-room-hosts.sh text eol=lf
+test-nightly-staging.sh text eol=lf

@@ -31,6 +31,45 @@ Save your SF4 Ember Netplay logs immediately after a problem, before launching a
 
 Some files may be absent or older than your latest session. Sending only `sf4e.log` can miss the relevant events. Keep the existing filenames inside the ZIP, and do not delete older logs before collecting them.
 
+## Sending a report from Ember
+
+Open **Help & About > Report a problem**, describe what happened, and review
+the preview before choosing **Send**. After a crash, the launcher's message
+offers **Send this report**, which opens the same preview for that crash.
+The preview lists every part and its size, the version/build/Windows and crash
+facts, and the redacted log text. Reports include up to the last 192 KiB of
+each available `sf4e.log`, `launcher.log`, `sf4e-crash.log`, and `sf4-net.log`.
+Invitations, tokens, network addresses, emails, your Windows user name and
+profile folder (including its short 8.3 form), your PC name and your player
+name are redacted; review the text for anything else you want to keep private.
+Problem reports require a comment, limited to 2000 characters. The comment is
+sent as written, and a report with a comment always waits for **Send**. Keep
+the copyable report ID after a successful submission.
+
+A crash report can include a **Small dump**. It is off for every report until
+you turn it on in that report's preview. It contains unfiltered thread stack
+bytes and module paths, which can expose private memory, complete credentials
+or invitations, usernames, directory paths and other identifiers. Log
+redaction does not sanitize these bytes. The dump contents are not shown in
+the text preview; the final **Send** confirmation repeats this warning
+whenever the dump is included. Full local dumps are never uploaded. Small
+dumps over 4 MiB are not offered. Raw dumps are kept on Ember's server for up
+to 30 days; processed reports and pending delivery have separate retention.
+
+Sending crash reports without asking is opt-in. **Settings > Problem reports >
+Send problem reports** defaults to off. Choosing **Always send** in the
+launcher's crash message, after its confirmation, turns it on and sends that
+crash's report. With it on, the launcher sends each crash's report without
+asking: logs only, never a dump, and at most 3 reports in 24 hours. Every
+report sent counts toward that limit, including ones sent from a preview, and
+while the record of sent reports cannot be read nothing is sent without
+asking. Turn it off on the same screen. **Settings > Problem reports > Sent reports** lists each
+report this PC sent, how it went, its report ID, and whether a dump went with
+it.
+
+If reporting is unavailable or rate limited, the preview shows the error and
+when to try again. You can still save logs manually using this guide.
+
 ## Include the diagnostic export
 
 If **Export diagnostics** succeeded, press **Windows + R** and open:

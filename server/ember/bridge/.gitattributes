@@ -1,0 +1,2 @@
+# The deploy files run on Linux; keep them LF in every checkout.
+deploy/** text eol=lf

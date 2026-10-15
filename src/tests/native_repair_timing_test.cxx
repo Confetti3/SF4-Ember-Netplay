@@ -49,9 +49,9 @@ int main() {
     CHECK(IsCheckpointCadenceFrame(32760));
     CHECK(CheckpointRingIndex(32760) == (32760 / CheckpointInterval) % CheckpointRingSize);
     CHECK(CheckpointRingIndex(-32760) == -1);
-    CHECK(SpectatorCheckpointStateFrame(32759) == 32760);
-    CHECK(SpectatorCheckpointStateFrame(-1) == -1);
-    CHECK(SpectatorCheckpointStateFrame((std::numeric_limits<int>::max)()) == -1);
+    CHECK(StateFrameAfterInput(32759) == 32760);
+    CHECK(StateFrameAfterInput(-1) == -1);
+    CHECK(StateFrameAfterInput((std::numeric_limits<int>::max)()) == -1);
     // Exercise the production capture identity seam: a corrected rollback
     // recapture mutates the real publication state, rather than comparing a
     // value with itself.

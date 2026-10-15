@@ -2,11 +2,39 @@
 #include "GameMenu.hxx"
 #include "MenuRows.hxx"
 #include "Theme.hxx"
+#include "UpdateChannelPick.hxx"
+#include "VersionLine.hxx"
+#include "ProblemReportPanel.hxx"
 #include "../platform/ApplicationServices.hxx"
 #include "../common/Localization.hxx"
+#include <optional>
 
 namespace sf4e { namespace ui {
-enum class RecoveryChoice { None, Folder, Retry, CheckUpdates, Install, Cancel, Close };
+// Report opens the crash report's preview; AlwaysSend was confirmed.
+enum class RecoveryChoice { None, Folder, Retry, CheckUpdates, Install, Cancel, Close, Channel, Report, AlwaysSend };
+// The crash's report in the launch window: offered (asking), or, once a send
+// was asked for, on its way (sending) and then how it went (outcome, or
+// failure: what stopped it before anything was sent).
+struct RecoveryReport {
+    bool asking = false, sending = false;
+    std::optional<reports::Record> outcome;
+    std::string failure;
+};
+// The crash report's rows from the report worker's state: offered; on its
+// way once the worker allowed it or the player sent it; then how it went.
+inline RecoveryReport CrashReportView(const platform::ServiceSnapshot& state) {
+    const auto& reporting=state.reporting;
+    RecoveryReport view;
+    if(reporting.offer)view.asking=true;
+    else if(reporting.record)view.outcome=reporting.record;
+    // Before the worker allows an automatic send there is nothing to show;
+    // a send from the preview ends the offer when it starts.
+    else if(reporting.automatic?reporting.authorized:reporting.preparation&&reporting.phase!=reports::Phase::Idle){
+        if(reporting.Busy()||state.pending)view.sending=true;
+        else view.failure=reporting.message;
+    }
+    return view;
+}
 // The root screen names the header's "< Back / ..." breadcrumb (MenuScreenLabel).
 inline MenuNavigation RecoveryNavigation(bool updates) { return MenuNavigation(updates?"updates":"recovery"); }
 // Each newly found update takes the highlight once, so Select installs it
@@ -14,6 +42,16 @@ inline MenuNavigation RecoveryNavigation(bool updates) { return MenuNavigation(u
 inline void OfferFoundUpdate(GameMenu& menu,const platform::ServiceSnapshot& state,std::string& offered) {
     if(!state.update.ok||!state.update.updateAvailable||state.pending||state.update.latestVersion==offered)return;
     offered=state.update.latestVersion;menu.navigation.Prefer("install");
+}
+inline const char* UpdateChannelLabel(launcher::UpdateChannel channel) { return loc::T(launcher::GetUpdateChannelInfo(channel).labelKey); }
+// What switching the update channel from `from` to `to` means, for the row's
+// pane and its confirm: the switch, the channel's own warning, and on a move to
+// an older channel that going back may install an older version.
+inline std::string ChannelSwitchDetail(launcher::UpdateChannel from,launcher::UpdateChannel to) {
+    std::string text=loc::Tf("updates.channel.switch_detail",UpdateChannelLabel(from),UpdateChannelLabel(to));
+    text+="\n\n";text+=loc::T(launcher::GetUpdateChannelInfo(to).detailKey);
+    if(ClassifyChannelMove(from,to)==ChannelMove::GoesBack)text+="\n\n"+loc::Tf("updates.channel.going_back",UpdateChannelLabel(from),UpdateChannelLabel(to));
+    return text;
 }
 // Rendering returns intent only. The launcher owns dialogs, services and exit.
 // messageTone is the launcher message's own severity: a selected folder is
@@ -25,26 +63,77 @@ inline void OfferFoundUpdate(GameMenu& menu,const platform::ServiceSnapshot& sta
 // the service result always shows.
 // canStart adds a way into the game to the updater, which otherwise only
 // closes: it answers RecoveryChoice::Retry like the launch window's Retry.
+// The updater also shows the channel its checks use and the installed
+// version, so an offered version can be read against it. With channelPick,
+// Left and Right on the channel row pick a channel and Select asks to switch
+// to it (RecoveryChoice::Channel, the pick in channelPick->picked); without
+// one the row only informs. The release notes of the offered version open in
+// a reader from the "What's new" row.
+// `report` adds the crash report's rows after Retry: Send this report, which
+// opens its preview, and Always send, confirmed with Cancel first; or one row
+// saying how the report went.
 inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSnapshot& state,const std::string& message,bool updates,
-    Tone messageTone=Tone::Error,bool canStart=false,bool serviceNewer=true) {
+    Tone messageTone=Tone::Error,bool canStart=false,bool serviceNewer=true,ChannelPick* channelPick=nullptr,const RecoveryReport& report={}) {
+    if(channelPick)channelPick->Settle(state.channel,state.pending);
     std::vector<MenuEntry> rows;
+    // A row that waits while the worker is busy: the status line and the bar
+    // say with what, so its pane does not add "Unavailable".
+    const auto waits=[&](MenuEntry row){row.quiet=state.pending;return row;};
     if(!updates){
-        rows.push_back(Row("folder",loc::T("recovery.choose_folder"),loc::T("recovery.choose_folder_detail"),!state.pending));
-        rows.push_back(Row("retry",loc::T("recovery.retry"),state.pending?loc::T("recovery.retry_busy"):loc::T("recovery.retry_detail"),!state.pending));
+        rows.push_back(waits(Row("folder",loc::T("recovery.choose_folder"),loc::T("recovery.choose_folder_detail"),!state.pending)));
+        rows.push_back(waits(Row("retry",loc::T("recovery.retry"),state.pending?loc::T("recovery.retry_busy"):loc::T("recovery.retry_detail"),!state.pending)));
+        if(report.asking){
+            rows.push_back(waits(Row("report",loc::T("reports.send_once"),loc::T("reports.send_once_detail"),!state.pending)));
+            // Its confirmation says what every report holds, where it goes and how often.
+            rows.push_back(waits(ConfirmRow("report-always",loc::T("reports.send_always"),
+                std::string(loc::T("reports.payload"))+"\n\n"+loc::Tf("reports.send_always_detail",reports::AutomaticPerDay),!state.pending)));
+        }else if(report.sending||report.outcome||!report.failure.empty()){
+            rows.push_back(InfoRow("report-status",loc::T("reports.crash_report"),
+                report.outcome?ReportStatusLabel(report.outcome->status):report.sending?loc::T("reports.status.sending"):loc::T("reports.status.not_sent"),
+                report.outcome?ReportRecordText(*report.outcome):report.sending?std::string(loc::T("reports.sending")):report.failure));
+        }
     }
     // A found update comes first, named by its version: installing it is
     // what the player came here for.
     if(state.update.ok&&state.update.updateAvailable){
-        rows.push_back(ConfirmRow("install",loc::T("updates.install"),state.update.expectedSha256.size()==64?
-            loc::T("updates.install_detail"):loc::T("updates.unverified"),!state.pending&&state.update.expectedSha256.size()==64));
+        const bool verified=state.update.expectedSha256.size()==64;
+        std::string detail=verified?loc::T("updates.install_detail"):loc::T("updates.unverified");
+        // Going back: the offer is older than what is installed.
+        if(state.update.goesBack)detail=std::string(loc::T("updates.install_going_back"))+"\n\n"+detail;
+        rows.push_back(waits(ConfirmRow("install",loc::T("updates.install"),detail,!state.pending&&verified)));
         rows.back().value=state.update.latestVersion;
     }
-    rows.push_back(Row("check",loc::T("updates.check"),state.pending?loc::T("updates.busy"):loc::T("updates.check_detail"),!state.pending));
+    // The offered (or current) release's notes, as plain text in a reader the
+    // pad and keys scroll. They are GitHub text: only ever drawn as text.
+    if(updates&&state.update.ok){
+        // Plain text already, made once as the check read them.
+        const auto& notes=state.update.releaseNotes;
+        if(!notes.empty()){
+            auto row=Row("notes",loc::T("updates.whats_new"),loc::Tf("updates.whats_new_detail",state.update.latestVersion)+"\n\n"+notes);
+            row.reading=true;row.detailText=DetailText::Chat;rows.push_back(std::move(row));
+        }
+    }
+    rows.push_back(waits(Row("check",loc::T("updates.check"),state.pending?loc::T("updates.busy"):loc::T("updates.check_detail"),!state.pending)));
+    if(updates){
+        const auto shown=channelPick?channelPick->Shown(state.channel):state.channel;
+        const bool switching=shown!=state.channel;
+        auto row=Value("channel",loc::T("updates.channel"),UpdateChannelLabel(shown),
+            switching?ChannelSwitchDetail(state.channel,shown):std::string(loc::T(launcher::GetUpdateChannelInfo(state.channel).detailKey)),!state.pending);
+        // Left and Right pick; Select on a pick other than the saved channel
+        // opens its confirm, which repeats this row's label.
+        if(!channelPick){row.adjustable=false;row.info=true;}
+        else if(switching){row.opens=true;row.confirm=true;}
+        rows.push_back(waits(std::move(row)));
+        if(!state.installedVersion.empty())rows.push_back(InfoRow("installed",loc::T("updates.installed_version"),state.installedVersion,loc::T("updates.installed_version_detail")));
+    }
     if(state.pending)rows.push_back(Row("cancel",loc::T("updates.cancel"),loc::T("updates.cancel_detail")));
     if(updates&&canStart)
-        rows.push_back(Row("retry",loc::T("updates.start_game"),state.pending?loc::T("recovery.retry_busy"):loc::T("updates.start_game_detail"),!state.pending));
+        rows.push_back(waits(Row("retry",loc::T("updates.start_game"),state.pending?loc::T("recovery.retry_busy"):loc::T("updates.start_game_detail"),!state.pending)));
     rows.push_back(Row("close",loc::T("common.close"),state.pending?loc::T("recovery.close_cancels_detail"):
         loc::T(updates?"updates.close_detail":"recovery.close_detail")));
+    // The launch window names the version in its corner, as Home does; the
+    // updater has its own rows for it.
+    menu.footerNote=updates?std::string():VersionLine(state.installedVersion,state.channel);
     // Back on the root closes the window, so the legend says so.
     menu.backHint=updates?loc::T("updates.back_close"):loc::T("recovery.back_close");
     const auto* vp=ImGui::GetMainViewport();
@@ -60,18 +149,25 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
     // run to several lines and name the files to move and the folders to look in.
     menu.fitStatus=true;
     const auto action=menu.Draw(updates?loc::T("updates.title"):loc::T("recovery.title"),rows,status.c_str(),[&](const std::string&){
-        if(!state.pending||!state.downloadedBytes)return;
-        if(state.totalBytes)ImGui::ProgressBar((std::min)(1.f,float(state.downloadedBytes)/state.totalBytes),ImVec2(-1,0));
-        const auto progress=loc::Tf("updates.downloaded_mb",state.downloadedBytes/1048576.0);
+        if(!state.pending)return;
+        // An installing update with no total (extracting, or a step just begun) gets Dear ImGui's moving bar.
+        if(state.stageTotal)ImGui::ProgressBar((std::min)(1.f,float(state.stageDone)/state.stageTotal),ImVec2(-1,0));
+        else if(state.lastAction==platform::ServiceAction::InstallUpdate)ImGui::ProgressBar(-1.f*float(ImGui::GetTime()),ImVec2(-1,0));
+        if(state.updateStage!=launcher::UpdateStage::Downloading||!state.stageDone)return;
+        const auto progress=loc::Tf("updates.downloaded_mb",state.stageDone/1048576.0);
         ImGui::TextWrapped("%s",progress.c_str());
     },1,{},{},0,100,true,tone);
     ImGui::End();
     if(action.kind==MenuAction::Close)return RecoveryChoice::Close;
+    if(action.kind==MenuAction::Adjust&&action.id=="channel"&&channelPick&&!state.pending)channelPick->Step(state.channel,action.delta);
     if(action.kind!=MenuAction::Activate)return RecoveryChoice::None;
     if(action.id=="folder")return RecoveryChoice::Folder;
+    if(action.id=="report")return RecoveryChoice::Report;
+    if(action.id=="report-always")return RecoveryChoice::AlwaysSend;
     if(action.id=="retry")return RecoveryChoice::Retry;
     if(action.id=="check")return RecoveryChoice::CheckUpdates;
     if(action.id=="install")return RecoveryChoice::Install;
+    if(action.id=="channel")return channelPick&&channelPick->Pending(state.channel)?RecoveryChoice::Channel:RecoveryChoice::None;
     if(action.id=="cancel")return RecoveryChoice::Cancel;
     if(action.id=="close")return RecoveryChoice::Close;
     return RecoveryChoice::None;

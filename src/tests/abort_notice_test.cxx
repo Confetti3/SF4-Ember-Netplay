@@ -71,6 +71,19 @@ int main() {
 	CHECK(!fSystem::ggpo);
 	CHECK(Notice().empty());
 
+	// A spectator stream that never came up ends while its battle is still
+	// loading (SpectatorStreamWatch): the session is retired, the netplay
+	// battle it claimed is left to drive out, and the player reads why.
+	facade::ClearMatchNotice();
+	StartSession();
+	fSystem::simGate.OnSessionStarted();
+	fSystem::AbortGgpoMatch(sf4e::loc::T("runtime.spectator_stream_lost"));
+	CHECK(!fSystem::ggpo);
+	CHECK(fSystem::simGate.phase == sf4e::gate::PHASE_NO_SESSION && fSystem::simGate.NativeExitRequired());
+	CHECK(Notice(&severity) == sf4e::loc::T("runtime.spectator_stream_lost") && severity == sf4e::NoticeSeverity::Error);
+	CHECK(fSystem::simGate.OnNativeBattleClosed());
+	facade::ClearMatchNotice();
+
 	// An Error raised while the session was live (the battle-close path of a
 	// GGPO disconnect) outlives the retirement, so the player still reads why
 	// the match ended once the room shell is back.

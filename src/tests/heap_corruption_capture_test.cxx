@@ -150,8 +150,11 @@ size_t Count(const std::string& text, const std::string& part) {
 	return count;
 }
 
+void CheckReportStreams(const std::wstring& path, DWORD exceptionCode);
+
 void TestHandlerRecordsAndLauncherDumps(const wchar_t* heap) {
 	DumpChannel channel;
+    channel.reportEnabled = true;
 	CHECK(channel.Create(true));
 	const std::wstring logs = TempDirectory();
 	wchar_t self[MAX_PATH] = {};
@@ -186,7 +189,9 @@ void TestHandlerRecordsAndLauncherDumps(const wchar_t* heap) {
 	CHECK(DumpedExceptionCode(dump, size) == HeapCorruptionCode);
 	// The heap itself is in the dump, not only what the stacks point at.
 	CHECK(FileContainsMarker(dump));
-	CHECK(CountDumps(logs) == 1);
+	CHECK(CountDumps(logs) == 2);
+    CHECK(!channel.reportWritten.empty());
+    CheckReportStreams(channel.reportWritten, HeapCorruptionCode);
 	std::printf("heap_corruption_capture_test: %ls heap dump is %llu KB\n", heap, size / 1024);
 	// MiniDumpNormal gave about 64 KB, too little to follow a corruption.
 	CHECK(size > 64 * 1024);
@@ -198,6 +203,7 @@ void TestHandlerRecordsAndLauncherDumps(const wchar_t* heap) {
 	CHECK(Count(record.str(), "kind=heap_corruption code=0xC0000374") == 1);
 	CHECK(record.str().find("the last line before the corruption") != std::string::npos);
 	DeleteFileW(dump.c_str());
+    DeleteFileW(channel.reportWritten.c_str());
 	DeleteFileW((logs + L"\\sf4e-crash.log").c_str());
 	RemoveDirectoryW(logs.c_str());
 }
@@ -367,6 +373,35 @@ void TestClientWithoutChannelDeclines() {
 	CHECK(!client.Request(&pointers));
 }
 
+void TestReportDumpsStayPaired() {
+	const std::wstring logs = TempDirectory();
+	const std::wstring older = logs + L"\\sf4e-crash-20260101-000000-000-1.dmp";
+	const std::wstring newer = logs + L"\\sf4e-crash-20260102-000000-000-1.dmp";
+	const std::wstring orphan = logs + L"\\sf4e-crash-20260103-000000-000-1-report.dmp";
+	for (const auto& path : { older, newer, ReportDumpPath(older), ReportDumpPath(newer), orphan }) {
+		HANDLE file = CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, 0, nullptr);
+		CHECK(file != INVALID_HANDLE_VALUE); CloseHandle(file);
+	}
+    HANDLE locked = CreateFileW(older.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, nullptr);
+    CHECK(locked != INVALID_HANDLE_VALUE);
+    PruneDumps(logs.c_str(), 1);
+    CHECK(GetFileAttributesW(older.c_str()) != INVALID_FILE_ATTRIBUTES);
+    CHECK(GetFileAttributesW(ReportDumpPath(older).c_str()) != INVALID_FILE_ATTRIBUTES);
+    CHECK(GetFileAttributesW(newer.c_str()) != INVALID_FILE_ATTRIBUTES);
+    CHECK(GetFileAttributesW(ReportDumpPath(newer).c_str()) != INVALID_FILE_ATTRIBUTES);
+    CloseHandle(locked);
+    PruneDumps(logs.c_str(), 1);
+    CHECK(GetFileAttributesW(older.c_str()) == INVALID_FILE_ATTRIBUTES);
+	CHECK(GetFileAttributesW(ReportDumpPath(older).c_str()) == INVALID_FILE_ATTRIBUTES);
+	CHECK(GetFileAttributesW(newer.c_str()) != INVALID_FILE_ATTRIBUTES);
+	CHECK(GetFileAttributesW(ReportDumpPath(newer).c_str()) != INVALID_FILE_ATTRIBUTES);
+	CHECK(GetFileAttributesW(orphan.c_str()) == INVALID_FILE_ATTRIBUTES);
+	PruneDumps(logs.c_str(), 0); CHECK(CountDumps(logs) == 0);
+	RemoveDirectoryW(logs.c_str());
+}
+
+#include "heap_report_capture.hxx"
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -390,6 +425,8 @@ int main(int argc, char** argv) {
 	TestClientWithoutChannelDeclines();
 	TestEveryDumpIsKeptAndBadRequestsRefused();
 	TestHeapDumpsAreKeptApart();
+	TestReportDumpsStayPaired();
+    TestSmallDumpIndependentOfFull();
 	TestHandlerRecordsAndLauncherDumps(L"private");
 	TestHandlerRecordsAndLauncherDumps(L"process");
 	TestNonZeroExitIsRecorded();

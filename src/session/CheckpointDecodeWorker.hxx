@@ -67,7 +67,9 @@ public:
     }
 
     // False when the thread could not be started; the caller decodes inline.
-    bool Submit(std::uint64_t ticket, std::string bytes) {
+    // The bytes are taken only on success: on failure they are left as they
+    // were, for the inline decode.
+    bool Submit(std::uint64_t ticket, std::string&& bytes) {
         try {
             std::lock_guard<std::mutex> lock(mutex_);
             if (!thread_.joinable()) thread_ = std::thread([this] { Run(); });

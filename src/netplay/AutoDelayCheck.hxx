@@ -1,11 +1,22 @@
 #pragma once
 
+#include "../common/GamePing.hxx"
 #include "../common/InputDelay.hxx"
 
 #include <cstdint>
 #include <string>
 
 namespace sf4e { namespace netplay {
+
+// One game just played, as the match left it: who the opponent was (the peer
+// identity the match's grant linked, kept after the link closed), the match's
+// generation, and its ping. It travels from the end of the match to the tick
+// that consumes it, by which time the table may have seated someone else.
+struct PlayedGame {
+    std::uint64_t generation = 0;
+    std::string opponent;
+    GamePing::Summary ping = {};
+};
 
 // Auto's connection check against the seated opponent. It wants one check per
 // opponent, shortly after they sit down, and keeps what that check measured:
@@ -78,13 +89,29 @@ public:
     // opponent since they sat down counts, whoever asked for it. Auto's own
     // check that ends without a recommendation, or never started, is asked
     // for again while attempts remain.
+    // Each result counts once, when it first shows: the room keeps the last
+    // one, and re-reading it every tick would undo what a later game measured.
     void Observe(const std::string& peer, std::uint64_t request, const std::string& status, int recommended, std::uint64_t nowMs) {
-        if (!opponent_.empty() && peer == opponent_ && request >= firstRequest_ && recommended >= 0)
+        if (!opponent_.empty() && peer == opponent_ && request >= firstRequest_ && request > checkedRequest_ && recommended >= 0) {
             recommended_ = recommended;
+            checkedRequest_ = request;
+        }
         if (asked_ && (request != askedRequest_ || peer != opponent_ || status != "checking")) {
             asked_ = false;
             if (recommended_ < 0) askAtMs_ = nowMs + RetryMs;
         }
+    }
+    // A game just played: its ping over the whole game says more about the
+    // link than the five second check did, so Auto follows it, up and down,
+    // until a check measures again. The ping does not depend on the delay
+    // played, so following it cannot oscillate. A fighter on a chosen delay, a
+    // game that reported too few pings, or one against anyone but the opponent
+    // seated now leaves the recommendation as it was. Returns whether it was set.
+    bool Played(bool automatic, const PlayedGame& game) {
+        if (!automatic || game.opponent.empty() || game.opponent != opponent_ || game.ping.samples < GamePing::MinimumSamples)
+            return false;
+        recommended_ = RecommendedInputDelay(game.ping.medianMs, game.ping.p95Ms);
+        return true;
     }
     // Auto asked for a check under this request number.
     void Asked(std::uint64_t request) { asked_ = true; askedRequest_ = request; ++attempts_; }
@@ -115,6 +142,8 @@ private:
     bool present_ = false;
     int recommended_ = -1;
     std::uint64_t firstRequest_ = 1;
+    // The newest check result taken, by request number (they only grow).
+    std::uint64_t checkedRequest_ = 0;
     std::uint64_t revision_ = 0;
     std::uint64_t settledFromMs_ = 0;
     std::uint64_t leftAtMs_ = 0;

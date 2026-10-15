@@ -12,7 +12,7 @@ This is a **known false positive** on unsigned netplay tools that inject into US
 
 1. Download only from [GitHub Releases](https://github.com/Confetti3/SF4-Netplay-Launcher/releases/latest) (**v0.6.5** or newer).
 2. Verify SHA256 hashes match the release page.
-3. See [`docs/guides/WINDOWS_DEFENDER.md`](WINDOWS_DEFENDER.md) — permanent fix is **Authenticode signing**, not Defender exclusions.
+3. See [`docs/guides/WINDOWS_DEFENDER.md`](../guides/WINDOWS_DEFENDER.md) — permanent fix is **Authenticode signing**, not Defender exclusions.
 
 ## Scope and limitations
 
@@ -23,7 +23,7 @@ This is a **known false positive** on unsigned netplay tools that inject into US
 | Same zip on all players | Shared broker (~**50 rooms** ≈ 100 players; **5 min** idle for empty codes, no occupied-room age limit by default) |
 | Advanced Direct IP / UPnP | Host port-forward for Direct IP; Find match / Open rooms **experimental** |
 
-Full list: [`docs/guides/SCOPE_AND_LIMITATIONS.md`](SCOPE_AND_LIMITATIONS.md) in this folder.
+Full list: [`docs/guides/SCOPE_AND_LIMITATIONS.md`](../guides/SCOPE_AND_LIMITATIONS.md) in this folder.
 
 ## Quick start (3 steps)
 
@@ -57,7 +57,7 @@ The launcher defaults to **Simple mode** and relay room codes (`SF4-XXXX`). Brok
 | **Start game** (connects outbound to VPS) | Wait for host **Connected**, then join |
 | No port forward on host PC | No port forward needed |
 
-See [USER_NETPLAY.md](USER_NETPLAY.md) for room codes and broker override: `set SF4E_BROKER_URL=https://your-broker.example`. For a local HTTP broker during development, also set `SF4E_ALLOW_HTTP_BROKER=1`.
+See [USER_NETPLAY.md](../guides/USER_NETPLAY.md) for room codes and broker override: `set SF4E_BROKER_URL=https://your-broker.example`. For a local HTTP broker during development, also set `SF4E_ALLOW_HTTP_BROKER=1`.
 
 ## Direct IP over internet (Advanced mode)
 
@@ -119,11 +119,11 @@ Launcher.exe
 | 3 | Both **Ready** in-game | Both **Ready** |
 | 4 | Play a few rounds | Same zip / `Sidecar.dll` |
 
-Full checklist: [SMOKE_TEST.md](SMOKE_TEST.md). Player guide: [USER_NETPLAY.md](USER_NETPLAY.md).
+Full checklist: [SMOKE_TEST.md](SMOKE_TEST.md). Player guide: [USER_NETPLAY.md](../guides/USER_NETPLAY.md).
 
 ## Troubleshooting
 
-**Detailed fixes:** [TROUBLESHOOTING.md](TROUBLESHOOTING.md) (black launcher, crash on launch, recommended settings, Direct IP ports).
+**Detailed fixes:** [TROUBLESHOOTING.md](../guides/TROUBLESHOOTING.md) (black launcher, crash on launch, recommended settings, Direct IP ports).
 
 | Problem | What to try |
 |---------|-------------|

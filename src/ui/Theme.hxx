@@ -32,7 +32,9 @@ inline ImVec4 DialogButtonColor(bool selected) { return selected ? ImVec4(.5f,.2
 inline ImVec4 EntryTextColor(bool enabled) { return enabled ? ImVec4(.95f,.92f,.87f,1) : ImVec4(.55f,.52f,.48f,1); }
 
 // Call between frames. A true result requires backend font texture recreation.
-bool ApplyTheme(float dpiScale);
+// Text is drawn at Windows' DPI scale for the window times the player's
+// Interface size (Scale()).
+bool ApplyTheme(float dpiScale, float interfaceScale = 1.f);
 // What player text is, from most to least worth atlas space when more distinct
 // characters are on screen than the atlas can hold.
 enum class UserTextRole { Name, Chat, Draft };
@@ -61,6 +63,9 @@ void SetAtlasBuildLog(std::function<void(const char*)> log);
 // to retire text.
 void SetUserGlyphRetention(std::chrono::milliseconds retention);
 float Scale();
+// The player's Interface size alone, for what is laid out in the game's
+// pixels and so leaves Windows' DPI out (the training HUD).
+float InterfaceScale();
 ImFont* HeadingFont();
 ImFont* DiagnosticFont();
 const char* FontLicense();
@@ -112,6 +117,9 @@ struct MatchStripView {
     // 0 the Ember strip (one panel); 1 split: each name on a plate above its life bar,
     // and a small telemetry panel placed by `anchor`/`raised`.
     int layout = 0;
+    // Split layout: the name plates' shift from the default PLAYER label row, in 720p
+    // game units (positive is down), for a game whose own HUD position was changed.
+    int nameOffset = 0;
     // Members watching this match; the split layout shows "Watching N" when above zero.
     int spectators = 0;
     // Link state and the latest netplay notice, drawn on a line above the
@@ -137,7 +145,9 @@ void DrawMatchStripPreview(const MatchStripView& view);
 // harness: the two name plates and the telemetry panel with its state line.
 // `valid` is false for the Ember strip, which has no separate name plates.
 struct MatchStripBox { float x0 = 0, y0 = 0, x1 = 0, y1 = 0; bool valid = false; };
-struct MatchStripBounds { MatchStripBox names[2], panel; };
+// panelScale is the telemetry panel's scale; panelBelow is set when a top-anchored panel
+// went to the bottom corner because names moved up left too little room above them.
+struct MatchStripBounds { MatchStripBox names[2], panel; float panelScale = 0; bool panelBelow = false; };
 MatchStripBounds MatchStripGeometry(const MatchStripView& view);
 // The same on a screen of any size, for checking placement on screens the harness does not render.
 MatchStripBounds MatchStripGeometry(const MatchStripView& view,ImVec2 screenPos,ImVec2 screenSize);
@@ -145,6 +155,22 @@ MatchStripBounds MatchStripGeometry(const MatchStripView& view,ImVec2 screenPos,
 const char* MatchStripLayoutName(int layout);
 // The settings label for a MatchStripView::anchor value ("Bottom center", "Top right").
 const char* MatchStripAnchorName(int anchor);
+// "Default", "Up 20" or "Down 6": the split layout's name offset (MatchStripView::nameOffset).
+std::string MatchHudNameOffsetText(int offset);
+// What a replay's export shows over the game (common/ReplayRequest.hxx,
+// Caption), as text ready to draw: the two plates of the split layout
+// without their link glyphs (an empty name draws none), one line centred
+// over the timer, and Ember's mark in the bottom right corner.
+struct ExportCaptionView {
+    std::string names[2], line;
+    bool mark = false;
+    int nameOffset = 0;
+};
+// Drawn in a window of its own, ExportCaptionWindow, that takes no input, so
+// an export can take it into its video apart from the rest of Ember
+// (OverlayLayers.hxx: SplitExportPasses).
+constexpr const char* ExportCaptionWindow = "Export caption";
+void DrawExportCaption(const ExportCaptionView& view);
 void DrawControllerWarning(const std::string& message);
 struct DiagnosticStripView {
     bool hasRemote = false, networkAvailable = false;

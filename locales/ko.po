@@ -69,11 +69,17 @@ msgstr "SF4 Ember Netplay가 이미 실행 중입니다. 창이 보이지 않으
 msgid "launcher.start_failed"
 msgstr "게임 실행 또는 인젝션에 실패했습니다. 런처 로그(%APPDATA%\\sf4e\\logs\\launcher.log)를 확인하고 다시 시도하세요."
 
+msgid "launcher.game_runs_as_admin"
+msgstr "SSFIV.exe가 관리자 권한으로 실행되도록 설정되어 있어 Ember에서 시작할 수 없습니다. 게임 폴더에서 SSFIV.exe를 마우스 오른쪽 버튼으로 클릭하고 속성의 호환성 탭을 연 뒤 \"관리자 권한으로 이 프로그램 실행\"을 해제하세요. \"모든 사용자 설정 변경\" 안에서도 해제해야 합니다. 그런 다음 다시 시도하세요."
+
 msgid "launcher.game_error"
 msgstr "게임이 오류로 종료되었습니다. 런처 로그(%APPDATA%\\sf4e\\logs\\launcher.log)를 확인하고 다시 시도하세요."
 
+msgid "launcher.steam_runs_as_admin"
+msgstr "Steam이 관리자 권한으로 실행 중이어서 게임이 Steam에 연결하지 못했습니다. Steam을 종료하고 일반 방식으로 다시 실행한 뒤 다시 시도하세요. Ember를 관리자 권한으로 실행해도 되지만, 그러면 업데이트가 설치되지 않습니다."
+
 msgid "launcher.game_crashed"
-msgstr "게임이 충돌했습니다. %APPDATA%\\sf4e\\logs 폴더의 파일(sf4e.log, sf4e-crash.log, sf4e-crash-*.dmp)을 SF4 Ember Netplay 팀에 보낸 뒤 다시 시도하세요."
+msgstr "게임이 충돌했습니다. 문제 해결을 도우려면 아래에서 이 보고서 보내기를 선택하세요. %APPDATA%\\sf4e\\logs 폴더의 파일을 직접 보내도 됩니다."
 
 msgid "launcher.runtime_shadowed"
 msgstr "게임이 Ember 폴더의 파일 대신 아래 파일을 불러오며, 오래된 사본 때문에 실행 전에 종료됩니다(\"entry point ggpo_get_last_confirmed_frame not found\"). 다른 넷플레이 모드나 이전 설치의 잔여 파일입니다. 해당 파일을 이동하거나 이름을 바꾼 뒤 Ember를 다시 시작하세요:\n\n{0}"
@@ -126,6 +132,36 @@ msgstr "이미 다른 작업이 진행 중입니다."
 msgid "updates.check_detail"
 msgstr "새 Ember 패키지가 있는지 확인합니다."
 
+msgid "updates.channel"
+msgstr "업데이트 채널"
+
+msgid "updates.channel.stable"
+msgstr "안정"
+
+msgid "updates.channel.prerelease"
+msgstr "베타"
+
+msgid "updates.channel.nightly"
+msgstr "나이틀리"
+
+msgid "updates.channel.nightly_detail"
+msgstr "최신 기능을 포함한 일일 테스트 빌드입니다. 정상적으로 작동하지 않을 수 있습니다. 방에서는 나이틀리 버전을 사용하는 플레이어하고만 플레이할 수 있으며, 나이틀리에서 저장한 리플레이는 이전 버전으로 돌아간 후 열리지 않을 수 있습니다."
+
+msgid "updates.channel_detail"
+msgstr "안정 채널은 정식 버전만 제공합니다. 베타 채널은 베타 및 출시 후보 버전도 제공하며 문제가 더 많을 수 있습니다. 함께 플레이하는 모든 사람이 같은 버전이어야 합니다."
+
+msgid "updates.channel.switch_detail"
+msgstr "업데이트 확인 채널을 {0}에서 {1}(으)로 바꾸고 바로 {1}을(를) 확인합니다. 다운로드 및 설치를 선택하기 전에는 아무것도 설치되지 않습니다."
+
+msgid "updates.channel.going_back"
+msgstr "{0}에서 {1}(으)로 돌아가면 지금보다 오래된 버전이 제공될 수 있습니다. {0}에서 녹화한 리플레이는 {1}에서 열리지 않을 수 있습니다."
+
+msgid "updates.installed_version"
+msgstr "설치된 버전"
+
+msgid "updates.installed_version_detail"
+msgstr "이 PC의 Ember 버전입니다."
+
 msgid "updates.install"
 msgstr "다운로드 및 설치"
 
@@ -134,6 +170,15 @@ msgstr "설치 전에 SF4를 닫으세요. 설치 전에 패키지를 검증하�
 
 msgid "updates.unverified"
 msgstr "이 업데이트에는 검증용 체크섬이 없어 설치할 수 없습니다."
+
+msgid "updates.install_going_back"
+msgstr "지금보다 오래된 버전으로 돌아갑니다. 현재 버전에서 녹화한 리플레이는 열리지 않을 수 있습니다."
+
+msgid "updates.whats_new"
+msgstr "새로운 내용"
+
+msgid "updates.whats_new_detail"
+msgstr "{0} 릴리스 노트."
 
 msgid "updates.cancel"
 msgstr "작업 취소"
@@ -178,13 +223,29 @@ msgid "services.exporting"
 msgstr "진단 정보 내보내는 중..."
 
 msgid "services.downloading"
-msgstr "업데이트 다운로드 및 검증 중..."
+msgstr "업데이트 다운로드 중..."
+
+msgid "services.verifying"
+msgstr "다운로드 검증 중..."
+
+msgid "services.extracting"
+msgstr "업데이트 압축 해제 중..."
+
+msgid "services.preparing"
+msgstr "업데이트 준비 중..."
+
+msgid "services.installing"
+msgstr "업데이트 설치 중..."
 
 msgid "services.opening_updater"
 msgstr "업데이터 여는 중..."
 
 msgid "services.update_available"
 msgstr "업데이트가 있습니다: {0}"
+
+msgid "services.go_back_available"
+msgstr "{0} 버전으로 돌아갈 수 있습니다"
+
 
 msgid "services.up_to_date"
 msgstr "최신 버전입니다."
@@ -556,7 +617,7 @@ msgid "home.online"
 msgstr "온라인 플레이"
 
 msgid "home.online_detail"
-msgstr "방을 만들거나 참가하거나 공개 방을 둘러보세요."
+msgstr "방을 만들거나 참가하고, 공개 방을 둘러보거나, 대회용 Ember ID를 설정하세요."
 
 msgid "home.return_room"
 msgstr "현재 방으로 돌아갑니다."
@@ -586,7 +647,7 @@ msgid "home.identity_matches"
 msgstr "플레이할 수 있는 대회 경기: {0}"
 
 msgid "home.settings_detail"
-msgstr "플레이어, 컨트롤러, 게임플레이 기본 설정, 화면, 언어 및 Discord."
+msgstr "플레이어, 컨트롤러, 기본 대전 규칙, 인터페이스, 언어, 트레이닝, Discord."
 
 msgid "home.about"
 msgstr "도움말 및 정보"
@@ -598,7 +659,192 @@ msgid "home.offline"
 msgstr "오프라인 플레이"
 
 msgid "home.offline_detail"
-msgstr "게임의 오프라인 메뉴를 엽니다."
+msgstr "트레이닝, 대전, 아케이드 등 게임의 오프라인 모드입니다."
+
+msgid "home.replays"
+msgstr "리플레이"
+
+msgid "home.replays_detail"
+msgstr "저장한 대전입니다. 시청하거나 게임에 추가하거나 입력을 확인하세요."
+
+msgid "replays.title"
+msgstr "리플레이"
+
+msgid "replays.empty"
+msgstr "아직 리플레이가 없습니다"
+
+msgid "replays.empty_detail"
+msgstr "매치가 끝나면 여기에 저장됩니다."
+
+msgid "replays.add"
+msgstr "게임에 추가"
+
+msgid "replays.add_detail"
+msgstr "나중에 볼 수 있도록 게임의 Battle Log에 추가합니다."
+
+msgid "replays.watch"
+msgstr "지금 보기"
+
+msgid "replays.watch_detail"
+msgstr "게임의 Battle Log에 추가하고 재생합니다."
+
+msgid "replays.save_watched"
+msgstr "관전한 매치 저장"
+
+msgid "replays.save_watched_detail"
+msgstr "관전자로 시청한 대전도 저장합니다. 끄면 직접 플레이한 대전만 저장합니다."
+
+msgid "replays.link"
+msgstr "링크의 리플레이 재생"
+
+msgid "replays.link_detail"
+msgstr "링크가 Ember에 {0} 재생을 요청했습니다. 링크 출처를 신뢰할 때만 재생하세요."
+
+msgid "replays.link_play"
+msgstr "재생"
+
+msgid "replays.link_dismiss"
+msgstr "나중에"
+
+msgid "replays.link_dismiss_detail"
+msgstr "링크를 잊습니다. 파일은 원래 위치에 남습니다."
+
+msgid "replays.exported"
+msgstr "동영상 저장됨: {0}"
+
+msgid "replays.gpu_not_exported"
+msgstr "동영상이 만들어지지 않았습니다. Windows에 H.264 인코더가 없거나 게임 화면을 읽지 못했습니다. 이유는 로그에 있습니다."
+
+msgid "replays.open_folder"
+msgstr "리플레이 폴더 열기"
+
+msgid "replays.open_folder_detail"
+msgstr "탐색기에서 보관함을 엽니다. 리플레이와 내보낸 동영상이 있습니다."
+
+msgid "services.opening_replay_folder"
+msgstr "리플레이 폴더 여는 중..."
+
+msgid "services.replay_folder_opened"
+msgstr "탐색기에서 {0}을(를) 열었습니다."
+
+msgid "services.replay_folder_failed"
+msgstr "리플레이 폴더를 열 수 없습니다."
+
+msgid "replays.inputs"
+msgstr "입력과 통계"
+
+msgid "replays.inputs_detail"
+msgstr "두 플레이어가 누른 입력을 프레임별로 합계와 함께 표시합니다. 아무것도 재생하지 않습니다."
+
+msgid "replays.show_folder"
+msgstr "폴더에서 보기"
+
+msgid "replays.show_folder_detail"
+msgstr "이 리플레이가 있는 폴더를 탐색기에서 엽니다."
+
+msgid "inputs.length_value"
+msgstr "라운드 {0} · {1}"
+
+msgid "inputs.activity"
+msgstr "분당 입력 {0}회, 점프 {1}회, 앉은 시간 {2}%."
+
+msgid "inputs.round"
+msgstr "라운드 {0}"
+
+msgid "inputs.legend"
+msgstr "각 줄: 시간, 그리고 그때부터 P1과 P2가 누르고 있는 입력. 방향은 화면 기준 숫자 키패드 표기입니다. 4는 왼쪽, 6은 오른쪽, 5는 없음."
+
+msgid "inputs.reading"
+msgstr "리플레이를 읽는 중..."
+
+msgid "inputs.look_unknown"
+msgstr "외형 정보 없음"
+
+msgid "inputs.unreadable"
+msgstr "입력을 읽을 수 없습니다"
+
+msgid "inputs.unreadable_detail"
+msgstr "이 리플레이는 예전 형식이거나 파일이 손상되었습니다."
+
+msgid "replays.row_detail"
+msgstr "선택하여 시청하거나 게임에 추가하거나 입력과 통계를 확인하세요."
+
+#. The saved replay has already been played back.
+msgid "replays.seen"
+msgstr "재생 완료"
+
+#. The player watched the live match as a spectator, not a replay playback.
+msgid "replays.spectated"
+msgstr "관전한 대전"
+
+#. The player watched the live match as a spectator and has also played its replay.
+msgid "replays.spectated_seen"
+msgstr "관전한 대전, 재생 완료"
+
+msgid "replays.not_ready"
+msgstr "매치 중이 아닌 메인 메뉴에서 사용할 수 있습니다."
+
+msgid "replays.added"
+msgstr "게임의 Battle Log에 대전한 날짜로 추가했습니다."
+
+msgid "replays.not_added"
+msgstr "이 리플레이를 추가할 수 없습니다. 파일이 손상되었을 수 있습니다."
+
+msgid "replays.not_added_yet"
+msgstr "게임이 마지막 대전을 아직 저장하지 않았습니다. 잠시 후 다시 시도하세요."
+
+msgid "replays.not_added_files"
+msgstr "게임의 리플레이 파일을 읽을 수 없어 이 리플레이를 추가하지 못했습니다. 변경된 내용은 없습니다."
+
+msgid "replays.not_added_archive"
+msgstr "게임의 현재 리플레이를 먼저 저장할 수 없어 이 리플레이를 추가하지 못했습니다. 디스크 여유 공간을 확인하세요."
+
+msgid "replays.not_added_restored"
+msgstr "이 리플레이를 추가하지 못했습니다. 게임의 리플레이는 그대로입니다."
+
+msgid "replays.not_added_recovery"
+msgstr "이 리플레이를 추가하지 못했고 게임의 일부 리플레이도 복구하지 못했습니다. 리플레이 추가를 중단하고 도움말 및 정보에서 진단 자료를 내보내세요."
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "게임의 Battle Log 열기"
+
+msgid "replays.open_log_detail"
+msgstr "Ember 메뉴를 나가 리플레이를 재생하는 게임의 Battle Log를 엽니다."
+
+msgid "replays.open_log_room"
+msgstr "먼저 방에서 나가세요."
+msgid "settings.training_auto_ready"
+msgstr "트레이닝에서 호출되면 자동 준비"
+
+msgid "settings.training_auto_ready_detail"
+msgstr "방에서 트레이닝 중인 플레이어를 부르면 즉시 준비 완료로 설정합니다. 끄면 자리를 잃기 전까지 {0}초 동안 준비할 수 있습니다."
+
+msgid "settings.match_frame_meter"
+msgstr "대전 중 프레임 미터"
+
+msgid "settings.match_frame_meter_detail"
+msgstr "직접 플레이하거나 관전하는 온라인 대전 위에 프레임 미터를 표시합니다. 자신에게만 보이며 대전보다 몇 프레임 늦을 수 있습니다."
+
+msgid "settings.match_frame_meter_private"
+msgstr "비공개 방에서만 사용할 수 있습니다."
+
+msgid "room.training.detail"
+msgstr "기다리는 동안 트레이닝 모드에서 연습하세요. 맞은편에 누군가 앉으면 Ember가 다시 부릅니다."
+
+msgid "room.training.unavailable"
+msgstr "상대를 기다리는 동안 준비 완료를 누르기 전에 이용할 수 있습니다."
+
+msgid "room.training_call.ready_in"
+msgstr "{0}초 안에 준비하지 않으면 자리를 잃습니다."
+
+msgid "runtime.training_call.forfeit"
+msgstr "트레이닝 후 제시간에 준비하지 않아 자리에서 나왔습니다."
 
 msgid "home.choose_controller"
 msgstr "게임플레이 컨트롤러 선택"
@@ -709,7 +955,7 @@ msgid "settings.title"
 msgstr "설정"
 
 msgid "settings.player_detail"
-msgstr "표시 이름과 컨트롤러 지정입니다."
+msgstr "표시 이름, 컨트롤러 지정, 백그라운드 플레이입니다."
 
 msgid "settings.defaults_detail"
 msgstr "입력 지연 및 새 방의 기본 설정입니다."
@@ -741,6 +987,30 @@ msgstr "키보드 사용"
 msgid "player.use_keyboard_detail"
 msgstr "키보드를 게임플레이 장치로 지정합니다. 다시 지정하기 전까지 컨트롤러로 Ember 메뉴를 조작할 수 없게 됩니다."
 
+msgid "player.background_play"
+msgstr "백그라운드에서 플레이"
+
+msgid "player.background_play_detail"
+msgstr "OBS 같은 다른 창이 앞에 있어도 게임 소리와 컨트롤러가 계속 작동합니다. 키보드와 Ember 메뉴는 여전히 게임 창이 필요합니다. 창 모드를 사용하세요. 전체 화면에서는 게임이 최소화됩니다."
+
+msgid "player.lower_input_lag"
+msgstr "입력 지연 줄이기 (실험적)"
+
+msgid "player.lower_input_lag_detail"
+msgstr "실험적 기능입니다. 게임이 모든 입력에 더하는 1프레임 지연을 없앱니다. 방에서는 두 플레이어가 모두 켰을 때만 적용되며, 그때는 관전자에게도 적용됩니다. 오프라인 대전과 트레이닝은 이 설정만 따릅니다."
+
+msgid "player.lower_keyboard_lag"
+msgstr "키보드 지연 줄이기 (실험적)"
+
+msgid "player.lower_keyboard_lag_detail"
+msgstr "실험적 기능입니다. 게임은 키보드를 컨트롤러보다 1프레임 늦게 읽습니다. 이 설정은 그 프레임을 없앱니다. 키보드에만, 이 PC에서만 영향을 줍니다. 상대 플레이어는 켤 필요가 없습니다."
+
+msgid "player.faster_display"
+msgstr "더 빠른 화면 표시 (1프레임 지연 감소)"
+
+msgid "player.faster_display_detail"
+msgstr "게임이 각 프레임을 1프레임 늦게 표시하지 않고 준비되는 즉시 표시합니다. 이 PC에서 게임이 60fps 아래로 떨어지면 끄세요. 이 PC에서만 영향을 줍니다. 상대 플레이어는 켤 필요가 없습니다. 변경 사항은 다음에 게임을 시작할 때 적용됩니다."
+
 msgid "player.native_menus"
 msgstr "게임 메뉴 열기"
 
@@ -767,6 +1037,21 @@ msgstr "대전 HUD 배치"
 
 msgid "settings.match_hud_layout_detail"
 msgstr "Ember 스트립은 모든 정보를 한 패널에 표시합니다. 분할은 각 이름을 체력 게이지 아래에 둡니다."
+
+msgid "settings.name_offset"
+msgstr "이름 높이"
+
+msgid "settings.name_offset_detail"
+msgstr "분할 배치의 이름을 위나 아래로 옮깁니다. 게임의 HUD 위치를 바꿔서 이름이 PLAYER 1, PLAYER 2를 가리지 않을 때 사용하세요."
+
+msgid "name_offset.default"
+msgstr "기본"
+
+msgid "name_offset.up"
+msgstr "위로 {0}"
+
+msgid "name_offset.down"
+msgstr "아래로 {0}"
 
 msgid "hud_layout.strip"
 msgstr "Ember 스트립"
@@ -919,7 +1204,7 @@ msgid "about.controls"
 msgstr "조작법"
 
 msgid "about.controls_detail"
-msgstr "Xbox 패드: A로 선택, B로 뒤로 갑니다. 대전 버튼 설정과는 무관합니다. 다른 패드: 지정된 LP로 선택, LK로 뒤로 갑니다. 키보드: 방향키, Enter, Esc. D-pad로 이동하고 좌/우로 값을 바꿉니다. 홈에서 뒤로를 누르면 Ember가 숨겨집니다. 게임 메인 메뉴에서 F10(패드는 Start)으로 다시 엽니다.\n\n방에서는 테이블에서 A로 자리를 고르고, 내 자리에서 A로 준비하고, B로 자리나 대기열에서 나갑니다. Xbox 패드에서는 X가 캐릭터, Y가 옵션, View가 채팅을 열며, 다시 누르면 방으로 돌아갑니다.\n\n트레이닝에서는 F6으로 조작 창을 열고, F5로 HUD를 숨기고, F7로 녹화하고, F8로 재생합니다."
+msgstr "Xbox 패드: A로 선택, B로 뒤로 갑니다. 대전 버튼 설정과는 무관합니다. 다른 패드: 지정된 LP로 선택, LK로 뒤로 갑니다. 키보드: 방향키, Enter, Esc. D-pad로 이동하고 좌/우로 값을 바꿉니다. 홈에서 뒤로를 누르면 Ember가 숨겨집니다. 게임 메인 메뉴에서 F10(패드는 Start)으로 다시 엽니다.\n\n방에서는 테이블에서 A로 자리를 고르고, 내 자리에서 A로 준비하고, B로 자리나 대기열에서 나갑니다. Xbox 패드에서는 X가 캐릭터, Y가 옵션, View가 채팅을 열며, 다시 누르면 방으로 돌아갑니다.\n\n트레이닝에서는 F6으로 조작 창을 열고, F5로 HUD를 숨기고, F7로 녹화하고, F8로 재생합니다. 패드에서는 View 또는 Select를 누른 채 Start를 누릅니다."
 
 msgid "about.controls_keyboard"
 msgstr "키보드에서는 Space로도 선택하고 Backspace로도 돌아갑니다. 방에서는 F로 캐릭터, T로 옵션, C로 채팅을 엽니다. Esc는 내 자리에서도 항상 돌아가며, Delete로 자리나 대기열에서 나갑니다."
@@ -962,6 +1247,15 @@ msgstr "Ember Discord 참가"
 
 msgid "about.discord_detail"
 msgstr "플레이어, 대전 및 지원: {0}. 게임 뒤에서 브라우저로 엽니다."
+
+msgid "about.version_line"
+msgstr "Ember {0} · {1}"
+
+msgid "about.version_detail"
+msgstr "이 PC의 Ember 버전입니다. 빌드 {0}."
+
+msgid "about.channel_detail"
+msgstr "업데이트 확인에 이 채널을 사용합니다. 바꾸려면 게임을 닫고 Updater.exe를 더블클릭하세요."
 
 msgid "settings.retry_save"
 msgstr "저장 재시도"
@@ -1140,23 +1434,239 @@ msgstr "EMBER / {0}"
 msgid "training.controls"
 msgstr "트레이닝 조작"
 
-msgid "training.open_chip"
-msgstr "F6 트레이닝 조작"
-
 msgid "training.hide_hint"
-msgstr "F5 HUD 숨기기"
+msgstr "HUD 숨기기"
+
+msgid "training.controls_chip"
+msgstr "트레이닝 조작"
+
+msgid "training.pad_hint"
+msgstr "누르기: 복원, 길게: 저장"
+
+msgid "training.hint.reset"
+msgstr "복원"
+
+msgid "training.hint.save"
+msgstr "저장"
+
+msgid "training.save_recording"
+msgstr "녹화 이름 지정 저장"
+
+msgid "training.save_recording.detail"
+msgstr "선택한 슬롯을 이 이름의 파일로 저장합니다."
+
+msgid "training.load_recording"
+msgstr "녹화 불러오기"
+
+msgid "training.load_recording.detail"
+msgstr "좌우로 저장한 녹화를 고르고, 선택하면 선택한 슬롯에 불러옵니다."
+
+msgid "training.mirror"
+msgstr "선택한 녹화 좌우 반전"
+
+msgid "training.mirror.detail"
+msgstr "이 슬롯의 좌우를 바꿉니다. 저장한 녹화가 반대로 재생될 때 씁니다."
+
+msgid "training.recording_saved"
+msgstr "녹화를 {0}(으)로 저장했습니다."
+
+msgid "training.recording_loaded"
+msgstr "녹화 {0}을(를) 슬롯 {1}에 불러왔습니다."
+
+msgid "training.recording_none"
+msgstr "저장한 녹화가 없습니다."
 
 msgid "training.dummy_recording"
 msgstr "더미 녹화"
 
 msgid "training.dummy_recording.detail"
-msgstr "P1의 조작을 P2에 녹화합니다. 게임에서 더미를 플레이어 / 컨트롤러 조작으로 설정하세요."
+msgstr "P1의 조작을 P2에 녹화하고 재생합니다. 게임 설정은 필요 없습니다. 녹화나 재생 중에는 Ember가 더미를 P2 입력으로 바꿉니다."
 
 msgid "training.input_history"
 msgstr "입력 기록"
 
 msgid "training.input_history.detail"
 msgstr "각 플레이어가 누르고 있는 입력을 확인합니다."
+
+msgid "training.match.checkpoint_disabled"
+msgstr "롤백 매치에서는 공유 위치 저장 및 복원을 사용할 수 없습니다."
+
+msgid "training.match.end_hint"
+msgstr "Start 또는 F10으로 Ember를 열고 연습 종료를 선택하면 이 대전이 끝납니다."
+
+msgid "training.invalid"
+msgstr "받을 수 없습니다: {0}"
+
+msgid "training.save_failed"
+msgstr "파일을 저장하지 못했습니다."
+
+msgid "training.position.save"
+msgstr "위치 저장"
+
+msgid "training.position.save.detail"
+msgstr "두 캐릭터의 현재 상태(위치, 체력, 게이지, 더미 상태)를 저장합니다."
+
+msgid "training.position.reset"
+msgstr "위치 복원"
+
+msgid "training.position.reset.detail"
+msgstr "두 캐릭터를 저장한 상태로 되돌립니다."
+
+msgid "training.position.saved"
+msgstr "위치를 저장했습니다."
+
+msgid "training.position.reset_done"
+msgstr "위치를 복원했습니다."
+
+msgid "training.dummy.detail"
+msgstr "좌우로 바꿉니다. 바로 게임에 적용됩니다."
+
+msgid "training.reply"
+msgstr "더미 반격"
+
+msgid "training.reply.detail"
+msgstr "더미가 다시 움직일 수 있게 되는 순간 스스로 하는 행동입니다. 놓친 콤보나 빈틈 있는 마무리를 응징합니다. 반격 기술을 재생하고, 그 줄이 비어 있으면 반격 슬롯을 재생합니다. 재생이나 녹화 중에는 기다립니다."
+
+msgid "training.reply.hit"
+msgstr "콤보를 놓친 뒤"
+
+msgid "training.reply.block"
+msgstr "가드 후"
+
+msgid "training.reply.rise"
+msgstr "기상 시"
+
+msgid "training.reply.any"
+msgstr "회복할 때마다"
+
+msgid "training.reply.slot"
+msgstr "반격 슬롯"
+
+msgid "training.reply.slot.detail"
+msgstr "반격 기술이 비어 있을 때 반격으로 재생하는 더미 녹화입니다. 첫 입력부터 재생합니다."
+
+msgid "training.reply.slot_empty"
+msgstr "슬롯 {0}이(가) 비어 있어 더미가 반격하지 않습니다. 녹화하거나 기술을 고르세요."
+
+msgid "training.reply.chance"
+msgstr "반격 확률"
+
+msgid "training.reply.chance.detail"
+msgstr "더미가 반격하는 빈도입니다. 100% 미만이면 시도마다 달라집니다."
+
+msgid "training.reply.vary_stance"
+msgstr "자세 바꾸기"
+
+msgid "training.reply.vary_stance.detail"
+msgstr "더미가 회복할 때마다 서기나 앉기를 무작위로 골라 두 자세 모두에서 콤보를 연습할 수 있습니다. 더미가 서기나 앉기로 설정된 동안에만 작동합니다."
+
+msgid "training.reply.moves"
+msgstr "반격 기술"
+
+msgid "training.reply.moves.detail"
+msgstr "숫자 표기로 입력하는 반격입니다. 예: 623HP, 44. 더미가 보는 방향에 맞춰 읽습니다. qcf, qcb, dp, rdp, hcf, hcb도 됩니다. 예: qcfP, dp+HP. 더미가 아직 움직일 수 없는 동안 커맨드를 넣어, 움직일 수 있는 첫 프레임에 버튼이 들어갑니다. [1]은 다음 기술까지 방향을 유지하고, [1]20f는 20프레임 유지하며, 10f는 기다립니다. 예: [1] > 3HP. 비워 두면 반격 슬롯을 씁니다."
+
+msgid "training.reply.move"
+msgstr "반격 프리셋"
+
+msgid "training.reply.move.detail"
+msgstr "좌우로 자주 쓰는 반격을 숫자 패드 표기로 고릅니다. 더미가 보는 방향 기준으로 읽습니다. 반격 슬롯은 녹화를 재생하고, 사용자 지정은 입력한 기술을 씁니다. 선택하면 반격 기술을 열어 입력합니다."
+
+msgid "training.reply.custom"
+msgstr "사용자 지정"
+
+msgid "training.reply.timing"
+msgstr "반격 타이밍"
+
+msgid "training.reply.timing.detail"
+msgstr "더미가 움직일 수 있는 첫 프레임 뒤 반격 버튼이 들어가는 프레임 수입니다. 경직 길이는 처음 볼 때 기억합니다. 그 전에는 경직이 끝날 때 반격을 시작합니다."
+
+msgid "training.key.reset"
+msgstr "위치 복원 키"
+
+msgid "training.challenger"
+msgstr "대전이 준비되었습니다"
+
+msgid "training.key.detail"
+msgstr "좌우로 대전 중에 이 동작을 하는 키를 고릅니다. 끄기는 키 없이 둡니다."
+
+msgid "training.dummy.action"
+msgstr "더미"
+
+msgid "training.dummy.guard"
+msgstr "가드"
+
+msgid "training.dummy.counter"
+msgstr "카운터 히트"
+
+msgid "training.dummy.quick"
+msgstr "퀵 스탠드"
+
+msgid "training.dummy.super"
+msgstr "슈퍼 게이지"
+
+msgid "training.dummy.revenge"
+msgstr "리벤지 게이지"
+
+msgid "training.dummy.stand"
+msgstr "서기"
+
+msgid "training.dummy.crouch"
+msgstr "앉기"
+
+msgid "training.dummy.jump"
+msgstr "점프"
+
+msgid "training.dummy.cpu"
+msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "사람"
+
+msgid "training.dummy.guard_none"
+msgstr "가드 없음"
+
+msgid "training.dummy.guard_first"
+msgstr "첫 타 이후"
+
+msgid "training.dummy.guard_all"
+msgstr "모두 가드"
+
+msgid "training.dummy.guard_random"
+msgstr "랜덤"
+
+msgid "training.dummy.counter_off"
+msgstr "꺼짐"
+
+msgid "training.dummy.counter_on"
+msgstr "켜짐"
+
+msgid "training.dummy.counter_random"
+msgstr "랜덤"
+
+msgid "training.dummy.quick_quick"
+msgstr "빠르게"
+
+msgid "training.dummy.quick_normal"
+msgstr "보통"
+
+msgid "training.dummy.quick_delayed"
+msgstr "지연"
+
+msgid "training.dummy.quick_random"
+msgstr "랜덤"
+
+msgid "training.dummy.gauge_normal"
+msgstr "보통"
+
+msgid "training.dummy.gauge_max"
+msgstr "시작 시 최대"
+
+msgid "training.dummy.gauge_infinite"
+msgstr "무한"
+
+msgid "training.dummy.gauge_refill"
+msgstr "자동 회복"
 
 msgid "training.close_controls"
 msgstr "트레이닝 조작 닫기"
@@ -1186,7 +1696,10 @@ msgid "training.play"
 msgstr "재생"
 
 msgid "training.play.detail"
-msgstr "선택한 슬롯을 재생하고 연습으로 돌아갑니다. 방향은 좌우 반전 없이 절대 방향으로 적용됩니다."
+msgstr "선택한 슬롯을 재생하고 연습으로 돌아갑니다. 녹화는 더미가 보는 방향에 맞춰 재생됩니다. 좌우로 반복 여부를 고릅니다."
+
+msgid "training.play.once"
+msgstr "한 번"
 
 msgid "training.slot_empty"
 msgstr "빈 슬롯입니다."
@@ -1199,9 +1712,6 @@ msgstr "녹화 또는 재생을 중지합니다."
 
 msgid "training.loop"
 msgstr "반복 재생"
-
-msgid "training.loop.detail"
-msgstr "선택한 녹화를 반복합니다."
 
 msgid "training.clear_recording"
 msgstr "선택한 녹화 삭제"
@@ -1231,7 +1741,7 @@ msgid "training.recording_suspended"
 msgstr "조작 창이 열려 녹화 일시 중지"
 
 msgid "training.playback_suspended"
-msgstr "조작 창이 열려 재생 일시 중지"
+msgstr "재생 중. 녹화는 조작 창을 닫을 때까지 대기합니다"
 
 msgid "training.applying"
 msgstr "명령 적용 중..."
@@ -1245,14 +1755,95 @@ msgstr "트레이닝"
 msgid "training.command_rejected"
 msgstr "연습 명령이 수락되지 않았습니다. 상태를 확인하고 다시 시도하세요."
 
-msgid "training.start_frames"
-msgstr "발생 {0} f"
-
-msgid "training.start_unknown"
-msgstr "발생 --"
-
 msgid "training.startup"
 msgstr "발생"
+
+msgid "training.meter.active"
+msgstr "지속"
+
+msgid "training.meter.recovery"
+msgstr "경직"
+
+msgid "training.meter.hit"
+msgstr "히트"
+
+msgid "training.meter.block"
+msgstr "가드"
+
+msgid "training.meter.whiff"
+msgstr "헛침"
+
+msgid "training.meter.knockdown"
+msgstr "다운"
+
+msgid "training.meter.meaty"
+msgstr "깔아두기"
+
+msgid "training.meter.throw"
+msgstr "잡기 / 연출"
+
+msgid "training.meter.attack"
+msgstr "공격"
+
+msgid "training.meter.move"
+msgstr "이동"
+
+msgid "training.meter.attack_unsplit"
+msgstr "공격(구분 없음)"
+
+msgid "training.meter.style"
+msgstr "미터 스타일"
+
+msgid "training.meter.style.detail"
+msgstr "기울임은 공격을 발생, 지속, 경직으로 나누어 색칠하고 각 구간의 길이를 표시합니다. 평면은 공격 전체를 한 색으로 표시합니다."
+
+msgid "training.meter.style.angled"
+msgstr "기울임"
+
+msgid "training.meter.style.flat"
+msgstr "평면"
+
+msgid "training.meter.frames_shown"
+msgstr "표시 프레임"
+
+msgid "training.meter.frames_shown.detail"
+msgstr "같은 너비에 표시할 프레임 수입니다. 적을수록 한 프레임이 넓어져 세기 쉽고, 120은 기록 전체를 보여 줍니다. 미터가 멈춘 동안 막대 위에서 마우스 휠로 이전 기록을 볼 수 있습니다."
+
+msgid "training.meter.hud_recovery"
+msgstr "HUD에 경직 표시"
+
+msgid "training.meter.hud_recovery.detail"
+msgstr "각 캐릭터의 마지막 기술 경직을 미터의 발생 옆에 표시합니다."
+
+msgid "training.meter.hud_numbers"
+msgstr "HUD에 숫자 표시"
+
+msgid "training.meter.hud_bars"
+msgstr "HUD에 막대 표시"
+
+msgid "training.meter.hud_state"
+msgstr "HUD에 상태 표시"
+
+msgid "training.meter.hud_shortcuts"
+msgstr "HUD에 단축키 표시"
+
+msgid "training.meter.hud_status"
+msgstr "HUD에 녹화 표시"
+
+msgid "training.meter.hud_part.detail"
+msgstr "대전 중 트레이닝 HUD의 이 항목을 표시합니다. F5로 HUD 전체를 숨깁니다."
+
+msgid "training.meter.hud_size"
+msgstr "HUD 크기"
+
+msgid "training.meter.hud_size.detail"
+msgstr "트레이닝 HUD의 글자와 바 크기를 바꿉니다. 화면 크기로도 커집니다."
+
+msgid "training.recovery_frames"
+msgstr "경직 {0} f"
+
+msgid "training.recovery_unknown"
+msgstr "경직 --"
 
 msgid "training.neutral"
 msgstr "중립"
@@ -1296,6 +1887,9 @@ msgstr "실시간"
 msgid "training.advantage"
 msgstr "유리"
 
+msgid "training.last_advantage"
+msgstr "직전 유리"
+
 msgid "selection.preview_unavailable"
 msgstr "미리 보기\n불가"
 
@@ -1325,6 +1919,9 @@ msgstr "추가 {0}"
 
 msgid "selection.alternate_pack"
 msgstr "추가 {0} / {1}"
+
+msgid "selection.custom"
+msgstr "사용자 지정 {0}"
 
 msgid "selection.stage_count"
 msgstr "스테이지 {0}개 / USFIV"
@@ -1412,6 +2009,12 @@ msgstr "게임의 코스튬과 색상 사용 가능 여부를 기다립니다."
 
 msgid "selection.no_colors"
 msgstr "이 코스튬에 해제된 색상이 없습니다."
+
+msgid "selection.not_owned"
+msgstr "Steam에서 보유하지 않았습니다."
+
+msgid "selection.not_owned_badge"
+msgstr "미보유"
 
 msgid "selection.color"
 msgstr "색상 {0}"
@@ -1553,11 +2156,17 @@ msgstr "상대가 로비에 참가하기를 기다리는 중..."
 msgid "runtime.authorized_connection_unavailable"
 msgstr "승인된 대전 연결을 사용할 수 없습니다."
 
+msgid "runtime.input_lag_unavailable"
+msgstr "이 PC에서 이 대전에 필요한 입력 타이밍(입력 지연 줄이기)을 설정하지 못해 대전을 중단했습니다. 게임을 다시 시작하면 해결될 것입니다."
+
 msgid "runtime.waiting_opponent_start"
 msgstr "대전을 시작하려면 상대가 로비에 들어오기를 기다려야 합니다."
 
 msgid "runtime.unsupported_stage"
 msgstr "방에서 지원하지 않는 스테이지를 지정했습니다. 다시 시도하기 전에 로비를 초기화하세요."
+
+msgid "runtime.unsupported_match"
+msgstr "방에서 지원하지 않는 캐릭터 또는 대전 설정을 지정했습니다. 다시 시도하기 전에 로비를 초기화하세요."
 
 msgid "runtime.netplay_input_failed"
 msgstr "넷플레이 입력에 실패했습니다. 대전이 종료되었습니다."
@@ -1604,6 +2213,9 @@ msgstr "방으로 돌아가는 중입니다."
 msgid "runtime.table_game_cancelled"
 msgstr "이 테이블의 대전이 취소되었습니다. 방으로 돌아가 다시 준비하세요."
 
+msgid "runtime.practice_ended"
+msgstr "연습이 종료되었습니다. 방으로 돌아가 다시 준비하세요."
+
 msgid "runtime.result_not_recorded"
 msgstr "확정 전에 테이블이 변경되어 결과를 기록하지 못했습니다."
 
@@ -1613,8 +2225,6 @@ msgstr "대전 참가자가 방을 나갔습니다. 대전이 종료됩니다."
 msgid "update.github_unreachable"
 msgstr "GitHub에 연결하지 못했습니다. 인터넷 연결을 확인하고 다시 시도하세요."
 
-msgid "update.no_version_tag"
-msgstr "GitHub 릴리스에 버전 태그가 없습니다."
 
 msgid "update.no_zip_asset"
 msgstr "최신 릴리스에 SF4 Ember Netplay ZIP 파일이 없습니다."
@@ -1627,6 +2237,9 @@ msgstr "다운로드 URL이 없습니다."
 
 msgid "update.missing_version"
 msgstr "버전 태그가 없습니다."
+
+msgid "update.not_offered"
+msgstr "이 버전은 제안된 버전이 아닙니다. 업데이트를 다시 확인하세요."
 
 msgid "update.close_sf4"
 msgstr "업데이트를 설치하기 전에 Ultra Street Fighter IV를 닫으세요."
@@ -1687,6 +2300,39 @@ msgstr "업데이트 설치 전에 게임을 닫으세요."
 msgid "update.updater_start_failed"
 msgstr "Updater.exe를 시작하지 못했습니다. 새 ZIP 파일로 다시 설치하세요."
 
+msgid "update.stage.preparing"
+msgstr "패키지 확인 중..."
+
+msgid "update.stage.comparing"
+msgstr "파일 비교 중..."
+
+msgid "update.stage.backing_up"
+msgstr "교체할 파일 백업 중..."
+
+msgid "update.stage.replacing"
+msgstr "파일 교체 중..."
+
+msgid "update.stage.confirming"
+msgstr "설치된 파일 확인 중..."
+
+msgid "update.notice.waiting_launcher"
+msgstr "SF4 Ember Netplay가 닫히기를 기다리는 중..."
+
+msgid "update.notice.waiting_file"
+msgstr "다른 프로그램이 {0}을(를) 해제하기를 기다리는 중..."
+
+msgid "update.notice.restoring"
+msgstr "이전 파일 복원 중..."
+
+msgid "update.notice.elapsed"
+msgstr "경과 시간 {0}"
+
+msgid "update.notice.reopens"
+msgstr "완료되면 SF4 Ember Netplay가 다시 열립니다."
+
+msgid "update.notice.recovering"
+msgstr "중단된 업데이트를 마무리하는 중..."
+
 msgid "room.member_left"
 msgstr "참가자 퇴장"
 
@@ -1719,6 +2365,9 @@ msgstr "{0}분째 대기 중"
 
 msgid "room.idle_hours"
 msgstr "{0}시간 {1}분째 대기 중"
+
+msgid "room.in_training"
+msgstr "트레이닝 중"
 
 msgid "room.phase.waiting"
 msgstr "대전 상대 대기 중"
@@ -2014,6 +2663,15 @@ msgstr "관전 확정한 관전자가 돌아오기를 기다리는 중입니다.
 msgid "room.hold.waiting_you"
 msgstr "대전이 기다리는 중: {0}초"
 
+msgid "room.ready_timeout.you"
+msgstr "{0}초 안에 준비하지 않으면 자리에서 나갑니다"
+
+msgid "room.ready_timeout.other"
+msgstr "{1} 님의 준비까지 {0}초 남았습니다"
+
+msgid "chat.event.ready_timeout"
+msgstr "{0}님이 대전 슬롯 {1}에서 나갔습니다: 시간 안에 준비하지 않았습니다"
+
 msgid "room.hold.status"
 msgstr "관전자 대기 중: {0}초"
 
@@ -2045,7 +2703,7 @@ msgid "room.ready_up"
 msgstr "준비"
 
 msgid "room.selected_delay.detail"
-msgstr "1~10프레임으로 조정하세요. 1 아래는 자동입니다. 변경 사항은 즉시 적용됩니다."
+msgstr "0~10프레임으로 조정하세요. 0 아래는 자동입니다. 0은 지연을 더하지 않으며 낮고 안정적인 핑이 필요합니다."
 
 msgid "room.selected_delay.locked"
 msgstr "이번 대전의 지연 시간이 고정되었습니다."
@@ -2131,6 +2789,12 @@ msgstr "미확정 대전 포기"
 
 msgid "room.abandon_result.detail"
 msgstr "결과는 기록되지 않습니다. 두 플레이어는 자리에 남아 다시 준비할 수 있습니다."
+
+msgid "room.end_practice"
+msgstr "연습 종료"
+
+msgid "room.end_practice.detail"
+msgstr "이 연습 대전을 두 플레이어 모두 지금 종료합니다. 결과는 기록되지 않습니다. 두 플레이어는 자리에 남아 다시 준비할 수 있습니다."
 
 msgid "room.leave_queue"
 msgstr "대기열 나가기"
@@ -2323,6 +2987,9 @@ msgstr "텍스트 편집"
 
 msgid "edit.instructions"
 msgstr "키보드로 입력하거나 붙여넣으세요. Enter 또는 컨트롤러의 선택으로 확정하고 Esc 또는 컨트롤러의 뒤로 버튼으로 취소합니다."
+
+msgid "edit.instructions_multiline"
+msgstr "키보드로 입력하거나 붙여넣으세요. Enter 또는 숫자 키패드의 Enter로 줄을 바꿉니다. Ctrl+Enter, Ctrl+숫자 키패드의 Enter, 수락 버튼 또는 컨트롤러 선택으로 확정하고, Escape 또는 컨트롤러 뒤로로 취소합니다."
 
 msgid "edit.updating"
 msgstr "방을 업데이트 중입니다. 초안은 유지되며 계속 입력하거나 취소할 수 있습니다."
@@ -3575,3 +4242,399 @@ msgstr "방에 들어가지 못했습니다. 방금 닫혔을 수 있습니다. 
 
 msgid "legend.refresh"
 msgstr "새로 고침"
+
+msgid "training.frame_data"
+msgstr "프레임 데이터"
+
+msgid "training.frame_data.detail"
+msgstr "각 플레이어의 마지막 기술, 프레임 이득과 기상에 겹치는 공격 타이밍을 확인합니다."
+
+msgid "training.hud"
+msgstr "HUD"
+
+msgid "training.hud.detail"
+msgstr "대전 중 HUD의 항목을 켜거나 끕니다."
+
+msgid "training.color_key"
+msgstr "색상 설명"
+
+msgid "training.dummy"
+msgstr "더미"
+
+msgid "training.position"
+msgstr "위치"
+
+msgid "training.start_frames"
+msgstr "발생 {0} f"
+
+msgid "training.start_unknown"
+msgstr "발생 --"
+
+msgid "settings.training_replays"
+msgstr "트레이닝과 리플레이"
+
+msgid "settings.training_replays_detail"
+msgstr "대전 중 프레임 미터, 트레이닝 복귀 시 자동 준비, 저장할 대전 설정."
+
+msgid "settings.training_replays_title"
+msgstr "트레이닝과 리플레이"
+
+msgid "room.table_footer_practice"
+msgstr "연습 대전"
+
+msgid "room.rules_summary_practice"
+msgstr "연습 대전, {0}라운드, {1}초, Edition Select {2}"
+
+msgid "room.practice"
+msgstr "연습 방"
+
+msgid "room.practice.detail"
+msgstr "방의 모든 게임이 연습 대전입니다. 체력과 게이지가 다시 차고 누구도 KO되지 않으며 라운드 시간은 {0}입니다. 방이 열려 있는 동안 바뀌지 않습니다. 일반 대전을 하려면 방을 닫고 새로 만드세요."
+
+msgid "room.practice_status"
+msgstr "연습 방 / 초대 전용"
+
+msgid "room.practice_locked_status"
+msgstr "잠긴 연습 방 / 초대 전용"
+
+msgid "inputs.presses_value"
+msgstr "버튼 입력 {0}회"
+
+msgid "replays.watch_meter"
+msgstr "프레임 미터와 함께 보기"
+
+msgid "replays.watch_meter_detail"
+msgstr "Battle Log에서 재생하며 대전 위에 프레임 미터를 표시합니다."
+
+msgid "replays.controls.play"
+msgstr "재생"
+
+msgid "replays.controls.pause"
+msgstr "일시정지"
+
+msgid "replays.controls.paused"
+msgstr "일시정지됨"
+
+msgid "replays.controls.step"
+msgstr "프레임 진행"
+
+msgid "replays.controls.speed"
+msgstr "속도"
+
+msgid "replays.controls.speed_full"
+msgstr "1x"
+
+msgid "replays.controls.speed_half"
+msgstr "1/2x"
+
+msgid "replays.controls.speed_quarter"
+msgstr "1/4x"
+
+msgid "replays.controls.inputs"
+msgstr "입력"
+
+msgid "replays.controls.meter"
+msgstr "미터"
+
+msgid "replays.controls.round"
+msgstr "라운드 {0}"
+
+msgid "replays.controls.frame"
+msgstr "{0}프레임"
+
+msgid "replays.controls.unavailable"
+msgstr "조작은 대전 중에만 가능"
+
+msgid "room.training"
+msgstr "트레이닝에서 대기"
+
+msgid "replays.export_gpu"
+msgstr "동영상 내보내기 (GPU)"
+
+msgid "replays.export_gpu_detail"
+msgstr "게임 화면 전체 크기의 .mp4로 녹화하며, 그래픽 카드로 인코딩합니다."
+
+msgid "replays.video"
+msgstr "동영상"
+
+msgid "export.title"
+msgstr "동영상 내보내기"
+
+msgid "export.detail"
+msgstr "녹화하는 동안 화면과 동영상 모두에서 게임 위에 표시됩니다."
+
+msgid "export.names"
+msgstr "플레이어 이름"
+
+msgid "export.name"
+msgstr "플레이어 {0}"
+
+msgid "export.line"
+msgstr "매치 줄"
+
+msgid "export.line_text"
+msgstr "매치 줄 텍스트"
+
+msgid "export.set"
+msgstr "세트 스코어"
+
+msgid "export.set_detail"
+msgstr "이 세트에서 지금까지 각 플레이어가 이긴 횟수를 이름 옆에 표시합니다. 직전에 두 사람이 한 매치에서 셉니다. 맞지 않으면 바꾸세요."
+
+msgid "export.set_wins"
+msgstr "플레이어 {0} 승리 수"
+
+msgid "export.mark"
+msgstr "Ember 표시"
+
+msgid "export.generate"
+msgstr "동영상 만들기"
+
+msgid "export.meter"
+msgstr "프레임 미터"
+
+msgid "export.meter_detail"
+msgstr "트레이닝 프레임 미터를 대전 위에 표시합니다. 화면과 동영상 모두에 나타납니다."
+
+msgid "export.generate_detail"
+msgstr "리플레이를 재생하며 옆에 .mp4로 녹화합니다. 녹화 중에는 F10으로 Ember를 열어 진행 상황을 보거나 취소할 수 있습니다."
+
+msgid "export.running"
+msgstr "동영상 내보내는 중"
+
+msgid "export.running_detail"
+msgstr "리플레이를 재생하면서 녹화합니다. 이 메뉴가 열려 있는 동안에는 동영상에 자막과 프레임 미터가 들어가지 않습니다."
+
+msgid "export.starting"
+msgstr "시작하는 중..."
+
+msgid "export.finishing"
+msgstr "동영상 마무리 중..."
+
+msgid "export.cancelling"
+msgstr "취소하는 중..."
+
+msgid "export.progress"
+msgstr "{0} / {1}"
+
+msgid "export.cancel"
+msgstr "내보내기 취소"
+
+msgid "export.cancel_detail"
+msgstr "녹화를 멈추고 완성되지 않은 동영상을 삭제합니다. 리플레이는 끝까지 재생됩니다."
+
+msgid "export.cancelled"
+msgstr "내보내기를 취소했습니다. 동영상은 저장되지 않았습니다."
+
+msgid "training.result"
+msgstr "결과"
+
+msgid "training.room.table"
+msgstr "테이블 {0}"
+
+msgid "training.room.waiting"
+msgstr "상대를 기다리는 중"
+
+msgid "training.room.opponent"
+msgstr "상대: {0}"
+
+msgid "training.room.queued"
+msgstr "대기열 {0}/{1}"
+
+msgid "training.room.not_queued"
+msgstr "대기열 없음"
+
+msgid "training.room.unread"
+msgstr "읽지 않음 {0}"
+
+msgid "room.training_call.calling"
+msgstr "{0} 님을 트레이닝에서 부르는 중"
+
+msgid "training.go_now"
+msgstr "지금 가기"
+
+msgid "reports.setting"
+msgstr "문제 보고서 보내기"
+
+msgid "reports.setting_detail"
+msgstr "켜기: 충돌 후 런처가 묻지 않고 보고서를 보냅니다(하루 최대 {0}건, 크래시 덤프는 제외). 끄기: 먼저 묻습니다."
+
+msgid "reports.problem"
+msgstr "문제 보고"
+
+msgid "reports.problem_detail"
+msgstr "개인정보를 가린 로그와 보고서 세부 정보를 확인한 뒤 Ember로 보낼지 정하세요."
+
+msgid "reports.title"
+msgstr "보고서 미리보기"
+
+msgid "reports.preparing"
+msgstr "보고서 미리보기를 준비하는 중..."
+
+msgid "reports.preview_detail"
+msgstr "보내기 전에 각 항목을 확인하세요. 보고서는 embernetplay.link로 전송됩니다. 원본 덤프는 최대 30일간 보관되며, 처리된 보고서는 보관 기간이 별도입니다."
+
+msgid "reports.sending"
+msgstr "보고서를 보내는 중..."
+
+msgid "reports.bytes"
+msgstr "{0}바이트"
+
+msgid "reports.metadata"
+msgstr "보고서 세부 정보"
+
+msgid "reports.dump"
+msgstr "작은 덤프"
+
+msgid "reports.dump_detail"
+msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+
+msgid "reports.comment"
+msgstr "의견"
+
+msgid "reports.comment_required"
+msgstr "보내기 전에 문제를 설명하세요(2000자까지). 의견은 작성한 그대로 전송됩니다."
+
+msgid "reports.comment_optional"
+msgstr "선택 사항: 어떤 일이 있었는지 설명하세요(2000자까지). 의견은 작성한 그대로 전송됩니다."
+
+msgid "reports.send"
+msgstr "보내기"
+
+msgid "reports.dont_send"
+msgstr "보내지 않기"
+
+msgid "reports.consent"
+msgstr "이 미리보기에 표시된 항목을 그대로 Ember로 보낼까요? 의견과, 켜져 있다면 작은 덤프도 포함됩니다."
+
+msgid "reports.copy_id"
+msgstr "보고서 ID 복사"
+
+msgid "reports.close_detail"
+msgstr "이 미리보기를 닫습니다. 서버가 이미 받은 업로드는 여기서 취소할 수 없습니다."
+
+msgid "reports.sent"
+msgstr "보고서를 받았습니다. 보고서 ID: {0}"
+
+msgid "reports.invalid"
+msgstr "이 보고서는 올바르지 않거나 용량이 한도를 넘었습니다. 의견을 확인하고 미리보기를 다시 만들어 보세요."
+
+msgid "reports.invalid_response"
+msgstr "서버 응답에 올바른 보고서 ID가 없었습니다. 보고서를 이미 받았을 수 있습니다."
+
+msgid "reports.rate_limited"
+msgstr "보고서가 너무 많습니다. {0}초 뒤에 다시 시도하세요."
+
+msgid "reports.unavailable"
+msgstr "지금은 보고서를 보낼 수 없습니다. 나중에 다시 시도하세요."
+
+msgid "reports.failed"
+msgstr "보고서를 보내지 못했습니다. 연결을 확인하고 다시 시도하세요."
+
+msgid "reports.cancelled"
+msgstr "보고서 업로드를 취소했습니다. 서버가 이미 받은 보고서는 남아 있을 수 있습니다."
+
+msgid "reports.dump_warning"
+msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+
+msgid "launcher.game_crashed_files"
+msgstr "게임이 충돌했습니다. %APPDATA%\\sf4e\\logs 폴더의 파일(sf4e.log, sf4e-crash.log, sf4e-crash-*.dmp)을 SF4 Ember Netplay 팀에 보낸 뒤 다시 시도하세요."
+
+msgid "launcher.game_crashed_sending"
+msgstr "게임이 충돌했습니다. 문제 보고서 보내기가 켜져 있어 크래시 덤프 없이 보고서를 보내는 중입니다. 파일은 %APPDATA%\\sf4e\\logs 폴더에도 있습니다."
+
+msgid "reports.settings_title"
+msgstr "문제 보고서"
+
+msgid "reports.settings_detail"
+msgstr "충돌 보고서에 담기는 내용과 보낸 보고서."
+
+msgid "reports.sent_list"
+msgstr "보낸 보고서"
+
+msgid "reports.sent_list_detail"
+msgstr "이 PC가 보낸 각 보고서의 시각, 결과, 보고서 ID."
+
+msgid "reports.none"
+msgstr "아직 보고서가 없습니다"
+
+msgid "reports.none_detail"
+msgstr "이 PC가 보낸 보고서가 여기에 표시됩니다."
+
+msgid "reports.send_once"
+msgstr "이 보고서 보내기"
+
+msgid "reports.send_always"
+msgstr "항상 보내기"
+
+msgid "reports.send_always_detail"
+msgstr "이 보고서를 보내고, 이후 충돌의 보고서도 묻지 않고 보냅니다. 묻지 않고 보내는 보고서에는 덤프가 포함되지 않습니다. 묻지 않고 보내는 보고서는 24시간에 최대 {0}건이며, 보낸 보고서는 모두 이 수에 포함됩니다. 설정의 문제 보고서에서 끌 수 있습니다."
+
+msgid "reports.dump_included"
+msgstr "크래시 덤프: 포함"
+
+msgid "reports.dump_not_included"
+msgstr "크래시 덤프: 제외"
+
+msgid "reports.row"
+msgstr "문제 보고서"
+
+msgid "reports.status.sending"
+msgstr "보내는 중"
+
+msgid "reports.status.received"
+msgstr "수신됨"
+
+msgid "reports.status.refused"
+msgstr "거부됨"
+
+msgid "reports.status.not_sent"
+msgstr "보내지 못함"
+
+msgid "reports.received"
+msgstr "보고서가 수신되었습니다."
+
+msgid "reports.received_id"
+msgstr "보고서가 수신되었습니다. ID는 {0}입니다. 이 충돌에 대해 Ember 팀에 문의할 때 알려 주세요."
+
+msgid "reports.refused"
+msgstr "보고서 서비스가 보고서를 받지 않았습니다. 다시 보내지 않습니다."
+
+msgid "reports.not_sent"
+msgstr "보고서를 보내지 못했습니다. 다시 보내지 않습니다."
+
+msgid "reports.what_is_sent"
+msgstr "초대, 토큰, 네트워크 주소, 이메일, Windows 사용자 이름, 프로필 폴더, PC 이름, 플레이어 이름은 로그에서 제거됩니다.\n\n직접 보내는 보고서는 먼저 전체가 표시되며, 작은 덤프는 그 미리보기에서 켰을 때만 전송됩니다. 묻지 않고 보내는 보고서에는 덤프가 포함되지 않습니다.\n\n전송되지 않는 것: 다른 파일, 리플레이, 전체 크래시 덤프."
+
+msgid "reports.send_once_detail"
+msgstr "이 보고서에 들어갈 내용을 그대로 보여 주는 미리보기를 엽니다. 보내기를 선택하기 전에는 아무것도 전송되지 않습니다."
+
+msgid "reports.crash_report"
+msgstr "크래시 보고서"
+
+msgid "reports.payload"
+msgstr "보고서는 embernetplay.link로 전송됩니다. 각 보고서에는 Ember 버전과 빌드, Windows 버전, 충돌 정보, 개인정보를 가린 sf4e.log, launcher.log, sf4e-crash.log, sf4-net.log의 끝부분이 들어갑니다."
+
+msgid "reports.status.unknown"
+msgstr "알 수 없음"
+
+msgid "reports.interrupted"
+msgstr "응답이 오기 전에 전송이 중단되었습니다. 보고서 서비스가 이미 받았을 수 있습니다."
+
+msgid "reports.identity_failed"
+msgstr "플레이어 이름이나 Windows 계정을 읽지 못해 보고서를 준비하지 못했습니다. 다시 시도하세요."
+
+msgid "reports.history_failed"
+msgstr "보낸 보고서 기록을 저장하지 못해 보고서를 보내지 않았습니다. 다시 시도하세요."
+
+msgid "reports.history_unreadable"
+msgstr "기록을 읽을 수 없음"
+
+msgid "reports.history_unreadable_detail"
+msgstr "%APPDATA%\\sf4e의 sent-reports.json을 읽을 수 없어 묻지 않고 보내는 보고서는 없습니다. 새 기록을 시작하려면 이 파일을 삭제하세요."
+
+msgid "reports.always_failed"
+msgstr "항상 보내기를 켜지 못해 이 보고서를 보내지 않았습니다. 이 보고서 보내기를 선택하면 미리보기에서 보낼 수 있습니다."
+
+msgid "reports.automatic_unavailable"
+msgstr "자동 보고서 한도에 도달했거나 보낸 보고서 기록을 읽을 수 없어 이 보고서를 보내지 않았습니다. 이 보고서 보내기를 선택하면 미리보기에서 보낼 수 있습니다."

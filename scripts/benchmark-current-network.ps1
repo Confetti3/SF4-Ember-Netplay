@@ -20,7 +20,7 @@ if ($ConnectionCheck) { $paths += $check }
 $hashes = @($paths | ForEach-Object {
     [pscustomobject]@{path=$_;sha256=(Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash}
 })
-if (!$OutputDirectory) { $OutputDirectory=Join-Path $build ('network-benchmark-'+(Get-Date -Format 'yyyyMMdd-HHmmss-fff')) }
+if (!$OutputDirectory) { $OutputDirectory=Join-Path $build ('network-benchmark-'+(Get-Date).ToString('yyyyMMdd-HHmmss-fff',[cultureinfo]::InvariantCulture)) }
 if (Test-Path -LiteralPath $OutputDirectory) { throw 'Choose a fresh benchmark output directory.' }
 $directory=(New-Item -ItemType Directory -Path $OutputDirectory).FullName
 $hashes | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $directory 'artifacts.json')

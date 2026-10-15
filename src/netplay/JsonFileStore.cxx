@@ -1,4 +1,5 @@
 #include "JsonFileStore.hxx"
+#include "../platform/DurableFile.hxx"
 
 #include <atomic>
 #include <stdexcept>
@@ -11,28 +12,19 @@ using Json = nlohmann::json;
 Handle::~Handle() { if (value != INVALID_HANDLE_VALUE) CloseHandle(value); }
 
 bool ReadBytes(const Path& path, std::string& bytes, bool& missing, std::string& error) {
-    Handle file(CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
-        OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
-    missing = false;
-    if (file.value == INVALID_HANDLE_VALUE) {
-        missing = GetLastError() == ERROR_FILE_NOT_FOUND;
+    auto read = durable::ReadBounded(path, MaximumBytes);
+    // Only a file absent from its folder is missing. A missing folder is an
+    // error, so a lost drive never reads as a fresh profile.
+    std::error_code ignored;
+    missing = read.status == durable::ReadStatus::Missing && std::filesystem::is_directory(path.parent_path(), ignored);
+    switch (read.status) {
+    case durable::ReadStatus::Read: bytes.assign(read.bytes.begin(), read.bytes.end()); return true;
+    case durable::ReadStatus::TooLarge: error = "Settings file exceeds the size limit."; return false;
+    case durable::ReadStatus::CannotRead: error = "Cannot read complete settings file."; return false;
+    default:
         if (!missing) error = "Cannot read settings file.";
         return missing;
     }
-    LARGE_INTEGER size;
-    if (!GetFileSizeEx(file.value, &size) || size.QuadPart < 0 ||
-        size.QuadPart > static_cast<LONGLONG>(MaximumBytes)) {
-        error = "Settings file exceeds the size limit.";
-        return false;
-    }
-    bytes.resize(static_cast<std::size_t>(size.QuadPart));
-    DWORD read = 0;
-    if (!ReadFile(file.value, bytes.data(), static_cast<DWORD>(bytes.size()), &read, nullptr) ||
-        read != bytes.size()) {
-        error = "Cannot read complete settings file.";
-        return false;
-    }
-    return true;
 }
 
 bool Parse(const std::string& bytes, Json& value, std::string& error) {
@@ -47,24 +39,18 @@ bool Parse(const std::string& bytes, Json& value, std::string& error) {
     return false;
 }
 
+static const char* WriteError(const durable::WriteResult& written) {
+    switch (written.failed) {
+    case durable::WriteStep::Create: return "Cannot create settings file.";
+    case durable::WriteStep::Write: return "Cannot flush settings file.";
+    default: return "Cannot replace settings. The previous file has been preserved.";
+    }
+}
+
 bool WriteNew(const Path& path, const std::string& bytes, std::string& error) {
-    bool ok = false;
-    {
-        Handle file(CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr,
-            CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr));
-        if (file.value == INVALID_HANDLE_VALUE) {
-            error = "Cannot create settings file.";
-            return false;
-        }
-        DWORD written = 0;
-        ok = WriteFile(file.value, bytes.data(), static_cast<DWORD>(bytes.size()), &written, nullptr) &&
-            written == bytes.size() && FlushFileBuffers(file.value);
-    }
-    if (!ok) {
-        DeleteFileW(path.c_str());
-        error = "Cannot flush settings file.";
-    }
-    return ok;
+    const auto written = durable::WriteNew(path, bytes.data(), bytes.size());
+    if (!written) error = WriteError(written);
+    return static_cast<bool>(written);
 }
 
 bool PreserveBackup(const Path& path, const std::string& original, std::string& error) {
@@ -87,26 +73,19 @@ bool Publish(const Path& directory, const std::wstring& filename,
         return false;
     }
     static std::atomic<unsigned long> serial{0};
-    Path pending;
     for (int attempt = 0; attempt < 16; ++attempt) {
-        pending = directory / (filename + L".pending." + std::to_wstring(GetCurrentProcessId()) +
+        const Path pending = directory / (filename + L".pending." + std::to_wstring(GetCurrentProcessId()) +
             L"." + std::to_wstring(++serial));
-        if (WriteNew(pending, bytes, error)) break;
-        if (GetLastError() != ERROR_FILE_EXISTS && GetLastError() != ERROR_ALREADY_EXISTS) return false;
-        pending.clear();
+        const auto written = durable::PublishReplace(directory / filename, pending, bytes.data(), bytes.size());
+        if (written) { error.clear(); return true; }
+        if (written.failed != durable::WriteStep::Create ||
+            (written.error != ERROR_FILE_EXISTS && written.error != ERROR_ALREADY_EXISTS)) {
+            error = WriteError(written);
+            return false;
+        }
     }
-    if (pending.empty()) {
-        error = "Cannot reserve a settings save file.";
-        return false;
-    }
-    if (!MoveFileExW(pending.c_str(), (directory / filename).c_str(),
-        MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
-        DeleteFileW(pending.c_str());
-        error = "Cannot replace settings. The previous file has been preserved.";
-        return false;
-    }
-    error.clear();
-    return true;
+    error = "Cannot reserve a settings save file.";
+    return false;
 }
 
 } } } // namespace sf4e::netplay::json_file

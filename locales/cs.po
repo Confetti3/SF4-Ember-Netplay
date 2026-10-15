@@ -69,11 +69,17 @@ msgstr "SF4 Ember Netplay už běží. Pokud jej nevidíte, ukončete Launcher.e
 msgid "launcher.start_failed"
 msgstr "Spuštění hry nebo injekce selhala. Zkontrolujte protokol spouštěče v %APPDATA%\\sf4e\\logs\\launcher.log a zkuste to znovu."
 
+msgid "launcher.game_runs_as_admin"
+msgstr "SSFIV.exe má nastavené spouštění jako správce, proto ho Ember nemůže spustit. Ve složce hry klikněte pravým tlačítkem na SSFIV.exe, otevřete Vlastnosti a potom Kompatibilita a zrušte \"Spustit tento program jako správce\", také v \"Změnit nastavení pro všechny uživatele\". Pak to zkuste znovu."
+
 msgid "launcher.game_error"
 msgstr "Hra skončila s chybou. Zkontrolujte protokol spouštěče v %APPDATA%\\sf4e\\logs\\launcher.log a zkuste to znovu."
 
+msgid "launcher.steam_runs_as_admin"
+msgstr "Hra se nemohla spojit se Steamem, protože Steam běží jako správce. Zavřete Steam, spusťte ho normálně a zkuste to znovu. Spuštění Emberu jako správce také funguje, ale aktualizace se tak neinstalují."
+
 msgid "launcher.game_crashed"
-msgstr "Hra spadla. Pošlete prosím týmu SF4 Ember Netplay soubory ze složky %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log a sf4e-crash-*.dmp) a zkuste to znovu."
+msgstr "Hra spadla. Chcete-li pomoci s opravou, zvolte níže Odeslat toto hlášení. Nebo pošlete soubory ze složky %APPDATA%\\sf4e\\logs sami."
 
 msgid "launcher.runtime_shadowed"
 msgstr "Hra by místo souborů ze složky Ember načetla tyto soubory. Stará kopie ji zastaví ještě před spuštěním (\"entry point ggpo_get_last_confirmed_frame not found\"). Pocházejí z jiného netplay modu nebo starší instalace. Přesuňte je nebo přejmenujte a znovu spusťte Ember:\n\n{0}"
@@ -126,6 +132,36 @@ msgstr "Operace již probíhá."
 msgid "updates.check_detail"
 msgstr "Vyhledat novější balíček Ember."
 
+msgid "updates.channel"
+msgstr "Kanál aktualizací"
+
+msgid "updates.channel.stable"
+msgstr "Stabilní"
+
+msgid "updates.channel.prerelease"
+msgstr "Beta"
+
+msgid "updates.channel.nightly"
+msgstr "Nightly"
+
+msgid "updates.channel.nightly_detail"
+msgstr "Denní testovací sestavení s nejnovějšími funkcemi. Mohou obsahovat závažné chyby. V místnostech můžete hrát jen s ostatními hráči Nightly a záznamy uložené v Nightly nemusí jít po návratu ke starší verzi otevřít."
+
+msgid "updates.channel_detail"
+msgstr "Stabilní kanál nabízí jen hotová vydání. Beta zahrnuje i beta verze a kandidáty na vydání, které mohou mít více problémů. Všichni, s kým hrajete, potřebují stejnou verzi."
+
+msgid "updates.channel.switch_detail"
+msgstr "Přepne kontrolu aktualizací z {0} na {1} a hned {1} zkontroluje. Nic se nenainstaluje, dokud nezvolíte Stáhnout a nainstalovat."
+
+msgid "updates.channel.going_back"
+msgstr "Návrat z {0} na {1} může nabídnout starší verzi, než máte. Záznamy pořízené v {0} se v {1} nemusí otevřít."
+
+msgid "updates.installed_version"
+msgstr "Nainstalovaná verze"
+
+msgid "updates.installed_version_detail"
+msgstr "Verze Ember v tomto počítači."
+
 msgid "updates.install"
 msgstr "Stáhnout a nainstalovat"
 
@@ -134,6 +170,15 @@ msgstr "Před instalací zavřete SF4. Balíček se před instalací ověří. V
 
 msgid "updates.unverified"
 msgstr "Tato aktualizace nemá kontrolní součet a nelze ji nainstalovat."
+
+msgid "updates.install_going_back"
+msgstr "Tato verze je starší než vaše. Záznamy pořízené ve vaší současné verzi se v ní nemusí otevřít."
+
+msgid "updates.whats_new"
+msgstr "Novinky"
+
+msgid "updates.whats_new_detail"
+msgstr "Poznámky k verzi {0}."
 
 msgid "updates.cancel"
 msgstr "Zrušit operaci"
@@ -178,13 +223,29 @@ msgid "services.exporting"
 msgstr "Export diagnostiky..."
 
 msgid "services.downloading"
-msgstr "Stahování a ověřování aktualizace..."
+msgstr "Stahování aktualizace..."
+
+msgid "services.verifying"
+msgstr "Ověřování staženého souboru..."
+
+msgid "services.extracting"
+msgstr "Rozbalování aktualizace..."
+
+msgid "services.preparing"
+msgstr "Příprava aktualizace..."
+
+msgid "services.installing"
+msgstr "Instalace aktualizace..."
 
 msgid "services.opening_updater"
 msgstr "Otevírání aktualizátoru..."
 
 msgid "services.update_available"
 msgstr "K dispozici je aktualizace: {0}"
+
+msgid "services.go_back_available"
+msgstr "Je možné se vrátit k verzi {0}"
+
 
 msgid "services.up_to_date"
 msgstr "Máte aktuální verzi."
@@ -556,7 +617,7 @@ msgid "home.online"
 msgstr "Hra online"
 
 msgid "home.online_detail"
-msgstr "Vytvořte místnost, připojte se k nějaké nebo procházejte veřejné místnosti."
+msgstr "Vytvořte místnost, připojte se k nějaké, procházejte veřejné místnosti nebo si nastavte Ember ID pro turnaje."
 
 msgid "home.return_room"
 msgstr "Vrátit se do aktuální místnosti."
@@ -586,7 +647,7 @@ msgid "home.identity_matches"
 msgstr "Turnajové zápasy připravené ke hře: {0}"
 
 msgid "home.settings_detail"
-msgstr "Hráč, ovladač, výchozí nastavení hry, rozhraní, jazyk a Discord."
+msgstr "Hráč, ovladač, výchozí pravidla, rozhraní, jazyk, trénink a Discord."
 
 msgid "home.about"
 msgstr "Nápověda"
@@ -598,7 +659,192 @@ msgid "home.offline"
 msgstr "Hrát offline"
 
 msgid "home.offline_detail"
-msgstr "Otevřít nabídky hry offline."
+msgstr "Trénink, Versus, Arcade a další offline režimy hry."
+
+msgid "home.replays"
+msgstr "Záznamy"
+
+msgid "home.replays_detail"
+msgstr "Tvé uložené zápasy. Přehraj je, přidej do hry nebo si přečti jejich vstupy."
+
+msgid "replays.title"
+msgstr "Záznamy"
+
+msgid "replays.empty"
+msgstr "Zatím žádné záznamy"
+
+msgid "replays.empty_detail"
+msgstr "Zápas se sem uloží, když skončí."
+
+msgid "replays.add"
+msgstr "Přidat do hry"
+
+msgid "replays.add_detail"
+msgstr "Přidá záznam do Battle Logu hry pro pozdější přehrání."
+
+msgid "replays.watch"
+msgstr "Přehrát teď"
+
+msgid "replays.watch_detail"
+msgstr "Přidá záznam do Battle Logu hry a přehraje ho."
+
+msgid "replays.save_watched"
+msgstr "Ukládat sledované zápasy"
+
+msgid "replays.save_watched_detail"
+msgstr "Ukládá i zápasy, které sleduješ jako divák. Vypnuto ukládá pouze zápasy, které hraješ."
+
+msgid "replays.link"
+msgstr "Přehrát záznam z odkazu"
+
+msgid "replays.link_detail"
+msgstr "Odkaz požádal Ember o přehrání {0}. Přehraj ho jen tehdy, pokud důvěřuješ zdroji odkazu."
+
+msgid "replays.link_play"
+msgstr "Přehrát"
+
+msgid "replays.link_dismiss"
+msgstr "Teď ne"
+
+msgid "replays.link_dismiss_detail"
+msgstr "Zapomene odkaz. Soubor zůstane na svém místě."
+
+msgid "replays.exported"
+msgstr "Video uloženo: {0}"
+
+msgid "replays.gpu_not_exported"
+msgstr "Video nevzniklo. Windows neposkytl kodér H.264, nebo se nepodařilo přečíst obraz hry. Důvod je v protokolu."
+
+msgid "replays.open_folder"
+msgstr "Otevřít složku záznamů"
+
+msgid "replays.open_folder_detail"
+msgstr "Otevře archiv v Průzkumníku: záznamy a exportovaná videa."
+
+msgid "services.opening_replay_folder"
+msgstr "Otevírání složky se záznamy..."
+
+msgid "services.replay_folder_opened"
+msgstr "Složka {0} otevřena v Průzkumníku."
+
+msgid "services.replay_folder_failed"
+msgstr "Složku záznamů se nepodařilo otevřít."
+
+msgid "replays.inputs"
+msgstr "Vstupy a statistiky"
+
+msgid "replays.inputs_detail"
+msgstr "Zobrazí stisky obou hráčů snímek po snímku i celkové počty. Nic se nepřehrává."
+
+msgid "replays.show_folder"
+msgstr "Zobrazit ve složce"
+
+msgid "replays.show_folder_detail"
+msgstr "Otevře v Průzkumníku složku, ve které je tento záznam."
+
+msgid "inputs.length_value"
+msgstr "Kola {0} · {1}"
+
+msgid "inputs.activity"
+msgstr "{0} vstupů za minutu, skoky: {1}, v podřepu {2} % času."
+
+msgid "inputs.round"
+msgstr "Kolo {0}"
+
+msgid "inputs.legend"
+msgstr "Každý řádek: čas a co od té chvíle drží P1 a P2. Směry jako na numerické klávesnici při pohledu na obrazovku: 4 je vlevo, 6 vpravo, 5 nic."
+
+msgid "inputs.reading"
+msgstr "Čtu záznam..."
+
+msgid "inputs.look_unknown"
+msgstr "Vzhled není znám"
+
+msgid "inputs.unreadable"
+msgstr "Vstupy nelze přečíst"
+
+msgid "inputs.unreadable_detail"
+msgstr "Tento záznam je ve starším formátu, nebo je jeho soubor poškozený."
+
+msgid "replays.row_detail"
+msgstr "Vyber pro přehrání, přidání do hry nebo zobrazení vstupů a statistik."
+
+#. The saved replay has already been played back.
+msgid "replays.seen"
+msgstr "Přehráno"
+
+#. The player watched the live match as a spectator, not a replay playback.
+msgid "replays.spectated"
+msgstr "Sledováno jako divák"
+
+#. The player watched the live match as a spectator and has also played its replay.
+msgid "replays.spectated_seen"
+msgstr "Sledováno jako divák, přehráno"
+
+msgid "replays.not_ready"
+msgstr "Dostupné v hlavním menu, mimo zápas."
+
+msgid "replays.added"
+msgstr "Přidáno do Battle Logu hry pod datem odehrání zápasu."
+
+msgid "replays.not_added"
+msgstr "Tento záznam se nepodařilo přidat. Soubor může být poškozený."
+
+msgid "replays.not_added_yet"
+msgstr "Hra ještě neuložila poslední zápas. Zkus to za chvíli znovu."
+
+msgid "replays.not_added_files"
+msgstr "Tento záznam nelze přidat, protože soubory záznamů hry nelze přečíst. Nic se nezměnilo."
+
+msgid "replays.not_added_archive"
+msgstr "Tento záznam nelze přidat, protože současný záznam hry nelze nejprve uložit. Zkontroluj volné místo na disku."
+
+msgid "replays.not_added_restored"
+msgstr "Tento záznam nelze přidat. Záznamy hry zůstaly beze změny."
+
+msgid "replays.not_added_recovery"
+msgstr "Tento záznam nelze přidat a některé záznamy hry nelze obnovit. Nepřidávej další záznamy a exportuj diagnostiku z Nápovědy a informací."
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "Otevřít Battle Log hry"
+
+msgid "replays.open_log_detail"
+msgstr "Opustí nabídku Emberu a otevře Battle Log hry, kde se přehrávají záznamy."
+
+msgid "replays.open_log_room"
+msgstr "Nejdřív opusťte místnost."
+msgid "settings.training_auto_ready"
+msgstr "Připravit mě při výzvě z Tréninku"
+
+msgid "settings.training_auto_ready_detail"
+msgstr "Když tě místnost zavolá z tréninku, připravenost se označí ihned. Vypnuto ti dá {0} sekund, než ztratíš místo."
+
+msgid "settings.match_frame_meter"
+msgstr "Měřič snímků v zápasech"
+
+msgid "settings.match_frame_meter_detail"
+msgstr "Zobrazuje měřič snímků nad online zápasy, které hraješ nebo sleduješ. Vidíš ho jen ty. Může být o několik snímků za soubojem."
+
+msgid "settings.match_frame_meter_private"
+msgstr "Jen v soukromých místnostech."
+
+msgid "room.training.detail"
+msgstr "Trénuj, zatímco čekáš. Ember tě zavolá zpět, když si někdo sedne naproti tobě."
+
+msgid "room.training.unavailable"
+msgstr "Dostupné při čekání na soupeře, než označíš připravenost."
+
+msgid "room.training_call.ready_in"
+msgstr "Označ připravenost do {0} s, jinak ztratíš místo."
+
+msgid "runtime.training_call.forfeit"
+msgstr "Po tréninku jsi včas neoznačil připravenost, a proto jsi opustil místo."
 
 msgid "home.choose_controller"
 msgstr "Vybrat herní ovladač"
@@ -709,7 +955,7 @@ msgid "settings.title"
 msgstr "NASTAVENÍ"
 
 msgid "settings.player_detail"
-msgstr "Zobrazované jméno a přiřazení ovladače."
+msgstr "Zobrazované jméno, přiřazení ovladače a hraní na pozadí."
 
 msgid "settings.defaults_detail"
 msgstr "Zpoždění a výchozí nastavení místností."
@@ -741,6 +987,30 @@ msgstr "Použít klávesnici"
 msgid "player.use_keyboard_detail"
 msgstr "Přiřaďte klávesnici jako herní zařízení. Ovladač pak přestane ovládat nabídky Ember, dokud ho znovu nepřiřadíte."
 
+msgid "player.background_play"
+msgstr "Hrát na pozadí"
+
+msgid "player.background_play_detail"
+msgstr "Zvuk hry a ovladač fungují dál, i když je v popředí jiné okno, například OBS. Klávesnice a nabídky Ember dál potřebují okno hry. Použijte režim okna: na celé obrazovce se hra stále minimalizuje."
+
+msgid "player.lower_input_lag"
+msgstr "Menší zpoždění vstupu (experimentální)"
+
+msgid "player.lower_input_lag_detail"
+msgstr "Experimentální. Odstraní jeden snímek zpoždění, který hra přidává ke každému vstupu. V místnosti platí jen tehdy, když ho zapnou oba hráči, a pak i pro diváky. Offline souboje a Trénink se řídí jen tímto nastavením."
+
+msgid "player.lower_keyboard_lag"
+msgstr "Rychlejší klávesnice (experimentální)"
+
+msgid "player.lower_keyboard_lag_detail"
+msgstr "Experimentální. Hra čte klávesnici o jeden snímek později než ovladač; toto ten snímek odebere. Týká se jen klávesnice a jen tohoto počítače: druhý hráč to zapínat nemusí."
+
+msgid "player.faster_display"
+msgstr "Rychlejší obraz (o 1 snímek dříve)"
+
+msgid "player.faster_display_detail"
+msgstr "Hra zobrazí každý snímek, jakmile je hotový, ne o snímek později. Pokud hra na tomto počítači klesne pod 60 snímků za sekundu, vypněte to. Týká se jen tohoto počítače: druhý hráč to zapínat nemusí. Změna se projeví při příštím spuštění hry."
+
 msgid "player.native_menus"
 msgstr "Otevřít nabídky hry"
 
@@ -767,6 +1037,21 @@ msgstr "Rozložení HUD"
 
 msgid "settings.match_hud_layout_detail"
 msgstr "Pruh Ember má vše v jednom panelu. Rozdělené dá každé jméno pod jeho ukazatel zdraví."
+
+msgid "settings.name_offset"
+msgstr "Výška jmen"
+
+msgid "settings.name_offset_detail"
+msgstr "Posune jména rozděleného rozložení nahoru nebo dolů. Použijte, když nezakrývají PLAYER 1 a PLAYER 2, protože hra má změněnou polohu HUD."
+
+msgid "name_offset.default"
+msgstr "Výchozí"
+
+msgid "name_offset.up"
+msgstr "Nahoru {0}"
+
+msgid "name_offset.down"
+msgstr "Dolů {0}"
 
 msgid "hud_layout.strip"
 msgstr "Pruh Ember"
@@ -919,7 +1204,7 @@ msgid "about.controls"
 msgstr "Ovládání"
 
 msgid "about.controls_detail"
-msgstr "Ovladač Xbox: A vybírá, B se vrací, nezávisle na bojových tlačítkách. Jiné ovladače: přiřazené LP vybírá, LK se vrací. Klávesnice: šipky, Enter a Escape. D-pad pohybuje; vlevo a vpravo mění hodnotu. Zpět na obrazovce Domů skryje Ember. F10, nebo Start na ovladači, ho znovu otevře v hlavní nabídce hry.\n\nV místnosti A na stole umožní vybrat místo, A na vlastním místě nastaví Připraven a B uvolní místo nebo opustí frontu. Na ovladači Xbox X otevře Bojovník, Y otevře Možnosti a View otevře Chat; dalším stiskem se vrátíte do místnosti.\n\nV tréninku F6 otevře ovládání, F5 skryje HUD, F7 nahrává a F8 přehrává."
+msgstr "Ovladač Xbox: A vybírá, B se vrací, nezávisle na bojových tlačítkách. Jiné ovladače: přiřazené LP vybírá, LK se vrací. Klávesnice: šipky, Enter a Escape. D-pad pohybuje; vlevo a vpravo mění hodnotu. Zpět na obrazovce Domů skryje Ember. F10, nebo Start na ovladači, ho znovu otevře v hlavní nabídce hry.\n\nV místnosti A na stole umožní vybrat místo, A na vlastním místě nastaví Připraven a B uvolní místo nebo opustí frontu. Na ovladači Xbox X otevře Bojovník, Y otevře Možnosti a View otevře Chat; dalším stiskem se vrátíte do místnosti.\n\nV tréninku F6 otevře ovládání, F5 skryje HUD, F7 nahrává a F8 přehrává. Na ovladači podržte View nebo Select a stiskněte Start."
 
 msgid "about.controls_keyboard"
 msgstr "Na klávesnici také Mezerník vybírá a Backspace vrací zpět. V místnosti F otevře Bojovníka, T Možnosti a C Chat. Escape vždy vrací zpět, i na vašem vlastním místě; Delete opustí vaše místo nebo frontu."
@@ -962,6 +1247,15 @@ msgstr "Připojit se k Discord Ember"
 
 msgid "about.discord_detail"
 msgstr "Hráči, zápasy a podpora na {0}. Otevře se v prohlížeči za hrou."
+
+msgid "about.version_line"
+msgstr "Ember {0} · {1}"
+
+msgid "about.version_detail"
+msgstr "Verze Emberu v tomto počítači. Sestavení {0}."
+
+msgid "about.channel_detail"
+msgstr "Kontroly aktualizací používají tento kanál. Chcete-li jej změnit, zavřete hru a poklepejte na Updater.exe."
 
 msgid "settings.retry_save"
 msgstr "Uložit znovu"
@@ -1140,23 +1434,239 @@ msgstr "EMBER / {0}"
 msgid "training.controls"
 msgstr "Ovládání tréninku"
 
-msgid "training.open_chip"
-msgstr "F6 Ovládání tréninku"
-
 msgid "training.hide_hint"
-msgstr "F5 Skrýt HUD"
+msgstr "Skrýt HUD"
+
+msgid "training.controls_chip"
+msgstr "Ovládání tréninku"
+
+msgid "training.pad_hint"
+msgstr "Klepnutí obnoví, podržení uloží"
+
+msgid "training.hint.reset"
+msgstr "Obnovit"
+
+msgid "training.hint.save"
+msgstr "Uložit"
+
+msgid "training.save_recording"
+msgstr "Uložit nahrávku jako"
+
+msgid "training.save_recording.detail"
+msgstr "Zapíše vybraný slot do souboru s tímto názvem."
+
+msgid "training.load_recording"
+msgstr "Načíst nahrávku"
+
+msgid "training.load_recording.detail"
+msgstr "Vlevo a Vpravo vyberou uloženou nahrávku; Výběr ji načte do vybraného slotu."
+
+msgid "training.mirror"
+msgstr "Zrcadlit vybranou nahrávku"
+
+msgid "training.mirror.detail"
+msgstr "Prohodí v této pozici levou a pravou stranu, pro uloženou nahrávku, která hraje obráceně."
+
+msgid "training.recording_saved"
+msgstr "Nahrávka uložena jako {0}."
+
+msgid "training.recording_loaded"
+msgstr "Nahrávka {0} načtena do slotu {1}."
+
+msgid "training.recording_none"
+msgstr "Žádné uložené nahrávky."
 
 msgid "training.dummy_recording"
 msgstr "Nahrávání soupeře"
 
 msgid "training.dummy_recording.detail"
-msgstr "Nahrajte ovládání 1H pro 2H. Ve hře nastavte tréninkového soupeře na ovládání hráčem."
+msgstr "Nahrajte ovládání 1H pro 2H a pak ho přehrajte. Ve hře nic nastavovat nemusíte: Ember předá soupeře vstupu 2H, dokud nahrává nebo přehrává."
 
 msgid "training.input_history"
 msgstr "Historie vstupů"
 
 msgid "training.input_history.detail"
 msgstr "Prohlédněte si držené vstupy obou hráčů."
+
+msgid "training.match.checkpoint_disabled"
+msgstr "Společné uložení a obnovení pozice není v zápasech s rollbackem k dispozici."
+
+msgid "training.match.end_hint"
+msgstr "Start nebo F10 otevře Ember, kde tuto hru ukončí volba Ukončit trénink."
+
+msgid "training.invalid"
+msgstr "Nepřijato: {0}"
+
+msgid "training.save_failed"
+msgstr "Soubor se nepodařilo uložit."
+
+msgid "training.position.save"
+msgstr "Uložit pozici"
+
+msgid "training.position.save.detail"
+msgstr "Zachová oba bojovníky, jak jsou teď: místo, zdraví, lišty, stav figuríny."
+
+msgid "training.position.reset"
+msgstr "Obnovit pozici"
+
+msgid "training.position.reset.detail"
+msgstr "Vrátí oba bojovníky tam, kde byli uloženi."
+
+msgid "training.position.saved"
+msgstr "Pozice uložena."
+
+msgid "training.position.reset_done"
+msgstr "Pozice obnovena."
+
+msgid "training.dummy.detail"
+msgstr "Vlevo a Vpravo mění; ve hře platí hned."
+
+msgid "training.reply"
+msgstr "Odpověď figuríny"
+
+msgid "training.reply.detail"
+msgstr "Co figurína udělá sama, jakmile je znovu volná, aby potrestala přerušené kombo nebo riskantní zakončení: přehraje Údery odpovědi, nebo pozici odpovědi, když je ten řádek prázdný. Odpověď čeká, dokud běží přehrávání nebo nahrávání."
+
+msgid "training.reply.hit"
+msgstr "Po přerušeném kombu"
+
+msgid "training.reply.block"
+msgstr "Po bloku"
+
+msgid "training.reply.rise"
+msgstr "Při vstávání"
+
+msgid "training.reply.any"
+msgstr "Vždy po zotavení"
+
+msgid "training.reply.slot"
+msgstr "Pozice odpovědi"
+
+msgid "training.reply.slot.detail"
+msgstr "Nahrávka figuríny přehraná jako odpověď, dokud jsou Údery odpovědi prázdné, od prvního stisku."
+
+msgid "training.reply.slot_empty"
+msgstr "Pozice {0} je prázdná, soupeř nemá čím odpovědět. Nahrajte ji, nebo vyberte pohyb."
+
+msgid "training.reply.chance"
+msgstr "Šance na odpověď"
+
+msgid "training.reply.chance.detail"
+msgstr "Jak často figurína odpovídá. Pod 100 % se to mění pokus od pokusu."
+
+msgid "training.reply.vary_stance"
+msgstr "Střídat postoj"
+
+msgid "training.reply.vary_stance.detail"
+msgstr "Po každém zotavení figurína náhodně stojí nebo dřepí, aby se kombo cvičilo na obojím. Jen když je figurína nastavena na stoj nebo dřep."
+
+msgid "training.reply.moves"
+msgstr "Údery odpovědi"
+
+msgid "training.reply.moves.detail"
+msgstr "Odpověď zapsaná číselnou notací, například 623HP nebo 44, čtená pro stranu, kam se figurína dívá. Fungují i slova pro pohyby: qcf, qcb, dp, rdp, hcf a hcb, například qcfP nebo dp+HP. Pohyb se zadá, dokud je figurína ještě držena, aby tlačítko padlo na její první volný snímek. [1] drží směr do dalšího pohybu, [1]20f ho drží 20 snímků a 10f čeká: [1] > 3HP blokuje dole, dokud figurína není volná, pak stiskne 3HP. Prázdné pole použije pozici odpovědi."
+
+msgid "training.reply.move"
+msgstr "Předvolba odpovědi"
+
+msgid "training.reply.move.detail"
+msgstr "Vlevo a vpravo vyberou běžnou odpověď v numpad zápisu, čtenou pro stranu, kam figurína hledí. Pozice odpovědi přehraje nahrávku; Vlastní ponechá napsané údery. Vybrat otevře Údery odpovědi k napsání."
+
+msgid "training.reply.custom"
+msgstr "Vlastní"
+
+msgid "training.reply.timing"
+msgstr "Načasování odpovědi"
+
+msgid "training.reply.timing.detail"
+msgstr "Počet snímků po prvním volném snímku figuríny, na který padne tlačítko odpovědi. Délka omráčení se zjistí napoprvé; do té doby odpověď začne, když omráčení skončí."
+
+msgid "training.key.reset"
+msgstr "Klávesa obnovení"
+
+msgid "training.challenger"
+msgstr "Tvůj zápas je připraven"
+
+msgid "training.key.detail"
+msgstr "Vlevo a Vpravo vyberou klávesu, která to během souboje provede. Vypnuto ji nechá bez klávesy."
+
+msgid "training.dummy.action"
+msgstr "Figurína"
+
+msgid "training.dummy.guard"
+msgstr "Blok"
+
+msgid "training.dummy.counter"
+msgstr "Counter hit"
+
+msgid "training.dummy.quick"
+msgstr "Rychlé vstávání"
+
+msgid "training.dummy.super"
+msgstr "Super lišta"
+
+msgid "training.dummy.revenge"
+msgstr "Revenge lišta"
+
+msgid "training.dummy.stand"
+msgstr "Stoj"
+
+msgid "training.dummy.crouch"
+msgstr "Dřep"
+
+msgid "training.dummy.jump"
+msgstr "Skok"
+
+msgid "training.dummy.cpu"
+msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "Člověk"
+
+msgid "training.dummy.guard_none"
+msgstr "Bez bloku"
+
+msgid "training.dummy.guard_first"
+msgstr "Po prvním zásahu"
+
+msgid "training.dummy.guard_all"
+msgstr "Blokovat vše"
+
+msgid "training.dummy.guard_random"
+msgstr "Náhodně"
+
+msgid "training.dummy.counter_off"
+msgstr "Vyp."
+
+msgid "training.dummy.counter_on"
+msgstr "Zap."
+
+msgid "training.dummy.counter_random"
+msgstr "Náhodně"
+
+msgid "training.dummy.quick_quick"
+msgstr "Rychle"
+
+msgid "training.dummy.quick_normal"
+msgstr "Normálně"
+
+msgid "training.dummy.quick_delayed"
+msgstr "Zpožděně"
+
+msgid "training.dummy.quick_random"
+msgstr "Náhodně"
+
+msgid "training.dummy.gauge_normal"
+msgstr "Normální"
+
+msgid "training.dummy.gauge_max"
+msgstr "Plná na startu"
+
+msgid "training.dummy.gauge_infinite"
+msgstr "Nekonečná"
+
+msgid "training.dummy.gauge_refill"
+msgstr "Doplňování"
 
 msgid "training.close_controls"
 msgstr "Zavřít ovládání tréninku"
@@ -1186,7 +1696,10 @@ msgid "training.play"
 msgstr "Přehrát"
 
 msgid "training.play.detail"
-msgstr "Přehrát vybranou pozici a vrátit se k tréninku. Směry jsou absolutní, ne zrcadlené."
+msgstr "Přehrát vybranou pozici a vrátit se k tréninku. Nahrávky se řídí stranou, kam se figurína dívá. Vlevo a Vpravo volí, zda se opakuje."
+
+msgid "training.play.once"
+msgstr "Jednou"
 
 msgid "training.slot_empty"
 msgstr "Tato pozice je prázdná."
@@ -1199,9 +1712,6 @@ msgstr "Zastavit nahrávání nebo přehrávání."
 
 msgid "training.loop"
 msgstr "Opakovat přehrávání"
-
-msgid "training.loop.detail"
-msgstr "Opakovat vybranou nahrávku."
 
 msgid "training.clear_recording"
 msgstr "Smazat vybranou nahrávku"
@@ -1231,7 +1741,7 @@ msgid "training.recording_suspended"
 msgstr "Nahrávání je pozastaveno, dokud je otevřené ovládání"
 
 msgid "training.playback_suspended"
-msgstr "Přehrávání je pozastaveno, dokud je otevřené ovládání"
+msgstr "Přehrávání běží; nahrávání čeká na zavření ovládání"
 
 msgid "training.applying"
 msgstr "Provádění příkazu..."
@@ -1245,14 +1755,95 @@ msgstr "TRÉNINK"
 msgid "training.command_rejected"
 msgstr "Příkaz pro trénink nebyl přijat. Zkontrolujte stav a zkuste to znovu."
 
-msgid "training.start_frames"
-msgstr "Náběh {0} sn."
-
-msgid "training.start_unknown"
-msgstr "Náběh --"
-
 msgid "training.startup"
 msgstr "Náběh"
+
+msgid "training.meter.active"
+msgstr "Aktivní"
+
+msgid "training.meter.recovery"
+msgstr "Zotavení"
+
+msgid "training.meter.hit"
+msgstr "Zásah"
+
+msgid "training.meter.block"
+msgstr "Blok"
+
+msgid "training.meter.whiff"
+msgstr "Mimo"
+
+msgid "training.meter.knockdown"
+msgstr "Sražení"
+
+msgid "training.meter.meaty"
+msgstr "Meaty"
+
+msgid "training.meter.throw"
+msgstr "Hod / sekvence"
+
+msgid "training.meter.attack"
+msgstr "Útok"
+
+msgid "training.meter.move"
+msgstr "Pohyb"
+
+msgid "training.meter.attack_unsplit"
+msgstr "Útok, nerozdělený"
+
+msgid "training.meter.style"
+msgstr "Styl měřiče"
+
+msgid "training.meter.style.detail"
+msgstr "Šikmý obarví útok podle náběhu, aktivních snímků a zotavení a ke každému úseku napíše jeho délku. Plochý kreslí celý útok jednou barvou."
+
+msgid "training.meter.style.angled"
+msgstr "Šikmý"
+
+msgid "training.meter.style.flat"
+msgstr "Plochý"
+
+msgid "training.meter.frames_shown"
+msgstr "Zobrazené snímky"
+
+msgid "training.meter.frames_shown.detail"
+msgstr "Kolik snímků pruhy ukážou na stejné šířce. Méně snímků je širších a snáz se počítají; 120 ukáže celou historii. Když je měřič zastavený, kolečko myši nad pruhy jí listuje zpět."
+
+msgid "training.meter.hud_recovery"
+msgstr "Zotavení na HUD"
+
+msgid "training.meter.hud_recovery.detail"
+msgstr "Zobrazí na měřiči zotavení posledního pohybu každého bojovníka vedle náběhu."
+
+msgid "training.meter.hud_numbers"
+msgstr "Čísla na HUD"
+
+msgid "training.meter.hud_bars"
+msgstr "Pruhy na HUD"
+
+msgid "training.meter.hud_state"
+msgstr "Stav na HUD"
+
+msgid "training.meter.hud_shortcuts"
+msgstr "Zkratky na HUD"
+
+msgid "training.meter.hud_status"
+msgstr "Nahrávání na HUD"
+
+msgid "training.meter.hud_part.detail"
+msgstr "Zobrazí tuto část tréninkového HUD během souboje. F5 skryje celý HUD."
+
+msgid "training.meter.hud_size"
+msgstr "Velikost HUD"
+
+msgid "training.meter.hud_size.detail"
+msgstr "Nastaví velikost textu a pruhů tréninkového HUD. Zvětší ho i Velikost rozhraní."
+
+msgid "training.recovery_frames"
+msgstr "Zot. {0} sn."
+
+msgid "training.recovery_unknown"
+msgstr "Zot. --"
 
 msgid "training.neutral"
 msgstr "Neutrál"
@@ -1296,6 +1887,9 @@ msgstr "živě"
 msgid "training.advantage"
 msgstr "Výhoda"
 
+msgid "training.last_advantage"
+msgstr "Poslední výhoda"
+
 msgid "selection.preview_unavailable"
 msgstr "Náhled\nnení dostupný"
 
@@ -1325,6 +1919,9 @@ msgstr "Alternativní {0}"
 
 msgid "selection.alternate_pack"
 msgstr "Alternativní {0} / {1}"
+
+msgid "selection.custom"
+msgstr "Vlastní {0}"
 
 msgid "selection.stage_count"
 msgstr "SCÉNY: {0} / USFIV"
@@ -1412,6 +2009,12 @@ msgstr "Čeká se na dostupné kostýmy a barvy ze hry."
 
 msgid "selection.no_colors"
 msgstr "Pro tento kostým nejsou odemčené barvy."
+
+msgid "selection.not_owned"
+msgstr "Na Steamu nevlastníte."
+
+msgid "selection.not_owned_badge"
+msgstr "NEVLASTNÍTE"
 
 msgid "selection.color"
 msgstr "Barva {0}"
@@ -1553,11 +2156,17 @@ msgstr "Čeká se na připojení soupeře do lobby..."
 msgid "runtime.authorized_connection_unavailable"
 msgstr "Schválené spojení pro zápas není dostupné."
 
+msgid "runtime.input_lag_unavailable"
+msgstr "Tento počítač nemohl nastavit časování vstupu hry tak, jak tento zápas vyžaduje (Menší zpoždění vstupu), takže byl zápas zastaven. Restart hry by to měl vyřešit."
+
 msgid "runtime.waiting_opponent_start"
 msgstr "Před začátkem zápasu se čeká na soupeře v lobby."
 
 msgid "runtime.unsupported_stage"
 msgstr "Místnost zadala nepodporovanou scénu. Před dalším pokusem obnovte lobby."
+
+msgid "runtime.unsupported_match"
+msgstr "Místnost zadala nepodporované bojovníky nebo nastavení zápasu. Před dalším pokusem obnovte lobby."
 
 msgid "runtime.netplay_input_failed"
 msgstr "Síťový vstup selhal. Zápas skončil."
@@ -1604,6 +2213,9 @@ msgstr "Návrat do místnosti."
 msgid "runtime.table_game_cancelled"
 msgstr "Zápas u tohoto stolu byl zrušen. Vraťte se do místnosti a znovu potvrďte Připraven."
 
+msgid "runtime.practice_ended"
+msgstr "Trénink skončil. Vraťte se do místnosti a znovu potvrďte Připraven."
+
 msgid "runtime.result_not_recorded"
 msgstr "Výsledek nešlo zaznamenat: stůl se změnil před potvrzením."
 
@@ -1613,8 +2225,6 @@ msgstr "Účastník zápasu opustil místnost. Hra skončí."
 msgid "update.github_unreachable"
 msgstr "GitHub není dostupný. Zkontrolujte internetové připojení a zkuste to znovu."
 
-msgid "update.no_version_tag"
-msgstr "Vydání na GitHub nemá značku verze."
 
 msgid "update.no_zip_asset"
 msgstr "Nejnovější vydání nemá ZIP balíček SF4 Ember Netplay."
@@ -1627,6 +2237,9 @@ msgstr "Chybí URL ke stažení."
 
 msgid "update.missing_version"
 msgstr "Chybí značka verze."
+
+msgid "update.not_offered"
+msgstr "Tato verze není ta, která byla nabídnuta. Zkontrolujte aktualizace znovu."
 
 msgid "update.close_sf4"
 msgstr "Před instalací aktualizace zavřete Ultra Street Fighter IV."
@@ -1687,6 +2300,39 @@ msgstr "Před instalací aktualizace zavřete hru."
 msgid "update.updater_start_failed"
 msgstr "Updater.exe se nespustil. Použijte nový ZIP soubor."
 
+msgid "update.stage.preparing"
+msgstr "Kontrola balíčku..."
+
+msgid "update.stage.comparing"
+msgstr "Porovnávání souborů..."
+
+msgid "update.stage.backing_up"
+msgstr "Zálohování nahrazovaných souborů..."
+
+msgid "update.stage.replacing"
+msgstr "Nahrazování souborů..."
+
+msgid "update.stage.confirming"
+msgstr "Kontrola nainstalovaných souborů..."
+
+msgid "update.notice.waiting_launcher"
+msgstr "Čekání na zavření SF4 Ember Netplay..."
+
+msgid "update.notice.waiting_file"
+msgstr "Čekání, až jiný program uvolní {0}..."
+
+msgid "update.notice.restoring"
+msgstr "Obnovování předchozích souborů..."
+
+msgid "update.notice.elapsed"
+msgstr "Uplynulo {0}"
+
+msgid "update.notice.reopens"
+msgstr "Po dokončení se SF4 Ember Netplay znovu otevře."
+
+msgid "update.notice.recovering"
+msgstr "Dokončování přerušené aktualizace..."
+
 msgid "room.member_left"
 msgstr "Člen odešel"
 
@@ -1719,6 +2365,9 @@ msgstr "Nečinný {0} min"
 
 msgid "room.idle_hours"
 msgstr "Nečinný {0} h {1} min"
+
+msgid "room.in_training"
+msgstr "V tréninku"
 
 msgid "room.phase.waiting"
 msgstr "Čekání na hráče"
@@ -2014,6 +2663,15 @@ msgstr "Čeká se na návrat zamčených diváků. Začne za {0} s."
 msgid "room.hold.waiting_you"
 msgstr "Hra na vás čeká: {0} s"
 
+msgid "room.ready_timeout.you"
+msgstr "Připravte se do {0} s, jinak opustíte místo"
+
+msgid "room.ready_timeout.other"
+msgstr "{1} má ještě {0} s na přípravu"
+
+msgid "chat.event.ready_timeout"
+msgstr "{0} opustil(a) stůl {1}: nepřipravil(a) se včas"
+
 msgid "room.hold.status"
 msgstr "Čeká se na diváky: {0} s"
 
@@ -2045,7 +2703,7 @@ msgid "room.ready_up"
 msgstr "Připraven"
 
 msgid "room.selected_delay.detail"
-msgstr "Nastavte 1 až 10 snímků, pod 1 je Auto. Změny se projeví ihned."
+msgstr "Nastavte 0 až 10 snímků, pod 0 je Auto. 0 nepřidává zpoždění a vyžaduje stabilní nízký ping."
 
 msgid "room.selected_delay.locked"
 msgstr "Zvolené zpoždění je pro tento zápas uzamčeno."
@@ -2131,6 +2789,12 @@ msgstr "Vzdát nevyřešený zápas"
 
 msgid "room.abandon_result.detail"
 msgstr "Výsledek se nezaznamená. Oba hráči zůstanou u stolu a mohou se znovu připravit."
+
+msgid "room.end_practice"
+msgstr "Ukončit trénink"
+
+msgid "room.end_practice.detail"
+msgstr "Ukončí tento cvičný zápas hned pro oba hráče. Výsledek se nezaznamená. Oba hráči zůstanou u stolu a mohou se znovu připravit."
 
 msgid "room.leave_queue"
 msgstr "Opustit frontu"
@@ -2323,6 +2987,9 @@ msgstr "Upravit text"
 
 msgid "edit.instructions"
 msgstr "Pište nebo vložte text z klávesnice. Enter nebo Vybrat na ovladači potvrdí; Escape nebo Zpět na ovladači zruší."
+
+msgid "edit.instructions_multiline"
+msgstr "Pište nebo vložte text klávesnicí. Enter nebo Enter na numerické klávesnici vloží nový řádek. Ctrl+Enter, Ctrl+Enter na numerické klávesnici, tlačítko Přijmout nebo výběr na ovladači potvrdí; Escape nebo Zpět na ovladači zruší."
 
 msgid "edit.updating"
 msgstr "Místnost se aktualizuje. Koncept zůstane zachován; můžete dál psát nebo úpravu zrušit."
@@ -3575,3 +4242,399 @@ msgstr "Do místnosti se nepodařilo vstoupit. Možná se právě zavřela. Aktu
 
 msgid "legend.refresh"
 msgstr "Aktualizovat"
+
+msgid "training.frame_data"
+msgstr "Data snímků"
+
+msgid "training.frame_data.detail"
+msgstr "Prohlédněte si poslední útok obou hráčů, výhodu a načasování útoku při vstávání."
+
+msgid "training.hud"
+msgstr "HUD"
+
+msgid "training.hud.detail"
+msgstr "Zapněte nebo vypněte části HUD během souboje."
+
+msgid "training.color_key"
+msgstr "Význam barev"
+
+msgid "training.dummy"
+msgstr "Tréninkový soupeř"
+
+msgid "training.position"
+msgstr "Pozice"
+
+msgid "training.start_frames"
+msgstr "Náběh {0} sn."
+
+msgid "training.start_unknown"
+msgstr "Náběh --"
+
+msgid "settings.training_replays"
+msgstr "Trénink a záznamy"
+
+msgid "settings.training_replays_detail"
+msgstr "Měřič snímků v zápasech, automatická připravenost po tréninku a výběr ukládaných zápasů."
+
+msgid "settings.training_replays_title"
+msgstr "TRÉNINK A ZÁZNAMY"
+
+msgid "room.table_footer_practice"
+msgstr "Cvičný zápas"
+
+msgid "room.rules_summary_practice"
+msgstr "Cvičný zápas, {0} kol, {1} s, Edition Select {2}"
+
+msgid "room.practice"
+msgstr "Tréninková místnost"
+
+msgid "room.practice.detail"
+msgstr "Každá hra v místnosti je cvičný zápas: zdraví a ukazatele se doplňují, nikdo není vyřazen a čas kola je {0}. Platí to, dokud je místnost otevřená. Chcete-li hrát běžné zápasy, zavřete místnost a vytvořte novou."
+
+msgid "room.practice_status"
+msgstr "Tréninková místnost / jen s pozvánkou"
+
+msgid "room.practice_locked_status"
+msgstr "Uzamčená tréninková místnost / jen s pozvánkou"
+
+msgid "inputs.presses_value"
+msgstr "{0} stisknutí"
+
+msgid "replays.watch_meter"
+msgstr "Přehrát s měřičem snímků"
+
+msgid "replays.watch_meter_detail"
+msgstr "Přehraje záznam z Battle Logu s měřičem snímků nad soubojem."
+
+msgid "replays.controls.play"
+msgstr "Přehrát"
+
+msgid "replays.controls.pause"
+msgstr "Pozastavit"
+
+msgid "replays.controls.paused"
+msgstr "Pozastaveno"
+
+msgid "replays.controls.step"
+msgstr "Krok"
+
+msgid "replays.controls.speed"
+msgstr "Rychlost"
+
+msgid "replays.controls.speed_full"
+msgstr "1x"
+
+msgid "replays.controls.speed_half"
+msgstr "1/2x"
+
+msgid "replays.controls.speed_quarter"
+msgstr "1/4x"
+
+msgid "replays.controls.inputs"
+msgstr "Vstupy"
+
+msgid "replays.controls.meter"
+msgstr "Měřič"
+
+msgid "replays.controls.round"
+msgstr "Kolo {0}"
+
+msgid "replays.controls.frame"
+msgstr "Snímek {0}"
+
+msgid "replays.controls.unavailable"
+msgstr "Ovládání funguje během boje"
+
+msgid "room.training"
+msgstr "Čekat v tréninku"
+
+msgid "replays.export_gpu"
+msgstr "Exportovat video (GPU)"
+
+msgid "replays.export_gpu_detail"
+msgstr "Nahraje jej jako .mp4 v plné velikosti obrazu hry, kódovaný grafickou kartou."
+
+msgid "replays.video"
+msgstr "Video"
+
+msgid "export.title"
+msgstr "Exportovat video"
+
+msgid "export.detail"
+msgstr "Zobrazuje se přes hru při nahrávání, na obrazovce i ve videu."
+
+msgid "export.names"
+msgstr "Jména hráčů"
+
+msgid "export.name"
+msgstr "Hráč {0}"
+
+msgid "export.line"
+msgstr "Řádek zápasu"
+
+msgid "export.line_text"
+msgstr "Text řádku zápasu"
+
+msgid "export.set"
+msgstr "Skóre setu"
+
+msgid "export.set_detail"
+msgstr "Dosavadní výhry každého hráče v setu, vedle jména. Počítá se ze zápasů, které tito dva hráli těsně předtím; pokud nesedí, upravte je."
+
+msgid "export.set_wins"
+msgstr "Výhry hráče {0}"
+
+msgid "export.mark"
+msgstr "Značka Ember"
+
+msgid "export.generate"
+msgstr "Vytvořit video"
+
+msgid "export.meter"
+msgstr "Měřič snímků"
+
+msgid "export.meter_detail"
+msgstr "Zobrazí měřič snímků z tréninku přes souboj, na obrazovce i ve videu."
+
+msgid "export.generate_detail"
+msgstr "Přehraje záznam a nahraje ho jako .mp4 vedle něj. Během nahrávání otevře F10 Ember, kde lze průběh sledovat nebo export zrušit."
+
+msgid "export.running"
+msgstr "Export videa"
+
+msgid "export.running_detail"
+msgstr "Záznam se nahrává během přehrávání. Dokud je tato nabídka otevřená, video neobsahuje popisky ani měřič snímků."
+
+msgid "export.starting"
+msgstr "Spouštění..."
+
+msgid "export.finishing"
+msgstr "Dokončování videa..."
+
+msgid "export.cancelling"
+msgstr "Rušení..."
+
+msgid "export.progress"
+msgstr "{0} / {1}"
+
+msgid "export.cancel"
+msgstr "Zrušit export"
+
+msgid "export.cancel_detail"
+msgstr "Zastaví nahrávání a smaže nedokončené video. Záznam se přehraje do konce."
+
+msgid "export.cancelled"
+msgstr "Export zrušen. Žádné video nebylo uloženo."
+
+msgid "training.result"
+msgstr "Výsledek"
+
+msgid "training.room.table"
+msgstr "Stůl {0}"
+
+msgid "training.room.waiting"
+msgstr "Čeká se na soupeře"
+
+msgid "training.room.opponent"
+msgstr "Soupeř: {0}"
+
+msgid "training.room.queued"
+msgstr "Ve frontě: {0}. z {1}"
+
+msgid "training.room.not_queued"
+msgstr "Mimo frontu"
+
+msgid "training.room.unread"
+msgstr "Nepřečtené: {0}"
+
+msgid "room.training_call.calling"
+msgstr "Volá se {0} zpět z tréninku"
+
+msgid "training.go_now"
+msgstr "Jít hned"
+
+msgid "reports.setting"
+msgstr "Odesílat hlášení problémů"
+
+msgid "reports.setting_detail"
+msgstr "ZAP: po pádu spouštěč odešle hlášení bez ptaní, nejvýše {0} denně a nikdy s výpisem pádu. VYP: nejdřív se zeptá."
+
+msgid "reports.problem"
+msgstr "Nahlásit problém"
+
+msgid "reports.problem_detail"
+msgstr "Prohlédněte si upravené logy a údaje hlášení, než se rozhodnete, zda je odeslat Emberu."
+
+msgid "reports.title"
+msgstr "Náhled hlášení"
+
+msgid "reports.preparing"
+msgstr "Připravuje se náhled hlášení..."
+
+msgid "reports.preview_detail"
+msgstr "Před odesláním si prohlédněte každou část. Hlášení jdou na embernetplay.link. Surové výpisy se uchovávají až 30 dní; zpracovaná hlášení mají jinou dobu uchování."
+
+msgid "reports.sending"
+msgstr "Odesílání hlášení..."
+
+msgid "reports.bytes"
+msgstr "{0} bajtů"
+
+msgid "reports.metadata"
+msgstr "Údaje hlášení"
+
+msgid "reports.dump"
+msgstr "Malý výpis"
+
+msgid "reports.dump_detail"
+msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+
+msgid "reports.comment"
+msgstr "Komentář"
+
+msgid "reports.comment_required"
+msgstr "Před odesláním popište problém (až 2000 znaků). Komentář se odešle tak, jak je napsán."
+
+msgid "reports.comment_optional"
+msgstr "Volitelně popište, co se stalo (až 2000 znaků). Komentář se odešle tak, jak je napsán."
+
+msgid "reports.send"
+msgstr "Odeslat"
+
+msgid "reports.dont_send"
+msgstr "Neodesílat"
+
+msgid "reports.consent"
+msgstr "Odeslat Emberu přesně části zobrazené v tomto náhledu, včetně komentáře a případně malého výpisu?"
+
+msgid "reports.copy_id"
+msgstr "Kopírovat ID hlášení"
+
+msgid "reports.close_detail"
+msgstr "Zavře tento náhled. Nahrání, které server už přijal, zde nelze stáhnout zpět."
+
+msgid "reports.sent"
+msgstr "Hlášení přijato. ID hlášení: {0}"
+
+msgid "reports.invalid"
+msgstr "Hlášení je neplatné nebo příliš velké. Zkontrolujte komentář a zkuste připravit nový náhled."
+
+msgid "reports.invalid_response"
+msgstr "Odpověď serveru neobsahovala platné ID hlášení. Server mohl vaše hlášení už přijmout."
+
+msgid "reports.rate_limited"
+msgstr "Příliš mnoho hlášení. Zkuste to znovu za {0} s."
+
+msgid "reports.unavailable"
+msgstr "Odesílání hlášení je dočasně nedostupné. Zkuste to později."
+
+msgid "reports.failed"
+msgstr "Hlášení se nepodařilo odeslat. Zkontrolujte připojení a zkuste to znovu."
+
+msgid "reports.cancelled"
+msgstr "Nahrávání hlášení zrušeno. Hlášení, které server už přijal, může být stále uloženo."
+
+msgid "reports.dump_warning"
+msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+
+msgid "launcher.game_crashed_files"
+msgstr "Hra spadla. Pošlete prosím týmu SF4 Ember Netplay soubory ze složky %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log a sf4e-crash-*.dmp) a zkuste to znovu."
+
+msgid "launcher.game_crashed_sending"
+msgstr "Hra spadla. Odesílání hlášení problémů je zapnuté, proto se odesílá hlášení bez výpisu pádu. Soubory jsou také ve složce %APPDATA%\\sf4e\\logs."
+
+msgid "reports.settings_title"
+msgstr "Hlášení problémů"
+
+msgid "reports.settings_detail"
+msgstr "Co obsahuje hlášení o pádu a odeslaná hlášení."
+
+msgid "reports.sent_list"
+msgstr "Odeslaná hlášení"
+
+msgid "reports.sent_list_detail"
+msgstr "Každé hlášení odeslané z tohoto počítače: kdy, s jakým výsledkem a jeho ID."
+
+msgid "reports.none"
+msgstr "Zatím žádná hlášení"
+
+msgid "reports.none_detail"
+msgstr "Zde se zobrazí hlášení odeslaná z tohoto počítače."
+
+msgid "reports.send_once"
+msgstr "Odeslat toto hlášení"
+
+msgid "reports.send_always"
+msgstr "Odesílat vždy"
+
+msgid "reports.send_always_detail"
+msgstr "Odešle toto hlášení a od teď i hlášení každého dalšího pádu bez ptaní. Hlášení odeslaná bez ptaní nikdy neobsahují výpis. Bez ptaní jich za 24 hodin odejde nejvýše {0} a počítá se každé odeslané hlášení. Vypnete to v: Nastavení, Hlášení problémů."
+
+msgid "reports.dump_included"
+msgstr "Výpis pádu: přiložen."
+
+msgid "reports.dump_not_included"
+msgstr "Výpis pádu: nepřiložen."
+
+msgid "reports.row"
+msgstr "Hlášení problému"
+
+msgid "reports.status.sending"
+msgstr "Odesílá se"
+
+msgid "reports.status.received"
+msgstr "Přijato"
+
+msgid "reports.status.refused"
+msgstr "Nepřijato"
+
+msgid "reports.status.not_sent"
+msgstr "Neodesláno"
+
+msgid "reports.received"
+msgstr "Hlášení bylo přijato."
+
+msgid "reports.received_id"
+msgstr "Hlášení bylo přijato. Jeho ID je {0}. Uveďte ho, až se budete týmu Ember ptát na tento pád."
+
+msgid "reports.refused"
+msgstr "Služba hlášení hlášení nepřijala. Znovu se neodešle."
+
+msgid "reports.not_sent"
+msgstr "Hlášení se nepodařilo odeslat. Znovu se neodešle."
+
+msgid "reports.what_is_sent"
+msgstr "Z logů se odstraní pozvánky, tokeny, síťové adresy, e-mail a vaše uživatelské jméno Windows, složka profilu, název počítače a jméno hráče.\n\nHlášení, které odesíláte sami, se nejdřív zobrazí celé a malý výpis se odešle jen po zapnutí v tomto náhledu. Hlášení odeslaná bez dotazu výpis nikdy neobsahují.\n\nNikdy se neodesílají: vaše další soubory, vaše záznamy ani úplné výpisy pádu."
+
+msgid "reports.send_once_detail"
+msgstr "Otevře náhled přesně toho, co hlášení obsahuje. Nic se neodešle, dokud nezvolíte Odeslat."
+
+msgid "reports.crash_report"
+msgstr "Hlášení o pádu"
+
+msgid "reports.payload"
+msgstr "Hlášení jdou na embernetplay.link. Každé obsahuje verzi a sestavení Emberu, verzi Windows, údaje o pádu a upravený konec souborů sf4e.log, launcher.log, sf4e-crash.log a sf4-net.log."
+
+msgid "reports.status.unknown"
+msgstr "Neznámé"
+
+msgid "reports.interrupted"
+msgstr "Odesílání bylo přerušeno dřív, než přišla odpověď. Služba hlášení mohla hlášení přijmout."
+
+msgid "reports.identity_failed"
+msgstr "Nepodařilo se přečíst vaše jméno hráče nebo účet Windows, proto se hlášení nepřipravilo. Zkuste to znovu."
+
+msgid "reports.history_failed"
+msgstr "Záznam odeslaných hlášení se nepodařilo uložit, proto se hlášení neodeslalo. Zkuste to znovu."
+
+msgid "reports.history_unreadable"
+msgstr "Záznam nelze přečíst"
+
+msgid "reports.history_unreadable_detail"
+msgstr "Soubor sent-reports.json ve složce %APPDATA%\\sf4e nelze přečíst, proto se žádné hlášení neodešle bez ptaní. Smažte soubor a začne se nový záznam."
+
+msgid "reports.always_failed"
+msgstr "Odesílat vždy se nepodařilo zapnout, proto se toto hlášení neodeslalo. Zvolte Odeslat toto hlášení a odešlete ho z náhledu."
+
+msgid "reports.automatic_unavailable"
+msgstr "Dnešní automatická hlášení jsou vyčerpána nebo záznam odeslaných hlášení nelze přečíst, proto se toto hlášení neodeslalo. Zvolte Odeslat toto hlášení a odešlete ho z náhledu."

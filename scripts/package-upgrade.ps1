@@ -70,8 +70,10 @@ try {
     $targetManifestHash = (Get-FileHash -LiteralPath $targetManifestPath -Algorithm SHA256).Hash
     $before['MANIFEST.txt'] = $baseManifestHash
     $after['MANIFEST.txt'] = $targetManifestHash
-    $changed = @($after.Keys | Where-Object { !$before.ContainsKey($_) -or $before[$_] -ine $after[$_] } | Sort-Object)
-    $removed = @($before.Keys | Where-Object { !$after.ContainsKey($_) } | Sort-Object)
+    $changed = [string[]]@($after.Keys | Where-Object { !$before.ContainsKey($_) -or $before[$_] -ine $after[$_] })
+    $removed = [string[]]@($before.Keys | Where-Object { !$after.ContainsKey($_) })
+    [Array]::Sort($changed, [StringComparer]::Ordinal)
+    [Array]::Sort($removed, [StringComparer]::Ordinal)
     if (!$changed.Count) { throw 'The package manifests contain no upgrade work.' }
     $unchanged = @($after.Keys | Where-Object { $before.ContainsKey($_) -and $before[$_] -ieq $after[$_] }).Count
 
@@ -127,8 +129,10 @@ If the selected folder is modified or is not the exact published $FromVersion pa
 Release notes: https://github.com/Confetti3/SF4-Ember-Netplay/releases/tag/v$ToVersion
 "@
     Set-Content -LiteralPath (Join-Path $destination 'START_HERE.md') -Encoding UTF8 -Value $guide
-    $upgradeInventory = Get-ChildItem -LiteralPath $destination -File -Recurse | Sort-Object FullName | ForEach-Object {
-        '{0}  {1}' -f (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.FullName.Substring($destination.Length + 1)
+    $manifestPaths = [string[]]@(Get-ChildItem -LiteralPath $destination -File -Recurse | ForEach-Object { $_.FullName })
+    [Array]::Sort($manifestPaths, [StringComparer]::Ordinal)
+    $upgradeInventory = foreach ($path in $manifestPaths) {
+        '{0}  {1}' -f (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant(), $path.Substring($destination.Length + 1)
     }
     Set-Content -LiteralPath (Join-Path $destination 'UPGRADE_MANIFEST.txt') -Encoding UTF8 -Value $upgradeInventory
 

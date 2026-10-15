@@ -136,7 +136,7 @@ void HelperClient::Run(HelperBootstrap bootstrap) {
         SecureZeroMemory(&request.payload[0], request.payload.size());
     } else { error_ = ERROR_ACCESS_DENIED; }
     SecureZeroMemory(&bootstrap, sizeof(bootstrap));
-    if (!authenticated) { state_ = HelperState::Failed; return; }
+    if (!authenticated) { MarkFailed(); return; }
     state_ = HelperState::Connected;
     uint64_t lastReceived = 1;
     HelperMessage pendingIncoming;
@@ -148,7 +148,7 @@ void HelperClient::Run(HelperBootstrap bootstrap) {
         for (size_t i = 0; i < 8 && outgoing_.TryPop(sending); ++i) {
             const bool written = WriteFrame(pipe.value, sending);
             WipeText(sending.payload);
-            if (!written) { state_ = HelperState::Failed; return; }
+            if (!written) { MarkFailed(); return; }
         }
         // The helper may publish a complete checkpoint window and lifecycle
         // events faster than the game thread can consume them. Keep one read
@@ -161,21 +161,22 @@ void HelperClient::Run(HelperBootstrap bootstrap) {
             if (incoming_.TryPush(pendingIncoming, size)) {
                 pendingIncoming = {};
                 hasPendingIncoming = false;
+                NotifyIncoming();
             } else {
                 WaitForSingleObject(stop_, 2);
                 continue;
             }
         }
         DWORD available = 0;
-        if (!PeekNamedPipe(pipe.value, nullptr, 0, nullptr, &available, nullptr)) { error_ = GetLastError(); state_ = HelperState::Failed; return; }
+        if (!PeekNamedPipe(pipe.value, nullptr, 0, nullptr, &available, nullptr)) { error_ = GetLastError(); MarkFailed(); return; }
         if (available > 0) {
-            if (!ReadFrame(pipe.value, message) || message.id <= lastReceived) { error_ = ERROR_INVALID_DATA; state_ = HelperState::Failed; return; }
+            if (!ReadFrame(pipe.value, message) || message.id <= lastReceived) { error_ = ERROR_INVALID_DATA; MarkFailed(); return; }
             lastReceived = message.id;
             const size_t size = message.payload.size();
             if (!incoming_.TryPush(message, size)) {
                 pendingIncoming = std::move(message);
                 hasPendingIncoming = true;
-            }
+            } else { NotifyIncoming(); }
         } else { WaitForSingleObject(stop_, 2); }
     }
 }

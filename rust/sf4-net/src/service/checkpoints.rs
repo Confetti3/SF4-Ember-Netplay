@@ -10,6 +10,13 @@ impl Actor {
         if self.outgoing_transfer.is_some() {
             return;
         }
+        // The one way a committed checkpoint reaches native code, whether the
+        // watcher or the proposal's completion found it. Nested past what the
+        // native side can copy, it is never replayable: passed over once.
+        if !native_json_depth_ok(&transfer.bytes) {
+            self.last_exported_revision = self.last_exported_revision.max(transfer.revision);
+            return;
+        }
         self.outgoing_transfer = Some(OutgoingCheckpoint {
             transfer,
             next_offset: 0,
@@ -259,8 +266,10 @@ impl Actor {
         let Some(recovery) = self.recovery.clone() else {
             return Ok(());
         };
+        // This runs on every actor tick; the committed value is shared, so
+        // looking at it copies nothing.
         let committed = recovery.committed().await;
-        if committed.revision == 0 || committed.revision <= self.last_exported_revision {
+        if committed.revision() == 0 || committed.revision() <= self.last_exported_revision {
             return Ok(());
         }
         if self.incoming_transfer.is_some()
@@ -269,31 +278,32 @@ impl Actor {
         {
             return Ok(());
         }
-        let Ok(transfer_id) = committed.request.parse::<u64>() else {
+        let Ok(transfer_id) = committed.request().parse::<u64>() else {
             // Only helper proposals created from a native SessionProposal are
             // replayable. Keep the revision pending so an invalid candidate
             // cannot be mistaken for a committed native checkpoint.
             return Ok(());
         };
-        if transfer_id == 0 || committed.term == 0 {
+        if transfer_id == 0 || committed.term() == 0 {
             return Ok(());
         }
-        let Some(base_revision) = committed.revision.checked_sub(1) else {
+        let Some(base_revision) = committed.revision().checked_sub(1) else {
             return Ok(());
         };
         let transfer = CheckpointTransfer::new(
             recovery.room,
             transfer_id,
-            committed.term,
+            committed.term(),
             base_revision,
-            committed.revision,
-            committed.checkpoint.into_bytes(),
+            committed.revision(),
+            // The one copy: the transfer owns its bytes.
+            committed.checkpoint().as_bytes().to_vec(),
         )?;
         if let Some(retained) = self.committed_roster(&transfer.bytes) {
             self.schedule_membership_reconciliation(
                 retained,
-                committed.term,
-                committed.revision,
+                committed.term(),
+                committed.revision(),
                 false,
             );
         }
@@ -371,15 +381,11 @@ impl Actor {
                 reason: None,
             });
         }
-        if self.outgoing_transfer.as_ref().is_some_and(|transfer| {
-            now.duration_since(transfer.started) > CHECKPOINT_TRANSFER_TIMEOUT
-        }) {
-            let revision = self
-                .outgoing_transfer
-                .as_ref()
-                .map(|transfer| transfer.transfer.revision)
-                .unwrap_or_default();
-            self.outgoing_transfer = None;
+        if let Some(expired) = self
+            .outgoing_transfer
+            .take_if(|transfer| now.duration_since(transfer.started) > CHECKPOINT_TRANSFER_TIMEOUT)
+        {
+            let revision = expired.transfer.revision;
             // A timed-out transfer must be replayed from the applied commit;
             // do not let a previously observed revision suppress retry.
             if revision != 0 && self.last_exported_revision >= revision {
@@ -391,7 +397,15 @@ impl Actor {
                 epoch: self.epoch,
                 peer: None,
                 code: "checkpoint_send_timeout".into(),
-                reason: None,
+                // How far the native side took it: nothing acknowledged after
+                // a sent begin means it is not accepting this transfer.
+                reason: Some(format!(
+                    "revision={revision} begun={} acked={}/{} in_flight={}",
+                    expired.begin_sent,
+                    expired.acked_offset,
+                    expired.transfer.bytes.len(),
+                    expired.in_flight.len()
+                )),
             });
         }
     }
@@ -545,10 +559,10 @@ impl Actor {
         // replay and membership effects; the periodic watcher uses
         // this same durable observation if the waiter never returns.
         let committed = recovery.committed().await;
-        let committed_exact = committed.revision == key.revision
-            && committed.term == key.term
-            && committed.request == key.transfer.to_string()
-            && committed.checkpoint.as_bytes() == transfer.bytes
+        let committed_exact = committed.revision() == key.revision
+            && committed.term() == key.term
+            && committed.request() == key.transfer.to_string()
+            && committed.checkpoint().as_bytes() == transfer.bytes
             && transfer.room == key.room
             && transfer.transfer == key.transfer
             && transfer.base_revision == key.base_revision
@@ -559,12 +573,12 @@ impl Actor {
             if let Some(retained) = self.committed_roster(&transfer.bytes) {
                 self.schedule_membership_reconciliation(
                     retained,
-                    committed.term,
-                    committed.revision,
+                    committed.term(),
+                    committed.revision(),
                     false,
                 );
             }
-            if committed.revision > self.last_exported_revision
+            if committed.revision() > self.last_exported_revision
                 && self.outgoing_transfer.is_none()
                 && self.pending_checkpoint_committed.is_none()
             {

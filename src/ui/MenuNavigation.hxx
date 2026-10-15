@@ -69,11 +69,20 @@ struct MenuEntry {
     // A text row for a passphrase: the editor masks it and opens empty, and
     // its draft is wiped when the editor closes.
     bool secret = false;
+    bool multiline = false;
+    std::string cancelLabel;
     // Row height in unscaled pixels for a list or footer row; 0 keeps the standard
     // height. Grid cells always use the grid's card height.
     float height = 0;
     // A disabled row's pane says nothing more than its detail does: no "Unavailable".
     bool quiet = false;
+    // A match's row (a replay): each side's fighter as a small native
+    // portrait at that end of the row, player 1 on the left. -1 for both
+    // draws none; -1 for one draws an unknown fighter on that side. Two
+    // scalars, not an array: MSVC fails on brace-initialized entries
+    // ({{"a"},{"b"}}) whose type has an array member initializer.
+    int fighter1 = -1, fighter2 = -1;
+    bool Match() const { return fighter1 >= 0 || fighter2 >= 0; }
 };
 // What Select does on an entry, decided in one place so navigation and the
 // legend agree. A reader wins over text, text over choices, choices over a
@@ -130,7 +139,8 @@ public:
     Modal Mode() const { return mode_; }
     bool Editing() const { return mode_ == Modal::Edit; }
     // The editor's highlighted button: Accept, unless a moving pointer went to
-    // Cancel. The controller's Select presses it; Enter always accepts.
+    // Cancel. The controller's Select presses it; the editor's keyboard
+    // acceptance gesture always accepts.
     bool EditAccepts() const { return editAccept_; }
     void EditAccepts(bool accept) { if (Editing()) editAccept_ = accept; }
     // A reader is open on this entry; Back closes it.
@@ -257,7 +267,7 @@ public:
         // The reader scrolls with held directions, which its renderer reads.
         if(Reading()) return {};
         if(Editing()) {
-            // Enter is the keyboard's explicit accept. The controller's Select
+            // The editor supplies the keyboard's explicit accept. Pad Select
             // presses the highlighted button, which is Accept unless the
             // pointer moved to Cancel. Directions stay with the text cursor.
             if(!in.acceptText) {
@@ -291,10 +301,10 @@ public:
         int delta=(direction&MenuInput::Left)?-1:(direction&MenuInput::Right)?1:0;
         const auto& neighbor=delta<0?e.left:e.right;
         if(delta&&!neighbor.empty()){Focus(neighbor,entries);return {};}
-        if(delta&&e.adjustable&&columns==1) return e.enabled ? MenuAction{MenuAction::Adjust,e.id,{},delta} : MenuAction{};
         int index=static_cast<int>(s.index), count=static_cast<int>(entries.size());
         // A grid's footer rows sit under its cards, one per line.
         const int cells=columns>1?static_cast<int>(MenuGridCells(entries)):count;
+        if(delta&&e.adjustable&&(columns==1||index>=cells)) return e.enabled ? MenuAction{MenuAction::Adjust,e.id,{},delta} : MenuAction{};
         if(index>=cells) {
             if(direction&MenuInput::Up) index=index>cells?index-1:cells-1;
             else if((direction&MenuInput::Down)&&index+1<count) ++index;

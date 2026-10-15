@@ -6,6 +6,7 @@
 #include <string>
 #include <nlohmann/json.hpp>
 #include "../common/FighterCatalog.hxx"
+#include "../common/StageCatalog.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 
 #include "../Dimps/Dimps__GameEvents.hxx"
@@ -39,8 +40,8 @@ namespace OverlayPrefs {
 		// restores that fighter's entry; fighters[lobby.charaID] equals lobby.
 		std::array<CharaPick, selection::FighterCount> fighters;
 		int stageID = 0;
-		// Stages Random skips (selection::StageMask).
-		std::uint32_t randomStageExcluded = 0;
+		// The stages Random may land on (saved as the list of those taken out).
+		selection::RandomPool randomPool;
 
 		// Lobby match settings (host-editable in the network panel)
 		int lobbyRoundCountIdx = 1;
@@ -60,6 +61,8 @@ namespace OverlayPrefs {
 		Dimps::GameEvents::VsMode::ConfirmedCharaConditions& out,
 		const CharaPick& in
 	);
+	// Field by field (Data holds the Random pool's list, so it isn't plain data to memcmp).
+	bool Same(const Data& a, const Data& b);
 	void Clamp(Data& data);
 	// The settings file's "overlay" section. FromJson accepts a section written
 	// before per-fighter picks existed and remembers its one pick for that

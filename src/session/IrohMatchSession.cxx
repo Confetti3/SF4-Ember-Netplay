@@ -149,6 +149,9 @@ bool IrohMatchSession::AcceptGrant(const json& message) {
 		message.at("room").get<std::array<std::uint8_t, 16>>() != room_->RoomId() ||
 		message.at("local_identity").get<std::string>() != room_->LocalIdentity() ||
 		message.at("max_packet").get<std::size_t>() != GgpoMaximumPacket) return Fail("invalid_match_permission");
+	// The grant is this room's, for this PC: whatever fails from here on fails
+	// this generation, which the abort must name.
+	attempted_ = (std::max)(attempted_, generation);
 	auto roster = message.at("roster").get<std::vector<SessionProtocol::ConnectionID>>();
 	const auto slot = message.at("slot").get<std::size_t>();
 	if (roster.size() < 2 || roster.size() > room::MaxMatchParticipants || slot >= roster.size() ||
@@ -189,6 +192,7 @@ bool IrohMatchSession::AcceptGrant(const json& message) {
 	}
 	// A reservation from a generation that never reached GGPO is still open.
 	ReleasePortToGgpo();
+	if (failPortReservation_) return Fail("local_port_unavailable");
 	reservedPort_ = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (reservedPort_ == INVALID_SOCKET) return Fail("local_port_unavailable");
 	sockaddr_in address = {}; address.sin_family = AF_INET; address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
@@ -197,6 +201,8 @@ bool IrohMatchSession::AcceptGrant(const json& message) {
 	if (getsockname(reservedPort_, reinterpret_cast<sockaddr*>(&address), &size) != 0) return Fail("local_port_unavailable");
 	client_._ggpoPort = ntohs(address.sin_port);
 	generation_ = generation; slot_ = slot; roster_ = std::move(roster);
+	const auto opponent = std::find_if(links_.begin(), links_.end(), [&](const Link& link) { return slot < 2 && link.slot == 1 - slot; });
+	opponentPeer_ = opponent == links_.end() ? std::string() : opponent->peer;
 	client_.SetGameplayGeneration(generation_);
 	pendingGrantTerm_ = room_ && room_->Coordination().active ? room_->Coordination().term : 0;
 	readySent_ = mappingsPrepared_ = endSent_ = false;

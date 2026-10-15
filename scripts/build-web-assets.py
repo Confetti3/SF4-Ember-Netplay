@@ -1,7 +1,7 @@
 """Regenerate the embernetplay.link page assets from Ember's own brand files.
 
 Requires Pillow, fontTools and brotli. Writes into
-rust/ember-short/deploy/site, which setup.sh installs on the server:
+server/ember-short/deploy/site, which setup.sh installs on the server:
 
   favicon.ico                         16, 24, 32 and 48 px from src/ui/ember.ico
   assets/ember-emblem.png             the largest ico image, scaled for the header
@@ -16,7 +16,7 @@ from fontTools import subset
 from PIL import Image
 
 repo = Path(__file__).resolve().parent.parent
-site = repo / "rust/ember-short/deploy/site"
+site = repo / "server/ember-short/deploy/site"
 assets = site / "assets"
 fonts = assets / "fonts"
 

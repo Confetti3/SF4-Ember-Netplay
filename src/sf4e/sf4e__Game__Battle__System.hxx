@@ -14,6 +14,7 @@
 #include "../common/sf4e__GgpoGate.hxx"
 #include "../common/NoticeSeverity.hxx"
 #include "../common/ConfirmedCheckpoint.hxx"
+#include "../common/GgpoTimeline.hxx"
 #include "../common/MatchTelemetry.hxx"
 #include "../common/ReusableRecords.hxx"
 #include "../common/RoomLimits.hxx"
@@ -23,6 +24,7 @@
 #include "sf4e__Platform.hxx"
 #include "sf4e__Game__Battle.hxx"
 #include "sf4e__Game__Battle__Hud.hxx"
+#include "sf4e__Pad.hxx"
 
 constexpr int NUM_SAVE_STATES = GGPO_MAX_PREDICTION_FRAMES + 2;
 
@@ -198,6 +200,16 @@ namespace sf4e {
 					// could; the caller must abandon the timeline.
 					[[nodiscard]] static bool Save(SaveState* dst, bool temporary = false);
 					[[nodiscard]] static bool Load(SaveState* src);
+					// For a state kept longer than a rollback's few frames (the
+					// training lab's checkpoint). A sound counts as live until
+					// something stops it, so a voice that ended by itself is still
+					// recorded as playing; loading the state after its player went
+					// to another sound would start it again from the beginning.
+					// This marks the recorded sounds no real player is still
+					// playing as over. Rollback states must not be passed here: a
+					// sound that ended a frame ago may be one the corrected
+					// timeline never starts.
+					static void ForgetFinishedSounds(SaveState* state);
 
 					// Returns a slot to the clean, unowned, unused state
 					// without touching engine memento data. Only safe when
@@ -224,6 +236,9 @@ namespace sf4e {
 				struct HashCheckpoint {
 					int frameIdx = -1;
 					int ggpoStateFrame = -1;
+					int engineFrame = -1;
+					unsigned flow = 0;
+					unsigned substate = 0;
 					bool valid = false;
 					bool sent = false;
 					SemanticHashes hashes;
@@ -232,12 +247,29 @@ namespace sf4e {
 				static const int HASH_CHECKPOINT_INTERVAL = sf4e::statehash::CheckpointInterval;
 				static HashCheckpoint hashCheckpoints[NUM_HASH_CHECKPOINTS];
 				static SemanticHashes ComputeSemanticHashes(Dimps::Game::Battle::System* src);
+				// The same hashes from both fighters' values already read.
+				static SemanticHashes ComputeSemanticHashes(Dimps::Game::Battle::System* src, const CharaSemantics chara[2]);
 				static CharaSemantics CaptureCharaSemantics(Dimps::Game::Battle::System* src, int side);
-				static void CaptureHashCheckpoint(Dimps::Game::Battle::System* src);
+				// After every simulated and re-simulated frame, before
+				// ggpo_advance_frame saves it: GGPO may poll there and roll
+				// back, and the frames it re-simulates replace this sample.
+				// One read of the fighters gives the frame's trace row
+				// (inputs: what the frame played) and, on cadence frames, its
+				// hash checkpoint, both under the state frame it reaches.
+				static void CaptureSimulatedFrame(Dimps::Game::Battle::System* src, const sf4e::Pad::System::Inputs inputs[2]);
+				// The traced frames from the checkpoint before frameIdx up to
+				// it, logged on the battle's first v2 mismatch only.
+				static void LogFrameTrace(int frameIdx);
+				// The frame meter's sample of the frame just played. show: off
+				// inside a rollback, where nothing new is confirmed.
+				static void CaptureMeterSample(Dimps::Game::Battle::System* src, bool show);
 				static HashCheckpoint* FindHashCheckpoint(int frameIdx);
 				static void ClearHashCheckpoints();
 				static GGPOPlayerHandle localPlayerHandle;
-				static int lastGgpoSaveFrame;
+				// The GGPO frame of the state the engine holds (each save, and
+				// a rollback's load), and the order a frame is simulated,
+				// sampled and saved in.
+				static sf4e::statehash::GgpoTimeline ggpoTimeline;
 				static PlayerConnectionInfo players[room::MaxMatchParticipants];
 				static GGPOSession* ggpo;
 				static SaveState saveStates[NUM_SAVE_STATES];
@@ -265,16 +297,17 @@ namespace sf4e {
 				// Milliseconds until GGPO drops the interrupted peer, or -1
 				// when no connection warning is active. HUD only.
 				static int DisconnectCountdownMs();
-				static void StartGGPO(GGPOPlayer* players, int numPlayers, int port, int frameDelay, DWORD rngSeed);
-				static void StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port, DWORD rngSeed);
+				static void StartGGPO(GGPOPlayer* players, int numPlayers, int port, int frameDelay);
+				static void StartSpectating(unsigned short localport, int num_players, char* host_ip, unsigned short host_port);
 				static bool ggpo_on_event_callback(GGPOEvent* info);
 				static bool ggpo_begin_game_callback(const char*);
 				static unsigned RecentRollbackFrames();
 				// Publishes a GGPO-confirmed native outcome if one is waiting.
 				// Safe to call outside GGPO callbacks at any time.
 				static void PollNativeMatchResult();
-				// P1 only: drops a spectator that has not synchronized in time or
-				// has fallen too far behind (SpectatorPolicy). Outside callbacks.
+				// P1 drops a spectator that has not synchronized in time or has
+				// fallen too far behind; a spectator client ends a stream that
+				// never synchronized (SpectatorPolicy). Outside callbacks.
 				static void PollSpectators();
 				// Live spectator streams this client forwards inputs to. Only P1
 				// has any, so this is also the test for owning spectator edges.

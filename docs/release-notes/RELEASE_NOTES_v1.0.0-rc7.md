@@ -22,7 +22,7 @@ These diagnostics and hardening checks were added after a tester's rc5 crash dum
 
   The first four counts should be `0`. `releases` counts freed saved blocks and is expected to be large. `tracked_keys` should stay small and should not grow from match to match. Report any nonzero first-four count, any `MementoGuard:` line, or a `tracked_keys` count that keeps growing.
 
-- **Heap checkpoints remain available in settings for crash hunting.** See [Heap checkpoints for testers](https://github.com/Confetti3/SF4-Ember-Netplay/blob/v1.0.0-rc7/docs/guides/SAVING_LOGS.md#heap-checkpoints-for-testers). Use them only when reproducing a problem, since they can affect performance.
+- **Heap checkpoints remain available in settings for crash hunting.** See [Heap checkpoints for testers](https://github.com/Confetti3/SF4-Ember-Netplay/blob/v1.0.0/docs/guides/SAVING_LOGS.md#heap-checkpoints-for-testers). Use them only when reproducing a problem, since they can affect performance.
 
 ### Rooms
 
@@ -53,6 +53,6 @@ All 87 automated tests and all room recovery tests pass, including a new host ha
 
 ## Install and play
 
-Download `sf4-ember-netplay-v1.0.0-rc7.zip` from the [rc7 pre-release](https://github.com/Confetti3/SF4-Ember-Netplay/releases/tag/v1.0.0-rc7). Extract the complete package into a new, empty folder on each machine and run `Launcher.exe`. Running `preflight.cmd` first is optional.
+The rc7 pre-release has been removed. The same code shipped as [v1.0.0](https://github.com/Confetti3/SF4-Ember-Netplay/releases/tag/v1.0.0); download its package. Extract the complete package into a new, empty folder on each machine and run `Launcher.exe`. Running `preflight.cmd` first is optional.
 
-See the [player guide](https://github.com/Confetti3/SF4-Ember-Netplay/blob/v1.0.0-rc7/docs/guides/USER_NETPLAY.md) for play instructions.
+See the [player guide](https://github.com/Confetti3/SF4-Ember-Netplay/blob/v1.0.0/docs/guides/USER_NETPLAY.md) for play instructions.

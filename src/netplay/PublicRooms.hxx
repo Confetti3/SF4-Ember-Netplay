@@ -38,7 +38,7 @@ struct Room {
 	bool locked = false;
 	// True when the bridge sent any of the details above or below.
 	bool hasDetails = false;
-	// Table 0's set length (0 unlimited, 1, 2, 3 or 5) and rotation (0 winner
+	// Table 0's set length (0 unlimited, else first to 1 to 10) and rotation (0 winner
 	// stays, 1 loser stays, 2 both rotate); -1 when unknown.
 	int setFormat = -1, rotation = -1;
 };

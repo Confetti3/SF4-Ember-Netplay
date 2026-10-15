@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="The public rooms open right now in SF4 Ember Netplay, with a button to join each one in Ember.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="SF4 Ember Netplay">
+<meta property="og:title" content="Public rooms">
+<meta property="og:description" content="The public rooms open right now in SF4 Ember Netplay. Join one in Ember with a click.">
+<meta property="og:url" content="https://embernetplay.link/rooms">
+<meta property="og:image" content="https://embernetplay.link/assets/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#141312">
+<title>Public rooms</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/assets/ember-emblem.png" type="image/png">
+<link rel="preload" href="/assets/fonts/inter-latin-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/inter-latin-600.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/rooms.js" defer></script>
+</head>
+<body class="wide rooms-page">
+<div class="shell">
+<header class="site-header">
+<a class="brand-home" href="/" aria-label="SF4 Ember Netplay home"><img src="/assets/ember-emblem.png" width="44" height="44" alt=""><span class="brand-text"><span class="brand-name">EMBER</span><span class="brand-sub">SF4 / Rollback netplay</span></span></a>
+<nav class="site-nav" aria-label="Site"><a href="/rooms" aria-current="page">Public rooms</a><a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest" rel="noopener">Download</a><a href="https://discord.gg/uPNqF5A5uq" rel="noopener">Discord</a><a href="https://github.com/Confetti3/SF4-Ember-Netplay" rel="noopener">GitHub</a></nav>
+</header>
+<main>
+<h1>Public rooms</h1>
+<p class="lead">Rooms open to anyone with an Ember ID. Choose <strong>Join in Ember</strong> and Ember asks for a seat in that room.</p>
+
+<div class="room-toolbar" role="group" aria-label="Filter rooms">
+<div class="room-filters" id="regions">
+<button type="button" class="room-filter" data-region="" aria-pressed="true">All regions</button>
+</div>
+<label class="room-toggle"><input type="checkbox" id="open-only"> Open seats only</label>
+<button type="button" class="room-refresh" id="refresh">Refresh</button>
+</div>
+<p class="room-summary" id="summary" role="status" aria-live="polite">Loading rooms...</p>
+
+<div class="room-list" id="rooms" aria-busy="true">
+<div class="room-card room-skeleton" aria-hidden="true"><span></span><span></span><span></span></div>
+<div class="room-card room-skeleton" aria-hidden="true"><span></span><span></span><span></span></div>
+<div class="room-card room-skeleton" aria-hidden="true"><span></span><span></span><span></span></div>
+</div>
+<p class="status room-status" id="status" role="status" aria-live="polite"></p>
+
+<section class="panel" id="help">
+<h2>Joining from this page</h2>
+<ol>
+<li>You need <a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest" rel="noopener">SF4 Ember Netplay</a> 1.1.0 or newer and an Ember ID. Start <strong>Launcher.exe</strong> once so your browser knows how to open Ember.</li>
+<li>Choose <strong>Join in Ember</strong> on a room. Your browser may ask first whether to open Ember.</li>
+<li>Ember opens <strong>Public rooms</strong> and asks for a seat. If you are in a game or another room, it waits until you leave.</li>
+</ol>
+<p class="note">On Linux or Steam Deck, or if Ember does not open, choose <strong>Copy link</strong> and paste it in Ember under <strong>Online play</strong>, <strong>Public rooms</strong>, <strong>Paste room link</strong>.</p>
+<p class="note">A room on another Ember version can only be joined from that version.</p>
+</section>
+<noscript><div class="panel"><p>This page needs JavaScript to list the rooms. In Ember, choose <strong>Online play</strong>, then <strong>Public rooms</strong>, to see them there.</p></div></noscript>
+</main>
+<footer>
+<p class="links"><a href="/">Home</a><a href="/rooms">Public rooms</a><a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest" rel="noopener">Releases</a><a href="https://github.com/Confetti3/SF4-Ember-Netplay/issues" rel="noopener">Report a bug</a><a href="https://github.com/Confetti3/SF4-Ember-Netplay/blob/HEAD/ATTRIBUTION.md" rel="noopener">Attribution</a></p>
+<p>Ember is an unofficial port of <a href="https://codeberg.org/adanducci/sf4e" rel="noopener">sf4e</a> by Anthony Danducci and contributors. It is not affiliated with Capcom or Valve; Street Fighter and its characters belong to Capcom.</p>
+<p>Text set in Inter by the Inter Project Authors, under the <a href="/assets/fonts/OFL.txt">SIL Open Font License</a>.</p>
+</footer>
+</div>
+</body>
+</html>

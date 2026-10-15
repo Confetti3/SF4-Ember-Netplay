@@ -26,6 +26,16 @@ inline bool RoomCheckpointPending(const ShellView& view) {
         view.session.coordinated && !view.session.authorityWritable;
 }
 
+// What the room chat can do. Its box takes typing for as long as the member is
+// in the room; only sending waits for the room's authority, which comes and
+// goes with every room update.
+inline ChatGate ChatGateOf(const ShellView& view) {
+    if (view.session.room != netplay::RoomState::Joined || view.room.closed) return ChatGate::NotJoined;
+    if (RoomActionsAvailable(view)) return ChatGate::Writable;
+    return RoomCheckpointPending(view) ? ChatGate::CatchingUp : ChatGate::Recovering;
+}
+inline bool ChatTypable(const ShellView& view) { return ChatGateOf(view) != ChatGate::NotJoined; }
+
 inline const char* RoomWaitReason(const ShellView& view) {
     if (view.session.room == netplay::RoomState::Closing)
         return loc::T("room.wait.leaving");

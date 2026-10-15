@@ -69,11 +69,17 @@ msgstr "O SF4 Ember Netplay já está em execução. Se não o vir, encerre Laun
 msgid "launcher.start_failed"
 msgstr "Falha ao iniciar ou injetar no jogo. Verifique o log do inicializador em %APPDATA%\\sf4e\\logs\\launcher.log e tente novamente."
 
+msgid "launcher.game_runs_as_admin"
+msgstr "O SSFIV.exe está configurado para ser executado como administrador, por isso o Ember não consegue iniciá-lo. Clique com o botão direito no SSFIV.exe na pasta do jogo, abra Propriedades e depois Compatibilidade, e desmarque \"Executar este programa como administrador\", também em \"Alterar configurações para todos os usuários\". Depois tente novamente."
+
 msgid "launcher.game_error"
 msgstr "O jogo foi encerrado com erro. Consulte o log do inicializador em %APPDATA%\\sf4e\\logs\\launcher.log e tente novamente."
 
+msgid "launcher.steam_runs_as_admin"
+msgstr "O jogo não conseguiu acessar o Steam porque o Steam está sendo executado como administrador. Feche o Steam, abra-o normalmente e tente novamente. Iniciar o Ember como administrador também funciona, mas assim as atualizações não são instaladas."
+
 msgid "launcher.game_crashed"
-msgstr "O jogo travou. Envie para a equipe do SF4 Ember Netplay os arquivos de %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log e sf4e-crash-*.dmp) e tente novamente."
+msgstr "O jogo travou. Para ajudar a corrigir, escolha Enviar este relatório abaixo. Ou envie você mesmo os arquivos de %APPDATA%\\sf4e\\logs."
 
 msgid "launcher.runtime_shadowed"
 msgstr "O jogo carregaria estes arquivos em vez dos da pasta do Ember, e uma cópia antiga encerra o jogo antes de iniciar (\"ponto de entrada ggpo_get_last_confirmed_frame não encontrado\"). Eles ficaram de outro mod de netplay ou de uma instalação anterior. Mova ou renomeie os arquivos e inicie o Ember novamente:\n\n{0}"
@@ -126,6 +132,36 @@ msgstr "Já há uma operação em andamento."
 msgid "updates.check_detail"
 msgstr "Procure uma versão mais recente do Ember."
 
+msgid "updates.channel"
+msgstr "Canal de atualização"
+
+msgid "updates.channel.stable"
+msgstr "Estável"
+
+msgid "updates.channel.prerelease"
+msgstr "Beta"
+
+msgid "updates.channel.nightly"
+msgstr "Nightly"
+
+msgid "updates.channel.nightly_detail"
+msgstr "Versões de teste diárias com os recursos mais recentes. Elas podem apresentar falhas. Nas salas, você só pode jogar com outros jogadores do Nightly, e replays salvos no Nightly podem não abrir após voltar a uma versão anterior."
+
+msgid "updates.channel_detail"
+msgstr "Estável oferece apenas versões finalizadas. Beta também oferece versões beta e candidatas a lançamento, que podem ter mais problemas. Todos com quem você joga precisam da mesma versão."
+
+msgid "updates.channel.switch_detail"
+msgstr "Muda a busca de atualizações de {0} para {1} e verifica {1} na hora. Nada é instalado até você escolher Baixar e instalar."
+
+msgid "updates.channel.going_back"
+msgstr "Voltar de {0} para {1} pode oferecer uma versão mais antiga que a sua. Replays gravados no {0} podem não abrir no {1}."
+
+msgid "updates.installed_version"
+msgstr "Versão instalada"
+
+msgid "updates.installed_version_detail"
+msgstr "A versão do Ember neste PC."
+
 msgid "updates.install"
 msgstr "Baixar e instalar"
 
@@ -134,6 +170,15 @@ msgstr "Feche o SF4 antes de instalar. O pacote é verificado antes da instalaç
 
 msgid "updates.unverified"
 msgstr "Esta atualização não tem soma de verificação e não pode ser instalada."
+
+msgid "updates.install_going_back"
+msgstr "Esta versão é mais antiga que a sua. Replays gravados na sua versão atual podem não abrir nela."
+
+msgid "updates.whats_new"
+msgstr "Novidades"
+
+msgid "updates.whats_new_detail"
+msgstr "Notas da versão {0}."
 
 msgid "updates.cancel"
 msgstr "Cancelar operação"
@@ -178,13 +223,29 @@ msgid "services.exporting"
 msgstr "Exportando diagnóstico..."
 
 msgid "services.downloading"
-msgstr "Baixando e verificando a atualização..."
+msgstr "Baixando a atualização..."
+
+msgid "services.verifying"
+msgstr "Verificando o download..."
+
+msgid "services.extracting"
+msgstr "Extraindo a atualização..."
+
+msgid "services.preparing"
+msgstr "Preparando a atualização..."
+
+msgid "services.installing"
+msgstr "Instalando a atualização..."
 
 msgid "services.opening_updater"
 msgstr "Abrindo o atualizador..."
 
 msgid "services.update_available"
 msgstr "Há uma atualização disponível: {0}"
+
+msgid "services.go_back_available"
+msgstr "Você pode voltar para {0}"
+
 
 msgid "services.up_to_date"
 msgstr "Você está usando a versão mais recente."
@@ -556,7 +617,7 @@ msgid "home.online"
 msgstr "Jogo online"
 
 msgid "home.online_detail"
-msgstr "Crie uma sala, entre em uma ou veja as salas públicas."
+msgstr "Crie uma sala, entre em uma, veja as salas públicas ou configure seu Ember ID para torneios."
 
 msgid "home.return_room"
 msgstr "Volte para sua sala atual."
@@ -586,7 +647,7 @@ msgid "home.identity_matches"
 msgstr "Partidas do torneio prontas para jogar: {0}"
 
 msgid "home.settings_detail"
-msgstr "Jogador, controle, padrões de jogo, interface, idioma e Discord."
+msgstr "Jogador, controle, regras padrão, interface, idioma, treino e Discord."
 
 msgid "home.about"
 msgstr "Ajuda e informações"
@@ -598,7 +659,192 @@ msgid "home.offline"
 msgstr "Jogar offline"
 
 msgid "home.offline_detail"
-msgstr "Abra os menus offline nativos."
+msgstr "Treino, Versus, Arcade e os outros modos offline do jogo."
+
+msgid "home.replays"
+msgstr "Replays"
+
+msgid "home.replays_detail"
+msgstr "Suas partidas salvas. Assista, adicione ao jogo ou leia os comandos."
+
+msgid "replays.title"
+msgstr "Replays"
+
+msgid "replays.empty"
+msgstr "Nenhum replay ainda"
+
+msgid "replays.empty_detail"
+msgstr "Uma partida é salva aqui quando termina."
+
+msgid "replays.add"
+msgstr "Adicionar ao jogo"
+
+msgid "replays.add_detail"
+msgstr "Adiciona ao Battle Log do jogo para assistir depois."
+
+msgid "replays.watch"
+msgstr "Assistir agora"
+
+msgid "replays.watch_detail"
+msgstr "Adiciona ao Battle Log do jogo e reproduz."
+
+msgid "replays.save_watched"
+msgstr "Salvar partidas que você assiste"
+
+msgid "replays.save_watched_detail"
+msgstr "Também salva as partidas que você assiste como espectador. Desativado salva apenas as que você joga."
+
+msgid "replays.link"
+msgstr "Reproduzir o replay do link"
+
+msgid "replays.link_detail"
+msgstr "Um link pediu ao Ember para reproduzir {0}. Reproduza apenas se confiar na origem do link."
+
+msgid "replays.link_play"
+msgstr "Reproduzir"
+
+msgid "replays.link_dismiss"
+msgstr "Agora não"
+
+msgid "replays.link_dismiss_detail"
+msgstr "Esquece o link. O arquivo fica onde está."
+
+msgid "replays.exported"
+msgstr "Vídeo salvo: {0}"
+
+msgid "replays.gpu_not_exported"
+msgstr "Nenhum vídeo foi criado. O Windows não ofereceu um codificador H.264, ou a imagem do jogo não pôde ser lida. O motivo está no registro."
+
+msgid "replays.open_folder"
+msgstr "Abrir a pasta de replays"
+
+msgid "replays.open_folder_detail"
+msgstr "Abre o arquivo no Explorador: replays e vídeos exportados."
+
+msgid "services.opening_replay_folder"
+msgstr "Abrindo a pasta de replays..."
+
+msgid "services.replay_folder_opened"
+msgstr "{0} aberto no Explorador."
+
+msgid "services.replay_folder_failed"
+msgstr "Não foi possível abrir a pasta de replays."
+
+msgid "replays.inputs"
+msgstr "Comandos e estatísticas"
+
+msgid "replays.inputs_detail"
+msgstr "Mostra o que ambos os jogadores pressionaram, frame a frame, com os totais. Nada é reproduzido."
+
+msgid "replays.show_folder"
+msgstr "Mostrar na pasta"
+
+msgid "replays.show_folder_detail"
+msgstr "Abre no Explorador a pasta que contém este replay."
+
+msgid "inputs.length_value"
+msgstr "Rounds {0} · {1}"
+
+msgid "inputs.activity"
+msgstr "{0} comandos por minuto, {1} pulos, agachado {2}% do tempo."
+
+msgid "inputs.round"
+msgstr "Round {0}"
+
+msgid "inputs.legend"
+msgstr "Cada linha: o tempo e o que P1 e P2 seguram a partir dali. Direções como em um teclado numérico visto na tela: 4 é esquerda, 6 é direita, 5 é nenhuma."
+
+msgid "inputs.reading"
+msgstr "Lendo o replay..."
+
+msgid "inputs.look_unknown"
+msgstr "Aparência desconhecida"
+
+msgid "inputs.unreadable"
+msgstr "Não foi possível ler os comandos"
+
+msgid "inputs.unreadable_detail"
+msgstr "Este replay está em um formato antigo ou o arquivo está danificado."
+
+msgid "replays.row_detail"
+msgstr "Selecione para assistir, adicionar ao jogo ou ver os comandos e estatísticas."
+
+#. The saved replay has already been played back.
+msgid "replays.seen"
+msgstr "Vista"
+
+#. The player watched the live match as a spectator, not a replay playback.
+msgid "replays.spectated"
+msgstr "Como espectador"
+
+#. The player watched the live match as a spectator and has also played its replay.
+msgid "replays.spectated_seen"
+msgstr "Como espectador, vista"
+
+msgid "replays.not_ready"
+msgstr "Disponível no menu principal, fora de uma partida."
+
+msgid "replays.added"
+msgstr "Adicionado ao Battle Log do jogo, na data em que foi jogado."
+
+msgid "replays.not_added"
+msgstr "Não foi possível adicionar este replay. O arquivo pode estar danificado."
+
+msgid "replays.not_added_yet"
+msgstr "O jogo ainda não salvou a última partida. Tente de novo em instantes."
+
+msgid "replays.not_added_files"
+msgstr "Este replay não pôde ser adicionado porque os arquivos de replay do jogo não puderam ser lidos. Nada foi alterado."
+
+msgid "replays.not_added_archive"
+msgstr "Este replay não pôde ser adicionado porque o replay atual do jogo não pôde ser salvo antes. Verifique o espaço livre em disco."
+
+msgid "replays.not_added_restored"
+msgstr "Este replay não pôde ser adicionado. Os replays do jogo continuam como estavam."
+
+msgid "replays.not_added_recovery"
+msgstr "Este replay não pôde ser adicionado e alguns replays do jogo não puderam ser restaurados. Pare de adicionar replays e exporte o diagnóstico em Ajuda e sobre."
+
+msgid "replays.fighters"
+msgstr "{0} vs {1}"
+
+msgid "replays.player"
+msgstr "{0} ({1})"
+
+msgid "replays.open_log"
+msgstr "Abrir o Battle Log do jogo"
+
+msgid "replays.open_log_detail"
+msgstr "Sai do menu do Ember e abre o Battle Log do jogo, onde os replays são reproduzidos."
+
+msgid "replays.open_log_room"
+msgstr "Saia da sala primeiro."
+msgid "settings.training_auto_ready"
+msgstr "Ficar pronto ao ser chamado do Treino"
+
+msgid "settings.training_auto_ready_detail"
+msgstr "Quando a sala chama você de volta do treino, Pronto é marcado imediatamente. Desativado dá {0} segundos antes de você perder seu lugar."
+
+msgid "settings.match_frame_meter"
+msgstr "Medidor de frames nas partidas"
+
+msgid "settings.match_frame_meter_detail"
+msgstr "Mostra o medidor de frames sobre partidas online que você joga ou assiste. Só você o vê. Pode ficar alguns frames atrás da luta."
+
+msgid "settings.match_frame_meter_private"
+msgstr "Somente em salas privadas."
+
+msgid "room.training.detail"
+msgstr "Pratique no modo Treino enquanto espera. O Ember chama você de volta quando alguém se senta à sua frente."
+
+msgid "room.training.unavailable"
+msgstr "Disponível enquanto você espera um oponente, antes de marcar Pronto."
+
+msgid "room.training_call.ready_in"
+msgstr "Marque Pronto em {0} s ou perderá seu lugar."
+
+msgid "runtime.training_call.forfeit"
+msgstr "Você não marcou Pronto a tempo após o treino e deixou seu lugar."
 
 msgid "home.choose_controller"
 msgstr "Escolher controle de jogo"
@@ -709,7 +955,7 @@ msgid "settings.title"
 msgstr "CONFIGURAÇÕES"
 
 msgid "settings.player_detail"
-msgstr "Nome exibido e atribuição de controle."
+msgstr "Nome exibido, atribuição de controle e jogo em segundo plano."
 
 msgid "settings.defaults_detail"
 msgstr "Atraso de entrada e padrões de novas salas."
@@ -741,6 +987,30 @@ msgstr "Usar teclado"
 msgid "player.use_keyboard_detail"
 msgstr "Atribua o teclado como seu dispositivo de jogo. Seu controle deixa de mover os menus do Ember até você atribuí-lo de novo."
 
+msgid "player.background_play"
+msgstr "Jogar em segundo plano"
+
+msgid "player.background_play_detail"
+msgstr "O som do jogo e seu controle continuam funcionando enquanto outra janela, como o OBS, está na frente. O teclado e os menus do Ember ainda precisam da janela do jogo. Use o modo janela: em tela cheia o jogo ainda é minimizado."
+
+msgid "player.lower_input_lag"
+msgstr "Menos atraso de entrada (experimental)"
+
+msgid "player.lower_input_lag_detail"
+msgstr "Experimental. Remove um quadro de atraso que o jogo adiciona a cada comando. Em uma sala, só vale quando os dois jogadores ativam, e então também para quem assiste. Batalhas offline e o Treino seguem só esta opção."
+
+msgid "player.lower_keyboard_lag"
+msgstr "Menos atraso no teclado (experimental)"
+
+msgid "player.lower_keyboard_lag_detail"
+msgstr "Experimental. O jogo lê o teclado um quadro depois de um controle; isto remove esse quadro. Afeta só o teclado, e só neste PC: o outro jogador não precisa ativar."
+
+msgid "player.faster_display"
+msgstr "Imagem mais rápida (1 quadro a menos)"
+
+msgid "player.faster_display_detail"
+msgstr "O jogo mostra cada quadro assim que fica pronto, em vez de um quadro depois. Desative se o jogo cair abaixo de 60 fps neste PC. Afeta só este PC: o outro jogador não precisa ativar. As mudanças valem na próxima vez que o jogo iniciar."
+
 msgid "player.native_menus"
 msgstr "Abrir menus nativos"
 
@@ -767,6 +1037,21 @@ msgstr "Layout do HUD"
 
 msgid "settings.match_hud_layout_detail"
 msgstr "A faixa Ember mostra tudo em um painel. Dividido põe cada nome sob sua barra de vida."
+
+msgid "settings.name_offset"
+msgstr "Altura dos nomes"
+
+msgid "settings.name_offset_detail"
+msgstr "Sobe ou desce os nomes do layout dividido. Use quando eles não cobrem PLAYER 1 e PLAYER 2 porque a posição do HUD foi alterada no jogo."
+
+msgid "name_offset.default"
+msgstr "Padrão"
+
+msgid "name_offset.up"
+msgstr "Acima {0}"
+
+msgid "name_offset.down"
+msgstr "Abaixo {0}"
 
 msgid "hud_layout.strip"
 msgstr "Faixa Ember"
@@ -919,7 +1204,7 @@ msgid "about.controls"
 msgstr "Controles"
 
 msgid "about.controls_detail"
-msgstr "Controle Xbox: A seleciona e B volta, independentemente dos botões de luta. Outros controles: o LP mapeado seleciona e o LK volta. Teclado: setas, Enter e Escape. O direcional move; Esquerda e Direita mudam um valor. Voltar no Início oculta o Ember. F10, ou Start no controle, o abre de novo no menu principal do jogo.\n\nEm uma sala, A em uma mesa permite escolher um lugar, A no seu próprio lugar marca Pronto e B sai do seu lugar ou da fila. Em um controle Xbox, X abre Lutador, Y abre Opções e View abre Bate-papo; pressione de novo para voltar à sala.\n\nNo treino, F6 abre os controles, F5 oculta o HUD, F7 grava e F8 reproduz."
+msgstr "Controle Xbox: A seleciona e B volta, independentemente dos botões de luta. Outros controles: o LP mapeado seleciona e o LK volta. Teclado: setas, Enter e Escape. O direcional move; Esquerda e Direita mudam um valor. Voltar no Início oculta o Ember. F10, ou Start no controle, o abre de novo no menu principal do jogo.\n\nEm uma sala, A em uma mesa permite escolher um lugar, A no seu próprio lugar marca Pronto e B sai do seu lugar ou da fila. Em um controle Xbox, X abre Lutador, Y abre Opções e View abre Bate-papo; pressione de novo para voltar à sala.\n\nNo treino, F6 abre os controles, F5 oculta o HUD, F7 grava e F8 reproduz. No controle, segure View ou Select e pressione Start."
 
 msgid "about.controls_keyboard"
 msgstr "No teclado, Espaço também seleciona e Backspace também volta. Numa sala, F abre Lutador, T abre Opções e C abre Bate-papo. Esc sempre volta, mesmo no seu próprio lugar; Delete deixa seu lugar ou a fila."
@@ -962,6 +1247,15 @@ msgstr "Entrar no Discord do Ember"
 
 msgid "about.discord_detail"
 msgstr "Jogadores, partidas e suporte em {0}. Abre no navegador por trás do jogo."
+
+msgid "about.version_line"
+msgstr "Ember {0} · {1}"
+
+msgid "about.version_detail"
+msgstr "A versão do Ember neste PC. Build {0}."
+
+msgid "about.channel_detail"
+msgstr "As buscas de atualizações usam este canal. Para mudar, feche o jogo e clique duas vezes em Updater.exe."
 
 msgid "settings.retry_save"
 msgstr "Tentar salvar novamente"
@@ -1139,14 +1433,22 @@ msgstr "EMBER / {0}"
 
 msgid "training.controls"
 msgstr "Controles de treino"
-msgid "training.open_chip"
-msgstr "F6 Controles de treino"
 msgid "training.hide_hint"
-msgstr "F5 Ocultar HUD"
+msgstr "Ocultar HUD"
+
+msgid "training.controls_chip"
+msgstr "Controles de treino"
+
+msgid "training.pad_hint"
+msgstr "Toque: restaurar, segure: salvar"
+msgid "training.hint.reset"
+msgstr "Restaurar"
+msgid "training.hint.save"
+msgstr "Salvar"
 msgid "training.dummy_recording"
 msgstr "Gravação do boneco"
 msgid "training.dummy_recording.detail"
-msgstr "Grave os controles do P1 no P2. Defina o boneco nativo como Jogador / controle."
+msgstr "Grave os controles do P1 no P2 e depois reproduza. Nenhuma configuração do jogo é necessária: o Ember passa o boneco para a entrada do P2 enquanto grava ou reproduz."
 msgid "training.input_history"
 msgstr "Histórico de comandos"
 msgid "training.input_history.detail"
@@ -1170,7 +1472,9 @@ msgstr "Grave os controles do P1 como P2 e volte ao treino."
 msgid "training.play"
 msgstr "Reproduzir"
 msgid "training.play.detail"
-msgstr "Reproduza o espaço selecionado e volte ao treino. As direções são absolutas, sem espelhamento."
+msgstr "Reproduza o espaço selecionado e volte ao treino. As gravações seguem o lado que o boneco encara. Esquerda e Direita escolhem se repete."
+msgid "training.play.once"
+msgstr "Uma vez"
 msgid "training.slot_empty"
 msgstr "Este espaço está vazio."
 msgid "training.stop"
@@ -1179,8 +1483,6 @@ msgid "training.stop.detail"
 msgstr "Pare a gravação ou reprodução."
 msgid "training.loop"
 msgstr "Repetir reprodução"
-msgid "training.loop.detail"
-msgstr "Repita a gravação selecionada."
 msgid "training.clear_recording"
 msgstr "Apagar gravação selecionada"
 msgid "training.clear_recording.detail"
@@ -1200,7 +1502,7 @@ msgstr "Treino pronto"
 msgid "training.recording_suspended"
 msgstr "Gravação suspensa enquanto os controles estão abertos"
 msgid "training.playback_suspended"
-msgstr "Reprodução suspensa enquanto os controles estão abertos"
+msgstr "Reprodução em andamento; a gravação espera os controles fecharem"
 msgid "training.applying"
 msgstr "Aplicando comando..."
 msgid "training.waiting_battle"
@@ -1209,10 +1511,6 @@ msgid "training.title"
 msgstr "LABORATÓRIO DE TREINO"
 msgid "training.command_rejected"
 msgstr "O comando de treino não foi aceito. Revise o estado e tente novamente."
-msgid "training.start_frames"
-msgstr "Início {0} q"
-msgid "training.start_unknown"
-msgstr "Início --"
 msgid "training.startup"
 msgstr "Inicialização"
 msgid "training.neutral"
@@ -1244,6 +1542,303 @@ msgstr "ao vivo"
 msgid "training.advantage"
 msgstr "Vantagem"
 
+msgid "training.last_advantage"
+msgstr "Última vantagem"
+
+msgid "training.meter.active"
+msgstr "Ativo"
+
+msgid "training.meter.recovery"
+msgstr "Recuperação"
+
+msgid "training.meter.hit"
+msgstr "Acerto"
+
+msgid "training.meter.block"
+msgstr "Defesa"
+
+msgid "training.meter.whiff"
+msgstr "No vazio"
+
+msgid "training.meter.knockdown"
+msgstr "Queda"
+
+msgid "training.meter.meaty"
+msgstr "Meaty"
+
+msgid "training.meter.throw"
+msgstr "Agarrão / cinemática"
+
+msgid "training.meter.attack"
+msgstr "Ataque"
+
+msgid "training.meter.move"
+msgstr "Movimento"
+
+msgid "training.meter.attack_unsplit"
+msgstr "Ataque não dividido"
+
+msgid "training.meter.style"
+msgstr "Estilo do medidor"
+
+msgid "training.meter.style.detail"
+msgstr "Inclinado colore um ataque por inicialização, ativo e recuperação e escreve a duração de cada trecho. Plano desenha o ataque inteiro em uma só cor."
+
+msgid "training.meter.style.angled"
+msgstr "Inclinado"
+
+msgid "training.meter.style.flat"
+msgstr "Plano"
+
+msgid "training.meter.frames_shown"
+msgstr "Quadros mostrados"
+
+msgid "training.meter.frames_shown.detail"
+msgstr "Quantos quadros as barras mostram na mesma largura. Menos deixa cada quadro mais largo e fácil de contar; 120 mostra todo o histórico. Com o medidor parado, a roda do mouse sobre as barras volta no tempo."
+
+msgid "training.meter.hud_recovery"
+msgstr "Recuperação no HUD"
+
+msgid "training.meter.hud_recovery.detail"
+msgstr "Mostra a recuperação do último golpe de cada lutador ao lado do início no medidor."
+
+msgid "training.meter.hud_numbers"
+msgstr "Números no HUD"
+
+msgid "training.meter.hud_bars"
+msgstr "Barras no HUD"
+
+msgid "training.meter.hud_state"
+msgstr "Estado no HUD"
+
+msgid "training.meter.hud_shortcuts"
+msgstr "Atalhos no HUD"
+
+msgid "training.meter.hud_status"
+msgstr "Gravação no HUD"
+
+msgid "training.meter.hud_part.detail"
+msgstr "Mostra esta parte do HUD de treino durante a luta. F5 oculta todo o HUD."
+
+msgid "training.meter.hud_size"
+msgstr "Tamanho do HUD"
+
+msgid "training.meter.hud_size.detail"
+msgstr "Define o tamanho do texto e das barras do HUD de treino. O tamanho da interface também o aumenta."
+
+msgid "training.recovery_frames"
+msgstr "Rec. {0} q"
+
+msgid "training.recovery_unknown"
+msgstr "Rec. --"
+
+msgid "training.save_recording"
+msgstr "Salvar gravação como"
+
+msgid "training.save_recording.detail"
+msgstr "Grava o slot selecionado num arquivo com este nome."
+
+msgid "training.load_recording"
+msgstr "Carregar gravação"
+
+msgid "training.load_recording.detail"
+msgstr "Esquerda e Direita escolhem uma gravação salva; Selecionar a carrega no slot selecionado."
+
+msgid "training.mirror"
+msgstr "Espelhar gravação selecionada"
+
+msgid "training.mirror.detail"
+msgstr "Troca esquerda e direita neste espaço, para uma gravação salva que sai invertida."
+
+msgid "training.recording_saved"
+msgstr "Gravação salva como {0}."
+
+msgid "training.recording_loaded"
+msgstr "Gravação {0} carregada no slot {1}."
+
+msgid "training.recording_none"
+msgstr "Nenhuma gravação salva."
+
+msgid "training.match.checkpoint_disabled"
+msgstr "O salvamento e a restauração compartilhados da posição não estão disponíveis em partidas com rollback."
+
+msgid "training.match.end_hint"
+msgstr "Start ou F10 abre o Ember, onde Encerrar prática encerra este jogo."
+
+msgid "training.invalid"
+msgstr "Não aceito: {0}"
+
+msgid "training.save_failed"
+msgstr "Não foi possível salvar o arquivo."
+
+msgid "training.position.save"
+msgstr "Salvar posição"
+
+msgid "training.position.save.detail"
+msgstr "Guarda os dois lutadores como estão: lugar, vida, barras, estado do boneco."
+
+msgid "training.position.reset"
+msgstr "Restaurar posição"
+
+msgid "training.position.reset.detail"
+msgstr "Devolve os dois lutadores a onde foram salvos."
+
+msgid "training.position.saved"
+msgstr "Posição salva."
+
+msgid "training.position.reset_done"
+msgstr "Posição restaurada."
+
+msgid "training.dummy.detail"
+msgstr "Esquerda e Direita mudam; vale no jogo na hora."
+
+msgid "training.reply"
+msgstr "Resposta do boneco"
+
+msgid "training.reply.detail"
+msgstr "O que o boneco faz sozinho assim que fica livre de novo, para punir um combo perdido ou um final inseguro: reproduz os Golpes de resposta, ou o espaço de resposta se essa linha estiver vazia. A resposta espera enquanto houver reprodução ou gravação."
+
+msgid "training.reply.hit"
+msgstr "Após um combo perdido"
+
+msgid "training.reply.block"
+msgstr "Após defender"
+
+msgid "training.reply.rise"
+msgstr "Ao levantar"
+
+msgid "training.reply.any"
+msgstr "Sempre que se recuperar"
+
+msgid "training.reply.slot"
+msgstr "Espaço de resposta"
+
+msgid "training.reply.slot.detail"
+msgstr "A gravação do boneco reproduzida como resposta enquanto Golpes de resposta estiver vazio, a partir do primeiro toque."
+
+msgid "training.reply.slot_empty"
+msgstr "O espaço {0} está vazio, então o boneco não responde. Grave-o ou escolha um golpe."
+
+msgid "training.reply.chance"
+msgstr "Chance de resposta"
+
+msgid "training.reply.chance.detail"
+msgstr "Com que frequência o boneco responde. Abaixo de 100% varia de uma tentativa para outra."
+
+msgid "training.reply.vary_stance"
+msgstr "Variar postura"
+
+msgid "training.reply.vary_stance.detail"
+msgstr "Cada vez que o boneco se recupera, ele fica em pé ou agachado ao acaso, para treinar o combo contra as duas. Só enquanto o boneco estiver em pé ou agachado."
+
+msgid "training.reply.moves"
+msgstr "Golpes de resposta"
+
+msgid "training.reply.moves.detail"
+msgstr "A resposta digitada em notação numérica, como 623HP ou 44, lida para o lado que o boneco encara. Nomes de movimentos também valem: qcf, qcb, dp, rdp, hcf e hcb, como qcfP ou dp+HP. O movimento entra enquanto o boneco ainda está preso, para o botão cair no primeiro frame livre. [1] segura uma direção até o próximo movimento, [1]20f a segura por 20 frames e 10f espera: [1] > 3HP defende embaixo até o boneco ficar livre e então aperta 3HP. Vazio usa o espaço de resposta."
+
+msgid "training.reply.move"
+msgstr "Resposta predefinida"
+
+msgid "training.reply.move.detail"
+msgstr "Esquerda e direita escolhem uma resposta comum em notação numérica, lida para o lado para onde o boneco olha. Espaço de resposta toca a gravação; Personalizada mantém os golpes digitados. Selecionar abre Golpes de resposta para digitar um."
+
+msgid "training.reply.custom"
+msgstr "Personalizada"
+
+msgid "training.reply.timing"
+msgstr "Ajuste da resposta"
+
+msgid "training.reply.timing.detail"
+msgstr "Frames depois do primeiro frame livre do boneco em que cai o botão da resposta. A duração de um atordoamento é aprendida na primeira vez; até lá a resposta começa quando ele termina."
+
+msgid "training.key.reset"
+msgstr "Tecla Restaurar"
+
+msgid "training.challenger"
+msgstr "Sua partida está pronta"
+
+msgid "training.key.detail"
+msgstr "Esquerda e Direita escolhem a tecla que faz isso durante a luta. Desativado deixa sem tecla."
+
+msgid "training.dummy.action"
+msgstr "Boneco"
+
+msgid "training.dummy.guard"
+msgstr "Defesa"
+
+msgid "training.dummy.counter"
+msgstr "Counter hit"
+
+msgid "training.dummy.quick"
+msgstr "Levantar rápido"
+
+msgid "training.dummy.super"
+msgstr "Barra de super"
+
+msgid "training.dummy.revenge"
+msgstr "Barra de revanche"
+
+msgid "training.dummy.stand"
+msgstr "Em pé"
+
+msgid "training.dummy.crouch"
+msgstr "Agachado"
+
+msgid "training.dummy.jump"
+msgstr "Pulo"
+
+msgid "training.dummy.cpu"
+msgstr "CPU"
+
+msgid "training.dummy.human"
+msgstr "Humano"
+
+msgid "training.dummy.guard_none"
+msgstr "Sem defesa"
+
+msgid "training.dummy.guard_first"
+msgstr "Após o primeiro golpe"
+
+msgid "training.dummy.guard_all"
+msgstr "Defender tudo"
+
+msgid "training.dummy.guard_random"
+msgstr "Aleatório"
+
+msgid "training.dummy.counter_off"
+msgstr "Não"
+
+msgid "training.dummy.counter_on"
+msgstr "Sim"
+
+msgid "training.dummy.counter_random"
+msgstr "Aleatório"
+
+msgid "training.dummy.quick_quick"
+msgstr "Rápido"
+
+msgid "training.dummy.quick_normal"
+msgstr "Normal"
+
+msgid "training.dummy.quick_delayed"
+msgstr "Atrasado"
+
+msgid "training.dummy.quick_random"
+msgstr "Aleatório"
+
+msgid "training.dummy.gauge_normal"
+msgstr "Normal"
+
+msgid "training.dummy.gauge_max"
+msgstr "Cheia no início"
+
+msgid "training.dummy.gauge_infinite"
+msgstr "Infinita"
+
+msgid "training.dummy.gauge_refill"
+msgstr "Recarga"
+
 msgid "selection.preview_unavailable"
 msgstr "Prévia\nindisponível"
 msgid "selection.preview_loading"
@@ -1264,6 +1859,8 @@ msgid "selection.alternate"
 msgstr "Alternativo {0}"
 msgid "selection.alternate_pack"
 msgstr "Alternativo {0} / {1}"
+msgid "selection.custom"
+msgstr "Personalizado {0}"
 msgid "selection.stage_count"
 msgstr "{0} CENÁRIOS / USFIV"
 msgid "selection.choose_battlefield"
@@ -1323,6 +1920,12 @@ msgid "selection.loading_choices.detail"
 msgstr "Aguardando a disponibilidade nativa de trajes e cores."
 msgid "selection.no_colors"
 msgstr "Nenhuma cor desbloqueada para este traje."
+
+msgid "selection.not_owned"
+msgstr "Você não possui na Steam."
+
+msgid "selection.not_owned_badge"
+msgstr "NÃO ADQUIRIDO"
 msgid "selection.color"
 msgstr "Cor {0}"
 msgid "selection.ultra_combo_title"
@@ -1425,10 +2028,14 @@ msgid "runtime.waiting_opponent_join"
 msgstr "Aguardando o oponente entrar no lobby..."
 msgid "runtime.authorized_connection_unavailable"
 msgstr "A conexão autorizada da partida está indisponível."
+msgid "runtime.input_lag_unavailable"
+msgstr "Este PC não conseguiu ajustar o tempo de entrada do jogo como esta partida exige (Menos atraso de entrada), então a partida foi interrompida. Reiniciar o jogo deve resolver."
 msgid "runtime.waiting_opponent_start"
 msgstr "Aguardando o oponente no lobby para iniciar a partida."
 msgid "runtime.unsupported_stage"
 msgstr "A sala forneceu um cenário incompatível. Redefina o lobby antes de tentar novamente."
+msgid "runtime.unsupported_match"
+msgstr "A sala forneceu lutadores ou configurações de partida incompatíveis. Redefina o lobby antes de tentar novamente."
 msgid "runtime.netplay_input_failed"
 msgstr "Falha na entrada do netplay. A partida terminou."
 msgid "runtime.netplay_sync_failed"
@@ -1459,6 +2066,8 @@ msgid "runtime.returning_room"
 msgstr "Voltando à sala."
 msgid "runtime.table_game_cancelled"
 msgstr "O jogo desta mesa foi cancelado. Volte à sala e marque Pronto novamente."
+msgid "runtime.practice_ended"
+msgstr "Prática encerrada. Volte à sala e marque Pronto novamente."
 msgid "runtime.result_not_recorded"
 msgstr "O resultado não pôde ser registrado: a mesa mudou antes da confirmação."
 msgid "runtime.participant_left"
@@ -1466,8 +2075,6 @@ msgstr "Um participante saiu da sala. O jogo será encerrado."
 
 msgid "update.github_unreachable"
 msgstr "Não foi possível acessar o GitHub. Verifique a conexão e tente novamente."
-msgid "update.no_version_tag"
-msgstr "A versão do GitHub não tem etiqueta de versão."
 msgid "update.no_zip_asset"
 msgstr "A versão mais recente não tem um ZIP do SF4 Ember Netplay."
 msgid "update.parse_failed"
@@ -1476,6 +2083,9 @@ msgid "update.missing_url"
 msgstr "URL de download ausente."
 msgid "update.missing_version"
 msgstr "Etiqueta de versão ausente."
+
+msgid "update.not_offered"
+msgstr "Esta versão não é a que foi oferecida. Verifique as atualizações novamente."
 msgid "update.close_sf4"
 msgstr "Feche o Ultra Street Fighter IV antes de instalar uma atualização."
 msgid "update.elevated"
@@ -1517,6 +2127,39 @@ msgstr "Feche o jogo antes de instalar a atualização."
 msgid "update.updater_start_failed"
 msgstr "Não foi possível iniciar Updater.exe. Reinstale usando um ZIP novo."
 
+msgid "update.stage.preparing"
+msgstr "Verificando o pacote..."
+
+msgid "update.stage.comparing"
+msgstr "Comparando arquivos..."
+
+msgid "update.stage.backing_up"
+msgstr "Fazendo backup dos arquivos substituídos..."
+
+msgid "update.stage.replacing"
+msgstr "Substituindo arquivos..."
+
+msgid "update.stage.confirming"
+msgstr "Verificando os arquivos instalados..."
+
+msgid "update.notice.waiting_launcher"
+msgstr "Aguardando o SF4 Ember Netplay fechar..."
+
+msgid "update.notice.waiting_file"
+msgstr "Aguardando outro programa liberar {0}..."
+
+msgid "update.notice.restoring"
+msgstr "Restaurando os arquivos anteriores..."
+
+msgid "update.notice.elapsed"
+msgstr "{0} decorrido"
+
+msgid "update.notice.reopens"
+msgstr "O SF4 Ember Netplay abrirá de novo ao terminar."
+
+msgid "update.notice.recovering"
+msgstr "Concluindo uma atualização interrompida..."
+
 msgid "room.member_left"
 msgstr "Membro saiu"
 msgid "room.open_seat"
@@ -1541,6 +2184,9 @@ msgstr "Inativo há {0} min"
 
 msgid "room.idle_hours"
 msgstr "Inativo há {0} h {1} min"
+
+msgid "room.in_training"
+msgstr "Em treino"
 msgid "room.phase.waiting"
 msgstr "Aguardando lutadores"
 msgid "room.phase.preparing"
@@ -1740,6 +2386,12 @@ msgid "room.hold.waiting_some"
 msgstr "Aguardando o retorno dos espectadores confirmados. Começa em {0} s."
 msgid "room.hold.waiting_you"
 msgstr "A partida espera você: {0} s"
+msgid "room.ready_timeout.you"
+msgstr "Fique pronto em {0} s ou você deixará o assento"
+msgid "room.ready_timeout.other"
+msgstr "{1} tem mais {0} s para ficar pronto"
+msgid "chat.event.ready_timeout"
+msgstr "{0} saiu da mesa {1}: não ficou pronto a tempo"
 msgid "room.hold.status"
 msgstr "Aguardando espectadores: {0} s"
 msgid "room.hold.cancel_detail"
@@ -1761,7 +2413,7 @@ msgstr "Pronto para revanche"
 msgid "room.ready_up"
 msgstr "Marcar Pronto"
 msgid "room.selected_delay.detail"
-msgstr "Ajuste de 1 a 10 quadros, ou desça abaixo de 1 para Auto. As alterações são aplicadas imediatamente."
+msgstr "Ajuste de 0 a 10 quadros, ou desça abaixo de 0 para Auto. 0 não adiciona atraso e exige um ping baixo e estável."
 msgid "room.selected_delay.locked"
 msgstr "O atraso selecionado está bloqueado nesta partida."
 msgid "room.match_delay.at_least"
@@ -1825,6 +2477,10 @@ msgid "room.abandon_result"
 msgstr "Abandonar jogo não resolvido"
 msgid "room.abandon_result.detail"
 msgstr "Nenhum resultado será registrado. Os dois lutadores permanecem sentados e podem marcar Pronto novamente."
+msgid "room.end_practice"
+msgstr "Encerrar prática"
+msgid "room.end_practice.detail"
+msgstr "Encerra esta partida de prática agora para os dois lutadores. Nenhum resultado será registrado. Os dois lutadores permanecem sentados e podem marcar Pronto novamente."
 msgid "room.leave_queue"
 msgstr "Sair da fila"
 msgid "room.join_queue"
@@ -1952,6 +2608,9 @@ msgid "edit.title"
 msgstr "Editar texto"
 msgid "edit.instructions"
 msgstr "Digite ou cole com o teclado. Enter ou Selecionar no controle aceita; Escape ou Voltar cancela."
+msgid "edit.instructions_multiline"
+msgstr "Digite ou cole com o teclado. Enter ou Enter do teclado numérico insere uma nova linha. Ctrl+Enter, Ctrl+Enter do teclado numérico, o botão Aceitar ou Selecionar no controle aceita; Escape ou Voltar no controle cancela."
+
 msgid "edit.updating"
 msgstr "Atualizando sala. Seu rascunho foi mantido; continue digitando ou cancele."
 msgid "common.accept"
@@ -3122,3 +3781,399 @@ msgstr "Não foi possível entrar na sala. Ela pode ter acabado de fechar. Atual
 
 msgid "legend.refresh"
 msgstr "Atualizar"
+
+msgid "training.frame_data"
+msgstr "Dados de quadros"
+
+msgid "training.frame_data.detail"
+msgstr "Veja o último golpe de cada jogador, a vantagem e o tempo do meaty."
+
+msgid "training.hud"
+msgstr "HUD"
+
+msgid "training.hud.detail"
+msgstr "Ligue ou desligue partes do HUD durante a luta."
+
+msgid "training.color_key"
+msgstr "Legenda de cores"
+
+msgid "training.dummy"
+msgstr "Boneco"
+
+msgid "training.position"
+msgstr "Posição"
+
+msgid "training.start_frames"
+msgstr "Início {0} q"
+
+msgid "training.start_unknown"
+msgstr "Início --"
+
+msgid "settings.training_replays"
+msgstr "Treino e replays"
+
+msgid "settings.training_replays_detail"
+msgstr "Medidor de frames nas partidas, pronto automático após o treino e quais partidas são salvas."
+
+msgid "settings.training_replays_title"
+msgstr "TREINO E REPLAYS"
+
+msgid "room.table_footer_practice"
+msgstr "Partida de prática"
+
+msgid "room.rules_summary_practice"
+msgstr "Partida de prática, {0} rounds, {1} s, Edition Select {2}"
+
+msgid "room.practice"
+msgstr "Sala de prática"
+
+msgid "room.practice.detail"
+msgstr "Toda partida da sala é uma partida de prática: a vida e as barras se enchem, ninguém sofre nocaute e o tempo do round é {0}. Isso vale enquanto a sala estiver aberta. Para jogar partidas normais, feche a sala e crie uma nova."
+
+msgid "room.practice_status"
+msgstr "Sala de prática / somente por convite"
+
+msgid "room.practice_locked_status"
+msgstr "Sala de prática bloqueada / somente por convite"
+
+msgid "inputs.presses_value"
+msgstr "{0} pressionamentos"
+
+msgid "replays.watch_meter"
+msgstr "Assistir com medidor de frames"
+
+msgid "replays.watch_meter_detail"
+msgstr "Reproduz pelo Battle Log com o medidor de frames sobre a luta."
+
+msgid "replays.controls.play"
+msgstr "Reproduzir"
+
+msgid "replays.controls.pause"
+msgstr "Pausar"
+
+msgid "replays.controls.paused"
+msgstr "Pausado"
+
+msgid "replays.controls.step"
+msgstr "Avançar"
+
+msgid "replays.controls.speed"
+msgstr "Velocidade"
+
+msgid "replays.controls.speed_full"
+msgstr "1x"
+
+msgid "replays.controls.speed_half"
+msgstr "1/2x"
+
+msgid "replays.controls.speed_quarter"
+msgstr "1/4x"
+
+msgid "replays.controls.inputs"
+msgstr "Comandos"
+
+msgid "replays.controls.meter"
+msgstr "Medidor"
+
+msgid "replays.controls.round"
+msgstr "Round {0}"
+
+msgid "replays.controls.frame"
+msgstr "Frame {0}"
+
+msgid "replays.controls.unavailable"
+msgstr "Os controles funcionam durante a luta"
+
+msgid "room.training"
+msgstr "Esperar no treino"
+
+msgid "replays.export_gpu"
+msgstr "Exportar vídeo (GPU)"
+
+msgid "replays.export_gpu_detail"
+msgstr "Grava como .mp4 no tamanho completo da imagem do jogo, codificado pela sua placa de vídeo."
+
+msgid "replays.video"
+msgstr "Vídeo"
+
+msgid "export.title"
+msgstr "Exportar vídeo"
+
+msgid "export.detail"
+msgstr "Mostrado sobre o jogo enquanto grava, na tela e no vídeo."
+
+msgid "export.names"
+msgstr "Nomes dos jogadores"
+
+msgid "export.name"
+msgstr "Jogador {0}"
+
+msgid "export.line"
+msgstr "Linha da partida"
+
+msgid "export.line_text"
+msgstr "Texto da linha da partida"
+
+msgid "export.set"
+msgstr "Placar do set"
+
+msgid "export.set_detail"
+msgstr "As vitórias de cada jogador no set até agora, ao lado do nome. Contadas a partir das partidas que os dois jogaram logo antes; altere se não estiver certo."
+
+msgid "export.set_wins"
+msgstr "Vitórias do jogador {0}"
+
+msgid "export.mark"
+msgstr "Marca do Ember"
+
+msgid "export.generate"
+msgstr "Gerar vídeo"
+
+msgid "export.meter"
+msgstr "Medidor de frames"
+
+msgid "export.meter_detail"
+msgstr "Mostra o medidor de frames do treino sobre a luta, na tela e no vídeo."
+
+msgid "export.generate_detail"
+msgstr "Reproduz o replay e grava como .mp4 ao lado dele. Durante a gravação, F10 abre o Ember para acompanhar ou cancelar."
+
+msgid "export.running"
+msgstr "Exportando vídeo"
+
+msgid "export.running_detail"
+msgstr "O replay é gravado enquanto é reproduzido. Enquanto este menu estiver aberto, o vídeo fica sem a legenda e sem o medidor de frames."
+
+msgid "export.starting"
+msgstr "Iniciando..."
+
+msgid "export.finishing"
+msgstr "Finalizando o vídeo..."
+
+msgid "export.cancelling"
+msgstr "Cancelando..."
+
+msgid "export.progress"
+msgstr "{0} / {1}"
+
+msgid "export.cancel"
+msgstr "Cancelar exportação"
+
+msgid "export.cancel_detail"
+msgstr "Para a gravação e apaga o vídeo inacabado. O replay continua até o fim."
+
+msgid "export.cancelled"
+msgstr "Exportação cancelada. Nenhum vídeo foi salvo."
+
+msgid "training.result"
+msgstr "Resultado"
+
+msgid "training.room.table"
+msgstr "Mesa {0}"
+
+msgid "training.room.waiting"
+msgstr "Esperando um oponente"
+
+msgid "training.room.opponent"
+msgstr "Oponente: {0}"
+
+msgid "training.room.queued"
+msgstr "Na fila: {0} de {1}"
+
+msgid "training.room.not_queued"
+msgstr "Fora da fila"
+
+msgid "training.room.unread"
+msgstr "{0} não lidas"
+
+msgid "room.training_call.calling"
+msgstr "Chamando {0} de volta do treino"
+
+msgid "training.go_now"
+msgstr "Ir agora"
+
+msgid "reports.setting"
+msgstr "Enviar relatórios de problemas"
+
+msgid "reports.setting_detail"
+msgstr "Ligado: após uma falha, o inicializador envia o relatório sem perguntar, no máximo {0} por dia, e nunca com o dump da falha. Desligado: ele pergunta antes."
+
+msgid "reports.problem"
+msgstr "Relatar um problema"
+
+msgid "reports.problem_detail"
+msgstr "Revise os logs editados e os detalhes do relatório antes de decidir se os envia ao Ember."
+
+msgid "reports.title"
+msgstr "Prévia do relatório"
+
+msgid "reports.preparing"
+msgstr "Preparando a prévia do relatório..."
+
+msgid "reports.preview_detail"
+msgstr "Revise cada parte antes de enviar. Os relatórios vão para embernetplay.link. Dumps brutos ficam por até 30 dias; relatórios processados têm retenção separada."
+
+msgid "reports.sending"
+msgstr "Enviando seu relatório..."
+
+msgid "reports.bytes"
+msgstr "{0} bytes"
+
+msgid "reports.metadata"
+msgstr "Detalhes do relatório"
+
+msgid "reports.dump"
+msgstr "Dump pequeno"
+
+msgid "reports.dump_detail"
+msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+
+msgid "reports.comment"
+msgstr "Comentário"
+
+msgid "reports.comment_required"
+msgstr "Descreva o problema antes de enviar (até 2000 caracteres). Seu comentário é enviado como escrito."
+
+msgid "reports.comment_optional"
+msgstr "Opcional: descreva o que aconteceu (até 2000 caracteres). Seu comentário é enviado como escrito."
+
+msgid "reports.send"
+msgstr "Enviar"
+
+msgid "reports.dont_send"
+msgstr "Não enviar"
+
+msgid "reports.consent"
+msgstr "Enviar ao Ember exatamente as partes mostradas nesta prévia, incluindo seu comentário e o dump pequeno, se ativado?"
+
+msgid "reports.copy_id"
+msgstr "Copiar ID do relatório"
+
+msgid "reports.close_detail"
+msgstr "Fecha esta prévia. Um envio já aceito pelo servidor não pode ser retirado aqui."
+
+msgid "reports.sent"
+msgstr "Relatório aceito. ID do relatório: {0}"
+
+msgid "reports.invalid"
+msgstr "Este relatório é inválido ou grande demais. Verifique o comentário e tente preparar outra prévia."
+
+msgid "reports.invalid_response"
+msgstr "A resposta do servidor não trouxe um ID de relatório válido. Ele pode já ter aceito seu relatório."
+
+msgid "reports.rate_limited"
+msgstr "Relatórios demais. Tente de novo em {0} segundos."
+
+msgid "reports.unavailable"
+msgstr "Envio de relatórios indisponível por ora. Tente mais tarde."
+
+msgid "reports.failed"
+msgstr "Não foi possível enviar o relatório. Verifique sua conexão e tente de novo."
+
+msgid "reports.cancelled"
+msgstr "Envio do relatório cancelado. Um relatório já aceito pelo servidor ainda pode ser mantido."
+
+msgid "reports.dump_warning"
+msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+
+msgid "launcher.game_crashed_files"
+msgstr "O jogo travou. Envie para a equipe do SF4 Ember Netplay os arquivos de %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log e sf4e-crash-*.dmp) e tente novamente."
+
+msgid "launcher.game_crashed_sending"
+msgstr "O jogo travou. Enviar relatórios de problemas está ligado, então um relatório sem o dump da falha está sendo enviado. Os arquivos também estão em %APPDATA%\\sf4e\\logs."
+
+msgid "reports.settings_title"
+msgstr "Relatórios de problemas"
+
+msgid "reports.settings_detail"
+msgstr "O que um relatório de falha contém e os relatórios enviados."
+
+msgid "reports.sent_list"
+msgstr "Relatórios enviados"
+
+msgid "reports.sent_list_detail"
+msgstr "Cada relatório que este PC enviou: quando, como foi e o ID do relatório."
+
+msgid "reports.none"
+msgstr "Nenhum relatório ainda"
+
+msgid "reports.none_detail"
+msgstr "Os relatórios que este PC enviar aparecem aqui."
+
+msgid "reports.send_once"
+msgstr "Enviar este relatório"
+
+msgid "reports.send_always"
+msgstr "Sempre enviar"
+
+msgid "reports.send_always_detail"
+msgstr "Envia este relatório e, a partir de agora, o relatório de cada falha seguinte sem perguntar. Relatórios enviados sem perguntar nunca incluem dump. No máximo {0} saem sem perguntar em 24 horas, e todo relatório enviado conta. Desligue em Configurações, Relatórios de problemas."
+
+msgid "reports.dump_included"
+msgstr "Dump da falha: incluído."
+
+msgid "reports.dump_not_included"
+msgstr "Dump da falha: não incluído."
+
+msgid "reports.row"
+msgstr "Relatório de problema"
+
+msgid "reports.status.sending"
+msgstr "Enviando"
+
+msgid "reports.status.received"
+msgstr "Recebido"
+
+msgid "reports.status.refused"
+msgstr "Não aceito"
+
+msgid "reports.status.not_sent"
+msgstr "Não enviado"
+
+msgid "reports.received"
+msgstr "O relatório foi recebido."
+
+msgid "reports.received_id"
+msgstr "O relatório foi recebido. O ID é {0}. Informe-o se perguntar à equipe do Ember sobre esta falha."
+
+msgid "reports.refused"
+msgstr "O serviço de relatórios não aceitou o relatório. Ele não será enviado de novo."
+
+msgid "reports.not_sent"
+msgstr "Não foi possível enviar o relatório. Ele não será enviado de novo."
+
+msgid "reports.what_is_sent"
+msgstr "Convites, tokens, endereços de rede, e-mail e seu nome de usuário do Windows, pasta de perfil, nome do PC e nome de jogador são removidos dos logs.\n\nUm relatório que você mesmo envia é mostrado por inteiro antes, e o dump pequeno só vai se você ativá-lo nessa prévia. Relatórios enviados sem perguntar nunca incluem dump.\n\nNunca enviados: seus outros arquivos, seus replays ou os dumps completos da falha."
+
+msgid "reports.send_once_detail"
+msgstr "Abre uma prévia do que este relatório contém. Nada é enviado até você escolher Enviar."
+
+msgid "reports.crash_report"
+msgstr "Relatório de falha"
+
+msgid "reports.payload"
+msgstr "Os relatórios vão para embernetplay.link. Cada um contém a versão e a build do Ember, a versão do Windows, os dados da falha e o final editado de sf4e.log, launcher.log, sf4e-crash.log e sf4-net.log."
+
+msgid "reports.status.unknown"
+msgstr "Desconhecido"
+
+msgid "reports.interrupted"
+msgstr "O envio foi interrompido antes de chegar uma resposta. O serviço de relatórios pode ter recebido o relatório."
+
+msgid "reports.identity_failed"
+msgstr "Não foi possível ler seu nome de jogador ou sua conta do Windows, então o relatório não foi preparado. Tente de novo."
+
+msgid "reports.history_failed"
+msgstr "Não foi possível salvar o histórico de relatórios enviados, então o relatório não foi enviado. Tente de novo."
+
+msgid "reports.history_unreadable"
+msgstr "Histórico ilegível"
+
+msgid "reports.history_unreadable_detail"
+msgstr "Não foi possível ler sent-reports.json em %APPDATA%\\sf4e, então nenhum relatório é enviado sem perguntar. Exclua o arquivo para começar um novo histórico."
+
+msgid "reports.always_failed"
+msgstr "Não foi possível ligar Sempre enviar, então este relatório não foi enviado. Escolha Enviar este relatório para enviá-lo pela prévia."
+
+msgid "reports.automatic_unavailable"
+msgstr "Os relatórios automáticos de hoje acabaram ou o histórico de relatórios enviados não pode ser lido, então este relatório não foi enviado. Escolha Enviar este relatório para enviá-lo pela prévia."

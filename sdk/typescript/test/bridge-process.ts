@@ -1,5 +1,5 @@
 // Starts the real ember-bridge binary (built by `cargo build -p ember-bridge`
-// in rust/ember) on a free loopback port with a fresh mock configuration.
+// in server/ember) on a free loopback port with a fresh mock configuration.
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingHttpHeaders } from "node:http";
@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import type { BridgeClient, Json, TestPlayer } from "../src/index.ts";
 
-export const binary = fileURLToPath(new URL(`../../../rust/ember/target/debug/ember-bridge${process.platform === "win32" ? ".exe" : ""}`, import.meta.url));
+export const binary = fileURLToPath(new URL(`../../../server/ember/target/debug/ember-bridge${process.platform === "win32" ? ".exe" : ""}`, import.meta.url));
 export const missing = !existsSync(binary) && "build ember-bridge first";
 
 export interface RunningBridge {

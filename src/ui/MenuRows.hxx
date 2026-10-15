@@ -1,12 +1,13 @@
 #pragma once
 #include "MenuNavigation.hxx"
 #include "../common/RoomRules.hxx"
-#include "../netplay/PlayerPreferences.hxx"
+#include "../netplay/BoolPreferences.hxx"
 #include "../common/Localization.hxx"
 namespace sf4e { namespace ui {
 inline bool SamePreferences(const netplay::PlayerPreferences& a,const netplay::PlayerPreferences& b) {
-    return a.displayName==b.displayName&&a.mainFighter==b.mainFighter&&a.inputDelay==b.inputDelay&&a.autoInputDelay==b.autoInputDelay&&a.showMatchHud==b.showMatchHud&&
-        a.matchHudSize==b.matchHudSize&&a.matchHudRaised==b.matchHudRaised&&a.matchHudAnchor==b.matchHudAnchor&&a.matchHudLayout==b.matchHudLayout&&a.readySound==b.readySound&&a.readySoundVolume==b.readySoundVolume&&a.discordPresence==b.discordPresence&&a.discordInvites==b.discordInvites&&a.steamPresence==b.steamPresence&&a.steamInvites==b.steamInvites&&a.interfaceScale==b.interfaceScale&&
+    for(const auto& p:netplay::BoolPreferences) if(a.*p.member!=b.*p.member) return false;
+    return a.displayName==b.displayName&&a.mainFighter==b.mainFighter&&a.inputDelay==b.inputDelay&&a.autoInputDelay==b.autoInputDelay&&
+        a.matchHudSize==b.matchHudSize&&a.matchHudAnchor==b.matchHudAnchor&&a.matchHudLayout==b.matchHudLayout&&a.matchHudNameOffset==b.matchHudNameOffset&&a.readySoundVolume==b.readySoundVolume&&a.interfaceScale==b.interfaceScale&&
         a.roomName==b.roomName&&a.roomCapacity==b.roomCapacity&&a.roomPublic==b.roomPublic&&a.tableRules==b.tableRules&&a.publicTableRules==b.publicTableRules;
 }
 inline MenuEntry Row(std::string id,std::string label,std::string detail,bool enabled=true) {
@@ -52,22 +53,33 @@ inline std::string SetSummaryText(const room::Rules& rules) {
     if(rules.format==room::SetFormat::Unlimited) return SetLengthText(rules.format);
     return loc::Tf("rules.set_summary",SetLengthText(rules.format),RotationText(rules.rotation));
 }
-inline void RuleRows(std::vector<MenuEntry>& rows,const room::Rules& rules,bool enabled,const char* reason) {
+// A Practice room's games always take the longest round time
+// (room::MatchRoundTime), so its rules have no round time row.
+inline void RuleRows(std::vector<MenuEntry>& rows,const room::Rules& rules,bool enabled,const char* reason,bool practice) {
     rows.push_back(Value("edition",loc::T("rules.edition_select"),rules.editionSelect?loc::T("common.on"):loc::T("common.off"),reason,enabled));
     rows.push_back(Value("rounds",loc::T("rules.rounds"),std::to_string(rules.roundCount),reason,enabled));
-    rows.push_back(Value("time",loc::T("rules.round_time"),std::to_string(rules.roundTime),reason,enabled));
+    if(!practice) rows.push_back(Value("time",loc::T("rules.round_time"),std::to_string(rules.roundTime),reason,enabled));
     rows.push_back(Value("set-length",loc::T("rules.set_length"),SetLengthText(rules.format),enabled?loc::T("rules.set_length.detail"):reason,enabled));
     // Only a set that ends can hand a seat over.
     const bool rotates=rules.format!=room::SetFormat::Unlimited;
     rows.push_back(Value("rotation",loc::T("rules.rotation"),RotationText(rules.rotation),
         !rotates?loc::T("rules.rotation.needs_set"):enabled?RotationDetail(rules.rotation):reason,enabled&&rotates));
 }
+// Create's choice of a Practice room, fixed for the room's life (room::Snapshot::practice).
+inline MenuEntry PracticeRoomRow(bool on,bool enabled) {
+    return Value("practice-room",loc::T("room.practice"),loc::T(on?"common.on":"common.off"),
+        loc::Tf("room.practice.detail",room::PracticeRoundTime),enabled);
+}
 inline bool AdjustRule(room::Rules& rules,const MenuAction& a) {
     if(a.kind!=MenuAction::Adjust) return false;
     if(a.id=="edition") rules.editionSelect=a.delta>0;
     else if(a.id=="rounds") Step(rules.roundCount,{1,3,5,7,15,99},a.delta);
-    else if(a.id=="time") Step(rules.roundTime,{30,60,99,300,9999},a.delta);
-    else if(a.id=="set-length") Step(rules.format,{0,1,2,3,5},a.delta);
+    else if(a.id=="time") Step(rules.roundTime,std::vector<int>(std::begin(room::RoundTimes),std::end(room::RoundTimes)),a.delta);
+    else if(a.id=="set-length") {
+        std::vector<int> lengths;
+        for(int n=0;n<=room::MaxSetLength;++n) lengths.push_back(n);
+        Step(rules.format,lengths,a.delta);
+    }
     else if(a.id=="rotation"&&rules.format!=room::SetFormat::Unlimited) Step(rules.rotation,{0,1,2},a.delta);
     else return false;
     return true;

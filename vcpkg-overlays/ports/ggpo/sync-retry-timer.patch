@@ -1,0 +1,93 @@
+diff --git a/src/lib/ggpo/network/udp_proto.cpp b/src/lib/ggpo/network/udp_proto.cpp
+index 7ec24a2..0230b0b 100644
+--- a/src/lib/ggpo/network/udp_proto.cpp
++++ b/src/lib/ggpo/network/udp_proto.cpp
+@@ -84,6 +84,7 @@ UdpProtocol::UdpProtocol() :
+    _bytes_sent(0),
+    _stats_start_time(0),
+    _last_send_time(0),
++   _last_sync_request_time(0),
+    _shutdown_timeout(0),
+    _disconnect_timeout(0),
+    _disconnect_notify_start(0),
+@@ -294,7 +295,7 @@ UdpProtocol::OnLoopPoll(void *cookie)
+    switch (_current_state) {
+    case Syncing:
+       next_interval = (_state.sync.roundtrips_remaining == NUM_SYNC_PACKETS) ? SYNC_FIRST_RETRY_INTERVAL : SYNC_RETRY_INTERVAL;
+-      if (_last_send_time && _last_send_time + next_interval < now) {
++      if (_last_sync_request_time && _last_sync_request_time + next_interval < now) {
+          Log("No luck syncing after %d ms... Re-queueing sync packet.\n", next_interval);
+          SendSyncRequest();
+       }
+@@ -369,12 +370,27 @@ UdpProtocol::Disconnect()
+    _shutdown_timeout = Platform::GetCurrentTimeMS() + UDP_SHUTDOWN_TIMER;
+ }
+ 
++/*
++ * Each round of the handshake has its own challenge, never the previous
++ * round's, so a late duplicate reply to that round cannot be taken for this one.
++ */
++void
++UdpProtocol::StartSyncRound()
++{
++   uint32 random;
++   do {
++      random = rand() & 0xFFFF;
++   } while (random == _state.sync.random);
++   _state.sync.random = random;
++   SendSyncRequest();
++}
++
+ void
+ UdpProtocol::SendSyncRequest()
+ {
+-   _state.sync.random = rand() & 0xFFFF;
+    UdpMsg *msg = new UdpMsg(UdpMsg::SyncRequest);
+    msg->u.sync_request.random_request = _state.sync.random;
++   _last_sync_request_time = Platform::GetCurrentTimeMS();
+    SendMsg(msg);
+ }
+ 
+@@ -499,7 +515,7 @@ UdpProtocol::Synchronize()
+    if (_udp) {
+       _current_state = Syncing;
+       _state.sync.roundtrips_remaining = NUM_SYNC_PACKETS;
+-      SendSyncRequest();
++      StartSyncRound();
+    }
+ }
+ 
+@@ -623,7 +639,7 @@ UdpProtocol::OnSyncReply(UdpMsg *msg, int len)
+       evt.u.synchronizing.total = NUM_SYNC_PACKETS;
+       evt.u.synchronizing.count = NUM_SYNC_PACKETS - _state.sync.roundtrips_remaining;
+       QueueEvent(evt);
+-      SendSyncRequest();
++      StartSyncRound();
+    }
+    return true;
+ }
+diff --git a/src/lib/ggpo/network/udp_proto.h b/src/lib/ggpo/network/udp_proto.h
+index b345911..a08bffc 100644
+--- a/src/lib/ggpo/network/udp_proto.h
++++ b/src/lib/ggpo/network/udp_proto.h
+@@ -110,6 +110,7 @@ protected:
+    void Log(const char *fmt, ...);
+    void LogMsg(const char *prefix, UdpMsg *msg);
+    void LogEvent(const char *prefix, const UdpProtocol::Event &evt);
++   void StartSyncRound();
+    void SendSyncRequest();
+    void SendMsg(UdpMsg *msg);
+    void PumpSendQueue();
+@@ -185,6 +186,12 @@ protected:
+    GameInput                  _last_sent_input;
+    GameInput                  _last_acked_input;
+    unsigned int               _last_send_time;
++   /*
++    * Sync retries are timed from our own last request, so answering the
++    * peer's requests does not hold them back.  A retry resends the round's
++    * challenge, so a slow reply still counts.
++    */
++   unsigned int               _last_sync_request_time;
+    unsigned int               _last_recv_time;
+    unsigned int               _shutdown_timeout;
+    unsigned int               _disconnect_event_sent;

@@ -11,7 +11,9 @@
 /CMakeSettings.json
 /CMakeUserPresets.json
 /rust/sf4-net/target/
-/rust/ember/target/
+/server/ember/target/
+/server/ember-rooms/target/
+/server/ember-short/target/
 /sdk/typescript/node_modules/
 /sdk/typescript/dist/
 # Local bridge and notifier state from docs/guides/INTEGRATIONS.md: holds secrets.
