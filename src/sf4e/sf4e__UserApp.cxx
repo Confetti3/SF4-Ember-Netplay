@@ -36,12 +36,10 @@
 namespace SessionProtocol = sf4e::SessionProtocol;
 using Dimps::App;
 using Dimps::Event::EventBase;
-using Dimps::Event::EventBaseWithEC;
 using Dimps::Event::EventController;
 using Dimps::Game::ProgressData;
 using Dimps::GameEvents::RootEvent;
 using Dimps::Math::FixedPoint;
-using rMainMenu = Dimps::GameEvents::MainMenu;
 using rSystem = Dimps::Game::Battle::System;
 using rVsMode = Dimps::GameEvents::VsMode;
 using rUserApp = Dimps::UserApp;
@@ -106,48 +104,33 @@ static MatchEntry StartMatchFromLobby(SessionClient* const client) {
         return MatchEntry::Rejected;
     }
 
-    RootEvent* root = App::GetRootEvent();
-    if (!root) {
-        return MatchEntry::Deferred;
-    }
-    char* mainMenuQuery[1] = { "MainMenu" };
-    rMainMenu* mainMenu = (rMainMenu*)EventBaseWithEC::FindForegroundEvent(
-        root,
-        mainMenuQuery,
-        1
-    );
-    if (!mainMenu) {
-        return MatchEntry::Deferred;
-    }
-
-    ProgressData* progressData = *RootEvent::GetProgressData(root);
-    ProgressData::BattleTypeSettings* BattleTypeSettings = &(ProgressData::GetBattleTypeSettings(progressData)[ProgressData::NBT_PVP]);
-    *ProgressData::GetNextBattleType(progressData) = ProgressData::NBT_PVP;
-    BattleTypeSettings->editionSelect = client->_lobbyData.editionSelect;
-    BattleTypeSettings->rounds = client->_lobbyData.roundCount;
-    BattleTypeSettings->timeLimit = client->_lobbyData.roundTime;
-    // The seed and Training rules join the battle request beside the
-    // settings above, for the fighters and for whoever watches them. The
-    // game prepares that request before the battle registers its tasks,
-    // where GGPO starts, so they cannot wait for GGPO.
-    fVsBattle::nextRequest = sf4e::battle::NextRequest::ForMatch(client->_lobbyData.trainingMode, client->_matchData.rngSeed);
+    fVsPreBattle::VersusSettings settings;
+    settings.editionSelect = client->_lobbyData.editionSelect;
+    settings.rounds = client->_lobbyData.roundCount;
+    settings.timeLimit = client->_lobbyData.roundTime;
     // A Versus battle saves its own replay when this is set (0x63CA40), and
     // Sidecar copies each one out of the game's slots as it is saved
     // (platform/ReplayFiles.hxx). A match this PC only
     // watches is recorded unless the player turned that off.
     sf4e::NetplayFacade::RuntimeMatchEndpoints seats;
     const bool watching = sf4e::NetplayFacade::GetRuntimeMatchEndpoints(seats) && seats.localSlot >= 2;
-    BattleTypeSettings->recordReplay = !watching || sf4e::NetplayFacade::GetRuntimeSnapshotShared()->preferences.recordWatched;
+    settings.recordReplay = !watching || sf4e::NetplayFacade::GetRuntimeSnapshotShared()->preferences.recordWatched;
+    if (!fVsPreBattle::GoToVersus(settings, fUserApp::_OnVsPreBattleTasksRegistered)) {
+        return MatchEntry::Deferred;
+    }
+    // The seed and Training rules join the battle request beside the
+    // settings above, for the fighters and for whoever watches them. The
+    // game prepares that request before the battle registers its tasks,
+    // where GGPO starts, so they cannot wait for GGPO. That is frames after
+    // GoToVersus, past VS mode's pre-battle, so armed here they are in time.
+    fVsBattle::nextRequest = sf4e::battle::NextRequest::ForMatch(client->_lobbyData.trainingMode, client->_matchData.rngSeed);
+    fVsBattle::OnTasksRegistered = fUserApp::_OnVsBattleTasksRegistered;
     spdlog::info(
         "Netplay: starting match with rounds={} time={} training={}",
         client->_lobbyData.roundCount,
         client->_lobbyData.roundTime.integral,
         client->_lobbyData.trainingMode
     );
-    fVsPreBattle::bSkipToVersus = true;
-    fVsPreBattle::OnTasksRegistered = fUserApp::_OnVsPreBattleTasksRegistered;
-    fVsBattle::OnTasksRegistered = fUserApp::_OnVsBattleTasksRegistered;
-    (rMainMenu::ToItemObserver(mainMenu)->*rMainMenu::itemObserverMethods.GoToVersusMode)();
     return MatchEntry::Entered;
 }
 
@@ -294,21 +277,6 @@ void fUserApp::_OnVsPreBattleTasksRegistered()
         sf4e::NetplayFacade::PushAlert(sf4e::loc::T(notice));
         return;
     }
-    size_t charaConditionSize = sizeof(rVsMode::ConfirmedCharaConditions);
-
-    // XXX (adanducci): this is a little fragile- it's technically possible
-    // that the pre-battle event is constructed in another context, but
-    // practically speaking the VsPreBattle event will always be used in
-    // the context of VsMode.
-    char* vsModeQuery[] = { "VSMode" };
-    rVsMode* mode = (rVsMode*)EventBaseWithEC::FindForegroundEvent(App::GetRootEvent(), vsModeQuery, 1);
-    if (!mode) {
-        spdlog::error("VsPreBattle tasks registered, but the current foreground event isn't VSMode!");
-        return;
-    }
-
-    Dimps::Platform::dString* stageName = rVsMode::GetStageName(mode);
-    rVsMode::ConfirmedPlayerConditions* conditions = rVsMode::GetConfirmedPlayerConditions(mode);
     // What this PC shows: custom costumes and colors it has play as stand-ins, ones it doesn't have become the
     // original (the match data stays as sent).
     rVsMode::ConfirmedCharaConditions shown[2] = { netplay->client._matchData.chara[0], netplay->client._matchData.chara[1] };
@@ -321,17 +289,10 @@ void fUserApp::_OnVsPreBattleTasksRegistered()
         shown[i].costume = static_cast<BYTE>(appearance.shown[i].costume);
         shown[i].color = static_cast<BYTE>(appearance.shown[i].color);
     }
-    for (int i = 0; i < 2; i++) {
-        *(rVsMode::ConfirmedPlayerConditions::GetCharaID(&conditions[i])) = shown[i].charaID;
-        *(rVsMode::ConfirmedPlayerConditions::GetSideActive(&conditions[i])) = 1;
-        rVsMode::ConfirmedCharaConditions* charaConditions = rVsMode::ConfirmedPlayerConditions::GetCharaConditions(&conditions[i]);
-        memcpy_s(charaConditions, charaConditionSize, &shown[i], charaConditionSize);
-    }
-
     // A custom stage plays as its fallback stage, loading its own files if this PC has them.
     const int stage = sf4e::custom::ApplyStage(static_cast<int>(netplay->client._matchData.stageID));
-    (stageName->*Dimps::Platform::dString::publicMethods.assign)(Dimps::stageCodes[stage], 4);
-    *(rVsMode::GetStageCode(mode)) = stage;
+    if (!fVsPreBattle::SetSides(shown, stage))
+        spdlog::error("VsPreBattle tasks registered, but the current foreground event isn't VSMode!");
 }
 
 void OnReady(sf4e::SessionClient* const client, const sf4e::SessionClient::Callbacks& c) {
