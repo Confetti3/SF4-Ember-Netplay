@@ -145,10 +145,17 @@ inline bool ValidDummyPlan(const DummyPlan& plan) {
 struct ReplySchedule { int start = -1, hold = -1, anchor = -1, timing = 0; };
 // Typed moves carry theirs from synthesis (DummyPlan). A recording's comes
 // from its frames: it lands from its first attack button, and has no hold.
+// It starts after the last frame before that button with no direction held,
+// so a wait recorded before the move does not play while the dummy is still
+// held and the move meets the free frame as recorded; a motion or a charge
+// held up to the button plays whole.
 inline ReplySchedule RecordingSchedule(const std::vector<Input>& frames, int timing) {
     ReplySchedule schedule; schedule.start = ReplyStart(frames); schedule.timing = timing;
     const auto press = std::find_if(frames.begin(), frames.end(), [](const Input& frame) { return (frame.raw & AttackButtons) != 0; });
     schedule.anchor = press == frames.end() ? schedule.start : static_cast<int>(press - frames.begin());
+    if (schedule.start < 0) return schedule;
+    for (int frame = schedule.anchor - 1; frame >= schedule.start; --frame)
+        if (!(frames[frame].raw & FightButtons & ~AttackButtons)) { schedule.start = frame + 1; break; }
     return schedule;
 }
 // The schedule of the reply a plan plays: its typed moves', else its slot's recording's.
@@ -603,7 +610,7 @@ public:
         if (first < 0) return false;
         resumeSide_ = view_.playbackSide; view_.playbackSide = 1;
         Play(slot, std::move(frames));
-        view_.replying = true; view_.cursor = first; ++replies_; schedule_ = schedule;
+        view_.replying = true; view_.cursor = (std::max)(first, schedule.start); ++replies_; schedule_ = schedule;
         if (slot < SlotCount) replyPicker_.Commit(slot);
         return true;
     }
