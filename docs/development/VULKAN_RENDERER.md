@@ -68,13 +68,20 @@ by a stand-in `d3d9.dll` beside the game instead of by Sidecar:
   out of 255 on flat stage surfaces (the two captures were not taken on the
   same frame, so characters and effects differ).
 
+Through Sidecar and the launcher with `SF4E_VULKAN=1`, on Windows 11 with an
+RTX 3080 Ti and DXVK 3.1.1:
+
+- the in-game training self-test passes, and the overlay (training controls,
+  frame meter) draws on DXVK's device;
+- a room match between two PCs, both on DXVK, passes the room self-test on
+  both sides: room screens, seats, match, leaving;
+- Alt+Enter to fullscreen and back, twice: the window gets its border and its
+  1280x720 client area back each time and keeps drawing;
+- over seven minutes of the attract loop, the frame rate lines match Direct3D
+  9: 60 fps with no late frame between scene loads, and the same one second
+  pause at each load on both.
+
 ## Not checked
 
-- The redirect as built into Sidecar, started through the launcher.
-- The overlay and the launcher-side screens on DXVK's device.
-- A netplay match.
 - Wine and Proton. Proton already runs the game on DXVK, so the switch should
   change nothing there.
-- Switching between windowed and fullscreen: with the stand-in, one switch
-  back from fullscreen left the window without a border.
-- Frame pacing compared with Direct3D 9.
