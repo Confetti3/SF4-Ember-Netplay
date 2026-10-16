@@ -1,0 +1,43 @@
+name: Windows test suite
+# The local suite of scripts/build-current.ps1 on a self-hosted Windows
+# machine, after every push to release. The runner is started in a signed-in
+# desktop session, not as a service: the DX9 tests draw on the GPU and a
+# service has no desktop to give them.
+#
+# Never on pull_request: that would run a stranger's code on the machine.
+# A repository opts in by registering a runner labelled "ember" and setting
+# the variable EMBER_WINDOWS_RUNNER to true; without it the job is skipped.
+on:
+  push:
+    branches: [release]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: windows-suite
+jobs:
+  suite:
+    if: vars.EMBER_WINDOWS_RUNNER == 'true'
+    runs-on: [self-hosted, Windows, ember]
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      # The work folder is kept between runs, so only changed files are
+      # written and the build after it is incremental.
+      - name: Check out exact commit
+        run: |
+          # pwsh does not stop on a failed git, and FETCH_HEAD can still hold
+          # the last run's commit, so each step and the result are checked.
+          git init -q .
+          if ($LASTEXITCODE) { throw "git init failed" }
+          git -c protocol.version=2 fetch --depth=1 "https://github.com/$env:GITHUB_REPOSITORY.git" $env:GITHUB_SHA
+          if ($LASTEXITCODE) { throw "git fetch failed" }
+          git checkout --force --detach FETCH_HEAD
+          if ($LASTEXITCODE) { throw "git checkout failed" }
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw "checked out $(git rev-parse HEAD), not $env:GITHUB_SHA" }
+      # The local suite contributors run, with its own checks. VCPKG_ROOT and
+      # SF4E_DISCORD_SDK_ARCHIVE come from the runner's environment.
+      - name: Build and test
+        run: ./scripts/build-current.ps1
