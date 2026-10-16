@@ -78,6 +78,12 @@ namespace {
 constexpr wchar_t kVulkanLibraryName[] = L"dxvk_d3d9.dll";
 IDirect3D9* (WINAPI* s_systemDirect3DCreate9)(UINT) = nullptr;
 
+// The game creates Direct3D inside Main::Initialize, before Sidecar's log is
+// up, so what the switch did is kept here and reported once it is
+// (LogVulkan).
+std::wstring s_vulkanNote;
+bool s_vulkanFellBack = false;
+
 IDirect3D9* WINAPI VulkanDirect3DCreate9(UINT sdkVersion) {
     // Loaded here and not at install: install runs inside Sidecar's DllMain.
     wchar_t path[MAX_PATH] = {};
@@ -87,19 +93,38 @@ IDirect3D9* WINAPI VulkanDirect3DCreate9(UINT sdkVersion) {
             (LPCWSTR)&VulkanDirect3DCreate9, &sidecar) &&
         GetModuleFileNameW(sidecar, path, MAX_PATH) < MAX_PATH && PathRemoveFileSpecW(path) &&
         PathAppendW(path, kVulkanLibraryName)) {
+        // DXVK writes its own log beside the game's executable unless told
+        // otherwise; it goes with Ember's logs instead, so the game folder
+        // stays untouched. A path the player set is kept.
+        PWSTR appData = nullptr;
+        wchar_t logs[MAX_PATH];
+        if (!GetEnvironmentVariableW(L"DXVK_LOG_PATH", nullptr, 0) &&
+            SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &appData) == S_OK && PathCombineW(logs, appData, L"sf4e\\logs")) {
+            SetEnvironmentVariableW(L"DXVK_LOG_PATH", logs);
+        }
+        CoTaskMemFree(appData);
         dxvk = LoadLibraryW(path);
     }
     const auto create = dxvk ? (IDirect3D9* (WINAPI*)(UINT))GetProcAddress(dxvk, "Direct3DCreate9") : nullptr;
     if (!create) {
-        spdlog::warn(L"Display: SF4E_VULKAN is set but {} could not be loaded (Win32 {}); using the system's Direct3D 9", path, GetLastError());
+        s_vulkanNote = L"SF4E_VULKAN is set but " + std::wstring(path) + L" could not be loaded (Win32 " +
+            std::to_wstring(GetLastError()) + L"); using the system's Direct3D 9";
+        s_vulkanFellBack = true;
         return s_systemDirect3DCreate9(sdkVersion);
     }
     if (IDirect3D9* d3d = create(sdkVersion)) {
-        spdlog::info(L"Display: drawing through Vulkan (DXVK, {})", path);
+        s_vulkanNote = L"drawing through Vulkan (DXVK, " + std::wstring(path) + L")";
         return d3d;
     }
-    spdlog::warn("Display: DXVK could not start (no usable Vulkan driver?); using the system's Direct3D 9");
+    s_vulkanNote = L"DXVK could not start (no usable Vulkan driver?); using the system's Direct3D 9";
+    s_vulkanFellBack = true;
     return s_systemDirect3DCreate9(sdkVersion);
+}
+
+void LogVulkan() {
+    if (s_vulkanNote.empty()) return;
+    if (s_vulkanFellBack) spdlog::warn(L"Display: {}", s_vulkanNote);
+    else spdlog::info(L"Display: {}", s_vulkanNote);
 }
 }
 
@@ -469,6 +494,7 @@ int fMain::Initialize(void* a, void* b, void* c) {
             sf4e::crash::WatchGameExit();
             LogVSyncForced();
             LogRenderingThread();
+            LogVulkan();
             spdlog::info("Sidecar logging initialized; install hooks are active");
             spdlog::info("{}", Game::Battle::MatchReplayListNote());
         }

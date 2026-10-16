@@ -29,6 +29,10 @@ Vulkan driver:
 Display: SF4E_VULKAN is set but ... could not be loaded (Win32 126); using the system's Direct3D 9
 ```
 
+DXVK keeps its own log, `SSFIV_d3d9.log`, in the same folder as `sf4e.log`
+(`%APPDATA%\sf4e\logs`) unless `DXVK_LOG_PATH` names another, so nothing is
+written to the game folder.
+
 DXVK is not part of the Ember package. Shipping it means adding a third-party
 binary to the signed package and its licence to the notices, which is a
 separate decision.
