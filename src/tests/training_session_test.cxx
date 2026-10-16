@@ -127,6 +127,19 @@ int main() {
         auto loop = [&](bool on) { Command c{Action::Loop, generation}; c.loop = on; return session.Apply(c); };
         Require(!select(-1) && !select(SlotCount), "Invalid slot accepted");
         Require(!apply(Action::Play), "Empty playback accepted");
+        // A recording begins on its first input, not on the press that starts it.
+        {
+            Require(apply(Action::AdvanceRecording) && apply(Action::AdvanceRecording) && session.GetView().mode == Mode::Recording, "Recording did not start");
+            Frame idle{}, press{}; press[0] = {0x10, 0x10};
+            for (int i = 0; i < 3; ++i) session.Commit(session.Prepare(idle));
+            session.Commit(session.Prepare(press)); session.Commit(session.Prepare(idle));
+            Require(apply(Action::Stop) && session.GetView().lengths[session.GetView().selected] == 2, "A recording kept the frames before its first input");
+            // One with no input still replaces the slot, with its idle frames.
+            Require(apply(Action::AdvanceRecording) && apply(Action::AdvanceRecording) && session.GetView().mode == Mode::Recording, "Recording did not start again");
+            for (int i = 0; i < 3; ++i) session.Commit(session.Prepare(idle));
+            Require(apply(Action::Stop) && session.GetView().lengths[session.GetView().selected] == 3, "A recording with no input left the old slot");
+            Require(apply(Action::Clear), "The recording did not clear");
+        }
         // Loaded input plays on the side it names; a recording plays on the dummy again.
         {
             Command load; load.action = Action::Load; load.generation = session.GetView().generation; load.side = 0;
@@ -712,7 +725,8 @@ int main() {
             Require(!reply.Reply(reply.Slot(2), ReplySchedule{}, 2), "An empty slot replied");
             command.action = Action::Select; command.slot = 2; reply.Apply(command);
             command.action = Action::AdvanceRecording; reply.Apply(command); reply.Apply(command);
-            // Two idle frames, as a player leaves before pressing, then two presses.
+            // Two idle frames, as a player leaves before pressing, then two
+            // presses: the slot keeps the presses.
             for (unsigned buttons : {0u, 0u, 0x10u, 0x20u}) { Frame frame; frame[1].raw = frame[1].mapped = buttons; reply.Commit(frame); }
             command.action = Action::Stop; reply.Apply(command);
             command.action = Action::Select; command.slot = 5; reply.Apply(command);
@@ -728,7 +742,13 @@ int main() {
             Require(reply.Reply(dragon, ReplySchedule{}) && reply.Replying() && reply.GetView().active == ReplySlot && reply.GetView().selected == 5 &&
                 reply.Prepare(Frame{})[1].raw == 4, "The typed reply did not start, or not for the dummy facing left");
             reply.StopReply();
-            Require(!reply.Replying() && reply.GetView().mode == Mode::Idle && reply.GetView().selected == 5 && reply.GetView().lengths[2] == 4, "A dropped reply changed the selection or touched a slot");
+            Require(!reply.Replying() && reply.GetView().mode == Mode::Idle && reply.GetView().selected == 5 && reply.GetView().lengths[2] == 2, "A dropped reply changed the selection or touched a slot");
+            // Frames that still lead with idle ones (loaded input, a slot kept
+            // from before recordings began on their first input) reply from
+            // their first press.
+            Require(reply.Reply(std::vector<Input>{{0, 0, 0, 0}, {0, 0, 0, 0}, {0x10, 0x10, 0, 0}}, ReplySchedule{}) && reply.Prepare(Frame{})[1].raw == 0x10,
+                "A reply did not skip the idle frames before its first press");
+            reply.StopReply();
             command.action = Action::Select; command.slot = ReplySlot;
             Require(!reply.Apply(command), "The reply's own slot could be selected");
             // Play stops a reply and plays a slot that is on, whatever is selected.

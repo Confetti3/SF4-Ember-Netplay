@@ -696,9 +696,14 @@ private:
         view_.mode = Mode::Playback; view_.active = slot; view_.activeLength = static_cast<int>(playing_.size()); view_.cursor = 0;
     }
     // Back to rest. A recording replaces the selected slot with what it
-    // recorded, in one change; standby records nothing.
+    // recorded from its first input, in one change: the frames before it are
+    // the player reaching the pad after starting it. One with no input stays
+    // whole, an idle slot. Standby records nothing.
     void Stop() {
-        if (view_.mode == Mode::Recording && !scratch_.empty()) { bank_.Replace(view_.selected, std::move(scratch_)); Publish(); }
+        if (view_.mode == Mode::Recording && !scratch_.empty()) {
+            scratch_.erase(scratch_.begin(), scratch_.begin() + (std::max)(0, ReplyStart(scratch_)));
+            bank_.Replace(view_.selected, std::move(scratch_)); Publish();
+        }
         scratch_.clear(); playing_.clear();
         view_.mode = Mode::Idle; view_.cursor = 0; view_.active = -1; view_.activeLength = 0; waited_ = waitedPast_ = 0; hit_ = false; lastRaw_ = 0;
         if (view_.replying) { view_.playbackSide = resumeSide_; view_.replying = false; schedule_ = {}; }
