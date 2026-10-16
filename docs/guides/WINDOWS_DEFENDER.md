@@ -15,7 +15,7 @@ We do **not** recommend weakening Windows Defender (folder exclusions, disabling
 3. If you believe the detection is wrong, report it to Microsoft at [file submission](https://www.microsoft.com/en-us/wdsi/filesubmission) (**Incorrectly detected as malware** → `Program:Win32/Wacapew.A!ml`).
 4. Wait for a **signed** release (see [`docs/development/CODE_SIGNING.md`](../development/CODE_SIGNING.md)): that is what we ship as the permanent fix.
 
-If Defender offers **Allow on device** for a file you downloaded from our official release page and verified by hash, that is your local decision. We do not ship scripts or instructions to add Defender exclusions.
+If Defender offers **Allow on device** for a file you downloaded from our official release page and verified by hash, that is your local decision. The [troubleshooting guide](TROUBLESHOOTING.md) lists the commands to check what Defender did and, if you choose to, exclude the verified folder.
 
 ## Permanent fix (signed builds)
 
