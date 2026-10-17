@@ -11,6 +11,7 @@ struct OverlayLayersView {
     bool trainingControlsOpen = false, nativePaused = false;
     bool focused = true, trainingHud = true, matchActive = false;
     bool matchWaitsForMenu = false, showMatchHud = true;
+    bool matchLoading = false;
     std::string controllerWarning;
     std::string padHint;
     // A replay is being exported. Its video's layers, the caption and the

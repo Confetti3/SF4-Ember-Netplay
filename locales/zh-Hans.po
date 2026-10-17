@@ -6227,3 +6227,9 @@ msgid "country.ZW"
 msgstr "津巴布韦"
 
 #. End of the generated country names.
+
+msgid "match.loading_title"
+msgstr "正在开始对战……"
+
+msgid "match.loading_detail"
+msgstr "请稍候。对战将自动开始，无需按任何按钮。"

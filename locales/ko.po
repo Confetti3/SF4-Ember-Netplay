@@ -6227,3 +6227,9 @@ msgid "country.ZW"
 msgstr "짐바브웨"
 
 #. End of the generated country names.
+
+msgid "match.loading_title"
+msgstr "대전 시작 중…"
+
+msgid "match.loading_detail"
+msgstr "잠시 기다려 주세요. 대전은 자동으로 시작되므로 버튼을 누를 필요가 없습니다."

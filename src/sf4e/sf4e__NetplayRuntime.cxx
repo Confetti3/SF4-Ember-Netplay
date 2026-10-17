@@ -29,6 +29,7 @@ Runtime* runtime = nullptr;
 void ResetMatchEntry() {
 	sf4e::GameEvents::VsBattle::nextRequest = {};
 	runtime->matchEntered = false;
+	runtime->automaticMatchEntry = false;
 	runtime->enteredGeneration = 0;
 	runtime->enteredTable = -1;
 	runtime->sessionlessCloseGeneration = 0;
@@ -134,6 +135,8 @@ void CloseRoom() {
 void Apply(netplay::EventKind kind, const std::string& error) {
 	netplay::Event event{kind, runtime->controller.GetSnapshot().generation, error};
 	const auto decision = runtime->controller.Apply(event);
+	if (decision.accepted && (kind == netplay::EventKind::MatchEnded || kind == netplay::EventKind::GameplayLost))
+		runtime->automaticMatchEntry = false;
 	const bool closesRoom = decision.effect == netplay::Effect::CloseSession || decision.effect == netplay::Effect::AbortMatch ||
 		decision.effect == netplay::Effect::FinishDegradedMatch;
 	if (closesRoom) {

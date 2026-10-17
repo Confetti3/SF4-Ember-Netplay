@@ -142,6 +142,7 @@ bool IsRuntimeMatchLive() {
 }
 
 void NotifyRuntimeBattleClosedWithoutSession() {
+	if (runtime) runtime->automaticMatchEntry = false;
 	// Called from battle teardown: only record it. TickMatch acts on it.
 	if (!runtime || !runtime->match || !runtime->matchEntered) return;
 	runtime->sessionlessCloseGeneration = runtime->enteredGeneration;
@@ -168,7 +169,12 @@ void EndRuntimeSpectatorStream(std::size_t slot) {
 
 bool IsRuntimeSpectator() { return LocalIsSpectator(); }
 
+void NotifyRuntimeNativeBattleReady() {
+	if (runtime) runtime->automaticMatchEntry = false;
+}
+
 void NotifyRuntimeMatchEnded() {
+	if (runtime) runtime->automaticMatchEntry = false;
 	// Called from battle teardown: defer owning-object changes until TickRuntime.
 	if (!runtime || !runtime->match) return;
 	runtime->matchEnded = true;
@@ -277,6 +283,7 @@ namespace internal {
 // match is ReportMatchAbort; this is the local half, and every caller needs
 // both deferral state and the session torn down in the same order.
 void CancelLocalMatch(GgpoEnd end) {
+	runtime->automaticMatchEntry = false;
 	// A game this PC left before its battle was prepared gives that battle,
 	// or any later one, nothing of the match.
 	sf4e::GameEvents::VsBattle::nextRequest = {};
@@ -583,6 +590,7 @@ void TickMatch() {
 				const auto entry = UserApp::EnterAuthorizedMatch();
 				runtime->matchEntered = entry == UserApp::MatchEntry::Entered;
 				if (runtime->matchEntered) {
+					runtime->automaticMatchEntry = true;
 					runtime->enteredGeneration = runtime->match->Generation();
 					const auto& room = UserApp::netplay->client.GetRoomSnapshot();
 					const auto* local = room::FindMember(room, room.localMember);

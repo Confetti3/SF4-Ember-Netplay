@@ -6227,3 +6227,9 @@ msgid "country.ZW"
 msgstr "Zimbabue"
 
 #. End of the generated country names.
+
+msgid "match.loading_title"
+msgstr "Iniciando partida…"
+
+msgid "match.loading_detail"
+msgstr "Espera. La partida empezará automáticamente; no hace falta pulsar ningún botón."

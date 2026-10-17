@@ -6227,3 +6227,9 @@ msgid "country.ZW"
 msgstr "ジンバブエ"
 
 #. End of the generated country names.
+
+msgid "match.loading_title"
+msgstr "対戦を開始しています…"
+
+msgid "match.loading_detail"
+msgstr "お待ちください。対戦は自動で始まります。ボタン操作は不要です。"

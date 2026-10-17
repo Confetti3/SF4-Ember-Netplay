@@ -1,5 +1,7 @@
 #include "../sf4e/sf4e.hxx"
 #include "../sf4e/sf4e__NetplayFacade.hxx"
+#include "../sf4e/sf4e__NetplayRuntime.hxx"
+#include "../common/MenuInputCapture.hxx"
 #include "../Dimps/Dimps.hxx"
 #include "../common/Localization.hxx"
 #include "../common/HelperFailure.hxx"
@@ -12,6 +14,44 @@ using namespace sf4e;
 
 static unsigned rootQueries = 0;
 static Dimps::GameEvents::RootEvent* UnavailableRoot() { ++rootQueries; return nullptr; }
+
+// Exercise the actual runtime cancellation/publication seam, while the
+// controller deliberately remains Preparing and matchEntered remains set.
+static void CheckLoadingLifecycle() {
+    using namespace NetplayFacade;
+    auto& runtime = *internal::runtime;
+    const auto originalController = runtime.controller;
+    const auto originalRecovery = runtime.recoveringMatch;
+    const auto event = [&](netplay::EventKind kind) {
+        CHECK(runtime.controller.Apply({kind, runtime.controller.GetSnapshot().generation, {}}).accepted);
+    };
+    CHECK(runtime.controller.Execute({netplay::CommandKind::HostRoom, runtime.controller.GetSnapshot().generation, {}}).accepted);
+    event(netplay::EventKind::RoomJoined);
+    event(netplay::EventKind::MatchPreparing);
+    const auto publish = [&] { internal::Publish(); return GetRuntimeSnapshot().matchLoading; };
+    CHECK(!publish()); // Waiting in Training/Options has not entered anything.
+    runtime.matchEntered = runtime.automaticMatchEntry = true;
+    CHECK(publish());
+    input::MenuInputCapture gate;
+    CHECK(gate.Update(GetRuntimeSnapshot().matchLoading, 0x1000));
+    internal::AbortLocalMatch("");
+    CHECK(runtime.controller.GetSnapshot().match == netplay::MatchState::Preparing);
+    CHECK(runtime.matchEntered && !publish());
+    CHECK(gate.Update(GetRuntimeSnapshot().matchLoading, 0x1000));
+    CHECK(!gate.Update(false, 0)); // A held confirm still needs release.
+    runtime.recoveringMatch = false;
+    runtime.automaticMatchEntry = true;
+    event(netplay::EventKind::GameplayReady);
+    event(netplay::EventKind::MatchStarted);
+    CHECK(publish()); // GGPO Running precedes the native loaded barrier.
+    NotifyRuntimeNativeBattleReady();
+    CHECK(!publish());
+    runtime.automaticMatchEntry = true; NotifyRuntimeMatchEnded(); CHECK(!publish());
+    runtime.automaticMatchEntry = true; NotifyRuntimeBattleClosedWithoutSession(); CHECK(!publish());
+    runtime.automaticMatchEntry = true; internal::ResetMatchEntry(); CHECK(!publish());
+    runtime.matchEnded = false; runtime.recoveringMatch = originalRecovery;
+    runtime.controller = originalController; internal::Publish();
+}
 
 int wmain(int argc, wchar_t** argv) {
 	CHECK(argc == 2);
@@ -50,6 +90,7 @@ int wmain(int argc, wchar_t** argv) {
 	NetplayFacade::TickRuntime();
 	CHECK(rootQueries > 0);
 	CHECK(!NetplayFacade::GetRuntimeSnapshot().atMainMenu);
+	CheckLoadingLifecycle();
 	auto snapshot = NetplayFacade::GetRuntimeSnapshot();
 	CHECK(!snapshot.helperReady && !snapshot.helperError.empty());
 	// What the runtime says is worded when it is published: an unassigned device,

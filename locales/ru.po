@@ -6228,3 +6228,9 @@ msgid "country.ZW"
 msgstr "Зимбабве"
 
 #. End of the generated country names.
+
+msgid "match.loading_title"
+msgstr "Начало матча…"
+
+msgid "match.loading_detail"
+msgstr "Подождите. Матч начнётся автоматически; нажимать кнопки не нужно."

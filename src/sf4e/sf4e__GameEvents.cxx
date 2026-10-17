@@ -344,6 +344,9 @@ int fVsBattle::HasInitialized() {
 		}
 	}
 
+	// GGPO Running alone is earlier than native initialization and the loaded
+	// barrier. Reveal the battle only when this native gate actually opens.
+	sf4e::NetplayFacade::NotifyRuntimeNativeBattleReady();
 	return 1;
 }
 

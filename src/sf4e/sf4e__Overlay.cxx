@@ -107,10 +107,10 @@ static rVsMode::ConfirmedCharaConditions lobbyConditions = {0,0,0,0,0,0,0,0,14};
 
 // The window's keys and mouse are Ember's while its menu is shown with the
 // focus or the training controls are open (TrainingPad.hxx: CapturesInput).
-// The game's pads have two owners and no other: the menu's (MenuPads), focus
-// or not, and the training controls'.
-static bool CapturesInput() { return sf4e::input::CapturesInput(capture.load(), s_trainingControls); }
-bool Overlay::CapturesMenuInput() { return sf4e::input::CapturesInput(s_menuPads.Holds(), s_trainingControls); }
+// Automatic native entry also holds physical input, using the game-thread
+// publication rather than waiting for a drawn cover.
+static bool CapturesInput() { return (focused && sf4e::NetplayFacade::GetRuntimeSnapshotShared()->matchLoading) || sf4e::input::CapturesInput(capture.load(), s_trainingControls); }
+bool Overlay::CapturesMenuInput() { return sf4e::NetplayFacade::GetRuntimeSnapshotShared()->matchLoading || sf4e::input::CapturesInput(s_menuPads.Holds(), s_trainingControls); }
 bool Overlay::HasInputFocus() { return focused.load(); }
 sf4e::ui::MenuPads& Overlay::MenuPads() { return s_menuPads; }
 sf4e::ui::OverlayLifecycle& Overlay::Lifecycle() { return s_lifecycle; }
@@ -572,7 +572,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // Every overlay frame, since the training panel draws art with the menu
     // closed. Pump returns at once when nothing drew art since the last pump.
     if (s_selectionArt) s_selectionArt->Pump();
-    if (presentation.Visible()) DrawApplicationHome(snapshot, status);
+    if (presentation.Visible() && !snapshot.matchLoading) DrawApplicationHome(snapshot, status);
     else ConcealApplicationHome(snapshot);
     if (!presentation.Visible() && assigning) {
         sf4e::NetplayFacade::RuntimeCommand cancel;
@@ -611,7 +611,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         if (ImGui::IsKeyPressed(ImGuiKey_F5, false)) send(Command::Meter);
         if (ImGui::IsKeyPressed(ImGuiKey_F9, false)) send(Command::Inputs);
     }
-    if (!training.available || !focused) s_trainingControls.Close();
+    if (!training.available || !focused || snapshot.matchLoading) s_trainingControls.Close();
     // Taken every frame, in the order the pad asked, so a press from before
     // the lab was shown never acts later.
     const auto padEvents = s_trainingControls.Take();
@@ -630,7 +630,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const bool offerGoNow = called && (focused || padBehind) && !presentation.Visible() && !nativePaused;
     if (called) s_trainingControls.Close();
     // Training's keys and pad stay off during any replay, an export's too.
-    if (focused && training.available && !playback.playback && !presentation.Visible()) {
+    if (focused && training.available && !playback.playback && !presentation.Visible() && !snapshot.matchLoading) {
         // The pad drives the controls while they are open, through the same
         // adapter as the shell's menus; the prompts follow the device last used.
         if (!s_trainingControls.Open()) sf4e::ui::NoteMenuDevice(snapshot.menuController.buttons);
@@ -680,6 +680,9 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     layers.focused = focused; layers.trainingHud = trainingHud;
     layers.matchActive = frame->ggpoSessionActive; layers.matchWaitsForMenu = snapshot.matchWaitsForMenu;
     layers.showMatchHud = snapshot.preferences.showMatchHud;
+    layers.matchLoading = snapshot.matchLoading;
+    // The loading cover may precede GGPO, but must never hide an existing notice.
+    layers.match.notice = status.lastError; layers.match.noticeSeverity = static_cast<int>(status.lastErrorSeverity);
     // Waiting in Training from a room: where the player stands there, and on
     // the call who sat down. The room is the snapshot's; the unread count is
     // the room screen's own.
@@ -737,7 +740,6 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         strip.queuePosition = status.queuePosition; strip.queueLength = status.queueLength; strip.unreadChat = shell.UnreadChat();
         strip.size = snapshot.preferences.matchHudSize; strip.raised = snapshot.preferences.matchHudRaised; strip.anchor = snapshot.preferences.matchHudAnchor;
         strip.layout = snapshot.preferences.matchHudLayout; strip.nameOffset = snapshot.preferences.matchHudNameOffset; strip.spectators = status.spectators;
-        strip.notice = status.lastError; strip.noticeSeverity = static_cast<int>(status.lastErrorSeverity);
         strip.connectionWarning = status.connectionWarning; strip.predictionStalled = status.predictionStalled;
         strip.disconnectCountdownMs = status.disconnectCountdownMs;
     }
@@ -769,7 +771,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // The native menu stays parked under a shown shell, focused or not, and
     // while the pad update hides the pads from it (behind another window, or
     // a press held from the shell), so a pad press while alt-tabbed cannot drive it.
-    fMainMenu::bOverrideItemObserverState = (shown || controllerNavigation.MenuGuard() || sf4e::Pad::MenuInputBlocked())
+    // Automatic entry still needs the native observer to advance its route.
+    fMainMenu::bOverrideItemObserverState = !snapshot.matchLoading && (shown || controllerNavigation.MenuGuard() || sf4e::Pad::MenuInputBlocked())
         ? rMainMenu::MMIOS_TRANSITION : -1;
     // A Training table's match has no shared save and reset; the HUD says so.
     // A watched game says how to leave it, for its first seconds.
@@ -778,7 +781,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     static sf4e::ui::TimedHint watchingHint(10);
     const bool watchingHintDue = watchingHint.Due(
         snapshot.menuContext == sf4e::input::MenuContext::WatchedMatch, GetTickCount64() / 1000.0);
-    if (layers.matchActive && focused && passive) {
+    if (layers.matchActive && focused && passive && !snapshot.matchLoading) {
         if (!status.spectator && snapshot.practiceMatch)
             sf4e::ui::DrawMatchKeysNotice({"training.match.checkpoint_disabled", "training.match.end_hint"});
         else if (watchingHintDue) sf4e::ui::DrawMatchKeysNotice({"runtime.watching_hint"});

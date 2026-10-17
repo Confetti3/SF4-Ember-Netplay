@@ -5,6 +5,16 @@
 
 namespace sf4e { namespace ui {
 TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training::View& training) {
+    if (view.matchLoading) {
+        DrawMatchLoading();
+        DrawControllerWarning(view.controllerWarning);
+        // No telemetry, meters or shortcuts while loading. Actionable notices
+        // remain above the background cover even before GGPO is active.
+        const auto& match = view.match;
+        if (!match.notice.empty() || match.predictionStalled || match.connectionWarning)
+            DrawMatchNotice(MatchStripStateLine(match), match.noticeSeverity >= 2 ? 2 : 1);
+        return {};
+    }
     ChallengerBanner(training, view.challenger);
     bool passive = PassiveOverlayShown(view.shellVisible, view.trainingControlsOpen, view.nativePaused);
     TrainingHudInput hud;

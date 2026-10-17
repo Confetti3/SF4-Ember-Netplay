@@ -146,6 +146,8 @@ struct Runtime {
 	std::shared_ptr<session::IrohRoom> room;
 	std::unique_ptr<session::IrohMatchSession> match;
 	bool matchEntered = false;
+	// Only the automatic native entry, through the loaded barrier. Game thread.
+	bool automaticMatchEntry = false;
 	// The generation whose battle the runtime entered, while matchEntered, and
 	// the table this member was at when it entered (the game WatchedGameNow names).
 	std::uint64_t enteredGeneration = 0;
