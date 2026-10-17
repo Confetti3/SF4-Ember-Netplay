@@ -3369,6 +3369,9 @@ msgstr "Create or unlock your Ember ID first. Linking proves to a site that an a
 msgid "identity.service"
 msgstr "Tournament service"
 
+msgid "identity.service_builtin"
+msgstr "Built into this version of Ember: {0}"
+
 msgid "identity.unlink"
 msgstr "Unlink"
 
@@ -3617,6 +3620,9 @@ msgstr "That address is not an Ember tournament service Ember can use."
 
 msgid "identity.failure.bridge_changed"
 msgstr "The service at that address is not the one you trusted. Ember stopped to keep your ID safe."
+
+msgid "identity.failure.pin_mismatch"
+msgstr "This version of Ember expected a different service at that address. Ember stopped to keep your ID safe."
 
 msgid "identity.failure.not_approved"
 msgstr "Trust that service first."

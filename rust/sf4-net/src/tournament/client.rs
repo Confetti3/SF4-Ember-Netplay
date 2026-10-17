@@ -31,6 +31,8 @@ pub(super) const CREATE_TIMEOUT: Duration = Duration::from_secs(45);
 const POLICY: OriginPolicy = OriginPolicy::AllowLoopbackHttp;
 /// Renew a cached session this long before it expires.
 const SESSION_MARGIN_SECS: u64 = 30;
+/// A built-in bridge whose origin no longer serves its pinned ID.
+const PIN_MISMATCH: &str = "pinned_bridge_mismatch";
 
 /// A bridge session, valid only for the origin that issued it and the
 /// Ember ID that opened it.
@@ -144,6 +146,25 @@ impl Client {
     /// Fetches a bridge's discovery document and capabilities. This does not
     /// make the bridge trusted; the caller shows it for approval.
     pub async fn inspect(&self, origin: &str) -> Result<(BridgeProfile, Capabilities), Failure> {
+        let profile = self.profile(origin).await?;
+        Ok((profile, self.capabilities(origin).await?))
+    }
+
+    /// Checks a built-in bridge before each new session: its origin must
+    /// still serve the pinned bridge ID, else nothing is proved to it. A
+    /// domain now pointing at another bridge fails every request while it
+    /// does; one that cannot be reached is not a mismatch.
+    async fn check_pin(&self, bridge: &Approved) -> Result<(), Failure> {
+        match self.profile(&bridge.origin).await {
+            Ok(profile) if profile.bridge_id == bridge.bridge_id => Ok(()),
+            Ok(_) => Err(Failure::new(PIN_MISMATCH)),
+            Err(Failure(code)) if code == "bridge_mismatch" => Err(Failure::new(PIN_MISMATCH)),
+            Err(failure) => Err(failure),
+        }
+    }
+
+    /// The discovery document at `origin`, which must describe that origin.
+    async fn profile(&self, origin: &str) -> Result<BridgeProfile, Failure> {
         check_origin(origin, POLICY).map_err(|_| Failure::new("invalid_origin"))?;
         let (status, body) = self
             .call(
@@ -162,7 +183,7 @@ impl Client {
         if profile.origin != origin || !is_prefixed_id(&profile.bridge_id, "brg") {
             return Err(Failure::new("bridge_mismatch"));
         }
-        Ok((profile, self.capabilities(origin).await?))
+        Ok(profile)
     }
 
     /// What the bridge at `origin` offers.
@@ -224,6 +245,15 @@ pub(super) fn answer(status: u16, body: &[u8], expected: &[u16]) -> Result<Value
         .flatten()
         .unwrap_or_else(|| format!("http_{status}"));
     Err(Failure(code))
+}
+
+/// Whether this build pins `bridge_id` (builtin.rs).
+pub(super) fn pinned(shared: &Shared, bridge_id: &str) -> Result<bool, Failure> {
+    Ok(shared
+        .bridges
+        .lock()
+        .map_err(|_| Failure::new("internal"))?
+        .pins(bridge_id))
 }
 
 pub(super) fn approved(shared: &Shared, bridge_id: &str) -> Result<Approved, Failure> {
@@ -325,11 +355,15 @@ pub(super) fn current_id(shared: &Shared) -> Result<EmberId, Failure> {
         .ok_or_else(|| Failure::new("identity_unavailable"))
 }
 
-async fn session(shared: &Shared, bridge: &Approved) -> Result<Zeroizing<String>, Failure> {
+async fn session(shared: &Arc<Shared>, bridge: &Approved) -> Result<Zeroizing<String>, Failure> {
     // A session opened by an identity the player has since replaced is never reused.
     let ember_id = current_id(shared)?;
     if let Some(token) = shared.client.cached(bridge, &ember_id) {
         return Ok(token);
+    }
+    let pinned = pinned(shared, &bridge.bridge_id)?;
+    if pinned {
+        shared.client.check_pin(bridge).await?;
     }
     let body = prove(
         shared,
@@ -364,6 +398,9 @@ async fn session(shared: &Shared, bridge: &Approved) -> Result<Zeroizing<String>
             },
         );
     }
+    if pinned {
+        activate(shared, &bridge.bridge_id).await;
+    }
     Ok(token)
 }
 
@@ -384,6 +421,20 @@ where
         }
         other => other,
     }
+}
+
+/// A dormant built-in becomes one of the player's services once a session
+/// to it opens. It counts as used for the rest of the run even when that
+/// cannot be recorded (`Store::activate`).
+async fn activate(shared: &Arc<Shared>, bridge_id: &str) {
+    let store = shared.clone();
+    let id = bridge_id.to_owned();
+    let _ = tokio::task::spawn_blocking(move || {
+        if let Ok(mut bridges) = store.bridges.lock() {
+            let _ = bridges.activate(&id);
+        }
+    })
+    .await;
 }
 
 pub async fn links(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {

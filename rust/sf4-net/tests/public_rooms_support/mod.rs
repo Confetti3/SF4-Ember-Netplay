@@ -328,6 +328,7 @@ impl Worker {
             false,
             endpoint.to_owned(),
             Box::new(move || *region.lock().unwrap()),
+            Vec::new(),
         );
         Self {
             handle,

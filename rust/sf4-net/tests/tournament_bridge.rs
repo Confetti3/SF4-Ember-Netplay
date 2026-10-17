@@ -81,6 +81,11 @@ impl Worker {
 
     /// A worker whose helper run has the Iroh endpoint `endpoint`.
     fn start_as(dirs: &Dirs, endpoint: String) -> Self {
+        Self::start_pinning(dirs, endpoint, Vec::new())
+    }
+
+    /// A worker that trusts `builtins` as a build pinning them does.
+    fn start_pinning(dirs: &Dirs, endpoint: String, builtins: Vec<tournament::Builtin>) -> Self {
         let (sender, events) = mpsc::channel(64);
         let (handle, task) = tournament::spawn_in(
             sender,
@@ -89,6 +94,7 @@ impl Worker {
             false,
             endpoint,
             Box::new(|| None),
+            builtins,
         );
         Self {
             handle,
@@ -330,6 +336,145 @@ async fn link_an_identity_through_the_helper() {
         json!({ "type": "tournament", "request": { "op": "identity_status", "extra": 1 } }),
     );
     assert!(bad.is_err());
+    running.abort();
+}
+
+/// A GET of `path` on the bridge, as JSON.
+async fn bridge_document(origin: &str, path: &str) -> Value {
+    let text = reqwest::get(format!("{origin}{path}"))
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+    serde_json::from_str(&text).unwrap()
+}
+
+/// An origin whose well-known document names another bridge, and the paths
+/// of every request it was sent.
+async fn foreign_origin() -> (String, std::sync::Arc<std::sync::Mutex<Vec<String>>>) {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let origin = format!("http://{}", listener.local_addr().unwrap());
+    let paths = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let (served, profile) = (
+        paths.clone(),
+        json!({
+            "bridge_id": ember_protocol::encoding::prefixed_id("brg", random16()),
+            "origin": origin, "display_name": "Another bridge", "api_versions": ["v1"],
+            "capabilities_url": format!("{origin}/v1/capabilities"),
+            "signing_keys_url": format!("{origin}/v1/signing-keys"),
+        }),
+    );
+    tokio::spawn(async move {
+        while let Ok((mut socket, _)) = listener.accept().await {
+            let mut request = Vec::new();
+            let mut buffer = [0; 1024];
+            while !request.windows(4).any(|end| end == b"\r\n\r\n") {
+                match socket.read(&mut buffer).await {
+                    Ok(0) | Err(_) => break,
+                    Ok(read) => request.extend_from_slice(&buffer[..read]),
+                }
+            }
+            let line = String::from_utf8_lossy(&request)
+                .lines()
+                .next()
+                .unwrap_or("")
+                .to_owned();
+            let path = line.split(' ').nth(1).unwrap_or("").to_owned();
+            served.lock().unwrap().push(path.clone());
+            let (status, body) = if path == "/.well-known/ember-bridge.json" {
+                ("200 OK", serde_json::to_vec(&profile).unwrap())
+            } else {
+                ("404 Not Found", Vec::new())
+            };
+            let head = format!(
+                "HTTP/1.1 {status}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n",
+                body.len()
+            );
+            let _ = socket.write_all(head.as_bytes()).await;
+            let _ = socket.write_all(&body).await;
+        }
+    });
+    (origin, paths)
+}
+
+// A bridge the build pins is trusted with no approval while its origin
+// serves the pinned ID. Forgotten, it is not trusted until the player
+// approves it again by its address. Pinned at an origin that serves another
+// bridge, it is not trusted at all, and is sent nothing past the check.
+#[tokio::test]
+async fn a_pinned_bridge_is_trusted_without_an_approval() {
+    let dirs = Dirs(std::env::temp_dir().join(format!(
+        "sf4-tournament-pinned-{}",
+        ember_protocol::encoding::b64u(&random16())
+    )));
+    std::fs::create_dir_all(&dirs.0).unwrap();
+    let (running, origin) = bridge(&dirs.0).await;
+    let profile = bridge_document(&origin, "/.well-known/ember-bridge.json").await;
+    let bridge_id = profile["bridge_id"].as_str().unwrap().to_owned();
+    let keys = bridge_document(&origin, "/v1/signing-keys").await;
+    let (kid, x) = (
+        keys["keys"][0]["kid"].as_str().unwrap(),
+        keys["keys"][0]["x"].as_str().unwrap(),
+    );
+    let pin = |bridge_id: &str, origin: &str| tournament::Builtin {
+        bridge_id: bridge_id.into(),
+        origin: origin.into(),
+        display_name: "Pinned bridge".into(),
+        keys: vec![(kid.into(), x.into())],
+    };
+    let mut worker = Worker::start_pinning(&dirs, "a".repeat(64), vec![pin(&bridge_id, &origin)]);
+    worker.next_answer(0).await;
+    let (ok, _, _, _) = worker.ask(json!({ "op": "identity_enable" })).await;
+    assert!(ok);
+    let (_, _, _, listed) = worker.ask(json!({ "op": "bridge_list" })).await;
+    assert_eq!(listed["bridges"][0]["bridge_id"], bridge_id.as_str());
+    assert_eq!(listed["bridges"][0]["builtin"], true);
+    assert!(listed["bridges"][0].get("active").is_none());
+    let links = json!({ "op": "link_list", "bridge_id": bridge_id });
+    let (ok, reason, _, _) = worker.ask(links.clone()).await;
+    assert!(ok, "{reason:?}");
+    // Its first session makes it one of the player's services.
+    let (_, _, _, listed) = worker.ask(json!({ "op": "bridge_list" })).await;
+    assert_eq!(listed["bridges"][0]["active"], true);
+
+    let (ok, _, _, _) = worker
+        .ask(json!({ "op": "bridge_forget", "bridge_id": bridge_id }))
+        .await;
+    assert!(ok);
+    let (ok, reason, _, _) = worker.ask(links.clone()).await;
+    assert!(!ok);
+    assert_eq!(reason.as_deref(), Some("bridge_not_approved"));
+    let (ok, reason, _, _) = worker
+        .ask(json!({ "op": "bridge_approve", "origin": origin, "bridge_id": bridge_id }))
+        .await;
+    assert!(ok, "{reason:?}");
+    let (_, _, _, listed) = worker.ask(json!({ "op": "bridge_list" })).await;
+    assert_eq!(listed["bridges"][0]["builtin"], true);
+    assert_eq!(listed["removed"], json!([]));
+    let (ok, reason, _, _) = worker.ask(links.clone()).await;
+    assert!(ok, "{reason:?}");
+    worker.task.abort();
+
+    // Pinned at an origin that now serves another bridge: asked twice, it
+    // is checked twice and sent no challenge or session request.
+    let other = Dirs(dirs.0.join("other"));
+    let (foreign, paths) = foreign_origin().await;
+    let mut worker = Worker::start_pinning(&other, "a".repeat(64), vec![pin(&bridge_id, &foreign)]);
+    worker.next_answer(0).await;
+    let (ok, _, _, _) = worker.ask(json!({ "op": "identity_enable" })).await;
+    assert!(ok);
+    for _ in 0..2 {
+        let (ok, reason, _, _) = worker.ask(links.clone()).await;
+        assert!(!ok);
+        assert_eq!(reason.as_deref(), Some("pinned_bridge_mismatch"));
+    }
+    assert_eq!(
+        *paths.lock().unwrap(),
+        vec!["/.well-known/ember-bridge.json"; 2]
+    );
+    worker.task.abort();
     running.abort();
 }
 

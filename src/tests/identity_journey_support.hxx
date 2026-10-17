@@ -45,3 +45,5 @@ struct Journey:Harness {
 }
 // The Connect Discord and onboarding scenarios, in discord_connect_journey_test.cxx.
 void RunDiscordConnectJourneys();
+// The built-in service scenarios, in builtin_service_journey_test.cxx.
+void RunBuiltInServiceJourneys();

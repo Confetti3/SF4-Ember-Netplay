@@ -151,6 +151,9 @@ private:
     void SendTournament(const ShellView& view, const std::string& screen, const Submit& submit);
     // Says so when the list a link's refresh brought back lacks its match.
     void CheckOpenedMatch(const netplay::tournament::AssignmentList& list);
+    // Reads the service list again after the helper answered for a dormant
+    // built-in service, which that use made one of the player's.
+    void ReadIfFirstUse(const ShellView& view, const std::string& bridge);
     MenuEntry ServiceRow(const ShellView& view, const netplay::IdentityBridge& bridge) const;
     std::optional<MenuEntry> DiscordRow(const ShellView& view, bool busy) const;
     // Ember's own service, once trusted; null before.

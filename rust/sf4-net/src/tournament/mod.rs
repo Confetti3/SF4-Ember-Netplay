@@ -6,6 +6,7 @@
 //! event. A failure here is reported and never ends the helper, and nothing
 //! here waits on, or is waited on by, room or gameplay work (spec 18.3).
 mod bridges;
+mod builtin;
 mod client;
 mod discord;
 mod play;
@@ -29,6 +30,8 @@ use crate::{
     identity::{self, Identity, MAX_BACKUP_FILE, Protection},
     service::Event,
 };
+
+pub use builtin::Builtin;
 
 /// Bridge requests in flight at once (spec 25.1).
 const HTTP_CONCURRENCY: usize = 4;
@@ -305,7 +308,7 @@ pub fn spawn(
         let dir = tournament_directory();
         (
             Identity::open_default(),
-            bridges::Store::open(dir.clone()),
+            bridges::Store::open(dir.clone(), &builtin::builtins()),
             spool::Spool::open(spool_directory(&dir)),
         )
     })
@@ -320,7 +323,8 @@ fn spool_directory(dir: &Path) -> PathBuf {
     }
 }
 
-/// Starts the worker on stores in the given directories, for tests.
+/// Starts the worker on stores in the given directories, trusting the
+/// `builtins` given in place of this build's, for tests.
 pub fn spawn_in(
     events: mpsc::Sender<Event>,
     identity_dir: PathBuf,
@@ -328,11 +332,12 @@ pub fn spawn_in(
     wine: bool,
     endpoint_id: String,
     home_region: HomeRegion,
+    builtins: Vec<Builtin>,
 ) -> (Handle, tokio::task::JoinHandle<()>) {
     spawn_with(events, endpoint_id, home_region, move || {
         (
             Identity::open(identity_dir, wine, identity::Cost::DEFAULT),
-            bridges::Store::open(tournament_dir.clone()),
+            bridges::Store::open(tournament_dir.clone(), &builtins),
             spool::Spool::open(spool_directory(&tournament_dir)),
         )
     })

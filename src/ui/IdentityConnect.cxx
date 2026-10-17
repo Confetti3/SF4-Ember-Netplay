@@ -118,7 +118,7 @@ void IdentityPanel::ConnectRows(const ShellView& v, std::vector<MenuEntry>& rows
         }
         return;
     }
-    auto service = InfoRow("dc-service", loc::T("identity.service"), target->name.empty() ? target->origin : target->name, target->origin);
+    auto service = InfoRow("dc-service", loc::T("identity.service"), target->name.empty() ? target->origin : target->name, ServiceDetail(*target));
     service.userText = true; rows.push_back(std::move(service));
     // Read, and the latest read did not fail.
     const auto account = discord_.find(target->id);

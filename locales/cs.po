@@ -3728,6 +3728,9 @@ msgstr "Nejprve vytvořte nebo odemkněte své Ember ID. Propojení webu proká�
 msgid "identity.service"
 msgstr "Turnajová služba"
 
+msgid "identity.service_builtin"
+msgstr "Vestavěno v této verzi Ember: {0}"
+
 msgid "identity.unlink"
 msgstr "Odpojit"
 
@@ -3976,6 +3979,9 @@ msgstr "Na této adrese není turnajová služba Ember, kterou by Ember mohl pou
 
 msgid "identity.failure.bridge_changed"
 msgstr "Služba na této adrese není ta, které jste důvěřovali. Ember se zastavil, aby vaše ID ochránil."
+
+msgid "identity.failure.pin_mismatch"
+msgstr "Tato verze Ember čekala na této adrese jinou službu. Ember se zastavil, aby vaše ID ochránil."
 
 msgid "identity.failure.not_approved"
 msgstr "Nejprve této službě důvěřujte."

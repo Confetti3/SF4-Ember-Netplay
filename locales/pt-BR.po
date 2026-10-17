@@ -3254,6 +3254,9 @@ msgstr "Primeiro crie ou desbloqueie seu Ember ID. A vinculação prova a um sit
 msgid "identity.service"
 msgstr "Serviço de torneios"
 
+msgid "identity.service_builtin"
+msgstr "Incluído nesta versão do Ember: {0}"
+
 msgid "identity.unlink"
 msgstr "Desvincular"
 
@@ -3502,6 +3505,9 @@ msgstr "Esse endereço não é um serviço de torneios do Ember que o Ember poss
 
 msgid "identity.failure.bridge_changed"
 msgstr "O serviço nesse endereço não é aquele em que você confiou. O Ember parou para manter seu ID seguro."
+
+msgid "identity.failure.pin_mismatch"
+msgstr "Esta versão do Ember esperava outro serviço nesse endereço. O Ember parou para manter seu ID seguro."
 
 msgid "identity.failure.not_approved"
 msgstr "Primeiro confie nesse serviço."

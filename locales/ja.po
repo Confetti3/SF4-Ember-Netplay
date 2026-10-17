@@ -3728,6 +3728,9 @@ msgstr "先にEmber IDを作成するか、ロックを解除してください�
 msgid "identity.service"
 msgstr "大会サービス"
 
+msgid "identity.service_builtin"
+msgstr "このバージョンのEmberに組み込み済み：{0}"
+
 msgid "identity.unlink"
 msgstr "連携解除"
 
@@ -3976,6 +3979,9 @@ msgstr "このアドレスは、Emberで使えるEmberの大会サービスで�
 
 msgid "identity.failure.bridge_changed"
 msgstr "このアドレスのサービスは、信頼したサービスとは異なります。IDを守るため、Emberは処理を中止しました。"
+
+msgid "identity.failure.pin_mismatch"
+msgstr "このバージョンのEmberは、このアドレスで別のサービスを想定していました。IDを守るため、Emberは処理を中止しました。"
 
 msgid "identity.failure.not_approved"
 msgstr "先にこのサービスを信頼してください。"
