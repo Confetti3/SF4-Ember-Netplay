@@ -22,7 +22,7 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 . "$HERE/instance.sh"
-bridge_instance "$HERE" || exit 2
+bridge_instance "$HERE" operator || exit 2
 FILE=$STATE/integrations.json
 
 [ "$(id -u)" -eq 0 ] || { echo "Run with sudo." >&2; exit 1; }

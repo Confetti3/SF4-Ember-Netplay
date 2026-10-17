@@ -33,9 +33,8 @@
 #   /etc/nginx/sites-available/bridge.embernetplay.link (and its sites-enabled link)
 # Nothing is opened in ufw: the bridge listens on loopback, nginx already serves 80 and 443.
 #
-# EMBER_BRIDGE_ROOT moves every path above under that folder. test-setup.sh
-# uses it with stand-ins for the commands that need root; leave it unset on
-# the server.
+# test-setup.sh moves every path above under a test folder (see instance.sh)
+# and stands in for the commands that need root.
 set -euo pipefail
 
 SRC="$(cd "$(dirname "$0")" && pwd)"
@@ -43,9 +42,8 @@ SRC="$(cd "$(dirname "$0")" && pwd)"
 cd /
 [ -f "$SRC/instance.sh" ] || { echo "Missing $SRC/instance.sh" >&2; exit 1; }
 . "$SRC/instance.sh"
-bridge_instance "$SRC" || exit 2
+bridge_instance "$SRC" operator || exit 2
 TENANTS=tenants${INSTANCE:+.$INSTANCE}.json
-ROOT=${EMBER_BRIDGE_ROOT:-}
 UNITS=$ROOT/etc/systemd/system
 ZONE=$ROOT/etc/nginx/conf.d/ember-bridge.conf
 CERT=$ROOT/etc/ssl/certs/embernetplay.link.fullchain.pem

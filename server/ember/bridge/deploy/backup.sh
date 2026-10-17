@@ -14,7 +14,7 @@ set -euo pipefail
 
 HERE="$(dirname "$(readlink -f "$0")")"
 . "$HERE/instance.sh"
-bridge_instance "$HERE" || exit 2
+bridge_instance "$HERE" installed || exit 2
 DEST=$BACKUPS
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 

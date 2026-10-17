@@ -17,7 +17,7 @@ set -euo pipefail
 
 HERE="$(dirname "$(readlink -f "$0")")"
 . "$HERE/instance.sh"
-bridge_instance "$HERE" || exit 2
+bridge_instance "$HERE" installed || exit 2
 
 [ "$(id -u)" -eq 0 ] || { echo "Run with sudo." >&2; exit 1; }
 stamp=${1:-}
