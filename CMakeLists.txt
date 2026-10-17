@@ -257,7 +257,7 @@ add_library(sf4e_settings STATIC "src/netplay/JsonFileStore.cxx" "src/netplay/Se
     "src/netplay/SettingsWriter.cxx" "src/platform/UiPreferencesStore.cxx"
     "src/platform/GameDisplaySettings.cxx" "src/platform/DisplaySettings.cxx")
 target_compile_features(sf4e_settings PUBLIC cxx_std_17)
-target_link_libraries(sf4e_settings PUBLIC nlohmann_json::nlohmann_json sf4e_localization PRIVATE sf4e_durable_file "shell32" "ole32")
+target_link_libraries(sf4e_settings PUBLIC nlohmann_json::nlohmann_json sf4e_localization PRIVATE sf4e_durable_file "shell32" "ole32" d3d9)
 if(BUILD_TESTING)
     # It takes 2 s alone. Its saves are flushed writes, which take up to ten
     # times as long while other tests and builds use the disk.
@@ -265,8 +265,6 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME UiPreferencesStore SOURCES "src/tests/ui_preferences_store_test.cxx" LIBS sf4e_settings)
     sf4e_add_unit_test(NAME RecordingFileStore SOURCES "src/tests/recording_file_store_test.cxx" LIBS sf4e_settings sf4e_durable_file TIMEOUT 60)
 endif()
-
-target_link_libraries(sf4e_settings PRIVATE d3d9)
 
 add_library(sf4e_ui STATIC "src/ui/ApplicationShell.cxx" "src/ui/ControllersScreen.cxx" "src/ui/ReplaysPanel.cxx" "src/ui/RoomPanel.cxx" "src/ui/RoomControls.cxx" "src/ui/Theme.cxx" "src/ui/MatchHud.cxx" "src/ui/SelectionArt.cxx" "src/ui/FighterSelector.cxx")
 target_sources(sf4e_ui PRIVATE src/ui/Win32Input.cxx src/ui/Win32InputBridge.cxx)
