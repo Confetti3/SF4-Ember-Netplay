@@ -376,8 +376,11 @@ msgstr "启动时检查更新"
 msgid "settings.update_check_detail"
 msgstr "游戏启动时查找新版本，最多每 6 小时一次。更改任何内容之前都会先询问。"
 
+msgid "menu.requires_value"
+msgstr "请先将{0}设为{1}。"
+
 msgid "menu.edit_detail"
-msgstr "选择后编辑。输入或粘贴，按 Enter 确认；按返回取消。"
+msgstr "使用键盘输入或粘贴。按 Enter 或控制器上的选择确认；按 Escape 或控制器上的返回取消。"
 
 msgid "menu.edit_unavailable"
 msgstr "当前状态下无法编辑。"
@@ -669,6 +672,9 @@ msgstr "SF4 EMBER"
 
 msgid "settings.auto_save"
 msgstr "更改将自动保存。"
+
+msgid "settings.edit_at_main_menu"
+msgstr "在主菜单（非对战中）可用。"
 
 msgid "settings.leave_room_to_edit"
 msgstr "请离开房间后再修改个人设置。"
@@ -1067,6 +1073,12 @@ msgstr "显示名称、控制器分配和后台游玩。"
 
 msgid "settings.defaults_detail"
 msgstr "输入延迟和新房间默认设置。"
+
+msgid "settings.menu_display"
+msgstr "菜单和语言"
+
+msgid "settings.menu_display_detail"
+msgstr "更改菜单大小和语言。"
 
 msgid "settings.interface"
 msgstr "界面"

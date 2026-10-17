@@ -665,7 +665,12 @@ int main(int argc, char** argv) {
             draw(nullptr,MenuInput::Back,1);draw();
             Require(ImGui::GetTopMostPopupModal()==nullptr,"Game settings card did not close");
             view.gameSettings={};view.showGameSettingsCard=false;
-            for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","training-replays","discord","about"})page(screen);
+            for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","menu-display","match-hud","ready-alerts","training-replays","discord","about"})page(screen);
+            shell.Navigation().Home();shell.Navigation().Push("settings");shell.Navigation().Push("interface");
+            draw("settings-menu-categories");
+            shell.Navigation().Push("match-hud");shell.Navigation().Prefer("hud-layout");draw("settings-menu-hud");
+            shell.Navigation().Return();shell.Navigation().Push("ready-alerts");view.preferences.readySound=false;
+            shell.Navigation().Prefer("ready-volume");draw("settings-menu-alerts");view.preferences.readySound=true;
             ShootButtonPrompts(shell,view,mode,draw,page);
             ShootControllers(shell,view,draw,page);
             ShootPadSetup(shell,view,draw,page);
@@ -701,7 +706,7 @@ int main(int argc, char** argv) {
             page("about");draw(nullptr,MenuInput::Select,1);draw("about-reader");
             Require(shell.Navigation().Reading(),"About's controls did not open in the reader");
             draw(nullptr,MenuInput::Back,1);draw();Require(!shell.Navigation().Reading(),"Back did not close the reader");
-            page("interface");
+            page("menu-display");
             for(int i=0;i<12&&shell.Navigation().Focus()!="language";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
             draw(nullptr,MenuInput::Select,1);draw("language-choice");
             Require(shell.Navigation().Choosing(),"Select on Language did not open the list");

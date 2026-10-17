@@ -38,7 +38,7 @@ void ButtonPromptJourneys() {
  Check(MenuPromptBrand()==h.view.gameplayBrand,"Automatic did not restore the PS5 variant");
  h.Press(MenuInput::Left);Check(MenuPromptBrand()==h.view.gameplayBrand,"Button prompts exceeded Automatic");
  h.view.canEditPreferences=false;h.Frame();
- Check(!row().enabled&&row().detail==loc::T("settings.leave_room_to_edit"),"Locked Button prompts has the wrong rule or detail");
+ Check(!row().enabled&&row().detail==loc::T("settings.edit_at_main_menu"),"Locked Button prompts has the wrong rule or detail");
  const auto count=h.actions.size();h.Press(MenuInput::Right);h.Frame(0,45);Check(h.actions.size()==count,"Locked Button prompts changed preferences");
  h.view.canEditPreferences=true;h.view.gameplayBrand={Brand::Stick};h.Frame();
  Check(row().value=="Automatic"&&row().detail.find("Showing Fight buttons buttons.")!=std::string::npos,"Automatic Stick has the wrong value");

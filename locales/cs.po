@@ -376,8 +376,11 @@ msgstr "Hledat aktualizace při spuštění"
 msgid "settings.update_check_detail"
 msgstr "Při spuštění hry hledá novou verzi, nejvýše jednou za 6 hodin. Než cokoli změní, zeptá se."
 
+msgid "menu.requires_value"
+msgstr "Nejprve nastavte {0} na {1}."
+
 msgid "menu.edit_detail"
-msgstr "Vyberte pro úpravu. Pište nebo vložte text; Enter potvrdí, Zpět zruší."
+msgstr "Pište nebo vložte text z klávesnice. Enter nebo Vybrat na ovladači potvrdí; Escape nebo Zpět na ovladači zruší."
 
 msgid "menu.edit_unavailable"
 msgstr "Úprava teď není dostupná."
@@ -669,6 +672,9 @@ msgstr "SF4 EMBER"
 
 msgid "settings.auto_save"
 msgstr "Změny se ukládají automaticky."
+
+msgid "settings.edit_at_main_menu"
+msgstr "Dostupné v hlavním menu, mimo zápas."
 
 msgid "settings.leave_room_to_edit"
 msgstr "Pro změnu osobních nastavení opusťte místnost."
@@ -1067,6 +1073,12 @@ msgstr "Zobrazované jméno, přiřazení ovladače a hraní na pozadí."
 
 msgid "settings.defaults_detail"
 msgstr "Zpoždění a výchozí nastavení místností."
+
+msgid "settings.menu_display"
+msgstr "Nabídky a jazyk"
+
+msgid "settings.menu_display_detail"
+msgstr "Změňte velikost a jazyk nabídek."
 
 msgid "settings.interface"
 msgstr "Rozhraní"

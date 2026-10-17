@@ -376,8 +376,11 @@ msgstr "시작할 때 업데이트 확인"
 msgid "settings.update_check_detail"
 msgstr "게임을 시작할 때 새 버전을 확인합니다. 6시간에 한 번까지만 확인하며, 무언가를 바꾸기 전에 먼저 묻습니다."
 
+msgid "menu.requires_value"
+msgstr "먼저 {0}을(를) {1}(으)로 설정하세요."
+
 msgid "menu.edit_detail"
-msgstr "선택해 편집하세요. 입력하거나 붙여넣고 Enter로 확정하세요. 뒤로 가면 취소됩니다."
+msgstr "키보드로 입력하거나 붙여넣으세요. Enter 또는 컨트롤러의 선택으로 확정하고 Esc 또는 컨트롤러의 뒤로 버튼으로 취소합니다."
 
 msgid "menu.edit_unavailable"
 msgstr "현재 상태에서는 편집할 수 없습니다."
@@ -669,6 +672,9 @@ msgstr "SF4 EMBER"
 
 msgid "settings.auto_save"
 msgstr "변경 사항은 자동으로 저장됩니다."
+
+msgid "settings.edit_at_main_menu"
+msgstr "매치 중이 아닌 메인 메뉴에서 사용할 수 있습니다."
 
 msgid "settings.leave_room_to_edit"
 msgstr "개인 설정을 변경하려면 방을 나가세요."
@@ -1067,6 +1073,12 @@ msgstr "표시 이름, 컨트롤러 지정, 백그라운드 플레이입니다."
 
 msgid "settings.defaults_detail"
 msgstr "입력 지연 및 새 방의 기본 설정입니다."
+
+msgid "settings.menu_display"
+msgstr "메뉴 및 언어"
+
+msgid "settings.menu_display_detail"
+msgstr "메뉴 크기와 언어를 변경합니다."
 
 msgid "settings.interface"
 msgstr "화면"

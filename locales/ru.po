@@ -376,8 +376,11 @@ msgstr "Проверять обновления при запуске"
 msgid "settings.update_check_detail"
 msgstr "Ищет новую версию при запуске игры, не чаще чем раз в 6 часов. Перед любыми изменениями спрашивает."
 
+msgid "menu.requires_value"
+msgstr "Сначала установите для {0} значение {1}."
+
 msgid "menu.edit_detail"
-msgstr "Выберите для правки. Введите или вставьте текст; Enter принимает, «Назад» отменяет."
+msgstr "Введите или вставьте текст с клавиатуры. Enter или «Выбрать» на контроллере принимает; Escape или «Назад» отменяет."
 
 msgid "menu.edit_unavailable"
 msgstr "Сейчас редактирование недоступно."
@@ -669,6 +672,9 @@ msgstr "SF4 EMBER"
 
 msgid "settings.auto_save"
 msgstr "Изменения сохраняются сами."
+
+msgid "settings.edit_at_main_menu"
+msgstr "Доступно в главном меню, вне матча."
 
 msgid "settings.leave_room_to_edit"
 msgstr "Выйдите из лобби, чтобы изменить личные настройки."
@@ -1068,6 +1074,12 @@ msgstr "Отображаемое имя, назначение контролле
 
 msgid "settings.defaults_detail"
 msgstr "Задержка ввода и параметры новых лобби."
+
+msgid "settings.menu_display"
+msgstr "Меню и язык"
+
+msgid "settings.menu_display_detail"
+msgstr "Изменение размера меню и языка."
 
 msgid "settings.interface"
 msgstr "Интерфейс"

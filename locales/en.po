@@ -376,8 +376,11 @@ msgstr "Check for updates at launch"
 msgid "settings.update_check_detail"
 msgstr "Looks for a new version when the game starts, at most every 6 hours. It asks before it changes anything."
 
+msgid "menu.requires_value"
+msgstr "Set {0} to {1} first."
+
 msgid "menu.edit_detail"
-msgstr "Select to edit. Type or paste, then Enter to accept; Back cancels."
+msgstr "Type or paste with the keyboard. Enter or controller Select accepts; Escape or controller Back cancels."
 
 msgid "menu.edit_unavailable"
 msgstr "Editing is unavailable in the current state."
@@ -669,6 +672,9 @@ msgstr "SF4 EMBER"
 
 msgid "settings.auto_save"
 msgstr "Changes save automatically."
+
+msgid "settings.edit_at_main_menu"
+msgstr "Available at the main menu, outside a match."
 
 msgid "settings.leave_room_to_edit"
 msgstr "Leave the room to change personal settings."
@@ -1067,6 +1073,12 @@ msgstr "Display name, controller assignment and playing in the background."
 
 msgid "settings.defaults_detail"
 msgstr "Input delay and new-room defaults."
+
+msgid "settings.menu_display"
+msgstr "Menus and language"
+
+msgid "settings.menu_display_detail"
+msgstr "Change menu size and language."
 
 msgid "settings.interface"
 msgstr "Interface"

@@ -4,6 +4,7 @@
 #include "ControllersScreen.hxx"
 #include "Theme.hxx"
 #include "MenuRows.hxx"
+#include "SettingsNavigation.hxx"
 #include "RoomFeedback.hxx"
 #include "NetworkFeedback.hxx"
 #include "MenuPresentation.hxx"
@@ -189,7 +190,8 @@ void ApplicationShell::UpdatePreferenceSave(const ShellView& v,const Submit& sub
 std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title) {
  using namespace netplay; auto& nav=menu_.navigation;
  std::vector<MenuEntry> rows;
- const char* reason=v.canEditPreferences?loc::T("settings.auto_save"):loc::T("settings.leave_room_to_edit");
+ const char* reason=v.canEditPreferences?loc::T("settings.auto_save"):
+  v.session.room==RoomState::Idle?loc::T("settings.edit_at_main_menu"):loc::T("settings.leave_room_to_edit");
  if(v.inputCapture!=input::Capture::Idle){
   title=loc::T("controller.assign_title");
   rows={Row("capture-cancel",loc::T("controller.cancel_assignment"),std::string(v.inputCapture==input::Capture::Press?loc::T("controller.press_button"):loc::T("controller.release_buttons"))+"\n"+loc::T("controller.keep_current"))};
@@ -286,22 +288,33 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(screen=="controllers"){
   title=loc::T("controllers.title");rows=ControllerRows(v.padLayer,v.pads,v.canChangeController,v.canEditPreferences);
  }else if(screen=="interface"){
-  title=loc::T("settings.interface_title");char size[32];std::snprintf(size,sizeof(size),"%.2fx",preferences_.interfaceScale);
+  title=loc::T("settings.interface_title");
+  rows={Row("menu-display",loc::T("settings.menu_display"),loc::T("settings.menu_display_detail")),
+   Row("match-hud",loc::T("settings.match_hud"),loc::T("settings.match_hud_layout_detail")),
+   Row("ready-alerts",loc::T("settings.ready_sound"),loc::T("settings.ready_sound_detail"))};
+ }else if(screen=="match-hud"){
+  title=loc::T("settings.match_hud");
   const char* hudSizes[]={loc::T("size.small"),loc::T("size.standard"),loc::T("size.large")};
-  const auto languageValue=languagePreference_=="auto"?loc::Tf("settings.language.system_with",loc::NativeName(loc::Active())):
-   std::string(loc::NativeName(loc::ResolveLocale(languagePreference_,{},{})));
   rows={Value("hud",loc::T("settings.match_hud"),preferences_.showMatchHud?loc::T("common.on"):loc::T("common.off"),reason,v.canEditPreferences),
    Value("hud-layout",loc::T("settings.match_hud_layout"),MatchStripLayoutName(preferences_.matchHudLayout),loc::T("settings.match_hud_layout_detail"),v.canEditPreferences),
-   Value("hud-name-offset",loc::T("settings.name_offset"),MatchHudNameOffsetText(preferences_.matchHudNameOffset),loc::T("settings.name_offset_detail"),v.canEditPreferences&&preferences_.matchHudLayout==1),
+   Value("hud-name-offset",loc::T("settings.name_offset"),MatchHudNameOffsetText(preferences_.matchHudNameOffset),
+    preferences_.matchHudLayout==1?std::string(loc::T("settings.name_offset_detail")):loc::Tf("menu.requires_value",loc::T("settings.match_hud_layout"),MatchStripLayoutName(1)),v.canEditPreferences&&preferences_.matchHudLayout==1),
    Value("hud-size",loc::T("settings.match_hud_size"),hudSizes[(std::max)(0,(std::min)(2,preferences_.matchHudSize))],loc::T("settings.match_hud_size_detail"),v.canEditPreferences),
    Value("hud-position",loc::T("settings.match_hud_position"),MatchStripAnchorName(preferences_.matchHudAnchor),loc::T("settings.match_hud_position_detail"),v.canEditPreferences),
-   Value("hud-spacing",loc::T("settings.edge_spacing"),preferences_.matchHudRaised?loc::T("spacing.raised"):loc::T("spacing.normal"),loc::T("settings.edge_spacing_detail"),v.canEditPreferences),
-   Value("ready-sound",loc::T("settings.ready_sound"),preferences_.readySound?loc::T("common.on"):loc::T("common.off"),loc::T("settings.ready_sound_detail"),v.canEditPreferences),
-   Value("ready-volume",loc::T("settings.ready_sound_volume"),std::to_string(preferences_.readySoundVolume)+"%",loc::T("settings.ready_sound_volume_detail"),v.canEditPreferences&&preferences_.readySound),
-   Row("ready-test",loc::T("settings.ready_sound_test"),loc::T("settings.ready_sound_test_detail"),v.canEditPreferences&&preferences_.readySound),
-   Value("scale",loc::T("settings.interface_size"),size,reason,v.canEditPreferences),
+   Value("hud-spacing",loc::T("settings.edge_spacing"),preferences_.matchHudRaised?loc::T("spacing.raised"):loc::T("spacing.normal"),loc::T("settings.edge_spacing_detail"),v.canEditPreferences)};
+ }else if(screen=="ready-alerts"){
+  title=loc::T("settings.ready_sound");
+  const auto soundReason=loc::Tf("menu.requires_value",loc::T("settings.ready_sound"),loc::T("common.on"));
+  rows={Value("ready-sound",loc::T("settings.ready_sound"),preferences_.readySound?loc::T("common.on"):loc::T("common.off"),loc::T("settings.ready_sound_detail"),v.canEditPreferences),
+   Value("ready-volume",loc::T("settings.ready_sound_volume"),std::to_string(preferences_.readySoundVolume)+"%",preferences_.readySound?std::string(loc::T("settings.ready_sound_volume_detail")):soundReason,v.canEditPreferences&&preferences_.readySound),
+   Row("ready-test",loc::T("settings.ready_sound_test"),!v.canEditPreferences?reason:preferences_.readySound?std::string(loc::T("settings.ready_sound_test_detail")):soundReason,v.canEditPreferences&&preferences_.readySound)};
+ }else if(screen=="menu-display"){
+  title=loc::T("settings.menu_display");char size[32];std::snprintf(size,sizeof(size),"%.2fx",preferences_.interfaceScale);
+  const auto languageValue=languagePreference_=="auto"?loc::Tf("settings.language.system_with",loc::NativeName(loc::Active())):
+   std::string(loc::NativeName(loc::ResolveLocale(languagePreference_,{},{})));
+  rows={Value("scale",loc::T("settings.interface_size"),size,reason,v.canEditPreferences),
    Value("language",loc::T("settings.language"),languageValue,languageSaveError_.empty()?std::string(loc::T("settings.language.detail")):languageSaveError_,true)};
-  // Select lists the languages by their own names; browsing them changes nothing.
+  // Browsing the language list changes nothing until a choice is accepted.
   rows.back().choices=LanguageChoices();rows.back().chosen=languagePreference_;
  }else if(screen=="training-replays"){
   title=loc::T("settings.training_replays_title");
@@ -357,11 +370,12 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   if(v.network==NetworkAvailability::Unavailable)rows.push_back(ConfirmRow("recovery",loc::T("about.open_recovery"),
    v.canEditPreferences?loc::T("about.open_recovery_detail"):loc::T("about.leave_room_first"),v.canEditPreferences&&!v.services.pending));
  }
+ if(!v.canEditPreferences&&IsPreferenceScreen(screen))ExplainLockedPreferences(rows,reason);
  return rows;
 }
 std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,const std::string& screen,bool opening,bool healthyRoom,std::string& title) {
  using namespace netplay;
- const bool personal=screen=="profile"||screen=="main-character"||screen=="settings"||screen=="player"||screen=="controllers"||screen=="defaults"||screen=="interface"||screen=="training-replays"||screen=="discord"||screen=="problem-reports"||screen==CountryPicker::Screen;
+ const bool personal=IsPreferenceScreen(screen);
  std::string status=saveFailed_?loc::T("common.save_failed"):v.settingsPending||preferencesDirty_||saveQueued_||languageDirty_?loc::T("common.saving"):personal?loc::T("common.saved"):"";
  // Severity travels with the status string. This line is the shell's only
  // feedback channel, so a failure must not render like ordinary text.
@@ -435,9 +449,9 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
  // still win below.
  if(!notice_.empty()&&!saveFailed_){status=notice_;statusTone=noticeTone_;}
  if(!v.padHint.empty()&&statusTone!=Tone::Error){status=v.padHint;statusTone=Tone::Neutral;}
- // The failed language save is about the row on the Interface screen, so it
+ // The failed language save is about the row on Menus and language, so it
  // speaks there only, and every other report below outranks it.
- if(!languageSaveError_.empty()&&screen=="interface"){status=languageSaveError_;statusTone=Tone::Error;}
+ if(!languageSaveError_.empty()&&screen=="menu-display"){status=languageSaveError_;statusTone=Tone::Error;}
  if(IdentityPanel::Owns(screen)){std::string own;Tone ownTone=Tone::Neutral;if(identity_.Status(own,ownTone,ImGui::GetTime())){status=own;statusTone=ownTone;}}
  if(PublicRoomsPanel::Owns(screen)||screen=="create"){std::string own=status;Tone ownTone=statusTone;if(publicRooms_.Status(v,screen,own,ownTone,ImGui::GetTime())){status=own;statusTone=ownTone;}}
  if(v.controllerUnavailable){status=loc::T(v.session.room==RoomState::Idle?"controller.disconnected":"controller.disconnected_room");statusTone=Tone::Error;}
@@ -504,7 +518,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="replays"||a.id=="controllers")nav.Push(a.id);
  else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
  else if(a.id=="create"||a.id=="pr-create"||a.id=="pr-none"||a.id=="host")CreateActivate(a,v,submit);
- else if(a.id=="settings"||a.id=="about"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="developer"||a.id=="problem-reports"||a.id=="sent-reports")nav.Push(a.id);
+ else if(a.id=="settings"||a.id=="about"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="menu-display"||a.id=="match-hud"||a.id=="ready-alerts"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="developer"||a.id=="problem-reports"||a.id=="sent-reports")nav.Push(a.id);
  else if(a.id=="join-now")Send(CommandKind::JoinInvite,v,submit);
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
  else if(a.id=="offline"||a.id=="game-buttons")Send(CommandKind::StartOffline,v,submit);
@@ -840,7 +854,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  };
  if(PublicRoomsPanel::Owns(screen))profilePreview=[&](const std::string& id){DrawPublicPreview(v,publicRooms_,id);};
  GameMenu::Body board;
- if(screen=="interface")profilePreview=[&](const std::string&){
+ if(screen=="match-hud")profilePreview=[&](const std::string&){
   ImGui::TextUnformatted(loc::T("settings.preview"));
   MatchStripView preview;preview.names[0]=loc::T("settings.player_one");preview.names[1]=loc::T("settings.player_two");
   preview.pingMs=68;preview.rollbackFrames=2;preview.appliedDelay=3;

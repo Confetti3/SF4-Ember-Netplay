@@ -24,8 +24,8 @@ void TrainingSettingsAndHome() {
  Check(rows.size()==settings.size(),"Settings row count changed");
  for(std::size_t i=0;i<settings.size();++i)Check(rows[i].id==settings[i],"Settings order changed");
  h.Choose("interface");
- const std::vector<std::string> interfaceRows={"hud","hud-layout","hud-name-offset","hud-size","hud-position","hud-spacing","ready-sound","ready-volume","ready-test","scale","language"};
- Check(rows.size()==interfaceRows.size(),"Interface no longer has Stable's 11 rows");
+ const std::vector<std::string> interfaceRows={"menu-display","match-hud","ready-alerts"};
+ Check(rows.size()==interfaceRows.size(),"Interface categories are missing");
  for(std::size_t i=0;i<interfaceRows.size();++i)Check(rows[i].id==interfaceRows[i],"Interface order changed");
  h.Press(MenuInput::Back);h.Choose("training-replays");
  Check(rows.size()==4&&rows[0].id=="match-frame-meter"&&rows[1].id=="training-auto-ready"&&rows[2].id=="replay-save-watched"&&rows[3].id=="watched-picture","Training and replays settings order wrong");
@@ -57,7 +57,7 @@ void TrainingSettingsAndHome() {
   h.Frame();h.Screen("training-replays");
   Check(!shown.empty()&&shown[0].id=="match-frame-meter"&&!shown[0].enabled,"Frame meter row changed in a room");
   Check(shown[0].value==loc::T("common.on")&&h.view.preferences.matchFrameMeter,"A public room lost the saved frame meter choice");
-  Check(shown[0].detail==loc::T(publicRoom?"settings.match_frame_meter_private":"settings.match_frame_meter_detail"),"Frame meter detail ignores the room kind");
+  Check(shown[0].detail==std::string(loc::T("settings.leave_room_to_edit"))+"\n\n"+loc::T(publicRoom?"settings.match_frame_meter_private":"settings.match_frame_meter_detail"),"Frame meter detail ignores the room kind");
   Check(saves()==savedBefore,"Entering a room saved preferences");
  }
  SetMenuEntriesProbe({});
