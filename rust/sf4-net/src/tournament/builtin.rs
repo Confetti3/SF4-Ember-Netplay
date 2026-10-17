@@ -46,14 +46,13 @@ impl Builtin {
 
 /// The staging bridge's pin, read from its public documents:
 /// `https://bridge-staging.embernetplay.link/.well-known/ember-bridge.json`
-/// for the ID, `/v1/signing-keys` for the key. Until they are filled in the
-/// entry is invalid, so the store skips it and nothing is trusted, and
-/// `staging_pin_is_filled` fails.
+/// for the ID, `/v1/signing-keys` for the key. A new ID or key there needs a
+/// new build; until then the bridge reads as not trusted.
 #[cfg(feature = "staging-bridge")]
 mod staging {
-    pub const STAGING_BRIDGE_ID: &str = "brg_FILL_IN_STAGING_BRIDGE_ID";
-    pub const STAGING_KEY_KID: &str = "FILL_IN_STAGING_KEY_KID";
-    pub const STAGING_KEY_X: &str = "FILL_IN_STAGING_KEY_X";
+    pub const STAGING_BRIDGE_ID: &str = "brg_1195478b-ac7e-4bc9-90af-c74eac5c747b";
+    pub const STAGING_KEY_KID: &str = "fGpBMbqH-Jnx5h0M";
+    pub const STAGING_KEY_X: &str = "OXhVSHlgdGw7UY-q44K7j6dzeO7gM2_fe97bThpjST0";
     pub const STAGING_ORIGIN: &str = "https://bridge-staging.embernetplay.link";
 }
 
@@ -87,7 +86,7 @@ mod tests {
         assert!(builtins().is_empty());
     }
 
-    // Fails until the placeholders above hold the staging bridge's real pin.
+    // An invalid pin would be skipped by the store and trust nothing.
     #[cfg(feature = "staging-bridge")]
     #[test]
     fn staging_pin_is_filled() {
