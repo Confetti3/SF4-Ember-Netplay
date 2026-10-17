@@ -67,8 +67,7 @@ without the player pressing Play, and nothing moves a player out of a room.
 
 ## Deployed bridges
 
-The deploy scripts can install two bridges on the project VPS; staging is not
-installed yet. Production is `https://bridge.embernetplay.link` (port 47820,
+Two bridges run on the project VPS, staging since 2026-10-17. Production is `https://bridge.embernetplay.link` (port 47820,
 `tenants.json`, operator folder `~/ember-bridge`). Staging is
 `https://bridge-staging.embernetplay.link` (port 47821, `tenants.staging.json`,
 `~/ember-bridge-staging`). The scripts pick the bridge from the folder they run in, which must sit directly in

@@ -15,18 +15,18 @@ limits per address, so heavy staging traffic from one address can get that
 address's production calls refused with 429. Each has its own
 BluMint connection (tenant `blumint`, kind `blumint`), credentials and
 registration: production for BluMint's production, and staging for BluMint
-staging and its testers. The staging bridge is not up yet, and neither
-BluMint connection is ready (see Not built yet).
+staging and its testers. The staging bridge is up; production's BluMint
+connection is not ready yet (see Not built yet).
 
 | | Production | Staging |
 |---|---|---|
 | Bridge | `https://bridge.embernetplay.link` | `https://bridge-staging.embernetplay.link` |
-| Bridge ID | `brg_0dbc0598-2312-4ce3-9df8-e160330565e6` | `brg_...`, to be filled in once the staging bridge is created |
+| Bridge ID | `brg_0dbc0598-2312-4ce3-9df8-e160330565e6` | `brg_1195478b-ac7e-4bc9-90af-c74eac5c747b` |
 | BluMint API | Game partner API 2.0.0 at `https://app.blumint.com/api` | Game partner API 2.0.0 at `https://staging.blumint.io/api` |
 | Player lookup | `POST https://bridge.embernetplay.link/v1/blumint/lookup` | `POST https://bridge-staging.embernetplay.link/v1/blumint/lookup` |
 | Match creation | `POST https://bridge.embernetplay.link/v1/blumint/matches` | `POST https://bridge-staging.embernetplay.link/v1/blumint/matches` |
 | Match close | `POST https://bridge.embernetplay.link/v1/blumint/matches/close` | `POST https://bridge-staging.embernetplay.link/v1/blumint/matches/close` |
-| Connect page for players | `https://embernetplay.link/start#brg_0dbc0598-2312-4ce3-9df8-e160330565e6/BluMint` | `https://embernetplay.link/start#<staging bridge ID>/BluMint` |
+| Connect page for players | `https://embernetplay.link/start#brg_0dbc0598-2312-4ce3-9df8-e160330565e6/BluMint` | `https://embernetplay.link/start#brg_1195478b-ac7e-4bc9-90af-c74eac5c747b/BluMint` |
 
 Production is Ember's own bridge, the one every Ember trusts by default, so
 players need nothing beyond Ember to use it. Nightly builds of Ember trust
@@ -325,9 +325,6 @@ so BluMint never receives a second, different result for a match.
 
 ## Testing on staging
 
-These steps need the staging bridge, which is not up yet (see Not built
-yet).
-
 1. **On BluMint:** use Discord player lookup for the test tournament, once
    Ember has registered the three callbacks on the staging bridge. Create
    matches with the Ember IDs returned by lookup and send players the
@@ -336,7 +333,7 @@ yet).
    Ember trusts it already. On a Stable build, choose **Online play > Ember
    ID > Linked accounts**, enter `https://bridge-staging.embernetplay.link`
    under **Add a service**, choose **Look up service**, then **Trust** it.
-3. **Connect Discord:** open the staging connect page (`https://embernetplay.link/start#<staging bridge ID>/BluMint`)
+3. **Connect Discord:** open the staging connect page (`https://embernetplay.link/start#brg_1195478b-ac7e-4bc9-90af-c74eac5c747b/BluMint`)
    and choose its button, or paste its link into **Online play > Ember ID >
    Discord > Paste link**. Not the **Discord** row by itself: that connects
    Discord on the production bridge, where BluMint staging's lookup finds
@@ -350,14 +347,11 @@ yet).
 
 ## Not built yet
 
-- **Production.** `https://bridge.embernetplay.link` serves only BluMint
-  staging today: its one BluMint connection, `blumint-partner-staging`, has
-  environment `staging` and reports to `https://staging.blumint.io/api`. A
-  production connection reporting to `https://app.blumint.com/api` is not
-  deployed or registered, so BluMint production cannot call it yet.
-  `blumint-partner-staging` moves to the staging bridge once that is up.
-- **The staging bridge.** `https://bridge-staging.embernetplay.link` is not
-  up, and its bridge ID, connection and registration do not exist yet.
+- **Production.** `https://bridge.embernetplay.link` has no production
+  BluMint connection yet: one reporting to `https://app.blumint.com/api` is
+  not deployed or registered, so BluMint production cannot call it. Its old
+  `blumint-partner-staging` connection is no longer called, since BluMint
+  staging is registered on the staging bridge.
 - **Tested on real hardware.** Automated tests cover tournament play, but a
   two-PC match on real hardware has not been done yet.
 - **Watching.** `spectators` is sent and not read yet; the listed staff
