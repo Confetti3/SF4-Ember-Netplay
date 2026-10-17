@@ -71,7 +71,9 @@ The deploy scripts can install two bridges on the project VPS; staging is not
 installed yet. Production is `https://bridge.embernetplay.link` (port 47820,
 `tenants.json`, operator folder `~/ember-bridge`). Staging is
 `https://bridge-staging.embernetplay.link` (port 47821, `tenants.staging.json`,
-`~/ember-bridge-staging`). The scripts pick the bridge from the folder they run in. Staging
+`~/ember-bridge-staging`). The scripts pick the bridge from the folder they run in, which must sit directly in
+the operator's home, and refuse a tenants file whose origin or listen address another
+installed bridge has. Staging
 has its own account, binary, state, backups and units, all named `ember-bridge-staging`,
 and its own nginx site `bridge-staging.embernetplay.link`, so it runs newer builds first
 and keeps its own bridge ID and data. Both sites come from one template and share the
