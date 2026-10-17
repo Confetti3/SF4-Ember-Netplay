@@ -6,14 +6,14 @@
 #   sudo bash ~/ember-bridge-staging/setup.sh
 #       staging, https://bridge-staging.embernetplay.link (tenants.staging.json)
 #
-# Expects, next to this script: bin/ember-bridge, the unit files, instance.sh,
-# backup.sh, restore.sh, the instance's tenants file and nginx/. Production's
-# binary is built as katie with `cargo build --release --locked -p ember-bridge`
-# in ~/ember-bridge/src/server/ember; staging's is a newer build, made in WSL
-# and copied to ~/ember-bridge-staging/bin/. The tenants file sets the instance's origin and listen address, and
-# nginx/<host>.conf must send that host to that port. Running it again
-# installs a newer binary and applies the tenants file; the bridge ID,
-# secrets and database stay.
+# Expects, next to this script: bin/ember-bridge, the unit and site templates
+# (*.in), instance.sh, backup.sh, restore.sh, the instance's tenants file and
+# nginx/ember-bridge-zone.conf. Production's binary is built as katie with
+# `cargo build --release --locked -p ember-bridge` in ~/ember-bridge/src/server/ember;
+# staging's is a newer build, made in WSL and copied to ~/ember-bridge-staging/bin/.
+# The tenants file sets the instance's origin and listen address, and so its
+# site's host and port. Running it again installs a newer binary and applies
+# the tenants file; the bridge ID, secrets and database stay.
 #
 # What it changes, for production (an instance such as staging puts
 # -<instance> after ember-bridge in every name and path, and has its own site):
@@ -52,10 +52,20 @@ if [ "$(id -u)" -ne 0 ]; then
     echo "Run with sudo." >&2
     exit 1
 fi
-if [ ! -f "$SRC/$TENANTS" ]; then
-    echo "Missing $SRC/$TENANTS" >&2
-    exit 1
-fi
+for file in bin/ember-bridge ember-bridge.service.in ember-bridge-backup.service.in \
+    ember-bridge-backup.timer.in backup.sh restore.sh "$TENANTS" \
+    nginx/ember-bridge-zone.conf nginx/bridge.conf.in; do
+    if [ ! -f "$SRC/$file" ]; then
+        echo "Missing $SRC/$file" >&2
+        exit 1
+    fi
+done
+for file in "$CERT" "$KEY"; do
+    if [ ! -f "$file" ]; then
+        echo "Missing $file (the embernetplay.link wildcard certificate)." >&2
+        exit 1
+    fi
+done
 # The instance's host and port, from the origin and listen its tenants file
 # also writes into bridge.json below.
 ADDRESS=$(cat <<'PY'
@@ -73,28 +83,6 @@ HOST=${ADDRESS% *}
 PORT=${ADDRESS#* }
 SITE=$ROOT/etc/nginx/sites-available/$HOST
 ENABLED=$ROOT/etc/nginx/sites-enabled/$HOST
-
-for file in bin/ember-bridge ember-bridge.service ember-bridge-backup.service \
-    ember-bridge-backup.timer backup.sh restore.sh \
-    nginx/ember-bridge-zone.conf nginx/$HOST.conf; do
-    if [ ! -f "$SRC/$file" ]; then
-        echo "Missing $SRC/$file" >&2
-        exit 1
-    fi
-done
-# A site that named another host or port would hand this address to another bridge.
-other=$(grep -E '^[[:space:]]*(server_name|proxy_pass)[[:space:]]' "$SRC/nginx/$HOST.conf" |
-    grep -vE "^[[:space:]]*(server_name ${HOST//./\\.}|proxy_pass http://127\.0\.0\.1:$PORT);\$" || true)
-if [ -n "$other" ] || ! grep -q "proxy_pass http://127.0.0.1:$PORT;" "$SRC/nginx/$HOST.conf"; then
-    echo "nginx/$HOST.conf must use server_name $HOST and proxy_pass http://127.0.0.1:$PORT only." >&2
-    exit 1
-fi
-for file in "$CERT" "$KEY"; do
-    if [ ! -f "$file" ]; then
-        echo "Missing $file (the embernetplay.link wildcard certificate)." >&2
-        exit 1
-    fi
-done
 
 if ! id "$NAME" >/dev/null 2>&1; then
     useradd --system --home-dir "$STATE" --no-create-home --shell /usr/sbin/nologin "$NAME"
@@ -141,21 +129,18 @@ PY
 )
 sudo -u "$NAME" python3 -c "$MERGE" "$STATE/bridge.json" < "$SRC/$TENANTS"
 
-# Production installs the unit files as shipped. Another instance's units are
-# production's with its names: every account, unit and folder called
-# ember-bridge becomes $NAME (the binary inside keeps its name).
-render_unit() {
-    if [ -z "$INSTANCE" ]; then
-        cat "$1"
-        return
-    fi
-    sed -e "s#\(=\|lib/\|backups/\)ember-bridge\b#\1$NAME#g" \
-        -e "s#^Description=.*#& ($INSTANCE)#" "$1"
+# Every instance's units and site come from one template each: @NAME@ is the
+# account, unit and folder name, @HOST@ and @PORT@ come from the tenants
+# file, and @LABEL@ names an instance other than production in descriptions.
+LABEL=${INSTANCE:+ ($INSTANCE)}
+render() {
+    sed -e "s/@NAME@/$NAME/g" -e "s/@HOST@/$HOST/g" -e "s/@PORT@/$PORT/g" \
+        -e "s/@LABEL@/$LABEL/g" "$1" > "$2.new"
+    chmod 0644 "$2.new"
+    mv -f "$2.new" "$2"
 }
 for unit in .service -backup.service -backup.timer; do
-    render_unit "$SRC/ember-bridge$unit" > "$UNITS/$NAME$unit.new"
-    chmod 0644 "$UNITS/$NAME$unit.new"
-    mv -f "$UNITS/$NAME$unit.new" "$UNITS/$NAME$unit"
+    render "$SRC/ember-bridge$unit.in" "$UNITS/$NAME$unit"
 done
 
 # nginx: keep copies of the zone, the site and the enabled entry (or note
@@ -171,7 +156,7 @@ restore() {
     if [ -e "$backup/enabled" ] || [ -L "$backup/enabled" ]; then cp -a "$backup/enabled" "$ENABLED"; fi
 }
 install -o root -g root -m 0644 "$SRC/nginx/ember-bridge-zone.conf" "$ZONE"
-install -o root -g root -m 0644 "$SRC/nginx/$HOST.conf" "$SITE"
+render "$SRC/nginx/bridge.conf.in" "$SITE"
 ln -sfn "$SITE" "$ENABLED"
 if ! nginx -t; then
     restore
