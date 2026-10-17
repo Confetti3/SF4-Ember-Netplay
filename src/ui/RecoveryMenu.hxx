@@ -1,5 +1,6 @@
 #pragma once
 #include "GameMenu.hxx"
+#include "LauncherScreen.hxx"
 #include "MenuRows.hxx"
 #include "Theme.hxx"
 #include "UpdateChannelPick.hxx"
@@ -11,7 +12,7 @@
 
 namespace sf4e { namespace ui {
 // Report opens the crash report's preview; AlwaysSend was confirmed.
-enum class RecoveryChoice { None, Folder, Retry, CheckUpdates, Install, Cancel, Close, Channel, Report, AlwaysSend };
+enum class RecoveryChoice { None, Display, Folder, Retry, CheckUpdates, Install, Cancel, Close, Channel, Report, AlwaysSend };
 // The crash's report in the launch window: offered (asking), or, once a send
 // was asked for, on its way (sending) and then how it went (outcome, or
 // failure: what stopped it before anything was sent).
@@ -36,7 +37,7 @@ inline RecoveryReport CrashReportView(const platform::ServiceSnapshot& state) {
     return view;
 }
 // The root screen names the header's "< Back / ..." breadcrumb (MenuScreenLabel).
-inline MenuNavigation RecoveryNavigation(bool updates) { return MenuNavigation(updates?"updates":"recovery"); }
+inline MenuNavigation RecoveryNavigation(LauncherRoot root) { return MenuNavigation(root==LauncherRoot::Updates?"updates":root==LauncherRoot::Home?"launcher-home":"recovery"); }
 // Each newly found update takes the highlight once, so Select installs it
 // rather than checking again; offered remembers the version that already did.
 inline void OfferFoundUpdate(GameMenu& menu,const platform::ServiceSnapshot& state,std::string& offered) {
@@ -72,14 +73,18 @@ inline std::string ChannelSwitchDetail(launcher::UpdateChannel from,launcher::Up
 // `report` adds the crash report's rows after Retry: Send this report, which
 // opens its preview, and Always send, confirmed with Cancel first; or one row
 // saying how the report went.
-inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSnapshot& state,const std::string& message,bool updates,
+inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSnapshot& state,const std::string& message,LauncherRoot root,
     Tone messageTone=Tone::Error,bool canStart=false,bool serviceNewer=true,ChannelPick* channelPick=nullptr,const RecoveryReport& report={}) {
+    const bool updates=root==LauncherRoot::Updates,home=root==LauncherRoot::Home;
     if(channelPick)channelPick->Settle(state.channel,state.pending);
     std::vector<MenuEntry> rows;
     // A row that waits while the worker is busy: the status line and the bar
     // say with what, so its pane does not add "Unavailable".
     const auto waits=[&](MenuEntry row){row.quiet=state.pending;return row;};
-    if(!updates){
+    if(home)rows.push_back(waits(Row("retry",loc::T("launcher.start_game"),loc::T("launcher.start_game_detail"),!state.pending)));
+    if(!updates)rows.push_back(waits(Row("display",loc::T("display.title"),loc::T("display.launcher_detail"),!state.pending)));
+    if(home)rows.push_back(waits(Row("folder",loc::T("recovery.choose_folder"),loc::T("recovery.choose_folder_detail"),!state.pending)));
+    if(!updates&&!home){
         rows.push_back(waits(Row("folder",loc::T("recovery.choose_folder"),loc::T("recovery.choose_folder_detail"),!state.pending)));
         rows.push_back(waits(Row("retry",loc::T("recovery.retry"),state.pending?loc::T("recovery.retry_busy"):loc::T("recovery.retry_detail"),!state.pending)));
         if(report.asking){
@@ -130,12 +135,12 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
     if(updates&&canStart)
         rows.push_back(waits(Row("retry",loc::T("updates.start_game"),state.pending?loc::T("recovery.retry_busy"):loc::T("updates.start_game_detail"),!state.pending)));
     rows.push_back(Row("close",loc::T("common.close"),state.pending?loc::T("recovery.close_cancels_detail"):
-        loc::T(updates?"updates.close_detail":"recovery.close_detail")));
+        loc::T(home?"launcher.close_detail":updates?"updates.close_detail":"recovery.close_detail")));
     // The launch window names the version in its corner, as Home does; the
     // updater has its own rows for it.
     menu.footerNote=updates?std::string():VersionLine(state.installedVersion,state.channel);
     // Back on the root closes the window, so the legend says so.
-    menu.backHint=updates?loc::T("updates.back_close"):loc::T("recovery.back_close");
+    menu.backHint=home?loc::T("common.close"):updates?loc::T("updates.back_close"):loc::T("recovery.back_close");
     const auto* vp=ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);
     const std::string windowName=std::string(loc::T("recovery.window"))+"###EmberRecovery";
@@ -147,8 +152,8 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
     // stableStatus: GameMenu only draws the status line for a flyout or a
     // stable-status screen, which recovery is not. fitStatus: launcher messages
     // run to several lines and name the files to move and the folders to look in.
-    menu.fitStatus=true;
-    const auto action=menu.Draw(updates?loc::T("updates.title"):loc::T("recovery.title"),rows,status.c_str(),[&](const std::string&){
+    menu.fitStatus=true;menu.compactDetailLines=home?2:0;
+    const auto action=menu.Draw(home?loc::T("launcher.home"):updates?loc::T("updates.title"):loc::T("recovery.title"),rows,status.c_str(),[&](const std::string&){
         if(!state.pending)return;
         // An installing update with no total (extracting, or a step just begun) gets Dear ImGui's moving bar.
         if(state.stageTotal)ImGui::ProgressBar((std::min)(1.f,float(state.stageDone)/state.stageTotal),ImVec2(-1,0));
@@ -161,6 +166,7 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
     if(action.kind==MenuAction::Close)return RecoveryChoice::Close;
     if(action.kind==MenuAction::Adjust&&action.id=="channel"&&channelPick&&!state.pending)channelPick->Step(state.channel,action.delta);
     if(action.kind!=MenuAction::Activate)return RecoveryChoice::None;
+    if(action.id=="display")return RecoveryChoice::Display;
     if(action.id=="folder")return RecoveryChoice::Folder;
     if(action.id=="report")return RecoveryChoice::Report;
     if(action.id=="report-always")return RecoveryChoice::AlwaysSend;

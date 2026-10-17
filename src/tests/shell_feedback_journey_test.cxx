@@ -88,8 +88,8 @@ void RecoveryWindow() {
  for(const float dpi:{1.f,1.5f,2.f}){
   // The window is 940x720 at 96 dpi and grows with the display, so the same room at every scale.
   ApplyTheme(dpi);io.Fonts->Build();io.DisplaySize=ImVec2(924*dpi,681*dpi);
-  GameMenu menu;menu.navigation=RecoveryNavigation(false);reported=false;
-  for(int i=0;i<3;++i){ImGui::NewFrame();DrawRecoveryMenu(menu,state,message,false);ImGui::Render();}
+  GameMenu menu;menu.navigation=RecoveryNavigation(LauncherRoot::Recovery);reported=false;
+  for(int i=0;i<3;++i){ImGui::NewFrame();DrawRecoveryMenu(menu,state,message,LauncherRoot::Recovery);ImGui::Render();}
   const auto* window=ImGui::FindWindowByName("###EmberRecovery");
   Check(reported&&window&&window->ScrollMax.y<1,"The recovery window overflowed with a long launcher message");
   Check(text>4*ImGui::GetTextLineHeight(),"The long launcher message did not wrap to several lines");
@@ -99,9 +99,9 @@ void RecoveryWindow() {
  // Newest wins: a rejected folder is not buried by an earlier update check.
  std::string status;Tone tone=Tone::Neutral;SetMenuStatusProbe([&](const char* s,Tone t){status=s;tone=t;});
  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
- GameMenu menu;menu.navigation=RecoveryNavigation(false);
+ GameMenu menu;menu.navigation=RecoveryNavigation(LauncherRoot::Recovery);
  const auto draw=[&](const std::string& launcher,Tone launcherTone,bool updates,bool canStart,bool serviceNewer){
-  for(int i=0;i<2;++i){ImGui::NewFrame();DrawRecoveryMenu(menu,state,launcher,updates,launcherTone,canStart,serviceNewer);ImGui::Render();}};
+  for(int i=0;i<2;++i){ImGui::NewFrame();DrawRecoveryMenu(menu,state,launcher,(updates?LauncherRoot::Updates:LauncherRoot::Recovery),launcherTone,canStart,serviceNewer);ImGui::Render();}};
  state.message="You are up to date.";state.succeeded=true;
  draw("That folder does not contain SSFIV.exe.",Tone::Error,false,false,false);
  Check(status=="That folder does not contain SSFIV.exe."&&tone==Tone::Error,"An old update check hid the rejected folder");
@@ -122,9 +122,9 @@ void RecoveryWindow() {
  draw("",Tone::Error,false,true,true);
  Check(row("retry")&&row("retry")->label==loc::T("recovery.retry"),"The launch window's Retry changed");
  // Selecting Start SF4 answers Retry.
- menu.navigation=RecoveryNavigation(true);
+ menu.navigation=RecoveryNavigation(LauncherRoot::Updates);
  RecoveryChoice choice=RecoveryChoice::None;
- const auto frame=[&](unsigned held=0){SetMenuInput({held,0});ImGui::NewFrame();choice=DrawRecoveryMenu(menu,state,"",true,Tone::Error,true,true);ImGui::Render();};
+ const auto frame=[&](unsigned held=0){SetMenuInput({held,0});ImGui::NewFrame();choice=DrawRecoveryMenu(menu,state,"",LauncherRoot::Updates,Tone::Error,true,true);ImGui::Render();};
  frame();frame();
  for(int i=0;i<20&&menu.navigation.Focus()!="retry";++i){frame(MenuInput::Down);frame();}
  Check(menu.navigation.Focus()=="retry","Start SF4 is unreachable in the updater");
@@ -183,16 +183,16 @@ void ProblemReportJourneys() {
  SetMenuTextProbe([&](const char* id,float t,float interior,float,float){if(!std::strcmp(id,"command-feedback")){reported=true;text=t;room=interior;}});
  for(const float dpi:{1.f,1.5f,2.f}){
   ApplyTheme(dpi);io.Fonts->Build();io.DisplaySize=ImVec2(924*dpi,681*dpi);
-  GameMenu menu;menu.navigation=RecoveryNavigation(false);reported=false;
-  for(int i=0;i<3;++i){ImGui::NewFrame();DrawRecoveryMenu(menu,state,message,false,Tone::Error,false,false,nullptr,report);ImGui::Render();}
+  GameMenu menu;menu.navigation=RecoveryNavigation(LauncherRoot::Recovery);reported=false;
+  for(int i=0;i<3;++i){ImGui::NewFrame();DrawRecoveryMenu(menu,state,message,LauncherRoot::Recovery,Tone::Error,false,false,nullptr,report);ImGui::Render();}
   const auto* window=ImGui::FindWindowByName("###EmberRecovery");
   Check(reported&&window&&window->ScrollMax.y<1&&text<=room+.5f,"The crash message and its report offer overflowed the launch window");
  }
  SetMenuTextProbe({});ApplyTheme(1.f);io.Fonts->Build();io.DisplaySize=ImVec2(1280,960);
- GameMenu menu;menu.navigation=RecoveryNavigation(false);
+ GameMenu menu;menu.navigation=RecoveryNavigation(LauncherRoot::Recovery);
  std::vector<RecoveryChoice> chosen;
  const auto frame=[&](unsigned held=0){SetMenuInput({held,0});ImGui::NewFrame();
-  const auto choice=DrawRecoveryMenu(menu,state,message,false,Tone::Error,false,false,nullptr,report);if(choice!=RecoveryChoice::None)chosen.push_back(choice);ImGui::Render();};
+  const auto choice=DrawRecoveryMenu(menu,state,message,LauncherRoot::Recovery,Tone::Error,false,false,nullptr,report);if(choice!=RecoveryChoice::None)chosen.push_back(choice);ImGui::Render();};
  frame();frame();
  Check(menu.navigation.Focus()!="report"&&menu.navigation.Focus()!="report-always"&&chosen.empty(),"The report offer took the focus or answered by itself");
  const auto reach=[&](const char* id){for(int i=0;i<20&&menu.navigation.Focus()!=id;++i){frame(MenuInput::Down);frame();}return menu.navigation.Focus()==id;};

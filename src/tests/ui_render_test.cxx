@@ -6,6 +6,7 @@
 #include "../ui/OverlayLayers.hxx"
 #include "../ui/FighterSelector.hxx"
 #include "../ui/RecoveryMenu.hxx"
+#include "../ui/DisplayPanel.hxx"
 #include "../common/Localization.hxx"
 #include "../common/StageCatalog.hxx"
 #include "ui_render_support.hxx"
@@ -574,6 +575,12 @@ int main(int argc, char** argv) {
                 meter.Observe(f,fighters);
             }
             training.meter=meter.View();training.history[0]={{0x14,5},{1,3},{0,16}};training.history[1]={{0x40,2},{0,10}};
+            display::Monitor displayMonitor;
+            displayMonitor.id="DISPLAY1";displayMonitor.name="Ultrawide monitor";displayMonitor.primary=true;
+            displayMonitor.width=displayMonitor.workWidth=3440;displayMonitor.height=1440;displayMonitor.workHeight=1400;displayMonitor.refresh=144;
+            displayMonitor.modes={{1280,720,60},{1920,1080,60},{2560,1440,60},{2560,1440,144}};
+            display::Preferences displayPreference;displayPreference.mode=display::Mode::Borderless;
+            DisplayPanel displayPanel({displayMonitor},displayPreference,[](const display::Preferences&,std::string&){return true;});
             int mode=0;
             OverlayLayersView overlayLayers;
             MatchStripView matchStrip;matchStrip.names[0]="Player One";matchStrip.names[1]="Player Two";
@@ -582,7 +589,7 @@ int main(int argc, char** argv) {
             training::Command trainingCommand;
             bool acceptTraining=false,answerTickets=false,holdIdentity=false,overlayTooltip=false;
             std::uint64_t heldTicket=0;
-            GameMenu recoveryMenu;recoveryMenu.navigation=RecoveryNavigation(false);ProblemReportPanel reportPanel;platform::ServiceSnapshot reportState;
+            GameMenu recoveryMenu;recoveryMenu.navigation=RecoveryNavigation(LauncherRoot::Recovery);ProblemReportPanel reportPanel;platform::ServiceSnapshot reportState;
             platform::ServiceSnapshot recoveryState;bool recoveryUpdates=false;ChannelPick recoveryPick;RecoveryReport recoveryReport;std::string recoveryMessage=RecoveryFolderMessage;
             const auto draw=[&](const char* shot=nullptr,unsigned buttons=0,int settle=3){
                 for(int i=0;i<settle;++i){
@@ -606,9 +613,11 @@ int main(int argc, char** argv) {
                         }
                         return true;},[&]{selector.Draw(pick,true,art.get(),availability,&stage,view.canEditSelection,{},&stagePool,selectorContent);});
                     else if(mode==1)DrawTrainingFlyout(training,[&](training::Command c){trainingCommand=c;return acceptTraining;});
-                    else if(mode==4)DrawRecoveryMenu(recoveryMenu,recoveryState,recoveryMessage,recoveryUpdates,Tone::Error,false,true,&recoveryPick,recoveryReport);
+                    else if(mode==4)DrawRecoveryMenu(recoveryMenu,recoveryState,recoveryMessage,(recoveryUpdates?LauncherRoot::Updates:LauncherRoot::Recovery),Tone::Error,false,true,&recoveryPick,recoveryReport);
+                    else if(mode==11)displayPanel.Draw(recoveryMenu);
+                    else if(mode==12)DrawRecoveryMenu(recoveryMenu,{},"",LauncherRoot::Home,Tone::Neutral,true,false);
                     if(mode==8)DrawReportPreviewMode(reportPanel,reportState);
-                    else if(mode!=0&&mode!=4) {
+                    else if(mode!=0&&mode!=4&&mode!=11&&mode!=12) {
                         if(mode!=7)overlayLayers=OverlayRenderLayers(mode,matchStrip);
                         (void)DrawOverlayLayers(overlayLayers,training);
                         if(mode==9)DrawMatchKeysNotice({"training.match.checkpoint_disabled","training.match.end_hint"});
@@ -620,7 +629,7 @@ int main(int argc, char** argv) {
                     }
                     CheckStacks();ImGui::Render();renderer.Draw();++frames;
                     if(mode==3)CheckMatchHudFrame(matchStrip,size.w,size.h);
-                    if((mode==0||mode==4)&&i==settle-1&&settle>=3){
+                    if((mode==0||mode==4||mode==11||mode==12)&&i==settle-1&&settle>=3){
                         const auto* root=FindWindow(mode==0?"EmberShell":"###EmberRecovery");
                         if(root->ScrollMax.y>=1)throw std::runtime_error(std::string("Player menu footer escaped on ")+(mode==0?shell.Navigation().Screen():"recovery")+" by "+std::to_string(root->ScrollMax.y)+" pixels");
                     }
@@ -1071,6 +1080,14 @@ int main(int argc, char** argv) {
             // The crash report's offer (ui_render_reports.hxx), then the launch window and the updater (ui_render_updates.hxx).
             mode=4;ShootCrashReportOffer(recoveryMenu,recoveryState,recoveryReport,recoveryMessage,draw);
             ShootLaunchAndUpdates(recoveryMenu,recoveryState,recoveryUpdates,recoveryPick,mode,draw);
+            mode=12;recoveryMenu.navigation=RecoveryNavigation(LauncherRoot::Home);draw("display-launcher-home");
+            mode=11;recoveryMenu.navigation.Push("display");draw("display-borderless");
+            recoveryMenu.navigation.Focus("display-resolution",displayPanel.Rows());draw(nullptr,MenuInput::Select,1);draw("display-resolution-picker");
+            draw(nullptr,MenuInput::Back,1);draw();
+            ui::MenuAction displayAction;displayAction.kind=ui::MenuAction::Chosen;displayAction.id="display-mode";displayAction.text="3";
+            displayPanel.Handle(displayAction);draw("display-fullscreen");
+            displayAction.text="1";displayPanel.Handle(displayAction);draw("display-windowed");
+            displayAction.text="0";displayPanel.Handle(displayAction);draw("display-native");
             mode=0;shell.Navigation().Home();draw("home-restored");
             auto* main=FindWindow("EmberShell");
             Require(main->Pos.x==0&&main->Pos.y==0&&main->Size.x==size.w&&main->Size.y==size.h,"Shell geometry changed");

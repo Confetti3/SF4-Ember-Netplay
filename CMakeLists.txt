@@ -26,7 +26,9 @@ if(WIN32)
     target_link_libraries(sf4e_custom_content_files PUBLIC sf4e_selection)
 endif()
 if(BUILD_TESTING)
+    sf4e_add_unit_test(NAME BorderlessLayout SOURCES "src/tests/borderless_layout_test.cxx" STD 11)
     if(WIN32)
+        sf4e_add_unit_test(NAME LauncherHomeLinks SOURCES "src/tests/launcher_home_links_test.cxx" STD 17 TIMEOUT 15)
         sf4e_add_unit_test(NAME CustomContentFiles SOURCES "src/tests/custom_content_files_test.cxx"
             STD 17 LIBS sf4e_custom_content_files TIMEOUT 15)
     endif()
@@ -251,7 +253,7 @@ endif()
 # ways around.
 add_library(sf4e_settings STATIC "src/netplay/JsonFileStore.cxx" "src/netplay/SettingsStore.cxx"
     "src/netplay/SettingsWriter.cxx" "src/platform/UiPreferencesStore.cxx"
-    "src/platform/GameDisplaySettings.cxx")
+    "src/platform/GameDisplaySettings.cxx" "src/platform/DisplaySettings.cxx")
 target_compile_features(sf4e_settings PUBLIC cxx_std_17)
 target_link_libraries(sf4e_settings PUBLIC nlohmann_json::nlohmann_json sf4e_localization PRIVATE sf4e_durable_file "shell32" "ole32")
 if(BUILD_TESTING)
@@ -262,8 +264,11 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME RecordingFileStore SOURCES "src/tests/recording_file_store_test.cxx" LIBS sf4e_settings sf4e_durable_file TIMEOUT 60)
 endif()
 
+target_link_libraries(sf4e_settings PRIVATE d3d9)
+
 add_library(sf4e_ui STATIC "src/ui/ApplicationShell.cxx" "src/ui/ControllersScreen.cxx" "src/ui/ReplaysPanel.cxx" "src/ui/RoomPanel.cxx" "src/ui/RoomControls.cxx" "src/ui/Theme.cxx" "src/ui/MatchHud.cxx" "src/ui/SelectionArt.cxx" "src/ui/FighterSelector.cxx")
 target_sources(sf4e_ui PRIVATE src/ui/Win32Input.cxx src/ui/Win32InputBridge.cxx)
+target_sources(sf4e_ui PRIVATE src/ui/DisplayPanel.cxx)
 target_sources(sf4e_ui PRIVATE src/ui/GameMenu.cxx src/ui/MenuDialogs.cxx src/ui/ChatTranscript.cxx src/ui/ChatPanel.cxx)
 install(DIRECTORY "assets/brand" DESTINATION "assets" FILES_MATCHING PATTERN "*.png")
 install(DIRECTORY "assets/input" DESTINATION "assets" FILES_MATCHING PATTERN "*.png" PATTERN "*.txt")
@@ -457,6 +462,7 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__InputLag.cxx"
     "src/sf4e/sf4e__Platform.hxx"
     "src/sf4e/sf4e__Platform.cxx"
+    "src/sf4e/sf4e__Borderless.cxx"
     "src/sf4e/sf4e__ReplayStore.hxx"
     "src/sf4e/sf4e__ReplayStore.cxx"
     "src/sf4e/sf4e__ReplayPlayback.hxx"
@@ -932,3 +938,19 @@ set(CPACK_PACKAGE_VENDOR "The ${PROJECT_NAME} Dev Team")
 set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
 set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${PROJECT_NAME} ${PROJECT_DESCRIPTION}")
+
+if(BUILD_TESTING AND WIN32)
+    sf4e_add_unit_test(NAME DisplaySettings SOURCES "src/tests/display_settings_test.cxx" STD 17 LIBS sf4e_ui TIMEOUT 20)
+    sf4e_add_unit_test(NAME DisplayConfigPersistence SOURCES "src/tests/display_config_persistence_test.cxx" STD 17 LIBS nlohmann_json::nlohmann_json TIMEOUT 15)
+    add_executable(BorderlessWindowTest "src/tests/borderless_window_test.cxx" "src/sf4e/sf4e__Borderless.cxx")
+    target_compile_features(BorderlessWindowTest PRIVATE cxx_std_17)
+    target_compile_definitions(BorderlessWindowTest PRIVATE SF4E_DISPLAY_TESTING=1)
+    target_link_libraries(BorderlessWindowTest PRIVATE spdlog::spdlog sf4e_settings d3d9 user32 gdi32)
+    option(SF4E_DISPLAY_WINDOW_TESTS "Register desktop-only D3D9 display integration tests" OFF)
+    if(SF4E_DISPLAY_WINDOW_TESTS)
+    foreach(variant enabled off unaware scaled windowed windowed-unaware missing-monitor secondary secondary-unaware queue-failure style-failure position-failure)
+        add_test(NAME "DisplayWindow-${variant}" COMMAND BorderlessWindowTest "${variant}")
+        set_tests_properties("DisplayWindow-${variant}" PROPERTIES TIMEOUT 20 RUN_SERIAL TRUE SKIP_RETURN_CODE 77 ENVIRONMENT "SF4E_DISPLAY_INTEGRATION_TEST=1")
+    endforeach()
+    endif()
+endif()

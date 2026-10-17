@@ -43,6 +43,9 @@
 #include "../common/Localization.hxx"
 #include "../platform/LocaleWindows.hxx"
 #include "../platform/UiPreferencesStore.hxx"
+#include "../platform/DisplaySettings.hxx"
+#include "../platform/LauncherHomeLinks.hxx"
+#include "../common/EnvFlag.hxx"
 #include "GameLocator.hxx"
 #include "netplay/netplay_persist.hxx"
 #include "update/github_release_client.hxx"
@@ -513,7 +516,7 @@ bool ShowRecovery(std::string message, std::wstring& gameDirectory, bool updates
 	sf4e::ui::Tone tone = sf4e::ui::Tone::Error, bool canStart = false,
 	const std::optional<sf4e::reports::CrashContext>& crash = std::nullopt,
 	const std::optional<sf4e::launcher::InstallOffer>& offer = std::nullopt) {
-	return sf4e::ui::RunRecovery(std::move(message), gameDirectory, updates,
+	return sf4e::ui::RunRecovery(std::move(message), gameDirectory, updates?sf4e::ui::LauncherRoot::Updates:sf4e::ui::LauncherRoot::Recovery,
 		[](const std::string& line) { spdlog::warn("{}", line); }, tone, canStart, crash, offer);
 }
 
@@ -567,6 +570,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     sf4e::Payload payload{};
     bool offline = false, updates = false, recovery = false, updateError = false, discordLaunch = false;
+    bool play=false,displaySettings=false,nativeDisplay=false;
     DWORD waitPid = 0;
     std::string localeOverride, joinUri;
     std::vector<std::string> offerWords;
@@ -575,6 +579,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     app.add_flag("--discord-launch", discordLaunch, "Start Ember for an accepted Discord invitation.");
     app.add_flag("--console", payload.args.bShowConsole, "Show diagnostic logging.");
     app.add_flag("--offline", offline, "Start at the native game menu without networking.");
+    app.add_flag("--play",play,"Start the game immediately using saved settings.");
+    app.add_flag("--settings",displaySettings,"Open display settings.");
+    app.add_flag("--native-display",nativeDisplay,"Use the game's native display settings for this launch.");
     app.add_flag("--updates", updates, "Open update and recovery controls.");
     app.add_flag("--recovery", recovery, "Open launch recovery controls.");
     app.add_flag("--update-error", updateError, "Show updater recovery after an installation failure.");
@@ -601,15 +608,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // The link is a room's short code, never logged, a tournament match, a
     // public room of a service (its IDs are not logged either), or a
     // tournament service asking the player to connect Discord.
-    const std::string joinCode = joinUri.empty() ? std::string() : sf4e::join_link::ParseUri(joinUri);
-    const auto matchLink = joinUri.empty() || !joinCode.empty() ? sf4e::tournament_link::MatchLink() :
+    std::string joinCode = joinUri.empty() ? std::string() : sf4e::join_link::ParseUri(joinUri);
+    auto matchLink = joinUri.empty() || !joinCode.empty() ? sf4e::tournament_link::MatchLink() :
         sf4e::tournament_link::ParseLink(joinUri);
-    const auto publicRoomLink = joinUri.empty() || !joinCode.empty() || matchLink.Valid() ? sf4e::tournament_link::RoomLink() :
+    auto publicRoomLink = joinUri.empty() || !joinCode.empty() || matchLink.Valid() ? sf4e::tournament_link::RoomLink() :
         sf4e::tournament_link::ParseRoomLink(joinUri);
-    const std::string connectBridge = joinUri.empty() || !joinCode.empty() || matchLink.Valid() || publicRoomLink.Valid() ? std::string() :
+    std::string connectBridge = joinUri.empty() || !joinCode.empty() || matchLink.Valid() || publicRoomLink.Valid() ? std::string() :
         sf4e::tournament_link::ParseConnectLink(joinUri);
     // A replay link names an archived replay to play (common/ReplayLink.hxx).
-    const std::string replayLink = joinUri.empty() || !joinCode.empty() || matchLink.Valid() || publicRoomLink.Valid() || !connectBridge.empty() ? std::string() :
+    std::string replayLink = joinUri.empty() || !joinCode.empty() || matchLink.Valid() || publicRoomLink.Valid() || !connectBridge.empty() ? std::string() :
         sf4e::platform::ResolveReplayFile(sf4e::replay_link::ParseReplayLink(joinUri));
     if (!joinCode.empty()) spdlog::info("Started with a room link");
     else if (matchLink.Valid()) spdlog::info("Started with a link to tournament match {}", matchLink.matchId);
@@ -662,6 +669,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             spdlog::info("Handed the replay link to the running game");
             return 0;
         }
+        if (discordLaunch && sf4e::platform::DeliverDiscordLaunch()) {
+            spdlog::info("Handed Discord launch intent to launcher Home");
+            return 0;
+        }
         // A Discord invite reaches the running copy, so a second start for it
         // stays quiet. Otherwise a leftover launcher (or one still waiting on
         // a game that never closed) made every start do nothing at all.
@@ -688,6 +699,25 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         ShowRecovery(sf4e::loc::T("launcher.path_failed"), chosenDirectory);
         return 1;
     }
+    if (!updates&&!recovery&&(displaySettings||(!play&&!discordLaunch&&joinCode.empty()&&!matchLink.Valid()&&
+        !publicRoomLink.Valid()&&connectBridge.empty()&&replayLink.empty()&&steamCommand.empty()))) {
+        sf4e::platform::LauncherHomeLinks inbox;
+        sf4e::platform::HomeLaunchLinks incoming;
+        if (!inbox.Open()) spdlog::warn("Launcher Home could not listen for links; continuing with normal game startup");
+        else {
+            if (!sf4e::ui::RunRecovery("",chosenDirectory,sf4e::ui::LauncherRoot::Home,
+                [](const std::string& line){spdlog::warn("{}",line);},sf4e::ui::Tone::Neutral,true,
+                std::nullopt,std::nullopt,displaySettings?sf4e::ui::LauncherPage::Display:sf4e::ui::LauncherPage::Root,
+                [&]{return inbox.Take(incoming);})) return 0;
+            inbox.Take(incoming); // Include a link arriving with the Start press.
+            if(!incoming.join.empty())joinCode=std::move(incoming.join);
+            if(incoming.match.Valid())matchLink=std::move(incoming.match);
+            if(incoming.room.Valid())publicRoomLink=std::move(incoming.room);
+            if(!incoming.connect.empty())connectBridge=std::move(incoming.connect);
+            if(!incoming.replay.empty())replayLink=sf4e::platform::ResolveReplayFile(incoming.replay);
+            discordLaunch=discordLaunch||incoming.discord;
+        }
+    } // All Home receivers are closed before the child receives its environment.
     sf4e::launcher::PersistedSettings settings;
     sf4e::launcher::LoadPersistedSettings(settings);
     sf4e::launcher::EnsureUniqueDisplayName(settings);
@@ -797,6 +827,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             sf4e::platform::SteamElevation() == sf4e::platform::Elevation::Elevated;
         if (steamAbove) spdlog::warn("Steam runs as administrator and the launcher does not; the game may not reach Steam");
         DWORD startError = 0;
+        sf4e::display::Preferences display;
+        std::string displayError;
+        if(!nativeDisplay&&sf4e::EnvFlag("SF4E_BORDERLESS_TEST"))display.mode=sf4e::display::Mode::Borderless;
+        else if(!nativeDisplay&&!sf4e::platform::LoadDisplayPreferences(display,displayError))spdlog::warn("Display: {}",displayError);
+        if(!sf4e::platform::SetLaunchDisplayPreferences(display)){
+            dumps.Close();
+            if(!ShowRecovery(sf4e::loc::T("display.launch_failed"),chosenDirectory))return 0;
+            continue;
+        }
         HANDLE game = CreateSF4Process(payload,helper,discord,helperPath.wstring(),location.directory.data(),location.executable.data(),1,dlls,dumps,startError);
         if (!game) {
             dumps.Close();

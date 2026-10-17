@@ -22,6 +22,7 @@
 #include "sf4e__Game__Battle.hxx"
 #include "BuildIdentity.hxx"
 #include "sf4e__Platform.hxx"
+#include "sf4e__Borderless.hxx"
 #include "sf4e__ReplayCapture.hxx"
 #include "sf4e__UserApp.hxx"
 #include "sf4e__Overlay.hxx"
@@ -275,6 +276,7 @@ int fD3D::LimitPacedFrame(float frameDelta) {
 // waits for a vblank, so a pacing shift of a few milliseconds costs a whole
 // refresh and the controller overcorrects. It also adds input latency.
 void fD3D::BuildPresentParameters() {
+    sf4e::display::Prepare(this);
     (this->*rD3D::privateMethods.BuildPresentParameters)();
     D3DPRESENT_PARAMETERS* parameters = rD3D::GetPresentParameters(this);
     if (parameters->PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE) {
@@ -297,6 +299,7 @@ void fD3D::RunScene_Render(void* sceneCommandList) {
 void fD3D::Destroy() {
     sf4e::replaycapture::Release();
     Overlay::FreeOverlay();
+    sf4e::display::RestoreNative(this);
     (this->*rD3D::privateMethods.Destroy)();
 }
 
@@ -309,6 +312,7 @@ DWORD fD3D::Reset() {
         (*rMain::GetWindowData(rMain::staticMethods.GetSingleton()))->hWnd,
         Dimps::Platform::D3D::staticMethods.GetSingleton()->lpD3DDevice
     );
+    sf4e::display::RequestApply((*rMain::GetWindowData(rMain::staticMethods.GetSingleton()))->hWnd);
     return out;
 }
 
@@ -456,6 +460,7 @@ int fMain::Initialize(void* a, void* b, void* c) {
         Dimps::Platform::D3D::staticMethods.GetSingleton()->lpD3DDevice
     );
 
+    sf4e::display::RequestApply((*rMain::GetWindowData(rMain::staticMethods.GetSingleton()))->hWnd);
     sf4e::NetplayFacade::NotifyGameReady();
 
     return rval;
@@ -478,11 +483,21 @@ void fMain::Destroy() {
 }
 
 void fMain::WriteDisplayConfig() {
-    s_renderingThread.WriteRequested(*rMain::GetRenderingThread(this),
-        [this] { (this->*rMain::privateMethods.WriteDisplayConfig)(); });
+    const auto write = [this] { s_renderingThread.WriteRequested(*rMain::GetRenderingThread(this),
+        [this] { (this->*rMain::privateMethods.WriteDisplayConfig)(); }); };
+    sf4e::display::NativeDisplayValues native;
+    if (sf4e::display::NativeConfig(native)) {
+        // Brightness ApplyAll can copy overridden device values back into Main.
+        // The existing writer hook must see the original display fields on
+        // both graphics-options save and shutdown, before D3D is destroyed.
+        sf4e::display::DisplayConfigWriteScope requested(*rMain::GetDisplayWidth(this),*rMain::GetDisplayHeight(this),
+            *rMain::GetDisplayRefresh(this),*rMain::GetDisplayFullscreen(this),native);
+        write();
+    } else write();
 }
 
 void WINAPI fMain::RunWindowFunc(rMain* lpMain, HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    if (sf4e::display::WindowMessage(hwnd,uMsg,wParam,lParam)) return;
     // The overlay is done with the message before the game's procedure runs,
     // which can update and draw a whole frame (WM_TIMER while the window is
     // dragged or sized) and so reach DrawOverlay from in here.

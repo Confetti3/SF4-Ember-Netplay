@@ -1,5 +1,7 @@
 #include "RecoverySurface.hxx"
 #include "RecoveryMenu.hxx"
+#include "DisplayPanel.hxx"
+#include "../platform/DisplaySettings.hxx"
 #include "RecoveryController.hxx"
 #include "ProblemReportPanel.hxx"
 #include "SelectionArt.hxx"
@@ -69,8 +71,9 @@ bool ChooseDirectory(HWND owner, std::wstring& path) {
     dialog->Release(); return selected;
 }
 }
-bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates, std::function<void(const std::string&)> artLog,
-    Tone messageTone, bool canStart, const std::optional<reports::CrashContext>& crash, const std::optional<launcher::InstallOffer>& offer) {
+bool RunRecovery(std::string message, std::wstring& gameDirectory, LauncherRoot root, std::function<void(const std::string&)> artLog,
+    Tone messageTone, bool canStart, const std::optional<reports::CrashContext>& crash, const std::optional<launcher::InstallOffer>& offer, LauncherPage initialPage, std::function<bool()> pollLaunch) {
+    const bool updates = root == LauncherRoot::Updates;
     const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     WNDCLASSW wc{}; wc.lpfnWndProc = WindowProc; wc.hInstance = GetModuleHandleW(nullptr);
     wc.lpszClassName = L"SF4EmberRecovery"; wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
@@ -86,8 +89,9 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
         D3DCREATE_SOFTWARE_VERTEXPROCESSING, &params, &device))) {
         const auto text=Utf8ToWide(loc::T("recovery.d3d_failed"));
         const auto title=Utf8ToWide(loc::T("app.name"));
-        MessageBoxW(window, text.c_str(), title.c_str(), MB_ICONERROR);
-        if (d3d) d3d->Release(); if (window) DestroyWindow(window); if (SUCCEEDED(com)) CoUninitialize(); return false;
+        if (!StartWithoutSurface(root)) MessageBoxW(window, text.c_str(), title.c_str(), MB_ICONERROR);
+        else if (artLog) artLog("Launcher Home unavailable; continuing with normal game startup.");
+        if (d3d) d3d->Release(); if (window) DestroyWindow(window); if (SUCCEEDED(com)) CoUninitialize(); return StartWithoutSurface(root);
     }
     ImGui::CreateContext(); auto& io = ImGui::GetIO(); io.IniFilename = nullptr;
     // Pads reach the menu only through RecoveryController; the backend is
@@ -96,7 +100,7 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
     ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(window));
     ImGui_ImplWin32_Init(window); ImGui_ImplDX9_Init(device);
     wchar_t executable[32768]={};GetModuleFileNameW(nullptr,executable,32768);
-    auto art=std::make_unique<SelectionArt>(device,gameDirectory,(std::filesystem::path(executable).parent_path()/L"assets"/L"selection").wstring(),std::move(artLog));
+    auto art=std::make_unique<SelectionArt>(device,gameDirectory,(std::filesystem::path(executable).parent_path()/L"assets"/L"selection").wstring(),artLog);
     SetMenuArt(art.get());
     ShowWindow(window, SW_SHOW); UpdateWindow(window);
     platform::ApplicationServices services;
@@ -113,7 +117,19 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
     // launcher's until the player asks a service for something, and again when
     // a picked folder replaces it.
     bool serviceNewer = false;
-    GameMenu menu;menu.navigation=RecoveryNavigation(updates);
+    GameMenu menu;menu.navigation=RecoveryNavigation(root);
+    display::Preferences savedDisplay; std::string displayError;
+    if (!platform::LoadDisplayPreferences(savedDisplay, displayError)) {
+        if (artLog) artLog("Display settings load failed: " + displayError);
+        if (message.empty()) { message=loc::T("display.load_failed"); messageTone=Tone::Error; }
+    }
+    DisplayPanel displayPanel(platform::DisplayMonitors(),savedDisplay,
+        [&](const display::Preferences& value,std::string& error) {
+            const bool saved=platform::SaveDisplayPreferences(value,error);
+            if (!saved && artLog) artLog("Display settings save failed: " + error);
+            return saved;
+        });
+    if (initialPage==LauncherPage::Display) menu.navigation.Push("display");
     std::string offeredVersion;
     ChannelPick channelPick;
     // Released before the window it is bound to is destroyed.
@@ -127,6 +143,12 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
         // Before any frame is skipped below, so a minimized or lost window disarms too.
         if (std::exchange(deactivated, false)) controller->Deactivate();
         if (quit) { services.Cancel(); break; }
+        // Poll even while minimized or with a lost D3D device. Keep mailbox
+        // contents queued while an update is running; never race its writes.
+        const auto beforeFrame=services.Snapshot();
+        if (pollLaunch && !beforeFrame.pending && !beforeFrame.installed && pollLaunch()) {
+            retry=true; services.Cancel(); break;
+        }
         RECT client{}; GetClientRect(window, &client);
         if (IsIconic(window) || client.right == 0 || client.bottom == 0) { MsgWaitForMultipleObjects(0,nullptr,FALSE,50,QS_ALLINPUT); continue; }
         const auto deviceState = device->TestCooperativeLevel();
@@ -174,8 +196,12 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
             if (intent.service==platform::ServiceAction::SendReport) services.SendReport(intent.submission);
             else if (intent.service==platform::ServiceAction::CancelReport) services.Cancel();
             if (intent.close) reportOpen=false;
-        } else choice=DrawRecoveryMenu(menu,state,message,updates,messageTone,canStart,serviceNewer,&channelPick,reportView);
+        } else if(menu.navigation.Screen()=="display") {
+            displayPanel.Draw(menu);
+            if(displayPanel.RefreshRequested())displayPanel.Refresh(platform::DisplayMonitors());
+        } else choice=DrawRecoveryMenu(menu,state,message,root,messageTone,canStart,serviceNewer,&channelPick,reportView);
         switch(choice) {
+        case RecoveryChoice::Display:displayPanel.Discard();menu.navigation.Push("display");break;
         case RecoveryChoice::Report:
             if (crash && services.PrepareCrashReport(*crash)) { reportOpen=true; reportPanel.Open(services.Snapshot().reporting.preparation); }
             break;

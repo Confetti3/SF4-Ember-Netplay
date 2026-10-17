@@ -192,7 +192,7 @@ void ShootCrashReportOffer(sf4e::ui::GameMenu& menu,sf4e::platform::ServiceSnaps
     const std::string before=message;
     // The launch window's version line stays in its corner beside the offer.
     message=loc::T("launcher.game_crashed");state={};state.installedVersion="1.1.0-rc1";state.channel=launcher::UpdateChannel::Beta;
-    menu=GameMenu{};menu.navigation=RecoveryNavigation(false);
+    menu=GameMenu{};menu.navigation=RecoveryNavigation(LauncherRoot::Recovery);
     report={};report.asking=true;
     std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries){rows=entries;});
     draw("crash-report-offer");
@@ -218,5 +218,5 @@ void ShootCrashReportOffer(sf4e::ui::GameMenu& menu,sf4e::platform::ServiceSnaps
     Require(FindRow(rows,"report-status")->value==loc::T("reports.status.received"),"The sent report's row lost its status");
     Require(FindRow(rows,"report-status")->detail.find(loc::T("reports.dump_not_included"))!=std::string::npos,"An automatic report does not say the dump stayed");
     SetMenuEntriesProbe({});
-    report={};state={};message=before;menu=GameMenu{};menu.navigation=RecoveryNavigation(false);
+    report={};state={};message=before;menu=GameMenu{};menu.navigation=RecoveryNavigation(LauncherRoot::Recovery);
 }
