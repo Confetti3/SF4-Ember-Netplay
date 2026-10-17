@@ -126,6 +126,35 @@ msgstr "Annulez ou terminez d'abord l'opération en cours."
 msgid "recovery.retry_detail"
 msgstr "Réessayez avec le dossier choisi. L'absence de l'assistant réseau n'empêche pas de jouer hors ligne."
 
+#. Startup update and recovery controls.
+
+msgid "update.validation_detail"
+msgstr "Échec de la validation : {0}\nLes fichiers installés sont inchangés."
+
+msgid "updates.release_page"
+msgstr "Ouvrir la page des versions"
+
+msgid "updates.release_page_detail"
+msgstr "Téléchargez le programme officiel. Fermez SF4, puis sélectionnez votre dossier Ember actuel."
+
+msgid "updates.open_log"
+msgstr "Ouvrir le journal de mise à jour"
+
+msgid "updates.open_log_detail"
+msgstr "Afficher les détails dans %TEMP%\\sf4-netplay-update.log."
+
+msgid "updates.log_opened"
+msgstr "Journal ouvert."
+
+msgid "updates.log_missing"
+msgstr "Aucun journal de mise à jour disponible."
+
+msgid "updates.startup_text"
+msgstr "La version {0} est disponible. Vous avez {1}. Installer avant de lancer SF4 ?"
+
+msgid "updates.release_opened"
+msgstr "Page des versions ouverte."
+
 msgid "updates.check"
 msgstr "Chercher des mises à jour"
 
@@ -6225,32 +6254,3 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
-
-#. Startup update and recovery controls.
-
-msgid "update.validation_detail"
-msgstr "Échec de la validation : {0}\nLes fichiers installés sont inchangés."
-
-msgid "updates.release_page"
-msgstr "Ouvrir la page des versions"
-
-msgid "updates.release_page_detail"
-msgstr "Téléchargez le programme officiel. Fermez SF4, puis sélectionnez votre dossier Ember actuel."
-
-msgid "updates.open_log"
-msgstr "Ouvrir le journal de mise à jour"
-
-msgid "updates.open_log_detail"
-msgstr "Afficher les détails dans %TEMP%\\sf4-netplay-update.log."
-
-msgid "updates.log_opened"
-msgstr "Journal ouvert."
-
-msgid "updates.log_missing"
-msgstr "Aucun journal de mise à jour disponible."
-
-msgid "updates.startup_text"
-msgstr "La version {0} est disponible. Vous avez {1}. Installer avant de lancer SF4 ?"
-
-msgid "updates.release_opened"
-msgstr "Page des versions ouverte."

@@ -126,6 +126,35 @@ msgstr "Nejprve zrušte nebo dokončete probíhající operaci."
 msgid "recovery.retry_detail"
 msgstr "Zkuste hru spustit z vybrané složky. Chybějící síťový pomocník nebrání hraní offline."
 
+#. Startup update and recovery controls.
+
+msgid "update.validation_detail"
+msgstr "Ověření aktualizace selhalo: {0}\nNainstalované soubory nebyly nahrazeny."
+
+msgid "updates.release_page"
+msgstr "Otevřít stránku vydání"
+
+msgid "updates.release_page_detail"
+msgstr "Stáhněte oficiální instalátor. Zavřete SF4 a vyberte stávající složku Ember."
+
+msgid "updates.open_log"
+msgstr "Otevřít protokol aktualizace"
+
+msgid "updates.open_log_detail"
+msgstr "Zobrazit podrobnosti v %TEMP%\\sf4-netplay-update.log."
+
+msgid "updates.log_opened"
+msgstr "Protokol otevřen."
+
+msgid "updates.log_missing"
+msgstr "Protokol aktualizace zatím není k dispozici."
+
+msgid "updates.startup_text"
+msgstr "Je dostupná verze {0}. Máte {1}. Nainstalovat před spuštěním SF4?"
+
+msgid "updates.release_opened"
+msgstr "Stránka vydání otevřena."
+
 msgid "updates.check"
 msgstr "Hledat aktualizace"
 
@@ -6225,32 +6254,3 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
-
-#. Startup update and recovery controls.
-
-msgid "update.validation_detail"
-msgstr "Ověření aktualizace selhalo: {0}\nNainstalované soubory nebyly nahrazeny."
-
-msgid "updates.release_page"
-msgstr "Otevřít stránku vydání"
-
-msgid "updates.release_page_detail"
-msgstr "Stáhněte oficiální instalátor. Zavřete SF4 a vyberte stávající složku Ember."
-
-msgid "updates.open_log"
-msgstr "Otevřít protokol aktualizace"
-
-msgid "updates.open_log_detail"
-msgstr "Zobrazit podrobnosti v %TEMP%\\sf4-netplay-update.log."
-
-msgid "updates.log_opened"
-msgstr "Protokol otevřen."
-
-msgid "updates.log_missing"
-msgstr "Protokol aktualizace zatím není k dispozici."
-
-msgid "updates.startup_text"
-msgstr "Je dostupná verze {0}. Máte {1}. Nainstalovat před spuštěním SF4?"
-
-msgid "updates.release_opened"
-msgstr "Stránka vydání otevřena."

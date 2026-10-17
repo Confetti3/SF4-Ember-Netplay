@@ -126,6 +126,35 @@ msgstr "Annuleer of voltooi eerst de huidige bewerking."
 msgid "recovery.retry_detail"
 msgstr "Probeer het opnieuw met de gekozen spelmap. Zonder netwerkhelper kun je nog offline spelen."
 
+#. Startup update and recovery controls.
+
+msgid "update.validation_detail"
+msgstr "Updatecontrole mislukt: {0}\nDe geïnstalleerde bestanden zijn niet vervangen."
+
+msgid "updates.release_page"
+msgstr "Releasepagina openen"
+
+msgid "updates.release_page_detail"
+msgstr "Download het officiële installatieprogramma. Sluit SF4 en kies je bestaande Ember-map."
+
+msgid "updates.open_log"
+msgstr "Updatelog openen"
+
+msgid "updates.open_log_detail"
+msgstr "Details tonen in %TEMP%\\sf4-netplay-update.log."
+
+msgid "updates.log_opened"
+msgstr "Updatelog geopend."
+
+msgid "updates.log_missing"
+msgstr "Er is nog geen updatelog beschikbaar."
+
+msgid "updates.startup_text"
+msgstr "Versie {0} is beschikbaar. Je hebt {1}. Installeren voordat SF4 start?"
+
+msgid "updates.release_opened"
+msgstr "Releasepagina geopend."
+
 msgid "updates.check"
 msgstr "Zoek naar updates"
 
@@ -6225,32 +6254,3 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
-
-#. Startup update and recovery controls.
-
-msgid "update.validation_detail"
-msgstr "Updatecontrole mislukt: {0}\nDe geïnstalleerde bestanden zijn niet vervangen."
-
-msgid "updates.release_page"
-msgstr "Releasepagina openen"
-
-msgid "updates.release_page_detail"
-msgstr "Download het officiële installatieprogramma. Sluit SF4 en kies je bestaande Ember-map."
-
-msgid "updates.open_log"
-msgstr "Updatelog openen"
-
-msgid "updates.open_log_detail"
-msgstr "Details tonen in %TEMP%\\sf4-netplay-update.log."
-
-msgid "updates.log_opened"
-msgstr "Updatelog geopend."
-
-msgid "updates.log_missing"
-msgstr "Er is nog geen updatelog beschikbaar."
-
-msgid "updates.startup_text"
-msgstr "Versie {0} is beschikbaar. Je hebt {1}. Installeren voordat SF4 start?"
-
-msgid "updates.release_opened"
-msgstr "Releasepagina geopend."

@@ -126,6 +126,35 @@ msgstr "请先取消或完成当前操作。"
 msgid "recovery.retry_detail"
 msgstr "使用所选游戏文件夹重试。缺少网络辅助程序不影响离线游玩。"
 
+#. Startup update and recovery controls.
+
+msgid "update.validation_detail"
+msgstr "更新验证失败：{0}\n已安装的文件未被替换。"
+
+msgid "updates.release_page"
+msgstr "打开发布页面"
+
+msgid "updates.release_page_detail"
+msgstr "下载官方安装程序。关闭SF4，然后选择现有的Ember文件夹。"
+
+msgid "updates.open_log"
+msgstr "打开更新日志"
+
+msgid "updates.open_log_detail"
+msgstr "查看%TEMP%\\sf4-netplay-update.log中的详细信息。"
+
+msgid "updates.log_opened"
+msgstr "已打开更新日志。"
+
+msgid "updates.log_missing"
+msgstr "暂无更新日志。"
+
+msgid "updates.startup_text"
+msgstr "版本{0}可用。当前版本为{1}。是否在启动SF4之前安装？"
+
+msgid "updates.release_opened"
+msgstr "已打开发布页面。"
+
 msgid "updates.check"
 msgstr "检查更新"
 
@@ -6225,32 +6254,3 @@ msgid "country.ZW"
 msgstr "津巴布韦"
 
 #. End of the generated country names.
-
-#. Startup update and recovery controls.
-
-msgid "update.validation_detail"
-msgstr "更新验证失败：{0}\n已安装的文件未被替换。"
-
-msgid "updates.release_page"
-msgstr "打开发布页面"
-
-msgid "updates.release_page_detail"
-msgstr "下载官方安装程序。关闭SF4，然后选择现有的Ember文件夹。"
-
-msgid "updates.open_log"
-msgstr "打开更新日志"
-
-msgid "updates.open_log_detail"
-msgstr "查看%TEMP%\\sf4-netplay-update.log中的详细信息。"
-
-msgid "updates.log_opened"
-msgstr "已打开更新日志。"
-
-msgid "updates.log_missing"
-msgstr "暂无更新日志。"
-
-msgid "updates.startup_text"
-msgstr "版本{0}可用。当前版本为{1}。是否在启动SF4之前安装？"
-
-msgid "updates.release_opened"
-msgstr "已打开发布页面。"

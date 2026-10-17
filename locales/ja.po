@@ -126,6 +126,35 @@ msgstr "実行中の操作を先に完了またはキャンセルしてくださ
 msgid "recovery.retry_detail"
 msgstr "選択したゲームフォルダーで再試行します。通信補助プログラムがなくてもオフラインで遊べます。"
 
+#. Startup update and recovery controls.
+
+msgid "update.validation_detail"
+msgstr "更新の検証に失敗しました: {0}\nインストール済みのファイルは変更されていません。"
+
+msgid "updates.release_page"
+msgstr "リリースページを開く"
+
+msgid "updates.release_page_detail"
+msgstr "公式インストーラーを入手します。SF4を終了し、既存のEmberフォルダーを選択してください。"
+
+msgid "updates.open_log"
+msgstr "更新ログを開く"
+
+msgid "updates.open_log_detail"
+msgstr "%TEMP%\\sf4-netplay-update.logの詳細を表示します。"
+
+msgid "updates.log_opened"
+msgstr "更新ログを開きました。"
+
+msgid "updates.log_missing"
+msgstr "更新ログはまだありません。"
+
+msgid "updates.startup_text"
+msgstr "バージョン{0}が利用可能です。現在は{1}です。SF4の起動前にインストールしますか？"
+
+msgid "updates.release_opened"
+msgstr "リリースページを開きました。"
+
 msgid "updates.check"
 msgstr "更新を確認"
 
@@ -6225,32 +6254,3 @@ msgid "country.ZW"
 msgstr "ジンバブエ"
 
 #. End of the generated country names.
-
-#. Startup update and recovery controls.
-
-msgid "update.validation_detail"
-msgstr "更新の検証に失敗しました: {0}\nインストール済みのファイルは変更されていません。"
-
-msgid "updates.release_page"
-msgstr "リリースページを開く"
-
-msgid "updates.release_page_detail"
-msgstr "公式インストーラーを入手します。SF4を終了し、既存のEmberフォルダーを選択してください。"
-
-msgid "updates.open_log"
-msgstr "更新ログを開く"
-
-msgid "updates.open_log_detail"
-msgstr "%TEMP%\\sf4-netplay-update.logの詳細を表示します。"
-
-msgid "updates.log_opened"
-msgstr "更新ログを開きました。"
-
-msgid "updates.log_missing"
-msgstr "更新ログはまだありません。"
-
-msgid "updates.startup_text"
-msgstr "バージョン{0}が利用可能です。現在は{1}です。SF4の起動前にインストールしますか？"
-
-msgid "updates.release_opened"
-msgstr "リリースページを開きました。"
