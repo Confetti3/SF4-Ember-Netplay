@@ -605,15 +605,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // The link is a room's short code, never logged, a tournament match, a
     // public room of a service (its IDs are not logged either), or a
     // tournament service asking the player to connect Discord.
-    std::string joinCode = joinUri.empty() ? std::string() : sf4e::join_link::ParseUri(joinUri);
-    auto matchLink = joinUri.empty() || !joinCode.empty() ? sf4e::tournament_link::MatchLink() :
+    const std::string joinCode = joinUri.empty() ? std::string() : sf4e::join_link::ParseUri(joinUri);
+    const auto matchLink = joinUri.empty() || !joinCode.empty() ? sf4e::tournament_link::MatchLink() :
         sf4e::tournament_link::ParseLink(joinUri);
-    auto publicRoomLink = joinUri.empty() || !joinCode.empty() || matchLink.Valid() ? sf4e::tournament_link::RoomLink() :
+    const auto publicRoomLink = joinUri.empty() || !joinCode.empty() || matchLink.Valid() ? sf4e::tournament_link::RoomLink() :
         sf4e::tournament_link::ParseRoomLink(joinUri);
-    std::string connectBridge = joinUri.empty() || !joinCode.empty() || matchLink.Valid() || publicRoomLink.Valid() ? std::string() :
+    const std::string connectBridge = joinUri.empty() || !joinCode.empty() || matchLink.Valid() || publicRoomLink.Valid() ? std::string() :
         sf4e::tournament_link::ParseConnectLink(joinUri);
     // A replay link names an archived replay to play (common/ReplayLink.hxx).
-    std::string replayLink = joinUri.empty() || !joinCode.empty() || matchLink.Valid() || publicRoomLink.Valid() || !connectBridge.empty() ? std::string() :
+    const std::string replayLink = joinUri.empty() || !joinCode.empty() || matchLink.Valid() || publicRoomLink.Valid() || !connectBridge.empty() ? std::string() :
         sf4e::platform::ResolveReplayFile(sf4e::replay_link::ParseReplayLink(joinUri));
     if (!joinCode.empty()) spdlog::info("Started with a room link");
     else if (matchLink.Valid()) spdlog::info("Started with a link to tournament match {}", matchLink.matchId);
@@ -688,6 +688,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     if (!connectBridge.empty()) sf4e::platform::DeliverConnectLink(connectBridge);
     if (!replayLink.empty()) sf4e::platform::DeliverReplayLink(replayLink);
     if (discordLaunch) sf4e::platform::DeliverDiscordLaunch();
+    sf4e::platform::LaunchLinks incoming;
     RegisterJoinScheme();
     // An update interrupted mid-install must be restored before the game runs
     // on a half-replaced install. The Updater restarts the Launcher after.
@@ -807,28 +808,27 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // player turns it on in a report's preview.
         dumps.reportEnabled = true;
         if (!dumps.Create()) spdlog::warn("Could not create the crash dump channel (Win32 {})", GetLastError());
-        sf4e::platform::LaunchLinks incoming;
         if (inbox) inbox->Take(incoming);
-        if (!incoming.join.empty()) joinCode=std::move(incoming.join);
-        if (incoming.match.Valid()) matchLink=std::move(incoming.match);
-        if (incoming.room.Valid()) publicRoomLink=std::move(incoming.room);
-        if (!incoming.connect.empty()) connectBridge=std::move(incoming.connect);
-        if (!incoming.replay.empty()) replayLink=sf4e::platform::ResolveReplayFile(incoming.replay);
+        const auto& launchJoin = incoming.join.empty() ? joinCode : incoming.join;
+        const auto& launchMatch = incoming.match.Valid() ? incoming.match : matchLink;
+        const auto& launchRoom = incoming.room.Valid() ? incoming.room : publicRoomLink;
+        const auto& launchConnect = incoming.connect.empty() ? connectBridge : incoming.connect;
+        const auto launchReplay = incoming.replay.empty() ? replayLink : sf4e::platform::ResolveReplayFile(incoming.replay);
         discordLaunch=discordLaunch||incoming.discord;
 
-        SetEnvironmentVariableW(L"SF4E_JOIN_LINK", joinCode.empty() ? nullptr : sf4e::platform::Utf8ToWide(joinCode.c_str()).c_str());
+        SetEnvironmentVariableW(L"SF4E_JOIN_LINK", launchJoin.empty() ? nullptr : sf4e::platform::Utf8ToWide(launchJoin.c_str()).c_str());
         // A match link likewise, as "<bridge id> <match id>".
-        SetEnvironmentVariableW(L"SF4E_MATCH_LINK", !matchLink.Valid() ? nullptr :
-            sf4e::platform::Utf8ToWide((matchLink.bridgeId + " " + matchLink.matchId).c_str()).c_str());
+        SetEnvironmentVariableW(L"SF4E_MATCH_LINK", !launchMatch.Valid() ? nullptr :
+            sf4e::platform::Utf8ToWide((launchMatch.bridgeId + " " + launchMatch.matchId).c_str()).c_str());
         // A public room link likewise, as "<bridge id> <room id>".
-        SetEnvironmentVariableW(L"SF4E_PUBLIC_ROOM_LINK", !publicRoomLink.Valid() ? nullptr :
-            sf4e::platform::Utf8ToWide((publicRoomLink.bridgeId + " " + publicRoomLink.roomId).c_str()).c_str());
+        SetEnvironmentVariableW(L"SF4E_PUBLIC_ROOM_LINK", !launchRoom.Valid() ? nullptr :
+            sf4e::platform::Utf8ToWide((launchRoom.bridgeId + " " + launchRoom.roomId).c_str()).c_str());
         // A connect link as the service's ID.
-        SetEnvironmentVariableW(L"SF4E_CONNECT_LINK", connectBridge.empty() ? nullptr :
-            sf4e::platform::Utf8ToWide(connectBridge.c_str()).c_str());
+        SetEnvironmentVariableW(L"SF4E_CONNECT_LINK", launchConnect.empty() ? nullptr :
+            sf4e::platform::Utf8ToWide(launchConnect.c_str()).c_str());
         // A replay link as the file's path.
-        SetEnvironmentVariableW(L"SF4E_REPLAY_LINK", replayLink.empty() ? nullptr :
-            sf4e::platform::Utf8ToWide(replayLink.c_str()).c_str());
+        SetEnvironmentVariableW(L"SF4E_REPLAY_LINK", launchReplay.empty() ? nullptr :
+            sf4e::platform::Utf8ToWide(launchReplay.c_str()).c_str());
         inbox.reset(); // The child opens the same mailboxes.
 
         // A game started by a normal process cannot reach a Steam that runs as
