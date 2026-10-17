@@ -870,7 +870,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  const char* placeExit=screen=="room"&&v.room.roomEpoch?PlaceExitLabel(v):"";
  if(keys&&*placeExit)menu_.shortcutHints.insert(menu_.shortcutHints.begin(),{"Del",placeExit});
  // Back names where it goes when that is not simply the previous screen:
- // from Home, out of Ember or back to the room; on the board, out of your seat.
+ // from Home, out of Ember or back to the room.
  menu_.exitName.clear();menu_.backHint.clear();
  // Home's corner says which version this is and which channel it follows.
  menu_.footerNote=screen=="home"?VersionLine(InstalledVersion(v),v.services.channel):std::string();
@@ -881,7 +881,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
    menu_.exitName=opening?MenuScreenLabel(OpeningScreen(v)):loc::T("screen.game");
    menu_.backHint=loc::Tf("menu.return_to",menu_.exitName);
   }else menu_.backInert=true;
- }else if(!keys)menu_.backHint=placeExit;
+ }
  // While a controller is being captured it cannot drive the menu, so the
  // legend shows the keyboard and names the cancel.
  if(v.inputCapture!=input::Capture::Idle){SetMenuGlyphs(input::PadKeyboard,0,0);menu_.backHint=loc::T("common.cancel");}

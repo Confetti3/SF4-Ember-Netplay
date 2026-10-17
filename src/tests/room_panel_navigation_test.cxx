@@ -747,13 +747,13 @@ int main() try {
     shell.Navigation().Home(); shell.Navigation().Push("room"); frame(); focus("table-0"); frame(); frame();
     Check(strip == std::set<std::string>({std::string(sf4e::loc::T("room.unready.short")), std::string(sf4e::loc::T("room.cancel_start"))}),
         "During the held start the seat's two controls did not read differently");
-    Check(legend.count(sf4e::loc::T("room.unready")) && legend.count(sf4e::loc::T("room.cancel_start")),
-        "The legend did not name Unready for A and Cancel the start for B during the held start");
+    Check(legend.count(sf4e::loc::T("room.unready")) && legend.count(sf4e::loc::T("common.back")) && row("leave-place").label == sf4e::loc::T("room.cancel_start"),
+        "The held start lacks Unready, a normal Back, or the visible Cancel start action");
     SetMenuTextProbe({});
     const auto beforeHeldBack = actions.size();
-    press(MenuInput::Back);
+    press(MenuInput::Leave);
     Check(actions.size() == beforeHeldBack + 1 && actions.back().roomAction.kind == room::ActionKind::Unready &&
-        shell.Navigation().Screen() == "room", "B during the held start did not take Ready back");
+        shell.Navigation().Screen() == "room", "Delete during the held start did not take Ready back");
     view.canEditSelection = true;
     view.room.tables[0].phase = room::TablePhase::Waiting; view.room.tables[0].spectatorHold = false;
     view.room.tables[0].ready[0] = view.room.tables[0].ready[1] = false;

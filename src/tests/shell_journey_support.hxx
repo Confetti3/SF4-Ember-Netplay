@@ -52,7 +52,11 @@ struct Harness {
   const auto walk=[&](unsigned direction){
    for(int i=0;i<100&&!at();++i){const std::string before=shell.Navigation().Focus();Press(direction);if(shell.Navigation().Focus()==before)break;}
   };
-  Frame();walk(MenuInput::Up);walk(MenuInput::Down);
+  Frame();
+  // The room has separate table and member columns. Reach its upper-left
+  // corner before sweeping, just as a player can with Up then Left.
+  if(shell.Navigation().Screen()=="room") {walk(MenuInput::Up);walk(MenuInput::Left);}
+  walk(MenuInput::Up);walk(MenuInput::Down);
   // A grid's cells sit side by side, so Up and Down reach only some of them:
   // sweep each row sideways from the top.
   if(!at()){
