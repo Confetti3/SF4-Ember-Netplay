@@ -10,6 +10,7 @@
 // fragment, which is never sent to the server, makes no requests of its own,
 // and offers the ember: link only on the player's click, never by itself: a
 // browser without Ember's handler would otherwise replace this page with an error.
+// A link naming the staging bridge offers Nightly, the only Ember that trusts it.
 (function () {
   'use strict';
   var ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
@@ -19,6 +20,15 @@
   var ROOM = /^[0-9a-f]{32}$/;
   // A site's name on its connect link: letters, digits, spaces and . ' & -.
   var SITE = /^[\p{L}\p{N}][\p{L}\p{N} .'&-]{0,39}$/u;
+  var STAGING_BRIDGE = 'brg_1195478b-ac7e-4bc9-90af-c74eac5c747b';
+  var STABLE_DOWNLOAD = 'https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest';
+  // Nightly builds are pre-releases, so the repository has no latest release.
+  var NIGHTLY_DOWNLOAD = 'https://github.com/Confetti3/SF4-Ember-Netplay-Nightly/releases';
+  var VERSION_NOTE = 'Public rooms and tournaments need Ember 1.1.0 or newer.';
+  var NIGHTLY_NOTE = 'This link is for Ember\'s staging bridge, which only Ember Nightly 1.4.0 or newer opens. ' +
+    'Download the newest Nightly at the top of the list.';
+  // How long the page waits after Open in Ember before it guesses Ember did not open.
+  var OPEN_WAIT_MS = 2000;
 
   // The canonical 12-symbol room code, or null. Same rules as the game:
   // dashes and spaces ignored, any case, O read as 0 and I or L as 1.
@@ -64,13 +74,15 @@
     if (path.replace(/\/$/, '') !== '/m' || parts.length !== 2 || !ID.test(parts[0]) || !ID.test(parts[1]) ||
       parts[0].slice(0, 4) !== 'brg_' || parts[1].slice(0, 4) !== 'emt_') return null;
     return {
+      bridge: parts[0],
       title: 'Play your tournament match',
       lead: 'Your tournament match is ready to play in SF4 Ember Netplay.',
       code: null,
       ember: 'ember://tournament/open?bridge=' + parts[0] + '&match=' + parts[1],
       link: 'https://embernetplay.link/m#' + parts[0] + '/' + parts[1],
       after: 'Ember opens the match on its Tournament matches screen; press Play there. Your browser may ask first whether to open Ember.',
-      steps: ['Start SF4 Ember Netplay.', 'Choose <strong>Ember ID</strong>, then <strong>Tournament matches</strong>.',
+      steps: ['Start SF4 Ember Netplay.',
+        'Choose <strong>Online play</strong>, then <strong>Ember ID</strong>, then <strong>Tournament matches</strong>.',
         'Choose <strong>Paste match link</strong>, then <strong>Play</strong>.'],
       lasts: 'Only the two players in this match can play it, so it is safe to share this link with them.'
     };
@@ -82,6 +94,7 @@
     if (path.replace(/\/$/, '') !== '/r' || parts.length !== 2 || !ID.test(parts[0]) || parts[0].slice(0, 4) !== 'brg_' ||
       !ROOM.test(parts[1])) return null;
     return {
+      bridge: parts[0],
       title: 'Join a public room',
       lead: 'Someone invited you to a public room in SF4 Ember Netplay.',
       code: null,
@@ -141,6 +154,7 @@
     if (parts.length === 2 && history.replaceState) history.replaceState(null, '', '/start#' + bridge);
     var finder = site || 'The tournament you signed up for';
     return {
+      bridge: bridge,
       title: 'Connect Discord to Ember',
       lead: finder + ' finds you by your Discord account. Connect it to Ember in a few steps.',
       code: null,
@@ -150,7 +164,8 @@
         (site || 'the tournament site') + ', then go back to ' + (site || 'it') + '. Your browser may ask first whether to open Ember.',
       fallback: 'That happens when Ember has not been started on this PC yet, on Linux or Steam Deck, or when your browser blocks it. Copy the link and paste it into Ember instead, so it connects Discord for ' +
         (site || 'your tournament') + ':',
-      steps: ['Start SF4 Ember Netplay.', 'Choose <strong>Ember ID</strong>, then <strong>Discord</strong>.',
+      steps: ['Start SF4 Ember Netplay.',
+        'Choose <strong>Online play</strong>, then <strong>Ember ID</strong>, then <strong>Discord</strong>.',
         'Choose <strong>Paste link</strong>, then approve in Discord.'],
       lasts: 'Discord is optional in Ember. ' + (site ? site + ' needs it to find you.' :
         'Tournament sites that find players by Discord account, such as BluMint, need it.')
@@ -162,12 +177,16 @@
   var current = null;
   function reset() {
     var byId = function (id) { return document.getElementById(id); };
-    ['page', 'missing', 'link', 'fallback', 'tournaments', 'code', 'copy-code', 'version'].forEach(function (id) {
+    ['page', 'missing', 'link', 'fallback', 'tournaments', 'code', 'copy-code', 'version', 'not-opened'].forEach(function (id) {
       byId(id).hidden = true;
     });
     byId('come-back').hidden = false;
     byId('get-title').textContent = "Don't have Ember yet?";
     byId('fallback-lead').textContent = FALLBACK_LEAD;
+    byId('version').textContent = VERSION_NOTE;
+    byId('download').href = STABLE_DOWNLOAD;
+    byId('not-opened-download').href = STABLE_DOWNLOAD;
+    clearTimeout(openTimer);
     byId('title').textContent = 'Open in Ember';
     byId('status').textContent = '';
     byId('open').href = '#';
@@ -192,8 +211,14 @@
     document.getElementById('title').textContent = found.title;
     document.getElementById('lead').textContent = found.lead;
     document.getElementById('page').hidden = false;
-    // Public rooms, matches and Connect Discord open only in Ember 1.1.0 or newer.
+    // Public rooms, matches and Connect Discord open only in Ember 1.1.0 or
+    // newer, and those of the staging bridge only in Nightly.
     document.getElementById('version').hidden = path.indexOf('/j') === 0;
+    if (found.bridge === STAGING_BRIDGE) {
+      document.getElementById('version').textContent = NIGHTLY_NOTE;
+      document.getElementById('download').href = NIGHTLY_DOWNLOAD;
+      document.getElementById('not-opened-download').href = NIGHTLY_DOWNLOAD;
+    }
     if (!found.ember) {
       document.getElementById('get-title').textContent = 'Get Ember';
       document.getElementById('come-back').hidden = true;
@@ -216,9 +241,38 @@
     document.getElementById('fallback').hidden = false;
   }
 
+  // After Open in Ember, a page that still has focus a moment later most
+  // likely had no Ember to hand the link to. Browsers cannot tell for sure,
+  // so this only reveals help and never hides any.
+  var openTimer = 0;
+  var leftPage = false;
+  function opened() {
+    leftPage = false;
+    clearTimeout(openTimer);
+    openTimer = setTimeout(function () {
+      if (!leftPage && !document.hidden && document.hasFocus()) document.getElementById('not-opened').hidden = false;
+    }, OPEN_WAIT_MS);
+  }
+  function left() { leftPage = true; }
+
+  // Ember runs on the PC the player plays on, not a phone or tablet.
+  function onPhone() {
+    var agent = navigator.userAgent || '';
+    if (navigator.userAgentData && navigator.userAgentData.mobile) return true;
+    // iPadOS asks for desktop pages as a Mac with touch.
+    return /Android|iPhone|iPad|iPod|Mobile/i.test(agent) || (/Macintosh/.test(agent) && navigator.maxTouchPoints > 1);
+  }
+
   var FALLBACK_LEAD;
   function start() {
     FALLBACK_LEAD = document.getElementById('fallback-lead').textContent;
+    document.getElementById('phone').hidden = !onPhone();
+    document.getElementById('open').addEventListener('click', function () {
+      if (current && current.ember) opened();
+    });
+    window.addEventListener('blur', left);
+    window.addEventListener('pagehide', left);
+    document.addEventListener('visibilitychange', function () { if (document.hidden) left(); });
     // Bound once; each copies whatever link the page shows now.
     document.getElementById('copy-link').addEventListener('click', function () {
       if (current && current.link) copy(current.link, 'Link copied. Paste it into Ember.');

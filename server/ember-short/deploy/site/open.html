@@ -25,19 +25,27 @@
 <h1 id="title">Open in Ember</h1>
 <section id="page" hidden>
 <p class="lead" id="lead"></p>
+<p class="note" id="phone" hidden>Ember runs on the Windows or Linux PC you play Ultra Street Fighter IV on, so open this link on that PC.</p>
 <div class="panel rule" id="link" hidden>
 <p class="code" id="code" hidden></p>
 <div class="actions">
 <a class="button primary" id="open" href="#">Open in Ember</a>
 </div>
 <p class="note" id="after"></p>
+<div id="not-opened" hidden>
+<p class="status" role="status">Didn't Ember open? It may not be set up on this PC yet.</p>
+<div class="actions">
+<a class="button" id="not-opened-download" href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest" rel="noopener">Download SF4 Ember Netplay</a>
+</div>
+<p class="note">Unzip it anywhere, start <strong>Launcher.exe</strong> once, then choose <strong>Open in Ember</strong> again. On Linux or Steam Deck, copy the link below instead.</p>
+</div>
 </div>
 
 <div class="panel">
 <h2 id="get-title">Don't have Ember yet?</h2>
 <ol>
 <li>You need Ultra Street Fighter IV on Steam, on Windows, or on Linux or Steam Deck through Proton.</li>
-<li><a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest" rel="noopener">Download SF4 Ember Netplay</a>, unzip it anywhere and start <strong>Launcher.exe</strong> once.</li>
+<li><a id="download" href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest" rel="noopener">Download SF4 Ember Netplay</a>, unzip it anywhere and start <strong>Launcher.exe</strong> once.</li>
 <li id="come-back">Come back to this page and choose <strong>Open in Ember</strong>.</li>
 </ol>
 <p class="note version" id="version" hidden>Public rooms and tournaments need Ember 1.1.0 or newer.</p>
@@ -46,12 +54,12 @@
 <div class="panel" id="tournaments" hidden>
 <h2>Then connect Discord</h2>
 <ol>
-<li>In Ember, choose <strong>Ember ID</strong>, then <strong>Discord</strong>, then <strong>Connect Discord</strong>.</li>
+<li>In Ember, choose <strong>Online play</strong>, then <strong>Ember ID</strong>, then <strong>Discord</strong>, then <strong>Connect Discord</strong>.</li>
 <li>Approve in Discord with the Discord account you signed up for the tournament with.</li>
 <li>Go back to the tournament and register again. It now finds you.</li>
 </ol>
 <p class="note">Discord is optional in Ember. Tournament sites that find players by Discord account, such as BluMint, need it.</p>
-<p class="note">If Home in your Ember has no <strong>Ember ID</strong>, your copy is older than 1.1.0.</p>
+<p class="note"><strong>Ember ID</strong> is under <strong>Online play</strong> (on Home in 1.1). If you can't find it in either place, your copy is older than 1.1.0, so update.</p>
 </div>
 
 <div class="panel" id="fallback" hidden>
@@ -71,7 +79,7 @@
 (<code>embernetplay.link/j#K7QM-4XRT-9PZD</code>), a public room from a bot or site, or a tournament match from a tournament site.</p>
 <p>Ask for the link again, or <a href="/">read about SF4 Ember Netplay</a>.</p>
 </section>
-<noscript><div class="panel"><p>This page needs JavaScript to read the link. You can also paste the whole link into Ember: Online play, Join room, Paste invitation for a room; Online play, Public rooms, Paste room link for a public room; Ember ID, Tournament matches, Paste match link for a match.</p></div></noscript>
+<noscript><div class="panel"><p>This page needs JavaScript to read the link. You can also paste the whole link into Ember: Online play, Join room, Paste invitation for a room; Online play, Public rooms, Paste room link for a public room; Online play, Ember ID, Tournament matches, Paste match link for a match.</p></div></noscript>
 </main>
 <footer>
 <p class="links"><a href="/">Home</a><a href="/rooms">Public rooms</a><a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest" rel="noopener">Releases</a><a href="https://github.com/Confetti3/SF4-Ember-Netplay/issues" rel="noopener">Report a bug</a><a href="https://github.com/Confetti3/SF4-Ember-Netplay/blob/HEAD/ATTRIBUTION.md" rel="noopener">Attribution</a></p>
