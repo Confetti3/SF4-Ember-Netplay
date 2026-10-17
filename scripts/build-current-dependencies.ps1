@@ -1,8 +1,8 @@
-param([string]$VisualStudioPath = '', [string]$VcpkgRoot = '')
+param([string]$VisualStudioPath = '', [string]$VcpkgRoot = '', [switch]$WithoutDiscord)
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 . (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')
-$target = Get-EmberBuildTarget $repo
+$target = Get-EmberBuildTarget $repo -WithoutDiscord:$WithoutDiscord
 $tools = Get-EmberToolPaths $repo $VisualStudioPath $VcpkgRoot
 $dependencyRoot = Join-Path (Join-Path $repo $target.buildDirectory) 'dependencies'
 Enter-EmberVcEnvironment $tools.VisualStudioPath

@@ -107,7 +107,7 @@ npm test
 The tests that use a bridge (`bridge`, `play`, `lookup`, `rooms` and `results`)
 require the real binary named by `EMBER_BRIDGE_TEST_BINARY` and fail if it is
 missing. The default Windows build's `BridgeSdk` CTest builds that binary in
-its own build tree, runs `npm ci`, compiles the SDK and runs all tests. Node 22.18 or later runs the TypeScript sources
+its own build tree, runs `npm ci`, compiles the SDK and runs all tests. Node 22.18.x (or newer 22.x), or Node 24 and later runs the TypeScript sources
 directly, as long as it was built with TypeScript support: some Linux
 distribution packages leave it out (`node -p process.features.typescript`
 prints `false`), so use the nodejs.org build there. `npm run build` emits
