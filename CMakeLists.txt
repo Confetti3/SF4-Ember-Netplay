@@ -27,6 +27,8 @@ if(WIN32)
 endif()
 if(BUILD_TESTING)
     if(WIN32)
+        sf4e_add_unit_test(NAME StartupHandshake SOURCES "src/tests/startup_handshake_test.cxx" STD 17 TIMEOUT 45)
+        sf4e_add_unit_test(NAME GameCompatibility SOURCES "src/tests/game_compatibility_test.cxx" STD 17 LIBS bcrypt TIMEOUT 15)
         sf4e_add_unit_test(NAME CustomContentFiles SOURCES "src/tests/custom_content_files_test.cxx"
             STD 17 LIBS sf4e_custom_content_files TIMEOUT 15)
     endif()

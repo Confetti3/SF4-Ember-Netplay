@@ -1,3 +1,5 @@
+#include "../common/StartupHandshake.hxx"
+#include "../launcher/LaunchOutcome.hxx"
 // Heap corruption (0xC0000374) skips the unhandled-exception filter, so a
 // game that died of it left no crash record. This runs the production path
 // across two processes: a child installs Sidecar's crash handler
@@ -152,7 +154,7 @@ size_t Count(const std::string& text, const std::string& part) {
 
 void CheckReportStreams(const std::wstring& path, DWORD exceptionCode);
 
-void TestHandlerRecordsAndLauncherDumps(const wchar_t* heap) {
+void TestHandlerRecordsAndLauncherDumps(const wchar_t* heap, bool duringStartup = false) {
 	DumpChannel channel;
     channel.reportEnabled = true;
 	CHECK(channel.Create(true));
@@ -169,10 +171,18 @@ void TestHandlerRecordsAndLauncherDumps(const wchar_t* heap) {
 
 	std::wstring dump;
 	int served = 0, written = 0;
-	channel.ServeUntilExit(process.hProcess, logs.c_str(), [&](bool ok) {
-		++served; written += ok ? 1 : 0;
-		if (ok) dump = channel.written;
-	});
+	const auto servedDump = [&](bool ok) {
+        ++served; written += ok ? 1 : 0;
+        if (ok) dump = channel.written;
+    };
+    if (duringStartup) {
+        sf4e::startup::Channel startupResult;
+        CHECK(startupResult.Create()); // This crashed child never reports Ready.
+        const auto result = sf4e::startup::Await(startupResult, process.hProcess, 60000, channel.request,
+            [&] { servedDump(channel.Serve(process.hProcess, logs.c_str())); });
+        CHECK(result.outcome == sf4e::startup::Outcome::EarlyExit && result.processExit == HeapCorruptionCode);
+        CHECK(sf4e::launcher::ClassifyGameExit(result.processExit, false, true, true).reportable);
+    } else channel.ServeUntilExit(process.hProcess, logs.c_str(), servedDump);
 	DWORD exitCode = 0;
 	GetExitCodeProcess(process.hProcess, &exitCode);
 	CloseHandle(process.hThread);
@@ -429,6 +439,7 @@ int main(int argc, char** argv) {
     TestSmallDumpIndependentOfFull();
 	TestHandlerRecordsAndLauncherDumps(L"private");
 	TestHandlerRecordsAndLauncherDumps(L"process");
+	TestHandlerRecordsAndLauncherDumps(L"private", true);
 	TestNonZeroExitIsRecorded();
 	TestNonZeroExitWithoutChannel();
 	std::printf("heap_corruption_capture_test: all tests passed\n");

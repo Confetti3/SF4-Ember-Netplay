@@ -6227,3 +6227,18 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+msgid "launcher.sidecar_failed"
+msgstr "Ember nie mógł zainicjować hooków gry (błąd {0}). Zobacz sidecar_bootstrap.log i launcher.log."
+
+msgid "launcher.start_timeout"
+msgstr "Uruchamianie trwało dłużej niż 60 sekund. Zobacz launcher.log i sidecar_bootstrap.log."
+
+msgid "launcher.unsupported_game"
+msgstr "Nieobsługiwany SSFIV.exe. Wybierz swoją kopię USFIV ze Steam i sprawdź jej pliki."
+
+msgid "launcher.validation_io"
+msgstr "Nie można odczytać lub sprawdzić SSFIV.exe (błąd Windows {0}). Sprawdź dostęp do pliku i spróbuj ponownie."
+
+msgid "launcher.stop_unconfirmed"
+msgstr "Windows nie potwierdził zakończenia procesu gry {0}. Zamknij go przed ponownym otwarciem Ember. Szczegóły: launcher.log."
