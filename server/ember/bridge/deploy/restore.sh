@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Restores one backup set made by backup.sh.
 # Run as: sudo bash /usr/local/lib/ember-bridge/restore.sh <stamp>
-#     or: sudo INSTANCE=staging bash /usr/local/lib/ember-bridge-staging/restore.sh <stamp>
-# where <stamp> is the part of the file names such as 20261002T042000Z, and
-# INSTANCE picks the bridge as in setup.sh.
+#     or: sudo bash /usr/local/lib/ember-bridge-staging/restore.sh <stamp>
+# where <stamp> is the part of the file names such as 20261002T042000Z. It
+# restores the bridge whose folder it is installed in, from that bridge's
+# backups.
 #
 # The database, secrets and bridge.json are restored as one bundle. As the
 # bridge's account, the script copies and checks all three into a staging
@@ -14,15 +15,13 @@
 # the files it had before.
 set -euo pipefail
 
-INSTANCE=${INSTANCE:-}
-[[ "$INSTANCE" =~ ^([a-z][a-z0-9]{0,15})?$ ]] || { echo "INSTANCE must be empty (production) or a lowercase name such as staging." >&2; exit 2; }
-NAME=ember-bridge${INSTANCE:+-$INSTANCE}
-STATE=/var/lib/$NAME
-BACKUPS=/var/backups/$NAME
+HERE="$(dirname "$(readlink -f "$0")")"
+. "$HERE/instance.sh"
+bridge_instance "$HERE" || exit 2
 
 [ "$(id -u)" -eq 0 ] || { echo "Run with sudo." >&2; exit 1; }
 stamp=${1:-}
-[[ "$stamp" =~ ^[0-9]{8}T[0-9]{6}Z$ ]] || { echo "usage: [INSTANCE=staging] restore.sh <stamp, for example 20261002T042000Z>" >&2; exit 2; }
+[[ "$stamp" =~ ^[0-9]{8}T[0-9]{6}Z$ ]] || { echo "usage: restore.sh <stamp, for example 20261002T042000Z>" >&2; exit 2; }
 # A stamp from another instance's backups stops nothing.
 [ -f "$BACKUPS/bridge-$stamp.sqlite3" ] || { echo "$BACKUPS has no backup $stamp; $NAME was not stopped." >&2; exit 3; }
 

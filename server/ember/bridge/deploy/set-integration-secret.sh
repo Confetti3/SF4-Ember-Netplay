@@ -9,9 +9,9 @@
 #       The API key BluMint issued for that connection, such as blumint-partner-staging.
 #   sudo bash ~/ember-bridge/set-integration-secret.sh result <connection-id>
 #       The secret that connection's results are signed with (ember-bridge result-secret).
-# These store the production bridge's secrets. For another instance, set
-# INSTANCE as in setup.sh, such as
-#   sudo INSTANCE=staging bash ~/ember-bridge-staging/set-integration-secret.sh discord
+# These store the production bridge's secrets. The copy in another
+# instance's folder stores that instance's, as setup.sh picks its bridge:
+#   sudo bash ~/ember-bridge-staging/set-integration-secret.sh discord
 #
 # The secret is pasted at a hidden prompt, so it never appears on the screen,
 # in the shell history or on a command line. It is written to
@@ -20,10 +20,9 @@
 # restore leaves in place. Pasting nothing removes it.
 set -euo pipefail
 
-INSTANCE=${INSTANCE:-}
-[[ "$INSTANCE" =~ ^([a-z][a-z0-9]{0,15})?$ ]] || { echo "INSTANCE must be empty (production) or a lowercase name such as staging." >&2; exit 2; }
-NAME=ember-bridge${INSTANCE:+-$INSTANCE}
-STATE=/var/lib/$NAME
+HERE="$(cd "$(dirname "$0")" && pwd)"
+. "$HERE/instance.sh"
+bridge_instance "$HERE" || exit 2
 FILE=$STATE/integrations.json
 
 [ "$(id -u)" -eq 0 ] || { echo "Run with sudo." >&2; exit 1; }

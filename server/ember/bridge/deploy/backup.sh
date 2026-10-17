@@ -8,15 +8,14 @@
 # (other services' secrets) is left out and left in place: it can be stored
 # again from those services at any time.
 #
-# INSTANCE picks the bridge as in setup.sh; the backup service setup.sh
-# installs for an instance such as staging sets it.
+# It backs up the bridge whose folder it is installed in,
+# /usr/local/lib/ember-bridge or /usr/local/lib/ember-bridge-<instance>.
 set -euo pipefail
 
-INSTANCE=${INSTANCE:-}
-[[ "$INSTANCE" =~ ^([a-z][a-z0-9]{0,15})?$ ]] || { echo "INSTANCE must be empty (production) or a lowercase name such as staging." >&2; exit 2; }
-NAME=ember-bridge${INSTANCE:+-$INSTANCE}
-STATE=/var/lib/$NAME
-DEST=/var/backups/$NAME
+HERE="$(dirname "$(readlink -f "$0")")"
+. "$HERE/instance.sh"
+bridge_instance "$HERE" || exit 2
+DEST=$BACKUPS
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 
 # Everything is written under .partial names and renamed once complete, the

@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
-# Installs one Ember tournament bridge. Run as one of:
+# Installs one Ember tournament bridge, picked by the folder this script is in
+# (instance.sh). Run as one of:
 #   sudo bash ~/ember-bridge/setup.sh
 #       production, https://bridge.embernetplay.link (tenants.json)
-#   sudo INSTANCE=staging bash ~/ember-bridge-staging/setup.sh
+#   sudo bash ~/ember-bridge-staging/setup.sh
 #       staging, https://bridge-staging.embernetplay.link (tenants.staging.json)
 #
-# Expects, next to this script: bin/ember-bridge (built as katie with
-# `cargo build --release --locked -p ember-bridge` in ~/ember-bridge/src/server/ember),
-# the unit files, backup.sh, restore.sh, the instance's tenants file and
-# nginx/. The tenants file sets the instance's origin and listen address, and
+# Expects, next to this script: bin/ember-bridge, the unit files, instance.sh,
+# backup.sh, restore.sh, the instance's tenants file and nginx/. Production's
+# binary is built as katie with `cargo build --release --locked -p ember-bridge`
+# in ~/ember-bridge/src/server/ember; staging's is a newer build, made in WSL
+# and copied to ~/ember-bridge-staging/bin/. The tenants file sets the instance's origin and listen address, and
 # nginx/<host>.conf must send that host to that port. Running it again
 # installs a newer binary and applies the tenants file; the bridge ID,
 # secrets and database stay.
@@ -36,15 +38,11 @@ set -euo pipefail
 SRC="$(cd "$(dirname "$0")" && pwd)"
 # Commands run as the service account below would not be able to read katie's home.
 cd /
-# INSTANCE names a bridge beside production, such as staging; empty is production.
-INSTANCE=${INSTANCE:-}
-[[ "$INSTANCE" =~ ^([a-z][a-z0-9]{0,15})?$ ]] || { echo "INSTANCE must be empty (production) or a lowercase name such as staging." >&2; exit 2; }
-NAME=ember-bridge${INSTANCE:+-$INSTANCE}
+[ -f "$SRC/instance.sh" ] || { echo "Missing $SRC/instance.sh" >&2; exit 1; }
+. "$SRC/instance.sh"
+bridge_instance "$SRC" || exit 2
 TENANTS=tenants${INSTANCE:+.$INSTANCE}.json
 ROOT=${EMBER_BRIDGE_ROOT:-}
-LIB=$ROOT/usr/local/lib/$NAME
-STATE=$ROOT/var/lib/$NAME
-BACKUPS=$ROOT/var/backups/$NAME
 UNITS=$ROOT/etc/systemd/system
 ZONE=$ROOT/etc/nginx/conf.d/ember-bridge.conf
 CERT=$ROOT/etc/ssl/certs/embernetplay.link.fullchain.pem
@@ -105,6 +103,7 @@ fi
 install -d -o root -g root -m 0755 "$LIB"
 install -o root -g root -m 0755 "$SRC/bin/ember-bridge" "$LIB/ember-bridge.new"
 mv -f "$LIB/ember-bridge.new" "$LIB/ember-bridge"
+install -o root -g root -m 0644 "$SRC/instance.sh" "$LIB/instance.sh"
 install -o root -g root -m 0755 "$SRC/backup.sh" "$LIB/backup.sh"
 install -o root -g root -m 0755 "$SRC/restore.sh" "$LIB/restore.sh"
 install -d -o "$NAME" -g "$NAME" -m 0700 "$STATE" "$BACKUPS"
@@ -144,16 +143,14 @@ sudo -u "$NAME" python3 -c "$MERGE" "$STATE/bridge.json" < "$SRC/$TENANTS"
 
 # Production installs the unit files as shipped. Another instance's units are
 # production's with its names: every account, unit and folder called
-# ember-bridge becomes $NAME (the binary inside keeps its name), and each
-# service carries INSTANCE, which backup.sh reads.
+# ember-bridge becomes $NAME (the binary inside keeps its name).
 render_unit() {
     if [ -z "$INSTANCE" ]; then
         cat "$1"
         return
     fi
     sed -e "s#\(=\|lib/\|backups/\)ember-bridge\b#\1$NAME#g" \
-        -e "s#^Description=.*#& ($INSTANCE)#" \
-        -e "s#^\[Service\]\$#&\nEnvironment=INSTANCE=$INSTANCE#" "$1"
+        -e "s#^Description=.*#& ($INSTANCE)#" "$1"
 }
 for unit in .service -backup.service -backup.timer; do
     render_unit "$SRC/ember-bridge$unit" > "$UNITS/$NAME$unit.new"
