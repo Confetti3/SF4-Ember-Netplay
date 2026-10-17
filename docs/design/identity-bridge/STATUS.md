@@ -65,10 +65,22 @@ Players find their matches on the Ember ID screen (Tournament matches) or open o
 a site's Play button (`ember://tournament/open`, see WP6 below). Nothing starts a match
 without the player pressing Play, and nothing moves a player out of a room.
 
-## Staging bridge
+## Deployed bridges
 
-A staging bridge runs at `https://bridge.embernetplay.link` on the project VPS so a
-platform can build its side before WP4 to WP7. It is this branch's bridge with
+Two bridges run on the project VPS, staging since 2026-10-17. Production is `https://bridge.embernetplay.link` (port 47820,
+`tenants.json`, operator folder `~/ember-bridge`). Staging is
+`https://bridge-staging.embernetplay.link` (port 47821, `tenants.staging.json`,
+`~/ember-bridge-staging`). The scripts pick the bridge from the folder they run in, which must sit directly in
+the operator's home, and refuse a tenants file whose origin or listen address another
+installed bridge has. Staging
+has its own account, binary, state, backups and units, all named `ember-bridge-staging`,
+and its own nginx site `bridge-staging.embernetplay.link`, so it runs newer builds first
+and keeps its own bridge ID and data. Both sites come from one template and share the
+request rate zones, which only production's setup replaces. Staging has no public rooms.
+`deploy/test-setup.sh` installs both into a mock server.
+
+The production bridge was first deployed as the staging bridge, so a
+platform could build its side before WP4 to WP7. It is this branch's bridge with
 SQLite, behind nginx with the `embernetplay.link` wildcard certificate, deployed by
 `server/ember/bridge/deploy/setup.sh` (systemd unit with a dedicated account, request
 budgets per address in nginx, and a daily database and secrets backup kept 14 days

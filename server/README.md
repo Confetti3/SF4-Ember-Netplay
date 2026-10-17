@@ -51,6 +51,7 @@ flowchart LR
     nginx["nginx :443<br/>TLS, rate limits"]
     short["ember-short"]
     bridge["ember-bridge"]
+    bstaging["ember-bridge staging<br/>own ID and data, no rooms"]
     rooms["ember-rooms supervisor<br/>loopback only"]
     subgraph RH["one per public room"]
       roomhost["sf4e-room-host<br/>room authority"]
@@ -58,6 +59,7 @@ flowchart LR
     end
     nginx -->|"/s/v1/"| short
     nginx -->|"bridge.embernetplay.link"| bridge
+    nginx -->|"bridge-staging.embernetplay.link"| bstaging
     bridge <-->|"HTTP + shared secret:<br/>create, status poll every 5 s, close"| rooms
     rooms -->|"starts one per room<br/>config on stdin, status on stdout"| roomhost
     roomhost <-->|"stdio frames"| rhelper

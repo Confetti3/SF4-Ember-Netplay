@@ -7,10 +7,15 @@
 # database's WAL and shared-memory files out of the way. integrations.json
 # (other services' secrets) is left out and left in place: it can be stored
 # again from those services at any time.
+#
+# It backs up the bridge whose folder it is installed in,
+# /usr/local/lib/ember-bridge or /usr/local/lib/ember-bridge-<instance>.
 set -euo pipefail
 
-STATE=/var/lib/ember-bridge
-DEST=/var/backups/ember-bridge
+HERE="$(dirname "$(readlink -f "$0")")"
+. "$HERE/instance.sh"
+bridge_instance "$HERE" installed || exit 2
+DEST=$BACKUPS
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 
 # Everything is written under .partial names and renamed once complete, the

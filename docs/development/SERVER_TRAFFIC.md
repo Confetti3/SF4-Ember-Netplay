@@ -8,6 +8,11 @@ The services on the Ember server (embernetplay.link) are built from
 are [public rooms](../design/PUBLIC_ROOMS.md) and
 [short invitations](../design/SHORT_INVITATIONS.md).
 
+Two bridges run there: production at bridge.embernetplay.link and staging at
+bridge-staging.embernetplay.link, each with its own bridge ID, keys and data.
+Staging lists no public rooms and has no room supervisor; apart from its node
+in the first diagram, the diagrams show production.
+
 Only coordination reaches the VPS. Match inputs go player to player, directly
 or through the n0 iroh relays, so the VPS never carries gameplay. Updates come
 from GitHub releases, not the VPS. The Discord and Twitch room bot is left out.
@@ -27,6 +32,7 @@ flowchart LR
     nginx["nginx :443<br/>TLS, rate limits"]
     short["ember-short"]
     bridge["ember-bridge"]
+    bstaging["ember-bridge staging<br/>own ID and data, no rooms"]
     rooms["ember-rooms supervisor<br/>loopback only"]
     subgraph RH["one per public room"]
       roomhost["sf4e-room-host<br/>room authority"]
@@ -34,6 +40,7 @@ flowchart LR
     end
     nginx -->|"/s/v1/"| short
     nginx -->|"bridge.embernetplay.link"| bridge
+    nginx -->|"bridge-staging.embernetplay.link"| bstaging
     nginx -->|"/rooms.json, cached 5 s"| bridge
     bridge <-->|"HTTP + shared secret:<br/>create, status poll every 5 s, close"| rooms
     rooms -->|"starts one per room<br/>config on stdin, status on stdout"| roomhost

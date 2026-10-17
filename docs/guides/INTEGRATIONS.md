@@ -39,8 +39,10 @@ implemented, and how it differs from the draft, is in `STATUS.md` there.
   rooms for its players and hears what happens to them (see "Connection
   settings" below). The notifier is a ready-made room bot for Discord and
   Twitch.
-- A staging bridge runs at `https://bridge.embernetplay.link`. Platforms get a
-  connection and credentials on it from the Ember team; BluMint starts from
+- Ember's production bridge runs at `https://bridge.embernetplay.link`, and a
+  staging bridge with its own bridge ID and data at
+  `https://bridge-staging.embernetplay.link`. Platforms get a connection and
+  credentials from the Ember team; BluMint starts from
   `BLUMINT_QUICKSTART.md`.
 
 ## Run a local bridge

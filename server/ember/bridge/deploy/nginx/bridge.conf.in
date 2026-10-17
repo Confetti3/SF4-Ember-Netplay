@@ -1,0 +1,71 @@
+# The Ember tournament bridge at https://@HOST@, proxied to
+# the service on 127.0.0.1:@PORT@. The bridge logs method, path and status
+# itself, so nginx keeps no access log (requests carry bearer credentials).
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name @HOST@;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name @HOST@;
+
+    ssl_certificate     /etc/ssl/certs/embernetplay.link.fullchain.pem;
+    ssl_certificate_key /etc/ssl/private/embernetplay.link.key;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+
+    access_log off;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options "nosniff" always;
+
+    # The bridge refuses larger JSON bodies itself; this stops them early.
+    client_max_body_size 128k;
+    limit_req_status 429;
+
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header Connection "";
+    proxy_connect_timeout 2s;
+    proxy_send_timeout 30s;
+    proxy_read_timeout 30s;
+
+    # Challenges, player sessions and link claims: unauthenticated or
+    # proof-carrying, so budgeted by address.
+    location ~ ^/v1/(auth/challenges|sessions|link-claims)$ {
+        limit_req zone=ember_bridge_proof burst=20 nodelay;
+        proxy_pass http://127.0.0.1:@PORT@;
+    }
+
+    # Server-sent events: unbuffered, and held open past the bridge's
+    # keep-alive comments. At most 8 open streams per address and 100 in all;
+    # each holds at most a 10-event page, well inside the service's memory.
+    location = /v1/events/stream {
+        limit_req zone=ember_bridge burst=20 nodelay;
+        limit_conn ember_bridge_streams 8;
+        limit_conn ember_bridge_streams_total 100;
+        limit_conn_status 429;
+        proxy_pass http://127.0.0.1:@PORT@;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 1h;
+    }
+
+    # BluMint's match creation carries the host's free-form match settings,
+    # so the bridge takes up to 256 KiB there (routes::blumint::CREATE_BODY).
+    location = /v1/blumint/matches {
+        client_max_body_size 512k;
+        limit_req zone=ember_bridge burst=100 nodelay;
+        proxy_pass http://127.0.0.1:@PORT@;
+    }
+
+    location / {
+        limit_req zone=ember_bridge burst=100 nodelay;
+        proxy_pass http://127.0.0.1:@PORT@;
+    }
+}
