@@ -92,6 +92,7 @@ $ErrorActionPreference='Stop'
 . $Helper
 $entries = @(foreach($line in Get-Content -LiteralPath (Join-Path $Repo 'src/common/PackageInventory.inc')){
     if($line -match '^SF4E_PACKAGE_(REQUIRED|OPTIONAL)\("([^"]+\.(?:md|exe|dll))"\)'){
+        if(!$StagedBinariesOnly -and $Matches[2] -notlike '*.md'){continue}
         [pscustomobject]@{Required=$Matches[1]-eq'REQUIRED';Path=$Matches[2].Replace('\\','\')}
     }
 })
