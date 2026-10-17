@@ -121,7 +121,8 @@ room flow. Hosts without this feature also use the existing room flow. The nativ
 cleanup, internal menu transition, GGPO startup, and loading still run; these
 choices remove lobby interaction rather than promising instant loading.
 
-When a fighter leaves their seat, the next queued member takes that seat and the new
+When
+a fighter leaves their seat, the next queued member takes that seat and the new
 pair starts with fresh win counts. B on your own table card, or
 **Leave seat** in the table options, leaves your seat at once. It asks first
 only when the pair has wins on the board or a queued member would take the seat;
