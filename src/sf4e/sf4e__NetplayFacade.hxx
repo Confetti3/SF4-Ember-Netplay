@@ -187,7 +187,7 @@ namespace sf4e {
 			// Set when a press could not be honoured; the sequence changes per failure.
 			std::string readyFailure;
 			std::uint64_t readyFailureSequence = 0;
-    std::uint64_t roomActionFailureSequence = 0, rematchCommandSequence = 0;
+    std::uint64_t rematchCommandSequence = 0;
     bool rematchCancelRequested = false;
 			// The fighter the opponent changed to since this player last
 			// readied (-1: none); the sequence changes per change.

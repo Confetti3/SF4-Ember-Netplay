@@ -84,7 +84,7 @@ static void DeferredAndExpired(bool fence) {
     }
     else game.r.transport->writable=false;
     game.Submit(game.Cancel());CHECK(facade::GetRuntimeSnapshot().rematchCancelRequested);
-    CHECK(game.r.runtime->rematchCancelIntent.Parked());
+    CHECK(game.r.runtime->rematchCancel.intent.Parked());
     Sleep(3100);
     internal::ResolvePendingIntents(true);
     if(fence)CHECK(game.r.runtime->controller.ObserveCoordination(1,2,true,GetTickCount64()));

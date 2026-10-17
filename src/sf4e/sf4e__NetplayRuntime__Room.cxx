@@ -34,7 +34,7 @@ enum class Attempt { Fresh, Retry, Tournament };
 using netplay::DispatchOutcome;
 // Chat and table actions (Queue, Watch, Unready and the like) park apart.
 static Intent& RoomActionIntent(const RuntimeCommand& command) {
-	if (command.roomAction.kind == room::ActionKind::CancelRematch) return runtime->rematchCancelIntent;
+	if (command.roomAction.kind == room::ActionKind::CancelRematch) return runtime->rematchCancel.intent;
 	return command.roomAction.kind == room::ActionKind::Chat ? runtime->chatIntent : runtime->roomActionIntent;
 }
 // Holds a command the room cannot take yet under its intent's budget.
@@ -374,7 +374,7 @@ static DispatchOutcome DispatchCommand(RuntimeCommand command, bool helperReady,
 	switch (decision.effect) {
 	case netplay::Effect::SendRoomAction: {
 		const auto sent = UserApp::netplay->client.SendRoomAction(command.roomAction,
-            command.roomAction.kind == room::ActionKind::CancelRematch ? &runtime->rematchCancelActionId : nullptr);
+            command.roomAction.kind == room::ActionKind::CancelRematch ? &runtime->rematchCancel.actionId : nullptr);
 		// A full queue or a control reconnect is transient: keep the intent
 		// under its budget rather than making the player press again.
 		if (sent == session::SendResult::NotConnected || sent == session::SendResult::QueueFull)
@@ -516,16 +516,15 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         if (cancel || kind == netplay::CommandKind::Ready || kind == netplay::CommandKind::Rematch)
             ++runtime->rematchCommandSequence;
         if (cancel) {
-            runtime->rematchCancelIntent.Clear();
-            runtime->rematchCancelAction = command.roomAction;
-            runtime->rematchCancelActionId = 0;
-            runtime->rematchCancelIntent.Arm(GetTickCount64(), command.command.generation);
+            runtime->rematchCancel = {};
+            runtime->rematchCancel.action = command.roomAction;
+            runtime->rematchCancel.intent.Arm(GetTickCount64(), command.command.generation);
         }
     }
     const auto failures = runtime->roomActionFailureSequence;
     const auto outcome = DispatchCommand(std::move(command), helperReady, attempt);
     if (cancel && outcome == DispatchOutcome::Dropped) {
-        runtime->rematchCancelIntent.Clear();
+        runtime->rematchCancel = {};
         if (failures == runtime->roomActionFailureSequence)
             FailRoomAction(loc::T("runtime.room_action_failed"));
     }
@@ -535,16 +534,16 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 // A successful cancellation finishes when the committed offer disappears.
 // A missing reply/projection still has a bounded failure path.
 static void ObserveRematchCancelCommit() {
-    if (!runtime->rematchCancelIntent.Active()) return;
-    if (!runtime->attached || !UserApp::netplay) { runtime->rematchCancelIntent.Clear(); return; }
+    if (!runtime->rematchCancel.intent.Active()) return;
+    if (!runtime->attached || !UserApp::netplay) { runtime->rematchCancel = {}; return; }
     const auto& room = UserApp::netplay->client.GetRoomSnapshot();
-    const auto& action = runtime->rematchCancelAction;
+    const auto& action = runtime->rematchCancel.action;
     const auto place = room::PlaceOf(room, room.localMember);
     if (room.closed || room.roomEpoch != action.roomEpoch || place.kind != room::Place::Kind::Seat ||
         place.table != action.table || action.table >= room.tables.size() ||
         room.tables[action.table].matchGeneration != action.matchGeneration ||
         room.tables[action.table].rematch.state != room::RematchOffer::Offered)
-        runtime->rematchCancelIntent.Clear();
+        runtime->rematchCancel = {};
 }
 
 // A sent Ready completes when the committed seat flag arrives, or when the
@@ -818,9 +817,9 @@ void DrainActionReplies() {
         SessionClient::ActionReply reply;
         while (UserApp::netplay->client.TakeActionReply(reply)) {
             if(reply.actionId==runtime->leaveActionId && reply.accepted) runtime->leaveAcknowledged=true;
-            if (reply.actionId == runtime->rematchCancelActionId && !reply.accepted && !reply.superseded &&
-                runtime->rematchCancelIntent.Active()) {
-                runtime->rematchCancelIntent.Clear();
+            if (reply.actionId == runtime->rematchCancel.actionId && !reply.accepted && !reply.superseded &&
+                runtime->rematchCancel.intent.Active()) {
+                runtime->rematchCancel = {};
                 const auto& reason = UserApp::netplay->client.RoomError();
                 FailRoomAction(reason.empty() ? loc::T("runtime.room_action_failed") : loc::T(reason.c_str()));
             }
@@ -871,7 +870,7 @@ void ResolvePendingIntents(bool helperReady) {
 	const auto currentGeneration = runtime->controller.GetSnapshot().generation;
 	const auto now = GetTickCount64();
 	runtime->roomActionIntent.DropStale(currentGeneration);
-    runtime->rematchCancelIntent.DropStale(currentGeneration);
+    runtime->rematchCancel.intent.DropStale(currentGeneration);
     ObserveRematchCancelCommit();
 	runtime->chatIntent.DropStale(currentGeneration);
 	runtime->readyIntent.DropStale(currentGeneration);
@@ -887,7 +886,7 @@ void ResolvePendingIntents(bool helperReady) {
 	// A match recovery pauses a room action's budget; it restarts once the
 	// recovery resolves, which is when the action can be submitted (H-006).
 	// Say so when it gives up rather than applying a stale intent.
-	for (auto* intent : {&runtime->roomActionIntent, &runtime->chatIntent, &runtime->rematchCancelIntent})
+	for (auto* intent : {&runtime->roomActionIntent, &runtime->chatIntent, &runtime->rematchCancel.intent})
 		if (intent->Expired(now, runtime->recoveringMatch)) {
 			intent->Clear();
 			FailRoomAction(loc::T("runtime.room_catchup_timeout"));
@@ -915,7 +914,7 @@ void ResolvePendingIntents(bool helperReady) {
 	gate.spectatorInGame = runtime->attached && UserApp::netplay && LocalIsSpectator() && Game::Battle::System::ggpo;
 	gate.atMenuIdle = AtMainMenu() && matchIdle;
 	const bool healthyRoomControl = gate.controlHealthy && gate.authorityWritable;
-	for (auto* intent : {&runtime->roomActionIntent, &runtime->chatIntent, &runtime->rematchCancelIntent}) {
+	for (auto* intent : {&runtime->roomActionIntent, &runtime->chatIntent, &runtime->rematchCancel.intent}) {
 		const auto* parked = intent->Parked();
 		if (parked && (parked->leaveWatchedGame.Active() ? netplay::ParkedWatchedLeaveRetryable(gate) :
 			netplay::ParkedActionRetryable(parked->roomAction, gate))) Retry(*intent, helperReady);

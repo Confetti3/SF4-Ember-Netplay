@@ -131,7 +131,7 @@ struct ShellView {
     bool readyRequested = false;
     std::string readyFailure;
     std::uint64_t readyFailureSequence = 0;
-    std::uint64_t roomActionFailureSequence = 0, rematchCommandSequence = 0;
+    std::uint64_t rematchCommandSequence = 0;
     bool rematchCancelRequested = false;
     // The fighter the opponent changed to since the player last readied
     // (-1: none), and a sequence that changes per change.

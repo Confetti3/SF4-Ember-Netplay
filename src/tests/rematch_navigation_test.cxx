@@ -70,7 +70,7 @@ int main() try {
         "Runtime cancellation wait was not reflected by the panel");
     // A dispatch failure or parked-action expiry leaves the authority offer
     // Offered. Releasing the runtime intent must make every choice usable.
-    v.rematchCancelRequested=false;++v.roomActionFailureSequence;v.error="same send failure";frame();
+    v.rematchCancelRequested=false;v.error="same send failure";frame();
     Check(t.rematch.state==room::RematchOffer::Offered&&row("rematch-ready").enabled&&
         row("rematch-character").enabled&&row("rematch-room").enabled,"Failed cancellation stranded the open offer");
     press("rematch-character");Check(shell.Navigation().Screen()=="selection","Failed cancellation blocked selection");
@@ -79,7 +79,7 @@ int main() try {
     Check(actions.size()==before+1&&actions.back().roomAction.kind==room::ActionKind::CancelRematch,
         "Back could not retry a failed cancellation");
     ++v.rematchCommandSequence;v.rematchCancelRequested=true;frame();
-    v.rematchCancelRequested=false;++v.roomActionFailureSequence;v.error="same send failure";frame();
+    v.rematchCancelRequested=false;v.error="same send failure";frame();
     Check(row("rematch-room").enabled,"Repeated failure with the same offer stranded the panel");
     press("rematch-room");++v.rematchCommandSequence;v.rematchCancelRequested=false;
     v.error.clear();t.rematch.state=room::RematchOffer::Cancelled;frame();Check(shell.Navigation().Screen()=="room","Committed cancellation did not close choices");
