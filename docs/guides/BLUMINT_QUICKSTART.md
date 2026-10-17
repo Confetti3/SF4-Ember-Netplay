@@ -9,16 +9,17 @@ them in.
 
 ## What you get
 
-BluMint is to have two bridges, each with its own BluMint connection
-(tenant `blumint`, kind `blumint`), credentials and registration: production
-for BluMint's production, and staging for BluMint staging and its testers.
-Neither is set up yet (see Not built yet): the table gives the addresses
-each will have.
+Ember has two bridges on its server, each with its own bridge ID, keys and
+data, so nothing done on staging reaches production. Each has its own
+BluMint connection (tenant `blumint`, kind `blumint`), credentials and
+registration: production for BluMint's production, and staging for BluMint
+staging and its testers. The staging bridge is not up yet, and neither
+BluMint connection is ready (see Not built yet).
 
-| | Production (planned) | Staging (planned) |
+| | Production | Staging |
 |---|---|---|
 | Bridge | `https://bridge.embernetplay.link` | `https://bridge-staging.embernetplay.link` |
-| Bridge ID | `brg_0dbc0598-2312-4ce3-9df8-e160330565e6` | `brg_...`, to be filled in once the staging bridge is up |
+| Bridge ID | `brg_0dbc0598-2312-4ce3-9df8-e160330565e6` | `brg_...`, to be filled in once the staging bridge is created |
 | BluMint API | Game partner API 2.0.0 at `https://app.blumint.com/api` | Game partner API 2.0.0 at `https://staging.blumint.io/api` |
 | Player lookup | `POST https://bridge.embernetplay.link/v1/blumint/lookup` | `POST https://bridge-staging.embernetplay.link/v1/blumint/lookup` |
 | Match creation | `POST https://bridge.embernetplay.link/v1/blumint/matches` | `POST https://bridge-staging.embernetplay.link/v1/blumint/matches` |
@@ -26,8 +27,10 @@ each will have.
 | Connect page for players | `https://embernetplay.link/start#brg_0dbc0598-2312-4ce3-9df8-e160330565e6/BluMint` | `https://embernetplay.link/start#<staging bridge ID>/BluMint` |
 
 Production is Ember's own bridge, the one every Ember trusts by default, so
-players need nothing beyond Ember to use it. A tester's Ember has to trust
-the staging bridge before it can connect Discord or play there.
+players need nothing beyond Ember to use it. Nightly builds of Ember trust
+the staging bridge out of the box too. A tester on a Stable build approves
+it once under **Linked accounts** by its address (see Testing on staging)
+before connecting Discord or playing there.
 
 The connect page opens Ember's Connect Discord screen
 (`ember://discord/connect?bridge=...`) on Windows, and shows how to get Ember
@@ -327,10 +330,10 @@ yet).
    Ember has registered the three callbacks on the staging bridge. Create
    matches with the Ember IDs returned by lookup and send players the
    returned `matchUrl`.
-2. **Trust the staging bridge:** in Ember, choose **Online play > Ember ID >
-   Linked accounts**, enter `https://bridge-staging.embernetplay.link` under
-   **Add a service**, choose **Look up service**, then **Trust** it. Ember
-   trusts only its own bridge by itself.
+2. **Trust the staging bridge (Stable builds only):** a Nightly build of
+   Ember trusts it already. On a Stable build, choose **Online play > Ember
+   ID > Linked accounts**, enter `https://bridge-staging.embernetplay.link`
+   under **Add a service**, choose **Look up service**, then **Trust** it.
 3. **Connect Discord:** open the staging connect page (`https://embernetplay.link/start#<staging bridge ID>/BluMint`)
    and choose its button, or paste its link into **Online play > Ember ID >
    Discord > Paste link**. Not the **Discord** row by itself: that connects
@@ -350,6 +353,7 @@ yet).
   environment `staging` and reports to `https://staging.blumint.io/api`. A
   production connection reporting to `https://app.blumint.com/api` is not
   deployed or registered, so BluMint production cannot call it yet.
+  `blumint-partner-staging` moves to the staging bridge once that is up.
 - **The staging bridge.** `https://bridge-staging.embernetplay.link` is not
   up, and its bridge ID, connection and registration do not exist yet.
 - **Tested on real hardware.** Automated tests cover tournament play, but a
