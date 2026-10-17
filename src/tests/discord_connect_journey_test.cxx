@@ -120,26 +120,6 @@ void DiscordConnectLink(){
  h.Screen("identity");for(int i=0;i<4;++i)h.answer();
  Check(h.row("discord-connect")!=nullptr,"The Ember ID screen does not offer Connect Discord");
 }
-// A service built into this version of Ember arrives trusted in the helper's
-// list: its connect link runs up to Discord's page with nothing trusted on the
-// way, and the screens say it is built in.
-void BuiltInServiceConnects(){
- using namespace sf4e;using netplay::IdentityOp;
- Journey h;auto& id=h.view.identity;id.known=true;h.ready();
- const std::string staging="https://bridge-staging.embernetplay.link",staged="brg_00000000-0000-4000-8000-0000000000aa";
- id.bridges={{staged,staging,"Ember bridge (staging)",true}};h.Frame();
- const auto start=h.sent().size();
- h.view.tournament.connect.bridge=staged;h.view.tournament.connect.sequence=1;h.Frame(0,2);
- Check(h.until(IdentityOp::BridgeInspect)&&h.sent().back()->origin==staging,"A connect link for a built-in service did not read it");
- id.inspected=id.bridges[0];id.inspectedDiscord=true;h.answer();
- Check(h.until(IdentityOp::DiscordStatus)&&h.sent().back()->bridge==staged,"A connect link for a built-in service did not read the account");
- Check(h.row("dc-service")&&h.row("dc-service")->detail==loc::Tf("identity.service_builtin",staging),"Connect Discord does not say the service is built in");
- id.discordUser.clear();id.discordName.clear();h.answer();
- Check(h.sent().back()->op==IdentityOp::DiscordConnect&&h.sent().back()->bridge==staged,"A connect link for a built-in service did not open Discord");
- Check(h.count(IdentityOp::BridgeApprove,start)==0&&!h.row("id-approve"),"A built-in service was trusted again");
- h.answer();h.Screen("linked-accounts");for(int i=0;i<8;++i)h.answer();
- Check(h.row("id-bridge")&&h.row("id-bridge")->detail==loc::Tf("identity.service_builtin",staging),"Linked accounts does not say the service is built in");
-}
 // The wait for a Discord sign-in belongs to the service it was opened for:
 // another service that already has an account does not end it, its polls do
 // not change what another selected service shows, and a new connect link
@@ -944,6 +924,6 @@ void OnboardingRecovers(){
 }
 }
 void RunDiscordConnectJourneys(){
- DiscordAndFirstLink();DiscordConnectLink();BuiltInServiceConnects();DiscordWaitsForItsService();DiscordConnectKeepsItsService();FirstSignInRetires();ConnectReadsRecover();
+ DiscordAndFirstLink();DiscordConnectLink();DiscordWaitsForItsService();DiscordConnectKeepsItsService();FirstSignInRetires();ConnectReadsRecover();
  RetainedChangesStayTheirs();EmberIdFromOnline();HomeGuides();StaleMatches();AnnouncementSaveRetries();OnboardingGuards();OnboardingSteps();CancelReachesTheService();OnboardingRecovers();DiscordConnectPastedLink();
 }

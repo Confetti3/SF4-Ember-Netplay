@@ -8,8 +8,9 @@ namespace sf4e { namespace netplay {
 // them. Public values only: no key, passphrase or bridge token reaches it, so
 // it is copied freely into snapshots and the overlay.
 // A trusted service. A built-in one comes with this build of Ember: the
-// player trusts it without approving it, and can still remove it.
-struct IdentityBridge { std::string id, origin, name; bool builtin = false; };
+// player trusts it without approving it, and can still remove it. It stays
+// dormant, out of the player's services, until they use it (active).
+struct IdentityBridge { std::string id, origin, name; bool builtin = false, active = false; };
 struct IdentityConnection { std::string id, name; };
 // A linked account (id is the link) or a claim waiting for approval (id is the claim).
 struct IdentityLink { std::string id, connection, provider, account; };

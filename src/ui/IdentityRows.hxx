@@ -18,6 +18,15 @@ inline const netplay::IdentityBridge* FindOrigin(const ShellView& v, const std::
         [&](const netplay::IdentityBridge& bridge) { return bridge.origin == origin; });
     return it == v.identity.bridges.end() ? nullptr : &*it;
 }
+// One of the player's services: one they trusted, or a built-in one they
+// used. A dormant built-in is trusted, so links naming it work, but it is no
+// default, no Home guide and no background read until then.
+inline bool CountsAsService(const netplay::IdentityBridge& bridge) { return !bridge.builtin || bridge.active; }
+// The player's first service, or null.
+inline const netplay::IdentityBridge* FirstService(const ShellView& v) {
+    const auto it = std::find_if(v.identity.bridges.begin(), v.identity.bridges.end(), CountsAsService);
+    return it == v.identity.bridges.end() ? nullptr : &*it;
+}
 // A service's address, saying when it is built into this version of Ember.
 inline std::string ServiceDetail(const netplay::IdentityBridge& bridge) {
     return bridge.builtin ? loc::Tf("identity.service_builtin", bridge.origin) : bridge.origin;

@@ -155,7 +155,7 @@ void IdentityPanel::OpenMatch(const std::string& bridge, const std::string& matc
 
 int IdentityPanel::ReadyMatches(const ShellView& v) const {
     const auto& id = v.identity;
-    if (!id.known || id.state != "ready" || (servicesKnown_ && id.bridges.empty())) return 0;
+    if (!id.known || id.state != "ready" || (servicesKnown_ && !FirstService(v))) return 0;
     const auto& list = v.tournament.list;
     if (list.bridge != bridge_) return 0;
     return static_cast<int>(std::count_if(list.items.begin(), list.items.end(),
@@ -165,7 +165,7 @@ int IdentityPanel::ReadyMatches(const ShellView& v) const {
 std::string IdentityPanel::EntryDetail(const ShellView& v) const {
     const auto& id = v.identity;
     if (id.known && id.state == "disabled") return loc::T("home.identity_start");
-    if (id.known && id.state == "ready" && servicesKnown_ && id.bridges.empty()) return loc::T("home.identity_start");
+    if (id.known && id.state == "ready" && servicesKnown_ && !FirstService(v)) return loc::T("home.identity_start");
     if (const int ready = ReadyMatches(v)) return loc::Tf("home.identity_matches", ready);
     return loc::T("home.identity_detail");
 }
@@ -416,7 +416,9 @@ void IdentityPanel::SendTournament(const ShellView& v, const std::string& screen
 MenuEntry IdentityPanel::ServiceRow(const ShellView& v, const netplay::IdentityBridge& bridge) const {
     auto service = Row("id-bridge", loc::T("identity.service"), ServiceDetail(bridge));
     service.value = bridge.name.empty() ? bridge.origin : bridge.name; service.userText = true;
-    for (const auto& choice : v.identity.bridges) service.choices.push_back({choice.id, choice.name.empty() ? choice.origin : choice.name, choice.origin});
+    for (const auto& choice : v.identity.bridges)
+        if (CountsAsService(choice) || choice.id == bridge_)
+            service.choices.push_back({choice.id, choice.name.empty() ? choice.origin : choice.name, choice.origin});
     service.chosen = bridge_;
     if (service.choices.size() < 2) service.info = true;
     return service;
@@ -504,7 +506,8 @@ void IdentityPanel::Finish(const ShellView& v) {
         if (!Owns(lastScreen_)) {
             if (!FindBridge(v, bridge_)) {
                 const auto* ember = EmberBridge(v);
-                bridge_ = ember ? ember->id : id.bridges.empty() ? std::string() : id.bridges.front().id;
+                const auto* first = FirstService(v);
+                bridge_ = ember ? ember->id : first ? first->id : std::string();
             }
             break;
         }
@@ -517,7 +520,10 @@ void IdentityPanel::Finish(const ShellView& v) {
             }
             break;
         }
-        if (!FindBridge(v, bridge_)) bridge_ = id.bridges.empty() ? std::string() : id.bridges.front().id;
+        if (!FindBridge(v, bridge_)) {
+            const auto* first = FirstService(v);
+            bridge_ = first ? first->id : std::string();
+        }
         if (!bridge_.empty()) SelectBridge(v, bridge_);
         break;
     case IdentityOp::BridgeInspect:
@@ -601,6 +607,11 @@ void IdentityPanel::Finish(const ShellView& v) {
         break;
     }
     default: break;
+    }
+    // A dormant built-in service the helper just answered for is now one of
+    // the player's: the list read again says so.
+    if (const auto* used = FindBridge(v, sentBridge_); used && !CountsAsService(*used)) {
+        IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list));
     }
 }
 
