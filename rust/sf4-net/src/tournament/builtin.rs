@@ -42,6 +42,7 @@ impl Builtin<'_> {
                 })
                 .collect(),
             builtin: true,
+            active: false,
         }
     }
 }

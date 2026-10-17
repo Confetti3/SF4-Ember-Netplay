@@ -4,7 +4,9 @@
 //! approval from the native UI does. `removed.json` remembers the bridges the
 //! player deliberately forgot, so nothing re-trusts one without a fresh
 //! approval. The bridges this build pins (builtin.rs) are trusted beside the
-//! approved ones and never written to `bridges.json`.
+//! approved ones and never written to `bridges.json`. A built-in stays
+//! dormant until the player uses it; `activated.json` remembers the ones
+//! they did.
 use std::{
     fs,
     io::Write,
@@ -29,6 +31,8 @@ const MAX_FILE: usize = 64 * 1024;
 const REMOVED_FILE: &str = "removed.json";
 const REMOVED_FORMAT: &str = "ember-bridges-removed";
 const MAX_REMOVED: usize = 64;
+const ACTIVATED_FILE: &str = "activated.json";
+const ACTIVATED_FORMAT: &str = "ember-bridges-activated";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -49,6 +53,16 @@ pub struct Approved {
         skip_serializing_if = "std::ops::Not::not"
     )]
     pub builtin: bool,
+    /// A built-in the player has used: a session to it opened, or they
+    /// approved it by its address. Until then it is dormant, trusted but not
+    /// one of the player's services on the native side. Absent means false;
+    /// never in `bridges.json`, since `activated.json` holds it.
+    #[serde(
+        default,
+        skip_deserializing,
+        skip_serializing_if = "std::ops::Not::not"
+    )]
+    pub active: bool,
 }
 
 impl Approved {
@@ -77,6 +91,14 @@ struct RemovedFile {
     removed: Vec<String>,
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ActivatedFile {
+    format: String,
+    version: u8,
+    activated: Vec<String>,
+}
+
 pub struct Store {
     dir: PathBuf,
     /// The player's approvals, then the built-ins they did not remove.
@@ -89,8 +111,8 @@ pub struct Store {
 
 impl Store {
     /// Loads the list and adds the `pinned` bridges the player did not
-    /// remove. A missing or unreadable file is an empty list; it is
-    /// rewritten only on the next explicit approval.
+    /// remove, active when they used them. A missing or unreadable file is an
+    /// empty list; it is rewritten only when what it holds changes.
     pub fn open(dir: PathBuf, pinned: Vec<Approved>) -> Self {
         // No per-user folder (the known-folder lookup failed): the store is
         // unavailable rather than relative to the working directory. It
@@ -103,29 +125,23 @@ impl Store {
                 removed: Vec::new(),
             };
         }
-        let approved = fs::read(dir.join(FILE))
-            .ok()
-            .filter(|bytes| bytes.len() <= MAX_FILE)
-            .and_then(|bytes| json::parse_as::<File>(&bytes, MAX_FILE).ok())
+        let approved = read::<File>(&dir, FILE)
             .filter(|file| file.format == FORMAT && file.version == 1)
             .map(|file| file.bridges)
             .unwrap_or_default()
             .into_iter()
             .filter(valid)
             .take(MAX_BRIDGES);
-        let removed = fs::read(dir.join(REMOVED_FILE))
-            .ok()
-            .filter(|bytes| bytes.len() <= MAX_FILE)
-            .and_then(|bytes| json::parse_as::<RemovedFile>(&bytes, MAX_FILE).ok())
-            .filter(|file| file.format == REMOVED_FORMAT && file.version == 1)
-            .map(|file| file.removed)
-            .unwrap_or_default()
-            .into_iter()
-            .filter(|id| is_prefixed_id(id, "brg"))
-            .fold(Vec::new(), |mut list, id| {
-                remember(&mut list, id);
-                list
-            });
+        let removed = bridge_ids(
+            read::<RemovedFile>(&dir, REMOVED_FILE)
+                .filter(|file| file.format == REMOVED_FORMAT && file.version == 1)
+                .map(|file| file.removed),
+        );
+        let activated = bridge_ids(
+            read::<ActivatedFile>(&dir, ACTIVATED_FILE)
+                .filter(|file| file.format == ACTIVATED_FORMAT && file.version == 1)
+                .map(|file| file.activated),
+        );
         let pinned: Vec<Approved> = pinned
             .into_iter()
             .map(|bridge| Approved {
@@ -137,7 +153,10 @@ impl Store {
         let live: Vec<Approved> = pinned
             .iter()
             .filter(|bridge| !removed.contains(&bridge.bridge_id))
-            .cloned()
+            .map(|bridge| Approved {
+                active: activated.contains(&bridge.bridge_id),
+                ..bridge.clone()
+            })
             .collect();
         // A built-in holds its ID and origin: an approval of either, made by
         // a build without it, gives way and goes with the next save.
@@ -175,8 +194,9 @@ impl Store {
     ///
     /// A built-in's ID is only ever the built-in: approving it again after
     /// the player removed it restores the pinned entry, pinned keys and all,
-    /// and only at its own origin. A built-in the player kept holds its
-    /// origin; another bridge there can be approved once it is removed.
+    /// and only at its own origin, and makes it active. A built-in the player
+    /// kept holds its origin; another bridge there can be approved once it is
+    /// removed.
     pub fn approve(
         &mut self,
         profile: &BridgeProfile,
@@ -187,7 +207,10 @@ impl Store {
             .iter()
             .find(|pin| pin.bridge_id == profile.bridge_id);
         let entry = match pin {
-            Some(pin) if pin.origin == profile.origin => pin.clone(),
+            Some(pin) if pin.origin == profile.origin => Approved {
+                active: true,
+                ..pin.clone()
+            },
             Some(_) => return Err(Failure::new("bridge_changed")),
             None => Approved {
                 bridge_id: profile.bridge_id.clone(),
@@ -203,6 +226,7 @@ impl Store {
                     .map_or(0, |elapsed| elapsed.as_secs()),
                 keys: usable(keys),
                 builtin: false,
+                active: false,
             },
         };
         if !valid(&entry) {
@@ -255,6 +279,21 @@ impl Store {
         self.replace(updated)
     }
 
+    /// Makes a dormant built-in one of the player's services, once a session
+    /// to it opened. It is active for this run even when that cannot be
+    /// recorded; only a restart forgets it then.
+    pub fn activate(&mut self, bridge_id: &str) -> Result<(), Failure> {
+        let dormant = |bridge: &&mut Approved| {
+            bridge.builtin && !bridge.active && bridge.bridge_id == bridge_id
+        };
+        let Some(entry) = self.bridges.iter_mut().find(dormant) else {
+            return Ok(());
+        };
+        entry.active = true;
+        self.save_activated(in_use(&self.bridges))
+    }
+
+    /// Stops trusting a bridge. A built-in's activation goes with it.
     pub fn forget(&mut self, bridge_id: &str) -> Result<(), Failure> {
         // The removal is recorded first: should the trust then fail to go,
         // the record only keeps onboarding from trusting it by itself.
@@ -268,40 +307,93 @@ impl Store {
     }
 
     fn save_removed(&self, removed: &[String]) -> Result<(), Failure> {
-        let bytes = serde_json::to_vec_pretty(&RemovedFile {
-            format: REMOVED_FORMAT.into(),
-            version: 1,
-            removed: removed.to_vec(),
-        })
-        .map_err(|_| Failure::new("io"))?;
-        write_atomic(&self.dir, REMOVED_FILE, &bytes)
+        self.save(
+            REMOVED_FILE,
+            &RemovedFile {
+                format: REMOVED_FORMAT.into(),
+                version: 1,
+                removed: removed.to_vec(),
+            },
+        )
     }
 
     /// Saves `bridges` and only then makes it the live list, so memory never
-    /// says something the file does not.
+    /// says something the files do not. Each file is written only when what
+    /// it holds changes: the player's approvals in `bridges.json`, the
+    /// built-ins they used in `activated.json`.
     fn replace(&mut self, bridges: Vec<Approved>) -> Result<(), Failure> {
-        self.save_list(&bridges)?;
+        let own = |list: &[Approved]| -> Vec<Approved> {
+            list.iter()
+                .filter(|bridge| !bridge.builtin)
+                .cloned()
+                .collect()
+        };
+        let approved = own(&bridges);
+        if approved != own(&self.bridges) {
+            self.save(
+                FILE,
+                &File {
+                    format: FORMAT.into(),
+                    version: 1,
+                    bridges: approved,
+                },
+            )?;
+        }
+        let activated = in_use(&bridges);
+        if activated != in_use(&self.bridges) {
+            self.save_activated(activated)?;
+        }
         self.bridges = bridges;
         Ok(())
     }
 
-    /// Saves the player's approvals; the built-ins are the build's.
-    fn save_list(&self, bridges: &[Approved]) -> Result<(), Failure> {
-        let bytes = serde_json::to_vec_pretty(&File {
-            format: FORMAT.into(),
-            version: 1,
-            bridges: bridges
-                .iter()
-                .filter(|bridge| !bridge.builtin)
-                .cloned()
-                .collect(),
-        })
-        .map_err(|_| Failure::new("io"))?;
-        write_atomic(&self.dir, FILE, &bytes)
+    fn save_activated(&self, activated: Vec<String>) -> Result<(), Failure> {
+        self.save(
+            ACTIVATED_FILE,
+            &ActivatedFile {
+                format: ACTIVATED_FORMAT.into(),
+                version: 1,
+                activated,
+            },
+        )
+    }
+
+    fn save<T: Serialize>(&self, name: &str, file: &T) -> Result<(), Failure> {
+        let bytes = serde_json::to_vec_pretty(file).map_err(|_| Failure::new("io"))?;
+        write_atomic(&self.dir, name, &bytes)
     }
 }
 
-/// Notes a removal: one entry per ID, newest last, oldest dropped past the cap.
+/// `name` in `dir`, when it is there, small enough and parses as a `T`.
+fn read<T: serde::de::DeserializeOwned>(dir: &Path, name: &str) -> Option<T> {
+    fs::read(dir.join(name))
+        .ok()
+        .filter(|bytes| bytes.len() <= MAX_FILE)
+        .and_then(|bytes| json::parse_as::<T>(&bytes, MAX_FILE).ok())
+}
+
+/// The built-ins in `bridges` the player has used.
+fn in_use(bridges: &[Approved]) -> Vec<String> {
+    bridges
+        .iter()
+        .filter(|bridge| bridge.builtin && bridge.active)
+        .map(|bridge| bridge.bridge_id.clone())
+        .collect()
+}
+
+/// A record's bridge IDs, each once, without any that are not one.
+fn bridge_ids(record: Option<Vec<String>>) -> Vec<String> {
+    record
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|id| is_prefixed_id(id, "brg"))
+        .fold(Vec::new(), |mut list, id| {
+            remember(&mut list, id);
+            list
+        })
+}
+
+/// Notes a bridge ID: one entry per ID, newest last, oldest dropped past the cap.
 fn remember(removed: &mut Vec<String>, bridge_id: String) {
     removed.retain(|id| *id != bridge_id);
     removed.push(bridge_id);
@@ -543,6 +635,52 @@ mod tests {
         )
         .unwrap();
         assert!(Store::open(dir.clone(), Vec::new()).list().is_empty());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_builtin_is_dormant_until_used() {
+        let dir = temp_dir("builtin-dormant");
+        let pin = profile(9, PINNED_ORIGIN);
+        let listed = |store: &Store| serde_json::to_value(store.list()).unwrap();
+        let mut store = Store::open(dir.clone(), pinned());
+        assert!(!store.get(&pin.bridge_id).unwrap().active);
+        assert!(listed(&store)[0].get("active").is_none());
+        // Approving another bridge records no activation.
+        store
+            .approve(&profile(1, "https://bridge.one.example"), Vec::new())
+            .unwrap();
+        assert!(!dir.join(ACTIVATED_FILE).exists());
+        // Used, it stays active across a restart, and bridges.json is untouched.
+        let before = fs::read(dir.join(FILE)).unwrap();
+        store.activate(&pin.bridge_id).unwrap();
+        assert_eq!(listed(&store)[1]["active"], true);
+        assert_eq!(fs::read(dir.join(FILE)).unwrap(), before);
+        let reopened = Store::open(dir.clone(), pinned());
+        assert!(reopened.get(&pin.bridge_id).unwrap().active);
+        // Only a built-in is activated.
+        store.activate(&profile(1, "").bridge_id).unwrap();
+        assert!(!store.get(&profile(1, "").bridge_id).unwrap().active);
+        // Removing it clears the activation; approving it again is a use.
+        store.forget(&pin.bridge_id).unwrap();
+        let text = fs::read_to_string(dir.join(ACTIVATED_FILE)).unwrap();
+        assert!(!text.contains(&pin.bridge_id));
+        store.approve(&pin, Vec::new()).unwrap();
+        assert!(store.get(&pin.bridge_id).unwrap().active);
+        assert!(
+            Store::open(dir.clone(), pinned())
+                .get(&pin.bridge_id)
+                .unwrap()
+                .active
+        );
+        // A garbled record leaves every built-in dormant.
+        fs::write(dir.join(ACTIVATED_FILE), "not json").unwrap();
+        assert!(
+            !Store::open(dir.clone(), pinned())
+                .get(&pin.bridge_id)
+                .unwrap()
+                .active
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 

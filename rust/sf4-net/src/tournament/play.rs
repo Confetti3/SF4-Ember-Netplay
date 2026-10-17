@@ -678,6 +678,7 @@ mod tests {
             approved_at: 0,
             keys: Vec::new(),
             builtin: false,
+            active: false,
         };
         let reads = || reads_ready(&shared, &bridge, "emt_x");
         let count = || asked.load(std::sync::atomic::Ordering::SeqCst);

@@ -414,6 +414,9 @@ where
     let bridge = approved(shared, bridge_id)?;
     shared.client.check_pin(&bridge).await?;
     let token = session(shared, &bridge).await?;
+    if bridge.builtin && !bridge.active {
+        activate(shared, bridge_id).await;
+    }
     match operation(bridge.clone(), token).await {
         Err(Failure(code)) if code == "unauthenticated" => {
             shared.client.forget_session(bridge_id);
@@ -422,6 +425,20 @@ where
         }
         other => other,
     }
+}
+
+/// A dormant built-in becomes one of the player's services once a session
+/// to it opens. One that cannot be recorded stays dormant, and is tried again
+/// with the next session.
+async fn activate(shared: &Arc<Shared>, bridge_id: &str) {
+    let store = shared.clone();
+    let id = bridge_id.to_owned();
+    let _ = tokio::task::spawn_blocking(move || {
+        if let Ok(mut bridges) = store.bridges.lock() {
+            let _ = bridges.activate(&id);
+        }
+    })
+    .await;
 }
 
 pub async fn links(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
@@ -563,6 +580,7 @@ mod tests {
             approved_at: 0,
             keys: Vec::new(),
             builtin: false,
+            active: false,
         };
         assert!(client.cached(&at("https://a.example"), &ember_id).is_some());
         assert!(client.cached(&at("https://b.example"), &ember_id).is_none());

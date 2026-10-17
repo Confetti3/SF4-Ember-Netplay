@@ -383,9 +383,13 @@ async fn a_pinned_bridge_is_trusted_without_an_approval() {
     let (_, _, _, listed) = worker.ask(json!({ "op": "bridge_list" })).await;
     assert_eq!(listed["bridges"][0]["bridge_id"], bridge_id.as_str());
     assert_eq!(listed["bridges"][0]["builtin"], true);
+    assert!(listed["bridges"][0].get("active").is_none());
     let links = json!({ "op": "link_list", "bridge_id": bridge_id });
     let (ok, reason, _, _) = worker.ask(links.clone()).await;
     assert!(ok, "{reason:?}");
+    // Its first session makes it one of the player's services.
+    let (_, _, _, listed) = worker.ask(json!({ "op": "bridge_list" })).await;
+    assert_eq!(listed["bridges"][0]["active"], true);
 
     let (ok, _, _, _) = worker
         .ask(json!({ "op": "bridge_forget", "bridge_id": bridge_id }))
