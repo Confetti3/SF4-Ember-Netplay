@@ -3,10 +3,12 @@
 //! Discovery documents and deep links cannot add an entry; only an explicit
 //! approval from the native UI does. `removed.json` remembers the bridges the
 //! player deliberately forgot, so nothing re-trusts one without a fresh
-//! approval. The bridges this build pins (builtin.rs) are trusted beside the
-//! approved ones and never written to `bridges.json`. A built-in stays
-//! dormant until the player uses it; `activated.json` remembers the ones
-//! they did.
+//! approval.
+//!
+//! The bridges this build pins (builtin.rs) are trusted beside the approved
+//! ones and never written to `bridges.json`. A built-in is dormant until the
+//! player uses it; `activated.json` remembers the ones they did. Each file
+//! has its own list here and is written only when that list changes.
 use std::{
     fs,
     io::Write,
@@ -19,20 +21,21 @@ use ember_protocol::{
     encoding::{OriginPolicy, b64u, check_origin, is_prefixed_id},
     json,
 };
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
-use super::Failure;
+use super::{Failure, builtin::Builtin};
 
 const FILE: &str = "bridges.json";
 const FORMAT: &str = "ember-bridges";
 const MAX_BRIDGES: usize = 16;
 const MAX_FILE: usize = 64 * 1024;
-// A separate file, so `bridges.json` keeps the format older builds parse.
+// Separate files, so `bridges.json` keeps the format older builds parse.
 const REMOVED_FILE: &str = "removed.json";
 const REMOVED_FORMAT: &str = "ember-bridges-removed";
-const MAX_REMOVED: usize = 64;
 const ACTIVATED_FILE: &str = "activated.json";
 const ACTIVATED_FORMAT: &str = "ember-bridges-activated";
+/// The most bridge IDs `removed.json` or `activated.json` keeps.
+const MAX_RECORDED: usize = 64;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -45,24 +48,6 @@ pub struct Approved {
     /// the room bindings and game permits this helper accepts.
     #[serde(default)]
     pub keys: Vec<SigningKey>,
-    /// Pinned by this build: never saved, and its keys never replaced. Never
-    /// read from `bridges.json` either; a file that claims it is unreadable.
-    #[serde(
-        default,
-        skip_deserializing,
-        skip_serializing_if = "std::ops::Not::not"
-    )]
-    pub builtin: bool,
-    /// A built-in the player has used: a session to it opened, or they
-    /// approved it by its address. Until then it is dormant, trusted but not
-    /// one of the player's services on the native side. Absent means false;
-    /// never in `bridges.json`, since `activated.json` holds it.
-    #[serde(
-        default,
-        skip_deserializing,
-        skip_serializing_if = "std::ops::Not::not"
-    )]
-    pub active: bool,
 }
 
 impl Approved {
@@ -73,6 +58,21 @@ impl Approved {
             .find(|key| key.kid == kid)
             .and_then(SigningKey::public_key)
     }
+}
+
+/// A trusted bridge as `bridge_list` reports it.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct Listed {
+    #[serde(flatten)]
+    pub bridge: Approved,
+    /// Built into this build: trusted without an approval, its keys pinned.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub builtin: bool,
+    /// A built-in the player has used. Until then it is dormant: trusted, so
+    /// links naming it work, but not one of the player's services on the
+    /// native side. Absent means false.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub active: bool,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -101,28 +101,31 @@ struct ActivatedFile {
 
 pub struct Store {
     dir: PathBuf,
-    /// The player's approvals, then the built-ins they did not remove.
-    bridges: Vec<Approved>,
-    /// Every usable built-in, removed or not, so an approval can restore one.
+    /// The player's approvals, as `bridges.json` holds them. One that a live
+    /// built-in covers stays here, unlisted, for a build without it.
+    approved: Vec<Approved>,
+    /// The usable bridges this build pins, removed or not.
     pinned: Vec<Approved>,
     /// Bridge IDs the player removed, oldest first.
     removed: Vec<String>,
+    /// Built-in IDs the player used, oldest first.
+    activated: Vec<String>,
 }
 
 impl Store {
-    /// Loads the list and adds the `pinned` bridges the player did not
-    /// remove, active when they used them. A missing or unreadable file is an
-    /// empty list; it is rewritten only when what it holds changes.
-    pub fn open(dir: PathBuf, pinned: Vec<Approved>) -> Self {
+    /// Loads the records and pins `builtins`. A missing or unreadable file
+    /// is an empty list; it is rewritten only when what it holds changes.
+    pub fn open(dir: PathBuf, builtins: &[Builtin]) -> Self {
         // No per-user folder (the known-folder lookup failed): the store is
         // unavailable rather than relative to the working directory. It
         // trusts no built-in either, since it could not record a removal.
         if dir.as_os_str().is_empty() {
             return Self {
                 dir,
-                bridges: Vec::new(),
+                approved: Vec::new(),
                 pinned: Vec::new(),
                 removed: Vec::new(),
+                activated: Vec::new(),
             };
         }
         let approved = read::<File>(&dir, FILE)
@@ -131,7 +134,8 @@ impl Store {
             .unwrap_or_default()
             .into_iter()
             .filter(valid)
-            .take(MAX_BRIDGES);
+            .take(MAX_BRIDGES)
+            .collect();
         let removed = bridge_ids(
             read::<RemovedFile>(&dir, REMOVED_FILE)
                 .filter(|file| file.format == REMOVED_FORMAT && file.version == 1)
@@ -142,33 +146,17 @@ impl Store {
                 .filter(|file| file.format == ACTIVATED_FORMAT && file.version == 1)
                 .map(|file| file.activated),
         );
-        let pinned: Vec<Approved> = pinned
-            .into_iter()
-            .map(|bridge| Approved {
-                builtin: true,
-                ..bridge
-            })
+        let pinned = builtins
+            .iter()
+            .map(Builtin::entry)
             .filter(usable_pin)
             .collect();
-        let live: Vec<Approved> = pinned
-            .iter()
-            .filter(|bridge| !removed.contains(&bridge.bridge_id))
-            .map(|bridge| Approved {
-                active: activated.contains(&bridge.bridge_id),
-                ..bridge.clone()
-            })
-            .collect();
-        // A built-in holds its ID and origin: an approval of either, made by
-        // a build without it, gives way and goes with the next save.
-        let mut bridges: Vec<Approved> = approved
-            .filter(|bridge| !live.iter().any(|pin| same_bridge(pin, bridge)))
-            .collect();
-        bridges.extend(live);
         Self {
             dir,
-            bridges,
+            approved,
             pinned,
             removed,
+            activated,
         }
     }
 
@@ -177,26 +165,65 @@ impl Store {
         self.removed.clone()
     }
 
-    pub fn list(&self) -> Vec<Approved> {
-        self.bridges.clone()
+    /// The trusted bridges: the player's approvals, then the built-ins they
+    /// did not remove. A built-in holds its ID and origin, so an approval of
+    /// either is not listed while it is.
+    pub fn list(&self) -> Vec<Listed> {
+        let live: Vec<&Approved> = self.live().collect();
+        let own = self
+            .approved
+            .iter()
+            .filter(|bridge| !live.iter().any(|pin| same_bridge(pin, bridge)))
+            .map(|bridge| Listed {
+                bridge: bridge.clone(),
+                builtin: false,
+                active: false,
+            });
+        let pinned = live.iter().map(|pin| Listed {
+            bridge: (*pin).clone(),
+            builtin: true,
+            active: self.used(pin),
+        });
+        own.chain(pinned).collect()
     }
 
     pub fn get(&self, bridge_id: &str) -> Option<Approved> {
-        self.bridges
-            .iter()
+        self.list()
+            .into_iter()
+            .map(|listed| listed.bridge)
             .find(|bridge| bridge.bridge_id == bridge_id)
-            .cloned()
+    }
+
+    /// Whether this build pins `bridge_id`: its keys are never replaced, and
+    /// its origin is checked before each new session.
+    pub fn pins(&self, bridge_id: &str) -> bool {
+        self.pinned.iter().any(|pin| pin.bridge_id == bridge_id)
+    }
+
+    fn live(&self) -> impl Iterator<Item = &Approved> {
+        self.pinned
+            .iter()
+            .filter(|pin| !self.removed.contains(&pin.bridge_id))
+    }
+
+    /// A built-in the player used: a session to it opened, they approved it
+    /// by its address, or a build without it saved their approval of it.
+    fn used(&self, pin: &Approved) -> bool {
+        self.activated.contains(&pin.bridge_id)
+            || self
+                .approved
+                .iter()
+                .any(|bridge| bridge.bridge_id == pin.bridge_id && bridge.origin == pin.origin)
     }
 
     /// Approves a profile with the keys fetched from its origin, and returns
     /// the bridge IDs whose entries it replaced, so their sessions can be
     /// dropped.
     ///
-    /// A built-in's ID is only ever the built-in: approving it again after
-    /// the player removed it restores the pinned entry, pinned keys and all,
-    /// and only at its own origin, and makes it active. A built-in the player
-    /// kept holds its origin; another bridge there can be approved once it is
-    /// removed.
+    /// A built-in's ID is only ever the built-in: approving it, at its own
+    /// origin only, trusts it again with its pinned keys and marks it used.
+    /// A built-in the player kept holds its origin; another bridge there can
+    /// be approved once it is removed.
     pub fn approve(
         &mut self,
         profile: &BridgeProfile,
@@ -205,41 +232,38 @@ impl Store {
         let pin = self
             .pinned
             .iter()
-            .find(|pin| pin.bridge_id == profile.bridge_id);
-        let entry = match pin {
-            Some(pin) if pin.origin == profile.origin => Approved {
-                active: true,
-                ..pin.clone()
-            },
-            Some(_) => return Err(Failure::new("bridge_changed")),
-            None => Approved {
-                bridge_id: profile.bridge_id.clone(),
-                origin: profile.origin.clone(),
-                display_name: profile
-                    .display_name
-                    .chars()
-                    .filter(|c| !c.is_control())
-                    .take(64)
-                    .collect(),
-                approved_at: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .map_or(0, |elapsed| elapsed.as_secs()),
-                keys: usable(keys),
-                builtin: false,
-                active: false,
-            },
+            .find(|pin| pin.bridge_id == profile.bridge_id)
+            .cloned();
+        if let Some(pin) = pin {
+            if pin.origin != profile.origin {
+                return Err(Failure::new("bridge_changed"));
+            }
+            return self.restore(&pin);
+        }
+        let entry = Approved {
+            bridge_id: profile.bridge_id.clone(),
+            origin: profile.origin.clone(),
+            display_name: profile
+                .display_name
+                .chars()
+                .filter(|c| !c.is_control())
+                .take(64)
+                .collect(),
+            approved_at: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map_or(0, |elapsed| elapsed.as_secs()),
+            keys: usable(keys),
         };
         if !valid(&entry) {
             return Err(Failure::new("invalid_bridge"));
         }
-        let held = |bridge: &Approved| bridge.builtin && bridge.origin == entry.origin;
-        if !entry.builtin && self.bridges.iter().any(held) {
+        if self.live().any(|pin| pin.origin == entry.origin) {
             return Err(Failure::new("bridge_changed"));
         }
         // One entry per bridge ID and per origin: a bridge that changed its
         // ID at the same origin is a different bridge and replaces it.
         let (displaced, mut kept): (Vec<_>, Vec<_>) = self
-            .bridges
+            .approved
             .iter()
             .cloned()
             .partition(|bridge| same_bridge(bridge, &entry));
@@ -248,52 +272,73 @@ impl Store {
         }
         let approved_id = entry.bridge_id.clone();
         kept.push(entry);
-        // The player's own stay ahead of the built-ins.
-        kept.sort_by_key(|bridge| bridge.builtin);
-        self.replace(kept)?;
-        // An explicit approval is the only way back after a removal.
-        // A record that cannot be cleared on disk only makes onboarding ask
-        // again after a restart.
-        if self.removed.contains(&approved_id) {
-            self.removed.retain(|id| *id != approved_id);
+        self.save_approved(kept)?;
+        self.unremove(&approved_id);
+        Ok(ids(displaced))
+    }
+
+    /// Trusts a built-in again, as used. Another approval at its origin gives
+    /// way to it; the player's own approval of the built-in itself stays, for
+    /// a build without it.
+    fn restore(&mut self, pin: &Approved) -> Result<Vec<String>, Failure> {
+        let itself =
+            |bridge: &Approved| bridge.bridge_id == pin.bridge_id && bridge.origin == pin.origin;
+        let (displaced, kept): (Vec<_>, Vec<_>) = self
+            .approved
+            .iter()
+            .cloned()
+            .partition(|bridge| same_bridge(bridge, pin) && !itself(bridge));
+        if !displaced.is_empty() {
+            self.save_approved(kept)?;
+        }
+        if !self.activated.contains(&pin.bridge_id) {
+            let mut activated = self.activated.clone();
+            remember(&mut activated, pin.bridge_id.clone());
+            self.save_activated(activated)?;
+        }
+        self.unremove(&pin.bridge_id);
+        Ok(ids(displaced))
+    }
+
+    /// An explicit approval is the only way back after a removal. A record
+    /// that cannot be cleared on disk only makes onboarding ask again after a
+    /// restart.
+    fn unremove(&mut self, bridge_id: &str) {
+        if self.removed.iter().any(|id| id == bridge_id) {
+            self.removed.retain(|id| id != bridge_id);
             let _ = self.save_removed(&self.removed);
         }
-        Ok(displaced
-            .into_iter()
-            .map(|bridge| bridge.bridge_id)
-            .collect())
     }
 
     /// Records an approved bridge's current public keys. A built-in's keys
     /// are pinned and never replaced.
     pub fn set_keys(&mut self, bridge_id: &str, keys: Vec<SigningKey>) -> Result<(), Failure> {
-        let mut updated = self.bridges.clone();
+        if self.pins(bridge_id) {
+            return Err(Failure::new("bridge_pinned"));
+        }
+        let mut updated = self.approved.clone();
         let entry = updated
             .iter_mut()
             .find(|bridge| bridge.bridge_id == bridge_id)
             .ok_or_else(|| Failure::new("bridge_not_approved"))?;
-        if entry.builtin {
-            return Err(Failure::new("bridge_pinned"));
-        }
         entry.keys = usable(keys);
-        self.replace(updated)
+        self.save_approved(updated)
     }
 
-    /// Makes a dormant built-in one of the player's services, once a session
-    /// to it opened. It is active for this run even when that cannot be
-    /// recorded; only a restart forgets it then.
+    /// Marks a built-in used once a session to it opened. It counts as used
+    /// for the rest of the run even when that cannot be recorded; after a
+    /// restart it is dormant again until its next session.
     pub fn activate(&mut self, bridge_id: &str) -> Result<(), Failure> {
-        let dormant = |bridge: &&mut Approved| {
-            bridge.builtin && !bridge.active && bridge.bridge_id == bridge_id
-        };
-        let Some(entry) = self.bridges.iter_mut().find(dormant) else {
+        if !self.pins(bridge_id) || self.activated.iter().any(|id| id == bridge_id) {
             return Ok(());
-        };
-        entry.active = true;
-        self.save_activated(in_use(&self.bridges))
+        }
+        remember(&mut self.activated, bridge_id.to_owned());
+        self.write_activated(&self.activated)
     }
 
-    /// Stops trusting a bridge. A built-in's activation goes with it.
+    /// Stops trusting a bridge. Every saved approval of it goes, and for a
+    /// built-in any at its origin too, so none takes its place on the next
+    /// start; so does a built-in's record of use.
     pub fn forget(&mut self, bridge_id: &str) -> Result<(), Failure> {
         // The removal is recorded first: should the trust then fail to go,
         // the record only keeps onboarding from trusting it by itself.
@@ -301,9 +346,28 @@ impl Store {
         remember(&mut removed, bridge_id.to_owned());
         self.save_removed(&removed)?;
         self.removed = removed;
-        let mut kept = self.bridges.clone();
-        kept.retain(|bridge| bridge.bridge_id != bridge_id);
-        self.replace(kept)
+        let pinned_origin = self
+            .pinned
+            .iter()
+            .find(|pin| pin.bridge_id == bridge_id)
+            .map(|pin| pin.origin.clone());
+        let kept: Vec<Approved> = self
+            .approved
+            .iter()
+            .filter(|bridge| {
+                bridge.bridge_id != bridge_id && pinned_origin.as_ref() != Some(&bridge.origin)
+            })
+            .cloned()
+            .collect();
+        if kept.len() != self.approved.len() {
+            self.save_approved(kept)?;
+        }
+        if self.activated.iter().any(|id| id == bridge_id) {
+            let mut activated = self.activated.clone();
+            activated.retain(|id| id != bridge_id);
+            self.save_activated(activated)?;
+        }
+        Ok(())
     }
 
     fn save_removed(&self, removed: &[String]) -> Result<(), Failure> {
@@ -317,43 +381,34 @@ impl Store {
         )
     }
 
-    /// Saves `bridges` and only then makes it the live list, so memory never
-    /// says something the files do not. Each file is written only when what
-    /// it holds changes: the player's approvals in `bridges.json`, the
-    /// built-ins they used in `activated.json`.
-    fn replace(&mut self, bridges: Vec<Approved>) -> Result<(), Failure> {
-        let own = |list: &[Approved]| -> Vec<Approved> {
-            list.iter()
-                .filter(|bridge| !bridge.builtin)
-                .cloned()
-                .collect()
-        };
-        let approved = own(&bridges);
-        if approved != own(&self.bridges) {
-            self.save(
-                FILE,
-                &File {
-                    format: FORMAT.into(),
-                    version: 1,
-                    bridges: approved,
-                },
-            )?;
-        }
-        let activated = in_use(&bridges);
-        if activated != in_use(&self.bridges) {
-            self.save_activated(activated)?;
-        }
-        self.bridges = bridges;
+    /// Saves the player's approvals and only then makes them the live list,
+    /// so memory never says something the file does not.
+    fn save_approved(&mut self, approved: Vec<Approved>) -> Result<(), Failure> {
+        self.save(
+            FILE,
+            &File {
+                format: FORMAT.into(),
+                version: 1,
+                bridges: approved.clone(),
+            },
+        )?;
+        self.approved = approved;
         Ok(())
     }
 
-    fn save_activated(&self, activated: Vec<String>) -> Result<(), Failure> {
+    fn save_activated(&mut self, activated: Vec<String>) -> Result<(), Failure> {
+        self.write_activated(&activated)?;
+        self.activated = activated;
+        Ok(())
+    }
+
+    fn write_activated(&self, activated: &[String]) -> Result<(), Failure> {
         self.save(
             ACTIVATED_FILE,
             &ActivatedFile {
                 format: ACTIVATED_FORMAT.into(),
                 version: 1,
-                activated,
+                activated: activated.to_vec(),
             },
         )
     }
@@ -365,20 +420,11 @@ impl Store {
 }
 
 /// `name` in `dir`, when it is there, small enough and parses as a `T`.
-fn read<T: serde::de::DeserializeOwned>(dir: &Path, name: &str) -> Option<T> {
+fn read<T: DeserializeOwned>(dir: &Path, name: &str) -> Option<T> {
     fs::read(dir.join(name))
         .ok()
         .filter(|bytes| bytes.len() <= MAX_FILE)
         .and_then(|bytes| json::parse_as::<T>(&bytes, MAX_FILE).ok())
-}
-
-/// The built-ins in `bridges` the player has used.
-fn in_use(bridges: &[Approved]) -> Vec<String> {
-    bridges
-        .iter()
-        .filter(|bridge| bridge.builtin && bridge.active)
-        .map(|bridge| bridge.bridge_id.clone())
-        .collect()
 }
 
 /// A record's bridge IDs, each once, without any that are not one.
@@ -393,12 +439,16 @@ fn bridge_ids(record: Option<Vec<String>>) -> Vec<String> {
         })
 }
 
+fn ids(bridges: Vec<Approved>) -> Vec<String> {
+    bridges.into_iter().map(|bridge| bridge.bridge_id).collect()
+}
+
 /// Notes a bridge ID: one entry per ID, newest last, oldest dropped past the cap.
-fn remember(removed: &mut Vec<String>, bridge_id: String) {
-    removed.retain(|id| *id != bridge_id);
-    removed.push(bridge_id);
-    if removed.len() > MAX_REMOVED {
-        removed.drain(..removed.len() - MAX_REMOVED);
+fn remember(list: &mut Vec<String>, bridge_id: String) {
+    list.retain(|id| *id != bridge_id);
+    list.push(bridge_id);
+    if list.len() > MAX_RECORDED {
+        list.drain(..list.len() - MAX_RECORDED);
     }
 }
 
@@ -454,374 +504,4 @@ fn same_bridge(one: &Approved, other: &Approved) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn profile(id_byte: u8, origin: &str) -> BridgeProfile {
-        BridgeProfile {
-            bridge_id: ember_protocol::encoding::prefixed_id("brg", [id_byte; 16]),
-            origin: origin.into(),
-            display_name: "Bridge".into(),
-            api_versions: vec!["v1".into()],
-            capabilities_url: String::new(),
-            signing_keys_url: String::new(),
-        }
-    }
-
-    #[test]
-    fn approvals_persist_and_replace_by_origin() {
-        let dir = std::env::temp_dir().join(format!("sf4-bridges-test-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&dir);
-        let mut store = Store::open(dir.clone(), Vec::new());
-        assert!(store.list().is_empty());
-        store
-            .approve(&profile(1, "https://bridge.one.example"), Vec::new())
-            .unwrap();
-        store.approve(&profile(2, "http://127.0.0.1:8787"), Vec::new()).unwrap();
-        assert!(store.approve(&profile(3, "http://10.0.0.1:8787"), Vec::new()).is_err());
-        assert!(
-            store
-                .approve(&profile(4, "https://bridge.one.example/path"), Vec::new())
-                .is_err()
-        );
-        let reopened = Store::open(dir.clone(), Vec::new());
-        assert_eq!(reopened.list().len(), 2);
-        let mut store = reopened;
-        let displaced = store
-            .approve(&profile(5, "https://bridge.one.example"), Vec::new())
-            .unwrap();
-        assert_eq!(displaced, vec![profile(1, "").bridge_id]);
-        assert_eq!(store.list().len(), 2);
-        assert!(store.get(&profile(1, "").bridge_id).is_none());
-        store.forget(&profile(5, "").bridge_id).unwrap();
-        assert_eq!(Store::open(dir.clone(), Vec::new()).list().len(), 1);
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    fn temp_dir(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("sf4-bridges-{name}-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&dir);
-        dir
-    }
-
-    #[test]
-    fn removal_persists_and_approval_clears_it() {
-        let dir = temp_dir("removed");
-        let mut store = Store::open(dir.clone(), Vec::new());
-        let one = profile(1, "https://bridge.one.example");
-        store.approve(&one, Vec::new()).unwrap();
-        assert!(store.removed().is_empty());
-        store.forget(&one.bridge_id).unwrap();
-        assert_eq!(store.removed(), vec![one.bridge_id.clone()]);
-        let mut reopened = Store::open(dir.clone(), Vec::new());
-        assert!(reopened.list().is_empty());
-        assert_eq!(reopened.removed(), vec![one.bridge_id.clone()]);
-        // Approving a different bridge leaves the record alone.
-        reopened
-            .approve(&profile(2, "https://bridge.two.example"), Vec::new())
-            .unwrap();
-        assert_eq!(reopened.removed(), vec![one.bridge_id.clone()]);
-        reopened.approve(&one, Vec::new()).unwrap();
-        assert!(reopened.removed().is_empty());
-        assert!(Store::open(dir.clone(), Vec::new()).removed().is_empty());
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn removed_record_dedupes_and_caps() {
-        let dir = temp_dir("removed-cap");
-        let mut store = Store::open(dir.clone(), Vec::new());
-        let id = |n: u8| profile(n, "").bridge_id;
-        store.forget(&id(1)).unwrap();
-        store.forget(&id(2)).unwrap();
-        store.forget(&id(1)).unwrap();
-        assert_eq!(store.removed(), vec![id(2), id(1)]);
-        let last = MAX_REMOVED as u8 + 10;
-        for n in 3..=last {
-            store.forget(&id(n)).unwrap();
-        }
-        let removed = Store::open(dir.clone(), Vec::new()).removed();
-        assert_eq!(removed.len(), MAX_REMOVED);
-        assert_eq!(removed.last(), Some(&id(last)));
-        assert!(!removed.contains(&id(1)));
-        assert!(!removed.contains(&id(2)));
-        assert_eq!(removed, store.removed());
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn garbage_removed_record_reads_as_empty() {
-        let dir = temp_dir("removed-garbage");
-        fs::create_dir_all(&dir).unwrap();
-        for text in [
-            "not json".to_owned(),
-            r#"{"format":"other","version":1,"removed":[]}"#.to_owned(),
-            r#"{"format":"ember-bridges-removed","version":2,"removed":[]}"#.to_owned(),
-            r#"{"format":"ember-bridges-removed","version":1,"removed":[],"extra":1}"#.to_owned(),
-            " ".repeat(MAX_FILE + 1),
-        ] {
-            fs::write(dir.join(REMOVED_FILE), text).unwrap();
-            assert!(Store::open(dir.clone(), Vec::new()).removed().is_empty());
-        }
-        // Entries that are not bridge IDs are dropped; valid ones kept once.
-        let good = profile(7, "").bridge_id;
-        let text = format!(
-            r#"{{"format":"ember-bridges-removed","version":1,"removed":["junk","{good}","{good}"]}}"#
-        );
-        fs::write(dir.join(REMOVED_FILE), text).unwrap();
-        assert_eq!(Store::open(dir.clone(), Vec::new()).removed(), vec![good]);
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    const PINNED_ORIGIN: &str = "https://bridge-staging.example";
-
-    fn key(seed: u8) -> String {
-        ember_protocol::SigningIdentity::from_seed(&zeroize::Zeroizing::new([seed; 32]))
-            .unwrap()
-            .public_key()
-            .to_b64u()
-    }
-
-    /// A built-in at `PINNED_ORIGIN` with ID byte 9 and the key of seed 9.
-    fn pinned() -> Vec<Approved> {
-        let (id, x) = (profile(9, "").bridge_id, key(9));
-        super::super::builtin::entries(&[super::super::builtin::Builtin {
-            bridge_id: &id,
-            origin: PINNED_ORIGIN,
-            display_name: "Ember bridge (staging)",
-            keys: &[("k9", &x)],
-        }])
-    }
-
-    fn signing_key(kid: &str, x: String) -> SigningKey {
-        SigningKey {
-            kty: "OKP".into(),
-            crv: "Ed25519".into(),
-            alg: "EdDSA".into(),
-            usage: "sig".into(),
-            kid: kid.into(),
-            x,
-        }
-    }
-
-    #[test]
-    fn a_builtin_is_trusted_without_being_saved() {
-        let dir = temp_dir("builtin");
-        let pin = profile(9, PINNED_ORIGIN);
-        let mut store = Store::open(dir.clone(), pinned());
-        let trusted = store.get(&pin.bridge_id).expect("the built-in");
-        assert!(trusted.builtin);
-        assert_eq!(trusted.origin, PINNED_ORIGIN);
-        assert!(trusted.key("k9").is_some());
-        // Listed after the player's own, and marked for the native side.
-        store
-            .approve(&profile(1, "https://bridge.one.example"), Vec::new())
-            .unwrap();
-        let listed = serde_json::to_value(store.list()).unwrap();
-        assert_eq!(listed[0]["bridge_id"], profile(1, "").bridge_id);
-        assert!(listed[0].get("builtin").is_none());
-        assert_eq!(listed[1]["bridge_id"], pin.bridge_id);
-        assert_eq!(listed[1]["builtin"], true);
-        // The file holds only the player's approval.
-        let file = fs::read_to_string(dir.join(FILE)).unwrap();
-        assert!(!file.contains(&pin.bridge_id) && !file.contains("builtin"));
-        assert_eq!(Store::open(dir.clone(), Vec::new()).list().len(), 1);
-        let reopened = Store::open(dir.clone(), pinned());
-        assert_eq!(reopened.list(), store.list());
-        // A file that claims a built-in is not read.
-        fs::write(
-            dir.join(FILE),
-            file.replace("\"keys\"", "\"builtin\": true, \"keys\""),
-        )
-        .unwrap();
-        assert!(Store::open(dir.clone(), Vec::new()).list().is_empty());
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn a_builtin_is_dormant_until_used() {
-        let dir = temp_dir("builtin-dormant");
-        let pin = profile(9, PINNED_ORIGIN);
-        let listed = |store: &Store| serde_json::to_value(store.list()).unwrap();
-        let mut store = Store::open(dir.clone(), pinned());
-        assert!(!store.get(&pin.bridge_id).unwrap().active);
-        assert!(listed(&store)[0].get("active").is_none());
-        // Approving another bridge records no activation.
-        store
-            .approve(&profile(1, "https://bridge.one.example"), Vec::new())
-            .unwrap();
-        assert!(!dir.join(ACTIVATED_FILE).exists());
-        // Used, it stays active across a restart, and bridges.json is untouched.
-        let before = fs::read(dir.join(FILE)).unwrap();
-        store.activate(&pin.bridge_id).unwrap();
-        assert_eq!(listed(&store)[1]["active"], true);
-        assert_eq!(fs::read(dir.join(FILE)).unwrap(), before);
-        let reopened = Store::open(dir.clone(), pinned());
-        assert!(reopened.get(&pin.bridge_id).unwrap().active);
-        // Only a built-in is activated.
-        store.activate(&profile(1, "").bridge_id).unwrap();
-        assert!(!store.get(&profile(1, "").bridge_id).unwrap().active);
-        // Removing it clears the activation; approving it again is a use.
-        store.forget(&pin.bridge_id).unwrap();
-        let text = fs::read_to_string(dir.join(ACTIVATED_FILE)).unwrap();
-        assert!(!text.contains(&pin.bridge_id));
-        store.approve(&pin, Vec::new()).unwrap();
-        assert!(store.get(&pin.bridge_id).unwrap().active);
-        assert!(
-            Store::open(dir.clone(), pinned())
-                .get(&pin.bridge_id)
-                .unwrap()
-                .active
-        );
-        // A garbled record leaves every built-in dormant.
-        fs::write(dir.join(ACTIVATED_FILE), "not json").unwrap();
-        assert!(
-            !Store::open(dir.clone(), pinned())
-                .get(&pin.bridge_id)
-                .unwrap()
-                .active
-        );
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn a_removed_builtin_stays_removed_until_approved_again() {
-        let dir = temp_dir("builtin-removed");
-        let pin = profile(9, PINNED_ORIGIN);
-        let mut store = Store::open(dir.clone(), pinned());
-        store.forget(&pin.bridge_id).unwrap();
-        assert!(store.get(&pin.bridge_id).is_none());
-        assert_eq!(store.removed(), vec![pin.bridge_id.clone()]);
-        let mut store = Store::open(dir.clone(), pinned());
-        assert!(store.list().is_empty());
-        // Approved again by its address: the pinned entry comes back with
-        // its pinned keys, whatever the origin served, and is still not saved.
-        store
-            .approve(&pin, vec![signing_key("other", key(5))])
-            .unwrap();
-        let restored = store.get(&pin.bridge_id).unwrap();
-        assert!(restored.builtin);
-        assert!(restored.key("k9").is_some() && restored.key("other").is_none());
-        assert!(store.removed().is_empty());
-        assert!(Store::open(dir.clone(), Vec::new()).list().is_empty());
-        assert!(
-            Store::open(dir.clone(), pinned())
-                .get(&pin.bridge_id)
-                .is_some()
-        );
-        // Its ID is never approved at another origin.
-        let elsewhere = profile(9, "https://bridge.one.example");
-        let refused = store.approve(&elsewhere, Vec::new()).unwrap_err();
-        assert_eq!(refused.0, "bridge_changed");
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn an_approval_cannot_evict_a_builtin() {
-        let dir = temp_dir("builtin-evict");
-        let pin = profile(9, PINNED_ORIGIN);
-        let mut store = Store::open(dir.clone(), pinned());
-        let other = profile(2, PINNED_ORIGIN);
-        let refused = store.approve(&other, Vec::new()).unwrap_err();
-        assert_eq!(refused.0, "bridge_changed");
-        assert_eq!(store.list(), Store::open(dir.clone(), pinned()).list());
-        // Removed, it gives the origin up to the bridge the player approves.
-        store.forget(&pin.bridge_id).unwrap();
-        assert!(store.approve(&other, Vec::new()).unwrap().is_empty());
-        assert!(!store.get(&other.bridge_id).unwrap().builtin);
-        // Approving the built-in again replaces that bridge.
-        let displaced = store.approve(&pin, Vec::new()).unwrap();
-        assert_eq!(displaced, vec![other.bridge_id.clone()]);
-        assert_eq!(store.list().len(), 1);
-        assert!(Store::open(dir.clone(), Vec::new()).list().is_empty());
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn an_older_approval_of_a_builtin_gives_way_to_it() {
-        let dir = temp_dir("builtin-older");
-        // A build without the built-in approved it, and another bridge at its origin.
-        let mut older = Store::open(dir.clone(), Vec::new());
-        older
-            .approve(&profile(9, PINNED_ORIGIN), Vec::new())
-            .unwrap();
-        older
-            .approve(&profile(1, "https://bridge.one.example"), Vec::new())
-            .unwrap();
-        let store = Store::open(dir.clone(), pinned());
-        let ids: Vec<_> = store
-            .list()
-            .into_iter()
-            .map(|b| (b.bridge_id, b.builtin))
-            .collect();
-        assert_eq!(
-            ids,
-            vec![
-                (profile(1, "").bridge_id, false),
-                (profile(9, "").bridge_id, true)
-            ]
-        );
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn a_builtins_keys_are_never_replaced() {
-        let dir = temp_dir("builtin-keys");
-        let pin = profile(9, PINNED_ORIGIN);
-        let mut store = Store::open(dir.clone(), pinned());
-        let refused = store
-            .set_keys(&pin.bridge_id, vec![signing_key("k5", key(5))])
-            .unwrap_err();
-        assert_eq!(refused.0, "bridge_pinned");
-        let kept = store.get(&pin.bridge_id).unwrap();
-        assert!(kept.key("k9").is_some() && kept.key("k5").is_none());
-        // An approved bridge's keys still follow its origin.
-        let one = profile(1, "https://bridge.one.example");
-        store.approve(&one, Vec::new()).unwrap();
-        store
-            .set_keys(&one.bridge_id, vec![signing_key("k5", key(5))])
-            .unwrap();
-        assert!(store.get(&one.bridge_id).unwrap().key("k5").is_some());
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn an_unusable_pin_is_not_trusted() {
-        let dir = temp_dir("builtin-unusable");
-        let good = pinned().remove(0);
-        let unusable = [
-            Approved {
-                bridge_id: "brg_FILL_IN".into(),
-                ..good.clone()
-            },
-            Approved {
-                origin: "http://bridge.example".into(),
-                ..good.clone()
-            },
-            Approved {
-                keys: Vec::new(),
-                ..good.clone()
-            },
-            Approved {
-                keys: vec![good.keys[0].clone(), signing_key("bad", "FILL_IN".into())],
-                ..good.clone()
-            },
-        ];
-        for pin in unusable {
-            assert!(Store::open(dir.clone(), vec![pin]).list().is_empty());
-        }
-        assert!(!dir.exists());
-    }
-
-    #[test]
-    fn no_folder_means_no_store() {
-        let mut store = Store::open(PathBuf::new(), pinned());
-        assert!(store.list().is_empty());
-        assert!(
-            store
-                .approve(&profile(1, "https://bridge.one.example"), Vec::new())
-                .is_err()
-        );
-        assert!(!std::path::Path::new(FILE).exists());
-    }
-}
+mod tests;

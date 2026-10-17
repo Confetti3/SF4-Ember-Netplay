@@ -2,7 +2,7 @@
 //! checks every challenge against the operation the user started before
 //! signing it, and keeps session tokens in memory only.
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     sync::{Arc, Mutex},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
@@ -46,8 +46,6 @@ struct Session {
 pub struct Client {
     http: Option<reqwest::Client>,
     sessions: Mutex<HashMap<String, Session>>,
-    /// The built-in bridges whose origin served their pinned ID this run.
-    pins_checked: Mutex<HashSet<String>>,
 }
 
 pub(super) fn now() -> u64 {
@@ -75,7 +73,6 @@ impl Client {
         Self {
             http,
             sessions: Mutex::new(HashMap::new()),
-            pins_checked: Mutex::new(HashSet::new()),
         }
     }
 
@@ -153,30 +150,17 @@ impl Client {
         Ok((profile, self.capabilities(origin).await?))
     }
 
-    /// Checks a built-in bridge before its first session in this run: its
-    /// origin must still serve the pinned bridge ID, else the bridge is not
-    /// trusted. A domain now pointing at another bridge fails every request
-    /// while it does; one that cannot be reached is not a mismatch.
-    pub(super) async fn check_pin(&self, bridge: &Approved) -> Result<(), Failure> {
-        let checked = self
-            .pins_checked
-            .lock()
-            .is_ok_and(|pins| pins.contains(&bridge.bridge_id));
-        if !bridge.builtin || checked {
-            return Ok(());
-        }
+    /// Checks a built-in bridge before each new session: its origin must
+    /// still serve the pinned bridge ID, else nothing is proved to it. A
+    /// domain now pointing at another bridge fails every request while it
+    /// does; one that cannot be reached is not a mismatch.
+    async fn check_pin(&self, bridge: &Approved) -> Result<(), Failure> {
         match self.profile(&bridge.origin).await {
-            Ok(profile) if profile.bridge_id == bridge.bridge_id => {}
-            Ok(_) => return Err(Failure::new(PIN_MISMATCH)),
-            Err(Failure(code)) if code == "bridge_mismatch" => {
-                return Err(Failure::new(PIN_MISMATCH));
-            }
-            Err(failure) => return Err(failure),
+            Ok(profile) if profile.bridge_id == bridge.bridge_id => Ok(()),
+            Ok(_) => Err(Failure::new(PIN_MISMATCH)),
+            Err(Failure(code)) if code == "bridge_mismatch" => Err(Failure::new(PIN_MISMATCH)),
+            Err(failure) => Err(failure),
         }
-        if let Ok(mut pins) = self.pins_checked.lock() {
-            pins.insert(bridge.bridge_id.clone());
-        }
-        Ok(())
     }
 
     /// The discovery document at `origin`, which must describe that origin.
@@ -261,6 +245,15 @@ pub(super) fn answer(status: u16, body: &[u8], expected: &[u16]) -> Result<Value
         .flatten()
         .unwrap_or_else(|| format!("http_{status}"));
     Err(Failure(code))
+}
+
+/// Whether this build pins `bridge_id` (builtin.rs).
+pub(super) fn pinned(shared: &Shared, bridge_id: &str) -> Result<bool, Failure> {
+    Ok(shared
+        .bridges
+        .lock()
+        .map_err(|_| Failure::new("internal"))?
+        .pins(bridge_id))
 }
 
 pub(super) fn approved(shared: &Shared, bridge_id: &str) -> Result<Approved, Failure> {
@@ -362,11 +355,15 @@ pub(super) fn current_id(shared: &Shared) -> Result<EmberId, Failure> {
         .ok_or_else(|| Failure::new("identity_unavailable"))
 }
 
-async fn session(shared: &Shared, bridge: &Approved) -> Result<Zeroizing<String>, Failure> {
+async fn session(shared: &Arc<Shared>, bridge: &Approved) -> Result<Zeroizing<String>, Failure> {
     // A session opened by an identity the player has since replaced is never reused.
     let ember_id = current_id(shared)?;
     if let Some(token) = shared.client.cached(bridge, &ember_id) {
         return Ok(token);
+    }
+    let pinned = pinned(shared, &bridge.bridge_id)?;
+    if pinned {
+        shared.client.check_pin(bridge).await?;
     }
     let body = prove(
         shared,
@@ -401,6 +398,9 @@ async fn session(shared: &Shared, bridge: &Approved) -> Result<Zeroizing<String>
             },
         );
     }
+    if pinned {
+        activate(shared, &bridge.bridge_id).await;
+    }
     Ok(token)
 }
 
@@ -412,11 +412,7 @@ where
     Fut: std::future::Future<Output = Outcome>,
 {
     let bridge = approved(shared, bridge_id)?;
-    shared.client.check_pin(&bridge).await?;
     let token = session(shared, &bridge).await?;
-    if bridge.builtin && !bridge.active {
-        activate(shared, bridge_id).await;
-    }
     match operation(bridge.clone(), token).await {
         Err(Failure(code)) if code == "unauthenticated" => {
             shared.client.forget_session(bridge_id);
@@ -428,8 +424,8 @@ where
 }
 
 /// A dormant built-in becomes one of the player's services once a session
-/// to it opens. One that cannot be recorded stays dormant, and is tried again
-/// with the next session.
+/// to it opens. It counts as used for the rest of the run even when that
+/// cannot be recorded (`Store::activate`).
 async fn activate(shared: &Arc<Shared>, bridge_id: &str) {
     let store = shared.clone();
     let id = bridge_id.to_owned();
@@ -579,8 +575,6 @@ mod tests {
             display_name: "Bridge".into(),
             approved_at: 0,
             keys: Vec::new(),
-            builtin: false,
-            active: false,
         };
         assert!(client.cached(&at("https://a.example"), &ember_id).is_some());
         assert!(client.cached(&at("https://b.example"), &ember_id).is_none());

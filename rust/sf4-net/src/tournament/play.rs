@@ -54,7 +54,7 @@ pub(super) async fn bridge_key(
     if let Some(key) = bridge.key(kid) {
         return Ok(key);
     }
-    if bridge.builtin {
+    if client::pinned(shared, &bridge.bridge_id)? {
         return Err(Failure::new("untrusted_signature"));
     }
     let keys = shared.client.signing_keys(&bridge.origin).await?;
@@ -555,7 +555,7 @@ fn random() -> Result<[u8; 16], Failure> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tournament::Request;
+    use crate::tournament::{Request, builtin::Builtin};
 
     fn capabilities_json(features: &[&str]) -> Value {
         json!({
@@ -639,6 +639,10 @@ mod tests {
     }
 
     fn shared_in(dir: &std::path::Path) -> Arc<Shared> {
+        shared_pinning(dir, &[])
+    }
+
+    fn shared_pinning(dir: &std::path::Path, builtins: &[Builtin]) -> Arc<Shared> {
         Arc::new(Shared {
             identity: std::sync::Mutex::new(crate::identity::Identity::open(
                 dir.join("identity"),
@@ -647,7 +651,7 @@ mod tests {
             )),
             bridges: std::sync::Mutex::new(super::super::bridges::Store::open(
                 dir.join("bridges"),
-                Vec::new(),
+                builtins,
             )),
             client: client::Client::new(),
             http: Arc::new(tokio::sync::Semaphore::new(1)),
@@ -677,8 +681,6 @@ mod tests {
             display_name: "Bridge".into(),
             approved_at: 0,
             keys: Vec::new(),
-            builtin: false,
-            active: false,
         };
         let reads = || reads_ready(&shared, &bridge, "emt_x");
         let count = || asked.load(std::sync::atomic::Ordering::SeqCst);
@@ -752,7 +754,6 @@ mod tests {
     #[tokio::test]
     async fn a_builtins_unknown_key_stays_untrusted() {
         let dir = std::env::temp_dir().join(prefixed_id("sf4-net-pinned", random().unwrap()));
-        let shared = shared_in(&dir);
         let closed = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let origin = format!("http://{}", closed.local_addr().unwrap());
         drop(closed);
@@ -760,18 +761,19 @@ mod tests {
             .unwrap()
             .public_key()
             .to_b64u();
-        let id = prefixed_id("brg", [9; 16]);
-        let mut bridge = super::super::builtin::Builtin {
-            bridge_id: &id,
-            origin: &origin,
-            display_name: "Pinned",
-            keys: &[("k9", &x)],
-        }
-        .entry();
+        let pin = Builtin {
+            bridge_id: prefixed_id("brg", [9; 16]),
+            origin,
+            display_name: "Pinned".into(),
+            keys: vec![("k9".into(), x)],
+        };
+        let shared = shared_pinning(&dir, std::slice::from_ref(&pin));
+        let mut bridge = pin.entry();
         assert!(bridge_key(&shared, &bridge, "k9").await.is_ok());
         let refused = bridge_key(&shared, &bridge, "k5").await.unwrap_err();
         assert_eq!(refused.0, "untrusted_signature");
-        bridge.builtin = false;
+        // The same entry under an ID this build does not pin.
+        bridge.bridge_id = prefixed_id("brg", [8; 16]);
         let fetched = bridge_key(&shared, &bridge, "k5").await.unwrap_err();
         assert_eq!(fetched.0, "bridge_unreachable");
         let _ = std::fs::remove_dir_all(dir);

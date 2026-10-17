@@ -1,48 +1,45 @@
 //! Bridges this build trusts without an approval: Ember's staging bridge in
 //! Nightly builds (cargo feature `staging-bridge`), none otherwise. Each is
 //! pinned by its bridge ID, origin and Ed25519 signing keys. The helper never
-//! replaces those keys from the network, and checks once per run that the
-//! origin still describes the pinned bridge (`Client::check_pin`). The store
-//! keeps built-ins out of `bridges.json`; a player can still remove one,
-//! which `removed.json` records like any other removal.
+//! replaces those keys from the network, and before each new session checks
+//! that the origin still describes the pinned bridge (`Client::check_pin`).
+//! The store keeps built-ins out of `bridges.json`; a player can still remove
+//! one, which `removed.json` records like any other removal.
 use ember_protocol::api::SigningKey;
 
 use super::bridges::Approved;
 
-/// A pinned bridge. Borrowed so the compiled-in list is a constant and tests
-/// can pin a loopback bridge whose origin is only known at run time.
-#[derive(Clone, Copy, Debug)]
-pub struct Builtin<'a> {
-    pub bridge_id: &'a str,
-    pub origin: &'a str,
-    pub display_name: &'a str,
+/// A pinned bridge.
+#[derive(Clone, Debug)]
+pub struct Builtin {
+    pub bridge_id: String,
+    pub origin: String,
+    pub display_name: String,
     /// The keys that sign its bindings, permits and tickets, as the JWK
     /// `kid` and base64url `x` its `/v1/signing-keys` publishes.
-    pub keys: &'a [(&'a str, &'a str)],
+    pub keys: Vec<(String, String)>,
 }
 
-impl Builtin<'_> {
+impl Builtin {
     /// The trusted entry, before the store checks it.
     pub(super) fn entry(&self) -> Approved {
         Approved {
-            bridge_id: self.bridge_id.into(),
-            origin: self.origin.into(),
-            display_name: self.display_name.into(),
+            bridge_id: self.bridge_id.clone(),
+            origin: self.origin.clone(),
+            display_name: self.display_name.clone(),
             approved_at: 0,
             keys: self
                 .keys
                 .iter()
-                .map(|&(kid, x)| SigningKey {
+                .map(|(kid, x)| SigningKey {
                     kty: "OKP".into(),
                     crv: "Ed25519".into(),
                     alg: "EdDSA".into(),
                     usage: "sig".into(),
-                    kid: kid.into(),
-                    x: x.into(),
+                    kid: kid.clone(),
+                    x: x.clone(),
                 })
                 .collect(),
-            builtin: true,
-            active: false,
         }
     }
 }
@@ -60,29 +57,24 @@ mod staging {
     pub const STAGING_ORIGIN: &str = "https://bridge-staging.embernetplay.link";
 }
 
-#[cfg(feature = "staging-bridge")]
-const STAGING: Builtin<'static> = Builtin {
-    bridge_id: staging::STAGING_BRIDGE_ID,
-    origin: staging::STAGING_ORIGIN,
-    display_name: "Ember bridge (staging)",
-    keys: &[(staging::STAGING_KEY_KID, staging::STAGING_KEY_X)],
-};
-
 /// The bridges this build trusts out of the box.
-pub fn builtins() -> &'static [Builtin<'static>] {
+pub fn builtins() -> Vec<Builtin> {
     #[cfg(feature = "staging-bridge")]
     {
-        &[STAGING]
+        vec![Builtin {
+            bridge_id: staging::STAGING_BRIDGE_ID.into(),
+            origin: staging::STAGING_ORIGIN.into(),
+            display_name: "Ember bridge (staging)".into(),
+            keys: vec![(
+                staging::STAGING_KEY_KID.into(),
+                staging::STAGING_KEY_X.into(),
+            )],
+        }]
     }
     #[cfg(not(feature = "staging-bridge"))]
     {
-        &[]
+        Vec::new()
     }
-}
-
-/// The entries for `list`, unchecked.
-pub(super) fn entries(list: &[Builtin]) -> Vec<Approved> {
-    list.iter().map(Builtin::entry).collect()
 }
 
 #[cfg(test)]
@@ -105,17 +97,16 @@ mod tests {
             "fill in STAGING_BRIDGE_ID in builtin.rs"
         );
         assert!(check_origin(staging::STAGING_ORIGIN, OriginPolicy::HttpsOnly).is_ok());
-        let entry = STAGING.entry();
+        let entry = builtins()[0].entry();
         assert!(
             entry.key(staging::STAGING_KEY_KID).is_some(),
             "fill in STAGING_KEY_KID and STAGING_KEY_X in builtin.rs"
         );
         let dir = std::env::temp_dir().join(format!("sf4-builtin-staging-{}", std::process::id()));
-        let store = super::super::bridges::Store::open(dir.clone(), entries(builtins()));
+        let store = super::super::bridges::Store::open(dir.clone(), &builtins());
         assert!(
-            store
-                .get(staging::STAGING_BRIDGE_ID)
-                .is_some_and(|bridge| bridge.builtin),
+            store.pins(staging::STAGING_BRIDGE_ID)
+                && store.get(staging::STAGING_BRIDGE_ID).is_some(),
             "the staging pin is not trusted"
         );
         let _ = std::fs::remove_dir_all(dir);

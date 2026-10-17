@@ -308,7 +308,7 @@ pub fn spawn(
         let dir = tournament_directory();
         (
             Identity::open_default(),
-            bridges::Store::open(dir.clone(), builtin::entries(builtin::builtins())),
+            bridges::Store::open(dir.clone(), &builtin::builtins()),
             spool::Spool::open(spool_directory(&dir)),
         )
     })
@@ -332,13 +332,12 @@ pub fn spawn_in(
     wine: bool,
     endpoint_id: String,
     home_region: HomeRegion,
-    builtins: &[Builtin],
+    builtins: Vec<Builtin>,
 ) -> (Handle, tokio::task::JoinHandle<()>) {
-    let pinned = builtin::entries(builtins);
     spawn_with(events, endpoint_id, home_region, move || {
         (
             Identity::open(identity_dir, wine, identity::Cost::DEFAULT),
-            bridges::Store::open(tournament_dir.clone(), pinned),
+            bridges::Store::open(tournament_dir.clone(), &builtins),
             spool::Spool::open(spool_directory(&tournament_dir)),
         )
     })
