@@ -6,6 +6,7 @@
 //! event. A failure here is reported and never ends the helper, and nothing
 //! here waits on, or is waited on by, room or gameplay work (spec 18.3).
 mod bridges;
+mod builtin;
 mod client;
 mod discord;
 mod play;
@@ -305,7 +306,7 @@ pub fn spawn(
         let dir = tournament_directory();
         (
             Identity::open_default(),
-            bridges::Store::open(dir.clone()),
+            bridges::Store::open(dir.clone(), builtin::entries(builtin::builtins())),
             spool::Spool::open(spool_directory(&dir)),
         )
     })
@@ -332,7 +333,7 @@ pub fn spawn_in(
     spawn_with(events, endpoint_id, home_region, move || {
         (
             Identity::open(identity_dir, wine, identity::Cost::DEFAULT),
-            bridges::Store::open(tournament_dir.clone()),
+            bridges::Store::open(tournament_dir.clone(), Vec::new()),
             spool::Spool::open(spool_directory(&tournament_dir)),
         )
     })

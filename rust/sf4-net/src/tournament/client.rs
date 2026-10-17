@@ -524,6 +524,7 @@ mod tests {
             display_name: "Bridge".into(),
             approved_at: 0,
             keys: Vec::new(),
+            builtin: false,
         };
         assert!(client.cached(&at("https://a.example"), &ember_id).is_some());
         assert!(client.cached(&at("https://b.example"), &ember_id).is_none());

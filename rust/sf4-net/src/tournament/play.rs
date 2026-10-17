@@ -641,7 +641,10 @@ mod tests {
                 false,
                 crate::identity::Cost::DEFAULT,
             )),
-            bridges: std::sync::Mutex::new(super::super::bridges::Store::open(dir.join("bridges"))),
+            bridges: std::sync::Mutex::new(super::super::bridges::Store::open(
+                dir.join("bridges"),
+                Vec::new(),
+            )),
             client: client::Client::new(),
             http: Arc::new(tokio::sync::Semaphore::new(1)),
             play: std::sync::Mutex::new(State::default()),
@@ -670,6 +673,7 @@ mod tests {
             display_name: "Bridge".into(),
             approved_at: 0,
             keys: Vec::new(),
+            builtin: false,
         };
         let reads = || reads_ready(&shared, &bridge, "emt_x");
         let count = || asked.load(std::sync::atomic::Ordering::SeqCst);
