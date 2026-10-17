@@ -376,8 +376,11 @@ msgstr "Chercher des mises à jour au lancement"
 msgid "settings.update_check_detail"
 msgstr "Cherche une nouvelle version au lancement du jeu, au plus toutes les 6 heures. Demande avant de modifier quoi que ce soit."
 
+msgid "menu.requires_value"
+msgstr "Réglez d’abord {0} sur {1}."
+
 msgid "menu.edit_detail"
-msgstr "Sélectionnez, saisissez ou collez. Enter valide ; Retour annule."
+msgstr "Saisissez ou collez au clavier. Enter ou Sélectionner sur manette valide ; Esc ou Retour sur manette annule."
 
 msgid "menu.edit_unavailable"
 msgstr "Modification indisponible actuellement."
@@ -669,6 +672,9 @@ msgstr "SF4 EMBER"
 
 msgid "settings.auto_save"
 msgstr "Sauvegarde automatique."
+
+msgid "settings.edit_at_main_menu"
+msgstr "Disponible au menu principal, hors d'un match."
 
 msgid "settings.leave_room_to_edit"
 msgstr "Quittez le salon pour changer vos réglages."
@@ -1067,6 +1073,12 @@ msgstr "Nom affiché, attribution de la manette et jeu en arrière-plan."
 
 msgid "settings.defaults_detail"
 msgstr "Latence et réglages des nouveaux salons."
+
+msgid "settings.menu_display"
+msgstr "Menus et langue"
+
+msgid "settings.menu_display_detail"
+msgstr "Modifiez la taille et la langue des menus."
 
 msgid "settings.interface"
 msgstr "Interface"

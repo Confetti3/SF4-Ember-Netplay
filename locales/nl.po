@@ -376,8 +376,11 @@ msgstr "Bij het starten op updates controleren"
 msgid "settings.update_check_detail"
 msgstr "Zoekt naar een nieuwe versie als het spel start, hoogstens elke 6 uur. Er wordt eerst gevraagd voordat iets verandert."
 
+msgid "menu.requires_value"
+msgstr "Stel eerst {0} in op {1}."
+
 msgid "menu.edit_detail"
-msgstr "Selecteer om te bewerken. Typ of plak, Enter bevestigt; Terug annuleert."
+msgstr "Typ of plak met het toetsenbord. Enter of Kiezen op de controller bevestigt; Escape of controllerknop Terug annuleert."
 
 msgid "menu.edit_unavailable"
 msgstr "Bewerken is nu niet beschikbaar."
@@ -669,6 +672,9 @@ msgstr "SF4 EMBER"
 
 msgid "settings.auto_save"
 msgstr "Wijzigingen slaan vanzelf op."
+
+msgid "settings.edit_at_main_menu"
+msgstr "Beschikbaar in het hoofdmenu, buiten een match."
 
 msgid "settings.leave_room_to_edit"
 msgstr "Verlaat de kamer om eigen instellingen te wijzigen."
@@ -1067,6 +1073,12 @@ msgstr "Schermnaam, controllertoewijzing en spelen op de achtergrond."
 
 msgid "settings.defaults_detail"
 msgstr "Invoervertraging en kamerstandaard."
+
+msgid "settings.menu_display"
+msgstr "Menu’s en taal"
+
+msgid "settings.menu_display_detail"
+msgstr "Pas de menugrootte en taal aan."
 
 msgid "settings.interface"
 msgstr "Interface"

@@ -221,7 +221,7 @@ static void ControllerSettingsJourney() {
     Check(row("game-reads-pads").detail.find(loc::T("player.game_reads_pending")) == std::string::npos, "Returning to running mode left pending text");
     h.view.preferences = h.actions.back().preferences; h.Frame();
     h.view.canEditPreferences = false; h.Frame();
-    Check(!row("game-reads-pads").enabled && row("game-reads-pads").detail == loc::T("settings.leave_room_to_edit"), "Locked opt-out has the wrong detail");
+    Check(!row("game-reads-pads").enabled && row("game-reads-pads").detail == loc::T("settings.edit_at_main_menu"), "Locked opt-out has the wrong detail");
     const auto locked = h.actions.size(); h.Press(MenuInput::Right); h.Frame(0, 45);
     Check(h.actions.size() == locked, "Locked opt-out changed preferences");
     SetMenuEntriesProbe({});

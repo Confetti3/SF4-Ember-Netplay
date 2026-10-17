@@ -376,8 +376,11 @@ msgstr "起動時に更新を確認"
 msgid "settings.update_check_detail"
 msgstr "ゲームの起動時に新しいバージョンを確認します。確認は6時間に1回までです。何かを変更する前に確認を求めます。"
 
+msgid "menu.requires_value"
+msgstr "先に「{0}」を「{1}」に設定してください。"
+
 msgid "menu.edit_detail"
-msgstr "選択して編集します。入力または貼り付け後、Enterで決定。戻るでキャンセルします。"
+msgstr "キーボードで入力または貼り付け。Enterかコントローラーの決定で確定、Escかコントローラーの戻るでキャンセルします。"
 
 msgid "menu.edit_unavailable"
 msgstr "現在は編集できません。"
@@ -669,6 +672,9 @@ msgstr "SF4 EMBER"
 
 msgid "settings.auto_save"
 msgstr "変更は自動保存されます。"
+
+msgid "settings.edit_at_main_menu"
+msgstr "対戦中以外のメインメニューで使えます。"
 
 msgid "settings.leave_room_to_edit"
 msgstr "個人設定を変更するにはルームから退出してください。"
@@ -1067,6 +1073,12 @@ msgstr "表示名、コントローラーの割り当て、バックグラウン
 
 msgid "settings.defaults_detail"
 msgstr "入力遅延と新規ルームの初期設定。"
+
+msgid "settings.menu_display"
+msgstr "メニューと言語"
+
+msgid "settings.menu_display_detail"
+msgstr "メニューのサイズと言語を変更します。"
 
 msgid "settings.interface"
 msgstr "表示"

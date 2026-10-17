@@ -36,6 +36,14 @@ Prompts name the buttons that select and go back: A and B by default on XInput, 
 
 Player & Controller, Gameplay Defaults, Interface and Discord use named value rows. Valid personal changes are coalesced and saved asynchronously. Saving/Saved/Error feedback is quiet; Retry saving resubmits after failure. Room rules still require Apply and host authority.
 
+Settings > Interface now groups related options into three short pages:
+
+- **Menus and language:** interface size and language.
+- **Match HUD:** visibility, layout, name height, size, position and edge spacing, with a live preview.
+- **Challenger call:** the ready alert, volume and preview sound.
+
+Back returns to the category list. Disabled preferences stay visible and explain how to unlock them. For example, name height requires the Split HUD layout, and Challenger call volume requires Challenger call to be on. Personal preferences that require leaving the room say so before their description. Language remains editable while in a room. Text fields explain the physical keyboard requirement before opening the editor.
+
 Ember automatically adopts SF4's connected controller, or the sole connected controller when the native menu still points to keyboard. Multiple unassigned controllers trigger release-all / press / release capture; simultaneous presses cannot choose an arbitrary device. With no controller, keyboard is provisional until explicitly chosen or used to join a room. You can explicitly choose a device under Player & Controller. Disconnecting never silently replaces an established device.
 
 Before starting a match, Ember rechecks the device and verifies native P1/P2 binding. Each local GGPO input sample is read only while that binding and device identity still match. A disconnect, replacement, or changed native slot produces neutral input and a visible warning, never another controller's buttons. Reconnect the original device; if its slot changed, return to the room to reassign it. These checks use SF4's native type, index and device name; they cannot prove physical hardware identity when identical devices are re-enumerated under the same slot/name.

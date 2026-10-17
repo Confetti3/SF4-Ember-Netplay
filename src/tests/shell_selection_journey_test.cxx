@@ -120,10 +120,10 @@ void PresentationJourneys(){
  text.enabled=false;Check(MenuPrimaryHint(&text)==nullptr,"Disabled field advertises submission");
  Harness h;std::string status;SetMenuStatusProbe([&](const char* text,Tone){status=text;});
  h.view.preferences.showMatchHud=true;h.Frame(); // The HUD defaults to off; the click below must change a saved value.
- h.Screen("interface");ImVec2 leftArrow,otherRow;
+ h.Screen("match-hud");ImVec2 leftArrow,otherRow;
  SetMenuCardProbe([&](const char* id,ImVec2 min,ImVec2 max){
   if(std::strcmp(id,"hud")==0)leftArrow=ImVec2(min.x+(max.x-min.x)*.75f,(min.y+max.y)*.5f);
-  if(std::strcmp(id,"scale")==0)otherRow=ImVec2((min.x+max.x)*.5f,(min.y+max.y)*.5f);
+  if(std::strcmp(id,"hud-size")==0)otherRow=ImVec2((min.x+max.x)*.5f,(min.y+max.y)*.5f);
  });h.Frame();SetMenuCardProbe({});
  auto& io=ImGui::GetIO();io.AddMousePosEvent(otherRow.x,otherRow.y);h.Frame();
  Check(h.shell.Navigation().Focus()=="hud","Mouse hover stole controller focus");

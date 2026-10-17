@@ -42,7 +42,7 @@ void LanguageSaveFailure() {
  h.shell.SetLanguageSaver([](const std::string&,std::string& diagnostic){diagnostic="Read-only folder";return false;});
  std::string status;Tone tone=Tone::Neutral;
  SetMenuStatusProbe([&](const char* text,Tone t){status=text;tone=t;});
- h.Screen("interface");h.FocusOn("language");h.Press(MenuInput::Right);h.Frame(0,45);
+ h.Screen("menu-display");h.FocusOn("language");h.Press(MenuInput::Right);h.Frame(0,45);
  const std::string failure=loc::T("settings.language_save_failed");
  Check(status==failure&&tone==Tone::Error,"A failed language save was not reported where the language is set");
  h.Screen("join");h.Frame(0,2);Check(status!=failure,"The language save failure followed the player to another screen");
@@ -50,7 +50,7 @@ void LanguageSaveFailure() {
  Check(status==h.view.session.error,"A session error lost to a stale language save failure");
  h.view.session.error.clear();h.view.controllerUnavailable=true;h.Frame();
  Check(status==loc::T("controller.disconnected"),"A controller disconnect lost to a stale language save failure");
- h.view.controllerUnavailable=false;h.Screen("interface");h.Frame(0,2);
+ h.view.controllerUnavailable=false;h.Screen("menu-display");h.Frame(0,2);
  Check(status==failure,"The failure did not return with the Interface screen");
  SetMenuStatusProbe({});loc::SetActive(loc::Locale::En);
 }

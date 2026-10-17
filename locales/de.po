@@ -376,8 +376,11 @@ msgstr "Beim Start auf Updates prüfen"
 msgid "settings.update_check_detail"
 msgstr "Sucht beim Start des Spiels nach einer neuen Version, höchstens alle 6 Stunden. Es fragt nach, bevor etwas geändert wird."
 
+msgid "menu.requires_value"
+msgstr "Setze zuerst {0} auf {1}."
+
 msgid "menu.edit_detail"
-msgstr "Zum Bearbeiten wählen. Tippen oder einfügen; Enter bestätigt, Zurück bricht ab."
+msgstr "Mit der Tastatur tippen oder einfügen. Enter oder Controller-Auswahl bestätigt; Escape oder Controller-Back bricht ab."
 
 msgid "menu.edit_unavailable"
 msgstr "Bearbeiten ist derzeit nicht möglich."
@@ -669,6 +672,9 @@ msgstr "SF4 EMBER"
 
 msgid "settings.auto_save"
 msgstr "Änderungen speichern automatisch."
+
+msgid "settings.edit_at_main_menu"
+msgstr "Verfügbar im Hauptmenü, außerhalb eines Matches."
 
 msgid "settings.leave_room_to_edit"
 msgstr "Raum für persönliche Einstellungen verlassen."
@@ -1067,6 +1073,12 @@ msgstr "Anzeigename, Controller-Zuweisung und Spielen im Hintergrund."
 
 msgid "settings.defaults_detail"
 msgstr "Eingabeverzögerung und neue Raumvorgaben."
+
+msgid "settings.menu_display"
+msgstr "Menüs und Sprache"
+
+msgid "settings.menu_display_detail"
+msgstr "Menügröße und Sprache ändern."
 
 msgid "settings.interface"
 msgstr "Oberfläche"

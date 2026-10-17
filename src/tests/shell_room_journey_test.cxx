@@ -371,7 +371,7 @@ void RoomJourneys() {
  ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,true);h.Frame();ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,false);h.Frame();
  Check(h.actions.size()==count+1&&h.actions.back().roomAction.kind==room::ActionKind::Chat&&h.actions.back().roomAction.text=="Hello","Enter in the chat box did not send");
   h.view.session.control=netplay::Health::Lost;h.Screen("room");count=h.actions.size();h.Choose("table-2");Check(h.actions.size()==count,"Lost connection submitted Ready");
- h.view={};h.view.controllerReady=h.view.canEditPreferences=h.view.canOpenRoom=true;h.Frame();h.Screen("interface");h.Choose("hud");h.Press(MenuInput::Left);
+ h.view={};h.view.controllerReady=h.view.canEditPreferences=h.view.canOpenRoom=true;h.Frame();h.Screen("match-hud");h.Choose("hud");h.Press(MenuInput::Left);
  count=h.actions.size();h.Frame(0,20);Check(h.actions.size()==count,"Autosave not coalesced");
  h.Frame(0,20);Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.showMatchHud,"Autosave did not queue");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("player");h.Choose("background-play");h.Press(MenuInput::Right);h.Frame(0,45);
@@ -388,7 +388,7 @@ void RoomJourneys() {
  Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.shareSteamProfile,"Hiding the Steam profile did not save");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.shareSteamProfile,"Showing the Steam profile did not save");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("interface");
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("match-hud");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-size");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudSize==1,"HUD size did not save"); // Small by default; Right steps to Standard.
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-layout");h.Press(MenuInput::Left);h.Frame(0,45);
@@ -425,7 +425,7 @@ void RoomJourneys() {
  Check(!h.actions.back().preferences.autoInputDelay&&h.actions.back().preferences.inputDelay==0,"Leaving Auto did not start at 0 frames");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);
  Check(h.actions.back().preferences.autoInputDelay&&h.actions.back().preferences.inputDelay==0,"Auto delay did not save");
- h.Screen("interface");
+ h.Screen("menu-display");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("scale");h.Press(MenuInput::Right);
  h.view.settingsError="Disk unavailable";h.Frame(0,45);
  {std::vector<MenuEntry> saveRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){saveRows=rows;});h.Frame();SetMenuEntriesProbe({});
