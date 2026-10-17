@@ -81,6 +81,11 @@ impl Worker {
 
     /// A worker whose helper run has the Iroh endpoint `endpoint`.
     fn start_as(dirs: &Dirs, endpoint: String) -> Self {
+        Self::start_pinning(dirs, endpoint, &[])
+    }
+
+    /// A worker that trusts `builtins` as a build pinning them does.
+    fn start_pinning(dirs: &Dirs, endpoint: String, builtins: &[tournament::Builtin]) -> Self {
         let (sender, events) = mpsc::channel(64);
         let (handle, task) = tournament::spawn_in(
             sender,
@@ -89,6 +94,7 @@ impl Worker {
             false,
             endpoint,
             Box::new(|| None),
+            builtins,
         );
         Self {
             handle,
@@ -330,6 +336,90 @@ async fn link_an_identity_through_the_helper() {
         json!({ "type": "tournament", "request": { "op": "identity_status", "extra": 1 } }),
     );
     assert!(bad.is_err());
+    running.abort();
+}
+
+/// A GET of `path` on the bridge, as JSON.
+async fn bridge_document(origin: &str, path: &str) -> Value {
+    let text = reqwest::get(format!("{origin}{path}"))
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+    serde_json::from_str(&text).unwrap()
+}
+
+// A bridge the build pins is trusted with no approval while its origin
+// serves the pinned ID. Forgotten, it is not trusted until the player
+// approves it again by its address. Pinned under an ID its origin does not
+// serve, it is not trusted at all.
+#[tokio::test]
+async fn a_pinned_bridge_is_trusted_without_an_approval() {
+    let dirs = Dirs(std::env::temp_dir().join(format!(
+        "sf4-tournament-pinned-{}",
+        ember_protocol::encoding::b64u(&random16())
+    )));
+    std::fs::create_dir_all(&dirs.0).unwrap();
+    let (running, origin) = bridge(&dirs.0).await;
+    let profile = bridge_document(&origin, "/.well-known/ember-bridge.json").await;
+    let bridge_id = profile["bridge_id"].as_str().unwrap().to_owned();
+    let keys = bridge_document(&origin, "/v1/signing-keys").await;
+    let (kid, x) = (
+        keys["keys"][0]["kid"].as_str().unwrap(),
+        keys["keys"][0]["x"].as_str().unwrap(),
+    );
+    let pinned_keys = [(kid, x)];
+    let pin = |bridge_id| tournament::Builtin {
+        bridge_id,
+        origin: &origin,
+        display_name: "Pinned bridge",
+        keys: &pinned_keys,
+    };
+    let mut worker = Worker::start_pinning(&dirs, "a".repeat(64), &[pin(&bridge_id)]);
+    worker.next_answer(0).await;
+    let (ok, _, _, _) = worker.ask(json!({ "op": "identity_enable" })).await;
+    assert!(ok);
+    let (_, _, _, listed) = worker.ask(json!({ "op": "bridge_list" })).await;
+    assert_eq!(listed["bridges"][0]["bridge_id"], bridge_id.as_str());
+    assert_eq!(listed["bridges"][0]["builtin"], true);
+    let links = json!({ "op": "link_list", "bridge_id": bridge_id });
+    let (ok, reason, _, _) = worker.ask(links.clone()).await;
+    assert!(ok, "{reason:?}");
+
+    let (ok, _, _, _) = worker
+        .ask(json!({ "op": "bridge_forget", "bridge_id": bridge_id }))
+        .await;
+    assert!(ok);
+    let (ok, reason, _, _) = worker.ask(links.clone()).await;
+    assert!(!ok);
+    assert_eq!(reason.as_deref(), Some("bridge_not_approved"));
+    let (ok, reason, _, _) = worker
+        .ask(json!({ "op": "bridge_approve", "origin": origin, "bridge_id": bridge_id }))
+        .await;
+    assert!(ok, "{reason:?}");
+    let (_, _, _, listed) = worker.ask(json!({ "op": "bridge_list" })).await;
+    assert_eq!(listed["bridges"][0]["builtin"], true);
+    assert_eq!(listed["removed"], json!([]));
+    let (ok, reason, _, _) = worker.ask(links).await;
+    assert!(ok, "{reason:?}");
+    worker.task.abort();
+
+    // The same origin pinned under another bridge's ID.
+    let other = Dirs(dirs.0.join("other"));
+    let wrong_id = ember_protocol::encoding::prefixed_id("brg", random16());
+    let mut worker = Worker::start_pinning(&other, "a".repeat(64), &[pin(&wrong_id)]);
+    worker.next_answer(0).await;
+    let (ok, _, _, _) = worker.ask(json!({ "op": "identity_enable" })).await;
+    assert!(ok);
+    for _ in 0..2 {
+        let (ok, reason, _, _) = worker
+            .ask(json!({ "op": "link_list", "bridge_id": wrong_id }))
+            .await;
+        assert!(!ok);
+        assert_eq!(reason.as_deref(), Some("pinned_bridge_mismatch"));
+    }
+    worker.task.abort();
     running.abort();
 }
 

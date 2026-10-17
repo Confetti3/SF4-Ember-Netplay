@@ -31,6 +31,8 @@ use crate::{
     service::Event,
 };
 
+pub use builtin::Builtin;
+
 /// Bridge requests in flight at once (spec 25.1).
 const HTTP_CONCURRENCY: usize = 4;
 /// How often spooled reports are sent again.
@@ -321,7 +323,8 @@ fn spool_directory(dir: &Path) -> PathBuf {
     }
 }
 
-/// Starts the worker on stores in the given directories, for tests.
+/// Starts the worker on stores in the given directories, trusting the
+/// `builtins` given in place of this build's, for tests.
 pub fn spawn_in(
     events: mpsc::Sender<Event>,
     identity_dir: PathBuf,
@@ -329,11 +332,13 @@ pub fn spawn_in(
     wine: bool,
     endpoint_id: String,
     home_region: HomeRegion,
+    builtins: &[Builtin],
 ) -> (Handle, tokio::task::JoinHandle<()>) {
+    let pinned = builtin::entries(builtins);
     spawn_with(events, endpoint_id, home_region, move || {
         (
             Identity::open(identity_dir, wine, identity::Cost::DEFAULT),
-            bridges::Store::open(tournament_dir.clone(), Vec::new()),
+            bridges::Store::open(tournament_dir.clone(), pinned),
             spool::Spool::open(spool_directory(&tournament_dir)),
         )
     })

@@ -2,7 +2,7 @@
 //! checks every challenge against the operation the user started before
 //! signing it, and keeps session tokens in memory only.
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{Arc, Mutex},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
@@ -31,6 +31,8 @@ pub(super) const CREATE_TIMEOUT: Duration = Duration::from_secs(45);
 const POLICY: OriginPolicy = OriginPolicy::AllowLoopbackHttp;
 /// Renew a cached session this long before it expires.
 const SESSION_MARGIN_SECS: u64 = 30;
+/// A built-in bridge whose origin no longer serves its pinned ID.
+const PIN_MISMATCH: &str = "pinned_bridge_mismatch";
 
 /// A bridge session, valid only for the origin that issued it and the
 /// Ember ID that opened it.
@@ -44,6 +46,8 @@ struct Session {
 pub struct Client {
     http: Option<reqwest::Client>,
     sessions: Mutex<HashMap<String, Session>>,
+    /// The built-in bridges whose origin served their pinned ID this run.
+    pins_checked: Mutex<HashSet<String>>,
 }
 
 pub(super) fn now() -> u64 {
@@ -71,6 +75,7 @@ impl Client {
         Self {
             http,
             sessions: Mutex::new(HashMap::new()),
+            pins_checked: Mutex::new(HashSet::new()),
         }
     }
 
@@ -144,6 +149,38 @@ impl Client {
     /// Fetches a bridge's discovery document and capabilities. This does not
     /// make the bridge trusted; the caller shows it for approval.
     pub async fn inspect(&self, origin: &str) -> Result<(BridgeProfile, Capabilities), Failure> {
+        let profile = self.profile(origin).await?;
+        Ok((profile, self.capabilities(origin).await?))
+    }
+
+    /// Checks a built-in bridge before its first session in this run: its
+    /// origin must still serve the pinned bridge ID, else the bridge is not
+    /// trusted. A domain now pointing at another bridge fails every request
+    /// while it does; one that cannot be reached is not a mismatch.
+    pub(super) async fn check_pin(&self, bridge: &Approved) -> Result<(), Failure> {
+        let checked = self
+            .pins_checked
+            .lock()
+            .is_ok_and(|pins| pins.contains(&bridge.bridge_id));
+        if !bridge.builtin || checked {
+            return Ok(());
+        }
+        match self.profile(&bridge.origin).await {
+            Ok(profile) if profile.bridge_id == bridge.bridge_id => {}
+            Ok(_) => return Err(Failure::new(PIN_MISMATCH)),
+            Err(Failure(code)) if code == "bridge_mismatch" => {
+                return Err(Failure::new(PIN_MISMATCH));
+            }
+            Err(failure) => return Err(failure),
+        }
+        if let Ok(mut pins) = self.pins_checked.lock() {
+            pins.insert(bridge.bridge_id.clone());
+        }
+        Ok(())
+    }
+
+    /// The discovery document at `origin`, which must describe that origin.
+    async fn profile(&self, origin: &str) -> Result<BridgeProfile, Failure> {
         check_origin(origin, POLICY).map_err(|_| Failure::new("invalid_origin"))?;
         let (status, body) = self
             .call(
@@ -162,7 +199,7 @@ impl Client {
         if profile.origin != origin || !is_prefixed_id(&profile.bridge_id, "brg") {
             return Err(Failure::new("bridge_mismatch"));
         }
-        Ok((profile, self.capabilities(origin).await?))
+        Ok(profile)
     }
 
     /// What the bridge at `origin` offers.
@@ -375,6 +412,7 @@ where
     Fut: std::future::Future<Output = Outcome>,
 {
     let bridge = approved(shared, bridge_id)?;
+    shared.client.check_pin(&bridge).await?;
     let token = session(shared, &bridge).await?;
     match operation(bridge.clone(), token).await {
         Err(Failure(code)) if code == "unauthenticated" => {

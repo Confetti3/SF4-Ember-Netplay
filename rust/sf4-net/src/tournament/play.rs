@@ -44,7 +44,8 @@ fn check_match_id(match_id: &str) -> Result<(), Failure> {
 }
 
 /// The approved bridge's key `kid`, fetching the bridge's current keys from
-/// its approved origin once if this one is not known yet.
+/// its approved origin once if this one is not known yet. A built-in's keys
+/// are pinned by this build, so one it does not name is never fetched.
 pub(super) async fn bridge_key(
     shared: &Arc<Shared>,
     bridge: &Approved,
@@ -52,6 +53,9 @@ pub(super) async fn bridge_key(
 ) -> Result<ember_protocol::PublicKey, Failure> {
     if let Some(key) = bridge.key(kid) {
         return Ok(key);
+    }
+    if bridge.builtin {
+        return Err(Failure::new("untrusted_signature"));
     }
     let keys = shared.client.signing_keys(&bridge.origin).await?;
     let store = shared.clone();
@@ -738,6 +742,37 @@ mod tests {
                 Some(json!(true)),
             ]
         );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    // Bindings, permits and room tickets all take their key here. A built-in
+    // that does not name the key is refused at once; an approved bridge asks
+    // its origin, which here refuses the connection.
+    #[tokio::test]
+    async fn a_builtins_unknown_key_stays_untrusted() {
+        let dir = std::env::temp_dir().join(prefixed_id("sf4-net-pinned", random().unwrap()));
+        let shared = shared_in(&dir);
+        let closed = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let origin = format!("http://{}", closed.local_addr().unwrap());
+        drop(closed);
+        let x = ember_protocol::SigningIdentity::from_seed(&zeroize::Zeroizing::new([9; 32]))
+            .unwrap()
+            .public_key()
+            .to_b64u();
+        let id = prefixed_id("brg", [9; 16]);
+        let mut bridge = super::super::builtin::Builtin {
+            bridge_id: &id,
+            origin: &origin,
+            display_name: "Pinned",
+            keys: &[("k9", &x)],
+        }
+        .entry();
+        assert!(bridge_key(&shared, &bridge, "k9").await.is_ok());
+        let refused = bridge_key(&shared, &bridge, "k5").await.unwrap_err();
+        assert_eq!(refused.0, "untrusted_signature");
+        bridge.builtin = false;
+        let fetched = bridge_key(&shared, &bridge, "k5").await.unwrap_err();
+        assert_eq!(fetched.0, "bridge_unreachable");
         let _ = std::fs::remove_dir_all(dir);
     }
 
