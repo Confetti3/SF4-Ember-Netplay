@@ -233,6 +233,9 @@ struct RetryGate {
 // which the room takes during a game.
 inline bool ParkedActionRetryable(const room::Action& action, const RetryGate& gate) {
 	if (!gate.controlHealthy || gate.recoveringMatch || !gate.authorityWritable) return false;
+    // Cancelling an exact completed offer changes room state only. Native
+    // teardown need not finish before the other fighter can be released.
+    if (action.kind == room::ActionKind::CancelRematch && action.matchGeneration) return true;
 	const bool goesMidGame = action.kind == room::ActionKind::Unwatch || action.kind == room::ActionKind::Unqueue ||
 		action.kind == room::ActionKind::Chat;
 	return gate.atMenuIdle || (gate.spectatorInGame && goesMidGame);

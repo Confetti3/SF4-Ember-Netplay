@@ -314,6 +314,7 @@ std::uint64_t PublishFingerprint() {
     mix(runtime->match ? static_cast<std::uint64_t>(runtime->match->GetPhase()) : 0);
     mix(runtime->readyIntent.Parked() != nullptr); mix(runtime->lobbyEditIntent.Parked() != nullptr); mix(runtime->pendingAbort != nullptr);
     mix(runtime->readyIntent.Armed()); mix(runtime->readyFailureSequence);
+    mix(runtime->rematchCancelIntent.Armed()); mix(runtime->roomActionFailureSequence); mix(runtime->rematchCommandSequence);
     mix(runtime->opponentChangeSequence); mix(runtime->roomNoticeSequence); mix(static_cast<std::uint64_t>(runtime->opponentFighterWatch.Pending() + 1));
     mix(runtime->trainingCallSequence); mix(runtime->trainingReadySequence); mix((runtime->trainingCall.Remaining(GetTickCount64()) + 999) / 1000);
     { const auto call = runtime->trainingCall.Identity(); mix(call.roomEpoch); mix(call.opponent); mix(call.generation); mix(call.table); mix(call.serial); }
@@ -511,6 +512,9 @@ PostPublishState Publish() {
     snapshot.readyGate = snapshot.readyGate && snapshot.controllerReady;
     snapshot.canReady = snapshot.canReady && snapshot.readyGate;
     snapshot.readyRequested = runtime->readyIntent.Armed();
+    snapshot.rematchCancelRequested = runtime->rematchCancelIntent.Armed();
+    snapshot.rematchCommandSequence = runtime->rematchCommandSequence;
+    snapshot.roomActionFailureSequence = runtime->roomActionFailureSequence;
     snapshot.readyFailure = runtime->readyFailure; snapshot.readyFailureSequence = runtime->readyFailureSequence;
     snapshot.opponentChangedFighter = runtime->opponentFighterWatch.Pending(); snapshot.opponentChangeSequence = runtime->opponentChangeSequence;
     snapshot.trainingCallSequence = runtime->trainingCallSequence; snapshot.trainingReadySequence = runtime->trainingReadySequence;

@@ -131,6 +131,8 @@ struct ShellView {
     bool readyRequested = false;
     std::string readyFailure;
     std::uint64_t readyFailureSequence = 0;
+    std::uint64_t roomActionFailureSequence = 0, rematchCommandSequence = 0;
+    bool rematchCancelRequested = false;
     // The fighter the opponent changed to since the player last readied
     // (-1: none), and a sequence that changes per change.
     int opponentChangedFighter = -1;
@@ -407,9 +409,13 @@ private:
     struct RematchScreen {
         std::uint64_t epoch = 0, generation = 0;
         int table = -1;
-        bool cancelling = false;
-        bool submitting = false;
-        std::uint64_t failureSequence = 0;
+        enum Pending { None, Ready, Cancel } queued = None;
+        std::uint64_t commandSequence = 0, failureSequence = 0;
+        bool Queued(Pending kind, const ShellView& view) const {
+            return queued == kind && commandSequence == view.rematchCommandSequence;
+        }
+        bool Cancelling(const ShellView& view) const { return view.rematchCancelRequested || Queued(Cancel, view); }
+        bool Submitting(const ShellView& view) const { return view.readyRequested || Queued(Ready, view); }
     } rematchScreen_;
     // A lock-in that ended gets a notice saying why: the player stopped
     // watching, moved, or took a place, or their spectator view dropped

@@ -38,6 +38,9 @@ int main() try {
     press("rematch-ready");Check(actions.size()==1&&actions.back().command.kind==netplay::CommandKind::Rematch,"Rematch did not ready once");
     Check(actions.back().roomAction.matchGeneration==4,"Rematch intent lost its completed generation");
     press("rematch-ready");Check(actions.size()==1,"Duplicate Ready submitted before publication");
+    ++v.rematchCommandSequence;v.readyRequested=true;frame();
+    Check(!row("rematch-ready").enabled,"Runtime Ready wait was not reflected by the panel");
+    v.readyRequested=false;
     t.ready[0]=true;t.rematch.consent[0]=true;t.rematch.timed=true;t.rematch.remainingMs=30000;frame();
     Check(status.find("Confirm within 30s.")==0,"Countdown must lead the status so narrow views show the deadline first");
     Check(!row("rematch-character").enabled,"Ready player could edit a locked character");
@@ -60,7 +63,26 @@ int main() try {
     t.matchGeneration=5;t.rematch={};t.rematch.state=room::RematchOffer::Offered;frame();
     press("rematch-room");Check(actions.back().roomAction.kind==room::ActionKind::CancelRematch,"Return to room did not cancel both players");
     Check(actions.back().roomAction.matchGeneration==5,"Cancellation not fenced to this game");
-    t.rematch.state=room::RematchOffer::Cancelled;frame();Check(shell.Navigation().Screen()=="room","Committed cancellation did not close choices");
+    before=actions.size();press("rematch-room");
+    Check(actions.size()==before,"Duplicate cancellation before runtime publication");
+    ++v.rematchCommandSequence;v.rematchCancelRequested=true;frame();
+    Check(!row("rematch-ready").enabled&&!row("rematch-character").enabled&&!row("rematch-room").enabled,
+        "Runtime cancellation wait was not reflected by the panel");
+    // A dispatch failure or parked-action expiry leaves the authority offer
+    // Offered. Releasing the runtime intent must make every choice usable.
+    v.rematchCancelRequested=false;++v.roomActionFailureSequence;v.error="same send failure";frame();
+    Check(t.rematch.state==room::RematchOffer::Offered&&row("rematch-ready").enabled&&
+        row("rematch-character").enabled&&row("rematch-room").enabled,"Failed cancellation stranded the open offer");
+    press("rematch-character");Check(shell.Navigation().Screen()=="selection","Failed cancellation blocked selection");
+    frame(MenuInput::Back);frame();
+    frame(MenuInput::Back);frame();
+    Check(actions.size()==before+1&&actions.back().roomAction.kind==room::ActionKind::CancelRematch,
+        "Back could not retry a failed cancellation");
+    ++v.rematchCommandSequence;v.rematchCancelRequested=true;frame();
+    v.rematchCancelRequested=false;++v.roomActionFailureSequence;v.error="same send failure";frame();
+    Check(row("rematch-room").enabled,"Repeated failure with the same offer stranded the panel");
+    press("rematch-room");++v.rematchCommandSequence;v.rematchCancelRequested=false;
+    v.error.clear();t.rematch.state=room::RematchOffer::Cancelled;frame();Check(shell.Navigation().Screen()=="room","Committed cancellation did not close choices");
     t.matchGeneration=6;t.rematch.state=room::RematchOffer::Offered;frame();
     press("rematch-character");t.rematch.state=room::RematchOffer::Expired;frame();
     Check(shell.Navigation().Screen()=="room","Timeout left character selector open");

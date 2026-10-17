@@ -254,7 +254,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  if(ultraStepPending_&&nav.Screen()=="ultra"&&AllowedUltras(pick.fighter,pick.edition).size()<=1){
   // The new fighter has one Ultra in its own edition: nothing to pick.
   nav.Return();focusSavedUltra_=false;
-  if(!openOn_.empty())ForwardMenuAction(embedded.confirmRematch?MenuAction{MenuAction::Activate,"selection-confirmed"}:MenuAction{MenuAction::Close});else nav.Home();
+  if(!openOn_.empty())ForwardMenuAction(MenuAction{MenuAction::SelectionCompleted});else nav.Home();
  }
  ultraStepPending_=false;
  if(focusSavedUltra_&&nav.Screen()=="ultra")nav.Prefer("ultra-"+std::to_string(pick.ultra));
@@ -446,7 +446,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  // Opened for one change, Back from its page goes back to where it came from.
  if(!openOn_.empty()&&a.kind==MenuAction::Returned&&screen==openOn_)ForwardMenuAction({MenuAction::Close});
  // A pick is done: back to where fighter select was opened from.
- const auto finish=[&]{if(!openOn_.empty())ForwardMenuAction(embedded.confirmRematch?MenuAction{MenuAction::Activate,"selection-confirmed"}:MenuAction{MenuAction::Close});else nav.Home();};
+ const auto finish=[&]{if(!openOn_.empty())ForwardMenuAction(MenuAction{MenuAction::SelectionCompleted});else nav.Home();};
  if(a.kind==MenuAction::Activate){
   if(screen=="home"||screen=="appearance"||a.id=="random-pool")nav.Push(a.id);
   else if(editable&&randomPool&&a.id.compare(0,5,"pool-")==0){

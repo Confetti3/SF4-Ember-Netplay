@@ -778,14 +778,14 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(nav.Screen()=="selection"&&selection){
   // The selector names where its Back goes and shows the room's shortcuts it hands back.
   const bool rematching=nav.Parent()=="room-rematch";
-  SetEmbeddedReturn({MenuScreenLabel(nav.Parent()),inRoom&&!rematching?roomHints:std::vector<LegendHint>{},selectionFresh_,selectionOpenOn_,rematching,rematching?RematchStatus(v):std::string()});
+  SetEmbeddedReturn({MenuScreenLabel(nav.Parent()),inRoom&&!rematching?roomHints:std::vector<LegendHint>{},selectionFresh_,selectionOpenOn_,rematching?RematchStatus(v):std::string()});
   selectionFresh_=false;selectionOpenOn_.clear();
   // Only what this frame's selector forwards is read below.
   TakeForwardedMenuAction();
   selection();selectionDrawn_=true;
   const auto forwarded=TakeForwardedMenuAction();
-  if(rematching&&forwarded.kind==MenuAction::Activate&&forwarded.id=="selection-confirmed"){
-   nav.Return();ConfirmRematch(v,submit);
+  if(forwarded.kind==MenuAction::SelectionCompleted){
+   nav.Return();if(rematching)ConfirmRematch(v,submit);
   }else if(forwarded.kind==MenuAction::Close)nav.Return();
   else if(forwarded.kind==MenuAction::Shortcut&&inRoom&&!rematching)RoomShortcut(forwarded,v);
   ImGui::End();ImGui::PopStyleVar(2);return;

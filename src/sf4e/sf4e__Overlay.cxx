@@ -310,6 +310,9 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.selectionLockReason = snapshot.selectionLockReason;
     view.readyRequested = snapshot.readyRequested; view.readyFailure = snapshot.readyFailure;
     view.readyFailureSequence = snapshot.readyFailureSequence;
+    view.roomActionFailureSequence = snapshot.roomActionFailureSequence;
+    view.rematchCommandSequence = snapshot.rematchCommandSequence;
+    view.rematchCancelRequested = snapshot.rematchCancelRequested;
     view.opponentChangedFighter = snapshot.opponentChangedFighter; view.opponentChangeSequence = snapshot.opponentChangeSequence;
     view.trainingCallSequence = snapshot.trainingCallSequence; view.trainingReadySequence = snapshot.trainingReadySequence;
     view.trainingReadySeconds = snapshot.trainingReadySeconds; view.canTrain = snapshot.canTrain;

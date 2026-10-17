@@ -110,7 +110,7 @@ inline std::size_t MenuGridCells(const std::vector<MenuEntry>& entries) {
 struct MenuAction {
     // Shortcut: a Fighter/Options/Chat/Leave press, its button in delta.
     // Chosen: a choice entry's option, its id in text.
-    enum Kind { None, Activate, Adjust, TextAccepted, Returned, Close, Back, SubmitText, Shortcut, Chosen } kind = None;
+    enum Kind { None, Activate, Adjust, TextAccepted, Returned, Close, Back, SubmitText, Shortcut, Chosen, SelectionCompleted } kind = None;
     std::string id, text;
     int delta = 0;
     // A Back that came from Escape or Backspace, which always goes back;

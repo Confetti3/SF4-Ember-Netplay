@@ -271,6 +271,10 @@ struct Runtime {
 	Intent lobbyEditIntent{15000, Intent::Completion::OnDispatch};
 	std::string readyFailure;
 	std::uint64_t readyFailureSequence = 0;
+    std::uint64_t roomActionFailureSequence = 0, rematchCommandSequence = 0;
+    Intent rematchCancelIntent{3000, Intent::Completion::OnCommit};
+    room::Action rematchCancelAction;
+    std::uint64_t rematchCancelActionId = 0;
 	// Generation for which "a participant left" was already announced.
 	std::uint64_t participantLeftGeneration = 0;
 	// The current match's generation once the room has committed its end
