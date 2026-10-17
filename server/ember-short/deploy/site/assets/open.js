@@ -3,7 +3,10 @@
 // /start, tells a player new to Ember how to get it
 // and connect Discord for tournament sites. A site that names its service
 // (/start#BRIDGE) gets a button that opens Ember's Connect Discord screen for
-// it. It reads the link from the URL
+// it, and one that also gives its own name (/start#BRIDGE/NAME) is named to
+// the player: a name of 1 to 40 letters, digits, spaces and . ' & -, starting
+// with a letter or digit (SITE), is shown as text, and any other is dropped.
+// It reads the link from the URL
 // fragment, which is never sent to the server, makes no requests of its own,
 // and offers the ember: link only on the player's click, never by itself: a
 // browser without Ember's handler would otherwise replace this page with an error.
@@ -14,6 +17,8 @@
   var ID = /^[a-z]{3}_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
   // A public room's ID: 16 bytes in lowercase hex, as the bridge writes it.
   var ROOM = /^[0-9a-f]{32}$/;
+  // A site's name on its connect link: letters, digits, spaces and . ' & -.
+  var SITE = /^[\p{L}\p{N}][\p{L}\p{N} .'&-]{0,39}$/u;
 
   // The canonical 12-symbol room code, or null. Same rules as the game:
   // dashes and spaces ignored, any case, O read as 0 and I or L as 1.
@@ -114,25 +119,41 @@
   // Where a tournament site sends a player it could not find.
   var GETTING_STARTED = {
     title: 'Play tournaments with Ember',
-    lead: 'SF4 Ember Netplay plays Ultra Street Fighter IV tournament matches online. Get it, then connect the Discord account your tournament site knows.'
+    lead: 'SF4 Ember Netplay plays Ultra Street Fighter IV tournament matches online. Get it, then connect the Discord account you signed up for the tournament with.'
   };
+
+  // The site's name from its connect link, or null.
+  function siteName(text) {
+    var name;
+    try { name = decodeURIComponent(text); } catch (error) { return null; }
+    return SITE.test(name) ? name : null;
+  }
 
   // The same, from a site that names its service: Ember opens Connect Discord
   // for it and walks the player through each step.
   function connect(fragment) {
-    var bridge = fragment.replace(/\/$/, '');
-    if (!ID.test(bridge) || bridge.slice(0, 4) !== 'brg_') return null;
+    var parts = fragment.replace(/\/$/, '').split('/');
+    var bridge = parts[0];
+    if (!ID.test(bridge) || bridge.slice(0, 4) !== 'brg_' || parts.length > 2) return null;
+    var site = parts.length === 2 ? siteName(parts[1]) : null;
+    // An older Ember's Paste link takes a connect link only without the
+    // name, so the address bar keeps the link a player may copy from it.
+    if (parts.length === 2 && history.replaceState) history.replaceState(null, '', '/start#' + bridge);
+    var finder = site || 'The tournament you signed up for';
     return {
-      title: 'Connect Ember',
-      lead: 'Your tournament site finds players by their Discord account. Ember connects yours in a few steps.',
+      title: 'Connect Discord to Ember',
+      lead: finder + ' finds you by your Discord account. Connect it to Ember in a few steps.',
       code: null,
       ember: 'ember://discord/connect?bridge=' + bridge,
       link: 'https://embernetplay.link/start#' + bridge,
-      after: 'Ember sets itself up and opens Discord in your browser. Approve there with the Discord account this site knows, then come back here. Your browser may ask first whether to open Ember.',
-      fallback: 'That happens when Ember has not been started on this PC yet, on Linux or Steam Deck, or when the browser blocks it. Copy the link and paste it into Ember instead, so it connects Discord for this site:',
+      after: 'Ember sets itself up and opens Discord in your browser. Approve there with the Discord account you use on ' +
+        (site || 'the tournament site') + ', then go back to ' + (site || 'it') + '. Your browser may ask first whether to open Ember.',
+      fallback: 'That happens when Ember has not been started on this PC yet, on Linux or Steam Deck, or when your browser blocks it. Copy the link and paste it into Ember instead, so it connects Discord for ' +
+        (site || 'your tournament') + ':',
       steps: ['Start SF4 Ember Netplay.', 'Choose <strong>Ember ID</strong>, then <strong>Discord</strong>.',
         'Choose <strong>Paste link</strong>, then approve in Discord.'],
-      lasts: 'Discord is optional in Ember. Tournament sites that find players by Discord account, such as BluMint, need it.'
+      lasts: 'Discord is optional in Ember. ' + (site ? site + ' needs it to find you.' :
+        'Tournament sites that find players by Discord account, such as BluMint, need it.')
     };
   }
 
