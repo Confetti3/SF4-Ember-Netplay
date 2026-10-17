@@ -3074,6 +3074,49 @@ msgstr "対戦席のルール"
 msgid "room.rules_summary"
 msgstr "{0}ラウンド、{1}秒、エディションセレクト{2}"
 
+# Between-game choices in an unfinished set.
+msgid "rematch.title"
+msgstr "次の対戦"
+
+msgid "rematch.score"
+msgstr "セットスコア：{0} - {1}（FT{2}）"
+
+msgid "rematch.choose"
+msgstr "再戦またはキャラクター変更を選んでください。"
+
+msgid "rematch.waiting"
+msgstr "準備完了。相手を待っています。"
+
+msgid "rematch.countdown"
+msgstr "あと{0}秒で確定してください。"
+
+msgid "rematch.ready_detail"
+msgstr "自分のキャラクターを継続します。相手は変更できます。両者の確定後に次の対戦が始まります。"
+
+msgid "rematch.character_detail"
+msgstr "キャラクターとウルトラを選ぶと確定して続行します。戻ると準備完了にせず取り消します。"
+
+msgid "rematch.return"
+msgstr "ルームに戻る"
+
+msgid "rematch.return_detail"
+msgstr "両者の再戦を取り消します。スコアと席は維持されます。"
+
+msgid "rematch.returning"
+msgstr "ルームに戻っています..."
+
+msgid "rematch.expired"
+msgstr "時間切れです。両者がルームに戻りました。スコアは変わりません。"
+
+msgid "rematch.cancelled"
+msgstr "再戦を取り消しました。両者がルームに戻りました。"
+
+msgid "rematch.play"
+msgstr "再戦"
+
+msgid "rematch.character"
+msgstr "キャラクター変更"
+
 msgid "room.table_options"
 msgstr "対戦席の設定"
 
@@ -6227,46 +6270,3 @@ msgid "country.ZW"
 msgstr "ジンバブエ"
 
 #. End of the generated country names.
-
-# Between-game choices in an unfinished set.
-msgid "rematch.title"
-msgstr "次の対戦"
-
-msgid "rematch.score"
-msgstr "セットスコア：{0} - {1}（FT{2}）"
-
-msgid "rematch.choose"
-msgstr "再戦またはキャラクター変更を選んでください。"
-
-msgid "rematch.waiting"
-msgstr "準備完了。相手を待っています。"
-
-msgid "rematch.countdown"
-msgstr "あと{0}秒で確定してください。"
-
-msgid "rematch.ready_detail"
-msgstr "自分のキャラクターを継続します。相手は変更できます。両者の確定後に次の対戦が始まります。"
-
-msgid "rematch.character_detail"
-msgstr "キャラクターとウルトラを選ぶと確定して続行します。戻ると準備完了にせず取り消します。"
-
-msgid "rematch.return"
-msgstr "ルームに戻る"
-
-msgid "rematch.return_detail"
-msgstr "両者の再戦を取り消します。スコアと席は維持されます。"
-
-msgid "rematch.returning"
-msgstr "ルームに戻っています..."
-
-msgid "rematch.expired"
-msgstr "時間切れです。両者がルームに戻りました。スコアは変わりません。"
-
-msgid "rematch.cancelled"
-msgstr "再戦を取り消しました。両者がルームに戻りました。"
-
-msgid "rematch.play"
-msgstr "再戦"
-
-msgid "rematch.character"
-msgstr "キャラクター変更"
