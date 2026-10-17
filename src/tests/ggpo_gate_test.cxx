@@ -405,7 +405,27 @@ static void TestRoundTransitionUsesOneTimeline() {
 	CHECK(!gate.timelineStarted);
 }
 
+// Each lifecycle path must clear an already-started timeline by itself.
+// Check before another lifecycle transition can mask a missing reset.
+static void TestEachLifecycleResetClearsLatchedTimeline() {
+	void (GgpoGateModel::*resetters[])() = {
+		&GgpoGateModel::OnSessionClosed,
+		&GgpoGateModel::OnSessionStarted,
+		&GgpoGateModel::Reset
+	};
+	for (auto reset : resetters) {
+		GgpoGateModel gate = Fresh();
+		gate.OnSessionStarted();
+		gate.OnRunning();
+		CHECK(gate.UsesGgpoTimeline(true, false));
+		CHECK(gate.timelineStarted);
+		(gate.*reset)();
+		CHECK(!gate.timelineStarted);
+	}
+}
+
 int main() {
+    TestEachLifecycleResetClearsLatchedTimeline();
 	TestRoundTransitionUsesOneTimeline();
 	TestAbortLatchOutsideCallbackIsImmediate();
 	TestAbortLatchInsideCallbackDefers();

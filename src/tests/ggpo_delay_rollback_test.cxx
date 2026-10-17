@@ -181,16 +181,17 @@ int main(int argc, char** argv) {
         }
         const bool confirmedAll = confirmed[0] >= frames - 1 && confirmed[1] >= frames - 1;
         const bool digestsMatch = peers[0].state.digest == oracle.digest && peers[1].state.digest == oracle.digest;
-        // The control passes only when the corruption was seen for the right
-        // reason: both peers confirmed every frame, a restore really ran, and
-        // the digests then disagree with the oracle. A run that never finished
-        // confirming, or never rolled back, proves nothing about the check.
-        passed = corruptRestore ? confirmedAll && peers[0].loads + peers[1].loads > 0 && !digestsMatch : confirmedAll && digestsMatch;
+        // Both the positive cases and the corrupt-restore control must
+        // exercise rollback. Matching digests without a restore and replay
+        // prove forward simulation only, not the behavior this test names.
+        const bool rolledBack = peers[0].loads + peers[1].loads > 0 &&
+            peers[0].replay + peers[1].replay > 0;
+        passed = confirmedAll && rolledBack && (corruptRestore ? !digestsMatch : digestsMatch);
         std::printf("{\"passed\":%s,\"native_gameplay\":false,\"delays\":[%d,%d],\"one_way_ms\":%d,\"jitter_ms\":%d,"
             "\"drop_every\":%d,\"frames\":%d,\"hold\":%d,\"corrupt_restore\":%s,\"ticks\":%d,\"overruns\":%d,"
-            "\"confirmed_all\":%s,\"digests_match\":%s,\"elapsed_ms\":%lld,\"received\":%u,\"dropped\":%u,\"oracle\":\"%llu\",\"peers\":[",
+            "\"confirmed_all\":%s,\"digests_match\":%s,\"rollback_observed\":%s,\"elapsed_ms\":%lld,\"received\":%u,\"dropped\":%u,\"oracle\":\"%llu\",\"peers\":[",
             passed ? "true" : "false", delays[0], delays[1], latency, jitter, drop, frames, hold,
-            corruptRestore ? "true" : "false", ticks, overruns, confirmedAll ? "true" : "false", digestsMatch ? "true" : "false",
+            corruptRestore ? "true" : "false", ticks, overruns, confirmedAll ? "true" : "false", digestsMatch ? "true" : "false", rolledBack ? "true" : "false",
             static_cast<long long>(std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - started).count()),
             proxy.received, proxy.dropped, static_cast<unsigned long long>(oracle.digest));
         for (int side = 0; side < 2; ++side) {
