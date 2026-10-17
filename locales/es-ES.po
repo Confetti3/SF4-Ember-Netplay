@@ -2497,8 +2497,6 @@ msgstr "Falta Launcher.exe o Sidecar.dll en el paquete descargado."
 msgid "update.staging_path_failed"
 msgstr "No se pudo leer la ruta temporal."
 
-msgid "update.validation_failed"
-msgstr "El paquete descargado no pasó la validación (faltan archivos requeridos)."
 
 msgid "update.cancelled"
 msgstr "Actualización cancelada antes de la instalación."
@@ -6227,3 +6225,32 @@ msgid "country.ZW"
 msgstr "Zimbabue"
 
 #. End of the generated country names.
+
+#. Startup update and recovery controls.
+
+msgid "update.validation_detail"
+msgstr "Error de validación: {0}\nNo se han reemplazado los archivos instalados."
+
+msgid "updates.release_page"
+msgstr "Abrir página de versiones"
+
+msgid "updates.release_page_detail"
+msgstr "Descarga el instalador oficial. Cierra SF4 y selecciona tu carpeta actual de Ember."
+
+msgid "updates.open_log"
+msgstr "Abrir registro de actualización"
+
+msgid "updates.open_log_detail"
+msgstr "Ver detalles en %TEMP%\\sf4-netplay-update.log."
+
+msgid "updates.log_opened"
+msgstr "Registro abierto."
+
+msgid "updates.log_missing"
+msgstr "Aún no hay un registro de actualización."
+
+msgid "updates.startup_text"
+msgstr "La versión {0} está disponible. Tienes la {1}. ¿Instalar antes de iniciar SF4?"
+
+msgid "updates.release_opened"
+msgstr "Página de versiones abierta."

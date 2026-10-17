@@ -2497,8 +2497,6 @@ msgstr "下载包缺少 Launcher.exe 或 Sidecar.dll。"
 msgid "update.staging_path_failed"
 msgstr "无法读取暂存路径。"
 
-msgid "update.validation_failed"
-msgstr "下载包验证失败（缺少必需文件）。"
 
 msgid "update.cancelled"
 msgstr "更新在安装前取消。"
@@ -6227,3 +6225,32 @@ msgid "country.ZW"
 msgstr "津巴布韦"
 
 #. End of the generated country names.
+
+#. Startup update and recovery controls.
+
+msgid "update.validation_detail"
+msgstr "更新验证失败：{0}\n已安装的文件未被替换。"
+
+msgid "updates.release_page"
+msgstr "打开发布页面"
+
+msgid "updates.release_page_detail"
+msgstr "下载官方安装程序。关闭SF4，然后选择现有的Ember文件夹。"
+
+msgid "updates.open_log"
+msgstr "打开更新日志"
+
+msgid "updates.open_log_detail"
+msgstr "查看%TEMP%\\sf4-netplay-update.log中的详细信息。"
+
+msgid "updates.log_opened"
+msgstr "已打开更新日志。"
+
+msgid "updates.log_missing"
+msgstr "暂无更新日志。"
+
+msgid "updates.startup_text"
+msgstr "版本{0}可用。当前版本为{1}。是否在启动SF4之前安装？"
+
+msgid "updates.release_opened"
+msgstr "已打开发布页面。"

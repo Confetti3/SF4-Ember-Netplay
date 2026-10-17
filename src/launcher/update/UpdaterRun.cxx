@@ -81,7 +81,7 @@ int RunUpdater(const UpdaterArguments& arguments, const UpdaterHost& host) {
         window.Close();
         // An install's launcher shows the failure; a recovery's is the one
         // still running.
-        if (!arguments.recoverOnly) host.startLauncher(installDir, L"--updates --update-error");
+        if (!arguments.recoverOnly && !arguments.noRestart) host.startLauncher(installDir, L"--updates --update-error");
         return 1;
     }
 
@@ -89,6 +89,8 @@ int RunUpdater(const UpdaterArguments& arguments, const UpdaterHost& host) {
     window.Close();
     if (!UpdaterReopensLauncher(arguments)) return done ? 0 : 1;
     host.log(done ? "starting Launcher.exe" : "starting Launcher.exe to show the failure");
+    // A failed upgrade may restore an older Launcher.exe. Keep its established
+    // recovery command line; the exact failure is in the update log.
     const bool started = host.startLauncher(installDir, done ? nullptr : L"--updates --update-error");
     if (done && started) host.log("Updater complete");
     return done && started ? 0 : 1;

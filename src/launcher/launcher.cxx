@@ -11,6 +11,7 @@
 #include <winuser.h>
 
 #include <fstream>
+#include <ctime>
 #include <iterator>
 #include <memory>
 #include <optional>
@@ -43,6 +44,7 @@
 #include "../common/Localization.hxx"
 #include "../platform/LocaleWindows.hxx"
 #include "../platform/UiPreferencesStore.hxx"
+#include "../platform/UpdatePolicy.hxx"
 #include "GameLocator.hxx"
 #include "netplay/netplay_persist.hxx"
 #include "update/github_release_client.hxx"
@@ -563,6 +565,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         LocalFree(arguments);
         if (!link.empty()) return sf4e::platform::videolink::Serve(link);
     }
+    SetEnvironmentVariableW(L"SF4E_LAUNCH_UPDATE_HANDLED",nullptr);
     ConfigureLauncherLogging();
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     sf4e::Payload payload{};
@@ -682,6 +685,17 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         return 1;
     case sf4e::launcher::PendingRecovery::None: break;
     }
+    // Ask before resolving/starting the game. Link launches retain their
+    // pending destination when the player chooses Later. Explicit Updates,
+    // recovery and offline starts have already chosen their own path.
+    if (!offline && !updates && !recovery &&
+        sf4e::platform::UpdatePolicy().ShouldCheck(static_cast<std::uint64_t>(std::time(nullptr)))) {
+        spdlog::info("Checking for updates before starting SF4");
+        if (!sf4e::ui::RunRecovery("",chosenDirectory,true,
+            [](const std::string& line){spdlog::warn("{}",line);},sf4e::ui::Tone::Neutral,true,
+            std::nullopt,std::nullopt,true)) return 0;
+    }
+    SetEnvironmentVariableW(L"SF4E_LAUNCH_UPDATE_HANDLED",L"1");
     wchar_t installRoot[MAX_PATH] = {}, dllDirectory[MAX_PATH] = {}, pathError[1024] = {};
     if (!sf4e::install::GetInstallRoot(installRoot, MAX_PATH) || !sf4e::install::GetPackageDllDirectory(dllDirectory, MAX_PATH) ||
         !UpdatePath(dllDirectory, pathError, 1024)) {

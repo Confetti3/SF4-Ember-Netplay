@@ -42,13 +42,27 @@ This creates `dist/sf4-ember-netplay-0.8.3.zip` and its `.sha256` sidecar. It re
 
 Every published release also includes a smaller incremental package for users of the previous release. `scripts/package-upgrade.ps1` compares the complete previous and target manifests, includes only changed product files, preserves unrelated user files, and exercises both check-only and real upgrade paths against temporary extraction of the exact previous package. The installer verifies the old installation, payload, reconstructed target and backup before completing.
 
-Fresh installations use a per-user installer built from the same verified package folder:
+Fresh installations and recovery upgrades use a per-user installer built from the same verified package folder:
 
 ```powershell
 pwsh -NoProfile -File ./scripts/package-installer.ps1 -PackageDir dist/sf4-ember-netplay-0.8.3 -VersionLabel 0.8.3
 ```
 
-This creates `dist/sf4-ember-netplay-0.8.3-setup.exe` and its `.sha256` sidecar. The first run downloads the Inno Setup compiler named by `scripts/installer/innosetup-pin.json`, verifies its SHA-256 and keeps a private copy under `build/tools`; nothing is installed system-wide (`SF4E_ISCC` names another `ISCC.exe` instead). It bundles the Visual C++ x86 runtime installer of the building toolset. The installer needs no administrator rights, places the package under `%LOCALAPPDATA%\Programs`, and installs the runtime only when the present one is older. It only places the first copy and refuses a folder that already has files in it; updates remain with `Updater.exe` and the ZIP packages. Its uninstaller runs `Updater.exe -InstallDir <folder> -Uninstall`, which removes the files the package inventory names or allows (including any a later update added) and the updater's own state, and leaves the player's files. `scripts/test-installer.ps1 -Installer <setup.exe>` exercises the refusal, the installation and the uninstall in a temporary folder.
+This creates `dist/sf4-ember-netplay-0.8.3-setup.exe` and its `.sha256` sidecar. The first run downloads the Inno Setup compiler named by `scripts/installer/innosetup-pin.json`, verifies its SHA-256 and keeps a private copy under `build/tools`; nothing is installed system-wide (`SF4E_ISCC` names another `ISCC.exe` instead). It bundles the Visual C++ x86 runtime installer of the building toolset. The installer needs no administrator rights, places the package under `%LOCALAPPDATA%\Programs`, and installs the runtime only when the present one is older. For an empty folder it places the first copy. For an existing Ember folder (Launcher.exe, MANIFEST.txt and PackageInventory.inc), it extracts a temporary package and runs that package's Updater.exe with -NoRestart. The native updater verifies and replaces product files under the same lock, backup and recovery journal as an in-app update; setup does not overwrite them a second time. Unrelated occupied folders and private test builds are refused. Close SF4 first. Player files not owned by the installed manifest are preserved. The optional post-install Launch action remains with setup. Its uninstaller runs `Updater.exe -InstallDir <folder> -Uninstall`, which removes the files the package inventory names or allows (including any a later update added) and the updater's own state, and leaves the player's files. `scripts/test-installer.ps1 -Installer <setup.exe>` exercises the refusal, the installation and the uninstall in a temporary folder.
+
+## Updater checks
+
+Normal Launcher starts check for updates before starting SF4 when the saved update preference and six-hour successful-check cooldown permit. The check has a five-second HTTP budget and can be canceled or skipped with Start SF4. An offline or failed check continues to the game and logs the error. A verified newer release offers Update now, Later (the default), or Skip this version. Failed installations stay in the Updates window with recovery actions. Manual Updates checks remain available, including during the cooldown; offline launches do not check.
+
+A release declares new product filenames in its PackageInventory.inc. The updater verifies that inventory against the manifest before accepting its declarations, then verifies every payload hash. Keep the inventory grammar compatible with previous launchers. Archive SHA-256, unsafe-path/reparse checks, reserved updater paths, rollback and recovery remain required. Newly declared files are manifest-owned, including removal when switching back to an older package.
+
+Build and run the updater regressions (PackageInstaller, UpdaterRun, UpdatePolicy, EmberUpdate, ApplicationServices, StartupUpdate, HttpUpdateMetadata, UpdaterDownloadValidation, Localization, UiRender). To exercise actual setup without using the real product's uninstall registration:
+
+    pwsh -NoProfile -File scripts/test-updater-setup.ps1 -Updater build/current/Updater.exe -InnoCompiler build/tools/innosetup-6.7.3/ISCC.exe
+
+This compiles a disposable installer with a separate AppId/name, dummy game files and the built native updater. It tests fresh install, upgrade, future/nested filenames, removal of obsolete manifest-owned files, preserved player files, private-build refusal, lock contention and retry. It neither starts SF4 nor installs a runtime. The full-package test remains scripts/test-installer.ps1; do not run that test when its production uninstall entry already exists.
+
+These changes cannot repair validators already shipped in older releases. If an older copy rejects a new package, use a setup built with this change and select the existing Ember folder; do not delete the folder. A subsequent release must still be tested against the exact previous published package. Fixture tests do not establish clean-machine runtime installation, a live GitHub upgrade, or two-PC gameplay acceptance.
 
 ## Publish a release
 

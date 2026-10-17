@@ -2497,8 +2497,6 @@ msgstr "Launcher.exe of Sidecar.dll ontbreekt in het gedownloade pakket."
 msgid "update.staging_path_failed"
 msgstr "Kon het stagingpad niet lezen."
 
-msgid "update.validation_failed"
-msgstr "Het gedownloade pakket is afgekeurd (vereiste bestanden ontbreken)."
 
 msgid "update.cancelled"
 msgstr "Update geannuleerd vóór installatie."
@@ -6227,3 +6225,32 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+#. Startup update and recovery controls.
+
+msgid "update.validation_detail"
+msgstr "Updatecontrole mislukt: {0}\nDe geïnstalleerde bestanden zijn niet vervangen."
+
+msgid "updates.release_page"
+msgstr "Releasepagina openen"
+
+msgid "updates.release_page_detail"
+msgstr "Download het officiële installatieprogramma. Sluit SF4 en kies je bestaande Ember-map."
+
+msgid "updates.open_log"
+msgstr "Updatelog openen"
+
+msgid "updates.open_log_detail"
+msgstr "Details tonen in %TEMP%\\sf4-netplay-update.log."
+
+msgid "updates.log_opened"
+msgstr "Updatelog geopend."
+
+msgid "updates.log_missing"
+msgstr "Er is nog geen updatelog beschikbaar."
+
+msgid "updates.startup_text"
+msgstr "Versie {0} is beschikbaar. Je hebt {1}. Installeren voordat SF4 start?"
+
+msgid "updates.release_opened"
+msgstr "Releasepagina geopend."

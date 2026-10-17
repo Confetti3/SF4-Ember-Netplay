@@ -2497,8 +2497,6 @@ msgstr "W pobranym pakiecie brakuje Launcher.exe lub Sidecar.dll."
 msgid "update.staging_path_failed"
 msgstr "Błąd ścieżki roboczej."
 
-msgid "update.validation_failed"
-msgstr "Pobrany pakiet nie przeszedł weryfikacji (brakuje wymaganych plików)."
 
 msgid "update.cancelled"
 msgstr "Aktualizacja anulowana przed instalacją."
@@ -6227,3 +6225,32 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+#. Startup update and recovery controls.
+
+msgid "update.validation_detail"
+msgstr "Weryfikacja aktualizacji nie powiodła się: {0}\nZainstalowane pliki nie zostały zastąpione."
+
+msgid "updates.release_page"
+msgstr "Otwórz stronę wydań"
+
+msgid "updates.release_page_detail"
+msgstr "Pobierz oficjalny instalator. Zamknij SF4 i wybierz obecny folder Ember."
+
+msgid "updates.open_log"
+msgstr "Otwórz dziennik aktualizacji"
+
+msgid "updates.open_log_detail"
+msgstr "Pokaż szczegóły w %TEMP%\\sf4-netplay-update.log."
+
+msgid "updates.log_opened"
+msgstr "Dziennik otwarty."
+
+msgid "updates.log_missing"
+msgstr "Dziennik aktualizacji nie jest jeszcze dostępny."
+
+msgid "updates.startup_text"
+msgstr "Dostępna jest wersja {0}. Masz {1}. Zainstalować przed uruchomieniem SF4?"
+
+msgid "updates.release_opened"
+msgstr "Strona wydań otwarta."

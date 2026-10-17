@@ -6,6 +6,7 @@
 #include "../common/Localization.hxx"
 #include "../ui/ApplicationShell.hxx"
 #include "../ui/RecoveryMenu.hxx"
+#include "../ui/UpdatePrompt.hxx"
 #include "../common/ReleaseNotesText.hxx"
 #include <cstring>
 #include <string>
@@ -113,6 +114,25 @@ void ShootLaunchAndUpdates(sf4e::ui::GameMenu& recoveryMenu,sf4e::platform::Serv
     // Extracting has no total: a moving bar is drawn instead of a filled one.
     recoveryState.lastAction=platform::ServiceAction::InstallUpdate;recoveryState.updateStage=launcher::UpdateStage::Extracting;recoveryState.stageDone=recoveryState.stageTotal=0;
     recoveryState.message="Extracting the update.";draw("update-extracting");
+    recoveryState.pending=false;
+    recoveryState.succeeded=false;
+    recoveryState.updateError=loc::Tf("update.validation_detail","Unexpected package file: next-helper.dll");
+    recoveryState.message=recoveryState.updateError;
+    std::vector<MenuEntry> recoveryRows;
+    SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){recoveryRows=rows;});
+    recoveryMenu.navigation.Prefer("release-page");draw("update-failure-recovery");
+    const auto has=[&](const char* id){return std::any_of(recoveryRows.begin(),recoveryRows.end(),
+        [&](const MenuEntry& row){return row.id==id;});};
+    Require(has("release-page")&&has("update-log"),"Update failure lacks release and log actions");
+    SetMenuEntriesProbe({});
+    launcher::InstallOffer offer{launcher::UpdateChannel::Stable,"v1.4.0",std::string(64,'a')};
+    auto prompt=UpdatePrompt::Dialog(offer,"1.3.0");
+    prompt.text=loc::Tf("updates.startup_text",offer.tag,"1.3.0");
+    recoveryMenu.ShowNotice(std::move(prompt));draw("update-before-game");
+    Require(recoveryMenu.NoticeOpen(),"Startup update offer is not visible");
+    draw(nullptr,MenuInput::Select,1);draw();
+    Require(!recoveryMenu.NoticeOpen()&&recoveryMenu.TakeNoticeResult()==NoticeResult::Acknowledged,
+        "Default startup answer must be Later");
     ShootUpdates(recoveryMenu,recoveryState,recoveryPick,draw);
 }
 }

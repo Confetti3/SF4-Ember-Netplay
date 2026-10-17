@@ -20,5 +20,5 @@ namespace sf4e { namespace ui {
 // once only if that check finds exactly this release (InstallOfferGate).
 bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates = false,
     std::function<void(const std::string&)> artLog = {}, Tone messageTone = Tone::Error, bool canStart = false,
-    const std::optional<reports::CrashContext>& crash = std::nullopt, const std::optional<launcher::InstallOffer>& offer = std::nullopt);
+    const std::optional<reports::CrashContext>& crash = std::nullopt, const std::optional<launcher::InstallOffer>& offer = std::nullopt, bool startup = false);
 } }
