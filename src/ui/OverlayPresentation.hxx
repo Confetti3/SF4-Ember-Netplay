@@ -7,6 +7,8 @@
 
 namespace sf4e { namespace ui {
 
+enum class MenuRequest : int { None = 0, HideSpectator = 1, Controls = 2, Play = 3 };
+
 inline bool PassiveOverlayShown(bool shellVisible, bool trainingControlsOpen, bool nativePaused) {
     return !shellVisible && !trainingControlsOpen && !nativePaused;
 }
@@ -68,6 +70,15 @@ public:
     void Toggle(const char* why = "F10") { if (available_ && focused_) { requested_ = !requested_; why_ = why; } }
     void Open(const char* why = "opened") { if (available_) { requested_ = true; why_ = why; } }
     void Close(const char* why = "closed") { requested_ = false; why_ = why; }
+    // A spectator's hide belongs to the watched game, never the room screen
+    // that may have replaced it before the drawing thread answers the press.
+    void Apply(MenuRequest request, input::MenuContext context) {
+        if (request == MenuRequest::HideSpectator) {
+            if (context == input::MenuContext::WatchedMatch) Close("Start");
+        } else if (request == MenuRequest::Controls || request == MenuRequest::Play) {
+            Open(request == MenuRequest::Play ? "the Network item" : "Start");
+        }
+    }
     const char* Why() const { return why_; }
     // Consecutive updates away from the main menu before the shell hides: ~0.5 s at 60 fps.
     static constexpr unsigned AwayFrames = 30;
@@ -84,8 +95,9 @@ private:
 // for a frame's answer, and only where the game thread last placed it.
 //
 // The game thread asks for opens (the pad's Start wants the shell, the native
-// Network item its Play page; opens before the next frame coalesce, and Play
-// outranks Controls) and says, first in each pad update, where the game is.
+// Network item its Play page; requests before the next frame coalesce, and
+// opens outrank a spectator's hide) and says, first in each pad update,
+// where the game is. Start can also hide the menu over a watched game.
 // The menu may hold the pads only where the presentation is available: never
 // while a match is prepared or played (but for a Practice match this PC
 // fights, whose fighter gives the game neutral input while the menu is
@@ -99,16 +111,22 @@ private:
 // The drawing thread takes the opens, then publishes the menu shown or not
 // together with the opens it answered, in one step. An open therefore holds
 // the pads from the moment it is asked until the frame that took it has
-// shown the menu, with no moment between where a reader sees neither.
+// answered it, with no moment between where a reader sees neither. A hide
+// likewise holds through its answer; MenuInputCapture then drains the press.
 class MenuPads {
 public:
-    enum class Kind : int { None = 0, Controls = 1, Play = 2 };
+    using Kind = MenuRequest;
     struct Taken { Kind kind = Kind::None; std::uint32_t through = 0; };
     // Game thread.
     void Request(Kind kind) {
         std::lock_guard<std::mutex> lock(mutex_);
-        if (kind > kind_) kind_ = kind;
-        ++posted_;
+        RequestLocked(kind);
+    }
+    // Start hides a spectator's shown menu. Resolve the press once, against
+    // what the player last saw, so repeated polls cannot toggle it twice.
+    void RequestStart() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        RequestLocked(watching_ && shown_ ? Kind::HideSpectator : Kind::Controls);
     }
     void Place(input::MenuContext context, bool fighting) {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -117,6 +135,7 @@ public:
         else if (input::MenuShownIn(context)) away_ = 0;
         else if (away_ < OverlayPresentation::AwayFrames) ++away_;
         startOpens_ = !away && input::ControllerOpensMenu(context);
+        watching_ = context == input::MenuContext::WatchedMatch;
     }
     // Start opens the menu where the game was last placed.
     bool StartOpens() const { std::lock_guard<std::mutex> lock(mutex_); return startOpens_; }
@@ -142,11 +161,15 @@ public:
     bool Holds() const { std::lock_guard<std::mutex> lock(mutex_); return HoldsLocked(); }
     bool Takes() const { std::lock_guard<std::mutex> lock(mutex_); return HoldsLocked() || startOpens_; }
 private:
+    void RequestLocked(Kind kind) {
+        if (kind > kind_) kind_ = kind;
+        ++posted_;
+    }
     bool HoldsLocked() const { return away_ < OverlayPresentation::AwayFrames && (shown_ || posted_ != answered_); }
     mutable std::mutex mutex_;
     Kind kind_ = Kind::None;
     std::uint32_t posted_ = 0, answered_ = 0;
-    bool shown_ = false, startOpens_ = false;
+    bool shown_ = false, startOpens_ = false, watching_ = false;
     // Updates away from where the menu can be shown. Until the first pad
     // update nothing reads the pads, and an open asked for then holds them as
     // at the main menu.
