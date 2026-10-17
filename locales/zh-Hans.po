@@ -6227,3 +6227,6 @@ msgid "country.ZW"
 msgstr "津巴布韦"
 
 #. End of the generated country names.
+
+msgid "update.private_test"
+msgstr "此私有测试包已禁用公开更新。请在单独的文件夹中使用正式版本。"

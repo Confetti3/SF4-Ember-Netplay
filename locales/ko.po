@@ -6227,3 +6227,6 @@ msgid "country.ZW"
 msgstr "짐바브웨"
 
 #. End of the generated country names.
+
+msgid "update.private_test"
+msgstr "이 비공개 테스트 패키지는 공개 업데이트를 사용할 수 없습니다. 공식 버전은 별도 폴더를 사용하세요."

@@ -6228,3 +6228,6 @@ msgid "country.ZW"
 msgstr "Зимбабве"
 
 #. End of the generated country names.
+
+msgid "update.private_test"
+msgstr "Публичные обновления отключены для этой частной тестовой сборки. Для официальных выпусков используйте отдельную папку."

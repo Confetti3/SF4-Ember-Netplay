@@ -1,4 +1,5 @@
 #include "UpdaterRun.hxx"
+#include "../../common/PrivateTestPackage.hxx"
 #include "../../platform/Utf8.hxx"
 #include <cstdio>
 #include <string>
@@ -61,6 +62,10 @@ int RunUpdater(const UpdaterArguments& arguments, const UpdaterHost& host) {
         " RecoverOnly=" + (arguments.recoverOnly ? "1" : "0")).c_str());
     if (GetFileAttributesW(installDir) == INVALID_FILE_ATTRIBUTES) {
         host.log("ERROR: install directory not found");
+        return 1;
+    }
+    if (!arguments.recoverOnly && install::PrivateTestPackage(installDir)) {
+        host.log("ERROR: public updates are disabled for this private test package");
         return 1;
     }
     if (!arguments.recoverOnly && GetFileAttributesW(arguments.stagingDir.c_str()) == INVALID_FILE_ATTRIBUTES) {
