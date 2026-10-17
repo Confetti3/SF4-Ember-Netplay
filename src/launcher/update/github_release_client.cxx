@@ -1,9 +1,9 @@
 #include "github_release_client_internal.hxx"
 #include "UpdateHandoff.hxx"
-#include "../../platform/LauncherLinks.hxx"
 #include "UpdaterArguments.hxx"
 #include "../../platform/Elevation.hxx"
 #include "../../platform/Utf8.hxx"
+#include "../../platform/LauncherLinks.hxx"
 #include "../../common/ReleaseNotesText.hxx"
 
 namespace sf4e {
