@@ -20,6 +20,7 @@ inline const char* MenuScreenName(const std::string& screen) {
         {"public-rooms",loc::T("screen.public_rooms")},{"identity",loc::T("screen.identity")},{"identity-backup",loc::T("screen.identity_backup")},
         {"linked-accounts",loc::T("screen.linked_accounts")},{"tournament-matches",loc::T("screen.tournament_matches")},{"discord-connect",loc::T("screen.connect_discord")},
         {"assignment",loc::T("screen.assignment")},{"create",loc::T("online.create")},{"join",loc::T("online.join")},
+        {"room-rematch",loc::T("rematch.title")},
         {"room",loc::T("screen.room")},{"room-table",loc::T("screen.table")},
         {"room-members",loc::T("screen.members")},{"room-member",loc::T("screen.member")},{"room-chat",loc::T("screen.chat")},
         {"room-admin",loc::T("screen.room_settings")},
@@ -29,7 +30,6 @@ inline const char* MenuScreenName(const std::string& screen) {
         {"frame-data",loc::T("training.frame_data")},{"hud",loc::T("training.hud")},{"meter-settings",loc::T("training.meter.settings")},{"meter-classic",loc::T("training.meter.classic")},{"dummy",loc::T("training.dummy")},
         {"reply",loc::T("training.reply")},{"tools",loc::T("training.position")},
         {"recording",loc::T("screen.dummy_recording")},{"history",loc::T("screen.input_history")},{"developer","Developer"},
-        {"room-rematch",loc::T("rematch.title")},
         {"recovery",loc::T("screen.recovery")},{"updates",loc::T("screen.updates")},{"replays",loc::T("replays.title")},{"replay-inputs",loc::T("replays.inputs")},{"replay-export",loc::T("export.title")},
         {"report",loc::T("reports.title")}};
     for(const auto& name:names)if(screen==name.first)return name.second;
