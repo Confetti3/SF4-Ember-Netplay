@@ -2431,6 +2431,9 @@ msgstr "Impossibile registrare il risultato: il tavolo è cambiato prima della c
 msgid "runtime.participant_left"
 msgstr "Un partecipante ha lasciato la sala. La partita finirà."
 
+msgid "update.private_test"
+msgstr "Gli aggiornamenti pubblici sono disattivati per questo pacchetto di prova privato. Usa una cartella separata per le versioni ufficiali."
+
 msgid "update.github_unreachable"
 msgstr "Impossibile raggiungere GitHub. Controlla la connessione e riprova."
 
@@ -6227,6 +6230,3 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
-
-msgid "update.private_test"
-msgstr "Gli aggiornamenti pubblici sono disattivati per questo pacchetto di prova privato. Usa una cartella separata per le versioni ufficiali."

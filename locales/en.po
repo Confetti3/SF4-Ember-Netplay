@@ -2397,6 +2397,9 @@ msgstr "The result could not be recorded: the table changed before it was confir
 msgid "runtime.participant_left"
 msgstr "A match participant left the room. The game will end."
 
+msgid "update.private_test"
+msgstr "Public updates are disabled for this private test package. Use a separate folder for official releases."
+
 msgid "update.github_unreachable"
 msgstr "Could not reach GitHub. Check your internet connection and try again."
 msgid "update.no_zip_asset"
@@ -5869,6 +5872,3 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
-
-msgid "update.private_test"
-msgstr "Public updates are disabled for this private test package. Use a separate folder for official releases."

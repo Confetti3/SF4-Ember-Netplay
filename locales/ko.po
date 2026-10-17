@@ -2431,6 +2431,9 @@ msgstr "확정 전에 테이블이 변경되어 결과를 기록하지 못했습
 msgid "runtime.participant_left"
 msgstr "대전 참가자가 방을 나갔습니다. 대전이 종료됩니다."
 
+msgid "update.private_test"
+msgstr "이 비공개 테스트 패키지는 공개 업데이트를 사용할 수 없습니다. 공식 버전은 별도 폴더를 사용하세요."
+
 msgid "update.github_unreachable"
 msgstr "GitHub에 연결하지 못했습니다. 인터넷 연결을 확인하고 다시 시도하세요."
 
@@ -6227,6 +6230,3 @@ msgid "country.ZW"
 msgstr "짐바브웨"
 
 #. End of the generated country names.
-
-msgid "update.private_test"
-msgstr "이 비공개 테스트 패키지는 공개 업데이트를 사용할 수 없습니다. 공식 버전은 별도 폴더를 사용하세요."

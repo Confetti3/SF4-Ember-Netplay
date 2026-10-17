@@ -2431,6 +2431,9 @@ msgstr "Résultat non enregistré : la table a changé avant sa confirmation."
 msgid "runtime.participant_left"
 msgstr "Un combattant a quitté le salon. Le combat va se terminer."
 
+msgid "update.private_test"
+msgstr "Les mises à jour publiques sont désactivées pour ce paquet de test privé. Utilisez un dossier séparé pour les versions officielles."
+
 msgid "update.github_unreachable"
 msgstr "Impossible de joindre GitHub. Vérifiez votre connexion Internet et réessayez."
 
@@ -6227,6 +6230,3 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
-
-msgid "update.private_test"
-msgstr "Les mises à jour publiques sont désactivées pour ce paquet de test privé. Utilisez un dossier séparé pour les versions officielles."

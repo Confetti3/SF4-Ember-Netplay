@@ -2432,6 +2432,9 @@ msgstr "Не удалось записать результат: ячейка и
 msgid "runtime.participant_left"
 msgstr "Участник матча покинул лобби. Бой завершится."
 
+msgid "update.private_test"
+msgstr "Публичные обновления отключены для этой частной тестовой сборки. Для официальных выпусков используйте отдельную папку."
+
 msgid "update.github_unreachable"
 msgstr "Не удалось связаться с GitHub. Проверьте интернет и повторите попытку."
 
@@ -6228,6 +6231,3 @@ msgid "country.ZW"
 msgstr "Зимбабве"
 
 #. End of the generated country names.
-
-msgid "update.private_test"
-msgstr "Публичные обновления отключены для этой частной тестовой сборки. Для официальных выпусков используйте отдельную папку."

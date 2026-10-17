@@ -2431,6 +2431,9 @@ msgstr "No se pudo registrar el resultado: la mesa cambió antes de confirmarlo.
 msgid "runtime.participant_left"
 msgstr "Un participante ha salido de la sala. La partida terminará."
 
+msgid "update.private_test"
+msgstr "Las actualizaciones públicas están desactivadas para este paquete de prueba privado. Usa otra carpeta para las versiones oficiales."
+
 msgid "update.github_unreachable"
 msgstr "No se pudo acceder a GitHub. Revisa tu conexión e inténtalo de nuevo."
 
@@ -6227,6 +6230,3 @@ msgid "country.ZW"
 msgstr "Zimbabue"
 
 #. End of the generated country names.
-
-msgid "update.private_test"
-msgstr "Las actualizaciones públicas están desactivadas para este paquete de prueba privado. Usa otra carpeta para las versiones oficiales."

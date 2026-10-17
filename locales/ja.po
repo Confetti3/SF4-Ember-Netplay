@@ -2431,6 +2431,9 @@ msgstr "確定前に対戦席が変更されたため、結果を記録できま
 msgid "runtime.participant_left"
 msgstr "対戦参加者がルームから退出しました。ゲームを終了します。"
 
+msgid "update.private_test"
+msgstr "この非公開テストパッケージでは公開アップデートが無効です。公式リリースには別のフォルダーを使用してください。"
+
 msgid "update.github_unreachable"
 msgstr "GitHubに接続できませんでした。インターネット接続を確認して再試行してください。"
 
@@ -6227,6 +6230,3 @@ msgid "country.ZW"
 msgstr "ジンバブエ"
 
 #. End of the generated country names.
-
-msgid "update.private_test"
-msgstr "この非公開テストパッケージでは公開アップデートが無効です。公式リリースには別のフォルダーを使用してください。"

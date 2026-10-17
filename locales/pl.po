@@ -2431,6 +2431,9 @@ msgstr "Nie zapisano wyniku: stół zmienił się przed potwierdzeniem."
 msgid "runtime.participant_left"
 msgstr "Uczestnik walki opuścił pokój. Gra się zakończy."
 
+msgid "update.private_test"
+msgstr "Publiczne aktualizacje są wyłączone dla tego prywatnego pakietu testowego. Oficjalne wydania instaluj w osobnym folderze."
+
 msgid "update.github_unreachable"
 msgstr "Nie można połączyć się z GitHub. Sprawdź internet i spróbuj ponownie."
 
@@ -6227,6 +6230,3 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
-
-msgid "update.private_test"
-msgstr "Publiczne aktualizacje są wyłączone dla tego prywatnego pakietu testowego. Oficjalne wydania instaluj w osobnym folderze."

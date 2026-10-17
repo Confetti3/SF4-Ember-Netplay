@@ -2431,6 +2431,9 @@ msgstr "Ergebnis konnte nicht erfasst werden: Der Tisch änderte sich vor der Be
 msgid "runtime.participant_left"
 msgstr "Ein Kampfteilnehmer hat den Raum verlassen. Das Spiel endet."
 
+msgid "update.private_test"
+msgstr "Öffentliche Updates sind für dieses private Testpaket deaktiviert. Verwende für offizielle Versionen einen separaten Ordner."
+
 msgid "update.github_unreachable"
 msgstr "GitHub nicht erreichbar. Prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut."
 
@@ -6227,6 +6230,3 @@ msgid "country.ZW"
 msgstr "Simbabwe"
 
 #. End of the generated country names.
-
-msgid "update.private_test"
-msgstr "Öffentliche Updates sind für dieses private Testpaket deaktiviert. Verwende für offizielle Versionen einen separaten Ordner."

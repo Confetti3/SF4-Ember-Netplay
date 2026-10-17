@@ -2431,6 +2431,9 @@ msgstr "De uitslag kon niet worden vastgelegd: de tafel veranderde voor bevestig
 msgid "runtime.participant_left"
 msgstr "Matchdeelnemer verliet de kamer. De partij eindigt."
 
+msgid "update.private_test"
+msgstr "Openbare updates zijn uitgeschakeld voor dit privétestpakket. Gebruik een aparte map voor officiële versies."
+
 msgid "update.github_unreachable"
 msgstr "GitHub is niet bereikbaar. Controleer je internetverbinding en probeer opnieuw."
 
@@ -6227,6 +6230,3 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
-
-msgid "update.private_test"
-msgstr "Openbare updates zijn uitgeschakeld voor dit privétestpakket. Gebruik een aparte map voor officiële versies."

@@ -2431,6 +2431,9 @@ msgstr "Výsledek nešlo zaznamenat: stůl se změnil před potvrzením."
 msgid "runtime.participant_left"
 msgstr "Účastník zápasu opustil místnost. Hra skončí."
 
+msgid "update.private_test"
+msgstr "Veřejné aktualizace jsou pro tento soukromý testovací balíček zakázány. Pro oficiální vydání použijte samostatnou složku."
+
 msgid "update.github_unreachable"
 msgstr "GitHub není dostupný. Zkontrolujte internetové připojení a zkuste to znovu."
 
@@ -6227,6 +6230,3 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
-
-msgid "update.private_test"
-msgstr "Veřejné aktualizace jsou pro tento soukromý testovací balíček zakázány. Pro oficiální vydání použijte samostatnou složku."
