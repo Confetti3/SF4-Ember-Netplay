@@ -85,9 +85,9 @@ for file in bin/ember-bridge ember-bridge.service ember-bridge-backup.service \
     fi
 done
 # A site that named another host or port would hand this address to another bridge.
-if ! grep -q "proxy_pass http://127.0.0.1:$PORT;" "$SRC/nginx/$HOST.conf" ||
-    grep -E '^[[:space:]]*(server_name|proxy_pass)[[:space:]]' "$SRC/nginx/$HOST.conf" |
-    grep -qvE "^[[:space:]]*(server_name ${HOST//./\\.}|proxy_pass http://127\.0\.0\.1:$PORT);\$"; then
+other=$(grep -E '^[[:space:]]*(server_name|proxy_pass)[[:space:]]' "$SRC/nginx/$HOST.conf" |
+    grep -vE "^[[:space:]]*(server_name ${HOST//./\\.}|proxy_pass http://127\.0\.0\.1:$PORT);\$" || true)
+if [ -n "$other" ] || ! grep -q "proxy_pass http://127.0.0.1:$PORT;" "$SRC/nginx/$HOST.conf"; then
     echo "nginx/$HOST.conf must use server_name $HOST and proxy_pass http://127.0.0.1:$PORT only." >&2
     exit 1
 fi
