@@ -79,40 +79,26 @@ pub async fn close(
     Ok(ok(&json!({ "closed": true })))
 }
 
-/// What a close of a key the bridge held nothing under stores in place of a
-/// digest, so a repeat of that close answers `UnknownMatch` again rather
-/// than reading the first close's own record as the key being known.
-const CLOSED_UNKNOWN: &str = "closed unknown";
-
 /// Marks a creation key closed, and returns the match it made, if any. A key
-/// the bridge holds nothing under (no match, no refused creation, no earlier
-/// close of a known key) is `UnknownMatch`, and is still closed, since a
-/// creation on its way would otherwise make a match nobody closes. A key
-/// first closed unknown stays unknown, also once a creation refused after
-/// that close records it (`keys::refused`).
+/// the bridge holds nothing under is closed the same way, and answers as a
+/// match already over does: BluMint reads a close it cannot match to
+/// anything as done, and a creation still on its way would otherwise make a
+/// match nobody closes.
 fn close_key(
     tx: &Transaction<'_>,
     ctx: &Ctx,
     connection_id: &str,
     key: &str,
 ) -> std::result::Result<Option<Match>, BluMintRefusal> {
-    let actor = keys::owner(connection_id);
     let made = keys::made_under(tx, &ctx.tenant_of(connection_id)?, connection_id, key)?;
-    let stored = idempotency::stored(tx, &actor, MATCHES_PATH, key)?;
-    let closed_unknown = stored
-        .as_ref()
-        .is_some_and(|stored| stored.digest == CLOSED_UNKNOWN);
-    let known = made.is_some()
-        || (!closed_unknown && (stored.is_some() || keys::was_refused(tx, connection_id, key)?));
-    let mark = if known {
-        idempotency::REFUSED
-    } else {
-        CLOSED_UNKNOWN
-    };
-    idempotency::refuse(tx, &actor, MATCHES_PATH, key, mark, ctx.now)?;
-    if !known {
-        return Err(BluMintRefusal::UnknownMatch);
-    }
+    idempotency::refuse(
+        tx,
+        &keys::owner(connection_id),
+        MATCHES_PATH,
+        key,
+        idempotency::REFUSED,
+        ctx.now,
+    )?;
     let Some(id) = made else {
         return Ok(None);
     };

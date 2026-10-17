@@ -130,8 +130,7 @@ fn starting_wins(teams: [&Team; 2], games_to_win: u8) -> Result<[u8; 2], BluMint
 /// for a day (`routes::maintenance_once`), past the three hours BluMint
 /// needs, and refuses any other creation for as long as the match exists.
 /// Refusals answer in BluMint's format (`BluMintRefusal`), and are never
-/// stored against the key, though the key is kept for a close
-/// (`keys::refused`).
+/// stored against the key.
 pub async fn create(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -147,18 +146,8 @@ pub async fn create(
         .db
         .write(move |tx| {
             outcome(|| {
-                let answer = requested
-                    .and_then(|(set, digest)| make(tx, &ctx, &connection_id, &key, &set, &digest));
-                if let Err(
-                    BluMintRefusal::InvalidRequest
-                    | BluMintRefusal::MatchUnsupported
-                    | BluMintRefusal::PlayerUnlinked(_)
-                    | BluMintRefusal::PlayerBusy(_),
-                ) = &answer
-                {
-                    keys::refused(tx, &connection_id, &key, ctx.now)?;
-                }
-                answer
+                requested
+                    .and_then(|(set, digest)| make(tx, &ctx, &connection_id, &key, &set, &digest))
             })
         })
         .await??;

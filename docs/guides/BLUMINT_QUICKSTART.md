@@ -193,14 +193,14 @@ the bridge would refuse anyway, such as an invalid body or a set longer than
 Ember plays, still answers that refusal (`400`).
 
 The bridge keeps a match's key for as long as it keeps the match, so a close
-finds the match however long ago you created it. A key that made no match is
-kept for a day: a day after its last refused creation, or after its close.
-The close's own `Idempotency-Key` is not read.
+finds the match however long ago you created it. A key that made no match
+stays closed for a day after its close. A close of a key the bridge holds
+nothing under for your connection answers as a match that already ended
+does, every time you send it. The close's own `Idempotency-Key` is not read.
 
 | Situation | Status | Body |
 |---|---|---|
-| Closed, or already ended; or the key made no match, its creations refused | `200` | `{ "closed": true }` |
-| A key the bridge holds nothing under for your connection, on every close of it, a creation refused after the first close included; it is closed all the same | `404` | `{ "code": "unknown_match" }` |
+| Closed, or already ended; or the key made no match, its creations refused or none received | `200` | `{ "closed": true }` |
 | No `idempotencyKey` (a `matchId` alone included), or one empty or longer than 128 bytes; `reason` missing, empty or longer than 64 bytes | `400` | `{ "code": "invalid_request" }` |
 | The credential is missing, unknown or revoked (`401`), its connection is disabled or it is not a provider credential (`403`), or its connection is not a BluMint one (`404`) | `401`, `403` or `404` | the bridge's own error, which you read as final |
 | The bridge cannot reach its database | `503` | the bridge's own error |

@@ -583,9 +583,11 @@ async fn a_closed_match_sends_nothing() {
         create(&f, "set-5", 2).await,
         (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
     );
-    // A key the bridge holds nothing under is unknown, and is closed too.
-    // Asking again, as BluMint does when the first answer is lost, answers
-    // the same, also after a creation the bridge refuses arrives between.
+    // A key the bridge holds nothing under is closed too, and answers as a
+    // match already over does, since BluMint reads anything else as a
+    // failed close. Asking again, as BluMint does when the first answer is
+    // lost, answers the same, also after a creation the bridge refuses
+    // arrives between.
     for refused_between in [true, false] {
         assert_eq!(
             close(
@@ -593,7 +595,7 @@ async fn a_closed_match_sends_nothing() {
                 json!({ "idempotencyKey": "set-6", "reason": "replaced" })
             )
             .await,
-            (StatusCode::NOT_FOUND, json!({ "code": "unknown_match" }))
+            (StatusCode::OK, json!({ "closed": true }))
         );
         if refused_between {
             assert_eq!(
@@ -752,7 +754,7 @@ async fn a_close_naming_another_connections_key_ends_nothing() {
     for key in ["set-1", "set-2"] {
         assert_eq!(
             close(&f, json!({ "idempotencyKey": key, "reason": "decided" })).await,
-            (StatusCode::NOT_FOUND, json!({ "code": "unknown_match" })),
+            (StatusCode::OK, json!({ "closed": true })),
             "{key}"
         );
     }

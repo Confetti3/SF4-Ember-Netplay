@@ -227,7 +227,6 @@ pub async fn maintenance_once(state: &AppState) {
                 "DELETE FROM idempotency_records WHERE created_at <= ?1",
                 params![cutoff],
             )?;
-            blumint::keys::forget(tx, cutoff)?;
             Ok(())
         })
         .await;

@@ -297,9 +297,9 @@ the connection's provider credential as `Authorization: Bearer`:
   `player_busy`), never the bridge's error envelope.
 - `POST /v1/blumint/matches/close` takes `{ idempotencyKey, reason }`: it
   ends the match made under that creation key, however old, and closes the
-  key to every later creation. A key whose every creation was refused is
-  kept a day for a close (`blumint_refused_keys`); a key the bridge holds
-  nothing under answers `404 unknown_match`, and is closed all the same.
+  key to every later creation. A key that made no match, its creations
+  refused or none received, answers `200` as a match already over does,
+  and is closed all the same.
 
 The bridge reports each match to BluMint: a `status` with each player's
 presence, under a rising `revision`, as each player opens or leaves the

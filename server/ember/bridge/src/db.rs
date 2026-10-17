@@ -50,6 +50,10 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (23, include_str!("../migrations/023_claim_liveness.sql")),
     (24, include_str!("../migrations/024_blumint_keys.sql")),
     (25, include_str!("../migrations/025_claim_ready.sql")),
+    (
+        26,
+        include_str!("../migrations/026_blumint_refused_keys_dropped.sql"),
+    ),
 ];
 
 #[derive(Clone)]

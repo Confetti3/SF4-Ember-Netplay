@@ -31,12 +31,6 @@ pub enum BluMintRefusal {
     /// Players still in another match on the connection. BluMint asks again
     /// under the same key until they are free.
     PlayerBusy(Vec<EmberId>),
-    /// A close names a key the bridge holds nothing under for this
-    /// connection: no match, no refused creation and no earlier close of a
-    /// key it held something under. A repeat of that close answers the same.
-    /// BluMint closes only keys it sent the bridge, so this is a defect for
-    /// someone to look at, and BluMint's host takes the match.
-    UnknownMatch,
     /// Not a refusal: the bridge's own failure, in its own envelope.
     Bridge(ApiFailure),
 }
@@ -77,7 +71,6 @@ impl IntoResponse for BluMintRefusal {
                 StatusCode::LOCKED,
                 json!({ "code": "player_busy", "players": players }),
             ),
-            Self::UnknownMatch => (StatusCode::NOT_FOUND, json!({ "code": "unknown_match" })),
             Self::Bridge(failure) => return failure.into_response(),
         };
         crate::http::json(status, &body)
