@@ -43,7 +43,8 @@ if (!$SkipTests) {
     Remove-Item -LiteralPath $junit -ErrorAction SilentlyContinue
     & $ctest --test-dir $build --output-on-failure --parallel $env:NUMBER_OF_PROCESSORS --no-tests=error -E $excludedTests --output-junit $junit
     if ($LASTEXITCODE) { throw 'Tests failed' }
-    $testResults = Read-EmberTestResults $junit @('HelperRust','EmberRust','ember-shortRust','ember-roomsRust','BridgeSdk','BuildValidation')
+    $workspaces = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'rust-workspaces.json') -Raw | ConvertFrom-Json
+    $testResults = Read-EmberTestResults $junit (@($workspaces.test) + @('BridgeSdk','BuildValidation'))
 }
 & $cmake --install $build *> (Join-Path $build 'stage.log')
 if ($LASTEXITCODE) { throw 'Local staging failed' }

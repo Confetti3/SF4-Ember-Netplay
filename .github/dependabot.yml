@@ -12,6 +12,7 @@ updates:
       - /server/ember
       - /server/ember-rooms
       - /server/ember-short
+      - /server/ember-reports
     schedule:
       interval: weekly
     open-pull-requests-limit: 5

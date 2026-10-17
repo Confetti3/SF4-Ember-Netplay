@@ -27,9 +27,13 @@ function Save-QualityReceipt {
 function Add-Check([string]$name, [string]$platform, [scriptblock]$run) {
     $receipt.components += [pscustomobject]@{name=$name;platform=$platform;status='unexecuted';exitCode=$null;seconds=0;log=(Join-Path $OutputDirectory ($name+'.log'));error='';run=$run}
 }
-foreach ($crate in @(@('helper','rust/sf4-net','rust-test-target'), @('ember','server/ember','rust-ember-target'),
-    @('rooms','server/ember-rooms','quality-rooms-target'), @('short','server/ember-short','quality-short-target'))) {
-    $name,$relative,$targetName = $crate
+foreach ($crate in (Get-Content -LiteralPath (Join-Path $repo 'scripts/rust-workspaces.json') -Raw | ConvertFrom-Json)) {
+    $name,$relative = $crate.name,$crate.path
+    $targetName = switch ($name) {
+        'helper' { 'rust-test-target' }
+        'ember' { 'rust-ember-target' }
+        default { "quality-$name-target" }
+    }
     foreach ($operation in @('tests','clippy','format')) {
         $work = Join-Path $repo $relative; $cargoTarget = Join-Path $build $targetName; $kind = $operation
         Add-Check "$name-windows-$operation" 'windows' {

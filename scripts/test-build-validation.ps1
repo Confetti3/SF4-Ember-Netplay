@@ -64,8 +64,21 @@ try {
     if ($CMake) {
         # Configure only: no compiler, SDK, real service builds, or network required.
         $fixture = Join-Path $work 'registration'
-        foreach ($relative in @('cmake','rust/sf4-net','server/ember','server/ember-short','server/ember-rooms')) {
+        $workspaces = Get-Content -LiteralPath (Join-Path $repo 'scripts/rust-workspaces.json') -Raw | ConvertFrom-Json
+        $manifests = foreach ($parent in @('rust','server')) {
+            Get-ChildItem -LiteralPath (Join-Path $repo $parent) -Directory | Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'Cargo.toml') } | ForEach-Object { "$parent/$($_.Name)" }
+        }
+        $dependabot = Get-Content -LiteralPath (Join-Path $repo '.github/dependabot.yml') -Raw
+        foreach ($manifest in $manifests) {
+            Require ($dependabot.Contains("- /$manifest")) "Dependency updates omit $manifest"
+        }
+        foreach ($relative in (@('cmake','scripts') + @($manifests))) {
             New-Item -ItemType Directory -Path (Join-Path $fixture $relative) -Force | Out-Null
+        }
+        Copy-Item -LiteralPath (Join-Path $repo 'scripts/rust-workspaces.json') -Destination (Join-Path $fixture 'scripts')
+        foreach ($manifest in $manifests) {
+            [IO.File]::WriteAllText((Join-Path $fixture "$manifest/Cargo.toml"),'# fixture')
+            [IO.File]::WriteAllText((Join-Path $fixture "$manifest/Cargo.lock"),'# fixture')
         }
         Copy-Item -LiteralPath (Join-Path $repo 'cmake/sf4e_rust_toolchain.cmake') -Destination (Join-Path $fixture 'cmake')
         Copy-Item -LiteralPath (Join-Path $repo 'rust/sf4-net/rust-toolchain.toml') -Destination (Join-Path $fixture 'rust/sf4-net')
@@ -101,12 +114,23 @@ include("$repoForward/cmake/sf4e_component_tests.cmake")
             if ($LASTEXITCODE) { throw 'Registration fixture configure failed.' }
             $listing = & $ctest --test-dir $out -C Debug --show-only=json-v1 | ConvertFrom-Json
             if ($LASTEXITCODE) { throw 'Registration fixture listing failed.' }
-            foreach ($name in @('EmberRust','ember-shortRust','ember-roomsRust','BridgeSdk','BuildValidation')) {
+            foreach ($name in (@($workspaces | Where-Object { $_.path.StartsWith('server/') } | ForEach-Object test) + @('BridgeSdk','BuildValidation'))) {
                 Require ($name -cin @($listing.tests.name)) "Suite vanished with helper disabled: $name; registered: $($listing.tests.name -join ', ')"
             }
-            & $ctest --test-dir $out -C Debug --no-tests=error --output-on-failure -R '^(EmberRust|ember-shortRust|ember-roomsRust)$' | Out-Null
+            & $ctest --test-dir $out -C Debug --no-tests=error --output-on-failure -R '^(EmberRust|ember-.*Rust)$' | Out-Null
             if ($LASTEXITCODE) { throw 'A registered service did not receive the pinned toolchain.' }
         }
+    }
+    if ($CMake) {
+        # A real manifest missing from the list must fail, not silently skip a suite.
+        $unlisted = Join-Path $fixture 'server/unlisted-fixture'
+        New-Item -ItemType Directory -Path $unlisted | Out-Null
+        [IO.File]::WriteAllText((Join-Path $unlisted 'Cargo.toml'),'# deliberately absent from inventory')
+        & $CMake "-DSF4E_WORKSPACE_ROOT=$fixture" -P (Join-Path $repo 'cmake/sf4e_rust_workspaces.cmake') *> (Join-Path $work 'unlisted.log')
+        $unlistedExit = $LASTEXITCODE
+        $global:LASTEXITCODE = 0 # This negative fixture intentionally fails.
+        Require ($unlistedExit -ne 0) 'An unlisted workspace was silently excluded.'
+        Require ((Get-Content -LiteralPath (Join-Path $work 'unlisted.log') -Raw).Contains('differs from repository manifests')) 'Inventory failed for an unrelated reason.'
     }
     Write-Output 'Build validation passed: JUnit failures/omissions, Node boundaries, tool overrides, and requested CMake registration fixtures.'
 } finally {

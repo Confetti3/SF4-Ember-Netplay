@@ -1,13 +1,18 @@
 mod support;
+#[cfg(target_os = "linux")]
+use ember_reports::limits::Gate;
 use ember_reports::{
     event::{self, EVENT_BYTES},
     intake::{self, Kind},
-    limits::Gate,
     symbolicate::{Frame, Thread, Walk, WalkStatus},
 };
 use serde_json::{Value, json};
-use std::{path::PathBuf, time::Duration};
-use support::{Temp, id, report, worker};
+#[cfg(target_os = "linux")]
+use std::path::PathBuf;
+use std::time::Duration;
+#[cfg(target_os = "linux")]
+use support::worker;
+use support::{Temp, id, report};
 
 const SYNTHETIC_DEBUG_ID: &str = "00112233445566778899AABBCCDDEEFF1";
 
@@ -72,6 +77,7 @@ fn synthetic(module_name: &str) -> Vec<u8> {
     bytes
 }
 
+#[cfg(target_os = "linux")]
 #[tokio::test]
 async fn synthetic_crash_symbolicated_and_module_offset_events() {
     let temp = Temp::new();
@@ -233,6 +239,7 @@ async fn unreadable_symbols_report_partial_and_log_only_store_relative_name() {
     assert!(!walk.symbolication().contains(temp.0.to_str().unwrap()));
 }
 
+#[cfg(target_os = "linux")]
 #[tokio::test]
 async fn failed_walk_preserves_raw_facts_and_worker_slot() {
     let temp = Temp::new();
@@ -263,6 +270,7 @@ async fn failed_walk_preserves_raw_facts_and_worker_slot() {
     assert!(gate.reserve().is_ok());
 }
 
+#[cfg(target_os = "linux")]
 #[tokio::test]
 async fn input_budget_preserves_exception_without_walking_excess_threads() {
     let temp = Temp::new();
@@ -282,6 +290,33 @@ async fn input_budget_preserves_exception_without_walking_excess_threads() {
     assert_eq!(walk.symbolication(), "input_budget");
     assert_eq!(walk.code, Some(0xc0000005));
     assert_eq!(walk.address, Some(0xdeadbeef));
+}
+
+// Unsupported platforms preserve bounded raw exception facts without starting
+// a worker or silently running the full parser inside the intake process.
+#[cfg(not(target_os = "linux"))]
+#[tokio::test]
+async fn unsupported_worker_preserves_raw_exception_facts() {
+    let temp = Temp::new();
+    let worker = ember_reports::worker::Worker::new(temp.0.join("does-not-exist"));
+    let walk = worker
+        .walk(
+            synthetic("SSFIV.exe"),
+            temp.0.clone(),
+            Duration::from_secs(1),
+        )
+        .await;
+    assert_eq!(walk.status, WalkStatus::WorkerUnsupported);
+    assert_eq!(walk.code, Some(0xc0000005));
+    assert_eq!(walk.address, Some(0xdeadbeef));
+    assert_eq!(walk.crash_frames.len(), 1);
+    assert_eq!(walk.crash_frames[0].instruction, 0x401234);
+    assert_eq!(walk.crash_frames[0].module, "unknown");
+    assert!(walk.crash_frames[0].function.is_none());
+    let value: Value =
+        serde_json::from_slice(&event::build(&id(&"a".repeat(32)), &report(), &walk, None))
+            .unwrap();
+    assert_eq!(value["extra"]["symbolication"], "worker_unsupported");
 }
 
 #[test]

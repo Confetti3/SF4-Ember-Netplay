@@ -9,17 +9,18 @@ if(BUILD_TESTING AND SF4E_COMPONENT_TESTS)
     if(NOT SF4E_CARGO_TEST_JOBS MATCHES "^[1-9][0-9]*$")
         message(FATAL_ERROR "SF4E_CARGO_TEST_JOBS must be a positive integer")
     endif()
-    foreach(service IN ITEMS ember ember-short ember-rooms)
-        if(service STREQUAL "ember")
-            set(test_name EmberRust)
-        else()
-            set(test_name "${service}Rust")
+    include("${CMAKE_CURRENT_LIST_DIR}/sf4e_rust_workspaces.cmake")
+    foreach(index RANGE ${SF4E_RUST_WORKSPACE_LAST})
+        string(JSON workspace GET "${SF4E_RUST_WORKSPACES}" ${index} path)
+        string(JSON test_name GET "${SF4E_RUST_WORKSPACES}" ${index} test)
+        if(NOT workspace MATCHES "^server/")
+            continue() # Helper registration still follows SF4E_BUILD_IROH_HELPER.
         endif()
         add_test(NAME ${test_name}
             COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/rust-ember-target"
                 "CARGO_INCREMENTAL=0" "RUSTUP_TOOLCHAIN=${SF4E_RUST_CHANNEL}"
                 "${SF4E_CARGO_EXECUTABLE}" test --locked -j ${SF4E_CARGO_TEST_JOBS}
-            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/server/${service}")
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/${workspace}")
         set_tests_properties(${test_name} PROPERTIES TIMEOUT 1800 PROCESSORS ${SF4E_CARGO_TEST_JOBS})
         sf4e_test_locks(${test_name} ember_processes)
     endforeach()

@@ -1,0 +1,27 @@
+[
+  {
+    "name": "helper",
+    "path": "rust/sf4-net",
+    "test": "HelperRust"
+  },
+  {
+    "name": "ember",
+    "path": "server/ember",
+    "test": "EmberRust"
+  },
+  {
+    "name": "rooms",
+    "path": "server/ember-rooms",
+    "test": "ember-roomsRust"
+  },
+  {
+    "name": "short",
+    "path": "server/ember-short",
+    "test": "ember-shortRust"
+  },
+  {
+    "name": "reports",
+    "path": "server/ember-reports",
+    "test": "ember-reportsRust"
+  }
+]

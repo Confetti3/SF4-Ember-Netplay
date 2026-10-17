@@ -10,12 +10,25 @@ concurrency:
   group: product-validation-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    outputs:
+      components: ${{ steps.workspaces.outputs.components }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - id: workspaces
+        run: |
+          cmake -DSF4E_WORKSPACE_ROOT="$PWD" -P cmake/sf4e_rust_workspaces.cmake
+          echo "components=$(jq -c '[.[].path]' scripts/rust-workspaces.json)" >> "$GITHUB_OUTPUT"
   rust:
+    needs: inventory
     name: Rust (${{ matrix.component }}, ${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
-        component: [rust/sf4-net, server/ember, server/ember-rooms, server/ember-short]
+        component: ${{ fromJSON(needs.inventory.outputs.components) }}
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
@@ -75,6 +88,7 @@ jobs:
           name: sdk-tests
           path: sdk-tests.log
   advisories:
+    needs: inventory
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -91,10 +105,10 @@ jobs:
         run: |
           mkdir -p advisory-results
           failed=0
-          for component in rust/sf4-net server/ember server/ember-rooms server/ember-short; do
+          while IFS= read -r component; do
             name=$(echo "$component" | tr / -)
             cargo audit --file "$component/Cargo.lock" --json > "advisory-results/$name.json" || failed=1
-          done
+          done < <(jq -r '.[].path' scripts/rust-workspaces.json)
           (cd sdk/typescript && npm audit --json) > advisory-results/npm.json || failed=1
           exit "$failed"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

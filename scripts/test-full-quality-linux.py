@@ -1,7 +1,7 @@
 """Linux half of test-full-quality.ps1; runs local checks, never deployment.
 
-This script owns the Linux component inventory; the receipt it writes is the
-only list of Linux components."""
+Rust workspaces come from the shared inventory; the receipt also lists the
+platform-specific checks below."""
 import argparse
 import json
 import os
@@ -29,9 +29,8 @@ def add(name, command, directory=source, target=None):
                        directory=str(directory), target=target, log=str(output / (name + ".log"))))
 
 
-for name, relative in [("helper", "rust/sf4-net"), ("ember", "server/ember"),
-                       ("rooms", "server/ember-rooms"), ("short", "server/ember-short"),
-                       ("reports", "server/ember-reports")]:
+for component in json.loads((source / "scripts/rust-workspaces.json").read_text(encoding="utf-8")):
+    name, relative = component["name"], component["path"]
     target = str(Path.home() / ".cache/sf4-full-quality" / name)
     directory = source / relative
     add(name + "-tests", ["cargo", args.toolchain, "test", "--locked"], directory, target)
