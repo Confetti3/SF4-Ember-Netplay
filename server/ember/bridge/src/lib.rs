@@ -40,7 +40,7 @@ pub struct AppState {
     pub integrations: Arc<integrations::Secrets>,
     pub db: Db,
     pub clock: Clock,
-    rate: Arc<rate::Limiter>,
+    rate: Arc<rate::Policies>,
     /// Wakes event streams and the delivery worker after a commit.
     events: Arc<Notify>,
     delivery: Arc<Notify>,
@@ -62,7 +62,7 @@ impl AppState {
             integrations: Arc::new(integrations),
             db,
             clock,
-            rate: Arc::new(rate::Limiter::default()),
+            rate: Arc::new(rate::Policies::default()),
             events: Arc::new(Notify::new()),
             delivery: Arc::new(Notify::new()),
             rooms: Arc::new(routes::rooms::Shared::default()),

@@ -22,10 +22,6 @@ use crate::{
     routes::play::playing,
 };
 
-/// Ticket requests one address may make per window.
-const TICKETS_PER_WINDOW: usize = 30;
-const TICKET_WINDOW_SECS: u64 = 10 * 60;
-
 /// A room that has never had a member admits only its creator.
 pub async fn ticket(
     State(state): State<AppState>,
@@ -41,12 +37,8 @@ pub async fn ticket(
     let now = state.now();
     state
         .rate
-        .check(
-            &format!("rooms-ticket:{address}"),
-            TICKETS_PER_WINDOW,
-            TICKET_WINDOW_SECS,
-            now,
-        )
+        .room_tickets
+        .check(&format!("rooms-ticket:{address}"), now)
         .map_err(ApiFailure::rate_limited)?;
     let ember_id = player.ember_id.clone();
     let looked_up = room_id.clone();

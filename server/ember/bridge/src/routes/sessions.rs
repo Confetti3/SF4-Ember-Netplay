@@ -24,7 +24,6 @@ use crate::{
 };
 
 pub const SCOPES: &[&str] = &["self:read", "tournament:participate"];
-const CHALLENGES_PER_MINUTE: usize = 30;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -45,15 +44,6 @@ pub async fn issue(
     let request: ChallengeRequest = body.parse()?;
     let ember_id = request.public_key.ember_id();
     let now = state.now();
-    state
-        .rate
-        .check(
-            &format!("challenge:{ember_id}"),
-            CHALLENGES_PER_MINUTE,
-            60,
-            now,
-        )
-        .map_err(ApiFailure::rate_limited)?;
     if !route_matches(request.action, request.method, &request.path) {
         return Err(ApiFailure::invalid(
             "That action is not available at that method and path.",
@@ -68,6 +58,11 @@ pub async fn issue(
             return Err(ApiFailure::forbidden());
         }
     }
+    state
+        .rate
+        .challenges
+        .check(&format!("challenge:{ember_id}"), now)
+        .map_err(ApiFailure::rate_limited)?;
     let issued = Challenge {
         version: challenge::VERSION,
         bridge_id: state.config.bridge_id.clone(),
