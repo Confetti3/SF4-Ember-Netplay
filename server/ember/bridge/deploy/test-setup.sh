@@ -4,7 +4,8 @@
 # systemd, no nginx, no network.
 # Run as: bash test-setup.sh
 #
-# Every server path lives under a temporary folder (EMBER_BRIDGE_ROOT), and
+# Every server path lives under a temporary folder (EMBER_BRIDGE_ROOT inside
+# TMPDIR, with EMBER_BRIDGE_TEST=1), operator folders sit in HOME, and
 # stand-ins for id, useradd, sudo, install, systemctl, nginx, curl and sleep
 # come first on PATH. install drops the owner, sudo runs the command as the
 # caller, and systemctl records which units were restarted. curl answers a
@@ -15,17 +16,18 @@
 # test/production/ holds production's units and site as installed before the
 # templates; production's render must stay byte for byte the same.
 set -u
-unset INSTANCE
+unset INSTANCE SUDO_USER
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 GOLDEN=$HERE/test/production
 T=$(mktemp -d)
 trap 'rm -rf "$T"' EXIT
 export TMPDIR=$T/tmp
-export EMBER_BRIDGE_ROOT=$T/root
+export EMBER_BRIDGE_ROOT=$TMPDIR/root EMBER_BRIDGE_TEST=1
 export STUB=$T/stub
 R=$EMBER_BRIDGE_ROOT
-OPS=$T/ops
+export HOME=$T/ops
+OPS=$HOME
 mkdir -p "$TMPDIR" "$T/stubs" "$STUB/up" "$OPS"
 touch "$STUB/users" "$STUB/log"
 for dir in etc/systemd/system etc/nginx/conf.d etc/nginx/sites-available etc/nginx/sites-enabled \
@@ -338,7 +340,7 @@ check "production files unchanged" unchanged "$P" "$PSITE" production
 check "staging files unchanged" unchanged "$S" "$SSITE" staging
 
 echo "5. folders that are not a bridge's are refused"
-for folder in deploy ember-bridge-backup ember-bridge-Staging ember-bridge-qa-old; do
+for folder in deploy ember-bridge- ember-bridge-backup ember-bridge-Staging ember-bridge-qa-old; do
     mkdir -p "$OPS/$folder"
     cp -r "$SDIR"/. "$OPS/$folder"/
     run "$OPS/$folder/setup.sh"
@@ -350,6 +352,45 @@ cp -r "$SDIR"/. "$OPS/ember-bridge-qa"/
 run "$OPS/ember-bridge-qa/setup.sh"
 check "an instance with no tenants file fails" failed
 check "names the file" mentions "Missing $OPS/ember-bridge-qa/tenants.qa.json"
+check "nothing ran" nothing_logged
+mkdir -p "$SDIR/ember-bridge"
+cp -r "$PDIR"/. "$SDIR/ember-bridge"/
+run "$SDIR/ember-bridge/setup.sh"
+check "a production folder nested in staging's exits 2" exited 2
+check "says it is not in the home folder" mentions "is not directly in $OPS"
+check "nothing ran" nothing_logged
+run "$SDIR/ember-bridge/set-integration-secret.sh" -- discord
+check "its set-integration-secret.sh exits 2" exited 2
+check "nothing ran" nothing_logged
+rm -rf "$SDIR/ember-bridge"
+check "production files unchanged" unchanged "$P" "$PSITE" production
+
+echo "5b. a tenants file claiming another bridge's address or port is refused"
+cp "$SDIR/tenants.staging.json" "$T/staging-tenants"
+sed -i 's#"https://bridge-staging.embernetplay.link"#"https://bridge.embernetplay.link"#' "$SDIR/tenants.staging.json"
+run "$SDIR/setup.sh"
+check "production's origin fails" failed
+check "names the origin" mentions "already has origin https://bridge.embernetplay.link"
+check "nothing ran" nothing_logged
+cp "$T/staging-tenants" "$SDIR/tenants.staging.json"
+sed -i 's#"127.0.0.1:47821"#"127.0.0.1:47820"#' "$SDIR/tenants.staging.json"
+run "$SDIR/setup.sh"
+check "production's port fails" failed
+check "names the port" mentions "already has listen 127.0.0.1:47820"
+check "nothing ran" nothing_logged
+cp "$T/staging-tenants" "$SDIR/tenants.staging.json"
+check "production files unchanged" unchanged "$P" "$PSITE" production
+check "staging files unchanged" unchanged "$S" "$SSITE" staging
+
+echo "5c. the test root is honoured only in a test"
+run "$SDIR/setup.sh" EMBER_BRIDGE_TEST=
+check "without EMBER_BRIDGE_TEST it exits 2" exited 2
+check "says it is for the test" mentions "EMBER_BRIDGE_ROOT is only for test-setup.sh"
+check "nothing ran" nothing_logged
+run "$R/usr/local/lib/$S/backup.sh" EMBER_BRIDGE_TEST=
+check "backup.sh without it exits 2" exited 2
+run "$SDIR/setup.sh" "EMBER_BRIDGE_ROOT=$T/elsewhere"
+check "a root outside TMPDIR exits 2" exited 2
 check "nothing ran" nothing_logged
 
 echo "6. a staging site nginx rejects"
