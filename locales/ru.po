@@ -3729,6 +3729,9 @@ msgstr "Сначала создайте или разблокируйте Ember 
 msgid "identity.service"
 msgstr "Турнирный сервис"
 
+msgid "identity.service_builtin"
+msgstr "Встроен в эту версию Ember: {0}"
+
 msgid "identity.unlink"
 msgstr "Отвязать"
 

@@ -3728,6 +3728,9 @@ msgstr "Najpierw utwórz lub odblokuj Ember ID. Powiązanie potwierdza stronie, 
 msgid "identity.service"
 msgstr "Serwis turniejowy"
 
+msgid "identity.service_builtin"
+msgstr "Wbudowany w tę wersję Ember: {0}"
+
 msgid "identity.unlink"
 msgstr "Odłącz"
 

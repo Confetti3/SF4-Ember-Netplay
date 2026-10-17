@@ -3728,6 +3728,9 @@ msgstr "Maak of ontgrendel eerst je Ember ID. Een koppeling bewijst aan een site
 msgid "identity.service"
 msgstr "Toernooidienst"
 
+msgid "identity.service_builtin"
+msgstr "Ingebouwd in deze versie van Ember: {0}"
+
 msgid "identity.unlink"
 msgstr "Ontkoppelen"
 

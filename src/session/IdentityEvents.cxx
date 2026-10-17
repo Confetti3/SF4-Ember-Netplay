@@ -41,9 +41,11 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
     const auto& data = *found;
     if (view.op == "bridge_list") {
         view.bridges.clear();
+        // Up to 16 the player approved, and the services built into the helper.
         for (const auto& bridge : data.value("bridges", nlohmann::json::array()))
-            if (bridge.is_object() && view.bridges.size() < 16)
-                view.bridges.push_back({Text(bridge, "bridge_id", 64), Text(bridge, "origin"), Text(bridge, "display_name", 64)});
+            if (bridge.is_object() && view.bridges.size() < 24)
+                view.bridges.push_back({Text(bridge, "bridge_id", 64), Text(bridge, "origin"), Text(bridge, "display_name", 64),
+                    bridge.value("builtin", false)});
         view.removedBridges.clear();
         for (const auto& removed : data.value("removed", nlohmann::json::array()))
             if (removed.is_string() && view.removedBridges.size() < 64)

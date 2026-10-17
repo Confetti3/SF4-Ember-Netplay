@@ -3728,6 +3728,9 @@ msgstr "Erstellen oder entsperren Sie zuerst Ihre Ember ID. Eine Verknüpfung be
 msgid "identity.service"
 msgstr "Turnierdienst"
 
+msgid "identity.service_builtin"
+msgstr "In diese Ember-Version eingebaut: {0}"
+
 msgid "identity.unlink"
 msgstr "Trennen"
 

@@ -3728,6 +3728,9 @@ msgstr "Nejprve vytvořte nebo odemkněte své Ember ID. Propojení webu proká�
 msgid "identity.service"
 msgstr "Turnajová služba"
 
+msgid "identity.service_builtin"
+msgstr "Vestavěno v této verzi Ember: {0}"
+
 msgid "identity.unlink"
 msgstr "Odpojit"
 

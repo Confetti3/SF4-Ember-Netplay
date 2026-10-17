@@ -3728,6 +3728,9 @@ msgstr "先にEmber IDを作成するか、ロックを解除してください�
 msgid "identity.service"
 msgstr "大会サービス"
 
+msgid "identity.service_builtin"
+msgstr "このバージョンのEmberに組み込み済み：{0}"
+
 msgid "identity.unlink"
 msgstr "連携解除"
 

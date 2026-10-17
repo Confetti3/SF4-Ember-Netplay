@@ -3728,6 +3728,9 @@ msgstr "Prima crea o sblocca il tuo Ember ID. Il collegamento dimostra a un sito
 msgid "identity.service"
 msgstr "Servizio tornei"
 
+msgid "identity.service_builtin"
+msgstr "Integrato in questa versione di Ember: {0}"
+
 msgid "identity.unlink"
 msgstr "Scollega"
 

@@ -44,6 +44,7 @@ std::string FailureText(const std::string& code) {
         {"bridge_invalid_response", "identity.failure.not_bridge"}, {"bridge_response_too_large", "identity.failure.not_bridge"},
         {"unsupported_version", "identity.failure.not_bridge"},
         {"bridge_changed", "identity.failure.bridge_changed"}, {"bridge_mismatch", "identity.failure.bridge_changed"},
+        {"pinned_bridge_mismatch", "identity.failure.bridge_changed"},
         {"bridge_not_approved", "identity.failure.not_approved"},
         {"too_many_bridges", "identity.failure.too_many"},
         {"link_expired", "identity.failure.code"}, {"not_found", "identity.failure.code"},
@@ -413,7 +414,7 @@ void IdentityPanel::SendTournament(const ShellView& v, const std::string& screen
 }
 
 MenuEntry IdentityPanel::ServiceRow(const ShellView& v, const netplay::IdentityBridge& bridge) const {
-    auto service = Row("id-bridge", loc::T("identity.service"), bridge.origin);
+    auto service = Row("id-bridge", loc::T("identity.service"), ServiceDetail(bridge));
     service.value = bridge.name.empty() ? bridge.origin : bridge.name; service.userText = true;
     for (const auto& choice : v.identity.bridges) service.choices.push_back({choice.id, choice.name.empty() ? choice.origin : choice.name, choice.origin});
     service.chosen = bridge_;

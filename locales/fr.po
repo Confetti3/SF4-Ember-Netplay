@@ -3728,6 +3728,9 @@ msgstr "Créez ou déverrouillez d'abord votre Ember ID. L'association prouve à
 msgid "identity.service"
 msgstr "Service de tournoi"
 
+msgid "identity.service_builtin"
+msgstr "Intégré à cette version d'Ember : {0}"
+
 msgid "identity.unlink"
 msgstr "Dissocier"
 

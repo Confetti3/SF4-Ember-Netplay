@@ -3369,6 +3369,9 @@ msgstr "Create or unlock your Ember ID first. Linking proves to a site that an a
 msgid "identity.service"
 msgstr "Tournament service"
 
+msgid "identity.service_builtin"
+msgstr "Built into this version of Ember: {0}"
+
 msgid "identity.unlink"
 msgstr "Unlink"
 

@@ -3728,6 +3728,9 @@ msgstr "请先创建或解锁您的 Ember ID。绑定可向网站证明某个账
 msgid "identity.service"
 msgstr "赛事服务"
 
+msgid "identity.service_builtin"
+msgstr "已内置于此版本的 Ember：{0}"
+
 msgid "identity.unlink"
 msgstr "解除绑定"
 
