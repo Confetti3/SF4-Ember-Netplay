@@ -6,6 +6,8 @@
 #include "test_support.hxx"
 using sf4e::gameconfig::ParseDisplaySettings;
 using sf4e::gameconfig::RenderingThreadOverride;
+using sf4e::gameconfig::BorderlessOverride;
+using sf4e::gameconfig::Fit16By9;
 
 // Faster display on: the game's live flag is kept off whatever config.ini
 // asked, and the game's config write sees the player's own value, then off again.
@@ -123,7 +125,75 @@ static void ClearingMainAfterStartupLeavesTheDeviceLatchedOn() {
 	CHECK(!game.Drain());
 }
 
+// Borderless renders a whole 16:9 multiple, centred, with bars on a wider or
+// taller monitor and none on a 16:9 one.
+static void BorderlessAreaIsTheLargestWhole16By9() {
+	const auto full = Fit16By9(1920, 1080);
+	CHECK(full.x == 0 && full.y == 0 && full.width == 1920 && full.height == 1080);
+	const auto wide = Fit16By9(3440, 1440);
+	CHECK(wide.x == 440 && wide.y == 0 && wide.width == 2560 && wide.height == 1440);
+	const auto tall = Fit16By9(1920, 1200);
+	CHECK(tall.x == 0 && tall.y == 60 && tall.width == 1920 && tall.height == 1080);
+	CHECK(!Fit16By9(15, 9).Valid() && !Fit16By9(0, 0).Valid());
+}
+
+static sf4e::gameconfig::DisplayBlock Block(uint32_t width, uint32_t height, uint32_t fullScreen) {
+	sf4e::gameconfig::DisplayBlock block = {};
+	block.width = width; block.height = height; block.fullScreen = fullScreen;
+	return block;
+}
+static bool Holds(const sf4e::gameconfig::DisplayBlock& block, uint32_t width, uint32_t height, uint32_t fullScreen) {
+	return block.width == width && block.height == height && block.fullScreen == fullScreen;
+}
+
+// Borderless builds the device windowed at its monitor's size, Main's copy
+// with it, and the game's config write sees the player's mode, then the
+// Borderless one again.
+static void BorderlessWritesThePlayersModeAsAsked() {
+	BorderlessOverride override_;
+	auto device = Block(1280, 720, 1), main = device;
+	override_.Apply(device, main, 3440, 1440);
+	CHECK(Holds(device, 3440, 1440, 0) && Holds(main, 3440, 1440, 0));
+	// Each Reset builds the parameters again; the player's mode is kept.
+	override_.Apply(device, main, 3440, 1440);
+	sf4e::gameconfig::DisplayBlock written = {};
+	override_.WriteRequested(main, [&] { written = main; });
+	CHECK(Holds(written, 1280, 720, 1) && Holds(main, 3440, 1440, 0));
+}
+
+// A mode the game's display options put in the device is the player's new
+// choice: it is saved, and the device is built at the monitor's size again.
+static void BorderlessSavesAModeChosenInTheGamesOptions() {
+	BorderlessOverride override_;
+	auto device = Block(1280, 720, 0), main = device;
+	override_.Apply(device, main, 1920, 1080);
+	device = Block(1600, 900, 1);
+	override_.Apply(device, main, 1920, 1080);
+	CHECK(Holds(device, 1920, 1080, 0));
+	sf4e::gameconfig::DisplayBlock written = {};
+	override_.WriteRequested(main, [&] { written = main; });
+	CHECK(Holds(written, 1600, 900, 1));
+}
+
+// When Borderless gives up, both copies get the player's mode back and later
+// writes are the game's alone, as they are without Borderless.
+static void BorderlessRestoreHandsTheModeBack() {
+	BorderlessOverride override_;
+	auto device = Block(1280, 720, 1), main = device;
+	override_.Apply(device, main, 1920, 1080);
+	override_.Restore(device, main);
+	CHECK(Holds(device, 1280, 720, 1) && Holds(main, 1280, 720, 1));
+	main.width = 1600;
+	uint32_t written = 0;
+	override_.WriteRequested(main, [&] { written = main.width; });
+	CHECK(written == 1600);
+}
+
 int main() {
+	BorderlessAreaIsTheLargestWhole16By9();
+	BorderlessWritesThePlayersModeAsAsked();
+	BorderlessSavesAModeChosenInTheGamesOptions();
+	BorderlessRestoreHandsTheModeBack();
 	FasterDisplayKeepsTheFlagOffButWritesItAsAsked();
 	FasterDisplayOffLeavesTheFlagToTheGame();
 	RenderingThreadWriteBeforeApplyIsTheGames();

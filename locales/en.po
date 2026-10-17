@@ -1116,6 +1116,12 @@ msgstr "Faster display (1 frame less)"
 msgid "player.faster_display_detail"
 msgstr "The game shows each frame as soon as it is ready instead of a frame later. Turn it off if the game drops below 60 fps on this PC. It only affects this PC: the other player does not need it on. Changes apply the next time the game starts."
 
+msgid "player.borderless"
+msgstr "Borderless"
+
+msgid "player.borderless_detail"
+msgstr "The game fills the screen in a window without a frame, drawn at the screen's own resolution in 16:9, with black bars on a wider or taller screen. While it is on, Alt+Enter and the game's own resolution and fullscreen options do nothing; the game keeps your choice there for when it is off. It only affects this PC. Changes apply the next time the game starts."
+
 
 
 msgid "settings.interface_title"

@@ -1116,6 +1116,12 @@ msgstr "表示の高速化（遅延1フレーム減）"
 msgid "player.faster_display_detail"
 msgstr "ゲームが各フレームを1フレーム遅れて表示する代わりに、準備ができしだい表示します。このPCでゲームが60fpsを下回る場合はオフにしてください。このPCだけに影響します。相手がオンにする必要はありません。変更は次にゲームを起動したときに反映されます。"
 
+msgid "player.borderless"
+msgstr "ボーダーレス"
+
+msgid "player.borderless_detail"
+msgstr "ゲームが枠のないウィンドウで画面を埋め、画面本来の解像度の16:9で描画されます。横長や縦長の画面では黒帯が表示されます。オンの間は、Alt+Enterとゲーム本体の解像度・フルスクリーン設定は効きません。そこでの選択はオフにしたときのために保存されます。このPCだけに影響します。変更は次回ゲーム起動時に反映されます。"
+
 
 
 msgid "settings.interface_title"

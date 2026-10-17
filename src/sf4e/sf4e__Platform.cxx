@@ -22,6 +22,7 @@
 #include "sf4e__Game__Battle.hxx"
 #include "BuildIdentity.hxx"
 #include "sf4e__Platform.hxx"
+#include "sf4e__Borderless.hxx"
 #include "sf4e__ReplayCapture.hxx"
 #include "sf4e__UserApp.hxx"
 #include "sf4e__Overlay.hxx"
@@ -275,6 +276,7 @@ int fD3D::LimitPacedFrame(float frameDelta) {
 // waits for a vblank, so a pacing shift of a few milliseconds costs a whole
 // refresh and the controller overcorrects. It also adds input latency.
 void fD3D::BuildPresentParameters() {
+    sf4e::borderless::BeforePresentParameters(this, rMain::staticMethods.GetSingleton());
     (this->*rD3D::privateMethods.BuildPresentParameters)();
     D3DPRESENT_PARAMETERS* parameters = rD3D::GetPresentParameters(this);
     if (parameters->PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE) {
@@ -462,7 +464,9 @@ int fMain::Initialize(void* a, void* b, void* c) {
 }
 
 int fMain::ApplyStartupParams(void* params) {
-    return s_renderingThread.ApplyThenStart(sf4e::NetplayFacade::GetRuntimeSnapshotShared()->preferences.fasterDisplay,
+    const auto snapshot = sf4e::NetplayFacade::GetRuntimeSnapshotShared();
+    sf4e::borderless::Choose(snapshot->preferences.borderless);
+    return s_renderingThread.ApplyThenStart(snapshot->preferences.fasterDisplay,
         *rMain::StartupRenderingThread(params),
         [&] { return (this->*rMain::privateMethods.ApplyStartupParams)(params); });
 }
@@ -478,11 +482,14 @@ void fMain::Destroy() {
 }
 
 void fMain::WriteDisplayConfig() {
-    s_renderingThread.WriteRequested(*rMain::GetRenderingThread(this),
-        [this] { (this->*rMain::privateMethods.WriteDisplayConfig)(); });
+    sf4e::borderless::WriteConfig(this, [this] {
+        s_renderingThread.WriteRequested(*rMain::GetRenderingThread(this),
+            [this] { (this->*rMain::privateMethods.WriteDisplayConfig)(); });
+    });
 }
 
 void WINAPI fMain::RunWindowFunc(rMain* lpMain, HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    if (sf4e::borderless::WindowMessage(hwnd, uMsg, wParam, lParam)) return;
     // The overlay is done with the message before the game's procedure runs,
     // which can update and draw a whole frame (WM_TIMER while the window is
     // dragged or sized) and so reach DrawOverlay from in here.

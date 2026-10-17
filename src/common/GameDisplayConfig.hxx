@@ -1,6 +1,8 @@
 #pragma once
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
+#include "DisplayBlock.hxx"
 #include <string>
 #include <string_view>
 
@@ -87,6 +89,66 @@ public:
 private:
     int requested_ = 0;
     bool applied_ = false, enforced_ = false;
+};
+
+// The largest 16:9 area that fits a monitor, in whole steps of 16 by 9
+// pixels so the picture is never stretched, centred on it. Borderless renders
+// the game at this size. Empty when the monitor is smaller than one step.
+struct Area {
+    int x = 0, y = 0, width = 0, height = 0;
+    bool Valid() const { return width > 0 && height > 0; }
+};
+inline Area Fit16By9(int width, int height) {
+    const int step = (std::min)(width / 16, height / 9);
+    if (step < 1) return {};
+    return {(width - step * 16) / 2, (height - step * 9) / 2, step * 16, step * 9};
+}
+
+// DISPLAY/Resolution and DISPLAY/FullScreen with the player's Borderless on.
+// Ember builds the device in a window at its monitor's 16:9 size. The game copies
+// its device's settings into Main's (0x68F8E0, applying the brightness
+// option) and sizes its window from Main's (0x782CF0), so both hold the
+// Borderless mode, and the config write is given the player's own, as
+// RenderingThreadOverride does for its flag. Any other mode in the device was
+// put there by the game's display options and is the player's new choice.
+// Choosing a window at exactly the Borderless size looks like no change, so
+// the mode saved before stays.
+class BorderlessOverride {
+public:
+    // Before the game builds its present parameters.
+    void Apply(DisplayBlock& device, DisplayBlock& main, uint32_t width, uint32_t height) {
+        const Mode borderless{width, height, 0};
+        if (!applied_ || !(Read(device) == borderless)) requested_ = Read(device);
+        applied_ = true;
+        Put(borderless, device);
+        Put(borderless, main);
+    }
+    // Gives both copies the player's mode back, so the next build is the
+    // game's own, and leaves later writes to the game.
+    void Restore(DisplayBlock& device, DisplayBlock& main) {
+        if (!applied_) return;
+        Put(requested_, device);
+        Put(requested_, main);
+        applied_ = false;
+    }
+    // Runs the game's config write with the player's mode in Main's copy and
+    // puts the live mode back after. Unapplied, the mode is the game's.
+    template <typename Write> void WriteRequested(DisplayBlock& main, Write&& write) const {
+        if (!applied_) { write(); return; }
+        const Mode live = Read(main);
+        Put(requested_, main);
+        write();
+        Put(live, main);
+    }
+private:
+    struct Mode {
+        uint32_t width = 0, height = 0, fullScreen = 0;
+        bool operator==(const Mode& other) const { return width == other.width && height == other.height && fullScreen == other.fullScreen; }
+    };
+    static Mode Read(const DisplayBlock& block) { return {block.width, block.height, block.fullScreen}; }
+    static void Put(const Mode& mode, DisplayBlock& block) { block.width = mode.width; block.height = mode.height; block.fullScreen = mode.fullScreen; }
+    Mode requested_;
+    bool applied_ = false;
 };
 
 } }

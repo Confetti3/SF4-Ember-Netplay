@@ -452,6 +452,8 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__Pad.cxx"
     "src/sf4e/sf4e__BackgroundPlay.hxx"
     "src/sf4e/sf4e__BackgroundPlay.cxx"
+    "src/sf4e/sf4e__Borderless.hxx"
+    "src/sf4e/sf4e__Borderless.cxx"
     "src/sf4e/sf4e__AwayAlert.hxx"
     "src/sf4e/sf4e__AwayAlert.cxx"
     "src/sf4e/sf4e__InputLag.hxx"

@@ -10,6 +10,7 @@ using Platform::Allocator;
 using Platform::dDeque_0x10;
 using Platform::dString;
 using Platform::D3D;
+using Platform::DisplayBlock;
 using Platform::Main;
 using Platform::GFxApp;
 using Platform::Sound;
@@ -83,6 +84,10 @@ Main::Win32_WindowData** Main::GetWindowData(Main* m) {
 
 int* Main::GetRenderingThread(Main* m) {
     return (int*)((unsigned int)m + 0x110);
+}
+
+DisplayBlock* Main::GetDisplay(Main* m) {
+    return (DisplayBlock*)((unsigned int)m + 0xdc);
 }
 
 int* Main::StartupRenderingThread(void* params) {

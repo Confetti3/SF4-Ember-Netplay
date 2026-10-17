@@ -7,6 +7,7 @@
 #include <d3d9.h>
 
 #include "Dimps__Eva.hxx"
+#include "../common/DisplayBlock.hxx"
 
 // These are derived from address 0x9670f0- GfxApp::Initialize is not called
 // with a pointer to the various sizes that define the app, so the app uses
@@ -77,6 +78,8 @@ namespace Dimps {
 
 		void Locate(HMODULE peRoot);
 
+		using sf4e::gameconfig::DisplayBlock;
+
 		struct D3D
 		{
 			typedef struct __privateMethods {
@@ -106,7 +109,8 @@ namespace Dimps {
 			// Instance values here
 			void* vtable;
 			HWND hFocusWindow;
-			DWORD workingMem;
+			// The adapter the device is created and reset on.
+			DWORD adapterOrdinal;
 			DWORD deviceType;
 			DWORD behaviorFlags;
 			IDirect3D9* lpD3D;
@@ -120,6 +124,10 @@ namespace Dimps {
 			}
 			static D3DPRESENT_PARAMETERS* GetPresentParameters(D3D* d) {
 				return (D3DPRESENT_PARAMETERS*)((unsigned int)d + 0x1c);
+			}
+			// The display settings BuildPresentParameters (0x7719D0) builds from.
+			static DisplayBlock* GetDisplay(D3D* d) {
+				return (DisplayBlock*)((unsigned int)d + 0x24c);
 			}
 		};
 
@@ -176,6 +184,10 @@ namespace Dimps {
 			// drains (0x405580). Changing Main's flag after Initialize leaves the
 			// releases queued for good.
 			static int* StartupRenderingThread(void* params);
+			// The display settings WriteDisplayConfig saves (0x77D5F0). The game
+			// refills them from the device's (D3D::GetDisplay) when it applies
+			// the brightness option (0x68F8E0), at startup and as its options close.
+			static DisplayBlock* GetDisplay(Main* m);
 		};
 
 		struct GFxApp
