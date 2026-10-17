@@ -23,6 +23,7 @@
 #include "../common/WipeText.hxx"
 #include "../platform/Elevation.hxx"
 #include "../platform/LauncherInstance.hxx"
+#include "../platform/LauncherLinks.hxx"
 #include "../platform/Utf8.hxx"
 #include "../platform/VideoLinkServe.hxx"
 #include "../platform/WineBuiltin.hxx"
@@ -45,7 +46,6 @@
 #include "../platform/LocaleWindows.hxx"
 #include "../platform/UiPreferencesStore.hxx"
 #include "../platform/DisplaySettings.hxx"
-#include "../platform/LauncherHomeLinks.hxx"
 #include "../common/EnvFlag.hxx"
 #include "../platform/UpdatePolicy.hxx"
 #include "GameLocator.hxx"
@@ -639,6 +639,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // An offer that does not parse is dropped: the window then shows the usual offer.
     const auto installOffer = sf4e::launcher::ParseInstallOffer(offerWords);
     if (!offerWords.empty()) spdlog::info(installOffer ? "Started with an update offer from the game" : "Ignored an update offer that is not valid");
+    // Pre-game windows retain the same slots across an updater restart.
+    // Only a launcher that acquires the instance consumes them for a launch.
+    // Keep links queued until a launch is chosen; receiving one is not consent
+    // to dismiss an update question or install anything.
+    auto inbox = std::make_unique<sf4e::platform::LauncherLinks>();
+    if (!inbox->Open()) spdlog::warn("Launcher could not listen for links before game startup");
     if (updates && !ShowRecovery(updateError ? sf4e::loc::T("launcher.update_failed") : "", chosenDirectory, true, sf4e::ui::Tone::Error, true, std::nullopt, installOffer)) return 0;
     if (recovery && !ShowRecovery(sf4e::loc::T("launcher.recovery_opened"), chosenDirectory, false, sf4e::ui::Tone::Neutral)) return 0;
     if (!instance.Acquire()) {
@@ -680,9 +686,19 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // stays quiet. Otherwise a leftover launcher (or one still waiting on
         // a game that never closed) made every start do nothing at all.
         spdlog::warn("Another Ember launcher is already running; this start was not continued");
+        if (discordLaunch && sf4e::platform::DeliverDiscordLaunch()) return 0;
         if (!discordLaunch) ShowLauncherMessage("launcher.already_running", MB_OK | MB_ICONINFORMATION);
         return 0;
     }
+    // Seed the same slots with a link that started this process, so an update
+    // can retain it without another command-line or settings-file format.
+    if (!joinCode.empty()) sf4e::platform::DeliverJoinLink(joinCode);
+    if (matchLink.Valid()) sf4e::platform::DeliverMatchLink(matchLink);
+    if (publicRoomLink.Valid()) sf4e::platform::DeliverPublicRoomLink(publicRoomLink);
+    if (!connectBridge.empty()) sf4e::platform::DeliverConnectLink(connectBridge);
+    if (!replayLink.empty()) sf4e::platform::DeliverReplayLink(replayLink);
+    if (discordLaunch) sf4e::platform::DeliverDiscordLaunch();
+    sf4e::platform::LaunchLinks incoming;
     RegisterJoinScheme();
     // An update interrupted mid-install must be restored before the game runs
     // on a half-replaced install. The Updater restarts the Launcher after.
@@ -715,23 +731,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     }
     if (!updates&&!recovery&&(displaySettings||(!play&&!discordLaunch&&joinCode.empty()&&!matchLink.Valid()&&
         !publicRoomLink.Valid()&&connectBridge.empty()&&replayLink.empty()&&steamCommand.empty()))) {
-        sf4e::platform::LauncherHomeLinks inbox;
-        sf4e::platform::HomeLaunchLinks incoming;
-        if (!inbox.Open()) spdlog::warn("Launcher Home could not listen for links; continuing with normal game startup");
-        else {
-            if (!sf4e::ui::RunRecovery("",chosenDirectory,sf4e::ui::LauncherRoot::Home,
-                [](const std::string& line){spdlog::warn("{}",line);},sf4e::ui::Tone::Neutral,true,
-                std::nullopt,std::nullopt,displaySettings?sf4e::ui::LauncherPage::Display:sf4e::ui::LauncherPage::Root,
-                [&]{return inbox.Take(incoming);})) return 0;
-            inbox.Take(incoming); // Include a link arriving with the Start press.
-            if(!incoming.join.empty())joinCode=std::move(incoming.join);
-            if(incoming.match.Valid())matchLink=std::move(incoming.match);
-            if(incoming.room.Valid())publicRoomLink=std::move(incoming.room);
-            if(!incoming.connect.empty())connectBridge=std::move(incoming.connect);
-            if(!incoming.replay.empty())replayLink=sf4e::platform::ResolveReplayFile(incoming.replay);
-            discordLaunch=discordLaunch||incoming.discord;
-        }
-    } // All Home receivers are closed before the child receives its environment.
+        if (!sf4e::ui::RunRecovery("",chosenDirectory,sf4e::ui::LauncherRoot::Home,
+            [](const std::string& line){spdlog::warn("{}",line);},sf4e::ui::Tone::Neutral,true,
+            std::nullopt,std::nullopt,displaySettings?sf4e::ui::LauncherPage::Display:sf4e::ui::LauncherPage::Root,
+            [&]{return inbox->Take(incoming);})) return 0;
+    }
     sf4e::launcher::PersistedSettings settings;
     sf4e::launcher::LoadPersistedSettings(settings);
     sf4e::launcher::EnsureUniqueDisplayName(settings);
@@ -744,20 +748,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     payload.netplay.roundTimeIntegral = settings.roundTimeIntegral;
     payload.netplay.useRelay = 0;
     SetEnvironmentVariableW(L"SF4E_START_OFFLINE", offline ? L"1" : nullptr);
-    // The game reads the room link once at start and clears it (NetplayRuntime).
-    SetEnvironmentVariableW(L"SF4E_JOIN_LINK", joinCode.empty() ? nullptr : sf4e::platform::Utf8ToWide(joinCode.c_str()).c_str());
-    // A match link likewise, as "<bridge id> <match id>".
-    SetEnvironmentVariableW(L"SF4E_MATCH_LINK", !matchLink.Valid() ? nullptr :
-        sf4e::platform::Utf8ToWide((matchLink.bridgeId + " " + matchLink.matchId).c_str()).c_str());
-    // A public room link likewise, as "<bridge id> <room id>".
-    SetEnvironmentVariableW(L"SF4E_PUBLIC_ROOM_LINK", !publicRoomLink.Valid() ? nullptr :
-        sf4e::platform::Utf8ToWide((publicRoomLink.bridgeId + " " + publicRoomLink.roomId).c_str()).c_str());
-    // A connect link as the service's ID.
-    SetEnvironmentVariableW(L"SF4E_CONNECT_LINK", connectBridge.empty() ? nullptr :
-        sf4e::platform::Utf8ToWide(connectBridge.c_str()).c_str());
-    // A replay link as the file's path.
-    SetEnvironmentVariableW(L"SF4E_REPLAY_LINK", replayLink.empty() ? nullptr :
-        sf4e::platform::Utf8ToWide(replayLink.c_str()).c_str());
     // A folder picked in recovery on an earlier launch comes before the search.
     sf4e::launcher::RememberedFolder remembered{sf4e::platform::Utf8ToWide(settings.gameDirectory.c_str())};
     const auto exists = [](const std::wstring& path) { return PathFileExistsW(path.c_str()) != FALSE; };
@@ -850,8 +840,32 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             sf4e::platform::SteamElevation() == sf4e::platform::Elevation::Elevated;
         if (steamAbove) spdlog::warn("Steam runs as administrator and the launcher does not; the game may not reach Steam");
         DWORD startError = 0;
+        if (inbox) inbox->Take(incoming);
+        if (!incoming.join.empty()) joinCode=std::move(incoming.join);
+        if (incoming.match.Valid()) matchLink=std::move(incoming.match);
+        if (incoming.room.Valid()) publicRoomLink=std::move(incoming.room);
+        if (!incoming.connect.empty()) connectBridge=std::move(incoming.connect);
+        if (!incoming.replay.empty()) replayLink=sf4e::platform::ResolveReplayFile(incoming.replay);
+        discordLaunch=discordLaunch||incoming.discord;
+
+        SetEnvironmentVariableW(L"SF4E_JOIN_LINK", joinCode.empty() ? nullptr : sf4e::platform::Utf8ToWide(joinCode.c_str()).c_str());
+        // A match link likewise, as "<bridge id> <match id>".
+        SetEnvironmentVariableW(L"SF4E_MATCH_LINK", !matchLink.Valid() ? nullptr :
+            sf4e::platform::Utf8ToWide((matchLink.bridgeId + " " + matchLink.matchId).c_str()).c_str());
+        // A public room link likewise, as "<bridge id> <room id>".
+        SetEnvironmentVariableW(L"SF4E_PUBLIC_ROOM_LINK", !publicRoomLink.Valid() ? nullptr :
+            sf4e::platform::Utf8ToWide((publicRoomLink.bridgeId + " " + publicRoomLink.roomId).c_str()).c_str());
+        // A connect link as the service's ID.
+        SetEnvironmentVariableW(L"SF4E_CONNECT_LINK", connectBridge.empty() ? nullptr :
+            sf4e::platform::Utf8ToWide(connectBridge.c_str()).c_str());
+        // A replay link as the file's path.
+        SetEnvironmentVariableW(L"SF4E_REPLAY_LINK", replayLink.empty() ? nullptr :
+            sf4e::platform::Utf8ToWide(replayLink.c_str()).c_str());
+        inbox.reset(); // The child opens the same mailboxes.
         HANDLE game = CreateSF4Process(payload,helper,discord,helperPath.wstring(),location.directory.data(),location.executable.data(),1,dlls,dumps,startError);
         if (!game) {
+            inbox=std::make_unique<sf4e::platform::LauncherLinks>();
+            inbox->Open();
             dumps.Close();
             // ERROR_ELEVATION_REQUIRED: SSFIV.exe is marked to run as administrator.
             const char* startMessage = startError == ERROR_ELEVATION_REQUIRED ? "launcher.game_runs_as_admin" : "launcher.start_failed";
