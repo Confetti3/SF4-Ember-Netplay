@@ -1,15 +1,18 @@
 # Security policy
 
-This policy describes the Ember 1.1.x architecture on the `release` branch.
-Use the latest compatible Ember release for all participants. The retired
+This policy describes the current Ember architecture on the `release` branch.
+Only the latest stable release on that branch receives security fixes; earlier
+releases do not receive backports. Use the latest compatible release for all
+participants. The retired
 0.6.x launcher, broker, RelayHost and Qt documentation does not describe this
 product. Its previous policy is retained as [historical material](../docs/archive/SECURITY-pre-ember.md).
 
 ## Reporting a vulnerability
 
 Do not post exploitable bugs, private invitations, credentials or crash dumps
-in public issues. Contact the maintainer (Katie / Confetti3) privately through
-the project's [support community](https://discord.gg/uPNqF5A5uq). Include the
+in public issues or public Discord channels. Join the project's
+[support community](https://discord.gg/uPNqF5A5uq) and send a **direct message to
+the maintainer, Katie / Confetti3**. Include the
 affected build, impact, reproduction steps and a redacted diagnostic export.
 The maintainer's existing targets are acknowledgement within seven days and a
 fix or mitigation plan within thirty days for critical or high severity reports;
@@ -19,8 +22,9 @@ preferred unless the reporter requests anonymity.
 ## Current boundaries
 
 - The launcher injects Sidecar into an owned Steam copy of USFIV. The supported
-  executable fingerprint is checked before fixed-offset hooks are installed.
-  A matching executable or Sidecar hash is compatibility checking, not anti-cheat.
+  Steam build is assumed by the fixed-offset hooks; the launcher does not
+  currently validate the game executable fingerprint. The Sidecar hash is
+  checked between players for compatibility, not as anti-cheat.
 - Private rooms use Iroh authenticated transport and invitation capabilities.
   Anyone given a valid invitation may be able to join; keep invitations private.
   Room peers can still be modified or malicious. Authentication does not make
