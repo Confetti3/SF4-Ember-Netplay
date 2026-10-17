@@ -67,13 +67,16 @@ without the player pressing Play, and nothing moves a player out of a room.
 
 ## Deployed bridges
 
-The deploy scripts install two bridges on the project VPS. Production is
-`https://bridge.embernetplay.link` (port 47820, `tenants.json`). Staging is
-`https://bridge-staging.embernetplay.link` (port 47821, `tenants.staging.json`), set up
-with `INSTANCE=staging`: its own account, binary, state, backups, units and nginx site,
-all named `ember-bridge-staging`, so it runs newer builds first and keeps its own bridge
-ID and data. Staging has no public rooms. `deploy/test-setup.sh` installs both into a
-mock server.
+The deploy scripts can install two bridges on the project VPS; staging is not
+installed yet. Production is `https://bridge.embernetplay.link` (port 47820,
+`tenants.json`, operator folder `~/ember-bridge`). Staging is
+`https://bridge-staging.embernetplay.link` (port 47821, `tenants.staging.json`,
+`~/ember-bridge-staging`). The scripts pick the bridge from the folder they run in. Staging
+has its own account, binary, state, backups and units, all named `ember-bridge-staging`,
+and its own nginx site `bridge-staging.embernetplay.link`, so it runs newer builds first
+and keeps its own bridge ID and data. Both sites come from one template and share the
+request rate zones, which only production's setup replaces. Staging has no public rooms.
+`deploy/test-setup.sh` installs both into a mock server.
 
 The production bridge was first deployed as the staging bridge, so a
 platform could build its side before WP4 to WP7. It is this branch's bridge with

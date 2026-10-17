@@ -10,7 +10,9 @@ them in.
 ## What you get
 
 Ember has two bridges on its server, each with its own bridge ID, keys and
-data, so nothing done on staging reaches production. Each has its own
+data, so no data on staging reaches production. They share nginx's request
+limits per address, so heavy staging traffic from one address can get that
+address's production calls refused with 429. Each has its own
 BluMint connection (tenant `blumint`, kind `blumint`), credentials and
 registration: production for BluMint's production, and staging for BluMint
 staging and its testers. The staging bridge is not up yet, and neither
