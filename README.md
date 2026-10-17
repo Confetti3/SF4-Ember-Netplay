@@ -62,13 +62,32 @@ An in-game capture supplied by the project owner, showing Ember's frame meter, p
 
 ## Get started
 
-You need **Windows 10 or later (x64)**, an owned **Steam copy of Ultra Street Fighter IV**, and the **latest Microsoft Visual C++ x86 runtime** (the launcher will not start with an older one and offers the download). The game is not included.
+You need **Windows 10 or later (x64)** (or a Steam Deck or Linux PC running Proton; see [Steam Deck and Linux](#steam-deck-and-linux)), an owned **Steam copy of Ultra Street Fighter IV**, and the **latest Microsoft Visual C++ x86 runtime** (the launcher will not start with an older one and offers the download). The game is not included.
 
 1. For a fresh installation, [download the complete v1.3.0 ZIP](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v1.3.0/sf4-ember-netplay-1.3.0.zip) and its [SHA-256 checksum](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v1.3.0/sf4-ember-netplay-1.3.0.zip.sha256). Choose a release package, not GitHub's source-code download. Alternatively, [setup.exe](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v1.3.0/sf4-ember-netplay-1.3.0-setup.exe) installs Ember into an empty folder with a Start menu entry and an uninstaller.
 2. Extract everything into a **new writable folder**. Keep your old launcher installation separate; moving from the legacy launcher to Ember is a fresh install.
 3. Run `preflight.cmd`, then `Launcher.exe`. Successful startup goes directly to the game. If needed, select the folder containing `SSFIV.exe` in launch recovery.
 4. At the main menu, choose your controller and player name. Use **Online play → Create room**, then copy the invitation. Guests choose **Join room** and paste it.
 5. Choose a table, join its queue or watch. Save your fighter selection and ready when seated. **All participants must use the same Ember release.**
+
+### Steam Deck and Linux
+
+These steps were confirmed on a Steam Deck with Proton 10.x. Other Linux PCs running Steam and Proton may work the same way, but have not been checked. You still need USF4 installed through Steam.
+
+1. On a Steam Deck, switch to **Desktop Mode**.
+2. Download and check Ember:
+   1. Download the ZIP and its matching `.sha256` checksum file from the [latest release](https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest).
+   2. **Check the download.** The checksum proves your ZIP is exactly the file that was released: not damaged or cut short by the download, and not swapped for something else. Open a terminal (Konsole on the Steam Deck) in the folder holding both files and run `sha256sum sf4-ember-netplay-*.zip`. The long code it prints must match the code at the start of the `.sha256` file. If they differ, delete the ZIP and download it again.
+   3. Extract the ZIP into a folder. Your Downloads folder is fine.
+3. In Steam, choose **Games → Add a Non-Steam Game to My Library**, select **Browse**, and pick `Launcher.exe` from that folder.
+4. Right-click the new entry, open **Properties → Compatibility**, tick **Force the use of a specific Steam Play compatibility tool**, and choose **Proton 10.x**.
+5. Start it from Steam. You can go back to Gaming Mode first and start it from your library.
+6. The launcher should find your USF4 installation automatically and start the game. If it can't, select the folder containing `SSFIV.exe` when it asks.
+7. Open **Ember ID** and create a passphrase. Wine and Proton cannot use the usual key protection, so this passphrase protects your key instead. Ember asks for it once each time the game starts. Once your Ember ID is set up, you can create and join rooms.
+
+No keyboard? Hold the **Steam** button and press **X** to show the on-screen keyboard. With an external controller, hold the Guide button and press **X** on Xbox-style pads, or hold the **PS** button and press **Square** on PlayStation pads.
+
+**Updating under Proton:** the in-game updater does not work under Proton yet. To update, close Ember and the game, download the new release ZIP, check its checksum as above, and extract it over your Ember folder.
 
 No VPS account or manual port configuration is required. Iroh can use public relays when a direct connection is unavailable. Discord support is included in the package.
 

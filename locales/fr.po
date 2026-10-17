@@ -3606,7 +3606,7 @@ msgid "identity.local_passphrase"
 msgstr "Phrase secrète du PC"
 
 msgid "identity.local_passphrase_detail"
-msgstr "Wine et Proton ne peuvent pas utiliser la protection des clés de Windows : une phrase secrète protège donc votre clé. Vous la saisissez une fois à chaque lancement du jeu."
+msgstr "Wine et Proton (par exemple sur Steam Deck) ne peuvent pas utiliser la protection des clés habituelle : une phrase secrète protège donc votre clé. Vous la saisissez une fois à chaque lancement du jeu."
 
 msgid "identity.repeat_passphrase"
 msgstr "Répéter la phrase"
@@ -3628,6 +3628,9 @@ msgstr "Créer l'Ember ID"
 
 msgid "identity.enable_detail"
 msgstr "Crée votre clé sur ce PC. Seul ce compte Windows peut l'utiliser."
+
+msgid "identity.enable_passphrase_detail"
+msgstr "Crée votre clé sur ce PC, protégée par la phrase secrète ci-dessus."
 
 msgid "identity.leave_room"
 msgstr "Quittez le salon et revenez au menu principal pour changer votre Ember ID."
