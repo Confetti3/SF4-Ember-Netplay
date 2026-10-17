@@ -3621,6 +3621,9 @@ msgstr "That address is not an Ember tournament service Ember can use."
 msgid "identity.failure.bridge_changed"
 msgstr "The service at that address is not the one you trusted. Ember stopped to keep your ID safe."
 
+msgid "identity.failure.pin_mismatch"
+msgstr "This version of Ember expected a different service at that address. Ember stopped to keep your ID safe."
+
 msgid "identity.failure.not_approved"
 msgstr "Trust that service first."
 

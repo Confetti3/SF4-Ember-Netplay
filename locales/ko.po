@@ -3980,6 +3980,9 @@ msgstr "이 주소는 Ember가 사용할 수 있는 Ember 대회 서비스가 �
 msgid "identity.failure.bridge_changed"
 msgstr "이 주소의 서비스가 신뢰한 서비스와 다릅니다. ID를 보호하기 위해 Ember가 작업을 중단했습니다."
 
+msgid "identity.failure.pin_mismatch"
+msgstr "이 버전의 Ember는 이 주소에서 다른 서비스를 예상했습니다. ID를 보호하기 위해 Ember가 작업을 중단했습니다."
+
 msgid "identity.failure.not_approved"
 msgstr "먼저 이 서비스를 신뢰하세요."
 

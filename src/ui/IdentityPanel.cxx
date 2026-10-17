@@ -44,7 +44,7 @@ std::string FailureText(const std::string& code) {
         {"bridge_invalid_response", "identity.failure.not_bridge"}, {"bridge_response_too_large", "identity.failure.not_bridge"},
         {"unsupported_version", "identity.failure.not_bridge"},
         {"bridge_changed", "identity.failure.bridge_changed"}, {"bridge_mismatch", "identity.failure.bridge_changed"},
-        {"pinned_bridge_mismatch", "identity.failure.bridge_changed"},
+        {"pinned_bridge_mismatch", "identity.failure.pin_mismatch"},
         {"bridge_not_approved", "identity.failure.not_approved"},
         {"too_many_bridges", "identity.failure.too_many"},
         {"link_expired", "identity.failure.code"}, {"not_found", "identity.failure.code"},
@@ -384,6 +384,7 @@ void IdentityPanel::SendTournament(const ShellView& v, const std::string& screen
     using netplay::tournament::Command;
     using netplay::tournament::Phase;
     const auto& t = v.tournament;
+    if (loadingAssignments_ && !t.list.loading && t.list.error.empty()) ReadIfFirstUse(v, t.list.bridge);
     loadingAssignments_ = t.list.loading;
     CheckOpenedMatch(t.list);
     // A refresh's failure is said once; the runtime clears it when the next one is sent.
@@ -608,9 +609,11 @@ void IdentityPanel::Finish(const ShellView& v) {
     }
     default: break;
     }
-    // A dormant built-in service the helper just answered for is now one of
-    // the player's: the list read again says so.
-    if (const auto* used = FindBridge(v, sentBridge_); used && !CountsAsService(*used)) {
+    ReadIfFirstUse(v, sentBridge_);
+}
+
+void IdentityPanel::ReadIfFirstUse(const ShellView& v, const std::string& bridge) {
+    if (const auto* used = FindBridge(v, bridge); used && !CountsAsService(*used)) {
         IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list));
     }
 }

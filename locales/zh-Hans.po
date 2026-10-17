@@ -3980,6 +3980,9 @@ msgstr "该地址不是 Ember 可用的 Ember 赛事服务。"
 msgid "identity.failure.bridge_changed"
 msgstr "该地址上的服务不是您信任的那个。为保护您的 ID，Ember 已停止操作。"
 
+msgid "identity.failure.pin_mismatch"
+msgstr "此版本的 Ember 预期该地址上是另一个服务。为保护您的 ID，Ember 已停止操作。"
+
 msgid "identity.failure.not_approved"
 msgstr "请先信任该服务。"
 

@@ -3980,6 +3980,9 @@ msgstr "このアドレスは、Emberで使えるEmberの大会サービスで�
 msgid "identity.failure.bridge_changed"
 msgstr "このアドレスのサービスは、信頼したサービスとは異なります。IDを守るため、Emberは処理を中止しました。"
 
+msgid "identity.failure.pin_mismatch"
+msgstr "このバージョンのEmberは、このアドレスで別のサービスを想定していました。IDを守るため、Emberは処理を中止しました。"
+
 msgid "identity.failure.not_approved"
 msgstr "先にこのサービスを信頼してください。"
 

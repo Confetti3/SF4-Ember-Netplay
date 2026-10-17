@@ -3981,6 +3981,9 @@ msgstr "По этому адресу нет турнирного сервиса 
 msgid "identity.failure.bridge_changed"
 msgstr "Сервис по этому адресу не тот, которому вы доверились. Ember остановился, чтобы защитить ваш ID."
 
+msgid "identity.failure.pin_mismatch"
+msgstr "Эта версия Ember ожидала по этому адресу другой сервис. Ember остановился, чтобы защитить ваш ID."
+
 msgid "identity.failure.not_approved"
 msgstr "Сначала отметьте этот сервис как доверенный."
 

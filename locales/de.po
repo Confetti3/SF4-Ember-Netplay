@@ -3980,6 +3980,9 @@ msgstr "Diese Adresse ist kein Ember-Turnierdienst, den Ember nutzen kann."
 msgid "identity.failure.bridge_changed"
 msgstr "Der Dienst unter dieser Adresse ist nicht der, dem Sie vertraut haben. Ember hat abgebrochen, um Ihre ID zu schützen."
 
+msgid "identity.failure.pin_mismatch"
+msgstr "Diese Ember-Version hat unter dieser Adresse einen anderen Dienst erwartet. Ember hat abgebrochen, um Ihre ID zu schützen."
+
 msgid "identity.failure.not_approved"
 msgstr "Vertrauen Sie diesem Dienst zuerst."
 

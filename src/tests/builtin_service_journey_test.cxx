@@ -3,6 +3,7 @@
 // journey test's main.
 #include "identity_journey_support.hxx"
 namespace {
+const std::string staging="https://bridge-staging.embernetplay.link",staged="brg_00000000-0000-4000-8000-0000000000aa";
 // A service built into this version of Ember arrives trusted in the helper's
 // list but dormant: with only it, Online play, Home and the matches look as
 // they do with no service, and nothing is read from it. Its connect link runs
@@ -10,7 +11,6 @@ namespace {
 // one of the player's services. The screens say it is built in.
 void BuiltInServiceConnects(){
  using namespace sf4e;using netplay::IdentityOp;
- const std::string staging="https://bridge-staging.embernetplay.link",staged="brg_00000000-0000-4000-8000-0000000000aa";
  {
  // Beside Ember's own, a dormant one is not offered as a service.
  Journey h;auto& id=h.view.identity;id.known=true;h.ready();
@@ -48,7 +48,31 @@ void BuiltInServiceConnects(){
  h.Screen("online");
  Check(h.row("identity")&&h.row("identity")->detail==loc::T("home.identity_detail"),"A used built-in service is not one of the player's");
 }
+// A match link naming a dormant built-in service is a first use too. Here
+// its links fail to load, so the match list read from it is the first answer,
+// and that reads the services again.
+void BuiltInServiceMatchLink(){
+ using namespace sf4e;using netplay::IdentityOp;
+ Journey h;auto& id=h.view.identity;id.known=true;h.ready();
+ id.bridges={{staged,staging,"Ember bridge (staging)",true,false}};
+ h.Screen("home");h.Frame(0,2);
+ Check(h.until(IdentityOp::BridgeList),"Home did not learn the services");
+ h.answer();
+ auto& t=h.view.tournament;
+ t.link.bridge=staged;t.link.match="emt_1";t.link.sequence=1;h.Frame(0,3);
+ Check(h.shell.Navigation().Screen()=="tournament-matches","A match link for a built-in service did not open the matches");
+ Check(h.until(IdentityOp::LinkList)&&h.sent().back()->bridge==staged,"A match link did not select its built-in service");
+ h.answer(false,"rate_limited");
+ Check(!h.played().empty()&&h.played().back()->bridgeId==staged,"A match link did not read the built-in service's matches");
+ const auto before=h.sent().size();
+ t.list.bridge=staged;t.list.loading=true;h.Frame(0,2);
+ t.list.loading=false;h.Frame(0,2);
+ Check(h.sent().size()>before&&h.sent().back()->op==IdentityOp::BridgeList,"A built-in service's first match list did not read the services again");
+ id.bridges[0].active=true;h.answer();
+ h.Screen("online");
+ Check(h.row("identity")&&h.row("identity")->detail==loc::T("home.identity_detail"),"A built-in service used by a match link is not one of the player's");
+}
 }
 void RunBuiltInServiceJourneys(){
- BuiltInServiceConnects();
+ BuiltInServiceConnects();BuiltInServiceMatchLink();
 }
