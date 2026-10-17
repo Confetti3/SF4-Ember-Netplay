@@ -10,8 +10,10 @@ If a file is blocked:
 1. Keep protection enabled. Do not add broad folder exclusions or disable scanning.
 2. Confirm where the build came from. For an official release, use the project's
    [release page](https://github.com/Confetti3/SF4-Ember-Netplay/releases).
-3. Compare the ZIP's SHA-256 against the expected hash. A complete release's
-   `preflight.cmd` checks its extracted inventory. These checks detect changes
+3. Download the matching `.sha256` file beside the ZIP or setup executable
+   on that same release page (`.zip.sha256` or `-setup.exe.sha256`). Compare
+   the downloaded file's SHA-256 with the value in its matching checksum file.
+   A complete ZIP release's `preflight.cmd` checks its extracted inventory. These checks detect changes
    relative to their records; they are not independent publisher authentication.
 4. Record the exact detection, affected filename and build. Contact the maintainer
    privately if further investigation is needed. A suspected false positive can

@@ -20,8 +20,21 @@ included here. Signing does not guarantee that antivirus accepts a file.
    Preserve vendor signatures and redistribution terms for third-party files.
 4. Verify every expected signature and timestamp, then generate a separate
    signing receipt relating unsigned and signed hashes to the same source.
-5. Generate manifests and archives from the signed files, then validate the
-   final package and installer signatures before publication.
+5. Generate the package manifest and ZIP archives from the verified signed
+   payload. Check their inventory and embedded signatures.
+6. Build the Inno Setup installer from that payload. Signing the files inside
+   the installer does not sign the outer setup executable.
+7. Sign and timestamp the final setup executable, then verify its Authenticode
+   signature, timestamp and expected publisher.
+8. Generate the final `.zip.sha256` and `-setup.exe.sha256` files from the final
+   artifacts, and verify each checksum against its matching download before
+   publishing the archives, installer and checksum files together.
+
+A checksum must be generated **after the last signing or timestamping step on
+that file**. `scripts/package-installer.ps1` currently creates the installer
+and its checksum together. If a signing step changes that installer afterward,
+regenerate its `.sha256` from the signed bytes; do not publish the earlier
+checksum. The same rule applies to ZIPs rebuilt after payload signing.
 
 The current package script validates the original build hashes; it intentionally
 rejects a stage modified by signing. A signed-release promotion path and signing
