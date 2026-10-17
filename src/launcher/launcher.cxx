@@ -906,6 +906,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         const char* exitMessage = exitCode == 0xC0000139u ? "launcher.game_wrong_dll" :
             exitCode == 0xC0E90002u ? "launcher.game_blocked_by_windows" :
             steamAbove ? "launcher.steam_runs_as_admin" : crashed ? (reportable ? "launcher.game_crashed" : "launcher.game_crashed_files") : "launcher.game_error";
+        // The game has released its receivers; recovery owns links again
+        // until the player retries or closes this launcher.
+        if (exitCode != 0) {
+            inbox=std::make_unique<sf4e::platform::LauncherLinks>();
+            if (!inbox->Open()) spdlog::warn("Launcher could not listen for links during recovery");
+        }
         if (exitCode != 0 && ShowRecovery(sf4e::loc::T(exitMessage),chosenDirectory,false,sf4e::ui::Tone::Error,false,
             reportable ? std::optional<sf4e::reports::CrashContext>(reportCrash) : std::nullopt)) continue;
         return 0;
