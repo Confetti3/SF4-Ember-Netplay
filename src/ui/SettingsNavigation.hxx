@@ -3,9 +3,13 @@
 #include "../common/Localization.hxx"
 
 namespace sf4e { namespace ui {
+inline bool IsInterfaceScreen(const std::string& screen) {
+    return screen=="interface"||screen=="menu-display"||screen=="match-hud"||screen=="ready-alerts";
+}
 inline bool IsPreferenceScreen(const std::string& screen) {
+    if(IsInterfaceScreen(screen))return true;
     for(const char* name:{"profile","main-character","settings","player","controllers","defaults",
-        "interface","menu-display","match-hud","ready-alerts","training-replays","discord","problem-reports","country"})
+        "training-replays","discord","problem-reports","country"})
         if(screen==name)return true;
     return false;
 }

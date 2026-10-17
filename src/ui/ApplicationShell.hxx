@@ -374,6 +374,10 @@ private:
     std::vector<MenuEntry> RoomSetupRows(const ShellView& view,const std::string& screen,bool opening,const char* reason,std::string& title);
     void CreateActivate(const MenuAction& action,const ShellView& view,const Submit& submit);
     bool CreateAdjust(const MenuAction& action);
+    // Interface settings use the same draft and save lifecycle (ApplicationShell__Settings.cxx).
+    std::vector<MenuEntry> InterfaceRows(const ShellView& view,const std::string& screen,const char* reason,std::string& title);
+    bool InterfaceActivate(const MenuAction& action,const ShellView& view,const Submit& submit);
+    bool InterfaceAdjust(const MenuAction& action);
     // The Create screen, with Practice room off (createPractice_).
     void OpenCreate();
     // Create on Public: Create public room, the empty list's card and Quick join's notice all open it.

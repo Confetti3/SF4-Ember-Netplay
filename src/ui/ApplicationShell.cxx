@@ -67,16 +67,6 @@ const char* RoomStatusKey(const room::Snapshot& room) {
     if(room.practice)return room.locked?"room.practice_locked_status":"room.practice_status";
     return room.locked?"room.locked_status":"room.private_status";
 }
-// "Automatic" first, then every locale by its own name.
-std::vector<MenuChoice> LanguageChoices() {
-    std::vector<MenuChoice> choices;std::string preference="auto";
-    do {
-        choices.push_back({preference,preference=="auto"?loc::Tf("settings.language.system_with",loc::NativeName(platform::ResolveUiLocale("auto"))):
-            std::string(loc::NativeName(loc::ResolveLocale(preference,{},{})))});
-        preference=std::string(loc::NextPreference(preference,1));
-    } while(preference!="auto"&&choices.size()<64);
-    return choices;
-}
 // When a report was sent, in this PC's time, as 2026-10-09 14:03.
 std::string ReportTime(std::int64_t time) {
     const std::time_t at=static_cast<std::time_t>(time);std::tm local{};
@@ -287,35 +277,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    gamepads::LayerPending(preferences_.controllerLayer,v.runningControllerLayer),v.canChangeController,v.canEditPreferences,idle,v.padLayer);
  }else if(screen=="controllers"){
   title=loc::T("controllers.title");rows=ControllerRows(v.padLayer,v.pads,v.canChangeController,v.canEditPreferences);
- }else if(screen=="interface"){
-  title=loc::T("settings.interface_title");
-  rows={Row("menu-display",loc::T("settings.menu_display"),loc::T("settings.menu_display_detail")),
-   Row("match-hud",loc::T("settings.match_hud"),loc::T("settings.match_hud_layout_detail")),
-   Row("ready-alerts",loc::T("settings.ready_sound"),loc::T("settings.ready_sound_detail"))};
- }else if(screen=="match-hud"){
-  title=loc::T("settings.match_hud");
-  const char* hudSizes[]={loc::T("size.small"),loc::T("size.standard"),loc::T("size.large")};
-  rows={Value("hud",loc::T("settings.match_hud"),preferences_.showMatchHud?loc::T("common.on"):loc::T("common.off"),reason,v.canEditPreferences),
-   Value("hud-layout",loc::T("settings.match_hud_layout"),MatchStripLayoutName(preferences_.matchHudLayout),loc::T("settings.match_hud_layout_detail"),v.canEditPreferences),
-   Value("hud-name-offset",loc::T("settings.name_offset"),MatchHudNameOffsetText(preferences_.matchHudNameOffset),
-    preferences_.matchHudLayout==1?std::string(loc::T("settings.name_offset_detail")):loc::Tf("menu.requires_value",loc::T("settings.match_hud_layout"),MatchStripLayoutName(1)),v.canEditPreferences&&preferences_.matchHudLayout==1),
-   Value("hud-size",loc::T("settings.match_hud_size"),hudSizes[(std::max)(0,(std::min)(2,preferences_.matchHudSize))],loc::T("settings.match_hud_size_detail"),v.canEditPreferences),
-   Value("hud-position",loc::T("settings.match_hud_position"),MatchStripAnchorName(preferences_.matchHudAnchor),loc::T("settings.match_hud_position_detail"),v.canEditPreferences),
-   Value("hud-spacing",loc::T("settings.edge_spacing"),preferences_.matchHudRaised?loc::T("spacing.raised"):loc::T("spacing.normal"),loc::T("settings.edge_spacing_detail"),v.canEditPreferences)};
- }else if(screen=="ready-alerts"){
-  title=loc::T("settings.ready_sound");
-  const auto soundReason=loc::Tf("menu.requires_value",loc::T("settings.ready_sound"),loc::T("common.on"));
-  rows={Value("ready-sound",loc::T("settings.ready_sound"),preferences_.readySound?loc::T("common.on"):loc::T("common.off"),loc::T("settings.ready_sound_detail"),v.canEditPreferences),
-   Value("ready-volume",loc::T("settings.ready_sound_volume"),std::to_string(preferences_.readySoundVolume)+"%",preferences_.readySound?std::string(loc::T("settings.ready_sound_volume_detail")):soundReason,v.canEditPreferences&&preferences_.readySound),
-   Row("ready-test",loc::T("settings.ready_sound_test"),!v.canEditPreferences?reason:preferences_.readySound?std::string(loc::T("settings.ready_sound_test_detail")):soundReason,v.canEditPreferences&&preferences_.readySound)};
- }else if(screen=="menu-display"){
-  title=loc::T("settings.menu_display");char size[32];std::snprintf(size,sizeof(size),"%.2fx",preferences_.interfaceScale);
-  const auto languageValue=languagePreference_=="auto"?loc::Tf("settings.language.system_with",loc::NativeName(loc::Active())):
-   std::string(loc::NativeName(loc::ResolveLocale(languagePreference_,{},{})));
-  rows={Value("scale",loc::T("settings.interface_size"),size,reason,v.canEditPreferences),
-   Value("language",loc::T("settings.language"),languageValue,languageSaveError_.empty()?std::string(loc::T("settings.language.detail")):languageSaveError_,true)};
-  // Browsing the language list changes nothing until a choice is accepted.
-  rows.back().choices=LanguageChoices();rows.back().chosen=languagePreference_;
+ }else if(IsInterfaceScreen(screen)){rows=InterfaceRows(v,screen,reason,title);
  }else if(screen=="training-replays"){
   title=loc::T("settings.training_replays_title");
   rows={Value("match-frame-meter",loc::T("settings.match_frame_meter"),preferences_.matchFrameMeter?loc::T("common.on"):loc::T("common.off"),
@@ -503,7 +465,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
   if(publicRooms_.Activate(a,nav))return;
  }
  if(ReplaysPanel::Owns(screen)&&replays_.Activate(a,v,nav,submit,error_))return;
- if(ControllerActivate(a,v,submit))return;
+ if(ControllerActivate(a,v,submit)||InterfaceActivate(a,v,submit))return;
  // An opening room keeps its own screen, with its Stop row, until it joins.
  if(a.id=="online")nav.Push(idle?"online":v.session.room==RoomState::Opening?OpeningScreen(v):"room");
  else if(a.id=="discord-invitation")nav.Push(a.id);
@@ -518,7 +480,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="replays"||a.id=="controllers")nav.Push(a.id);
  else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
  else if(a.id=="create"||a.id=="pr-create"||a.id=="pr-none"||a.id=="host")CreateActivate(a,v,submit);
- else if(a.id=="settings"||a.id=="about"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="menu-display"||a.id=="match-hud"||a.id=="ready-alerts"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="developer"||a.id=="problem-reports"||a.id=="sent-reports")nav.Push(a.id);
+ else if(a.id=="settings"||a.id=="about"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="developer"||a.id=="problem-reports"||a.id=="sent-reports")nav.Push(a.id);
  else if(a.id=="join-now")Send(CommandKind::JoinInvite,v,submit);
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
  else if(a.id=="offline"||a.id=="game-buttons")Send(CommandKind::StartOffline,v,submit);
@@ -529,11 +491,6 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="diagnostics")Service(platform::ServiceAction::ExportDiagnostics,v,submit);
  else if(a.id=="problem-report"){
   if(Service(platform::ServiceAction::PrepareProblemReport,v,submit)){reportPanel_.Open(v.services.reporting.preparation + 1);menu_.navigation.Push("report");}
- }
- else if(a.id=="ready-test"){
-  // The volume on screen, which may not be saved yet.
-  ShellAction r;r.command.generation=v.session.generation;r.previewSoundVolume=preferences_.readySoundVolume;
-  if(!submit(std::move(r)))error_=loc::T("error.queue_failed");
  }
  else if(a.id=="updates")Service(platform::ServiceAction::CheckUpdates,v,submit);
  else if(a.id=="updater")Service(platform::ServiceAction::OpenUpdater,v,submit);
@@ -553,19 +510,14 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
  else if(CreateAdjust(a)){}
  else{
   auto prior=preferences_;
-  if(a.id=="name")preferences_.displayName=a.text;else if(a.id=="room-name")preferences_.roomName=a.text;
+  if(InterfaceAdjust(a)){}
+  else if(a.id=="name")preferences_.displayName=a.text;else if(a.id=="room-name")preferences_.roomName=a.text;
   else if(a.id=="capacity")preferences_.roomCapacity=(std::max)(2,(std::min)(16,preferences_.roomCapacity+a.delta));
   else if(a.id=="delay"){
    // Auto sits before the smallest delay. Choosing it keeps the number; leaving it starts at the smallest.
    const int next=StepInputDelay(preferences_.autoInputDelay,preferences_.inputDelay,a.delta);
    preferences_.autoInputDelay=next==AutoInputDelayChoice;if(!preferences_.autoInputDelay)preferences_.inputDelay=next;
   }
-  else if(a.id=="hud-layout")preferences_.matchHudLayout=(std::max)(0,(std::min)(1,preferences_.matchHudLayout+a.delta));
-  else if(a.id=="hud-name-offset")preferences_.matchHudNameOffset=(std::max)(-netplay::MaxMatchHudNameOffset,(std::min)(netplay::MaxMatchHudNameOffset,preferences_.matchHudNameOffset+2*a.delta));
-  else if(a.id=="hud-size")preferences_.matchHudSize=(std::max)(0,(std::min)(2,preferences_.matchHudSize+a.delta));
-  else if(a.id=="hud-position")preferences_.matchHudAnchor=(std::max)(0,(std::min)(netplay::MaxMatchHudAnchor,preferences_.matchHudAnchor+a.delta));
-  else if(a.id=="hud-spacing")preferences_.matchHudRaised=a.delta>0;
-  else if(a.id=="ready-sound")preferences_.readySound=a.delta>0;
   else if(a.id=="watched-picture")preferences_.watchedPicture=a.delta>0;
   else if(a.id=="training-auto-ready")preferences_.trainingAutoReady=a.delta>0;
   else if(a.id=="match-frame-meter")preferences_.matchFrameMeter=a.delta>0;
@@ -577,9 +529,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="game-reads-pads")preferences_.controllerLayer=a.delta<0;
   else if(a.id=="replay-save-watched")preferences_.recordWatched=a.delta>0;
   else if(a.id=="share-steam")preferences_.shareSteamProfile=a.delta>0;
-  else if(a.id=="ready-volume")preferences_.readySoundVolume=(std::max)(10,(std::min)(100,preferences_.readySoundVolume+10*a.delta));
-  else if(a.id=="scale")preferences_.interfaceScale=(std::max)(1.f,(std::min)(1.5f,preferences_.interfaceScale+.05f*a.delta));
-  else if(a.id=="hud")preferences_.showMatchHud=a.delta>0;else if(a.id=="presence")preferences_.discordPresence=a.delta>0;
+  else if(a.id=="presence")preferences_.discordPresence=a.delta>0;
   else if(a.id=="invites")preferences_.discordInvites=a.delta>0;
   else if(a.id=="send-reports")preferences_.sendProblemReports=a.delta>0;
   else if(a.id=="visibility"){preferences_.roomPublic=a.delta>0;if(preferences_.roomPublic)ApplyPublicDefaultName();} // UpdatePublicBridge asks the Ember ID for what Public needs
@@ -618,14 +568,6 @@ void ApplicationShell::QuickJoin(const ShellView& v) {
  menu_.ShowNotice(NoticeDialog{loc::T("public.quick_none"),loc::T("public.quick"),{{loc::T("common.ok")},{loc::T("public.create_room"),NoticeResult::CreatePublicRoom}}});
 }
 
-void ApplicationShell::SetLanguage(std::string preference) {
- // Not a netplay preference: it lives in the UI preferences file and saves on
- // its own deadline, so it stays out of the validate-and-save tail of HandleAdjust.
- if(!loc::ValidPreference(preference))return;
- languagePreference_=std::move(preference);
- loc::SetActive(platform::ResolveUiLocale(languagePreference_));
- languageDirty_=true;languageSaveError_.clear();languageSaveAt_=ImGui::GetTime()+.45;
-}
 void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,const Submit& submit) {
  CancelLayoutCapture(v,submit);
  if(preferencesDirty_&&OnlyLayoutsChanged(v.preferences,preferences_))UpdatePreferenceSave(v,submit);
