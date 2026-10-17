@@ -69,6 +69,21 @@ msgstr "SF4 Ember Netplay draait al. Zie je het niet? Sluit Launcher.exe en SSFI
 msgid "launcher.start_failed"
 msgstr "Starten of injectie mislukt. Bekijk het launcherlogboek in %APPDATA%\\sf4e\\logs\\launcher.log en probeer opnieuw."
 
+msgid "launcher.sidecar_failed"
+msgstr "Ember kon de gamehooks niet initialiseren (fout {0}). Zie sidecar_bootstrap.log en launcher.log."
+
+msgid "launcher.start_timeout"
+msgstr "Het opstarten duurde langer dan 60 seconden. Zie launcher.log en sidecar_bootstrap.log."
+
+msgid "launcher.unsupported_game"
+msgstr "Niet-ondersteunde SSFIV.exe. Selecteer je Steam-versie van USFIV en controleer de spelbestanden."
+
+msgid "launcher.validation_io"
+msgstr "SSFIV.exe kan niet worden gelezen of gecontroleerd (Windows-fout {0}). Controleer de bestandstoegang en probeer opnieuw."
+
+msgid "launcher.stop_unconfirmed"
+msgstr "Windows heeft niet bevestigd dat spelproces {0} is gestopt. Sluit het voordat je Ember opnieuw opent. Details: launcher.log."
+
 msgid "launcher.game_runs_as_admin"
 msgstr "SSFIV.exe is ingesteld om als administrator te draaien, daarom kan Ember het niet starten. Klik in de spelmap met de rechtermuisknop op SSFIV.exe, open Eigenschappen en dan Compatibiliteit, en zet \"Dit programma als administrator uitvoeren\" uit, ook onder \"Instellingen voor alle gebruikers wijzigen\". Probeer het daarna opnieuw."
 
@@ -6227,18 +6242,3 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
-
-msgid "launcher.sidecar_failed"
-msgstr "Ember kon de gamehooks niet initialiseren (fout {0}). Zie sidecar_bootstrap.log en launcher.log."
-
-msgid "launcher.start_timeout"
-msgstr "Het opstarten duurde langer dan 60 seconden. Zie launcher.log en sidecar_bootstrap.log."
-
-msgid "launcher.unsupported_game"
-msgstr "Niet-ondersteunde SSFIV.exe. Selecteer je Steam-versie van USFIV en controleer de spelbestanden."
-
-msgid "launcher.validation_io"
-msgstr "SSFIV.exe kan niet worden gelezen of gecontroleerd (Windows-fout {0}). Controleer de bestandstoegang en probeer opnieuw."
-
-msgid "launcher.stop_unconfirmed"
-msgstr "Windows heeft niet bevestigd dat spelproces {0} is gestopt. Sluit het voordat je Ember opnieuw opent. Details: launcher.log."

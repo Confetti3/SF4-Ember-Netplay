@@ -69,6 +69,21 @@ msgstr "O SF4 Ember Netplay já está em execução. Se não o vir, encerre Laun
 msgid "launcher.start_failed"
 msgstr "Falha ao iniciar ou injetar no jogo. Verifique o log do inicializador em %APPDATA%\\sf4e\\logs\\launcher.log e tente novamente."
 
+msgid "launcher.sidecar_failed"
+msgstr "O Ember não conseguiu inicializar os hooks do jogo (erro {0}). Consulte sidecar_bootstrap.log e launcher.log."
+
+msgid "launcher.start_timeout"
+msgstr "A inicialização levou mais de 60 segundos. Consulte launcher.log e sidecar_bootstrap.log."
+
+msgid "launcher.unsupported_game"
+msgstr "SSFIV.exe não compatível. Selecione sua cópia de USFIV do Steam e verifique os arquivos do jogo."
+
+msgid "launcher.validation_io"
+msgstr "Não foi possível ler ou validar SSFIV.exe (erro do Windows {0}). Verifique o acesso ao arquivo e tente novamente."
+
+msgid "launcher.stop_unconfirmed"
+msgstr "O Windows não confirmou o encerramento do processo do jogo {0}. Feche-o antes de abrir o Ember novamente. Detalhes: launcher.log."
+
 msgid "launcher.game_runs_as_admin"
 msgstr "O SSFIV.exe está configurado para ser executado como administrador, por isso o Ember não consegue iniciá-lo. Clique com o botão direito no SSFIV.exe na pasta do jogo, abra Propriedades e depois Compatibilidade, e desmarque \"Executar este programa como administrador\", também em \"Alterar configurações para todos os usuários\". Depois tente novamente."
 
@@ -5753,18 +5768,3 @@ msgid "country.ZW"
 msgstr "Zimbábue"
 
 #. End of the generated country names.
-
-msgid "launcher.sidecar_failed"
-msgstr "O Ember não conseguiu inicializar os hooks do jogo (erro {0}). Consulte sidecar_bootstrap.log e launcher.log."
-
-msgid "launcher.start_timeout"
-msgstr "A inicialização levou mais de 60 segundos. Consulte launcher.log e sidecar_bootstrap.log."
-
-msgid "launcher.unsupported_game"
-msgstr "SSFIV.exe não compatível. Selecione sua cópia de USFIV do Steam e verifique os arquivos do jogo."
-
-msgid "launcher.validation_io"
-msgstr "Não foi possível ler ou validar SSFIV.exe (erro do Windows {0}). Verifique o acesso ao arquivo e tente novamente."
-
-msgid "launcher.stop_unconfirmed"
-msgstr "O Windows não confirmou o encerramento do processo do jogo {0}. Feche-o antes de abrir o Ember novamente. Detalhes: launcher.log."

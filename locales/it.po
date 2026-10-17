@@ -69,6 +69,21 @@ msgstr "SF4 Ember Netplay è già in esecuzione. Se non lo vedi, termina Launche
 msgid "launcher.start_failed"
 msgstr "Avvio o iniezione del gioco non riusciti. Controlla il log del launcher in %APPDATA%\\sf4e\\logs\\launcher.log e riprova."
 
+msgid "launcher.sidecar_failed"
+msgstr "Ember non ha potuto inizializzare gli hook del gioco (errore {0}). Consulta sidecar_bootstrap.log e launcher.log."
+
+msgid "launcher.start_timeout"
+msgstr "L'avvio ha richiesto più di 60 secondi. Consulta launcher.log e sidecar_bootstrap.log."
+
+msgid "launcher.unsupported_game"
+msgstr "SSFIV.exe non supportato. Seleziona la tua copia Steam di USFIV e verifica i suoi file."
+
+msgid "launcher.validation_io"
+msgstr "Impossibile leggere o verificare SSFIV.exe (errore Windows {0}). Controlla l'accesso al file e riprova."
+
+msgid "launcher.stop_unconfirmed"
+msgstr "Windows non ha confermato la chiusura del processo di gioco {0}. Chiudilo prima di riaprire Ember. Dettagli: launcher.log."
+
 msgid "launcher.game_runs_as_admin"
 msgstr "SSFIV.exe è impostato per l'esecuzione come amministratore, quindi Ember non può avviarlo. Fai clic destro su SSFIV.exe nella cartella del gioco, apri Proprietà e poi Compatibilità, e deseleziona \"Esegui questo programma come amministratore\", anche in \"Modifica impostazioni per tutti gli utenti\". Poi riprova."
 
@@ -6227,18 +6242,3 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
-
-msgid "launcher.sidecar_failed"
-msgstr "Ember non ha potuto inizializzare gli hook del gioco (errore {0}). Consulta sidecar_bootstrap.log e launcher.log."
-
-msgid "launcher.start_timeout"
-msgstr "L'avvio ha richiesto più di 60 secondi. Consulta launcher.log e sidecar_bootstrap.log."
-
-msgid "launcher.unsupported_game"
-msgstr "SSFIV.exe non supportato. Seleziona la tua copia Steam di USFIV e verifica i suoi file."
-
-msgid "launcher.validation_io"
-msgstr "Impossibile leggere o verificare SSFIV.exe (errore Windows {0}). Controlla l'accesso al file e riprova."
-
-msgid "launcher.stop_unconfirmed"
-msgstr "Windows non ha confermato la chiusura del processo di gioco {0}. Chiudilo prima di riaprire Ember. Dettagli: launcher.log."

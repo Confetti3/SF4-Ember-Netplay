@@ -69,6 +69,21 @@ msgstr "SF4 Ember Netplay už běží. Pokud jej nevidíte, ukončete Launcher.e
 msgid "launcher.start_failed"
 msgstr "Spuštění hry nebo injekce selhala. Zkontrolujte protokol spouštěče v %APPDATA%\\sf4e\\logs\\launcher.log a zkuste to znovu."
 
+msgid "launcher.sidecar_failed"
+msgstr "Ember nemohl inicializovat herní hooky (chyba {0}). Viz sidecar_bootstrap.log a launcher.log."
+
+msgid "launcher.start_timeout"
+msgstr "Spuštění trvalo déle než 60 sekund. Viz launcher.log a sidecar_bootstrap.log."
+
+msgid "launcher.unsupported_game"
+msgstr "Nepodporovaný SSFIV.exe. Vyberte svou kopii USFIV ze Steamu a ověřte její soubory."
+
+msgid "launcher.validation_io"
+msgstr "Nelze přečíst nebo ověřit SSFIV.exe (chyba Windows {0}). Zkontrolujte přístup k souboru a zkuste to znovu."
+
+msgid "launcher.stop_unconfirmed"
+msgstr "Windows nepotvrdil ukončení herního procesu {0}. Před opětovným spuštěním Ember jej ukončete. Podrobnosti: launcher.log."
+
 msgid "launcher.game_runs_as_admin"
 msgstr "SSFIV.exe má nastavené spouštění jako správce, proto ho Ember nemůže spustit. Ve složce hry klikněte pravým tlačítkem na SSFIV.exe, otevřete Vlastnosti a potom Kompatibilita a zrušte \"Spustit tento program jako správce\", také v \"Změnit nastavení pro všechny uživatele\". Pak to zkuste znovu."
 
@@ -6227,18 +6242,3 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
-
-msgid "launcher.sidecar_failed"
-msgstr "Ember nemohl inicializovat herní hooky (chyba {0}). Viz sidecar_bootstrap.log a launcher.log."
-
-msgid "launcher.start_timeout"
-msgstr "Spuštění trvalo déle než 60 sekund. Viz launcher.log a sidecar_bootstrap.log."
-
-msgid "launcher.unsupported_game"
-msgstr "Nepodporovaný SSFIV.exe. Vyberte svou kopii USFIV ze Steamu a ověřte její soubory."
-
-msgid "launcher.validation_io"
-msgstr "Nelze přečíst nebo ověřit SSFIV.exe (chyba Windows {0}). Zkontrolujte přístup k souboru a zkuste to znovu."
-
-msgid "launcher.stop_unconfirmed"
-msgstr "Windows nepotvrdil ukončení herního procesu {0}. Před opětovným spuštěním Ember jej ukončete. Podrobnosti: launcher.log."

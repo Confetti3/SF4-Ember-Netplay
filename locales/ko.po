@@ -69,6 +69,21 @@ msgstr "SF4 Ember Netplay가 이미 실행 중입니다. 창이 보이지 않으
 msgid "launcher.start_failed"
 msgstr "게임 실행 또는 인젝션에 실패했습니다. 런처 로그(%APPDATA%\\sf4e\\logs\\launcher.log)를 확인하고 다시 시도하세요."
 
+msgid "launcher.sidecar_failed"
+msgstr "게임 후크를 초기화하지 못했습니다(오류 {0}). sidecar_bootstrap.log와 launcher.log를 확인하세요."
+
+msgid "launcher.start_timeout"
+msgstr "시작에 60초 넘게 걸렸습니다. launcher.log와 sidecar_bootstrap.log를 확인하세요."
+
+msgid "launcher.unsupported_game"
+msgstr "지원하지 않는 SSFIV.exe입니다. Steam의 USFIV를 선택하고 게임 파일을 확인하세요."
+
+msgid "launcher.validation_io"
+msgstr "SSFIV.exe를 읽거나 검증할 수 없습니다(Windows 오류 {0}). 파일 접근 권한을 확인한 뒤 다시 시도하세요."
+
+msgid "launcher.stop_unconfirmed"
+msgstr "Windows가 게임 프로세스 {0}의 종료를 확인하지 못했습니다. Ember를 다시 열기 전에 해당 프로세스를 종료하세요. 자세한 내용: launcher.log."
+
 msgid "launcher.game_runs_as_admin"
 msgstr "SSFIV.exe가 관리자 권한으로 실행되도록 설정되어 있어 Ember에서 시작할 수 없습니다. 게임 폴더에서 SSFIV.exe를 마우스 오른쪽 버튼으로 클릭하고 속성의 호환성 탭을 연 뒤 \"관리자 권한으로 이 프로그램 실행\"을 해제하세요. \"모든 사용자 설정 변경\" 안에서도 해제해야 합니다. 그런 다음 다시 시도하세요."
 
@@ -6227,18 +6242,3 @@ msgid "country.ZW"
 msgstr "짐바브웨"
 
 #. End of the generated country names.
-
-msgid "launcher.sidecar_failed"
-msgstr "게임 후크를 초기화하지 못했습니다(오류 {0}). sidecar_bootstrap.log와 launcher.log를 확인하세요."
-
-msgid "launcher.start_timeout"
-msgstr "시작에 60초 넘게 걸렸습니다. launcher.log와 sidecar_bootstrap.log를 확인하세요."
-
-msgid "launcher.unsupported_game"
-msgstr "지원하지 않는 SSFIV.exe입니다. Steam의 USFIV를 선택하고 게임 파일을 확인하세요."
-
-msgid "launcher.validation_io"
-msgstr "SSFIV.exe를 읽거나 검증할 수 없습니다(Windows 오류 {0}). 파일 접근 권한을 확인한 뒤 다시 시도하세요."
-
-msgid "launcher.stop_unconfirmed"
-msgstr "Windows가 게임 프로세스 {0}의 종료를 확인하지 못했습니다. Ember를 다시 열기 전에 해당 프로세스를 종료하세요. 자세한 내용: launcher.log."

@@ -69,6 +69,21 @@ msgstr "SF4 Ember Netplayはすでに起動しています。画面に見えな�
 msgid "launcher.start_failed"
 msgstr "ゲームの起動または組み込みに失敗しました。ランチャーのログ（%APPDATA%\\sf4e\\logs\\launcher.log）を確認して再試行してください。"
 
+msgid "launcher.sidecar_failed"
+msgstr "ゲームフックを初期化できませんでした（エラー {0}）。sidecar_bootstrap.log と launcher.log を確認してください。"
+
+msgid "launcher.start_timeout"
+msgstr "起動に60秒以上かかりました。launcher.log と sidecar_bootstrap.log を確認してください。"
+
+msgid "launcher.unsupported_game"
+msgstr "この SSFIV.exe は未対応です。Steam版のUSFIVを選び、ゲームファイルを確認してください。"
+
+msgid "launcher.validation_io"
+msgstr "SSFIV.exe を読み取り、検証できません（Windowsエラー {0}）。ファイルへのアクセスを確認し、再試行してください。"
+
+msgid "launcher.stop_unconfirmed"
+msgstr "ゲームプロセス {0} の終了をWindowsが確認できませんでした。Emberを再起動する前に終了してください。詳細：launcher.log。"
+
 msgid "launcher.game_runs_as_admin"
 msgstr "SSFIV.exeが管理者として実行する設定になっているため、Emberから起動できません。ゲームフォルダーのSSFIV.exeを右クリックして「プロパティ」の「互換性」を開き、「管理者としてこのプログラムを実行する」をオフにしてください（「全ユーザーの設定を変更」の中も同様です）。その後、再試行してください。"
 
@@ -6227,18 +6242,3 @@ msgid "country.ZW"
 msgstr "ジンバブエ"
 
 #. End of the generated country names.
-
-msgid "launcher.sidecar_failed"
-msgstr "ゲームフックを初期化できませんでした（エラー {0}）。sidecar_bootstrap.log と launcher.log を確認してください。"
-
-msgid "launcher.start_timeout"
-msgstr "起動に60秒以上かかりました。launcher.log と sidecar_bootstrap.log を確認してください。"
-
-msgid "launcher.unsupported_game"
-msgstr "この SSFIV.exe は未対応です。Steam版のUSFIVを選び、ゲームファイルを確認してください。"
-
-msgid "launcher.validation_io"
-msgstr "SSFIV.exe を読み取り、検証できません（Windowsエラー {0}）。ファイルへのアクセスを確認し、再試行してください。"
-
-msgid "launcher.stop_unconfirmed"
-msgstr "ゲームプロセス {0} の終了をWindowsが確認できませんでした。Emberを再起動する前に終了してください。詳細：launcher.log。"
