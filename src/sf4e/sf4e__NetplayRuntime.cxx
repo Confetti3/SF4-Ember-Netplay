@@ -105,6 +105,8 @@ void CloseRoom() {
 	runtime->lobbyEditIntent.Clear();
 	runtime->pendingLobbySettings.reset();
 	runtime->roomActionIntent.Clear();
+    runtime->rematchCancelIntent.Clear();
+    runtime->rematchCancelActionId = 0;
 	runtime->chatIntent.Clear();
 	runtime->resultOutbox.Reset();
 	runtime->recoveringMatch = false;

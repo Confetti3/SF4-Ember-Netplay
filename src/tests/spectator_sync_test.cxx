@@ -319,6 +319,11 @@ static void ParkedActionRetryGate() {
 	auto lost = catchingUp; lost.controlHealthy = false;
 	auto recovering = watching; recovering.recoveringMatch = true;
 	CHECK(!netplay::ParkedActionRetryable(action(ActionKind::Chat), recovering));
+    CHECK(netplay::ParkedActionRetryable(action(ActionKind::CancelRematch, 9), fighting));
+    CHECK(!netplay::ParkedActionRetryable(action(ActionKind::CancelRematch), fighting));
+    CHECK(!netplay::ParkedActionRetryable(action(ActionKind::CancelRematch, 9), catchingUp));
+    CHECK(!netplay::ParkedActionRetryable(action(ActionKind::CancelRematch, 9), recovering));
+    CHECK(!netplay::ParkedActionRetryable(action(ActionKind::CancelRematch, 9), lost));
 	// The watched game's leave: not before the room's control can take its
 	// Unwatch while the stream plays, at once when the stream is gone.
 	CHECK(netplay::ParkedWatchedLeaveRetryable(watching) && netplay::ParkedWatchedLeaveRetryable(catchingUp));

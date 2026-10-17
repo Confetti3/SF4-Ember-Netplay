@@ -292,6 +292,8 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		for (auto& table : view.room.tables) {
 			if (table.holdRemainingMs)
 				table.holdRemainingMs = elapsedMs < table.holdRemainingMs ? static_cast<std::uint32_t>(table.holdRemainingMs - elapsedMs) : 1;
+			if (table.rematch.remainingMs)
+				table.rematch.remainingMs = elapsedMs < table.rematch.remainingMs ? static_cast<std::uint32_t>(table.rematch.remainingMs - elapsedMs) : 1;
 			if (table.readyRemainingMs)
 				table.readyRemainingMs = elapsedMs < table.readyRemainingMs ? static_cast<std::uint32_t>(table.readyRemainingMs - elapsedMs) : 1;
 		}
@@ -308,6 +310,9 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.selectionLockReason = snapshot.selectionLockReason;
     view.readyRequested = snapshot.readyRequested; view.readyFailure = snapshot.readyFailure;
     view.readyFailureSequence = snapshot.readyFailureSequence;
+    view.roomActionFailureSequence = snapshot.roomActionFailureSequence;
+    view.rematchCommandSequence = snapshot.rematchCommandSequence;
+    view.rematchCancelRequested = snapshot.rematchCancelRequested;
     view.opponentChangedFighter = snapshot.opponentChangedFighter; view.opponentChangeSequence = snapshot.opponentChangeSequence;
     view.trainingCallSequence = snapshot.trainingCallSequence; view.trainingReadySequence = snapshot.trainingReadySequence;
     view.trainingReadySeconds = snapshot.trainingReadySeconds; view.canTrain = snapshot.canTrain;
