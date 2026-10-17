@@ -821,12 +821,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // player turns it on in a report's preview.
         dumps.reportEnabled = true;
         if (!dumps.Create()) spdlog::warn("Could not create the crash dump channel (Win32 {})", GetLastError());
-        // A game started by a normal process cannot reach a Steam that runs as
-        // administrator: its SteamAPI_Init fails and it exits.
-        const bool steamAbove = sf4e::platform::ProcessElevation() == sf4e::platform::Elevation::Normal &&
-            sf4e::platform::SteamElevation() == sf4e::platform::Elevation::Elevated;
-        if (steamAbove) spdlog::warn("Steam runs as administrator and the launcher does not; the game may not reach Steam");
-        DWORD startError = 0;
         sf4e::display::Preferences display;
         std::string displayError;
         if(!nativeDisplay&&sf4e::EnvFlag("SF4E_BORDERLESS_TEST"))display.mode=sf4e::display::Mode::Borderless;
@@ -836,6 +830,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             if(!ShowRecovery(sf4e::loc::T("display.launch_failed"),chosenDirectory))return 0;
             continue;
         }
+        // A game started by a normal process cannot reach a Steam that runs as
+        // administrator: its SteamAPI_Init fails and it exits.
+        const bool steamAbove = sf4e::platform::ProcessElevation() == sf4e::platform::Elevation::Normal &&
+            sf4e::platform::SteamElevation() == sf4e::platform::Elevation::Elevated;
+        if (steamAbove) spdlog::warn("Steam runs as administrator and the launcher does not; the game may not reach Steam");
+        DWORD startError = 0;
         HANDLE game = CreateSF4Process(payload,helper,discord,helperPath.wstring(),location.directory.data(),location.executable.data(),1,dlls,dumps,startError);
         if (!game) {
             dumps.Close();
