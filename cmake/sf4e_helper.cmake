@@ -1,6 +1,10 @@
 # The game and Sidecar remain x86. Cargo explicitly builds the shipped helper
 # for x64 Windows, independent of the active CMake/MSVC architecture.
 option(SF4E_BUILD_IROH_HELPER "Build the bundled x64 Iroh helper" ON)
+# Nightly builds trust Ember's staging bridge without an approval
+# (rust/sf4-net/src/tournament/builtin.rs). scripts/build-current.ps1 sets it
+# for the nightly channel and turns it off for every other.
+option(SF4E_STAGING_BRIDGE "Build the helper trusting Ember's staging bridge" OFF)
 if(WIN32)
     add_library(sf4e_helper_platform STATIC
         "${CMAKE_SOURCE_DIR}/src/platform/HelperProcess.cxx"
@@ -15,10 +19,19 @@ if(WIN32)
         set(SF4E_HELPER_EXECUTABLE "${CMAKE_BINARY_DIR}/sf4-net.exe")
         file(GLOB_RECURSE SF4E_HELPER_RUST_SOURCES CONFIGURE_DEPENDS "${SF4E_HELPER_SOURCE}/src/*.rs"
             "${CMAKE_SOURCE_DIR}/server/ember/protocol/src/*.rs")
+        set(SF4E_HELPER_FEATURES "")
+        if(SF4E_STAGING_BRIDGE)
+            set(SF4E_HELPER_FEATURES --features staging-bridge)
+        endif()
+        # The helper is rebuilt only when something it depends on changes, so
+        # the features are written to a file it depends on, rewritten only
+        # when they change: switching the option rebuilds it.
+        set(SF4E_HELPER_FEATURES_FILE "${CMAKE_BINARY_DIR}/sf4-net-features.txt")
+        file(CONFIGURE OUTPUT "${SF4E_HELPER_FEATURES_FILE}" CONTENT "${SF4E_HELPER_FEATURES}\n")
         add_custom_command(OUTPUT "${SF4E_HELPER_EXECUTABLE}"
             COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/rust-target"
                 "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS=-C target-feature=+crt-static"
-                "${SF4E_CARGO_EXECUTABLE}" build --locked --release --target x86_64-pc-windows-msvc
+                "${SF4E_CARGO_EXECUTABLE}" build --locked --release --target x86_64-pc-windows-msvc ${SF4E_HELPER_FEATURES}
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "${CMAKE_BINARY_DIR}/rust-target/x86_64-pc-windows-msvc/release/sf4-net.exe"
                 "${SF4E_HELPER_EXECUTABLE}"
@@ -27,6 +40,7 @@ if(WIN32)
                 "${SF4E_HELPER_SOURCE}/Cargo.lock" "${SF4E_HELPER_SOURCE}/rust-toolchain.toml"
                 "${CMAKE_SOURCE_DIR}/server/ember/protocol/Cargo.toml"
                 "${SF4E_HELPER_SOURCE}/build.rs" "${SF4E_HELPER_SOURCE}/resource.rc" "${CMAKE_SOURCE_DIR}/src/ui/ember.ico"
+                "${SF4E_HELPER_FEATURES_FILE}"
             VERBATIM COMMENT "Build the pinned x64 Iroh helper")
         add_custom_target(IrohHelper ALL DEPENDS "${SF4E_HELPER_EXECUTABLE}")
         install(PROGRAMS "${SF4E_HELPER_EXECUTABLE}" DESTINATION ".")
@@ -51,7 +65,7 @@ if(WIN32)
             add_test(NAME HelperRust
                 COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/rust-test-target"
                     "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS=-C target-feature=+crt-static"
-                    "${SF4E_CARGO_EXECUTABLE}" test --locked -j ${SF4E_CARGO_TEST_JOBS} --target x86_64-pc-windows-msvc
+                    "${SF4E_CARGO_EXECUTABLE}" test --locked -j ${SF4E_CARGO_TEST_JOBS} --target x86_64-pc-windows-msvc ${SF4E_HELPER_FEATURES}
                 WORKING_DIRECTORY "${SF4E_HELPER_SOURCE}")
             set_tests_properties(HelperRust PROPERTIES TIMEOUT 1800 PROCESSORS ${SF4E_CARGO_TEST_JOBS})
             sf4e_test_locks(HelperRust loopback_udp_ports ember_processes)
