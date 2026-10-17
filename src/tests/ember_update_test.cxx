@@ -3,7 +3,10 @@
 #include "../common/ReleaseNotesText.hxx"
 #include "../ui/UpdateChannelPick.hxx"
 #include "../ui/VersionLine.hxx"
+#include "../launcher/update/ZipExtract.hxx"
+#include <zlib.h>
 #include <filesystem>
+#include <fstream>
 #include <initializer_list>
 #include <nlohmann/json.hpp>
 #include <atomic>
@@ -15,8 +18,45 @@
 #include "test_support.hxx"
 #include "temp_root.hxx"
 
+namespace {
+// A minimal zip writer: stored or raw-deflate entries, central directory, no zip64.
+struct ZipBuilder {
+    std::string bytes, directory; unsigned entries = 0;
+    void Add(const std::string& name, const std::string& data, bool deflated) {
+        std::string packed = data;
+        if (deflated) {
+            z_stream z{}; deflateInit2(&z, Z_DEFAULT_COMPRESSION, Z_DEFLATED, -MAX_WBITS, 8, Z_DEFAULT_STRATEGY);
+            packed.resize(deflateBound(&z, static_cast<uLong>(data.size())));
+            z.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(data.data())); z.avail_in = static_cast<uInt>(data.size());
+            z.next_out = reinterpret_cast<Bytef*>(packed.data()); z.avail_out = static_cast<uInt>(packed.size());
+            deflate(&z, Z_FINISH); packed.resize(z.total_out); deflateEnd(&z);
+        }
+        const auto crc = crc32(0, reinterpret_cast<const Bytef*>(data.data()), static_cast<uInt>(data.size()));
+        const auto u16 = [](unsigned v) { return std::string{char(v & 255), char(v >> 8)}; };
+        const auto u32 = [&](unsigned long v) { return u16(unsigned(v & 0xffff)) + u16(unsigned(v >> 16)); };
+        const std::string common = u16(20) + u16(0) + u16(deflated ? 8 : 0) + u32(0) + u32(crc) + u32(packed.size()) + u32(data.size()) + u16(unsigned(name.size())) + u16(0);
+        directory += u32(0x02014b50) + u16(20) + common + u16(0) + u16(0) + u16(0) + u32(0) + u32(bytes.size()) + name;
+        bytes += u32(0x04034b50) + common + name + packed;
+        ++entries;
+    }
+    void Write(const std::filesystem::path& path) {
+        const auto u16 = [](unsigned v) { return std::string{char(v & 255), char(v >> 8)}; };
+        const auto u32 = [&](unsigned long v) { return u16(unsigned(v & 0xffff)) + u16(unsigned(v >> 16)); };
+        std::ofstream(path, std::ios::binary) << bytes << directory << u32(0x06054b50) << u16(0) << u16(0) << u16(entries) << u16(entries)
+            << u32(directory.size()) << u32(bytes.size()) << u16(0);
+    }
+};
+std::string Slurp(const std::filesystem::path& path) {
+    std::ifstream in(path, std::ios::binary); return std::string(std::istreambuf_iterator<char>(in), {});
+}
+}
+
 int main(int argc, char** argv) {
     using namespace sf4e::launcher;
+    if (argc == 4 && std::string(argv[1]) == "--extract") { // Manual check on a real package zip.
+        const auto error = ExtractZip(std::filesystem::path(argv[2]).wstring(), std::filesystem::path(argv[3]).wstring());
+        std::cout << (error.empty() ? "extracted" : error) << "\n"; return error.empty() ? 0 : 1;
+    }
     CHECK(std::string(kDefaultGithubRepo) == "Confetti3/SF4-Ember-Netplay");
     const std::string digest(64, 'a');
     nlohmann::json release = {
@@ -368,5 +408,24 @@ int main(int argc, char** argv) {
         CHECK(result.zipDownloadUrl.find("sf4-ember-netplay-" + result.installedVersion + ".zip") != std::string::npos);
         CHECK(result.zipDownloadUrl.find("upgrade-sf4-ember-netplay-") == std::string::npos);
     }
-    std::cout << "Ember release identity, asset selection, version comparison, channels and checksum parsing passed\n";
+    {
+        const auto work = std::filesystem::temp_directory_path() / "ember-zip-extract-test";
+        std::filesystem::remove_all(work); std::filesystem::create_directories(work);
+        const std::string big(300000, 'x');
+        ZipBuilder zip; zip.Add("pkg/", "", false); zip.Add("pkg/a.txt", "stored", false);
+        zip.Add("pkg/sub/b.bin", big + "tail", true); zip.Add("pkg/empty", "", true);
+        zip.Write(work / "ok.zip");
+        std::uint64_t last = 0;
+        CHECK(ExtractZip((work / "ok.zip").wstring(), (work / "out").wstring(), [&](std::uint64_t done, std::uint64_t) { last = done; return true; }).empty());
+        CHECK(Slurp(work / "out/pkg/a.txt") == "stored" && Slurp(work / "out/pkg/sub/b.bin") == big + "tail" && Slurp(work / "out/pkg/empty").empty());
+        CHECK(last > 0);
+        CHECK(ExtractZip((work / "ok.zip").wstring(), (work / "cancel").wstring(), [](std::uint64_t, std::uint64_t) { return false; }) == "cancelled: pkg/a.txt");
+        ZipBuilder evil; evil.Add("../escape.txt", "x", false); evil.Write(work / "evil.zip");
+        CHECK(ExtractZip((work / "evil.zip").wstring(), (work / "out2").wstring()).find("unsafe entry name") == 0);
+        CHECK(!std::filesystem::exists(work / "escape.txt"));
+        ZipBuilder bad; bad.Add("c.txt", "hello", true); auto corrupt = bad; corrupt.bytes[corrupt.bytes.size() - 1] ^= 1; corrupt.Write(work / "bad.zip");
+        CHECK(!ExtractZip((work / "bad.zip").wstring(), (work / "out3").wstring()).empty());
+        std::filesystem::remove_all(work);
+    }
+    std::cout << "Ember release identity, asset selection, version comparison, channels and checksum parsing and zip extraction passed\n";
 }
