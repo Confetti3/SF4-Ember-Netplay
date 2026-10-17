@@ -407,6 +407,7 @@ include("${CMAKE_SOURCE_DIR}/cmake/sf4e_video.cmake")
 if(BUILD_TESTING)
     sf4e_add_unit_test(NAME NetworkLink SOURCES "src/tests/network_link_test.cxx" LIBS sf4e_common TIMEOUT 30)
     sf4e_add_unit_test(NAME HttpPostCancel SOURCES "src/tests/http_post_cancel_test.cxx" STD 17 LIBS sf4e_common ws2_32 TIMEOUT 60)
+    sf4e_add_unit_test(NAME HttpUpdateMetadata SOURCES "src/tests/http_update_metadata_test.cxx" STD 17 LIBS sf4e_common ws2_32 TIMEOUT 60)
 endif()
 
 add_library(sf4e STATIC
@@ -782,6 +783,7 @@ target_compile_features(sf4e_recovery PUBLIC cxx_std_17)
 # XInput is loaded at run time; DirectInput 8 is on every supported Windows.
 target_link_libraries(sf4e_recovery PUBLIC sf4e_ui sf4e_app_services sf4e_localization PRIVATE d3d9 ole32 shell32 dinput8 dxguid)
 if(BUILD_TESTING)
+    sf4e_add_unit_test(NAME StartupUpdate SOURCES src/tests/startup_update_test.cxx LIBS sf4e_recovery)
     sf4e_add_unit_test(NAME RecoveryController SOURCES src/tests/recovery_controller_test.cxx LIBS sf4e_recovery TIMEOUT 30)
 endif()
 add_executable(Launcher WIN32 src/launcher/launcher.cxx src/launcher/netplay/netplay_persist.cxx src/launcher/GameLocator.cxx)

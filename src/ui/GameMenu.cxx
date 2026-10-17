@@ -452,7 +452,10 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
             // the height it shares with it); past that it scrolls, and the
             // footer stays on screen.
             const float listMinimum=wide?60.f:(60.f+ImGui::GetStyle().ItemSpacing.y)/.52f;
-            const float cap=(std::max)(2*ImGui::GetTextLineHeightWithSpacing(),ImGui::GetContentRegionAvail().y-footer-listMinimum);
+            // EndChild also consumes ItemSpacing; on short, scaled windows
+            // one scrollable feedback line leaves the controls and legend visible.
+            const float cap=(std::max)(ImGui::GetTextLineHeightWithSpacing(),
+                ImGui::GetContentRegionAvail().y-footer-listMinimum-ImGui::GetStyle().ItemSpacing.y);
             feedbackHeight=(std::min)(cap,(std::max)(ImGui::GetTextLineHeightWithSpacing(),text+ImGui::GetStyle().ItemSpacing.y));
             ReportMenuText("command-feedback",text,feedbackHeight,0,0);
         }

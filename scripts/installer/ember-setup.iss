@@ -1,21 +1,26 @@
 ; Per-user installer for a verified Ember package folder. It only places the
-; first copy: updates stay with Updater.exe, which rewrites the folder as the
+; first copy directly; upgrades use Updater.exe, which rewrites the folder as the
 ; normal user, so nothing here may need elevation or own the files afterwards.
-; Setup refuses a folder that already has files in it. The uninstaller never
+; Setup updates recognized copies through the native helper. The uninstaller never
 ; deletes package files itself (uninsneveruninstall): updates change them
 ; later, so the native helper below is their only owner.
 ; Compiled by scripts/package-installer.ps1.
 #ifndef PackageDir
   #error Define PackageDir, AppVersion and Redist (see scripts/package-installer.ps1)
 #endif
-#define AppName "SF4 Ember Netplay"
+#ifndef AppName
+  #define AppName "SF4 Ember Netplay"
+#endif
+#ifndef AppGuid
+  #define AppGuid "791CAF8E-B4B5-45D5-AB5C-B4864DDB8866"
+#endif
 ; scripts/test-installer.ps1 overrides this to exercise the runtime step.
 #ifndef RedistVersion
   #define RedistVersion GetVersionNumbersString(Redist)
 #endif
 
 [Setup]
-AppId={{791CAF8E-B4B5-45D5-AB5C-B4864DDB8866}
+AppId={{{#AppGuid}}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisherURL=https://github.com/Confetti3/SF4-Ember-Netplay
@@ -39,7 +44,7 @@ MinVersion=10.0
 Name: desktopicon; Description: "{cm:CreateDesktopIcon}"; Flags: unchecked
 
 [Files]
-Source: "{#PackageDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion uninsneveruninstall
+Source: "{#PackageDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion uninsneveruninstall; Check: FreshInstall
 ; The uninstall helper, kept beside the uninstaller rather than in the folder,
 ; so uninstall works whatever has happened to {app}\Updater.exe since.
 Source: "{#PackageDir}\Updater.exe"; DestDir: "{localappdata}\{#AppName} Setup"; DestName: "ember-uninstall.exe"; Flags: ignoreversion
@@ -60,6 +65,14 @@ Filename: "{app}\Launcher.exe"; Description: "{cm:LaunchProgram,{#AppName}}"; Wo
 // (from the toolset that built the package) or reports no version. Launcher's
 // RuntimeIsCurrent also accepts Wine's builtin DLL and an unreadable version;
 // installing the Microsoft runtime in those cases is harmless.
+var
+  Upgrading, UpgradeCompleted: Boolean;
+
+function FreshInstall: Boolean;
+begin
+  Result := not Upgrading;
+end;
+
 function RuntimeOutdated: Boolean;
 var
   Installed, Bundled: Int64;
@@ -97,16 +110,52 @@ begin
   end;
 end;
 
-// Writing over an existing folder would bypass Updater.exe: its lock, its
-// journal and the recovery of an interrupted update. Existing copies update
-// themselves; this installer only places a first copy.
+// An existing Ember copy is replaced by the new package's native updater,
+// from a temporary staging folder. Setup never overwrites product files
+// directly, bypasses the journal, or deletes player files.
 function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  App, Stage, Helper: String;
+  Code: Integer;
 begin
   Result := '';
-  if FolderHasFiles(ExpandConstant('{app}')) then
-    Result := 'The folder ' + ExpandConstant('{app}') + ' already contains files.' + #13#10#13#10 +
-      'To update an existing copy of {#AppName}, run Updater.exe in that folder. ' +
-      'To install here anyway, uninstall the existing copy first, or choose an empty folder.';
+  if UpgradeCompleted then exit;
+  App := ExpandConstant('{app}');
+  Upgrading := FolderHasFiles(App);
+  if not Upgrading then exit;
+  if not FileExists(App + '\Launcher.exe') or not FileExists(App + '\MANIFEST.txt') or
+     not FileExists(App + '\PackageInventory.inc') then begin
+    Result := 'This folder contains files but is not a recognized Ember installation. Choose an empty folder or your existing Ember folder.';
+    exit;
+  end;
+  if FileExists(App + '\PRIVATE_TEST_BUILD.txt') then begin
+    Result := 'This is a private test build. Install the public release in a separate folder to keep its local changes.';
+    exit;
+  end;
+  try
+    if RuntimeOutdated then begin
+      ExtractTemporaryFile('vc_redist.x86.exe');
+      if not ShellExec('runas', ExpandConstant('{tmp}\vc_redist.x86.exe'), '/install /quiet /norestart', '',
+         SW_HIDE, ewWaitUntilTerminated, Code) or ((Code <> 0) and (Code <> 3010)) then begin
+        Result := 'The Microsoft Visual C++ runtime could not be updated. Your Ember files were not changed.';
+        exit;
+      end;
+    end;
+    // ExtractTemporaryFiles preserves the literal destination constant under {tmp}.
+    // One archive copy serves both a fresh install and this staged update.
+    ExtractTemporaryFiles('{app}\*');
+    Stage := ExpandConstant('{tmp}\') + '{app}';
+    Helper := Stage + '\Updater.exe';
+    if not Exec(Helper, '-InstallDir "' + App + '" -StagingDir "' + Stage + '" -NoRestart', Stage,
+       SW_HIDE, ewWaitUntilTerminated, Code) or (Code <> 0) then begin
+      Result := 'Ember could not be updated. Close SF4 and try again. Do not delete your Ember folder.' + #13#10 +
+        'For the exact failure, see %TEMP%\sf4-netplay-update.log. An interrupted update is recovered before the next attempt.';
+      exit;
+    end;
+    UpgradeCompleted := True;
+  except
+    Result := 'The update could not be prepared: ' + GetExceptionMessage;
+  end;
 end;
 
 // The kept helper (this setup's Updater.exe) removes the product's files,

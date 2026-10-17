@@ -2497,8 +2497,6 @@ msgstr "다운로드한 패키지에 Launcher.exe 또는 Sidecar.dll이 없습�
 msgid "update.staging_path_failed"
 msgstr "설치 준비 경로를 읽지 못했습니다."
 
-msgid "update.validation_failed"
-msgstr "다운로드한 패키지 검증에 실패했습니다(필수 파일 누락)."
 
 msgid "update.cancelled"
 msgstr "설치 전에 업데이트를 취소했습니다."
@@ -6227,3 +6225,32 @@ msgid "country.ZW"
 msgstr "짐바브웨"
 
 #. End of the generated country names.
+
+#. Startup update and recovery controls.
+
+msgid "update.validation_detail"
+msgstr "업데이트 검증 실패: {0}\n설치된 파일은 변경되지 않았습니다."
+
+msgid "updates.release_page"
+msgstr "릴리스 페이지 열기"
+
+msgid "updates.release_page_detail"
+msgstr "공식 설치 프로그램을 받으세요. SF4를 종료하고 기존 Ember 폴더를 선택하세요."
+
+msgid "updates.open_log"
+msgstr "업데이트 로그 열기"
+
+msgid "updates.open_log_detail"
+msgstr "%TEMP%\\sf4-netplay-update.log의 세부 정보를 표시합니다."
+
+msgid "updates.log_opened"
+msgstr "업데이트 로그를 열었습니다."
+
+msgid "updates.log_missing"
+msgstr "아직 업데이트 로그가 없습니다."
+
+msgid "updates.startup_text"
+msgstr "버전 {0}을 사용할 수 있습니다. 현재 버전은 {1}입니다. SF4를 시작하기 전에 설치할까요?"
+
+msgid "updates.release_opened"
+msgstr "릴리스 페이지를 열었습니다."

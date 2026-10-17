@@ -513,7 +513,7 @@ namespace launcher {
 		return UpdateChannel::Stable;
 	}
 
-	UpdateCheckResult CheckForUpdate(UpdateChannel channel) {
+	UpdateCheckResult CheckForUpdate(UpdateChannel channel, const std::atomic<bool>& cancel, int budgetMs) {
 		UpdateCheckResult result;
 		char installed[64] = { 0 };
 		ReadInstalledVersion(installed, sizeof(installed));
@@ -527,14 +527,13 @@ namespace launcher {
 		char path[256] = { 0 };
 		snprintf(path, sizeof(path), "/repos/%s/releases?per_page=20", repo);
 
-		std::vector<char> body(1024 * 1024);
-		const char* headers = "Accept: application/vnd.github+json\r\nUser-Agent: sf4e-updater/1.0\r\n";
-		if (!HttpGetUtf8WithHeaders("api.github.com", 443, true, path, 15000, headers, body.data(), static_cast<int>(body.size()))) {
+        std::string body;
+		if (!HttpGetUpdateMetadata("api.github.com", 443, true, path, budgetMs, [&] { return cancel.load(); }, body)) {
 			result.error = loc::T("update.github_unreachable");
 			return result;
 		}
 
-		return ParseGithubReleases(body.data(), installed, channel);
+		return ParseGithubReleases(body, installed, channel);
 	}
 
 	// A string field of a release or asset; GitHub sends null for an empty one.
@@ -808,9 +807,10 @@ namespace launcher {
 			return result;
 		}
 		AppendUpdateLog(("staging dir: " + std::string(stagingUtf8)).c_str());
-		if (!ValidateStagedPackage(stagingDir, cancel, progress)) {
-			AppendUpdateLog("package validation failed");
-			return stopped(loc::T("update.validation_failed"));
+        std::string validationReason;
+		if (!ValidateStagedPackage(stagingDir, cancel, progress, &validationReason)) {
+			AppendUpdateLog(("package validation failed: "+validationReason).c_str());
+			return stopped(loc::Tf("update.validation_detail",validationReason));
 		}
 		AppendUpdateLog("package validation ok");
 
