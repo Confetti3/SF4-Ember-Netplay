@@ -1,5 +1,6 @@
 #include "github_release_client_internal.hxx"
 #include "UpdateHandoff.hxx"
+#include "../../platform/LauncherLinks.hxx"
 #include "UpdaterArguments.hxx"
 #include "../../platform/Elevation.hxx"
 #include "../../platform/Utf8.hxx"
@@ -223,6 +224,7 @@ namespace launcher {
 				return SpawnResult::Failed;
 			}
 			if (sei.hProcess) {
+                if (!platform::LauncherLinks::WaitForReceiver(sei.hProcess)) AppendUpdateLog("Updater link receiver did not become ready");
 				CloseHandle(sei.hProcess);
 			}
 			AppendUpdateLog("spawn Updater ok");

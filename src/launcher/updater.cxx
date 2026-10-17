@@ -3,6 +3,7 @@
 #include "update/UpdaterRun.hxx"
 #include "../common/PackageInventory.hxx"
 #include "../platform/Elevation.hxx"
+#include "../platform/LauncherLinks.hxx"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -97,7 +98,7 @@ static bool StartLauncher(const wchar_t* installDir, const wchar_t* arguments = 
 
 	SHELLEXECUTEINFOW sei = { 0 };
 	sei.cbSize = sizeof(sei);
-	sei.fMask = SEE_MASK_FLAG_NO_UI;
+	sei.fMask = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOCLOSEPROCESS;
 	sei.lpVerb = L"open";
 	sei.lpFile = launcherPath;
 	sei.lpDirectory = installDir;
@@ -109,6 +110,10 @@ static bool StartLauncher(const wchar_t* installDir, const wchar_t* arguments = 
 		AppendLog(buf);
 		return false;
 	}
+    if (sei.hProcess) {
+        if (!sf4e::platform::LauncherLinks::WaitForReceiver(sei.hProcess)) AppendLog("Launcher link receiver did not become ready");
+        CloseHandle(sei.hProcess);
+    }
 	return true;
 }
 
@@ -154,6 +159,8 @@ int wmain(int argc, wchar_t** argv) {
 	if (arguments.uninstall) return Uninstall(arguments.installDir.c_str());
     if (GameIsRunning()) { AppendLog("ERROR: close SF4 before updating or recovering Ember"); return 1; }
 
+    sf4e::platform::LauncherLinks links;
+    if (!links.Open()) AppendLog("Updater could not retain pending launcher links");
 	sf4e::launcher::UpdaterHost host;
 	host.waitForLauncher = [](std::uint32_t pid) { return WaitForProcessExit(pid, 30000); };
 	host.startLauncher = [](const wchar_t* installDir, const wchar_t* arguments) { return StartLauncher(installDir, arguments); };
