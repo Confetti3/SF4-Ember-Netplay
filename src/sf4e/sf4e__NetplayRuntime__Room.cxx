@@ -510,6 +510,8 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
     const auto kind = command.command.kind;
     const bool cancel = kind == netplay::CommandKind::RoomAction &&
         command.roomAction.kind == room::ActionKind::CancelRematch;
+    // A stale cancellation must not replace the current request before dispatch rejects it.
+    if (cancel && !(command.command.generation == runtime->controller.GetSnapshot().generation)) return DispatchOutcome::Dropped;
     if (attempt == Attempt::Fresh) {
         if (cancel || kind == netplay::CommandKind::Ready || kind == netplay::CommandKind::Rematch)
             ++runtime->rematchCommandSequence;

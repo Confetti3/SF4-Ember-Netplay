@@ -21,6 +21,7 @@ public:
 	std::vector<nlohmann::json> sent;
 	std::int64_t next = 700;
 	bool writable = true;
+	session::SendResult sendResult = session::SendResult::Queued;
 	bool Poll(std::vector<session::Message>& messages, std::size_t maximum) override {
 		if (incoming.size() > maximum) { std::cerr << "MockClient inbox exceeds the poll limit\n"; std::exit(1); }
 		messages.swap(incoming);
@@ -33,6 +34,7 @@ public:
 	session::SendResult Send(const std::string& payload, bool reliable, std::int64_t* id) override {
 		if (!reliable) { std::cerr << "MockClient only carries reliable messages\n"; std::exit(1); }
 		if (!writable) return session::SendResult::QueueFull;
+		if (sendResult != session::SendResult::Queued) return sendResult;
 		sent.push_back(nlohmann::json::parse(payload));
 		if (id) *id = next;
 		++next;
