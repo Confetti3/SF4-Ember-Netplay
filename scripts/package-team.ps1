@@ -1,11 +1,12 @@
 # Assemble only the shared product inventory. Never reuse or mirror a previous package.
 param([string]$BuildDir = "", [string]$InstallDir = "",
       [string]$OutDir = "dist", [string]$VersionLabel = "", [string]$QuickStartPath = "",
-      [switch]$PrivateTest, [string]$Python = "python")
+      [switch]$PrivateTest, [string]$Python = $env:SF4E_PYTHON)
 $ErrorActionPreference = "Stop"
 $repo = Split-Path $PSScriptRoot -Parent
 . (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')
 . (Join-Path $PSScriptRoot 'BuildProvenance.ps1')
+. (Join-Path $PSScriptRoot 'PackageContent.ps1')
 if ($PrivateTest) {
     . (Join-Path $PSScriptRoot 'PrivateBuild.ps1')
     $Python = Get-PrivatePython $Python
@@ -22,6 +23,10 @@ if ($PrivateTest) {
     if ($BuildDir -ne (Join-Path $repo $designation.buildDirectory) -or $InstallDir -ne (Join-Path $repo $designation.installDirectory)) { throw 'Use the designated build and stage directories from build-target.json' }
     $receipt = Assert-BuildReceipt $repo $BuildDir $InstallDir
 }
+if (!$Python) { $Python = 'python' }
+$Python = (Get-Command $Python -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+& $Python -c "import runpy,sys; assert sys.version_info >= (3,12); runpy.run_path(sys.argv[1], run_name='package_docs_preflight')" (Join-Path $PSScriptRoot 'package-docs.py')
+if ($LASTEXITCODE) { throw 'Install scripts/requirements-docs.txt with Python 3.12+ before packaging.' }
 if (!$receipt.testsPassed) { throw 'The current build has no passing test receipt' }
 if (!$receipt.baseRevision -or $receipt.baseRevision -ne (& git -C $repo rev-parse HEAD)) { throw 'The build receipt is for a different source commit; rebuild the release commit.' }
 if (!$VersionLabel) { $VersionLabel = (Get-Date).ToString("yyyyMMdd-HHmmss", [cultureinfo]::InvariantCulture) }
@@ -56,27 +61,17 @@ $entries = foreach ($line in $inventoryLines) {
     }
 }
 $generated = @('PackageInventory.inc','preflight.ps1','preflight.cmd','START_HERE.md','MANIFEST.txt','BUILD_INFO.txt','build-provenance.json','notices\THIRD_PARTY_LICENSES.txt','PRIVATE_TEST_BUILD.txt')
-foreach ($entry in $entries) {
-    if ($generated -contains $entry.Path) { continue }
-    $candidates = @((Join-Path $InstallDir $entry.Path), (Join-Path $BuildDir "candidate/$($entry.Path)"),
-        (Join-Path $BuildDir $entry.Path), (Join-Path $repo $entry.Path), (Join-Path $repo ".github/$($entry.Path)"))
-    if ($PrivateTest -and [IO.Path]::GetExtension($entry.Path) -in @('.dll','.exe')) {
-        $candidates = @((Join-Path $InstallDir $entry.Path))
-    }
-    # Package docs stay flat under docs\; the repository keeps them in topic folders.
-    if ($entry.Path -like 'docs\*') { $candidates += @(Get-ChildItem -LiteralPath (Join-Path $repo 'docs') -Directory | ForEach-Object { Join-Path $_.FullName (Split-Path $entry.Path -Leaf) }) }
-    $source = $candidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
-    if (!$source) { if ($entry.Required) { throw "Required package file missing: $($entry.Path)" }; continue }
-    $target = Join-Path $destination $entry.Path
-    New-Item -ItemType Directory -Path (Split-Path $target -Parent) -Force | Out-Null
-    Copy-Item -LiteralPath $source -Destination $target
+if ($PrivateTest -and !$QuickStartPath) { $QuickStartPath = Join-Path $repo 'docs/guides/TEST_BUILD.md' }
+$documents = @(Copy-EmberPackageContent -Repo $repo -BuildDir $BuildDir -InstallDir $InstallDir -Destination $destination -Entries $entries -Generated $generated -QuickStartPath $QuickStartPath -StagedBinariesOnly:$PrivateTest)
+if ($PrivateTest) {
+    Set-Content -LiteralPath (Join-Path $destination 'PackageInventory.inc') -Value $inventoryLines -Encoding UTF8
+} else {
+    Copy-Item -LiteralPath $inventory -Destination (Join-Path $destination 'PackageInventory.inc')
 }
-Set-Content -LiteralPath (Join-Path $destination 'PackageInventory.inc') -Value $inventoryLines -Encoding UTF8
 if ($PrivateTest) {
     $receipt | Add-Member -NotePropertyName label -NotePropertyValue $VersionLabel -Force
     $receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $destination 'build-provenance.json') -Encoding UTF8
     Set-Content -LiteralPath (Join-Path $destination 'PRIVATE_TEST_BUILD.txt') -Encoding ASCII -Value 'Private SDK-free test package. Public updates are disabled. Use a separate official installation.'
-    if (!$QuickStartPath) { $QuickStartPath = Join-Path $repo 'docs/guides/TEST_BUILD.md' }
 } else {
     Copy-Item -LiteralPath (Join-Path $BuildDir 'build-provenance.json') -Destination (Join-Path $destination 'build-provenance.json')
 }
@@ -86,29 +81,17 @@ Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'tester-preflight.ps1') -Destina
 Set-Content -LiteralPath (Join-Path $destination 'preflight.cmd') -Encoding ASCII -Value @(
     '@powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0preflight.ps1" -PackageDir "%~dp0." -Interactive',
     '@pause')
-if (!$QuickStartPath) { $QuickStartPath = Join-Path $repo 'docs/guides/USER_NETPLAY.md' }
-if (!(Test-Path -LiteralPath $QuickStartPath -PathType Leaf)) { throw "Quick-start guide missing: $QuickStartPath" }
-$quickStart = (Resolve-Path -LiteralPath $QuickStartPath).Path
-# The guide is renamed inside the package. Keep it free of repository-relative
-# links; maintainer references are carried separately through the optional docs
-# in PackageInventory.inc.
-Copy-Item -LiteralPath $quickStart -Destination (Join-Path $destination 'START_HERE.md')
-# Preserved photographs (color-N.jpg/.png) are masking inputs kept in the
-# repository for provenance. The runtime draws the cutout beside each one, so
-# only the cutouts ship; a photograph without its cutout stops packaging.
-$art = (Resolve-Path -LiteralPath (Join-Path $repo 'assets/selection')).Path
-foreach ($file in Get-ChildItem -LiteralPath $art -File -Recurse) {
-    if ($file.Name -match '^color-\d+\.(jpg|png)$') {
-        if (!(Test-Path -LiteralPath (Join-Path $file.DirectoryName ($file.BaseName + '-cutout.png')))) { throw "Selection photograph has no cutout: $($file.FullName)" }
-        continue
-    }
-    $target = Join-Path (Join-Path $destination 'assets/selection') $file.FullName.Substring($art.Length + 1)
-    New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
-    Copy-Item -LiteralPath $file.FullName -Destination $target
-}
 & $Python (Join-Path $PSScriptRoot 'collect-notices.py') --build-dir $BuildDir --output (Join-Path $destination 'notices/THIRD_PARTY_LICENSES.txt')
 if ($LASTEXITCODE -ne 0) { throw 'Dependency notice collection failed' }
 $revision = git -C $repo rev-parse HEAD
+$mapping = Join-Path $BuildDir ('package-documents-' + [Guid]::NewGuid().ToString('N') + '.json')
+try {
+    ConvertTo-Json -InputObject $documents -Depth 5 | Set-Content -LiteralPath $mapping -Encoding UTF8
+    & $Python (Join-Path $PSScriptRoot 'package-docs.py') --repo $repo --package $destination --revision $revision --mapping $mapping
+    if ($LASTEXITCODE -ne 0) { throw 'Package documentation validation failed' }
+} finally {
+    Remove-Item -LiteralPath $mapping -ErrorAction SilentlyContinue
+}
 Set-Content -LiteralPath (Join-Path $destination 'BUILD_INFO.txt') -Encoding UTF8 -Value "SF4 Ember Netplay`nRelease: $VersionLabel`nSource revision: $revision`nSee build-provenance.json for the exact source fingerprint and validation.`n"
 Add-Content -LiteralPath (Join-Path $destination 'BUILD_INFO.txt') -Value "Source: $repo`nSource fingerprint: $($receipt.sourceFingerprint)`nFeatures: $($receipt.features -join ', ')"
 $manifestPaths = [string[]]@(Get-ChildItem -LiteralPath $destination -File -Recurse | ForEach-Object { $_.FullName })
