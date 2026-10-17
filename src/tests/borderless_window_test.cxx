@@ -68,6 +68,9 @@ int main(int argc, char** argv) {
     graphics->lpD3D = Direct3DCreate9(D3D_SDK_VERSION);
     CHECK(graphics->lpD3D);
     sf4e::display::Prepare(graphics);
+    sf4e::display::NativeDisplayValues captured;
+    CHECK(sf4e::display::NativeConfig(captured)==enabled);
+    if(enabled)CHECK(captured.width==1920&&captured.height==1080&&captured.refresh==60.f&&captured.fullscreen==1);
     const bool fault=variant=="queue-failure"||variant=="style-failure"||variant=="position-failure";
     if(variant=="style-failure")sf4e::display::FailNextWindowOperation(sf4e::display::WindowFault::Style);
     if(variant=="position-failure")sf4e::display::FailNextWindowOperation(sf4e::display::WindowFault::Position);
@@ -87,7 +90,7 @@ int main(int argc, char** argv) {
     // created without per-monitor DPI awareness.
     SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     if (enabled) {
-        std::printf("Window DPI awareness=%d, queried DPI=%u; selected monitor=%s\\n",int(GetAwarenessFromDpiAwarenessContext(GetWindowDpiAwarenessContext(window))),GetDpiForWindow(window),selectedMonitor->id.c_str());
+        std::printf("Window DPI awareness=%d, queried DPI=%u; selected monitor=%s\n",int(GetAwarenessFromDpiAwarenessContext(GetWindowDpiAwarenessContext(window))),GetDpiForWindow(window),selectedMonitor->id.c_str());
         MONITORINFO monitor = {};
         monitor.cbSize = sizeof(monitor);
         CHECK(GetMonitorInfoW(MonitorFromWindow(window, MONITOR_DEFAULTTOPRIMARY), &monitor));
@@ -137,6 +140,7 @@ int main(int argc, char** argv) {
         buffer->Release();
         device->Release();
         sf4e::display::Prepare(graphics);
+        CHECK(sf4e::display::NativeConfig(captured)&&captured.width==1920&&captured.height==1080&&captured.fullscreen==1);
         sf4e::display::RequestApply(window);
         Pump();
         sf4e::display::WindowMessage(window, WM_ACTIVATEAPP, FALSE, 0);
