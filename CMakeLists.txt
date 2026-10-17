@@ -832,6 +832,7 @@ foreach(target sf4e Launcher sf4e_app_services)
 endforeach()
 if(BUILD_TESTING)
     sf4e_add_unit_test(NAME GameLocator SOURCES src/tests/game_locator_test.cxx src/launcher/GameLocator.cxx src/common/SteamKeyValues.cxx STD 17 TIMEOUT 15)
+    sf4e_add_unit_test(NAME LargeAddress SOURCES src/tests/large_address_test.cxx STD 17 TIMEOUT 15)
 endif()
 # A Windows program, not a console one: a console the launcher asks to start
 # hidden still opens as an empty terminal where Windows Terminal is the
