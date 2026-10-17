@@ -871,3 +871,47 @@ async fn players_cancel_their_own_pending_claims() {
     let (_, links) = bridge.get(player.token(), "/v1/links").await;
     assert_eq!(links["links"].as_array().unwrap().len(), 1);
 }
+
+#[tokio::test]
+async fn malformed_challenges_do_not_consume_the_valid_request_quota() {
+    let bridge = Bridge::start().await;
+    let player = bridge.player(42);
+    for (path, digest) in [
+        ("/v1/link-claims", ember_protocol::encoding::b64u(&[0; 32])),
+        ("/v1/sessions", "invalid-digest".to_owned()),
+    ] {
+        for _ in 0..31 {
+            let response = bridge
+                .client
+                .post(bridge.url("/v1/auth/challenges"))
+                .body(
+                    serde_json::to_vec(&json!({
+                        "public_key": player.identity.public_key(),
+                        "action": "session.create", "method": "POST",
+                        "path": path, "request_digest": digest,
+                    }))
+                    .unwrap(),
+                )
+                .send()
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        }
+    }
+    let response = bridge
+        .client
+        .post(bridge.url("/v1/auth/challenges"))
+        .body(
+            serde_json::to_vec(&json!({
+                "public_key": player.identity.public_key(),
+                "action": "session.create", "method": "POST",
+                "path": "/v1/sessions",
+                "request_digest": ember_protocol::encoding::b64u(&[0; 32]),
+            }))
+            .unwrap(),
+        )
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+}

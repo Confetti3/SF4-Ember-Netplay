@@ -26,8 +26,6 @@ use crate::{
     routes::sessions,
 };
 
-const CLAIMS_PER_WINDOW: usize = 10;
-const CLAIM_WINDOW_SECS: u64 = 10 * 60;
 const MAX_RESOLVE: usize = 100;
 
 fn csrf_header(headers: &HeaderMap) -> Option<&str> {
@@ -216,12 +214,8 @@ pub async fn claim_route(
     let now = state.now();
     state
         .rate
-        .check(
-            &format!("link-claim:{}", player.ember_id),
-            CLAIMS_PER_WINDOW,
-            CLAIM_WINDOW_SECS,
-            now,
-        )
+        .link_claims
+        .check(&format!("link-claim:{}", player.ember_id), now)
         .map_err(ApiFailure::rate_limited)?;
     let (request, command): (_, ClaimCommand) = sessions::proven(&body.0)?;
     let ctx = Ctx::of(&state);

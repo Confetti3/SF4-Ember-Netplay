@@ -54,9 +54,6 @@ use crate::{
     util::{html, new_id, outbound_client, random},
 };
 
-/// Sign-ins one Ember ID may start per hour.
-const STARTS_PER_HOUR: usize = 10;
-
 /// Discord sign-in, offered when the configuration has `discord` and the
 /// integration secrets hold its client secret. Reading and disconnecting a
 /// connected account need neither, so a player can always withdraw one.
@@ -136,12 +133,8 @@ pub async fn start(
     let player = auth::player(&state, &headers).await?;
     state
         .rate
-        .check(
-            &format!("discord-start:{}", player.ember_id),
-            STARTS_PER_HOUR,
-            3600,
-            state.now(),
-        )
+        .discord_starts
+        .check(&format!("discord-start:{}", player.ember_id), state.now())
         .map_err(ApiFailure::rate_limited)?;
     let secret = b64u(&random::<32>());
     let hash = state_hash(&state, &secret);
