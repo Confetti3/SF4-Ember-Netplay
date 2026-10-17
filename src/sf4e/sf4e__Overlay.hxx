@@ -25,7 +25,7 @@ namespace sf4e {
         // each frame holds it, and the context's creation and teardown take it
         // whole, after any frame still drawing.
         ui::OverlayLifecycle& Lifecycle();
-        void RequestMainControls();
+        void RequestMenuStart();
         // Game thread: what the pad's Back and Start ask for in offline
         // Training, in order (TrainingPad.hxx). An event posted under an epoch
         // that has gone is dropped: DropTrainingPad, on a change of pad or

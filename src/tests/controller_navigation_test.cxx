@@ -203,13 +203,15 @@ void NativeCapture() {
  device.buttons=0;adapter.Update(device,true,true,true);device.buttons=32;
  adapter.Update(device,true,true,true);adapter.Update(device,true,false,true);Check(adapter.MenuGuard(),"Main-menu suppression not drained");
  device.buttons=0;adapter.Update(device,true,false,true);Check(!adapter.MenuGuard(),"Main menu never released");
- // The overlay enables the adapter whatever the window's focus (only a device
- // being assigned stops it): behind another window Start opens the hidden
- // menu and the shown menu takes presses, with no refocus between.
+ // The pad drives the menu behind another window. Start belongs to the
+ // game-thread request, so the snapshot never turns it into a menu action;
+ // even closing the menu while it is held keeps that press guarded.
  ControllerNavigation behind;ControllerSample pad{0,0,true,0};
  behind.Update(pad,true,false,true);behind.Update(pad,true,false,true);
  pad.buttons=ControllerSample::Menu;behind.Update(pad,true,false,true);
- Check(behind.OpenRequested(),"Start did not open the menu behind another window");
+ Check(!behind.Buttons()&&!behind.FocusRequested(),"Start became a hidden menu action");
+ behind.Update(pad,true,true,true);Check(!behind.Buttons(),"Start activated a shown menu row");
+ behind.Update(pad,true,false,true);Check(behind.MenuGuard()&&!behind.Buttons(),"Closing leaked held Start");
  pad.buttons=0;behind.Update(pad,true,true,true);
  pad.buttons=ControllerSample::Down;behind.Update(pad,true,true,true);
  Check(behind.Buttons()==ControllerSample::Down&&behind.FocusRequested(),"The shown menu ignored the pad behind another window");

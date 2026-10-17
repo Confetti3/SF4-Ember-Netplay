@@ -127,7 +127,11 @@ without joining the queue. A game already in progress cannot be joined halfway
 through. **Stop watching** returns the spectator to the room; the fighters
 continue playing. During a game, Start or F10 opens Ember over it on the room
 board at **Stop watching**; Queue, Watch, Leave queue and Leave room there say what
-happens to the view. Your view runs a little behind the room, so the room may
+happens to the view. Press Start or F10 again to hide the board and return to
+an unobstructed view of the match. Hiding the board keeps you watching and
+preserves your queue place; the match continues underneath.
+
+Your view runs a little behind the room, so the room may
 have finished the game while you still watch it: Stop watching then only ends
 the rest of the view, and your place at the table stays as it is.
 
