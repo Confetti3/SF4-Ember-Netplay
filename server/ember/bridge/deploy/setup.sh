@@ -33,8 +33,10 @@
 #   /etc/nginx/sites-available/bridge.embernetplay.link (and its sites-enabled link)
 # Nothing is opened in ufw: the bridge listens on loopback, nginx already serves 80 and 443.
 #
-# test-setup.sh moves every path above under a test folder (see instance.sh)
-# and stands in for the commands that need root.
+# Before changing anything it refuses a folder that is not directly in the
+# operator's home, and a tenants file whose origin or listen address another
+# installed bridge has. test-setup.sh moves every path above under a test
+# folder (see instance.sh) and stands in for the commands that need root.
 set -euo pipefail
 
 SRC="$(cd "$(dirname "$0")" && pwd)"
@@ -91,6 +93,24 @@ HOST=${ADDRESS% *}
 PORT=${ADDRESS#* }
 SITE=$ROOT/etc/nginx/sites-available/$HOST
 ENABLED=$ROOT/etc/nginx/sites-enabled/$HOST
+# Another installed bridge with this origin or listen address would lose its
+# site or its port to this one.
+CLAIMED=$(cat <<'PY'
+import glob, json, os, sys
+own, origin, listen, pattern = sys.argv[1:]
+for path in sorted(glob.glob(pattern)):
+    if os.path.dirname(path) == os.path.dirname(own):
+        continue
+    try:
+        other = json.load(open(path))
+    except (OSError, ValueError) as error:
+        sys.exit(f"Cannot read {path} to check it against this bridge: {error}")
+    for key, mine in (("origin", origin), ("listen", listen)):
+        if other.get(key) == mine:
+            sys.exit(f"{path} already has {key} {mine}; give this bridge its own in its tenants file.")
+PY
+)
+python3 -c "$CLAIMED" "$STATE/bridge.json" "https://$HOST" "127.0.0.1:$PORT" "$ROOT/var/lib/ember-bridge*/bridge.json"
 
 if ! id "$NAME" >/dev/null 2>&1; then
     useradd --system --home-dir "$STATE" --no-create-home --shell /usr/sbin/nologin "$NAME"
