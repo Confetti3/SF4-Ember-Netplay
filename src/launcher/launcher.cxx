@@ -834,12 +834,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             if(!ShowRecovery(sf4e::loc::T("display.launch_failed"),chosenDirectory))return 0;
             continue;
         }
-        // A game started by a normal process cannot reach a Steam that runs as
-        // administrator: its SteamAPI_Init fails and it exits.
-        const bool steamAbove = sf4e::platform::ProcessElevation() == sf4e::platform::Elevation::Normal &&
-            sf4e::platform::SteamElevation() == sf4e::platform::Elevation::Elevated;
-        if (steamAbove) spdlog::warn("Steam runs as administrator and the launcher does not; the game may not reach Steam");
-        DWORD startError = 0;
         if (inbox) inbox->Take(incoming);
         if (!incoming.join.empty()) joinCode=std::move(incoming.join);
         if (incoming.match.Valid()) matchLink=std::move(incoming.match);
@@ -862,6 +856,13 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         SetEnvironmentVariableW(L"SF4E_REPLAY_LINK", replayLink.empty() ? nullptr :
             sf4e::platform::Utf8ToWide(replayLink.c_str()).c_str());
         inbox.reset(); // The child opens the same mailboxes.
+
+        // A game started by a normal process cannot reach a Steam that runs as
+        // administrator: its SteamAPI_Init fails and it exits.
+        const bool steamAbove = sf4e::platform::ProcessElevation() == sf4e::platform::Elevation::Normal &&
+            sf4e::platform::SteamElevation() == sf4e::platform::Elevation::Elevated;
+        if (steamAbove) spdlog::warn("Steam runs as administrator and the launcher does not; the game may not reach Steam");
+        DWORD startError = 0;
         HANDLE game = CreateSF4Process(payload,helper,discord,helperPath.wstring(),location.directory.data(),location.executable.data(),1,dlls,dumps,startError);
         if (!game) {
             inbox=std::make_unique<sf4e::platform::LauncherLinks>();
@@ -882,6 +883,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             else spdlog::warn("Could not write the game's crash dump (Win32 {})", GetLastError());
         });
         dumps.Close();
+        // The game has released its receivers; recovery owns links again
+        // until the player retries or closes this launcher.
+        inbox=std::make_unique<sf4e::platform::LauncherLinks>();
+        if (!inbox->Open()) spdlog::warn("Launcher could not listen for links during recovery");
         if (g_logsDir[0]) sf4e::crash::PruneDumps(g_logsDir, 5, dumps.reportWritten.c_str());
         DWORD exitCode = 0; GetExitCodeProcess(game,&exitCode);
         spdlog::info("Game exited with code {:#010x} ({})", exitCode, sf4e::crash::ExitCodeName(exitCode));
@@ -906,12 +911,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         const char* exitMessage = exitCode == 0xC0000139u ? "launcher.game_wrong_dll" :
             exitCode == 0xC0E90002u ? "launcher.game_blocked_by_windows" :
             steamAbove ? "launcher.steam_runs_as_admin" : crashed ? (reportable ? "launcher.game_crashed" : "launcher.game_crashed_files") : "launcher.game_error";
-        // The game has released its receivers; recovery owns links again
-        // until the player retries or closes this launcher.
-        if (exitCode != 0) {
-            inbox=std::make_unique<sf4e::platform::LauncherLinks>();
-            if (!inbox->Open()) spdlog::warn("Launcher could not listen for links during recovery");
-        }
         if (exitCode != 0 && ShowRecovery(sf4e::loc::T(exitMessage),chosenDirectory,false,sf4e::ui::Tone::Error,false,
             reportable ? std::optional<sf4e::reports::CrashContext>(reportCrash) : std::nullopt)) continue;
         return 0;
