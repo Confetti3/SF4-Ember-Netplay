@@ -145,10 +145,17 @@ inline bool ValidDummyPlan(const DummyPlan& plan) {
 struct ReplySchedule { int start = -1, hold = -1, anchor = -1, timing = 0; };
 // Typed moves carry theirs from synthesis (DummyPlan). A recording's comes
 // from its frames: it lands from its first attack button, and has no hold.
+// It starts after the last frame before that button with no direction held,
+// so a wait recorded before the move does not play while the dummy is still
+// held and the move meets the free frame as recorded; a motion or a charge
+// held up to the button plays whole.
 inline ReplySchedule RecordingSchedule(const std::vector<Input>& frames, int timing) {
     ReplySchedule schedule; schedule.start = ReplyStart(frames); schedule.timing = timing;
     const auto press = std::find_if(frames.begin(), frames.end(), [](const Input& frame) { return (frame.raw & AttackButtons) != 0; });
     schedule.anchor = press == frames.end() ? schedule.start : static_cast<int>(press - frames.begin());
+    if (schedule.start < 0) return schedule;
+    for (int frame = schedule.anchor - 1; frame >= schedule.start; --frame)
+        if (!(frames[frame].raw & FightButtons & ~AttackButtons)) { schedule.start = frame + 1; break; }
     return schedule;
 }
 // The schedule of the reply a plan plays: its typed moves', else its slot's recording's.
@@ -603,7 +610,7 @@ public:
         if (first < 0) return false;
         resumeSide_ = view_.playbackSide; view_.playbackSide = 1;
         Play(slot, std::move(frames));
-        view_.replying = true; view_.cursor = first; ++replies_; schedule_ = schedule;
+        view_.replying = true; view_.cursor = (std::max)(first, schedule.start); ++replies_; schedule_ = schedule;
         if (slot < SlotCount) replyPicker_.Commit(slot);
         return true;
     }
@@ -698,7 +705,12 @@ private:
     // Back to rest. A recording replaces the selected slot with what it
     // recorded, in one change; standby records nothing.
     void Stop() {
-        if (view_.mode == Mode::Recording && !scratch_.empty()) { bank_.Replace(view_.selected, std::move(scratch_)); Publish(); }
+        if (view_.mode == Mode::Recording) {
+            // A recording begins on its first input: the frames before it are
+            // the player reaching the pad after starting it.
+            const int first = ReplyStart(scratch_);
+            if (first >= 0) { scratch_.erase(scratch_.begin(), scratch_.begin() + first); bank_.Replace(view_.selected, std::move(scratch_)); Publish(); }
+        }
         scratch_.clear(); playing_.clear();
         view_.mode = Mode::Idle; view_.cursor = 0; view_.active = -1; view_.activeLength = 0; waited_ = waitedPast_ = 0; hit_ = false; lastRaw_ = 0;
         if (view_.replying) { view_.playbackSide = resumeSide_; view_.replying = false; schedule_ = {}; }

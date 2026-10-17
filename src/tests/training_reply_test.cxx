@@ -170,6 +170,13 @@ int main() {
         const auto recorded = RecordingSchedule(dragon, 2);
         Require(ReplyStart(dragon) == 0 && recorded.anchor == 9 && recorded.hold == -1 && recorded.timing == 2 && ReplyLead(recorded) == 9 &&
             ReplyStart({}) == -1 && ReplyLead(RecordingSchedule({{8, 8, 0, 0}}, 0)) == 0, "A reply's start or lead misread");
+        // A wait before the motion is left out; a charge held up to the button is kept.
+        std::vector<Input> waited{{8, 8, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}}, charge(40, Input{4, 4, 0, 0});
+        waited.insert(waited.end(), dragon.begin(), dragon.end());
+        for (unsigned bits : {8u, 8u, 0x48u, 0u}) charge.push_back({bits, bits, 0, 0});
+        const auto paused = RecordingSchedule(waited, 0), charged = RecordingSchedule(charge, 0);
+        Require(paused.anchor == 12 && paused.start == 3 && ReplyLead(paused) == 9 && charged.anchor == 42 && charged.start == 0,
+            "A reply played the wait before its motion, or dropped a charge");
         std::puts("Training reply checks passed.");
         return 0;
     } catch (const std::exception& e) { std::fprintf(stderr, "%s\n", e.what()); return 1; }

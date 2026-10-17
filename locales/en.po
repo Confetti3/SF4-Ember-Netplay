@@ -1865,6 +1865,9 @@ msgstr "Active"
 msgid "training.meter.recovery"
 msgstr "Recovery"
 
+msgid "training.meter.total"
+msgstr "Total"
+
 msgid "training.meter.hit"
 msgstr "Hit"
 
@@ -4169,6 +4172,9 @@ msgstr "Start {0} f"
 
 msgid "training.start_unknown"
 msgstr "Start --"
+
+msgid "training.start_total_frames"
+msgstr "Start {0} f / {1}"
 
 msgid "settings.training_replays"
 msgstr "Training and replays"

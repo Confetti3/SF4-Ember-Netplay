@@ -1865,6 +1865,9 @@ msgstr "지속"
 msgid "training.meter.recovery"
 msgstr "경직"
 
+msgid "training.meter.total"
+msgstr "전체"
+
 msgid "training.meter.hit"
 msgstr "히트"
 
@@ -4528,6 +4531,9 @@ msgstr "발생 {0} f"
 
 msgid "training.start_unknown"
 msgstr "발생 --"
+
+msgid "training.start_total_frames"
+msgstr "발생 {0} f / {1}"
 
 msgid "settings.training_replays"
 msgstr "트레이닝과 리플레이"

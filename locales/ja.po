@@ -1865,6 +1865,9 @@ msgstr "持続"
 msgid "training.meter.recovery"
 msgstr "硬直"
 
+msgid "training.meter.total"
+msgstr "全体"
+
 msgid "training.meter.hit"
 msgstr "ヒット"
 
@@ -4528,6 +4531,9 @@ msgstr "発生{0}F"
 
 msgid "training.start_unknown"
 msgstr "発生--"
+
+msgid "training.start_total_frames"
+msgstr "発生{0}F / {1}"
 
 msgid "settings.training_replays"
 msgstr "トレーニングとリプレイ"
