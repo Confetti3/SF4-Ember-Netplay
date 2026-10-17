@@ -112,6 +112,12 @@ for unit in glob.glob(f"{root}/etc/systemd/system/*.service"):
             sys.exit(0)
 sys.exit(7)
 EOF
+# getent knows one operator, katie, whose home holds the operator folders.
+printf 'katie:x:1000:1000::%s:/bin/bash\n' "$HOME" > "$STUB/passwd"
+cat > "$T/stubs/getent" <<'EOF'
+#!/usr/bin/env bash
+[ "$1" = passwd ] && grep "^$2:" "$STUB/passwd" || exit 2
+EOF
 printf '#!/bin/sh\nexit 0\n' > "$T/stubs/sleep"
 chmod +x "$T"/stubs/*
 export PATH="$T/stubs:$PATH"
@@ -495,6 +501,36 @@ check "backup service still as before" same "$GOLDEN/ember-bridge-backup.service
 check "site still as before" same "$GOLDEN/$PSITE" "$R/etc/nginx/sites-available/$PSITE"
 check "staging files unchanged" unchanged "$S" "$SSITE" staging
 check "staging untouched" staging_untouched
+snapshot "$P" "$PSITE" production
+
+echo "11. under sudo the folder sits in the invoking user's home, not HOME"
+run "$PDIR/setup.sh" SUDO_USER=katie HOME=/root
+check "production setup exits 0" succeeded
+check "production answers through nginx" mentions "public: ok ($PID)"
+check "staging untouched" staging_untouched
+run "$SDIR/setup.sh" SUDO_USER=katie HOME=/root
+check "staging setup exits 0" succeeded
+check "staging answers through nginx" mentions "public: ok ($SID)"
+check "production units never touched" production_untouched_by_systemctl
+INPUT=$T/secret
+printf 'staging-secret-2\n' > "$INPUT"
+run "$SDIR/set-integration-secret.sh" SUDO_USER=katie HOME=/root -- discord
+check "staging secret exits 0" succeeded
+check "stored for staging" config_is "$R/var/lib/$S/integrations.json" discord_client_secret '"staging-secret-2"'
+check "production units never touched" production_untouched_by_systemctl
+snapshot "$P" "$PSITE" production
+snapshot "$S" "$SSITE" staging
+run "$PDIR/setup.sh" SUDO_USER=nobody
+check "an unknown SUDO_USER exits 2" exited 2
+check "says the folder is not in a home" mentions "is not directly in"
+check "nothing ran" nothing_logged
+run "$SDIR/set-integration-secret.sh" SUDO_USER=nobody -- discord
+check "its set-integration-secret.sh exits 2" exited 2
+check "nothing ran" nothing_logged
+check "staging secret unchanged" config_is "$R/var/lib/$S/integrations.json" discord_client_secret '"staging-secret-2"'
+check "production files unchanged" unchanged "$P" "$PSITE" production
+check "staging files unchanged" unchanged "$S" "$SSITE" staging
+unset INPUT
 
 echo
 echo "$pass passed, $fail failed"
