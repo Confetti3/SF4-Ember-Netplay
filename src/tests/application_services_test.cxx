@@ -17,6 +17,21 @@ int main() {
     const auto root = MakeTempRoot(L"ember-services-test-");
     report_workflow_tests::Run(root);
     {
+        // The launcher's pre-game decision must not prompt a second time in Sidecar.
+        wchar_t previous[64]{};
+        const auto length=GetEnvironmentVariableW(L"SF4E_LAUNCH_UPDATE_HANDLED",previous,64);
+        CHECK(length<64);
+        SetEnvironmentVariableW(L"SF4E_LAUNCH_UPDATE_HANDLED",L"1");
+        ApplicationServices inherited(root.wstring());
+        CHECK(inherited.Snapshot().launchCheck==LaunchCheck::Settled);
+        CHECK(inherited.RequestLaunchCheck() && !inherited.Snapshot().pending && inherited.Snapshot().launchCheck==LaunchCheck::Settled);
+        SetEnvironmentVariableW(L"SF4E_LAUNCH_UPDATE_HANDLED",nullptr);
+        ApplicationServices standalone(root.wstring());
+        CHECK(standalone.Snapshot().launchCheck==LaunchCheck::Waiting);
+        SetEnvironmentVariableW(L"SF4E_LAUNCH_UPDATE_HANDLED",length?previous:nullptr);
+    }
+
+    {
         // Routes reduce to a category before they reach logs or exports.
         CHECK(sf4e::ClassifyRoute("direct")==sf4e::RouteKind::Direct);
         CHECK(sf4e::ClassifyRoute("relay:use1")==sf4e::RouteKind::Relayed && sf4e::ClassifyRoute("relay:other")==sf4e::RouteKind::Relayed);

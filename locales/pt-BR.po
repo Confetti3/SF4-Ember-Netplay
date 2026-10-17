@@ -243,6 +243,35 @@ msgstr "Cancele ou conclua a operação atual primeiro."
 msgid "recovery.retry_detail"
 msgstr "Tente novamente com a pasta selecionada. A ausência do auxiliar de rede não impede o jogo offline."
 
+#. Startup update and recovery controls.
+
+msgid "update.validation_detail"
+msgstr "Falha na validação: {0}\nOs arquivos instalados não foram substituídos."
+
+msgid "updates.release_page"
+msgstr "Abrir página de versões"
+
+msgid "updates.release_page_detail"
+msgstr "Baixe o instalador oficial. Feche o SF4 e selecione sua pasta atual do Ember."
+
+msgid "updates.open_log"
+msgstr "Abrir registro da atualização"
+
+msgid "updates.open_log_detail"
+msgstr "Ver detalhes em %TEMP%\\sf4-netplay-update.log."
+
+msgid "updates.log_opened"
+msgstr "Registro aberto."
+
+msgid "updates.log_missing"
+msgstr "Ainda não há registro de atualização."
+
+msgid "updates.startup_text"
+msgstr "A versão {0} está disponível. Você tem a {1}. Instalar antes de iniciar o SF4?"
+
+msgid "updates.release_opened"
+msgstr "Página de versões aberta."
+
 msgid "updates.check"
 msgstr "Buscar atualizações"
 
@@ -2444,8 +2473,6 @@ msgid "update.missing_binaries"
 msgstr "O pacote baixado não contém Launcher.exe ou Sidecar.dll."
 msgid "update.staging_path_failed"
 msgstr "Não foi possível ler o caminho de preparação."
-msgid "update.validation_failed"
-msgstr "O pacote baixado falhou na validação (arquivos obrigatórios ausentes)."
 msgid "update.cancelled"
 msgstr "Atualização cancelada antes da instalação."
 msgid "update.close_game"

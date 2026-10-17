@@ -3,6 +3,7 @@
 #include "DisplayPanel.hxx"
 #include "../platform/DisplaySettings.hxx"
 #include "RecoveryController.hxx"
+#include "StartupUpdateFlow.hxx"
 #include "ProblemReportPanel.hxx"
 #include "SelectionArt.hxx"
 #include "Theme.hxx"
@@ -72,7 +73,7 @@ bool ChooseDirectory(HWND owner, std::wstring& path) {
 }
 }
 bool RunRecovery(std::string message, std::wstring& gameDirectory, LauncherRoot root, std::function<void(const std::string&)> artLog,
-    Tone messageTone, bool canStart, const std::optional<reports::CrashContext>& crash, const std::optional<launcher::InstallOffer>& offer, LauncherPage initialPage, std::function<bool()> pollLaunch) {
+    Tone messageTone, bool canStart, const std::optional<reports::CrashContext>& crash, const std::optional<launcher::InstallOffer>& offer, LauncherPage initialPage, std::function<bool()> pollLaunch, bool startup) {
     const bool updates = root == LauncherRoot::Updates;
     const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     WNDCLASSW wc{}; wc.lpfnWndProc = WindowProc; wc.hInstance = GetModuleHandleW(nullptr);
@@ -89,9 +90,9 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, LauncherRoot 
         D3DCREATE_SOFTWARE_VERTEXPROCESSING, &params, &device))) {
         const auto text=Utf8ToWide(loc::T("recovery.d3d_failed"));
         const auto title=Utf8ToWide(loc::T("app.name"));
-        if (!StartWithoutSurface(root)) MessageBoxW(window, text.c_str(), title.c_str(), MB_ICONERROR);
-        else if (artLog) artLog("Launcher Home unavailable; continuing with normal game startup.");
-        if (d3d) d3d->Release(); if (window) DestroyWindow(window); if (SUCCEEDED(com)) CoUninitialize(); return StartWithoutSurface(root);
+        if (!StartWithoutSurface(root,startup)) MessageBoxW(window, text.c_str(), title.c_str(), MB_ICONERROR);
+        else if (artLog) artLog("Optional launcher window unavailable; continuing with normal game startup.");
+        if (d3d) d3d->Release(); if (window) DestroyWindow(window); if (SUCCEEDED(com)) CoUninitialize(); return StartWithoutSurface(root,startup);
     }
     ImGui::CreateContext(); auto& io = ImGui::GetIO(); io.IniFilename = nullptr;
     // Pads reach the menu only through RecoveryController; the backend is
@@ -103,14 +104,18 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, LauncherRoot 
     auto art=std::make_unique<SelectionArt>(device,gameDirectory,(std::filesystem::path(executable).parent_path()/L"assets"/L"selection").wstring(),artLog);
     SetMenuArt(art.get());
     ShowWindow(window, SW_SHOW); UpdateWindow(window);
-    platform::ApplicationServices services;
+    platform::ServiceHooks hooks;
+    if (startup) hooks.updateCheckBudgetMs = 5000;
+    platform::ApplicationServices services({}, std::move(hooks));
+    StartupUpdateFlow startupFlow(startup);
     // The crash's report: the worker sends it at once when the player turned
     // reports on and it can be counted, and offers it otherwise. This window
     // only asks and shows what the worker says.
     ProblemReportPanel reportPanel; bool reportOpen = false;
     const bool offerOnly = crash && !services.ReportCrash(*crash, reports::AutomaticCrash::Consent::Existing);
     bool sendingShown = false;
-    if (updates) services.Request(platform::ServiceAction::CheckUpdates);
+    if (startup) services.RequestLaunchCheck();
+    else if (updates) services.Request(platform::ServiceAction::CheckUpdates);
     launcher::InstallOfferGate offerGate(updates ? offer : std::nullopt);
     bool quit = false, retry = false;
     // Which of the launcher's message and the service's is the newer one: the
@@ -175,7 +180,20 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, LauncherRoot 
         default:SetMenuGlyphs(input::PadKeyboard,0,0);break;
         }
         const auto state = services.Snapshot();
-        OfferFoundUpdate(menu,state,offeredVersion);
+        if (!startupFlow.Checking() && !startupFlow.Asking()) OfferFoundUpdate(menu,state,offeredVersion);
+        switch (startupFlow.Observe(state)) {
+        case StartupUpdateFlow::Action::Continue:
+            if (artLog && !state.update.ok && !state.update.error.empty()) artLog("Startup update check: "+state.update.error);
+            retry=true; quit=true; break;
+        case StartupUpdateFlow::Action::Ask: {
+            offeredVersion=state.update.latestVersion;
+            auto prompt=UpdatePrompt::Dialog(*startupFlow.Offer(),state.installedVersion);
+            prompt.text=loc::Tf("updates.startup_text",startupFlow.Offer()->tag,state.installedVersion);
+            menu.ShowNotice(std::move(prompt)); break;
+        }
+        default: break;
+        }
+        if (quit) { ImGui::EndFrame(); break; }
         // The accepted release goes straight to Download and install only if this window's own check finds it again.
         // A release that changed or vanished leaves the usual explicit offer, with a word about the change.
         switch(offerGate.Observe(state.channel,state.update,!state.pending&&state.lastAction==platform::ServiceAction::CheckUpdates)){
@@ -199,7 +217,19 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, LauncherRoot 
         } else if(menu.navigation.Screen()=="display") {
             displayPanel.Draw(menu);
             if(displayPanel.RefreshRequested())displayPanel.Refresh(platform::DisplayMonitors());
-        } else choice=DrawRecoveryMenu(menu,state,message,root,messageTone,canStart,serviceNewer,&channelPick,reportView);
+        } else choice=DrawRecoveryMenu(menu,state,message,root,messageTone,canStart,serviceNewer,&channelPick,reportView,startupFlow.Checking());
+        if (startupFlow.Asking() && !menu.NoticeOpen()) {
+            switch (startupFlow.Answer(menu.TakeNoticeResult())) {
+            case StartupUpdateFlow::Action::Continue: retry=true; quit=true; break;
+            case StartupUpdateFlow::Action::Install:
+                serviceNewer=true; services.Request(platform::ServiceAction::InstallUpdate); break;
+            case StartupUpdateFlow::Action::Skip:
+                serviceNewer=true;
+                if (!services.SkipUpdate(*startupFlow.Offer())) startupFlow.Manual();
+                break;
+            default: break;
+            }
+        }
         switch(choice) {
         case RecoveryChoice::Display:displayPanel.Discard();menu.navigation.Push("display");break;
         case RecoveryChoice::Report:
@@ -219,15 +249,21 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, LauncherRoot 
                 serviceNewer=false;
             }
             break;
-        case RecoveryChoice::Retry:retry=true;quit=true;break;
-        case RecoveryChoice::CheckUpdates:serviceNewer=true;services.Request(platform::ServiceAction::CheckUpdates);break;
+        case RecoveryChoice::Retry:services.Cancel();retry=true;quit=true;break;
+        case RecoveryChoice::ReleasePage: services.Request(platform::ServiceAction::OpenUpdateRelease); break;
+        case RecoveryChoice::UpdateLog: services.Request(platform::ServiceAction::OpenUpdateLog); break;
+        case RecoveryChoice::CheckUpdates:startupFlow.Manual();serviceNewer=true;services.Request(platform::ServiceAction::CheckUpdates);break;
         case RecoveryChoice::Install:serviceNewer=true;services.Request(platform::ServiceAction::InstallUpdate);break;
         // Confirmed: only now is the pick saved and checked. The row keeps
         // showing it until the worker is done.
         case RecoveryChoice::Channel:
-            if(channelPick.picked){serviceNewer=true;channelPick.applying=services.SwitchUpdateChannel(*channelPick.picked);}
+            if(channelPick.picked){startupFlow.Manual();serviceNewer=true;channelPick.applying=services.SwitchUpdateChannel(*channelPick.picked);}
             break;
-        case RecoveryChoice::Cancel:services.Cancel();break;
+        case RecoveryChoice::Cancel:
+            services.Cancel();
+            if (startupFlow.Checking()) { retry=true; quit=true; }
+            else startupFlow.Manual();
+            break;
         case RecoveryChoice::Close:services.Cancel();quit=true;break;
         default:break;
         }

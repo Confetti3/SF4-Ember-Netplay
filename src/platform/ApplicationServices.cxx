@@ -60,9 +60,10 @@ std::string DescribeDiagnostics(const DiagnosticsView& view) {
 ApplicationServices::ApplicationServices(std::wstring diagnosticsDirectory, ServiceHooks hooks) :
     policy_(hooks.policyStore ? UpdatePolicy(*hooks.policyStore) : UpdatePolicy()), diagnosticsDirectory_(std::move(diagnosticsDirectory)) {
     hooks_ = std::move(hooks);
-    if (!hooks_.checkForUpdate) hooks_.checkForUpdate = [](launcher::UpdateChannel channel) { return launcher::CheckForUpdate(channel); };
+    if (!hooks_.checkForUpdate) hooks_.checkForUpdate = [this](launcher::UpdateChannel channel) { return launcher::CheckForUpdate(channel, cancelled_, hooks_.updateCheckBudgetMs); };
     if (!hooks_.clock) hooks_.clock = [] { return static_cast<std::uint64_t>(std::time(nullptr)); };
-    state_.launchCheck = LaunchCheck::Waiting;
+    state_.launchCheck = GetEnvironmentVariableW(L"SF4E_LAUNCH_UPDATE_HANDLED", nullptr, 0)
+        ? LaunchCheck::Settled : LaunchCheck::Waiting;
     char installed[64] = {};
     launcher::ReadInstalledVersion(installed, sizeof(installed));
     state_.installedVersion = installed;
@@ -202,6 +203,7 @@ void ApplicationServices::Run() {
                 next.succeeded = next.reporting.Succeeded(); next.message = next.reporting.message;
             } else if (action == ServiceAction::CheckUpdates || action == ServiceAction::LaunchUpdateCheck) {
                 next.update = hooks_.checkForUpdate(next.channel); next.succeeded = next.update.ok;
+                next.updateError = next.update.error;
                 next.message = !next.update.ok ? next.update.error : next.update.goesBack ?
                     loc::Tf("services.go_back_available",next.update.latestVersion) : next.update.updateAvailable ?
                     loc::Tf("services.update_available",next.update.latestVersion) : loc::T("services.up_to_date");
@@ -268,6 +270,16 @@ void ApplicationServices::Run() {
                     CloseHandle(process.hThread); CloseHandle(process.hProcess);
                     next.closeGame = next.succeeded = true; next.message = loc::T("services.game_closing");
                 }
+            } else if (action == ServiceAction::OpenUpdateRelease) {
+                const std::string url=std::string("https://github.com/")+launcher::UpdateChannelRepo(next.channel)+"/releases";
+                next.succeeded=ShellOpen(std::wstring(url.begin(),url.end()).c_str());
+                next.message=loc::T(next.succeeded?"updates.release_opened":"services.operation_failed");
+            } else if (action == ServiceAction::OpenUpdateLog) {
+                wchar_t temp[MAX_PATH]{};
+                const auto length=GetTempPathW(MAX_PATH,temp);
+                const auto log=std::filesystem::path(temp)/L"sf4-netplay-update.log";
+                next.succeeded=length && length<MAX_PATH && std::filesystem::is_regular_file(log) && ShellOpen(log.c_str());
+                next.message=loc::T(next.succeeded?"updates.log_opened":"updates.log_missing");
             } else if (action == ServiceAction::OpenCommunity) {
                 const std::wstring url = L"https://" + std::wstring(CommunityInvite, CommunityInvite + std::strlen(CommunityInvite));  // ASCII
                 const bool opened = ShellOpen(url.c_str());
@@ -313,6 +325,7 @@ void ApplicationServices::Run() {
                         },
                         loc::T("services.installing"));
                     next.installed = next.succeeded = result.ok;
+                    next.updateError = result.error;
                     next.message = result.ok ? loc::T("services.update_prepared") : result.error;
                 }
             }

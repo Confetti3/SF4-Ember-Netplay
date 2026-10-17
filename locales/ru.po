@@ -243,6 +243,35 @@ msgstr "Сначала отмените или завершите текущую
 msgid "recovery.retry_detail"
 msgstr "Повторить запуск с выбранной папкой игры. Отсутствие сетевого компонента не мешает игре без сети."
 
+#. Startup update and recovery controls.
+
+msgid "update.validation_detail"
+msgstr "Ошибка проверки обновления: {0}\nУстановленные файлы не заменены."
+
+msgid "updates.release_page"
+msgstr "Открыть страницу выпусков"
+
+msgid "updates.release_page_detail"
+msgstr "Скачайте официальный установщик. Закройте SF4 и выберите существующую папку Ember."
+
+msgid "updates.open_log"
+msgstr "Открыть журнал обновления"
+
+msgid "updates.open_log_detail"
+msgstr "Показать сведения в %TEMP%\\sf4-netplay-update.log."
+
+msgid "updates.log_opened"
+msgstr "Журнал открыт."
+
+msgid "updates.log_missing"
+msgstr "Журнал обновления пока недоступен."
+
+msgid "updates.startup_text"
+msgstr "Доступна версия {0}. У вас {1}. Установить до запуска SF4?"
+
+msgid "updates.release_opened"
+msgstr "Страница выпусков открыта."
+
 msgid "updates.check"
 msgstr "Проверить обновления"
 
@@ -2615,8 +2644,6 @@ msgstr "В загруженном пакете нет Launcher.exe или Sideca
 msgid "update.staging_path_failed"
 msgstr "Не удалось прочитать временный путь."
 
-msgid "update.validation_failed"
-msgstr "Загруженный пакет не прошёл проверку: отсутствуют нужные файлы."
 
 msgid "update.cancelled"
 msgstr "Обновление отменено до установки."

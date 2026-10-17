@@ -7,8 +7,10 @@
 #include <optional>
 #include <string>
 namespace sf4e { namespace ui {
-// Return true for Start/Retry, a Home launch intent, or unavailable Home UI.
-// Recovery/Updates failures never imply retry. Network work stays on the
+// Return true for Start/Retry, a Home launch intent, or unavailable optional UI.
+// Explicit Recovery/Updates failures never imply retry. Automatic startup checks
+// continue to Home/game when no offer is found or their UI is unavailable.
+// Network work stays on the
 // application worker; no game is created by this presentation surface.
 // `artLog` receives one line per selection image that failed or needed a
 // fallback, as SelectionArt reports it. `messageTone` is the severity of
@@ -23,5 +25,5 @@ namespace sf4e { namespace ui {
 bool RunRecovery(std::string message, std::wstring& gameDirectory, LauncherRoot root = LauncherRoot::Recovery,
     std::function<void(const std::string&)> artLog = {}, Tone messageTone = Tone::Error, bool canStart = false,
     const std::optional<reports::CrashContext>& crash = std::nullopt, const std::optional<launcher::InstallOffer>& offer = std::nullopt,
-    LauncherPage initialPage = LauncherPage::Root, std::function<bool()> pollLaunch = {});
+    LauncherPage initialPage = LauncherPage::Root, std::function<bool()> pollLaunch = {}, bool startup = false);
 } }

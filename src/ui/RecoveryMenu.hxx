@@ -12,7 +12,7 @@
 
 namespace sf4e { namespace ui {
 // Report opens the crash report's preview; AlwaysSend was confirmed.
-enum class RecoveryChoice { None, Display, Folder, Retry, CheckUpdates, Install, Cancel, Close, Channel, Report, AlwaysSend };
+enum class RecoveryChoice { None, Display, Folder, Retry, CheckUpdates, Install, Cancel, Close, Channel, Report, AlwaysSend, ReleasePage, UpdateLog };
 // The crash's report in the launch window: offered (asking), or, once a send
 // was asked for, on its way (sending) and then how it went (outcome, or
 // failure: what stopped it before anything was sent).
@@ -74,7 +74,7 @@ inline std::string ChannelSwitchDetail(launcher::UpdateChannel from,launcher::Up
 // opens its preview, and Always send, confirmed with Cancel first; or one row
 // saying how the report went.
 inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSnapshot& state,const std::string& message,LauncherRoot root,
-    Tone messageTone=Tone::Error,bool canStart=false,bool serviceNewer=true,ChannelPick* channelPick=nullptr,const RecoveryReport& report={}) {
+    Tone messageTone=Tone::Error,bool canStart=false,bool serviceNewer=true,ChannelPick* channelPick=nullptr,const RecoveryReport& report={},bool startupChecking=false) {
     const bool updates=root==LauncherRoot::Updates,home=root==LauncherRoot::Home;
     if(channelPick)channelPick->Settle(state.channel,state.pending);
     std::vector<MenuEntry> rows;
@@ -131,9 +131,13 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
         rows.push_back(waits(std::move(row)));
         if(!state.installedVersion.empty())rows.push_back(InfoRow("installed",loc::T("updates.installed_version"),state.installedVersion,loc::T("updates.installed_version_detail")));
     }
+    if(updates && !state.pending && (!state.updateError.empty() || (!state.succeeded && (!state.message.empty() || !message.empty())))) {
+        rows.push_back(Row("release-page",loc::T("updates.release_page"),loc::T("updates.release_page_detail")));
+        rows.push_back(Row("update-log",loc::T("updates.open_log"),loc::T("updates.open_log_detail")));
+    }
     if(state.pending)rows.push_back(Row("cancel",loc::T("updates.cancel"),loc::T("updates.cancel_detail")));
     if(updates&&canStart)
-        rows.push_back(waits(Row("retry",loc::T("updates.start_game"),state.pending?loc::T("recovery.retry_busy"):loc::T("updates.start_game_detail"),!state.pending)));
+        rows.push_back(Row("retry",loc::T("updates.start_game"),loc::T("updates.start_game_detail"),startupChecking||!state.pending));
     rows.push_back(Row("close",loc::T("common.close"),state.pending?loc::T("recovery.close_cancels_detail"):
         loc::T(home?"launcher.close_detail":updates?"updates.close_detail":"recovery.close_detail")));
     // The launch window names the version in its corner, as Home does; the
@@ -174,6 +178,8 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
     if(action.id=="check")return RecoveryChoice::CheckUpdates;
     if(action.id=="install")return RecoveryChoice::Install;
     if(action.id=="channel")return channelPick&&channelPick->Pending(state.channel)?RecoveryChoice::Channel:RecoveryChoice::None;
+    if(action.id=="release-page")return RecoveryChoice::ReleasePage;
+    if(action.id=="update-log")return RecoveryChoice::UpdateLog;
     if(action.id=="cancel")return RecoveryChoice::Cancel;
     if(action.id=="close")return RecoveryChoice::Close;
     return RecoveryChoice::None;

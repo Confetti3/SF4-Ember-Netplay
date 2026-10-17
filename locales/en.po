@@ -243,6 +243,35 @@ msgstr "Cancel or finish the current operation first."
 msgid "recovery.retry_detail"
 msgstr "Retry with the selected game folder. A missing networking helper does not prevent offline play."
 
+#. Startup update and recovery controls.
+
+msgid "update.validation_detail"
+msgstr "Update validation failed: {0}\nInstalled files were not replaced."
+
+msgid "updates.release_page"
+msgstr "Open release page"
+
+msgid "updates.release_page_detail"
+msgstr "Get the official installer. Close SF4, then select your existing Ember folder."
+
+msgid "updates.open_log"
+msgstr "Open update log"
+
+msgid "updates.open_log_detail"
+msgstr "Show details in %TEMP%\\sf4-netplay-update.log."
+
+msgid "updates.log_opened"
+msgstr "Update log opened."
+
+msgid "updates.log_missing"
+msgstr "No update log is available yet."
+
+msgid "updates.startup_text"
+msgstr "Version {0} is available. You have {1}. Install it before starting SF4?"
+
+msgid "updates.release_opened"
+msgstr "Release page opened."
+
 msgid "updates.check"
 msgstr "Check for updates"
 
@@ -2559,8 +2588,6 @@ msgid "update.missing_binaries"
 msgstr "Downloaded package is missing Launcher.exe or Sidecar.dll."
 msgid "update.staging_path_failed"
 msgstr "Could not read staging path."
-msgid "update.validation_failed"
-msgstr "Downloaded package failed validation (missing required files)."
 msgid "update.cancelled"
 msgstr "Update cancelled before installation."
 msgid "update.close_game"

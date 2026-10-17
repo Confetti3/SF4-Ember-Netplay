@@ -243,6 +243,35 @@ msgstr "Laufenden Vorgang erst beenden oder abbrechen."
 msgid "recovery.retry_detail"
 msgstr "Start mit dem gewählten Spielordner wiederholen. Ein fehlender Netzwerkhelfer verhindert kein Offline-Spiel."
 
+#. Startup update and recovery controls.
+
+msgid "update.validation_detail"
+msgstr "Update-Prüfung fehlgeschlagen: {0}\nInstallierte Dateien wurden nicht ersetzt."
+
+msgid "updates.release_page"
+msgstr "Release-Seite öffnen"
+
+msgid "updates.release_page_detail"
+msgstr "Laden Sie den offiziellen Installer. Schließen Sie SF4 und wählen Sie Ihren vorhandenen Ember-Ordner."
+
+msgid "updates.open_log"
+msgstr "Update-Protokoll öffnen"
+
+msgid "updates.open_log_detail"
+msgstr "Details in %TEMP%\\sf4-netplay-update.log anzeigen."
+
+msgid "updates.log_opened"
+msgstr "Update-Protokoll geöffnet."
+
+msgid "updates.log_missing"
+msgstr "Noch kein Update-Protokoll vorhanden."
+
+msgid "updates.startup_text"
+msgstr "Version {0} ist verfügbar. Sie haben {1}. Vor dem Start von SF4 installieren?"
+
+msgid "updates.release_opened"
+msgstr "Release-Seite geöffnet."
+
 msgid "updates.check"
 msgstr "Auf Updates prüfen"
 
@@ -2614,8 +2643,6 @@ msgstr "Im heruntergeladenen Paket fehlen Launcher.exe oder Sidecar.dll."
 msgid "update.staging_path_failed"
 msgstr "Staging-Pfad nicht lesbar."
 
-msgid "update.validation_failed"
-msgstr "Paketprüfung fehlgeschlagen (erforderliche Dateien fehlen)."
 
 msgid "update.cancelled"
 msgstr "Update vor der Installation abgebrochen."

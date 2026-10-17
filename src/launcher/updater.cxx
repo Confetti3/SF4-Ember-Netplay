@@ -75,6 +75,16 @@ static bool WaitForProcessExit(DWORD pid, DWORD timeoutMs) {
 	return waitResult == WAIT_OBJECT_0;
 }
 
+static bool GameIsRunning() {
+    HANDLE snapshot=CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS,0);
+    if(snapshot==INVALID_HANDLE_VALUE) return true; // Cannot prove replacement is safe.
+    PROCESSENTRY32W item{}; item.dwSize=sizeof(item); bool running=false;
+    if(Process32FirstW(snapshot,&item)) do {
+        if(!_wcsicmp(item.szExeFile,L"SSFIV.exe")) { running=true; break; }
+    } while(Process32NextW(snapshot,&item));
+    CloseHandle(snapshot); return running;
+}
+
 static bool StartLauncher(const wchar_t* installDir, const wchar_t* arguments = nullptr) {
 	wchar_t launcherPath[MAX_PATH] = { 0 };
 	if (FAILED(PathCchCombine(launcherPath, MAX_PATH, installDir, L"Launcher.exe"))) {
@@ -142,6 +152,7 @@ int wmain(int argc, wchar_t** argv) {
 		return 1;
 	}
 	if (arguments.uninstall) return Uninstall(arguments.installDir.c_str());
+    if (GameIsRunning()) { AppendLog("ERROR: close SF4 before updating or recovering Ember"); return 1; }
 
 	sf4e::launcher::UpdaterHost host;
 	host.waitForLauncher = [](std::uint32_t pid) { return WaitForProcessExit(pid, 30000); };

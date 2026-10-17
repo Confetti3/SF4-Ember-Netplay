@@ -558,7 +558,7 @@ bool UninstallPackage(const fs::path& installInput, std::string& error) {
 // The required and obsolete paths a package's own PackageInventory.inc
 // declares, as preflight reads them, so a package of any version is held to
 // its own list rather than this build's.
-struct Inventory { std::map<std::wstring,fs::path> required; std::set<std::wstring> obsolete; };
+struct Inventory { std::map<std::wstring,fs::path> required; std::set<std::wstring> allowed, obsolete; };
 // Every line is blank, a // comment, or exactly one declaration such as
 // SF4E_PACKAGE_REQUIRED("notices\\Discord-SDK.txt"), spaces allowed around it.
 // Anything else is refused rather than skipped, so a line this reader cannot
@@ -595,9 +595,15 @@ Inventory ReadInventory(const fs::path& file) {
         const fs::path relative=fs::u8path(text);
         if(text.empty() || relative.is_absolute() || relative.has_root_name() || relative.has_root_directory()) throw std::runtime_error("Invalid package inventory");
         for(const auto& part:relative) if(part.empty() || part==L"." || part==L"..") throw std::runtime_error("Invalid package inventory");
-        if(kind=="REQUIRED") inventory.required.emplace(PathKey(relative),relative);
-        else if(kind=="OBSOLETE") inventory.obsolete.insert(PathKey(relative));
-        else if(kind!="OPTIONAL") throw std::runtime_error("Invalid package inventory");
+        // The verified release declares its own product files. The installed
+        // binary cannot know the names a future release will introduce.
+        const auto key=PathKey(relative);
+        if(UpdaterState(key) || UpdaterState(PathKey(*relative.begin())) ||
+            PathKey(*relative.begin())==PathKey(L".ember-update-backups")) throw std::runtime_error("Reserved updater path in package inventory");
+        if(kind=="REQUIRED") { inventory.required.emplace(key,relative); inventory.allowed.insert(key); }
+        else if(kind=="OPTIONAL") inventory.allowed.insert(key);
+        else if(kind=="OBSOLETE") inventory.obsolete.insert(key);
+        else throw std::runtime_error("Invalid package inventory");
     }
     if(input.bad() || inventory.required.empty()) throw std::runtime_error("Invalid package inventory");
     return inventory;
@@ -616,14 +622,22 @@ static Manifest PackageManifest(const fs::path& package) {
 static Manifest VerifiedPackage(const fs::path& package, Manifest manifest, const std::atomic<bool>& cancel, const Progress& progress) {
     // Announced before the folder is walked, which takes a while too.
     Announce(cancel,progress,UpdateStage::Preparing,manifest.size());
+    CheckPath(package,L"PackageInventory.inc");
+    const auto inventoryEntry=manifest.find(PathKey(L"PackageInventory.inc"));
+    if(inventoryEntry==manifest.end() ||
+        !SameHash(HashFile(package/L"PackageInventory.inc",cancel),inventoryEntry->second.second))
+        throw std::runtime_error("Package inventory failed verification");
+    const auto inventory=ReadInventory(package/L"PackageInventory.inc");
     std::set<std::wstring> seen;
     std::vector<fs::path> present; std::vector<std::string> expected;
     for(fs::recursive_directory_iterator entry(package), end; entry!=end; ++entry) {
         const auto relative=entry->path().lexically_relative(package);
         CheckPath(package,relative);
         if(entry->is_directory()) continue;
-        if(!entry->is_regular_file() || !IsProductPath(relative)) throw std::runtime_error("Unexpected package file");
         const auto key=PathKey(relative);
+        if(!entry->is_regular_file() || UpdaterState(key) ||
+            (!IsProductPath(relative) && !inventory.allowed.count(key)))
+            throw std::runtime_error("Unexpected package file: "+relative.u8string());
         if(key==PathKey(L"MANIFEST.txt")) continue;
         const auto named=manifest.find(key);
         if(named==manifest.end()) throw std::runtime_error("Package file not in its manifest");
@@ -637,7 +651,6 @@ static Manifest VerifiedPackage(const fs::path& package, Manifest manifest, cons
     for(const auto& [key,named]:manifest) if(!seen.count(key)) throw std::runtime_error("Incomplete package");
     // Matching its manifest is not having what it needs: a package also meets
     // its own inventory's required list and carries none of its obsolete files.
-    const auto inventory=ReadInventory(package/L"PackageInventory.inc");
     seen.insert(PathKey(L"MANIFEST.txt"));
     for(const auto& [key,relative]:inventory.required) if(!seen.count(key)) throw std::runtime_error("Incomplete package: "+relative.u8string());
     for(const auto& key:seen) if(inventory.obsolete.count(key)) throw std::runtime_error("Package carries an obsolete file");
@@ -681,7 +694,7 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         if(fs::exists(fs::symlink_status(install/L"MANIFEST.txt")))
             for(const auto& [key,entry]:ReadManifest(install/L"MANIFEST.txt")) owned.emplace(key,entry.first);
         for(const auto& [key,relative]:owned) {
-            if(named.count(key) || key==PathKey(L"MANIFEST.txt") || !IsProductPath(relative) || !fs::exists(fs::symlink_status(install/relative))) continue;
+            if(named.count(key) || key==PathKey(L"MANIFEST.txt") || UpdaterState(key) || !fs::exists(fs::symlink_status(install/relative))) continue;
             CheckPath(install,relative);
             if(!fs::is_regular_file(install/relative)) throw std::runtime_error("Destination is not a file");
             removals.push_back(relative);

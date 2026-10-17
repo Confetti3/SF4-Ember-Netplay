@@ -28,7 +28,7 @@ namespace sf4e { namespace platform {
 // SkipUpdate records that they skipped it. OpenSteamProfile opens a member's
 // Steam profile page in the browser; only OpenSteamProfilePage starts it, with a SteamId.
 enum class ServiceAction { None, CheckUpdates, SwitchUpdateChannel, ExportDiagnostics, OpenUpdater, InstallUpdate, OpenRecovery, OpenCommunity, OpenReplayFolder, ShowReplayFile, OpenSteamProfile,
-    PrepareProblemReport, PrepareCrashReport, SendReport, CancelReport, ReportCrash, LaunchUpdateCheck, UpdateNow, SkipUpdate };
+    PrepareProblemReport, PrepareCrashReport, SendReport, CancelReport, ReportCrash, LaunchUpdateCheck, UpdateNow, SkipUpdate, OpenUpdateRelease, OpenUpdateLog };
 // Where the launch check is. Off is a service that makes none (a snapshot
 // nobody started one for); Waiting is a launch check not yet asked for.
 enum class LaunchCheck { Off, Waiting, Running, Settled };
@@ -93,7 +93,7 @@ struct ServiceSnapshot {
     // The action `message` describes, so the interface can show it on the
     // row that requested it rather than on whichever row happens to bind it.
     ServiceAction lastAction = ServiceAction::None;
-    std::string message;
+    std::string message, updateError;
     // The step an update being fetched is at, and how far: bytes while
     // downloading and verifying, files after. A total of 0 is not known.
     launcher::UpdateStage updateStage = launcher::UpdateStage::Downloading;
@@ -133,6 +133,7 @@ struct ServiceHooks {
     std::function<launcher::UpdateCheckResult(launcher::UpdateChannel)> checkForUpdate;
     std::function<std::uint64_t()> clock;
     std::optional<UpdatePolicy::Store> policyStore;
+    int updateCheckBudgetMs = 15000;
 };
 class ApplicationServices {
 public:
