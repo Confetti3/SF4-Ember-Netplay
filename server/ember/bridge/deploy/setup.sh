@@ -27,6 +27,9 @@
 #   /var/backups/ember-bridge/                         daily backups, kept 14 days (0700)
 #   /etc/systemd/system/ember-bridge*.{service,timer}  the service and the backup timer
 #   /etc/nginx/conf.d/ember-bridge.conf                request rate zones, shared by every instance
+#                                                      (an address's budget counts both bridges);
+#                                                      another instance installs it only when absent,
+#                                                      and refuses to replace a different one
 #   /etc/nginx/sites-available/bridge.embernetplay.link (and its sites-enabled link)
 # Nothing is opened in ufw: the bridge listens on loopback, nginx already serves 80 and 443.
 #
@@ -66,6 +69,13 @@ for file in "$CERT" "$KEY"; do
         exit 1
     fi
 done
+# The zone file holds production's request limits too, so only production's
+# setup replaces it.
+if [ -n "$INSTANCE" ] && [ -e "$ZONE" ] && ! cmp -s "$SRC/nginx/ember-bridge-zone.conf" "$ZONE"; then
+    echo "$ZONE differs from $SRC/nginx/ember-bridge-zone.conf. It sets production's request limits as well;" >&2
+    echo "install it with production's setup.sh first, or copy the installed one into this folder." >&2
+    exit 1
+fi
 # The instance's host and port, from the origin and listen its tenants file
 # also writes into bridge.json below.
 ADDRESS=$(cat <<'PY'
