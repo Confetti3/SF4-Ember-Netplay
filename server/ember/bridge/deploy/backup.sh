@@ -7,10 +7,16 @@
 # database's WAL and shared-memory files out of the way. integrations.json
 # (other services' secrets) is left out and left in place: it can be stored
 # again from those services at any time.
+#
+# INSTANCE picks the bridge as in setup.sh; the backup service setup.sh
+# installs for an instance such as staging sets it.
 set -euo pipefail
 
-STATE=/var/lib/ember-bridge
-DEST=/var/backups/ember-bridge
+INSTANCE=${INSTANCE:-}
+[[ "$INSTANCE" =~ ^([a-z][a-z0-9]{0,15})?$ ]] || { echo "INSTANCE must be empty (production) or a lowercase name such as staging." >&2; exit 2; }
+NAME=ember-bridge${INSTANCE:+-$INSTANCE}
+STATE=/var/lib/$NAME
+DEST=/var/backups/$NAME
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 
 # Everything is written under .partial names and renamed once complete, the

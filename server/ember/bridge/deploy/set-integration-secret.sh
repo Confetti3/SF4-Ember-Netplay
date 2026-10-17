@@ -9,14 +9,21 @@
 #       The API key BluMint issued for that connection, such as blumint-partner-staging.
 #   sudo bash ~/ember-bridge/set-integration-secret.sh result <connection-id>
 #       The secret that connection's results are signed with (ember-bridge result-secret).
+# These store the production bridge's secrets. For another instance, set
+# INSTANCE as in setup.sh, such as
+#   sudo INSTANCE=staging bash ~/ember-bridge-staging/set-integration-secret.sh discord
 #
 # The secret is pasted at a hidden prompt, so it never appears on the screen,
 # in the shell history or on a command line. It is written to
-# /var/lib/ember-bridge/integrations.json (0600, owned by ember-bridge), which
-# backups leave out and a restore leaves in place. Pasting nothing removes it.
+# /var/lib/ember-bridge/integrations.json (0600, owned by ember-bridge; for
+# staging, the same names with -staging), which backups leave out and a
+# restore leaves in place. Pasting nothing removes it.
 set -euo pipefail
 
-STATE=/var/lib/ember-bridge
+INSTANCE=${INSTANCE:-}
+[[ "$INSTANCE" =~ ^([a-z][a-z0-9]{0,15})?$ ]] || { echo "INSTANCE must be empty (production) or a lowercase name such as staging." >&2; exit 2; }
+NAME=ember-bridge${INSTANCE:+-$INSTANCE}
+STATE=/var/lib/$NAME
 FILE=$STATE/integrations.json
 
 [ "$(id -u)" -eq 0 ] || { echo "Run with sudo." >&2; exit 1; }
@@ -31,7 +38,7 @@ case "${1:-}" in
         what="result secret for $2"; key="result_secrets/$2" ;;
     *) echo "usage: set-integration-secret.sh discord | rooms | blumint <connection-id> | result <connection-id>" >&2; exit 2 ;;
 esac
-[ -d "$STATE" ] || { echo "Install the bridge first (setup.sh)." >&2; exit 1; }
+[ -d "$STATE" ] || { echo "Install $NAME first (setup.sh)." >&2; exit 1; }
 
 read -r -s -p "Paste the $what, then press Enter: " secret
 echo
@@ -67,14 +74,14 @@ with os.fdopen(handle, "w") as file:
 os.replace(temporary, path)
 PY
 )
-printf '%s' "$secret" | sudo -u ember-bridge python3 -c "$WRITE" "$FILE" "$key"
+printf '%s' "$secret" | sudo -u "$NAME" python3 -c "$WRITE" "$FILE" "$key"
 unset secret
 
-systemctl restart ember-bridge
+systemctl restart "$NAME"
 sleep 2
-if systemctl is-active --quiet ember-bridge; then
+if systemctl is-active --quiet "$NAME"; then
     echo "Stored. The bridge restarted."
 else
-    echo "Stored, but the bridge did not start; see: sudo journalctl -u ember-bridge -n 30" >&2
+    echo "Stored, but the bridge did not start; see: sudo journalctl -u $NAME -n 30" >&2
     exit 1
 fi

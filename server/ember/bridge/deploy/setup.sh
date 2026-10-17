@@ -1,13 +1,20 @@
 #!/usr/bin/env bash
-# Installs the Ember tournament bridge at https://bridge.embernetplay.link.
-# Run as: sudo bash ~/ember-bridge/setup.sh
+# Installs one Ember tournament bridge. Run as one of:
+#   sudo bash ~/ember-bridge/setup.sh
+#       production, https://bridge.embernetplay.link (tenants.json)
+#   sudo INSTANCE=staging bash ~/ember-bridge-staging/setup.sh
+#       staging, https://bridge-staging.embernetplay.link (tenants.staging.json)
 #
 # Expects, next to this script: bin/ember-bridge (built as katie with
 # `cargo build --release --locked -p ember-bridge` in ~/ember-bridge/src/server/ember),
-# the unit files, backup.sh, tenants.json and nginx/. Running it again installs a
-# newer binary and applies tenants.json; the bridge ID, secrets and database stay.
+# the unit files, backup.sh, restore.sh, the instance's tenants file and
+# nginx/. The tenants file sets the instance's origin and listen address, and
+# nginx/<host>.conf must send that host to that port. Running it again
+# installs a newer binary and applies the tenants file; the bridge ID,
+# secrets and database stay.
 #
-# What it changes:
+# What it changes, for production (an instance such as staging puts
+# -<instance> after ember-bridge in every name and path, and has its own site):
 #   user ember-bridge                                  system account the bridge runs as
 #   /usr/local/lib/ember-bridge/                       binary, backup and restore scripts (root-owned)
 #   /var/lib/ember-bridge/                             bridge.json, bridge-secrets.json, database (0700)
@@ -17,43 +24,82 @@
 #                                                      their secrets are stored there
 #   /var/backups/ember-bridge/                         daily backups, kept 14 days (0700)
 #   /etc/systemd/system/ember-bridge*.{service,timer}  the service and the backup timer
-#   /etc/nginx/conf.d/ember-bridge.conf                request rate zones
+#   /etc/nginx/conf.d/ember-bridge.conf                request rate zones, shared by every instance
 #   /etc/nginx/sites-available/bridge.embernetplay.link (and its sites-enabled link)
 # Nothing is opened in ufw: the bridge listens on loopback, nginx already serves 80 and 443.
+#
+# EMBER_BRIDGE_ROOT moves every path above under that folder. test-setup.sh
+# uses it with stand-ins for the commands that need root; leave it unset on
+# the server.
 set -euo pipefail
 
 SRC="$(cd "$(dirname "$0")" && pwd)"
-# Commands run as ember-bridge below would not be able to read katie's home.
+# Commands run as the service account below would not be able to read katie's home.
 cd /
-HOST=bridge.embernetplay.link
-LIB=/usr/local/lib/ember-bridge
-STATE=/var/lib/ember-bridge
-BACKUPS=/var/backups/ember-bridge
-SITE=/etc/nginx/sites-available/$HOST
-ENABLED=/etc/nginx/sites-enabled/$HOST
-ZONE=/etc/nginx/conf.d/ember-bridge.conf
+# INSTANCE names a bridge beside production, such as staging; empty is production.
+INSTANCE=${INSTANCE:-}
+[[ "$INSTANCE" =~ ^([a-z][a-z0-9]{0,15})?$ ]] || { echo "INSTANCE must be empty (production) or a lowercase name such as staging." >&2; exit 2; }
+NAME=ember-bridge${INSTANCE:+-$INSTANCE}
+TENANTS=tenants${INSTANCE:+.$INSTANCE}.json
+ROOT=${EMBER_BRIDGE_ROOT:-}
+LIB=$ROOT/usr/local/lib/$NAME
+STATE=$ROOT/var/lib/$NAME
+BACKUPS=$ROOT/var/backups/$NAME
+UNITS=$ROOT/etc/systemd/system
+ZONE=$ROOT/etc/nginx/conf.d/ember-bridge.conf
+CERT=$ROOT/etc/ssl/certs/embernetplay.link.fullchain.pem
+KEY=$ROOT/etc/ssl/private/embernetplay.link.key
 
 if [ "$(id -u)" -ne 0 ]; then
     echo "Run with sudo." >&2
     exit 1
 fi
+if [ ! -f "$SRC/$TENANTS" ]; then
+    echo "Missing $SRC/$TENANTS" >&2
+    exit 1
+fi
+# The instance's host and port, from the origin and listen its tenants file
+# also writes into bridge.json below.
+ADDRESS=$(cat <<'PY'
+import json, re, sys
+deployed = json.load(open(sys.argv[1]))
+origin = re.fullmatch(r"https://([a-z0-9.-]+)", str(deployed.get("origin")))
+listen = re.fullmatch(r"127\.0\.0\.1:([1-9][0-9]{0,4})", str(deployed.get("listen")))
+if not origin or not listen:
+    sys.exit(f"{sys.argv[1]} needs origin https://<host> and listen 127.0.0.1:<port>")
+print(origin[1], listen[1])
+PY
+)
+ADDRESS=$(python3 -c "$ADDRESS" "$SRC/$TENANTS")
+HOST=${ADDRESS% *}
+PORT=${ADDRESS#* }
+SITE=$ROOT/etc/nginx/sites-available/$HOST
+ENABLED=$ROOT/etc/nginx/sites-enabled/$HOST
+
 for file in bin/ember-bridge ember-bridge.service ember-bridge-backup.service \
-    ember-bridge-backup.timer backup.sh restore.sh tenants.json \
+    ember-bridge-backup.timer backup.sh restore.sh \
     nginx/ember-bridge-zone.conf nginx/$HOST.conf; do
     if [ ! -f "$SRC/$file" ]; then
         echo "Missing $SRC/$file" >&2
         exit 1
     fi
 done
-for file in /etc/ssl/certs/embernetplay.link.fullchain.pem /etc/ssl/private/embernetplay.link.key; do
+# A site that named another host or port would hand this address to another bridge.
+if ! grep -q "proxy_pass http://127.0.0.1:$PORT;" "$SRC/nginx/$HOST.conf" ||
+    grep -E '^[[:space:]]*(server_name|proxy_pass)[[:space:]]' "$SRC/nginx/$HOST.conf" |
+    grep -qvE "^[[:space:]]*(server_name ${HOST//./\\.}|proxy_pass http://127\.0\.0\.1:$PORT);\$"; then
+    echo "nginx/$HOST.conf must use server_name $HOST and proxy_pass http://127.0.0.1:$PORT only." >&2
+    exit 1
+fi
+for file in "$CERT" "$KEY"; do
     if [ ! -f "$file" ]; then
         echo "Missing $file (the embernetplay.link wildcard certificate)." >&2
         exit 1
     fi
 done
 
-if ! id ember-bridge >/dev/null 2>&1; then
-    useradd --system --home-dir "$STATE" --no-create-home --shell /usr/sbin/nologin ember-bridge
+if ! id "$NAME" >/dev/null 2>&1; then
+    useradd --system --home-dir "$STATE" --no-create-home --shell /usr/sbin/nologin "$NAME"
 fi
 
 install -d -o root -g root -m 0755 "$LIB"
@@ -61,16 +107,17 @@ install -o root -g root -m 0755 "$SRC/bin/ember-bridge" "$LIB/ember-bridge.new"
 mv -f "$LIB/ember-bridge.new" "$LIB/ember-bridge"
 install -o root -g root -m 0755 "$SRC/backup.sh" "$LIB/backup.sh"
 install -o root -g root -m 0755 "$SRC/restore.sh" "$LIB/restore.sh"
-install -d -o ember-bridge -g ember-bridge -m 0700 "$STATE" "$BACKUPS"
+install -d -o "$NAME" -g "$NAME" -m 0700 "$STATE" "$BACKUPS"
 
 # First install: a fresh bridge ID and secrets, then the deployed settings.
 if [ ! -f "$STATE/bridge.json" ]; then
-    sudo -u ember-bridge "$LIB/ember-bridge" init "$STATE"
+    sudo -u "$NAME" "$LIB/ember-bridge" init "$STATE"
 fi
-# Apply tenants.json and the deployed settings, keeping bridge_id and paths.
-# Development switches are always off here. Root only opens tenants.json
-# (katie's home is closed to the service account) and hands it over on
-# stdin; everything inside the service-owned folder runs as ember-bridge.
+# Apply the tenants file and the deployed settings, keeping bridge_id and
+# paths. Development switches are always off here. Root only opens the
+# tenants file (katie's home is closed to the service account) and hands it
+# over on stdin; everything inside the service-owned folder runs as the
+# service account.
 MERGE=$(cat <<'PY'
 import json, os, sys, tempfile
 path = sys.argv[1]
@@ -93,11 +140,26 @@ with os.fdopen(handle, "w") as file:
 os.replace(temporary, path)
 PY
 )
-sudo -u ember-bridge python3 -c "$MERGE" "$STATE/bridge.json" < "$SRC/tenants.json"
+sudo -u "$NAME" python3 -c "$MERGE" "$STATE/bridge.json" < "$SRC/$TENANTS"
 
-install -o root -g root -m 0644 "$SRC/ember-bridge.service" /etc/systemd/system/ember-bridge.service
-install -o root -g root -m 0644 "$SRC/ember-bridge-backup.service" /etc/systemd/system/ember-bridge-backup.service
-install -o root -g root -m 0644 "$SRC/ember-bridge-backup.timer" /etc/systemd/system/ember-bridge-backup.timer
+# Production installs the unit files as shipped. Another instance's units are
+# production's with its names: every account, unit and folder called
+# ember-bridge becomes $NAME (the binary inside keeps its name), and each
+# service carries INSTANCE, which backup.sh reads.
+render_unit() {
+    if [ -z "$INSTANCE" ]; then
+        cat "$1"
+        return
+    fi
+    sed -e "s#\(=\|lib/\|backups/\)ember-bridge\b#\1$NAME#g" \
+        -e "s#^Description=.*#& ($INSTANCE)#" \
+        -e "s#^\[Service\]\$#&\nEnvironment=INSTANCE=$INSTANCE#" "$1"
+}
+for unit in .service -backup.service -backup.timer; do
+    render_unit "$SRC/ember-bridge$unit" > "$UNITS/$NAME$unit.new"
+    chmod 0644 "$UNITS/$NAME$unit.new"
+    mv -f "$UNITS/$NAME$unit.new" "$UNITS/$NAME$unit"
+done
 
 # nginx: keep copies of the zone, the site and the enabled entry (or note
 # that each was absent) so a failed check puts everything back as it was.
@@ -125,14 +187,14 @@ if ! nginx -t; then
 fi
 
 systemctl daemon-reload
-systemctl enable ember-bridge ember-bridge-backup.timer
-systemctl restart ember-bridge
-systemctl start ember-bridge-backup.timer
+systemctl enable "$NAME" "$NAME-backup.timer"
+systemctl restart "$NAME"
+systemctl start "$NAME-backup.timer"
 systemctl reload nginx || systemctl restart nginx
 rm -rf "$backup"
 
 # The bridge must answer with its own origin, directly and through nginx.
-BRIDGE_ID=$(sudo -u ember-bridge python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["bridge_id"])' "$STATE/bridge.json")
+BRIDGE_ID=$(sudo -u "$NAME" python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["bridge_id"])' "$STATE/bridge.json")
 check() {
     local where=$1; shift
     local body
@@ -149,8 +211,8 @@ check() {
 }
 
 echo
-echo "=== ember-bridge ==="
-systemctl is-active ember-bridge
-check service http://127.0.0.1:47820/.well-known/ember-bridge.json
+echo "=== $NAME ==="
+systemctl is-active "$NAME"
+check service "http://127.0.0.1:$PORT/.well-known/ember-bridge.json"
 check public --resolve "$HOST:443:127.0.0.1" "https://$HOST/.well-known/ember-bridge.json"
 echo "=== done ==="

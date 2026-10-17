@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Restores one backup set made by backup.sh.
 # Run as: sudo bash /usr/local/lib/ember-bridge/restore.sh <stamp>
-# where <stamp> is the part of the file names such as 20261002T042000Z.
+#     or: sudo INSTANCE=staging bash /usr/local/lib/ember-bridge-staging/restore.sh <stamp>
+# where <stamp> is the part of the file names such as 20261002T042000Z, and
+# INSTANCE picks the bridge as in setup.sh.
 #
 # The database, secrets and bridge.json are restored as one bundle. As the
-# ember-bridge account, the script copies and checks all three into a staging
+# bridge's account, the script copies and checks all three into a staging
 # folder, moves the current files (with the database's -wal and -shm) into a
 # new recovery folder, and moves the staged files into place. If any step
 # fails it puts the current files back. Root only runs systemctl, and the
@@ -12,21 +14,29 @@
 # the files it had before.
 set -euo pipefail
 
+INSTANCE=${INSTANCE:-}
+[[ "$INSTANCE" =~ ^([a-z][a-z0-9]{0,15})?$ ]] || { echo "INSTANCE must be empty (production) or a lowercase name such as staging." >&2; exit 2; }
+NAME=ember-bridge${INSTANCE:+-$INSTANCE}
+STATE=/var/lib/$NAME
+BACKUPS=/var/backups/$NAME
+
 [ "$(id -u)" -eq 0 ] || { echo "Run with sudo." >&2; exit 1; }
 stamp=${1:-}
-[[ "$stamp" =~ ^[0-9]{8}T[0-9]{6}Z$ ]] || { echo "usage: restore.sh <stamp, for example 20261002T042000Z>" >&2; exit 2; }
+[[ "$stamp" =~ ^[0-9]{8}T[0-9]{6}Z$ ]] || { echo "usage: [INSTANCE=staging] restore.sh <stamp, for example 20261002T042000Z>" >&2; exit 2; }
+# A stamp from another instance's backups stops nothing.
+[ -f "$BACKUPS/bridge-$stamp.sqlite3" ] || { echo "$BACKUPS has no backup $stamp; $NAME was not stopped." >&2; exit 3; }
 
 # The timer first, so no new backup starts; then any backup already running
 # (stop waits for it to exit) and the bridge, so nothing holds the database.
-systemctl stop ember-bridge-backup.timer
-systemctl stop ember-bridge-backup.service ember-bridge
+systemctl stop "$NAME-backup.timer"
+systemctl stop "$NAME-backup.service" "$NAME"
 
 RESTORE=$(cat <<'SH'
 set -uo pipefail
 umask 077
 stamp=$1
-STATE=/var/lib/ember-bridge
-BACKUPS=/var/backups/ember-bridge
+STATE=$2
+BACKUPS=$3
 FILES="bridge.sqlite3 bridge-secrets.json bridge.json"
 SIDECARS="bridge.sqlite3-wal bridge.sqlite3-shm"
 
@@ -88,15 +98,15 @@ SH
 
 cd /
 status=0
-sudo -u ember-bridge bash -c "$RESTORE" restore "$stamp" || status=$?
+sudo -u "$NAME" bash -c "$RESTORE" restore "$stamp" "$STATE" "$BACKUPS" || status=$?
 case "$status" in
     0 | 1 | 3)
         # Restored, or left as it was: a consistent state to start from.
-        systemctl start ember-bridge ember-bridge-backup.timer
-        systemctl is-active ember-bridge || true
+        systemctl start "$NAME" "$NAME-backup.timer"
+        systemctl is-active "$NAME" || true
         ;;
     *)
-        echo "Not starting the bridge. Put the files from the recovery folder back by hand, then: systemctl start ember-bridge ember-bridge-backup.timer" >&2
+        echo "Not starting the bridge. Put the files from the recovery folder back by hand, then: systemctl start $NAME $NAME-backup.timer" >&2
         ;;
 esac
 exit "$status"
