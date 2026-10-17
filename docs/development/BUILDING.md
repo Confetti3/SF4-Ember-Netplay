@@ -7,7 +7,7 @@ Build and package locally; pushing a tag does not trigger a second build or publ
 
 - Windows x64 and PowerShell 7 (`pwsh`).
 - Visual Studio 2026 C++ Build Tools with x86/x64 compilers, CMake, Ninja and the Windows SDK.
-- Git, Python 3.10+ and a bootstrapped vcpkg checkout. The manifest and overlay ports pin the dependency inputs.
+- Git, Python 3.12 or later and a bootstrapped vcpkg checkout. The manifest and overlay ports pin the dependency inputs.
 - Rust through rustup; `rust/sf4-net/rust-toolchain.toml` pins the toolchain.
 - The official Discord Social SDK archive identified by `cmake/discord-sdk-pin.json`. Obtain it through Discord's developer portal; configuration verifies its SHA-256. The SDK archive is not stored in this repository.
 
