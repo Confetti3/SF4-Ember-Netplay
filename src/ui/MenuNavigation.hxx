@@ -15,7 +15,7 @@ struct MenuInput {
     // straight in, so both enums number them alike (asserted in
     // ControllerNavigation.hxx); 64 is left for the sample's Menu button.
     // Leave is the Delete key: it leaves your seat from your own table card,
-    // which a pad does with B.
+    // also available through the visible Leave seat or Leave queue button.
     enum Button : unsigned { Up=1, Down=2, Left=4, Right=8, Select=16, Back=32, Fighter=128, Options=256, Chat=512, Leave=1024 };
     unsigned held = 0;
     double time = 0;
@@ -61,7 +61,7 @@ struct MenuEntry {
     std::string hint;
     std::size_t textLimit = 256;
     // Explicit pane transitions; empty preserves ordinary list/grid movement.
-    std::string left, right;
+    std::string left, right, up, down;
     // Presentation-only grace during a healthy room checkpoint. Never authorizes an action.
     bool pending = false;
     // A detail that embeds a player's name, or is a chat message.
@@ -114,7 +114,7 @@ struct MenuAction {
     std::string id, text;
     int delta = 0;
     // A Back that came from Escape or Backspace, which always goes back;
-    // only a pad's B may mean "leave my seat".
+    // renderers can distinguish it from a controller press.
     bool keyboard = false;
     // Accepted text can be a passphrase, so no copy of an action leaves it
     // behind. (With this destructor, copies stand in for moves.)
@@ -129,6 +129,13 @@ public:
     void Push(const std::string& screen) {
         if (screen.empty() || screen == Screen()) return;
         Cancel(); stack_.push_back(screen); states_[screen]; NeutralGate();
+    }
+    // A shortcut preserves its caller. Revisiting a page already on the path
+    // unwinds to it instead of creating a cycle in Back navigation.
+    void Open(const std::string& screen) {
+        const auto found = std::find(stack_.begin(), stack_.end(), screen);
+        if (found == stack_.end()) { Push(screen); return; }
+        Cancel(); stack_.erase(found + 1, stack_.end()); NeutralGate();
     }
     void Home() { Cancel(); stack_.resize(1); NeutralGate(); }
     void Cancel() {
@@ -304,8 +311,8 @@ public:
         if(!move||entries.empty()) return {};
         auto& s=states_[Screen()]; const auto& e=entries[s.index];
         int delta=(direction&MenuInput::Left)?-1:(direction&MenuInput::Right)?1:0;
-        const auto& neighbor=delta<0?e.left:e.right;
-        if(delta&&!neighbor.empty()){Focus(neighbor,entries);return {};}
+        const auto& neighbor=direction==MenuInput::Up?e.up:direction==MenuInput::Down?e.down:delta<0?e.left:e.right;
+        if(!neighbor.empty()){Focus(neighbor,entries);return {};}
         int index=static_cast<int>(s.index), count=static_cast<int>(entries.size());
         // A grid's footer rows sit under its cards, one per line.
         const int cells=columns>1?static_cast<int>(MenuGridCells(entries)):count;

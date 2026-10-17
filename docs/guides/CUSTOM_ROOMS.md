@@ -104,16 +104,15 @@ The running count, such as 2 - 1, replaces "VS" on the table card and "vs" on
 the match HUD, and the HUD keeps the final count on the screen of the game that
 ended the set. Both fighters must ready again after returning to the room. When
 a fighter leaves their seat, the next queued member takes that seat and the new
-pair starts with fresh win counts. B on your own table card, or
-**Leave seat** in the table options, leaves your seat at once. It asks first
+pair starts with fresh win counts. **Leave seat** on the room board or in the table options leaves your seat at once. It asks first
 only when the pair has wins on the board or a queued member would take the seat;
 the question starts on staying. A game in progress or an unresolved result holds
-the seat, and B says why. While a start is held for a locked-in spectator, B
+the seat, and the disabled button says why. While a start is held for a locked-in spectator, **Cancel the start**
 cancels the start by taking Ready back. An unresolved game does not award a win or erase earlier
 wins for the same pair.
 
 Queued members automatically watch each game while retaining their queue
-positions. B on your queue card, or **Leave queue**, leaves the queue at once.
+positions. **Leave queue** on the room board or in the table options leaves the queue at once.
 Leaving the queue during a game lets you finish watching it; the place ends with
 that game unless you press **Watch next game**. Between games, leaving the queue
 returns you to the room. A queued member has no Watch or Stop watching action of
@@ -202,3 +201,16 @@ See [CUSTOM_ROOMS_STATUS.md](../validation/CUSTOM_ROOMS_STATUS.md) for the exact
 evidence. Local
 component and synthetic helper tests do not establish native gameplay,
 multi-machine acceptance, or installation acceptance.
+
+### Room menu navigation
+
+Back returns to the previous screen without giving up your seat or queue place.
+The board has buttons for Fighter select, Table options, Player and controller,
+Settings, Chat and leaving your place. These buttons work with every controller
+that can navigate Ember; X/Y/View are optional shortcuts. A shortcut opened from
+a settings page returns there when pressed again. On wide screens, Up and Down
+follow the action buttons' columns and Left and Right move between buttons.
+On narrow screens the same actions appear in one scrolling list.
+
+Delete remains an optional keyboard shortcut on your own table card. Leaving a
+seat with a score or a waiting player still asks for confirmation.

@@ -172,7 +172,8 @@ void RoomJourneys() {
  Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="roster","X reopened the selector on the sub-page it was left on");
  h.Press(MenuInput::Fighter);Check(h.shell.Navigation().Screen()=="room","X in fighter selection did not return to the board");
  h.Press(MenuInput::Fighter);h.Press(MenuInput::Chat);Check(h.shell.Navigation().Screen()=="room-chat","View in fighter selection did not open chat");
- h.Press(MenuInput::Chat);h.selection=[]{};h.view.canEditSelection=false;
+ h.Press(MenuInput::Chat);Check(h.shell.Navigation().Screen()=="selection","Chat did not return to its fighter-select caller");
+ h.Press(MenuInput::Fighter);h.selection=[]{};h.view.canEditSelection=false;
  // B on the board with no seat goes to Home, and B there does nothing rather
  // than dropping to the game's own menu.
  h.Press(MenuInput::Back);Check(h.shell.Navigation().Screen()=="home","B on the board did not reach Home");
@@ -225,33 +226,33 @@ void RoomJourneys() {
  SetMenuEntriesProbe({});h.view.room.tables[2].p2=2;h.view.canReady=true;
  h.Choose("ready");Check(h.actions.back().command.kind==Kind::Ready,"Ready journey");
  h.view.room.tables[2].ready[0]=true;h.Choose("ready");Check(h.actions.back().roomAction.kind==room::ActionKind::Unready,"Unready journey");
- // On the board, A on your own seat readies and unreadies, and one B leaves
- // the seat, ready or not. While the game is starting B takes Ready back
+ // On the board, A on your own seat readies and unreadies, and Delete leaves
+ // the seat, ready or not. While the game is starting Delete takes Ready back
  // instead, and the legend says which.
  h.Screen("room");h.view.room.tables[2].ready[0]=false;h.Choose("table-2");
  Check(h.actions.back().command.kind==Kind::Ready,"A on your seat did not ready");
  h.view.room.tables[2].ready[0]=true;h.Press(MenuInput::Select);
  Check(h.actions.back().roomAction.kind==room::ActionKind::Unready,"A again did not unready");
- h.Press(MenuInput::Back);Check(h.actions.back().roomAction.kind==room::ActionKind::Unqueue&&h.actions.back().roomAction.table==2&&
-  h.shell.Navigation().Screen()=="room","One B did not leave a readied seat");
+ h.Press(MenuInput::Leave);Check(h.actions.back().roomAction.kind==room::ActionKind::Unqueue&&h.actions.back().roomAction.table==2&&
+  h.shell.Navigation().Screen()=="room","Delete did not leave a readied seat");
  // Leaving a seat that holds a set score, or that passes to the queue, asks
  // first, and the answer starts on staying.
  auto& seatTable=h.view.room.tables[2];
  seatTable.score[0]=2;seatTable.score[1]=1;raced=h.actions.size();
- h.Press(MenuInput::Back);
+ h.Press(MenuInput::Leave);
  Check(h.shell.Navigation().Choosing()&&h.shell.Navigation().DialogId()=="table-2"&&h.shell.Navigation().ChoiceIndex()==0&&h.actions.size()==raced,
-  "B on a seat with a set score did not ask before leaving");
+  "Delete on a seat with a set score did not ask before leaving");
  h.Press(MenuInput::Select);
  Check(!h.shell.Navigation().Choosing()&&h.actions.size()==raced&&h.shell.Navigation().Screen()=="room","The leave question did not start on staying");
- h.Press(MenuInput::Back);Check(h.shell.Navigation().Choosing(),"B did not ask again");
- h.Press(MenuInput::Back);Check(!h.shell.Navigation().Choosing()&&h.actions.size()==raced,"B did not cancel the leave question");
- h.Press(MenuInput::Back);h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+ h.Press(MenuInput::Leave);Check(h.shell.Navigation().Choosing(),"Delete did not ask again");
+ h.Press(MenuInput::Back);Check(!h.shell.Navigation().Choosing()&&h.actions.size()==raced,"Delete did not cancel the leave question");
+ h.Press(MenuInput::Leave);h.Press(MenuInput::Right);h.Press(MenuInput::Select);
  Check(h.actions.size()==raced+1&&h.actions.back().roomAction.kind==room::ActionKind::Unqueue&&h.actions.back().roomAction.table==2,
   "Confirming the leave question did not release the seat");
  seatTable.score[0]=seatTable.score[1]=0;seatTable.queue={3};raced=h.actions.size();
- h.Press(MenuInput::Back);
- Check(h.shell.Navigation().Choosing()&&h.actions.size()==raced,"B on a seat with someone queued did not ask before handing it over");
- h.Press(MenuInput::Back);Check(!h.shell.Navigation().Choosing()&&h.actions.size()==raced,"B did not cancel the handover question");
+ h.Press(MenuInput::Leave);
+ Check(h.shell.Navigation().Choosing()&&h.actions.size()==raced,"Delete on a seat with someone queued did not ask before handing it over");
+ h.Press(MenuInput::Back);Check(!h.shell.Navigation().Choosing()&&h.actions.size()==raced,"Delete did not cancel the handover question");
  // The options screen's Leave seat row asks the same way, in its own dialog.
  h.Press(MenuInput::Options);
  Check(h.shell.Navigation().Screen()=="room-table","Y did not open the seat's options");
@@ -280,23 +281,23 @@ void RoomJourneys() {
  }
  seatTable.phase=room::TablePhase::Waiting;seatTable.ready[0]=true;
  SetMenuEntriesProbe({});SetMenuTextProbe({});
- // The start hold: A and B both take Ready back, so one press of B always
- // gets a player out of a start they did not want. B is labelled for that.
+ // The start hold: A and Delete both take Ready back, so one press of Delete always
+ // gets a player out of a start they did not want. Delete is labelled for that.
  std::string boardStatus;SetMenuStatusProbe([&](const char* status,Tone){boardStatus=status;});
  const std::string finishFirst=loc::T("room.leave_seat.finish_first");
  h.view.room.tables[2].ready[1]=true;h.view.room.tables[2].phase=room::TablePhase::Ready;h.view.room.tables[2].spectatorHold=true;
- raced=h.actions.size();h.Press(MenuInput::Back);
+ raced=h.actions.size();h.Press(MenuInput::Leave);
  Check(h.actions.size()==raced+1&&h.actions.back().roomAction.kind==room::ActionKind::Unready&&h.shell.Navigation().Screen()=="room",
-  "B while the start is held did not unready, or left the board");
+  "Delete while the start is held did not unready, or left the board");
  h.Press(MenuInput::Select);Check(h.actions.back().roomAction.kind==room::ActionKind::Unready,"A while the start is held did not unready");
- h.view.room.tables[2].spectatorHold=false;raced=h.actions.size();h.Press(MenuInput::Back);
- Check(h.actions.size()==raced&&h.shell.Navigation().Screen()=="room","B during a starting game left the seat or the board");
+ h.view.room.tables[2].spectatorHold=false;raced=h.actions.size();h.Press(MenuInput::Leave);
+ Check(h.actions.size()==raced&&h.shell.Navigation().Screen()=="room","Delete during a starting game left the seat or the board");
  // A refusal names its screen, its cause and a few seconds: it lapses on its
  // own, ends when what refused it does, and does not follow the player.
- Check(boardStatus==finishFirst,"B during a starting game gave no reason");
+ Check(boardStatus==finishFirst,"Delete during a starting game gave no reason");
  h.Frame(0,240);Check(boardStatus==finishFirst,"A refusal lapsed before its time");
  h.Frame(0,90);Check(boardStatus.find(finishFirst)==std::string::npos,"A refusal outlived its time");
- h.Press(MenuInput::Back);Check(boardStatus==finishFirst,"B during a starting game gave no reason again");
+ h.Press(MenuInput::Leave);Check(boardStatus==finishFirst,"Delete during a starting game gave no reason again");
  h.view.room.tables[2].phase=room::TablePhase::Waiting;h.view.room.tables[2].ready[0]=h.view.room.tables[2].ready[1]=false;h.Frame();
  Check(boardStatus.find(finishFirst)==std::string::npos,"A refusal outlived what refused it");
  // X on a readied seat says to unready, not that the runtime is waiting; in a
@@ -310,7 +311,7 @@ void RoomJourneys() {
  Check(h.shell.Navigation().Screen()=="room"&&boardStatus.find("closed")!=std::string::npos&&boardStatus.find("Unready")==std::string::npos,
   "X in a closed room told a fighter who is not ready to unready");
  h.view.room.closed=false;h.Frame();
- h.view.room.tables[2].phase=room::TablePhase::Ready;h.Press(MenuInput::Back);Check(boardStatus==finishFirst,"B during a starting game gave no reason a third time");
+ h.view.room.tables[2].phase=room::TablePhase::Ready;h.Press(MenuInput::Leave);Check(boardStatus==finishFirst,"Delete during a starting game gave no reason a third time");
  // B away from your own card is the ordinary Back: Home, keeping the seat.
  h.Press(MenuInput::Right);raced=h.actions.size();h.Press(MenuInput::Back);
  Check(h.actions.size()==raced&&h.shell.Navigation().Screen()=="home","B off your own card gave up the seat instead of going Home");
@@ -352,9 +353,9 @@ void RoomJourneys() {
  h.view.room.tables[0].phase=room::TablePhase::Idle;h.view.room.tables[2].spectators.clear();
  h.view.room.members[0].seat=0;h.view.room.tables[2].p1=1;
  h.Screen("room");h.FocusOn("table-2");
- // A queued member's B leaves the queue.
- h.view.room.members[0].seat=-1;h.view.room.tables[2].p1=3;h.view.room.tables[2].queue={1};h.Press(MenuInput::Back);
- Check(h.actions.back().roomAction.kind==room::ActionKind::Unqueue&&h.shell.Navigation().Screen()=="room","B did not leave the queue");
+ // Delete on a queued member's own card leaves the queue.
+ h.view.room.members[0].seat=-1;h.view.room.tables[2].p1=3;h.view.room.tables[2].queue={1};h.Press(MenuInput::Leave);
+ Check(h.actions.back().roomAction.kind==room::ActionKind::Unqueue&&h.shell.Navigation().Screen()=="room","Delete did not leave the queue");
  h.view.room.members[0].seat=0;h.view.room.tables[2].p1=1;h.view.room.tables[2].queue.clear();
  h.Screen("room-table");
  h.view.room.tables[2].ready[0]=false;h.view.session.match=netplay::MatchState::PostMatch;

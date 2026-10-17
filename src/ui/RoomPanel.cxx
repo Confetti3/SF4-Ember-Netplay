@@ -4,6 +4,7 @@
 #include "RoomFeedback.hxx"
 #include "RoomControls.hxx"
 #include "RoomCards.hxx"
+#include "RoomBoardNavigation.hxx"
 #include "LatencyMark.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
@@ -120,7 +121,7 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
         action.kind == room::ActionKind::Unwatch) && localSeated) return false;
     if (action.kind == room::ActionKind::AbortMatch && AbandonableAt(view, table) == AbandonableGame::None) return false;
     if (action.kind == room::ActionKind::Unqueue && localSeated) {
-        // The same rule B and the Leave seat row read.
+        // The same rule the board and table departure controls read.
         const auto hold = room::LeavingSeatHold(table, mine.seat, GameLive(view), PostMatch(view));
         if (hold != room::SeatHold::None) { Refuse(loc::T(LeaveBlockerKey(hold)), LeaveBlocked); return false; }
     }
@@ -203,8 +204,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
      // still names the state on its strip, but has no action to offer.
      const auto control=DescribeReady(v,table,mine.seat);
      rows.back().hint=control.label;rows.back().info=control.kind==ReadyControl::None;
-     // During a held start the card says what it waits for, and that B,
-     // Cancel the start, calls it off.
+     // A held start names its wait and the visible Cancel the start action.
      if(table.spectatorHold&&control.kind==ReadyControl::Unready)rows.back().detail=control.detail;
      const auto cost=CostOfLeavingSeat(table);
      if(leaveAsk_==static_cast<int>(table.id)&&cost)rows.back().choices={
@@ -228,14 +228,27 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
      loc::T(viewOnly?"room.stop_watching.finished":leaveGame?"room.leave_game.detail":"room.stop_watching.detail"),
      viewOnly||RoomTakesNow(v,ActionKind::Unwatch,static_cast<std::size_t>(v.watchedGame.table))));
    }
+   rows.push_back(Row("options",loc::T("room.table_options"),loc::Tf("room.table_options.detail",OptionsTable(v,selectedTable_)+1)));
+   const auto exit=ExitFromPlace(v);
+   if(exit.table>=0){
+    const auto& own=s.tables[exit.table];
+    std::string detail=!mutableRoom?RoomWaitReason(v):!exit.allowed?exit.blocker:
+     exit.unready?loc::T("room.hold.cancel_detail"):exit.seat?loc::T(own.queue.empty()?"room.leave_seat.release":"room.leave_seat.next_player"):
+     loc::T("room.leave_queue")+WatchingNote(v,room::ActionKind::Unqueue);
+    if(exit.allowed&&exit.cost)detail+=" " + LeavingCostText(exit.cost,own);
+    rows.push_back(Row("leave-place",exit.label,detail,mutableRoom&&exit.allowed));
+   }
+   rows.push_back(Row("selection",loc::T("home.fighter_select"),SelectionBlocker(v).empty()?
+    loc::T("room.change_fighter.detail"):SelectionBlocker(v),SelectionBlocker(v).empty()));
    for(const auto& m:s.members){rows.push_back(Row("member-"+std::to_string(m.id),loc::Tf(m.id==s.localMember?"room.member_you":"room.member",m.name),loc::Tf(m.host?"room.member_status_host":"room.member_status",StatusName(m.status))));
     rows.back().userText=true;}
    rows.push_back(Row("room-members",loc::T("room.members"),loc::Tf("room.member_count",s.members.size(),s.capacity)));
    const unsigned unread=transcript_.Unread(muted_);
    rows.push_back(Row("room-chat",loc::T("room.chat"),(unread?loc::Tf("room.chat.unread",unread)+" ":std::string())+loc::T("room.chat.detail")));
    if(unread)rows.back().value=std::to_string(unread);
-   // Changing fighter needs a seat, so it lives in the table options (and X).
-   rows.push_back(Row("options",loc::T("room.table_options"),loc::Tf("room.table_options.detail",OptionsTable(v,selectedTable_)+1)));
+   // Every controller can reach these actions without a device-specific shortcut.
+   rows.push_back(Row("player",loc::T("screen.player"),loc::T("settings.player_detail")));
+   rows.push_back(Row("settings",loc::T("home.settings"),loc::T("home.settings_detail")));
    rows.push_back(Row("room-admin",loc::T("room.settings"),loc::T(host?"room.settings.detail":"room.settings.host_only"),host));
   }else{
    rows.push_back(Row("room-status",loc::T("room.connection_status"),loc::T(v.session.room==netplay::RoomState::Opening?"room.opening":"room.waiting_state"),false));
@@ -257,11 +270,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   // A public room has no replacement: when its host is gone the room closes.
   if(v.session.recovery==netplay::Recovery::ReplacementOffered&&!s.serverOwned)
    rows.push_back(ConfirmRow("replace-room",loc::T("room.replace"),loc::T(v.canReplaceRoom?"room.replace.detail":"room.replace.waiting"),v.canReplaceRoom));
-  for(std::size_t i=0;i<rows.size();++i){auto& e=rows[i];
-   if(e.id.compare(0,6,"table-")==0)e.right=s.members.empty()?"room-members":"member-"+std::to_string(s.members.front().id);
-   else if(e.id.compare(0,7,"member-")==0)e.left="table-"+std::to_string(selectedTable_);
-   else {e.left=i?rows[i-1].id:e.id;e.right=i+1<rows.size()?rows[i+1].id:e.id;}
-  }
+  LinkRoomBoard(rows,ImGui::GetContentRegionAvail().x/Scale());
   }else if(screen=="room-table"){
    const std::string reason=!mutableRoom?RoomWaitReason(v):
     loc::T(elsewhere?"room.leave_current_table":"room.choose_action");
@@ -332,9 +341,9 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
      !delayEditable?loc::T("room.check_connection.finish_match"):check.detail,
      v.canProbe&&delayEditable&&!check.checking));
     if(check.namesPlayer)rows.back().detailText=DetailText::Name;
-    // The same departure rule as B on the board. Leaving that gives up a score
+    // The same departure rule as the board's Leave button. Leaving that gives up a score
     // asks first, and says what it gives up.
-    // During a held start B takes Ready back; this row only ever leaves, so it
+    // During a held start Cancel the start takes Ready back; this row leaves, so it
     // waits for Ready to be taken back first.
     const auto leave=ExitFromPlace(v);
     const bool leaves=leave.allowed&&!leave.unready;
@@ -448,15 +457,12 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  const float fullHeight=height;
  if(!wide)height=(std::max)(80*s,height-64*s);
  if(focus.compare(0,6,"table-")==0)selectedTable_=std::stoi(focus.substr(6));
- // B on your own table's card leaves your place there, cancels a start held
- // for a locked-in spectator, or says why a seat cannot be left yet; anywhere
- // else on the board it is the ordinary Back, so Home stays reachable without
- // giving up the place. On the keyboard Escape always goes back, and Delete
- // does what B does on your card.
+ // Back always navigates. Delete and the explicit leave button use the same
+ // guarded departure path; Delete keeps its existing own-card scope.
  const auto place=ExitFromPlace(v);
  const bool onOwnPlace=OnOwnPlace(place,focus);
  const bool leaveKey=action.kind==MenuAction::Shortcut&&action.delta==MenuInput::Leave;
- if(onOwnPlace&&((action.kind==MenuAction::Back&&!action.keyboard)||leaveKey))action={MenuAction::Activate,"leave-place"};
+ if(onOwnPlace&&leaveKey)action={MenuAction::Activate,"leave-place"};
  std::string elided;
  const auto text=[&](ImVec2 p,float width,const std::string& value,float size,ImU32 color,bool centred=false){DrawCardText(elided,p,width,value,size,color,centred);};
  // Flushed once per row, while the row's button is still the hovered item.
@@ -475,7 +481,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  };
  const auto tableCard=[&](const MenuEntry& e,float h){
   const auto& t=v.room.tables[std::stoi(e.id.substr(6))];
-  // The seat chooser, or on your own focused place what A and B do there.
+  // The seat chooser, or your focused seat's ready and departure controls.
   const bool choosing=nav.Choosing()&&nav.DialogId()==e.id&&!e.choices.empty();
   const bool ownPlace=!nav.Asking()&&onOwnPlace&&e.id==focus;
   TableCardView card;card.id=e.id;card.slot=t.id;card.height=h;
@@ -558,14 +564,15 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  ImGui::PushStyleColor(ImGuiCol_ChildBg,BoardPanelColor(v.SeeThrough()));
  if(wide){
   // The battle slots take the whole height on the left. Members, chat and the
-  // room's actions share the right, and the focused row's explanation runs
-  // under both.
+  // room's actions share the right. The explanation lives below the actions
+  // so its text cannot shrink the battle cards off the screen.
   const auto origin=ImGui::GetCursorScreenPos();const float width=ImGui::GetContentRegionAvail().x;
-  const float explanationHeight=ImGui::GetFontSize()+4*s;
-  const float boardHeight=(std::max)(180*s,height-explanationHeight-gap),leftWidth=(width-gap)*.50f,rightWidth=width-leftWidth-gap;
-  const int toolColumns=rightWidth>=3*170*s?3:2;
-  const float toolsHeight=std::ceil(toolbar.size()/float(toolColumns))*48*s+8*s;
-  const float communityHeight=(std::max)(120*s,boardHeight-toolsHeight-gap);
+  const float explanationHeight=3*ImGui::GetTextLineHeightWithSpacing()+12*s;
+  const float boardHeight=height,leftWidth=(width-gap)*.50f,rightWidth=width-leftWidth-gap;
+  const int toolColumns=RoomActionColumns(width/s);
+  const float toolsHeight=(std::min)(std::ceil(toolbar.size()/float(toolColumns))*48*s+8*s,
+   (std::max)(48*s,boardHeight-120*s-explanationHeight-2*gap));
+  const float communityHeight=(std::max)(120*s,boardHeight-toolsHeight-explanationHeight-2*gap);
   ImGui::BeginChild("Battle slots",ImVec2(leftWidth,boardHeight),0,ImGuiWindowFlags_NoNavInputs);
   const float rowHeight=(std::max)(100*s,(ImGui::GetContentRegionAvail().y-3*8*s)/4);
   for(const auto& e:rows)if(e.id.compare(0,6,"table-")==0)tableCard(e,rowHeight);
@@ -594,23 +601,14 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   const float w=(ImGui::GetContentRegionAvail().x-(toolColumns-1)*8*s)/toolColumns;
   for(std::size_t i=0;i<toolbar.size();++i){if(i%toolColumns)ImGui::SameLine(0,8*s);button(*toolbar[i],w);}
   ImGui::EndChild();
-  ImGui::SetCursorScreenPos(ImVec2(origin.x,origin.y+boardHeight+gap));
-  ImGui::BeginChild("Room explanation",ImVec2(width,explanationHeight),0,ImGuiWindowFlags_NoNavInputs|ImGuiWindowFlags_NoScrollbar);
+  ImGui::SetCursorScreenPos(ImVec2(origin.x+leftWidth+gap,origin.y+communityHeight+toolsHeight+2*gap));
+  ImGui::BeginChild("Room explanation",ImVec2(rightWidth,explanationHeight),0,ImGuiWindowFlags_NoNavInputs|ImGuiWindowFlags_NoScrollbar);
   const auto e=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& row){return row.id==nav.Focus();});
   if(e!=rows.end()){
-   // The wide board has one line for the focused row's explanation. Lines
-   // after the first (the fighter summary under Ready, for example) and any
-   // elided text are reachable on hover, like the narrow board's cards.
-   const auto newline=e->detail.find('\n');
-   std::string line=choiceDetail(*e).empty()?e->detail.substr(0,newline):choiceDetail(*e);
-   const std::string reason=hint(*e);
-   NoteDetailText(e->detail.substr(0,newline),e->detailText);
-   if(!reason.empty())line=line.empty()?reason:line+"  -  "+reason;
-   const auto p=ImGui::GetCursorScreenPos();const float lineWidth=ImGui::GetContentRegionAvail().x;
-   text(p,lineWidth,line,12*s,reason.empty()?palette::Muted:ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)));
-   if(newline!=std::string::npos)elided+=(elided.empty()?"":"\n")+e->detail;
-   ImGui::Dummy(ImVec2(lineWidth,ImGui::GetFontSize()));
-   tip();
+   const std::string explanation=choiceDetail(*e).empty()?e->detail:choiceDetail(*e);
+   NoteDetailText(explanation,e->detailText);
+   ImGui::PushStyleColor(ImGuiCol_Text,shown(*e)?ToneColor(Tone::Neutral):ToneColor(Tone::Pending));
+   ImGui::TextWrapped("%s",explanation.c_str());ImGui::PopStyleColor();
   }
   ImGui::EndChild();
  }else{
@@ -651,7 +649,7 @@ const char* ApplicationShell::PlaceExitLabel(const ShellView& v) const {
 void ApplicationShell::OpenTableOptions(const ShellView& v,int table) {
  auto& nav=menu_.navigation;
  selectedTable_=table;rulesDirty_=false;rulesRevision_=v.room.tables[table].revision;tableRules_=v.room.tables[table].rules;
- nav.Home();nav.Push("room");nav.Push("room-table");
+ nav.Open("room-table");
 }
 void ApplicationShell::ToggleReady(const ShellView& v,const Submit& submit) {
  const auto* local=Member(v.room,v.room.localMember);
@@ -724,7 +722,7 @@ void ApplicationShell::RoomShortcut(const MenuAction& a,const ShellView& v) {
  // Delete means something only on your own card (DrawRoomBoard).
  if(a.delta==MenuInput::Leave)return;
  const char* target=a.delta==MenuInput::Fighter?"selection":a.delta==MenuInput::Options?"room-table":"room-chat";
- if(nav.Screen()==target){nav.Home();nav.Push("room");return;}
+ if(nav.Screen()==target){nav.Return();return;}
  if(a.delta==MenuInput::Fighter){
   const auto blocker=SelectionBlocker(v);
   if(!blocker.empty()){
@@ -739,7 +737,7 @@ void ApplicationShell::RoomShortcut(const MenuAction& a,const ShellView& v) {
   return;
  }
  if(a.delta==MenuInput::Fighter){selectionFresh_=true;selectionOpenOn_="roster";}
- nav.Home();nav.Push("room");nav.Push(target);
+ nav.Open(target);
 }
 void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const Submit& submit) {
  using namespace room;auto& nav=menu_.navigation;
