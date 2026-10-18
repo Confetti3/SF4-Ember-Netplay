@@ -6291,3 +6291,51 @@ msgstr "Could not locate the game's music files."
 
 msgid "music.error_missing"
 msgstr "A selected music file is missing. The game's default music will be used."
+
+msgid "quick_rematch.title"
+msgstr "Match complete"
+
+msgid "quick_rematch.rematch"
+msgstr "Rematch"
+
+msgid "quick_rematch.rematch_detail"
+msgstr "Play again with the same fighters and stage."
+
+msgid "quick_rematch.return_lobby"
+msgstr "Return to lobby"
+
+msgid "quick_rematch.return_lobby_detail"
+msgstr "Decline the rematch and return to the room."
+
+msgid "quick_rematch.waiting"
+msgstr "Waiting for the game..."
+
+msgid "quick_rematch.failed"
+msgstr "Rematch interrupted. Returning to the lobby."
+
+msgid "quick_rematch.context_invalid"
+msgstr "Rematch state changed. Returning to the lobby."
+
+msgid "quick_rematch.interrupted"
+msgstr "Rematch interrupted."
+
+msgid "quick_rematch.draw"
+msgstr "Draw. Returning to the lobby."
+
+msgid "quick_rematch.victory_changed"
+msgstr "Victory state changed. Returning to the lobby."
+
+msgid "quick_rematch.victory_unknown"
+msgstr "Unrecognized victory sequence. Returning to the lobby."
+
+msgid "quick_rematch.set_complete"
+msgstr "Set complete. Return to the lobby."
+
+msgid "quick_rematch.accepted"
+msgstr "Rematch confirmed. Waiting for the other player."
+
+msgid "quick_rematch.other_ready"
+msgstr "The other player confirmed. Choose an option."
+
+msgid "quick_rematch.time_remaining"
+msgstr "Time remaining: {0} s"

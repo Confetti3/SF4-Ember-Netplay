@@ -433,7 +433,10 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 		(command.service == platform::ServiceAction::OpenSteamProfile && !command.steamProfile.Present()) ||
 		command.reportSubmission.comment.size() > 8000 ||
 		command.updateOffer.tag.size() > 64 || command.updateOffer.sha256.size() > 64 ||
-		(command.createdRules && !command.createdRules->Valid())) return false;
+		(command.createdRules && !command.createdRules->Valid()) ||
+        (command.quickRematchChoice != quickrematch::Choice::None &&
+            (command.quickRematchOffer == 0 || (command.quickRematchChoice != quickrematch::Choice::Rematch &&
+                command.quickRematchChoice != quickrematch::Choice::Lobby)))) return false;
 	if (command.identity.op != netplay::IdentityOp::None) {
 		const auto bytes = sizeof(RuntimeCommand) + command.identity.Bytes() + command.reportSubmission.comment.size();
 		return bridge::PushCommand(std::move(command), bytes);

@@ -2,6 +2,7 @@
 #include "sf4e__ReplayStore.hxx"
 #include "sf4e__ReplayPlayback.hxx"
 #include "sf4e__Gamepads.hxx"
+#include "sf4e__ContinuousRematch.hxx"
 #include "sf4e__Music.hxx"
 #include "../netplay/PublishCadence.hxx"
 #include "../netplay/LatencyBoard.hxx"
@@ -279,6 +280,7 @@ static void TraceSnapshot(const RuntimeSnapshot& snapshot) {
 // Where the game is for Ember's menu (input::MenuContext): what Publish
 // says, and what PublishThrottled schedules by.
 input::MenuContext MenuContextNow(bool atMainMenu) {
+    if (continuousrematch::ChoiceView().visible) return input::MenuContext::QuickRematch;
     // A Practice match is this PC's to end only while it fights in it, under rollback.
     const bool practiceFight = training::MatchPracticeActive() && Game::Battle::System::ggpo && !LocalIsSpectator();
     // A spectator leaves the game it watches only while its stream is live:
@@ -328,6 +330,8 @@ std::uint64_t PublishFingerprint() {
     mix(static_cast<std::uint64_t>(runtime->input.State())); mix(runtime->input.Ready());
     mixString(runtime->padHint);
     mix(AtMainMenu());
+    const auto continuous=continuousrematch::ChoiceView();
+    mix(continuous.visible);mix(continuous.offer);mix(continuous.accepted);mix(continuous.canRematch);mixString(continuous.status);
     return h;
 }
 }
@@ -458,6 +462,7 @@ PostPublishState Publish() {
     snapshot.menuContext = MenuContextNow(snapshot.atMainMenu);
     snapshot.watchedGame = WatchedGameNow();
     snapshot.lockInDrops = runtime->lockInDrops;
+    snapshot.quickRematch = continuousrematch::ChoiceView();
     if(snapshot.atMainMenu) for(int fighter=0;fighter<selection::FighterCount;++fighter)
         snapshot.fighterAvailability[fighter]=Dimps::Selection::ReadAvailability(fighter);
     snapshot.installedContent = custom::Installed();

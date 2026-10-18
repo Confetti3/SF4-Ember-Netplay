@@ -57,8 +57,8 @@ if(BUILD_TESTING)
     endif()
     sf4e_add_unit_test(NAME MatchFrameMeter SOURCES "src/tests/match_frame_meter_test.cxx")
     sf4e_add_unit_test(NAME GfxActionPool SOURCES "src/tests/gfx_action_pool_test.cxx" STD 14)
-    sf4e_add_unit_test(NAME MusicPlayback SOURCES "src/tests/music_playback_test.cxx")
     sf4e_add_unit_test(NAME SoundReconcile SOURCES "src/tests/sound_reconcile_test.cxx")
+    sf4e_add_unit_test(NAME MusicPlayback SOURCES "src/tests/music_playback_test.cxx")
     sf4e_add_unit_test(NAME ReusableRecords SOURCES "src/tests/reusable_records_test.cxx")
     sf4e_add_unit_test(NAME NativeMatchResult SOURCES "src/tests/native_match_result_test.cxx" STD 11 TIMEOUT 15)
     sf4e_add_unit_test(NAME UiPolish SOURCES "src/tests/ui-polish/ui_polish_test.cxx" STD 14 TIMEOUT 10)
@@ -111,9 +111,13 @@ add_compile_definitions(WIN32_LEAN_AND_MEAN)
 find_library(LIB_DETOURS "detours")
 find_package(CLI11 CONFIG REQUIRED)
 find_package(ggpo CONFIG REQUIRED)
+if(BUILD_TESTING)
+    sf4e_add_unit_test(NAME ContinuousGgpoProbe SOURCES "src/tests/continuous_ggpo_probe_test.cxx" STD 17 LIBS ggpo::GGPO ws2_32 TIMEOUT 60 LOCKS loopback_udp_ports)
+endif()
 find_package(imgui CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 if(BUILD_TESTING)
+    sf4e_add_unit_test(NAME ContinuousChoices SOURCES "src/tests/continuous_choices_test.cxx" STD 17)
     sf4e_add_unit_test(NAME CheckpointTransfer SOURCES "src/tests/checkpoint_transfer_test.cxx" STD 17 LIBS nlohmann_json::nlohmann_json bcrypt)
     sf4e_add_unit_test(NAME RoomLoadWindow SOURCES "src/tests/room_load_window_test.cxx" STD 17 LIBS nlohmann_json::nlohmann_json)
 endif()
@@ -135,7 +139,7 @@ if(BUILD_TESTING)
     set_tests_properties(HeapCorruptionCapture PROPERTIES TIMEOUT 90)
 endif()
 
-add_library(sf4e_room_model STATIC "src/session/RoomModel.cxx" "src/session/RoomModelActions.cxx" "src/session/RoomModelJson.cxx" "src/session/RoomModelTournament.cxx" "src/session/RoomModelServerOwned.cxx" "src/session/RoomDigest.cxx")
+add_library(sf4e_room_model STATIC "src/session/RoomModel.cxx" "src/session/RoomModelActions.cxx" "src/session/RoomModelContinuous.cxx" "src/session/RoomModelJson.cxx" "src/session/RoomModelTournament.cxx" "src/session/RoomModelServerOwned.cxx" "src/session/RoomDigest.cxx")
 target_compile_features(sf4e_room_model PUBLIC cxx_std_14)
 target_link_libraries(sf4e_room_model PUBLIC nlohmann_json::nlohmann_json "bcrypt")
 # The game's Steam client through steam_api.dll (profile overlay, remote storage).
@@ -183,6 +187,7 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME RoomSnapshot SOURCES "src/tests/room_snapshot_test.cxx" LIBS sf4e_room_model TIMEOUT 30)
     sf4e_add_unit_test(NAME RoomSteamProfile SOURCES "src/tests/room_steam_profile_test.cxx" LIBS sf4e_room_model TIMEOUT 30)
     sf4e_add_unit_test(NAME RoomCountry SOURCES "src/tests/room_country_test.cxx" LIBS sf4e_room_model TIMEOUT 30)
+    sf4e_add_unit_test(NAME RoomContinuous SOURCES "src/tests/room_continuous_test.cxx" LIBS sf4e_room_model TIMEOUT 30)
     sf4e_add_unit_test(NAME RoomSets SOURCES "src/tests/room_sets_test.cxx" LIBS sf4e_room_model TIMEOUT 30)
     sf4e_add_unit_test(NAME RoomTournament SOURCES "src/tests/room_tournament_test.cxx" LIBS sf4e_room_model)
     sf4e_add_unit_test(NAME TournamentPlay SOURCES "src/tests/tournament_play_test.cxx" LIBS sf4e_tournament_play)
@@ -302,6 +307,7 @@ if(BUILD_TESTING)
     sf4e_add_unit_test(NAME ControllersScreen SOURCES src/tests/controllers_screen_test.cxx LIBS sf4e_ui STD 17)
     sf4e_add_unit_test(NAME GamepadSlotsImportPatch SOURCES src/tests/import_patch_test.cxx src/sf4e/sf4e__ImportPatch.cxx STD 17)
     sf4e_add_unit_test(NAME DirectInputFilter SOURCES src/tests/directinput_filter_test.cxx LIBS sf4e dxguid STD 17)
+    sf4e_add_unit_test(NAME QuickRematchPanel SOURCES src/tests/quick_rematch_panel_test.cxx LIBS sf4e_ui STD 17 TIMEOUT 30)
     sf4e_add_unit_test(NAME ShellJourney SOURCES src/tests/shell_journey_test.cxx src/tests/shell_replay_journey_test.cxx
         src/tests/shell_room_journey_test.cxx src/tests/shell_selection_journey_test.cxx
         src/tests/shell_chat_journey_test.cxx src/tests/shell_training_journey_test.cxx src/tests/shell_prompt_journey_test.cxx src/tests/shell_controller_journey_test.cxx src/tests/shell_button_layout_journey_test.cxx
@@ -433,6 +439,7 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__Game__Battle__Hud.cxx"
     "src/sf4e/sf4e__Game__Battle__System.hxx"
     "src/sf4e/sf4e__Game__Battle__System.cxx"
+    "src/sf4e/sf4e__ContinuousRematch.cxx"
     "src/sf4e/sf4e__Game__Battle__System__FrameTrace.cxx"
     "src/sf4e/sf4e__Game__Battle__System__Ggpo.cxx"
     "src/sf4e/sf4e__Game__Battle__System__RollbackStress.cxx"

@@ -238,6 +238,7 @@ void SessionClient::Disconnect() {
 	_customRoomsSeen = false;
 	_nextRoomActionId = 1;
 	_resultRetry = {}; _finishRetry = {};
+	_continuousResultRetry = {}; _continuousFinishRetry = {};
     _actionReplies.clear();
 	_projectionFrozen = false;
 	_snapshotSendFailing = false;
@@ -710,6 +711,7 @@ session::SendResult SessionClient::Lobby_Ready()
 	if (_customRoomsSeen) {
 		auto ready = TableAction(room::ActionKind::Ready, _selectedRoomTable, _selectedDelay);
 		ready.lowerLag = _selectedLowerLag;
+		ready.continuous = !_roomSnapshot.practice && !_roomSnapshot.serverOwned && !_roomSnapshot.tournament.Active();
 		return SendRoomAction(ready);
 	}
 	LobbyReady msg;

@@ -12,6 +12,7 @@
 #include "../ui/OverlayLifecycle.hxx"
 #include "../ui/OverlayPresentation.hxx"
 #include "../ui/OverlayLayers.hxx"
+#include "../ui/QuickRematchPanel.hxx"
 #include "../ui/Theme.hxx"
 #include "../ui/Win32Input.hxx"
 #include "../ui/DeveloperOverlay.hxx"
@@ -69,6 +70,7 @@ static ImTextureID WatchedPicture(unsigned width, unsigned height) {
 }
 static sf4e::ui::FighterSelector s_fighterSelectors[3];
 static sf4e::ui::ApplicationShell shell;
+static sf4e::ui::QuickRematchPanel quickRematchPanel;
 static sf4e::ui::OverlayPresentation presentation;
 static sf4e::OverlayPrefs::Data s_prefs;
 // The menu takes the keys and the mouse: shown, with the focus.
@@ -486,6 +488,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const auto frame = sf4e::NetplayFacade::GetPresentationSnapshotShared();
     const auto& snapshot = *frame->runtime;
     const auto& status = frame->netplay;
+    const bool quickRematch = snapshot.menuContext == sf4e::input::MenuContext::QuickRematch &&
+        sf4e::quickrematch::Shown(snapshot.quickRematch);
     if (sf4e::ui::ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(s_overlayWindow), snapshot.preferences.interfaceScale)) ImGui_ImplDX9_InvalidateDeviceObjects();
     // A replay being exported can be followed or cancelled from Ember's menu,
     // so the menu stays available over the battle log while it runs; a
@@ -574,8 +578,23 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // Every overlay frame, since the training panel draws art with the menu
     // closed. Pump returns at once when nothing drew art since the last pump.
     if (s_selectionArt) s_selectionArt->Pump();
-    if (presentation.Visible()) DrawApplicationHome(snapshot, status);
-    else ConcealApplicationHome(snapshot);
+    if (quickRematch) {
+        // The offer is owned by the game thread. Rendering sends its token
+        // back unchanged; it never continues or resets the native battle.
+        const auto choice = quickRematchPanel.Draw(snapshot.quickRematch);
+        if (choice != sf4e::quickrematch::Choice::None) {
+            sf4e::NetplayFacade::RuntimeCommand request;
+            request.command = {sf4e::netplay::CommandKind::Rematch,snapshot.session.generation,{}};
+            request.quickRematchChoice = choice;
+            request.quickRematchOffer = snapshot.quickRematch.offer;
+            if (!sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request))) quickRematchPanel.QueueFailed();
+        }
+        ConcealApplicationHome(snapshot);
+    } else {
+        quickRematchPanel.Clear();
+        if (presentation.Visible()) DrawApplicationHome(snapshot, status);
+        else ConcealApplicationHome(snapshot);
+    }
     if (!presentation.Visible() && assigning) {
         sf4e::NetplayFacade::RuntimeCommand cancel;
         cancel.command = {sf4e::netplay::CommandKind::HostRoom, snapshot.session.generation, {}};

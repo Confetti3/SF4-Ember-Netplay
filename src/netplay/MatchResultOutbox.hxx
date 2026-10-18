@@ -18,6 +18,9 @@ struct MatchResultCapture {
     // when it was published; zero when unknown.
     std::uint64_t captureFrame = 0;
     std::uint64_t confirmedFrame = 0;
+	// Zero is the original single-game transport. Nonzero identifies one
+	// agreed game in the continuous transport's independent result ledger.
+	std::uint64_t continuousGame = 0;
 
     bool Valid() const;
     std::string ProfileKey() const;
@@ -43,6 +46,7 @@ struct MatchResultSubmission {
     // Zero allocates the first action ID. A nonzero value retries the exact
     // previously queued result identity without growing the server queue.
     std::uint64_t actionId = 0;
+	std::uint64_t continuousGame = 0;
 };
 
 // The settings writer seen from the terminal receipt: queue a profile

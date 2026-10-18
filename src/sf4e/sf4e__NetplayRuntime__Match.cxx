@@ -258,6 +258,103 @@ void NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFra
 			capture.table, generation, capture.slot, static_cast<int>(result));
 }
 
+bool GetRuntimeContinuousTable(room::Table& result) {
+    if(!runtime||!runtime->match||!runtime->attached||!UserApp::netplay)return false;
+    // Query the live owner, not a presentation snapshot from an earlier tick.
+    const auto& snapshot=UserApp::netplay->client.GetRoomSnapshot();
+    const auto generation=runtime->match->Generation();
+    if(!generation||!snapshot.localMatchGenerationsSent)return false;
+    for(std::size_t i=0;i<snapshot.tables.size();++i) {
+        const auto& table=snapshot.tables[i];
+        if(snapshot.localMatchGenerations[i]==generation&&table.matchGeneration==generation&&
+            table.continuous.enabled&&!table.continuous.closed){result=table;return true;}
+    }
+    return false;
+}
+
+bool RecordRuntimeContinuousResult(std::uint8_t table, std::uint64_t generation, std::uint64_t game,
+	room::MatchResult result, std::uint64_t captureFrame, std::uint64_t confirmedFrame) {
+	if (!runtime || !runtime->room || !runtime->match ||
+		!runtime->attached || !UserApp::netplay || LocalIsSpectator() || table >= room::TableCount || !game ||
+		runtime->match->Generation() != generation || runtime->controller.GetSnapshot().control != netplay::Health::Healthy)
+		return false;
+	const auto& snapshot = UserApp::netplay->client.GetRoomSnapshot();
+	const auto& live = snapshot.tables[table];
+	if (live.matchGeneration != generation || !live.continuous.enabled || live.continuous.closed ||
+		live.phase != room::TablePhase::Playing) return false;
+	netplay::MatchResultCapture capture;
+	capture.roomId = runtime->room->RoomId(); capture.roomEpoch = snapshot.roomEpoch;
+	capture.table = table; capture.generation = generation; capture.continuousGame = game;
+	capture.slot = static_cast<unsigned>(runtime->match->LocalSlot()); capture.result = result;
+	capture.captureFrame = captureFrame; capture.confirmedFrame = confirmedFrame;
+	auto& outbox = runtime->continuousResultOutbox;
+	if (outbox.Capture(capture)) {
+		runtime->continuousProfileGame = 0;
+		runtime->continuousFinishAction.reset(); runtime->continuousFinishId = runtime->continuousFinishRetryAt = 0;
+		spdlog::info("Continuous scoring: confirmed native game={} table={} generation={} result={}",
+			game, table, generation, static_cast<int>(result));
+	}
+	const auto* retained = outbox.Captured();
+	if (!retained || retained->result != result || retained->continuousGame != game) return false;
+	const auto now = GetTickCount64();
+	netplay::MatchResultRoomView view;
+	view.roomId = capture.roomId; view.roomEpoch = snapshot.roomEpoch; view.revision = snapshot.revision;
+	view.tableRevision = live.revision; view.matchGeneration = view.liveGeneration = generation; view.healthy = true;
+	netplay::MatchResultSubmission submission;
+	if (outbox.Poll(view, now, submission) == netplay::MatchResultOutbox::PollResult::Ready) {
+		room::Action action; action.kind = room::ActionKind::RecordContinuousResult;
+		action.roomEpoch = submission.roomEpoch; action.revision = submission.revision; action.tableRevision = submission.tableRevision;
+		action.table = table; action.matchGeneration = generation; action.continuousGame = game; action.result = result;
+		auto id = submission.actionId;
+		const auto sent = id ? UserApp::netplay->client.RetryContinuousAction(action, id) :
+			UserApp::netplay->client.SendRoomAction(action, &id);
+		if (sent == session::SendResult::Queued) outbox.MarkQueued(id, now);
+		else outbox.MarkUnsent(now);
+	}
+	// A queued or accepted first report is not a score receipt. Wait for the
+	// replicated snapshot to prove the two-player quorum for this exact game.
+	if (live.continuous.games != game || live.continuous.lastResult != result || live.resultPending) return false;
+	if (runtime->continuousProfileGame == game) return true;
+	if (result != room::MatchResult::Draw) {
+		netplay::ProfileStore store;
+		store.queue = [] { return OverlayPrefs::QueuePlayerPreferences(runtime->preferences); };
+		store.saved = [](std::uint64_t revision) { return OverlayPrefs::PlayerPreferencesSaved(revision); };
+		store.failed = [] { return !OverlayPrefs::PersistenceError().empty(); };
+		const auto persisted = outbox.PersistProfile(runtime->preferences.record, store, now);
+		if (persisted == netplay::MatchResultOutbox::ProfilePersistence::Waiting) return false;
+		if (persisted == netplay::MatchResultOutbox::ProfilePersistence::Released)
+			runtime->error = loc::T("runtime.match_record_not_saved");
+	}
+	runtime->continuousProfileGame = game;
+	spdlog::info("Continuous scoring: game={} committed score={}-{}; native connection retained",
+		game, live.score[0], live.score[1]);
+	return true;
+}
+
+void FinishRuntimeContinuousMatch(std::uint8_t table, std::uint64_t generation, std::uint64_t game) {
+	if (!runtime || !runtime->match || !runtime->attached ||
+		!UserApp::netplay || LocalIsSpectator() || table >= room::TableCount || !game ||
+		runtime->match->Generation() != generation || runtime->controller.GetSnapshot().control != netplay::Health::Healthy) return;
+	const auto& snapshot = UserApp::netplay->client.GetRoomSnapshot();
+	const auto& live = snapshot.tables[table];
+	const auto slot = runtime->match->LocalSlot();
+	if (slot >= 2 || live.matchGeneration != generation || !live.continuous.enabled || live.continuous.closed ||
+		live.continuous.games != game || live.resultPending || live.phase != room::TablePhase::Playing ||
+		(live.continuous.finishMask & (1u << slot))) return;
+	const auto now = GetTickCount64();
+	if (now < runtime->continuousFinishRetryAt) return;
+	if (!runtime->continuousFinishAction) {
+		room::Action action; action.kind = room::ActionKind::FinishContinuousMatch;
+		action.roomEpoch = snapshot.roomEpoch; action.revision = snapshot.revision; action.tableRevision = live.revision;
+		action.table = table; action.matchGeneration = generation; action.continuousGame = game;
+		runtime->continuousFinishAction = action;
+	}
+	const auto& action = *runtime->continuousFinishAction;
+	const auto sent = runtime->continuousFinishId ? UserApp::netplay->client.RetryContinuousAction(action, runtime->continuousFinishId) :
+		UserApp::netplay->client.SendRoomAction(action, &runtime->continuousFinishId);
+	runtime->continuousFinishRetryAt = now + (sent == session::SendResult::Queued ? 500 : 100);
+}
+
 bool GetRuntimeMatchEndpoints(RuntimeMatchEndpoints& endpoints) {
 	if (!runtime || !runtime->match || !UserApp::netplay || runtime->match->GetPhase() != session::IrohMatchSession::Phase::Started) return false;
 	endpoints.localPort = UserApp::netplay->client._ggpoPort;

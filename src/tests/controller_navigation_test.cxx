@@ -184,8 +184,10 @@ void NativeCapture() {
   Check(ControllerMenuAvailable(context)&&sf4e::input::ControllerOpensMenu(context)&&sf4e::input::MenuShownIn(context)&&
    sf4e::input::MenuOverFight(context),"Start could not open Ember over a fight it is shown over");
  Check(!sf4e::input::MenuShownIn(MenuContext::OfflineTraining),"Ember's menu was shown over offline Training's controls");
+ Check(ControllerMenuAvailable(MenuContext::QuickRematch)&&sf4e::input::MenuShownIn(MenuContext::QuickRematch)&&
+  !sf4e::input::ControllerOpensMenu(MenuContext::QuickRematch),"The result panel did not own controller navigation without opening the shell");
  for(const auto context:{MenuContext::Unavailable,MenuContext::MainMenu,MenuContext::OfflineTraining,MenuContext::ReplayExport,
-  MenuContext::PracticeMatch,MenuContext::WatchedMatch}){
+  MenuContext::PracticeMatch,MenuContext::WatchedMatch,MenuContext::QuickRematch}){
   Check(sf4e::input::FightKeepsMenuAway(true,context)==!sf4e::input::MenuOverFight(context)&&!sf4e::input::FightKeepsMenuAway(false,context),
    "A fight kept the menu away where it is shown over the fight, or let it in elsewhere");
  }
@@ -226,7 +228,7 @@ void PracticeFightPresses(){
  // tick and none falls on a backstop tick (0, 6, 12).
  const std::uint32_t ticks[]={0,0,Button::Confirm,0,Button::Back,0,0,0,Button::Confirm,0,Button::Back,0,0};
  constexpr unsigned count=sizeof(ticks)/sizeof(ticks[0]);
- for(const auto context:{MenuContext::PracticeMatch,MenuContext::WatchedMatch,MenuContext::Unavailable}){
+ for(const auto context:{MenuContext::PracticeMatch,MenuContext::WatchedMatch,MenuContext::QuickRematch,MenuContext::Unavailable}){
   const bool navigable=sf4e::input::ControllerMenuAvailable(context);
   sf4e::netplay::PublishCadence cadence;ControllerNavigation nav;
   ControllerSample published;published.deviceType=sf4e::input::PadXInput;published.deviceIndex=0;published.connected=true;
@@ -823,7 +825,7 @@ void FlyoutIgnoresChoices(){
  press(MenuInput::Select);Check(chosen==0,"A flyout row with choices picked an option");
 }
 void ScreenNames(){
- for(const char* screen:{"home","online","create","join","profile","main-character","selection","settings","player","controllers","button-layout","button-layout-button","defaults","interface","training-replays","problem-reports","sent-reports","developer",
+ for(const char* screen:{"home","online","create","join","profile","main-character","selection","settings","player","controllers","button-layout","button-layout-button","defaults","interface","music","training-replays","problem-reports","sent-reports","developer",
    "discord","discord-invitation","public-rooms","identity","identity-backup","linked-accounts","tournament-matches","discord-connect","assignment","about","room","room-table","room-members","room-member","room-chat","room-admin",
    "roster","appearance","costumes","colors","ultra","stage","options","frame-data","hud","dummy","reply","tools","recording","history","recovery","updates","replays","report"})
   if(!MenuScreenName(screen))throw std::runtime_error(std::string("Screen without a display name: ")+screen);

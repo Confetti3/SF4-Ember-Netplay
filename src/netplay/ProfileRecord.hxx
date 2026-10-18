@@ -31,6 +31,21 @@ inline std::string ProfileResultKeyV2(const RandomRoomId& roomId, unsigned table
 }
 
 // Local confirmed online record, not a Steam rank or historical-game import.
+inline std::string ProfileResultKeyV3(const RandomRoomId& roomId, unsigned table,
+    std::uint64_t generation, std::uint64_t game) {
+    // Base 36 keeps both full 64-bit counters inside the existing 64-byte
+    // key budget. The room ID remains the same 128-bit hexadecimal identity.
+    const auto base36 = [](std::uint64_t value) {
+        std::string result;
+        do { result.push_back("0123456789abcdefghijklmnopqrstuvwxyz"[value % 36]); value /= 36; } while (value);
+        std::reverse(result.begin(), result.end()); return result;
+    };
+    auto key = ProfileResultKeyV2(roomId, table, 1);
+    static_assert(room::TableCount <= 10, "One digit table in bounded continuous profile keys");
+    key[1] = '3'; key.erase(2, 1); key.resize(key.size() - 1);
+    return key + base36(generation) + ":" + base36(game);
+}
+
 struct ProfileRecord {
     static constexpr std::uint64_t MaximumGames = 1000000000;
     static constexpr std::size_t MaximumRecentEntries = 256;
@@ -42,6 +57,17 @@ struct ProfileRecord {
         if(!available||!HasRandomRoomId(roomId)||!generation||table>=room::TableCount||localSlot>=2||
             (result!=room::MatchResult::P1Win&&result!=room::MatchResult::P2Win))return false;
         const auto key=ProfileResultKeyV2(roomId,table,generation);
+        return RecordKey(key, localSlot, result);
+    }
+    bool RecordContinuous(const RandomRoomId& roomId,unsigned table,std::uint64_t generation,
+        std::uint64_t game,unsigned localSlot,room::MatchResult result) {
+        if(!available||!HasRandomRoomId(roomId)||!generation||!game||table>=room::TableCount||localSlot>=2||
+            (result!=room::MatchResult::P1Win&&result!=room::MatchResult::P2Win))return false;
+        return RecordKey(ProfileResultKeyV3(roomId,table,generation,game),localSlot,result);
+    }
+private:
+    bool RecordKey(const std::string& key,unsigned localSlot,room::MatchResult result) {
+        if(key.size()>MaximumRecentKeyBytes)return false;
         if(std::find(recent.begin(),recent.end(),key)!=recent.end())return false;
         // The persisted counters describe a bounded total history.  Reject
         // the exact limit as well as values past it so one more result can

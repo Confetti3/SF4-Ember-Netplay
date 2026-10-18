@@ -8,13 +8,15 @@ bool MatchResultCapture::Valid() const {
 }
 
 std::string MatchResultCapture::ProfileKey() const {
-    return Valid() ? ProfileResultKeyV2(roomId, table, generation) : std::string();
+    return !Valid() ? std::string() : continuousGame ? ProfileResultKeyV3(roomId, table, generation, continuousGame) :
+        ProfileResultKeyV2(roomId, table, generation);
 }
 
 bool MatchResultOutbox::Capture(const MatchResultCapture& capture) {
     if (!capture.Valid()) return false;
     if (captured_ && capture_.roomId == capture.roomId && capture_.roomEpoch == capture.roomEpoch &&
-        capture_.generation == capture.generation && capture_.table == capture.table) return false;
+        capture_.generation == capture.generation && capture_.table == capture.table &&
+        capture_.continuousGame == capture.continuousGame) return false;
     capture_ = capture;
     captured_ = true;
     pending_ = true;
@@ -61,6 +63,7 @@ MatchResultOutbox::PollResult MatchResultOutbox::Poll(const MatchResultRoomView&
     submission.table = capture_.table;
     submission.result = capture_.result;
     submission.actionId = actionId_;
+	submission.continuousGame = capture_.continuousGame;
     if (!actionId_) {
         preparedRevision_ = submission.revision;
         preparedTableRevision_ = submission.tableRevision;
@@ -149,7 +152,10 @@ MatchResultOutbox::ProfileConsumption MatchResultOutbox::PrepareProfileConsumpti
     if (profile.wins >= ProfileRecord::MaximumGames || profile.losses >= ProfileRecord::MaximumGames ||
         profile.losses >= ProfileRecord::MaximumGames - profile.wins)
         return ProfileConsumption::NoPersistenceRequired;
-    return profile.Record(capture_.roomId, capture_.table, capture_.generation, capture_.slot, capture_.result) ?
+    const bool recorded = capture_.continuousGame ? profile.RecordContinuous(capture_.roomId, capture_.table,
+        capture_.generation, capture_.continuousGame, capture_.slot, capture_.result) :
+        profile.Record(capture_.roomId, capture_.table, capture_.generation, capture_.slot, capture_.result);
+    return recorded ?
         ProfileConsumption::PersistenceRequired : ProfileConsumption::Invalid;
 }
 

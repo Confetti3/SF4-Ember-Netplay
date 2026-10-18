@@ -5,6 +5,7 @@
 #include "sf4e__ReplayStore.hxx"
 #include "sf4e__Steam.hxx"
 #include "sf4e__CustomContent.hxx"
+#include "sf4e__ContinuousRematch.hxx"
 #include "sf4e__Music.hxx"
 #include "../session/IdentityEvents.hxx"
 #include "../platform/ReplayFiles.hxx"
@@ -92,7 +93,10 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 	}
 	// Validate ownership before even a deferred GGPO teardown side effect.
 	if (!(command.command.generation == runtime->controller.GetSnapshot().generation)) return DispatchOutcome::Dropped;
-
+    if (command.quickRematchChoice != quickrematch::Choice::None) {
+        continuousrematch::Choose(command.quickRematchChoice,command.quickRematchOffer);
+        return DispatchOutcome::Dropped;
+    }
 	// Training from a room sends no room command: the game alone moves, and only
 	// if the room allows it now, not as it was when the player pressed.
 	if (command.training == TrainingEntry::Room) {
@@ -787,6 +791,8 @@ void DrainActionReplies() {
 				reply.reason == room::RejectReason::DuplicateResult))
 				spdlog::info("Match result: report acknowledged action={} duplicate={}",
 					reply.actionId, reply.reason == room::RejectReason::DuplicateResult);
+			runtime->continuousResultOutbox.ObserveReply(reply.actionId, reply.accepted,
+				reply.reason == room::RejectReason::DuplicateResult);
 			// WrongGeneration means the table already left this game (the
 			// opponent's result closed it first); the authority will never
 			// accept the finish report, and retrying it every 500 ms made a

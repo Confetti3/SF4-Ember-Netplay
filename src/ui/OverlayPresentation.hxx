@@ -37,6 +37,14 @@ public:
     // over a game it only watches.
     void Update(input::MenuContext context, netplay::MatchState match, bool offline, bool focused) {
         reopened_ = false;
+        const bool result=context==input::MenuContext::QuickRematch;
+        if(mandatory_&&!result) {
+            requested_=available_=false;awayFrames_=AwayFrames;
+            // An online return can reopen its room once the menu is back;
+            // offline contexts keep their own menu visibility.
+            reopen_=!offline;
+        }
+        mandatory_=result;
         const bool atMenu = input::MenuShownIn(context);
         const bool fighting = input::FightKeepsMenuAway(netplay::Fighting(match), context);
         if (match == netplay::MatchState::PostMatch && previousMatch_ != match) reopen_ = true;
@@ -54,6 +62,7 @@ public:
         if (available_ != wasAvailable && !fighting) why_ = available_ ? "the main menu is in front" : "the main menu is no longer in front";
         focused_ = focused;
         if (available_ && reopen_) { requested_ = true; reopen_ = false; reopened_ = true; why_ = "a match ended"; }
+        if(mandatory_)requested_=true;
         previousMatch_ = match;
         previousOffline_ = offline;
     }
@@ -65,14 +74,14 @@ public:
     bool Visible() const { return available_ && requested_; }
     // F10's toggle: a key, so only with the focus. The words say why, for the
     // log; Why() is the latest of them.
-    void Toggle(const char* why = "F10") { if (available_ && focused_) { requested_ = !requested_; why_ = why; } }
+    void Toggle(const char* why = "F10") { if (available_ && focused_ && !mandatory_) { requested_ = !requested_; why_ = why; } }
     void Open(const char* why = "opened") { if (available_) { requested_ = true; why_ = why; } }
-    void Close(const char* why = "closed") { requested_ = false; why_ = why; }
+    void Close(const char* why = "closed") { if(!mandatory_) { requested_ = false; why_ = why; } }
     const char* Why() const { return why_; }
     // Consecutive updates away from the main menu before the shell hides: ~0.5 s at 60 fps.
     static constexpr unsigned AwayFrames = 30;
 private:
-    bool requested_ = true, available_ = false, focused_ = true;
+    bool requested_ = true, available_ = false, focused_ = true, mandatory_ = false;
     unsigned awayFrames_ = 0;
     const char* why_ = "";
     bool reopened_ = false, reopen_ = false, previousOffline_ = false;
@@ -112,6 +121,9 @@ public:
     }
     void Place(input::MenuContext context, bool fighting) {
         std::lock_guard<std::mutex> lock(mutex_);
+        const bool result=context==input::MenuContext::QuickRematch;
+        if(mandatory_&&!result) { shown_=false;answered_=posted_; }
+        mandatory_=result;
         const bool away = input::FightKeepsMenuAway(fighting, context);
         if (away) away_ = OverlayPresentation::AwayFrames;
         else if (input::MenuShownIn(context)) away_ = 0;
@@ -142,11 +154,11 @@ public:
     bool Holds() const { std::lock_guard<std::mutex> lock(mutex_); return HoldsLocked(); }
     bool Takes() const { std::lock_guard<std::mutex> lock(mutex_); return HoldsLocked() || startOpens_; }
 private:
-    bool HoldsLocked() const { return away_ < OverlayPresentation::AwayFrames && (shown_ || posted_ != answered_); }
+    bool HoldsLocked() const { return mandatory_ || (away_ < OverlayPresentation::AwayFrames && (shown_ || posted_ != answered_)); }
     mutable std::mutex mutex_;
     Kind kind_ = Kind::None;
     std::uint32_t posted_ = 0, answered_ = 0;
-    bool shown_ = false, startOpens_ = false;
+    bool shown_ = false, startOpens_ = false, mandatory_ = false;
     // Updates away from where the menu can be shown. Until the first pad
     // update nothing reads the pads, and an open asked for then holds them as
     // at the main menu.

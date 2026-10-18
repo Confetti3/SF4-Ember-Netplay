@@ -6290,3 +6290,51 @@ msgstr "Impossibile trovare i file musicali del gioco."
 
 msgid "music.error_missing"
 msgstr "Manca un file musicale selezionato. Verrà usata la musica predefinita del gioco."
+
+msgid "quick_rematch.title"
+msgstr "Incontro concluso"
+
+msgid "quick_rematch.rematch"
+msgstr "Rivincita"
+
+msgid "quick_rematch.rematch_detail"
+msgstr "Gioca di nuovo con gli stessi personaggi e lo stesso stage."
+
+msgid "quick_rematch.return_lobby"
+msgstr "Torna alla lobby"
+
+msgid "quick_rematch.return_lobby_detail"
+msgstr "Rifiuta la rivincita e torna nella stanza."
+
+msgid "quick_rematch.waiting"
+msgstr "In attesa del gioco..."
+
+msgid "quick_rematch.failed"
+msgstr "Rivincita interrotta: ritorno alla lobby."
+
+msgid "quick_rematch.context_invalid"
+msgstr "Rivincita: contesto non valido."
+
+msgid "quick_rematch.interrupted"
+msgstr "Rivincita interrotta."
+
+msgid "quick_rematch.draw"
+msgstr "Pareggio: ritorno alla lobby."
+
+msgid "quick_rematch.victory_changed"
+msgstr "Rivincita: vittoria cambiata."
+
+msgid "quick_rematch.victory_unknown"
+msgstr "Rivincita: vittoria non riconosciuta."
+
+msgid "quick_rematch.set_complete"
+msgstr "Set concluso. Torna alla lobby."
+
+msgid "quick_rematch.accepted"
+msgstr "Rivincita confermata. Attendo l'altro giocatore."
+
+msgid "quick_rematch.other_ready"
+msgstr "L'altro giocatore ha confermato. Scegli anche tu."
+
+msgid "quick_rematch.time_remaining"
+msgstr "Tempo rimasto: {0} s"

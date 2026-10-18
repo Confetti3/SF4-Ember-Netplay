@@ -226,6 +226,26 @@ int main() {
         sf4e::ui::TimedHint resumed(10);
         CHECK(resumed.Due(true, 1000) && !resumed.Due(true, 1011) && !resumed.Due(true, 1012) && !resumed.Due(true, 5000));
     }
+    // A result offer is mandatory, including the explicit offline prototype:
+    // no rendering delay, F10 or Start may release the native Continue input.
+    {
+        OverlayPresentation result;
+        result.Update(MenuContext::Unavailable,MatchState::Playing,true,true);
+        result.Update(MenuContext::QuickRematch,MatchState::Playing,true,true);
+        CHECK(result.Available()&&result.Visible());
+        result.Close();result.Toggle();CHECK(result.Visible());
+        result.Update(MenuContext::QuickRematch,MatchState::Playing,true,false);CHECK(result.Visible());
+        result.Update(MenuContext::Unavailable,MatchState::None,true,true);
+        CHECK(!result.Visible()&&!result.Available()); // no half-second shell grace over the resumed offline fight
+        sf4e::ui::MenuPads owner;
+        owner.Place(MenuContext::QuickRematch,true);
+        CHECK(owner.Holds()&&owner.Takes()&&!owner.StartOpens()); // before first rendered frame
+        owner.Publish(false,owner.Take());CHECK(owner.Holds());
+        owner.Reset();CHECK(owner.Holds()); // device recreation does not advance a waiting result
+        owner.Place(MenuContext::Unavailable,true);CHECK(!owner.Holds()&&!owner.Takes());
+        owner.Place(MenuContext::QuickRematch,false);CHECK(owner.Holds());
+        owner.Place(MenuContext::Unavailable,false);CHECK(!owner.Holds()&&!owner.Takes());
+    }
     CheckHandoff();
     std::cout << "Safe-menu, focus, offline, loading, fight and rematch visibility passed\n";
 }

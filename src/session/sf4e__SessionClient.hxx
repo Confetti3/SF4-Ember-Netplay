@@ -77,6 +77,7 @@ namespace sf4e {
 		// retains the first queued revision fields so the control bytes remain
 		// identical and exact retries can be coalesced safely.
 		session::SendResult RetryRoomResult(room::Action action, std::uint64_t actionId);
+		session::SendResult RetryContinuousAction(room::Action action, std::uint64_t actionId);
 		// MatchFinished uses the same bounded exact-retry contract as RecordResult,
 		// but remains a separately typed API so unrelated room actions cannot reuse
 		// an old action ID.
@@ -198,6 +199,7 @@ namespace sf4e {
 			std::string payload;
 		};
 		RetainedRoomRetry _resultRetry, _finishRetry;
+		RetainedRoomRetry _continuousResultRetry, _continuousFinishRetry;
         std::deque<ActionReply> _actionReplies;
 		// Recently sent room actions, so a rejection reply can be logged with
 		// the action it refused. Diagnostics only; bounded and overwritten.
@@ -221,6 +223,7 @@ namespace sf4e {
 			// matchup.
 			room::MemberId opponent = 0;
 			int opponentFighter = -1;
+			bool continuous = false;
 		};
 		std::deque<SentRoomAction> _sentRoomActions;
 		// Retried actions keep their id; log each id/reason pair once.

@@ -757,6 +757,58 @@ struct BarrierRoom {
 };
 }
 
+static void TestContinuousRoomScoringTransport() {
+    BarrierRoom fixture("continuous-scoring", 12, 3);
+    auto act = [&](session::Connection connection, room::ActionKind kind, std::uint64_t game = 0) {
+        const auto snapshot = *fixture.server.RoomSnapshot();
+        room::Action action;
+        action.kind=kind; action.roomEpoch=snapshot.roomEpoch; action.revision=snapshot.revision;
+        action.table=0; action.tableRevision=snapshot.tables[0].revision;
+        action.matchGeneration=snapshot.tables[0].matchGeneration; action.actionId=++fixture.nextAction;
+        action.continuous=kind==room::ActionKind::Ready; action.continuousGame=game;
+        action.result=room::MatchResult::P2Win;
+        action.rules.format=room::SetFormat::Ft3; action.rules.rotation=room::RotationMode::WinnerStays;
+        protocol::RoomActionMessage message;message.action=action;
+        fixture.transport->Push(connection,json(message)); CHECK(fixture.server.Step()==0);
+    };
+    act(1,room::ActionKind::SetRules);
+    for(session::Connection member=1;member<=3;++member)act(member,room::ActionKind::Queue);
+    act(1,room::ActionKind::Ready);act(2,room::ActionKind::Ready);
+    const auto frozen=fixture.server.RoomSnapshot()->tables[0];
+    CHECK(frozen.continuous.enabled&&frozen.phase==room::TablePhase::Playing);
+    const auto generation=frozen.matchGeneration;
+    fixture.Send(1,"game_prepared",generation,{{"spectators_optional",true}});
+    fixture.Send(2,"game_prepared",generation);fixture.Send(3,"game_prepared",generation);
+    fixture.Send(1,"game_ready",generation,{{"slots",json::array({2})}});
+    fixture.Send(2,"game_ready",generation);fixture.Send(3,"game_ready",generation);
+    CHECK(fixture.Got("game_start",1)&&fixture.Got("game_start",2)&&fixture.Got("game_start",3));
+    fixture.transport->outgoing.clear();
+    for(std::uint64_t game=1;game<=3;++game) {
+        act(2,room::ActionKind::RecordContinuousResult,game);
+        CHECK(fixture.server.RoomSnapshot()->tables[0].score[1]==game-1);
+        act(1,room::ActionKind::RecordContinuousResult,game);
+        // Replay an already committed game through a fresh authenticated action.
+        act(2,room::ActionKind::RecordContinuousResult,game);
+        CHECK(fixture.server.Step()==0);
+        const auto& table=fixture.server.RoomSnapshot()->tables[0];
+        CHECK(table.continuous.games==game&&table.score[1]==game);
+        CHECK(table.matchGeneration==generation&&table.phase==room::TablePhase::Playing);
+        CHECK(table.p1==frozen.p1&&table.p2==frozen.p2);
+        for(session::Connection member=1;member<=3;++member)
+            for(const auto* message:{"game_end","game_prepare","game_connect","game_start"})
+                CHECK(!fixture.Got(message,member));
+        fixture.transport->outgoing.clear();
+    }
+    act(2,room::ActionKind::FinishContinuousMatch,3);
+    CHECK(!fixture.Got("game_end",1)&&!fixture.Got("game_end",2));
+    act(1,room::ActionKind::FinishContinuousMatch,3);
+    CHECK(fixture.server.Step()==0);
+    const auto& done=fixture.server.RoomSnapshot()->tables[0];
+    CHECK(done.continuous.closed&&done.lastSet.score[1]==3&&done.lastSet.Winner()==frozen.p2);
+    CHECK(done.p2==frozen.p2&&done.p1==frozen.queue.front()&&done.score[0]==0&&done.score[1]==0);
+    for(session::Connection member=1;member<=3;++member)CHECK(fixture.Got("game_end",member));
+}
+
 static void TestRoomBattleBarrier() {
 	{
 		// Two games at one table with a spectator live in both.
@@ -2358,6 +2410,7 @@ int main() {
 	TestTerminalReceiptReplay();
 	TestRetiringSpectatorProjection();
 	TestRoomBattleBarrier();
+	TestContinuousRoomScoringTransport();
 	TestSpectatorLeavesBeforeP1Prepared();
 	TestCommittedSessionGate();
 	TestCustomRoomDepartures();

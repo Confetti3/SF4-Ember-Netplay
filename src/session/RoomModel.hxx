@@ -105,6 +105,10 @@ enum class ActionKind : std::uint8_t {
 	// nothing else. Appended so older authorities reject it as an unknown
 	// kind.
 	SetTraining,
+	// Opt-in private matches: report a numbered game without ending its live
+	// transport, then close that transport after both fighters request it.
+	RecordContinuousResult,
+	FinishContinuousMatch,
 };
 
 enum class RejectReason : std::uint8_t {
@@ -223,6 +227,16 @@ struct SetRecord {
 	MemberId Loser() const { return winnerSeat == 0 ? p2 : p1; }
 };
 
+struct ContinuousSeries {
+	bool enabled = false;
+	bool closed = false;
+	std::uint64_t games = 0;
+	std::uint32_t initialScore[2] = {0, 0};
+	std::uint32_t wins[2] = {0, 0};
+	MatchResult lastResult = MatchResult::Abort;
+	std::uint8_t finishMask = 0;
+};
+
 struct Table {
 	std::uint8_t id = 0;
 	Rules rules;
@@ -239,6 +253,10 @@ struct Table {
 	// unless they choose to watch. Always a subset of spectators.
 	std::vector<MemberId> endingWatchers;
 	bool ready[2] = { false, false };
+	// Captured independently at Ready; both fighters must agree. Omitted
+	// from ordinary rooms' JSON, and never enabled in public/tournament play.
+	bool continuousReady[2] = { false, false };
+	ContinuousSeries continuous;
 	// Immutable per-fighter values captured at the Ready quorum boundary.
 	std::uint8_t inputDelay[2] = { 2, 2 };
 	// Each fighter's Lower input lag at Ready; off until they ready with it.
@@ -535,6 +553,8 @@ struct Action {
 	std::uint8_t inputDelay = 2;
 	// Ready: the fighter has Lower input lag on. Written only when set.
 	bool lowerLag = false;
+	bool continuous = false; // Ready: opt in to the continuous result protocol
+	std::uint64_t continuousGame = 0; // one-based game within matchGeneration
 	std::string text;
 	// PermitReady: the permit's start window in milliseconds (its start_by
 	// less its issued_at, both on the bridge's clock).
@@ -746,6 +766,8 @@ private:
 	void ReleaseReady(Table& table, int seat, Member& item);
 	Result SettleReadiness(Table& table, MemberId member);
 	Result ApplyRecordResult(MemberId member, const Action& action, Table* table);
+	Result ApplyContinuousResult(MemberId member, const Action& action, Table& table);
+	Result ApplyFinishContinuous(MemberId member, const Action& action, Table& table);
 	Result ApplyMatchFinished(MemberId member, const Action& action, Table* table);
 	Result ApplyCancelResult(MemberId member, const Action& action, Table* table);
 	Result ApplyAbortMatch(MemberId member, const Action& action, Table* table);
@@ -834,6 +856,7 @@ private:
 		std::uint8_t table = 0;
 		std::uint64_t generation = 0;
 		MatchResult result = MatchResult::Abort;
+		std::uint64_t continuousGames = 0;
 		std::array<MemberId, 2> fighters = {};
 		std::vector<TerminalRecipient> recipients;
 		bool acknowledged = false;

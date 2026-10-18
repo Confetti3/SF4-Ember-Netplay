@@ -2,6 +2,7 @@
 // sf4e::Game::Battle::System. Split from sf4e__Game__Battle__System.cxx.
 #include "sf4e__Game__Battle__System__Internal.hxx"
 #include "sf4e__MementoGuards.hxx"
+#include "sf4e__ContinuousRematch.hxx"
 #include "../common/GgpoDisconnectTolerance.hxx"
 #include "../common/SpectatorCatchUp.hxx"
 #include <atomic>
@@ -249,6 +250,7 @@ void fSystem::RetireGgpoSession(const char* diagnosticsLabel) {
             s_abortLatch.Request("");
             return;
         }
+        sf4e::continuousrematch::SessionRetiring();
         ggpo_close_session(ggpo);
         ggpo = nullptr;
         s_abortLatch.Reset();
@@ -384,6 +386,7 @@ void fSystem::StartGGPO(GGPOPlayer* inPlayers, int numPlayers, int port, int fra
     for (int i = 0; i < NUM_SAVE_STATES; i++) {
         SaveState::Reclaim(&saveStates[i], "start_ggpo", i);
     }
+    sf4e::continuousrematch::BeginSession();
     simGate.OnSessionStarted();
     s_streamWatch.Start(GetTickCount64(), false);
     ResetPacerForSession();
@@ -489,6 +492,7 @@ void fSystem::StartSpectating(unsigned short localport, int num_players, char* h
     for (int i = 0; i < NUM_SAVE_STATES; i++) {
         SaveState::Reclaim(&saveStates[i], "start_spectating", i);
     }
+    sf4e::continuousrematch::BeginSession();
     simGate.OnSessionStarted();
     ResetPacerForSession();
     s_lastDisconnectFlags = 0;
@@ -639,6 +643,10 @@ bool fSystem::ggpo_advance_frame_callback(int)
     // the reserved bits.
     inputs[0].rawOn = sf4e::training::ClearReservedInputBits(inputs[0].rawOn);
     inputs[1].rawOn = sf4e::training::ClearReservedInputBits(inputs[1].rawOn);
+    if(!sf4e::continuousrematch::BeforeFrame(rSystem::staticMethods.GetSingleton(),inputs,true)) {
+        if(ggpo)ggpo_advance_frame(ggpo);
+        return true;
+    }
 
     // Restored on every exit; rollback resimulation must never leak
     // playback mode into subsequent engine work.
@@ -655,7 +663,7 @@ bool fSystem::ggpo_advance_frame_callback(int)
     result = sf4e::statehash::GgpoTimeline::Simulate(
         [&] {
             diag::ScopedTimer _t(diag::OP_ENGINE_BATTLE_UPDATE);
-            (system->*rSystem::publicMethods.BattleUpdate)();
+            if(sf4e::continuousrematch::SimulateNative())(system->*rSystem::publicMethods.BattleUpdate)();
         },
         [&] { CaptureSimulatedFrame(system, inputs); },
         [&] { return ggpo_advance_frame(ggpo); });
@@ -692,6 +700,7 @@ bool fSystem::ggpo_load_game_state_callback(unsigned char* buffer, int len)
         AbortGgpoMatch(sf4e::loc::T("runtime.rollback_unsupported_state"));
         return false;
     }
+    sf4e::continuousrematch::Restore(state->continuousRematchState,state->ggpoFrame);
     return true;
 }
 
@@ -732,6 +741,7 @@ bool fSystem::ggpo_save_game_state_callback(unsigned char** buffer, int* len, in
             return false;
         }
         CaptureNativeMatchResult(rSystem::staticMethods.GetSingleton(), frame);
+        saveStates[i].continuousRematchState=sf4e::continuousrematch::Capture();
         *buffer = (unsigned char*)&saveStates[i];
         *checksum = 0;
 

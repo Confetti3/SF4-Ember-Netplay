@@ -170,6 +170,10 @@ struct Runtime {
 	bool matchFinishedPending = false;
 	bool recoveringMatch = false;
 	netplay::MatchResultOutbox resultOutbox;
+	netplay::MatchResultOutbox continuousResultOutbox;
+	std::uint64_t continuousProfileGame = 0;
+	std::optional<room::Action> continuousFinishAction;
+	std::uint64_t continuousFinishId = 0, continuousFinishRetryAt = 0;
     std::uint64_t finishActionId=0, finishRetryAt=0;
 	std::optional<room::Action> matchFinishedAction;
     bool replacementPending=false;
