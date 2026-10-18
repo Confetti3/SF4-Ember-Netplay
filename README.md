@@ -88,7 +88,7 @@ Back returns through menus, and from Home it hides Ember. On your own table card
 
 ## Settings, updates and legacy builds
 
-Existing Ember preferences remain under `%APPDATA%\sf4e` (on a Steam Deck, inside the game's Proton folder). Help & About provides the version, update checking, attribution and redacted diagnostic exports. Ember updates use the renamed repository and verify the downloaded ZIP's SHA-256 before installation.
+Existing Ember preferences remain under `%APPDATA%\sf4e`. Help & About provides the version, update checking, attribution and redacted diagnostic exports. Ember updates use the renamed repository and verify the downloaded ZIP's SHA-256 before installation.
 
 **`release` is the current Ember branch.** [Legacy `main`](https://github.com/Confetti3/SF4-Ember-Netplay/tree/c6f2f1907f396c40a8542cc056e3bafa2adb3bde) preserves the previous SF4 Netplay Launcher. Its releases and [archived README](docs/archive/README-pre-ember.md) remain available. Legacy in-place upgrades to Ember are not supported; follow the fresh-install steps above.
 

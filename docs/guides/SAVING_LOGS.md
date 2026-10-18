@@ -13,7 +13,7 @@ Save your SF4 Ember Netplay logs immediately after a problem, before launching a
    %APPDATA%\sf4e
    ```
 
-   On Linux (Proton or Wine), the folder is inside the game's prefix: `steamapps/compatdata/45760/pfx/drive_c/users/steamuser/AppData/Roaming/sf4e`. On a Steam Deck that is `~/.local/share/Steam/steamapps/compatdata/45760/pfx/drive_c/users/steamuser/AppData/Roaming/sf4e`; see [Steam Deck and Linux](STEAM_DECK.md).
+   On Linux (Proton or Wine), the folder is inside the game's prefix: `steamapps/compatdata/45760/pfx/drive_c/users/steamuser/AppData/Roaming/sf4e`.
 
 5. Right-click the **logs** folder and choose **Compress to ZIP file**. On Windows 10, or under **Show more options**, choose **Send to → Compressed (zipped) folder**.
 6. Give the ZIP a descriptive name, such as `P1-rematch-stuck-2026-09-14.zip`. The other player can use `P2-rematch-stuck-2026-09-14.zip`.

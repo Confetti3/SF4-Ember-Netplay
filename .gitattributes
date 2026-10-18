@@ -1,4 +1,4 @@
-# Shell entry points and the Steam Deck launcher must run from Windows checkouts, archives and containers.
+# Shell entry points must run from Windows checkouts, archives and containers.
 *.sh text eol=lf
 *.desktop text eol=lf
 # Everything Linux reads from the deploy and container directories must stay LF

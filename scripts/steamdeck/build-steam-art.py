@@ -37,15 +37,12 @@ def logo(w):
     return image
 
 
-def with_logo(image, w, x, y):
-    image.alpha_composite(logo(w), (x, y))
-    return image
-
-
 capsule = cover(600, 900)
 capsule.alpha_composite(logo(520), (40, 80))
 capsule.convert("RGB").save(out / "cover.png")
-with_logo(cover(920, 430), 520, 40, 120).convert("RGB").save(out / "wide.png")
+wide = cover(920, 430)
+wide.alpha_composite(logo(520), (40, 120))
+wide.convert("RGB").save(out / "wide.png")
 cover(1920, 620).convert("RGB").save(out / "hero.png")
 logo(1280).save(out / "logo.png")
 mark.resize((256, 256), Image.Resampling.LANCZOS).save(out / "icon.png")
