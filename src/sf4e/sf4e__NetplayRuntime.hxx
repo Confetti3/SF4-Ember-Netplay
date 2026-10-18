@@ -424,6 +424,8 @@ void TickReplays();
 void OpenPublicRoomLink(const tournament_link::RoomLink& link, bool launched = false);
 // A table's end as the room committed it, with how it compares to this game's own capture.
 void ObserveTournamentTerminal(const room::Event& event, netplay::MatchResultOutbox::TerminalResult terminal);
+// This fighter's abort of a game, which the room cannot take now.
+void ObserveStrandedAbort(const room::Snapshot& snapshot, const room::Action& abort);
 netplay::tournament::Status TournamentStatus();
 
 // Public rooms (sf4e__NetplayRuntime__PublicRooms.cxx).

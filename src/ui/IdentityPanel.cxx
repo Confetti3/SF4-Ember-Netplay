@@ -22,6 +22,9 @@ constexpr double DiscordPollSeconds = 4, DiscordSignInSeconds = 600;
 // Away from the matches screen, the assigned matches are read this often,
 // and a failed background read of the state or services is tried again after this.
 constexpr double AssignmentsSeconds = 60, BackgroundRetrySeconds = 30;
+// After a match ended for a lost connection, the bridge may set up a new one:
+// the matches are read this often, from any screen, for this long.
+constexpr double RestartPollSeconds = 5, RestartWatchSeconds = 180;
 
 // The helper's and the bridge's failure codes, in words. Codes that mean the
 // same thing to the player share a sentence.
@@ -71,7 +74,8 @@ std::string PlayState(const netplay::tournament::Status& t) {
     case Phase::InRoom:
         return t.waitingForPermit ? loc::T("tournament.state.waiting_permit") :
             t.waitingForOpponent ? loc::T("tournament.state.waiting_opponent") : loc::T("tournament.state.in_room");
-    case Phase::Finished: return loc::T("tournament.state.finished");
+    case Phase::Finished:
+        return loc::T(t.reason == netplay::tournament::ConnectionLostReason ? "tournament.connection_lost_notice" : "tournament.state.finished");
     case Phase::Failed: return loc::T("tournament.state.failed");
     default: return {};
     }
@@ -171,7 +175,8 @@ std::string IdentityPanel::EntryDetail(const ShellView& v) const {
 }
 
 bool IdentityPanel::TakeAssigned(const ShellView& v) {
-    return announced_.Take(v.tournament.list, v.unixNow) && lastScreen_ != "tournament-matches";
+    // A player waiting for the match set up again is told on the matches screen too.
+    return announced_.Take(v.tournament.list, v.unixNow) && (lastScreen_ != "tournament-matches" || now_ < restartWatchUntil_);
 }
 
 std::string IdentityPanel::TakeFocus(const std::vector<MenuEntry>& rows) {
@@ -395,16 +400,24 @@ void IdentityPanel::SendTournament(const ShellView& v, const std::string& screen
     // A match that ended has a new score to show.
     if (t.phase != phase_) {
         if (t.phase == Phase::Finished || t.phase == Phase::Failed) wantAssignments_ = true;
+        // One that ended for a lost connection may be set up again as a new
+        // match on its service, which is watched for it from now on, until
+        // the player plays a match again.
+        if (t.phase == Phase::Finished && t.reason == netplay::tournament::ConnectionLostReason) {
+            restartWatchUntil_ = now_ + RestartWatchSeconds; assignmentsAt_ = now_;
+            if (FindBridge(v, t.bridgeId)) bridge_ = t.bridgeId;
+        } else if (Playing(t)) restartWatchUntil_ = 0;
         phase_ = t.phase;
     }
+    const bool watching = now_ < restartWatchUntil_;
     ShellAction action;
     action.command.generation = v.session.generation;
     if (play_) {
         action.tournament = std::move(*play_);
         play_.reset();
-    } else if ((wantAssignments_ && screen == "tournament-matches" || !Owns(screen) && now_ >= assignmentsAt_ && servicesKnown_) &&
+    } else if ((wantAssignments_ && screen == "tournament-matches" || (watching || !Owns(screen)) && now_ >= assignmentsAt_ && servicesKnown_) &&
                FindBridge(v, bridge_) && !t.list.loading) {
-        wantAssignments_ = false; assignmentsAt_ = now_ + AssignmentsSeconds;
+        wantAssignments_ = false; assignmentsAt_ = now_ + (watching ? RestartPollSeconds : AssignmentsSeconds);
         action.tournament.op = Command::Op::Refresh;
         action.tournament.bridgeId = bridge_;
         if (opened_ && opened_->bridge == bridge_) opened_->finishedBefore = t.list.finished;

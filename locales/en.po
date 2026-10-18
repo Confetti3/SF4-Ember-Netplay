@@ -3762,6 +3762,9 @@ msgstr "Checking for matches..."
 msgid "tournament.done_notice"
 msgstr "Tournament match complete."
 
+msgid "tournament.connection_lost_notice"
+msgstr "The connection to your opponent was lost. Waiting for the tournament to set up a new match."
+
 msgid "tournament.stopped_notice"
 msgstr "Tournament match stopped. {0}"
 

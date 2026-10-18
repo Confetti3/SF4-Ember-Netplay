@@ -72,7 +72,8 @@ public:
     // from; 0 without a ready ID and a service. Home shows a row while any are.
     int ReadyMatches(const ShellView& view) const;
     // A playable match the player has not been told about yet: true once for
-    // each new one, except while the matches screen already shows them (see
+    // each new one, except while the matches screen already shows them, unless
+    // a match that ended for a lost connection is being set up again (see
     // MatchAnnouncements, which remembers them across restarts).
     bool TakeAssigned(const ShellView& view);
     // Where the matches told are kept; the platform store unless a test supplies its own.
@@ -253,6 +254,9 @@ private:
     // matches told.
     bool servicesKnown_ = false;
     double backgroundAt_ = 0, assignmentsAt_ = 0;
+    // Until when the matches are watched for one the bridge sets up again
+    // after a lost connection (RestartWatchSeconds).
+    double restartWatchUntil_ = 0;
     MatchAnnouncements announced_;
     // The assignment list is wanted for the selected service; a Play or Stop
     // waiting to be sent; and what the last refresh said, to report a failure once.

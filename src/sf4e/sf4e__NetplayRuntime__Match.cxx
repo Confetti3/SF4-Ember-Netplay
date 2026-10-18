@@ -61,11 +61,13 @@ void ReportMatchAbort() {
 		spdlog::info("Room: not reporting the abort of finished generation {} table={}", action.matchGeneration, action.table);
 		return;
 	}
-	if (client.SendRoomAction(action) != session::SendResult::Queued) {
+	const bool queued = client.SendRoomAction(action) == session::SendResult::Queued;
+	if (!queued) {
 		if (!runtime->pendingAbort || runtime->pendingAbort->matchGeneration == action.matchGeneration)
 			runtime->pendingAbort.reset(new room::Action(action));
 		if (!runtime->pendingAbortDeadline) runtime->pendingAbortDeadline = GetTickCount64() + 30000;
 	}
+	if (!queued || runtime->controller.GetSnapshot().control != netplay::Health::Healthy) ObserveStrandedAbort(snapshot, action);
 }
 
 // The battle the runtime entered closed after its GGPO session was retired, so

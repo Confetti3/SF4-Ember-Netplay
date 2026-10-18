@@ -4122,6 +4122,9 @@ msgstr "Поиск матчей..."
 msgid "tournament.done_notice"
 msgstr "Турнирный матч завершён."
 
+msgid "tournament.connection_lost_notice"
+msgstr "Связь с соперником потеряна. Ожидание, пока турнир назначит новый матч."
+
 msgid "tournament.stopped_notice"
 msgstr "Турнирный матч остановлен. {0}"
 

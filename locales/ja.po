@@ -4121,6 +4121,9 @@ msgstr "試合を確認中..."
 msgid "tournament.done_notice"
 msgstr "大会の試合が終了しました。"
 
+msgid "tournament.connection_lost_notice"
+msgstr "対戦相手との接続が切れました。大会が新しい試合を用意するのを待っています。"
+
 msgid "tournament.stopped_notice"
 msgstr "大会の試合が停止しました。{0}"
 

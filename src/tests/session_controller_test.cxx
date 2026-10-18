@@ -323,8 +323,12 @@ int main() {
     CHECK(EventNow(controller, EventKind::RoomJoined).accepted);
     StartMatch(controller);
     CHECK(EventNow(controller, EventKind::GameplayLost).effect == Effect::AbortMatch);
+    CHECK(controller.GetSnapshot().match == MatchState::Failed);
     CHECK(!EventNow(controller, EventKind::GameplayReady).accepted);
+    // A game cut short has no PostMatch: the closed room goes straight to
+    // None, which is where Ember's menu comes back (OverlayPresentation).
     CHECK(EventNow(controller, EventKind::RoomClosed).accepted);
+    CHECK(controller.GetSnapshot().match == MatchState::None);
     CHECK(EventNow(controller, EventKind::HelperLost).accepted);
     CHECK(CommandNow(controller, CommandKind::StartOffline).accepted);
 

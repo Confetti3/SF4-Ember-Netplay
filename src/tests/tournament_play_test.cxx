@@ -279,6 +279,106 @@ static void TestFinishedAndFailed() {
 	CHECK(other.Reason() == "not_found");
 }
 
+// The deciding game completes the match on the bridge at the KO, so a claim
+// can answer stale_revision while that game's battle still shows the result.
+// The room is left once the battle has closed by itself, so the result stays
+// on screen and Ember's menu comes back after it; a battle that never closes
+// is left all the same. Stop and giving the match up leave at once.
+static void TestFinishedWaitsForTheLastBattle() {
+	room::Snapshot snapshot;
+	const auto inRoom = [&](TournamentPlay& play) {
+		play.Start("brg_x", "emt_x", 0);
+		play.Tick(0, {});
+		play.OnRoom(Kind::Claim, Room(RoomA, std::nullopt), 0);
+		play.Tick(100, Joined(RoomA, &snapshot, false));
+		CHECK(play.GetPhase() == Phase::InRoom);
+	};
+	auto fighting = Joined(RoomA, &snapshot, false);
+	fighting.fighting = true;
+	const auto closed = Joined(RoomA, &snapshot, false);
+
+	TournamentPlay play;
+	inRoom(play);
+	play.OnFailure(Kind::Claim, "stale_revision", 1000);
+	CHECK(play.GetPhase() == Phase::Finished && play.Reason() == "stale_revision");
+	auto out = play.Tick(1100, fighting);
+	CHECK(Count(out, Kind::Leave) == 0 && Count(out, Kind::Forget) == 1);
+	CHECK(Count(play.Tick(30000, fighting), Kind::Leave) == 0);
+	CHECK(Count(play.Tick(30100, closed), Kind::Leave) == 1);
+	CHECK(play.Tick(30200, closed).empty());
+
+	TournamentPlay stuck;
+	inRoom(stuck);
+	stuck.OnFailure(Kind::Claim, "stale_revision", 1000);
+	CHECK(Count(stuck.Tick(1100, fighting), Kind::Leave) == 0);
+	CHECK(Count(stuck.Tick(1100 + FinalBattleHoldMs - 1, fighting), Kind::Leave) == 0);
+	CHECK(Count(stuck.Tick(1100 + FinalBattleHoldMs, fighting), Kind::Leave) == 1);
+	CHECK(Count(stuck.Tick(1200 + FinalBattleHoldMs, fighting), Kind::Leave) == 0);
+
+	TournamentPlay stopped;
+	inRoom(stopped);
+	stopped.OnFailure(Kind::Claim, "stale_revision", 1000);
+	CHECK(Count(stopped.Tick(1100, fighting), Kind::Leave) == 0);
+	stopped.Stop();
+	CHECK(Count(stopped.Tick(1200, fighting), Kind::Leave) == 1 && stopped.GetPhase() == Phase::Idle);
+	CHECK(Count(stopped.Tick(1300, closed), Kind::Leave) == 0);
+
+	TournamentPlay abandoned;
+	inRoom(abandoned);
+	abandoned.Abandon("helper_lost");
+	CHECK(Count(abandoned.Tick(1000, fighting), Kind::Leave) == 1);
+	TournamentPlay refused;
+	inRoom(refused);
+	refused.OnFailure(Kind::Claim, "not_found", 1000);
+	CHECK(Count(refused.Tick(1100, fighting), Kind::Leave) == 1);
+}
+
+// An aborted game is reported once, whether the room ended it or this
+// fighter's game reports it because its room could not, and a match that
+// then finishes ended for the lost connection. A game played out since
+// finishes it as usual.
+static void TestConnectionLost() {
+	room::Snapshot snapshot;
+	snapshot.tournament = MakeBinding(RoomA, 0).room;
+	snapshot.tables[room::TournamentTable].phase = room::TablePhase::Ready;
+	snapshot.tables[room::TournamentTable].permitGeneration = 3;
+	const auto permit = [](std::uint64_t generation) {
+		PrepareReply permitted;
+		permitted.permitted = true;
+		permitted.generation = generation;
+		permitted.permitId = "per_" + std::to_string(generation);
+		return permitted;
+	};
+	const auto bound = [&](TournamentPlay& play) {
+		play.Start("brg_x", "emt_x", 0);
+		play.Tick(0, {});
+		play.OnRoom(Kind::Claim, Room(RoomA, MakeBinding(RoomA, 0)), 0);
+		play.Tick(100, Joined(RoomA, &snapshot, false));
+		play.OnPrepare(permit(3), 200);
+	};
+
+	TournamentPlay lost;
+	bound(lost);
+	lost.OnTerminal(3, room::MatchResult::Abort, 900, 899);
+	lost.OnTerminal(3, room::MatchResult::Abort, 0, 0);
+	lost.OnTerminal(3, room::MatchResult::P1Win, 10, 9);
+	auto out = lost.Tick(300, Joined(RoomA, &snapshot, false));
+	const auto* report = Find(out, Kind::Report);
+	CHECK(Count(out, Kind::Report) == 1 && report->generation == 3 && report->result == "abort" &&
+		report->captureFrame == 0 && report->confirmedFrame == 0);
+	lost.OnReported(3);
+	lost.OnFailure(Kind::Claim, "stale_revision", 400);
+	CHECK(lost.GetPhase() == Phase::Finished && lost.Reason() == ConnectionLostReason);
+
+	TournamentPlay replayed;
+	bound(replayed);
+	replayed.OnTerminal(3, room::MatchResult::Abort, 0, 0);
+	replayed.OnPrepare(permit(4), 300);
+	replayed.OnTerminal(4, room::MatchResult::P2Win, 10, 9);
+	replayed.OnFailure(Kind::Claim, "stale_revision", 400);
+	CHECK(replayed.GetPhase() == Phase::Finished && replayed.Reason() == "stale_revision");
+}
+
 // The helper forgets the match only once every report has its answer; a
 // lease lost while opening is never published; and only a room this game
 // opened is published at all.
@@ -475,6 +575,8 @@ int main() {
 	TestPermitsAndReports();
 	TestCancelledStart();
 	TestFinishedAndFailed();
+	TestFinishedWaitsForTheLastBattle();
+	TestConnectionLost();
 	TestOrderingAndLeases();
 	TestReadyGoesWithTheClaim();
 	if (failures) std::printf("%d failure(s)\n", failures);

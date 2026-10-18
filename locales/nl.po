@@ -4121,6 +4121,9 @@ msgstr "Wedstrijden zoeken..."
 msgid "tournament.done_notice"
 msgstr "Toernooiwedstrijd voltooid."
 
+msgid "tournament.connection_lost_notice"
+msgstr "De verbinding met je tegenstander is verbroken. Wachten tot het toernooi een nieuwe wedstrijd klaarzet."
+
 msgid "tournament.stopped_notice"
 msgstr "Toernooiwedstrijd gestopt. {0}"
 

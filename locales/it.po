@@ -4121,6 +4121,9 @@ msgstr "Ricerca delle partite..."
 msgid "tournament.done_notice"
 msgstr "Partita del torneo conclusa."
 
+msgid "tournament.connection_lost_notice"
+msgstr "La connessione con l'avversario è stata persa. In attesa che il torneo prepari una nuova partita."
+
 msgid "tournament.stopped_notice"
 msgstr "Partita del torneo interrotta. {0}"
 

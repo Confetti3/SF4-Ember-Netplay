@@ -35,6 +35,11 @@ constexpr std::uint64_t OpenTimeoutMs = 30000;
 // How many times a game's report is handed to the helper before the match
 // stops as unsaved; the tries are RetryMs apart.
 constexpr int MaxReportAttempts = 6;
+// How long a finished match's room waits for its last game's battle to close
+// by itself before it is left all the same.
+constexpr std::uint64_t FinalBattleHoldMs = 60000;
+// Why a match finished whose last game ended on a lost connection (Reason()).
+constexpr const char* ConnectionLostReason = "connection_lost";
 
 // The bridge's binding, as the fighter's own helper checked it.
 struct Binding {
@@ -73,6 +78,8 @@ struct RoomView {
 	// This game applies the room's changes (the coordination leader).
 	bool authorityWritable = false;
 	const room::Snapshot* snapshot = nullptr;
+	// A game is being prepared or played on this PC (netplay::Fighting).
+	bool fighting = false;
 };
 
 struct Output {
@@ -120,7 +127,8 @@ public:
 	Phase GetPhase() const { return phase_; }
 	const std::string& BridgeId() const { return bridgeId_; }
 	const std::string& MatchId() const { return matchId_; }
-	// Why the match ended or failed: a stable code, empty otherwise.
+	// Why the match ended or failed: a stable code, empty otherwise. A match
+	// whose last game was aborted finishes with ConnectionLostReason.
 	const std::string& Reason() const { return reason_; }
 	// Waiting for the other fighter's room, or for the bridge's permit.
 	bool WaitingForOpponent() const { return waitingForOpponent_; }
@@ -140,6 +148,7 @@ private:
 	void SendReport(Output report, std::vector<Output>& out);
 	void ResendReports(std::uint64_t nowMs, std::vector<Output>& out);
 	void ReportsSettled();
+	void ReleaseHeldLeave(std::uint64_t nowMs, const RoomView& room, std::vector<Output>& out);
 
 	Phase phase_ = Phase::Idle;
 	std::string bridgeId_, matchId_, reason_;
@@ -173,6 +182,14 @@ private:
 	struct UnsavedReport { Output report; int attempts = 0; bool inFlight = false; std::uint64_t retryAtMs = 0; };
 	std::map<std::uint64_t, UnsavedReport> unsaved_;
 	bool forgetAfterReports_ = false;
+	// The last game reported ended in an abort: the connection between the
+	// fighters was lost, and the bridge may set up a new match for them.
+	bool lastAborted_ = false;
+	// A finished match's room is left once its last game's battle has closed
+	// by itself, so the result stays on screen and Ember's menu comes back
+	// after it. The wait is bounded from the first tick that holds it.
+	bool leaveHeld_ = false;
+	std::uint64_t leaveHeldUntilMs_ = 0;
 };
 
 // The wire name of a native result in a report.

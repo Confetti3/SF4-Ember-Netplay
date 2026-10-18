@@ -718,7 +718,12 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // room it was played in closes with it.
  if(v.tournament.phase!=tournamentPhase_){
   using netplay::tournament::Phase;
-  if(v.tournament.phase==Phase::Finished){notice_=loc::T("tournament.done_notice");noticeTone_=Tone::Success;noticeUntil_=now+12;}
+  // One ended for a lost connection says so in the same words on both sides,
+  // and promises nothing: the bridge may or may not set up a new match.
+  if(v.tournament.phase==Phase::Finished&&v.tournament.reason==netplay::tournament::ConnectionLostReason){
+   notice_=loc::T("tournament.connection_lost_notice");noticeTone_=Tone::Pending;noticeUntil_=now+30;
+  }
+  else if(v.tournament.phase==Phase::Finished){notice_=loc::T("tournament.done_notice");noticeTone_=Tone::Success;noticeUntil_=now+12;}
   else if(v.tournament.phase==Phase::Failed){
    notice_=loc::Tf("tournament.stopped_notice",IdentityPanel::TournamentFailure(v.tournament.reason));noticeTone_=Tone::Error;noticeUntil_=now+20;
   }

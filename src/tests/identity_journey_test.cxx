@@ -184,6 +184,35 @@ void PlayRechecks(){
  v.session.room=netplay::RoomState::Idle;
  Check(press("between_games",9000,true)&&sent.back().tournament.matchId=="emt_1"&&sent.back().tournament.bridgeId=="brg_1","Play did not go out for a match that can be played");
 }
+// A match that ended for a lost connection says so, in words that promise no
+// new match, and its service is read every few seconds for a few minutes,
+// from any screen, so a match the bridge sets up again is told at once, on the
+// matches screen too. Past that the matches screen is read only when asked.
+void RestartWatch(){
+ using namespace sf4e;using netplay::tournament::Command;using netplay::tournament::Phase;
+ Journey h;auto& id=h.view.identity;id.known=true;h.ready();
+ id.bridges={{"brg_1","https://bridge.embernetplay.link","Ember"}};
+ h.Screen("home");h.Frame(0,2);h.answer();h.Frame(0,2);
+ const auto reads=[&]{const auto all=h.played();return std::count_if(all.begin(),all.end(),[](const Command* c){return c->op==Command::Op::Refresh;});};
+ Check(reads()>=1,"Home did not read the matches");
+ auto& t=h.view.tournament;t.list.bridge="brg_1";t.bridgeId="brg_1";t.matchId="emt_1";
+ t.phase=Phase::InRoom;h.Frame(0,2);
+ const auto before=reads();
+ t.phase=Phase::Finished;t.reason=netplay::tournament::ConnectionLostReason;h.Frame(0,2);
+ Check(h.status==loc::T("tournament.connection_lost_notice"),"A match ended for a lost connection was announced as complete");
+ Check(reads()==before+1,"The matches were not read when the match ended for a lost connection");
+ h.Screen("tournament-matches");for(int i=0;i<6;++i)h.answer();
+ Check(h.row("tm-current")&&h.row("tm-current")->value==loc::T("tournament.connection_lost_notice"),
+  "The matches screen does not say the connection was lost");
+ const auto onScreen=reads();h.Frame(0,6,1.f);
+ Check(reads()>onScreen,"The matches screen was not read again within seconds");
+ netplay::tournament::Assignment next;next.matchId="emt_2";next.state="ready";next.profile="ember-room-v1";next.gamesToWin=2;
+ t.list.items={next};h.Frame(0,2);
+ Check(h.status==loc::T("tournament.assigned_notice"),"The match set up again was not told on the matches screen");
+ h.Frame(0,200,1.f);
+ const auto later=reads();h.Frame(0,30,1.f);
+ Check(reads()==later,"The matches screen was still read every few seconds minutes later");
+}
 // A room bound to a tournament match offers no seat, rules or kick changes at
 // its table, and its status says what the next game waits for.
 void TournamentRoom(){
@@ -280,5 +309,5 @@ void RoomLinks(){
  h.view.pendingJoinDirect=false;h.shell.Navigation().Home();h.Frame(0,3);
  Check(h.shell.Navigation().Screen()=="join"&&h.actions.size()==before,"A stale room link did not just fill the Join screen");
 }
-int main(){try{IdentityJourneys();PlayRechecks();TournamentRoom();RoomLinks();RunDiscordConnectJourneys();RunBuiltInServiceJourneys();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
+int main(){try{IdentityJourneys();PlayRechecks();RestartWatch();TournamentRoom();RoomLinks();RunDiscordConnectJourneys();RunBuiltInServiceJourneys();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

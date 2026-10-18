@@ -39,7 +39,14 @@ public:
         reopened_ = false;
         const bool atMenu = input::MenuShownIn(context);
         const bool fighting = input::FightKeepsMenuAway(netplay::Fighting(match), context);
-        if (match == netplay::MatchState::PostMatch && previousMatch_ != match) reopen_ = true;
+        // The menu comes back after a game, once it can be shown. A game cut
+        // short (its room closed, its connection or the helper was lost) has
+        // no PostMatch and goes straight back to None: the menu comes back
+        // all the same, so the player is not left at the game's own menu.
+        if (match != previousMatch_) {
+            if (match == netplay::MatchState::PostMatch) reopen_ = "a match ended";
+            else if (match == netplay::MatchState::None && previousMatch_ != netplay::MatchState::PostMatch) reopen_ = "a game was cut short";
+        }
         if (offline && !previousOffline_) { requested_ = false; why_ = "Play Offline"; }
         if (fighting) { requested_ = false; why_ = "a game is starting or running"; }
         // The native foreground query drops for a frame or two during menu
@@ -53,7 +60,7 @@ public:
         available_ = !fighting && (atMenu || (available_ && awayFrames_ < AwayFrames));
         if (available_ != wasAvailable && !fighting) why_ = available_ ? "the main menu is in front" : "the main menu is no longer in front";
         focused_ = focused;
-        if (available_ && reopen_) { requested_ = true; reopen_ = false; reopened_ = true; why_ = "a match ended"; }
+        if (available_ && reopen_) { requested_ = true; why_ = reopen_; reopen_ = nullptr; reopened_ = true; }
         previousMatch_ = match;
         previousOffline_ = offline;
     }
@@ -75,7 +82,9 @@ private:
     bool requested_ = true, available_ = false, focused_ = true;
     unsigned awayFrames_ = 0;
     const char* why_ = "";
-    bool reopened_ = false, reopen_ = false, previousOffline_ = false;
+    bool reopened_ = false, previousOffline_ = false;
+    // Why the menu comes back once it can be shown; null when it does not.
+    const char* reopen_ = nullptr;
     netplay::MatchState previousMatch_ = netplay::MatchState::None;
 };
 

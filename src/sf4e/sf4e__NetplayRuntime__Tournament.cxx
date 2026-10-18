@@ -107,10 +107,13 @@ void Execute(const Output& output, std::uint64_t nowMs) {
 	case Output::Kind::Join:
 		RoomCommand({netplay::CommandKind::JoinInvite, {}, output.invitation}, "joining the match's room");
 		break;
-	case Output::Kind::Leave:
-		if (runtime->controller.GetSnapshot().room == netplay::RoomState::Idle) break;
+	case Output::Kind::Leave: {
+		// Not in a room, or already leaving it (the player left by hand).
+		const auto room = runtime->controller.GetSnapshot().room;
+		if (room == netplay::RoomState::Idle || room == netplay::RoomState::Closing) break;
 		RoomCommand({netplay::CommandKind::LeaveRoom, {}, {}}, "leaving the room");
 		break;
+	}
 	case Output::Kind::Bind:
 		// The room may be mid-round; the state machine offers it again.
 		if (UserApp::server && UserApp::server->BindTournament(output.binding))
@@ -177,6 +180,8 @@ void TakeAnswer(const session::TournamentAnswer& answer, std::uint64_t nowMs) {
 netplay::tournament::RoomView View(bool helperReady) {
 	netplay::tournament::RoomView view;
 	const auto& state = runtime->controller.GetSnapshot();
+	// Also out of a joined room: a room lost under a game keeps its battle.
+	view.fighting = netplay::Fighting(state.match);
 	view.joined = state.room == netplay::RoomState::Joined && runtime->attached && UserApp::netplay && runtime->room;
 	// Not free to open a room counts as opening: the state machine waits
 	// rather than asking for a host or join the runtime would refuse.
@@ -314,6 +319,18 @@ void ObserveTournamentTerminal(const room::Event& event, netplay::MatchResultOut
 		return;
 	}
 	runtime->tournament.OnTerminal(event.matchGeneration, capture->result, capture->captureFrame, capture->confirmedFrame);
+}
+
+// The bridge hears of a game only from the room's end. In a two-member room
+// the other fighter's game is the room's only voter, so when it is gone the
+// room takes no abort and never ends the game: the seated fighter reports the
+// abort itself. While the room can take changes the abort is left to it, as it
+// may still record a confirmed win that this report would contradict.
+void ObserveStrandedAbort(const room::Snapshot& snapshot, const room::Action& abort) {
+	if (abort.kind != room::ActionKind::AbortMatch || abort.table != room::TournamentTable || !abort.matchGeneration ||
+		!snapshot.tournament.Active()) return;
+	spdlog::info("Tournament: the room cannot take the abort of generation {} now; reporting it to the bridge", abort.matchGeneration);
+	runtime->tournament.OnTerminal(abort.matchGeneration, room::MatchResult::Abort, 0, 0);
 }
 
 netplay::tournament::Status TournamentStatus() {
