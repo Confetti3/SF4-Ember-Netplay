@@ -48,7 +48,8 @@ run kioclient exec /home/deck/Downloads/install-ember.desktop
 on 'for _ in $(seq 120); do pgrep -x steam >/dev/null || break; sleep 1; done'
 shot 4-done 2
 # Steam numbers the shortcut as the installer does: crc32 of its Exe and name.
-id=$(python3 -c 'import zlib; print(zlib.crc32(b"\"/home/deck/Ember/ember-play.sh\"SF4 Ember Netplay") | 0x80000000)')
+# The game is in the Deck's internal library.
+id=$(python3 -c 'import zlib; print(zlib.crc32(b"\"/home/deck/.local/share/Steam/steamapps/compatdata/45760/pfx/drive_c/Ember/ember-play.sh\"SF4 Ember Netplay") | 0x80000000)')
 on 'for _ in $(seq 60); do pgrep -f steamwebhelper >/dev/null && break; sleep 1; done'
 sleep 15
 run steam "steam://nav/games/details/$id"

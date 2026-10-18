@@ -46,12 +46,14 @@ def write(d):
 
 
 def launch_option(old, wrapper):
-    """The player's own option with the wrapper put in front of the game command."""
-    if wrapper in old:
-        return old
+    """The player's own option with the wrapper put in front of the game command.
+
+    An earlier wrapper, from any folder, is replaced. The path is quoted because
+    a library on an SD card can have spaces in its name."""
+    old = re.sub(r'("[^"]*/steam-launch\.sh"|\S*/steam-launch\.sh)\s*', "", old).strip()
     if "%command%" in old:
-        return old.replace("%command%", f"{wrapper} %command%", 1)
-    return f"{wrapper} %command% {old}".strip()
+        return old.replace("%command%", f'"{wrapper}" %command%', 1)
+    return f'"{wrapper}" %command% {old}'.strip()
 
 
 def set_launch_option(text, wrapper):
@@ -102,7 +104,13 @@ def main(steam, dest, art):
         os.makedirs(grid, exist_ok=True)
         f = os.path.join(config, "shortcuts.vdf")
         shortcuts = read(open(f, "rb").read())[0]["shortcuts"] if os.path.exists(f) else {}
+        earlier = [s.get("appid") for s in shortcuts.values() if NAME in (s.get("appname"), s.get("AppName"))]
         shortcuts, appid = add_shortcut(shortcuts, dest, grid)
+        # A tile from another folder had another ID; its artwork goes with it.
+        for old in earlier:
+            if isinstance(old, int) and old & 0xFFFFFFFF != appid:
+                for png in glob.glob(os.path.join(grid, f"{old & 0xFFFFFFFF}*.png")):
+                    os.remove(png)
         open(f, "wb").write(write({"shortcuts": shortcuts}))
         for src, suffix in (("cover", "p"), ("wide", ""), ("hero", "_hero"), ("logo", "_logo"), ("icon", "_icon")):
             if os.path.exists(os.path.join(art, src + ".png")):

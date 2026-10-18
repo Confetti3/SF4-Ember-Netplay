@@ -1,5 +1,5 @@
 #!/bin/bash
-# USF4's Steam launch option: ~/Ember/steam-launch.sh %command%
+# USF4's Steam launch option: "<prefix>/drive_c/Ember/steam-launch.sh" %command%
 # The SF4 Ember Netplay tile adds -ember to the game's command; then this runs
 # Ember's Launcher.exe in the game's own Proton session instead of SSFIV.exe.
 # Without it, USF4's own tile starts the plain game.

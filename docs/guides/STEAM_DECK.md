@@ -31,7 +31,7 @@ Start Ultra Street Fighter IV once from Steam, wait for the main menu, then quit
 
    ![SF4 Ember Netplay in Game Mode](../images/steamdeck-6-game-mode.png)
 
-The installer downloads the latest stable release, checks its SHA-256 and extracts it to `~/Ember`, replacing any earlier copy. It adds the SF4 Ember Netplay tile with Ember artwork and puts `~/Ember/steam-launch.sh` in front of USF4's launch option, keeping anything already there. The tile starts USF4 with `-ember`, and only then does that script start Ember. Steam is closed while the installer changes its settings and then started again. Playtime, friends and achievements count for Ultra Street Fighter IV, since that is the game that runs.
+The installer downloads the latest stable release, checks its SHA-256 and extracts it into the game's Proton folder as `C:\Ember`, replacing any earlier copy. On the Deck's internal storage that is `~/.local/share/Steam/steamapps/compatdata/45760/pfx/drive_c/Ember`. Deleting the game's Proton files, for example by uninstalling USF4, also removes Ember. It adds the SF4 Ember Netplay tile with Ember artwork and puts that folder's `steam-launch.sh` in front of USF4's launch option, keeping anything already there. The tile starts USF4 with `-ember`, and only then does that script start Ember. Steam is closed while the installer changes its settings and then started again. Playtime, friends and achievements count for Ultra Street Fighter IV, since that is the game that runs.
 
 ## Updating
 
@@ -39,7 +39,7 @@ Run the installer again. Your Ember settings, replays and logs live in the game'
 
 ## Uninstalling
 
-Remove the SF4 Ember Netplay tile (its gear > Manage > Remove non-Steam game), remove `~/Ember/steam-launch.sh` from **Launch Options** in USF4's **Properties**, then delete the `~/Ember` folder.
+Remove the SF4 Ember Netplay tile (its gear > Manage > Remove non-Steam game), remove the quoted `.../Ember/steam-launch.sh` from **Launch Options** in USF4's **Properties**, then delete the `Ember` folder in the game's Proton folder.
 
 ## Logs
 
@@ -48,8 +48,9 @@ Ember's settings and logs are in the game's Proton folder; [Saving logs](SAVING_
 ## Troubleshooting
 
 - **First start stops at the license or the shader download:** quit and press **Play** again.
+- **Nothing seems to happen after Play in Desktop Mode:** the game window can open behind Steam's window; click the game in the taskbar. Game Mode always shows it full screen.
 - **"Quit USF4 first.":** close the game, then run the installer again.
 - **"Steam did not close":** quit Steam yourself, run the installer again, then start Steam.
-- **SF4 Ember Netplay starts the game without Ember:** check that USF4's **Launch Options** still has `~/Ember/steam-launch.sh` before `%command%`, or run the installer again.
+- **SF4 Ember Netplay starts the game without Ember:** check that USF4's **Launch Options** still has the quoted `.../Ember/steam-launch.sh` before `%command%`, or run the installer again.
 
 For everything else, see [Troubleshooting](TROUBLESHOOTING.md).
