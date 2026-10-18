@@ -240,7 +240,10 @@ pub struct Offered {
 impl Offered {
     /// The capabilities document `body`. Only the fields this build has
     /// always read can fail it; `sign_in_sites` is taken out first and read
-    /// entry by entry.
+    /// entry by entry. Plain serde_json on purpose, not the strict JSON rules:
+    /// a newer bridge may put shapes in a site entry this build does not know,
+    /// and they must not stop Discord or match play. The body is already held
+    /// to the response size limit.
     fn read(body: &[u8]) -> Option<Self> {
         let mut document: Value = serde_json::from_slice(body).ok()?;
         let listed = document.as_object_mut()?.remove("sign_in_sites");
