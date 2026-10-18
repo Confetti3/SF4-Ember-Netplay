@@ -1,6 +1,8 @@
 #include "../netplay/MatchResultOutbox.hxx"
 #include "../session/RoomModel.hxx"
 #include "../common/NativeMatchResult.hxx"
+#include "../netplay/ProfileRecordJson.hxx"
+#include <limits>
 
 #include <algorithm>
 #include <cstdio>
@@ -323,6 +325,44 @@ static void TestProfilePersistenceNeverHoldsForever() {
 int main() {
     TestDegradedCaptureAndLostReplyRetry();
     TestProfilePersistenceNeverHoldsForever();
+    {
+        netplay::MatchResultCapture capture;
+        capture.roomId[0]=0x42;capture.roomEpoch=91;capture.generation=123;capture.table=0;capture.slot=1;
+        netplay::MatchResultOutbox outbox;
+        netplay::ProfileRecord profile;
+        for(unsigned game=1;game<=3;++game) {
+            capture.continuousGame=game;capture.result=game==2?room::MatchResult::P1Win:room::MatchResult::P2Win;
+            CHECK(outbox.Capture(capture));CHECK(!outbox.Capture(capture));
+            CHECK(outbox.PrepareProfileConsumption(profile)==netplay::MatchResultOutbox::ProfileConsumption::PersistenceRequired);
+            const auto wins=profile.wins,losses=profile.losses;
+            CHECK(outbox.PrepareProfileConsumption(profile)==netplay::MatchResultOutbox::ProfileConsumption::PersistenceRequired);
+            CHECK(profile.wins==wins&&profile.losses==losses);
+            CHECK(capture.ProfileKey().size()<=netplay::ProfileRecord::MaximumRecentKeyBytes);
+        }
+        CHECK(profile.wins==2&&profile.losses==1&&profile.recent.size()==3);
+        auto stale = capture; stale.continuousGame = 1;
+        CHECK(!outbox.Capture(stale));
+        CHECK(outbox.Captured()->continuousGame == 3);
+        CHECK(netplay::ProfileResultKeyV3(capture.roomId,0,123,1) ==
+            "v342000000000000000000000000000000:0:3f:1");
+        // Return to the lobby, rotate seats, then game 1 of a new generation:
+        // the same outbox must neither reuse its old acknowledgment nor dedup
+        // the new result against game 1 of the preceding set.
+        ++capture.generation;capture.continuousGame=1;capture.slot=0;
+        capture.result=room::MatchResult::P1Win;
+        CHECK(outbox.Capture(capture));CHECK(!outbox.Capture(capture));
+        CHECK(outbox.PrepareProfileConsumption(profile)==netplay::MatchResultOutbox::ProfileConsumption::PersistenceRequired);
+        CHECK(profile.wins==3&&profile.losses==1&&profile.recent.size()==4);
+        netplay::ProfileRecord restored;
+        CHECK(netplay::ReadProfileRecord(nlohmann::json::parse(netplay::ProfileRecordJson(profile).dump()),restored));
+        CHECK(!restored.RecordContinuous(capture.roomId,0,123,1,1,room::MatchResult::P2Win));
+        CHECK(restored.Record(capture.roomId,0,123,1,room::MatchResult::P2Win)); // distinct ordinary generation key
+        const auto maximum=(std::numeric_limits<std::uint64_t>::max)();
+        const auto key=netplay::ProfileResultKeyV3(capture.roomId,room::TableCount-1,maximum,maximum);
+        CHECK(key.size()<=netplay::ProfileRecord::MaximumRecentKeyBytes);
+        CHECK(key!=netplay::ProfileResultKeyV3(capture.roomId,room::TableCount-1,maximum,maximum-1));
+        CHECK(restored.RecordContinuous(capture.roomId,room::TableCount-1,maximum,maximum,1,room::MatchResult::P2Win));
+    }
     if (failures) return 1;
     std::printf("Match result outbox tests passed.\n");
     return 0;

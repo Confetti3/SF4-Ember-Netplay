@@ -466,7 +466,16 @@ int main() {
 	// current snapshot; the client resends from it, silently, up to three times.
 	// A fourth rejection is surfaced as a Ready reply so the press can fail now.
 	{
-		// A delay above the choice limit is normalized when it is chosen.
+        // Ready advertises only a configured native adapter, not merely a
+        // private room. A disabled adapter keeps the ordinary match path.
+        CHECK(roomClient.Lobby_Ready() == session::SendResult::Queued);
+        CHECK(!roomTransport->sent.back().at("action").get<room::Action>().continuous);
+        roomClient.SetContinuousRematchAvailable(true);
+        CHECK(roomClient.Lobby_Ready() == session::SendResult::Queued);
+        CHECK(roomTransport->sent.back().at("action").get<room::Action>().continuous);
+        roomClient.SetContinuousRematchAvailable(false);
+
+        // A delay above the choice limit is normalized when it is chosen.
 		roomClient.SetSelectedDelay(9);
 		CHECK(roomClient.Lobby_Ready() == session::SendResult::Queued);
 		auto readyPayload = roomTransport->sent.back();
@@ -769,6 +778,29 @@ int main() {
 	const auto afterSnapshotConfirmation = roomTransport->sent.size();
 	for (int tick = 0; tick < 16; ++tick) CHECK(roomClient.Step() == 0);
 	CHECK(roomTransport->sent.size() == afterSnapshotConfirmation);
-	roomClient.Disconnect();
-	std::cout << "Client transport/readiness/lifecycle tests passed\n";
+    // Numbered results and finishes use the same retained lifecycle slots.
+    // Replacing a game must reject its old retry and preserve the new bytes.
+    for (std::uint64_t game : {1, 2}) {
+        auto numbered = result;
+        numbered.kind = room::ActionKind::RecordContinuousResult;
+        numbered.continuousGame = game;
+        std::uint64_t id = 0;
+        CHECK(roomClient.SendRoomAction(numbered, &id) == session::SendResult::Queued);
+        const auto payload = roomTransport->sent.back();
+        CHECK(roomClient.RetryRoomResult(result, resultId) == session::SendResult::InvalidPayload);
+        CHECK(roomClient.RetryRoomResult(numbered, id) == session::SendResult::Queued);
+        CHECK(roomTransport->sent.back() == payload);
+        auto wrongGame = numbered; ++wrongGame.continuousGame;
+        CHECK(roomClient.RetryRoomResult(wrongGame, id) == session::SendResult::InvalidPayload);
+        auto end = numbered; end.kind = room::ActionKind::FinishContinuousMatch;
+        std::uint64_t endId = 0;
+        CHECK(roomClient.SendRoomAction(end, &endId) == session::SendResult::Queued);
+        const auto endPayload = roomTransport->sent.back();
+        CHECK(roomClient.RetryMatchFinished(finished, finishedId) == session::SendResult::InvalidPayload);
+        CHECK(roomClient.RetryMatchFinished(end, endId) == session::SendResult::Queued);
+        CHECK(roomTransport->sent.back() == endPayload);
+        result = numbered; resultId = id; finished = end; finishedId = endId;
+    }
+    roomClient.Disconnect();
+    std::cout << "Client transport/readiness/lifecycle tests passed\n";
 }

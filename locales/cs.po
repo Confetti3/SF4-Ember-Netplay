@@ -6248,3 +6248,42 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+msgid "quick_rematch.title"
+msgstr "Zápas skončil"
+
+msgid "quick_rematch.rematch"
+msgstr "Odveta"
+
+msgid "quick_rematch.rematch_detail"
+msgstr "Hrát znovu se stejnými postavami a na stejné scéně."
+
+msgid "quick_rematch.return_lobby"
+msgstr "Zpět do lobby"
+
+msgid "quick_rematch.return_lobby_detail"
+msgstr "Odmítnout odvetu a vrátit se do místnosti."
+
+msgid "quick_rematch.waiting"
+msgstr "Čekání na hru..."
+
+msgid "quick_rematch.failed"
+msgstr "Odveta přerušena. Návrat do lobby."
+
+msgid "quick_rematch.context_invalid"
+msgstr "Stav odvety se změnil. Návrat do lobby."
+
+msgid "quick_rematch.interrupted"
+msgstr "Odveta přerušena."
+
+msgid "quick_rematch.set_complete"
+msgstr "Série skončila. Vraťte se do lobby."
+
+msgid "quick_rematch.accepted"
+msgstr "Odveta potvrzena. Čekání na druhého hráče."
+
+msgid "quick_rematch.other_ready"
+msgstr "Druhý hráč potvrdil. Vyberte možnost."
+
+msgid "quick_rematch.time_remaining"
+msgstr "Zbývající čas: {0} s"

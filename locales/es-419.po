@@ -5774,3 +5774,42 @@ msgid "country.ZW"
 msgstr "Zimbabue"
 
 #. End of the generated country names.
+
+msgid "quick_rematch.title"
+msgstr "Combate terminado"
+
+msgid "quick_rematch.rematch"
+msgstr "Revancha"
+
+msgid "quick_rematch.rematch_detail"
+msgstr "Jugar otra vez con los mismos personajes y escenario."
+
+msgid "quick_rematch.return_lobby"
+msgstr "Volver a la sala"
+
+msgid "quick_rematch.return_lobby_detail"
+msgstr "Rechazar la revancha y volver a la sala."
+
+msgid "quick_rematch.waiting"
+msgstr "Esperando al juego..."
+
+msgid "quick_rematch.failed"
+msgstr "Revancha interrumpida. Volviendo a la sala."
+
+msgid "quick_rematch.context_invalid"
+msgstr "Cambió el estado de la revancha. Volviendo a la sala."
+
+msgid "quick_rematch.interrupted"
+msgstr "Revancha interrumpida."
+
+msgid "quick_rematch.set_complete"
+msgstr "Serie terminada. Vuelve a la sala."
+
+msgid "quick_rematch.accepted"
+msgstr "Revancha confirmada. Esperando al otro jugador."
+
+msgid "quick_rematch.other_ready"
+msgstr "El otro jugador confirmó. Elige una opción."
+
+msgid "quick_rematch.time_remaining"
+msgstr "Tiempo restante: {0} s"

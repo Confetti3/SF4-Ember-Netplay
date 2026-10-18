@@ -15,6 +15,7 @@
 #include "../common/NoticeSeverity.hxx"
 #include "../common/ConfirmedCheckpoint.hxx"
 #include "../common/GgpoTimeline.hxx"
+#include "../common/ContinuousRematch.hxx"
 #include "../common/MatchTelemetry.hxx"
 #include "../common/ReusableRecords.hxx"
 #include "../common/RoomLimits.hxx"
@@ -142,6 +143,7 @@ namespace sf4e {
 					// argument to the save callback. Reset on slot reuse.
 					int simulationFrame = -1;
 					int ggpoFrame = -1;
+					continuousrematch::State continuousRematchState;
 					std::vector<std::pair<GameMementoKey*, GameMementoKey>> keys;
 					// Flat, capacity-retaining records of the sound state. A
 					// save runs once per simulated and once per re-simulated

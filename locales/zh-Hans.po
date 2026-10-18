@@ -6248,3 +6248,42 @@ msgid "country.ZW"
 msgstr "津巴布韦"
 
 #. End of the generated country names.
+
+msgid "quick_rematch.title"
+msgstr "对战结束"
+
+msgid "quick_rematch.rematch"
+msgstr "再战"
+
+msgid "quick_rematch.rematch_detail"
+msgstr "使用相同角色和场地再战。"
+
+msgid "quick_rematch.return_lobby"
+msgstr "返回大厅"
+
+msgid "quick_rematch.return_lobby_detail"
+msgstr "拒绝再战并返回房间。"
+
+msgid "quick_rematch.waiting"
+msgstr "正在等待游戏响应..."
+
+msgid "quick_rematch.failed"
+msgstr "再战已中断。正在返回大厅。"
+
+msgid "quick_rematch.context_invalid"
+msgstr "再战状态已变化。正在返回大厅。"
+
+msgid "quick_rematch.interrupted"
+msgstr "再战已中断。"
+
+msgid "quick_rematch.set_complete"
+msgstr "赛组结束。请返回大厅。"
+
+msgid "quick_rematch.accepted"
+msgstr "已确认再战。正在等待另一位玩家。"
+
+msgid "quick_rematch.other_ready"
+msgstr "另一位玩家已确认。请选择。"
+
+msgid "quick_rematch.time_remaining"
+msgstr "剩余时间：{0}秒"

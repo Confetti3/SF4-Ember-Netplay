@@ -6248,3 +6248,42 @@ msgid "country.ZW"
 msgstr "ジンバブエ"
 
 #. End of the generated country names.
+
+msgid "quick_rematch.title"
+msgstr "対戦終了"
+
+msgid "quick_rematch.rematch"
+msgstr "再戦"
+
+msgid "quick_rematch.rematch_detail"
+msgstr "同じキャラクターとステージで再戦します。"
+
+msgid "quick_rematch.return_lobby"
+msgstr "ロビーに戻る"
+
+msgid "quick_rematch.return_lobby_detail"
+msgstr "再戦を断ってロビーに戻ります。"
+
+msgid "quick_rematch.waiting"
+msgstr "ゲームの応答を待っています..."
+
+msgid "quick_rematch.failed"
+msgstr "再戦が中断されました。ロビーに戻ります。"
+
+msgid "quick_rematch.context_invalid"
+msgstr "再戦の状態が変わりました。ロビーに戻ります。"
+
+msgid "quick_rematch.interrupted"
+msgstr "再戦が中断されました。"
+
+msgid "quick_rematch.set_complete"
+msgstr "セット終了。ロビーに戻ってください。"
+
+msgid "quick_rematch.accepted"
+msgstr "再戦を希望しました。相手の返答を待っています。"
+
+msgid "quick_rematch.other_ready"
+msgstr "相手は再戦を希望しています。選択してください。"
+
+msgid "quick_rematch.time_remaining"
+msgstr "残り時間：{0}秒"

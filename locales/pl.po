@@ -6248,3 +6248,42 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+msgid "quick_rematch.title"
+msgstr "Walka zakończona"
+
+msgid "quick_rematch.rematch"
+msgstr "Rewanż"
+
+msgid "quick_rematch.rematch_detail"
+msgstr "Zagraj ponownie tymi samymi postaciami na tej samej arenie."
+
+msgid "quick_rematch.return_lobby"
+msgstr "Wróć do lobby"
+
+msgid "quick_rematch.return_lobby_detail"
+msgstr "Odrzuć rewanż i wróć do pokoju."
+
+msgid "quick_rematch.waiting"
+msgstr "Oczekiwanie na grę..."
+
+msgid "quick_rematch.failed"
+msgstr "Rewanż przerwany. Powrót do lobby."
+
+msgid "quick_rematch.context_invalid"
+msgstr "Stan rewanżu uległ zmianie. Powrót do lobby."
+
+msgid "quick_rematch.interrupted"
+msgstr "Rewanż przerwany."
+
+msgid "quick_rematch.set_complete"
+msgstr "Seria zakończona. Wróć do lobby."
+
+msgid "quick_rematch.accepted"
+msgstr "Rewanż potwierdzony. Oczekiwanie na drugiego gracza."
+
+msgid "quick_rematch.other_ready"
+msgstr "Drugi gracz potwierdził. Wybierz opcję."
+
+msgid "quick_rematch.time_remaining"
+msgstr "Pozostały czas: {0} s"

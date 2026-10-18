@@ -3,6 +3,7 @@
 #include "../ui/ReplaysView.hxx"
 #include "../ui/ChatTranscript.hxx"
 #include "../common/MenuInputCapture.hxx"
+#include "../common/QuickRematch.hxx"
 #include "../common/TrainingCallInput.hxx"
 #include "../common/InstalledContent.hxx"
 #include "../common/FighterCatalog.hxx"
@@ -138,6 +139,8 @@ namespace sf4e {
             // Leave this watched game (Stop watching); empty for every other
             // command. The runtime decides what leaving it takes when it runs.
             netplay::WatchedGame leaveWatchedGame;
+            quickrematch::Choice quickRematchChoice = quickrematch::Choice::None;
+            std::uint64_t quickRematchOffer = 0;
 		};
 		struct RuntimeSnapshot {
             ui::ControllerSample menuController;
@@ -155,6 +158,7 @@ namespace sf4e {
             netplay::WatchedGame watchedGame;
             // Lock-ins lost to a failure of this member's spectator view (Runtime::lockInDrops).
             std::uint64_t lockInDrops = 0;
+            quickrematch::View quickRematch;
             std::array<selection::Availability,selection::FighterCount> fighterAvailability;
             // The custom content installed on this PC: built once at the scan and shared, never copied.
             selection::InstalledContentPtr installedContent;
@@ -333,6 +337,7 @@ namespace sf4e {
 		// recovery has ended (MatchRecovered). 0 otherwise, or with no session.
 		std::uint64_t RetiredMatchGeneration(const session::IrohMatchSession* match, bool ggpoLive, bool recovering);
 		bool IsRuntimeRoomActive();
+		bool GetRuntimeContinuousTable(room::Table& table);
 		// The room being opened is a public one joined with a ticket, so the host's
 		// refusals are worded for it.
 		bool IsRuntimePublicJoin();
@@ -352,10 +357,13 @@ namespace sf4e {
 		bool IsRuntimeSpectator();
 		// A rollback-confirmed native result, with the save frame it was
 		// captured at and the input frame confirmed when it was published.
-		void NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFrame, std::uint64_t confirmedFrame);
+		bool NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFrame, std::uint64_t confirmedFrame, std::uint64_t game = 0);
+		// Called only outside native rollback callbacks, with a confirmed game.
+		void FinishRuntimeMatch(std::uint64_t game);
 		// The room has committed the end of the current match (any result).
 		// Notices about losing that match's stream or peer are moot then.
 		bool IsRuntimeMatchEndCommitted();
+        bool IsRuntimeMatchFinishing();
 		// A match is being prepared or played, or its GGPO session is live for
 		// the match (not only draining spectators).
 		bool IsRuntimeMatchLive();

@@ -110,6 +110,8 @@ void fSystem::UpdateInputs() {
     const auto& snapshot=*sharedSnapshot;
     // Where Ember's menu may hold the pads follows where the game is now,
     // whatever the drawing thread last published (ui::MenuPads).
+    const bool resultModal=sf4e::quickrematch::Shown(snapshot.quickRematch);
+    sf4e::Overlay::PlaceResultModal(resultModal);
     auto& menuPads=sf4e::Overlay::MenuPads();
     menuPads.Place(snapshot.menuContext,sf4e::netplay::Fighting(snapshot.session.match));
     // A replay exported as a video, and a room's match this PC only watches,
@@ -119,7 +121,7 @@ void fSystem::UpdateInputs() {
     const bool watching=sf4e::Game::Battle::System::ggpo&&sf4e::UserApp::netplay&&sf4e::UserApp::netplay->spectating;
     const bool callOffered=snapshot.menuContext==sf4e::input::MenuContext::OfflineTraining&&offeredCall.Live();
     const auto policy=sf4e::BackgroundPlay::PolicyFor(snapshot.preferences.backgroundPlay,
-        sf4e::replaystore::Exporting(),watching,menuPads.Takes()||callOffered);
+        sf4e::replaystore::Exporting(),watching,resultModal||menuPads.Takes()||callOffered);
     sf4e::BackgroundPlay::BeforePadUpdate(this,policy);
     sf4e::InputLag::BeforePadUpdate(snapshot.preferences.lowerKeyboardLag);
     (this->*rSystem::publicMethods.UpdateInputs)();

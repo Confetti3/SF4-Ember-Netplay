@@ -6248,3 +6248,42 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+msgid "quick_rematch.title"
+msgstr "Incontro concluso"
+
+msgid "quick_rematch.rematch"
+msgstr "Rivincita"
+
+msgid "quick_rematch.rematch_detail"
+msgstr "Gioca ancora con gli stessi personaggi e lo stesso stage."
+
+msgid "quick_rematch.return_lobby"
+msgstr "Torna alla lobby"
+
+msgid "quick_rematch.return_lobby_detail"
+msgstr "Rifiuta la rivincita e torna nella sala."
+
+msgid "quick_rematch.waiting"
+msgstr "In attesa del gioco..."
+
+msgid "quick_rematch.failed"
+msgstr "Rivincita interrotta. Ritorno alla lobby."
+
+msgid "quick_rematch.context_invalid"
+msgstr "Stato della rivincita cambiato. Ritorno alla lobby."
+
+msgid "quick_rematch.interrupted"
+msgstr "Rivincita interrotta."
+
+msgid "quick_rematch.set_complete"
+msgstr "Set concluso. Torna alla lobby."
+
+msgid "quick_rematch.accepted"
+msgstr "Rivincita confermata. In attesa dell’altro giocatore."
+
+msgid "quick_rematch.other_ready"
+msgstr "L’altro giocatore ha confermato. Scegli un’opzione."
+
+msgid "quick_rematch.time_remaining"
+msgstr "Tempo rimasto: {0} s"

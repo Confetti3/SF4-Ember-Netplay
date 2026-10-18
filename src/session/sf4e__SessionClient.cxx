@@ -710,6 +710,7 @@ session::SendResult SessionClient::Lobby_Ready()
 	if (_customRoomsSeen) {
 		auto ready = TableAction(room::ActionKind::Ready, _selectedRoomTable, _selectedDelay);
 		ready.lowerLag = _selectedLowerLag;
+		ready.continuous = _continuousRematchAvailable && !_roomSnapshot.practice && !_roomSnapshot.serverOwned && !_roomSnapshot.tournament.Active();
 		return SendRoomAction(ready);
 	}
 	LobbyReady msg;

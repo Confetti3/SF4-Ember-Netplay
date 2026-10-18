@@ -6249,3 +6249,42 @@ msgid "country.ZW"
 msgstr "Зимбабве"
 
 #. End of the generated country names.
+
+msgid "quick_rematch.title"
+msgstr "Бой завершён"
+
+msgid "quick_rematch.rematch"
+msgstr "Реванш"
+
+msgid "quick_rematch.rematch_detail"
+msgstr "Сыграть снова теми же персонажами на той же арене."
+
+msgid "quick_rematch.return_lobby"
+msgstr "Вернуться в лобби"
+
+msgid "quick_rematch.return_lobby_detail"
+msgstr "Отказаться от реванша и вернуться в комнату."
+
+msgid "quick_rematch.waiting"
+msgstr "Ожидание игры..."
+
+msgid "quick_rematch.failed"
+msgstr "Реванш прерван. Возврат в лобби."
+
+msgid "quick_rematch.context_invalid"
+msgstr "Состояние реванша изменилось. Возврат в лобби."
+
+msgid "quick_rematch.interrupted"
+msgstr "Реванш прерван."
+
+msgid "quick_rematch.set_complete"
+msgstr "Серия завершена. Вернитесь в лобби."
+
+msgid "quick_rematch.accepted"
+msgstr "Реванш подтверждён. Ожидание другого игрока."
+
+msgid "quick_rematch.other_ready"
+msgstr "Другой игрок подтвердил. Выберите действие."
+
+msgid "quick_rematch.time_remaining"
+msgstr "Осталось времени: {0} с"

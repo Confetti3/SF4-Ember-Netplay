@@ -12,6 +12,7 @@
 #include "../ui/OverlayLifecycle.hxx"
 #include "../ui/OverlayPresentation.hxx"
 #include "../ui/OverlayLayers.hxx"
+#include "../ui/QuickRematchPanel.hxx"
 #include "../ui/Theme.hxx"
 #include "../ui/Win32Input.hxx"
 #include "../ui/DeveloperOverlay.hxx"
@@ -69,12 +70,14 @@ static ImTextureID WatchedPicture(unsigned width, unsigned height) {
 }
 static sf4e::ui::FighterSelector s_fighterSelectors[3];
 static sf4e::ui::ApplicationShell shell;
+static sf4e::ui::QuickRematchPanel quickRematchPanel;
 static sf4e::ui::OverlayPresentation presentation;
 static sf4e::OverlayPrefs::Data s_prefs;
 // The menu takes the keys and the mouse: shown, with the focus.
 static std::atomic<bool> capture{false};
 // The menu's opens and its hold on the pads, focus or not (OverlayPresentation.hxx).
 static sf4e::ui::MenuPads s_menuPads;
+static std::atomic<bool> s_resultModal{false};
 // The pointer is over the training HUD's chip: the mouse (only) is Ember's.
 static std::atomic<bool> pointerCapture{false};
 static std::atomic<bool> focused{true};
@@ -107,10 +110,11 @@ static rVsMode::ConfirmedCharaConditions lobbyConditions = {0,0,0,0,0,0,0,0,14};
 
 // The window's keys and mouse are Ember's while its menu is shown with the
 // focus or the training controls are open (TrainingPad.hxx: CapturesInput).
-// The game's pads have two owners and no other: the menu's (MenuPads), focus
-// or not, and the training controls'.
+// Menu, training controls and the native result modal own pad capture even
+// without focus. The drawing thread only publishes keyboard/mouse capture.
 static bool CapturesInput() { return sf4e::input::CapturesInput(capture.load(), s_trainingControls); }
-bool Overlay::CapturesMenuInput() { return sf4e::input::CapturesInput(s_menuPads.Holds(), s_trainingControls); }
+void Overlay::PlaceResultModal(bool shown) { s_resultModal=shown; }
+bool Overlay::CapturesMenuInput() { return s_resultModal.load() || sf4e::input::CapturesInput(s_menuPads.Holds(), s_trainingControls); }
 bool Overlay::HasInputFocus() { return focused.load(); }
 sf4e::ui::MenuPads& Overlay::MenuPads() { return s_menuPads; }
 sf4e::ui::OverlayLifecycle& Overlay::Lifecycle() { return s_lifecycle; }
@@ -484,6 +488,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const auto frame = sf4e::NetplayFacade::GetPresentationSnapshotShared();
     const auto& snapshot = *frame->runtime;
     const auto& status = frame->netplay;
+    const bool quickRematch = sf4e::quickrematch::Shown(snapshot.quickRematch);
     if (sf4e::ui::ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(s_overlayWindow), snapshot.preferences.interfaceScale)) ImGui_ImplDX9_InvalidateDeviceObjects();
     // A replay being exported can be followed or cancelled from Ember's menu,
     // so the menu stays available over the battle log while it runs; a
@@ -535,7 +540,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         if (snapshot.tournament.roomLink.free) presentation.Open("a public room link");
         roomLinkShown=snapshot.tournament.roomLink.sequence;
     }
-    sf4e::ui::SetOverlayCursorOwnership(focused && presentation.Visible());
+    sf4e::ui::SetOverlayCursorOwnership(focused && (quickRematch || presentation.Visible()));
     const bool assigning = snapshot.inputCapture != sf4e::input::Capture::Idle;
     // Player navigation is semantic, not ImGui spatial scoring. Text input is
     // still provided by the Win32 backend after explicit field activation.
@@ -552,8 +557,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const bool targetIsGameplay = std::any_of(snapshot.pads.begin(), snapshot.pads.end(), [&](const gamepads::PadView& pad) {
         return pad.gameplay && gamepads::Same(pad.identity, snapshot.padSetup.identity);
     });
-    controllerNavigation.Update(snapshot.menuController, sf4e::input::ControllerMenuAvailable(snapshot.menuContext),
-        presentation.Visible() || s_trainingControls.Open(), !assigning && !(setup.active && (setup.mode == gamepads::SetupMode::Capture || targetIsGameplay)));
+    controllerNavigation.Update(snapshot.menuController, quickRematch || sf4e::input::ControllerMenuAvailable(snapshot.menuContext),
+        quickRematch || presentation.Visible() || s_trainingControls.Open(), !assigning && !(setup.active && (setup.mode == gamepads::SetupMode::Capture || targetIsGameplay)));
     // Start opens Ember at the main menu and over a fight (a Practice match
     // or a watched game); in Training and over an export it is the game's pause.
     if (controllerNavigation.OpenRequested() && presentation.Available() && sf4e::input::ControllerOpensMenu(snapshot.menuContext)) presentation.Open("Start");
@@ -572,8 +577,23 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // Every overlay frame, since the training panel draws art with the menu
     // closed. Pump returns at once when nothing drew art since the last pump.
     if (s_selectionArt) s_selectionArt->Pump();
-    if (presentation.Visible()) DrawApplicationHome(snapshot, status);
-    else ConcealApplicationHome(snapshot);
+    if (quickRematch) {
+        // The offer is owned by the game thread. Rendering sends its token
+        // back unchanged; it never continues or resets the native battle.
+        const auto choice = quickRematchPanel.Draw(snapshot.quickRematch);
+        if (choice != sf4e::quickrematch::Choice::None) {
+            sf4e::NetplayFacade::RuntimeCommand request;
+            request.command.generation = snapshot.session.generation;
+            request.quickRematchChoice = choice;
+            request.quickRematchOffer = snapshot.quickRematch.offer;
+            if (!sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request))) quickRematchPanel.QueueFailed();
+        }
+        ConcealApplicationHome(snapshot);
+    } else {
+        quickRematchPanel.Clear();
+        if (presentation.Visible()) DrawApplicationHome(snapshot, status);
+        else ConcealApplicationHome(snapshot);
+    }
     if (!presentation.Visible() && assigning) {
         sf4e::NetplayFacade::RuntimeCommand cancel;
         cancel.command = {sf4e::netplay::CommandKind::HostRoom, snapshot.session.generation, {}};
@@ -674,7 +694,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         }
     }
     sf4e::ui::OverlayLayersView layers;
-    layers.shellVisible = presentation.Visible(); layers.shellAvailable = presentation.Available(); layers.exporting = exporting;
+    layers.shellVisible = quickRematch || presentation.Visible(); layers.shellAvailable = presentation.Available(); layers.exporting = exporting;
     const bool trainingOpen = s_trainingControls.Open();
     layers.trainingControlsOpen = trainingOpen; layers.nativePaused = nativePaused;
     layers.focused = focused; layers.trainingHud = trainingHud;
@@ -751,14 +771,14 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     if (hud.open && !called) s_trainingControls.Open(focus);
     // Shown survives alt-tab and so do the pads; the cursor and keys are
     // taken only with the focus.
-    const bool shown = presentation.Visible() || s_trainingControls.Open();
-    const bool passive = sf4e::ui::PassiveOverlayShown(presentation.Visible(), s_trainingControls.Open(), nativePaused);
+    const bool shown = quickRematch || presentation.Visible() || s_trainingControls.Open();
+    const bool passive = sf4e::ui::PassiveOverlayShown(quickRematch || presentation.Visible(), s_trainingControls.Open(), nativePaused);
     const bool visible = focused && shown;
     pointerCapture = focused && !visible && hud.pointer;
     sf4e::ui::SetOverlayCursorOwnership(visible || pointerCapture);
     // This frame publishes only the menu's part of the capture; the training
     // controls' part is their controller's own (CapturesInput).
-    capture = focused && presentation.Visible();
+    capture = focused && (quickRematch || presentation.Visible());
     s_menuPads.Publish(presentation.Visible(), openRequest);
     static bool wasCapturing = false;
     const bool capturing = CapturesInput();

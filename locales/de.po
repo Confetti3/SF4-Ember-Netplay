@@ -6248,3 +6248,42 @@ msgid "country.ZW"
 msgstr "Simbabwe"
 
 #. End of the generated country names.
+
+msgid "quick_rematch.title"
+msgstr "Kampf beendet"
+
+msgid "quick_rematch.rematch"
+msgstr "Revanche"
+
+msgid "quick_rematch.rematch_detail"
+msgstr "Mit denselben Kämpfern auf derselben Stage erneut spielen."
+
+msgid "quick_rematch.return_lobby"
+msgstr "Zurück zur Lobby"
+
+msgid "quick_rematch.return_lobby_detail"
+msgstr "Revanche ablehnen und zum Raum zurückkehren."
+
+msgid "quick_rematch.waiting"
+msgstr "Warte auf das Spiel..."
+
+msgid "quick_rematch.failed"
+msgstr "Revanche unterbrochen. Rückkehr zur Lobby."
+
+msgid "quick_rematch.context_invalid"
+msgstr "Revanche-Status geändert. Rückkehr zur Lobby."
+
+msgid "quick_rematch.interrupted"
+msgstr "Revanche unterbrochen."
+
+msgid "quick_rematch.set_complete"
+msgstr "Set beendet. Zurück zur Lobby."
+
+msgid "quick_rematch.accepted"
+msgstr "Revanche bestätigt. Warte auf den anderen Spieler."
+
+msgid "quick_rematch.other_ready"
+msgstr "Der andere Spieler hat bestätigt. Wähle eine Option."
+
+msgid "quick_rematch.time_remaining"
+msgstr "Verbleibende Zeit: {0} s"

@@ -1,6 +1,7 @@
 // sf4e::Game::Battle::System: save states, semantic state hashing and snapshot capture.
 #include "sf4e__Game__Battle__System__Internal.hxx"
 #include "sf4e__MementoGuards.hxx"
+#include "sf4e__ContinuousRematch.hxx"
 
 // SaveState operations mutate live engine objects (memento record/restore,
 // key clearing) and are only valid on the game main thread — the thread that
@@ -223,6 +224,7 @@ void fSystem::CaptureSimulatedFrame(rSystem* src, const fPadSystem::Inputs input
     const CharaSemantics chara[2] = { CaptureCharaSemantics(src, 0), CaptureCharaSemantics(src, 1) };
     TraceFrame(src, stateFrame, inputs, chara);
     CaptureHashCheckpoint(src, stateFrame, chara);
+    sf4e::continuousrematch::AfterFrame(stateFrame);
 }
 
 fSystem::HashCheckpoint* fSystem::FindHashCheckpoint(int frameIdx) {
