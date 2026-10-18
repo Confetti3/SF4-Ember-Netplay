@@ -43,16 +43,6 @@ inline void OfferFoundUpdate(GameMenu& menu,const platform::ServiceSnapshot& sta
     if(!state.update.ok||!state.update.updateAvailable||state.pending||state.update.latestVersion==offered)return;
     offered=state.update.latestVersion;menu.navigation.Prefer("install");
 }
-inline const char* UpdateChannelLabel(launcher::UpdateChannel channel) { return loc::T(launcher::GetUpdateChannelInfo(channel).labelKey); }
-// What switching the update channel from `from` to `to` means, for the row's
-// pane and its confirm: the switch, the channel's own warning, and on a move to
-// an older channel that going back may install an older version.
-inline std::string ChannelSwitchDetail(launcher::UpdateChannel from,launcher::UpdateChannel to) {
-    std::string text=loc::Tf("updates.channel.switch_detail",UpdateChannelLabel(from),UpdateChannelLabel(to));
-    text+="\n\n";text+=loc::T(launcher::GetUpdateChannelInfo(to).detailKey);
-    if(ClassifyChannelMove(from,to)==ChannelMove::GoesBack)text+="\n\n"+loc::Tf("updates.channel.going_back",UpdateChannelLabel(from),UpdateChannelLabel(to));
-    return text;
-}
 // Rendering returns intent only. The launcher owns dialogs, services and exit.
 // messageTone is the launcher message's own severity: a selected folder is
 // good news, a launch failure is not. The status shows one of two messages: the
@@ -115,15 +105,7 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
     }
     rows.push_back(waits(Row("check",loc::T("updates.check"),state.pending?loc::T("updates.busy"):loc::T("updates.check_detail"),!state.pending)));
     if(updates){
-        const auto shown=channelPick?channelPick->Shown(state.channel):state.channel;
-        const bool switching=shown!=state.channel;
-        auto row=Value("channel",loc::T("updates.channel"),UpdateChannelLabel(shown),
-            switching?ChannelSwitchDetail(state.channel,shown):std::string(loc::T(launcher::GetUpdateChannelInfo(state.channel).detailKey)),!state.pending);
-        // Left and Right pick; Select on a pick other than the saved channel
-        // opens its confirm, which repeats this row's label.
-        if(!channelPick){row.adjustable=false;row.info=true;}
-        else if(switching){row.opens=true;row.confirm=true;}
-        rows.push_back(waits(std::move(row)));
+        rows.push_back(waits(ChannelRow(state.channel,channelPick,state.pending)));
         if(!state.installedVersion.empty())rows.push_back(InfoRow("installed",loc::T("updates.installed_version"),state.installedVersion,loc::T("updates.installed_version_detail")));
     }
     if(state.pending)rows.push_back(Row("cancel",loc::T("updates.cancel"),loc::T("updates.cancel_detail")));

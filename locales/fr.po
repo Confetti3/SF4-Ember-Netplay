@@ -1331,9 +1331,6 @@ msgstr "Ember {0} · {1}"
 msgid "about.version_detail"
 msgstr "La version d'Ember sur ce PC. Build {0}."
 
-msgid "about.channel_detail"
-msgstr "La recherche de mises à jour utilise ce canal. Pour le changer, fermez le jeu et double-cliquez sur Updater.exe."
-
 msgid "settings.retry_save"
 msgstr "Ressauvegarder"
 

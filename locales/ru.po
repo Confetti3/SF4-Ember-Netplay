@@ -1332,9 +1332,6 @@ msgstr "Ember {0} · {1}"
 msgid "about.version_detail"
 msgstr "Версия Ember на этом ПК. Сборка {0}."
 
-msgid "about.channel_detail"
-msgstr "Проверка обновлений идёт по этому каналу. Чтобы сменить его, закройте игру и дважды щёлкните Updater.exe."
-
 msgid "settings.retry_save"
 msgstr "Сохранить снова"
 

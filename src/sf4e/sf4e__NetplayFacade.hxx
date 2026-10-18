@@ -99,6 +99,8 @@ namespace sf4e {
             std::string servicePath;
             // With UpdateNow or SkipUpdate: the launch offer the player saw.
             launcher::InstallOffer updateOffer;
+            // With SwitchUpdateChannel: the channel to save and check.
+            updates::UpdateChannel updateChannel = updates::UpdateChannel::Stable;
             // With OpenSteamProfile: the member's profile to open.
             SteamId steamProfile;
             reports::Submission reportSubmission;

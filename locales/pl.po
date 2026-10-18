@@ -1331,9 +1331,6 @@ msgstr "Ember {0} · {1}"
 msgid "about.version_detail"
 msgstr "Wersja Ember na tym komputerze. Kompilacja {0}."
 
-msgid "about.channel_detail"
-msgstr "Aktualizacje są sprawdzane w tym kanale. Aby go zmienić, zamknij grę i kliknij dwukrotnie Updater.exe."
-
 msgid "settings.retry_save"
 msgstr "Ponów zapis"
 

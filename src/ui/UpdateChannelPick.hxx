@@ -1,7 +1,10 @@
 #pragma once
+#include "../common/Localization.hxx"
 #include "../common/UpdateChannel.hxx"
+#include "MenuRows.hxx"
 #include <algorithm>
 #include <optional>
+#include <string>
 
 namespace sf4e { namespace ui {
 // What switching from one update channel to another means, for its confirm.
@@ -38,4 +41,26 @@ struct ChannelPick {
         else if(!picked)applying=false;
     }
 };
+inline const char* UpdateChannelLabel(updates::UpdateChannel channel) { return loc::T(updates::GetUpdateChannelInfo(channel).labelKey); }
+// What switching the update channel from `from` to `to` means, for the row's
+// pane and its confirm: the switch, the channel's own warning, and on a move to
+// an older channel that going back may install an older version.
+inline std::string ChannelSwitchDetail(updates::UpdateChannel from,updates::UpdateChannel to) {
+    std::string text=loc::Tf("updates.channel.switch_detail",UpdateChannelLabel(from),UpdateChannelLabel(to));
+    text+="\n\n";text+=loc::T(updates::GetUpdateChannelInfo(to).detailKey);
+    if(ClassifyChannelMove(from,to)==ChannelMove::GoesBack)text+="\n\n"+loc::Tf("updates.channel.going_back",UpdateChannelLabel(from),UpdateChannelLabel(to));
+    return text;
+}
+// The update channel row of the Updates window and of Help & about. With a pick,
+// Left and Right choose and Select on a pick other than the saved channel opens
+// its confirm, which repeats this row's label; without one it only shows the channel.
+inline MenuEntry ChannelRow(updates::UpdateChannel saved,const ChannelPick* pick,bool pending) {
+    const auto shown=pick?pick->Shown(saved):saved;
+    const bool switching=shown!=saved;
+    auto row=Value("channel",loc::T("updates.channel"),UpdateChannelLabel(shown),
+        switching?ChannelSwitchDetail(saved,shown):std::string(loc::T(updates::GetUpdateChannelInfo(saved).detailKey)),!pending);
+    if(!pick){row.adjustable=false;row.info=true;}
+    else if(switching){row.opens=true;row.confirm=true;}
+    return row;
+}
 } }

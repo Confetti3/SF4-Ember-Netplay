@@ -1331,9 +1331,6 @@ msgstr "Ember {0} · {1}"
 msgid "about.version_detail"
 msgstr "このPCのEmberのバージョン。ビルド：{0}"
 
-msgid "about.channel_detail"
-msgstr "アップデートの確認にはこのチャンネルを使います。変更するには、ゲームを閉じてUpdater.exeをダブルクリックしてください。"
-
 msgid "settings.retry_save"
 msgstr "保存を再試行"
 
