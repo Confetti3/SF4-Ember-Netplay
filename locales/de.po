@@ -3851,86 +3851,86 @@ msgstr "Anderes Discord-Konto verwenden"
 msgid "connect.change_detail"
 msgstr "Öffnet Discord in Ihrem Browser, um stattdessen ein anderes Konto zu verbinden. Ihre Turnierseite muss dann dieses Konto verwenden."
 
-msgid "screen.connect_challonge"
-msgstr "Challonge verbinden"
+msgid "site.title"
+msgstr "{0} verbinden"
 
-msgid "identity.challonge"
-msgstr "Challonge"
+msgid "site.row_detail"
+msgstr "Verbinden Sie Ihr {0}-Konto, damit Turniere auf {0} Ihre Ember ID finden."
 
-msgid "identity.connect_challonge_detail"
-msgstr "Verbinden Sie Ihr Challonge-Konto, damit Turniere auf Challonge Ihre Ember ID finden."
-
-msgid "challonge.go_detail"
-msgstr "Wenn Sie Challonge verbinden, können Turniere auf Challonge Ihre Ember ID finden. Ember öffnet Challonge in Ihrem Browser: Bestätigen Sie dort mit dem Konto, das Ihr Turnier verwendet."
-
-msgid "challonge.setting_up_detail"
-msgstr "Ember öffnet Challonge in Ihrem Browser."
-
-msgid "challonge.waiting"
-msgstr "Bestätigen Sie in Ihrem Browser. Diese Seite wird aktualisiert, sobald Challonge verbunden ist."
-
-msgid "challonge.waiting_label"
-msgstr "Warten auf Challonge"
-
-msgid "challonge.waiting_detail"
-msgstr "Bestätigen Sie in Ihrem Browser mit dem Challonge-Konto, das Ihr Turnier verwendet. Diese Seite wird von selbst aktualisiert."
-
-msgid "challonge.connected"
-msgstr "Challonge verbunden"
-
-msgid "challonge.connected_detail"
-msgstr "Turniere auf Challonge finden Sie jetzt über dieses Konto."
-
-msgid "challonge.change"
-msgstr "Anderes Challonge-Konto verwenden"
-
-msgid "challonge.change_detail"
-msgstr "Öffnet Challonge in Ihrem Browser, um stattdessen ein anderes Konto zu verbinden. Ihr Turnier muss dann dieses Konto verwenden."
-
-msgid "challonge.remove_detail"
-msgstr "Trennt dieses Challonge-Konto in diesem Dienst von Ihrer Ember ID. Turniere auf Challonge finden Sie dann nicht mehr darüber."
-
-msgid "challonge.cancel_detail"
-msgstr "Beendet das Warten. Wählen Sie Challonge verbinden erneut, wenn Sie bereit sind."
-
-msgid "challonge.off"
-msgstr "Challonge-Anmeldung ist deaktiviert"
-
-msgid "challonge.off_detail"
-msgstr "Dieser Turnierdienst bietet die Challonge-Anmeldung gerade nicht an. Versuchen Sie es später erneut."
-
-msgid "challonge.opened"
-msgstr "Schließen Sie die Challonge-Anmeldung im Browser ab."
-
-msgid "challonge.done"
-msgstr "Challonge als {0} verbunden."
-
-msgid "challonge.removed"
-msgstr "Challonge-Konto getrennt."
-
-msgid "challonge.cancelled"
-msgstr "Das Warten auf Challonge wurde beendet."
-
-msgid "challonge.none"
+msgid "site.none"
 msgstr "Nicht verbunden"
 
-msgid "challonge.setting_up"
+msgid "site.go_detail"
+msgstr "Wenn Sie {0} verbinden, können Turniere auf {0} Ihre Ember ID finden. Ember öffnet {0} in Ihrem Browser: Bestätigen Sie dort mit dem Konto, das Ihr Turnier verwendet."
+
+msgid "site.setting_up"
 msgstr "Einrichtung"
 
-msgid "challonge.retry"
+msgid "site.setting_up_detail"
+msgstr "Ember öffnet {0} in Ihrem Browser."
+
+msgid "site.waiting"
+msgstr "Bestätigen Sie in Ihrem Browser. Diese Seite wird aktualisiert, sobald {0} verbunden ist."
+
+msgid "site.waiting_label"
+msgstr "Warten auf {0}"
+
+msgid "site.waiting_detail"
+msgstr "Bestätigen Sie in Ihrem Browser mit dem {0}-Konto, das Ihr Turnier verwendet. Diese Seite wird von selbst aktualisiert."
+
+msgid "site.connected"
+msgstr "{0} verbunden"
+
+msgid "site.connected_detail"
+msgstr "Turniere auf {0} finden Sie jetzt über dieses Konto."
+
+msgid "site.change"
+msgstr "Anderes {0}-Konto verwenden"
+
+msgid "site.change_detail"
+msgstr "Öffnet {0} in Ihrem Browser, um stattdessen ein anderes Konto zu verbinden. Ihr Turnier muss dann dieses Konto verwenden."
+
+msgid "site.remove_detail"
+msgstr "Trennt dieses {0}-Konto in diesem Dienst von Ihrer Ember ID. Turniere auf {0} finden Sie dann nicht mehr darüber."
+
+msgid "site.cancel_detail"
+msgstr "Beendet das Warten. Wählen Sie {0} verbinden erneut, wenn Sie bereit sind."
+
+msgid "site.off"
+msgstr "{0}-Anmeldung ist deaktiviert"
+
+msgid "site.off_detail"
+msgstr "Dieser Turnierdienst bietet die {0}-Anmeldung gerade nicht an. Versuchen Sie es später erneut."
+
+msgid "site.retry"
 msgstr "Erneut versuchen"
 
-msgid "challonge.retry_detail"
-msgstr "Liest Ihr Challonge-Konto erneut."
+msgid "site.retry_detail"
+msgstr "Liest Ihr {0}-Konto erneut."
 
-msgid "challonge.no_service"
+msgid "site.opened"
+msgstr "Schließen Sie die {0}-Anmeldung im Browser ab."
+
+msgid "site.done"
+msgstr "{0} als {1} verbunden."
+
+msgid "site.removed"
+msgstr "{0}-Konto getrennt."
+
+msgid "site.cancelled"
+msgstr "Das Warten auf {0} wurde beendet."
+
+msgid "site.busy"
+msgstr "Die {0}-Anmeldung ist gerade ausgelastet. Versuchen Sie es später erneut."
+
+msgid "site.no_service"
 msgstr "Embers Turnierdienst ist nicht eingerichtet"
 
-msgid "challonge.no_service_detail"
-msgstr "Challonge wird über Embers Turnierdienst verbunden. Suchen Sie ihn zuerst unter Verknüpfte Konten und kehren Sie dann hierher zurück."
+msgid "site.no_service_detail"
+msgstr "{0} wird über Embers Turnierdienst verbunden. Suchen Sie ihn zuerst unter Verknüpfte Konten und kehren Sie dann hierher zurück."
 
-msgid "challonge.busy"
-msgstr "Die Challonge-Anmeldung ist gerade ausgelastet. Versuchen Sie es später erneut."
+msgid "site.screen"
+msgstr "Seitenkonto"
 
 msgid "identity.failure.browser"
 msgstr "Ember konnte Ihren Browser nicht öffnen."

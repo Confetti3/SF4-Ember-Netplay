@@ -6,23 +6,24 @@ use ember_protocol::{
     discord::{ACCOUNT_PATH, START_PATH},
 };
 
-use super::{browser, sign_in::Site};
+use super::{browser, sign_in::Routes};
 
 /// Where Discord's sign-in page lives.
 const SIGN_IN_PAGE: &str = "https://discord.com/oauth2/authorize?";
 
-pub struct Discord;
-
-impl Site for Discord {
-    const START_PATH: &'static str = START_PATH;
-    const ACCOUNT_PATH: &'static str = ACCOUNT_PATH;
-    const CONNECT: Action = Action::DiscordConnect;
-    const REMOVE: Action = Action::DiscordRemove;
-    const CANCEL: Action = Action::DiscordCancel;
-
-    fn is_sign_in_page(url: &str) -> bool {
-        url.starts_with(SIGN_IN_PAGE) && browser::is_plain(url)
+pub(super) fn routes() -> Routes {
+    Routes {
+        start_path: START_PATH.into(),
+        account_path: ACCOUNT_PATH.into(),
+        connect: Action::DiscordConnect,
+        remove: Action::DiscordRemove,
+        cancel: Action::DiscordCancel,
     }
+}
+
+/// Discord's own sign-in page, with nothing that could break out of a URL.
+pub(super) fn is_sign_in_page(url: &str) -> bool {
+    url.starts_with(SIGN_IN_PAGE) && browser::is_plain(url)
 }
 
 #[cfg(test)]
@@ -31,7 +32,7 @@ mod tests {
 
     #[test]
     fn only_discords_sign_in_page_is_opened() {
-        assert!(Discord::is_sign_in_page(
+        assert!(is_sign_in_page(
             "https://discord.com/oauth2/authorize?response_type=code&client_id=1546980049692135514&scope=identify&state=x"
         ));
         for url in [
@@ -42,7 +43,7 @@ mod tests {
             "https://discord.com/oauth2/authorize?a b",
             "file:///C:/Windows/System32/calc.exe",
         ] {
-            assert!(!Discord::is_sign_in_page(url), "{url}");
+            assert!(!is_sign_in_page(url), "{url}");
         }
     }
 }

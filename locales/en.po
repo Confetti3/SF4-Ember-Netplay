@@ -3492,86 +3492,86 @@ msgstr "Use a different Discord account"
 msgid "connect.change_detail"
 msgstr "Opens Discord in your browser to connect another account instead. Your tournament site must then use that account."
 
-msgid "screen.connect_challonge"
-msgstr "Connect Challonge"
+msgid "site.title"
+msgstr "Connect {0}"
 
-msgid "identity.challonge"
-msgstr "Challonge"
+msgid "site.row_detail"
+msgstr "Connect your {0} account so tournaments on {0} can find your Ember ID."
 
-msgid "identity.connect_challonge_detail"
-msgstr "Connect your Challonge account so tournaments on Challonge can find your Ember ID."
-
-msgid "challonge.go_detail"
-msgstr "Connecting Challonge lets tournaments on Challonge find your Ember ID. Ember opens Challonge in your browser: approve there with the account your tournament uses."
-
-msgid "challonge.setting_up_detail"
-msgstr "Ember is opening Challonge in your browser."
-
-msgid "challonge.waiting"
-msgstr "Approve in your browser. This screen updates when Challonge is connected."
-
-msgid "challonge.waiting_label"
-msgstr "Waiting for Challonge"
-
-msgid "challonge.waiting_detail"
-msgstr "Approve in your browser with the Challonge account your tournament uses. This screen updates by itself."
-
-msgid "challonge.connected"
-msgstr "Challonge connected"
-
-msgid "challonge.connected_detail"
-msgstr "Tournaments on Challonge can now find you by this account."
-
-msgid "challonge.change"
-msgstr "Use a different Challonge account"
-
-msgid "challonge.change_detail"
-msgstr "Opens Challonge in your browser to connect another account instead. Your tournament must then use that account."
-
-msgid "challonge.remove_detail"
-msgstr "Disconnects this Challonge account from your Ember ID on this service. Tournaments on Challonge can no longer find you by it."
-
-msgid "challonge.cancel_detail"
-msgstr "Stops waiting. Choose Connect Challonge again when you are ready."
-
-msgid "challonge.off"
-msgstr "Challonge sign-in is off"
-
-msgid "challonge.off_detail"
-msgstr "This tournament service does not offer Challonge sign-in right now. Try again later."
-
-msgid "challonge.opened"
-msgstr "Finish signing in to Challonge in your browser."
-
-msgid "challonge.done"
-msgstr "Challonge connected as {0}."
-
-msgid "challonge.removed"
-msgstr "Challonge account disconnected."
-
-msgid "challonge.cancelled"
-msgstr "Stopped waiting for Challonge."
-
-msgid "challonge.none"
+msgid "site.none"
 msgstr "Not connected"
 
-msgid "challonge.setting_up"
+msgid "site.go_detail"
+msgstr "Connecting {0} lets tournaments on {0} find your Ember ID. Ember opens {0} in your browser: approve there with the account your tournament uses."
+
+msgid "site.setting_up"
 msgstr "Setting up"
 
-msgid "challonge.retry"
+msgid "site.setting_up_detail"
+msgstr "Ember is opening {0} in your browser."
+
+msgid "site.waiting"
+msgstr "Approve in your browser. This screen updates when {0} is connected."
+
+msgid "site.waiting_label"
+msgstr "Waiting for {0}"
+
+msgid "site.waiting_detail"
+msgstr "Approve in your browser with the {0} account your tournament uses. This screen updates by itself."
+
+msgid "site.connected"
+msgstr "{0} connected"
+
+msgid "site.connected_detail"
+msgstr "Tournaments on {0} can now find you by this account."
+
+msgid "site.change"
+msgstr "Use a different {0} account"
+
+msgid "site.change_detail"
+msgstr "Opens {0} in your browser to connect another account instead. Your tournament must then use that account."
+
+msgid "site.remove_detail"
+msgstr "Disconnects this {0} account from your Ember ID on this service. Tournaments on {0} can no longer find you by it."
+
+msgid "site.cancel_detail"
+msgstr "Stops waiting. Choose Connect {0} again when you are ready."
+
+msgid "site.off"
+msgstr "{0} sign-in is off"
+
+msgid "site.off_detail"
+msgstr "This tournament service does not offer {0} sign-in right now. Try again later."
+
+msgid "site.retry"
 msgstr "Try again"
 
-msgid "challonge.retry_detail"
-msgstr "Reads your Challonge account again."
+msgid "site.retry_detail"
+msgstr "Reads your {0} account again."
 
-msgid "challonge.no_service"
+msgid "site.opened"
+msgstr "Finish signing in to {0} in your browser."
+
+msgid "site.done"
+msgstr "{0} connected as {1}."
+
+msgid "site.removed"
+msgstr "{0} account disconnected."
+
+msgid "site.cancelled"
+msgstr "Stopped waiting for {0}."
+
+msgid "site.busy"
+msgstr "{0} sign-in is busy right now. Try again later."
+
+msgid "site.no_service"
 msgstr "Ember's tournament service is not set up"
 
-msgid "challonge.no_service_detail"
-msgstr "Challonge connects through Ember's tournament service. Look it up under Linked accounts first, then come back here."
+msgid "site.no_service_detail"
+msgstr "{0} connects through Ember's tournament service. Look it up under Linked accounts first, then come back here."
 
-msgid "challonge.busy"
-msgstr "Challonge sign-in is busy right now. Try again later."
+msgid "site.screen"
+msgstr "Site account"
 
 msgid "identity.failure.browser"
 msgstr "Ember could not open your browser."

@@ -1,9 +1,9 @@
-// The browser sign-in Discord and Challonge share (SignInSites.hxx): the
-// helper opens the site's page, the player approves there, and these screens
-// read the account on the service every few seconds until a different one
-// appears. One sign-in runs at a time: starting one site's ends the other's
-// on its service. Leaving the site's Connect screen while its page is being
-// opened stops it; a wait for the browser goes on, and Cancel ends the
+// The browser sign-in Discord and the listed sign-in sites share
+// (SignInSites.hxx): the helper opens the site's page, the player approves
+// there, and these screens read the account on the service every few seconds
+// until a different one appears. One sign-in runs at a time: starting one
+// ends any other on its service. Leaving the Connect screen while its page is
+// being opened stops it; a wait for the browser goes on, and Cancel ends the
 // sign-in on the service.
 #include "IdentityPanel.hxx"
 #include "IdentityRows.hxx"
@@ -19,23 +19,63 @@ namespace {
 // often, for as long as the bridge keeps the sign-in.
 constexpr double PollSeconds = 4, SignInSeconds = 600;
 
-IdentityRequest Request(SignInSite site, SignInStep step, const std::string& bridge) {
-    IdentityRequest r; r.op = netplay::SignInRequest(site, step); r.bridge = bridge; return r;
+IdentityRequest Request(const SignInTarget& target, SignInStep step, const std::string& bridge) {
+    IdentityRequest r; r.op = netplay::SignInRequest(target.source, step); r.bridge = bridge; r.site = target.site; return r;
 }
 }
 
-std::string IdentityPanel::SiteBridge(const ShellView& v, SignInSite site) const {
-    if (!Site(site).embersService) return bridge_;
+const netplay::IdentitySignInSite* IdentityPanel::ListedSite(const std::string& bridge, const std::string& site) const {
+    const auto listed = sites_.find(bridge);
+    if (listed == sites_.end()) return nullptr;
+    const auto it = std::find_if(listed->second.begin(), listed->second.end(), [&](const netplay::IdentitySignInSite& s) { return s.id == site; });
+    return it == listed->second.end() ? nullptr : &*it;
+}
+
+std::string IdentityPanel::SiteName(const std::string& site) const {
+    for (const auto& listed : sites_)
+        for (const auto& s : listed.second)
+            if (s.id == site && !s.name.empty()) return s.name;
+    return site;
+}
+
+std::string IdentityPanel::Word(const SignInTarget& target, const char* id) const {
+    return Site(target.source).named ? loc::Tf(id, SiteName(target.site)) : std::string(loc::T(id));
+}
+
+std::string IdentityPanel::Word(const SignInTarget& target, const char* id, const std::string& value) const {
+    return Site(target.source).named ? loc::Tf(id, SiteName(target.site), value) : loc::Tf(id, value);
+}
+
+SignInTarget IdentityPanel::SentTarget() const {
+    const auto signIn = netplay::SignInOf(sentOp_);
+    return signIn && signIn->source == SignInSource::Site ? SignInTarget::Listed(sentSite_) : SignInTarget::Discord();
+}
+
+IdentityPanel::SiteAccount& IdentityPanel::Account(const SignInTarget& target, const std::string& bridge) {
+    return accounts_[{target.source, target.site, bridge}];
+}
+
+const IdentityPanel::SiteAccount* IdentityPanel::FindAccount(const SignInTarget& target, const std::string& bridge) const {
+    const auto it = accounts_.find({target.source, target.site, bridge});
+    return it == accounts_.end() ? nullptr : &it->second;
+}
+
+std::string IdentityPanel::SiteBridge(const ShellView& v, const SignInTarget& target) const {
+    if (!Site(target.source).embersService) return bridge_;
     const auto* ember = EmberBridge(v);
     return ember ? ember->id : std::string();
 }
 
-void IdentityPanel::ShowAccount(MenuEntry& row, SignInSite site, const std::string& bridge) const {
-    const auto& accounts = Accounts(site);
-    const auto account = accounts.find(bridge);
-    if (account == accounts.end() || !account->second.read || account->second.failed) return;
-    const bool named = !account->second.user.empty();
-    row.value = named ? account->second.name : std::string(loc::T(Site(site).words.none));
+bool IdentityPanel::AtScreenOf(const SignInTarget& target, const std::string& screen) const {
+    if (screen != Site(target.source).screen) return false;
+    return target.source == SignInSource::Discord || siteScreen_ == target.site;
+}
+
+void IdentityPanel::ShowAccount(MenuEntry& row, const SignInTarget& target, const std::string& bridge) const {
+    const auto* account = FindAccount(target, bridge);
+    if (!account || !account->read || account->failed) return;
+    const bool named = !account->user.empty();
+    row.value = named ? account->name : Word(target, Site(target.source).words.none);
     row.userText = named;
 }
 
@@ -44,18 +84,18 @@ bool IdentityPanel::Starting() const {
     return steps_ == Steps::Running || (signIn_ && signIn_->phase == SignInAttempt::Phase::Opening);
 }
 
-bool IdentityPanel::ActiveFor(SignInSite site) const {
-    return StepsRunFor(site) || (signIn_ && signIn_->site == site && signIn_->phase != SignInAttempt::Phase::Stopped);
+bool IdentityPanel::ActiveFor(const SignInTarget& target) const {
+    return StepsRunFor(target) || (signIn_ && signIn_->target == target && signIn_->phase != SignInAttempt::Phase::Stopped);
 }
 
-void IdentityPanel::EndOtherSignIn(SignInSite site) {
-    if (signIn_ && signIn_->site != site && signIn_->phase != SignInAttempt::Phase::Stopped) CancelAttempt();
+void IdentityPanel::EndOtherSignIn(const SignInTarget& target) {
+    if (signIn_ && signIn_->target != target && signIn_->phase != SignInAttempt::Phase::Stopped) CancelAttempt();
 }
 
 void IdentityPanel::RetireSignIn() {
     if (!signIn_) return;
     // The journey's own sign-in is no longer waited for, as it always was.
-    if (Site(signIn_->site).followsJourney) { signIn_.reset(); return; }
+    if (Site(signIn_->target.source).followsJourney) { signIn_.reset(); return; }
     // Another site's waiting for the browser goes on: Discord's steps or page
     // replace it only once they start (EndOtherSignIn). One whose page is
     // still being opened ends on its service, since the new journey retires
@@ -64,31 +104,30 @@ void IdentityPanel::RetireSignIn() {
     if (signIn_->phase == SignInAttempt::Phase::Opening) CancelAttempt();
 }
 
-std::optional<std::string> IdentityPanel::SiteFailureText(IdentityOp op, const std::string& code) {
-    const auto signIn = netplay::SignInOf(op);
-    if (!signIn || code != "sign_in_busy") return std::nullopt;
-    const char* busy = Site(signIn->site).words.busy;
-    return busy ? std::optional<std::string>(loc::T(busy)) : std::nullopt;
+std::optional<std::string> IdentityPanel::SiteFailureText(const std::string& code) const {
+    if (!netplay::SignInOf(sentOp_) || code != "sign_in_busy") return std::nullopt;
+    const auto target = SentTarget();
+    const char* busy = Site(target.source).words.busy;
+    return busy ? std::optional<std::string>(Word(target, busy)) : std::nullopt;
 }
 
-bool IdentityPanel::WaitingOn(SignInSite site, const std::string& bridge) const {
-    return signIn_ && signIn_->site == site && signIn_->bridge == bridge && signIn_->until > 0 && !signIn_->paused;
+bool IdentityPanel::WaitingOn(const SignInTarget& target, const std::string& bridge) const {
+    return signIn_ && signIn_->target == target && signIn_->bridge == bridge && signIn_->until > 0 && !signIn_->paused;
 }
 
-void IdentityPanel::OpenSignIn(SignInSite site, const std::string& bridge) {
-    EndOtherSignIn(site);
-    const auto& accounts = Accounts(site);
-    const auto account = accounts.find(bridge);
+void IdentityPanel::OpenSignIn(const SignInTarget& target, const std::string& bridge) {
+    EndOtherSignIn(target);
+    const auto* account = FindAccount(target, bridge);
     steps_ = Steps::None;
-    SignInAttempt next{site, bridge, account == accounts.end() ? std::string() : account->second.user};
+    SignInAttempt next{target, bridge, account ? account->user : std::string()};
     // The same site again on the same service (Discord's change of account):
     // the wait already running goes on as it always has, still shown and
     // still read every few seconds, until the new page's answer starts it again.
-    if (signIn_ && signIn_->site == site && signIn_->bridge == bridge) {
+    if (signIn_ && signIn_->target == target && signIn_->bridge == bridge) {
         next.until = signIn_->until; next.pollAt = signIn_->pollAt; next.paused = signIn_->paused;
     }
     signIn_ = std::move(next);
-    Queue(Request(site, SignInStep::Connect, bridge));
+    Queue(Request(target, SignInStep::Connect, bridge));
 }
 
 void IdentityPanel::CancelAttempt() {
@@ -104,113 +143,136 @@ void IdentityPanel::CancelAttempt() {
     if (!signIn_) { steps_ = Steps::Stopped; return; }
     using Phase = SignInAttempt::Phase;
     const bool asked = signIn_->phase == Phase::Waiting || (signIn_->phase == Phase::Opening && !queued);
-    if (asked) cleanup_.push_back(Request(signIn_->site, SignInStep::Cancel, signIn_->bridge));
-    signIn_ = SignInAttempt{signIn_->site, signIn_->bridge, signIn_->before, Phase::Stopped};
+    if (asked) cleanup_.push_back(Request(signIn_->target, SignInStep::Cancel, signIn_->bridge));
+    signIn_ = SignInAttempt{signIn_->target, signIn_->bridge, signIn_->before, Phase::Stopped};
 }
 
-void IdentityPanel::ReadSiteAccounts(const netplay::IdentityView& id, const std::string& bridge, SignInSiteSet sites) {
-    for (const auto site : SignInSites) {
-        if (!(sites & SiteBit(site))) continue;
-        const auto& info = Site(site);
-        auto& account = Accounts(site)[bridge];
-        account.kept = id.*info.offered || id.*info.kept;
-        if (account.kept) Queue(Request(site, SignInStep::Status, bridge));
-        // Nothing to read: the profile was the whole read, and it worked.
-        else account.failed = false;
+void IdentityPanel::ReadSiteAccounts(const netplay::IdentityView& id, const std::string& bridge, const AccountReads& reads) {
+    if (reads.discord) {
+        // A service without Discord accounts: its profile was the whole read, and it worked.
+        if (id.inspectedDiscord || id.inspectedDiscordAccounts) Queue(Request(SignInTarget::Discord(), SignInStep::Status, bridge));
+        else Account(SignInTarget::Discord(), bridge).failed = false;
     }
+    if (!reads.sites && reads.site.empty()) return;
+    // The sites it lists, as its profile says now: one no longer listed is not shown.
+    sites_[bridge] = id.signInSites;
+    for (const auto& site : id.signInSites)
+        if (reads.sites || site.id == reads.site) Queue(Request(SignInTarget::Listed(site.id), SignInStep::Status, bridge));
+}
+
+void IdentityPanel::AccountReadsFailed(const std::string& bridge, const AccountReads& reads) {
+    if (reads.discord) Account(SignInTarget::Discord(), bridge).failed = true;
+    const auto listed = sites_.find(bridge);
+    if (listed == sites_.end()) return;
+    for (const auto& site : listed->second)
+        if (reads.sites || site.id == reads.site) Account(SignInTarget::Listed(site.id), bridge).failed = true;
 }
 
 bool IdentityPanel::QuietRead() const {
     const auto signIn = netplay::SignInOf(sentOp_);
     if (!signIn || signIn->step != SignInStep::Status) return false;
-    const auto& info = Site(signIn->site);
-    return info.quietElsewhere && lastScreen_ != info.screen;
+    return Site(signIn->source).quietElsewhere && !AtScreenOf(SentTarget(), lastScreen_);
 }
 
 void IdentityPanel::SiteReadFailed() {
-    const auto signIn = netplay::SignInOf(sentOp_);
-    if (!signIn) return;
-    Accounts(signIn->site)[sentBridge_].failed = true;
-    if (signIn_ && signIn_->site == signIn->site && signIn_->bridge == sentBridge_) signIn_->paused = true;
+    if (!netplay::SignInOf(sentOp_)) return;
+    const auto target = SentTarget();
+    Account(target, sentBridge_).failed = true;
+    if (signIn_ && signIn_->target == target && signIn_->bridge == sentBridge_) signIn_->paused = true;
 }
 
-std::optional<MenuEntry> IdentityPanel::SiteRow(const ShellView& v, SignInSite site) const {
-    const auto& info = Site(site);
-    const auto* ember = EmberBridge(v);
-    const auto& accounts = Accounts(site);
-    const auto account = ember ? accounts.find(ember->id) : accounts.end();
-    if (info.listedWhenKept && (account == accounts.end() || !account->second.kept)) return std::nullopt;
-    auto row = Row(info.screen, loc::T(info.words.label), loc::T(info.words.rowDetail));
-    if (ember) ShowAccount(row, site, ember->id);
-    else row.value = loc::T(info.words.none);
+MenuEntry IdentityPanel::DiscordIdentityRow(const ShellView& v) const {
+    const auto discord = SignInTarget::Discord();
+    auto row = Row(DiscordConnectScreen, loc::T("identity.discord"), loc::T(Site(SignInSource::Discord).words.rowDetail));
+    if (const auto* ember = EmberBridge(v)) ShowAccount(row, discord, ember->id);
+    else row.value = loc::T("identity.discord_none");
     return row;
+}
+
+void IdentityPanel::ListedSiteIdentityRows(const ShellView& v, std::vector<MenuEntry>& rows) const {
+    const auto* ember = EmberBridge(v);
+    const auto listed = ember ? sites_.find(ember->id) : sites_.end();
+    if (listed == sites_.end()) return;
+    for (const auto& site : listed->second) {
+        const auto target = SignInTarget::Listed(site.id);
+        auto row = Row(SiteRowPrefix + site.id, SiteName(site.id), Word(target, Site(SignInSource::Site).words.rowDetail));
+        ShowAccount(row, target, ember->id);
+        // The site's name comes from the service.
+        row.userText = true;
+        rows.push_back(std::move(row));
+    }
 }
 
 bool IdentityPanel::ShowsWait(const std::string& screen) const {
     if (!signIn_) return false;
-    const auto& info = Site(signIn_->site);
-    return screen == info.screen || (info.alsoOn && screen == info.alsoOn);
+    const auto& info = Site(signIn_->target.source);
+    return AtScreenOf(signIn_->target, screen) || (info.alsoOn && screen == info.alsoOn);
 }
 
-void IdentityPanel::SignInRows(const ShellView& v, SignInSite site, const netplay::IdentityBridge& target, std::vector<MenuEntry>& rows, bool busy) const {
-    const auto& info = Site(site);
+void IdentityPanel::SignInRows(const ShellView& v, const SignInTarget& site, const netplay::IdentityBridge& target, std::vector<MenuEntry>& rows, bool busy) const {
+    const auto& info = Site(site.source);
     const auto& ids = info.rows;
     const auto& words = info.words;
     auto service = InfoRow(ids.service, loc::T("identity.service"), target.name.empty() ? target.origin : target.name, ServiceDetail(target));
     service.userText = true; rows.push_back(std::move(service));
     // Read, and the latest read did not fail.
-    const auto& accounts = Accounts(site);
-    const auto account = accounts.find(target.id);
-    const bool failed = account != accounts.end() && account->second.failed;
-    const bool read = SiteBridge(v, site) == target.id && account != accounts.end() && account->second.read && !failed;
-    const bool starting = StepsRunFor(site) || (signIn_ && signIn_->site == site && signIn_->phase == SignInAttempt::Phase::Opening);
+    const auto* account = FindAccount(site, target.id);
+    const bool failed = account && account->failed;
+    const bool read = SiteBridge(v, site) == target.id && account && account->read && !failed;
+    const bool starting = StepsRunFor(site) || (signIn_ && signIn_->target == site && signIn_->phase == SignInAttempt::Phase::Opening);
+    // Whether the service offers its sign-in, as its profile last said; none while unknown.
+    const auto* listed = site.source == SignInSource::Site ? ListedSite(target.id, site.site) : nullptr;
+    const bool offKnown = site.source == SignInSource::Discord ? v.identity.inspected.id == target.id : true;
+    const bool offered = site.source == SignInSource::Discord ? v.identity.inspectedDiscord : listed && listed->signIn;
     if (WaitingOn(site, target.id)) {
-        rows.push_back(InfoRow(ids.waiting, loc::T(words.waitingLabel), {}, loc::T(words.waitingDetail)));
+        rows.push_back(InfoRow(ids.waiting, Word(site, words.waitingLabel), {}, Word(site, words.waitingDetail)));
     } else if (starting && busy) {
-        rows.push_back(InfoRow(ids.progress, loc::T(words.settingUp), {}, loc::T(words.settingUpDetail)));
-    } else if (read && !account->second.user.empty()) {
-        auto connected = InfoRow(ids.connected, loc::T(words.connected), account->second.name, loc::T(words.connectedDetail));
+        rows.push_back(InfoRow(ids.progress, Word(site, words.settingUp), {}, Word(site, words.settingUpDetail)));
+    } else if (read && !account->user.empty()) {
+        auto connected = InfoRow(ids.connected, Word(site, words.connected), account->name, Word(site, words.connectedDetail));
         connected.userText = true; rows.push_back(std::move(connected));
         // Another account, or none: both here.
-        rows.push_back(Row(ids.connect, loc::T(words.change), loc::T(words.changeDetail), !busy));
-        auto remove = ConfirmRow(ids.remove, loc::T(words.removeLabel), loc::T(words.removeDetail), !busy);
+        rows.push_back(Row(ids.connect, Word(site, words.change), Word(site, words.changeDetail), !busy));
+        auto remove = ConfirmRow(ids.remove, loc::T(words.removeLabel), Word(site, words.removeDetail), !busy);
         remove.hint = loc::T(words.removeLabel); rows.push_back(std::move(remove));
-    } else if (v.identity.inspected.id == target.id && !(v.identity.*info.offered) && !failed) {
+    } else if (offKnown && !offered && !failed) {
         // Off as the latest read said; a failed read offers Try again below.
-        rows.push_back(InfoRow(ids.off, loc::T(words.off), {}, loc::T(words.offDetail)));
+        rows.push_back(InfoRow(ids.off, Word(site, words.off), {}, Word(site, words.offDetail)));
     } else {
-        rows.push_back(Row(ids.connect, loc::T(words.title), loc::T(words.connectDetail), !busy && read));
+        rows.push_back(Row(ids.connect, Word(site, words.title), Word(site, words.connectDetail), !busy && read));
         // Nothing in flight and the account not read: reading it failed.
-        if (!busy && !read) rows.push_back(Row(ids.retry, loc::T(words.retry), loc::T(words.retryDetail)));
+        if (!busy && !read) rows.push_back(Row(ids.retry, Word(site, words.retry), Word(site, words.retryDetail)));
     }
 }
 
-void IdentityPanel::ChallongeRows(const ShellView& v, std::vector<MenuEntry>& rows, bool busy) const {
-    const auto& info = Site(SignInSite::Challonge);
+void IdentityPanel::ListedSiteRows(const ShellView& v, std::vector<MenuEntry>& rows, bool busy) const {
+    const auto target = SignInTarget::Listed(siteScreen_);
+    const auto& info = Site(SignInSource::Site);
     if (v.identity.state != "ready") {
         rows.push_back(InfoRow("id-linked-unavailable", loc::T("identity.linked_needs_id"), {}, loc::T("identity.linked_needs_id_detail")));
         return;
     }
-    if (const auto* ember = EmberBridge(v)) SignInRows(v, SignInSite::Challonge, *ember, rows, busy);
+    if (const auto* ember = EmberBridge(v)) SignInRows(v, target, *ember, rows, busy);
     else {
-        // Challonge connects through Ember's own service, which the player has not trusted.
-        rows.push_back(InfoRow("ch-no-service", loc::T("challonge.no_service"), {}, loc::T("challonge.no_service_detail")));
+        // The sites connect through Ember's own service, which the player has not trusted.
+        rows.push_back(InfoRow("st-no-service", loc::T("site.no_service"), {}, Word(target, "site.no_service_detail")));
         rows.push_back(Row("linked-accounts", loc::T("screen.linked_accounts"), loc::T("identity.linked_detail")));
     }
-    if (ActiveFor(SignInSite::Challonge)) rows.push_back(Row(info.rows.cancel, loc::T("common.cancel"), loc::T(info.words.cancelDetail)));
+    if (ActiveFor(target)) rows.push_back(Row(info.rows.cancel, loc::T("common.cancel"), Word(target, info.words.cancelDetail)));
 }
 
 bool IdentityPanel::SignInActivate(const MenuAction& a, const ShellView& v) {
-    for (const auto site : SignInSites) {
-        const auto& info = Site(site);
+    for (const auto source : SignInSources) {
+        const auto& info = Site(source);
+        const auto target = source == SignInSource::Discord ? SignInTarget::Discord() : SignInTarget::Listed(siteScreen_);
         if (a.id == info.rows.connect) {
             message_.clear();
-            const auto bridge = SiteBridge(v, site);
-            if (!bridge.empty()) OpenSignIn(site, bridge);
+            const auto bridge = SiteBridge(v, target);
+            if (!bridge.empty()) OpenSignIn(target, bridge);
         } else if (a.id == info.rows.remove) {
-            message_.clear(); Queue(Request(site, SignInStep::Remove, SiteBridge(v, site)));
+            message_.clear(); Queue(Request(target, SignInStep::Remove, SiteBridge(v, target)));
         } else if (a.id == info.rows.cancel) {
-            CancelAttempt(); Say(loc::T(info.words.cancelled), false);
+            CancelAttempt(); Say(Word(target, info.words.cancelled), false);
         } else if (a.id == info.rows.retry) {
             // Reading again also resumes a paused wait's polls.
             message_.clear(); Refresh(v, info.screen);
@@ -224,34 +286,36 @@ void IdentityPanel::SignInFinish(const ShellView& v) {
     const auto& id = v.identity;
     const auto signIn = netplay::SignInOf(sentOp_);
     if (!signIn) return;
-    const auto& info = Site(signIn->site);
+    const auto target = SentTarget();
+    const auto& info = Site(target.source);
     const auto& user = id.*info.user;
+    const auto& name = id.*info.name;
     using Phase = SignInAttempt::Phase;
-    const bool waitedFor = signIn_ && signIn_->site == signIn->site && signIn_->bridge == sentBridge_;
+    const bool waitedFor = signIn_ && signIn_->target == target && signIn_->bridge == sentBridge_;
     switch (signIn->step) {
     case SignInStep::Status: {
-        auto& account = Accounts(signIn->site)[sentBridge_];
-        account.user = user; account.name = id.*info.name; account.read = true; account.failed = false;
+        auto& account = Account(target, sentBridge_);
+        account.user = user; account.name = name; account.read = true; account.failed = false;
         // Only the service and site the sign-in is for end the wait, and only
         // with an account other than the one connected when the page opened.
         if (waitedFor && signIn_->until > 0 && !user.empty() && user != signIn_->before) {
             signIn_.reset();
-            Say(loc::Tf(info.words.done, id.*info.name), false, 20);
+            Say(Word(target, info.words.done, name), false, 20);
         }
         break;
     }
     case SignInStep::Connect:
         // A cancelled attempt does not wait, though its page may have opened.
         if (!waitedFor || signIn_->phase != Phase::Opening) break;
-        Say(loc::T(info.words.opened), false, 30);
+        Say(Word(target, info.words.opened), false, 30);
         signIn_->phase = Phase::Waiting;
         signIn_->until = now_ + SignInSeconds; signIn_->pollAt = now_ + PollSeconds; signIn_->paused = false;
         break;
     case SignInStep::Remove: {
-        auto& account = Accounts(signIn->site)[sentBridge_];
+        auto& account = Account(target, sentBridge_);
         account.user.clear(); account.name.clear(); account.read = true; account.failed = false;
         if (waitedFor) signIn_.reset();
-        Say(loc::T(info.words.removed), false);
+        Say(Word(target, info.words.removed), false);
         break;
     }
     case SignInStep::Cancel: break;
@@ -263,6 +327,6 @@ void IdentityPanel::SignInPoll(const std::string& screen, double now) {
     if (!signIn_ || signIn_->until <= 0 || signIn_->paused || sent_ || !queue_.empty() || now < signIn_->pollAt || !ShowsWait(screen)) return;
     if (now > signIn_->until) { signIn_->phase = Phase::Stopped; signIn_->until = 0; return; }
     signIn_->pollAt = now + PollSeconds;
-    Queue(Request(signIn_->site, SignInStep::Status, signIn_->bridge));
+    Queue(Request(signIn_->target, SignInStep::Status, signIn_->bridge));
 }
 } }

@@ -8,12 +8,12 @@
 mod bridges;
 mod browser;
 mod builtin;
-mod challonge;
 mod client;
 mod discord;
 mod play;
 mod rooms;
 mod sign_in;
+mod sites;
 mod spool;
 
 use std::{
@@ -35,8 +35,6 @@ use crate::{
 };
 
 pub use builtin::Builtin;
-use challonge::Challonge;
-use discord::Discord;
 
 /// Bridge requests in flight at once (spec 25.1).
 const HTTP_CONCURRENCY: usize = 4;
@@ -121,17 +119,22 @@ pub enum Request {
     DiscordCancel {
         bridge_id: String,
     },
-    ChallongeStatus {
+    /// A sign-in site's requests, for the site the bridge lists under `site`.
+    SiteStatus {
         bridge_id: String,
+        site: String,
     },
-    ChallongeConnect {
+    SiteConnect {
         bridge_id: String,
+        site: String,
     },
-    ChallongeRemove {
+    SiteRemove {
         bridge_id: String,
+        site: String,
     },
-    ChallongeCancel {
+    SiteCancel {
         bridge_id: String,
+        site: String,
     },
     AssignmentList {
         bridge_id: String,
@@ -213,10 +216,10 @@ impl Request {
             Self::DiscordConnect { .. } => "discord_connect",
             Self::DiscordRemove { .. } => "discord_remove",
             Self::DiscordCancel { .. } => "discord_cancel",
-            Self::ChallongeStatus { .. } => "challonge_status",
-            Self::ChallongeConnect { .. } => "challonge_connect",
-            Self::ChallongeRemove { .. } => "challonge_remove",
-            Self::ChallongeCancel { .. } => "challonge_cancel",
+            Self::SiteStatus { .. } => "site_status",
+            Self::SiteConnect { .. } => "site_connect",
+            Self::SiteRemove { .. } => "site_remove",
+            Self::SiteCancel { .. } => "site_cancel",
             Self::AssignmentList { .. } => "assignment_list",
             Self::MatchClaim { .. } => "match_claim",
             Self::RoomPublish { .. } => "room_publish",
@@ -675,24 +678,28 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
         Request::LinkRemove { bridge_id, link_id } => {
             client::remove_link(shared, &bridge_id, &link_id).await
         }
-        Request::DiscordStatus { bridge_id } => sign_in::status::<Discord>(shared, &bridge_id).await,
+        Request::DiscordStatus { bridge_id } => {
+            sign_in::status(shared, &bridge_id, &discord::routes()).await
+        }
         Request::DiscordConnect { bridge_id } => {
-            sign_in::connect::<Discord>(shared, &bridge_id).await
+            sign_in::connect(
+                shared,
+                &bridge_id,
+                &discord::routes(),
+                discord::is_sign_in_page,
+            )
+            .await
         }
-        Request::DiscordRemove { bridge_id } => sign_in::remove::<Discord>(shared, &bridge_id).await,
-        Request::DiscordCancel { bridge_id } => sign_in::cancel::<Discord>(shared, &bridge_id).await,
-        Request::ChallongeStatus { bridge_id } => {
-            sign_in::status::<Challonge>(shared, &bridge_id).await
+        Request::DiscordRemove { bridge_id } => {
+            sign_in::remove(shared, &bridge_id, &discord::routes()).await
         }
-        Request::ChallongeConnect { bridge_id } => {
-            sign_in::connect::<Challonge>(shared, &bridge_id).await
+        Request::DiscordCancel { bridge_id } => {
+            sign_in::cancel(shared, &bridge_id, &discord::routes()).await
         }
-        Request::ChallongeRemove { bridge_id } => {
-            sign_in::remove::<Challonge>(shared, &bridge_id).await
-        }
-        Request::ChallongeCancel { bridge_id } => {
-            sign_in::cancel::<Challonge>(shared, &bridge_id).await
-        }
+        Request::SiteStatus { bridge_id, site } => sites::status(shared, &bridge_id, &site).await,
+        Request::SiteConnect { bridge_id, site } => sites::connect(shared, &bridge_id, &site).await,
+        Request::SiteRemove { bridge_id, site } => sites::remove(shared, &bridge_id, &site).await,
+        Request::SiteCancel { bridge_id, site } => sites::cancel(shared, &bridge_id, &site).await,
         Request::AssignmentList { bridge_id } => play::assignments(shared, &bridge_id).await,
         Request::MatchClaim {
             bridge_id,

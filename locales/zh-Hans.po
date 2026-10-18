@@ -3851,86 +3851,86 @@ msgstr "使用其他 Discord 账号"
 msgid "connect.change_detail"
 msgstr "在浏览器中打开 Discord，改为关联另一个账号。之后你的赛事网站必须使用该账号。"
 
-msgid "screen.connect_challonge"
-msgstr "关联 Challonge"
+msgid "site.title"
+msgstr "关联 {0}"
 
-msgid "identity.challonge"
-msgstr "Challonge"
+msgid "site.row_detail"
+msgstr "关联你的 {0} 账号后，{0} 上的赛事就能找到你的 Ember ID。"
 
-msgid "identity.connect_challonge_detail"
-msgstr "关联你的 Challonge 账号后，Challonge 上的赛事就能找到你的 Ember ID。"
-
-msgid "challonge.go_detail"
-msgstr "关联 Challonge 后，Challonge 上的赛事就能找到你的 Ember ID。Ember 会在浏览器中打开 Challonge：请在那里使用你的赛事所用的账号进行批准。"
-
-msgid "challonge.setting_up_detail"
-msgstr "Ember 正在浏览器中打开 Challonge。"
-
-msgid "challonge.waiting"
-msgstr "请在浏览器中批准。Challonge 关联后，此界面会更新。"
-
-msgid "challonge.waiting_label"
-msgstr "正在等待 Challonge"
-
-msgid "challonge.waiting_detail"
-msgstr "请在浏览器中使用你的赛事所用的 Challonge 账号进行批准。此界面会自动更新。"
-
-msgid "challonge.connected"
-msgstr "Challonge 已关联"
-
-msgid "challonge.connected_detail"
-msgstr "Challonge 上的赛事现在可以通过这个账号找到你。"
-
-msgid "challonge.change"
-msgstr "使用其他 Challonge 账号"
-
-msgid "challonge.change_detail"
-msgstr "在浏览器中打开 Challonge，改为关联另一个账号。之后你的赛事必须使用该账号。"
-
-msgid "challonge.remove_detail"
-msgstr "在此服务中解除此 Challonge 账号与你的 Ember ID 的关联。Challonge 上的赛事将无法再通过它找到你。"
-
-msgid "challonge.cancel_detail"
-msgstr "停止等待。准备好后，请再次选择“关联 Challonge”。"
-
-msgid "challonge.off"
-msgstr "Challonge 登录已关闭"
-
-msgid "challonge.off_detail"
-msgstr "此赛事服务目前不提供 Challonge 登录。请稍后再试。"
-
-msgid "challonge.opened"
-msgstr "请在浏览器中完成 Challonge 登录。"
-
-msgid "challonge.done"
-msgstr "已将 Challonge 关联为 {0}。"
-
-msgid "challonge.removed"
-msgstr "已解除 Challonge 账号关联。"
-
-msgid "challonge.cancelled"
-msgstr "已停止等待 Challonge。"
-
-msgid "challonge.none"
+msgid "site.none"
 msgstr "未关联"
 
-msgid "challonge.setting_up"
+msgid "site.go_detail"
+msgstr "关联 {0} 后，{0} 上的赛事就能找到你的 Ember ID。Ember 会在浏览器中打开 {0}：请在那里使用你的赛事所用的账号进行批准。"
+
+msgid "site.setting_up"
 msgstr "正在设置"
 
-msgid "challonge.retry"
+msgid "site.setting_up_detail"
+msgstr "Ember 正在浏览器中打开 {0}。"
+
+msgid "site.waiting"
+msgstr "请在浏览器中批准。{0} 关联后，此界面会更新。"
+
+msgid "site.waiting_label"
+msgstr "正在等待 {0}"
+
+msgid "site.waiting_detail"
+msgstr "请在浏览器中使用你的赛事所用的 {0} 账号进行批准。此界面会自动更新。"
+
+msgid "site.connected"
+msgstr "{0} 已关联"
+
+msgid "site.connected_detail"
+msgstr "{0} 上的赛事现在可以通过这个账号找到你。"
+
+msgid "site.change"
+msgstr "使用其他 {0} 账号"
+
+msgid "site.change_detail"
+msgstr "在浏览器中打开 {0}，改为关联另一个账号。之后你的赛事必须使用该账号。"
+
+msgid "site.remove_detail"
+msgstr "在此服务中解除此 {0} 账号与你的 Ember ID 的关联。{0} 上的赛事将无法再通过它找到你。"
+
+msgid "site.cancel_detail"
+msgstr "停止等待。准备好后，请再次选择“关联 {0}”。"
+
+msgid "site.off"
+msgstr "{0} 登录已关闭"
+
+msgid "site.off_detail"
+msgstr "此赛事服务目前不提供 {0} 登录。请稍后再试。"
+
+msgid "site.retry"
 msgstr "重试"
 
-msgid "challonge.retry_detail"
-msgstr "重新读取你的 Challonge 账号。"
+msgid "site.retry_detail"
+msgstr "重新读取你的 {0} 账号。"
 
-msgid "challonge.no_service"
+msgid "site.opened"
+msgstr "请在浏览器中完成 {0} 登录。"
+
+msgid "site.done"
+msgstr "已将 {0} 关联为 {1}。"
+
+msgid "site.removed"
+msgstr "已解除 {0} 账号关联。"
+
+msgid "site.cancelled"
+msgstr "已停止等待 {0}。"
+
+msgid "site.busy"
+msgstr "{0} 登录当前繁忙。请稍后再试。"
+
+msgid "site.no_service"
 msgstr "尚未设置 Ember 的赛事服务"
 
-msgid "challonge.no_service_detail"
-msgstr "Challonge 通过 Ember 的赛事服务关联。请先在“已绑定账号”中查找该服务，然后回到这里。"
+msgid "site.no_service_detail"
+msgstr "{0} 通过 Ember 的赛事服务关联。请先在“已绑定账号”中查找该服务，然后回到这里。"
 
-msgid "challonge.busy"
-msgstr "Challonge 登录当前繁忙。请稍后再试。"
+msgid "site.screen"
+msgstr "站点账号"
 
 msgid "identity.failure.browser"
 msgstr "Ember 无法打开你的浏览器。"

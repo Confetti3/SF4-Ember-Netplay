@@ -58,13 +58,20 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
         for (const auto& connection : capabilities.value("connections", nlohmann::json::array()))
             if (connection.is_object() && view.connections.size() < 16)
                 view.connections.push_back({Text(connection, "id", 64), Text(connection, "display_name", 64)});
-        view.inspectedDiscord = view.inspectedDiscordAccounts = view.inspectedChallonge = view.inspectedChallongeAccounts = false;
+        view.inspectedDiscord = view.inspectedDiscordAccounts = false;
         for (const auto& feature : capabilities.value("features", nlohmann::json::array())) {
             view.inspectedDiscord = view.inspectedDiscord || feature == "discord";
             view.inspectedDiscordAccounts = view.inspectedDiscordAccounts || feature == "discord.accounts";
-            view.inspectedChallonge = view.inspectedChallonge || feature == "challonge";
-            view.inspectedChallongeAccounts = view.inspectedChallongeAccounts || feature == "challonge.accounts";
         }
+        view.signInSites.clear();
+        const auto sites = capabilities.value("sign_in_sites", nlohmann::json::array());
+        if (sites.is_array())
+            for (const auto& site : sites)
+                if (site.is_object() && !Text(site, "id", 32).empty() && view.signInSites.size() < 16) {
+                    const auto signIn = site.find("sign_in");
+                    view.signInSites.push_back({Text(site, "id", 32), Text(site, "display_name", 64), Text(site, "lookup_by", 16),
+                        signIn != site.end() && signIn->is_boolean() && signIn->get<bool>()});
+                }
     } else if (view.op == "link_list") {
         view.links.clear(); view.pending.clear();
         for (const auto& link : data.value("links", nlohmann::json::array()))
@@ -77,10 +84,10 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
         const auto account = data.value("account", nlohmann::json());
         view.discordUser = account.is_object() ? Text(account, "user_id", 20) : std::string();
         view.discordName = account.is_object() ? Text(account, "username", 64) : std::string();
-    } else if (view.op == "challonge_status" || view.op == "challonge_remove") {
+    } else if (view.op == "site_status" || view.op == "site_remove") {
         const auto account = data.value("account", nlohmann::json());
-        view.challongeUser = account.is_object() ? Text(account, "user_id", 32) : std::string();
-        view.challongeName = account.is_object() ? Text(account, "username", 64) : std::string();
+        view.siteUser = account.is_object() ? Text(account, "user_id", 64) : std::string();
+        view.siteName = account.is_object() ? Text(account, "username", 64) : std::string();
     } else if (view.op == "link_claim") {
         view.claimFingerprint = Text(data, "fingerprint", 32);
     } else if (view.op == "identity_preview_import") {
@@ -142,10 +149,10 @@ std::string BuildTournamentRequest(const netplay::IdentityRequest& r) {
     case IdentityOp::DiscordConnect: body["op"] = "discord_connect"; complete = need({{"bridge_id", &r.bridge}}); break;
     case IdentityOp::DiscordRemove: body["op"] = "discord_remove"; complete = need({{"bridge_id", &r.bridge}}); break;
     case IdentityOp::DiscordCancel: body["op"] = "discord_cancel"; complete = need({{"bridge_id", &r.bridge}}); break;
-    case IdentityOp::ChallongeStatus: body["op"] = "challonge_status"; complete = need({{"bridge_id", &r.bridge}}); break;
-    case IdentityOp::ChallongeConnect: body["op"] = "challonge_connect"; complete = need({{"bridge_id", &r.bridge}}); break;
-    case IdentityOp::ChallongeRemove: body["op"] = "challonge_remove"; complete = need({{"bridge_id", &r.bridge}}); break;
-    case IdentityOp::ChallongeCancel: body["op"] = "challonge_cancel"; complete = need({{"bridge_id", &r.bridge}}); break;
+    case IdentityOp::SiteStatus: body["op"] = "site_status"; complete = need({{"bridge_id", &r.bridge}, {"site", &r.site}}); break;
+    case IdentityOp::SiteConnect: body["op"] = "site_connect"; complete = need({{"bridge_id", &r.bridge}, {"site", &r.site}}); break;
+    case IdentityOp::SiteRemove: body["op"] = "site_remove"; complete = need({{"bridge_id", &r.bridge}, {"site", &r.site}}); break;
+    case IdentityOp::SiteCancel: body["op"] = "site_cancel"; complete = need({{"bridge_id", &r.bridge}, {"site", &r.site}}); break;
     default: complete = false; break;
     }
     std::string text;

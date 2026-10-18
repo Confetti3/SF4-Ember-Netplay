@@ -14,29 +14,30 @@ enum class IdentityOp : std::uint8_t {
     BridgeList, BridgeInspect, BridgeApprove, BridgeForget,
     LinkList, LinkClaim, LinkCancel, LinkRemove,
     DiscordStatus, DiscordConnect, DiscordRemove, DiscordCancel,
-    ChallongeStatus, ChallongeConnect, ChallongeRemove, ChallongeCancel,
+    SiteStatus, SiteConnect, SiteRemove, SiteCancel,
 };
 
-// The sites a player connects to their Ember ID through a browser sign-in on
-// a tournament service, and the four requests each site has: read the
-// account, start a sign-in (the helper opens the site's page), disconnect,
-// and end a sign-in.
-enum class SignInSite : std::uint8_t { Discord, Challonge };
+// Where a player connects an account to their Ember ID through a browser
+// sign-in on a tournament service: Discord, or one of the sign-in sites the
+// service lists (Challonge, start.gg and later ones, each named by its ID in
+// the request's `site`). Each has four requests: read the account, start a
+// sign-in (the helper opens the site's page), disconnect, and end a sign-in.
+enum class SignInSource : std::uint8_t { Discord, Site };
 enum class SignInStep : std::uint8_t { Status, Connect, Remove, Cancel };
-constexpr std::size_t SignInSiteCount = 2, SignInStepCount = 4;
-struct SignInOp { SignInSite site; SignInStep step; };
-constexpr IdentityOp SignInOps[SignInSiteCount][SignInStepCount] = {
+constexpr std::size_t SignInSourceCount = 2, SignInStepCount = 4;
+struct SignInOp { SignInSource source; SignInStep step; };
+constexpr IdentityOp SignInOps[SignInSourceCount][SignInStepCount] = {
     {IdentityOp::DiscordStatus, IdentityOp::DiscordConnect, IdentityOp::DiscordRemove, IdentityOp::DiscordCancel},
-    {IdentityOp::ChallongeStatus, IdentityOp::ChallongeConnect, IdentityOp::ChallongeRemove, IdentityOp::ChallongeCancel},
+    {IdentityOp::SiteStatus, IdentityOp::SiteConnect, IdentityOp::SiteRemove, IdentityOp::SiteCancel},
 };
-constexpr IdentityOp SignInRequest(SignInSite site, SignInStep step) {
-    return SignInOps[static_cast<std::size_t>(site)][static_cast<std::size_t>(step)];
+constexpr IdentityOp SignInRequest(SignInSource source, SignInStep step) {
+    return SignInOps[static_cast<std::size_t>(source)][static_cast<std::size_t>(step)];
 }
-// The site and step a request is; none for any other request.
+// The source and step a request is; none for any other request.
 constexpr std::optional<SignInOp> SignInOf(IdentityOp op) {
-    for (std::size_t site = 0; site < SignInSiteCount; ++site)
+    for (std::size_t source = 0; source < SignInSourceCount; ++source)
         for (std::size_t step = 0; step < SignInStepCount; ++step)
-            if (SignInOps[site][step] == op) return SignInOp{static_cast<SignInSite>(site), static_cast<SignInStep>(step)};
+            if (SignInOps[source][step] == op) return SignInOp{static_cast<SignInSource>(source), static_cast<SignInStep>(step)};
     return std::nullopt;
 }
 
@@ -77,6 +78,8 @@ struct IdentityRequest {
     std::string origin, bridge, connection, code;
     // The claim or link to cancel or remove.
     std::string target;
+    // The sign-in site the site requests are for, by its ID.
+    std::string site;
     // Import: the ID its preview showed; Reset: the ID being retired.
     std::string emberId;
     bool replace = false;
@@ -85,11 +88,11 @@ struct IdentityRequest {
     bool Valid() const {
         return passphrase.size() <= MaxSecret && localPassphrase.size() <= MaxSecret && path.size() <= MaxPath &&
             origin.size() <= MaxField && bridge.size() <= MaxField && connection.size() <= MaxField &&
-            code.size() <= MaxField && target.size() <= MaxField && emberId.size() <= MaxField;
+            code.size() <= MaxField && target.size() <= MaxField && emberId.size() <= MaxField && site.size() <= MaxField;
     }
     std::size_t Bytes() const {
         return passphrase.size() + localPassphrase.size() + path.size() + origin.size() + bridge.size() +
-            connection.size() + code.size() + target.size() + emberId.size();
+            connection.size() + code.size() + target.size() + emberId.size() + site.size();
     }
     // Every copy wipes its secrets when it goes, including one a full queue refused.
     IdentityRequest() = default;

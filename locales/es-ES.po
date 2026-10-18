@@ -3851,86 +3851,86 @@ msgstr "Usar otra cuenta de Discord"
 msgid "connect.change_detail"
 msgstr "Abre Discord en tu navegador para conectar otra cuenta. Tu web de torneos deberá usar entonces esa cuenta."
 
-msgid "screen.connect_challonge"
-msgstr "Conectar Challonge"
+msgid "site.title"
+msgstr "Conectar {0}"
 
-msgid "identity.challonge"
-msgstr "Challonge"
+msgid "site.row_detail"
+msgstr "Conecta tu cuenta de {0} para que los torneos de {0} puedan encontrar tu Ember ID."
 
-msgid "identity.connect_challonge_detail"
-msgstr "Conecta tu cuenta de Challonge para que los torneos de Challonge puedan encontrar tu Ember ID."
-
-msgid "challonge.go_detail"
-msgstr "Al conectar Challonge, los torneos de Challonge pueden encontrar tu Ember ID. Ember abre Challonge en tu navegador: aprueba allí con la cuenta que usa tu torneo."
-
-msgid "challonge.setting_up_detail"
-msgstr "Ember está abriendo Challonge en tu navegador."
-
-msgid "challonge.waiting"
-msgstr "Aprueba en tu navegador. Esta pantalla se actualiza cuando Challonge esté conectado."
-
-msgid "challonge.waiting_label"
-msgstr "Esperando a Challonge"
-
-msgid "challonge.waiting_detail"
-msgstr "Aprueba en tu navegador con la cuenta de Challonge que usa tu torneo. Esta pantalla se actualiza sola."
-
-msgid "challonge.connected"
-msgstr "Challonge conectado"
-
-msgid "challonge.connected_detail"
-msgstr "Los torneos de Challonge ya pueden encontrarte con esta cuenta."
-
-msgid "challonge.change"
-msgstr "Usar otra cuenta de Challonge"
-
-msgid "challonge.change_detail"
-msgstr "Abre Challonge en tu navegador para conectar otra cuenta. Tu torneo deberá usar entonces esa cuenta."
-
-msgid "challonge.remove_detail"
-msgstr "Desconecta esta cuenta de Challonge de tu Ember ID en este servicio. Los torneos de Challonge ya no podrán encontrarte con ella."
-
-msgid "challonge.cancel_detail"
-msgstr "Deja de esperar. Elige Conectar Challonge de nuevo cuando estés listo."
-
-msgid "challonge.off"
-msgstr "El inicio de sesión con Challonge está desactivado"
-
-msgid "challonge.off_detail"
-msgstr "Este servicio de torneos no ofrece inicio de sesión con Challonge por ahora. Inténtalo más tarde."
-
-msgid "challonge.opened"
-msgstr "Termina de iniciar sesión en Challonge en tu navegador."
-
-msgid "challonge.done"
-msgstr "Challonge conectado como {0}."
-
-msgid "challonge.removed"
-msgstr "Cuenta de Challonge desconectada."
-
-msgid "challonge.cancelled"
-msgstr "Se ha dejado de esperar a Challonge."
-
-msgid "challonge.none"
+msgid "site.none"
 msgstr "Sin conectar"
 
-msgid "challonge.setting_up"
+msgid "site.go_detail"
+msgstr "Al conectar {0}, los torneos de {0} pueden encontrar tu Ember ID. Ember abre {0} en tu navegador: aprueba allí con la cuenta que usa tu torneo."
+
+msgid "site.setting_up"
 msgstr "Configurando"
 
-msgid "challonge.retry"
+msgid "site.setting_up_detail"
+msgstr "Ember está abriendo {0} en tu navegador."
+
+msgid "site.waiting"
+msgstr "Aprueba en tu navegador. Esta pantalla se actualiza cuando {0} esté conectado."
+
+msgid "site.waiting_label"
+msgstr "Esperando a {0}"
+
+msgid "site.waiting_detail"
+msgstr "Aprueba en tu navegador con la cuenta de {0} que usa tu torneo. Esta pantalla se actualiza sola."
+
+msgid "site.connected"
+msgstr "{0} conectado"
+
+msgid "site.connected_detail"
+msgstr "Los torneos de {0} ya pueden encontrarte con esta cuenta."
+
+msgid "site.change"
+msgstr "Usar otra cuenta de {0}"
+
+msgid "site.change_detail"
+msgstr "Abre {0} en tu navegador para conectar otra cuenta. Tu torneo deberá usar entonces esa cuenta."
+
+msgid "site.remove_detail"
+msgstr "Desconecta esta cuenta de {0} de tu Ember ID en este servicio. Los torneos de {0} ya no podrán encontrarte con ella."
+
+msgid "site.cancel_detail"
+msgstr "Deja de esperar. Elige Conectar {0} de nuevo cuando estés listo."
+
+msgid "site.off"
+msgstr "El inicio de sesión con {0} está desactivado"
+
+msgid "site.off_detail"
+msgstr "Este servicio de torneos no ofrece inicio de sesión con {0} por ahora. Inténtalo más tarde."
+
+msgid "site.retry"
 msgstr "Intentar de nuevo"
 
-msgid "challonge.retry_detail"
-msgstr "Vuelve a leer tu cuenta de Challonge."
+msgid "site.retry_detail"
+msgstr "Vuelve a leer tu cuenta de {0}."
 
-msgid "challonge.no_service"
+msgid "site.opened"
+msgstr "Termina de iniciar sesión en {0} en tu navegador."
+
+msgid "site.done"
+msgstr "{0} conectado como {1}."
+
+msgid "site.removed"
+msgstr "Cuenta de {0} desconectada."
+
+msgid "site.cancelled"
+msgstr "Se ha dejado de esperar a {0}."
+
+msgid "site.busy"
+msgstr "El inicio de sesión con {0} está ocupado ahora. Inténtalo más tarde."
+
+msgid "site.no_service"
 msgstr "El servicio de torneos de Ember no está configurado"
 
-msgid "challonge.no_service_detail"
-msgstr "Challonge se conecta mediante el servicio de torneos de Ember. Primero búscalo en Cuentas vinculadas y luego vuelve aquí."
+msgid "site.no_service_detail"
+msgstr "{0} se conecta mediante el servicio de torneos de Ember. Primero búscalo en Cuentas vinculadas y luego vuelve aquí."
 
-msgid "challonge.busy"
-msgstr "El inicio de sesión con Challonge está ocupado ahora. Inténtalo más tarde."
+msgid "site.screen"
+msgstr "Cuenta del sitio"
 
 msgid "identity.failure.browser"
 msgstr "Ember no ha podido abrir tu navegador."

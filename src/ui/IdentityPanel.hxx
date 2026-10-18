@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <deque>
 #include <map>
+#include <tuple>
 #include <functional>
 #include <iterator>
 #include <string>
@@ -24,7 +25,8 @@ enum class Tone;
 // accounts linked through tournament services, the matches those services
 // assigned, which the player can play from here, Connect Discord, which
 // takes a player from no Ember ID to a connected Discord account step by
-// step, and Connect Challonge. It holds the passphrases the
+// step, and the Connect screens of the sign-in sites Ember's own service
+// lists (Challonge, start.gg). It holds the passphrases the
 // player types until they are sent, and wipes them when the player leaves
 // these screens. One request is in flight at a time; the rest wait in order.
 class IdentityPanel {
@@ -100,7 +102,7 @@ public:
     // The shell is hidden: wipes what was typed, as leaving the screens does,
     // drops requests not yet sent, and asks for a fresh status when the
     // screens show again.
-    // Hiding Ember stops a Connect Discord or Connect Challonge setup, as
+    // Hiding Ember stops a Connect Discord or a sign-in site's setup, as
     // leaving its screen does; a wait for the browser goes on.
     // Ember is hidden (after Conceal): the answer in flight is still taken,
     // and a cancelled sign-in is still ended on its service.
@@ -116,6 +118,13 @@ private:
     // public rooms owns its requests: only it moves on their answers, which no
     // screen sees, and it sees no other answer (SetupFinish).
     enum class Owner { Screens, PublicSetup };
+    // Which accounts a service's profile leads to reading: Discord's, and
+    // every sign-in site's it lists or one site's.
+    struct AccountReads {
+        bool discord = false, sites = false;
+        std::string site;
+        bool operator==(const AccountReads& o) const { return discord == o.discord && sites == o.sites && site == o.site; }
+    };
     // A request waiting to be sent. A look-up's answer is a service the
     // player may trust, not the selected one's profile. Every request names
     // the run of its owner it was queued in: for the screens, the Connect
@@ -127,10 +136,10 @@ private:
         netplay::IdentityRequest request;
         bool lookUp = false;
         std::uint64_t journey = 0;
-        // An inspection only to read these sites' accounts on this service,
-        // which leaves the selected service as it is.
+        // An inspection only to read these accounts on this service, which
+        // leaves the selected service as it is.
         std::string account;
-        SignInSiteSet sites = 0;
+        AccountReads reads;
         Owner owner = Owner::Screens;
     };
     bool Busy(const ShellView& view) const;
@@ -138,7 +147,7 @@ private:
     void Finish(const ShellView& view);
     // The answer to the setup's own request in flight.
     void SetupFinish(const ShellView& view);
-    void Queue(netplay::IdentityRequest request, bool lookUp = false, std::string account = {}, SignInSiteSet sites = 0);
+    void Queue(netplay::IdentityRequest request, bool lookUp = false, std::string account = {}, AccountReads reads = {});
     void QueueSetup(netplay::IdentityRequest request);
     // A request of the setup's is waiting or out.
     bool SetupPending() const;
@@ -147,15 +156,17 @@ private:
     // The read in flight failed: its service's accounts are not trusted, and a
     // sign-in waiting on it pauses its polls.
     void ReadFailed();
-    // Reads the accounts of `sites` on `bridge` (its profile first), leaving
-    // the selected service as it is.
-    void ReadAccount(const netplay::IdentityBridge& bridge, SignInSiteSet sites);
-    // A service's profile was read: each of `sites` it keeps accounts for is
-    // asked for the account.
-    void ReadSiteAccounts(const netplay::IdentityView& id, const std::string& bridge, SignInSiteSet sites);
-    // The site's account last read from `bridge` as the row's value: its
-    // name, or Not connected; nothing while it is unread or its latest read failed.
-    void ShowAccount(MenuEntry& row, SignInSite site, const std::string& bridge) const;
+    // Reads the accounts `reads` names on `bridge` (its profile first),
+    // leaving the selected service as it is.
+    void ReadAccount(const netplay::IdentityBridge& bridge, AccountReads reads);
+    // A service's profile was read: each account `reads` names that it keeps
+    // is asked for, and the sign-in sites it lists are noted.
+    void ReadSiteAccounts(const netplay::IdentityView& id, const std::string& bridge, const AccountReads& reads);
+    // Reading those accounts failed: none of them is trusted.
+    void AccountReadsFailed(const std::string& bridge, const AccountReads& reads);
+    // The account last read from `bridge` as the row's value: its name, or
+    // Not connected; nothing while it is unread or its latest read failed.
+    void ShowAccount(MenuEntry& row, const SignInTarget& target, const std::string& bridge) const;
     // Drops the requests waiting to be sent after the one in flight failed,
     // unless it came from an earlier journey: those are not its to drop.
     void DropQueue();
@@ -197,46 +208,60 @@ private:
     // ending another site's sign-in first.
     void StartSteps();
     // Connect Discord's steps run, which only Discord has.
-    bool StepsRunFor(SignInSite site) const;
+    bool StepsRunFor(const SignInTarget& target) const;
     // A Discord account was read: running steps open Discord's page for a
     // service with none connected, and stop for one already connected.
     void ConnectAccountRead(const ShellView& view);
 
-    // What Discord and Challonge share (IdentitySignIn.cxx).
-    // The service the site's rows connect on: Ember's own, or the selected one.
-    std::string SiteBridge(const ShellView& view, SignInSite site) const;
-    // Opens the site's page for `bridge`, noting the account connected now.
-    // Another site's sign-in under way ends on its service first.
-    void OpenSignIn(SignInSite site, const std::string& bridge);
+    // What Discord and the listed sign-in sites share (IdentitySignIn.cxx).
+    // A listed site by its ID on `bridge`, as the service's profile last listed it; null when not.
+    const netplay::IdentitySignInSite* ListedSite(const std::string& bridge, const std::string& site) const;
+    // A listed site's name to show: as its service names it, or its ID.
+    std::string SiteName(const std::string& site) const;
+    // One of the target's words: Discord's as they are, a listed site's with
+    // its name as {0}; `value` follows as the next placeholder.
+    std::string Word(const SignInTarget& target, const char* id) const;
+    std::string Word(const SignInTarget& target, const char* id, const std::string& value) const;
+    // The target of the sign-in request in flight.
+    SignInTarget SentTarget() const;
+    // The service the target's rows connect on: Ember's own, or the selected one.
+    std::string SiteBridge(const ShellView& view, const SignInTarget& target) const;
+    // `screen` is the target's Connect screen.
+    bool AtScreenOf(const SignInTarget& target, const std::string& screen) const;
+    // Opens the target's page for `bridge`, noting the account connected now.
+    // Another sign-in under way ends on its service first.
+    void OpenSignIn(const SignInTarget& target, const std::string& bridge);
     // Stops the attempt: what it queued and has not sent goes too, and an
     // answer already out no longer advances it.
     void CancelAttempt();
-    // Ends another site's sign-in under way on its service, before `site` starts one.
-    void EndOtherSignIn(SignInSite site);
+    // Ends another sign-in under way on its service, before `target` starts one.
+    void EndOtherSignIn(const SignInTarget& target);
     // A new Connect Discord journey starts: what becomes of the sign-in under way.
     void RetireSignIn();
-    // A site's own words for a refusal of one of its requests, where it has
-    // them (Challonge over its request limits); none otherwise.
-    static std::optional<std::string> SiteFailureText(netplay::IdentityOp op, const std::string& code);
+    // A site's own words for a refusal of the sign-in request in flight, where
+    // it has them (over its request limits); none otherwise.
+    std::optional<std::string> SiteFailureText(const std::string& code) const;
     // Connect Discord's steps run, or a site's page is being opened.
     bool Starting() const;
     // The site has steps or a sign-in under way, which Cancel stops.
-    bool ActiveFor(SignInSite site) const;
-    // The site's sign-in on `bridge` waits for the browser, and its last read worked.
-    bool WaitingOn(SignInSite site, const std::string& bridge) const;
+    bool ActiveFor(const SignInTarget& target) const;
+    // The target's sign-in on `bridge` waits for the browser, and its last read worked.
+    bool WaitingOn(const SignInTarget& target, const std::string& bridge) const;
     // The request in flight read a site's account that is said only on its
     // own Connect screen, and that screen is not showing.
     bool QuietRead() const;
     // The site's account read in flight failed: its account is not trusted,
     // and a sign-in waiting on it pauses its polls.
     void SiteReadFailed();
-    // The Ember ID screen's row for the site, on Ember's own service.
-    std::optional<MenuEntry> SiteRow(const ShellView& view, SignInSite site) const;
+    // The Ember ID screen's rows on Ember's own service: Discord's, and one
+    // per sign-in site it lists.
+    MenuEntry DiscordIdentityRow(const ShellView& view) const;
+    void ListedSiteIdentityRows(const ShellView& view, std::vector<MenuEntry>& rows) const;
     // The site on `target`: waiting for the browser, connected, off, or Connect.
-    void SignInRows(const ShellView& view, SignInSite site, const netplay::IdentityBridge& target, std::vector<MenuEntry>& rows, bool busy) const;
-    // Connect Challonge's screen, for Ember's own service.
-    void ChallongeRows(const ShellView& view, std::vector<MenuEntry>& rows, bool busy) const;
-    // Connect, Disconnect, Cancel and Try again for either site: true when `a` was one of them.
+    void SignInRows(const ShellView& view, const SignInTarget& site, const netplay::IdentityBridge& target, std::vector<MenuEntry>& rows, bool busy) const;
+    // A listed site's Connect screen (siteScreen_), for Ember's own service.
+    void ListedSiteRows(const ShellView& view, std::vector<MenuEntry>& rows, bool busy) const;
+    // Connect, Unlink, Cancel and Try again for Discord or a listed site: true when `a` was one of them.
     bool SignInActivate(const MenuAction& a, const ShellView& view);
     // The answer to a site's read, Connect or Disconnect.
     void SignInFinish(const ShellView& view);
@@ -259,8 +284,8 @@ private:
     netplay::IdentityOp sentOp_ = netplay::IdentityOp::None;
     Owner sentOwner_ = Owner::Screens;
     bool sentLookUp_ = false;
-    std::string sentAccount_;
-    SignInSiteSet sentSites_ = 0;
+    std::string sentAccount_, sentSite_;
+    AccountReads sentReads_;
     // The Connect Discord journey, and the one the request in flight was
     // queued in. While its answer is handled, what it queues belongs to that
     // journey too: an earlier journey's follow-up reads are not queued.
@@ -279,18 +304,21 @@ private:
     std::string restorePath_, origin_ = EmberService, code_;
     // The selected service and site, and the service whose links the view lists.
     std::string bridge_, connection_, listedBridge_, sentBridge_, sentOrigin_;
-    // Each site's account last read from each service: its user ID (empty
-    // when none is connected) and name, whether it was ever read, whether
-    // the latest read of the service or its account failed (then the Connect
-    // screen trusts none of it until Try again succeeds), and whether the
-    // service keeps the site's accounts, as its profile last said.
+    // Each account last read, by Discord or listed site and service: its
+    // user ID (empty when none is connected) and name, whether it was ever
+    // read, and whether the latest read of the service or the account failed
+    // (then the Connect screen trusts none of it until Try again succeeds).
     struct SiteAccount {
         std::string user, name;
-        bool read = false, failed = false, kept = false;
+        bool read = false, failed = false;
     };
-    std::map<std::string, SiteAccount> accounts_[std::size(SignInSites)];
-    std::map<std::string, SiteAccount>& Accounts(SignInSite site) { return accounts_[static_cast<std::size_t>(site)]; }
-    const std::map<std::string, SiteAccount>& Accounts(SignInSite site) const { return accounts_[static_cast<std::size_t>(site)]; }
+    std::map<std::tuple<SignInSource, std::string, std::string>, SiteAccount> accounts_;
+    SiteAccount& Account(const SignInTarget& target, const std::string& bridge);
+    const SiteAccount* FindAccount(const SignInTarget& target, const std::string& bridge) const;
+    // The sign-in sites each service lists, as its profile last said, and the
+    // site the listed site's Connect screen shows.
+    std::map<std::string, std::vector<netplay::IdentitySignInSite>> sites_;
+    std::string siteScreen_;
     // The service a connect link named; empty for Ember's own. Whether this
     // visit already looked Ember's own service up.
     std::string connectBridge_;
@@ -315,7 +343,7 @@ private:
     // never edited field by field into another site's or service's sign-in.
     struct SignInAttempt {
         enum class Phase { Opening, Waiting, Stopped };
-        SignInSite site = SignInSite::Discord;
+        SignInTarget target;
         std::string bridge, before;
         Phase phase = Phase::Opening;
         double until = 0, pollAt = 0;

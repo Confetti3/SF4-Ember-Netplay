@@ -3851,86 +3851,86 @@ msgstr "다른 Discord 계정 사용"
 msgid "connect.change_detail"
 msgstr "브라우저에서 Discord를 열어 다른 계정을 대신 연결합니다. 그러면 대회 사이트에서도 그 계정을 사용해야 합니다."
 
-msgid "screen.connect_challonge"
-msgstr "Challonge 연결"
+msgid "site.title"
+msgstr "{0} 연결"
 
-msgid "identity.challonge"
-msgstr "Challonge"
+msgid "site.row_detail"
+msgstr "{0} 계정을 연결하면 {0}의 대회가 내 Ember ID를 찾을 수 있습니다."
 
-msgid "identity.connect_challonge_detail"
-msgstr "Challonge 계정을 연결하면 Challonge의 대회가 내 Ember ID를 찾을 수 있습니다."
-
-msgid "challonge.go_detail"
-msgstr "Challonge를 연결하면 Challonge의 대회가 내 Ember ID를 찾을 수 있습니다. Ember가 브라우저에서 Challonge를 엽니다. 거기서 대회에서 쓰는 계정으로 승인하세요."
-
-msgid "challonge.setting_up_detail"
-msgstr "Ember가 브라우저에서 Challonge를 여는 중입니다."
-
-msgid "challonge.waiting"
-msgstr "브라우저에서 승인하세요. Challonge가 연결되면 이 화면이 업데이트됩니다."
-
-msgid "challonge.waiting_label"
-msgstr "Challonge 대기 중"
-
-msgid "challonge.waiting_detail"
-msgstr "브라우저에서 대회에서 쓰는 Challonge 계정으로 승인하세요. 이 화면은 자동으로 업데이트됩니다."
-
-msgid "challonge.connected"
-msgstr "Challonge 연결됨"
-
-msgid "challonge.connected_detail"
-msgstr "이제 Challonge의 대회가 이 계정으로 나를 찾을 수 있습니다."
-
-msgid "challonge.change"
-msgstr "다른 Challonge 계정 사용"
-
-msgid "challonge.change_detail"
-msgstr "브라우저에서 Challonge를 열어 다른 계정을 대신 연결합니다. 그러면 대회에서도 그 계정을 사용해야 합니다."
-
-msgid "challonge.remove_detail"
-msgstr "이 서비스에서 이 Challonge 계정과 Ember ID의 연결을 끊습니다. Challonge의 대회가 이 계정으로 더 이상 찾을 수 없습니다."
-
-msgid "challonge.cancel_detail"
-msgstr "기다리기를 멈춥니다. 준비되면 Challonge 연결을 다시 선택하세요."
-
-msgid "challonge.off"
-msgstr "Challonge 로그인이 꺼져 있음"
-
-msgid "challonge.off_detail"
-msgstr "이 대회 서비스는 현재 Challonge 로그인을 제공하지 않습니다. 나중에 다시 시도하세요."
-
-msgid "challonge.opened"
-msgstr "브라우저에서 Challonge 로그인을 마치세요."
-
-msgid "challonge.done"
-msgstr "Challonge를 {0}(으)로 연결했습니다."
-
-msgid "challonge.removed"
-msgstr "Challonge 계정 연결을 끊었습니다."
-
-msgid "challonge.cancelled"
-msgstr "Challonge 대기를 중단했습니다."
-
-msgid "challonge.none"
+msgid "site.none"
 msgstr "연결 안 됨"
 
-msgid "challonge.setting_up"
+msgid "site.go_detail"
+msgstr "{0}를 연결하면 {0}의 대회가 내 Ember ID를 찾을 수 있습니다. Ember가 브라우저에서 {0}를 엽니다. 거기서 대회에서 쓰는 계정으로 승인하세요."
+
+msgid "site.setting_up"
 msgstr "설정 중"
 
-msgid "challonge.retry"
+msgid "site.setting_up_detail"
+msgstr "Ember가 브라우저에서 {0}를 여는 중입니다."
+
+msgid "site.waiting"
+msgstr "브라우저에서 승인하세요. {0}가 연결되면 이 화면이 업데이트됩니다."
+
+msgid "site.waiting_label"
+msgstr "{0} 대기 중"
+
+msgid "site.waiting_detail"
+msgstr "브라우저에서 대회에서 쓰는 {0} 계정으로 승인하세요. 이 화면은 자동으로 업데이트됩니다."
+
+msgid "site.connected"
+msgstr "{0} 연결됨"
+
+msgid "site.connected_detail"
+msgstr "이제 {0}의 대회가 이 계정으로 나를 찾을 수 있습니다."
+
+msgid "site.change"
+msgstr "다른 {0} 계정 사용"
+
+msgid "site.change_detail"
+msgstr "브라우저에서 {0}를 열어 다른 계정을 대신 연결합니다. 그러면 대회에서도 그 계정을 사용해야 합니다."
+
+msgid "site.remove_detail"
+msgstr "이 서비스에서 이 {0} 계정과 Ember ID의 연결을 끊습니다. {0}의 대회가 이 계정으로 더 이상 찾을 수 없습니다."
+
+msgid "site.cancel_detail"
+msgstr "기다리기를 멈춥니다. 준비되면 {0} 연결을 다시 선택하세요."
+
+msgid "site.off"
+msgstr "{0} 로그인이 꺼져 있음"
+
+msgid "site.off_detail"
+msgstr "이 대회 서비스는 현재 {0} 로그인을 제공하지 않습니다. 나중에 다시 시도하세요."
+
+msgid "site.retry"
 msgstr "다시 시도"
 
-msgid "challonge.retry_detail"
-msgstr "Challonge 계정을 다시 읽어옵니다."
+msgid "site.retry_detail"
+msgstr "{0} 계정을 다시 읽어옵니다."
 
-msgid "challonge.no_service"
+msgid "site.opened"
+msgstr "브라우저에서 {0} 로그인을 마치세요."
+
+msgid "site.done"
+msgstr "{0}를 {1}(으)로 연결했습니다."
+
+msgid "site.removed"
+msgstr "{0} 계정 연결을 끊었습니다."
+
+msgid "site.cancelled"
+msgstr "{0} 대기를 중단했습니다."
+
+msgid "site.busy"
+msgstr "지금은 {0} 로그인이 혼잡합니다. 나중에 다시 시도하세요."
+
+msgid "site.no_service"
 msgstr "Ember 대회 서비스가 설정되지 않음"
 
-msgid "challonge.no_service_detail"
-msgstr "Challonge는 Ember 대회 서비스를 통해 연결됩니다. 먼저 연동된 계정에서 서비스를 찾은 뒤 여기로 돌아오세요."
+msgid "site.no_service_detail"
+msgstr "{0}는 Ember 대회 서비스를 통해 연결됩니다. 먼저 연동된 계정에서 서비스를 찾은 뒤 여기로 돌아오세요."
 
-msgid "challonge.busy"
-msgstr "지금은 Challonge 로그인이 혼잡합니다. 나중에 다시 시도하세요."
+msgid "site.screen"
+msgstr "사이트 계정"
 
 msgid "identity.failure.browser"
 msgstr "Ember가 브라우저를 열지 못했습니다."

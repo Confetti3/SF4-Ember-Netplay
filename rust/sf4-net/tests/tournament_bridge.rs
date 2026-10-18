@@ -5,13 +5,14 @@
 
 use std::{path::PathBuf, time::Duration};
 
-use ember_bridge::{AppState, Clock, Config, Db, Keys, config};
+use ember_bridge::{AppState, Clock, Config, Db, Keys, config, integrations::Secrets};
 use serde_json::{Value, json};
 use sf4_net::{
     service::{Command, Event},
     tournament::{self, Request},
 };
 use tokio::sync::mpsc;
+use zeroize::Zeroizing;
 
 struct Dirs(PathBuf);
 
@@ -28,6 +29,22 @@ fn random16() -> [u8; 16] {
 }
 
 async fn bridge(dir: &std::path::Path) -> (ember_bridge::Running, String) {
+    bridge_with_sites(dir, Vec::new()).await
+}
+
+/// A loopback bridge with these sign-in sites, each with a client secret.
+async fn bridge_with_sites(
+    dir: &std::path::Path,
+    sites: Vec<config::SignInSite>,
+) -> (ember_bridge::Running, String) {
+    let secrets = Secrets {
+        site_client_secrets: sites
+            .iter()
+            .map(|site| (site.id.clone(), Zeroizing::new("site-secret".to_owned())))
+            .collect(),
+        ..Default::default()
+    };
+    let integration_secrets = (!sites.is_empty()).then(|| dir.join("integrations.json"));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let origin = format!("http://{}", listener.local_addr().unwrap());
     let config = Config {
@@ -41,8 +58,8 @@ async fn bridge(dir: &std::path::Path) -> (ember_bridge::Running, String) {
         allow_private_webhooks: true,
         mock_browser: false,
         discord: None,
-        challonge: None,
-        integration_secrets: None,
+        sign_in_sites: sites,
+        integration_secrets,
         rooms: None,
         match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
         tenants: vec![config::Tenant {
@@ -56,7 +73,7 @@ async fn bridge(dir: &std::path::Path) -> (ember_bridge::Running, String) {
                 enabled: true,
                 api_base: None,
                 discord_lookup: false,
-                challonge_lookup: false,
+                lookup_sites: Vec::new(),
                 disputes: None,
                 results_url: None,
                 rooms: None,
@@ -64,9 +81,99 @@ async fn bridge(dir: &std::path::Path) -> (ember_bridge::Running, String) {
         }],
     };
     let db = Db::open(&config.database).unwrap();
-    let state = AppState::new(config, Keys::generate(), Default::default(), db, Clock::default());
+    let state = AppState::new(config, Keys::generate(), secrets, db, Clock::default());
     ember_bridge::sync_config(&state).await.unwrap();
     (ember_bridge::start(state, listener).unwrap(), origin)
+}
+
+/// The site `deploy/sites/<file>.json` defines, listed as `id` and named
+/// `name`, with every page it would use at `origin`.
+fn site(file: &str, id: &str, name: &str, origin: &str) -> config::SignInSite {
+    let path = format!(
+        "{}/../../server/ember/bridge/deploy/sites/{file}.json",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let mut site: Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+    let local = |url: &Value| {
+        let url = reqwest::Url::parse(url.as_str().unwrap()).unwrap();
+        json!(format!("{origin}{}", url.path()))
+    };
+    site["id"] = json!(id);
+    site["display_name"] = json!(name);
+    site["authorize_url"] = local(&site["authorize_url"]);
+    site["token_url"] = local(&site["token_url"]);
+    site["user"]["url"] = local(&site["user"]["url"]);
+    site["hosts"] = json!(["127.0.0.1"]);
+    serde_json::from_value(site).unwrap()
+}
+
+/// Sign-in sites are only what the bridge lists: the helper reads, cancels
+/// and disconnects an account on each by its ID, and opens a sign-in page
+/// only on the https origin and path the bridge declares for the site. These
+/// sites declare a loopback http page, so Connect is refused before any
+/// browser opens. A site the bridge does not list is not found.
+#[tokio::test]
+async fn sign_in_sites_through_the_helper() {
+    let dirs = Dirs(std::env::temp_dir().join(format!(
+        "sf4-tournament-sites-{}",
+        ember_protocol::encoding::b64u(&random16())
+    )));
+    std::fs::create_dir_all(&dirs.0).unwrap();
+    let pages = "http://127.0.0.1:9";
+    let sites = vec![
+        site("challonge", "challonge", "Challonge", pages),
+        site("startgg", "startgg", "start.gg", pages),
+        site("challonge", "brackets-plus", "Brackets Plus", pages),
+    ];
+    let (running, origin) = bridge_with_sites(&dirs.0, sites).await;
+    let mut worker = Worker::start(&dirs);
+    worker.next_answer(0).await;
+    let (ok, reason, _, _) = worker.ask(json!({ "op": "identity_enable" })).await;
+    assert!(ok, "{reason:?}");
+    let (ok, _, _, inspected) = worker
+        .ask(json!({ "op": "bridge_inspect", "origin": origin }))
+        .await;
+    assert!(ok);
+    let listed = &inspected["capabilities"]["sign_in_sites"];
+    assert_eq!(listed[1]["id"], "startgg");
+    assert_eq!(listed[1]["display_name"], "start.gg");
+    assert_eq!(listed[1]["authorize_origin"], pages);
+    let bridge_id = inspected["profile"]["bridge_id"].as_str().unwrap().to_owned();
+    let (ok, reason, _, _) = worker
+        .ask(json!({ "op": "bridge_approve", "origin": origin, "bridge_id": bridge_id }))
+        .await;
+    assert!(ok, "{reason:?}");
+
+    for site in ["challonge", "startgg", "brackets-plus"] {
+        let ask = |op: &str| json!({ "op": op, "bridge_id": bridge_id, "site": site });
+        let (ok, reason, _, connection) = worker.ask(ask("site_status")).await;
+        assert!(ok, "{site}: {reason:?}");
+        assert_eq!(connection, json!({ "account": null }), "{site}");
+        for op in ["site_cancel", "site_remove"] {
+            let (ok, reason, _, _) = worker.ask(ask(op)).await;
+            assert!(ok, "{site} {op}: {reason:?}");
+        }
+        // The bridge started a sign-in, but its page is not on an https origin.
+        let (ok, reason, _, _) = worker.ask(ask("site_connect")).await;
+        assert!(!ok, "{site}");
+        assert_eq!(reason.as_deref(), Some("bridge_invalid_response"), "{site}");
+        let (ok, reason, _, _) = worker.ask(ask("site_cancel")).await;
+        assert!(ok, "{site}: {reason:?}");
+    }
+    for op in ["site_status", "site_connect"] {
+        let (ok, reason, _, _) = worker
+            .ask(json!({ "op": op, "bridge_id": bridge_id, "site": "nowhere" }))
+            .await;
+        assert!(!ok, "{op}");
+        assert_eq!(reason.as_deref(), Some("not_found"), "{op}");
+    }
+    // A site ID the bridge could never have is refused before any request.
+    let (ok, reason, _, _) = worker
+        .ask(json!({ "op": "site_status", "bridge_id": bridge_id, "site": "../discord" }))
+        .await;
+    assert!(!ok);
+    assert_eq!(reason.as_deref(), Some("invalid_request"));
+    running.abort();
 }
 
 struct Worker {
@@ -284,25 +391,6 @@ async fn link_an_identity_through_the_helper() {
         .ask(json!({ "op": "discord_cancel", "bridge_id": bridge_id }))
         .await;
     assert!(ok, "{reason:?}");
-    // Challonge's account can be read, its sign-in cancelled and the account
-    // disconnected without a sign-in on offer, each with its own proof.
-    let (ok, reason, _, connection) = worker
-        .ask(json!({ "op": "challonge_status", "bridge_id": bridge_id }))
-        .await;
-    assert!(ok, "{reason:?}");
-    assert_eq!(connection["account"], Value::Null);
-    for op in ["challonge_cancel", "challonge_remove"] {
-        let (ok, reason, _, _) = worker
-            .ask(json!({ "op": op, "bridge_id": bridge_id }))
-            .await;
-        assert!(ok, "{op}: {reason:?}");
-    }
-    // Starting one needs the bridge to offer it.
-    let (ok, reason, _, _) = worker
-        .ask(json!({ "op": "challonge_connect", "bridge_id": bridge_id }))
-        .await;
-    assert!(!ok);
-    assert_eq!(reason.as_deref(), Some("not_found"));
 
     // A new worker on the same stores has the same identity and bridge.
     worker.task.abort();

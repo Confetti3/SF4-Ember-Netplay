@@ -1,7 +1,7 @@
 // Connect Discord: the steps that take a player from a tournament site's
 // link, the Discord row, or Settings > Discord's Tournament account row, to a
-// connected Discord account. The sign-in itself, which Challonge shares, is
-// in IdentitySignIn.cxx.
+// connected Discord account. The sign-in itself, which the listed sign-in
+// sites share, is in IdentitySignIn.cxx.
 #include "IdentityPanel.hxx"
 #include "IdentityRows.hxx"
 #include "../common/Localization.hxx"
@@ -16,7 +16,7 @@ using netplay::IdentityRequest;
 void IdentityPanel::OpenDiscord(const std::string& bridge, bool automatic) {
     // A link for the attempt under way, or one that stopped, shows it: no
     // second page, and no restart without Connect or Try again.
-    const bool discord = signIn_ && signIn_->site == SignInSite::Discord;
+    const bool discord = signIn_ && signIn_->target.source == SignInSource::Discord;
     const bool same = bridge == connectBridge_ || (discord && bridge == signIn_->bridge);
     if ((steps_ != Steps::None || discord) && same) { lastScreen_.clear(); return; }
     // A link the player just clicked runs the steps by itself (which end
@@ -32,7 +32,7 @@ MenuEntry IdentityPanel::TournamentAccountRow(const ShellView& v) const {
     auto row = Row("tournament-account", loc::T("discord.tournament_account"), loc::T("discord.tournament_account_detail"));
     const auto& id = v.identity;
     const std::string bridge = UsableBridge(v);
-    if (!bridge.empty()) ShowAccount(row, SignInSite::Discord, bridge);
+    if (!bridge.empty()) ShowAccount(row, SignInTarget::Discord(), bridge);
     // Without a ready Ember ID, or with one and no service, no account is linked.
     else if (id.known && (id.state != "ready" || servicesKnown_)) row.value = loc::T("identity.discord_none");
     return row;
@@ -89,12 +89,12 @@ void IdentityPanel::ConnectGo(const ShellView& v) {
 }
 
 void IdentityPanel::StartSteps() {
-    EndOtherSignIn(SignInSite::Discord);
+    EndOtherSignIn(SignInTarget::Discord());
     signIn_.reset();
     steps_ = Steps::Running;
 }
 
-bool IdentityPanel::StepsRunFor(SignInSite site) const { return site == SignInSite::Discord && steps_ == Steps::Running; }
+bool IdentityPanel::StepsRunFor(const SignInTarget& target) const { return target.source == SignInSource::Discord && steps_ == Steps::Running; }
 
 void IdentityPanel::ConnectAccountRead(const ShellView& v) {
     if (steps_ != Steps::Running || lastScreen_ != DiscordConnectScreen) return;
@@ -103,14 +103,14 @@ void IdentityPanel::ConnectAccountRead(const ShellView& v) {
     // None yet, on a service that offers sign-in: Discord's page opens. A
     // connected account is only shown.
     const auto& id = v.identity;
-    if (id.discordUser.empty() && id.inspected.id == target->id && id.inspectedDiscord) OpenSignIn(SignInSite::Discord, sentBridge_);
+    if (id.discordUser.empty() && id.inspected.id == target->id && id.inspectedDiscord) OpenSignIn(SignInTarget::Discord(), sentBridge_);
     else steps_ = Steps::None;
 }
 
 // Steps 2 and 3 of Connect Discord, with the Ember ID ready: trust the
 // service, then connect Discord on it.
 void IdentityPanel::ConnectRows(const ShellView& v, std::vector<MenuEntry>& rows, bool busy) const {
-    const auto& ids = Site(SignInSite::Discord).rows;
+    const auto& ids = Site(SignInSource::Discord).rows;
     const auto* target = ConnectTarget(v);
     if (!target) {
         const bool offered = EmberOffered();
@@ -133,7 +133,7 @@ void IdentityPanel::ConnectRows(const ShellView& v, std::vector<MenuEntry>& rows
         }
         return;
     }
-    SignInRows(v, SignInSite::Discord, *target, rows, busy);
+    SignInRows(v, SignInTarget::Discord(), *target, rows, busy);
 }
 
 bool IdentityPanel::ConnectActivate(const MenuAction& a, const ShellView& v) {
@@ -143,8 +143,8 @@ bool IdentityPanel::ConnectActivate(const MenuAction& a, const ShellView& v) {
     // Try again restarts stopped steps or a stopped sign-in; the shared row
     // then reads everything again (SignInActivate).
     const bool stopped = steps_ == Steps::Stopped ||
-        (signIn_ && signIn_->site == SignInSite::Discord && signIn_->phase == SignInAttempt::Phase::Stopped);
-    if (a.id == Site(SignInSite::Discord).rows.retry && stopped) StartSteps();
+        (signIn_ && signIn_->target.source == SignInSource::Discord && signIn_->phase == SignInAttempt::Phase::Stopped);
+    if (a.id == Site(SignInSource::Discord).rows.retry && stopped) StartSteps();
     if (a.id == "dc-paste") {
         // The tournament site's link names its service; the journey starts over for it.
         const char* text = ImGui::GetClipboardText();

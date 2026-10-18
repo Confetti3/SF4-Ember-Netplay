@@ -1,9 +1,9 @@
-//! A site's sign-in from Ember, for the sites a bridge connects accounts
-//! from (Discord, Challonge; optional, on bridges that list the site's
-//! feature). The helper asks the bridge to start a sign-in with a proof and
-//! opens the site's page in the player's browser itself, so the game never
-//! handles the address. The player approves there, and the game reads the
-//! account until it appears.
+//! A sign-in from Ember on a bridge: Discord's, or a sign-in site's the
+//! bridge lists (Challonge, start.gg and any later one; optional, on bridges
+//! with the matching feature). The helper asks the bridge to start a sign-in
+//! with a proof and opens the site's page in the player's browser itself, so
+//! the game never handles the address. The player approves there, and the
+//! game reads the account until it appears.
 use std::sync::Arc;
 
 use ember_protocol::{
@@ -17,27 +17,23 @@ use super::{
     client::{answer, prove, with_session},
 };
 
-/// What differs between the sites: the bridge's routes and proof actions,
-/// and the pages the helper may open.
-pub(super) trait Site {
-    const START_PATH: &'static str;
-    const ACCOUNT_PATH: &'static str;
-    const CONNECT: Action;
-    const REMOVE: Action;
-    const CANCEL: Action;
-    /// The site's own sign-in page, with nothing that could break out of a
-    /// URL. Anything else the bridge answers is not opened.
-    fn is_sign_in_page(url: &str) -> bool;
+/// What differs between the sign-ins: the bridge's routes and proof actions.
+pub(super) struct Routes {
+    pub start_path: String,
+    pub account_path: String,
+    pub connect: Action,
+    pub remove: Action,
+    pub cancel: Action,
 }
 
 /// The player's connected account on the bridge, or `account: null`.
-pub async fn status<S: Site>(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
+pub async fn status(shared: &Arc<Shared>, bridge_id: &str, routes: &Routes) -> Outcome {
     with_session(shared, bridge_id, |bridge, token| async move {
         let (status, body) = shared
             .client
             .call(
                 reqwest::Method::GET,
-                &format!("{}{}", bridge.origin, S::ACCOUNT_PATH),
+                &format!("{}{}", bridge.origin, routes.account_path),
                 Some(&token),
                 None,
             )
@@ -49,34 +45,41 @@ pub async fn status<S: Site>(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
     .await
 }
 
-/// Starts a sign-in and opens the site's page in the browser. The account
-/// appears once the player finishes there; `status` reads it.
-pub async fn connect<S: Site>(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
+/// Starts a sign-in and opens the site's page in the browser, if
+/// `is_sign_in_page` says it is the site's own; anything else the bridge
+/// answers is not opened. The account appears once the player finishes
+/// there; `status` reads it.
+pub async fn connect(
+    shared: &Arc<Shared>,
+    bridge_id: &str,
+    routes: &Routes,
+    is_sign_in_page: impl Fn(&str) -> bool,
+) -> Outcome {
     let started = proven(
         shared,
         bridge_id,
-        S::CONNECT,
+        routes.connect,
         Method::Post,
-        S::START_PATH,
+        &routes.start_path,
         201,
     )
     .await?;
     let started: SignInStarted = started
         .and_then(|value| serde_json::from_value(value).ok())
-        .filter(|started: &SignInStarted| S::is_sign_in_page(&started.authorize_url))
+        .filter(|started: &SignInStarted| is_sign_in_page(&started.authorize_url))
         .ok_or_else(|| Failure::new("bridge_invalid_response"))?;
     browser::open(&started.authorize_url)?;
     Ok(Some(json!({ "opened": true })))
 }
 
 /// Disconnects the player's account on the bridge.
-pub async fn remove<S: Site>(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
+pub async fn remove(shared: &Arc<Shared>, bridge_id: &str, routes: &Routes) -> Outcome {
     proven(
         shared,
         bridge_id,
-        S::REMOVE,
+        routes.remove,
         Method::Delete,
-        S::ACCOUNT_PATH,
+        &routes.account_path,
         200,
     )
     .await
@@ -84,13 +87,13 @@ pub async fn remove<S: Site>(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
 
 /// Ends the player's sign-ins in flight on the bridge, so a page the player
 /// left open connects nothing.
-pub async fn cancel<S: Site>(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
+pub async fn cancel(shared: &Arc<Shared>, bridge_id: &str, routes: &Routes) -> Outcome {
     proven(
         shared,
         bridge_id,
-        S::CANCEL,
+        routes.cancel,
         Method::Delete,
-        S::START_PATH,
+        &routes.start_path,
         200,
     )
     .await
@@ -103,7 +106,7 @@ async fn proven(
     bridge_id: &str,
     action: Action,
     method: Method,
-    path: &'static str,
+    path: &str,
     expected: u16,
 ) -> Outcome {
     let verb = match method {

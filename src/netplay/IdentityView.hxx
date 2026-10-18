@@ -14,6 +14,10 @@ struct IdentityBridge { std::string id, origin, name; bool builtin = false, acti
 struct IdentityConnection { std::string id, name; };
 // A linked account (id is the link) or a claim waiting for approval (id is the claim).
 struct IdentityLink { std::string id, connection, provider, account; };
+// A sign-in site a service lists: its ID, its name to show, what a lookup
+// finds players by, and whether it offers sign-in now. Which pages its
+// sign-in may open is the helper's to check, from the same list.
+struct IdentitySignInSite { std::string id, name, lookupBy; bool signIn = false; };
 struct IdentityView {
     // A status has arrived from the helper.
     bool known = false;
@@ -29,12 +33,12 @@ struct IdentityView {
     IdentityBridge inspected;
     std::vector<IdentityConnection> connections;
     bool inspectedDiscord = false, inspectedDiscordAccounts = false;
-    // The same for Challonge sign-in and accounts.
-    bool inspectedChallonge = false, inspectedChallongeAccounts = false;
+    // The sign-in sites the bridge last inspected lists.
+    std::vector<IdentitySignInSite> signInSites;
     // The Discord account connected on the bridge last asked; empty when none.
     std::string discordUser, discordName;
-    // The Challonge account connected on the bridge last asked; empty when none.
-    std::string challongeUser, challongeName;
+    // The account connected on the sign-in site last asked; empty when none.
+    std::string siteUser, siteName;
     // Links and pending claims on the bridge last listed.
     std::vector<IdentityLink> links, pending;
     // The last answer: which request, what it did, and a stable failure code.

@@ -1,6 +1,6 @@
 // The identity requests the interface sends become the helper's tournament
 // JSON, and the helper's answers fold into the view: here, the browser
-// sign-ins Discord and Challonge share, each into its own site's fields.
+// sign-ins Discord and the listed sign-in sites share, each into its own fields.
 #include "../session/IdentityEvents.hxx"
 #include <nlohmann/json.hpp>
 #include <iostream>
@@ -10,50 +10,66 @@
 namespace {
 void Check(bool ok, const char* message) { if (!ok) throw std::runtime_error(message); }
 
-nlohmann::json Request(sf4e::netplay::IdentityOp op, const std::string& bridge = "brg_1") {
-    sf4e::netplay::IdentityRequest request; request.op = op; request.bridge = bridge;
+nlohmann::json Request(sf4e::netplay::IdentityOp op, const std::string& bridge = "brg_1", const std::string& site = {}) {
+    sf4e::netplay::IdentityRequest request; request.op = op; request.bridge = bridge; request.site = site;
     const auto text = sf4e::session::BuildTournamentRequest(request);
     return text.empty() ? nlohmann::json() : nlohmann::json::parse(text);
 }
 
 void Requests() {
     using sf4e::netplay::IdentityOp;
-    const std::pair<IdentityOp, const char*> ops[] = {
+    const std::pair<IdentityOp, const char*> discord[] = {
         {IdentityOp::DiscordStatus, "discord_status"}, {IdentityOp::DiscordConnect, "discord_connect"},
         {IdentityOp::DiscordRemove, "discord_remove"}, {IdentityOp::DiscordCancel, "discord_cancel"},
-        {IdentityOp::ChallongeStatus, "challonge_status"}, {IdentityOp::ChallongeConnect, "challonge_connect"},
-        {IdentityOp::ChallongeRemove, "challonge_remove"}, {IdentityOp::ChallongeCancel, "challonge_cancel"},
     };
-    for (const auto& [op, name] : ops) {
-        Check(Request(op) == nlohmann::json({{"op", name}, {"bridge_id", "brg_1"}}), "A sign-in request was not built for the helper");
-        Check(Request(op, "").is_null(), "A sign-in request without its service was built");
+    for (const auto& [op, name] : discord) {
+        Check(Request(op) == nlohmann::json({{"op", name}, {"bridge_id", "brg_1"}}), "A Discord request was not built for the helper");
+        Check(Request(op, "").is_null(), "A Discord request without its service was built");
+    }
+    // A site's requests name the site too, and are refused without it.
+    const std::pair<IdentityOp, const char*> sites[] = {
+        {IdentityOp::SiteStatus, "site_status"}, {IdentityOp::SiteConnect, "site_connect"},
+        {IdentityOp::SiteRemove, "site_remove"}, {IdentityOp::SiteCancel, "site_cancel"},
+    };
+    for (const auto& [op, name] : sites) {
+        Check(Request(op, "brg_1", "startgg") == nlohmann::json({{"op", name}, {"bridge_id", "brg_1"}, {"site", "startgg"}}),
+            "A site request was not built for the helper");
+        Check(Request(op, "brg_1").is_null() && Request(op, "", "startgg").is_null(), "A site request without its site or service was built");
     }
 }
 
 void Answers() {
     sf4e::netplay::IdentityView view;
-    // The profile says which sites the service offers sign-in for and keeps accounts of.
+    // The profile says whether the service offers Discord, and which sign-in sites it lists.
     sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":1,"op":"bridge_inspect","ok":true,"data":{
         "profile":{"bridge_id":"brg_1","origin":"https://bridge.embernetplay.link","display_name":"Ember"},
-        "capabilities":{"connections":[],"features":["discord.accounts","challonge","challonge.accounts"]}}})"), view);
-    Check(!view.inspectedDiscord && view.inspectedDiscordAccounts && view.inspectedChallonge && view.inspectedChallongeAccounts, "The sign-in features were not read");
+        "capabilities":{"connections":[],"features":["discord.accounts","sites"],"sign_in_sites":[
+            {"id":"challonge","display_name":"Challonge","sign_in":true,"lookup_by":"username",
+             "authorize_origin":"https://api.challonge.com","authorize_path":"/oauth/authorize"},
+            {"id":"startgg","display_name":"start.gg","sign_in":false,"lookup_by":"user_id",
+             "authorize_origin":"https://start.gg","authorize_path":"/oauth/authorize"},
+            {"display_name":"No ID"}, 7]}}})"), view);
+    Check(!view.inspectedDiscord && view.inspectedDiscordAccounts, "Discord's features were not read");
+    Check(view.signInSites.size() == 2 && view.signInSites[0].id == "challonge" && view.signInSites[0].name == "Challonge" &&
+        view.signInSites[0].signIn && view.signInSites[0].lookupBy == "username" &&
+        view.signInSites[1].id == "startgg" && view.signInSites[1].name == "start.gg" && !view.signInSites[1].signIn,
+        "The sign-in sites were not read");
     view.discordUser = "274220342558756145"; view.discordName = "kate";
-    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":2,"op":"challonge_status","ok":true,"data":{
+    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":2,"op":"site_status","ok":true,"data":{
         "account":{"user_id":"1001","username":"Kate_99","connected_at":10}}})"), view);
-    Check(view.challongeUser == "1001" && view.challongeName == "Kate_99", "The Challonge account was not read");
-    Check(view.discordUser == "274220342558756145" && view.discordName == "kate", "A Challonge answer changed the Discord account");
-    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":3,"op":"challonge_remove","ok":true,"data":{"account":null}})"), view);
-    Check(view.challongeUser.empty() && view.challongeName.empty() && view.discordName == "kate", "Disconnecting Challonge was not read");
+    Check(view.siteUser == "1001" && view.siteName == "Kate_99", "The site's account was not read");
+    Check(view.discordUser == "274220342558756145" && view.discordName == "kate", "A site's answer changed the Discord account");
+    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":3,"op":"site_remove","ok":true,"data":{"account":null}})"), view);
+    Check(view.siteUser.empty() && view.siteName.empty() && view.discordName == "kate", "Unlinking a site's account was not read");
     // A failed read changes neither account.
-    view.challongeName = "Kate_99";
-    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":4,"op":"challonge_status","ok":false,"reason":"rate_limited"})"), view);
-    Check(view.challongeName == "Kate_99" && view.failure == "rate_limited", "A failed read changed the account");
-    // A later profile without the features says the service has neither.
+    view.siteName = "Kate_99";
+    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":4,"op":"site_status","ok":false,"reason":"rate_limited"})"), view);
+    Check(view.siteName == "Kate_99" && view.failure == "rate_limited", "A failed read changed the account");
+    // A later profile without sites lists none.
     sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":5,"op":"bridge_inspect","ok":true,"data":{
         "profile":{"bridge_id":"brg_1","origin":"https://bridge.embernetplay.link","display_name":"Ember"},
         "capabilities":{"connections":[],"features":["discord"]}}})"), view);
-    Check(view.inspectedDiscord && !view.inspectedDiscordAccounts && !view.inspectedChallonge && !view.inspectedChallongeAccounts,
-        "A profile without Challonge kept its features");
+    Check(view.inspectedDiscord && !view.inspectedDiscordAccounts && view.signInSites.empty(), "A profile without sites kept them");
 }
 
 // One classification decides what the runtime lets through during a live
@@ -63,22 +79,22 @@ void Effects() {
     using sf4e::netplay::IdentityOp;
     using sf4e::netplay::EffectOf;
     for (const auto op : {IdentityOp::Status, IdentityOp::BridgeList, IdentityOp::BridgeInspect, IdentityOp::LinkList,
-             IdentityOp::DiscordStatus, IdentityOp::ChallongeStatus})
+             IdentityOp::DiscordStatus, IdentityOp::SiteStatus})
         Check(EffectOf(op) == IdentityEffect::Read, "A read is not a read, so a live game would refuse it");
-    for (const auto op : {IdentityOp::DiscordConnect, IdentityOp::ChallongeConnect}) Check(EffectOf(op) == IdentityEffect::Open, "A sign-in does not open");
-    for (const auto op : {IdentityOp::DiscordCancel, IdentityOp::ChallongeCancel}) Check(EffectOf(op) == IdentityEffect::Cleanup, "A cancel is not cleanup");
+    for (const auto op : {IdentityOp::DiscordConnect, IdentityOp::SiteConnect}) Check(EffectOf(op) == IdentityEffect::Open, "A sign-in does not open");
+    for (const auto op : {IdentityOp::DiscordCancel, IdentityOp::SiteCancel}) Check(EffectOf(op) == IdentityEffect::Cleanup, "A cancel is not cleanup");
     for (const auto op : {IdentityOp::Enable, IdentityOp::Import, IdentityOp::Reset}) Check(EffectOf(op) == IdentityEffect::KeyChange, "A key change is not one");
     Check(EffectOf(IdentityOp::PreviewImport) == IdentityEffect::Preview, "A backup preview is not a preview");
     for (const auto op : {IdentityOp::Unlock, IdentityOp::Export, IdentityOp::BridgeApprove, IdentityOp::BridgeForget, IdentityOp::LinkClaim,
-             IdentityOp::LinkCancel, IdentityOp::LinkRemove, IdentityOp::DiscordRemove, IdentityOp::ChallongeRemove})
+             IdentityOp::LinkCancel, IdentityOp::LinkRemove, IdentityOp::DiscordRemove, IdentityOp::SiteRemove})
         Check(EffectOf(op) == IdentityEffect::Change, "A change is classified as something else");
-    // Every site's four requests map both ways.
-    using sf4e::netplay::SignInSite;
+    // Each source's four requests map both ways.
+    using sf4e::netplay::SignInSource;
     using sf4e::netplay::SignInStep;
-    for (const auto site : {SignInSite::Discord, SignInSite::Challonge})
+    for (const auto source : {SignInSource::Discord, SignInSource::Site})
         for (const auto step : {SignInStep::Status, SignInStep::Connect, SignInStep::Remove, SignInStep::Cancel}) {
-            const auto signIn = sf4e::netplay::SignInOf(sf4e::netplay::SignInRequest(site, step));
-            Check(signIn && signIn->site == site && signIn->step == step, "A sign-in request does not map back to its site and step");
+            const auto signIn = sf4e::netplay::SignInOf(sf4e::netplay::SignInRequest(source, step));
+            Check(signIn && signIn->source == source && signIn->step == step, "A sign-in request does not map back to its source and step");
         }
     Check(!sf4e::netplay::SignInOf(IdentityOp::LinkList), "A link request is a sign-in");
 }

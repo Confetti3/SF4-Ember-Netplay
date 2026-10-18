@@ -3851,86 +3851,86 @@ msgstr "Použít jiný účet Discord"
 msgid "connect.change_detail"
 msgstr "Otevře Discord ve vašem prohlížeči a připojí místo toho jiný účet. Váš turnajový web pak musí používat tento účet."
 
-msgid "screen.connect_challonge"
-msgstr "Připojit Challonge"
+msgid "site.title"
+msgstr "Připojit {0}"
 
-msgid "identity.challonge"
-msgstr "Challonge"
+msgid "site.row_detail"
+msgstr "Připojte svůj účet {0}, aby vaše Ember ID našly turnaje na {0}."
 
-msgid "identity.connect_challonge_detail"
-msgstr "Připojte svůj účet Challonge, aby vaše Ember ID našly turnaje na Challonge."
-
-msgid "challonge.go_detail"
-msgstr "Po připojení Challonge mohou turnaje na Challonge najít vaše Ember ID. Ember otevře Challonge ve vašem prohlížeči: tam schvalte účet, který používá váš turnaj."
-
-msgid "challonge.setting_up_detail"
-msgstr "Ember otevírá Challonge ve vašem prohlížeči."
-
-msgid "challonge.waiting"
-msgstr "Schvalte to v prohlížeči. Tato obrazovka se aktualizuje, jakmile bude Challonge připojen."
-
-msgid "challonge.waiting_label"
-msgstr "Čekání na Challonge"
-
-msgid "challonge.waiting_detail"
-msgstr "Schvalte v prohlížeči pomocí účtu Challonge, který používá váš turnaj. Tato obrazovka se aktualizuje sama."
-
-msgid "challonge.connected"
-msgstr "Challonge připojen"
-
-msgid "challonge.connected_detail"
-msgstr "Turnaje na Challonge vás nyní podle tohoto účtu najdou."
-
-msgid "challonge.change"
-msgstr "Použít jiný účet Challonge"
-
-msgid "challonge.change_detail"
-msgstr "Otevře Challonge ve vašem prohlížeči a připojí místo toho jiný účet. Váš turnaj pak musí používat tento účet."
-
-msgid "challonge.remove_detail"
-msgstr "Odpojí tento účet Challonge od vašeho Ember ID v této službě. Turnaje na Challonge vás podle něj už nenajdou."
-
-msgid "challonge.cancel_detail"
-msgstr "Přestane čekat. Až budete připraveni, zvolte znovu Připojit Challonge."
-
-msgid "challonge.off"
-msgstr "Přihlášení přes Challonge je vypnuté"
-
-msgid "challonge.off_detail"
-msgstr "Tato turnajová služba teď přihlášení přes Challonge nenabízí. Zkuste to později."
-
-msgid "challonge.opened"
-msgstr "Dokončete přihlášení k Challonge v prohlížeči."
-
-msgid "challonge.done"
-msgstr "Challonge připojen jako {0}."
-
-msgid "challonge.removed"
-msgstr "Účet Challonge byl odpojen."
-
-msgid "challonge.cancelled"
-msgstr "Čekání na Challonge bylo zastaveno."
-
-msgid "challonge.none"
+msgid "site.none"
 msgstr "Nepřipojeno"
 
-msgid "challonge.setting_up"
+msgid "site.go_detail"
+msgstr "Po připojení {0} mohou turnaje na {0} najít vaše Ember ID. Ember otevře {0} ve vašem prohlížeči: tam schvalte účet, který používá váš turnaj."
+
+msgid "site.setting_up"
 msgstr "Nastavování"
 
-msgid "challonge.retry"
+msgid "site.setting_up_detail"
+msgstr "Ember otevírá {0} ve vašem prohlížeči."
+
+msgid "site.waiting"
+msgstr "Schvalte to v prohlížeči. Tato obrazovka se aktualizuje, jakmile bude {0} připojen."
+
+msgid "site.waiting_label"
+msgstr "Čekání na {0}"
+
+msgid "site.waiting_detail"
+msgstr "Schvalte v prohlížeči pomocí účtu {0}, který používá váš turnaj. Tato obrazovka se aktualizuje sama."
+
+msgid "site.connected"
+msgstr "{0} připojen"
+
+msgid "site.connected_detail"
+msgstr "Turnaje na {0} vás nyní podle tohoto účtu najdou."
+
+msgid "site.change"
+msgstr "Použít jiný účet {0}"
+
+msgid "site.change_detail"
+msgstr "Otevře {0} ve vašem prohlížeči a připojí místo toho jiný účet. Váš turnaj pak musí používat tento účet."
+
+msgid "site.remove_detail"
+msgstr "Odpojí tento účet {0} od vašeho Ember ID v této službě. Turnaje na {0} vás podle něj už nenajdou."
+
+msgid "site.cancel_detail"
+msgstr "Přestane čekat. Až budete připraveni, zvolte znovu Připojit {0}."
+
+msgid "site.off"
+msgstr "Přihlášení přes {0} je vypnuté"
+
+msgid "site.off_detail"
+msgstr "Tato turnajová služba teď přihlášení přes {0} nenabízí. Zkuste to později."
+
+msgid "site.retry"
 msgstr "Zkusit znovu"
 
-msgid "challonge.retry_detail"
-msgstr "Znovu načte váš účet Challonge."
+msgid "site.retry_detail"
+msgstr "Znovu načte váš účet {0}."
 
-msgid "challonge.no_service"
+msgid "site.opened"
+msgstr "Dokončete přihlášení k {0} v prohlížeči."
+
+msgid "site.done"
+msgstr "{0} připojen jako {1}."
+
+msgid "site.removed"
+msgstr "Účet {0} byl odpojen."
+
+msgid "site.cancelled"
+msgstr "Čekání na {0} bylo zastaveno."
+
+msgid "site.busy"
+msgstr "Přihlášení přes {0} je teď vytížené. Zkuste to později."
+
+msgid "site.no_service"
 msgstr "Turnajová služba Ember není nastavena"
 
-msgid "challonge.no_service_detail"
-msgstr "Challonge se připojuje přes turnajovou službu Ember. Nejprve ji vyhledejte v části Propojené účty a pak se sem vraťte."
+msgid "site.no_service_detail"
+msgstr "{0} se připojuje přes turnajovou službu Ember. Nejprve ji vyhledejte v části Propojené účty a pak se sem vraťte."
 
-msgid "challonge.busy"
-msgstr "Přihlášení přes Challonge je teď vytížené. Zkuste to později."
+msgid "site.screen"
+msgstr "Účet webu"
 
 msgid "identity.failure.browser"
 msgstr "Ember nemohl otevřít váš prohlížeč."
