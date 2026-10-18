@@ -239,7 +239,8 @@ go into the connector's log. That one result then waits on its own, a
 minute doubling up to an hour, and is sent again with the same
 `Idempotency-Key`, while every other result and read of the tournament goes
 on. After 12 deferrals (about 6 hours) the set is left to the organizer. A
-`423` without that body is read like any other `4xx`.
+`423` without that body, or in answer to anything but a report (a read,
+`/underway`), is read like any other `4xx`.
 
 ### Status codes
 

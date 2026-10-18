@@ -108,6 +108,52 @@ struct WireDeferral {
     reason: Option<String>,
 }
 
+/// What a request is for. Only a report carries an Idempotency-Key, and
+/// only a report can be deferred.
+#[derive(Clone, Copy)]
+enum Kind<'a> {
+    Plain,
+    Report { key: &'a str },
+}
+
+/// A failing answer as the connector reads it: `401`, `403`, `429` and
+/// `5xx` are the service failing as a whole; `423` with `{"retry": true}`
+/// defers a report, and only a report; any other answer is a refusal.
+fn failure(status: StatusCode, body: &[u8], kind: Kind<'_>) -> SiteError {
+    let message = || format!("the service answered {}", status.as_u16());
+    match status {
+        StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN | StatusCode::TOO_MANY_REQUESTS => {
+            SiteError::Unavailable(message())
+        }
+        status if status.is_server_error() => SiteError::Unavailable(message()),
+        StatusCode::LOCKED if matches!(kind, Kind::Report { .. }) => {
+            match serde_json::from_slice::<WireDeferral>(body) {
+                Ok(WireDeferral {
+                    retry: true,
+                    reason,
+                }) => {
+                    let reason: String = reason
+                        .unwrap_or_default()
+                        .chars()
+                        .filter(|c| !c.is_control())
+                        .take(MAX_REASON)
+                        .collect();
+                    SiteError::Deferred(format!(
+                        "the service deferred it ({})",
+                        if reason.is_empty() {
+                            "no reason given"
+                        } else {
+                            &reason
+                        }
+                    ))
+                }
+                _ => SiteError::Refused(message()),
+            }
+        }
+        _ => SiteError::Refused(message()),
+    }
+}
+
 /// `GET {base}/standing`.
 #[derive(Deserialize)]
 struct WireStanding {
@@ -220,7 +266,7 @@ impl Service {
         method: Method,
         path: &str,
         body: Option<Value>,
-        idempotency_key: Option<&str>,
+        kind: Kind<'_>,
     ) -> Result<Option<T>, SiteError> {
         let mut request = self
             .http
@@ -229,7 +275,7 @@ impl Service {
         if let Some(body) = body {
             request = request.json(&body);
         }
-        if let Some(key) = idempotency_key {
+        if let Kind::Report { key } = kind {
             request = request.header(IDEMPOTENCY_HEADER, key);
         }
         let response = request
@@ -240,7 +286,6 @@ impl Service {
         let body = bounded_body(response, MAX_ANSWER).await.ok_or_else(|| {
             SiteError::Unavailable("the service's answer was cut off or too long".into())
         })?;
-        let message = || format!("the service answered {}", status.as_u16());
         match status {
             StatusCode::NOT_FOUND => Ok(None),
             status if status.is_success() => {
@@ -254,33 +299,7 @@ impl Service {
                     .map(Some)
                     .map_err(|_| unexpected())
             }
-            StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN | StatusCode::TOO_MANY_REQUESTS => {
-                Err(SiteError::Unavailable(message()))
-            }
-            status if status.is_server_error() => Err(SiteError::Unavailable(message())),
-            StatusCode::LOCKED => match serde_json::from_slice::<WireDeferral>(&body) {
-                Ok(WireDeferral {
-                    retry: true,
-                    reason,
-                }) => {
-                    let reason: String = reason
-                        .unwrap_or_default()
-                        .chars()
-                        .filter(|c| !c.is_control())
-                        .take(MAX_REASON)
-                        .collect();
-                    Err(SiteError::Deferred(format!(
-                        "the service deferred it ({})",
-                        if reason.is_empty() {
-                            "no reason given"
-                        } else {
-                            &reason
-                        }
-                    )))
-                }
-                _ => Err(SiteError::Refused(message())),
-            },
-            _ => Err(SiteError::Refused(message())),
+            status => Err(failure(status, &body, kind)),
         }
     }
 
@@ -291,9 +310,9 @@ impl Service {
         method: Method,
         path: &str,
         body: Option<Value>,
-        idempotency_key: Option<&str>,
+        kind: Kind<'_>,
     ) -> Result<T, SiteError> {
-        self.call(method, path, body, idempotency_key)
+        self.call(method, path, body, kind)
             .await?
             .ok_or_else(|| SiteError::Unavailable(format!("the service answered 404 to {path}")))
     }
@@ -302,7 +321,7 @@ impl Service {
     /// said once, rather than failing the read for every other set.
     async fn read_open_sets(&self) -> Result<Vec<Set>, SiteError> {
         let list: SetList = self
-            .call_found(Method::GET, "/sets?state=open", None, None)
+            .call_found(Method::GET, "/sets?state=open", None, Kind::Plain)
             .await?;
         let mut left_out = self.left_out.lock().unwrap_or_else(|e| e.into_inner());
         Ok(list
@@ -332,7 +351,7 @@ impl Service {
             return Ok(None);
         }
         let found: OneSet = self
-            .call_found(Method::GET, &format!("/sets/{id}"), None, None)
+            .call_found(Method::GET, &format!("/sets/{id}"), None, Kind::Plain)
             .await?;
         match found.set {
             None => Ok(None),
@@ -346,7 +365,9 @@ impl Service {
 
     /// A service without `/standing` (404) is taken as running.
     async fn read_standing(&self) -> Result<Standing, SiteError> {
-        let found: Option<WireStanding> = self.call(Method::GET, "/standing", None, None).await?;
+        let found: Option<WireStanding> = self
+            .call(Method::GET, "/standing", None, Kind::Plain)
+            .await?;
         Ok(match found.map(|found| found.standing) {
             Some(StandingName::Finished) => Standing::Finished,
             Some(StandingName::PlayedOut) => Standing::PlayedOut,
@@ -359,7 +380,7 @@ impl Service {
         id: &str,
         action: &str,
         body: Value,
-        idempotency_key: Option<&str>,
+        kind: Kind<'_>,
     ) -> Result<(), SiteError> {
         if !is_slug(id) {
             return Err(SiteError::Refused(format!("{id:?} is not a set ID")));
@@ -369,7 +390,7 @@ impl Service {
                 Method::POST,
                 &format!("/sets/{id}/{action}"),
                 Some(body),
-                idempotency_key,
+                kind,
             )
             .await?;
         Ok(())
@@ -379,7 +400,8 @@ impl Service {
     /// under the same key, which the service answers as it did the first.
     async fn send_report(&self, id: &str, report: &Report) -> Result<(), SiteError> {
         let body = serde_json::to_value(WireReport::of(report)).map_err(|_| unexpected())?;
-        self.post(id, "report", body, Some(&report.key)).await
+        self.post(id, "report", body, Kind::Report { key: &report.key })
+            .await
     }
 }
 
@@ -403,7 +425,7 @@ impl Site for Service {
     }
 
     fn mark_underway<'a>(&'a self, id: &'a str) -> SiteFuture<'a, ()> {
-        Box::pin(self.post(id, "underway", json!({}), None))
+        Box::pin(self.post(id, "underway", json!({}), Kind::Plain))
     }
 
     fn report<'a>(&'a self, id: &'a str, report: &'a Report) -> SiteFuture<'a, Reported> {
@@ -424,6 +446,41 @@ mod tests {
 
     fn set(value: Value) -> Option<Set> {
         serde_json::from_value::<WireSet>(value).unwrap().into_set()
+    }
+
+    #[test]
+    fn only_a_report_can_be_deferred() {
+        let deferral = br#"{"retry": true, "reason": "being\nedited"}"#;
+        let report = Kind::Report { key: "emt_1" };
+        let read = |status, body: &[u8]| failure(status, body, Kind::Plain);
+        assert!(matches!(
+            failure(StatusCode::LOCKED, deferral, report),
+            SiteError::Deferred(why) if why == "the service deferred it (beingedited)"
+        ));
+        // A read or /underway answered so is refused like any other 4xx,
+        // which a read tries again later and /underway only logs.
+        assert!(matches!(
+            read(StatusCode::LOCKED, deferral),
+            SiteError::Refused(_)
+        ));
+        // Without `"retry": true` a 423 is any other 4xx.
+        for body in [&b""[..], br#"{"retry": false}"#, br#"{}"#] {
+            assert!(matches!(
+                failure(StatusCode::LOCKED, body, report),
+                SiteError::Refused(_)
+            ));
+        }
+        for status in [
+            StatusCode::UNAUTHORIZED,
+            StatusCode::TOO_MANY_REQUESTS,
+            StatusCode::BAD_GATEWAY,
+        ] {
+            assert!(matches!(read(status, b""), SiteError::Unavailable(_)));
+        }
+        assert!(matches!(
+            failure(StatusCode::CONFLICT, b"", report),
+            SiteError::Refused(_)
+        ));
     }
 
     #[test]
