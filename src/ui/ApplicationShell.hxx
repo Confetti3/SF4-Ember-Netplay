@@ -53,6 +53,10 @@ struct ShellView {
     bool canReplaceRoom = false;
     bool canEditSelection = false;
     bool canEditPreferences = false, canEditLobby = false, settingsPending = false;
+    // Only the local music preferences can be saved while joined to a room.
+    bool canEditMusic = false;
+    // A native audio failure or unsupported executable, shown on Music.
+    std::string musicError;
     int selectedDelay=2, recommendedDelay=-1, opponentDelay=-1;
     bool autoDelayMeasured=false;
     bool delayLocked=false, canProbe=false, canApplyDelay=false;

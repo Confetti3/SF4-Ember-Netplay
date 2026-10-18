@@ -204,6 +204,8 @@ namespace sf4e {
 			bool canEditSelection = false;
             std::string selectionLockReason;
 			bool canEditPreferences = false;
+			bool canEditMusic = false;
+			std::string musicError;
 			bool canEditLobby = false;
 			bool settingsPending = false;
             int selectedDelay=2, recommendedDelay=-1;

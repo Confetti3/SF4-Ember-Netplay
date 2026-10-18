@@ -161,6 +161,10 @@ Decision SessionController::Execute(const Command& command) {
     case CommandKind::SavePreferences:
         if (state_.room != RoomState::Idle || state_.match != MatchState::None) return Decision();
         return Accept(Effect::SavePreferences);
+    case CommandKind::SaveMusicPreferences:
+        // Handled by the game-thread runtime as a local presentation save.
+        // It must never turn into a room or gameplay controller effect.
+        return Decision();
     case CommandKind::SetLobbySettings:
         if (state_.room != RoomState::Joined || state_.control != Health::Healthy || state_.readyPending ||
             (state_.match != MatchState::None && state_.match != MatchState::PostMatch)) return Decision();

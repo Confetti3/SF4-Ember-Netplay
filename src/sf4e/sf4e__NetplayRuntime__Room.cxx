@@ -5,6 +5,7 @@
 #include "sf4e__ReplayStore.hxx"
 #include "sf4e__Steam.hxx"
 #include "sf4e__CustomContent.hxx"
+#include "sf4e__Music.hxx"
 #include "../session/IdentityEvents.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../platform/Utf8.hxx"
@@ -91,6 +92,7 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 	}
 	// Validate ownership before even a deferred GGPO teardown side effect.
 	if (!(command.command.generation == runtime->controller.GetSnapshot().generation)) return DispatchOutcome::Dropped;
+
 	// Training from a room sends no room command: the game alone moves, and only
 	// if the room allows it now, not as it was when the player pressed.
 	if (command.training == TrainingEntry::Room) {
@@ -210,6 +212,21 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
         return DispatchOutcome::Dropped;
     }
 	const auto kind = command.command.kind;
+    if (kind == netplay::CommandKind::SaveMusicPreferences) {
+        // Local presentation: no room mutation and no authority checkpoint
+        // dependency. Recheck safety after the queued press reached its owner.
+        const auto state = runtime->controller.GetSnapshot();
+        if (!Music::Available() || !AtMainMenu() || Game::Battle::System::ggpo || netplay::Fighting(state.match) ||
+            (state.room != netplay::RoomState::Idle && state.room != netplay::RoomState::Joined) ||
+              !music::ValidLobby(command.preferences.lobbyMusic) || !music::Valid(command.preferences.matchMusic))
+            return DispatchOutcome::Dropped;
+        auto next = runtime->preferences;
+        next.lobbyMusic = command.preferences.lobbyMusic;
+        next.matchMusic = command.preferences.matchMusic;
+        if (OverlayPrefs::SavePlayerPreferences(next)) { runtime->preferences = std::move(next); Music::RetryLobby(); runtime->error.clear(); }
+        else runtime->error = loc::T("runtime.preferences_queue_failed");
+        return DispatchOutcome::Dispatched;
+    }
     // Recheck queued invite work after callbacks and controller changes.
     // A replacement or Cancel must also invalidate a queued Join/Leave.
     if (command.discordRevision) {

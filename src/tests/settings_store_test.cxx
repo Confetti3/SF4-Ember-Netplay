@@ -5,6 +5,7 @@
 #include "../netplay/RoomPreferences.hxx"
 #include "../netplay/InputDelayPreference.hxx"
 #include "../netplay/MatchHudPreference.hxx"
+#include "../netplay/MusicPreferences.hxx"
 #include "../netplay/JsonFileStore.hxx"
 #include "../platform/DurableFile.hxx"
 #include "../netplay/BoolPreferenceJson.hxx"
@@ -633,6 +634,48 @@ int main() {
     }
     CHECK(restored.Valid());
     InputDelayMigrations(root);
+    // Local music belongs in durable netplay preferences and independent
+    // writes must preserve the other choice and all unrelated preferences.
+    {
+        const auto folder = root / L"music";
+        CHECK(std::filesystem::create_directory(folder));
+        SettingsStore music(folder.wstring());
+        CHECK(music.SaveLauncher({{"lobbyMusic", 24}, {"matchMusic", 1}, {"inputDelay", 3}}, error));
+        CHECK(music.SaveLauncher({{"lobbyMusic", -1}}, error));
+        CHECK(music.LoadLauncher(result, error));
+        CHECK(result["lobbyMusic"] == -1 && result["matchMusic"] == 1 && result["inputDelay"] == 3);
+        const auto document = Json::parse(Read(folder / L"settings.json"));
+        CHECK(document["netplay"]["lobbyMusic"] == -1 && document["netplay"]["matchMusic"] == 1);
+        CHECK(!document["legacyLauncher"].contains("lobbyMusic") && !document["legacyLauncher"].contains("matchMusic"));
+        sf4e::netplay::PlayerPreferences valid;
+        valid.lobbyMusic = 24; valid.matchMusic = 29; CHECK(valid.Valid());
+        valid.lobbyMusic = 100; valid.matchMusic = sf4e::music::Random; CHECK(valid.Valid());
+        valid.lobbyMusic = sf4e::music::Random; CHECK(!valid.Valid());
+        for (const int invalid : {22, 23, 30, 99, 144, 255}) {
+            valid.lobbyMusic = invalid; CHECK(!valid.Valid());
+            valid.lobbyMusic = -1; valid.matchMusic = invalid; CHECK(!valid.Valid());
+        }
+        // Reopen the store and run the same deserialization as runtime startup.
+        // The positive JSON values are unsigned after parsing from disk.
+        CHECK(music.SaveLauncher({{"lobbyMusic", 143}, {"matchMusic", sf4e::music::Random}}, error));
+        SettingsStore reopened(folder.wstring());
+        CHECK(reopened.LoadLauncher(result, error));
+        sf4e::netplay::PlayerPreferences loaded;
+        sf4e::netplay::ReadMusicPreferences(result, loaded);
+        CHECK(loaded.lobbyMusic == 143 && loaded.matchMusic == sf4e::music::Random);
+        CHECK(loaded.Valid() && result["inputDelay"] == 3);
+        CHECK(reopened.SaveLauncher({{"matchMusic", 100}}, error));
+        CHECK(SettingsStore(folder.wstring()).LoadLauncher(result, error));
+        sf4e::netplay::ReadMusicPreferences(result, loaded);
+        CHECK(loaded.lobbyMusic == 143 && loaded.matchMusic == 100);
+        for (const Json& invalid : {Json("100"), Json(100.0), Json(true), Json(nullptr),
+            Json(std::uint64_t(-1)), Json(std::int64_t(-3)), Json(144)}) {
+            sf4e::netplay::ReadMusicPreferences({{"lobbyMusic", invalid}, {"matchMusic", invalid}}, loaded);
+            CHECK(loaded.lobbyMusic == -1 && loaded.matchMusic == -1);
+        }
+        sf4e::netplay::ReadMusicPreferences(Json::object(), loaded);
+        CHECK(loaded.lobbyMusic == -1 && loaded.matchMusic == -1);
+    }
     DurableFiles(root);
     BoolPreferenceRoundTrips(root);
     ButtonPromptRoundTrips(root);

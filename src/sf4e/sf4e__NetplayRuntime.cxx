@@ -9,6 +9,8 @@
 #include "../ui/NetworkFeedback.hxx"
 #include "sf4e__AwayAlert.hxx"
 #include "sf4e__Steam.hxx"
+#include "sf4e__Music.hxx"
+#include "../netplay/MusicPreferences.hxx"
 #include <iterator>
 
 namespace sf4e { namespace NetplayFacade {
@@ -27,6 +29,7 @@ Runtime* runtime = nullptr;
 // The battle of the granted match is no longer entered, or never was. What
 // the entry armed for the battle request goes with it (battle::NextRequest).
 void ResetMatchEntry() {
+	sf4e::Music::LeaveMatch();
 	sf4e::GameEvents::VsBattle::nextRequest = {};
 	runtime->matchEntered = false;
 	runtime->enteredGeneration = 0;
@@ -242,6 +245,7 @@ void StartHelper() {
     spdlog::info("Windows region country {}", runtime->automaticCountry.Present() ? runtime->automaticCountry.ToString() : std::string("none"));
     wchar_t gamePath[MAX_PATH] = {};
     if (GetModuleFileNameW(nullptr, gamePath, MAX_PATH)) platform::SetGameDirectory(std::filesystem::path(gamePath).parent_path());
+    sf4e::Music::InitializeContent();
     loc::SetActive(platform::ResolveUiLocale(runtime->languagePreference));
     spdlog::info("Interface language {} (preference {}, game {})", loc::Tag(loc::Active()), runtime->languagePreference,
         platform::GameLanguage().empty() ? "unknown" : platform::GameLanguage());
@@ -273,6 +277,8 @@ void StartHelper() {
             runtime->preferences.country = netplay::ReadCountryPreference(saved);
             const int volume = saved.value("readySoundVolume", 100);
             runtime->preferences.readySoundVolume = volume >= 10 && volume <= 100 ? volume / 10 * 10 : 100;
+            netplay::ReadMusicPreferences(saved, runtime->preferences);
+            spdlog::info("Music: restored lobby={} match={}", runtime->preferences.lobbyMusic, runtime->preferences.matchMusic);
             const int main=saved.contains("mainFighter")&&saved["mainFighter"].is_number_integer()?saved["mainFighter"].get<int>():0;
             runtime->preferences.mainFighter=main>=0&&main<sf4e::selection::FighterCount?main:0;
             const float scale = saved.value("interfaceScale", 1.f);
@@ -442,7 +448,8 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 		command.replay.mode == replay::Mode::None && command.training == TrainingEntry::None && !command.leaveWatchedGame.Active() && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
 		kind != netplay::CommandKind::LeaveRoom && kind != netplay::CommandKind::StartOffline &&
 		kind != netplay::CommandKind::Ready && kind != netplay::CommandKind::Rematch &&
-		kind != netplay::CommandKind::SavePreferences && kind != netplay::CommandKind::SetLobbySettings &&
+		kind != netplay::CommandKind::SavePreferences && kind != netplay::CommandKind::SaveMusicPreferences &&
+		kind != netplay::CommandKind::SetLobbySettings &&
 		kind != netplay::CommandKind::RoomAction && kind != netplay::CommandKind::ReplaceRoom &&
 		kind != netplay::CommandKind::CheckConnection && kind != netplay::CommandKind::ApplyDelay) return false;
 	const auto bytes = sizeof(RuntimeCommand) + command.displayName.size() + command.command.invitation.size() +
@@ -780,6 +787,12 @@ void TickRuntime() {
 	ReleaseFinishedMatch();
 	ResolvePendingIntents(helperReady);
 	SettleRoomState(helperReady);
+	{
+		const auto state = runtime->controller.GetSnapshot();
+		const bool safeMenu = AtMainMenu() && !Game::Battle::System::ggpo && !netplay::Fighting(state.match);
+		sf4e::Music::Configure(runtime->preferences.lobbyMusic, runtime->preferences.matchMusic,
+			safeMenu, state.room == netplay::RoomState::Joined && !runtime->offlineRequested);
+	}
 	TickAutoDelay(helperReady);
 	TickCreatedRules(helperReady);
 	CallOutOpponentReady();

@@ -6227,3 +6227,66 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+msgid "music.title"
+msgstr "Musica"
+
+msgid "music.detail"
+msgstr "Scegli i temi di stage e personaggi dalle Impostazioni, prima di creare o entrare in una sala. Entrambe le scelte restano salvate su questo PC, anche dopo il riavvio."
+
+msgid "music.lobby"
+msgstr "Musica lobby"
+
+msgid "music.lobby_default"
+msgstr "Musica lobby predefinita"
+
+msgid "music.lobby_detail"
+msgstr "Scegli un tema di stage o personaggio per la lobby. Puoi impostarlo qui prima di creare o entrare in una sala. La scelta si salva automaticamente e viene ripristinata al prossimo avvio."
+
+msgid "music.match"
+msgstr "Musica incontri"
+
+msgid "music.match_default"
+msgstr "Musica dello stage (predefinita)"
+
+msgid "music.match_detail"
+msgstr "Scegli uno stage, un personaggio o Casuale. Casuale cambia brano entrando in partita dalla lobby; le rivincite continue lo mantengono. Le scelte sono salvate su questo PC."
+
+msgid "music.reset"
+msgstr "Ripristina musica predefinita"
+
+msgid "music.reset_detail"
+msgstr "Ripristina la musica originale della lobby e la musica di ogni arena."
+
+msgid "music.random"
+msgstr "Casuale (stage e personaggi)"
+
+msgid "music.character_theme"
+msgstr "Personaggio: {0}"
+
+msgid "music.stage_theme"
+msgstr "Stage: {0}"
+
+msgid "music.error_fallback"
+msgstr "Impossibile caricare la musica scelta. Musica predefinita ripristinata."
+
+msgid "music.error_retry_default"
+msgstr "Impossibile caricare la musica scelta. Provo la musica predefinita."
+
+msgid "music.error_load_failed"
+msgstr "Impossibile caricare la musica della lobby. Scegli Predefinita per riprovare."
+
+msgid "music.error_disabled"
+msgstr "La scelta della musica è disattivata per questo avvio."
+
+msgid "music.error_unsupported"
+msgstr "La scelta della musica non è disponibile per questo eseguibile del gioco."
+
+msgid "music.error_hook_failed"
+msgstr "Impossibile attivare la scelta della musica."
+
+msgid "music.error_files_unavailable"
+msgstr "Impossibile trovare i file musicali del gioco."
+
+msgid "music.error_missing"
+msgstr "Manca un file musicale selezionato. Verrà usata la musica predefinita del gioco."

@@ -7,6 +7,7 @@
 #include "../common/Country.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/InputDelay.hxx"
+#include "../common/MusicChoice.hxx"
 #include "../common/RoomRules.hxx"
 #include "ProfileRecord.hxx"
 
@@ -62,6 +63,9 @@ struct PlayerPreferences {
     bool matchFrameMeter = false;
     // Percent of the game's own voice volume, in steps of ten.
     int readySoundVolume = 100;
+    // Stock stage themes on this PC only; -1 keeps the game's own music.
+    int lobbyMusic = music::Default;
+    int matchMusic = music::Default;
     // The game's sound and the pads keep working while another window, such
     // as OBS, is in front (sf4e__BackgroundPlay.cxx).
     bool backgroundPlay = false;
@@ -113,6 +117,7 @@ struct PlayerPreferences {
         if (buttonLayouts.size() > 32 || !std::all_of(buttonLayouts.begin(), buttonLayouts.end(), [](const gamepads::StoredLayout& layout) { return gamepads::ValidLayout(layout.buttons) && gamepads::ValidMenuBinding(layout.menu); })) return false;
         if (!gamepads::Valid(buttonPrompts) || displayName.empty() || displayName.size() >= 32 || mainFighter<0 || mainFighter>=selection::FighterCount || inputDelay < MinimumInputDelay || inputDelay > MaximumInputDelay ||
             matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > MaxMatchHudAnchor || matchHudLayout < 0 || matchHudLayout > 1 || matchHudNameOffset < -MaxMatchHudNameOffset || matchHudNameOffset > MaxMatchHudNameOffset || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) || !lobby.Valid() ||
+            !music::ValidLobby(lobbyMusic) || !music::Valid(matchMusic) ||
             roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers)) return false;
         for (unsigned char c : displayName) if (c < 32 || c == 127) return false;
         for (unsigned char c : roomName) if (c < 32 || c == 127) return false;

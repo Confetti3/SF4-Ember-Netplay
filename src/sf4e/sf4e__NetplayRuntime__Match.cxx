@@ -1,3 +1,4 @@
+#include "sf4e__Music.hxx"
 #include "sf4e__NetplayRuntime.hxx"
 #include "sf4e__GameEvents.hxx"
 
@@ -289,6 +290,7 @@ void CancelLocalMatch(GgpoEnd end) {
 }
 
 void AbortLocalMatch(GgpoEnd end) {
+	Music::LeaveMatch();
 	CancelLocalMatch(end);
 	runtime->recoveringMatch = true;
 }

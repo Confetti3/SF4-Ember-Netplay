@@ -57,6 +57,7 @@ if(BUILD_TESTING)
     endif()
     sf4e_add_unit_test(NAME MatchFrameMeter SOURCES "src/tests/match_frame_meter_test.cxx")
     sf4e_add_unit_test(NAME GfxActionPool SOURCES "src/tests/gfx_action_pool_test.cxx" STD 14)
+    sf4e_add_unit_test(NAME MusicPlayback SOURCES "src/tests/music_playback_test.cxx")
     sf4e_add_unit_test(NAME SoundReconcile SOURCES "src/tests/sound_reconcile_test.cxx")
     sf4e_add_unit_test(NAME ReusableRecords SOURCES "src/tests/reusable_records_test.cxx")
     sf4e_add_unit_test(NAME NativeMatchResult SOURCES "src/tests/native_match_result_test.cxx" STD 11 TIMEOUT 15)
@@ -455,6 +456,8 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__AwayAlert.cxx"
     "src/sf4e/sf4e__InputLag.hxx"
     "src/sf4e/sf4e__InputLag.cxx"
+    "src/sf4e/sf4e__Music.cxx"
+    "src/sf4e/sf4e__Music.hxx"
     "src/sf4e/sf4e__Platform.hxx"
     "src/sf4e/sf4e__Platform.cxx"
     "src/sf4e/sf4e__ReplayStore.hxx"
