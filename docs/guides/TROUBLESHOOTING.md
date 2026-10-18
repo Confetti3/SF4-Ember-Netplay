@@ -3,6 +3,7 @@
 - **Launcher says the Visual C++ runtime is out of date:** Ember will not start with an older runtime because the game would crash. Choose Yes to open the Microsoft download, install the x86 Redistributable, then start Ember again. Under Wine or Proton, Wine's own runtime is accepted.
 - **Ember is already running:** a second start shows this message instead of opening another copy. If you cannot see Ember, end Launcher.exe and SSFIV.exe in Task Manager, then start it again.
 - **Preflight reports an unexpected program file:** a DLL or EXE that is not part of this package is in the folder, usually left by extracting over an older version. Extract the package into a new empty folder. Other files you keep there, such as the downloaded .sha256, are only reported and ignored.
+- **Linux (Proton or Wine):** see the [Steam Deck guide](STEAM_DECK.md) or, on other systems, the [Linux guide](LINUX.md). preflight.cmd checks nothing there; the Linux guide shows how to check the files instead.
 - **Game not found:** choose the directory containing SSFIV.exe in recovery, then Retry launch. Ember remembers that folder and uses it on later launches. Steam must be installed and the game owned.
 
   ![Launch recovery with Choose game folder highlighted](../images/guides/user_netplay/launch-recovery.webp)
