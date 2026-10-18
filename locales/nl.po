@@ -3851,6 +3851,72 @@ msgstr "Een ander Discord-account gebruiken"
 msgid "connect.change_detail"
 msgstr "Opent Discord in je browser om in plaats daarvan een ander account te koppelen. Je toernooisite moet dan dat account gebruiken."
 
+msgid "screen.connect_challonge"
+msgstr "Challonge koppelen"
+
+msgid "identity.challonge"
+msgstr "Challonge"
+
+msgid "identity.connect_challonge_detail"
+msgstr "Koppel je Challonge-account zodat toernooien op Challonge je Ember ID kunnen vinden."
+
+msgid "challonge.go_detail"
+msgstr "Als je Challonge koppelt, kunnen toernooien op Challonge je Ember ID vinden. Ember opent Challonge in je browser: keur daar goed met het account dat je toernooi gebruikt."
+
+msgid "challonge.setting_up_detail"
+msgstr "Ember opent Challonge in je browser."
+
+msgid "challonge.waiting"
+msgstr "Keur het goed in je browser. Dit scherm wordt bijgewerkt zodra Challonge gekoppeld is."
+
+msgid "challonge.waiting_label"
+msgstr "Wachten op Challonge"
+
+msgid "challonge.waiting_detail"
+msgstr "Keur goed in je browser met het Challonge-account dat je toernooi gebruikt. Dit scherm wordt vanzelf bijgewerkt."
+
+msgid "challonge.connected"
+msgstr "Challonge gekoppeld"
+
+msgid "challonge.connected_detail"
+msgstr "Toernooien op Challonge kunnen je nu via dit account vinden."
+
+msgid "challonge.change"
+msgstr "Een ander Challonge-account gebruiken"
+
+msgid "challonge.change_detail"
+msgstr "Opent Challonge in je browser om in plaats daarvan een ander account te koppelen. Je toernooi moet dan dat account gebruiken."
+
+msgid "challonge.disconnect"
+msgstr "Ontkoppelen"
+
+msgid "challonge.remove_detail"
+msgstr "Ontkoppelt dit Challonge-account van je Ember ID bij deze dienst. Toernooien op Challonge kunnen je er dan niet meer mee vinden."
+
+msgid "challonge.cancel_detail"
+msgstr "Stopt met wachten. Kies Challonge koppelen opnieuw als je klaar bent."
+
+msgid "challonge.off"
+msgstr "Aanmelden met Challonge staat uit"
+
+msgid "challonge.off_detail"
+msgstr "Deze toernooidienst biedt nu geen aanmelden met Challonge aan. Probeer het later opnieuw."
+
+msgid "challonge.opened"
+msgstr "Rond de aanmelding bij Challonge af in je browser."
+
+msgid "challonge.done"
+msgstr "Challonge gekoppeld als {0}."
+
+msgid "challonge.removed"
+msgstr "Challonge-account ontkoppeld."
+
+msgid "challonge.cancelled"
+msgstr "Gestopt met wachten op Challonge."
+
+msgid "identity.failure.browser"
+msgstr "Ember kon je browser niet openen."
+
 msgid "connect.link_waiting"
 msgstr "Een toernooisite vraagt je om Discord te koppelen. Ember opent Discord koppelen zodra je de kamer verlaat."
 

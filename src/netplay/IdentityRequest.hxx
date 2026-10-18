@@ -13,6 +13,7 @@ enum class IdentityOp : std::uint8_t {
     BridgeList, BridgeInspect, BridgeApprove, BridgeForget,
     LinkList, LinkClaim, LinkCancel, LinkRemove,
     DiscordStatus, DiscordConnect, DiscordRemove, DiscordCancel,
+    ChallongeStatus, ChallongeConnect, ChallongeRemove, ChallongeCancel,
 };
 struct IdentityRequest {
     IdentityOp op = IdentityOp::None;

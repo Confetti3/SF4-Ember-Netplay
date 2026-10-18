@@ -6,11 +6,14 @@
 //! event. A failure here is reported and never ends the helper, and nothing
 //! here waits on, or is waited on by, room or gameplay work (spec 18.3).
 mod bridges;
+mod browser;
 mod builtin;
+mod challonge;
 mod client;
 mod discord;
 mod play;
 mod rooms;
+mod sign_in;
 mod spool;
 
 use std::{
@@ -32,6 +35,8 @@ use crate::{
 };
 
 pub use builtin::Builtin;
+use challonge::Challonge;
+use discord::Discord;
 
 /// Bridge requests in flight at once (spec 25.1).
 const HTTP_CONCURRENCY: usize = 4;
@@ -116,6 +121,18 @@ pub enum Request {
     DiscordCancel {
         bridge_id: String,
     },
+    ChallongeStatus {
+        bridge_id: String,
+    },
+    ChallongeConnect {
+        bridge_id: String,
+    },
+    ChallongeRemove {
+        bridge_id: String,
+    },
+    ChallongeCancel {
+        bridge_id: String,
+    },
     AssignmentList {
         bridge_id: String,
     },
@@ -196,6 +213,10 @@ impl Request {
             Self::DiscordConnect { .. } => "discord_connect",
             Self::DiscordRemove { .. } => "discord_remove",
             Self::DiscordCancel { .. } => "discord_cancel",
+            Self::ChallongeStatus { .. } => "challonge_status",
+            Self::ChallongeConnect { .. } => "challonge_connect",
+            Self::ChallongeRemove { .. } => "challonge_remove",
+            Self::ChallongeCancel { .. } => "challonge_cancel",
             Self::AssignmentList { .. } => "assignment_list",
             Self::MatchClaim { .. } => "match_claim",
             Self::RoomPublish { .. } => "room_publish",
@@ -654,10 +675,24 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
         Request::LinkRemove { bridge_id, link_id } => {
             client::remove_link(shared, &bridge_id, &link_id).await
         }
-        Request::DiscordStatus { bridge_id } => discord::status(shared, &bridge_id).await,
-        Request::DiscordConnect { bridge_id } => discord::connect(shared, &bridge_id).await,
-        Request::DiscordRemove { bridge_id } => discord::remove(shared, &bridge_id).await,
-        Request::DiscordCancel { bridge_id } => discord::cancel(shared, &bridge_id).await,
+        Request::DiscordStatus { bridge_id } => sign_in::status::<Discord>(shared, &bridge_id).await,
+        Request::DiscordConnect { bridge_id } => {
+            sign_in::connect::<Discord>(shared, &bridge_id).await
+        }
+        Request::DiscordRemove { bridge_id } => sign_in::remove::<Discord>(shared, &bridge_id).await,
+        Request::DiscordCancel { bridge_id } => sign_in::cancel::<Discord>(shared, &bridge_id).await,
+        Request::ChallongeStatus { bridge_id } => {
+            sign_in::status::<Challonge>(shared, &bridge_id).await
+        }
+        Request::ChallongeConnect { bridge_id } => {
+            sign_in::connect::<Challonge>(shared, &bridge_id).await
+        }
+        Request::ChallongeRemove { bridge_id } => {
+            sign_in::remove::<Challonge>(shared, &bridge_id).await
+        }
+        Request::ChallongeCancel { bridge_id } => {
+            sign_in::cancel::<Challonge>(shared, &bridge_id).await
+        }
         Request::AssignmentList { bridge_id } => play::assignments(shared, &bridge_id).await,
         Request::MatchClaim {
             bridge_id,

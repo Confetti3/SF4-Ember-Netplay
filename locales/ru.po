@@ -3852,6 +3852,72 @@ msgstr "Использовать другой аккаунт Discord"
 msgid "connect.change_detail"
 msgstr "Открывает Discord в браузере, чтобы вместо этого подключить другой аккаунт. Тогда ваш турнирный сайт должен использовать этот аккаунт."
 
+msgid "screen.connect_challonge"
+msgstr "Подключить Challonge"
+
+msgid "identity.challonge"
+msgstr "Challonge"
+
+msgid "identity.connect_challonge_detail"
+msgstr "Подключите аккаунт Challonge, чтобы турниры на Challonge находили ваш Ember ID."
+
+msgid "challonge.go_detail"
+msgstr "Подключив Challonge, вы позволите турнирам на Challonge находить ваш Ember ID. Ember откроет Challonge в браузере: подтвердите там вход аккаунтом, который использует ваш турнир."
+
+msgid "challonge.setting_up_detail"
+msgstr "Ember открывает Challonge в браузере."
+
+msgid "challonge.waiting"
+msgstr "Подтвердите в браузере. Этот экран обновится, когда Challonge будет подключён."
+
+msgid "challonge.waiting_label"
+msgstr "Ожидание Challonge"
+
+msgid "challonge.waiting_detail"
+msgstr "Подтвердите в браузере вход аккаунтом Challonge, который использует ваш турнир. Этот экран обновится сам."
+
+msgid "challonge.connected"
+msgstr "Challonge подключён"
+
+msgid "challonge.connected_detail"
+msgstr "Теперь турниры на Challonge найдут вас по этому аккаунту."
+
+msgid "challonge.change"
+msgstr "Использовать другой аккаунт Challonge"
+
+msgid "challonge.change_detail"
+msgstr "Открывает Challonge в браузере, чтобы вместо этого подключить другой аккаунт. Тогда ваш турнир должен использовать этот аккаунт."
+
+msgid "challonge.disconnect"
+msgstr "Отключить"
+
+msgid "challonge.remove_detail"
+msgstr "Отключает этот аккаунт Challonge от вашего Ember ID в этом сервисе. Турниры на Challonge больше не найдут вас по нему."
+
+msgid "challonge.cancel_detail"
+msgstr "Прекращает ожидание. Когда будете готовы, снова выберите «Подключить Challonge»."
+
+msgid "challonge.off"
+msgstr "Вход через Challonge отключён"
+
+msgid "challonge.off_detail"
+msgstr "Этот турнирный сервис сейчас не предлагает вход через Challonge. Повторите попытку позже."
+
+msgid "challonge.opened"
+msgstr "Завершите вход в Challonge в браузере."
+
+msgid "challonge.done"
+msgstr "Challonge подключён как {0}."
+
+msgid "challonge.removed"
+msgstr "Аккаунт Challonge отключён."
+
+msgid "challonge.cancelled"
+msgstr "Ожидание Challonge прекращено."
+
+msgid "identity.failure.browser"
+msgstr "Ember не удалось открыть браузер."
+
 msgid "connect.link_waiting"
 msgstr "Турнирный сайт просит подключить Discord. Ember откроет «Подключить Discord», когда вы выйдете из лобби."
 

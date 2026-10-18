@@ -41,6 +41,7 @@ async fn bridge(dir: &std::path::Path) -> (ember_bridge::Running, String) {
         allow_private_webhooks: true,
         mock_browser: false,
         discord: None,
+        challonge: None,
         integration_secrets: None,
         rooms: None,
         match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
@@ -55,6 +56,7 @@ async fn bridge(dir: &std::path::Path) -> (ember_bridge::Running, String) {
                 enabled: true,
                 api_base: None,
                 discord_lookup: false,
+                challonge_lookup: false,
                 disputes: None,
                 results_url: None,
                 rooms: None,
@@ -282,6 +284,25 @@ async fn link_an_identity_through_the_helper() {
         .ask(json!({ "op": "discord_cancel", "bridge_id": bridge_id }))
         .await;
     assert!(ok, "{reason:?}");
+    // Challonge's account can be read, its sign-in cancelled and the account
+    // disconnected without a sign-in on offer, each with its own proof.
+    let (ok, reason, _, connection) = worker
+        .ask(json!({ "op": "challonge_status", "bridge_id": bridge_id }))
+        .await;
+    assert!(ok, "{reason:?}");
+    assert_eq!(connection["account"], Value::Null);
+    for op in ["challonge_cancel", "challonge_remove"] {
+        let (ok, reason, _, _) = worker
+            .ask(json!({ "op": op, "bridge_id": bridge_id }))
+            .await;
+        assert!(ok, "{op}: {reason:?}");
+    }
+    // Starting one needs the bridge to offer it.
+    let (ok, reason, _, _) = worker
+        .ask(json!({ "op": "challonge_connect", "bridge_id": bridge_id }))
+        .await;
+    assert!(!ok);
+    assert_eq!(reason.as_deref(), Some("not_found"));
 
     // A new worker on the same stores has the same identity and bridge.
     worker.task.abort();

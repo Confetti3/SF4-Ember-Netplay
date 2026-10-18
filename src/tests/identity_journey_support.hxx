@@ -47,3 +47,5 @@ struct Journey:Harness {
 void RunDiscordConnectJourneys();
 // The built-in service scenarios, in builtin_service_journey_test.cxx.
 void RunBuiltInServiceJourneys();
+// The Connect Challonge scenarios, in challonge_connect_journey_test.cxx.
+void RunChallongeConnectJourneys();

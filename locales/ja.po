@@ -3851,6 +3851,72 @@ msgstr "別のDiscordアカウントを使う"
 msgid "connect.change_detail"
 msgstr "ブラウザーでDiscordを開き、代わりに別のアカウントを連携します。その後は、大会サイトでもそのアカウントを使う必要があります。"
 
+msgid "screen.connect_challonge"
+msgstr "Challongeを連携"
+
+msgid "identity.challonge"
+msgstr "Challonge"
+
+msgid "identity.connect_challonge_detail"
+msgstr "Challongeアカウントを連携すると、Challongeの大会があなたのEmber IDを見つけられるようになります。"
+
+msgid "challonge.go_detail"
+msgstr "Challongeを連携すると、Challongeの大会があなたのEmber IDを見つけられるようになります。EmberがブラウザーでChallongeを開きます。そこで、大会で使うアカウントで承認してください。"
+
+msgid "challonge.setting_up_detail"
+msgstr "EmberがブラウザーでChallongeを開いています。"
+
+msgid "challonge.waiting"
+msgstr "ブラウザーで承認してください。Challongeが連携されると、この画面が更新されます。"
+
+msgid "challonge.waiting_label"
+msgstr "Challongeを待っています"
+
+msgid "challonge.waiting_detail"
+msgstr "ブラウザーで、大会で使うChallongeアカウントで承認してください。この画面は自動で更新されます。"
+
+msgid "challonge.connected"
+msgstr "Challonge連携済み"
+
+msgid "challonge.connected_detail"
+msgstr "Challongeの大会がこのアカウントからあなたを見つけられるようになりました。"
+
+msgid "challonge.change"
+msgstr "別のChallongeアカウントを使う"
+
+msgid "challonge.change_detail"
+msgstr "ブラウザーでChallongeを開き、代わりに別のアカウントを連携します。その後は、大会でもそのアカウントを使う必要があります。"
+
+msgid "challonge.disconnect"
+msgstr "連携解除"
+
+msgid "challonge.remove_detail"
+msgstr "このサービスでこのChallongeアカウントとEmber IDの連携を解除します。Challongeの大会はこのアカウントからあなたを見つけられなくなります。"
+
+msgid "challonge.cancel_detail"
+msgstr "待機をやめます。準備ができたら、もう一度「Challongeを連携」を選んでください。"
+
+msgid "challonge.off"
+msgstr "Challongeでのサインインは無効です"
+
+msgid "challonge.off_detail"
+msgstr "この大会サービスでは現在Challongeでのサインインを利用できません。しばらくしてからもう一度お試しください。"
+
+msgid "challonge.opened"
+msgstr "ブラウザーでChallongeへのサインインを完了してください。"
+
+msgid "challonge.done"
+msgstr "Challongeを{0}として連携しました。"
+
+msgid "challonge.removed"
+msgstr "Challongeアカウントの連携を解除しました。"
+
+msgid "challonge.cancelled"
+msgstr "Challongeの待機をやめました。"
+
+msgid "identity.failure.browser"
+msgstr "Emberはブラウザーを開けませんでした。"
+
 msgid "connect.link_waiting"
 msgstr "大会サイトからDiscordの連携を求められました。ルームから退出すると、Emberが「Discordを連携」を開きます。"
 

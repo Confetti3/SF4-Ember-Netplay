@@ -3377,6 +3377,72 @@ msgstr "Usar outra conta do Discord"
 msgid "connect.change_detail"
 msgstr "Abre o Discord no navegador para conectar outra conta. Seu site de torneio precisará usar essa conta."
 
+msgid "screen.connect_challonge"
+msgstr "Conectar Challonge"
+
+msgid "identity.challonge"
+msgstr "Challonge"
+
+msgid "identity.connect_challonge_detail"
+msgstr "Conecte sua conta do Challonge para que torneios no Challonge encontrem seu Ember ID."
+
+msgid "challonge.go_detail"
+msgstr "Conectar o Challonge permite que torneios no Challonge encontrem seu Ember ID. O Ember abre o Challonge no navegador: aprove lá com a conta que seu torneio usa."
+
+msgid "challonge.setting_up_detail"
+msgstr "O Ember está abrindo o Challonge no navegador."
+
+msgid "challonge.waiting"
+msgstr "Aprove no navegador. Esta tela é atualizada quando o Challonge for conectado."
+
+msgid "challonge.waiting_label"
+msgstr "Aguardando o Challonge"
+
+msgid "challonge.waiting_detail"
+msgstr "Aprove no navegador com a conta do Challonge que seu torneio usa. Esta tela é atualizada sozinha."
+
+msgid "challonge.connected"
+msgstr "Challonge conectado"
+
+msgid "challonge.connected_detail"
+msgstr "Torneios no Challonge agora encontram você por esta conta."
+
+msgid "challonge.change"
+msgstr "Usar outra conta do Challonge"
+
+msgid "challonge.change_detail"
+msgstr "Abre o Challonge no navegador para conectar outra conta. Seu torneio precisará usar essa conta."
+
+msgid "challonge.disconnect"
+msgstr "Desconectar"
+
+msgid "challonge.remove_detail"
+msgstr "Desconecta esta conta do Challonge do seu Ember ID neste serviço. Torneios no Challonge não vão mais encontrar você por ela."
+
+msgid "challonge.cancel_detail"
+msgstr "Para de esperar. Escolha Conectar Challonge novamente quando estiver pronto."
+
+msgid "challonge.off"
+msgstr "Login com Challonge desativado"
+
+msgid "challonge.off_detail"
+msgstr "Este serviço de torneios não oferece login com Challonge no momento. Tente novamente mais tarde."
+
+msgid "challonge.opened"
+msgstr "Termine o login no Challonge no navegador."
+
+msgid "challonge.done"
+msgstr "Challonge conectado como {0}."
+
+msgid "challonge.removed"
+msgstr "Conta do Challonge desconectada."
+
+msgid "challonge.cancelled"
+msgstr "A espera pelo Challonge foi interrompida."
+
+msgid "identity.failure.browser"
+msgstr "O Ember não conseguiu abrir o navegador."
+
 msgid "connect.link_waiting"
 msgstr "Um site de torneio pediu para você conectar o Discord. O Ember abre Conectar Discord quando você sair da sala."
 

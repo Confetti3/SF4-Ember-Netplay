@@ -1,7 +1,7 @@
-// Connect Discord: the attempt that takes a player from a tournament site's
+// Connect Discord: the steps that take a player from a tournament site's
 // link, the Discord row, or Settings > Discord's Tournament account row, to a
-// connected Discord account. Its answers are handled with the rest in
-// IdentityPanel.cxx.
+// connected Discord account. The sign-in itself, which Challonge shares, is
+// in IdentitySignIn.cxx.
 #include "IdentityPanel.hxx"
 #include "IdentityRows.hxx"
 #include "../common/Localization.hxx"
@@ -16,8 +16,8 @@ using netplay::IdentityRequest;
 void IdentityPanel::OpenDiscord(const std::string& bridge, bool automatic) {
     // A link for the attempt under way, or one that stopped, shows it: no
     // second page, and no restart without Connect or Try again.
-    const bool same = bridge == connectBridge_ || (!discordWaitBridge_.empty() && bridge == discordWaitBridge_);
-    if (attempt_ != Attempt::None && same) { lastScreen_.clear(); return; }
+    const bool same = bridge == connectBridge_ || (!waitBridge_.empty() && bridge == waitBridge_);
+    if (attempt_ != Attempt::None && site_ == SignInSite::Discord && same) { lastScreen_.clear(); return; }
     NewJourney();
     connectBridge_ = bridge;
     attempt_ = automatic ? Attempt::Setup : Attempt::None;
@@ -29,7 +29,7 @@ MenuEntry IdentityPanel::TournamentAccountRow(const ShellView& v) const {
     auto row = Row("tournament-account", loc::T("discord.tournament_account"), loc::T("discord.tournament_account_detail"));
     const auto& id = v.identity;
     const std::string bridge = UsableBridge(v);
-    if (!bridge.empty()) ShowAccount(row, bridge);
+    if (!bridge.empty()) ShowAccount(row, SignInSite::Discord, bridge);
     // Without a ready Ember ID, or with one and no service, no account is linked.
     else if (id.known && (id.state != "ready" || servicesKnown_)) row.value = loc::T("identity.discord_none");
     return row;
@@ -38,14 +38,6 @@ MenuEntry IdentityPanel::TournamentAccountRow(const ShellView& v) const {
 void IdentityPanel::OpenTournamentAccount(const ShellView& v, MenuNavigation& navigation) {
     OpenDiscord(UsableBridge(v));
     navigation.Push("discord-connect");
-}
-
-void IdentityPanel::ShowAccount(MenuEntry& row, const std::string& bridge) const {
-    const auto account = discord_.find(bridge);
-    if (account == discord_.end() || !account->second.read || account->second.failed) return;
-    const bool named = !account->second.user.empty();
-    row.value = named ? account->second.name : std::string(loc::T("identity.discord_none"));
-    row.userText = named;
 }
 
 const netplay::IdentityBridge* IdentityPanel::EmberBridge(const ShellView& v) const { return FindOrigin(v, EmberService); }
@@ -77,32 +69,9 @@ bool IdentityPanel::Removed(const ShellView& v, const std::string& bridge) const
     return std::find(removed.begin(), removed.end(), bridge) != removed.end();
 }
 
-void IdentityPanel::OpenSignIn(const std::string& bridge) {
-    const auto account = discord_.find(bridge);
-    attemptBefore_ = account == discord_.end() ? std::string() : account->second.user;
-    attempt_ = Attempt::Opening; discordWaitBridge_ = bridge;
-    IdentityRequest r; r.op = IdentityOp::DiscordConnect; r.bridge = bridge; Queue(std::move(r));
-}
-
-void IdentityPanel::CancelAttempt() {
-    // A sign-in already asked of the service ends there too, so a Discord
-    // page left open connects nothing.
-    const bool queued = std::any_of(queue_.begin(), queue_.end(), [&](const Queued& q) {
-        return q.journey == journey_ && q.request.op == IdentityOp::DiscordConnect;
-    });
-    const bool asked = attempt_ == Attempt::Waiting || (attempt_ == Attempt::Opening && !queued);
-    // The public rooms setup's own requests are not the attempt's to stop.
-    queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [&](const Queued& q) {
-        return q.owner == Owner::Screens && q.journey == journey_ && (q.request.op == IdentityOp::Enable || q.request.op == IdentityOp::BridgeApprove ||
-            q.request.op == IdentityOp::DiscordConnect);
-    }), queue_.end());
-    if (asked && !discordWaitBridge_.empty()) cancelBridge_ = discordWaitBridge_;
-    attempt_ = Attempt::Stopped; discordWaitUntil_ = 0; discordPaused_ = false;
-}
-
 void IdentityPanel::ConnectGo(const ShellView& v) {
     const auto& id = v.identity;
-    attempt_ = Attempt::Setup; message_.clear();
+    attempt_ = Attempt::Setup; site_ = SignInSite::Discord; message_.clear();
     if (id.state == "disabled") {
         IdentityRequest r; r.op = IdentityOp::Enable;
         if (id.passphraseRequired) r.passphrase = newPassphrase_;
@@ -119,7 +88,6 @@ void IdentityPanel::ConnectGo(const ShellView& v) {
 // Steps 2 and 3 of Connect Discord, with the Ember ID ready: trust the
 // service, then connect Discord on it.
 void IdentityPanel::ConnectRows(const ShellView& v, std::vector<MenuEntry>& rows, bool busy) const {
-    const auto& id = v.identity;
     const auto* target = ConnectTarget(v);
     if (!target) {
         const bool offered = EmberOffered();
@@ -142,44 +110,13 @@ void IdentityPanel::ConnectRows(const ShellView& v, std::vector<MenuEntry>& rows
         }
         return;
     }
-    auto service = InfoRow("dc-service", loc::T("identity.service"), target->name.empty() ? target->origin : target->name, ServiceDetail(*target));
-    service.userText = true; rows.push_back(std::move(service));
-    // Read, and the latest read did not fail.
-    const auto account = discord_.find(target->id);
-    const bool read = bridge_ == target->id && account != discord_.end() && account->second.read && !account->second.failed;
-    const bool waiting = discordWaitUntil_ > 0 && !discordPaused_ && discordWaitBridge_ == target->id;
-    if (waiting) {
-        rows.push_back(InfoRow("dc-waiting", loc::T("connect.waiting_label"), {}, loc::T("connect.waiting_detail")));
-    } else if ((attempt_ == Attempt::Setup || attempt_ == Attempt::Opening) && busy) {
-        rows.push_back(InfoRow("dc-progress", loc::T("connect.setting_up"), {}, loc::T("connect.setting_up_detail")));
-    } else if (read && !account->second.user.empty()) {
-        auto connected = InfoRow("dc-connected", loc::T("connect.connected"), account->second.name, loc::T("connect.connected_detail"));
-        connected.userText = true; rows.push_back(std::move(connected));
-        // Another account, or none: both here, not only under Linked accounts.
-        rows.push_back(Row("id-discord-connect", loc::T("connect.change"), loc::T("connect.change_detail"), !busy));
-        auto remove = ConfirmRow("id-discord-remove", loc::T("identity.unlink"), loc::T("identity.discord_remove_detail"), !busy);
-        remove.hint = loc::T("identity.unlink"); rows.push_back(std::move(remove));
-    } else if (id.inspected.id == target->id && !id.inspectedDiscord && !(account != discord_.end() && account->second.failed)) {
-        // Off as the latest read said; a failed read offers Try again below.
-        rows.push_back(InfoRow("dc-off", loc::T("connect.off"), {}, loc::T("connect.off_detail")));
-    } else {
-        rows.push_back(Row("id-discord-connect", loc::T("screen.connect_discord"), loc::T("connect.go_detail"),
-            !busy && read));
-        // Nothing in flight and the account not read: reading it failed.
-        if (!busy && !read) rows.push_back(Row("dc-retry", loc::T("connect.retry"), loc::T("connect.retry_detail")));
-    }
+    SignInRows(v, SignInSite::Discord, *target, rows, busy);
 }
 
 bool IdentityPanel::ConnectActivate(const MenuAction& a, const ShellView& v) {
-    if (a.id == "dc-retry") {
-        // Try again restarts a stopped attempt; a paused wait resumes its polls.
-        if (attempt_ == Attempt::Stopped) attempt_ = Attempt::Setup;
-        message_.clear(); Refresh(v, "discord-connect"); return true;
-    }
     if (a.id == "dc-go") { ConnectGo(v); return true; }
-    if (a.id == "dc-cancel") { CancelAttempt(); Say(loc::T("connect.cancelled"), false); return true; }
     // Trusting a service on Connect Discord goes on to connect it.
-    if (a.id == "id-approve" && lastScreen_ == "discord-connect") attempt_ = Attempt::Setup;
+    if (a.id == "id-approve" && lastScreen_ == "discord-connect") { attempt_ = Attempt::Setup; site_ = SignInSite::Discord; }
     if (a.id == "dc-paste") {
         // The tournament site's link names its service; the journey starts over for it.
         const char* text = ImGui::GetClipboardText();

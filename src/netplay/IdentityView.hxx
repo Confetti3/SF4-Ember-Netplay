@@ -29,8 +29,12 @@ struct IdentityView {
     IdentityBridge inspected;
     std::vector<IdentityConnection> connections;
     bool inspectedDiscord = false, inspectedDiscordAccounts = false;
+    // The same for Challonge sign-in and accounts.
+    bool inspectedChallonge = false, inspectedChallongeAccounts = false;
     // The Discord account connected on the bridge last asked; empty when none.
     std::string discordUser, discordName;
+    // The Challonge account connected on the bridge last asked; empty when none.
+    std::string challongeUser, challongeName;
     // Links and pending claims on the bridge last listed.
     std::vector<IdentityLink> links, pending;
     // The last answer: which request, what it did, and a stable failure code.
