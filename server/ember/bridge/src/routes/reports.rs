@@ -32,12 +32,16 @@ use crate::{
         },
         matches,
         play::{self, fighter},
+        policy,
     },
     util::new_id,
 };
 
 /// How long one report waits for the other before review (spec 16.6).
 pub const PARTNER_SECS: u64 = 60;
+/// How long a lone abort or cancel waits where disputes restart: the platform
+/// replays the game, so the other fighter's report has little left to change.
+pub const RESTART_PARTNER_SECS: u64 = 20;
 /// Automatic scoring window from the attempt's permit (spec 16.7).
 pub const SCORING_SECS: u64 = 24 * 60 * 60;
 /// A permitted game with no report at all goes to review after this.
@@ -348,29 +352,60 @@ fn hold(
     matches::needs_review(tx, ctx, &current, reason, Some(attempt_id))
 }
 
+/// Whether the reports are one abort or cancel on a connection that restarts
+/// disputes, which need not wait out `PARTNER_SECS`. A lone win or draw always
+/// does: a late second report can still agree with it.
+fn settles_early(
+    tx: &Transaction<'_>,
+    current: &Match,
+    reports: &[(String, GameReport)],
+) -> Result<bool> {
+    let [(_, report)] = reports else {
+        return Ok(false);
+    };
+    Ok(matches!(report.result, Outcome::Abort | Outcome::Cancel)
+        && !policy::of(tx, &current.connection_id)?.reviews_disputes)
+}
+
 /// Holds attempts whose second report never came, and permitted games that
 /// nobody reported at all. Runs with the bridge's other maintenance.
 pub fn expire(tx: &Transaction<'_>, ctx: &Ctx) -> Result<()> {
+    // Lone reports are taken from the shortest wait; those still short of
+    // `PARTNER_SECS` are few and are dropped below unless they settle early.
     let due = tx
         .prepare(
-            "SELECT match_id, id, CASE WHEN first_report_at IS NULL THEN 'no_reports' ELSE 'report_missing' END
+            "SELECT match_id, id, first_report_at, CASE WHEN first_report_at IS NULL THEN 'no_reports' ELSE 'report_missing' END
                FROM attempts
               WHERE state = 'permitted'
                 AND ((first_report_at IS NOT NULL AND first_report_at <= ?1)
                   OR (first_report_at IS NULL AND start_by <= ?2))",
         )?
         .query_map(
-            params![ctx.now.saturating_sub(PARTNER_SECS), ctx.now.saturating_sub(SILENT_SECS)],
-            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?)),
+            params![
+                ctx.now.saturating_sub(RESTART_PARTNER_SECS),
+                ctx.now.saturating_sub(SILENT_SECS)
+            ],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<u64>>(2)?,
+                    row.get::<_, String>(3)?,
+                ))
+            },
         )?
         .collect::<rusqlite::Result<Vec<_>>>()?;
-    for (match_id, attempt_id, reason) in due {
+    for (match_id, attempt_id, first_report_at, reason) in due {
         // A game called off before it started (a lone cancel) counts for
         // nobody, so it closes instead of waiting for an organizer. A game
         // that started and broke (abort), or a lone result, still goes to
         // review (spec 17.2).
         let reports = first_reports(tx, &attempt_id)?;
         let current = load(tx, &match_id)?.ok_or_else(ApiFailure::unavailable)?;
+        let short_of_partner_wait = first_report_at.is_some_and(|at| at + PARTNER_SECS > ctx.now);
+        if short_of_partner_wait && !settles_early(tx, &current, &reports)? {
+            continue;
+        }
         match reports.as_slice() {
             [(report_id, report)]
                 if report.result == Outcome::Cancel && !current.state.is_terminal() =>

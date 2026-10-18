@@ -156,6 +156,71 @@ async fn cancelled_and_disputed_matches_are_restarted_on_blumint() {
     );
 }
 
+// BluMint replays a game that was aborted, so the bridge does not wait a
+// minute for the second fighter's abort: 20 seconds is enough, and the match
+// is cancelled for BluMint to ask again. The clock follows the wall clock, so
+// each check stays a few seconds clear of its deadline.
+#[tokio::test]
+async fn a_lone_abort_restarts_the_match_after_twenty_seconds() {
+    let f = fixture().await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (_, created) = create(&f, "set-1", 2).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    let binding = bound(&f, &id).await;
+    let game = permit(&f, &id, &binding, 1).await;
+    report(&f, &f.kate, &f.kate, &id, &game, 1, Outcome::Abort).await;
+    f.bridge.clock.advance(15);
+    ember_bridge::maintain(f.bridge.state()).await;
+    assert_eq!(match_state(&f, &id).await, "awaiting_reports");
+    f.bridge.clock.advance(10);
+    ember_bridge::maintain(f.bridge.state()).await;
+    assert_eq!(match_state(&f, &id).await, "cancelled");
+    // The players are free for the set BluMint asks for again.
+    let (status, _) = create(&f, "set-2", 2).await;
+    assert_eq!(status, StatusCode::OK);
+}
+
+// A lone win can still be met by the other fighter's late report (a game
+// retries its report for half a minute), so it keeps the full wait.
+#[tokio::test]
+async fn a_lone_win_still_waits_a_minute_on_blumint() {
+    let f = fixture().await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (_, created) = create(&f, "set-1", 2).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    let binding = bound(&f, &id).await;
+    let game = permit(&f, &id, &binding, 1).await;
+    report(&f, &f.kate, &f.kate, &id, &game, 1, Outcome::P1Win).await;
+    f.bridge.clock.advance(25);
+    ember_bridge::maintain(f.bridge.state()).await;
+    assert_eq!(match_state(&f, &id).await, "awaiting_reports");
+    f.bridge.clock.advance(30);
+    ember_bridge::maintain(f.bridge.state()).await;
+    assert_eq!(match_state(&f, &id).await, "awaiting_reports");
+    f.bridge.clock.advance(10);
+    ember_bridge::maintain(f.bridge.state()).await;
+    assert_eq!(match_state(&f, &id).await, "cancelled");
+}
+
+// A game called off before it started is closed the same way, and the set
+// goes on to its next game.
+#[tokio::test]
+async fn a_lone_cancel_closes_the_game_after_twenty_seconds_on_blumint() {
+    let f = fixture().await;
+    lookup(&f, json!({ "discord": [KATE, SAM] })).await;
+    let (_, created) = create(&f, "set-1", 2).await;
+    let id = created["matchId"].as_str().unwrap().to_owned();
+    let binding = bound(&f, &id).await;
+    let game = permit(&f, &id, &binding, 1).await;
+    report(&f, &f.kate, &f.kate, &id, &game, 1, Outcome::Cancel).await;
+    f.bridge.clock.advance(15);
+    ember_bridge::maintain(f.bridge.state()).await;
+    assert_eq!(match_state(&f, &id).await, "awaiting_reports");
+    f.bridge.clock.advance(10);
+    ember_bridge::maintain(f.bridge.state()).await;
+    assert_eq!(match_state(&f, &id).await, "between_games");
+}
+
 // Moving a Discord account to another Ember ID ends the links it made for
 // the old one, and with them a set that ID is playing: the game in progress
 // counts for nobody, and BluMint hears a retryable abort with the games

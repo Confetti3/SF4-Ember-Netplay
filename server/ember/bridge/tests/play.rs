@@ -526,8 +526,13 @@ async fn a_lone_cancel_closes_the_game_and_a_lone_abort_waits_for_review() {
     // The next game can be prepared at once.
     let permit_b = permit(&f, &id, &binding, 92).await;
     // A game that started and broke, reported by one fighter, is for an organizer.
+    // It still waits for the other fighter's report at 21 s, the wait where
+    // disputes restart.
     report(&f, &f.b, &f.b, &id, &permit_b, 2, Outcome::Abort).await;
-    f.bridge.clock.advance(61);
+    f.bridge.clock.advance(21);
+    ember_bridge::maintain(f.bridge.state()).await;
+    assert_eq!(state(&f, &id).await["state"], "awaiting_reports");
+    f.bridge.clock.advance(40);
     ember_bridge::maintain(f.bridge.state()).await;
     assert_eq!(state(&f, &id).await["state"], "needs_review");
 }
