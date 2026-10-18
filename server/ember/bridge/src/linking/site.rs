@@ -14,7 +14,7 @@
 use ember_protocol::{
     EmberId, discord::is_user_id, event::Kind, sign_in::Account, sites::LookupBy,
 };
-use rusqlite::{OptionalExtension, Transaction, named_params, params};
+use rusqlite::{OptionalExtension, ToSql, Transaction, named_params, params};
 use serde_json::json;
 
 use super::{account, revoke_link, sign_ins};
@@ -93,16 +93,30 @@ impl Site {
         format!("{}:{user_id}", self.id())
     }
 
-    /// The table of `tables` holding this site's rows, and the condition
-    /// that picks them out, with `:site` bound to `id()`. Discord's tables
-    /// hold only Discord's rows and have no `site` column, so their
-    /// condition is always true; the site tables hold every configured
-    /// site's.
+    /// The table of `tables` holding this site's rows, and what a
+    /// statement's `WHERE` starts with to pick them out (`WHERE
+    /// {scope}user_id = ...`), with its parameters passed through `bind`.
+    /// Discord's tables hold only Discord's rows and have no `site` column,
+    /// so nothing; the site tables hold every configured site's, so
+    /// `site = :site AND `.
     pub(super) fn scope(&self, tables: Tables) -> (&'static str, &'static str) {
         match self {
-            Self::Discord => (tables.discord, ":site = 'discord'"),
-            Self::Configured(_) => (tables.sites, "site = :site"),
+            Self::Discord => (tables.discord, ""),
+            Self::Configured(_) => (tables.sites, "site = :site AND "),
         }
+    }
+
+    /// A `scope`d statement's named parameters: `params`, and `:site` for a
+    /// configured site.
+    pub(super) fn bind<'a>(
+        &'a self,
+        params: &[(&'a str, &'a dyn ToSql)],
+    ) -> Vec<(&'a str, &'a dyn ToSql)> {
+        let mut all = params.to_vec();
+        if let Self::Configured(id) = self {
+            all.push((":site", id as &dyn ToSql));
+        }
+        all
     }
 
     /// The Ember ID's connected account, if any.
@@ -111,9 +125,9 @@ impl Site {
         Ok(tx
             .query_row(
                 &format!(
-                    "SELECT user_id, username, connected_at FROM {table} WHERE {scope} AND ember_id = :ember_id"
+                    "SELECT user_id, username, connected_at FROM {table} WHERE {scope}ember_id = :ember_id"
                 ),
-                named_params! { ":site": self.id(), ":ember_id": ember_id },
+                &*self.bind(named_params! { ":ember_id": ember_id }),
                 |row| {
                     Ok(Account {
                         user_id: row.get(0)?,
@@ -125,13 +139,23 @@ impl Site {
             .optional()?)
     }
 
+    /// Whether any account is connected on this site.
+    pub fn has_accounts(&self, tx: &Transaction<'_>) -> Result<bool> {
+        let (table, scope) = self.scope(ACCOUNTS);
+        Ok(tx.query_row(
+            &format!("SELECT EXISTS (SELECT 1 FROM {table} WHERE {scope}1)"),
+            &*self.bind(&[]),
+            |row| row.get(0),
+        )?)
+    }
+
     /// The Ember ID account `user_id` is connected to, if any.
     pub fn owner(&self, tx: &Transaction<'_>, user_id: &str) -> Result<Option<String>> {
         let (table, scope) = self.scope(ACCOUNTS);
         Ok(tx
             .query_row(
-                &format!("SELECT ember_id FROM {table} WHERE {scope} AND user_id = :user_id"),
-                named_params! { ":site": self.id(), ":user_id": user_id },
+                &format!("SELECT ember_id FROM {table} WHERE {scope}user_id = :user_id"),
+                &*self.bind(named_params! { ":user_id": user_id }),
                 |row| row.get(0),
             )
             .optional()?)
@@ -189,11 +213,11 @@ impl Site {
         let (table, scope) = self.scope(ACCOUNTS);
         let replaced: Vec<(String, String)> = tx
             .prepare(&format!(
-                "DELETE FROM {table} WHERE {scope} AND (user_id = :user_id OR ember_id = :ember_id)
+                "DELETE FROM {table} WHERE {scope}(user_id = :user_id OR ember_id = :ember_id)
                  RETURNING user_id, ember_id"
             ))?
             .query_map(
-                named_params! { ":site": self.id(), ":user_id": user_id, ":ember_id": ember_id },
+                &*self.bind(named_params! { ":user_id": user_id, ":ember_id": ember_id }),
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )?
             .collect::<rusqlite::Result<_>>()?;
@@ -213,10 +237,8 @@ impl Site {
         let (table, scope) = self.scope(ACCOUNTS);
         let removed: Option<String> = tx
             .query_row(
-                &format!(
-                    "DELETE FROM {table} WHERE {scope} AND ember_id = :ember_id RETURNING user_id"
-                ),
-                named_params! { ":site": self.id(), ":ember_id": ember_id },
+                &format!("DELETE FROM {table} WHERE {scope}ember_id = :ember_id RETURNING user_id"),
+                &*self.bind(named_params! { ":ember_id": ember_id }),
                 |row| row.get(0),
             )
             .optional()?;
@@ -254,9 +276,9 @@ impl Site {
             .query_row(
                 &format!(
                     "SELECT user_id, ember_id, username, connected_at FROM {table}
-                     WHERE {scope} AND {column} = :key"
+                     WHERE {scope}{column} = :key"
                 ),
-                named_params! { ":site": self.id(), ":key": key },
+                &*self.bind(named_params! { ":key": key }),
                 |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
             )
             .optional()?)
@@ -321,9 +343,9 @@ impl Site {
         let withdrawn: bool = tx.query_row(
             &format!(
                 "SELECT EXISTS (SELECT 1 FROM {withdrawals}
-                   WHERE {scope} AND user_id = :user_id AND connection_id = :connection_id)"
+                   WHERE {scope}user_id = :user_id AND connection_id = :connection_id)"
             ),
-            named_params! { ":site": self.id(), ":user_id": user_id, ":connection_id": connection_id },
+            &*self.bind(named_params! { ":user_id": user_id, ":connection_id": connection_id }),
             |row| row.get(0),
         )?;
         if withdrawn {
@@ -510,14 +532,12 @@ pub fn withdraw(tx: &Transaction<'_>, link_id: &str) -> Result<()> {
     tx.execute(
         &format!(
             "INSERT OR IGNORE INTO {withdrawals} ({columns})
-             SELECT {selected} FROM {accounts} WHERE {scope} AND user_id = :user_id AND ember_id = :ember_id"
+             SELECT {selected} FROM {accounts} WHERE {scope}user_id = :user_id AND ember_id = :ember_id"
         ),
-        named_params! {
-            ":site": site.id(),
-            ":user_id": user_id,
+        &*site.bind(named_params! { ":user_id": user_id,
             ":connection_id": connection_id,
             ":ember_id": ember_id,
-        },
+        }),
     )?;
     sign_ins::end(tx, &site, &ember_id)
 }

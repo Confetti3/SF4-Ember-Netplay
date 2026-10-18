@@ -334,28 +334,43 @@ definitions ship in `server/ember/bridge/deploy/sites/` (`challonge.json`,
 - `user`: how to read who signed in, with the token as a bearer: `method`
   (`GET` or `POST`), `url`, extra `headers`, an optional JSON `body` (POST
   only, such as start.gg's GraphQL query), and JSON pointers `id_pointer` and
-  optional `username_pointer` into the answer. A number is read as its
-  decimal digits. Without a username (no pointer, or nothing there) the user
-  ID is shown instead.
+  optional `username_pointer` into the answer. A body goes as
+  `Content-Type: application/json` unless `headers` names its own
+  `Content-Type`, which replaces it. `headers` names each header once and
+  cannot set `Authorization`, `Host`, `Content-Length`, `Transfer-Encoding`
+  or `Connection`. A number is read as its decimal digits. Without a
+  username (no pointer, or nothing there) the user ID is shown instead.
 - `username_rule`: `characters` (`letters_digits`, with ASCII punctuation in
   `also`, or `printable`, anything but control characters), `max_length`, and
   `case_insensitive`.
 - `lookup_by`: `username` or `user_id`, what a lookup's `id` names (see
   "Connection settings").
 - `hosts`: every URL above must be https on one of these hosts, with no port,
-  credentials or fragment. Ember opens a sign-in page only on the
-  `authorize_url`'s origin and path, as the capabilities list them.
+  credentials or fragment. Each host is a public DNS name: an IP address,
+  `localhost`, a single-label name or one under a private suffix such as
+  `.local` or `.internal` is refused (local tests aside). Ember opens a
+  sign-in page only on the `authorize_url`'s origin and path, as the
+  capabilities list them.
 - `limits` (optional): `monthly_request_budget`, `daily_request_budget` and
   `starts_per_hour`, below.
 
-The bridge checks each definition when it starts and refuses one it cannot
-use. Every configured site is listed in the capabilities' `sign_in_sites`
+A definition is trusted configuration, like the rest of `bridge.json`: it
+receives the site's client secret and decides where players' sign-in codes
+and tokens go, and what the bridge stores and shows about them. Write your
+own or copy the shipped examples; never load one from someone you would not
+give the client secret to. The bridge checks each definition when it starts
+and refuses one it cannot use. Every configured site is listed in the capabilities' `sign_in_sites`
 (`id`, `display_name`, `sign_in`, `lookup_by`, `authorize_origin`,
 `authorize_path`), with `sign_in` false while the integration secrets lack
 its client secret. Every bridge lists the `sites` feature, so Ember knows
-it has these routes, with or without sites. A site removed
-from the configuration is gone from the routes too (404), though its rows
-stay in the database until it is configured again.
+it has these routes, with or without sites. A site taken out of the
+configuration offers no sign-in and drops out of `sign_in_sites` and of
+lookups, but while accounts are still connected on it, `GET` and `DELETE
+/v1/sites/<id>` keep working, so a player can still see and disconnect one
+(Ember lists only the configured sites, so that is through the API; the
+links it approved can also be removed from the player's links). Once none is
+left, its routes answer 404. Its rows come back into use if the site is
+configured again under the same ID.
 
 Sign-in works as Discord's does (above), on the site's own routes and with
 the same pages naming the Ember ID and the site:
@@ -428,6 +443,13 @@ older than it trusts, or ask its players to connect again before an event.
 A site whose lookups name user IDs (start.gg's) has none of this: its
 usernames (start.gg gamer tags, which many players can share) are only
 shown, and lookups match the user ID exactly.
+
+The form a lookup matches is stored when an account connects. Changing a
+live site's `username_rule` (its characters, length or case) or its
+`lookup_by` therefore does not apply to accounts already connected: lookups
+by username miss them (a site switched to `username` stored no usernames to
+match) until each player connects that account again. Plan such a change
+like a new site, and ask players to reconnect.
 
 ## BluMint
 

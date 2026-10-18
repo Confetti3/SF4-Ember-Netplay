@@ -93,6 +93,8 @@ async fn a_player_connects_challonge_through_the_bridge_page() {
     let me = &fake.seen("/v2.1/me.json")[0];
     assert_eq!(me.headers["authorization-type"], "v2");
     assert_eq!(me.headers["accept"], "application/json");
+    // A GET with the definition's Content-Type, once.
+    assert_eq!(content_types(&me.headers), ["application/vnd.api+json"]);
     assert_eq!(
         me.headers["authorization"],
         format!("Bearer {}", fake.tokens()[0])
@@ -445,6 +447,15 @@ async fn a_sign_in_started_with_room_is_refused_once_the_budget_is_spent() {
     assert!(page.contains("Ember cannot check with Challonge"), "{page}");
     assert_eq!(fake.seen("/oauth/token").len(), 1);
     assert_eq!(account(&bridge, &kate).await, None);
+}
+
+/// The Content-Type headers of a request, each one sent.
+fn content_types(headers: &axum::http::HeaderMap) -> Vec<&str> {
+    headers
+        .get_all("content-type")
+        .iter()
+        .map(|value| value.to_str().unwrap())
+        .collect()
 }
 
 /// This month's Challonge requests.

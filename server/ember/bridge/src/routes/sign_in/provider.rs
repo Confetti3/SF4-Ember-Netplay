@@ -299,20 +299,31 @@ impl OAuth {
             Method::Get => client.get(&self.user.url),
             Method::Post => client.post(&self.user.url),
         };
+        // A body is JSON unless the definition's own `Content-Type` says
+        // otherwise: its headers replace the default, so none goes twice.
+        let mut headers = header::HeaderMap::new();
+        if self.user.body.is_some() {
+            headers.insert(
+                header::CONTENT_TYPE,
+                header::HeaderValue::from_static("application/json"),
+            );
+        }
+        for (name, value) in &self.user.headers {
+            headers.insert(
+                header::HeaderName::from_bytes(name.as_bytes()).ok()?,
+                header::HeaderValue::from_str(value).ok()?,
+            );
+        }
         let request = match &self.user.body {
-            Some(body) => request
-                .header(header::CONTENT_TYPE, "application/json")
-                .body(body.to_string()),
+            Some(body) => request.body(body.to_string()),
             None => request,
         };
-        let request = self
-            .user
-            .headers
-            .iter()
-            .fold(request, |request, (name, value)| {
-                request.header(name, value)
-            });
-        let response = request.bearer_auth(token.as_str()).send().await.ok()?;
+        let response = request
+            .headers(headers)
+            .bearer_auth(token.as_str())
+            .send()
+            .await
+            .ok()?;
         if !response.status().is_success() {
             return None;
         }

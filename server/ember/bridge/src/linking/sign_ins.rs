@@ -41,9 +41,9 @@ pub fn claim(tx: &Transaction<'_>, site: &Site, hash: &[u8; 32], now: u64) -> Re
     Ok(tx.execute(
         &format!(
             "UPDATE {table} SET claimed = 1
-             WHERE {scope} AND state_hash = :hash AND expires_at > :now AND claimed = 0"
+             WHERE {scope}state_hash = :hash AND expires_at > :now AND claimed = 0"
         ),
-        named_params! { ":site": site.id(), ":hash": hash.as_slice(), ":now": now },
+        &*site.bind(named_params! { ":hash": hash.as_slice(), ":now": now }),
     )? == 1)
 }
 
@@ -60,10 +60,10 @@ pub fn claimed(
         .query_row(
             &format!(
                 "SELECT ember_id FROM {table}
-                 WHERE {scope} AND state_hash = :hash AND expires_at > :now AND claimed = 1
+                 WHERE {scope}state_hash = :hash AND expires_at > :now AND claimed = 1
                    AND pending_user_id IS NULL"
             ),
-            named_params! { ":site": site.id(), ":hash": hash.as_slice(), ":now": now },
+            &*site.bind(named_params! { ":hash": hash.as_slice(), ":now": now }),
             |row| row.get(0),
         )
         .optional()?)
@@ -91,16 +91,14 @@ pub fn ask(
         &format!(
             "UPDATE {table} SET state_hash = :secret, pending_user_id = :user_id,
                pending_username = :username, pending_owner = :owner
-             WHERE {scope} AND state_hash = :hash"
+             WHERE {scope}state_hash = :hash"
         ),
-        named_params! {
-            ":site": site.id(),
-            ":hash": hash.as_slice(),
+        &*site.bind(named_params! { ":hash": hash.as_slice(),
             ":secret": secret.as_slice(),
             ":user_id": question.user_id,
             ":username": question.username,
             ":owner": question.owner,
-        },
+        }),
     )?;
     Ok(())
 }
@@ -118,10 +116,10 @@ pub fn take(
         .query_row(
             &format!(
                 "DELETE FROM {table}
-                 WHERE {scope} AND state_hash = :hash AND expires_at > :now AND claimed = 1
+                 WHERE {scope}state_hash = :hash AND expires_at > :now AND claimed = 1
                  RETURNING ember_id"
             ),
-            named_params! { ":site": site.id(), ":hash": hash.as_slice(), ":now": now },
+            &*site.bind(named_params! { ":hash": hash.as_slice(), ":now": now }),
             |row| row.get(0),
         )
         .optional()?)
@@ -139,11 +137,11 @@ pub fn take_question(
         .query_row(
             &format!(
                 "DELETE FROM {table}
-                 WHERE {scope} AND state_hash = :secret AND expires_at > :now AND claimed = 1
+                 WHERE {scope}state_hash = :secret AND expires_at > :now AND claimed = 1
                    AND pending_user_id IS NOT NULL
                  RETURNING ember_id, pending_user_id, pending_username, pending_owner"
             ),
-            named_params! { ":site": site.id(), ":secret": secret.as_slice(), ":now": now },
+            &*site.bind(named_params! { ":secret": secret.as_slice(), ":now": now }),
             |row| {
                 Ok(Question {
                     ember_id: row.get(0)?,
@@ -160,8 +158,8 @@ pub fn take_question(
 pub fn end(tx: &Transaction<'_>, site: &Site, ember_id: &str) -> Result<()> {
     let (table, scope) = site.scope(SIGN_INS);
     tx.execute(
-        &format!("DELETE FROM {table} WHERE {scope} AND ember_id = :ember_id"),
-        named_params! { ":site": site.id(), ":ember_id": ember_id },
+        &format!("DELETE FROM {table} WHERE {scope}ember_id = :ember_id"),
+        &*site.bind(named_params! { ":ember_id": ember_id }),
     )?;
     Ok(())
 }

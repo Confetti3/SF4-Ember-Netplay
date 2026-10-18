@@ -183,6 +183,15 @@ impl SignInSite {
         if self.hosts.is_empty() || !self.hosts.iter().all(|host| is_host(host)) {
             return fail("hosts must name at least one lowercase host");
         }
+        // A definition chooses where the client secret and players' tokens
+        // go, so outside local tests its hosts are public DNS names: no IP
+        // address, localhost or private name the bridge's own network may
+        // answer.
+        if policy == OriginPolicy::HttpsOnly && !self.hosts.iter().all(|host| is_public(host)) {
+            return fail(
+                "hosts must be public DNS names, not IP addresses, localhost or internal names",
+            );
+        }
         for (name, url) in [
             ("authorize_url", &self.authorize_url),
             ("token_url", &self.token_url),
@@ -225,14 +234,35 @@ impl SignInSite {
                 "authorize_params and token_params must be extra parameters, visible ASCII",
             );
         }
+        // Headers the request sets itself. A definition's `Content-Type`
+        // replaces the JSON one a body sends.
+        const OWN: [&str; 5] = [
+            "authorization",
+            "host",
+            "content-length",
+            "transfer-encoding",
+            "connection",
+        ];
         let header_ok = |(name, value): (&String, &String)| {
             is_token(name, 64)
-                && !name.eq_ignore_ascii_case("authorization")
+                && reqwest::header::HeaderName::from_bytes(name.as_bytes()).is_ok()
+                && !OWN.iter().any(|own| name.eq_ignore_ascii_case(own))
                 && value.len() <= 256
                 && value.bytes().all(|b| b == b' ' || b.is_ascii_graphic())
         };
-        if !self.user.headers.iter().all(header_ok) {
-            return fail("user.headers must be visible ASCII, without authorization");
+        let mut names: Vec<String> = self
+            .user
+            .headers
+            .keys()
+            .map(|name| name.to_ascii_lowercase())
+            .collect();
+        names.sort();
+        names.dedup();
+        if !self.user.headers.iter().all(header_ok) || names.len() != self.user.headers.len() {
+            return fail(
+                "user.headers must be visible ASCII, each named once, without authorization, \
+                 host, content-length, transfer-encoding or connection",
+            );
         }
         if self.user.method == Method::Get && self.user.body.is_some() {
             return fail("user.body goes with POST only");
@@ -283,6 +313,33 @@ impl SignInSite {
 /// 1 to `max` visible ASCII characters.
 fn is_token(text: &str, max: usize) -> bool {
     !text.is_empty() && text.len() <= max && text.bytes().all(|b| b.is_ascii_graphic())
+}
+
+/// A DNS name on the public internet: at least two labels, the last not a
+/// number (so no IPv4 address in any form), and not under a name reserved
+/// for local or private networks.
+fn is_public(host: &str) -> bool {
+    const PRIVATE: [&str; 11] = [
+        "localhost",
+        "local",
+        "localdomain",
+        "internal",
+        "intranet",
+        "private",
+        "corp",
+        "lan",
+        "home",
+        "home.arpa",
+        "invalid",
+    ];
+    let Some((_, last)) = host.rsplit_once('.') else {
+        return false;
+    };
+    !last.bytes().all(|b| b.is_ascii_digit())
+        && !last.starts_with("0x")
+        && !PRIVATE
+            .iter()
+            .any(|private| host == *private || host.ends_with(&format!(".{private}")))
 }
 
 /// A lowercase DNS name.
@@ -351,6 +408,49 @@ mod tests {
             json!({ "limits": { "monthly_request_budget": 1, "daily_request_budget": 2, "starts_per_hour": 1 } }),
         ] {
             assert!(refused(change.clone()), "{change}");
+        }
+        // Hosts the bridge's own network may answer, refused outside local
+        // tests even with every URL on them.
+        for host in [
+            "10.0.0.1",
+            "169.254.169.254",
+            "127.1",
+            "0x7f.0x1",
+            "localhost",
+            "intranet",
+            "auth.localhost",
+            "metadata.google.internal",
+            "printer.local",
+            "router.home.arpa",
+        ] {
+            let mut site = example("challonge");
+            site.hosts = vec![host.into()];
+            site.authorize_url = format!("https://{host}/oauth/authorize");
+            site.token_url = format!("https://{host}/oauth/token");
+            site.user.url = format!("https://{host}/me");
+            let refused = site.validate(OriginPolicy::HttpsOnly).unwrap_err();
+            assert!(refused.contains("public DNS names"), "{host}: {refused}");
+            // Local tests may use them, where a URL keeps its host as written
+            // (the URL parser reads "127.1" as 127.0.0.1).
+            if url::Url::parse(&site.token_url).unwrap().host_str() == Some(host) {
+                assert_eq!(
+                    site.validate(OriginPolicy::AllowLoopbackHttp),
+                    Ok(()),
+                    "{host}"
+                );
+            }
+        }
+        // Headers the request sets itself, or one named twice.
+        for headers in [
+            json!({ "Authorization": "Bearer x" }),
+            json!({ "Host": "evil.example" }),
+            json!({ "Content-Length": "0" }),
+            json!({ "Accept": "a", "accept": "b" }),
+            json!({ "Bad Name": "x" }),
+        ] {
+            let mut site = example("challonge");
+            site.user.headers = serde_json::from_value(headers.clone()).unwrap();
+            assert!(site.validate(OriginPolicy::HttpsOnly).is_err(), "{headers}");
         }
         // Loopback http only where the policy allows it.
         let mut site = example("challonge");

@@ -45,6 +45,7 @@ use ember_protocol::{
     discord,
     encoding::b64u,
     sign_in::{Connection, SignInStarted},
+    sites,
 };
 use rusqlite::Transaction;
 use serde::Deserialize;
@@ -125,12 +126,14 @@ pub fn routes(app: Router<AppState>) -> Router<AppState> {
         "/v1/sites/{site}",
         get(
             |state: State<AppState>, Path(id): Path<String>, headers| async move {
-                account(state.clone(), headers, configured(&state, &id)?).await
+                let site = held(&state, &id).await?;
+                account(state, headers, site).await
             },
         )
         .delete(
             |state: State<AppState>, Path(id): Path<String>, headers, body| async move {
-                remove(state.clone(), headers, body, configured(&state, &id)?).await
+                let site = held(&state, &id).await?;
+                remove(state, headers, body, site).await
             },
         ),
     )
@@ -143,6 +146,26 @@ fn configured(state: &AppState, id: &str) -> Result<Site> {
         .sign_in_site(id)
         .map(|_| Site::Configured(id.to_owned()))
         .ok_or_else(ApiFailure::not_found)
+}
+
+/// The site `id` names for reading and disconnecting accounts: a configured
+/// one, or one taken out of the configuration while accounts are still
+/// connected on it, so its players can still see and disconnect them (as
+/// Discord's can with its sign-in off). Otherwise `not_found`.
+async fn held(state: &AppState, id: &str) -> Result<Site> {
+    if let Ok(site) = configured(state, id) {
+        return Ok(site);
+    }
+    if !sites::is_site_id(id) || id == "discord" {
+        return Err(ApiFailure::not_found());
+    }
+    let site = Site::Configured(id.to_owned());
+    let lookup = site.clone();
+    if state.db.read(move |tx| lookup.has_accounts(tx)).await? {
+        Ok(site)
+    } else {
+        Err(ApiFailure::not_found())
+    }
 }
 
 /// Whether `site`'s sign-in is offered. Reading and disconnecting a

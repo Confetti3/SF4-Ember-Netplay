@@ -83,7 +83,7 @@ async fn a_player_connects_startgg_and_platforms_find_them_by_user_id() {
     // Who signed in is read with the definition's GraphQL query, posted with
     // the token as a bearer.
     let me = &fake.seen("/gql/alpha")[0];
-    assert_eq!(me.headers["content-type"], "application/json");
+    assert_eq!(content_types(&me.headers), ["application/json"]);
     assert_eq!(
         me.headers["authorization"],
         format!("Bearer {}", fake.tokens()[0])
@@ -533,4 +533,73 @@ async fn a_site_defined_only_in_configuration_signs_in_and_finds_players() {
         link_of(&bridge, "hub-bot", &kate).await,
         Some(("site".into(), "bracketeer:b-17".into()))
     );
+}
+
+/// The Content-Type headers of a request, each one sent.
+fn content_types(headers: &axum::http::HeaderMap) -> Vec<&str> {
+    headers
+        .get_all("content-type")
+        .iter()
+        .map(|value| value.to_str().unwrap())
+        .collect()
+}
+
+#[tokio::test]
+async fn a_definitions_content_type_replaces_the_json_default() {
+    let fake = fake_startgg();
+    let mut site = startgg_site(&fake.serve().await);
+    site.user
+        .headers
+        .insert("Content-Type".into(), "application/graphql+json".into());
+    let bridge =
+        bridge_with_sites(vec![site], with_secret(), vec![direct(GG, false, &[SITE])]).await;
+    let kate = player(&bridge, 1).await;
+    let page = connect_on(&bridge, SITE, &kate, "good-kate").await;
+    assert!(page.contains("start.gg connected"), "{page}");
+    let me = &fake.seen("/gql/alpha")[0];
+    assert_eq!(content_types(&me.headers), ["application/graphql+json"]);
+}
+
+#[tokio::test]
+async fn an_account_on_a_site_taken_out_of_the_configuration_can_still_go() {
+    let fake = fake_startgg();
+    let mut bridge = bridge(&fake).await;
+    let kate = player(&bridge, 1).await;
+    connect_on(&bridge, SITE, &kate, "good-kate").await;
+    assert_eq!(found_ids(&bridge, GG, &[KATE.0]).await.len(), 1);
+
+    // The operator takes start.gg out of the configuration.
+    bridge
+        .restart_with(
+            |config| {
+                config.sign_in_sites.clear();
+                for tenant in &mut config.tenants {
+                    for connection in &mut tenant.connections {
+                        connection.lookup_sites.clear();
+                    }
+                }
+            },
+            with_secret(),
+        )
+        .await;
+    let (_, capabilities) = bridge.get("", "/v1/capabilities").await;
+    assert!(
+        capabilities.get("sign_in_sites").is_none(),
+        "{capabilities}"
+    );
+    // No new sign-in, but Kate still sees her account and disconnects it,
+    // which ends the link it approved.
+    let (status, body) = sign_in::try_start(&bridge, &kate, &sign_in::Routes::site(SITE)).await;
+    assert_eq!((status, code(&body)), (StatusCode::NOT_FOUND, "not_found"));
+    assert_eq!(
+        account_on(&bridge, SITE, &kate).await.as_deref(),
+        Some(KATE.0)
+    );
+    assert!(link_of(&bridge, GG, &kate).await.is_some());
+    let (status, body) = sign_in::disconnect(&bridge, &kate, &sign_in::Routes::site(SITE)).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(link_of(&bridge, GG, &kate).await, None);
+    // With no account left on it, the site is unknown.
+    let (status, body) = bridge.get(kate.token(), "/v1/sites/startgg").await;
+    assert_eq!((status, code(&body)), (StatusCode::NOT_FOUND, "not_found"));
 }
