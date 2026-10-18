@@ -70,7 +70,10 @@ so once in the log, until both of its players have. The connector learns
 each entry's account when it first sees the entry: an entry the organizer
 gives an account after that is picked up when the connector restarts. A
 player whose Challonge account was connected more than 30 days before a match
-is pointed out in the log once, since Challonge lets an account rename.
+is pointed out in the log once, since Challonge lets an account rename. The
+bridge finds the player who last connected under a username, so a username
+given up and taken by someone who has not connected in Ember still finds the
+old player; for an event, ask players to connect again shortly before it.
 
 ## What the Ember team provides
 
@@ -154,6 +157,11 @@ Secrets are only ever read from files, never written to the log.
   counts against the budget, so a final that runs over is not lost; sets it
   opens are left to the organizer.
 - `credential.kind`: `v1_key` or `bearer` (an OAuth token).
+- `api_base`: per tournament, optional, Challonge's API origin
+  (`https://api.challonge.com` when absent). The organizer's credential goes
+  to it, so it must be an https origin on challonge.com; a loopback http
+  origin is accepted only with `allow_loopback_http: true`, which is for local
+  tests.
 - `mark_underway`: per tournament, default `true`. Marking each set underway
   costs one request a set; `false` saves them.
 - `rounds`: `games_to_win` (1 to 10) unless a rule covers the round; the first

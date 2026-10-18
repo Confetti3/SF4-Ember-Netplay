@@ -39,17 +39,16 @@ pub enum Standing {
 }
 
 /// The account an entry stands for, by which the bridge finds its player.
+/// Each site adds the kind of account its entries carry.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Account {
     Challonge { username: String },
-    Discord { user_id: String },
 }
 
 impl fmt::Display for Account {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Challonge { username } => write!(f, "Challonge user {username}"),
-            Self::Discord { user_id } => write!(f, "Discord user {user_id}"),
         }
     }
 }

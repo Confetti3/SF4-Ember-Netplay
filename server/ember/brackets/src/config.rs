@@ -43,6 +43,11 @@ pub struct Config {
     #[serde(default = "default_budget")]
     pub monthly_request_budget: u32,
     pub tournaments: Vec<Tournament>,
+    /// Lets a tournament's `api_base` be a loopback `http` origin. Local
+    /// tests only: in a deployment the organizer's credential goes to
+    /// Challonge over https and nowhere else.
+    #[serde(default)]
+    pub allow_loopback_http: bool,
 }
 
 /// The `direct` bridge connection the matches are created on.
@@ -94,7 +99,8 @@ pub struct Tournament {
     /// one request a set.
     #[serde(default = "default_mark_underway")]
     pub mark_underway: bool,
-    /// The site's API, when not its public one (tests).
+    /// The site's API origin, when not its public one: for Challonge an
+    /// https origin on challonge.com, or loopback http for local tests.
     #[serde(default)]
     pub api_base: Option<String>,
 }
@@ -278,6 +284,22 @@ pub(crate) fn is_slug(text: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
 }
 
+/// Whether the organizer's Challonge credential may go to `origin`: an
+/// https origin on challonge.com or one of its subdomains, with no port,
+/// path or user info, or a loopback http origin when tests allow it. The
+/// bridge holds its own Challonge settings to the same rule.
+pub(crate) fn is_challonge_origin(origin: &str, allow_loopback_http: bool) -> bool {
+    let policy = if allow_loopback_http {
+        OriginPolicy::AllowLoopbackHttp
+    } else {
+        OriginPolicy::HttpsOnly
+    };
+    let on_challonge = origin
+        .strip_prefix("https://")
+        .is_some_and(|host| host == "challonge.com" || host.ends_with(".challonge.com"));
+    check_origin(origin, policy).is_ok() && (on_challonge || origin.starts_with("http://"))
+}
+
 /// Unix seconds of `YYYY-MM-DDTHH:MM:SSZ`, the one form a window takes.
 /// The protocol's formatter checks the date back, so 2026-02-29 is refused.
 fn parse_utc(text: &str) -> Option<u64> {
@@ -371,6 +393,14 @@ impl Config {
                 .check()
                 .map_err(|error| format!("{}: {error}", tournament.key()))?;
             tournament.window()?;
+            if let Some(origin) = &tournament.api_base
+                && !is_challonge_origin(origin, self.allow_loopback_http)
+            {
+                return Err(format!(
+                    "{}: api_base is an https origin on challonge.com",
+                    tournament.key()
+                ));
+            }
         }
         Ok(())
     }
@@ -406,6 +436,36 @@ mod tests {
         assert_eq!(lengths, [2, 2, 3, 3, 4, 4, 1, 1, 3, 3]);
         // Round 0 is not a losers round.
         assert_eq!(rounds.games_to_win(0), 2);
+    }
+
+    #[test]
+    fn the_organizers_credential_goes_to_challonge_only() {
+        for origin in [
+            "https://api.challonge.com",
+            "https://challonge.com",
+            "https://staging.api.challonge.com",
+        ] {
+            assert!(is_challonge_origin(origin, false), "{origin}");
+        }
+        for origin in [
+            "http://api.challonge.com",
+            "https://evilchallonge.com",
+            "https://challonge.com.evil.example",
+            "https://api.challonge.co",
+            "https://api.challonge.com:8443",
+            "https://user@api.challonge.com",
+            "https://api.challonge.com/v2.1",
+            "https://api.challonge.com/",
+            "http://127.0.0.1:9000",
+            "",
+        ] {
+            assert!(!is_challonge_origin(origin, false), "{origin}");
+        }
+        // Loopback http is for tests, and only loopback.
+        assert!(is_challonge_origin("http://127.0.0.1:9000", true));
+        assert!(is_challonge_origin("http://localhost:9000", true));
+        assert!(!is_challonge_origin("http://api.challonge.com", true));
+        assert!(!is_challonge_origin("http://10.0.0.5:9000", true));
     }
 
     #[test]
@@ -504,6 +564,14 @@ mod tests {
             ("/bridge/api", serde_json::json!("http://bridge.example")),
             ("/poll_secs", serde_json::json!(5)),
             ("/results/path", serde_json::json!("/results/{id}")),
+            (
+                "/tournaments/0/api_base",
+                serde_json::json!("http://api.challonge.com"),
+            ),
+            (
+                "/tournaments/0/api_base",
+                serde_json::json!("http://127.0.0.1:9000"),
+            ),
             ("/max_poll_secs", serde_json::json!(60)),
             (
                 "/tournaments/0/active_from",

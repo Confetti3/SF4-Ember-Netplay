@@ -234,7 +234,8 @@ impl Bracket {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         for (entry, player) in entries.iter().zip(players) {
-            if let (Some(account), Some(at)) = (&entry.account, player.connected_at)
+            let at = player.connected_at;
+            if let Some(account) = &entry.account
                 && now.saturating_sub(at) > OLD_CONNECTION_SECS
                 && pointed_out.insert(player.ember_id.clone())
             {

@@ -51,6 +51,7 @@ fn connector(dir: &std::path::Path, clock: Clock) -> Connector {
         poll_secs: 120,
         max_poll_secs: 600,
         monthly_request_budget: 500,
+        allow_loopback_http: true,
         tournaments: vec![Tournament {
             site: SiteKind::Challonge,
             tournament: TOURNAMENT.into(),
@@ -62,7 +63,7 @@ fn connector(dir: &std::path::Path, clock: Clock) -> Connector {
             active_from: None,
             active_until: None,
             mark_underway: true,
-            api_base: Some("http://127.0.0.1:9/v2.1".into()),
+            api_base: Some("http://127.0.0.1:9".into()),
         }],
     };
     Connector::new(config, clock).unwrap()

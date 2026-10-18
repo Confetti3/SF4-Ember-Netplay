@@ -22,7 +22,10 @@ use crate::{
     site::{Account, Entry, Purpose, Report, Set, Site, SiteError, SiteFuture, Standing, Status},
 };
 
-pub const API: &str = "https://api.challonge.com/v2.1";
+/// Challonge's API origin. The organizer's credential goes nowhere else
+/// (`config::is_challonge_origin`).
+pub const API_ORIGIN: &str = "https://api.challonge.com";
+const API_PATH: &str = "/v2.1";
 /// Challonge's documented default page size, which it therefore serves in
 /// full; a shorter page is the last. Its maximum is not documented.
 const PER_PAGE: usize = 25;
@@ -62,8 +65,9 @@ fn with_query(path: &str, query: &str) -> String {
 }
 
 impl Challonge {
+    /// `origin` is Challonge's API origin, checked by the configuration.
     pub fn new(
-        api: &str,
+        origin: &str,
         tournament: &str,
         kind: CredentialKind,
         credential: &str,
@@ -86,7 +90,7 @@ impl Challonge {
         headers.insert(AUTHORIZATION, authorization);
         Ok(Self {
             http: http_client()?,
-            base: format!("{}/tournaments/{tournament}", api.trim_end_matches('/')),
+            base: format!("{origin}{API_PATH}/tournaments/{tournament}"),
             headers,
             budget,
             usernames: Mutex::default(),

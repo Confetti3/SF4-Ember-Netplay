@@ -48,9 +48,9 @@ impl fmt::Display for BridgeError {
 pub(crate) struct Player {
     pub participant_id: String,
     pub ember_id: EmberId,
-    /// When a Challonge account was connected: the last time the bridge
-    /// saw it under this username, which Challonge lets an account change.
-    pub connected_at: Option<u64>,
+    /// When the account was connected: the last time the bridge saw it
+    /// under this username, which Challonge lets an account change.
+    pub connected_at: u64,
 }
 
 /// A match that is over, as the bridge records it.
@@ -72,7 +72,6 @@ fn matched(account: &Account) -> Account {
         Account::Challonge { username } => Account::Challonge {
             username: username_key(username),
         },
-        Account::Discord { .. } => account.clone(),
     }
 }
 
@@ -192,7 +191,6 @@ impl BridgeClient {
             .map(|account| matched(account))
             .filter(|account| match account {
                 Account::Challonge { username } => is_username(username),
-                Account::Discord { .. } => true,
             })
             .collect();
         asked.sort_by_key(|account| account.to_string());
@@ -203,33 +201,18 @@ impl BridgeClient {
             for account in chunk {
                 match account {
                     Account::Challonge { username } => body.challonge.push(username.clone()),
-                    Account::Discord { user_id } => body.discord.push(user_id.clone()),
                 }
             }
             let answer: LookupAnswer = self.answer(self.post(LOOKUP_PATH).json(&body)).await?;
-            let challonge = answer.challonge.into_iter().map(|player| {
+            for player in answer.challonge {
                 let account = Account::Challonge {
                     username: player.username,
                 };
-                let found = Player {
+                let player = Player {
                     participant_id: player.participant_id,
                     ember_id: player.ember_id,
-                    connected_at: Some(player.connected_at),
+                    connected_at: player.connected_at,
                 };
-                (account, found)
-            });
-            let discord = answer.players.into_iter().map(|player| {
-                let account = Account::Discord {
-                    user_id: player.discord_user_id,
-                };
-                let found = Player {
-                    participant_id: player.participant_id,
-                    ember_id: player.ember_id,
-                    connected_at: None,
-                };
-                (account, found)
-            });
-            for (account, player) in challonge.chain(discord) {
                 found.0.insert(matched(&account), player);
             }
         }
@@ -358,7 +341,7 @@ mod tests {
             participant_id: "epl_a".into(),
             ember_id: EmberId::parse("emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja")
                 .unwrap(),
-            connected_at: Some(1),
+            connected_at: 1,
         };
         found.0.insert(
             matched(&Account::Challonge {
@@ -370,9 +353,9 @@ mod tests {
             username: "KATE".into(),
         };
         assert!(found.get(&asked).is_some());
-        let discord = Account::Discord {
-            user_id: "274220342558756145".into(),
+        let other = Account::Challonge {
+            username: "sam_99".into(),
         };
-        assert!(found.get(&discord).is_none());
+        assert!(found.get(&other).is_none());
     }
 }

@@ -152,7 +152,10 @@ impl Connector {
                 );
                 let site = match tournament.site {
                     SiteKind::Challonge => Challonge::new(
-                        tournament.api_base.as_deref().unwrap_or(challonge::API),
+                        tournament
+                            .api_base
+                            .as_deref()
+                            .unwrap_or(challonge::API_ORIGIN),
                         &tournament.tournament,
                         tournament.credential.kind,
                         &credential,

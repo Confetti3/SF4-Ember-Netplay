@@ -138,6 +138,7 @@ impl World {
             poll_secs: 120,
             max_poll_secs: 600,
             monthly_request_budget: setup.budget,
+            allow_loopback_http: true,
             tournaments: vec![Tournament {
                 site: SiteKind::Challonge,
                 tournament: TOURNAMENT.into(),

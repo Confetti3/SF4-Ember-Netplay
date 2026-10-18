@@ -365,7 +365,7 @@ impl FakeChallonge {
         }));
         let app = Router::new().fallback(challonge).with_state(state.clone());
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let api = format!("http://{}/v2.1", listener.local_addr().unwrap());
+        let api = format!("http://{}", listener.local_addr().unwrap());
         tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
         Self { api, state }
     }
