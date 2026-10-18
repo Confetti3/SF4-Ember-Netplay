@@ -1337,9 +1337,6 @@ msgstr "Ember {0} · {1}"
 msgid "about.version_detail"
 msgstr "Verze Emberu v tomto počítači. Sestavení {0}."
 
-msgid "about.channel_detail"
-msgstr "Kontroly aktualizací používají tento kanál. Chcete-li jej změnit, zavřete hru a poklepejte na Updater.exe."
-
 msgid "settings.retry_save"
 msgstr "Uložit znovu"
 

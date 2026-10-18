@@ -339,6 +339,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   // The controls, credits and licence are longer than the detail pane, so
   // Select opens them in a reader a pad or keyboard can scroll.
   auto reading=[](MenuEntry e){e.reading=true;return e;};
+  channelPick_.Settle(v.services.channel,v.services.pending);
   title=loc::T("about.title");rows={reading(Row("help",loc::T("about.controls"),std::string(loc::T("about.controls_detail"))+"\n\n"+loc::T("about.controls_keyboard"))),
    reading(Row("credits",loc::T("about.ember"),loc::Tf("about.ember_detail",v.build))),
    reading(Row("font",loc::T("about.font_license"),FontLicense())),Row("diagnostics",loc::T("about.export_diagnostics"),
@@ -347,10 +348,10 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    ConfirmRow("community",loc::T("about.discord"),
     outcome({ServiceAction::OpenCommunity},loc::Tf("about.discord_detail",platform::CommunityInvite)),!v.services.pending),
    // The version on this PC and the channel its update checks use, as Home's
-   // corner shows them, above the check itself; the build and how to change
-   // the channel in its pane.
+   // corner shows them, above the check itself; the build in its pane.
    InfoRow("version",loc::T("updates.installed_version"),VersionLine(InstalledVersion(v),v.services.channel),
-    (v.build.empty()?std::string(loc::T("updates.installed_version_detail")):loc::Tf("about.version_detail",v.build))+"\n\n"+loc::T("about.channel_detail")),
+    v.build.empty()?std::string(loc::T("updates.installed_version_detail")):loc::Tf("about.version_detail",v.build)),
+   ChannelRow(v.services.channel,&channelPick_,v.services.pending),
    Row("updates",loc::T("updates.check"),outcome({ServiceAction::CheckUpdates,ServiceAction::InstallUpdate,ServiceAction::OpenUpdater,ServiceAction::OpenRecovery},
     loc::T("about.updates_detail")),!v.services.pending),
    // Saved on its own, as the language is: it is no room or fighter preference.
@@ -525,6 +526,13 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
   ShellAction r;r.command.generation=v.session.generation;r.previewSoundVolume=preferences_.readySoundVolume;
   if(!submit(std::move(r)))error_=loc::T("error.queue_failed");
  }
+ else if(a.id=="channel"){
+  // Confirmed: the pick is saved and checked; the row shows it until that ends.
+  if(!channelPick_.Pending(v.services.channel))return;
+  ShellAction r;r.service=platform::ServiceAction::SwitchUpdateChannel;r.updateChannel=*channelPick_.picked;r.command.generation=v.session.generation;
+  channelPick_.applying=submit(std::move(r));
+  if(!channelPick_.applying)error_=loc::T("error.queue_failed");
+ }
  else if(a.id=="updates")Service(platform::ServiceAction::CheckUpdates,v,submit);
  else if(a.id=="updater")Service(platform::ServiceAction::OpenUpdater,v,submit);
  else if(a.id=="recovery")Service(platform::ServiceAction::OpenRecovery,v,submit);
@@ -538,6 +546,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
  else if(a.id=="invite-text")std::snprintf(invitation_,sizeof(invitation_),"%s",a.text.c_str());
  else if(a.id=="language")SetLanguage(std::string(loc::NextPreference(languagePreference_,a.delta)));
  else if(a.id=="launch-update-check")SetLaunchCheck(a.delta>0);
+ else if(a.id=="channel"){if(!v.services.pending)channelPick_.Step(v.services.channel,a.delta);}
  else if(a.id=="country-search")countryPicker_.Search(a.text);
  else if(ReplaysPanel::Owns(screen))replays_.Accept(a);
  else if(CreateAdjust(a)){}

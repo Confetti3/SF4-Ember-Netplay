@@ -17,6 +17,7 @@
 #include "../platform/ApplicationServices.hxx"
 #include "../session/RoomModel.hxx"
 #include "../session/MemberLatency.hxx"
+#include "UpdateChannelPick.hxx"
 #include <array>
 #include <functional>
 #include <vector>
@@ -187,6 +188,8 @@ struct ShellAction {
     std::string servicePath;
     // With UpdateNow or SkipUpdate: the launch offer the player was shown.
     launcher::InstallOffer updateOffer;
+    // With SwitchUpdateChannel: the channel the player confirmed.
+    updates::UpdateChannel updateChannel = updates::UpdateChannel::Stable;
     // With OpenSteamProfile: the member's profile to open.
     SteamId steamProfile;
     reports::Submission reportSubmission;
@@ -344,6 +347,8 @@ private:
     // The Settings row's value, seeded from the view once and then the shell's own.
     bool launchCheck_=true,launchCheckSeeded_=false;
     std::string launchCheckSaveError_;
+    // Help & about's channel row, picked as in the Updates window.
+    ChannelPick channelPick_;
     struct DialogContext {
         // The pad the Button layout button opens.
         std::optional<gamepads::PadView> pad;

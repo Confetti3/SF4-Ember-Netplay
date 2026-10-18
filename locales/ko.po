@@ -1337,9 +1337,6 @@ msgstr "Ember {0} · {1}"
 msgid "about.version_detail"
 msgstr "이 PC의 Ember 버전입니다. 빌드 {0}."
 
-msgid "about.channel_detail"
-msgstr "업데이트 확인에 이 채널을 사용합니다. 바꾸려면 게임을 닫고 Updater.exe를 더블클릭하세요."
-
 msgid "settings.retry_save"
 msgstr "저장 재시도"
 
