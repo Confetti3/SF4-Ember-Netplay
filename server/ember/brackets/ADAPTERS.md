@@ -71,7 +71,8 @@ Errors:
   tournament waits under the growing wait below.
 - `Deferred` (from `report` only): this one report cannot be taken now, for
   a reason of its own set, which may pass (start.gg refusing it with an
-  error it does not explain while the set is still open and unchanged).
+  error it does not explain while the set is still open and unchanged, or
+  an `http` service answering `423` as below).
   That result alone waits, a minute doubling up to an hour, while every
   other result and read goes on; after 12 tries (about 6 hours, counted
   while the connector runs) its set is left to the organizer.
@@ -226,6 +227,20 @@ Answer a repeat `2xx`, as you did the first time. If the set has a
 different result (the organizer entered one, or another key), do not write
 over it: answer `409`, and the connector leaves the set to the organizer.
 
+If you cannot take one set's report now, for a reason of that set alone
+(it is locked while a scorer edits it, say), answer `423 Locked` with:
+
+```json
+{ "retry": true, "reason": "the set is being edited" }
+```
+
+`retry` must be `true`; `reason` is optional, and its first 200 characters
+go into the connector's log. That one result then waits on its own, a
+minute doubling up to an hour, and is sent again with the same
+`Idempotency-Key`, while every other result and read of the tournament goes
+on. After 12 deferrals (about 6 hours) the set is left to the organizer. A
+`423` without that body is read like any other `4xx`.
+
 ### Status codes
 
 | Answer | The connector |
@@ -236,6 +251,7 @@ over it: answer `409`, and the connector leaves the set to the organizer.
 | `404` anywhere else | tries again later |
 | `401`, `403`, `429`, `5xx`, no answer | tries again later, after the growing wait above |
 | `409` on a report | leaves the set to the organizer |
+| `423` with `{ "retry": true }` on a report | sends that report again later, on its own |
 | other `4xx` | on a report, leaves the set to the organizer; on a read, tries again later |
 
 A failed `/underway` is only logged, whatever the answer: the match is
@@ -244,5 +260,6 @@ played all the same.
 These answers are about your service as a whole. A `5xx`, `429` or no
 answer to one set's report stops the pass and holds back every other
 result and read of the tournament until the growing wait is over, so
-answer `5xx` only when the service itself is failing. A report you will
-never take is a `409` or another `4xx`.
+answer `5xx` only when the service itself is failing. A report you cannot
+take yet is a `423` as above; one you will never take is a `409` or
+another `4xx`.

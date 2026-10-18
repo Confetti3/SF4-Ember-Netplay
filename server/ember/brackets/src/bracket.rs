@@ -420,12 +420,16 @@ impl Bracket {
         let mut settled = Settled::default();
         for (webhook_id, received) in pending {
             let tries = deferred.get(webhook_id).map_or(0, Retry::failures);
+            // A deferred result changed nothing, so it does not bring the
+            // schedule back to its shortest interval.
+            let changed = settled.changed;
             match self.settle_one(received, sets, &mut settled, tries).await? {
                 Settle::Done => {
                     deferred.remove(webhook_id);
                     self.store().settled(webhook_id)?;
                 }
                 Settle::Deferred => {
+                    settled.changed = changed;
                     deferred.entry(webhook_id.clone()).or_default().failed(now);
                 }
             }

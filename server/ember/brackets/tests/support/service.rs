@@ -3,7 +3,7 @@
 //! version, keeps its sets in memory and logs each request. Knobs make it
 //! fail the way a real service behind a proxy can.
 use std::{
-    collections::{HashSet, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     sync::{Arc, Mutex},
 };
 
@@ -52,6 +52,9 @@ pub struct ServiceState {
     /// The next report is recorded and then answered 503, as if its answer
     /// were lost.
     pub lose_report_answer: bool,
+    /// Reports of these sets are deferred (423 with `{"retry": true}`),
+    /// with these reasons.
+    pub deferred_reports: HashMap<String, String>,
 }
 
 pub struct FakeService {
@@ -132,6 +135,14 @@ async fn handle(
             None => StatusCode::NOT_FOUND.into_response(),
         },
         (Method::POST, ["sets", id, "report"]) => {
+            if let Some(reason) = state.deferred_reports.get(*id) {
+                return (
+                    StatusCode::LOCKED,
+                    [(header::CONTENT_TYPE, "application/json")],
+                    json!({ "retry": true, "reason": reason }).to_string(),
+                )
+                    .into_response();
+            }
             let recorded = Recorded {
                 set: (*id).to_owned(),
                 key: header("idempotency-key").unwrap_or_default().to_owned(),

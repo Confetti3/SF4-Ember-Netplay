@@ -489,3 +489,41 @@ async fn a_set_whose_report_is_refused_waits_alone() {
     assert_eq!(world.progress(BRACKET, "65089253"), "reported");
     assert_eq!(fake.set(65_089_253).winner, Some(2_401_411));
 }
+
+#[tokio::test]
+async fn retrying_a_deferred_result_does_not_quicken_the_schedule() {
+    let fake = fake().await;
+    let world = world(&fake, false).await;
+    fake.state
+        .lock()
+        .unwrap()
+        .refused_sets
+        .insert(65_089_253, "Something about this set".into());
+    played(&fake, &world).await;
+    // Deferred four times: waits of 1, 2, 4 and 8 minutes. Nothing on
+    // start.gg changes, so the schedule backs off to its longest
+    // interval (600 s) meanwhile.
+    let mut wait = 60;
+    for _ in 0..4 {
+        world.connector.pass(false).await;
+        world.advance(wait);
+        wait *= 2;
+    }
+    // The fifth try, then a 16-minute wait for the sixth.
+    world.connector.pass(false).await;
+    assert_eq!(world.progress(BRACKET, "65089253"), "live");
+    fake.log();
+    let mut reads = 0;
+    for _ in 0..31 {
+        world.advance(30);
+        world.connector.pass(false).await;
+        reads += fake
+            .operations()
+            .iter()
+            .filter(|operation| *operation == "Sets")
+            .count();
+    }
+    // One scheduled read in 930 s, at the longest interval. Were the
+    // retry a change, reads would come after 120, 240 and 480 s again.
+    assert_eq!(reads, 1);
+}

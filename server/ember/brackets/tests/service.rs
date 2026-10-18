@@ -270,3 +270,35 @@ async fn an_account_the_bridge_will_not_look_up_holds_only_its_own_set() {
         ["GET /svc/sets?state=open", "POST /svc/sets/s-1/underway"]
     );
 }
+
+#[tokio::test]
+async fn a_report_the_service_defers_waits_alone_and_is_sent_again() {
+    let (service, world, _) = world(vec![kate_and_sam()]).await;
+    let match_id = played(&service, &world).await;
+    service.with(|state| {
+        state
+            .deferred_reports
+            .insert("s-1".into(), "the scorer is busy".into())
+    });
+    world.connector.pass(false).await;
+    assert_eq!(
+        service.log(),
+        ["GET /svc/sets?state=open", "POST /svc/sets/s-1/report"]
+    );
+    assert_eq!(world.progress(BRACKET, "s-1"), "live");
+
+    // The tournament is still read while the result waits its minute.
+    world.advance(30);
+    world.connector.pass(true).await;
+    assert_eq!(service.log(), ["GET /svc/sets?state=open"]);
+
+    service.with(|state| state.deferred_reports.clear());
+    world.advance(31);
+    world.connector.pass(false).await;
+    assert_eq!(
+        service.log(),
+        ["GET /svc/sets?state=open", "POST /svc/sets/s-1/report"]
+    );
+    assert_eq!(service.reports(), [kate_wins(&match_id)]);
+    assert_eq!(world.progress(BRACKET, "s-1"), "reported");
+}

@@ -31,6 +31,8 @@ pub const CONTRACT: &str = "1";
 const CONTRACT_HEADER: &str = "ember-brackets-contract";
 /// The same on every delivery of one result.
 const IDEMPOTENCY_HEADER: &str = "idempotency-key";
+/// How much of a service's reason for deferring a report goes into the log.
+const MAX_REASON: usize = 200;
 const MAX_ANSWER: usize = 1024 * 1024;
 
 pub(crate) struct Service {
@@ -95,6 +97,15 @@ struct WireEntry {
 enum WireAccount {
     Site { site: String, id: String },
     Discord { discord: String },
+}
+
+/// `423 Locked` with `{"retry": true}`: this one report cannot be taken now,
+/// for a reason of its own set, and is to be sent again later.
+#[derive(Deserialize)]
+struct WireDeferral {
+    retry: bool,
+    #[serde(default)]
+    reason: Option<String>,
 }
 
 /// `GET {base}/standing`.
@@ -247,6 +258,28 @@ impl Service {
                 Err(SiteError::Unavailable(message()))
             }
             status if status.is_server_error() => Err(SiteError::Unavailable(message())),
+            StatusCode::LOCKED => match serde_json::from_slice::<WireDeferral>(&body) {
+                Ok(WireDeferral {
+                    retry: true,
+                    reason,
+                }) => {
+                    let reason: String = reason
+                        .unwrap_or_default()
+                        .chars()
+                        .filter(|c| !c.is_control())
+                        .take(MAX_REASON)
+                        .collect();
+                    Err(SiteError::Deferred(format!(
+                        "the service deferred it ({})",
+                        if reason.is_empty() {
+                            "no reason given"
+                        } else {
+                            &reason
+                        }
+                    )))
+                }
+                _ => Err(SiteError::Refused(message())),
+            },
             _ => Err(SiteError::Refused(message())),
         }
     }
