@@ -10,6 +10,9 @@ inline constexpr wchar_t UpdateTransactionName[] = L".ember-update-transaction-v
 // The steps of an update, in order. The launcher downloads, verifies the
 // download, extracts it and prepares (checks the package); the installer
 // checks the package too, then compares, backs up, replaces and confirms.
+// Throws unless relative names a plain path under root: no root, no "." or
+// "..", no name Windows would alter or reject, and no reparse point on the way.
+void CheckPath(const std::filesystem::path& root, const std::filesystem::path& relative);
 enum class UpdateStage { Downloading, Verifying, Extracting, Preparing, Comparing, BackingUp, Replacing, Confirming };
 // The installer's own steps, in order: the one table of them. Each has the
 // locale key Updater.exe's window names it by, which the launcher passes in
