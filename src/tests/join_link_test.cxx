@@ -1,11 +1,13 @@
 // Unit tests for room links, tournament match links, public room links and
 // Discord connect links handed over by a browser (JoinLink.hxx, TournamentLink.hxx) and their
-// hand-over from a second launcher to a running game (JoinLinkMailbox.hxx).
+// hand-over from a second launcher to a running game (JoinLinkMailbox.hxx), whose
+// window it then brings forward (GameWindowSection.hxx).
 
 #include "../common/JoinLink.hxx"
 #include "../common/TournamentLink.hxx"
 #include "../common/ReplayLink.hxx"
 #ifdef _WIN32
+#include "../platform/GameWindowSection.hxx"
 #include "../platform/JoinLinkMailbox.hxx"
 #endif
 
@@ -302,6 +304,26 @@ static void TestARunningGameReceivesTheLink() {
 	CHECK(sf4e::platform::DeliverSlot(forgedConnect, connectSection.c_str(), connectReady.c_str()));
 	CHECK(connects.Take().empty());
 }
+
+// The running game's window, for the launcher to bring forward after a hand-over.
+static void TestTheLauncherFindsTheGameWindow() {
+	using sf4e::platform::GameWindowPublisher;
+	using sf4e::platform::GameWindowRecord;
+	using sf4e::platform::ReadGameWindow;
+	const std::wstring name = L"Local\\SF4EmberGameWindowTest" + std::to_wstring(GetCurrentProcessId());
+	GameWindowRecord record{ 1, 1 };
+	// No game: nothing to read.
+	CHECK(!ReadGameWindow(record, name.c_str()) && record.pid == 0 && record.window == 0);
+	GameWindowPublisher publisher(name.c_str());
+	// A game whose window is not known yet publishes nothing.
+	publisher.Publish(nullptr);
+	CHECK(!ReadGameWindow(record, name.c_str()));
+	publisher.Publish(reinterpret_cast<HWND>(static_cast<ULONG_PTR>(0x1234)));
+	CHECK(ReadGameWindow(record, name.c_str()) && record.pid == GetCurrentProcessId() && record.window == 0x1234);
+	// A new window replaces the old one.
+	publisher.Publish(reinterpret_cast<HWND>(static_cast<ULONG_PTR>(0x5678)));
+	CHECK(ReadGameWindow(record, name.c_str()) && record.window == 0x5678);
+}
 #endif
 
 static void TestReplayLinks() {
@@ -355,6 +377,7 @@ int main() {
 	TestOnlyTheConnectLinkIsAccepted();
 #ifdef _WIN32
 	TestARunningGameReceivesTheLink();
+	TestTheLauncherFindsTheGameWindow();
 #endif
 	std::printf("join_link_test: all tests passed\n");
 	return 0;
