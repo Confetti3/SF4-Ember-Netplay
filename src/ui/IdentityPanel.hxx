@@ -167,6 +167,9 @@ private:
     void SelectBridge(const ShellView& view, const std::string& bridge);
     // Sends a waiting Play or Stop, or the assignment refresh the matches screen wants.
     void SendTournament(const ShellView& view, const std::string& screen, const Submit& submit);
+    // The tournament matches screen's rows, and its own rows' presses (IdentityMatches.cxx).
+    void MatchesRows(const ShellView& view, std::vector<MenuEntry>& rows) const;
+    bool MatchesActivate(const MenuAction& a, const ShellView& view);
     // Says so when the list a link's refresh brought back lacks its match.
     void CheckOpenedMatch(const netplay::tournament::AssignmentList& list);
     // Reads the service list again after the helper answered for a dormant
@@ -190,8 +193,11 @@ private:
     bool Removed(const ShellView& view, const std::string& bridge) const;
     // Connect Discord's own rows: true when `a` was one of them.
     bool ConnectActivate(const MenuAction& a, const ShellView& view);
-    // Connect Discord's steps start, or start again, from wherever they stand.
+    // Connect Discord's steps start, or start again, from wherever they stand,
+    // ending another site's sign-in first.
     void StartSteps();
+    // Connect Discord's steps run, which only Discord has.
+    bool StepsRunFor(SignInSite site) const;
     // A Discord account was read: running steps open Discord's page for a
     // service with none connected, and stop for one already connected.
     void ConnectAccountRead(const ShellView& view);
@@ -205,6 +211,8 @@ private:
     // Stops the attempt: what it queued and has not sent goes too, and an
     // answer already out no longer advances it.
     void CancelAttempt();
+    // Ends another site's sign-in under way on its service, before `site` starts one.
+    void EndOtherSignIn(SignInSite site);
     // Connect Discord's steps run, or a site's page is being opened.
     bool Starting() const;
     // The site has steps or a sign-in under way, which Cancel stops.
@@ -285,7 +293,10 @@ private:
     // Connect Discord's own steps up to Discord's page (IdentityConnect.cxx):
     // running by themselves, or stopped by a failure or Cancel, which only
     // Connect or Try again restarts. A link for the same service shows them
-    // rather than starting again. None while a sign-in is under way.
+    // rather than starting again.
+    // Invariant: steps_ and signIn_ never both hold an attempt. The steps
+    // start with no sign-in (StartSteps), and a sign-in starts with no steps
+    // (OpenSignIn); Starting() asserts it.
     enum class Steps { None, Running, Stopped };
     Steps steps_ = Steps::None;
     // A site's sign-in in the browser, one at a time (IdentitySignIn.cxx):

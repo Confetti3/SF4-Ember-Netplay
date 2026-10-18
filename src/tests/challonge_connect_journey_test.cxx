@@ -286,22 +286,48 @@ void DiscordKeepsItsWait(){
  Check(h.count(IdentityOp::DiscordCancel)==0,"The wait was cancelled");
 }
 
+// Only starting another site's sign-in ends Challonge's: opening Connect
+// Discord just to look leaves a Challonge sign-in waiting for the browser,
+// still read again on its own screen.
+void LookingAtDiscordKeepsChallonge(){
+ using namespace sf4e;using netplay::IdentityOp;
+ Journey h;Ready(h);auto& id=h.view.identity;h.untilLimit=12;
+ ChallongeWaiting(h);
+ h.Screen("identity");for(int i=0;i<6;++i)h.answer();
+ h.Choose(DiscordConnectScreen);
+ Check(h.shell.Navigation().Screen()==DiscordConnectScreen,"The Discord row did not open Connect Discord");
+ for(int i=0;i<6;++i)h.answer();
+ Check(h.count(IdentityOp::ChallongeCancel)==0,"Opening Connect Discord ended Challonge's sign-in");
+ h.Screen(ChallongeConnectScreen);for(int i=0;i<6;++i)h.answer();
+ Check(h.row("ch-waiting")&&h.row("ch-cancel"),"Challonge's sign-in no longer waits after a look at Connect Discord");
+ id.challongeUser="1001";id.challongeName="kate";h.Frame(0,300);
+ Check(h.until(IdentityOp::ChallongeStatus),"Challonge's sign-in was not read again");
+ h.answer();
+ Check(h.status==loc::Tf("challonge.done","kate"),"Challonge's sign-in did not finish");
+}
+
 // A failed Challonge read says nothing off its own screen: Discord-only
 // players on the Ember ID screen see Discord as before, and Settings >
 // Discord reads only Discord's account.
 void ChallongeReadsQuietly(){
  using namespace sf4e;using netplay::IdentityOp;
  Journey h;Ready(h);auto& id=h.view.identity;
+ // The status line's tone too, to see that no error shows at all.
+ Tone tone=Tone::Neutral;
+ SetMenuStatusProbe([&](const char* s,Tone t){h.status=s;tone=t;});
  h.Screen("identity");
  Check(h.until(IdentityOp::BridgeInspect),"The Ember ID screen did not read Ember's service");
  Both(h);h.answer();
  Check(h.until(IdentityOp::DiscordStatus),"The Ember ID screen did not read Discord's account");
  id.discordUser="274220342558756145";id.discordName="kate";h.answer();
  Check(h.sent().back()->op==IdentityOp::ChallongeStatus,"The Ember ID screen did not read Challonge's account");
- h.answer(false,"service_unavailable");h.Frame(0,2);
- Check(h.status!=loc::T("identity.failure.unreachable"),"A failed Challonge read was said on the Ember ID screen");
+ h.answer(false,"service_unavailable");
+ for(int i=0;i<120;++i){h.Frame();Check(tone!=Tone::Error,"A failed Challonge read showed an error on the Ember ID screen");}
+ // The Ember ID screen may still be reading Ember's service again; that is all it says.
+ Check(h.status.empty()||h.status==loc::T("identity.working"),"A failed Challonge read left a status on the Ember ID screen");
  Check(h.row("discord-connect")&&h.row("discord-connect")->value=="kate","A failed Challonge read changed Discord's row");
  Check(h.row(ChallongeConnectScreen)&&h.row(ChallongeConnectScreen)->value.empty(),"A failed Challonge read still showed an account");
+ for(int i=0;i<6;++i){h.answer();Check(tone!=Tone::Error,"A failed Challonge read showed an error on the Ember ID screen");}
  // On its own screen it is said, with Try again.
  h.Screen(ChallongeConnectScreen);Profile(h,true,true);h.answer(false,"service_unavailable");
  Check(h.status==loc::T("identity.failure.unreachable")&&h.row("ch-retry"),"A failed read on Connect Challonge was not said");
@@ -316,6 +342,6 @@ void ChallongeReadsQuietly(){
 }
 }
 void RunChallongeConnectJourneys(){
- DiscordFirst();OneSignInAtATime();DiscordKeepsItsWait();ChallongeReadsQuietly();
+ DiscordFirst();OneSignInAtATime();DiscordKeepsItsWait();LookingAtDiscordKeepsChallonge();ChallongeReadsQuietly();
  ChallongeRow();ChallongeConnects();ChallongeStops();ChallongeOffAndRetry();
 }

@@ -9,6 +9,7 @@
 #include "IdentityRows.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
+#include <cassert>
 
 namespace sf4e { namespace ui {
 using netplay::IdentityOp;
@@ -39,12 +40,16 @@ void IdentityPanel::ShowAccount(MenuEntry& row, SignInSite site, const std::stri
 }
 
 bool IdentityPanel::Starting() const {
+    assert(steps_ == Steps::None || !signIn_);
     return steps_ == Steps::Running || (signIn_ && signIn_->phase == SignInAttempt::Phase::Opening);
 }
 
 bool IdentityPanel::ActiveFor(SignInSite site) const {
-    if (site == SignInSite::Discord && steps_ == Steps::Running) return true;
-    return signIn_ && signIn_->site == site && signIn_->phase != SignInAttempt::Phase::Stopped;
+    return StepsRunFor(site) || (signIn_ && signIn_->site == site && signIn_->phase != SignInAttempt::Phase::Stopped);
+}
+
+void IdentityPanel::EndOtherSignIn(SignInSite site) {
+    if (signIn_ && signIn_->site != site && signIn_->phase != SignInAttempt::Phase::Stopped) CancelAttempt();
 }
 
 bool IdentityPanel::WaitingOn(SignInSite site, const std::string& bridge) const {
@@ -52,8 +57,7 @@ bool IdentityPanel::WaitingOn(SignInSite site, const std::string& bridge) const 
 }
 
 void IdentityPanel::OpenSignIn(SignInSite site, const std::string& bridge) {
-    // Another site's sign-in under way ends on its service first.
-    if (signIn_ && signIn_->site != site && signIn_->phase != SignInAttempt::Phase::Stopped) CancelAttempt();
+    EndOtherSignIn(site);
     const auto& accounts = Accounts(site);
     const auto account = accounts.find(bridge);
     steps_ = Steps::None;
@@ -140,8 +144,7 @@ void IdentityPanel::SignInRows(const ShellView& v, SignInSite site, const netpla
     const auto account = accounts.find(target.id);
     const bool failed = account != accounts.end() && account->second.failed;
     const bool read = SiteBridge(v, site) == target.id && account != accounts.end() && account->second.read && !failed;
-    const bool starting = (site == SignInSite::Discord && steps_ == Steps::Running) ||
-        (signIn_ && signIn_->site == site && signIn_->phase == SignInAttempt::Phase::Opening);
+    const bool starting = StepsRunFor(site) || (signIn_ && signIn_->site == site && signIn_->phase == SignInAttempt::Phase::Opening);
     if (WaitingOn(site, target.id)) {
         rows.push_back(InfoRow(ids.waiting, loc::T(words.waitingLabel), {}, loc::T(words.waitingDetail)));
     } else if (starting && busy) {
