@@ -32,8 +32,7 @@ std::string MatchStripStateLine(const MatchStripView& view) {
     // A spectator's place in the room, in the words of the Training room line.
     const std::string place=view.queuePosition==1?loc::T("match.up_next"):
         view.queuePosition>1?loc::Tf("training.room.queued",view.queuePosition,view.queueLength):std::string();
-    const std::string unread=view.unreadChat?loc::Tf("training.room.unread",view.unreadChat):std::string();
-    return place+(place.empty()||unread.empty()?"":"  \xC2\xB7  ")+unread;
+    return place;
 }
 std::array<MatchTelemetryCell,3> MatchTelemetryCells(const MatchStripView& view) {
     if(view.spectator)return {{

@@ -734,7 +734,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         strip.rollbackFrames = status.rollbackFrames;
         strip.pingMs = status.pingMs; strip.appliedDelay = status.appliedDelay;
         strip.spectator = status.spectator; strip.behindFrames = status.spectatorBacklog; strip.ownDelays = status.ownDelays;
-        strip.queuePosition = status.queuePosition; strip.queueLength = status.queueLength; strip.unreadChat = shell.UnreadChat();
+        strip.queuePosition = status.queuePosition; strip.queueLength = status.queueLength;
         strip.size = snapshot.preferences.matchHudSize; strip.raised = snapshot.preferences.matchHudRaised; strip.anchor = snapshot.preferences.matchHudAnchor;
         strip.layout = snapshot.preferences.matchHudLayout; strip.nameOffset = snapshot.preferences.matchHudNameOffset; strip.spectators = status.spectators;
         strip.notice = status.lastError; strip.noticeSeverity = static_cast<int>(status.lastErrorSeverity);
