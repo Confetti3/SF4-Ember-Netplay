@@ -71,6 +71,7 @@ pub async fn lookup(
                     challonge_user_id: found.user_id,
                     ember_id: found.ember_id,
                     participant_id: found.participant_id,
+                    connected_at: found.connected_at,
                 })
                 .collect();
             Ok(LookupAnswer { players, challonge })

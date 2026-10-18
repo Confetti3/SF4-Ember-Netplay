@@ -16,7 +16,7 @@ use ember_protocol::{
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde_json::json;
 
-use super::{account, revoke_link};
+use super::{account, revoke_link, sign_ins};
 use crate::{
     ctx::Ctx,
     error::{ApiFailure, Result},
@@ -25,8 +25,8 @@ use crate::{
 };
 
 /// A site whose sign-in connects an account to an Ember ID. Each has its own
-/// accounts, sign-ins and withdrawals tables, shaped alike where this module
-/// and `routes::sign_in` read them. (A third site is the time to fold them
+/// accounts, sign-ins (`sign_ins`) and withdrawals tables, shaped alike
+/// where this module reads them. (A third site is the time to fold them
 /// into one set of tables with a `site` column.)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Site {
@@ -39,6 +39,8 @@ pub struct Found<'a> {
     /// The key the lookup asked with.
     pub asked: &'a str,
     pub user_id: String,
+    /// When the account connected.
+    pub connected_at: u64,
     pub ember_id: EmberId,
     pub participant_id: String,
 }
@@ -67,13 +69,6 @@ impl Site {
         }
     }
 
-    pub(crate) fn sign_ins(self) -> &'static str {
-        match self {
-            Self::Discord => "discord_sign_ins",
-            Self::Challonge => "challonge_sign_ins",
-        }
-    }
-
     fn withdrawals(self) -> &'static str {
         match self {
             Self::Discord => "discord_withdrawals",
@@ -83,15 +78,6 @@ impl Site {
 
     fn subject(self, user_id: &str) -> String {
         format!("{}:{user_id}", self.name())
-    }
-
-    /// Ends the Ember ID's sign-ins in flight.
-    pub fn end_sign_ins(self, tx: &Transaction<'_>, ember_id: &str) -> Result<()> {
-        tx.execute(
-            &format!("DELETE FROM {} WHERE ember_id = ?1", self.sign_ins()),
-            [ember_id],
-        )?;
-        Ok(())
     }
 
     /// The Ember ID's connected account, if any.
@@ -146,11 +132,22 @@ impl Site {
                 "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES (?1, ?2, ?3, ?4)",
                 params![user_id, ember_id, username, ctx.now],
             )?,
-            Self::Challonge => tx.execute(
-                "INSERT INTO challonge_accounts (user_id, ember_id, username, username_key, connected_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![user_id, ember_id, username, username_key(username), ctx.now],
-            )?,
+            Self::Challonge => {
+                // Challonge lets an account rename, and a name it gave up can
+                // be taken by another. An older account stored under this
+                // name answers for it no more; it answers again for the name
+                // it next connects with.
+                let key = username_key(username);
+                tx.execute(
+                    "UPDATE challonge_accounts SET username_key = NULL WHERE username_key = ?1 AND user_id != ?2",
+                    params![key, user_id],
+                )?;
+                tx.execute(
+                    "INSERT INTO challonge_accounts (user_id, ember_id, username, username_key, connected_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5)",
+                    params![user_id, ember_id, username, key, ctx.now],
+                )?
+            }
         };
         Ok(())
     }
@@ -177,7 +174,7 @@ impl Site {
     /// (including one whose answer is still being checked with the site) and
     /// the links its sign-in approved.
     pub fn disconnect(self, tx: &Transaction<'_>, ctx: &Ctx, ember_id: &str) -> Result<()> {
-        self.end_sign_ins(tx, ember_id)?;
+        sign_ins::end(tx, self, ember_id)?;
         let removed: Option<String> = tx
             .query_row(
                 &format!(
@@ -199,24 +196,28 @@ impl Site {
     /// The account connected for a lookup key: a Discord user ID (anything
     /// else, such as the emails BluMint also sends, finds nothing), or a
     /// Challonge username compared without case, where the account connected
-    /// most recently under that name answers. Its user ID, Ember ID and
-    /// username.
-    fn find(self, tx: &Transaction<'_>, key: &str) -> Result<Option<(String, String, String)>> {
+    /// most recently under that name answers. Its user ID, Ember ID,
+    /// username and when it connected.
+    fn find(
+        self,
+        tx: &Transaction<'_>,
+        key: &str,
+    ) -> Result<Option<(String, String, String, u64)>> {
         let (sql, key) = match self {
             Self::Discord if !is_user_id(key) => return Ok(None),
             Self::Discord => (
-                "SELECT user_id, ember_id, username FROM discord_accounts WHERE user_id = ?1",
+                "SELECT user_id, ember_id, username, connected_at FROM discord_accounts WHERE user_id = ?1",
                 key.to_owned(),
             ),
             Self::Challonge => (
-                "SELECT user_id, ember_id, username FROM challonge_accounts WHERE username_key = ?1
+                "SELECT user_id, ember_id, username, connected_at FROM challonge_accounts WHERE username_key = ?1
                  ORDER BY connected_at DESC, user_id LIMIT 1",
                 username_key(key),
             ),
         };
         Ok(tx
             .query_row(sql, [key], |row| {
-                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
             })
             .optional()?)
     }
@@ -234,7 +235,7 @@ impl Site {
     ) -> Result<Vec<Found<'a>>> {
         let mut found: Vec<Found<'a>> = Vec::new();
         for asked in keys {
-            let Some((user_id, ember_id, username)) = self.find(tx, asked)? else {
+            let Some((user_id, ember_id, username, connected_at)) = self.find(tx, asked)? else {
                 continue;
             };
             let ember_id = EmberId::parse(&ember_id).map_err(|_| ApiFailure::unavailable())?;
@@ -249,6 +250,7 @@ impl Site {
             found.push(Found {
                 asked,
                 user_id,
+                connected_at,
                 ember_id,
                 participant_id,
             });
@@ -426,5 +428,5 @@ pub fn withdraw(tx: &Transaction<'_>, link_id: &str) -> Result<()> {
         ),
         params![user_id, connection_id, ember_id],
     )?;
-    site.end_sign_ins(tx, &ember_id)
+    sign_ins::end(tx, site, &ember_id)
 }

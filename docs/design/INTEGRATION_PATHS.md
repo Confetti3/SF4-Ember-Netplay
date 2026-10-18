@@ -169,7 +169,7 @@ not ask for the match again and its host takes it.
 
 `POST /v1/players/lookup` (provider credential, `discord_lookup` or kind
 `blumint` for `discord`, `challonge_lookup` for `challonge`; either list may
-be left out):
+be left out, but not both, so `{}` is `invalid_request` as it always was):
 
 ```json
 { "discord": ["80351110224678912"], "challonge": ["Kate_99"] }
@@ -182,7 +182,7 @@ lists together:
 ```json
 {
   "players": [ { "discord_user_id": "80351110224678912", "ember_id": "emb1_...", "participant_id": "par_..." } ],
-  "challonge": [ { "username": "Kate_99", "challonge_user_id": "1001", "ember_id": "emb1_...", "participant_id": "par_..." } ]
+  "challonge": [ { "username": "Kate_99", "challonge_user_id": "1001", "ember_id": "emb1_...", "participant_id": "par_...", "connected_at": 1792000000 } ]
 }
 ```
 
@@ -190,8 +190,10 @@ lists together:
 are compared without case and answered as asked; one that is not a username
 (1 to 64 letters, digits, `_`, `-` or `.`) is `invalid_request`. An account
 with no connected Ember ID is left out, and an Ember ID found twice is
-answered once. A list the connection may not use answers `forbidden`, even
-next to one it may. BluMint's `/v1/blumint/lookup` uses the same code.
+answered once. `connected_at` is when the account connected, the last time
+the bridge saw that username on it (see Challonge sign-in in
+`docs/guides/INTEGRATIONS.md` for what a rename does). A list the connection
+may not use answers `forbidden`, even next to one it may. BluMint's `/v1/blumint/lookup` uses the same code.
 
 ## Rooms for a connection
 

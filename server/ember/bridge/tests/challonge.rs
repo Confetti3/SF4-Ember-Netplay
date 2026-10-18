@@ -164,7 +164,10 @@ async fn challonge_refusing_or_failing_connects_nothing() {
     let kate = player(&bridge, 1).await;
     for (code, says) in [
         ("busy", "Challonge did not answer"),
-        ("odd-name", "Challonge did not answer"),
+        (
+            "odd-name",
+            "username <strong>has space</strong> cannot be used to find you",
+        ),
         ("made-up", "Challonge did not answer"),
     ] {
         let page = sign_in(&bridge, &kate, code).await;
@@ -215,6 +218,22 @@ async fn a_second_answer_or_a_cancel_while_challonge_checks_wins_nothing() {
         tokio::spawn(async move { client.get(url).send().await.unwrap().text().await.unwrap() });
     fake.arrived.notified().await;
     assert_eq!(cancel(&bridge, &kate).await.0, StatusCode::OK);
+    fake.release.notify_one();
+    let page = late.await.unwrap();
+    assert!(page.contains("Sign-in expired"), "{page}");
+    assert_eq!(account(&bridge, &kate).await, None);
+
+    // Disconnected in Ember while Challonge checks: the same.
+    connect(&bridge, &kate, "sam").await;
+    let state = start(&bridge, &kate).await;
+    let url = bridge.url(&format!(
+        "/v1/challonge/callback?code=held-kate&state={state}"
+    ));
+    let client = bridge.client.clone();
+    let late =
+        tokio::spawn(async move { client.get(url).send().await.unwrap().text().await.unwrap() });
+    fake.arrived.notified().await;
+    assert_eq!(disconnect(&bridge, &kate).await.0, StatusCode::OK);
     fake.release.notify_one();
     let page = late.await.unwrap();
     assert!(page.contains("Sign-in expired"), "{page}");
@@ -315,10 +334,10 @@ async fn the_bridge_keeps_to_its_monthly_challonge_budget() {
     let kates = start(&bridge, &kate).await;
     let sams = start(&bridge, &sam).await;
     connect_with(&bridge, &kates, "kate").await;
-    assert_eq!(requests_spent(&bridge).await, (2, false));
-    // ...but the second exchange spends the last of the budget, and crosses 80%.
+    assert_eq!(requests_spent(&bridge).await, 2);
+    // ...but the second exchange spends the last of the budget.
     connect_with(&bridge, &sams, "sam").await;
-    assert_eq!(requests_spent(&bridge).await, (4, true));
+    assert_eq!(requests_spent(&bridge).await, 4);
     assert_eq!(fake.seen("/oauth/token").len(), 2);
     // Now starts are refused.
     let (status, body) = try_start(&bridge, &kate).await;
@@ -334,7 +353,67 @@ async fn the_bridge_keeps_to_its_monthly_challonge_budget() {
     bridge.open_session(&mut kate).await;
     // Signing in again with the account it has connects without asking.
     connect(&bridge, &kate, "kate").await;
-    assert_eq!(requests_spent(&bridge).await, (2, false));
+    assert_eq!(requests_spent(&bridge).await, 2);
+}
+
+#[tokio::test]
+async fn throwaway_ember_ids_spend_at_most_a_days_share() {
+    let fake = Challonge::default();
+    let bridge = bridge_with(
+        &fake,
+        json!({ "daily_request_budget": 4, "monthly_request_budget": 10 }),
+        with_secret(),
+    )
+    .await;
+    // Each new Ember ID starts a sign-in and answers it with a made-up code,
+    // which Challonge refuses after the bridge has spent the exchange.
+    let mut players = Vec::new();
+    for byte in 1..=3 {
+        players.push(player(&bridge, byte).await);
+    }
+    for player in &players[..2] {
+        let page = sign_in(&bridge, player, "made-up").await;
+        assert!(page.contains("Challonge did not answer"), "{page}");
+    }
+    assert_eq!(requests_spent(&bridge).await, 4);
+    // The day's share is spent: a start is refused.
+    let (status, body) = try_start(&bridge, &players[2]).await;
+    assert_eq!(
+        (status, code(&body)),
+        (StatusCode::SERVICE_UNAVAILABLE, "service_unavailable"),
+        "{body}"
+    );
+    // The month keeps the rest for the next days.
+    bridge.clock.advance(24 * 3600);
+    let mut kate = bridge.player(9);
+    bridge.open_session(&mut kate).await;
+    connect(&bridge, &kate, "kate").await;
+    assert_eq!(requests_spent(&bridge).await, 6);
+    assert_eq!(fake.seen("/oauth/token").len(), 3);
+}
+
+#[tokio::test]
+async fn starts_are_limited_across_the_bridge_too() {
+    let fake = Challonge::default();
+    let bridge = bridge_with(&fake, json!({ "starts_per_hour": 2 }), with_secret()).await;
+    let players = [
+        player(&bridge, 1).await,
+        player(&bridge, 2).await,
+        player(&bridge, 3).await,
+    ];
+    start(&bridge, &players[0]).await;
+    start(&bridge, &players[1]).await;
+    let (status, body) = try_start(&bridge, &players[2]).await;
+    assert_eq!(
+        (status, code(&body)),
+        (StatusCode::TOO_MANY_REQUESTS, "rate_limited"),
+        "{body}"
+    );
+    // An hour later there is room again.
+    bridge.clock.advance(3600);
+    let mut third = bridge.player(3);
+    bridge.open_session(&mut third).await;
+    start(&bridge, &third).await;
 }
 
 #[tokio::test]
@@ -359,18 +438,18 @@ async fn connect_with(bridge: &Bridge, state: &str, who: &str) {
     assert!(page.contains("Challonge connected"), "{page}");
 }
 
-/// This month's Challonge requests, and whether the 80% warning was logged.
-async fn requests_spent(bridge: &Bridge) -> (u64, bool) {
+/// This month's Challonge requests.
+async fn requests_spent(bridge: &Bridge) -> u64 {
     let now = bridge.clock.now();
     bridge
         .state()
         .db
         .read(move |tx| {
             Ok(tx.query_row(
-                "SELECT spent, warned FROM site_requests
-                 WHERE site = 'challonge' AND month = strftime('%Y-%m', ?1, 'unixepoch')",
+                "SELECT COALESCE(SUM(spent), 0) FROM site_requests
+                 WHERE site = 'challonge' AND day LIKE strftime('%Y-%m', ?1, 'unixepoch') || '-%'",
                 [now],
-                |row| Ok((row.get(0)?, row.get(1)?)),
+                |row| row.get(0),
             )?)
         })
         .await
@@ -437,6 +516,56 @@ async fn a_lookup_finds_connected_players_by_username_without_case() {
     assert_eq!(status, StatusCode::BAD_REQUEST);
     let (status, _) = lookup(&bridge, BOTH, &names, &ids[..12]).await;
     assert_eq!(status, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn a_name_another_account_took_answers_for_that_account_only() {
+    let fake = Challonge::default();
+    let bridge = bridge(&fake).await;
+    let (kate, sam) = (player(&bridge, 1).await, player(&bridge, 2).await);
+    connect(&bridge, &kate, "kate").await;
+    let connected_at = bridge.clock.now();
+    let (_, answer) = lookup(&bridge, BRACKETS, &[KATE.1], &[]).await;
+    assert_eq!(answer["challonge"][0]["connected_at"], connected_at);
+
+    // Kate renamed on Challonge, and another account took her old name.
+    bridge.clock.advance(60);
+    connect(&bridge, &sam, "rival").await;
+    let taken = found(&bridge, BOTH, &["kate_99"]).await;
+    assert_eq!(
+        taken,
+        [(
+            "kate_99".to_owned(),
+            RIVAL.0.to_owned(),
+            sam.id().to_string()
+        )]
+    );
+    // Kate's account stays connected; it answers again for the name it
+    // next connects with.
+    assert_eq!(account(&bridge, &kate).await.as_deref(), Some(KATE.0));
+    bridge.clock.advance(60);
+    connect(&bridge, &kate, "kate").await;
+    assert_eq!(
+        found(&bridge, BOTH, &["Kate_99"]).await[0].2,
+        kate.id().as_str()
+    );
+}
+
+#[tokio::test]
+async fn a_lookup_that_names_no_list_is_refused() {
+    let fake = Challonge::default();
+    let bridge = bridge(&fake).await;
+    for connection in [BRACKETS, DISCORD_ONLY, BOTH] {
+        let provider = bridge.provider(connection).await;
+        let (status, body) = bridge
+            .post(&provider, "/v1/players/lookup", json!({}))
+            .await;
+        assert_eq!(
+            (status, code(&body)),
+            (StatusCode::BAD_REQUEST, "invalid_request"),
+            "{connection}"
+        );
+    }
 }
 
 #[tokio::test]

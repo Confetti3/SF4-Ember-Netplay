@@ -3,12 +3,14 @@
 -- account per Ember ID and one Ember ID per account; the latest sign-in
 -- replaces both. Bracket connectors find players by the username a
 -- tournament entry shows, which Challonge compares without case:
--- username_key is its lowercase form, as it was when the account connected.
+-- username_key is its lowercase form, as it was when the account connected,
+-- or NULL once another account connected with that name since, so the
+-- older one no longer answers for it.
 CREATE TABLE challonge_accounts (
     user_id TEXT PRIMARY KEY,
     ember_id TEXT NOT NULL UNIQUE REFERENCES identities(ember_id) ON DELETE CASCADE,
     username TEXT NOT NULL,
-    username_key TEXT NOT NULL,
+    username_key TEXT,
     connected_at INTEGER NOT NULL
 ) WITHOUT ROWID;
 CREATE INDEX challonge_accounts_username ON challonge_accounts (username_key);
@@ -37,15 +39,14 @@ CREATE TABLE challonge_withdrawals (
     PRIMARY KEY (user_id, connection_id)
 ) WITHOUT ROWID;
 
--- Requests the bridge made to a site with a monthly budget (Challonge's
--- monthly_request_budget), by calendar month in UTC ('YYYY-MM'); warned
--- records that the month's 80% warning was logged.
+-- Requests the bridge made to a site with a request budget (Challonge's
+-- daily_request_budget and monthly_request_budget), by day in UTC
+-- ('YYYY-MM-DD'); a month's spending is the sum of its days.
 CREATE TABLE site_requests (
     site TEXT NOT NULL,
-    month TEXT NOT NULL,
+    day TEXT NOT NULL,
     spent INTEGER NOT NULL,
-    warned INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (site, month)
+    PRIMARY KEY (site, day)
 ) WITHOUT ROWID;
 
 -- A link a Challonge sign-in approved: approved_via 'challonge', with

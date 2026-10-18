@@ -320,21 +320,30 @@ until a live sign-in settles it.
 
 Challonge's free API tier allows 500 requests a month. A sign-in costs two
 (the token exchange and `/me`), and the bridge spends at most
-`monthly_request_budget` (default 400) per calendar month in UTC, counted in
-the database: it takes a sign-in's two before the exchange, so one Challonge
-refuses still counts both. At the budget a start answers
+`monthly_request_budget` (default 400) per calendar month and
+`daily_request_budget` (default 40) per day, both in UTC and counted in the
+database: it takes a sign-in's two before the exchange, so one Challonge
+refuses still counts both. At either budget a start answers
 `service_unavailable` and a sign-in already started ends with a page asking
-the player to try again later. The bridge logs a warning when 80% is spent.
+the player to try again later. Starts are also limited to `starts_per_hour`
+(default 30) across the bridge, besides each Ember ID's ten an hour, so
+throwaway Ember IDs can spend at most a day's share. The bridge logs a
+warning when 80% of the month's budget is spent.
 
 Links a Challonge sign-in approved (`approved_via` `challonge`, claim
 `challonge:<user ID>`) follow the account exactly as Discord's do.
 
 The bridge keeps the username Challonge gave when the account connected, and
-lookups match on it. A player who renames on Challonge is found under the
-old name until they connect again, and if two connected accounts ever had
-the same name, the one connected most recently answers for it. A bracket
-connector that cares can compare names with Challonge before a match, or ask
-players to reconnect after a rename.
+lookups match on it; Challonge does not tell the bridge when an account
+renames. When another account connects with a name the bridge already holds,
+the older account stops answering for that name (it stays connected, and
+answers for whatever name it next connects with). What this cannot catch: a
+player who renamed on Challonge is still found under the old name, so if
+someone who never connected to Ember takes that name, a lookup for it finds
+the player who gave it up. Comparing the name with Challonge does not help,
+since both had it. Each answer carries `connected_at`, when the bridge last
+saw the account with that name: a connector can refuse names older than it
+trusts, or ask its players to connect again before an event.
 
 ## BluMint
 

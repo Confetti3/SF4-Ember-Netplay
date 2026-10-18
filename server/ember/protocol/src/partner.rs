@@ -15,16 +15,39 @@ pub const RESULTS_FEATURE: &str = "results.signed";
 pub const MAX_LOOKUP: usize = 32;
 
 /// `POST /v1/players/lookup`. Each list needs its own connection setting
-/// (`discord_lookup`, `challonge_lookup`); an empty list asks nothing.
+/// (`discord_lookup`, `challonge_lookup`); an empty list asks nothing. A
+/// lookup names at least one list: `{}` is refused, as it was before
+/// `challonge` existed.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(try_from = "NamedLists")]
 pub struct Lookup {
-    #[serde(default)]
     pub discord: Vec<String>,
     /// Challonge usernames, as a tournament entry shows them. Compared
     /// without case (`challonge::username_key`).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub challonge: Vec<String>,
+}
+
+/// `Lookup` as it arrives, before it is checked to name a list.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct NamedLists {
+    discord: Option<Vec<String>>,
+    challonge: Option<Vec<String>>,
+}
+
+impl TryFrom<NamedLists> for Lookup {
+    type Error = &'static str;
+
+    fn try_from(lists: NamedLists) -> Result<Self, Self::Error> {
+        if lists.discord.is_none() && lists.challonge.is_none() {
+            return Err("a lookup names discord, challonge or both");
+        }
+        Ok(Self {
+            discord: lists.discord.unwrap_or_default(),
+            challonge: lists.challonge.unwrap_or_default(),
+        })
+    }
 }
 
 /// The players found, in the order asked. An account with no connected
@@ -53,6 +76,10 @@ pub struct FoundChallongePlayer {
     pub challonge_user_id: String,
     pub ember_id: EmberId,
     pub participant_id: String,
+    /// When the account connected, which is when the bridge last saw that
+    /// it had this username. A connector may refuse an old one: Challonge
+    /// lets an account rename, and the bridge does not see that.
+    pub connected_at: u64,
 }
 
 /// The `type` of a result the bridge sends to a connection's `results_url`.
@@ -100,4 +127,23 @@ pub struct ResultParticipant {
     pub slot: u8,
     /// Games won that count.
     pub score: u8,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_lookup_names_at_least_one_list() {
+        let parse = |text: &str| serde_json::from_str::<Lookup>(text);
+        assert!(parse("{}").is_err());
+        assert!(parse(r#"{"discord": [], "email": []}"#).is_err());
+        assert_eq!(parse(r#"{"discord": []}"#).unwrap(), Lookup::default());
+        let challonge = parse(r#"{"challonge": ["Kate_99"]}"#).unwrap();
+        assert_eq!((challonge.discord.len(), challonge.challonge.len()), (0, 1));
+        // What a client sends always names `discord`, so it reads back.
+        let sent = serde_json::to_string(&Lookup::default()).unwrap();
+        assert_eq!(sent, r#"{"discord":[]}"#);
+        assert_eq!(parse(&sent).unwrap(), Lookup::default());
+    }
 }

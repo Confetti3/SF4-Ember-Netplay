@@ -1,70 +1,108 @@
-//! A site's allowance of requests per calendar month in UTC, for a site that
-//! limits them (Challonge's `monthly_request_budget`), kept in the database
-//! so a restart does not reset it. A sign-in's exchange takes its two
-//! requests (the token and `/me`) before it calls the site, so a month never
-//! goes over; one the site refuses still counts both.
-use rusqlite::{OptionalExtension, Transaction, params};
+//! A site's allowance of requests, for a site that limits them
+//! (`provider::Limits`, Challonge's): per calendar month and per day in UTC,
+//! counted by day in the database so a restart does not reset them. A
+//! sign-in's exchange takes its two requests (the token and `/me`) before it
+//! calls the site, so neither limit is ever passed; one the site refuses
+//! still counts both.
+use rusqlite::{Transaction, params};
 
+use super::provider::Limits;
 use crate::{AppState, error::Result, linking::Site};
 
 /// Requests a sign-in's exchange makes.
 pub const PER_SIGN_IN: u64 = 2;
 
-/// This month's key and what was spent in it, with whether its warning was
-/// logged.
-fn month(tx: &Transaction<'_>, site: Site, now: u64) -> Result<(String, u64, bool)> {
-    let month: String =
-        tx.query_row("SELECT strftime('%Y-%m', ?1, 'unixepoch')", [now], |row| {
-            row.get(0)
-        })?;
-    let (spent, warned) = tx
-        .query_row(
-            "SELECT spent, warned FROM site_requests WHERE site = ?1 AND month = ?2",
-            params![site.name(), month],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )
-        .optional()?
-        .unwrap_or_default();
-    Ok((month, spent, warned))
+/// Today's key, and what was spent today and this month.
+fn spent(tx: &Transaction<'_>, site: Site, now: u64) -> Result<(String, u64, u64)> {
+    let day: String = tx.query_row(
+        "SELECT strftime('%Y-%m-%d', ?1, 'unixepoch')",
+        [now],
+        |row| row.get(0),
+    )?;
+    let (today, month): (u64, u64) = tx.query_row(
+        "SELECT COALESCE(SUM(CASE WHEN day = ?2 THEN spent END), 0), COALESCE(SUM(spent), 0)
+         FROM site_requests WHERE site = ?1 AND day LIKE substr(?2, 1, 7) || '-%'",
+        params![site.name(), day],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?;
+    Ok((day, today, month))
 }
 
-/// Whether this month's budget still has a sign-in's exchange in it.
-pub async fn has_room(state: &AppState, site: Site, budget: u64) -> Result<bool> {
+/// Whether spending from `before` to `after` passes 80% of the month's
+/// budget. Counts only grow within a month, so it happens once.
+fn passes_warning(before: u64, after: u64, monthly: u64) -> bool {
+    before * 5 < monthly * 4 && after * 5 >= monthly * 4
+}
+
+fn room(today: u64, month: u64, limits: Limits) -> bool {
+    today + PER_SIGN_IN <= limits.daily && month + PER_SIGN_IN <= limits.monthly
+}
+
+/// Whether today's and this month's budgets still have a sign-in's
+/// exchange in them.
+pub async fn has_room(state: &AppState, site: Site, limits: Limits) -> Result<bool> {
     let now = state.now();
     state
         .db
-        .read(move |tx| Ok(month(tx, site, now)?.1 + PER_SIGN_IN <= budget))
+        .read(move |tx| {
+            let (_, today, month) = spent(tx, site, now)?;
+            Ok(room(today, month, limits))
+        })
         .await
 }
 
-/// Takes a sign-in's exchange from this month's budget, or says there is
-/// none left. Logs a warning once a month, when 80% of it is spent.
-pub async fn spend(state: &AppState, site: Site, budget: u64) -> Result<bool> {
+/// Takes a sign-in's exchange from today's and this month's budgets, or
+/// says there is none left. Logs a warning when the month passes 80% of its
+/// budget.
+pub async fn spend(state: &AppState, site: Site, limits: Limits) -> Result<bool> {
     let now = state.now();
     let spent = state
         .db
         .write(move |tx| {
-            let (month, spent, warned) = month(tx, site, now)?;
-            if spent + PER_SIGN_IN > budget {
+            let (day, today, month) = spent(tx, site, now)?;
+            if !room(today, month, limits) {
                 return Ok(None);
             }
-            let spent = spent + PER_SIGN_IN;
-            let warn = !warned && spent * 5 >= budget * 4;
             tx.execute(
-                "INSERT INTO site_requests (site, month, spent, warned) VALUES (?1, ?2, ?3, ?4)
-                 ON CONFLICT (site, month) DO UPDATE SET spent = excluded.spent, warned = excluded.warned",
-                params![site.name(), month, spent, warned || warn],
+                "INSERT INTO site_requests (site, day, spent) VALUES (?1, ?2, ?3)
+                 ON CONFLICT (site, day) DO UPDATE SET spent = spent + excluded.spent",
+                params![site.name(), day, PER_SIGN_IN],
             )?;
-            Ok(Some(warn.then_some(spent)))
+            Ok(Some((month, month + PER_SIGN_IN)))
         })
         .await?;
     // Logged once the count is stored, so a rolled-back write does not warn.
-    if let Some(Some(spent)) = spent {
+    if let Some((before, after)) = spent
+        && passes_warning(before, after, limits.monthly)
+    {
         eprintln!(
-            "ember-bridge: {spent} of this month's {budget} {} requests are spent; \
+            "ember-bridge: {after} of this month's {} {} requests are spent; \
              sign-in stops at the budget",
+            limits.monthly,
             site.name()
         );
     }
     Ok(spent.is_some())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_warning_comes_once_a_month_at_eighty_percent() {
+        let passes: Vec<u64> = (0..400)
+            .step_by(PER_SIGN_IN as usize)
+            .filter(|&before| passes_warning(before, before + PER_SIGN_IN, 400))
+            .collect();
+        assert_eq!(passes, [318]);
+        let limits = Limits {
+            monthly: 400,
+            daily: 40,
+            starts_per_hour: 30,
+        };
+        assert!(room(38, 100, limits));
+        assert!(!room(39, 100, limits));
+        assert!(!room(0, 399, limits));
+    }
 }

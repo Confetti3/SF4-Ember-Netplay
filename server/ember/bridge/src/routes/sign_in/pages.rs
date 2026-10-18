@@ -4,7 +4,7 @@
 use axum::response::Response;
 use ember_protocol::EmberId;
 
-use super::provider::{Routes, label};
+use super::provider::Profile;
 use crate::{
     config::{Config, Disputes},
     http::page,
@@ -44,9 +44,10 @@ impl Pages {
                 }
             }
         }
+        let profile = Profile::of(site);
         Self {
-            label: label(site),
-            callback: Routes::of(site).callback,
+            label: profile.label,
+            callback: profile.callback,
             named,
         }
     }
@@ -253,7 +254,22 @@ impl Pages {
         )
     }
 
-    /// The month's requests to the site are spent (`budget`).
+    /// The site's account has a username lookups cannot match, so connecting
+    /// it would find the player nowhere.
+    pub(super) fn unusable(&self, username: &str) -> Response {
+        let label = self.label;
+        finished(
+            "Not connected",
+            &format!(
+                "Your {label} username <strong>{}</strong> cannot be used to find you: \
+                 tournament sites match usernames of letters, digits, '_', '-' and '.'. \
+                 Change it on {label}, then choose Connect {label} in Ember again.",
+                html(username)
+            ),
+        )
+    }
+
+    /// The site's requests for today or this month are spent (`budget`).
     pub(super) fn busy(&self) -> Response {
         let label = self.label;
         finished(

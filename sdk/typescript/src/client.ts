@@ -212,6 +212,12 @@ export interface FoundChallongePlayer {
   challonge_user_id: string;
   ember_id: string;
   participant_id: string;
+  /**
+   * When the account connected (Unix seconds), the last time the bridge saw
+   * it had this username. Challonge lets accounts rename without telling the
+   * bridge, so you may refuse a name connected too long ago.
+   */
+  connected_at: number;
 }
 
 /** A public room to open for a player linked on your connection. */

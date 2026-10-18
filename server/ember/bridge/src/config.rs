@@ -109,6 +109,14 @@ pub struct Challonge {
     /// exchange and `/me` together. Challonge's free tier allows 500.
     #[serde(default = "challonge_monthly_budget")]
     pub monthly_request_budget: u64,
+    /// Requests to Challonge per day (UTC), so one day cannot spend the
+    /// month's budget.
+    #[serde(default = "challonge_daily_budget")]
+    pub daily_request_budget: u64,
+    /// Challonge sign-ins started per hour across the bridge, besides the
+    /// ten each Ember ID may start.
+    #[serde(default = "challonge_starts_per_hour")]
+    pub starts_per_hour: usize,
 }
 
 fn challonge_api() -> String {
@@ -129,6 +137,14 @@ fn challonge_scope() -> String {
 
 fn challonge_monthly_budget() -> u64 {
     400
+}
+
+fn challonge_daily_budget() -> u64 {
+    40
+}
+
+fn challonge_starts_per_hour() -> usize {
+    30
 }
 
 impl Challonge {
@@ -172,8 +188,14 @@ impl Challonge {
         if !scope {
             return Err("challonge.scope must be space-separated Challonge scopes".into());
         }
-        if self.monthly_request_budget < 2 {
-            return Err("challonge.monthly_request_budget must be at least 2, one sign-in".into());
+        if self.monthly_request_budget < 2 || self.daily_request_budget < 2 {
+            return Err(
+                "challonge.monthly_request_budget and daily_request_budget must be at least 2, one sign-in"
+                    .into(),
+            );
+        }
+        if self.starts_per_hour == 0 {
+            return Err("challonge.starts_per_hour must be at least 1".into());
         }
         Ok(())
     }
@@ -700,14 +722,18 @@ mod tests {
                 challonge.token_path.as_str(),
                 challonge.me_path.as_str(),
                 challonge.scope.as_str(),
-                challonge.monthly_request_budget
+                challonge.monthly_request_budget,
+                challonge.daily_request_budget,
+                challonge.starts_per_hour
             ),
             (
                 "https://api.challonge.com",
                 "/oauth/token",
                 "/v2.1/me.json",
                 "me",
-                400
+                400,
+                40,
+                30
             )
         );
         let with = |extra: serde_json::Value, loopback: bool| {
@@ -740,6 +766,8 @@ mod tests {
             json!({ "scope": "" }),
             json!({ "scope": "me\ntournaments:read" }),
             json!({ "monthly_request_budget": 1 }),
+            json!({ "daily_request_budget": 1 }),
+            json!({ "starts_per_hour": 0 }),
             json!({ "device_path": "/v2.1/oauth/authorize_device" }),
             json!({ "unknown": true }),
         ] {

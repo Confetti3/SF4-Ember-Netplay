@@ -13,6 +13,7 @@ use crate::{
     AppState, auth,
     http::ok,
     linking::{CODE_LIFETIME_SECS, Site},
+    routes::sign_in,
 };
 
 pub async fn well_known(State(state): State<AppState>) -> Response {
@@ -46,21 +47,11 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
     if state.config.mock_browser {
         features.push("link.mock_browser".into());
     }
-    for (site, accounts, sign_in) in [
-        (
-            Site::Discord,
-            ember_protocol::discord::ACCOUNTS_FEATURE,
-            ember_protocol::discord::FEATURE,
-        ),
-        (
-            Site::Challonge,
-            ember_protocol::challonge::ACCOUNTS_FEATURE,
-            ember_protocol::challonge::FEATURE,
-        ),
-    ] {
-        features.push(accounts.into());
-        if crate::routes::sign_in::offered(&state, site) {
-            features.push(sign_in.into());
+    for site in Site::ALL {
+        let profile = sign_in::Profile::of(site);
+        features.push(profile.accounts_feature.into());
+        if sign_in::offered(&state, site) {
+            features.push(profile.feature.into());
         }
     }
     if crate::routes::rooms::enabled(&state) {

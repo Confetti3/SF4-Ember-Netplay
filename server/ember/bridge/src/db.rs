@@ -390,7 +390,10 @@ mod tests {
                  INSERT INTO links (id, account_id, connection_id, ember_id, approved_via, claim_id, consented_at, approved_at, revoked_at, revoked_by)
                    VALUES ('lnk_old', 'ext_kate', 'c', 'emb_kate', 'browser', 'lkc_1', 10, 10, 20, 'unlinked_by_player'),
                           ('lnk_kate', 'ext_kate', 'c', 'emb_kate', 'provider_proxy', 'lkc_2', 30, 30, NULL, NULL),
-                          ('lnk_sam', 'ext_sam', 'c', 'emb_sam', 'discord', 'discord:2', 40, 40, NULL, NULL);",
+                          ('lnk_sam', 'ext_sam', 'c', 'emb_sam', 'discord', 'discord:2', 40, 40, NULL, NULL),
+                          ('lnk_gone', 'ext_sam', 'c', 'emb_sam', 'discord', 'discord:2', 5, 5, 8, 'unlinked_by_player');
+                 INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES ('2', 'emb_sam', 'sam', 1);
+                 INSERT INTO discord_withdrawals (user_id, connection_id) VALUES ('2', 'c');",
             )
             .unwrap();
         let indexes = |connection: &Connection| -> Vec<(String, Option<String>)> {
@@ -438,11 +441,22 @@ mod tests {
         assert_eq!(
             rows,
             [
+                ("lnk_gone".into(), "discord".into(), Some(8)),
                 ("lnk_kate".into(), "provider_proxy".into(), None),
                 ("lnk_old".into(), "browser".into(), Some(20)),
                 ("lnk_sam".into(), "discord".into(), None),
             ]
         );
+        // The Discord consent BluMint's lookups read is untouched.
+        let withdrawn: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM discord_withdrawals w JOIN discord_accounts a ON a.user_id = w.user_id
+                 WHERE w.connection_id = 'c' AND a.ember_id = 'emb_sam'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(withdrawn, 1);
         // A second active link for the same Ember ID is still refused, and a
         // Challonge sign-in's link is accepted once Kate's ends.
         let insert = |id: &str, via: &str| {

@@ -1,7 +1,8 @@
-//! What differs between the sites a player signs in with: their routes and
-//! proof actions, where the browser goes, the endpoints the code is exchanged
-//! and the user read at, and how the site says who signed in. The flow
-//! itself is `sign_in`'s. Nothing here logs or formats an error: the requests
+//! What differs between the sites a player signs in with: their names,
+//! routes, proof actions and capabilities features (`Profile`), where the
+//! browser goes, the endpoints the code is exchanged and the user read at,
+//! how the site says who signed in, and the limits on its requests
+//! (`OAuth`). The flow itself is `sign_in`'s. Nothing here logs or formats an error: the requests
 //! carry the client secret, the code and the access token, and a reqwest
 //! error's text includes the URL.
 use ember_protocol::{challenge::Action, challonge, discord};
@@ -11,45 +12,64 @@ use zeroize::Zeroizing;
 
 use crate::{AppState, linking::Site, util::outbound_client};
 
-/// A site's sign-in routes and the proof actions that authorize them.
-pub struct Routes {
+/// What a site's sign-in is called, where its routes are, the proof actions
+/// that authorize them, how long a sign-in waits, and the capabilities
+/// features it is listed under.
+pub struct Profile {
+    /// The site's name as the browser pages show it.
+    pub label: &'static str,
     pub start: &'static str,
     pub callback: &'static str,
     pub account: &'static str,
     pub connect: Action,
     pub cancel: Action,
     pub remove: Action,
+    pub sign_in_secs: u64,
+    /// Listed when sign-in is offered.
+    pub feature: &'static str,
+    /// Listed always: a connected account can be read and disconnected.
+    pub accounts_feature: &'static str,
 }
 
-impl Routes {
+impl Profile {
     pub fn of(site: Site) -> Self {
         match site {
             Site::Discord => Self {
+                label: "Discord",
                 start: discord::START_PATH,
                 callback: discord::CALLBACK_PATH,
                 account: discord::ACCOUNT_PATH,
                 connect: Action::DiscordConnect,
                 cancel: Action::DiscordCancel,
                 remove: Action::DiscordRemove,
+                sign_in_secs: discord::SIGN_IN_SECS,
+                feature: discord::FEATURE,
+                accounts_feature: discord::ACCOUNTS_FEATURE,
             },
             Site::Challonge => Self {
+                label: "Challonge",
                 start: challonge::START_PATH,
                 callback: challonge::CALLBACK_PATH,
                 account: challonge::ACCOUNT_PATH,
                 connect: Action::ChallongeConnect,
                 cancel: Action::ChallongeCancel,
                 remove: Action::ChallongeRemove,
+                sign_in_secs: challonge::SIGN_IN_SECS,
+                feature: challonge::FEATURE,
+                accounts_feature: challonge::ACCOUNTS_FEATURE,
             },
         }
     }
 }
 
-/// The site's name as the browser pages show it.
-pub fn label(site: Site) -> &'static str {
-    match site {
-        Site::Discord => "Discord",
-        Site::Challonge => "Challonge",
-    }
+/// What a site that limits its requests lets the bridge spend: requests per
+/// calendar month and per day (UTC), and sign-ins started per hour across
+/// the bridge, so throwaway Ember IDs cannot spend a month in one go.
+#[derive(Clone, Copy)]
+pub struct Limits {
+    pub monthly: u64,
+    pub daily: u64,
+    pub starts_per_hour: usize,
 }
 
 /// A site's OAuth application as this bridge is configured for it.
@@ -65,16 +85,23 @@ pub struct OAuth {
     /// Headers the site's user endpoint needs besides the bearer token.
     me_headers: &'static [(&'static str, &'static str)],
     /// Reads who signed in from the user endpoint's answer.
-    read_user: fn(&[u8]) -> Option<User>,
-    /// Requests to the site per month, for a site that limits them; a
-    /// sign-in's exchange spends two.
-    pub budget: Option<u64>,
+    read_user: fn(&[u8]) -> Option<SignedIn>,
+    /// For a site that limits its requests; a sign-in's exchange spends two.
+    pub limits: Option<Limits>,
 }
 
 /// Who signed in.
 pub struct User {
     pub id: String,
     pub username: String,
+}
+
+/// What the user endpoint said.
+pub enum SignedIn {
+    User(User),
+    /// An account whose username lookups cannot match, as the site gave it
+    /// (control characters dropped, at most 64 characters).
+    Unusable(String),
 }
 
 impl OAuth {
@@ -101,7 +128,7 @@ impl OAuth {
                     scope: "identify".into(),
                     me_headers: &[],
                     read_user: discord_user,
-                    budget: None,
+                    limits: None,
                 })
             }
             Site::Challonge => {
@@ -121,7 +148,11 @@ impl OAuth {
                         ("authorization-type", "v2"),
                     ],
                     read_user: challonge_user,
-                    budget: Some(challonge.monthly_request_budget),
+                    limits: Some(Limits {
+                        monthly: challonge.monthly_request_budget,
+                        daily: challonge.daily_request_budget,
+                        starts_per_hour: challonge.starts_per_hour,
+                    }),
                 })
             }
         }
@@ -146,7 +177,7 @@ impl OAuth {
 
     /// Exchanges the code and reads who signed in, or None on any failure.
     /// The token is dropped here.
-    pub async fn user(&self, redirect_uri: &str, code: &str) -> Option<User> {
+    pub async fn user(&self, redirect_uri: &str, code: &str) -> Option<SignedIn> {
         #[derive(Deserialize)]
         struct Token {
             access_token: String,
@@ -185,30 +216,34 @@ impl OAuth {
     }
 }
 
+/// Kept for the page: control characters dropped, at most 64 characters.
+fn shown(username: &str) -> String {
+    username
+        .chars()
+        .filter(|c| !c.is_control())
+        .take(64)
+        .collect()
+}
+
 /// Discord's `/users/@me`: a snowflake and a username, kept to 64 visible
 /// characters.
-fn discord_user(body: &[u8]) -> Option<User> {
+fn discord_user(body: &[u8]) -> Option<SignedIn> {
     #[derive(Deserialize)]
     struct Me {
         id: String,
         username: String,
     }
     let me: Me = serde_json::from_slice(body).ok()?;
-    let username: String = me
-        .username
-        .chars()
-        .filter(|c| !c.is_control())
-        .take(64)
-        .collect();
-    (discord::is_user_id(&me.id) && !username.is_empty()).then_some(User {
+    let username = shown(&me.username);
+    (discord::is_user_id(&me.id) && !username.is_empty()).then_some(SignedIn::User(User {
         id: me.id,
         username,
-    })
+    }))
 }
 
 /// Challonge's `/me`: `data.id`, a string (a number is read too), and
 /// `data.attributes.username`, which must be a username lookups can match.
-fn challonge_user(body: &[u8]) -> Option<User> {
+fn challonge_user(body: &[u8]) -> Option<SignedIn> {
     #[derive(Deserialize)]
     struct Me {
         data: Data,
@@ -234,26 +269,39 @@ fn challonge_user(body: &[u8]) -> Option<User> {
         Id::Number(id) => id.to_string(),
     };
     let username = me.data.attributes.username;
-    let usable_id =
-        !id.is_empty() && id.len() <= 32 && id.bytes().all(|b| b.is_ascii_alphanumeric());
-    (usable_id && challonge::is_username(&username)).then_some(User { id, username })
+    if id.is_empty() || id.len() > 32 || !id.bytes().all(|b| b.is_ascii_alphanumeric()) {
+        return None;
+    }
+    Some(if challonge::is_username(&username) {
+        SignedIn::User(User { id, username })
+    } else {
+        SignedIn::Unusable(shown(&username))
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// Who signed in, as (ID, username), or the unusable username.
+    fn read(found: Option<SignedIn>) -> Option<Result<(String, String), String>> {
+        found.map(|signed_in| match signed_in {
+            SignedIn::User(user) => Ok((user.id, user.username)),
+            SignedIn::Unusable(username) => Err(username),
+        })
+    }
+
     #[test]
     fn each_site_says_who_signed_in_its_own_way() {
-        let user = |found: Option<User>| found.map(|user| (user.id, user.username));
+        let user = |id: &str, name: &str| Some(Ok((id.to_owned(), name.to_owned())));
         assert_eq!(
-            user(discord_user(
+            read(discord_user(
                 br#"{"id":"274220342558756145","username":"kate\u0007"}"#
             )),
-            Some(("274220342558756145".into(), "kate".into()))
+            user("274220342558756145", "kate")
         );
         assert_eq!(
-            user(discord_user(br#"{"id":"0123","username":"kate"}"#)),
+            read(discord_user(br#"{"id":"0123","username":"kate"}"#)),
             None
         );
         for (body, id) in [
@@ -266,14 +314,17 @@ mod tests {
                 "1002",
             ),
         ] {
-            assert_eq!(
-                user(challonge_user(body)),
-                Some((id.into(), "Kate_99".into()))
-            );
+            assert_eq!(read(challonge_user(body)), user(id, "Kate_99"));
         }
+        // A username lookups cannot match is told apart from no answer.
+        assert_eq!(
+            read(challonge_user(
+                br#"{"data":{"id":"1001","attributes":{"username":"has space"}}}"#
+            )),
+            Some(Err("has space".to_owned()))
+        );
         for body in [
-            &br#"{"data":{"id":"1001","attributes":{"username":"has space"}}}"#[..],
-            br#"{"data":{"id":"10-01","attributes":{"username":"kate"}}}"#,
+            &br#"{"data":{"id":"10-01","attributes":{"username":"kate"}}}"#[..],
             br#"{"id":"1001","username":"kate"}"#,
         ] {
             assert!(challonge_user(body).is_none());

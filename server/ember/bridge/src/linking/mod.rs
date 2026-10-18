@@ -15,6 +15,7 @@ mod claim;
 mod code;
 mod intent;
 mod revoke;
+pub mod sign_ins;
 mod site;
 
 pub use approval::{ApproveCommand, approve, reject};

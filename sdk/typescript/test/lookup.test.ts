@@ -167,6 +167,7 @@ test("a connection finds players by their connected Challonge account", { timeou
     const found = await provider.lookupChallongePlayers(["nobody", "KATE_99"]);
     assert.deepEqual(found.map((player) => [player.username, player.challonge_user_id, player.ember_id]), [["KATE_99", "1001", player.emberId]]);
     assert.ok(found[0]!.participant_id);
+    assert.ok(Math.abs(found[0]!.connected_at - Date.now() / 1000) < 60);
     assert.deepEqual(await provider.lookupChallongePlayers(["kate_99"]), [{ ...found[0]!, username: "kate_99" }]);
     // Discord lookup is a setting of its own.
     await assert.rejects(provider.lookupPlayers(["274220342558756145"]), (error: BridgeError) => error.status === 403);

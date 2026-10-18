@@ -25,6 +25,9 @@ use crate::common::{Bridge, Player};
 pub type User = (&'static str, &'static str);
 pub const KATE: User = ("1001", "Kate_99");
 pub const SAM: User = ("1002", "sam");
+/// Another Challonge account, which took Kate's name in another case after
+/// she gave it up.
+pub const RIVAL: User = ("1004", "KATE_99");
 pub const CLIENT_ID: &str = "ember-test-client";
 pub const CLIENT_SECRET: &str = "challonge-test-secret";
 /// Finds players by Challonge username only.
@@ -52,8 +55,8 @@ struct Script {
     seen: Vec<Seen>,
 }
 
-/// A stand-in for Challonge's token and `/me` endpoints. Codes `good-kate`
-/// and `good-sam` sign those users in, `held-kate` waits for `release`
+/// A stand-in for Challonge's token and `/me` endpoints. Codes `good-kate`,
+/// `good-sam` and `good-rival` sign those users in, `held-kate` waits for `release`
 /// after saying it `arrived`, `busy` answers 429, `odd-name` signs in a user
 /// whose username lookups cannot match, and anything else is refused.
 #[derive(Clone, Default)]
@@ -118,6 +121,7 @@ async fn token(
     let user = match form("code") {
         Some("good-kate") => KATE,
         Some("good-sam") => SAM,
+        Some("good-rival") => RIVAL,
         Some("odd-name") => ("1003", "has space"),
         Some("held-kate") => {
             fake.arrived.notify_one();

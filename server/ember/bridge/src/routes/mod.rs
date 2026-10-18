@@ -204,7 +204,7 @@ pub async fn maintenance_once(state: &AppState) {
             expiry::expire_stale(tx, &ctx)?;
             delivery::status::observe_lapsed(tx, now)?;
             linking::expire(tx, now)?;
-            sign_in::expire(tx, now)?;
+            linking::sign_ins::expire(tx, now)?;
             tx.execute(
                 "DELETE FROM auth_challenges WHERE expires_at <= ?1",
                 [cutoff],
