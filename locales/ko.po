@@ -1220,6 +1220,12 @@ msgstr "알림 테스트"
 msgid "settings.ready_sound_test_detail"
 msgstr "이 음량으로 한 번 재생합니다."
 
+msgid "settings.shortcut_hint"
+msgstr "메뉴 단축키 안내"
+
+msgid "settings.shortcut_hint_detail"
+msgstr "Ember 메뉴가 닫힐 때 F10 또는 Start를 몇 초간 보여 주어 다시 여는 방법을 알려 줍니다."
+
 msgid "settings.interface_size"
 msgstr "화면 크기"
 
@@ -1234,6 +1240,12 @@ msgstr "초대를 받으면 상대가 내 방에 들어올 수 있습니다."
 
 msgid "discord.enable_first"
 msgstr "먼저 Discord 활동 표시를 켜세요."
+
+msgid "discord.tournament_account"
+msgstr "대회 계정"
+
+msgid "discord.tournament_account_detail"
+msgstr "대회 사이트(예: BluMint)가 알고 있는 Discord 계정입니다. Discord 앱의 계정과 다를 수 있습니다. 선택하면 연결하거나 변경할 수 있습니다."
 
 msgid "discord.invitation_title"
 msgstr "DISCORD 초대"
@@ -4120,6 +4132,9 @@ msgstr "경기 확인 중..."
 
 msgid "tournament.done_notice"
 msgstr "대회 경기가 끝났습니다."
+
+msgid "tournament.connection_lost_notice"
+msgstr "상대와의 연결이 끊겼습니다. 대회가 새 경기를 준비하기를 기다리는 중입니다."
 
 msgid "tournament.stopped_notice"
 msgstr "대회 경기가 중지되었습니다. {0}"

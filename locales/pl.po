@@ -1220,6 +1220,12 @@ msgstr "Testuj zapowiedź"
 msgid "settings.ready_sound_test_detail"
 msgstr "Odtwarza zapowiedź raz z tą głośnością."
 
+msgid "settings.shortcut_hint"
+msgstr "Podpowiedź skrótu menu"
+
+msgid "settings.shortcut_hint_detail"
+msgstr "Po zamknięciu menu Ember przez kilka sekund pokazuje F10 lub Start, żeby było wiadomo, jak je ponownie otworzyć."
+
 msgid "settings.interface_size"
 msgstr "Rozmiar interfejsu"
 
@@ -1234,6 +1240,12 @@ msgstr "Zaproszenia dają dostęp do twojego pokoju."
 
 msgid "discord.enable_first"
 msgstr "Najpierw włącz aktywność Discord."
+
+msgid "discord.tournament_account"
+msgstr "Konto turniejowe"
+
+msgid "discord.tournament_account_detail"
+msgstr "Konto Discord, które zna Twoja strona turniejowa, na przykład BluMint. Może różnić się od konta w aplikacji Discord. Wybierz, aby je połączyć lub zmienić."
 
 msgid "discord.invitation_title"
 msgstr "ZAPROSZENIE DISCORD"
@@ -4120,6 +4132,9 @@ msgstr "Sprawdzanie meczów..."
 
 msgid "tournament.done_notice"
 msgstr "Mecz turniejowy zakończony."
+
+msgid "tournament.connection_lost_notice"
+msgstr "Utracono połączenie z przeciwnikiem. Czekanie, aż turniej przygotuje nowy mecz."
 
 msgid "tournament.stopped_notice"
 msgstr "Mecz turniejowy zatrzymany. {0}"

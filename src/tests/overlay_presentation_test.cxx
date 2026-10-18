@@ -92,6 +92,39 @@ int main() {
     OverlayPresentation late;
     late.Update(MenuContext::MainMenu, MatchState::Preparing, false, true); CHECK(!late.Visible() && !late.Available());
     late.Update(MenuContext::MainMenu, MatchState::PostMatch, false, true); CHECK(late.Visible() && late.Reopened());
+    // A game cut short (its room closed under it, its connection or the helper
+    // lost) goes from Preparing or Playing, or through Failed, straight to
+    // None, with no PostMatch. The shell comes back all the same, saying why,
+    // once the main menu is in front, and never while the game still runs.
+    for (const auto last : {MatchState::Preparing, MatchState::Playing, MatchState::Failed}) {
+        OverlayPresentation cut;
+        cut.Update(MenuContext::MainMenu, MatchState::None, false, true);
+        cut.Update(MenuContext::MainMenu, MatchState::Preparing, false, true);
+        for (unsigned i = 0; i < OverlayPresentation::AwayFrames; ++i) cut.Update(MenuContext::Unavailable, last, false, true);
+        CHECK(!cut.Available() && !cut.Visible());
+        for (unsigned i = 0; i < OverlayPresentation::AwayFrames; ++i) {
+            cut.Update(MenuContext::Unavailable, MatchState::None, false, true); CHECK(!cut.Visible() && !cut.Reopened());
+        }
+        cut.Update(MenuContext::MainMenu, MatchState::None, false, true);
+        CHECK(cut.Visible() && cut.Reopened() && std::string(cut.Why()) == "a game was cut short");
+        cut.Update(MenuContext::MainMenu, MatchState::None, false, true); CHECK(cut.Visible() && !cut.Reopened());
+    }
+    {
+        // Cut short at the main menu (the start never reached the battle): at once.
+        OverlayPresentation early;
+        early.Update(MenuContext::MainMenu, MatchState::None, false, true); early.Close();
+        early.Update(MenuContext::MainMenu, MatchState::Preparing, false, true); CHECK(!early.Visible());
+        early.Update(MenuContext::MainMenu, MatchState::None, false, true);
+        CHECK(early.Visible() && early.Reopened() && std::string(early.Why()) == "a game was cut short");
+        // A room left after its game's end reopens once, for the end, and not again for the leave.
+        OverlayPresentation left;
+        left.Update(MenuContext::MainMenu, MatchState::None, false, true);
+        left.Update(MenuContext::Unavailable, MatchState::Playing, false, true);
+        left.Update(MenuContext::MainMenu, MatchState::PostMatch, false, true);
+        CHECK(left.Visible() && left.Reopened() && std::string(left.Why()) == "a match ended");
+        left.Close("Back on Ember's Home");
+        left.Update(MenuContext::MainMenu, MatchState::None, false, true); CHECK(!left.Visible() && !left.Reopened());
+    }
     // A Practice match this PC fights, and a game it only watches, are places
     // for the menu: once the fight runs, Start or F10 opens it there. Any other
     // fight, and that fight's own end (a spectator's leave retires its stream),
@@ -225,6 +258,14 @@ int main() {
         // reset restarts), the same watched game stays expired however long it runs.
         sf4e::ui::TimedHint resumed(10);
         CHECK(resumed.Due(true, 1000) && !resumed.Due(true, 1011) && !resumed.Due(true, 1012) && !resumed.Due(true, 5000));
+    }
+    {
+        // "F10 or Start": whole for its first seconds, fading over the last half second,
+        // then gone until it applies again.
+        sf4e::ui::TimedHint hint(sf4e::ui::ShortcutHintSeconds);
+        const auto alpha = [&](bool applies, double now) { return sf4e::ui::ShortcutHintAlpha(hint.Left(applies, now)); };
+        CHECK(alpha(true, 100) == 1 && alpha(true, 103.5) == 1 && alpha(true, 103.75) == .5f && alpha(true, 104) == 0 && alpha(true, 900) == 0);
+        CHECK(alpha(false, 901) == 0 && alpha(true, 902) == 1);
     }
     CheckHandoff();
     std::cout << "Safe-menu, focus, offline, loading, fight and rematch visibility passed\n";

@@ -734,13 +734,19 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         strip.rollbackFrames = status.rollbackFrames;
         strip.pingMs = status.pingMs; strip.appliedDelay = status.appliedDelay;
         strip.spectator = status.spectator; strip.behindFrames = status.spectatorBacklog; strip.ownDelays = status.ownDelays;
-        strip.queuePosition = status.queuePosition; strip.queueLength = status.queueLength; strip.unreadChat = shell.UnreadChat();
+        strip.queuePosition = status.queuePosition; strip.queueLength = status.queueLength;
         strip.size = snapshot.preferences.matchHudSize; strip.raised = snapshot.preferences.matchHudRaised; strip.anchor = snapshot.preferences.matchHudAnchor;
         strip.layout = snapshot.preferences.matchHudLayout; strip.nameOffset = snapshot.preferences.matchHudNameOffset; strip.spectators = status.spectators;
         strip.notice = status.lastError; strip.noticeSeverity = static_cast<int>(status.lastErrorSeverity);
         strip.connectionWarning = status.connectionWarning; strip.predictionStalled = status.predictionStalled;
         strip.disconnectCountdownMs = status.disconnectCountdownMs;
     }
+    // "F10 or Start" for its first seconds each time it applies again, on the
+    // process clock for the same reason as watchingHint below.
+    static sf4e::ui::TimedHint shortcutHint(sf4e::ui::ShortcutHintSeconds);
+    layers.shortcutHintAlpha = sf4e::ui::ShortcutHintAlpha(shortcutHint.Left(snapshot.preferences.showShortcutHint &&
+        layers.shellAvailable && !layers.matchActive &&
+        sf4e::ui::PassiveOverlayShown(layers.shellVisible, layers.trainingControlsOpen, layers.nativePaused), GetTickCount64() / 1000.0));
     const auto hud = sf4e::ui::DrawOverlayLayers(layers, training);
     if (hud.open && !called) s_trainingControls.Open(focus);
     // Shown survives alt-tab and so do the pads; the cursor and keys are

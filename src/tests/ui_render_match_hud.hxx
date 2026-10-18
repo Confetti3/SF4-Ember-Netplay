@@ -63,7 +63,7 @@ void ShootMatchHud(sf4e::ui::MatchStripView& matchStrip,const Draw& draw,const R
         // A spectator's are the match's Delay ("Own" where each fighter plays at their own), the frames
         // its stream is Behind and Spectating; with nothing more urgent, its line says where it stands.
         MatchStripView fighter;fighter.pingMs=68;fighter.rollbackFrames=2;fighter.appliedDelay=3;
-        fighter.queuePosition=2;fighter.queueLength=3;fighter.unreadChat=4;
+        fighter.queuePosition=2;fighter.queueLength=3;
         const auto cells=MatchTelemetryCells(fighter);
         Require(cells[0].label==loc::T("match.ping")&&cells[0].value=="68 ms"&&cells[1].label==loc::T("match.rollback")&&cells[1].value=="2f"&&
             cells[2].label==loc::T("match.delay")&&cells[2].value=="3f"&&MatchStripStateLine(fighter).empty(),"A fighter's match HUD changed");
@@ -74,12 +74,9 @@ void ShootMatchHud(sf4e::ui::MatchStripView& matchStrip,const Draw& draw,const R
             shown[2].label.empty()&&shown[2].value==loc::T("match.spectating"),"A spectator's match HUD does not show its delay and backlog");
         watcher.ownDelays=true;watcher.behindFrames=-1;shown=MatchTelemetryCells(watcher);
         Require(shown[0].value==loc::T("match.delay_own")&&shown[1].value==unavailable,"A spectator's Own delay or unknown backlog is shown wrongly");
-        const std::string unread=loc::Tf("training.room.unread",4);
-        Require(MatchStripStateLine(watcher)==loc::Tf("training.room.queued",2,3)+"  \xC2\xB7  "+unread,"A spectator's queue place and unread chat are not on its state line");
-        watcher.queuePosition=1;Require(MatchStripStateLine(watcher)==loc::T("match.up_next")+std::string("  \xC2\xB7  ")+unread,"A spectator next in the queue is not told so");
-        watcher.unreadChat=0;Require(MatchStripStateLine(watcher)==loc::T("match.up_next"),"A spectator's state line keeps an empty unread count");
+        Require(MatchStripStateLine(watcher)==loc::Tf("training.room.queued",2,3),"A spectator's queue place is not on its state line");
+        watcher.queuePosition=1;Require(MatchStripStateLine(watcher)==loc::T("match.up_next"),"A spectator next in the queue is not told so");
         watcher.queuePosition=0;Require(MatchStripStateLine(watcher).empty(),"A spectator with nothing to say shows a state line");
-        watcher.unreadChat=4;Require(MatchStripStateLine(watcher)==unread,"A spectator's unread chat is not on its state line");
         watcher.notice="Connection restored.";Require(MatchStripStateLine(watcher)=="Connection restored.","A notice must outrank a spectator's room line");
     }
     // Each anchor stays inside the safe bounds and on its own edge (checked per frame).
@@ -103,7 +100,7 @@ void ShootMatchHud(sf4e::ui::MatchStripView& matchStrip,const Draw& draw,const R
     matchStrip.pingMs=-1;matchStrip.appliedDelay=-1;draw("match-hud-unavailable");
     // A spectator: the match delay, its backlog and its place in the room, at each size.
     matchStrip.spectator=true;matchStrip.appliedDelay=3;matchStrip.behindFrames=12;
-    matchStrip.queuePosition=2;matchStrip.queueLength=3;matchStrip.unreadChat=2;
+    matchStrip.queuePosition=2;matchStrip.queueLength=3;
     for(int hudSize=0;hudSize<3;++hudSize){matchStrip.size=hudSize;draw(hudSize==1?"match-hud-spectator":nullptr,0,1);}
     matchStrip.score="12 - 10";draw("match-hud-score");
     reset();draw("match-hud-reset");
@@ -162,7 +159,7 @@ void ShootMatchHud(sf4e::ui::MatchStripView& matchStrip,const Draw& draw,const R
     matchStrip.pingMs=9999;matchStrip.rollbackFrames=999;matchStrip.appliedDelay=10;draw("match-hud-split-long");
     // A spectator of a game with no set score, at each size: a narrow screen fits the panel then.
     matchStrip.spectator=true;matchStrip.score.clear();matchStrip.appliedDelay=3;matchStrip.behindFrames=12;
-    matchStrip.queuePosition=1;matchStrip.queueLength=3;matchStrip.unreadChat=2;
+    matchStrip.queuePosition=1;matchStrip.queueLength=3;
     for(int hudSize=0;hudSize<3;++hudSize){matchStrip.size=hudSize;draw(hudSize==1?"match-hud-split-spectator":nullptr,0,1);}
     // The name offset moves both plates by that many game units and nothing else; a top-anchored
     // panel stays above plates moved all the way up, on short screens too.

@@ -68,6 +68,17 @@ void ReportMatchAbort() {
 	}
 }
 
+// This fighter's own game at the tournament table lost its connection. The
+// room may never end it, so the bridge is owed the abort too (OwedAbort).
+void OweTournamentAbort(std::uint64_t generation) {
+	const auto& snapshot = UserApp::netplay->client.GetRoomSnapshot();
+	const auto* local = room::FindMember(snapshot, snapshot.localMember);
+	if (!generation || !local || local->seat < 0 || local->table != static_cast<std::int8_t>(room::TournamentTable) ||
+		!snapshot.tournament.Active()) return;
+	runtime->tournament.OnConnectionLost(generation);
+	runtime->owedAbort.Owe(generation, GetTickCount64());
+}
+
 // The battle the runtime entered closed after its GGPO session was retired, so
 // no match-ended notice came with it (see SessionlessCloseAction).
 static void HandleSessionlessClose(std::uint64_t closedGeneration) {
@@ -397,6 +408,27 @@ void RetryPendingAbort() {
 	}
 }
 
+// The tournament abort this fighter owes the bridge, once the room has plainly
+// not ended the game (OwedAbort). An end the room commits, queued abort or
+// not, decides the game instead, and so does a result this PC confirmed.
+void SettleOwedAbort() {
+	auto& owed = runtime->owedAbort;
+	const auto generation = owed.Generation();
+	if (!generation) return;
+	using netplay::tournament::Phase;
+	const auto phase = runtime->tournament.GetPhase();
+	netplay::tournament::OwedAbort::View view;
+	view.ended = runtime->committedEndGeneration == generation || (UserApp::netplay &&
+		GenerationFinished(UserApp::netplay->client.GetRoomSnapshot().tables[room::TournamentTable], generation));
+	const auto* capture = runtime->resultOutbox.Captured();
+	view.captured = capture && capture->generation == generation && capture->table == room::TournamentTable;
+	view.healthy = runtime->controller.GetSnapshot().control == netplay::Health::Healthy;
+	view.playing = phase == Phase::Claiming || phase == Phase::Opening || phase == Phase::InRoom;
+	if (owed.Next(view, GetTickCount64()) != netplay::tournament::OwedAbort::Step::Report) return;
+	spdlog::info("Tournament: the room has not ended generation {}; reporting its abort to the bridge", generation);
+	runtime->tournament.OnTerminal(generation, room::MatchResult::Abort, 0, 0);
+}
+
 // Sends the lock release a spectator's stream failure armed. It reads only the
 // room projection, so it does not depend on the battle or on whether the
 // generation's result was committed since. A queued release is not finished:
@@ -538,6 +570,7 @@ void TickMatch() {
 					// admitted generation all the same, and is not the action that
 					// retires the link: that one is sent once and lost with the control.
 					if (LocalIsSpectator()) ArmSpectatorLockRelease(runtime->match->AttemptedGeneration(), true);
+					else if (!teardownTimedOut) OweTournamentAbort(runtime->match->AttemptedGeneration());
 					ReportMatchAbort();
 				}
 				runtime->readyIntent.Withdraw(); runtime->lobbyEditIntent.Clear();

@@ -44,6 +44,7 @@
 #include "../platform/LocaleWindows.hxx"
 #include "../platform/UiPreferencesStore.hxx"
 #include "GameLocator.hxx"
+#include "RunningGameFocus.hxx"
 #include "netplay/netplay_persist.hxx"
 #include "update/github_release_client.hxx"
 #include "BuildIdentity.hxx"
@@ -632,34 +633,23 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     if (updates && !ShowRecovery(updateError ? sf4e::loc::T("launcher.update_failed") : "", chosenDirectory, true, sf4e::ui::Tone::Error, true, std::nullopt, installOffer)) return 0;
     if (recovery && !ShowRecovery(sf4e::loc::T("launcher.recovery_opened"), chosenDirectory, false, sf4e::ui::Tone::Neutral)) return 0;
     if (!instance.Acquire()) {
-        // A room link goes to the running game, which shows it on its Join
-        // screen for the player to confirm.
-        if (!joinCode.empty() && sf4e::platform::DeliverJoinLink(joinCode)) {
-            spdlog::info("Handed the room link to the running game");
-            return 0;
-        }
-        // A match link goes to the running game too, which opens the match's
-        // row for the player to press Play; a game in progress is never interrupted.
-        if (matchLink.Valid() && sf4e::platform::DeliverMatchLink(matchLink)) {
-            spdlog::info("Handed the tournament match link to the running game");
-            return 0;
-        }
-        // A public room link goes to the running game too, which asks for a
-        // ticket for that room only when the player is free; a room or game
-        // in progress is never interrupted.
-        if (publicRoomLink.Valid() && sf4e::platform::DeliverPublicRoomLink(publicRoomLink)) {
-            spdlog::info("Handed the public room link to the running game");
-            return 0;
-        }
-        // A connect link opens the running game's Connect Discord screen,
-        // where the player decides.
-        if (!connectBridge.empty() && sf4e::platform::DeliverConnectLink(connectBridge)) {
-            spdlog::info("Handed the Discord connect link to the running game");
-            return 0;
-        }
-        // A replay link goes to the running game, which plays it from its main menu.
-        if (!replayLink.empty() && sf4e::platform::DeliverReplayLink(replayLink)) {
-            spdlog::info("Handed the replay link to the running game");
+        // Each link goes to the running game, which asks the player before
+        // acting on it, and never interrupts a game or room in progress.
+        // A room link is shown on its Join screen for the player to confirm.
+        // A match link opens the match's row for the player to press Play.
+        // A public room link asks for a ticket for that room only when the
+        // player is free. A connect link opens the Connect Discord screen,
+        // where the player decides. A replay link is played from the main menu.
+        const char* handedOver = nullptr;
+        if (!joinCode.empty() && sf4e::platform::DeliverJoinLink(joinCode)) handedOver = "room link";
+        else if (matchLink.Valid() && sf4e::platform::DeliverMatchLink(matchLink)) handedOver = "tournament match link";
+        else if (publicRoomLink.Valid() && sf4e::platform::DeliverPublicRoomLink(publicRoomLink)) handedOver = "public room link";
+        else if (!connectBridge.empty() && sf4e::platform::DeliverConnectLink(connectBridge)) handedOver = "Discord connect link";
+        else if (!replayLink.empty() && sf4e::platform::DeliverReplayLink(replayLink)) handedOver = "replay link";
+        if (handedOver) {
+            spdlog::info("Handed the {} to the running game", handedOver);
+            // The player started this from a browser, which is still in front of the game.
+            sf4e::launcher::FocusRunningGame();
             return 0;
         }
         // A Discord invite reaches the running copy, so a second start for it

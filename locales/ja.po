@@ -1220,6 +1220,12 @@ msgstr "アナウンスをテスト"
 msgid "settings.ready_sound_test_detail"
 msgstr "この音量で一度再生します。"
 
+msgid "settings.shortcut_hint"
+msgstr "メニューのショートカット表示"
+
+msgid "settings.shortcut_hint_detail"
+msgstr "Emberのメニューを閉じたとき、F10またはStartを数秒間表示し、再び開く方法を示します。"
+
 msgid "settings.interface_size"
 msgstr "画面サイズ"
 
@@ -1234,6 +1240,12 @@ msgstr "招待を送ると、あなたのルームへの参加手段が共有さ
 
 msgid "discord.enable_first"
 msgstr "先にDiscordのアクティビティを有効にしてください。"
+
+msgid "discord.tournament_account"
+msgstr "大会用アカウント"
+
+msgid "discord.tournament_account_detail"
+msgstr "BluMintなど、大会サイトが把握しているDiscordアカウントです。Discordアプリのアカウントとは異なる場合があります。選択すると連携または変更できます。"
 
 msgid "discord.invitation_title"
 msgstr "Discordの招待"
@@ -4120,6 +4132,9 @@ msgstr "試合を確認中..."
 
 msgid "tournament.done_notice"
 msgstr "大会の試合が終了しました。"
+
+msgid "tournament.connection_lost_notice"
+msgstr "対戦相手との接続が切れました。大会が新しい試合を用意するのを待っています。"
 
 msgid "tournament.stopped_notice"
 msgstr "大会の試合が停止しました。{0}"

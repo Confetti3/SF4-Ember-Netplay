@@ -1220,6 +1220,12 @@ msgstr "Vyzkoušet ohlášení"
 msgid "settings.ready_sound_test_detail"
 msgstr "Jednou přehraje ohlášení v této hlasitosti."
 
+msgid "settings.shortcut_hint"
+msgstr "Nápověda zkratky menu"
+
+msgid "settings.shortcut_hint_detail"
+msgstr "Po zavření menu Ember na pár sekund ukáže F10 nebo Start, abyste věděli, jak ho znovu otevřít."
+
 msgid "settings.interface_size"
 msgstr "Velikost rozhraní"
 
@@ -1234,6 +1240,12 @@ msgstr "Pozvánky zpřístupní vaši místnost dalším lidem."
 
 msgid "discord.enable_first"
 msgstr "Nejprve zapněte aktivitu na Discord."
+
+msgid "discord.tournament_account"
+msgstr "Turnajový účet"
+
+msgid "discord.tournament_account_detail"
+msgstr "Účet Discord, který zná váš turnajový web, například BluMint. Může se lišit od účtu v aplikaci Discord. Vyberte pro připojení nebo změnu."
 
 msgid "discord.invitation_title"
 msgstr "POZVÁNKA DISCORD"
@@ -4120,6 +4132,9 @@ msgstr "Hledání zápasů..."
 
 msgid "tournament.done_notice"
 msgstr "Turnajový zápas dokončen."
+
+msgid "tournament.connection_lost_notice"
+msgstr "Spojení se soupeřem se ztratilo. Čeká se, až turnaj připraví nový zápas."
 
 msgid "tournament.stopped_notice"
 msgstr "Turnajový zápas zastaven. {0}"

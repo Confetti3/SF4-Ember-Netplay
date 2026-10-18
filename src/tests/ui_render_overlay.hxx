@@ -48,6 +48,9 @@ void CheckOverlayVisibility(sf4e::training::View& training,sf4e::ui::OverlayLaye
         reset();layers.matchActive=layers.shellAvailable=true;layers.padHint="Saved pad connected. You play with it.";draw();
         Require(!WindowDrawn("Ember shortcut"),"The Ember shortcut was drawn over a fight");
         Require(!WindowDrawn("Ember controller"),"The controller hint was drawn over a fight");
+        // Faded out or turned off, the shortcut is not drawn at all.
+        reset();layers.shellAvailable=true;layers.shortcutHintAlpha=0;draw();
+        Require(!WindowDrawn("Ember shortcut"),"The Ember shortcut was drawn faded out");
         reset();training.leavingIn=120;layers.challenger.called=true;layers.challenger.opponent="Opponent";draw();
         Require(foreground(),"Open window or native pause hid challenger banner");
         // The banner is the call's: a countdown with no call standing draws none.

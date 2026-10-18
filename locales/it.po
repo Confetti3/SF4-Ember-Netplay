@@ -1220,6 +1220,12 @@ msgstr "Prova annuncio"
 msgid "settings.ready_sound_test_detail"
 msgstr "Riproduce l'annuncio una volta a questo volume."
 
+msgid "settings.shortcut_hint"
+msgstr "Suggerimento scorciatoia menu"
+
+msgid "settings.shortcut_hint_detail"
+msgstr "Mostra F10 o Start per qualche secondo quando il menu di Ember si chiude, così sai come riaprirlo."
+
 msgid "settings.interface_size"
 msgstr "Dim. interfaccia"
 
@@ -1234,6 +1240,12 @@ msgstr "Gli inviti danno accesso alla tua sala."
 
 msgid "discord.enable_first"
 msgstr "Attiva prima l'attività Discord."
+
+msgid "discord.tournament_account"
+msgstr "Account per i tornei"
+
+msgid "discord.tournament_account_detail"
+msgstr "L'account Discord che il tuo sito di tornei conosce, come BluMint. Può essere diverso da quello dell'app Discord. Selezionalo per collegarlo o cambiarlo."
 
 msgid "discord.invitation_title"
 msgstr "INVITO DISCORD"
@@ -4120,6 +4132,9 @@ msgstr "Ricerca delle partite..."
 
 msgid "tournament.done_notice"
 msgstr "Partita del torneo conclusa."
+
+msgid "tournament.connection_lost_notice"
+msgstr "La connessione con l'avversario è stata persa. In attesa che il torneo prepari una nuova partita."
 
 msgid "tournament.stopped_notice"
 msgstr "Partita del torneo interrotta. {0}"

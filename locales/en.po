@@ -1220,6 +1220,12 @@ msgstr "Test challenger call"
 msgid "settings.ready_sound_test_detail"
 msgstr "Plays the call once at this volume."
 
+msgid "settings.shortcut_hint"
+msgstr "Menu shortcut hint"
+
+msgid "settings.shortcut_hint_detail"
+msgstr "Shows F10 or Start for a few seconds when Ember's menu closes, so you know how to open it again."
+
 msgid "settings.interface_size"
 msgstr "Interface size"
 
@@ -1234,6 +1240,12 @@ msgstr "Invitations share access to your room."
 
 msgid "discord.enable_first"
 msgstr "Enable Discord activity first."
+
+msgid "discord.tournament_account"
+msgstr "Tournament account"
+
+msgid "discord.tournament_account_detail"
+msgstr "The Discord account your tournament site knows, such as BluMint. It can differ from the one in the Discord app. Select to connect or change it."
 
 msgid "discord.invitation_title"
 msgstr "DISCORD INVITATION"
@@ -3761,6 +3773,9 @@ msgstr "Checking for matches..."
 
 msgid "tournament.done_notice"
 msgstr "Tournament match complete."
+
+msgid "tournament.connection_lost_notice"
+msgstr "The connection to your opponent was lost. Waiting for the tournament to set up a new match."
 
 msgid "tournament.stopped_notice"
 msgstr "Tournament match stopped. {0}"

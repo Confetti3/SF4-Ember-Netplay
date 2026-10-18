@@ -370,6 +370,8 @@ this, can run their own bridge and room supervisor. The contract is
 - `disputes`: `"review"` (the default) or `"restart"`, which cancels a match
   that would wait in `needs_review`. It is recorded with the connection the
   first time it is seen and never changes; use a new connection to change it.
+  Where disputes restart, a game only one player reported as aborted or called
+  off is settled after 20 seconds instead of a minute.
 - `results_url`: each finished match is POSTed there as
   `io.ember.tournament.match.result.v1` (outcome `completed` with the scores
   and winner, `restart` for a cancelled match, or `expired` for a match nobody

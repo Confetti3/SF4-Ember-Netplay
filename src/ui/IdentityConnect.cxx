@@ -1,6 +1,7 @@
 // Connect Discord: the attempt that takes a player from a tournament site's
-// link, or the Discord row, to a connected Discord account. Its answers are
-// handled with the rest in IdentityPanel.cxx.
+// link, the Discord row, or Settings > Discord's Tournament account row, to a
+// connected Discord account. Its answers are handled with the rest in
+// IdentityPanel.cxx.
 #include "IdentityPanel.hxx"
 #include "IdentityRows.hxx"
 #include "../common/Localization.hxx"
@@ -22,6 +23,29 @@ void IdentityPanel::OpenDiscord(const std::string& bridge, bool automatic) {
     attempt_ = automatic ? Attempt::Setup : Attempt::None;
     // The screen reads everything again, as if newly opened.
     lastScreen_.clear();
+}
+
+MenuEntry IdentityPanel::TournamentAccountRow(const ShellView& v) const {
+    auto row = Row("tournament-account", loc::T("discord.tournament_account"), loc::T("discord.tournament_account_detail"));
+    const auto& id = v.identity;
+    const std::string bridge = UsableBridge(v);
+    if (!bridge.empty()) ShowAccount(row, bridge);
+    // Without a ready Ember ID, or with one and no service, no account is linked.
+    else if (id.known && (id.state != "ready" || servicesKnown_)) row.value = loc::T("identity.discord_none");
+    return row;
+}
+
+void IdentityPanel::OpenTournamentAccount(const ShellView& v, MenuNavigation& navigation) {
+    OpenDiscord(UsableBridge(v));
+    navigation.Push("discord-connect");
+}
+
+void IdentityPanel::ShowAccount(MenuEntry& row, const std::string& bridge) const {
+    const auto account = discord_.find(bridge);
+    if (account == discord_.end() || !account->second.read || account->second.failed) return;
+    const bool named = !account->second.user.empty();
+    row.value = named ? account->second.name : std::string(loc::T("identity.discord_none"));
+    row.userText = named;
 }
 
 const netplay::IdentityBridge* IdentityPanel::EmberBridge(const ShellView& v) const { return FindOrigin(v, EmberService); }

@@ -1220,6 +1220,12 @@ msgstr "Tester l'annonce"
 msgid "settings.ready_sound_test_detail"
 msgstr "Joue l'annonce une fois à ce volume."
 
+msgid "settings.shortcut_hint"
+msgstr "Rappel du raccourci du menu"
+
+msgid "settings.shortcut_hint_detail"
+msgstr "Affiche F10 ou Start quelques secondes à la fermeture du menu d'Ember, pour savoir comment le rouvrir."
+
 msgid "settings.interface_size"
 msgstr "Taille interface"
 
@@ -1234,6 +1240,12 @@ msgstr "Les invitations donnent accès à votre salon."
 
 msgid "discord.enable_first"
 msgstr "Activez d'abord l'activité Discord."
+
+msgid "discord.tournament_account"
+msgstr "Compte de tournoi"
+
+msgid "discord.tournament_account_detail"
+msgstr "Le compte Discord que connaît votre site de tournoi, comme BluMint. Il peut différer de celui de l'application Discord. Sélectionnez pour le connecter ou le changer."
 
 msgid "discord.invitation_title"
 msgstr "INVITATION DISCORD"
@@ -4120,6 +4132,9 @@ msgstr "Recherche des matchs..."
 
 msgid "tournament.done_notice"
 msgstr "Match du tournoi terminé."
+
+msgid "tournament.connection_lost_notice"
+msgstr "La connexion avec votre adversaire a été perdue. En attente d'un nouveau match préparé par le tournoi."
 
 msgid "tournament.stopped_notice"
 msgstr "Match du tournoi arrêté. {0}"

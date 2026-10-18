@@ -43,6 +43,11 @@ void TournamentPlay::Start(std::string bridgeId, std::string matchId, std::uint6
 
 void TournamentPlay::Stop() {
 	if (phase_ == Phase::Idle) return;
+	// A Leave held for the last game's battle goes now.
+	if (leaveHeld_) {
+		pending_.push_back(Make(Output::Kind::Leave));
+		leaveHeld_ = false;
+	}
 	Fail(Phase::Idle, {});
 }
 
@@ -52,7 +57,11 @@ void TournamentPlay::Abandon(const std::string& reason) {
 
 void TournamentPlay::Fail(Phase phase, const std::string& reason) {
 	const bool active = phase_ == Phase::Claiming || phase_ == Phase::Opening || phase_ == Phase::InRoom;
-	if (active && (hostRequested_ || joinRequested_ || !targetRoom_.empty())) pending_.push_back(Make(Output::Kind::Leave));
+	const bool inRoom = active && (hostRequested_ || joinRequested_ || !targetRoom_.empty());
+	// A finished match's last game may still be on screen: its room is left
+	// once that battle has closed (ReleaseHeldLeave). Anything else leaves at once.
+	if (inRoom && phase == Phase::Finished) leaveHeld_ = true;
+	else if (inRoom) pending_.push_back(Make(Output::Kind::Leave));
 	// A report the helper has not saved needs the permit it would forget.
 	if (active && !unsaved_.empty()) forgetAfterReports_ = true;
 	else if (active) pending_.push_back(Make(Output::Kind::Forget));
@@ -67,6 +76,7 @@ std::vector<Output> TournamentPlay::Tick(std::uint64_t nowMs, const RoomView& ro
 	// A report is the game's result: it is handed over again whatever the
 	// match does meanwhile.
 	ResendReports(nowMs, out);
+	if (leaveHeld_) ReleaseHeldLeave(nowMs, room, out);
 	if (phase_ == Phase::Claiming || phase_ == Phase::Opening || phase_ == Phase::InRoom) {
 		// The bridge tells the tournament who has not pressed Ready, so a
 		// change goes out with a claim now rather than the next one.
@@ -87,7 +97,20 @@ std::vector<Output> TournamentPlay::Tick(std::uint64_t nowMs, const RoomView& ro
 	return out;
 }
 
+void TournamentPlay::ReleaseHeldLeave(std::uint64_t nowMs, const RoomView& room, std::vector<Output>& out) {
+	if (!leaveHeldUntilMs_) leaveHeldUntilMs_ = nowMs + FinalBattleHoldMs;
+	// A battle that never closes must not keep the player in the room.
+	if (room.fighting && nowMs < leaveHeldUntilMs_) return;
+	out.push_back(Make(Output::Kind::Leave));
+	leaveHeld_ = false;
+}
+
+void TournamentPlay::OnConnectionLost(std::uint64_t generation) {
+	lostGeneration_ = generation;
+}
+
 void TournamentPlay::SendReport(Output report, std::vector<Output>& out) {
+	lastLostConnection_ = report.result == ResultName(room::MatchResult::Abort) && report.generation == lostGeneration_;
 	auto& entry = unsaved_[report.generation];
 	entry.report = report;
 	entry.attempts = 1;
@@ -316,8 +339,11 @@ void TournamentPlay::OnFailure(Output::Kind request, const std::string& code, st
 	case Output::Kind::Claim:
 		claimInFlight_ = false;
 		claimFailed_ = true;
-		// A finished match answers stale_revision: it is over, not broken.
-		if (Final(code)) Fail(code == "stale_revision" ? Phase::Finished : Phase::Failed, code);
+		// A finished match answers stale_revision: it is over, not broken. One
+		// whose last game was aborted for a lost connection may be set up
+		// again by the bridge as a new match.
+		if (code == "stale_revision") Fail(Phase::Finished, lastLostConnection_ ? ConnectionLostReason : code);
+		else if (Final(code)) Fail(Phase::Failed, code);
 		else nextClaimMs_ = nowMs + RetryMs;
 		break;
 	case Output::Kind::Publish:

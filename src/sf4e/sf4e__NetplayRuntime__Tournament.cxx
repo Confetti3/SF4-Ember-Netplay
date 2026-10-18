@@ -107,10 +107,13 @@ void Execute(const Output& output, std::uint64_t nowMs) {
 	case Output::Kind::Join:
 		RoomCommand({netplay::CommandKind::JoinInvite, {}, output.invitation}, "joining the match's room");
 		break;
-	case Output::Kind::Leave:
-		if (runtime->controller.GetSnapshot().room == netplay::RoomState::Idle) break;
+	case Output::Kind::Leave: {
+		// Not in a room, or already leaving it (the player left by hand).
+		const auto room = runtime->controller.GetSnapshot().room;
+		if (room == netplay::RoomState::Idle || room == netplay::RoomState::Closing) break;
 		RoomCommand({netplay::CommandKind::LeaveRoom, {}, {}}, "leaving the room");
 		break;
+	}
 	case Output::Kind::Bind:
 		// The room may be mid-round; the state machine offers it again.
 		if (UserApp::server && UserApp::server->BindTournament(output.binding))
@@ -177,6 +180,8 @@ void TakeAnswer(const session::TournamentAnswer& answer, std::uint64_t nowMs) {
 netplay::tournament::RoomView View(bool helperReady) {
 	netplay::tournament::RoomView view;
 	const auto& state = runtime->controller.GetSnapshot();
+	// Also out of a joined room: a room lost under a game keeps its battle.
+	view.fighting = netplay::Fighting(state.match);
 	view.joined = state.room == netplay::RoomState::Joined && runtime->attached && UserApp::netplay && runtime->room;
 	// Not free to open a room counts as opening: the state machine waits
 	// rather than asking for a host or join the runtime would refuse.
@@ -289,6 +294,11 @@ void TickTournament(bool helperReady) {
 	// The helper is not restarted while the game runs, and the binding names
 	// its endpoint: without it the match cannot go on from this game.
 	if (runtime->helperLossReported) runtime->tournament.Abandon("helper_lost");
+	// The fighters' link dropped (GGPO warns before it gives up): a game that
+	// then ends in an abort ended for the lost connection, whichever fighter's
+	// abort the room takes first, so both fighters are told the same.
+	if (runtime->match && runtime->matchEntered && !LocalIsSpectator() && Game::Battle::System::DisconnectCountdownMs() >= 0)
+		runtime->tournament.OnConnectionLost(runtime->match->Generation());
 	for (const auto& answer : runtime->room->TakeTournamentAnswers()) TakeAnswer(answer, now);
 	const auto before = runtime->tournament.GetPhase();
 	for (const auto& output : runtime->tournament.Tick(now, View(helperReady))) Execute(output, now);

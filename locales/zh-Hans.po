@@ -1220,6 +1220,12 @@ msgstr "试听播报"
 msgid "settings.ready_sound_test_detail"
 msgstr "以此音量播放一次。"
 
+msgid "settings.shortcut_hint"
+msgstr "菜单快捷键提示"
+
+msgid "settings.shortcut_hint_detail"
+msgstr "关闭 Ember 菜单时显示 F10 或 Start 几秒钟，提示如何再次打开。"
+
 msgid "settings.interface_size"
 msgstr "界面大小"
 
@@ -1234,6 +1240,12 @@ msgstr "邀请会分享您房间的访问权限。"
 
 msgid "discord.enable_first"
 msgstr "请先启用 Discord 动态。"
+
+msgid "discord.tournament_account"
+msgstr "赛事账号"
+
+msgid "discord.tournament_account_detail"
+msgstr "你的赛事网站（例如 BluMint）所知道的 Discord 账号。它可能与 Discord 应用中登录的账号不同。选择后可关联或更换。"
 
 msgid "discord.invitation_title"
 msgstr "DISCORD 邀请"
@@ -4120,6 +4132,9 @@ msgstr "正在查询对局..."
 
 msgid "tournament.done_notice"
 msgstr "赛事对局已完成。"
+
+msgid "tournament.connection_lost_notice"
+msgstr "与对手的连接已断开。正在等待赛事安排新的对局。"
 
 msgid "tournament.stopped_notice"
 msgstr "赛事对局已停止。{0}"

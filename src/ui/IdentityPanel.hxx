@@ -68,11 +68,18 @@ public:
     // The Ember ID row's line (on Online play): where to start, how many
     // matches are ready to play, or what the screens hold.
     std::string EntryDetail(const ShellView& view) const;
+    // Settings > Discord's Tournament account row: the Discord account on the
+    // selected service, read again each time that screen opens, or Not
+    // connected without a ready Ember ID or a service. It opens Connect
+    // Discord for that service, or for Ember's own without one.
+    MenuEntry TournamentAccountRow(const ShellView& view) const;
+    void OpenTournamentAccount(const ShellView& view, MenuNavigation& navigation);
     // Tournament matches ready to play on the service the matches are read
     // from; 0 without a ready ID and a service. Home shows a row while any are.
     int ReadyMatches(const ShellView& view) const;
     // A playable match the player has not been told about yet: true once for
-    // each new one, except while the matches screen already shows them (see
+    // each new one, except while the matches screen already shows them, unless
+    // a match that ended for a lost connection is being set up again (see
     // MatchAnnouncements, which remembers them across restarts).
     bool TakeAssigned(const ShellView& view);
     // Where the matches told are kept; the platform store unless a test supplies its own.
@@ -137,6 +144,12 @@ private:
     // The read in flight failed: its service's account is not trusted, and a
     // sign-in waiting on it pauses its polls.
     void ReadFailed();
+    // Reads the Discord account on `bridge` (its profile first), leaving the
+    // selected service as it is.
+    void ReadAccount(const netplay::IdentityBridge& bridge);
+    // The account last read from `bridge` as the row's value: its name, or Not
+    // connected; nothing while it is unread or its latest read failed.
+    void ShowAccount(MenuEntry& row, const std::string& bridge) const;
     // Drops the requests waiting to be sent after the one in flight failed,
     // unless it came from an earlier journey: those are not its to drop.
     void ProfileRead(const std::string& bridge);
@@ -253,6 +266,9 @@ private:
     // matches told.
     bool servicesKnown_ = false;
     double backgroundAt_ = 0, assignmentsAt_ = 0;
+    // Until when the matches are watched for one the bridge sets up again
+    // after a lost connection (RestartWatchSeconds).
+    double restartWatchUntil_ = 0;
     MatchAnnouncements announced_;
     // The assignment list is wanted for the selected service; a Play or Stop
     // waiting to be sent; and what the last refresh said, to report a failure once.

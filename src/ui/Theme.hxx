@@ -140,7 +140,6 @@ struct MatchStripView {
     int behindFrames = -1;
     bool ownDelays = false;
     int queuePosition = 0, queueLength = 0;
-    unsigned unreadChat = 0;
     // Link state and the latest netplay notice, drawn on a line above the
     // telemetry. Severity: 0 info, 1 warning, 2 error (matches NoticeSeverity).
     std::string notice;

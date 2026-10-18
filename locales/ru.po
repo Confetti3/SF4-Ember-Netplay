@@ -1221,6 +1221,12 @@ msgstr "Проверить объявление"
 msgid "settings.ready_sound_test_detail"
 msgstr "Один раз воспроизводит объявление с этой громкостью."
 
+msgid "settings.shortcut_hint"
+msgstr "Подсказка клавиши меню"
+
+msgid "settings.shortcut_hint_detail"
+msgstr "Когда меню Ember закрывается, на несколько секунд показывает F10 или Start, чтобы было понятно, как открыть его снова."
+
 msgid "settings.interface_size"
 msgstr "Размер интерфейса"
 
@@ -1235,6 +1241,12 @@ msgstr "Приглашения открывают доступ к вашему �
 
 msgid "discord.enable_first"
 msgstr "Сначала включите статус Discord."
+
+msgid "discord.tournament_account"
+msgstr "Турнирный аккаунт"
+
+msgid "discord.tournament_account_detail"
+msgstr "Аккаунт Discord, который знает ваш турнирный сайт, например BluMint. Он может отличаться от аккаунта в приложении Discord. Выберите, чтобы подключить или сменить его."
 
 msgid "discord.invitation_title"
 msgstr "ПРИГЛАШЕНИЕ DISCORD"
@@ -4121,6 +4133,9 @@ msgstr "Поиск матчей..."
 
 msgid "tournament.done_notice"
 msgstr "Турнирный матч завершён."
+
+msgid "tournament.connection_lost_notice"
+msgstr "Связь с соперником потеряна. Ожидание, пока турнир назначит новый матч."
 
 msgid "tournament.stopped_notice"
 msgstr "Турнирный матч остановлен. {0}"
