@@ -723,8 +723,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // room it was played in closes with it.
  if(v.tournament.phase!=tournamentPhase_){
   using netplay::tournament::Phase;
-  // One ended for a lost connection says so in the same words on both sides,
-  // and promises nothing: the bridge may or may not set up a new match.
+  // One ended for a lost connection says so in the same words on both sides:
+  // the tournament is setting up a new match, which Ember does not start itself.
   if(v.tournament.phase==Phase::Finished&&v.tournament.reason==netplay::tournament::ConnectionLostReason){
    notice_=loc::T("tournament.connection_lost_notice");noticeTone_=Tone::Pending;noticeUntil_=now+30;
   }

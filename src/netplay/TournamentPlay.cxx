@@ -105,7 +105,12 @@ void TournamentPlay::ReleaseHeldLeave(std::uint64_t nowMs, const RoomView& room,
 	leaveHeld_ = false;
 }
 
+void TournamentPlay::OnConnectionLost(std::uint64_t generation) {
+	lostGeneration_ = generation;
+}
+
 void TournamentPlay::SendReport(Output report, std::vector<Output>& out) {
+	lastLostConnection_ = report.result == ResultName(room::MatchResult::Abort) && report.generation == lostGeneration_;
 	auto& entry = unsaved_[report.generation];
 	entry.report = report;
 	entry.attempts = 1;
@@ -335,9 +340,9 @@ void TournamentPlay::OnFailure(Output::Kind request, const std::string& code, st
 		claimInFlight_ = false;
 		claimFailed_ = true;
 		// A finished match answers stale_revision: it is over, not broken. One
-		// whose last game was aborted was most likely ended for a lost
-		// connection, and the bridge may set up a new match.
-		if (code == "stale_revision") Fail(Phase::Finished, lastAborted_ ? ConnectionLostReason : code);
+		// whose last game was aborted for a lost connection may be set up
+		// again by the bridge as a new match.
+		if (code == "stale_revision") Fail(Phase::Finished, lastLostConnection_ ? ConnectionLostReason : code);
 		else if (Final(code)) Fail(Phase::Failed, code);
 		else nextClaimMs_ = nowMs + RetryMs;
 		break;
@@ -360,7 +365,6 @@ void TournamentPlay::OnFailure(Output::Kind request, const std::string& code, st
 
 void TournamentPlay::OnTerminal(std::uint64_t generation, room::MatchResult result, std::uint64_t captureFrame, std::uint64_t confirmedFrame) {
 	if (!permits_.count(generation) || reported_.count(generation)) return;
-	lastAborted_ = result == room::MatchResult::Abort;
 	auto report = Make(Output::Kind::Report);
 	report.generation = generation;
 	report.result = ResultName(result);

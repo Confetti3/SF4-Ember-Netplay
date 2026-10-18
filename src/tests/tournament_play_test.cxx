@@ -1,6 +1,7 @@
 // The tournament play state machine: claiming, hosting or joining the match's
 // room, binding it, fetching each game's permit, and reporting games.
 #include "../netplay/TournamentPlay.hxx"
+#include "../netplay/OwedAbort.hxx"
 
 #include <cstdio>
 #include <string>
@@ -334,9 +335,10 @@ static void TestFinishedWaitsForTheLastBattle() {
 }
 
 // An aborted game is reported once, whether the room ended it or this
-// fighter's game reports it because its room could not, and a match that
-// then finishes ended for the lost connection. A game played out since
-// finishes it as usual.
+// fighter's game reports it because its room did not. A match whose last
+// report was the abort of a game that lost its link ended for the lost
+// connection. Any later report, a game played out or a start called off,
+// finishes it as usual, and so does an abort for another reason.
 static void TestConnectionLost() {
 	room::Snapshot snapshot;
 	snapshot.tournament = MakeBinding(RoomA, 0).room;
@@ -359,6 +361,7 @@ static void TestConnectionLost() {
 
 	TournamentPlay lost;
 	bound(lost);
+	lost.OnConnectionLost(3);
 	lost.OnTerminal(3, room::MatchResult::Abort, 900, 899);
 	lost.OnTerminal(3, room::MatchResult::Abort, 0, 0);
 	lost.OnTerminal(3, room::MatchResult::P1Win, 10, 9);
@@ -370,13 +373,89 @@ static void TestConnectionLost() {
 	lost.OnFailure(Kind::Claim, "stale_revision", 400);
 	CHECK(lost.GetPhase() == Phase::Finished && lost.Reason() == ConnectionLostReason);
 
+	// An abort with the link up (a game this PC could not take).
+	TournamentPlay rejected;
+	bound(rejected);
+	rejected.OnConnectionLost(2);
+	rejected.OnTerminal(3, room::MatchResult::Abort, 0, 0);
+	rejected.OnFailure(Kind::Claim, "stale_revision", 400);
+	CHECK(rejected.GetPhase() == Phase::Finished && rejected.Reason() == "stale_revision");
+
 	TournamentPlay replayed;
 	bound(replayed);
+	replayed.OnConnectionLost(3);
 	replayed.OnTerminal(3, room::MatchResult::Abort, 0, 0);
 	replayed.OnPrepare(permit(4), 300);
 	replayed.OnTerminal(4, room::MatchResult::P2Win, 10, 9);
 	replayed.OnFailure(Kind::Claim, "stale_revision", 400);
 	CHECK(replayed.GetPhase() == Phase::Finished && replayed.Reason() == "stale_revision");
+
+	// The next game's start called off: its cancel is the last report.
+	TournamentPlay calledOff;
+	bound(calledOff);
+	calledOff.OnConnectionLost(3);
+	calledOff.OnTerminal(3, room::MatchResult::Abort, 0, 0);
+	CHECK(Count(calledOff.Tick(300, Joined(RoomA, &snapshot, false)), Kind::Report) == 1);
+	calledOff.OnReported(3);
+	calledOff.OnPrepare(permit(4), 400);
+	room::Snapshot moved = snapshot;
+	moved.tables[room::TournamentTable].phase = room::TablePhase::Waiting;
+	moved.tables[room::TournamentTable].permitGeneration = 0;
+	const auto cancelled = calledOff.Tick(500, Joined(RoomA, &moved, false));
+	const auto* cancel = Find(cancelled, Kind::Report);
+	CHECK(cancel && cancel->generation == 4 && cancel->result == "cancel");
+	calledOff.OnFailure(Kind::Claim, "stale_revision", 600);
+	CHECK(calledOff.GetPhase() == Phase::Finished && calledOff.Reason() == "stale_revision");
+}
+
+// The abort a fighter owes the bridge for a game whose connection was lost:
+// the room's end decides the game whenever it comes within the wait, and so
+// does a result this PC confirmed; an abort queued to a leader that is gone,
+// or a room whose control stays lost, is reported once the bound passes.
+static void TestOwedAbort() {
+	using Step = OwedAbort::Step;
+	OwedAbort::View healthy;
+	healthy.healthy = true;
+	healthy.playing = true;
+
+	OwedAbort committed;
+	committed.Owe(3, 1000);
+	CHECK(committed.Next(healthy, 1000) == Step::Wait);
+	CHECK(committed.Next(healthy, 1000 + OwedAbort::WaitMs - 1) == Step::Wait);
+	auto ended = healthy;
+	ended.ended = true;
+	CHECK(committed.Next(ended, 1000 + OwedAbort::WaitMs - 1) == Step::Drop && committed.Generation() == 0);
+	CHECK(committed.Next(healthy, 1000 + 2 * OwedAbort::WaitMs) == Step::Wait);
+
+	OwedAbort confirmed;
+	confirmed.Owe(3, 1000);
+	auto captured = healthy;
+	captured.captured = true;
+	captured.healthy = false;
+	CHECK(confirmed.Next(captured, 1000 + OwedAbort::WaitMs) == Step::Drop);
+
+	OwedAbort stuck;
+	stuck.Owe(3, 1000);
+	CHECK(stuck.Next(healthy, 1000 + OwedAbort::WaitMs - 1) == Step::Wait);
+	CHECK(stuck.Next(healthy, 1000 + OwedAbort::WaitMs) == Step::Report && stuck.Generation() == 0);
+	CHECK(stuck.Next(healthy, 1000 + 2 * OwedAbort::WaitMs) == Step::Wait);
+
+	// A control that comes back starts the count again.
+	OwedAbort lost;
+	lost.Owe(3, 1000);
+	auto down = healthy;
+	down.healthy = false;
+	CHECK(lost.Next(down, 2000) == Step::Wait);
+	CHECK(lost.Next(healthy, 3000) == Step::Wait);
+	CHECK(lost.Next(down, 4000) == Step::Wait);
+	CHECK(lost.Next(down, 4000 + OwedAbort::ControlLostMs - 1) == Step::Wait);
+	CHECK(lost.Next(down, 4000 + OwedAbort::ControlLostMs) == Step::Report);
+
+	OwedAbort stopped;
+	stopped.Owe(3, 1000);
+	auto idle = healthy;
+	idle.playing = false;
+	CHECK(stopped.Next(idle, 1000 + OwedAbort::WaitMs) == Step::Drop);
 }
 
 // The helper forgets the match only once every report has its answer; a
@@ -577,6 +656,7 @@ int main() {
 	TestFinishedAndFailed();
 	TestFinishedWaitsForTheLastBattle();
 	TestConnectionLost();
+	TestOwedAbort();
 	TestOrderingAndLeases();
 	TestReadyGoesWithTheClaim();
 	if (failures) std::printf("%d failure(s)\n", failures);

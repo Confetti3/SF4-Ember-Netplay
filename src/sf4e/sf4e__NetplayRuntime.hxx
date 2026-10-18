@@ -38,6 +38,7 @@
 #include "../netplay/MatchEndRules.hxx"
 #include "../netplay/ParkedIntent.hxx"
 #include "../netplay/TournamentPlay.hxx"
+#include "../netplay/OwedAbort.hxx"
 #include "../netplay/PublicRooms.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../netplay/SettingsStore.hxx"
@@ -192,6 +193,9 @@ struct Runtime {
     // The tournament match being played, its helper requests still awaiting
     // an answer (by request id), and the assignment list's last refresh.
     netplay::tournament::TournamentPlay tournament;
+    // The abort of this fighter's tournament game, owed to the bridge if the
+    // room never ends it (SettleOwedAbort).
+    netplay::tournament::OwedAbort owedAbort;
     struct TournamentRequest { netplay::tournament::Output::Kind kind; std::uint64_t generation = 0; };
     std::map<std::uint64_t, TournamentRequest> tournamentRequests;
     std::uint64_t assignmentRequest=0;
@@ -399,6 +403,7 @@ void RetireFinishedMatch(const char* label);
 // when the room's control could not take that Unwatch yet.
 netplay::DispatchOutcome LeaveWatchedGame(const netplay::WatchedGame& game);
 void RetryPendingAbort();
+void SettleOwedAbort();
 void RetrySpectatorLockRelease();
 // Game thread: the announcer's challenger call at a percent of the game's voice volume.
 void PlayChallengerCall(int volumePercent);
@@ -424,8 +429,6 @@ void TickReplays();
 void OpenPublicRoomLink(const tournament_link::RoomLink& link, bool launched = false);
 // A table's end as the room committed it, with how it compares to this game's own capture.
 void ObserveTournamentTerminal(const room::Event& event, netplay::MatchResultOutbox::TerminalResult terminal);
-// This fighter's abort of a game, which the room cannot take now.
-void ObserveStrandedAbort(const room::Snapshot& snapshot, const room::Action& abort);
 netplay::tournament::Status TournamentStatus();
 
 // Public rooms (sf4e__NetplayRuntime__PublicRooms.cxx).

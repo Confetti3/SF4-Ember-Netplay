@@ -294,6 +294,11 @@ void TickTournament(bool helperReady) {
 	// The helper is not restarted while the game runs, and the binding names
 	// its endpoint: without it the match cannot go on from this game.
 	if (runtime->helperLossReported) runtime->tournament.Abandon("helper_lost");
+	// The fighters' link dropped (GGPO warns before it gives up): a game that
+	// then ends in an abort ended for the lost connection, whichever fighter's
+	// abort the room takes first, so both fighters are told the same.
+	if (runtime->match && runtime->matchEntered && !LocalIsSpectator() && Game::Battle::System::DisconnectCountdownMs() >= 0)
+		runtime->tournament.OnConnectionLost(runtime->match->Generation());
 	for (const auto& answer : runtime->room->TakeTournamentAnswers()) TakeAnswer(answer, now);
 	const auto before = runtime->tournament.GetPhase();
 	for (const auto& output : runtime->tournament.Tick(now, View(helperReady))) Execute(output, now);
@@ -319,18 +324,6 @@ void ObserveTournamentTerminal(const room::Event& event, netplay::MatchResultOut
 		return;
 	}
 	runtime->tournament.OnTerminal(event.matchGeneration, capture->result, capture->captureFrame, capture->confirmedFrame);
-}
-
-// The bridge hears of a game only from the room's end. In a two-member room
-// the other fighter's game is the room's only voter, so when it is gone the
-// room takes no abort and never ends the game: the seated fighter reports the
-// abort itself. While the room can take changes the abort is left to it, as it
-// may still record a confirmed win that this report would contradict.
-void ObserveStrandedAbort(const room::Snapshot& snapshot, const room::Action& abort) {
-	if (abort.kind != room::ActionKind::AbortMatch || abort.table != room::TournamentTable || !abort.matchGeneration ||
-		!snapshot.tournament.Active()) return;
-	spdlog::info("Tournament: the room cannot take the abort of generation {} now; reporting it to the bridge", abort.matchGeneration);
-	runtime->tournament.OnTerminal(abort.matchGeneration, room::MatchResult::Abort, 0, 0);
 }
 
 netplay::tournament::Status TournamentStatus() {

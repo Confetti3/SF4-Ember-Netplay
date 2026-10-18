@@ -123,12 +123,16 @@ public:
 	void OnReportFailed(std::uint64_t generation, const std::string& code, std::uint64_t nowMs);
 	// A rollback-confirmed native result of the bound table's game.
 	void OnTerminal(std::uint64_t generation, room::MatchResult result, std::uint64_t captureFrame, std::uint64_t confirmedFrame);
+	// This fighter's game of `generation` lost its link to the other fighter.
+	// Said before the game ends, whichever fighter's abort the room takes.
+	void OnConnectionLost(std::uint64_t generation);
 
 	Phase GetPhase() const { return phase_; }
 	const std::string& BridgeId() const { return bridgeId_; }
 	const std::string& MatchId() const { return matchId_; }
 	// Why the match ended or failed: a stable code, empty otherwise. A match
-	// whose last game was aborted finishes with ConnectionLostReason.
+	// whose last report was the abort of a game that lost its connection
+	// finishes with ConnectionLostReason.
 	const std::string& Reason() const { return reason_; }
 	// Waiting for the other fighter's room, or for the bridge's permit.
 	bool WaitingForOpponent() const { return waitingForOpponent_; }
@@ -182,9 +186,11 @@ private:
 	struct UnsavedReport { Output report; int attempts = 0; bool inFlight = false; std::uint64_t retryAtMs = 0; };
 	std::map<std::uint64_t, UnsavedReport> unsaved_;
 	bool forgetAfterReports_ = false;
-	// The last game reported ended in an abort: the connection between the
-	// fighters was lost, and the bridge may set up a new match for them.
-	bool lastAborted_ = false;
+	// The last game whose link to the other fighter dropped, and whether the
+	// last report sent was that game's abort. Any other report, a cancel or
+	// a result, clears it, and so does an abort for another reason.
+	std::uint64_t lostGeneration_ = 0;
+	bool lastLostConnection_ = false;
 	// A finished match's room is left once its last game's battle has closed
 	// by itself, so the result stays on screen and Ember's menu comes back
 	// after it. The wait is bounded from the first tick that holds it.

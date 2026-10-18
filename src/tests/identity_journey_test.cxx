@@ -184,8 +184,9 @@ void PlayRechecks(){
  v.session.room=netplay::RoomState::Idle;
  Check(press("between_games",9000,true)&&sent.back().tournament.matchId=="emt_1"&&sent.back().tournament.bridgeId=="brg_1","Play did not go out for a match that can be played");
 }
-// A match that ended for a lost connection says so, in words that promise no
-// new match, and its service is read every few seconds for a few minutes,
+// A match that ended for a lost connection says so, and that the tournament
+// is setting up a new one (Ember does not start it), and its service is read
+// every few seconds for a few minutes,
 // from any screen, so a match the bridge sets up again is told at once, on the
 // matches screen too. Past that the matches screen is read only when asked.
 void RestartWatch(){

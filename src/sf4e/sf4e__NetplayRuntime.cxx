@@ -772,6 +772,7 @@ void TickRuntime() {
 	PersistTerminalOutcome();
 	DrainActionReplies();
 	RetryPendingAbort();
+	SettleOwedAbort();
 	RetrySpectatorLockRelease();
 	RetryMatchFinished();
 	PumpResultOutbox();
