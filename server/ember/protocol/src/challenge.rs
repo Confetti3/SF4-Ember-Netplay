@@ -43,6 +43,14 @@ pub enum Action {
     DiscordRemove,
     #[serde(rename = "discord.cancel")]
     DiscordCancel,
+    #[serde(rename = "challonge.connect")]
+    ChallongeConnect,
+    #[serde(rename = "challonge.remove")]
+    ChallongeRemove,
+    #[serde(rename = "challonge.cancel")]
+    ChallongeCancel,
+    #[serde(rename = "challonge.move")]
+    ChallongeMove,
 }
 
 impl Action {
@@ -59,6 +67,10 @@ impl Action {
             Self::DiscordConnect => "discord.connect",
             Self::DiscordRemove => "discord.remove",
             Self::DiscordCancel => "discord.cancel",
+            Self::ChallongeConnect => "challonge.connect",
+            Self::ChallongeRemove => "challonge.remove",
+            Self::ChallongeCancel => "challonge.cancel",
+            Self::ChallongeMove => "challonge.move",
         }
     }
 }

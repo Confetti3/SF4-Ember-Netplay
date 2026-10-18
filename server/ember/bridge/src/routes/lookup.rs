@@ -40,5 +40,8 @@ pub async fn lookup(
         .write(move |tx| discord::find_and_link(tx, &ctx, &connection_id, &request.discord))
         .await?;
     state.committed();
-    Ok(ok(&LookupAnswer { players }))
+    Ok(ok(&LookupAnswer {
+        players,
+        challonge: Vec::new(),
+    }))
 }

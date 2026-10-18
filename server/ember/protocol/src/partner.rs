@@ -1,6 +1,7 @@
 //! What a platform gets beyond the generic API when its connection asks for
 //! it (`docs/design/INTEGRATION_PATHS.md`): finding players by their
-//! connected Discord account, and each finished match's result sent to it.
+//! connected Discord or Challonge account, and each finished match's result
+//! sent to it.
 use serde::{Deserialize, Serialize};
 
 use crate::EmberId;
@@ -10,28 +11,46 @@ pub const LOOKUP_PATH: &str = "/v1/players/lookup";
 /// to a connection's `results_url`.
 pub const LOOKUP_FEATURE: &str = "players.lookup";
 pub const RESULTS_FEATURE: &str = "results.signed";
-/// Discord user IDs one lookup may name.
+/// Accounts one lookup may name, Discord and Challonge together.
 pub const MAX_LOOKUP: usize = 32;
 
-/// `POST /v1/players/lookup`.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+/// `POST /v1/players/lookup`. Each list needs its own connection setting
+/// (`discord_lookup`, `challonge_lookup`); an empty list asks nothing.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Lookup {
+    #[serde(default)]
     pub discord: Vec<String>,
+    /// Challonge usernames, as a tournament entry shows them. Compared
+    /// without case (`challonge::username_key`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub challonge: Vec<String>,
 }
 
-/// The players found, in the order asked. An ID with no connected account,
-/// or whose link the player removed, is left out.
+/// The players found, in the order asked. An account with no connected
+/// Ember ID, or whose link the player removed, is left out.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LookupAnswer {
     pub players: Vec<FoundPlayer>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub challonge: Vec<FoundChallongePlayer>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FoundPlayer {
     pub discord_user_id: String,
+    pub ember_id: EmberId,
+    pub participant_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FoundChallongePlayer {
+    /// The username as the lookup named it.
+    pub username: String,
+    pub challonge_user_id: String,
     pub ember_id: EmberId,
     pub participant_id: String,
 }
