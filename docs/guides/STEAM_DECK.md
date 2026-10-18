@@ -1,6 +1,6 @@
 # SF4 Ember Netplay: Steam Deck and Linux
 
-Ember runs on a Steam Deck through the game's own Proton. Installing adds an **SF4 Ember Netplay** tile to the Steam library, under Non-Steam, that starts the game with Ember, in Desktop Mode and in Game Mode. Ultra Street Fighter IV's own tile still starts the plain game. This was tested on a Steam Deck with SteamOS 3.8 and Proton 11.0. Online matches from a Deck, games on an SD card and other Linux systems have not been tested yet. The installer is attached to releases after 1.3.0.
+Ember runs on a Steam Deck through the game's own Proton. Installing adds an **SF4 Ember Netplay** tile to the Steam library, under Non-Steam, that starts the game with Ember, in Desktop Mode and in Game Mode. Ultra Street Fighter IV's own tile still starts the plain game. This was tested on a Steam Deck with SteamOS 3.8 and Proton 11.0. Online matches from a Deck, games on an SD card and other Linux systems have not been tested yet.
 
 ## Before installing
 
@@ -9,11 +9,11 @@ Start Ultra Street Fighter IV once from Steam, wait for the main menu, then quit
 ## Install
 
 1. Switch to Desktop Mode (Steam button > Power > Switch to Desktop).
-2. From the [latest release](https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest), download `install-ember.desktop`.
+2. Download [install-ember.desktop](https://github.com/Confetti3/SF4-Ember-Netplay-Nightly/releases/download/steamdeck/install-ember.desktop).
 3. Open Downloads and double-click it. KDE may ask once whether to trust or run it; allow it.
 4. A terminal shows the progress and ends with "Done. Play SF4 Ember Netplay from your Steam library." Press Enter to close it.
 
-The installer downloads the latest release, checks its SHA-256 and extracts it to `~/Ember`, replacing any earlier copy. It adds the SF4 Ember Netplay tile with Ember artwork and sets USF4's launch option to `/home/deck/Ember/steam-launch.sh %command%`. That script starts the plain game unless the Ember tile asked for Ember a moment before. Steam is closed while the installer changes its settings and then started again. Playtime, friends and achievements count for Ultra Street Fighter IV, since that is the game that runs. Ember sets VSync off itself; set Frame Rate to FIXED in the game's Options when Ember asks.
+The installer downloads the latest stable release, checks its SHA-256 and extracts it to `~/Ember`, replacing any earlier copy. It adds the SF4 Ember Netplay tile with Ember artwork and sets USF4's launch option to `/home/deck/Ember/steam-launch.sh %command%`. That script starts the plain game unless the Ember tile asked for Ember a moment before. Steam is closed while the installer changes its settings and then started again. Playtime, friends and achievements count for Ultra Street Fighter IV, since that is the game that runs. Ember sets VSync off itself; set Frame Rate to FIXED in the game's Options when Ember asks.
 
 ## Updating
 

@@ -48,8 +48,6 @@ try {
     }
     . (Join-Path $PSScriptRoot 'package-installer.ps1') -PackageDir $script:PackageFolderPath -VersionLabel $version -OutDir $OutDir
     $assets += @($script:InstallerPath, "${script:InstallerPath}.sha256")
-    # The Steam Deck launcher downloads releases/latest/download/steamdeck-install.sh.
-    $assets += @('scripts/steamdeck/steamdeck-install.sh', 'scripts/steamdeck/install-ember.desktop')
     & gh release create $Tag @assets --repo $releaseRepository --verify-tag $(if ($prerelease) { '--prerelease' } else { '--latest' }) --title "SF4 Ember Netplay $Tag" --notes-file $NotesFile
     if ($LASTEXITCODE) { throw 'GitHub release publication failed.' }
 } finally { Pop-Location }

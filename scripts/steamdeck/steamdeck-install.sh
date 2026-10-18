@@ -29,10 +29,10 @@ trap 'rm -rf "$tmp"' EXIT
 "${CURL[@]}" --progress-bar -o "$tmp/$zip" "https://github.com/$REPO/releases/download/$tag/$zip"
 "${CURL[@]}" -sS -o "$tmp/$zip.sha256" "https://github.com/$REPO/releases/download/$tag/$zip.sha256"
 (cd "$tmp" && sha256sum -c "$zip.sha256") || { echo "Download is corrupt."; exit 1; }
-# The tile's artwork, from the same tag; the tile works without it.
+# The tile's artwork; the tile works without it.
 mkdir "$tmp/art"
 for f in cover wide hero logo icon; do
-  "${CURL[@]}" -sS -o "$tmp/art/$f.png" "${EMBER_ART_BASE:-https://raw.githubusercontent.com/$REPO/$tag/assets/steamdeck}/$f.png" 2>/dev/null || rm -f "$tmp/art/$f.png"
+  "${CURL[@]}" -sS -o "$tmp/art/$f.png" "${EMBER_ART_BASE:-https://raw.githubusercontent.com/Confetti3/SF4-Ember-Netplay-Nightly/nightly/assets/steamdeck}/$f.png" 2>/dev/null || rm -f "$tmp/art/$f.png"
 done
 
 # A fresh folder each time, as the player guide asks; settings live in the Proton prefix.
