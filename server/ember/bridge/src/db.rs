@@ -390,9 +390,7 @@ mod tests {
                  INSERT INTO links (id, account_id, connection_id, ember_id, approved_via, claim_id, consented_at, approved_at, revoked_at, revoked_by)
                    VALUES ('lnk_old', 'ext_kate', 'c', 'emb_kate', 'browser', 'lkc_1', 10, 10, 20, 'unlinked_by_player'),
                           ('lnk_kate', 'ext_kate', 'c', 'emb_kate', 'provider_proxy', 'lkc_2', 30, 30, NULL, NULL),
-                          ('lnk_sam', 'ext_sam', 'c', 'emb_sam', 'discord', 'discord:2', 40, 40, NULL, NULL);
-                 INSERT INTO sessions (token_hash, ember_id, scopes, created_at, expires_at)
-                   VALUES (x'01', 'emb_sam', 'self:read', 500, 1100), (x'02', 'emb_sam', 'self:read', 300, 900);",
+                          ('lnk_sam', 'ext_sam', 'c', 'emb_sam', 'discord', 'discord:2', 40, 40, NULL, NULL);",
             )
             .unwrap();
         let indexes = |connection: &Connection| -> Vec<(String, Option<String>)> {
@@ -404,7 +402,18 @@ mod tests {
                 .collect::<rusqlite::Result<_>>()
                 .unwrap()
         };
+        let foreign_keys = |connection: &Connection| -> Vec<(String, String, String)> {
+            connection
+                .prepare("SELECT \"from\", \"table\", \"to\" FROM pragma_foreign_key_list('links') ORDER BY \"from\"")
+                .unwrap()
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+                .unwrap()
+                .collect::<rusqlite::Result<_>>()
+                .unwrap()
+        };
         let before = indexes(&connection);
+        let keys_before = foreign_keys(&connection);
+        assert_eq!(keys_before.len(), 3);
         assert!(
             before
                 .iter()
@@ -412,6 +421,13 @@ mod tests {
         );
         migrate(&mut connection, MIGRATIONS).unwrap();
         assert_eq!(indexes(&connection), before);
+        assert_eq!(foreign_keys(&connection), keys_before);
+        let broken: i64 = connection
+            .query_row("SELECT COUNT(*) FROM pragma_foreign_key_check", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(broken, 0);
         let rows: Vec<(String, String, Option<i64>)> = connection
             .prepare("SELECT id, approved_via, revoked_at FROM links ORDER BY id")
             .unwrap()
@@ -446,25 +462,23 @@ mod tests {
             "challonge_accounts",
             "challonge_sign_ins",
             "challonge_withdrawals",
-            "challonge_requests",
+            "site_requests",
         ] {
             assert!(table_exists(&connection, table), "{table}");
         }
-        // An Ember ID was last in use at its newest session still stored, or
-        // else when it was made.
-        let last_session_at = |ember_id: &str| -> i64 {
+        // A Challonge sign-in row has a Discord sign-in's columns.
+        let columns = |table: &str| -> Vec<String> {
             connection
-                .query_row(
-                    "SELECT last_session_at FROM identities WHERE ember_id = ?1",
-                    [ember_id],
-                    |row| row.get(0),
-                )
+                .prepare(&format!(
+                    "SELECT name FROM pragma_table_info('{table}') ORDER BY cid"
+                ))
+                .unwrap()
+                .query_map([], |row| row.get(0))
+                .unwrap()
+                .collect::<rusqlite::Result<_>>()
                 .unwrap()
         };
-        assert_eq!(
-            (last_session_at("emb_sam"), last_session_at("emb_kate")),
-            (500, 0)
-        );
+        assert_eq!(columns("challonge_sign_ins"), columns("discord_sign_ins"));
     }
 
     #[test]

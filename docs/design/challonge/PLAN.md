@@ -28,23 +28,25 @@ Challonge  <--poll / report--  ember-brackets  --POST /v1/matches-->  bridge  <-
 
 ### 2. Bridge: Challonge sign-in and lookup (`server/ember/bridge`)
 
-Device sign-in, so nothing has to redirect back to the bridge:
+Challonge's authorization-code flow, through the same implementation as Connect Discord (`routes::sign_in`, one flow over both sites, with what differs per site in `routes::sign_in::provider`):
 
-1. The game sends a `challonge.connect` proof to `POST /v1/challonge/start`. The bridge asks Challonge for a device code (`/v2.1/oauth/authorize_device`, scope `me`), keeps it, and answers with the user code and the page to enter it on. One sign-in per Ember ID; a new start replaces the old one. Starts are rate limited per Ember ID like Discord's.
-2. A background task polls Challonge's token endpoint for waiting sign-ins at the interval Challonge asks for (backing off on `slow_down`). On a token it reads `/v2.1/me` for the user ID and username, then drops the token. No Challonge token is stored.
-3. If no other Ember ID holds that Challonge account, it is connected (replacing this Ember ID's previous one, if any, and ending links approved through the replaced account). Whoever enters a code connects their account to whoever started the sign-in, so an account another Ember ID holds is never taken from one still in use: if that Ember ID opened a player session in the last 30 days (`challonge::MOVE_IDLE_SECS`, read from `identities.last_session_at`), the sign-in ends `held` and the player disconnects the account there first. Otherwise the sign-in waits in `moving` until the player chooses on `POST /v1/challonge/move` (`move` or `keep`, with a `challonge.move` proof); a move re-checks both that the account is still there and that its Ember ID is still unused, and ends `held` if it was used meanwhile.
-4. `GET /v1/challonge` is a pure read of the account and any sign-in. `DELETE /v1/challonge/start` cancels, `DELETE /v1/challonge` disconnects.
+1. The game sends a `challonge.connect` proof to `POST /v1/challonge/start` and opens the returned `authorize_url` (`https://api.challonge.com/oauth/authorize`, scope `me`) in the browser. One sign-in per Ember ID; a new start replaces the old one. Starts are rate limited per Ember ID like Discord's.
+2. Challonge sends the browser to `GET /v1/challonge/callback` with a code. The bridge exchanges it at the token path (form body only, with the client secret), reads `/v2.1/me.json` for the user ID and username, then drops the token. No Challonge token is stored.
+3. The bridge's page names the Ember ID and asks before connecting, so a link someone else started cannot tie the person who opens it to their Ember ID. If another Ember ID holds the account, the page says so and the person signed in to Challonge chooses to move it or keep it there; the choice holds only while that Ember ID still has it. Connecting replaces this Ember ID's previous account, if any, and ends the links approved through the replaced account.
+4. `GET /v1/challonge` reads the connected account. `DELETE /v1/challonge/start` cancels, `DELETE /v1/challonge` disconnects.
 
-Storage (migration 027): `challonge_accounts` (user ID, username, Ember ID unique, cascade on account delete), `challonge_sign_ins`, and `challonge_withdrawals` so a link the player removed is not recreated by the next lookup, `challonge_requests` (requests per month, for the budget below), and `identities.last_session_at`, since session rows are pruned a day after they lapse. `links.approved_via` gains `challonge`.
+The device grant was the first plan. It was dropped because it needs polling, which Challonge's free tier of 500 requests a month cannot pay for, and because it has no bridge page in the loop: a code handed to someone else would connect their account to the wrong Ember ID.
 
-Config: a `challonge` block per bridge (`client_id`, `api_base` defaulting to `https://api.challonge.com`, and the token path, since the docs disagree between `/oauth/token` and `/v2.1/oauth/token`). The client secret, if Challonge needs one, lives in `integrations.json` like Discord's. The `challonge` feature is only advertised when sign-in is configured. Two bridge-wide limits keep within Challonge's free tier: `max_waiting_sign_ins` (default 20) and `monthly_request_budget` (default 400 requests per calendar month in UTC, counted in `challonge_requests`); at either, starts answer `service_unavailable`, and at the budget waiting sign-ins end `failed`.
+Storage (migration 027): `challonge_accounts` (user ID, username and its lowercase key, Ember ID unique, cascade on account delete), `challonge_sign_ins` and `challonge_withdrawals` shaped like Discord's, and `site_requests` (requests per site and month, for the budget below). `links.approved_via` gains `challonge`.
 
-Lookup: a connection with `challonge_lookup: true` may send usernames to `POST /v1/players/lookup`. Each one with a connected Ember ID is linked on that connection (subject `challonge:<user id>`, `approved_via = 'challonge'`), as the Discord lookup does today.
+Config: a `challonge` block per bridge (`client_id`, `api_base` defaulting to `https://api.challonge.com`, `token_path` defaulting to `/oauth/token` since the docs also name `/v2.1/oauth/token`, `me_path`, `scope`, `monthly_request_budget`). The client secret is required and lives in `integrations.json` like Discord's; the `challonge` feature is only advertised when both are there. A sign-in costs two requests (token and `/me`); `monthly_request_budget` (default 400 per calendar month in UTC) is checked before each exchange, with a warning in the log at 80%.
+
+Lookup: a connection with `challonge_lookup: true` may send usernames to `POST /v1/players/lookup`. Each one with a connected Ember ID is linked on that connection (subject `challonge:<user id>`, `approved_via = 'challonge'`), as the Discord lookup does. A username is the one captured at connect time, and the most recently connected owner of a name answers for it.
 
 ### 3. Game and helper
 
-- Helper (`rust/sf4-net/src/tournament`): `challonge_status`, `challonge_connect`, `challonge_cancel`, `challonge_move`, `challonge_remove`, mirroring the Discord calls. It opens only Challonge's own verification page.
-- Game: Online play > Ember ID > Challonge. The screen shows the code in large type with an "Open Challonge" action (the page opens with the code filled in where Challonge allows it), waits while the player approves, and then shows the connected username with Disconnect. A `moving` sign-in asks whether to move the account here. Cancel and Try again behave like Connect Discord. Strings go into all 14 catalogs.
+- Helper (`rust/sf4-net/src/tournament`): `challonge_status`, `challonge_connect`, `challonge_cancel`, `challonge_remove`, mirroring the Discord calls. It opens only the `authorize_url` the bridge answers, on Challonge's own site.
+- Game: Online play > Ember ID > Challonge, behaving like Connect Discord: the browser opens Challonge, the bridge's page asks before connecting or moving, and the screen then shows the connected username with Disconnect. Cancel and Try again behave like Connect Discord. Strings go into all 14 catalogs.
 
 ### 4. Connector (`server/ember/brackets`, binary `ember-brackets`)
 
@@ -71,7 +73,7 @@ Disputes use the connection's `disputes: "restart"` for now: a disputed game is 
 
 ## Open questions
 
-- The live API answers listed at the end of CHALLONGE_API.md (token URL, `/me` path, polling errors, whether device sign-in needs a client secret, 429 behaviour). Each is configurable or handled both ways until checked against a registered Connect app.
+- The live API answers listed at the end of CHALLONGE_API.md (token URL, `/me` path, that the Connect app may use the authorization-code flow with the bridge's redirect URI, 429 behaviour). Each is configurable or handled both ways until checked against a registered Connect app.
 - Whether Challonge's paid API tier is needed for regular events.
 - A participant's Challonge user ID is not exposed, only the username, so a player who renames on Challonge reconnects in Ember to match again.
 

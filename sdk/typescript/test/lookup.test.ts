@@ -100,22 +100,17 @@ test("a connection finds players by their connected Discord account", { timeout:
 });
 
 const CHALLONGE_CLIENT = "sdk-challonge-client";
-const DEVICE_CODE = "sdk-device-code-secret";
+const CHALLONGE_SECRET = "sdk-challonge-secret";
 const ACCESS_TOKEN = "sdk-access-token-secret";
 
-/** A Challonge that approves the device code on its first poll, as `Kate_99`. */
+/** A Challonge that signs every code in as `Kate_99`. */
 async function startChallonge(): Promise<{ apiBase: string; close(): void }> {
   const server = createServer((request, response) => {
     request.resume();
     request.on("end", () => {
       const path = new URL(request.url ?? "/", "http://challonge").pathname;
       const reply = (status: number, body: Json) => response.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(body));
-      if (path === "/v2.1/oauth/authorize_device") {
-        reply(200, {
-          device_code: DEVICE_CODE, user_code: "SDKCODE", verification_uri: "https://auth.challonge.com/oauth/device",
-          verification_uri_complete: "https://auth.challonge.com/oauth/device?user_code=SDKCODE", expires_in: 300, interval: 2,
-        });
-      } else if (path === "/oauth/token") {
+      if (path === "/oauth/token") {
         reply(200, { access_token: ACCESS_TOKEN, token_type: "Bearer", expires_in: 604800, scope: "me" });
       } else if (path === "/v2.1/me.json" && request.headers.authorization === `Bearer ${ACCESS_TOKEN}`) {
         reply(200, { data: { id: "1001", type: "user", attributes: { username: "Kate_99" } } });
@@ -143,6 +138,7 @@ test("a connection finds players by their connected Challonge account", { timeou
   const bridge = await startBridge({
     config: { challonge: { client_id: CHALLONGE_CLIENT, api_base: challonge.apiBase } },
     connection: { challonge_lookup: true },
+    secrets: { challonge_client_secret: CHALLONGE_SECRET },
   });
   try {
     const { origin } = bridge;
@@ -150,19 +146,22 @@ test("a connection finds players by their connected Challonge account", { timeou
     assert.ok(((await provider.getCapabilities()).features as string[]).includes("challonge"));
     assert.deepEqual(await provider.lookupChallongePlayers(["Kate_99"]), []);
 
-    // The player connects Challonge from Ember: the bridge hands out the code,
-    // and connects the account once Challonge says it was approved.
+    // The player connects Challonge from Ember: the browser goes to
+    // Challonge, comes back with a code, and the bridge's page asks first.
     const player = new TestPlayer({ origin });
     const started = await player.startChallongeConnect();
-    assert.equal(started.user_code, "SDKCODE");
-    assert.equal(started.verification_uri, "https://auth.challonge.com/oauth/device");
-    let connection = await player.challonge();
-    for (let i = 0; i < 150 && !connection.account; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      connection = await player.challonge();
-    }
-    assert.equal(connection.account?.username, "Kate_99");
-    assert.equal(connection.sign_in, null);
+    const authorize = new URL(started.authorize_url);
+    assert.equal(authorize.pathname, "/oauth/authorize");
+    assert.equal(authorize.searchParams.get("redirect_uri"), `${origin}/v1/challonge/callback`);
+    const state = authorize.searchParams.get("state");
+    assert.ok(state);
+    const callback = await fetch(`${origin}/v1/challonge/callback?code=sdk-code&state=${encodeURIComponent(state)}`);
+    const confirmation = /name="confirmation" value="([^"]+)"/.exec(await callback.text())?.[1];
+    assert.ok(confirmation, "the callback asks before connecting");
+    assert.equal((await player.challonge()).account, null);
+    const confirmed = await fetch(`${origin}/v1/challonge/callback`, { method: "POST", body: new URLSearchParams({ confirmation, choice: "connect" }) });
+    assert.match(await confirmed.text(), /Challonge connected/);
+    assert.equal((await player.challonge()).account?.username, "Kate_99");
 
     // Found without case, as asked; a name nobody connected is left out.
     const found = await provider.lookupChallongePlayers(["nobody", "KATE_99"]);
@@ -173,10 +172,10 @@ test("a connection finds players by their connected Challonge account", { timeou
     await assert.rejects(provider.lookupPlayers(["274220342558756145"]), (error: BridgeError) => error.status === 403);
     await assert.rejects(provider.lookupChallongePlayers(["not a name"]), (error: BridgeError) => error.status === 400);
 
-    // Neither the device code nor the token reached the bridge's output.
+    // Neither the client secret nor the token reached the bridge's output.
     const output = bridge.output();
-    assert.ok(output.includes("POST /v1/challonge/start 201"), output);
-    assert.ok(!output.includes(DEVICE_CODE) && !output.includes(ACCESS_TOKEN), output);
+    assert.ok(output.includes("GET /v1/challonge/callback 200"), output);
+    assert.ok(!output.includes(CHALLONGE_SECRET) && !output.includes(ACCESS_TOKEN), output);
   } finally {
     challonge.close();
     await bridge.stop();

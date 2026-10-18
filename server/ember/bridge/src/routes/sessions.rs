@@ -131,13 +131,14 @@ fn route_matches(action: Action, method: Method, path: &str) -> bool {
         (Action::AttemptPrepare, Method::Post) => {
             id_between("/v1/matches/", "emt", "/attempts/prepare")
         }
-        (Action::DiscordConnect, Method::Post) => path == super::discord::START_PATH,
-        (Action::DiscordRemove, Method::Delete) => path == super::discord::ACCOUNT_PATH,
-        (Action::DiscordCancel, Method::Delete) => path == super::discord::START_PATH,
-        (Action::ChallongeConnect, Method::Post) => path == super::challonge::START_PATH,
-        (Action::ChallongeRemove, Method::Delete) => path == super::challonge::ACCOUNT_PATH,
-        (Action::ChallongeCancel, Method::Delete) => path == super::challonge::START_PATH,
-        (Action::ChallongeMove, Method::Post) => path == super::challonge::MOVE_PATH,
+        (Action::DiscordConnect, Method::Post) => path == ember_protocol::discord::START_PATH,
+        (Action::DiscordRemove, Method::Delete) => path == ember_protocol::discord::ACCOUNT_PATH,
+        (Action::DiscordCancel, Method::Delete) => path == ember_protocol::discord::START_PATH,
+        (Action::ChallongeConnect, Method::Post) => path == ember_protocol::challonge::START_PATH,
+        (Action::ChallongeRemove, Method::Delete) => {
+            path == ember_protocol::challonge::ACCOUNT_PATH
+        }
+        (Action::ChallongeCancel, Method::Delete) => path == ember_protocol::challonge::START_PATH,
         _ => false,
     }
 }
@@ -225,17 +226,15 @@ pub fn consume_proof(
     Ok((challenge.ember_id, key))
 }
 
-/// Records an identity the first time it proves possession of its key, and
-/// that it opened a session now (`identities.last_session_at`).
-fn register_identity(
+/// Records an identity the first time it proves possession of its key.
+pub fn register_identity(
     tx: &Transaction<'_>,
     ember_id: &EmberId,
     key: &PublicKey,
     now: u64,
 ) -> Result<()> {
     tx.execute(
-        "INSERT INTO identities (ember_id, public_key, created_at, last_session_at) VALUES (?1, ?2, ?3, ?3)
-         ON CONFLICT (ember_id) DO UPDATE SET last_session_at = excluded.last_session_at",
+        "INSERT OR IGNORE INTO identities (ember_id, public_key, created_at) VALUES (?1, ?2, ?3)",
         params![ember_id.as_str(), key.to_b64u(), now],
     )?;
     Ok(())

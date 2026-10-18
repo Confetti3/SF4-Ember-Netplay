@@ -4,8 +4,7 @@
 #   sudo bash ~/ember-bridge/set-integration-secret.sh discord
 #       Discord's client secret (Developer Portal, the Ember application, OAuth2).
 #   sudo bash ~/ember-bridge/set-integration-secret.sh challonge
-#       Challonge's client secret (connect.challonge.com, the Ember application),
-#       if the application has one; device sign-in works without it.
+#       Challonge's client secret (connect.challonge.com, the Ember application).
 #   sudo bash ~/ember-bridge/set-integration-secret.sh rooms
 #       The shared secret of the room supervisor's loopback API (public rooms).
 #   sudo bash ~/ember-bridge/set-integration-secret.sh blumint <connection-id>

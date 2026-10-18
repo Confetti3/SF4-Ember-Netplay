@@ -9,7 +9,11 @@ use ember_protocol::{
 };
 use serde_json::json;
 
-use crate::{AppState, auth, http::ok, linking::CODE_LIFETIME_SECS};
+use crate::{
+    AppState, auth,
+    http::ok,
+    linking::{CODE_LIFETIME_SECS, Site},
+};
 
 pub async fn well_known(State(state): State<AppState>) -> Response {
     let origin = &state.config.origin;
@@ -42,13 +46,22 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
     if state.config.mock_browser {
         features.push("link.mock_browser".into());
     }
-    features.push(ember_protocol::discord::ACCOUNTS_FEATURE.into());
-    if crate::routes::discord::sign_in(&state).is_some() {
-        features.push(ember_protocol::discord::FEATURE.into());
-    }
-    features.push(ember_protocol::challonge::ACCOUNTS_FEATURE.into());
-    if crate::routes::challonge::sign_in(&state).is_some() {
-        features.push(ember_protocol::challonge::FEATURE.into());
+    for (site, accounts, sign_in) in [
+        (
+            Site::Discord,
+            ember_protocol::discord::ACCOUNTS_FEATURE,
+            ember_protocol::discord::FEATURE,
+        ),
+        (
+            Site::Challonge,
+            ember_protocol::challonge::ACCOUNTS_FEATURE,
+            ember_protocol::challonge::FEATURE,
+        ),
+    ] {
+        features.push(accounts.into());
+        if crate::routes::sign_in::offered(&state, site) {
+            features.push(sign_in.into());
+        }
     }
     if crate::routes::rooms::enabled(&state) {
         features.push(crate::routes::rooms::FEATURE.into());

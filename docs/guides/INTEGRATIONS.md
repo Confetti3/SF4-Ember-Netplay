@@ -283,63 +283,58 @@ always see and disconnect an account connected earlier.
 
 ## Challonge sign-in (optional)
 
-A bridge whose configuration has `challonge` lists `challonge` in its
-capabilities `features`:
+Challonge sign-in is Discord sign-in with Challonge's own OAuth
+application: the same routes under `/v1/challonge`, the same pages naming
+the Ember ID, and the same rules for moving, cancelling and disconnecting
+(above). A bridge whose configuration has `challonge` and whose integration
+secrets hold `challonge_client_secret` (`set-integration-secret.sh
+challonge`) lists `challonge` in its capabilities `features`:
 
 ```json
 "challonge": { "client_id": "<the Challonge application's client ID>" }
 ```
 
-The other settings default to Challonge's documented endpoints:
-`api_base` `https://api.challonge.com`, `device_path`
-`/v2.1/oauth/authorize_device`, `token_path` `/oauth/token`, `me_path`
-`/v2.1/me.json` and `scope` `me`. Challonge's documentation also names
-`/v2.1/oauth/token`, so the token path is a setting until a live sign-in
-settles it. If the application has a client secret, `set-integration-secret.sh
-challonge` stores it as `challonge_client_secret`, and every token poll sends
-it; device sign-in works without one. Two limits protect Challonge's free
-tier of 500 requests a month: `max_waiting_sign_ins` (default 20) sign-ins
-may wait at once across the bridge, and `monthly_request_budget` (default
-400) requests (device codes, token polls and `/me` together) are made per
-calendar month in UTC, counted in the database. A start beyond either answers
-`service_unavailable`; at the budget, waiting sign-ins also end `failed`
-instead of polling, and the bridge logs a warning once 80% of it is spent.
-The sign-in uses Challonge's device grant, so nothing comes back to the
-bridge in a browser:
+The application's redirect list must hold `<origin>/v1/challonge/callback`.
+The other settings default to Challonge's documented endpoints: `api_base`
+`https://api.challonge.com` (any other must be on challonge.com), `token_path`
+`/oauth/token`, `me_path` `/v2.1/me.json` and `scope` `me`. Challonge's
+documentation also names `/v2.1/oauth/token`, so the token path is a setting
+until a live sign-in settles it.
 
 1. Ember's helper calls `POST /v1/challonge/start` with a `challonge.connect`
-   proof (at most ten an hour per Ember ID). The bridge asks Challonge for a
-   device code and answers `user_code`, `verification_uri` (an https page on
-   challonge.com), `verification_uri_complete` when Challonge gives one, and
-   `expires_at`, at most ten minutes away. Ember shows the code; the player
-   enters it on Challonge's page.
-2. The bridge polls Challonge's token endpoint every 5 seconds or the
-   interval Challonge asks for, if longer, and 5 seconds longer after each
-   `slow_down`. Once the player approves, it reads the Challonge user ID and
-   username from `/me` and drops the token; no Challonge token is stored.
-3. An account no other Ember ID holds is connected at once, replacing this
-   Ember ID's earlier one. One another Ember ID holds stays there while that
-   Ember ID is in use, since whoever enters a code connects their account to
-   whoever started the sign-in: the sign-in ends `held`, naming the username,
-   and the player disconnects it on the other Ember ID first. Only if that
-   Ember ID has opened no player session for 30 days (`MOVE_IDLE_SECS`) does
-   the sign-in wait in `moving`, naming the username, until
-   `POST /v1/challonge/move` (a `challonge.move` proof, `{"choice": "move"}`
-   or `{"choice": "keep"}`). Moving changes nothing, and answers
-   `link_conflict`, if the account was disconnected or moved elsewhere since
-   it signed in, or if that Ember ID opened a session since; the sign-in then
-   ends `held`.
-4. `GET /v1/challonge` (player session) shows the connected account and the
-   sign-in, if any: `waiting`, `moving`, or how it ended (`held`, `denied`,
-   `expired`, `failed`), readable for ten minutes after its code lapsed.
-   Starting again replaces it. `DELETE /v1/challonge/start` (a
-   `challonge.cancel` proof) ends it, and `DELETE /v1/challonge` (a
-   `challonge.remove` proof) disconnects the account.
+   proof and opens the returned `authorize_url`
+   (`<api_base>/oauth/authorize` with `response_type=code`, `client_id`,
+   `scope`, `redirect_uri` and `state`) in the browser.
+2. Challonge sends the browser to `GET /v1/challonge/callback`. The bridge
+   exchanges the code at the token path with a form body only
+   (`grant_type=authorization_code`, `code`, `redirect_uri`, `client_id`,
+   `client_secret`), reads the user ID and username from `me_path` with
+   `Authorization-Type: v2`, and drops the token.
+3. The page names the Ember ID and asks before connecting, or before moving
+   an account another Ember ID holds (`POST /v1/challonge/callback`).
+4. `GET /v1/challonge` shows the connected account, `DELETE
+   /v1/challonge/start` (`challonge.cancel`) ends a sign-in in flight, and
+   `DELETE /v1/challonge` (`challonge.remove`) disconnects the account. Every
+   bridge lists `challonge.accounts` and keeps these, with or without
+   sign-in.
+
+Challonge's free API tier allows 500 requests a month. A sign-in costs two
+(the token exchange and `/me`), and the bridge spends at most
+`monthly_request_budget` (default 400) per calendar month in UTC, counted in
+the database: it takes a sign-in's two before the exchange, so one Challonge
+refuses still counts both. At the budget a start answers
+`service_unavailable` and a sign-in already started ends with a page asking
+the player to try again later. The bridge logs a warning when 80% is spent.
 
 Links a Challonge sign-in approved (`approved_via` `challonge`, claim
-`challonge:<user ID>`) follow the account exactly as Discord's do. Every
-bridge lists `challonge.accounts` and keeps the read, cancel and disconnect
-routes, with or without sign-in.
+`challonge:<user ID>`) follow the account exactly as Discord's do.
+
+The bridge keeps the username Challonge gave when the account connected, and
+lookups match on it. A player who renames on Challonge is found under the
+old name until they connect again, and if two connected accounts ever had
+the same name, the one connected most recently answers for it. A bracket
+connector that cares can compare names with Challonge before a match, or ask
+players to reconnect after a rename.
 
 ## BluMint
 

@@ -1,0 +1,520 @@
+//! Signing in with another site to connect its account to an Ember ID:
+//! Discord (on when the configuration has `discord`) and Challonge (on when
+//! it has `challonge`), each with its client secret in the integration
+//! secrets. One flow serves both; what differs is in `provider`.
+//!
+//! A player's Ember asks to start a sign-in with the site's `connect` proof
+//! and opens the returned page in the browser; the site sends the browser
+//! back to the callback with a code, which the bridge exchanges for the
+//! player's user ID and username on the site (Discord's `identify` scope,
+//! Challonge's `me`). The bridge keeps those two, so platforms that find
+//! players by that account get the Ember ID. Nothing else from the site is
+//! stored, and the access token is dropped.
+//!
+//! A platform's link approved by a sign-in (`approved_via` the site's name,
+//! claim `<site>:<user ID>`) follows the account as `linking::Site`
+//! describes: it ends when the account moves or is disconnected, and a link
+//! the player removes is not made again until a newer sign-in.
+//!
+//! A sign-in connects nothing by itself unless the account is already this
+//! Ember ID's: the browser page names the Ember ID it would connect to and
+//! asks first, so an authorize link someone else started cannot tie the
+//! person who opens it to their Ember ID. For an account connected to
+//! another Ember ID the page also says what moving it ends. The answer holds
+//! only for the owner the page named: if the account was connected or moved
+//! elsewhere meanwhile, it changes nothing.
+//! Starting a sign-in ends the Ember ID's earlier ones, and the player can
+//! end the one in flight (`cancel`), so only the latest can connect. The
+//! pages the browser shows are in `pages`. A site that limits requests per
+//! month (Challonge) has its exchanges counted in `budget`.
+mod budget;
+mod pages;
+mod provider;
+
+use axum::{
+    Form, Router,
+    extract::{Query, State},
+    http::{HeaderMap, StatusCode},
+    response::Response,
+    routing::{get, post},
+};
+use ember_protocol::{
+    api::ErrorCode,
+    challenge::Method,
+    discord::SIGN_IN_SECS,
+    encoding::b64u,
+    sign_in::{Connection, SignInStarted},
+};
+use rusqlite::{OptionalExtension, Transaction, params};
+use serde::Deserialize;
+use serde_json::json;
+
+use self::{
+    pages::Pages,
+    provider::{OAuth, Routes},
+};
+use crate::{
+    AppState, auth,
+    ctx::Ctx,
+    error::{ApiFailure, Result},
+    http::{Body, PROOF_BODY, json, ok},
+    linking::Site,
+    routes::sessions::{self, Nothing, Target},
+    util::random,
+};
+
+/// Sign-ins one Ember ID may start per hour, on each site.
+const STARTS_PER_HOUR: usize = 10;
+
+/// Adds `site`'s sign-in routes.
+pub fn routes(app: Router<AppState>, site: Site) -> Router<AppState> {
+    let paths = Routes::of(site);
+    app.route(
+        paths.start,
+        post(move |state, headers, body| start(state, headers, body, site))
+            .delete(move |state, headers, body| cancel(state, headers, body, site)),
+    )
+    .route(
+        paths.callback,
+        get(move |state, answer| callback(state, answer, site))
+            .post(move |state, answer| decide(state, answer, site)),
+    )
+    .route(
+        paths.account,
+        get(move |state, headers| account(state, headers, site))
+            .delete(move |state, headers, body| remove(state, headers, body, site)),
+    )
+}
+
+/// Whether `site`'s sign-in is offered. Reading and disconnecting a
+/// connected account need no offer, so a player can always withdraw one.
+pub fn offered(state: &AppState, site: Site) -> bool {
+    OAuth::of(state, site).is_some()
+}
+
+fn enabled(state: &AppState, site: Site) -> Result<OAuth> {
+    OAuth::of(state, site).ok_or_else(ApiFailure::not_found)
+}
+
+fn state_hash(state: &AppState, site: Site, text: &str) -> [u8; 32] {
+    state
+        .keys
+        .keyed_hash(&format!("{}-sign-in", site.name()), text.as_bytes())
+}
+
+/// The key of a sign-in waiting on the page's question: a secret of its own,
+/// made when the question is asked and shown only on that page. The sign-in's
+/// state was handed to the Ember that started it, so it does not answer the
+/// question.
+fn confirmation_hash(state: &AppState, site: Site, text: &str) -> [u8; 32] {
+    state
+        .keys
+        .keyed_hash(&format!("{}-move", site.name()), text.as_bytes())
+}
+
+fn redirect_uri(state: &AppState, site: Site) -> String {
+    format!("{}{}", state.config.origin, Routes::of(site).callback)
+}
+
+/// Runs the session player's proof of `action` on `path`.
+async fn proven<T: Send + 'static>(
+    state: &AppState,
+    headers: &HeaderMap,
+    body: &Body<PROOF_BODY>,
+    target: Target<'static>,
+    work: impl FnOnce(&Transaction<'_>, &Ctx, &str) -> Result<T> + Send + 'static,
+) -> Result<T> {
+    let player = auth::player(state, headers).await?;
+    let (request, _): (_, Nothing) = sessions::proven(&body.0)?;
+    sessions::as_proven(state, player, request, target, work).await
+}
+
+/// `POST <start>`: where to send the player's browser.
+async fn start(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    body: Body<PROOF_BODY>,
+    site: Site,
+) -> Result<Response> {
+    let oauth = enabled(&state, site)?;
+    let player = auth::player(&state, &headers).await?;
+    state
+        .rate
+        .check(
+            &format!("{}-start:{}", site.name(), player.ember_id),
+            STARTS_PER_HOUR,
+            3600,
+            state.now(),
+        )
+        .map_err(ApiFailure::rate_limited)?;
+    if let Some(limit) = oauth.budget
+        && !budget::has_room(&state, site, limit).await?
+    {
+        return Err(ApiFailure::new(
+            ErrorCode::ServiceUnavailable,
+            "Sign-in is busy this month. Try again later.",
+        ));
+    }
+    let secret = b64u(&random::<32>());
+    let hash = state_hash(&state, site, &secret);
+    let expires_at = state.now() + SIGN_IN_SECS;
+    let authorize_url = oauth
+        .authorize_url(&redirect_uri(&state, site), &secret)
+        .ok_or_else(ApiFailure::unavailable)?;
+    let (request, _): (_, Nothing) = sessions::proven(&body.0)?;
+    let target = Target {
+        action: Routes::of(site).connect,
+        method: Method::Post,
+        path: Routes::of(site).start,
+    };
+    sessions::as_proven(&state, player, request, target, move |tx, ctx, ember_id| {
+        expire(tx, ctx.now)?;
+        // Only the latest sign-in can connect an account.
+        site.end_sign_ins(tx, ember_id)?;
+        tx.execute(
+            &format!(
+                "INSERT INTO {} (state_hash, ember_id, expires_at) VALUES (?1, ?2, ?3)",
+                site.sign_ins()
+            ),
+            params![hash.as_slice(), ember_id, expires_at],
+        )?;
+        Ok(())
+    })
+    .await?;
+    Ok(json(
+        StatusCode::CREATED,
+        &SignInStarted {
+            authorize_url,
+            expires_at,
+        },
+    ))
+}
+
+/// `DELETE <start>`: ends the player's sign-ins in flight, so a page left
+/// open in the browser connects nothing. Needs no sign-in offer, like
+/// disconnecting.
+async fn cancel(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    body: Body<PROOF_BODY>,
+    site: Site,
+) -> Result<Response> {
+    let target = Target {
+        action: Routes::of(site).cancel,
+        method: Method::Delete,
+        path: Routes::of(site).start,
+    };
+    proven(&state, &headers, &body, target, move |tx, _, ember_id| {
+        site.end_sign_ins(tx, ember_id)
+    })
+    .await?;
+    Ok(ok(&json!({})))
+}
+
+/// `GET <account>`: the session player's connected account.
+async fn account(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    site: Site,
+) -> Result<Response> {
+    let player = auth::player(&state, &headers).await?;
+    let account = state
+        .db
+        .read(move |tx| site.account(tx, player.ember_id.as_str()))
+        .await?;
+    Ok(ok(&Connection { account }))
+}
+
+/// `DELETE <account>`: disconnects the session player's account.
+async fn remove(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    body: Body<PROOF_BODY>,
+    site: Site,
+) -> Result<Response> {
+    let target = Target {
+        action: Routes::of(site).remove,
+        method: Method::Delete,
+        path: Routes::of(site).account,
+    };
+    proven(&state, &headers, &body, target, move |tx, ctx, ember_id| {
+        site.disconnect(tx, ctx, ember_id)
+    })
+    .await?;
+    Ok(ok(&Connection { account: None }))
+}
+
+#[derive(Deserialize)]
+pub struct Answer {
+    #[serde(default)]
+    code: Option<String>,
+    #[serde(default)]
+    state: Option<String>,
+    #[serde(default)]
+    error: Option<String>,
+}
+
+/// What the callback did with a sign-in the site confirmed.
+enum Stored {
+    Connected(String),
+    /// The account is not `to`'s yet: connected to `from`, or to no Ember
+    /// ID. `replaced` is the account `to` has now, which connecting this one
+    /// disconnects. The player decides.
+    Asking {
+        from: Option<String>,
+        to: String,
+        replaced: Option<String>,
+        confirmation: String,
+    },
+    Gone,
+}
+
+/// `GET <callback>`: the site's answer, in the player's browser. The page
+/// says what happened, or asks before connecting an account that is not this
+/// Ember ID's yet; the player goes back to the site that sent them.
+async fn callback(
+    State(state): State<AppState>,
+    Query(answer): Query<Answer>,
+    site: Site,
+) -> Response {
+    let pages = Pages::of(&state.config, site);
+    let Ok(oauth) = enabled(&state, site) else {
+        return pages.off();
+    };
+    // Only a sign-in Ember is waiting for reaches the site, and only for the
+    // first answer that claims it; another answer for it is turned away. The
+    // claimer takes it, whatever the site answered, in the same write that
+    // stores the account, so a sign-in a disconnect ended meanwhile connects
+    // nothing.
+    let secret = answer.state.unwrap_or_default();
+    let hash = state_hash(&state, site, &secret);
+    let now = state.now();
+    let claimed = state
+        .db
+        .write(move |tx| {
+            Ok(tx.execute(
+                &format!(
+                    "UPDATE {} SET claimed = 1 WHERE state_hash = ?1 AND expires_at > ?2 AND claimed = 0",
+                    site.sign_ins()
+                ),
+                params![hash.as_slice(), now],
+            )? == 1)
+        })
+        .await;
+    if !matches!(claimed, Ok(true)) {
+        return pages.not_waiting();
+    }
+    let code = match (answer.error.as_deref(), answer.code) {
+        (None, Some(code)) if !code.is_empty() && code.len() <= 256 => code,
+        _ => {
+            end_claimed(&state, site, hash, now).await;
+            return pages.not_connected();
+        }
+    };
+    if let Some(limit) = oauth.budget
+        && !matches!(budget::spend(&state, site, limit).await, Ok(true))
+    {
+        end_claimed(&state, site, hash, now).await;
+        return pages.busy();
+    }
+    let Some(user) = oauth.user(&redirect_uri(&state, site), &code).await else {
+        end_claimed(&state, site, hash, now).await;
+        return pages.no_answer();
+    };
+    let shown = user.username.clone();
+    let confirmation = b64u(&random::<32>());
+    let confirmation_key = confirmation_hash(&state, site, &confirmation);
+    let ctx = Ctx::of(&state);
+    let stored = state
+        .db
+        .write(move |tx| {
+            let Some(ember_id) = tx
+                .query_row(
+                    &format!(
+                        "SELECT ember_id FROM {}
+                         WHERE state_hash = ?1 AND expires_at > ?2 AND claimed = 1 AND pending_user_id IS NULL",
+                        site.sign_ins()
+                    ),
+                    params![hash.as_slice(), ctx.now],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?
+            else {
+                return Ok(Stored::Gone);
+            };
+            let owner = site.owner(tx, &user.id)?;
+            if owner.as_deref() != Some(ember_id.as_str()) {
+                let replaced = site.account(tx, &ember_id)?.map(|account| account.username);
+                // The question is answered with its own secret from here on;
+                // the state stops naming this sign-in. The owner it names is
+                // kept, so the answer holds only while it still is.
+                tx.execute(
+                    &format!(
+                        "UPDATE {} SET state_hash = ?4, pending_user_id = ?2, pending_username = ?3, pending_owner = ?5
+                         WHERE state_hash = ?1",
+                        site.sign_ins()
+                    ),
+                    params![
+                        hash.as_slice(),
+                        user.id,
+                        user.username,
+                        confirmation_key.as_slice(),
+                        owner
+                    ],
+                )?;
+                return Ok(Stored::Asking {
+                    from: owner,
+                    to: ember_id,
+                    replaced,
+                    confirmation,
+                });
+            }
+            take(tx, site, &hash, ctx.now)?;
+            site.connect(tx, &ctx, &ember_id, &user.id, &user.username)?;
+            Ok(Stored::Connected(ember_id))
+        })
+        .await;
+    match stored {
+        Ok(Stored::Connected(ember_id)) => {
+            state.committed();
+            pages.connected(&shown, &ember_id)
+        }
+        Ok(Stored::Asking {
+            from,
+            to,
+            replaced,
+            confirmation,
+        }) => {
+            state.committed();
+            let replaced = replaced.as_deref();
+            match from {
+                Some(from) => pages.moving(&confirmation, &shown, &from, &to, replaced),
+                None => pages.connecting(&confirmation, &shown, &to, replaced),
+            }
+        }
+        Ok(Stored::Gone) => pages.not_waiting(),
+        Err(_) => pages.not_saved(),
+    }
+}
+
+/// Ends the claimed sign-in `hash` names, in a write of its own, when the
+/// site's answer connects nothing. If the write fails, the sign-in lapses.
+async fn end_claimed(state: &AppState, site: Site, hash: [u8; 32], now: u64) {
+    let _ = state
+        .db
+        .write(move |tx| take(tx, site, &hash, now).map(drop))
+        .await;
+}
+
+#[derive(Deserialize)]
+pub struct MoveAnswer {
+    confirmation: String,
+    choice: String,
+}
+
+/// What the player's answer did.
+enum Decided {
+    /// Connected, or left where it was: the Ember ID asked about and the account.
+    Answered(String, String),
+    /// The account was connected or moved elsewhere after the page asked.
+    Changed,
+}
+
+/// `POST <callback>`: the player's answer to connecting or moving an
+/// account, from the page `callback` showed. Either way the sign-in is done.
+async fn decide(
+    State(state): State<AppState>,
+    Form(answer): Form<MoveAnswer>,
+    site: Site,
+) -> Response {
+    let pages = Pages::of(&state.config, site);
+    if enabled(&state, site).is_err() {
+        return pages.off();
+    }
+    let moves = match answer.choice.as_str() {
+        "move" | "connect" => true,
+        "keep" | "refuse" => false,
+        _ => return pages.not_waiting(),
+    };
+    let refused = answer.choice == "refuse";
+    let hash = confirmation_hash(&state, site, &answer.confirmation);
+    let ctx = Ctx::of(&state);
+    let decided = state
+        .db
+        .write(move |tx| {
+            let Some((ember_id, user_id, username, asked_owner)) = tx
+                .query_row(
+                    &format!(
+                        "DELETE FROM {}
+                         WHERE state_hash = ?1 AND expires_at > ?2 AND claimed = 1 AND pending_user_id IS NOT NULL
+                         RETURNING ember_id, pending_user_id, pending_username, pending_owner",
+                        site.sign_ins()
+                    ),
+                    params![hash.as_slice(), ctx.now],
+                    |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, String>(2)?,
+                            row.get::<_, Option<String>>(3)?,
+                        ))
+                    },
+                )
+                .optional()?
+            else {
+                return Ok(None);
+            };
+            if moves {
+                if site.owner(tx, &user_id)? != asked_owner {
+                    return Ok(Some(Decided::Changed));
+                }
+                site.connect(tx, &ctx, &ember_id, &user_id, &username)?;
+            }
+            Ok(Some(Decided::Answered(ember_id, username)))
+        })
+        .await;
+    let (ember_id, username) = match decided {
+        Ok(Some(Decided::Answered(ember_id, username))) => (ember_id, username),
+        Ok(Some(Decided::Changed)) => {
+            state.committed();
+            return pages.changed();
+        }
+        Ok(None) => return pages.not_waiting(),
+        Err(_) => return pages.not_saved(),
+    };
+    state.committed();
+    if moves {
+        pages.connected(&username, &ember_id)
+    } else if refused {
+        pages.refused(&username)
+    } else {
+        pages.kept(&username)
+    }
+}
+
+/// Takes the claimed sign-in `hash` names if it is still there: the Ember ID
+/// that started it.
+fn take(tx: &Transaction<'_>, site: Site, hash: &[u8; 32], now: u64) -> Result<Option<String>> {
+    Ok(tx
+        .query_row(
+            &format!(
+                "DELETE FROM {} WHERE state_hash = ?1 AND expires_at > ?2 AND claimed = 1
+                 RETURNING ember_id",
+                site.sign_ins()
+            ),
+            params![hash.as_slice(), now],
+            |row| row.get(0),
+        )
+        .optional()?)
+}
+
+/// Drops sign-ins no site answered.
+pub fn expire(tx: &Transaction<'_>, now: u64) -> Result<()> {
+    for site in Site::ALL {
+        tx.execute(
+            &format!("DELETE FROM {} WHERE expires_at <= ?1", site.sign_ins()),
+            [now],
+        )?;
+    }
+    Ok(())
+}

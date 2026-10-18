@@ -49,8 +49,6 @@ pub enum Action {
     ChallongeRemove,
     #[serde(rename = "challonge.cancel")]
     ChallongeCancel,
-    #[serde(rename = "challonge.move")]
-    ChallongeMove,
 }
 
 impl Action {
@@ -70,7 +68,6 @@ impl Action {
             Self::ChallongeConnect => "challonge.connect",
             Self::ChallongeRemove => "challonge.remove",
             Self::ChallongeCancel => "challonge.cancel",
-            Self::ChallongeMove => "challonge.move",
         }
     }
 }

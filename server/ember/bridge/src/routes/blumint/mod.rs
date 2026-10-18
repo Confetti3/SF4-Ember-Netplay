@@ -51,7 +51,8 @@ use crate::{
     ctx::Ctx,
     error::{ApiFailure, Result},
     http::{Body, GENERAL_BODY, ok},
-    routes::{discord, policy},
+    linking::Site,
+    routes::policy,
     util::outbound_client,
 };
 
@@ -130,9 +131,14 @@ pub async fn lookup(
     let ctx = Ctx::of(&state);
     let found = state
         .db
-        .write(move |tx| discord::find_and_link(tx, &ctx, &connection_id, &user_ids))
+        .write(move |tx| {
+            let found = Site::Discord.find_and_link(tx, &ctx, &connection_id, &user_ids)?;
+            Ok(found
+                .into_iter()
+                .map(|player| player.ember_id)
+                .collect::<Vec<EmberId>>())
+        })
         .await?;
-    let found: Vec<EmberId> = found.into_iter().map(|player| player.ember_id).collect();
     state.committed();
     Ok(ok(&json!({ "discord": found })))
 }

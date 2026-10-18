@@ -155,6 +155,9 @@ fn open(path: &Path) -> Result<AppState, String> {
     if config.discord.is_some() && integrations.discord_client_secret.is_none() {
         eprintln!("ember-bridge: Discord sign-in is off until its client secret is stored");
     }
+    if config.challonge.is_some() && integrations.challonge_client_secret.is_none() {
+        eprintln!("ember-bridge: Challonge sign-in is off until its client secret is stored");
+    }
     let db =
         Db::open(&config.database).map_err(|error| format!("cannot open database: {error}"))?;
     let state = AppState::new(config, keys, integrations, db, Clock::default());

@@ -1,7 +1,7 @@
 //! The stand-in Challonge, the bridge configured for it, and the requests the
 //! Challonge sign-in tests make.
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::HashMap,
     sync::{Arc, Mutex},
 };
 
@@ -16,6 +16,8 @@ use ember_bridge::{config, integrations::Secrets};
 use ember_protocol::challenge::{Action, Method};
 use reqwest::StatusCode;
 use serde_json::{Value as Json, json};
+use tokio::sync::Notify;
+use zeroize::Zeroizing;
 
 use crate::common::{Bridge, Player};
 
@@ -24,6 +26,7 @@ pub type User = (&'static str, &'static str);
 pub const KATE: User = ("1001", "Kate_99");
 pub const SAM: User = ("1002", "sam");
 pub const CLIENT_ID: &str = "ember-test-client";
+pub const CLIENT_SECRET: &str = "challonge-test-secret";
 /// Finds players by Challonge username only.
 pub const BRACKETS: &str = "bracket-bot";
 /// Finds players by Discord account only.
@@ -31,25 +34,12 @@ pub const DISCORD_ONLY: &str = "discord-bot";
 /// Finds players either way.
 pub const BOTH: &str = "both-bot";
 
-/// What the stand-in's token endpoint answers to one poll.
-#[derive(Clone, Copy, Debug)]
-pub enum Answer {
-    Pending,
-    SlowDown,
-    Denied,
-    ExpiredToken,
-    InvalidGrant,
-    Unsupported,
-    ServerError,
-    Approve(User),
-}
-
 /// One request the stand-in received.
 #[derive(Clone, Debug)]
 pub struct Seen {
     pub path: String,
     /// The query string's parameters.
-    pub params: HashMap<String, String>,
+    pub query: HashMap<String, String>,
     /// The form body's.
     pub form: HashMap<String, String>,
     pub headers: HeaderMap,
@@ -57,66 +47,28 @@ pub struct Seen {
 
 #[derive(Default)]
 struct Script {
-    issued: usize,
-    /// Device code by user code.
-    devices: HashMap<String, String>,
-    /// Answers still to give, by device code; `Pending` once they run out.
-    answers: HashMap<String, VecDeque<Answer>>,
-    /// Access tokens issued, by token, and whether `/me` fails for them.
+    /// Access tokens issued, and whose they are.
     tokens: HashMap<String, User>,
-    me_fails: bool,
-    /// The verification page the next device code names.
-    page: Option<String>,
-    refuse_devices: bool,
     seen: Vec<Seen>,
 }
 
-/// A stand-in for Challonge's device authorization, token and `/me`
-/// endpoints, scripted per sign-in by the code the player would enter.
+/// A stand-in for Challonge's token and `/me` endpoints. Codes `good-kate`
+/// and `good-sam` sign those users in, `held-kate` waits for `release`
+/// after saying it `arrived`, `busy` answers 429, `odd-name` signs in a user
+/// whose username lookups cannot match, and anything else is refused.
 #[derive(Clone, Default)]
-pub struct Challonge(Arc<Mutex<Script>>);
+pub struct Challonge {
+    script: Arc<Mutex<Script>>,
+    pub arrived: Arc<Notify>,
+    pub release: Arc<Notify>,
+}
 
 impl Challonge {
-    fn script(&self) -> std::sync::MutexGuard<'_, Script> {
-        self.0.lock().unwrap()
-    }
-
-    /// The next answers to polls of the sign-in showing `user_code`.
-    pub fn answer(&self, user_code: &str, answers: &[Answer]) {
-        let mut script = self.script();
-        let device = script.devices[user_code].clone();
-        script
-            .answers
-            .entry(device)
-            .or_default()
-            .extend(answers.iter().copied());
-    }
-
-    pub fn device_code(&self, user_code: &str) -> String {
-        self.script().devices[user_code].clone()
-    }
-
-    /// Access tokens handed out so far.
-    pub fn tokens(&self) -> Vec<String> {
-        self.script().tokens.keys().cloned().collect()
-    }
-
-    pub fn fail_me(&self, fails: bool) {
-        self.script().me_fails = fails;
-    }
-
-    pub fn refuse_devices(&self, refuses: bool) {
-        self.script().refuse_devices = refuses;
-    }
-
-    /// The verification page the next device code names.
-    pub fn next_page(&self, page: &str) {
-        self.script().page = Some(page.into());
-    }
-
     /// The requests received at `path`, oldest first.
     pub fn seen(&self, path: &str) -> Vec<Seen> {
-        self.script()
+        self.script
+            .lock()
+            .unwrap()
             .seen
             .iter()
             .filter(|seen| seen.path == path)
@@ -124,16 +76,19 @@ impl Challonge {
             .collect()
     }
 
+    pub fn tokens(&self) -> Vec<String> {
+        self.script.lock().unwrap().tokens.keys().cloned().collect()
+    }
+
     fn record(&self, path: &str, query: Option<String>, body: &[u8], headers: HeaderMap) -> Seen {
+        let parse = |bytes: &[u8]| url::form_urlencoded::parse(bytes).into_owned().collect();
         let seen = Seen {
             path: path.into(),
-            params: url::form_urlencoded::parse(query.unwrap_or_default().as_bytes())
-                .into_owned()
-                .collect(),
-            form: url::form_urlencoded::parse(body).into_owned().collect(),
+            query: parse(query.unwrap_or_default().as_bytes()),
+            form: parse(body),
             headers,
         };
-        self.script().seen.push(seen.clone());
+        self.script.lock().unwrap().seen.push(seen.clone());
         seen
     }
 }
@@ -148,44 +103,6 @@ fn reply(status: AxumStatus, body: Json) -> Reply {
     )
 }
 
-async fn authorize_device(
-    State(fake): State<Challonge>,
-    RawQuery(query): RawQuery,
-    headers: HeaderMap,
-    body: Bytes,
-) -> Reply {
-    let seen = fake.record("/v2.1/oauth/authorize_device", query, &body, headers);
-    let mut script = fake.script();
-    if script.refuse_devices || seen.params.get("client_id").map(String::as_str) != Some(CLIENT_ID)
-    {
-        return reply(
-            AxumStatus::UNAUTHORIZED,
-            json!({ "error": "invalid_client" }),
-        );
-    }
-    script.issued += 1;
-    let user_code = format!("CODE{:02}", script.issued);
-    let device_code = format!("device-secret-{:02}", script.issued);
-    script
-        .devices
-        .insert(user_code.clone(), device_code.clone());
-    let page = script
-        .page
-        .take()
-        .unwrap_or_else(|| "https://auth.challonge.com/oauth/device".into());
-    reply(
-        AxumStatus::OK,
-        json!({
-            "device_code": device_code,
-            "user_code": user_code,
-            "verification_uri": page,
-            "verification_uri_complete": format!("{page}?user_code={user_code}"),
-            "expires_in": 300,
-            "interval": 2,
-        }),
-    )
-}
-
 async fn token(
     State(fake): State<Challonge>,
     RawQuery(query): RawQuery,
@@ -193,52 +110,47 @@ async fn token(
     body: Bytes,
 ) -> Reply {
     let seen = fake.record("/oauth/token", query, &body, headers);
-    let mut script = fake.script();
-    let device = seen.params.get("device_code").cloned().unwrap_or_default();
-    let valid = seen.params.get("grant_type").map(String::as_str)
-        == Some("urn:ietf:params:oauth:grant-type:device_code")
-        && seen.params.get("client_id").map(String::as_str) == Some(CLIENT_ID)
-        && script.devices.values().any(|issued| *issued == device);
+    let form = |key: &str| seen.form.get(key).map(String::as_str);
+    let valid = form("grant_type") == Some("authorization_code")
+        && form("client_id") == Some(CLIENT_ID)
+        && form("client_secret") == Some(CLIENT_SECRET)
+        && form("redirect_uri").is_some_and(|uri| uri.ends_with("/v1/challonge/callback"));
+    let user = match form("code") {
+        Some("good-kate") => KATE,
+        Some("good-sam") => SAM,
+        Some("odd-name") => ("1003", "has space"),
+        Some("held-kate") => {
+            fake.arrived.notify_one();
+            fake.release.notified().await;
+            KATE
+        }
+        Some("busy") => {
+            return reply(
+                AxumStatus::TOO_MANY_REQUESTS,
+                json!({ "errors": [{ "status": 429 }] }),
+            );
+        }
+        _ => return reply(AxumStatus::BAD_REQUEST, json!({ "error": "invalid_grant" })),
+    };
     if !valid {
         return reply(
-            AxumStatus::BAD_REQUEST,
-            json!({ "error": "invalid_request" }),
+            AxumStatus::UNAUTHORIZED,
+            json!({ "error": "invalid_client" }),
         );
     }
-    let answer = script
-        .answers
-        .get_mut(&device)
-        .and_then(VecDeque::pop_front)
-        .unwrap_or(Answer::Pending);
-    let refused = |error: &str| {
-        reply(
-            AxumStatus::BAD_REQUEST,
-            json!({ "error": error, "error_description": "The authorization server encountered an unexpected condition." }),
-        )
-    };
-    match answer {
-        Answer::Pending => refused("authorization_pending"),
-        Answer::SlowDown => refused("slow_down"),
-        Answer::Denied => refused("access_denied"),
-        Answer::ExpiredToken => refused("expired_token"),
-        Answer::InvalidGrant => refused("invalid_grant"),
-        Answer::Unsupported => refused("unsupported_grant_type"),
-        Answer::ServerError => reply(AxumStatus::BAD_GATEWAY, json!({})),
-        Answer::Approve(user) => {
-            let token = format!("access-token-{}-{}", user.0, script.tokens.len());
-            script.tokens.insert(token.clone(), user);
-            reply(
-                AxumStatus::OK,
-                json!({ "access_token": token, "token_type": "Bearer", "expires_in": 604800,
-                        "refresh_token": "refresh-token", "scope": "me", "created_at": 1 }),
-            )
-        }
-    }
+    let mut script = fake.script.lock().unwrap();
+    let access = format!("access-token-{}-{}", user.0, script.tokens.len());
+    script.tokens.insert(access.clone(), user);
+    reply(
+        AxumStatus::OK,
+        json!({ "access_token": access, "token_type": "Bearer", "expires_in": 604800,
+                "refresh_token": "refresh-token", "scope": "me", "created_at": 1 }),
+    )
 }
 
 async fn me(State(fake): State<Challonge>, headers: HeaderMap) -> Reply {
     fake.record("/v2.1/me.json", None, &[], headers.clone());
-    let script = fake.script();
+    let script = fake.script.lock().unwrap();
     let bearer = headers
         .get("authorization")
         .and_then(|value| value.to_str().ok())
@@ -247,7 +159,6 @@ async fn me(State(fake): State<Challonge>, headers: HeaderMap) -> Reply {
         .get("authorization-type")
         .is_some_and(|value| value == "v2");
     match bearer.and_then(|token| script.tokens.get(token)) {
-        Some(_) if script.me_fails => reply(AxumStatus::INTERNAL_SERVER_ERROR, json!({})),
         // Challonge's IDs are strings here; a number is read too.
         Some(&(id, username)) if v2 => {
             let id = if id == KATE.0 {
@@ -271,7 +182,6 @@ async fn me(State(fake): State<Challonge>, headers: HeaderMap) -> Reply {
 /// Serves a stand-in Challonge; its base URL.
 pub async fn fake_challonge(fake: Challonge) -> String {
     let app = Router::new()
-        .route("/v2.1/oauth/authorize_device", post(authorize_device))
         .route("/oauth/token", post(token))
         .route("/v2.1/me.json", get(me))
         .with_state(fake);
@@ -297,25 +207,29 @@ pub fn direct(id: &str, discord_lookup: bool, challonge_lookup: bool) -> config:
     }
 }
 
-/// A bridge with Challonge sign-in against `fake` (or none), with these
-/// other `challonge` settings, and connections that find players by
-/// Challonge username, by Discord account, or both. The clock is frozen, so a
-/// sign-in is polled only when a test moves it on.
-pub async fn bridge_with(fake: Option<&Challonge>, settings: Json, secrets: Secrets) -> Bridge {
-    let api_base = match fake {
-        Some(fake) => Some(fake_challonge(fake.clone()).await),
-        None => None,
-    };
+/// The integration secrets with Challonge's client secret.
+pub fn with_secret() -> Secrets {
+    Secrets {
+        challonge_client_secret: Some(Zeroizing::new(CLIENT_SECRET.into())),
+        ..Default::default()
+    }
+}
+
+/// A bridge with Challonge sign-in against `fake`, with these other
+/// `challonge` settings and integration secrets, and connections that find
+/// players by Challonge username (whose tenant is named Cups), by Discord
+/// account, or both. The clock is frozen.
+pub async fn bridge_with(fake: &Challonge, settings: Json, secrets: Secrets) -> Bridge {
+    let api_base = fake_challonge(fake.clone()).await;
     let bridge = Bridge::start_with(
         |config| {
-            config.challonge = api_base.map(|api_base| {
-                let mut challonge = json!({ "client_id": CLIENT_ID, "api_base": api_base });
-                challonge
-                    .as_object_mut()
-                    .unwrap()
-                    .extend(settings.as_object().unwrap().clone());
-                serde_json::from_value(challonge).unwrap()
-            });
+            let mut challonge = json!({ "client_id": CLIENT_ID, "api_base": api_base });
+            challonge
+                .as_object_mut()
+                .unwrap()
+                .extend(settings.as_object().unwrap().clone());
+            config.challonge = Some(serde_json::from_value(challonge).unwrap());
+            config.integration_secrets = Some("unused-in-tests.json".into());
             config.tenants.push(config::Tenant {
                 id: "cups".into(),
                 name: "Cups".into(),
@@ -334,29 +248,7 @@ pub async fn bridge_with(fake: Option<&Challonge>, settings: Json, secrets: Secr
 }
 
 pub async fn bridge(fake: &Challonge) -> Bridge {
-    bridge_with(Some(fake), json!({}), Secrets::default()).await
-}
-
-/// Moves the clock on until every Ember ID reads as unused for a move
-/// (`MOVE_IDLE_SECS`). Sessions lapse with it; a player opens a new one.
-pub fn go_idle(bridge: &Bridge) {
-    bridge
-        .clock
-        .advance(ember_protocol::challonge::MOVE_IDLE_SECS as i64);
-}
-
-/// Signs `player` in as `user`, whom another Ember ID holds: the state the
-/// sign-in ends in.
-pub async fn sign_in_held_elsewhere(
-    bridge: &Bridge,
-    fake: &Challonge,
-    player: &Player,
-    user: User,
-) -> Json {
-    let user_code = start(bridge, player).await;
-    fake.answer(&user_code, &[Answer::Approve(user)]);
-    poll_after(bridge, 5).await;
-    connection(bridge, player).await["sign_in"].clone()
+    bridge_with(fake, json!({}), with_secret()).await
 }
 
 pub async fn player(bridge: &Bridge, byte: u8) -> Player {
@@ -390,11 +282,64 @@ pub async fn try_start(bridge: &Bridge, player: &Player) -> (StatusCode, Json) {
     .await
 }
 
-/// Starts a sign-in; the code the game shows.
+/// Starts a sign-in; the state Challonge would hand back.
 pub async fn start(bridge: &Bridge, player: &Player) -> String {
     let (status, started) = try_start(bridge, player).await;
     assert_eq!(status, StatusCode::CREATED, "{started}");
-    started["user_code"].as_str().unwrap().to_owned()
+    let url = url::Url::parse(started["authorize_url"].as_str().unwrap()).unwrap();
+    let query: HashMap<_, _> = url.query_pairs().into_owned().collect();
+    query["state"].clone()
+}
+
+/// What the browser sees when Challonge sends it back.
+pub async fn back(bridge: &Bridge, query: &str) -> String {
+    let response = bridge
+        .client
+        .get(bridge.url(&format!("/v1/challonge/callback?{query}")))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    response.text().await.unwrap()
+}
+
+/// The confirmation secret on the page that asks before connecting or
+/// moving an account.
+pub fn confirmation(page: &str) -> String {
+    let marker = "name=\"confirmation\" value=\"";
+    let start = page.find(marker).expect("the page asks for a confirmation") + marker.len();
+    let end = page[start..].find('"').unwrap();
+    page[start..start + end].to_string()
+}
+
+/// The player's answer on the page that asked.
+pub async fn decide(bridge: &Bridge, confirmation: &str, choice: &str) -> String {
+    let response = bridge
+        .client
+        .post(bridge.url("/v1/challonge/callback"))
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(format!("confirmation={confirmation}&choice={choice}"))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    response.text().await.unwrap()
+}
+
+/// Signs `player` in with code `code`; the first page the browser shows.
+pub async fn sign_in(bridge: &Bridge, player: &Player, code: &str) -> String {
+    let state = start(bridge, player).await;
+    back(bridge, &format!("code={code}&state={state}")).await
+}
+
+/// Signs `player` in as `who` (`kate` or `sam`), whose account no other
+/// Ember ID has, saying yes when the page asks.
+pub async fn connect(bridge: &Bridge, player: &Player, who: &str) {
+    let mut page = sign_in(bridge, player, &format!("good-{who}")).await;
+    if page.contains("Connect this Challonge account?") {
+        page = decide(bridge, &confirmation(&page), "connect").await;
+    }
+    assert!(page.contains("Challonge connected"), "{page}");
 }
 
 pub async fn cancel(bridge: &Bridge, player: &Player) -> (StatusCode, Json) {
@@ -421,51 +366,11 @@ pub async fn disconnect(bridge: &Bridge, player: &Player) -> (StatusCode, Json) 
     .await
 }
 
-/// The player's choice for a sign-in in `moving`: `move` or `keep`.
-pub async fn choose(bridge: &Bridge, player: &Player, choice: &str) -> (StatusCode, Json) {
-    send(
-        bridge,
-        player,
-        Action::ChallongeMove,
-        Method::Post,
-        "/v1/challonge/move",
-        json!({ "choice": choice }),
-    )
-    .await
-}
-
-/// `GET /v1/challonge`.
-pub async fn connection(bridge: &Bridge, player: &Player) -> Json {
-    let (status, body) = bridge.get(player.token(), "/v1/challonge").await;
-    assert_eq!(status, StatusCode::OK, "{body}");
-    body
-}
-
-/// The state of the player's sign-in, or None.
-pub async fn sign_in_state(bridge: &Bridge, player: &Player) -> Option<String> {
-    connection(bridge, player).await["sign_in"]["state"]
-        .as_str()
-        .map(str::to_owned)
-}
-
 /// The Challonge user ID connected to the player's Ember ID, or None.
 pub async fn account(bridge: &Bridge, player: &Player) -> Option<String> {
-    connection(bridge, player).await["account"]["user_id"]
-        .as_str()
-        .map(str::to_owned)
-}
-
-/// Moves the clock `seconds` on and polls Challonge once.
-pub async fn poll_after(bridge: &Bridge, seconds: i64) {
-    bridge.clock.advance(seconds);
-    ember_bridge::poll_challonge(bridge.state()).await;
-}
-
-/// Signs `player` in as `user`, approved on the first poll.
-pub async fn connect(bridge: &Bridge, fake: &Challonge, player: &Player, user: User) {
-    let code = start(bridge, player).await;
-    fake.answer(&code, &[Answer::Approve(user)]);
-    poll_after(bridge, 5).await;
+    let (status, body) = bridge.get(player.token(), "/v1/challonge").await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    body["account"]["user_id"].as_str().map(str::to_owned)
 }
 
 /// A lookup on `connection` for these Challonge usernames and Discord IDs.
@@ -537,22 +442,20 @@ pub async fn link_of(
         .unwrap()
 }
 
-/// The Ember ID `user`'s Challonge account is connected to, read without a
-/// session, which would count as using that Ember ID.
-pub async fn holder(bridge: &Bridge, user: User) -> Option<String> {
+/// Writes the Discord account `connect` would for Discord, as
+/// tests/partner.rs does.
+pub async fn connect_discord(bridge: &Bridge, user_id: &str, player: &Player) {
+    let (user_id, ember_id) = (user_id.to_owned(), player.id().as_str().to_owned());
     bridge
         .state()
         .db
-        .read(move |tx| {
-            use rusqlite::OptionalExtension;
-            Ok(tx
-                .query_row(
-                    "SELECT ember_id FROM challonge_accounts WHERE user_id = ?1",
-                    [user.0],
-                    |row| row.get(0),
-                )
-                .optional()?)
+        .write(move |tx| {
+            tx.execute(
+                "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES (?1, ?2, 'kate', 1)",
+                [&user_id, &ember_id],
+            )?;
+            Ok(())
         })
         .await
-        .unwrap()
+        .unwrap();
 }

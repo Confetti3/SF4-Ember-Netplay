@@ -133,22 +133,23 @@ export class TestPlayer {
   }
 
   /**
-   * Starts connecting a Challonge account, as Ember's Connect Challonge does:
-   * the bridge answers with the code to enter on Challonge's page, and
-   * connects the account once Challonge says the player approved it.
+   * Starts connecting a Challonge account, as Ember's Connect Challonge does.
+   * Like `startDiscordConnect`, the bridge answers with the Challonge address
+   * the player's browser goes to; the account is connected when Challonge
+   * sends the browser back and the player confirms on the bridge's page.
    */
-  async startChallongeConnect(): Promise<{ user_code: string; verification_uri: string; verification_uri_complete?: string; expires_at: number }> {
+  async startChallongeConnect(): Promise<{ authorize_url: string; expires_at: number }> {
     const token = await this.#sessionToken();
     const path = "/v1/challonge/start";
     const body = await this.#prove(token, "challonge.connect", path, {});
-    return (await this.#send(path, token, body, 201)) as unknown as { user_code: string; verification_uri: string; expires_at: number };
+    return (await this.#send(path, token, body, 201)) as unknown as { authorize_url: string; expires_at: number };
   }
 
-  /** The player's Challonge account and sign-in (`GET /v1/challonge`). */
-  async challonge(): Promise<{ account: { user_id: string; username: string } | null; sign_in: { state: string } | null }> {
+  /** The player's connected Challonge account (`GET /v1/challonge`). */
+  async challonge(): Promise<{ account: { user_id: string; username: string; connected_at: number } | null }> {
     const token = await this.#sessionToken();
     const response = await this.#fetch(`${this.origin}/v1/challonge`, { headers: { authorization: `Bearer ${token}` } });
-    return (await this.#read(response, 200)) as unknown as { account: { user_id: string; username: string } | null; sign_in: { state: string } | null };
+    return (await this.#read(response, 200)) as unknown as { account: { user_id: string; username: string; connected_at: number } | null };
   }
 
   /** The player's own links, as Ember lists them. */

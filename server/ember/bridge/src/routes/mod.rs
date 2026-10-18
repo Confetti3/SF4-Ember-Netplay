@@ -1,6 +1,4 @@
 pub mod blumint;
-pub mod challonge;
-pub mod discord;
 pub mod discovery;
 pub mod events;
 pub mod expiry;
@@ -16,6 +14,7 @@ pub mod records;
 pub mod reports;
 pub mod rooms;
 pub mod sessions;
+pub mod sign_in;
 pub mod tournaments;
 pub mod webhooks;
 
@@ -30,7 +29,7 @@ use axum::{
 };
 use rusqlite::params;
 
-use crate::{AppState, ctx::Ctx, delivery, linking, mock};
+use crate::{AppState, ctx::Ctx, delivery, linking, linking::Site, mock};
 
 /// Form bodies (mock pages only); JSON routes cap their own bodies.
 const FORM_LIMIT: usize = 16 * 1024;
@@ -79,27 +78,6 @@ pub fn router(state: AppState) -> Router {
         .route(blumint::LOOKUP_PATH, post(blumint::lookup))
         .route(blumint::MATCHES_PATH, post(blumint::create))
         .route(blumint::CLOSE_PATH, post(blumint::close))
-        .route(
-            discord::START_PATH,
-            post(discord::start).delete(discord::cancel),
-        )
-        .route(
-            discord::CALLBACK_PATH,
-            get(discord::callback).post(discord::decide),
-        )
-        .route(
-            discord::ACCOUNT_PATH,
-            get(discord::get).delete(discord::remove),
-        )
-        .route(
-            challonge::START_PATH,
-            post(challonge::start).delete(challonge::cancel),
-        )
-        .route(
-            challonge::ACCOUNT_PATH,
-            get(challonge::get).delete(challonge::remove),
-        )
-        .route(challonge::MOVE_PATH, post(challonge::choose))
         .route("/v1/rooms", get(rooms::list).post(rooms::create))
         .route("/v1/rooms/public", get(rooms::public_list))
         .route("/v1/rooms/{room_id}", get(rooms::get))
@@ -133,6 +111,9 @@ pub fn router(state: AppState) -> Router {
             "/v1/webhook-subscriptions/{id}/rotate-secret",
             post(webhooks::rotate),
         );
+    for site in Site::ALL {
+        app = sign_in::routes(app, site);
+    }
     if state.config.mock_browser {
         app = app
             .route(
@@ -206,9 +187,9 @@ pub async fn maintenance(state: AppState, resumed: tokio::sync::oneshot::Sender<
 }
 
 /// Expires link intents, holds games whose reports did not arrive, expires
-/// matches nobody played, observes the fighters whose claims lapsed, expires
-/// Challonge sign-ins, and removes stale challenges, sessions, replay records
-/// and refused BluMint keys. Durable domain records (links, matches, attempts, reports, events)
+/// matches nobody played, observes the fighters whose claims lapsed, and
+/// removes sign-ins no site answered, stale challenges, sessions, replay
+/// records and refused BluMint keys. Durable domain records (links, matches, attempts, reports, events)
 /// stay, and with each BluMint match the key it was made under, its
 /// `external_match_id`.
 pub async fn maintenance_once(state: &AppState) {
@@ -223,8 +204,7 @@ pub async fn maintenance_once(state: &AppState) {
             expiry::expire_stale(tx, &ctx)?;
             delivery::status::observe_lapsed(tx, now)?;
             linking::expire(tx, now)?;
-            discord::expire(tx, now)?;
-            challonge::expire(tx, now)?;
+            sign_in::expire(tx, now)?;
             tx.execute(
                 "DELETE FROM auth_challenges WHERE expires_at <= ?1",
                 [cutoff],

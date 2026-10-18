@@ -1,8 +1,8 @@
 //! Links a platform gets from a player's sign-in on another site (Discord,
 //! Challonge) instead of from a link code. The player connected the site's
-//! account to their Ember ID (`routes::discord`, `routes::challonge`); a
-//! platform that finds players by that account then gets a link approved by
-//! the sign-in (`approved_via` the site's name, claim `<site>:<user ID>`).
+//! account to their Ember ID (`routes::sign_in`); a platform that finds
+//! players by that account (`find_and_link`) then gets a link approved by the
+//! sign-in (`approved_via` the site's name, claim `<site>:<user ID>`).
 //!
 //! Such a link stands only while that account is connected to that Ember ID:
 //! moving or disconnecting the account ends the links its sign-in approved,
@@ -10,7 +10,9 @@
 //! where it now belongs. A link the player (or the platform account's holder)
 //! removes stays removed (`withdraw`) until the player completes a sign-in
 //! started after that.
-use ember_protocol::{EmberId, event::Kind};
+use ember_protocol::{
+    EmberId, challonge::username_key, discord::is_user_id, event::Kind, sign_in::Account,
+};
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde_json::json;
 
@@ -24,14 +26,26 @@ use crate::{
 
 /// A site whose sign-in connects an account to an Ember ID. Each has its own
 /// accounts, sign-ins and withdrawals tables, shaped alike where this module
-/// reads them.
+/// and `routes::sign_in` read them. (A third site is the time to fold them
+/// into one set of tables with a `site` column.)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Site {
     Discord,
     Challonge,
 }
 
+/// An account a lookup found and linked on the connection.
+pub struct Found<'a> {
+    /// The key the lookup asked with.
+    pub asked: &'a str,
+    pub user_id: String,
+    pub ember_id: EmberId,
+    pub participant_id: String,
+}
+
 impl Site {
+    pub const ALL: [Self; 2] = [Self::Discord, Self::Challonge];
+
     /// `links.approved_via`, and the prefix of the subject and claim.
     pub fn name(self) -> &'static str {
         match self {
@@ -41,7 +55,7 @@ impl Site {
     }
 
     fn of(approved_via: &str) -> Option<Self> {
-        [Self::Discord, Self::Challonge]
+        Self::ALL
             .into_iter()
             .find(|site| site.name() == approved_via)
     }
@@ -53,7 +67,7 @@ impl Site {
         }
     }
 
-    fn sign_ins(self) -> &'static str {
+    pub(crate) fn sign_ins(self) -> &'static str {
         match self {
             Self::Discord => "discord_sign_ins",
             Self::Challonge => "challonge_sign_ins",
@@ -80,18 +94,68 @@ impl Site {
         Ok(())
     }
 
-    /// Makes room for connecting account `user_id` to `ember_id`: the latest
-    /// sign-in wins, so this account leaves any other Ember ID and this Ember
-    /// ID leaves any other account, each ending the links its sign-in
-    /// approved. The caller then inserts the new account row; a new row is
+    /// The Ember ID's connected account, if any.
+    pub fn account(self, tx: &Transaction<'_>, ember_id: &str) -> Result<Option<Account>> {
+        Ok(tx
+            .query_row(
+                &format!(
+                    "SELECT user_id, username, connected_at FROM {} WHERE ember_id = ?1",
+                    self.accounts()
+                ),
+                [ember_id],
+                |row| {
+                    Ok(Account {
+                        user_id: row.get(0)?,
+                        username: row.get(1)?,
+                        connected_at: row.get(2)?,
+                    })
+                },
+            )
+            .optional()?)
+    }
+
+    /// The Ember ID account `user_id` is connected to, if any.
+    pub fn owner(self, tx: &Transaction<'_>, user_id: &str) -> Result<Option<String>> {
+        Ok(tx
+            .query_row(
+                &format!(
+                    "SELECT ember_id FROM {} WHERE user_id = ?1",
+                    self.accounts()
+                ),
+                [user_id],
+                |row| row.get(0),
+            )
+            .optional()?)
+    }
+
+    /// Connects account `user_id` to `ember_id`. The latest sign-in wins: this
+    /// account leaves any other Ember ID and this Ember ID leaves any other
+    /// account, each ending the links its sign-in approved. The new row is
     /// fresh consent, since the withdrawals of the old one went with it.
-    pub fn release(
+    pub fn connect(
         self,
         tx: &Transaction<'_>,
         ctx: &Ctx,
         ember_id: &str,
         user_id: &str,
+        username: &str,
     ) -> Result<()> {
+        self.release(tx, ctx, ember_id, user_id)?;
+        match self {
+            Self::Discord => tx.execute(
+                "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES (?1, ?2, ?3, ?4)",
+                params![user_id, ember_id, username, ctx.now],
+            )?,
+            Self::Challonge => tx.execute(
+                "INSERT INTO challonge_accounts (user_id, ember_id, username, username_key, connected_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![user_id, ember_id, username, username_key(username), ctx.now],
+            )?,
+        };
+        Ok(())
+    }
+
+    fn release(self, tx: &Transaction<'_>, ctx: &Ctx, ember_id: &str, user_id: &str) -> Result<()> {
         let replaced: Vec<(String, String)> = tx
             .prepare(&format!(
                 "DELETE FROM {} WHERE user_id = ?1 OR ember_id = ?2 RETURNING user_id, ember_id",
@@ -132,6 +196,66 @@ impl Site {
         }
     }
 
+    /// The account connected for a lookup key: a Discord user ID (anything
+    /// else, such as the emails BluMint also sends, finds nothing), or a
+    /// Challonge username compared without case, where the account connected
+    /// most recently under that name answers. Its user ID, Ember ID and
+    /// username.
+    fn find(self, tx: &Transaction<'_>, key: &str) -> Result<Option<(String, String, String)>> {
+        let (sql, key) = match self {
+            Self::Discord if !is_user_id(key) => return Ok(None),
+            Self::Discord => (
+                "SELECT user_id, ember_id, username FROM discord_accounts WHERE user_id = ?1",
+                key.to_owned(),
+            ),
+            Self::Challonge => (
+                "SELECT user_id, ember_id, username FROM challonge_accounts WHERE username_key = ?1
+                 ORDER BY connected_at DESC, user_id LIMIT 1",
+                username_key(key),
+            ),
+        };
+        Ok(tx
+            .query_row(sql, [key], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+            })
+            .optional()?)
+    }
+
+    /// The players whose Ember IDs are connected to the accounts `keys` name
+    /// and linked on `connection_id`, so its platform can create matches for
+    /// them, in order and once per Ember ID. An account `link` cannot link is
+    /// left out.
+    pub fn find_and_link<'a>(
+        self,
+        tx: &Transaction<'_>,
+        ctx: &Ctx,
+        connection_id: &str,
+        keys: &'a [String],
+    ) -> Result<Vec<Found<'a>>> {
+        let mut found: Vec<Found<'a>> = Vec::new();
+        for asked in keys {
+            let Some((user_id, ember_id, username)) = self.find(tx, asked)? else {
+                continue;
+            };
+            let ember_id = EmberId::parse(&ember_id).map_err(|_| ApiFailure::unavailable())?;
+            if found.iter().any(|player| player.ember_id == ember_id) {
+                continue;
+            }
+            let Some(participant_id) =
+                self.link(tx, ctx, connection_id, &user_id, &username, &ember_id)?
+            else {
+                continue;
+            };
+            found.push(Found {
+                asked,
+                user_id,
+                ember_id,
+                participant_id,
+            });
+        }
+        Ok(found)
+    }
+
     /// Links account `user_id`'s subject on the connection to `ember_id`,
     /// approved by the player's sign-in, and gives the participant `ember_id`
     /// is linked as there now, if it is. A link the player removed since that
@@ -139,7 +263,7 @@ impl Site {
     /// from another site's sign-in, is kept: on the Ember ID, which then
     /// needs no other, or on the subject (a provider can name its accounts
     /// `<site>:<user ID>` too), which leaves this Ember ID unlinked.
-    pub fn link(
+    fn link(
         self,
         tx: &Transaction<'_>,
         ctx: &Ctx,
