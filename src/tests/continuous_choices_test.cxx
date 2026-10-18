@@ -27,7 +27,7 @@ int main() {
     CHECK(Frame(s,105,cc::Ready|cc::Commit,cc::Ready|cc::Yes)==cc::Action::Hold);
     const auto beforeReset=s;
     CHECK(Frame(s,106,cc::Ready|cc::Commit,cc::Ready|cc::Commit)==cc::Action::Restart);
-    CHECK(!s.holding&&s.epoch==2&&s.resets==1&&s.offerFrame<0);
+    CHECK(!s.holding&&s.epoch==2&&s.offerFrame<0);
     s=beforeReset;
     CHECK(Frame(s,106,cc::Ready|cc::Commit,cc::Ready|cc::Commit)==cc::Action::Restart);
     // Old epoch's predicted/late votes cannot answer the next result.
@@ -52,7 +52,7 @@ int main() {
     s=beforeCommit;
     const auto a=Frame(s,105,cc::Ready|cc::Commit,cc::Ready|cc::Commit);
     const auto b=Frame(reference,105,cc::Ready|cc::Commit,cc::Ready|cc::Commit);
-    CHECK(a==b&&a==cc::Action::Restart&&s.epoch==reference.epoch&&s.resets==reference.resets);
+    CHECK(a==b&&a==cc::Action::Restart&&s.epoch==reference.epoch);
     // A corrected vote before agreement can replace a predicted acceptance.
     cc::State vote;cc::EnterVictory(vote,1);Frame(vote,2,cc::Ready,cc::Ready);const auto saved=vote;
     Frame(vote,3,cc::Ready|cc::Yes,cc::Ready|cc::Yes);CHECK(vote.decision==cc::Decision::Rematch);
@@ -70,15 +70,15 @@ int main() {
         const auto decision=cc::Advance(scored,1000*game+2,commit);
         auto replay=savedScored;
         CHECK(cc::Advance(replay,1000*game+2,commit)==decision);
-        CHECK(replay.resets==scored.resets&&replay.epoch==scored.epoch);
+        CHECK(replay.epoch==scored.epoch);
         CHECK(decision==(game==3?cc::Action::Hold:cc::Action::Restart));
     }
-    CHECK(scored.resets==2&&scored.exitFrame==3002&&scored.ruleLimit);
+    CHECK(scored.epoch==3&&scored.exitFrame==3002&&scored.ruleLimit);
     // More than ten rematches and several wire-tag wraps, with rollback at
     // every reset. A full epoch remains distinct for local choices/UI offers.
     cc::State longSet;
     for(unsigned game=1;game<=80;++game) {
-        CHECK(longSet.epoch==game&&longSet.resets==game-1);
+        CHECK(longSet.epoch==game);
         cc::EnterVictory(longSet,game*100);
         if(game>1) {
             const std::uint32_t old[2]={cc::Encode(game-1,15),cc::Encode(game-1,15)};
@@ -92,7 +92,7 @@ int main() {
         const std::uint32_t commit[2]={cc::Encode(game,cc::Ready|cc::Commit),cc::Encode(game,cc::Ready|cc::Commit)};
         CHECK(cc::Advance(longSet,game*100+2,commit)==cc::Action::Restart);
         CHECK(cc::Advance(rollback,game*100+2,commit)==cc::Action::Restart);
-        CHECK(rollback.epoch==longSet.epoch&&rollback.resets==longSet.resets);
+        CHECK(rollback.epoch==longSet.epoch);
     }
     // A room loss before either/both Ready bits cannot hold a result forever.
     for(unsigned ready : {0u, unsigned(cc::Ready)}) {

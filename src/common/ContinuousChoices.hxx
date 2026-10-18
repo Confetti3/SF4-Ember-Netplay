@@ -12,7 +12,7 @@ enum class Action { Hold, Restart };
 constexpr int TimeoutFrames=1200;
 constexpr int ResultWaitFrames=300;
 struct State {
-    unsigned epoch=1,resets=0,readyMask=0,yesMask=0,commitMask=0;
+    unsigned epoch=1,readyMask=0,yesMask=0,commitMask=0;
     int victoryFrame=-1,offerFrame=-1,decisionFrame=-1,exitFrame=-1,nativeFinishFrame=-1;
     Decision decision=Decision::Pending;
     bool holding=false,timedOut=false,ruleLimit=false,nativeFinish=false;
@@ -68,8 +68,8 @@ inline Action Advance(State& s,int frame,const std::uint32_t mapped[2]) {
     for(unsigned i=0;i<2;++i)if((flags[i]&(Ready|Commit))==(Ready|Commit))s.commitMask|=1u<<i;
     if(s.commitMask!=3)return Action::Hold;
     if(s.decision==Decision::Lobby){if(s.exitFrame<0)s.exitFrame=frame;return Action::Hold;}
-    const auto epoch=s.epoch+1,resets=s.resets+1;
-    s=State{};s.epoch=epoch;s.resets=resets;
+    const auto epoch=s.epoch+1;
+    s=State{};s.epoch=epoch;
     return Action::Restart;
 }
 } }
