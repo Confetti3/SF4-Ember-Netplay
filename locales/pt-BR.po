@@ -1220,6 +1220,12 @@ msgstr "Testar aviso"
 msgid "settings.ready_sound_test_detail"
 msgstr "Toca o aviso uma vez neste volume."
 
+msgid "settings.shortcut_hint"
+msgstr "Dica do atalho do menu"
+
+msgid "settings.shortcut_hint_detail"
+msgstr "Mostra F10 ou Start por alguns segundos quando o menu do Ember fecha, para você saber como abri-lo de novo."
+
 msgid "settings.interface_size"
 msgstr "Tamanho da interface"
 

@@ -1220,6 +1220,12 @@ msgstr "Testuj zapowiedź"
 msgid "settings.ready_sound_test_detail"
 msgstr "Odtwarza zapowiedź raz z tą głośnością."
 
+msgid "settings.shortcut_hint"
+msgstr "Podpowiedź skrótu menu"
+
+msgid "settings.shortcut_hint_detail"
+msgstr "Po zamknięciu menu Ember przez kilka sekund pokazuje F10 lub Start, żeby było wiadomo, jak je ponownie otworzyć."
+
 msgid "settings.interface_size"
 msgstr "Rozmiar interfejsu"
 

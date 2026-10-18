@@ -259,6 +259,14 @@ int main() {
         sf4e::ui::TimedHint resumed(10);
         CHECK(resumed.Due(true, 1000) && !resumed.Due(true, 1011) && !resumed.Due(true, 1012) && !resumed.Due(true, 5000));
     }
+    {
+        // "F10 or Start": whole for its first seconds, fading over the last half second,
+        // then gone until it applies again.
+        sf4e::ui::TimedHint hint(sf4e::ui::ShortcutHintSeconds);
+        const auto alpha = [&](bool applies, double now) { return sf4e::ui::ShortcutHintAlpha(hint.Left(applies, now)); };
+        CHECK(alpha(true, 100) == 1 && alpha(true, 103.5) == 1 && alpha(true, 103.75) == .5f && alpha(true, 104) == 0 && alpha(true, 900) == 0);
+        CHECK(alpha(false, 901) == 0 && alpha(true, 902) == 1);
+    }
     CheckHandoff();
     std::cout << "Safe-menu, focus, offline, loading, fight and rematch visibility passed\n";
 }

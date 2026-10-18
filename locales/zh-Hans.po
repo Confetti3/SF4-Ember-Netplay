@@ -1220,6 +1220,12 @@ msgstr "试听播报"
 msgid "settings.ready_sound_test_detail"
 msgstr "以此音量播放一次。"
 
+msgid "settings.shortcut_hint"
+msgstr "菜单快捷键提示"
+
+msgid "settings.shortcut_hint_detail"
+msgstr "关闭 Ember 菜单时显示 F10 或 Start 几秒钟，提示如何再次打开。"
+
 msgid "settings.interface_size"
 msgstr "界面大小"
 

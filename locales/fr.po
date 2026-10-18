@@ -1220,6 +1220,12 @@ msgstr "Tester l'annonce"
 msgid "settings.ready_sound_test_detail"
 msgstr "Joue l'annonce une fois à ce volume."
 
+msgid "settings.shortcut_hint"
+msgstr "Rappel du raccourci du menu"
+
+msgid "settings.shortcut_hint_detail"
+msgstr "Affiche F10 ou Start quelques secondes à la fermeture du menu d'Ember, pour savoir comment le rouvrir."
+
 msgid "settings.interface_size"
 msgstr "Taille interface"
 

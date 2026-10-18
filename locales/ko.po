@@ -1220,6 +1220,12 @@ msgstr "알림 테스트"
 msgid "settings.ready_sound_test_detail"
 msgstr "이 음량으로 한 번 재생합니다."
 
+msgid "settings.shortcut_hint"
+msgstr "메뉴 단축키 안내"
+
+msgid "settings.shortcut_hint_detail"
+msgstr "Ember 메뉴가 닫힐 때 F10 또는 Start를 몇 초간 보여 주어 다시 여는 방법을 알려 줍니다."
+
 msgid "settings.interface_size"
 msgstr "화면 크기"
 

@@ -8,6 +8,8 @@ namespace sf4e { namespace ui {
 // this boundary owns which passive layers and alerts are drawn together.
 struct OverlayLayersView {
     bool shellVisible = false, shellAvailable = false;
+    // How opaque "F10 or Start" is this frame (ShortcutHintAlpha); 0 hides it.
+    float shortcutHintAlpha = 1;
     bool trainingControlsOpen = false, nativePaused = false;
     bool focused = true, trainingHud = true, matchActive = false;
     bool matchWaitsForMenu = false, showMatchHud = true;

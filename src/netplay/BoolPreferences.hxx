@@ -14,6 +14,7 @@ struct BoolPreferenceMember { const char* key; bool Preferences::* member; };
 using BoolPreference = BoolPreferenceMember<PlayerPreferences>;
 inline constexpr BoolPreference BoolPreferences[] = {
     {"showMatchHud", &PlayerPreferences::showMatchHud}, {"matchHudRaised", &PlayerPreferences::matchHudRaised},
+    {"showShortcutHint", &PlayerPreferences::showShortcutHint},
     {"readySound", &PlayerPreferences::readySound}, {"trainingAutoReady", &PlayerPreferences::trainingAutoReady},
     {"watchedPicture", &PlayerPreferences::watchedPicture},
     {"matchFrameMeter", &PlayerPreferences::matchFrameMeter}, {"backgroundPlay", &PlayerPreferences::backgroundPlay},

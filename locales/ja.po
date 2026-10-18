@@ -1220,6 +1220,12 @@ msgstr "アナウンスをテスト"
 msgid "settings.ready_sound_test_detail"
 msgstr "この音量で一度再生します。"
 
+msgid "settings.shortcut_hint"
+msgstr "メニューのショートカット表示"
+
+msgid "settings.shortcut_hint_detail"
+msgstr "Emberのメニューを閉じたとき、F10またはStartを数秒間表示し、再び開く方法を示します。"
+
 msgid "settings.interface_size"
 msgstr "画面サイズ"
 
