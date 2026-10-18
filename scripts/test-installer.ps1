@@ -1,7 +1,8 @@
-# Check that a built setup.exe refuses a folder with files in it, installs into an empty
-# temporary folder, that uninstalling stops untouched while an update holds the folder, and
-# that it then removes the product (including what Updater.exe added later, and whatever has
-# happened to the folder's own Updater.exe) while keeping the player's files.
+# Check that a built setup.exe refuses a folder with files in it that is not Ember, installs
+# into an empty temporary folder, upgrades that copy when run over it again, that uninstalling
+# stops untouched while an update holds the folder, and that it then removes the product
+# (including what Updater.exe added later, and whatever has happened to the folder's own
+# Updater.exe) while keeping the player's files.
 param([Parameter(Mandatory=$true)][string]$Installer)
 $ErrorActionPreference = 'Stop'
 $Installer = (Resolve-Path -LiteralPath $Installer).Path
@@ -10,16 +11,21 @@ $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{791C
 if (Test-Path -LiteralPath $uninstallKey) { throw 'SF4 Ember Netplay is installed for this user; uninstall it before running this test.' }
 $target = Join-Path ([IO.Path]::GetTempPath()) ("ember-installer-test-" + [Guid]::NewGuid().ToString('N'))
 $silent = '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'
-# An existing copy, however old or broken, is the updater's business.
+# A folder with files that is not an Ember copy is refused untouched.
 New-Item -ItemType Directory -Path $target | Out-Null
 Set-Content -LiteralPath (Join-Path $target 'dxwrapper.dll') -Value 'obsolete'
 $refused = Start-Process -FilePath $Installer -ArgumentList ($silent + "/DIR=`"$target`"") -Wait -PassThru
-if ($refused.ExitCode -eq 0) { throw 'The installer accepted a folder that already had files in it' }
+if ($refused.ExitCode -eq 0) { throw 'The installer accepted a folder with files that is not Ember' }
 if ((Get-ChildItem -LiteralPath $target -Force).Count -ne 1) { throw 'The refused installation changed the folder' }
 Remove-Item -LiteralPath $target -Recurse -Force
 $setup = Start-Process -FilePath $Installer -ArgumentList ($silent + "/DIR=`"$target`"") -Wait -PassThru
 if ($setup.ExitCode -ne 0) { throw "Installer exited with $($setup.ExitCode)" }
 try {
+    # Setup over the installed copy upgrades it through the package's Updater.exe.
+    Set-Content -LiteralPath (Join-Path $target 'my-notes.txt') -Value 'mine'
+    $again = Start-Process -FilePath $Installer -ArgumentList ($silent + "/DIR=`"$target`"") -Wait -PassThru
+    if ($again.ExitCode -ne 0) { throw "Setup over the installed copy exited with $($again.ExitCode)" }
+    if ((Get-Content -LiteralPath (Join-Path $target 'my-notes.txt')) -ne 'mine') { throw 'The upgrade changed a player file' }
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $target 'preflight.ps1') -PackageDir $target
     if ($LASTEXITCODE -ne 0) { throw 'The installed folder fails preflight' }
     # What updates leave behind: a backup set, an added selection asset, a file a past version
@@ -69,4 +75,4 @@ $left = [string[]]@(Get-ChildItem -LiteralPath $target -Recurse -File -Force | F
 [Array]::Sort($left, [StringComparer]::Ordinal)
 Remove-Item -LiteralPath $target -Recurse -Force
 if (($left -join ',') -ne 'assets\input\my_glyph.png,assets\selection\RYU\costume-0\color-0.jpg,assets\selection\my-mod.png,my-notes.txt') { throw "Unexpected files after uninstall: $($left -join ', ')" }
-Write-Host 'Installer test passed: a folder with files is refused, the installed folder passes preflight, uninstall stops while an update holds the folder, then removes the product (also after its Updater.exe changed) and keeps the player files.'
+Write-Host 'Installer test passed: a folder with files that is not Ember is refused, setup over the installed copy upgrades it, the installed folder passes preflight, uninstall stops while an update holds the folder, then removes the product (also after its Updater.exe changed) and keeps the player files.'

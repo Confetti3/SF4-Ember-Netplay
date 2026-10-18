@@ -222,6 +222,18 @@ int main() {
     // the Updates page.
     UpdaterArguments update; update.installDir=install.wstring(); update.stagingDir=root.wstring(); update.waitPid=4242;
     CHECK(RunUpdater(update,stuck.host)==1 && stuck.started==std::vector<std::wstring>{L"--updates --update-error"});
+    // Setup's upgrade (-NoRestart) leaves starting Ember to setup, whether it worked or not.
+    {
+        const auto setupInstall=root/L"setup-install", setupStage=root/L"setup-stage";
+        fs::create_directories(setupInstall); Staged(setupStage);
+        UpdaterArguments setup; setup.installDir=setupInstall.wstring(); setup.stagingDir=setupStage.wstring(); setup.noRestart=true;
+        Host quiet;
+        CHECK(RunUpdater(setup,quiet.host)==0 && quiet.started.empty());
+        CHECK(Read(setupInstall/L"Launcher.exe")=="staged");
+        Write(setupStage/L"Launcher.exe","bad");
+        CHECK(RunUpdater(setup,quiet.host)!=0 && quiet.started.empty());
+        CHECK(Read(setupInstall/L"Launcher.exe")=="staged");
+    }
     RemoveTempRoot(root);
     return 0;
 }

@@ -1,7 +1,7 @@
-; Per-user installer for a verified Ember package folder. It only places the
-; first copy: updates stay with Updater.exe, which rewrites the folder as the
-; normal user, so nothing here may need elevation or own the files afterwards.
-; Setup refuses a folder that already has files in it. The uninstaller never
+; Per-user installer for a verified Ember package folder. It places the first
+; copy itself; over an existing copy it runs the package's Updater.exe, which
+; rewrites the folder as the normal user, so nothing here may need elevation or
+; own the files afterwards. The uninstaller never
 ; deletes package files itself (uninsneveruninstall): updates change them
 ; later, so the native helper below is their only owner.
 ; Compiled by scripts/package-installer.ps1.
@@ -39,7 +39,7 @@ MinVersion=10.0
 Name: desktopicon; Description: "{cm:CreateDesktopIcon}"; Flags: unchecked
 
 [Files]
-Source: "{#PackageDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion uninsneveruninstall
+Source: "{#PackageDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion uninsneveruninstall; Check: FreshInstall
 ; The uninstall helper, kept beside the uninstaller rather than in the folder,
 ; so uninstall works whatever has happened to {app}\Updater.exe since.
 Source: "{#PackageDir}\Updater.exe"; DestDir: "{localappdata}\{#AppName} Setup"; DestName: "ember-uninstall.exe"; Flags: ignoreversion
@@ -97,16 +97,56 @@ begin
   end;
 end;
 
-// Writing over an existing folder would bypass Updater.exe: its lock, its
-// journal and the recovery of an interrupted update. Existing copies update
-// themselves; this installer only places a first copy.
+var
+  Upgrading: Boolean;
+
+// [Files] places only a first copy.
+function FreshInstall: Boolean;
+begin
+  Result := not Upgrading;
+end;
+
+// Writing over an existing copy would bypass Updater.exe: its lock, its
+// journal and the recovery of an interrupted update. So an Ember folder is
+// upgraded by the package's own Updater.exe from a temporary copy of the
+// package, and any other folder with files in it is refused. That Updater.exe
+// needs the bundled runtime before it can start, so here the runtime comes
+// first and the upgrade stops if it cannot be installed.
 function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  App, Stage: String;
+  Code: Integer;
 begin
   Result := '';
-  if FolderHasFiles(ExpandConstant('{app}')) then
-    Result := 'The folder ' + ExpandConstant('{app}') + ' already contains files.' + #13#10#13#10 +
-      'To update an existing copy of {#AppName}, run Updater.exe in that folder. ' +
-      'To install here anyway, uninstall the existing copy first, or choose an empty folder.';
+  App := ExpandConstant('{app}');
+  Upgrading := FolderHasFiles(App);
+  if not Upgrading then exit;
+  if not FileExists(App + '\Launcher.exe') or not FileExists(App + '\MANIFEST.txt') or
+     not FileExists(App + '\PackageInventory.inc') then begin
+    Result := 'This folder contains files but is not a recognized Ember installation. Choose an empty folder or your existing Ember folder.';
+    exit;
+  end;
+  try
+    if RuntimeOutdated then begin
+      ExtractTemporaryFile('vc_redist.x86.exe');
+      if not Exec(ExpandConstant('{tmp}\vc_redist.x86.exe'), '/install /quiet /norestart', '',
+         SW_HIDE, ewWaitUntilTerminated, Code) or ((Code <> 0) and (Code <> 3010)) then begin
+        Result := 'The Microsoft Visual C++ runtime could not be updated. Your Ember files were not changed.';
+        exit;
+      end;
+    end;
+    // ExtractTemporaryFiles keeps the literal {app} under {tmp}.
+    ExtractTemporaryFiles('{app}\*');
+    Stage := ExpandConstant('{tmp}\') + '{app}';
+    if not Exec(Stage + '\Updater.exe', '-InstallDir "' + App + '" -StagingDir "' + Stage + '" -NoRestart', Stage,
+       SW_HIDE, ewWaitUntilTerminated, Code) or (Code <> 0) then begin
+      Result := 'Ember could not be updated. Close SF4 and try again. Do not delete your Ember folder.' + #13#10 +
+        'For the exact failure, see %TEMP%\sf4-netplay-update.log. An interrupted update is recovered before the next attempt.';
+      exit;
+    end;
+  except
+    Result := 'The update could not be prepared: ' + GetExceptionMessage;
+  end;
 end;
 
 // The kept helper (this setup's Updater.exe) removes the product's files,
