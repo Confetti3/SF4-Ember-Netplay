@@ -6249,3 +6249,66 @@ msgid "country.ZW"
 msgstr "Зимбабве"
 
 #. End of the generated country names.
+
+msgid "music.title"
+msgstr "Музыка"
+
+msgid "music.detail"
+msgstr "Выберите темы арен или персонажей. Оба выбора сохраняются на этом ПК."
+
+msgid "music.lobby"
+msgstr "Музыка в комнате"
+
+msgid "music.lobby_default"
+msgstr "Музыка комнаты по умолчанию"
+
+msgid "music.lobby_detail"
+msgstr "Выберите музыку для комнаты. Выбор сохраняется автоматически."
+
+msgid "music.match"
+msgstr "Музыка боя"
+
+msgid "music.match_default"
+msgstr "Музыка арены (по умолчанию)"
+
+msgid "music.match_detail"
+msgstr "Выберите арену, персонажа или случайный трек. Случайный трек выбирается при входе в бой из комнаты. Собственная музыка пользовательской арены имеет приоритет."
+
+msgid "music.reset"
+msgstr "Восстановить музыку по умолчанию"
+
+msgid "music.reset_detail"
+msgstr "Восстановить исходную музыку комнаты и каждой арены."
+
+msgid "music.random"
+msgstr "Случайно (арены и персонажи)"
+
+msgid "music.character_theme"
+msgstr "Персонаж: {0}"
+
+msgid "music.stage_theme"
+msgstr "Арена: {0}"
+
+msgid "music.error_fallback"
+msgstr "Не удалось загрузить выбранную музыку комнаты. Восстановлена музыка по умолчанию."
+
+msgid "music.error_retry_default"
+msgstr "Не удалось загрузить выбранную музыку комнаты. Попытка загрузить музыку по умолчанию."
+
+msgid "music.error_load_failed"
+msgstr "Не удалось загрузить музыку комнаты. Выберите вариант по умолчанию для повторной попытки."
+
+msgid "music.error_disabled"
+msgstr "Выбор музыки отключён для этого запуска."
+
+msgid "music.error_unsupported"
+msgstr "Выбор музыки недоступен для этого исполняемого файла игры."
+
+msgid "music.error_hook_failed"
+msgstr "Не удалось подключить перехватчики музыки."
+
+msgid "music.error_files_unavailable"
+msgstr "Не удалось найти музыкальные файлы игры."
+
+msgid "music.error_missing"
+msgstr "Выбранный музыкальный файл отсутствует. Будет использована музыка игры по умолчанию."

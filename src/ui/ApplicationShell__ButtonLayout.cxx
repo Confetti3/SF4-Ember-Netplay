@@ -77,6 +77,13 @@ bool ApplicationShell::ControllerActivate(const MenuAction& action, const ShellV
 }
 bool ApplicationShell::SavePreferences(const ShellView& view, const Submit& submit) {
     if (view.canEditPreferences) return Send(netplay::CommandKind::SavePreferences, view, submit);
+    if (preferences_.lobbyMusic != view.preferences.lobbyMusic || preferences_.matchMusic != view.preferences.matchMusic) {
+        if (!view.canEditMusic) return false;
+        ShellAction action; action.command.generation = view.session.generation;
+        action.saveMusicPreferences = true; action.preferences = preferences_;
+        if (!submit(std::move(action))) return false;
+    }
+    if (preferences_.buttonLayouts == view.preferences.buttonLayouts) return true;
     ShellAction action; action.command.generation = view.session.generation;
     action.padAction.kind = ControllerRequest::Kind::SaveLayouts;
     action.padAction.layouts = preferences_.buttonLayouts;

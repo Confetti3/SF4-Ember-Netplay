@@ -5774,3 +5774,66 @@ msgid "country.ZW"
 msgstr "Zimbabue"
 
 #. End of the generated country names.
+
+msgid "music.title"
+msgstr "Música"
+
+msgid "music.detail"
+msgstr "Elige temas de escenarios o personajes. Ambas opciones se guardan en esta PC."
+
+msgid "music.lobby"
+msgstr "Música del lobby"
+
+msgid "music.lobby_default"
+msgstr "Música predeterminada del lobby"
+
+msgid "music.lobby_detail"
+msgstr "Elige la música del lobby. Tu elección se guarda automáticamente."
+
+msgid "music.match"
+msgstr "Música de las partidas"
+
+msgid "music.match_default"
+msgstr "Música del escenario (predeterminada)"
+
+msgid "music.match_detail"
+msgstr "Elige un escenario, un personaje o Aleatorio. Aleatorio elige un tema al iniciar una partida desde el lobby. La música propia de un escenario personalizado tiene prioridad."
+
+msgid "music.reset"
+msgstr "Restaurar música predeterminada"
+
+msgid "music.reset_detail"
+msgstr "Restaura la música original del lobby y la de cada escenario."
+
+msgid "music.random"
+msgstr "Aleatorio (escenarios y personajes)"
+
+msgid "music.character_theme"
+msgstr "Personaje: {0}"
+
+msgid "music.stage_theme"
+msgstr "Escenario: {0}"
+
+msgid "music.error_fallback"
+msgstr "No se pudo cargar la música elegida para el lobby. Se restauró la música predeterminada."
+
+msgid "music.error_retry_default"
+msgstr "No se pudo cargar la música elegida para el lobby. Se intentará con la música predeterminada."
+
+msgid "music.error_load_failed"
+msgstr "No se pudo cargar la música del lobby. Elige Predeterminada para reintentar."
+
+msgid "music.error_disabled"
+msgstr "La selección de música está desactivada en este inicio."
+
+msgid "music.error_unsupported"
+msgstr "La selección de música no está disponible para este ejecutable del juego."
+
+msgid "music.error_hook_failed"
+msgstr "No se pudieron instalar los enlaces de música."
+
+msgid "music.error_files_unavailable"
+msgstr "No se encontraron los archivos de música del juego."
+
+msgid "music.error_missing"
+msgstr "Falta un archivo de música seleccionado. Se usará la música predeterminada del juego."

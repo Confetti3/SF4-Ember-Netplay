@@ -3,6 +3,7 @@
 #include "../platform/ReplayFiles.hxx"
 #include "sf4e__ReplayPlayback.hxx"
 #include "sf4e__InputLag.hxx"
+#include "sf4e__Music.hxx"
 #include "../common/SpectatorCatchUp.hxx"
 #include "sf4e__MementoGuards.hxx"
 #include "../common/MementoGuards.hxx"
@@ -643,6 +644,7 @@ void fSystem::CloseBattle() {
     sf4e::replayplayback::CloseBattle();
     sf4e::InputLag::CloseBattle();
     sf4e::custom::EndBattle();
+    sf4e::Music::LeaveMatch();
     bool summaryEmitted = false;
     LogSaveSlotOccupancy("battle_close_entry");
     sf4e::crash::NoteMatchBoundary("battle_close");

@@ -30,6 +30,8 @@ selection::InstalledContentPtr Installed();
 // the scripts in it) instead of the fallback's until EndBattle, and so is the music if the stage has its own
 // (battle\sound\bgm\BGM_C12.csb in the patch folder); otherwise the fallback's music plays.
 int ApplyStage(int stageId);
+// The active installed stage supplies its own bank, ahead of a local override.
+bool HasStageMusic();
 
 // Installs a match's swaps (selection::ResolveAppearance) until EndBattle: the hooks give the game each side's
 // custom costume and color while it loads their stand-ins.

@@ -2,6 +2,7 @@
 #include "sf4e__ReplayStore.hxx"
 #include "sf4e__ReplayPlayback.hxx"
 #include "sf4e__Gamepads.hxx"
+#include "sf4e__Music.hxx"
 #include "../netplay/PublishCadence.hxx"
 #include "../netplay/LatencyBoard.hxx"
 #include "../common/HelperFailure.hxx"
@@ -322,6 +323,8 @@ std::uint64_t PublishFingerprint() {
     for (const auto& preference : netplay::BoolPreferences) mix(runtime->preferences.*preference.member);
     mix(static_cast<unsigned>(runtime->preferences.buttonPrompts));
     mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudAnchor); mix(runtime->preferences.matchHudLayout); mix(runtime->preferences.matchHudNameOffset); mix(runtime->preferences.readySoundVolume);
+    mix(runtime->preferences.lobbyMusic); mix(runtime->preferences.matchMusic);
+    mix(Music::Available()); mixString(Music::Error());
     mix(static_cast<std::uint64_t>(runtime->input.State())); mix(runtime->input.Ready());
     mixString(runtime->padHint);
     mix(AtMainMenu());
@@ -483,6 +486,10 @@ PostPublishState Publish() {
 	snapshot.lobbySettings = runtime->preferences.lobby;
 	snapshot.canEditPreferences = snapshot.atMainMenu && snapshot.session.room == netplay::RoomState::Idle &&
 		!UserApp::netplay && !UserApp::server && !Game::Battle::System::ggpo;
+	snapshot.canEditMusic = Music::Available() && snapshot.atMainMenu && !Game::Battle::System::ggpo &&
+		!netplay::Fighting(snapshot.session.match) &&
+		(snapshot.session.room == netplay::RoomState::Idle || snapshot.session.room == netplay::RoomState::Joined);
+	snapshot.musicError = Music::Error();
 	snapshot.canEditLobby = CanEditLobby();
 	snapshot.settingsPending = OverlayPrefs::PersistencePending() || runtime->pendingLobbySettings != nullptr || runtime->lobbyEditIntent.Parked() != nullptr;
 	snapshot.settingsError = OverlayPrefs::PersistenceError();

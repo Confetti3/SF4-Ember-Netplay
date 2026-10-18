@@ -6248,3 +6248,66 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+msgid "music.title"
+msgstr "Muziek"
+
+msgid "music.detail"
+msgstr "Kies muziek van stages of personages. Beide keuzes worden op deze pc opgeslagen."
+
+msgid "music.lobby"
+msgstr "Lobbymuziek"
+
+msgid "music.lobby_default"
+msgstr "Standaard lobbymuziek"
+
+msgid "music.lobby_detail"
+msgstr "Kies de muziek voor de lobby. Je keuze wordt automatisch opgeslagen."
+
+msgid "music.match"
+msgstr "Wedstrijdmuziek"
+
+msgid "music.match_default"
+msgstr "Stagemuziek (standaard)"
+
+msgid "music.match_detail"
+msgstr "Kies een stage, een personage of Willekeurig. Willekeurig kiest een nummer wanneer een wedstrijd vanuit de lobby begint. De eigen muziek van een aangepaste stage krijgt voorrang."
+
+msgid "music.reset"
+msgstr "Standaardmuziek herstellen"
+
+msgid "music.reset_detail"
+msgstr "Herstel de oorspronkelijke lobbymuziek en de muziek van elke stage."
+
+msgid "music.random"
+msgstr "Willekeurig (stages en personages)"
+
+msgid "music.character_theme"
+msgstr "Personage: {0}"
+
+msgid "music.stage_theme"
+msgstr "Stage: {0}"
+
+msgid "music.error_fallback"
+msgstr "De gekozen lobbymuziek kon niet worden geladen. De standaardmuziek is hersteld."
+
+msgid "music.error_retry_default"
+msgstr "De gekozen lobbymuziek kon niet worden geladen. De standaardmuziek wordt geprobeerd."
+
+msgid "music.error_load_failed"
+msgstr "De lobbymuziek kon niet worden geladen. Kies Standaard om het opnieuw te proberen."
+
+msgid "music.error_disabled"
+msgstr "Muziekkeuze is uitgeschakeld voor deze start."
+
+msgid "music.error_unsupported"
+msgstr "Muziekkeuze is niet beschikbaar voor dit uitvoerbare spelbestand."
+
+msgid "music.error_hook_failed"
+msgstr "De muziekhooks konden niet worden geïnstalleerd."
+
+msgid "music.error_files_unavailable"
+msgstr "De muziekbestanden van het spel zijn niet gevonden."
+
+msgid "music.error_missing"
+msgstr "Een gekozen muziekbestand ontbreekt. De standaardmuziek van het spel wordt gebruikt."

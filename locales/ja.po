@@ -6248,3 +6248,66 @@ msgid "country.ZW"
 msgstr "ジンバブエ"
 
 #. End of the generated country names.
+
+msgid "music.title"
+msgstr "音楽"
+
+msgid "music.detail"
+msgstr "ステージやキャラクターの曲を選びます。両方の設定はこのPCに保存されます。"
+
+msgid "music.lobby"
+msgstr "ロビーの音楽"
+
+msgid "music.lobby_default"
+msgstr "既定のロビー音楽"
+
+msgid "music.lobby_detail"
+msgstr "ロビーで流す曲を選びます。選択は自動的に保存されます。"
+
+msgid "music.match"
+msgstr "対戦の音楽"
+
+msgid "music.match_default"
+msgstr "ステージの音楽（既定）"
+
+msgid "music.match_detail"
+msgstr "ステージ、キャラクター、ランダムから選びます。ランダムはロビーから対戦を始める際に曲を選びます。カスタムステージ専用の曲がある場合はそちらを優先します。"
+
+msgid "music.reset"
+msgstr "既定の音楽に戻す"
+
+msgid "music.reset_detail"
+msgstr "ロビーと各ステージの音楽をゲーム本来の曲に戻します。"
+
+msgid "music.random"
+msgstr "ランダム（ステージとキャラクター）"
+
+msgid "music.character_theme"
+msgstr "キャラクター：{0}"
+
+msgid "music.stage_theme"
+msgstr "ステージ：{0}"
+
+msgid "music.error_fallback"
+msgstr "選択したロビーの曲を読み込めませんでした。既定の曲に戻しました。"
+
+msgid "music.error_retry_default"
+msgstr "選択したロビーの曲を読み込めませんでした。既定の曲を試します。"
+
+msgid "music.error_load_failed"
+msgstr "ロビーの曲を読み込めませんでした。既定を選んで再試行してください。"
+
+msgid "music.error_disabled"
+msgstr "今回の起動では音楽の選択が無効です。"
+
+msgid "music.error_unsupported"
+msgstr "このゲーム実行ファイルでは音楽を選択できません。"
+
+msgid "music.error_hook_failed"
+msgstr "音楽のフックを設定できませんでした。"
+
+msgid "music.error_files_unavailable"
+msgstr "ゲームの音楽ファイルが見つかりませんでした。"
+
+msgid "music.error_missing"
+msgstr "選択した音楽ファイルがありません。ゲーム既定の曲を使用します。"

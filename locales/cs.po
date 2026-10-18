@@ -6248,3 +6248,66 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+msgid "music.title"
+msgstr "Hudba"
+
+msgid "music.detail"
+msgstr "Vyberte hudbu scén nebo postav. Obě volby se ukládají na tomto PC."
+
+msgid "music.lobby"
+msgstr "Hudba v lobby"
+
+msgid "music.lobby_default"
+msgstr "Výchozí hudba v lobby"
+
+msgid "music.lobby_detail"
+msgstr "Vyberte hudbu pro lobby. Volba se uloží automaticky."
+
+msgid "music.match"
+msgstr "Hudba zápasu"
+
+msgid "music.match_default"
+msgstr "Hudba scény (výchozí)"
+
+msgid "music.match_detail"
+msgstr "Vyberte scénu, postavu nebo Náhodně. Náhodně vybere skladbu při vstupu do zápasu z lobby. Vlastní hudba upravené scény má přednost."
+
+msgid "music.reset"
+msgstr "Obnovit výchozí hudbu"
+
+msgid "music.reset_detail"
+msgstr "Obnoví původní hudbu lobby a hudbu jednotlivých scén."
+
+msgid "music.random"
+msgstr "Náhodně (scény a postavy)"
+
+msgid "music.character_theme"
+msgstr "Postava: {0}"
+
+msgid "music.stage_theme"
+msgstr "Scéna: {0}"
+
+msgid "music.error_fallback"
+msgstr "Vybranou hudbu lobby se nepodařilo načíst. Výchozí hudba byla obnovena."
+
+msgid "music.error_retry_default"
+msgstr "Vybranou hudbu lobby se nepodařilo načíst. Zkouší se výchozí hudba."
+
+msgid "music.error_load_failed"
+msgstr "Hudbu lobby se nepodařilo načíst. Pro další pokus vyberte Výchozí."
+
+msgid "music.error_disabled"
+msgstr "Výběr hudby je pro toto spuštění vypnutý."
+
+msgid "music.error_unsupported"
+msgstr "Výběr hudby není pro tento spustitelný soubor hry dostupný."
+
+msgid "music.error_hook_failed"
+msgstr "Nepodařilo se připojit hudební hooky."
+
+msgid "music.error_files_unavailable"
+msgstr "Nepodařilo se najít hudební soubory hry."
+
+msgid "music.error_missing"
+msgstr "Vybraný hudební soubor chybí. Použije se výchozí hudba hry."

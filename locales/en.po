@@ -5890,3 +5890,66 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+msgid "music.title"
+msgstr "Music"
+
+msgid "music.detail"
+msgstr "Choose stage or character themes. Both choices are saved on this PC."
+
+msgid "music.lobby"
+msgstr "Lobby music"
+
+msgid "music.lobby_default"
+msgstr "Default lobby music"
+
+msgid "music.lobby_detail"
+msgstr "Choose the music for the lobby. Your choice is saved automatically."
+
+msgid "music.match"
+msgstr "Match music"
+
+msgid "music.match_default"
+msgstr "Stage music (default)"
+
+msgid "music.match_detail"
+msgstr "Choose a stage, a character, or Random. Random selects a track when entering a match from the lobby. A custom stage's own music takes priority."
+
+msgid "music.reset"
+msgstr "Restore default music"
+
+msgid "music.reset_detail"
+msgstr "Restore the game's own lobby music and each arena's stage music."
+
+msgid "music.random"
+msgstr "Random (stages and characters)"
+
+msgid "music.character_theme"
+msgstr "Character: {0}"
+
+msgid "music.stage_theme"
+msgstr "Stage: {0}"
+
+msgid "music.error_fallback"
+msgstr "The selected lobby music could not load. Default music restored."
+
+msgid "music.error_retry_default"
+msgstr "The selected lobby music could not load. Trying the default music."
+
+msgid "music.error_load_failed"
+msgstr "Lobby music could not load. Choose Default to retry."
+
+msgid "music.error_disabled"
+msgstr "Music selection is disabled for this launch."
+
+msgid "music.error_unsupported"
+msgstr "Music selection is unavailable for this game executable."
+
+msgid "music.error_hook_failed"
+msgstr "The music hooks could not be attached."
+
+msgid "music.error_files_unavailable"
+msgstr "Could not locate the game's music files."
+
+msgid "music.error_missing"
+msgstr "A selected music file is missing. The game's default music will be used."

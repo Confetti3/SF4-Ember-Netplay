@@ -16,6 +16,7 @@ std::string SteamClientLanguage();
 // Records the USF4 folder whose language "auto" follows in this process, and
 // logs nothing: callers log the result. An empty folder forgets it.
 void SetGameDirectory(const std::filesystem::path& directory);
+std::filesystem::path GameDirectory();
 // The recorded folder's USF4 language code, or empty when unknown.
 std::string GameLanguage();
 // ResolveLocale with this process's game language and Windows UI languages.

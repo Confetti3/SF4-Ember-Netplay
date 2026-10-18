@@ -2,6 +2,7 @@
 #include "../common/InstalledContent.hxx"
 #include "../common/StageCatalog.hxx"
 #include "../common/SelectionAssetPath.hxx"
+#include "../common/MusicChoice.hxx"
 #include <climits>
 #include <cstdlib>
 #include <iterator>
@@ -14,6 +15,29 @@
 int main() {
     using namespace sf4e::selection;
     CHECK(StageList().size() == 28);
+    // Stage IDs remain compatible with earlier saved choices; all roster
+    // themes follow them with distinct IDs and stereo bank paths.
+    CHECK(sf4e::music::Valid(-1) && sf4e::music::Normalize(INT64_MAX) == -1);
+    int music = sf4e::music::Default;
+    for (const auto& stage : StageList()) {
+        CHECK(sf4e::music::Step(music, 1) == stage.id && sf4e::music::Find(stage.id)->name == stage.name);
+        CHECK(sf4e::music::Valid(stage.id));music = stage.id;
+    }
+    CHECK(sf4e::music::TrackList().size() == 72);
+    for (int id = 0; id < FighterCount; ++id) {
+        const int choice = sf4e::music::CharacterBase + id;
+        const auto* track = sf4e::music::Find(choice);
+        CHECK(track && track->character && track->name == FindFighter(id)->name);
+        CHECK(track->path == std::string("battle/sound/bgm/BGM_") + FindFighter(id)->code + "_2CH.csb");
+        CHECK(sf4e::music::Step(music, 1) == choice); music = choice;
+    }
+    CHECK(sf4e::music::Step(-1, INT_MIN) == -1 && sf4e::music::Step(29, INT_MAX) == 143);
+    CHECK(sf4e::music::Step(24, -1) == 21 && sf4e::music::Step(0, -1) == -1);
+    CHECK(sf4e::music::Step(-1, 1, true) == -2 && sf4e::music::Step(-2, 1, true) == 0);
+    CHECK(sf4e::music::Step(0, -1, true) == -2 && sf4e::music::Step(-2, -1, true) == -1);
+    CHECK(!sf4e::music::ValidLobby(-2) && sf4e::music::Normalize(-2, false) == -1);
+    for (int id = -2; id <= 256; ++id)
+        CHECK(sf4e::music::Valid(id) == (id == -2 || id == -1 || FindStage(id) != nullptr || (id >= 100 && id <= 143)));
     std::set<int> stageIds;
     std::set<std::string> stageCodes;
     for (const auto& stage : StageList()) {

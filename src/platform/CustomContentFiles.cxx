@@ -1,3 +1,4 @@
+#include "../common/GameFiles.hxx"
 #include "CustomContentFiles.hxx"
 #include "Utf8.hxx"
 #include "../common/StageCatalog.hxx"
@@ -30,10 +31,7 @@ std::string ReadName(const std::wstring& file) {
 }
 
 // A regular file (not a folder of that name).
-bool Exists(const std::wstring& file) {
-    const DWORD attributes = GetFileAttributesW(file.c_str());
-    return attributes != INVALID_FILE_ATTRIBUTES && !(attributes & FILE_ATTRIBUTE_DIRECTORY);
-}
+using files::Exists;
 // The two digits at `at` of a file name (RYU_12...), or -1.
 int Number(const std::wstring& name, std::size_t at) {
     if (name.size() < at + 2 || name[at] < L'0' || name[at] > L'9' || name[at + 1] < L'0' || name[at + 1] > L'9') return -1;

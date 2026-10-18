@@ -1,5 +1,7 @@
 #include "../platform/CustomContentFiles.hxx"
 #include "../common/StageCatalog.hxx"
+#include "../common/GameFiles.hxx"
+#include "../training/GameFiles.hxx"
 #include "test_support.hxx"
 #include <filesystem>
 #include <fstream>
@@ -37,6 +39,26 @@ struct Fixture {
 };
 
 int main() {
+    {
+        Fixture layers;
+        using namespace sf4e;
+        const fs::path bank = "battle/sound/bgm/BGM_TRN.csb";
+        CHECK(files::FindGameFile(layers.root, bank).empty());
+        layers.File(fs::path("resource") / bank);
+        layers.File(fs::path("dlc/04_ae2") / bank);
+        CHECK(files::FindGameFile(layers.root, bank) == layers.root / "dlc/04_ae2" / bank);
+        layers.File(fs::path("patch_ae2_tu1b") / bank);
+        CHECK(files::FindGameFile(layers.root, bank) == layers.root / "patch_ae2_tu1b" / bank);
+        fs::create_directories(layers.root / "patch_ae2_tu3" / bank);
+        CHECK(files::FindGameFile(layers.root, bank) == layers.root / "patch_ae2_tu1b" / bank);
+        // Fighter-specific 1.11/1.10 precedence survives the shared layer list.
+        for (const auto* fighter : {"RYU", "KEN"}) {
+            layers.File(std::string("patch_ae2_tu3/battle/regulation/ae2_111/") + fighter + "/" + fighter + ".bcm");
+            layers.File(std::string("patch_ae2_tu2/battle/regulation/ae2_110/") + fighter + "/" + fighter + ".bcm");
+        }
+        CHECK(training::CommandFolder(layers.root, "RYU") == layers.root / "patch_ae2_tu3/battle/regulation/ae2_111/RYU");
+        CHECK(training::CommandFolder(layers.root, "KEN") == layers.root / "patch_ae2_tu2/battle/regulation/ae2_110/KEN");
+    }
     Fixture f;
     CHECK(Scan(L"")->stages.empty());
     CHECK(Scan((f.root / L"missing").wstring())->Costumes(0).empty());

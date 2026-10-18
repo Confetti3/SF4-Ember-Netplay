@@ -6248,3 +6248,66 @@ msgid "country.ZW"
 msgstr "津巴布韦"
 
 #. End of the generated country names.
+
+msgid "music.title"
+msgstr "音乐"
+
+msgid "music.detail"
+msgstr "选择场景或角色主题曲。两项设置都会保存在本机。"
+
+msgid "music.lobby"
+msgstr "房间音乐"
+
+msgid "music.lobby_default"
+msgstr "默认房间音乐"
+
+msgid "music.lobby_detail"
+msgstr "选择房间播放的音乐。选择会自动保存。"
+
+msgid "music.match"
+msgstr "对战音乐"
+
+msgid "music.match_default"
+msgstr "场景音乐（默认）"
+
+msgid "music.match_detail"
+msgstr "选择场景、角色或随机。随机会在从房间进入对战时选择曲目。自定义场景自带的音乐优先播放。"
+
+msgid "music.reset"
+msgstr "恢复默认音乐"
+
+msgid "music.reset_detail"
+msgstr "恢复游戏原本的房间音乐和各场景音乐。"
+
+msgid "music.random"
+msgstr "随机（场景和角色）"
+
+msgid "music.character_theme"
+msgstr "角色：{0}"
+
+msgid "music.stage_theme"
+msgstr "场景：{0}"
+
+msgid "music.error_fallback"
+msgstr "无法加载所选房间音乐。已恢复默认音乐。"
+
+msgid "music.error_retry_default"
+msgstr "无法加载所选房间音乐。正在尝试默认音乐。"
+
+msgid "music.error_load_failed"
+msgstr "无法加载房间音乐。请选择默认以重试。"
+
+msgid "music.error_disabled"
+msgstr "本次启动已禁用音乐选择。"
+
+msgid "music.error_unsupported"
+msgstr "此游戏可执行文件不支持音乐选择。"
+
+msgid "music.error_hook_failed"
+msgstr "无法安装音乐挂钩。"
+
+msgid "music.error_files_unavailable"
+msgstr "找不到游戏音乐文件。"
+
+msgid "music.error_missing"
+msgstr "所选音乐文件缺失。将使用游戏默认音乐。"

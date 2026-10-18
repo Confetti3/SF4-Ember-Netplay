@@ -14,6 +14,7 @@
 #include "sf4e__Game.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__InputLag.hxx"
+#include "sf4e__Music.hxx"
 #include "sf4e__Pad.hxx"
 #include "sf4e__Gamepads.hxx"
 #include "sf4e__Platform.hxx"
@@ -247,9 +248,11 @@ void sf4e::Install(HINSTANCE hinstDll, const sf4e::Payload* const payload) {
 	Platform::Install();
 	UserApp::Install();
 	custom::Install();
+	Music::Install();
 }
 
 void sf4e::HooksCommitted() {
+	Music::Activate();
 	BackgroundPlay::Activate();
 	InputLag::Activate();
 }

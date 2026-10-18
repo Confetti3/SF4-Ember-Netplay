@@ -6248,3 +6248,66 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+msgid "music.title"
+msgstr "Musica"
+
+msgid "music.detail"
+msgstr "Scegli i temi degli stage o dei personaggi. Entrambe le scelte vengono salvate su questo PC."
+
+msgid "music.lobby"
+msgstr "Musica della lobby"
+
+msgid "music.lobby_default"
+msgstr "Musica predefinita della lobby"
+
+msgid "music.lobby_detail"
+msgstr "Scegli la musica della lobby. La scelta viene salvata automaticamente."
+
+msgid "music.match"
+msgstr "Musica degli incontri"
+
+msgid "music.match_default"
+msgstr "Musica dello stage (predefinita)"
+
+msgid "music.match_detail"
+msgstr "Scegli uno stage, un personaggio o Casuale. Casuale sceglie un brano entrando in partita dalla lobby. La musica propria di uno stage personalizzato ha la precedenza."
+
+msgid "music.reset"
+msgstr "Ripristina musica predefinita"
+
+msgid "music.reset_detail"
+msgstr "Ripristina la musica originale della lobby e quella di ogni stage."
+
+msgid "music.random"
+msgstr "Casuale (stage e personaggi)"
+
+msgid "music.character_theme"
+msgstr "Personaggio: {0}"
+
+msgid "music.stage_theme"
+msgstr "Stage: {0}"
+
+msgid "music.error_fallback"
+msgstr "Impossibile caricare la musica scelta per la lobby. Musica predefinita ripristinata."
+
+msgid "music.error_retry_default"
+msgstr "Impossibile caricare la musica scelta per la lobby. Tentativo con la musica predefinita."
+
+msgid "music.error_load_failed"
+msgstr "Impossibile caricare la musica della lobby. Scegli Predefinita per riprovare."
+
+msgid "music.error_disabled"
+msgstr "La scelta della musica è disabilitata per questo avvio."
+
+msgid "music.error_unsupported"
+msgstr "La scelta della musica non è disponibile per questo eseguibile del gioco."
+
+msgid "music.error_hook_failed"
+msgstr "Impossibile attivare gli agganci per la musica."
+
+msgid "music.error_files_unavailable"
+msgstr "Impossibile trovare i file musicali del gioco."
+
+msgid "music.error_missing"
+msgstr "Manca un file musicale selezionato. Verrà usata la musica predefinita del gioco."

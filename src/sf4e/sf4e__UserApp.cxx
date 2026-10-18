@@ -31,6 +31,7 @@
 #include "sf4e__UserApp.hxx"
 #include "sf4e__CustomContent.hxx"
 #include "sf4e__Pad.hxx"
+#include "sf4e__Music.hxx"
 
 
 namespace SessionProtocol = sf4e::SessionProtocol;
@@ -93,6 +94,7 @@ static MatchEntry StartMatchFromLobby(SessionClient* const client) {
     fVsBattle::bSessionSentLoaded = false;
     // Only an entered match arms the next battle; any other answer leaves it empty.
     fVsBattle::nextRequest = {};
+    sf4e::Music::LeaveMatch();
 
     if (!client || client->_lobbyData.members.size() < 2) {
         spdlog::info("Client: deferring match start until opponent joins the lobby");
@@ -131,6 +133,7 @@ static MatchEntry StartMatchFromLobby(SessionClient* const client) {
     // game prepares that request before the battle registers its tasks,
     // where GGPO starts, so they cannot wait for GGPO.
     fVsBattle::nextRequest = sf4e::battle::NextRequest::ForMatch(client->_lobbyData.trainingMode, client->_matchData.rngSeed);
+    sf4e::Music::EnterMatch();
     // A Versus battle saves its own replay when this is set (0x63CA40), and
     // Sidecar copies each one out of the game's slots as it is saved
     // (platform/ReplayFiles.hxx). A match this PC only

@@ -1,3 +1,4 @@
+#include "../common/GameFiles.hxx"
 #include "sf4e__CustomContent.hxx"
 #include "../common/EnvFlag.hxx"
 #include "../common/StageCatalog.hxx"
@@ -75,10 +76,7 @@ const char* __cdecl LoaderStageCode(int stageId) {
 }
 
 // The optional stage music must also be a regular file.
-bool Exists(const std::wstring& file) {
-    const DWORD attributes = GetFileAttributesW(file.c_str());
-    return attributes != INVALID_FILE_ATTRIBUTES && !(attributes & FILE_ATTRIBUTE_DIRECTORY);
-}
+using files::Exists;
 
 }
 
@@ -114,6 +112,8 @@ int ApplyStage(int stageId) {
     spdlog::info("Custom stage {} plays as stage {} with its own files{}", code, fallback, customMusic ? " and music" : "");
     return fallback;
 }
+
+bool HasStageMusic() { return customMusic; }
 
 void UseAppearance(const selection::Appearance& appearance) {
     for (int side = 0; side < 2; side++) {

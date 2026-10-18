@@ -5774,3 +5774,66 @@ msgid "country.ZW"
 msgstr "Zimbábue"
 
 #. End of the generated country names.
+
+msgid "music.title"
+msgstr "Música"
+
+msgid "music.detail"
+msgstr "Escolha temas de cenários ou personagens. As duas escolhas são salvas neste PC."
+
+msgid "music.lobby"
+msgstr "Música da sala"
+
+msgid "music.lobby_default"
+msgstr "Música padrão da sala"
+
+msgid "music.lobby_detail"
+msgstr "Escolha a música da sala. Sua escolha é salva automaticamente."
+
+msgid "music.match"
+msgstr "Música das partidas"
+
+msgid "music.match_default"
+msgstr "Música do cenário (padrão)"
+
+msgid "music.match_detail"
+msgstr "Escolha um cenário, um personagem ou Aleatório. Aleatório escolhe uma faixa ao entrar em uma partida pela sala. A música própria de um cenário personalizado tem prioridade."
+
+msgid "music.reset"
+msgstr "Restaurar música padrão"
+
+msgid "music.reset_detail"
+msgstr "Restaura a música original da sala e a de cada cenário."
+
+msgid "music.random"
+msgstr "Aleatório (cenários e personagens)"
+
+msgid "music.character_theme"
+msgstr "Personagem: {0}"
+
+msgid "music.stage_theme"
+msgstr "Cenário: {0}"
+
+msgid "music.error_fallback"
+msgstr "Não foi possível carregar a música escolhida para a sala. Música padrão restaurada."
+
+msgid "music.error_retry_default"
+msgstr "Não foi possível carregar a música escolhida para a sala. Tentando a música padrão."
+
+msgid "music.error_load_failed"
+msgstr "Não foi possível carregar a música da sala. Escolha Padrão para tentar novamente."
+
+msgid "music.error_disabled"
+msgstr "A seleção de música está desativada nesta inicialização."
+
+msgid "music.error_unsupported"
+msgstr "A seleção de música não está disponível para este executável do jogo."
+
+msgid "music.error_hook_failed"
+msgstr "Não foi possível instalar os ganchos de música."
+
+msgid "music.error_files_unavailable"
+msgstr "Não foi possível encontrar os arquivos de música do jogo."
+
+msgid "music.error_missing"
+msgstr "Um arquivo de música selecionado está ausente. A música padrão do jogo será usada."

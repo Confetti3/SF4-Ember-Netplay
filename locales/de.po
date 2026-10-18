@@ -6248,3 +6248,66 @@ msgid "country.ZW"
 msgstr "Simbabwe"
 
 #. End of the generated country names.
+
+msgid "music.title"
+msgstr "Musik"
+
+msgid "music.detail"
+msgstr "Wähle Stage- oder Charakterthemen. Beide Einstellungen werden auf diesem PC gespeichert."
+
+msgid "music.lobby"
+msgstr "Lobby-Musik"
+
+msgid "music.lobby_default"
+msgstr "Standardmusik der Lobby"
+
+msgid "music.lobby_detail"
+msgstr "Wähle die Musik für die Lobby. Die Auswahl wird automatisch gespeichert."
+
+msgid "music.match"
+msgstr "Kampfmusik"
+
+msgid "music.match_default"
+msgstr "Stage-Musik (Standard)"
+
+msgid "music.match_detail"
+msgstr "Wähle eine Stage, einen Charakter oder Zufällig. Zufällig wählt beim Start eines Kampfes aus der Lobby einen Titel. Die eigene Musik einer benutzerdefinierten Stage hat Vorrang."
+
+msgid "music.reset"
+msgstr "Standardmusik wiederherstellen"
+
+msgid "music.reset_detail"
+msgstr "Stelle die ursprüngliche Lobby-Musik und die Musik der jeweiligen Stage wieder her."
+
+msgid "music.random"
+msgstr "Zufällig (Stages und Charaktere)"
+
+msgid "music.character_theme"
+msgstr "Charakter: {0}"
+
+msgid "music.stage_theme"
+msgstr "Stage: {0}"
+
+msgid "music.error_fallback"
+msgstr "Die gewählte Lobby-Musik konnte nicht geladen werden. Die Standardmusik wurde wiederhergestellt."
+
+msgid "music.error_retry_default"
+msgstr "Die gewählte Lobby-Musik konnte nicht geladen werden. Die Standardmusik wird versucht."
+
+msgid "music.error_load_failed"
+msgstr "Die Lobby-Musik konnte nicht geladen werden. Wähle Standard, um es erneut zu versuchen."
+
+msgid "music.error_disabled"
+msgstr "Die Musikauswahl ist für diesen Programmstart deaktiviert."
+
+msgid "music.error_unsupported"
+msgstr "Die Musikauswahl ist für diese ausführbare Spieldatei nicht verfügbar."
+
+msgid "music.error_hook_failed"
+msgstr "Die Musik-Hooks konnten nicht eingerichtet werden."
+
+msgid "music.error_files_unavailable"
+msgstr "Die Musikdateien des Spiels wurden nicht gefunden."
+
+msgid "music.error_missing"
+msgstr "Eine gewählte Musikdatei fehlt. Die Standardmusik des Spiels wird verwendet."

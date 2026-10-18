@@ -98,7 +98,14 @@ static void LayoutEntryStates() {
     CHECK(physical[5] == "RB" && physical[6] == "Axis 5 +");
     CHECK(LayoutButtonNames(pad, ButtonPrompts::Nintendo)[0] == "B");
     netplay::PlayerPreferences a, b; a.buttonLayouts = b.buttonLayouts = {{pad.identity, DefaultLayout, 1}};
-    CHECK(SamePreferences(a, b)); b.buttonLayouts[0].buttons[0] = 0; CHECK(!SamePreferences(a, b) && OnlyLayoutsChanged(a, b));
+    CHECK(SamePreferences(a, b)); b.buttonLayouts[0].buttons[0] = 0;
+    CHECK(!SamePreferences(a, b) && OnlyLocalPresentationChanged(a, b, true, false));
+    CHECK(!OnlyLocalPresentationChanged(a, b, false, true));
+    b.lobbyMusic = 100;
+    CHECK(!OnlyLocalPresentationChanged(a, b, true, false));
+    CHECK(OnlyLocalPresentationChanged(a, b, true, true));
+    b.displayName += "changed";
+    CHECK(!OnlyLocalPresentationChanged(a, b, true, true));
 }
 static void Held() {
     State state;

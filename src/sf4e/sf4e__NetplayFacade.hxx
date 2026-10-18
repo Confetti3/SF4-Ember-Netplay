@@ -112,6 +112,8 @@ namespace sf4e {
 			// The stages Random may land on (P1 resolves Random with it).
 			selection::RandomPool randomPool;
 			netplay::PlayerPreferences preferences;
+    // Save only local music choices; never dispatched to the session controller.
+    bool saveMusicPreferences = false;
 			room::Action roomAction;
             int selectedDelay=-1;
             int previewSoundVolume=-1;
@@ -204,6 +206,8 @@ namespace sf4e {
 			bool canEditSelection = false;
             std::string selectionLockReason;
 			bool canEditPreferences = false;
+			bool canEditMusic = false;
+			std::string musicError;
 			bool canEditLobby = false;
 			bool settingsPending = false;
             int selectedDelay=2, recommendedDelay=-1;
@@ -222,6 +226,7 @@ namespace sf4e {
             // The ping to each other member while the room board is open.
             session::MemberLatencyTable memberLatency;
 			netplay::PlayerPreferences preferences;
+
 			netplay::LobbySettings lobbySettings;
 			std::string settingsError;
 			std::string languagePreference = "auto";

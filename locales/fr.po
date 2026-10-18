@@ -6248,3 +6248,66 @@ msgid "country.ZW"
 msgstr "Zimbabwe"
 
 #. End of the generated country names.
+
+msgid "music.title"
+msgstr "Musique"
+
+msgid "music.detail"
+msgstr "Choisissez des thèmes de stages ou de personnages. Les deux choix sont enregistrés sur ce PC."
+
+msgid "music.lobby"
+msgstr "Musique du salon"
+
+msgid "music.lobby_default"
+msgstr "Musique du salon par défaut"
+
+msgid "music.lobby_detail"
+msgstr "Choisissez la musique du salon. Votre choix est enregistré automatiquement."
+
+msgid "music.match"
+msgstr "Musique des matchs"
+
+msgid "music.match_default"
+msgstr "Musique du stage (par défaut)"
+
+msgid "music.match_detail"
+msgstr "Choisissez un stage, un personnage ou Aléatoire. Aléatoire choisit un morceau au lancement d'un match depuis le salon. La musique propre à un stage personnalisé est prioritaire."
+
+msgid "music.reset"
+msgstr "Rétablir la musique par défaut"
+
+msgid "music.reset_detail"
+msgstr "Rétablir la musique d'origine du salon et celle de chaque stage."
+
+msgid "music.random"
+msgstr "Aléatoire (stages et personnages)"
+
+msgid "music.character_theme"
+msgstr "Personnage : {0}"
+
+msgid "music.stage_theme"
+msgstr "Stage : {0}"
+
+msgid "music.error_fallback"
+msgstr "Impossible de charger la musique choisie pour le salon. Musique par défaut rétablie."
+
+msgid "music.error_retry_default"
+msgstr "Impossible de charger la musique choisie pour le salon. Essai avec la musique par défaut."
+
+msgid "music.error_load_failed"
+msgstr "Impossible de charger la musique du salon. Choisissez Par défaut pour réessayer."
+
+msgid "music.error_disabled"
+msgstr "La sélection musicale est désactivée pour ce lancement."
+
+msgid "music.error_unsupported"
+msgstr "La sélection musicale est indisponible pour cet exécutable du jeu."
+
+msgid "music.error_hook_failed"
+msgstr "Impossible d'installer les points d'interception de la musique."
+
+msgid "music.error_files_unavailable"
+msgstr "Impossible de trouver les fichiers musicaux du jeu."
+
+msgid "music.error_missing"
+msgstr "Un fichier musical sélectionné est absent. La musique par défaut du jeu sera utilisée."
