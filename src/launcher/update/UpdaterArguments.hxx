@@ -104,7 +104,7 @@ struct UpdaterArguments {
     std::wstring installDir, stagingDir;
     std::uint32_t waitPid = 0;
     // Setup's uninstaller passes -Uninstall; the launcher never does.
-    bool recoverOnly = false, uninstall = false;
+    bool recoverOnly = false, uninstall = false, noRestart = false;
     // What an install's headline says, its steps' names and its notices, in
     // the player's language; an Updater.exe from before any ignores it.
     std::wstring status;
@@ -116,7 +116,7 @@ inline constexpr wchar_t DefaultUpdaterStatus[] = L"Installing the update...";
 // Whether the Updater starts the launcher again when it is done: always after
 // an install, and after a recovery the launcher asked for at startup (with
 // -WaitPid), not one started by hand.
-inline bool UpdaterReopensLauncher(const UpdaterArguments& in) { return !in.recoverOnly || in.waitPid != 0; }
+inline bool UpdaterReopensLauncher(const UpdaterArguments& in) { return !in.noRestart && (!in.recoverOnly || in.waitPid != 0); }
 // The Updater window's headline: what this run does (an install's -Status, or
 // finishing an interrupted update), then, on its own line, that Ember opens
 // again, whenever it does. The second line is the Updater's own notice, so a
@@ -138,6 +138,7 @@ inline bool BuildUpdaterArguments(const UpdaterArguments& in, std::wstring& out)
     else if (in.recoverOnly) line += L" -RecoverOnly";
     else line += L" -StagingDir " + QuoteArgument(in.stagingDir);
     line += L" -WaitPid " + std::to_wstring(in.waitPid);
+    if (in.noRestart) line += L" -NoRestart";
     if (!in.status.empty()) line += L" -Status " + QuoteArgument(in.status);
     std::wstring field;
     if (!in.stages.empty() && JoinNames(in.stages, InstallerStepCount, field)) line += L" -Stages " + QuoteArgument(field);
@@ -155,7 +156,8 @@ inline bool ParseUpdaterArguments(int argc, const wchar_t* const* argv, UpdaterA
     for (int i = 1; i < argc; ++i) {
         const auto is = [&](const wchar_t* name) { return _wcsicmp(argv[i], name) == 0; };
         const wchar_t* value = i + 1 < argc ? argv[i + 1] : nullptr;
-        if (is(L"-RecoverOnly")) out.recoverOnly = true;
+        if (is(L"-NoRestart")) out.noRestart = true;
+        else if (is(L"-RecoverOnly")) out.recoverOnly = true;
         else if (is(L"-Uninstall")) out.uninstall = true;
         else if (!value) continue;
         else if (is(L"-InstallDir")) out.installDir = argv[++i];

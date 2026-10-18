@@ -252,6 +252,8 @@ static void TestUpdaterArguments() {
     // A line longer than Windows starts a process with is refused, not cut.
     in.status.assign(MostUpdaterArguments,L'x');
     CHECK(!BuildUpdaterArguments(in,line)&&line.empty());
+    in=UpdaterArguments{}; in.installDir=L"C:\\Ember"; in.stagingDir=L"C:\\Stage"; in.noRestart=true;
+    {UpdaterArguments out;CHECK(BuildUpdaterArguments(in,line)&&readBack(line,out)&&out.noRestart&&!UpdaterReopensLauncher(out));}
     // The bar: each step's share in order, only forward, the whole of it.
     int last=-1;
     for(const auto& step:InstallerSteps)for(std::uint64_t done=0;done<=10;++done){
