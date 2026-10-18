@@ -224,11 +224,19 @@ impl Bracket {
         }
     }
 
+    /// Says once per player, while the connector runs, that their account
+    /// was connected long ago.
     fn point_out_old_connections(&self, set: &Set, entries: &[Entry; 2], players: [&Player; 2]) {
         let now = self.context.clock.now();
+        let mut pointed_out = self
+            .context
+            .pointed_out
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         for (entry, player) in entries.iter().zip(players) {
             if let (Some(account), Some(at)) = (&entry.account, player.connected_at)
                 && now.saturating_sub(at) > OLD_CONNECTION_SECS
+                && pointed_out.insert(player.ember_id.clone())
             {
                 log!(
                     "{} set {}: {account} was connected in Ember on {}; if it was renamed since, check that its player is the entry's",

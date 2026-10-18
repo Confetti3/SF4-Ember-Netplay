@@ -22,6 +22,7 @@ use std::{
     time::Duration,
 };
 
+use ember_protocol::EmberId;
 use tokio::sync::{Mutex, Notify};
 
 use crate::{
@@ -48,6 +49,9 @@ pub(crate) struct Context {
     pub build_id: String,
     pub poll_secs: u64,
     pub max_poll_secs: u64,
+    /// Players whose old account connection has been pointed out since the
+    /// connector started, so each is pointed out once.
+    pub pointed_out: std::sync::Mutex<HashSet<EmberId>>,
 }
 
 pub(crate) struct Bracket {

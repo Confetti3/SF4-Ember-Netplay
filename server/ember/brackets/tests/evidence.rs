@@ -146,26 +146,14 @@ async fn a_result_the_bridge_cannot_deliver_is_read_from_the_bridge() {
     world.challonge.log();
 
     // A scheduled read finds nothing to do. Five minutes on, the connector
-    // asks the bridge, finds its delivery failing, and reports. (The
-    // bridge's own worker keeps trying meanwhile, and a read-back that
-    // catches it mid-try waits for the next one, so a few are allowed.)
+    // asks the bridge, finds the result being sent and not getting through,
+    // and reports.
     world.advance(299);
     world.connector.pass(false).await;
     assert_eq!(lines(&world.challonge.log()), [LIST]);
     world.advance(1);
-    for _ in 0..4 {
-        world.connector.pass(false).await;
-        if world.challonge.find("1001").winner.is_some() {
-            break;
-        }
-        world.advance(300);
-    }
-    let log = lines(&world.challonge.log());
-    assert_eq!(
-        log.iter().filter(|line| *line == REPORT_1001).count(),
-        1,
-        "{log:?}"
-    );
+    world.connector.pass(false).await;
+    assert_eq!(lines(&world.challonge.log()), [LIST, REPORT_1001]);
     assert_eq!(world.challonge.find("1001").winner.as_deref(), Some("354"));
 }
 

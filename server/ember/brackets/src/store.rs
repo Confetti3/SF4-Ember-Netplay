@@ -125,8 +125,12 @@ impl Store {
                 path.display()
             ));
         }
+        db.execute_batch("PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL;")
+            .map_err(prepare)?;
+        // The tables and their version are written together, so a first
+        // start cut short leaves neither.
         db.execute_batch(&format!(
-            "PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL;
+            "BEGIN IMMEDIATE;
              CREATE TABLE IF NOT EXISTS sets (
                  bracket TEXT NOT NULL, set_id TEXT NOT NULL,
                  player1 TEXT NOT NULL, player2 TEXT NOT NULL,
@@ -145,7 +149,8 @@ impl Store {
                  PRIMARY KEY (credential, month));
              CREATE TABLE IF NOT EXISTS finished (
                  bracket TEXT PRIMARY KEY, finished_at INTEGER NOT NULL);
-             PRAGMA user_version = {SCHEMA_VERSION};",
+             PRAGMA user_version = {SCHEMA_VERSION};
+             COMMIT;",
         ))
         .map_err(prepare)?;
         Ok(Self(Mutex::new(db)))

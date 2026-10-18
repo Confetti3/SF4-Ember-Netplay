@@ -37,12 +37,13 @@ another one in the same pass reads its set first.
 
 Every five minutes the connector also asks the bridge about each live match
 (bridge requests cost nothing against Challonge's budget). A finished match
-whose result the bridge cannot deliver (retrying, failed, or stuck sending)
-is settled from that, under the same ID as the delivery, so one that gets
-through later is a repeat. A result the bridge has not started sending is
-left alone, since an organizer can still correct it on the bridge until
-then; a connection whose result secret the bridge does not have therefore
-settles nothing.
+whose result the bridge has started sending (and so can no longer be
+corrected) is settled from that, under the same ID as the delivery, so the
+delivery, if it gets through, is a repeat. A result the bridge has not
+started sending is left alone, since an organizer can still correct it on
+the bridge until then. One still unsent at two read-backs in a row is
+logged once per match: the bridge may have no `results_url` or result secret
+for the connection, and then settles nothing.
 
 What it has decided is kept in its SQLite file, so a restart carries on where
 it stopped and never makes a set's match twice: a creation is saved before it
@@ -69,7 +70,7 @@ so once in the log, until both of its players have. The connector learns
 each entry's account when it first sees the entry: an entry the organizer
 gives an account after that is picked up when the connector restarts. A
 player whose Challonge account was connected more than 30 days before a match
-is pointed out in the log, since Challonge lets an account rename.
+is pointed out in the log once, since Challonge lets an account rename.
 
 ## What the Ember team provides
 

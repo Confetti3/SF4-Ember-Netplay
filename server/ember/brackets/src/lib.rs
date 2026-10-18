@@ -135,6 +135,7 @@ impl Connector {
             build_id: config.bridge.build_id.clone(),
             poll_secs: config.poll_secs,
             max_poll_secs: config.max_poll_secs,
+            pointed_out: Default::default(),
         });
         let brackets = config
             .tournaments
