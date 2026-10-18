@@ -1235,6 +1235,12 @@ msgstr "Uitnodigingen geven toegang tot je kamer."
 msgid "discord.enable_first"
 msgstr "Schakel eerst Discord-activiteit in."
 
+msgid "discord.tournament_account"
+msgstr "Toernooiaccount"
+
+msgid "discord.tournament_account_detail"
+msgstr "Het Discord-account dat je toernooisite kent, zoals BluMint. Het kan een ander zijn dan in de Discord-app. Selecteer om het te koppelen of te wijzigen."
+
 msgid "discord.invitation_title"
 msgstr "DISCORD-UITNODIGING"
 

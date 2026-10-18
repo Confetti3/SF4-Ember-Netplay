@@ -1235,6 +1235,12 @@ msgstr "초대를 받으면 상대가 내 방에 들어올 수 있습니다."
 msgid "discord.enable_first"
 msgstr "먼저 Discord 활동 표시를 켜세요."
 
+msgid "discord.tournament_account"
+msgstr "대회 계정"
+
+msgid "discord.tournament_account_detail"
+msgstr "대회 사이트(예: BluMint)가 알고 있는 Discord 계정입니다. Discord 앱의 계정과 다를 수 있습니다. 선택하면 연결하거나 변경할 수 있습니다."
+
 msgid "discord.invitation_title"
 msgstr "DISCORD 초대"
 

@@ -241,6 +241,57 @@ void TournamentRoom(){
  h.Screen("room");h.Choose("room-members");h.Choose("member-2");
  Check(h.has("mute")&&!h.has("kick"),"A tournament room offers Kick");
 }
+// Settings > Discord names the Discord account tournaments use: the one on the
+// selected service, read again each time the screen opens, or Not connected
+// without an Ember ID or a service. Left and Right leave it alone; Select
+// opens Connect Discord for that service, and Back returns to Settings > Discord.
+void TournamentAccount(){
+ using namespace sf4e;using netplay::IdentityOp;
+ const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
+ Journey h;auto& id=h.view.identity;id.known=true;id.state="disabled";
+ const auto account=[&]{return h.row("tournament-account");};
+ const auto open=[&]{h.Screen("settings");h.Choose("discord");};
+ open();
+ Check(account()&&h.index("tournament-account")==h.index("invites")+1,"Settings > Discord has no Tournament account row after its settings");
+ Check(account()->value==loc::T("identity.discord_none")&&!account()->adjustable&&!account()->info,"Without an Ember ID the Tournament account is not Not connected");
+ const auto before=h.actions.size();
+ h.FocusOn("tournament-account");h.Press(MenuInput::Right);h.Press(MenuInput::Left);
+ Check(h.actions.size()==before&&account()->value==loc::T("identity.discord_none"),"Left or Right changed the Tournament account");
+ h.Press(MenuInput::Select);
+ Check(h.trail()=="home>settings>discord>discord-connect"&&h.row("dc-go"),"The Tournament account did not open Connect Discord");
+ h.Press(MenuInput::Back);
+ Check(h.shell.Navigation().Screen()=="discord","Back from Connect Discord did not return to Settings > Discord");
+ // With an ID and Ember's service: the account on it.
+ h.ready();id.bridges={{"brg_1",ember,"Ember"},{"brg_2",other,"Other"}};
+ open();
+ Check(h.until(IdentityOp::BridgeInspect)&&h.sent().back()->origin==ember,"Settings > Discord did not read the selected service");
+ id.inspected=id.bridges[0];id.inspectedDiscord=true;h.answer();
+ Check(h.until(IdentityOp::DiscordStatus)&&h.sent().back()->bridge=="brg_1","Settings > Discord did not read the Discord account");
+ id.discordUser="274220342558756145";id.discordName="kate";h.answer();
+ Check(account()->value=="kate"&&account()->userText,"The Tournament account does not name the connected account");
+ h.Choose("tournament-account");h.until(IdentityOp::DiscordStatus);h.answer();
+ Check(h.row("dc-connected")&&h.row("dc-connected")->value=="kate","Connect Discord does not show the same account");
+ // Each visit reads it again.
+ h.Press(MenuInput::Back);id.discordUser.clear();id.discordName.clear();
+ Check(h.until(IdentityOp::DiscordStatus),"Settings > Discord did not read the account again");
+ h.answer();
+ Check(account()->value==loc::T("identity.discord_none")&&!account()->userText,"A disconnected account is still named");
+ // Another selected service: its own account, and Connect Discord for it.
+ h.Screen("linked-accounts");for(int i=0;i<8;++i)h.answer();
+ h.FocusOn("id-bridge");h.Press(MenuInput::Select);h.Press(MenuInput::Down);h.Press(MenuInput::Select);
+ id.inspected=id.bridges[1];h.until(IdentityOp::DiscordStatus);
+ id.discordUser="111";id.discordName="sam";h.answer();
+ open();
+ Check(h.until(IdentityOp::DiscordStatus)&&h.sent().back()->bridge=="brg_2","Settings > Discord did not read the other selected service");
+ h.answer();
+ Check(account()->value=="sam","The Tournament account does not show the selected service's account");
+ h.Choose("tournament-account");h.until(IdentityOp::DiscordStatus);h.answer();
+ Check(h.row("dc-service")&&h.row("dc-service")->value=="Other"&&h.row("dc-connected")&&h.row("dc-connected")->value=="sam",
+  "Connect Discord did not open for the selected service");
+ // No service: nothing is linked.
+ id.bridges.clear();open();for(int i=0;i<4;++i)h.answer();
+ Check(account()->value==loc::T("identity.discord_none"),"Without a service the Tournament account is not Not connected");
+}
 // Copy short link copies the link once the helper has one, and the full
 // invitation when it reports a failure. A room link from the browser joins
 // by itself when the player is free; one that arrived during a room fills
@@ -309,5 +360,5 @@ void RoomLinks(){
  h.view.pendingJoinDirect=false;h.shell.Navigation().Home();h.Frame(0,3);
  Check(h.shell.Navigation().Screen()=="join"&&h.actions.size()==before,"A stale room link did not just fill the Join screen");
 }
-int main(){try{IdentityJourneys();PlayRechecks();RestartWatch();TournamentRoom();RoomLinks();RunDiscordConnectJourneys();RunBuiltInServiceJourneys();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
+int main(){try{IdentityJourneys();PlayRechecks();RestartWatch();TournamentRoom();TournamentAccount();RoomLinks();RunDiscordConnectJourneys();RunBuiltInServiceJourneys();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

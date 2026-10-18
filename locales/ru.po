@@ -1236,6 +1236,12 @@ msgstr "Приглашения открывают доступ к вашему �
 msgid "discord.enable_first"
 msgstr "Сначала включите статус Discord."
 
+msgid "discord.tournament_account"
+msgstr "Турнирный аккаунт"
+
+msgid "discord.tournament_account_detail"
+msgstr "Аккаунт Discord, который знает ваш турнирный сайт, например BluMint. Он может отличаться от аккаунта в приложении Discord. Выберите, чтобы подключить или сменить его."
+
 msgid "discord.invitation_title"
 msgstr "ПРИГЛАШЕНИЕ DISCORD"
 

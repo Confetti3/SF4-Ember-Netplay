@@ -1235,6 +1235,12 @@ msgstr "Invitations share access to your room."
 msgid "discord.enable_first"
 msgstr "Enable Discord activity first."
 
+msgid "discord.tournament_account"
+msgstr "Tournament account"
+
+msgid "discord.tournament_account_detail"
+msgstr "The Discord account your tournament site knows, such as BluMint. It can differ from the one in the Discord app. Select to connect or change it."
+
 msgid "discord.invitation_title"
 msgstr "DISCORD INVITATION"
 

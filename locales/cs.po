@@ -1235,6 +1235,12 @@ msgstr "Pozvánky zpřístupní vaši místnost dalším lidem."
 msgid "discord.enable_first"
 msgstr "Nejprve zapněte aktivitu na Discord."
 
+msgid "discord.tournament_account"
+msgstr "Turnajový účet"
+
+msgid "discord.tournament_account_detail"
+msgstr "Účet Discord, který zná váš turnajový web, například BluMint. Může se lišit od účtu v aplikaci Discord. Vyberte pro připojení nebo změnu."
+
 msgid "discord.invitation_title"
 msgstr "POZVÁNKA DISCORD"
 

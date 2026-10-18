@@ -1235,6 +1235,12 @@ msgstr "招待を送ると、あなたのルームへの参加手段が共有さ
 msgid "discord.enable_first"
 msgstr "先にDiscordのアクティビティを有効にしてください。"
 
+msgid "discord.tournament_account"
+msgstr "大会用アカウント"
+
+msgid "discord.tournament_account_detail"
+msgstr "BluMintなど、大会サイトが把握しているDiscordアカウントです。Discordアプリのアカウントとは異なる場合があります。選択すると連携または変更できます。"
+
 msgid "discord.invitation_title"
 msgstr "Discordの招待"
 

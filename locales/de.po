@@ -1235,6 +1235,12 @@ msgstr "Einladungen gewähren Zugriff auf Ihren Raum."
 msgid "discord.enable_first"
 msgstr "Erst Discord-Aktivität aktivieren."
 
+msgid "discord.tournament_account"
+msgstr "Turnierkonto"
+
+msgid "discord.tournament_account_detail"
+msgstr "Das Discord-Konto, das Ihre Turnierseite kennt, etwa BluMint. Es kann ein anderes sein als in der Discord-App. Auswählen, um es zu verbinden oder zu ändern."
+
 msgid "discord.invitation_title"
 msgstr "DISCORD-EINLADUNG"
 

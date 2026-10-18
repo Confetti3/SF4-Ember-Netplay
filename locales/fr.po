@@ -1235,6 +1235,12 @@ msgstr "Les invitations donnent accès à votre salon."
 msgid "discord.enable_first"
 msgstr "Activez d'abord l'activité Discord."
 
+msgid "discord.tournament_account"
+msgstr "Compte de tournoi"
+
+msgid "discord.tournament_account_detail"
+msgstr "Le compte Discord que connaît votre site de tournoi, comme BluMint. Il peut différer de celui de l'application Discord. Sélectionnez pour le connecter ou le changer."
+
 msgid "discord.invitation_title"
 msgstr "INVITATION DISCORD"
 

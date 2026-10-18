@@ -1235,6 +1235,12 @@ msgstr "Zaproszenia dają dostęp do twojego pokoju."
 msgid "discord.enable_first"
 msgstr "Najpierw włącz aktywność Discord."
 
+msgid "discord.tournament_account"
+msgstr "Konto turniejowe"
+
+msgid "discord.tournament_account_detail"
+msgstr "Konto Discord, które zna Twoja strona turniejowa, na przykład BluMint. Może różnić się od konta w aplikacji Discord. Wybierz, aby je połączyć lub zmienić."
+
 msgid "discord.invitation_title"
 msgstr "ZAPROSZENIE DISCORD"
 
