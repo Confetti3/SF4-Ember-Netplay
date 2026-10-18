@@ -7,12 +7,9 @@
 //! ID. Nothing else from Discord is stored, and the access token is dropped.
 //!
 //! A platform's link approved by a Discord sign-in (`approved_via` `discord`,
-//! claim `discord:<user ID>`) stands only while that account is connected to
-//! that Ember ID: moving or disconnecting the account ends the links its
-//! sign-in approved, in the same transaction. The next lookup links the
-//! account again where it now belongs. A link the player (or the platform
-//! account's holder) removes stays removed (`withdraw`): lookup does not link
-//! it again until the player completes a Discord sign-in started after that.
+//! claim `discord:<user ID>`) follows the account as `linking::Site`
+//! describes: it ends when the account moves or is disconnected, and a link
+//! the player removes is not made again until a newer sign-in.
 //!
 //! A sign-in connects nothing by itself unless the account is already this
 //! Ember ID's: the browser page names the Ember ID it would connect to and
@@ -38,7 +35,6 @@ use ember_protocol::{
     challenge::{Action, Method},
     discord::{Account, Connection, SIGN_IN_SECS, SignInStarted, is_user_id},
     encoding::b64u,
-    event::Kind,
     partner::FoundPlayer,
 };
 use rusqlite::{OptionalExtension, Transaction, params};
@@ -51,11 +47,10 @@ use crate::{
     config::Discord,
     ctx::Ctx,
     error::{ApiFailure, Result},
-    events::{NewEvent, emit},
     http::{Body, PROOF_BODY, json, ok},
-    linking::{account, revoke_link},
-    routes::sessions::{self, Target},
-    util::{html, new_id, outbound_client, random},
+    linking::Site,
+    routes::sessions::{self, Nothing, Target},
+    util::{html, outbound_client, random},
 };
 
 /// Sign-ins one Ember ID may start per hour.
@@ -92,11 +87,7 @@ fn redirect_uri(state: &AppState) -> String {
     format!("{}{CALLBACK_PATH}", state.config.origin)
 }
 
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Nothing {}
-
-/// Runs a `discord.connect` or `discord.remove` proof from the session's player.
+/// Runs a `discord.*` proof from the session's player.
 async fn proven(
     state: &AppState,
     player: auth::Player,
@@ -107,27 +98,12 @@ async fn proven(
     work: impl FnOnce(&Transaction<'_>, &Ctx, &str) -> Result<()> + Send + 'static,
 ) -> Result<()> {
     let (request, _): (_, Nothing) = sessions::proven(&body.0)?;
-    let ctx = Ctx::of(state);
-    state
-        .db
-        .write(move |tx| {
-            let (ember_id, _) = sessions::consume_proof(
-                tx,
-                &ctx.config,
-                ctx.now,
-                &request,
-                Target {
-                    action,
-                    method,
-                    path,
-                },
-                Some(&player.ember_id),
-            )?;
-            work(tx, &ctx, ember_id.as_str())
-        })
-        .await?;
-    state.committed();
-    Ok(())
+    let target = Target {
+        action,
+        method,
+        path,
+    };
+    sessions::as_proven(state, player, request, target, work).await
 }
 
 /// `POST /v1/discord/start`: where to send the player's browser.
@@ -160,10 +136,7 @@ pub async fn start(
         move |tx, ctx, ember_id| {
             expire(tx, ctx.now)?;
             // Only the latest sign-in can connect an account.
-            tx.execute(
-                "DELETE FROM discord_sign_ins WHERE ember_id = ?1",
-                [ember_id],
-            )?;
+            Site::Discord.end_sign_ins(tx, ember_id)?;
             tx.execute(
                 "INSERT INTO discord_sign_ins (state_hash, ember_id, expires_at) VALUES (?1, ?2, ?3)",
                 params![hash.as_slice(), ember_id, expires_at],
@@ -223,13 +196,7 @@ pub async fn cancel(
         Action::DiscordCancel,
         Method::Delete,
         START_PATH,
-        |tx, _, ember_id| {
-            tx.execute(
-                "DELETE FROM discord_sign_ins WHERE ember_id = ?1",
-                [ember_id],
-            )?;
-            Ok(())
-        },
+        |tx, _, ember_id| Site::Discord.end_sign_ins(tx, ember_id),
     )
     .await?;
     Ok(ok(&json!({})))
@@ -484,9 +451,8 @@ pub async fn decide(State(state): State<AppState>, Form(answer): Form<MoveAnswer
     }
 }
 
-/// Connects Discord account `user_id` to `ember_id`. The latest sign-in wins:
-/// this account leaves any other Ember ID, and this Ember ID leaves any other
-/// account, each ending the links its sign-in approved.
+/// Connects Discord account `user_id` to `ember_id`. The latest sign-in wins
+/// (`Site::release`).
 fn store(
     tx: &Transaction<'_>,
     ctx: &Ctx,
@@ -494,21 +460,7 @@ fn store(
     user_id: &str,
     username: &str,
 ) -> Result<()> {
-    let replaced: Vec<(String, String)> = tx
-        .prepare(
-            "DELETE FROM discord_accounts WHERE user_id = ?1 OR ember_id = ?2 RETURNING user_id, ember_id",
-        )?
-        .query_map(params![user_id, ember_id], |row| {
-            Ok((row.get(0)?, row.get(1)?))
-        })?
-        .collect::<rusqlite::Result<_>>()?;
-    for (replaced_user, owner) in replaced {
-        if (replaced_user.as_str(), owner.as_str()) != (user_id, ember_id) {
-            end_links(tx, ctx, &replaced_user, "replaced")?;
-        }
-    }
-    // A new account row is fresh consent: the withdrawals of the old one
-    // went with it.
+    Site::Discord.release(tx, ctx, ember_id, user_id)?;
     tx.execute(
         "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES (?1, ?2, ?3, ?4)",
         params![user_id, ember_id, username, ctx.now],
@@ -625,25 +577,7 @@ pub async fn remove(
         Action::DiscordRemove,
         Method::Delete,
         ACCOUNT_PATH,
-        |tx, ctx, ember_id| {
-            // Sign-ins it started end too, including one whose answer is
-            // still being checked with Discord.
-            tx.execute(
-                "DELETE FROM discord_sign_ins WHERE ember_id = ?1",
-                [ember_id],
-            )?;
-            let removed: Option<String> = tx
-                .query_row(
-                    "DELETE FROM discord_accounts WHERE ember_id = ?1 RETURNING user_id",
-                    [ember_id],
-                    |row| row.get(0),
-                )
-                .optional()?;
-            match removed {
-                Some(user_id) => end_links(tx, ctx, &user_id, "discord_disconnected"),
-                None => Ok(()),
-            }
-        },
+        |tx, ctx, ember_id| Site::Discord.disconnect(tx, ctx, ember_id),
     )
     .await?;
     Ok(ok(&Connection { account: None }))
@@ -652,7 +586,7 @@ pub async fn remove(
 /// The players whose Ember IDs are connected to these Discord user IDs and
 /// linked on `connection_id`, so its platform can create matches for them, in
 /// order and without repeats. Anything that is not a Discord user ID (BluMint
-/// also sends emails) is skipped, and so is an account `link` cannot link.
+/// also sends emails) is skipped, and so is an account `Site::link` cannot link.
 pub fn find_and_link(
     tx: &Transaction<'_>,
     ctx: &Ctx,
@@ -672,19 +606,14 @@ pub fn find_and_link(
             continue;
         };
         let ember_id = EmberId::parse(&ember_id).map_err(|_| ApiFailure::unavailable())?;
-        if found.iter().any(|player| player.ember_id == ember_id)
-            || !link(tx, ctx, connection_id, user_id, &username, &ember_id)?
-        {
+        if found.iter().any(|player| player.ember_id == ember_id) {
             continue;
         }
-        // The participant the Ember ID is linked as there: this sign-in's
-        // account, or the one a code linked it as earlier.
-        let participant_id: String = tx.query_row(
-            "SELECT a.participant_id FROM links l JOIN external_accounts a ON a.id = l.account_id
-             WHERE l.ember_id = ?1 AND l.connection_id = ?2 AND l.revoked_at IS NULL",
-            params![ember_id.as_str(), connection_id],
-            |row| row.get(0),
-        )?;
+        let Some(participant_id) =
+            Site::Discord.link(tx, ctx, connection_id, user_id, &username, &ember_id)?
+        else {
+            continue;
+        };
         found.push(FoundPlayer {
             discord_user_id: user_id.clone(),
             ember_id,
@@ -692,147 +621,6 @@ pub fn find_and_link(
         });
     }
     Ok(found)
-}
-
-/// Links the Discord account's subject on the connection to `ember_id`,
-/// approved by the player's Discord sign-in, and says whether `ember_id` is
-/// linked there now. A link the player removed since that sign-in is not
-/// made again. A link from a code the player claimed is kept: on the
-/// Ember ID, which then needs no other, or on the subject (a provider can
-/// name its accounts `discord:<user ID>` too), which leaves this Ember ID
-/// unlinked. Moving or disconnecting the account ended every link its
-/// sign-in approved elsewhere (`end_links`).
-fn link(
-    tx: &Transaction<'_>,
-    ctx: &Ctx,
-    connection_id: &str,
-    user_id: &str,
-    username: &str,
-    ember_id: &EmberId,
-) -> Result<bool> {
-    let subject = format!("discord:{user_id}");
-    let linked: bool = tx.query_row(
-        "SELECT EXISTS (SELECT 1 FROM links WHERE ember_id = ?1 AND connection_id = ?2 AND revoked_at IS NULL
-           AND (approved_via != 'discord' OR claim_id = ?3))",
-        params![ember_id.as_str(), connection_id, subject],
-        |row| row.get(0),
-    )?;
-    if linked {
-        return Ok(true);
-    }
-    let withdrawn: bool = tx.query_row(
-        "SELECT EXISTS (SELECT 1 FROM discord_withdrawals WHERE user_id = ?1 AND connection_id = ?2)",
-        params![user_id, connection_id],
-        |row| row.get(0),
-    )?;
-    if withdrawn {
-        return Ok(false);
-    }
-    let tenant = ctx.tenant_of(connection_id)?;
-    let (account_id, participant_id) = account(tx, connection_id, &subject, username, ctx.now)?;
-    let taken: bool = tx.query_row(
-        "SELECT EXISTS (SELECT 1 FROM links WHERE account_id = ?1 AND revoked_at IS NULL)",
-        [&account_id],
-        |row| row.get(0),
-    )?;
-    if taken {
-        return Ok(false);
-    }
-    let link_id = new_id("lnk");
-    tx.execute(
-        "INSERT INTO links (id, account_id, connection_id, ember_id, approved_via, claim_id, consented_at, approved_at)
-         VALUES (?1, ?2, ?3, ?4, 'discord', ?5, ?6, ?6)",
-        params![link_id, account_id, connection_id, ember_id.as_str(), subject, ctx.now],
-    )?;
-    emit(
-        tx,
-        &ctx.config,
-        ctx.now,
-        NewEvent {
-            kind: Kind::LinkCompleted,
-            tenant_id: &tenant,
-            connection_id: Some(connection_id),
-            subject: format!("links/{link_id}"),
-            match_id: None,
-            ember_id: Some(ember_id),
-            lobby_id: None,
-            tournament_id: None,
-            data: json!({
-                "link_id": link_id,
-                "ember_id": ember_id,
-                "connection_id": connection_id,
-                "participant_id": participant_id,
-                "approved_via": "discord",
-            }),
-        },
-    )?;
-    Ok(true)
-}
-
-/// The player (or the platform account's holder) removed `link_id`. If a
-/// Discord sign-in approved it and that account is still connected, the
-/// consent is withdrawn on that connection until the account's row is
-/// replaced by a new sign-in, and the player's sign-ins in flight end, so
-/// only one started from now on gives it again.
-pub fn withdraw(tx: &Transaction<'_>, link_id: &str) -> Result<()> {
-    let link: Option<(String, String, String)> = tx
-        .query_row(
-            "SELECT claim_id, connection_id, ember_id FROM links WHERE id = ?1 AND approved_via = 'discord'",
-            [link_id],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-        )
-        .optional()?;
-    let Some((claim, connection_id, ember_id)) = link else {
-        return Ok(());
-    };
-    let user_id = claim.strip_prefix("discord:").unwrap_or_default();
-    tx.execute(
-        "INSERT OR IGNORE INTO discord_withdrawals (user_id, connection_id)
-         SELECT user_id, ?2 FROM discord_accounts WHERE user_id = ?1 AND ember_id = ?3",
-        params![user_id, connection_id, ember_id],
-    )?;
-    tx.execute(
-        "DELETE FROM discord_sign_ins WHERE ember_id = ?1",
-        [&ember_id],
-    )?;
-    Ok(())
-}
-
-/// Ends every link this Discord account's sign-in approved, on every
-/// connection, when the account moves to another Ember ID or is disconnected.
-fn end_links(tx: &Transaction<'_>, ctx: &Ctx, user_id: &str, reason: &str) -> Result<()> {
-    let links: Vec<(String, String, String, String, String)> = tx
-        .prepare(
-            "SELECT l.id, l.ember_id, l.connection_id, a.participant_id, c.tenant_id
-             FROM links l
-             JOIN external_accounts a ON a.id = l.account_id
-             JOIN provider_connections c ON c.id = l.connection_id
-             WHERE l.approved_via = 'discord' AND l.claim_id = ?1 AND l.revoked_at IS NULL",
-        )?
-        .query_map([format!("discord:{user_id}")], |row| {
-            Ok((
-                row.get(0)?,
-                row.get(1)?,
-                row.get(2)?,
-                row.get(3)?,
-                row.get(4)?,
-            ))
-        })?
-        .collect::<rusqlite::Result<_>>()?;
-    for (link_id, ember_id, connection_id, participant_id, tenant) in links {
-        let ember_id = EmberId::parse(&ember_id).map_err(|_| ApiFailure::unavailable())?;
-        revoke_link(
-            tx,
-            ctx,
-            &tenant,
-            &link_id,
-            &ember_id,
-            &connection_id,
-            &participant_id,
-            reason,
-        )?;
-    }
-    Ok(())
 }
 
 /// Drops sign-ins Discord never answered.

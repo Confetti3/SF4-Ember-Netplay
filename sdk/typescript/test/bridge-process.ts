@@ -15,6 +15,8 @@ export interface RunningBridge {
   connection: string;
   providerToken: string;
   organizerToken: string;
+  /** What the bridge printed so far, stdout and stderr together. */
+  output(): string;
   stop(): Promise<void>;
 }
 
@@ -30,9 +32,9 @@ async function freePort(): Promise<number> {
 export interface BridgeOptions {
   /** Top-level settings, such as `discord` or `rooms`. */
   config?: Record<string, Json>;
-  /** Settings of the `mock-local` connection: `discord_lookup`, `results_url`, `rooms`. */
+  /** Settings of the `mock-local` connection: `discord_lookup`, `challonge_lookup`, `results_url`, `rooms`. */
   connection?: Record<string, Json>;
-  /** The integration secrets file: `discord_client_secret`, `rooms_supervisor_secret`, `result_secrets`. */
+  /** The integration secrets file: `discord_client_secret`, `challonge_client_secret`, `rooms_supervisor_secret`, `result_secrets`. */
   secrets?: Record<string, Json>;
 }
 
@@ -57,7 +59,10 @@ export async function startBridge(options: BridgeOptions = {}): Promise<RunningB
   const connection = "mock-local";
   const providerToken = execFileSync(binary, ["credential", configPath, "provider", connection, "sdk test"], { encoding: "utf8" }).trim();
   const organizerToken = execFileSync(binary, ["credential", configPath, "organizer", "local", "sdk test"], { encoding: "utf8" }).trim();
-  const child = spawn(binary, ["serve", configPath], { stdio: "ignore" });
+  const child = spawn(binary, ["serve", configPath], { stdio: ["ignore", "pipe", "pipe"] });
+  let output = "";
+  child.stdout.on("data", (chunk: Buffer) => (output += chunk.toString()));
+  child.stderr.on("data", (chunk: Buffer) => (output += chunk.toString()));
   for (let i = 0; i < 100; i++) {
     try {
       if ((await fetch(`${origin}/.well-known/ember-bridge.json`)).ok) break;
@@ -71,6 +76,7 @@ export async function startBridge(options: BridgeOptions = {}): Promise<RunningB
     connection,
     providerToken,
     organizerToken,
+    output: () => output,
     async stop() {
       child.kill();
       await new Promise((resolve) => setTimeout(resolve, 200));

@@ -31,6 +31,7 @@ A connection in `bridge.json` may carry, besides `id`, `kind`,
   "environment": "production",
   "display_name": "Fight Night bot",
   "discord_lookup": true,
+  "challonge_lookup": true,
   "disputes": "restart",
   "results_url": "https://bot.example/ember/results",
   "rooms": { "max_open": 8 }
@@ -42,6 +43,9 @@ A connection in `bridge.json` may carry, besides `id`, `kind`,
   Discord account to their Ember ID is found, and linked on the connection
   (`approved_via` `discord`), exactly as BluMint's lookup does: a link the
   player removed is not made again until they sign in with Discord again.
+- `challonge_lookup` (default false): the connection may find players by
+  Challonge username, the same way (`approved_via` `challonge`), for players
+  who connected their Challonge account (`docs/design/challonge/PLAN.md`).
 - `disputes` (`"review"` by default): what a match on the connection does
   when it would wait in `needs_review`. `"restart"` cancels it instead, and
   the platform replays it. Stored with the connection the first time it is
@@ -61,8 +65,9 @@ A connection in `bridge.json` may carry, besides `id`, `kind`,
 Kind `blumint` implies `discord_lookup: true` and `disputes: "restart"`,
 sends results in BluMint's own format to BluMint's API (its `api_base`), and
 keeps its rule that the generic match, lobby and tournament routes refuse it.
-It may not set `discord_lookup`, `disputes` or `results_url` itself. Kind
-`mock` may set all four, for local testing.
+It may not set `discord_lookup`, `challonge_lookup`, `disputes` or
+`results_url` itself, and never finds players by Challonge username. Kind
+`mock` may set all of them, for local testing.
 
 The policy code reads one model, `config::Policy`, derived from the stored
 connection record (`kind`, `disputes`) and the configuration:
@@ -163,21 +168,30 @@ not ask for the match again and its host takes it.
 ## Player lookup
 
 `POST /v1/players/lookup` (provider credential, `discord_lookup` or kind
-`blumint`):
+`blumint` for `discord`, `challonge_lookup` for `challonge`; either list may
+be left out):
 
 ```json
-{ "discord": ["80351110224678912"] }
+{ "discord": ["80351110224678912"], "challonge": ["Kate_99"] }
 ```
 
-answers, for each ID connected to an Ember ID and linked (or now linked) on
-the connection, in the order asked, at most 32:
+answers, for each account connected to an Ember ID and linked (or now
+linked) on the connection, in the order asked, at most 32 accounts in both
+lists together:
 
 ```json
-{ "players": [ { "discord_user_id": "80351110224678912", "ember_id": "emb1_...", "participant_id": "par_..." } ] }
+{
+  "players": [ { "discord_user_id": "80351110224678912", "ember_id": "emb1_...", "participant_id": "par_..." } ],
+  "challonge": [ { "username": "Kate_99", "challonge_user_id": "1001", "ember_id": "emb1_...", "participant_id": "par_..." } ]
+}
 ```
 
-An ID with no connected account is left out. Without permission the route
-answers `forbidden`. BluMint's `/v1/blumint/lookup` uses the same code.
+`challonge` is left out of the answer when it is empty. Challonge usernames
+are compared without case and answered as asked; one that is not a username
+(1 to 64 letters, digits, `_`, `-` or `.`) is `invalid_request`. An account
+with no connected Ember ID is left out, and an Ember ID found twice is
+answered once. A list the connection may not use answers `forbidden`, even
+next to one it may. BluMint's `/v1/blumint/lookup` uses the same code.
 
 ## Rooms for a connection
 

@@ -4,6 +4,7 @@ export {
   BridgeClient,
   BridgeError,
   type BridgeClientOptions,
+  type FoundChallongePlayer,
   type FoundPlayer,
   type GamesToWin,
   type Lobby,

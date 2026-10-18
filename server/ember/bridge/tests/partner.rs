@@ -51,6 +51,7 @@ fn direct(
         enabled: true,
         api_base: None,
         discord_lookup: lookup,
+        challonge_lookup: false,
         disputes,
         results_url: results_url.map(str::to_owned),
         rooms: None,

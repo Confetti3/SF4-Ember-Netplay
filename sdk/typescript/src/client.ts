@@ -205,6 +205,15 @@ export interface FoundPlayer {
   participant_id: string;
 }
 
+/** A player found by Challonge username and linked on your connection. */
+export interface FoundChallongePlayer {
+  /** The username as you asked for it. */
+  username: string;
+  challonge_user_id: string;
+  ember_id: string;
+  participant_id: string;
+}
+
 /** A public room to open for a player linked on your connection. */
 export interface RoomSpec {
   /** 1 to 64 characters on one line. */
@@ -300,6 +309,16 @@ export class BridgeClient {
   async lookupPlayers(discordIds: string[]): Promise<FoundPlayer[]> {
     const result = await this.#json<{ players: FoundPlayer[] }>("POST", "/v1/players/lookup", { discord: discordIds });
     return result.players;
+  }
+
+  /**
+   * Finds players by Challonge username, as a tournament entry shows it
+   * (compared without case), for a connection that may (`challonge_lookup`).
+   * Linked and answered like `lookupPlayers`; at most 32 names.
+   */
+  async lookupChallongePlayers(usernames: string[]): Promise<FoundChallongePlayer[]> {
+    const result = await this.#json<{ challonge?: FoundChallongePlayer[] }>("POST", "/v1/players/lookup", { challonge: usernames });
+    return result.challonge ?? [];
   }
 
   /**

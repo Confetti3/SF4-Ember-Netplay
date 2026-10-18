@@ -15,6 +15,10 @@ pub const ACCOUNTS_FEATURE: &str = "challonge.accounts";
 /// The longest a started sign-in waits, whatever Challonge's own code
 /// lifetime says.
 pub const SIGN_IN_SECS: u64 = 10 * 60;
+/// How long the Ember ID holding a Challonge account must have gone without
+/// opening a player session before a sign-in elsewhere may move the account
+/// (`SignInState::Moving`). While it is in use, the sign-in ends `held`.
+pub const MOVE_IDLE_SECS: u64 = 30 * 24 * 60 * 60;
 pub const START_PATH: &str = "/v1/challonge/start";
 pub const ACCOUNT_PATH: &str = "/v1/challonge";
 pub const MOVE_PATH: &str = "/v1/challonge/move";
@@ -62,7 +66,8 @@ pub struct SignIn {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub verification_uri_complete: Option<String>,
     pub expires_at: u64,
-    /// Set in `moving`: the signed-in account, which another Ember ID holds.
+    /// Set in `moving` and `held`: the signed-in account, which another
+    /// Ember ID holds.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub username: Option<String>,
 }
@@ -72,15 +77,44 @@ pub struct SignIn {
 pub enum SignInState {
     /// The code is shown and Challonge has not answered yet.
     Waiting,
-    /// The account signed in belongs to another Ember ID: the player
-    /// chooses with `POST MOVE_PATH`.
+    /// The account signed in belongs to another Ember ID that has not been
+    /// used for `MOVE_IDLE_SECS`: the player chooses with `POST MOVE_PATH`.
     Moving,
+    /// The account signed in belongs to another Ember ID still in use, so
+    /// nothing was connected. The player disconnects it there first.
+    Held,
     /// The player refused on Challonge's page.
     Denied,
     /// The code ran out before the player approved it.
     Expired,
     /// Challonge failed or answered something the bridge cannot use.
     Failed,
+}
+
+impl SignInState {
+    pub const ALL: [Self; 6] = [
+        Self::Waiting,
+        Self::Moving,
+        Self::Held,
+        Self::Denied,
+        Self::Expired,
+        Self::Failed,
+    ];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Waiting => "waiting",
+            Self::Moving => "moving",
+            Self::Held => "held",
+            Self::Denied => "denied",
+            Self::Expired => "expired",
+            Self::Failed => "failed",
+        }
+    }
+
+    pub fn parse(text: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|state| state.as_str() == text)
+    }
 }
 
 /// `POST /v1/challonge/move`.
@@ -123,7 +157,13 @@ mod tests {
         for text in ["kate", "Kate_99", "a.b-c", &"x".repeat(MAX_USERNAME)] {
             assert!(is_username(text), "{text}");
         }
-        for text in ["", "has space", "kate@example.com", "ünï", &"x".repeat(MAX_USERNAME + 1)] {
+        for text in [
+            "",
+            "has space",
+            "kate@example.com",
+            "ünï",
+            &"x".repeat(MAX_USERNAME + 1),
+        ] {
             assert!(!is_username(text), "{text}");
         }
         assert_eq!(username_key("Kate_99"), "kate_99");
@@ -144,6 +184,16 @@ mod tests {
         };
         let text = serde_json::to_string(&connection).unwrap();
         assert!(text.contains("\"state\":\"moving\""), "{text}");
-        assert_eq!(serde_json::from_str::<Connection>(&text).unwrap(), connection);
+        for state in SignInState::ALL {
+            assert_eq!(
+                serde_json::to_value(state).unwrap(),
+                serde_json::Value::from(state.as_str())
+            );
+            assert_eq!(SignInState::parse(state.as_str()), Some(state));
+        }
+        assert_eq!(
+            serde_json::from_str::<Connection>(&text).unwrap(),
+            connection
+        );
     }
 }

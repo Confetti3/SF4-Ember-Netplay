@@ -19,6 +19,8 @@ struct File {
     #[serde(default)]
     discord_client_secret: Option<String>,
     #[serde(default)]
+    challonge_client_secret: Option<String>,
+    #[serde(default)]
     rooms_supervisor_secret: Option<String>,
     /// Platform API keys by connection ID.
     #[serde(default)]
@@ -32,6 +34,9 @@ struct File {
 pub struct Secrets {
     /// Discord's client secret. Without it Discord sign-in stays off.
     pub discord_client_secret: Option<Zeroizing<String>>,
+    /// Challonge's client secret, for an application that has one. Device
+    /// sign-in works without it; when set it goes with each token poll.
+    pub challonge_client_secret: Option<Zeroizing<String>>,
     /// The bearer secret of the room supervisor's API. Without it public
     /// rooms stay off.
     pub rooms_supervisor_secret: Option<Zeroizing<String>>,
@@ -59,6 +64,10 @@ impl Secrets {
         Ok(Self {
             discord_client_secret: file
                 .discord_client_secret
+                .filter(|secret| !secret.is_empty())
+                .map(Zeroizing::new),
+            challonge_client_secret: file
+                .challonge_client_secret
                 .filter(|secret| !secret.is_empty())
                 .map(Zeroizing::new),
             rooms_supervisor_secret: file

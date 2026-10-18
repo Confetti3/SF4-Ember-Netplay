@@ -15,12 +15,14 @@ mod claim;
 mod code;
 mod intent;
 mod revoke;
+mod site;
 
 pub use approval::{ApproveCommand, approve, reject};
 pub use claim::{ClaimCommand, cancel_claim, claim};
 pub use code::{CODE_LIFETIME_SECS, check_subject};
 pub use intent::{IntentCreated, Owner, browser_intent, cancel_intent, create_intent, view_intent};
 pub use revoke::{Unlinker, revoke_link, unlink};
+pub use site::Site;
 
 use rusqlite::{Transaction, params};
 

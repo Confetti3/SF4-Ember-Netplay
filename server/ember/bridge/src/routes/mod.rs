@@ -1,4 +1,5 @@
 pub mod blumint;
+pub mod challonge;
 pub mod discord;
 pub mod discovery;
 pub mod events;
@@ -90,6 +91,15 @@ pub fn router(state: AppState) -> Router {
             discord::ACCOUNT_PATH,
             get(discord::get).delete(discord::remove),
         )
+        .route(
+            challonge::START_PATH,
+            post(challonge::start).delete(challonge::cancel),
+        )
+        .route(
+            challonge::ACCOUNT_PATH,
+            get(challonge::get).delete(challonge::remove),
+        )
+        .route(challonge::MOVE_PATH, post(challonge::choose))
         .route("/v1/rooms", get(rooms::list).post(rooms::create))
         .route("/v1/rooms/public", get(rooms::public_list))
         .route("/v1/rooms/{room_id}", get(rooms::get))
@@ -196,9 +206,9 @@ pub async fn maintenance(state: AppState, resumed: tokio::sync::oneshot::Sender<
 }
 
 /// Expires link intents, holds games whose reports did not arrive, expires
-/// matches nobody played, observes the fighters whose claims lapsed, and
-/// removes stale challenges, sessions, replay records and refused BluMint
-/// keys. Durable domain records (links, matches, attempts, reports, events)
+/// matches nobody played, observes the fighters whose claims lapsed, expires
+/// Challonge sign-ins, and removes stale challenges, sessions, replay records
+/// and refused BluMint keys. Durable domain records (links, matches, attempts, reports, events)
 /// stay, and with each BluMint match the key it was made under, its
 /// `external_match_id`.
 pub async fn maintenance_once(state: &AppState) {
@@ -214,6 +224,7 @@ pub async fn maintenance_once(state: &AppState) {
             delivery::status::observe_lapsed(tx, now)?;
             linking::expire(tx, now)?;
             discord::expire(tx, now)?;
+            challonge::expire(tx, now)?;
             tx.execute(
                 "DELETE FROM auth_challenges WHERE expires_at <= ?1",
                 [cutoff],

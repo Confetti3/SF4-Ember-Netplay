@@ -46,6 +46,10 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
     if crate::routes::discord::sign_in(&state).is_some() {
         features.push(ember_protocol::discord::FEATURE.into());
     }
+    features.push(ember_protocol::challonge::ACCOUNTS_FEATURE.into());
+    if crate::routes::challonge::sign_in(&state).is_some() {
+        features.push(ember_protocol::challonge::FEATURE.into());
+    }
     if crate::routes::rooms::enabled(&state) {
         features.push(crate::routes::rooms::FEATURE.into());
         features.push(crate::routes::rooms::CONNECTION_FEATURE.into());

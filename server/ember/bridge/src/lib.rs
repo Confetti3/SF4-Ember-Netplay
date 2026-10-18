@@ -46,6 +46,8 @@ pub struct AppState {
     events: Arc<Notify>,
     delivery: Arc<Notify>,
     rooms: Arc<routes::rooms::Shared>,
+    /// One Challonge sign-in poll at a time (`routes::challonge::poll`).
+    challonge_poll: Arc<tokio::sync::Mutex<()>>,
     stream_signal: tokio::sync::watch::Sender<u64>,
 }
 
@@ -67,6 +69,7 @@ impl AppState {
             events: Arc::new(Notify::new()),
             delivery: Arc::new(Notify::new()),
             rooms: Arc::new(routes::rooms::Shared::default()),
+            challonge_poll: Arc::default(),
             stream_signal: tokio::sync::watch::channel(0).0,
         }
     }
@@ -136,6 +139,9 @@ pub fn start(state: AppState, listener: TcpListener) -> std::io::Result<Running>
     if routes::rooms::enabled(&state) {
         workers.push(tokio::spawn(routes::rooms::poll_forever(state.clone())));
     }
+    if routes::challonge::sign_in(&state).is_some() {
+        workers.push(tokio::spawn(routes::challonge::poll_forever(state.clone())));
+    }
     Ok(Running {
         address,
         state,
@@ -156,6 +162,13 @@ pub async fn maintain(state: &AppState) {
 /// few seconds; tests call it after changing what their supervisor reports.
 pub async fn poll_rooms(state: &AppState) {
     routes::rooms::poll(state).await;
+}
+
+/// One poll of Challonge for the sign-ins that are due. `start` polls every
+/// second; tests call it after moving the clock. It returns once every pass
+/// started before it has finished too.
+pub async fn poll_challonge(state: &AppState) {
+    routes::challonge::poll(state).await;
 }
 
 /// One pass of sending finished matches' results to their platforms, and

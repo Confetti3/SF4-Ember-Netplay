@@ -54,6 +54,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
         26,
         include_str!("../migrations/026_blumint_refused_keys_dropped.sql"),
     ),
+    (27, include_str!("../migrations/027_challonge.sql")),
 ];
 
 #[derive(Clone)]
@@ -167,6 +168,7 @@ mod tests {
             )
             .unwrap();
         assert!(links_sql.contains("'discord'"), "{links_sql}");
+        assert!(links_sql.contains("'challonge'"), "{links_sql}");
         connection
             .prepare("SELECT delivery_attempts, delivery_next_at, delivery_first_at FROM matches")
             .unwrap();
@@ -368,6 +370,101 @@ mod tests {
         assert_eq!(key("emt_gone").as_deref(), Some("gone"));
         assert_eq!(key("emt_shut").as_deref(), Some("shut"));
         assert_eq!(key("emt_other").as_deref(), Some("other"));
+    }
+
+    #[test]
+    fn links_from_before_challonge_keep_their_rows_and_indexes() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        connection
+            .pragma_update(None, "foreign_keys", "ON")
+            .unwrap();
+        migrate(&mut connection, &MIGRATIONS[..26]).unwrap();
+        connection
+            .execute_batch(
+                "INSERT INTO tenants (id, name) VALUES ('t', 'Tenant');
+                 INSERT INTO provider_connections (id, tenant_id, kind, environment, display_name, enabled)
+                   VALUES ('c', 't', 'direct', 'staging', 'Site', 1);
+                 INSERT INTO identities (ember_id, public_key, created_at) VALUES ('emb_kate', 'kate-key', 0), ('emb_sam', 'sam-key', 0);
+                 INSERT INTO external_accounts (id, connection_id, subject, participant_id, display_label, created_at)
+                   VALUES ('ext_kate', 'c', 'kate', 'epl_kate', 'kate', 0), ('ext_sam', 'c', 'discord:2', 'epl_sam', 'sam', 0);
+                 INSERT INTO links (id, account_id, connection_id, ember_id, approved_via, claim_id, consented_at, approved_at, revoked_at, revoked_by)
+                   VALUES ('lnk_old', 'ext_kate', 'c', 'emb_kate', 'browser', 'lkc_1', 10, 10, 20, 'unlinked_by_player'),
+                          ('lnk_kate', 'ext_kate', 'c', 'emb_kate', 'provider_proxy', 'lkc_2', 30, 30, NULL, NULL),
+                          ('lnk_sam', 'ext_sam', 'c', 'emb_sam', 'discord', 'discord:2', 40, 40, NULL, NULL);
+                 INSERT INTO sessions (token_hash, ember_id, scopes, created_at, expires_at)
+                   VALUES (x'01', 'emb_sam', 'self:read', 500, 1100), (x'02', 'emb_sam', 'self:read', 300, 900);",
+            )
+            .unwrap();
+        let indexes = |connection: &Connection| -> Vec<(String, Option<String>)> {
+            connection
+                .prepare("SELECT name, sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'links' ORDER BY name")
+                .unwrap()
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+                .unwrap()
+                .collect::<rusqlite::Result<_>>()
+                .unwrap()
+        };
+        let before = indexes(&connection);
+        assert!(
+            before
+                .iter()
+                .any(|(name, _)| name == "links_active_identity")
+        );
+        migrate(&mut connection, MIGRATIONS).unwrap();
+        assert_eq!(indexes(&connection), before);
+        let rows: Vec<(String, String, Option<i64>)> = connection
+            .prepare("SELECT id, approved_via, revoked_at FROM links ORDER BY id")
+            .unwrap()
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap();
+        assert_eq!(
+            rows,
+            [
+                ("lnk_kate".into(), "provider_proxy".into(), None),
+                ("lnk_old".into(), "browser".into(), Some(20)),
+                ("lnk_sam".into(), "discord".into(), None),
+            ]
+        );
+        // A second active link for the same Ember ID is still refused, and a
+        // Challonge sign-in's link is accepted once Kate's ends.
+        let insert = |id: &str, via: &str| {
+            connection.execute(
+                "INSERT INTO links (id, account_id, connection_id, ember_id, approved_via, claim_id, consented_at, approved_at)
+                 VALUES (?1, 'ext_kate', 'c', 'emb_kate', ?2, 'challonge:5', 50, 50)",
+                [id, via],
+            )
+        };
+        assert!(insert("lnk_twice", "challonge").is_err());
+        connection
+            .execute("UPDATE links SET revoked_at = 60 WHERE id = 'lnk_kate'", [])
+            .unwrap();
+        assert!(insert("lnk_other", "elsewhere").is_err());
+        insert("lnk_challonge", "challonge").unwrap();
+        for table in [
+            "challonge_accounts",
+            "challonge_sign_ins",
+            "challonge_withdrawals",
+            "challonge_requests",
+        ] {
+            assert!(table_exists(&connection, table), "{table}");
+        }
+        // An Ember ID was last in use at its newest session still stored, or
+        // else when it was made.
+        let last_session_at = |ember_id: &str| -> i64 {
+            connection
+                .query_row(
+                    "SELECT last_session_at FROM identities WHERE ember_id = ?1",
+                    [ember_id],
+                    |row| row.get(0),
+                )
+                .unwrap()
+        };
+        assert_eq!(
+            (last_session_at("emb_sam"), last_session_at("emb_kate")),
+            (500, 0)
+        );
     }
 
     #[test]

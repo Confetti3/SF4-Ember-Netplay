@@ -38,6 +38,10 @@ pub struct Config {
     /// their Ember ID. Off when absent.
     #[serde(default)]
     pub discord: Option<Discord>,
+    /// Challonge's device sign-in, so a player can connect their Challonge
+    /// account to their Ember ID. Off when absent.
+    #[serde(default)]
+    pub challonge: Option<Challonge>,
     /// An owner-only file with the secrets of the services this bridge calls
     /// (`integrations::Secrets`). Needed when `discord` is set.
     #[serde(default)]
@@ -77,6 +81,111 @@ fn discord_api() -> String {
     "https://discord.com/api".into()
 }
 
+/// Challonge's endpoints are configurable because its documentation names
+/// two token URLs and two `/me` paths (docs/design/challonge/CHALLONGE_API.md).
+/// A client secret, if the application has one, is
+/// `challonge_client_secret` in the integration secrets.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Challonge {
+    /// The Challonge application's client ID (connect.challonge.com).
+    pub client_id: String,
+    /// Challonge's API origin, replaced only by tests.
+    #[serde(default = "challonge_api")]
+    pub api_base: String,
+    #[serde(default = "challonge_token_path")]
+    pub token_path: String,
+    #[serde(default = "challonge_device_path")]
+    pub device_path: String,
+    #[serde(default = "challonge_me_path")]
+    pub me_path: String,
+    /// What the sign-in asks for; `me` gives the user ID and username.
+    #[serde(default = "challonge_scope")]
+    pub scope: String,
+    /// Sign-ins waiting for their player at once, across the bridge; a start
+    /// beyond it is refused until one ends.
+    #[serde(default = "challonge_max_waiting")]
+    pub max_waiting_sign_ins: u64,
+    /// Requests to Challonge per calendar month (UTC): device codes, token
+    /// polls and `/me` together. Challonge's free tier allows 500.
+    #[serde(default = "challonge_monthly_budget")]
+    pub monthly_request_budget: u64,
+}
+
+fn challonge_api() -> String {
+    "https://api.challonge.com".into()
+}
+
+fn challonge_token_path() -> String {
+    "/oauth/token".into()
+}
+
+fn challonge_device_path() -> String {
+    "/v2.1/oauth/authorize_device".into()
+}
+
+fn challonge_me_path() -> String {
+    "/v2.1/me.json".into()
+}
+
+fn challonge_scope() -> String {
+    "me".into()
+}
+
+fn challonge_max_waiting() -> u64 {
+    20
+}
+
+fn challonge_monthly_budget() -> u64 {
+    400
+}
+
+impl Challonge {
+    fn validate(&self, policy: OriginPolicy) -> Result<(), String> {
+        if self.client_id.is_empty()
+            || self.client_id.len() > 256
+            || !self.client_id.bytes().all(|b| b.is_ascii_graphic())
+        {
+            return Err("challonge.client_id must be the application's client ID".into());
+        }
+        check_origin(&self.api_base, policy)
+            .map_err(|_| "challonge.api_base must be a bare https origin".to_owned())?;
+        for (name, path) in [
+            ("token_path", &self.token_path),
+            ("device_path", &self.device_path),
+            ("me_path", &self.me_path),
+        ] {
+            let plain = path.len() <= 256
+                && path.starts_with('/')
+                && !path.starts_with("//")
+                && path
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'/' | b'.' | b'_' | b'-'));
+            if !plain {
+                return Err(format!(
+                    "challonge.{name} must be a path such as /oauth/token"
+                ));
+            }
+        }
+        let scope = !self.scope.is_empty()
+            && self.scope.len() <= 256
+            && self
+                .scope
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b':' | b'_' | b' '));
+        if !scope {
+            return Err("challonge.scope must be space-separated Challonge scopes".into());
+        }
+        if self.max_waiting_sign_ins == 0 || self.monthly_request_budget == 0 {
+            return Err(
+                "challonge.max_waiting_sign_ins and monthly_request_budget must be at least 1"
+                    .into(),
+            );
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Rooms {
@@ -112,6 +221,10 @@ pub struct Connection {
     /// (`POST /v1/players/lookup`). Kind `blumint` always may.
     #[serde(default)]
     pub discord_lookup: bool,
+    /// The connection may find players by Challonge username
+    /// (`POST /v1/players/lookup`). Kind `blumint` never may.
+    #[serde(default)]
+    pub challonge_lookup: bool,
     /// What a disputed match does. Stored with the connection's record the
     /// first time it is seen and never changed. Kind `blumint` restarts.
     #[serde(default)]
@@ -175,6 +288,11 @@ impl Connection {
         self.is_blumint() || self.discord_lookup
     }
 
+    /// Whether the connection may find players by Challonge username.
+    pub fn challonge_lookup(&self) -> bool {
+        self.challonge_lookup
+    }
+
     /// What its disputed matches do; recorded with the connection.
     pub fn disputes(&self) -> Disputes {
         match (self.is_blumint(), self.disputes) {
@@ -192,7 +310,10 @@ impl Connection {
     /// The settings a platform may ask for (`docs/design/INTEGRATION_PATHS.md`).
     /// BluMint's are fixed by its kind.
     fn validate_settings(&self, config: &Config) -> Result<(), String> {
-        let chosen = self.discord_lookup || self.disputes.is_some() || self.results_url.is_some();
+        let chosen = self.discord_lookup
+            || self.challonge_lookup
+            || self.disputes.is_some()
+            || self.results_url.is_some();
         if self.is_blumint() && chosen {
             return Err(format!(
                 "{}: a blumint connection's lookup, disputes and results are fixed by its kind",
@@ -315,6 +436,9 @@ impl Config {
             if self.integration_secrets.is_none() {
                 return Err("discord needs integration_secrets for its client secret".into());
             }
+        }
+        if let Some(challonge) = &self.challonge {
+            challonge.validate(self.policy())?;
         }
         if let Some(rooms) = &self.rooms {
             if !is_loopback_origin(&rooms.supervisor_url) {
@@ -501,6 +625,7 @@ mod tests {
         assert!(with_settings(BLUMINT, json!({})).is_ok());
         for chosen in [
             json!({ "discord_lookup": true }),
+            json!({ "challonge_lookup": true }),
             json!({ "disputes": "restart" }),
             json!({ "disputes": "review" }),
             json!({ "results_url": "https://bot.example/results" }),
@@ -509,7 +634,8 @@ mod tests {
         }
         // A mock connection, for local testing, may set all of them.
         let all = json!({
-            "discord_lookup": true, "disputes": "restart", "results_url": "https://bot.example/results",
+            "discord_lookup": true, "challonge_lookup": true, "disputes": "restart",
+            "results_url": "https://bot.example/results",
             "rooms": { "max_open": 8 },
         });
         for kind in ["direct", "mock"] {
@@ -539,6 +665,88 @@ mod tests {
         assert!(with_results_url("https://bot.example:8443/results", true).is_ok());
         assert!(with_results_url("http://169.254.169.254/results", true).is_err());
         assert!(with_results_url("http://user:secret@127.0.0.1:9000/results", true).is_err());
+    }
+
+    /// Whether a configuration with this `challonge` block is accepted.
+    fn with_challonge(challonge: serde_json::Value, loopback: bool) -> Result<(), String> {
+        let config: Config = serde_json::from_value(json!({
+            "bridge_id": ember_protocol::encoding::prefixed_id("brg", [7; 16]),
+            "display_name": "Test bridge",
+            "origin": "https://bridge.example",
+            "listen": "127.0.0.1:0",
+            "database": "bridge.sqlite3",
+            "secrets": "secrets.json",
+            "allow_loopback_http": loopback,
+            "challonge": challonge,
+            "tenants": [],
+        }))
+        .map_err(|error| error.to_string())?;
+        config.validate()
+    }
+
+    #[test]
+    fn challonge_is_an_https_origin_with_plain_paths() {
+        let config: Config = serde_json::from_value(json!({
+            "bridge_id": ember_protocol::encoding::prefixed_id("brg", [7; 16]),
+            "display_name": "Test bridge", "origin": "https://bridge.example", "listen": "127.0.0.1:0",
+            "database": "bridge.sqlite3", "secrets": "secrets.json", "tenants": [],
+            "challonge": { "client_id": "abc123" },
+        }))
+        .unwrap();
+        let challonge = config.challonge.unwrap();
+        assert_eq!(
+            (
+                challonge.api_base.as_str(),
+                challonge.token_path.as_str(),
+                challonge.device_path.as_str(),
+                challonge.me_path.as_str(),
+                challonge.scope.as_str()
+            ),
+            (
+                "https://api.challonge.com",
+                "/oauth/token",
+                "/v2.1/oauth/authorize_device",
+                "/v2.1/me.json",
+                "me"
+            )
+        );
+        let with = |extra: serde_json::Value, loopback: bool| {
+            let mut block = json!({ "client_id": "abc123" });
+            block
+                .as_object_mut()
+                .unwrap()
+                .extend(extra.as_object().unwrap().clone());
+            with_challonge(block, loopback)
+        };
+        assert!(
+            with(
+                json!({ "token_path": "/v2.1/oauth/token", "scope": "me tournaments:read" }),
+                false
+            )
+            .is_ok()
+        );
+        for refused in [
+            json!({ "client_id": "" }),
+            json!({ "client_id": "has space" }),
+            json!({ "api_base": "http://api.challonge.com" }),
+            json!({ "api_base": "https://api.challonge.com/" }),
+            json!({ "api_base": "https://api.challonge.com/v2.1" }),
+            json!({ "api_base": "http://127.0.0.1:9000" }),
+            json!({ "token_path": "oauth/token" }),
+            json!({ "token_path": "//evil.example/token" }),
+            json!({ "me_path": "/me.json?x=1" }),
+            json!({ "device_path": "" }),
+            json!({ "scope": "" }),
+            json!({ "scope": "me\ntournaments:read" }),
+            json!({ "max_waiting_sign_ins": 0 }),
+            json!({ "monthly_request_budget": 0 }),
+            json!({ "unknown": true }),
+        ] {
+            assert!(with(refused.clone(), false).is_err(), "{refused}");
+        }
+        // Local tests may use loopback http, and nothing else.
+        assert!(with(json!({ "api_base": "http://127.0.0.1:9000" }), true).is_ok());
+        assert!(with(json!({ "api_base": "http://api.challonge.com" }), true).is_err());
     }
 
     #[test]

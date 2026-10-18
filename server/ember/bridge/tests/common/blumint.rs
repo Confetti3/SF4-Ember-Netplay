@@ -219,6 +219,7 @@ fn connection(id: &str, api_base: Option<String>) -> config::Connection {
         enabled: true,
         api_base,
         discord_lookup: false,
+        challonge_lookup: false,
         disputes: None,
         results_url: None,
         rooms: None,
