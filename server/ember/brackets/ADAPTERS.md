@@ -33,7 +33,7 @@ rely on.
 | `set(id, purpose)` | one set, or `None` | `None` only when the site itself says the set does not exist. |
 | `standing()` | `Finished`, `PlayedOut` or `Running` | `Finished` only when the site says the event is over: the connector then stops reading it for good. `PlayedOut` when every set looks played but more may come (a later stage, a reopened set). |
 | `mark_underway(id)` | nothing | May be called again for a set already underway. A failure is only logged. |
-| `report(id, report)` | nothing | Records the winner and each entry's games won. May be called again for a report already recorded (see Delivery below): answer `Ok` when the set already holds this same result. If the site can tell, refuse (`Refused`) rather than write over a set that has a different result. |
+| `report(id, report)` | `Sent` or `AlreadyHeld` | Records the winner and each entry's games won. May be called again for a report already recorded (see Delivery below): answer `AlreadyHeld` when the set already holds this winner, so the log does not claim the connector wrote it. If the site can tell, refuse (`Refused`) rather than write over a set that has a different result. |
 | `names_can_change()` | `bool`, `false` unless overridden | Whether the site accounts given are names an account can change (Challonge usernames). The connector then points out, once per player, an account connected more than 30 days ago. |
 | `wants_games()` | `bool`, `false` unless overridden | Whether `report` uses each game's winner, in the order played (`report.sequence`). Only then does the connector read the games from the bridge before reporting, and check that they add up to the score. |
 
@@ -66,9 +66,15 @@ A `Set` carries:
 
 Errors:
 
-- `Unavailable`: try again later. The site is down, rate-limits, refuses
-  the credential, or refused something in a way that may pass. Every pass
-  that meets it waits under the growing wait below.
+- `Unavailable`: the site as a whole cannot be used now. It is down,
+  rate-limits, or refuses the credential. The pass stops, and the whole
+  tournament waits under the growing wait below.
+- `Deferred` (from `report` only): this one report cannot be taken now, for
+  a reason of its own set, which may pass (start.gg refusing it with an
+  error it does not explain while the set is still open and unchanged).
+  That result alone waits, a minute doubling up to an hour, while every
+  other result and read goes on; after 12 tries (about 6 hours, counted
+  while the connector runs) its set is left to the organizer.
 - `Refused`: the site will not do it as it stands. A refused read is
   treated like `Unavailable`, and tried again after the growing wait. A
   refused report is final: the connector leaves that set to the organizer,
@@ -97,9 +103,10 @@ Errors:
   unless the next read already shows the set decided with that result. The
   same result always carries the same key (`report.key`, the Ember match
   ID).
-- **Retries.** After a failure nothing is asked of the site, for any
-  reason, until a wait of a minute, doubling up to an hour, has passed. One
-  log line per run of failures.
+- **Retries.** After a failure of the site as a whole nothing is asked of
+  it, for any reason, until a wait of a minute, doubling up to an hour, has
+  passed. One log line per run of failures. A deferred report waits the
+  same way on its own, and holds nothing else back.
 - **Pace.** Reads back off while nothing changes (`poll_secs` doubling up
   to `max_poll_secs`), stay inside the tournament's window, and stop once
   the site says the event is over.
@@ -184,9 +191,11 @@ sets are played.
 
 `GET {base}/sets/{id}` answers `200` with `{ "set": { ... } }` in the same
 shape, or `200` with `{ "set": null }` when there is no such set. Only that
-`null` tells the connector the set is gone, which cancels its live match. A
-`404` here is read as your service not answering (a proxy, a route not
-mounted yet), and tried again later.
+`null` tells the connector the set is gone, which cancels its live match.
+The `set` key is required: an answer without it (`{}`, as a serializer that
+leaves out nulls writes) is out of shape and tried again later. A `404`
+here is read as your service not answering (a proxy, a route not mounted
+yet), and tried again later.
 
 `GET {base}/standing` is optional. It answers `200` with
 `{ "standing": "finished" | "played_out" | "running" }`; `404` (or a service
@@ -231,3 +240,9 @@ over it: answer `409`, and the connector leaves the set to the organizer.
 
 A failed `/underway` is only logged, whatever the answer: the match is
 played all the same.
+
+These answers are about your service as a whole. A `5xx`, `429` or no
+answer to one set's report stops the pass and holds back every other
+result and read of the tournament until the growing wait is over, so
+answer `5xx` only when the service itself is failing. A report you will
+never take is a `409` or another `4xx`.

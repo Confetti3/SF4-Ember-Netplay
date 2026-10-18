@@ -35,12 +35,17 @@ use crate::{
         MAX_ATTEMPTS, OnOpen, OnResult, Progress, Received, Seen, Tracked, adds_up, on_open,
         on_result, seen,
     },
-    site::{Purpose, Report, Set, Site, SiteError, Standing},
+    site::{Purpose, Report, Reported, Set, Site, SiteError, Standing},
     store::Store,
 };
 
 /// How often a worker wakes when nothing wakes it.
 const WAKE_SECS: u64 = 60;
+/// Tries at a report the site defers (`SiteError::Deferred`) before its set
+/// is left to the organizer. The result waits a minute after the first,
+/// doubling up to an hour: 12 tries span 1 + 2 + 4 + 8 + 16 + 32 minutes and
+/// five hours, about 6 hours. Counted while the connector runs.
+const MAX_DEFERRALS: u32 = 12;
 
 /// What every tournament shares.
 pub(crate) struct Context {
@@ -76,6 +81,9 @@ struct State {
     schedule: Schedule,
     /// Reads after a failed pass.
     retry: Retry,
+    /// Results whose report the site deferred, by webhook ID: each waits
+    /// on its own, while the rest of the tournament carries on.
+    deferred: HashMap<String, Retry>,
     /// The bridge's read-back: when it is next due, and what it remembers.
     reconcile: reconcile::Memory,
     /// The playable sets the last read found, by ID and entries.
@@ -98,6 +106,15 @@ struct Settled {
     /// Whether a report has changed the bracket since the read, so that the
     /// read is no longer evidence for a later result.
     stale: bool,
+}
+
+/// What became of one result in a pass.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Settle {
+    /// Settled for good: reported, set aside, or played again.
+    Done,
+    /// Its report waits, on its own, for a later pass.
+    Deferred,
 }
 
 /// Why a pass stopped early. It is tried again later.
@@ -168,6 +185,7 @@ impl Bracket {
             state: Mutex::new(State {
                 schedule,
                 retry: Retry::default(),
+                deferred: HashMap::new(),
                 reconcile: reconcile::Memory::default(),
                 last_read: None,
                 finished,
@@ -240,7 +258,16 @@ impl Bracket {
             return Ok(false);
         }
         let in_window = phase == Phase::Open;
-        let pending = self.store().pending(&self.key)?;
+        let mut pending = self.store().pending(&self.key)?;
+        state
+            .deferred
+            .retain(|webhook_id, _| pending.iter().any(|(id, _)| id == webhook_id));
+        pending.retain(|(webhook_id, _)| {
+            state
+                .deferred
+                .get(webhook_id)
+                .is_none_or(|wait| wait.ready(now))
+        });
         let scheduled = in_window && (poll || state.schedule.due(now));
         if pending.is_empty() && !scheduled {
             return Ok(false);
@@ -256,7 +283,9 @@ impl Bracket {
         let read = fingerprint(&sets);
         let mut changed = state.last_read.as_ref() != Some(&read);
         state.last_read = Some(read);
-        let settled = self.settle(&pending, &sets).await?;
+        let settled = self
+            .settle(&pending, &sets, &mut state.deferred, now)
+            .await?;
         changed |= settled.changed;
         changed |= self
             .update(&sets, &settled.reported, purpose, in_window)
@@ -380,25 +409,38 @@ impl Bracket {
     }
 
     /// Settles the waiting results in order, against a read made for them.
+    /// A result the site defers waits on its own; the others go on.
     async fn settle(
         &self,
         pending: &[(String, Received)],
         sets: &[Set],
+        deferred: &mut HashMap<String, Retry>,
+        now: u64,
     ) -> Result<Settled, Trouble> {
         let mut settled = Settled::default();
         for (webhook_id, received) in pending {
-            self.settle_one(received, sets, &mut settled).await?;
-            self.store().settled(webhook_id)?;
+            let tries = deferred.get(webhook_id).map_or(0, Retry::failures);
+            match self.settle_one(received, sets, &mut settled, tries).await? {
+                Settle::Done => {
+                    deferred.remove(webhook_id);
+                    self.store().settled(webhook_id)?;
+                }
+                Settle::Deferred => {
+                    deferred.entry(webhook_id.clone()).or_default().failed(now);
+                }
+            }
         }
         Ok(settled)
     }
 
+    /// `tries`: how often this result's report was deferred before.
     async fn settle_one(
         &self,
         received: &Received,
         sets: &[Set],
         settled: &mut Settled,
-    ) -> Result<(), Trouble> {
+        tries: u32,
+    ) -> Result<Settle, Trouble> {
         let set_id = &received.id.set;
         let Some(mut tracked) = self
             .store()
@@ -410,7 +452,7 @@ impl Bracket {
                 self.key,
                 received.match_id
             );
-            return Ok(());
+            return Ok(Settle::Done);
         };
         tracked.match_id = Some(received.match_id.clone());
         // The read shows the set unchanged, and nothing has been reported
@@ -442,7 +484,7 @@ impl Bracket {
                         "{} set {set_id}: the games of Ember match {match_id} do not add up to its score; the organizer decides this set",
                         self.key
                     );
-                    return Ok(());
+                    return Ok(Settle::Done);
                 }
                 let report = Report {
                     entries: tracked.entries.clone(),
@@ -451,7 +493,13 @@ impl Bracket {
                     sequence,
                     key: match_id.clone(),
                 };
-                self.report(set_id, tracked, &report, match_id).await?;
+                if self
+                    .report(set_id, tracked, &report, match_id, tries)
+                    .await?
+                    == Settle::Deferred
+                {
+                    return Ok(Settle::Deferred);
+                }
                 settled.reported.insert(set_id.clone());
                 settled.stale = true;
             }
@@ -493,22 +541,31 @@ impl Bracket {
                 );
             }
         }
-        Ok(())
+        Ok(Settle::Done)
     }
 
-    /// Reports the score. A score the site refuses is left to the organizer.
+    /// Reports the score. A score the site refuses is left to the
+    /// organizer; one it defers waits, up to `MAX_DEFERRALS` tries.
     async fn report(
         &self,
         set_id: &str,
         mut tracked: Tracked,
         report: &Report,
         match_id: &str,
-    ) -> Result<(), Trouble> {
+        tries: u32,
+    ) -> Result<Settle, Trouble> {
         let score = format!("{}-{}", report.games[0], report.games[1]);
         tracked.progress = match self.site.report(set_id, report).await {
-            Ok(()) => {
+            Ok(Reported::Sent) => {
                 log!(
                     "{} set {set_id}: reported {score} from Ember match {match_id}",
+                    self.key
+                );
+                Progress::Reported
+            }
+            Ok(Reported::AlreadyHeld) => {
+                log!(
+                    "{} set {set_id}: the site already had the winner of Ember match {match_id}; its score there is the site's",
                     self.key
                 );
                 Progress::Reported
@@ -520,9 +577,24 @@ impl Bracket {
                 );
                 Progress::Stuck
             }
+            Err(SiteError::Deferred(why)) if tries + 1 < MAX_DEFERRALS => {
+                log!(
+                    "{} set {set_id}: {why}; the score {score} of Ember match {match_id} is sent again later (try {} of {MAX_DEFERRALS})",
+                    self.key,
+                    tries + 1
+                );
+                return Ok(Settle::Deferred);
+            }
+            Err(SiteError::Deferred(why)) => {
+                log!(
+                    "{} set {set_id}: {why}; the score {score} of Ember match {match_id} was refused {MAX_DEFERRALS} times, and the organizer enters it",
+                    self.key
+                );
+                Progress::Stuck
+            }
             Err(error) => return Err(error.into()),
         };
         self.store().save(&self.key, set_id, &tracked, None)?;
-        Ok(())
+        Ok(Settle::Done)
     }
 }

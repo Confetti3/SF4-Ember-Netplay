@@ -18,7 +18,10 @@ use crate::{
     config::is_slug,
     http::{bounded_body, http_client},
     log,
-    site::{Account, Entry, Purpose, Report, Set, Site, SiteError, SiteFuture, Standing, Status},
+    site::{
+        Account, Entry, Purpose, Report, Reported, Set, Site, SiteError, SiteFuture, Standing,
+        Status,
+    },
 };
 
 /// The contract version, sent on every request. A service that changes a
@@ -46,9 +49,11 @@ struct SetList {
     sets: Vec<Value>,
 }
 
-/// `GET {base}/sets/{id}`: `null` when the service has no such set.
+/// `GET {base}/sets/{id}`: `null` when the service has no such set. The
+/// key is required: an answer without it (`{}`) is out of shape, not gone.
 #[derive(Deserialize)]
 struct OneSet {
+    #[serde(deserialize_with = "Option::deserialize")]
     set: Option<WireSet>,
 }
 
@@ -368,8 +373,11 @@ impl Site for Service {
         Box::pin(self.post(id, "underway", json!({}), None))
     }
 
-    fn report<'a>(&'a self, id: &'a str, report: &'a Report) -> SiteFuture<'a, ()> {
-        Box::pin(self.send_report(id, report))
+    fn report<'a>(&'a self, id: &'a str, report: &'a Report) -> SiteFuture<'a, Reported> {
+        Box::pin(async move {
+            self.send_report(id, report).await?;
+            Ok(Reported::Sent)
+        })
     }
 }
 
@@ -383,6 +391,16 @@ mod tests {
 
     fn set(value: Value) -> Option<Set> {
         serde_json::from_value::<WireSet>(value).unwrap().into_set()
+    }
+
+    #[test]
+    fn only_an_explicit_null_says_a_set_is_gone() {
+        let one =
+            |value: Value| serde_json::from_value::<OneSet>(value).map(|one| one.set.is_none());
+        assert!(one(json!({ "set": null })).unwrap());
+        assert!(!one(json!({ "set": { "id": "s-1", "status": "open" } })).unwrap());
+        // A serializer that leaves nulls out: not in the contract's shape.
+        assert!(one(json!({})).is_err());
     }
 
     #[test]

@@ -35,7 +35,8 @@ impl Bracket {
             .flat_map(|(set, _)| set.entries.iter().flatten())
             .flat_map(|entry| &entry.accounts)
             .collect();
-        let found = match self.context.bridge.lookup(&accounts).await {
+        let now = self.context.clock.now();
+        let found = match self.context.bridge.lookup(&accounts, now).await {
             Ok(found) => {
                 if self.lookup_failing.swap(false, Ordering::Relaxed) {
                     log!("{}: players can be looked up again", self.key);

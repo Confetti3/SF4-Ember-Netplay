@@ -2,7 +2,7 @@
 //! and mutations the connector sends, by operation name, checks the token,
 //! and logs each operation with its variables.
 use std::{
-    collections::VecDeque,
+    collections::{HashMap, VecDeque},
     sync::{Arc, Mutex},
 };
 
@@ -84,6 +84,8 @@ pub struct StartggState {
     /// The next reports are refused with these HTTP statuses and error
     /// texts, and not recorded.
     pub report_errors: VecDeque<(StatusCode, String)>,
+    /// Reports of these sets are refused with these texts, every time.
+    pub refused_sets: HashMap<u64, String>,
     /// Its players start this set on start.gg just after a list of sets
     /// shows it not started.
     pub start_after_list: Option<u64>,
@@ -222,6 +224,15 @@ async fn graphql(
             if let Some((status, message)) = state.report_errors.pop_front() {
                 return answer(status, json!({ "errors": [{ "message": message }] }));
             }
+            let id = variables["setId"]
+                .as_str()
+                .and_then(|id| id.parse::<u64>().ok());
+            if let Some(message) = id.and_then(|id| state.refused_sets.get(&id)) {
+                return answer(
+                    StatusCode::OK,
+                    json!({ "errors": [{ "message": message }] }),
+                );
+            }
             let winner = variables["winnerId"]
                 .as_str()
                 .and_then(|id| id.parse().ok());
@@ -258,6 +269,7 @@ impl FakeStartgg {
             log: Vec::new(),
             decide_on_reread: None,
             report_errors: VecDeque::new(),
+            refused_sets: HashMap::new(),
             start_after_list: None,
         }));
         let app = Router::new()

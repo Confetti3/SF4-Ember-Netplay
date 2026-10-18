@@ -414,3 +414,78 @@ async fn entrants_are_read_again_for_accounts_linked_since() {
     assert_eq!(fake.operations(), ["Sets", "Entrants", "Underway"]);
     assert_eq!(world.bridge.matches().await.len(), 1);
 }
+
+#[tokio::test]
+async fn a_set_whose_report_is_refused_waits_alone() {
+    let entrant = |id: u64, user: u64| FakeEntrant {
+        id,
+        user: Some(user),
+        discord: None,
+    };
+    let fake = FakeStartgg::start(
+        vec![
+            entrant(2_401_411, KATE_USER),
+            FakeEntrant {
+                id: 2_401_412,
+                user: Some(5_002),
+                discord: Some(SAM_DISCORD.into()),
+            },
+            entrant(2_401_414, 5_003),
+            entrant(2_401_415, 5_004),
+        ],
+        vec![
+            FakeSet::open(65_089_253, 1, [2_401_411, 2_401_412]),
+            FakeSet::open(65_089_255, 1, [2_401_414, 2_401_415]),
+        ],
+    )
+    .await;
+    let world = world(&fake, false).await;
+    world.bridge.connect_startgg(3, 5_003).await;
+    world.bridge.connect_startgg(4, 5_004).await;
+    world.connector.pass(true).await;
+    let matches = world.bridge.matches().await;
+    assert_eq!(matches.len(), 2);
+    // The refused set's result arrives first, so it is settled first.
+    for set in ["65089253", "65089255"] {
+        let (_, match_id, _) = matches
+            .iter()
+            .find(|(external, _, _)| external.contains(set))
+            .unwrap();
+        world.play(match_id, &[0, 0]).await;
+        world.bridge.deliver().await;
+        world.advance(1);
+    }
+    // start.gg refuses the first set's score, for a reason of its own.
+    fake.state
+        .lock()
+        .unwrap()
+        .refused_sets
+        .insert(65_089_253, "Something about this set".into());
+    fake.log();
+
+    // The other set's result is reported in the same pass.
+    world.connector.pass(false).await;
+    assert_eq!(world.progress(BRACKET, "65089255"), "reported");
+    assert_eq!(world.progress(BRACKET, "65089253"), "live");
+    assert_eq!(fake.set(65_089_255).winner, Some(2_401_414));
+    let reports = |operations: Vec<String>| {
+        operations
+            .iter()
+            .filter(|operation| *operation == "Report")
+            .count()
+    };
+    assert_eq!(reports(fake.operations()), 2);
+
+    // The tournament goes on reading; the refused result waits its minute.
+    world.advance(30);
+    world.connector.pass(true).await;
+    let operations = fake.operations();
+    assert!(operations.iter().any(|operation| operation == "Sets"));
+    assert_eq!(reports(operations), 0);
+    fake.state.lock().unwrap().refused_sets.clear();
+    world.advance(31);
+    world.connector.pass(false).await;
+    assert_eq!(reports(fake.operations()), 1);
+    assert_eq!(world.progress(BRACKET, "65089253"), "reported");
+    assert_eq!(fake.set(65_089_253).winner, Some(2_401_411));
+}

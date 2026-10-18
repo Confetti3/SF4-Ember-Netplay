@@ -2,7 +2,7 @@
 //! credential: finding players by the account a site entry stands for,
 //! creating a set's match, reading how one ended, and cancelling one.
 //! Bridge requests cost nothing against a site's budget.
-use std::{collections::HashMap, fmt};
+use std::{collections::HashMap, fmt, sync::Mutex};
 
 use ember_protocol::{
     EmberId,
@@ -22,6 +22,13 @@ use crate::{
 };
 
 const MAX_ANSWER: usize = 256 * 1024;
+/// How long an account the bridge refused to look up is not asked again,
+/// so one that stays refused does not cost a lookup of its own on every
+/// read. An operator who fixes the bridge's configuration sees it within
+/// this.
+const REFUSAL_SECS: u64 = 15 * 60;
+/// Refused accounts remembered at most; past it the soonest to expire go.
+const MAX_REFUSALS: usize = 4096;
 
 #[derive(Debug)]
 pub(crate) enum BridgeError {
@@ -86,6 +93,36 @@ impl Found {
             .accounts
             .iter()
             .find_map(|account| Some((account, self.refused.get(account)?.as_str())))
+    }
+}
+
+/// Accounts the bridge refused to look up, with its reason and until when
+/// they are not asked again.
+#[derive(Default)]
+struct Refusals(HashMap<Account, (String, u64)>);
+
+impl Refusals {
+    fn get(&self, account: &Account, now: u64) -> Option<&str> {
+        self.0
+            .get(account)
+            .filter(|(_, until)| now < *until)
+            .map(|(why, _)| why.as_str())
+    }
+
+    fn remember(&mut self, account: Account, why: String, now: u64) {
+        if self.0.len() >= MAX_REFUSALS {
+            self.0.retain(|_, (_, until)| now < *until);
+        }
+        if self.0.len() >= MAX_REFUSALS
+            && let Some(soonest) = self
+                .0
+                .iter()
+                .min_by_key(|(_, (_, until))| *until)
+                .map(|(account, _)| account.clone())
+        {
+            self.0.remove(&soonest);
+        }
+        self.0.insert(account, (why, now + REFUSAL_SECS));
     }
 }
 
@@ -248,6 +285,7 @@ pub(crate) struct BridgeClient {
     http: reqwest::Client,
     api: String,
     credential: Zeroizing<String>,
+    refusals: Mutex<Refusals>,
 }
 
 impl BridgeClient {
@@ -256,6 +294,7 @@ impl BridgeClient {
             http: http_client()?,
             api: api.trim_end_matches('/').to_owned(),
             credential,
+            refusals: Mutex::default(),
         })
     }
 
@@ -275,12 +314,23 @@ impl BridgeClient {
     /// most `MAX_LOOKUP` accounts, Discord's and sites' together. The
     /// bridge refuses a whole lookup that names one account it will not
     /// look up; that lookup's accounts are then asked one by one, so only
-    /// that account's entry waits. Bridge requests cost no site budget.
-    pub async fn lookup(&self, accounts: &[&Account]) -> Result<Found, BridgeError> {
+    /// that account's entry waits. A refused account is not asked again for
+    /// `REFUSAL_SECS`. Bridge requests cost no site budget.
+    pub async fn lookup(&self, accounts: &[&Account], now: u64) -> Result<Found, BridgeError> {
         let mut asked = accounts.to_vec();
         asked.sort_by_key(|account| account.to_string());
         asked.dedup();
         let mut found = Found::default();
+        {
+            let refusals = self.refusals.lock().unwrap_or_else(|e| e.into_inner());
+            asked.retain(|&account| match refusals.get(account, now) {
+                Some(why) => {
+                    found.refused.insert(account.clone(), why.to_owned());
+                    false
+                }
+                None => true,
+            });
+        }
         for chunk in asked.chunks(MAX_LOOKUP) {
             match self.lookup_once(chunk).await {
                 Ok(answer) => found.players.extend(found_in(answer)),
@@ -289,7 +339,12 @@ impl BridgeClient {
                         match self.lookup_once(&[account]).await {
                             Ok(answer) => found.players.extend(found_in(answer)),
                             Err(error) if names_an_account(&error) => {
-                                found.refused.insert(account.clone(), error.to_string());
+                                let why = error.to_string();
+                                self.refusals
+                                    .lock()
+                                    .unwrap_or_else(|e| e.into_inner())
+                                    .remember(account.clone(), why.clone(), now);
+                                found.refused.insert(account.clone(), why);
                             }
                             Err(error) => return Err(error),
                         }
@@ -431,6 +486,38 @@ mod tests {
         );
         // A completed match without a winner at the set length is not read.
         assert!(view("completed", [1, 1]).over().is_none());
+    }
+
+    #[test]
+    fn a_refused_account_is_remembered_for_a_while_and_within_bounds() {
+        let account = |n: usize| Account::Site {
+            site: "startgg".into(),
+            id: format!("user{n}"),
+        };
+        let mut refusals = Refusals::default();
+        refusals.remember(account(0), "forbidden".into(), 1_000);
+        assert_eq!(refusals.get(&account(0), 1_000), Some("forbidden"));
+        assert_eq!(
+            refusals.get(&account(0), 1_000 + REFUSAL_SECS - 1),
+            Some("forbidden")
+        );
+        assert_eq!(refusals.get(&account(0), 1_000 + REFUSAL_SECS), None);
+        assert_eq!(refusals.get(&account(1), 1_000), None);
+        // Full: the expired go first, then the soonest to expire.
+        refusals.remember(account(1), "forbidden".into(), 1_999);
+        for n in 2..=MAX_REFUSALS {
+            refusals.remember(account(n), "forbidden".into(), 2_000);
+        }
+        // Account 0 expired, making room for the last; then account 1,
+        // the soonest to expire, makes room for account 0 again.
+        assert_eq!(refusals.get(&account(0), 2_000), None);
+        assert_eq!(refusals.0.len(), MAX_REFUSALS);
+        assert_eq!(refusals.get(&account(1), 2_100), Some("forbidden"));
+        refusals.remember(account(0), "forbidden".into(), 2_100);
+        assert_eq!(refusals.0.len(), MAX_REFUSALS);
+        assert_eq!(refusals.get(&account(1), 2_100), None);
+        assert_eq!(refusals.get(&account(2), 2_100), Some("forbidden"));
+        assert_eq!(refusals.get(&account(0), 2_100), Some("forbidden"));
     }
 
     #[test]

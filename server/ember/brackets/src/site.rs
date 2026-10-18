@@ -25,7 +25,7 @@ pub trait Site: Send + Sync {
     /// Whether the bracket is over, asked when a read finds no open set.
     fn standing(&self) -> SiteFuture<'_, Standing>;
     fn mark_underway<'a>(&'a self, id: &'a str) -> SiteFuture<'a, ()>;
-    fn report<'a>(&'a self, id: &'a str, report: &'a Report) -> SiteFuture<'a, ()>;
+    fn report<'a>(&'a self, id: &'a str, report: &'a Report) -> SiteFuture<'a, Reported>;
 
     /// Whether the site accounts this adapter gives are names an account
     /// can change, so one connected long ago may now be someone else's.
@@ -129,6 +129,16 @@ pub struct Report {
     pub key: String,
 }
 
+/// How a report ended up on the site.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Reported {
+    /// Written now.
+    Sent,
+    /// The site already held this winner: an earlier send whose answer was
+    /// lost, or the organizer entering the same winner by hand.
+    AlreadyHeld,
+}
+
 #[derive(Debug)]
 pub enum SiteError {
     /// Not reached, or failing on its side (including rate limits and a
@@ -138,6 +148,11 @@ pub enum SiteError {
     /// again under the same growing wait as `Unavailable`; a refused report
     /// is final, and the organizer enters that set's score.
     Refused(String),
+    /// This one report cannot be taken now, for a reason of its own set
+    /// (the site refused it, and the set is still open and unchanged): that
+    /// result alone waits and is tried again, while the rest of the
+    /// tournament carries on. Only `report` returns it.
+    Deferred(String),
     /// A scheduled read would go past the site's request budget.
     BudgetSpent,
 }
@@ -145,7 +160,9 @@ pub enum SiteError {
 impl fmt::Display for SiteError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Unavailable(message) | Self::Refused(message) => f.write_str(message),
+            Self::Unavailable(message) | Self::Refused(message) | Self::Deferred(message) => {
+                f.write_str(message)
+            }
             Self::BudgetSpent => f.write_str("this month's request budget is spent"),
         }
     }

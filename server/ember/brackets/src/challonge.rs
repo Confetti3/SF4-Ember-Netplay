@@ -19,7 +19,10 @@ use crate::{
     budget::{Budget, Priority},
     config::{CredentialKind, is_slug},
     http::{bounded_body, http_client},
-    site::{Account, Entry, Purpose, Report, Set, Site, SiteError, SiteFuture, Standing, Status},
+    site::{
+        Account, Entry, Purpose, Report, Reported, Set, Site, SiteError, SiteFuture, Standing,
+        Status,
+    },
 };
 
 /// Challonge's API origin. The organizer's credential goes nowhere else
@@ -342,8 +345,11 @@ impl Site for Challonge {
         Box::pin(self.send_underway(id))
     }
 
-    fn report<'a>(&'a self, id: &'a str, report: &'a Report) -> SiteFuture<'a, ()> {
-        Box::pin(self.send_report(id, report))
+    fn report<'a>(&'a self, id: &'a str, report: &'a Report) -> SiteFuture<'a, Reported> {
+        Box::pin(async move {
+            self.send_report(id, report).await?;
+            Ok(Reported::Sent)
+        })
     }
 
     /// Players are found by username, which Challonge lets an account

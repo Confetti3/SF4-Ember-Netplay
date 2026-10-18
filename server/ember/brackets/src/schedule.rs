@@ -115,6 +115,11 @@ impl Retry {
         self.failures == 1
     }
 
+    /// The failures recorded so far.
+    pub fn failures(&self) -> u32 {
+        self.failures
+    }
+
     /// Records a success. Returns how many failures it ends.
     pub fn succeeded(&mut self) -> u32 {
         std::mem::take(self).failures

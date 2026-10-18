@@ -109,10 +109,11 @@ after the first read is found within that.
 
 A token start.gg refuses (an HTTP 400 or 401) is waited out like any other
 failure, until the organizer fixes it; no set is given up for it. A score
-start.gg refuses with an error it does not explain is sent again, while the
-set is still open with the same entrants and no winner, up to 12 times
-(about half a day under the growing wait) before the organizer decides the
-set.
+start.gg refuses with an error it does not explain, while the set is still
+open with the same entrants and no winner, waits on its own and is sent
+again, a minute later and then doubling up to an hour, up to 12 times
+(about 6 hours) before the organizer decides the set. The tournament's other
+results and reads go on meanwhile.
 
 A service of the organizer's own: see [ADAPTERS.md](ADAPTERS.md).
 

@@ -11,9 +11,9 @@
 //!
 //! A report start.gg refuses with a text it does not explain is not given
 //! up at once: the set is read again, and while it is still open with the
-//! same entrants the score waits and is sent again, up to
-//! `MAX_REPORT_REFUSALS` times while the connector runs. Only a set that is
-//! gone, changed or decided otherwise is left to the organizer at once.
+//! same entrants that one result waits and is sent again (`Deferred`), as
+//! the connector counts. Only a set that is gone, changed or decided
+//! otherwise is left to the organizer at once.
 use std::{collections::HashMap, sync::Mutex};
 
 use reqwest::{
@@ -28,7 +28,10 @@ use crate::{
     Clock,
     http::{bounded_body, http_client},
     limit::Limiter,
-    site::{Account, Entry, Purpose, Report, Set, Site, SiteError, SiteFuture, Standing, Status},
+    site::{
+        Account, Entry, Purpose, Report, Reported, Set, Site, SiteError, SiteFuture, Standing,
+        Status,
+    },
 };
 
 /// start.gg's API origin. The organizer's token goes nowhere else
@@ -48,11 +51,6 @@ const MAX_ANSWER: usize = 2 * 1024 * 1024;
 /// player who links Discord on start.gg after the first read is found
 /// within this. A few requests, against 70 a minute.
 const ENTRANTS_FRESH_SECS: u64 = 15 * 60;
-/// Refusals of one set's report, each with the set still open and
-/// unchanged after it, before the set is left to the organizer. Results
-/// are retried under the pass's growing wait (up to an hour), so this is
-/// about half a day.
-pub const MAX_REPORT_REFUSALS: u32 = 12;
 
 /// `Set.state` values (section 3.4): not started, started, done, called.
 const CREATED: i64 = 1;
@@ -79,9 +77,6 @@ pub(crate) struct Startgg {
     /// The event's ID, read once.
     event: OnceCell<String>,
     entrants: Mutex<Entrants>,
-    /// Unexplained refusals of each set's report since the connector
-    /// started, while the set stayed open (`MAX_REPORT_REFUSALS`).
-    refusals: Mutex<HashMap<String, u32>>,
 }
 
 /// Entrant ID to the accounts behind it, read again when a set names an
@@ -359,7 +354,6 @@ impl Startgg {
             clock,
             event: OnceCell::new(),
             entrants: Mutex::default(),
-            refusals: Mutex::default(),
         })
     }
 
@@ -578,9 +572,9 @@ impl Startgg {
     /// Reports the winner and each game's winner in the order played,
     /// after reading the set again: a set with a result is never written
     /// over, since `reportBracketSet` would replace it.
-    async fn send_report(&self, id: &str, report: &Report) -> Result<(), SiteError> {
+    async fn send_report(&self, id: &str, report: &Report) -> Result<Reported, SiteError> {
         if !self.reportable(id, report).await? {
-            return Ok(());
+            return Ok(Reported::AlreadyHeld);
         }
         let game_data: Vec<Value> = report
             .sequence
@@ -595,17 +589,10 @@ impl Startgg {
             "winnerId": report.entries[report.winner],
             "gameData": game_data,
         });
-        let sent = match self.mutate(REPORT, variables).await? {
-            Ok(()) => Ok(()),
+        match self.mutate(REPORT, variables).await? {
+            Ok(()) => Ok(Reported::Sent),
             Err(message) => self.refused(id, report, &message).await,
-        };
-        if !matches!(sent, Err(SiteError::Unavailable(_))) {
-            self.refusals
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .remove(id);
         }
-        sent
     }
 
     /// Whether the set, read now, still waits for this report: `false`
@@ -632,28 +619,23 @@ impl Startgg {
     /// A report start.gg refused with `message`. Only a preview ID is a
     /// stated permanent refusal; anything else (a token or role problem
     /// has no stated text) is checked against the set: one still open and
-    /// unchanged is sent again later, up to `MAX_REPORT_REFUSALS` times.
-    async fn refused(&self, id: &str, report: &Report, message: &str) -> Result<(), SiteError> {
+    /// unchanged defers this result alone, which the connector sends again
+    /// a bounded number of times.
+    async fn refused(
+        &self,
+        id: &str,
+        report: &Report,
+        message: &str,
+    ) -> Result<Reported, SiteError> {
         if message.starts_with("Set not found") {
             return Err(SiteError::Refused(format!("start.gg: {message}")));
         }
         // The report may have been recorded after all.
         if !self.reportable(id, report).await? {
-            return Ok(());
+            return Ok(Reported::AlreadyHeld);
         }
-        let refusals = {
-            let mut refusals = self.refusals.lock().unwrap_or_else(|e| e.into_inner());
-            let count = refusals.entry(id.to_owned()).or_default();
-            *count += 1;
-            *count
-        };
-        if refusals >= MAX_REPORT_REFUSALS {
-            return Err(SiteError::Refused(format!(
-                "start.gg: {message} ({refusals} times, the set still open)"
-            )));
-        }
-        Err(SiteError::Unavailable(format!(
-            "start.gg refused the score of set {id} ({message}); the set is still open, so it is sent again later"
+        Err(SiteError::Deferred(format!(
+            "start.gg refused the score ({message}), and the set is still open"
         )))
     }
 }
@@ -677,7 +659,7 @@ impl Site for Startgg {
         Box::pin(self.send_underway(id))
     }
 
-    fn report<'a>(&'a self, id: &'a str, report: &'a Report) -> SiteFuture<'a, ()> {
+    fn report<'a>(&'a self, id: &'a str, report: &'a Report) -> SiteFuture<'a, Reported> {
         Box::pin(self.send_report(id, report))
     }
 
