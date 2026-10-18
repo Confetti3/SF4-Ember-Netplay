@@ -3455,6 +3455,9 @@ msgstr "O serviço de torneios do Ember não está configurado"
 msgid "challonge.no_service_detail"
 msgstr "O Challonge se conecta pelo serviço de torneios do Ember. Primeiro procure o serviço em Contas vinculadas e depois volte aqui."
 
+msgid "challonge.busy"
+msgstr "O login com Challonge está ocupado no momento. Tente novamente mais tarde."
+
 msgid "identity.failure.browser"
 msgstr "O Ember não conseguiu abrir o navegador."
 

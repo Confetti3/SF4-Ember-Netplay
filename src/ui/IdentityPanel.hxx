@@ -213,6 +213,11 @@ private:
     void CancelAttempt();
     // Ends another site's sign-in under way on its service, before `site` starts one.
     void EndOtherSignIn(SignInSite site);
+    // A new Connect Discord journey starts: what becomes of the sign-in under way.
+    void RetireSignIn();
+    // A site's own words for a refusal of one of its requests, where it has
+    // them (Challonge over its request limits); none otherwise.
+    static std::optional<std::string> SiteFailureText(netplay::IdentityOp op, const std::string& code);
     // Connect Discord's steps run, or a site's page is being opened.
     bool Starting() const;
     // The site has steps or a sign-in under way, which Cancel stops.

@@ -3930,6 +3930,9 @@ msgstr "Турнирный сервис Ember не настроен"
 msgid "challonge.no_service_detail"
 msgstr "Challonge подключается через турнирный сервис Ember. Сначала найдите его в разделе «Привязанные аккаунты», затем вернитесь сюда."
 
+msgid "challonge.busy"
+msgstr "Вход через Challonge сейчас перегружен. Повторите попытку позже."
+
 msgid "identity.failure.browser"
 msgstr "Ember не удалось открыть браузер."
 

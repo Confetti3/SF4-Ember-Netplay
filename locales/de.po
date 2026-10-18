@@ -3929,6 +3929,9 @@ msgstr "Embers Turnierdienst ist nicht eingerichtet"
 msgid "challonge.no_service_detail"
 msgstr "Challonge wird über Embers Turnierdienst verbunden. Suchen Sie ihn zuerst unter Verknüpfte Konten und kehren Sie dann hierher zurück."
 
+msgid "challonge.busy"
+msgstr "Die Challonge-Anmeldung ist gerade ausgelastet. Versuchen Sie es später erneut."
+
 msgid "identity.failure.browser"
 msgstr "Ember konnte Ihren Browser nicht öffnen."
 

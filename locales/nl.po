@@ -3929,6 +3929,9 @@ msgstr "De toernooidienst van Ember is niet ingesteld"
 msgid "challonge.no_service_detail"
 msgstr "Challonge wordt gekoppeld via de toernooidienst van Ember. Zoek die eerst op bij Gekoppelde accounts en kom dan hier terug."
 
+msgid "challonge.busy"
+msgstr "Aanmelden met Challonge is nu druk. Probeer het later opnieuw."
+
 msgid "identity.failure.browser"
 msgstr "Ember kon je browser niet openen."
 

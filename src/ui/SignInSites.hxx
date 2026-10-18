@@ -38,6 +38,10 @@ struct SignInSiteInfo {
     bool listedWhenKept = false;
     // A failed read of its account is said only on its Connect screen.
     bool quietElsewhere = false;
+    // Its sign-in belongs to the Connect Discord journey: a new journey no
+    // longer waits for it. Otherwise it goes on until the site's own screen
+    // or another site's sign-in ends it.
+    bool followsJourney = false;
     // The view's fields for the site: whether the service last inspected
     // offers its sign-in and keeps its accounts, and the account last read.
     bool netplay::IdentityView::* offered = nullptr;
@@ -83,6 +87,7 @@ struct SignInSiteInfo {
         const char* done = nullptr;             // {0}: the account's name
         const char* removed = nullptr;
         const char* cancelled = nullptr;
+        const char* busy = nullptr;             // over the site's request limits; null: the general words
     } words;
 };
 
@@ -90,7 +95,7 @@ inline const SignInSiteInfo& Site(SignInSite site) {
     using netplay::IdentityView;
     static const SignInSiteInfo discord = [] {
         SignInSiteInfo d;
-        d.screen = DiscordConnectScreen; d.alsoOn = "linked-accounts";
+        d.screen = DiscordConnectScreen; d.alsoOn = "linked-accounts"; d.followsJourney = true;
         d.offered = &IdentityView::inspectedDiscord; d.kept = &IdentityView::inspectedDiscordAccounts;
         d.user = &IdentityView::discordUser; d.name = &IdentityView::discordName;
         auto& r = d.rows;
@@ -129,7 +134,7 @@ inline const SignInSiteInfo& Site(SignInSite site) {
         w.cancelDetail = "challonge.cancel_detail"; w.off = "challonge.off"; w.offDetail = "challonge.off_detail";
         w.retry = "challonge.retry"; w.retryDetail = "challonge.retry_detail";
         w.opened = "challonge.opened"; w.done = "challonge.done";
-        w.removed = "challonge.removed"; w.cancelled = "challonge.cancelled";
+        w.removed = "challonge.removed"; w.cancelled = "challonge.cancelled"; w.busy = "challonge.busy";
         return c;
     }();
     switch (site) {

@@ -34,6 +34,9 @@ void ChallongeRow(){
  Check(row&&row->value=="kate"&&h.index(ChallongeConnectScreen)==h.index("discord-connect")+1,"The Ember ID screen does not show the Challonge account after Discord");
  h.Choose(ChallongeConnectScreen);
  Check(h.trail()=="home>identity>challonge-connect","The Challonge row did not open Connect Challonge");
+ // A service that stops listing Challonge (one without it configured) loses the row.
+ h.Screen("home");h.Screen("identity");Profile(h,false,false);for(int i=0;i<4;++i)h.answer();
+ Check(h.row("discord-connect")&&!h.row(ChallongeConnectScreen),"The Challonge row stayed on a service that no longer lists Challonge");
 }
 
 // Connect opens Challonge's page through the helper; the account is read
@@ -306,6 +309,30 @@ void LookingAtDiscordKeepsChallonge(){
  Check(h.status==loc::Tf("challonge.done","kate"),"Challonge's sign-in did not finish");
 }
 
+// Challonge sign-in over its request limits says so in its own words, not
+// that the service did not answer; Discord's words for the same code stay
+// the general ones.
+void ChallongeBusy(){
+ using namespace sf4e;using netplay::IdentityOp;
+ Journey h;Ready(h);auto& id=h.view.identity;h.untilLimit=12;
+ h.Screen(ChallongeConnectScreen);Profile(h,true,true);h.answer();
+ h.Choose("ch-connect");
+ Check(h.sent().back()->op==IdentityOp::ChallongeConnect,"Connect did not ask the helper to open Challonge");
+ h.answer(false,"sign_in_busy");
+ Check(h.status==loc::T("challonge.busy"),"A busy Challonge sign-in was not said in its own words");
+ Check(h.row("ch-connect")&&!h.row("ch-waiting")&&!h.row("ch-cancel"),"A busy Challonge sign-in still waits");
+ // Discord keeps its general words.
+ h.Screen("linked-accounts");
+ Check(h.until(IdentityOp::BridgeInspect),"Linked accounts did not read the service");
+ id.inspected=id.bridges[0];id.inspectedDiscord=true;h.answer();
+ Check(h.until(IdentityOp::DiscordStatus),"Linked accounts did not read Discord's account");
+ id.discordUser.clear();id.discordName.clear();h.answer();for(int i=0;i<4;++i)h.answer();
+ h.Choose("id-discord-connect");
+ Check(h.sent().back()->op==IdentityOp::DiscordConnect,"Connect did not open Discord");
+ h.answer(false,"sign_in_busy");
+ Check(h.status==loc::Tf("identity.failure.other","sign_in_busy"),"Discord's words for a refusal changed");
+}
+
 // A failed Challonge read says nothing off its own screen: Discord-only
 // players on the Ember ID screen see Discord as before, and Settings >
 // Discord reads only Discord's account.
@@ -342,6 +369,6 @@ void ChallongeReadsQuietly(){
 }
 }
 void RunChallongeConnectJourneys(){
- DiscordFirst();OneSignInAtATime();DiscordKeepsItsWait();LookingAtDiscordKeepsChallonge();ChallongeReadsQuietly();
+ DiscordFirst();ChallongeBusy();OneSignInAtATime();DiscordKeepsItsWait();LookingAtDiscordKeepsChallonge();ChallongeReadsQuietly();
  ChallongeRow();ChallongeConnects();ChallongeStops();ChallongeOffAndRetry();
 }

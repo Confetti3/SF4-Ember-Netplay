@@ -52,6 +52,25 @@ void IdentityPanel::EndOtherSignIn(SignInSite site) {
     if (signIn_ && signIn_->site != site && signIn_->phase != SignInAttempt::Phase::Stopped) CancelAttempt();
 }
 
+void IdentityPanel::RetireSignIn() {
+    if (!signIn_) return;
+    // The journey's own sign-in is no longer waited for, as it always was.
+    if (Site(signIn_->site).followsJourney) { signIn_.reset(); return; }
+    // Another site's waiting for the browser goes on: Discord's steps or page
+    // replace it only once they start (EndOtherSignIn). One whose page is
+    // still being opened ends on its service, since the new journey retires
+    // the answer it waits for. A page the helper is already opening still
+    // opens, harmlessly: the cancel that follows means it connects nothing.
+    if (signIn_->phase == SignInAttempt::Phase::Opening) CancelAttempt();
+}
+
+std::optional<std::string> IdentityPanel::SiteFailureText(IdentityOp op, const std::string& code) {
+    const auto signIn = netplay::SignInOf(op);
+    if (!signIn || code != "sign_in_busy") return std::nullopt;
+    const char* busy = Site(signIn->site).words.busy;
+    return busy ? std::optional<std::string>(loc::T(busy)) : std::nullopt;
+}
+
 bool IdentityPanel::WaitingOn(SignInSite site, const std::string& bridge) const {
     return signIn_ && signIn_->site == site && signIn_->bridge == bridge && signIn_->until > 0 && !signIn_->paused;
 }

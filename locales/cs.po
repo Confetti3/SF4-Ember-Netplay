@@ -3929,6 +3929,9 @@ msgstr "Turnajová služba Ember není nastavena"
 msgid "challonge.no_service_detail"
 msgstr "Challonge se připojuje přes turnajovou službu Ember. Nejprve ji vyhledejte v části Propojené účty a pak se sem vraťte."
 
+msgid "challonge.busy"
+msgstr "Přihlášení přes Challonge je teď vytížené. Zkuste to později."
+
 msgid "identity.failure.browser"
 msgstr "Ember nemohl otevřít váš prohlížeč."
 

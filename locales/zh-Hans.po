@@ -3929,6 +3929,9 @@ msgstr "尚未设置 Ember 的赛事服务"
 msgid "challonge.no_service_detail"
 msgstr "Challonge 通过 Ember 的赛事服务关联。请先在“已绑定账号”中查找该服务，然后回到这里。"
 
+msgid "challonge.busy"
+msgstr "Challonge 登录当前繁忙。请稍后再试。"
+
 msgid "identity.failure.browser"
 msgstr "Ember 无法打开你的浏览器。"
 

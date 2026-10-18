@@ -3929,6 +3929,9 @@ msgstr "Emberの大会サービスが設定されていません"
 msgid "challonge.no_service_detail"
 msgstr "ChallongeはEmberの大会サービスを通じて連携します。先に「連携アカウント」でサービスを探してから、ここに戻ってください。"
 
+msgid "challonge.busy"
+msgstr "現在Challongeでのサインインが混み合っています。しばらくしてからもう一度お試しください。"
+
 msgid "identity.failure.browser"
 msgstr "Emberはブラウザーを開けませんでした。"
 

@@ -3929,6 +3929,9 @@ msgstr "Le service de tournoi d'Ember n'est pas configuré"
 msgid "challonge.no_service_detail"
 msgstr "Challonge se connecte via le service de tournoi d'Ember. Recherchez-le d'abord dans Comptes associés, puis revenez ici."
 
+msgid "challonge.busy"
+msgstr "La connexion Challonge est saturée pour le moment. Réessayez plus tard."
+
 msgid "identity.failure.browser"
 msgstr "Ember n'a pas pu ouvrir votre navigateur."
 

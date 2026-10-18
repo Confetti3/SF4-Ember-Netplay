@@ -3570,6 +3570,9 @@ msgstr "Ember's tournament service is not set up"
 msgid "challonge.no_service_detail"
 msgstr "Challonge connects through Ember's tournament service. Look it up under Linked accounts first, then come back here."
 
+msgid "challonge.busy"
+msgstr "Challonge sign-in is busy right now. Try again later."
+
 msgid "identity.failure.browser"
 msgstr "Ember could not open your browser."
 

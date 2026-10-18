@@ -19,12 +19,8 @@ void IdentityPanel::OpenDiscord(const std::string& bridge, bool automatic) {
     const bool discord = signIn_ && signIn_->site == SignInSite::Discord;
     const bool same = bridge == connectBridge_ || (discord && bridge == signIn_->bridge);
     if ((steps_ != Steps::None || discord) && same) { lastScreen_.clear(); return; }
-    // A link the player just clicked runs the steps by itself, replacing
-    // another site's sign-in; one that waited for a room asks first. A page
-    // the helper is already opening (Challonge's) still opens, harmlessly:
-    // the cancel that follows ends that sign-in on the service, so it
-    // connects nothing.
-    if (automatic) EndOtherSignIn(SignInSite::Discord);
+    // A link the player just clicked runs the steps by itself (which end
+    // another site's sign-in); one that waited for a room asks first.
     NewJourney();
     connectBridge_ = bridge;
     if (automatic) StartSteps();

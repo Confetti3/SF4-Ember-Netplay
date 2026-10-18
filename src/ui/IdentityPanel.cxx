@@ -124,15 +124,9 @@ void IdentityPanel::DropQueue() {
 }
 
 void IdentityPanel::NewJourney() {
-    // Connect Discord's own sign-in is no longer waited for, as it always
-    // was. Another site's waiting for the browser goes on: opening Connect
-    // Discord replaces it only once Discord starts something (StartSteps,
-    // OpenSignIn). One whose page is still being opened ends on its service,
-    // since the new journey retires the answer it waits for.
-    if (signIn_ && signIn_->site != SignInSite::Discord && signIn_->phase == SignInAttempt::Phase::Opening) CancelAttempt();
+    RetireSignIn();
     ++journey_;
     steps_ = Steps::None;
-    if (signIn_ && signIn_->site == SignInSite::Discord) signIn_.reset();
     // The public rooms setup's requests are not the journey's.
     queue_.erase(std::remove_if(queue_.begin(), queue_.end(), [](const Queued& q) {
         return q.owner == Owner::Screens && Retirable(q.request.op);
@@ -378,7 +372,7 @@ void IdentityPanel::Finish(const ShellView& v) {
         }
         ReadFailed();
         // A background read on Home fails quietly; it is tried again.
-        if (Owns(lastScreen_) || !Retirable(sentOp_)) Say(FailureText(id.failure), true);
+        if (Owns(lastScreen_) || !Retirable(sentOp_)) Say(SiteFailureText(sentOp_, id.failure).value_or(FailureText(id.failure)), true);
         DropQueue(); return;
     }
     switch (sentOp_) {

@@ -3929,6 +3929,9 @@ msgstr "Serwis turniejowy Ember nie jest skonfigurowany"
 msgid "challonge.no_service_detail"
 msgstr "Challonge łączy się przez serwis turniejowy Ember. Najpierw wyszukaj go w sekcji Powiązane konta, a potem wróć tutaj."
 
+msgid "challonge.busy"
+msgstr "Logowanie przez Challonge jest teraz przeciążone. Spróbuj ponownie później."
+
 msgid "identity.failure.browser"
 msgstr "Ember nie mógł otworzyć przeglądarki."
 
