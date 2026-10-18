@@ -197,6 +197,12 @@ pub fn seen(set: Option<&Set>, entries: &[String; 2]) -> Seen {
     }
 }
 
+/// Whether each game's winning slot, in the order played, adds up to the
+/// score by slot.
+pub fn adds_up(sequence: &[usize], games: [u8; 2]) -> bool {
+    [0, 1].map(|slot| sequence.iter().filter(|&&won| won == slot).count()) == games.map(usize::from)
+}
+
 /// What a read does with a set the site lists as playable.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum OnOpen {
@@ -445,6 +451,14 @@ mod tests {
             on_result(&received(won), &other, Seen::Decided { winner: Some(0) }),
             OnResult::Close
         );
+    }
+
+    #[test]
+    fn games_add_up_to_the_score_or_not() {
+        assert!(adds_up(&[1, 0, 1], [1, 2]));
+        assert!(adds_up(&[], [0, 0]));
+        assert!(!adds_up(&[1, 1], [1, 2]));
+        assert!(!adds_up(&[0, 1, 1], [2, 1]));
     }
 
     #[test]

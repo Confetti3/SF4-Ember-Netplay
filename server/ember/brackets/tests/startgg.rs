@@ -1,15 +1,20 @@
 //! The start.gg adapter between a fake start.gg and a real bridge: players
 //! found by their start.gg account or the Discord account they linked
 //! there, sets started and reported game by game, a set the organizer
-//! decided never written over, and a Challonge and a start.gg tournament
-//! run by one connector.
+//! decided never written over, a report start.gg refuses sent again while
+//! the set stays open, a completed event, games that do not add up,
+//! entrants read again, and a Challonge and a start.gg tournament run by
+//! one connector.
 mod support;
 
+use axum::http::StatusCode;
 use ember_brackets::Adapter;
-use serde_json::json;
+use ember_protocol::{partner::result_id, webhook};
+use serde_json::{Value, json};
 use support::{
-    Extra, Setup, World,
+    CONNECTION, Extra, Setup, World,
     challonge::lines,
+    result_secret,
     startgg::{EVENT_SLUG, FakeEntrant, FakeSet, FakeStartgg, STARTGG_TOKEN},
 };
 
@@ -217,4 +222,195 @@ async fn one_connector_runs_a_challonge_and_a_startgg_tournament() {
             .all(|operation| operation != "Report")
     );
     assert_eq!(world.challonge.find("1001").winner.as_deref(), Some("355"));
+}
+
+const BRACKET: &str = "startgg:tournament/ember-weekly/event/usf4";
+
+/// Creates set 65089253's match and plays it to Sam's 2-1 win, delivered.
+async fn played(fake: &FakeStartgg, world: &World) -> String {
+    world.connector.pass(true).await;
+    let match_id = world.bridge.matches().await[0].1.clone();
+    world.play(&match_id, &[1, 0, 1]).await;
+    world.bridge.deliver().await;
+    fake.log();
+    match_id
+}
+
+#[tokio::test]
+async fn a_report_start_gg_refuses_while_the_set_stays_open_is_sent_again() {
+    let fake = fake().await;
+    let world = world(&fake, false).await;
+    fake.state.lock().unwrap().report_errors.extend([
+        // An expired token, then a refusal start.gg does not explain.
+        (
+            StatusCode::BAD_REQUEST,
+            "Invalid authentication token".into(),
+        ),
+        (StatusCode::OK, "Something went wrong".into()),
+    ]);
+    played(&fake, &world).await;
+    world.connector.pass(false).await;
+    assert_eq!(fake.operations(), ["Sets", "Set", "Report"]);
+    world.advance(61);
+    world.connector.pass(false).await;
+    // Read again after the refusal: still open, so the score waits.
+    assert_eq!(fake.operations(), ["Sets", "Set", "Report", "Set"]);
+    assert_eq!(world.progress(BRACKET, "65089253"), "live");
+
+    world.advance(121);
+    world.connector.pass(false).await;
+    assert_eq!(fake.operations(), ["Sets", "Set", "Report"]);
+    let set = fake.set(65_089_253);
+    assert_eq!((set.state, set.winner), (3, Some(2_401_412)));
+    assert_eq!(world.progress(BRACKET, "65089253"), "reported");
+}
+
+#[tokio::test]
+async fn a_report_refused_again_and_again_is_left_to_the_organizer() {
+    let fake = fake().await;
+    let world = world(&fake, false).await;
+    fake.state
+        .lock()
+        .unwrap()
+        .report_errors
+        .extend(std::iter::repeat_n((StatusCode::OK, "Nope".to_owned()), 20));
+    played(&fake, &world).await;
+    let mut reports = 0;
+    while world.progress(BRACKET, "65089253") == "live" && reports < 20 {
+        world.connector.pass(false).await;
+        reports += fake
+            .operations()
+            .iter()
+            .filter(|operation| *operation == "Report")
+            .count();
+        world.advance(3_601);
+    }
+    assert_eq!(reports, 12);
+    assert_eq!(world.progress(BRACKET, "65089253"), "stuck");
+    world.connector.pass(false).await;
+    assert!(
+        fake.operations()
+            .iter()
+            .all(|operation| operation != "Report")
+    );
+    assert_eq!(fake.set(65_089_253).winner, None);
+}
+
+#[tokio::test]
+async fn a_set_its_players_started_meanwhile_is_still_played() {
+    let fake = fake().await;
+    let world = world(&fake, false).await;
+    // Started on start.gg between the read and the connector marking it:
+    // start.gg answers "Set is already started", which is no failure.
+    fake.state.lock().unwrap().start_after_list = Some(65_089_253);
+    world.connector.pass(true).await;
+    assert_eq!(fake.operations(), ["Event", "Sets", "Entrants", "Underway"]);
+    assert_eq!(world.progress(BRACKET, "65089253"), "live");
+    let match_id = world.bridge.matches().await[0].1.clone();
+    world.play(&match_id, &[0, 0]).await;
+    world.bridge.deliver().await;
+    world.connector.pass(false).await;
+    assert_eq!(fake.operations(), ["Sets", "Set", "Report"]);
+    assert_eq!(world.progress(BRACKET, "65089253"), "reported");
+}
+
+#[tokio::test]
+async fn a_completed_event_is_not_read_again() {
+    let fake = FakeStartgg::start(
+        vec![
+            FakeEntrant {
+                id: 2_401_411,
+                user: Some(KATE_USER),
+                discord: None,
+            },
+            FakeEntrant {
+                id: 2_401_412,
+                user: Some(5_002),
+                discord: Some(SAM_DISCORD.into()),
+            },
+        ],
+        vec![FakeSet::open(65_089_253, 1, [2_401_411, 2_401_412])],
+    )
+    .await;
+    let world = world(&fake, false).await;
+    played(&fake, &world).await;
+    world.connector.pass(false).await;
+    assert_eq!(fake.operations(), ["Sets", "Set", "Report"]);
+    // No set is open now, and start.gg says the event is over.
+    world.advance(601);
+    world.connector.pass(true).await;
+    assert_eq!(fake.operations(), ["Sets", "Event"]);
+    world.advance(3_600);
+    world.connector.pass(true).await;
+    assert!(fake.operations().is_empty());
+}
+
+#[tokio::test]
+async fn games_that_do_not_add_up_to_the_score_are_not_reported() {
+    let fake = fake().await;
+    let world = world(&fake, false).await;
+    world.connector.pass(true).await;
+    let match_id = world.bridge.matches().await[0].1.clone();
+    world.play(&match_id, &[1, 0, 1]).await;
+    fake.log();
+    // A result that says 2-0 for a match whose games went 2-1.
+    let found = world.snapshot(&match_id).await;
+    let participants: Vec<Value> = found["participants"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|seat| {
+            json!({
+                "participant_id": seat["participant_id"],
+                "ember_id": seat["ember_id"],
+                "slot": seat["slot"],
+                "score": if seat["slot"] == 1 { 2 } else { 0 },
+            })
+        })
+        .collect();
+    let winner = participants[1]["participant_id"].clone();
+    let body = json!({
+        "type": "io.ember.tournament.match.result.v1",
+        "bridge_id": "brg_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a11",
+        "connection_id": CONNECTION,
+        "match_id": match_id,
+        "external_match_id": format!("startgg:{EVENT_SLUG}:65089253:1"),
+        "outcome": "completed",
+        "revision": "9",
+        "participants": participants,
+        "winner_participant_id": winner,
+    });
+    let bytes = serde_json::to_vec(&body).unwrap();
+    let headers = webhook::sign(
+        &[&result_secret()],
+        &result_id(&match_id),
+        world.clock.now(),
+        &bytes,
+    )
+    .unwrap();
+    assert_eq!(world.connector.accept(&headers, &bytes), Ok(true));
+    world.connector.pass(false).await;
+    assert_eq!(fake.operations(), ["Sets"]);
+    assert_eq!(world.progress(BRACKET, "65089253"), "stuck");
+}
+
+#[tokio::test]
+async fn entrants_are_read_again_for_accounts_linked_since() {
+    let fake = fake().await;
+    // Sam has not linked Discord on start.gg yet.
+    fake.state.lock().unwrap().entrants[1].discord = None;
+    let world = world(&fake, false).await;
+    world.connector.pass(true).await;
+    assert_eq!(fake.operations(), ["Event", "Sets", "Entrants"]);
+    assert!(world.bridge.matches().await.is_empty());
+
+    fake.state.lock().unwrap().entrants[1].discord = Some(SAM_DISCORD.into());
+    world.advance(600);
+    world.connector.pass(true).await;
+    assert_eq!(fake.operations(), ["Sets"]);
+    // A quarter of an hour after the last read of them.
+    world.advance(300);
+    world.connector.pass(true).await;
+    assert_eq!(fake.operations(), ["Sets", "Entrants", "Underway"]);
+    assert_eq!(world.bridge.matches().await.len(), 1);
 }

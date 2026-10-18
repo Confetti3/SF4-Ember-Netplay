@@ -1,7 +1,10 @@
 //! A fake start.gg GraphQL endpoint for one event: it answers the queries
 //! and mutations the connector sends, by operation name, checks the token,
 //! and logs each operation with its variables.
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::VecDeque,
+    sync::{Arc, Mutex},
+};
 
 use axum::{
     Router,
@@ -78,6 +81,12 @@ pub struct StartggState {
     /// The organizer reports this set by hand (the first entrant winning)
     /// just as the connector reads it again before reporting.
     pub decide_on_reread: Option<u64>,
+    /// The next reports are refused with these HTTP statuses and error
+    /// texts, and not recorded.
+    pub report_errors: VecDeque<(StatusCode, String)>,
+    /// Its players start this set on start.gg just after a list of sets
+    /// shows it not started.
+    pub start_after_list: Option<u64>,
 }
 
 impl StartggState {
@@ -179,6 +188,11 @@ async fn graphql(
                 .map(FakeSet::to_json)
                 .collect();
             let (nodes, total) = page(&open, &variables);
+            if let Some(id) = state.start_after_list.take()
+                && let Some(set) = state.sets.iter_mut().find(|set| set.id == id)
+            {
+                set.state = 2;
+            }
             json!({ "event": { "sets": { "pageInfo": { "totalPages": total }, "nodes": nodes } } })
         }
         "Set" => {
@@ -205,6 +219,9 @@ async fn graphql(
             None => Value::Null,
         },
         "Report" => {
+            if let Some((status, message)) = state.report_errors.pop_front() {
+                return answer(status, json!({ "errors": [{ "message": message }] }));
+            }
             let winner = variables["winnerId"]
                 .as_str()
                 .and_then(|id| id.parse().ok());
@@ -240,6 +257,8 @@ impl FakeStartgg {
             sets,
             log: Vec::new(),
             decide_on_reread: None,
+            report_errors: VecDeque::new(),
+            start_after_list: None,
         }));
         let app = Router::new()
             .route("/gql/alpha", post(graphql))

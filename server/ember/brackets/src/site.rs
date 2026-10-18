@@ -32,6 +32,12 @@ pub trait Site: Send + Sync {
     fn names_can_change(&self) -> bool {
         false
     }
+
+    /// Whether `report` uses each game's winner (`Report::sequence`), which
+    /// the connector then reads from the bridge before reporting.
+    fn wants_games(&self) -> bool {
+        false
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -110,14 +116,17 @@ impl Set {
 }
 
 /// A finished set's score: each entry's games won, player 1 first, the
-/// winning entry's index, and the winning entry of each game in the order
-/// they were played, for a site that takes games one by one.
+/// winning entry's index, and, for a site that `wants_games`, the winning
+/// entry of each game in the order they were played.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Report {
     pub entries: [String; 2],
     pub games: [u8; 2],
     pub winner: usize,
     pub sequence: Vec<usize>,
+    /// The same on every delivery of this result (the Ember match's ID), so
+    /// a site can tell a repeat from a different result.
+    pub key: String,
 }
 
 #[derive(Debug)]
@@ -125,7 +134,9 @@ pub enum SiteError {
     /// Not reached, or failing on its side (including rate limits and a
     /// credential it refuses): try again later.
     Unavailable(String),
-    /// The site refused the request as it stands.
+    /// The site refused the request as it stands. A refused read is tried
+    /// again under the same growing wait as `Unavailable`; a refused report
+    /// is final, and the organizer enters that set's score.
     Refused(String),
     /// A scheduled read would go past the site's request budget.
     BudgetSpent,

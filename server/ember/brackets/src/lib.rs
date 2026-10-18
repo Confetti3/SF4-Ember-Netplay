@@ -32,7 +32,6 @@ mod startgg;
 mod store;
 
 use std::{
-    collections::HashMap,
     net::SocketAddr,
     sync::{
         Arc,
@@ -55,7 +54,7 @@ use bridge::BridgeClient;
 use budget::Budget;
 use challonge::Challonge;
 use config::read_secret;
-use limit::Limiter;
+use limit::Limiters;
 use results::Gate;
 use service::Service;
 use startgg::Startgg;
@@ -146,8 +145,8 @@ impl Connector {
             max_poll_secs: config.max_poll_secs,
             pointed_out: Default::default(),
         });
-        // By a digest of the token: one limit however many files hold it.
-        let mut limiters: HashMap<String, Limiter> = HashMap::new();
+        let (count, secs) = startgg::RATE;
+        let mut limiters = Limiters::new(count, Duration::from_secs(secs));
         let brackets = config
             .tournaments
             .iter()
@@ -186,16 +185,8 @@ impl Connector {
                         tournament.bridge_site(),
                         &credential,
                         // One limit for everything that uses this token.
-                        limiters
-                            .entry(
-                                ember_protocol::json::digest(credential.as_str())
-                                    .unwrap_or_default(),
-                            )
-                            .or_insert_with(|| {
-                                let (count, secs) = startgg::RATE;
-                                Limiter::new(count, Duration::from_secs(secs))
-                            })
-                            .clone(),
+                        limiters.for_token(&credential),
+                        clock.clone(),
                     )?),
                 };
                 Ok(Arc::new(Bracket::new(tournament, site, context.clone())?))

@@ -5,6 +5,8 @@
 //! The service names each entry's accounts itself, site and all, and keeps
 //! its own request limits; the connector adds everything else the contract
 //! promises (one live match per set, evidence, retries, verified results).
+use std::{collections::HashSet, sync::Mutex};
+
 use reqwest::{
     Method, StatusCode,
     header::{ACCEPT, AUTHORIZATION, HeaderMap, HeaderValue},
@@ -15,6 +17,7 @@ use serde_json::{Value, json};
 use crate::{
     config::is_slug,
     http::{bounded_body, http_client},
+    log,
     site::{Account, Entry, Purpose, Report, Set, Site, SiteError, SiteFuture, Standing, Status},
 };
 
@@ -23,6 +26,8 @@ use crate::{
 /// older version with 400.
 pub const CONTRACT: &str = "1";
 const CONTRACT_HEADER: &str = "ember-brackets-contract";
+/// The same on every delivery of one result.
+const IDEMPOTENCY_HEADER: &str = "idempotency-key";
 const MAX_ANSWER: usize = 1024 * 1024;
 
 pub(crate) struct Service {
@@ -30,18 +35,21 @@ pub(crate) struct Service {
     /// The service's base URL, without a trailing `/`.
     base: String,
     headers: HeaderMap,
+    /// Sets left out of a read for their shape, each said once.
+    left_out: Mutex<HashSet<String>>,
 }
 
-/// `GET {base}/sets?state=open`.
+/// `GET {base}/sets?state=open`. Each set is read on its own, so one out of
+/// shape leaves only itself out.
 #[derive(Deserialize)]
 struct SetList {
-    sets: Vec<WireSet>,
+    sets: Vec<Value>,
 }
 
-/// `GET {base}/sets/{id}`.
+/// `GET {base}/sets/{id}`: `null` when the service has no such set.
 #[derive(Deserialize)]
 struct OneSet {
-    set: WireSet,
+    set: Option<WireSet>,
 }
 
 #[derive(Deserialize)]
@@ -185,15 +193,18 @@ impl Service {
             http: http_client()?,
             base: base.trim_end_matches('/').to_owned(),
             headers,
+            left_out: Mutex::default(),
         })
     }
 
-    /// One request. `None` when the service answers 404.
+    /// One request. `None` when the service answers 404, which the caller
+    /// reads: it is never taken as a set being gone.
     async fn call<T: DeserializeOwned>(
         &self,
         method: Method,
         path: &str,
         body: Option<Value>,
+        idempotency_key: Option<&str>,
     ) -> Result<Option<T>, SiteError> {
         let mut request = self
             .http
@@ -201,6 +212,9 @@ impl Service {
             .headers(self.headers.clone());
         if let Some(body) = body {
             request = request.json(&body);
+        }
+        if let Some(key) = idempotency_key {
+            request = request.header(IDEMPOTENCY_HEADER, key);
         }
         let response = request
             .send()
@@ -232,29 +246,69 @@ impl Service {
         }
     }
 
+    /// A request whose 404 is the service not answering as it should (a
+    /// route moved, a proxy in between): try again later.
+    async fn call_found<T: DeserializeOwned>(
+        &self,
+        method: Method,
+        path: &str,
+        body: Option<Value>,
+        idempotency_key: Option<&str>,
+    ) -> Result<T, SiteError> {
+        self.call(method, path, body, idempotency_key)
+            .await?
+            .ok_or_else(|| SiteError::Unavailable(format!("the service answered 404 to {path}")))
+    }
+
+    /// The open sets. A set not in the contract's shape is left out, and
+    /// said once, rather than failing the read for every other set.
     async fn read_open_sets(&self) -> Result<Vec<Set>, SiteError> {
         let list: SetList = self
-            .call(Method::GET, "/sets?state=open", None)
-            .await?
-            .ok_or_else(|| SiteError::Refused("the service has no /sets".into()))?;
+            .call_found(Method::GET, "/sets?state=open", None, None)
+            .await?;
+        let mut left_out = self.left_out.lock().unwrap_or_else(|e| e.into_inner());
         Ok(list
             .sets
             .into_iter()
-            .filter_map(WireSet::into_set)
+            .enumerate()
+            .filter_map(|(index, value)| {
+                let set = serde_json::from_value::<WireSet>(value.clone())
+                    .ok()
+                    .and_then(WireSet::into_set);
+                if set.is_none() {
+                    let name = value["id"]
+                        .as_str()
+                        .map_or_else(|| format!("number {}", index + 1), str::to_owned);
+                    if left_out.insert(name.clone()) {
+                        log!("the service's set {name} is not in the contract's shape; it is left out");
+                    }
+                }
+                set
+            })
             .collect())
     }
 
+    /// The set, or `None` only when the service answers `{"set": null}`.
     async fn read_set(&self, id: &str) -> Result<Option<Set>, SiteError> {
         if !is_slug(id) {
             return Ok(None);
         }
-        let found: Option<OneSet> = self.call(Method::GET, &format!("/sets/{id}"), None).await?;
-        Ok(found.and_then(|found| found.set.into_set()))
+        let found: OneSet = self
+            .call_found(Method::GET, &format!("/sets/{id}"), None, None)
+            .await?;
+        match found.set {
+            None => Ok(None),
+            Some(set) => set.into_set().map(Some).ok_or_else(|| {
+                SiteError::Unavailable(format!(
+                    "the service's set {id} is not in the contract's shape"
+                ))
+            }),
+        }
     }
 
-    /// A service without `/standing` is taken as running.
+    /// A service without `/standing` (404) is taken as running.
     async fn read_standing(&self) -> Result<Standing, SiteError> {
-        let found: Option<WireStanding> = self.call(Method::GET, "/standing", None).await?;
+        let found: Option<WireStanding> = self.call(Method::GET, "/standing", None, None).await?;
         Ok(match found.map(|found| found.standing) {
             Some(StandingName::Finished) => Standing::Finished,
             Some(StandingName::PlayedOut) => Standing::PlayedOut,
@@ -262,21 +316,32 @@ impl Service {
         })
     }
 
-    /// A POST whose 404 means the set is not there to change.
-    async fn post(&self, id: &str, action: &str, body: Value) -> Result<(), SiteError> {
+    async fn post(
+        &self,
+        id: &str,
+        action: &str,
+        body: Value,
+        idempotency_key: Option<&str>,
+    ) -> Result<(), SiteError> {
         if !is_slug(id) {
             return Err(SiteError::Refused(format!("{id:?} is not a set ID")));
         }
-        let done: Option<Value> = self
-            .call(Method::POST, &format!("/sets/{id}/{action}"), Some(body))
+        let _: Value = self
+            .call_found(
+                Method::POST,
+                &format!("/sets/{id}/{action}"),
+                Some(body),
+                idempotency_key,
+            )
             .await?;
-        done.map(|_| ())
-            .ok_or_else(|| SiteError::Refused("the service has no such set".into()))
+        Ok(())
     }
 
+    /// Sent at least once: a report whose answer is lost is sent again
+    /// under the same key, which the service answers as it did the first.
     async fn send_report(&self, id: &str, report: &Report) -> Result<(), SiteError> {
         let body = serde_json::to_value(WireReport::of(report)).map_err(|_| unexpected())?;
-        self.post(id, "report", body).await
+        self.post(id, "report", body, Some(&report.key)).await
     }
 }
 
@@ -295,8 +360,12 @@ impl Site for Service {
         Box::pin(self.read_standing())
     }
 
+    fn wants_games(&self) -> bool {
+        true
+    }
+
     fn mark_underway<'a>(&'a self, id: &'a str) -> SiteFuture<'a, ()> {
-        Box::pin(self.post(id, "underway", json!({})))
+        Box::pin(self.post(id, "underway", json!({}), None))
     }
 
     fn report<'a>(&'a self, id: &'a str, report: &'a Report) -> SiteFuture<'a, ()> {
@@ -370,6 +439,7 @@ mod tests {
             games: [1, 2],
             winner: 1,
             sequence: vec![1, 0, 1],
+            key: "emt_1".into(),
         };
         assert_eq!(
             serde_json::to_value(WireReport::of(&report)).unwrap(),

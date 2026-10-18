@@ -62,9 +62,13 @@ pub(crate) struct Over {
     pub delivery: DeliveryState,
 }
 
-/// The players found for a lookup's accounts, by the account as asked.
+/// The players found for a lookup's accounts, by the account as asked,
+/// and the accounts the bridge would not look up, with its reason.
 #[derive(Default)]
-pub(crate) struct Found(HashMap<Account, Player>);
+pub(crate) struct Found {
+    players: HashMap<Account, Player>,
+    refused: HashMap<Account, String>,
+}
 
 impl Found {
     /// The entry's player, by the first of its accounts that was found.
@@ -72,8 +76,29 @@ impl Found {
         entry
             .accounts
             .iter()
-            .find_map(|account| Some((account, self.0.get(account)?)))
+            .find_map(|account| Some((account, self.players.get(account)?)))
     }
+
+    /// The first of the entry's accounts the bridge would not look up, and
+    /// why.
+    pub fn refusal<'a>(&'a self, entry: &'a Entry) -> Option<(&'a Account, &'a str)> {
+        entry
+            .accounts
+            .iter()
+            .find_map(|account| Some((account, self.refused.get(account)?.as_str())))
+    }
+}
+
+/// A refusal of a whole lookup for what one of its accounts is: an ID not
+/// in its site's form, or a site the connection may not find players by.
+fn names_an_account(error: &BridgeError) -> bool {
+    matches!(
+        error,
+        BridgeError::Refused {
+            code: ErrorCode::InvalidRequest | ErrorCode::Forbidden,
+            ..
+        }
+    )
 }
 
 /// A lookup of these accounts, in the bridge's request form.
@@ -247,21 +272,38 @@ impl BridgeClient {
     }
 
     /// The players connected to these accounts, asked for in lookups of at
-    /// most `MAX_LOOKUP` accounts, Discord's and sites' together. Each site
-    /// adapter gives only accounts in the form its bridge site looks up
-    /// (`sites::Kind::is_lookup_id`), since the bridge refuses a lookup
-    /// that names any other.
+    /// most `MAX_LOOKUP` accounts, Discord's and sites' together. The
+    /// bridge refuses a whole lookup that names one account it will not
+    /// look up; that lookup's accounts are then asked one by one, so only
+    /// that account's entry waits. Bridge requests cost no site budget.
     pub async fn lookup(&self, accounts: &[&Account]) -> Result<Found, BridgeError> {
         let mut asked = accounts.to_vec();
         asked.sort_by_key(|account| account.to_string());
         asked.dedup();
         let mut found = Found::default();
         for chunk in asked.chunks(MAX_LOOKUP) {
-            let request = self.post(LOOKUP_PATH).json(&lookup_of(chunk));
-            let answer: LookupAnswer = self.answer(request).await?;
-            found.0.extend(found_in(answer));
+            match self.lookup_once(chunk).await {
+                Ok(answer) => found.players.extend(found_in(answer)),
+                Err(error) if names_an_account(&error) => {
+                    for &account in chunk {
+                        match self.lookup_once(&[account]).await {
+                            Ok(answer) => found.players.extend(found_in(answer)),
+                            Err(error) if names_an_account(&error) => {
+                                found.refused.insert(account.clone(), error.to_string());
+                            }
+                            Err(error) => return Err(error),
+                        }
+                    }
+                }
+                Err(error) => return Err(error),
+            }
         }
         Ok(found)
+    }
+
+    async fn lookup_once(&self, accounts: &[&Account]) -> Result<LookupAnswer, BridgeError> {
+        let request = self.post(LOOKUP_PATH).json(&lookup_of(accounts));
+        self.answer(request).await
     }
 
     /// Creates the match, or finds the one this `external_match_id` already
@@ -411,9 +453,9 @@ mod tests {
             accounts: vec![site.clone(), discord.clone()],
         };
         let mut found = Found::default();
-        found.0.insert(discord.clone(), player("epl_discord"));
+        found.players.insert(discord.clone(), player("epl_discord"));
         assert_eq!(found.player(&entry).unwrap().0, &discord);
-        found.0.insert(site.clone(), player("epl_site"));
+        found.players.insert(site.clone(), player("epl_site"));
         let (account, by_site) = found.player(&entry).unwrap();
         assert_eq!(
             (account, by_site.participant_id.as_str()),
@@ -424,5 +466,22 @@ mod tests {
             accounts: Vec::new(),
         };
         assert!(found.player(&none).is_none());
+        // An account the bridge would not look up is the reason given.
+        let refused = Account::Site {
+            site: "startgg".into(),
+            id: "kate".into(),
+        };
+        found
+            .refused
+            .insert(refused.clone(), "invalid_request (no ID)".into());
+        let waiting = Entry {
+            participant_id: "353".into(),
+            accounts: vec![refused.clone()],
+        };
+        assert!(found.player(&waiting).is_none());
+        assert_eq!(
+            found.refusal(&waiting),
+            Some((&refused, "invalid_request (no ID)"))
+        );
     }
 }

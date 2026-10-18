@@ -18,7 +18,7 @@ mod start;
 use std::{
     collections::{HashMap, HashSet},
     fmt,
-    sync::Arc,
+    sync::{Arc, atomic::AtomicBool},
     time::Duration,
 };
 
@@ -32,7 +32,8 @@ use crate::{
     log,
     schedule::{Phase, Retry, Schedule, Window},
     sets::{
-        MAX_ATTEMPTS, OnOpen, OnResult, Progress, Received, Seen, Tracked, on_open, on_result, seen,
+        MAX_ATTEMPTS, OnOpen, OnResult, Progress, Received, Seen, Tracked, adds_up, on_open,
+        on_result, seen,
     },
     site::{Purpose, Report, Set, Site, SiteError, Standing},
     store::Store,
@@ -62,6 +63,9 @@ pub(crate) struct Bracket {
     window: Window,
     mark_underway: bool,
     context: Arc<Context>,
+    /// Whether the last lookup of players failed, so a failure is logged
+    /// once until lookups work again.
+    lookup_failing: AtomicBool,
     /// Held for a whole pass.
     state: Mutex<State>,
     pub wake: Notify,
@@ -160,6 +164,7 @@ impl Bracket {
             window: tournament.window()?,
             mark_underway: tournament.mark_underway,
             context,
+            lookup_failing: AtomicBool::new(false),
             state: Mutex::new(State {
                 schedule,
                 retry: Retry::default(),
@@ -423,11 +428,14 @@ impl Bracket {
         let match_id = &received.match_id;
         match on_result(received, &tracked, seen(set.as_ref(), &tracked.entries)) {
             OnResult::Report { games, winner } => {
-                // The games one by one, which they must add up to.
-                let sequence = self.context.bridge.sequence(match_id).await?;
-                let counted =
-                    [0, 1].map(|slot| sequence.iter().filter(|&&won| won == slot).count());
-                if counted != games.map(usize::from) {
+                // The games one by one, for a site that takes them, which
+                // must add up to the score.
+                let sequence = if self.site.wants_games() {
+                    self.context.bridge.sequence(match_id).await?
+                } else {
+                    Vec::new()
+                };
+                if self.site.wants_games() && !adds_up(&sequence, games) {
                     tracked.progress = Progress::Stuck;
                     self.store().save(&self.key, set_id, &tracked, None)?;
                     log!(
@@ -441,6 +449,7 @@ impl Bracket {
                     games,
                     winner,
                     sequence,
+                    key: match_id.clone(),
                 };
                 self.report(set_id, tracked, &report, match_id).await?;
                 settled.reported.insert(set_id.clone());

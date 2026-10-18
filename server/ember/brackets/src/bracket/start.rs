@@ -1,11 +1,12 @@
 //! Creating a set's Ember match: finding its players on the bridge, saving
 //! the creation before it is sent, and recording the bridge's answer.
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::atomic::Ordering};
 
 use ember_protocol::{
+    Error as ProtocolError,
     api::ErrorCode,
     event::rfc3339,
-    matches::{CreateMatch, Participant, Rules},
+    matches::{CreateMatch, MAX_METADATA_VALUE, Participant, Rules},
     play,
 };
 
@@ -35,9 +36,19 @@ impl Bracket {
             .flat_map(|entry| &entry.accounts)
             .collect();
         let found = match self.context.bridge.lookup(&accounts).await {
-            Ok(found) => found,
+            Ok(found) => {
+                if self.lookup_failing.swap(false, Ordering::Relaxed) {
+                    log!("{}: players can be looked up again", self.key);
+                }
+                found
+            }
             Err(error) => {
-                log!("{}: cannot look players up: {error}", self.key);
+                if !self.lookup_failing.swap(true, Ordering::Relaxed) {
+                    log!(
+                        "{}: cannot look players up: {error}; no match is created until the bridge answers",
+                        self.key
+                    );
+                }
                 return Ok(false);
             }
         };
@@ -65,9 +76,11 @@ impl Bracket {
             return Ok(false);
         };
         let players = entries.each_ref().map(|entry| {
-            found
-                .player(entry)
-                .ok_or_else(|| match entry.accounts.as_slice() {
+            found.player(entry).ok_or_else(|| {
+                if let Some((account, why)) = found.refusal(entry) {
+                    return format!("the bridge will not look up {account}: {why}");
+                }
+                match entry.accounts.as_slice() {
                     [] => format!(
                         "entry {} has no account to find its player by",
                         entry.participant_id
@@ -76,7 +89,8 @@ impl Bracket {
                         let names: Vec<String> = accounts.iter().map(Account::to_string).collect();
                         format!("{} has not connected in Ember", names.join(" or "))
                     }
-                })
+                }
+            })
         });
         let command = match players {
             [Ok(one), Ok(two)] => {
@@ -87,12 +101,22 @@ impl Bracket {
             }
             [Err(why), _] | [_, Err(why)] => return self.note(set, attempt, Some(&why)),
         };
-        if command.check().is_err() {
-            return self.note(
-                set,
-                attempt,
-                Some("its two entries are the same Ember player"),
-            );
+        match command.check() {
+            Ok(()) => {}
+            Err(ProtocolError::InvalidField("participants")) => {
+                return self.note(
+                    set,
+                    attempt,
+                    Some("its two entries are the same Ember player"),
+                );
+            }
+            Err(error) => {
+                return self.note(
+                    set,
+                    attempt,
+                    Some(&format!("its match would be refused: {error}")),
+                );
+            }
         }
         let tracked = Tracked {
             entries: entries.clone().map(|entry| entry.participant_id),
@@ -227,7 +251,10 @@ impl Bracket {
             observer_policy: "authorized_only".into(),
             result_policy: "two_player_agreement_or_review".into(),
             required_build_id: self.context.build_id.clone(),
-            metadata: BTreeMap::from([("round_label".to_owned(), set.round_label.clone())]),
+            metadata: BTreeMap::from([(
+                "round_label".to_owned(),
+                round_label(&set.round_label).to_owned(),
+            )]),
         }
     }
 
@@ -253,5 +280,31 @@ impl Bracket {
                 );
             }
         }
+    }
+}
+
+/// A round label as match metadata takes it: cut to the bridge's limit on
+/// a metadata value, at a character boundary.
+fn round_label(label: &str) -> &str {
+    let mut end = label.len().min(MAX_METADATA_VALUE);
+    while !label.is_char_boundary(end) {
+        end -= 1;
+    }
+    &label[..end]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_long_round_label_is_cut_where_a_character_ends() {
+        assert_eq!(round_label("Winners Final"), "Winners Final");
+        let long = "\u{fc}".repeat(MAX_METADATA_VALUE);
+        let cut = round_label(&long);
+        assert_eq!(cut.len(), MAX_METADATA_VALUE);
+        assert!(cut.chars().all(|c| c == '\u{fc}'));
+        let odd = format!("x{long}");
+        assert_eq!(round_label(&odd).len(), MAX_METADATA_VALUE - 1);
     }
 }

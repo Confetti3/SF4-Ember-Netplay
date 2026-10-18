@@ -103,7 +103,16 @@ game's winner in the order played, after reading the set again: a set that
 already has a result is never written over. Requests wait their turn under
 start.gg's limit of 80 a minute (the connector keeps to 70), shared by every
 tournament using the same token. Sets of a phase that has not started (start.gg
-"preview" sets) and sets with a bye are never played.
+"preview" sets) and sets with a bye are never played. The entrants are read
+again every 15 minutes, so a Discord account a player links on start.gg
+after the first read is found within that.
+
+A token start.gg refuses (an HTTP 400 or 401) is waited out like any other
+failure, until the organizer fixes it; no set is given up for it. A score
+start.gg refuses with an error it does not explain is sent again, while the
+set is still open with the same entrants and no winner, up to 12 times
+(about half a day under the growing wait) before the organizer decides the
+set.
 
 A service of the organizer's own: see [ADAPTERS.md](ADAPTERS.md).
 
@@ -125,7 +134,9 @@ A `direct` connection on the bridge for the connector, with:
 `lookup_sites` names the bridge's sign-in sites whose accounts the
 connector may look players up by; `discord_lookup` lets it fall back to
 Discord accounts. The bridge refuses a lookup that names a site not listed,
-so every `bridge_site` the connector's tournaments use must be in it.
+so every `bridge_site` the connector's tournaments use must be in it. An
+entry with an account the bridge refuses waits, with the reason logged once,
+and every other set is played.
 
 its provider credential
 (`ember-bridge credential <bridge.json> provider <connection> "<label>"`) and

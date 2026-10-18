@@ -1,7 +1,11 @@
 //! A site's own request rate, kept on this side: start.gg allows 80
 //! requests in any 60 seconds per token. Every tournament using one token
 //! shares its limiter, and a request waits rather than being refused.
-use std::{collections::VecDeque, sync::Arc, time::Duration};
+use std::{
+    collections::{HashMap, VecDeque},
+    sync::Arc,
+    time::Duration,
+};
 
 use tokio::{sync::Mutex, time::Instant};
 
@@ -64,9 +68,51 @@ impl Limiter {
     }
 }
 
+/// One `Limiter` per token, found by the token's digest, so every
+/// tournament configured with the same token shares one, whichever file
+/// holds it.
+pub(crate) struct Limiters {
+    limit: usize,
+    span: Duration,
+    by_token: HashMap<String, Limiter>,
+}
+
+impl Limiters {
+    pub fn new(limit: usize, span: Duration) -> Self {
+        Self {
+            limit,
+            span,
+            by_token: HashMap::new(),
+        }
+    }
+
+    pub fn for_token(&mut self, token: &str) -> Limiter {
+        let key = ember_protocol::json::digest(token).unwrap_or_default();
+        self.by_token
+            .entry(key)
+            .or_insert_with(|| Limiter::new(self.limit, self.span))
+            .clone()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn one_token_has_one_limit() {
+        let mut limiters = Limiters::new(1, Duration::from_secs(60));
+        let first = limiters.for_token("token-a");
+        let same = limiters.for_token("token-a");
+        let other = limiters.for_token("token-b");
+        first.admit().await;
+        let waits = |limiter: &Limiter| {
+            let window = limiter.0.try_lock().unwrap().wait(Instant::now());
+            window.is_some()
+        };
+        assert!(waits(&same), "the same token shares the request sent");
+        assert!(!waits(&other), "another token has its own limit");
+    }
 
     #[test]
     fn no_span_holds_more_than_the_limit() {

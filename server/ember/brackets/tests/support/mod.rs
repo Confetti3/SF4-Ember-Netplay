@@ -45,6 +45,8 @@ pub struct World {
     pub challonge: FakeChallonge,
     pub bridge: TestBridge,
     pub connector: Connector,
+    /// Where the connector receives results.
+    pub results_url: String,
     /// The connector's clock, frozen at the same second as the bridge's;
     /// `advance` moves both.
     pub clock: Clock,
@@ -203,6 +205,7 @@ impl World {
             challonge,
             bridge,
             connector,
+            results_url,
             clock,
             provider,
             organizer,
@@ -221,6 +224,18 @@ impl World {
     /// crash would leave behind.
     pub fn database(&self) -> rusqlite::Connection {
         rusqlite::Connection::open(&self.config.database).unwrap()
+    }
+
+    /// How the connector's attempt at a set stands (`waiting`, `live`,
+    /// `reported`, `stuck`, ...).
+    pub fn progress(&self, bracket: &str, set_id: &str) -> String {
+        self.database()
+            .query_row(
+                "SELECT progress FROM sets WHERE bracket = ?1 AND set_id = ?2",
+                [bracket, set_id],
+                |row| row.get(0),
+            )
+            .unwrap()
     }
 
     /// A connector over the same files, as after a restart.

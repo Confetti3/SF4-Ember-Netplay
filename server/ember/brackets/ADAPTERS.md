@@ -21,17 +21,21 @@ shows the Discord account linked to an entry.
 
 ## The `Site` trait
 
-This is the published contract between the connector and an adapter.
-Version 1, as in this crate.
+This is the contract between the connector and an adapter written in
+Rust. The trait is internal to this crate, so it has no version of its own:
+it is versioned with the crate, and an adapter changes with it. The `http`
+adapter's contract below is the one with a version an outside service can
+rely on.
 
 | Method | Returns | The adapter promises |
 |---|---|---|
 | `open_sets(purpose)` | every set the site lists as open | Each playable set it can see, entries player 1 first. A set it cannot see may simply be missing: the connector never acts on a set's absence. |
-| `set(id, purpose)` | one set, or `None` | `None` only when the site says the set does not exist. |
+| `set(id, purpose)` | one set, or `None` | `None` only when the site itself says the set does not exist. |
 | `standing()` | `Finished`, `PlayedOut` or `Running` | `Finished` only when the site says the event is over: the connector then stops reading it for good. `PlayedOut` when every set looks played but more may come (a later stage, a reopened set). |
 | `mark_underway(id)` | nothing | May be called again for a set already underway. A failure is only logged. |
-| `report(id, report)` | nothing | Records the winner and each entry's games won. A site that takes games one by one gets them, in the order played, in `report.sequence`. If the site can tell, refuse (`Refused`) rather than write over a set that already has a result. |
+| `report(id, report)` | nothing | Records the winner and each entry's games won. May be called again for a report already recorded (see Delivery below): answer `Ok` when the set already holds this same result. If the site can tell, refuse (`Refused`) rather than write over a set that has a different result. |
 | `names_can_change()` | `bool`, `false` unless overridden | Whether the site accounts given are names an account can change (Challonge usernames). The connector then points out, once per player, an account connected more than 30 days ago. |
+| `wants_games()` | `bool`, `false` unless overridden | Whether `report` uses each game's winner, in the order played (`report.sequence`). Only then does the connector read the games from the bridge before reporting, and check that they add up to the score. |
 
 `purpose` says why a read is made, `Scheduled` or `Result`: a site with a
 request budget may refuse a scheduled read with `BudgetSpent`, but never a
@@ -42,24 +46,34 @@ A `Set` carries:
 - `id`: 1 to 64 letters, digits, `_` or `-`, since it goes into URLs and
   match IDs. Leave out a set whose ID is anything else.
 - `round` (negative in a losers bracket) and `round_label`, shown to the
-  players.
+  players. The label goes into the match's metadata, where the bridge takes
+  at most 1024 bytes: a longer one is cut there.
 - `entries`: player 1 and player 2 once both are known. Each `Entry` has an
   `participant_id` (same rule as set IDs) and its `accounts`, the one to try
   first first:
   - `Account::Site { site, id }`: an account on the bridge's sign-in site
     `site`, by the ID that site looks up (a Challonge username, a start.gg
     user ID). The bridge refuses a whole lookup that names an ID the site
-    cannot have, or a site the connection may not look up, so give only IDs
-    in the site's form and only sites the operator listed;
+    cannot have, or a site the connection may not look up. The connector
+    then asks for each account alone, so only the entry with that account
+    waits, and the reason is logged once for its set. Give IDs in the site's
+    form and only sites the operator listed all the same;
   - `Account::Discord { user_id }`: a Discord account linked to the entry.
 - `status`: `Pending` (waiting on an earlier set), `Open` (can be played,
   no result) or `Decided`.
 - `underway`, when the site says so, and `winner` (the winning entry's
   `participant_id`) once decided.
 
-Errors: `Unavailable` means try again later (the site is down, rate-limits,
-or refuses the credential); `Refused` means the site will not do it as it
-stands, and the connector leaves the set to the organizer.
+Errors:
+
+- `Unavailable`: try again later. The site is down, rate-limits, refuses
+  the credential, or refused something in a way that may pass. Every pass
+  that meets it waits under the growing wait below.
+- `Refused`: the site will not do it as it stands. A refused read is
+  treated like `Unavailable`, and tried again after the growing wait. A
+  refused report is final: the connector leaves that set to the organizer,
+  who enters the score by hand. Refuse a report only when it can never be
+  taken (the set is gone, has other entries, or has a different result).
 
 ## What the connector guarantees an adapter
 
@@ -78,6 +92,11 @@ stands, and the connector leaves the set to the organizer.
   connection's result secret, recent, and for this connection; each is
   recorded once. A result whose delivery is failing is read back from the
   bridge instead.
+- **Delivery.** A report is sent at least once. When its answer is lost (a
+  timeout, a `5xx`) the result stays pending and is sent again, unchanged,
+  unless the next read already shows the set decided with that result. The
+  same result always carries the same key (`report.key`, the Ember match
+  ID).
 - **Retries.** After a failure nothing is asked of the site, for any
   reason, until a wait of a minute, doubling up to an hour, has passed. One
   log line per run of failures.
@@ -114,6 +133,17 @@ Every request carries `Accept: application/json` and
 connector would misread, answer a request of the older version with 400.
 Unknown fields in your answers are ignored, so you may add fields freely.
 
+### Limits
+
+- Each answer is at most 1 MiB; a longer one counts as no answer.
+- The connector waits 5 seconds to connect and 20 seconds for a whole
+  request.
+- Redirects are not followed: answer at the URL asked.
+- `GET /sets` is not paged, so every open set must fit in one answer. At
+  about 300 bytes a set, 1 MiB holds a few thousand.
+- `round_label` goes into the match's metadata, which takes at most 1024
+  bytes; a longer label is cut there.
+
 ### Reading
 
 `GET {base}/sets?state=open` answers `200` with every open set:
@@ -141,15 +171,22 @@ Unknown fields in your answers are ignored, so you may add fields freely.
 | `id` | yes | 1 to 64 letters, digits, `_` or `-` |
 | `status` | yes | `pending`, `open` or `decided` |
 | `round` | no (0) | Negative in a losers bracket. Used by the tournament's round rules. |
-| `round_label` | no (`Round <round>`) | Shown to the players |
+| `round_label` | no (`Round <round>`) | Shown to the players, at most 1024 bytes |
 | `entries` | no | Player 1 and player 2, once both are known, else `null` or absent |
 | `entries[].id` | yes | Same rule as `id` |
-| `entries[].accounts` | no | In the order to try: `{ "site": "<bridge site>", "id": "<what that site looks up>" }` or `{ "discord": "<Discord user ID>" }`. Send only IDs in the site's form and sites the bridge connection may look up: one that is not makes the bridge refuse the lookup for every set of the read. |
+| `entries[].accounts` | no | In the order to try: `{ "site": "<bridge site>", "id": "<what that site looks up>" }` or `{ "discord": "<Discord user ID>" }`. Send only IDs in the site's form and sites the bridge connection may look up: an entry with one the bridge refuses waits, and its set is not played, until it is fixed. |
 | `underway` | no (`false`) | |
 | `winner` | no | The winning entry's `id`, once decided |
 
+A set in the list that is not in this shape (an unknown `status`, a bad
+`id`, three entries) is left out of the read, and logged once; the other
+sets are played.
+
 `GET {base}/sets/{id}` answers `200` with `{ "set": { ... } }` in the same
-shape, or `404` if there is no such set.
+shape, or `200` with `{ "set": null }` when there is no such set. Only that
+`null` tells the connector the set is gone, which cancels its live match. A
+`404` here is read as your service not answering (a proxy, a route not
+mounted yet), and tried again later.
 
 `GET {base}/standing` is optional. It answers `200` with
 `{ "standing": "finished" | "played_out" | "running" }`; `404` (or a service
@@ -161,7 +198,7 @@ tournament for good.
 `POST {base}/sets/{id}/underway` with `{}`: mark the set started. Answer
 `2xx`, also when it already was.
 
-`POST {base}/sets/{id}/report`:
+`POST {base}/sets/{id}/report`, with an `Idempotency-Key` header:
 
 ```json
 {
@@ -172,14 +209,25 @@ tournament for good.
 ```
 
 `games` is each game's winning entry, in the order played. Answer `2xx` once
-recorded. If the set already has a result, do not write over it: answer
-`409`, and the connector leaves the set to the organizer.
+recorded.
+
+Reports are delivered at least once: when your answer is lost, the same
+report is sent again, with the same `Idempotency-Key` and the same body.
+Answer a repeat `2xx`, as you did the first time. If the set has a
+different result (the organizer entered one, or another key), do not write
+over it: answer `409`, and the connector leaves the set to the organizer.
 
 ### Status codes
 
 | Answer | The connector |
 |---|---|
 | `2xx` | carries on |
-| `404` | reads it as no such set (or no `/standing`) |
+| `200` with `{ "set": null }` | the set is gone |
+| `404` on `/standing` | the tournament is running |
+| `404` anywhere else | tries again later |
 | `401`, `403`, `429`, `5xx`, no answer | tries again later, after the growing wait above |
-| other `4xx` | leaves the set to the organizer |
+| `409` on a report | leaves the set to the organizer |
+| other `4xx` | on a report, leaves the set to the organizer; on a read, tries again later |
+
+A failed `/underway` is only logged, whatever the answer: the match is
+played all the same.
