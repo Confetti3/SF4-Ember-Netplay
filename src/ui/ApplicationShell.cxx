@@ -352,12 +352,14 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    InfoRow("version",loc::T("updates.installed_version"),VersionLine(InstalledVersion(v),v.services.channel),
     v.build.empty()?std::string(loc::T("updates.installed_version_detail")):loc::Tf("about.version_detail",v.build)),
    ChannelRow(v.services.channel,&channelPick_,v.services.pending),
-   Row("updates",loc::T("updates.check"),outcome({ServiceAction::CheckUpdates,ServiceAction::InstallUpdate,ServiceAction::OpenUpdater,ServiceAction::OpenRecovery},
+   Row("updates",loc::T("updates.check"),outcome({ServiceAction::CheckUpdates,ServiceAction::InstallUpdate,ServiceAction::OpenRecovery},
     loc::T("about.updates_detail")),!v.services.pending),
    // Saved on its own, as the language is: it is no room or fighter preference.
    Value("launch-update-check",loc::T("settings.update_check"),launchCheck_?loc::T("common.on"):loc::T("common.off"),
     launchCheckSaveError_.empty()?std::string(loc::T("settings.update_check_detail")):launchCheckSaveError_)};
-  if(v.services.update.ok&&v.services.update.updateAvailable)rows.push_back(ConfirmRow("updater",loc::T("about.open_updater"),loc::T("about.open_updater_detail"),v.canEditPreferences&&!v.services.pending));
+  // The found release, as the launch question offers it: the game closes and the Updates window installs it.
+  if(const auto& offer=v.services.offer)rows.push_back(ConfirmRow("update-now",loc::T("updates.launch_now"),
+   v.canEditPreferences?loc::Tf("updates.launch_text",offer->tag,InstalledVersion(v)):std::string(loc::T("about.leave_room_first")),v.canEditPreferences&&!v.services.pending));
   if(v.network==NetworkAvailability::Unavailable)rows.push_back(ConfirmRow("recovery",loc::T("about.open_recovery"),
    v.canEditPreferences?loc::T("about.open_recovery_detail"):loc::T("about.leave_room_first"),v.canEditPreferences&&!v.services.pending));
  }
@@ -534,7 +536,12 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
   if(!channelPick_.applying)error_=loc::T("error.queue_failed");
  }
  else if(a.id=="updates")Service(platform::ServiceAction::CheckUpdates,v,submit);
- else if(a.id=="updater")Service(platform::ServiceAction::OpenUpdater,v,submit);
+ else if(a.id=="update-now"){
+  const auto& offer=v.services.offer;
+  if(!offer)return;
+  ShellAction r;r.service=platform::ServiceAction::UpdateNow;r.updateOffer=*offer;r.command.generation=v.session.generation;
+  if(!submit(std::move(r)))error_=loc::T("error.queue_failed");
+ }
  else if(a.id=="recovery")Service(platform::ServiceAction::OpenRecovery,v,submit);
  else if(a.id=="community")Service(platform::ServiceAction::OpenCommunity,v,submit);
  else if(screen.compare(0,4,"room")==0)RoomAction(a,v,submit);

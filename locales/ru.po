@@ -1305,12 +1305,6 @@ msgstr "Экспортирует состояние соединений без 
 msgid "about.updates_detail"
 msgstr "Проверить наличие новой версии Ember."
 
-msgid "about.open_updater"
-msgstr "Выйти и открыть обновление"
-
-msgid "about.open_updater_detail"
-msgstr "Игра закроется, и откроется обновление. Там выберите «Скачать и установить». Сначала выйдите из лобби."
-
 msgid "about.open_recovery"
 msgstr "Выйти к восстановлению"
 

@@ -1304,12 +1304,6 @@ msgstr "초대와 자격 증명은 제외하고 연결 상태를 내보냅니다
 msgid "about.updates_detail"
 msgstr "새 Ember 버전을 확인합니다."
 
-msgid "about.open_updater"
-msgstr "종료 후 업데이터 열기"
-
-msgid "about.open_updater_detail"
-msgstr "게임이 종료되고 업데이터가 열립니다. 거기서 다운로드 및 설치를 선택하세요. 먼저 방을 나가세요."
-
 msgid "about.open_recovery"
 msgstr "종료 후 복구 열기"
 

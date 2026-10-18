@@ -1304,12 +1304,6 @@ msgstr "Exports connection states without invitations or credentials."
 msgid "about.updates_detail"
 msgstr "Look for a newer Ember release."
 
-msgid "about.open_updater"
-msgstr "Exit and open updater"
-
-msgid "about.open_updater_detail"
-msgstr "The game closes and the updater opens. Choose Download and install there. Leave your room first."
-
 msgid "about.open_recovery"
 msgstr "Exit to recovery"
 

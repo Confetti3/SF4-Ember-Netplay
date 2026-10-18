@@ -230,6 +230,21 @@ void UpdateLaunchJourneys() {
   Check(row().value == loc::T("updates.channel.prerelease") && !row().confirm, "The saved channel did not settle the row");
   SetMenuEntriesProbe({});
  }
+ // A check in Help & about that found a release, here a step back after a
+ // channel switch, offers Update now, which sends exactly what was found.
+ {
+  Harness h; h.view.services.offer = InstallOffer{launcher::UpdateChannel::Stable, "v1.3.0", std::string(64, 'a')};
+  std::vector<MenuEntry> rows;
+  SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries) { rows = entries; });
+  h.Screen("about"); h.FocusOn("update-now");
+  const auto row = std::find_if(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id == "update-now"; });
+  Check(row != rows.end() && row->label == loc::T("updates.launch_now") && row->confirm && row->enabled, "Help & about does not offer Update now for what it found");
+  const auto before = h.actions.size();
+  h.Press(MenuInput::Select); h.Press(MenuInput::Right); h.Press(MenuInput::Select);
+  Check(h.actions.size() == before + 1 && h.actions.back().service == ServiceAction::UpdateNow &&
+   h.actions.back().updateOffer == InstallOffer{launcher::UpdateChannel::Stable, "v1.3.0", std::string(64, 'a')}, "Update now did not send the release that was found");
+  SetMenuEntriesProbe({});
+ }
  {
   // A view that holds it off shows Off.
   Harness off; off.view.checkUpdatesAtLaunch = false;

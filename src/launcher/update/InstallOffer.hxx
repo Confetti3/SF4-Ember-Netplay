@@ -58,10 +58,10 @@ namespace launcher {
 	}
 
 	// What a check found, as an offer a player can accept: a verifiable package
-	// of a newer release. A step back, a release without a digest and a tag that
-	// cannot travel are never offered this way.
+	// of the release the check offers, newer or a step back. A release without a
+	// digest and a tag that cannot travel are never offered this way.
 	inline std::optional<InstallOffer> OfferFrom(UpdateChannel channel, const UpdateCheckResult& result) {
-		if (!result.ok || !result.updateAvailable || result.goesBack || !IsOfferTag(result.latestVersion) ||
+		if (!result.ok || !result.updateAvailable || !IsOfferTag(result.latestVersion) ||
 			!IsSha256Hex(result.expectedSha256)) return std::nullopt;
 		return InstallOffer{channel, result.latestVersion, LowerHex(result.expectedSha256)};
 	}

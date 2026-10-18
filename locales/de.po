@@ -1304,12 +1304,6 @@ msgstr "Exportiert Verbindungszustände ohne Einladungen oder Zugangsdaten."
 msgid "about.updates_detail"
 msgstr "Nach einer neueren Ember-Version suchen."
 
-msgid "about.open_updater"
-msgstr "Beenden und Updater öffnen"
-
-msgid "about.open_updater_detail"
-msgstr "Das Spiel wird geschlossen und der Updater öffnet sich. Wählen Sie dort Laden und installieren. Verlassen Sie erst Ihren Raum."
-
 msgid "about.open_recovery"
 msgstr "Starthilfe öffnen"
 
