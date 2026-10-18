@@ -18,7 +18,7 @@ use support::*;
 
 #[tokio::test]
 async fn a_player_connects_challonge_through_the_bridge_page() {
-    let fake = Challonge::default();
+    let fake = fake_challonge();
     let bridge = bridge(&fake).await;
     let (_, capabilities) = bridge.get("", "/v1/capabilities").await;
     let features = capabilities["features"].as_array().unwrap();
@@ -92,7 +92,7 @@ async fn a_player_connects_challonge_through_the_bridge_page() {
 
 #[tokio::test]
 async fn an_account_on_another_ember_id_moves_only_when_the_player_says_so() {
-    let fake = Challonge::default();
+    let fake = fake_challonge();
     let bridge = bridge(&fake).await;
     let (one, two) = (player(&bridge, 1).await, player(&bridge, 2).await);
     connect(&bridge, &one, "kate").await;
@@ -134,7 +134,7 @@ async fn an_account_on_another_ember_id_moves_only_when_the_player_says_so() {
 
 #[tokio::test]
 async fn the_latest_sign_in_replaces_an_ember_ids_account() {
-    let fake = Challonge::default();
+    let fake = fake_challonge();
     let bridge = bridge(&fake).await;
     let kate = player(&bridge, 1).await;
     connect(&bridge, &kate, "kate").await;
@@ -159,7 +159,7 @@ async fn the_latest_sign_in_replaces_an_ember_ids_account() {
 
 #[tokio::test]
 async fn challonge_refusing_or_failing_connects_nothing() {
-    let fake = Challonge::default();
+    let fake = fake_challonge();
     let bridge = bridge(&fake).await;
     let kate = player(&bridge, 1).await;
     for (code, says) in [
@@ -189,7 +189,7 @@ async fn challonge_refusing_or_failing_connects_nothing() {
 
 #[tokio::test]
 async fn a_second_answer_or_a_cancel_while_challonge_checks_wins_nothing() {
-    let fake = Challonge::default();
+    let fake = fake_challonge();
     let bridge = bridge(&fake).await;
     let kate = player(&bridge, 1).await;
 
@@ -201,10 +201,10 @@ async fn a_second_answer_or_a_cancel_while_challonge_checks_wins_nothing() {
     let client = bridge.client.clone();
     let first =
         tokio::spawn(async move { client.get(url).send().await.unwrap().text().await.unwrap() });
-    fake.arrived.notified().await;
+    HELD.arrived.notified().await;
     let page = back(&bridge, &format!("code=held-kate&state={state}")).await;
     assert!(page.contains("Sign-in expired"), "{page}");
-    fake.release.notify_one();
+    HELD.release.notify_one();
     let page = first.await.unwrap();
     assert!(page.contains("Connect this Challonge account?"), "{page}");
 
@@ -216,9 +216,9 @@ async fn a_second_answer_or_a_cancel_while_challonge_checks_wins_nothing() {
     let client = bridge.client.clone();
     let late =
         tokio::spawn(async move { client.get(url).send().await.unwrap().text().await.unwrap() });
-    fake.arrived.notified().await;
+    HELD.arrived.notified().await;
     assert_eq!(cancel(&bridge, &kate).await.0, StatusCode::OK);
-    fake.release.notify_one();
+    HELD.release.notify_one();
     let page = late.await.unwrap();
     assert!(page.contains("Sign-in expired"), "{page}");
     assert_eq!(account(&bridge, &kate).await, None);
@@ -232,9 +232,9 @@ async fn a_second_answer_or_a_cancel_while_challonge_checks_wins_nothing() {
     let client = bridge.client.clone();
     let late =
         tokio::spawn(async move { client.get(url).send().await.unwrap().text().await.unwrap() });
-    fake.arrived.notified().await;
+    HELD.arrived.notified().await;
     assert_eq!(disconnect(&bridge, &kate).await.0, StatusCode::OK);
-    fake.release.notify_one();
+    HELD.release.notify_one();
     let page = late.await.unwrap();
     assert!(page.contains("Sign-in expired"), "{page}");
     assert_eq!(account(&bridge, &kate).await, None);
@@ -242,7 +242,7 @@ async fn a_second_answer_or_a_cancel_while_challonge_checks_wins_nothing() {
 
 #[tokio::test]
 async fn sign_in_is_off_without_the_client_secret_but_an_account_can_go() {
-    let fake = Challonge::default();
+    let fake = fake_challonge();
     let bridge = bridge_with(&fake, json!({}), Secrets::default()).await;
     let (_, capabilities) = bridge.get("", "/v1/capabilities").await;
     let features = capabilities["features"].as_array().unwrap();
@@ -282,7 +282,7 @@ async fn sign_in_is_off_without_the_client_secret_but_an_account_can_go() {
 
 #[tokio::test]
 async fn a_start_needs_its_own_proof() {
-    let fake = Challonge::default();
+    let fake = fake_challonge();
     let bridge = bridge(&fake).await;
     let kate = player(&bridge, 1).await;
     let body = bridge
@@ -321,7 +321,7 @@ async fn a_start_needs_its_own_proof() {
 
 #[tokio::test]
 async fn the_bridge_keeps_to_its_monthly_challonge_budget() {
-    let fake = Challonge::default();
+    let fake = fake_challonge();
     let bridge = bridge_with(&fake, json!({ "monthly_request_budget": 4 }), with_secret()).await;
     // The first second of a month, UTC (2026-11-01).
     let month_start: i64 = 1_793_491_200;
@@ -339,11 +339,16 @@ async fn the_bridge_keeps_to_its_monthly_challonge_budget() {
     connect_with(&bridge, &sams, "sam").await;
     assert_eq!(requests_spent(&bridge).await, 4);
     assert_eq!(fake.seen("/oauth/token").len(), 2);
-    // Now starts are refused.
+    // Now starts are refused as busy, which Ember tells apart from the
+    // service failing.
     let (status, body) = try_start(&bridge, &kate).await;
     assert_eq!(
-        (status, code(&body)),
-        (StatusCode::SERVICE_UNAVAILABLE, "service_unavailable"),
+        (status, code(&body), &body["error"]["retryable"]),
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            "sign_in_busy",
+            &json!(true)
+        ),
         "{body}"
     );
 
@@ -358,7 +363,7 @@ async fn the_bridge_keeps_to_its_monthly_challonge_budget() {
 
 #[tokio::test]
 async fn throwaway_ember_ids_spend_at_most_a_days_share() {
-    let fake = Challonge::default();
+    let fake = fake_challonge();
     let bridge = bridge_with(
         &fake,
         json!({ "daily_request_budget": 4, "monthly_request_budget": 10 }),
@@ -376,11 +381,11 @@ async fn throwaway_ember_ids_spend_at_most_a_days_share() {
         assert!(page.contains("Challonge did not answer"), "{page}");
     }
     assert_eq!(requests_spent(&bridge).await, 4);
-    // The day's share is spent: a start is refused.
+    // The day's share is spent: a start is refused as busy.
     let (status, body) = try_start(&bridge, &players[2]).await;
     assert_eq!(
         (status, code(&body)),
-        (StatusCode::SERVICE_UNAVAILABLE, "service_unavailable"),
+        (StatusCode::SERVICE_UNAVAILABLE, "sign_in_busy"),
         "{body}"
     );
     // The month keeps the rest for the next days.
@@ -394,7 +399,7 @@ async fn throwaway_ember_ids_spend_at_most_a_days_share() {
 
 #[tokio::test]
 async fn starts_are_limited_across_the_bridge_too() {
-    let fake = Challonge::default();
+    let fake = fake_challonge();
     let bridge = bridge_with(&fake, json!({ "starts_per_hour": 2 }), with_secret()).await;
     let players = [
         player(&bridge, 1).await,
@@ -406,7 +411,7 @@ async fn starts_are_limited_across_the_bridge_too() {
     let (status, body) = try_start(&bridge, &players[2]).await;
     assert_eq!(
         (status, code(&body)),
-        (StatusCode::TOO_MANY_REQUESTS, "rate_limited"),
+        (StatusCode::SERVICE_UNAVAILABLE, "sign_in_busy"),
         "{body}"
     );
     // An hour later there is room again.
@@ -418,7 +423,7 @@ async fn starts_are_limited_across_the_bridge_too() {
 
 #[tokio::test]
 async fn a_sign_in_started_with_room_is_refused_once_the_budget_is_spent() {
-    let fake = Challonge::default();
+    let fake = fake_challonge();
     let bridge = bridge_with(&fake, json!({ "monthly_request_budget": 2 }), with_secret()).await;
     let (kate, sam) = (player(&bridge, 1).await, player(&bridge, 2).await);
     let kates = start(&bridge, &kate).await;
@@ -428,14 +433,6 @@ async fn a_sign_in_started_with_room_is_refused_once_the_budget_is_spent() {
     assert!(page.contains("Ember cannot check with Challonge"), "{page}");
     assert_eq!(fake.seen("/oauth/token").len(), 1);
     assert_eq!(account(&bridge, &kate).await, None);
-}
-
-/// Finishes the sign-in `state` as `who`, whose account no other Ember ID
-/// has.
-async fn connect_with(bridge: &Bridge, state: &str, who: &str) {
-    let page = back(bridge, &format!("code=good-{who}&state={state}")).await;
-    let page = decide(bridge, &confirmation(&page), "connect").await;
-    assert!(page.contains("Challonge connected"), "{page}");
 }
 
 /// This month's Challonge requests.
@@ -458,7 +455,7 @@ async fn requests_spent(bridge: &Bridge) -> u64 {
 
 #[tokio::test]
 async fn a_lookup_finds_connected_players_by_username_without_case() {
-    let fake = Challonge::default();
+    let fake = fake_challonge();
     let bridge = bridge(&fake).await;
     let (kate, sam) = (player(&bridge, 1).await, player(&bridge, 2).await);
     connect(&bridge, &kate, "kate").await;
@@ -520,7 +517,7 @@ async fn a_lookup_finds_connected_players_by_username_without_case() {
 
 #[tokio::test]
 async fn a_name_another_account_took_answers_for_that_account_only() {
-    let fake = Challonge::default();
+    let fake = fake_challonge();
     let bridge = bridge(&fake).await;
     let (kate, sam) = (player(&bridge, 1).await, player(&bridge, 2).await);
     connect(&bridge, &kate, "kate").await;
@@ -553,7 +550,7 @@ async fn a_name_another_account_took_answers_for_that_account_only() {
 
 #[tokio::test]
 async fn a_lookup_that_names_no_list_is_refused() {
-    let fake = Challonge::default();
+    let fake = fake_challonge();
     let bridge = bridge(&fake).await;
     for connection in [BRACKETS, DISCORD_ONLY, BOTH] {
         let provider = bridge.provider(connection).await;
@@ -570,7 +567,7 @@ async fn a_lookup_that_names_no_list_is_refused() {
 
 #[tokio::test]
 async fn each_list_needs_its_own_setting() {
-    let fake = Challonge::default();
+    let fake = fake_challonge();
     let bridge = bridge(&fake).await;
     let kate = player(&bridge, 1).await;
     connect(&bridge, &kate, "kate").await;
@@ -595,7 +592,7 @@ async fn each_list_needs_its_own_setting() {
 
 #[tokio::test]
 async fn discord_and_challonge_find_the_same_player_as_one_link() {
-    let fake = Challonge::default();
+    let fake = fake_challonge();
     let bridge = bridge(&fake).await;
     let (kate, sam) = (player(&bridge, 1).await, player(&bridge, 2).await);
     connect(&bridge, &kate, "kate").await;
@@ -624,7 +621,7 @@ async fn discord_and_challonge_find_the_same_player_as_one_link() {
 
 #[tokio::test]
 async fn a_discord_lookup_after_challonge_uses_challonges_link_until_it_ends() {
-    let fake = Challonge::default();
+    let fake = fake_challonge();
     let bridge = bridge(&fake).await;
     let kate = player(&bridge, 1).await;
     connect(&bridge, &kate, "kate").await;
@@ -655,7 +652,7 @@ async fn a_discord_lookup_after_challonge_uses_challonges_link_until_it_ends() {
 
 #[tokio::test]
 async fn a_link_the_player_removed_is_not_made_again_until_a_new_sign_in() {
-    let fake = Challonge::default();
+    let fake = fake_challonge();
     let bridge = bridge(&fake).await;
     let (kate, sam) = (player(&bridge, 1).await, player(&bridge, 2).await);
     connect(&bridge, &kate, "kate").await;
@@ -692,7 +689,7 @@ async fn a_link_the_player_removed_is_not_made_again_until_a_new_sign_in() {
 
 #[tokio::test]
 async fn one_account_at_most_answers_for_a_username() {
-    let fake = Challonge::default();
+    let fake = fake_challonge();
     let bridge = bridge(&fake).await;
     let players = [
         player(&bridge, 1).await,
@@ -728,7 +725,7 @@ async fn one_account_at_most_answers_for_a_username() {
 
 #[tokio::test]
 async fn starts_with_bad_proofs_take_no_bridge_wide_slot() {
-    let fake = Challonge::default();
+    let fake = fake_challonge();
     let bridge = bridge_with(&fake, json!({ "starts_per_hour": 2 }), with_secret()).await;
     let players = [player(&bridge, 1).await, player(&bridge, 2).await];
     // Proofs made for another action, sent as starts, many times over.
@@ -750,8 +747,50 @@ async fn starts_with_bad_proofs_take_no_bridge_wide_slot() {
     // Both slots are still there for proven starts.
     start(&bridge, &players[0]).await;
     start(&bridge, &players[1]).await;
-    let (status, _) = try_start(&bridge, &players[1]).await;
-    assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
+    let (status, body) = try_start(&bridge, &players[1]).await;
+    assert_eq!(code(&body), "sign_in_busy", "{status}");
+}
+
+#[tokio::test]
+async fn a_start_that_does_not_commit_gives_its_bridge_wide_slot_back() {
+    let fake = fake_challonge();
+    let bridge = bridge_with(&fake, json!({ "starts_per_hour": 1 }), with_secret()).await;
+    let kate = player(&bridge, 1).await;
+    // The sign-ins table is gone for a moment, so the start's write fails
+    // after it took the hour's only slot.
+    let sign_ins = |sql: &'static str| {
+        bridge.state().db.write(move |tx| {
+            tx.execute_batch(sql)?;
+            Ok(())
+        })
+    };
+    sign_ins("ALTER TABLE challonge_sign_ins RENAME TO challonge_sign_ins_away")
+        .await
+        .unwrap();
+    let (status, body) = try_start(&bridge, &kate).await;
+    assert_eq!(
+        (status, code(&body)),
+        (StatusCode::SERVICE_UNAVAILABLE, "service_unavailable"),
+        "{body}"
+    );
+    sign_ins("ALTER TABLE challonge_sign_ins_away RENAME TO challonge_sign_ins")
+        .await
+        .unwrap();
+    // The slot was given back: the next start has it.
+    start(&bridge, &kate).await;
+    let (_, body) = try_start(&bridge, &kate).await;
+    assert_eq!(code(&body), "sign_in_busy", "{body}");
+}
+
+#[tokio::test]
+async fn a_bridge_without_challonge_lists_none_of_it() {
+    let bridge = Bridge::start().await;
+    let (_, capabilities) = bridge.get("", "/v1/capabilities").await;
+    let features = capabilities["features"].as_array().unwrap();
+    assert!(features.contains(&json!("discord.accounts")));
+    for absent in ["challonge", "challonge.accounts"] {
+        assert!(!features.contains(&json!(absent)), "{absent}");
+    }
 }
 
 /// Whether `text` is anywhere in the bridge's database files.

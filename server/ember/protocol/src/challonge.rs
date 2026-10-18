@@ -11,7 +11,7 @@ pub use crate::sign_in::{Account, Connection, SignInStarted};
 pub const FEATURE: &str = "challonge";
 /// The `challonge.accounts` capabilities feature: a player can read and
 /// disconnect their connected account (`ACCOUNT_PATH`), whether or not
-/// sign-in is offered now.
+/// sign-in is offered now. Listed by a bridge configured for Challonge.
 pub const ACCOUNTS_FEATURE: &str = "challonge.accounts";
 /// How long a started sign-in waits for Challonge's answer.
 pub const SIGN_IN_SECS: u64 = 10 * 60;

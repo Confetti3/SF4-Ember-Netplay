@@ -4,6 +4,8 @@ Source: the official docs at https://challonge.apidog.io, read on 2026-10-18 thr
 
 Method note: the pages were read through a summarizing fetch tool, so JSON examples that the docs do not publish (many of them) are labeled "derived from schema defaults". No live API call was made, so nothing here is confirmed against real server behavior.
 
+What Ember uses: the bridge signs players in with the authorization-code flow (section 2.4) and reads `/me` (section 3); ember-brackets reads and reports tournaments, participants and matches (sections 4 to 6) with the organizer's key. The device grant (section 2.3) was the first plan and is not used; it is kept below as reference only.
+
 ## 1. Conventions
 
 | Item | Value |
@@ -115,7 +117,9 @@ Scopes are passed as one space-separated string, for example `me tournaments:rea
 
 **NOT STATED:** which scope each individual endpoint requires. The per-endpoint OAuth blocks list an empty scope array for almost every operation. Exceptions where the prose names a scope: Get User requires `me`; Register Me requires `application:player`; Update Match under the application path requires `application:organizer` or `application:player` (Game Integration page). Mapping the rest (`tournaments:read`, `matches:read`, `participants:read`, `matches:write`) is **INFERENCE** from the scope descriptions.
 
-### 2.3 Device Authorization Grant
+### 2.3 Device Authorization Grant (reference only, not used by Ember)
+
+Ember does not use this flow: it needs polling that the free tier's 500 requests a month cannot pay for, and it has no bridge page that names the Ember ID before connecting. The bridge uses section 2.4.
 
 #### Step 1: Device Grant Authorization Request
 
@@ -177,7 +181,7 @@ Example request (built from the spec):
 POST https://api.challonge.com/v2.1/oauth/token?grant_type=urn:ietf:params:oauth:grant-type:device_code&device_code=DEVICE_CODE&client_id=CLIENT_ID
 ```
 
-Which token URL to use: the docs do not resolve the conflict. Both `/oauth/token` and `/v2.1/oauth/token` appear. **Recommendation (INFERENCE):** make the token and authorize_device URLs configurable, default to the exact URLs on the device-grant endpoint pages (`/v2.1/oauth/authorize_device` and `/v2.1/oauth/token`), and add a fallback probe to the unversioned `/oauth/token` if the first returns 404. This must be verified once against the real server before shipping.
+Which token URL to use: the docs do not resolve the conflict. Both `/oauth/token` and `/v2.1/oauth/token` appear. What the bridge does: its `token_path` setting defaults to `/oauth/token`, the URL the OAuth security scheme and the authorization-code samples (section 2.4) use, with no fallback probe. An operator changes the setting if a live sign-in shows the other path is the one.
 
 Success, HTTP 200 (published example):
 
@@ -211,7 +215,7 @@ Polling errors, HTTP 400 with an OAuth-style body of `error` and `error_descript
 | `expired_token` | **NOT STATED** | RFC 8628 value. Treat like `invalid_grant`. |
 | `access_denied` | **NOT STATED** | RFC 8628 value. Treat as user declined and stop. |
 
-**Recommendation (INFERENCE):** implement polling per RFC 8628 (poll no faster than `interval`, stop at `expires_in`), treat `authorization_pending` as continue, `slow_down` as back off, and every other `error` as terminal. Status codes other than 200 and 400 for this endpoint are **NOT STATED**.
+**Device grant only (not used by Ember), INFERENCE:** a client of this flow would poll per RFC 8628 (poll no faster than `interval`, stop at `expires_in`), treat `authorization_pending` as continue, `slow_down` as back off, and every other `error` as terminal. Status codes other than 200 and 400 for this endpoint are **NOT STATED**.
 
 #### Refresh
 
@@ -221,9 +225,9 @@ Refresh Token Request page: `POST https://api.challonge.com/v2.1/oauth/token`, n
 
 **NOT STATED:** whether `redirect_uri` is truly required when refreshing a device-grant token (the page marks it required; a device-grant app may have none), and whether `client_secret` is needed. Test against the real server. A refresh failure error body is **NOT STATED**.
 
-### 2.4 Authorization Code flow (for reference)
+### 2.4 Authorization Code flow (used by the bridge)
 
-`GET https://api.challonge.com/oauth/authorize` with query `client_id`, `redirect_uri`, `response_type=code`, `scope`, optional `community_id`. The Grant Request page's server base would imply `/v2.1/oauth/authorize`, but the scheme's `authorizationUrl` is the unversioned form. Exchange the code with `POST /oauth/token` (`grant_type=authorization_code`, `code`, `client_id`, `redirect_uri`; samples also send `client_secret`). The security scheme metadata sets `challengeAlgorithm: S256`, which suggests PKCE is supported; the prose does not state it.
+`GET https://api.challonge.com/oauth/authorize` with query `client_id`, `redirect_uri`, `response_type=code`, `scope`, optional `community_id`. The bridge also sends `state` (standard OAuth; Challonge's pages do not mention it, see the checklist) and exchanges the code with a form body that includes `client_secret`. The Grant Request page's server base would imply `/v2.1/oauth/authorize`, but the scheme's `authorizationUrl` is the unversioned form. Exchange the code with `POST /oauth/token` (`grant_type=authorization_code`, `code`, `client_id`, `redirect_uri`; samples also send `client_secret`). The security scheme metadata sets `challengeAlgorithm: S256`, which suggests PKCE is supported; the prose does not state it.
 
 ## 3. Current user
 
@@ -550,21 +554,21 @@ All list endpoints take `page` (default 1) and `per_page` (default 25). Both are
 | Request signing (Connect, closed beta) | For POST and PUT match requests. Compute SHA-256 hex of the exact body bytes, make a JWT signed HS256 with the app's validation secret and payload `{"data":{"checksum":"<hex>"}}`, send it in header `Signature`. A bad signature gives HTTP 401, detail "Signature is invalid". Signature is validated whenever sent, and is mandatory only if the app owner enables it in the Developer Portal. |
 | Game Integration (beta) | Recommends device grant for in-game sign-in, scopes `me`, `application:player`, `application:organizer`; client-side score reporting is trust-based, so server-side reporting with `application:manage` is advised for competitive use. Players may report only their own score in 3+ player formats, and only open matches they are in for 2-player formats. |
 | Changelog highlights | 2026-09-14 matches paginated; 2026-03-31 stations docs added; 2026-01-27 client credentials open to all apps and `communities:manage` UI changed; 2025-11-05 docs moved to apidog.io. The changelog says nothing about device grant, token URL, `/me`, error format, or id changes. |
-| v1 key auth | Header pair `Authorization-Type: v1` and `Authorization: <key>`. Do not use for a distributed client; ship OAuth device grant. |
+| v1 key auth | Header pair `Authorization-Type: v1` and `Authorization: <key>`. Do not use for a distributed client; a player signs in with OAuth (Ember: the authorization-code flow on the bridge). ember-brackets uses the organizer's key on the organizer's own server. |
 
 ## 9. Inconsistencies and unknowns checklist
 
-Resolve each against the real server before relying on it.
+Resolve each against the real server before relying on it. Rows 3 to 7 are about the device grant, which Ember does not use; rows 23 to 25 are what the bridge's authorization-code sign-in depends on.
 
 | # | Item | Status |
 |---|---|---|
-| 1 | Token URL: `/v2.1/oauth/token` (device pages) or `/oauth/token` (OAuth scheme, code samples) | Docs conflict; make configurable and probe |
+| 1 | Token URL: `/v2.1/oauth/token` (device pages) or `/oauth/token` (OAuth scheme, code samples) | Docs conflict; the bridge's `token_path` defaults to `/oauth/token`, no probe |
 | 2 | `/me.json` (endpoint page) versus `/me` (Game Integration) | Docs conflict; use `/me.json` |
-| 3 | Device grant parameters sent as query string (spec) versus form body (other flows' samples) | Spec says query; form unverified |
-| 4 | `client_secret` for device grant token polling | Not stated; docs list no such parameter |
-| 5 | `slow_down`, `expired_token`, `access_denied` error values | Not documented; only `authorization_pending` and `invalid_grant` are |
-| 6 | Device grant `grant_type` label `device_code` (overview) versus the URN (endpoint page) | Use the URN |
-| 7 | Whether `redirect_uri` is needed to refresh a device-grant token | Page marks it required; unverified |
+| 3 | Device grant (not used): parameters sent as query string (spec) versus form body (other flows' samples) | Spec says query; form unverified |
+| 4 | Device grant (not used): `client_secret` for token polling | Not stated; docs list no such parameter |
+| 5 | Device grant (not used): `slow_down`, `expired_token`, `access_denied` error values | Not documented; only `authorization_pending` and `invalid_grant` are |
+| 6 | Device grant (not used): `grant_type` label `device_code` (overview) versus the URN (endpoint page) | Use the URN |
+| 7 | Device grant (not used): whether `redirect_uri` is needed to refresh a token | Page marks it required; unverified |
 | 8 | Per-endpoint required scopes | Mostly unlisted; `me` and `application:player` are explicit |
 | 9 | 429 body, `Retry-After`, rate-limit headers | Not documented |
 | 10 | Rate limit grace period end (July 6 versus July 1, 2026) | Docs conflict, both past |
@@ -579,7 +583,10 @@ Resolve each against the real server before relying on it.
 | 19 | `organizer_id` and `participant_user_id` filters on application tournament list | Mentioned only in Game Integration |
 | 20 | Maximum `per_page` and empty-page behavior | Not stated |
 | 21 | JSON:API `included`, `links`, `meta` | None defined on any documented endpoint |
-| 22 | PKCE support | Only a scheme hint (`challengeAlgorithm: S256`) |
+| 22 | PKCE support, and whether it is required | Only a scheme hint (`challengeAlgorithm: S256`); the bridge sends a client secret and no code challenge |
+| 23 | Whether a Connect app may use the authorization-code flow with the bridge's redirect URI (`<origin>/v1/challonge/callback`) | Documented for websites; registering the URI is unverified |
+| 24 | Whether `/oauth/authorize` carries `state` back to the redirect with the `code` | Standard OAuth, not stated by Challonge's pages; the bridge relies on it |
+| 25 | Whether the token endpoint takes the authorization-code exchange as a form body with `client_secret` | The Authorization page's samples do; unverified live |
 
 ## 10. Page index
 

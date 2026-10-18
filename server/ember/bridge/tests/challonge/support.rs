@@ -1,28 +1,19 @@
 //! The stand-in Challonge, the bridge configured for it, and the requests the
-//! Challonge sign-in tests make.
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
+//! Challonge sign-in tests make, on the sign-in helpers both sites share
+//! (`common::sign_in`).
+use std::sync::Arc;
 
-use axum::{
-    Router,
-    body::Bytes,
-    extract::{RawQuery, State},
-    http::{HeaderMap, StatusCode as AxumStatus, header},
-    routing::{get, post},
-};
 use ember_bridge::{config, integrations::Secrets};
-use ember_protocol::challenge::{Action, Method};
 use reqwest::StatusCode;
 use serde_json::{Value as Json, json};
-use tokio::sync::Notify;
 use zeroize::Zeroizing;
 
-use crate::common::{Bridge, Player};
+pub use crate::common::sign_in::{Gate, User, confirmation, player, send};
+use crate::common::{
+    Bridge, Player,
+    sign_in::{self, CHALLONGE, Code, FakeSite},
+};
 
-/// A Challonge user: ID, username.
-pub type User = (&'static str, &'static str);
 pub const KATE: User = ("1001", "Kate_99");
 pub const SAM: User = ("1002", "sam");
 /// Another Challonge account, which took Kate's name in another case after
@@ -37,162 +28,39 @@ pub const DISCORD_ONLY: &str = "discord-bot";
 /// Finds players either way.
 pub const BOTH: &str = "both-bot";
 
-/// One request the stand-in received.
-#[derive(Clone, Debug)]
-pub struct Seen {
-    pub path: String,
-    /// The query string's parameters.
-    pub query: HashMap<String, String>,
-    /// The form body's.
-    pub form: HashMap<String, String>,
-    pub headers: HeaderMap,
-}
-
-#[derive(Default)]
-struct Script {
-    /// Access tokens issued, and whose they are.
-    tokens: HashMap<String, User>,
-    seen: Vec<Seen>,
-}
+pub static HELD: Gate = Gate::new();
 
 /// A stand-in for Challonge's token and `/me` endpoints. Codes `good-kate`,
-/// `good-sam` and `good-rival` sign those users in, `held-kate` waits for `release`
-/// after saying it `arrived`, `busy` answers 429, `odd-name` signs in a user
-/// whose username lookups cannot match, and anything else is refused.
-#[derive(Clone, Default)]
-pub struct Challonge {
-    script: Arc<Mutex<Script>>,
-    pub arrived: Arc<Notify>,
-    pub release: Arc<Notify>,
-}
-
-impl Challonge {
-    /// The requests received at `path`, oldest first.
-    pub fn seen(&self, path: &str) -> Vec<Seen> {
-        self.script
-            .lock()
-            .unwrap()
-            .seen
-            .iter()
-            .filter(|seen| seen.path == path)
-            .cloned()
-            .collect()
-    }
-
-    pub fn tokens(&self) -> Vec<String> {
-        self.script.lock().unwrap().tokens.keys().cloned().collect()
-    }
-
-    fn record(&self, path: &str, query: Option<String>, body: &[u8], headers: HeaderMap) -> Seen {
-        let parse = |bytes: &[u8]| url::form_urlencoded::parse(bytes).into_owned().collect();
-        let seen = Seen {
-            path: path.into(),
-            query: parse(query.unwrap_or_default().as_bytes()),
-            form: parse(body),
-            headers,
-        };
-        self.script.lock().unwrap().seen.push(seen.clone());
-        seen
-    }
-}
-
-type Reply = (AxumStatus, [(header::HeaderName, &'static str); 1], String);
-
-fn reply(status: AxumStatus, body: Json) -> Reply {
-    (
-        status,
-        [(header::CONTENT_TYPE, "application/json")],
-        body.to_string(),
-    )
-}
-
-async fn token(
-    State(fake): State<Challonge>,
-    RawQuery(query): RawQuery,
-    headers: HeaderMap,
-    body: Bytes,
-) -> Reply {
-    let seen = fake.record("/oauth/token", query, &body, headers);
-    let form = |key: &str| seen.form.get(key).map(String::as_str);
-    let valid = form("grant_type") == Some("authorization_code")
-        && form("client_id") == Some(CLIENT_ID)
-        && form("client_secret") == Some(CLIENT_SECRET)
-        && form("redirect_uri").is_some_and(|uri| uri.ends_with("/v1/challonge/callback"));
-    let user = match form("code") {
-        Some("good-kate") => KATE,
-        Some("good-sam") => SAM,
-        Some("good-rival") => RIVAL,
-        Some("odd-name") => ("1003", "has space"),
-        Some("held-kate") => {
-            fake.arrived.notify_one();
-            fake.release.notified().await;
-            KATE
-        }
-        Some("busy") => {
-            return reply(
-                AxumStatus::TOO_MANY_REQUESTS,
-                json!({ "errors": [{ "status": 429 }] }),
-            );
-        }
-        _ => return reply(AxumStatus::BAD_REQUEST, json!({ "error": "invalid_grant" })),
-    };
-    if !valid {
-        return reply(
-            AxumStatus::UNAUTHORIZED,
-            json!({ "error": "invalid_client" }),
-        );
-    }
-    let mut script = fake.script.lock().unwrap();
-    let access = format!("access-token-{}-{}", user.0, script.tokens.len());
-    script.tokens.insert(access.clone(), user);
-    reply(
-        AxumStatus::OK,
-        json!({ "access_token": access, "token_type": "Bearer", "expires_in": 604800,
-                "refresh_token": "refresh-token", "scope": "me", "created_at": 1 }),
-    )
-}
-
-async fn me(State(fake): State<Challonge>, headers: HeaderMap) -> Reply {
-    fake.record("/v2.1/me.json", None, &[], headers.clone());
-    let script = fake.script.lock().unwrap();
-    let bearer = headers
-        .get("authorization")
-        .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.strip_prefix("Bearer "));
-    let v2 = headers
-        .get("authorization-type")
-        .is_some_and(|value| value == "v2");
-    match bearer.and_then(|token| script.tokens.get(token)) {
-        // Challonge's IDs are strings here; a number is read too.
-        Some(&(id, username)) if v2 => {
+/// `good-sam` and `good-rival` sign those users in, `held-kate` waits for
+/// `HELD`, `busy` answers 429, `odd-name` signs in a user whose username
+/// lookups cannot match, and anything else is refused. `/me` answers only
+/// with Challonge's `Authorization-Type: v2`, giving Kate's ID as a string
+/// and the others' as numbers, both of which Challonge's API uses.
+pub fn fake_challonge() -> Arc<FakeSite> {
+    FakeSite::new(
+        "/oauth/token",
+        "/v2.1/me.json",
+        (CLIENT_ID, CLIENT_SECRET),
+        "/v1/challonge/callback",
+        vec![
+            ("good-kate", Code::SignsIn(KATE)),
+            ("good-sam", Code::SignsIn(SAM)),
+            ("good-rival", Code::SignsIn(RIVAL)),
+            ("odd-name", Code::SignsIn(("1003", "has space"))),
+            ("held-kate", Code::Held(&HELD, KATE)),
+            ("busy", Code::Fails(429)),
+        ],
+        &[("authorization-type", "v2")],
+        |(id, username)| {
             let id = if id == KATE.0 {
                 json!(id)
             } else {
                 json!(id.parse::<u64>().unwrap())
             };
-            reply(
-                AxumStatus::OK,
-                json!({ "data": { "id": id, "type": "user",
-                         "attributes": { "username": username, "email": "x@example.com" } } }),
-            )
-        }
-        _ => reply(
-            AxumStatus::UNAUTHORIZED,
-            json!({ "errors": [{ "status": 401, "detail": "Unauthorized" }] }),
-        ),
-    }
-}
-
-/// Serves a stand-in Challonge; its base URL.
-pub async fn fake_challonge(fake: Challonge) -> String {
-    let app = Router::new()
-        .route("/oauth/token", post(token))
-        .route("/v2.1/me.json", get(me))
-        .with_state(fake);
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
-    tokio::spawn(async move { axum::serve(listener, app).await });
-    base
+            json!({ "data": { "id": id, "type": "user",
+                     "attributes": { "username": username, "email": "x@example.com" } } })
+        },
+    )
 }
 
 pub fn direct(id: &str, discord_lookup: bool, challonge_lookup: bool) -> config::Connection {
@@ -223,8 +91,8 @@ pub fn with_secret() -> Secrets {
 /// `challonge` settings and integration secrets, and connections that find
 /// players by Challonge username (whose tenant is named Cups), by Discord
 /// account, or both. The clock is frozen.
-pub async fn bridge_with(fake: &Challonge, settings: Json, secrets: Secrets) -> Bridge {
-    let api_base = fake_challonge(fake.clone()).await;
+pub async fn bridge_with(fake: &Arc<FakeSite>, settings: Json, secrets: Secrets) -> Bridge {
+    let api_base = fake.serve().await;
     let bridge = Bridge::start_with(
         |config| {
             let mut challonge = json!({ "client_id": CLIENT_ID, "api_base": api_base });
@@ -251,83 +119,28 @@ pub async fn bridge_with(fake: &Challonge, settings: Json, secrets: Secrets) -> 
     bridge
 }
 
-pub async fn bridge(fake: &Challonge) -> Bridge {
+pub async fn bridge(fake: &Arc<FakeSite>) -> Bridge {
     bridge_with(fake, json!({}), with_secret()).await
 }
 
-pub async fn player(bridge: &Bridge, byte: u8) -> Player {
-    let mut player = bridge.player(byte);
-    bridge.open_session(&mut player).await;
-    player
-}
-
-/// A proof-carrying request from `player` to a Challonge route.
-pub async fn send(
-    bridge: &Bridge,
-    player: &Player,
-    action: Action,
-    method: Method,
-    path: &str,
-    command: Json,
-) -> (StatusCode, Json) {
-    let body = bridge.prove(player, action, method, path, command).await;
-    bridge.send_proof(player, method, path, body).await
-}
-
 pub async fn try_start(bridge: &Bridge, player: &Player) -> (StatusCode, Json) {
-    send(
-        bridge,
-        player,
-        Action::ChallongeConnect,
-        Method::Post,
-        "/v1/challonge/start",
-        json!({}),
-    )
-    .await
+    sign_in::try_start(bridge, player, &CHALLONGE).await
 }
 
 /// Starts a sign-in; the state Challonge would hand back.
 pub async fn start(bridge: &Bridge, player: &Player) -> String {
-    let (status, started) = try_start(bridge, player).await;
-    assert_eq!(status, StatusCode::CREATED, "{started}");
-    let url = url::Url::parse(started["authorize_url"].as_str().unwrap()).unwrap();
-    let query: HashMap<_, _> = url.query_pairs().into_owned().collect();
-    query["state"].clone()
+    let url = sign_in::start(bridge, player, &CHALLONGE).await;
+    sign_in::query(&url)["state"].clone()
 }
 
 /// What the browser sees when Challonge sends it back.
 pub async fn back(bridge: &Bridge, query: &str) -> String {
-    let response = bridge
-        .client
-        .get(bridge.url(&format!("/v1/challonge/callback?{query}")))
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
-    response.text().await.unwrap()
-}
-
-/// The confirmation secret on the page that asks before connecting or
-/// moving an account.
-pub fn confirmation(page: &str) -> String {
-    let marker = "name=\"confirmation\" value=\"";
-    let start = page.find(marker).expect("the page asks for a confirmation") + marker.len();
-    let end = page[start..].find('"').unwrap();
-    page[start..start + end].to_string()
+    sign_in::back(bridge, &CHALLONGE, query).await
 }
 
 /// The player's answer on the page that asked.
 pub async fn decide(bridge: &Bridge, confirmation: &str, choice: &str) -> String {
-    let response = bridge
-        .client
-        .post(bridge.url("/v1/challonge/callback"))
-        .header("content-type", "application/x-www-form-urlencoded")
-        .body(format!("confirmation={confirmation}&choice={choice}"))
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
-    response.text().await.unwrap()
+    sign_in::decide(bridge, &CHALLONGE, confirmation, choice).await
 }
 
 /// Signs `player` in with code `code`; the first page the browser shows.
@@ -336,10 +149,16 @@ pub async fn sign_in(bridge: &Bridge, player: &Player, code: &str) -> String {
     back(bridge, &format!("code={code}&state={state}")).await
 }
 
-/// Signs `player` in as `who` (`kate` or `sam`), whose account no other
-/// Ember ID has, saying yes when the page asks.
+/// Signs `player` in as `who` (`kate`, `sam` or `rival`), saying yes when
+/// the page asks before connecting an account no other Ember ID has.
 pub async fn connect(bridge: &Bridge, player: &Player, who: &str) {
-    let mut page = sign_in(bridge, player, &format!("good-{who}")).await;
+    let state = start(bridge, player).await;
+    connect_with(bridge, &state, who).await;
+}
+
+/// Finishes the sign-in `state` as `who`, as `connect` does.
+pub async fn connect_with(bridge: &Bridge, state: &str, who: &str) {
+    let mut page = back(bridge, &format!("code=good-{who}&state={state}")).await;
     if page.contains("Connect this Challonge account?") {
         page = decide(bridge, &confirmation(&page), "connect").await;
     }
@@ -347,34 +166,18 @@ pub async fn connect(bridge: &Bridge, player: &Player, who: &str) {
 }
 
 pub async fn cancel(bridge: &Bridge, player: &Player) -> (StatusCode, Json) {
-    send(
-        bridge,
-        player,
-        Action::ChallongeCancel,
-        Method::Delete,
-        "/v1/challonge/start",
-        json!({}),
-    )
-    .await
+    sign_in::cancel(bridge, player, &CHALLONGE).await
 }
 
 pub async fn disconnect(bridge: &Bridge, player: &Player) -> (StatusCode, Json) {
-    send(
-        bridge,
-        player,
-        Action::ChallongeRemove,
-        Method::Delete,
-        "/v1/challonge",
-        json!({}),
-    )
-    .await
+    sign_in::disconnect(bridge, player, &CHALLONGE).await
 }
 
 /// The Challonge user ID connected to the player's Ember ID, or None.
 pub async fn account(bridge: &Bridge, player: &Player) -> Option<String> {
-    let (status, body) = bridge.get(player.token(), "/v1/challonge").await;
-    assert_eq!(status, StatusCode::OK, "{body}");
-    body["account"]["user_id"].as_str().map(str::to_owned)
+    sign_in::account(bridge, player, &CHALLONGE).await["user_id"]
+        .as_str()
+        .map(str::to_owned)
 }
 
 /// A lookup on `connection` for these Challonge usernames and Discord IDs.

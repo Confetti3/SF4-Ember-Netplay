@@ -314,20 +314,22 @@ until a live sign-in settles it.
    an account another Ember ID holds (`POST /v1/challonge/callback`).
 4. `GET /v1/challonge` shows the connected account, `DELETE
    /v1/challonge/start` (`challonge.cancel`) ends a sign-in in flight, and
-   `DELETE /v1/challonge` (`challonge.remove`) disconnects the account. Every
-   bridge lists `challonge.accounts` and keeps these, with or without
-   sign-in.
+   `DELETE /v1/challonge` (`challonge.remove`) disconnects the account. A
+   bridge with a `challonge` block lists `challonge.accounts`, with or
+   without the client secret; every bridge keeps these routes.
 
 Challonge's free API tier allows 500 requests a month. A sign-in costs two
 (the token exchange and `/me`), and the bridge spends at most
 `monthly_request_budget` (default 400) per calendar month and
 `daily_request_budget` (default 40) per day, both in UTC and counted in the
 database: it takes a sign-in's two before the exchange, so one Challonge
-refuses still counts both. At either budget a start answers
-`service_unavailable` and a sign-in already started ends with a page asking
-the player to try again later. Starts are also limited to `starts_per_hour`
-(default 30) across the bridge, counted only for starts whose proof holds,
-besides each Ember ID's ten an hour. The bridge logs a warning when 80% of
+refuses still counts both. At either budget a start answers `sign_in_busy`
+(503, retryable, with `Retry-After` until the next UTC day for the daily
+budget) and a sign-in already started ends with a page asking the player to
+try again later. Starts are also limited to `starts_per_hour`
+(default 30) across the bridge, counted only for starts whose proof holds and
+that are stored, besides each Ember ID's ten an hour; a start it refuses
+answers `sign_in_busy` too. The bridge logs a warning when 80% of
 the month's budget is spent, and one line when a limit refuses (at most once
 an hour for `starts_per_hour`, once a day for either budget).
 
@@ -339,6 +341,11 @@ long as a day's share times the days left fits in it (10 days at the
 defaults). The operator's levers are a smaller `daily_request_budget` or
 `starts_per_hour`, a paid Challonge tier with a larger
 `monthly_request_budget`, and the refusal lines in the log.
+
+The bridge counts only its own requests, made with its OAuth application.
+ember-brackets, the bracket connector, counts the requests it makes with an
+organizer's key separately, in its own process. Whether Challonge counts
+the two against one allowance is not documented.
 
 Links a Challonge sign-in approved (`approved_via` `challonge`, claim
 `challonge:<user ID>`) follow the account exactly as Discord's do.
@@ -447,8 +454,8 @@ this, can run their own bridge and room supervisor. The contract is
 - `challonge_lookup`: the same lookup takes `{"challonge": [...]}`, Challonge
   usernames as a tournament entry shows them, compared without case, and
   answers them in `challonge` (`username`, `challonge_user_id`, `ember_id`,
-  `participant_id`). Each list needs its own setting; the two together name
-  at most 32 accounts.
+  `participant_id`, `connected_at`). Each list needs its own setting; the
+  two together name at most 32 accounts.
 - `disputes`: `"review"` (the default) or `"restart"`, which cancels a match
   that would wait in `needs_review`. It is recorded with the connection the
   first time it is seen and never changes; use a new connection to change it.

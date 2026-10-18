@@ -9,6 +9,7 @@ pub mod play;
 pub mod public_rooms;
 pub mod receiver;
 pub mod results;
+pub mod sign_in;
 pub mod supervisor;
 
 use std::path::PathBuf;

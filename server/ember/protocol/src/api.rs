@@ -30,6 +30,10 @@ pub enum ErrorCode {
     RateLimited,
     ResyncRequired,
     ServiceUnavailable,
+    /// A site's sign-in (Challonge's) refused a start for its own limits:
+    /// the day's or month's requests to the site are spent, or the hour's
+    /// starts across the bridge are. Not the service failing; try later.
+    SignInBusy,
 }
 
 impl ErrorCode {
@@ -54,14 +58,14 @@ impl ErrorCode {
             | Self::ResyncRequired => 409,
             Self::UnsupportedRules | Self::IncompatibleBuild => 422,
             Self::RateLimited => 429,
-            Self::ServiceUnavailable => 503,
+            Self::ServiceUnavailable | Self::SignInBusy => 503,
         }
     }
 
     pub fn retryable(self) -> bool {
         matches!(
             self,
-            Self::RateLimited | Self::ServiceUnavailable | Self::ResyncRequired
+            Self::RateLimited | Self::ServiceUnavailable | Self::ResyncRequired | Self::SignInBusy
         )
     }
 }

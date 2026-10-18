@@ -22,9 +22,10 @@ Challonge  <--poll / report--  ember-brackets  --POST /v1/matches-->  bridge  <-
 
 ### 1. Protocol (`server/ember/protocol`)
 
-- `challonge.rs`: features `challonge` and `challonge.accounts`, paths `/v1/challonge/start`, `/v1/challonge`, `/v1/challonge/move`, and the wire types `SignInStarted`, `Connection`, `Account`, `SignIn`, `SignInState`, `MoveChoice`. Usernames are compared without case.
-- `challenge.rs`: proof actions `challonge.connect`, `challonge.remove`, `challonge.cancel`, `challonge.move`.
-- `partner.rs`: `Lookup.challonge` (usernames) next to `Lookup.discord`, answered in `LookupAnswer.challonge`. Both new fields are optional on the wire, so existing callers are unchanged.
+- `challonge.rs`: features `challonge` and `challonge.accounts`; paths `/v1/challonge/start` (POST starts, DELETE cancels), `/v1/challonge/callback` (Challonge's redirect, and the page's answer) and `/v1/challonge` (GET reads, DELETE disconnects); `is_username` and `username_key`, since usernames are compared without case. The wire types are Discord's, shared in `sign_in.rs`: `SignInStarted { authorize_url, expires_at }`, `Connection { account }`, `Account { user_id, username, connected_at }`.
+- `challenge.rs`: proof actions `challonge.connect`, `challonge.cancel`, `challonge.remove`. Moving an account held by another Ember ID is the answer on the bridge's page, as for Discord, so there is no proof action for it.
+- `partner.rs`: `Lookup.challonge` (usernames) next to `Lookup.discord`, answered in `LookupAnswer.challonge` as `FoundChallongePlayer { username, challonge_user_id, ember_id, participant_id, connected_at }`. `challonge` is left out of a request and an answer when empty, so existing callers are unchanged; a lookup names at least one list.
+- `api.rs`: error code `sign_in_busy` (503, retryable) for a start Challonge's limits refuse, so Ember can say so instead of "the service did not answer".
 
 ### 2. Bridge: Challonge sign-in and lookup (`server/ember/bridge`)
 
@@ -39,7 +40,7 @@ The device grant was the first plan. It was dropped because it needs polling, wh
 
 Storage (migration 027): `challonge_accounts` (user ID, username and its lowercase key, Ember ID unique, cascade on account delete), `challonge_sign_ins` and `challonge_withdrawals` shaped like Discord's, and `site_requests` (requests per site and UTC day, summed for the month, for the budgets below). `links.approved_via` gains `challonge`.
 
-Config: a `challonge` block per bridge (`client_id`, `api_base` defaulting to `https://api.challonge.com`, `token_path` defaulting to `/oauth/token` since the docs also name `/v2.1/oauth/token`, `me_path`, `scope`, `monthly_request_budget`, `daily_request_budget`, `starts_per_hour`). The client secret is required and lives in `integrations.json` like Discord's; the `challonge` feature is only advertised when both are there. A sign-in costs two requests (token and `/me`); `monthly_request_budget` (default 400 per calendar month in UTC) and `daily_request_budget` (default 40 per UTC day) are checked before each exchange, with a warning in the log at 80% of the month's, and `starts_per_hour` (default 30) limits proven starts across the bridge. Each refusal by a limit is logged, at most hourly or daily. This bounds a day's cost, not a drain: throwaway Ember IDs cost nothing, so someone determined can spend the day's share every day and keep sign-in busy, and the month runs out after `monthly_request_budget / daily_request_budget` such days.
+Config: a `challonge` block per bridge (`client_id`, `api_base` defaulting to `https://api.challonge.com`, `token_path` defaulting to `/oauth/token` since the docs also name `/v2.1/oauth/token`, `me_path`, `scope`, `monthly_request_budget`, `daily_request_budget`, `starts_per_hour`). The client secret is required and lives in `integrations.json` like Discord's; the `challonge` feature is only advertised when both are there. A sign-in costs two requests (token and `/me`); `monthly_request_budget` (default 400 per calendar month in UTC) and `daily_request_budget` (default 40 per UTC day) are checked before each exchange, with a warning in the log at 80% of the month's, and `starts_per_hour` (default 30) limits proven starts across the bridge. A start any of these refuses answers `sign_in_busy`; each refusal is logged, at most hourly or daily. These count only the bridge's own requests, made with its OAuth app; ember-brackets counts its own, made with the organizer's key, and Challonge may count the two apart or together (open question). This bounds a day's cost, not a drain: throwaway Ember IDs cost nothing, so someone determined can spend the day's share every day and keep sign-in busy, and the month runs out after `monthly_request_budget / daily_request_budget` such days.
 
 Lookup: a connection with `challonge_lookup: true` may send usernames to `POST /v1/players/lookup`. Each one with a connected Ember ID is linked on that connection (subject `challonge:<user id>`, `approved_via = 'challonge'`), as the Discord lookup does. A username is the one captured at connect time; when another account connects with a name the bridge holds, the older one stops answering for it. Each answer carries `connected_at`, since a player who renamed is still found under the old name until someone connects with it.
 
@@ -74,7 +75,7 @@ Disputes use the connection's `disputes: "restart"` for now: a disputed game is 
 ## Open questions
 
 - The live API answers listed at the end of CHALLONGE_API.md (token URL, `/me` path, that the Connect app may use the authorization-code flow with the bridge's redirect URI, 429 behaviour). Each is configurable or handled both ways until checked against a registered Connect app.
-- Whether Challonge's paid API tier is needed for regular events.
+- Whether Challonge's paid API tier is needed for regular events, and whether Challonge counts the bridge's OAuth app and an organizer's key against one allowance or two.
 - A participant's Challonge user ID is not exposed, only the username, so a player who renames on Challonge reconnects in Ember to match again.
 
 ## Later

@@ -41,7 +41,6 @@ use axum::{
     routing::{get, post},
 };
 use ember_protocol::{
-    api::ErrorCode,
     challenge::Method,
     encoding::b64u,
     sign_in::{Connection, SignInStarted},
@@ -64,6 +63,7 @@ use crate::{
         Site,
         sign_ins::{self, Question},
     },
+    rate::Slot,
     routes::sessions::{self, Nothing, Target},
     util::random,
 };
@@ -95,6 +95,17 @@ pub fn routes(app: Router<AppState>, site: Site) -> Router<AppState> {
 /// connected account need no offer, so a player can always withdraw one.
 pub fn offered(state: &AppState, site: Site) -> bool {
     OAuth::of(state, site).is_some()
+}
+
+/// Whether the capabilities list `site`'s accounts feature: Discord's always,
+/// as before Challonge existed; Challonge's when the configuration has a
+/// `challonge` block, so a bridge without Challonge shows nothing of it.
+/// The account routes answer either way.
+pub fn accounts_listed(state: &AppState, site: Site) -> bool {
+    match site {
+        Site::Discord => true,
+        Site::Challonge => state.config.challonge.is_some(),
+    }
 }
 
 fn enabled(state: &AppState, site: Site) -> Result<OAuth> {
@@ -153,12 +164,9 @@ async fn start(
         )
         .map_err(ApiFailure::rate_limited)?;
     if let Some(limits) = oauth.limits
-        && !budget::has_room(&state, site, limits).await?
+        && let Some(cap) = budget::refusing(&state, site, limits).await?
     {
-        return Err(ApiFailure::new(
-            ErrorCode::ServiceUnavailable,
-            "Sign-in is busy. Try again later.",
-        ));
+        return Err(ApiFailure::sign_in_busy(cap.retry_after(state.now())));
     }
     let profile = Profile::of(site);
     let secret = b64u(&random::<32>());
@@ -179,23 +187,28 @@ async fn start(
     );
     let started = sessions::as_proven(&state, player, request, target, move |tx, ctx, ember_id| {
         // A start counts against the bridge-wide limit only once its proof
-        // holds, so requests with bad proofs cannot hold everyone's sign-in.
-        if let Some(per_hour) = per_hour
-            && let Err(retry_after) =
-                rate.check(&format!("{}-starts", site.name()), per_hour, 3600, ctx.now)
+        // holds, so requests with bad proofs cannot hold everyone's sign-in,
+        // and only if it commits: the slot is given back otherwise.
+        let slot = match per_hour
+            .map(|per_hour| rate.take(&format!("{}-starts", site.name()), per_hour, 3600, ctx.now))
         {
-            return Ok(Err(retry_after));
-        }
+            Some(Err(retry_after)) => return Ok(Err(retry_after)),
+            Some(Ok(slot)) => Some(slot),
+            None => None,
+        };
         sign_ins::expire(tx, ctx.now)?;
         // Only the latest sign-in can connect an account.
         sign_ins::end(tx, site, ember_id)?;
         sign_ins::insert(tx, site, &hash, ember_id, expires_at)?;
-        Ok(Ok(()))
+        Ok(Ok(slot))
     })
     .await?;
-    if let Err(retry_after) = started {
-        budget::refused(&state, site, budget::Cap::StartsPerHour);
-        return Err(ApiFailure::rate_limited(retry_after));
+    match started {
+        Ok(slot) => slot.into_iter().for_each(Slot::keep),
+        Err(retry_after) => {
+            budget::refused(&state, site, budget::Cap::StartsPerHour);
+            return Err(ApiFailure::sign_in_busy(Some(retry_after)));
+        }
     }
     Ok(json(
         StatusCode::CREATED,

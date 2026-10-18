@@ -189,8 +189,9 @@ lists together:
 `challonge` is left out of the answer when it is empty. Challonge usernames
 are compared without case and answered as asked; one that is not a username
 (1 to 64 letters, digits, `_`, `-` or `.`) is `invalid_request`. An account
-with no connected Ember ID is left out, and an Ember ID found twice is
-answered once. `connected_at` is when the account connected, the last time
+with no connected Ember ID is left out, and an Ember ID found twice in one
+list is answered once in it (one found by Discord ID and by username is in
+both lists). `connected_at` is when the account connected, the last time
 the bridge saw that username on it (see Challonge sign-in in
 `docs/guides/INTEGRATIONS.md` for what a rename does). A list the connection
 may not use answers `forbidden`, even next to one it may. BluMint's `/v1/blumint/lookup` uses the same code.

@@ -32,6 +32,16 @@ impl Cap {
         }
     }
 
+    /// Seconds from `now` until a refusal by a budget may pass: the next
+    /// UTC day for the day's. The month's is not worked out, and the hour's
+    /// is the limiter's to say.
+    pub fn retry_after(self, now: u64) -> Option<u64> {
+        match self {
+            Self::Day => Some(24 * 3600 - now % (24 * 3600)),
+            Self::StartsPerHour | Self::Month => None,
+        }
+    }
+
     /// How often a refusal by it is logged at most.
     fn logged_every(self) -> u64 {
         match self {
@@ -91,9 +101,9 @@ fn full(today: u64, month: u64, limits: Limits) -> Option<Cap> {
     }
 }
 
-/// Whether today's and this month's budgets still have a sign-in's
-/// exchange in them. A refusal is logged.
-pub async fn has_room(state: &AppState, site: Site, limits: Limits) -> Result<bool> {
+/// The budget, today's or this month's, without room for a sign-in's
+/// exchange now, if any. A refusal is logged.
+pub async fn refusing(state: &AppState, site: Site, limits: Limits) -> Result<Option<Cap>> {
     let now = state.now();
     let full = state
         .db
@@ -105,7 +115,7 @@ pub async fn has_room(state: &AppState, site: Site, limits: Limits) -> Result<bo
     if let Some(cap) = full {
         refused(state, site, cap);
     }
-    Ok(full.is_none())
+    Ok(full)
 }
 
 /// Takes a sign-in's exchange from today's and this month's budgets, or

@@ -49,7 +49,9 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
     }
     for site in Site::ALL {
         let profile = sign_in::Profile::of(site);
-        features.push(profile.accounts_feature.into());
+        if sign_in::accounts_listed(&state, site) {
+            features.push(profile.accounts_feature.into());
+        }
         if sign_in::offered(&state, site) {
             features.push(profile.feature.into());
         }

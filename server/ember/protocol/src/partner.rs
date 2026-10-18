@@ -28,12 +28,21 @@ pub struct Lookup {
     pub challonge: Vec<String>,
 }
 
-/// `Lookup` as it arrives, before it is checked to name a list.
+/// `Lookup` as it arrives, before it is checked to name a list. A list left
+/// out is `None`; a list given as `null` is refused, as it was before
+/// `challonge` existed.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct NamedLists {
+    #[serde(default, deserialize_with = "list")]
     discord: Option<Vec<String>>,
+    #[serde(default, deserialize_with = "list")]
     challonge: Option<Vec<String>>,
+}
+
+/// A list that is there, which `null` is not.
+fn list<'de, D: serde::Deserializer<'de>>(lists: D) -> Result<Option<Vec<String>>, D::Error> {
+    Vec::deserialize(lists).map(Some)
 }
 
 impl TryFrom<NamedLists> for Lookup {
@@ -137,6 +146,8 @@ mod tests {
     fn a_lookup_names_at_least_one_list() {
         let parse = |text: &str| serde_json::from_str::<Lookup>(text);
         assert!(parse("{}").is_err());
+        assert!(parse(r#"{"discord": null, "challonge": ["Kate_99"]}"#).is_err());
+        assert!(parse(r#"{"discord": [], "challonge": null}"#).is_err());
         assert!(parse(r#"{"discord": [], "email": []}"#).is_err());
         assert_eq!(parse(r#"{"discord": []}"#).unwrap(), Lookup::default());
         let challonge = parse(r#"{"challonge": ["Kate_99"]}"#).unwrap();
