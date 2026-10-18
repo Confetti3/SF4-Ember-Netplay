@@ -10,6 +10,7 @@
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
 #include "../common/FocusGate.hxx"
+#include "../platform/GameWindowSection.hxx"
 #include "sf4e__CodePages.hxx"
 #include "sf4e__BackgroundPlay.hxx"
 #include "sf4e__Gamepads.hxx"
@@ -31,6 +32,8 @@ std::atomic<bool> ready{false};
 // The caller's policy (BackgroundPlay::Policy), published by each pad update.
 std::atomic<bool> backgroundInput{false}, keepSound{false}, keepRunning{false}, keepSoundMinimized{false};
 std::atomic<HWND> gameWindow{nullptr};
+// Tells a second launcher, started for an ember: link, which window to bring forward.
+sf4e::platform::GameWindowPublisher windowSection;
 
 bool KeepSound() { return ready.load() && keepSound.load(); }
 bool KeepRunning() { return ready.load() && keepRunning.load(); }
@@ -150,7 +153,9 @@ HWND sf4e::BackgroundPlay::GameWindow() { return gameWindow.load(); }
 
 void sf4e::BackgroundPlay::BeforePadUpdate(rPad::System* system, const Policy& policy) {
     const rMain::Win32_WindowData* const data = WindowData();
-    gameWindow.store(data ? data->hWnd : nullptr);
+    const HWND window = data ? data->hWnd : nullptr;
+    gameWindow.store(window);
+    windowSection.Publish(window);
     keepSound.store(policy.keepSound);
     keepRunning.store(policy.keepRunning);
     keepSoundMinimized.store(policy.keepSoundMinimized);
