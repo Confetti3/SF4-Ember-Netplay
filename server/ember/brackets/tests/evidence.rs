@@ -138,11 +138,7 @@ async fn a_result_the_bridge_cannot_deliver_is_read_from_the_bridge() {
     world.connector.pass(true).await;
     let match_id = world.bridge.matches().await[0].1.clone();
     world.play(&match_id, &[1, 0, 1]).await;
-    world.bridge.try_delivery().await;
-    assert_eq!(
-        world.snapshot(&match_id).await["provider_delivery_state"],
-        "retrying"
-    );
+    world.bridge.fail_delivery(&match_id).await;
     world.challonge.log();
 
     // A scheduled read finds nothing to do. Five minutes on, the connector

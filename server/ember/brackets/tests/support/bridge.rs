@@ -1,7 +1,10 @@
 //! A real bridge on a loopback port, with the connector's `direct`
 //! connection: Challonge lookup, disputes restarted, results sent to the
 //! connector.
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    time::{Duration, Instant},
+};
 
 use axum::http::{Method, StatusCode};
 use ember_bridge::{AppState, Db, Keys, Running};
@@ -175,36 +178,61 @@ impl TestBridge {
             .unwrap()
     }
 
-    /// One delivery pass, as the bridge's worker makes them, whatever it
-    /// achieves.
-    pub async fn try_delivery(&self) {
-        ember_bridge::deliver_results(self.state()).await;
-    }
-
-    /// Sends the results of finished matches, until every one has been
-    /// received. The bridge's own worker runs alongside; either may send.
-    pub async fn deliver(&self) {
-        for _ in 0..250 {
-            let waiting: u32 = self
+    /// Runs delivery passes, beside the bridge's own worker, until the SQL
+    /// condition `settled` holds, for at most `DELIVERY_DEADLINE`. Either
+    /// may be the one that sends; waiting on the recorded outcome rather
+    /// than on either keeps a test independent of how fast the worker runs.
+    async fn deliver_until(&self, what: &str, settled: &'static str, params: Vec<String>) {
+        let deadline = Instant::now() + DELIVERY_DEADLINE;
+        while Instant::now() < deadline {
+            let params = params.clone();
+            let done: bool = self
                 .state()
                 .db
-                .read(|tx| {
-                    Ok(tx.query_row(
-                        "SELECT COUNT(*) FROM matches
-                         WHERE state IN ('completed', 'cancelled', 'expired', 'failed')
-                           AND delivery_state <> 'delivered'",
-                        [],
-                        |row| row.get(0),
-                    )?)
+                .read(move |tx| {
+                    Ok(
+                        tx.query_row(settled, rusqlite::params_from_iter(params), |row| {
+                            row.get(0)
+                        })?,
+                    )
                 })
                 .await
                 .unwrap();
-            if waiting == 0 {
+            if done {
                 return;
             }
             ember_bridge::deliver_results(self.state()).await;
-            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+            tokio::time::sleep(Duration::from_millis(20)).await;
         }
-        panic!("results were not delivered");
+        panic!("{what} within {DELIVERY_DEADLINE:?}");
+    }
+
+    /// Tries to deliver the match's result until the bridge records that it
+    /// did not get through (`retrying` or `failed`), as it does when nothing
+    /// answers on the results URL.
+    pub async fn fail_delivery(&self, match_id: &str) {
+        self.deliver_until(
+            "the delivery was not recorded as failing",
+            "SELECT delivery_state IN ('retrying', 'failed') FROM matches WHERE id = ?1",
+            vec![match_id.to_owned()],
+        )
+        .await;
+    }
+
+    /// Sends the results of finished matches, until every one has been
+    /// received.
+    pub async fn deliver(&self) {
+        self.deliver_until(
+            "results were not delivered",
+            "SELECT NOT EXISTS (SELECT 1 FROM matches
+                 WHERE state IN ('completed', 'cancelled', 'expired', 'failed')
+                   AND delivery_state <> 'delivered')",
+            Vec::new(),
+        )
+        .await;
     }
 }
+
+/// How long a test waits for the bridge's deliveries to settle. Generous:
+/// the deadline only matters when something is wrong.
+const DELIVERY_DEADLINE: Duration = Duration::from_secs(30);
