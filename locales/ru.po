@@ -1221,6 +1221,12 @@ msgstr "Проверить объявление"
 msgid "settings.ready_sound_test_detail"
 msgstr "Один раз воспроизводит объявление с этой громкостью."
 
+msgid "settings.shortcut_hint"
+msgstr "Подсказка клавиши меню"
+
+msgid "settings.shortcut_hint_detail"
+msgstr "Когда меню Ember закрывается, на несколько секунд показывает F10 или Start, чтобы было понятно, как открыть его снова."
+
 msgid "settings.interface_size"
 msgstr "Размер интерфейса"
 

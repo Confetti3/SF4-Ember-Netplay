@@ -41,6 +41,8 @@ struct PlayerPreferences {
     bool showMatchHud = true;
     int matchHudSize = 0;
     bool matchHudRaised = false;
+    // "F10 or Start" for a few seconds each time Ember's menu closes.
+    bool showShortcutHint = true;
     // Where the strip sits: 0 bottom center, 1 bottom left, 2 bottom right, 3 top left, 4 top right,
     // 5 top center (above the game's round timer).
     int matchHudAnchor = 0;

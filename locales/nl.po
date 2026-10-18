@@ -1220,6 +1220,12 @@ msgstr "Melding testen"
 msgid "settings.ready_sound_test_detail"
 msgstr "Speelt de melding één keer af op dit volume."
 
+msgid "settings.shortcut_hint"
+msgstr "Hint voor menusnelkoppeling"
+
+msgid "settings.shortcut_hint_detail"
+msgstr "Toont een paar seconden F10 of Start als het menu van Ember sluit, zodat je weet hoe je het weer opent."
+
 msgid "settings.interface_size"
 msgstr "Interfacegrootte"
 

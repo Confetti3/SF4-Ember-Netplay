@@ -1220,6 +1220,12 @@ msgstr "Ansage testen"
 msgid "settings.ready_sound_test_detail"
 msgstr "Spielt die Ansage einmal in dieser Lautstärke ab."
 
+msgid "settings.shortcut_hint"
+msgstr "Hinweis zum Menükürzel"
+
+msgid "settings.shortcut_hint_detail"
+msgstr "Zeigt einige Sekunden lang F10 oder Start, wenn sich Embers Menü schließt, damit Sie wissen, wie Sie es wieder öffnen."
+
 msgid "settings.interface_size"
 msgstr "Oberflächengröße"
 

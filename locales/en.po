@@ -1220,6 +1220,12 @@ msgstr "Test challenger call"
 msgid "settings.ready_sound_test_detail"
 msgstr "Plays the call once at this volume."
 
+msgid "settings.shortcut_hint"
+msgstr "Menu shortcut hint"
+
+msgid "settings.shortcut_hint_detail"
+msgstr "Shows F10 or Start for a few seconds when Ember's menu closes, so you know how to open it again."
+
 msgid "settings.interface_size"
 msgstr "Interface size"
 

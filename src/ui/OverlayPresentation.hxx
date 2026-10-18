@@ -18,15 +18,24 @@ inline bool PassiveOverlayShown(bool shellVisible, bool trainingControlsOpen, bo
 class TimedHint {
 public:
     explicit TimedHint(double seconds) : seconds_(seconds) {}
-    bool Due(bool active, double now) {
+    bool Due(bool active, double now) { return Left(active, now) > 0; }
+    // The seconds it has left; 0 when it is not due.
+    double Left(bool active, double now) {
         if (active && !active_) since_ = now;
         active_ = active;
-        return active && now - since_ < seconds_;
+        return active && now - since_ < seconds_ ? seconds_ - (now - since_) : 0;
     }
 private:
     double seconds_, since_ = 0;
     bool active_ = false;
 };
+
+// "F10 or Start" shows this long each time it applies again, such as when
+// Ember's menu closes, and fades out over its last half second.
+constexpr double ShortcutHintSeconds = 4, ShortcutHintFadeSeconds = .5;
+inline float ShortcutHintAlpha(double secondsLeft) {
+    return secondsLeft <= 0 ? 0.f : static_cast<float>(secondsLeft < ShortcutHintFadeSeconds ? secondsLeft / ShortcutHintFadeSeconds : 1);
+}
 
 // Presentation state survives device recreation. Only native menu states may
 // capture input; rendering never changes session or simulation state.

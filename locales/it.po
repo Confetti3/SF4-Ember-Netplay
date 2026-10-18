@@ -1220,6 +1220,12 @@ msgstr "Prova annuncio"
 msgid "settings.ready_sound_test_detail"
 msgstr "Riproduce l'annuncio una volta a questo volume."
 
+msgid "settings.shortcut_hint"
+msgstr "Suggerimento scorciatoia menu"
+
+msgid "settings.shortcut_hint_detail"
+msgstr "Mostra F10 o Start per qualche secondo quando il menu di Ember si chiude, così sai come riaprirlo."
+
 msgid "settings.interface_size"
 msgstr "Dim. interfaccia"
 

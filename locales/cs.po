@@ -1220,6 +1220,12 @@ msgstr "Vyzkoušet ohlášení"
 msgid "settings.ready_sound_test_detail"
 msgstr "Jednou přehraje ohlášení v této hlasitosti."
 
+msgid "settings.shortcut_hint"
+msgstr "Nápověda zkratky menu"
+
+msgid "settings.shortcut_hint_detail"
+msgstr "Po zavření menu Ember na pár sekund ukáže F10 nebo Start, abyste věděli, jak ho znovu otevřít."
+
 msgid "settings.interface_size"
 msgstr "Velikost rozhraní"
 
