@@ -3528,9 +3528,6 @@ msgstr "Use a different Challonge account"
 msgid "challonge.change_detail"
 msgstr "Opens Challonge in your browser to connect another account instead. Your tournament must then use that account."
 
-msgid "challonge.disconnect"
-msgstr "Disconnect"
-
 msgid "challonge.remove_detail"
 msgstr "Disconnects this Challonge account from your Ember ID on this service. Tournaments on Challonge can no longer find you by it."
 
@@ -3554,6 +3551,24 @@ msgstr "Challonge account disconnected."
 
 msgid "challonge.cancelled"
 msgstr "Stopped waiting for Challonge."
+
+msgid "challonge.none"
+msgstr "Not connected"
+
+msgid "challonge.setting_up"
+msgstr "Setting up"
+
+msgid "challonge.retry"
+msgstr "Try again"
+
+msgid "challonge.retry_detail"
+msgstr "Reads your Challonge account again."
+
+msgid "challonge.no_service"
+msgstr "Ember's tournament service is not set up"
+
+msgid "challonge.no_service_detail"
+msgstr "Challonge connects through Ember's tournament service. Look it up under Linked accounts first, then come back here."
 
 msgid "identity.failure.browser"
 msgstr "Ember could not open your browser."

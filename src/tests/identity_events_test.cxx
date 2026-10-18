@@ -48,12 +48,45 @@ void Answers() {
     view.challongeName = "Kate_99";
     sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":4,"op":"challonge_status","ok":false,"reason":"rate_limited"})"), view);
     Check(view.challongeName == "Kate_99" && view.failure == "rate_limited", "A failed read changed the account");
+    // A later profile without the features says the service has neither.
+    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":5,"op":"bridge_inspect","ok":true,"data":{
+        "profile":{"bridge_id":"brg_1","origin":"https://bridge.embernetplay.link","display_name":"Ember"},
+        "capabilities":{"connections":[],"features":["discord"]}}})"), view);
+    Check(view.inspectedDiscord && !view.inspectedDiscordAccounts && !view.inspectedChallonge && !view.inspectedChallongeAccounts,
+        "A profile without Challonge kept its features");
+}
+
+// One classification decides what the runtime lets through during a live
+// game and what the screens retire, read once, or send as cleanup.
+void Effects() {
+    using sf4e::netplay::IdentityEffect;
+    using sf4e::netplay::IdentityOp;
+    using sf4e::netplay::EffectOf;
+    for (const auto op : {IdentityOp::Status, IdentityOp::BridgeList, IdentityOp::BridgeInspect, IdentityOp::LinkList,
+             IdentityOp::DiscordStatus, IdentityOp::ChallongeStatus})
+        Check(EffectOf(op) == IdentityEffect::Read, "A read is not a read, so a live game would refuse it");
+    for (const auto op : {IdentityOp::DiscordConnect, IdentityOp::ChallongeConnect}) Check(EffectOf(op) == IdentityEffect::Open, "A sign-in does not open");
+    for (const auto op : {IdentityOp::DiscordCancel, IdentityOp::ChallongeCancel}) Check(EffectOf(op) == IdentityEffect::Cleanup, "A cancel is not cleanup");
+    for (const auto op : {IdentityOp::Enable, IdentityOp::Import, IdentityOp::Reset}) Check(EffectOf(op) == IdentityEffect::KeyChange, "A key change is not one");
+    Check(EffectOf(IdentityOp::PreviewImport) == IdentityEffect::Preview, "A backup preview is not a preview");
+    for (const auto op : {IdentityOp::Unlock, IdentityOp::Export, IdentityOp::BridgeApprove, IdentityOp::BridgeForget, IdentityOp::LinkClaim,
+             IdentityOp::LinkCancel, IdentityOp::LinkRemove, IdentityOp::DiscordRemove, IdentityOp::ChallongeRemove})
+        Check(EffectOf(op) == IdentityEffect::Change, "A change is classified as something else");
+    // Every site's four requests map both ways.
+    using sf4e::netplay::SignInSite;
+    using sf4e::netplay::SignInStep;
+    for (const auto site : {SignInSite::Discord, SignInSite::Challonge})
+        for (const auto step : {SignInStep::Status, SignInStep::Connect, SignInStep::Remove, SignInStep::Cancel}) {
+            const auto signIn = sf4e::netplay::SignInOf(sf4e::netplay::SignInRequest(site, step));
+            Check(signIn && signIn->site == site && signIn->step == step, "A sign-in request does not map back to its site and step");
+        }
+    Check(!sf4e::netplay::SignInOf(IdentityOp::LinkList), "A link request is a sign-in");
 }
 }
 
 int main() {
     try {
-        Requests(); Answers();
+        Requests(); Answers(); Effects();
         std::cout << "Identity events passed.\n";
         return 0;
     } catch (const std::exception& error) {

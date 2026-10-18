@@ -2,6 +2,7 @@
 #include "../common/WipeText.hxx"
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 
 namespace sf4e { namespace netplay {
@@ -15,6 +16,56 @@ enum class IdentityOp : std::uint8_t {
     DiscordStatus, DiscordConnect, DiscordRemove, DiscordCancel,
     ChallongeStatus, ChallongeConnect, ChallongeRemove, ChallongeCancel,
 };
+
+// The sites a player connects to their Ember ID through a browser sign-in on
+// a tournament service, and the four requests each site has: read the
+// account, start a sign-in (the helper opens the site's page), disconnect,
+// and end a sign-in.
+enum class SignInSite : std::uint8_t { Discord, Challonge };
+enum class SignInStep : std::uint8_t { Status, Connect, Remove, Cancel };
+constexpr std::size_t SignInSiteCount = 2, SignInStepCount = 4;
+struct SignInOp { SignInSite site; SignInStep step; };
+constexpr IdentityOp SignInOps[SignInSiteCount][SignInStepCount] = {
+    {IdentityOp::DiscordStatus, IdentityOp::DiscordConnect, IdentityOp::DiscordRemove, IdentityOp::DiscordCancel},
+    {IdentityOp::ChallongeStatus, IdentityOp::ChallongeConnect, IdentityOp::ChallongeRemove, IdentityOp::ChallongeCancel},
+};
+constexpr IdentityOp SignInRequest(SignInSite site, SignInStep step) {
+    return SignInOps[static_cast<std::size_t>(site)][static_cast<std::size_t>(step)];
+}
+// The site and step a request is; none for any other request.
+constexpr std::optional<SignInOp> SignInOf(IdentityOp op) {
+    for (std::size_t site = 0; site < SignInSiteCount; ++site)
+        for (std::size_t step = 0; step < SignInStepCount; ++step)
+            if (SignInOps[site][step] == op) return SignInOp{static_cast<SignInSite>(site), static_cast<SignInStep>(step)};
+    return std::nullopt;
+}
+
+// What a request does, the one classification the runtime and the interface
+// both use. A read asks the helper or a service and changes nothing, so it
+// goes through during a live game. A preview is key work that only shows
+// something (a backup's contents). A key change creates, replaces or retires
+// the key, only outside a room. An open starts a site's sign-in in the
+// browser. A cleanup ends a sign-in the player cancelled or left, and nobody
+// waits for its answer. Anything else changes what the player asked to.
+enum class IdentityEffect : std::uint8_t { Read, Preview, KeyChange, Open, Cleanup, Change };
+constexpr IdentityEffect EffectOf(IdentityOp op) {
+    if (const auto signIn = SignInOf(op)) {
+        switch (signIn->step) {
+        case SignInStep::Status: return IdentityEffect::Read;
+        case SignInStep::Connect: return IdentityEffect::Open;
+        case SignInStep::Cancel: return IdentityEffect::Cleanup;
+        case SignInStep::Remove: return IdentityEffect::Change;
+        }
+    }
+    switch (op) {
+    case IdentityOp::Status: case IdentityOp::BridgeList: case IdentityOp::BridgeInspect: case IdentityOp::LinkList:
+        return IdentityEffect::Read;
+    case IdentityOp::PreviewImport: return IdentityEffect::Preview;
+    case IdentityOp::Enable: case IdentityOp::Import: case IdentityOp::Reset: return IdentityEffect::KeyChange;
+    default: return IdentityEffect::Change;
+    }
+}
+
 struct IdentityRequest {
     IdentityOp op = IdentityOp::None;
     // Chosen by the interface, so it can tell its request's answer apart.

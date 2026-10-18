@@ -3888,9 +3888,6 @@ msgstr "Использовать другой аккаунт Challonge"
 msgid "challonge.change_detail"
 msgstr "Открывает Challonge в браузере, чтобы вместо этого подключить другой аккаунт. Тогда ваш турнир должен использовать этот аккаунт."
 
-msgid "challonge.disconnect"
-msgstr "Отключить"
-
 msgid "challonge.remove_detail"
 msgstr "Отключает этот аккаунт Challonge от вашего Ember ID в этом сервисе. Турниры на Challonge больше не найдут вас по нему."
 
@@ -3914,6 +3911,24 @@ msgstr "Аккаунт Challonge отключён."
 
 msgid "challonge.cancelled"
 msgstr "Ожидание Challonge прекращено."
+
+msgid "challonge.none"
+msgstr "Не подключён"
+
+msgid "challonge.setting_up"
+msgstr "Настройка"
+
+msgid "challonge.retry"
+msgstr "Повторить"
+
+msgid "challonge.retry_detail"
+msgstr "Снова получает данные аккаунта Challonge."
+
+msgid "challonge.no_service"
+msgstr "Турнирный сервис Ember не настроен"
+
+msgid "challonge.no_service_detail"
+msgstr "Challonge подключается через турнирный сервис Ember. Сначала найдите его в разделе «Привязанные аккаунты», затем вернитесь сюда."
 
 msgid "identity.failure.browser"
 msgstr "Ember не удалось открыть браузер."

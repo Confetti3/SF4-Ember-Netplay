@@ -3887,9 +3887,6 @@ msgstr "Použít jiný účet Challonge"
 msgid "challonge.change_detail"
 msgstr "Otevře Challonge ve vašem prohlížeči a připojí místo toho jiný účet. Váš turnaj pak musí používat tento účet."
 
-msgid "challonge.disconnect"
-msgstr "Odpojit"
-
 msgid "challonge.remove_detail"
 msgstr "Odpojí tento účet Challonge od vašeho Ember ID v této službě. Turnaje na Challonge vás podle něj už nenajdou."
 
@@ -3913,6 +3910,24 @@ msgstr "Účet Challonge byl odpojen."
 
 msgid "challonge.cancelled"
 msgstr "Čekání na Challonge bylo zastaveno."
+
+msgid "challonge.none"
+msgstr "Nepřipojeno"
+
+msgid "challonge.setting_up"
+msgstr "Nastavování"
+
+msgid "challonge.retry"
+msgstr "Zkusit znovu"
+
+msgid "challonge.retry_detail"
+msgstr "Znovu načte váš účet Challonge."
+
+msgid "challonge.no_service"
+msgstr "Turnajová služba Ember není nastavena"
+
+msgid "challonge.no_service_detail"
+msgstr "Challonge se připojuje přes turnajovou službu Ember. Nejprve ji vyhledejte v části Propojené účty a pak se sem vraťte."
 
 msgid "identity.failure.browser"
 msgstr "Ember nemohl otevřít váš prohlížeč."

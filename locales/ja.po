@@ -3887,9 +3887,6 @@ msgstr "別のChallongeアカウントを使う"
 msgid "challonge.change_detail"
 msgstr "ブラウザーでChallongeを開き、代わりに別のアカウントを連携します。その後は、大会でもそのアカウントを使う必要があります。"
 
-msgid "challonge.disconnect"
-msgstr "連携解除"
-
 msgid "challonge.remove_detail"
 msgstr "このサービスでこのChallongeアカウントとEmber IDの連携を解除します。Challongeの大会はこのアカウントからあなたを見つけられなくなります。"
 
@@ -3913,6 +3910,24 @@ msgstr "Challongeアカウントの連携を解除しました。"
 
 msgid "challonge.cancelled"
 msgstr "Challongeの待機をやめました。"
+
+msgid "challonge.none"
+msgstr "未連携"
+
+msgid "challonge.setting_up"
+msgstr "設定中"
+
+msgid "challonge.retry"
+msgstr "再試行"
+
+msgid "challonge.retry_detail"
+msgstr "Challongeアカウントをもう一度読み込みます。"
+
+msgid "challonge.no_service"
+msgstr "Emberの大会サービスが設定されていません"
+
+msgid "challonge.no_service_detail"
+msgstr "ChallongeはEmberの大会サービスを通じて連携します。先に「連携アカウント」でサービスを探してから、ここに戻ってください。"
 
 msgid "identity.failure.browser"
 msgstr "Emberはブラウザーを開けませんでした。"

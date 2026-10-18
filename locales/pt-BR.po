@@ -3413,9 +3413,6 @@ msgstr "Usar outra conta do Challonge"
 msgid "challonge.change_detail"
 msgstr "Abre o Challonge no navegador para conectar outra conta. Seu torneio precisará usar essa conta."
 
-msgid "challonge.disconnect"
-msgstr "Desconectar"
-
 msgid "challonge.remove_detail"
 msgstr "Desconecta esta conta do Challonge do seu Ember ID neste serviço. Torneios no Challonge não vão mais encontrar você por ela."
 
@@ -3439,6 +3436,24 @@ msgstr "Conta do Challonge desconectada."
 
 msgid "challonge.cancelled"
 msgstr "A espera pelo Challonge foi interrompida."
+
+msgid "challonge.none"
+msgstr "Não conectado"
+
+msgid "challonge.setting_up"
+msgstr "Configurando"
+
+msgid "challonge.retry"
+msgstr "Tentar novamente"
+
+msgid "challonge.retry_detail"
+msgstr "Lê sua conta do Challonge novamente."
+
+msgid "challonge.no_service"
+msgstr "O serviço de torneios do Ember não está configurado"
+
+msgid "challonge.no_service_detail"
+msgstr "O Challonge se conecta pelo serviço de torneios do Ember. Primeiro procure o serviço em Contas vinculadas e depois volte aqui."
 
 msgid "identity.failure.browser"
 msgstr "O Ember não conseguiu abrir o navegador."

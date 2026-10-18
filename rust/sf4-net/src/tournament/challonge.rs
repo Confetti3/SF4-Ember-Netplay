@@ -11,6 +11,8 @@ use super::{browser, sign_in::Site};
 /// Challonge's site: its pages are on this domain or a subdomain of it,
 /// api.challonge.com among them.
 const DOMAIN: &str = "challonge.com";
+/// Challonge's sign-in page on that site, with its query.
+const SIGN_IN_PATH: &str = "/oauth/authorize?";
 
 pub struct Challonge;
 
@@ -21,13 +23,14 @@ impl Site for Challonge {
     const REMOVE: Action = Action::ChallongeRemove;
     const CANCEL: Action = Action::ChallongeCancel;
 
-    /// An https page on challonge.com or a subdomain, with no user, port or
-    /// anything else in its host.
+    /// The sign-in page, over https on challonge.com or a subdomain, with no
+    /// user, port or anything else in its host.
     fn is_sign_in_page(url: &str) -> bool {
         let Some(rest) = url.strip_prefix("https://") else {
             return false;
         };
         let host = rest.split(['/', '?', '#']).next().unwrap_or_default();
+        let path = &rest[host.len()..];
         let labels = host.split('.').all(|label| {
             !label.is_empty()
                 && label
@@ -37,6 +40,7 @@ impl Site for Challonge {
         let host = host.to_ascii_lowercase();
         browser::is_plain(url)
             && labels
+            && path.starts_with(SIGN_IN_PATH)
             && (host == DOMAIN
                 || host
                     .strip_suffix(DOMAIN)
@@ -53,24 +57,29 @@ mod tests {
         for url in [
             "https://api.challonge.com/oauth/authorize?response_type=code&client_id=x&scope=me&state=y",
             "https://challonge.com/oauth/authorize?state=y",
-            "https://API.Challonge.com/oauth/authorize#top",
-            "https://challonge.com",
+            "https://API.Challonge.com/oauth/authorize?state=y",
         ] {
             assert!(Challonge::is_sign_in_page(url), "{url}");
         }
         for url in [
-            "http://api.challonge.com/oauth/authorize",
-            "https://challonge.com.example/oauth/authorize",
-            "https://evilchallonge.com/oauth/authorize",
-            "https://x@api.challonge.com/oauth/authorize",
-            "https://api.challonge.com:8443/oauth/authorize",
+            "http://api.challonge.com/oauth/authorize?state=y",
+            "https://challonge.com.example/oauth/authorize?state=y",
+            "https://evilchallonge.com/oauth/authorize?state=y",
+            "https://x@api.challonge.com/oauth/authorize?state=y",
+            "https://api.challonge.com:8443/oauth/authorize?state=y",
             "https://challonge.com\\@example.com/",
-            "https://.challonge.com/oauth/authorize",
-            "https://a..challonge.com/oauth/authorize",
+            "https://.challonge.com/oauth/authorize?state=y",
+            "https://a..challonge.com/oauth/authorize?state=y",
             "https://api.challonge.com/oauth/authorize?a b",
             "https://api.challonge.com/\"authorize",
             "https://example.com/?https://api.challonge.com/oauth/authorize",
             "file:///C:/Windows/System32/calc.exe",
+            "https://challonge.com",
+            "https://challonge.com/oauth/authorize",
+            "https://challonge.com/oauth/authorize#top",
+            "https://challonge.com/some/other/page?x=1",
+            "https://community.challonge.com/t/1?oauth/authorize?",
+            "https://api.challonge.com/oauth/authorizex?state=y",
             "",
         ] {
             assert!(!Challonge::is_sign_in_page(url), "{url}");

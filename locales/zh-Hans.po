@@ -3887,9 +3887,6 @@ msgstr "使用其他 Challonge 账号"
 msgid "challonge.change_detail"
 msgstr "在浏览器中打开 Challonge，改为关联另一个账号。之后你的赛事必须使用该账号。"
 
-msgid "challonge.disconnect"
-msgstr "断开关联"
-
 msgid "challonge.remove_detail"
 msgstr "在此服务中解除此 Challonge 账号与你的 Ember ID 的关联。Challonge 上的赛事将无法再通过它找到你。"
 
@@ -3913,6 +3910,24 @@ msgstr "已解除 Challonge 账号关联。"
 
 msgid "challonge.cancelled"
 msgstr "已停止等待 Challonge。"
+
+msgid "challonge.none"
+msgstr "未关联"
+
+msgid "challonge.setting_up"
+msgstr "正在设置"
+
+msgid "challonge.retry"
+msgstr "重试"
+
+msgid "challonge.retry_detail"
+msgstr "重新读取你的 Challonge 账号。"
+
+msgid "challonge.no_service"
+msgstr "尚未设置 Ember 的赛事服务"
+
+msgid "challonge.no_service_detail"
+msgstr "Challonge 通过 Ember 的赛事服务关联。请先在“已绑定账号”中查找该服务，然后回到这里。"
 
 msgid "identity.failure.browser"
 msgstr "Ember 无法打开你的浏览器。"
