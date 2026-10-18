@@ -120,7 +120,7 @@ bool ApplicationServices::RequestLaunchCheck() {
 }
 bool ApplicationServices::UpdateNow(const launcher::InstallOffer& offer) {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (stop_ || state_.pending || !state_.launchOffer || *state_.launchOffer != offer) return false;
+    if (stop_ || state_.pending || state_.offer != offer) return false;
     offer_ = offer;
     return Start(ServiceAction::UpdateNow, {}, state_.channel);
 }
@@ -201,7 +201,7 @@ void ApplicationServices::Run() {
                 next.sentReports = history.sent; next.sentReadable = history.readable;
                 next.succeeded = next.reporting.Succeeded(); next.message = next.reporting.message;
             } else if (action == ServiceAction::CheckUpdates || action == ServiceAction::LaunchUpdateCheck) {
-                next.update = hooks_.checkForUpdate(next.channel); next.succeeded = next.update.ok;
+                next.update = hooks_.checkForUpdate(next.channel); next.offer = launcher::OfferFrom(next.channel, next.update); next.succeeded = next.update.ok;
                 next.message = !next.update.ok ? next.update.error : next.update.goesBack ?
                     loc::Tf("services.go_back_available",next.update.latestVersion) : next.update.updateAvailable ?
                     loc::Tf("services.update_available",next.update.latestVersion) : loc::T("services.up_to_date");
@@ -251,7 +251,7 @@ void ApplicationServices::Run() {
                 for (const auto& event : next.connectionHistory) output << event << '\n';
                 output.close(); next.succeeded = static_cast<bool>(output);
                 next.message = output ? loc::T("services.diagnostics_saved") : loc::T("services.diagnostics_failed");
-            } else if (action == ServiceAction::OpenUpdater || action == ServiceAction::OpenRecovery || action == ServiceAction::UpdateNow) {
+            } else if (action == ServiceAction::OpenRecovery || action == ServiceAction::UpdateNow) {
                 wchar_t root[MAX_PATH] = {};
                 if (!install::GetInstallRoot(root, MAX_PATH)) throw std::runtime_error("install directory");
                 const auto executable = std::filesystem::path(root) / L"Launcher.exe";

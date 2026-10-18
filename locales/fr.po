@@ -1310,12 +1310,6 @@ msgstr "Exporte l'état des connexions sans invitations ni identifiants."
 msgid "about.updates_detail"
 msgstr "Chercher une nouvelle version d'Ember."
 
-msgid "about.open_updater"
-msgstr "Ouvrir la mise à jour"
-
-msgid "about.open_updater_detail"
-msgstr "Le jeu se ferme et la mise à jour s'ouvre. Choisissez-y Télécharger et installer. Quittez d'abord votre salon."
-
 msgid "about.open_recovery"
 msgstr "Ouvrir la récupération"
 

@@ -19,7 +19,8 @@ void UpdatePolicy::CheckFinished(bool reached, std::uint64_t now) {
 }
 
 std::optional<launcher::InstallOffer> UpdatePolicy::Present(launcher::UpdateChannel channel, const launcher::UpdateCheckResult& result) const {
-    auto offer = launcher::OfferFrom(channel, result);
+    // The launch question never asks to go back.
+    auto offer = result.goesBack ? std::nullopt : launcher::OfferFrom(channel, result);
     if (offer && offer->tag == store_.load().skipped) return std::nullopt;
     return offer;
 }

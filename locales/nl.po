@@ -1310,12 +1310,6 @@ msgstr "Exporteert verbindingsstatus zonder uitnodigingen of inloggegevens."
 msgid "about.updates_detail"
 msgstr "Zoek naar een nieuwere Ember-versie."
 
-msgid "about.open_updater"
-msgstr "Afsluiten en updater openen"
-
-msgid "about.open_updater_detail"
-msgstr "Het spel sluit en de updater opent. Kies daar Downloaden en installeren. Verlaat eerst je kamer."
-
 msgid "about.open_recovery"
 msgstr "Afsluiten naar herstel"
 

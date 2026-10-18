@@ -109,7 +109,8 @@ int main() {
         CHECK(!policy.Present(UpdateChannel::Stable, Release("v1.3.0", "abc")));
         CHECK(!policy.Present(UpdateChannel::Stable, Failure()));
         auto back = Release("v1.2.0", DigestA); back.goesBack = true;
-        CHECK(!policy.Present(UpdateChannel::Stable, back));
+        // Help & about may offer a step back the player chose; the launch question never does.
+        CHECK(launcher::OfferFrom(UpdateChannel::Stable, back) && !policy.Present(UpdateChannel::Stable, back));
         CHECK(!policy.Present(UpdateChannel::Stable, Release("not a version", DigestA)));
         // Skipping a version skips that one; a newer release is asked about again.
         CHECK(policy.Skip("v1.3.0") && memory.saved.skipped == "v1.3.0");
