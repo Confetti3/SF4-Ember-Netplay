@@ -152,22 +152,13 @@ async fn start(
             state.now(),
         )
         .map_err(ApiFailure::rate_limited)?;
-    if let Some(limits) = oauth.limits {
-        state
-            .rate
-            .check(
-                &format!("{}-starts", site.name()),
-                limits.starts_per_hour,
-                3600,
-                state.now(),
-            )
-            .map_err(ApiFailure::rate_limited)?;
-        if !budget::has_room(&state, site, limits).await? {
-            return Err(ApiFailure::new(
-                ErrorCode::ServiceUnavailable,
-                "Sign-in is busy. Try again later.",
-            ));
-        }
+    if let Some(limits) = oauth.limits
+        && !budget::has_room(&state, site, limits).await?
+    {
+        return Err(ApiFailure::new(
+            ErrorCode::ServiceUnavailable,
+            "Sign-in is busy. Try again later.",
+        ));
     }
     let profile = Profile::of(site);
     let secret = b64u(&random::<32>());
@@ -182,13 +173,30 @@ async fn start(
         method: Method::Post,
         path: profile.start,
     };
-    sessions::as_proven(&state, player, request, target, move |tx, ctx, ember_id| {
+    let (rate, per_hour) = (
+        state.rate.clone(),
+        oauth.limits.map(|limits| limits.starts_per_hour),
+    );
+    let started = sessions::as_proven(&state, player, request, target, move |tx, ctx, ember_id| {
+        // A start counts against the bridge-wide limit only once its proof
+        // holds, so requests with bad proofs cannot hold everyone's sign-in.
+        if let Some(per_hour) = per_hour
+            && let Err(retry_after) =
+                rate.check(&format!("{}-starts", site.name()), per_hour, 3600, ctx.now)
+        {
+            return Ok(Err(retry_after));
+        }
         sign_ins::expire(tx, ctx.now)?;
         // Only the latest sign-in can connect an account.
         sign_ins::end(tx, site, ember_id)?;
-        sign_ins::insert(tx, site, &hash, ember_id, expires_at)
+        sign_ins::insert(tx, site, &hash, ember_id, expires_at)?;
+        Ok(Ok(()))
     })
     .await?;
+    if let Err(retry_after) = started {
+        budget::refused(&state, site, budget::Cap::StartsPerHour);
+        return Err(ApiFailure::rate_limited(retry_after));
+    }
     Ok(json(
         StatusCode::CREATED,
         &SignInStarted {

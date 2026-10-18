@@ -13,7 +13,8 @@ CREATE TABLE challonge_accounts (
     username_key TEXT,
     connected_at INTEGER NOT NULL
 ) WITHOUT ROWID;
-CREATE INDEX challonge_accounts_username ON challonge_accounts (username_key);
+CREATE UNIQUE INDEX challonge_accounts_username ON challonge_accounts (username_key)
+    WHERE username_key IS NOT NULL;
 
 -- Sign-ins sent to Challonge and not yet answered, as discord_sign_ins: a
 -- keyed hash of the state the browser carries (or, once the page asks, of

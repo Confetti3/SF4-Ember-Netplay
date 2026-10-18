@@ -195,9 +195,9 @@ impl Site {
 
     /// The account connected for a lookup key: a Discord user ID (anything
     /// else, such as the emails BluMint also sends, finds nothing), or a
-    /// Challonge username compared without case, where the account connected
-    /// most recently under that name answers. Its user ID, Ember ID,
-    /// username and when it connected.
+    /// Challonge username compared without case, which at most one account
+    /// answers for (`connect`, and the schema's unique index). Its user ID,
+    /// Ember ID, username and when it connected.
     fn find(
         self,
         tx: &Transaction<'_>,
@@ -210,8 +210,7 @@ impl Site {
                 key.to_owned(),
             ),
             Self::Challonge => (
-                "SELECT user_id, ember_id, username, connected_at FROM challonge_accounts WHERE username_key = ?1
-                 ORDER BY connected_at DESC, user_id LIMIT 1",
+                "SELECT user_id, ember_id, username, connected_at FROM challonge_accounts WHERE username_key = ?1",
                 username_key(key),
             ),
         };

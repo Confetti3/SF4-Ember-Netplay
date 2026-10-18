@@ -691,36 +691,67 @@ async fn a_link_the_player_removed_is_not_made_again_until_a_new_sign_in() {
 }
 
 #[tokio::test]
-async fn the_most_recently_connected_account_answers_for_a_shared_username() {
+async fn one_account_at_most_answers_for_a_username() {
     let fake = Challonge::default();
     let bridge = bridge(&fake).await;
-    let (old, new) = (player(&bridge, 1).await, player(&bridge, 2).await);
-    // Two Challonge accounts that had the same username at different times.
-    for (user_id, player, connected_at) in [("2001", &old, 100), ("2002", &new, 200)] {
+    let players = [
+        player(&bridge, 1).await,
+        player(&bridge, 2).await,
+        player(&bridge, 3).await,
+    ];
+    let insert = |user_id: &'static str, player: &common::Player, key: Option<&'static str>| {
         let ember_id = player.id().as_str().to_owned();
-        bridge
-            .state()
-            .db
-            .write(move |tx| {
-                tx.execute(
-                    "INSERT INTO challonge_accounts (user_id, ember_id, username, username_key, connected_at)
-                     VALUES (?1, ?2, 'Renamed', 'renamed', ?3)",
-                    rusqlite::params![user_id, ember_id, connected_at],
-                )?;
-                Ok(())
-            })
-            .await
-            .unwrap();
-    }
-    let answer = found(&bridge, BRACKETS, &["RENAMED"]).await;
+        bridge.state().db.write(move |tx| {
+            tx.execute(
+                "INSERT INTO challonge_accounts (user_id, ember_id, username, username_key, connected_at)
+                 VALUES (?1, ?2, 'Renamed', ?3, 1)",
+                rusqlite::params![user_id, ember_id, key],
+            )?;
+            Ok(())
+        })
+    };
+    insert("2001", &players[0], Some("renamed")).await.unwrap();
+    // A second account under the same name is refused by the schema, while
+    // accounts whose name another took (NULL) are as many as there are.
+    assert!(insert("2002", &players[1], Some("renamed")).await.is_err());
+    insert("2002", &players[1], None).await.unwrap();
+    insert("2003", &players[2], None).await.unwrap();
     assert_eq!(
-        answer,
+        found(&bridge, BRACKETS, &["RENAMED"]).await,
         [(
             "RENAMED".to_owned(),
-            "2002".to_owned(),
-            new.id().to_string()
+            "2001".to_owned(),
+            players[0].id().to_string()
         )]
     );
+}
+
+#[tokio::test]
+async fn starts_with_bad_proofs_take_no_bridge_wide_slot() {
+    let fake = Challonge::default();
+    let bridge = bridge_with(&fake, json!({ "starts_per_hour": 2 }), with_secret()).await;
+    let players = [player(&bridge, 1).await, player(&bridge, 2).await];
+    // Proofs made for another action, sent as starts, many times over.
+    for _ in 0..3 {
+        let body = bridge
+            .prove(
+                &players[0],
+                Action::ChallongeCancel,
+                Method::Delete,
+                "/v1/challonge/start",
+                json!({}),
+            )
+            .await;
+        let (status, _) = bridge
+            .send_proof(&players[0], Method::Post, "/v1/challonge/start", body)
+            .await;
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
+    }
+    // Both slots are still there for proven starts.
+    start(&bridge, &players[0]).await;
+    start(&bridge, &players[1]).await;
+    let (status, _) = try_start(&bridge, &players[1]).await;
+    assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
 }
 
 /// Whether `text` is anywhere in the bridge's database files.

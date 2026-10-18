@@ -326,9 +326,19 @@ database: it takes a sign-in's two before the exchange, so one Challonge
 refuses still counts both. At either budget a start answers
 `service_unavailable` and a sign-in already started ends with a page asking
 the player to try again later. Starts are also limited to `starts_per_hour`
-(default 30) across the bridge, besides each Ember ID's ten an hour, so
-throwaway Ember IDs can spend at most a day's share. The bridge logs a
-warning when 80% of the month's budget is spent.
+(default 30) across the bridge, counted only for starts whose proof holds,
+besides each Ember ID's ten an hour. The bridge logs a warning when 80% of
+the month's budget is spent, and one line when a limit refuses (at most once
+an hour for `starts_per_hour`, once a day for either budget).
+
+These limits bound what one day can cost; they do not stop a drain. Ember
+IDs cost nothing to make, so a determined actor can make throwaway ones and
+spend the day's share every day, keeping Challonge sign-in busy for real
+players until the next UTC day. The rest of the month keeps its room for as
+long as a day's share times the days left fits in it (10 days at the
+defaults). The operator's levers are a smaller `daily_request_budget` or
+`starts_per_hour`, a paid Challonge tier with a larger
+`monthly_request_budget`, and the refusal lines in the log.
 
 Links a Challonge sign-in approved (`approved_via` `challonge`, claim
 `challonge:<user ID>`) follow the account exactly as Discord's do.
