@@ -31,8 +31,10 @@ const PER_PAGE: usize = 25;
 const MAX_PAGES: u32 = 40;
 const MAX_ANSWER: usize = 1024 * 1024;
 /// Tournament states after which no set is played. Not in the documented
-/// schema, so a tournament without one is judged from its matches.
-const OVER: &[&str] = &["complete", "awaiting_review", "ended"];
+/// schema, so a tournament without one is judged from its matches. Before
+/// the organizer finalizes (`awaiting_review`) a set can still be reopened.
+const OVER: &[&str] = &["complete", "ended"];
+const IN_REVIEW: &str = "awaiting_review";
 
 pub(crate) struct Challonge {
     http: reqwest::Client,
@@ -238,15 +240,13 @@ impl Challonge {
         Ok(raw.into_iter().map(|raw| self.set_of(raw)).collect())
     }
 
-    /// Asked before a match is cancelled or a result set aside, so it is
-    /// always made.
-    async fn read_set(&self, id: &str) -> Result<Option<Set>, SiteError> {
+    async fn read_set(&self, id: &str, purpose: Purpose) -> Result<Option<Set>, SiteError> {
         if !is_slug(id) {
             return Ok(None);
         }
         let path = format!("/matches/{id}.json");
         let Some(answer) = self
-            .call(Priority::Always, Method::GET, &path, None)
+            .call(priority(purpose), Method::GET, &path, None)
             .await?
         else {
             return Ok(None);
@@ -263,10 +263,10 @@ impl Challonge {
             .await?;
         let Data { data: tournament }: Data<Resource<TournamentAttributes>> = parse(answer)?;
         if let Some(state) = tournament.attributes.state {
-            return Ok(if OVER.contains(&state.as_str()) {
-                Standing::Finished
-            } else {
-                Standing::Running
+            return Ok(match state.as_str() {
+                state if OVER.contains(&state) => Standing::Finished,
+                IN_REVIEW => Standing::PlayedOut,
+                _ => Standing::Running,
             });
         }
         let played_out = self
@@ -315,8 +315,8 @@ impl Site for Challonge {
         Box::pin(self.read_open_sets(purpose))
     }
 
-    fn set<'a>(&'a self, id: &'a str) -> SiteFuture<'a, Option<Set>> {
-        Box::pin(self.read_set(id))
+    fn set<'a>(&'a self, id: &'a str, purpose: Purpose) -> SiteFuture<'a, Option<Set>> {
+        Box::pin(self.read_set(id, purpose))
     }
 
     fn standing(&self) -> SiteFuture<'_, Standing> {

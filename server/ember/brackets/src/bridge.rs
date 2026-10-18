@@ -9,7 +9,7 @@ use ember_protocol::{
     api::{ApiError, ErrorCode},
     challonge::{is_username, username_key},
     json,
-    matches::{CreateMatch, MatchState},
+    matches::{CreateMatch, DeliveryState, MatchState},
     partner::{LOOKUP_PATH, Lookup, LookupAnswer, MAX_LOOKUP},
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -48,6 +48,18 @@ impl fmt::Display for BridgeError {
 pub(crate) struct Player {
     pub participant_id: String,
     pub ember_id: EmberId,
+    /// When a Challonge account was connected: the last time the bridge
+    /// saw it under this username, which Challonge lets an account change.
+    pub connected_at: Option<u64>,
+}
+
+/// A match that is over, as the bridge records it.
+pub(crate) struct Over {
+    /// Its players, by slot.
+    pub players: [EmberId; 2],
+    pub ended: Ended,
+    /// How the bridge's delivery of its result is going.
+    pub delivery: DeliveryState,
 }
 
 /// The players found for a lookup's accounts.
@@ -82,6 +94,8 @@ struct MatchView {
     participants: Vec<Seat>,
     #[serde(default)]
     scores: Vec<Wins>,
+    #[serde(default)]
+    provider_delivery_state: Option<DeliveryState>,
 }
 
 #[derive(Deserialize)]
@@ -99,7 +113,8 @@ struct Wins {
 impl MatchView {
     /// How a match that is over ended, as its result says it; `None` while
     /// it runs, or for a roster that is not two players in slots 0 and 1.
-    fn ended(self) -> Option<([EmberId; 2], Ended)> {
+    fn over(self) -> Option<Over> {
+        let delivery = self.provider_delivery_state?;
         let ended = match self.state {
             MatchState::Completed => None,
             MatchState::Cancelled | MatchState::Failed => Some(Ended::Restart),
@@ -127,7 +142,11 @@ impl MatchView {
                 Ended::Completed { games, winner }
             }
         };
-        Some((players, ended))
+        Some(Over {
+            players,
+            ended,
+            delivery,
+        })
     }
 }
 
@@ -192,19 +211,25 @@ impl BridgeClient {
                 let account = Account::Challonge {
                     username: player.username,
                 };
-                (account, player.participant_id, player.ember_id)
+                let found = Player {
+                    participant_id: player.participant_id,
+                    ember_id: player.ember_id,
+                    connected_at: Some(player.connected_at),
+                };
+                (account, found)
             });
             let discord = answer.players.into_iter().map(|player| {
                 let account = Account::Discord {
                     user_id: player.discord_user_id,
                 };
-                (account, player.participant_id, player.ember_id)
-            });
-            for (account, participant_id, ember_id) in challonge.chain(discord) {
-                let player = Player {
-                    participant_id,
-                    ember_id,
+                let found = Player {
+                    participant_id: player.participant_id,
+                    ember_id: player.ember_id,
+                    connected_at: None,
                 };
+                (account, found)
+            });
+            for (account, player) in challonge.chain(discord) {
                 found.0.insert(matched(&account), player);
             }
         }
@@ -222,16 +247,13 @@ impl BridgeClient {
         Ok(created.match_id)
     }
 
-    /// How the match ended, if it has: its players by slot and its outcome,
-    /// read the way the bridge's result would give them.
-    pub async fn ended(
-        &self,
-        match_id: &str,
-    ) -> Result<Option<([EmberId; 2], Ended)>, BridgeError> {
+    /// How the match ended, if it has, read the way the bridge's result
+    /// would give it, with how the result's delivery is going.
+    pub async fn over(&self, match_id: &str) -> Result<Option<Over>, BridgeError> {
         let found: MatchView = self
             .answer(self.get(&format!("/v1/matches/{match_id}")))
             .await?;
-        Ok(found.ended())
+        Ok(found.over())
     }
 
     /// Cancels the match unless it has already ended.
@@ -297,6 +319,7 @@ mod tests {
                 { "slot": 0, "participant_id": "epl_a", "ember_id": one },
             ],
             "scores": [{ "ember_id": one, "wins": scores[0] }, { "ember_id": two, "wins": scores[1] }],
+            "provider_delivery_state": "retrying",
         }))
         .unwrap()
     }
@@ -304,7 +327,7 @@ mod tests {
     #[test]
     fn a_finished_match_reads_like_its_result() {
         assert_eq!(
-            view("completed", [1, 2]).ended().map(|(_, ended)| ended),
+            view("completed", [1, 2]).over().map(|over| over.ended),
             Some(Ended::Completed {
                 games: [1, 2],
                 winner: 1
@@ -312,7 +335,7 @@ mod tests {
         );
         let outcomes: Vec<_> = ["cancelled", "failed", "expired", "running", "needs_review"]
             .into_iter()
-            .map(|state| view(state, [1, 0]).ended().map(|(_, ended)| ended))
+            .map(|state| view(state, [1, 0]).over().map(|over| over.ended))
             .collect();
         assert_eq!(
             outcomes,
@@ -325,7 +348,7 @@ mod tests {
             ]
         );
         // A completed match without a winner at the set length is not read.
-        assert_eq!(view("completed", [1, 1]).ended(), None);
+        assert!(view("completed", [1, 1]).over().is_none());
     }
 
     #[test]
@@ -335,6 +358,7 @@ mod tests {
             participant_id: "epl_a".into(),
             ember_id: EmberId::parse("emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja")
                 .unwrap(),
+            connected_at: Some(1),
         };
         found.0.insert(
             matched(&Account::Challonge {

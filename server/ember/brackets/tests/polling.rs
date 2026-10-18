@@ -101,15 +101,23 @@ async fn a_failing_site_is_asked_again_after_a_growing_wait() {
     world.bridge.deliver().await;
     world.challonge.log();
 
-    // The result waits while Challonge fails: one try, then one a minute
-    // later, then one two minutes after that.
+    // The result waits while Challonge fails. Each wait doubles from a
+    // minute, and neither the result nor the schedule (due every 120 to 600
+    // seconds) reads before a wait is over. Checked minute by minute for
+    // half an hour.
     world.challonge.state.lock().unwrap().failing = Some(500);
-    assert_eq!(after(&world, 0).await, [LIST]);
-    assert!(after(&world, 59).await.is_empty());
-    assert_eq!(after(&world, 1).await, [LIST]);
-    assert!(after(&world, 119).await.is_empty());
+    let mut reads = Vec::new();
+    for minute in 0..=30 {
+        let requests = after(&world, if minute == 0 { 0 } else { 60 }).await;
+        if !requests.is_empty() {
+            assert_eq!(requests, [LIST], "{minute}");
+            reads.push(minute * 60);
+        }
+    }
+    assert_eq!(reads, [0, 60, 180, 420, 900]);
+    // The next try, 960 seconds after the last, works.
     world.challonge.state.lock().unwrap().failing = None;
-    assert_eq!(after(&world, 1).await, [LIST, REPORT]);
+    assert_eq!(after(&world, 60).await, [LIST, REPORT]);
     assert_eq!(world.challonge.find("1001").winner.as_deref(), Some("354"));
     // Settled: nothing more until the schedule says so.
     assert!(after(&world, 0).await.is_empty());
@@ -145,6 +153,14 @@ async fn only_an_over_tournament_stops_reads_for_good() {
         lines(&world.challonge.log()),
         [LIST, TOURNAMENT, ANY_COMPLETE, ANY_PENDING]
     );
+
+    // Awaiting review, a set can still be reopened: that too only slows
+    // reads, and is not saved.
+    world.challonge.state.lock().unwrap().tournament_state = Some("awaiting_review");
+    for _ in 0..2 {
+        world.restarted().pass(true).await;
+        assert_eq!(lines(&world.challonge.log()), [LIST, TOURNAMENT]);
+    }
 
     // The site saying it is over stops reads for good, across restarts.
     world.challonge.state.lock().unwrap().tournament_state = Some("complete");

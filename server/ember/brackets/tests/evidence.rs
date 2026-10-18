@@ -129,7 +129,7 @@ async fn a_changed_entry_ends_the_match_and_its_late_result_is_ignored() {
 }
 
 #[tokio::test]
-async fn a_result_whose_delivery_was_lost_is_read_from_the_bridge() {
+async fn a_result_the_bridge_cannot_deliver_is_read_from_the_bridge() {
     let world = connected(Setup {
         serve_results: false,
         ..Setup::default()
@@ -138,16 +138,34 @@ async fn a_result_whose_delivery_was_lost_is_read_from_the_bridge() {
     world.connector.pass(true).await;
     let match_id = world.bridge.matches().await[0].1.clone();
     world.play(&match_id, &[1, 0, 1]).await;
+    world.bridge.try_delivery().await;
+    assert_eq!(
+        world.snapshot(&match_id).await["provider_delivery_state"],
+        "retrying"
+    );
     world.challonge.log();
 
-    // The bridge cannot deliver it. A scheduled read finds nothing to do;
-    // five minutes on, the connector asks the bridge, and reports.
+    // A scheduled read finds nothing to do. Five minutes on, the connector
+    // asks the bridge, finds its delivery failing, and reports. (The
+    // bridge's own worker keeps trying meanwhile, and a read-back that
+    // catches it mid-try waits for the next one, so a few are allowed.)
     world.advance(299);
     world.connector.pass(false).await;
     assert_eq!(lines(&world.challonge.log()), [LIST]);
     world.advance(1);
-    world.connector.pass(false).await;
-    assert_eq!(lines(&world.challonge.log()), [LIST, REPORT_1001]);
+    for _ in 0..4 {
+        world.connector.pass(false).await;
+        if world.challonge.find("1001").winner.is_some() {
+            break;
+        }
+        world.advance(300);
+    }
+    let log = lines(&world.challonge.log());
+    assert_eq!(
+        log.iter().filter(|line| *line == REPORT_1001).count(),
+        1,
+        "{log:?}"
+    );
     assert_eq!(world.challonge.find("1001").winner.as_deref(), Some("354"));
 }
 

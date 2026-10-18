@@ -5,34 +5,33 @@
 //!
 //! Only what a set shows is evidence: a set missing from a paged list is
 //! asked for on its own before its match is cancelled or its result set
-//! aside. The bridge is asked how each live match ended every few minutes,
-//! so a result whose delivery was lost is still settled. Outside the window
-//! the bracket is read only for results; once it has finished it is not
-//! read at all. Passes of one tournament never overlap.
+//! aside. A failed pass is not followed by another read, of any kind, until
+//! a growing wait has passed. Outside the window the bracket is read only
+//! for results; once it has finished it is not read at all. Passes of one
+//! tournament never overlap.
+//!
+//! Creating a set's match is in `start`, and reading back from the bridge a
+//! result whose delivery is failing in `reconcile`.
+mod reconcile;
+mod start;
+
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{HashMap, HashSet},
     fmt,
     sync::Arc,
     time::Duration,
 };
 
-use ember_protocol::{
-    api::ErrorCode,
-    matches::{CreateMatch, Participant, Rules},
-    partner::result_id,
-    play,
-};
 use tokio::sync::{Mutex, Notify};
 
 use crate::{
     Clock,
-    bridge::{BridgeClient, BridgeError, Found, Player},
+    bridge::BridgeClient,
     config::{Rounds, Tournament},
     log,
     schedule::{Phase, Retry, Schedule, Window},
     sets::{
-        ExternalId, MAX_ATTEMPTS, OnOpen, OnResult, Progress, Received, Seen, Tracked, on_open,
-        on_result, seen,
+        MAX_ATTEMPTS, OnOpen, OnResult, Progress, Received, Seen, Tracked, on_open, on_result, seen,
     },
     site::{Purpose, Report, Set, Site, SiteError, Standing},
     store::Store,
@@ -40,8 +39,6 @@ use crate::{
 
 /// How often a worker wakes when nothing wakes it.
 const WAKE_SECS: u64 = 60;
-/// How often the bridge is asked about each live match.
-const RECONCILE_SECS: u64 = 5 * 60;
 
 /// What every tournament shares.
 pub(crate) struct Context {
@@ -71,12 +68,10 @@ struct State {
     schedule: Schedule,
     /// Reads after a failed pass.
     retry: Retry,
-    next_reconcile: u64,
-    /// Whether the last time the bridge was asked failed, so a run of
-    /// failures is logged once.
-    reconcile_failing: bool,
+    /// The bridge's read-back: when it is next due, and what it remembers.
+    reconcile: reconcile::Memory,
     /// The playable sets the last read found, by ID and entries.
-    seen: Option<Vec<(String, [String; 2])>>,
+    last_read: Option<Vec<(String, [String; 2])>>,
     /// Kept in the database too, so a restart does not read it again.
     finished: bool,
     /// Every set looks played but the site does not say it is over: read
@@ -126,12 +121,12 @@ impl fmt::Display for Trouble {
 
 /// The playable sets of a read, in a form that compares.
 fn fingerprint(sets: &[Set]) -> Vec<(String, [String; 2])> {
-    let mut seen: Vec<(String, [String; 2])> = sets
+    let mut read: Vec<(String, [String; 2])> = sets
         .iter()
         .filter_map(|set| Some((set.id.clone(), set.playable_ids()?.map(str::to_owned))))
         .collect();
-    seen.sort();
-    seen
+    read.sort();
+    read
 }
 
 impl Bracket {
@@ -156,9 +151,8 @@ impl Bracket {
             state: Mutex::new(State {
                 schedule,
                 retry: Retry::default(),
-                next_reconcile: 0,
-                reconcile_failing: false,
-                seen: None,
+                reconcile: reconcile::Memory::default(),
+                last_read: None,
                 finished,
                 played_out: false,
                 window_end_logged: false,
@@ -175,26 +169,17 @@ impl Bracket {
         }
     }
 
-    /// Asks the bridge about live matches when that is due, then reads the
-    /// bracket if a result is waiting (and no failure is being waited out),
-    /// if `poll`, or if the schedule says so, and acts on what it finds.
+    /// Asks the bridge about live matches when that is due, then, unless a
+    /// failure is being waited out, reads the bracket if a result is
+    /// waiting, if `poll`, or if the schedule says so, and acts on what it
+    /// finds.
     pub async fn pass(&self, poll: bool) {
         let mut state = self.state.lock().await;
         if state.finished {
             return;
         }
         let now = self.context.clock.now();
-        if now >= state.next_reconcile {
-            state.next_reconcile = now + RECONCILE_SECS;
-            match self.reconcile(now).await {
-                Ok(()) => state.reconcile_failing = false,
-                Err(why) => {
-                    if !std::mem::replace(&mut state.reconcile_failing, true) {
-                        log!("{}: {why}; asked again every few minutes", self.key);
-                    }
-                }
-            }
-        }
+        self.reconcile(&mut state.reconcile, now).await;
         match self.read(&mut state, now, poll).await {
             Ok(false) => {}
             Ok(true) => {
@@ -222,51 +207,6 @@ impl Bracket {
         &self.context.store
     }
 
-    /// Records the outcome of each live match the bridge says is over, under
-    /// the bridge's own `webhook-id`: a delivery that was lost is settled,
-    /// and one that arrives later is a repeat.
-    async fn reconcile(&self, now: u64) -> Result<(), String> {
-        let live = self
-            .store()
-            .live(&self.key)
-            .map_err(|error| format!("database: {error}"))?;
-        for (set_id, tracked) in live {
-            let Some(match_id) = tracked.match_id else {
-                continue;
-            };
-            let ended = self
-                .context
-                .bridge
-                .ended(&match_id)
-                .await
-                .map_err(|error| format!("cannot ask the bridge about its matches: {error}"))?;
-            let Some((players, ended)) = ended else {
-                continue;
-            };
-            let received = Received {
-                id: ExternalId {
-                    bracket: self.key.clone(),
-                    set: set_id.clone(),
-                    attempt: tracked.attempt,
-                },
-                match_id: match_id.clone(),
-                players,
-                ended,
-            };
-            let fresh = self
-                .store()
-                .receive(&result_id(&match_id), &received, now, false)
-                .map_err(|error| format!("database: {error}"))?;
-            if fresh {
-                log!(
-                    "{} set {set_id}: Ember match {match_id} has ended; its result is read from the bridge",
-                    self.key
-                );
-            }
-        }
-        Ok(())
-    }
-
     /// One read of the bracket and what follows from it. Returns whether a
     /// read was made.
     async fn read(&self, state: &mut State, now: u64, poll: bool) -> Result<bool, Trouble> {
@@ -277,11 +217,15 @@ impl Bracket {
                 self.key
             );
         }
+        // After a failure nothing is read, whatever asks for it, until the
+        // wait is over: a site that keeps failing costs a few requests an hour.
+        if !state.retry.ready(now) {
+            return Ok(false);
+        }
         let in_window = phase == Phase::Open;
         let pending = self.store().pending(&self.key)?;
-        let for_results = !pending.is_empty() && state.retry.ready(now);
         let scheduled = in_window && (poll || state.schedule.due(now));
-        if !for_results && !scheduled {
+        if pending.is_empty() && !scheduled {
             return Ok(false);
         }
         // A result is settled now, whatever the schedule or the budget.
@@ -292,12 +236,14 @@ impl Bracket {
         };
         state.schedule.reading(now);
         let sets = self.site.open_sets(purpose).await?;
-        let seen = fingerprint(&sets);
-        let mut changed = state.seen.as_ref() != Some(&seen);
-        state.seen = Some(seen);
+        let read = fingerprint(&sets);
+        let mut changed = state.last_read.as_ref() != Some(&read);
+        state.last_read = Some(read);
         let settled = self.settle(&pending, &sets).await?;
         changed |= settled.changed;
-        changed |= self.update(&sets, &settled.reported, in_window).await?;
+        changed |= self
+            .update(&sets, &settled.reported, purpose, in_window)
+            .await?;
         state.schedule.read(now, changed);
         if !sets.is_empty() {
             state.played_out = false;
@@ -332,6 +278,7 @@ impl Bracket {
         &self,
         sets: &[Set],
         reported: &HashSet<String>,
+        purpose: Purpose,
         create: bool,
     ) -> Result<bool, Trouble> {
         let open: Vec<(&Set, [&str; 2])> = sets
@@ -348,8 +295,13 @@ impl Bracket {
             if playable.get(set_id.as_str()) == Some(&tracked.entry_ids()) {
                 continue;
             }
-            // Not in the read as it was: the set itself decides.
-            let set = self.site.set(&set_id).await?;
+            // Not in the read as it was: the set itself decides. Asking can
+            // wait for the budget like the read it follows; the match goes
+            // on meanwhile.
+            let set = match self.site.set(&set_id, purpose).await {
+                Err(SiteError::BudgetSpent) => continue,
+                set => set?,
+            };
             if seen(set.as_ref(), &tracked.entries) != Seen::Unchanged {
                 changed |= self.close(&set_id, tracked).await?;
             }
@@ -410,198 +362,6 @@ impl Bracket {
         Ok(())
     }
 
-    /// Creates the match of each attempt whose two players are found.
-    /// Returns whether it created any.
-    async fn start(&self, starts: &[(&Set, u32)]) -> Result<bool, Trouble> {
-        if starts.is_empty() {
-            return Ok(false);
-        }
-        let accounts: Vec<_> = starts
-            .iter()
-            .flat_map(|(set, _)| set.entries.iter().flatten())
-            .filter_map(|entry| entry.account.as_ref())
-            .collect();
-        let found = match self.context.bridge.lookup(&accounts).await {
-            Ok(found) => found,
-            Err(error) => {
-                log!("{}: cannot look players up: {error}", self.key);
-                return Ok(false);
-            }
-        };
-        let mut created = false;
-        for (set, attempt) in starts {
-            created |= self.start_one(set, *attempt, &found).await?;
-        }
-        Ok(created)
-    }
-
-    async fn start_one(&self, set: &Set, attempt: u32, found: &Found) -> Result<bool, Trouble> {
-        // A creation sent for this attempt and never answered is sent again
-        // as it was: the bridge answers with the match it made, if it made
-        // one, and that match's set is then judged like any live one.
-        if let (Some(tracked), Some(command)) = (
-            self.store().tracked(&self.key, &set.id)?,
-            self.store().command(&self.key, &set.id)?,
-        ) && tracked.attempt == attempt
-        {
-            return self.create(set, tracked, &command).await;
-        }
-        let Some(entries) = &set.entries else {
-            return Ok(false);
-        };
-        let players = entries.each_ref().map(|entry| match &entry.account {
-            None => Err(format!(
-                "entry {} has no account to find its player by",
-                entry.participant_id
-            )),
-            Some(account) => found
-                .get(account)
-                .ok_or_else(|| format!("{account} has not connected that account in Ember")),
-        });
-        let command = match players {
-            [Ok(one), Ok(two)] => self.command(set, attempt, [one, two]),
-            [Err(why), _] | [_, Err(why)] => return self.note(set, attempt, Some(&why)),
-        };
-        if command.check().is_err() {
-            return self.note(
-                set,
-                attempt,
-                Some("its two entries are the same Ember player"),
-            );
-        }
-        let tracked = Tracked {
-            entries: entries.clone().map(|entry| entry.participant_id),
-            players: Some(command.by_slot().map(|seat| seat.ember_id.clone())),
-            attempt,
-            match_id: None,
-            progress: Progress::Waiting,
-        };
-        // Saved before it is sent, so a result for this attempt is
-        // recognised, and the creation repeated, even if the connector
-        // stops before the bridge's answer is saved.
-        self.store()
-            .save(&self.key, &set.id, &tracked, Some(&command))?;
-        self.create(set, tracked, &command).await
-    }
-
-    /// Sends a saved creation and records the bridge's answer.
-    async fn create(
-        &self,
-        set: &Set,
-        mut tracked: Tracked,
-        command: &CreateMatch,
-    ) -> Result<bool, Trouble> {
-        let match_id = match self.context.bridge.create(command).await {
-            Ok(match_id) => match_id,
-            // Kept, and sent again as it is: the bridge may have made it.
-            Err(BridgeError::Unavailable) => {
-                return self.note(
-                    set,
-                    tracked.attempt,
-                    Some("the bridge could not be reached"),
-                );
-            }
-            // Another request already made this attempt's match: whatever
-            // it is, the set is played as a new attempt.
-            Err(BridgeError::Refused {
-                code: ErrorCode::IdempotencyConflict,
-                ..
-            }) => {
-                let attempt = tracked.attempt + 1;
-                tracked.players = None;
-                if attempt > MAX_ATTEMPTS {
-                    self.give_up(&set.id, tracked)?;
-                    return Ok(false);
-                }
-                tracked.attempt = attempt;
-                self.store().save(&self.key, &set.id, &tracked, None)?;
-                return self.note(
-                    set,
-                    attempt,
-                    Some("its match ID was already taken; playing it as a new attempt"),
-                );
-            }
-            // Nothing was made: the next read builds the creation afresh.
-            Err(error) => {
-                tracked.players = None;
-                self.store().save(&self.key, &set.id, &tracked, None)?;
-                return self.note(
-                    set,
-                    tracked.attempt,
-                    Some(&format!("the bridge refused the match: {error}")),
-                );
-            }
-        };
-        tracked.match_id = Some(match_id.clone());
-        tracked.progress = Progress::Live;
-        self.store().save(&self.key, &set.id, &tracked, None)?;
-        self.store().note(&self.key, &set.id, None)?;
-        log!(
-            "{} set {}: Ember match {match_id} created ({}, first to {}, attempt {})",
-            self.key,
-            set.id,
-            set.round_label,
-            command.rules.games_to_win,
-            tracked.attempt
-        );
-        // An earlier attempt already marked it, when the read says so.
-        if self.mark_underway && !set.underway {
-            match self.site.mark_underway(&set.id).await {
-                Ok(()) | Err(SiteError::BudgetSpent) => {}
-                Err(error) => log!("{} set {}: not marked underway: {error}", self.key, set.id),
-            }
-        }
-        Ok(true)
-    }
-
-    /// Records why a set waits, logging each reason once. A set seen for
-    /// the first time is saved, so its reason has a row to go on. Nothing
-    /// was created.
-    fn note(&self, set: &Set, attempt: u32, why: Option<&str>) -> Result<bool, Trouble> {
-        if self.store().tracked(&self.key, &set.id)?.is_none()
-            && let Some(entries) = set.entry_ids()
-        {
-            let tracked = Tracked {
-                entries: entries.map(str::to_owned),
-                players: None,
-                attempt,
-                match_id: None,
-                progress: Progress::Waiting,
-            };
-            self.store().save(&self.key, &set.id, &tracked, None)?;
-        }
-        if self.store().note(&self.key, &set.id, why)?
-            && let Some(why) = why
-        {
-            log!("{} set {}: waiting: {why}", self.key, set.id);
-        }
-        Ok(false)
-    }
-
-    fn command(&self, set: &Set, attempt: u32, players: [&Player; 2]) -> CreateMatch {
-        let external = ExternalId {
-            bracket: self.key.clone(),
-            set: set.id.clone(),
-            attempt,
-        };
-        CreateMatch {
-            external_match_id: external.to_string(),
-            game: "usf4".into(),
-            participants: [0, 1]
-                .map(|slot| Participant {
-                    participant_id: players[usize::from(slot)].participant_id.clone(),
-                    ember_id: players[usize::from(slot)].ember_id.clone(),
-                    slot,
-                })
-                .into(),
-            rules: Rules::standard(self.rounds.games_to_win(set.round), play::PROFILE),
-            observer_policy: "authorized_only".into(),
-            result_policy: "two_player_agreement_or_review".into(),
-            required_build_id: self.context.build_id.clone(),
-            metadata: BTreeMap::from([("round_label".to_owned(), set.round_label.clone())]),
-        }
-    }
-
     /// Settles the waiting results in order, against a read made for them.
     async fn settle(
         &self,
@@ -645,7 +405,7 @@ impl Bracket {
             .filter(|set| !settled.stale && seen(Some(set), &tracked.entries) == Seen::Unchanged);
         let set = match listed {
             Some(set) => Some(set.clone()),
-            None => self.site.set(set_id).await?,
+            None => self.site.set(set_id, Purpose::Result).await?,
         };
         settled.changed = true;
         let match_id = &received.match_id;

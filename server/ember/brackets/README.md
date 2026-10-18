@@ -25,19 +25,24 @@ For each configured tournament the connector:
    for it anyway is not reported. A result is reported only for the two
    players its attempt was made for.
 5. Stops for good once a read finds no open set and Challonge says the
-   tournament is over (its `state`). When Challonge does not say, and every
-   set looks played, it only reads at the longest interval, since a later
-   stage or swiss round may still be added.
+   tournament is over (its `state` is `complete` or `ended`). When Challonge
+   does not say, says it is awaiting the organizer's review (a set can still
+   be reopened), and every set looks played, it only reads at the longest
+   interval, since a later stage or swiss round may still be added.
 
 Only what a set shows is evidence. A list read in pages can miss a set that
 moved between two pages, so a set missing from it is asked for on its own
 before its match is cancelled or its result set aside, and a report after
 another one in the same pass reads its set first.
 
-Every five minutes the connector also asks the bridge how each live match
-ended (bridge requests cost nothing against Challonge's budget). A result
-whose delivery was lost is settled from that, under the same ID as the
-delivery, so one that arrives later is a repeat.
+Every five minutes the connector also asks the bridge about each live match
+(bridge requests cost nothing against Challonge's budget). A finished match
+whose result the bridge cannot deliver (retrying, failed, or stuck sending)
+is settled from that, under the same ID as the delivery, so one that gets
+through later is a repeat. A result the bridge has not started sending is
+left alone, since an organizer can still correct it on the bridge until
+then; a connection whose result secret the bridge does not have therefore
+settles nothing.
 
 What it has decided is kept in its SQLite file, so a restart carries on where
 it stopped and never makes a set's match twice: a creation is saved before it
@@ -60,7 +65,11 @@ already played.
   outside Ember.
 
 Players connect their Challonge account in Ember once. A set waits, and says
-so once in the log, until both of its players have.
+so once in the log, until both of its players have. The connector learns
+each entry's account when it first sees the entry: an entry the organizer
+gives an account after that is picked up when the connector restarts. A
+player whose Challonge account was connected more than 30 days before a match
+is pointed out in the log, since Challonge lets an account rename.
 
 ## What the Ember team provides
 
@@ -181,11 +190,11 @@ When something fails the log says so once, not on every try:
 - A delivery to the results URL that fails verification (a wrong
   `secret_file`, or this machine's clock more than five minutes off) is
   answered 503, which the bridge retries for a day, and logged once until
-  one verifies again. Fix the cause within that day; after it, the bridge
-  read-back above still settles the set.
+  one verifies again. Meanwhile the read-back above settles each set from
+  the bridge within about ten minutes, but fix the cause.
 - When Challonge cannot be read or refuses the credential, the bracket is
   read again after a minute, then after twice as long each time, up to an
-  hour. Requests Challonge refuses with 401 or 403 are not counted.
+  hour, whether a result or the schedule asks for the read. Requests Challonge refuses with 401 or 403 are not counted.
 
 ## Request budget
 

@@ -21,7 +21,7 @@ pub trait Site: Send + Sync {
     /// One set as it is now, or `None` when the site says it does not
     /// exist: the evidence asked for before a match is cancelled or a
     /// result is set aside.
-    fn set<'a>(&'a self, id: &'a str) -> SiteFuture<'a, Option<Set>>;
+    fn set<'a>(&'a self, id: &'a str, purpose: Purpose) -> SiteFuture<'a, Option<Set>>;
     /// Whether the bracket is over, asked when a read finds no open set.
     fn standing(&self) -> SiteFuture<'_, Standing>;
     fn mark_underway<'a>(&'a self, id: &'a str) -> SiteFuture<'a, ()>;
@@ -33,7 +33,7 @@ pub enum Standing {
     /// The site says the tournament is over.
     Finished,
     /// Every set looks played, but the site does not say it is over: a
-    /// later stage or round may still be added.
+    /// later stage or round may still be added, or a set reopened.
     PlayedOut,
     Running,
 }

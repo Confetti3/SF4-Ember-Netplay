@@ -175,6 +175,12 @@ impl TestBridge {
             .unwrap()
     }
 
+    /// One delivery pass, as the bridge's worker makes them, whatever it
+    /// achieves.
+    pub async fn try_delivery(&self) {
+        ember_bridge::deliver_results(self.state()).await;
+    }
+
     /// Sends the results of finished matches, until every one has been
     /// received. The bridge's own worker runs alongside; either may send.
     pub async fn deliver(&self) {

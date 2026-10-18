@@ -110,6 +110,21 @@ impl Store {
                 path.display()
             ));
         }
+        // Only a test build before the first release wrote tables without
+        // a version, in a shape this one cannot read.
+        let unversioned: bool = db
+            .query_row(
+                "SELECT ?1 = 0 AND EXISTS (SELECT 1 FROM sqlite_master WHERE name = 'sets')",
+                [version],
+                |row| row.get(0),
+            )
+            .map_err(prepare)?;
+        if unversioned {
+            return Err(format!(
+                "{} was written by a test build of ember-brackets; move it aside to start a new one",
+                path.display()
+            ));
+        }
         db.execute_batch(&format!(
             "PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL;
              CREATE TABLE IF NOT EXISTS sets (
@@ -400,11 +415,22 @@ mod tests {
         store.uncount_request("key", 951_782_400).unwrap();
         assert_eq!(store.requests("key", 951_782_400).unwrap(), 1);
         drop(store);
-        // A file from a newer build is not opened.
+        // A file from a newer build, or from an unversioned test build, is
+        // not opened.
         let db = Connection::open(dir.join("brackets.sqlite3")).unwrap();
         db.execute_batch("PRAGMA user_version = 99").unwrap();
         drop(db);
         assert!(Store::open(&dir.join("brackets.sqlite3")).is_err());
+        let early = dir.join("early.sqlite3");
+        let db = Connection::open(&early).unwrap();
+        db.execute_batch("CREATE TABLE sets (bracket TEXT)")
+            .unwrap();
+        drop(db);
+        assert!(Store::open(&early).err().unwrap().contains("test build"));
+        // A new file is fine, and so is opening it again.
+        let new = dir.join("new.sqlite3");
+        drop(Store::open(&new).unwrap());
+        drop(Store::open(&new).unwrap());
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }
