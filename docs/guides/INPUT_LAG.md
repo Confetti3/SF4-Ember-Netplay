@@ -12,9 +12,9 @@ The arcade version runs fullscreen at a fixed 60 frames a second. The Steam vers
 ## Game and PC settings
 
 - **Frame Rate FIXED and Anti-Aliasing NONE**, as Ember's launch card asks.
-- **Full Screen ON.** In a window, Windows composes the picture with the desktop, which can add a frame. "Play in the background" needs windowed mode, because fullscreen still minimizes.
+- **Full Screen OFF.** On Windows 10 and 11 the game's Full Screen is still composed by Windows and queues frames; on a test PC a frame took about 38 ms to reach the screen against 24 ms in a window. A window also lets "Play in the background" work.
 - **Refresh Rate:** the highest your screen offers. With VSync off, a 120 or 144 Hz screen shows each frame sooner than a 60 Hz one; the game still runs at 60 frames a second.
-- **FreeSync or G-Sync**, if your screen supports it, turned on in both the monitor's menu and the graphics driver. The screen then refreshes as each frame arrives, with no tearing and no VSync delay. Its range must include 60 Hz, and it may not work in a window.
+- **FreeSync or G-Sync**, if your screen supports it, turned on in both the monitor's menu and the graphics driver. The screen then refreshes as each frame arrives, with no tearing and no VSync delay. Its range must include 60 Hz. It may not work in a window; if it does not, Full Screen with it can be the better choice, which the measuring below can settle.
 - **Steam Input off** for the game, unless "Let the game read controllers" is on and you use a PlayStation or Switch pad, which then needs it.
 - **Low latency mode** in the graphics driver (NVIDIA Low Latency Mode, AMD Anti-Lag), so the driver keeps at most one frame ready.
 - **A wired controller**, and the game or low latency mode of your TV or monitor.
