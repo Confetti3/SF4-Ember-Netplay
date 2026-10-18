@@ -2,7 +2,9 @@
 //!
 //! Challonge's documents mix string and integer IDs and disagree on where a
 //! match's players sit, so both are read leniently. Every request is counted
-//! against the credential's monthly budget before it is sent.
+//! against the credential's monthly budget before it is sent: scheduled
+//! reads and underway marks can wait for next month, everything a result
+//! needs cannot.
 use std::{collections::HashMap, sync::Mutex};
 
 use reqwest::{
@@ -14,10 +16,10 @@ use serde_json::{Value, json};
 use zeroize::Zeroizing;
 
 use crate::{
-    budget::Budget,
-    config::CredentialKind,
+    budget::{Budget, Priority},
+    config::{CredentialKind, is_slug},
     http::{bounded_body, http_client},
-    site::{Entry, Need, Report, Set, Site, SiteError, SiteFuture, Status},
+    site::{Account, Entry, Purpose, Report, Set, Site, SiteError, SiteFuture, Standing, Status},
 };
 
 pub const API: &str = "https://api.challonge.com/v2.1";
@@ -28,7 +30,9 @@ const PER_PAGE: usize = 25;
 /// list that keeps going is refused rather than read forever.
 const MAX_PAGES: u32 = 40;
 const MAX_ANSWER: usize = 1024 * 1024;
-const MAX_ID: usize = 64;
+/// Tournament states after which no set is played. Not in the documented
+/// schema, so a tournament without one is judged from its matches.
+const OVER: &[&str] = &["complete", "awaiting_review", "ended"];
 
 pub(crate) struct Challonge {
     http: reqwest::Client,
@@ -40,6 +44,19 @@ pub(crate) struct Challonge {
     /// Participant ID to Challonge username, refreshed when a set names a
     /// participant not in it.
     usernames: Mutex<HashMap<String, Option<String>>>,
+}
+
+fn priority(purpose: Purpose) -> Priority {
+    match purpose {
+        Purpose::Scheduled => Priority::CanWait,
+        Purpose::Result => Priority::Always,
+    }
+}
+
+/// `path` with `query` added after `?` or `&`, as it needs.
+fn with_query(path: &str, query: &str) -> String {
+    let separator = if path.contains('?') { '&' } else { '?' };
+    format!("{path}{separator}{query}")
 }
 
 impl Challonge {
@@ -74,14 +91,15 @@ impl Challonge {
         })
     }
 
+    /// One request. `None` when Challonge answers 404.
     async fn call(
         &self,
-        need: Need,
+        priority: Priority,
         method: Method,
         path: &str,
         body: Option<Value>,
-    ) -> Result<Value, SiteError> {
-        self.budget.spend(need)?;
+    ) -> Result<Option<Value>, SiteError> {
+        self.budget.spend(priority)?;
         let mut request = self
             .http
             .request(method, format!("{}{path}", self.base))
@@ -99,32 +117,54 @@ impl Challonge {
         })?;
         if status.is_success() {
             return if body.is_empty() {
-                Ok(Value::Null)
+                Ok(Some(Value::Null))
             } else {
-                serde_json::from_slice(&body).map_err(|_| unexpected())
+                serde_json::from_slice(&body)
+                    .map(Some)
+                    .map_err(|_| unexpected())
             };
         }
         let message = match error_detail(&body) {
             Some(detail) => format!("Challonge answered {}: {detail}", status.as_u16()),
             None => format!("Challonge answered {}", status.as_u16()),
         };
-        Err(match status.as_u16() {
-            404 => SiteError::Gone,
-            // A credential Challonge refuses is the operator's to fix; until
-            // then nothing is given up.
-            401 | 403 | 429 => SiteError::Unavailable(message),
-            _ if status.is_server_error() => SiteError::Unavailable(message),
-            _ => SiteError::Refused(message),
-        })
+        match status.as_u16() {
+            404 => Ok(None),
+            // A credential Challonge refuses is the operator's to fix, and a
+            // request it never served does not count.
+            401 | 403 => {
+                self.budget.refund();
+                Err(SiteError::Unavailable(message))
+            }
+            429 => Err(SiteError::Unavailable(message)),
+            _ if status.is_server_error() => Err(SiteError::Unavailable(message)),
+            _ => Err(SiteError::Refused(message)),
+        }
+    }
+
+    /// A request whose 404 means the request itself is wrong.
+    async fn call_found(
+        &self,
+        priority: Priority,
+        method: Method,
+        path: &str,
+        body: Option<Value>,
+    ) -> Result<Value, SiteError> {
+        self.call(priority, method, path, body)
+            .await?
+            .ok_or_else(|| SiteError::Refused("Challonge answered 404".into()))
     }
 
     /// Every item of a list, page by page until a short page.
-    async fn list<T: DeserializeOwned>(&self, need: Need, path: &str) -> Result<Vec<T>, SiteError> {
-        let separator = if path.contains('?') { '&' } else { '?' };
+    async fn list<T: DeserializeOwned>(
+        &self,
+        priority: Priority,
+        path: &str,
+    ) -> Result<Vec<T>, SiteError> {
         let mut items = Vec::new();
         for page in 1..=MAX_PAGES {
-            let path = format!("{path}{separator}page={page}&per_page={PER_PAGE}");
-            let answer = self.call(need, Method::GET, &path, None).await?;
+            let path = with_query(path, &format!("page={page}&per_page={PER_PAGE}"));
+            let answer = self.call_found(priority, Method::GET, &path, None).await?;
             let Data { data: page }: Data<Vec<T>> = parse(answer)?;
             let last = page.len() < PER_PAGE;
             items.extend(page);
@@ -138,22 +178,16 @@ impl Challonge {
     }
 
     /// Whether a list has any item, in one request of one item.
-    async fn any(&self, need: Need, path: &str) -> Result<bool, SiteError> {
-        let answer = self
-            .call(
-                need,
-                Method::GET,
-                &format!("{path}&page=1&per_page=1"),
-                None,
-            )
-            .await?;
+    async fn any(&self, priority: Priority, path: &str) -> Result<bool, SiteError> {
+        let path = with_query(path, "page=1&per_page=1");
+        let answer = self.call_found(priority, Method::GET, &path, None).await?;
         let Data { data: items }: Data<Vec<Value>> = parse(answer)?;
         Ok(!items.is_empty())
     }
 
-    async fn refresh_usernames(&self, need: Need) -> Result<(), SiteError> {
+    async fn refresh_usernames(&self, priority: Priority) -> Result<(), SiteError> {
         let participants: Vec<Resource<ParticipantAttributes>> =
-            self.list(need, "/participants.json").await?;
+            self.list(priority, "/participants.json").await?;
         let usernames = participants
             .into_iter()
             .map(|participant| {
@@ -168,13 +202,18 @@ impl Challonge {
         Ok(())
     }
 
-    fn entries_of(&self, raw: &RawSet) -> Option<[Entry; 2]> {
+    fn set_of(&self, raw: RawSet) -> Set {
         let usernames = self.usernames.lock().unwrap_or_else(|e| e.into_inner());
         let entry = |id: &String| Entry {
             participant_id: id.clone(),
-            username: usernames.get(id).cloned().flatten(),
+            account: usernames
+                .get(id)
+                .cloned()
+                .flatten()
+                .map(|username| Account::Challonge { username }),
         };
-        raw.players.as_ref().map(|[a, b]| [entry(a), entry(b)])
+        let entries = raw.players.as_ref().map(|[a, b]| [entry(a), entry(b)]);
+        raw.into_set(entries)
     }
 
     fn knows(&self, id: &str) -> bool {
@@ -184,46 +223,70 @@ impl Challonge {
             .contains_key(id)
     }
 
-    async fn read_open_sets(&self, need: Need) -> Result<Vec<Set>, SiteError> {
+    async fn read_open_sets(&self, purpose: Purpose) -> Result<Vec<Set>, SiteError> {
+        let priority = priority(purpose);
         let matches: Vec<Resource<MatchAttributes>> =
-            self.list(need, "/matches.json?state=open").await?;
+            self.list(priority, "/matches.json?state=open").await?;
         let raw: Vec<RawSet> = matches.into_iter().map(RawSet::from).collect();
         let unknown = raw
             .iter()
             .flat_map(|set| set.players.iter().flatten())
             .any(|id| !self.knows(id));
         if unknown {
-            self.refresh_usernames(need).await?;
+            self.refresh_usernames(priority).await?;
         }
-        Ok(raw
-            .into_iter()
-            .map(|raw| {
-                let entries = self.entries_of(&raw);
-                raw.into_set(entries)
-            })
-            .collect())
+        Ok(raw.into_iter().map(|raw| self.set_of(raw)).collect())
     }
 
-    /// The tournament's `state` decides, when Challonge gives it (the
-    /// documented schema does not); otherwise matches have been decided and
-    /// none waits for an earlier one.
-    async fn read_finished(&self, need: Need) -> Result<bool, SiteError> {
-        let answer = self.call(need, Method::GET, ".json", None).await?;
+    /// Asked before a match is cancelled or a result set aside, so it is
+    /// always made.
+    async fn read_set(&self, id: &str) -> Result<Option<Set>, SiteError> {
+        if !is_slug(id) {
+            return Ok(None);
+        }
+        let path = format!("/matches/{id}.json");
+        let Some(answer) = self
+            .call(Priority::Always, Method::GET, &path, None)
+            .await?
+        else {
+            return Ok(None);
+        };
+        let Data { data: resource }: Data<Resource<MatchAttributes>> = parse(answer)?;
+        Ok(Some(self.set_of(RawSet::from(resource))))
+    }
+
+    /// The tournament's `state` decides when Challonge gives it; otherwise
+    /// the matches say whether everything looks played.
+    async fn read_standing(&self) -> Result<Standing, SiteError> {
+        let answer = self
+            .call_found(Priority::CanWait, Method::GET, ".json", None)
+            .await?;
         let Data { data: tournament }: Data<Resource<TournamentAttributes>> = parse(answer)?;
         if let Some(state) = tournament.attributes.state {
-            return Ok(matches!(
-                state.as_str(),
-                "complete" | "awaiting_review" | "ended"
-            ));
+            return Ok(if OVER.contains(&state.as_str()) {
+                Standing::Finished
+            } else {
+                Standing::Running
+            });
         }
-        Ok(self.any(need, "/matches.json?state=complete").await?
-            && !self.any(need, "/matches.json?state=pending").await?)
+        let played_out = self
+            .any(Priority::CanWait, "/matches.json?state=complete")
+            .await?
+            && !self
+                .any(Priority::CanWait, "/matches.json?state=pending")
+                .await?;
+        Ok(if played_out {
+            Standing::PlayedOut
+        } else {
+            Standing::Running
+        })
     }
 
-    async fn change_state(&self, need: Need, id: &str, state: &str) -> Result<(), SiteError> {
+    async fn send_underway(&self, id: &str) -> Result<(), SiteError> {
         let path = format!("/matches/{}/change_state.json", checked(id)?);
-        let body = json!({ "data": { "type": "MatchState", "attributes": { "state": state } } });
-        self.call(need, Method::PUT, &path, Some(body)).await?;
+        let body = json!({ "data": { "type": "MatchState", "attributes": { "state": "mark_as_underway" } } });
+        self.call_found(Priority::CanWait, Method::PUT, &path, Some(body))
+            .await?;
         Ok(())
     }
 
@@ -241,31 +304,31 @@ impl Challonge {
             })
             .collect();
         let body = json!({ "data": { "type": "match", "attributes": { "match": scored } } });
-        self.call(Need::Result, Method::PUT, &path, Some(body))
+        self.call_found(Priority::Always, Method::PUT, &path, Some(body))
             .await?;
         Ok(())
     }
 }
 
 impl Site for Challonge {
-    fn open_sets(&self, need: Need) -> SiteFuture<'_, Vec<Set>> {
-        Box::pin(self.read_open_sets(need))
+    fn open_sets(&self, purpose: Purpose) -> SiteFuture<'_, Vec<Set>> {
+        Box::pin(self.read_open_sets(purpose))
     }
 
-    fn finished(&self, need: Need) -> SiteFuture<'_, bool> {
-        Box::pin(self.read_finished(need))
+    fn set<'a>(&'a self, id: &'a str) -> SiteFuture<'a, Option<Set>> {
+        Box::pin(self.read_set(id))
+    }
+
+    fn standing(&self) -> SiteFuture<'_, Standing> {
+        Box::pin(self.read_standing())
     }
 
     fn mark_underway<'a>(&'a self, id: &'a str) -> SiteFuture<'a, ()> {
-        Box::pin(self.change_state(Need::Poll, id, "mark_as_underway"))
+        Box::pin(self.send_underway(id))
     }
 
     fn report<'a>(&'a self, id: &'a str, report: &'a Report) -> SiteFuture<'a, ()> {
         Box::pin(self.send_report(id, report))
-    }
-
-    fn reopen<'a>(&'a self, id: &'a str) -> SiteFuture<'a, ()> {
-        Box::pin(self.change_state(Need::Result, id, "reopen"))
     }
 }
 
@@ -279,19 +342,11 @@ fn parse<T: DeserializeOwned>(value: Value) -> Result<T, SiteError> {
 
 /// A set ID taken from Challonge, before it goes back into a URL.
 fn checked(id: &str) -> Result<&str, SiteError> {
-    if is_id(id) {
+    if is_slug(id) {
         Ok(id)
     } else {
-        Err(SiteError::Gone)
+        Err(SiteError::Refused(format!("{id:?} is not a Challonge ID")))
     }
-}
-
-fn is_id(text: &str) -> bool {
-    !text.is_empty()
-        && text.len() <= MAX_ID
-        && text
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
 }
 
 /// The `detail`s of a JSON:API error answer, which Challonge documents both
@@ -387,7 +442,7 @@ impl RawId {
 
 fn id<'de, D: Deserializer<'de>>(deserializer: D) -> Result<String, D::Error> {
     let text = RawId::deserialize(deserializer)?.into_text();
-    if is_id(&text) {
+    if is_slug(&text) {
         Ok(text)
     } else {
         Err(serde::de::Error::custom("not a Challonge ID"))
@@ -406,6 +461,7 @@ struct RawSet {
     round: i32,
     status: Status,
     underway: bool,
+    winner: Option<String>,
     players: Option<[String; 2]>,
 }
 
@@ -429,6 +485,7 @@ impl From<Resource<MatchAttributes>> for RawSet {
             round: attributes.round.unwrap_or(0),
             status,
             underway: attributes.underway_at.is_some(),
+            winner: attributes.winner_id,
             players,
         }
     }
@@ -443,6 +500,7 @@ impl RawSet {
             entries,
             status: self.status,
             underway: self.underway,
+            winner: self.winner,
         }
     }
 }
@@ -536,6 +594,18 @@ mod tests {
         ));
         assert!(!underway(json!({ "state": "open", "underway_at": null })));
         assert!(!underway(json!({ "state": "open" })));
+    }
+
+    #[test]
+    fn queries_join_paths_either_way() {
+        assert_eq!(
+            with_query("/matches.json", "page=1"),
+            "/matches.json?page=1"
+        );
+        assert_eq!(
+            with_query("/matches.json?state=open", "page=1"),
+            "/matches.json?state=open&page=1"
+        );
     }
 
     #[test]

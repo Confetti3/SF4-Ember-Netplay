@@ -1,30 +1,57 @@
 //! What the connector needs from a bracket site. Each site's adapter keeps
-//! its own wire types; the connector sees only these.
+//! its own wire types and its own request limits; the connector sees only
+//! these.
 use std::{fmt, future::Future, pin::Pin};
 
 pub type SiteFuture<'a, T> = Pin<Box<dyn Future<Output = Result<T, SiteError>> + Send + 'a>>;
 
-/// Whether a request can wait for next month's budget.
+/// Why the bracket is read. A site with a request budget keeps scheduled
+/// reads within it; a read for a result received is always made.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Need {
-    /// Reading the bracket on its schedule, and marking sets underway:
-    /// stops at 100%.
-    Poll,
-    /// Reading the bracket for a result received, and reporting it: always
-    /// made.
+pub enum Purpose {
+    Scheduled,
     Result,
 }
 
 /// One tournament on one site, with the organizer's access to it.
 pub trait Site: Send + Sync {
-    /// The sets the site lists as open, with their entries' usernames.
-    fn open_sets(&self, need: Need) -> SiteFuture<'_, Vec<Set>>;
-    /// Whether the bracket has been played out, asked when no set is open:
-    /// one that has not started yet is not finished.
-    fn finished(&self, need: Need) -> SiteFuture<'_, bool>;
+    /// The sets the site lists as open. A list read in pages is no snapshot
+    /// and can miss a set, so a set's absence proves nothing.
+    fn open_sets(&self, purpose: Purpose) -> SiteFuture<'_, Vec<Set>>;
+    /// One set as it is now, or `None` when the site says it does not
+    /// exist: the evidence asked for before a match is cancelled or a
+    /// result is set aside.
+    fn set<'a>(&'a self, id: &'a str) -> SiteFuture<'a, Option<Set>>;
+    /// Whether the bracket is over, asked when a read finds no open set.
+    fn standing(&self) -> SiteFuture<'_, Standing>;
     fn mark_underway<'a>(&'a self, id: &'a str) -> SiteFuture<'a, ()>;
     fn report<'a>(&'a self, id: &'a str, report: &'a Report) -> SiteFuture<'a, ()>;
-    fn reopen<'a>(&'a self, id: &'a str) -> SiteFuture<'a, ()>;
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Standing {
+    /// The site says the tournament is over.
+    Finished,
+    /// Every set looks played, but the site does not say it is over: a
+    /// later stage or round may still be added.
+    PlayedOut,
+    Running,
+}
+
+/// The account an entry stands for, by which the bridge finds its player.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Account {
+    Challonge { username: String },
+    Discord { user_id: String },
+}
+
+impl fmt::Display for Account {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Challonge { username } => write!(f, "Challonge user {username}"),
+            Self::Discord { user_id } => write!(f, "Discord user {user_id}"),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -38,6 +65,8 @@ pub struct Set {
     pub status: Status,
     /// Marked underway on the site, when the site says.
     pub underway: bool,
+    /// The winning entry's participant ID, once decided.
+    pub winner: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -53,18 +82,20 @@ pub enum Status {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Entry {
     pub participant_id: String,
-    /// The site account behind the entry, when it has one.
-    pub username: Option<String>,
+    /// The account behind the entry, when it has one.
+    pub account: Option<Account>,
 }
 
 impl Set {
+    /// The two entries' participant IDs, when both are known.
+    pub fn entry_ids(&self) -> Option<[&str; 2]> {
+        let [a, b] = self.entries.as_ref()?;
+        Some([&a.participant_id, &b.participant_id])
+    }
+
     /// The two entries' participant IDs, when the set can be played now.
     pub fn playable_ids(&self) -> Option<[&str; 2]> {
-        let [a, b] = self
-            .entries
-            .as_ref()
-            .filter(|_| self.status == Status::Open)?;
-        Some([&a.participant_id, &b.participant_id])
+        self.entry_ids().filter(|_| self.status == Status::Open)
     }
 }
 
@@ -82,11 +113,9 @@ pub enum SiteError {
     /// Not reached, or failing on its side (including rate limits and a
     /// credential it refuses): try again later.
     Unavailable(String),
-    /// The set or tournament does not exist (any more).
-    Gone,
     /// The site refused the request as it stands.
     Refused(String),
-    /// This month's request budget is spent, and the request can wait.
+    /// A scheduled read would go past the site's request budget.
     BudgetSpent,
 }
 
@@ -94,7 +123,6 @@ impl fmt::Display for SiteError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Unavailable(message) | Self::Refused(message) => f.write_str(message),
-            Self::Gone => f.write_str("not found on the site"),
             Self::BudgetSpent => f.write_str("this month's request budget is spent"),
         }
     }

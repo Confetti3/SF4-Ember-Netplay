@@ -22,16 +22,30 @@ For each configured tournament the connector:
    organizer decides the set, as it does when Challonge refuses a score.
 4. Leaves a set the organizer reported, reset or changed by hand to the
    organizer: its live Ember match is cancelled, and a result that arrives
-   for it anyway is not reported.
-5. Stops for good once a read finds no open set and the bracket finished:
-   the tournament's `state` says so, or, since Challonge's schema does not
-   document that field, some sets are complete and none is pending. It logs
-   this once, and a restart does not read it again.
+   for it anyway is not reported. A result is reported only for the two
+   players its attempt was made for.
+5. Stops for good once a read finds no open set and Challonge says the
+   tournament is over (its `state`). When Challonge does not say, and every
+   set looks played, it only reads at the longest interval, since a later
+   stage or swiss round may still be added.
+
+Only what a set shows is evidence. A list read in pages can miss a set that
+moved between two pages, so a set missing from it is asked for on its own
+before its match is cancelled or its result set aside, and a report after
+another one in the same pass reads its set first.
+
+Every five minutes the connector also asks the bridge how each live match
+ended (bridge requests cost nothing against Challonge's budget). A result
+whose delivery was lost is settled from that, under the same ID as the
+delivery, so one that arrives later is a repeat.
 
 What it has decided is kept in its SQLite file, so a restart carries on where
-it stopped and never makes a set's match twice. Keep that file for as long as
-its tournaments run: without it the connector no longer knows which sets it
-already played and reported.
+it stopped and never makes a set's match twice: a creation is saved before it
+is sent, and one the bridge has not answered is sent again unchanged, which
+finds the match if the bridge made it. Keep that file for as long as its
+tournaments run, and keep each tournament's `tournament` value as it is:
+with another file or value the connector no longer knows which sets it
+already played.
 
 ## What the organizer provides
 
@@ -84,7 +98,8 @@ Secrets are only ever read from files, never written to the log.
   "results": {
     "listen": "127.0.0.1:8791",
     "path": "/ember/results",
-    "secret_file": "result.secret"
+    "secret_file": "result.secret",
+    "previous_secret_file": "result.previous.secret"
   },
   "database": "brackets.sqlite3",
   "poll_secs": 120,
@@ -111,18 +126,26 @@ Secrets are only ever read from files, never written to the log.
 
 - `bridge.build_id`: `required_build_id` of every match, a label for the
   Ember build the players use (not checked against the game).
-- `results.path`: defaults to `/results`.
+- `results.path`: defaults to `/results`. The connector limits a delivery to
+  64 KiB; connection and header timeouts come from the HTTPS proxy in front
+  of it.
+- `results.previous_secret_file`: optional. During a rotation of the result
+  secret, the one being replaced, accepted too until the bridge signs with
+  the new one.
 - `poll_secs`, `max_poll_secs`: how often each bracket is read when no result
   makes it read at once. After a read that finds a change, or creates,
   reports or restarts a match, the next comes `poll_secs` later (at least 30,
   default 120); each read that finds the same open sets doubles the wait, up
   to `max_poll_secs` (default 600).
-- `active_from`, `active_until`: optional, RFC 3339 in UTC. Outside this
+- `active_from`, `active_until`: optional, in UTC and in exactly this form:
+  `2026-10-24T17:30:00Z`. Outside this
   window the bracket is not read on a schedule and no match is created. A
   result received after `active_until` is still read for and reported, which
   counts against the budget, so a final that runs over is not lost; sets it
   opens are left to the organizer.
 - `credential.kind`: `v1_key` or `bearer` (an OAuth token).
+- `mark_underway`: per tournament, default `true`. Marking each set underway
+  costs one request a set; `false` saves them.
 - `rounds`: `games_to_win` (1 to 10) unless a rule covers the round; the first
   rule that does sets it. A rule covers `from_round` to `to_round` (no end when
   absent) on its `side`: `winners` (every round Challonge numbers above zero,
@@ -153,12 +176,26 @@ sed -e 's/@NAME@/ember-brackets/g' -e 's/@LABEL@//g' brackets/deploy/ember-brack
 that account. Each decision is one line on standard error
 (`journalctl -u ember-brackets`). A new credential takes effect on restart.
 
+When something fails the log says so once, not on every try:
+
+- A delivery to the results URL that fails verification (a wrong
+  `secret_file`, or this machine's clock more than five minutes off) is
+  answered 503, which the bridge retries for a day, and logged once until
+  one verifies again. Fix the cause within that day; after it, the bridge
+  read-back above still settles the set.
+- When Challonge cannot be read or refuses the credential, the bracket is
+  read again after a minute, then after twice as long each time, up to an
+  hour. Requests Challonge refuses with 401 or 403 are not counted.
+
 ## Request budget
 
 Challonge's free tier allows 500 requests a month per developer app. Every
-request is counted per credential file and calendar month (UTC) before it is
-sent. At 80% the connector warns; at 100% it stops scheduled reads and
-underway marks, but a result received is still read for and reported.
+request is counted per credential and calendar month (UTC) before it is
+sent; the count is kept under a digest of the credential, so moving its file
+keeps it. Two keys of one developer app are counted apart, so give the
+connector one key per app. At 80% the connector warns; at 100% it stops
+scheduled reads and underway marks, but a result received is still read for
+and reported.
 
 What a request is spent on:
 
@@ -166,9 +203,11 @@ What a request is spent on:
 - The participant list, when a set names an entry the connector does not
   know: one request per 25 entries, so once per event in practice.
 - One report per set played in Ember, and one underway mark per new set.
-- Two or three more for each read that finds no open set, to tell a finished
-  bracket from one not started yet. Before the start that is every read, so
-  set `active_from`.
+- One read of a single set when it is missing from a list, or before a
+  second report in one pass. Rare.
+- One to three more when a read finds no open set after sets have been
+  played, to tell whether the tournament is over. Before any set is open it
+  is not asked.
 
 A 64-player double elimination has 126 sets, 127 with a grand final reset.
 Played entirely in Ember over about three hours, with the defaults:
@@ -207,3 +246,7 @@ described there and need one check against the real API:
 - `change_state.json` sent with `application/vnd.api+json`, as every other
   request.
 - 429 and its headers: treated as "try again later".
+- Whether Challonge refuses a score for a set that is already complete. The
+  connector reads the set before reporting whenever its read may be out of
+  date, but an organizer who enters a score in the same second could still be
+  overwritten if Challonge accepts the second one.

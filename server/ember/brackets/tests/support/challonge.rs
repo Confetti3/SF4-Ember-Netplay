@@ -2,7 +2,7 @@
 //! connector calls, checks their headers, logs every request, and advances
 //! its bracket as Challonge does when a set is decided.
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{Arc, Mutex},
 };
 
@@ -100,6 +100,15 @@ pub struct ChallongeState {
     pub participants: Vec<(String, Option<String>)>,
     pub matches: Vec<FakeMatch>,
     pub log: Vec<Logged>,
+    /// Sets left out of list reads, as a page that shifted between two
+    /// requests would leave them out. Read one by one, they are there.
+    pub hidden: HashSet<String>,
+    /// Every request is answered with this status.
+    pub failing: Option<u16>,
+    /// Scores are refused, as Challonge refuses one it will not take.
+    pub refuse_reports: bool,
+    /// Scores are recorded, and the answer is lost (a 502).
+    pub lose_report_answers: bool,
 }
 
 impl ChallongeState {
@@ -194,6 +203,9 @@ async fn challonge(
             .unwrap_or_default()
             .to_owned()
     };
+    if let Some(status) = state.failing {
+        return refusal(status, "Failing");
+    }
     if (get("authorization-type"), get("authorization")) != state.authorization {
         return refusal(401, "Unauthorized");
     }
@@ -237,6 +249,7 @@ async fn challonge(
                     query
                         .get("state")
                         .is_none_or(|wanted| wanted == found.state)
+                        && !state.hidden.contains(&found.id)
                 })
                 .map(FakeMatch::to_json)
                 .collect();
@@ -277,11 +290,6 @@ async fn challonge(
             };
             match change {
                 "mark_as_underway" if found.state == "open" => found.underway = true,
-                "reopen" if found.state == "complete" => {
-                    found.state = "open";
-                    found.winner = None;
-                    found.score_sets = None;
-                }
                 _ => return refusal(422, "That state change is not possible"),
             }
             let found = found.to_json();
@@ -295,6 +303,10 @@ async fn challonge(
                 .as_array()
                 .cloned()
                 .unwrap_or_default();
+            if state.refuse_reports {
+                return refusal(422, "Scores cannot be reported for this match");
+            }
+            let lose_answer = state.lose_report_answers;
             let Some(found) = state.find(id) else {
                 return refusal(404, "Match not found");
             };
@@ -321,6 +333,9 @@ async fn challonge(
             found.state = "complete";
             let found = found.to_json();
             state.advance();
+            if lose_answer {
+                return refusal(502, "Bad gateway");
+            }
             answer(200, json!({ "data": found }))
         }
         _ => refusal(404, "Not found"),
@@ -342,6 +357,10 @@ impl FakeChallonge {
             tournament_state: None,
             participants,
             matches,
+            hidden: HashSet::new(),
+            failing: None,
+            refuse_reports: false,
+            lose_report_answers: false,
             log: Vec::new(),
         }));
         let app = Router::new().fallback(challonge).with_state(state.clone());

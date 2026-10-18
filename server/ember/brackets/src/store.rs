@@ -1,53 +1,138 @@
-//! The connector's SQLite file: each set's Ember match, the results the
-//! bridge sent, the requests made with each site credential per month, and
-//! the tournaments that have finished.
+//! The connector's SQLite file: each set's Ember match, the results received,
+//! the requests made with each site credential per month, and the
+//! tournaments that have finished.
 use std::{
     path::Path,
     sync::{Mutex, MutexGuard, PoisonError},
 };
 
-use rusqlite::{Connection, OptionalExtension, Row, params};
-
-use crate::{
-    sets::{Progress, Tracked},
-    site::Need,
+use ember_protocol::{EmberId, matches::CreateMatch};
+use rusqlite::{
+    Connection, OptionalExtension, Row, params,
+    types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, ValueRef},
 };
+
+use crate::sets::{Ended, ExternalId, Progress, Received, Tracked};
+
+/// The schema this build writes, in `PRAGMA user_version`.
+const SCHEMA_VERSION: u32 = 1;
+
+/// The month a request counts in, in UTC, from Unix seconds.
+const MONTH: &str = "strftime('%Y-%m', ?2, 'unixepoch')";
 
 pub(crate) struct Store(Mutex<Connection>);
 
+/// A stored Ember ID, checked on the way out.
+struct StoredId(EmberId);
+
+impl FromSql for StoredId {
+    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
+        let text = value.as_str()?;
+        EmberId::parse(text)
+            .map(Self)
+            .map_err(|_| FromSqlError::InvalidType)
+    }
+}
+
+impl FromSql for Progress {
+    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
+        Progress::parse(value.as_str()?).ok_or(FromSqlError::InvalidType)
+    }
+}
+
+impl ToSql for Progress {
+    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
+        Ok(ToSqlOutput::from(self.as_str()))
+    }
+}
+
+const TRACKED: &str = "player1, player2, ember1, ember2, attempt, match_id, progress";
+
 fn tracked_of(row: &Row<'_>) -> rusqlite::Result<Tracked> {
-    let progress: String = row.get(4)?;
+    let ember: [Option<StoredId>; 2] = [row.get(2)?, row.get(3)?];
     Ok(Tracked {
         entries: [row.get(0)?, row.get(1)?],
-        attempt: row.get(2)?,
-        match_id: row.get(3)?,
-        // Only `save` writes it, from a `Progress`.
-        progress: Progress::parse(&progress).unwrap_or(Progress::Closed),
+        players: match ember {
+            [Some(one), Some(two)] => Some([one.0, two.0]),
+            _ => None,
+        },
+        attempt: row.get(4)?,
+        match_id: row.get(5)?,
+        progress: row.get(6)?,
     })
+}
+
+fn received_of(row: &Row<'_>) -> rusqlite::Result<(String, Received)> {
+    let outcome: String = row.get(5)?;
+    let ended = match outcome.as_str() {
+        "completed" => Ended::Completed {
+            games: [row.get(6)?, row.get(7)?],
+            winner: row.get(8)?,
+        },
+        "restart" => Ended::Restart,
+        "expired" => Ended::Expired,
+        _ => {
+            return Err(rusqlite::Error::FromSqlConversionFailure(
+                5,
+                rusqlite::types::Type::Text,
+                "unknown outcome".into(),
+            ));
+        }
+    };
+    let [one, two]: [StoredId; 2] = [row.get(9)?, row.get(10)?];
+    Ok((
+        row.get(0)?,
+        Received {
+            id: ExternalId {
+                bracket: row.get(1)?,
+                set: row.get(2)?,
+                attempt: row.get(3)?,
+            },
+            match_id: row.get(4)?,
+            players: [one.0, two.0],
+            ended,
+        },
+    ))
 }
 
 impl Store {
     pub fn open(path: &Path) -> Result<Self, String> {
         let db = Connection::open(path)
             .map_err(|error| format!("cannot open {}: {error}", path.display()))?;
-        db.execute_batch(
+        let prepare =
+            |error: rusqlite::Error| format!("cannot prepare {}: {error}", path.display());
+        let version: u32 = db
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .map_err(prepare)?;
+        if version > SCHEMA_VERSION {
+            return Err(format!(
+                "{} was written by a newer ember-brackets (schema {version})",
+                path.display()
+            ));
+        }
+        db.execute_batch(&format!(
             "PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL;
              CREATE TABLE IF NOT EXISTS sets (
                  bracket TEXT NOT NULL, set_id TEXT NOT NULL,
                  player1 TEXT NOT NULL, player2 TEXT NOT NULL,
+                 ember1 TEXT, ember2 TEXT,
                  attempt INTEGER NOT NULL, match_id TEXT, progress TEXT NOT NULL,
-                 note TEXT,
+                 command TEXT, note TEXT,
                  PRIMARY KEY (bracket, set_id));
              CREATE TABLE IF NOT EXISTS results (
-                 webhook_id TEXT PRIMARY KEY, bracket TEXT NOT NULL, body BLOB NOT NULL,
+                 webhook_id TEXT PRIMARY KEY, bracket TEXT NOT NULL, set_id TEXT NOT NULL,
+                 attempt INTEGER NOT NULL, match_id TEXT NOT NULL, outcome TEXT NOT NULL,
+                 games1 INTEGER, games2 INTEGER, winner INTEGER,
+                 ember1 TEXT NOT NULL, ember2 TEXT NOT NULL,
                  received_at INTEGER NOT NULL, done INTEGER NOT NULL);
              CREATE TABLE IF NOT EXISTS requests (
                  credential TEXT NOT NULL, month TEXT NOT NULL, count INTEGER NOT NULL,
                  PRIMARY KEY (credential, month));
              CREATE TABLE IF NOT EXISTS finished (
-                 bracket TEXT PRIMARY KEY, finished_at INTEGER NOT NULL);",
-        )
-        .map_err(|error| format!("cannot prepare {}: {error}", path.display()))?;
+                 bracket TEXT PRIMARY KEY, finished_at INTEGER NOT NULL);
+             PRAGMA user_version = {SCHEMA_VERSION};",
+        ))
+        .map_err(prepare)?;
         Ok(Self(Mutex::new(db)))
     }
 
@@ -60,43 +145,86 @@ impl Store {
     pub fn tracked(&self, bracket: &str, set: &str) -> rusqlite::Result<Option<Tracked>> {
         self.db()
             .query_row(
-                "SELECT player1, player2, attempt, match_id, progress FROM sets WHERE bracket = ?1 AND set_id = ?2",
+                &format!("SELECT {TRACKED} FROM sets WHERE bracket = ?1 AND set_id = ?2"),
                 [bracket, set],
                 tracked_of,
             )
             .optional()
     }
 
+    /// Whether any set of the bracket has been seen open.
+    pub fn has_sets(&self, bracket: &str) -> rusqlite::Result<bool> {
+        self.db()
+            .query_row(
+                "SELECT 1 FROM sets WHERE bracket = ?1 LIMIT 1",
+                [bracket],
+                |_| Ok(()),
+            )
+            .optional()
+            .map(|found| found.is_some())
+    }
+
     /// The bracket's sets with a live Ember match, by set ID.
     pub fn live(&self, bracket: &str) -> rusqlite::Result<Vec<(String, Tracked)>> {
         let db = self.db();
-        let mut statement = db.prepare(
-            "SELECT player1, player2, attempt, match_id, progress, set_id FROM sets
-             WHERE bracket = ?1 AND progress = 'live' ORDER BY set_id",
-        )?;
+        let mut statement = db.prepare(&format!(
+            "SELECT {TRACKED}, set_id FROM sets
+             WHERE bracket = ?1 AND progress = 'live' ORDER BY set_id"
+        ))?;
         statement
-            .query_map([bracket], |row| Ok((row.get(5)?, tracked_of(row)?)))?
+            .query_map([bracket], |row| Ok((row.get(7)?, tracked_of(row)?)))?
             .collect()
     }
 
-    /// Saves the set, keeping its note.
-    pub fn save(&self, bracket: &str, set: &str, tracked: &Tracked) -> rusqlite::Result<()> {
+    /// Saves the set, keeping its note, with the creation about to be sent
+    /// for it, if any: a creation saved here is sent again as it was until
+    /// the bridge has answered it.
+    pub fn save(
+        &self,
+        bracket: &str,
+        set: &str,
+        tracked: &Tracked,
+        command: Option<&CreateMatch>,
+    ) -> rusqlite::Result<()> {
+        let [ember1, ember2] = tracked.players.as_ref().map_or([None, None], |[one, two]| {
+            [Some(one.as_str()), Some(two.as_str())]
+        });
+        let command = command.map(|command| serde_json::to_string(command).unwrap_or_default());
         self.db().execute(
-            "INSERT INTO sets (bracket, set_id, player1, player2, attempt, match_id, progress)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+            "INSERT INTO sets (bracket, set_id, player1, player2, ember1, ember2, attempt,
+                 match_id, progress, command)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
              ON CONFLICT (bracket, set_id) DO UPDATE SET player1 = ?3, player2 = ?4,
-                 attempt = ?5, match_id = ?6, progress = ?7",
+                 ember1 = ?5, ember2 = ?6, attempt = ?7, match_id = ?8, progress = ?9,
+                 command = ?10",
             params![
                 bracket,
                 set,
                 tracked.entries[0],
                 tracked.entries[1],
+                ember1,
+                ember2,
                 tracked.attempt,
                 tracked.match_id,
-                tracked.progress.as_str()
+                tracked.progress,
+                command
             ],
         )?;
         Ok(())
+    }
+
+    /// The creation saved for the set's current attempt and not answered yet.
+    pub fn command(&self, bracket: &str, set: &str) -> rusqlite::Result<Option<CreateMatch>> {
+        let text: Option<String> = self
+            .db()
+            .query_row(
+                "SELECT command FROM sets WHERE bracket = ?1 AND set_id = ?2",
+                [bracket, set],
+                |row| row.get(0),
+            )
+            .optional()?
+            .flatten();
+        Ok(text.and_then(|text| serde_json::from_str(&text).ok()))
     }
 
     /// Records why a saved set waits, or that it no longer does. Returns
@@ -109,34 +237,52 @@ impl Store {
         Ok(changed == 1)
     }
 
-    /// Records a result once. `done` when nothing is left to do with it.
-    /// Returns whether it was new.
+    /// Records a result once, by its `webhook-id`. `done` when nothing is
+    /// left to do with it. Returns whether it was new.
     pub fn receive(
         &self,
         webhook_id: &str,
-        bracket: &str,
-        body: &[u8],
+        received: &Received,
         now: u64,
         done: bool,
     ) -> rusqlite::Result<bool> {
+        let (outcome, games, winner) = match received.ended {
+            Ended::Completed { games, winner } => ("completed", Some(games), Some(winner)),
+            Ended::Restart => ("restart", None, None),
+            Ended::Expired => ("expired", None, None),
+        };
         let added = self.db().execute(
-            "INSERT OR IGNORE INTO results (webhook_id, bracket, body, received_at, done)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![webhook_id, bracket, body, now, done],
+            "INSERT OR IGNORE INTO results (webhook_id, bracket, set_id, attempt, match_id,
+                 outcome, games1, games2, winner, ember1, ember2, received_at, done)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+            params![
+                webhook_id,
+                received.id.bracket,
+                received.id.set,
+                received.id.attempt,
+                received.match_id,
+                outcome,
+                games.map(|games| games[0]),
+                games.map(|games| games[1]),
+                winner,
+                received.players[0].as_str(),
+                received.players[1].as_str(),
+                now,
+                done
+            ],
         )?;
         Ok(added == 1)
     }
 
     /// The bracket's results not dealt with yet, oldest first.
-    pub fn pending(&self, bracket: &str) -> rusqlite::Result<Vec<(String, Vec<u8>)>> {
+    pub fn pending(&self, bracket: &str) -> rusqlite::Result<Vec<(String, Received)>> {
         let db = self.db();
         let mut statement = db.prepare(
-            "SELECT webhook_id, body FROM results WHERE bracket = ?1 AND done = 0
-             ORDER BY received_at, webhook_id",
+            "SELECT webhook_id, bracket, set_id, attempt, match_id, outcome, games1, games2,
+                 winner, ember1, ember2
+             FROM results WHERE bracket = ?1 AND done = 0 ORDER BY received_at, webhook_id",
         )?;
-        statement
-            .query_map([bracket], |row| Ok((row.get(0)?, row.get(1)?)))?
-            .collect()
+        statement.query_map([bracket], received_of)?.collect()
     }
 
     pub fn settled(&self, webhook_id: &str) -> rusqlite::Result<()> {
@@ -166,35 +312,99 @@ impl Store {
         Ok(())
     }
 
-    /// Counts one request with `credential` in `month`, unless it can wait
-    /// and `limit` are spent. Returns the month's count, or `None` if the
-    /// request is not to be made.
+    /// Counts one request with `credential` in the month of `now`, unless
+    /// it `can_wait` and `limit` are spent. Returns the month's count, or
+    /// `None` if the request is not to be made.
     pub fn count_request(
         &self,
         credential: &str,
-        month: &str,
+        now: u64,
         limit: u32,
-        need: Need,
+        can_wait: bool,
     ) -> rusqlite::Result<Option<u32>> {
         let mut db = self.db();
         let tx = db.transaction()?;
         let used: u32 = tx
             .query_row(
-                "SELECT count FROM requests WHERE credential = ?1 AND month = ?2",
-                [credential, month],
+                &format!("SELECT count FROM requests WHERE credential = ?1 AND month = {MONTH}"),
+                params![credential, now],
                 |row| row.get(0),
             )
             .optional()?
             .unwrap_or(0);
-        if need == Need::Poll && used >= limit {
+        if can_wait && used >= limit {
             return Ok(None);
         }
         tx.execute(
-            "INSERT INTO requests (credential, month, count) VALUES (?1, ?2, 1)
-             ON CONFLICT (credential, month) DO UPDATE SET count = count + 1",
-            [credential, month],
+            &format!(
+                "INSERT INTO requests (credential, month, count) VALUES (?1, {MONTH}, 1)
+                 ON CONFLICT (credential, month) DO UPDATE SET count = count + 1"
+            ),
+            params![credential, now],
         )?;
         tx.commit()?;
         Ok(Some(used + 1))
+    }
+
+    /// Takes back one request counted in the month of `now`: the site
+    /// refused it without serving it.
+    pub fn uncount_request(&self, credential: &str, now: u64) -> rusqlite::Result<()> {
+        self.db().execute(
+            &format!(
+                "UPDATE requests SET count = count - 1
+                 WHERE credential = ?1 AND month = {MONTH} AND count > 0"
+            ),
+            params![credential, now],
+        )?;
+        Ok(())
+    }
+
+    /// The month's count, for tests and logs.
+    #[cfg(test)]
+    pub fn requests(&self, credential: &str, now: u64) -> rusqlite::Result<u32> {
+        self.db()
+            .query_row(
+                &format!("SELECT count FROM requests WHERE credential = ?1 AND month = {MONTH}"),
+                params![credential, now],
+                |row| row.get(0),
+            )
+            .optional()
+            .map(Option::unwrap_or_default)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn months_are_calendar_months_in_utc() {
+        let dir = std::env::temp_dir().join(format!("ember-brackets-store-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let store = Store::open(&dir.join("brackets.sqlite3")).unwrap();
+        // 2000-02-29 is in February; 2027-01-01 starts a new year's count.
+        for now in [
+            951_782_399,
+            951_782_400,
+            951_868_800,
+            1_798_761_599,
+            1_798_761_600,
+        ] {
+            store.count_request("key", now, 10, false).unwrap();
+        }
+        let counts: Vec<u32> = [951_782_400, 951_868_800, 1_798_761_599, 1_798_761_600]
+            .into_iter()
+            .map(|now| store.requests("key", now).unwrap())
+            .collect();
+        assert_eq!(counts, [2, 1, 1, 1]);
+        store.uncount_request("key", 951_782_400).unwrap();
+        assert_eq!(store.requests("key", 951_782_400).unwrap(), 1);
+        drop(store);
+        // A file from a newer build is not opened.
+        let db = Connection::open(dir.join("brackets.sqlite3")).unwrap();
+        db.execute_batch("PRAGMA user_version = 99").unwrap();
+        drop(db);
+        assert!(Store::open(&dir.join("brackets.sqlite3")).is_err());
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

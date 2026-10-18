@@ -4,13 +4,14 @@ use std::path::{Path, PathBuf};
 
 use ember_protocol::{
     encoding::{OriginPolicy, check_origin},
+    event::{is_rfc3339_utc, rfc3339},
     json,
     matches::games_to_win_valid,
 };
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroizing;
 
-use crate::{schedule::Window, time::parse_utc};
+use crate::schedule::Window;
 
 const MAX_CONFIG: usize = 64 * 1024;
 /// Challonge's free tier: 500 requests a month per developer app.
@@ -18,8 +19,8 @@ const DEFAULT_BUDGET: u32 = 500;
 const DEFAULT_POLL_SECS: u64 = 120;
 const DEFAULT_MAX_POLL_SECS: u64 = 600;
 const MIN_POLL_SECS: u64 = 30;
-/// Tournament IDs and slugs go into URLs and `external_match_id`.
-const MAX_TOURNAMENT: usize = 64;
+/// Tournament and set IDs go into URLs and `external_match_id`.
+const MAX_SLUG: usize = 64;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -69,6 +70,9 @@ pub struct Results {
     pub path: String,
     /// A file holding the connection's result secret (`whsec_...`).
     pub secret_file: PathBuf,
+    /// The secret it replaces, accepted too while the bridge moves over.
+    #[serde(default)]
+    pub previous_secret_file: Option<PathBuf>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -79,13 +83,17 @@ pub struct Tournament {
     pub tournament: String,
     pub credential: Credential,
     pub rounds: Rounds,
-    /// When the event runs, as RFC 3339 UTC (`2026-10-18T18:00:00Z`).
-    /// Outside it the bracket is not read on a schedule and no match is
-    /// created; a result received is still read for and reported.
+    /// When the event runs, as `YYYY-MM-DDTHH:MM:SSZ`. Outside it the
+    /// bracket is not read on a schedule and no match is created; a result
+    /// received is still read for and reported.
     #[serde(default)]
     pub active_from: Option<String>,
     #[serde(default)]
     pub active_until: Option<String>,
+    /// Mark each set underway on the site when its match is created. Costs
+    /// one request a set.
+    #[serde(default = "default_mark_underway")]
+    pub mark_underway: bool,
     /// The site's API, when not its public one (tests).
     #[serde(default)]
     pub api_base: Option<String>,
@@ -209,6 +217,10 @@ fn default_results_path() -> String {
     "/results".into()
 }
 
+fn default_mark_underway() -> bool {
+    true
+}
+
 impl Tournament {
     /// `<site>:<tournament>`, the prefix of every `external_match_id` this
     /// tournament's matches carry.
@@ -221,8 +233,12 @@ impl Tournament {
             field
                 .as_deref()
                 .map(|text| {
-                    parse_utc(text)
-                        .ok_or_else(|| format!("{}: {name} is an RFC 3339 time in UTC", self.key()))
+                    parse_utc(text).ok_or_else(|| {
+                        format!(
+                            "{}: {name} is a UTC time such as 2026-10-18T18:00:00Z",
+                            self.key()
+                        )
+                    })
                 })
                 .transpose()
         };
@@ -252,12 +268,34 @@ pub(crate) fn read_secret(path: &Path) -> Result<Zeroizing<String>, String> {
     Ok(Zeroizing::new(trimmed.to_owned()))
 }
 
-fn is_tournament_id(text: &str) -> bool {
+/// An ID or URL slug safe in a URL path and in `external_match_id`: 1 to 64
+/// letters, digits, `_` or `-`.
+pub(crate) fn is_slug(text: &str) -> bool {
     !text.is_empty()
-        && text.len() <= MAX_TOURNAMENT
+        && text.len() <= MAX_SLUG
         && text
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+}
+
+/// Unix seconds of `YYYY-MM-DDTHH:MM:SSZ`, the one form a window takes.
+/// The protocol's formatter checks the date back, so 2026-02-29 is refused.
+fn parse_utc(text: &str) -> Option<u64> {
+    if !is_rfc3339_utc(text) {
+        return None;
+    }
+    let field = |range: std::ops::Range<usize>| text[range].parse::<i64>().ok();
+    let (year, month, day) = (field(0..4)?, field(5..7)?, field(8..10)?);
+    let (hour, minute, second) = (field(11..13)?, field(14..16)?, field(17..19)?);
+    // Howard Hinnant's days-from-civil.
+    let shifted_year = if month <= 2 { year - 1 } else { year };
+    let era = shifted_year.div_euclid(400);
+    let year_of_era = shifted_year.rem_euclid(400);
+    let day_of_year = (153 * ((month + 9) % 12) + 2) / 5 + day - 1;
+    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
+    let days = era * 146_097 + day_of_era - 719_468;
+    let unix = u64::try_from(days * 86_400 + hour * 3_600 + minute * 60 + second).ok()?;
+    (rfc3339(unix) == text).then_some(unix)
 }
 
 impl Config {
@@ -275,6 +313,7 @@ impl Config {
             &mut config.results.secret_file,
         ]
         .into_iter()
+        .chain(config.results.previous_secret_file.as_mut())
         .chain(
             config
                 .tournaments
@@ -318,7 +357,7 @@ impl Config {
         }
         let mut keys = std::collections::BTreeSet::new();
         for tournament in &self.tournaments {
-            if !is_tournament_id(&tournament.tournament) {
+            if !is_slug(&tournament.tournament) {
                 return Err(format!(
                     "tournament {:?} is not an ID or URL slug",
                     tournament.tournament
@@ -367,6 +406,31 @@ mod tests {
         assert_eq!(lengths, [2, 2, 3, 3, 4, 4, 1, 1, 3, 3]);
         // Round 0 is not a losers round.
         assert_eq!(rounds.games_to_win(0), 2);
+    }
+
+    #[test]
+    fn window_times_are_utc_in_one_form() {
+        for (text, unix) in [
+            ("1970-01-01T00:00:00Z", 0),
+            ("2026-10-18T19:00:00Z", 1_792_350_000),
+            ("2024-02-29T23:59:59Z", 1_709_251_199),
+            ("2030-01-01T03:00:00Z", 1_893_466_800),
+        ] {
+            assert_eq!(parse_utc(text), Some(unix), "{text}");
+        }
+        for text in [
+            "2026-10-18T19:00:00",
+            "2026-10-18T19:00:00.750Z",
+            "2026-10-18T19:00:00+00:00",
+            "2026-10-18 19:00:00Z",
+            "2026-02-29T00:00:00Z",
+            "2026-13-01T00:00:00Z",
+            "2026-10-18T24:00:00Z",
+            "2026-10-18T19:60:00Z",
+            "1969-12-31T23:59:59Z",
+        ] {
+            assert_eq!(parse_utc(text), None, "{text}");
+        }
     }
 
     #[test]

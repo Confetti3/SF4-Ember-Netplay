@@ -25,7 +25,6 @@ mod schedule;
 mod sets;
 pub mod site;
 mod store;
-mod time;
 
 use std::{
     net::SocketAddr,
@@ -36,7 +35,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use axum::{Router, routing::post};
+use axum::{Router, extract::DefaultBodyLimit, routing::post};
 use ember_protocol::webhook::Secret;
 use tokio::{net::TcpListener, task::JoinHandle};
 
@@ -50,6 +49,7 @@ use bridge::BridgeClient;
 use budget::Budget;
 use challonge::Challonge;
 use config::read_secret;
+use results::Gate;
 use store::Store;
 
 /// One human-readable line on standard error. Never given a secret.
@@ -60,26 +60,50 @@ macro_rules! log {
 }
 pub(crate) use log;
 
-/// Wall-clock seconds, which tests can move forward.
-#[derive(Clone, Default)]
-pub struct Clock(Arc<AtomicI64>);
+/// Unix seconds: the wall clock, or for tests a clock that stands still
+/// until it is moved.
+#[derive(Clone)]
+pub struct Clock {
+    offset: Arc<AtomicI64>,
+    wall: bool,
+}
+
+impl Default for Clock {
+    fn default() -> Self {
+        Self {
+            offset: Arc::default(),
+            wall: true,
+        }
+    }
+}
 
 impl Clock {
+    /// A clock that reads `at` until it is moved.
+    pub fn frozen(at: u64) -> Self {
+        Self {
+            offset: Arc::new(AtomicI64::new(at as i64)),
+            wall: false,
+        }
+    }
+
     pub fn now(&self) -> u64 {
-        let wall = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_or(0, |elapsed| elapsed.as_secs() as i64);
-        (wall + self.0.load(Ordering::Relaxed)).max(0) as u64
+        let wall = if self.wall {
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map_or(0, |elapsed| elapsed.as_secs() as i64)
+        } else {
+            0
+        };
+        (wall + self.offset.load(Ordering::Relaxed)).max(0) as u64
     }
 
     pub fn advance(&self, seconds: i64) {
-        self.0.fetch_add(seconds, Ordering::Relaxed);
+        self.offset.fetch_add(seconds, Ordering::Relaxed);
     }
 }
 
 struct Inner {
-    secret: Secret,
-    connection_id: String,
+    gate: Gate,
     results_path: String,
     store: Arc<Store>,
     clock: Clock,
@@ -93,12 +117,13 @@ impl Connector {
     pub fn new(config: Config, clock: Clock) -> Result<Self, String> {
         let _ = rustls::crypto::ring::default_provider().install_default();
         config.check()?;
-        let secret = Secret::parse(&read_secret(&config.results.secret_file)?).map_err(|_| {
-            format!(
-                "{} holds no result secret",
-                config.results.secret_file.display()
-            )
-        })?;
+        let secrets = std::iter::once(&config.results.secret_file)
+            .chain(config.results.previous_secret_file.as_ref())
+            .map(|path| {
+                Secret::parse(&read_secret(path)?)
+                    .map_err(|_| format!("{} holds no result secret", path.display()))
+            })
+            .collect::<Result<Vec<_>, String>>()?;
         let store = Arc::new(Store::open(&config.database)?);
         let context = Arc::new(Context {
             store: store.clone(),
@@ -115,10 +140,12 @@ impl Connector {
             .tournaments
             .iter()
             .map(|tournament| {
-                let credential = &tournament.credential.file;
+                let file = &tournament.credential.file;
+                let credential = read_secret(file)?;
                 let budget = Budget::new(
                     store.clone(),
-                    credential.display().to_string(),
+                    &credential,
+                    file.display().to_string(),
                     config.monthly_request_budget,
                     clock.clone(),
                 );
@@ -127,22 +154,19 @@ impl Connector {
                         tournament.api_base.as_deref().unwrap_or(challonge::API),
                         &tournament.tournament,
                         tournament.credential.kind,
-                        &read_secret(credential)?,
+                        &credential,
                         budget,
                     )?,
                 };
                 Ok(Arc::new(Bracket::new(
-                    tournament.key(),
+                    tournament,
                     Box::new(site),
-                    tournament.rounds.clone(),
-                    tournament.window()?,
                     context.clone(),
                 )?))
             })
             .collect::<Result<_, String>>()?;
         Ok(Self(Arc::new(Inner {
-            secret,
-            connection_id: config.bridge.connection_id,
+            gate: Gate::new(secrets, config.bridge.connection_id),
             results_path: config.results.path,
             store,
             clock,
@@ -155,6 +179,7 @@ impl Connector {
         let address = listener.local_addr()?;
         let app = Router::new()
             .route(&self.0.results_path, post(results::receive))
+            .layer(DefaultBodyLimit::max(results::MAX_BODY))
             .with_state(self.clone());
         let server = tokio::spawn(async move {
             let _ = axum::serve(listener, app).await;

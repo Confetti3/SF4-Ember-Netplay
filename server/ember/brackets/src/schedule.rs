@@ -1,6 +1,6 @@
-//! When a tournament's bracket is read: only inside its window, never again
-//! once it has finished, and less often while nothing changes. Pure, so the
-//! worker only asks.
+//! When a tournament's bracket is read: on a schedule only inside its
+//! window, less often while nothing changes, and after a failure only once
+//! a growing delay has passed. Pure, so the worker only asks.
 
 /// The time a tournament may be read in. Either end may be open.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -70,6 +70,55 @@ impl Schedule {
         };
         self.next_read = now + self.interval;
     }
+
+    /// After a read that found the bracket played out: the longest wait.
+    pub fn slow(&mut self, now: u64) {
+        self.interval = self.max;
+        self.next_read = now + self.interval;
+    }
+}
+
+/// Reads after a failure: the first again after `RETRY_MIN_SECS`, each
+/// later one after twice the wait, at most an hour, so a site that keeps
+/// failing costs a handful of requests an hour.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Retry {
+    at: u64,
+    delay: u64,
+    failures: u32,
+}
+
+pub const RETRY_MIN_SECS: u64 = 60;
+pub const RETRY_MAX_SECS: u64 = 60 * 60;
+
+impl Default for Retry {
+    fn default() -> Self {
+        Self {
+            at: 0,
+            delay: RETRY_MIN_SECS,
+            failures: 0,
+        }
+    }
+}
+
+impl Retry {
+    pub fn ready(&self, now: u64) -> bool {
+        now >= self.at
+    }
+
+    /// Records a failure. Returns whether it starts a run of them, the one
+    /// worth a log line.
+    pub fn failed(&mut self, now: u64) -> bool {
+        self.at = now + self.delay;
+        self.delay = (self.delay * 2).min(RETRY_MAX_SECS);
+        self.failures += 1;
+        self.failures == 1
+    }
+
+    /// Records a success. Returns how many failures it ends.
+    pub fn succeeded(&mut self) -> u32 {
+        std::mem::take(self).failures
+    }
 }
 
 #[cfg(test)]
@@ -111,5 +160,27 @@ mod tests {
         // A failing read waits the current interval, without growing it.
         schedule.reading(2_000);
         assert_eq!((schedule.next_read, schedule.interval), (2_240, 240));
+        schedule.slow(3_000);
+        assert_eq!((schedule.next_read, schedule.interval), (3_600, 600));
+    }
+
+    #[test]
+    fn failures_wait_longer_each_time_up_to_an_hour() {
+        let mut retry = Retry::default();
+        assert!(retry.ready(0));
+        let mut waits = Vec::new();
+        let mut now = 0;
+        for failure in 0..9 {
+            assert_eq!(retry.failed(now), failure == 0);
+            let at = retry.at;
+            assert!(!retry.ready(at - 1));
+            assert!(retry.ready(at));
+            waits.push(at - now);
+            now = at;
+        }
+        assert_eq!(waits, [60, 120, 240, 480, 960, 1_920, 3_600, 3_600, 3_600]);
+        assert_eq!(retry.succeeded(), 9);
+        assert_eq!(retry, Retry::default());
+        assert_eq!(retry.succeeded(), 0);
     }
 }

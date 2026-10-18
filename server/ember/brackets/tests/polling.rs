@@ -1,6 +1,7 @@
 //! How often the connector asks Challonge: outside a tournament's window
-//! only to report results, never after it has finished, less often while
-//! nothing changes, and not past the monthly budget except to report.
+//! only to report results, never after the site says the tournament is over,
+//! less often while nothing changes, after a failure only once a growing
+//! wait has passed, and not past the monthly budget except to report.
 mod support;
 
 use support::{Setup, World, challonge::lines};
@@ -8,6 +9,7 @@ use support::{Setup, World, challonge::lines};
 const LIST: &str = "GET /matches.json?state=open&page=1&per_page=25";
 const PARTICIPANTS: &str = "GET /participants.json?page=1&per_page=25";
 const UNDERWAY: &str = "PUT /matches/1001/change_state.json";
+const REPORT: &str = "PUT /matches/1001.json";
 const TOURNAMENT: &str = "GET .json";
 const ANY_COMPLETE: &str = "GET /matches.json?state=complete&page=1&per_page=1";
 const ANY_PENDING: &str = "GET /matches.json?state=pending&page=1&per_page=1";
@@ -21,10 +23,16 @@ async fn connected(setup: Setup) -> World {
     world
 }
 
-/// The requests a pass makes after the clock moves on by `secs`.
+/// The requests a pass makes after both clocks move on by `secs`.
 async fn after(world: &World, secs: i64) -> Vec<String> {
-    world.clock.advance(secs);
+    world.advance(secs);
     world.connector.pass(false).await;
+    lines(&world.challonge.log())
+}
+
+/// The requests a forced read makes.
+async fn read(world: &World) -> Vec<String> {
+    world.connector.pass(true).await;
     lines(&world.challonge.log())
 }
 
@@ -37,28 +45,16 @@ async fn outside_the_window_only_results_are_read_for_and_reported() {
     };
     setup.participants[3].1 = Some("ken".into());
     let world = connected(setup).await;
-    world.connector.pass(true).await;
-    assert!(world.challonge.log().is_empty());
+    assert!(read(&world).await.is_empty());
     assert!(world.bridge.matches().await.is_empty());
 
-    // Both clocks move on together, so the bridge's signed results stay
-    // recent for the connector.
-    let advance = |secs: i64| {
-        world.clock.advance(secs);
-        world.bridge.clock.advance(secs);
-    };
-    advance((FROM - world.clock.now()) as i64);
-    world.connector.pass(true).await;
-    assert_eq!(
-        lines(&world.challonge.log()),
-        [LIST, PARTICIPANTS, UNDERWAY]
-    );
+    world.advance((FROM - world.clock.now()) as i64);
+    assert_eq!(read(&world).await, [LIST, PARTICIPANTS, UNDERWAY]);
     let match_id = world.bridge.matches().await[0].1.clone();
 
     // After the window nothing is read on a schedule.
-    advance(3 * 60 * 60);
-    world.connector.pass(true).await;
-    assert!(world.challonge.log().is_empty());
+    world.advance(3 * 60 * 60);
+    assert!(read(&world).await.is_empty());
 
     // A result that arrives is still read for and reported. 1002's players
     // have connected meanwhile, but no match is created any more.
@@ -67,10 +63,7 @@ async fn outside_the_window_only_results_are_read_for_and_reported() {
     world.play(&match_id, &[0, 0]).await;
     world.bridge.deliver().await;
     world.connector.pass(false).await;
-    assert_eq!(
-        lines(&world.challonge.log()),
-        [LIST, "PUT /matches/1001.json"]
-    );
+    assert_eq!(lines(&world.challonge.log()), [LIST, REPORT]);
     assert_eq!(world.challonge.find("1001").winner.as_deref(), Some("355"));
     assert_eq!(world.bridge.matches().await.len(), 1);
 }
@@ -82,26 +75,48 @@ async fn quiet_reads_back_off_and_a_change_resets_them() {
     world.challonge.log();
 
     // Each read that finds the same open sets doubles the wait, from 120
-    // seconds up to 600. Marking 1001 underway is not a change. Each step
-    // checks 30 seconds early too, clear of the wall clock moving on.
+    // seconds up to 600. Marking 1001 underway is not a change.
     for wait in [120, 240, 480, 600, 600] {
-        assert!(after(&world, wait - 30).await.is_empty(), "{wait}");
-        assert_eq!(after(&world, 30).await, [LIST], "{wait}");
+        assert!(after(&world, wait - 1).await.is_empty(), "{wait}");
+        assert_eq!(after(&world, 1).await, [LIST], "{wait}");
     }
 
     // The organizer decides 1002: the next read finds it gone, so the one
-    // after comes 120 seconds later.
+    // after comes 120 seconds later, then 240.
     world.challonge.decide("1002", 0);
-    assert!(after(&world, 570).await.is_empty());
-    assert_eq!(after(&world, 30).await, [LIST]);
-    assert!(after(&world, 90).await.is_empty());
-    assert_eq!(after(&world, 30).await, [LIST]);
-    assert!(after(&world, 210).await.is_empty());
-    assert_eq!(after(&world, 30).await, [LIST]);
+    assert!(after(&world, 599).await.is_empty());
+    assert_eq!(after(&world, 1).await, [LIST]);
+    assert!(after(&world, 119).await.is_empty());
+    assert_eq!(after(&world, 1).await, [LIST]);
+    assert!(after(&world, 239).await.is_empty());
+    assert_eq!(after(&world, 1).await, [LIST]);
 }
 
 #[tokio::test]
-async fn a_finished_bracket_is_not_read_again_even_after_a_restart() {
+async fn a_failing_site_is_asked_again_after_a_growing_wait() {
+    let world = connected(Setup::default()).await;
+    world.connector.pass(true).await;
+    let match_id = world.bridge.matches().await[0].1.clone();
+    world.play(&match_id, &[1, 1]).await;
+    world.bridge.deliver().await;
+    world.challonge.log();
+
+    // The result waits while Challonge fails: one try, then one a minute
+    // later, then one two minutes after that.
+    world.challonge.state.lock().unwrap().failing = Some(500);
+    assert_eq!(after(&world, 0).await, [LIST]);
+    assert!(after(&world, 59).await.is_empty());
+    assert_eq!(after(&world, 1).await, [LIST]);
+    assert!(after(&world, 119).await.is_empty());
+    world.challonge.state.lock().unwrap().failing = None;
+    assert_eq!(after(&world, 1).await, [LIST, REPORT]);
+    assert_eq!(world.challonge.find("1001").winner.as_deref(), Some("354"));
+    // Settled: nothing more until the schedule says so.
+    assert!(after(&world, 0).await.is_empty());
+}
+
+#[tokio::test]
+async fn only_an_over_tournament_stops_reads_for_good() {
     let world = World::start(Setup::default()).await;
     world.connector.pass(true).await;
     world.challonge.decide("1001", 0);
@@ -110,42 +125,45 @@ async fn a_finished_bracket_is_not_read_again_even_after_a_restart() {
     world.challonge.decide("1003", 1);
     world.challonge.log();
 
-    // No set is open, the tournament has no state to say, some sets are
-    // decided and none waits: it is finished.
-    world.connector.pass(true).await;
+    // A finished group stage, with the final stage not made yet, is not over.
+    world.challonge.state.lock().unwrap().tournament_state = Some("group_stages_finalized");
+    assert_eq!(read(&world).await, [LIST, TOURNAMENT]);
+    assert_eq!(read(&world).await, [LIST, TOURNAMENT]);
+
+    // Without a state, every set looking played only slows reads down: it
+    // is not asked again, the next read is ten minutes away, and a restart
+    // reads as before.
+    world.challonge.state.lock().unwrap().tournament_state = None;
+    assert_eq!(
+        read(&world).await,
+        [LIST, TOURNAMENT, ANY_COMPLETE, ANY_PENDING]
+    );
+    assert!(after(&world, 599).await.is_empty());
+    assert_eq!(after(&world, 1).await, [LIST]);
+    world.restarted().pass(true).await;
     assert_eq!(
         lines(&world.challonge.log()),
         [LIST, TOURNAMENT, ANY_COMPLETE, ANY_PENDING]
     );
-    world.connector.pass(true).await;
+
+    // The site saying it is over stops reads for good, across restarts.
+    world.challonge.state.lock().unwrap().tournament_state = Some("complete");
+    world.restarted().pass(true).await;
+    assert_eq!(lines(&world.challonge.log()), [LIST, TOURNAMENT]);
     world.restarted().pass(true).await;
     assert!(world.challonge.log().is_empty());
 }
 
 #[tokio::test]
-async fn a_bracket_that_has_not_started_is_not_finished() {
+async fn a_bracket_that_has_not_started_is_not_asked_whether_it_is_over() {
     let world = World::start(Setup {
         matches: Vec::new(),
         ..Setup::default()
     })
     .await;
     for _ in 0..2 {
-        world.connector.pass(true).await;
-        assert_eq!(
-            lines(&world.challonge.log()),
-            [LIST, TOURNAMENT, ANY_COMPLETE]
-        );
+        assert_eq!(read(&world).await, [LIST]);
     }
-
-    // When Challonge gives the tournament's state, that decides.
-    world.challonge.state.lock().unwrap().tournament_state = Some("underway");
-    world.connector.pass(true).await;
-    assert_eq!(lines(&world.challonge.log()), [LIST, TOURNAMENT]);
-    world.challonge.state.lock().unwrap().tournament_state = Some("complete");
-    world.connector.pass(true).await;
-    assert_eq!(lines(&world.challonge.log()), [LIST, TOURNAMENT]);
-    world.connector.pass(true).await;
-    assert!(world.challonge.log().is_empty());
 }
 
 #[tokio::test]
@@ -163,16 +181,11 @@ async fn a_spent_budget_stops_reading_brackets_but_not_reporting() {
 
     // The fourth and fifth requests read for the result and report it.
     world.connector.pass(false).await;
-    assert_eq!(
-        lines(&world.challonge.log()),
-        [LIST, "PUT /matches/1001.json"]
-    );
-    world.connector.pass(true).await;
-    assert!(world.challonge.log().is_empty());
+    assert_eq!(lines(&world.challonge.log()), [LIST, REPORT]);
+    assert!(read(&world).await.is_empty());
     assert_eq!(world.challonge.find("1001").winner.as_deref(), Some("354"));
 
     // Next month the bracket is read again.
-    world.clock.advance(32 * 24 * 60 * 60);
-    world.connector.pass(true).await;
-    assert_eq!(lines(&world.challonge.log()), [LIST]);
+    world.advance(32 * 24 * 60 * 60);
+    assert_eq!(read(&world).await, [LIST]);
 }

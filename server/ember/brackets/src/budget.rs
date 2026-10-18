@@ -1,65 +1,95 @@
 //! Requests per site credential per calendar month. Challonge's free tier
 //! allows 500 a month, so every request is counted before it is sent, the
-//! operator is warned at 80%, and at 100% the connector stops reading
-//! brackets but still reports the results it is sent.
+//! operator is warned at 80%, and at 100% only requests that cannot wait are
+//! made.
 use std::sync::Arc;
 
-use crate::{
-    Clock,
-    site::{Need, SiteError},
-    store::Store,
-    time::month_key,
-};
+use crate::{Clock, site::SiteError, store::Store};
+
+/// Whether a request can wait for next month's budget.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Priority {
+    CanWait,
+    Always,
+}
+
+/// What a month's count has just reached.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Notice {
+    /// 80% of the budget, rounded up.
+    Warning,
+    Spent,
+}
+
+fn notice(count: u32, limit: u32) -> Option<Notice> {
+    let warn_at = (u64::from(limit) * 4).div_ceil(5);
+    if count == limit {
+        Some(Notice::Spent)
+    } else if u64::from(count) == warn_at {
+        Some(Notice::Warning)
+    } else {
+        None
+    }
+}
 
 /// One site credential's monthly count.
 pub(crate) struct Budget {
     store: Arc<Store>,
-    /// The credential's file path: it names the credential in the count and
-    /// in log lines, so the credential itself is never written anywhere.
-    credential: String,
+    /// A digest of the credential: the same key counts once wherever its
+    /// file is, and the key itself is never stored.
+    key: String,
+    /// The credential's file, which names it in log lines.
+    name: String,
     limit: u32,
     clock: Clock,
 }
 
 impl Budget {
-    pub fn new(store: Arc<Store>, credential: String, limit: u32, clock: Clock) -> Self {
+    pub fn new(
+        store: Arc<Store>,
+        credential: &str,
+        name: String,
+        limit: u32,
+        clock: Clock,
+    ) -> Self {
+        let digest = ember_protocol::json::digest(credential).unwrap_or_default();
         Self {
             store,
-            credential,
+            key: format!("sha256:{digest}"),
+            name,
             limit,
             clock,
         }
     }
 
     /// Counts one request about to be sent, or refuses one that can wait.
-    pub fn spend(&self, need: Need) -> Result<(), SiteError> {
-        let month = month_key(self.clock.now());
+    pub fn spend(&self, priority: Priority) -> Result<(), SiteError> {
+        let now = self.clock.now();
         let count = self
             .store
-            .count_request(&self.credential, &month, self.limit, need)
+            .count_request(&self.key, now, self.limit, priority == Priority::CanWait)
             .map_err(|error| SiteError::Unavailable(format!("cannot count requests: {error}")))?
             .ok_or(SiteError::BudgetSpent)?;
-        if count == warn_at(self.limit) && count < self.limit {
-            crate::log!(
-                "{}: {count} of {} requests used in {month}",
-                self.credential,
+        match notice(count, self.limit) {
+            Some(Notice::Warning) => crate::log!(
+                "{}: {count} of {} requests used this month",
+                self.name,
                 self.limit
-            );
-        }
-        if count == self.limit {
-            crate::log!(
-                "{}: all {} requests of {month} used; brackets are not read again this month, results are still reported",
-                self.credential,
+            ),
+            Some(Notice::Spent) => crate::log!(
+                "{}: all {} requests of this month used; scheduled reads stop until next month, results are still reported",
+                self.name,
                 self.limit
-            );
+            ),
+            None => {}
         }
         Ok(())
     }
-}
 
-/// 80% of `limit`, rounded up.
-fn warn_at(limit: u32) -> u32 {
-    (u64::from(limit) * 4).div_ceil(5) as u32
+    /// Takes back a request the site refused without serving it.
+    pub fn refund(&self) {
+        let _ = self.store.uncount_request(&self.key, self.clock.now());
+    }
 }
 
 #[cfg(test)]
@@ -67,41 +97,46 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_warning_comes_at_eighty_percent() {
-        assert_eq!(warn_at(500), 400);
-        assert_eq!(warn_at(7), 6);
-        assert_eq!(warn_at(1), 1);
+    fn the_warning_comes_at_eighty_percent_and_once() {
+        let notices: Vec<Option<Notice>> = (398..=501).map(|count| notice(count, 500)).collect();
+        assert_eq!(notices[..4], [None, None, Some(Notice::Warning), None]);
+        assert_eq!(notices[102], Some(Notice::Spent));
+        assert_eq!(notices[103], None);
+        assert_eq!(notice(6, 7), Some(Notice::Warning));
+        // With a budget of one the warning and the end are the same request.
+        assert_eq!(notice(1, 1), Some(Notice::Spent));
     }
 
     #[test]
-    fn polling_stops_at_the_budget_and_results_go_on() {
+    fn requests_that_can_wait_stop_at_the_budget_and_others_go_on() {
         let dir =
             std::env::temp_dir().join(format!("ember-brackets-budget-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let store = Arc::new(Store::open(&dir.join("brackets.sqlite3")).unwrap());
-        let clock = Clock::default();
-        let budget = Budget::new(store.clone(), "key-a".into(), 3, clock.clone());
+        let clock = Clock::frozen(1_792_350_000);
+        let budget =
+            |key: &str, name: &str| Budget::new(store.clone(), key, name.into(), 3, clock.clone());
+        let first = budget("key-a", "a.key");
         for _ in 0..3 {
-            budget.spend(Need::Poll).unwrap();
+            first.spend(Priority::CanWait).unwrap();
         }
         assert!(matches!(
-            budget.spend(Need::Poll),
+            first.spend(Priority::CanWait),
             Err(SiteError::BudgetSpent)
         ));
-        budget.spend(Need::Result).unwrap();
-        assert_eq!(
-            store
-                .count_request("key-a", &month_key(clock.now()), 3, Need::Result)
-                .unwrap(),
-            Some(5)
-        );
-        // Another credential has its own count, and so does next month.
-        Budget::new(store.clone(), "key-b".into(), 3, clock.clone())
-            .spend(Need::Poll)
-            .unwrap();
+        first.spend(Priority::Always).unwrap();
+        // The same key under another file name is the same count; a refused
+        // request is taken back.
+        let moved = budget("key-a", "moved.key");
+        assert!(moved.spend(Priority::CanWait).is_err());
+        moved.refund();
+        moved.refund();
+        moved.spend(Priority::CanWait).unwrap();
+        // Another key has its own count, and so does next month.
+        budget("key-b", "b.key").spend(Priority::CanWait).unwrap();
         clock.advance(32 * 86_400);
-        budget.spend(Need::Poll).unwrap();
-        drop((budget, store));
+        first.spend(Priority::CanWait).unwrap();
+        drop((first, moved, store));
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

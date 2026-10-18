@@ -42,6 +42,8 @@ pub struct World {
     pub challonge: FakeChallonge,
     pub bridge: TestBridge,
     pub connector: Connector,
+    /// The connector's clock, frozen at the same second as the bridge's;
+    /// `advance` moves both.
     pub clock: Clock,
     pub provider: String,
     pub organizer: String,
@@ -73,6 +75,9 @@ pub struct Setup {
     pub budget: u32,
     pub active_from: Option<String>,
     pub active_until: Option<String>,
+    /// Whether the connector answers on its results URL. Without it every
+    /// delivery fails, as one lost in the network would.
+    pub serve_results: bool,
     pub participants: Vec<(String, Option<String>)>,
     pub matches: Vec<FakeMatch>,
 }
@@ -86,6 +91,7 @@ impl Default for Setup {
             budget: 500,
             active_from: None,
             active_until: None,
+            serve_results: true,
             participants: [
                 ("355", Some("Kate")),
                 ("354", Some("sam_99")),
@@ -126,6 +132,7 @@ impl World {
                 listen: "127.0.0.1:0".into(),
                 path: "/results".into(),
                 secret_file: dir.join("result.secret"),
+                previous_secret_file: None,
             },
             database: dir.join("brackets.sqlite3"),
             poll_secs: 120,
@@ -141,12 +148,17 @@ impl World {
                 rounds: rounds(),
                 active_from: setup.active_from,
                 active_until: setup.active_until,
+                mark_underway: true,
                 api_base: Some(challonge.api.clone()),
             }],
         };
-        let clock = Clock::default();
+        // Both clocks stand still from here until a test moves them.
+        bridge.clock.freeze();
+        let clock = Clock::frozen(bridge.clock.now());
         let connector = Connector::new(config.clone(), clock.clone()).unwrap();
-        connector.serve(listener).unwrap();
+        if setup.serve_results {
+            connector.serve(listener).unwrap();
+        }
         Self {
             challonge,
             bridge,
@@ -157,6 +169,18 @@ impl World {
             config,
             dir,
         }
+    }
+
+    /// Moves the connector's and the bridge's clocks on together.
+    pub fn advance(&self, seconds: i64) {
+        self.clock.advance(seconds);
+        self.bridge.clock.advance(seconds);
+    }
+
+    /// The connector's database, as a test reaches into it to stage what a
+    /// crash would leave behind.
+    pub fn database(&self) -> rusqlite::Connection {
+        rusqlite::Connection::open(&self.config.database).unwrap()
     }
 
     /// A connector over the same files, as after a restart.

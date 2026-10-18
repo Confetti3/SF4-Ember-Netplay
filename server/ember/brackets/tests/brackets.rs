@@ -149,6 +149,10 @@ async fn a_restart_makes_a_fresh_attempt_and_a_set_changed_by_hand_is_cancelled(
     // and its restart is not played again or reported.
     world.challonge.decide("1001", 0);
     world.connector.pass(true).await;
+    assert_eq!(
+        lines(&world.challonge.log()),
+        [LIST, "GET /matches/1001.json"]
+    );
     assert_eq!(world.snapshot(second).await["state"], "cancelled");
     world.bridge.deliver().await;
     world.connector.pass(true).await;
@@ -189,9 +193,14 @@ async fn a_set_the_organizer_already_reported_is_not_reported_again() {
     world.challonge.decide("1001", 1);
     world.challonge.log();
 
+    // The set is gone from the read, so it is asked for on its own, and its
+    // winner is not the match's.
     world.bridge.deliver().await;
     world.connector.pass(false).await;
-    assert_eq!(lines(&world.challonge.log()), [LIST]);
+    assert_eq!(
+        lines(&world.challonge.log()),
+        [LIST, "GET /matches/1001.json"]
+    );
     assert_eq!(world.challonge.find("1001").winner.as_deref(), Some("354"));
 }
 
