@@ -1,0 +1,237 @@
+//! A fake Challonge, a real bridge on a loopback port, and a connector
+//! between them. All keys and tokens here are throwaway test values.
+#![allow(dead_code)]
+
+pub mod bridge;
+pub mod challonge;
+
+use std::path::PathBuf;
+
+use axum::http::{Method, StatusCode};
+use ember_brackets::{
+    Bridge, Clock, Config, Connector, Credential, CredentialKind, Results, RoundRule, Rounds, Side,
+    SiteKind, Tournament,
+};
+use ember_protocol::webhook::Secret;
+use serde_json::{Value, json};
+use tokio::net::TcpListener;
+
+use bridge::TestBridge;
+use challonge::{FakeChallonge, FakeMatch};
+
+pub const TOURNAMENT: &str = "ember_weekly";
+pub const CHALLONGE_KEY: &str = "test-challonge-api-key";
+pub const CONNECTION: &str = "brackets";
+
+pub fn temp(name: &str) -> PathBuf {
+    let mut bytes = [0u8; 8];
+    getrandom::fill(&mut bytes).unwrap();
+    let dir = std::env::temp_dir().join(format!(
+        "ember-brackets-{name}-{}",
+        ember_protocol::encoding::b64u(&bytes)
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+pub fn result_secret() -> Secret {
+    Secret::from_bytes([7; 32])
+}
+
+pub struct World {
+    pub challonge: FakeChallonge,
+    pub bridge: TestBridge,
+    pub connector: Connector,
+    pub clock: Clock,
+    pub provider: String,
+    pub organizer: String,
+    pub config: Config,
+    dir: PathBuf,
+}
+
+impl Drop for World {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.dir);
+    }
+}
+
+/// First to 2, first to 3 from round 2 on.
+pub fn rounds() -> Rounds {
+    Rounds {
+        games_to_win: 2,
+        rules: vec![RoundRule {
+            from_round: 2,
+            to_round: None,
+            side: Side::Any,
+            games_to_win: 3,
+        }],
+    }
+}
+
+pub struct Setup {
+    pub kind: CredentialKind,
+    pub budget: u32,
+    pub active_from: Option<String>,
+    pub active_until: Option<String>,
+    pub participants: Vec<(String, Option<String>)>,
+    pub matches: Vec<FakeMatch>,
+}
+
+impl Default for Setup {
+    /// Kate (355) and Sam (354) play set 1001; Ryu (353) and an entry with
+    /// no account (352) play 1002; their winners meet in 1003.
+    fn default() -> Self {
+        Self {
+            kind: CredentialKind::V1Key,
+            budget: 500,
+            active_from: None,
+            active_until: None,
+            participants: [
+                ("355", Some("Kate")),
+                ("354", Some("sam_99")),
+                ("353", Some("ryu")),
+                ("352", None),
+            ]
+            .map(|(id, username)| (id.to_owned(), username.map(str::to_owned)))
+            .into(),
+            matches: vec![
+                FakeMatch::open("1001", 1, ["355", "354"]),
+                FakeMatch::open("1002", 1, ["353", "352"]),
+                FakeMatch::fed_by("1003", 2, ["1001", "1002"]),
+            ],
+        }
+    }
+}
+
+impl World {
+    pub async fn start(setup: Setup) -> Self {
+        let dir = temp("connector");
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let results_url = format!("http://{}/results", listener.local_addr().unwrap());
+        let challonge = FakeChallonge::start(setup.kind, setup.participants, setup.matches).await;
+        let bridge = TestBridge::start(&results_url).await;
+        let provider = bridge.provider().await;
+        let organizer = bridge.organizer().await;
+        std::fs::write(dir.join("provider.token"), format!("{provider}\n")).unwrap();
+        std::fs::write(dir.join("result.secret"), result_secret().reveal().as_str()).unwrap();
+        std::fs::write(dir.join("challonge.key"), CHALLONGE_KEY).unwrap();
+        let config = Config {
+            bridge: Bridge {
+                api: bridge.origin.clone(),
+                credential_file: dir.join("provider.token"),
+                connection_id: CONNECTION.into(),
+                build_id: "test-build".into(),
+            },
+            results: Results {
+                listen: "127.0.0.1:0".into(),
+                path: "/results".into(),
+                secret_file: dir.join("result.secret"),
+            },
+            database: dir.join("brackets.sqlite3"),
+            poll_secs: 120,
+            max_poll_secs: 600,
+            monthly_request_budget: setup.budget,
+            tournaments: vec![Tournament {
+                site: SiteKind::Challonge,
+                tournament: TOURNAMENT.into(),
+                credential: Credential {
+                    kind: setup.kind,
+                    file: dir.join("challonge.key"),
+                },
+                rounds: rounds(),
+                active_from: setup.active_from,
+                active_until: setup.active_until,
+                api_base: Some(challonge.api.clone()),
+            }],
+        };
+        let clock = Clock::default();
+        let connector = Connector::new(config.clone(), clock.clone()).unwrap();
+        connector.serve(listener).unwrap();
+        Self {
+            challonge,
+            bridge,
+            connector,
+            clock,
+            provider,
+            organizer,
+            config,
+            dir,
+        }
+    }
+
+    /// A connector over the same files, as after a restart.
+    pub fn restarted(&self) -> Connector {
+        Connector::new(self.config.clone(), self.clock.clone()).unwrap()
+    }
+
+    /// The organizer records each slot in turn as a game's winner.
+    pub async fn play(&self, match_id: &str, winners: &[u8]) {
+        for (game, slot) in winners.iter().enumerate() {
+            let (_, found) = self
+                .bridge
+                .send(
+                    &self.provider,
+                    Method::GET,
+                    &format!("/v1/matches/{match_id}"),
+                    None,
+                    None,
+                )
+                .await;
+            let (status, decided) = self
+                .bridge
+                .send(
+                    &self.organizer,
+                    Method::POST,
+                    &format!("/v1/matches/{match_id}/adjudications"),
+                    Some(json!({
+                        "kind": "game_result", "winner_slot": slot, "reason": "test",
+                        "expected_revision": found["revision"],
+                    })),
+                    Some(&format!("{match_id}-game-{game}")),
+                )
+                .await;
+            assert_eq!(status, StatusCode::CREATED, "{decided}");
+        }
+    }
+
+    /// Cancels an Ember match as its connection, which the bridge sends as a
+    /// restart.
+    pub async fn cancel(&self, match_id: &str) {
+        let (_, found) = self
+            .bridge
+            .send(
+                &self.provider,
+                Method::GET,
+                &format!("/v1/matches/{match_id}"),
+                None,
+                None,
+            )
+            .await;
+        let (status, cancelled) = self
+            .bridge
+            .send(
+                &self.provider,
+                Method::POST,
+                &format!("/v1/matches/{match_id}/cancel"),
+                Some(json!({ "reason": "No show", "expected_revision": found["revision"] })),
+                Some(&format!("test-cancel-{match_id}")),
+            )
+            .await;
+        assert_eq!(status, StatusCode::OK, "{cancelled}");
+    }
+
+    pub async fn snapshot(&self, match_id: &str) -> Value {
+        let (status, found) = self
+            .bridge
+            .send(
+                &self.provider,
+                Method::GET,
+                &format!("/v1/matches/{match_id}"),
+                None,
+                None,
+            )
+            .await;
+        assert_eq!(status, StatusCode::OK, "{found}");
+        found
+    }
+}
