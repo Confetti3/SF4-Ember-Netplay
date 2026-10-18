@@ -8,7 +8,17 @@ import decky
 # The installer restarts Steam through the deck user's systemd, which needs its session.
 RUN = f"/run/user/{os.getuid()}"
 ENV = {**os.environ, "LD_LIBRARY_PATH": "", "XDG_RUNTIME_DIR": RUN, "DBUS_SESSION_BUS_ADDRESS": f"unix:path={RUN}/bus"}
-EMBER = os.path.join(decky.HOME, "Ember")
+STEAM = os.path.join(decky.HOME, ".local/share/Steam")
+
+
+def ember():
+    """C:\\Ember in the game's prefix, in whichever library holds the game, as the installer puts it."""
+    libs = [STEAM]
+    try:
+        libs += re.findall(r'"path"\s+"([^"]+)"', open(os.path.join(STEAM, "steamapps/libraryfolders.vdf"), encoding="utf-8").read())
+    except OSError:
+        pass
+    return next((e for e in (os.path.join(l, "steamapps/compatdata/45760/pfx/drive_c/Ember") for l in libs) if os.path.isdir(e)), "")
 
 
 async def run(*args):
@@ -22,7 +32,7 @@ class Plugin:
     async def status(self):
         installed = ""
         try:
-            with open(os.path.join(EMBER, "BUILD_INFO.txt"), encoding="utf-8-sig") as f:
+            with open(os.path.join(ember(), "BUILD_INFO.txt"), encoding="utf-8-sig") as f:
                 installed = next((l.split(":", 1)[1].strip() for l in f if l.startswith("Release:")), "")
         except OSError:
             pass

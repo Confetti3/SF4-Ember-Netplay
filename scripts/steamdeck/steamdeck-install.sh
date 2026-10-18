@@ -3,18 +3,27 @@
 #
 #   bash steamdeck-install.sh [version]     # default: latest release
 #
-# It extracts the release to ~/Ember and adds an "SF4 Ember Netplay" tile to
+# It extracts the release into the game's Proton prefix as C:\Ember and adds an "SF4 Ember Netplay" tile to
 # the Steam library. That tile starts USF4 through Steam with Ember; USF4's
 # own tile still starts the plain game. Steam is closed while its config is
 # edited and started again afterwards.
 set -euo pipefail
 
 REPO=Confetti3/SF4-Ember-Netplay
-DEST="$HOME/Ember"
 STEAM="$HOME/.local/share/Steam"
 CURL=(curl -fL --connect-timeout 15 --retry 2)
 
 [ -d "$STEAM/userdata" ] || { echo "Steam not found at $STEAM"; exit 1; }
+# Inside the prefix, because Ember's updater refuses a folder Wine reports as
+# behind a reparse point, which Z:\home is on a Steam Deck. The prefix sits in
+# whichever library holds the game and exists once the game has run.
+libs=$(echo "$STEAM"; sed -n 's/^[[:space:]]*"path"[[:space:]]*"\(.*\)"$/\1/p' "$STEAM/steamapps/libraryfolders.vdf" 2>/dev/null || true)
+pfx=
+while read -r lib; do
+  [ -d "$lib/steamapps/compatdata/45760/pfx/drive_c" ] && { pfx="$lib/steamapps/compatdata/45760/pfx"; break; }
+done <<<"$libs"
+[ -n "$pfx" ] || { echo "Start Ultra Street Fighter IV once from Steam, quit it, then run this again."; exit 1; }
+DEST="$pfx/drive_c/Ember"
 # Wine shows the game's processes by their Windows path, such as Z:\...\SSFIV.exe.
 if pgrep -f '^[A-Z]:\\.*\\(SSFIV|Launcher)\.exe' >/dev/null; then echo "Quit USF4 first."; exit 1; fi
 
