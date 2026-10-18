@@ -3923,6 +3923,9 @@ msgstr "Čekání na {0} bylo zastaveno."
 msgid "site.busy"
 msgstr "Přihlášení přes {0} je teď vytížené. Zkuste to později."
 
+msgid "site.gone"
+msgstr "Tato turnajová služba už přihlášení přes {0} nenabízí."
+
 msgid "site.no_service"
 msgstr "Turnajová služba Ember není nastavena"
 

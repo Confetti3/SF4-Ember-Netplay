@@ -1,4 +1,5 @@
 #include "IdentityEvents.hxx"
+#include <algorithm>
 #include <nlohmann/json.hpp>
 
 namespace sf4e { namespace session {
@@ -9,6 +10,16 @@ std::string Text(const nlohmann::json& object, const char* key, std::size_t limi
     auto value = it->get<std::string>();
     if (value.size() > limit) value.resize(limit);
     return value;
+}
+
+// A site ID as the helper and bridge take it: 1 to 32 lowercase ASCII
+// letters, digits or '-'. Anything else could only fail every request.
+bool IsSiteId(const nlohmann::json& site) {
+    const auto it = site.find("id");
+    if (it == site.end() || !it->is_string()) return false;
+    const auto& id = it->get_ref<const std::string&>();
+    return !id.empty() && id.size() <= 32
+        && std::all_of(id.begin(), id.end(), [](char c) { return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-'; });
 }
 }
 
@@ -63,15 +74,22 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
             view.inspectedDiscord = view.inspectedDiscord || feature == "discord";
             view.inspectedDiscordAccounts = view.inspectedDiscordAccounts || feature == "discord.accounts";
         }
+        // Each site once, in the order listed; an entry with an ID no site
+        // can have is skipped rather than shown as a row that cannot work.
         view.signInSites.clear();
         const auto sites = capabilities.value("sign_in_sites", nlohmann::json::array());
         if (sites.is_array())
-            for (const auto& site : sites)
-                if (site.is_object() && !Text(site, "id", 32).empty() && view.signInSites.size() < 16) {
-                    const auto signIn = site.find("sign_in");
-                    view.signInSites.push_back({Text(site, "id", 32), Text(site, "display_name", 64), Text(site, "lookup_by", 16),
-                        signIn != site.end() && signIn->is_boolean() && signIn->get<bool>()});
-                }
+            for (const auto& site : sites) {
+                if (view.signInSites.size() == netplay::MaxSignInSites) break;
+                if (!site.is_object() || !IsSiteId(site)) continue;
+                const auto id = Text(site, "id", 32);
+                const auto seen = std::find_if(view.signInSites.begin(), view.signInSites.end(),
+                    [&](const netplay::IdentitySignInSite& listed) { return listed.id == id; });
+                if (seen != view.signInSites.end()) continue;
+                const auto signIn = site.find("sign_in");
+                view.signInSites.push_back({id, Text(site, "display_name", 64),
+                    signIn != site.end() && signIn->is_boolean() && signIn->get<bool>()});
+            }
     } else if (view.op == "link_list") {
         view.links.clear(); view.pending.clear();
         for (const auto& link : data.value("links", nlohmann::json::array()))

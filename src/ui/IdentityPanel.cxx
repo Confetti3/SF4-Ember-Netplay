@@ -20,6 +20,9 @@ constexpr double BackgroundRetrySeconds = 30;
 // Settings > Discord is none of these screens, but its Tournament account row
 // reads the account on the selected service each time it opens, as they do.
 constexpr const char* AccountScreen = "discord";
+// Requests waiting to be sent: room for the screens' usual few, and a read
+// of every sign-in site a service may list (the Ember ID screen reads them all).
+constexpr std::size_t MaxQueued = 8 + netplay::MaxSignInSites;
 
 // The helper's and the bridge's failure codes, in words. Codes that mean the
 // same thing to the player share a sentence.
@@ -107,7 +110,7 @@ void IdentityPanel::ReadFailed() {
         // read: an account read's own, or the selected one.
         // Linked accounts and the matches screen read only Discord's account on the selected one.
         const std::string& target = sentAccount_.empty() ? bridge_ : sentAccount_;
-        if (!target.empty()) AccountReadsFailed(target, sentAccount_.empty() ? AccountReads{true} : sentReads_);
+        if (!target.empty()) AccountReadsFailed(target, sentAccount_.empty() ? AccountReads::Discord() : sentReads_);
     }
 }
 
@@ -162,7 +165,7 @@ void IdentityPanel::SetUpPublicRooms(const ShellView&) {
 }
 
 void IdentityPanel::QueueSetup(IdentityRequest request) {
-    if (queue_.size() < 8) queue_.push_back(Queued{std::move(request), false, setup_.Run(), {}, {}, Owner::PublicSetup});
+    if (queue_.size() < MaxQueued) queue_.push_back(Queued{std::move(request), false, setup_.Run(), {}, {}, Owner::PublicSetup});
 }
 
 bool IdentityPanel::SetupPending() const {
@@ -204,7 +207,7 @@ void IdentityPanel::Queue(IdentityRequest request, bool lookUp, std::string acco
         });
         if (waiting) return;
     }
-    if (queue_.size() < 8) queue_.push_back(Queued{std::move(request), lookUp, owner, std::move(account), std::move(reads)});
+    if (queue_.size() < MaxQueued) queue_.push_back(Queued{std::move(request), lookUp, owner, std::move(account), std::move(reads)});
 }
 
 void IdentityPanel::Wipe() {
@@ -420,14 +423,14 @@ void IdentityPanel::Finish(const ShellView& v) {
             }
             // Settings > Discord shows the Discord account on the one selected.
             if (const auto* selected = FindBridge(v, bridge_); selected && lastScreen_ == AccountScreen && id.state == "ready")
-                ReadAccount(*selected, AccountReads{true});
+                ReadAccount(*selected, AccountReads::Discord());
             break;
         }
         // The Ember ID screen shows the Discord and sign-in site accounts on
         // Ember's own service, and a site's Connect screen that site's: its
         // profile, whose answer asks for the accounts.
         if (lastScreen_ == "identity" || lastScreen_ == SiteConnectScreen) {
-            const auto reads = lastScreen_ == SiteConnectScreen ? AccountReads{false, false, siteScreen_} : AccountReads{true, true};
+            const auto reads = lastScreen_ == SiteConnectScreen ? AccountReads::OneSite(siteScreen_) : AccountReads::Everything();
             if (const auto* ember = EmberBridge(v); ember && id.state == "ready") ReadAccount(*ember, reads);
             break;
         }
@@ -458,7 +461,7 @@ void IdentityPanel::Finish(const ShellView& v) {
             const bool known = std::any_of(id.connections.begin(), id.connections.end(),
                 [&](const netplay::IdentityConnection& c) { return c.id == connection_; });
             if (!known) connection_ = id.connections.empty() ? std::string() : id.connections.front().id;
-            ReadSiteAccounts(id, bridge_, AccountReads{true});
+            ReadSiteAccounts(id, bridge_, AccountReads::Discord());
         }
         break;
     case IdentityOp::DiscordStatus:
@@ -509,7 +512,7 @@ bool IdentityPanel::Status(std::string& status, Tone& tone, double now) const {
     // The account is read again while the player approves in the browser.
     if (signIn_ && WaitingOn(signIn_->target, signIn_->bridge) && ShowsWait(lastScreen_) && queue_.empty() &&
         (!sent_ || sentOp_ == netplay::SignInRequest(signIn_->target.source, SignInStep::Status))) {
-        status = Word(signIn_->target, Site(signIn_->target.source).words.waiting); tone = Tone::Pending; return true;
+        status = Word(signIn_->target, signIn_->bridge, Site(signIn_->target.source).words.waiting); tone = Tone::Pending; return true;
     }
     if (sent_ || !queue_.empty()) {
         const bool slow = sentOp_ == IdentityOp::Enable || sentOp_ == IdentityOp::Unlock || sentOp_ == IdentityOp::Export ||
@@ -692,7 +695,7 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
         rows.back().hint = loc::T("menu.hint.paste");
     } else if (screen == SiteConnectScreen) {
         const auto site = SignInTarget::Listed(siteScreen_);
-        title = Word(site, Site(SignInSource::Site).words.title);
+        title = Word(site, SiteBridge(v, site), Site(SignInSource::Site).words.title);
         ListedSiteRows(v, rows, busy);
     } else if (screen == "tournament-matches") {
         title = loc::T("screen.tournament_matches");

@@ -20,7 +20,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use zeroize::Zeroizing;
 
-use super::{Failure, Outcome, Shared, bridges::Approved};
+use super::{Failure, Outcome, Shared, bridges::Approved, sites};
 
 const MAX_RESPONSE: usize = 64 * 1024;
 /// How long creating a room may take. The bridge waits up to 30 s for the
@@ -145,7 +145,7 @@ impl Client {
 
     /// Fetches a bridge's discovery document and capabilities. This does not
     /// make the bridge trusted; the caller shows it for approval.
-    pub async fn inspect(&self, origin: &str) -> Result<(BridgeProfile, Capabilities), Failure> {
+    pub async fn inspect(&self, origin: &str) -> Result<(BridgeProfile, Offered), Failure> {
         let profile = self.profile(origin).await?;
         Ok((profile, self.capabilities(origin).await?))
     }
@@ -186,8 +186,11 @@ impl Client {
         Ok(profile)
     }
 
-    /// What the bridge at `origin` offers.
-    pub async fn capabilities(&self, origin: &str) -> Result<Capabilities, Failure> {
+    /// What the bridge at `origin` offers. Its sign-in sites are read on
+    /// their own and leniently (`sites::listed`): an entry this build does
+    /// not understand is dropped, never failing the document that Discord,
+    /// approval and match play also read.
+    pub async fn capabilities(&self, origin: &str) -> Result<Offered, Failure> {
         check_origin(origin, POLICY).map_err(|_| Failure::new("invalid_origin"))?;
         let (status, body) = self
             .call(
@@ -200,12 +203,11 @@ impl Client {
         if status != 200 {
             return Err(Failure::new("not_a_bridge"));
         }
-        let capabilities: Capabilities =
-            json::parse_as(&body, MAX_RESPONSE).map_err(|_| Failure::new("not_a_bridge"))?;
-        if capabilities.api_version != "v1" {
+        let offered = Offered::read(&body).ok_or_else(|| Failure::new("not_a_bridge"))?;
+        if offered.capabilities.api_version != "v1" {
             return Err(Failure::new("unsupported_bridge"));
         }
-        Ok(capabilities)
+        Ok(offered)
     }
 
     /// The bridge's public signing keys, from the approved origin only.
@@ -225,6 +227,39 @@ impl Client {
         let keys: SigningKeys =
             json::parse_as(&body, MAX_RESPONSE).map_err(|_| Failure::new("not_a_bridge"))?;
         Ok(keys.keys)
+    }
+}
+
+/// A bridge's capabilities, with the sign-in sites it lists kept apart:
+/// `capabilities.sign_in_sites` is always empty.
+pub struct Offered {
+    pub capabilities: Capabilities,
+    pub sign_in_sites: Vec<sites::Listed>,
+}
+
+impl Offered {
+    /// The capabilities document `body`. Only the fields this build has
+    /// always read can fail it; `sign_in_sites` is taken out first and read
+    /// entry by entry.
+    fn read(body: &[u8]) -> Option<Self> {
+        let mut document: Value = serde_json::from_slice(body).ok()?;
+        let listed = document.as_object_mut()?.remove("sign_in_sites");
+        Some(Self {
+            capabilities: serde_json::from_value(document).ok()?,
+            sign_in_sites: sites::listed(listed),
+        })
+    }
+
+    /// The document the game reads: the capabilities, with the sites listed
+    /// only when there are any, so a bridge without them answers as before.
+    pub fn to_json(&self) -> Value {
+        let mut document = json!(self.capabilities);
+        if !self.sign_in_sites.is_empty()
+            && let Some(fields) = document.as_object_mut()
+        {
+            fields.insert("sign_in_sites".into(), json!(self.sign_in_sites));
+        }
+        document
     }
 }
 
@@ -551,6 +586,76 @@ pub async fn remove_link(shared: &Arc<Shared>, bridge_id: &str, link_id: &str) -
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Sign-in sites this build cannot read never fail the capabilities
+    /// that Discord, approval and match play read; a bridge without sites
+    /// reads back exactly as it was served.
+    #[test]
+    fn sites_this_build_cannot_read_never_fail_the_capabilities() {
+        let document = json!({
+            "api_version": "v1", "event_version": "v1", "games": ["usf4"], "games_to_win": [1],
+            "native_rules_profiles": [], "native_play": true, "result_sources": [],
+            "features": ["discord", "sites", "matches.play"], "lobby_rotations": [],
+            "tournament_formats": [], "connections": [],
+            "limits": {
+                "max_body_bytes": 1, "max_proof_body_bytes": 1, "max_json_depth": 1,
+                "challenge_lifetime_secs": 1, "session_lifetime_secs": 1, "link_code_lifetime_secs": 1,
+            },
+        });
+        let read = |sites: Option<Value>| {
+            let mut served = document.clone();
+            if let Some(sites) = sites {
+                served["sign_in_sites"] = sites;
+            }
+            Offered::read(&serde_json::to_vec(&served).unwrap())
+        };
+        let plain = read(None).unwrap();
+        assert!(plain.sign_in_sites.is_empty());
+        assert_eq!(plain.to_json(), document);
+
+        let good = json!({
+            "id": "challonge", "display_name": "Challonge", "sign_in": true,
+            "lookup_by": "username", "authorize_origin": "https://api.challonge.com",
+            "authorize_path": "/oauth/authorize",
+        });
+        let mut unknown = good.clone();
+        unknown["id"] = "later".into();
+        unknown["lookup_by"] = "email".into();
+        unknown["weight"] = json!(0.5);
+        for sites in [
+            json!([good, unknown, { "id": "half" }, 7, "x", null, [good]]),
+            json!({ "challonge": good }),
+            json!("challonge"),
+            json!(1.5),
+            Value::Null,
+        ] {
+            let offered = read(Some(sites.clone())).unwrap_or_else(|| panic!("{sites}"));
+            assert_eq!(
+                offered.capabilities.features,
+                ["discord", "sites", "matches.play"]
+            );
+            assert!(offered.capabilities.sign_in_sites.is_empty());
+            let ids: Vec<&str> = offered
+                .sign_in_sites
+                .iter()
+                .map(|s| s.id.as_str())
+                .collect();
+            if sites.is_array() {
+                assert_eq!(ids, ["challonge", "later"]);
+                let listed = &offered.to_json()["sign_in_sites"];
+                assert_eq!(listed[1]["authorize_path"], "/oauth/authorize");
+                assert!(listed[0].get("lookup_by").is_none());
+            } else {
+                assert!(ids.is_empty(), "{sites}");
+                assert_eq!(offered.to_json(), document);
+            }
+        }
+        // The fields read before sites still decide whether this is a bridge.
+        let mut broken = document.clone();
+        broken.as_object_mut().unwrap().remove("limits");
+        assert!(Offered::read(&serde_json::to_vec(&broken).unwrap()).is_none());
+        assert!(Offered::read(b"[]").is_none());
+    }
 
     #[test]
     fn a_session_is_offered_only_to_its_origin() {

@@ -48,12 +48,26 @@ void Answers() {
              "authorize_origin":"https://api.challonge.com","authorize_path":"/oauth/authorize"},
             {"id":"startgg","display_name":"start.gg","sign_in":false,"lookup_by":"user_id",
              "authorize_origin":"https://start.gg","authorize_path":"/oauth/authorize"},
-            {"display_name":"No ID"}, 7]}}})"), view);
+            {"display_name":"No ID"}, 7, {"id":"Bad/Id","display_name":"Bad","sign_in":true},
+            {"id":"","display_name":"Empty"}, {"id":"abcdefghijklmnopqrstuvwxyz0123456","display_name":"Too long"},
+            {"id":"challonge","display_name":"Second Challonge","sign_in":false},
+            {"id":"later","display_name":"Later","sign_in":"yes","lookup_by":"email"}]}}})"), view);
     Check(!view.inspectedDiscord && view.inspectedDiscordAccounts, "Discord's features were not read");
-    Check(view.signInSites.size() == 2 && view.signInSites[0].id == "challonge" && view.signInSites[0].name == "Challonge" &&
-        view.signInSites[0].signIn && view.signInSites[0].lookupBy == "username" &&
+    Check(view.signInSites.size() == 3 && view.signInSites[0].id == "challonge" && view.signInSites[0].name == "Challonge" &&
+        view.signInSites[0].signIn &&
         view.signInSites[1].id == "startgg" && view.signInSites[1].name == "start.gg" && !view.signInSites[1].signIn,
         "The sign-in sites were not read");
+    // Only IDs a site can have, each once; a site whose sign_in is not a yes offers none.
+    Check(view.signInSites[2].id == "later" && !view.signInSites[2].signIn, "A site entry was not checked");
+    nlohmann::json many = nlohmann::json::array();
+    for (int n = 0; n < 40; ++n) many.push_back({{"id", "site-" + std::to_string(n)}, {"display_name", "Site"}, {"sign_in", true}});
+    {
+        sf4e::netplay::IdentityView listed;
+        sf4e::session::ApplyTournamentEvent({{"request_id", 9}, {"op", "bridge_inspect"}, {"ok", true},
+            {"data", {{"profile", nlohmann::json::object()}, {"capabilities", {{"sign_in_sites", many}}}}}}, listed);
+        Check(listed.signInSites.size() == sf4e::netplay::MaxSignInSites && listed.signInSites.back().id == "site-15",
+            "A long site list was not cut to the kept sites");
+    }
     view.discordUser = "274220342558756145"; view.discordName = "kate";
     sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":2,"op":"site_status","ok":true,"data":{
         "account":{"user_id":"1001","username":"Kate_99","connected_at":10}}})"), view);

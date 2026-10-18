@@ -7,11 +7,12 @@
 // journey test's main.
 #include "identity_journey_support.hxx"
 #include <map>
+#include <set>
 #include <vector>
 namespace {
 const std::string ember="https://bridge.embernetplay.link";
-struct Case{const char* id;const char* name;const char* lookupBy;};
-const Case Challonge{"challonge","Challonge","username"},Startgg{"startgg","start.gg","user_id"},Other{"brackets-plus","Brackets Plus","username"};
+struct Case{const char* id;const char* name;};
+const Case Challonge{"challonge","Challonge"},Startgg{"startgg","start.gg"},Other{"brackets-plus","Brackets Plus"};
 
 // A ready Ember ID that trusts Ember's own service.
 void Ready(Journey& h){
@@ -20,7 +21,7 @@ void Ready(Journey& h){
 // Ember's own service's profile lists these sites, offering sign-in or not.
 void List(Journey& h,const std::vector<Case>& sites,bool signIn){
  auto& id=h.view.identity;id.inspected=id.bridges[0];id.signInSites.clear();
- for(const auto& s:sites)id.signInSites.push_back({s.id,s.name,s.lookupBy,signIn});
+ for(const auto& s:sites)id.signInSites.push_back({s.id,s.name,signIn});
 }
 // Answers until the profile of Ember's own service is asked for, then gives it `sites`.
 void Profile(Journey& h,const std::vector<Case>& sites,bool signIn=true){
@@ -171,6 +172,74 @@ void SiteBusy(const Case& site){
  Check(h.sent().back()->op==IdentityOp::DiscordConnect,"Connect did not open Discord");
  h.answer(false,"sign_in_busy");
  Check(h.status==loc::Tf("identity.failure.other","sign_in_busy"),"Discord's words for a refusal changed");
+}
+
+void SiteWaiting(Journey& h,const Case& site);
+// A site its service stops listing while the player uses its screen: the
+// account read before goes, and the screen says sign-in is off, still in the
+// site's own name; a sign-in waiting on it ends on the service. A Connect the
+// service no longer knows says so, in the site's words.
+void SiteGone(const Case& site){
+ using namespace sf4e;using netplay::IdentityOp;
+ {
+  Journey h;Ready(h);auto& id=h.view.identity;
+  OpenSite(h,site);
+  id.siteUser="1001";id.siteName="kate";h.answer();
+  Check(h.row("st-connected")&&h.row("st-remove"),"The site's account was not shown");
+  h.Screen("home");h.Screen(SiteConnectScreen);Profile(h,{});for(int i=0;i<4;++i)h.answer();
+  Check(!h.row("st-connected")&&!h.row("st-remove"),"A site the service no longer lists still showed its account");
+  Check(h.row("st-off")&&h.row("st-off")->label==Words("site.off",site),"A site the service no longer lists was not said to be off by name");
+ }
+ {
+  Journey h;Ready(h);
+  SiteWaiting(h,site);
+  h.Screen("home");h.Screen(SiteConnectScreen);Profile(h,{});h.Frame(0,2);
+  Check(h.sent().back()->op==IdentityOp::SiteCancel&&h.sent().back()->site==site.id,"A sign-in on a site no longer listed did not end");
+  h.answer();
+  Check(!h.row("st-waiting")&&!h.row("st-cancel")&&h.row("st-off"),"A sign-in on a site no longer listed still waits");
+  const auto reads=h.count(IdentityOp::SiteStatus);h.Frame(0,300);
+  Check(h.count(IdentityOp::SiteStatus)==reads,"A site no longer listed was still read");
+ }
+ {
+  Journey h;Ready(h);
+  OpenSite(h,site);h.answer();
+  h.Choose("st-connect");
+  Check(h.sent().back()->op==IdentityOp::SiteConnect,"Connect did not ask the helper to open the site");
+  h.answer(false,"not_found");
+  Check(h.status==Words("site.gone",site),"A site the service no longer has was not said so");
+ }
+}
+
+// Every site a service lists, up to the most kept, has its account read on
+// the Ember ID screen.
+void ManySites(){
+ using namespace sf4e;using netplay::IdentityOp;
+ Journey h;Ready(h);auto& id=h.view.identity;h.untilLimit=12;
+ h.Screen("identity");
+ Check(h.until(IdentityOp::BridgeInspect)&&h.sent().back()->origin==ember,"Ember's own service was not read");
+ id.inspected=id.bridges[0];id.signInSites.clear();
+ for(std::size_t n=0;n<netplay::MaxSignInSites;++n)id.signInSites.push_back({"site-"+std::to_string(n),"Site "+std::to_string(n),true});
+ h.answer();
+ std::set<std::string> read;
+ for(int i=0;i<40;++i){const auto* r=h.sent().back();if(r->op==IdentityOp::SiteStatus)read.insert(r->site);h.answer();}
+ Check(read.size()==netplay::MaxSignInSites,"Not every listed site's account was read");
+ for(std::size_t n=0;n<netplay::MaxSignInSites;++n){
+  const auto row=h.row((std::string(SiteRowPrefix)+"site-"+std::to_string(n)).c_str());
+  Check(row&&row->value==loc::Tf("site.none","Site "+std::to_string(n)),"A listed site's row did not show its account");
+ }
+}
+
+// A site's name comes from its service, so the labels carrying it are
+// elided when long, as a player's own text is, rather than checked to fit.
+void LongSiteName(){
+ using namespace sf4e;
+ const Case site{"long-name","A tournament site whose name runs as long as a service may make it"};
+ Journey h;Ready(h);auto& id=h.view.identity;
+ OpenSite(h,site);id.siteUser.clear();id.siteName.clear();h.answer();
+ Check(h.row("st-connect")&&h.row("st-connect")->userText&&h.row("st-connect")->label==Words("site.title",site),
+  "A label with the site's name is checked to fit");
+ h.Screen("home");OpenSite(h,site,false);h.answer();
+ Check(h.row("st-off")&&h.row("st-off")->userText,"The off label with the site's name is checked to fit");
 }
 
 // Answers what is asked, each site's read with that site's account, until
@@ -428,6 +497,6 @@ void SiteReadsQuietly(){
 }
 }
 void RunSignInSiteJourneys(){
- for(const auto& site:{Challonge,Startgg,Other}){SiteRows(site);SiteConnects(site);SiteStops(site);SiteOffAndRetry(site);SiteBusy(site);}
- TwoSites();DiscordFirst();OneSignInAtATime();DiscordKeepsItsWait();LookingAtDiscordKeepsSite();SiteReadsQuietly();
+ for(const auto& site:{Challonge,Startgg,Other}){SiteRows(site);SiteConnects(site);SiteStops(site);SiteOffAndRetry(site);SiteBusy(site);SiteGone(site);}
+ ManySites();LongSiteName();TwoSites();DiscordFirst();OneSignInAtATime();DiscordKeepsItsWait();LookingAtDiscordKeepsSite();SiteReadsQuietly();
 }

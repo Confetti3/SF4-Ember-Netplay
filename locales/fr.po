@@ -3923,6 +3923,9 @@ msgstr "L'attente de {0} a été arrêtée."
 msgid "site.busy"
 msgstr "La connexion {0} est saturée pour le moment. Réessayez plus tard."
 
+msgid "site.gone"
+msgstr "Ce service de tournoi ne propose plus la connexion {0}."
+
 msgid "site.no_service"
 msgstr "Le service de tournoi d'Ember n'est pas configuré"
 

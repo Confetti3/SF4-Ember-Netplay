@@ -37,27 +37,45 @@ async fn bridge_with_sites(
     dir: &std::path::Path,
     sites: Vec<config::SignInSite>,
 ) -> (ember_bridge::Running, String) {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let origin = format!("http://{}", listener.local_addr().unwrap());
+    let running = start_bridge(dir, sites, false, &origin, listener).await;
+    (running, origin)
+}
+
+/// A bridge on `listener` that names `origin` as its own, with these
+/// sign-in sites and, with `discord`, Discord sign-in whose pages are on
+/// loopback rather than discord.com.
+async fn start_bridge(
+    dir: &std::path::Path,
+    sites: Vec<config::SignInSite>,
+    discord: bool,
+    origin: &str,
+    listener: tokio::net::TcpListener,
+) -> ember_bridge::Running {
     let secrets = Secrets {
         site_client_secrets: sites
             .iter()
             .map(|site| (site.id.clone(), Zeroizing::new("site-secret".to_owned())))
             .collect(),
+        discord_client_secret: discord.then(|| Zeroizing::new("discord-secret".to_owned())),
         ..Default::default()
     };
-    let integration_secrets = (!sites.is_empty()).then(|| dir.join("integrations.json"));
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let origin = format!("http://{}", listener.local_addr().unwrap());
+    let integration_secrets = (!sites.is_empty() || discord).then(|| dir.join("integrations.json"));
     let config = Config {
         bridge_id: ember_protocol::encoding::prefixed_id("brg", random16()),
         display_name: "Loopback bridge".into(),
-        origin: origin.clone(),
+        origin: origin.to_owned(),
         listen: "127.0.0.1:0".into(),
         database: dir.join("bridge.sqlite3"),
         secrets: dir.join("secrets.json"),
         allow_loopback_http: true,
         allow_private_webhooks: true,
         mock_browser: false,
-        discord: None,
+        discord: discord.then(|| config::Discord {
+            client_id: "1546980049692135514".into(),
+            api_base: "http://127.0.0.1:9/api".into(),
+        }),
         sign_in_sites: sites,
         integration_secrets,
         rooms: None,
@@ -83,7 +101,96 @@ async fn bridge_with_sites(
     let db = Db::open(&config.database).unwrap();
     let state = AppState::new(config, Keys::generate(), secrets, db, Clock::default());
     ember_bridge::sync_config(&state).await.unwrap();
-    (ember_bridge::start(state, listener).unwrap(), origin)
+    ember_bridge::start(state, listener).unwrap()
+}
+
+/// A front at `listener` for the bridge at `inner`: each request passes
+/// through as it was sent, except that the bridge's capabilities document
+/// is changed by `change` on its way back. Answers the method and path of
+/// every request, in order.
+fn front(
+    listener: tokio::net::TcpListener,
+    inner: String,
+    change: fn(&mut Value),
+) -> std::sync::Arc<std::sync::Mutex<Vec<String>>> {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let log = seen.clone();
+    tokio::spawn(async move {
+        let client = reqwest::Client::new();
+        while let Ok((mut socket, _)) = listener.accept().await {
+            let mut request = Vec::new();
+            let mut buffer = [0; 4096];
+            let head_end = loop {
+                if let Some(at) = request.windows(4).position(|end| end == b"\r\n\r\n") {
+                    break at + 4;
+                }
+                match socket.read(&mut buffer).await {
+                    Ok(0) | Err(_) => break 0,
+                    Ok(read) => request.extend_from_slice(&buffer[..read]),
+                }
+            };
+            if head_end == 0 {
+                continue;
+            }
+            let head = String::from_utf8_lossy(&request[..head_end]).into_owned();
+            let mut lines = head.lines();
+            let mut first = lines.next().unwrap_or("").split(' ');
+            let (method, path) = (
+                first.next().unwrap_or("").to_owned(),
+                first.next().unwrap_or("").to_owned(),
+            );
+            let headers: Vec<(String, String)> = lines
+                .filter_map(|line| line.split_once(':'))
+                .map(|(name, value)| (name.trim().to_ascii_lowercase(), value.trim().to_owned()))
+                .collect();
+            let length = headers
+                .iter()
+                .find(|(name, _)| name == "content-length")
+                .and_then(|(_, value)| value.parse::<usize>().ok())
+                .unwrap_or(0);
+            while request.len() < head_end + length {
+                match socket.read(&mut buffer).await {
+                    Ok(0) | Err(_) => break,
+                    Ok(read) => request.extend_from_slice(&buffer[..read]),
+                }
+            }
+            log.lock().unwrap().push(format!("{method} {path}"));
+            let mut forward = client.request(
+                reqwest::Method::from_bytes(method.as_bytes()).unwrap(),
+                format!("{inner}{path}"),
+            );
+            for (name, value) in &headers {
+                if !matches!(name.as_str(), "host" | "content-length" | "connection") {
+                    forward = forward.header(name, value);
+                }
+            }
+            let response = forward
+                .body(request[head_end..].to_vec())
+                .send()
+                .await
+                .unwrap();
+            let status = response.status();
+            let kind = response
+                .headers()
+                .get("content-type")
+                .map(|value| value.to_str().unwrap().to_owned())
+                .unwrap_or_else(|| "application/json".into());
+            let mut body = response.bytes().await.unwrap().to_vec();
+            if path == "/v1/capabilities" && status == 200 {
+                let mut document: Value = serde_json::from_slice(&body).unwrap();
+                change(&mut document);
+                body = serde_json::to_vec(&document).unwrap();
+            }
+            let head = format!(
+                "HTTP/1.1 {status}\r\ncontent-type: {kind}\r\ncontent-length: {}\r\nconnection: close\r\n\r\n",
+                body.len()
+            );
+            let _ = socket.write_all(head.as_bytes()).await;
+            let _ = socket.write_all(&body).await;
+        }
+    });
+    seen
 }
 
 /// The site `deploy/sites/<file>.json` defines, listed as `id` and named
@@ -153,7 +260,9 @@ async fn sign_in_sites_through_the_helper() {
             let (ok, reason, _, _) = worker.ask(ask(op)).await;
             assert!(ok, "{site} {op}: {reason:?}");
         }
-        // The bridge started a sign-in, but its page is not on an https origin.
+        // The bridge started a sign-in, but its page is not on an https
+        // origin, so the helper ended it again; the game's own cancel after
+        // that finds nothing in flight and still succeeds.
         let (ok, reason, _, _) = worker.ask(ask("site_connect")).await;
         assert!(!ok, "{site}");
         assert_eq!(reason.as_deref(), Some("bridge_invalid_response"), "{site}");
@@ -173,6 +282,118 @@ async fn sign_in_sites_through_the_helper() {
         .await;
     assert!(!ok);
     assert_eq!(reason.as_deref(), Some("invalid_request"));
+    running.abort();
+}
+
+/// Sign-in sites this build cannot read leave the bridge usable: the helper
+/// drops those entries and keeps the rest, so inspecting and approving the
+/// bridge, Discord sign-in and the sites it can read go on as before. A site
+/// sign-in the bridge started but whose page is refused is ended at once;
+/// Discord's refused page is left as it always was.
+#[tokio::test]
+async fn sites_this_build_cannot_read_leave_the_bridge_usable() {
+    let dirs = Dirs(std::env::temp_dir().join(format!(
+        "sf4-tournament-mixed-{}",
+        ember_protocol::encoding::b64u(&random16())
+    )));
+    std::fs::create_dir_all(&dirs.0).unwrap();
+    let public = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let origin = format!("http://{}", public.local_addr().unwrap());
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let inner = format!("http://{}", listener.local_addr().unwrap());
+    let pages = "http://127.0.0.1:9";
+    let sites = vec![site("challonge", "challonge", "Challonge", pages)];
+    let running = start_bridge(&dirs.0, sites, true, &origin, listener).await;
+    let seen = front(public, inner, |document| {
+        let listed = document["sign_in_sites"].as_array_mut().unwrap();
+        let mut later = listed[0].clone();
+        later["id"] = json!("later");
+        later["lookup_by"] = json!("email");
+        later["weight"] = json!(0.5);
+        let mut retyped = listed[0].clone();
+        retyped["id"] = json!("retyped");
+        retyped["sign_in"] = json!("yes");
+        let mut twin = listed[0].clone();
+        twin["display_name"] = json!("Second Challonge");
+        listed.extend([
+            later,
+            json!({ "id": "missing", "display_name": "Missing" }),
+            retyped,
+            twin,
+            json!("startgg"),
+            json!(7),
+        ]);
+    });
+    let mut worker = Worker::start(&dirs);
+    worker.next_answer(0).await;
+    let (ok, reason, _, _) = worker.ask(json!({ "op": "identity_enable" })).await;
+    assert!(ok, "{reason:?}");
+    let (ok, reason, _, inspected) = worker
+        .ask(json!({ "op": "bridge_inspect", "origin": origin }))
+        .await;
+    assert!(ok, "{reason:?}");
+    let listed = inspected["capabilities"]["sign_in_sites"]
+        .as_array()
+        .unwrap();
+    let ids: Vec<&str> = listed
+        .iter()
+        .filter_map(|site| site["id"].as_str())
+        .collect();
+    assert_eq!(ids, ["challonge", "later"]);
+    assert_eq!(listed[0]["display_name"], "Challonge");
+    let features = inspected["capabilities"]["features"].as_array().unwrap();
+    assert!(features.contains(&json!("discord")), "{features:?}");
+    let bridge_id = inspected["profile"]["bridge_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let (ok, reason, _, _) = worker
+        .ask(json!({ "op": "bridge_approve", "origin": origin, "bridge_id": bridge_id }))
+        .await;
+    assert!(ok, "{reason:?}");
+
+    let discord = |op: &str| json!({ "op": op, "bridge_id": bridge_id });
+    let (ok, reason, _, connection) = worker.ask(discord("discord_status")).await;
+    assert!(ok, "{reason:?}");
+    assert_eq!(connection, json!({ "account": null }));
+    // The bridge starts Discord's sign-in; its page here is not discord.com,
+    // so nothing opens.
+    let (ok, reason, _, _) = worker.ask(discord("discord_connect")).await;
+    assert!(!ok);
+    assert_eq!(reason.as_deref(), Some("bridge_invalid_response"));
+    let (ok, reason, _, _) = worker.ask(discord("discord_cancel")).await;
+    assert!(ok, "{reason:?}");
+
+    let ask = |op: &str, site: &str| json!({ "op": op, "bridge_id": bridge_id, "site": site });
+    let (ok, reason, _, connection) = worker.ask(ask("site_status", "challonge")).await;
+    assert!(ok, "{reason:?}");
+    assert_eq!(connection, json!({ "account": null }));
+    let (ok, reason, _, _) = worker.ask(ask("site_connect", "challonge")).await;
+    assert!(!ok);
+    assert_eq!(reason.as_deref(), Some("bridge_invalid_response"));
+    for dropped in ["missing", "retyped"] {
+        let (ok, reason, _, _) = worker.ask(ask("site_connect", dropped)).await;
+        assert!(!ok, "{dropped}");
+        assert_eq!(reason.as_deref(), Some("not_found"), "{dropped}");
+    }
+
+    // Only the test cancelled Discord's sign-in; the helper itself ended
+    // Challonge's, which the test never cancelled.
+    let seen = seen.lock().unwrap().clone();
+    let count = |request: &str| seen.iter().filter(|seen| *seen == request).count();
+    let discord_start = ember_protocol::discord::START_PATH;
+    assert_eq!(count(&format!("POST {discord_start}")), 1, "{seen:?}");
+    assert_eq!(count(&format!("DELETE {discord_start}")), 1, "{seen:?}");
+    assert_eq!(count("POST /v1/sites/challonge/start"), 1, "{seen:?}");
+    assert_eq!(count("DELETE /v1/sites/challonge/start"), 1, "{seen:?}");
+    for dropped in ["missing", "retyped"] {
+        assert!(
+            !seen
+                .iter()
+                .any(|seen| seen.contains(&format!("/v1/sites/{dropped}"))),
+            "{seen:?}"
+        );
+    }
     running.abort();
 }
 

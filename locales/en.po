@@ -3564,6 +3564,9 @@ msgstr "Stopped waiting for {0}."
 msgid "site.busy"
 msgstr "{0} sign-in is busy right now. Try again later."
 
+msgid "site.gone"
+msgstr "This tournament service no longer offers {0} sign-in."
+
 msgid "site.no_service"
 msgstr "Ember's tournament service is not set up"
 

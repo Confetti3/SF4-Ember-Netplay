@@ -621,9 +621,9 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             Ok(Some(json!({ "bridges": bridges, "removed": removed })))
         }
         Request::BridgeInspect { origin } => {
-            let (profile, capabilities) = shared.client.inspect(&origin).await?;
+            let (profile, offered) = shared.client.inspect(&origin).await?;
             Ok(Some(
-                json!({ "profile": profile, "capabilities": capabilities }),
+                json!({ "profile": profile, "capabilities": offered.to_json() }),
             ))
         }
         Request::BridgeApprove { origin, bridge_id } => {
@@ -687,6 +687,7 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
                 &bridge_id,
                 &discord::routes(),
                 discord::is_sign_in_page,
+                false,
             )
             .await
         }

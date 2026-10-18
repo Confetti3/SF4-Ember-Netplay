@@ -3923,6 +3923,9 @@ msgstr "Przestano czekać na {0}."
 msgid "site.busy"
 msgstr "Logowanie przez {0} jest teraz przeciążone. Spróbuj ponownie później."
 
+msgid "site.gone"
+msgstr "Ten serwis turniejowy nie oferuje już logowania przez {0}."
+
 msgid "site.no_service"
 msgstr "Serwis turniejowy Ember nie jest skonfigurowany"
 

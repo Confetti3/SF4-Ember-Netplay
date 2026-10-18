@@ -3449,6 +3449,9 @@ msgstr "A espera pelo {0} foi interrompida."
 msgid "site.busy"
 msgstr "O login com {0} está ocupado no momento. Tente novamente mais tarde."
 
+msgid "site.gone"
+msgstr "Este serviço de torneios não oferece mais login com {0}."
+
 msgid "site.no_service"
 msgstr "O serviço de torneios do Ember não está configurado"
 

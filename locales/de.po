@@ -3923,6 +3923,9 @@ msgstr "Das Warten auf {0} wurde beendet."
 msgid "site.busy"
 msgstr "Die {0}-Anmeldung ist gerade ausgelastet. Versuchen Sie es später erneut."
 
+msgid "site.gone"
+msgstr "Dieser Turnierdienst bietet die {0}-Anmeldung nicht mehr an."
+
 msgid "site.no_service"
 msgstr "Embers Turnierdienst ist nicht eingerichtet"
 

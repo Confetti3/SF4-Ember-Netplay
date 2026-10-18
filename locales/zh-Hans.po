@@ -3923,6 +3923,9 @@ msgstr "已停止等待 {0}。"
 msgid "site.busy"
 msgstr "{0} 登录当前繁忙。请稍后再试。"
 
+msgid "site.gone"
+msgstr "此赛事服务已不再提供 {0} 登录。"
+
 msgid "site.no_service"
 msgstr "尚未设置 Ember 的赛事服务"
 

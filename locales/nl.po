@@ -3923,6 +3923,9 @@ msgstr "Gestopt met wachten op {0}."
 msgid "site.busy"
 msgstr "Aanmelden met {0} is nu druk. Probeer het later opnieuw."
 
+msgid "site.gone"
+msgstr "Deze toernooidienst biedt geen aanmelden met {0} meer aan."
+
 msgid "site.no_service"
 msgstr "De toernooidienst van Ember is niet ingesteld"
 

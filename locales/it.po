@@ -3923,6 +3923,9 @@ msgstr "Attesa di {0} interrotta."
 msgid "site.busy"
 msgstr "L'accesso con {0} è occupato in questo momento. Riprova più tardi."
 
+msgid "site.gone"
+msgstr "Questo servizio tornei non offre più l'accesso con {0}."
+
 msgid "site.no_service"
 msgstr "Il servizio tornei di Ember non è configurato"
 

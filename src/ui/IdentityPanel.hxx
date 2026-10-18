@@ -14,6 +14,7 @@
 #include <functional>
 #include <iterator>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace sf4e { namespace ui {
@@ -118,12 +119,19 @@ private:
     // public rooms owns its requests: only it moves on their answers, which no
     // screen sees, and it sees no other answer (SetupFinish).
     enum class Owner { Screens, PublicSetup };
-    // Which accounts a service's profile leads to reading: Discord's, and
-    // every sign-in site's it lists or one site's.
+    // Which accounts a service's profile leads to reading: none, Discord's,
+    // Discord's and every sign-in site's it lists, or one site's.
     struct AccountReads {
-        bool discord = false, sites = false;
+        enum class Of { None, Discord, Everything, OneSite };
+        Of of = Of::None;
         std::string site;
-        bool operator==(const AccountReads& o) const { return discord == o.discord && sites == o.sites && site == o.site; }
+        static AccountReads Discord() { return {Of::Discord, {}}; }
+        static AccountReads Everything() { return {Of::Everything, {}}; }
+        static AccountReads OneSite(std::string site) { return {Of::OneSite, std::move(site)}; }
+        bool ReadsDiscord() const { return of == Of::Discord || of == Of::Everything; }
+        bool ReadsSites() const { return of == Of::Everything || of == Of::OneSite; }
+        bool Reads(const std::string& id) const { return of == Of::Everything || (of == Of::OneSite && site == id); }
+        bool operator==(const AccountReads& o) const { return of == o.of && site == o.site; }
     };
     // A request waiting to be sent. A look-up's answer is a service the
     // player may trust, not the selected one's profile. Every request names
@@ -216,12 +224,13 @@ private:
     // What Discord and the listed sign-in sites share (IdentitySignIn.cxx).
     // A listed site by its ID on `bridge`, as the service's profile last listed it; null when not.
     const netplay::IdentitySignInSite* ListedSite(const std::string& bridge, const std::string& site) const;
-    // A listed site's name to show: as its service names it, or its ID.
-    std::string SiteName(const std::string& site) const;
+    // A listed site's name to show: as `bridge` last named it, even once it
+    // no longer lists it, or its ID. With no service, any name it was given.
+    std::string SiteName(const std::string& bridge, const std::string& site) const;
     // One of the target's words: Discord's as they are, a listed site's with
-    // its name as {0}; `value` follows as the next placeholder.
-    std::string Word(const SignInTarget& target, const char* id) const;
-    std::string Word(const SignInTarget& target, const char* id, const std::string& value) const;
+    // its name on `bridge` as {0}; `value` follows as the next placeholder.
+    std::string Word(const SignInTarget& target, const std::string& bridge, const char* id) const;
+    std::string Word(const SignInTarget& target, const std::string& bridge, const char* id, const std::string& value) const;
     // The target of the sign-in request in flight.
     SignInTarget SentTarget() const;
     // The service the target's rows connect on: Ember's own, or the selected one.
@@ -239,7 +248,8 @@ private:
     // A new Connect Discord journey starts: what becomes of the sign-in under way.
     void RetireSignIn();
     // A site's own words for a refusal of the sign-in request in flight, where
-    // it has them (over its request limits); none otherwise.
+    // it has them (over its request limits, or no longer on the service);
+    // none otherwise.
     std::optional<std::string> SiteFailureText(const std::string& code) const;
     // Connect Discord's steps run, or a site's page is being opened.
     bool Starting() const;
@@ -315,9 +325,12 @@ private:
     std::map<std::tuple<SignInSource, std::string, std::string>, SiteAccount> accounts_;
     SiteAccount& Account(const SignInTarget& target, const std::string& bridge);
     const SiteAccount* FindAccount(const SignInTarget& target, const std::string& bridge) const;
-    // The sign-in sites each service lists, as its profile last said, and the
-    // site the listed site's Connect screen shows.
+    // The sign-in sites each service lists, as its profile last said; the
+    // name each service gave each site, kept after it stops listing one so
+    // the site's screen still names it; and the site the listed site's
+    // Connect screen shows.
     std::map<std::string, std::vector<netplay::IdentitySignInSite>> sites_;
+    std::map<std::pair<std::string, std::string>, std::string> siteNames_;
     std::string siteScreen_;
     // The service a connect link named; empty for Ember's own. Whether this
     // visit already looked Ember's own service up.

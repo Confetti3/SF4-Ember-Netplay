@@ -3923,6 +3923,9 @@ msgstr "{0}の待機をやめました。"
 msgid "site.busy"
 msgstr "現在{0}でのサインインが混み合っています。しばらくしてからもう一度お試しください。"
 
+msgid "site.gone"
+msgstr "この大会サービスでは{0}でのサインインを利用できなくなりました。"
+
 msgid "site.no_service"
 msgstr "Emberの大会サービスが設定されていません"
 
