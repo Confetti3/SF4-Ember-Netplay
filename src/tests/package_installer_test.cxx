@@ -1,4 +1,5 @@
 #include "../launcher/update/PackageInstaller.hxx"
+#include "../launcher/update/ZipExtract.hxx"
 #include "../launcher/update/UpdateHandoff.hxx"
 #include "../launcher/update/UpdaterArguments.hxx"
 #include "../common/PackageInventory.hxx"
@@ -310,6 +311,12 @@ int wmain(int argc, wchar_t** argv) {
     if (argc == 3 && std::wstring(argv[1]) == L"--validate") {
         // Read-only developer mode: no recovery or installation is invoked.
         if (sf4e::launcher::ValidatePackageFolder(argv[2], error)) return 0;
+        std::cerr << error << '\n'; return 2;
+    }
+    if (argc == 4 && std::wstring(argv[1]) == L"--extract") {
+        // The updater's own extraction, for scripts that check a package zip.
+        const std::atomic<bool> keep{false};
+        if (sf4e::launcher::ExtractZip(argv[2], argv[3], error, keep)) return 0;
         std::cerr << error << '\n'; return 2;
     }
     // Files these tests hold open fail their step at once; one test below
