@@ -5,7 +5,9 @@ import re
 import decky
 
 # Decky's bundled libraries break system tools such as curl, so clear them for children.
-ENV = {**os.environ, "LD_LIBRARY_PATH": ""}
+# The installer restarts Steam through the deck user's systemd, which needs its session.
+RUN = f"/run/user/{os.getuid()}"
+ENV = {**os.environ, "LD_LIBRARY_PATH": "", "XDG_RUNTIME_DIR": RUN, "DBUS_SESSION_BUS_ADDRESS": f"unix:path={RUN}/bus"}
 EMBER = os.path.join(decky.HOME, "Ember")
 
 
@@ -29,12 +31,12 @@ class Plugin:
         return {
             "installed": installed.removeprefix("v"),
             "latest": latest.group(1) if latest else "",
-            "option": os.path.join(EMBER, "steam-launch.sh") + " %command%",
         }
 
-    # Runs as the deck user: plugin.json has no "root" flag.
+    # Runs as the deck user: plugin.json has no "root" flag. Steam restarts
+    # during the install; this backend is Decky's own service and keeps running.
     async def install(self):
-        code, out = await run("bash", os.path.join(decky.DECKY_PLUGIN_DIR, "steamdeck-install.sh"), "--no-steam")
+        code, out = await run("bash", os.path.join(decky.DECKY_PLUGIN_DIR, "steamdeck-install.sh"))
         decky.logger.info(out)
         lines = out.strip().splitlines()
         return {"ok": code == 0, "message": lines[-1] if lines else ""}
