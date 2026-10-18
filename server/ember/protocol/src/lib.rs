@@ -8,7 +8,6 @@
 //! use this one.
 pub mod api;
 pub mod challenge;
-pub mod challonge;
 pub mod discord;
 pub mod encoding;
 mod error;
@@ -24,6 +23,7 @@ pub mod report;
 pub mod rooms;
 pub mod sign;
 pub mod sign_in;
+pub mod sites;
 pub mod tournament;
 pub mod webhook;
 

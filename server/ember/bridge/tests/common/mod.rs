@@ -10,6 +10,7 @@ pub mod public_rooms;
 pub mod receiver;
 pub mod results;
 pub mod sign_in;
+pub mod sites;
 pub mod supervisor;
 
 use std::path::PathBuf;
@@ -52,7 +53,7 @@ fn connection(id: &str) -> config::Connection {
         enabled: true,
         api_base: None,
         discord_lookup: false,
-        challonge_lookup: false,
+        lookup_sites: Vec::new(),
         disputes: None,
         results_url: None,
         rooms: None,
@@ -89,7 +90,7 @@ impl Bridge {
             allow_private_webhooks: true,
             mock_browser: true,
             discord: None,
-            challonge: None,
+            sign_in_sites: Vec::new(),
             integration_secrets: None,
             rooms: None,
             match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,

@@ -21,9 +21,20 @@ async fn a_player_connects_challonge_through_the_bridge_page() {
     let fake = fake_challonge();
     let bridge = bridge(&fake).await;
     let (_, capabilities) = bridge.get("", "/v1/capabilities").await;
-    let features = capabilities["features"].as_array().unwrap();
     assert!(
-        features.contains(&json!("challonge")) && features.contains(&json!("challonge.accounts"))
+        capabilities["features"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("sites"))
+    );
+    let origin = url::Url::parse(&bridge.state().config.sign_in_sites[0].authorize_url).unwrap();
+    assert_eq!(
+        capabilities["sign_in_sites"],
+        json!([{
+            "id": "challonge", "display_name": "Challonge", "sign_in": true, "lookup_by": "username",
+            "authorize_origin": origin.origin().ascii_serialization(),
+            "authorize_path": "/oauth/authorize",
+        }])
     );
     let kate = player(&bridge, 1).await;
     assert_eq!(account(&bridge, &kate).await, None);
@@ -40,7 +51,10 @@ async fn a_player_connects_challonge_through_the_bridge_page() {
     assert_eq!(query["response_type"], "code");
     assert_eq!(query["client_id"], CLIENT_ID);
     assert_eq!(query["scope"], "me");
-    assert_eq!(query["redirect_uri"], bridge.url("/v1/challonge/callback"));
+    assert_eq!(
+        query["redirect_uri"],
+        bridge.url("/v1/sites/challonge/callback")
+    );
     assert!(!query.contains_key("prompt"));
     // Starting asks Challonge nothing.
     assert!(fake.seen("/oauth/token").is_empty());
@@ -52,7 +66,7 @@ async fn a_player_connects_challonge_through_the_bridge_page() {
             && page.contains(KATE.1)
             && page.contains(&kate.id().fingerprint())
             && page.contains("Cups")
-            && page.contains("action=\"/v1/challonge/callback\""),
+            && page.contains("action=\"/v1/sites/challonge/callback\""),
         "{page}"
     );
     assert_eq!(account(&bridge, &kate).await, None);
@@ -61,7 +75,7 @@ async fn a_player_connects_challonge_through_the_bridge_page() {
         page.contains("Challonge connected") && page.contains(KATE.1),
         "{page}"
     );
-    let (_, connected) = bridge.get(kate.token(), "/v1/challonge").await;
+    let (_, connected) = bridge.get(kate.token(), "/v1/sites/challonge").await;
     assert_eq!(connected["account"]["user_id"], KATE.0);
     assert_eq!(connected["account"]["username"], KATE.1);
 
@@ -74,7 +88,7 @@ async fn a_player_connects_challonge_through_the_bridge_page() {
     assert_eq!(exchange.form["client_secret"], CLIENT_SECRET);
     assert_eq!(
         exchange.form["redirect_uri"],
-        bridge.url("/v1/challonge/callback")
+        bridge.url("/v1/sites/challonge/callback")
     );
     let me = &fake.seen("/v2.1/me.json")[0];
     assert_eq!(me.headers["authorization-type"], "v2");
@@ -141,7 +155,7 @@ async fn the_latest_sign_in_replaces_an_ember_ids_account() {
     found(&bridge, BRACKETS, &[KATE.1]).await;
     assert_eq!(
         link_of(&bridge, BRACKETS, &kate).await,
-        Some(("challonge".into(), format!("challonge:{}", KATE.0)))
+        Some(("site".into(), format!("challonge:{}", KATE.0)))
     );
     // Another account for the same Ember ID: the page says what it replaces,
     // and connecting it ends the first one's links.
@@ -196,7 +210,7 @@ async fn a_second_answer_or_a_cancel_while_challonge_checks_wins_nothing() {
     // Reloaded while Challonge still checks the first answer.
     let state = start(&bridge, &kate).await;
     let url = bridge.url(&format!(
-        "/v1/challonge/callback?code=held-kate&state={state}"
+        "/v1/sites/challonge/callback?code=held-kate&state={state}"
     ));
     let client = bridge.client.clone();
     let first =
@@ -211,7 +225,7 @@ async fn a_second_answer_or_a_cancel_while_challonge_checks_wins_nothing() {
     // Cancelled in Ember while Challonge checks: the answer connects nothing.
     let state = start(&bridge, &kate).await;
     let url = bridge.url(&format!(
-        "/v1/challonge/callback?code=held-kate&state={state}"
+        "/v1/sites/challonge/callback?code=held-kate&state={state}"
     ));
     let client = bridge.client.clone();
     let late =
@@ -227,7 +241,7 @@ async fn a_second_answer_or_a_cancel_while_challonge_checks_wins_nothing() {
     connect(&bridge, &kate, "sam").await;
     let state = start(&bridge, &kate).await;
     let url = bridge.url(&format!(
-        "/v1/challonge/callback?code=held-kate&state={state}"
+        "/v1/sites/challonge/callback?code=held-kate&state={state}"
     ));
     let client = bridge.client.clone();
     let late =
@@ -245,9 +259,7 @@ async fn sign_in_is_off_without_the_client_secret_but_an_account_can_go() {
     let fake = fake_challonge();
     let bridge = bridge_with(&fake, json!({}), Secrets::default()).await;
     let (_, capabilities) = bridge.get("", "/v1/capabilities").await;
-    let features = capabilities["features"].as_array().unwrap();
-    assert!(features.contains(&json!("challonge.accounts")));
-    assert!(!features.contains(&json!("challonge")));
+    assert_eq!(capabilities["sign_in_sites"][0]["sign_in"], false);
     let kate = player(&bridge, 1).await;
     let ember_id = kate.id().as_str().to_owned();
     bridge
@@ -255,8 +267,8 @@ async fn sign_in_is_off_without_the_client_secret_but_an_account_can_go() {
         .db
         .write(move |tx| {
             tx.execute(
-                "INSERT INTO challonge_accounts (user_id, ember_id, username, username_key, connected_at)
-                 VALUES ('1001', ?1, 'Kate_99', 'kate_99', 1)",
+                "INSERT INTO site_accounts (site, user_id, ember_id, username, username_key, connected_at)
+                 VALUES ('challonge', '1001', ?1, 'Kate_99', 'kate_99', 1)",
                 [&ember_id],
             )?;
             Ok(())
@@ -288,14 +300,14 @@ async fn a_start_needs_its_own_proof() {
     let body = bridge
         .prove(
             &kate,
-            Action::ChallongeCancel,
+            Action::SiteCancel,
             Method::Delete,
-            "/v1/challonge/start",
+            "/v1/sites/challonge/start",
             json!({}),
         )
         .await;
     let (status, body) = bridge
-        .send_proof(&kate, Method::Post, "/v1/challonge/start", body)
+        .send_proof(&kate, Method::Post, "/v1/sites/challonge/start", body)
         .await;
     assert_eq!(
         (status, code(&body)),
@@ -311,7 +323,7 @@ async fn a_start_needs_its_own_proof() {
                 "public_key": kate.identity.public_key(),
                 "action": "challonge.move",
                 "method": "POST",
-                "path": "/v1/challonge/move",
+                "path": "/v1/sites/challonge/move",
                 "request_digest": "0".repeat(43),
             }),
         )
@@ -437,20 +449,7 @@ async fn a_sign_in_started_with_room_is_refused_once_the_budget_is_spent() {
 
 /// This month's Challonge requests.
 async fn requests_spent(bridge: &Bridge) -> u64 {
-    let now = bridge.clock.now();
-    bridge
-        .state()
-        .db
-        .read(move |tx| {
-            Ok(tx.query_row(
-                "SELECT COALESCE(SUM(spent), 0) FROM site_requests
-                 WHERE site = 'challonge' AND day LIKE strftime('%Y-%m', ?1, 'unixepoch') || '-%'",
-                [now],
-                |row| row.get(0),
-            )?)
-        })
-        .await
-        .unwrap()
+    common::sites::requests_spent(bridge, SITE).await
 }
 
 #[tokio::test]
@@ -479,7 +478,7 @@ async fn a_lookup_finds_connected_players_by_username_without_case() {
     for (player, user) in [(&kate, KATE), (&sam, SAM)] {
         assert_eq!(
             link_of(&bridge, BRACKETS, player).await,
-            Some(("challonge".into(), format!("challonge:{}", user.0)))
+            Some(("site".into(), format!("challonge:{}", user.0)))
         );
     }
     let events = bridge.events(&provider, "0").await;
@@ -488,7 +487,7 @@ async fn a_lookup_finds_connected_players_by_username_without_case() {
         .filter(|event| event["type"] == "io.ember.tournament.identity.link.completed.v1")
         .map(|event| event["data"]["approved_via"].clone())
         .collect();
-    assert_eq!(completed, [json!("challonge"), json!("challonge")]);
+    assert_eq!(completed, [json!("site"), json!("site")]);
     let (_, first) = lookup(&bridge, BRACKETS, &["sam"], &[]).await;
     let (_, again) = lookup(&bridge, BRACKETS, &["sam"], &[]).await;
     assert_eq!(first, again);
@@ -523,7 +522,7 @@ async fn a_name_another_account_took_answers_for_that_account_only() {
     connect(&bridge, &kate, "kate").await;
     let connected_at = bridge.clock.now();
     let (_, answer) = lookup(&bridge, BRACKETS, &[KATE.1], &[]).await;
-    assert_eq!(answer["challonge"][0]["connected_at"], connected_at);
+    assert_eq!(answer["accounts"][0]["connected_at"], connected_at);
 
     // Kate renamed on Challonge, and another account took her old name.
     bridge.clock.advance(60);
@@ -604,7 +603,7 @@ async fn discord_and_challonge_find_the_same_player_as_one_link() {
     // Kate is linked once, by Discord, which was asked first; both answers
     // name the same participant.
     let discord_found = &answer["players"][0];
-    let challonge_found = answer["challonge"].as_array().unwrap();
+    let challonge_found = answer["accounts"].as_array().unwrap();
     assert_eq!(discord_found["ember_id"], kate.id().as_str());
     assert_eq!(challonge_found.len(), 2);
     assert_eq!(challonge_found[0]["ember_id"], kate.id().as_str());
@@ -616,7 +615,7 @@ async fn discord_and_challonge_find_the_same_player_as_one_link() {
         link_of(&bridge, BOTH, &kate).await,
         Some(("discord".into(), format!("discord:{discord_kate}")))
     );
-    assert_eq!(link_of(&bridge, BOTH, &sam).await.unwrap().0, "challonge");
+    assert_eq!(link_of(&bridge, BOTH, &sam).await.unwrap().0, "site");
 }
 
 #[tokio::test]
@@ -635,9 +634,9 @@ async fn a_discord_lookup_after_challonge_uses_challonges_link_until_it_ends() {
     let (_, by_challonge) = lookup(&bridge, BOTH, &[KATE.1], &[]).await;
     assert_eq!(
         by_discord["players"][0]["participant_id"],
-        by_challonge["challonge"][0]["participant_id"]
+        by_challonge["accounts"][0]["participant_id"]
     );
-    assert_eq!(link_of(&bridge, BOTH, &kate).await.unwrap().0, "challonge");
+    assert_eq!(link_of(&bridge, BOTH, &kate).await.unwrap().0, "site");
 
     // Disconnecting Challonge ends that link; Discord links her again itself.
     disconnect(&bridge, &kate).await;
@@ -696,23 +695,22 @@ async fn one_account_at_most_answers_for_a_username() {
         player(&bridge, 2).await,
         player(&bridge, 3).await,
     ];
-    let insert = |user_id: &'static str, player: &common::Player, key: Option<&'static str>| {
-        let ember_id = player.id().as_str().to_owned();
-        bridge.state().db.write(move |tx| {
-            tx.execute(
-                "INSERT INTO challonge_accounts (user_id, ember_id, username, username_key, connected_at)
-                 VALUES (?1, ?2, 'Renamed', ?3, 1)",
-                rusqlite::params![user_id, ember_id, key],
-            )?;
-            Ok(())
-        })
-    };
-    insert("2001", &players[0], Some("renamed")).await.unwrap();
+    insert_account(&bridge, SITE, "2001", &players[0], Some("renamed"))
+        .await
+        .unwrap();
     // A second account under the same name is refused by the schema, while
     // accounts whose name another took (NULL) are as many as there are.
-    assert!(insert("2002", &players[1], Some("renamed")).await.is_err());
-    insert("2002", &players[1], None).await.unwrap();
-    insert("2003", &players[2], None).await.unwrap();
+    assert!(
+        insert_account(&bridge, SITE, "2002", &players[1], Some("renamed"))
+            .await
+            .is_err()
+    );
+    insert_account(&bridge, SITE, "2002", &players[1], None)
+        .await
+        .unwrap();
+    insert_account(&bridge, SITE, "2003", &players[2], None)
+        .await
+        .unwrap();
     assert_eq!(
         found(&bridge, BRACKETS, &["RENAMED"]).await,
         [(
@@ -733,14 +731,14 @@ async fn starts_with_bad_proofs_take_no_bridge_wide_slot() {
         let body = bridge
             .prove(
                 &players[0],
-                Action::ChallongeCancel,
+                Action::SiteCancel,
                 Method::Delete,
-                "/v1/challonge/start",
+                "/v1/sites/challonge/start",
                 json!({}),
             )
             .await;
         let (status, _) = bridge
-            .send_proof(&players[0], Method::Post, "/v1/challonge/start", body)
+            .send_proof(&players[0], Method::Post, "/v1/sites/challonge/start", body)
             .await;
         assert_eq!(status, StatusCode::UNAUTHORIZED);
     }
@@ -764,7 +762,7 @@ async fn a_start_that_does_not_commit_gives_its_bridge_wide_slot_back() {
             Ok(())
         })
     };
-    sign_ins("ALTER TABLE challonge_sign_ins RENAME TO challonge_sign_ins_away")
+    sign_ins("ALTER TABLE site_sign_ins RENAME TO site_sign_ins_away")
         .await
         .unwrap();
     let (status, body) = try_start(&bridge, &kate).await;
@@ -773,7 +771,7 @@ async fn a_start_that_does_not_commit_gives_its_bridge_wide_slot_back() {
         (StatusCode::SERVICE_UNAVAILABLE, "service_unavailable"),
         "{body}"
     );
-    sign_ins("ALTER TABLE challonge_sign_ins_away RENAME TO challonge_sign_ins")
+    sign_ins("ALTER TABLE site_sign_ins_away RENAME TO site_sign_ins")
         .await
         .unwrap();
     // The slot was given back: the next start has it.
@@ -783,26 +781,16 @@ async fn a_start_that_does_not_commit_gives_its_bridge_wide_slot_back() {
 }
 
 #[tokio::test]
-async fn a_bridge_without_challonge_lists_none_of_it() {
+async fn a_bridge_without_sign_in_sites_lists_none() {
     let bridge = Bridge::start().await;
     let (_, capabilities) = bridge.get("", "/v1/capabilities").await;
     let features = capabilities["features"].as_array().unwrap();
     assert!(features.contains(&json!("discord.accounts")));
-    for absent in ["challonge", "challonge.accounts"] {
-        assert!(!features.contains(&json!(absent)), "{absent}");
-    }
-}
-
-/// Whether `text` is anywhere in the bridge's database files.
-async fn database_holds(bridge: &Bridge, text: &str) -> bool {
-    let database = bridge.state().config.database.clone();
-    ["", "-wal"].iter().any(|suffix| {
-        let mut path = database.clone().into_os_string();
-        path.push(suffix);
-        std::fs::read(path).is_ok_and(|bytes| {
-            bytes
-                .windows(text.len())
-                .any(|window| window == text.as_bytes())
-        })
-    })
+    assert!(
+        capabilities.get("sign_in_sites").is_none(),
+        "{capabilities}"
+    );
+    let kate = player(&bridge, 1).await;
+    let (status, _) = try_start(&bridge, &kate).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
 }

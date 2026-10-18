@@ -9,7 +9,7 @@ use zeroize::Zeroizing;
 pub use crate::common::sign_in::{Gate, confirmation, player};
 use crate::common::{
     Bridge, Player,
-    sign_in::{self, Code, DISCORD, FakeSite},
+    sign_in::{self, Code, FakeSite, Routes},
 };
 
 pub const KATE: &str = "274220342558756145";
@@ -71,7 +71,7 @@ pub fn reviewing_site(name: &str) -> config::Tenant {
             enabled: true,
             api_base: None,
             discord_lookup: true,
-            challonge_lookup: false,
+            lookup_sites: Vec::new(),
             disputes: None,
             results_url: None,
             rooms: None,
@@ -101,7 +101,7 @@ pub async fn bridge_with_discord_sites(secrets: Secrets, others: Vec<config::Ten
                     enabled: true,
                     api_base: None,
                     discord_lookup: false,
-                    challonge_lookup: false,
+                    lookup_sites: Vec::new(),
                     disputes: None,
                     results_url: None,
                     rooms: None,
@@ -116,7 +116,7 @@ pub async fn bridge_with_discord_sites(secrets: Secrets, others: Vec<config::Ten
 
 /// Starts a sign-in and returns the state Discord would hand back.
 pub async fn start(bridge: &Bridge, player: &Player) -> String {
-    let url = sign_in::start(bridge, player, &DISCORD).await;
+    let url = sign_in::start(bridge, player, &Routes::discord()).await;
     assert_eq!(url.path(), "/oauth2/authorize");
     let query = sign_in::query(&url);
     assert_eq!(query["scope"], "identify");
@@ -127,11 +127,11 @@ pub async fn start(bridge: &Bridge, player: &Player) -> String {
 
 /// What the browser sees when Discord sends it back.
 pub async fn back(bridge: &Bridge, query: &str) -> String {
-    sign_in::back(bridge, &DISCORD, query).await
+    sign_in::back(bridge, &Routes::discord(), query).await
 }
 
 pub async fn account(bridge: &Bridge, player: &Player) -> Json {
-    sign_in::account(bridge, player, &DISCORD).await
+    sign_in::account(bridge, player, &Routes::discord()).await
 }
 
 /// Signs `player` in as `who` (`kate` or `sam`), whose account no other
@@ -152,7 +152,7 @@ pub async fn answered(bridge: &Bridge, page: String) -> String {
 
 /// The player's answer on the page that asks before moving an account.
 pub async fn decide(bridge: &Bridge, confirmation: &str, choice: &str) -> String {
-    sign_in::decide(bridge, &DISCORD, confirmation, choice).await
+    sign_in::decide(bridge, &Routes::discord(), confirmation, choice).await
 }
 
 /// Signs `player` in as `who`, whose account another Ember ID has, and moves it.
@@ -166,11 +166,11 @@ pub async fn move_here(bridge: &Bridge, player: &Player, who: &str) {
 
 /// Ends the player's sign-ins in flight, as Ember's Cancel does.
 pub async fn cancel(bridge: &Bridge, player: &Player) -> (StatusCode, Json) {
-    sign_in::cancel(bridge, player, &DISCORD).await
+    sign_in::cancel(bridge, player, &Routes::discord()).await
 }
 
 pub async fn disconnect(bridge: &Bridge, player: &Player) -> (StatusCode, Json) {
-    sign_in::disconnect(bridge, player, &DISCORD).await
+    sign_in::disconnect(bridge, player, &Routes::discord()).await
 }
 
 /// BluMint's player lookup for these Discord users.

@@ -30,7 +30,7 @@ pub enum ErrorCode {
     RateLimited,
     ResyncRequired,
     ServiceUnavailable,
-    /// A site's sign-in (Challonge's) refused a start for its own limits:
+    /// A sign-in site refused a start for its own limits (`sites`):
     /// the day's or month's requests to the site are spent, or the hour's
     /// starts across the bridge are. Not the service failing; try later.
     SignInBusy,
@@ -156,6 +156,10 @@ pub struct Capabilities {
     /// Provider connections a player can link to on this bridge.
     #[serde(default)]
     pub connections: Vec<ConnectionInfo>,
+    /// The sign-in sites a player can connect an account on (`sites`).
+    /// Absent on a bridge without any.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sign_in_sites: Vec<crate::sites::SignInSite>,
     pub limits: Limits,
 }
 

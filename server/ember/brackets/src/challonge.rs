@@ -23,7 +23,7 @@ use crate::{
 };
 
 /// Challonge's API origin. The organizer's credential goes nowhere else
-/// (`config::is_challonge_origin`).
+/// (`config::is_site_origin`).
 pub const API_ORIGIN: &str = "https://api.challonge.com";
 const API_PATH: &str = "/v2.1";
 /// Challonge's documented default page size, which it therefore serves in
@@ -49,6 +49,8 @@ pub(crate) struct Challonge {
     /// Participant ID to Challonge username, refreshed when a set names a
     /// participant not in it.
     usernames: Mutex<HashMap<String, Option<String>>>,
+    /// The bridge sign-in site players' Challonge accounts are under.
+    bridge_site: String,
 }
 
 fn priority(purpose: Purpose) -> Priority {
@@ -69,6 +71,7 @@ impl Challonge {
     pub fn new(
         origin: &str,
         tournament: &str,
+        bridge_site: &str,
         kind: CredentialKind,
         credential: &str,
         budget: Budget,
@@ -94,6 +97,7 @@ impl Challonge {
             headers,
             budget,
             usernames: Mutex::default(),
+            bridge_site: bridge_site.to_owned(),
         })
     }
 
@@ -210,13 +214,20 @@ impl Challonge {
 
     fn set_of(&self, raw: RawSet) -> Set {
         let usernames = self.usernames.lock().unwrap_or_else(|e| e.into_inner());
+        // Only a username the bridge's Challonge lookup takes is asked for.
         let entry = |id: &String| Entry {
             participant_id: id.clone(),
-            account: usernames
+            accounts: usernames
                 .get(id)
                 .cloned()
                 .flatten()
-                .map(|username| Account::Challonge { username }),
+                .filter(|username| is_username(username))
+                .map(|username| Account::Site {
+                    site: self.bridge_site.clone(),
+                    id: username,
+                })
+                .into_iter()
+                .collect(),
         };
         let entries = raw.players.as_ref().map(|[a, b]| [entry(a), entry(b)]);
         raw.into_set(entries)
@@ -334,6 +345,12 @@ impl Site for Challonge {
     fn report<'a>(&'a self, id: &'a str, report: &'a Report) -> SiteFuture<'a, ()> {
         Box::pin(self.send_report(id, report))
     }
+
+    /// Players are found by username, which Challonge lets an account
+    /// change.
+    fn names_can_change(&self) -> bool {
+        true
+    }
 }
 
 fn unexpected() -> SiteError {
@@ -342,6 +359,21 @@ fn unexpected() -> SiteError {
 
 fn parse<T: DeserializeOwned>(value: Value) -> Result<T, SiteError> {
     serde_json::from_value(value).map_err(|_| unexpected())
+}
+
+/// The longest Challonge username the bridge's Challonge site takes.
+const MAX_USERNAME: usize = 64;
+
+/// A Challonge username in the form the bridge's Challonge site looks up
+/// (its shipped definition's `username_rule`): 1 to 64 ASCII letters,
+/// digits, `_`, `-` or `.`. Only such a username is asked for, since one
+/// the bridge refuses fails the whole lookup.
+fn is_username(text: &str) -> bool {
+    !text.is_empty()
+        && text.len() <= MAX_USERNAME
+        && text
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.'))
 }
 
 /// A set ID taken from Challonge, before it goes back into a URL.
@@ -598,6 +630,17 @@ mod tests {
         ));
         assert!(!underway(json!({ "state": "open", "underway_at": null })));
         assert!(!underway(json!({ "state": "open" })));
+    }
+
+    #[test]
+    fn only_usernames_the_bridge_takes_are_asked_for() {
+        for text in ["kate", "Kate_99", "a.b-c", &"x".repeat(MAX_USERNAME)] {
+            assert!(is_username(text), "{text}");
+        }
+        let too_long = "x".repeat(MAX_USERNAME + 1);
+        for text in ["", "has space", "kate@example.com", "\u{fc}n", &too_long] {
+            assert!(!is_username(text), "{text}");
+        }
     }
 
     #[test]

@@ -584,7 +584,7 @@ Resolve each against the real server before relying on it. Rows 3 to 7 are about
 | 20 | Maximum `per_page` and empty-page behavior | Not stated |
 | 21 | JSON:API `included`, `links`, `meta` | None defined on any documented endpoint |
 | 22 | PKCE support, and whether it is required | Only a scheme hint (`challengeAlgorithm: S256`); the bridge sends a client secret and no code challenge |
-| 23 | Whether a Connect app may use the authorization-code flow with the bridge's redirect URI (`<origin>/v1/challonge/callback`) | Documented for websites; registering the URI is unverified |
+| 23 | Whether a Connect app may use the authorization-code flow with the bridge's redirect URI (`<origin>/v1/sites/challonge/callback`) | Documented for websites; registering the URI is unverified |
 | 24 | Whether `/oauth/authorize` carries `state` back to the redirect with the `code` | Standard OAuth, not stated by Challonge's pages; the bridge relies on it |
 | 25 | Whether the token endpoint takes the authorization-code exchange as a form body with `client_secret` | The Authorization page's samples do; unverified live |
 

@@ -133,22 +133,23 @@ export class TestPlayer {
   }
 
   /**
-   * Starts connecting a Challonge account, as Ember's Connect Challonge does.
-   * Like `startDiscordConnect`, the bridge answers with the Challonge address
-   * the player's browser goes to; the account is connected when Challonge
-   * sends the browser back and the player confirms on the bridge's page.
+   * Starts connecting an account on sign-in site `site` (such as
+   * `challonge`), as Ember's Connect row for that site does. Like
+   * `startDiscordConnect`, the bridge answers with the site's address the
+   * player's browser goes to; the account is connected when the site sends
+   * the browser back and the player confirms on the bridge's page.
    */
-  async startChallongeConnect(): Promise<{ authorize_url: string; expires_at: number }> {
+  async startSiteConnect(site: string): Promise<{ authorize_url: string; expires_at: number }> {
     const token = await this.#sessionToken();
-    const path = "/v1/challonge/start";
-    const body = await this.#prove(token, "challonge.connect", path, {});
+    const path = `/v1/sites/${encodeURIComponent(site)}/start`;
+    const body = await this.#prove(token, "site.connect", path, {});
     return (await this.#send(path, token, body, 201)) as unknown as { authorize_url: string; expires_at: number };
   }
 
-  /** The player's connected Challonge account (`GET /v1/challonge`). */
-  async challonge(): Promise<{ account: { user_id: string; username: string; connected_at: number } | null }> {
+  /** The player's connected account on sign-in site `site` (`GET /v1/sites/{site}`). */
+  async siteAccount(site: string): Promise<{ account: { user_id: string; username: string; connected_at: number } | null }> {
     const token = await this.#sessionToken();
-    const response = await this.#fetch(`${this.origin}/v1/challonge`, { headers: { authorization: `Bearer ${token}` } });
+    const response = await this.#fetch(`${this.origin}/v1/sites/${encodeURIComponent(site)}`, { headers: { authorization: `Bearer ${token}` } });
     return (await this.#read(response, 200)) as unknown as { account: { user_id: string; username: string; connected_at: number } | null };
   }
 

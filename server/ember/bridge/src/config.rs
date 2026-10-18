@@ -6,7 +6,10 @@ use std::{fs, path::Path, path::PathBuf};
 use ember_protocol::encoding::{OriginPolicy, check_origin, is_prefixed_id};
 use serde::{Deserialize, Serialize};
 
+pub use self::sites::SignInSite;
 use crate::linking::Site;
+
+pub mod sites;
 
 /// Provider kinds this build can serve. `direct` is a platform that calls
 /// the generic API itself with its provider credential; `mock` also gets the
@@ -40,12 +43,13 @@ pub struct Config {
     /// their Ember ID. Off when absent.
     #[serde(default)]
     pub discord: Option<Discord>,
-    /// Challonge sign-in, so a player can connect their Challonge account to
-    /// their Ember ID. Off when absent.
+    /// Sign-in sites, defined as data (`sites`), so a player can connect
+    /// their account on each to their Ember ID.
     #[serde(default)]
-    pub challonge: Option<Challonge>,
+    pub sign_in_sites: Vec<SignInSite>,
     /// An owner-only file with the secrets of the services this bridge calls
-    /// (`integrations::Secrets`). Needed when `discord` is set.
+    /// (`integrations::Secrets`). Needed when `discord` or a sign-in site is
+    /// set.
     #[serde(default)]
     pub integration_secrets: Option<PathBuf>,
     /// Public rooms, listed by this bridge and hosted by a supervisor on this
@@ -83,124 +87,6 @@ fn discord_api() -> String {
     "https://discord.com/api".into()
 }
 
-/// Challonge's OAuth application, for sign-in through Challonge's
-/// authorization-code flow. Its redirect list must hold
-/// `<origin>/v1/challonge/callback`, and its client secret is
-/// `challonge_client_secret` in the integration secrets. The token and `/me`
-/// paths are settings because Challonge's documentation names two of each
-/// (docs/design/challonge/CHALLONGE_API.md).
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Challonge {
-    /// The Challonge application's client ID (connect.challonge.com).
-    pub client_id: String,
-    /// Challonge's API origin: challonge.com or a subdomain, replaced only by
-    /// tests.
-    #[serde(default = "challonge_api")]
-    pub api_base: String,
-    #[serde(default = "challonge_token_path")]
-    pub token_path: String,
-    #[serde(default = "challonge_me_path")]
-    pub me_path: String,
-    /// What the sign-in asks for; `me` gives the user ID and username.
-    #[serde(default = "challonge_scope")]
-    pub scope: String,
-    /// Requests to Challonge per calendar month (UTC), a sign-in's token
-    /// exchange and `/me` together. Challonge's free tier allows 500.
-    #[serde(default = "challonge_monthly_budget")]
-    pub monthly_request_budget: u64,
-    /// Requests to Challonge per day (UTC), so one day cannot spend the
-    /// month's budget.
-    #[serde(default = "challonge_daily_budget")]
-    pub daily_request_budget: u64,
-    /// Challonge sign-ins started per hour across the bridge, besides the
-    /// ten each Ember ID may start.
-    #[serde(default = "challonge_starts_per_hour")]
-    pub starts_per_hour: usize,
-}
-
-fn challonge_api() -> String {
-    "https://api.challonge.com".into()
-}
-
-fn challonge_token_path() -> String {
-    "/oauth/token".into()
-}
-
-fn challonge_me_path() -> String {
-    "/v2.1/me.json".into()
-}
-
-fn challonge_scope() -> String {
-    "me".into()
-}
-
-fn challonge_monthly_budget() -> u64 {
-    400
-}
-
-fn challonge_daily_budget() -> u64 {
-    40
-}
-
-fn challonge_starts_per_hour() -> usize {
-    30
-}
-
-impl Challonge {
-    fn validate(&self, policy: OriginPolicy) -> Result<(), String> {
-        if self.client_id.is_empty()
-            || self.client_id.len() > 256
-            || !self.client_id.bytes().all(|b| b.is_ascii_graphic())
-        {
-            return Err("challonge.client_id must be the application's client ID".into());
-        }
-        // The client secret goes there: Challonge's own hosts, or loopback
-        // http for local tests.
-        let on_challonge = self
-            .api_base
-            .strip_prefix("https://")
-            .is_some_and(|host| host == "challonge.com" || host.ends_with(".challonge.com"));
-        if check_origin(&self.api_base, policy).is_err()
-            || !(on_challonge || self.api_base.starts_with("http://"))
-        {
-            return Err("challonge.api_base must be an https origin on challonge.com".into());
-        }
-        for (name, path) in [("token_path", &self.token_path), ("me_path", &self.me_path)] {
-            let plain = path.len() <= 256
-                && path.starts_with('/')
-                && !path.starts_with("//")
-                && path
-                    .bytes()
-                    .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'/' | b'.' | b'_' | b'-'));
-            if !plain {
-                return Err(format!(
-                    "challonge.{name} must be a path such as /oauth/token"
-                ));
-            }
-        }
-        let scope = !self.scope.is_empty()
-            && self.scope.len() <= 256
-            && self
-                .scope
-                .bytes()
-                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b':' | b'_' | b' '));
-        if !scope {
-            return Err("challonge.scope must be space-separated Challonge scopes".into());
-        }
-        if self.monthly_request_budget < 2 || self.daily_request_budget < 2 {
-            return Err(
-                "challonge.monthly_request_budget and daily_request_budget must be at least 2, one sign-in"
-                    .into(),
-            );
-        }
-        if self.starts_per_hour == 0 {
-            return Err("challonge.starts_per_hour must be at least 1".into());
-        }
-        Ok(())
-    }
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Rooms {
@@ -236,10 +122,10 @@ pub struct Connection {
     /// (`POST /v1/players/lookup`). Kind `blumint` always may.
     #[serde(default)]
     pub discord_lookup: bool,
-    /// The connection may find players by Challonge username
-    /// (`POST /v1/players/lookup`). Kind `blumint` never may.
+    /// The sign-in sites the connection may find players by
+    /// (`POST /v1/players/lookup` `accounts`). Kind `blumint` never may.
     #[serde(default)]
-    pub challonge_lookup: bool,
+    pub lookup_sites: Vec<String>,
     /// What a disputed match does. Stored with the connection's record the
     /// first time it is seen and never changed. Kind `blumint` restarts.
     #[serde(default)]
@@ -304,10 +190,10 @@ impl Connection {
     }
 
     /// Whether the connection may find players by their account on `site`.
-    pub fn finds_by(&self, site: Site) -> bool {
+    pub fn finds_by(&self, site: &Site) -> bool {
         match site {
             Site::Discord => self.discord_lookup(),
-            Site::Challonge => self.challonge_lookup,
+            Site::Configured(id) => self.lookup_sites.contains(id),
         }
     }
 
@@ -329,12 +215,22 @@ impl Connection {
     /// BluMint's are fixed by its kind.
     fn validate_settings(&self, config: &Config) -> Result<(), String> {
         let chosen = self.discord_lookup
-            || self.challonge_lookup
+            || !self.lookup_sites.is_empty()
             || self.disputes.is_some()
             || self.results_url.is_some();
         if self.is_blumint() && chosen {
             return Err(format!(
                 "{}: a blumint connection's lookup, disputes and results are fixed by its kind",
+                self.id
+            ));
+        }
+        if let Some(unknown) = self
+            .lookup_sites
+            .iter()
+            .find(|id| config.sign_in_site(id).is_none())
+        {
+            return Err(format!(
+                "{}: lookup_sites names {unknown:?}, which is no sign-in site",
                 self.id
             ));
         }
@@ -455,11 +351,17 @@ impl Config {
                 return Err("discord needs integration_secrets for its client secret".into());
             }
         }
-        if let Some(challonge) = &self.challonge {
-            challonge.validate(self.policy())?;
-            if self.integration_secrets.is_none() {
-                return Err("challonge needs integration_secrets for its client secret".into());
+        for (index, site) in self.sign_in_sites.iter().enumerate() {
+            site.validate(self.policy())?;
+            if self.sign_in_sites[..index]
+                .iter()
+                .any(|other| other.id == site.id)
+            {
+                return Err(format!("sign-in site {:?} is defined twice", site.id));
             }
+        }
+        if !self.sign_in_sites.is_empty() && self.integration_secrets.is_none() {
+            return Err("sign_in_sites need integration_secrets for their client secrets".into());
         }
         if let Some(rooms) = &self.rooms {
             if !is_loopback_origin(&rooms.supervisor_url) {
@@ -522,6 +424,10 @@ impl Config {
     fn is_api_base(&self, base: &str) -> bool {
         base.strip_suffix("/api")
             .is_some_and(|origin| check_origin(origin, self.policy()).is_ok())
+    }
+
+    pub fn sign_in_site(&self, id: &str) -> Option<&SignInSite> {
+        self.sign_in_sites.iter().find(|site| site.id == id)
     }
 
     pub fn connection(&self, id: &str) -> Option<(&Tenant, &Connection)> {
@@ -646,7 +552,7 @@ mod tests {
         assert!(with_settings(BLUMINT, json!({})).is_ok());
         for chosen in [
             json!({ "discord_lookup": true }),
-            json!({ "challonge_lookup": true }),
+            json!({ "lookup_sites": ["challonge"] }),
             json!({ "disputes": "restart" }),
             json!({ "disputes": "review" }),
             json!({ "results_url": "https://bot.example/results" }),
@@ -655,7 +561,7 @@ mod tests {
         }
         // A mock connection, for local testing, may set all of them.
         let all = json!({
-            "discord_lookup": true, "challonge_lookup": true, "disputes": "restart",
+            "discord_lookup": true, "disputes": "restart",
             "results_url": "https://bot.example/results",
             "rooms": { "max_open": 8 },
         });
@@ -688,106 +594,33 @@ mod tests {
         assert!(with_results_url("http://user:secret@127.0.0.1:9000/results", true).is_err());
     }
 
-    /// Whether a configuration with this `challonge` block is accepted.
-    fn with_challonge(challonge: serde_json::Value, loopback: bool) -> Result<(), String> {
-        let config: Config = serde_json::from_value(json!({
-            "bridge_id": ember_protocol::encoding::prefixed_id("brg", [7; 16]),
-            "display_name": "Test bridge",
-            "origin": "https://bridge.example",
-            "listen": "127.0.0.1:0",
-            "database": "bridge.sqlite3",
-            "secrets": "secrets.json",
-            "allow_loopback_http": loopback,
-            "challonge": challonge,
-            "integration_secrets": "integrations.json",
-            "tenants": [],
-        }))
-        .map_err(|error| error.to_string())?;
-        config.validate()
-    }
-
     #[test]
-    fn challonge_is_an_https_origin_with_plain_paths() {
-        let config: Config = serde_json::from_value(json!({
-            "bridge_id": ember_protocol::encoding::prefixed_id("brg", [7; 16]),
-            "display_name": "Test bridge", "origin": "https://bridge.example", "listen": "127.0.0.1:0",
-            "database": "bridge.sqlite3", "secrets": "secrets.json", "tenants": [],
-            "challonge": { "client_id": "abc123" }, "integration_secrets": "integrations.json",
-        }))
-        .unwrap();
-        let challonge = config.challonge.unwrap();
-        assert_eq!(
-            (
-                challonge.api_base.as_str(),
-                challonge.token_path.as_str(),
-                challonge.me_path.as_str(),
-                challonge.scope.as_str(),
-                challonge.monthly_request_budget,
-                challonge.daily_request_budget,
-                challonge.starts_per_hour
-            ),
-            (
-                "https://api.challonge.com",
-                "/oauth/token",
-                "/v2.1/me.json",
-                "me",
-                400,
-                40,
-                30
+    fn a_connection_looks_up_only_sites_the_bridge_has() {
+        let config = |lookup_sites: serde_json::Value| -> Result<(), String> {
+            let site: serde_json::Value = serde_json::from_slice(
+                &std::fs::read(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/deploy/sites/challonge.json"
+                ))
+                .unwrap(),
             )
-        );
-        let with = |extra: serde_json::Value, loopback: bool| {
-            let mut block = json!({ "client_id": "abc123" });
-            block
-                .as_object_mut()
-                .unwrap()
-                .extend(extra.as_object().unwrap().clone());
-            with_challonge(block, loopback)
+            .unwrap();
+            let config: Config = serde_json::from_value(json!({
+                "bridge_id": ember_protocol::encoding::prefixed_id("brg", [7; 16]),
+                "display_name": "Test bridge", "origin": "https://bridge.example", "listen": "127.0.0.1:0",
+                "database": "bridge.sqlite3", "secrets": "secrets.json",
+                "integration_secrets": "integrations.json",
+                "sign_in_sites": [site],
+                "tenants": [{ "id": "t", "name": "T", "connections": [{
+                    "id": "bot", "kind": "direct", "environment": "staging", "display_name": "Bot",
+                    "lookup_sites": lookup_sites,
+                }] }],
+            }))
+            .unwrap();
+            config.validate()
         };
-        assert!(
-            with(
-                json!({ "token_path": "/v2.1/oauth/token", "scope": "me tournaments:read" }),
-                false
-            )
-            .is_ok()
-        );
-        for refused in [
-            json!({ "client_id": "" }),
-            json!({ "client_id": "has space" }),
-            json!({ "api_base": "http://api.challonge.com" }),
-            json!({ "api_base": "https://api.challonge.com/" }),
-            json!({ "api_base": "https://api.challonge.com/v2.1" }),
-            json!({ "api_base": "http://127.0.0.1:9000" }),
-            json!({ "api_base": "https://challonge.example" }),
-            json!({ "api_base": "https://evilchallonge.com" }),
-            json!({ "token_path": "oauth/token" }),
-            json!({ "token_path": "//evil.example/token" }),
-            json!({ "me_path": "/me.json?x=1" }),
-            json!({ "scope": "" }),
-            json!({ "scope": "me\ntournaments:read" }),
-            json!({ "monthly_request_budget": 1 }),
-            json!({ "daily_request_budget": 1 }),
-            json!({ "starts_per_hour": 0 }),
-            json!({ "device_path": "/v2.1/oauth/authorize_device" }),
-            json!({ "unknown": true }),
-        ] {
-            assert!(with(refused.clone(), false).is_err(), "{refused}");
-        }
-        assert!(with(json!({ "api_base": "https://challonge.com" }), false).is_ok());
-        // The client secret is required, so the secrets file is.
-        let mut no_secrets: Config = serde_json::from_value(json!({
-            "bridge_id": ember_protocol::encoding::prefixed_id("brg", [7; 16]),
-            "display_name": "Test bridge", "origin": "https://bridge.example", "listen": "127.0.0.1:0",
-            "database": "bridge.sqlite3", "secrets": "secrets.json", "tenants": [],
-            "challonge": { "client_id": "abc123" },
-        }))
-        .unwrap();
-        assert!(no_secrets.validate().is_err());
-        no_secrets.integration_secrets = Some("integrations.json".into());
-        assert!(no_secrets.validate().is_ok());
-        // Local tests may use loopback http, and nothing else.
-        assert!(with(json!({ "api_base": "http://127.0.0.1:9000" }), true).is_ok());
-        assert!(with(json!({ "api_base": "http://api.challonge.com" }), true).is_err());
+        assert!(config(json!(["challonge"])).is_ok());
+        assert!(config(json!(["startgg"])).is_err());
     }
 
     #[test]

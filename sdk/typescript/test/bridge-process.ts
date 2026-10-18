@@ -32,9 +32,9 @@ async function freePort(): Promise<number> {
 export interface BridgeOptions {
   /** Top-level settings, such as `discord` or `rooms`. */
   config?: Record<string, Json>;
-  /** Settings of the `mock-local` connection: `discord_lookup`, `challonge_lookup`, `results_url`, `rooms`. */
+  /** Settings of the `mock-local` connection: `discord_lookup`, `lookup_sites`, `results_url`, `rooms`. */
   connection?: Record<string, Json>;
-  /** The integration secrets file: `discord_client_secret`, `challonge_client_secret`, `rooms_supervisor_secret`, `result_secrets`. */
+  /** The integration secrets file: `discord_client_secret`, `site_client_secrets`, `rooms_supervisor_secret`, `result_secrets`. */
   secrets?: Record<string, Json>;
 }
 

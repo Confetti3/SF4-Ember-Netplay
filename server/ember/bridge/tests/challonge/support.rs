@@ -1,19 +1,24 @@
-//! The stand-in Challonge, the bridge configured for it, and the requests the
-//! Challonge sign-in tests make, on the sign-in helpers both sites share
-//! (`common::sign_in`).
+//! The stand-in Challonge, the bridge configured with the shipped Challonge
+//! definition pointed at it, and the requests the Challonge sign-in tests
+//! make, on the shared sign-in helpers (`common::sign_in`, `common::sites`).
 use std::sync::Arc;
 
-use ember_bridge::{config, integrations::Secrets};
+use ember_bridge::{config::SignInSite, integrations::Secrets};
 use reqwest::StatusCode;
 use serde_json::{Value as Json, json};
-use zeroize::Zeroizing;
 
-pub use crate::common::sign_in::{Gate, User, confirmation, player, send};
 use crate::common::{
     Bridge, Player,
-    sign_in::{self, CHALLONGE, Code, FakeSite},
+    sign_in::{self, Code, FakeSite, Routes, definition},
+    sites::{self, bridge_with_sites, with_limits},
+};
+pub use crate::common::{
+    sign_in::{Gate, User, confirmation, player, send},
+    sites::{connect_discord, database_holds, direct, insert_account, link_of, secrets},
 };
 
+/// The site ID the definition gives Challonge.
+pub const SITE: &str = "challonge";
 pub const KATE: User = ("1001", "Kate_99");
 pub const SAM: User = ("1002", "sam");
 /// Another Challonge account, which took Kate's name in another case after
@@ -41,7 +46,7 @@ pub fn fake_challonge() -> Arc<FakeSite> {
         "/oauth/token",
         "/v2.1/me.json",
         (CLIENT_ID, CLIENT_SECRET),
-        "/v1/challonge/callback",
+        "/v1/sites/challonge/callback",
         vec![
             ("good-kate", Code::SignsIn(KATE)),
             ("good-sam", Code::SignsIn(SAM)),
@@ -63,60 +68,33 @@ pub fn fake_challonge() -> Arc<FakeSite> {
     )
 }
 
-pub fn direct(id: &str, discord_lookup: bool, challonge_lookup: bool) -> config::Connection {
-    config::Connection {
-        id: id.into(),
-        kind: "direct".into(),
-        environment: "staging".into(),
-        display_name: format!("Direct {id}"),
-        enabled: true,
-        api_base: None,
-        discord_lookup,
-        challonge_lookup,
-        disputes: None,
-        results_url: None,
-        rooms: None,
-    }
+/// Challonge as `deploy/sites/challonge.json` defines it, pointed at a
+/// stand-in served at `origin`.
+pub fn challonge_site(origin: &str) -> SignInSite {
+    definition("challonge", origin, CLIENT_ID)
 }
 
 /// The integration secrets with Challonge's client secret.
 pub fn with_secret() -> Secrets {
-    Secrets {
-        challonge_client_secret: Some(Zeroizing::new(CLIENT_SECRET.into())),
-        ..Default::default()
-    }
+    secrets(&[(SITE, CLIENT_SECRET)])
 }
 
-/// A bridge with Challonge sign-in against `fake`, with these other
-/// `challonge` settings and integration secrets, and connections that find
-/// players by Challonge username (whose tenant is named Cups), by Discord
-/// account, or both. The clock is frozen.
-pub async fn bridge_with(fake: &Arc<FakeSite>, settings: Json, secrets: Secrets) -> Bridge {
-    let api_base = fake.serve().await;
-    let bridge = Bridge::start_with(
-        |config| {
-            let mut challonge = json!({ "client_id": CLIENT_ID, "api_base": api_base });
-            challonge
-                .as_object_mut()
-                .unwrap()
-                .extend(settings.as_object().unwrap().clone());
-            config.challonge = Some(serde_json::from_value(challonge).unwrap());
-            config.integration_secrets = Some("unused-in-tests.json".into());
-            config.tenants.push(config::Tenant {
-                id: "cups".into(),
-                name: "Cups".into(),
-                connections: vec![
-                    direct(BRACKETS, false, true),
-                    direct(DISCORD_ONLY, true, false),
-                    direct(BOTH, true, true),
-                ],
-            });
-        },
+/// A bridge with Challonge sign-in against `fake`, with these `limits`
+/// changed and these integration secrets, and connections that find players
+/// by Challonge username (whose tenant is named Cups), by Discord account,
+/// or both. The clock is frozen.
+pub async fn bridge_with(fake: &Arc<FakeSite>, limits: Json, secrets: Secrets) -> Bridge {
+    let site = with_limits(challonge_site(&fake.serve().await), limits);
+    bridge_with_sites(
+        vec![site],
         secrets,
+        vec![
+            direct(BRACKETS, false, &[SITE]),
+            direct(DISCORD_ONLY, true, &[]),
+            direct(BOTH, true, &[SITE]),
+        ],
     )
-    .await;
-    bridge.clock.freeze();
-    bridge
+    .await
 }
 
 pub async fn bridge(fake: &Arc<FakeSite>) -> Bridge {
@@ -124,23 +102,23 @@ pub async fn bridge(fake: &Arc<FakeSite>) -> Bridge {
 }
 
 pub async fn try_start(bridge: &Bridge, player: &Player) -> (StatusCode, Json) {
-    sign_in::try_start(bridge, player, &CHALLONGE).await
+    sign_in::try_start(bridge, player, &Routes::site(SITE)).await
 }
 
 /// Starts a sign-in; the state Challonge would hand back.
 pub async fn start(bridge: &Bridge, player: &Player) -> String {
-    let url = sign_in::start(bridge, player, &CHALLONGE).await;
+    let url = sign_in::start(bridge, player, &Routes::site(SITE)).await;
     sign_in::query(&url)["state"].clone()
 }
 
 /// What the browser sees when Challonge sends it back.
 pub async fn back(bridge: &Bridge, query: &str) -> String {
-    sign_in::back(bridge, &CHALLONGE, query).await
+    sign_in::back(bridge, &Routes::site(SITE), query).await
 }
 
 /// The player's answer on the page that asked.
 pub async fn decide(bridge: &Bridge, confirmation: &str, choice: &str) -> String {
-    sign_in::decide(bridge, &CHALLONGE, confirmation, choice).await
+    sign_in::decide(bridge, &Routes::site(SITE), confirmation, choice).await
 }
 
 /// Signs `player` in with code `code`; the first page the browser shows.
@@ -166,16 +144,16 @@ pub async fn connect_with(bridge: &Bridge, state: &str, who: &str) {
 }
 
 pub async fn cancel(bridge: &Bridge, player: &Player) -> (StatusCode, Json) {
-    sign_in::cancel(bridge, player, &CHALLONGE).await
+    sign_in::cancel(bridge, player, &Routes::site(SITE)).await
 }
 
 pub async fn disconnect(bridge: &Bridge, player: &Player) -> (StatusCode, Json) {
-    sign_in::disconnect(bridge, player, &CHALLONGE).await
+    sign_in::disconnect(bridge, player, &Routes::site(SITE)).await
 }
 
 /// The Challonge user ID connected to the player's Ember ID, or None.
 pub async fn account(bridge: &Bridge, player: &Player) -> Option<String> {
-    sign_in::account(bridge, player, &CHALLONGE).await["user_id"]
+    sign_in::account(bridge, player, &Routes::site(SITE)).await["user_id"]
         .as_str()
         .map(str::to_owned)
 }
@@ -184,17 +162,11 @@ pub async fn account(bridge: &Bridge, player: &Player) -> Option<String> {
 pub async fn lookup(
     bridge: &Bridge,
     connection: &str,
-    challonge: &[&str],
+    names: &[&str],
     discord: &[&str],
 ) -> (StatusCode, Json) {
-    let provider = bridge.provider(connection).await;
-    bridge
-        .post(
-            &provider,
-            "/v1/players/lookup",
-            json!({ "challonge": challonge, "discord": discord }),
-        )
-        .await
+    let accounts: Vec<(&str, &str)> = names.iter().map(|name| (SITE, *name)).collect();
+    sites::lookup(bridge, connection, &accounts, discord).await
 }
 
 /// The Challonge players a lookup on `connection` found: (username asked,
@@ -202,67 +174,7 @@ pub async fn lookup(
 pub async fn found(
     bridge: &Bridge,
     connection: &str,
-    usernames: &[&str],
+    names: &[&str],
 ) -> Vec<(String, String, String)> {
-    let (status, answer) = lookup(bridge, connection, usernames, &[]).await;
-    assert_eq!(status, StatusCode::OK, "{answer}");
-    answer["challonge"]
-        .as_array()
-        .map(|players| {
-            players
-                .iter()
-                .map(|player| {
-                    (
-                        player["username"].as_str().unwrap().to_owned(),
-                        player["challonge_user_id"].as_str().unwrap().to_owned(),
-                        player["ember_id"].as_str().unwrap().to_owned(),
-                    )
-                })
-                .collect()
-        })
-        .unwrap_or_default()
-}
-
-/// The player's active link on `connection`: how it was approved and its
-/// claim.
-pub async fn link_of(
-    bridge: &Bridge,
-    connection: &str,
-    player: &Player,
-) -> Option<(String, String)> {
-    let (connection, ember_id) = (connection.to_owned(), player.id().as_str().to_owned());
-    bridge
-        .state()
-        .db
-        .read(move |tx| {
-            use rusqlite::OptionalExtension;
-            Ok(tx
-                .query_row(
-                    "SELECT approved_via, claim_id FROM links
-                     WHERE connection_id = ?1 AND ember_id = ?2 AND revoked_at IS NULL",
-                    [&connection, &ember_id],
-                    |row| Ok((row.get(0)?, row.get(1)?)),
-                )
-                .optional()?)
-        })
-        .await
-        .unwrap()
-}
-
-/// Writes the Discord account `connect` would for Discord, as
-/// tests/partner.rs does.
-pub async fn connect_discord(bridge: &Bridge, user_id: &str, player: &Player) {
-    let (user_id, ember_id) = (user_id.to_owned(), player.id().as_str().to_owned());
-    bridge
-        .state()
-        .db
-        .write(move |tx| {
-            tx.execute(
-                "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES (?1, ?2, 'kate', 1)",
-                [&user_id, &ember_id],
-            )?;
-            Ok(())
-        })
-        .await
-        .unwrap();
+    sites::found(bridge, connection, SITE, names).await
 }

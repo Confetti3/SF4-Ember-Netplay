@@ -311,7 +311,7 @@ mod tests {
             round_label: "Round 1".into(),
             entries: Some(players.map(|id| Entry {
                 participant_id: id.into(),
-                account: None,
+                accounts: Vec::new(),
             })),
             status,
             underway: false,

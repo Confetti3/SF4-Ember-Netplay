@@ -33,8 +33,8 @@ implemented, and how it differs from the draft, is in `STATUS.md` there.
   "BluMint" below).
 - Optionally, a player connects their Discord account to their Ember ID, so a
   platform that finds players by Discord account gets their Ember ID. The
-  same goes for a Challonge account and the Challonge username a bracket
-  shows.
+  same goes for an account on any sign-in site the operator configures, such
+  as Challonge (found by username) or start.gg (found by user ID).
 - A connection's settings give any platform what BluMint has: finding players
   by Discord account, results sent to it, and disputed matches restarted
   rather than reviewed. With rooms allowed, a platform or bot opens public
@@ -281,86 +281,153 @@ bridge offers no sign-in and says so in its log, but every bridge lists
 `discord.accounts` and keeps `GET` and `DELETE /v1/discord`, so a player can
 always see and disconnect an account connected earlier.
 
-## Challonge sign-in (optional)
+## Sign-in sites (optional)
 
-Challonge sign-in is Discord sign-in with Challonge's own OAuth
-application: the same routes under `/v1/challonge`, the same pages naming
-the Ember ID, and the same rules for moving, cancelling and disconnecting
-(above). A bridge whose configuration has `challonge` and whose integration
-secrets hold `challonge_client_secret` (`set-integration-secret.sh
-challonge`) lists `challonge` in its capabilities `features`:
+Besides Discord, a bridge can offer sign-in with any site that has an OAuth
+authorization-code flow, such as Challonge or start.gg. A site is data, not
+code: the operator defines it in `sign_in_sites` in `bridge.json`, and a new
+site needs no new bridge build, migration or game translation. Example
+definitions ship in `server/ember/bridge/deploy/sites/` (`challonge.json`,
+`startgg.json`); copy one into `sign_in_sites` and set `client_id`:
 
 ```json
-"challonge": { "client_id": "<the Challonge application's client ID>" }
+"sign_in_sites": [
+  {
+    "id": "startgg",
+    "display_name": "start.gg",
+    "client_id": "<the start.gg application's client ID>",
+    "scope": "user.identity",
+    "authorize_url": "https://start.gg/oauth/authorize",
+    "token_url": "https://api.start.gg/oauth/access_token",
+    "token_encoding": "json",
+    "token_params": { "scope": "user.identity" },
+    "user": {
+      "method": "POST",
+      "url": "https://api.start.gg/gql/alpha",
+      "body": { "query": "query CurrentUser { currentUser { id player { gamerTag } } }" },
+      "id_pointer": "/data/currentUser/id",
+      "username_pointer": "/data/currentUser/player/gamerTag"
+    },
+    "username_rule": { "characters": "printable", "max_length": 64, "case_insensitive": false },
+    "lookup_by": "user_id",
+    "hosts": ["start.gg", "api.start.gg"]
+  }
+]
 ```
 
-The application's redirect list must hold `<origin>/v1/challonge/callback`.
-The other settings default to Challonge's documented endpoints: `api_base`
-`https://api.challonge.com` (any other must be on challonge.com), `token_path`
-`/oauth/token`, `me_path` `/v2.1/me.json` and `scope` `me`. Challonge's
-documentation also names `/v2.1/oauth/token`, so the token path is a setting
-until a live sign-in settles it.
+- `id`: the site ID, 1 to 32 of `a-z`, `0-9` and `-`, never `discord`. Routes,
+  storage, lookups and claims name the site by it, so keep it once players
+  connect (`challonge-staging` beside `challonge` is fine).
+- `display_name`: what the pages and Ember show (Ember's row says
+  "Connect start.gg").
+- `client_id`, `scope`: the OAuth application's. Its client secret is
+  `site_client_secrets.<id>` in the integration secrets
+  (`set-integration-secret.sh site <id>`), and its redirect list must hold
+  `<origin>/v1/sites/<id>/callback`.
+- `authorize_url` and optional `authorize_params`: where the browser goes,
+  with `response_type=code`, `client_id`, `scope` (left out when empty),
+  `redirect_uri` and `state`, plus those parameters.
+- `token_url`, `token_encoding` (`form` or `json`) and optional
+  `token_params`: the code exchange, with `grant_type=authorization_code`,
+  `code`, `redirect_uri`, `client_id` and `client_secret` in the body, plus
+  those fields.
+- `user`: how to read who signed in, with the token as a bearer: `method`
+  (`GET` or `POST`), `url`, extra `headers`, an optional JSON `body` (POST
+  only, such as start.gg's GraphQL query), and JSON pointers `id_pointer` and
+  optional `username_pointer` into the answer. A number is read as its
+  decimal digits. Without a username (no pointer, or nothing there) the user
+  ID is shown instead.
+- `username_rule`: `characters` (`letters_digits`, with ASCII punctuation in
+  `also`, or `printable`, anything but control characters), `max_length`, and
+  `case_insensitive`.
+- `lookup_by`: `username` or `user_id`, what a lookup's `id` names (see
+  "Connection settings").
+- `hosts`: every URL above must be https on one of these hosts, with no port,
+  credentials or fragment. Ember opens a sign-in page only on the
+  `authorize_url`'s origin and path, as the capabilities list them.
+- `limits` (optional): `monthly_request_budget`, `daily_request_budget` and
+  `starts_per_hour`, below.
 
-1. Ember's helper calls `POST /v1/challonge/start` with a `challonge.connect`
-   proof and opens the returned `authorize_url`
-   (`<api_base>/oauth/authorize` with `response_type=code`, `client_id`,
-   `scope`, `redirect_uri` and `state`) in the browser.
-2. Challonge sends the browser to `GET /v1/challonge/callback`. The bridge
-   exchanges the code at the token path with a form body only
-   (`grant_type=authorization_code`, `code`, `redirect_uri`, `client_id`,
-   `client_secret`), reads the user ID and username from `me_path` with
-   `Authorization-Type: v2`, and drops the token.
-3. The page names the Ember ID and asks before connecting, or before moving
-   an account another Ember ID holds (`POST /v1/challonge/callback`).
-4. `GET /v1/challonge` shows the connected account, `DELETE
-   /v1/challonge/start` (`challonge.cancel`) ends a sign-in in flight, and
-   `DELETE /v1/challonge` (`challonge.remove`) disconnects the account. A
-   bridge with a `challonge` block lists `challonge.accounts`, with or
-   without the client secret; every bridge keeps these routes.
+The bridge checks each definition when it starts and refuses one it cannot
+use. Every configured site is listed in the capabilities' `sign_in_sites`
+(`id`, `display_name`, `sign_in`, `lookup_by`, `authorize_origin`,
+`authorize_path`), with `sign_in` false while the integration secrets lack
+its client secret. Every bridge lists the `sites` feature, so Ember knows
+it has these routes, with or without sites. A site removed
+from the configuration is gone from the routes too (404), though its rows
+stay in the database until it is configured again.
 
-Challonge's free API tier allows 500 requests a month. A sign-in costs two
-(the token exchange and `/me`), and the bridge spends at most
-`monthly_request_budget` (default 400) per calendar month and
-`daily_request_budget` (default 40) per day, both in UTC and counted in the
-database: it takes a sign-in's two before the exchange, so one Challonge
+Sign-in works as Discord's does (above), on the site's own routes and with
+the same pages naming the Ember ID and the site:
+
+1. Ember's helper calls `POST /v1/sites/<id>/start` with a `site.connect`
+   proof and opens the returned `authorize_url` in the browser.
+2. The site sends the browser to `GET /v1/sites/<id>/callback`. The bridge
+   exchanges the code, reads the user ID and username, and drops the token.
+3. The page asks before connecting, or before moving an account another
+   Ember ID holds (`POST /v1/sites/<id>/callback`). An account whose username
+   the site's `username_rule` does not allow is not connected when lookups
+   match usernames, since no lookup could find it.
+4. `GET /v1/sites/<id>` shows the connected account, `DELETE
+   /v1/sites/<id>/start` (`site.cancel`) ends a sign-in in flight, and `DELETE
+   /v1/sites/<id>` (`site.remove`) disconnects the account.
+
+Proofs are bound to the exact path, so a proof for one site's route is
+refused on another's. A site the bridge does not have answers 404
+`not_found`. Each site keeps its own accounts, sign-ins, withdrawals and
+request budget. Links a site's sign-in approved (`approved_via` `site`,
+claim `<id>:<user ID>`) follow the account exactly as Discord's do.
+
+### Request limits
+
+A site with `limits` is held to them; one without has only each Ember ID's
+ten starts an hour. A sign-in costs two requests (the token exchange and the
+user read), and the bridge spends at most `monthly_request_budget` per
+calendar month and `daily_request_budget` per day, both in UTC and counted in
+the database: it takes a sign-in's two before the exchange, so one the site
 refuses still counts both. At either budget a start answers `sign_in_busy`
 (503, retryable, with `Retry-After` until the next UTC day for the daily
 budget) and a sign-in already started ends with a page asking the player to
-try again later. Starts are also limited to `starts_per_hour`
-(default 30) across the bridge, counted only for starts whose proof holds and
-that are stored, besides each Ember ID's ten an hour; a start it refuses
-answers `sign_in_busy` too. The bridge logs a warning when 80% of
-the month's budget is spent, and one line when a limit refuses (at most once
-an hour for `starts_per_hour`, once a day for either budget).
+try again later. Starts are also limited to `starts_per_hour` across the
+bridge, counted only for starts whose proof holds and that are stored; a
+start it refuses answers `sign_in_busy` too. The bridge logs a warning when
+80% of the month's budget is spent, and one line when a limit refuses (at
+most once an hour for `starts_per_hour`, once a day for either budget).
 
-These limits bound what one day can cost; they do not stop a drain. Ember
-IDs cost nothing to make, so a determined actor can make throwaway ones and
-spend the day's share every day, keeping Challonge sign-in busy for real
-players until the next UTC day. The rest of the month keeps its room for as
-long as a day's share times the days left fits in it (10 days at the
-defaults). The operator's levers are a smaller `daily_request_budget` or
-`starts_per_hour`, a paid Challonge tier with a larger
-`monthly_request_budget`, and the refusal lines in the log.
+Challonge's free API tier allows 500 requests a month, so its example
+definition sets 400 a month, 40 a day and 30 starts an hour. These limits
+bound what one day can cost; they do not stop a drain. Ember IDs cost nothing
+to make, so a determined actor can make throwaway ones and spend the day's
+share every day, keeping that site's sign-in busy for real players until the
+next UTC day. The rest of the month keeps its room for as long as a day's
+share times the days left fits in it (10 days at Challonge's example
+limits). The operator's levers are a smaller `daily_request_budget` or
+`starts_per_hour`, a paid tier with a larger `monthly_request_budget`, and
+the refusal lines in the log.
 
 The bridge counts only its own requests, made with its OAuth application.
 ember-brackets, the bracket connector, counts the requests it makes with an
-organizer's key separately, in its own process. Whether Challonge counts
-the two against one allowance is not documented.
+organizer's key separately, in its own process. Whether a site counts the
+two against one allowance depends on the site.
 
-Links a Challonge sign-in approved (`approved_via` `challonge`, claim
-`challonge:<user ID>`) follow the account exactly as Discord's do.
+### Usernames
 
-The bridge keeps the username Challonge gave when the account connected, and
-lookups match on it; Challonge does not tell the bridge when an account
-renames. When another account connects with a name the bridge already holds,
-the older account stops answering for that name (it stays connected, and
-answers for whatever name it next connects with). What this cannot catch: a
-player who renamed on Challonge is still found under the old name, so if
-someone who never connected to Ember takes that name, a lookup for it finds
-the player who gave it up. Comparing the name with Challonge does not help,
-since both had it. Each answer carries `connected_at`, when the bridge last
-saw the account with that name: a connector can refuse names older than it
-trusts, or ask its players to connect again before an event.
+For a site whose lookups match usernames (Challonge's), the bridge keeps the
+username the site gave when the account connected, compared as the
+`username_rule` says, and lookups match on it; the site does not tell the
+bridge when an account renames. When another account connects with a name
+the bridge already holds, the older account stops answering for that name
+(it stays connected, and answers for whatever name it next connects with).
+What this cannot catch: a player who renamed is still found under the old
+name, so if someone who never connected to Ember takes that name, a lookup
+for it finds the player who gave it up. Comparing the name with the site does
+not help, since both had it. Each answer carries `connected_at`, when the
+bridge last saw the account with that name: a connector can refuse names
+older than it trusts, or ask its players to connect again before an event.
+
+A site whose lookups name user IDs (start.gg's) has none of this: its
+usernames (start.gg gamer tags, which many players can share) are only
+shown, and lookups match the user ID exactly.
 
 ## BluMint
 
@@ -439,7 +506,7 @@ this, can run their own bridge and room supervisor. The contract is
   "id": "night-bot", "kind": "direct", "environment": "production",
   "display_name": "Fight Night bot",
   "discord_lookup": true,
-  "challonge_lookup": true,
+  "lookup_sites": ["challonge", "startgg"],
   "disputes": "restart",
   "results_url": "https://bot.example/ember/results",
   "rooms": { "max_open": 8 }
@@ -451,11 +518,14 @@ this, can run their own bridge and room supervisor. The contract is
   Ember ID and `participant_id`, and links them on the connection the way
   BluMint's lookup does. A link the player removed is not made again until
   they sign in with Discord again.
-- `challonge_lookup`: the same lookup takes `{"challonge": [...]}`, Challonge
-  usernames as a tournament entry shows them, compared without case, and
-  answers them in `challonge` (`username`, `challonge_user_id`, `ember_id`,
-  `participant_id`, `connected_at`). Each list needs its own setting; the
-  two together name at most 32 accounts.
+- `lookup_sites`: the sign-in sites (by ID) whose accounts the connection
+  may find players by. The same lookup takes `{"accounts": [{"site": "...",
+  "id": "..."}]}`, each `id` a username or user ID as that site's
+  `lookup_by` says (Challonge usernames without case, start.gg user IDs
+  exactly), and answers them in `accounts` (`site`, `id`, `user_id`,
+  `ember_id`, `participant_id`, `connected_at`), left out when empty. Each
+  list, and each site, needs its own setting; together they name at most 32
+  accounts.
 - `disputes`: `"review"` (the default) or `"restart"`, which cancels a match
   that would wait in `needs_review`. It is recorded with the connection the
   first time it is seen and never changes; use a new connection to change it.

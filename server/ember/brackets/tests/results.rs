@@ -6,7 +6,7 @@
 mod support;
 
 use ember_brackets::{
-    Bridge, Clock, Config, Connector, Credential, CredentialKind, Results, SiteKind, Tournament,
+    Adapter, Bridge, Clock, Config, Connector, Credential, CredentialKind, Results, Tournament,
 };
 use ember_protocol::{
     partner::result_id,
@@ -53,7 +53,8 @@ fn connector(dir: &std::path::Path, clock: Clock) -> Connector {
         monthly_request_budget: 500,
         allow_loopback_http: true,
         tournaments: vec![Tournament {
-            site: SiteKind::Challonge,
+            adapter: Adapter::Challonge,
+            bridge_site: None,
             tournament: TOURNAMENT.into(),
             credential: Credential {
                 kind: CredentialKind::V1Key,

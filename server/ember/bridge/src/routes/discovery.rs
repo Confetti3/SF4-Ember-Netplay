@@ -5,6 +5,7 @@ use ember_protocol::{
     challenge, json,
     lobby::Rotation,
     matches::MAX_GAMES_TO_WIN,
+    sites::SignInSite,
     tournament::Format,
 };
 use serde_json::json;
@@ -47,15 +48,11 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
     if state.config.mock_browser {
         features.push("link.mock_browser".into());
     }
-    for site in Site::ALL {
-        let profile = sign_in::Profile::of(site);
-        if sign_in::accounts_listed(&state, site) {
-            features.push(profile.accounts_feature.into());
-        }
-        if sign_in::offered(&state, site) {
-            features.push(profile.feature.into());
-        }
+    features.push(ember_protocol::discord::ACCOUNTS_FEATURE.into());
+    if sign_in::offered(&state, &Site::Discord) {
+        features.push(ember_protocol::discord::FEATURE.into());
     }
+    features.push(ember_protocol::sites::FEATURE.into());
     if crate::routes::rooms::enabled(&state) {
         features.push(crate::routes::rooms::FEATURE.into());
         features.push(crate::routes::rooms::CONNECTION_FEATURE.into());
@@ -92,6 +89,22 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
                 id: connection.id.clone(),
                 display_name: connection.display_name.clone(),
                 environment: connection.environment.clone(),
+            })
+            .collect(),
+        sign_in_sites: state
+            .config
+            .sign_in_sites
+            .iter()
+            .map(|site| {
+                let (authorize_origin, authorize_path) = site.authorize_page();
+                SignInSite {
+                    id: site.id.clone(),
+                    display_name: site.display_name.clone(),
+                    sign_in: sign_in::offered(&state, &Site::Configured(site.id.clone())),
+                    lookup_by: site.lookup_by,
+                    authorize_origin,
+                    authorize_path,
+                }
             })
             .collect(),
         limits: Limits {

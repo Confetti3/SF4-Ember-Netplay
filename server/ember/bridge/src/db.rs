@@ -54,7 +54,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
         26,
         include_str!("../migrations/026_blumint_refused_keys_dropped.sql"),
     ),
-    (27, include_str!("../migrations/027_challonge.sql")),
+    (27, include_str!("../migrations/027_sign_in_sites.sql")),
 ];
 
 #[derive(Clone)]
@@ -168,7 +168,7 @@ mod tests {
             )
             .unwrap();
         assert!(links_sql.contains("'discord'"), "{links_sql}");
-        assert!(links_sql.contains("'challonge'"), "{links_sql}");
+        assert!(links_sql.contains("'site'"), "{links_sql}");
         connection
             .prepare("SELECT delivery_attempts, delivery_next_at, delivery_first_at FROM matches")
             .unwrap();
@@ -373,7 +373,7 @@ mod tests {
     }
 
     #[test]
-    fn links_from_before_challonge_keep_their_rows_and_indexes() {
+    fn links_from_before_sign_in_sites_keep_their_rows_and_indexes() {
         let mut connection = Connection::open_in_memory().unwrap();
         connection
             .pragma_update(None, "foreign_keys", "ON")
@@ -458,29 +458,30 @@ mod tests {
             .unwrap();
         assert_eq!(withdrawn, 1);
         // A second active link for the same Ember ID is still refused, and a
-        // Challonge sign-in's link is accepted once Kate's ends.
+        // sign-in site's link is accepted once Kate's ends.
         let insert = |id: &str, via: &str| {
             connection.execute(
                 "INSERT INTO links (id, account_id, connection_id, ember_id, approved_via, claim_id, consented_at, approved_at)
-                 VALUES (?1, 'ext_kate', 'c', 'emb_kate', ?2, 'challonge:5', 50, 50)",
+                 VALUES (?1, 'ext_kate', 'c', 'emb_kate', ?2, 'startgg:5', 50, 50)",
                 [id, via],
             )
         };
-        assert!(insert("lnk_twice", "challonge").is_err());
+        assert!(insert("lnk_twice", "site").is_err());
         connection
             .execute("UPDATE links SET revoked_at = 60 WHERE id = 'lnk_kate'", [])
             .unwrap();
         assert!(insert("lnk_other", "elsewhere").is_err());
-        insert("lnk_challonge", "challonge").unwrap();
+        insert("lnk_site", "site").unwrap();
         for table in [
-            "challonge_accounts",
-            "challonge_sign_ins",
-            "challonge_withdrawals",
+            "site_accounts",
+            "site_sign_ins",
+            "site_withdrawals",
             "site_requests",
         ] {
             assert!(table_exists(&connection, table), "{table}");
         }
-        // A Challonge sign-in row has a Discord sign-in's columns.
+        // A site's sign-in row has a Discord sign-in's columns, after its
+        // site.
         let columns = |table: &str| -> Vec<String> {
             connection
                 .prepare(&format!(
@@ -492,7 +493,26 @@ mod tests {
                 .collect::<rusqlite::Result<_>>()
                 .unwrap()
         };
-        assert_eq!(columns("challonge_sign_ins"), columns("discord_sign_ins"));
+        let mut site_sign_ins = columns("site_sign_ins");
+        assert_eq!(site_sign_ins.remove(0), "site");
+        assert_eq!(site_sign_ins, columns("discord_sign_ins"));
+        // A site's withdrawals go with its account row, and only that site's.
+        connection
+            .execute_batch(
+                "INSERT INTO site_accounts (site, user_id, ember_id, username, username_key, connected_at)
+                   VALUES ('a', '1', 'emb_kate', 'kate', 'kate', 1), ('b', '1', 'emb_kate', 'kate', 'kate', 1);
+                 INSERT INTO site_withdrawals (site, user_id, connection_id) VALUES ('a', '1', 'c'), ('b', '1', 'c');
+                 DELETE FROM site_accounts WHERE site = 'a';",
+            )
+            .unwrap();
+        let sites: Vec<String> = connection
+            .prepare("SELECT site FROM site_withdrawals")
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap();
+        assert_eq!(sites, ["b"]);
     }
 
     #[test]

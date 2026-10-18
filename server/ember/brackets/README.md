@@ -1,17 +1,26 @@
 # ember-brackets
 
-Plays the sets of a Challonge bracket in Ember and reports each score back to
-Challonge. The organizer runs the bracket on Challonge as usual; players who
-have connected their Challonge account in Ember (Online play > Ember ID >
-Challonge) find each set they are due to play in the game. The design is part
-4 of `docs/design/challonge/PLAN.md`.
+Plays the sets of a bracket run on another site in Ember and reports each
+score back to that site. The organizer runs the bracket on Challonge,
+start.gg or a service of their own as usual; players who have connected
+their account on that site in Ember (Online play > Ember ID), or the Discord
+account the site shows for them, find each set they are due to play in the
+game. The design is part 4 of `docs/design/challonge/PLAN.md` and the
+Connector section of `docs/design/challonge/GENERIC_SITES.md`.
+
+Each site is reached through an adapter: `challonge`, `startgg`, or `http`
+for an organizer's own service. [ADAPTERS.md](ADAPTERS.md) is the contract
+every adapter meets, the guarantees the connector adds, and the `http`
+adapter's JSON contract; it is also how a new site is added.
 
 For each configured tournament the connector:
 
 1. Reads the open sets. For each set whose two entries both have Ember, it
    creates an `ember-room-v1` match on its bridge connection, with
-   `external_match_id` `challonge:<tournament>:<set>:<attempt>`, and marks the
-   set underway on Challonge unless the read shows it already is.
+   `external_match_id` `<adapter>:<tournament>:<set>:<attempt>`, and marks the
+   set underway on the site unless the read shows it already is. An entry is
+   found by the first of its accounts the bridge knows: its site account,
+   then a Discord account the site shows linked to it.
 2. Receives the bridge's signed result at its results URL and reads the
    bracket at once. A completed match is reported (each player's games won,
    the winner advancing) if Challonge still has the set open with the same
@@ -55,6 +64,8 @@ already played.
 
 ## What the organizer provides
 
+On Challonge:
+
 - The tournament's ID or URL slug on Challonge.
 - Access to it: a Challonge v1 API key (challonge.com/settings/developer),
   which v2.1 accepts, or an OAuth access token. Tokens expire after a week
@@ -75,19 +86,46 @@ bridge finds the player who last connected under a username, so a username
 given up and taken by someone who has not connected in Ember still finds the
 old player; for an event, ask players to connect again shortly before it.
 
+On start.gg:
+
+- The event's slug, `tournament/<tournament>/event/<event>`, as in the
+  event page's address. One event per tournament entry in the config.
+- A token of an account with an admin role of Reporter or higher on the
+  tournament (its Settings, Admin Permissions): a personal access token from
+  start.gg's developer settings (it lasts a year), or an OAuth token with
+  `tournament.reporter`.
+- How long sets are, by round, as for Challonge.
+
+Players are found by the start.gg account they connected in Ember, or else
+by the Discord account linked to their start.gg profile, if start.gg shows it
+to the organizer's token. Each set is reported with its winner and every
+game's winner in the order played, after reading the set again: a set that
+already has a result is never written over. Requests wait their turn under
+start.gg's limit of 80 a minute (the connector keeps to 70), shared by every
+tournament using the same token. Sets of a phase that has not started (start.gg
+"preview" sets) and sets with a bye are never played.
+
+A service of the organizer's own: see [ADAPTERS.md](ADAPTERS.md).
+
 ## What the Ember team provides
 
 A `direct` connection on the bridge for the connector, with:
 
 ```json
 {
-  "id": "challonge-brackets", "kind": "direct", "environment": "production",
-  "display_name": "Challonge brackets",
-  "challonge_lookup": true,
+  "id": "brackets", "kind": "direct", "environment": "production",
+  "display_name": "Bracket connector",
+  "lookup_sites": ["challonge", "startgg"],
+  "discord_lookup": true,
   "disputes": "restart",
   "results_url": "https://brackets.example/ember/results"
 }
 ```
+
+`lookup_sites` names the bridge's sign-in sites whose accounts the
+connector may look players up by; `discord_lookup` lets it fall back to
+Discord accounts. The bridge refuses a lookup that names a site not listed,
+so every `bridge_site` the connector's tournaments use must be in it.
 
 its provider credential
 (`ember-bridge credential <bridge.json> provider <connection> "<label>"`) and
@@ -120,7 +158,7 @@ Secrets are only ever read from files, never written to the log.
   "monthly_request_budget": 500,
   "tournaments": [
     {
-      "site": "challonge",
+      "adapter": "challonge",
       "tournament": "ember_weekly_12",
       "credential": { "kind": "v1_key", "file": "challonge.key" },
       "active_from": "2026-10-24T17:30:00Z",
@@ -132,6 +170,12 @@ Secrets are only ever read from files, never written to the log.
           { "from_round": 5, "side": "losers", "games_to_win": 3 }
         ]
       }
+    },
+    {
+      "adapter": "startgg",
+      "tournament": "tournament/ember-weekly-12/event/ultra-street-fighter-iv",
+      "credential": { "kind": "bearer", "file": "startgg.token" },
+      "rounds": { "games_to_win": 2 }
     }
   ]
 }
@@ -156,12 +200,19 @@ Secrets are only ever read from files, never written to the log.
   result received after `active_until` is still read for and reported, which
   counts against the budget, so a final that runs over is not lost; sets it
   opens are left to the organizer.
-- `credential.kind`: `v1_key` or `bearer` (an OAuth token).
-- `api_base`: per tournament, optional, Challonge's API origin
-  (`https://api.challonge.com` when absent). The organizer's credential goes
-  to it, so it must be an https origin on challonge.com; a loopback http
-  origin is accepted only with `allow_loopback_http: true`, which is for local
-  tests.
+- `adapter`: `challonge`, `startgg` or `http` (ADAPTERS.md).
+- `bridge_site`: the bridge sign-in site the players' accounts are under,
+  the adapter's name when absent (`challonge-staging`, say, on a bridge
+  that names its sites so). Not used by `http`, whose service names each
+  account's site.
+- `credential.kind`: `v1_key` or `bearer` (an OAuth token) on Challonge;
+  `bearer` on start.gg and for `http`.
+- `api_base`: per tournament, optional, the site's API origin
+  (`https://api.challonge.com` and `https://api.start.gg` when absent). The
+  organizer's credential goes to it, so it must be an https origin on
+  challonge.com or start.gg respectively; for `http` it is required, and is
+  the service's https base URL. A loopback http origin is accepted only with
+  `allow_loopback_http: true`, which is for local tests.
 - `mark_underway`: per tournament, default `true`. Marking each set underway
   costs one request a set; `false` saves them.
 - `rounds`: `games_to_win` (1 to 10) unless a rule covers the round; the first
@@ -206,6 +257,9 @@ When something fails the log says so once, not on every try:
   hour, whether a result or the schedule asks for the read. Requests Challonge refuses with 401 or 403 are not counted.
 
 ## Request budget
+
+This section is about Challonge; start.gg counts requests by the minute (see
+above) and a service of the organizer's own sets its own limits.
 
 Challonge's free tier allows 500 requests a month per developer app. Every
 request is counted per credential and calendar month (UTC) before it is

@@ -19,7 +19,10 @@ const DEFAULT_BUDGET: u32 = 500;
 const DEFAULT_POLL_SECS: u64 = 120;
 const DEFAULT_MAX_POLL_SECS: u64 = 600;
 const MIN_POLL_SECS: u64 = 30;
-/// Tournament and set IDs go into URLs and `external_match_id`.
+/// Tournament and set IDs go into URLs and `external_match_id`. With slugs
+/// this long, the longest `external_match_id`
+/// (`startgg:tournament/<64>/event/<64>:<64>:<attempt>`) stays within the
+/// bridge's 256 bytes.
 const MAX_SLUG: usize = 64;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -83,8 +86,16 @@ pub struct Results {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Tournament {
-    pub site: SiteKind,
-    /// The tournament's ID or URL slug on the site.
+    /// The site the bracket is run on.
+    pub adapter: Adapter,
+    /// The bridge sign-in site its players' accounts are under; the
+    /// adapter's name when absent. The http adapter's service names each
+    /// account's site itself.
+    #[serde(default)]
+    pub bridge_site: Option<String>,
+    /// Challonge: the tournament's ID or URL slug. start.gg: the event's
+    /// slug, `tournament/<tournament>/event/<event>`. http: a name for the
+    /// bracket, which its matches' IDs carry.
     pub tournament: String,
     pub credential: Credential,
     pub rounds: Rounds,
@@ -99,22 +110,50 @@ pub struct Tournament {
     /// one request a set.
     #[serde(default = "default_mark_underway")]
     pub mark_underway: bool,
-    /// The site's API origin, when not its public one: for Challonge an
-    /// https origin on challonge.com, or loopback http for local tests.
+    /// The site's API origin, when not its public one: an https origin on
+    /// the site's own domain, or loopback http for local tests. For the
+    /// http adapter, required: the service's https base URL.
     #[serde(default)]
     pub api_base: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum SiteKind {
+pub enum Adapter {
     Challonge,
+    Startgg,
+    /// The organizer's own service, through the contract in ADAPTERS.md.
+    Http,
 }
 
-impl SiteKind {
+impl Adapter {
     pub fn name(self) -> &'static str {
         match self {
             Self::Challonge => "challonge",
+            Self::Startgg => "startgg",
+            Self::Http => "http",
+        }
+    }
+
+    /// The domain the organizer's credential may be sent to; any the
+    /// organizer configures for their own service.
+    fn domain(self) -> Option<&'static str> {
+        match self {
+            Self::Challonge => Some("challonge.com"),
+            Self::Startgg => Some("start.gg"),
+            Self::Http => None,
+        }
+    }
+
+    /// Whether `tournament` names a bracket on this site in a form that is
+    /// safe in its requests and in `external_match_id`.
+    fn names(self, tournament: &str) -> bool {
+        match self {
+            Self::Challonge | Self::Http => is_slug(tournament),
+            Self::Startgg => {
+                let parts: Vec<&str> = tournament.split('/').collect();
+                matches!(parts.as_slice(), ["tournament", name, "event", event] if is_slug(name) && is_slug(event))
+            }
         }
     }
 }
@@ -231,7 +270,59 @@ impl Tournament {
     /// `<site>:<tournament>`, the prefix of every `external_match_id` this
     /// tournament's matches carry.
     pub fn key(&self) -> String {
-        format!("{}:{}", self.site.name(), self.tournament)
+        format!("{}:{}", self.adapter.name(), self.tournament)
+    }
+
+    /// The bridge sign-in site its players' accounts are under.
+    pub fn bridge_site(&self) -> &str {
+        self.bridge_site
+            .as_deref()
+            .unwrap_or_else(|| self.adapter.name())
+    }
+
+    fn check(&self, allow_loopback_http: bool) -> Result<(), String> {
+        let key = self.key();
+        if !self.adapter.names(&self.tournament) {
+            return Err(match self.adapter {
+                Adapter::Challonge => format!("{key}: tournament is a Challonge ID or URL slug"),
+                Adapter::Startgg => {
+                    format!("{key}: tournament is an event slug, tournament/<name>/event/<name>")
+                }
+                Adapter::Http => format!("{key}: tournament is 1 to 64 letters, digits, _ or -"),
+            });
+        }
+        match (self.adapter, &self.bridge_site) {
+            (Adapter::Http, Some(_)) => {
+                return Err(format!(
+                    "{key}: the service names each account's site; bridge_site is not used"
+                ));
+            }
+            _ if !is_bridge_site(self.bridge_site()) => {
+                return Err(format!(
+                    "{key}: bridge_site is 1 to 32 lowercase letters, digits or -"
+                ));
+            }
+            _ => {}
+        }
+        if self.adapter != Adapter::Challonge && self.credential.kind != CredentialKind::Bearer {
+            return Err(format!("{key}: its token is a bearer credential"));
+        }
+        self.rounds
+            .check()
+            .map_err(|error| format!("{key}: {error}"))?;
+        self.window()?;
+        match (self.adapter.domain(), &self.api_base) {
+            (Some(domain), Some(origin))
+                if !is_site_origin(origin, domain, allow_loopback_http) =>
+            {
+                Err(format!("{key}: api_base is an https origin on {domain}"))
+            }
+            (None, None) => Err(format!("{key}: api_base is the service's base URL")),
+            (None, Some(base)) if !is_service_base(base, allow_loopback_http) => Err(format!(
+                "{key}: api_base is an https URL with no user, query or fragment"
+            )),
+            _ => Ok(()),
+        }
     }
 
     pub(crate) fn window(&self) -> Result<Window, String> {
@@ -284,20 +375,55 @@ pub(crate) fn is_slug(text: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
 }
 
-/// Whether the organizer's Challonge credential may go to `origin`: an
-/// https origin on challonge.com or one of its subdomains, with no port,
-/// path or user info, or a loopback http origin when tests allow it. The
-/// bridge holds its own Challonge settings to the same rule.
-pub(crate) fn is_challonge_origin(origin: &str, allow_loopback_http: bool) -> bool {
+/// Whether the organizer's credential for a site on `domain` may go to
+/// `origin`: an https origin on `domain` or one of its subdomains, with no
+/// port, path or user info, or a loopback http origin when tests allow it.
+/// The bridge holds its own sign-in sites to the same rule.
+pub(crate) fn is_site_origin(origin: &str, domain: &str, allow_loopback_http: bool) -> bool {
     let policy = if allow_loopback_http {
         OriginPolicy::AllowLoopbackHttp
     } else {
         OriginPolicy::HttpsOnly
     };
-    let on_challonge = origin
-        .strip_prefix("https://")
-        .is_some_and(|host| host == "challonge.com" || host.ends_with(".challonge.com"));
-    check_origin(origin, policy).is_ok() && (on_challonge || origin.starts_with("http://"))
+    let on_domain = origin.strip_prefix("https://").is_some_and(|host| {
+        host == domain
+            || host
+                .strip_suffix(domain)
+                .is_some_and(|sub| sub.ends_with('.'))
+    });
+    check_origin(origin, policy).is_ok() && (on_domain || origin.starts_with("http://"))
+}
+
+/// Whether the organizer's token may go to `base`, their own service: an
+/// https origin with an optional path of plain segments, or a loopback http
+/// one when tests allow it.
+pub(crate) fn is_service_base(base: &str, allow_loopback_http: bool) -> bool {
+    let policy = if allow_loopback_http {
+        OriginPolicy::AllowLoopbackHttp
+    } else {
+        OriginPolicy::HttpsOnly
+    };
+    let after_scheme = base.find("://").map_or(0, |at| at + 3);
+    let (origin, path) = base[after_scheme..]
+        .find('/')
+        .map_or((base, ""), |at| base.split_at(after_scheme + at));
+    let plain_path = path.split('/').skip(1).all(|segment| {
+        !segment.is_empty()
+            && segment != "."
+            && segment != ".."
+            && segment
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.'))
+    });
+    check_origin(origin, policy).is_ok() && plain_path
+}
+
+/// A bridge sign-in site's ID: 1 to 32 lowercase letters, digits or `-`.
+fn is_bridge_site(text: &str) -> bool {
+    (1..=32).contains(&text.len())
+        && text
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
 }
 
 /// Unix seconds of `YYYY-MM-DDTHH:MM:SSZ`, the one form a window takes.
@@ -379,27 +505,9 @@ impl Config {
         }
         let mut keys = std::collections::BTreeSet::new();
         for tournament in &self.tournaments {
-            if !is_slug(&tournament.tournament) {
-                return Err(format!(
-                    "tournament {:?} is not an ID or URL slug",
-                    tournament.tournament
-                ));
-            }
+            tournament.check(self.allow_loopback_http)?;
             if !keys.insert(tournament.key()) {
                 return Err(format!("{} is listed twice", tournament.key()));
-            }
-            tournament
-                .rounds
-                .check()
-                .map_err(|error| format!("{}: {error}", tournament.key()))?;
-            tournament.window()?;
-            if let Some(origin) = &tournament.api_base
-                && !is_challonge_origin(origin, self.allow_loopback_http)
-            {
-                return Err(format!(
-                    "{}: api_base is an https origin on challonge.com",
-                    tournament.key()
-                ));
             }
         }
         Ok(())
@@ -445,7 +553,7 @@ mod tests {
             "https://challonge.com",
             "https://staging.api.challonge.com",
         ] {
-            assert!(is_challonge_origin(origin, false), "{origin}");
+            assert!(is_site_origin(origin, "challonge.com", false), "{origin}");
         }
         for origin in [
             "http://api.challonge.com",
@@ -459,13 +567,65 @@ mod tests {
             "http://127.0.0.1:9000",
             "",
         ] {
-            assert!(!is_challonge_origin(origin, false), "{origin}");
+            assert!(!is_site_origin(origin, "challonge.com", false), "{origin}");
         }
         // Loopback http is for tests, and only loopback.
-        assert!(is_challonge_origin("http://127.0.0.1:9000", true));
-        assert!(is_challonge_origin("http://localhost:9000", true));
-        assert!(!is_challonge_origin("http://api.challonge.com", true));
-        assert!(!is_challonge_origin("http://10.0.0.5:9000", true));
+        assert!(is_site_origin(
+            "http://127.0.0.1:9000",
+            "challonge.com",
+            true
+        ));
+        assert!(is_site_origin(
+            "http://localhost:9000",
+            "challonge.com",
+            true
+        ));
+        assert!(!is_site_origin(
+            "http://api.challonge.com",
+            "challonge.com",
+            true
+        ));
+        assert!(!is_site_origin(
+            "http://10.0.0.5:9000",
+            "challonge.com",
+            true
+        ));
+        // start.gg's tokens go to start.gg the same way, and only there.
+        assert!(is_site_origin("https://api.start.gg", "start.gg", false));
+        for origin in [
+            "https://api.challonge.com",
+            "https://evilstart.gg",
+            "http://api.start.gg",
+        ] {
+            assert!(!is_site_origin(origin, "start.gg", false), "{origin}");
+        }
+    }
+
+    #[test]
+    fn the_organizers_own_service_is_any_https_base() {
+        for base in [
+            "https://brackets.example",
+            "https://brackets.example/ember/v1",
+            "https://brackets.example:8443/api",
+        ] {
+            assert!(is_service_base(base, false), "{base}");
+        }
+        for base in [
+            "http://brackets.example",
+            "https://brackets.example/",
+            "https://brackets.example/a//b",
+            "https://brackets.example/../b",
+            "https://brackets.example/api?x=1",
+            "https://brackets.example/#x",
+            "https://user@brackets.example",
+            "https://brackets example",
+            "brackets.example",
+            "http://127.0.0.1:9000",
+        ] {
+            assert!(!is_service_base(base, false), "{base}");
+        }
+        assert!(is_service_base("http://127.0.0.1:9000/svc", true));
+        assert!(!is_service_base("http://10.0.0.5:9000", true));
     }
 
     #[test]
@@ -529,7 +689,7 @@ mod tests {
             "results": { "listen": "127.0.0.1:8791", "secret_file": "/etc/ember/result.secret" },
             "database": "brackets.sqlite3",
             "tournaments": [{
-                "site": "challonge",
+                "adapter": "challonge",
                 "tournament": "ember_weekly_12",
                 "credential": { "kind": "v1_key", "file": "challonge.key" },
                 "rounds": { "games_to_win": 2, "rules": [{ "from_round": 4, "games_to_win": 3 }] },
@@ -555,6 +715,7 @@ mod tests {
         );
         assert_eq!(config.tournaments[0].window(), Ok(Window::default()));
         assert_eq!(config.tournaments[0].key(), "challonge:ember_weekly_12");
+        assert_eq!(config.tournaments[0].bridge_site(), "challonge");
         assert_eq!(config.tournaments[0].rounds.rules[0].side, Side::Any);
 
         // Unknown fields, a slug with a colon and plain http are refused.
@@ -581,6 +742,9 @@ mod tests {
                 "/tournaments/0/active_until",
                 serde_json::json!("2026-10-18"),
             ),
+            ("/tournaments/0/bridge_site", serde_json::json!("Challonge")),
+            ("/tournaments/0/bridge_site", serde_json::json!("")),
+            ("/tournaments/0/adapter", serde_json::json!("smashgg")),
         ] {
             let mut changed = text.clone();
             let (parent, field) = pointer.rsplit_once('/').unwrap();
@@ -604,6 +768,87 @@ mod tests {
         windowed["tournaments"][0]["active_until"] = serde_json::json!("2026-10-18T18:00:00Z");
         std::fs::write(&path, windowed.to_string()).unwrap();
         assert!(Config::load(&path).is_err());
+
+        // A start.gg event: its slug, a bearer token, an origin on start.gg,
+        // and a bridge site of the operator's naming.
+        let mut startgg = text.clone();
+        startgg["tournaments"][0] = serde_json::json!({
+            "adapter": "startgg",
+            "bridge_site": "startgg-staging",
+            "tournament": "tournament/ember-weekly-12/event/ultra-street-fighter-iv",
+            "credential": { "kind": "bearer", "file": "startgg.token" },
+            "api_base": "https://api.start.gg",
+            "rounds": { "games_to_win": 2 },
+        });
+        std::fs::write(&path, startgg.to_string()).unwrap();
+        let config = Config::load(&path).unwrap();
+        assert_eq!(config.tournaments[0].bridge_site(), "startgg-staging");
+        assert_eq!(
+            config.tournaments[0].key(),
+            "startgg:tournament/ember-weekly-12/event/ultra-street-fighter-iv"
+        );
+        for (field, value) in [
+            ("tournament", serde_json::json!("ember-weekly-12")),
+            ("tournament", serde_json::json!("tournament/a/event/b/c")),
+            ("tournament", serde_json::json!("tournament/a b/event/c")),
+            (
+                "credential",
+                serde_json::json!({ "kind": "v1_key", "file": "k" }),
+            ),
+            ("api_base", serde_json::json!("https://api.challonge.com")),
+            ("api_base", serde_json::json!("http://api.start.gg")),
+        ] {
+            let mut changed = startgg.clone();
+            changed["tournaments"][0][field] = value;
+            std::fs::write(&path, changed.to_string()).unwrap();
+            assert!(
+                Config::load(&path).is_err(),
+                "{field}: {}",
+                changed["tournaments"][0][field]
+            );
+        }
+
+        // The organizer's own service: its https base URL is required, it
+        // names the accounts' sites itself, and its token is a bearer one.
+        let mut service = text.clone();
+        service["tournaments"][0] = serde_json::json!({
+            "adapter": "http",
+            "tournament": "spring-pools",
+            "credential": { "kind": "bearer", "file": "service.token" },
+            "api_base": "https://brackets.example/ember",
+            "rounds": { "games_to_win": 2 },
+        });
+        std::fs::write(&path, service.to_string()).unwrap();
+        assert_eq!(
+            Config::load(&path).unwrap().tournaments[0].key(),
+            "http:spring-pools"
+        );
+        for (field, value) in [
+            ("api_base", serde_json::Value::Null),
+            (
+                "api_base",
+                serde_json::json!("http://brackets.example/ember"),
+            ),
+            (
+                "api_base",
+                serde_json::json!("https://brackets.example/ember?x=1"),
+            ),
+            ("bridge_site", serde_json::json!("challonge")),
+            (
+                "credential",
+                serde_json::json!({ "kind": "v1_key", "file": "k" }),
+            ),
+            ("tournament", serde_json::json!("spring pools")),
+        ] {
+            let mut changed = service.clone();
+            changed["tournaments"][0][field] = value;
+            std::fs::write(&path, changed.to_string()).unwrap();
+            assert!(
+                Config::load(&path).is_err(),
+                "{field}: {}",
+                changed["tournaments"][0][field]
+            );
+        }
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

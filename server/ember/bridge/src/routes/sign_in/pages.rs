@@ -22,8 +22,14 @@ fn fingerprint(ember_id: &str) -> String {
 /// the platforms on this bridge that find players by its accounts, named as
 /// each tenant names itself, for the pages to tell the player who finds them.
 pub(super) struct Pages {
-    label: &'static str,
-    callback: &'static str,
+    /// The sign-in's name, as titles take it (`page` escapes them).
+    name: String,
+    /// The same, escaped for the page's body.
+    label: String,
+    callback: String,
+    /// What a username the site's lookups can match is, escaped for the
+    /// page; a site whose lookups name user IDs has none.
+    usernames: Option<String>,
     /// Each platform's name, already escaped for the page, and whether it starts
     /// a match that ended with a player's links again from the games already
     /// won (`Disputes::Restart`) rather than hand it to an organizer.
@@ -31,7 +37,7 @@ pub(super) struct Pages {
 }
 
 impl Pages {
-    pub(super) fn of(config: &Config, site: Site) -> Self {
+    pub(super) fn of(config: &Config, site: &Site) -> Self {
         let mut named: Vec<(String, bool)> = Vec::new();
         for tenant in &config.tenants {
             for connection in &tenant.connections {
@@ -44,10 +50,18 @@ impl Pages {
                 }
             }
         }
-        let profile = Profile::of(site);
+        let profile = Profile::of(config, site);
+        let usernames = match site {
+            Site::Configured(id) => config
+                .sign_in_site(id)
+                .map(|site| html(&site.username_rule.describe())),
+            Site::Discord => None,
+        };
         Self {
-            label: profile.label,
-            callback: profile.callback,
+            label: html(&profile.label),
+            name: profile.label,
+            callback: html(&profile.callback),
+            usernames,
             named,
         }
     }
@@ -103,9 +117,9 @@ impl Pages {
     }
 
     pub(super) fn connected(&self, username: &str, ember_id: &str) -> Response {
-        let label = self.label;
+        let label = &self.label;
         finished(
-            &format!("{label} connected"),
+            &format!("{} connected", self.name),
             &format!(
                 "Your {label} account <strong>{}</strong> is connected to your Ember ID <strong>{}</strong>. \
                  {} can now find you by this {label} account. \
@@ -143,7 +157,7 @@ impl Pages {
         to: &str,
         replaced: Option<&str>,
     ) -> Response {
-        let (label, callback) = (self.label, self.callback);
+        let (label, callback) = (&self.label, &self.callback);
         let (username, from, to) = (
             html(username),
             html(&fingerprint(from)),
@@ -152,7 +166,7 @@ impl Pages {
         let (finders, after_ending) = (self.finders(), self.after_ending());
         let replacing = self.replacing(&to, replaced, "");
         page(
-            &format!("Move this {label} account?"),
+            &format!("Move this {} account?", self.name),
             &format!(
                 "<h1>Move this {label} account?</h1>\
                  <p>Your {label} account <strong>{username}</strong> is connected to another Ember ID, <strong>{from}</strong>. \
@@ -180,12 +194,12 @@ impl Pages {
         to: &str,
         replaced: Option<&str>,
     ) -> Response {
-        let (label, callback) = (self.label, self.callback);
+        let (label, callback) = (&self.label, &self.callback);
         let (username, to) = (html(username), html(&fingerprint(to)));
         let finders = self.finders();
         let replacing = self.replacing(&to, replaced, &self.after_ending());
         page(
-            &format!("Connect this {label} account?"),
+            &format!("Connect this {} account?", self.name),
             &format!(
                 "<h1>Connect this {label} account?</h1>\
                  <p>This connects your {label} account <strong>{username}</strong> to Ember ID <strong>{to}</strong>. \
@@ -203,9 +217,9 @@ impl Pages {
     }
 
     pub(super) fn off(&self) -> Response {
-        let label = self.label;
+        let label = &self.label;
         finished(
-            &format!("{label} sign-in is off"),
+            &format!("{} sign-in is off", self.name),
             &format!(
                 "This Ember service does not offer {label} sign-in, so you cannot connect {label} here."
             ),
@@ -223,7 +237,7 @@ impl Pages {
     }
 
     pub(super) fn not_waiting(&self) -> Response {
-        let label = self.label;
+        let label = &self.label;
         finished(
             "Sign-in expired",
             &format!(
@@ -235,7 +249,7 @@ impl Pages {
 
     /// The site refused the code, or Ember never got to ask it.
     pub(super) fn not_connected(&self) -> Response {
-        let label = self.label;
+        let label = &self.label;
         finished(
             "Not connected",
             &format!(
@@ -245,9 +259,9 @@ impl Pages {
     }
 
     pub(super) fn no_answer(&self) -> Response {
-        let label = self.label;
+        let label = &self.label;
         finished(
-            &format!("{label} did not answer"),
+            &format!("{} did not answer", self.name),
             &format!(
                 "{label} did not confirm your account. Choose Connect {label} in Ember to try again."
             ),
@@ -257,12 +271,13 @@ impl Pages {
     /// The site's account has a username lookups cannot match, so connecting
     /// it would find the player nowhere.
     pub(super) fn unusable(&self, username: &str) -> Response {
-        let label = self.label;
+        let label = &self.label;
+        let usernames = self.usernames.as_deref().unwrap_or_default();
         finished(
             "Not connected",
             &format!(
                 "Your {label} username <strong>{}</strong> cannot be used to find you: \
-                 tournament sites match usernames of letters, digits, '_', '-' and '.'. \
+                 tournament sites match usernames of {usernames}. \
                  Change it on {label}, then choose Connect {label} in Ember again.",
                 html(username)
             ),
@@ -271,7 +286,7 @@ impl Pages {
 
     /// The site's requests for today or this month are spent (`budget`).
     pub(super) fn busy(&self) -> Response {
-        let label = self.label;
+        let label = &self.label;
         finished(
             "Not connected",
             &format!(
@@ -282,7 +297,7 @@ impl Pages {
 
     /// The account was connected or moved elsewhere after the page asked.
     pub(super) fn changed(&self) -> Response {
-        let label = self.label;
+        let label = &self.label;
         finished(
             "Not connected",
             &format!(
@@ -294,7 +309,7 @@ impl Pages {
 
     /// The player said the sign-in was not theirs.
     pub(super) fn refused(&self, username: &str) -> Response {
-        let label = self.label;
+        let label = &self.label;
         finished(
             "Not connected",
             &format!(

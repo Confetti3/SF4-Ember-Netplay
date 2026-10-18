@@ -29,7 +29,7 @@ use axum::{
 };
 use rusqlite::params;
 
-use crate::{AppState, ctx::Ctx, delivery, linking, linking::Site, mock};
+use crate::{AppState, ctx::Ctx, delivery, linking, mock};
 
 /// Form bodies (mock pages only); JSON routes cap their own bodies.
 const FORM_LIMIT: usize = 16 * 1024;
@@ -111,9 +111,7 @@ pub fn router(state: AppState) -> Router {
             "/v1/webhook-subscriptions/{id}/rotate-secret",
             post(webhooks::rotate),
         );
-    for site in Site::ALL {
-        app = sign_in::routes(app, site);
-    }
+    app = sign_in::routes(app);
     if state.config.mock_browser {
         app = app
             .route(

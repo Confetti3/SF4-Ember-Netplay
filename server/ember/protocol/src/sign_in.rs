@@ -1,7 +1,8 @@
-//! The shapes every site's sign-in on the bridge shares (`discord`,
-//! `challonge`): the player's Ember asks to start one and opens the returned
-//! page in the browser, the site sends the browser back to the bridge, and
-//! the bridge keeps the account's user ID and username.
+//! The shapes every sign-in on the bridge shares, Discord's (`discord`) and
+//! each configured site's (`sites`): the player's Ember asks to start one
+//! and opens the returned page in the browser, the site sends the browser
+//! back to the bridge, and the bridge keeps the account's user ID and
+//! username.
 use serde::{Deserialize, Serialize};
 
 /// `POST <site start path>`: where to send the player's browser.

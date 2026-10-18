@@ -1,6 +1,7 @@
-//! A real bridge on a loopback port, with the connector's `direct`
-//! connection: Challonge lookup, disputes restarted, results sent to the
-//! connector.
+//! A real bridge on a loopback port, with the shipped Challonge and
+//! start.gg sign-in site definitions and the connector's `direct`
+//! connection: lookup by those sites' accounts and by Discord, disputes
+//! restarted, results sent to the connector.
 use std::{
     path::PathBuf,
     time::{Duration, Instant},
@@ -8,7 +9,8 @@ use std::{
 
 use axum::http::{Method, StatusCode};
 use ember_bridge::{AppState, Db, Keys, Running};
-use ember_protocol::{EmberId, SigningIdentity, challonge::username_key};
+use ember_protocol::{EmberId, SigningIdentity};
+use rusqlite::params;
 use serde_json::{Value, json};
 use tokio::net::TcpListener;
 use zeroize::Zeroizing;
@@ -45,7 +47,14 @@ impl TestBridge {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let origin = format!("http://{}", listener.local_addr().unwrap());
         // Built from JSON, as bridge.json is, so new optional settings need
-        // no change here.
+        // no change here. The sites are the shipped definitions.
+        let site = |name: &str| -> Value {
+            let path = format!(
+                "{}/../bridge/deploy/sites/{name}.json",
+                env!("CARGO_MANIFEST_DIR")
+            );
+            serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap()
+        };
         let config: ember_bridge::Config = serde_json::from_value(json!({
             "bridge_id": ember_protocol::encoding::prefixed_id("brg", rand16()),
             "display_name": "Test bridge",
@@ -55,6 +64,8 @@ impl TestBridge {
             "secrets": dir.join("secrets.json"),
             "allow_loopback_http": true,
             "allow_private_webhooks": true,
+            "integration_secrets": dir.join("integrations.json"),
+            "sign_in_sites": [site("challonge"), site("startgg")],
             "tenants": [{
                 "id": "organizers",
                 "name": "Organizers",
@@ -63,7 +74,8 @@ impl TestBridge {
                     "kind": "direct",
                     "environment": "local",
                     "display_name": "Brackets",
-                    "challonge_lookup": true,
+                    "lookup_sites": ["challonge", "startgg"],
+                    "discord_lookup": true,
                     "disputes": "restart",
                     "results_url": results_url,
                 }],
@@ -105,30 +117,83 @@ impl TestBridge {
             .unwrap()
     }
 
-    /// A player with Ember who connected the Challonge account `username`,
-    /// written as the sign-in would (the bridge's own tests cover it).
-    pub async fn connect(&self, byte: u8, username: &str) -> EmberId {
+    /// A player with Ember, seeded by `byte`, written as a session would.
+    async fn player(&self, byte: u8) -> EmberId {
         let identity = SigningIdentity::from_seed(&Zeroizing::new([byte; 32])).unwrap();
         let ember_id = identity.ember_id().clone();
         let row = [
             ember_id.as_str().to_owned(),
             identity.public_key().to_b64u(),
-            (9_000 + u32::from(byte)).to_string(),
-            username.to_owned(),
-            username_key(username),
         ];
         self.state()
             .db
             .write(move |tx| {
-                let [id, key, user_id, username, username_key] = &row;
                 tx.execute(
-                    "INSERT INTO identities (ember_id, public_key, created_at) VALUES (?1, ?2, 1)",
-                    [id, key],
+                    "INSERT OR IGNORE INTO identities (ember_id, public_key, created_at) VALUES (?1, ?2, 1)",
+                    params![row[0], row[1]],
                 )?;
+                Ok(())
+            })
+            .await
+            .unwrap();
+        ember_id
+    }
+
+    /// A player who connected an account on a sign-in site, written as the
+    /// sign-in would (the bridge's own tests cover it). `username_key` is
+    /// kept only for a site that looks accounts up by username.
+    async fn connect_site(
+        &self,
+        byte: u8,
+        site: &'static str,
+        user_id: String,
+        username: String,
+        by_username: bool,
+    ) -> EmberId {
+        let ember_id = self.player(byte).await;
+        let id = ember_id.as_str().to_owned();
+        // The shipped Challonge definition compares usernames without case.
+        let key = by_username.then(|| username.to_ascii_lowercase());
+        self.state()
+            .db
+            .write(move |tx| {
                 tx.execute(
-                    "INSERT INTO challonge_accounts (user_id, ember_id, username, username_key, connected_at)
-                     VALUES (?1, ?2, ?3, ?4, 1)",
-                    [user_id, id, username, username_key],
+                    "INSERT INTO site_accounts (site, user_id, ember_id, username, username_key, connected_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, 1)",
+                    params![site, user_id, id, username, key],
+                )?;
+                Ok(())
+            })
+            .await
+            .unwrap();
+        ember_id
+    }
+
+    /// A player with Ember who connected the Challonge account `username`.
+    pub async fn connect(&self, byte: u8, username: &str) -> EmberId {
+        let user_id = (9_000 + u32::from(byte)).to_string();
+        self.connect_site(byte, "challonge", user_id, username.to_owned(), true)
+            .await
+    }
+
+    /// A player with Ember who connected the start.gg account `user_id`.
+    pub async fn connect_startgg(&self, byte: u8, user_id: u64) -> EmberId {
+        let gamer_tag = format!("Player {byte}");
+        self.connect_site(byte, "startgg", user_id.to_string(), gamer_tag, false)
+            .await
+    }
+
+    /// A player with Ember who connected the Discord account `user_id`, as
+    /// the bridge's partner tests write it.
+    pub async fn connect_discord(&self, byte: u8, user_id: &str) -> EmberId {
+        let ember_id = self.player(byte).await;
+        let row = [user_id.to_owned(), ember_id.as_str().to_owned()];
+        self.state()
+            .db
+            .write(move |tx| {
+                tx.execute(
+                    "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES (?1, ?2, 'name', 1)",
+                    params![row[0], row[1]],
                 )?;
                 Ok(())
             })

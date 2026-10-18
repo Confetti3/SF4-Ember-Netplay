@@ -1,16 +1,19 @@
-//! A fake Challonge, a real bridge on a loopback port, and a connector
-//! between them. All keys and tokens here are throwaway test values.
+//! Fake bracket sites (Challonge, start.gg, an organizer's own service), a
+//! real bridge on a loopback port, and a connector between them. All keys
+//! and tokens here are throwaway test values.
 #![allow(dead_code)]
 
 pub mod bridge;
 pub mod challonge;
+pub mod service;
+pub mod startgg;
 
 use std::path::PathBuf;
 
 use axum::http::{Method, StatusCode};
 use ember_brackets::{
-    Bridge, Clock, Config, Connector, Credential, CredentialKind, Results, RoundRule, Rounds, Side,
-    SiteKind, Tournament,
+    Adapter, Bridge, Clock, Config, Connector, Credential, CredentialKind, Results, RoundRule,
+    Rounds, Side, Tournament,
 };
 use ember_protocol::webhook::Secret;
 use serde_json::{Value, json};
@@ -70,7 +73,19 @@ pub fn rounds() -> Rounds {
     }
 }
 
+/// A tournament on another fake site, beside or instead of the Challonge
+/// one.
+pub struct Extra {
+    pub adapter: Adapter,
+    pub tournament: String,
+    pub api_base: String,
+    pub token: &'static str,
+}
+
 pub struct Setup {
+    /// Whether the connector runs the fake Challonge tournament.
+    pub challonge: bool,
+    pub extra: Vec<Extra>,
     pub kind: CredentialKind,
     pub budget: u32,
     pub active_from: Option<String>,
@@ -87,6 +102,8 @@ impl Default for Setup {
     /// no account (352) play 1002; their winners meet in 1003.
     fn default() -> Self {
         Self {
+            challonge: true,
+            extra: Vec::new(),
             kind: CredentialKind::V1Key,
             budget: 500,
             active_from: None,
@@ -121,7 +138,7 @@ impl World {
         std::fs::write(dir.join("provider.token"), format!("{provider}\n")).unwrap();
         std::fs::write(dir.join("result.secret"), result_secret().reveal().as_str()).unwrap();
         std::fs::write(dir.join("challonge.key"), CHALLONGE_KEY).unwrap();
-        let config = Config {
+        let mut config = Config {
             bridge: Bridge {
                 api: bridge.origin.clone(),
                 credential_file: dir.join("provider.token"),
@@ -139,20 +156,42 @@ impl World {
             max_poll_secs: 600,
             monthly_request_budget: setup.budget,
             allow_loopback_http: true,
-            tournaments: vec![Tournament {
-                site: SiteKind::Challonge,
+            tournaments: Vec::new(),
+        };
+        if setup.challonge {
+            config.tournaments.push(Tournament {
+                adapter: Adapter::Challonge,
+                bridge_site: None,
                 tournament: TOURNAMENT.into(),
                 credential: Credential {
                     kind: setup.kind,
                     file: dir.join("challonge.key"),
                 },
                 rounds: rounds(),
-                active_from: setup.active_from,
-                active_until: setup.active_until,
+                active_from: setup.active_from.clone(),
+                active_until: setup.active_until.clone(),
                 mark_underway: true,
                 api_base: Some(challonge.api.clone()),
-            }],
-        };
+            });
+        }
+        for extra in setup.extra {
+            let file = dir.join(format!("{}.token", extra.adapter.name()));
+            std::fs::write(&file, extra.token).unwrap();
+            config.tournaments.push(Tournament {
+                adapter: extra.adapter,
+                bridge_site: None,
+                tournament: extra.tournament,
+                credential: Credential {
+                    kind: CredentialKind::Bearer,
+                    file,
+                },
+                rounds: rounds(),
+                active_from: setup.active_from.clone(),
+                active_until: setup.active_until.clone(),
+                mark_underway: true,
+                api_base: Some(extra.api_base),
+            });
+        }
         // Both clocks stand still from here until a test moves them.
         bridge.clock.freeze();
         let clock = Clock::frozen(bridge.clock.now());

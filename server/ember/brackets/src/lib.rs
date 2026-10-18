@@ -1,7 +1,8 @@
 //! Plays bracket sites' sets in Ember (docs/design/challonge/PLAN.md, part 4).
 //!
 //! For each configured tournament it reads the open sets, finds both
-//! players by their connected site account on the bridge, and creates each
+//! players on the bridge by an account the site shows for them (the one
+//! they connected on that site, or a Discord account), and creates each
 //! set as an `ember-room-v1` match on its `direct` connection. The bridge
 //! sends each finished match to the connector's results URL; the connector
 //! reads the bracket at once and reports the score if the site still has the
@@ -11,7 +12,8 @@
 //! tournament's window, and stop once the bracket is finished, since
 //! Challonge's free tier allows 500 requests a month.
 //!
-//! Sites sit behind `site::Site`; Challonge is the first. Everything the
+//! Sites sit behind `site::Site` (ADAPTERS.md): Challonge, start.gg, and an
+//! organizer's own service through the `http` adapter. Everything the
 //! connector decides survives a restart in its SQLite file, and each
 //! attempt's `external_match_id` is fixed, so it never makes a match twice.
 mod bracket;
@@ -20,19 +22,23 @@ mod budget;
 mod challonge;
 mod config;
 mod http;
+mod limit;
 mod results;
 mod schedule;
+mod service;
 mod sets;
 pub mod site;
+mod startgg;
 mod store;
 
 use std::{
+    collections::HashMap,
     net::SocketAddr,
     sync::{
         Arc,
         atomic::{AtomicI64, Ordering},
     },
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use axum::{Router, extract::DefaultBodyLimit, routing::post};
@@ -40,7 +46,7 @@ use ember_protocol::webhook::Secret;
 use tokio::{net::TcpListener, task::JoinHandle};
 
 pub use config::{
-    Bridge, Config, Credential, CredentialKind, Results, RoundRule, Rounds, Side, SiteKind,
+    Adapter, Bridge, Config, Credential, CredentialKind, Results, RoundRule, Rounds, Side,
     Tournament,
 };
 
@@ -49,7 +55,10 @@ use bridge::BridgeClient;
 use budget::Budget;
 use challonge::Challonge;
 use config::read_secret;
+use limit::Limiter;
 use results::Gate;
+use service::Service;
+use startgg::Startgg;
 use store::Store;
 
 /// One human-readable line on standard error. Never given a secret.
@@ -137,36 +146,59 @@ impl Connector {
             max_poll_secs: config.max_poll_secs,
             pointed_out: Default::default(),
         });
+        // By a digest of the token: one limit however many files hold it.
+        let mut limiters: HashMap<String, Limiter> = HashMap::new();
         let brackets = config
             .tournaments
             .iter()
             .map(|tournament| {
                 let file = &tournament.credential.file;
                 let credential = read_secret(file)?;
-                let budget = Budget::new(
-                    store.clone(),
-                    &credential,
-                    file.display().to_string(),
-                    config.monthly_request_budget,
-                    clock.clone(),
-                );
-                let site = match tournament.site {
-                    SiteKind::Challonge => Challonge::new(
+                let site: Box<dyn site::Site> = match tournament.adapter {
+                    Adapter::Challonge => Box::new(Challonge::new(
                         tournament
                             .api_base
                             .as_deref()
                             .unwrap_or(challonge::API_ORIGIN),
                         &tournament.tournament,
+                        tournament.bridge_site(),
                         tournament.credential.kind,
                         &credential,
-                        budget,
-                    )?,
+                        // Challonge's free tier counts requests a month.
+                        Budget::new(
+                            store.clone(),
+                            &credential,
+                            file.display().to_string(),
+                            config.monthly_request_budget,
+                            clock.clone(),
+                        ),
+                    )?),
+                    Adapter::Http => Box::new(Service::new(
+                        tournament.api_base.as_deref().unwrap_or_default(),
+                        &credential,
+                    )?),
+                    Adapter::Startgg => Box::new(Startgg::new(
+                        tournament
+                            .api_base
+                            .as_deref()
+                            .unwrap_or(startgg::API_ORIGIN),
+                        &tournament.tournament,
+                        tournament.bridge_site(),
+                        &credential,
+                        // One limit for everything that uses this token.
+                        limiters
+                            .entry(
+                                ember_protocol::json::digest(credential.as_str())
+                                    .unwrap_or_default(),
+                            )
+                            .or_insert_with(|| {
+                                let (count, secs) = startgg::RATE;
+                                Limiter::new(count, Duration::from_secs(secs))
+                            })
+                            .clone(),
+                    )?),
                 };
-                Ok(Arc::new(Bracket::new(
-                    tournament,
-                    Box::new(site),
-                    context.clone(),
-                )?))
+                Ok(Arc::new(Bracket::new(tournament, site, context.clone())?))
             })
             .collect::<Result<_, String>>()?;
         Ok(Self(Arc::new(Inner {

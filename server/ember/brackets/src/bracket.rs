@@ -27,7 +27,7 @@ use tokio::sync::{Mutex, Notify};
 
 use crate::{
     Clock,
-    bridge::BridgeClient,
+    bridge::{BridgeClient, BridgeError},
     config::{Rounds, Tournament},
     log,
     schedule::{Phase, Retry, Schedule, Window},
@@ -99,7 +99,14 @@ struct Settled {
 /// Why a pass stopped early. It is tried again later.
 enum Trouble {
     Site(SiteError),
+    Bridge(BridgeError),
     Store(rusqlite::Error),
+}
+
+impl From<BridgeError> for Trouble {
+    fn from(error: BridgeError) -> Self {
+        Self::Bridge(error)
+    }
 }
 
 impl From<SiteError> for Trouble {
@@ -118,6 +125,7 @@ impl fmt::Display for Trouble {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Site(error) => error.fmt(f),
+            Self::Bridge(error) => error.fmt(f),
             Self::Store(error) => write!(f, "database: {error}"),
         }
     }
@@ -415,10 +423,24 @@ impl Bracket {
         let match_id = &received.match_id;
         match on_result(received, &tracked, seen(set.as_ref(), &tracked.entries)) {
             OnResult::Report { games, winner } => {
+                // The games one by one, which they must add up to.
+                let sequence = self.context.bridge.sequence(match_id).await?;
+                let counted =
+                    [0, 1].map(|slot| sequence.iter().filter(|&&won| won == slot).count());
+                if counted != games.map(usize::from) {
+                    tracked.progress = Progress::Stuck;
+                    self.store().save(&self.key, set_id, &tracked, None)?;
+                    log!(
+                        "{} set {set_id}: the games of Ember match {match_id} do not add up to its score; the organizer decides this set",
+                        self.key
+                    );
+                    return Ok(());
+                }
                 let report = Report {
                     entries: tracked.entries.clone(),
                     games,
                     winner,
+                    sequence,
                 };
                 self.report(set_id, tracked, &report, match_id).await?;
                 settled.reported.insert(set_id.clone());

@@ -7,10 +7,10 @@ use std::{collections::HashMap, fmt};
 use ember_protocol::{
     EmberId,
     api::{ApiError, ErrorCode},
-    challonge::{is_username, username_key},
     json,
     matches::{CreateMatch, DeliveryState, MatchState},
     partner::{LOOKUP_PATH, Lookup, LookupAnswer, MAX_LOOKUP},
+    sites::SiteAccount,
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use zeroize::Zeroizing;
@@ -18,7 +18,7 @@ use zeroize::Zeroizing;
 use crate::{
     http::{bounded_body, http_client},
     sets::Ended,
-    site::Account,
+    site::{Account, Entry},
 };
 
 const MAX_ANSWER: usize = 256 * 1024;
@@ -48,9 +48,9 @@ impl fmt::Display for BridgeError {
 pub(crate) struct Player {
     pub participant_id: String,
     pub ember_id: EmberId,
-    /// When the account was connected: the last time the bridge saw it
-    /// under this username, which Challonge lets an account change.
-    pub connected_at: u64,
+    /// When a site account was connected: the last time the bridge saw
+    /// it under the name it was found by, which a site may let it change.
+    pub connected_at: Option<u64>,
 }
 
 /// A match that is over, as the bridge records it.
@@ -62,23 +62,61 @@ pub(crate) struct Over {
     pub delivery: DeliveryState,
 }
 
-/// The players found for a lookup's accounts.
+/// The players found for a lookup's accounts, by the account as asked.
 #[derive(Default)]
 pub(crate) struct Found(HashMap<Account, Player>);
 
-/// The form an account is matched in: Challonge usernames without case.
-fn matched(account: &Account) -> Account {
-    match account {
-        Account::Challonge { username } => Account::Challonge {
-            username: username_key(username),
-        },
+impl Found {
+    /// The entry's player, by the first of its accounts that was found.
+    pub fn player<'a>(&'a self, entry: &'a Entry) -> Option<(&'a Account, &'a Player)> {
+        entry
+            .accounts
+            .iter()
+            .find_map(|account| Some((account, self.0.get(account)?)))
     }
 }
 
-impl Found {
-    pub fn get(&self, account: &Account) -> Option<&Player> {
-        self.0.get(&matched(account))
+/// A lookup of these accounts, in the bridge's request form.
+fn lookup_of(accounts: &[&Account]) -> Lookup {
+    let mut lookup = Lookup::default();
+    for account in accounts {
+        match account {
+            Account::Site { site, id } => lookup.accounts.push(SiteAccount {
+                site: site.clone(),
+                id: id.clone(),
+            }),
+            Account::Discord { user_id } => lookup.discord.push(user_id.clone()),
+        }
     }
+    lookup
+}
+
+/// The players a lookup answer names, by the account they were asked as.
+fn found_in(answer: LookupAnswer) -> impl Iterator<Item = (Account, Player)> {
+    let sites = answer.accounts.into_iter().map(|found| {
+        let account = Account::Site {
+            site: found.site,
+            id: found.id,
+        };
+        let player = Player {
+            participant_id: found.participant_id,
+            ember_id: found.ember_id,
+            connected_at: Some(found.connected_at),
+        };
+        (account, player)
+    });
+    let discord = answer.players.into_iter().map(|found| {
+        let account = Account::Discord {
+            user_id: found.discord_user_id,
+        };
+        let player = Player {
+            participant_id: found.participant_id,
+            ember_id: found.ember_id,
+            connected_at: None,
+        };
+        (account, player)
+    });
+    sites.chain(discord)
 }
 
 /// The part of a match the connector reads.
@@ -95,6 +133,17 @@ struct MatchView {
     scores: Vec<Wins>,
     #[serde(default)]
     provider_delivery_state: Option<DeliveryState>,
+    #[serde(default)]
+    attempts: Vec<Attempt>,
+}
+
+/// One game of a match.
+#[derive(Deserialize)]
+struct Attempt {
+    seq: u64,
+    state: String,
+    #[serde(default)]
+    outcome: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -110,6 +159,21 @@ struct Wins {
 }
 
 impl MatchView {
+    /// The winning slot of each game that counts, in the order they were
+    /// played. A drawn game counts for nobody.
+    fn sequence(mut self) -> Vec<usize> {
+        self.attempts.sort_by_key(|attempt| attempt.seq);
+        self.attempts
+            .iter()
+            .filter(|attempt| attempt.state == "accepted")
+            .filter_map(|attempt| match attempt.outcome.as_deref() {
+                Some("p1_win") => Some(0),
+                Some("p2_win") => Some(1),
+                _ => None,
+            })
+            .collect()
+    }
+
     /// How a match that is over ended, as its result says it; `None` while
     /// it runs, or for a roster that is not two players in slots 0 and 1.
     fn over(self) -> Option<Over> {
@@ -183,38 +247,19 @@ impl BridgeClient {
     }
 
     /// The players connected to these accounts, asked for in lookups of at
-    /// most `MAX_LOOKUP` accounts. A Challonge username the bridge would
-    /// refuse is not asked for, so it is simply not found.
+    /// most `MAX_LOOKUP` accounts, Discord's and sites' together. Each site
+    /// adapter gives only accounts in the form its bridge site looks up
+    /// (`sites::Kind::is_lookup_id`), since the bridge refuses a lookup
+    /// that names any other.
     pub async fn lookup(&self, accounts: &[&Account]) -> Result<Found, BridgeError> {
-        let mut asked: Vec<Account> = accounts
-            .iter()
-            .map(|account| matched(account))
-            .filter(|account| match account {
-                Account::Challonge { username } => is_username(username),
-            })
-            .collect();
+        let mut asked = accounts.to_vec();
         asked.sort_by_key(|account| account.to_string());
         asked.dedup();
         let mut found = Found::default();
         for chunk in asked.chunks(MAX_LOOKUP) {
-            let mut body = Lookup::default();
-            for account in chunk {
-                match account {
-                    Account::Challonge { username } => body.challonge.push(username.clone()),
-                }
-            }
-            let answer: LookupAnswer = self.answer(self.post(LOOKUP_PATH).json(&body)).await?;
-            for player in answer.challonge {
-                let account = Account::Challonge {
-                    username: player.username,
-                };
-                let player = Player {
-                    participant_id: player.participant_id,
-                    ember_id: player.ember_id,
-                    connected_at: player.connected_at,
-                };
-                found.0.insert(matched(&account), player);
-            }
+            let request = self.post(LOOKUP_PATH).json(&lookup_of(chunk));
+            let answer: LookupAnswer = self.answer(request).await?;
+            found.0.extend(found_in(answer));
         }
         Ok(found)
     }
@@ -222,9 +267,12 @@ impl BridgeClient {
     /// Creates the match, or finds the one this `external_match_id` already
     /// made with the same request, and returns its ID.
     pub async fn create(&self, command: &CreateMatch) -> Result<String, BridgeError> {
+        // An external ID can be longer than the 128 bytes the bridge takes
+        // in an Idempotency-Key; its digest is as fixed and fits.
+        let key = json::digest(&command.external_match_id).map_err(|_| BridgeError::Unavailable)?;
         let request = self
             .post("/v1/matches")
-            .header("idempotency-key", &command.external_match_id)
+            .header("idempotency-key", format!("ext_{key}"))
             .json(command);
         let created: MatchView = self.answer(request).await?;
         Ok(created.match_id)
@@ -237,6 +285,15 @@ impl BridgeClient {
             .answer(self.get(&format!("/v1/matches/{match_id}")))
             .await?;
         Ok(found.over())
+    }
+
+    /// The winning slot of each game of the match that counts, in the order
+    /// they were played.
+    pub async fn sequence(&self, match_id: &str) -> Result<Vec<usize>, BridgeError> {
+        let found: MatchView = self
+            .answer(self.get(&format!("/v1/matches/{match_id}")))
+            .await?;
+        Ok(found.sequence())
     }
 
     /// Cancels the match unless it has already ended.
@@ -335,27 +392,37 @@ mod tests {
     }
 
     #[test]
-    fn challonge_usernames_match_without_case() {
-        let mut found = Found::default();
-        let player = Player {
-            participant_id: "epl_a".into(),
+    fn an_entry_is_found_by_its_first_account_found() {
+        let site = Account::Site {
+            site: "startgg".into(),
+            id: "1234".into(),
+        };
+        let discord = Account::Discord {
+            user_id: "274220342558756145".into(),
+        };
+        let player = |participant: &str| Player {
+            participant_id: participant.into(),
             ember_id: EmberId::parse("emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja")
                 .unwrap(),
-            connected_at: 1,
+            connected_at: None,
         };
-        found.0.insert(
-            matched(&Account::Challonge {
-                username: "Kate".into(),
-            }),
-            player,
+        let entry = Entry {
+            participant_id: "355".into(),
+            accounts: vec![site.clone(), discord.clone()],
+        };
+        let mut found = Found::default();
+        found.0.insert(discord.clone(), player("epl_discord"));
+        assert_eq!(found.player(&entry).unwrap().0, &discord);
+        found.0.insert(site.clone(), player("epl_site"));
+        let (account, by_site) = found.player(&entry).unwrap();
+        assert_eq!(
+            (account, by_site.participant_id.as_str()),
+            (&site, "epl_site")
         );
-        let asked = Account::Challonge {
-            username: "KATE".into(),
+        let none = Entry {
+            participant_id: "354".into(),
+            accounts: Vec::new(),
         };
-        assert!(found.get(&asked).is_some());
-        let other = Account::Challonge {
-            username: "sam_99".into(),
-        };
-        assert!(found.get(&other).is_none());
+        assert!(found.player(&none).is_none());
     }
 }

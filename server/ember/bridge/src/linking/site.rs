@@ -1,8 +1,9 @@
-//! Links a platform gets from a player's sign-in on another site (Discord,
-//! Challonge) instead of from a link code. The player connected the site's
-//! account to their Ember ID (`routes::sign_in`); a platform that finds
+//! Links a platform gets from a player's sign-in instead of from a link
+//! code. The player connected an account to their Ember ID on Discord or on
+//! a configured sign-in site (`routes::sign_in`); a platform that finds
 //! players by that account (`find_and_link`) then gets a link approved by the
-//! sign-in (`approved_via` the site's name, claim `<site>:<user ID>`).
+//! sign-in: `approved_via` `discord` with claim `discord:<user ID>`, or
+//! `approved_via` `site` with claim `<site>:<user ID>`.
 //!
 //! Such a link stands only while that account is connected to that Ember ID:
 //! moving or disconnecting the account ends the links its sign-in approved,
@@ -11,9 +12,9 @@
 //! removes stays removed (`withdraw`) until the player completes a sign-in
 //! started after that.
 use ember_protocol::{
-    EmberId, challonge::username_key, discord::is_user_id, event::Kind, sign_in::Account,
+    EmberId, discord::is_user_id, event::Kind, sign_in::Account, sites::LookupBy,
 };
-use rusqlite::{OptionalExtension, Transaction, params};
+use rusqlite::{OptionalExtension, Transaction, named_params, params};
 use serde_json::json;
 
 use super::{account, revoke_link, sign_ins};
@@ -24,20 +25,29 @@ use crate::{
     util::new_id,
 };
 
-/// A site whose sign-in connects an account to an Ember ID. Each has its own
-/// accounts, sign-ins (`sign_ins`) and withdrawals tables, shaped alike
-/// where this module reads them. (A third site is the time to fold them
-/// into one set of tables with a `site` column.)
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Where a sign-in's accounts live: Discord's own tables, or a configured
+/// site's rows in the site tables (`site_accounts`, `site_sign_ins`,
+/// `site_withdrawals`), which every configured site shares by its ID.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Site {
     Discord,
-    Challonge,
+    /// A configured sign-in site, by its ID (`sites::is_site_id`).
+    Configured(String),
+}
+
+/// An account a lookup asks for: on `site`, the one `key` names by `by`,
+/// as the lookup named it (`asked`) and as stored (`key`: for a username,
+/// the site's `username_key` form).
+pub struct Ask<'a> {
+    pub site: &'a Site,
+    pub by: LookupBy,
+    pub asked: &'a str,
+    pub key: String,
 }
 
 /// An account a lookup found and linked on the connection.
 pub struct Found<'a> {
-    /// The key the lookup asked with.
-    pub asked: &'a str,
+    pub ask: &'a Ask<'a>,
     pub user_id: String,
     /// When the account connected.
     pub connected_at: u64,
@@ -45,50 +55,65 @@ pub struct Found<'a> {
     pub participant_id: String,
 }
 
-impl Site {
-    pub const ALL: [Self; 2] = [Self::Discord, Self::Challonge];
+/// The tables of one kind of row, Discord's and the configured sites'.
+#[derive(Clone, Copy)]
+pub(super) struct Tables {
+    pub discord: &'static str,
+    pub sites: &'static str,
+}
 
-    /// `links.approved_via`, and the prefix of the subject and claim.
-    pub fn name(self) -> &'static str {
+const ACCOUNTS: Tables = Tables {
+    discord: "discord_accounts",
+    sites: "site_accounts",
+};
+const WITHDRAWALS: Tables = Tables {
+    discord: "discord_withdrawals",
+    sites: "site_withdrawals",
+};
+
+impl Site {
+    /// The site's ID: `discord`, or the configured site's.
+    pub fn id(&self) -> &str {
         match self {
             Self::Discord => "discord",
-            Self::Challonge => "challonge",
+            Self::Configured(id) => id,
         }
     }
 
-    fn of(approved_via: &str) -> Option<Self> {
-        Self::ALL
-            .into_iter()
-            .find(|site| site.name() == approved_via)
-    }
-
-    fn accounts(self) -> &'static str {
+    /// `links.approved_via` of the links its sign-in approves.
+    fn approved_via(&self) -> &'static str {
         match self {
-            Self::Discord => "discord_accounts",
-            Self::Challonge => "challonge_accounts",
+            Self::Discord => "discord",
+            Self::Configured(_) => "site",
         }
     }
 
-    fn withdrawals(self) -> &'static str {
+    /// The subject and claim of account `user_id`: `<site>:<user ID>`.
+    fn subject(&self, user_id: &str) -> String {
+        format!("{}:{user_id}", self.id())
+    }
+
+    /// The table of `tables` holding this site's rows, and the condition
+    /// that picks them out, with `:site` bound to `id()`. Discord's tables
+    /// hold only Discord's rows and have no `site` column, so their
+    /// condition is always true; the site tables hold every configured
+    /// site's.
+    pub(super) fn scope(&self, tables: Tables) -> (&'static str, &'static str) {
         match self {
-            Self::Discord => "discord_withdrawals",
-            Self::Challonge => "challonge_withdrawals",
+            Self::Discord => (tables.discord, ":site = 'discord'"),
+            Self::Configured(_) => (tables.sites, "site = :site"),
         }
-    }
-
-    fn subject(self, user_id: &str) -> String {
-        format!("{}:{user_id}", self.name())
     }
 
     /// The Ember ID's connected account, if any.
-    pub fn account(self, tx: &Transaction<'_>, ember_id: &str) -> Result<Option<Account>> {
+    pub fn account(&self, tx: &Transaction<'_>, ember_id: &str) -> Result<Option<Account>> {
+        let (table, scope) = self.scope(ACCOUNTS);
         Ok(tx
             .query_row(
                 &format!(
-                    "SELECT user_id, username, connected_at FROM {} WHERE ember_id = ?1",
-                    self.accounts()
+                    "SELECT user_id, username, connected_at FROM {table} WHERE {scope} AND ember_id = :ember_id"
                 ),
-                [ember_id],
+                named_params! { ":site": self.id(), ":ember_id": ember_id },
                 |row| {
                     Ok(Account {
                         user_id: row.get(0)?,
@@ -101,30 +126,32 @@ impl Site {
     }
 
     /// The Ember ID account `user_id` is connected to, if any.
-    pub fn owner(self, tx: &Transaction<'_>, user_id: &str) -> Result<Option<String>> {
+    pub fn owner(&self, tx: &Transaction<'_>, user_id: &str) -> Result<Option<String>> {
+        let (table, scope) = self.scope(ACCOUNTS);
         Ok(tx
             .query_row(
-                &format!(
-                    "SELECT ember_id FROM {} WHERE user_id = ?1",
-                    self.accounts()
-                ),
-                [user_id],
+                &format!("SELECT ember_id FROM {table} WHERE {scope} AND user_id = :user_id"),
+                named_params! { ":site": self.id(), ":user_id": user_id },
                 |row| row.get(0),
             )
             .optional()?)
     }
 
-    /// Connects account `user_id` to `ember_id`. The latest sign-in wins: this
-    /// account leaves any other Ember ID and this Ember ID leaves any other
-    /// account, each ending the links its sign-in approved. The new row is
-    /// fresh consent, since the withdrawals of the old one went with it.
+    /// Connects account `user_id`, called `username`, to `ember_id`. The
+    /// latest sign-in wins: this account leaves any other Ember ID and this
+    /// Ember ID leaves any other account, each ending the links its sign-in
+    /// approved. The new row is fresh consent, since the withdrawals of the
+    /// old one went with it. A configured site's account whose lookups
+    /// name usernames is also stored under `username_key`, the form they
+    /// match; other accounts have none.
     pub fn connect(
-        self,
+        &self,
         tx: &Transaction<'_>,
         ctx: &Ctx,
         ember_id: &str,
         user_id: &str,
         username: &str,
+        username_key: Option<&str>,
     ) -> Result<()> {
         self.release(tx, ctx, ember_id, user_id)?;
         match self {
@@ -132,35 +159,43 @@ impl Site {
                 "INSERT INTO discord_accounts (user_id, ember_id, username, connected_at) VALUES (?1, ?2, ?3, ?4)",
                 params![user_id, ember_id, username, ctx.now],
             )?,
-            Self::Challonge => {
-                // Challonge lets an account rename, and a name it gave up can
-                // be taken by another. An older account stored under this
-                // name answers for it no more; it answers again for the name
-                // it next connects with.
-                let key = username_key(username);
+            Self::Configured(site) => {
+                // A site may let an account rename, and a name it gave up
+                // can be taken by another. An older account of this site
+                // stored under this name answers for it no more; it answers
+                // again for the name it next connects with.
                 tx.execute(
-                    "UPDATE challonge_accounts SET username_key = NULL WHERE username_key = ?1 AND user_id != ?2",
-                    params![key, user_id],
+                    "UPDATE site_accounts SET username_key = NULL
+                     WHERE site = ?1 AND username_key = ?2 AND user_id != ?3",
+                    params![site, username_key, user_id],
                 )?;
                 tx.execute(
-                    "INSERT INTO challonge_accounts (user_id, ember_id, username, username_key, connected_at)
-                     VALUES (?1, ?2, ?3, ?4, ?5)",
-                    params![user_id, ember_id, username, key, ctx.now],
+                    "INSERT INTO site_accounts (site, user_id, ember_id, username, username_key, connected_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    params![site, user_id, ember_id, username, username_key, ctx.now],
                 )?
             }
         };
         Ok(())
     }
 
-    fn release(self, tx: &Transaction<'_>, ctx: &Ctx, ember_id: &str, user_id: &str) -> Result<()> {
+    fn release(
+        &self,
+        tx: &Transaction<'_>,
+        ctx: &Ctx,
+        ember_id: &str,
+        user_id: &str,
+    ) -> Result<()> {
+        let (table, scope) = self.scope(ACCOUNTS);
         let replaced: Vec<(String, String)> = tx
             .prepare(&format!(
-                "DELETE FROM {} WHERE user_id = ?1 OR ember_id = ?2 RETURNING user_id, ember_id",
-                self.accounts()
+                "DELETE FROM {table} WHERE {scope} AND (user_id = :user_id OR ember_id = :ember_id)
+                 RETURNING user_id, ember_id"
             ))?
-            .query_map(params![user_id, ember_id], |row| {
-                Ok((row.get(0)?, row.get(1)?))
-            })?
+            .query_map(
+                named_params! { ":site": self.id(), ":user_id": user_id, ":ember_id": ember_id },
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )?
             .collect::<rusqlite::Result<_>>()?;
         for (replaced_user, owner) in replaced {
             if (replaced_user.as_str(), owner.as_str()) != (user_id, ember_id) {
@@ -173,88 +208,58 @@ impl Site {
     /// Disconnects the Ember ID's account, ending its sign-ins in flight
     /// (including one whose answer is still being checked with the site) and
     /// the links its sign-in approved.
-    pub fn disconnect(self, tx: &Transaction<'_>, ctx: &Ctx, ember_id: &str) -> Result<()> {
+    pub fn disconnect(&self, tx: &Transaction<'_>, ctx: &Ctx, ember_id: &str) -> Result<()> {
         sign_ins::end(tx, self, ember_id)?;
+        let (table, scope) = self.scope(ACCOUNTS);
         let removed: Option<String> = tx
             .query_row(
                 &format!(
-                    "DELETE FROM {} WHERE ember_id = ?1 RETURNING user_id",
-                    self.accounts()
+                    "DELETE FROM {table} WHERE {scope} AND ember_id = :ember_id RETURNING user_id"
                 ),
-                [ember_id],
+                named_params! { ":site": self.id(), ":ember_id": ember_id },
                 |row| row.get(0),
             )
             .optional()?;
         match removed {
-            Some(user_id) => {
-                self.end_links(tx, ctx, &user_id, &format!("{}_disconnected", self.name()))
-            }
+            Some(user_id) => self.end_links(
+                tx,
+                ctx,
+                &user_id,
+                &format!("{}_disconnected", self.approved_via()),
+            ),
             None => Ok(()),
         }
     }
 
-    /// The account connected for a lookup key: a Discord user ID (anything
-    /// else, such as the emails BluMint also sends, finds nothing), or a
-    /// Challonge username compared without case, which at most one account
+    /// The account connected for a lookup key, by `by`: a user ID exactly
+    /// (Discord's only if it is one, so the emails BluMint also sends find
+    /// nothing), or a `username_key`, which at most one account of a site
     /// answers for (`connect`, and the schema's unique index). Its user ID,
     /// Ember ID, username and when it connected.
     fn find(
-        self,
+        &self,
         tx: &Transaction<'_>,
         key: &str,
+        by: LookupBy,
     ) -> Result<Option<(String, String, String, u64)>> {
-        let (sql, key) = match self {
-            Self::Discord if !is_user_id(key) => return Ok(None),
-            Self::Discord => (
-                "SELECT user_id, ember_id, username, connected_at FROM discord_accounts WHERE user_id = ?1",
-                key.to_owned(),
-            ),
-            Self::Challonge => (
-                "SELECT user_id, ember_id, username, connected_at FROM challonge_accounts WHERE username_key = ?1",
-                username_key(key),
-            ),
-        };
-        Ok(tx
-            .query_row(sql, [key], |row| {
-                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
-            })
-            .optional()?)
-    }
-
-    /// The players whose Ember IDs are connected to the accounts `keys` name
-    /// and linked on `connection_id`, so its platform can create matches for
-    /// them, in order and once per Ember ID. An account `link` cannot link is
-    /// left out.
-    pub fn find_and_link<'a>(
-        self,
-        tx: &Transaction<'_>,
-        ctx: &Ctx,
-        connection_id: &str,
-        keys: &'a [String],
-    ) -> Result<Vec<Found<'a>>> {
-        let mut found: Vec<Found<'a>> = Vec::new();
-        for asked in keys {
-            let Some((user_id, ember_id, username, connected_at)) = self.find(tx, asked)? else {
-                continue;
-            };
-            let ember_id = EmberId::parse(&ember_id).map_err(|_| ApiFailure::unavailable())?;
-            if found.iter().any(|player| player.ember_id == ember_id) {
-                continue;
-            }
-            let Some(participant_id) =
-                self.link(tx, ctx, connection_id, &user_id, &username, &ember_id)?
-            else {
-                continue;
-            };
-            found.push(Found {
-                asked,
-                user_id,
-                connected_at,
-                ember_id,
-                participant_id,
-            });
+        if *self == Self::Discord && !is_user_id(key) {
+            return Ok(None);
         }
-        Ok(found)
+        let column = match by {
+            LookupBy::UserId => "user_id",
+            LookupBy::Username => "username_key",
+        };
+        let (table, scope) = self.scope(ACCOUNTS);
+        Ok(tx
+            .query_row(
+                &format!(
+                    "SELECT user_id, ember_id, username, connected_at FROM {table}
+                     WHERE {scope} AND {column} = :key"
+                ),
+                named_params! { ":site": self.id(), ":key": key },
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .optional()?)
     }
 
     /// Links account `user_id`'s subject on the connection to `ember_id`,
@@ -265,7 +270,7 @@ impl Site {
     /// needs no other, or on the subject (a provider can name its accounts
     /// `<site>:<user ID>` too), which leaves this Ember ID unlinked.
     fn link(
-        self,
+        &self,
         tx: &Transaction<'_>,
         ctx: &Ctx,
         connection_id: &str,
@@ -274,10 +279,18 @@ impl Site {
         ember_id: &EmberId,
     ) -> Result<Option<String>> {
         let subject = self.subject(user_id);
+        // Linked unless the only link is another account's of this same
+        // site, which `connect` ended already.
         let linked: bool = tx.query_row(
             "SELECT EXISTS (SELECT 1 FROM links WHERE ember_id = ?1 AND connection_id = ?2 AND revoked_at IS NULL
-               AND (approved_via != ?4 OR claim_id = ?3))",
-            params![ember_id.as_str(), connection_id, subject, self.name()],
+               AND NOT (approved_via = ?4 AND substr(claim_id, 1, length(?5)) = ?5 AND claim_id != ?3))",
+            params![
+                ember_id.as_str(),
+                connection_id,
+                subject,
+                self.approved_via(),
+                format!("{}:", self.id())
+            ],
             |row| row.get(0),
         )?;
         if !linked && !self.make_link(tx, ctx, connection_id, user_id, username, ember_id)? {
@@ -296,7 +309,7 @@ impl Site {
     /// Makes the link `link` describes, unless the player withdrew it or the
     /// subject is linked to someone already.
     fn make_link(
-        self,
+        &self,
         tx: &Transaction<'_>,
         ctx: &Ctx,
         connection_id: &str,
@@ -304,12 +317,13 @@ impl Site {
         username: &str,
         ember_id: &EmberId,
     ) -> Result<bool> {
+        let (withdrawals, scope) = self.scope(WITHDRAWALS);
         let withdrawn: bool = tx.query_row(
             &format!(
-                "SELECT EXISTS (SELECT 1 FROM {} WHERE user_id = ?1 AND connection_id = ?2)",
-                self.withdrawals()
+                "SELECT EXISTS (SELECT 1 FROM {withdrawals}
+                   WHERE {scope} AND user_id = :user_id AND connection_id = :connection_id)"
             ),
-            params![user_id, connection_id],
+            named_params! { ":site": self.id(), ":user_id": user_id, ":connection_id": connection_id },
             |row| row.get(0),
         )?;
         if withdrawn {
@@ -330,7 +344,7 @@ impl Site {
         tx.execute(
             "INSERT INTO links (id, account_id, connection_id, ember_id, approved_via, claim_id, consented_at, approved_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7)",
-            params![link_id, account_id, connection_id, ember_id.as_str(), self.name(), subject, ctx.now],
+            params![link_id, account_id, connection_id, ember_id.as_str(), self.approved_via(), subject, ctx.now],
         )?;
         emit(
             tx,
@@ -350,7 +364,7 @@ impl Site {
                     "ember_id": ember_id,
                     "connection_id": connection_id,
                     "participant_id": participant_id,
-                    "approved_via": self.name(),
+                    "approved_via": self.approved_via(),
                 }),
             },
         )?;
@@ -359,7 +373,13 @@ impl Site {
 
     /// Ends every link this account's sign-in approved, on every connection,
     /// when the account moves to another Ember ID or is disconnected.
-    fn end_links(self, tx: &Transaction<'_>, ctx: &Ctx, user_id: &str, reason: &str) -> Result<()> {
+    fn end_links(
+        &self,
+        tx: &Transaction<'_>,
+        ctx: &Ctx,
+        user_id: &str,
+        reason: &str,
+    ) -> Result<()> {
         let links: Vec<(String, String, String, String, String)> = tx
             .prepare(
                 "SELECT l.id, l.ember_id, l.connection_id, a.participant_id, c.tenant_id
@@ -368,7 +388,7 @@ impl Site {
                  JOIN provider_connections c ON c.id = l.connection_id
                  WHERE l.approved_via = ?1 AND l.claim_id = ?2 AND l.revoked_at IS NULL",
             )?
-            .query_map(params![self.name(), self.subject(user_id)], |row| {
+            .query_map(params![self.approved_via(), self.subject(user_id)], |row| {
                 Ok((
                     row.get(0)?,
                     row.get(1)?,
@@ -395,11 +415,68 @@ impl Site {
     }
 }
 
+/// Discord's sign-ins, as lookups name them.
+static DISCORD: Site = Site::Discord;
+
+/// A lookup's Discord user IDs, as `find_and_link` takes them.
+pub fn discord_asks(user_ids: &[String]) -> Vec<Ask<'_>> {
+    user_ids
+        .iter()
+        .map(|user_id| Ask {
+            site: &DISCORD,
+            by: LookupBy::UserId,
+            asked: user_id,
+            key: user_id.clone(),
+        })
+        .collect()
+}
+
+/// The accounts `asks` name whose Ember IDs are linked on
+/// `connection_id` now, so its platform can create matches for them, in
+/// order and once per site and Ember ID. An account `link` cannot link
+/// is left out.
+pub fn find_and_link<'a>(
+    tx: &Transaction<'_>,
+    ctx: &Ctx,
+    connection_id: &str,
+    asks: &'a [Ask<'a>],
+) -> Result<Vec<Found<'a>>> {
+    let mut found: Vec<Found<'a>> = Vec::new();
+    for ask in asks {
+        let Some((user_id, ember_id, username, connected_at)) =
+            ask.site.find(tx, &ask.key, ask.by)?
+        else {
+            continue;
+        };
+        let ember_id = EmberId::parse(&ember_id).map_err(|_| ApiFailure::unavailable())?;
+        if found
+            .iter()
+            .any(|player| player.ask.site == ask.site && player.ember_id == ember_id)
+        {
+            continue;
+        }
+        let Some(participant_id) =
+            ask.site
+                .link(tx, ctx, connection_id, &user_id, &username, &ember_id)?
+        else {
+            continue;
+        };
+        found.push(Found {
+            ask,
+            user_id,
+            connected_at,
+            ember_id,
+            participant_id,
+        });
+    }
+    Ok(found)
+}
+
 /// The player (or the platform account's holder) removed `link_id`. If a
-/// site's sign-in approved it and that account is still connected, the
-/// consent is withdrawn on that connection until the account's row is
-/// replaced by a new sign-in, and the player's sign-ins in flight on that
-/// site end, so only one started from now on gives it again.
+/// sign-in approved it and that account is still connected, the consent is
+/// withdrawn on that connection until the account's row is replaced by a
+/// new sign-in, and the player's sign-ins in flight on that site end, so
+/// only one started from now on gives it again.
 pub fn withdraw(tx: &Transaction<'_>, link_id: &str) -> Result<()> {
     let link: Option<(String, String, String, String)> = tx
         .query_row(
@@ -411,21 +488,36 @@ pub fn withdraw(tx: &Transaction<'_>, link_id: &str) -> Result<()> {
     let Some((approved_via, claim, connection_id, ember_id)) = link else {
         return Ok(());
     };
-    let Some(site) = Site::of(&approved_via) else {
+    // The claim is `<site>:<user ID>`, and a site ID holds no `:`.
+    let Some((site, user_id)) = claim.split_once(':') else {
         return Ok(());
     };
-    let user_id = claim
-        .strip_prefix(site.name())
-        .and_then(|rest| rest.strip_prefix(':'))
-        .unwrap_or_default();
+    let site = match approved_via.as_str() {
+        "discord" => Site::Discord,
+        "site" => Site::Configured(site.to_owned()),
+        _ => return Ok(()),
+    };
+    let (accounts, scope) = site.scope(ACCOUNTS);
+    let (withdrawals, _) = site.scope(WITHDRAWALS);
+    let columns = match site {
+        Site::Discord => "user_id, connection_id",
+        Site::Configured(_) => "site, user_id, connection_id",
+    };
+    let selected = match site {
+        Site::Discord => "user_id, :connection_id",
+        Site::Configured(_) => "site, user_id, :connection_id",
+    };
     tx.execute(
         &format!(
-            "INSERT OR IGNORE INTO {} (user_id, connection_id)
-             SELECT user_id, ?2 FROM {} WHERE user_id = ?1 AND ember_id = ?3",
-            site.withdrawals(),
-            site.accounts()
+            "INSERT OR IGNORE INTO {withdrawals} ({columns})
+             SELECT {selected} FROM {accounts} WHERE {scope} AND user_id = :user_id AND ember_id = :ember_id"
         ),
-        params![user_id, connection_id, ember_id],
+        named_params! {
+            ":site": site.id(),
+            ":user_id": user_id,
+            ":connection_id": connection_id,
+            ":ember_id": ember_id,
+        },
     )?;
-    sign_ins::end(tx, site, &ember_id)
+    sign_ins::end(tx, &site, &ember_id)
 }

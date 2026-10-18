@@ -460,10 +460,12 @@ check "stored for staging" config_is "$R/var/lib/$S/integrations.json" discord_c
 check "restarts staging" logged "systemctl restart $S"
 check "production has no integrations.json" absent "$R/var/lib/$P/integrations.json"
 check "production units never touched" production_untouched_by_systemctl
-printf 'challonge-secret\n' > "$INPUT"
-run "$SDIR/set-integration-secret.sh" -- challonge
-check "challonge exits 0" succeeded
-check "challonge's stored for staging" config_is "$R/var/lib/$S/integrations.json" challonge_client_secret '"challonge-secret"'
+printf 'startgg-secret\n' > "$INPUT"
+run "$SDIR/set-integration-secret.sh" -- site startgg
+check "a site's exits 0" succeeded
+check "a site's stored for staging" python3 -c 'import json, sys; sys.exit(json.load(open(sys.argv[1]))["site_client_secrets"] != {"startgg": "startgg-secret"})' "$R/var/lib/$S/integrations.json"
+run "$SDIR/set-integration-secret.sh" -- site Start.gg
+check "a site ID that cannot be one exits 2" exited 2
 check "beside discord's" config_is "$R/var/lib/$S/integrations.json" discord_client_secret '"staging-secret"'
 run "$SDIR/set-integration-secret.sh" INSTANCE= -- discord
 check "a disagreeing INSTANCE exits 2" exited 2

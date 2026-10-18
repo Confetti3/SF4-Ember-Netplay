@@ -1,7 +1,8 @@
-//! Signing in with another site (Discord, Challonge) the way the tests do it:
-//! a stand-in for the site's token and user endpoints (`FakeSite`), and the
-//! requests a player's Ember and browser make to the bridge, on whichever
-//! site's routes (`Routes`).
+//! Signing in with another site (Discord, or a configured sign-in site) the
+//! way the tests do it: a stand-in for the site's token and user endpoints
+//! (`FakeSite`), a site definition from `deploy/sites/` pointed at it
+//! (`definition`), and the requests a player's Ember and browser make to the
+//! bridge, on whichever site's routes (`Routes`).
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
@@ -14,9 +15,10 @@ use axum::{
     http::{HeaderMap, StatusCode as AxumStatus, header},
     routing::{get, post},
 };
+use ember_bridge::config::SignInSite;
 use ember_protocol::{
     challenge::{Action, Method},
-    challonge, discord,
+    discord, sites,
 };
 use reqwest::StatusCode;
 use serde_json::{Value as Json, json};
@@ -59,8 +61,10 @@ pub struct Seen {
     pub path: String,
     /// The query string's parameters.
     pub query: HashMap<String, String>,
-    /// The form body's.
+    /// The body's fields: a form's, or a JSON object's string fields.
     pub form: HashMap<String, String>,
+    /// The body, as text.
+    pub body: String,
     pub headers: HeaderMap,
 }
 
@@ -120,7 +124,7 @@ impl FakeSite {
     pub async fn serve(self: &Arc<Self>) -> String {
         let app = Router::new()
             .route(self.token_path, post(token))
-            .route(self.me_path, get(me))
+            .route(self.me_path, get(me).post(me))
             .with_state(self.clone());
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let origin = format!("http://{}", listener.local_addr().unwrap());
@@ -146,10 +150,21 @@ impl FakeSite {
 
     fn record(&self, path: &str, query: Option<String>, body: &[u8], headers: HeaderMap) -> Seen {
         let parse = |bytes: &[u8]| url::form_urlencoded::parse(bytes).into_owned().collect();
+        let json = headers
+            .get("content-type")
+            .is_some_and(|value| value == "application/json");
+        let form = match serde_json::from_slice::<serde_json::Map<String, Json>>(body) {
+            Ok(fields) if json => fields
+                .into_iter()
+                .filter_map(|(name, value)| Some((name, value.as_str()?.to_owned())))
+                .collect(),
+            _ => parse(body),
+        };
         let seen = Seen {
             path: path.into(),
             query: parse(query.unwrap_or_default().as_bytes()),
-            form: parse(body),
+            form,
+            body: String::from_utf8_lossy(body).into_owned(),
             headers,
         };
         self.seen.lock().unwrap().push(seen.clone());
@@ -202,8 +217,8 @@ async fn token(
     )
 }
 
-async fn me(State(site): State<Arc<FakeSite>>, headers: HeaderMap) -> Reply {
-    site.record(site.me_path, None, &[], headers.clone());
+async fn me(State(site): State<Arc<FakeSite>>, headers: HeaderMap, body: Bytes) -> Reply {
+    site.record(site.me_path, None, &body, headers.clone());
     let header = |name: &str| headers.get(name).and_then(|value| value.to_str().ok());
     let user = header("authorization")
         .and_then(|value| value.strip_prefix("Bearer "))
@@ -220,31 +235,55 @@ async fn me(State(site): State<Arc<FakeSite>>, headers: HeaderMap) -> Reply {
 
 /// A site's sign-in routes on the bridge and the proof actions they take.
 pub struct Routes {
-    pub start: &'static str,
-    pub callback: &'static str,
-    pub account: &'static str,
+    pub start: String,
+    pub callback: String,
+    pub account: String,
     pub connect: Action,
     pub cancel: Action,
     pub remove: Action,
 }
 
-pub const DISCORD: Routes = Routes {
-    start: discord::START_PATH,
-    callback: discord::CALLBACK_PATH,
-    account: discord::ACCOUNT_PATH,
-    connect: Action::DiscordConnect,
-    cancel: Action::DiscordCancel,
-    remove: Action::DiscordRemove,
-};
+impl Routes {
+    pub fn discord() -> Self {
+        Self {
+            start: discord::START_PATH.into(),
+            callback: discord::CALLBACK_PATH.into(),
+            account: discord::ACCOUNT_PATH.into(),
+            connect: Action::DiscordConnect,
+            cancel: Action::DiscordCancel,
+            remove: Action::DiscordRemove,
+        }
+    }
 
-pub const CHALLONGE: Routes = Routes {
-    start: challonge::START_PATH,
-    callback: challonge::CALLBACK_PATH,
-    account: challonge::ACCOUNT_PATH,
-    connect: Action::ChallongeConnect,
-    cancel: Action::ChallongeCancel,
-    remove: Action::ChallongeRemove,
-};
+    /// A configured sign-in site's.
+    pub fn site(id: &str) -> Self {
+        Self {
+            start: sites::start_path(id),
+            callback: sites::callback_path(id),
+            account: sites::account_path(id),
+            connect: Action::SiteConnect,
+            cancel: Action::SiteCancel,
+            remove: Action::SiteRemove,
+        }
+    }
+}
+
+/// The shipped definition `deploy/sites/<name>.json`, as an operator would
+/// copy it into `sign_in_sites`, with every URL's origin replaced by
+/// `origin` (a stand-in's) and its client ID set to `client_id`.
+pub fn definition(name: &str, origin: &str, client_id: &str) -> SignInSite {
+    let path = format!("{}/deploy/sites/{name}.json", env!("CARGO_MANIFEST_DIR"));
+    let mut site: SignInSite = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+    let local = |url: &str| {
+        let url = url::Url::parse(url).unwrap();
+        format!("{origin}{}", url.path())
+    };
+    site.authorize_url = local(&site.authorize_url);
+    site.token_url = local(&site.token_url);
+    site.user.url = local(&site.user.url);
+    site.client_id = client_id.into();
+    site
+}
 
 pub async fn player(bridge: &Bridge, byte: u8) -> Player {
     let mut player = bridge.player(byte);
@@ -271,7 +310,7 @@ pub async fn try_start(bridge: &Bridge, player: &Player, site: &Routes) -> (Stat
         player,
         site.connect,
         Method::Post,
-        site.start,
+        &site.start,
         json!({}),
     )
     .await
@@ -314,7 +353,7 @@ pub fn confirmation(page: &str) -> String {
 pub async fn decide(bridge: &Bridge, site: &Routes, confirmation: &str, choice: &str) -> String {
     let response = bridge
         .client
-        .post(bridge.url(site.callback))
+        .post(bridge.url(&site.callback))
         .header("content-type", "application/x-www-form-urlencoded")
         .body(format!("confirmation={confirmation}&choice={choice}"))
         .send()
@@ -331,7 +370,7 @@ pub async fn cancel(bridge: &Bridge, player: &Player, site: &Routes) -> (StatusC
         player,
         site.cancel,
         Method::Delete,
-        site.start,
+        &site.start,
         json!({}),
     )
     .await
@@ -343,7 +382,7 @@ pub async fn disconnect(bridge: &Bridge, player: &Player, site: &Routes) -> (Sta
         player,
         site.remove,
         Method::Delete,
-        site.account,
+        &site.account,
         json!({}),
     )
     .await
@@ -351,7 +390,7 @@ pub async fn disconnect(bridge: &Bridge, player: &Player, site: &Routes) -> (Sta
 
 /// The player's connected account, or null.
 pub async fn account(bridge: &Bridge, player: &Player, site: &Routes) -> Json {
-    let (status, body) = bridge.get(player.token(), site.account).await;
+    let (status, body) = bridge.get(player.token(), &site.account).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     body["account"].clone()
 }

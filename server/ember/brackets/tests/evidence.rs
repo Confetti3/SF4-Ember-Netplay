@@ -209,12 +209,15 @@ async fn a_creation_the_bridge_never_received_is_sent_after_a_restart() {
             &world.provider,
             Method::POST,
             "/v1/players/lookup",
-            Some(json!({ "challonge": ["Kate", "sam_99"] })),
+            Some(json!({ "accounts": [
+                { "site": "challonge", "id": "Kate" },
+                { "site": "challonge", "id": "sam_99" },
+            ] })),
             None,
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{found}");
-    let players: Vec<Value> = found["challonge"]
+    let players: Vec<Value> = found["accounts"]
         .as_array()
         .unwrap()
         .iter()

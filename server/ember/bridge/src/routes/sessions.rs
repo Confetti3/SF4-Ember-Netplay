@@ -9,7 +9,7 @@ use ember_protocol::{
     api::ErrorCode,
     challenge::{self, Action, Challenge, Expected, Method, ProvenRequest, is_api_path},
     encoding::{b64u, decode_b64u, is_prefixed_id},
-    json,
+    json, sites,
 };
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
@@ -134,11 +134,10 @@ fn route_matches(action: Action, method: Method, path: &str) -> bool {
         (Action::DiscordConnect, Method::Post) => path == ember_protocol::discord::START_PATH,
         (Action::DiscordRemove, Method::Delete) => path == ember_protocol::discord::ACCOUNT_PATH,
         (Action::DiscordCancel, Method::Delete) => path == ember_protocol::discord::START_PATH,
-        (Action::ChallongeConnect, Method::Post) => path == ember_protocol::challonge::START_PATH,
-        (Action::ChallongeRemove, Method::Delete) => {
-            path == ember_protocol::challonge::ACCOUNT_PATH
+        (Action::SiteConnect, Method::Post) | (Action::SiteCancel, Method::Delete) => {
+            sites::site_of(path, "/start").is_some()
         }
-        (Action::ChallongeCancel, Method::Delete) => path == ember_protocol::challonge::START_PATH,
+        (Action::SiteRemove, Method::Delete) => sites::site_of(path, "").is_some(),
         _ => false,
     }
 }
@@ -359,19 +358,25 @@ pub fn proven<T: serde::de::DeserializeOwned>(bytes: &[u8]) -> Result<(ProvenReq
 #[serde(deny_unknown_fields)]
 pub struct Nothing {}
 
-/// Consumes the session player's proof of `request` for `target` and runs
-/// `work` in the same write, with the Ember ID the proof names.
+/// Consumes the session player's proof of `request` for `action` on
+/// `method` and `path`, and runs `work` in the same write, with the Ember ID
+/// the proof names.
 pub async fn as_proven<T: Send + 'static>(
     state: &AppState,
     player: auth::Player,
     request: ProvenRequest,
-    target: Target<'static>,
+    (action, method, path): (Action, Method, String),
     work: impl FnOnce(&Transaction<'_>, &Ctx, &str) -> Result<T> + Send + 'static,
 ) -> Result<T> {
     let ctx = Ctx::of(state);
     let done = state
         .db
         .write(move |tx| {
+            let target = Target {
+                action,
+                method,
+                path: &path,
+            };
             let (ember_id, _) = consume_proof(
                 tx,
                 &ctx.config,

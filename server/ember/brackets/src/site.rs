@@ -26,6 +26,12 @@ pub trait Site: Send + Sync {
     fn standing(&self) -> SiteFuture<'_, Standing>;
     fn mark_underway<'a>(&'a self, id: &'a str) -> SiteFuture<'a, ()>;
     fn report<'a>(&'a self, id: &'a str, report: &'a Report) -> SiteFuture<'a, ()>;
+
+    /// Whether the site accounts this adapter gives are names an account
+    /// can change, so one connected long ago may now be someone else's.
+    fn names_can_change(&self) -> bool {
+        false
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -38,17 +44,21 @@ pub enum Standing {
     Running,
 }
 
-/// The account an entry stands for, by which the bridge finds its player.
-/// Each site adds the kind of account its entries carry.
+/// An account an entry stands for, by which the bridge finds its player.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Account {
-    Challonge { username: String },
+    /// An account on a bridge sign-in site, by the ID that site's lookup
+    /// matches (a Challonge username, a start.gg user ID).
+    Site { site: String, id: String },
+    /// A Discord account the platform shows linked to the entry.
+    Discord { user_id: String },
 }
 
 impl fmt::Display for Account {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Challonge { username } => write!(f, "Challonge user {username}"),
+            Self::Site { site, id } => write!(f, "{site} account {id}"),
+            Self::Discord { user_id } => write!(f, "Discord account {user_id}"),
         }
     }
 }
@@ -81,8 +91,9 @@ pub enum Status {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Entry {
     pub participant_id: String,
-    /// The account behind the entry, when it has one.
-    pub account: Option<Account>,
+    /// The accounts behind the entry, the one to try first first: its site
+    /// account, then a linked Discord account.
+    pub accounts: Vec<Account>,
 }
 
 impl Set {
@@ -98,13 +109,15 @@ impl Set {
     }
 }
 
-/// A finished set's score: each entry's games won, player 1 first, and the
-/// winning entry's index.
+/// A finished set's score: each entry's games won, player 1 first, the
+/// winning entry's index, and the winning entry of each game in the order
+/// they were played, for a site that takes games one by one.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Report {
     pub entries: [String; 2],
     pub games: [u8; 2],
     pub winner: usize,
+    pub sequence: Vec<usize>,
 }
 
 #[derive(Debug)]

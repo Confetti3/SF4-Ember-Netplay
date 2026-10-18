@@ -1,5 +1,5 @@
-//! A site's allowance of requests, for a site that limits them
-//! (`provider::Limits`, Challonge's): per calendar month and per day in UTC,
+//! A site's allowance of requests, for a site whose definition limits them
+//! (`provider::Limits`): per calendar month and per day in UTC,
 //! counted by day in the database so a restart does not reset them. A
 //! sign-in's exchange takes its two requests (the token and `/me`) before it
 //! calls the site, so neither limit is ever passed; one the site refuses
@@ -9,7 +9,7 @@
 use rusqlite::{Transaction, params};
 
 use super::provider::Limits;
-use crate::{AppState, error::Result, linking::Site};
+use crate::{AppState, error::Result};
 
 /// Requests a sign-in's exchange makes.
 pub const PER_SIGN_IN: u64 = 2;
@@ -51,25 +51,24 @@ impl Cap {
     }
 }
 
-/// Logs that `cap` refused a sign-in on `site`, unless it was logged within
+/// Logs that `cap` refused a sign-in on site `site`, unless it was logged within
 /// the last hour (the start limit) or day (the budgets).
-pub fn refused(state: &AppState, site: Site, cap: Cap) {
-    let key = format!("{}-refused:{}", site.name(), cap.setting());
+pub fn refused(state: &AppState, site: &str, cap: Cap) {
+    let key = format!("site-refused:{site}:{}", cap.setting());
     if state
         .rate
         .check(&key, 1, cap.logged_every(), state.now())
         .is_ok()
     {
         eprintln!(
-            "ember-bridge: {} sign-in refused: its {} is reached",
-            site.name(),
+            "ember-bridge: sign-in on {site} refused: its {} is reached",
             cap.setting()
         );
     }
 }
 
 /// Today's key, and what was spent today and this month.
-fn spent(tx: &Transaction<'_>, site: Site, now: u64) -> Result<(String, u64, u64)> {
+fn spent(tx: &Transaction<'_>, site: &str, now: u64) -> Result<(String, u64, u64)> {
     let day: String = tx.query_row(
         "SELECT strftime('%Y-%m-%d', ?1, 'unixepoch')",
         [now],
@@ -78,7 +77,7 @@ fn spent(tx: &Transaction<'_>, site: Site, now: u64) -> Result<(String, u64, u64
     let (today, month): (u64, u64) = tx.query_row(
         "SELECT COALESCE(SUM(CASE WHEN day = ?2 THEN spent END), 0), COALESCE(SUM(spent), 0)
          FROM site_requests WHERE site = ?1 AND day LIKE substr(?2, 1, 7) || '-%'",
-        params![site.name(), day],
+        params![site, day],
         |row| Ok((row.get(0)?, row.get(1)?)),
     )?;
     Ok((day, today, month))
@@ -92,9 +91,9 @@ fn passes_warning(before: u64, after: u64, monthly: u64) -> bool {
 
 /// The budget without room for a sign-in's exchange, if any.
 fn full(today: u64, month: u64, limits: Limits) -> Option<Cap> {
-    if month + PER_SIGN_IN > limits.monthly {
+    if month + PER_SIGN_IN > limits.monthly_request_budget {
         Some(Cap::Month)
-    } else if today + PER_SIGN_IN > limits.daily {
+    } else if today + PER_SIGN_IN > limits.daily_request_budget {
         Some(Cap::Day)
     } else {
         None
@@ -103,12 +102,12 @@ fn full(today: u64, month: u64, limits: Limits) -> Option<Cap> {
 
 /// The budget, today's or this month's, without room for a sign-in's
 /// exchange now, if any. A refusal is logged.
-pub async fn refusing(state: &AppState, site: Site, limits: Limits) -> Result<Option<Cap>> {
-    let now = state.now();
+pub async fn refusing(state: &AppState, site: &str, limits: Limits) -> Result<Option<Cap>> {
+    let (now, id) = (state.now(), site.to_owned());
     let full = state
         .db
         .read(move |tx| {
-            let (_, today, month) = spent(tx, site, now)?;
+            let (_, today, month) = spent(tx, &id, now)?;
             Ok(full(today, month, limits))
         })
         .await?;
@@ -121,19 +120,19 @@ pub async fn refusing(state: &AppState, site: Site, limits: Limits) -> Result<Op
 /// Takes a sign-in's exchange from today's and this month's budgets, or
 /// says there is none left, logging the refusal. Logs a warning when the
 /// month passes 80% of its budget.
-pub async fn spend(state: &AppState, site: Site, limits: Limits) -> Result<bool> {
-    let now = state.now();
+pub async fn spend(state: &AppState, site: &str, limits: Limits) -> Result<bool> {
+    let (now, id) = (state.now(), site.to_owned());
     let spent = state
         .db
         .write(move |tx| {
-            let (day, today, month) = spent(tx, site, now)?;
+            let (day, today, month) = spent(tx, &id, now)?;
             if let Some(cap) = full(today, month, limits) {
                 return Ok(Err(cap));
             }
             tx.execute(
                 "INSERT INTO site_requests (site, day, spent) VALUES (?1, ?2, ?3)
                  ON CONFLICT (site, day) DO UPDATE SET spent = spent + excluded.spent",
-                params![site.name(), day, PER_SIGN_IN],
+                params![id, day, PER_SIGN_IN],
             )?;
             Ok(Ok((month, month + PER_SIGN_IN)))
         })
@@ -141,12 +140,11 @@ pub async fn spend(state: &AppState, site: Site, limits: Limits) -> Result<bool>
     // Logged once the count is stored, so a rolled-back write does not warn.
     match spent {
         Ok((before, after)) => {
-            if passes_warning(before, after, limits.monthly) {
+            if passes_warning(before, after, limits.monthly_request_budget) {
                 eprintln!(
-                    "ember-bridge: {after} of this month's {} {} requests are spent; \
+                    "ember-bridge: {after} of this month's {} requests to {site} are spent; \
                      sign-in stops at the budget",
-                    limits.monthly,
-                    site.name()
+                    limits.monthly_request_budget
                 );
             }
             Ok(true)
@@ -170,8 +168,8 @@ mod tests {
             .collect();
         assert_eq!(passes, [318]);
         let limits = Limits {
-            monthly: 400,
-            daily: 40,
+            monthly_request_budget: 400,
+            daily_request_budget: 40,
             starts_per_hour: 30,
         };
         assert_eq!(full(38, 100, limits), None);

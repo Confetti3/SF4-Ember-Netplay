@@ -3,8 +3,9 @@
 # Run as one of:
 #   sudo bash ~/ember-bridge/set-integration-secret.sh discord
 #       Discord's client secret (Developer Portal, the Ember application, OAuth2).
-#   sudo bash ~/ember-bridge/set-integration-secret.sh challonge
-#       Challonge's client secret (connect.challonge.com, the Ember application).
+#   sudo bash ~/ember-bridge/set-integration-secret.sh site <site-id>
+#       The client secret of that sign-in site's OAuth application, such as
+#       challonge or startgg (the `id` of its entry in sign_in_sites).
 #   sudo bash ~/ember-bridge/set-integration-secret.sh rooms
 #       The shared secret of the room supervisor's loopback API (public rooms).
 #   sudo bash ~/ember-bridge/set-integration-secret.sh blumint <connection-id>
@@ -30,7 +31,9 @@ FILE=$STATE/integrations.json
 [ "$(id -u)" -eq 0 ] || { echo "Run with sudo." >&2; exit 1; }
 case "${1:-}" in
     discord) what="Discord client secret"; key=discord ;;
-    challonge) what="Challonge client secret"; key=challonge ;;
+    site)
+        [[ "${2:-}" =~ ^[a-z0-9-]{1,32}$ ]] || { echo "usage: set-integration-secret.sh site <site-id>" >&2; exit 2; }
+        what="client secret of sign-in site $2"; key="site_client_secrets/$2" ;;
     rooms) what="room supervisor secret"; key=rooms ;;
     blumint)
         [[ "${2:-}" =~ ^[a-z][a-z0-9-]{0,63}$ ]] || { echo "usage: set-integration-secret.sh blumint <connection-id>" >&2; exit 2; }
@@ -38,7 +41,7 @@ case "${1:-}" in
     result)
         [[ "${2:-}" =~ ^[a-z][a-z0-9-]{0,63}$ ]] || { echo "usage: set-integration-secret.sh result <connection-id>" >&2; exit 2; }
         what="result secret for $2"; key="result_secrets/$2" ;;
-    *) echo "usage: set-integration-secret.sh discord | challonge | rooms | blumint <connection-id> | result <connection-id>" >&2; exit 2 ;;
+    *) echo "usage: set-integration-secret.sh discord | rooms | site <site-id> | blumint <connection-id> | result <connection-id>" >&2; exit 2 ;;
 esac
 [ -d "$STATE" ] || { echo "Install $NAME first (setup.sh)." >&2; exit 1; }
 
@@ -54,10 +57,10 @@ data = {"format": "ember-bridge-integrations", "version": 1}
 if os.path.exists(path):
     with open(path) as file:
         data = json.load(file)
-if key in ("discord", "challonge"):
-    data.pop(key + "_client_secret", None)
+if key == "discord":
+    data.pop("discord_client_secret", None)
     if secret:
-        data[key + "_client_secret"] = secret
+        data["discord_client_secret"] = secret
 elif key == "rooms":
     data.pop("rooms_supervisor_secret", None)
     if secret:

@@ -19,8 +19,6 @@ struct File {
     #[serde(default)]
     discord_client_secret: Option<String>,
     #[serde(default)]
-    challonge_client_secret: Option<String>,
-    #[serde(default)]
     rooms_supervisor_secret: Option<String>,
     /// Platform API keys by connection ID.
     #[serde(default)]
@@ -28,14 +26,15 @@ struct File {
     /// Result signing secrets (`whsec_...`) by connection ID.
     #[serde(default)]
     result_secrets: BTreeMap<String, String>,
+    /// Sign-in sites' client secrets, by site ID.
+    #[serde(default)]
+    site_client_secrets: BTreeMap<String, String>,
 }
 
 #[derive(Default)]
 pub struct Secrets {
     /// Discord's client secret. Without it Discord sign-in stays off.
     pub discord_client_secret: Option<Zeroizing<String>>,
-    /// Challonge's client secret. Without it Challonge sign-in stays off.
-    pub challonge_client_secret: Option<Zeroizing<String>>,
     /// The bearer secret of the room supervisor's API. Without it public
     /// rooms stay off.
     pub rooms_supervisor_secret: Option<Zeroizing<String>>,
@@ -46,6 +45,9 @@ pub struct Secrets {
     /// A connection with a `results_url` and none is served but not sent
     /// results.
     pub result_secrets: BTreeMap<String, Secret>,
+    /// A sign-in site's client secret, by site ID. A site without one is
+    /// listed for accounts but not offered for sign-in.
+    pub site_client_secrets: BTreeMap<String, Zeroizing<String>>,
 }
 
 impl Secrets {
@@ -65,14 +67,16 @@ impl Secrets {
                 .discord_client_secret
                 .filter(|secret| !secret.is_empty())
                 .map(Zeroizing::new),
-            challonge_client_secret: file
-                .challonge_client_secret
-                .filter(|secret| !secret.is_empty())
-                .map(Zeroizing::new),
             rooms_supervisor_secret: file
                 .rooms_supervisor_secret
                 .filter(|secret| !secret.is_empty())
                 .map(Zeroizing::new),
+            site_client_secrets: file
+                .site_client_secrets
+                .into_iter()
+                .filter(|(_, secret)| !secret.is_empty())
+                .map(|(site, secret)| (site, Zeroizing::new(secret)))
+                .collect(),
             api_keys: file
                 .api_keys
                 .into_iter()

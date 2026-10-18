@@ -14,12 +14,12 @@ use crate::{
     bridge::{BridgeError, Found, Player},
     log,
     sets::{ExternalId, MAX_ATTEMPTS, Progress, Tracked},
-    site::{Entry, Set, SiteError},
+    site::{Account, Set, SiteError},
 };
 
-/// A connected account older than this is pointed out when its player is
-/// given a match: Challonge lets an account rename, and the bridge knows
-/// the username it had when it was connected.
+/// A connected site account older than this is pointed out when its
+/// player is given a match: a site such as Challonge lets an account
+/// rename, and the bridge knows the name it had when it was connected.
 const OLD_CONNECTION_SECS: u64 = 30 * 24 * 60 * 60;
 
 impl Bracket {
@@ -32,7 +32,7 @@ impl Bracket {
         let accounts: Vec<_> = starts
             .iter()
             .flat_map(|(set, _)| set.entries.iter().flatten())
-            .filter_map(|entry| entry.account.as_ref())
+            .flat_map(|entry| &entry.accounts)
             .collect();
         let found = match self.context.bridge.lookup(&accounts).await {
             Ok(found) => found,
@@ -64,19 +64,26 @@ impl Bracket {
         let Some(entries) = &set.entries else {
             return Ok(false);
         };
-        let players = entries.each_ref().map(|entry| match &entry.account {
-            None => Err(format!(
-                "entry {} has no account to find its player by",
-                entry.participant_id
-            )),
-            Some(account) => found
-                .get(account)
-                .ok_or_else(|| format!("{account} has not connected that account in Ember")),
+        let players = entries.each_ref().map(|entry| {
+            found
+                .player(entry)
+                .ok_or_else(|| match entry.accounts.as_slice() {
+                    [] => format!(
+                        "entry {} has no account to find its player by",
+                        entry.participant_id
+                    ),
+                    accounts => {
+                        let names: Vec<String> = accounts.iter().map(Account::to_string).collect();
+                        format!("{} has not connected in Ember", names.join(" or "))
+                    }
+                })
         });
         let command = match players {
             [Ok(one), Ok(two)] => {
-                self.point_out_old_connections(set, entries, [one, two]);
-                self.command(set, attempt, [one, two])
+                if self.site.names_can_change() {
+                    self.point_out_old_connections(set, [one, two]);
+                }
+                self.command(set, attempt, [one.1, two.1])
             }
             [Err(why), _] | [_, Err(why)] => return self.note(set, attempt, Some(&why)),
         };
@@ -224,18 +231,17 @@ impl Bracket {
         }
     }
 
-    /// Says once per player, while the connector runs, that their account
-    /// was connected long ago.
-    fn point_out_old_connections(&self, set: &Set, entries: &[Entry; 2], players: [&Player; 2]) {
+    /// Says once per player, while the connector runs, that the site
+    /// account they were found by was connected long ago.
+    fn point_out_old_connections(&self, set: &Set, players: [(&Account, &Player); 2]) {
         let now = self.context.clock.now();
         let mut pointed_out = self
             .context
             .pointed_out
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        for (entry, player) in entries.iter().zip(players) {
-            let at = player.connected_at;
-            if let Some(account) = &entry.account
+        for (account, player) in players {
+            if let Some(at) = player.connected_at
                 && now.saturating_sub(at) > OLD_CONNECTION_SECS
                 && pointed_out.insert(player.ember_id.clone())
             {
