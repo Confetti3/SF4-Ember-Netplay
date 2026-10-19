@@ -1,4 +1,4 @@
-//! Sign-in sites as data (the sign-in sites design, GENERIC_SITES.md). A site
+//! Sign-in sites as data (docs/guides/INTEGRATIONS.md, "Sign-in sites"). A site
 //! is an OAuth authorization-code sign-in the operator defines: where the
 //! browser goes, where the code is exchanged, how to read who signed in, what
 //! a username may be, and what lookups match. The bridge's code knows no site

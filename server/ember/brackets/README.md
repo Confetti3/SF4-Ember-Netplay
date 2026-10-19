@@ -5,8 +5,8 @@ score back to that site. The organizer runs the bracket on Challonge,
 start.gg or a service of their own as usual; players who have connected
 their account on that site in Ember (Online play > Ember ID), or the Discord
 account the site shows for them, find each set they are due to play in the
-game. The design is part 4 of `docs/design/challonge/PLAN.md` and the
-Connector section of `docs/design/challonge/GENERIC_SITES.md`.
+game. `docs/guides/INTEGRATIONS.md` ("Bracket sites") places it among
+Ember's integration paths.
 
 Each site is reached through an adapter: `challonge`, `startgg`, or `http`
 for an organizer's own service. [ADAPTERS.md](ADAPTERS.md) is the contract
@@ -336,7 +336,7 @@ with `monthly_request_budget` set to match.
 
 ## Not yet checked against Challonge
 
-The adapter follows `docs/design/challonge/CHALLONGE_API.md`, which was read
+The adapter follows `docs/design/CHALLONGE_API.md`, which was read
 from Challonge's documents without a live call. These points are handled as
 described there and need one check against the real API:
 

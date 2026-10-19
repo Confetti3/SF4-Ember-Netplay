@@ -1,4 +1,4 @@
-//! The start.gg adapter (docs/design/challonge/STARTGG_API.md): one event,
+//! The start.gg adapter (docs/design/STARTGG_API.md): one event,
 //! read and reported through start.gg's GraphQL API with an organizer's
 //! token (an account with a reporter role on the tournament).
 //!

@@ -47,7 +47,7 @@ A connection in `bridge.json` may carry, besides `id`, `kind`,
   accounts the connection may find players by, the same way (`approved_via`
   `site`), for players who connected those accounts. Each must be a site in
   the bridge's `sign_in_sites` (`docs/guides/INTEGRATIONS.md`, "Sign-in
-  sites"; `docs/design/challonge/GENERIC_SITES.md`).
+  sites").
 - `disputes` (`"review"` by default): what a match on the connection does
   when it would wait in `needs_review`. `"restart"` cancels it instead, and
   the platform replays it. Stored with the connection the first time it is

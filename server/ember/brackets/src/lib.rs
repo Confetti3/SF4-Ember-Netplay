@@ -1,4 +1,4 @@
-//! Plays bracket sites' sets in Ember (docs/design/challonge/PLAN.md, part 4).
+//! Plays bracket sites' sets in Ember (README.md; adapters in ADAPTERS.md).
 //!
 //! For each configured tournament it reads the open sets, finds both
 //! players on the bridge by an account the site shows for them (the one

@@ -35,6 +35,9 @@ implemented, and how it differs from the draft, is in `STATUS.md` there.
   platform that finds players by Discord account gets their Ember ID. The
   same goes for an account on any sign-in site the operator configures, such
   as Challonge (found by username) or start.gg (found by user ID).
+- A bracket run on Challonge, start.gg or a service of your own plays in
+  Ember through `ember-brackets`, which turns each open set into a match and
+  reports the score back (see "Bracket sites" below).
 - A connection's settings give any platform what BluMint has: finding players
   by Discord account, results sent to it, and disputed matches restarted
   rather than reviewed. With rooms allowed, a platform or bot opens public
@@ -452,6 +455,30 @@ live site's `username_rule` (its characters, length or case) or its
 by username miss them (a site switched to `username` stored no usernames to
 match) until each player connects that account again. Plan such a change
 like a new site, and ask players to reconnect.
+
+## Bracket sites (Challonge, start.gg, your own)
+
+The bridge knows players, matches and results, and names no site. Everything
+specific to a service is an adapter around it:
+
+- A sign-in site (above) lets players connect their account on that service,
+  so the service's entries can be matched to Ember IDs.
+- `ember-brackets` (`server/ember/brackets`) is a small service that runs as
+  a `direct` connection with `lookup_sites` (and `discord_lookup` for
+  start.gg's linked Discord accounts) and a `results_url`. For each
+  tournament in its config it reads the open sets, finds both players,
+  creates an `ember-room-v1` match with the round's games to win, marks the
+  set underway, and reports the score when the bridge sends the result. It
+  never writes over a set the organizer decided.
+- Its adapters are `challonge`, `startgg`, and `http`. The `http` adapter
+  calls a service of your own with a small JSON contract, so any bracket
+  tool written in any language can be played in Ember without changes to
+  Ember. The adapter interface and the `http` contract are in
+  `server/ember/brackets/ADAPTERS.md`; setup, request budgets and limits are
+  in its `README.md`.
+
+A platform that would rather create matches itself keeps using the API in
+this guide directly; the connector is one client of it.
 
 ## BluMint
 

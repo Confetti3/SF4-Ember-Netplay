@@ -1,4 +1,4 @@
-//! The Challonge v2.1 adapter (docs/design/challonge/CHALLONGE_API.md).
+//! The Challonge v2.1 adapter (docs/design/CHALLONGE_API.md).
 //!
 //! Challonge's documents mix string and integer IDs and disagree on where a
 //! match's players sit, so both are read leniently. Every request is counted

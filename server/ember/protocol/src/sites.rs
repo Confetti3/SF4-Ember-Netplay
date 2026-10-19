@@ -1,6 +1,6 @@
 //! Sign-in sites: services a player connects their own account on, so
 //! platforms that run brackets there find the player's Ember ID
-//! (the sign-in sites design, GENERIC_SITES.md). A bridge defines each site in
+//! (docs/guides/INTEGRATIONS.md, "Sign-in sites"). A bridge defines each site in
 //! its configuration, as data, under an ID of its choosing; every site runs
 //! on the same routes, proof actions, storage and lookup, so a new site needs
 //! no code and no protocol change. Discord is not one of them: it keeps its

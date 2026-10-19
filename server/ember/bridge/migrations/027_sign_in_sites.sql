@@ -1,5 +1,5 @@
 -- Accounts players connected to their Ember IDs on sign-in sites
--- (routes::sign_in, the sign-in sites design GENERIC_SITES.md), one set of
+-- (routes::sign_in; docs/guides/INTEGRATIONS.md, "Sign-in sites"), one set of
 -- tables for every configured site, so a new site needs no migration.
 -- Discord keeps its own tables. On each site one account per Ember ID and
 -- one Ember ID per account; the latest sign-in replaces both. username_key
