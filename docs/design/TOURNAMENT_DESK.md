@@ -112,6 +112,63 @@ the token the bridge hands it (never written to its own database).
   read adds the rest).
 - A nightly build lists the nightly bridge (`ember-bridge.fraccie.be`).
 
+## 4a. Creating a tournament on the Ember website
+
+Ember does not run brackets: the bracket service does (Challonge or
+start.gg). The Ember website is where a TO puts one tournament together and
+keeps everything about it in one place. The steps, in order:
+
+1. **Linked accounts.** The page lists the TO's sign-in sites and whether
+   each holds organizer access; anything missing has its sign-in button
+   there. Nothing else is offered until one bracket service is linked.
+2. **New tournament.** A draft: a title is all it needs. Date, time and
+   everything below can stay empty and be filled in later; a draft runs
+   nothing and creates nothing on any site.
+3. **Bracket service.** Challonge or start.gg, from the services the TO has
+   organizer access to.
+4. **Service settings.** What that service lets Ember set:
+   - Challonge: format (single or double elimination, round robin, swiss),
+     grand final reset, third place match, signup open or closed, and
+     whether players register through Ember. When the TO saves this step,
+     Ember creates the tournament on Challonge with their grant
+     (`tournaments:write`; adding players needs `participants:write`) and
+     keeps its URL.
+   - start.gg: its public API cannot create tournaments or events, so the
+     page links to start.gg's own create page and then lets the TO pick the
+     event from their list (`GET /v1/organizer/tournaments`).
+   - Both: first-to per round and phase (the `rounds` rules), and whether
+     sets on stream are held.
+5. **Links.** Any number of labelled links, kept with the tournament:
+   bracket page (filled in from the service), Matcherino, Twitch or other
+   stream, signup or subscription page, rules, Discord server.
+6. **Ready.** When the required fields are filled (date, service, settings),
+   the tournament can be marked ready, which makes it a running desk event
+   at its start time (or at once).
+7. **Discord announcement.** For a ready tournament the page builds one
+   message with everything in it, for the TO to copy and paste:
+
+   ```
+   **[Tournament title]** — USF4 on Ember
+   📅 <t:1793000000:F> (<t:1793000000:R>)
+   🎮 Double elimination · pools FT2 · top 8 FT3
+   🏆 Bracket: <bracket url>
+   📝 Sign up: <signup url>
+   📺 Stream: <twitch url>
+   💰 Matcherino: <matcherino url>
+   Play on Ember: https://embernetplay.link
+   ```
+
+   Discord's `<t:…>` timestamps show the time in each reader's own zone.
+   Lines with no value are left out. The text is built in the page, not
+   stored.
+
+Storage: `organizer_events` (030) gains the draft fields: `title`,
+`starts_at` (nullable), `links` (JSON list of label and URL), `status`
+(`draft`, `ready`, `running`, `ended`), and `tournament` becomes nullable
+until a service event is created or attached. A draft has no site calls and
+is invisible to `ember-brackets`; only `running` events are in
+`/v1/desk/brackets`.
+
 ## 5. Commits
 
 1. Bridge: organizer sign-in and sealed grants, with refresh.
@@ -119,11 +176,13 @@ the token the bridge hands it (never written to its own database).
 3. ember-brackets: run the desk's events.
 4. Game: organizer access and event pick.
 5. Game: the desk's sets queue, bracket view and actions.
-6. Web desk: pages on the bridge in the embernetplay.link style
-   (`server/ember-short/deploy/site/assets/site.css`) where a TO signs in
-   with a site account, creates an event (Challonge; start.gg's public API
-   has no tournament creation, so there it picks an existing one),
-   configures and manages it with the game desk's actions.
-7. Mobile mini-viewer: the bracket and live sets as a read-only phone
+6. Bridge: tournament drafts (title, optional date, service, settings,
+   links, status) and creating a Challonge tournament with the TO's grant.
+7. Web desk: pages on the bridge in the embernetplay.link style
+   (`server/ember-short/deploy/site/assets/site.css`) for §4a: linked
+   accounts, new tournament, service and settings, links, ready, and the
+   Discord announcement to copy; then managing it with the game desk's
+   actions.
+8. Mobile mini-viewer: the bracket and live sets as a read-only phone
    layout of the web desk.
-8. Manual: the tournament mode guide.
+9. Manual: the tournament mode guide.
