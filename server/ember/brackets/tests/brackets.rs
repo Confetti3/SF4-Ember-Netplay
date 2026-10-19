@@ -39,7 +39,10 @@ async fn a_set_is_played_in_ember_and_its_score_goes_back() {
     let found = world.snapshot(match_id).await;
     assert_eq!(found["games_to_win"], 2);
     assert_eq!(found["rules"]["native_rules_profile"], "ember-room-v1");
-    assert_eq!(found["metadata"], json!({ "round_label": "Round 1" }));
+    assert_eq!(
+        found["metadata"],
+        json!({ "round_label": "Round 1", "round": "1", "phase": "final" })
+    );
     let roster: Vec<(String, u64)> = found["participants"]
         .as_array()
         .unwrap()

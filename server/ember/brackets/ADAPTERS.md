@@ -195,7 +195,9 @@ fields in your answers are ignored, so you may add fields freely.
 - `GET /sets` is not paged, so every open set must fit in one answer. At
   about 300 bytes a set, 1 MiB holds a few thousand.
 - `round_label` goes into the match's metadata, which takes at most 1024
-  bytes; a longer label is cut there.
+  bytes; a longer label is cut there. So do `round`, unless it is 0, and
+  `phase`, when given, so a replay of the match can say where in the
+  bracket it was played.
 
 ### Reading
 

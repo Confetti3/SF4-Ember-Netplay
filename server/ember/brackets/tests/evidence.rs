@@ -184,7 +184,12 @@ async fn a_creation_the_bridge_never_received_is_sent_after_a_restart() {
         BRACKET,
         "1001",
         ["355", "354"],
-        &creation("challonge:ember_weekly:1001:1", &players, 2, "Round 1"),
+        &creation(
+            "challonge:ember_weekly:1001:1",
+            &players,
+            2,
+            json!({ "round_label": "Round 1" }),
+        ),
     );
 
     world.restarted().pass(true).await;

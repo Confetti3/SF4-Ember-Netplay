@@ -443,7 +443,7 @@ impl World {
             &external,
             &players,
             found["games_to_win"].as_u64().unwrap(),
-            found["metadata"]["round_label"].as_str().unwrap(),
+            found["metadata"].clone(),
         );
         self.stage_waiting(bracket, set_id, entries, &command);
     }
@@ -466,7 +466,7 @@ impl World {
 
 /// The creation the connector sends for an attempt, rebuilt from what the
 /// bridge has for its participants.
-pub fn creation(external: &str, players: &[Value], games_to_win: u64, round_label: &str) -> Value {
+pub fn creation(external: &str, players: &[Value], games_to_win: u64, metadata: Value) -> Value {
     json!({
         "external_match_id": external,
         "game": "usf4",
@@ -483,6 +483,6 @@ pub fn creation(external: &str, players: &[Value], games_to_win: u64, round_labe
         "observer_policy": "authorized_only",
         "result_policy": "two_player_agreement_or_review",
         "required_build_id": "test-build",
-        "metadata": { "round_label": round_label },
+        "metadata": metadata,
     })
 }

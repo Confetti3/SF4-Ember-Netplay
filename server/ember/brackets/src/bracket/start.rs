@@ -324,10 +324,7 @@ impl Bracket {
             observer_policy: "authorized_only".into(),
             result_policy: "two_player_agreement_or_review".into(),
             required_build_id: self.context.build_id.clone(),
-            metadata: BTreeMap::from([(
-                "round_label".to_owned(),
-                round_label(&set.round_label).to_owned(),
-            )]),
+            metadata: placement(set),
         }
     }
 
@@ -371,6 +368,27 @@ impl Bracket {
     }
 }
 
+/// Where the set sits in the bracket, as the match's metadata: its label,
+/// its round as the site numbers it (below zero in a losers bracket) and
+/// its phase, the last two when the site says them. A replay of the match
+/// shows them.
+fn placement(set: &Set) -> BTreeMap<String, String> {
+    let mut metadata = BTreeMap::from([(
+        "round_label".to_owned(),
+        round_label(&set.round_label).to_owned(),
+    )]);
+    if set.round != 0 {
+        metadata.insert("round".to_owned(), set.round.to_string());
+    }
+    if let Some(phase) = &set.extras.phase {
+        metadata.insert(
+            "phase".to_owned(),
+            round_label(&phase.to_string()).to_owned(),
+        );
+    }
+    metadata
+}
+
 /// A round label as match metadata takes it: cut to the bridge's limit on
 /// a metadata value, at a character boundary.
 fn round_label(label: &str) -> &str {
@@ -384,6 +402,32 @@ fn round_label(label: &str) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::site::{Extras, Phase, Status};
+
+    #[test]
+    fn placement_says_the_losers_round_and_phase_when_the_site_does() {
+        let mut set = Set {
+            id: "s".into(),
+            round: -3,
+            round_label: "Losers Quarter-Final".into(),
+            entries: None,
+            status: Status::Open,
+            underway: false,
+            winner: None,
+            extras: Extras {
+                phase: Phase::new(Some("Top 8"), Some("p8".into())),
+                ..Extras::default()
+            },
+        };
+        let placed = placement(&set);
+        assert_eq!(placed["round_label"], "Losers Quarter-Final");
+        assert_eq!(placed["round"], "-3");
+        assert_eq!(placed["phase"], "Top 8");
+
+        set.round = 0;
+        set.extras = Extras::default();
+        assert_eq!(placement(&set).len(), 1);
+    }
 
     #[test]
     fn a_long_round_label_is_cut_where_a_character_ends() {
