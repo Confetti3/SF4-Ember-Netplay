@@ -60,4 +60,12 @@ public:
 private:
     bool taken_ = false;
 };
+
+// Alt+Enter, the game's switch between a window and exclusive fullscreen. The
+// switch stops the game's loop for over a second, past the backlog at which P1
+// drops a spectator (SpectatorPolicy), so while this PC watches a stream its
+// press and release are kept from the game. Bit 29 of l: Alt is down.
+inline bool KeepsAltEnter(UINT message, WPARAM w, LPARAM l, bool watching) {
+    return watching && (message == WM_SYSKEYDOWN || message == WM_SYSKEYUP) && w == VK_RETURN && (l & (1L << 29));
+}
 } }
