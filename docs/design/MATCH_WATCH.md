@@ -1262,8 +1262,8 @@ Two points about this rule:
 
 ### 7.7 Strings
 
-New keys go in `locales/en.po`. The other 13 catalogs (`locales/locales.json`)
-get them later, in the same position.
+New keys are in `locales/en.po` and translated in the other 13 catalogs
+(`locales/locales.json`), in the same position.
 
 | Key | English |
 |---|---|
@@ -1291,7 +1291,6 @@ get them later, in the same position.
 | `room.member.watcher` | Watcher |
 | `runtime.watching_match` | You are watching a tournament match. Stop watching under Tournament matches before you open or join another room. |
 | `runtime.watch_leave_room` | Leave your room before you watch a tournament match. |
-| `runtime.watching_hint` | Start or F10 opens Ember, where Stop watching returns you to the room. |
 
 Changed text, same key: `room.tournament_status` ("...Only its two players
 can play.").
