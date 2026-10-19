@@ -357,7 +357,8 @@ std::string MeasurementReason(const MeterView& meter) {
 }
 // What a reading is, so a reader of it need not go by its place or its words.
 enum class ReadingKind { Startup, Active, Recovery, Cancel, Meaty, Result, Last };
-struct Reading { std::string label, value; ReadingKind kind; };
+// advantage: a result's frames, 0 while there are none, for its colour.
+struct Reading { std::string label, value; ReadingKind kind; int advantage = 0; };
 std::vector<Reading> Readings(const MeterView& meter, int side) {
     const auto& move = meter.moves[side];
     const auto number = [](int value) { return value > 0 ? std::to_string(value) : std::string("--"); };
@@ -387,16 +388,17 @@ std::vector<Reading> Readings(const MeterView& meter, int side) {
         char timing[16]; std::snprintf(timing, sizeof timing, landed ? "%d" : "%+d", landed ? -offset : offset);
         readings.push_back({loc::T("training.meter.meaty"), timing, ReadingKind::Meaty});
     }
+    const int frames = advantage.valid ? advantage.frames[side] : 0;
     if (result) readings.push_back({loc::T("training.result"), std::string(loc::T(result)) +
-        (std::string(result) == "training.meter.whiff" ? "" : " " + signedFrames(advantage)), ReadingKind::Result});
-    else readings.push_back({loc::T("training.advantage"), signedFrames(advantage), ReadingKind::Result});
+        (std::string(result) == "training.meter.whiff" ? "" : " " + signedFrames(advantage)), ReadingKind::Result, frames});
+    else readings.push_back({loc::T("training.advantage"), signedFrames(advantage), ReadingKind::Result, frames});
     // The HUD keeps the last exchange measured until the next one is
     // (ShownAdvantage); here it is a reading of its own, apart from the moves above.
     const auto& last = meter.lastAdvantage;
     if (!advantage.valid && last.valid) {
         const auto* lastChain = ChainOf(last, side);
         readings.push_back({lastChain ? ChainName(*lastChain, true) : loc::T("training.last_advantage"),
-            (met(last) ? std::string(loc::T(met(last))) + " " : std::string()) + signedFrames(last), ReadingKind::Last});
+            (met(last) ? std::string(loc::T(met(last))) + " " : std::string()) + signedFrames(last), ReadingKind::Last, last.frames[side]});
     }
     return readings;
 }
@@ -432,9 +434,7 @@ ImU32 ReadingColor(const Reading& reading) {
     case ReadingKind::Cancel: return palette::Ivory;
     case ReadingKind::Result: case ReadingKind::Last: break;
     }
-    const auto sign = reading.value.find_first_of("+-");
-    if (sign == std::string::npos || sign + 1 >= reading.value.size()) return palette::Ivory;
-    return reading.value[sign] == '+' ? IM_COL32(118, 224, 160, 255) : IM_COL32(255, 121, 129, 255);
+    return ImGui::ColorConvertFloat4ToU32(AdvantageColor(reading.advantage));
 }
 // The first meter, as the classic style draws it: a data line per fighter
 // (startup, active, recovery, meaty and the result), each fighter's presses on
