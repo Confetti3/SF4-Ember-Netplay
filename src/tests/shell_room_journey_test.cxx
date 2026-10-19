@@ -155,6 +155,14 @@ void RoomJourneys() {
  h.Press(MenuInput::Options);Check(h.shell.Navigation().Screen()=="room","Y again did not return to the board");
  h.Press(MenuInput::Chat);Check(h.shell.Navigation().Screen()=="room-chat","View did not open chat");
  h.Press(MenuInput::Chat);Check(h.shell.Navigation().Screen()=="room","View again did not return to the board");
+ // The members hide from their heading and come back, and the choice is
+ // saved on its own, as a room locks the other settings.
+ h.view.canEditPreferences=false;h.view.atMainMenu=true;
+ h.Choose("members-part");h.Frame(0,45);
+ Check(h.actions.back().roomSettings&&h.actions.back().preferences.roomMembersHidden,"Hiding the members did not save in the room");
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("members-part");h.Frame(0,45);
+ Check(h.actions.back().roomSettings&&!h.actions.back().preferences.roomMembersHidden,"Showing the members did not save in the room");
+ h.view.preferences=h.actions.back().preferences;h.view.canEditPreferences=true;h.Frame();
  // X opens the real fighter selector, which hands its shortcuts back: X
  // there returns to the board and View goes on to chat.
  FighterSelector selector;selection::Pick pick;

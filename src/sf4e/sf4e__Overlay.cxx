@@ -446,6 +446,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
         request.previewSoundVolume=action.previewSoundVolume;
         request.identity = std::move(action.identity);
         request.shortInvitation=action.shortInvitation;
+        request.roomSettings=action.roomSettings;
         request.tournament = std::move(action.tournament);
         request.publicTicket = std::move(action.publicTicket);
         request.createdRules = action.createdRules;

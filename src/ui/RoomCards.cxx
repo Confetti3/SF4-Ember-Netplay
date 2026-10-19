@@ -232,4 +232,39 @@ CardInteraction DrawMemberCard(const MemberCardView& card) {
  FlushCardTip(elided);
  return Interaction({},pressed,hovered);
 }
+void DrawGrip(const char* id,ImVec2 at,ImVec2 size) {
+    const float s=Scale();
+    ImGui::SetCursorScreenPos(at);
+    ImGui::SetNextItemAllowOverlap();
+    ImGui::InvisibleButton(id,size);
+    const bool vertical=size.y>size.x,hot=ImGui::IsItemActive()||ImGui::IsItemHovered();
+    if(hot)ImGui::SetMouseCursor(vertical?ImGuiMouseCursor_ResizeEW:ImGuiMouseCursor_ResizeNS);
+    auto* draw=ImGui::GetWindowDrawList();
+    const ImVec2 c(at.x+size.x*.5f,at.y+size.y*.5f),step(vertical?0:6*s,vertical?6*s:0);
+    // The line shows at rest, as a panel edge does, and lights while held.
+    draw->AddLine(vertical?ImVec2(c.x,at.y):ImVec2(at.x,c.y),vertical?ImVec2(c.x,at.y+size.y):ImVec2(at.x+size.x,c.y),hot?palette::Ember:ImGui::GetColorU32(ImGuiCol_Border),hot?2*s:s);
+    for(int dot=-2;dot<=2;++dot)draw->AddCircleFilled(ImVec2(c.x+dot*step.x,c.y+dot*step.y),2.5f*s,hot?palette::Ivory:palette::Muted);
+}
+bool DrawPartHeading(const char* id,const std::string& title,bool shown,bool focused,const std::string& tip,float& titleRight) {
+    const float s=Scale(),h=ImGui::GetFontSize()+8*s,width=ImGui::GetContentRegionAvail().x,box=h-8*s,size=14*s;
+    const auto p=ImGui::GetCursorScreenPos();
+    // The whole line is the button: the arrow in its box, then the part's name.
+    const bool pressed=ImGui::InvisibleButton(id,ImVec2(width,h)),hot=focused||ImGui::IsItemHovered();
+    auto* draw=ImGui::GetWindowDrawList();
+    const ImVec2 at(p.x,p.y+4*s);
+    if(hot)draw->AddRectFilled(at,ImVec2(at.x+box,at.y+box),palette::Ember,4*s);
+    else draw->AddRect(at,ImVec2(at.x+box,at.y+box),palette::Muted,4*s,0,s);
+    // Pointing down while the part shows, right while it is hidden.
+    const float x=at.x+box*.5f,y=at.y+box*.5f,d=3.5f*s;
+    const ImU32 arrow=hot?ImGui::GetColorU32(ImGuiCol_FrameBg):palette::Ivory;
+    if(shown)draw->AddTriangleFilled(ImVec2(x-1.5f*d,y-d),ImVec2(x+1.5f*d,y-d),ImVec2(x,y+d),arrow);
+    else draw->AddTriangleFilled(ImVec2(x-d,y-1.5f*d),ImVec2(x-d,y+1.5f*d),ImVec2(x+d,y),arrow);
+    const float left=at.x+box+10*s;
+    // A narrow column cuts the name with "...", and the hover shows it whole.
+    std::string elided;
+    DrawCardText(elided,ImVec2(left,p.y+(h-size)*.5f),p.x+width-left,title,size,hot?palette::Ivory:palette::Muted);
+    titleRight=(std::min)(p.x+width,left+ImGui::GetFont()->CalcTextSizeA(size,FLT_MAX,0,title.c_str()).x);
+    if(ImGui::IsItemHovered())ImGui::SetTooltip("%s",elided.empty()?tip.c_str():(title+"\n"+tip).c_str());
+    return pressed;
+}
 } }

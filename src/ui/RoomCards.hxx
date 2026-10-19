@@ -29,6 +29,14 @@ void FlushCardTip(std::string& elided);
 // The button every board row sits on. `focused` outlines it (and scrolls to it
 // when `scrollTo`); `disabled` leaves it dead while a choice is open. True when pressed.
 bool DrawCardButton(const std::string& id,ImVec2 size,bool focused,bool scrollTo,bool disabled);
+// A line between two parts of the board that the player drags, `size` across
+// the line's length: dots across its middle, lit with the line while hovered or
+// dragged. The caller reads the drag from ImGui's last item.
+void DrawGrip(const char* id,ImVec2 at,ImVec2 size);
+// A part of the room's column: its heading, which hides or shows the part when
+// pressed (`tip` on hover), an arrow in a box before the name. `titleRight` is
+// where the name ends. True when pressed.
+bool DrawPartHeading(const char* id,const std::string& title,bool shown,bool focused,const std::string& tip,float& titleRight);
 
 // What the pointer did to a card this frame. `option` is the strip button it was
 // on, or -1 for the card itself. `pointerMoved`: the mouse moved this frame, so a

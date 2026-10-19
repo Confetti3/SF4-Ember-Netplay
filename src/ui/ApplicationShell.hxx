@@ -204,6 +204,9 @@ struct ShellAction {
     int previewSoundVolume=-1;
     // Asks for the room's short link; nothing else is sent.
     bool shortInvitation=false;
+    // Saves only the settings a room leaves open, button layouts and the room
+    // board's column, from `preferences` (PlayerPreferences::CopyRoomSettings); sent alone.
+    bool roomSettings=false;
     // Leave a joined room's menu for Training mode (common/TrainingEntry.hxx);
     // sent alone. The runtime decides whether it still holds.
     TrainingEntry training=TrainingEntry::None;
@@ -414,6 +417,10 @@ private:
     void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                        const MenuVisualFeedback& feedback);
     std::string roomBoardFocus_;
+    // How the board last laid itself out, which the next frame's rows follow:
+    // stacked in one list, or wide with its column. Only a wide board shows the
+    // chat as a part of its column.
+    enum class BoardLayout { Stacked, Wide } boardLayout_=BoardLayout::Wide;
     // The room chat: what the room said and did, kept here (ChatTranscript). The Chat screen is its
     // own body (DrawChatScreen); the board's Recent chat panel shows the same lines. ObserveChat takes
     // in the room every frame, drawn or hidden; UpdateChat is the drawn frame's, which also reads it.

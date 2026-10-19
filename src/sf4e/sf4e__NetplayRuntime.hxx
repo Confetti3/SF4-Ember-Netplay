@@ -443,6 +443,7 @@ std::string DeviceName(const input::Device& device);
 std::string ControllerLabel(const input::Device& device);
 void CaptureMenuInput();
 void HandleControllerRequest(const gamepads::ControllerRequest& request);
+void SaveRoomSettings(const netplay::PlayerPreferences& from);
 bool CanChooseControllerNow();
 // The buttons that confirm and go back in Ember's menus for a device: the
 // binding of its pad's Ember layout (runtime->pads), else the game's own.

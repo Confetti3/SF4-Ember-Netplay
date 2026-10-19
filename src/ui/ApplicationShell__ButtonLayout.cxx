@@ -78,8 +78,7 @@ bool ApplicationShell::ControllerActivate(const MenuAction& action, const ShellV
 bool ApplicationShell::SavePreferences(const ShellView& view, const Submit& submit) {
     if (view.canEditPreferences) return Send(netplay::CommandKind::SavePreferences, view, submit);
     ShellAction action; action.command.generation = view.session.generation;
-    action.padAction.kind = ControllerRequest::Kind::SaveLayouts;
-    action.padAction.layouts = preferences_.buttonLayouts;
+    action.roomSettings = true; action.preferences = preferences_;
     return submit(std::move(action));
 }
 void ApplicationShell::LayoutLog(const ShellView& view, const Submit& submit, std::string text) {

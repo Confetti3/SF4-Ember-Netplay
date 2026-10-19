@@ -206,7 +206,7 @@ static void BoolPreferenceRoundTrips(const Path& root) {
         {"controllerLayer", &PlayerPreferences::controllerLayer, true},
         {"recordWatched", &PlayerPreferences::recordWatched, true}, {"discordPresence", &PlayerPreferences::discordPresence, true},
         {"discordInvites", &PlayerPreferences::discordInvites, true}, {"sendProblemReports", &PlayerPreferences::sendProblemReports, false},
-        {"shareSteamProfile", &PlayerPreferences::shareSteamProfile, true}};
+        {"shareSteamProfile", &PlayerPreferences::shareSteamProfile, true}, {"roomMembersHidden", &PlayerPreferences::roomMembersHidden, false}, {"roomChatHidden", &PlayerPreferences::roomChatHidden, false}};
     CHECK(std::size(sf4e::netplay::BoolPreferences) == std::size(expected));
     for (const auto& entry : expected) {
         const auto found = std::find_if(std::begin(sf4e::netplay::BoolPreferences), std::end(sf4e::netplay::BoolPreferences),

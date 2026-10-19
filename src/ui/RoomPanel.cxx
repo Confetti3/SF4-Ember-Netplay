@@ -216,12 +216,17 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
      loc::T(viewOnly?"room.stop_watching.finished":leaveGame?"room.leave_game.detail":"room.stop_watching.detail"),
      viewOnly||RoomTakesNow(v,ActionKind::Unwatch,static_cast<std::size_t>(v.watchedGame.table))));
    }
-   for(const auto& m:s.members){rows.push_back(Row("member-"+std::to_string(m.id),loc::Tf(m.id==s.localMember?"room.member_you":"room.member",m.name),loc::Tf(m.host?"room.member_status_host":"room.member_status",StatusName(m.status))));
+   // Hidden members leave the pad's reach with the cards.
+   if(!preferences_.roomMembersHidden)for(const auto& m:s.members){rows.push_back(Row("member-"+std::to_string(m.id),loc::Tf(m.id==s.localMember?"room.member_you":"room.member",m.name),loc::Tf(m.host?"room.member_status_host":"room.member_status",StatusName(m.status))));
     rows.back().userText=true;}
    rows.push_back(Row("room-members",loc::T("room.members"),loc::Tf("room.member_count",s.members.size(),s.capacity)));
    const unsigned unread=transcript_.Unread(muted_);
    rows.push_back(Row("room-chat",loc::T("room.chat"),(unread?loc::Tf("room.chat.unread",unread)+" ":std::string())+loc::T("room.chat.detail")));
    if(unread)rows.back().value=std::to_string(unread);
+   // The members and, on the wide board, the chat of the board's column, each
+   // hidden or shown for this player.
+   rows.push_back(Row("members-part",loc::T(preferences_.roomMembersHidden?"room.show_members":"room.hide_members"),loc::T("room.part_detail")));
+   if(boardLayout_!=BoardLayout::Stacked)rows.push_back(Row("chat-part",loc::T(preferences_.roomChatHidden?"room.show_chat":"room.hide_chat"),loc::T("room.part_detail")));
    // Changing fighter needs a seat, so it lives in the table options (and X).
    rows.push_back(Row("options",loc::T("room.table_options"),loc::Tf("room.table_options.detail",OptionsTable(v,selectedTable_)+1)));
    rows.push_back(Row("room-admin",loc::T("room.settings"),loc::T(host?"room.settings.detail":"room.settings.host_only"),host));
@@ -246,7 +251,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   if(v.session.recovery==netplay::Recovery::ReplacementOffered&&!s.serverOwned)
    rows.push_back(ConfirmRow("replace-room",loc::T("room.replace"),loc::T(v.canReplaceRoom?"room.replace.detail":"room.replace.waiting"),v.canReplaceRoom));
   for(std::size_t i=0;i<rows.size();++i){auto& e=rows[i];
-   if(e.id.compare(0,6,"table-")==0)e.right=s.members.empty()?"room-members":"member-"+std::to_string(s.members.front().id);
+   if(e.id.compare(0,6,"table-")==0)e.right=preferences_.roomMembersHidden?"members-part":s.members.empty()?"room-members":"member-"+std::to_string(s.members.front().id);
    else if(e.id.compare(0,7,"member-")==0)e.left="table-"+std::to_string(selectedTable_);
    else {e.left=i?rows[i-1].id:e.id;e.right=i+1<rows.size()?rows[i+1].id:e.id;}
   }
@@ -540,43 +545,96 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   text(ImVec2(p.x+12*s,p.y+11*s),width-24*s-badge,e.label,16*s,shown(e)?palette::Ivory:palette::Muted);
   tip();
  };
- std::vector<const MenuEntry*> toolbar;
- for(const auto& e:rows)if(e.id.compare(0,6,"table-")&&e.id.compare(0,7,"member-"))toolbar.push_back(&e);
+ // The column's parts are shown or hidden from their headings, not with the room's actions.
+ std::vector<const MenuEntry*> toolbar;const MenuEntry *membersPart=nullptr,*chatPart=nullptr;
+ for(const auto& e:rows){
+  if(e.id=="members-part")membersPart=&e;else if(e.id=="chat-part")chatPart=&e;
+  else if(e.id.compare(0,6,"table-")&&e.id.compare(0,7,"member-"))toolbar.push_back(&e);
+ }
+ const auto choose=[&](const MenuEntry* e){if(e&&!nav.Asking()&&!nav.Editing()){nav.Focus(e->id,rows);action=nav.Choose(rows);}};
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(6*s,6*s));
  ImGui::PushStyleColor(ImGuiCol_ChildBg,BoardPanelColor(v.SeeThrough()));
+ boardLayout_=wide?BoardLayout::Wide:BoardLayout::Stacked;
  if(wide){
-  // The battle slots take the whole height on the left. Members, chat and the
-  // room's actions share the right, and the focused row's explanation runs
-  // under both.
+  // The battle slots fill the left. The right column holds members and chat,
+  // each under a heading that hides or shows it, and the room's actions; the
+  // focused row's explanation runs under both. The lines between the board and
+  // the column and between members and chat are dragged to resize them; with
+  // both parts hidden the column narrows to the actions, one to a row.
   const auto origin=ImGui::GetCursorScreenPos();const float width=ImGui::GetContentRegionAvail().x;
   const float explanationHeight=ImGui::GetFontSize()+4*s;
-  const float boardHeight=(std::max)(180*s,height-explanationHeight-gap),leftWidth=(width-gap)*.50f,rightWidth=width-leftWidth-gap;
-  const int toolColumns=rightWidth>=3*170*s?3:2;
-  const float toolsHeight=std::ceil(toolbar.size()/float(toolColumns))*48*s+8*s;
-  const float communityHeight=(std::max)(120*s,boardHeight-toolsHeight-gap);
+  const bool membersOpen=!preferences_.roomMembersHidden,chatOpen=!preferences_.roomChatHidden,anyOpen=membersOpen||chatOpen;
+  const float boardHeight=(std::max)(180*s,height-explanationHeight-gap);
+  const float rightWidth=anyOpen?(width-gap)*preferences_.roomSideWidth/100.f:(std::min)(width*.3f,200*s),leftWidth=width-gap-rightWidth;
+  // A column dragged too narrow for two buttons a row takes one.
+  const int toolColumns=!anyOpen?1:rightWidth>=3*180*s?3:rightWidth>=2*125*s+8*s?2:1;
+  const float toolsHeight=(std::min)(boardHeight,std::ceil(toolbar.size()/float(toolColumns))*48*s+8*s);
+  const float heading=ImGui::GetFontSize()+8*s,grip=12*s,chatLeast=90*s;
+  const float communityHeight=anyOpen?(std::max)(120*s,boardHeight-toolsHeight-gap):2*heading+12*s;
   ImGui::BeginChild("Battle slots",ImVec2(leftWidth,boardHeight),0,ImGuiWindowFlags_NoNavInputs);
   const float rowHeight=(std::max)(100*s,(ImGui::GetContentRegionAvail().y-3*8*s)/4);
   for(const auto& e:rows)if(e.id.compare(0,6,"table-")==0)tableCard(e,rowHeight);
-  ImGui::EndChild();ImGui::SameLine(0,gap);
-  ImGui::BeginChild("Room community",ImVec2(0,communityHeight),0,ImGuiWindowFlags_NoNavInputs);
-  ImGui::TextUnformatted(loc::Tf("room.members_heading",v.room.members.size(),v.room.capacity).c_str());
+  ImGui::EndChild();
+  // A drag saves with the player's settings once they have let go: while it
+  // is held the save keeps waiting.
+  const auto dragged=[&](int& value,int share,int least,int most){
+   if(!ImGui::IsItemActive())return;
+   const int clamped=(std::max)(least,(std::min)(most,share));
+   if(clamped!=value){value=clamped;preferencesDirty_=true;}
+   saveAt_=ImGui::GetTime()+.45;
+  };
+  if(anyOpen){
+   DrawGrip("##room-side-edge",ImVec2(origin.x+leftWidth,origin.y),ImVec2(gap,boardHeight));
+   dragged(preferences_.roomSideWidth,static_cast<int>(std::lround((origin.x+width-ImGui::GetIO().MousePos.x)*100/(width-gap))),
+    netplay::MinRoomSideWidth,netplay::MaxRoomSideWidth);
+  }
+  ImGui::SetCursorScreenPos(ImVec2(origin.x+leftWidth+gap,origin.y));
+  ImGui::BeginChild("Room community",ImVec2(rightWidth,communityHeight),0,ImGuiWindowFlags_NoNavInputs);
+  float titleRight=0;
+  // Members and chat each sit in a card, filled and edged as the theme's frames are.
+  const auto beginCard=[&](const char* name,ImVec2 size){
+   ImGui::PushStyleColor(ImGuiCol_ChildBg,ImGui::GetColorU32(ImGuiCol_FrameBg));
+   ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding,4*s);ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize,1);
+   ImGui::BeginChild(name,size,ImGuiChildFlags_Borders,ImGuiWindowFlags_NoNavInputs);
+  };
+  const auto endCard=[]{ImGui::EndChild();ImGui::PopStyleVar(2);ImGui::PopStyleColor();};
+  if(membersPart&&DrawPartHeading("##members-part",loc::Tf("room.members_heading",v.room.members.size(),v.room.capacity),membersOpen,
+   membersPart->id==focus,membersPart->label,titleRight))choose(membersPart);
   // Whole cards only. A free fraction of the board height always clipped the
   // bottom card through its portrait.
-  const float cardPitch=58*s+ImGui::GetStyle().ItemSpacing.y,childPadding=12*s;
-  const int memberRows=(std::max)(1,static_cast<int>(((communityHeight-48*s)*.56f-childPadding+ImGui::GetStyle().ItemSpacing.y)/cardPitch));
-  ImGui::BeginChild("Member list",ImVec2(0,memberRows*cardPitch-ImGui::GetStyle().ItemSpacing.y+childPadding),0,ImGuiWindowFlags_NoNavInputs);
-  for(const auto& e:rows)if(e.id.compare(0,7,"member-")==0)memberCard(e);
-  ImGui::EndChild();ImGui::TextUnformatted(loc::T("room.chat_heading"));
-  if(unread){const auto heading=ImGui::GetItemRectMin();const float lineHeight=ImGui::GetItemRectMax().y-heading.y;
-   DrawUnreadBadge(ImGui::GetItemRectMax().x+8*s+UnreadBadgeWidth(unread),heading.y+(lineHeight-18*s)*.5f,unread);}
-  ImGui::BeginChild("Recent chat",ImVec2(0,0),0,ImGuiWindowFlags_NoNavInputs);
-  // A message asks the atlas for its glyphs only while it is drawn inside the
-  // clip: a muted sender's, and one scrolled out of view, hold none.
-  DrawChatLog(v,true);
-  // Follow new messages only while the reader is already at the bottom.
-  if(ImGui::GetScrollY()>=ImGui::GetScrollMaxY()-1||chatShown_==0)ImGui::SetScrollHereY(1.f);
-  chatShown_=transcript_.Lines().size();
-  ImGui::EndChild();ImGui::EndChild();
+  const float bodies=ImGui::GetContentRegionAvail().y-heading-(membersOpen&&chatOpen?grip:0);
+  if(membersOpen){
+   const float cardPitch=58*s+ImGui::GetStyle().ItemSpacing.y,childPadding=12*s;
+   // The chat keeps room for a few lines however far the split is dragged.
+   const int most=chatOpen?(std::min)(netplay::MaxRoomMemberShare,static_cast<int>((bodies-chatLeast)*100/bodies)):netplay::MaxRoomMemberShare;
+   const float space=chatOpen?bodies*(std::min)(preferences_.roomMemberShare,most)/100.f:bodies;
+   const float top=ImGui::GetCursorScreenPos().y;
+   const int memberRows=(std::max)(1,static_cast<int>((space-childPadding+ImGui::GetStyle().ItemSpacing.y)/cardPitch));
+   beginCard("Member list",ImVec2(0,memberRows*cardPitch-ImGui::GetStyle().ItemSpacing.y+childPadding));
+   for(const auto& e:rows)if(e.id.compare(0,7,"member-")==0)memberCard(e);
+   endCard();
+   if(chatOpen){
+    const auto at=ImGui::GetCursorScreenPos();
+    DrawGrip("##room-member-edge",ImVec2(at.x,at.y),ImVec2(ImGui::GetContentRegionAvail().x,grip));
+    dragged(preferences_.roomMemberShare,static_cast<int>(std::lround((ImGui::GetIO().MousePos.y-top)*100/bodies)),
+     netplay::MinRoomMemberShare,most);
+    ImGui::SetCursorScreenPos(ImVec2(at.x,at.y+grip));
+   }
+  }
+  const float chatTop=ImGui::GetCursorScreenPos().y;
+  if(chatPart&&DrawPartHeading("##chat-part",loc::T("room.chat_heading"),chatOpen,chatPart->id==focus,chatPart->label,titleRight))choose(chatPart);
+  if(unread)DrawUnreadBadge(titleRight+8*s+UnreadBadgeWidth(unread),chatTop+(heading-18*s)*.5f,unread);
+  if(chatOpen){
+   beginCard("Recent chat",ImVec2(0,0));
+   // A message asks the atlas for its glyphs only while it is drawn inside the
+   // clip: a muted sender's, and one scrolled out of view, hold none.
+   DrawChatLog(v,true);
+   // Follow new messages only while the reader is already at the bottom.
+   if(ImGui::GetScrollY()>=ImGui::GetScrollMaxY()-1||chatShown_==0)ImGui::SetScrollHereY(1.f);
+   chatShown_=transcript_.Lines().size();
+   endCard();
+  }
+  ImGui::EndChild();
   ImGui::SetCursorScreenPos(ImVec2(origin.x+leftWidth+gap,origin.y+communityHeight+gap));
   ImGui::BeginChild("Room actions",ImVec2(rightWidth,toolsHeight),0,ImGuiWindowFlags_NoNavInputs);
   const float w=(ImGui::GetContentRegionAvail().x-(toolColumns-1)*8*s)/toolColumns;
@@ -605,7 +663,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   ImGui::BeginChild("Room stacked",ImVec2(0,height),0,ImGuiWindowFlags_NoNavInputs);
   for(const auto& e:rows){
    if(e.id.compare(0,6,"table-")==0)tableCard(e,(DescribeTableBanner(v,v.room.tables[std::stoi(e.id.substr(6))]).text.empty()?136:136+TableBannerHeight)*s);
-   else if(e.id.compare(0,7,"member-")==0)memberCard(e);
+   else if(e.id.compare(0,7,"member-")==0){if(!preferences_.roomMembersHidden)memberCard(e);}
    else button(e,ImGui::GetContentRegionAvail().x);
   }
   ImGui::EndChild();

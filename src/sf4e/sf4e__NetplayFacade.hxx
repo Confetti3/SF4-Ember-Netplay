@@ -106,6 +106,8 @@ namespace sf4e {
             reports::Submission reportSubmission;
             input::Action inputAction = input::Action::None;
             gamepads::ControllerRequest padAction;
+            // ShellAction::roomSettings: save only the settings a room leaves open, from `preferences`.
+            bool roomSettings = false;
     discord::InviteAction discordAction = discord::InviteAction::None;
     std::uint64_t discordRevision = 0;
 			std::string displayName;
