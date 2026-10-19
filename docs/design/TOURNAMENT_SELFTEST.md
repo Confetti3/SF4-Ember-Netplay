@@ -25,10 +25,10 @@ run. Both games then approve the same loopback origin, the one the bridge
 names itself by, and nothing outside the two PCs or the tunnel's lifetime is
 configured. The bridge is `ember-bridge` from this checkout's `server/ember`.
 
-The bridge has one `direct` connection, `selftest`, whose provider
-credential the runner issues. Its `results_url` is a loopback receiver the
-runner starts (`allow_private_webhooks` lets the bridge send to it), and its
-result secret comes from `ember-bridge result-secret` through the bridge's
+The bridge's own `mock-local` connection, from `ember-bridge init`, is the
+platform: the runner issues its provider credential, and points its
+`results_url` at a loopback receiver (`allow_private_webhooks` lets the
+bridge send there) with a fresh result secret in the bridge's
 `integration_secrets` file.
 
 ## What the game does
@@ -45,8 +45,8 @@ answered through the snapshot's identity view, matched by request:
 
 1. Settings: a name of its own, a fixed input delay, one round of 30
    seconds. A tournament room is opened from the saved settings.
-2. Ember ID: created (`IdentityOp::Enable`) when there is none, then
-   `ember-id` written with the ID and the build.
+2. Ember ID: created (`IdentityOp::Enable`) in the test's own Ember folder
+   (below), then `ember-id` written with the ID and the build.
 3. Bridge: looked up at the origin (`BridgeInspect`) and approved
    (`BridgeApprove`), as Look up and Trust do. The test checks the
    connection is offered.
@@ -70,8 +70,19 @@ itself: the commands the screens send, from code built only with
 `SF4E_SELFTEST` and run only when `SF4E_SELFTEST` names a tournament test.
 The fingerprint comparison is the runner's, on the provider side.
 
-The one change outside the self-test files is the fighters' input during
-the game. A game nobody plays ends in a draw on time, and an ember-room-v1
+Two changes reach outside the self-test files, both compiled out of a
+normal build.
+
+The helper keeps the Ember ID and trusted services under
+`%LOCALAPPDATA%\Ember`. A test must never touch the player's own, so the
+helper has a `selftest` cargo feature, which `cmake/sf4e_helper.cmake` turns
+on only with `SF4E_SELFTEST`. With it, `identity::default_directory` takes
+the folder `SF4E_SELFTEST_EMBER_DIR` names (an absolute path) as the `Ember`
+folder. `run-selftest.ps1` points it at a fresh temp folder for a
+tournament test and deletes it afterwards, so each run creates its own
+Ember ID. The helper inherits the launcher's environment.
+
+The other is the fighters' input during the game. A game nobody plays ends in a draw on time, and an ember-room-v1
 draw scores nobody and is played again, so the host's fighter has to deal
 damage. `ReadRuntimeMatchInput` asks `selftest::MatchInput` first; a build
 without the self-test has the inline stub that returns false, so the
@@ -81,29 +92,32 @@ two frames out of every twenty) is a pure function with a unit test.
 ## The runner
 
 `scripts/run-tournament-selftest.ps1`, on the PC the bridge runs on (the
-desktop), with the laptop as the host:
+desktop), with the other PC (the laptop) as the host:
 
-1. Checks the port is free on both PCs and that "Ember Interactive" is Ready.
-2. Initialises a bridge in a fresh folder, rewrites its port, adds the
-   `selftest` connection and its result secret, issues the provider
-   credential, and starts the bridge, the result receiver and the tunnel.
-3. Starts the host through the laptop's task and the guest locally, both
-   through `run-selftest.ps1 -Exchange`.
-4. For each game: on `ember-id`, creates a link intent for subject
-   `player1` or `player2` and writes `link-code`; on `claim`, reads the
-   intent, checks its pending claim has the fingerprint the game showed and
-   approves exactly that claim.
-5. With both linked, creates the match (`ember-room-v1`, `games_to_win` 1,
-   the host in slot 0) and writes `match` to both.
-6. When both games have closed, checks the match is `completed` with the
-   host as the winner, and that the receiver verified the signed result
-   (`verifyResult`, `webhook-id` `res_<match id>`).
-7. Stops the bridge, receiver and tunnel and deletes the bridge folder.
+1. Checks the ports are free on both PCs, the games closed and the other
+   PC's package there.
+2. Starts the bridge side, `sdk/typescript/tools/selftest-bridge.ts`. It
+   initialises a bridge in a fresh folder, sets its port and result
+   delivery, issues the provider credential, starts the bridge and the
+   result receiver, and holds the ssh tunnel, checking the other PC reaches
+   the bridge through it.
+3. Starts the host through the other PC's "Ember Interactive" task, with a
+   job and log of its own, and the guest here, both through
+   `run-selftest.ps1`.
+4. The bridge side, for each game: on `ember-id`, creates a link intent for
+   subject `player1` or `player2` and writes `link-code`; on `claim`, reads
+   the intent, checks its pending claim is by that game's Ember ID with the
+   fingerprint the game showed, and approves exactly that claim.
+5. With both linked, it creates the match (`ember-room-v1`, `games_to_win`
+   1, the host in slot 0, the host's build) and writes `match` to both.
+6. It waits for the bridge to say the match is `completed` with the host
+   ahead, and for the receiver to have verified the signed result
+   (`verifyResult`, `webhook-id` `res_<match id>`) naming the host.
+7. Once both games have closed the runner writes `stop`; the bridge side
+   makes its last check, stops the bridge, receiver and tunnel and deletes
+   the bridge's folder. The runner prints every side's steps.
 
-The bridge calls and the receiver are `sdk/typescript/tools/selftest-bridge.ts`
-on the SDK's `BridgeClient`. The laptop's exchange files go through ssh.
-
-`run-selftest.ps1` moves `%LOCALAPPDATA%\Ember` (the Ember ID and trusted
-services) aside before a tournament test and puts it back after, as it does
-with the settings, so each run creates a fresh Ember ID and the player's own
-is untouched. A folder left aside by an interrupted run stops the next one.
+The other PC's exchange files go through ssh. The decisions the bridge side
+makes (an `ember-id` line, the claim to approve, a finished match) are
+pure functions in `tools/selftest-checks.ts`, tested in
+`test/selftest-checks.test.ts`.

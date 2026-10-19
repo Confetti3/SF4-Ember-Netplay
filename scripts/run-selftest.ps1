@@ -9,15 +9,21 @@
 # type during those seconds. The saves are copied to
 # %APPDATA%\sf4e\selftest-backups before each run. The training test plays
 # an offline battle and writes nothing to them; the replay test imports a
-# replay into them as the Replays screen does.
+# replay into them as the Replays screen does. The tournament tests are run
+# by scripts/run-tournament-selftest.ps1, which gives them the bridge.
 param(
     [string]$PackageDir = "",
     # The names sf4e__SelfTest.hxx knows (selftest::Test).
-    [ValidateSet("training", "room-host", "room-guest", "replay")]
+    [ValidateSet("training", "room-host", "room-guest", "replay", "tournament-host", "tournament-guest")]
     [string]$Test = "training",
     # The room tests: the file the host writes its invitation to, and the
     # guest reads it from once the runner has copied it across.
     [string]$Invite = "",
+    # The tournament tests: the folder the game and the bridge's runner pass
+    # files through, the bridge's origin and the connection to link to.
+    [string]$Exchange = "",
+    [string]$Bridge = "",
+    [string]$Connection = "",
     [int]$TimeoutMinutes = 20
 )
 
@@ -85,14 +91,30 @@ function Get-RunLog([string]$pattern, [datetime]$since) {
 }
 
 # Hosting, joining and the controller a room needs write Ember's settings, so
-# a room test puts them back as they were.
+# a room or tournament test puts them back as they were.
 $settings = @()
+if ($Test -like "room-*" -or $Test -like "tournament-*") {
+    $settings = @("settings.json", "ui-preferences.json") | ForEach-Object { Join-Path $env:APPDATA "sf4e\$_" }
+}
 if ($Test -like "room-*") {
     if (-not $Invite) { throw "-Invite is needed for $Test" }
-    $settings = @("settings.json", "ui-preferences.json") | ForEach-Object { Join-Path $env:APPDATA "sf4e\$_" }
-    $settings | Where-Object { Test-Path $_ } | ForEach-Object { Copy-Item $_ "$_.selftest" -Force }
     $env:SF4E_SELFTEST_INVITE = $Invite
 }
+# A tournament test keeps its Ember ID, trusted services and saved reports in
+# a fresh folder of its own (SF4E_SELFTEST_EMBER_DIR, read only by a helper
+# built with the self-test), deleted after the run: the player's own Ember
+# folder is never touched.
+$emberDir = ""
+if ($Test -like "tournament-*") {
+    if (-not $Exchange -or -not $Bridge -or -not $Connection) { throw "-Exchange, -Bridge and -Connection are needed for $Test" }
+    if (-not (Test-Path $Exchange -PathType Container)) { throw "The exchange folder $Exchange does not exist" }
+    $emberDir = Join-Path $env:TEMP ("ember-selftest-" + [guid]::NewGuid().ToString("N"))
+    $env:SF4E_SELFTEST_EMBER_DIR = $emberDir
+    $env:SF4E_SELFTEST_EXCHANGE = (Resolve-Path $Exchange).Path
+    $env:SF4E_SELFTEST_BRIDGE = $Bridge
+    $env:SF4E_SELFTEST_CONNECTION = $Connection
+}
+$settings | Where-Object { Test-Path $_ } | ForEach-Object { Copy-Item $_ "$_.selftest" -Force }
 
 $result = Join-Path $env:TEMP ("ember-selftest-" + [guid]::NewGuid().ToString("N") + ".txt")
 $env:SF4E_SELFTEST = $Test
@@ -145,9 +167,18 @@ try {
     if (-not $process.WaitForExit(10000)) { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
 }
 finally {
-    Remove-Item Env:SF4E_SELFTEST, Env:SF4E_SELFTEST_RESULT, Env:SF4E_SELFTEST_INVITE -ErrorAction SilentlyContinue
+    Remove-Item Env:SF4E_SELFTEST, Env:SF4E_SELFTEST_RESULT, Env:SF4E_SELFTEST_INVITE, Env:SF4E_SELFTEST_EMBER_DIR, Env:SF4E_SELFTEST_EXCHANGE, Env:SF4E_SELFTEST_BRIDGE, Env:SF4E_SELFTEST_CONNECTION -ErrorAction SilentlyContinue
     # A file the run created is removed; one it changed is put back.
     $settings | ForEach-Object { if (Test-Path "$_.selftest") { Move-Item "$_.selftest" $_ -Force } else { Remove-Item $_ -ErrorAction SilentlyContinue } }
+    # The helper goes with the game; its folder once it has.
+    if ($emberDir -and (Test-Path $emberDir)) {
+        foreach ($try in 1..20) {
+            Remove-Item $emberDir -Recurse -Force -ErrorAction SilentlyContinue
+            if (-not (Test-Path $emberDir)) { break }
+            Start-Sleep -Milliseconds 500
+        }
+        if (Test-Path $emberDir) { Write-Host "The test's Ember folder $emberDir could not be deleted." }
+    }
 }
 
 if (-not (Test-Path $result) -or -not (Get-Content $result | Select-String -Quiet '^RESULT ')) {

@@ -100,6 +100,9 @@ endif()
 if(SF4E_CORE_TESTS_ONLY)
     return()
 endif()
+# The in-game self-test (docs/development/IN_GAME_SELFTEST.md), in the game
+# and in the helper it starts.
+option(SF4E_SELFTEST "Build the in-game self-test" OFF)
 # After the core-only return: on Windows the helper needs Cargo.
 include("${CMAKE_SOURCE_DIR}/cmake/sf4e_helper.cmake")
 
@@ -494,9 +497,8 @@ if(SF4E_DEVELOPER_UI)
 endif()
 # The in-game self-test (docs/development/IN_GAME_SELFTEST.md). Without it
 # selftest::Running is false and nothing of the test is built.
-option(SF4E_SELFTEST "Build the in-game self-test" OFF)
 if(SF4E_SELFTEST)
-    target_sources(sf4e PRIVATE "src/sf4e/sf4e__SelfTest.cxx" "src/sf4e/sf4e__SelfTest__Training.cxx" "src/sf4e/sf4e__SelfTest__Room.cxx" "src/sf4e/sf4e__SelfTest__Replay.cxx")
+    target_sources(sf4e PRIVATE "src/sf4e/sf4e__SelfTest.cxx" "src/sf4e/sf4e__SelfTest__Training.cxx" "src/sf4e/sf4e__SelfTest__Room.cxx" "src/sf4e/sf4e__SelfTest__Replay.cxx" "src/sf4e/sf4e__SelfTest__Tournament.cxx")
     target_compile_definitions(sf4e PRIVATE SF4E_SELFTEST=1)
 endif()
 target_link_libraries(sf4e PRIVATE sf4e_steam sf4e_custom_content_files sf4e_replay_files sf4e_video_capture sf4e_netplay_core sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization)

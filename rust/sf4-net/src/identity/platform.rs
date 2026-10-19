@@ -10,9 +10,14 @@ use zeroize::Zeroizing;
 #[cfg(windows)]
 const DPAPI_ENTROPY: &[u8] = b"EMBER:KEY-DPAPI:1\n";
 
-/// `%LOCALAPPDATA%\Ember\Identity\v1`, resolved through the shell API.
+/// `%LOCALAPPDATA%\Ember\Identity\v1`, resolved through the shell API. The
+/// tournament store sits beside it, under the same `Ember` folder.
 #[cfg(windows)]
 pub fn default_directory() -> io::Result<PathBuf> {
+    #[cfg(feature = "selftest")]
+    if let Some(root) = selftest_root(std::env::var_os(SELFTEST_ROOT)) {
+        return Ok(root.join(r"Identity\v1"));
+    }
     use std::{ffi::OsString, os::windows::ffi::OsStringExt, ptr};
     use windows_sys::Win32::{
         System::Com::CoTaskMemFree,
@@ -42,6 +47,19 @@ pub fn default_directory() -> io::Result<PathBuf> {
         CoTaskMemFree(path.cast());
         Ok(PathBuf::from(folder).join(r"Ember\Identity\v1"))
     }
+}
+
+/// The variable that gives the in-game self-test
+/// (docs/design/TOURNAMENT_SELFTEST.md) an `Ember` folder of its own, so a
+/// test run never touches the player's Ember ID or services. Only a helper
+/// built with the `selftest` feature reads it.
+#[cfg(feature = "selftest")]
+const SELFTEST_ROOT: &str = "SF4E_SELFTEST_EMBER_DIR";
+
+/// The self-test's `Ember` folder: an absolute path, or none.
+#[cfg(feature = "selftest")]
+fn selftest_root(value: Option<std::ffi::OsString>) -> Option<PathBuf> {
+    value.map(PathBuf::from).filter(|path| path.is_absolute())
 }
 
 #[cfg(not(windows))]
@@ -289,5 +307,18 @@ mod tests {
             assert!(!running_under_wine());
         }
         assert!(default_directory().unwrap().ends_with(r"Ember\Identity\v1"));
+    }
+
+    #[cfg(feature = "selftest")]
+    #[test]
+    fn the_selftest_folder_is_absolute_or_none() {
+        assert_eq!(selftest_root(None), None);
+        assert_eq!(selftest_root(Some("".into())), None);
+        assert_eq!(selftest_root(Some("Ember".into())), None);
+        assert_eq!(selftest_root(Some(r"\Ember".into())), None);
+        assert_eq!(
+            selftest_root(Some(r"C:\Temp\run\Ember".into())),
+            Some(PathBuf::from(r"C:\Temp\run\Ember"))
+        );
     }
 }

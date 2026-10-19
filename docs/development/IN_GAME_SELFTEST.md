@@ -77,6 +77,26 @@ to go live. The host then ends the game and both leave the room. Hosting,
 the names the two sides take and the controller a room needs write Ember's
 settings, so the script copies them first and puts them back after the run.
 
+## The tournament test
+
+Two PCs play one match of a local test bridge end to end: each creates an
+Ember ID, trusts the bridge, links to its mock connection with a code and
+plays a first-to-1 match through the runtime's own tournament flow. The
+host's fighter attacks and the guest's stands still, so the game ends in the
+host's win. The bridge side checks the match completed with the host as the
+winner and that its signed result was delivered.
+
+```powershell
+scripts\run-tournament-selftest.ps1 -PackageDir <stage> -BridgeExe <ember-bridge.exe>
+```
+
+The script runs the bridge on this PC and the guest here, and the host on the
+PC `-RemoteHost` names (ssh, with `-RemoteCheckout` holding this branch and
+its staged build), through the scheduled task `-RemoteTask`. Each game keeps
+its Ember ID and trusted services in a temp folder of its own, never the
+player's, and its settings are put back after the run.
+`docs/design/TOURNAMENT_SELFTEST.md` has the details.
+
 ## The replay test
 
 `-Test replay` needs at least one Ember replay in the archive. From the main

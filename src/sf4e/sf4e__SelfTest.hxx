@@ -3,6 +3,8 @@
 #include <string>
 
 #include "../training/FrameMeter.hxx"
+#include "../training/MoveNotation.hxx"
+#include "../training/RecordingTypes.hxx"
 
 // The in-game self-test (docs/development/IN_GAME_SELFTEST.md), for what a
 // unit test cannot reach. SF4E_SELFTEST names the test; every step's outcome
@@ -10,7 +12,7 @@
 // closes itself at the end. Without the variable nothing here runs.
 namespace sf4e { namespace selftest {
 
-enum class Test { None, Training, RoomHost, RoomGuest, Replay };
+enum class Test { None, Training, RoomHost, RoomGuest, Replay, TournamentHost, TournamentGuest };
 
 // The test a name names; None for a name no test has. scripts/run-selftest.ps1
 // checks its -Test against the same names.
@@ -19,6 +21,8 @@ inline Test Parse(const std::wstring& name) {
 	if (name == L"room-host") return Test::RoomHost;
 	if (name == L"room-guest") return Test::RoomGuest;
 	if (name == L"replay") return Test::Replay;
+	if (name == L"tournament-host") return Test::TournamentHost;
+	if (name == L"tournament-guest") return Test::TournamentGuest;
 	return Test::None;
 }
 
@@ -30,10 +34,15 @@ Test Requested();
 // Game thread, once a runtime tick. screen: the native screen in front, empty
 // while it changes.
 void Tick(bool atMainMenu, const std::string& screen);
+// Game thread, for each new frame of a room's match this PC fights in, after
+// the controller was read: a tournament test plays `side` itself, and
+// replaces the input it was given.
+void MatchInput(int side, unsigned& mapped, unsigned& raw);
 #else
 // A build without the self-test (CMake option SF4E_SELFTEST) runs none.
 inline Test Requested() { return Test::None; }
 inline void Tick(bool, const std::string&) {}
+inline void MatchInput(int, unsigned&, unsigned&) {}
 #endif
 
 // A test runs: nobody sits in front of the game, so it runs on behind other
@@ -79,6 +88,20 @@ void TickRoom();
 bool ReplayReady();
 bool StartReplay();
 void TickReplay(bool atMainMenu);
+
+// The tournament test (sf4e__SelfTest__Tournament.cxx), both of its sides.
+bool StartTournament();
+void TickTournament();
+
+// What the tournament host's fighter plays on its `frame`th frame: forward
+// held throughout, heavy punch pressed for two frames out of every twenty.
+// A fighter who stands still is hit until the game ends, so it ends in the
+// host's win rather than a draw on time, which a tournament plays again.
+constexpr unsigned kAttackPeriod = 20, kAttackPress = 2;
+inline unsigned AttackInput(unsigned frame, bool facingRight) {
+	const unsigned forward = facingRight ? training::RightBit : training::LeftBit;
+	return forward | (frame % kAttackPeriod < kAttackPress ? combo::HP : 0u);
+}
 
 // The cells the meter draws for one side, by kind.
 struct Cells { int startup = 0, active = 0, recovery = 0; };
