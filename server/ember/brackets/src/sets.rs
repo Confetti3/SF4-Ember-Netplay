@@ -307,7 +307,7 @@ mod tests {
     use ember_protocol::partner::RESULT_TYPE;
 
     use super::*;
-    use crate::site::Entry;
+    use crate::site::{Entry, Extras};
 
     fn player(byte: u8) -> EmberId {
         let seed = zeroize::Zeroizing::new([byte; 32]);
@@ -352,8 +352,7 @@ mod tests {
             status,
             underway: false,
             winner: winner.map(str::to_owned),
-            phase: None,
-            stream: None,
+            extras: Extras::default(),
         }
     }
 

@@ -30,7 +30,7 @@ pub struct FakeMatch {
     /// The sets whose winners become player 1 and player 2.
     pub fed_by: Option<[String; 2]>,
     /// The group of a group stage match.
-    pub group_id: Option<u64>,
+    pub group_id: Option<Value>,
 }
 
 impl FakeMatch {

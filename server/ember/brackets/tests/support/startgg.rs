@@ -16,6 +16,9 @@ use axum::{
 };
 use serde_json::{Value, json};
 
+use super::{Extra, Setup, World};
+
+pub const PLAYER1_USER: u64 = 5_001;
 pub const STARTGG_TOKEN: &str = "test-startgg-token";
 pub const EVENT_SLUG: &str = "tournament/ember-weekly/event/usf4";
 const EVENT_ID: u64 = 769_488;
@@ -93,6 +96,8 @@ pub struct Logged {
 }
 
 pub struct StartggState {
+    /// Every request's operation and query text, kept when `log` is taken.
+    pub asked: Vec<(String, String)>,
     pub entrants: Vec<FakeEntrant>,
     pub sets: Vec<FakeSet>,
     pub log: Vec<Logged>,
@@ -176,6 +181,7 @@ async fn graphql(
         operation: operation.clone(),
         variables: variables.clone(),
     });
+    state.asked.push((operation.clone(), query.to_owned()));
     let data = match operation.as_str() {
         "Event" => {
             assert_eq!(variables["slug"], EVENT_SLUG);
@@ -329,6 +335,7 @@ async fn graphql(
 impl FakeStartgg {
     pub async fn start(entrants: Vec<FakeEntrant>, sets: Vec<FakeSet>) -> Self {
         let state = Arc::new(Mutex::new(StartggState {
+            asked: Vec::new(),
             entrants,
             sets,
             log: Vec::new(),
@@ -360,6 +367,19 @@ impl FakeStartgg {
             .collect()
     }
 
+    /// The query text of the last request for `operation`.
+    pub fn query(&self, operation: &str) -> String {
+        self.state
+            .lock()
+            .unwrap()
+            .asked
+            .iter()
+            .rev()
+            .find(|(asked, _)| asked == operation)
+            .map(|(_, query)| query.clone())
+            .unwrap_or_default()
+    }
+
     pub fn set(&self, id: u64) -> FakeSet {
         self.state
             .lock()
@@ -370,4 +390,45 @@ impl FakeStartgg {
             .unwrap()
             .clone()
     }
+}
+
+/// The fake as a tournament of the connector's.
+pub fn extra(fake: &FakeStartgg) -> Extra {
+    Extra {
+        adapter: ember_brackets::Adapter::Startgg,
+        tournament: EVENT_SLUG.into(),
+        api_base: fake.origin.clone(),
+        token: STARTGG_TOKEN,
+    }
+}
+
+/// Four entrants with start.gg accounts connected: the first two play set
+/// 65089253, the other two set 65089255.
+pub async fn four(sets: Vec<FakeSet>, setup: Setup) -> (FakeStartgg, World) {
+    let entrant = |id: u64, user: u64| FakeEntrant {
+        id,
+        user: Some(user),
+        discord: None,
+    };
+    let fake = FakeStartgg::start(
+        vec![
+            entrant(2_401_411, PLAYER1_USER),
+            entrant(2_401_412, 5_002),
+            entrant(2_401_414, 5_003),
+            entrant(2_401_415, 5_004),
+        ],
+        sets,
+    )
+    .await;
+    let world = World::start(Setup {
+        challonge: false,
+        extra: vec![extra(&fake)],
+        ..setup
+    })
+    .await;
+    world.bridge.connect_startgg(1, PLAYER1_USER).await;
+    world.bridge.connect_startgg(2, 5_002).await;
+    world.bridge.connect_startgg(3, 5_003).await;
+    world.bridge.connect_startgg(4, 5_004).await;
+    (fake, world)
 }

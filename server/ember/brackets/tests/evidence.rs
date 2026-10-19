@@ -7,8 +7,9 @@ mod support;
 
 use axum::http::{Method, StatusCode};
 use serde_json::{Value, json};
-use support::{Setup, World, challonge::lines};
+use support::{Setup, World, challonge::lines, creation};
 
+const BRACKET: &str = "challonge:ember_weekly";
 const LIST: &str = "GET /matches.json?state=open&page=1&per_page=25";
 const READ_1001: &str = "GET /matches/1001.json";
 const REPORT_1001: &str = "PUT /matches/1001.json";
@@ -153,53 +154,6 @@ async fn a_result_the_bridge_cannot_deliver_is_read_from_the_bridge() {
     assert_eq!(world.challonge.find("1001").winner.as_deref(), Some("354"));
 }
 
-/// The creation the connector sends for an attempt, rebuilt from what the
-/// bridge has for its participants.
-fn creation(external: &str, players: &[Value]) -> Value {
-    json!({
-        "external_match_id": external,
-        "game": "usf4",
-        "participants": players,
-        "rules": {
-            "games_to_win": 2,
-            "draw_policy": "replay_no_score",
-            "native_rules_profile": "ember-room-v1",
-            "edition_policy": "ultra_only",
-            "character_policy": "unrestricted_between_games",
-            "stage_policy": "p1_selects",
-            "input_delay_policy": "ember_existing_ready_policy",
-        },
-        "observer_policy": "authorized_only",
-        "result_policy": "two_player_agreement_or_review",
-        "required_build_id": "test-build",
-        "metadata": { "round_label": "Round 1" },
-    })
-}
-
-/// What a crash leaves when it comes after a creation was saved and before
-/// the bridge's answer was: the attempt waiting, with its creation.
-fn stage_waiting(world: &World, entries: [&str; 2], command: &Value) {
-    let players = &command["participants"];
-    world
-        .database()
-        .execute(
-            "INSERT INTO sets (bracket, set_id, player1, player2, ember1, ember2, attempt,
-                 match_id, progress, command)
-             VALUES ('challonge:ember_weekly', '1001', ?1, ?2, ?3, ?4, 1, NULL, 'waiting', ?5)
-             ON CONFLICT (bracket, set_id) DO UPDATE SET player1 = ?1, player2 = ?2,
-                 ember1 = ?3, ember2 = ?4, attempt = 1, match_id = NULL,
-                 progress = 'waiting', command = ?5",
-            rusqlite::params![
-                entries[0],
-                entries[1],
-                players[0]["ember_id"].as_str().unwrap(),
-                players[1]["ember_id"].as_str().unwrap(),
-                command.to_string()
-            ],
-        )
-        .unwrap();
-}
-
 #[tokio::test]
 async fn a_creation_the_bridge_never_received_is_sent_after_a_restart() {
     let world = connected(Setup::default()).await;
@@ -226,10 +180,11 @@ async fn a_creation_the_bridge_never_received_is_sent_after_a_restart() {
             json!({ "participant_id": player["participant_id"], "ember_id": player["ember_id"], "slot": slot })
         })
         .collect();
-    stage_waiting(
-        &world,
+    world.stage_waiting(
+        BRACKET,
+        "1001",
         ["355", "354"],
-        &creation("challonge:ember_weekly:1001:1", &players),
+        &creation("challonge:ember_weekly:1001:1", &players, 2, "Round 1"),
     );
 
     world.restarted().pass(true).await;
@@ -241,17 +196,9 @@ async fn a_creation_the_bridge_never_received_is_sent_after_a_restart() {
 #[tokio::test]
 async fn a_match_made_before_a_crash_is_found_not_doubled_and_ended_if_its_set_changed() {
     let (world, first) = playing().await;
-    let found = world.snapshot(&first).await;
-    let players: Vec<Value> = found["participants"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|player| {
-            json!({ "participant_id": player["participant_id"], "ember_id": player["ember_id"], "slot": player["slot"] })
-        })
-        .collect();
-    let command = creation("challonge:ember_weekly:1001:1", &players);
-    stage_waiting(&world, ["355", "354"], &command);
+    world
+        .stage_unanswered(BRACKET, "1001", ["355", "354"], &first)
+        .await;
 
     // Unchanged: sending it again finds the same match.
     let restarted = world.restarted();
@@ -261,7 +208,9 @@ async fn a_match_made_before_a_crash_is_found_not_doubled_and_ended_if_its_set_c
     // Changed while the connector was down: the old match is found, then
     // ended, and the new pair plays a new attempt. The old match's end is
     // not taken for the new pair's.
-    stage_waiting(&world, ["355", "354"], &command);
+    world
+        .stage_unanswered(BRACKET, "1001", ["355", "354"], &first)
+        .await;
     world.challonge.state.lock().unwrap().matches[0].players[1] = Some("353".into());
     world.bridge.connect(3, "player3").await;
     let restarted = world.restarted();
@@ -282,20 +231,9 @@ async fn a_match_made_before_a_crash_is_found_not_doubled_and_ended_if_its_set_c
 /// creation was lost: the attempt waits, with its creation saved.
 async fn unanswered() -> (World, String) {
     let (world, first) = playing().await;
-    let found = world.snapshot(&first).await;
-    let players: Vec<Value> = found["participants"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|player| {
-            json!({ "participant_id": player["participant_id"], "ember_id": player["ember_id"], "slot": player["slot"] })
-        })
-        .collect();
-    stage_waiting(
-        &world,
-        ["355", "354"],
-        &creation("challonge:ember_weekly:1001:1", &players),
-    );
+    world
+        .stage_unanswered(BRACKET, "1001", ["355", "354"], &first)
+        .await;
     (world, first)
 }
 

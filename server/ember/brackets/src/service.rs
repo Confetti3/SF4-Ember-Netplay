@@ -5,7 +5,13 @@
 //! The service names each entry's accounts itself, site and all, and keeps
 //! its own request limits; the connector adds everything else the contract
 //! promises (one live match per set, evidence, retries, verified results).
-use std::{collections::HashSet, sync::Mutex};
+use std::{
+    collections::HashSet,
+    sync::{
+        Mutex,
+        atomic::{AtomicBool, Ordering},
+    },
+};
 
 use reqwest::{
     Method, StatusCode,
@@ -19,8 +25,8 @@ use crate::{
     http::{bearer, exchange, http_client},
     log,
     site::{
-        Account, Entry, Phase, Purpose, Report, Reported, Set, Site, SiteError, SiteFuture,
-        Standing, Status,
+        Account, Entry, Extras, MAX_PHASE, Phase, Purpose, Report, Reported, Set, Site, SiteError,
+        SiteFuture, Standing, Status,
     },
 };
 
@@ -34,8 +40,6 @@ const IDEMPOTENCY_HEADER: &str = "idempotency-key";
 /// How much of a service's reason for deferring a report goes into the log.
 const MAX_REASON: usize = 200;
 const MAX_ANSWER: usize = 1024 * 1024;
-/// The longest `phase` a set may give.
-const MAX_PHASE: usize = 64;
 
 pub(crate) struct Service {
     http: reqwest::Client,
@@ -44,6 +48,8 @@ pub(crate) struct Service {
     headers: HeaderMap,
     /// Sets left out of a read for their shape, each said once.
     left_out: Mutex<HashSet<String>>,
+    /// Whether a set with a blank `phase` was said, which is read as none.
+    blank_phase_said: AtomicBool,
 }
 
 /// `GET {base}/sets?state=open`. Each set is read on its own, so one out of
@@ -76,7 +82,8 @@ struct WireSet {
     /// The winning entry's ID, once decided.
     #[serde(default)]
     winner: Option<String>,
-    /// The stage of the event, which round rules can name.
+    /// The stage of the event, which round rules can name. Blank is none;
+    /// one over `MAX_PHASE` characters, or not a string, leaves the set out.
     #[serde(default)]
     phase: Option<String>,
 }
@@ -251,10 +258,10 @@ impl WireSet {
                 .iter()
                 .flatten()
                 .all(|entry| is_slug(&entry.id));
-        let phase_valid = self.phase.as_deref().is_none_or(|phase| {
-            let phase = phase.trim();
-            !phase.is_empty() && phase.chars().count() <= MAX_PHASE
-        });
+        let phase_valid = self
+            .phase
+            .as_deref()
+            .is_none_or(|phase| phase.trim().chars().count() <= MAX_PHASE);
         if !ids_valid || !phase_valid {
             return None;
         }
@@ -276,9 +283,18 @@ impl WireSet {
             },
             underway: self.underway,
             winner: self.winner,
-            phase: self.phase.map(|phase| Phase::named(phase.trim())),
-            stream: None,
+            extras: Extras {
+                phase: self.phase.and_then(|phase| Phase::new(Some(&phase), None)),
+                ..Extras::default()
+            },
         })
+    }
+
+    /// Whether its `phase` is there but blank, which is read as none.
+    fn has_blank_phase(&self) -> bool {
+        self.phase
+            .as_deref()
+            .is_some_and(|phase| phase.trim().is_empty())
     }
 }
 
@@ -295,6 +311,7 @@ impl Service {
             base: base.trim_end_matches('/').to_owned(),
             headers,
             left_out: Mutex::default(),
+            blank_phase_said: AtomicBool::new(false),
         })
     }
 
@@ -352,16 +369,24 @@ impl Service {
             .into_iter()
             .enumerate()
             .filter_map(|(index, value)| {
-                let set = serde_json::from_value::<WireSet>(value.clone())
-                    .ok()
-                    .and_then(WireSet::into_set);
-                if set.is_none() {
-                    let name = value["id"]
+                let wire = serde_json::from_value::<WireSet>(value.clone()).ok();
+                let blank_phase = wire.as_ref().is_some_and(WireSet::has_blank_phase);
+                let set = wire.and_then(WireSet::into_set);
+                let name = || {
+                    value["id"]
                         .as_str()
-                        .map_or_else(|| format!("number {}", index + 1), str::to_owned);
+                        .map_or_else(|| format!("number {}", index + 1), str::to_owned)
+                };
+                if set.is_none() {
+                    let name = name();
                     if left_out.insert(name.clone()) {
                         log!("the service's set {name} is not in the contract's shape; it is left out");
                     }
+                } else if blank_phase && !self.blank_phase_said.swap(true, Ordering::Relaxed) {
+                    log!(
+                        "the service's set {} has a blank phase, which is read as none; this is said once",
+                        name()
+                    );
                 }
                 set
             })
@@ -560,6 +585,25 @@ mod tests {
             ]
         );
         assert!(two.accounts.is_empty());
+    }
+
+    #[test]
+    fn a_blank_phase_is_none_and_a_long_or_odd_one_leaves_the_set_out() {
+        let phase = |phase: Value| {
+            set(json!({ "id": "s", "status": "open", "phase": phase }))
+                .map(|set| set.extras.phase.map(|phase| phase.to_string()))
+        };
+        assert_eq!(phase(json!(" Top 8 ")), Some(Some("Top 8".into())));
+        assert_eq!(phase(json!("")), Some(None));
+        assert_eq!(phase(json!("  ")), Some(None));
+        assert_eq!(phase(Value::Null), Some(None));
+        assert_eq!(phase(json!("x".repeat(64))), Some(Some("x".repeat(64))));
+        assert_eq!(phase(json!("x".repeat(65))), None);
+        // Not a string: out of shape, so the set is left out.
+        assert!(
+            serde_json::from_value::<WireSet>(json!({ "id": "s", "status": "open", "phase": 8 }))
+                .is_err()
+        );
     }
 
     #[test]

@@ -474,4 +474,29 @@ mod tests {
         drop(Store::open(&new).unwrap());
         std::fs::remove_dir_all(&dir).unwrap();
     }
+
+    #[test]
+    fn a_waiting_reason_is_new_only_when_it_changes() {
+        let dir = crate::test_dir("store-note");
+        let store = Store::open(&dir.join("brackets.sqlite3")).unwrap();
+        let tracked = Tracked {
+            entries: ["1".into(), "2".into()],
+            players: None,
+            attempt: 1,
+            match_id: None,
+            progress: Progress::Waiting,
+        };
+        store.save("startgg:e", "s1", &tracked).unwrap();
+        // Each reason is logged once: only a change says so.
+        assert!(store.note("startgg:e", "s1", Some("held")).unwrap());
+        assert!(!store.note("startgg:e", "s1", Some("held")).unwrap());
+        assert!(store.note("startgg:e", "s1", Some("other")).unwrap());
+        // Saving the set again keeps its reason, so it is not said again.
+        store.save("startgg:e", "s1", &tracked).unwrap();
+        assert!(!store.note("startgg:e", "s1", Some("other")).unwrap());
+        assert!(store.note("startgg:e", "s1", None).unwrap());
+        assert!(!store.note("startgg:e", "s1", None).unwrap());
+        drop(store);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 }

@@ -76,36 +76,81 @@ pub struct Set {
     pub underway: bool,
     /// The winning entry's participant ID, once decided.
     pub winner: Option<String>,
-    /// The stage of the event the set is in, when the site says: a start.gg
-    /// phase, Challonge's group or final stage, an http service's `phase`.
-    /// Round rules can name it, since stages number their rounds afresh.
+    /// What the site says beyond what playing it needs.
+    pub extras: Extras,
+}
+
+/// What a site may say about a set besides its players and result, each
+/// absent when the site does not say it. A field added here touches only the
+/// adapters that fill it.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Extras {
+    /// The stage of the event the set is in: a start.gg phase, Challonge's
+    /// group or final stage, an http service's `phase`. Round rules can name
+    /// it, since stages number their rounds afresh.
     pub phase: Option<Phase>,
-    /// The stream the set is assigned to, when the site says (start.gg).
+    /// The stream the set is assigned to (start.gg).
     pub stream: Option<String>,
 }
 
+/// The longest phase name a round rule or an http service's set may give.
+pub const MAX_PHASE: usize = 64;
+
 /// A stage of an event, by the name the organizer sees and, where the site
-/// has one, its ID.
+/// has one, its ID. It has at least one of the two.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Phase {
-    pub name: String,
-    pub id: Option<String>,
+    name: Option<String>,
+    id: Option<String>,
 }
 
 impl Phase {
-    pub fn named(name: impl Into<String>) -> Self {
+    /// The phase with this name (spaces around it dropped) and ID. `None`
+    /// when it has neither: a blank name is no name.
+    pub fn new(name: Option<&str>, id: Option<String>) -> Option<Self> {
+        let name = name
+            .map(str::trim)
+            .filter(|name| !name.is_empty())
+            .map(str::to_owned);
+        let id = id.filter(|id| !id.is_empty());
+        (name.is_some() || id.is_some()).then_some(Self { name, id })
+    }
+
+    /// A stage a site always names the same way.
+    pub fn named(name: &str) -> Self {
         Self {
-            name: name.into(),
+            name: Some(name.to_owned()),
             id: None,
         }
+    }
+
+    /// Whether `name` is a phase name a round rule or an http set may give:
+    /// 1 to `MAX_PHASE` characters once the spaces around it are dropped.
+    pub fn is_valid_name(name: &str) -> bool {
+        let name = name.trim();
+        !name.is_empty() && name.chars().count() <= MAX_PHASE
     }
 
     /// Whether a round rule's `phase` names this one: its name, ignoring
     /// case and the spaces around it, or its ID.
     pub fn is(&self, wanted: &str) -> bool {
         let wanted = wanted.trim();
-        self.name.trim().to_lowercase() == wanted.to_lowercase()
+        self.name
+            .as_deref()
+            .is_some_and(|name| name.to_lowercase() == wanted.to_lowercase())
             || self.id.as_deref() == Some(wanted)
+    }
+}
+
+/// The name a phase is shown by, or its ID when the site gave no name.
+impl fmt::Display for Phase {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(
+            self.name
+                .as_deref()
+                .or(self.id.as_deref())
+                .unwrap_or_default(),
+        )
     }
 }
 

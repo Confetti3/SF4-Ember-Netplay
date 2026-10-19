@@ -356,6 +356,98 @@ impl World {
         assert_eq!(status, StatusCode::OK, "{cancelled}");
     }
 
+    /// Every match the bridge has, as it shows it, by external match ID.
+    pub async fn snapshots(&self) -> Vec<(String, Value)> {
+        let mut found = Vec::new();
+        for (external, match_id, _) in self.bridge.matches().await {
+            found.push((external, self.snapshot(&match_id).await));
+        }
+        found.sort_by(|a, b| a.0.cmp(&b.0));
+        found
+    }
+
+    /// Every match's first-to length, by external match ID.
+    pub async fn lengths(&self) -> Vec<(String, u64)> {
+        self.snapshots()
+            .await
+            .into_iter()
+            .map(|(external, found)| (external, found["games_to_win"].as_u64().unwrap()))
+            .collect()
+    }
+
+    /// Why the set waits, as the connector keeps it (and logs it once).
+    pub fn note(&self, bracket: &str, set_id: &str) -> Option<String> {
+        self.database()
+            .query_row(
+                "SELECT note FROM sets WHERE bracket = ?1 AND set_id = ?2",
+                [bracket, set_id],
+                |row| row.get(0),
+            )
+            .unwrap()
+    }
+
+    /// What a crash leaves when it comes after a creation was saved and
+    /// before the bridge's answer was: the set's attempt 1 waiting, with
+    /// its creation, which is sent again as it is.
+    pub fn stage_waiting(&self, bracket: &str, set_id: &str, entries: [&str; 2], command: &Value) {
+        let players = &command["participants"];
+        self.database()
+            .execute(
+                "INSERT INTO sets (bracket, set_id, player1, player2, ember1, ember2, attempt,
+                     match_id, progress, command)
+                 VALUES (?6, ?7, ?1, ?2, ?3, ?4, 1, NULL, 'waiting', ?5)
+                 ON CONFLICT (bracket, set_id) DO UPDATE SET player1 = ?1, player2 = ?2,
+                     ember1 = ?3, ember2 = ?4, attempt = 1, match_id = NULL,
+                     progress = 'waiting', command = ?5",
+                rusqlite::params![
+                    entries[0],
+                    entries[1],
+                    players[0]["ember_id"].as_str().unwrap(),
+                    players[1]["ember_id"].as_str().unwrap(),
+                    command.to_string(),
+                    bracket,
+                    set_id,
+                ],
+            )
+            .unwrap();
+    }
+
+    /// The same, for a match the bridge did make: its creation is rebuilt
+    /// from the match, as the connector built it, and saved with the set
+    /// waiting, as if the bridge's answer had been lost.
+    pub async fn stage_unanswered(
+        &self,
+        bracket: &str,
+        set_id: &str,
+        entries: [&str; 2],
+        match_id: &str,
+    ) {
+        let external = self
+            .bridge
+            .matches()
+            .await
+            .into_iter()
+            .find(|(_, id, _)| id == match_id)
+            .unwrap()
+            .0;
+        let found = self.snapshot(match_id).await;
+        let players: Vec<Value> = found["participants"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|player| {
+                json!({ "participant_id": player["participant_id"], "ember_id": player["ember_id"], "slot": player["slot"] })
+            })
+            .collect();
+        let command = creation(
+            &external,
+            &players,
+            found["games_to_win"].as_u64().unwrap(),
+            found["metadata"]["round_label"].as_str().unwrap(),
+        );
+        self.stage_waiting(bracket, set_id, entries, &command);
+    }
+
     pub async fn snapshot(&self, match_id: &str) -> Value {
         let (status, found) = self
             .bridge
@@ -370,4 +462,27 @@ impl World {
         assert_eq!(status, StatusCode::OK, "{found}");
         found
     }
+}
+
+/// The creation the connector sends for an attempt, rebuilt from what the
+/// bridge has for its participants.
+pub fn creation(external: &str, players: &[Value], games_to_win: u64, round_label: &str) -> Value {
+    json!({
+        "external_match_id": external,
+        "game": "usf4",
+        "participants": players,
+        "rules": {
+            "games_to_win": games_to_win,
+            "draw_policy": "replay_no_score",
+            "native_rules_profile": "ember-room-v1",
+            "edition_policy": "ultra_only",
+            "character_policy": "unrestricted_between_games",
+            "stage_policy": "p1_selects",
+            "input_delay_policy": "ember_existing_ready_policy",
+        },
+        "observer_policy": "authorized_only",
+        "result_policy": "two_player_agreement_or_review",
+        "required_build_id": "test-build",
+        "metadata": { "round_label": round_label },
+    })
 }

@@ -12,6 +12,7 @@ mod http;
 mod limit;
 mod results;
 mod roster;
+mod rounds;
 mod schedule;
 mod service;
 mod sets;
@@ -32,10 +33,8 @@ use axum::{Router, extract::DefaultBodyLimit, routing::post};
 use ember_protocol::webhook::Secret;
 use tokio::{net::TcpListener, task::JoinHandle};
 
-pub use config::{
-    Adapter, Bridge, Config, Credential, CredentialKind, Hold, Results, RoundRule, Rounds, Side,
-    Tournament,
-};
+pub use config::{Adapter, Bridge, Config, Credential, CredentialKind, Results, Tournament};
+pub use rounds::{Hold, RoundRule, Rounds, Side};
 
 use bracket::{Bracket, Context};
 use bridge::BridgeClient;
@@ -221,6 +220,10 @@ impl Connector {
                         // One limit for everything that uses this token.
                         limiters.for_token(&credential),
                         clock.clone(),
+                        startgg::Wanted {
+                            phases: tournament.rounds.names_phases(),
+                            streams: tournament.hold.streamed,
+                        },
                     )?),
                 };
                 Ok(Arc::new(Bracket::new(tournament, site, context.clone())?))

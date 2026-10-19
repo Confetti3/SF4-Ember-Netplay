@@ -72,11 +72,14 @@ A `Set` carries:
   no result) or `Decided`.
 - `underway`, when the site says so, and `winner` (the winning entry's
   `participant_id`) once decided.
-- `phase`, the stage of the event, when the site has more than one: a name
-  and, where the site has one, an ID. Round rules can name it (README,
-  `rounds`), since stages number their rounds from 1 again.
-- `stream`, the stream the set is assigned to, when the site says. With
-  `hold.streamed`, such a set waits.
+- `extras`, what the site says beyond that, each part absent when it does
+  not say it (a new part touches only the adapters that fill it):
+  - `phase`, the stage of the event, when the site has more than one: a name
+    and, where the site has one, an ID (`Phase::new` drops a blank name, and
+    `Phase::is_valid_name` is the check round rules use). Round rules can name
+    it (README, `rounds`), since stages number their rounds from 1 again.
+  - `stream`, the stream the set is assigned to, when the site says. With
+    `hold.streamed` (start.gg only), such a set waits.
 
 Errors:
 
@@ -227,7 +230,7 @@ fields in your answers are ignored, so you may add fields freely.
 | `entries[].accounts` | no | In the order to try: `{ "site": "<bridge site>", "id": "<what that site looks up>" }` or `{ "discord": "<Discord user ID>" }`. An ID in the wrong form finds nobody, a site the bridge does not have is not asked, and a site (or Discord) the connection may not look up is refused: in each case only that entry's set waits, with the reason logged once. |
 | `underway` | no (`false`) | |
 | `winner` | no | The winning entry's `id`, once decided |
-| `phase` | no | The stage of the event the set is in (`"Pools"`, `"Top 8"`), 1 to 64 characters. A tournament's round rules can name it; a set without one is covered only by rules without `phase`. Added in contract 1 as an optional field, so a service without it stays valid. |
+| `phase` | no | The stage of the event the set is in (`"Pools"`, `"Top 8"`), 1 to 64 characters once the spaces around it are dropped. A tournament's round rules can name it; a set without one is covered only by rules without `phase`. A blank or whitespace `phase` is read as none (the set is kept, and the connector logs it once). A `phase` over 64 characters, or one that is not a string, is out of shape: the set is left out of the read, logged once, like any other. Added in contract 1 as an optional field, so a service without it stays valid. |
 
 A set in the list that is not in this shape (an unknown `status`, a bad
 `id`, three entries) is left out of the read, and logged once; the other

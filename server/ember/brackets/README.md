@@ -126,9 +126,11 @@ already has a result is never written over. start.gg replaces every game
 entered when a set is reported, so games the organizer already entered are
 kept only when nothing would be lost: a game that gives only its winner,
 the same as Ember's, is sent again with the rest. A game with another
-winner, with no winner, or with anything more (its score, stage or
-characters) leaves the set to the organizer. A set that reads pending at that moment
-is not reported, and the next read decides what becomes of it. A score
+winner, with no winner, or with anything more (a score above 0, a
+stage or characters) leaves the set to the organizer; a score of 0 or none,
+and a stage or characters without an ID, count as empty, since start.gg may
+fill them for a game entered with only its winner. A set that reads pending
+at that moment is not reported, and the next read decides what becomes of it. A score
 counts as sent only when start.gg's answer shows the set decided for its
 winner, or, when the answer shows nothing, a fresh read of the set does;
 otherwise it waits and is sent again. Challonge's answer to a score is
@@ -303,14 +305,37 @@ Secrets are only ever read from files, never written to the log.
     tabs, such as "Pools" or "Top 8"), compared without case and the spaces
     around it, or the phase's ID, which tells apart two phases with one name.
   - Challonge: `group` for the group stage of a two stage tournament, and
-    `final` for the final stage, or the only one.
-  - `http`: the `phase` the service gives each set (ADAPTERS.md).
+    `final` for the final stage, or the only one. A group stage match's
+    round label, which goes into the Ember match's `round_label` metadata
+    and is shown to its players, reads "Group stage, Round N" (for
+    example "Group stage, Round 2"), whether or not any rule names a
+    phase; a final stage match's is "Round N" as before.
+  - `http`: the `phase` the service gives each set (ADAPTERS.md). A blank
+    `phase` is read as none, and said once.
+  - A rule whose phase is none of the phases the reads have shown is said
+    once for the tournament and rule ("rule for phase X matches no phase;
+    phases seen: ..."), since a mistyped name gives its sets the default
+    length. The configuration is not refused for it, since a phase such as
+    top 8 appears only when it starts; the line is for spelling, and can
+    appear early for a phase that is simply not listed yet. A set with no
+    phase is covered only by rules without one.
 - `hold`: sets left to the organizer for now, each kind off by default.
   `"streamed": true` holds a start.gg set assigned to a stream: it gets no
   Ember match, logged once, until the organizer takes it off the stream, and
-  is then played as usual. A set already live in Ember is left as it is.
-  Challonge's documented match has no stream or schedule to read, and an
-  `http` service holds a set by not listing it open. start.gg's `startAt` is
+  is then played as usual. A set already live in Ember is left as it is,
+  whatever is done to it on start.gg; but when its Ember match ends without
+  a result (a restart or an expiry), the set is a new attempt, and a new
+  attempt on a stream waits like any other (the log says the earlier match
+  ended). A creation sent for a set and never answered is not sent again
+  once the set is on a stream, except to learn the match the bridge made,
+  which is cancelled at once; the set is played as a new attempt when it is
+  taken off the stream. Held sets are not looked up on the bridge. A page
+  of sets is asked for their stream only when sets on a stream are held, and
+  for their phase only when a rule names one, to keep within start.gg's
+  limit on objects a request. The
+  setting is refused for a Challonge or `http` tournament, which have no
+  stream to read: Challonge's documented match has no stream or schedule,
+  and an `http` service holds a set by not listing it open. start.gg's `startAt` is
   not used: it falls back to the round's configured time, so it cannot tell
   a set held for later from any other.
 
@@ -429,8 +454,11 @@ described there and need one check against the real API:
 - A tournament's `state` and a match's `underway_at`, which the schema does
   not list: read when present, and otherwise worked out as described above.
 - A match's `group_id` on group stage matches, which the schema does not
-  list either (the upgrading notes say it is there): a number there makes
-  the match part of the `group` stage for round rules.
+  list either (the upgrading notes say it is there): a number there, or a
+  string of digits, makes the match part of the `group` stage for round
+  rules, and gives it the round label "Group stage, Round N". Anything else
+  (null, absent, or the schema's placeholder text) leaves it in the final
+  stage.
 - The answer to a score: the documented match, with `winner_id` set. The
   connector counts a score sent from that answer; without it, each report
   costs one more read of the match, about 127 more requests for the 64

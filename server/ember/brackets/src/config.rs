@@ -6,12 +6,14 @@ use ember_protocol::{
     encoding::{OriginPolicy, check_origin},
     event::{is_rfc3339_utc, rfc3339},
     json,
-    matches::games_to_win_valid,
 };
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroizing;
 
-use crate::{schedule::Window, site::Phase};
+use crate::{
+    rounds::{Hold, Rounds},
+    schedule::Window,
+};
 
 const MAX_CONFIG: usize = 64 * 1024;
 /// Challonge's free tier: 500 requests a month per developer app.
@@ -24,8 +26,6 @@ const MIN_POLL_SECS: u64 = 30;
 /// (`startgg:tournament/<64>/event/<64>:<64>:<attempt>`) stays within the
 /// bridge's 256 bytes.
 const MAX_SLUG: usize = 64;
-/// The longest phase name a round rule may give.
-const MAX_PHASE: usize = 64;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -181,116 +181,6 @@ pub enum CredentialKind {
     Bearer,
 }
 
-/// Set lengths by round. The site does not say how long a set is.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Rounds {
-    /// First to this many games, unless a rule says otherwise.
-    pub games_to_win: u8,
-    /// Read in order: the first rule that covers a set sets its length, so
-    /// a narrower rule goes before a wider one.
-    #[serde(default)]
-    pub rules: Vec<RoundRule>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct RoundRule {
-    /// Only sets of this stage of the event: a start.gg phase's name (as
-    /// the event's bracket page shows it, ignoring case) or ID, Challonge's
-    /// `group` or `final` stage, or an http service's `phase`. Any stage
-    /// when absent.
-    #[serde(default)]
-    pub phase: Option<String>,
-    /// The first round covered; round 1 when absent.
-    #[serde(default = "first_round")]
-    pub from_round: u32,
-    /// The last round covered; every later round when absent.
-    #[serde(default)]
-    pub to_round: Option<u32>,
-    #[serde(default)]
-    pub side: Side,
-    pub games_to_win: u8,
-}
-
-fn first_round() -> u32 {
-    1
-}
-
-/// Sets the connector does not create a match for yet, each kind off unless
-/// asked for.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Hold {
-    /// A set the site shows assigned to a stream (start.gg): played on the
-    /// stream setup, so it waits, logged once, until it is taken off the
-    /// stream. A set already live in Ember is left as it is.
-    #[serde(default)]
-    pub streamed: bool,
-}
-
-/// Which rounds a rule counts. Challonge numbers the losers bracket's rounds
-/// below zero and every other round above it, so `winners` also covers
-/// single elimination, round robin and swiss.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Side {
-    Winners,
-    Losers,
-    #[default]
-    Any,
-}
-
-impl Rounds {
-    /// The set length of `round`, as the site numbers it, in `phase`.
-    pub fn games_to_win(&self, round: i32, phase: Option<&Phase>) -> u8 {
-        let side = if round < 0 {
-            Side::Losers
-        } else {
-            Side::Winners
-        };
-        let number = round.unsigned_abs();
-        self.rules
-            .iter()
-            .find(|rule| {
-                rule.phase
-                    .as_deref()
-                    .is_none_or(|wanted| phase.is_some_and(|phase| phase.is(wanted)))
-                    && (rule.side == Side::Any || rule.side == side)
-                    && number >= rule.from_round
-                    && rule.to_round.is_none_or(|to| number <= to)
-            })
-            .map_or(self.games_to_win, |rule| rule.games_to_win)
-    }
-
-    fn check(&self) -> Result<(), String> {
-        let lengths_valid = std::iter::once(self.games_to_win)
-            .chain(self.rules.iter().map(|rule| rule.games_to_win))
-            .all(games_to_win_valid);
-        if !lengths_valid {
-            return Err("games_to_win is 1 to 10".into());
-        }
-        let ranges_valid = self.rules.iter().all(|rule| {
-            rule.from_round >= 1 && rule.to_round.is_none_or(|to| to >= rule.from_round)
-        });
-        if !ranges_valid {
-            return Err("a round rule starts at round 1 or later and ends no earlier".into());
-        }
-        let phases_valid = self.rules.iter().all(|rule| {
-            rule.phase.as_deref().is_none_or(|phase| {
-                let phase = phase.trim();
-                !phase.is_empty() && phase.chars().count() <= MAX_PHASE
-            })
-        });
-        if !phases_valid {
-            return Err(format!(
-                "a round rule's phase is 1 to {MAX_PHASE} characters"
-            ));
-        }
-        Ok(())
-    }
-}
-
 fn default_poll_secs() -> u64 {
     DEFAULT_POLL_SECS
 }
@@ -351,6 +241,11 @@ impl Tournament {
         }
         if self.adapter != Adapter::Challonge && self.credential.kind != CredentialKind::Bearer {
             return Err(format!("{key}: its token is a bearer credential"));
+        }
+        if self.hold.streamed && self.adapter != Adapter::Startgg {
+            return Err(format!(
+                "{key}: hold.streamed is for start.gg, the only site that says which sets are on a stream; an http service holds a set by not listing it open"
+            ));
         }
         self.rounds
             .check()
@@ -562,84 +457,7 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn rule(from: u32, to: Option<u32>, side: Side, games: u8) -> RoundRule {
-        RoundRule {
-            phase: None,
-            from_round: from,
-            to_round: to,
-            side,
-            games_to_win: games,
-        }
-    }
-
-    #[test]
-    fn the_first_rule_that_covers_a_round_sets_its_length() {
-        let rounds = Rounds {
-            games_to_win: 2,
-            rules: vec![
-                rule(5, None, Side::Winners, 4),
-                rule(3, None, Side::Any, 3),
-                rule(1, Some(2), Side::Losers, 1),
-            ],
-        };
-        let lengths: Vec<u8> = [1, 2, 3, 4, 5, 9, -1, -2, -3, -7]
-            .into_iter()
-            .map(|round| rounds.games_to_win(round, None))
-            .collect();
-        assert_eq!(lengths, [2, 2, 3, 3, 4, 4, 1, 1, 3, 3]);
-        // Round 0 is not a losers round.
-        assert_eq!(rounds.games_to_win(0, None), 2);
-    }
-
-    #[test]
-    fn a_rule_can_name_the_phase_whose_rounds_it_covers() {
-        // First to 2 in pools, first to 3 in top 8, first to 5 in its
-        // grand final (round 3 of top 8 here). Both phases number rounds
-        // from 1, so only the phase tells their round 1s apart.
-        let phase = |name: &str, games: u8| RoundRule {
-            phase: Some(name.into()),
-            ..rule(1, None, Side::Any, games)
-        };
-        let rounds = Rounds {
-            games_to_win: 2,
-            rules: vec![
-                RoundRule {
-                    from_round: 3,
-                    side: Side::Winners,
-                    ..phase("Top 8", 5)
-                },
-                phase("top 8", 3),
-            ],
-        };
-        let pools = Phase {
-            name: "Pools".into(),
-            id: Some("1300001".into()),
-        };
-        let top = Phase {
-            name: "Top 8".into(),
-            id: Some("1300002".into()),
-        };
-        assert_eq!(rounds.games_to_win(1, Some(&pools)), 2);
-        assert_eq!(rounds.games_to_win(1, Some(&top)), 3);
-        assert_eq!(rounds.games_to_win(-2, Some(&top)), 3);
-        assert_eq!(rounds.games_to_win(3, Some(&top)), 5);
-        // A set with no phase: only rules without one apply.
-        assert_eq!(rounds.games_to_win(1, None), 2);
-        // A rule may name the phase by its ID instead.
-        let by_id = Rounds {
-            games_to_win: 2,
-            rules: vec![phase("1300002", 3)],
-        };
-        assert_eq!(by_id.games_to_win(1, Some(&top)), 3);
-        assert_eq!(by_id.games_to_win(1, Some(&pools)), 2);
-        // A phase rule needs a name.
-        let blank = Rounds {
-            games_to_win: 2,
-            rules: vec![phase(" ", 3)],
-        };
-        assert!(blank.check().is_err());
-    }
+    use crate::rounds::Side;
 
     #[test]
     fn the_organizers_credential_goes_to_challonge_only() {
@@ -749,26 +567,6 @@ mod tests {
     }
 
     #[test]
-    fn round_rules_are_checked() {
-        let with = |rules| Rounds {
-            games_to_win: 2,
-            rules,
-        };
-        assert!(with(vec![rule(1, None, Side::Any, 10)]).check().is_ok());
-        assert!(with(vec![rule(0, None, Side::Any, 3)]).check().is_err());
-        assert!(with(vec![rule(4, Some(3), Side::Any, 3)]).check().is_err());
-        assert!(with(vec![rule(1, None, Side::Any, 11)]).check().is_err());
-        assert!(
-            Rounds {
-                games_to_win: 0,
-                rules: vec![]
-            }
-            .check()
-            .is_err()
-        );
-    }
-
-    #[test]
     fn a_file_reads_with_defaults_and_its_own_directory() {
         let dir = crate::test_dir("config");
         let path = dir.join("brackets.json");
@@ -810,6 +608,42 @@ mod tests {
         assert_eq!(config.tournaments[0].key(), "challonge:ember_weekly_12");
         assert_eq!(config.tournaments[0].bridge_site(), "challonge");
         assert_eq!(config.tournaments[0].rounds.rules[0].side, Side::Any);
+        // The first config this connector read had no `hold`, and a rule
+        // gave its `from_round`: both still read, the rule from round 1.
+        assert_eq!(config.tournaments[0].hold, Hold::default());
+        let mut old = text.clone();
+        old["tournaments"][0]["rounds"] =
+            serde_json::json!({ "games_to_win": 2, "rules": [{ "games_to_win": 3 }] });
+        std::fs::write(&path, old.to_string()).unwrap();
+        let rules = Config::load(&path).unwrap().tournaments[0]
+            .rounds
+            .rules
+            .clone();
+        assert_eq!((rules[0].from_round, rules[0].phase.as_deref()), (1, None));
+
+        // A rule's phase is a name, and holding streamed sets is off or on.
+        for (rules, hold) in [
+            (
+                serde_json::json!([{ "phase": "", "games_to_win": 3 }]),
+                None,
+            ),
+            (
+                serde_json::json!([{ "phase": "x".repeat(65), "games_to_win": 3 }]),
+                None,
+            ),
+            (
+                serde_json::json!([]),
+                Some(serde_json::json!({ "later": true })),
+            ),
+        ] {
+            let mut changed = text.clone();
+            changed["tournaments"][0]["rounds"]["rules"] = rules;
+            if let Some(hold) = hold {
+                changed["tournaments"][0]["hold"] = hold;
+            }
+            std::fs::write(&path, changed.to_string()).unwrap();
+            assert!(Config::load(&path).is_err());
+        }
 
         // Unknown fields, a slug with a colon and plain http are refused.
         for (pointer, value) in [
@@ -880,6 +714,19 @@ mod tests {
             config.tournaments[0].key(),
             "startgg:tournament/ember-weekly-12/event/ultra-street-fighter-iv"
         );
+        // Only start.gg says which sets are on a stream.
+        let mut held = startgg.clone();
+        held["tournaments"][0]["hold"] = serde_json::json!({ "streamed": true });
+        std::fs::write(&path, held.to_string()).unwrap();
+        assert!(Config::load(&path).unwrap().tournaments[0].hold.streamed);
+        let mut challonge = text.clone();
+        challonge["tournaments"][0]["hold"] = serde_json::json!({ "streamed": true });
+        std::fs::write(&path, challonge.to_string()).unwrap();
+        let refused = Config::load(&path).unwrap_err();
+        assert!(
+            refused.contains("hold.streamed is for start.gg"),
+            "{refused}"
+        );
         for (field, value) in [
             ("tournament", serde_json::json!("ember-weekly-12")),
             ("tournament", serde_json::json!("tournament/a/event/b/c")),
@@ -942,6 +789,14 @@ mod tests {
                 changed["tournaments"][0][field]
             );
         }
+        let mut held_service = service.clone();
+        held_service["tournaments"][0]["hold"] = serde_json::json!({ "streamed": true });
+        std::fs::write(&path, held_service.to_string()).unwrap();
+        let refused = Config::load(&path).unwrap_err();
+        assert!(
+            refused.contains("hold.streamed is for start.gg"),
+            "{refused}"
+        );
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

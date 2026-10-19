@@ -550,19 +550,50 @@ async fn a_set_s_phase_names_the_rule_for_its_length() {
     world.bridge.connect(3, "player3").await;
     world.bridge.connect(4, "player4").await;
     world.connector.pass(true).await;
-    let mut lengths = Vec::new();
-    for (external, match_id, _) in world.bridge.matches().await {
-        lengths.push((
-            external,
-            world.snapshot(&match_id).await["games_to_win"].clone(),
-        ));
-    }
-    lengths.sort_by(|a, b| a.0.cmp(&b.0));
+    let lengths = world.lengths().await;
     assert_eq!(
         lengths,
         [
-            ("http:pools:s-1:1".to_owned(), json!(2)),
-            ("http:pools:s-2:1".to_owned(), json!(3)),
+            ("http:pools:s-1:1".to_owned(), 2),
+            ("http:pools:s-2:1".to_owned(), 3),
         ]
     );
+}
+
+#[tokio::test]
+async fn a_blank_phase_is_none_and_a_phase_over_64_characters_leaves_the_set_out() {
+    // s-1 gives a blank phase, which is no phase: the set is kept and played
+    // with the default length. s-2's is too long, so it is left out of the
+    // read like any set out of shape.
+    let mut blank = player1_and_player2();
+    blank["phase"] = json!("  ");
+    let mut long = player1_and_player2();
+    long["id"] = json!("s-2");
+    long["phase"] = json!("x".repeat(65));
+    let service = FakeService::start(vec![blank, long]).await;
+    let world = World::start(Setup {
+        challonge: false,
+        extra: vec![Extra {
+            adapter: Adapter::Http,
+            tournament: "pools".into(),
+            api_base: service.base.clone(),
+            token: SERVICE_TOKEN,
+        }],
+        rounds: Rounds {
+            games_to_win: 2,
+            rules: vec![RoundRule {
+                phase: Some("Top 8".into()),
+                from_round: 1,
+                to_round: None,
+                side: Side::Any,
+                games_to_win: 3,
+            }],
+        },
+        ..Setup::default()
+    })
+    .await;
+    world.bridge.connect(1, "player1").await;
+    world.bridge.connect_discord(2, PLAYER2_DISCORD).await;
+    world.connector.pass(true).await;
+    assert_eq!(world.lengths().await, [("http:pools:s-1:1".to_owned(), 2)]);
 }

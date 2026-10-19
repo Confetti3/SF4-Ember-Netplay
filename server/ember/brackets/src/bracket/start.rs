@@ -14,7 +14,7 @@ use super::Bracket;
 use crate::{
     bridge::{BridgeError, Found, Player},
     log,
-    sets::{ExternalId, MAX_ATTEMPTS, Progress, Tracked},
+    sets::{ExternalId, MAX_ATTEMPTS, Progress, Seen, Tracked},
     site::{Account, Set, SiteError},
 };
 
@@ -24,12 +24,24 @@ use crate::{
 const OLD_CONNECTION_SECS: u64 = 30 * 24 * 60 * 60;
 
 impl Bracket {
-    /// Creates the match of each attempt whose two players are found.
-    /// Returns whether it created any.
+    /// Creates the match of each attempt whose two players are found, and
+    /// holds the sets assigned to a stream when asked to. Returns whether it
+    /// changed anything: created a match or ended an attempt.
     pub(super) async fn start(&self, starts: &[(&Set, u32)]) -> Result<bool, SiteError> {
-        if starts.is_empty() {
-            return Ok(false);
+        // Held sets are settled first and never looked up: a set that waits
+        // for the stream has no players to find yet.
+        let mut changed = false;
+        let mut ready = Vec::new();
+        for &(set, attempt) in starts {
+            match self.held(set) {
+                Some(stream) => changed |= self.hold(set, attempt, stream).await?,
+                None => ready.push((set, attempt)),
+            }
         }
+        if ready.is_empty() {
+            return Ok(changed);
+        }
+        let starts = ready.as_slice();
         let accounts: Vec<_> = starts
             .iter()
             .flat_map(|(set, _)| set.entries.iter().flatten())
@@ -50,14 +62,49 @@ impl Bracket {
                         self.key
                     );
                 }
-                return Ok(false);
+                return Ok(changed);
             }
         };
-        let mut created = false;
         for (set, attempt) in starts {
-            created |= self.start_one(set, *attempt, &found).await?;
+            changed |= self.start_one(set, *attempt, &found).await?;
         }
-        Ok(created)
+        Ok(changed)
+    }
+
+    /// The stream the set is assigned to, if the tournament holds such sets.
+    fn held<'a>(&self, set: &'a Set) -> Option<&'a str> {
+        self.hold
+            .streamed
+            .then_some(set.extras.stream.as_deref())
+            .flatten()
+    }
+
+    /// A set assigned to a stream waits, said once. A creation sent for it
+    /// and never answered (the bridge was down, or the connector stopped)
+    /// must not leave a live match on a set that is not played in Ember: it
+    /// is sent again only to learn the match the bridge made, and that match
+    /// is cancelled, as for any set the organizer changed. Returns whether
+    /// that ended the attempt.
+    async fn hold(&self, set: &Set, attempt: u32, stream: &str) -> Result<bool, SiteError> {
+        let earlier = if attempt > 1 {
+            " and its earlier Ember match ended"
+        } else {
+            ""
+        };
+        self.note(
+            set,
+            attempt,
+            Some(&format!(
+                "held: it is assigned to stream {stream}{earlier}; it is played in Ember once it is taken off the stream"
+            )),
+        )?;
+        if let Some(tracked) = self.store().tracked(&self.key, &set.id)?
+            && tracked.attempt == attempt
+            && self.store().command(&self.key, &set.id)?.is_some()
+        {
+            return self.withdraw(&set.id, tracked, Seen::Changed).await;
+        }
+        Ok(false)
     }
 
     async fn start_one(&self, set: &Set, attempt: u32, found: &Found) -> Result<bool, SiteError> {
@@ -91,17 +138,6 @@ impl Bracket {
         let Some(entries) = &set.entries else {
             return Ok(false);
         };
-        if self.hold.streamed
-            && let Some(stream) = &set.stream
-        {
-            return self.note(
-                set,
-                attempt,
-                Some(&format!(
-                    "held: it is assigned to stream {stream}; it is played in Ember once it is taken off the stream"
-                )),
-            );
-        }
         let players = entries.each_ref().map(|entry| {
             found.player(entry).ok_or_else(|| {
                 // The accounts asked found nobody; the others say why not.
@@ -284,10 +320,7 @@ impl Bracket {
                     slot,
                 })
                 .into(),
-            rules: Rules::standard(
-                self.rounds.games_to_win(set.round, set.phase.as_ref()),
-                play::PROFILE,
-            ),
+            rules: Rules::standard(self.rounds.length(set), play::PROFILE),
             observer_policy: "authorized_only".into(),
             result_policy: "two_player_agreement_or_review".into(),
             required_build_id: self.context.build_id.clone(),

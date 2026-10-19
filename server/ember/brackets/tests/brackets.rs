@@ -455,7 +455,7 @@ async fn challonge_group_and_final_stages_take_their_own_length() {
     // A two stage tournament: 1001 is in a group, 1002 in the final stage,
     // both round 1. The final stage is first to 3.
     let mut group = FakeMatch::open("1001", 1, ["355", "354"]);
-    group.group_id = Some(7_001);
+    group.group_id = Some(json!(7_001));
     let mut setup = Setup {
         matches: vec![group, FakeMatch::open("1002", 1, ["353", "352"])],
         rounds: Rounds {
@@ -481,16 +481,18 @@ async fn challonge_group_and_final_stages_take_their_own_length() {
         world.bridge.connect(byte, name).await;
     }
     world.connector.pass(true).await;
-    let mut found = Vec::new();
-    for (external, match_id, _) in world.bridge.matches().await {
-        let snapshot = world.snapshot(&match_id).await;
-        found.push((
-            external,
-            snapshot["games_to_win"].clone(),
-            snapshot["metadata"]["round_label"].clone(),
-        ));
-    }
-    found.sort_by(|a, b| a.0.cmp(&b.0));
+    let found: Vec<_> = world
+        .snapshots()
+        .await
+        .into_iter()
+        .map(|(external, found)| {
+            (
+                external,
+                found["games_to_win"].clone(),
+                found["metadata"]["round_label"].clone(),
+            )
+        })
+        .collect();
     assert_eq!(
         found,
         [

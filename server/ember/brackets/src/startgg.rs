@@ -14,25 +14,31 @@
 //! same entrants that one result waits and is sent again (`Deferred`), as
 //! the connector counts. Only a set that is gone, changed or decided
 //! otherwise is left to the organizer at once.
+mod wire;
+
 use std::collections::HashMap;
 
 use reqwest::{
     StatusCode,
     header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue},
 };
-use serde::{Deserialize, de::DeserializeOwned};
+use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 use tokio::sync::OnceCell;
 
 use crate::{
     Clock,
-    http::{bearer, exchange, http_client, id, optional_id},
+    http::{bearer, exchange, http_client},
     limit::Limiter,
     roster::Roster,
     site::{
-        Account, Phase, Purpose, Report, Reported, Set, Site, SiteError, SiteFuture, Standing,
-        Status,
+        Account, Purpose, Report, Reported, Set, Site, SiteError, SiteFuture, Standing, Status,
     },
+};
+use wire::{
+    ENTRANTS, EVENT, EntrantsData, Envelope, EventData, Page, REPORT, RawSet, SET, SetData,
+    SetsData, UNDERWAY, WireEntrant, WireSet, is_set_id, is_set_not_found, is_whole, sets_query,
+    shows_recorded,
 };
 
 /// start.gg's API origin. The organizer's token goes nowhere else
@@ -53,24 +59,22 @@ const MAX_ANSWER: usize = 2 * 1024 * 1024;
 /// within this. A few requests, against 70 a minute.
 const ENTRANTS_FRESH_SECS: u64 = 15 * 60;
 
-/// `Set.state` values (section 3.4): not started, started, done, called.
-const CREATED: i64 = 1;
-const STARTED: i64 = 2;
-const COMPLETED: i64 = 3;
-const CALLED: i64 = 6;
-
-const EVENT: &str = "query Event($slug: String) { event(slug: $slug) { id state } }";
-const ENTRANTS: &str = "query Entrants($id: ID!, $page: Int!, $perPage: Int!) { event(id: $id) { entrants(query: {page: $page, perPage: $perPage}) { pageInfo { totalPages } nodes { id participants { user { id authorizations(types: [DISCORD]) { externalId } } } } } } }";
-const SETS: &str = "query Sets($id: ID!, $page: Int!, $perPage: Int!) { event(id: $id) { sets(page: $page, perPage: $perPage, sortType: ROUND, filters: {state: [1, 2, 6], hideEmpty: true}) { pageInfo { totalPages } nodes { id state round fullRoundText winnerId slots { slotIndex entrant { id } } phaseGroup { phase { id name } } stream { id streamName } } } } }";
-const SET: &str = "query Set($id: ID!) { set(id: $id) { id state round fullRoundText winnerId slots { slotIndex entrant { id } } phaseGroup { phase { id name } } stream { id streamName } games { orderNum winnerId entrant1Score entrant2Score stage { id } selections { id } } } }";
-const UNDERWAY: &str =
-    "mutation Underway($setId: ID!) { markSetInProgress(setId: $setId) { id state } }";
-const REPORT: &str = "mutation Report($setId: ID!, $winnerId: ID!, $gameData: [BracketSetGameDataInput]) { reportBracketSet(setId: $setId, winnerId: $winnerId, gameData: $gameData) { id state winnerId } }";
+/// What a tournament's configuration asks of each set beyond its players:
+/// the fields only those that use them pay for.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Wanted {
+    /// A round rule names a phase.
+    pub phases: bool,
+    /// Sets on a stream are held.
+    pub streams: bool,
+}
 
 pub(crate) struct Startgg {
     http: reqwest::Client,
     url: String,
     headers: HeaderMap,
+    /// The query for a page of open sets, with what `Wanted` asks for.
+    sets_query: String,
     limiter: Limiter,
     slug: String,
     bridge_site: String,
@@ -93,349 +97,6 @@ enum Errors {
     Partial,
 }
 
-/// Whether every top-level field of a GraphQL `data` object is there.
-fn is_whole(data: &Value) -> bool {
-    data.as_object()
-        .is_some_and(|fields| !fields.is_empty() && fields.values().all(|value| !value.is_null()))
-}
-
-/// start.gg's "no such set" for this ID: `Set not found for id: <id>`.
-fn is_set_not_found(message: &str, id: &str) -> bool {
-    message.strip_prefix("Set not found").is_some_and(|rest| {
-        rest.split(|c: char| !c.is_ascii_digit())
-            .any(|word| word == id)
-    })
-}
-
-/// A real set's ID: decimal digits. Preview sets carry other IDs.
-fn is_set_id(id: &str) -> bool {
-    !id.is_empty() && id.len() <= 20 && id.bytes().all(|byte| byte.is_ascii_digit())
-}
-
-#[derive(Deserialize)]
-struct EventData {
-    event: Option<EventNode>,
-}
-
-#[derive(Deserialize)]
-struct EventNode {
-    #[serde(deserialize_with = "id")]
-    id: String,
-    #[serde(default)]
-    state: Option<String>,
-}
-
-#[derive(Deserialize)]
-struct Page<T> {
-    #[serde(rename = "pageInfo")]
-    page_info: PageInfo,
-    #[serde(default = "Vec::new")]
-    nodes: Vec<T>,
-}
-
-#[derive(Deserialize)]
-struct PageInfo {
-    #[serde(rename = "totalPages", default)]
-    total_pages: Option<u32>,
-}
-
-#[derive(Deserialize)]
-struct EntrantsData {
-    event: Option<EntrantsEvent>,
-}
-
-#[derive(Deserialize)]
-struct EntrantsEvent {
-    entrants: Page<WireEntrant>,
-}
-
-#[derive(Deserialize)]
-struct WireEntrant {
-    #[serde(deserialize_with = "id")]
-    id: String,
-    #[serde(default)]
-    participants: Vec<WireParticipant>,
-}
-
-#[derive(Deserialize)]
-struct WireParticipant {
-    #[serde(default)]
-    user: Option<WireUser>,
-}
-
-#[derive(Deserialize)]
-struct WireUser {
-    #[serde(deserialize_with = "id")]
-    id: String,
-    #[serde(default)]
-    authorizations: Option<Vec<WireAuthorization>>,
-}
-
-#[derive(Deserialize)]
-struct WireAuthorization {
-    #[serde(rename = "externalId", default)]
-    external_id: Option<String>,
-}
-
-#[derive(Deserialize)]
-struct SetsData {
-    event: Option<SetsEvent>,
-}
-
-#[derive(Deserialize)]
-struct SetsEvent {
-    sets: Page<WireSet>,
-}
-
-#[derive(Deserialize)]
-struct SetData {
-    set: Option<WireSet>,
-}
-
-#[derive(Deserialize)]
-struct WireSet {
-    #[serde(deserialize_with = "id")]
-    id: String,
-    #[serde(default)]
-    state: Option<i64>,
-    #[serde(default)]
-    round: Option<i32>,
-    #[serde(rename = "fullRoundText", default)]
-    full_round_text: Option<String>,
-    #[serde(rename = "winnerId", default, deserialize_with = "optional_id")]
-    winner_id: Option<String>,
-    #[serde(default)]
-    slots: Vec<WireSlot>,
-    /// The games entered so far: read only before a report.
-    #[serde(default)]
-    games: Option<Vec<WireGame>>,
-    #[serde(rename = "phaseGroup", default)]
-    phase_group: Option<WirePhaseGroup>,
-    #[serde(default)]
-    stream: Option<WireStream>,
-}
-
-#[derive(Deserialize)]
-struct WirePhaseGroup {
-    #[serde(default)]
-    phase: Option<WirePhase>,
-}
-
-#[derive(Deserialize)]
-struct WirePhase {
-    #[serde(default, deserialize_with = "optional_id")]
-    id: Option<String>,
-    #[serde(default)]
-    name: Option<String>,
-}
-
-/// The stream a set is assigned to. Its fields are read from the schema;
-/// that start.gg fills them for a set given a stream awaits a live check.
-#[derive(Deserialize)]
-struct WireStream {
-    #[serde(default, deserialize_with = "optional_id")]
-    id: Option<String>,
-    #[serde(rename = "streamName", default)]
-    stream_name: Option<String>,
-}
-
-#[derive(Deserialize)]
-struct WireGame {
-    #[serde(rename = "orderNum", default)]
-    order_num: Option<u32>,
-    #[serde(rename = "winnerId", default, deserialize_with = "optional_id")]
-    winner_id: Option<String>,
-    /// Anything else the organizer entered for the game, which a report
-    /// replaces: its score, stage or characters.
-    #[serde(rename = "entrant1Score", default)]
-    entrant1_score: Option<Value>,
-    #[serde(rename = "entrant2Score", default)]
-    entrant2_score: Option<Value>,
-    #[serde(default)]
-    stage: Option<Value>,
-    #[serde(default)]
-    selections: Option<Value>,
-}
-
-impl WireGame {
-    /// Whether the game holds anything but its winner.
-    fn has_details(&self) -> bool {
-        let filled = |value: &Option<Value>| match value {
-            None | Some(Value::Null) => false,
-            Some(Value::Array(items)) => !items.is_empty(),
-            Some(_) => true,
-        };
-        [
-            &self.entrant1_score,
-            &self.entrant2_score,
-            &self.stage,
-            &self.selections,
-        ]
-        .into_iter()
-        .any(filled)
-    }
-}
-
-/// A game the organizer entered, as far as a report's check reads it.
-struct EnteredGame {
-    order: Option<u32>,
-    winner: Option<String>,
-    /// It holds more than its winner (a score, stage or characters).
-    details: bool,
-}
-
-#[derive(Deserialize)]
-struct WireSlot {
-    #[serde(rename = "slotIndex", default)]
-    slot_index: Option<u32>,
-    #[serde(default)]
-    entrant: Option<WireEntrantId>,
-}
-
-#[derive(Deserialize)]
-struct WireEntrantId {
-    #[serde(deserialize_with = "id")]
-    id: String,
-}
-
-/// A GraphQL answer, or start.gg's flat refusal (rate limit, complexity).
-#[derive(Deserialize)]
-struct Envelope {
-    #[serde(default)]
-    data: Option<Value>,
-    #[serde(default)]
-    errors: Vec<GraphqlError>,
-    #[serde(default)]
-    success: Option<bool>,
-    #[serde(default)]
-    message: Option<String>,
-}
-
-#[derive(Deserialize)]
-struct GraphqlError {
-    #[serde(default)]
-    message: String,
-}
-
-/// What a set that is not a preview or a bye says, before its entrants'
-/// accounts are attached.
-struct RawSet {
-    id: String,
-    round: i32,
-    round_label: String,
-    status: Status,
-    underway: bool,
-    winner: Option<String>,
-    /// Entrant IDs, slot 0 first.
-    entrants: Option<[String; 2]>,
-    /// Each game entered so far.
-    games: Vec<EnteredGame>,
-    phase: Option<Phase>,
-    /// The name (or ID) of the stream the set is assigned to.
-    stream: Option<String>,
-}
-
-impl WireSet {
-    fn into_raw(self) -> Option<RawSet> {
-        if !is_set_id(&self.id) {
-            return None;
-        }
-        let mut slots: Vec<(u32, Option<String>)> = self
-            .slots
-            .into_iter()
-            .map(|slot| {
-                (
-                    slot.slot_index.unwrap_or(u32::MAX),
-                    slot.entrant.map(|entrant| entrant.id),
-                )
-            })
-            .collect();
-        slots.sort_by_key(|(index, _)| *index);
-        let entrants = match slots.as_slice() {
-            [(0, Some(one)), (1, Some(two))] => Some([one.clone(), two.clone()]),
-            _ => None,
-        };
-        let state = self.state.unwrap_or(0);
-        let status = match (&self.winner_id, state) {
-            (Some(_), _) | (None, COMPLETED) => Status::Decided,
-            (None, CREATED | STARTED | CALLED) if entrants.is_some() => Status::Open,
-            _ => Status::Pending,
-        };
-        let round = self.round.unwrap_or(0);
-        let games = self
-            .games
-            .unwrap_or_default()
-            .into_iter()
-            .map(|game| EnteredGame {
-                details: game.has_details(),
-                order: game.order_num,
-                winner: game.winner_id,
-            })
-            .collect();
-        let phase = self
-            .phase_group
-            .and_then(|group| group.phase)
-            .and_then(|phase| {
-                let name = phase.name.filter(|name| !name.trim().is_empty());
-                match (name, phase.id) {
-                    (None, None) => None,
-                    (name, id) => Some(Phase {
-                        name: name.unwrap_or_default(),
-                        id,
-                    }),
-                }
-            });
-        let stream = self.stream.and_then(|stream| {
-            stream
-                .stream_name
-                .filter(|name| !name.trim().is_empty())
-                .or(stream.id)
-        });
-        Some(RawSet {
-            round_label: self
-                .full_round_text
-                .filter(|text| !text.is_empty())
-                .unwrap_or_else(|| format!("Round {round}")),
-            id: self.id,
-            round,
-            status,
-            underway: state == STARTED,
-            winner: self.winner_id,
-            entrants,
-            games,
-            phase,
-            stream,
-        })
-    }
-}
-
-impl WireEntrant {
-    /// The accounts behind a one-player entrant: its start.gg user, then
-    /// the Discord account that user linked. A team entrant has none.
-    fn accounts(self, bridge_site: &str) -> (String, Vec<Account>) {
-        let user = match <[WireParticipant; 1]>::try_from(self.participants) {
-            Ok([participant]) => participant.user,
-            Err(_) => None,
-        };
-        let accounts = user.map_or_else(Vec::new, |user| {
-            let discord = user
-                .authorizations
-                .unwrap_or_default()
-                .into_iter()
-                .filter_map(|authorization| authorization.external_id)
-                .filter(|external| !external.is_empty())
-                .map(|user_id| Account::Discord { user_id });
-            std::iter::once(Account::Site {
-                site: bridge_site.to_owned(),
-                id: user.id,
-            })
-            .chain(discord.take(1))
-            .collect()
-        });
-        (self.id, accounts)
-    }
-}
-
 impl Startgg {
     /// `origin` is start.gg's API origin, checked by the configuration.
     pub fn new(
@@ -445,6 +106,7 @@ impl Startgg {
         token: &str,
         limiter: Limiter,
         clock: Clock,
+        wanted: Wanted,
     ) -> Result<Self, String> {
         let authorization = bearer(token, "the start.gg token")?;
         let mut headers = HeaderMap::new();
@@ -454,6 +116,7 @@ impl Startgg {
             http: http_client()?,
             url: format!("{origin}{API_PATH}"),
             headers,
+            sets_query: sets_query(wanted.phases, wanted.streams),
             limiter,
             slug: slug.to_owned(),
             bridge_site: bridge_site.to_owned(),
@@ -630,14 +293,13 @@ impl Startgg {
             status: raw.status,
             underway: raw.underway,
             winner: raw.winner,
-            phase: raw.phase,
-            stream: raw.stream,
+            extras: raw.extras,
         }
     }
 
     async fn read_open_sets(&self) -> Result<Vec<Set>, SiteError> {
         let sets: Vec<WireSet> = self
-            .pages(SETS, Errors::Fail, |data: SetsData| {
+            .pages(&self.sets_query, Errors::Fail, |data: SetsData| {
                 data.event.map(|event| event.sets)
             })
             .await?;
@@ -768,15 +430,20 @@ impl Startgg {
         // winner, the same as Ember's, loses nothing; any other is the
         // organizer's to keep, so the set is left to them.
         for game in &current.games {
-            let (Some(order), Some(entered)) = (game.order, &game.winner) else {
+            let Some(order) = game.order else {
                 return Err(SiteError::Refused(
-                    "start.gg has a game entered without a winner, which a report would replace"
+                    "start.gg has a game entered with no number, which a report would replace"
                         .into(),
                 ));
             };
+            let Some(entered) = &game.winner else {
+                return Err(SiteError::Refused(format!(
+                    "start.gg has game {order} entered without a winner, which a report would replace"
+                )));
+            };
             if game.details {
                 return Err(SiteError::Refused(format!(
-                    "start.gg has game {order} entered with its score, stage or characters, which a report would replace"
+                    "start.gg has game {order} entered with a score, stage or characters, which a report would replace"
                 )));
             }
             let ours = (order as usize)
@@ -846,162 +513,4 @@ impl Site for Startgg {
 
 fn unexpected() -> SiteError {
     SiteError::Unavailable("start.gg answered something unexpected".into())
-}
-
-/// Whether start.gg's answer to `reportBracketSet` shows set `id` decided
-/// for `winner`.
-fn shows_recorded(answer: Option<&Value>, id: &str, winner: &str) -> bool {
-    let Some(sets) = answer
-        .and_then(|data| data.get("reportBracketSet"))
-        .and_then(Value::as_array)
-    else {
-        return false;
-    };
-    sets.iter()
-        .filter_map(|set| WireSet::deserialize(set).ok())
-        .any(|set| set.id == id && set.winner_id.as_deref() == Some(winner))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn raw(value: Value) -> Option<RawSet> {
-        serde_json::from_value::<WireSet>(value).unwrap().into_raw()
-    }
-
-    #[test]
-    fn a_report_counts_only_when_the_answer_shows_it() {
-        let shows = |answer: Value| shows_recorded(Some(&answer), "65089253", "2401412");
-        assert!(shows(
-            json!({ "reportBracketSet": [{ "id": 65089253, "state": 3, "winnerId": 2401412 }] })
-        ));
-        assert!(shows(json!({ "reportBracketSet": [
-            { "id": "65089254", "state": 1, "winnerId": null },
-            { "id": "65089253", "state": 3, "winnerId": "2401412" },
-        ] })));
-        assert!(!shows_recorded(None, "65089253", "2401412"));
-        for answer in [
-            json!({}),
-            json!({ "reportBracketSet": null }),
-            json!({ "reportBracketSet": [] }),
-            json!({ "reportBracketSet": [{ "id": 65089254, "state": 3, "winnerId": 2401412 }] }),
-            json!({ "reportBracketSet": [{ "id": 65089253, "state": 2, "winnerId": null }] }),
-            json!({ "reportBracketSet": [{ "id": 65089253, "state": 3, "winnerId": 2401411 }] }),
-        ] {
-            assert!(!shows(answer.clone()), "{answer}");
-        }
-    }
-
-    #[test]
-    fn only_start_gg_naming_the_set_says_it_is_not_found() {
-        assert!(is_set_not_found(
-            "Set not found for id: 65089253",
-            "65089253"
-        ));
-        assert!(!is_set_not_found(
-            "Set not found for id: 650892530",
-            "65089253"
-        ));
-        assert!(!is_set_not_found("Set not found", "65089253"));
-        assert!(!is_set_not_found(
-            "An unknown error has occurred",
-            "65089253"
-        ));
-        // Partial data is used only when nothing at the top was nulled.
-        assert!(is_whole(&json!({ "event": { "entrants": {} } })));
-        assert!(!is_whole(&json!({ "event": null })));
-        assert!(!is_whole(&json!({})));
-    }
-
-    #[test]
-    fn ids_are_numbers_or_strings_and_previews_are_left_out() {
-        let set = raw(json!({
-            "id": 65089253, "state": 1, "round": -2, "fullRoundText": "Losers Round 2",
-            "slots": [
-                { "slotIndex": 1, "entrant": { "id": "14250090" } },
-                { "slotIndex": 0, "entrant": { "id": 14259653 } },
-            ],
-        }))
-        .unwrap();
-        assert_eq!(set.id, "65089253");
-        assert_eq!(set.entrants, Some(["14259653".into(), "14250090".into()]));
-        assert_eq!(
-            (set.status, set.round_label.as_str()),
-            (Status::Open, "Losers Round 2")
-        );
-        assert!(raw(json!({ "id": "preview_5093733_1_0", "state": 1, "slots": [] })).is_none());
-    }
-
-    #[test]
-    fn a_set_is_open_only_with_two_entrants_and_no_winner() {
-        let status = |state: i64, winner: Value, slots: Value| {
-            raw(json!({ "id": "1", "state": state, "winnerId": winner, "slots": slots }))
-                .map(|set| (set.status, set.underway))
-        };
-        let both = json!([
-            { "slotIndex": 0, "entrant": { "id": 1 } },
-            { "slotIndex": 1, "entrant": { "id": 2 } },
-        ]);
-        assert_eq!(
-            status(1, Value::Null, both.clone()),
-            Some((Status::Open, false))
-        );
-        assert_eq!(
-            status(2, Value::Null, both.clone()),
-            Some((Status::Open, true))
-        );
-        assert_eq!(
-            status(6, Value::Null, both.clone()),
-            Some((Status::Open, false))
-        );
-        assert_eq!(
-            status(3, Value::Null, both.clone()),
-            Some((Status::Decided, false))
-        );
-        assert_eq!(status(2, json!(2), both), Some((Status::Decided, true)));
-        // A bye or a slot still waiting on another set.
-        let one = json!([
-            { "slotIndex": 0, "entrant": { "id": 1 } },
-            { "slotIndex": 1, "entrant": null },
-        ]);
-        assert_eq!(status(1, Value::Null, one), Some((Status::Pending, false)));
-    }
-
-    #[test]
-    fn an_entrant_is_found_by_user_then_discord() {
-        let entrant = |value: Value| {
-            serde_json::from_value::<WireEntrant>(value)
-                .unwrap()
-                .accounts("startgg")
-        };
-        let (id, accounts) = entrant(json!({
-            "id": 2401411,
-            "participants": [{ "user": { "id": 1234567, "authorizations": [{ "externalId": "123456789012345678" }] } }],
-        }));
-        assert_eq!(id, "2401411");
-        assert_eq!(
-            accounts,
-            [
-                Account::Site {
-                    site: "startgg".into(),
-                    id: "1234567".into()
-                },
-                Account::Discord {
-                    user_id: "123456789012345678".into()
-                },
-            ]
-        );
-        // No start.gg account behind it, or a team: nobody to find.
-        assert!(
-            entrant(json!({ "id": 1, "participants": [{ "user": null }] }))
-                .1
-                .is_empty()
-        );
-        assert!(
-            entrant(json!({ "id": 1, "participants": [{ "user": { "id": 1 } }, { "user": { "id": 2 } }] }))
-                .1
-                .is_empty()
-        );
-    }
 }

@@ -22,8 +22,9 @@ use tokio::sync::{Mutex, Notify};
 use crate::{
     Clock,
     bridge::{BridgeClient, BridgeError},
-    config::{Hold, Rounds, Tournament},
+    config::Tournament,
     log,
+    rounds::{Hold, PhaseWatch, Rounds},
     schedule::{Backoff, Phase, Window},
     sets::{
         MAX_ATTEMPTS, OnOpen, OnResult, Progress, Received, Seen, Tracked, adds_up, on_open,
@@ -87,6 +88,8 @@ struct State {
     deferred: HashMap<String, Backoff>,
     /// The bridge's read-back: when it is next due, and what it remembers.
     reconcile: reconcile::Memory,
+    /// The phases the reads have shown, for round rules that name none.
+    phases: PhaseWatch,
     /// The playable sets the last read found, by ID and entries.
     last_read: Option<Vec<(String, [String; 2])>>,
     /// Kept in the database too, so a restart does not read it again.
@@ -169,6 +172,7 @@ impl Bracket {
                 retry: Backoff::retry(),
                 deferred: HashMap::new(),
                 reconcile: reconcile::Memory::default(),
+                phases: PhaseWatch::default(),
                 last_read: None,
                 finished,
                 played_out: false,
@@ -365,6 +369,9 @@ impl Bracket {
         // between two pages.
         sets.sort_by(|a, b| a.id.cmp(&b.id));
         sets.dedup_by(|a, b| a.id == b.id);
+        for line in state.phases.read(&self.rounds, &sets) {
+            log!("{}: {line}", self.key);
+        }
         let read = fingerprint(&sets);
         let mut changed = state.last_read.as_ref() != Some(&read);
         state.last_read = Some(read);

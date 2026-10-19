@@ -22,7 +22,7 @@ use crate::{
     http::{self, http_client},
     roster::Roster,
     site::{
-        Account, Entry, Phase, Purpose, Report, Reported, Set, Site, SiteError, SiteFuture,
+        Account, Entry, Extras, Phase, Purpose, Report, Reported, Set, Site, SiteError, SiteFuture,
         Standing, Status,
     },
 };
@@ -427,7 +427,8 @@ struct MatchAttributes {
     underway_at: Option<Value>,
     /// Set on a group stage match of a two stage tournament, as Challonge's
     /// upgrading notes say. Not in the documented schema, whose default is
-    /// placeholder text, so only a number counts: unverified live.
+    /// placeholder text, so only a number, or a string of digits, counts:
+    /// unverified live (`in_group`).
     #[serde(default)]
     group_id: Option<Value>,
     /// Where Challonge's schema puts them.
@@ -499,6 +500,18 @@ struct RawSet {
 pub const GROUP_STAGE: &str = "group";
 pub const FINAL_STAGE: &str = "final";
 
+/// Whether a match's `group_id` says it is in a group: a number, or a string
+/// of digits. Anything else, such as the schema's placeholder text, is not.
+fn in_group(group_id: Option<&Value>) -> bool {
+    match group_id {
+        Some(Value::Number(_)) => true,
+        Some(Value::String(text)) => {
+            !text.is_empty() && text.bytes().all(|byte| byte.is_ascii_digit())
+        }
+        _ => false,
+    }
+}
+
 impl From<Resource<MatchAttributes>> for RawSet {
     fn from(resource: Resource<MatchAttributes>) -> Self {
         let attributes = resource.attributes;
@@ -514,13 +527,7 @@ impl From<Resource<MatchAttributes>> for RawSet {
                 let id = |slot: Option<Related>| Some(slot?.data?.id);
                 Some([id(players.player1)?, id(players.player2)?])
             });
-        let in_group = match &attributes.group_id {
-            Some(Value::Number(_)) => true,
-            Some(Value::String(text)) => {
-                !text.is_empty() && text.bytes().all(|byte| byte.is_ascii_digit())
-            }
-            _ => false,
-        };
+        let in_group = in_group(attributes.group_id.as_ref());
         Self {
             id: resource.id,
             round: attributes.round.unwrap_or(0),
@@ -551,8 +558,10 @@ impl RawSet {
             status: self.status,
             underway: self.underway,
             winner: self.winner,
-            phase: Some(Phase::named(stage)),
-            stream: None,
+            extras: Extras {
+                phase: Some(Phase::named(stage)),
+                ..Extras::default()
+            },
         }
     }
 }
@@ -658,6 +667,32 @@ mod tests {
             with_query("/matches.json?state=open", "page=1"),
             "/matches.json?state=open&page=1"
         );
+    }
+
+    #[test]
+    fn a_match_is_in_a_group_only_when_its_group_id_is_a_number() {
+        let in_group = |value: Value| in_group(Some(&value));
+        assert!(in_group(json!(7001)));
+        assert!(in_group(json!("7001")));
+        // Null, the schema's placeholder text, and anything else.
+        assert!(!in_group(Value::Null));
+        assert!(!in_group(json!("")));
+        assert!(!in_group(json!("Group ID")));
+        assert!(!in_group(json!("70 01")));
+        assert!(!in_group(json!(true)));
+        assert!(!in_group(json!({ "id": 7 })));
+        assert!(!super::in_group(None));
+        // And it goes into the label and the stage the rules read.
+        let set = |group: Value| {
+            raw(json!({ "id": 1, "type": "match", "attributes": { "state": "open", "round": 2, "group_id": group } }))
+                .into_set(None)
+        };
+        let grouped = set(json!("7001"));
+        assert_eq!(grouped.round_label, "Group stage, Round 2");
+        assert_eq!(grouped.extras.phase, Some(Phase::named(GROUP_STAGE)));
+        let placeholder = set(json!("Group ID"));
+        assert_eq!(placeholder.round_label, "Round 2");
+        assert_eq!(placeholder.extras.phase, Some(Phase::named(FINAL_STAGE)));
     }
 
     #[test]
