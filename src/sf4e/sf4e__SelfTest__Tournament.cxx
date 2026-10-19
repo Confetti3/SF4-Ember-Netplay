@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <ctime>
 #include <string>
+#include <vector>
 
 #include "../platform/Utf8.hxx"
 #include "../session/TournamentBinding.hxx"
@@ -16,6 +17,13 @@
 // own tournament flow. Every step is a command the Ember ID, Linked accounts
 // and Matches screens send. The runner (scripts/run-tournament-selftest.ps1)
 // and the game talk through files in the folder SF4E_SELFTEST_EXCHANGE names.
+//
+// With SF4E_SELFTEST_SITE (the Challonge mode) the account is not linked by a
+// code. The test sends the command the site's Connect screen sends, which opens
+// the site's sign-in page in this PC's browser, where a person signs in and
+// approves, and reads the account until it shows connected. The connector then
+// finds the player by that account, links it and makes the match, and the test
+// plays the one match the bridge lists.
 namespace sf4e { namespace selftest {
 namespace {
 
@@ -29,18 +37,31 @@ using online::Now;
 
 // The files of the exchange folder. The game writes its Ember ID and build,
 // then its claim's fingerprint; the runner writes the link code, then the
-// match.
+// match. In the Challonge mode the game writes the account its sign-in
+// connected, then the match it plays.
 constexpr const wchar_t* kEmberIdFile = L"ember-id";
 constexpr const wchar_t* kLinkCodeFile = L"link-code";
 constexpr const wchar_t* kClaimFile = L"claim";
 constexpr const wchar_t* kMatchFile = L"match";
+constexpr const wchar_t* kSiteAccountFile = L"site-account";
+constexpr const wchar_t* kMatchIdFile = L"match-id";
+
+// A person has this long to sign in and approve in the browser, on each PC in
+// turn. The connector links the players only once both have, so the wait for
+// the link is longer than that.
+constexpr int kSiteSignInSeconds = 300, kSiteLinkSeconds = 420;
 
 // Done: the outcome is written (Finish).
-enum class Stage { Setup, Settings, EmberId, Inspect, Approve, Claim, Linked, Match, Room, Ready, Playing, Leaving, Done };
+enum class Stage { Setup, Settings, EmberId, Inspect, Approve, SiteRead, SiteOpen, SiteWait, Claim, Linked, Match, Room, Ready, Playing, Leaving, Done };
 
 struct Run : Steps<Stage> {
 	std::wstring exchange;
 	std::string origin, connection, bridge, matchId;
+	// The sign-in site to connect an account on (the Challonge mode), empty
+	// for the code link; the account on it before the sign-in, and the last
+	// refusal of a read of it, for the message of a wait that ran out.
+	std::string site, lastRefusal;
+	netplay::IdentityAccount accountBefore;
 	// The last identity request's ticket. The interface numbers its own from
 	// 1, so the test's start far above them.
 	std::uint64_t ticket = std::uint64_t(1) << 48;
@@ -68,6 +89,7 @@ void Ask(IdentityRequest request) {
 IdentityRequest Request(IdentityOp op) {
 	IdentityRequest request;
 	request.op = op; request.origin = s_run.origin; request.bridge = s_run.bridge; request.connection = s_run.connection;
+	request.site = s_run.site;
 	return request;
 }
 
@@ -122,6 +144,16 @@ bool Listed(const RuntimeSnapshot& now) {
 	return false;
 }
 
+// The matches the bridge lists for this player that can be played now.
+std::vector<std::string> PlayableMatches(const RuntimeSnapshot& now) {
+	std::vector<std::string> playable;
+	const auto& list = now.tournament.list;
+	if (list.bridge != s_run.bridge) return playable;
+	const auto unixNow = static_cast<std::uint64_t>(std::time(nullptr));
+	for (const auto& match : list.items) if (match.Playable(unixNow)) playable.push_back(match.matchId);
+	return playable;
+}
+
 bool Active(Phase phase) { return phase == Phase::Claiming || phase == Phase::Opening || phase == Phase::InRoom; }
 
 void Step(const RuntimeSnapshot& now) {
@@ -169,14 +201,64 @@ void Step(const RuntimeSnapshot& now) {
 			for (const auto& connection : id.connections) offered = offered || connection.id == run.connection;
 			if (!offered) { run.Fail("bridge lookup", "the service offers no connection " + run.connection); break; }
 		}
+		if (!run.site.empty()) {
+			bool signIn = false;
+			for (const auto& site : id.signInSites) signIn = signIn || (site.id == run.site && site.signIn);
+			if (!signIn) { run.Fail("bridge lookup", "the service offers no sign-in on " + run.site); break; }
+		}
 		run.Enter(Stage::Approve);
 		break;
 	case Stage::Approve:
 		// Trust, which the player confirms on that screen.
 		if (!Asked(now, IdentityOp::BridgeApprove, "bridge trust")) break;
 		Say(true, "bridge trusted", run.bridge);
-		run.Enter(Stage::Claim);
+		run.Enter(run.site.empty() ? Stage::Claim : Stage::SiteRead);
 		break;
+	case Stage::SiteRead:
+		// The account on the site before the sign-in, as the Connect screen
+		// reads it, so that the one that appears is known to be new.
+		if (!Asked(now, IdentityOp::SiteStatus, "site account")) break;
+		run.accountBefore = id.Site();
+		run.Enter(Stage::SiteOpen);
+		break;
+	case Stage::SiteOpen: {
+		// Connect, as the site's Connect screen sends it: the helper starts a
+		// sign-in on the bridge and opens the site's page in this PC's browser.
+		// Sent once, since each one starts a sign-in.
+		if (!run.asked) { Ask(Request(IdentityOp::SiteConnect)); break; }
+		const auto answer = Answered(now);
+		if (!answer.given) { if (run.Late(60)) run.Fail("site sign-in", "the helper never opened the page"); break; }
+		run.asked = false;
+		if (!answer.ok) { run.Fail("site sign-in", answer.reason.empty() ? "refused" : answer.reason); break; }
+		Say(true, "site sign-in opened", run.site);
+		run.Enter(Stage::SiteWait);
+		break;
+	}
+	case Stage::SiteWait: {
+		// A person signs in and approves in the browser; the account shows on
+		// the bridge a moment later. It is read every few seconds, as the
+		// Connect screen does, until an account other than the earlier one is
+		// there. A read that is not answered is asked again after a while.
+		if (run.asked) {
+			const auto answer = Answered(now);
+			if (answer.given) {
+				run.asked = false;
+				if (!answer.ok) run.lastRefusal = answer.reason;
+				else if (id.Site().ConnectedSince(run.accountBefore)) {
+					const auto account = id.Site();
+					const std::string name = account.name.empty() ? account.user : account.name;
+					if (!WriteExchange(kSiteAccountFile, account.user + " " + name)) { run.Fail("site connected", "the account could not be written to the exchange folder"); break; }
+					Say(true, "site connected", name);
+					run.Enter(Stage::Linked);
+					break;
+				}
+			}
+		}
+		if (run.Every(4) && (!run.asked || run.Every(12))) Ask(Request(IdentityOp::SiteStatus));
+		if (run.Late(kSiteSignInSeconds))
+			run.Fail("site connected", "no account was connected in " + std::to_string(kSiteSignInSeconds / 60) + " minutes" + (run.lastRefusal.empty() ? "" : " (" + run.lastRefusal + ")"));
+		break;
+	}
 	case Stage::Claim: {
 		// The code the runner's provider made for this player, typed into Link
 		// code. Its fingerprint goes back for the runner to compare before it
@@ -199,20 +281,31 @@ void Step(const RuntimeSnapshot& now) {
 		break;
 	}
 	case Stage::Linked:
-		// The runner approves the claim; the link then shows in the list.
+		// The runner approves the claim, or in the Challonge mode the connector
+		// finds the account and links it; the link then shows in the list.
 		if (Linked(now)) { Say(true, "linked", run.connection); run.Enter(Stage::Match); break; }
 		if (run.Every(3)) Ask(Request(IdentityOp::LinkList));
-		if (run.Late(180)) run.Fail("linked", "the claim was never approved");
+		if (run.Late(run.site.empty() ? 180 : kSiteLinkSeconds)) run.Fail("linked", run.site.empty() ? "the claim was never approved" : "the connector never linked this account");
 		break;
 	case Stage::Match:
 		// The runner creates the match once both players are linked; it is
 		// played from the assignment list, as the Matches screen plays it.
-		if (run.matchId.empty()) {
+		if (run.matchId.empty() && run.site.empty()) {
 			run.matchId = ReadExchange(kMatchFile);
 			if (run.matchId.empty() && run.Late(300)) run.Fail("match", "no match arrived from the runner");
 			break;
 		}
-		if (Listed(now)) {
+		if (run.matchId.empty()) {
+			// The connector made the match, so the test plays the one the bridge
+			// lists as playable, and tells the runner which it is.
+			const auto playable = PlayableMatches(now);
+			if (playable.size() > 1) { run.Fail("match", "the bridge lists " + std::to_string(playable.size()) + " playable matches, not one"); break; }
+			if (playable.size() == 1) {
+				run.matchId = playable.front();
+				if (!WriteExchange(kMatchIdFile, run.matchId)) { run.Fail("match", "the match could not be written to the exchange folder"); break; }
+			}
+		}
+		if (!run.matchId.empty() && Listed(now)) {
 			Say(true, "match listed", run.matchId);
 			SendTournament(netplay::tournament::Command::Op::Play);
 			run.Enter(Stage::Room);
@@ -265,6 +358,8 @@ bool StartTournament() {
 	s_run.exchange = Environment(L"SF4E_SELFTEST_EXCHANGE");
 	s_run.origin = platform::WideToUtf8(Environment(L"SF4E_SELFTEST_BRIDGE"));
 	s_run.connection = platform::WideToUtf8(Environment(L"SF4E_SELFTEST_CONNECTION"));
+	// Optional: the sign-in site to connect an account on instead of a code.
+	s_run.site = platform::WideToUtf8(Environment(L"SF4E_SELFTEST_SITE"));
 	if (s_run.exchange.empty() || s_run.origin.empty() || s_run.connection.empty()) {
 		Say(false, "tournament", "SF4E_SELFTEST_EXCHANGE, SF4E_SELFTEST_BRIDGE and SF4E_SELFTEST_CONNECTION are needed");
 		return false;

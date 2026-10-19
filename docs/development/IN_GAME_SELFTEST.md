@@ -103,7 +103,9 @@ PC `-RemoteHost` names (ssh, with `-RemoteCheckout` holding this branch and
 its staged build), through the scheduled task `-RemoteTask`. Each game keeps
 its Ember ID and trusted services in a temp folder of its own, never the
 player's, and its settings are put back after the run.
-`docs/design/TOURNAMENT_SELFTEST.md` has the details.
+`docs/design/TOURNAMENT_SELFTEST.md` has the details, and the `-Site challonge`
+mode, which connects each game's Challonge account in the browser and plays a
+set of a real Challonge tournament.
 
 Unlike the other tests it plays a game to its end. A finished game saves
 its replay into the game's own slots (the ring of the last ten matches, which

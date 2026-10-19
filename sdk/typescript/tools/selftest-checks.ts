@@ -34,12 +34,17 @@ export function claimToApprove(intent: Body, game: GameIdentity, fingerprint: st
   return claim.claim_id;
 }
 
+/** The games' winner as the bridge holds it: its Ember ID and its participant ID in the match. */
+export interface Winner {
+  participantId: string;
+  emberId: string;
+}
+
 /**
- * What is wrong with a finished match, empty when nothing is: the bridge
- * says it completed with `winner` ahead, and the signed result it delivered
- * says the same.
+ * What is wrong with a match the bridge should hold as finished, empty when
+ * nothing is: it completed with `winner` ahead.
  */
-export function finishedProblems(match: Body, result: MatchResult | null, winner: { participantId: string; emberId: string }): string[] {
+export function completedProblems(match: Body, winner: { emberId: string }): string[] {
   const problems: string[] = [];
   if (match.state !== "completed") problems.push(`the match is ${String(match.state)}, not completed`);
   const scores = (Array.isArray(match.scores) ? match.scores : []).filter(isBody);
@@ -48,6 +53,16 @@ export function finishedProblems(match: Body, result: MatchResult | null, winner
   if (scores.length !== 2 || typeof won !== "number" || typeof lost !== "number" || won <= lost) {
     problems.push(`the scores ${JSON.stringify(match.scores)} do not put ${winner.emberId} ahead`);
   }
+  return problems;
+}
+
+/**
+ * What is wrong with a finished match, empty when nothing is: the bridge
+ * says it completed with `winner` ahead, and the signed result it delivered
+ * says the same.
+ */
+export function finishedProblems(match: Body, result: MatchResult | null, winner: Winner): string[] {
+  const problems = completedProblems(match, winner);
   if (!result) {
     problems.push("no signed result was delivered");
   } else if (result.match_id !== match.match_id) {
@@ -58,4 +73,54 @@ export function finishedProblems(match: Body, result: MatchResult | null, winner
     problems.push(`the signed result's winner is ${result.winner_participant_id}, not ${winner.participantId}`);
   }
   return problems;
+}
+
+/** The participant ID the match gives `emberId`, or null when that Ember ID is not in it. */
+export function participantOf(match: Body, emberId: string): string | null {
+  const participants = (Array.isArray(match.participants) ? match.participants : []).filter(isBody);
+  const found = participants.find((participant) => participant.ember_id === emberId)?.participant_id;
+  return typeof found === "string" ? found : null;
+}
+
+/**
+ * What is wrong with the match a bracket connector made for the two games,
+ * empty when nothing is: it is on the connector's set (`external_match_id`
+ * starts with `prefix`), and has exactly these two Ember IDs.
+ */
+export function connectorMatchProblems(match: Body, prefix: string, emberIds: [string, string]): string[] {
+  const problems: string[] = [];
+  const external = match.external_match_id;
+  if (typeof external !== "string" || !external.startsWith(prefix)) problems.push(`the match's external ID ${JSON.stringify(external)} is not for ${prefix}`);
+  const participants = (Array.isArray(match.participants) ? match.participants : []).filter(isBody);
+  const present = participants.map((participant) => String(participant.ember_id)).sort();
+  if (participants.length !== 2 || present.join(" ") !== [...emberIds].sort().join(" ")) {
+    problems.push("the match is not between the two games' Ember IDs");
+  }
+  return problems;
+}
+
+/**
+ * Whether the bridge delivered the signed result to the connection's
+ * results URL and was answered: the connector verifies the signature before
+ * it answers, so `delivered` means a verified result arrived.
+ */
+export function deliveryProblems(match: Body): string[] {
+  return match.provider_delivery_state === "delivered" ? [] : [`the result's delivery is ${String(match.provider_delivery_state)}, not delivered`];
+}
+
+/** A game's `site-account` file: the account its sign-in connected. */
+export interface SiteAccount {
+  userId: string;
+  name: string;
+}
+
+/** The game's `site-account` line, "<user ID> <name>", or null until it is whole. */
+export function parseAccountLine(line: string): SiteAccount | null {
+  const match = /^(\S+) (\S.*)$/.exec(line.trim());
+  return match ? { userId: match[1]!, name: match[2]! } : null;
+}
+
+/** What is wrong with the two games' accounts: one account on both PCs links one player twice. */
+export function accountProblems(host: SiteAccount, guest: SiteAccount): string[] {
+  return host.userId === guest.userId ? ["both games connected the same account; each PC signs in as a different player"] : [];
 }

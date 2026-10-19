@@ -28,6 +28,9 @@ param(
     [string]$Exchange = "",
     [string]$Bridge = "",
     [string]$Connection = "",
+    # Optional: a sign-in site (its ID on the bridge) to connect an account on
+    # in the browser, instead of linking with a code (the Challonge mode).
+    [string]$Site = "",
     [int]$TimeoutMinutes = 20
 )
 
@@ -139,6 +142,10 @@ if ($Test -like "tournament-*") {
     $env:SF4E_SELFTEST_EXCHANGE = (Resolve-Path $Exchange).Path
     $env:SF4E_SELFTEST_BRIDGE = $Bridge
     $env:SF4E_SELFTEST_CONNECTION = $Connection
+    if ($Site) {
+        if ($Site -notmatch '^[a-z0-9-]{1,32}$') { throw "-Site is a sign-in site's ID: 1 to 32 of a-z, 0-9 and -" }
+        $env:SF4E_SELFTEST_SITE = $Site
+    }
 }
 $settings | Where-Object { Test-Path $_ } | ForEach-Object { Copy-Item $_ "$_.selftest" -Force }
 
@@ -194,7 +201,7 @@ try {
     if (-not $process.WaitForExit(10000)) { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
 }
 finally {
-    Remove-Item Env:SF4E_SELFTEST, Env:SF4E_SELFTEST_RESULT, Env:SF4E_SELFTEST_INVITE, Env:SF4E_SELFTEST_EMBER_DIR, Env:SF4E_SELFTEST_EXCHANGE, Env:SF4E_SELFTEST_BRIDGE, Env:SF4E_SELFTEST_CONNECTION -ErrorAction SilentlyContinue
+    Remove-Item Env:SF4E_SELFTEST, Env:SF4E_SELFTEST_RESULT, Env:SF4E_SELFTEST_INVITE, Env:SF4E_SELFTEST_EMBER_DIR, Env:SF4E_SELFTEST_EXCHANGE, Env:SF4E_SELFTEST_BRIDGE, Env:SF4E_SELFTEST_CONNECTION, Env:SF4E_SELFTEST_SITE -ErrorAction SilentlyContinue
     # Nothing is put back under a game that still writes: after a timeout the
     # processes were only asked to end.
     foreach ($running in $game, $process) { if ($running) { [void]$running.WaitForExit(15000) } }

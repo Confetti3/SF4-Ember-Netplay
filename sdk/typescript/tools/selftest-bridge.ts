@@ -17,6 +17,13 @@
 // signed result delivered. Prints PASS and FAIL lines; exits 0 when all passed.
 // Test identities and subjects only; everything it starts is stopped and the
 // work folder deleted at the end, also on Ctrl+C.
+//
+// With --site challonge (docs/design/TOURNAMENT_SELFTEST.md, "Challonge
+// mode") the platform is a real Challonge tournament instead: the bridge
+// offers Challonge's sign-in, each game connects its account there in the
+// browser, and the match is made by the ember-brackets connector, started
+// here once both accounts are connected, from the tournament's one open set.
+// Needs --challonge <run configuration> and --connector <ember-brackets.exe>.
 import { execFile, execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
@@ -25,11 +32,33 @@ import { join } from "node:path";
 import { parseArgs, promisify } from "node:util";
 
 import { BridgeClient, verifyResult, type Json, type MatchResult } from "../src/index.ts";
-import { claimToApprove, finishedProblems, parseIdentityLine, type GameIdentity } from "./selftest-checks.ts";
+import {
+  accountProblems,
+  claimToApprove,
+  completedProblems,
+  connectorMatchProblems,
+  deliveryProblems,
+  finishedProblems,
+  parseAccountLine,
+  parseIdentityLine,
+  participantOf,
+  type GameIdentity,
+  type SiteAccount,
+} from "./selftest-checks.ts";
+import {
+  apiFor,
+  connectorConfig,
+  openProblems,
+  parseChallongeConfig,
+  readSecret,
+  reportedProblems,
+  signInSite,
+  type ChallongeConfig,
+} from "./selftest-challonge.ts";
 
 const run = promisify(execFile);
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-const CONNECTION = "mock-local";
+const SITE = "challonge";
 
 interface Args {
   bridge: string;
@@ -38,10 +67,12 @@ interface Args {
   guest: string;
   port: number;
   minutes: number;
+  /** The Challonge mode, when --site challonge: the run configuration, the connector and the connection it works through. */
+  challonge?: { config: string; connector: string; connection: string };
 }
 
 function usage(problem: string): never {
-  console.error(`${problem}\nusage: node tools/selftest-bridge.ts --bridge <ember-bridge.exe> --work <folder> --host <exchange> --guest <exchange> [--port N] [--minutes N]`);
+  console.error(`${problem}\nusage: node tools/selftest-bridge.ts --bridge <ember-bridge.exe> --work <folder> --host <exchange> --guest <exchange> [--port N] [--minutes N] [--site challonge --challonge <run configuration> --connector <ember-brackets.exe> [--connection brackets]]`);
   process.exit(2);
 }
 
@@ -61,12 +92,27 @@ function parseArguments(): Args {
       guest: { type: "string" },
       port: { type: "string", default: "18787" },
       minutes: { type: "string", default: "25" },
+      site: { type: "string", default: "mock" },
+      challonge: { type: "string" },
+      connector: { type: "string" },
+      connection: { type: "string", default: "brackets" },
     },
   });
   const { bridge, work, host, guest } = values;
   if (!bridge || !work || !host || !guest) usage("--bridge, --work, --host and --guest are needed");
-  // The result receiver listens on the port after the bridge's.
-  return { bridge, work, host, guest, port: whole("--port", values.port, 1024, 65534), minutes: whole("--minutes", values.minutes, 1, 24 * 60) };
+  if (values.site !== "mock" && values.site !== SITE) usage(`--site is mock or ${SITE}`);
+  if (values.site === SITE && (!values.challonge || !values.connector)) usage(`--site ${SITE} needs --challonge and --connector`);
+  if (values.site === "mock" && (values.challonge || values.connector)) usage("--challonge and --connector are for --site " + SITE);
+  // The result receiver, or the connector's results listener, is on the port after the bridge's.
+  return {
+    bridge,
+    work,
+    host,
+    guest,
+    port: whole("--port", values.port, 1024, 65534),
+    minutes: whole("--minutes", values.minutes, 1, 24 * 60),
+    challonge: values.site === SITE ? { config: values.challonge!, connector: values.connector!, connection: values.connection! } : undefined,
+  };
 }
 
 const args = parseArguments();
@@ -166,7 +212,8 @@ type BridgeConfig = { [key: string]: Json } & {
   listen: string;
   origin: string;
   integration_secrets: string;
-  tenants: { connections: { results_url?: string }[] }[];
+  sign_in_sites: Json[];
+  tenants: { connections: { [key: string]: Json }[] }[];
 };
 
 function readConfig(path: string): BridgeConfig {
@@ -180,8 +227,22 @@ function isBridgeProfile(value: unknown): value is { bridge_id: string } {
   return typeof value === "object" && value !== null && "bridge_id" in value && typeof value.bridge_id === "string";
 }
 
-/** A fresh bridge on `port` whose mock connection sends signed results to `resultsUrl`. */
-async function startBridge(resultsUrl: string, secret: string): Promise<{ origin: string; bridgeId: string; providerToken: string }> {
+/** What the two modes set differently in the bridge's configuration. */
+interface BridgeSetup {
+  /** Fields to set on the tenant's one connection, which `ember-bridge init` made a mock provider. */
+  connection: { [key: string]: Json };
+  /** Where the connection's signed results go, and the secret they are signed with. */
+  resultsUrl: string;
+  resultSecret: string;
+  /** A sign-in site the bridge offers, and the secret of the OAuth app behind it. */
+  site?: { definition: { id: string; [key: string]: Json }; clientSecret: string };
+}
+
+// The bridge's own messages (its stderr), the last few thousand characters.
+let bridgeLog = "";
+
+/** A fresh bridge on `port` with the connection `setup` describes. */
+async function startBridge(setup: BridgeSetup): Promise<{ origin: string; bridgeId: string; providerToken: string; connection: string }> {
   const dir = join(args.work, "bridge");
   if (existsSync(dir) && readdirSync(dir).length > 0) throw new Error(`${dir} is not empty`);
   mkdirSync(dir, { recursive: true });
@@ -192,19 +253,28 @@ async function startBridge(resultsUrl: string, secret: string): Promise<{ origin
   config.listen = `127.0.0.1:${port}`;
   config.origin = `http://127.0.0.1:${port}`;
   config.integration_secrets = join(dir, "integration-secrets.json");
-  config.tenants[0]!.connections[0]!.results_url = resultsUrl;
-  writeFileSync(config.integration_secrets, JSON.stringify({ format: "ember-bridge-integrations", version: 1, result_secrets: { [CONNECTION]: secret } }));
+  const connection = Object.assign(config.tenants[0]!.connections[0]!, setup.connection, { results_url: setup.resultsUrl });
+  const id = connection.id;
+  if (typeof id !== "string") throw new Error("the connection has no ID");
+  if (setup.site) config.sign_in_sites = [setup.site.definition];
+  // Owner-only like the bridge's other secret files, and deleted with the work folder.
+  const secrets = {
+    format: "ember-bridge-integrations",
+    version: 1,
+    result_secrets: { [id]: setup.resultSecret },
+    ...(setup.site ? { site_client_secrets: { [setup.site.definition.id]: setup.site.clientSecret } } : {}),
+  };
+  writeFileSync(config.integration_secrets, JSON.stringify(secrets), { mode: 0o600 });
   writeFileSync(configPath, JSON.stringify(config));
-  const providerToken = execFileSync(args.bridge, ["credential", configPath, "provider", CONNECTION, "self-test runner"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  const providerToken = execFileSync(args.bridge, ["credential", configPath, "provider", id, "self-test runner"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
   const bridge = own(spawn(args.bridge, ["serve", configPath], { stdio: ["ignore", "ignore", "pipe"] }), "the bridge");
-  let log = "";
-  bridge.stderr!.on("data", (chunk: Buffer) => (log = (log + chunk.toString()).slice(-4000)));
+  bridge.stderr!.on("data", (chunk: Buffer) => (bridgeLog = (bridgeLog + chunk.toString()).slice(-4000)));
   for (let i = 0; i < 100; i++) {
     const profile: unknown = await fetch(`${config.origin}/.well-known/ember-bridge.json`).then((response) => (response.ok ? response.json() : null)).catch(() => null);
-    if (isBridgeProfile(profile)) return { origin: config.origin, bridgeId: profile.bridge_id, providerToken };
+    if (isBridgeProfile(profile)) return { origin: config.origin, bridgeId: profile.bridge_id, providerToken, connection: id };
     await sleep(100);
   }
-  throw new Error(`the bridge did not start: ${log}`);
+  throw new Error(`the bridge did not start: ${bridgeLog}`);
 }
 
 /** The receiver for the connection's `results_url`: keeps the result whose signature checks out. */
@@ -258,12 +328,16 @@ async function link(provider: BridgeClient, exchange: Exchange, subject: string)
   return { ...game, participantId };
 }
 
-async function main(): Promise<void> {
+/** A secret the bridge signs a connection's results with, in the form it accepts. */
+const newResultSecret = () => `whsec_${randomBytes(32).toString("base64")}`;
+
+/** The mock provider: each game links with a code, and this tool makes the match. */
+async function mockMain(): Promise<void> {
   const host = exchangeOf("host", args.host);
   const guest = exchangeOf("guest", args.guest);
-  const secret = `whsec_${randomBytes(32).toString("base64")}`;
+  const secret = newResultSecret();
   const receiver = await startReceiver(secret);
-  const bridge = await startBridge(receiver.url, secret);
+  const bridge = await startBridge({ connection: {}, resultsUrl: receiver.url, resultSecret: secret });
   say(true, "bridge", `${bridge.bridgeId} at ${bridge.origin}`);
   for (const sshHost of new Set([host.sshHost, guest.sshHost].filter((name) => name !== undefined))) {
     await startTunnel(sshHost, bridge.origin);
@@ -302,11 +376,141 @@ async function main(): Promise<void> {
   if (problems.length === 0) say(true, "match result", `completed, ${p1.emberId} won, signed result verified`);
 }
 
+/** Reads each game's `file` until both have written it. */
+function bothWrote(host: Exchange, guest: Exchange, file: string, what: string): Promise<[string, string]> {
+  return Promise.all([awaitFile(host, file, what), awaitFile(guest, file, what)]);
+}
+
+/** Reads until `done` holds of what was read, or `seconds` have passed, and returns the last read. */
+async function until<T>(read: () => Promise<T>, done: (value: T) => boolean, seconds: number): Promise<T> {
+  const limit = Date.now() + seconds * 1000;
+  for (;;) {
+    const value = await read();
+    if (done(value) || Date.now() > limit) return value;
+    await sleep(3_000);
+  }
+}
+
+/** The Challonge mode: real accounts signed in in the browser, a real set, the connector between them. */
+async function siteMain(options: ChallongeConfig, connectorExe: string, connection: string): Promise<void> {
+  const host = exchangeOf("host", args.host);
+  const guest = exchangeOf("guest", args.guest);
+  // The bridge's callback has to be the address registered for the app.
+  const origin = `http://127.0.0.1:${port}`;
+  if (options.redirectUri !== `${origin}/v1/sites/${SITE}/callback`) {
+    throw new Error(`the app's registered redirect URI is ${options.redirectUri}, which this run's bridge at ${origin} does not answer; use the registered port`);
+  }
+  const organizer = apiFor(options);
+  const clientSecret = readSecret(options.clientSecretFile);
+  const template = JSON.parse(readFileSync(new URL("../../../server/ember/bridge/deploy/sites/challonge.json", import.meta.url), "utf8")) as Json;
+
+  // The set has to be open before anybody is asked to sign in.
+  const notOpen = openProblems(await organizer.match(options.match), options.match);
+  if (notOpen.length > 0) throw new Error(notOpen.join("; "));
+  say(true, "challonge set", `${options.tournament} match ${options.match} is open`);
+
+  const secret = newResultSecret();
+  const resultsPort = port + 1;
+  const bridge = await startBridge({
+    connection: { id: connection, kind: "direct", display_name: "Bracket connector", lookup_sites: [SITE], disputes: "restart" },
+    resultsUrl: `http://127.0.0.1:${resultsPort}/results`,
+    resultSecret: secret,
+    site: { definition: signInSite(template, options.clientId), clientSecret },
+  });
+  say(true, "bridge", `${bridge.bridgeId} at ${bridge.origin}, offering ${SITE} sign-in`);
+  for (const sshHost of new Set([host.sshHost, guest.sshHost].filter((name) => name !== undefined))) {
+    await startTunnel(sshHost, bridge.origin);
+    say(true, "tunnel", `${sshHost} reaches the bridge`);
+  }
+  // The runner starts the games once this line is out. Each opens the
+  // browser for its sign-in, where the person at that PC approves.
+  console.log("READY");
+
+  const provider = new BridgeClient({ origin: bridge.origin, credential: bridge.providerToken });
+  const [hostGame, guestGame] = (await bothWrote(host.exchange, guest.exchange, "ember-id", "its Ember ID")).map((line, i) => {
+    const game = parseIdentityLine(line);
+    if (!game) throw new Error(`${i === 0 ? "host" : "guest"}: its ember-id file is not "<Ember ID> <build>"`);
+    return game;
+  }) as [GameIdentity, GameIdentity];
+  if (hostGame.build !== guestGame.build) throw new Error(`the two games run different builds (${hostGame.build}, ${guestGame.build}); the bridge would refuse the second claim`);
+
+  const [hostAccount, guestAccount] = (await bothWrote(host.exchange, guest.exchange, "site-account", `its ${SITE} account`)).map((line, i) => {
+    const account = parseAccountLine(line);
+    if (!account) throw new Error(`${i === 0 ? "host" : "guest"}: its site-account file is not "<user ID> <name>"`);
+    return account;
+  }) as [SiteAccount, SiteAccount];
+  const sameAccount = accountProblems(hostAccount, guestAccount);
+  if (sameAccount.length > 0) throw new Error(sameAccount.join("; "));
+  say(true, "accounts connected", `host ${hostAccount.name}, guest ${guestAccount.name}`);
+
+  // Both players are known to the bridge now, so the connector's first read
+  // finds the set playable: the request budget goes on the match, not on
+  // reads made while people sign in. Its database is new, as the bridge's is.
+  const folder = join(args.work, "connector");
+  mkdirSync(folder, { recursive: true });
+  writeFileSync(join(folder, "provider.token"), bridge.providerToken, { mode: 0o600 });
+  writeFileSync(join(folder, "result.secret"), secret, { mode: 0o600 });
+  const configFile = join(folder, "brackets.json");
+  const configuration = connectorConfig({
+    bridgeOrigin: bridge.origin,
+    connectionId: bridge.connection,
+    providerTokenFile: join(folder, "provider.token"),
+    buildId: hostGame.build,
+    resultsPort,
+    resultSecretFile: join(folder, "result.secret"),
+    database: join(folder, "brackets.sqlite3"),
+    tournament: options.tournament,
+    apiKeyFile: options.apiKeyFile,
+  });
+  writeFileSync(configFile, JSON.stringify(configuration));
+  const connector = own(spawn(connectorExe, ["serve", configFile], { stdio: ["ignore", "pipe", "pipe"] }), "the connector");
+  let connectorLog = "";
+  for (const stream of [connector.stdout!, connector.stderr!]) stream.on("data", (chunk: Buffer) => (connectorLog = (connectorLog + chunk.toString()).slice(-6000)));
+  // What the connector decided, which it never mixes with a secret, is shown when the run did not pass.
+  stops.push(() => {
+    if (failed && connectorLog) console.log(`connector log:\n${connectorLog.trimEnd()}`);
+  });
+  say(true, "connector", `started for ${options.tournament}`);
+
+  // The connector made the match, so each game says which it plays.
+  const [hostMatch, guestMatch] = await bothWrote(host.exchange, guest.exchange, "match-id", "the match to play");
+  if (hostMatch !== guestMatch) throw new Error(`the games play different matches (${hostMatch}, ${guestMatch})`);
+  const created = await provider.getMatch(hostMatch);
+  const wrong = connectorMatchProblems(created, `${SITE}:${options.tournament}:${options.match}:`, [hostGame.emberId, guestGame.emberId]);
+  if (wrong.length > 0) throw new Error(wrong.join("; "));
+  say(true, "match created", `${hostMatch} for ${String(created.external_match_id)}`);
+
+  // The host's fighter wins. The bridge signs the result when the match
+  // completes and the connector answers it after verifying the signature;
+  // it then reports the set to Challonge.
+  while (!over()) await sleep(2_000);
+  const winner = { emberId: hostGame.emberId, participantId: participantOf(created, hostGame.emberId) ?? "" };
+  const loser = participantOf(created, guestGame.emberId) ?? "";
+  const finished = await until(() => provider.getMatch(hostMatch), (current) => current.state !== "completed" || current.provider_delivery_state === "delivered", 90);
+  const problems = [...completedProblems(finished, winner), ...deliveryProblems(finished)];
+  for (const problem of problems) say(false, "match result", problem);
+  if (problems.length === 0) say(true, "match result", `completed, ${winner.emberId} won, the signed result was delivered`);
+
+  // And the set on Challonge, read with the organizer's key, once the
+  // connector has had time to report it.
+  let reported = await organizer.match(options.match);
+  for (let tries = 0; tries < 3 && reported.state !== "complete"; tries++) {
+    await sleep(20_000);
+    reported = await organizer.match(options.match);
+  }
+  const unreported = reportedProblems(reported, winner.participantId, loser);
+  for (const problem of unreported) say(false, "challonge result", problem);
+  if (unreported.length === 0) say(true, "challonge result", `match ${options.match} is complete, participant ${winner.participantId} won ${reported.scores ?? ""}`);
+  say(true, "challonge requests", `${organizer.requests} made by this tool, none of them writes`);
+}
+
 try {
-  await main();
+  if (args.challonge) await siteMain(parseChallongeConfig(readFileSync(args.challonge.config, "utf8")), args.challonge.connector, args.challonge.connection);
+  else await mockMain();
 } catch (error) {
   say(false, "bridge side", (error as Error).message);
 } finally {
+  if (failed && bridgeLog) console.log(`bridge log:\n${bridgeLog.trimEnd()}`);
   await cleanUp();
 }
 console.log(failed ? "RESULT fail" : "RESULT pass");
