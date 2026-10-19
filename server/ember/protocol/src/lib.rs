@@ -22,6 +22,8 @@ pub mod relay;
 pub mod report;
 pub mod rooms;
 pub mod sign;
+pub mod sign_in;
+pub mod sites;
 pub mod tournament;
 pub mod webhook;
 

@@ -268,7 +268,8 @@ async fn reads_ready(
     if play_state(shared)?.reads_ready.contains(match_id) {
         return Ok(true);
     }
-    let reads = lists_ready(&shared.client.capabilities(&bridge.origin).await?);
+    let offered = shared.client.capabilities(&bridge.origin).await?;
+    let reads = lists_ready(&offered.capabilities);
     if reads {
         play_state(shared)?.reads_ready.insert(match_id.to_owned());
     }

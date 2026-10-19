@@ -3851,6 +3851,84 @@ msgstr "別のDiscordアカウントを使う"
 msgid "connect.change_detail"
 msgstr "ブラウザーでDiscordを開き、代わりに別のアカウントを連携します。その後は、大会サイトでもそのアカウントを使う必要があります。"
 
+msgid "site.title"
+msgstr "{0}を連携"
+
+msgid "site.row_detail"
+msgstr "{0}アカウントを連携すると、{0}の大会があなたのEmber IDを見つけられるようになります。"
+
+msgid "site.go_detail"
+msgstr "{0}を連携すると、{0}の大会があなたのEmber IDを見つけられるようになります。Emberがブラウザーで{0}を開きます。そこで、大会で使うアカウントで承認してください。"
+
+msgid "site.setting_up_detail"
+msgstr "Emberがブラウザーで{0}を開いています。"
+
+msgid "site.waiting"
+msgstr "ブラウザーで承認してください。{0}が連携されると、この画面が更新されます。"
+
+msgid "site.waiting_label"
+msgstr "{0}を待っています"
+
+msgid "site.waiting_detail"
+msgstr "ブラウザーで、大会で使う{0}アカウントで承認してください。この画面は自動で更新されます。"
+
+msgid "site.connected"
+msgstr "{0}連携済み"
+
+msgid "site.connected_detail"
+msgstr "{0}の大会がこのアカウントからあなたを見つけられるようになりました。"
+
+msgid "site.change"
+msgstr "別の{0}アカウントを使う"
+
+msgid "site.change_detail"
+msgstr "ブラウザーで{0}を開き、代わりに別のアカウントを連携します。その後は、大会でもそのアカウントを使う必要があります。"
+
+msgid "site.remove_detail"
+msgstr "このサービスでこの{0}アカウントとEmber IDの連携を解除します。{0}の大会はこのアカウントからあなたを見つけられなくなります。"
+
+msgid "site.cancel_detail"
+msgstr "待機をやめます。準備ができたら、もう一度「{0}を連携」を選んでください。"
+
+msgid "site.off"
+msgstr "{0}でのサインインは無効です"
+
+msgid "site.off_detail"
+msgstr "この大会サービスでは現在{0}でのサインインを利用できません。しばらくしてからもう一度お試しください。"
+
+msgid "site.retry_detail"
+msgstr "{0}アカウントをもう一度読み込みます。"
+
+msgid "site.opened"
+msgstr "ブラウザーで{0}へのサインインを完了してください。"
+
+msgid "site.done"
+msgstr "{0}を{1}として連携しました。"
+
+msgid "site.removed"
+msgstr "{0}アカウントの連携を解除しました。"
+
+msgid "site.cancelled"
+msgstr "{0}の待機をやめました。"
+
+msgid "site.busy"
+msgstr "現在{0}でのサインインが混み合っています。しばらくしてからもう一度お試しください。"
+
+msgid "site.gone"
+msgstr "この大会サービスでは{0}でのサインインを利用できなくなりました。"
+
+msgid "site.no_service"
+msgstr "Emberの大会サービスが設定されていません"
+
+msgid "site.no_service_detail"
+msgstr "{0}はEmberの大会サービスを通じて連携します。先に「連携アカウント」でサービスを探してから、ここに戻ってください。"
+
+msgid "site.screen"
+msgstr "サイトアカウント"
+
+msgid "identity.failure.browser"
+msgstr "Emberはブラウザーを開けませんでした。"
+
 msgid "connect.link_waiting"
 msgstr "大会サイトからDiscordの連携を求められました。ルームから退出すると、Emberが「Discordを連携」を開きます。"
 

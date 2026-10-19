@@ -9,7 +9,7 @@ use ember_protocol::{
     api::ErrorCode,
     challenge::{self, Action, Challenge, Expected, Method, ProvenRequest, is_api_path},
     encoding::{b64u, decode_b64u, is_prefixed_id},
-    json,
+    json, sites,
 };
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
@@ -18,6 +18,7 @@ use crate::{
     AppState,
     auth::{self, PLAYER_PREFIX, SESSION_SECS},
     config::Config,
+    ctx::Ctx,
     error::{ApiFailure, Result},
     http::{Body, PROOF_BODY, json, ok},
     util::{new_id, new_token, random},
@@ -130,9 +131,13 @@ fn route_matches(action: Action, method: Method, path: &str) -> bool {
         (Action::AttemptPrepare, Method::Post) => {
             id_between("/v1/matches/", "emt", "/attempts/prepare")
         }
-        (Action::DiscordConnect, Method::Post) => path == super::discord::START_PATH,
-        (Action::DiscordRemove, Method::Delete) => path == super::discord::ACCOUNT_PATH,
-        (Action::DiscordCancel, Method::Delete) => path == super::discord::START_PATH,
+        (Action::DiscordConnect, Method::Post) => path == ember_protocol::discord::START_PATH,
+        (Action::DiscordRemove, Method::Delete) => path == ember_protocol::discord::ACCOUNT_PATH,
+        (Action::DiscordCancel, Method::Delete) => path == ember_protocol::discord::START_PATH,
+        (Action::SiteConnect, Method::Post) | (Action::SiteCancel, Method::Delete) => {
+            sites::site_of(path, "/start").is_some()
+        }
+        (Action::SiteRemove, Method::Delete) => sites::site_of(path, "").is_some(),
         _ => false,
     }
 }
@@ -346,4 +351,45 @@ pub fn proven<T: serde::de::DeserializeOwned>(bytes: &[u8]) -> Result<(ProvenReq
     let request = ProvenRequest::parse(bytes)?;
     let command = json::from_value(&request.command)?;
     Ok((request, command))
+}
+
+/// A command with nothing in it, for actions the route alone describes.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Nothing {}
+
+/// Consumes the session player's proof in `body`, an action the route
+/// alone describes (its command is empty), for `action` on `method` and
+/// `path`, and runs `work` in the same write, with the Ember ID the proof
+/// names.
+pub async fn as_proven<T: Send + 'static>(
+    state: &AppState,
+    player: auth::Player,
+    body: &Body<PROOF_BODY>,
+    (action, method, path): (Action, Method, String),
+    work: impl FnOnce(&Transaction<'_>, &Ctx, &str) -> Result<T> + Send + 'static,
+) -> Result<T> {
+    let (request, Nothing {}) = proven(&body.0)?;
+    let ctx = Ctx::of(state);
+    let done = state
+        .db
+        .write(move |tx| {
+            let target = Target {
+                action,
+                method,
+                path: &path,
+            };
+            let (ember_id, _) = consume_proof(
+                tx,
+                &ctx.config,
+                ctx.now,
+                &request,
+                target,
+                Some(&player.ember_id),
+            )?;
+            work(tx, &ctx, ember_id.as_str())
+        })
+        .await?;
+    state.committed();
+    Ok(done)
 }

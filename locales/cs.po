@@ -3851,6 +3851,84 @@ msgstr "Použít jiný účet Discord"
 msgid "connect.change_detail"
 msgstr "Otevře Discord ve vašem prohlížeči a připojí místo toho jiný účet. Váš turnajový web pak musí používat tento účet."
 
+msgid "site.title"
+msgstr "Připojit {0}"
+
+msgid "site.row_detail"
+msgstr "Připojte svůj účet {0}, aby vaše Ember ID našly turnaje na {0}."
+
+msgid "site.go_detail"
+msgstr "Po připojení {0} mohou turnaje na {0} najít vaše Ember ID. Ember otevře {0} ve vašem prohlížeči: tam schvalte účet, který používá váš turnaj."
+
+msgid "site.setting_up_detail"
+msgstr "Ember otevírá {0} ve vašem prohlížeči."
+
+msgid "site.waiting"
+msgstr "Schvalte to v prohlížeči. Tato obrazovka se aktualizuje, jakmile bude {0} připojen."
+
+msgid "site.waiting_label"
+msgstr "Čekání na {0}"
+
+msgid "site.waiting_detail"
+msgstr "Schvalte v prohlížeči pomocí účtu {0}, který používá váš turnaj. Tato obrazovka se aktualizuje sama."
+
+msgid "site.connected"
+msgstr "{0} připojen"
+
+msgid "site.connected_detail"
+msgstr "Turnaje na {0} vás nyní podle tohoto účtu najdou."
+
+msgid "site.change"
+msgstr "Použít jiný účet {0}"
+
+msgid "site.change_detail"
+msgstr "Otevře {0} ve vašem prohlížeči a připojí místo toho jiný účet. Váš turnaj pak musí používat tento účet."
+
+msgid "site.remove_detail"
+msgstr "Odpojí tento účet {0} od vašeho Ember ID v této službě. Turnaje na {0} vás podle něj už nenajdou."
+
+msgid "site.cancel_detail"
+msgstr "Přestane čekat. Až budete připraveni, zvolte znovu Připojit {0}."
+
+msgid "site.off"
+msgstr "Přihlášení přes {0} je vypnuté"
+
+msgid "site.off_detail"
+msgstr "Tato turnajová služba teď přihlášení přes {0} nenabízí. Zkuste to později."
+
+msgid "site.retry_detail"
+msgstr "Znovu načte váš účet {0}."
+
+msgid "site.opened"
+msgstr "Dokončete přihlášení k {0} v prohlížeči."
+
+msgid "site.done"
+msgstr "{0} připojen jako {1}."
+
+msgid "site.removed"
+msgstr "Účet {0} byl odpojen."
+
+msgid "site.cancelled"
+msgstr "Čekání na {0} bylo zastaveno."
+
+msgid "site.busy"
+msgstr "Přihlášení přes {0} je teď vytížené. Zkuste to později."
+
+msgid "site.gone"
+msgstr "Tato turnajová služba už přihlášení přes {0} nenabízí."
+
+msgid "site.no_service"
+msgstr "Turnajová služba Ember není nastavena"
+
+msgid "site.no_service_detail"
+msgstr "{0} se připojuje přes turnajovou službu Ember. Nejprve ji vyhledejte v části Propojené účty a pak se sem vraťte."
+
+msgid "site.screen"
+msgstr "Účet webu"
+
+msgid "identity.failure.browser"
+msgstr "Ember nemohl otevřít váš prohlížeč."
+
 msgid "connect.link_waiting"
 msgstr "Turnajový web vás žádá o připojení Discordu. Ember otevře obrazovku Připojit Discord, až opustíte místnost."
 

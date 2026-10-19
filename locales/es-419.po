@@ -3377,6 +3377,84 @@ msgstr "Usar otra cuenta de Discord"
 msgid "connect.change_detail"
 msgstr "Abre Discord en tu navegador para conectar otra cuenta. Tu sitio de torneos deberá usar entonces esa cuenta."
 
+msgid "site.title"
+msgstr "Conectar {0}"
+
+msgid "site.row_detail"
+msgstr "Conecta tu cuenta de {0} para que los torneos de {0} puedan encontrar tu Ember ID."
+
+msgid "site.go_detail"
+msgstr "Al conectar {0}, los torneos de {0} pueden encontrar tu Ember ID. Ember abre {0} en tu navegador: aprueba allí con la cuenta que usa tu torneo."
+
+msgid "site.setting_up_detail"
+msgstr "Ember está abriendo {0} en tu navegador."
+
+msgid "site.waiting"
+msgstr "Aprueba en tu navegador. Esta pantalla se actualiza cuando {0} esté conectado."
+
+msgid "site.waiting_label"
+msgstr "Esperando a {0}"
+
+msgid "site.waiting_detail"
+msgstr "Aprueba en tu navegador con la cuenta de {0} que usa tu torneo. Esta pantalla se actualiza sola."
+
+msgid "site.connected"
+msgstr "{0} conectado"
+
+msgid "site.connected_detail"
+msgstr "Los torneos de {0} ya pueden encontrarte con esta cuenta."
+
+msgid "site.change"
+msgstr "Usar otra cuenta de {0}"
+
+msgid "site.change_detail"
+msgstr "Abre {0} en tu navegador para conectar otra cuenta. Tu torneo deberá usar entonces esa cuenta."
+
+msgid "site.remove_detail"
+msgstr "Desconecta esta cuenta de {0} de tu Ember ID en este servicio. Los torneos de {0} ya no podrán encontrarte con ella."
+
+msgid "site.cancel_detail"
+msgstr "Deja de esperar. Elige Conectar {0} de nuevo cuando estés listo."
+
+msgid "site.off"
+msgstr "El inicio de sesión con {0} está desactivado"
+
+msgid "site.off_detail"
+msgstr "Este servicio de torneos no ofrece inicio de sesión con {0} por ahora. Inténtalo más tarde."
+
+msgid "site.retry_detail"
+msgstr "Vuelve a leer tu cuenta de {0}."
+
+msgid "site.opened"
+msgstr "Termina de iniciar sesión en {0} en tu navegador."
+
+msgid "site.done"
+msgstr "{0} conectado como {1}."
+
+msgid "site.removed"
+msgstr "Cuenta de {0} desconectada."
+
+msgid "site.cancelled"
+msgstr "Se dejó de esperar a {0}."
+
+msgid "site.busy"
+msgstr "El inicio de sesión con {0} está ocupado ahora. Inténtalo más tarde."
+
+msgid "site.gone"
+msgstr "Este servicio de torneos ya no ofrece inicio de sesión con {0}."
+
+msgid "site.no_service"
+msgstr "El servicio de torneos de Ember no está configurado"
+
+msgid "site.no_service_detail"
+msgstr "{0} se conecta mediante el servicio de torneos de Ember. Primero búscalo en Cuentas vinculadas y luego vuelve aquí."
+
+msgid "site.screen"
+msgstr "Cuenta del sitio"
+
+msgid "identity.failure.browser"
+msgstr "Ember no pudo abrir tu navegador."
+
 msgid "connect.link_waiting"
 msgstr "Un sitio de torneos te pidió conectar Discord. Ember abre Conectar Discord cuando salgas de la sala."
 

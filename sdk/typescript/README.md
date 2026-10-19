@@ -84,7 +84,9 @@ if (result.outcome === "completed") advance(result.external_match_id, result.win
 else replay(result.external_match_id); // cancelled or failed: play it again
 ```
 
-`lookupPlayers` needs `discord_lookup` on the connection, and the room calls
+`lookupPlayers` needs `discord_lookup` on the connection, `lookupAccounts`
+needs each site it asks in `lookup_sites` (`getSignInSites` lists the bridge's
+sign-in sites), and the room calls
 need `rooms`; without them the bridge answers `forbidden` (`not_found` when it has
 no public rooms at all). `parseResult` checks a result body's shape without a
 signature, for tests.

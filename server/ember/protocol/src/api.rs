@@ -30,6 +30,10 @@ pub enum ErrorCode {
     RateLimited,
     ResyncRequired,
     ServiceUnavailable,
+    /// A sign-in site refused a start for its own limits (`sites`):
+    /// the day's or month's requests to the site are spent, or the hour's
+    /// starts across the bridge are. Not the service failing; try later.
+    SignInBusy,
 }
 
 impl ErrorCode {
@@ -54,14 +58,14 @@ impl ErrorCode {
             | Self::ResyncRequired => 409,
             Self::UnsupportedRules | Self::IncompatibleBuild => 422,
             Self::RateLimited => 429,
-            Self::ServiceUnavailable => 503,
+            Self::ServiceUnavailable | Self::SignInBusy => 503,
         }
     }
 
     pub fn retryable(self) -> bool {
         matches!(
             self,
-            Self::RateLimited | Self::ServiceUnavailable | Self::ResyncRequired
+            Self::RateLimited | Self::ServiceUnavailable | Self::ResyncRequired | Self::SignInBusy
         )
     }
 }
@@ -152,6 +156,10 @@ pub struct Capabilities {
     /// Provider connections a player can link to on this bridge.
     #[serde(default)]
     pub connections: Vec<ConnectionInfo>,
+    /// The sign-in sites a player can connect an account on (`sites`).
+    /// Absent on a bridge without any.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sign_in_sites: Vec<crate::sites::SignInSite>,
     pub limits: Limits,
 }
 

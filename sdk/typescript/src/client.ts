@@ -205,6 +205,48 @@ export interface FoundPlayer {
   participant_id: string;
 }
 
+/**
+ * A sign-in site the bridge offers (`sign_in_sites` in its capabilities):
+ * players connect their accounts there, and connections whose
+ * `lookup_sites` name it find players by those accounts.
+ */
+export interface SignInSite {
+  /** The site ID lookups and routes name, such as `challonge` or `startgg`. */
+  id: string;
+  display_name: string;
+  /** Whether players can connect accounts now; when not, connected ones still answer lookups. */
+  sign_in: boolean;
+  /** What a lookup's `id` is on this site: a username or a user ID. */
+  lookup_by: "username" | "user_id";
+  /** Where the site's sign-in page is, which Ember checks before opening it. */
+  authorize_origin: string;
+  authorize_path: string;
+}
+
+/** An account on a sign-in site, as a lookup names it. */
+export interface SiteAccount {
+  site: string;
+  /** A username or a user ID, as the site's `lookup_by` says. */
+  id: string;
+}
+
+/** A player found by an account on a sign-in site and linked on your connection. */
+export interface FoundAccount {
+  site: string;
+  /** The account as you asked for it. */
+  id: string;
+  /** The account's user ID on the site. */
+  user_id: string;
+  ember_id: string;
+  participant_id: string;
+  /**
+   * When the account connected (Unix seconds), the last time the bridge saw
+   * its username. A site may let accounts rename without telling the
+   * bridge, so you may refuse a username connected too long ago.
+   */
+  connected_at: number;
+}
+
 /** A public room to open for a player linked on your connection. */
 export interface RoomSpec {
   /** 1 to 64 characters on one line. */
@@ -286,6 +328,12 @@ export class BridgeClient {
     return this.#json("GET", "/v1/capabilities");
   }
 
+  /** The sign-in sites the bridge offers, from its capabilities. */
+  async getSignInSites(): Promise<SignInSite[]> {
+    const capabilities = await this.#json<{ sign_in_sites?: SignInSite[] }>("GET", "/v1/capabilities");
+    return capabilities.sign_in_sites ?? [];
+  }
+
   /** This connection's own subjects only; unknown subjects are unlinked. */
   async resolvePlayers(subjects: string[]): Promise<ResolvedPlayer[]> {
     const result = await this.#json<{ players: ResolvedPlayer[] }>("POST", "/v1/players/resolve", { subjects });
@@ -300,6 +348,20 @@ export class BridgeClient {
   async lookupPlayers(discordIds: string[]): Promise<FoundPlayer[]> {
     const result = await this.#json<{ players: FoundPlayer[] }>("POST", "/v1/players/lookup", { discord: discordIds });
     return result.players;
+  }
+
+  /**
+   * Finds players by their accounts on sign-in sites, as a tournament entry
+   * shows them, for a connection whose `lookup_sites` name each site asked.
+   * Each `id` is matched as the site's `lookup_by` and username rule say
+   * (Challonge usernames without case, start.gg user IDs exactly); one the
+   * site's accounts cannot have finds no one. Linked and answered like
+   * `lookupPlayers`, once per site and player; at most 32 accounts.
+   */
+  async lookupAccounts(accounts: SiteAccount[]): Promise<FoundAccount[]> {
+    const asked = accounts.map(({ site, id }) => ({ site, id }));
+    const result = await this.#json<{ accounts?: FoundAccount[] }>("POST", "/v1/players/lookup", { accounts: asked });
+    return result.accounts ?? [];
   }
 
   /**

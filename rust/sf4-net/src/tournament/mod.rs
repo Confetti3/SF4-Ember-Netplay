@@ -6,11 +6,14 @@
 //! event. A failure here is reported and never ends the helper, and nothing
 //! here waits on, or is waited on by, room or gameplay work (spec 18.3).
 mod bridges;
+mod browser;
 mod builtin;
 mod client;
 mod discord;
 mod play;
 mod rooms;
+mod sign_in;
+mod sites;
 mod spool;
 
 use std::{
@@ -116,6 +119,23 @@ pub enum Request {
     DiscordCancel {
         bridge_id: String,
     },
+    /// A sign-in site's requests, for the site the bridge lists under `site`.
+    SiteStatus {
+        bridge_id: String,
+        site: String,
+    },
+    SiteConnect {
+        bridge_id: String,
+        site: String,
+    },
+    SiteRemove {
+        bridge_id: String,
+        site: String,
+    },
+    SiteCancel {
+        bridge_id: String,
+        site: String,
+    },
     AssignmentList {
         bridge_id: String,
     },
@@ -196,6 +216,10 @@ impl Request {
             Self::DiscordConnect { .. } => "discord_connect",
             Self::DiscordRemove { .. } => "discord_remove",
             Self::DiscordCancel { .. } => "discord_cancel",
+            Self::SiteStatus { .. } => "site_status",
+            Self::SiteConnect { .. } => "site_connect",
+            Self::SiteRemove { .. } => "site_remove",
+            Self::SiteCancel { .. } => "site_cancel",
             Self::AssignmentList { .. } => "assignment_list",
             Self::MatchClaim { .. } => "match_claim",
             Self::RoomPublish { .. } => "room_publish",
@@ -597,9 +621,9 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             Ok(Some(json!({ "bridges": bridges, "removed": removed })))
         }
         Request::BridgeInspect { origin } => {
-            let (profile, capabilities) = shared.client.inspect(&origin).await?;
+            let (profile, offered) = shared.client.inspect(&origin).await?;
             Ok(Some(
-                json!({ "profile": profile, "capabilities": capabilities }),
+                json!({ "profile": profile, "capabilities": offered.to_json() }),
             ))
         }
         Request::BridgeApprove { origin, bridge_id } => {
@@ -654,10 +678,29 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
         Request::LinkRemove { bridge_id, link_id } => {
             client::remove_link(shared, &bridge_id, &link_id).await
         }
-        Request::DiscordStatus { bridge_id } => discord::status(shared, &bridge_id).await,
-        Request::DiscordConnect { bridge_id } => discord::connect(shared, &bridge_id).await,
-        Request::DiscordRemove { bridge_id } => discord::remove(shared, &bridge_id).await,
-        Request::DiscordCancel { bridge_id } => discord::cancel(shared, &bridge_id).await,
+        Request::DiscordStatus { bridge_id } => {
+            sign_in::status(shared, &bridge_id, &discord::routes()).await
+        }
+        Request::DiscordConnect { bridge_id } => {
+            sign_in::connect(
+                shared,
+                &bridge_id,
+                &discord::routes(),
+                discord::is_sign_in_page,
+                false,
+            )
+            .await
+        }
+        Request::DiscordRemove { bridge_id } => {
+            sign_in::remove(shared, &bridge_id, &discord::routes()).await
+        }
+        Request::DiscordCancel { bridge_id } => {
+            sign_in::cancel(shared, &bridge_id, &discord::routes()).await
+        }
+        Request::SiteStatus { bridge_id, site } => sites::status(shared, &bridge_id, &site).await,
+        Request::SiteConnect { bridge_id, site } => sites::connect(shared, &bridge_id, &site).await,
+        Request::SiteRemove { bridge_id, site } => sites::remove(shared, &bridge_id, &site).await,
+        Request::SiteCancel { bridge_id, site } => sites::cancel(shared, &bridge_id, &site).await,
         Request::AssignmentList { bridge_id } => play::assignments(shared, &bridge_id).await,
         Request::MatchClaim {
             bridge_id,

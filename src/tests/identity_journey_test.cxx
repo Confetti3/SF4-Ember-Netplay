@@ -361,5 +361,5 @@ void RoomLinks(){
  h.view.pendingJoinDirect=false;h.shell.Navigation().Home();h.Frame(0,3);
  Check(h.shell.Navigation().Screen()=="join"&&h.actions.size()==before,"A stale room link did not just fill the Join screen");
 }
-int main(){try{IdentityJourneys();PlayRechecks();RestartWatch();TournamentRoom();TournamentAccount();RoomLinks();RunDiscordConnectJourneys();RunBuiltInServiceJourneys();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
+int main(){try{IdentityJourneys();PlayRechecks();RestartWatch();TournamentRoom();TournamentAccount();RoomLinks();RunDiscordConnectJourneys();RunBuiltInServiceJourneys();RunSignInSiteJourneys();std::cout<<"Identity and tournament journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

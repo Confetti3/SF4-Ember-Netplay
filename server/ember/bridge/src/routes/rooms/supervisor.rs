@@ -9,7 +9,10 @@ use ember_protocol::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{AppState, util::outbound_client};
+use crate::{
+    AppState,
+    util::{outbound_client, read_bounded},
+};
 
 /// Starting a room host takes longer than an ordinary request.
 const CREATE_TIMEOUT: Duration = Duration::from_secs(30);
@@ -97,25 +100,6 @@ struct Refusal {
     error: Option<String>,
 }
 
-/// The body of `response`, read chunk by chunk: the read stops as soon as it
-/// would pass `limit` bytes, so a large answer is never held in memory.
-async fn read_bounded(mut response: reqwest::Response, limit: usize) -> Result<Vec<u8>, Failure> {
-    if response
-        .content_length()
-        .is_some_and(|length| length > limit as u64)
-    {
-        return Err(Failure::Unavailable);
-    }
-    let mut bytes = Vec::new();
-    while let Some(chunk) = response.chunk().await.map_err(|_| Failure::Unavailable)? {
-        if chunk.len() > limit - bytes.len() {
-            return Err(Failure::Unavailable);
-        }
-        bytes.extend_from_slice(&chunk);
-    }
-    Ok(bytes)
-}
-
 impl<'a> Supervisor<'a> {
     /// The supervisor `state` is configured for, or none when public rooms
     /// are off.
@@ -151,7 +135,9 @@ impl<'a> Supervisor<'a> {
             .await
             .map_err(|_| Failure::Unavailable)?;
         let status = response.status();
-        let bytes = read_bounded(response, MAX_ANSWER).await?;
+        let bytes = read_bounded(response, MAX_ANSWER)
+            .await
+            .ok_or(Failure::Unavailable)?;
         if status.is_success() {
             return serde_json::from_slice(&bytes).map_err(|_| Failure::Unavailable);
         }
@@ -173,7 +159,9 @@ impl<'a> Supervisor<'a> {
         if !response.status().is_success() {
             return Err(Failure::Unavailable);
         }
-        let bytes = read_bounded(response, MAX_LIST_ANSWER).await?;
+        let bytes = read_bounded(response, MAX_LIST_ANSWER)
+            .await
+            .ok_or(Failure::Unavailable)?;
         serde_json::from_slice(&bytes).map_err(|_| Failure::Unavailable)
     }
 
@@ -193,24 +181,5 @@ impl<'a> Supervisor<'a> {
         } else {
             Err(Failure::Unavailable)
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn response(body: Vec<u8>) -> reqwest::Response {
-        axum::http::Response::new(body).into()
-    }
-
-    #[tokio::test]
-    async fn a_body_is_read_up_to_the_limit_and_refused_past_it() {
-        let at_limit = read_bounded(response(vec![b'a'; 64]), 64).await;
-        assert_eq!(at_limit.unwrap().len(), 64);
-        let empty = read_bounded(response(Vec::new()), 0).await;
-        assert_eq!(empty.unwrap().len(), 0);
-        let over = read_bounded(response(vec![b'a'; 65]), 64).await;
-        assert_eq!(over.unwrap_err(), Failure::Unavailable);
     }
 }
