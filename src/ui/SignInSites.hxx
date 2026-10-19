@@ -93,6 +93,7 @@ struct SignInSiteInfo {
         const char* cancelled = nullptr;
         const char* busy = nullptr;             // over the site's request limits; null: the general words
         const char* gone = nullptr;             // the service no longer has the site; null: the general words
+        const char* refusedOff = nullptr;       // its sign-in was switched off since the list was read; null: the general words
     } words;
 };
 
@@ -138,7 +139,7 @@ inline const SignInSiteInfo& Site(SignInSource source) {
         w.retry = "site.retry"; w.retryDetail = "site.retry_detail";
         w.opened = "site.opened"; w.done = "site.done";
         w.removed = "site.removed"; w.cancelled = "site.cancelled"; w.busy = "site.busy";
-        w.gone = "site.gone";
+        w.gone = "site.gone"; w.refusedOff = "site.off_detail";
         return s;
     }();
     switch (source) {

@@ -4,12 +4,16 @@
 
 namespace sf4e { namespace session {
 namespace {
+// The string at `key`, kept to `limit` characters, as the helper counts
+// them: a name is never cut inside a character.
 std::string Text(const nlohmann::json& object, const char* key, std::size_t limit = 256) {
     const auto it = object.find(key);
     if (it == object.end() || !it->is_string()) return {};
-    auto value = it->get<std::string>();
-    if (value.size() > limit) value.resize(limit);
-    return value;
+    const auto& value = it->get_ref<const std::string&>();
+    std::size_t end = 0;
+    for (std::size_t characters = 0; end < value.size() && characters < limit; ++characters)
+        do ++end; while (end < value.size() && (static_cast<unsigned char>(value[end]) & 0xC0) == 0x80);
+    return value.substr(0, end);
 }
 
 // A site ID as the helper and bridge take it: 1 to 32 lowercase ASCII

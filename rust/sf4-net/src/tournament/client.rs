@@ -17,7 +17,7 @@ use ember_protocol::{
     json,
 };
 use serde::Deserialize;
-use serde_json::{Value, json};
+use serde_json::{Value, json, value::RawValue};
 use zeroize::Zeroizing;
 
 use super::{Failure, Outcome, Shared, bridges::Approved, sites};
@@ -238,17 +238,38 @@ pub struct Offered {
 }
 
 impl Offered {
-    /// The capabilities document `body`. Only the fields this build has
-    /// always read can fail it; `sign_in_sites` is taken out first and read
-    /// entry by entry. Plain serde_json on purpose, not the strict JSON rules:
-    /// a newer bridge may put shapes in a site entry this build does not know,
-    /// and they must not stop Discord or match play. The body is already held
-    /// to the response size limit.
+    /// The capabilities document `body`, held to the strict JSON rules
+    /// (`json::parse`) everywhere but inside `sign_in_sites`. The document's
+    /// own members are split out as written, their values not yet read
+    /// (`Members`). Every member but `sign_in_sites` is put back byte for
+    /// byte and read strictly, so a duplicate key, a fraction, an unsafe
+    /// integer, a value nested too deep or trailing data there fails the
+    /// read as it always has, and so does a second `sign_in_sites`. The one
+    /// `sign_in_sites` is read entry by entry (`sites::listed`): whatever a
+    /// newer bridge puts in it, it never fails the document that Discord,
+    /// approval and match play read.
     fn read(body: &[u8]) -> Option<Self> {
-        let mut document: Value = serde_json::from_slice(body).ok()?;
-        let listed = document.as_object_mut()?.remove("sign_in_sites");
+        let Members(members) = serde_json::from_slice(body).ok()?;
+        let mut rest = Vec::with_capacity(body.len());
+        let mut listed = None;
+        rest.push(b'{');
+        for (key, value) in members {
+            if key == "sign_in_sites" {
+                if listed.replace(value).is_some() {
+                    return None;
+                }
+                continue;
+            }
+            if rest.len() > 1 {
+                rest.push(b',');
+            }
+            serde_json::to_writer(&mut rest, &key).ok()?;
+            rest.push(b':');
+            rest.extend_from_slice(value.get().as_bytes());
+        }
+        rest.push(b'}');
         Some(Self {
-            capabilities: serde_json::from_value(document).ok()?,
+            capabilities: json::parse_as(&rest, MAX_RESPONSE).ok()?,
             sign_in_sites: sites::listed(listed),
         })
     }
@@ -263,6 +284,33 @@ impl Offered {
             fields.insert("sign_in_sites".into(), json!(self.sign_in_sites));
         }
         document
+    }
+}
+
+/// A JSON object's members in the order written, a repeated key kept each
+/// time, each value only checked to be JSON and kept as its text.
+struct Members<'a>(Vec<(String, &'a RawValue)>);
+
+impl<'de> Deserialize<'de> for Members<'de> {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct Visit;
+        impl<'de> serde::de::Visitor<'de> for Visit {
+            type Value = Members<'de>;
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a JSON object")
+            }
+            fn visit_map<A: serde::de::MapAccess<'de>>(
+                self,
+                mut map: A,
+            ) -> Result<Self::Value, A::Error> {
+                let mut members = Vec::new();
+                while let Some(member) = map.next_entry::<String, &'de RawValue>()? {
+                    members.push(member);
+                }
+                Ok(Members(members))
+            }
+        }
+        deserializer.deserialize_map(Visit)
     }
 }
 
@@ -590,74 +638,89 @@ pub async fn remove_link(shared: &Arc<Shared>, bridge_id: &str, link_id: &str) -
 mod tests {
     use super::*;
 
-    /// Sign-in sites this build cannot read never fail the capabilities
-    /// that Discord, approval and match play read; a bridge without sites
-    /// reads back exactly as it was served.
+    /// The capabilities hold to the strict JSON rules everywhere but inside
+    /// `sign_in_sites`: a break of them anywhere else fails the read as it
+    /// always did, and nothing a site list holds ever does. A bridge without
+    /// sites reads back exactly as it was served.
     #[test]
-    fn sites_this_build_cannot_read_never_fail_the_capabilities() {
-        let document = json!({
-            "api_version": "v1", "event_version": "v1", "games": ["usf4"], "games_to_win": [1],
-            "native_rules_profiles": [], "native_play": true, "result_sources": [],
-            "features": ["discord", "sites", "matches.play"], "lobby_rotations": [],
-            "tournament_formats": [], "connections": [],
-            "limits": {
-                "max_body_bytes": 1, "max_proof_body_bytes": 1, "max_json_depth": 1,
-                "challenge_lifetime_secs": 1, "session_lifetime_secs": 1, "link_code_lifetime_secs": 1,
-            },
-        });
-        let read = |sites: Option<Value>| {
-            let mut served = document.clone();
-            if let Some(sites) = sites {
-                served["sign_in_sites"] = sites;
-            }
-            Offered::read(&serde_json::to_vec(&served).unwrap())
-        };
-        let plain = read(None).unwrap();
+    fn only_the_site_list_is_read_leniently() {
+        const FIELDS: &str = concat!(
+            r#""api_version":"v1","event_version":"v1","games":["usf4"],"games_to_win":[1],"#,
+            r#""native_rules_profiles":[],"native_play":true,"result_sources":[],"#,
+            r#""features":["discord","sites","matches.play"],"lobby_rotations":[],"#,
+            r#""tournament_formats":[],"connections":[],"limits":{"max_body_bytes":1,"#,
+            r#""max_proof_body_bytes":1,"max_json_depth":1,"challenge_lifetime_secs":1,"#,
+            r#""session_lifetime_secs":1,"link_code_lifetime_secs":1}"#,
+        );
+        let read = |extra: &str| Offered::read(format!("{{{FIELDS}{extra}}}").as_bytes());
+        let plain = read("").unwrap();
         assert!(plain.sign_in_sites.is_empty());
-        assert_eq!(plain.to_json(), document);
+        let served: Value = serde_json::from_str(&format!("{{{FIELDS}}}")).unwrap();
+        assert_eq!(plain.to_json(), served);
 
-        let good = json!({
-            "id": "challonge", "display_name": "Challonge", "sign_in": true,
-            "lookup_by": "username", "authorize_origin": "https://api.challonge.com",
-            "authorize_path": "/oauth/authorize",
-        });
-        let mut unknown = good.clone();
-        unknown["id"] = "later".into();
-        unknown["lookup_by"] = "email".into();
-        unknown["weight"] = json!(0.5);
-        for sites in [
-            json!([good, unknown, { "id": "half" }, 7, "x", null, [good]]),
-            json!({ "challonge": good }),
-            json!("challonge"),
-            json!(1.5),
-            Value::Null,
+        // Outside the site list: a duplicate key, a fraction, an exponent, an
+        // unsafe integer, nesting past the limit, a second site list,
+        // trailing data, a missing field, or no object at all.
+        let deep = format!("{}1{}", "[".repeat(17), "]".repeat(17));
+        for extra in [
+            r#","features":["discord"]"#.to_owned(),
+            r#","weight":0.5"#.to_owned(),
+            r#","weight":1e3"#.to_owned(),
+            r#","weight":9007199254740993"#.to_owned(),
+            format!(r#","nested":{deep}"#),
+            r#","sign_in_sites":[],"sign_in_sites":[]"#.to_owned(),
         ] {
-            let offered = read(Some(sites.clone())).unwrap_or_else(|| panic!("{sites}"));
+            assert!(read(&extra).is_none(), "{extra}");
+        }
+        assert!(Offered::read(format!("{{{FIELDS}}} {{}}").as_bytes()).is_none());
+        assert!(Offered::read(br#"{"api_version":"v1"}"#).is_none());
+        assert!(Offered::read(b"[]").is_none());
+
+        // Inside it, the same breaks and any shape at all never fail it.
+        let good = concat!(
+            r#"{"id":"challonge","display_name":"Challonge","sign_in":true,"lookup_by":"username","#,
+            r#""authorize_origin":"https://api.challonge.com","authorize_path":"/oauth/authorize"}"#,
+        );
+        let later = format!(
+            r#"{{"id":"later","display_name":"Later","sign_in":true,"lookup_by":"email","weight":0.5,"rank":1e3,"big":9007199254740993,"deep":{deep},"authorize_origin":"https://later.example","authorize_path":"/sign-in"}}"#
+        );
+        let twice = concat!(
+            r#"{"id":"twice","id":"again","display_name":"Twice","sign_in":true,"#,
+            r#""authorize_origin":"https://twice.example","authorize_path":"/x"}"#,
+        );
+        let listed: &[&str] = &["challonge", "later"];
+        for (sites, ids) in [
+            (
+                format!(r#"[{good},{later},{twice},{{"id":"half"}},7,1.5,"x",null,[{good}]]"#),
+                listed,
+            ),
+            (format!(r#"{{"challonge":{good}}}"#), &[][..]),
+            (r#""challonge""#.to_owned(), &[][..]),
+            ("2.5e10".to_owned(), &[][..]),
+            ("null".to_owned(), &[][..]),
+            (format!("[{deep}]"), &[][..]),
+        ] {
+            let offered =
+                read(&format!(r#","sign_in_sites":{sites}"#)).unwrap_or_else(|| panic!("{sites}"));
             assert_eq!(
                 offered.capabilities.features,
                 ["discord", "sites", "matches.play"]
             );
             assert!(offered.capabilities.sign_in_sites.is_empty());
-            let ids: Vec<&str> = offered
+            let kept: Vec<&str> = offered
                 .sign_in_sites
                 .iter()
-                .map(|s| s.id.as_str())
+                .map(|site| site.id.as_str())
                 .collect();
-            if sites.is_array() {
-                assert_eq!(ids, ["challonge", "later"]);
-                let listed = &offered.to_json()["sign_in_sites"];
-                assert_eq!(listed[1]["authorize_path"], "/oauth/authorize");
-                assert!(listed[0].get("lookup_by").is_none());
+            assert_eq!(kept, ids, "{sites}");
+            let shown = offered.to_json();
+            if ids.is_empty() {
+                assert_eq!(shown, served, "{sites}");
             } else {
-                assert!(ids.is_empty(), "{sites}");
-                assert_eq!(offered.to_json(), document);
+                assert!(shown["sign_in_sites"][0].get("lookup_by").is_none());
+                assert_eq!(shown["sign_in_sites"][1]["authorize_path"], "/sign-in");
             }
         }
-        // The fields read before sites still decide whether this is a bridge.
-        let mut broken = document.clone();
-        broken.as_object_mut().unwrap().remove("limits");
-        assert!(Offered::read(&serde_json::to_vec(&broken).unwrap()).is_none());
-        assert!(Offered::read(b"[]").is_none());
     }
 
     #[test]

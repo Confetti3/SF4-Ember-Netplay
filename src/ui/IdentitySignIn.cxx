@@ -109,8 +109,18 @@ std::optional<std::string> IdentityPanel::SiteFailureText(const std::string& cod
     if (!netplay::SignInOf(sentOp_)) return std::nullopt;
     const auto target = SentTarget();
     const auto& words = Site(target.source).words;
-    const char* said = code == "sign_in_busy" ? words.busy : code == "not_found" ? words.gone : nullptr;
+    const char* said = code == "sign_in_busy" ? words.busy : code == "not_found" ? words.gone
+        : code == "sign_in_off" ? words.refusedOff : nullptr;
     return said ? std::optional<std::string>(Word(target, sentBridge_, said)) : std::nullopt;
+}
+
+void IdentityPanel::SiteRefused(const std::string& code) {
+    const auto signIn = netplay::SignInOf(sentOp_);
+    if (code != "sign_in_off" || !signIn || signIn->source != SignInSource::Site) return;
+    const auto listed = sites_.find(sentBridge_);
+    if (listed == sites_.end()) return;
+    for (auto& site : listed->second)
+        if (site.id == sentSite_) site.signIn = false;
 }
 
 bool IdentityPanel::WaitingOn(const SignInTarget& target, const std::string& bridge) const {

@@ -1,0 +1,5 @@
+{
+  "about": "Site IDs the game (IdentityEvents.cxx) and the helper and bridge (ember_protocol::sites::is_site_id) must agree on. Both test suites read this file.",
+  "valid": ["challonge", "startgg", "brackets-plus", "a", "0", "a-b-1", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"],
+  "invalid": ["", "Challonge", "a/b", "../discord", "a b", "a:b", "a_b", "a.b", "é", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"]
+}

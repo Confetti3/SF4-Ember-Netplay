@@ -7,10 +7,10 @@ use std::sync::Arc;
 
 use ember_protocol::{
     challenge::Action,
-    sites::{account_path, is_site_id, start_path},
+    sites::{account_path, is_public_host, is_site_id, start_path},
 };
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::value::RawValue;
 
 use super::{
     Failure, Outcome, Shared, browser,
@@ -23,9 +23,9 @@ pub const MAX_LISTED: usize = 16;
 /// The longest display name kept, in characters.
 const MAX_NAME: usize = 64;
 
-/// One site a bridge lists, with only what the helper and the game use. A
-/// field the bridge adds later, such as how platforms look players up, is
-/// ignored rather than understood.
+/// One site a bridge lists, with only what the helper and the game use. Its
+/// other fields, such as how platforms look players up (`lookup_by`), and
+/// any a later bridge adds, are ignored rather than understood.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Listed {
     pub id: String,
@@ -35,17 +35,20 @@ pub struct Listed {
     pub authorize_path: String,
 }
 
-/// The sites in a capabilities document's `sign_in_sites`, entry by entry:
-/// an entry missing a field, with a field of another type, with an ID no
-/// site can have or a name no row can show, or naming a site listed
-/// earlier, is dropped. Anything but a list is no sites.
-pub(super) fn listed(sites: Option<Value>) -> Vec<Listed> {
-    let Some(Value::Array(entries)) = sites else {
+/// The sites in a capabilities document's `sign_in_sites`, as written,
+/// entry by entry: an entry that does not read as a site (a field missing,
+/// of another type or given twice), with an ID no site can have or a name no
+/// row can show, or naming a site listed earlier, is dropped. Anything but a
+/// list is no sites.
+pub(super) fn listed(sites: Option<&RawValue>) -> Vec<Listed> {
+    let Some(entries) =
+        sites.and_then(|sites| serde_json::from_str::<Vec<&RawValue>>(sites.get()).ok())
+    else {
         return Vec::new();
     };
     let mut kept: Vec<Listed> = Vec::new();
     for entry in entries {
-        let Ok(site) = serde_json::from_value::<Listed>(entry) else {
+        let Ok(site) = serde_json::from_str::<Listed>(entry.get()) else {
             continue;
         };
         let named = !site.display_name.trim().is_empty()
@@ -83,14 +86,25 @@ pub async fn status(shared: &Arc<Shared>, bridge_id: &str, site: &str) -> Outcom
 pub async fn connect(shared: &Arc<Shared>, bridge_id: &str, site: &str) -> Outcome {
     let routes = routes(site)?;
     let origin = approved(shared, bridge_id)?.origin;
-    let listed = shared
+    // The bridge is trusted already, so capabilities it does not serve now
+    // mean it is down for the moment, not that it is no tournament service.
+    let offered = shared
         .client
         .capabilities(&origin)
-        .await?
+        .await
+        .map_err(|Failure(code)| match code.as_str() {
+            "not_a_bridge" => Failure::new("service_unavailable"),
+            _ => Failure(code),
+        })?;
+    let listed = offered
         .sign_in_sites
         .into_iter()
         .find(|listed| listed.id == site)
         .ok_or_else(|| Failure::new("not_found"))?;
+    // Listed with its sign-in off: the bridge would refuse the start.
+    if !listed.sign_in {
+        return Err(Failure::new("sign_in_off"));
+    }
     sign_in::connect(
         shared,
         bridge_id,
@@ -111,22 +125,12 @@ pub async fn cancel(shared: &Arc<Shared>, bridge_id: &str, site: &str) -> Outcom
 
 /// `url` is the page at `path` on `origin`, with nothing after it but a
 /// query, and nothing that could break out of a URL. `origin` must be a bare
-/// https origin on a public name, by the rule the bridge holds a site's hosts
-/// to: two or more labels of letters, digits and `-`, the last not a number
-/// (so no IP address), and not under a name kept for local networks; with no
-/// user, port or path. `path` is an absolute path of plain characters.
+/// https origin on a public name, by the same rule the bridge holds a site's
+/// hosts to (`is_public_host`: no IP address, no name kept for local
+/// networks), so with no user, port or path. `path` is an absolute path of
+/// plain characters.
 fn is_declared_page(url: &str, origin: &str, path: &str) -> bool {
-    let host = origin.strip_prefix("https://").unwrap_or_default();
-    let labels: Vec<&str> = host.split('.').collect();
-    let bare_origin = labels.len() >= 2
-        && labels.iter().all(|label| {
-            !label.is_empty()
-                && label
-                    .bytes()
-                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
-        })
-        && labels.last().is_some_and(|last| !is_number(last))
-        && !is_private(host);
+    let bare_origin = origin.strip_prefix("https://").is_some_and(is_public_host);
     let plain_path = path.starts_with('/')
         && !path.starts_with("//")
         && path
@@ -139,39 +143,6 @@ fn is_declared_page(url: &str, origin: &str, path: &str) -> bool {
         && plain_path
         && rest.is_some_and(|rest| rest.is_empty() || rest.starts_with('?'))
         && browser::is_plain(url)
-}
-
-/// A label a browser reads as part of an IPv4 address: decimal digits, or
-/// `0x` and hex digits.
-fn is_number(label: &str) -> bool {
-    let hex = label
-        .strip_prefix("0x")
-        .or_else(|| label.strip_prefix("0X"));
-    match hex {
-        Some(digits) => digits.bytes().all(|byte| byte.is_ascii_hexdigit()),
-        None => label.bytes().all(|byte| byte.is_ascii_digit()),
-    }
-}
-
-/// A name under one kept for local or private networks.
-fn is_private(host: &str) -> bool {
-    const PRIVATE: [&str; 11] = [
-        "localhost",
-        "local",
-        "localdomain",
-        "internal",
-        "intranet",
-        "private",
-        "corp",
-        "lan",
-        "home",
-        "home.arpa",
-        "invalid",
-    ];
-    let host = host.to_ascii_lowercase();
-    PRIVATE
-        .iter()
-        .any(|private| host == *private || host.ends_with(&format!(".{private}")))
 }
 
 #[cfg(test)]
@@ -232,10 +203,17 @@ mod tests {
             ("https://auth.localhost", "/oauth/authorize"),
             ("https://metadata.google.Internal", "/oauth/authorize"),
             ("https://router.home.arpa", "/oauth/authorize"),
+            ("https://-brackets.example", "/oauth/authorize"),
+            ("https://brackets-.example", "/oauth/authorize"),
         ] {
             let url = format!("{origin}{path}?state=y");
             assert!(!is_declared_page(&url, origin, path), "{origin} {path}");
         }
+    }
+
+    fn listed(sites: Option<serde_json::Value>) -> Vec<Listed> {
+        let raw = sites.map(|sites| serde_json::value::to_raw_value(&sites).unwrap());
+        super::listed(raw.as_deref())
     }
 
     #[test]
@@ -280,13 +258,39 @@ mod tests {
 
         for sites in [
             None,
-            Some(Value::Null),
+            Some(serde_json::Value::Null),
             Some(serde_json::json!({ "id": "x" })),
         ] {
             assert!(listed(sites).is_empty());
         }
         let many = (0..40).map(|n| site(&format!("site-{n}"))).collect();
-        assert_eq!(listed(Some(Value::Array(many))).len(), MAX_LISTED);
+        assert_eq!(
+            listed(Some(serde_json::Value::Array(many))).len(),
+            MAX_LISTED
+        );
+        // An entry giving a field twice is not read as a site.
+        let twice = r#"[{"id":"a","id":"b","display_name":"A","sign_in":true,
+            "authorize_origin":"https://a.example","authorize_path":"/x"}]"#;
+        let twice = RawValue::from_string(twice.to_owned()).unwrap();
+        assert!(super::listed(Some(&twice)).is_empty());
+    }
+
+    /// A site ID is taken exactly when the game keeps it: the cases are the
+    /// ones the game's IdentityEvents test reads too.
+    #[test]
+    fn site_ids_match_the_games() {
+        let cases: serde_json::Value =
+            serde_json::from_str(include_str!("../../../../src/tests/data/site_ids.json")).unwrap();
+        let ids =
+            |kind: &str| -> Vec<String> { serde_json::from_value(cases[kind].clone()).unwrap() };
+        let (valid, invalid) = (ids("valid"), ids("invalid"));
+        assert!(!valid.is_empty() && !invalid.is_empty());
+        for id in valid {
+            assert!(routes(&id).is_ok(), "{id}");
+        }
+        for id in invalid {
+            assert!(routes(&id).is_err(), "{id}");
+        }
     }
 
     #[test]

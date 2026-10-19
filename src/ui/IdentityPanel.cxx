@@ -372,6 +372,7 @@ void IdentityPanel::Finish(const ShellView& v) {
             IdentityRequest list; list.op = IdentityOp::LinkList; list.bridge = bridge_; Queue(std::move(list));
             return;
         }
+        SiteRefused(id.failure);
         ReadFailed();
         // A background read on Home fails quietly; it is tried again.
         if (Owns(lastScreen_) || !Retirable(sentOp_)) Say(SiteFailureText(id.failure).value_or(FailureText(id.failure)), true);

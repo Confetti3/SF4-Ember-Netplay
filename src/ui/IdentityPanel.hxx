@@ -263,6 +263,9 @@ private:
     // The site's account read in flight failed: its account is not trusted,
     // and a sign-in waiting on it pauses its polls.
     void SiteReadFailed();
+    // The service refused a site's Connect because its sign-in is off now:
+    // the site's screen shows it off without reading the list again.
+    void SiteRefused(const std::string& code);
     // The Ember ID screen's rows on Ember's own service: Discord's, and one
     // per sign-in site it lists.
     MenuEntry DiscordIdentityRow(const ShellView& view) const;
@@ -280,8 +283,9 @@ private:
     void SignInPoll(const std::string& screen, double now);
     // `screen` shows the account the attempt waits for.
     bool ShowsWait(const std::string& screen) const;
-    // Connect Discord starts over: a sign-in an earlier visit opened is no
-    // longer waited for, and its late answers start no wait.
+    // Connect Discord starts over: Discord's sign-in from an earlier visit is
+    // no longer waited for, and its late answers start no wait. A site's
+    // sign-in waiting for the browser goes on (RetireSignIn).
     void NewJourney();
     // The answer in flight is a read or Connect from a journey since replaced.
     bool Superseded() const;

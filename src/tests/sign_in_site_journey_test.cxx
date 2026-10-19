@@ -208,6 +208,16 @@ void SiteGone(const Case& site){
   h.answer(false,"not_found");
   Check(h.status==Words("site.gone",site),"A site the service no longer has was not said so");
  }
+ {
+  // Its sign-in switched off since the list was read: said so, and shown off.
+  Journey h;Ready(h);
+  OpenSite(h,site);h.answer();
+  h.Choose("st-connect");
+  Check(h.sent().back()->op==IdentityOp::SiteConnect,"Connect did not ask the helper to open the site");
+  h.answer(false,"sign_in_off");
+  Check(h.status==Words("site.off_detail",site),"A site whose sign-in is off was not said so");
+  Check(h.row("st-off")&&!h.row("st-connect"),"A site whose sign-in is off still offers Connect");
+ }
 }
 
 // Every site a service lists, up to the most kept, has its account read on

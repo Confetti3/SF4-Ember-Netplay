@@ -3,6 +3,7 @@
 // sign-ins Discord and the listed sign-in sites share, each into its own fields.
 #include "../session/IdentityEvents.hxx"
 #include <nlohmann/json.hpp>
+#include <fstream>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -112,11 +113,55 @@ void Effects() {
         }
     Check(!sf4e::netplay::SignInOf(IdentityOp::LinkList), "A link request is a sign-in");
 }
+
+// A profile answer listing `sites`.
+nlohmann::json Inspected(const nlohmann::json& sites) {
+    nlohmann::json event = {{"request_id", 1}, {"op", "bridge_inspect"}, {"ok", true}};
+    event["data"]["profile"] = nlohmann::json::object();
+    event["data"]["capabilities"]["sign_in_sites"] = sites;
+    return event;
+}
+
+nlohmann::json SiteEntry(const std::string& id, const std::string& name) {
+    return {{"id", id}, {"display_name", name}, {"sign_in", true}};
+}
+
+// A site ID is kept exactly when the helper and the bridge take it: the
+// cases are the ones the helper's tests read too.
+void SharedSiteIds() {
+    std::ifstream file(SF4E_SITE_IDS);
+    Check(file.good(), "The shared site IDs could not be read");
+    const auto cases = nlohmann::json::parse(file);
+    const auto listed = [](const std::string& id) {
+        sf4e::netplay::IdentityView view;
+        sf4e::session::ApplyTournamentEvent(Inspected(nlohmann::json::array({SiteEntry(id, "Site")})), view);
+        return view.signInSites.size() == 1 && view.signInSites[0].id == id;
+    };
+    Check(!cases.at("valid").empty() && !cases.at("invalid").empty(), "The shared site IDs are empty");
+    for (const auto& id : cases.at("valid")) Check(listed(id.get<std::string>()), "A valid site ID was skipped");
+    for (const auto& id : cases.at("invalid")) Check(!listed(id.get<std::string>()), "An invalid site ID was kept");
+}
+
+// Names are kept to 64 characters, as the helper counts them, and never cut
+// inside a character.
+void Names() {
+    std::string name;
+    for (int i = 0; i < 70; ++i) name += "\xe5\xa4\xa7";  // 3 bytes each
+    const std::string twoByte = std::string(63, 'a') + "\xc3\xa9\xc3\xa9";
+    sf4e::netplay::IdentityView view;
+    sf4e::session::ApplyTournamentEvent(Inspected(nlohmann::json::array({SiteEntry("a", name), SiteEntry("b", twoByte)})), view);
+    Check(view.signInSites.size() == 2 && view.signInSites[0].name == name.substr(0, 64 * 3), "A long name was not kept to 64 characters");
+    Check(view.signInSites[1].name == std::string(63, 'a') + "\xc3\xa9", "A name was cut inside a character");
+    nlohmann::json status = {{"request_id", 2}, {"op", "site_status"}, {"ok", true}};
+    status["data"]["account"] = {{"user_id", "1"}, {"username", name}};
+    sf4e::session::ApplyTournamentEvent(status, view);
+    Check(view.siteName == name.substr(0, 64 * 3), "A long account name was not kept to 64 characters");
+}
 }
 
 int main() {
     try {
-        Requests(); Answers(); Effects();
+        Requests(); Answers(); Effects(); SharedSiteIds(); Names();
         std::cout << "Identity events passed.\n";
         return 0;
     } catch (const std::exception& error) {

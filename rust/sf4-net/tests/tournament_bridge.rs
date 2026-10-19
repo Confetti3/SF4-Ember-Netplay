@@ -104,18 +104,21 @@ async fn start_bridge(
     ember_bridge::start(state, listener).unwrap()
 }
 
+/// What a front saw, and a switch that makes its capabilities unavailable.
+struct Front {
+    seen: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+    down: std::sync::Arc<std::sync::atomic::AtomicBool>,
+}
+
 /// A front at `listener` for the bridge at `inner`: each request passes
 /// through as it was sent, except that the bridge's capabilities document
-/// is changed by `change` on its way back. Answers the method and path of
-/// every request, in order.
-fn front(
-    listener: tokio::net::TcpListener,
-    inner: String,
-    change: fn(&mut Value),
-) -> std::sync::Arc<std::sync::Mutex<Vec<String>>> {
+/// is changed by `change` on its way back, or answered 503 while `down` is
+/// set. Notes the method and path of every request, in order.
+fn front(listener: tokio::net::TcpListener, inner: String, change: fn(&mut Value)) -> Front {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
-    let log = seen.clone();
+    let down = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let (log, unavailable) = (seen.clone(), down.clone());
     tokio::spawn(async move {
         let client = reqwest::Client::new();
         while let Ok((mut socket, _)) = listener.accept().await {
@@ -156,6 +159,12 @@ fn front(
                 }
             }
             log.lock().unwrap().push(format!("{method} {path}"));
+            if path == "/v1/capabilities" && unavailable.load(std::sync::atomic::Ordering::SeqCst) {
+                let _ = socket
+                    .write_all(b"HTTP/1.1 503 Service Unavailable\r\ncontent-length: 0\r\nconnection: close\r\n\r\n")
+                    .await;
+                continue;
+            }
             let mut forward = client.request(
                 reqwest::Method::from_bytes(method.as_bytes()).unwrap(),
                 format!("{inner}{path}"),
@@ -190,7 +199,7 @@ fn front(
             let _ = socket.write_all(&body).await;
         }
     });
-    seen
+    Front { seen, down }
 }
 
 /// The site `deploy/sites/<file>.json` defines, listed as `id` and named
@@ -304,7 +313,7 @@ async fn sites_this_build_cannot_read_leave_the_bridge_usable() {
     let pages = "http://127.0.0.1:9";
     let sites = vec![site("challonge", "challonge", "Challonge", pages)];
     let running = start_bridge(&dirs.0, sites, true, &origin, listener).await;
-    let seen = front(public, inner, |document| {
+    let front = front(public, inner, |document| {
         let listed = document["sign_in_sites"].as_array_mut().unwrap();
         let mut later = listed[0].clone();
         later["id"] = json!("later");
@@ -315,8 +324,12 @@ async fn sites_this_build_cannot_read_leave_the_bridge_usable() {
         retyped["sign_in"] = json!("yes");
         let mut twin = listed[0].clone();
         twin["display_name"] = json!("Second Challonge");
+        let mut paused = listed[0].clone();
+        paused["id"] = json!("paused");
+        paused["sign_in"] = json!(false);
         listed.extend([
             later,
+            paused,
             json!({ "id": "missing", "display_name": "Missing" }),
             retyped,
             twin,
@@ -339,7 +352,7 @@ async fn sites_this_build_cannot_read_leave_the_bridge_usable() {
         .iter()
         .filter_map(|site| site["id"].as_str())
         .collect();
-    assert_eq!(ids, ["challonge", "later"]);
+    assert_eq!(ids, ["challonge", "later", "paused"]);
     assert_eq!(listed[0]["display_name"], "Challonge");
     let features = inspected["capabilities"]["features"].as_array().unwrap();
     assert!(features.contains(&json!("discord")), "{features:?}");
@@ -376,21 +389,33 @@ async fn sites_this_build_cannot_read_leave_the_bridge_usable() {
         assert!(!ok, "{dropped}");
         assert_eq!(reason.as_deref(), Some("not_found"), "{dropped}");
     }
+    // A site listed with its sign-in off is refused before the bridge is asked.
+    let (ok, reason, _, _) = worker.ask(ask("site_connect", "paused")).await;
+    assert!(!ok);
+    assert_eq!(reason.as_deref(), Some("sign_in_off"));
+    // A trusted bridge whose capabilities are down for the moment is
+    // unavailable, not no tournament service.
+    let down = |set: bool| front.down.store(set, std::sync::atomic::Ordering::SeqCst);
+    down(true);
+    let (ok, reason, _, _) = worker.ask(ask("site_connect", "challonge")).await;
+    assert!(!ok);
+    assert_eq!(reason.as_deref(), Some("service_unavailable"));
+    down(false);
 
     // Only the test cancelled Discord's sign-in; the helper itself ended
     // Challonge's, which the test never cancelled.
-    let seen = seen.lock().unwrap().clone();
+    let seen = front.seen.lock().unwrap().clone();
     let count = |request: &str| seen.iter().filter(|seen| *seen == request).count();
     let discord_start = ember_protocol::discord::START_PATH;
     assert_eq!(count(&format!("POST {discord_start}")), 1, "{seen:?}");
     assert_eq!(count(&format!("DELETE {discord_start}")), 1, "{seen:?}");
     assert_eq!(count("POST /v1/sites/challonge/start"), 1, "{seen:?}");
     assert_eq!(count("DELETE /v1/sites/challonge/start"), 1, "{seen:?}");
-    for dropped in ["missing", "retyped"] {
+    for unasked in ["missing", "retyped", "paused"] {
         assert!(
             !seen
                 .iter()
-                .any(|seen| seen.contains(&format!("/v1/sites/{dropped}"))),
+                .any(|seen| seen.contains(&format!("/v1/sites/{unasked}"))),
             "{seen:?}"
         );
     }
