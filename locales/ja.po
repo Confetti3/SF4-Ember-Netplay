@@ -1174,6 +1174,12 @@ msgstr "表示の高速化（遅延1フレーム減）"
 msgid "player.faster_display_detail"
 msgstr "ゲームが各フレームを1フレーム遅れて表示する代わりに、準備ができしだい表示します。このPCでゲームが60fpsを下回る場合はオフにしてください。このPCだけに影響します。相手がオンにする必要はありません。変更は次にゲームを起動したときに反映されます。"
 
+msgid "player.borderless"
+msgstr "ボーダーレス"
+
+msgid "player.borderless_detail"
+msgstr "ゲームが枠のないウィンドウで画面を埋め、画面本来の解像度の16:9で描画されます。横長や縦長の画面では黒帯が表示されます。オンの間は、Alt+Enterとゲーム本体の解像度・フルスクリーン設定は効きません。そこでの選択はオフにしたときのために保存されます。このPCだけに影響します。変更は次回ゲーム起動時に反映されます。"
+
 
 
 msgid "settings.interface_title"
@@ -1362,12 +1368,6 @@ msgstr "招待や認証情報を含めずに接続状態を出力します。"
 msgid "about.updates_detail"
 msgstr "Emberの新しいリリースを確認します。"
 
-msgid "about.open_updater"
-msgstr "終了してアップデーターを開く"
-
-msgid "about.open_updater_detail"
-msgstr "ゲームを終了し、アップデーターを開きます。そこで「ダウンロードしてインストール」を選んでください。先にルームから退出してください。"
-
 msgid "about.open_recovery"
 msgstr "終了して復旧画面を開く"
 
@@ -1388,9 +1388,6 @@ msgstr "Ember {0} · {1}"
 
 msgid "about.version_detail"
 msgstr "このPCのEmberのバージョン。ビルド：{0}"
-
-msgid "about.channel_detail"
-msgstr "アップデートの確認にはこのチャンネルを使います。変更するには、ゲームを閉じてUpdater.exeをダブルクリックしてください。"
 
 msgid "settings.retry_save"
 msgstr "保存を再試行"
@@ -5845,10 +5842,10 @@ msgid "button_layout.menu_back"
 msgstr "メニュー戻る"
 
 msgid "button_layout.menu_confirm_detail"
-msgstr "選択してから、Emberのメニューで決定するボタンを押してください。選ぶまでは、ゲーム本体のメニューで決定するボタンです。"
+msgstr "選択してから、Emberのメニューで決定するボタンを押してください。選ぶまでは、4つのボタンのうち下のボタンです。"
 
 msgid "button_layout.menu_back_detail"
-msgstr "選択してから、Emberのメニューで戻るボタンを押してください。選ぶまでは、ゲーム本体のメニューで戻るボタンです。"
+msgstr "選択してから、Emberのメニューで戻るボタンを押してください。選ぶまでは、4つのボタンのうち右のボタンです。"
 
 msgid "button_layout.menu_taken"
 msgstr "{0}はすでに{1}です。別のボタンを選んでください。"

@@ -1174,6 +1174,12 @@ msgstr "더 빠른 화면 표시 (1프레임 지연 감소)"
 msgid "player.faster_display_detail"
 msgstr "게임이 각 프레임을 1프레임 늦게 표시하지 않고 준비되는 즉시 표시합니다. 이 PC에서 게임이 60fps 아래로 떨어지면 끄세요. 이 PC에서만 영향을 줍니다. 상대 플레이어는 켤 필요가 없습니다. 변경 사항은 다음에 게임을 시작할 때 적용됩니다."
 
+msgid "player.borderless"
+msgstr "테두리 없음"
+
+msgid "player.borderless_detail"
+msgstr "게임이 테두리 없는 창으로 화면을 채우고, 화면 고유 해상도의 16:9로 그려집니다. 더 넓거나 높은 화면에서는 검은 띠가 표시됩니다. 켜져 있는 동안에는 Alt+Enter와 게임 자체의 해상도 및 전체 화면 옵션이 작동하지 않으며, 거기서 고른 설정은 끌 때를 위해 보관됩니다. 이 PC에만 적용됩니다. 변경 사항은 다음에 게임을 시작할 때 적용됩니다."
+
 
 
 msgid "settings.interface_title"
@@ -1362,12 +1368,6 @@ msgstr "초대와 자격 증명은 제외하고 연결 상태를 내보냅니다
 msgid "about.updates_detail"
 msgstr "새 Ember 버전을 확인합니다."
 
-msgid "about.open_updater"
-msgstr "종료 후 업데이터 열기"
-
-msgid "about.open_updater_detail"
-msgstr "게임이 종료되고 업데이터가 열립니다. 거기서 다운로드 및 설치를 선택하세요. 먼저 방을 나가세요."
-
 msgid "about.open_recovery"
 msgstr "종료 후 복구 열기"
 
@@ -1388,9 +1388,6 @@ msgstr "Ember {0} · {1}"
 
 msgid "about.version_detail"
 msgstr "이 PC의 Ember 버전입니다. 빌드 {0}."
-
-msgid "about.channel_detail"
-msgstr "업데이트 확인에 이 채널을 사용합니다. 바꾸려면 게임을 닫고 Updater.exe를 더블클릭하세요."
 
 msgid "settings.retry_save"
 msgstr "저장 재시도"
@@ -5845,10 +5842,10 @@ msgid "button_layout.menu_back"
 msgstr "메뉴 뒤로"
 
 msgid "button_layout.menu_confirm_detail"
-msgstr "선택한 다음 Ember 메뉴에서 확인할 버튼을 누르세요. 고르기 전까지는 게임 메뉴에서 확인하는 버튼입니다."
+msgstr "선택한 다음 Ember 메뉴에서 확인할 버튼을 누르세요. 고르기 전까지는 네 버튼 중 아래 버튼입니다."
 
 msgid "button_layout.menu_back_detail"
-msgstr "선택한 다음 Ember 메뉴에서 뒤로 갈 버튼을 누르세요. 고르기 전까지는 게임 메뉴에서 뒤로 가는 버튼입니다."
+msgstr "선택한 다음 Ember 메뉴에서 뒤로 갈 버튼을 누르세요. 고르기 전까지는 네 버튼 중 오른쪽 버튼입니다."
 
 msgid "button_layout.menu_taken"
 msgstr "{0}은(는) 이미 {1}입니다. 다른 버튼을 고르세요."

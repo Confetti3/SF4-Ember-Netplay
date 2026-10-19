@@ -897,6 +897,22 @@ void fSystem::RecordAllToInternalMementos(rSystem* system, GameMementoKey::Memen
     // is probably more legible.
     void* (rSystem:: * GetUnitByIndex)(unsigned int) = rSystem::publicMethods.GetUnitByIndex;
     RepairSystemMementoKey(system);
+    // The record initializes an empty key and writes into it without checking
+    // the allocation, and allocate (0x52FD40) leaves the key empty when malloc
+    // fails. So initialize it here, and fail the save when that failed.
+    rKey* key = rSystem::GetMementoKey(system);
+    if (!key->mementoableObject) reinterpret_cast<fKey*>(key)->Initialize(rSystem::ToMementoable(system), 1);
+    if (!key->metadata) {
+        static unsigned noted = 0;
+        if (noted++ < 8) {
+            MEMORYSTATUSEX memory = {sizeof memory};
+            GlobalMemoryStatusEx(&memory);
+            spdlog::error("System memento: malloc of {} bytes failed (commit_free={}MB commit_limit={}MB virtual_free={}MB)",
+                key->sizeAllocated, memory.ullAvailPageFile >> 20, memory.ullTotalPageFile >> 20, memory.ullAvailVirtual >> 20);
+        }
+        sf4e::Game::MementoFailure::record = true;
+        return;
+    }
     MementoUnitTimer timer(kRecordOps);
     timer.Time(MementoUnitTimer::OTHER, [&] {
         (system->*rSystem::publicMethods.RecordToInternalMementoKey)(id);

@@ -38,6 +38,13 @@ using fMainMenu = sf4e::GameEvents::MainMenu;
 using rMainMenu = Dimps::GameEvents::MainMenu;
 using rVsMode = Dimps::GameEvents::VsMode;
 static HWND s_overlayWindow = nullptr;
+// The backbuffer's height over 1080 lines, so Ember covers the same share of
+// the picture at every resolution; 1 until a backbuffer is read.
+static float s_pictureScale = 1.f;
+// Ember's scale over the game: the larger of Windows' DPI scale for its window
+// and the picture's, so a scaled desktop keeps its size and a 1440p or 4K
+// picture grows to match.
+static float OverlayScale() { return (std::max)(ImGui_ImplWin32_GetDpiScaleForHwnd(s_overlayWindow), s_pictureScale); }
 static sf4e::ui::ControllerNavigation controllerNavigation;
 static std::unique_ptr<sf4e::ui::SelectionArt> s_selectionArt;
 // The watched game's picture (ShellView::watchedPicture): the render target
@@ -179,7 +186,6 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
     sf4e::ui::SetOverlayCursorOwnership(false);
 	s_overlayWindow = hWnd;
-	sf4e::ui::ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(hWnd));
 	ImGui::GetPlatformIO().Platform_SetImeDataFn = nullptr;
 	ImGui_ImplWin32_Init(hWnd);
 	s_inputBridge.RequestClear(); // nothing queued for a context that is gone
@@ -189,11 +195,15 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 	// 16:10 desktop). Laying out in the window's size put the match HUD's names below the
 	// PLAYER labels, so lay out in the backbuffer's. Each Reset initializes the overlay again.
 	IDirect3DSurface9* backBuffer = nullptr; D3DSURFACE_DESC backBufferDesc{};
+	s_pictureScale = 1.f;
 	if (SUCCEEDED(lpDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer)) && backBuffer) {
-		if (SUCCEEDED(backBuffer->GetDesc(&backBufferDesc)))
+		if (SUCCEEDED(backBuffer->GetDesc(&backBufferDesc))) {
 			ImGui_ImplWin32_SetRenderSize(static_cast<float>(backBufferDesc.Width), static_cast<float>(backBufferDesc.Height));
+			s_pictureScale = backBufferDesc.Height / 1080.f;
+		}
 		backBuffer->Release();
 	}
+	sf4e::ui::ApplyTheme(OverlayScale());
 	RECT client{}; GetClientRect(hWnd, &client);
 	spdlog::info("Overlay: game draws at {}x{}, window client area {}x{}", backBufferDesc.Width, backBufferDesc.Height, client.right - client.left, client.bottom - client.top);
 	ImGui_ImplDX9_Init(lpDevice);
@@ -421,7 +431,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 		sf4e::NetplayFacade::RuntimeCommand request;
 		request.command = std::move(action.command);
         request.service = action.service; request.servicePath = std::move(action.servicePath); request.steamProfile = action.steamProfile;
-        request.updateOffer = std::move(action.updateOffer);
+        request.updateOffer = std::move(action.updateOffer); request.updateChannel = action.updateChannel;
         request.replay = std::move(action.replay);
         request.reportSubmission = std::move(action.reportSubmission);
         request.inputAction = action.inputAction; request.discordAction = action.discordAction;
@@ -484,7 +494,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const auto frame = sf4e::NetplayFacade::GetPresentationSnapshotShared();
     const auto& snapshot = *frame->runtime;
     const auto& status = frame->netplay;
-    if (sf4e::ui::ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(s_overlayWindow), snapshot.preferences.interfaceScale)) ImGui_ImplDX9_InvalidateDeviceObjects();
+    if (sf4e::ui::ApplyTheme(OverlayScale(), snapshot.preferences.interfaceScale)) ImGui_ImplDX9_InvalidateDeviceObjects();
     // A replay being exported can be followed or cancelled from Ember's menu,
     // so the menu stays available over the battle log while it runs; a
     // Practice match's fighter ends the game from it, and a spectator leaves

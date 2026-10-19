@@ -80,6 +80,11 @@ struct PlayerPreferences {
     // RenderingThreadOverride). Read at startup, so a change takes effect on
     // the next launch. It changes only how this PC draws, never the match.
     bool fasterDisplay = true;
+    // The game renders at its monitor's largest 16:9 size, in a window
+    // without a frame, with black bars on a monitor of another shape
+    // (sf4e__Borderless.hxx). Read at startup, like fasterDisplay. Only this
+    // PC's picture changes.
+    bool borderless = false;
     gamepads::ButtonPrompts buttonPrompts = gamepads::ButtonPrompts::Automatic;
     bool controllerLayer = true;
     std::map<std::string, std::string> controllerMappings;

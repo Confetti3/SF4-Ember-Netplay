@@ -25,9 +25,19 @@ if(WIN32)
         set(SF4E_HELPER_EXECUTABLE "${CMAKE_BINARY_DIR}/sf4-net.exe")
         file(GLOB_RECURSE SF4E_HELPER_RUST_SOURCES CONFIGURE_DEPENDS "${SF4E_HELPER_SOURCE}/src/*.rs"
             "${CMAKE_SOURCE_DIR}/server/ember/protocol/src/*.rs")
-        set(SF4E_HELPER_FEATURES "")
+        set(SF4E_HELPER_FEATURE_LIST "")
         if(SF4E_STAGING_BRIDGE)
-            set(SF4E_HELPER_FEATURES --features staging-bridge)
+            list(APPEND SF4E_HELPER_FEATURE_LIST staging-bridge)
+        endif()
+        # The in-game self-test keeps its Ember ID and services in a folder of
+        # its own (SF4E_SELFTEST, docs/design/TOURNAMENT_SELFTEST.md).
+        if(SF4E_SELFTEST)
+            list(APPEND SF4E_HELPER_FEATURE_LIST selftest)
+        endif()
+        set(SF4E_HELPER_FEATURES "")
+        if(SF4E_HELPER_FEATURE_LIST)
+            list(JOIN SF4E_HELPER_FEATURE_LIST "," SF4E_HELPER_FEATURE_NAMES)
+            set(SF4E_HELPER_FEATURES --features ${SF4E_HELPER_FEATURE_NAMES})
         endif()
         # The helper is rebuilt only when something it depends on changes, so
         # the features are written to a file it depends on, rewritten only

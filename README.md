@@ -62,7 +62,7 @@ An in-game capture supplied by the project owner, showing Ember's frame meter, p
 
 ## Get started
 
-You need **Windows 10 or later (x64)**, an owned **Steam copy of Ultra Street Fighter IV**, and the **latest Microsoft Visual C++ x86 runtime** (the launcher will not start with an older one and offers the download). The game is not included.
+You need **Windows 10 or later (x64)**, an owned **Steam copy of Ultra Street Fighter IV**, and the **latest Microsoft Visual C++ x86 runtime** (the launcher will not start with an older one and offers the download). The game is not included. On a Steam Deck, follow the [Steam Deck guide](docs/guides/STEAM_DECK.md) instead.
 
 1. For a fresh installation, [download the complete v1.3.0 ZIP](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v1.3.0/sf4-ember-netplay-1.3.0.zip) and its [SHA-256 checksum](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v1.3.0/sf4-ember-netplay-1.3.0.zip.sha256). Choose a release package, not GitHub's source-code download. Alternatively, [setup.exe](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v1.3.0/sf4-ember-netplay-1.3.0-setup.exe) installs Ember into an empty folder with a Start menu entry and an uninstaller.
 2. Extract everything into a **new writable folder**. Keep your old launcher installation separate; moving from the legacy launcher to Ember is a fresh install.
@@ -101,6 +101,7 @@ Ember remains experimental. Local builds, automated UI and transport tests, and 
 | Guide | What it covers |
 | --- | --- |
 | [Player guide](docs/guides/USER_NETPLAY.md) | Hosting, joining, controls and day-to-day play |
+| [Steam Deck and Linux](docs/guides/STEAM_DECK.md) | Installing through Proton, updating, uninstalling and where the logs are |
 | [Training lab](docs/guides/TRAINING_LAB.md) | Frame meter, dummy recording and dummy replies, with a notation cheat sheet |
 | [Custom rooms](docs/guides/CUSTOM_ROOMS.md) | Tables, queues, spectators and room behavior |
 | [Discord integration](docs/guides/DISCORD.md) | Presence, invitations and privacy |

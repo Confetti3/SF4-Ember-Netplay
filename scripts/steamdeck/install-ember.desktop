@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Install Ember Netplay
+Comment=Install or update SF4 Ember Netplay for Ultra Street Fighter IV in Steam
+Icon=steam
+Terminal=true
+Exec=bash -c "curl -fsSL https://raw.githubusercontent.com/Confetti3/SF4-Ember-Netplay-Nightly/nightly/scripts/steamdeck/steamdeck-install.sh -o ~/.cache/ember-install.sh && bash ~/.cache/ember-install.sh || echo 'Install failed.'; read -p 'Press Enter to close.'"

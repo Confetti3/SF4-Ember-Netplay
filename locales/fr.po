@@ -1174,6 +1174,12 @@ msgstr "Affichage plus rapide (1 trame en moins)"
 msgid "player.faster_display_detail"
 msgstr "Le jeu affiche chaque trame dès qu'elle est prête, au lieu d'une trame plus tard. Désactivez-le si le jeu descend sous 60 fps sur ce PC. Cela ne touche que ce PC : l'autre joueur n'a pas besoin de l'activer. Les changements s'appliquent au prochain lancement du jeu."
 
+msgid "player.borderless"
+msgstr "Sans bordure"
+
+msgid "player.borderless_detail"
+msgstr "Le jeu remplit l'écran dans une fenêtre sans cadre, rendu à la résolution propre de l'écran en 16:9, avec des bandes noires sur un écran plus large ou plus haut. Tant que c'est activé, Alt+Entrée et les options de résolution et de plein écran du jeu ne font rien ; le jeu garde votre choix pour quand ce sera désactivé. Cela ne concerne que ce PC. Les changements s'appliquent au prochain lancement du jeu."
+
 
 
 msgid "settings.interface_title"
@@ -1362,12 +1368,6 @@ msgstr "Exporte l'état des connexions sans invitations ni identifiants."
 msgid "about.updates_detail"
 msgstr "Chercher une nouvelle version d'Ember."
 
-msgid "about.open_updater"
-msgstr "Ouvrir la mise à jour"
-
-msgid "about.open_updater_detail"
-msgstr "Le jeu se ferme et la mise à jour s'ouvre. Choisissez-y Télécharger et installer. Quittez d'abord votre salon."
-
 msgid "about.open_recovery"
 msgstr "Ouvrir la récupération"
 
@@ -1388,9 +1388,6 @@ msgstr "Ember {0} · {1}"
 
 msgid "about.version_detail"
 msgstr "La version d'Ember sur ce PC. Build {0}."
-
-msgid "about.channel_detail"
-msgstr "La recherche de mises à jour utilise ce canal. Pour le changer, fermez le jeu et double-cliquez sur Updater.exe."
 
 msgid "settings.retry_save"
 msgstr "Ressauvegarder"
@@ -5845,10 +5842,10 @@ msgid "button_layout.menu_back"
 msgstr "Retour (menus)"
 
 msgid "button_layout.menu_confirm_detail"
-msgstr "Sélectionnez, puis appuyez sur le bouton qui valide dans les menus d'Ember. Tant que vous n'en choisissez pas, c'est le bouton qui valide dans les menus du jeu."
+msgstr "Sélectionnez, puis appuyez sur le bouton qui valide dans les menus d'Ember. Tant que vous n'en choisissez pas, c'est le bouton du bas parmi les quatre."
 
 msgid "button_layout.menu_back_detail"
-msgstr "Sélectionnez, puis appuyez sur le bouton qui revient en arrière dans les menus d'Ember. Tant que vous n'en choisissez pas, c'est le bouton qui revient en arrière dans les menus du jeu."
+msgstr "Sélectionnez, puis appuyez sur le bouton qui revient en arrière dans les menus d'Ember. Tant que vous n'en choisissez pas, c'est le bouton de droite parmi les quatre."
 
 msgid "button_layout.menu_taken"
 msgstr "{0} est déjà {1}. Choisissez un autre bouton."

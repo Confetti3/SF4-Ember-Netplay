@@ -51,6 +51,11 @@ use startgg::Startgg;
 use store::Store;
 
 /// One human-readable line on standard error. Never given a secret.
+/// This is the only way the connector's library prints: a test
+/// (`nothing_is_printed_but_through_log`) fails on any other print macro in
+/// `src` but `main.rs`, so a new message has to come through here and its
+/// review. `main.rs` prints its usage line, one startup line and the error
+/// that stops it, which name a file or a setting and never a secret's value.
 /// Control characters (from a site's or service's text) are shown as `?`,
 /// so no answer can forge a line.
 macro_rules! log {
@@ -89,6 +94,48 @@ mod tests {
             "set s-1: round?ember-brackets: forged?[2J"
         );
         assert_eq!(super::printable("Pools \u{fc}"), "Pools \u{fc}");
+    }
+
+    /// The self-test prints the connector's output when a run fails, and its
+    /// documents say that output never holds a secret. That holds because only
+    /// `log!` prints in the library (`main.rs`, the entry point, prints its
+    /// usage, a startup line and a fatal error), so no print macro may be added
+    /// elsewhere without this test (and the documents) being looked at again.
+    #[test]
+    fn nothing_is_printed_but_through_log() {
+        let macros: Vec<String> = ["print", "eprint"]
+            .iter()
+            .flat_map(|name| [format!("{name}!"), format!("{name}ln!")])
+            .chain([format!("{}!", "dbg")])
+            .collect();
+        // Every source file under `src`, in its folders too.
+        let mut folders = vec![std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src")];
+        while let Some(folder) = folders.pop() {
+            for entry in std::fs::read_dir(folder).unwrap() {
+                let path = entry.unwrap().path();
+                if path.is_dir() {
+                    folders.push(path);
+                    continue;
+                }
+                let is_source = path.extension().is_some_and(|extension| extension == "rs");
+                if !is_source || path.ends_with("main.rs") {
+                    continue;
+                }
+                let text = std::fs::read_to_string(&path).unwrap();
+                for (number, line) in text.lines().enumerate() {
+                    let line = line.trim_start();
+                    let is_log = path.ends_with("lib.rs")
+                        && line.starts_with(concat!("eprint", "ln!(\"ember-brackets: {}\""));
+                    let printing = macros.iter().any(|name| line.contains(name.as_str()));
+                    assert!(
+                        !printing || is_log || line.starts_with("//"),
+                        "{}:{}: print through log!",
+                        path.display(),
+                        number + 1
+                    );
+                }
+            }
+        }
     }
 }
 

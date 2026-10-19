@@ -203,6 +203,48 @@ void UpdateLaunchJourneys() {
   Check(row().value == loc::T("common.on") && row().detail == loc::T("common.save_failed"), "A failed save changed the row or went unsaid");
   SetMenuEntriesProbe({});
  }
+ // The channel row: Right picks without sending, Select asks first starting on
+ // Cancel, and only a confirmed switch is sent with the channel that was picked.
+ {
+  Harness h; h.view.services.channel = launcher::UpdateChannel::Stable;
+  std::vector<MenuEntry> rows;
+  SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries) { rows = entries; });
+  const auto row = [&]() -> const MenuEntry& {
+   auto found = std::find_if(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id == "channel"; });
+   Check(found != rows.end(), "Help & about has no update channel row"); return *found;
+  };
+  h.Screen("about"); h.FocusOn("channel");
+  Check(row().value == loc::T("updates.channel.stable") && row().adjustable && !row().confirm, "The channel row does not show the saved Stable");
+  const auto before = h.actions.size();
+  h.Press(MenuInput::Right);
+  Check(h.actions.size() == before && row().value == loc::T("updates.channel.prerelease") && row().confirm, "Right did not pick Beta without sending it");
+  h.Press(MenuInput::Select);
+  Check(h.shell.Navigation().Confirming() && !h.shell.Navigation().ConfirmSelected(), "The switch did not ask first, on Cancel");
+  h.Press(MenuInput::Select);
+  Check(h.actions.size() == before, "Cancel switched the channel");
+  h.Press(MenuInput::Select); h.Press(MenuInput::Right); h.Press(MenuInput::Select);
+  Check(h.actions.size() == before + 1 && h.actions.back().service == ServiceAction::SwitchUpdateChannel &&
+   h.actions.back().updateChannel == launcher::UpdateChannel::Beta, "Confirming did not send the switch to Beta");
+  // Once the service has saved it, the row shows the saved channel.
+  h.view.services.channel = launcher::UpdateChannel::Beta; h.Frame(0, 2);
+  Check(row().value == loc::T("updates.channel.prerelease") && !row().confirm, "The saved channel did not settle the row");
+  SetMenuEntriesProbe({});
+ }
+ // A check in Help & about that found a release, here a step back after a
+ // channel switch, offers Update now, which sends exactly what was found.
+ {
+  Harness h; h.view.services.offer = InstallOffer{launcher::UpdateChannel::Stable, "v1.3.0", std::string(64, 'a')};
+  std::vector<MenuEntry> rows;
+  SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries) { rows = entries; });
+  h.Screen("about"); h.FocusOn("update-now");
+  const auto row = std::find_if(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id == "update-now"; });
+  Check(row != rows.end() && row->label == loc::T("updates.launch_now") && row->confirm && row->enabled, "Help & about does not offer Update now for what it found");
+  const auto before = h.actions.size();
+  h.Press(MenuInput::Select); h.Press(MenuInput::Right); h.Press(MenuInput::Select);
+  Check(h.actions.size() == before + 1 && h.actions.back().service == ServiceAction::UpdateNow &&
+   h.actions.back().updateOffer == InstallOffer{launcher::UpdateChannel::Stable, "v1.3.0", std::string(64, 'a')}, "Update now did not send the release that was found");
+  SetMenuEntriesProbe({});
+ }
  {
   // A view that holds it off shows Off.
   Harness off; off.view.checkUpdatesAtLaunch = false;

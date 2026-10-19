@@ -1,0 +1,11 @@
+{
+  "name": "Ember",
+  "author": "SF4 Ember Netplay",
+  "flags": [],
+  "api_version": 1,
+  "publish": {
+    "tags": ["sf4"],
+    "description": "Install or update SF4 Ember Netplay for Ultra Street Fighter IV.",
+    "image": "https://opengraph.githubassets.com/1/Confetti3/SF4-Ember-Netplay"
+  }
+}

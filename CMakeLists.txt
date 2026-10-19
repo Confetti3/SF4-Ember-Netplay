@@ -34,6 +34,7 @@ if(BUILD_TESTING)
     find_package(Threads REQUIRED)
     sf4e_add_unit_test(NAME TrainingSession SOURCES "src/tests/training_session_test.cxx" STD 14)
     sf4e_add_unit_test(NAME FrameMeterRun SOURCES "src/tests/frame_meter_run_test.cxx" STD 14)
+    sf4e_add_unit_test(NAME SelfTest SOURCES "src/tests/selftest_test.cxx" STD 14)
     sf4e_add_unit_test(NAME FocusCancel SOURCES "src/tests/focus_cancel_test.cxx" STD 14)
     sf4e_add_unit_test(NAME TrainingReply SOURCES "src/tests/training_reply_test.cxx" STD 14)
     sf4e_add_unit_test(NAME TrainingFacing SOURCES "src/tests/training_facing_test.cxx" STD 14)
@@ -99,6 +100,9 @@ endif()
 if(SF4E_CORE_TESTS_ONLY)
     return()
 endif()
+# The in-game self-test (docs/development/IN_GAME_SELFTEST.md), in the game
+# and in the helper it starts.
+option(SF4E_SELFTEST "Build the in-game self-test" OFF)
 # After the core-only return: on Windows the helper needs Cargo.
 include("${CMAKE_SOURCE_DIR}/cmake/sf4e_helper.cmake")
 
@@ -336,6 +340,12 @@ if(BUILD_TESTING)
     # budget, then random player text through many rebuilds.
     add_test(NAME UiRenderAtlas COMMAND UiRenderTest)
     set_tests_properties(UiRenderAtlas PROPERTIES TIMEOUT 300 ENVIRONMENT "SF4E_UI_RENDER_ATLAS_STRESS=150")
+    # Every fighter's costume and color galleries with the packaged previews,
+    # English at one size. No game folder: a portrait falls back to the
+    # original costume's first color, and the game's Random stage tile is not
+    # checked. A folder in place of "-" keeps each page.
+    add_test(NAME UiRenderGallery COMMAND UiRenderTest - "${CMAKE_BINARY_DIR}/no-game" "${CMAKE_SOURCE_DIR}/assets/selection")
+    set_tests_properties(UiRenderGallery PROPERTIES TIMEOUT 600 ENVIRONMENT "SF4E_UI_RENDER_GALLERY=1;SF4E_UI_RENDER_QUICK=1")
     add_executable(SelectionArtTest src/tests/selection_art_test.cxx)
     target_compile_definitions(SelectionArtTest PRIVATE SF4E_TEST_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
     target_link_libraries(SelectionArtTest PRIVATE sf4e_ui "d3d9")
@@ -454,6 +464,10 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__Pad.cxx"
     "src/sf4e/sf4e__BackgroundPlay.hxx"
     "src/sf4e/sf4e__BackgroundPlay.cxx"
+    "src/sf4e/sf4e__Borderless.hxx"
+    "src/sf4e/sf4e__Borderless.cxx"
+    "src/sf4e/sf4e__StartupLog.hxx"
+    "src/sf4e/sf4e__StartupLog.cxx"
     "src/sf4e/sf4e__AwayAlert.hxx"
     "src/sf4e/sf4e__AwayAlert.cxx"
     "src/sf4e/sf4e__InputLag.hxx"
@@ -490,6 +504,12 @@ option(SF4E_DEVELOPER_UI "Build the fixed developer inspector page" OFF)
 if(SF4E_DEVELOPER_UI)
     target_sources(sf4e PRIVATE "src/sf4e/sf4e__DeveloperOverlay.cxx" "src/sf4e/sf4e__DeveloperOverlay__Battle.cxx" "src/sf4e/sf4e__DeveloperOverlay__System.cxx")
     target_compile_definitions(sf4e PRIVATE SF4E_DEVELOPER_UI=1)
+endif()
+# The in-game self-test (docs/development/IN_GAME_SELFTEST.md). Without it
+# selftest::Running is false and nothing of the test is built.
+if(SF4E_SELFTEST)
+    target_sources(sf4e PRIVATE "src/sf4e/sf4e__SelfTest.cxx" "src/sf4e/sf4e__SelfTest__Training.cxx" "src/sf4e/sf4e__SelfTest__Room.cxx" "src/sf4e/sf4e__SelfTest__Replay.cxx" "src/sf4e/sf4e__SelfTest__Online.cxx" "src/sf4e/sf4e__SelfTest__Tournament.cxx")
+    target_compile_definitions(sf4e PRIVATE SF4E_SELFTEST=1)
 endif()
 target_link_libraries(sf4e PRIVATE sf4e_steam sf4e_custom_content_files sf4e_replay_files sf4e_video_capture sf4e_netplay_core sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization)
 target_link_libraries(
@@ -777,7 +797,7 @@ target_link_libraries(sf4e_app_services PUBLIC sf4e_settings sf4e_localization s
 if(BUILD_TESTING)
     sf4e_add_unit_test(NAME ApplicationServices SOURCES src/tests/application_services_test.cxx LIBS sf4e_app_services)
     sf4e_add_unit_test(NAME UpdatePolicy SOURCES src/tests/update_policy_test.cxx LIBS sf4e_app_services sf4e_settings)
-    sf4e_add_unit_test(NAME EmberUpdate SOURCES src/tests/ember_update_test.cxx LIBS sf4e_app_services nlohmann_json::nlohmann_json)
+    sf4e_add_unit_test(NAME EmberUpdate SOURCES src/tests/ember_update_test.cxx LIBS sf4e_app_services nlohmann_json::nlohmann_json ZLIB::ZLIB)
 endif()
 target_link_libraries(sf4e PRIVATE sf4e_app_services)
 add_library(sf4e_recovery STATIC src/ui/RecoverySurface.cxx src/ui/RecoveryController.cxx)
@@ -849,9 +869,9 @@ target_link_options(Updater PRIVATE "/ENTRY:wmainCRTStartup")
 add_library(sf4e_updater_run STATIC src/launcher/update/UpdaterRun.cxx)
 target_compile_features(sf4e_updater_run PUBLIC cxx_std_17)
 target_link_libraries(sf4e_updater_run PUBLIC sf4e_package_installer comctl32 user32)
-add_library(sf4e_package_installer STATIC src/launcher/update/PackageInstaller.cxx)
+add_library(sf4e_package_installer STATIC src/launcher/update/PackageInstaller.cxx src/launcher/update/ZipExtract.cxx)
 target_compile_features(sf4e_package_installer PUBLIC cxx_std_17)
-target_link_libraries(sf4e_package_installer PUBLIC sf4e_selection nlohmann_json::nlohmann_json bcrypt PRIVATE sf4e_durable_file)
+target_link_libraries(sf4e_package_installer PUBLIC sf4e_selection nlohmann_json::nlohmann_json bcrypt PRIVATE sf4e_durable_file ZLIB::ZLIB)
 if(BUILD_TESTING)
     sf4e_add_unit_test(NAME OverlayPresentation SOURCES src/tests/overlay_presentation_test.cxx STD 17)
     sf4e_add_unit_test(NAME NativeMenuLock SOURCES src/tests/native_menu_lock_test.cxx STD 17)

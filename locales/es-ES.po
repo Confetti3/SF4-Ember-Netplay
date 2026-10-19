@@ -1174,6 +1174,12 @@ msgstr "Imagen más rápida (1 fotograma menos)"
 msgid "player.faster_display_detail"
 msgstr "El juego muestra cada fotograma en cuanto está listo, en lugar de un fotograma después. Desactívalo si el juego baja de 60 fps en este PC. Solo afecta a este PC: el otro jugador no necesita activarlo. Los cambios se aplican la próxima vez que inicies el juego."
 
+msgid "player.borderless"
+msgstr "Sin bordes"
+
+msgid "player.borderless_detail"
+msgstr "El juego llena la pantalla en una ventana sin marco, dibujado a la resolución propia de la pantalla en 16:9, con barras negras en pantallas más anchas o más altas. Mientras esté activado, Alt+Intro y las opciones de resolución y pantalla completa del propio juego no hacen nada; el juego guarda tu elección ahí para cuando esté desactivado. Solo afecta a este PC. Los cambios se aplican la próxima vez que inicies el juego."
+
 
 
 msgid "settings.interface_title"
@@ -1362,12 +1368,6 @@ msgstr "Exporta estados de conexión sin invitaciones ni credenciales."
 msgid "about.updates_detail"
 msgstr "Busca una versión más reciente de Ember."
 
-msgid "about.open_updater"
-msgstr "Salir y abrir actualizador"
-
-msgid "about.open_updater_detail"
-msgstr "El juego se cierra y se abre el actualizador. Ahí elige Descargar e instalar. Sal de tu sala primero."
-
 msgid "about.open_recovery"
 msgstr "Salir a recuperación"
 
@@ -1388,9 +1388,6 @@ msgstr "Ember {0} · {1}"
 
 msgid "about.version_detail"
 msgstr "La versión de Ember en este PC. Build {0}."
-
-msgid "about.channel_detail"
-msgstr "Las búsquedas de actualizaciones usan este canal. Para cambiarlo, cierra el juego y haz doble clic en Updater.exe."
 
 msgid "settings.retry_save"
 msgstr "Reintentar"
@@ -5845,10 +5842,10 @@ msgid "button_layout.menu_back"
 msgstr "Volver en menús"
 
 msgid "button_layout.menu_confirm_detail"
-msgstr "Selecciona y pulsa el botón que confirma en los menús de Ember. Hasta que elijas uno, es el botón con el que confirman los menús del juego."
+msgstr "Selecciona y pulsa el botón que confirma en los menús de Ember. Hasta que elijas uno, es el botón de abajo de los cuatro."
 
 msgid "button_layout.menu_back_detail"
-msgstr "Selecciona y pulsa el botón que vuelve atrás en los menús de Ember. Hasta que elijas uno, es el botón con el que vuelven atrás los menús del juego."
+msgstr "Selecciona y pulsa el botón que vuelve atrás en los menús de Ember. Hasta que elijas uno, es el botón de la derecha de los cuatro."
 
 msgid "button_layout.menu_taken"
 msgstr "{0} ya es {1}. Elige otro botón."

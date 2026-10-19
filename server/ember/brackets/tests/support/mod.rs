@@ -180,6 +180,10 @@ pub struct Setup {
     pub hold: Hold,
     pub participants: Vec<(String, Option<String>)>,
     pub matches: Vec<FakeMatch>,
+    /// Whether the fake Challonge sends matches in the shape the published
+    /// schema describes (players in `relationships`) instead of the live
+    /// API's (players in `points_by_participant`), which is the default.
+    pub documented_shape: bool,
 }
 
 impl Default for Setup {
@@ -210,6 +214,7 @@ impl Default for Setup {
                 FakeMatch::open("1002", 1, ["353", "352"]),
                 FakeMatch::fed_by("1003", 2, ["1001", "1002"]),
             ],
+            documented_shape: false,
         }
     }
 }
@@ -220,6 +225,7 @@ impl World {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let results_url = format!("http://{}/results", listener.local_addr().unwrap());
         let challonge = FakeChallonge::start(setup.kind, setup.participants, setup.matches).await;
+        challonge.state.lock().unwrap().documented_shape = setup.documented_shape;
         let bridge = TestBridge::start(&results_url, setup.discord_lookup).await;
         let provider = bridge.provider().await;
         let organizer = bridge.organizer().await;

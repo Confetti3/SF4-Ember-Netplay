@@ -24,10 +24,10 @@ namespace sf4e { namespace platform {
 // replay the request names; only a folder of the archive is opened.
 // LaunchUpdateCheck is the check the game makes once per launch when its
 // UpdatePolicy allows (ApplicationServices::RequestLaunchCheck). UpdateNow opens
-// the Launcher's Updates window with the launch offer the player accepted, and
+// the Launcher's Updates window with the offer the player accepted, and
 // SkipUpdate records that they skipped it. OpenSteamProfile opens a member's
 // Steam profile page in the browser; only OpenSteamProfilePage starts it, with a SteamId.
-enum class ServiceAction { None, CheckUpdates, SwitchUpdateChannel, ExportDiagnostics, OpenUpdater, InstallUpdate, OpenRecovery, OpenCommunity, OpenReplayFolder, ShowReplayFile, OpenSteamProfile,
+enum class ServiceAction { None, CheckUpdates, SwitchUpdateChannel, ExportDiagnostics, InstallUpdate, OpenRecovery, OpenCommunity, OpenReplayFolder, ShowReplayFile, OpenSteamProfile,
     PrepareProblemReport, PrepareCrashReport, SendReport, CancelReport, ReportCrash, LaunchUpdateCheck, UpdateNow, SkipUpdate };
 // Where the launch check is. Off is a service that makes none (a snapshot
 // nobody started one for); Waiting is a launch check not yet asked for.
@@ -99,6 +99,9 @@ struct ServiceSnapshot {
     launcher::UpdateStage updateStage = launcher::UpdateStage::Downloading;
     std::uint64_t stageDone = 0, stageTotal = 0;
     launcher::UpdateCheckResult update;
+    // What the latest check found as an offer Update now can take, a step back
+    // included (launcher::OfferFrom); nothing when it found none.
+    std::optional<launcher::InstallOffer> offer;
     // The launch check: where it is, and, once it settled, the release the
     // policy wants presented to the player (nothing when it found none, or only
     // the one they skipped).
@@ -148,8 +151,8 @@ public:
     // policy declines or another operation is running: the launch check is then
     // Settled, or still Waiting for a later ask.
     bool RequestLaunchCheck();
-    // The player accepted the launch offer: opens the Launcher on it. Refused
-    // unless it is the offer this service holds.
+    // The player accepted an offer, at launch or in Help & about: opens the
+    // Launcher on it. Refused unless the latest check found exactly that offer.
     bool UpdateNow(const launcher::InstallOffer& offer);
     // The player skipped the launch offer.
     bool SkipUpdate(const launcher::InstallOffer& offer);

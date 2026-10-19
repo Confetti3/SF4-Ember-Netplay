@@ -1,6 +1,8 @@
 #pragma once
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -66,15 +68,9 @@ public:
         Apply(fasterDisplay, startup);
         return original();
     }
-    // Runs the game's config write with the player's value in the flag and
-    // puts the enforced one back after. Unenforced, the flag is the game's.
-    template <typename Write> void WriteRequested(int& live, Write&& write) const {
-        if (!enforced_) { write(); return; }
-        const int enforced = live;
-        live = requested_;
-        write();
-        live = enforced;
-    }
+    // Gives the flag the player's value for the game's config write
+    // (DisplayConfigOverrides). Unenforced, the flag is the game's.
+    void PutRequested(int& live) const { if (enforced_) live = requested_; }
     bool Applied() const { return applied_; }
     // Whether the game draws on its own thread this session.
     bool RenderThread() const { return requested_ != 0 && !enforced_; }
@@ -87,6 +83,80 @@ public:
 private:
     int requested_ = 0;
     bool applied_ = false, enforced_ = false;
+};
+
+// The largest 16:9 area that fits a monitor, in whole steps of 16 by 9
+// pixels so the picture is never stretched, centred on it. Borderless renders
+// the game at this size. Empty when the monitor is smaller than one step.
+struct Area {
+    int x = 0, y = 0, width = 0, height = 0;
+    bool Valid() const { return width > 0 && height > 0; }
+};
+inline Area Fit16By9(int width, int height) {
+    const int step = (std::min)(width / 16, height / 9);
+    if (step < 1) return {};
+    return {(width - step * 16) / 2, (height - step * 9) / 2, step * 16, step * 9};
+}
+
+// The width, height and fullscreen flag of one of the game's display blocks
+// (read and written in sf4e__Borderless.cxx).
+struct DisplayMode {
+    uint32_t width = 0, height = 0, fullScreen = 0;
+    bool operator==(const DisplayMode& other) const { return width == other.width && height == other.height && fullScreen == other.fullScreen; }
+};
+
+// DISPLAY/Resolution and DISPLAY/FullScreen with the player's Borderless on.
+// Ember builds the device in a window at its monitor's 16:9 size. The game copies
+// its device's settings into Main's (0x68F8E0, applying the brightness
+// option) and sizes its window from Main's (0x782CF0), so both hold the
+// Borderless mode, and the config write is given the player's own, as
+// RenderingThreadOverride does for its flag. Any other mode in the device was
+// put there by the game's display options and is the player's new choice.
+// Choosing a window at exactly the Borderless size looks like no change, so
+// the mode saved before stays.
+class BorderlessOverride {
+public:
+    // Before the game builds its present parameters, from the device's mode:
+    // the mode both copies get.
+    DisplayMode Apply(const DisplayMode& device, uint32_t width, uint32_t height) {
+        const DisplayMode borderless{width, height, 0};
+        if (!applied_ || !(device == borderless)) requested_ = device;
+        applied_ = true;
+        return borderless;
+    }
+    // The player's mode for both copies, so the next build is the game's
+    // own, and later writes are left to the game. Empty when never applied.
+    std::optional<DisplayMode> Restore() {
+        if (!applied_) return std::nullopt;
+        applied_ = false;
+        return requested_;
+    }
+    // Gives the config write the player's mode (DisplayConfigOverrides).
+    // Unapplied, the mode is the game's.
+    void PutRequested(DisplayMode& live) const { if (applied_) live = requested_; }
+private:
+    DisplayMode requested_;
+    bool applied_ = false;
+};
+
+// The game writes config.ini from Main's live values (fMain::WriteDisplayConfig).
+// Each override gives the write the player's own value, and the live ones are
+// back once it returns. putMode stores a mode in Main's display block, so
+// liveMode is a copy taken before.
+struct DisplayConfigOverrides {
+    RenderingThreadOverride renderingThread;
+    BorderlessOverride borderless;
+    template <typename PutMode, typename Write>
+    void WriteRequested(int& flag, const DisplayMode liveMode, PutMode&& putMode, Write&& write) const {
+        const int liveFlag = flag;
+        DisplayMode mode = liveMode;
+        renderingThread.PutRequested(flag);
+        borderless.PutRequested(mode);
+        putMode(mode);
+        write();
+        putMode(liveMode);
+        flag = liveFlag;
+    }
 };
 
 } }

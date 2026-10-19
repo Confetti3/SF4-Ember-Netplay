@@ -1174,6 +1174,12 @@ msgstr "Sneller beeld (1 frame minder)"
 msgid "player.faster_display_detail"
 msgstr "Het spel toont elk frame zodra het klaar is, in plaats van een frame later. Zet het uit als het spel op deze pc onder 60 fps zakt. Het geldt alleen op deze pc: de andere speler hoeft het niet aan te zetten. Wijzigingen gelden vanaf de volgende keer dat het spel start."
 
+msgid "player.borderless"
+msgstr "Randloos"
+
+msgid "player.borderless_detail"
+msgstr "Het spel vult het scherm in een venster zonder rand, getekend op de eigen resolutie van het scherm in 16:9, met zwarte balken op een breder of hoger scherm. Zolang dit aan staat, doen Alt+Enter en de eigen resolutie- en volledig-schermopties van het spel niets; het spel bewaart je keuze daar voor wanneer dit uit staat. Het geldt alleen voor deze pc. Wijzigingen gelden vanaf de volgende keer dat het spel start."
+
 
 
 msgid "settings.interface_title"
@@ -1362,12 +1368,6 @@ msgstr "Exporteert verbindingsstatus zonder uitnodigingen of inloggegevens."
 msgid "about.updates_detail"
 msgstr "Zoek naar een nieuwere Ember-versie."
 
-msgid "about.open_updater"
-msgstr "Afsluiten en updater openen"
-
-msgid "about.open_updater_detail"
-msgstr "Het spel sluit en de updater opent. Kies daar Downloaden en installeren. Verlaat eerst je kamer."
-
 msgid "about.open_recovery"
 msgstr "Afsluiten naar herstel"
 
@@ -1388,9 +1388,6 @@ msgstr "Ember {0} · {1}"
 
 msgid "about.version_detail"
 msgstr "De Ember-versie op deze pc. Build {0}."
-
-msgid "about.channel_detail"
-msgstr "Updatecontroles gebruiken dit kanaal. Sluit het spel en dubbelklik op Updater.exe om het te wijzigen."
 
 msgid "settings.retry_save"
 msgstr "Opnieuw opslaan"
@@ -5845,10 +5842,10 @@ msgid "button_layout.menu_back"
 msgstr "Terug in menu's"
 
 msgid "button_layout.menu_confirm_detail"
-msgstr "Selecteer en druk dan op de knop die bevestigt in de menu's van Ember. Tot je er een kiest, is het de knop waarmee de menu's van het spel bevestigen."
+msgstr "Selecteer en druk dan op de knop die bevestigt in de menu's van Ember. Tot je er een kiest, is het de onderste van de vier knoppen."
 
 msgid "button_layout.menu_back_detail"
-msgstr "Selecteer en druk dan op de knop die teruggaat in de menu's van Ember. Tot je er een kiest, is het de knop waarmee de menu's van het spel teruggaan."
+msgstr "Selecteer en druk dan op de knop die teruggaat in de menu's van Ember. Tot je er een kiest, is het de rechter van de vier knoppen."
 
 msgid "button_layout.menu_taken"
 msgstr "{0} is al {1}. Kies een andere knop."
