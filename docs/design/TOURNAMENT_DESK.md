@@ -162,12 +162,12 @@ keeps everything about it in one place. The steps, in order:
    Lines with no value are left out. The text is built in the page, not
    stored.
 
-Storage: `organizer_events` (030) gains the draft fields: `title`,
-`starts_at` (nullable), `links` (JSON list of label and URL), `status`
-(`draft`, `ready`, `running`, `ended`), and `tournament` becomes nullable
-until a service event is created or attached. A draft has no site calls and
-is invisible to `ember-brackets`; only `running` events are in
-`/v1/desk/brackets`.
+Storage: `organizer_events` (migration 031) gains the draft fields:
+`title`, `starts_at` (nullable), `links` (JSON list of label and URL),
+`status` (`draft` or `ready`), and `tournament` is nullable until a service
+event is created or attached. Running is not stored: a ready event runs once
+`starts_at` has passed (or at once without one), and ended is `ended_at`. A
+draft has no site calls and is invisible to `ember-brackets`.
 
 ## 5. Commits
 

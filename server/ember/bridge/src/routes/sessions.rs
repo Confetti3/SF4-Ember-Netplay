@@ -138,7 +138,11 @@ fn route_matches(action: Action, method: Method, path: &str) -> bool {
             sites::site_of(path, "/start").is_some()
                 || (action == Action::SiteConnect
                     && (sites::site_of(path, "/organize").is_some()
-                        || path == crate::routes::organizer::EVENTS_PATH))
+                        || path == crate::routes::organizer::EVENTS_PATH
+                        || path == crate::routes::organizer::DRAFTS_PATH
+                        || ["", "/create", "/ready"]
+                            .iter()
+                            .any(|suffix| id_between("/v1/organizer/events/", "oev", suffix))))
         }
         (Action::SiteRemove, Method::Delete) => {
             sites::site_of(path, "").is_some()

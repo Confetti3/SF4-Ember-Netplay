@@ -37,8 +37,9 @@ async fn run_event(world: &World, settings: serde_json::Value) {
                 params![sealed, now],
             )?;
             tx.execute(
-                "INSERT INTO organizer_events (id, ember_id, site, tournament, name, settings, created_at)
-                 VALUES ('evt_1', ?1, 'challonge', ?2, 'Weekly', ?3, ?4)",
+                "INSERT INTO organizer_events
+                     (id, ember_id, title, status, site, tournament, name, settings, created_at)
+                 VALUES ('evt_1', ?1, 'Weekly', 'ready', 'challonge', ?2, 'Weekly', ?3, ?4)",
                 params![ember_id, TOURNAMENT, settings.to_string(), now],
             )?;
             Ok(())

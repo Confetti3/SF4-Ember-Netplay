@@ -31,7 +31,7 @@
     "starts_per_hour": 30
   },
   "organizer": {
-    "scope": "me tournaments:read matches:read matches:write participants:read",
+    "scope": "me tournaments:read tournaments:write matches:read matches:write participants:read participants:write",
     "tournaments": {
       "method": "GET",
       "url": "https://api.challonge.com/v2.1/tournaments.json?per_page=50",
@@ -43,6 +43,49 @@
       "list_pointer": "/data",
       "id_pointer": "/id",
       "name_pointer": "/attributes/name"
+    },
+    "create": {
+      "url": "https://api.challonge.com/v2.1/tournaments.json",
+      "headers": {
+        "Accept": "application/json",
+        "Content-Type": "application/vnd.api+json",
+        "Authorization-Type": "v2"
+      },
+      "body": {
+        "data": {
+          "type": "tournaments",
+          "attributes": {
+            "name": "",
+            "tournament_type": "double elimination",
+            "game_name": "Ultra Street Fighter IV",
+            "registration_options": {},
+            "double_elimination_options": {},
+            "match_options": {}
+          }
+        }
+      },
+      "name_pointer": "/data/attributes/name",
+      "fields": {
+        "format": {
+          "pointer": "/data/attributes/tournament_type",
+          "values": ["single elimination", "double elimination", "round robin", "swiss"]
+        },
+        "grand_final": {
+          "pointer": "/data/attributes/double_elimination_options/grand_finals_modifier",
+          "values": ["", "single match", "skip"]
+        },
+        "third_place_match": {
+          "pointer": "/data/attributes/match_options/consolation_matches_target_rank",
+          "values": [3]
+        },
+        "open_signup": {
+          "pointer": "/data/attributes/registration_options/open_signup",
+          "values": [true, false]
+        }
+      },
+      "id_pointer": "/data/id",
+      "link_pointer": "/data/attributes/url",
+      "link_prefix": "https://challonge.com/"
     }
   }
 }

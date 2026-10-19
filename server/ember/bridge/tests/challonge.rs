@@ -9,11 +9,11 @@ mod common;
 #[path = "challonge/support.rs"]
 mod support;
 
-use common::{Bridge, code};
+use common::{Bridge, code, sign_in};
 use ember_bridge::{config::sites::Limits, integrations::Secrets};
 use ember_protocol::challenge::{Action, Method};
 use reqwest::StatusCode;
-use serde_json::json;
+use serde_json::{Value as Json, json};
 use support::*;
 
 #[tokio::test]
@@ -929,7 +929,8 @@ async fn an_organizer_sign_in_keeps_its_tokens_sealed_and_refreshes_them() {
     // It asks Challonge for the organizer scopes, and connects the account
     // as a player sign-in does.
     let url = CHALLONGE.start_organizing(&bridge, &player1).await;
-    let scope = "me tournaments:read matches:read matches:write participants:read";
+    let scope = "me tournaments:read tournaments:write matches:read matches:write participants:read \
+        participants:write";
     assert_eq!(query(&url)["scope"], scope);
     let page = CHALLONGE.organize(&bridge, &player1, "good-player1").await;
     assert!(page.contains("Challonge connected"), "{page}");
@@ -1082,4 +1083,148 @@ async fn an_organizer_runs_their_own_event_on_the_desk() {
     assert_eq!(running["brackets"], json!([]));
     let (_, events) = bridge.get(player1.token(), "/v1/organizer/events").await;
     assert_eq!(events["events"], json!([]));
+}
+
+// An organizer makes a draft with only a title, has Ember create its event on
+// Challonge with their grant, gives it links and a start time, and marks it
+// ready: the desk's connector gets it from that time on.
+#[tokio::test]
+async fn an_organizer_drafts_an_event_and_runs_it_from_its_start_time() {
+    let fake = fake_challonge();
+    fake.lists("/v2.1/tournaments.json", |_| {
+        json!({ "data": [{ "id": "9001", "type": "tournament", "attributes": { "name": "Weekly" } }] })
+    });
+    fake.creates(|_, sent| {
+        json!({ "data": { "id": "777", "type": "tournament", "attributes": {
+            "name": sent["data"]["attributes"]["name"], "url": "ember_cup" } } })
+    });
+    let bridge = desk_bridge(&fake).await;
+    let player1 = player(&bridge, 1).await;
+    let player2 = player(&bridge, 2).await;
+    CHALLONGE.organize(&bridge, &player1, "good-player1").await;
+    let organizer = |path: String, command| {
+        let (bridge, player) = (&bridge, &player1);
+        async move {
+            sign_in::send(
+                bridge,
+                player,
+                Action::SiteConnect,
+                Method::Post,
+                &path,
+                command,
+            )
+            .await
+        }
+    };
+    let events = || async { bridge.get(player1.token(), "/v1/organizer/events").await.1 };
+
+    // A title is all a draft needs.
+    let (status, _) = organizer(
+        "/v1/organizer/drafts".into(),
+        json!({ "title": "x".repeat(101) }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let (status, made) = organizer(
+        "/v1/organizer/drafts".into(),
+        json!({ "title": " Ember Cup " }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{made}");
+    let id = made["id"].as_str().unwrap().to_owned();
+    let path = |rest: &str| format!("/v1/organizer/events/{id}{rest}");
+    let listed = events().await;
+    assert_eq!(listed["events"][0]["title"], "Ember Cup");
+    assert_eq!(listed["events"][0]["status"], "draft");
+
+    // Not ready without its event and a start time.
+    let (status, _) = organizer(path("/ready"), json!({})).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    // Ember creates it on Challonge, set as the site's fields allow.
+    let create = |fields| json!({ "site": SITE, "fields": fields });
+    let (status, _) = organizer(path("/create"), create(json!({ "format": "ladder" }))).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let fields = json!({ "format": "double elimination", "open_signup": true });
+    let (status, created) = organizer(path("/create"), create(fields)).await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    assert_eq!(
+        created,
+        json!({ "tournament": "777", "link": "https://challonge.com/ember_cup" })
+    );
+    let sent: Json =
+        serde_json::from_str(&fake.seen("/v2.1/tournaments.json").pop().unwrap().body).unwrap();
+    let attributes = &sent["data"]["attributes"];
+    assert_eq!(attributes["name"], "Ember Cup");
+    assert_eq!(attributes["tournament_type"], "double elimination");
+    assert_eq!(attributes["registration_options"]["open_signup"], true);
+    // Once only.
+    let (status, _) = organizer(path("/create"), create(json!({}))).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+
+    // Links are https; the bracket's is there already.
+    let listed = events().await;
+    assert_eq!(listed["events"][0]["tournament"], "777");
+    let bracket = listed["events"][0]["links"][0].clone();
+    assert_eq!(bracket["label"], "Bracket");
+    let stream = json!({ "label": "Stream", "url": "https://twitch.tv/ember" });
+    let (status, _) = organizer(
+        path(""),
+        json!({ "links": [bracket, { "label": "Stream", "url": "http://twitch.tv/ember" }] }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let starts_at = bridge.clock.now() + 300;
+    let (status, changed) = organizer(
+        path(""),
+        json!({ "links": [bracket, stream], "starts_at": starts_at,
+                "settings": { "rounds": { "games_to_win": 2 } } }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{changed}");
+    // Nobody else changes it.
+    let (status, _) = sign_in::send(
+        &bridge,
+        &player2,
+        Action::SiteConnect,
+        Method::Post,
+        &path(""),
+        json!({ "title": "Mine" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+
+    // Ready, it waits for its start time, then the connector gets it.
+    let (status, _) = organizer(path("/ready"), json!({})).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(events().await["events"][0]["status"], "ready");
+    let desk = bridge.provider(BRACKETS).await;
+    let (_, running) = bridge.get(&desk, "/v1/desk/brackets").await;
+    assert_eq!(running["brackets"], json!([]));
+    bridge.clock.advance(300);
+    let (_, running) = bridge.get(&desk, "/v1/desk/brackets").await;
+    assert_eq!(running["brackets"][0]["tournament"], "777");
+    let listed = events().await;
+    assert_eq!(listed["events"][0]["status"], "running");
+    assert_eq!(listed["events"][0]["links"][1], stream);
+
+    // Another draft takes an event the site lists; deleted, it is gone.
+    let (_, made) = organizer("/v1/organizer/drafts".into(), json!({ "title": "Weekly" })).await;
+    let other = made["id"].as_str().unwrap().to_owned();
+    let other_path = format!("/v1/organizer/events/{other}");
+    let (status, _) = organizer(
+        other_path.clone(),
+        json!({ "site": SITE, "tournament": "777" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let (status, _) = organizer(
+        other_path.clone(),
+        json!({ "site": SITE, "tournament": "9001" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, _) = stop_event(&bridge, &player1, &other).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(events().await["events"].as_array().unwrap().len(), 1);
 }

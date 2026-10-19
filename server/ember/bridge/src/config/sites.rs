@@ -62,6 +62,43 @@ pub struct Organizer {
     /// access token as a bearer. None lists none, so none can be run.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tournaments: Option<TournamentsRead>,
+    /// How to create an event on the site for the organizer, with their
+    /// access token as a bearer. None creates none: the organizer makes it
+    /// on the site and picks it from `tournaments`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub create: Option<CreateRequest>,
+}
+
+/// The request that creates an organizer's event: `body` POSTed to `url`
+/// with the event's title at `name_pointer` and each field the organizer
+/// sets at its pointer, one of its `values`. Every pointer's parent is in
+/// `body`. In the answer, `id_pointer` is the ID the bracket connector's
+/// `tournament` takes (as `tournaments` lists it), and the text at
+/// `link_pointer` after `link_prefix` is the event's page.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CreateRequest {
+    pub url: String,
+    #[serde(default)]
+    pub headers: BTreeMap<String, String>,
+    pub body: serde_json::Value,
+    pub name_pointer: String,
+    #[serde(default)]
+    pub fields: BTreeMap<String, CreateField>,
+    pub id_pointer: String,
+    #[serde(default)]
+    pub link_pointer: Option<String>,
+    #[serde(default)]
+    pub link_prefix: Option<String>,
+}
+
+/// A setting an organizer may give a new event: where it goes in the body
+/// and the values it takes.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CreateField {
+    pub pointer: String,
+    pub values: Vec<serde_json::Value>,
 }
 
 /// The request that lists an organizer's events, and JSON pointers into its
@@ -241,6 +278,7 @@ impl SignInSite {
         }
         let refresh_url = self.organizer.as_ref().and_then(|o| o.refresh_url.as_ref());
         let tournaments = self.organizer.as_ref().and_then(|o| o.tournaments.as_ref());
+        let create = self.organizer.as_ref().and_then(|o| o.create.as_ref());
         for (name, url) in [
             ("authorize_url", Some(&self.authorize_url)),
             ("token_url", Some(&self.token_url)),
@@ -250,6 +288,7 @@ impl SignInSite {
                 "organizer.tournaments.url",
                 tournaments.map(|read| &read.url),
             ),
+            ("organizer.create.url", create.map(|create| &create.url)),
         ]
         .into_iter()
         .filter_map(|(name, url)| Some((name, url?)))
@@ -347,6 +386,45 @@ impl SignInSite {
             if !headers_ok(&read.headers) || (read.method == Method::Get && read.body.is_some()) {
                 return fail(
                     "organizer.tournaments needs headers as user.headers, and a body with POST only",
+                );
+            }
+        }
+        if let Some(create) = create {
+            // A field goes into an object the body already has, under a
+            // plain name.
+            let settable = |pointer: &str| {
+                pointer_ok(pointer)
+                    && !pointer.contains('~')
+                    && pointer.rsplit_once('/').is_some_and(|(parent, _)| {
+                        create.body.pointer(parent).is_some_and(|v| v.is_object())
+                    })
+            };
+            let value_ok = |value: &serde_json::Value| {
+                !value.is_object() && !value.is_array() && value.to_string().len() <= 64
+            };
+            if !create.body.is_object()
+                || !settable(&create.name_pointer)
+                || !pointer_ok(&create.id_pointer)
+                || !create.link_pointer.as_deref().is_none_or(pointer_ok)
+                || create.fields.len() > 16
+                || !create.fields.iter().all(|(name, field)| {
+                    is_token(name, 64)
+                        && settable(&field.pointer)
+                        && (1..=16).contains(&field.values.len())
+                        && field.values.iter().all(value_ok)
+                })
+            {
+                return fail(
+                    "organizer.create needs an object body holding every pointer's parent, \
+                     and fields of 1 to 16 plain values",
+                );
+            }
+            let prefix_ok = create.link_prefix.as_deref().is_none_or(|prefix| {
+                url::Url::parse(prefix).is_ok_and(|url| url.scheme() == "https")
+            });
+            if !headers_ok(&create.headers) || !prefix_ok {
+                return fail(
+                    "organizer.create needs headers as user.headers, and an https link_prefix",
                 );
             }
         }
@@ -467,6 +545,13 @@ mod tests {
                 "url": "https://api.challonge.com/v2.1/tournaments.json", "list_pointer": "/data",
                 "id_pointer": "id", "name_pointer": "/name" } } }),
             json!({ "limits": { "monthly_request_budget": 1, "daily_request_budget": 2, "starts_per_hour": 1 } }),
+            json!({ "organizer": { "scope": "me", "create": { "url": "https://evil.example/t.json",
+                "body": { "data": {} }, "name_pointer": "/data/name", "id_pointer": "/data/id" } } }),
+            // A field must land in an object the body has.
+            json!({ "organizer": { "scope": "me", "create": {
+                "url": "https://api.challonge.com/v2.1/tournaments.json",
+                "body": { "data": {} }, "name_pointer": "/data/name", "id_pointer": "/data/id",
+                "fields": { "format": { "pointer": "/data/options/type", "values": ["swiss"] } } } } }),
         ] {
             assert!(refused(change.clone()), "{change}");
         }
@@ -489,8 +574,15 @@ mod tests {
             site.authorize_url = format!("https://{host}/oauth/authorize");
             site.token_url = format!("https://{host}/oauth/token");
             site.user.url = format!("https://{host}/me");
-            if let Some(read) = site.organizer.as_mut().and_then(|o| o.tournaments.as_mut()) {
-                read.url = format!("https://{host}/tournaments.json");
+            if let Some(organizer) = site.organizer.as_mut() {
+                for url in organizer
+                    .tournaments
+                    .iter_mut()
+                    .map(|read| &mut read.url)
+                    .chain(organizer.create.iter_mut().map(|create| &mut create.url))
+                {
+                    *url = format!("https://{host}/tournaments.json");
+                }
             }
             let refused = site.validate(OriginPolicy::HttpsOnly).unwrap_err();
             assert!(refused.contains("public DNS names"), "{host}: {refused}");

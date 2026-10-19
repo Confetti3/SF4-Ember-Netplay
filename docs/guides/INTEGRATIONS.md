@@ -514,9 +514,31 @@ Routes, all with the organizer's player session:
   `mark_underway` as `brackets.json` does, in at most 4096 bytes; the
   connector checks their values. An event runs once at a time, and an
   organizer runs at most 8.
-- `GET /v1/organizer/events`: their running events.
+- `POST /v1/organizer/drafts` (`site.connect`), command `{ "title" }`
+  (1 to 100 characters): a draft, which runs and creates nothing. An
+  organizer keeps at most 20.
+- `POST /v1/organizer/events/<id>` (`site.connect`): changes what the
+  command gives: `title`, `starts_at` (seconds, or null), `links` (at most
+  12 `{ "label", "url" }`, https only), `settings`, and for a draft
+  `site` with `tournament`, an event the site lists for them.
+- `POST /v1/organizer/events/<id>/create` (`site.connect`), command
+  `{ "site", "fields" }`: creates a draft's event on the site with the
+  organizer's grant, when its definition has `organizer.create`, and gives
+  it to the draft with its page as the first link (`Bracket`).
+- `POST /v1/organizer/events/<id>/ready` (`site.connect`): a draft with its
+  event and a start time becomes ready; it runs from that time.
+- `GET /v1/organizer/events`: their events that have not ended, each with
+  its `status` (`draft`, `ready` or `running`), title, start time, event,
+  settings and links.
 - `DELETE /v1/organizer/events/<id>` (proof action `site.remove` on that
-  path): stops one.
+  path): deletes a draft, or stops an event.
+
+`organizer.create` in a site definition (Challonge's has one; start.gg's
+API creates no events): `url`, `headers`, the JSON `body` to POST,
+`name_pointer` where the title goes, `fields` (each a `pointer` into the
+body and the `values` it takes; every pointer's parent object is in the
+body), `id_pointer` into the answer for the event's ID as `tournaments`
+lists it, and optionally `link_pointer` with `link_prefix` for its page.
 
 `GET /v1/desk/brackets`, with the desk connection's provider credential,
 lists every running event whose organizer still holds a grant, with the

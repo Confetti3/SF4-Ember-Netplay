@@ -22,7 +22,7 @@ use crate::{
     AppState,
     config::{
         Config,
-        sites::{Encoding, Method, TournamentsRead, UsernameRule},
+        sites::{CreateRequest, Encoding, Method, TournamentsRead, UsernameRule},
     },
     linking::Site,
     util::{outbound_client, read_bounded},
@@ -165,6 +165,8 @@ pub struct OAuth {
     read: Read,
     /// How an organizer sign-in's site lists the organizer's events.
     tournaments: Option<(UserRequest, TournamentsRead)>,
+    /// How an organizer sign-in's site creates an event for the organizer.
+    create: Option<CreateRequest>,
     /// For a site that limits its requests; a sign-in's exchange spends two.
     pub limits: Option<Limits>,
 }
@@ -253,6 +255,7 @@ impl OAuth {
                     },
                     read: Read::Discord,
                     tournaments: None,
+                    create: None,
                     limits: None,
                 })
             }
@@ -281,6 +284,7 @@ impl OAuth {
                             .then(|| site.username_rule.clone()),
                     },
                     tournaments: None,
+                    create: None,
                     limits: site.limits,
                 })
             }
@@ -318,6 +322,7 @@ impl OAuth {
             };
             (request, read.clone())
         });
+        oauth.create = organizer.create.clone();
         Some(oauth)
     }
 
@@ -391,6 +396,42 @@ impl OAuth {
         let client = outbound_client().build().ok()?;
         let body = send(&client, request, token, MAX_LISTING).await?;
         Some(listed(&serde_json::from_slice(&body).ok()?, read))
+    }
+
+    /// The request that creates an event titled `title` with the
+    /// organizer's `fields`: None when the site creates none, a refusal
+    /// when a field is not one the site takes, or not one of its values.
+    pub fn creation(
+        &self,
+        title: &str,
+        fields: &serde_json::Map<String, Value>,
+    ) -> Option<Result<Creation, String>> {
+        let create = self.create.as_ref()?;
+        let mut body = create.body.clone();
+        set(&mut body, &create.name_pointer, Value::from(title));
+        for (name, value) in fields {
+            match create.fields.get(name) {
+                Some(field) if field.values.contains(value) => {
+                    set(&mut body, &field.pointer, value.clone());
+                }
+                _ => {
+                    let known: Vec<&str> = create.fields.keys().map(String::as_str).collect();
+                    return Some(Err(format!(
+                        "{name} is not a setting this site takes with that value; it takes {}.",
+                        known.join(", ")
+                    )));
+                }
+            }
+        }
+        Some(Ok(Creation {
+            request: UserRequest {
+                method: Method::Post,
+                url: create.url.clone(),
+                headers: pairs(&create.headers),
+                body: Some(body),
+            },
+            read: create.clone(),
+        }))
     }
 
     /// Exchanges an organizer's refresh token for fresh tokens, or None on
@@ -470,6 +511,49 @@ impl OAuth {
             refresh: token.refresh_token.map(Zeroizing::new),
             expires_in: token.expires_in,
         })
+    }
+}
+
+/// An event to create on a site (`OAuth::creation`).
+pub struct Creation {
+    request: UserRequest,
+    read: CreateRequest,
+}
+
+/// An event a site created: the ID the bracket connector takes, and its
+/// page when the site says it.
+pub struct Created {
+    pub id: String,
+    pub link: Option<String>,
+}
+
+impl Creation {
+    /// Creates the event as the organizer whose access token is `token`;
+    /// None on any failure.
+    pub async fn send(&self, token: &str) -> Option<Created> {
+        let client = outbound_client().build().ok()?;
+        let answer: Value =
+            serde_json::from_slice(&send(&client, &self.request, token, MAX_ANSWER).await?).ok()?;
+        let id = text_at(&answer, &self.read.id_pointer)
+            .filter(|id| id.len() <= 128 && id.bytes().all(|b| b.is_ascii_graphic()))?;
+        let link = self
+            .read
+            .link_pointer
+            .as_deref()
+            .and_then(|pointer| text_at(&answer, pointer))
+            .filter(|path| path.bytes().all(|b| b.is_ascii_graphic()))
+            .map(|path| format!("{}{path}", self.read.link_prefix.as_deref().unwrap_or("")));
+        Some(Created { id, link })
+    }
+}
+
+/// Puts `value` at `pointer` in `body`, whose parent object the definition
+/// was checked to have (`config::sites`).
+fn set(body: &mut Value, pointer: &str, value: Value) {
+    if let Some((parent, name)) = pointer.rsplit_once('/')
+        && let Some(object) = body.pointer_mut(parent).and_then(Value::as_object_mut)
+    {
+        object.insert(name.to_owned(), value);
     }
 }
 

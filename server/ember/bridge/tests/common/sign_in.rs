@@ -32,6 +32,9 @@ pub type User = (&'static str, &'static str);
 /// Where a site lists an organizer's tournaments, and its answer for a user.
 type Listing = (&'static str, fn(User) -> Json);
 
+/// A site's answer to creating an event, for the user and the body sent.
+type Creating = fn(User, Json) -> Json;
+
 /// A code the stand-in holds until the test lets it go: `arrived` says the
 /// site has it, `release` lets it answer. One per test, so tests holding a
 /// code run side by side.
@@ -86,6 +89,8 @@ pub struct FakeSite {
     pub me_headers: &'static [(&'static str, &'static str)],
     pub me_body: fn(User) -> Json,
     listing: Mutex<Option<Listing>>,
+    /// Its answer to a POST at the listing's path, for the user and body.
+    creating: Mutex<Option<Creating>>,
     seen: Mutex<Vec<Seen>>,
     tokens: Mutex<HashMap<String, User>>,
     refreshes: Mutex<HashMap<String, User>>,
@@ -121,6 +126,7 @@ impl FakeSite {
             me_headers,
             me_body,
             listing: Mutex::default(),
+            creating: Mutex::default(),
             seen: Mutex::default(),
             tokens: Mutex::default(),
             refreshes: Mutex::default(),
@@ -146,6 +152,12 @@ impl FakeSite {
     /// access token comes with the request. Set before `serve`.
     pub fn lists(&self, path: &'static str, answer: fn(User) -> Json) {
         *self.listing.lock().unwrap() = Some((path, answer));
+    }
+
+    /// Creates events with a POST at the listing's path, answering `answer`
+    /// for the user and the body sent.
+    pub fn creates(&self, answer: Creating) {
+        *self.creating.lock().unwrap() = Some(answer);
     }
 
     /// The requests received at `path`, oldest first.
@@ -273,12 +285,21 @@ async fn me(State(site): State<Arc<FakeSite>>, headers: HeaderMap, body: Bytes) 
 
 async fn listing(
     State(site): State<Arc<FakeSite>>,
+    method: axum::http::Method,
     RawQuery(query): RawQuery,
     headers: HeaderMap,
     body: Bytes,
 ) -> Reply {
     let (path, answer) = site.listing.lock().unwrap().expect("set by lists");
     site.record(path, query, &body, headers.clone());
+    let creating = *site.creating.lock().unwrap();
+    let answer: Box<dyn Fn(User) -> Json> = match creating {
+        Some(create) if method == axum::http::Method::POST => {
+            let sent: Json = serde_json::from_slice(&body).unwrap_or_default();
+            Box::new(move |user| create(user, sent.clone()))
+        }
+        _ => Box::new(answer),
+    };
     let user = headers
         .get("authorization")
         .and_then(|value| value.to_str().ok())
@@ -348,6 +369,9 @@ pub fn definition(name: &str, origin: &str, client_id: &str) -> SignInSite {
                 url.query()
                     .map_or(String::new(), |query| format!("?{query}"))
             );
+        }
+        if let Some(create) = &mut organizer.create {
+            create.url = local(&create.url);
         }
     }
     site.client_id = client_id.into();

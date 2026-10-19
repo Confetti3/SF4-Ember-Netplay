@@ -106,7 +106,13 @@ pub fn router(state: AppState) -> Router {
             organizer::EVENTS_PATH,
             post(organizer::start).get(organizer::list),
         )
-        .route("/v1/organizer/events/{id}", delete(organizer::stop))
+        .route(organizer::DRAFTS_PATH, post(organizer::draft))
+        .route(
+            "/v1/organizer/events/{id}",
+            post(organizer::change).delete(organizer::stop),
+        )
+        .route("/v1/organizer/events/{id}/create", post(organizer::create))
+        .route("/v1/organizer/events/{id}/ready", post(organizer::ready))
         .route("/v1/desk/brackets", get(organizer::brackets))
         .route("/v1/events", get(events::list))
         .route("/v1/events/stream", get(events::stream))
