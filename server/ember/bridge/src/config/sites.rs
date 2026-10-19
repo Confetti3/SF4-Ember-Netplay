@@ -67,6 +67,31 @@ pub struct Organizer {
     /// on the site and picks it from `tournaments`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub create: Option<CreateRequest>,
+    /// How players who sign up through Ember are added to an event as its
+    /// participants, and taken out again, with the organizer's access
+    /// token as a bearer. None takes no sign-ups through Ember.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub participants: Option<ParticipantsRequest>,
+}
+
+/// The requests that add a player to an organizer's event and take them
+/// out: `body` POSTed to `url`, with the player's name for the event at
+/// `name_pointer`, their site username at `username_pointer` and Ember's
+/// marker at `marker_pointer`; `remove_url` DELETEd. `{tournament}` in
+/// either URL is the event's ID, `{participant}` in `remove_url` the ID
+/// the answer has at `id_pointer`.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ParticipantsRequest {
+    pub url: String,
+    pub remove_url: String,
+    #[serde(default)]
+    pub headers: BTreeMap<String, String>,
+    pub body: serde_json::Value,
+    pub name_pointer: String,
+    pub username_pointer: String,
+    pub marker_pointer: String,
+    pub id_pointer: String,
 }
 
 /// The request that creates an organizer's event: `body` POSTed to `url`
@@ -159,6 +184,10 @@ pub enum Method {
     Get,
     #[serde(rename = "POST")]
     Post,
+    /// For removing participants only; a definition's reads take GET or
+    /// POST.
+    #[serde(rename = "DELETE")]
+    Delete,
 }
 
 /// What a username may be, and how lookups compare it.
@@ -279,6 +308,10 @@ impl SignInSite {
         let refresh_url = self.organizer.as_ref().and_then(|o| o.refresh_url.as_ref());
         let tournaments = self.organizer.as_ref().and_then(|o| o.tournaments.as_ref());
         let create = self.organizer.as_ref().and_then(|o| o.create.as_ref());
+        let participants = self
+            .organizer
+            .as_ref()
+            .and_then(|o| o.participants.as_ref());
         for (name, url) in [
             ("authorize_url", Some(&self.authorize_url)),
             ("token_url", Some(&self.token_url)),
@@ -289,6 +322,14 @@ impl SignInSite {
                 tournaments.map(|read| &read.url),
             ),
             ("organizer.create.url", create.map(|create| &create.url)),
+            (
+                "organizer.participants.url",
+                participants.map(|add| &add.url),
+            ),
+            (
+                "organizer.participants.remove_url",
+                participants.map(|add| &add.remove_url),
+            ),
         ]
         .into_iter()
         .filter_map(|(name, url)| Some((name, url?)))
@@ -361,6 +402,11 @@ impl SignInSite {
                  host, content-length, transfer-encoding or connection",
             );
         }
+        if self.user.method == Method::Delete
+            || tournaments.is_some_and(|read| read.method == Method::Delete)
+        {
+            return fail("user and organizer.tournaments are read with GET or POST");
+        }
         if self.user.method == Method::Get && self.user.body.is_some() {
             return fail("user.body goes with POST only");
         }
@@ -425,6 +471,30 @@ impl SignInSite {
             if !headers_ok(&create.headers) || !prefix_ok {
                 return fail(
                     "organizer.create needs headers as user.headers, and an https link_prefix",
+                );
+            }
+        }
+        if let Some(add) = participants {
+            let settable = |pointer: &str| {
+                pointer_ok(pointer)
+                    && !pointer.contains('~')
+                    && pointer.rsplit_once('/').is_some_and(|(parent, _)| {
+                        add.body.pointer(parent).is_some_and(|v| v.is_object())
+                    })
+            };
+            if !add.body.is_object()
+                || !settable(&add.name_pointer)
+                || !settable(&add.username_pointer)
+                || !settable(&add.marker_pointer)
+                || !pointer_ok(&add.id_pointer)
+                || !add.url.contains("{tournament}")
+                || !add.remove_url.contains("{participant}")
+                || !headers_ok(&add.headers)
+            {
+                return fail(
+                    "organizer.participants needs an object body holding every pointer's \
+                     parent, {tournament} in url, {participant} in remove_url, and headers \
+                     as user.headers",
                 );
             }
         }
@@ -513,6 +583,29 @@ mod tests {
     }
 
     #[test]
+    fn participants_name_the_event_and_set_into_the_body() {
+        let participants = |change: fn(&mut ParticipantsRequest)| {
+            let mut site = example("challonge");
+            change(
+                site.organizer
+                    .as_mut()
+                    .unwrap()
+                    .participants
+                    .as_mut()
+                    .unwrap(),
+            );
+            site.validate(OriginPolicy::HttpsOnly)
+        };
+        assert_eq!(participants(|_| {}), Ok(()));
+        assert!(participants(|add| add.url = add.url.replace("{tournament}", "1")).is_err());
+        assert!(
+            participants(|add| add.remove_url = add.remove_url.replace("{participant}", "1"))
+                .is_err()
+        );
+        assert!(participants(|add| add.marker_pointer = "/data/nowhere/misc".into()).is_err());
+    }
+
+    #[test]
     fn a_definition_keeps_the_bridge_on_its_hosts() {
         let refused = |change: serde_json::Value| {
             let mut site = serde_json::to_value(example("challonge")).unwrap();
@@ -582,6 +675,10 @@ mod tests {
                     .chain(organizer.create.iter_mut().map(|create| &mut create.url))
                 {
                     *url = format!("https://{host}/tournaments.json");
+                }
+                if let Some(add) = organizer.participants.as_mut() {
+                    add.url = format!("https://{host}/{{tournament}}/participants.json");
+                    add.remove_url = format!("https://{host}/{{tournament}}/{{participant}}.json");
                 }
             }
             let refused = site.validate(OriginPolicy::HttpsOnly).unwrap_err();

@@ -603,6 +603,22 @@ it was last posted and whether Discord has it (`pending`, `delivered`,
 `failed`). A 429 is retried after Discord's `Retry-After`; a webhook
 Discord no longer knows fails without retries.
 
+Sign-ups through Ember: on an event Ember created on a site whose
+definition has `organizer.participants` (Challonge's does), the organizer
+sets `"sign_ups": true`. Until the event is ready, a player whose account
+on that site is connected to their Ember ID signs up with
+`POST /v1/events/{id}/sign-up` (game session with a `site.connect` proof,
+or the web desk with its CSRF token), and the bridge adds them to the
+site's event with the organizer's grant, under their site username and
+marked `ember:<Ember ID>`, so `ember-brackets` finds them as it finds any
+participant. Signing up again changes nothing. `DELETE` on the same path
+(`site.remove`) takes them out again before the start; a removal the site
+does not confirm keeps the sign-up so it can be tried again. The event list
+shows `sign_ups` and the `signed_up` count. `organizer.participants` holds
+`url` and `remove_url` (with `{tournament}`, and `{participant}` in the
+second), `headers`, `body`, and `name_pointer`, `username_pointer`,
+`marker_pointer` into the body and `id_pointer` into the answer.
+
 ## Bracket sites (Challonge, start.gg, your own)
 
 The bridge knows players, matches and results, and names no site. Everything

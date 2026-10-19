@@ -22,7 +22,9 @@ use crate::{
     AppState,
     config::{
         Config,
-        sites::{CreateRequest, Encoding, Method, TournamentsRead, UsernameRule},
+        sites::{
+            CreateRequest, Encoding, Method, ParticipantsRequest, TournamentsRead, UsernameRule,
+        },
     },
     linking::Site,
     util::{outbound_client, read_bounded},
@@ -167,6 +169,8 @@ pub struct OAuth {
     tournaments: Option<(UserRequest, TournamentsRead)>,
     /// How an organizer sign-in's site creates an event for the organizer.
     create: Option<CreateRequest>,
+    /// How it adds players who sign up through Ember to an event.
+    participants: Option<ParticipantsRequest>,
     /// For a site that limits its requests; a sign-in's exchange spends two.
     pub limits: Option<Limits>,
 }
@@ -256,6 +260,7 @@ impl OAuth {
                     read: Read::Discord,
                     tournaments: None,
                     create: None,
+                    participants: None,
                     limits: None,
                 })
             }
@@ -285,6 +290,7 @@ impl OAuth {
                     },
                     tournaments: None,
                     create: None,
+                    participants: None,
                     limits: site.limits,
                 })
             }
@@ -323,6 +329,7 @@ impl OAuth {
             (request, read.clone())
         });
         oauth.create = organizer.create.clone();
+        oauth.participants = organizer.participants.clone();
         Some(oauth)
     }
 
@@ -432,6 +439,70 @@ impl OAuth {
             },
             read: create.clone(),
         }))
+    }
+
+    /// Whether the site takes players who sign up through Ember.
+    pub fn takes_sign_ups(&self) -> bool {
+        self.participants.is_some()
+    }
+
+    /// Adds a player to the organizer's event `tournament` as `name`, the
+    /// site account `username`, marked with `marker`, with the organizer's
+    /// access token; the participant's ID, or None on any failure or when
+    /// the site takes no sign-ups.
+    pub async fn add_participant(
+        &self,
+        token: &str,
+        tournament: &str,
+        name: &str,
+        username: &str,
+        marker: &str,
+    ) -> Option<String> {
+        let add = self.participants.as_ref()?;
+        let mut body = add.body.clone();
+        set(&mut body, &add.name_pointer, Value::from(name));
+        set(&mut body, &add.username_pointer, Value::from(username));
+        set(&mut body, &add.marker_pointer, Value::from(marker));
+        let request = UserRequest {
+            method: Method::Post,
+            url: add.url.replace("{tournament}", path_id(tournament)?),
+            headers: pairs(&add.headers),
+            body: Some(body),
+        };
+        let client = outbound_client().build().ok()?;
+        let answer: Value =
+            serde_json::from_slice(&send(&client, &request, token, MAX_ANSWER).await?).ok()?;
+        text_at(&answer, &add.id_pointer).filter(|id| path_id(id).is_some())
+    }
+
+    /// Takes participant `participant` out of the organizer's event
+    /// `tournament`; whether the site said it did.
+    pub async fn remove_participant(
+        &self,
+        token: &str,
+        tournament: &str,
+        participant: &str,
+    ) -> bool {
+        let Some(add) = self.participants.as_ref() else {
+            return false;
+        };
+        let (Some(tournament), Some(participant)) = (path_id(tournament), path_id(participant))
+        else {
+            return false;
+        };
+        let request = UserRequest {
+            method: Method::Delete,
+            url: add
+                .remove_url
+                .replace("{tournament}", tournament)
+                .replace("{participant}", participant),
+            headers: pairs(&add.headers),
+            body: None,
+        };
+        let Ok(client) = outbound_client().build() else {
+            return false;
+        };
+        send(&client, &request, token, MAX_ANSWER).await.is_some()
     }
 
     /// Exchanges an organizer's refresh token for fresh tokens, or None on
@@ -576,6 +647,7 @@ async fn send(
     let builder = match request.method {
         Method::Get => client.get(&request.url),
         Method::Post => client.post(&request.url),
+        Method::Delete => client.delete(&request.url),
     };
     // A body is JSON unless the definition's own `Content-Type` says
     // otherwise: its headers replace the default, so none goes twice.
@@ -606,6 +678,17 @@ async fn send(
         return None;
     }
     read_bounded(response, limit).await
+}
+
+/// `id` when it can go into a URL path as it is: 1 to 128 letters, digits,
+/// `-` and `_`.
+fn path_id(id: &str) -> Option<&str> {
+    (!id.is_empty()
+        && id.len() <= 128
+        && id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_'))
+    .then_some(id)
 }
 
 /// Text at `pointer` in `value`: a string, or a whole number of zero or

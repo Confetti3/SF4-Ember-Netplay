@@ -90,6 +90,12 @@ call when the desk makes its match or the TO calls it again, with players
 pinged by their Ember-connected Discord and the match link; `post_results`
 adds the score of each called set when it is done (`delivery::calls`).
 
+Sign-ups through Ember (037): `POST`/`DELETE /v1/events/{id}/sign-up`
+adds a player whose account on the event's site is connected to the site's
+event as a participant under that username (`organizer.participants`), so
+the connector finds them by username as before. Open while the organizer
+has `sign_ups` on and the event is a draft.
+
 To the organizer, `GET /v1/organizer/events/{id}/sets` serves those sets
 with each Ember match's score, state and players; `GET /v1/public/events/{id}`
 serves them to anyone while the event is `public` (the mobile viewer).

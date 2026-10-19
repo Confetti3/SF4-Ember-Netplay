@@ -106,7 +106,7 @@ async fn listed(state: &AppState, site: &Site, ember_id: &str) -> Result<Vec<Tou
 /// Who sends an organizer's command: the session player, with the proof
 /// that authorizes it, or the organizer signed in to the web desk, whose
 /// change carries the session's CSRF token instead (`sign_in::desk`).
-enum Caller {
+pub(crate) enum Caller {
     Player {
         player: auth::Player,
         request: ProvenRequest,
@@ -116,7 +116,7 @@ enum Caller {
 
 impl Caller {
     /// The command in `body`, and who sent it.
-    async fn of<C: DeserializeOwned>(
+    pub(crate) async fn of<C: DeserializeOwned>(
         state: &AppState,
         headers: &HeaderMap,
         body: &Body<PROOF_BODY>,
@@ -135,7 +135,7 @@ impl Caller {
         Ok((Self::Player { player, request }, command))
     }
 
-    fn ember_id(&self) -> &str {
+    pub(crate) fn ember_id(&self) -> &str {
         match self {
             Self::Player { player, .. } => player.ember_id.as_str(),
             Self::Desk(ember_id) => ember_id,
@@ -144,7 +144,7 @@ impl Caller {
 
     /// Consumes a player's proof for `action` on `method` and `path` in
     /// `tx`; the Ember ID it names, or the desk organizer's.
-    fn prove(
+    pub(crate) fn prove(
         &self,
         tx: &Transaction<'_>,
         ctx: &Ctx,
@@ -264,7 +264,8 @@ pub async fn list(State(state): State<AppState>, headers: HeaderMap) -> Result<R
         .read(move |tx| {
             let mut query = tx.prepare(
                 "SELECT id, title, status, starts_at, site, tournament, name, settings, links,
-                     created_at, discord_webhook, post_results
+                     created_at, discord_webhook, post_results, sign_ups,
+                     (SELECT COUNT(*) FROM event_sign_ups s WHERE s.event_id = organizer_events.id)
                  FROM organizer_events
                  WHERE ember_id = ?1 AND ended_at IS NULL ORDER BY created_at DESC, id",
             )?;
@@ -293,6 +294,8 @@ pub async fn list(State(state): State<AppState>, headers: HeaderMap) -> Result<R
                         .and_then(|url| String::from_utf8(url.to_vec()).ok())
                         .map(|url| calls::masked(&url)),
                     "post_results": row.get::<_, bool>(11)?,
+                    "sign_ups": row.get::<_, bool>(12)?,
+                    "signed_up": row.get::<_, u64>(13)?,
                 }))
             })?;
             Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
@@ -420,6 +423,10 @@ struct Change {
     /// Whether a finished set's score is posted there too.
     #[serde(default)]
     post_results: Option<bool>,
+    /// Whether players may sign up through Ember (`routes::sign_ups`),
+    /// for an event created on a site that takes participants.
+    #[serde(default)]
+    sign_ups: Option<bool>,
 }
 
 /// A field that was given, null included; serde's own `Option` reads a
@@ -501,6 +508,26 @@ pub async fn change(
                 if taken == 0 {
                     return Ok(Err(Some("Another of Ember's events has that event.")));
                 }
+            }
+            if let Some(sign_ups) = change.sign_ups {
+                let site: Option<String> = tx.query_row(
+                    "SELECT site FROM organizer_events WHERE id = ?1",
+                    [&id],
+                    |row| row.get(0),
+                )?;
+                let takes = site
+                    .and_then(|site| ctx.config.sign_in_site(&site))
+                    .and_then(|site| site.organizer.as_ref())
+                    .is_some_and(|organizer| organizer.participants.is_some());
+                if sign_ups && !takes {
+                    return Ok(Err(Some(
+                        "Players sign up through Ember only for an event on a site that takes them.",
+                    )));
+                }
+                tx.execute(
+                    "UPDATE organizer_events SET sign_ups = ?1 WHERE id = ?2",
+                    params![sign_ups, id],
+                )?;
             }
             if let Some(title) = title {
                 tx.execute(

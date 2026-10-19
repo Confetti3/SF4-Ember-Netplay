@@ -143,12 +143,14 @@ fn route_matches(action: Action, method: Method, path: &str) -> bool {
                         || ["", "/create", "/ready"]
                             .iter()
                             .any(|suffix| id_between("/v1/organizer/events/", "oev", suffix))
-                        || crate::routes::organizer::is_desk_action(path)))
+                        || crate::routes::organizer::is_desk_action(path)
+                        || id_between("/v1/events/", "oev", "/sign-up")))
         }
         (Action::SiteRemove, Method::Delete) => {
             sites::site_of(path, "").is_some()
                 || sites::site_of(path, "/organize").is_some()
                 || id_between("/v1/organizer/events/", "oev", "")
+                || id_between("/v1/events/", "oev", "/sign-up")
         }
         _ => false,
     }

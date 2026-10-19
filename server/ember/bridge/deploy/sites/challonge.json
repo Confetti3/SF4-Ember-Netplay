@@ -86,6 +86,20 @@
       "id_pointer": "/data/id",
       "link_pointer": "/data/attributes/url",
       "link_prefix": "https://challonge.com/"
+    },
+    "participants": {
+      "url": "https://api.challonge.com/v2.1/tournaments/{tournament}/participants.json",
+      "remove_url": "https://api.challonge.com/v2.1/tournaments/{tournament}/participants/{participant}.json",
+      "headers": {
+        "Accept": "application/json",
+        "Content-Type": "application/vnd.api+json",
+        "Authorization-Type": "v2"
+      },
+      "body": { "data": { "type": "participant", "attributes": { "name": "", "username": "", "misc": "" } } },
+      "name_pointer": "/data/attributes/name",
+      "username_pointer": "/data/attributes/username",
+      "marker_pointer": "/data/attributes/misc",
+      "id_pointer": "/data/id"
     }
   }
 }

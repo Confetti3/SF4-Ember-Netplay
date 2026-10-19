@@ -4,6 +4,7 @@
 //! again, with the players pinged and the match link, and the score once the
 //! set is done. Against a stand-in Discord webhook.
 mod common;
+#[allow(dead_code, unused_imports)]
 #[path = "challonge/support.rs"]
 mod support;
 

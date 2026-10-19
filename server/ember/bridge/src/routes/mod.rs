@@ -18,6 +18,7 @@ pub mod reports;
 pub mod rooms;
 pub mod sessions;
 pub mod sign_in;
+pub mod sign_ups;
 pub mod tournaments;
 pub mod webhooks;
 
@@ -132,6 +133,10 @@ pub fn router(state: AppState) -> Router {
             post(organizer::adjudicate),
         )
         .route("/v1/public/events/{id}", get(organizer::public))
+        .route(
+            "/v1/events/{id}/sign-up",
+            post(sign_ups::sign_up).delete(sign_ups::withdraw),
+        )
         .route("/v1/events/stream", get(events::stream))
         .route(
             "/v1/webhook-subscriptions",
