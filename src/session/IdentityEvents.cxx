@@ -15,10 +15,14 @@ std::string Text(const nlohmann::json& object, const char* key, std::size_t limi
     return value.substr(0, end);
 }
 
-// When an account connected; 0 when unknown.
-std::uint64_t ConnectedAt(const nlohmann::json& account) {
-    const auto it = account.is_object() ? account.find("connected_at") : account.end();
-    return it != account.end() && it->is_number_unsigned() ? it->get<std::uint64_t>() : 0;
+// The account at `data.account`, its user ID kept to `idLimit` characters;
+// empty when there is none, and 0 for a connection time not given as a number.
+netplay::IdentityAccount AccountOf(const nlohmann::json& data, std::size_t idLimit) {
+    const auto account = data.value("account", nlohmann::json());
+    if (!account.is_object()) return {};
+    const auto at = account.find("connected_at");
+    return {Text(account, "user_id", idLimit), Text(account, "username", 64),
+        at != account.end() && at->is_number_unsigned() ? at->get<std::uint64_t>() : 0};
 }
 }
 
@@ -94,15 +98,11 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
             if (claim.is_object() && view.pending.size() < 32)
                 view.pending.push_back({Text(claim, "claim_id", 64), Text(claim, "connection_id", 64), Text(claim, "provider", 64), {}});
     } else if (view.op == "discord_status" || view.op == "discord_remove") {
-        const auto account = data.value("account", nlohmann::json());
-        view.discordUser = account.is_object() ? Text(account, "user_id", 20) : std::string();
-        view.discordName = account.is_object() ? Text(account, "username", 64) : std::string();
-        view.discordConnectedAt = ConnectedAt(account);
+        const auto account = AccountOf(data, 20);
+        view.discordUser = account.user; view.discordName = account.name; view.discordConnectedAt = account.connectedAt;
     } else if (view.op == "site_status" || view.op == "site_remove") {
-        const auto account = data.value("account", nlohmann::json());
-        view.siteUser = account.is_object() ? Text(account, "user_id", 64) : std::string();
-        view.siteName = account.is_object() ? Text(account, "username", 64) : std::string();
-        view.siteConnectedAt = ConnectedAt(account);
+        const auto account = AccountOf(data, 64);
+        view.siteUser = account.user; view.siteName = account.name; view.siteConnectedAt = account.connectedAt;
     } else if (view.op == "link_claim") {
         view.claimFingerprint = Text(data, "fingerprint", 32);
     } else if (view.op == "identity_preview_import") {

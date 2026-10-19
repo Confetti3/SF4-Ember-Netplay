@@ -46,10 +46,8 @@ struct SignInSiteInfo {
     // name as {0}, and its sign-in goes on past a new Connect Discord journey
     // until its own screen or another sign-in ends it.
     bool listed = false;
-    // The view's fields for the account last read.
-    std::string netplay::IdentityView::* user = nullptr;
-    std::string netplay::IdentityView::* name = nullptr;
-    std::uint64_t netplay::IdentityView::* connectedAt = nullptr;
+    // The view's account last read.
+    netplay::IdentityAccount (netplay::IdentityView::* account)() const = nullptr;
     // Its rows' ids, wherever they show.
     struct Rows {
         const char* service = nullptr;
@@ -95,7 +93,7 @@ inline const SignInSiteInfo& Site(SignInSource source) {
     static const SignInSiteInfo discord = [] {
         SignInSiteInfo d;
         d.screen = DiscordConnectScreen; d.alsoOn = "linked-accounts";
-        d.user = &IdentityView::discordUser; d.name = &IdentityView::discordName; d.connectedAt = &IdentityView::discordConnectedAt;
+        d.account = &IdentityView::Discord;
         auto& r = d.rows;
         r.service = "dc-service"; r.waiting = "dc-waiting"; r.progress = "dc-progress"; r.connected = "dc-connected";
         r.connect = "id-discord-connect"; r.remove = "id-discord-remove"; r.off = "dc-off"; r.retry = "dc-retry"; r.cancel = "dc-cancel";
@@ -116,7 +114,7 @@ inline const SignInSiteInfo& Site(SignInSource source) {
     static const SignInSiteInfo listed = [] {
         SignInSiteInfo s;
         s.screen = SiteConnectScreen; s.listed = true;
-        s.user = &IdentityView::siteUser; s.name = &IdentityView::siteName; s.connectedAt = &IdentityView::siteConnectedAt;
+        s.account = &IdentityView::Site;
         auto& r = s.rows;
         r.service = "st-service"; r.waiting = "st-waiting"; r.progress = "st-progress"; r.connected = "st-connected";
         r.connect = "st-connect"; r.remove = "st-remove"; r.off = "st-off"; r.retry = "st-retry"; r.cancel = "st-cancel";

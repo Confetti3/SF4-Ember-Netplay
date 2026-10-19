@@ -325,10 +325,9 @@ private:
     // whether it was ever read, and whether the latest read of the service
     // or the account failed (then the Connect screen trusts none of it until
     // Try again succeeds).
-    struct SiteAccount {
-        std::string user, name;
-        std::uint64_t connectedAt = 0;
+    struct SiteAccount : netplay::IdentityAccount {
         bool read = false, failed = false;
+        void Set(const netplay::IdentityAccount& now) { IdentityAccount::operator=(now); read = true; failed = false; }
     };
     std::map<std::tuple<SignInSource, std::string, std::string>, SiteAccount> accounts_;
     SiteAccount& Account(const SignInTarget& target, const std::string& bridge);
@@ -349,9 +348,9 @@ private:
     bool connectLookedUp_ = false;
     // The sign-in under way, Discord's or a listed site's, one at a time
     // (IdentitySignIn.cxx): the site and service it is for, the account
-    // connected when its page was opened and when it connected (only a
-    // connection since then finishes it, another account's or the same
-    // one's again), and its phase. Steps: Connect Discord's own steps up to Discord's page
+    // connected when its page was opened (only a connection since then
+    // finishes it, another account's or the same one's again), and its phase.
+    // Steps: Connect Discord's own steps up to Discord's page
     // (IdentityConnect.cxx), Discord only and with no service yet. Opening:
     // its page is being opened. Waiting: the page is open and waited for.
     // Stopped: by a failure, Cancel or its deadline; only Connect or Try
@@ -363,11 +362,11 @@ private:
     struct SignInAttempt {
         enum class Phase { Steps, Opening, Waiting, Stopped };
         SignInTarget target;
-        std::string bridge, before;
+        std::string bridge;
+        netplay::IdentityAccount before;
         Phase phase = Phase::Opening;
         double until = 0, pollAt = 0;
         bool paused = false;
-        std::uint64_t beforeAt = 0;
     };
     std::optional<SignInAttempt> signIn_;
     // The backup the view's preview describes, while the path still names it.

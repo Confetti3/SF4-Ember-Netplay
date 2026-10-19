@@ -136,8 +136,8 @@ bool IdentityPanel::WaitingOn(const SignInTarget& target, const std::string& bri
 void IdentityPanel::OpenSignIn(const SignInTarget& target, const std::string& bridge) {
     EndOtherSignIn(target);
     const auto* account = FindAccount(target, bridge);
-    SignInAttempt next{target, bridge, account ? account->user : std::string()};
-    next.beforeAt = account ? account->connectedAt : 0;
+    SignInAttempt next{target, bridge};
+    if (account) next.before = *account;
     // The same site again on the same service (Discord's change of account):
     // the wait already running goes on as it always has, still shown and
     // still read every few seconds, until the new page's answer starts it again.
@@ -326,23 +326,19 @@ void IdentityPanel::SignInFinish(const ShellView& v) {
     if (!signIn) return;
     const auto target = SentTarget();
     const auto& info = Site(target.source);
-    const auto& user = id.*info.user;
-    const auto& name = id.*info.name;
+    const auto read = (id.*info.account)();
     using Phase = SignInAttempt::Phase;
     const bool waitedFor = signIn_ && signIn_->target == target && signIn_->bridge == sentBridge_;
     switch (signIn->step) {
     case SignInStep::Status: {
         // A site its service stopped listing since the read was asked keeps nothing.
         if (info.listed && !ListedSite(sentBridge_, target.site)) break;
-        auto& account = Account(target, sentBridge_);
-        const auto connectedAt = id.*info.connectedAt;
-        account.user = user; account.name = name; account.connectedAt = connectedAt; account.read = true; account.failed = false;
+        Account(target, sentBridge_).Set(read);
         // Only the service and site the sign-in is for end the wait, and only
-        // with an account connected since the page opened: another one, or
-        // the same one again, which the service connects anew.
-        if (waitedFor && signIn_->until > 0 && !user.empty() && (user != signIn_->before || connectedAt != signIn_->beforeAt)) {
+        // with an account connected since the page opened.
+        if (waitedFor && signIn_->until > 0 && read.ConnectedSince(signIn_->before)) {
             signIn_.reset();
-            Say(Word(target, info.words.done, name), false, 20);
+            Say(Word(target, info.words.done, read.name), false, 20);
         }
         break;
     }
@@ -354,8 +350,7 @@ void IdentityPanel::SignInFinish(const ShellView& v) {
         signIn_->until = now_ + SignInSeconds; signIn_->pollAt = now_ + PollSeconds; signIn_->paused = false;
         break;
     case SignInStep::Remove: {
-        auto& account = Account(target, sentBridge_);
-        account.user.clear(); account.name.clear(); account.connectedAt = 0; account.read = true; account.failed = false;
+        Account(target, sentBridge_).Set({});
         if (waitedFor) signIn_.reset();
         Say(Word(target, info.words.removed), false);
         break;

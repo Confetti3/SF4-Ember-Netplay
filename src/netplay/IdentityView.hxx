@@ -21,6 +21,17 @@ struct IdentityLink { std::string id, connection, provider, account; };
 struct IdentitySignInSite { std::string id, name; bool signIn = false; };
 // The most sign-in sites kept from one service's list.
 constexpr std::size_t MaxSignInSites = 16;
+// An account connected on a sign-in service: its user ID (empty when none),
+// name and when it connected, in seconds; each sign-in connects it anew.
+struct IdentityAccount {
+    std::string user, name;
+    std::uint64_t connectedAt = 0;
+    // Connected after `before`: another account, or the same one again (a
+    // service sending no time reads 0 throughout, so that waits out its deadline).
+    bool ConnectedSince(const IdentityAccount& before) const {
+        return !user.empty() && (user != before.user || connectedAt != before.connectedAt);
+    }
+};
 struct IdentityView {
     // A status has arrived from the helper.
     bool known = false;
@@ -38,14 +49,12 @@ struct IdentityView {
     bool inspectedDiscord = false, inspectedDiscordAccounts = false;
     // The sign-in sites the bridge last inspected lists.
     std::vector<IdentitySignInSite> signInSites;
-    // The Discord account connected on the bridge last asked, and when it
-    // connected (each sign-in, the same account's again too, connects it
-    // anew); empty and 0 when none.
-    std::string discordUser, discordName;
-    std::uint64_t discordConnectedAt = 0;
-    // The account connected on the sign-in site last asked, likewise.
-    std::string siteUser, siteName;
-    std::uint64_t siteConnectedAt = 0;
+    // The Discord account connected on the bridge last asked, and the account
+    // connected on the sign-in site last asked; empty when none.
+    std::string discordUser, discordName, siteUser, siteName;
+    std::uint64_t discordConnectedAt = 0, siteConnectedAt = 0;
+    IdentityAccount Discord() const { return {discordUser, discordName, discordConnectedAt}; }
+    IdentityAccount Site() const { return {siteUser, siteName, siteConnectedAt}; }
     // Links and pending claims on the bridge last listed.
     std::vector<IdentityLink> links, pending;
     // The last answer: which request, what it did, and a stable failure code.

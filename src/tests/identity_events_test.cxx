@@ -74,6 +74,8 @@ void Answers() {
     sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":3,"op":"site_remove","ok":true,"data":{"account":null}})"), view);
     Check(view.siteUser.empty() && view.siteName.empty() && view.discordName == "player1", "Unlinking a site's account was not read");
     Check(view.siteConnectedAt == 0, "Unlinking a site's account kept when it connected");
+    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":7,"op":"discord_remove","ok":true,"data":{"account":null}})"), view);
+    Check(view.discordUser.empty() && view.discordConnectedAt == 0, "Unlinking Discord's account kept when it connected");
     sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":6,"op":"discord_status","ok":true,"data":{
         "account":{"user_id":"274220342558756145","username":"player1","connected_at":30}}})"), view);
     Check(view.discordConnectedAt == 30 && view.siteConnectedAt == 0, "When Discord's account connected was not read");
@@ -141,6 +143,12 @@ void Names() {
     status["data"]["account"] = {{"user_id", "1"}, {"username", name}};
     sf4e::session::ApplyTournamentEvent(status, view);
     Check(view.siteName == name.substr(0, 64 * 3), "A long account name was not kept to 64 characters");
+    Check(view.siteConnectedAt == 0, "A missing connection time was not 0");
+    for (const auto& at : {nlohmann::json("soon"), nlohmann::json(-5), nlohmann::json(1.5)}) {
+        status["data"]["account"]["connected_at"] = at;
+        sf4e::session::ApplyTournamentEvent(status, view);
+        Check(view.siteConnectedAt == 0, "A connection time that is no whole number was not 0");
+    }
 }
 }
 
