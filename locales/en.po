@@ -3775,6 +3775,27 @@ msgstr "Records a game played outside Ember, such as a replay agreed by both pla
 msgid "desk.done"
 msgstr "Done."
 
+msgid "desk.web"
+msgstr "Signed in on the web"
+
+msgid "desk.web_none"
+msgstr "No browser is signed in to the tournament desk."
+
+msgid "desk.web_detail"
+msgstr "Newest: {0} with {1}. A web session ends after 12 hours, or 2 hours unused."
+
+msgid "desk.web_end"
+msgstr "Sign out everywhere"
+
+msgid "desk.web_end_detail"
+msgstr "Ends every web desk session of this Ember ID. Sign in on the web again to use it."
+
+msgid "desk.web_new"
+msgstr "Someone signed in to your tournament desk on the web. Not you? Choose Sign out everywhere."
+
+msgid "desk.web_ended"
+msgstr "Signed out of the web desk everywhere."
+
 msgid "site.cancel_detail"
 msgstr "Stops waiting. Choose Connect {0} again when you are ready."
 

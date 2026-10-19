@@ -4134,6 +4134,27 @@ msgstr "Registra una partita giocata fuori da Ember, come una rivincita concorda
 msgid "desk.done"
 msgstr "Fatto."
 
+msgid "desk.web"
+msgstr "Accesso sul web"
+
+msgid "desk.web_none"
+msgstr "Nessun browser ha effettuato l'accesso al banco del torneo."
+
+msgid "desk.web_detail"
+msgstr "Più recente: {0} con {1}. Una sessione web termina dopo 12 ore, o dopo 2 ore di inattività."
+
+msgid "desk.web_end"
+msgstr "Esci ovunque"
+
+msgid "desk.web_end_detail"
+msgstr "Termina tutte le sessioni web del banco per questo Ember ID. Accedi di nuovo sul web per usarlo."
+
+msgid "desk.web_new"
+msgstr "Qualcuno ha effettuato l'accesso al tuo banco del torneo sul web. Non eri tu? Scegli Esci ovunque."
+
+msgid "desk.web_ended"
+msgstr "Uscito dal banco web ovunque."
+
 msgid "site.cancel_detail"
 msgstr "Smette di aspettare. Scegli di nuovo Collega {0} quando sei pronto."
 

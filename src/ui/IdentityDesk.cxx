@@ -87,6 +87,8 @@ void IdentityPanel::DeskPoll(const ShellView& v, const std::string& screen) {
     IdentityRequest read; read.op = IdentityOp::DeskRead; read.bridge = ember->id;
     if (screen != "tournament-desk") read.target = deskEvent_;
     Queue(std::move(read));
+    // The desk's first screen also says who is signed in on the web.
+    if (screen == "tournament-desk") { IdentityRequest web; web.op = IdentityOp::DeskWeb; web.bridge = ember->id; Queue(std::move(web)); }
 }
 
 void IdentityPanel::DeskRows(const ShellView& v, const std::string& screen, std::vector<MenuEntry>& rows, std::string& title) const {
@@ -102,6 +104,11 @@ void IdentityPanel::DeskRows(const ShellView& v, const std::string& screen, std:
         }
         if (id.deskEvents.empty())
             rows.push_back(InfoRow("dk-none", loc::T("desk.none"), {}, loc::T("desk.none_detail")));
+        // Web desk sessions: how many, the newest, and signing them all out.
+        const auto& web = id.webSessions;
+        rows.push_back(InfoRow("dk-web", loc::T("desk.web"), std::to_string(web.size()),
+            web.empty() ? std::string(loc::T("desk.web_none")) : loc::Tf("desk.web_detail", web.front().browser, web.front().site)));
+        if (!web.empty()) rows.push_back(ConfirmRow("dk-web-end", loc::T("desk.web_end"), loc::T("desk.web_end_detail"), !busy));
         return;
     }
     const auto event = std::find_if(id.deskEvents.begin(), id.deskEvents.end(),
@@ -184,6 +191,10 @@ bool IdentityPanel::DeskActivate(const MenuAction& a, const ShellView& v, MenuNa
     }
     if (a.id.compare(0, 7, "dk-set:") == 0) { deskSet_ = a.id.substr(7); nav.Push("desk-set"); return true; }
     const auto* ember = EmberBridge(v);
+    if (a.id == "dk-web-end" && ember) {
+        IdentityRequest end; end.op = IdentityOp::DeskWebEnd; end.bridge = ember->id;
+        message_.clear(); Queue(std::move(end)); return true;
+    }
     const auto* s = DeskSelected(v);
     if (!ember || !s) return a.id.compare(0, 3, "dk-") == 0;
     IdentityRequest r; r.op = IdentityOp::DeskAct; r.bridge = ember->id;

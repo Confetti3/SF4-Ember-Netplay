@@ -4134,6 +4134,27 @@ msgstr "Trägt ein Spiel ein, das außerhalb von Ember gespielt wurde, etwa eine
 msgid "desk.done"
 msgstr "Erledigt."
 
+msgid "desk.web"
+msgstr "Im Web angemeldet"
+
+msgid "desk.web_none"
+msgstr "Kein Browser ist am Turnier-Desk angemeldet."
+
+msgid "desk.web_detail"
+msgstr "Neueste: {0} mit {1}. Eine Web-Sitzung endet nach 12 Stunden oder nach 2 Stunden ohne Nutzung."
+
+msgid "desk.web_end"
+msgstr "Überall abmelden"
+
+msgid "desk.web_end_detail"
+msgstr "Beendet alle Web-Desk-Sitzungen dieser Ember-ID. Melde dich im Web neu an, um ihn zu nutzen."
+
+msgid "desk.web_new"
+msgstr "Jemand hat sich im Web an deinem Turnier-Desk angemeldet. Warst du es nicht? Wähle Überall abmelden."
+
+msgid "desk.web_ended"
+msgstr "Überall vom Web-Desk abgemeldet."
+
 msgid "site.cancel_detail"
 msgstr "Beendet das Warten. Wählen Sie {0} verbinden erneut, wenn Sie bereit sind."
 

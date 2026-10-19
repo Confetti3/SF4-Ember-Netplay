@@ -4134,6 +4134,27 @@ msgstr "Enregistre une partie jouée hors d'Ember, comme une revanche acceptée 
 msgid "desk.done"
 msgstr "Fait."
 
+msgid "desk.web"
+msgstr "Connecté sur le web"
+
+msgid "desk.web_none"
+msgstr "Aucun navigateur n'est connecté au bureau du tournoi."
+
+msgid "desk.web_detail"
+msgstr "Plus récente : {0} avec {1}. Une session web prend fin après 12 heures, ou 2 heures sans utilisation."
+
+msgid "desk.web_end"
+msgstr "Se déconnecter partout"
+
+msgid "desk.web_end_detail"
+msgstr "Met fin à toutes les sessions web du bureau pour cet Ember ID. Reconnectez-vous sur le web pour l'utiliser."
+
+msgid "desk.web_new"
+msgstr "Quelqu'un s'est connecté à votre bureau de tournoi sur le web. Ce n'était pas vous ? Choisissez Se déconnecter partout."
+
+msgid "desk.web_ended"
+msgstr "Déconnecté du bureau web partout."
+
 msgid "site.cancel_detail"
 msgstr "Arrête l'attente. Choisissez à nouveau Connecter {0} quand vous êtes prêt."
 

@@ -4134,6 +4134,27 @@ msgstr "Registra una partida jugada fuera de Ember, como una revancha acordada p
 msgid "desk.done"
 msgstr "Hecho."
 
+msgid "desk.web"
+msgstr "Sesión iniciada en la web"
+
+msgid "desk.web_none"
+msgstr "Ningún navegador ha iniciado sesión en el escritorio del torneo."
+
+msgid "desk.web_detail"
+msgstr "Más reciente: {0} con {1}. Una sesión web termina tras 12 horas, o 2 horas sin uso."
+
+msgid "desk.web_end"
+msgstr "Cerrar sesión en todas partes"
+
+msgid "desk.web_end_detail"
+msgstr "Termina todas las sesiones web del escritorio de este Ember ID. Vuelve a iniciar sesión en la web para usarlo."
+
+msgid "desk.web_new"
+msgstr "Alguien ha iniciado sesión en tu escritorio del torneo en la web. ¿No has sido tú? Elige Cerrar sesión en todas partes."
+
+msgid "desk.web_ended"
+msgstr "Sesión cerrada en el escritorio web en todas partes."
+
 msgid "site.cancel_detail"
 msgstr "Deja de esperar. Elige Conectar {0} de nuevo cuando estés listo."
 

@@ -4134,6 +4134,27 @@ msgstr "记录在 Ember 之外进行的一局，例如双方同意的重赛。"
 msgid "desk.done"
 msgstr "已完成。"
 
+msgid "desk.web"
+msgstr "已在网页登录"
+
+msgid "desk.web_none"
+msgstr "没有浏览器登录赛事台。"
+
+msgid "desk.web_detail"
+msgstr "最新：{0}，通过 {1}。网页会话在 12 小时后或闲置 2 小时后结束。"
+
+msgid "desk.web_end"
+msgstr "在所有地方退出"
+
+msgid "desk.web_end_detail"
+msgstr "结束此 Ember ID 的所有网页赛事台会话。要使用，请在网页上重新登录。"
+
+msgid "desk.web_new"
+msgstr "有人在网页上登录了你的赛事台。不是你？请选择“在所有地方退出”。"
+
+msgid "desk.web_ended"
+msgstr "已在所有地方退出网页赛事台。"
+
 msgid "site.cancel_detail"
 msgstr "停止等待。准备好后，请再次选择“关联 {0}”。"
 

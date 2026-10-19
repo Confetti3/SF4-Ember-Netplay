@@ -134,6 +134,20 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
                     d.games.push_back({Text(game, "attempt_id", 64), Text(game, "outcome", 32), Text(game, "state", 32)});
             view.deskSets.push_back(std::move(d));
         }
+    } else if (view.op == "desk_web") {
+        view.webSessions.clear();
+        for (const auto& session : data.value("sessions", nlohmann::json::array())) {
+            if (!session.is_object() || view.webSessions.size() >= 20) continue;
+            netplay::WebSession w;
+            w.site = Text(session, "site", 32); w.browser = Text(session, "browser", 32);
+            const auto at = [&](const char* key) {
+                const auto it = session.find(key);
+                return it != session.end() && it->is_number_unsigned() ? it->get<std::uint64_t>() : std::uint64_t{0};
+            };
+            w.startedAt = at("started_at"); w.lastUsedAt = at("last_used_at");
+            w.fresh = session.value("new", false);
+            view.webSessions.push_back(std::move(w));
+        }
     } else if (view.op == "desk_read") {
         view.deskEvents.clear();
         for (const auto& event : data.value("events", nlohmann::json::array()))
@@ -207,6 +221,11 @@ std::string BuildTournamentRequest(const netplay::IdentityRequest& r) {
     case IdentityOp::DeskRead:
         body["op"] = "desk_read"; complete = need({{"bridge_id", &r.bridge}});
         if (!r.target.empty()) body["event"] = r.target;
+        break;
+    case IdentityOp::DeskWeb: case IdentityOp::DeskWebSeen: case IdentityOp::DeskWebEnd:
+        body["op"] = "desk_web"; complete = need({{"bridge_id", &r.bridge}});
+        if (r.op == IdentityOp::DeskWebSeen) body["seen"] = true;
+        if (r.op == IdentityOp::DeskWebEnd) body["end"] = true;
         break;
     case IdentityOp::DeskAct: {
         body["op"] = "desk_act"; complete = need({{"bridge_id", &r.bridge}, {"path", &r.target}});

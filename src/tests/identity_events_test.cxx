@@ -196,6 +196,19 @@ void Desk() {
         "A set was not read as the desk shows it");
     Check(set.games.size() == 1 && set.games[0].attempt == "att_1" && set.games[0].state == "review", "A set's games were not read");
     Check(!view.deskSets[1].scored, "A score that is no pair was taken");
+
+    // The web desk's sessions: read, noted, and all signed out.
+    Check(sf4e::netplay::EffectOf(IdentityOp::DeskWeb) == sf4e::netplay::IdentityEffect::Read, "A web sessions read is not a read");
+    Check(sf4e::netplay::EffectOf(IdentityOp::DeskWebEnd) == sf4e::netplay::IdentityEffect::Change, "Signing the web out is not a change");
+    sf4e::netplay::IdentityRequest web; web.op = IdentityOp::DeskWebEnd; web.bridge = "brg_1";
+    Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(web)) == nlohmann::json({{"op", "desk_web"}, {"bridge_id", "brg_1"}, {"end", true}}),
+        "Signing the web out was not built");
+    web.op = IdentityOp::DeskWebSeen;
+    Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(web)).value("seen", false), "Noting web sessions seen was not built");
+    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":3,"op":"desk_web","ok":true,"data":{"sessions":[
+        {"site":"challonge","browser":"Chrome on a phone","started_at":10,"last_used_at":20,"new":true}, 5]}})"), view);
+    Check(view.webSessions.size() == 1 && view.webSessions[0].browser == "Chrome on a phone" && view.webSessions[0].fresh &&
+        view.webSessions[0].lastUsedAt == 20 && view.deskSets.size() == 2, "The web sessions were not read, or they replaced the desk");
 }
 
 int main() {

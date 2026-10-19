@@ -4134,6 +4134,27 @@ msgstr "Ember の外で行ったゲーム（両者が合意した再戦など）
 msgid "desk.done"
 msgstr "完了しました。"
 
+msgid "desk.web"
+msgstr "Webでサインイン中"
+
+msgid "desk.web_none"
+msgstr "トーナメントデスクにサインインしているブラウザーはありません。"
+
+msgid "desk.web_detail"
+msgstr "最新: {0}（{1}）。Webセッションは12時間後、または2時間使わないと終了します。"
+
+msgid "desk.web_end"
+msgstr "すべてサインアウト"
+
+msgid "desk.web_end_detail"
+msgstr "この Ember ID のWebデスクのセッションをすべて終了します。使うにはWebで再度サインインしてください。"
+
+msgid "desk.web_new"
+msgstr "Webで誰かがあなたのトーナメントデスクにサインインしました。心当たりがなければ「すべてサインアウト」を選んでください。"
+
+msgid "desk.web_ended"
+msgstr "Webデスクからすべてサインアウトしました。"
+
 msgid "site.cancel_detail"
 msgstr "待機をやめます。準備ができたら、もう一度「{0}を連携」を選んでください。"
 

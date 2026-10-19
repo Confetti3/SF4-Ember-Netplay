@@ -4134,6 +4134,27 @@ msgstr "Ember 밖에서 한 게임(두 선수가 합의한 재경기 등)을 기
 msgid "desk.done"
 msgstr "완료했습니다."
 
+msgid "desk.web"
+msgstr "웹에서 로그인됨"
+
+msgid "desk.web_none"
+msgstr "토너먼트 데스크에 로그인한 브라우저가 없습니다."
+
+msgid "desk.web_detail"
+msgstr "최근: {0}({1}). 웹 세션은 12시간 후 또는 2시간 동안 사용하지 않으면 끝납니다."
+
+msgid "desk.web_end"
+msgstr "모든 곳에서 로그아웃"
+
+msgid "desk.web_end_detail"
+msgstr "이 Ember ID의 웹 데스크 세션을 모두 끝냅니다. 사용하려면 웹에서 다시 로그인하세요."
+
+msgid "desk.web_new"
+msgstr "누군가 웹에서 내 토너먼트 데스크에 로그인했습니다. 본인이 아니라면 모든 곳에서 로그아웃을 선택하세요."
+
+msgid "desk.web_ended"
+msgstr "모든 곳에서 웹 데스크 로그아웃됨."
+
 msgid "site.cancel_detail"
 msgstr "기다리기를 멈춥니다. 준비되면 {0} 연결을 다시 선택하세요."
 

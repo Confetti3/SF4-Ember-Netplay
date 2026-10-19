@@ -47,6 +47,14 @@ struct DeskSet {
     std::uint64_t calledAt = 0;
     std::vector<DeskGame> games;
 };
+// A web desk session of the player's: the site it signed in with, the
+// browser's short name, when it started and was last used, and whether the
+// game has told the player about it.
+struct WebSession {
+    std::string site, browser;
+    std::uint64_t startedAt = 0, lastUsedAt = 0;
+    bool fresh = false;
+};
 struct IdentityView {
     // A status has arrived from the helper.
     bool known = false;
@@ -88,5 +96,7 @@ struct IdentityView {
     std::vector<DeskEvent> deskEvents;
     std::string deskEvent;
     std::vector<DeskSet> deskSets;
+    // The player's web desk sessions, newest first.
+    std::vector<WebSession> webSessions;
 };
 } }

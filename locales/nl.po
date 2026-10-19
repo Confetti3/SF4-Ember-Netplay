@@ -4134,6 +4134,27 @@ msgstr "Legt een game vast die buiten Ember werd gespeeld, zoals een herhaling w
 msgid "desk.done"
 msgstr "Klaar."
 
+msgid "desk.web"
+msgstr "Aangemeld op het web"
+
+msgid "desk.web_none"
+msgstr "Geen browser is aangemeld bij de toernooidesk."
+
+msgid "desk.web_detail"
+msgstr "Nieuwste: {0} met {1}. Een websessie eindigt na 12 uur, of na 2 uur zonder gebruik."
+
+msgid "desk.web_end"
+msgstr "Overal afmelden"
+
+msgid "desk.web_end_detail"
+msgstr "Beëindigt elke webdesksessie van deze Ember ID. Meld je opnieuw aan op het web om hem te gebruiken."
+
+msgid "desk.web_new"
+msgstr "Iemand heeft zich op het web aangemeld bij je toernooidesk. Was jij het niet? Kies Overal afmelden."
+
+msgid "desk.web_ended"
+msgstr "Overal afgemeld van de webdesk."
+
 msgid "site.cancel_detail"
 msgstr "Stopt met wachten. Kies {0} koppelen opnieuw als je klaar bent."
 

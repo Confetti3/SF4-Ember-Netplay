@@ -156,6 +156,15 @@ pub enum Request {
         #[serde(default)]
         event: Option<String>,
     },
+    /// The player's web desk sessions; with `seen`, noting the game has
+    /// told the player about them, and with `end`, signing them all out.
+    DeskWeb {
+        bridge_id: String,
+        #[serde(default)]
+        seen: bool,
+        #[serde(default)]
+        end: bool,
+    },
     /// A desk action on one of an event's sets or matches, at `path`.
     DeskAct {
         bridge_id: String,
@@ -260,6 +269,7 @@ impl Request {
             Self::AssignmentList { .. } => "assignment_list",
             Self::DeskRead { .. } => "desk_read",
             Self::DeskAct { .. } => "desk_act",
+            Self::DeskWeb { .. } => "desk_web",
             Self::MatchClaim { .. } => "match_claim",
             Self::RoomPublish { .. } => "room_publish",
             Self::RoomList { .. } => "room_list",
@@ -768,6 +778,11 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             path,
             command,
         } => desk::act(shared, &bridge_id, &path, command).await,
+        Request::DeskWeb {
+            bridge_id,
+            seen,
+            end,
+        } => desk::web(shared, &bridge_id, seen, end).await,
         Request::MatchClaim {
             bridge_id,
             match_id,

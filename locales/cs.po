@@ -4134,6 +4134,27 @@ msgstr "Zaznamená hru odehranou mimo Ember, například odvetu, na které se ob
 msgid "desk.done"
 msgstr "Hotovo."
 
+msgid "desk.web"
+msgstr "Přihlášeno na webu"
+
+msgid "desk.web_none"
+msgstr "Žádný prohlížeč není přihlášen k turnajovému pultu."
+
+msgid "desk.web_detail"
+msgstr "Nejnovější: {0} přes {1}. Webová relace končí po 12 hodinách nebo po 2 hodinách nečinnosti."
+
+msgid "desk.web_end"
+msgstr "Odhlásit všude"
+
+msgid "desk.web_end_detail"
+msgstr "Ukončí všechny webové relace pultu pro toto Ember ID. Pro použití se na webu přihlaste znovu."
+
+msgid "desk.web_new"
+msgstr "Někdo se přihlásil k tvému turnajovému pultu na webu. Nebyl jsi to ty? Zvol Odhlásit všude."
+
+msgid "desk.web_ended"
+msgstr "Odhlášeno z webového pultu všude."
+
 msgid "site.cancel_detail"
 msgstr "Přestane čekat. Až budete připraveni, zvolte znovu Připojit {0}."
 

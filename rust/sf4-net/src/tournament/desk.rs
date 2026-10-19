@@ -17,6 +17,7 @@ use super::{
 };
 
 const EVENTS: &str = "/v1/organizer/events";
+const WEB: &str = "/v1/web-sessions";
 
 /// The most sets an answer carries, and the longest text kept from one: an
 /// answer goes to the game in one 64 KiB message.
@@ -86,6 +87,63 @@ pub async fn act(shared: &Arc<Shared>, bridge_id: &str, path: &str, command: Val
             answer(status, &response, &[200])?;
             Ok(None)
         }
+    })
+    .await
+}
+
+/// The player's web desk sessions, after noting them seen (`seen`) or
+/// ending them all (`end`, proven with `site.remove`).
+pub async fn web(shared: &Arc<Shared>, bridge_id: &str, seen: bool, end: bool) -> Outcome {
+    with_session(shared, bridge_id, |bridge, token| async move {
+        let url = format!("{}{WEB}", bridge.origin);
+        if end {
+            let body = prove(
+                shared,
+                &bridge,
+                Some(&token),
+                Action::SiteRemove,
+                Method::Delete,
+                WEB,
+                json!({}),
+            )
+            .await?;
+            let (status, response) = shared
+                .client
+                .call(reqwest::Method::DELETE, &url, Some(&token), Some(body))
+                .await?;
+            answer(status, &response, &[200])?;
+        } else if seen {
+            let (status, response) = shared
+                .client
+                .call(
+                    reqwest::Method::POST,
+                    &format!("{url}/seen"),
+                    Some(&token),
+                    Some(b"{}".to_vec()),
+                )
+                .await?;
+            answer(status, &response, &[200])?;
+        }
+        let (status, body) = shared
+            .client
+            .call(reqwest::Method::GET, &url, Some(&token), None)
+            .await?;
+        let found = answer(status, &body, &[200])?;
+        let list = found["sessions"]
+            .as_array()
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let sessions: Vec<Value> = list
+            .iter()
+            .take(20)
+            .map(|session| {
+                kept(
+                    session,
+                    &["site", "browser", "started_at", "last_used_at", "new"],
+                )
+            })
+            .collect();
+        Ok(Some(json!({ "sessions": sessions })))
     })
     .await
 }

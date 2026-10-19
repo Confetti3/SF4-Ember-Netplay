@@ -4134,6 +4134,27 @@ msgstr "Zapisuje grę rozegraną poza Ember, na przykład powtórkę uzgodnioną
 msgid "desk.done"
 msgstr "Gotowe."
 
+msgid "desk.web"
+msgstr "Zalogowano w sieci"
+
+msgid "desk.web_none"
+msgstr "Żadna przeglądarka nie jest zalogowana do biurka turnieju."
+
+msgid "desk.web_detail"
+msgstr "Najnowsza: {0} przez {1}. Sesja w sieci kończy się po 12 godzinach lub po 2 godzinach bezczynności."
+
+msgid "desk.web_end"
+msgstr "Wyloguj wszędzie"
+
+msgid "desk.web_end_detail"
+msgstr "Kończy wszystkie sesje biurka w sieci dla tego Ember ID. Zaloguj się ponownie w sieci, aby z niego korzystać."
+
+msgid "desk.web_new"
+msgstr "Ktoś zalogował się do twojego biurka turnieju w sieci. To nie ty? Wybierz Wyloguj wszędzie."
+
+msgid "desk.web_ended"
+msgstr "Wylogowano z biurka w sieci wszędzie."
+
 msgid "site.cancel_detail"
 msgstr "Przestaje czekać. Wybierz ponownie Połącz {0}, kiedy zechcesz."
 
