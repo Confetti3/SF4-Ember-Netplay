@@ -10,11 +10,16 @@ Street Fighter Galleries / slateman, with the Horror pack from Capcom's official
 paths are native zero-based values. A sibling `color-N-cutout.png` contains the
 same photograph locally masked, cropped, and proportionally resized onto a
 256×384 transparent canvas, stored as a 256-color palette PNG. `cutouts.json`
-records processing details and hashes; cutouts first made at 512×768 were
-halved (premultiplied, then quantized) and keep the original hash in
-`resampled_from_sha256`. Only cutouts ship in packages; the preserved
-photographs stay in the repository as masking inputs.
-No character details or palette colors are generated or recolored.
+records processing details and hashes. Only cutouts ship in packages.
+
+Every costume color's cutout is a render of the game's own model, textures and
+materials, drawn from an installed game (colors 11 and 12 the way the game
+draws them, from color 1 with its own rim and hatching shaders), and imported
+with `scripts/import-costume-renders.py`, which records each one as
+`costume-render-v1` in `cutouts.json`. One source keeps every preview in the
+same pose, light and framing. The photographs below stay in the repository as
+the earlier source; the masking pipeline that made cutouts from them still
+works on them.
 
 The runtime prefers cutouts, then PNGs, then JPEGs. It reads installed-game
 portraits when an original-costume reference is absent. Other absent previews
