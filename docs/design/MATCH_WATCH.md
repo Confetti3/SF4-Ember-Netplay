@@ -990,9 +990,14 @@ part of a snapshot.
 
 ### 6.4 Host powers and inheritance
 
-- **`IsHost`** (`RoomModel.cxx:177`) is false for a watcher in a bound
-  room. That single choke point removes Close, SetCapacity, Lock, Rename,
-  CancelResult and TransferHost from watchers.
+- **`IsHost`** (`RoomModel.cxx:178`) is `member == ActingHost(snapshot)`
+  (`RoomModel.hxx:490`), the one host rule the UI also uses. `ActingHost`
+  gives 0 while the host field holds a watcher, so `IsHost` is false for
+  a watcher in a bound room. That single choke point removes Close,
+  SetCapacity, Lock, Rename, CancelResult and TransferHost from watchers.
+- **`WatcherMay`** is asked before any action kind is dispatched
+  (`RoomModelActions.cxx:434-435`). A watcher's Close, Lock, SetCapacity or
+  TransferHost therefore answers Unauthorized, not NotHost.
 - **`Leave`** picks the oldest remaining fighter as the successor
   (`RoomModel.cxx:676-690`). It picks a watcher only when no fighter
   remains, and `IsHost` still denies that watcher the powers.
@@ -1008,6 +1013,7 @@ part of a snapshot.
 |---|---|
 | Watch, Unwatch, Queue, Unqueue, SetRules, seat | refused (`seatingOrRules`, `RoomModelActions.cxx:477-479`, unchanged) |
 | LockSpectating | refused (new, `:321-324`) |
+| Close, Lock, SetCapacity, TransferHost, Kick | refused by WatcherMay (Unauthorized) |
 | Chat | refused (new; §12 Q3) |
 | Leave | allowed: the only way to stop watching |
 
@@ -1166,8 +1172,12 @@ Decisions:
 ### 7.2 While waiting
 
 `netplay::tournament::WatchPlay` (`src/netplay/WatchPlay.{hxx,cxx}`) is a
-pure state machine like `TournamentPlay`. The runtime ticks it
-(`src/sf4e/sf4e__NetplayRuntime__Tournament.cxx`).
+pure state machine. It and `TournamentPlay` share `MatchRoomFollower`
+(`src/netplay/MatchRoomFollower.hxx`), which decides when to join the
+named room, when to leave an old one and when to leave a finished match.
+Both leave only rooms they joined or hosted. In a room the player opened,
+WatchPlay ends with `other_room` and TournamentPlay waits. The runtime
+ticks it (`src/sf4e/sf4e__NetplayRuntime__Tournament.cxx`).
 
 - **Phases:** Idle, Asking, Waiting, Joining, Watching, Finished, Refused.
 - **Polling.** It sends `match_watch` every 10 s, or after `retry_after`,
@@ -1191,7 +1201,7 @@ pure state machine like `TournamentPlay`. The runtime ticks it
 | Joining | `tournament.watch.state.joining` |
 | Watching | `tournament.watch.state.watching` |
 | Refused | the matching `tournament.watch.refused.*` |
-| Finished | `tournament.watch.finished` |
+| Finished | `tournament.finished_detail` |
 
 ### 7.3 Room view for a watcher
 
@@ -1209,7 +1219,8 @@ pure state machine like `TournamentPlay`. The runtime ticks it
 
 - **Leave or Back** stops `WatchPlay`. It sends `match_unwatch`, then Leave.
 - **A finished match:** the watcher leaves after the last battle closes, on
-  the same `FinalBattleHoldMs` rule as fighters (`TournamentPlay.cxx:100-106`),
+  the same `FinalBattleHoldMs` rule as fighters (defined in
+  `src/netplay/MatchRoomFollower.hxx:20`),
   and shows `tournament.watch.finished_notice`.
 - **A revocation** shows `tournament.watch.removed_notice`.
 - **A closed room** shows `tournament.watch.room_closed_notice`.
@@ -1228,12 +1239,18 @@ pure state machine like `TournamentPlay`. The runtime ticks it
 
 ### 7.6 Discord presence
 
-The join secret (`src/sf4e/sf4e__NetplayRuntime__Status.cxx:209-213`) is set
+The join secret (`src/sf4e/sf4e__NetplayRuntime__Status.cxx:209-216`) is set
 only when both of these hold:
 
 - the room is not server-owned;
-- the runtime has no `TournamentPlay` or `WatchPlay` in phase Claiming,
-  Opening, InRoom or Watching.
+- `netplay::tournament::HoldsMatchRoom` is false for the runtime's
+  `TournamentPlay` and `WatchPlay` phases. That is, neither is under way:
+  Claiming, Opening or InRoom for a played match (`PlayUnderWay`), or
+  Asking, Waiting, Joining or Watching for a watched one (`WatchUnderWay`).
+
+So the runtime passes no join secret while a match is played or watched.
+The presence input has no match room field any more (`PresenceInput::matchRoom`
+is gone).
 
 Two points about this rule:
 
@@ -1251,7 +1268,8 @@ get them later, in the same position.
 | Key | English |
 |---|---|
 | `tournament.watch.row` | Watch this match |
-| `tournament.watch.action` | Watch |
+| `tournament.watch.row_detail` | Watchers see the match from its room. They cannot play or chat, and the organizer decides who may watch. |
+| `tournament.watch.stop_detail` | Leaves the match room. You can watch the match again from this list. |
 | `tournament.watch.needs_id` | Watching a match needs an Ember ID. Make one here; it takes a moment. |
 | `tournament.watch.untrusted_bridge` | This match's tournament service is not trusted yet. Add it on Linked accounts. |
 | `tournament.watch.state.asking` | Asking the tournament service. |
@@ -1264,13 +1282,16 @@ get them later, in the same position.
 | `tournament.watch.refused.fighter` | You play in this match. Use Play instead. |
 | `tournament.watch.refused.build` | The players run a different Ember version. Watching needs the same one. |
 | `tournament.watch.refused.unsupported` | This tournament service does not offer watching. |
-| `tournament.watch.finished` | The match is over. |
+| `tournament.watch.refused.other_room` | Watching stopped because you are in another room. Leave it, then watch the match again. |
 | `tournament.watch.finished_notice` | The match you watched is over. |
 | `tournament.watch.removed_notice` | You stopped watching: the organizer removed you. |
 | `tournament.watch.room_closed_notice` | The match room closed. |
 | `room.tournament_watching` | Watching a tournament match. Only its two players can play. |
 | `room.tournament_status_watched` | Tournament match, first to {0}. {1} watching. |
 | `room.member.watcher` | Watcher |
+| `runtime.watching_match` | You are watching a tournament match. Stop watching under Tournament matches before you open or join another room. |
+| `runtime.watch_leave_room` | Leave your room before you watch a tournament match. |
+| `runtime.watching_hint` | Start or F10 opens Ember, where Stop watching returns you to the room. |
 
 Changed text, same key: `room.tournament_status` ("...Only its two players
 can play.").
