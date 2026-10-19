@@ -54,13 +54,45 @@ constexpr int kSiteSignInSeconds = 300, kSiteLinkSeconds = 420;
 // Done: the outcome is written (Finish).
 enum class Stage { Setup, Settings, EmberId, Inspect, Approve, SiteRead, SiteOpen, SiteWait, Claim, Linked, Match, Room, Ready, Playing, Leaving, Done };
 
+// How a player is linked and finds the match, which is the one thing the two
+// modes do differently. It is chosen once, from SF4E_SELFTEST_SITE, so the
+// steps read what the mode does and never ask which mode it is.
+struct Flow {
+	// The sign-in site to connect an account on (the Challonge mode), empty
+	// for the code link.
+	std::string site;
+	// The stage that follows trusting the bridge: the claim of a link code,
+	// or reading the account on the site before the sign-in.
+	Stage afterApprove = Stage::Claim;
+	// How long the link may take to show, and what its failure says.
+	int linkSeconds = 180;
+	const char* linkFailure = "the claim was never approved";
+	// Whether the runner creates the match and names it (the code link), or
+	// the bracket connector makes it and the test plays the one the bridge
+	// lists as playable and names it to the runner.
+	bool runnerNamesMatch = true;
+
+	bool SignIn() const { return !site.empty(); }
+};
+
+Flow CodeLink() { return {}; }
+Flow SiteLink(std::string site) {
+	Flow flow;
+	flow.site = std::move(site);
+	flow.afterApprove = Stage::SiteRead;
+	flow.linkSeconds = kSiteLinkSeconds;
+	flow.linkFailure = "the connector never linked this account";
+	flow.runnerNamesMatch = false;
+	return flow;
+}
+
 struct Run : Steps<Stage> {
 	std::wstring exchange;
 	std::string origin, connection, bridge, matchId;
-	// The sign-in site to connect an account on (the Challonge mode), empty
-	// for the code link; the account on it before the sign-in, and the last
-	// refusal of a read of it, for the message of a wait that ran out.
-	std::string site, lastRefusal;
+	Flow flow;
+	// The account on the site before the sign-in, and the last refusal of a
+	// read of it, for the message of a wait that ran out.
+	std::string lastRefusal;
 	netplay::IdentityAccount accountBefore;
 	// The last identity request's ticket. The interface numbers its own from
 	// 1, so the test's start far above them.
@@ -89,7 +121,7 @@ void Ask(IdentityRequest request) {
 IdentityRequest Request(IdentityOp op) {
 	IdentityRequest request;
 	request.op = op; request.origin = s_run.origin; request.bridge = s_run.bridge; request.connection = s_run.connection;
-	request.site = s_run.site;
+	request.site = s_run.flow.site;
 	return request;
 }
 
@@ -201,10 +233,10 @@ void Step(const RuntimeSnapshot& now) {
 			for (const auto& connection : id.connections) offered = offered || connection.id == run.connection;
 			if (!offered) { run.Fail("bridge lookup", "the service offers no connection " + run.connection); break; }
 		}
-		if (!run.site.empty()) {
+		if (run.flow.SignIn()) {
 			bool signIn = false;
-			for (const auto& site : id.signInSites) signIn = signIn || (site.id == run.site && site.signIn);
-			if (!signIn) { run.Fail("bridge lookup", "the service offers no sign-in on " + run.site); break; }
+			for (const auto& site : id.signInSites) signIn = signIn || (site.id == run.flow.site && site.signIn);
+			if (!signIn) { run.Fail("bridge lookup", "the service offers no sign-in on " + run.flow.site); break; }
 		}
 		run.Enter(Stage::Approve);
 		break;
@@ -212,7 +244,7 @@ void Step(const RuntimeSnapshot& now) {
 		// Trust, which the player confirms on that screen.
 		if (!Asked(now, IdentityOp::BridgeApprove, "bridge trust")) break;
 		Say(true, "bridge trusted", run.bridge);
-		run.Enter(run.site.empty() ? Stage::Claim : Stage::SiteRead);
+		run.Enter(run.flow.afterApprove);
 		break;
 	case Stage::SiteRead:
 		// The account on the site before the sign-in, as the Connect screen
@@ -230,7 +262,7 @@ void Step(const RuntimeSnapshot& now) {
 		if (!answer.given) { if (run.Late(60)) run.Fail("site sign-in", "the helper never opened the page"); break; }
 		run.asked = false;
 		if (!answer.ok) { run.Fail("site sign-in", answer.reason.empty() ? "refused" : answer.reason); break; }
-		Say(true, "site sign-in opened", run.site);
+		Say(true, "site sign-in opened", run.flow.site);
 		run.Enter(Stage::SiteWait);
 		break;
 	}
@@ -246,9 +278,11 @@ void Step(const RuntimeSnapshot& now) {
 				if (!answer.ok) run.lastRefusal = answer.reason;
 				else if (id.Site().ConnectedSince(run.accountBefore)) {
 					const auto account = id.Site();
+					// The account goes to the runner in the exchange folder and no
+					// further: the line the game logs does not name it.
 					const std::string name = account.name.empty() ? account.user : account.name;
 					if (!WriteExchange(kSiteAccountFile, account.user + " " + name)) { run.Fail("site connected", "the account could not be written to the exchange folder"); break; }
-					Say(true, "site connected", name);
+					Say(true, "site connected");
 					run.Enter(Stage::Linked);
 					break;
 				}
@@ -285,12 +319,12 @@ void Step(const RuntimeSnapshot& now) {
 		// finds the account and links it; the link then shows in the list.
 		if (Linked(now)) { Say(true, "linked", run.connection); run.Enter(Stage::Match); break; }
 		if (run.Every(3)) Ask(Request(IdentityOp::LinkList));
-		if (run.Late(run.site.empty() ? 180 : kSiteLinkSeconds)) run.Fail("linked", run.site.empty() ? "the claim was never approved" : "the connector never linked this account");
+		if (run.Late(run.flow.linkSeconds)) run.Fail("linked", run.flow.linkFailure);
 		break;
 	case Stage::Match:
 		// The runner creates the match once both players are linked; it is
 		// played from the assignment list, as the Matches screen plays it.
-		if (run.matchId.empty() && run.site.empty()) {
+		if (run.matchId.empty() && run.flow.runnerNamesMatch) {
 			run.matchId = ReadExchange(kMatchFile);
 			if (run.matchId.empty() && run.Late(300)) run.Fail("match", "no match arrived from the runner");
 			break;
@@ -359,7 +393,8 @@ bool StartTournament() {
 	s_run.origin = platform::WideToUtf8(Environment(L"SF4E_SELFTEST_BRIDGE"));
 	s_run.connection = platform::WideToUtf8(Environment(L"SF4E_SELFTEST_CONNECTION"));
 	// Optional: the sign-in site to connect an account on instead of a code.
-	s_run.site = platform::WideToUtf8(Environment(L"SF4E_SELFTEST_SITE"));
+	const std::string site = platform::WideToUtf8(Environment(L"SF4E_SELFTEST_SITE"));
+	s_run.flow = site.empty() ? CodeLink() : SiteLink(site);
 	if (s_run.exchange.empty() || s_run.origin.empty() || s_run.connection.empty()) {
 		Say(false, "tournament", "SF4E_SELFTEST_EXCHANGE, SF4E_SELFTEST_BRIDGE and SF4E_SELFTEST_CONNECTION are needed");
 		return false;

@@ -16,6 +16,8 @@ import {
   parseParticipants,
   participantFor,
   readSecret,
+  reopenedProblems,
+  reopenSet,
   reportedProblems,
   signInSite,
 } from "../tools/selftest-challonge.ts";
@@ -167,4 +169,40 @@ test("a connected account is the one participant of that username, whatever its 
   assert.equal(participantFor(names, "player_three"), null);
   assert.equal(participantFor(new Map([["1", "same"], ["2", "same"]]), "same"), null);
   assert.throws(() => parseParticipants({ errors: [] } as never), /not a list/);
+});
+
+test("a set listing the same player twice is not ready to play", () => {
+  const twice = parseMatch(document({ state: "open", points_by_participant: [{ participant_id: 5 }, { participant_id: "5" }] }));
+  assert.match(openProblems(twice, "1234567").join("\n"), /same player twice/);
+});
+
+test("a reopen is confirmed by reading the set again, and fails unless it is open", async () => {
+  const set = (state: string, scores = "1 - 0") => ({ id: "1234567", state, winner: state === "complete" ? "11" : null, player1: "11", player2: "22", scores });
+  const apiAnswering = (reads: ReturnType<typeof set>[], calls: string[]) => ({
+    match: async () => {
+      calls.push("read");
+      return reads.shift()!;
+    },
+    reopen: async () => {
+      calls.push("reopen");
+      return set("open");
+    },
+  });
+
+  // An open set is left alone.
+  let calls: string[] = [];
+  assert.match(await reopenSet(apiAnswering([set("open", "0 - 0")], calls), "1234567"), /open already/);
+  assert.deepEqual(calls, ["read"]);
+
+  // A completed set is reopened, read again, and found open.
+  calls = [];
+  assert.match(await reopenSet(apiAnswering([set("complete"), set("open", "0 - 0")], calls), "1234567"), /was complete; it is open again/);
+  assert.deepEqual(calls, ["read", "reopen", "read"]);
+
+  // A reopen the site ignored fails here, though the change itself was answered.
+  calls = [];
+  await assert.rejects(reopenSet(apiAnswering([set("complete"), set("complete")], calls), "1234567"), /is complete after the reopen, not open/);
+
+  assert.deepEqual(reopenedProblems(set("open", "0 - 0"), "1234567"), []);
+  assert.match(reopenedProblems({ ...set("open"), player2: null }, "1234567").join("\n"), /both players after the reopen/);
 });

@@ -12,7 +12,8 @@
 //   node tools/selftest-challonge.ts reopen <run configuration>
 //
 // Every request counts against the free tier's 500 a month, so this tool
-// makes few: one read before the run, one or a few after it, one for a reopen.
+// makes few: one read before the run, one or a few after it, and for a reopen
+// a read, the change and a read to confirm it.
 // Secrets are read from the files the configuration names when they are used
 // and appear in no message.
 import { readFileSync } from "node:fs";
@@ -93,7 +94,11 @@ export function signInSite(template: Json, clientId: string): { id: string; [key
   return { ...template, id: "challonge", client_id: clientId };
 }
 
-/** The most requests the connector may spend in one run, whatever the month's count says: its database is new each run. */
+/**
+ * The most requests the connector may spend in one run. Only this per-run cap
+ * is enforced: the connector's database is new each run, so it does not know
+ * how many requests earlier runs spent this month.
+ */
 export const CONNECTOR_BUDGET = 40;
 
 /** What the connector's configuration refers to, all as absolute paths or plain values. */
@@ -210,6 +215,7 @@ export function openProblems(match: ChallongeMatch, id: string): string[] {
   if (match.id !== id) problems.push(`Challonge answered match ${match.id}, not ${id}`);
   if (match.state !== "open") problems.push(`match ${id} is ${match.state}, not open (reopen it: node tools/selftest-challonge.ts reopen <run configuration>)`);
   if (match.player1 === null || match.player2 === null) problems.push(`match ${id} does not have both players yet`);
+  else if (match.player1 === match.player2) problems.push(`match ${id} has the same player twice`);
   return problems;
 }
 
@@ -295,6 +301,30 @@ export function apiFor(config: ChallongeConfig): ChallongeApi {
   return new ChallongeApi(config.tournament, readSecret(config.apiKeyFile));
 }
 
+/** What is wrong with a match read back after a reopen, empty when nothing is: it is open again, between two players. */
+export function reopenedProblems(match: ChallongeMatch, id: string): string[] {
+  const problems: string[] = [];
+  if (match.id !== id) problems.push(`Challonge answered match ${match.id}, not ${id}`);
+  if (match.state !== "open") problems.push(`match ${id} is ${match.state} after the reopen, not open`);
+  if (match.player1 === null || match.player2 === null) problems.push(`match ${id} does not have both players after the reopen`);
+  return problems;
+}
+
+/**
+ * Puts the set back to open if it is not, and reads it again to confirm it
+ * is: a refused or ignored reopen fails here, not later in a run. Says what
+ * it found, including the score Challonge shows after the reopen.
+ */
+export async function reopenSet(api: Pick<ChallongeApi, "match" | "reopen">, id: string): Promise<string> {
+  const before = await api.match(id);
+  if (before.state === "open") return `match ${id} is open already; nothing changed`;
+  await api.reopen(id);
+  const after = await api.match(id);
+  const problems = reopenedProblems(after, id);
+  if (problems.length > 0) throw new Error(problems.join("; "));
+  return `match ${id} was ${before.state}; it is open again, and its score reads ${JSON.stringify(after.scores)}`;
+}
+
 if (import.meta.main) {
   const [command, path, ...rest] = process.argv.slice(2);
   if (command !== "reopen" || !path || rest.length > 0) {
@@ -304,13 +334,8 @@ if (import.meta.main) {
   try {
     const config = parseChallongeConfig(readFileSync(path, "utf8"));
     const api = apiFor(config);
-    const match = await api.match(config.match);
-    if (match.state === "open") {
-      console.log(`match ${config.match} is open already; nothing sent (1 request)`);
-    } else {
-      const reopened = await api.reopen(config.match);
-      console.log(`match ${config.match} was ${match.state}; it is now ${reopened.state} (${api.requests} requests)`);
-    }
+    const said = await reopenSet(api, config.match);
+    console.log(`${said} (${api.requests} requests)`);
   } catch (error) {
     console.error((error as Error).message);
     process.exit(1);

@@ -331,23 +331,31 @@ async function link(provider: BridgeClient, exchange: Exchange, subject: string)
 /** A secret the bridge signs a connection's results with, in the form it accepts. */
 const newResultSecret = () => `whsec_${randomBytes(32).toString("base64")}`;
 
-/** The mock provider: each game links with a code, and this tool makes the match. */
-async function mockMain(): Promise<void> {
+/**
+ * What both modes begin with: the bridge up with the connection `setup`
+ * describes, each remote PC tunnelled to it, and READY said (the runner
+ * starts the games once that line is out).
+ */
+async function serveBridge(setup: BridgeSetup, offering = "") {
   const host = exchangeOf("host", args.host);
   const guest = exchangeOf("guest", args.guest);
-  const secret = newResultSecret();
-  const receiver = await startReceiver(secret);
-  const bridge = await startBridge({ connection: {}, resultsUrl: receiver.url, resultSecret: secret });
-  say(true, "bridge", `${bridge.bridgeId} at ${bridge.origin}`);
+  const bridge = await startBridge(setup);
+  say(true, "bridge", `${bridge.bridgeId} at ${bridge.origin}${offering}`);
   for (const sshHost of new Set([host.sshHost, guest.sshHost].filter((name) => name !== undefined))) {
     await startTunnel(sshHost, bridge.origin);
     say(true, "tunnel", `${sshHost} reaches the bridge`);
   }
-  // The runner starts the games once this line is out.
   console.log("READY");
-
   const provider = new BridgeClient({ origin: bridge.origin, credential: bridge.providerToken });
-  const [p1, p2] = await Promise.all([link(provider, host.exchange, "player1"), link(provider, guest.exchange, "player2")]);
+  return { bridge, provider, host: host.exchange, guest: guest.exchange };
+}
+
+/** The mock provider: each game links with a code, and this tool makes the match. */
+async function mockMain(): Promise<void> {
+  const secret = newResultSecret();
+  const receiver = await startReceiver(secret);
+  const { provider, host, guest } = await serveBridge({ connection: {}, resultsUrl: receiver.url, resultSecret: secret });
+  const [p1, p2] = await Promise.all([link(provider, host, "player1"), link(provider, guest, "player2")]);
   if (p1.build !== p2.build) throw new Error(`the two games run different builds (${p1.build}, ${p2.build}); the bridge would refuse the second claim`);
   const match = await provider.createMatch(
     {
@@ -363,7 +371,7 @@ async function mockMain(): Promise<void> {
     },
     `selftest-${randomBytes(8).toString("hex")}`,
   );
-  await Promise.all([host.exchange.write("match", match.match_id), guest.exchange.write("match", match.match_id)]);
+  await Promise.all([host.write("match", match.match_id), guest.write("match", match.match_id)]);
   say(true, "match created", match.match_id);
 
   // The games learn the match is over from the bridge, whose answer to their
@@ -393,8 +401,6 @@ async function until<T>(read: () => Promise<T>, done: (value: T) => boolean, sec
 
 /** The Challonge mode: real accounts signed in in the browser, a real set, the connector between them. */
 async function siteMain(options: ChallongeConfig, connectorExe: string, connection: string): Promise<void> {
-  const host = exchangeOf("host", args.host);
-  const guest = exchangeOf("guest", args.guest);
   // The bridge's callback has to be the address registered for the app.
   const origin = `http://127.0.0.1:${port}`;
   if (options.redirectUri !== `${origin}/v1/sites/${SITE}/callback`) {
@@ -411,37 +417,32 @@ async function siteMain(options: ChallongeConfig, connectorExe: string, connecti
 
   const secret = newResultSecret();
   const resultsPort = port + 1;
-  const bridge = await startBridge({
-    connection: { id: connection, kind: "direct", display_name: "Bracket connector", lookup_sites: [SITE], disputes: "restart" },
-    resultsUrl: `http://127.0.0.1:${resultsPort}/results`,
-    resultSecret: secret,
-    site: { definition: signInSite(template, options.clientId), clientSecret },
-  });
-  say(true, "bridge", `${bridge.bridgeId} at ${bridge.origin}, offering ${SITE} sign-in`);
-  for (const sshHost of new Set([host.sshHost, guest.sshHost].filter((name) => name !== undefined))) {
-    await startTunnel(sshHost, bridge.origin);
-    say(true, "tunnel", `${sshHost} reaches the bridge`);
-  }
-  // The runner starts the games once this line is out. Each opens the
-  // browser for its sign-in, where the person at that PC approves.
-  console.log("READY");
-
-  const provider = new BridgeClient({ origin: bridge.origin, credential: bridge.providerToken });
-  const [hostGame, guestGame] = (await bothWrote(host.exchange, guest.exchange, "ember-id", "its Ember ID")).map((line, i) => {
+  // Once the bridge says READY each game opens the browser for its sign-in,
+  // where the person at that PC approves.
+  const { bridge, provider, host, guest } = await serveBridge(
+    {
+      connection: { id: connection, kind: "direct", display_name: "Bracket connector", lookup_sites: [SITE], disputes: "restart" },
+      resultsUrl: `http://127.0.0.1:${resultsPort}/results`,
+      resultSecret: secret,
+      site: { definition: signInSite(template, options.clientId), clientSecret },
+    },
+    `, offering ${SITE} sign-in`,
+  );
+  const [hostGame, guestGame] = (await bothWrote(host, guest, "ember-id", "its Ember ID")).map((line, i) => {
     const game = parseIdentityLine(line);
     if (!game) throw new Error(`${i === 0 ? "host" : "guest"}: its ember-id file is not "<Ember ID> <build>"`);
     return game;
   }) as [GameIdentity, GameIdentity];
   if (hostGame.build !== guestGame.build) throw new Error(`the two games run different builds (${hostGame.build}, ${guestGame.build}); the bridge would refuse the second claim`);
 
-  const [hostAccount, guestAccount] = (await bothWrote(host.exchange, guest.exchange, "site-account", `its ${SITE} account`)).map((line, i) => {
+  const [hostAccount, guestAccount] = (await bothWrote(host, guest, "site-account", `its ${SITE} account`)).map((line, i) => {
     const account = parseAccountLine(line);
     if (!account) throw new Error(`${i === 0 ? "host" : "guest"}: its site-account file is not "<user ID> <name>"`);
     return account;
   }) as [SiteAccount, SiteAccount];
   const sameAccount = accountProblems(hostAccount, guestAccount);
   if (sameAccount.length > 0) throw new Error(sameAccount.join("; "));
-  say(true, "accounts connected", `host ${hostAccount.name}, guest ${guestAccount.name}`);
+  say(true, "accounts connected", "host and guest, two different accounts");
 
   // Both players are known to the bridge now, so the connector's first read
   // finds the set playable: the request budget goes on the match, not on
@@ -466,14 +467,14 @@ async function siteMain(options: ChallongeConfig, connectorExe: string, connecti
   const connector = own(spawn(connectorExe, ["serve", configFile], { stdio: ["ignore", "pipe", "pipe"] }), "the connector");
   let connectorLog = "";
   for (const stream of [connector.stdout!, connector.stderr!]) stream.on("data", (chunk: Buffer) => (connectorLog = (connectorLog + chunk.toString()).slice(-6000)));
-  // What the connector decided, which it never mixes with a secret, is shown when the run did not pass.
+  // What the connector printed is shown when the run did not pass. Its library prints only through `log!`, which is never given a secret (a test in ember-brackets fails on any other print), and its entry point prints no secret.
   stops.push(() => {
     if (failed && connectorLog) console.log(`connector log:\n${connectorLog.trimEnd()}`);
   });
   say(true, "connector", `started for ${options.tournament}`);
 
   // The connector made the match, so each game says which it plays.
-  const [hostMatch, guestMatch] = await bothWrote(host.exchange, guest.exchange, "match-id", "the match to play");
+  const [hostMatch, guestMatch] = await bothWrote(host, guest, "match-id", "the match to play");
   if (hostMatch !== guestMatch) throw new Error(`the games play different matches (${hostMatch}, ${guestMatch})`);
   const created = await provider.getMatch(hostMatch);
   const wrong = connectorMatchProblems(created, `${SITE}:${options.tournament}:${options.match}:`, [hostGame.emberId, guestGame.emberId]);
@@ -494,18 +495,18 @@ async function siteMain(options: ChallongeConfig, connectorExe: string, connecti
   // connector has had time to report it. The bridge knows its players by its
   // own participant IDs, so the winner is the participant Challonge shows
   // under the account the host's game connected, and the loser the guest's.
-  const names = await organizer.participants();
+  const [names, firstRead] = await Promise.all([organizer.participants(), organizer.match(options.match)]);
   const winnerId = participantFor(names, hostAccount.name);
   const loserId = participantFor(names, guestAccount.name);
-  if (winnerId === null || loserId === null) throw new Error(`Challonge's participants (${[...names.values()].join(", ")}) do not name both connected accounts once each`);
-  let reported = await organizer.match(options.match);
+  if (winnerId === null || loserId === null) throw new Error(`Challonge lists ${names.size} participants with a username, and they do not name both connected accounts once each`);
+  let reported = firstRead;
   for (let tries = 0; tries < 3 && reported.state !== "complete"; tries++) {
     await sleep(20_000);
     reported = await organizer.match(options.match);
   }
   const unreported = reportedProblems(reported, winnerId, loserId);
   for (const problem of unreported) say(false, "challonge result", problem);
-  if (unreported.length === 0) say(true, "challonge result", `match ${options.match} is complete, ${hostAccount.name} won ${reported.scores ?? ""}`);
+  if (unreported.length === 0) say(true, "challonge result", `match ${options.match} is complete, the host's account won ${reported.scores ?? ""}`);
   say(true, "challonge requests", `${organizer.requests} made by this tool, none of them writes`);
 }
 

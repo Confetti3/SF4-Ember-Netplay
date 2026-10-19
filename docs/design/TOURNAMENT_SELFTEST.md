@@ -286,8 +286,23 @@ it names, read when they are used and never printed.
   the host's participant as the winner and 1 - 0. The bridge knows the
   players by its own IDs, so the participants are found by the accounts the
   two games reported connecting (the participant list, read once, shows each
-  one's username); no account name is written down anywhere.
+  one's username). The accounts' user IDs and names do appear in one place
+  during a run: the `site-account` file each game writes to its exchange
+  folder (the other PC's folder is read over ssh). Neither the games nor the
+  tools print them, a failure message names no account, and nothing is
+  committed; the run's folders are temporary. Do not paste a run's exchange
+  files. The bridge's and the connector's logs, printed when a run fails, name
+  matches, sets and participant IDs as far as they were read on 2026-10-19,
+  not accounts, but nothing enforces that: read a failed run's output before
+  pasting it anywhere.
 - **Output.** A failed run prints the bridge's and the connector's own logs.
+  The connector's library prints only through its `log!` macro, which is never
+  given a secret, and a test in `ember-brackets` fails on any other print
+  there; its entry point prints a usage line, a startup line and the error that
+  stops it, naming a file or setting and never a secret's value. The
+  bridge's messages (a few fixed lines on standard error) were read for
+  secrets on 2026-10-19, but nothing enforces that; look at them again after
+  a change to the bridge's logging.
 
 ### Request budget
 
@@ -306,4 +321,9 @@ again, reopen it first:
 node sdk\typescript\tools\selftest-challonge.ts reopen <run configuration>
 ```
 
-which reads the set and, unless it is open, sends `change_state` `reopen`.
+which reads the set and, unless it is open, sends `change_state` `reopen`,
+then reads it again and exits non-zero unless it is open with both players.
+It prints the score the set shows afterwards: whether Challonge keeps the
+earlier score and winner on a reopen has not been seen. A run passes a set
+only if it is `complete` with the host as winner, so a kept result cannot pass
+for a report, but a stale score would show here first.
