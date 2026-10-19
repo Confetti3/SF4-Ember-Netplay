@@ -4155,6 +4155,42 @@ msgstr "Webで誰かがあなたのトーナメントデスクにサインイン
 msgid "desk.web_ended"
 msgstr "Webデスクからすべてサインアウトしました。"
 
+msgid "desk.open_browser"
+msgstr "ブラウザーで開く"
+
+msgid "desk.open_browser_detail"
+msgstr "このPCのブラウザーでWebデスクを開きます。この Ember ID でサインインし、すべての変更ができます。"
+
+msgid "desk.open_phone"
+msgstr "スマホで開く"
+
+msgid "desk.open_phone_detail"
+msgstr "スマホや別の端末のデスクページで入力するコードを表示します。"
+
+msgid "desk.code_at"
+msgstr "入力先"
+
+msgid "desk.code_at_detail"
+msgstr "デスクページの「Ember のコードをお持ちですか？」に入力します。"
+
+msgid "desk.code_left"
+msgstr "有効時間"
+
+msgid "desk.code_left_detail"
+msgstr "コードは1回だけ、2分間使えます。"
+
+msgid "desk.code_lapsed"
+msgstr "コードの期限が切れました。"
+
+msgid "desk.code_new"
+msgstr "新しいコード"
+
+msgid "desk.code_new_detail"
+msgstr "新しいコードを作ります。古いコードは使えなくなります。"
+
+msgid "desk.opened"
+msgstr "ブラウザーでデスクを開きました。"
+
 msgid "site.cancel_detail"
 msgstr "待機をやめます。準備ができたら、もう一度「{0}を連携」を選んでください。"
 

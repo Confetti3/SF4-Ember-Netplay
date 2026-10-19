@@ -69,7 +69,7 @@ bool IdentityPanel::DeskHeld(const ShellView& v) const {
 }
 
 bool IdentityPanel::DeskScreen(const std::string& screen) {
-    return screen == "tournament-desk" || screen == "desk-event" || screen == "desk-set";
+    return screen == "tournament-desk" || screen == "desk-event" || screen == "desk-set" || screen == "desk-code";
 }
 
 const netplay::DeskSet* IdentityPanel::DeskSelected(const ShellView& v) const {
@@ -80,7 +80,7 @@ const netplay::DeskSet* IdentityPanel::DeskSelected(const ShellView& v) const {
 }
 
 void IdentityPanel::DeskPoll(const ShellView& v, const std::string& screen) {
-    if (!DeskScreen(screen) || now_ < deskReadAt_ || sent_ || !queue_.empty()) return;
+    if (!DeskScreen(screen) || screen == "desk-code" || now_ < deskReadAt_ || sent_ || !queue_.empty()) return;
     const auto* ember = EmberBridge(v);
     if (!ember) return;
     deskReadAt_ = now_ + DeskReadSeconds;
@@ -94,6 +94,21 @@ void IdentityPanel::DeskPoll(const ShellView& v, const std::string& screen) {
 void IdentityPanel::DeskRows(const ShellView& v, const std::string& screen, std::vector<MenuEntry>& rows, std::string& title) const {
     const auto& id = v.identity;
     const bool busy = sent_ != 0 || !queue_.empty();
+    if (screen == "desk-code") {
+        // The code big as the title, where it is typed, and how long it lasts.
+        const bool live = !id.handoffCode.empty() && id.handoffExpires > v.unixNow;
+        title = live ? id.handoffCode.substr(0, 4) + " " + id.handoffCode.substr(4) : std::string(loc::T("desk.open_phone"));
+        if (live) {
+            const auto left = id.handoffExpires - v.unixNow;
+            rows.push_back(InfoRow("dk-code-at", loc::T("desk.code_at"), id.handoffDesk, loc::T("desk.code_at_detail")));
+            rows.push_back(InfoRow("dk-code-left", loc::T("desk.code_left"),
+                std::to_string(left / 60) + ":" + (left % 60 < 10 ? "0" : "") + std::to_string(left % 60), loc::T("desk.code_left_detail")));
+        } else {
+            rows.push_back(InfoRow("dk-code-none", loc::T(busy ? "desk.loading" : "desk.code_lapsed"), {}, {}));
+        }
+        rows.push_back(Row("dk-code-new", loc::T("desk.code_new"), loc::T("desk.code_new_detail"), !busy));
+        return;
+    }
     if (screen == "tournament-desk") {
         title = loc::T("screen.tournament_desk");
         for (const auto& event : id.deskEvents) {
@@ -104,6 +119,9 @@ void IdentityPanel::DeskRows(const ShellView& v, const std::string& screen, std:
         }
         if (id.deskEvents.empty())
             rows.push_back(InfoRow("dk-none", loc::T("desk.none"), {}, loc::T("desk.none_detail")));
+        // The web desk from here: in this PC's browser, or by a code on a phone.
+        rows.push_back(Row("dk-open", loc::T("desk.open_browser"), loc::T("desk.open_browser_detail"), !busy));
+        rows.push_back(Row("dk-phone", loc::T("desk.open_phone"), loc::T("desk.open_phone_detail"), !busy));
         // Web desk sessions: how many, the newest, and signing them all out.
         const auto& web = id.webSessions;
         rows.push_back(InfoRow("dk-web", loc::T("desk.web"), std::to_string(web.size()),
@@ -191,6 +209,12 @@ bool IdentityPanel::DeskActivate(const MenuAction& a, const ShellView& v, MenuNa
     }
     if (a.id.compare(0, 7, "dk-set:") == 0) { deskSet_ = a.id.substr(7); nav.Push("desk-set"); return true; }
     const auto* ember = EmberBridge(v);
+    if ((a.id == "dk-open" || a.id == "dk-phone" || a.id == "dk-code-new") && ember) {
+        IdentityRequest handoff; handoff.op = a.id == "dk-open" ? IdentityOp::DeskOpen : IdentityOp::DeskCode; handoff.bridge = ember->id;
+        message_.clear(); Queue(std::move(handoff));
+        if (a.id == "dk-phone") nav.Push("desk-code");
+        return true;
+    }
     if (a.id == "dk-web-end" && ember) {
         IdentityRequest end; end.op = IdentityOp::DeskWebEnd; end.bridge = ember->id;
         message_.clear(); Queue(std::move(end)); return true;

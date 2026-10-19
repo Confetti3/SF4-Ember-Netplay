@@ -4155,6 +4155,42 @@ msgstr "Кто-то вошёл в ваш пульт турнира через в
 msgid "desk.web_ended"
 msgstr "Выход из веб-пульта выполнен везде."
 
+msgid "desk.open_browser"
+msgstr "Открыть в браузере"
+
+msgid "desk.open_browser_detail"
+msgstr "Открывает веб-пульт в браузере этого ПК под этим Ember ID, со всеми разрешёнными изменениями."
+
+msgid "desk.open_phone"
+msgstr "Открыть на телефоне"
+
+msgid "desk.open_phone_detail"
+msgstr "Показывает код, который нужно ввести на странице пульта на телефоне или другом устройстве."
+
+msgid "desk.code_at"
+msgstr "Введите на"
+
+msgid "desk.code_at_detail"
+msgstr "На странице пульта, в поле «Есть код из Ember?»"
+
+msgid "desk.code_left"
+msgstr "Действует"
+
+msgid "desk.code_left_detail"
+msgstr "Код работает один раз, две минуты."
+
+msgid "desk.code_lapsed"
+msgstr "Срок кода истёк."
+
+msgid "desk.code_new"
+msgstr "Новый код"
+
+msgid "desk.code_new_detail"
+msgstr "Создаёт новый код; старый перестаёт работать."
+
+msgid "desk.opened"
+msgstr "Пульт открыт в браузере."
+
 msgid "site.cancel_detail"
 msgstr "Прекращает ожидание. Когда будете готовы, снова выберите «Подключить {0}»."
 

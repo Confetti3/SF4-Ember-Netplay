@@ -3681,6 +3681,42 @@ msgstr "Alguien inició sesión en tu escritorio del torneo en la web. ¿No fuis
 msgid "desk.web_ended"
 msgstr "Sesión cerrada en el escritorio web en todas partes."
 
+msgid "desk.open_browser"
+msgstr "Abrir en el navegador"
+
+msgid "desk.open_browser_detail"
+msgstr "Abre el escritorio web en el navegador de esta PC, con la sesión de este Ember ID y todos los cambios permitidos."
+
+msgid "desk.open_phone"
+msgstr "Abrir en el celular"
+
+msgid "desk.open_phone_detail"
+msgstr "Muestra un código para escribir en la página del escritorio de tu celular u otro dispositivo."
+
+msgid "desk.code_at"
+msgstr "Escríbelo en"
+
+msgid "desk.code_at_detail"
+msgstr "En la página del escritorio, en ¿Tienes un código de Ember?"
+
+msgid "desk.code_left"
+msgstr "Dura"
+
+msgid "desk.code_left_detail"
+msgstr "Un código sirve una vez, durante dos minutos."
+
+msgid "desk.code_lapsed"
+msgstr "El código venció."
+
+msgid "desk.code_new"
+msgstr "Nuevo código"
+
+msgid "desk.code_new_detail"
+msgstr "Crea un código nuevo; el anterior deja de funcionar."
+
+msgid "desk.opened"
+msgstr "El escritorio se abrió en tu navegador."
+
 msgid "site.cancel_detail"
 msgstr "Deja de esperar. Elige Conectar {0} de nuevo cuando estés listo."
 

@@ -22,6 +22,9 @@ enum class IdentityOp : std::uint8_t {
     // The player's web desk sessions: a read, noting the game told the
     // player about them, and signing them all out.
     DeskWeb, DeskWebSeen, DeskWebEnd,
+    // Opening the web desk from the game: in the browser, or as a code to
+    // type on another device.
+    DeskOpen, DeskCode,
 };
 
 // Where a player connects an account to their Ember ID through a browser
@@ -69,6 +72,7 @@ constexpr IdentityEffect EffectOf(IdentityOp op) {
     case IdentityOp::Status: case IdentityOp::BridgeList: case IdentityOp::BridgeInspect: case IdentityOp::LinkList:
     case IdentityOp::DeskRead: case IdentityOp::DeskWeb:
         return IdentityEffect::Read;
+    case IdentityOp::DeskOpen: return IdentityEffect::Open;
     case IdentityOp::PreviewImport: return IdentityEffect::Preview;
     case IdentityOp::Enable: case IdentityOp::Import: case IdentityOp::Reset: return IdentityEffect::KeyChange;
     default: return IdentityEffect::Change;

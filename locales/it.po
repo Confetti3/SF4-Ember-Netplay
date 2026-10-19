@@ -4155,6 +4155,42 @@ msgstr "Qualcuno ha effettuato l'accesso al tuo banco del torneo sul web. Non er
 msgid "desk.web_ended"
 msgstr "Uscito dal banco web ovunque."
 
+msgid "desk.open_browser"
+msgstr "Apri nel browser"
+
+msgid "desk.open_browser_detail"
+msgstr "Apre il banco web nel browser di questo PC, con l'accesso di questo Ember ID e tutte le modifiche consentite."
+
+msgid "desk.open_phone"
+msgstr "Apri sul telefono"
+
+msgid "desk.open_phone_detail"
+msgstr "Mostra un codice da digitare nella pagina del banco sul telefono o su un altro dispositivo."
+
+msgid "desk.code_at"
+msgstr "Digitalo su"
+
+msgid "desk.code_at_detail"
+msgstr "Nella pagina del banco, sotto Hai un codice da Ember?"
+
+msgid "desk.code_left"
+msgstr "Vale"
+
+msgid "desk.code_left_detail"
+msgstr "Un codice vale una volta, per due minuti."
+
+msgid "desk.code_lapsed"
+msgstr "Il codice è scaduto."
+
+msgid "desk.code_new"
+msgstr "Nuovo codice"
+
+msgid "desk.code_new_detail"
+msgstr "Crea un nuovo codice; il vecchio non vale più."
+
+msgid "desk.opened"
+msgstr "Il banco si è aperto nel browser."
+
 msgid "site.cancel_detail"
 msgstr "Smette di aspettare. Scegli di nuovo Collega {0} quando sei pronto."
 

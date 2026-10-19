@@ -4155,6 +4155,42 @@ msgstr "Někdo se přihlásil k tvému turnajovému pultu na webu. Nebyl jsi to 
 msgid "desk.web_ended"
 msgstr "Odhlášeno z webového pultu všude."
 
+msgid "desk.open_browser"
+msgstr "Otevřít v prohlížeči"
+
+msgid "desk.open_browser_detail"
+msgstr "Otevře webový pult v prohlížeči tohoto PC, přihlášený tímto Ember ID, se všemi povolenými změnami."
+
+msgid "desk.open_phone"
+msgstr "Otevřít v telefonu"
+
+msgid "desk.open_phone_detail"
+msgstr "Ukáže kód k zadání na stránce pultu v telefonu nebo jiném zařízení."
+
+msgid "desk.code_at"
+msgstr "Zadej na"
+
+msgid "desk.code_at_detail"
+msgstr "Na stránce pultu pod Máš kód z Emberu?"
+
+msgid "desk.code_left"
+msgstr "Platí"
+
+msgid "desk.code_left_detail"
+msgstr "Kód platí jednou, dvě minuty."
+
+msgid "desk.code_lapsed"
+msgstr "Kód vypršel."
+
+msgid "desk.code_new"
+msgstr "Nový kód"
+
+msgid "desk.code_new_detail"
+msgstr "Vytvoří nový kód; starý přestane platit."
+
+msgid "desk.opened"
+msgstr "Pult se otevřel v prohlížeči."
+
 msgid "site.cancel_detail"
 msgstr "Přestane čekat. Až budete připraveni, zvolte znovu Připojit {0}."
 

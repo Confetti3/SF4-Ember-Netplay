@@ -3796,6 +3796,42 @@ msgstr "Someone signed in to your tournament desk on the web. Not you? Choose Si
 msgid "desk.web_ended"
 msgstr "Signed out of the web desk everywhere."
 
+msgid "desk.open_browser"
+msgstr "Open in browser"
+
+msgid "desk.open_browser_detail"
+msgstr "Opens the web desk in this PC's browser, signed in as this Ember ID, with every change allowed."
+
+msgid "desk.open_phone"
+msgstr "Open on phone"
+
+msgid "desk.open_phone_detail"
+msgstr "Shows a code to type on the desk page of your phone or another device."
+
+msgid "desk.code_at"
+msgstr "Type it at"
+
+msgid "desk.code_at_detail"
+msgstr "On the desk page, under Have a code from Ember?"
+
+msgid "desk.code_left"
+msgstr "Lasts"
+
+msgid "desk.code_left_detail"
+msgstr "A code works once, for two minutes."
+
+msgid "desk.code_lapsed"
+msgstr "The code lapsed."
+
+msgid "desk.code_new"
+msgstr "New code"
+
+msgid "desk.code_new_detail"
+msgstr "Makes a fresh code; the old one stops working."
+
+msgid "desk.opened"
+msgstr "The desk opened in your browser."
+
 msgid "site.cancel_detail"
 msgstr "Stops waiting. Choose Connect {0} again when you are ready."
 

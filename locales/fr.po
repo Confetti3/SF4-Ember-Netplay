@@ -4155,6 +4155,42 @@ msgstr "Quelqu'un s'est connecté à votre bureau de tournoi sur le web. Ce n'é
 msgid "desk.web_ended"
 msgstr "Déconnecté du bureau web partout."
 
+msgid "desk.open_browser"
+msgstr "Ouvrir dans le navigateur"
+
+msgid "desk.open_browser_detail"
+msgstr "Ouvre le bureau web dans le navigateur de ce PC, connecté avec cet Ember ID, avec toutes les modifications permises."
+
+msgid "desk.open_phone"
+msgstr "Ouvrir sur le téléphone"
+
+msgid "desk.open_phone_detail"
+msgstr "Affiche un code à saisir sur la page du bureau de votre téléphone ou d'un autre appareil."
+
+msgid "desk.code_at"
+msgstr "À saisir sur"
+
+msgid "desk.code_at_detail"
+msgstr "Sur la page du bureau, sous Un code d'Ember ?"
+
+msgid "desk.code_left"
+msgstr "Valable"
+
+msgid "desk.code_left_detail"
+msgstr "Un code sert une fois, pendant deux minutes."
+
+msgid "desk.code_lapsed"
+msgstr "Le code a expiré."
+
+msgid "desk.code_new"
+msgstr "Nouveau code"
+
+msgid "desk.code_new_detail"
+msgstr "Crée un nouveau code ; l'ancien ne marche plus."
+
+msgid "desk.opened"
+msgstr "Le bureau s'est ouvert dans votre navigateur."
+
 msgid "site.cancel_detail"
 msgstr "Arrête l'attente. Choisissez à nouveau Connecter {0} quand vous êtes prêt."
 

@@ -473,6 +473,8 @@ void IdentityPanel::Finish(const ShellView& v) {
             IdentityRequest seen; seen.op = IdentityOp::DeskWebSeen; seen.bridge = sentBridge_; Queue(std::move(seen));
         }
         break;
+    case IdentityOp::DeskOpen:
+        Say(loc::T("desk.opened"), false, 4); break;
     case IdentityOp::DeskWebEnd:
         Say(loc::T("desk.web_ended"), false, 4); deskReadAt_ = 0; break;
     case IdentityOp::DiscordStatus:

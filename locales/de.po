@@ -4155,6 +4155,42 @@ msgstr "Jemand hat sich im Web an deinem Turnier-Desk angemeldet. Warst du es ni
 msgid "desk.web_ended"
 msgstr "Überall vom Web-Desk abgemeldet."
 
+msgid "desk.open_browser"
+msgstr "Im Browser öffnen"
+
+msgid "desk.open_browser_detail"
+msgstr "Öffnet den Web-Desk im Browser dieses PCs, angemeldet mit dieser Ember-ID, mit allen Änderungen erlaubt."
+
+msgid "desk.open_phone"
+msgstr "Auf dem Handy öffnen"
+
+msgid "desk.open_phone_detail"
+msgstr "Zeigt einen Code, den du auf der Desk-Seite deines Handys oder eines anderen Geräts eingibst."
+
+msgid "desk.code_at"
+msgstr "Eingeben bei"
+
+msgid "desk.code_at_detail"
+msgstr "Auf der Desk-Seite unter „Code aus Ember?“."
+
+msgid "desk.code_left"
+msgstr "Gültig"
+
+msgid "desk.code_left_detail"
+msgstr "Ein Code gilt einmal, zwei Minuten lang."
+
+msgid "desk.code_lapsed"
+msgstr "Der Code ist abgelaufen."
+
+msgid "desk.code_new"
+msgstr "Neuer Code"
+
+msgid "desk.code_new_detail"
+msgstr "Erstellt einen neuen Code; der alte gilt nicht mehr."
+
+msgid "desk.opened"
+msgstr "Der Desk wurde in deinem Browser geöffnet."
+
 msgid "site.cancel_detail"
 msgstr "Beendet das Warten. Wählen Sie {0} verbinden erneut, wenn Sie bereit sind."
 

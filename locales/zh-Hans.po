@@ -4155,6 +4155,42 @@ msgstr "有人在网页上登录了你的赛事台。不是你？请选择“在
 msgid "desk.web_ended"
 msgstr "已在所有地方退出网页赛事台。"
 
+msgid "desk.open_browser"
+msgstr "在浏览器中打开"
+
+msgid "desk.open_browser_detail"
+msgstr "在本机浏览器中打开网页赛事台，以此 Ember ID 登录，允许所有更改。"
+
+msgid "desk.open_phone"
+msgstr "在手机上打开"
+
+msgid "desk.open_phone_detail"
+msgstr "显示一个代码，在手机或其他设备的赛事台页面输入。"
+
+msgid "desk.code_at"
+msgstr "输入位置"
+
+msgid "desk.code_at_detail"
+msgstr "赛事台页面的“有 Ember 代码？”处。"
+
+msgid "desk.code_left"
+msgstr "有效时间"
+
+msgid "desk.code_left_detail"
+msgstr "代码只能使用一次，有效两分钟。"
+
+msgid "desk.code_lapsed"
+msgstr "代码已过期。"
+
+msgid "desk.code_new"
+msgstr "新代码"
+
+msgid "desk.code_new_detail"
+msgstr "生成新代码；旧代码失效。"
+
+msgid "desk.opened"
+msgstr "已在浏览器中打开赛事台。"
+
 msgid "site.cancel_detail"
 msgstr "停止等待。准备好后，请再次选择“关联 {0}”。"
 

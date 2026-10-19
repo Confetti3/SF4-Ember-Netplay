@@ -165,6 +165,13 @@ pub enum Request {
         #[serde(default)]
         end: bool,
     },
+    /// A one-time handoff that opens the web desk from the game: with
+    /// `open`, its link in the browser; the code to type on a phone either way.
+    DeskHandoff {
+        bridge_id: String,
+        #[serde(default)]
+        open: bool,
+    },
     /// A desk action on one of an event's sets or matches, at `path`.
     DeskAct {
         bridge_id: String,
@@ -270,6 +277,7 @@ impl Request {
             Self::DeskRead { .. } => "desk_read",
             Self::DeskAct { .. } => "desk_act",
             Self::DeskWeb { .. } => "desk_web",
+            Self::DeskHandoff { .. } => "desk_handoff",
             Self::MatchClaim { .. } => "match_claim",
             Self::RoomPublish { .. } => "room_publish",
             Self::RoomList { .. } => "room_list",
@@ -783,6 +791,7 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             seen,
             end,
         } => desk::web(shared, &bridge_id, seen, end).await,
+        Request::DeskHandoff { bridge_id, open } => desk::handoff(shared, &bridge_id, open).await,
         Request::MatchClaim {
             bridge_id,
             match_id,

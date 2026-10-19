@@ -134,6 +134,10 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
                     d.games.push_back({Text(game, "attempt_id", 64), Text(game, "outcome", 32), Text(game, "state", 32)});
             view.deskSets.push_back(std::move(d));
         }
+    } else if (view.op == "desk_handoff") {
+        view.handoffCode = Text(data, "code", 8); view.handoffDesk = Text(data, "desk", 128);
+        const auto expires = data.find("expires_at");
+        view.handoffExpires = expires != data.end() && expires->is_number_unsigned() ? expires->get<std::uint64_t>() : 0;
     } else if (view.op == "desk_web") {
         view.webSessions.clear();
         for (const auto& session : data.value("sessions", nlohmann::json::array())) {
@@ -221,6 +225,10 @@ std::string BuildTournamentRequest(const netplay::IdentityRequest& r) {
     case IdentityOp::DeskRead:
         body["op"] = "desk_read"; complete = need({{"bridge_id", &r.bridge}});
         if (!r.target.empty()) body["event"] = r.target;
+        break;
+    case IdentityOp::DeskOpen: case IdentityOp::DeskCode:
+        body["op"] = "desk_handoff"; complete = need({{"bridge_id", &r.bridge}});
+        body["open"] = r.op == IdentityOp::DeskOpen;
         break;
     case IdentityOp::DeskWeb: case IdentityOp::DeskWebSeen: case IdentityOp::DeskWebEnd:
         body["op"] = "desk_web"; complete = need({{"bridge_id", &r.bridge}});

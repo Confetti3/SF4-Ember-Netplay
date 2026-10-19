@@ -4155,6 +4155,42 @@ msgstr "Iemand heeft zich op het web aangemeld bij je toernooidesk. Was jij het 
 msgid "desk.web_ended"
 msgstr "Overal afgemeld van de webdesk."
 
+msgid "desk.open_browser"
+msgstr "Openen in browser"
+
+msgid "desk.open_browser_detail"
+msgstr "Opent de webdesk in de browser van deze pc, aangemeld als deze Ember ID, met alle wijzigingen toegestaan."
+
+msgid "desk.open_phone"
+msgstr "Openen op telefoon"
+
+msgid "desk.open_phone_detail"
+msgstr "Toont een code om op de deskpagina van je telefoon of een ander toestel in te typen."
+
+msgid "desk.code_at"
+msgstr "Typ hem op"
+
+msgid "desk.code_at_detail"
+msgstr "Op de deskpagina, onder Code van Ember?"
+
+msgid "desk.code_left"
+msgstr "Geldig"
+
+msgid "desk.code_left_detail"
+msgstr "Een code werkt één keer, twee minuten lang."
+
+msgid "desk.code_lapsed"
+msgstr "De code is verlopen."
+
+msgid "desk.code_new"
+msgstr "Nieuwe code"
+
+msgid "desk.code_new_detail"
+msgstr "Maakt een nieuwe code; de oude werkt niet meer."
+
+msgid "desk.opened"
+msgstr "De desk is geopend in je browser."
+
 msgid "site.cancel_detail"
 msgstr "Stopt met wachten. Kies {0} koppelen opnieuw als je klaar bent."
 

@@ -209,6 +209,17 @@ void Desk() {
         {"site":"challonge","browser":"Chrome on a phone","started_at":10,"last_used_at":20,"new":true}, 5]}})"), view);
     Check(view.webSessions.size() == 1 && view.webSessions[0].browser == "Chrome on a phone" && view.webSessions[0].fresh &&
         view.webSessions[0].lastUsedAt == 20 && view.deskSets.size() == 2, "The web sessions were not read, or they replaced the desk");
+
+    // Opening the web desk from the game: in the browser, or as a code.
+    Check(sf4e::netplay::EffectOf(IdentityOp::DeskOpen) == sf4e::netplay::IdentityEffect::Open, "Opening the desk is not an open");
+    sf4e::netplay::IdentityRequest open; open.op = IdentityOp::DeskOpen; open.bridge = "brg_1";
+    Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(open)) == nlohmann::json({{"op", "desk_handoff"}, {"bridge_id", "brg_1"}, {"open", true}}),
+        "Opening the desk was not built");
+    open.op = IdentityOp::DeskCode;
+    Check(!nlohmann::json::parse(sf4e::session::BuildTournamentRequest(open)).value("open", true), "A desk code asked to open the browser");
+    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":4,"op":"desk_handoff","ok":true,"data":
+        {"code":"ABCDEFGH","expires_at":120,"desk":"https://bridge.example/desk"}})"), view);
+    Check(view.handoffCode == "ABCDEFGH" && view.handoffExpires == 120 && view.handoffDesk == "https://bridge.example/desk", "The desk code was not read");
 }
 
 int main() {

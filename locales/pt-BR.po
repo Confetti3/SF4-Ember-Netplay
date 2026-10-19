@@ -3681,6 +3681,42 @@ msgstr "Alguém entrou na sua mesa do torneio pela web. Não foi você? Escolha 
 msgid "desk.web_ended"
 msgstr "Saiu da mesa web em todos os lugares."
 
+msgid "desk.open_browser"
+msgstr "Abrir no navegador"
+
+msgid "desk.open_browser_detail"
+msgstr "Abre a mesa web no navegador deste PC, conectada com este Ember ID e com todas as mudanças permitidas."
+
+msgid "desk.open_phone"
+msgstr "Abrir no celular"
+
+msgid "desk.open_phone_detail"
+msgstr "Mostra um código para digitar na página da mesa no celular ou em outro aparelho."
+
+msgid "desk.code_at"
+msgstr "Digite em"
+
+msgid "desk.code_at_detail"
+msgstr "Na página da mesa, em Tem um código do Ember?"
+
+msgid "desk.code_left"
+msgstr "Vale"
+
+msgid "desk.code_left_detail"
+msgstr "Um código vale uma vez, por dois minutos."
+
+msgid "desk.code_lapsed"
+msgstr "O código expirou."
+
+msgid "desk.code_new"
+msgstr "Novo código"
+
+msgid "desk.code_new_detail"
+msgstr "Cria um código novo; o antigo para de funcionar."
+
+msgid "desk.opened"
+msgstr "A mesa abriu no seu navegador."
+
 msgid "site.cancel_detail"
 msgstr "Para de esperar. Escolha Conectar {0} novamente quando estiver pronto."
 

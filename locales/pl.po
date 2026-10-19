@@ -4155,6 +4155,42 @@ msgstr "Ktoś zalogował się do twojego biurka turnieju w sieci. To nie ty? Wyb
 msgid "desk.web_ended"
 msgstr "Wylogowano z biurka w sieci wszędzie."
 
+msgid "desk.open_browser"
+msgstr "Otwórz w przeglądarce"
+
+msgid "desk.open_browser_detail"
+msgstr "Otwiera biurko w przeglądarce tego komputera, zalogowane jako to Ember ID, ze wszystkimi zmianami dozwolonymi."
+
+msgid "desk.open_phone"
+msgstr "Otwórz na telefonie"
+
+msgid "desk.open_phone_detail"
+msgstr "Pokazuje kod do wpisania na stronie biurka na telefonie lub innym urządzeniu."
+
+msgid "desk.code_at"
+msgstr "Wpisz na"
+
+msgid "desk.code_at_detail"
+msgstr "Na stronie biurka, pod Masz kod z Ember?"
+
+msgid "desk.code_left"
+msgstr "Ważny"
+
+msgid "desk.code_left_detail"
+msgstr "Kod działa raz, przez dwie minuty."
+
+msgid "desk.code_lapsed"
+msgstr "Kod wygasł."
+
+msgid "desk.code_new"
+msgstr "Nowy kod"
+
+msgid "desk.code_new_detail"
+msgstr "Tworzy nowy kod; stary przestaje działać."
+
+msgid "desk.opened"
+msgstr "Biurko otwarte w przeglądarce."
+
 msgid "site.cancel_detail"
 msgstr "Przestaje czekać. Wybierz ponownie Połącz {0}, kiedy zechcesz."
 
