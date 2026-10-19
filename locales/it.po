@@ -3966,6 +3966,174 @@ msgstr "Banco del torneo"
 msgid "site.desk_detail"
 msgstr "Apri questo indirizzo sul telefono o sul computer per creare e gestire i tuoi tornei."
 
+msgid "screen.tournament_desk"
+msgstr "Banco del torneo"
+
+msgid "desk.entry_detail"
+msgstr "I tuoi eventi gestiti da Ember: i set, il bracket e ciò che richiede te."
+
+msgid "desk.event_detail"
+msgstr "Su {0}. Seleziona per vedere i set."
+
+msgid "desk.status.draft"
+msgstr "Bozza"
+
+msgid "desk.status.ready"
+msgstr "Pronto"
+
+msgid "desk.status.running"
+msgstr "In corso"
+
+msgid "desk.none"
+msgstr "Ancora nessun evento"
+
+msgid "desk.none_detail"
+msgstr "Crea e avvia i tuoi eventi sul sito del banco del torneo; compaiono qui quando sono in corso."
+
+msgid "desk.view"
+msgstr "Vista"
+
+msgid "desk.view.queue"
+msgstr "Set"
+
+msgid "desk.view.bracket"
+msgstr "Bracket"
+
+msgid "desk.view_detail"
+msgstr "Sinistra e Destra passano dalla lista dei set al bracket."
+
+msgid "desk.filter"
+msgstr "Mostra"
+
+msgid "desk.filter.all"
+msgstr "Tutti"
+
+msgid "desk.filter.winners"
+msgstr "Winners"
+
+msgid "desk.filter.losers"
+msgstr "Losers"
+
+msgid "desk.filter.action"
+msgstr "Richiede te"
+
+msgid "desk.filter.live"
+msgstr "Live"
+
+msgid "desk.filter_detail"
+msgstr "Sinistra e Destra scelgono quali set mostrare. Quelli che richiedono te vengono prima."
+
+msgid "desk.loading"
+msgstr "Lettura dei set"
+
+msgid "desk.no_sets"
+msgstr "Nessun set"
+
+msgid "desk.state.waiting"
+msgstr "In attesa"
+
+msgid "desk.state.not_ready"
+msgstr "Non pronto"
+
+msgid "desk.state.called"
+msgstr "Chiamato"
+
+msgid "desk.state.playing"
+msgstr "In gioco"
+
+msgid "desk.state.needs_review"
+msgstr "Da verificare"
+
+msgid "desk.state.needs_organizer"
+msgstr "Richiede te"
+
+msgid "desk.state.reporting"
+msgstr "Invio del risultato"
+
+msgid "desk.state.done"
+msgstr "Finito"
+
+msgid "desk.state.held"
+msgstr "Trattenuto"
+
+msgid "desk.side.winners"
+msgstr "Winners"
+
+msgid "desk.side.losers"
+msgstr "Losers"
+
+msgid "desk.side.grand_final"
+msgstr "Grand final"
+
+msgid "desk.tbd"
+msgstr "Da definire"
+
+msgid "desk.players"
+msgstr "{0} contro {1}"
+
+msgid "desk.score"
+msgstr "{0} – {1}"
+
+msgid "desk.set_gone"
+msgstr "Questo set non fa più parte dell'evento"
+
+msgid "desk.state"
+msgstr "Stato"
+
+msgid "desk.called"
+msgstr "Chiamato."
+
+msgid "desk.called_posted"
+msgstr "Chiamato e pubblicato su Discord."
+
+msgid "desk.called_waiting"
+msgstr "Chiamato; il post su Discord è in arrivo."
+
+msgid "desk.called_failed"
+msgstr "Chiamato, ma Discord non ha accettato il post."
+
+msgid "desk.not_called"
+msgstr "Non ancora chiamato."
+
+msgid "desk.call"
+msgstr "Richiama"
+
+msgid "desk.call_detail"
+msgstr "Richiama entrambi i giocatori, anche su Discord se l'evento ha un canale."
+
+msgid "desk.hold"
+msgstr "Trattieni"
+
+msgid "desk.hold_detail"
+msgstr "Ember non gioca più questo set, per esempio per giocarlo in stream. Il risultato va poi inserito sul sito del bracket."
+
+msgid "desk.release"
+msgstr "Rilascia"
+
+msgid "desk.release_detail"
+msgstr "Ember gioca di nuovo questo set."
+
+msgid "desk.decide"
+msgstr "Partita {0}: vince {1}"
+
+msgid "desk.decide_detail"
+msgstr "Assegna a quel giocatore questa partita, finita senza risultato."
+
+msgid "desk.void"
+msgstr "Annulla la partita {0}"
+
+msgid "desk.void_detail"
+msgstr "Toglie il risultato di questa partita, per esempio dopo una disconnessione. Si rigioca."
+
+msgid "desk.add"
+msgstr "Aggiungi una partita vinta da {0}"
+
+msgid "desk.add_detail"
+msgstr "Registra una partita giocata fuori da Ember, come una rivincita concordata da entrambi."
+
+msgid "desk.done"
+msgstr "Fatto."
+
 msgid "site.cancel_detail"
 msgstr "Smette di aspettare. Scegli di nuovo Collega {0} quando sei pronto."
 

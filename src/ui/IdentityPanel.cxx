@@ -78,7 +78,7 @@ void Assign(std::string& target, const std::string& text) { WipeText(target); ta
 
 bool IdentityPanel::Owns(const std::string& screen) {
     return screen == "identity" || screen == "identity-backup" || screen == "linked-accounts" || screen == "tournament-matches" ||
-        screen == DiscordConnectScreen || screen == SiteConnectScreen;
+        screen == DiscordConnectScreen || screen == SiteConnectScreen || DeskScreen(screen);
 }
 
 // Requests whose answers only show something or start a wait for a site's
@@ -252,6 +252,7 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
         else if (!servicesKnown_ && v.identity.state == "ready") { IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list)); }
     }
     SendTournament(v, screen, submit);
+    DeskPoll(v, screen);
     // While a site's page is open in the browser, the account is read again
     // every few seconds, so the screen shows it connected by itself.
     SignInPoll(screen, now);
@@ -462,6 +463,9 @@ void IdentityPanel::Finish(const ShellView& v) {
             ReadSiteAccounts(id, bridge_, AccountReads::Discord());
         }
         break;
+    case IdentityOp::DeskAct:
+        // The desk shows what the action changed at once.
+        Say(loc::T("desk.done"), false, 4); deskReadAt_ = 0; break;
     case IdentityOp::DiscordStatus:
         SignInFinish(v);
         // Connect Discord's steps go on from the account read.
@@ -564,6 +568,7 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
             rows.push_back(DiscordIdentityRow(v));
             ListedSiteIdentityRows(v, rows);
             rows.push_back(Row("linked-accounts", loc::T("screen.linked_accounts"), loc::T("identity.linked_detail")));
+            if (DeskHeld(v)) rows.push_back(Row("tournament-desk", loc::T("screen.tournament_desk"), loc::T("desk.entry_detail")));
             rows.push_back(Row("id-copy", loc::T("identity.copy"), loc::T("identity.copy_detail")));
         }
         rows.push_back(Row("identity-backup", loc::T("screen.identity_backup"),
@@ -698,6 +703,8 @@ std::vector<MenuEntry> IdentityPanel::Rows(const ShellView& v, const std::string
     } else if (screen == "tournament-matches") {
         title = loc::T("screen.tournament_matches");
         MatchesRows(v, rows);
+    } else if (DeskScreen(screen)) {
+        DeskRows(v, screen, rows, title);
     }
     return rows;
 }
@@ -711,6 +718,8 @@ void IdentityPanel::Activate(const MenuAction& a, const ShellView& v, MenuNaviga
     if (a.id == DiscordConnectScreen) { NewJourney(); connectBridge_.clear(); }
     if (a.id == "identity" || a.id == "linked-accounts" || a.id == "identity-backup" || a.id == "tournament-matches" ||
         a.id == DiscordConnectScreen) { nav.Push(a.id); return; }
+    if (a.id == "tournament-desk") { deskReadAt_ = 0; nav.Push(a.id); return; }
+    if (DeskActivate(a, v, nav)) return;
     if (a.id.compare(0, std::strlen(SiteRowPrefix), SiteRowPrefix) == 0) { siteScreen_ = a.id.substr(std::strlen(SiteRowPrefix)); nav.Push(SiteConnectScreen); return; }
     if (ConnectActivate(a, v) || SignInActivate(a, v)) return;
     if (MatchesActivate(a, v)) return;
@@ -753,6 +762,7 @@ void IdentityPanel::Activate(const MenuAction& a, const ShellView& v, MenuNaviga
 }
 
 void IdentityPanel::Accept(const MenuAction& a, const ShellView& v) {
+    if (DeskAccept(a)) return;
     if (a.id == "id-new-passphrase") Assign(newPassphrase_, a.text);
     else if (a.id == "id-new-confirm") Assign(newConfirm_, a.text);
     else if (a.id == "id-backup-passphrase") Assign(backupPassphrase_, a.text);

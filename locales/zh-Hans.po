@@ -3966,6 +3966,174 @@ msgstr "赛事控制台"
 msgid "site.desk_detail"
 msgstr "在手机或电脑上打开此地址，即可创建和运营你的比赛。"
 
+msgid "screen.tournament_desk"
+msgstr "赛事台"
+
+msgid "desk.entry_detail"
+msgstr "通过 Ember 运行的赛事：对局、对阵表以及需要你处理的事项。"
+
+msgid "desk.event_detail"
+msgstr "在 {0}。选择以查看对局。"
+
+msgid "desk.status.draft"
+msgstr "草稿"
+
+msgid "desk.status.ready"
+msgstr "已就绪"
+
+msgid "desk.status.running"
+msgstr "进行中"
+
+msgid "desk.none"
+msgstr "暂无赛事"
+
+msgid "desk.none_detail"
+msgstr "在赛事台网站上创建并开始赛事，赛事进行时会显示在这里。"
+
+msgid "desk.view"
+msgstr "视图"
+
+msgid "desk.view.queue"
+msgstr "对局"
+
+msgid "desk.view.bracket"
+msgstr "对阵表"
+
+msgid "desk.view_detail"
+msgstr "左右键在对局列表和对阵表之间切换。"
+
+msgid "desk.filter"
+msgstr "显示"
+
+msgid "desk.filter.all"
+msgstr "全部"
+
+msgid "desk.filter.winners"
+msgstr "Winners"
+
+msgid "desk.filter.losers"
+msgstr "Losers"
+
+msgid "desk.filter.action"
+msgstr "需要处理"
+
+msgid "desk.filter.live"
+msgstr "进行中"
+
+msgid "desk.filter_detail"
+msgstr "左右键选择列表显示哪些对局。需要你处理的对局排在前面。"
+
+msgid "desk.loading"
+msgstr "正在读取对局"
+
+msgid "desk.no_sets"
+msgstr "没有对局"
+
+msgid "desk.state.waiting"
+msgstr "等待中"
+
+msgid "desk.state.not_ready"
+msgstr "未就绪"
+
+msgid "desk.state.called"
+msgstr "已叫号"
+
+msgid "desk.state.playing"
+msgstr "比赛中"
+
+msgid "desk.state.needs_review"
+msgstr "需要审核"
+
+msgid "desk.state.needs_organizer"
+msgstr "需要你处理"
+
+msgid "desk.state.reporting"
+msgstr "正在上报结果"
+
+msgid "desk.state.done"
+msgstr "已结束"
+
+msgid "desk.state.held"
+msgstr "已暂停"
+
+msgid "desk.side.winners"
+msgstr "Winners"
+
+msgid "desk.side.losers"
+msgstr "Losers"
+
+msgid "desk.side.grand_final"
+msgstr "总决赛"
+
+msgid "desk.tbd"
+msgstr "待定"
+
+msgid "desk.players"
+msgstr "{0} 对 {1}"
+
+msgid "desk.score"
+msgstr "{0} – {1}"
+
+msgid "desk.set_gone"
+msgstr "此对局已不在赛事中"
+
+msgid "desk.state"
+msgstr "状态"
+
+msgid "desk.called"
+msgstr "已叫号。"
+
+msgid "desk.called_posted"
+msgstr "已叫号，并已发布到 Discord。"
+
+msgid "desk.called_waiting"
+msgstr "已叫号；Discord 消息正在发送。"
+
+msgid "desk.called_failed"
+msgstr "已叫号，但 Discord 未接受消息。"
+
+msgid "desk.not_called"
+msgstr "尚未叫号。"
+
+msgid "desk.call"
+msgstr "再次叫号"
+
+msgid "desk.call_detail"
+msgstr "再次呼叫双方选手；如果赛事设置了频道，也会在 Discord 上呼叫。"
+
+msgid "desk.hold"
+msgstr "暂停"
+
+msgid "desk.hold_detail"
+msgstr "Ember 不再进行此对局（例如改为直播台进行）。结果需在对阵表网站上填写。"
+
+msgid "desk.release"
+msgstr "取消暂停"
+
+msgid "desk.release_detail"
+msgstr "Ember 重新进行此对局。"
+
+msgid "desk.decide"
+msgstr "第 {0} 局：{1} 获胜"
+
+msgid "desk.decide_detail"
+msgstr "将这局无结果结束的比赛判给该选手。"
+
+msgid "desk.void"
+msgstr "作废第 {0} 局"
+
+msgid "desk.void_detail"
+msgstr "取消此局的结果（例如断线后），将重新进行。"
+
+msgid "desk.add"
+msgstr "添加一局，由 {0} 获胜"
+
+msgid "desk.add_detail"
+msgstr "记录在 Ember 之外进行的一局，例如双方同意的重赛。"
+
+msgid "desk.done"
+msgstr "已完成。"
+
 msgid "site.cancel_detail"
 msgstr "停止等待。准备好后，请再次选择“关联 {0}”。"
 

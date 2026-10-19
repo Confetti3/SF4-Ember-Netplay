@@ -32,6 +32,21 @@ struct IdentityAccount {
         return !user.empty() && (user != before.user || connectedAt != before.connectedAt);
     }
 };
+// The tournament desk: one of the organizer's events, and one set of an
+// event with what the desk shows of it (side: winners, losers or
+// grand_final; state: the bridge's desk_state). A set's games are what the
+// desk can decide or void; revision is what a decision names.
+struct DeskEvent { std::string id, title, status, site; };
+struct DeskGame { std::string attempt, outcome, state; };
+struct DeskSet {
+    std::string id, roundLabel, phase, side, state, matchId, revision, posted;
+    std::string players[2];
+    int score[2] = {0, 0};
+    int round = 0;
+    bool held = false, scored = false;
+    std::uint64_t calledAt = 0;
+    std::vector<DeskGame> games;
+};
 struct IdentityView {
     // A status has arrived from the helper.
     bool known = false;
@@ -69,5 +84,9 @@ struct IdentityView {
     bool previewSame = false, previewReplaces = false;
     // The fingerprint the bridge recorded for the last claim, and the last backup written.
     std::string claimFingerprint, exportPath;
+    // The desk's last reads: the organizer's events, and the sets of deskEvent.
+    std::vector<DeskEvent> deskEvents;
+    std::string deskEvent;
+    std::vector<DeskSet> deskSets;
 };
 } }

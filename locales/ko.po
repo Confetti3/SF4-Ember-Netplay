@@ -3966,6 +3966,174 @@ msgstr "대회 데스크"
 msgid "site.desk_detail"
 msgstr "휴대폰이나 컴퓨터에서 이 주소를 열어 대회를 만들고 운영하세요."
 
+msgid "screen.tournament_desk"
+msgstr "대회 데스크"
+
+msgid "desk.entry_detail"
+msgstr "Ember로 운영 중인 이벤트: 세트, 대진표, 직접 처리할 일."
+
+msgid "desk.event_detail"
+msgstr "{0}의 이벤트. 선택하면 세트를 봅니다."
+
+msgid "desk.status.draft"
+msgstr "초안"
+
+msgid "desk.status.ready"
+msgstr "준비됨"
+
+msgid "desk.status.running"
+msgstr "진행 중"
+
+msgid "desk.none"
+msgstr "아직 이벤트가 없습니다"
+
+msgid "desk.none_detail"
+msgstr "대회 데스크 웹사이트에서 이벤트를 만들고 시작하면 진행 중일 때 여기에 표시됩니다."
+
+msgid "desk.view"
+msgstr "보기"
+
+msgid "desk.view.queue"
+msgstr "세트"
+
+msgid "desk.view.bracket"
+msgstr "대진표"
+
+msgid "desk.view_detail"
+msgstr "왼쪽과 오른쪽으로 세트 목록과 대진표를 전환합니다."
+
+msgid "desk.filter"
+msgstr "표시"
+
+msgid "desk.filter.all"
+msgstr "전체"
+
+msgid "desk.filter.winners"
+msgstr "Winners"
+
+msgid "desk.filter.losers"
+msgstr "Losers"
+
+msgid "desk.filter.action"
+msgstr "처리 필요"
+
+msgid "desk.filter.live"
+msgstr "진행 중"
+
+msgid "desk.filter_detail"
+msgstr "왼쪽과 오른쪽으로 목록에 표시할 세트를 고릅니다. 처리가 필요한 세트가 먼저 나옵니다."
+
+msgid "desk.loading"
+msgstr "세트를 읽는 중"
+
+msgid "desk.no_sets"
+msgstr "세트가 없습니다"
+
+msgid "desk.state.waiting"
+msgstr "대기 중"
+
+msgid "desk.state.not_ready"
+msgstr "준비 안 됨"
+
+msgid "desk.state.called"
+msgstr "호출됨"
+
+msgid "desk.state.playing"
+msgstr "경기 중"
+
+msgid "desk.state.needs_review"
+msgstr "검토 필요"
+
+msgid "desk.state.needs_organizer"
+msgstr "처리 필요"
+
+msgid "desk.state.reporting"
+msgstr "결과 보고 중"
+
+msgid "desk.state.done"
+msgstr "완료"
+
+msgid "desk.state.held"
+msgstr "보류됨"
+
+msgid "desk.side.winners"
+msgstr "Winners"
+
+msgid "desk.side.losers"
+msgstr "Losers"
+
+msgid "desk.side.grand_final"
+msgstr "그랜드 파이널"
+
+msgid "desk.tbd"
+msgstr "미정"
+
+msgid "desk.players"
+msgstr "{0} 대 {1}"
+
+msgid "desk.score"
+msgstr "{0} – {1}"
+
+msgid "desk.set_gone"
+msgstr "이 세트는 더 이상 이벤트에 없습니다"
+
+msgid "desk.state"
+msgstr "상태"
+
+msgid "desk.called"
+msgstr "호출됨."
+
+msgid "desk.called_posted"
+msgstr "호출되었고 Discord에 게시되었습니다."
+
+msgid "desk.called_waiting"
+msgstr "호출됨. Discord 게시물을 보내는 중입니다."
+
+msgid "desk.called_failed"
+msgstr "호출되었지만 Discord가 게시물을 받지 않았습니다."
+
+msgid "desk.not_called"
+msgstr "아직 호출하지 않았습니다."
+
+msgid "desk.call"
+msgstr "다시 호출"
+
+msgid "desk.call_detail"
+msgstr "두 선수를 다시 호출합니다. 이벤트에 채널이 있으면 Discord에서도 호출합니다."
+
+msgid "desk.hold"
+msgstr "보류"
+
+msgid "desk.hold_detail"
+msgstr "Ember가 이 세트를 진행하지 않습니다(방송 경기 등). 결과는 대진표 사이트에서 입력합니다."
+
+msgid "desk.release"
+msgstr "보류 해제"
+
+msgid "desk.release_detail"
+msgstr "Ember가 이 세트를 다시 진행합니다."
+
+msgid "desk.decide"
+msgstr "{0}번째 게임: {1} 승리"
+
+msgid "desk.decide_detail"
+msgstr "결과 없이 끝난 이 게임을 그 선수의 승리로 정합니다."
+
+msgid "desk.void"
+msgstr "{0}번째 게임 무효"
+
+msgid "desk.void_detail"
+msgstr "이 게임의 결과를 취소합니다(연결 끊김 등). 다시 진행합니다."
+
+msgid "desk.add"
+msgstr "{0} 승리로 게임 추가"
+
+msgid "desk.add_detail"
+msgstr "Ember 밖에서 한 게임(두 선수가 합의한 재경기 등)을 기록합니다."
+
+msgid "desk.done"
+msgstr "완료했습니다."
+
 msgid "site.cancel_detail"
 msgstr "기다리기를 멈춥니다. 준비되면 {0} 연결을 다시 선택하세요."
 

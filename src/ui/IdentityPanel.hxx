@@ -195,6 +195,16 @@ private:
     // The tournament matches screen's rows, and its own rows' presses (IdentityMatches.cxx).
     void MatchesRows(const ShellView& view, std::vector<MenuEntry>& rows) const;
     bool MatchesActivate(const MenuAction& a, const ShellView& view);
+    // The tournament desk's screens (IdentityDesk.cxx): shown while the Ember
+    // ID holds organizer access on Ember's own service; their rows, presses
+    // and Left/Right, and the read every few seconds while one is open.
+    static bool DeskScreen(const std::string& screen);
+    bool DeskHeld(const ShellView& view) const;
+    const netplay::DeskSet* DeskSelected(const ShellView& view) const;
+    void DeskPoll(const ShellView& view, const std::string& screen);
+    void DeskRows(const ShellView& view, const std::string& screen, std::vector<MenuEntry>& rows, std::string& title) const;
+    bool DeskActivate(const MenuAction& a, const ShellView& view, MenuNavigation& navigation);
+    bool DeskAccept(const MenuAction& a);
     // Says so when the list a link's refresh brought back lacks its match.
     void CheckOpenedMatch(const netplay::tournament::AssignmentList& list);
     // Reads the service list again after the helper answered for a dormant
@@ -339,6 +349,12 @@ private:
         void Set(const netplay::IdentityAccount& now) { IdentityAccount::operator=(now); read = true; failed = false; }
     };
     std::map<std::tuple<SignInSource, std::string, std::string>, SiteAccount> accounts_;
+    // The desk's event and set on screen, the queue's filter (IdentityDesk.cxx
+    // Filters) or the bracket, and when the desk is read next.
+    std::string deskEvent_, deskSet_;
+    int deskFilter_ = 0;
+    bool deskBracket_ = false;
+    double deskReadAt_ = 0;
     SiteAccount& Account(const SignInTarget& target, const std::string& bridge);
     const SiteAccount* FindAccount(const SignInTarget& target, const std::string& bridge) const;
     // The sign-in sites Ember's own service (sitesBridge_) lists, as its

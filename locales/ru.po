@@ -3966,6 +3966,174 @@ msgstr "Стол турнира"
 msgid "site.desk_detail"
 msgstr "Откройте этот адрес на телефоне или компьютере, чтобы создавать и вести турниры."
 
+msgid "screen.tournament_desk"
+msgstr "Стол турнира"
+
+msgid "desk.entry_detail"
+msgstr "Ваши события в Ember: их сеты, сетка и то, что требует вашего решения."
+
+msgid "desk.event_detail"
+msgstr "На {0}. Выберите, чтобы увидеть сеты."
+
+msgid "desk.status.draft"
+msgstr "Черновик"
+
+msgid "desk.status.ready"
+msgstr "Готово"
+
+msgid "desk.status.running"
+msgstr "Идёт"
+
+msgid "desk.none"
+msgstr "Пока нет событий"
+
+msgid "desk.none_detail"
+msgstr "Создавайте и запускайте события на сайте стола турнира; они появятся здесь, когда начнутся."
+
+msgid "desk.view"
+msgstr "Вид"
+
+msgid "desk.view.queue"
+msgstr "Сеты"
+
+msgid "desk.view.bracket"
+msgstr "Сетка"
+
+msgid "desk.view_detail"
+msgstr "Влево и Вправо переключают список сетов и сетку."
+
+msgid "desk.filter"
+msgstr "Показать"
+
+msgid "desk.filter.all"
+msgstr "Все"
+
+msgid "desk.filter.winners"
+msgstr "Winners"
+
+msgid "desk.filter.losers"
+msgstr "Losers"
+
+msgid "desk.filter.action"
+msgstr "Ждёт вас"
+
+msgid "desk.filter.live"
+msgstr "В эфире"
+
+msgid "desk.filter_detail"
+msgstr "Влево и Вправо выбирают, какие сеты показывать. Сеты, которые ждут вас, идут первыми."
+
+msgid "desk.loading"
+msgstr "Чтение сетов"
+
+msgid "desk.no_sets"
+msgstr "Нет сетов"
+
+msgid "desk.state.waiting"
+msgstr "Ожидание"
+
+msgid "desk.state.not_ready"
+msgstr "Не готов"
+
+msgid "desk.state.called"
+msgstr "Вызван"
+
+msgid "desk.state.playing"
+msgstr "Идёт игра"
+
+msgid "desk.state.needs_review"
+msgstr "Нужна проверка"
+
+msgid "desk.state.needs_organizer"
+msgstr "Ждёт вас"
+
+msgid "desk.state.reporting"
+msgstr "Отправка результата"
+
+msgid "desk.state.done"
+msgstr "Завершён"
+
+msgid "desk.state.held"
+msgstr "Удержан"
+
+msgid "desk.side.winners"
+msgstr "Winners"
+
+msgid "desk.side.losers"
+msgstr "Losers"
+
+msgid "desk.side.grand_final"
+msgstr "Гранд-финал"
+
+msgid "desk.tbd"
+msgstr "Определится"
+
+msgid "desk.players"
+msgstr "{0} против {1}"
+
+msgid "desk.score"
+msgstr "{0} – {1}"
+
+msgid "desk.set_gone"
+msgstr "Этого сета больше нет в событии"
+
+msgid "desk.state"
+msgstr "Состояние"
+
+msgid "desk.called"
+msgstr "Вызван."
+
+msgid "desk.called_posted"
+msgstr "Вызван и опубликован в Discord."
+
+msgid "desk.called_waiting"
+msgstr "Вызван; публикация в Discord отправляется."
+
+msgid "desk.called_failed"
+msgstr "Вызван, но Discord не принял публикацию."
+
+msgid "desk.not_called"
+msgstr "Ещё не вызван."
+
+msgid "desk.call"
+msgstr "Вызвать снова"
+
+msgid "desk.call_detail"
+msgstr "Снова вызывает обоих игроков, и в Discord, если у события есть канал."
+
+msgid "desk.hold"
+msgstr "Удержать"
+
+msgid "desk.hold_detail"
+msgstr "Ember перестаёт играть этот сет, например чтобы сыграть его на стриме. Результат тогда вносится на сайте сетки."
+
+msgid "desk.release"
+msgstr "Отпустить"
+
+msgid "desk.release_detail"
+msgstr "Ember снова играет этот сет."
+
+msgid "desk.decide"
+msgstr "Игра {0}: побеждает {1}"
+
+msgid "desk.decide_detail"
+msgstr "Присуждает эту игру, закончившуюся без результата, этому игроку."
+
+msgid "desk.void"
+msgstr "Отменить игру {0}"
+
+msgid "desk.void_detail"
+msgstr "Убирает результат этой игры, например после разрыва соединения. Она играется заново."
+
+msgid "desk.add"
+msgstr "Добавить игру, победитель: {0}"
+
+msgid "desk.add_detail"
+msgstr "Записывает игру, сыгранную вне Ember, например переигровку, о которой договорились оба."
+
+msgid "desk.done"
+msgstr "Готово."
+
 msgid "site.cancel_detail"
 msgstr "Прекращает ожидание. Когда будете готовы, снова выберите «Подключить {0}»."
 

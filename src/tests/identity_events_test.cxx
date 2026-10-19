@@ -162,9 +162,45 @@ void Names() {
 }
 }
 
+// The tournament desk: its reads and actions as the helper takes them, and
+// the events and sets it answers.
+void Desk() {
+    using sf4e::netplay::IdentityOp;
+    Check(sf4e::netplay::EffectOf(IdentityOp::DeskRead) == sf4e::netplay::IdentityEffect::Read, "A desk read is not a read");
+    Check(sf4e::netplay::EffectOf(IdentityOp::DeskAct) == sf4e::netplay::IdentityEffect::Change, "A desk action is not a change");
+    sf4e::netplay::IdentityRequest read; read.op = IdentityOp::DeskRead; read.bridge = "brg_1";
+    Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(read)) == nlohmann::json({{"op", "desk_read"}, {"bridge_id", "brg_1"}}),
+        "The events read was not built");
+    read.target = "oev_1";
+    Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(read)).value("event", "") == "oev_1", "A sets read lost its event");
+    sf4e::netplay::IdentityRequest act; act.op = IdentityOp::DeskAct; act.bridge = "brg_1"; act.target = "/v1/organizer/events/oev_1/sets/7";
+    act.command = R"({"held":true})";
+    const auto built = nlohmann::json::parse(sf4e::session::BuildTournamentRequest(act));
+    Check(built.value("path", "") == act.target && built["command"] == nlohmann::json({{"held", true}}), "A desk action was not built");
+    act.command = "[1]";
+    Check(sf4e::session::BuildTournamentRequest(act).empty(), "A desk action whose command is no object was built");
+
+    sf4e::netplay::IdentityView view;
+    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":1,"op":"desk_read","ok":true,"data":{"events":[
+        {"id":"oev_1","title":"Weekly","status":"running","site":"challonge"}, 5]}})"), view);
+    Check(view.deskEvents.size() == 1 && view.deskEvents[0].title == "Weekly" && view.deskEvents[0].status == "running", "The events were not read");
+    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":2,"op":"desk_read","ok":true,"data":{"event":"oev_1","sets":[
+        {"id":"7","round_label":"Losers Top 8","round":-3,"side":"losers","players":["Kuro",null],"score":[2,1],"desk_state":"needs_review",
+         "match_id":"emt_1","revision":"4","held":true,"called_at":50,"posted":"failed",
+         "games":[{"attempt_id":"att_1","outcome":null,"state":"review"}]},
+        {"id":"8","score":"2-1"}]}})"), view);
+    Check(view.deskEvent == "oev_1" && view.deskSets.size() == 2 && view.deskEvents.size() == 1, "The sets were not read, or they replaced the events");
+    const auto& set = view.deskSets[0];
+    Check(set.round == -3 && set.side == "losers" && set.players[0] == "Kuro" && set.players[1].empty() && set.scored &&
+        set.score[0] == 2 && set.score[1] == 1 && set.state == "needs_review" && set.held && set.calledAt == 50 && set.posted == "failed",
+        "A set was not read as the desk shows it");
+    Check(set.games.size() == 1 && set.games[0].attempt == "att_1" && set.games[0].state == "review", "A set's games were not read");
+    Check(!view.deskSets[1].scored, "A score that is no pair was taken");
+}
+
 int main() {
     try {
-        Requests(); Answers(); Effects(); Names();
+        Requests(); Answers(); Effects(); Names(); Desk();
         std::cout << "Identity events passed.\n";
         return 0;
     } catch (const std::exception& error) {

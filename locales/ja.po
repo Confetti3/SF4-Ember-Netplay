@@ -3966,6 +3966,174 @@ msgstr "大会デスク"
 msgid "site.desk_detail"
 msgstr "スマホやPCでこのアドレスを開くと、大会の作成と運営ができます。"
 
+msgid "screen.tournament_desk"
+msgstr "大会デスク"
+
+msgid "desk.entry_detail"
+msgstr "Ember で運営中のイベント：セット、ブラケット、対応が必要なもの。"
+
+msgid "desk.event_detail"
+msgstr "{0} のイベント。選ぶとセットを表示します。"
+
+msgid "desk.status.draft"
+msgstr "下書き"
+
+msgid "desk.status.ready"
+msgstr "準備完了"
+
+msgid "desk.status.running"
+msgstr "進行中"
+
+msgid "desk.none"
+msgstr "イベントはまだありません"
+
+msgid "desk.none_detail"
+msgstr "大会デスクのウェブサイトでイベントを作成して開始すると、進行中にここに表示されます。"
+
+msgid "desk.view"
+msgstr "表示"
+
+msgid "desk.view.queue"
+msgstr "セット"
+
+msgid "desk.view.bracket"
+msgstr "ブラケット"
+
+msgid "desk.view_detail"
+msgstr "左右でセット一覧とブラケットを切り替えます。"
+
+msgid "desk.filter"
+msgstr "絞り込み"
+
+msgid "desk.filter.all"
+msgstr "すべて"
+
+msgid "desk.filter.winners"
+msgstr "Winners"
+
+msgid "desk.filter.losers"
+msgstr "Losers"
+
+msgid "desk.filter.action"
+msgstr "要対応"
+
+msgid "desk.filter.live"
+msgstr "進行中"
+
+msgid "desk.filter_detail"
+msgstr "左右で一覧に表示するセットを選びます。対応が必要なセットが先に表示されます。"
+
+msgid "desk.loading"
+msgstr "セットを読み込み中"
+
+msgid "desk.no_sets"
+msgstr "セットはありません"
+
+msgid "desk.state.waiting"
+msgstr "待機中"
+
+msgid "desk.state.not_ready"
+msgstr "準備中"
+
+msgid "desk.state.called"
+msgstr "呼び出し済み"
+
+msgid "desk.state.playing"
+msgstr "対戦中"
+
+msgid "desk.state.needs_review"
+msgstr "要確認"
+
+msgid "desk.state.needs_organizer"
+msgstr "要対応"
+
+msgid "desk.state.reporting"
+msgstr "結果を送信中"
+
+msgid "desk.state.done"
+msgstr "終了"
+
+msgid "desk.state.held"
+msgstr "保留中"
+
+msgid "desk.side.winners"
+msgstr "Winners"
+
+msgid "desk.side.losers"
+msgstr "Losers"
+
+msgid "desk.side.grand_final"
+msgstr "グランドファイナル"
+
+msgid "desk.tbd"
+msgstr "未定"
+
+msgid "desk.players"
+msgstr "{0} 対 {1}"
+
+msgid "desk.score"
+msgstr "{0} – {1}"
+
+msgid "desk.set_gone"
+msgstr "このセットはイベントにありません"
+
+msgid "desk.state"
+msgstr "状態"
+
+msgid "desk.called"
+msgstr "呼び出し済み。"
+
+msgid "desk.called_posted"
+msgstr "呼び出し済み、Discord に投稿しました。"
+
+msgid "desk.called_waiting"
+msgstr "呼び出し済み。Discord への投稿を送信中です。"
+
+msgid "desk.called_failed"
+msgstr "呼び出し済みですが、Discord が投稿を受け付けませんでした。"
+
+msgid "desk.not_called"
+msgstr "まだ呼び出していません。"
+
+msgid "desk.call"
+msgstr "再度呼び出す"
+
+msgid "desk.call_detail"
+msgstr "両プレイヤーを再度呼び出します。イベントにチャンネルがあれば Discord でも呼び出します。"
+
+msgid "desk.hold"
+msgstr "保留"
+
+msgid "desk.hold_detail"
+msgstr "Ember はこのセットを進めません（配信台で行う場合など）。結果はブラケットのサイトで入力します。"
+
+msgid "desk.release"
+msgstr "保留を解除"
+
+msgid "desk.release_detail"
+msgstr "Ember が再びこのセットを進めます。"
+
+msgid "desk.decide"
+msgstr "第 {0} ゲーム：{1} の勝ち"
+
+msgid "desk.decide_detail"
+msgstr "結果なしで終わったこのゲームを、そのプレイヤーの勝ちにします。"
+
+msgid "desk.void"
+msgstr "第 {0} ゲームを無効にする"
+
+msgid "desk.void_detail"
+msgstr "このゲームの結果を取り消します（切断時など）。もう一度対戦します。"
+
+msgid "desk.add"
+msgstr "{0} の勝ちとしてゲームを追加"
+
+msgid "desk.add_detail"
+msgstr "Ember の外で行ったゲーム（両者が合意した再戦など）を記録します。"
+
+msgid "desk.done"
+msgstr "完了しました。"
+
 msgid "site.cancel_detail"
 msgstr "待機をやめます。準備ができたら、もう一度「{0}を連携」を選んでください。"
 

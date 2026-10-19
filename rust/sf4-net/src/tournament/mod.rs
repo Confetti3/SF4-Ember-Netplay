@@ -9,6 +9,7 @@ mod bridges;
 mod browser;
 mod builtin;
 mod client;
+mod desk;
 mod discord;
 mod play;
 mod replays;
@@ -149,6 +150,18 @@ pub enum Request {
     AssignmentList {
         bridge_id: String,
     },
+    /// The tournament desk: the organizer's events, or `event`'s sets.
+    DeskRead {
+        bridge_id: String,
+        #[serde(default)]
+        event: Option<String>,
+    },
+    /// A desk action on one of an event's sets or matches, at `path`.
+    DeskAct {
+        bridge_id: String,
+        path: String,
+        command: Value,
+    },
     MatchClaim {
         bridge_id: String,
         match_id: String,
@@ -245,6 +258,8 @@ impl Request {
             Self::SiteRemove { .. } => "site_remove",
             Self::SiteCancel { .. } => "site_cancel",
             Self::AssignmentList { .. } => "assignment_list",
+            Self::DeskRead { .. } => "desk_read",
+            Self::DeskAct { .. } => "desk_act",
             Self::MatchClaim { .. } => "match_claim",
             Self::RoomPublish { .. } => "room_publish",
             Self::RoomList { .. } => "room_list",
@@ -745,6 +760,14 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
         } => sites::remove(shared, &bridge_id, &site, organizer).await,
         Request::SiteCancel { bridge_id, site } => sites::cancel(shared, &bridge_id, &site).await,
         Request::AssignmentList { bridge_id } => play::assignments(shared, &bridge_id).await,
+        Request::DeskRead { bridge_id, event } => {
+            desk::read(shared, &bridge_id, event.as_deref()).await
+        }
+        Request::DeskAct {
+            bridge_id,
+            path,
+            command,
+        } => desk::act(shared, &bridge_id, &path, command).await,
         Request::MatchClaim {
             bridge_id,
             match_id,

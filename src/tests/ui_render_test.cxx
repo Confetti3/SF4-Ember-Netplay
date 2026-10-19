@@ -1024,6 +1024,27 @@ int main(int argc, char** argv) {
                 Require(shell.Navigation().Screen()=="tournament-matches","Tournament matches did not open");
                 t=netplay::tournament::Status{};t.list.bridge=id.bridges[0].id;
                 page("tournament-matches");draw(nullptr,0,4);draw("tournament-matches-none");
+                // The tournament desk: the events, an event's sets as a queue and as
+                // its bracket, and a set that needs the organizer.
+                id.deskEvents={{"oev_1","Ember Weekly #13","running","challonge"}};id.deskEvent="oev_1";
+                netplay::DeskSet review;review.id="7";review.roundLabel="Losers Quarter-Final";review.phase="Top 8";review.side="losers";
+                review.round=-3;review.players[0]="Ashgrove";review.players[1]="Minnow";review.score[0]=review.score[1]=1;review.scored=true;
+                review.state="needs_review";review.matchId="emt_7";review.revision="4";review.calledAt=50;review.posted="posted";
+                review.games={{"att_1","p1_win","accepted"},{"att_2","","review"}};
+                auto live=review;live.id="5";live.roundLabel="Winners Semi-Final";live.side="winners";live.round=2;
+                live.players[0]="Kuro";live.players[1]="Velvet";live.score[0]=2;live.state="playing";live.games.clear();
+                auto later=live;later.id="9";later.roundLabel="Grand Final";later.side="grand_final";later.round=4;
+                later.players[0].clear();later.players[1].clear();later.scored=false;later.state="not_ready";later.matchId.clear();
+                id.deskSets={review,live,later};
+                page("tournament-desk");draw(nullptr,0,4);draw("tournament-desk");
+                draw(nullptr,MenuInput::Select,1);draw(nullptr,0,4);draw("desk-event");
+                Require(shell.Navigation().Screen()=="desk-event","The desk's event did not open");
+                draw(nullptr,MenuInput::Right,1);draw(nullptr,0,2);draw("desk-bracket");
+                draw(nullptr,MenuInput::Left,1);draw(nullptr,0,1);
+                for(int i=0;i<2;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+                draw(nullptr,MenuInput::Select,1);draw(nullptr,0,4);draw("desk-set");
+                Require(shell.Navigation().Screen()=="desk-set","A desk set did not open");
+                id.deskEvents.clear();id.deskSets.clear();id.deskEvent.clear();
                 id.state="disabled";page("linked-accounts");draw("linked-accounts-no-id");
                 // Public rooms: the list, the card states, the setup cards and the room link (ui_render_public_rooms.hxx).
                 ShootPublicRooms(shell,view,draw,page,[&]{if(ApplyTheme(size.dpi))renderer.Invalidate();},answerTickets,holdIdentity,heldTicket);

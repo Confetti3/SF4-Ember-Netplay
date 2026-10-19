@@ -3966,6 +3966,174 @@ msgstr "Turnajový stůl"
 msgid "site.desk_detail"
 msgstr "Otevři tuto adresu v telefonu nebo počítači a vytvářej a veď své turnaje."
 
+msgid "screen.tournament_desk"
+msgstr "Turnajový stůl"
+
+msgid "desk.entry_detail"
+msgstr "Tvoje události běžící přes Ember: jejich sety, pavouk a co potřebuje tebe."
+
+msgid "desk.event_detail"
+msgstr "Na {0}. Vyber pro zobrazení setů."
+
+msgid "desk.status.draft"
+msgstr "Koncept"
+
+msgid "desk.status.ready"
+msgstr "Připraveno"
+
+msgid "desk.status.running"
+msgstr "Probíhá"
+
+msgid "desk.none"
+msgstr "Zatím žádné události"
+
+msgid "desk.none_detail"
+msgstr "Vytvoř a spusť své události na webu turnajového stolu; objeví se tady, jakmile poběží."
+
+msgid "desk.view"
+msgstr "Zobrazení"
+
+msgid "desk.view.queue"
+msgstr "Sety"
+
+msgid "desk.view.bracket"
+msgstr "Pavouk"
+
+msgid "desk.view_detail"
+msgstr "Vlevo a Vpravo přepínají mezi seznamem setů a pavoukem."
+
+msgid "desk.filter"
+msgstr "Zobrazit"
+
+msgid "desk.filter.all"
+msgstr "Vše"
+
+msgid "desk.filter.winners"
+msgstr "Winners"
+
+msgid "desk.filter.losers"
+msgstr "Losers"
+
+msgid "desk.filter.action"
+msgstr "Potřebuje tebe"
+
+msgid "desk.filter.live"
+msgstr "Živě"
+
+msgid "desk.filter_detail"
+msgstr "Vlevo a Vpravo volí, které sety seznam ukazuje. Ty, které potřebují tebe, jsou první."
+
+msgid "desk.loading"
+msgstr "Načítání setů"
+
+msgid "desk.no_sets"
+msgstr "Žádné sety"
+
+msgid "desk.state.waiting"
+msgstr "Čeká"
+
+msgid "desk.state.not_ready"
+msgstr "Nepřipraveno"
+
+msgid "desk.state.called"
+msgstr "Vyvolán"
+
+msgid "desk.state.playing"
+msgstr "Hraje se"
+
+msgid "desk.state.needs_review"
+msgstr "Ke kontrole"
+
+msgid "desk.state.needs_organizer"
+msgstr "Potřebuje tebe"
+
+msgid "desk.state.reporting"
+msgstr "Odesílá se výsledek"
+
+msgid "desk.state.done"
+msgstr "Hotovo"
+
+msgid "desk.state.held"
+msgstr "Pozastaven"
+
+msgid "desk.side.winners"
+msgstr "Winners"
+
+msgid "desk.side.losers"
+msgstr "Losers"
+
+msgid "desk.side.grand_final"
+msgstr "Velké finále"
+
+msgid "desk.tbd"
+msgstr "Bude upřesněno"
+
+msgid "desk.players"
+msgstr "{0} proti {1}"
+
+msgid "desk.score"
+msgstr "{0} – {1}"
+
+msgid "desk.set_gone"
+msgstr "Tento set už do události nepatří"
+
+msgid "desk.state"
+msgstr "Stav"
+
+msgid "desk.called"
+msgstr "Vyvolán."
+
+msgid "desk.called_posted"
+msgstr "Vyvolán a zveřejněn na Discordu."
+
+msgid "desk.called_waiting"
+msgstr "Vyvolán; příspěvek na Discordu je na cestě."
+
+msgid "desk.called_failed"
+msgstr "Vyvolán, ale Discord příspěvek nepřijal."
+
+msgid "desk.not_called"
+msgstr "Zatím nevyvolán."
+
+msgid "desk.call"
+msgstr "Vyvolat znovu"
+
+msgid "desk.call_detail"
+msgstr "Znovu vyvolá oba hráče, i na Discordu, pokud má událost kanál."
+
+msgid "desk.hold"
+msgstr "Pozastavit"
+
+msgid "desk.hold_detail"
+msgstr "Ember tento set přestane hrát, například aby se hrál na streamu. Výsledek se pak zadá na webu pavouka."
+
+msgid "desk.release"
+msgstr "Uvolnit"
+
+msgid "desk.release_detail"
+msgstr "Ember tento set znovu hraje."
+
+msgid "desk.decide"
+msgstr "Hra {0}: vítěz {1}"
+
+msgid "desk.decide_detail"
+msgstr "Přidělí tuto hru, která skončila bez výsledku, tomuto hráči."
+
+msgid "desk.void"
+msgstr "Zrušit hru {0}"
+
+msgid "desk.void_detail"
+msgstr "Odebere výsledek této hry, například po odpojení. Odehraje se znovu."
+
+msgid "desk.add"
+msgstr "Přidat hru, kterou vyhrál(a): {0}"
+
+msgid "desk.add_detail"
+msgstr "Zaznamená hru odehranou mimo Ember, například odvetu, na které se oba dohodli."
+
+msgid "desk.done"
+msgstr "Hotovo."
+
 msgid "site.cancel_detail"
 msgstr "Přestane čekat. Až budete připraveni, zvolte znovu Připojit {0}."
 

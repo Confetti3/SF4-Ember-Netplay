@@ -108,6 +108,37 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
     } else if (view.op == "site_status" || view.op == "site_remove") {
         const auto account = AccountOf(data, 64);
         view.siteUser = account.user; view.siteName = account.name; view.siteConnectedAt = account.connectedAt;
+    } else if (view.op == "desk_read" && data.contains("sets")) {
+        view.deskEvent = Text(data, "event", 64);
+        view.deskSets.clear();
+        for (const auto& set : data.value("sets", nlohmann::json::array())) {
+            if (!set.is_object() || view.deskSets.size() >= 160) continue;
+            netplay::DeskSet d;
+            d.id = Text(set, "id", 64); d.roundLabel = Text(set, "round_label", 64); d.phase = Text(set, "phase", 64);
+            d.side = Text(set, "side", 16); d.state = Text(set, "desk_state", 32); d.matchId = Text(set, "match_id", 64);
+            d.revision = Text(set, "revision", 32); d.posted = Text(set, "posted", 16);
+            const auto players = set.value("players", nlohmann::json::array());
+            for (std::size_t slot = 0; slot < 2 && slot < players.size(); ++slot)
+                if (players[slot].is_string()) d.players[slot] = players[slot].get<std::string>(); // the helper keeps them to 64 characters
+            const auto score = set.find("score");
+            if (score != set.end() && score->is_array() && score->size() == 2 && (*score)[0].is_number_integer() && (*score)[1].is_number_integer()) {
+                d.score[0] = (*score)[0].get<int>(); d.score[1] = (*score)[1].get<int>(); d.scored = true;
+            }
+            const auto round = set.find("round");
+            if (round != set.end() && round->is_number_integer()) d.round = round->get<int>();
+            d.held = set.value("held", false);
+            const auto called = set.find("called_at");
+            if (called != set.end() && called->is_number_unsigned()) d.calledAt = called->get<std::uint64_t>();
+            for (const auto& game : set.value("games", nlohmann::json::array()))
+                if (game.is_object() && d.games.size() < 16)
+                    d.games.push_back({Text(game, "attempt_id", 64), Text(game, "outcome", 32), Text(game, "state", 32)});
+            view.deskSets.push_back(std::move(d));
+        }
+    } else if (view.op == "desk_read") {
+        view.deskEvents.clear();
+        for (const auto& event : data.value("events", nlohmann::json::array()))
+            if (event.is_object() && view.deskEvents.size() < 32)
+                view.deskEvents.push_back({Text(event, "id", 64), Text(event, "title", 64), Text(event, "status", 16), Text(event, "site", 32)});
     } else if (view.op == "link_claim") {
         view.claimFingerprint = Text(data, "fingerprint", 32);
     } else if (view.op == "identity_preview_import") {
@@ -173,6 +204,16 @@ std::string BuildTournamentRequest(const netplay::IdentityRequest& r) {
     case IdentityOp::SiteConnect: body["op"] = "site_connect"; complete = need({{"bridge_id", &r.bridge}, {"site", &r.site}}); break;
     case IdentityOp::SiteRemove: body["op"] = "site_remove"; complete = need({{"bridge_id", &r.bridge}, {"site", &r.site}}); break;
     case IdentityOp::SiteCancel: body["op"] = "site_cancel"; complete = need({{"bridge_id", &r.bridge}, {"site", &r.site}}); break;
+    case IdentityOp::DeskRead:
+        body["op"] = "desk_read"; complete = need({{"bridge_id", &r.bridge}});
+        if (!r.target.empty()) body["event"] = r.target;
+        break;
+    case IdentityOp::DeskAct: {
+        body["op"] = "desk_act"; complete = need({{"bridge_id", &r.bridge}, {"path", &r.target}});
+        auto command = nlohmann::json::parse(r.command, nullptr, false);
+        if (!command.is_object()) complete = false; else body["command"] = std::move(command);
+        break;
+    }
     default: complete = false; break;
     }
     // The organizer sign-in has no cancel: its path drops the grant instead.

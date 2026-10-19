@@ -15,6 +15,10 @@ enum class IdentityOp : std::uint8_t {
     LinkList, LinkClaim, LinkCancel, LinkRemove,
     DiscordStatus, DiscordConnect, DiscordRemove, DiscordCancel,
     SiteStatus, SiteConnect, SiteRemove, SiteCancel,
+    // The tournament desk: a read of the organizer's events or one event's
+    // sets (`target`: the event, or none), and an action at `target`, a desk
+    // path, with `command` (JSON) as its body.
+    DeskRead, DeskAct,
 };
 
 // Where a player connects an account to their Ember ID through a browser
@@ -60,6 +64,7 @@ constexpr IdentityEffect EffectOf(IdentityOp op) {
     }
     switch (op) {
     case IdentityOp::Status: case IdentityOp::BridgeList: case IdentityOp::BridgeInspect: case IdentityOp::LinkList:
+    case IdentityOp::DeskRead:
         return IdentityEffect::Read;
     case IdentityOp::PreviewImport: return IdentityEffect::Preview;
     case IdentityOp::Enable: case IdentityOp::Import: case IdentityOp::Reset: return IdentityEffect::KeyChange;
@@ -85,16 +90,19 @@ struct IdentityRequest {
     // Import: the ID its preview showed; Reset: the ID being retired.
     std::string emberId;
     bool replace = false;
+    // A desk action's body, as JSON.
+    std::string command;
 
     static constexpr std::size_t MaxSecret = 1024, MaxPath = 1024, MaxField = 256;
     bool Valid() const {
         return passphrase.size() <= MaxSecret && localPassphrase.size() <= MaxSecret && path.size() <= MaxPath &&
             origin.size() <= MaxField && bridge.size() <= MaxField && connection.size() <= MaxField &&
-            code.size() <= MaxField && target.size() <= MaxField && emberId.size() <= MaxField && site.size() <= MaxField;
+            code.size() <= MaxField && target.size() <= MaxField && emberId.size() <= MaxField && site.size() <= MaxField &&
+            command.size() <= MaxPath;
     }
     std::size_t Bytes() const {
         return passphrase.size() + localPassphrase.size() + path.size() + origin.size() + bridge.size() +
-            connection.size() + code.size() + target.size() + emberId.size() + site.size();
+            connection.size() + code.size() + target.size() + emberId.size() + site.size() + command.size();
     }
     // Every copy wipes its secrets when it goes, including one a full queue refused.
     IdentityRequest() = default;

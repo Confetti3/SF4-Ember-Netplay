@@ -3966,6 +3966,174 @@ msgstr "Toernooibalie"
 msgid "site.desk_detail"
 msgstr "Open dit adres op je telefoon of computer om je toernooien te maken en te runnen."
 
+msgid "screen.tournament_desk"
+msgstr "Toernooitafel"
+
+msgid "desk.entry_detail"
+msgstr "Je events die via Ember lopen: hun sets, de bracket en wat jou nodig heeft."
+
+msgid "desk.event_detail"
+msgstr "Op {0}. Kies om de sets te zien."
+
+msgid "desk.status.draft"
+msgstr "Concept"
+
+msgid "desk.status.ready"
+msgstr "Klaar"
+
+msgid "desk.status.running"
+msgstr "Loopt"
+
+msgid "desk.none"
+msgstr "Nog geen events"
+
+msgid "desk.none_detail"
+msgstr "Maak en start je events op de toernooitafel-website; ze verschijnen hier zodra ze lopen."
+
+msgid "desk.view"
+msgstr "Weergave"
+
+msgid "desk.view.queue"
+msgstr "Sets"
+
+msgid "desk.view.bracket"
+msgstr "Bracket"
+
+msgid "desk.view_detail"
+msgstr "Links en Rechts wisselen tussen de lijst met sets en de bracket."
+
+msgid "desk.filter"
+msgstr "Toon"
+
+msgid "desk.filter.all"
+msgstr "Alle"
+
+msgid "desk.filter.winners"
+msgstr "Winners"
+
+msgid "desk.filter.losers"
+msgstr "Losers"
+
+msgid "desk.filter.action"
+msgstr "Heeft jou nodig"
+
+msgid "desk.filter.live"
+msgstr "Live"
+
+msgid "desk.filter_detail"
+msgstr "Links en Rechts kiezen welke sets de lijst toont. Sets die jou nodig hebben komen eerst."
+
+msgid "desk.loading"
+msgstr "Sets worden gelezen"
+
+msgid "desk.no_sets"
+msgstr "Geen sets"
+
+msgid "desk.state.waiting"
+msgstr "Wacht"
+
+msgid "desk.state.not_ready"
+msgstr "Nog niet klaar"
+
+msgid "desk.state.called"
+msgstr "Opgeroepen"
+
+msgid "desk.state.playing"
+msgstr "Bezig"
+
+msgid "desk.state.needs_review"
+msgstr "Controle nodig"
+
+msgid "desk.state.needs_organizer"
+msgstr "Heeft jou nodig"
+
+msgid "desk.state.reporting"
+msgstr "Wordt gemeld"
+
+msgid "desk.state.done"
+msgstr "Klaar"
+
+msgid "desk.state.held"
+msgstr "Vastgehouden"
+
+msgid "desk.side.winners"
+msgstr "Winners"
+
+msgid "desk.side.losers"
+msgstr "Losers"
+
+msgid "desk.side.grand_final"
+msgstr "Grand final"
+
+msgid "desk.tbd"
+msgstr "Nog niet bekend"
+
+msgid "desk.players"
+msgstr "{0} tegen {1}"
+
+msgid "desk.score"
+msgstr "{0} – {1}"
+
+msgid "desk.set_gone"
+msgstr "Deze set hoort niet meer bij het event"
+
+msgid "desk.state"
+msgstr "Status"
+
+msgid "desk.called"
+msgstr "Opgeroepen."
+
+msgid "desk.called_posted"
+msgstr "Opgeroepen en op Discord geplaatst."
+
+msgid "desk.called_waiting"
+msgstr "Opgeroepen; de Discord-post is onderweg."
+
+msgid "desk.called_failed"
+msgstr "Opgeroepen, maar Discord nam de post niet aan."
+
+msgid "desk.not_called"
+msgstr "Nog niet opgeroepen."
+
+msgid "desk.call"
+msgstr "Opnieuw oproepen"
+
+msgid "desk.call_detail"
+msgstr "Roept beide spelers opnieuw op, ook op Discord als het event een kanaal heeft."
+
+msgid "desk.hold"
+msgstr "Vasthouden"
+
+msgid "desk.hold_detail"
+msgstr "Ember speelt deze set niet meer, bijvoorbeeld om hem op stream te spelen. De uitslag wordt dan op de bracketsite ingevuld."
+
+msgid "desk.release"
+msgstr "Loslaten"
+
+msgid "desk.release_detail"
+msgstr "Ember speelt deze set weer."
+
+msgid "desk.decide"
+msgstr "Game {0}: {1} wint"
+
+msgid "desk.decide_detail"
+msgstr "Beslist deze game, die zonder uitslag eindigde, voor die speler."
+
+msgid "desk.void"
+msgstr "Game {0} ongeldig maken"
+
+msgid "desk.void_detail"
+msgstr "Haalt de uitslag van deze game weg, bijvoorbeeld na een verbroken verbinding. Hij wordt opnieuw gespeeld."
+
+msgid "desk.add"
+msgstr "Game toevoegen gewonnen door {0}"
+
+msgid "desk.add_detail"
+msgstr "Legt een game vast die buiten Ember werd gespeeld, zoals een herhaling waar beide spelers mee instemden."
+
+msgid "desk.done"
+msgstr "Klaar."
+
 msgid "site.cancel_detail"
 msgstr "Stopt met wachten. Kies {0} koppelen opnieuw als je klaar bent."
 

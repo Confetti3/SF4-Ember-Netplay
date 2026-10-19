@@ -3966,6 +3966,174 @@ msgstr "Table du tournoi"
 msgid "site.desk_detail"
 msgstr "Ouvre cette adresse sur ton téléphone ou ton ordinateur pour créer et gérer tes tournois."
 
+msgid "screen.tournament_desk"
+msgstr "Table du tournoi"
+
+msgid "desk.entry_detail"
+msgstr "Vos événements gérés par Ember : leurs sets, le bracket et ce qui vous attend."
+
+msgid "desk.event_detail"
+msgstr "Sur {0}. Sélectionnez pour voir ses sets."
+
+msgid "desk.status.draft"
+msgstr "Brouillon"
+
+msgid "desk.status.ready"
+msgstr "Prêt"
+
+msgid "desk.status.running"
+msgstr "En cours"
+
+msgid "desk.none"
+msgstr "Aucun événement"
+
+msgid "desk.none_detail"
+msgstr "Créez et lancez vos événements sur le site de la table du tournoi ; ils apparaissent ici une fois lancés."
+
+msgid "desk.view"
+msgstr "Vue"
+
+msgid "desk.view.queue"
+msgstr "Sets"
+
+msgid "desk.view.bracket"
+msgstr "Bracket"
+
+msgid "desk.view_detail"
+msgstr "Gauche et Droite alternent entre la liste des sets et le bracket."
+
+msgid "desk.filter"
+msgstr "Afficher"
+
+msgid "desk.filter.all"
+msgstr "Tous"
+
+msgid "desk.filter.winners"
+msgstr "Winners"
+
+msgid "desk.filter.losers"
+msgstr "Losers"
+
+msgid "desk.filter.action"
+msgstr "À traiter"
+
+msgid "desk.filter.live"
+msgstr "En direct"
+
+msgid "desk.filter_detail"
+msgstr "Gauche et Droite choisissent les sets affichés. Ceux qui vous attendent passent en premier."
+
+msgid "desk.loading"
+msgstr "Lecture des sets"
+
+msgid "desk.no_sets"
+msgstr "Aucun set"
+
+msgid "desk.state.waiting"
+msgstr "En attente"
+
+msgid "desk.state.not_ready"
+msgstr "Pas prêt"
+
+msgid "desk.state.called"
+msgstr "Appelé"
+
+msgid "desk.state.playing"
+msgstr "En jeu"
+
+msgid "desk.state.needs_review"
+msgstr "À vérifier"
+
+msgid "desk.state.needs_organizer"
+msgstr "Vous attend"
+
+msgid "desk.state.reporting"
+msgstr "Envoi du résultat"
+
+msgid "desk.state.done"
+msgstr "Terminé"
+
+msgid "desk.state.held"
+msgstr "Retenu"
+
+msgid "desk.side.winners"
+msgstr "Winners"
+
+msgid "desk.side.losers"
+msgstr "Losers"
+
+msgid "desk.side.grand_final"
+msgstr "Grande finale"
+
+msgid "desk.tbd"
+msgstr "À déterminer"
+
+msgid "desk.players"
+msgstr "{0} contre {1}"
+
+msgid "desk.score"
+msgstr "{0} – {1}"
+
+msgid "desk.set_gone"
+msgstr "Ce set ne fait plus partie de l'événement"
+
+msgid "desk.state"
+msgstr "État"
+
+msgid "desk.called"
+msgstr "Appelé."
+
+msgid "desk.called_posted"
+msgstr "Appelé et publié sur Discord."
+
+msgid "desk.called_waiting"
+msgstr "Appelé ; la publication Discord est en route."
+
+msgid "desk.called_failed"
+msgstr "Appelé, mais Discord a refusé la publication."
+
+msgid "desk.not_called"
+msgstr "Pas encore appelé."
+
+msgid "desk.call"
+msgstr "Rappeler"
+
+msgid "desk.call_detail"
+msgstr "Rappelle les deux joueurs, aussi sur Discord si l'événement a un salon."
+
+msgid "desk.hold"
+msgstr "Retenir"
+
+msgid "desk.hold_detail"
+msgstr "Ember ne joue plus ce set, par exemple pour le jouer en stream. Son résultat est alors saisi sur le site du bracket."
+
+msgid "desk.release"
+msgstr "Relâcher"
+
+msgid "desk.release_detail"
+msgstr "Ember rejoue ce set."
+
+msgid "desk.decide"
+msgstr "Partie {0} : {1} gagne"
+
+msgid "desk.decide_detail"
+msgstr "Attribue cette partie, terminée sans résultat, à ce joueur."
+
+msgid "desk.void"
+msgstr "Annuler la partie {0}"
+
+msgid "desk.void_detail"
+msgstr "Retire le résultat de cette partie, par exemple après une déconnexion. Elle est rejouée."
+
+msgid "desk.add"
+msgstr "Ajouter une partie gagnée par {0}"
+
+msgid "desk.add_detail"
+msgstr "Enregistre une partie jouée hors d'Ember, comme une revanche acceptée par les deux joueurs."
+
+msgid "desk.done"
+msgstr "Fait."
+
 msgid "site.cancel_detail"
 msgstr "Arrête l'attente. Choisissez à nouveau Connecter {0} quand vous êtes prêt."
 
