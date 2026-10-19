@@ -176,6 +176,49 @@ redirect URI to register). The browser keeps a session cookie; changes carry
 a CSRF token instead of the game's proof, since the browser holds no Ember
 key.
 
+## 4b. Replay packs per set
+
+Every game of a set is kept, packed per set, without anyone saving by hand,
+also when the set moves to another room (a rematch after a disconnect).
+
+What exists today: each PC already archives every game on its own, one
+`.emberreplay` per game (`ReplayFiles.hxx`). Ember turns the Versus battle's
+`recordReplay` on for both players (spectators by their own setting,
+`sf4e__UserApp.cxx`), and the battle saves its replay when it ends
+(`VsBattle::task_BATTLE_MAIN`, 0x63CA40). The `.names` side file holds
+the two names, guessed from fighters and save time. Nothing ties a replay to
+a room, a match or a set, nothing uploads one, and a file holds one game.
+
+The set's id already survives a room change: a tournament room is bound to
+the bridge `matchId` from the call link (`TournamentLink.hxx`), and a new
+room for the same set binds to the same id with a higher revision. The pack
+hangs off that id.
+
+- **Tag.** `NoteMatchStart` also takes the bound `matchId` and the room's
+  revision, and the `.names` record stores them (`EMBRNAM2`; version 1 files
+  keep reading). A game without a binding stays untagged, as today.
+- **Upload.** After a tagged game is archived, the player's client sends it
+  to the bridge, `PUT /v1/matches/{matchId}/replays/{crc}`, signed with the
+  Ember key as other match calls are. Only the set's two players may send;
+  the same game from both players is kept once (same CRC). A failed upload
+  stays in the outbox and is retried with it.
+- **Pack.** The bridge orders the set's games by save time and serves them
+  as one file, `GET /v1/matches/{matchId}/replays.pack`: a header with the
+  tournament, round, phase, players, score and rooms, then each game's
+  `.emberreplay` bytes.
+- **Cut-off games don't count.** A game that ends without a confirmed
+  result (a disconnect, a desync) is never scored and never packed: who was
+  at fault can't always be proven, so the game is played again from the
+  start, in the same room or a new one. Only games with a confirmed result
+  are tagged and sent, so a 2–1 set ends with exactly 3 complete replays.
+- **Game.** Replays › Tournaments lists sets, each with its pack (count of
+  games and rooms); Watch set plays them in order; Save set pack writes the
+  file; opening a `.emberpack` imports every game. The desk's set panel
+  links to the same pack.
+
+Open: how long the bridge keeps packs, and whether spectators' copies may
+fill a gap when neither player's upload arrives.
+
 ## 5. Commits
 
 1. Bridge: organizer sign-in and sealed grants, with refresh.
@@ -193,4 +236,9 @@ key.
    actions.
 8. Mobile mini-viewer: the bracket and live sets as a read-only phone
    layout of the web desk.
-9. Manual: the tournament mode guide.
+9. Game: tag tournament replays with the set's `matchId` and room revision
+   (`EMBRNAM2`), only for games with a confirmed result.
+10. Bridge: replay upload per set and the set pack.
+11. Game: upload from the outbox, Replays › Tournaments by set, and
+    `.emberpack` save and import.
+12. Manual: the tournament mode guide.
