@@ -1,0 +1,33 @@
+# A tournament bridge under Docker, published on the host for a reverse proxy
+# that serves its origin over HTTPS. The proxy must not buffer
+# /v1/events/stream (bridge/deploy/nginx/bridge.conf.in has the settings).
+#
+# .env next to this file:
+#   BRIDGE_PORT  host port the proxy forwards to
+#   BRIDGE_DATA  host folder for bridge.json, its secrets and database (0700)
+#   BRIDGE_USER  uid:gid that owns BRIDGE_DATA (default 4784:4784, the image's)
+#
+# First run:
+#   docker compose run --rm bridge ember-bridge init /var/lib/ember
+#   then merge the instance's tenants file into $BRIDGE_DATA/bridge.json as
+#   bridge/deploy/setup.sh does (keeping bridge_id, database and secrets),
+#   with "listen": "0.0.0.0:8470"
+#   docker compose up -d
+services:
+  bridge:
+    image: ember-bridge
+    build:
+      context: ../../..
+      dockerfile: server/ember/docker/Dockerfile
+    command: ["ember-bridge", "serve", "/var/lib/ember/bridge.json"]
+    restart: unless-stopped
+    user: "${BRIDGE_USER:-4784:4784}"
+    ports:
+      - "${BRIDGE_PORT:?set BRIDGE_PORT}:8470"
+    volumes:
+      - "${BRIDGE_DATA:?set BRIDGE_DATA}:/var/lib/ember"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
