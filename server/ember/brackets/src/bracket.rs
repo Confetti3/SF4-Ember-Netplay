@@ -82,6 +82,8 @@ pub(crate) struct Bracket {
     /// The desk event this bracket is, whose sets go to the bridge after
     /// each read (`snapshot`); none for a configured tournament.
     desk_event: Option<String>,
+    /// The sets its organizer holds from the desk, by ID.
+    desk_held: Vec<String>,
     /// Whether the last snapshot failed to reach the bridge, logged once.
     snapshot_failing: AtomicBool,
     /// Held for a whole pass.
@@ -185,6 +187,7 @@ impl Bracket {
             lookup_failing: AtomicBool::new(false),
             cancel_failing: std::sync::Mutex::default(),
             desk_event: None,
+            desk_held: Vec::new(),
             snapshot_failing: AtomicBool::new(false),
             state: Mutex::new(State {
                 schedule,
@@ -204,8 +207,10 @@ impl Bracket {
     }
 
     /// This bracket as the desk's event `event`.
-    pub fn for_desk(mut self, event: String) -> Self {
+    /// A desk event's bracket, with the sets its organizer holds.
+    pub fn for_desk(mut self, event: String, held: Vec<String>) -> Self {
         self.desk_event = Some(event);
+        self.desk_held = held;
         self
     }
 

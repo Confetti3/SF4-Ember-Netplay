@@ -1380,3 +1380,145 @@ async fn an_organizer_signs_in_to_the_web_desk_with_a_linked_account() {
         .unwrap();
     assert_eq!(gone.status(), StatusCode::UNAUTHORIZED);
 }
+
+// From the desk an organizer holds a set of their running event and lets it
+// go, calls it again, and decides a game of a match the event made; nobody
+// else can, and only for a match of that event.
+#[tokio::test]
+async fn an_organizer_holds_calls_and_decides_from_the_desk() {
+    let fake = fake_challonge();
+    fake.lists("/v2.1/tournaments.json", |_| {
+        json!({ "data": [{ "id": "9001", "type": "tournament", "attributes": { "name": "Weekly" } }] })
+    });
+    let bridge = desk_bridge(&fake).await;
+    let player1 = player(&bridge, 1).await;
+    let player2 = player(&bridge, 2).await;
+    let player3 = player(&bridge, 3).await;
+    CHALLONGE.organize(&bridge, &player1, "good-player1").await;
+    let (_, started) = CHALLONGE
+        .start_event(&bridge, &player1, "9001", json!({}))
+        .await;
+    let id = started["id"].as_str().unwrap().to_owned();
+    let desk = bridge.provider(BRACKETS).await;
+
+    // The connector's match for set s1, between players 2 and 3.
+    let links = [
+        bridge.link(&desk, &player2, BRACKETS, "p2").await,
+        bridge.link(&desk, &player3, BRACKETS, "p3").await,
+    ];
+    let (status, created) = bridge
+        .post_keyed(
+            &desk,
+            "/v1/matches",
+            json!({
+                "external_match_id": "challonge:9001:s1:1",
+                "game": "usf4",
+                "participants": [
+                    { "participant_id": links[0]["participant_id"], "ember_id": player2.id(), "slot": 0 },
+                    { "participant_id": links[1]["participant_id"], "ember_id": player3.id(), "slot": 1 },
+                ],
+                "rules": {
+                    "games_to_win": 2,
+                    "draw_policy": "replay_no_score",
+                    "native_rules_profile": "ember-room-v1",
+                    "edition_policy": "ultra_only",
+                    "character_policy": "unrestricted_between_games",
+                    "stage_policy": "p1_selects",
+                    "input_delay_policy": "ember_existing_ready_policy",
+                },
+                "observer_policy": "authorized_only",
+                "result_policy": "two_player_agreement_or_review",
+                "required_build_id": "test-build",
+                "metadata": { "round_label": "Round 1" },
+            }),
+            Some("create-s1"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let match_id = created["match_id"].as_str().unwrap().to_owned();
+    let snapshot = json!({ "sets": [
+        { "id": "s1", "round": 1, "status": "open", "held": false, "match_id": match_id },
+        { "id": "s2", "round": 2, "status": "pending", "held": false },
+    ] });
+    let sent = bridge
+        .client
+        .put(bridge.url(&format!("/v1/desk/events/{id}/sets")))
+        .bearer_auth(&desk)
+        .header("content-type", "application/json")
+        .body(snapshot.to_string())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(sent.status(), StatusCode::OK);
+
+    let send = |player, path: String, command| {
+        let bridge = &bridge;
+        async move {
+            sign_in::send(
+                bridge,
+                player,
+                Action::SiteConnect,
+                Method::Post,
+                &path,
+                command,
+            )
+            .await
+        }
+    };
+    let set_path = |set: &str| format!("/v1/organizer/events/{id}/sets/{set}");
+    let sets = || async {
+        bridge
+            .get(player1.token(), &format!("/v1/organizer/events/{id}/sets"))
+            .await
+            .1["sets"]
+            .clone()
+    };
+
+    // Held: the desk shows it, and the connector gets it in the event's holds.
+    let (status, _) = send(
+        &player1,
+        set_path("s2"),
+        json!({ "held": true, "call": true }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let shown = sets().await;
+    assert_eq!(shown[1]["desk_state"], "held");
+    assert_eq!(shown[1]["called_at"], json!(bridge.clock.now()));
+    let (_, running) = bridge.get(&desk, "/v1/desk/brackets").await;
+    assert_eq!(
+        running["brackets"][0]["settings"]["hold"]["sets"],
+        json!(["s2"])
+    );
+    // Nobody else marks it.
+    let (status, _) = send(&player2, set_path("s2"), json!({ "held": false })).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    // Let go, it is not held any more.
+    let (status, _) = send(&player1, set_path("s2"), json!({ "held": false })).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(sets().await[1]["desk_state"], "not_ready");
+    let (_, running) = bridge.get(&desk, "/v1/desk/brackets").await;
+    assert!(
+        running["brackets"][0]["settings"]["hold"]
+            .get("sets")
+            .is_none()
+    );
+
+    // A game decided from the desk counts for the match.
+    let decide = |player, match_id: &str| {
+        send(
+            player,
+            format!("/v1/organizer/events/{id}/matches/{match_id}/adjudications"),
+            json!({ "kind": "game_result", "winner_slot": 0,
+                    "reason": "Disconnect, both agreed", "expected_revision": "1" }),
+        )
+    };
+    let (status, _) = decide(&player2, &match_id).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let (status, decided) = decide(&player1, &match_id).await;
+    assert_eq!(status, StatusCode::CREATED, "{decided}");
+    assert_eq!(sets().await[0]["score"], json!([1, 0]));
+    // Only a match of the event's sets.
+    let (status, _) = decide(&player1, "emt_00000000-0000-4000-8000-000000000000").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}

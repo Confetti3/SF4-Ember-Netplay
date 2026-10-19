@@ -660,7 +660,7 @@ enum AdjudicationKind {
 
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-struct AdjudicationCommand {
+pub(crate) struct AdjudicationCommand {
     kind: AdjudicationKind,
     /// 0 or 1 for a win; omitted for a draw.
     #[serde(default)]
@@ -689,17 +689,7 @@ pub async fn adjudicate(
     let viewer = service_viewer(&service)?;
     let key = idempotency_key(&headers)?;
     let command: AdjudicationCommand = body.parse()?;
-    check_reason(&command.reason)?;
-    if command.evidence.len() > MAX_EVIDENCE
-        || command
-            .evidence
-            .iter()
-            .any(|item| item.is_empty() || item.len() > 256)
-    {
-        return Err(ApiFailure::invalid(
-            "Evidence is up to 16 references of 1 to 256 bytes.",
-        ));
-    }
+    check_command(&command)?;
     let expected = expected_revision(
         &headers,
         command.expected_revision.map(|revision| revision.0),
@@ -718,7 +708,7 @@ pub async fn adjudicate(
                 if found.revision != expected {
                     return Err(stale(found.revision));
                 }
-                apply_adjudication(tx, &ctx, &service, &found, &command, expected)
+                apply_adjudication(tx, &ctx, &service.id, &found, &command, expected)
             })
         })
         .await?;
@@ -726,10 +716,47 @@ pub async fn adjudicate(
     Ok(respond(result))
 }
 
+fn check_command(command: &AdjudicationCommand) -> Result<()> {
+    check_reason(&command.reason)?;
+    if command.evidence.len() > MAX_EVIDENCE
+        || command
+            .evidence
+            .iter()
+            .any(|item| item.is_empty() || item.len() > 256)
+    {
+        return Err(ApiFailure::invalid(
+            "Evidence is up to 16 references of 1 to 256 bytes.",
+        ));
+    }
+    Ok(())
+}
+
+/// An adjudication the tournament desk sends for an organizer, `actor`, on
+/// a match of their own event (`routes::organizer` checks that): the checks
+/// and effects of `adjudicate`, at the revision the command names.
+pub(crate) fn adjudicate_for(
+    tx: &Transaction<'_>,
+    ctx: &Ctx,
+    actor: &str,
+    id: &str,
+    command: &AdjudicationCommand,
+) -> Result<(StatusCode, serde_json::Value)> {
+    check_command(command)?;
+    let expected = command
+        .expected_revision
+        .map(|revision| revision.0)
+        .ok_or_else(|| ApiFailure::invalid("expected_revision is required."))?;
+    let found = load(tx, id)?.ok_or_else(ApiFailure::not_found)?;
+    if found.revision != expected {
+        return Err(stale(found.revision));
+    }
+    apply_adjudication(tx, ctx, actor, &found, command, expected)
+}
+
 fn apply_adjudication(
     tx: &Transaction<'_>,
     ctx: &Ctx,
-    service: &Service,
+    actor: &str,
     found: &Match,
     command: &AdjudicationCommand,
     expected: u64,
@@ -764,7 +791,7 @@ fn apply_adjudication(
                     |row| Ok((row.get(0)?, row.get(1)?)),
                 )
                 .optional()?;
-            record_adjudication(tx, ctx, service, found, &adjudication_id, command, expected)?;
+            record_adjudication(tx, ctx, actor, found, &adjudication_id, command, expected)?;
             // A game the fighters played and could not settle is decided in
             // place; otherwise the result is a new organizer attempt.
             let (attempt_id, seq) = match (&command.attempt_id, open) {
@@ -834,7 +861,7 @@ fn apply_adjudication(
                     "A cancelled, failed or expired match cannot change.",
                 ));
             }
-            record_adjudication(tx, ctx, service, found, &adjudication_id, command, expected)?;
+            record_adjudication(tx, ctx, actor, found, &adjudication_id, command, expected)?;
             // An accepted game, or a played game still waiting for a result.
             let changed = tx.execute(
                 "UPDATE attempts SET state = 'voided', voided_by = ?1
@@ -875,7 +902,7 @@ fn apply_adjudication(
 fn record_adjudication(
     tx: &Transaction<'_>,
     ctx: &Ctx,
-    service: &Service,
+    actor: &str,
     found: &Match,
     id: &str,
     command: &AdjudicationCommand,
@@ -887,7 +914,7 @@ fn record_adjudication(
         params![
             id,
             found.id,
-            service.id,
+            actor,
             serde_json::to_value(&command.kind).ok().and_then(|v| v.as_str().map(str::to_owned)),
             command.reason,
             serde_json::to_string(&command.evidence).unwrap_or_default(),
@@ -900,7 +927,7 @@ fn record_adjudication(
     audit(
         tx,
         ctx.now,
-        ("organizer", service.id.clone()),
+        ("organizer", actor.to_owned()),
         "match.adjudicate",
         &found.id,
         "ok",

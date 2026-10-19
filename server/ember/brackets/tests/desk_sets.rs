@@ -13,6 +13,10 @@ use support::{CHALLONGE_KEY, Setup, TOURNAMENT, World};
 
 /// The organizer, byte 9, runs the fake tournament on the desk, made public.
 async fn run_public_event(world: &World) {
+    run_public_event_with(world, json!({ "rounds": { "games_to_win": 2 } })).await;
+}
+
+async fn run_public_event_with(world: &World, settings: serde_json::Value) {
     let organizer = world.bridge.connect(9, "organizer").await;
     let state = world.bridge.state();
     let now = world.bridge.clock.now();
@@ -40,12 +44,7 @@ async fn run_public_event(world: &World) {
                      (id, ember_id, title, status, site, tournament, name, settings, created_at,
                       public)
                  VALUES ('evt_1', ?1, 'Weekly', 'ready', 'challonge', ?2, 'Weekly', ?3, ?4, 1)",
-                params![
-                    ember_id,
-                    TOURNAMENT,
-                    json!({ "rounds": { "games_to_win": 2 } }).to_string(),
-                    now
-                ],
+                params![ember_id, TOURNAMENT, settings.to_string(), now],
             )?;
             Ok(())
         })
@@ -160,4 +159,32 @@ async fn a_desk_events_sets_hold_the_whole_bracket() {
         .expect("the later round is in the bracket");
     assert_eq!(later["round"], 2);
     assert_eq!(later["desk_state"], "not_ready");
+}
+
+#[tokio::test]
+async fn a_set_held_from_the_desk_is_not_played() {
+    let world = World::start(Setup {
+        challonge: false,
+        kind: CredentialKind::Bearer,
+        ..Setup::default()
+    })
+    .await;
+    let mut config = world.config.clone();
+    config.desk = Some(Desk {
+        api_bases: BTreeMap::from([("challonge".into(), world.challonge.api.clone())]),
+    });
+    let connector = support::connector(&config, &world.clock);
+    world.bridge.connect(1, "player1").await;
+    world.bridge.connect(2, "Player_2").await;
+    connector.pass(true).await;
+    run_public_event_with(
+        &world,
+        json!({ "rounds": { "games_to_win": 2 }, "hold": { "sets": ["1001"] } }),
+    )
+    .await;
+    connector.pass(true).await;
+    assert!(world.bridge.matches().await.is_empty());
+    let (status, set) = public_set(&world).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(set["desk_state"], "held");
 }

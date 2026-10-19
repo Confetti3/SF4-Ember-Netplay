@@ -18,7 +18,10 @@ use axum::{
     http::{HeaderMap, StatusCode},
     response::Response,
 };
-use ember_protocol::challenge::{Action, Method, ProvenRequest};
+use ember_protocol::{
+    challenge::{Action, Method, ProvenRequest},
+    encoding::is_prefixed_id,
+};
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
@@ -762,12 +765,21 @@ pub async fn brackets(State(state): State<AppState>, headers: HeaderMap) -> Resu
         else {
             continue;
         };
+        let mut settings = settings(&stored);
+        let event = id.clone();
+        let held = state.db.read(move |tx| held_sets(tx, &event)).await?;
+        if !held.is_empty() {
+            if !settings["hold"].is_object() {
+                settings["hold"] = json!({});
+            }
+            settings["hold"]["sets"] = json!(held);
+        }
         brackets.push(json!({
             "id": id,
             "site": site,
             "tournament": tournament,
             "name": name,
-            "settings": settings(&stored),
+            "settings": settings,
             "access_token": grant.access,
             "expires_at": grant.expires_at,
         }));
@@ -858,7 +870,7 @@ pub async fn sets(
                 return Ok(None);
             };
             Ok(Some(json!({
-                "sets": desk_sets(tx, site.as_deref(), stored.as_deref(), true)?,
+                "sets": desk_sets(tx, &id, site.as_deref(), stored.as_deref(), true)?,
                 "updated_at": at,
             })))
         })
@@ -905,12 +917,165 @@ pub async fn public(State(state): State<AppState>, Path(id): Path<String>) -> Re
                 "starts_at": starts_at,
                 "site": site,
                 "links": settings(&links),
-                "sets": desk_sets(tx, site.as_deref(), stored.as_deref(), false)?,
+                "sets": desk_sets(tx, &id, site.as_deref(), stored.as_deref(), false)?,
                 "updated_at": at,
             })))
         })
         .await?;
     view.map(|view| ok(&view)).ok_or_else(ApiFailure::not_found)
+}
+
+/// The sets an event's organizer holds from the desk.
+fn held_sets(tx: &Transaction<'_>, event: &str) -> Result<Vec<String>> {
+    Ok(tx
+        .prepare("SELECT set_id FROM desk_marks WHERE event_id = ?1 AND held = 1 ORDER BY set_id")?
+        .query_map([event], |row| row.get(0))?
+        .collect::<rusqlite::Result<_>>()?)
+}
+
+/// Whether `path` is a desk action on one of an event's sets or matches,
+/// which a `site.connect` proof authorizes (`sessions::route_matches`).
+pub fn is_desk_action(path: &str) -> bool {
+    let Some(rest) = path.strip_prefix("/v1/organizer/events/") else {
+        return false;
+    };
+    let parts: Vec<&str> = rest.split('/').collect();
+    match parts.as_slice() {
+        [event, "sets", set] => is_prefixed_id(event, "oev") && is_set_id(set),
+        [event, "matches", id, "adjudications"] => {
+            is_prefixed_id(event, "oev") && is_prefixed_id(id, "emt")
+        }
+        _ => false,
+    }
+}
+
+/// A set ID as the connector sends it: a site's ID, 1 to 64 letters,
+/// digits, `-` or `_`.
+fn is_set_id(id: &str) -> bool {
+    (1..=64).contains(&id.len())
+        && id
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Mark {
+    /// Holds the set (it is not played in Ember) or lets it go.
+    #[serde(default)]
+    held: Option<bool>,
+    /// Calls the set again: the desk shows when.
+    #[serde(default)]
+    call: bool,
+}
+
+/// `POST /v1/organizer/events/{id}/sets/{set}`: holds or lets go a set of
+/// the organizer's running event, or calls it again. Takes a `site.connect`
+/// proof for this path.
+pub async fn mark(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path((id, set)): Path<(String, String)>,
+    body: Body<PROOF_BODY>,
+) -> Result<Response> {
+    let (caller, mark): (_, Mark) = Caller::of(&state, &headers, &body).await?;
+    if !is_set_id(&set) {
+        return Err(ApiFailure::not_found());
+    }
+    let path = format!("{EVENTS_PATH}/{id}/sets/{set}");
+    let ctx = Ctx::of(&state);
+    let marked = state
+        .db
+        .write(move |tx| {
+            let ember_id = caller.prove(tx, &ctx, Action::SiteConnect, Method::Post, &path)?;
+            if open_status(tx, &id, &ember_id)?.is_none() {
+                return Ok(false);
+            }
+            tx.execute(
+                "INSERT INTO desk_marks (event_id, set_id) VALUES (?1, ?2)
+                 ON CONFLICT (event_id, set_id) DO NOTHING",
+                params![id, set],
+            )?;
+            if let Some(held) = mark.held {
+                tx.execute(
+                    "UPDATE desk_marks SET held = ?1 WHERE event_id = ?2 AND set_id = ?3",
+                    params![held, id, set],
+                )?;
+            }
+            if mark.call {
+                tx.execute(
+                    "UPDATE desk_marks SET called_at = ?1 WHERE event_id = ?2 AND set_id = ?3",
+                    params![ctx.now, id, set],
+                )?;
+            }
+            Ok(true)
+        })
+        .await?;
+    state.committed();
+    if !marked {
+        return Err(ApiFailure::not_found());
+    }
+    Ok(ok(&json!({})))
+}
+
+/// `POST /v1/organizer/events/{id}/matches/{match}/adjudications`: the
+/// organizer decides or voids a game of an Ember match one of their events
+/// created, as an organizer credential would (`matches::adjudicate`),
+/// recorded as theirs. Takes a `site.connect` proof for this path.
+pub async fn adjudicate(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path((id, match_id)): Path<(String, String)>,
+    body: Body<PROOF_BODY>,
+) -> Result<Response> {
+    let (caller, command): (_, crate::routes::matches::AdjudicationCommand) =
+        Caller::of(&state, &headers, &body).await?;
+    let desk = state
+        .config
+        .desk
+        .as_ref()
+        .ok_or_else(ApiFailure::not_found)?
+        .connection
+        .clone();
+    let path = format!("{EVENTS_PATH}/{id}/matches/{match_id}/adjudications");
+    let ctx = Ctx::of(&state);
+    let result = state
+        .db
+        .write(move |tx| {
+            let ember_id = caller.prove(tx, &ctx, Action::SiteConnect, Method::Post, &path)?;
+            // The match must be one this organizer's event made: on the
+            // desk connection, and in the event's sets.
+            let stored: Option<Option<String>> = tx
+                .query_row(
+                    "SELECT sets FROM organizer_events WHERE id = ?1 AND ember_id = ?2",
+                    params![id, ember_id],
+                    |row| row.get(0),
+                )
+                .optional()?;
+            let sets: Vec<Value> = stored
+                .flatten()
+                .and_then(|stored| serde_json::from_str(&stored).ok())
+                .unwrap_or_default();
+            let on_desk: bool = tx.query_row(
+                "SELECT EXISTS (SELECT 1 FROM matches WHERE id = ?1 AND connection_id = ?2)",
+                params![match_id, desk],
+                |row| row.get(0),
+            )?;
+            if !on_desk || !sets.iter().any(|set| set["match_id"] == json!(match_id)) {
+                return Err(ApiFailure::not_found());
+            }
+            crate::routes::matches::adjudicate_for(
+                tx,
+                &ctx,
+                &format!("desk:{ember_id}"),
+                &match_id,
+                &command,
+            )
+        })
+        .await?;
+    state.committed();
+    let (status, body) = result;
+    Ok(json(status, &body))
 }
 
 /// A kept snapshot's sets with what the bridge knows of each one's Ember
@@ -919,6 +1084,7 @@ pub async fn public(State(state): State<AppState>, Path(id): Path<String>) -> Re
 /// snapshot has none, and the desk state.
 fn desk_sets(
     tx: &Transaction<'_>,
+    event: &str,
     site: Option<&str>,
     stored: Option<&str>,
     with_ids: bool,
@@ -926,8 +1092,19 @@ fn desk_sets(
     let sets: Vec<Value> = stored
         .and_then(|stored| serde_json::from_str(stored).ok())
         .unwrap_or_default();
+    let marks: std::collections::HashMap<String, (bool, Option<u64>)> = tx
+        .prepare("SELECT set_id, held, called_at FROM desk_marks WHERE event_id = ?1")?
+        .query_map([event], |row| Ok((row.get(0)?, (row.get(1)?, row.get(2)?))))?
+        .collect::<rusqlite::Result<_>>()?;
     sets.into_iter()
         .map(|mut set| {
+            // Held from the desk shows held before the connector's next read.
+            if let Some((held, called_at)) = set["id"].as_str().and_then(|id| marks.get(id)) {
+                if *held {
+                    set["held"] = json!(true);
+                }
+                set["called_at"] = json!(called_at);
+            }
             let found = match set["match_id"].as_str() {
                 Some(match_id) => desk_match(tx, match_id, site)?,
                 None => None,

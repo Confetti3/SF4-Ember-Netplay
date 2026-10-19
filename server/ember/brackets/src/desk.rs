@@ -1,8 +1,8 @@
 //! Organizers' own events (docs/design/TOURNAMENT_DESK.md): read from the
 //! bridge's desk connection (`/v1/desk/brackets`) and run as configured
 //! tournaments are, each with the access token the bridge hands out with it.
-//! The token is kept in memory only; a newer one replaces the event's worker
-//! with one that uses it. An event the bridge no longer lists stops being
+//! The token is kept in memory only; a newer one, or changed settings,
+//! replaces the event's worker. An event the bridge no longer lists stops being
 //! read, its sets left as they are, as at the end of `active_until`.
 use std::{
     collections::{HashMap, HashSet},
@@ -46,6 +46,9 @@ pub(crate) struct Desk {
 
 struct Running {
     token: Zeroizing<String>,
+    /// The settings it runs with: changed ones (a set held from the desk)
+    /// replace the worker too.
+    settings: serde_json::Map<String, Value>,
     bracket: Arc<Bracket>,
     task: Option<JoinHandle<()>>,
 }
@@ -121,7 +124,10 @@ impl Desk {
         });
         for event in events {
             let token = Zeroizing::new(event.access_token.clone());
-            if running.get(&event.id).is_some_and(|run| run.token == token) {
+            if running
+                .get(&event.id)
+                .is_some_and(|run| run.token == token && run.settings == event.settings)
+            {
                 continue;
             }
             let taken = |key: &str, running: &HashMap<String, Running>| {
@@ -138,7 +144,7 @@ impl Desk {
                 let name = format!("desk event {}", event.id);
                 let site = self.sites.site(&tournament, &token, &name, name.clone())?;
                 Bracket::new(&tournament, site, self.context.clone())
-                    .map(|bracket| bracket.for_desk(event.id.clone()))
+                    .map(|bracket| bracket.for_desk(event.id.clone(), held(&event)))
             });
             let bracket = match made {
                 Ok(bracket) => Arc::new(bracket),
@@ -158,6 +164,7 @@ impl Desk {
                 event.id.clone(),
                 Running {
                     token,
+                    settings: event.settings.clone(),
                     bracket,
                     task,
                 },
@@ -183,6 +190,10 @@ impl Desk {
             .filter(|(key, _)| SETTINGS.contains(&key.as_str()))
             .map(|(key, value)| (key.clone(), value.clone()))
             .collect();
+        // The desk's holds are the bracket's own, not a configured setting.
+        if let Some(hold) = fields.get_mut("hold").and_then(Value::as_object_mut) {
+            hold.remove("sets");
+        }
         fields.insert("adapter".into(), json!(event.site));
         fields.insert("tournament".into(), json!(event.tournament));
         fields.insert("credential".into(), json!({ "kind": "bearer", "file": "" }));
@@ -194,4 +205,19 @@ impl Desk {
         tournament.check(self.allow_loopback_http)?;
         Ok(tournament)
     }
+}
+
+/// The sets the event's organizer holds from the desk (`hold.sets`).
+fn held(event: &DeskEvent) -> Vec<String> {
+    event
+        .settings
+        .get("hold")
+        .and_then(|hold| hold.get("sets"))
+        .and_then(Value::as_array)
+        .map(|sets| {
+            sets.iter()
+                .filter_map(|set| set.as_str().map(str::to_owned))
+                .collect()
+        })
+        .unwrap_or_default()
 }

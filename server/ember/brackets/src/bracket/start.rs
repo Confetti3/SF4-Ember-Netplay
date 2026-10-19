@@ -34,7 +34,7 @@ impl Bracket {
         let mut ready = Vec::new();
         for &(set, attempt) in starts {
             match self.held(set) {
-                Some(stream) => changed |= self.hold(set, attempt, stream).await?,
+                Some(why) => changed |= self.hold(set, attempt, &why).await?,
                 None => ready.push((set, attempt)),
             }
         }
@@ -71,33 +71,38 @@ impl Bracket {
         Ok(changed)
     }
 
-    /// The stream the set is assigned to, if the tournament holds such sets.
-    pub(super) fn held<'a>(&self, set: &'a Set) -> Option<&'a str> {
-        self.hold
+    /// Why the set waits: the organizer holds it, or the stream it is
+    /// assigned to when the tournament holds such sets.
+    pub(super) fn held(&self, set: &Set) -> Option<String> {
+        if self.desk_held.contains(&set.id) {
+            return Some(
+                "the organizer holds it on the desk; it is played in Ember once they let it go"
+                    .into(),
+            );
+        }
+        let stream = self
+            .hold
             .streamed
             .then_some(set.extras.stream.as_deref())
-            .flatten()
+            .flatten()?;
+        Some(format!(
+            "it is assigned to stream {stream}; it is played in Ember once it is taken off the stream"
+        ))
     }
 
-    /// A set assigned to a stream waits, said once. A creation sent for it
+    /// A held set waits, said once. A creation sent for it
     /// and never answered (the bridge was down, or the connector stopped)
     /// must not leave a live match on a set that is not played in Ember: it
     /// is sent again only to learn the match the bridge made, and that match
     /// is cancelled, as for any set the organizer changed. Returns whether
     /// that ended the attempt.
-    async fn hold(&self, set: &Set, attempt: u32, stream: &str) -> Result<bool, SiteError> {
+    async fn hold(&self, set: &Set, attempt: u32, why: &str) -> Result<bool, SiteError> {
         let earlier = if attempt > 1 {
             " and its earlier Ember match ended"
         } else {
             ""
         };
-        self.note(
-            set,
-            attempt,
-            Some(&format!(
-                "held: it is assigned to stream {stream}{earlier}; it is played in Ember once it is taken off the stream"
-            )),
-        )?;
+        self.note(set, attempt, Some(&format!("held{earlier}: {why}")))?;
         if let Some(tracked) = self.store().tracked(&self.key, &set.id)?
             && tracked.attempt == attempt
             && self.store().command(&self.key, &set.id)?.is_some()
