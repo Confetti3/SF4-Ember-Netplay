@@ -577,7 +577,7 @@ the connection's provider credential as `Authorization: Bearer`:
   is the match's `external_match_id` (`blumint:<key>`), so it makes no other
   match for as long as the bridge keeps that one. Refusals answer
   BluMint's registry codes at the top level (`invalid_request`,
-  `match_unsupported`, `key_reused`, `player_unlinked` and `423`
+  `match_unsupported`, `idempotency_key_reused`, `player_unlinked` and `423`
   `player_busy`), never the bridge's error envelope.
 - `POST /v1/blumint/matches/close` takes `{ idempotencyKey, reason }`: it
   ends the match made under that creation key, however old, and closes the
@@ -593,7 +593,9 @@ game ends with another to come; a
 `progress` after each game won that does not end
 the set; and the `result`, each team with its `wins`. A cancelled match is an `abort` with
 the wins so far and `retryable: true`, which BluMint answers by asking for
-the set again with those wins as `startingWins`. BluMint has no review step,
+the set again with those wins as `startingWins`. Every report names the
+creation that made the match as `idempotencyKey` (its `external_match_id`
+without `blumint:`), which BluMint requires. BluMint has no review step,
 so a match that would go to `needs_review` (the two games disagree, a report
 never arrives, a player's link ends) is cancelled instead. A match nobody
 plays expires after a day at most and is an `abort` with `retryable: false`, so

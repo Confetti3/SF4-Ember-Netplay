@@ -62,7 +62,10 @@ impl IntoResponse for BluMintRefusal {
                 StatusCode::BAD_REQUEST,
                 json!({ "code": "match_unsupported" }),
             ),
-            Self::KeyReused => (StatusCode::CONFLICT, json!({ "code": "key_reused" })),
+            Self::KeyReused => (
+                StatusCode::CONFLICT,
+                json!({ "code": "idempotency_key_reused" }),
+            ),
             Self::PlayerUnlinked(players) => (
                 StatusCode::BAD_REQUEST,
                 json!({ "code": "player_unlinked", "players": players }),
