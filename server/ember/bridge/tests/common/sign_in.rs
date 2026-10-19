@@ -350,7 +350,11 @@ impl Routes {
 /// copy it into `sign_in_sites`, with every URL's origin replaced by
 /// `origin` (a stand-in's) and its client ID set to `client_id`.
 pub fn definition(name: &str, origin: &str, client_id: &str) -> SignInSite {
-    let path = format!("{}/deploy/sites/{name}.json", env!("CARGO_MANIFEST_DIR"));
+    // From the bridge's crate or a neighbour's: ember-brackets uses these too.
+    let path = format!(
+        "{}/../bridge/deploy/sites/{name}.json",
+        env!("CARGO_MANIFEST_DIR")
+    );
     let mut site: SignInSite = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
     let local = |url: &str| {
         let url = url::Url::parse(url).unwrap();

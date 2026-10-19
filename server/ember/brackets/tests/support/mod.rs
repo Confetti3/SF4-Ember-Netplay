@@ -5,6 +5,7 @@
 
 pub mod bridge;
 pub mod challonge;
+pub mod oauth;
 pub mod service;
 pub mod startgg;
 

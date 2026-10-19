@@ -1,6 +1,8 @@
 //! A fake start.gg GraphQL endpoint for one event: it answers the queries
 //! and mutations the connector sends, by operation name, checks the token,
-//! and logs each operation with its variables.
+//! and logs each operation with its variables. For the bridge it also signs
+//! users in (`oauth`, JSON token bodies, refresh at its own path), and
+//! answers `currentUser` and the events its admin runs.
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     sync::{Arc, Mutex},
@@ -9,19 +11,21 @@ use std::{
 use axum::{
     Router,
     body::Bytes,
-    extract::State,
+    extract::{RawQuery, State},
     http::{HeaderMap, StatusCode, header},
     response::{IntoResponse, Response},
     routing::post,
 };
 use serde_json::{Value, json};
 
-use super::{Extra, Setup, World};
+use super::{Extra, Setup, World, oauth::OAuth};
 
 pub const PLAYER1_USER: u64 = 5_001;
 pub const STARTGG_TOKEN: &str = "test-startgg-token";
 pub const EVENT_SLUG: &str = "tournament/ember-weekly/event/usf4";
 const EVENT_ID: u64 = 769_488;
+pub const CLIENT_ID: &str = "ember-startgg-client";
+pub const CLIENT_SECRET: &str = "startgg-client-secret";
 
 #[derive(Clone, Debug)]
 pub struct FakeEntrant {
@@ -96,6 +100,9 @@ pub struct Logged {
 }
 
 pub struct StartggState {
+    pub oauth: OAuth,
+    /// The user who runs the event.
+    pub admin: Option<String>,
     /// Every request's operation and query text, kept when `log` is taken.
     pub asked: Vec<(String, String)>,
     pub entrants: Vec<FakeEntrant>,
@@ -158,10 +165,13 @@ async fn graphql(
     body: Bytes,
 ) -> Response {
     let request: Value = serde_json::from_slice(&body).unwrap();
+    let mut state = state.lock().unwrap();
+    let signed_in = state.oauth.bearer(&headers).cloned();
     let authorized = headers
         .get("authorization")
         .and_then(|value| value.to_str().ok())
-        == Some(&format!("Bearer {STARTGG_TOKEN}"));
+        == Some(&format!("Bearer {STARTGG_TOKEN}"))
+        || signed_in.is_some();
     if !authorized {
         return answer(
             StatusCode::UNAUTHORIZED,
@@ -176,13 +186,35 @@ async fn graphql(
         .unwrap_or_default()
         .to_owned();
     let variables = request["variables"].clone();
-    let mut state = state.lock().unwrap();
+    // A signed-in user's token reports only with the reporter scope.
+    let reporting = query.trim_start().starts_with("mutation");
+    if reporting && signed_in.is_some() && !state.oauth.allows(&headers, "tournament.reporter") {
+        return answer(
+            StatusCode::OK,
+            json!({ "data": null, "errors": [{ "message": "Your token does not have permission" }] }),
+        );
+    }
     state.log.push(Logged {
         operation: operation.clone(),
         variables: variables.clone(),
     });
     state.asked.push((operation.clone(), query.to_owned()));
     let data = match operation.as_str() {
+        "CurrentUser" => {
+            let user = signed_in.map(|((id, tag), _)| {
+                json!({ "id": id.parse::<u64>().unwrap(), "player": { "gamerTag": tag } })
+            });
+            json!({ "currentUser": user })
+        }
+        "OrganizerEvents" => {
+            let user = signed_in.map(|((id, _), _)| id);
+            let nodes = if user.is_some() && user == state.admin {
+                json!([{ "name": "Ember Weekly", "events": [{ "name": "USF4", "slug": EVENT_SLUG }] }])
+            } else {
+                json!([])
+            };
+            json!({ "currentUser": { "tournaments": { "nodes": nodes } } })
+        }
         "Event" => {
             assert_eq!(variables["slug"], EVENT_SLUG);
             let over = state.sets.iter().all(|set| set.state == 3);
@@ -332,9 +364,30 @@ async fn graphql(
     )
 }
 
+async fn authorize(
+    State(state): State<Arc<Mutex<StartggState>>>,
+    RawQuery(query): RawQuery,
+) -> Response {
+    state
+        .lock()
+        .unwrap()
+        .oauth
+        .authorize(&query.unwrap_or_default())
+}
+
+async fn token(
+    State(state): State<Arc<Mutex<StartggState>>>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
+    state.lock().unwrap().oauth.token(&headers, &body)
+}
+
 impl FakeStartgg {
     pub async fn start(entrants: Vec<FakeEntrant>, sets: Vec<FakeSet>) -> Self {
         let state = Arc::new(Mutex::new(StartggState {
+            oauth: OAuth::new(CLIENT_ID, CLIENT_SECRET),
+            admin: None,
             asked: Vec::new(),
             entrants,
             sets,
@@ -350,6 +403,9 @@ impl FakeStartgg {
         }));
         let app = Router::new()
             .route("/gql/alpha", post(graphql))
+            .route("/oauth/authorize", axum::routing::get(authorize))
+            .route("/oauth/access_token", post(token))
+            .route("/oauth/refresh", post(token))
             .with_state(state.clone());
         let origin = super::serve(app).await;
         Self { origin, state }
