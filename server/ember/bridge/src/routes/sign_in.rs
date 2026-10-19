@@ -36,6 +36,7 @@
 //! requests has its starts limited across the bridge too, and its exchanges
 //! counted in `budget`.
 mod budget;
+mod desk;
 mod pages;
 mod provider;
 
@@ -127,10 +128,23 @@ pub fn routes(app: Router<AppState>) -> Router<AppState> {
     .route(
         "/v1/sites/{site}/callback",
         get(
-            |state: State<AppState>, Path(id): Path<String>, answer| async move {
-                match configured(&state, &id) {
-                    Ok(site) => callback(state, answer, site).await,
-                    Err(_) => pages::unknown(),
+            |state: State<AppState>,
+             Path(id): Path<String>,
+             headers: HeaderMap,
+             Query(answer): Query<Answer>| async move {
+                let site = match configured(&state, &id) {
+                    Ok(site) => site,
+                    Err(_) => return pages::unknown(),
+                };
+                // The web desk's sign-ins come back here too, marked.
+                match answer
+                    .state
+                    .clone()
+                    .as_deref()
+                    .and_then(|s| s.strip_prefix(desk::WEB))
+                {
+                    Some(secret) => desk::callback(state.0, &headers, answer, site, secret).await,
+                    None => callback(state, Query(answer), site).await,
                 }
             },
         )
@@ -167,6 +181,9 @@ pub fn routes(app: Router<AppState>) -> Router<AppState> {
             |state, Path(id): Path<String>, headers, body| remove(state, headers, body, Some(id)),
         ),
     )
+    .route("/web/sign-in/{site}", get(desk::start))
+    .route("/web/session", get(desk::session))
+    .route("/web/sign-out", post(desk::sign_out))
 }
 
 /// The configured site `id` names, or `not_found`.

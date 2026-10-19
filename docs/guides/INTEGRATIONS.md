@@ -540,6 +540,17 @@ body and the `values` it takes; every pointer's parent object is in the
 body), `id_pointer` into the answer for the event's ID as `tournaments`
 lists it, and optionally `link_pointer` with `link_prefix` for its page.
 
+The web desk signs organizers in without the game: `GET
+/web/sign-in/<site>` sends the browser to the site's sign-in (its plain
+`scope`), which comes back through the site's usual callback with its state
+marked `web.`, so no second redirect URI is registered. The account must
+already be connected to an Ember ID from the game; then the browser keeps a
+30-day session cookie (`ember_desk`, HttpOnly, SameSite=Lax, Secure over
+https). The organizer routes above take that cookie in place of a player
+session; every change also sends the session's CSRF token in
+`X-Ember-CSRF`, which `GET /web/session` gives with the Ember ID, and needs
+no proof. `POST /web/sign-out` ends it.
+
 `GET /v1/desk/brackets`, with the desk connection's provider credential,
 lists every running event whose organizer still holds a grant, with the
 site, the event, its settings and a fresh `access_token`. An event whose

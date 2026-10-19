@@ -169,6 +169,13 @@ event is created or attached. Running is not stored: a ready event runs once
 `starts_at` has passed (or at once without one), and ended is `ended_at`. A
 draft has no site calls and is invisible to `ember-brackets`.
 
+Web sign-in: the desk's pages are served by the bridge, so the TO signs in
+there with a site account their Ember ID already holds (linked from the
+game), through the site's existing callback (state marked `web.`, so no new
+redirect URI to register). The browser keeps a session cookie; changes carry
+a CSRF token instead of the game's proof, since the browser holds no Ember
+key.
+
 ## 5. Commits
 
 1. Bridge: organizer sign-in and sealed grants, with refresh.

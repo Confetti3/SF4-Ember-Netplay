@@ -27,7 +27,7 @@ use crate::{
     AppState, auth,
     ctx::Ctx,
     error::{ApiFailure, Result},
-    http::{Body, PROOF_BODY, json, ok},
+    http::{Body, PROOF_BODY, bearer, json, ok},
     linking::Site,
     routes::{
         sessions::{self, Target},
@@ -75,9 +75,9 @@ pub async fn tournaments(
     headers: HeaderMap,
     Query(listing): Query<Listing>,
 ) -> Result<Response> {
-    let player = auth::player(&state, &headers).await?;
+    let ember_id = reader(&state, &headers).await?;
     let site = Site::Configured(listing.site);
-    let tournaments = listed(&state, &site, player.ember_id.as_str()).await?;
+    let tournaments = listed(&state, &site, &ember_id).await?;
     Ok(ok(&json!({ "tournaments": tournaments })))
 }
 
@@ -100,30 +100,46 @@ async fn listed(state: &AppState, site: &Site, ember_id: &str) -> Result<Vec<Tou
 }
 
 /// Who sends an organizer's command: the session player, with the proof
-/// that authorizes it.
-struct Caller {
-    player: auth::Player,
-    request: ProvenRequest,
+/// that authorizes it, or the organizer signed in to the web desk, whose
+/// change carries the session's CSRF token instead (`sign_in::desk`).
+enum Caller {
+    Player {
+        player: auth::Player,
+        request: ProvenRequest,
+    },
+    Desk(String),
 }
 
 impl Caller {
-    /// The command in `body`, and the session player who sent it.
+    /// The command in `body`, and who sent it.
     async fn of<C: DeserializeOwned>(
         state: &AppState,
         headers: &HeaderMap,
         body: &Body<PROOF_BODY>,
     ) -> Result<(Self, C)> {
+        if bearer(headers).is_none()
+            && let Some(desk) = auth::desk(state, headers).await?
+        {
+            if !desk.csrf_ok(headers) {
+                return Err(ApiFailure::forbidden());
+            }
+            let command = ember_protocol::json::parse_as(&body.0, PROOF_BODY)?;
+            return Ok((Self::Desk(desk.ember_id), command));
+        }
         let player = auth::player(state, headers).await?;
         let (request, command) = sessions::proven(&body.0)?;
-        Ok((Self { player, request }, command))
+        Ok((Self::Player { player, request }, command))
     }
 
     fn ember_id(&self) -> &str {
-        self.player.ember_id.as_str()
+        match self {
+            Self::Player { player, .. } => player.ember_id.as_str(),
+            Self::Desk(ember_id) => ember_id,
+        }
     }
 
-    /// Consumes the proof for `action` on `method` and `path` in `tx`; the
-    /// Ember ID it names.
+    /// Consumes a player's proof for `action` on `method` and `path` in
+    /// `tx`; the Ember ID it names, or the desk organizer's.
     fn prove(
         &self,
         tx: &Transaction<'_>,
@@ -132,6 +148,9 @@ impl Caller {
         method: Method,
         path: &str,
     ) -> Result<String> {
+        let Self::Player { player, request } = self else {
+            return Ok(self.ember_id().to_owned());
+        };
         let target = Target {
             action,
             method,
@@ -141,12 +160,27 @@ impl Caller {
             tx,
             &ctx.config,
             ctx.now,
-            &self.request,
+            request,
             target,
-            Some(&self.player.ember_id),
+            Some(&player.ember_id),
         )?;
         Ok(ember_id.as_str().to_owned())
     }
+}
+
+/// The organizer a read is for: the session player, or the one signed in
+/// to the web desk.
+async fn reader(state: &AppState, headers: &HeaderMap) -> Result<String> {
+    if bearer(headers).is_none()
+        && let Some(desk) = auth::desk(state, headers).await?
+    {
+        return Ok(desk.ember_id);
+    }
+    Ok(auth::player(state, headers)
+        .await?
+        .ember_id
+        .as_str()
+        .to_owned())
 }
 
 #[derive(Deserialize)]
@@ -218,7 +252,7 @@ pub async fn start(
 /// have not ended, newest first, each with its status: `draft`, `ready`
 /// (waiting for its start time) or `running`.
 pub async fn list(State(state): State<AppState>, headers: HeaderMap) -> Result<Response> {
-    let player = auth::player(&state, &headers).await?;
+    let ember_id = reader(&state, &headers).await?;
     let now = state.now();
     let events = state
         .db
@@ -229,7 +263,7 @@ pub async fn list(State(state): State<AppState>, headers: HeaderMap) -> Result<R
                  FROM organizer_events
                  WHERE ember_id = ?1 AND ended_at IS NULL ORDER BY created_at DESC, id",
             )?;
-            let rows = query.query_map([player.ember_id.as_str()], |row| {
+            let rows = query.query_map([&ember_id], |row| {
                 let starts_at: Option<u64> = row.get(3)?;
                 let status = match row.get::<_, String>(2)?.as_str() {
                     "ready" if starts_at.is_none_or(|at| at <= now) => "running",

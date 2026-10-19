@@ -1228,3 +1228,122 @@ async fn an_organizer_drafts_an_event_and_runs_it_from_its_start_time() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(events().await["events"].as_array().unwrap().len(), 1);
 }
+
+/// The value of cookie `name` that `response` sets.
+fn set_cookie(response: &reqwest::Response, name: &str) -> Option<String> {
+    response
+        .headers()
+        .get_all("set-cookie")
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .find_map(|value| value.strip_prefix(&format!("{name}=")))
+        .map(|rest| rest.split(';').next().unwrap_or_default().to_owned())
+}
+
+/// Signs in to the web desk with `code`, from a browser that keeps the
+/// sign-in's cookie or not; the callback's answer.
+async fn web_sign_in(bridge: &Bridge, code: &str, same_browser: bool) -> reqwest::Response {
+    let started = bridge
+        .client
+        .get(bridge.url("/web/sign-in/challonge"))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(started.status(), StatusCode::SEE_OTHER);
+    let location = url::Url::parse(started.headers()["location"].to_str().unwrap()).unwrap();
+    let state = sign_in::query(&location)["state"].clone();
+    assert!(state.starts_with("web."));
+    let kept = set_cookie(&started, "ember_desk_state").unwrap();
+    let back = bridge.client.get(bridge.url(&format!(
+        "{}?code={code}&state={state}",
+        ember_protocol::sites::callback_path(SITE)
+    )));
+    let back = if same_browser {
+        back.header("cookie", format!("ember_desk_state={kept}"))
+    } else {
+        back
+    };
+    back.send().await.unwrap()
+}
+
+// An organizer signs in to the web desk with the Challonge account their
+// Ember ID holds. The cookie works the organizer routes, a change needs the
+// session's CSRF token, and an account no Ember ID holds signs nobody in.
+#[tokio::test]
+async fn an_organizer_signs_in_to_the_web_desk_with_a_linked_account() {
+    let fake = fake_challonge();
+    fake.lists("/v2.1/tournaments.json", |_| json!({ "data": [] }));
+    let bridge = desk_bridge(&fake).await;
+    let player1 = player(&bridge, 1).await;
+    CHALLONGE.connect(&bridge, &player1, "good-player1").await;
+
+    // Only the browser that started it finishes it.
+    let back = web_sign_in(&bridge, "good-player1", false).await;
+    assert_eq!(back.status(), StatusCode::OK);
+    assert!(set_cookie(&back, "ember_desk").is_none());
+    assert!(back.text().await.unwrap().contains("Sign-in expired"));
+
+    // An account no Ember ID holds is linked from the game first.
+    let back = web_sign_in(&bridge, "good-player2", true).await;
+    assert!(set_cookie(&back, "ember_desk").is_none());
+    assert!(
+        back.text()
+            .await
+            .unwrap()
+            .contains("Link your account in Ember first")
+    );
+
+    let back = web_sign_in(&bridge, "good-player1", true).await;
+    assert_eq!(back.status(), StatusCode::SEE_OTHER);
+    assert_eq!(back.headers()["location"], "/desk");
+    let desk = format!("ember_desk={}", set_cookie(&back, "ember_desk").unwrap());
+    let with_desk = |request: reqwest::RequestBuilder| request.header("cookie", desk.clone());
+
+    let session: Json = serde_json::from_str(
+        &with_desk(bridge.client.get(bridge.url("/web/session")))
+            .send()
+            .await
+            .unwrap()
+            .text()
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(session["ember_id"], player1.id().as_str());
+    let csrf = session["csrf"].as_str().unwrap().to_owned();
+
+    // Reads take the cookie; changes need its CSRF token too.
+    let listed = with_desk(bridge.client.get(bridge.url("/v1/organizer/events")))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(listed.status(), StatusCode::OK);
+    let draft = || {
+        with_desk(bridge.client.post(bridge.url("/v1/organizer/drafts")))
+            .header("content-type", "application/json")
+            .body(json!({ "title": "Web Cup" }).to_string())
+    };
+    assert_eq!(
+        draft().send().await.unwrap().status(),
+        StatusCode::FORBIDDEN
+    );
+    let wrong = draft().header("x-ember-csrf", "nope").send().await.unwrap();
+    assert_eq!(wrong.status(), StatusCode::FORBIDDEN);
+    let made = draft().header("x-ember-csrf", &csrf).send().await.unwrap();
+    assert_eq!(made.status(), StatusCode::CREATED);
+    let (_, events) = bridge.get(player1.token(), "/v1/organizer/events").await;
+    assert_eq!(events["events"][0]["title"], "Web Cup");
+
+    // Signed out, the cookie works nothing.
+    let out = with_desk(bridge.client.post(bridge.url("/web/sign-out")))
+        .header("x-ember-csrf", &csrf)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(out.status(), StatusCode::OK);
+    let gone = with_desk(bridge.client.get(bridge.url("/web/session")))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(gone.status(), StatusCode::UNAUTHORIZED);
+}

@@ -16,6 +16,9 @@ use crate::{
 pub const PLAYER_PREFIX: &str = "ems";
 pub const SERVICE_PREFIX: &str = "emk";
 pub const BROWSER_COOKIE: &str = "ember_mock_session";
+/// The web desk's session cookie (`routes::sign_in::desk`).
+pub const DESK_COOKIE: &str = "ember_desk";
+pub const DESK_SECS: u64 = 30 * 24 * 60 * 60;
 pub const SESSION_SECS: u64 = 10 * 60;
 pub const BROWSER_SECS: u64 = 60 * 60;
 /// Replacing a link needs an external sign-in this recent (LINK-08).
@@ -227,6 +230,67 @@ pub async fn browser(state: &AppState, headers: &HeaderMap) -> Result<Option<Bro
                 .optional()?)
         })
         .await
+}
+
+/// An organizer signed in to the web desk: their Ember ID and the CSRF token
+/// the desk's pages send back on every change.
+pub struct Desk {
+    pub ember_id: String,
+    pub csrf: String,
+}
+
+/// The web desk's session, if a valid cookie is present.
+pub async fn desk(state: &AppState, headers: &HeaderMap) -> Result<Option<Desk>> {
+    let Some(token) = cookie(headers, DESK_COOKIE) else {
+        return Ok(None);
+    };
+    let token_hash = hash(&state.keys, "desk", &token);
+    let csrf = csrf_token(&state.keys, &token);
+    let now = state.now();
+    state
+        .db
+        .read(move |tx| {
+            Ok(tx
+                .query_row(
+                    "SELECT ember_id FROM desk_sessions WHERE token_hash = ?1 AND expires_at > ?2",
+                    params![token_hash.as_slice(), now],
+                    |row| row.get(0),
+                )
+                .optional()?
+                .map(|ember_id| Desk { ember_id, csrf }))
+        })
+        .await
+}
+
+impl Desk {
+    /// Whether a change carries the session's CSRF token in `X-Ember-CSRF`.
+    pub fn csrf_ok(&self, headers: &HeaderMap) -> bool {
+        headers
+            .get("x-ember-csrf")
+            .and_then(|value| value.to_str().ok())
+            .is_some_and(|token| bool::from(token.as_bytes().ct_eq(self.csrf.as_bytes())))
+    }
+}
+
+/// Starts a web desk session for `ember_id` and returns the cookie value,
+/// which is stored only as a keyed hash.
+pub fn start_desk_session(
+    tx: &Transaction<'_>,
+    keys: &Keys,
+    ember_id: &str,
+    now: u64,
+) -> Result<String> {
+    let token = new_token("emd");
+    tx.execute("DELETE FROM desk_sessions WHERE expires_at <= ?1", [now])?;
+    tx.execute(
+        "INSERT INTO desk_sessions (token_hash, ember_id, expires_at) VALUES (?1, ?2, ?3)",
+        params![
+            hash(keys, "desk", &token).as_slice(),
+            ember_id,
+            now + DESK_SECS
+        ],
+    )?;
+    Ok(token)
 }
 
 /// Any one of the three classes, chosen by the credential presented.
