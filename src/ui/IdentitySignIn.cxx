@@ -178,6 +178,9 @@ void IdentityPanel::ReadSiteAccounts(const netplay::IdentityView& id, const std:
     // The sites Ember's own service lists, as its profile says now. One no
     // longer listed goes (DropSite); another service's list replaces the
     // last one whole.
+    // A sign-in on the old service's sites is not ended here: only Ember's
+    // own service lists sites, so the list only changes service when Ember's
+    // own service itself is replaced.
     if (bridge != sitesBridge_) { sitesBridge_ = bridge; sites_.clear(); siteNames_.clear(); }
     std::vector<std::string> gone;
     for (const auto& was : sites_) {

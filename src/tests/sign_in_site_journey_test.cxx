@@ -604,8 +604,27 @@ void LinkForTheWaitedService(){
   "A link for the service Discord's page waits on started the sign-in again");
 }
 
+// Connect Discord with an account connected on a service that keeps Discord
+// accounts but does not offer Discord sign-in: the account can be unlinked,
+// but another one cannot be connected. Where sign-in is offered, it can.
+void DiscordChangeNeedsSignIn(){
+ using namespace sf4e;using netplay::IdentityOp;
+ for(const bool offered:{false,true}){
+  Journey h;Ready(h);auto& id=h.view.identity;h.untilLimit=12;
+  h.Screen(DiscordConnectScreen);
+  Check(h.until(IdentityOp::BridgeInspect)&&h.sent().back()->origin==ember,"Connect Discord did not read Ember's service");
+  id.inspected=id.bridges[0];id.inspectedDiscord=offered;id.inspectedDiscordAccounts=true;id.signInSites.clear();h.answer();
+  Check(h.until(IdentityOp::DiscordStatus),"Connect Discord did not read Discord's account");
+  id.discordUser="274220342558756145";id.discordName="player1";h.answer();for(int i=0;i<4;++i)h.answer();
+  Check(h.row("dc-connected")&&h.row("id-discord-remove")&&h.row("id-discord-remove")->enabled,"A connected Discord account cannot be unlinked");
+  Check(h.row("id-discord-connect")&&h.row("id-discord-connect")->enabled==offered,
+   offered?"Another Discord account cannot be connected where sign-in is offered":"Another Discord account is offered where sign-in is off");
+ }
+}
+
 void RunSignInSiteJourneys(){
  for(const auto& site:{Challonge,Startgg,Other}){SiteRows(site);SiteConnects(site);SiteStops(site);SiteOffAndRetry(site);SiteBusy(site);SiteGone(site);}
  ManySites();LongSiteName();TwoSites();DiscordFirst();OneSignInAtATime();DiscordKeepsItsWait();LookingAtDiscordKeepsSite();SiteReadsQuietly();
  SiteDeadline();SiteWaitsWhileHidden();LinkWhileSiteWaits();CancelWithoutReadyId();DiscordGoEndsItsWait();LinkForTheWaitedService();
+ DiscordChangeNeedsSignIn();
 }

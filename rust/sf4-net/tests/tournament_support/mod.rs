@@ -3,7 +3,6 @@
 //! requests through to it and can change what it answers; an origin that
 //! serves another bridge's profile; and a helper's tournament worker driven
 //! the way the native side drives it.
-#![allow(dead_code)]
 
 use std::{
     path::{Path, PathBuf},
