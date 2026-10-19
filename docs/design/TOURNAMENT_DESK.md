@@ -1,9 +1,18 @@
 # Tournament desk
 
 Status: design. Branch `fraccie/tournament-integrations` on `feat/challonge`
-(#112). Not reviewed. Mockups (in Ember's branding, `src/ui/Theme.cxx`):
-https://claude.ai/artifact/Q2nbseP2aJFAqoGngGoDYb (desk, correction, linking,
-replays, watch, bracket).
+(#112). Not reviewed. Mockups in Ember's branding (`src/ui/Theme.cxx`),
+in `tournament-desk/`:
+
+| Screen | Mockup |
+|---|---|
+| Desk: the sets queue | [01-desk-sets](tournament-desk/01-desk-sets.webp) |
+| Score correction after a disconnect | [02-score-correction](tournament-desk/02-score-correction.webp) |
+| Linked accounts and picking the event | [03-link-accounts](tournament-desk/03-link-accounts.webp) |
+| Replays by set (§4b) | [04-replays-by-set](tournament-desk/04-replays-by-set.webp) |
+| Watch: picture in picture | [05-watch](tournament-desk/05-watch.webp) |
+| Bracket view | [06-bracket](tournament-desk/06-bracket.webp) |
+| Web desk, new tournament (§4a) | [desktop](tournament-desk/07-web-desk-1920.webp), [tablet](tournament-desk/07-web-desk-820.webp), [phone](tournament-desk/07-web-desk-390.webp) |
 
 A tournament organizer (TO) runs an online USF4 event on start.gg or
 Challonge from one screen in Ember. They sign in to the site once, pick the
