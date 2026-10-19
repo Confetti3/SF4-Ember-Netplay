@@ -673,10 +673,24 @@ pub async fn create(
     {
         return Err(ApiFailure::sign_in_busy(None));
     }
-    let created = creation
-        .send(&grant.access)
-        .await
-        .ok_or_else(ApiFailure::unavailable)?;
+    let created = creation.send(&grant.access).await.map_err(|refused| {
+        let Some(said) = refused else {
+            return ApiFailure::unavailable();
+        };
+        eprintln!(
+            "organizer: {} refused to create an event: {said}",
+            site.id()
+        );
+        ApiFailure::new(
+            ErrorCode::InvalidRequest,
+            format!(
+                "{} refused the settings: {said}",
+                site_name(&state, site.id())
+            ),
+        )
+        .detail("reason", "site_refused")
+        .detail("site_said", said)
+    })?;
     let link = created.link.clone();
     let tournament = created.id.clone();
     let site_id = site.id().to_owned();
@@ -1450,6 +1464,14 @@ fn desk_state(set: &Value, match_state: Option<&str>) -> &'static str {
             _ => "waiting",
         },
     }
+}
+
+/// The name a configured site is shown by, or its ID.
+pub(crate) fn site_name(state: &AppState, id: &str) -> String {
+    state
+        .config
+        .sign_in_site(id)
+        .map_or_else(|| id.to_owned(), |site| site.display_name.clone())
 }
 
 #[cfg(test)]

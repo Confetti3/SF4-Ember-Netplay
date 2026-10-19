@@ -124,6 +124,11 @@ pub struct CreateRequest {
 pub struct CreateField {
     pub pointer: String,
     pub values: Vec<serde_json::Value>,
+    /// What else a value needs in the body, by value (its text, or its JSON
+    /// for other values): pointers to set, such as the options object a
+    /// site requires with a format.
+    #[serde(default)]
+    pub with: BTreeMap<String, BTreeMap<String, serde_json::Value>>,
 }
 
 /// The request that lists an organizer's events, and JSON pointers into its
@@ -458,6 +463,10 @@ impl SignInSite {
                         && settable(&field.pointer)
                         && (1..=16).contains(&field.values.len())
                         && field.values.iter().all(value_ok)
+                        && field.with.len() <= 16
+                        && field.with.values().all(|extra| {
+                            extra.len() <= 8 && extra.keys().all(|pointer| settable(pointer))
+                        })
                 })
             {
                 return fail(

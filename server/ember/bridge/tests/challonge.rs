@@ -1098,8 +1098,13 @@ async fn an_organizer_drafts_an_event_and_runs_it_from_its_start_time() {
         json!({ "data": [{ "id": "9001", "type": "tournament", "attributes": { "name": "Weekly" } }] })
     });
     fake.creates(|_, sent| {
+        let attributes = &sent["data"]["attributes"];
+        if attributes["tournament_type"] == "single elimination" {
+            return json!({ "errors": [{ "status": 422, "detail": ["is missing"],
+                "source": { "pointer": "/data/attributes/match_options" } }] });
+        }
         json!({ "data": { "id": "777", "type": "tournament", "attributes": {
-            "name": sent["data"]["attributes"]["name"], "url": "ember_cup" } } })
+            "name": attributes["name"], "url": "ember_cup" } } })
     });
     let bridge = desk_bridge(&fake).await;
     let player1 = player(&bridge, 1).await;
@@ -1148,7 +1153,21 @@ async fn an_organizer_drafts_an_event_and_runs_it_from_its_start_time() {
     let create = |fields| json!({ "site": SITE, "fields": fields });
     let (status, _) = organizer(path("/create"), create(json!({ "format": "ladder" }))).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    let fields = json!({ "format": "double elimination", "open_signup": true });
+    // A refusal says the site's own words, and creates nothing.
+    let (status, refused) = organizer(
+        path("/create"),
+        create(json!({ "format": "single elimination" })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+    assert_eq!(refused["error"]["details"]["reason"], "site_refused");
+    assert_eq!(
+        refused["error"]["details"]["site_said"],
+        "422 match_options: is missing"
+    );
+    // A swiss event takes the options Challonge requires with it, and the
+    // standard grand final is left to Challonge.
+    let fields = json!({ "format": "swiss", "grand_final": "", "open_signup": true });
     let (status, created) = organizer(path("/create"), create(fields)).await;
     assert_eq!(status, StatusCode::CREATED, "{created}");
     assert_eq!(
@@ -1159,7 +1178,13 @@ async fn an_organizer_drafts_an_event_and_runs_it_from_its_start_time() {
         serde_json::from_str(&fake.seen("/v2.1/tournaments.json").pop().unwrap().body).unwrap();
     let attributes = &sent["data"]["attributes"];
     assert_eq!(attributes["name"], "Ember Cup");
-    assert_eq!(attributes["tournament_type"], "double elimination");
+    assert_eq!(attributes["tournament_type"], "swiss");
+    assert_eq!(attributes["swiss_options"]["rounds"], 3);
+    assert!(
+        attributes["double_elimination_options"]
+            .get("grand_finals_modifier")
+            .is_none()
+    );
     assert_eq!(attributes["registration_options"]["open_signup"], true);
     // Once only.
     let (status, _) = organizer(path("/create"), create(json!({}))).await;

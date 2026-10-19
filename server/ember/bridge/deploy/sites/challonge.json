@@ -68,7 +68,18 @@
       "fields": {
         "format": {
           "pointer": "/data/attributes/tournament_type",
-          "values": ["single elimination", "double elimination", "round robin", "swiss"]
+          "values": ["single elimination", "double elimination", "round robin", "swiss"],
+          "with": {
+            "round robin": {
+              "/data/attributes/round_robin_options": { "iterations": 1, "ranking": "match wins" }
+            },
+            "swiss": {
+              "/data/attributes/swiss_options": {
+                "rounds": 3, "pts_for_bye": 1.0, "pts_for_game_win": 0.0, "pts_for_game_tie": 0.0,
+                "pts_for_match_win": 1.0, "pts_for_match_tie": 0.5
+              }
+            }
+          }
         },
         "grand_final": {
           "pointer": "/data/attributes/double_elimination_options/grand_finals_modifier",

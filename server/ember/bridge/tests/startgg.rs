@@ -701,7 +701,10 @@ async fn an_organizer_sign_in_asks_start_gg_for_the_reporter_scope() {
     let scope = "user.identity tournament.reporter";
     assert_eq!(sign_in::query(&url)["scope"], scope);
     let page = STARTGG.organize(&bridge, &player1, "good-player1").await;
-    assert!(page.contains("Organizer access for start.gg allowed"), "{page}");
+    assert!(
+        page.contains("Organizer access for start.gg allowed"),
+        "{page}"
+    );
     // start.gg's token request names the scope too: the organizer one.
     assert_eq!(fake.seen("/oauth/access_token")[0].form["scope"], scope);
     assert_eq!(

@@ -419,7 +419,18 @@ impl OAuth {
         for (name, value) in fields {
             match create.fields.get(name) {
                 Some(field) if field.values.contains(value) => {
-                    set(&mut body, &field.pointer, value.clone());
+                    // An empty value is the site's own default: left out,
+                    // since a site may refuse an empty one (Challonge's
+                    // normal grand final).
+                    if !matches!(value, Value::Null) && value.as_str() != Some("") {
+                        set(&mut body, &field.pointer, value.clone());
+                    }
+                    let chosen = value
+                        .as_str()
+                        .map_or_else(|| value.to_string(), str::to_owned);
+                    for (pointer, extra) in field.with.get(&chosen).into_iter().flatten() {
+                        set(&mut body, pointer, extra.clone());
+                    }
                 }
                 _ => {
                     let known: Vec<&str> = create.fields.keys().map(String::as_str).collect();
@@ -448,8 +459,9 @@ impl OAuth {
 
     /// Adds a player to the organizer's event `tournament` as `name`, the
     /// site account `username`, marked with `marker`, with the organizer's
-    /// access token; the participant's ID, or None on any failure or when
-    /// the site takes no sign-ups.
+    /// access token; the participant's ID, or why the site refused
+    /// (`refusal`), `Err(None)` on any other failure or when the site takes
+    /// no sign-ups.
     pub async fn add_participant(
         &self,
         token: &str,
@@ -457,22 +469,27 @@ impl OAuth {
         name: &str,
         username: &str,
         marker: &str,
-    ) -> Option<String> {
-        let add = self.participants.as_ref()?;
+    ) -> Result<String, Option<String>> {
+        let add = self.participants.as_ref().ok_or(None)?;
         let mut body = add.body.clone();
         set(&mut body, &add.name_pointer, Value::from(name));
         set(&mut body, &add.username_pointer, Value::from(username));
         set(&mut body, &add.marker_pointer, Value::from(marker));
         let request = UserRequest {
             method: Method::Post,
-            url: add.url.replace("{tournament}", path_id(tournament)?),
+            url: add
+                .url
+                .replace("{tournament}", path_id(tournament).ok_or(None)?),
             headers: pairs(&add.headers),
             body: Some(body),
         };
-        let client = outbound_client().build().ok()?;
+        let client = outbound_client().build().map_err(|_| None)?;
         let answer: Value =
-            serde_json::from_slice(&send(&client, &request, token, MAX_ANSWER).await?).ok()?;
-        text_at(&answer, &add.id_pointer).filter(|id| path_id(id).is_some())
+            serde_json::from_slice(&sent(&client, &request, token, MAX_ANSWER).await?)
+                .map_err(|_| None)?;
+        text_at(&answer, &add.id_pointer)
+            .filter(|id| path_id(id).is_some())
+            .ok_or(None)
     }
 
     /// Takes participant `participant` out of the organizer's event
@@ -601,12 +618,16 @@ pub struct Created {
 impl Creation {
     /// Creates the event as the organizer whose access token is `token`;
     /// None on any failure.
-    pub async fn send(&self, token: &str) -> Option<Created> {
-        let client = outbound_client().build().ok()?;
+    /// Creates the event: what the site made, or why it refused (`refusal`),
+    /// `Err(None)` when it gave no usable answer.
+    pub async fn send(&self, token: &str) -> Result<Created, Option<String>> {
+        let client = outbound_client().build().map_err(|_| None)?;
         let answer: Value =
-            serde_json::from_slice(&send(&client, &self.request, token, MAX_ANSWER).await?).ok()?;
+            serde_json::from_slice(&sent(&client, &self.request, token, MAX_ANSWER).await?)
+                .map_err(|_| None)?;
         let id = text_at(&answer, &self.read.id_pointer)
-            .filter(|id| id.len() <= 128 && id.bytes().all(|b| b.is_ascii_graphic()))?;
+            .filter(|id| id.len() <= 128 && id.bytes().all(|b| b.is_ascii_graphic()))
+            .ok_or(None)?;
         let link = self
             .read
             .link_pointer
@@ -614,7 +635,7 @@ impl Creation {
             .and_then(|pointer| text_at(&answer, pointer))
             .filter(|path| path.bytes().all(|b| b.is_ascii_graphic()))
             .map(|path| format!("{}{path}", self.read.link_prefix.as_deref().unwrap_or("")));
-        Some(Created { id, link })
+        Ok(Created { id, link })
     }
 }
 
@@ -644,6 +665,18 @@ async fn send(
     token: &str,
     limit: usize,
 ) -> Option<Vec<u8>> {
+    sent(client, request, token, limit).await.ok()
+}
+
+/// `send`, saying why the site refused when it answered with an error: its
+/// own words, at most `MAX_REFUSAL` characters (`refusal`). `Err(None)` when
+/// the request failed without an answer.
+async fn sent(
+    client: &reqwest::Client,
+    request: &UserRequest,
+    token: &str,
+    limit: usize,
+) -> Result<Vec<u8>, Option<String>> {
     let builder = match request.method {
         Method::Get => client.get(&request.url),
         Method::Post => client.post(&request.url),
@@ -660,8 +693,8 @@ async fn send(
     }
     for (name, value) in &request.headers {
         headers.insert(
-            header::HeaderName::from_bytes(name.as_bytes()).ok()?,
-            header::HeaderValue::from_str(value).ok()?,
+            header::HeaderName::from_bytes(name.as_bytes()).map_err(|_| None)?,
+            header::HeaderValue::from_str(value).map_err(|_| None)?,
         );
     }
     let builder = match &request.body {
@@ -673,11 +706,73 @@ async fn send(
         .bearer_auth(token)
         .send()
         .await
-        .ok()?;
+        .map_err(|_| None)?;
     if !response.status().is_success() {
-        return None;
+        let status = response.status().as_u16();
+        let body = read_bounded(response, MAX_ANSWER).await.unwrap_or_default();
+        return Err(Some(refusal(status, &body)));
     }
-    read_bounded(response, limit).await
+    read_bounded(response, limit).await.ok_or(None)
+}
+
+/// A site's error detail as plain text: a string, a list of them, or each
+/// field of an object with what it says.
+fn said_text(detail: &Value) -> String {
+    match detail {
+        Value::String(text) => text.clone(),
+        Value::Array(items) => items.iter().map(said_text).collect::<Vec<_>>().join(", "),
+        Value::Object(fields) => fields
+            .iter()
+            .map(|(name, value)| format!("{name} {}", said_text(value)))
+            .collect::<Vec<_>>()
+            .join("; "),
+        other => other.to_string(),
+    }
+}
+
+/// The longest refusal passed on from a site.
+const MAX_REFUSAL: usize = 300;
+
+/// What a site's error answer says, for the organizer: each JSON:API
+/// error's field and detail when the body has them (Challonge), else the
+/// body's text; printable characters only, at most `MAX_REFUSAL`. The
+/// request's headers and token are never part of it.
+fn refusal(status: u16, body: &[u8]) -> String {
+    let said = serde_json::from_slice::<Value>(body)
+        .ok()
+        .and_then(|answer| {
+            let errors = answer.get("errors")?.as_array()?;
+            let parts: Vec<String> = errors
+                .iter()
+                .map(|error| {
+                    let field = error
+                        .pointer("/source/pointer")
+                        .and_then(Value::as_str)
+                        .and_then(|pointer| pointer.rsplit('/').next())
+                        .unwrap_or("");
+                    let detail = error
+                        .get("detail")
+                        .or_else(|| error.get("message"))
+                        .map(said_text)
+                        .unwrap_or_default();
+                    if field.is_empty() {
+                        detail
+                    } else {
+                        format!("{field}: {detail}")
+                    }
+                })
+                .collect();
+            Some(parts.join("; "))
+        })
+        .unwrap_or_else(|| String::from_utf8_lossy(body).into_owned());
+    let mut text: String = format!("{status} {said}")
+        .chars()
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .collect();
+    if let Some((end, _)) = text.char_indices().nth(MAX_REFUSAL) {
+        text.truncate(end);
+    }
+    text.trim().to_owned()
 }
 
 /// `id` when it can go into a URL path as it is: 1 to 128 letters, digits,
@@ -910,5 +1005,17 @@ mod tests {
         ] {
             assert!(user(body, true).is_none());
         }
+    }
+
+    #[test]
+    fn a_refusal_is_the_sites_own_words_and_short() {
+        let challonge = br#"{"errors":[{"detail":{"grand_finals_modifier":["must be one of: single match, skip, "]},"source":{"pointer":"/data/attributes/double_elimination_options"},"status":422}]}"#;
+        assert_eq!(
+            refusal(422, challonge),
+            "422 double_elimination_options: grand_finals_modifier must be one of: single match, skip,"
+        );
+        let long = format!("line\n{}", "x".repeat(400));
+        let said = refusal(500, long.as_bytes());
+        assert!(said.starts_with("500 line x") && said.chars().count() <= MAX_REFUSAL);
     }
 }

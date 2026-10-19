@@ -306,7 +306,15 @@ async fn listing(
         .and_then(|value| value.strip_prefix("Bearer "))
         .and_then(|token| site.tokens.lock().unwrap().get(token).copied());
     match user {
-        Some(user) => reply(AxumStatus::OK, answer(user)),
+        // An answer carrying `errors` is a refusal, as JSON:API sites give it.
+        Some(user) => {
+            let answered = answer(user);
+            let status = match answered.get("errors") {
+                Some(_) => AxumStatus::UNPROCESSABLE_ENTITY,
+                None => AxumStatus::OK,
+            };
+            reply(status, answered)
+        }
         None => reply(AxumStatus::UNAUTHORIZED, json!({})),
     }
 }

@@ -11,7 +11,10 @@ use axum::{
     http::{HeaderMap, StatusCode},
     response::Response,
 };
-use ember_protocol::challenge::{Action, Method};
+use ember_protocol::{
+    api::ErrorCode,
+    challenge::{Action, Method},
+};
 use rusqlite::{OptionalExtension, params};
 use serde_json::json;
 
@@ -22,7 +25,7 @@ use crate::{
     http::{Body, PROOF_BODY, json, ok},
     linking::Site,
     routes::{
-        organizer::Caller,
+        organizer::{Caller, site_name},
         sessions,
         sign_in::{OAuth, organizer_grant, spend},
     },
@@ -124,7 +127,21 @@ pub async fn sign_up(
             &format!("ember:{ember_id}"),
         )
         .await
-        .ok_or_else(ApiFailure::unavailable)?;
+        .map_err(|refused| {
+            let Some(said) = refused else {
+                return ApiFailure::unavailable();
+            };
+            eprintln!("sign-up: {} refused a participant: {said}", site.id());
+            ApiFailure::new(
+                ErrorCode::InvalidRequest,
+                format!(
+                    "{} refused the sign-up: {said}",
+                    site_name(&state, site.id())
+                ),
+            )
+            .detail("reason", "site_refused")
+            .detail("site_said", said)
+        })?;
     state
         .db
         .write(move |tx| {
