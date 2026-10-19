@@ -81,7 +81,11 @@ test("SDK drives a live bridge end to end", { timeout: 60_000 }, async () => {
       verifyWebhook(delivery.body, delivery.headers as Record<string, string>, [subscription.secret!]);
       parseEvent(delivery.body);
     }
-    assert.equal(parseEvent(deliveries[1]!.body).type, eventType("match.completed"));
+    // Webhooks are sent several at a time, so they may arrive in any order.
+    assert.deepEqual(
+      deliveries.map((delivery) => parseEvent(delivery.body).type).sort(),
+      [eventType("match.completed"), eventType("match.created")],
+    );
 
     // A king-of-the-hill lobby with nobody else waiting: the same two start a
     // new set when one ends.
