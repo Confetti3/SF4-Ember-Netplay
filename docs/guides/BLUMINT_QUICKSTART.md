@@ -151,10 +151,10 @@ created it at the latest (see "Reports").
 
 Every request under one `Idempotency-Key` answers the match that key made,
 even after the match has ended, for a day. After that the key answers
-`409 key_reused`: the bridge keeps each match's key for as long as it keeps
-the match, so a key never makes a second match, and a close finds the match
-however old it is. A renamed team or changed `matchSettings` under the key is
-the same match. Send a new key for a new match. A refusal is never stored
+`409 idempotency_key_reused`: the bridge keeps each match's key for as long
+as it keeps the match, so a key never makes a second match, and a close finds
+the match however old it is. A renamed team or changed `matchSettings` under
+the key is the same match. Send a new key for a new match. A refusal is never stored
 against the key, so send the same key again once the players are linked or
 free.
 
@@ -167,7 +167,7 @@ free.
 | Not two teams of one player, or `gamesToWin` above 10 | `400` | `{ "code": "match_unsupported" }` |
 | Players with no link on your connection, all of them named | `400` | `{ "code": "player_unlinked", "players": ["emb1_..."] }` |
 | Players still in another match on your connection, all of them named | `423` | `{ "code": "player_busy", "players": ["emb1_..."] }` |
-| The key already made a different set (other players, length or starting wins), made its match over a day ago, or a close named it | `409` | `{ "code": "key_reused" }` |
+| The key already made a different set (other players, length or starting wins), made its match over a day ago, or a close named it | `409` | `{ "code": "idempotency_key_reused" }` |
 | The credential is missing, unknown or revoked (`401`), its connection is disabled or it is not a provider credential (`403`), or its connection is not a BluMint one (`404`) | `401`, `403` or `404` | the bridge's own error, which you read as final |
 | The bridge cannot reach its database | `503` | the bridge's own error |
 
@@ -192,8 +192,8 @@ posted for it. Every reason closes the match, `decided`, `replaced`,
 `removed` and `hostOverride` as well as one the bridge does not know; it is
 kept for the log. A match that already ended answers `200` too, and a second
 close answers what the first did. The close also closes the key: every later
-creation under it answers `409 key_reused`, also when the bridge never made
-a match under it, so a creation still on its way makes nothing. A creation
+creation under it answers `409 idempotency_key_reused`, also when the bridge
+never made a match under it, so a creation still on its way makes nothing. A creation
 the bridge would refuse anyway, such as an invalid body or a set longer than
 Ember plays, still answers that refusal (`400`).
 

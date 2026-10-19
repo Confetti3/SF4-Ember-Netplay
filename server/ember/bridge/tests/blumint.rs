@@ -144,7 +144,7 @@ async fn a_match_is_created_played_and_its_score_sent_to_blumint() {
     let (status, refused) = create(&f, "create-1", 4).await;
     assert_eq!(
         (status, refused),
-        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+        (StatusCode::CONFLICT, json!({ "code": "idempotency_key_reused" }))
     );
     let (status, refused) = create(&f, "create-2", 4).await;
     assert_eq!(status, StatusCode::LOCKED, "{refused}");
@@ -561,7 +561,7 @@ async fn a_closed_match_sends_nothing() {
     assert_eq!(match_state(&f, &id).await, "cancelled");
     assert_eq!(
         create(&f, "set-4", 2).await,
-        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+        (StatusCode::CONFLICT, json!({ "code": "idempotency_key_reused" }))
     );
     // A key whose every creation was refused made no match, and closes all
     // the same, so a creation still on its way makes nothing.
@@ -581,7 +581,7 @@ async fn a_closed_match_sends_nothing() {
     assert_eq!(status, StatusCode::OK, "{closed}");
     assert_eq!(
         create(&f, "set-5", 2).await,
-        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+        (StatusCode::CONFLICT, json!({ "code": "idempotency_key_reused" }))
     );
     // A key the bridge holds nothing under is closed too, and answers as a
     // match already over does, since BluMint reads anything else as a
@@ -616,7 +616,7 @@ async fn a_closed_match_sends_nothing() {
     assert_eq!(status, StatusCode::OK, "{closed}");
     assert_eq!(
         create(&f, "set-6", 2).await,
-        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+        (StatusCode::CONFLICT, json!({ "code": "idempotency_key_reused" }))
     );
     assert_eq!(matches(&f).await, made);
     assert!(reports(&f, &id).await.is_empty());
@@ -689,7 +689,7 @@ async fn a_close_finds_its_match_once_the_creation_answer_is_forgotten() {
     assert_eq!(match_state(&f, &id).await, "awaiting_players");
     assert_eq!(
         create(&f, "set-1", 2).await,
-        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+        (StatusCode::CONFLICT, json!({ "code": "idempotency_key_reused" }))
     );
 
     let (status, closed) = close(
@@ -701,7 +701,7 @@ async fn a_close_finds_its_match_once_the_creation_answer_is_forgotten() {
     assert_eq!(match_state(&f, &id).await, "cancelled");
     assert_eq!(
         create(&f, "set-1", 2).await,
-        (StatusCode::CONFLICT, json!({ "code": "key_reused" }))
+        (StatusCode::CONFLICT, json!({ "code": "idempotency_key_reused" }))
     );
     assert_eq!(matches(&f).await, 1);
 }
