@@ -4318,9 +4318,6 @@ msgstr "Ten serwis turniejowy nie umożliwia oglądania."
 msgid "tournament.watch.refused.other_room"
 msgstr "Oglądanie zakończyło się, bo jesteś w innym pokoju. Opuść go i obejrzyj mecz ponownie."
 
-msgid "tournament.watch.finished"
-msgstr "Mecz się zakończył."
-
 msgid "tournament.watch.finished_notice"
 msgstr "Mecz, który oglądałeś, się zakończył."
 

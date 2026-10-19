@@ -4319,9 +4319,6 @@ msgstr "この大会サービスは観戦に対応していません。"
 msgid "tournament.watch.refused.other_room"
 msgstr "別のルームにいるため、観戦を終了しました。ルームから退出して、もう一度観戦してください。"
 
-msgid "tournament.watch.finished"
-msgstr "試合は終了しました。"
-
 msgid "tournament.watch.finished_notice"
 msgstr "観戦していた試合が終了しました。"
 

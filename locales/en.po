@@ -3957,9 +3957,6 @@ msgstr "This tournament service does not offer watching."
 msgid "tournament.watch.refused.other_room"
 msgstr "Watching stopped because you are in another room. Leave it, then watch the match again."
 
-msgid "tournament.watch.finished"
-msgstr "The match is over."
-
 msgid "tournament.watch.finished_notice"
 msgstr "The match you watched is over."
 

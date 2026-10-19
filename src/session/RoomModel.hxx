@@ -106,6 +106,8 @@ enum class ActionKind : std::uint8_t {
 	// kind.
 	SetTraining,
 };
+// The last kind, the wire's upper bound: a kind appended after it moves this too.
+constexpr ActionKind LastActionKind = ActionKind::SetTraining;
 
 enum class RejectReason : std::uint8_t {
 	None = 0,
@@ -483,6 +485,9 @@ inline bool IsWatcher(const Snapshot& snapshot, MemberId id) {
 	const auto* member = FindMember(snapshot, id);
 	return member && snapshot.tournament.WatcherOf(member->connection.user);
 }
+// The member with the host's powers: the host field's holder, or none (0) when
+// that is a watcher, which a bound room can leave holding the field.
+inline MemberId ActingHost(const Snapshot& snapshot) { return IsWatcher(snapshot, snapshot.host) ? 0 : snapshot.host; }
 inline std::size_t WatcherCount(const Snapshot& snapshot) {
 	return static_cast<std::size_t>(std::count_if(snapshot.members.begin(), snapshot.members.end(),
 		[&](const Member& member) { return snapshot.tournament.WatcherOf(member.connection.user); }));
@@ -779,9 +784,6 @@ private:
 	// anyone else in a bound room, and Refuse an observer the room does not name.
 	enum class BoundAdmission { Unbound, Named, Stranger, Refuse };
 	BoundAdmission BoundJoin(const ConnectionRef& connection, const MemberProfile& profile) const;
-	// A member the binding names as a watcher: it only watches, and holds no
-	// host power, vote in table matters, seat or chat.
-	bool IsBoundWatcher(MemberId member) const;
 	// Who takes the host field when its holder leaves: the oldest member, a
 	// bound room's fighters before its watchers.
 	const Member* HostSuccessor(MemberId leaving) const;
@@ -799,8 +801,8 @@ private:
 	// room's revision moves, so a fighter's Ready is never made stale by one.
 	void TouchSpectators(Table& table);
 	// What a bound watcher may do, and nothing else: leave, acknowledge a game's
-	// end, and say it is in Training. A kind added later is refused to it until
-	// it is listed here.
+	// end, and say it is in Training. ApplyAction asks it before any kind is
+	// dispatched, so a kind added later is refused to a watcher until listed here.
 	static bool WatcherMay(ActionKind kind);
 	// Seats each bound fighter in its slot at table 0, unless a game is being
 	// started, played or resolved there.

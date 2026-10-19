@@ -12,8 +12,9 @@
 // watches (that keeps the watcher live on the bridge, and picks up a replaced
 // room or a revocation), and leaves when told to or when the match is over.
 // It only ever watches: it never hosts, publishes, binds, prepares or reports,
-// so its outputs are the four below and nothing else. It also acts only on the
-// room it joined for the match: a room the player is in for another reason is
+// so its outputs are the four below and nothing else. Which room to join or
+// leave is MatchRoomFollower's, so it acts only on the room it joined for the
+// match: a room the player is in for another reason ends the watch and is
 // never left, joined over or hidden by it. The runtime turns each Output into
 // the real call and feeds every answer back.
 namespace sf4e { namespace netplay { namespace tournament {
@@ -97,9 +98,6 @@ public:
 private:
 	void End(WatchPhase phase, const std::string& reason, WatchNotice notice);
 	void Follow(std::uint64_t nowMs, const RoomView& room, std::vector<WatchOutput>& out);
-	void ReleaseRoom(std::uint64_t nowMs, const RoomView& room, std::vector<WatchOutput>& out);
-	// The room the player is in, or is opening, is one this watch joined.
-	bool HoldsOwnRoom(std::uint64_t nowMs, const RoomView& room) const;
 	void Say(WatchNotice notice);
 
 	WatchPhase phase_ = WatchPhase::Idle;
@@ -108,25 +106,10 @@ private:
 	bool pollInFlight_ = false, polled_ = false, full_ = false;
 	// The watcher has been in the match's room at some point.
 	bool wasWatching_ = false;
-	std::uint64_t nextPollMs_ = 0, openedAtMs_ = 0;
-	// The room the bridge names for the match.
-	std::string targetRoom_, targetInvitation_;
-	bool joinRequested_ = false, leaving_ = false;
-	// A join this watch sent is under way: set with the Join, cleared by the
-	// first tick that shows no room opening. Unlike joinRequested_, which only
-	// paces the retry, it ends when the join fails, so a stopped watch never
-	// leaves the room that opens after its own failed join.
-	bool joinUnderWay_ = false;
-	// Every room this watch asked to join or was seen in as the match's: the
-	// only rooms it leaves. A room the player opened or joined by hand is not
-	// among them.
-	std::vector<std::string> ownRooms_;
-	// The watch ended: leave the room it joined, once the next tick shows it.
-	bool leaveWanted_ = false;
-	// A finished match's room is left once its last game's battle has closed
-	// by itself, bounded as TournamentPlay's is (FinalBattleHoldMs).
-	bool leaveHeld_ = false;
-	std::uint64_t leaveHeldUntilMs_ = 0;
+	std::uint64_t nextPollMs_ = 0;
+	// The room the bridge names for the match, joining it, and leaving it once
+	// the watch ends (after the last battle of a finished match).
+	MatchRoomFollower room_{WatchIntervalMs};
 	WatchNotice notice_ = WatchNotice::None;
 	std::uint64_t noticeSequence_ = 0;
 };

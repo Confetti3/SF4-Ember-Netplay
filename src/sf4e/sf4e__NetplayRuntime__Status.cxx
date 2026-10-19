@@ -206,13 +206,14 @@ static void PublishDiscordPresence(const RuntimeSnapshot& snapshot) {
         input.show = runtime->preferences.discordPresence; input.invites = runtime->preferences.discordInvites;
         input.session = snapshot.session; input.room = snapshot.room;
         input.now = static_cast<std::uint64_t>(std::time(nullptr));
-        // Keyed to what this game is doing, not the room's binding: it also covers
-        // the window where the match's room is open but the opponent has not claimed.
-        input.matchRoom = netplay::tournament::HoldsMatchRoom(runtime->tournament.GetPhase(), runtime->watch.GetPhase());
         // A public room admits by ticket, so its invitation alone would admit nobody.
         if (runtime->room && !snapshot.room.serverOwned) {
             input.secret = runtime->room->DiscordInvitation();
             if (!discord::TicketMetadata(input.secret,input.party,input.expires)) input.secret.clear();
+            // A tournament match's room, played or watched, is never offered to friends. Keyed to
+            // what this game is doing, not the room's binding: it also covers the window where the
+            // match's room is open but not bound yet.
+            if (netplay::tournament::HoldsMatchRoom(runtime->tournament.GetPhase(), runtime->watch.GetPhase())) input.secret.clear();
         }
         const auto value = discord::Describe(input);
         const auto message = nlohmann::json{{"type","presence"},{"epoch",snapshot.session.generation.room},

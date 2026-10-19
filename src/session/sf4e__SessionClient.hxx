@@ -12,6 +12,7 @@
 
 #include "sf4e__SessionProtocol.hxx"
 #include "RoomModel.hxx"
+#include "../common/SpectatorPolicy.hxx"
 
 namespace sf4e {
 	extern const int SESSION_CLIENT_MAX_MESSAGES_PER_POLL;
@@ -66,6 +67,10 @@ namespace sf4e {
 		void SetGameplayGeneration(std::uint64_t generation) { _gameplayGeneration = generation; }
 		void NotifyAuthorizedReady() { if (_callbacks.OnReady) _callbacks.OnReady(this, _callbacks); }
 		const room::Snapshot& GetRoomSnapshot() const { return _roomSnapshot; }
+		// The one choice of how long a game's spectators have to synchronize: P1
+		// waits this long for them, and a spectator away from the main menu gives
+		// up its entry after it. Shorter at a tournament match's bound table.
+		std::uint64_t SpectatorSyncDeadlineMs() const { return SpectatorPolicy::SyncDeadlineFor(_roomSnapshot.tournament.Active()); }
 		// GetTickCount64 when the room snapshot last arrived; members' idle
 		// times count on from it.
 		std::uint64_t RoomSnapshotReceivedMs() const { return _roomSnapshotReceivedMs; }

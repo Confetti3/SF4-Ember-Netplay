@@ -206,35 +206,31 @@ void ApplicationShell::DrawChatScreen(const ShellView& v, const std::vector<Menu
                                       const MenuVisualFeedback&) {
     const float s = Scale(), spacing = ImGui::GetStyle().ItemSpacing.y;
     const ChatGate gate = ChatGateOf(v);
-    // A tournament match's watcher reads: no box, no counter, and a note that says why.
-    const bool readOnly = gate == ChatGate::ReadOnly;
-    const bool typable = gate != ChatGate::NotJoined && !readOnly;
+    // A tournament match's watcher only reads: no box and no counter, and the note says why.
+    const bool box = gate != ChatGate::ReadOnly;
     const float available = ImGui::GetContentRegionAvail().x, width = (std::min)(available, 900 * s);
     const float x = ImGui::GetCursorPosX() + (available - width) * .5f;
     // What goes under the conversation: the box, then one wrapped line of help
     // (or why nothing can be sent) with the room left in the message at its right.
-    const int left = static_cast<int>(room::MaximumChatBytes) - static_cast<int>(std::strlen(chat_));
-    const std::string counter = loc::Tf("chat.remaining", left);
-    const float counterWidth = ImGui::CalcTextSize(counter.c_str()).x;
+    const float counterWidth = box ? ImGui::CalcTextSize(loc::Tf("chat.remaining", ChatBytesLeft()).c_str()).x + 12 * s : 0.f;
+    const float boxHeight = box ? ImGui::GetFrameHeight() : 0.f;
     std::string note = loc::T("chat.detail");
     Tone noteTone = Tone::Neutral;
     // The box takes typing whatever the fence does. What it says follows the status line's held feedback
     // (roomUpdateVisible_), so a brief catch-up says nothing and a fence flickering open does not flicker it.
     const bool sending = queuedChat_ || ChatInFlight(ImGui::GetTime());
     const bool waiting = gate == ChatGate::Recovering || roomUpdateVisible_;
-    if (readOnly) note = loc::T("room.tournament_watching");
-    else if (!typable || (waiting && !sending)) { note = RoomWaitReason(v); noteTone = Tone::Pending; }
+    if (!box) note = loc::T("room.tournament_watching");
+    else if (gate == ChatGate::NotJoined || (waiting && !sending)) { note = RoomWaitReason(v); noteTone = Tone::Pending; }
     else if (sending) { note = loc::T("chat.sending"); noteTone = Tone::Pending; }
-    const float wrap = (std::max)(1.f, width - counterWidth - 12 * s);
+    const float wrap = (std::max)(1.f, width - counterWidth);
     const float lineHeight = ImGui::GetTextLineHeight();
-    const float boxHeight = readOnly ? 0.f : ImGui::GetFrameHeight();
     const float rest = height - boxHeight - 2 * spacing - 2 * s;
     float noteHeight = (std::min)(4 * lineHeight, (std::max)(2 * lineHeight, (std::max)(
         ImGui::CalcTextSize(loc::T("chat.detail"), nullptr, false, wrap).y, ImGui::CalcTextSize(note.c_str(), nullptr, false, wrap).y)));
     // In a window too short for both, the help gives way to the conversation, down to the counter's line.
     if (rest - noteHeight < 90 * s) noteHeight = lineHeight;
     const float logHeight = (std::max)(1.f, rest - noteHeight);
-    if (!readOnly) ReportMenuText("chat-remaining", lineHeight, lineHeight, counterWidth, width * .4f);
     const ImVec2 noteSize = ImGui::CalcTextSize(note.c_str(), nullptr, false, wrap);
     // A short window clips the help to its line by design, so only what is drawn is reported.
     ReportMenuText("chat-note", (std::min)(noteSize.y, noteHeight), noteHeight, noteSize.x, wrap);
@@ -261,10 +257,30 @@ void ApplicationShell::DrawChatScreen(const ShellView& v, const std::vector<Menu
     ImGui::EndChild();
     ImGui::PopStyleColor(); ImGui::PopStyleVar();
 
+    if (box) DrawChatBox(x, width, gate != ChatGate::NotJoined, noteHeight);
+    ImGui::SetCursorPosX(x);
+    const ImVec2 at = ImGui::GetCursorScreenPos();
+    auto* draw = ImGui::GetWindowDrawList();
+    draw->PushClipRect(at, ImVec2(at.x + width, at.y + noteHeight), true);
+    draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(), at, ImGui::ColorConvertFloat4ToU32(ToneColor(noteTone)), note.c_str(), nullptr, wrap);
+    draw->PopClipRect();
+    ImGui::Dummy(ImVec2(width, noteHeight));
+}
+
+int ApplicationShell::ChatBytesLeft() const {
+    return static_cast<int>(room::MaximumChatBytes) - static_cast<int>(std::strlen(chat_));
+}
+
+void ApplicationShell::DrawChatBox(float x, float width, bool typable, float noteHeight) {
+    const float s = Scale(), lineHeight = ImGui::GetTextLineHeight();
+    // Counted before the box takes this frame's typing, as the screen's layout was.
+    const int left = ChatBytesLeft();
+    const std::string counter = loc::Tf("chat.remaining", left);
+    const float counterWidth = ImGui::CalcTextSize(counter.c_str()).x;
+    ReportMenuText("chat-remaining", lineHeight, lineHeight, counterWidth, width * .4f);
     // The message box keeps the keyboard whenever nothing else holds it. It edits
     // a copy, so Escape (which ImGui answers by restoring the text from when the
     // box was last entered) cannot take the draft back with it.
-    if (!readOnly) {
     ImGui::SetCursorPosX(x);
     ImGui::SetNextItemWidth(width);
     char buffer[sizeof(chat_)];
@@ -284,17 +300,14 @@ void ApplicationShell::DrawChatScreen(const ShellView& v, const std::vector<Menu
     if (edited && !ImGui::IsKeyPressed(ImGuiKey_Escape, false)) std::snprintf(chat_, sizeof(chat_), "%s", buffer);
     chatBoxText_ = chat_;
     NoteUserText(chat_, UserTextRole::Draft);
-    }
-
+    // The counter, at the right of the note line under the box; the cursor stays at that line.
     ImGui::SetCursorPosX(x);
     const ImVec2 at = ImGui::GetCursorScreenPos();
     const ImU32 counterColor = left <= 0 ? ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Error)) :
         left <= 32 ? ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)) : palette::Muted;
     auto* draw = ImGui::GetWindowDrawList();
     draw->PushClipRect(at, ImVec2(at.x + width, at.y + noteHeight), true);
-    if (!readOnly) draw->AddText(ImVec2(at.x + width - counterWidth, at.y), counterColor, counter.c_str());
-    draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(), at, ImGui::ColorConvertFloat4ToU32(ToneColor(noteTone)), note.c_str(), nullptr, wrap);
+    draw->AddText(ImVec2(at.x + width - counterWidth, at.y), counterColor, counter.c_str());
     draw->PopClipRect();
-    ImGui::Dummy(ImVec2(width, noteHeight));
 }
 } }

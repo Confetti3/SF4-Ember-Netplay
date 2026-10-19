@@ -4319,9 +4319,6 @@ msgstr "此赛事服务不支持观战。"
 msgid "tournament.watch.refused.other_room"
 msgstr "你在另一个房间中，观战已停止。请退出该房间，然后重新观战。"
 
-msgid "tournament.watch.finished"
-msgstr "对局已结束。"
-
 msgid "tournament.watch.finished_notice"
 msgstr "你观战的对局已结束。"
 

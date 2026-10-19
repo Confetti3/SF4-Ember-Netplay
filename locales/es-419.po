@@ -3842,9 +3842,6 @@ msgstr "Este servicio de torneos no ofrece observar."
 msgid "tournament.watch.refused.other_room"
 msgstr "Se dejó de observar porque estás en otra sala. Sal de ella y vuelve a observar la partida."
 
-msgid "tournament.watch.finished"
-msgstr "La partida terminó."
-
 msgid "tournament.watch.finished_notice"
 msgstr "La partida que observabas terminó."
 

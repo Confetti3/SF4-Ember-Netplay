@@ -19,10 +19,7 @@ constexpr double AssignmentsSeconds = 60;
 // the matches are read this often, from any screen, for this long.
 constexpr double RestartPollSeconds = 5, RestartWatchSeconds = 180;
 
-bool Playing(const netplay::tournament::Status& t) {
-    using netplay::tournament::Phase;
-    return t.phase == Phase::Claiming || t.phase == Phase::Opening || t.phase == Phase::InRoom;
-}
+bool Playing(const netplay::tournament::Status& t) { return netplay::tournament::PlayUnderWay(t.phase); }
 std::string PlayState(const netplay::tournament::Status& t) {
     using netplay::tournament::Phase;
     switch (t.phase) {
@@ -78,7 +75,7 @@ void IdentityPanel::CheckOpenedMatch(const netplay::tournament::AssignmentList& 
     // to watch (the Watch row is offered), so for an organizer or a caster saying
     // so is not an error.
     if (!list.error.empty()) { opened_.reset(); return; }
-    Say(loc::T("tournament.failure.not_yours"), false, 12, true);
+    Say(loc::T("tournament.failure.not_yours"), Tone::Neutral, 12);
     watchBridge_ = opened_->bridge; watchMatch_ = opened_->match;
     opened_->row = "tm-watch:" + opened_->match;
 }
@@ -100,7 +97,7 @@ void IdentityPanel::SendTournament(const ShellView& v, const std::string& screen
     // A refresh's failure is said once; the runtime clears it when the next one is sent.
     if (t.list.error != assignmentsError_) {
         assignmentsError_ = t.list.error;
-        if (!assignmentsError_.empty() && screen == "tournament-matches") Say(TournamentFailure(assignmentsError_), true);
+        if (!assignmentsError_.empty() && screen == "tournament-matches") Say(TournamentFailure(assignmentsError_), Tone::Error);
     }
     // A match that ended has a new score to show.
     if (t.phase != phase_) {
@@ -129,7 +126,7 @@ void IdentityPanel::SendTournament(const ShellView& v, const std::string& screen
     } else {
         return;
     }
-    if (!submit(std::move(action))) Say(loc::T("error.queue_failed"), true);
+    if (!submit(std::move(action))) Say(loc::T("error.queue_failed"), Tone::Error);
 }
 
 void IdentityPanel::MatchesRows(const ShellView& v, std::vector<MenuEntry>& rows) const {
@@ -201,7 +198,7 @@ bool IdentityPanel::MatchesActivate(const MenuAction& a, const ShellView& v) {
         // The match link the tournament site gave: its page or the ember: link.
         const char* text = ImGui::GetClipboardText();
         const auto link = tournament_link::ParsePasted(text ? text : "");
-        if (!link.Valid()) { Say(loc::T("tournament.failure.link"), true); return true; }
+        if (!link.Valid()) { Say(loc::T("tournament.failure.link"), Tone::Error); return true; }
         message_.clear();
         OpenMatch(link.bridgeId, link.matchId);
         return true;

@@ -83,7 +83,8 @@ public:
 		return spectator && waitedMs >= deadlineMs ? EntryStep::SitOut : EntryStep::Wait;
 	}
 
-	void Start(std::uint64_t nowMs, const std::vector<int>& spectators, std::uint64_t syncDeadlineMs = SyncDeadlineMs) {
+	// `syncDeadlineMs`: SyncDeadlineFor this game's table (SessionClient::SpectatorSyncDeadlineMs).
+	void Start(std::uint64_t nowMs, const std::vector<int>& spectators, std::uint64_t syncDeadlineMs) {
 		lastSampleMs_ = nowMs; fightersSyncedMs_ = 0; runningMs_ = 0; syncDeadlineMs_ = syncDeadlineMs;
 		spectators_.clear();
 		for (const auto handle : spectators) spectators_[handle] = State{};

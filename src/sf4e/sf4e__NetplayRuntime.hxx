@@ -108,6 +108,11 @@ using Intent = netplay::ParkedIntent<RuntimeCommand>;
 // raised and again when the language changes.
 enum class StickyError { None, StartFailed, HelperUnavailable };
 
+// How the room being opened was entered: a private invitation or a host, a
+// public room's ticket (a refusal or failure is worded for it), or a
+// tournament match's watcher (the room admits it only if it names it).
+enum class JoinKind : std::uint8_t { Private, Public, Observer };
+
 struct Runtime {
     StickyError stickyError = StickyError::None;
     std::uint32_t stickyCode = 0;
@@ -181,11 +186,8 @@ struct Runtime {
     // The delay policy of the room this PC hosts, chosen the same way.
     room::DelayPolicy delayPolicy=room::DelayPolicy::Shared;
     bool leaveRequested=false, leaveAcknowledged=false;
-    // The room being opened is a public one joined with a ticket, so a refusal or
-    // failure is worded for it. Set with the join, cleared when the room closes.
-    bool publicJoin=false;
-    // The room being joined or joined is a tournament match's, as a watcher.
-    bool observerJoin=false;
+    // Set with the join, cleared when the room closes.
+    JoinKind join=JoinKind::Private;
     std::uint64_t leaveActionId=0, leaveRetryAt=0, leaveDeadline=0;
     int selectedDelay=2;
     std::uint64_t nextProbeRequest=1;
@@ -365,7 +367,7 @@ void ConfirmLobbySettings();
 void ResolvePendingIntents(bool helperReady);
 // A room command (host, join, leave) on tournament play's behalf, through
 // the same checks as a press.
-netplay::DispatchOutcome DispatchTournamentRoomCommand(netplay::Command command, bool observer = false);
+netplay::DispatchOutcome DispatchTournamentRoomCommand(netplay::Command command, JoinKind join);
 // A joined room ended for the player. True when watching a match took it as
 // its own news (a notice, then a fresh ask), so the generic error is not shown.
 bool EndWatchedRoom(netplay::tournament::WatchRoomEnd end);

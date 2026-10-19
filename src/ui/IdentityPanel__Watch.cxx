@@ -25,7 +25,7 @@ std::string WatchState(const netplay::tournament::Status& t, const room::Snapsho
         };
         return loc::Tf("tournament.watch.state.watching", name(table.p1), name(table.p2));
     }
-    case WatchPhase::Finished: return loc::T("tournament.watch.finished");
+    case WatchPhase::Finished: return loc::T("tournament.finished_detail");
     case WatchPhase::Refused: {
         const auto& code = t.watch.reason;
         if (code == "not_allowed") return loc::T("tournament.watch.refused.not_allowed");

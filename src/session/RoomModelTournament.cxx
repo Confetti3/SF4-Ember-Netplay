@@ -12,6 +12,8 @@ using namespace detail;
 
 // The two fighters and every watcher a binding can name always fit in a room.
 static_assert(2 + MaxWatchers <= MaximumMembers, "a bound room must hold its fighters and all its watchers");
+// Every watcher is placed as a spectator of table 0 without a capacity check.
+static_assert(MaxWatchers <= MaxSpectators, "table 0 must hold every watcher as a spectator");
 
 namespace {
 bool IsLowerHex(const std::string& text, std::size_t length) {
@@ -312,11 +314,9 @@ RoomAuthority::BoundAdmission RoomAuthority::BoundJoin(const ConnectionRef& conn
 	return watcher || binding.SlotOf(connection.user) >= 0 ? BoundAdmission::Named : BoundAdmission::Stranger;
 }
 
-bool RoomAuthority::IsBoundWatcher(MemberId member) const { return IsWatcher(snapshot_, member); }
-
 const Member* RoomAuthority::HostSuccessor(MemberId leaving) const {
 	const Member* successor = nullptr;
-	const auto rank = [&](const Member& value) { return std::make_pair(IsBoundWatcher(value.id), value.joinOrder); };
+	const auto rank = [&](const Member& value) { return std::make_pair(IsWatcher(snapshot_, value.id), value.joinOrder); };
 	for (const auto& other : snapshot_.members)
 		if (other.id != leaving && (!successor || rank(other) < rank(*successor))) successor = &other;
 	return successor;
@@ -324,10 +324,9 @@ const Member* RoomAuthority::HostSuccessor(MemberId leaving) const {
 
 void RoomAuthority::SettleBoundJoin(MemberId joined) {
 	SeatBoundFighters();
-	const auto& user = Find(joined)->connection.user;
-	if (snapshot_.tournament.WatcherOf(user)) {
+	if (IsWatcher(snapshot_, joined)) {
 		PlaceWatcher(joined);
-	} else if (IsBoundWatcher(snapshot_.host)) {
+	} else if (IsWatcher(snapshot_, snapshot_.host)) {
 		// A fighter back in a room whose host field a watcher holds takes it.
 		snapshot_.host = joined;
 		for (auto& other : snapshot_.members) other.host = other.id == joined;
@@ -335,9 +334,8 @@ void RoomAuthority::SettleBoundJoin(MemberId joined) {
 }
 
 void RoomAuthority::PlaceWatcher(MemberId member) {
-	// At most MaxWatchers of them, so the table's MaxSpectators always holds.
-	Table& table = snapshot_.tables[TournamentTable];
-	(table.phase == TablePhase::Playing ? table.watchingNext : table.spectators).push_back(member);
+	// At most MaxWatchers of them, so the table's MaxSpectators always holds (asserted above).
+	AddSpectator(snapshot_.tables[TournamentTable], member);
 	NormalizeMemberStatus(member);
 }
 
@@ -364,7 +362,7 @@ void RoomAuthority::TouchSpectators(Table& table) {
 
 bool RoomAuthority::WatcherMay(ActionKind kind) {
 	// A watcher is put in its place at Join and keeps it: no seat, queue, watch
-	// choice, rules, lock-in or chat, and none of the host's powers (IsHost).
+	// choice, rules, lock-in or chat, and none of the host's room actions.
 	// The generation-scoped leave of a game whose stream failed is not one of
 	// these actions; it is taken for everyone before this list is asked.
 	return kind == ActionKind::Leave || kind == ActionKind::AcknowledgeTerminal || kind == ActionKind::SetTraining;

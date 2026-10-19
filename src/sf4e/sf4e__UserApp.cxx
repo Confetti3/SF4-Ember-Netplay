@@ -233,9 +233,8 @@ static RuntimeGgpoStart StartRuntimeGgpo() {
         spdlog::info("Netplay: match delay seats={}/{} local_slot={} applied={}",
             netplay->client._matchData.inputDelay[0], netplay->client._matchData.inputDelay[1],
             endpoints.localSlot, netplay->delay);
-        // A bound tournament table's watchers get the shorter sync deadline.
         fSystem::StartGGPO(players, static_cast<int>(count), endpoints.localPort, netplay->delay,
-            sf4e::SpectatorPolicy::SyncDeadlineFor(room.tournament.Active()));
+            netplay->client.SpectatorSyncDeadlineMs());
     }
     if (fSystem::ggpo != nullptr) {
         auto* const root = App::GetRootEvent();

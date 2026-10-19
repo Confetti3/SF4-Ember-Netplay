@@ -4,8 +4,10 @@
 // no chat box and no host powers, and nobody offers the match room's invitation.
 #include "identity_journey_support.hxx"
 #include "../ui/ChatTranscript.hxx"
+#include "../ui/MenuProbes.hxx"
 #include "../ui/RoomControls.hxx"
 #include "../ui/RoomFeedback.hxx"
+#include <map>
 namespace {
 using namespace sf4e;
 using netplay::tournament::Command;
@@ -170,7 +172,7 @@ void WatchStates() {
   {WatchPhase::Waiting, true, "", loc::T("tournament.watch.state.full"), true},
   {WatchPhase::Joining, false, "", loc::T("tournament.watch.state.joining"), true},
   {WatchPhase::Watching, false, "", loc::Tf("tournament.watch.state.watching", "Player 1", "Player 2"), true},
-  {WatchPhase::Finished, false, "finished", loc::T("tournament.watch.finished"), false},
+  {WatchPhase::Finished, false, "finished", loc::T("tournament.finished_detail"), false},
   {WatchPhase::Refused, false, "not_allowed", loc::T("tournament.watch.refused.not_allowed"), false},
   {WatchPhase::Refused, false, "revoked", loc::T("tournament.watch.refused.revoked"), false},
   {WatchPhase::Refused, false, "fighter", loc::T("tournament.watch.refused.fighter"), false},
@@ -255,6 +257,9 @@ struct Bound : Journey {
 void WatcherRoom() {
  {
   Bound h(true);
+  // The board's member cards, as drawn.
+  std::map<std::string, std::string> cards;
+  SetMenuCardTextProbe([&](const std::string& id, const std::string& text) { cards[id] = text; });
   h.Screen("room");
   h.Frame(0, 2);
   Check(h.status == loc::T("room.tournament_watching"), "A watcher's room does not say it is watching");
@@ -262,6 +267,9 @@ void WatcherRoom() {
   Check(h.row("member-3") && h.row("member-3")->detail == loc::Tf("room.member_status", std::string(loc::T("room.member.watcher")) + " / j25zrhe6-pmdhvlja"),
    "A watcher is not tagged with its Ember ID");
   Check(h.row("member-1")->detail == loc::Tf("room.member_status_host", loc::T("room.status.seated")), "A fighter's row changed");
+  const auto watcherLine = loc::Tf("room.member_status", std::string(loc::T("room.member.watcher")) + " / j25zrhe6-pmdhvlja");
+  Check(cards["member-3"] == watcherLine, "A watcher's card is not tagged with its Ember ID");
+  Check(cards["member-1"] == loc::Tf("room.board_status_host_slot", loc::T("room.status.seated"), 1), "A fighter's card changed");
   Check(!h.has("copy") && !h.has("copy-short"), "A bound room offers its invitation");
   // An identifier with no key shape is shown whole.
   Check(ShortEmberId("emb1_watcher1") == "emb1_watcher1" && ShortEmberId("emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja") == "j25zrhe6-pmdhvlja",
@@ -273,8 +281,11 @@ void WatcherRoom() {
   // Holding the host field with no fighter left, it has none of the host's rows.
   h.Screen("room");
   h.view.room.host = 3; h.view.room.members[0].host = false; h.view.room.members[2].host = true;
+  cards.clear();
   h.Frame(0, 2);
   Check(h.row("room-admin") && !h.row("room-admin")->enabled, "A watcher holding the host field can change the room");
+  Check(cards["member-3"] == watcherLine, "A watcher holding the host field shows as HOST on its card");
+  SetMenuCardTextProbe({});
   // Nor is it told it hosts when it leaves.
   Check(room_controls::LeaveRoomDetail(h.view).find(loc::T("room.leave.host")) == std::string::npos, "A watcher holding the host field is warned it hosts the room");
  }

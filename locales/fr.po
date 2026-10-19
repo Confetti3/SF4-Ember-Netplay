@@ -4318,9 +4318,6 @@ msgstr "Ce service de tournoi ne permet pas de regarder les matchs."
 msgid "tournament.watch.refused.other_room"
 msgstr "Vous ne regardez plus le match, car vous êtes dans un autre salon. Quittez-le, puis regardez de nouveau le match."
 
-msgid "tournament.watch.finished"
-msgstr "Le match est terminé."
-
 msgid "tournament.watch.finished_notice"
 msgstr "Le match que vous regardiez est terminé."
 

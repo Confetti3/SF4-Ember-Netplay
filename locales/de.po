@@ -4318,9 +4318,6 @@ msgstr "Dieser Turnierdienst bietet kein Zuschauen an."
 msgid "tournament.watch.refused.other_room"
 msgstr "Das Zuschauen wurde beendet, weil Sie in einem anderen Raum sind. Verlassen Sie ihn und schauen Sie dem Spiel dann erneut zu."
 
-msgid "tournament.watch.finished"
-msgstr "Das Spiel ist vorbei."
-
 msgid "tournament.watch.finished_notice"
 msgstr "Das Spiel, dem Sie zugeschaut haben, ist vorbei."
 

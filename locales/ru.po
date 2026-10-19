@@ -4319,9 +4319,6 @@ msgstr "Этот турнирный сервис не поддерживает �
 msgid "tournament.watch.refused.other_room"
 msgstr "Просмотр остановлен, потому что вы находитесь в другом лобби. Выйдите из него и снова начните смотреть матч."
 
-msgid "tournament.watch.finished"
-msgstr "Матч окончен."
-
 msgid "tournament.watch.finished_notice"
 msgstr "Матч, который вы смотрели, окончен."
 

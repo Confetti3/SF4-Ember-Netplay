@@ -227,6 +227,7 @@ CardInteraction DrawMemberCard(const MemberCardView& card) {
  elided+=(elided.empty()?"":"\n")+std::string(NetworkLinkName(card.link));
  if(!card.latency.tip.empty())elided+="\n"+card.latency.tip;
  DrawCardText(elided,ImVec2(p.x+64*s,p.y+31*s),width-76*s,card.status,14*s,palette::Muted);
+ ReportMenuCardText(card.id,card.status);
  // Over the flag, the tip names the country.
  if(flag.hovered)elided=CountryName(card.country);
  FlushCardTip(elided);

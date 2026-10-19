@@ -212,8 +212,7 @@ Result RoomAuthority::ApplyWatch(MemberId member, Table* table) {
 	}
 	if (table->spectators.size() + table->watchingNext.size() >= MaxSpectators) return Reject(RejectReason::WrongPhase);
 	StopWatching(member);
-	if (table->phase == TablePhase::Playing) table->watchingNext.push_back(member);
-	else table->spectators.push_back(member);
+	AddSpectator(*table, member);
 	Touch(*table); NormalizeMemberStatus(member); return Accept();
 }
 
@@ -423,6 +422,17 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	const auto staleGame = [&action](const Table& at) {
 		return (at.phase != TablePhase::Playing && at.phase != TablePhase::Paused) || action.matchGeneration != at.matchGeneration;
 	};
+	// A spectator's own stream or setup failed in the live game: it leaves that
+	// game only, whoever it is and at whichever table. This is not seating.
+	if (generationScopedUnwatch && action.keepWatching) {
+		Table* game = FindTable(action.table);
+		if (!game) return Reject(RejectReason::UnknownTable);
+		if (staleGame(*game)) return Reject(RejectReason::WrongGeneration);
+		return ApplyLeaveGame(member, game);
+	}
+	// A bound match's watchers read the room and say nothing: every kind, room
+	// actions included, is refused to them unless WatcherMay lists it.
+	if (IsWatcher(snapshot_, member) && !WatcherMay(action.kind)) return Reject(RejectReason::Unauthorized);
 	// PermitReady names its reserved generation, so the other fighter's
 	// permit arriving first does not make it stale.
 	if (IsTableAction(action.kind) && action.kind != ActionKind::RecordResult && action.kind != ActionKind::MatchFinished && action.kind != ActionKind::CancelResult && action.kind != ActionKind::AbortMatch && action.kind != ActionKind::AcknowledgeTerminal && action.kind != ActionKind::PermitReady && !generationScopedUnwatch) {
@@ -441,16 +451,6 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	// The bound fighters keep their seats; nobody is kicked from a match room.
 	if (action.kind == ActionKind::Kick && snapshot_.tournament.Active()) return Reject(RejectReason::Unauthorized);
 	if (action.kind == ActionKind::Kick) return ApplyKick(member, action);
-	// A spectator's own stream or setup failed in the live game: it leaves that
-	// game only, whoever it is and at whichever table. This is not seating.
-	if (generationScopedUnwatch && action.keepWatching) {
-		Table* game = FindTable(action.table);
-		if (!game) return Reject(RejectReason::UnknownTable);
-		if (staleGame(*game)) return Reject(RejectReason::WrongGeneration);
-		return ApplyLeaveGame(member, game);
-	}
-	// A bound match's watchers read the room and say nothing.
-	if (IsBoundWatcher(member) && !WatcherMay(action.kind)) return Reject(RejectReason::Unauthorized);
 	if (action.kind == ActionKind::Chat) return ApplyChat(member, action);
 	if (action.kind == ActionKind::Rename) return ApplyRename(member, action);
 	if (action.kind == ActionKind::SetTraining) return ApplySetTraining(member, action);

@@ -147,7 +147,7 @@ bool IdentityPanel::ConnectActivate(const MenuAction& a, const ShellView& v) {
         // The tournament site's link names its service; the journey starts over for it.
         const char* text = ImGui::GetClipboardText();
         const std::string bridge = tournament_link::ParseConnectPasted(text ? text : "");
-        if (bridge.empty()) { Say(loc::T("connect.paste_failed"), true); return true; }
+        if (bridge.empty()) { Say(loc::T("connect.paste_failed"), Tone::Error); return true; }
         // Pasting is the player's press: the steps run by themselves, as for a link.
         message_.clear();
         OpenDiscord(bridge, true);

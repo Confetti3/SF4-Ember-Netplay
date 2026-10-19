@@ -12,7 +12,7 @@ int main() {
 		// once the deadline, measured from the fighters' sync, has passed
 		// without RUNNING.
 		SpectatorPolicy policy;
-		policy.Start(0, {1000, 1001, 1002});
+		policy.Start(0, {1000, 1001, 1002}, SpectatorPolicy::SyncDeadlineMs);
 		policy.OnFighterSynchronized(1000);
 		policy.OnFighterSynchronized(1500); // only the first fighter sync counts
 		policy.OnSynchronized(1001);
@@ -45,7 +45,7 @@ int main() {
 		// No fighter has synchronized yet: the fight cannot start, so a
 		// spectator that is still loading is never dropped for sync.
 		SpectatorPolicy policy;
-		policy.Start(0, {1000});
+		policy.Start(0, {1000}, SpectatorPolicy::SyncDeadlineMs);
 		CHECK(policy.SyncOverdue(3000).empty());
 		CHECK(policy.SyncOverdue(SpectatorPolicy::SyncDeadlineMs).empty());
 		CHECK(policy.SyncOverdue(SpectatorPolicy::SyncDeadlineMs * 10).empty());
@@ -56,7 +56,7 @@ int main() {
 		// after them: it is kept, although it synchronized long after the
 		// session started.
 		SpectatorPolicy policy;
-		policy.Start(0, {1000});
+		policy.Start(0, {1000}, SpectatorPolicy::SyncDeadlineMs);
 		CHECK(policy.SyncOverdue(7999).empty());
 		policy.OnFighterSynchronized(8000);
 		CHECK(policy.SyncOverdue(11999).empty());
@@ -69,7 +69,7 @@ int main() {
 		// A spectator that never synchronizes is dropped exactly at the
 		// deadline after the fighters' sync, and only once.
 		SpectatorPolicy policy;
-		policy.Start(0, {1000});
+		policy.Start(0, {1000}, SpectatorPolicy::SyncDeadlineMs);
 		policy.OnFighterSynchronized(1000);
 		CHECK(policy.SyncOverdue(1000 + SpectatorPolicy::SyncDeadlineMs - 1).empty());
 		CHECK((policy.SyncOverdue(1000 + SpectatorPolicy::SyncDeadlineMs) == std::vector<int>{1000}));
@@ -79,9 +79,9 @@ int main() {
 	{
 		// A new session forgets the previous session's fighter sync time.
 		SpectatorPolicy policy;
-		policy.Start(0, {1000});
+		policy.Start(0, {1000}, SpectatorPolicy::SyncDeadlineMs);
 		policy.OnFighterSynchronized(1000);
-		policy.Start(20000, {1001});
+		policy.Start(20000, {1001}, SpectatorPolicy::SyncDeadlineMs);
 		CHECK(policy.SyncOverdue(20000 + SpectatorPolicy::SyncDeadlineMs * 2).empty());
 		CHECK((policy.Handles() == std::vector<int>{1001}));
 		policy.OnFighterSynchronized(30000);
@@ -91,7 +91,7 @@ int main() {
 	{
 		// RUNNING before the deadline means nobody is dropped for sync.
 		SpectatorPolicy policy;
-		policy.Start(0, {1000});
+		policy.Start(0, {1000}, SpectatorPolicy::SyncDeadlineMs);
 		policy.OnFighterSynchronized(100);
 		policy.OnRunning(200);
 		CHECK(policy.SyncOverdue(SpectatorPolicy::SyncDeadlineMs * 10).empty());
@@ -101,7 +101,7 @@ int main() {
 		// sample resets the count. Samples happen once per interval, only
 		// once SyncDeadlineMs has passed since RUNNING.
 		SpectatorPolicy policy;
-		policy.Start(0, {1000, 1001});
+		policy.Start(0, {1000, 1001}, SpectatorPolicy::SyncDeadlineMs);
 		CHECK(!policy.SampleDue(5000)); // not running yet
 		policy.OnSynchronized(1000); policy.OnSynchronized(1001); policy.OnRunning(1000);
 		const auto due = 1000 + SpectatorPolicy::SyncDeadlineMs;
@@ -127,7 +127,7 @@ int main() {
 		// nothing while P1 streams. Inside the window after RUNNING no sample
 		// is taken, so that backlog never drops it; GGPO's ring is the bound.
 		SpectatorPolicy policy;
-		policy.Start(0, {1000});
+		policy.Start(0, {1000}, SpectatorPolicy::SyncDeadlineMs);
 		policy.OnSynchronized(1000); policy.OnRunning(1000);
 		for (std::uint64_t now = 1000; now < 1000 + SpectatorPolicy::SyncDeadlineMs; now += 16)
 			CHECK(!policy.SampleDue(now));
@@ -149,12 +149,12 @@ int main() {
 		// A 650 ms spike keeps a healthy spectator 39 frames behind, which the
 		// floors alone would drop after SlowSamples samples.
 		SpectatorPolicy policy;
-		policy.Start(0, {1000});
+		policy.Start(0, {1000}, SpectatorPolicy::SyncDeadlineMs);
 		policy.OnRunning(1);
 		for (int i = 0; i < SpectatorPolicy::SlowSamples * 4; ++i) CHECK(!policy.Sample(1000, 45, 650));
 		CHECK(!policy.Sample(1000, 62, 650));
 		CHECK(policy.Sample(1000, 63, 650));
-		policy.Start(0, {1000});
+		policy.Start(0, {1000}, SpectatorPolicy::SyncDeadlineMs);
 		policy.OnRunning(1);
 		for (int i = 1; i < SpectatorPolicy::SlowSamples; ++i) CHECK(!policy.Sample(1000, 45, 215));
 		CHECK(policy.Sample(1000, 45, 215));
@@ -165,7 +165,7 @@ int main() {
 		// frame ring fills, from a near round trip and from Waldo's 215 ms.
 		for (const int pingMs : {0, 215}) {
 			SpectatorPolicy policy;
-			policy.Start(0, {1000});
+			policy.Start(0, {1000}, SpectatorPolicy::SyncDeadlineMs);
 			policy.OnSynchronized(1000); policy.OnRunning(1000);
 			const auto stalledMs = 1000 + SpectatorPolicy::SyncDeadlineMs + 3000;
 			const int inFlight = SpectatorPolicy::InFlightFrames(pingMs);
@@ -179,14 +179,14 @@ int main() {
 	{
 		// A game-thread hitch that delays the poll still drops on one sample.
 		SpectatorPolicy policy;
-		policy.Start(0, {1000});
+		policy.Start(0, {1000}, SpectatorPolicy::SyncDeadlineMs);
 		policy.OnRunning(1);
 		CHECK(policy.Sample(1000, SpectatorPolicy::DropQueueFrames, 0));
 	}
 	{
 		// A spectator GGPO dropped on its own is forgotten.
 		SpectatorPolicy policy;
-		policy.Start(0, {1000});
+		policy.Start(0, {1000}, SpectatorPolicy::SyncDeadlineMs);
 		policy.OnFighterSynchronized(100);
 		policy.OnDisconnected(1000);
 		CHECK(policy.SyncOverdue(100 + SpectatorPolicy::SyncDeadlineMs).empty());

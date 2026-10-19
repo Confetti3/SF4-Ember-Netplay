@@ -180,8 +180,7 @@ private:
     void DropQueue();
     void Collect(const ShellView& view, double now);
     void Send(const ShellView& view, const Submit& submit, double now);
-    // `neutral` says it without the green of a success or the red of an error.
-    void Say(std::string text, bool error, double seconds = 6, bool neutral = false);
+    void Say(std::string text, Tone tone, double seconds = 6);
     void Wipe();
     void Refresh(const ShellView& view, const std::string& screen);
     void SelectBridge(const ShellView& view, const std::string& bridge);
@@ -312,7 +311,7 @@ private:
     bool onScreens_ = false;
     std::string lastScreen_;
     std::string message_;
-    bool messageError_ = false, messageNeutral_ = false;
+    Tone messageTone_{};
     double messageUntil_ = 0;
     // What the player typed. The passphrase fields are secrets.
     std::string newPassphrase_, newConfirm_, backupPassphrase_, backupConfirm_, restorePassphrase_;

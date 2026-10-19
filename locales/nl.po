@@ -4318,9 +4318,6 @@ msgstr "Deze toernooidienst ondersteunt kijken niet."
 msgid "tournament.watch.refused.other_room"
 msgstr "Het kijken is gestopt omdat je in een andere kamer zit. Verlaat die kamer en kijk daarna opnieuw naar de wedstrijd."
 
-msgid "tournament.watch.finished"
-msgstr "De wedstrijd is voorbij."
-
 msgid "tournament.watch.finished_notice"
 msgstr "De wedstrijd waarnaar je keek is voorbij."
 

@@ -286,7 +286,8 @@ static void TestWatcherAllowList() {
 	Match match({1});
 	const MemberId w = Watcher(match.authority, 1);
 	CHECK(w);
-	const auto last = static_cast<int>(ActionKind::SetTraining);
+	// The wire's own bound, so a kind appended later is in the loop.
+	const auto last = static_cast<int>(LastActionKind);
 	for (const bool playing : {false, true}) {
 		const auto generation = playing ? match.Begin() : 0;
 		for (int value = 0; value <= last; ++value) {
@@ -302,12 +303,8 @@ static void TestWatcherAllowList() {
 			action.capacity = 4;
 			const auto revision = match.View().revision;
 			const auto result = match.authority.Apply(w, action);
-			CHECK(!result.accepted && match.View().revision == revision && match.Spectates(w));
-			// The host's own powers answer NotHost (or Unauthorized for the room's name); the rest are
-			// refused outright.
-			const bool hostKind = kind == ActionKind::Close || kind == ActionKind::SetCapacity || kind == ActionKind::Lock ||
-				kind == ActionKind::TransferHost;
-			if (!hostKind) CHECK(result.reason == RejectReason::Unauthorized);
+			// Refused by the list before any kind is dispatched, the host's room actions included.
+			CHECK(!result.accepted && result.reason == RejectReason::Unauthorized && match.View().revision == revision && match.Spectates(w));
 		}
 		if (playing) match.End(generation);
 	}
@@ -404,8 +401,8 @@ static void TestHostStaysWithTheFighters() {
 		auto action = RoomAction(authority, w, kind);
 		action.capacity = 4; action.locked = true; action.text = "Renamed";
 		const auto result = authority.Apply(w, action);
-		// Renaming answers Unauthorized for anyone who cannot, the other three NotHost.
-		CHECK(!result.accepted && result.reason == (kind == ActionKind::Rename ? RejectReason::Unauthorized : RejectReason::NotHost));
+		// The watcher list refuses each before the host check is reached.
+		CHECK(!result.accepted && result.reason == RejectReason::Unauthorized);
 	}
 	CHECK(!authority.SnapshotView().closed && !authority.SnapshotView().locked && authority.SnapshotView().name == "Match");
 	// A fighter returning takes the host field back, and the room can be run again.

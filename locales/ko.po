@@ -4319,9 +4319,6 @@ msgstr "이 대회 서비스는 관전을 지원하지 않습니다."
 msgid "tournament.watch.refused.other_room"
 msgstr "다른 방에 있어서 관전이 중단되었습니다. 방에서 나간 뒤 경기를 다시 관전하세요."
 
-msgid "tournament.watch.finished"
-msgstr "경기가 끝났습니다."
-
 msgid "tournament.watch.finished_notice"
 msgstr "관전하던 경기가 끝났습니다."
 

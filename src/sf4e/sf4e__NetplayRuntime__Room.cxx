@@ -410,16 +410,16 @@ static DispatchOutcome Dispatch(RuntimeCommand command, bool helperReady, Attemp
 		// A public room's admission carries the bridge's signed ticket, which the
 		// helper presents to the room host; a ticket that is not an object is no admission.
 		const auto ticket = command.publicTicket.empty() ? nlohmann::json() : nlohmann::json::parse(command.publicTicket, nullptr, false);
-		runtime->publicJoin = decision.effect == netplay::Effect::JoinInvite && !command.publicTicket.empty();
-		runtime->observerJoin = decision.effect == netplay::Effect::JoinInvite && command.observer;
+		runtime->join = decision.effect != netplay::Effect::JoinInvite ? JoinKind::Private :
+			!command.publicTicket.empty() ? JoinKind::Public : command.observer ? JoinKind::Observer : JoinKind::Private;
 		// Only the join of a public room just created carries rules for its tables.
-		if (runtime->publicJoin && command.createdRules) {
+		if (runtime->join == JoinKind::Public && command.createdRules) {
 			runtime->createdRules.Start(*command.createdRules, GetTickCount64());
 			spdlog::info("Room: created room rules armed format={} rotation={}",
 				static_cast<int>(command.createdRules->format), static_cast<int>(command.createdRules->rotation));
 		} else runtime->createdRules.Cancel("other_room");
 		const bool started = decision.effect == netplay::Effect::HostRoom ? runtime->room->Host(sf4e::sidecarHash) :
-			command.publicTicket.empty() ? runtime->room->Join(decision.invitation, sf4e::sidecarHash, runtime->observerJoin) :
+			command.publicTicket.empty() ? runtime->room->Join(decision.invitation, sf4e::sidecarHash, runtime->join == JoinKind::Observer) :
 			ticket.is_object() && runtime->room->JoinPublic(decision.invitation, ticket, sf4e::sidecarHash);
 		if (!started) Apply(netplay::EventKind::RoomFailed, loc::T("runtime.room_open_failed"));
 		break;
@@ -550,10 +550,10 @@ void FailReady(const char* reason) {
 	spdlog::warn("Ready failed: {}", reason);
 }
 
-DispatchOutcome DispatchTournamentRoomCommand(netplay::Command command, bool observer) {
+DispatchOutcome DispatchTournamentRoomCommand(netplay::Command command, JoinKind join) {
 	RuntimeCommand runtimeCommand;
 	runtimeCommand.command = std::move(command);
-	runtimeCommand.observer = observer;
+	runtimeCommand.observer = join == JoinKind::Observer;
 	runtimeCommand.command.generation = runtime->controller.GetSnapshot().generation;
 	runtimeCommand.preferences = runtime->preferences;
 	const bool helperReady = runtime->helper && runtime->helper->State() == platform::HelperState::Connected;

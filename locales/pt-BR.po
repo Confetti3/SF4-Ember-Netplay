@@ -3842,9 +3842,6 @@ msgstr "Este serviço de torneios não oferece a opção de assistir."
 msgid "tournament.watch.refused.other_room"
 msgstr "Você parou de assistir porque está em outra sala. Saia dela e assista à partida de novo."
 
-msgid "tournament.watch.finished"
-msgstr "A partida acabou."
-
 msgid "tournament.watch.finished_notice"
 msgstr "A partida a que você assistia acabou."
 

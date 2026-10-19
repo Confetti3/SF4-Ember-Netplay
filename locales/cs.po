@@ -4318,9 +4318,6 @@ msgstr "Tato turnajová služba sledování nenabízí."
 msgid "tournament.watch.refused.other_room"
 msgstr "Sledování skončilo, protože jste v jiné místnosti. Opusťte ji a pak zápas začněte sledovat znovu."
 
-msgid "tournament.watch.finished"
-msgstr "Zápas skončil."
-
 msgid "tournament.watch.finished_notice"
 msgstr "Zápas, který jste sledovali, skončil."
 

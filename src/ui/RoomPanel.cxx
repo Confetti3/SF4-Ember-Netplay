@@ -76,11 +76,16 @@ bool HasChatText(const char* text) {
 bool ChoosesSeat(const room::Snapshot& s) {
     return !s.tournament.Active() && Member(s, s.localMember) && room::PlaceOf(s, s.localMember).kind == room::Place::Kind::None;
 }
-// What a member's row says after the name: its status, a watcher's tag
-// instead, and a local mute.
-std::string MemberDetail(const room::Snapshot& s, const room::Member& m, bool muted) {
+// A member's status line, wherever it shows: on the board's card, with its
+// slot and lock-in, or after the name in a member row, with a local mute. A
+// watcher's is its tag instead, and HOST goes only with the host's powers.
+std::string MemberStatusText(const room::Snapshot& s, const room::Member& m, bool muted, bool board) {
     if (room::IsWatcher(s, m.id)) return loc::Tf(muted ? "room.member_status_muted" : "room.member_status", WatcherTag(s, m));
-    return loc::Tf(m.host ? (muted ? "room.member_status_host_muted" : "room.member_status_host") : (muted ? "room.member_status_muted" : "room.member_status"),
+    const bool host = m.id == room::ActingHost(s);
+    if (board)
+        return loc::Tf(m.table >= 0 ? (host ? "room.board_status_host_slot" : "room.board_status_slot") : (host ? "room.board_status_host" : "room.board_status"),
+            StatusName(m.status), m.table + 1) + (m.spectatorLocked ? loc::T("room.suffix_locked_in") : "");
+    return loc::Tf(host ? (muted ? "room.member_status_host_muted" : "room.member_status_host") : (muted ? "room.member_status_muted" : "room.member_status"),
         StatusName(m.status));
 }
 // The same local pick is editable before and after taking a seat. Select
@@ -165,8 +170,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
  }
  std::vector<MenuEntry> rows;
   const bool mutableRoom=RoomActionsAvailable(v);
-  // A watcher can hold the host field when no fighter is left, with none of its powers.
-  const bool host=mutableRoom&&s.host==s.localMember&&!room::IsWatcher(s,s.localMember);
+  const bool host=mutableRoom&&s.localMember&&s.localMember==room::ActingHost(s);
   // A room bound to a tournament match seats its two fighters at table 0 by
   // itself and keeps everyone else out; the room refuses seat, watch, rules
   // and kick changes there, so they are not offered.
@@ -238,7 +242,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
      loc::T(viewOnly?"room.stop_watching.finished":leaveGame?"room.leave_game.detail":"room.stop_watching.detail"),
      viewOnly||RoomTakesNow(v,ActionKind::Unwatch,static_cast<std::size_t>(v.watchedGame.table))));
    }
-   for(const auto& m:s.members){rows.push_back(Row("member-"+std::to_string(m.id),loc::Tf(m.id==s.localMember?"room.member_you":"room.member",m.name),MemberDetail(s,m,false)));
+   for(const auto& m:s.members){rows.push_back(Row("member-"+std::to_string(m.id),loc::Tf(m.id==s.localMember?"room.member_you":"room.member",m.name),MemberStatusText(s,m,false,false)));
     rows.back().userText=true;}
    rows.push_back(Row("room-members",loc::T("room.members"),loc::Tf("room.member_count",s.members.size(),s.capacity)));
    const unsigned unread=transcript_.Unread(muted_);
@@ -398,7 +402,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   }
  }else if(screen=="room-members"){
   for(const auto& m:s.members){
-   rows.push_back(Row("member-"+std::to_string(m.id),loc::Tf(m.id==s.localMember?"room.member_you":"room.member",m.name),MemberDetail(s,m,muted_.count(m.id)>0)));
+   rows.push_back(Row("member-"+std::to_string(m.id),loc::Tf(m.id==s.localMember?"room.member_you":"room.member",m.name),MemberStatusText(s,m,muted_.count(m.id)>0,false)));
    rows.back().value=NetworkLinkName(m.link);rows.back().userText=true;
   }
   }else if(screen=="room-member"){
@@ -547,8 +551,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   card.latency=LatencyMarkFor(v.memberLatency,*m,v.room.localMember);
   card.mainFighter=m->id==v.room.localMember?v.preferences.mainFighter:m->mainFighter;
   card.focused=e.id==focus;card.focusChanged=changed;card.disabled=nav.Choosing();
-  const auto status=loc::Tf(m->table>=0?(m->host?"room.board_status_host_slot":"room.board_status_slot"):(m->host?"room.board_status_host":"room.board_status"),StatusName(m->status),m->table+1)+
-   (m->spectatorLocked?loc::T("room.suffix_locked_in"):"");
+  const auto status=MemberStatusText(v.room,*m,false,true);
   const auto idle=IdleText(*m);
   card.status=idle.empty()?status:status+" \xC2\xB7 "+idle;
   pressBody(e,DrawMemberCard(card));

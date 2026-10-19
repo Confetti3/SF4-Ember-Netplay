@@ -109,9 +109,7 @@ struct OpenedRoomLink {
 // invitation is never handed out (Discord presence, the room's copy rows),
 // whatever the room's own snapshot shows yet. Playing counts from its first
 // claim, so the window before the room is bound is covered.
-inline bool HoldsMatchRoom(Phase play, WatchPhase watch) {
-	return play == Phase::Claiming || play == Phase::Opening || play == Phase::InRoom || WatchUnderWay(watch);
-}
+inline bool HoldsMatchRoom(Phase play, WatchPhase watch) { return PlayUnderWay(play) || WatchUnderWay(watch); }
 
 // The match being watched, and how far it got.
 struct WatchStatus {

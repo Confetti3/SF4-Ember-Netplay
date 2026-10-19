@@ -148,7 +148,7 @@ Result RoomAuthority::TransferHost(MemberId actor, MemberId successor) {
     if (snapshot_.closed) return Reject(RejectReason::Closed);
     if (!IsHost(actor)) return Reject(RejectReason::NotHost);
     if (!Find(successor)) return Reject(RejectReason::UnknownMember);
-    if (IsBoundWatcher(successor)) return Reject(RejectReason::Unauthorized);
+    if (IsWatcher(snapshot_, successor)) return Reject(RejectReason::Unauthorized);
     if (successor == actor) return Accept();
     for (auto& member : snapshot_.members) member.host = member.id == successor;
     snapshot_.host = successor;
@@ -175,7 +175,7 @@ const Table* RoomAuthority::FindTable(std::uint8_t table) const {
 
 bool RoomAuthority::ValidTable(std::uint8_t table) const { return table < TableCount; }
 
-bool RoomAuthority::IsHost(MemberId member) const { return member != 0 && member == snapshot_.host && !IsBoundWatcher(member); }
+bool RoomAuthority::IsHost(MemberId member) const { return member != 0 && member == ActingHost(snapshot_); }
 
 bool RoomAuthority::CanEditRules(MemberId member) const { return IsHost(member); }
 
