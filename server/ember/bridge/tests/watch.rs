@@ -412,15 +412,15 @@ async fn link_holders_are_capped_and_staff_hold_the_ceiling() {
     assert_eq!(open_to_link_holders(&f, true).await, StatusCode::OK);
     // Arrivals a second apart, so their order is the order they came in.
     let mut holders = vec![];
-    for byte in 40..45 {
+    for byte in 40..43 {
         f.bridge.clock.advance(1);
         holders.push(viewer(&f.bridge, byte).await);
     }
-    for holder in &holders[..4] {
+    for holder in &holders[..2] {
         admitted(&f, &f.id, holder).await;
         f.bridge.clock.advance(1);
     }
-    assert_eq!(waiting(&f, &f.id, &holders[4]).await, "full");
+    assert_eq!(waiting(&f, &f.id, &holders[2]).await, "full");
     let mut staff = vec![];
     for byte in 50..55 {
         let player = viewer(&f.bridge, byte).await;
@@ -431,16 +431,16 @@ async fn link_holders_are_capped_and_staff_hold_the_ceiling() {
         f.bridge.clock.advance(1);
         admitted(&f, &f.id, player).await;
     }
-    assert_eq!(watchers(&binding_for(&f, &f.id, &f.b).await).len(), 8);
+    assert_eq!(watchers(&binding_for(&f, &f.id, &f.b).await).len(), 6);
     // A fifth staff watcher pushes the newest link holder out at the ceiling.
     f.bridge.clock.advance(1);
     admitted(&f, &f.id, &staff[4]).await;
     let named = watchers(&binding_for(&f, &f.id, &f.b).await);
-    assert_eq!(named.len(), 8);
+    assert_eq!(named.len(), 6);
     assert!(named.contains(&staff[4].id().as_str().to_owned()));
-    assert!(!named.contains(&holders[3].id().as_str().to_owned()));
-    assert!(named.contains(&holders[2].id().as_str().to_owned()));
-    assert_eq!(waiting(&f, &f.id, &holders[3]).await, "full");
+    assert!(!named.contains(&holders[1].id().as_str().to_owned()));
+    assert!(named.contains(&holders[0].id().as_str().to_owned()));
+    assert_eq!(waiting(&f, &f.id, &holders[1]).await, "full");
     admitted(&f, &f.id, &holders[0]).await;
 }
 
@@ -650,7 +650,7 @@ async fn only_the_connections_organizer_writes_its_watch_policy() {
     assert_eq!(status, StatusCode::OK, "{read}");
     assert_eq!(
         read,
-        json!({ "connection_id": CONNECTION, "link_holders": false, "link_holder_cap": 4, "ceiling": 8, "staff": [] })
+        json!({ "connection_id": CONNECTION, "link_holders": false, "link_holder_cap": 2, "ceiling": 6, "staff": [] })
     );
     add_staff(&f, &player3).await;
     let (_, read) = send(&f.bridge, &f.provider, Method::GET, &policy, None).await;

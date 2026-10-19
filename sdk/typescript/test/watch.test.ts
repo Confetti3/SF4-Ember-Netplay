@@ -50,7 +50,7 @@ test("watch policy: staff, link holders and denials decide who is named in the b
 
     // A match is closed to watchers until its organizer opens it.
     const policy = await provider.watchPolicy(bridge.connection);
-    assert.deepEqual(policy, { connection_id: bridge.connection, link_holders: false, link_holder_cap: 4, ceiling: 8, staff: [] });
+    assert.deepEqual(policy, { connection_id: bridge.connection, link_holders: false, link_holder_cap: 2, ceiling: 6, staff: [] });
     const closed = await refusal(caster!.watchMatch(id));
     assert.equal(closed.status, 403);
     assert.equal(closed.details.reason, "not_allowed");

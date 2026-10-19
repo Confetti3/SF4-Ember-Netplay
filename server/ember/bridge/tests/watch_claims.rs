@@ -175,28 +175,28 @@ async fn a_returning_watcher_does_not_push_out_the_one_who_took_its_place() {
     bound_watching(&f, &f.id).await;
     open_to_link_holders(&f, true).await;
     let mut holders = vec![];
-    for byte in 40..45 {
+    for byte in 40..43 {
         holders.push(viewer(&f.bridge, byte).await);
     }
-    for holder in &holders[..4] {
+    for holder in &holders[..2] {
         admitted(&f, &f.id, holder).await;
         f.bridge.clock.advance(1);
     }
     // The first goes quiet while the others keep asking.
     for _ in 0..3 {
         f.bridge.clock.advance(25);
-        for holder in &holders[1..4] {
+        for holder in &holders[1..2] {
             admitted(&f, &f.id, holder).await;
         }
     }
-    assert_eq!(watchers(&binding_for(&f, &f.id, &f.a).await).len(), 3);
-    admitted(&f, &f.id, &holders[4]).await;
+    assert_eq!(watchers(&binding_for(&f, &f.id, &f.a).await).len(), 1);
+    admitted(&f, &f.id, &holders[2]).await;
     f.bridge.clock.advance(1);
     // It comes back, and is the newest arrival, not the oldest.
     assert_eq!(waiting(&f, &f.id, &holders[0]).await, "full");
     let named = watchers(&binding_for(&f, &f.id, &f.a).await);
     assert!(
-        named.contains(&holders[4].id().as_str().to_owned()),
+        named.contains(&holders[2].id().as_str().to_owned()),
         "{named:?}"
     );
     assert!(

@@ -241,9 +241,9 @@ connection that does nothing changes nothing:
 - **Staff.** Ember IDs you approve for every match of your connection, such as
   a TO or a caster. They can always watch.
 - **Link holders.** Off by default. When you turn it on, anyone who holds the
-  match's Play link and has an Ember ID may watch, up to 4 of them.
+  match's Play link and has an Ember ID may watch, up to 2 of them.
 - **Denials.** An Ember ID you deny for one match is out of it, staff or not.
-- At most 8 watchers watch one match, staff included. A staff watcher can take
+- At most 6 watchers watch one match, staff included. A staff watcher can take
   the place of a link holder when the match is full.
 
 BluMint's connections cannot be opened to watchers: every write below answers

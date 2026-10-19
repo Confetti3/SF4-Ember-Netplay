@@ -16,7 +16,7 @@ use serde_json::json;
 use super::{
     Nothing,
     access::Policy,
-    rewatch::{LINK_HOLDER_CAP, bound, rows},
+    rewatch::{LINK_HOLDER_CAP, WATCHER_CEILING, bound, rows},
 };
 use crate::{
     AppState,
@@ -166,7 +166,7 @@ fn policy_body(tx: &Transaction<'_>, connection_id: &str) -> Result<serde_json::
         "connection_id": connection_id,
         "link_holders": link_holders,
         "link_holder_cap": LINK_HOLDER_CAP,
-        "ceiling": ember_protocol::play::MAX_WATCHERS,
+        "ceiling": WATCHER_CEILING,
         "staff": staff,
     }))
 }

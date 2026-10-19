@@ -6,10 +6,7 @@
 //! reaches the room within a claim.
 use std::collections::BTreeMap;
 
-use ember_protocol::{
-    EmberId,
-    play::{BoundWatcher, MAX_WATCHERS},
-};
+use ember_protocol::{EmberId, play::BoundWatcher};
 use rusqlite::{Transaction, params};
 
 use super::access::{Admission, Policy};
@@ -21,7 +18,11 @@ use crate::{
 };
 
 /// Watchers who hold the match link and nothing more, at most.
-pub const LINK_HOLDER_CAP: usize = 4;
+pub const LINK_HOLDER_CAP: usize = 2;
+/// Watchers in all, staff included, at most. Below the wire limit
+/// (`MAX_WATCHERS`) because the fighter leading the room replicates every
+/// commit to each watcher (MATCH_WATCH.md, sections 6.6 and 12).
+pub const WATCHER_CEILING: usize = 6;
 /// A watcher stays in the set this long after it last asked.
 pub const LIVE_SECS: u64 = 60;
 
@@ -161,7 +162,7 @@ fn select(
             true
         })
         .map(|(_, row)| row)
-        .take(MAX_WATCHERS)
+        .take(WATCHER_CEILING)
         .collect();
     chosen.sort_by(|a, b| {
         (a.first_seen_at, a.ember_id.as_str()).cmp(&(b.first_seen_at, b.ember_id.as_str()))
