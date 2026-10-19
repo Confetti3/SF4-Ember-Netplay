@@ -62,4 +62,4 @@ See [troubleshooting](TROUBLESHOOTING.md) for everything that is not Linux-speci
 
 ## Credits
 
-The Proton-in-the-game-prefix method comes from Discord user **@gyro bart**, who worked it out and wrote it up for the community. Thanks also to a second Discord tester who prefers to stay hidden, like Gouken on the vanilla SF4 select screen: everyone knows they are there, nobody gets to see them.
+The Proton-in-the-game-prefix method comes from Discord user **@2000tears**, who worked it out and wrote it up for the community. Thanks also to a second Discord tester who prefers to stay hidden, like Gouken on the vanilla SF4 select screen: everyone knows they are there, nobody gets to see them.
