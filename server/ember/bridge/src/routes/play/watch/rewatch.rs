@@ -9,12 +9,15 @@ use std::collections::BTreeMap;
 use ember_protocol::{EmberId, play::BoundWatcher};
 use rusqlite::{Transaction, params};
 
-use super::access::{Admission, Policy};
+use super::access::{Admission, WatchPolicy};
 use crate::{
     audit::audit,
     ctx::Ctx,
     error::{ApiFailure, Result},
-    routes::play::{ClaimRow, PlayedMatch},
+    routes::play::{
+        PlayedMatch,
+        room::{ClaimRow, Room, endpoints},
+    },
 };
 
 /// Watchers who hold the match link and nothing more, at most.
@@ -69,14 +72,6 @@ pub fn rows(tx: &Transaction<'_>, match_id: &str, after: Option<u64>) -> Result<
     .collect()
 }
 
-/// The watchers a binding names, from the text `named` stores.
-pub fn bound(text: Option<&str>) -> Result<Vec<BoundWatcher>> {
-    text.map_or_else(
-        || Ok(vec![]),
-        |text| serde_json::from_str(text).map_err(|_| ApiFailure::unavailable()),
-    )
-}
-
 /// The claims of the match's two fighters, leaving out any left by an Ember ID
 /// that has since been reassigned.
 pub fn fighter_claims<'a>(played: &PlayedMatch, claimed: &'a [ClaimRow]) -> Vec<&'a ClaimRow> {
@@ -91,6 +86,12 @@ pub fn attested(fighters: &[&ClaimRow]) -> bool {
     fighters.len() == 2 && fighters.iter().all(|claim| claim.watch)
 }
 
+/// Whether `build_id` is the build the fighters claimed with. A watcher's own
+/// is self-declared and vouches for nothing: it only has to equal theirs.
+pub fn on_fighters_build(fighters: &[&ClaimRow], build_id: &str) -> bool {
+    fighters.iter().all(|claim| claim.build_id == build_id)
+}
+
 /// Two watchers asking for one endpoint: the lower-ranked is dropped.
 struct Conflict {
     loser: EmberId,
@@ -102,7 +103,7 @@ struct Conflict {
 /// that kept some out. `fighters` are the two fighters' claims.
 fn select(
     rows: Vec<Row>,
-    policy: &Policy,
+    policy: &WatchPolicy,
     played: &PlayedMatch,
     seated: &[String; 2],
     fighters: &[&ClaimRow],
@@ -114,7 +115,7 @@ fn select(
             matches!(admission, Admission::Staff | Admission::LinkHolder)
                 && played.roster.iter().all(|p| p.ember_id != row.ember_id)
                 && !seated.contains(&row.endpoint_id)
-                && fighters.iter().all(|claim| claim.build_id == row.build_id)
+                && on_fighters_build(fighters, &row.build_id)
         })
         .collect();
     // Staff beat link holders, and the latest arrival beats an earlier one.
@@ -170,32 +171,84 @@ fn select(
     (chosen, conflicts)
 }
 
-/// The text `match_rooms.bound_watchers` should hold: the watchers the
-/// binding names, or `None` for none.
+/// What the binding can name, derived once from the room, the claims and the
+/// watchers who asked.
+pub enum Named {
+    /// No room is published yet.
+    NoRoom,
+    /// A room, but the binding cannot name watchers: a fighter has not claimed
+    /// yet, or a fighter's helper does not say it reads them.
+    NotBound { seated: Option<[String; 2]> },
+    /// Both fighters have claimed and say their helpers read watchers: the
+    /// watchers the binding names, oldest first.
+    Set {
+        seated: [String; 2],
+        watchers: Vec<BoundWatcher>,
+    },
+}
+
+impl Named {
+    /// The fighters' endpoints, once the room is published and both have
+    /// claimed.
+    pub fn seated(&self) -> Option<&[String; 2]> {
+        match self {
+            Self::NoRoom => None,
+            Self::NotBound { seated } => seated.as_ref(),
+            Self::Set { seated, .. } => Some(seated),
+        }
+    }
+
+    /// The watchers the binding names.
+    pub fn watchers(&self) -> &[BoundWatcher] {
+        match self {
+            Self::Set { watchers, .. } => watchers,
+            _ => &[],
+        }
+    }
+}
+
+/// What `room`'s binding names, given the fighters' `claimed` claims.
 ///
 /// A fighter's helper reads `watchers` only if its own latest claim says so
 /// (`Claim::watch`), so the binding names nobody unless both fighters' claims
 /// do. A watcher's `build_id` is self-declared and vouches for nothing: it
-/// only has to equal the fighters' build. `seated` is the fighters' endpoints,
-/// once the room is published and both have claimed.
+/// only has to equal the fighters' build.
 pub fn named(
     tx: &Transaction<'_>,
     ctx: &Ctx,
     played: &PlayedMatch,
     claimed: &[ClaimRow],
-    seated: Option<&[String; 2]>,
-) -> Result<Option<String>> {
-    let Some(seated) = seated else {
-        return Ok(None);
-    };
+    room: &Room,
+) -> Result<Named> {
+    if room.room_id.is_none() {
+        return Ok(Named::NoRoom);
+    }
+    let fighters = fighter_claims(played, claimed);
+    Ok(match endpoints(played, claimed) {
+        Some(seated) if attested(&fighters) => Named::Set {
+            watchers: choose(tx, ctx, played, &seated, &fighters)?,
+            seated,
+        },
+        seated => Named::NotBound { seated },
+    })
+}
+
+/// The watchers who asked and may be named, oldest first; the endpoint
+/// conflicts that kept some out are audited.
+fn choose(
+    tx: &Transaction<'_>,
+    ctx: &Ctx,
+    played: &PlayedMatch,
+    seated: &[String; 2],
+    fighters: &[&ClaimRow],
+) -> Result<Vec<BoundWatcher>> {
     let match_id = &played.found.id;
     let asked = rows(tx, match_id, Some(live_after(ctx.now)))?;
-    let fighters = fighter_claims(played, claimed);
-    if asked.is_empty() || !attested(&fighters) {
-        return Ok(None);
+    if asked.is_empty() {
+        return Ok(vec![]);
     }
-    let policy = Policy::load(tx, &played.found.connection_id, match_id)?;
-    let (chosen, conflicts) = select(asked, &policy, played, seated, &fighters);
+    let policy = WatchPolicy::load(tx, &played.found.connection_id, match_id)?;
+    let (chosen, conflicts) = select(asked, &policy, played, seated, fighters);
     for conflict in &conflicts {
         // Once per pair and endpoint, however often they keep asking.
         let fresh = tx.execute(
@@ -223,12 +276,11 @@ pub fn named(
             )?;
         }
     }
-    let named: Vec<BoundWatcher> = chosen
+    Ok(chosen
         .into_iter()
         .map(|row| BoundWatcher {
             ember_id: row.ember_id,
             endpoint_id: row.endpoint_id,
         })
-        .collect();
-    Ok((!named.is_empty()).then(|| serde_json::to_string(&named).unwrap_or_default()))
+        .collect())
 }

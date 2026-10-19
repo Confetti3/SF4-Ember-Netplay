@@ -14,19 +14,17 @@ use serde::Deserialize;
 use serde_json::json;
 
 use super::{
-    Nothing,
-    access::Policy,
-    rewatch::{LINK_HOLDER_CAP, WATCHER_CEILING, bound, rows},
+    access::{ConnectionWatch, WatchPolicy},
+    rewatch::{LINK_HOLDER_CAP, WATCHER_CEILING, rows},
 };
 use crate::{
     AppState,
     audit::audit,
-    auth::{self, Service},
-    config::BLUMINT,
+    auth::{self, Role, Service},
     ctx::Ctx,
     error::{ApiFailure, Result},
     http::{Body, GENERAL_BODY, ok},
-    routes::ledger::load,
+    routes::{ledger::load, matches::service_viewer, play::room::peek, policy, sessions::Nothing},
 };
 
 /// What a route's path names, and the connection that owns it.
@@ -69,52 +67,59 @@ impl Scope {
     }
 }
 
-/// What a route does to its scope.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Mode {
-    Read,
-    Write,
+/// What `scope` names, if the credential may see it: organizers of its
+/// tenant and the connection's own provider do. Anyone else is told it does
+/// not exist.
+fn standing(tx: &Transaction<'_>, service: &Service, scope: Scope) -> Result<Resolved> {
+    let resolved = scope.resolve(tx)?;
+    if !service_viewer(service)?.sees(&resolved.tenant_id, &resolved.connection_id) {
+        return Err(ApiFailure::not_found());
+    }
+    Ok(resolved)
 }
 
-/// Runs `work` for the credential's standing to `scope`: any matching
-/// credential reads it, only an organizer of its tenant writes, and a
-/// connection fixed by its kind is never written. The path and body are
-/// checked by `work`, after the caller is known: an unauthenticated caller is
-/// told so, not what is wrong with the request.
-async fn scoped<T: Send + 'static>(
+/// Runs `work` for any credential that may see `scope`. The path is checked
+/// by `work`, after the caller is known: an unauthenticated caller is told
+/// so, not what is wrong with the request.
+async fn read_scoped<T: Send + 'static>(
     state: &AppState,
     headers: &HeaderMap,
     scope: Scope,
-    mode: Mode,
+    work: impl FnOnce(&Transaction<'_>, &Resolved) -> Result<T> + Send + 'static,
+) -> Result<T> {
+    let service = auth::service(state, headers).await?;
+    state
+        .db
+        .read(move |tx| work(tx, &standing(tx, &service, scope)?))
+        .await
+}
+
+/// Runs `work` for an organizer of the tenant that owns `scope`, unless the
+/// connection's kind fixes who may watch. The path and body are checked by
+/// `work`, as for `read_scoped`.
+async fn write_scoped<T: Send + 'static>(
+    state: &AppState,
+    headers: &HeaderMap,
+    scope: Scope,
     work: impl FnOnce(&Transaction<'_>, &Ctx, &Service, &Resolved) -> Result<T> + Send + 'static,
 ) -> Result<T> {
     let service = auth::service(state, headers).await?;
     let ctx = Ctx::of(state);
-    let run = move |tx: &Transaction<'_>| {
-        let resolved = scope.resolve(tx)?;
-        let access = service.access_to(&resolved.tenant_id, &resolved.connection_id)?;
-        if mode == Mode::Write {
-            access.manage()?;
-            let kind: String = tx.query_row(
-                "SELECT kind FROM provider_connections WHERE id = ?1",
-                [&resolved.connection_id],
-                |row| row.get(0),
-            )?;
-            if kind == BLUMINT {
+    state
+        .db
+        .write(move |tx| {
+            let resolved = standing(tx, &service, scope)?;
+            service.require(Role::Organizer)?;
+            if policy::of(tx, &resolved.connection_id)?.fixed_watchers {
                 return Err(ApiFailure::new(
                     ErrorCode::Forbidden,
                     "This connection's platform fixes who may watch its matches.",
                 )
                 .detail("reason", "connection_fixed"));
             }
-        }
-        work(tx, &ctx, &service, &resolved)
-    };
-    if mode == Mode::Write {
-        state.db.write(run).await
-    } else {
-        state.db.read(run).await
-    }
+            work(tx, &ctx, &service, &resolved)
+        })
+        .await
 }
 
 fn ember_id(text: &str) -> Result<EmberId> {
@@ -149,19 +154,16 @@ struct LinkHolders {
 }
 
 fn policy_body(tx: &Transaction<'_>, connection_id: &str) -> Result<serde_json::Value> {
-    let link_holders: bool = tx.query_row(
-        "SELECT watch_link_holders FROM provider_connections WHERE id = ?1",
-        [connection_id],
-        |row| row.get(0),
-    )?;
-    let staff = tx
-        .prepare(
-            "SELECT ember_id, added_at FROM connection_watch_staff WHERE connection_id = ?1 ORDER BY added_at, ember_id",
-        )?
-        .query_map([connection_id], |row| {
-            Ok(json!({ "ember_id": row.get::<_, String>(0)?, "added_at": row.get::<_, u64>(1)? }))
-        })?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let ConnectionWatch {
+        link_holders,
+        staff,
+    } = ConnectionWatch::load(tx, connection_id)?;
+    let mut staff: Vec<_> = staff.into_iter().collect();
+    staff.sort_by(|(a, a_at), (b, b_at)| (a_at, a).cmp(&(b_at, b)));
+    let staff: Vec<_> = staff
+        .into_iter()
+        .map(|(ember_id, added_at)| json!({ "ember_id": ember_id, "added_at": added_at }))
+        .collect();
     Ok(json!({
         "connection_id": connection_id,
         "link_holders": link_holders,
@@ -177,12 +179,11 @@ pub async fn connection_policy(
     headers: HeaderMap,
     Path(connection_id): Path<String>,
 ) -> Result<Response> {
-    let body = scoped(
+    let body = read_scoped(
         &state,
         &headers,
         Scope::Connection(connection_id),
-        Mode::Read,
-        |tx, _, _, at| policy_body(tx, &at.connection_id),
+        |tx, at| policy_body(tx, &at.connection_id),
     )
     .await?;
     Ok(ok(&body))
@@ -197,11 +198,10 @@ pub async fn set_link_holders(
     Path(connection_id): Path<String>,
     body: Body<GENERAL_BODY>,
 ) -> Result<Response> {
-    let body = scoped(
+    let body = write_scoped(
         &state,
         &headers,
         Scope::Connection(connection_id),
-        Mode::Write,
         move |tx, ctx, by, at| {
             let command: LinkHolders = body.parse()?;
             tx.execute(
@@ -224,11 +224,10 @@ pub async fn set_staff(
     Path((connection_id, who)): Path<(String, String)>,
     body: Body<GENERAL_BODY>,
 ) -> Result<Response> {
-    let body = scoped(
+    let body = write_scoped(
         &state,
         &headers,
         Scope::Connection(connection_id),
-        Mode::Write,
         move |tx, ctx, by, at| {
             body.parse::<Nothing>()?;
             let who = ember_id(&who)?;
@@ -255,11 +254,10 @@ pub async fn remove_staff(
     headers: HeaderMap,
     Path((connection_id, who)): Path<(String, String)>,
 ) -> Result<Response> {
-    scoped(
+    write_scoped(
         &state,
         &headers,
         Scope::Connection(connection_id),
-        Mode::Write,
         move |tx, ctx, by, at| {
             let who = ember_id(&who)?;
             tx.execute(
@@ -281,11 +279,10 @@ pub async fn deny(
     Path((match_id, who)): Path<(String, String)>,
     body: Body<GENERAL_BODY>,
 ) -> Result<Response> {
-    let body = scoped(
+    let body = write_scoped(
         &state,
         &headers,
         Scope::Match(match_id),
-        Mode::Write,
         move |tx, ctx, by, at| {
             body.parse::<Nothing>()?;
             let who = ember_id(&who)?;
@@ -312,11 +309,10 @@ pub async fn clear_denial(
     headers: HeaderMap,
     Path((match_id, who)): Path<(String, String)>,
 ) -> Result<Response> {
-    scoped(
+    write_scoped(
         &state,
         &headers,
         Scope::Match(match_id),
-        Mode::Write,
         move |tx, ctx, by, at| {
             let who = ember_id(&who)?;
             tx.execute(
@@ -337,23 +333,13 @@ pub async fn match_watchers(
     headers: HeaderMap,
     Path(match_id): Path<String>,
 ) -> Result<Response> {
-    let body = scoped(
+    let body = read_scoped(
         &state,
         &headers,
         Scope::Match(match_id),
-        Mode::Read,
-        |tx, _, _, at| {
-            let policy = Policy::load(tx, &at.connection_id, &at.id)?;
-            let named = bound(
-                tx.query_row(
-                    "SELECT bound_watchers FROM match_rooms WHERE match_id = ?1",
-                    [&at.id],
-                    |row| row.get::<_, Option<String>>(0),
-                )
-                .optional()?
-                .flatten()
-                .as_deref(),
-            )?;
+        |tx, at| {
+            let policy = WatchPolicy::load(tx, &at.connection_id, &at.id)?;
+            let named = peek(tx, &at.id)?.bound_watchers;
             let watchers: Vec<_> = rows(tx, &at.id, None)?
                 .into_iter()
                 .map(|row| {

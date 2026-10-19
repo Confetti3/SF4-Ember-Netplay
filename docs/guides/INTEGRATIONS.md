@@ -273,13 +273,12 @@ with the room and its invitation. The reasons are `no_room` (no room is
 published yet), `not_bound` (a player has not claimed, or the players' games
 do not both read watchers) and `full` (the cap or ceiling is reached, another
 watcher holds the same endpoint, or the endpoint is a player's own; ask
-again). It joins that
-room, and the players' next claims carry a binding that names it, so a change
-of policy, a denial or a watcher who goes quiet (60 seconds) reaches the room
-within about one claim interval of the players (10 seconds). A watcher is never
-given a binding. Refusals are `forbidden` with `details.reason` `not_allowed`,
-`revoked` or `fighter`, `incompatible_build` when the players run another
-Ember build, and `rate_limited` above 30 calls a minute.
+again). It joins that room, and the players' next claims carry a binding that
+names it, so a change of policy, a denial or a watcher who goes quiet (60
+seconds) reaches the room within about one claim interval of the players (10
+seconds). A watcher is never given a binding. Refusals are `forbidden` with
+`details.reason` `not_allowed`, `revoked` or `fighter`, `incompatible_build` when
+the players run another Ember build, and `rate_limited` above 30 calls a minute.
 
 **Organizer routes** (organizer credential of the connection's tenant; the
 connection's provider credential may read):

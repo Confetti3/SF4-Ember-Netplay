@@ -8,6 +8,8 @@ mod access;
 mod organizer;
 mod rewatch;
 
+use std::borrow::Cow;
+
 use axum::{
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
@@ -20,51 +22,38 @@ use ember_protocol::{
     play::{WaitReason, WatchAnswer, WatchRequest},
 };
 use rusqlite::{Transaction, params};
-use serde::Deserialize;
 
 pub use organizer::{
     clear_denial, connection_policy, deny, match_watchers, remove_staff, set_link_holders,
     set_staff,
 };
-pub use rewatch::{bound, named};
+pub(super) use rewatch::{Named, named};
 
 use self::{
-    access::{Admission, Policy},
-    rewatch::{attested, fighter_claims, live_after},
+    access::{Admission, WatchPolicy},
+    rewatch::{fighter_claims, live_after, on_fighters_build},
+};
+use super::{
+    finished, played, playing, rebind,
+    room::{claims, invitation, room},
+    roster_of, with_rules,
 };
 use crate::{
     AppState,
     ctx::Ctx,
     error::{ApiFailure, Result},
     http::{Body, PROOF_BODY, json as respond},
-    routes::{
-        play::{claims, endpoints, finished, invitation, played, rebind, room},
-        sessions::{Call, Rate, proven_call},
-    },
+    routes::sessions::{Call, Nothing, Rate},
 };
 
 /// A watcher asks again this often to stay a watcher.
 const RETRY_SECS: u64 = 10;
 /// Watch calls one Ember ID may make per window.
 const RATE: Rate = Rate {
-    scope: "match-watch",
+    scope: Cow::Borrowed("match-watch"),
     calls: 30,
     window_secs: 60,
 };
-
-/// A refusal with the reason clients act on, if it has one.
-fn refuse(code: ErrorCode, reason: Option<&'static str>, message: &'static str) -> ApiFailure {
-    let failure = ApiFailure::new(code, message);
-    match reason {
-        Some(reason) => failure.detail("reason", reason),
-        None => failure,
-    }
-}
-
-/// How watchers are told the match is over.
-fn finished_reason(_: &crate::routes::ledger::Match) -> (&'static str, &'static str) {
-    ("reason", "finished")
-}
 
 /// `POST /v1/matches/{id}/watch`: a `match.watch` proof.
 pub async fn watch_route(
@@ -73,16 +62,17 @@ pub async fn watch_route(
     Path(id): Path<String>,
     body: Body<PROOF_BODY>,
 ) -> Result<Response> {
+    let player = playing(&state, &headers).await?;
     let call = Call::new(Action::MatchWatch, format!("/v1/matches/{id}/watch")).limited(RATE);
-    let answer = proven_call(
-        &state,
-        &headers,
-        &body,
-        call,
-        WatchRequest::check,
-        move |tx, ctx, ember_id, command: WatchRequest| watch(tx, ctx, &id, ember_id, &command),
-    )
-    .await?;
+    let answer = call
+        .run(
+            &state,
+            &player,
+            &body,
+            WatchRequest::check,
+            move |tx, ctx, ember_id, command: WatchRequest| watch(tx, ctx, &id, ember_id, &command),
+        )
+        .await?;
     Ok(respond(StatusCode::OK, &answer))
 }
 
@@ -93,40 +83,38 @@ fn watch(
     ember_id: &EmberId,
     command: &WatchRequest,
 ) -> Result<WatchAnswer> {
-    let mut game = played(tx, match_id)?;
-    finished(&game.found, finished_reason)?;
-    if game.roster.iter().any(|p| p.ember_id == *ember_id) {
-        return Err(refuse(
-            ErrorCode::Forbidden,
-            Some("fighter"),
-            "You play in this match.",
-        ));
+    // A stranger is told what the watch policy says before anything about the
+    // match's rules.
+    let (found, roster) = roster_of(tx, match_id)?;
+    finished(&found)?;
+    if roster.iter().any(|p| p.ember_id == *ember_id) {
+        return Err(
+            ApiFailure::new(ErrorCode::Forbidden, "You play in this match.")
+                .detail("reason", "fighter"),
+        );
     }
-    match Policy::load(tx, &game.found.connection_id, match_id)?.admission(ember_id) {
+    match WatchPolicy::load(tx, &found.connection_id, match_id)?.admission(ember_id) {
         Admission::Denied => {
-            return Err(refuse(
+            return Err(ApiFailure::new(
                 ErrorCode::Forbidden,
-                Some("revoked"),
                 "The organizer removed you from this match's watchers.",
-            ));
+            )
+            .detail("reason", "revoked"));
         }
         Admission::Closed => {
-            return Err(refuse(
+            return Err(ApiFailure::new(
                 ErrorCode::Forbidden,
-                Some("not_allowed"),
                 "This match's organizer has not opened it to watchers.",
-            ));
+            )
+            .detail("reason", "not_allowed"));
         }
         Admission::Staff | Admission::LinkHolder => {}
     }
+    let mut game = with_rules(tx, found, roster)?;
     let claimed = claims(tx, match_id)?;
-    if claimed
-        .iter()
-        .any(|claim| claim.build_id != command.build_id)
-    {
-        return Err(refuse(
+    if !on_fighters_build(&fighter_claims(&game, &claimed), &command.build_id) {
+        return Err(ApiFailure::new(
             ErrorCode::IncompatibleBuild,
-            None,
             "The players run a different Ember build. Watching needs the same one.",
         ));
     }
@@ -140,37 +128,26 @@ fn watch(
             last_seen_at = ?6",
         params![match_id, ember_id.as_str(), command.endpoint_id, command.helper_instance_id, command.build_id, ctx.now, live_after(ctx.now)],
     )?;
-    rebind(tx, ctx, &mut game, &claimed)?;
-    let current = room(tx, match_id)?;
     let waiting = |reason| WatchAnswer::Waiting {
         retry_after: RETRY_SECS,
         reason,
     };
-    if current.room_id.is_none() {
-        return Ok(waiting(WaitReason::NoRoom));
-    }
-    // The binding can name a watcher only once both fighters have claimed and
-    // both say their helpers read watchers.
-    if endpoints(&game, &claimed).is_none() || !attested(&fighter_claims(&game, &claimed)) {
-        return Ok(waiting(WaitReason::NotBound));
-    }
-    if !bound(current.bound_watchers.as_deref())?
-        .iter()
-        .any(|watcher| watcher.ember_id == *ember_id)
-    {
-        return Ok(waiting(WaitReason::Full));
-    }
-    let (room_id, invitation) = invitation(ctx, &current)?;
-    Ok(WatchAnswer::Room {
-        room_id,
-        invitation,
+    // The one derivation of the binding's set, which every claim makes too.
+    Ok(match rebind(tx, ctx, &mut game, &claimed)? {
+        Named::NoRoom => waiting(WaitReason::NoRoom),
+        Named::NotBound { .. } => waiting(WaitReason::NotBound),
+        Named::Set { watchers, .. } if watchers.iter().all(|w| w.ember_id != *ember_id) => {
+            waiting(WaitReason::Full)
+        }
+        Named::Set { .. } => {
+            let (room_id, invitation) = invitation(ctx, &room(tx, match_id)?)?;
+            WatchAnswer::Room {
+                room_id,
+                invitation,
+            }
+        }
     })
 }
-
-/// The body of a command with nothing in it.
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Nothing {}
 
 /// `POST /v1/matches/{id}/watch/leave`: a `match.unwatch` proof.
 pub async fn leave_route(
@@ -179,24 +156,25 @@ pub async fn leave_route(
     Path(id): Path<String>,
     body: Body<PROOF_BODY>,
 ) -> Result<Response> {
+    let player = playing(&state, &headers).await?;
     let call = Call::new(
         Action::MatchUnwatch,
         format!("/v1/matches/{id}/watch/leave"),
     )
     .limited(RATE);
-    proven_call(
+    call.run(
         &state,
-        &headers,
+        &player,
         &body,
-        call,
-        |_: &Nothing| Ok(()),
+        Nothing::check,
         move |tx, ctx, ember_id, _: Nothing| {
             let mut game = played(tx, &id)?;
             tx.execute(
                 "DELETE FROM match_watchers WHERE match_id = ?1 AND ember_id = ?2",
                 params![id, ember_id.as_str()],
             )?;
-            rebind(tx, ctx, &mut game, &claims(tx, &id)?)
+            rebind(tx, ctx, &mut game, &claims(tx, &id)?)?;
+            Ok(())
         },
     )
     .await?;

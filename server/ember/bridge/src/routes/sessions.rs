@@ -1,4 +1,6 @@
 //! Identity challenges, proofs and player sessions (spec 10).
+use std::borrow::Cow;
+
 use axum::{
     extract::State,
     http::{HeaderMap, StatusCode},
@@ -16,7 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     AppState,
-    auth::{self, PLAYER_PREFIX, SESSION_SECS},
+    auth::{self, PLAYER_PREFIX, Player, SESSION_SECS},
     config::Config,
     ctx::Ctx,
     error::{ApiFailure, Result},
@@ -360,46 +362,17 @@ pub fn proven<T: serde::de::DeserializeOwned>(bytes: &[u8]) -> Result<(ProvenReq
 #[serde(deny_unknown_fields)]
 pub struct Nothing {}
 
-/// Consumes the session player's proof in `body`, an action the route
-/// alone describes (its command is empty), for `action` on `method` and
-/// `path`, and runs `work` in the same write, with the Ember ID the proof
-/// names.
-pub async fn as_proven<T: Send + 'static>(
-    state: &AppState,
-    player: auth::Player,
-    body: &Body<PROOF_BODY>,
-    (action, method, path): (Action, Method, String),
-    work: impl FnOnce(&Transaction<'_>, &Ctx, &str) -> Result<T> + Send + 'static,
-) -> Result<T> {
-    let (request, Nothing {}) = proven(&body.0)?;
-    let ctx = Ctx::of(state);
-    let done = state
-        .db
-        .write(move |tx| {
-            let target = Target {
-                action,
-                method,
-                path: &path,
-            };
-            let (ember_id, _) = consume_proof(
-                tx,
-                &ctx.config,
-                ctx.now,
-                &request,
-                target,
-                Some(&player.ember_id),
-            )?;
-            work(tx, &ctx, ember_id.as_str())
-        })
-        .await?;
-    state.committed();
-    Ok(done)
+impl Nothing {
+    /// There is nothing in it to check.
+    pub fn check(&self) -> ember_protocol::Result<()> {
+        Ok(())
+    }
 }
 
 /// A limit on how often one Ember ID may make a kind of call.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Rate {
-    pub scope: &'static str,
+    pub scope: Cow<'static, str>,
     pub calls: usize,
     pub window_secs: u64,
 }
@@ -408,18 +381,28 @@ pub struct Rate {
 /// be made.
 pub struct Call {
     action: Action,
+    method: Method,
     path: String,
     rate: Option<Rate>,
+}
+
+impl From<(Action, Method, String)> for Call {
+    /// A call whose action, method and path are given together, as a
+    /// sign-in's `Site::target` gives them.
+    fn from((action, method, path): (Action, Method, String)) -> Self {
+        Self {
+            action,
+            method,
+            path,
+            rate: None,
+        }
+    }
 }
 
 impl Call {
     /// A POST to `path` that `action` authorizes, with no rate limit of its own.
     pub fn new(action: Action, path: String) -> Self {
-        Self {
-            action,
-            path,
-            rate: None,
-        }
+        (action, Method::Post, path).into()
     }
 
     pub fn limited(self, rate: Rate) -> Self {
@@ -428,58 +411,58 @@ impl Call {
             ..self
         }
     }
-}
 
-/// Runs a player's proven command: a session that may play, the command parsed
-/// and checked, then `work` in one write transaction that first consumes the
-/// proof, so a refused call spends nothing. The answer is returned once the
-/// write is committed.
-pub async fn proven_call<C, T>(
-    state: &AppState,
-    headers: &HeaderMap,
-    body: &Body<PROOF_BODY>,
-    call: Call,
-    check: impl FnOnce(&C) -> ember_protocol::Result<()>,
-    work: impl FnOnce(&Transaction<'_>, &Ctx, &EmberId, C) -> Result<T> + Send + 'static,
-) -> Result<T>
-where
-    C: serde::de::DeserializeOwned + Send + 'static,
-    T: Send + 'static,
-{
-    let player = super::play::playing(state, headers).await?;
-    let ctx = Ctx::of(state);
-    if let Some(rate) = call.rate {
-        state
-            .rate
-            .check(
-                &format!("{}:{}", rate.scope, player.ember_id.as_str()),
-                rate.calls,
-                rate.window_secs,
-                ctx.now,
-            )
-            .map_err(ApiFailure::rate_limited)?;
-    }
-    let (request, command): (_, C) = proven(&body.0)?;
-    check(&command)?;
-    let Call { action, path, .. } = call;
-    let answer = state
-        .db
-        .write(move |tx| {
-            let (ember_id, _) = consume_proof(
-                tx,
-                &ctx.config,
-                ctx.now,
-                &request,
-                Target {
+    /// Runs the session player's proven command: the call's rate limit, the
+    /// command parsed and checked, then `work` in one write transaction that
+    /// first consumes the proof, so a refused call spends nothing. The answer
+    /// is returned once the write is committed.
+    pub async fn run<C, T>(
+        self,
+        state: &AppState,
+        player: &Player,
+        body: &Body<PROOF_BODY>,
+        check: impl FnOnce(&C) -> ember_protocol::Result<()>,
+        work: impl FnOnce(&Transaction<'_>, &Ctx, &EmberId, C) -> Result<T> + Send + 'static,
+    ) -> Result<T>
+    where
+        C: serde::de::DeserializeOwned + Send + 'static,
+        T: Send + 'static,
+    {
+        let ctx = Ctx::of(state);
+        if let Some(rate) = &self.rate {
+            state
+                .rate
+                .check(
+                    &format!("{}:{}", rate.scope, player.ember_id.as_str()),
+                    rate.calls,
+                    rate.window_secs,
+                    ctx.now,
+                )
+                .map_err(ApiFailure::rate_limited)?;
+        }
+        let (request, command): (_, C) = proven(&body.0)?;
+        check(&command)?;
+        let Self {
+            action,
+            method,
+            path,
+            ..
+        } = self;
+        let session = player.ember_id.clone();
+        let answer = state
+            .db
+            .write(move |tx| {
+                let target = Target {
                     action,
-                    method: Method::Post,
+                    method,
                     path: &path,
-                },
-                Some(&player.ember_id),
-            )?;
-            work(tx, &ctx, &ember_id, command)
-        })
-        .await?;
-    state.committed();
-    Ok(answer)
+                };
+                let (ember_id, _) =
+                    consume_proof(tx, &ctx.config, ctx.now, &request, target, Some(&session))?;
+                work(tx, &ctx, &ember_id, command)
+            })
+            .await?;
+        state.committed();
+        Ok(answer)
+    }
 }

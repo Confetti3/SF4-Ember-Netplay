@@ -2,13 +2,12 @@
 //! top of the fighters' play helpers. Sample players are `player1` and
 //! `player2`, never real names.
 use ember_protocol::{challenge::Action, play::SignedBinding};
-use reqwest::{Method, StatusCode};
+use reqwest::StatusCode;
 use serde_json::{Value as Json, json};
 
 use super::{
     Bridge, Player,
-    play::{BUILD, Table, act, bound_as, bridge_key, claim_as, endpoint},
-    read,
+    play::{BUILD, Table, act, bridge_key, claim_as, create_match, endpoint},
 };
 
 /// Two fighters of one bridge, wherever the bridge is kept.
@@ -101,36 +100,7 @@ pub async fn make_match(
             .link(provider, b, CONNECTION, &format!("{external}-b"))
             .await,
     ];
-    let (status, created) = bridge
-        .post_keyed(
-            provider,
-            "/v1/matches",
-            json!({
-                "external_match_id": external,
-                "game": "usf4",
-                "participants": [
-                    { "participant_id": links[0]["participant_id"], "ember_id": a.id(), "slot": 0 },
-                    { "participant_id": links[1]["participant_id"], "ember_id": b.id(), "slot": 1 },
-                ],
-                "rules": {
-                    "games_to_win": 2,
-                    "draw_policy": "replay_no_score",
-                    "native_rules_profile": profile,
-                    "edition_policy": "ultra_only",
-                    "character_policy": "unrestricted_between_games",
-                    "stage_policy": "p1_selects",
-                    "input_delay_policy": "ember_existing_ready_policy",
-                },
-                "observer_policy": "authorized_only",
-                "result_policy": "two_player_agreement_or_review",
-                "required_build_id": "ember",
-                "metadata": {},
-            }),
-            Some(external),
-        )
-        .await;
-    assert_eq!(status, StatusCode::CREATED, "{created}");
-    created["match_id"].as_str().unwrap().to_owned()
+    create_match(bridge, provider, &links, [&*a, &*b], external, profile, 2).await
 }
 
 /// A player who is not a fighter, with a session and no link.
@@ -203,26 +173,10 @@ pub async fn waiting(f: &impl Table, id: &str, who: &Player) -> String {
     answer["reason"].as_str().unwrap().to_owned()
 }
 
-/// A claim from a helper that reads watchers, as a current Ember's does.
-pub async fn claim_watching(
-    f: &impl Table,
-    player: &Player,
-    id: &str,
-    endpoint: &str,
-    build: &str,
-) -> (StatusCode, Json) {
-    claim_as(f, player, id, endpoint, build, true).await
-}
-
-/// Claims and publishes the room with both fighters' helpers reading watchers.
-pub async fn bound_watching(f: &impl Table, id: &str) -> Json {
-    bound_as(f, id, true).await
-}
-
 /// The binding the fighter's claim answers with, its signature checked. The
 /// fighter's helper reads watchers.
 pub async fn binding_for(f: &impl Table, id: &str, fighter: &Player) -> Json {
-    let (status, answer) = claim_watching(f, fighter, id, &endpoint(fighter), BUILD).await;
+    let (status, answer) = claim_as(f, fighter, id, &endpoint(fighter), BUILD, true).await;
     verified_binding(f, &status, &answer).await
 }
 
@@ -255,59 +209,30 @@ pub fn watchers(binding: &Json) -> Vec<String> {
         .unwrap_or_default()
 }
 
-pub async fn send(
-    bridge: &Bridge,
-    token: &str,
-    method: Method,
-    path: &str,
-    body: Option<Json>,
-) -> (StatusCode, Json) {
-    let mut request = bridge
-        .client
-        .request(method, bridge.url(path))
-        .bearer_auth(token);
-    if let Some(body) = body {
-        request = request
-            .header("content-type", "application/json")
-            .body(serde_json::to_vec(&body).unwrap());
-    }
-    read(request.send().await.unwrap()).await
-}
-
 pub async fn add_staff(f: &Match, who: &Player) -> StatusCode {
     let path = format!("/v1/connections/{CONNECTION}/watch/staff/{}", who.id());
-    send(&f.bridge, &f.organizer, Method::PUT, &path, Some(json!({})))
-        .await
-        .0
+    f.bridge.put(&f.organizer, &path, json!({})).await.0
 }
 
 pub async fn remove_staff(f: &Match, who: &Player) -> StatusCode {
     let path = format!("/v1/connections/{CONNECTION}/watch/staff/{}", who.id());
-    send(&f.bridge, &f.organizer, Method::DELETE, &path, None)
-        .await
-        .0
+    f.bridge.delete(&f.organizer, &path).await.0
 }
 
 pub async fn open_to_link_holders(f: &Match, on: bool) -> StatusCode {
     let path = format!("/v1/connections/{CONNECTION}/watch");
-    let body = Some(json!({ "link_holders": on }));
-    send(&f.bridge, &f.organizer, Method::PUT, &path, body)
-        .await
-        .0
+    let body = json!({ "link_holders": on });
+    f.bridge.put(&f.organizer, &path, body).await.0
 }
 
 pub async fn deny(f: &Match, who: &Player) -> StatusCode {
     let path = format!("/v1/matches/{}/watch/denials/{}", f.id, who.id());
-    send(&f.bridge, &f.organizer, Method::PUT, &path, Some(json!({})))
-        .await
-        .0
+    f.bridge.put(&f.organizer, &path, json!({})).await.0
 }
 
 pub async fn clear_denial(f: &Match, who: &Player) -> StatusCode {
     let path = format!("/v1/matches/{}/watch/denials/{}", f.id, who.id());
-    send(&f.bridge, &f.organizer, Method::DELETE, &path, None)
-        .await
-        .0
+    f.bridge.delete(&f.organizer, &path).await.0
 }
 
 /// `binding_revision`, `fighters_revision` and the stored watcher set of the

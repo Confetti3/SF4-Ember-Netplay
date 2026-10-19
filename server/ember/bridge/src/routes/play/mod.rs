@@ -2,10 +2,14 @@
 //! claim the match, one hosts its room under a provisioning lease, the bridge
 //! signs the room binding once both have claimed, and it issues one permit per
 //! official game once both fighters describe the same game. Reports and their
-//! reconciliation are in `reports`.
+//! reconciliation are in `reports`; players who watch the match are in
+//! `watch`, and the room and its binding are kept by `room`.
 //!
 //! Every route here is a fighter's own operation: a session for the assigned
 //! Ember ID plus a proof over the exact command.
+mod room;
+pub mod watch;
+
 use axum::{
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
@@ -19,13 +23,17 @@ use ember_protocol::{
     event::Kind,
     matches::{MatchState, Rules},
     play::{
-        self, Binding, BoundFighter, Claim, ClaimAnswer, LEASE_SECS, PERMIT_START_SECS, Permit,
-        Prepare, PrepareAnswer, PublishRoom, SignedBinding,
+        self, Claim, ClaimAnswer, LEASE_SECS, PERMIT_START_SECS, Permit, Prepare, PrepareAnswer,
+        PublishRoom,
     },
 };
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde_json::json;
 
+use self::{
+    room::{ClaimRow, bind, binding, claims, invitation, room},
+    watch::Named,
+};
 use crate::{
     AppState,
     auth::{self, Player},
@@ -36,8 +44,7 @@ use crate::{
     routes::{
         expiry,
         ledger::{Match, Participant, bump, load, match_event, participants},
-        sessions::{Call, proven_call},
-        watch,
+        sessions::Call,
     },
     util::new_id,
 };
@@ -47,8 +54,7 @@ pub const SCOPE: &str = "tournament:participate";
 /// How soon a waiting fighter should ask again.
 const RETRY_SECS: u64 = 2;
 
-/// An `ember-room-v1` match with its roster and rules. `fighter` loads it for
-/// one of the two fighters; `played` loads it for anyone, a watcher included.
+/// An `ember-room-v1` match with its roster and rules.
 pub struct PlayedMatch {
     pub found: Match,
     pub roster: Vec<Participant>,
@@ -58,8 +64,7 @@ pub struct PlayedMatch {
 /// Loads `match_id` for `ember_id`, which must be one of its two fighters.
 /// Anyone else gets `not_found`, as for every match read.
 pub fn fighter(tx: &Transaction<'_>, match_id: &str, ember_id: &EmberId) -> Result<PlayedMatch> {
-    let found = load(tx, match_id)?.ok_or_else(ApiFailure::not_found)?;
-    let roster = participants(tx, &found.id, found.generation)?;
+    let (found, roster) = roster_of(tx, match_id)?;
     if !roster.iter().any(|p| p.ember_id == *ember_id) {
         return Err(ApiFailure::not_found());
     }
@@ -67,12 +72,19 @@ pub fn fighter(tx: &Transaction<'_>, match_id: &str, ember_id: &EmberId) -> Resu
 }
 
 /// Loads `match_id` for whoever asks, a fighter or not.
-pub fn played(tx: &Transaction<'_>, match_id: &str) -> Result<PlayedMatch> {
-    let found = load(tx, match_id)?.ok_or_else(ApiFailure::not_found)?;
-    let roster = participants(tx, &found.id, found.generation)?;
+fn played(tx: &Transaction<'_>, match_id: &str) -> Result<PlayedMatch> {
+    let (found, roster) = roster_of(tx, match_id)?;
     with_rules(tx, found, roster)
 }
 
+/// The match and its current roster, whatever its rules.
+fn roster_of(tx: &Transaction<'_>, match_id: &str) -> Result<(Match, Vec<Participant>)> {
+    let found = load(tx, match_id)?.ok_or_else(ApiFailure::not_found)?;
+    let roster = participants(tx, &found.id, found.generation)?;
+    Ok((found, roster))
+}
+
+/// The match with its rules, which must be played through Ember.
 fn with_rules(tx: &Transaction<'_>, found: Match, roster: Vec<Participant>) -> Result<PlayedMatch> {
     let text: String = tx.query_row(
         "SELECT rules FROM matches WHERE id = ?1",
@@ -93,24 +105,17 @@ fn with_rules(tx: &Transaction<'_>, found: Match, roster: Vec<Participant>) -> R
     })
 }
 
-/// Refuses a finished match, with the `details` entry `detail` gives: fighters
-/// are told the state, watchers `reason: finished`.
-pub fn finished(
-    found: &Match,
-    detail: impl FnOnce(&Match) -> (&'static str, &'static str),
-) -> Result<()> {
+/// Refuses a finished match. Fighters read the state it ended in, watchers
+/// the reason.
+fn finished(found: &Match) -> Result<()> {
     if found.state.is_terminal() {
-        let (key, value) = detail(found);
         return Err(
-            ApiFailure::new(ErrorCode::StaleRevision, "The match is finished.").detail(key, value),
+            ApiFailure::new(ErrorCode::StaleRevision, "The match is finished.")
+                .detail("state", found.state.as_str())
+                .detail("reason", "finished"),
         );
     }
     Ok(())
-}
-
-/// How fighters are told their match is over.
-fn finished_state(found: &Match) -> (&'static str, &'static str) {
-    ("state", found.state.as_str())
 }
 
 /// A session that may play: `self:read` alone is not enough.
@@ -126,130 +131,30 @@ pub fn require_play(player: Player) -> Result<Player> {
     Ok(player)
 }
 
-pub struct ClaimRow {
-    pub(super) ember_id: EmberId,
-    pub(super) endpoint_id: String,
-    pub(super) build_id: String,
-    /// Whether the fighter's latest claim said its helper reads watchers.
-    pub(super) watch: bool,
-}
-
-pub fn claims(tx: &Transaction<'_>, match_id: &str) -> Result<Vec<ClaimRow>> {
-    tx.prepare(
-        "SELECT ember_id, endpoint_id, build_id, watch FROM match_claims WHERE match_id = ?1",
-    )?
-    .query_map([match_id], |row| {
-        Ok((
-            row.get::<_, String>(0)?,
-            row.get::<_, String>(1)?,
-            row.get::<_, String>(2)?,
-            row.get::<_, bool>(3)?,
-        ))
-    })?
-    .map(|row| {
-        let (ember_id, endpoint_id, build_id, watch) = row?;
-        Ok(ClaimRow {
-            ember_id: EmberId::parse(&ember_id).map_err(|_| ApiFailure::unavailable())?,
-            endpoint_id,
-            build_id,
-            watch,
-        })
-    })
-    .collect()
-}
-
-#[derive(Default)]
-pub struct Room {
-    lease_id: Option<String>,
-    lease_holder: Option<String>,
-    lease_fence: u64,
-    lease_expires_at: Option<u64>,
-    pub(super) room_id: Option<String>,
-    invitation_sealed: Option<Vec<u8>>,
-    pub(super) binding_revision: u64,
-    bound_endpoints: Option<String>,
-    /// The `binding_revision` of the last fighter-endpoint change: a prepare
-    /// is checked between it and `binding_revision`, so watcher changes in
-    /// between never fail one.
-    fighters_revision: u64,
-    /// The watchers the binding names, as `rewatch` stores them.
-    pub(super) bound_watchers: Option<String>,
-}
-
-pub fn room(tx: &Transaction<'_>, match_id: &str) -> Result<Room> {
-    tx.execute(
-        "INSERT OR IGNORE INTO match_rooms (match_id) VALUES (?1)",
-        [match_id],
-    )?;
-    Ok(tx.query_row(
-        "SELECT lease_id, lease_holder, lease_fence, lease_expires_at, room_id, invitation_sealed,
-                binding_revision, bound_endpoints, fighters_revision, bound_watchers
-         FROM match_rooms WHERE match_id = ?1",
-        [match_id],
-        |row| {
-            Ok(Room {
-                lease_id: row.get(0)?,
-                lease_holder: row.get(1)?,
-                lease_fence: row.get(2)?,
-                lease_expires_at: row.get(3)?,
-                room_id: row.get(4)?,
-                invitation_sealed: row.get(5)?,
-                binding_revision: row.get(6)?,
-                bound_endpoints: row.get(7)?,
-                fighters_revision: row.get(8)?,
-                bound_watchers: row.get(9)?,
-            })
-        },
-    )?)
-}
-
-/// The two claimed endpoints by slot, once both fighters have claimed.
-pub fn endpoints(fighter: &PlayedMatch, claimed: &[ClaimRow]) -> Option<[String; 2]> {
-    let of = |slot: usize| {
-        claimed
-            .iter()
-            .find(|claim| claim.ember_id == fighter.roster[slot].ember_id)
-            .map(|claim| claim.endpoint_id.clone())
-    };
-    Some([of(0)?, of(1)?])
-}
-
 /// Derives everything the binding names from the claims and the watchers who
-/// asked, and moves its revisions. A change of the fighters' endpoints moves
-/// both `binding_revision` and `fighters_revision` (prepares are checked
-/// against the latter) and marks the match ready the first time both are
-/// bound; a change of watchers alone moves only `binding_revision`.
-pub(super) fn rebind(
+/// asked (`watch::named`), stores it (`room::bind`), and marks the match ready
+/// the first time both fighters are bound. Returns what it derived.
+fn rebind(
     tx: &Transaction<'_>,
     ctx: &Ctx,
     fighter: &mut PlayedMatch,
     claimed: &[ClaimRow],
-) -> Result<()> {
+) -> Result<Named> {
     let current = room(tx, &fighter.found.id)?;
-    let seated = endpoints(fighter, claimed).filter(|_| current.room_id.is_some());
-    let watchers = watch::named(tx, ctx, fighter, claimed, seated.as_ref())?;
-    let endpoints_text = seated
-        .as_ref()
-        .map(|bound| serde_json::to_string(bound).unwrap_or_default());
-    let fighters_moved = endpoints_text.is_some() && current.bound_endpoints != endpoints_text;
-    if !fighters_moved {
-        if watchers != current.bound_watchers {
-            tx.execute(
-                "UPDATE match_rooms SET binding_revision = binding_revision + 1, bound_watchers = ?1 WHERE match_id = ?2",
-                params![watchers, fighter.found.id],
-            )?;
-        }
-        return Ok(());
-    }
-    tx.execute(
-        "UPDATE match_rooms SET binding_revision = binding_revision + 1,
-            fighters_revision = binding_revision + 1, bound_endpoints = ?1, bound_watchers = ?2 WHERE match_id = ?3",
-        params![endpoints_text, watchers, fighter.found.id],
+    let named = watch::named(tx, ctx, fighter, claimed, &current)?;
+    let fighters_moved = bind(
+        tx,
+        &fighter.found.id,
+        &current,
+        named.seated(),
+        named.watchers(),
     )?;
-    if matches!(
-        fighter.found.state,
-        MatchState::AwaitingPlayers | MatchState::Provisioning
-    ) {
+    if fighters_moved
+        && matches!(
+            fighter.found.state,
+            MatchState::AwaitingPlayers | MatchState::Provisioning
+        )
+    {
         let revision = bump(tx, &fighter.found, MatchState::Ready, ctx.now)?;
         match_event(
             tx,
@@ -260,52 +165,7 @@ pub(super) fn rebind(
         )?;
         fighter.found = load(tx, &fighter.found.id)?.ok_or_else(ApiFailure::unavailable)?;
     }
-    Ok(())
-}
-
-/// The signed binding of the current room, when both fighters have claimed.
-fn binding(
-    tx: &Transaction<'_>,
-    ctx: &Ctx,
-    fighter: &PlayedMatch,
-    claimed: &[ClaimRow],
-) -> Result<Option<SignedBinding>> {
-    let current = room(tx, &fighter.found.id)?;
-    let (Some(room_id), Some(bound)) = (current.room_id, endpoints(fighter, claimed)) else {
-        return Ok(None);
-    };
-    let [p1, p2] = [&fighter.roster[0].ember_id, &fighter.roster[1].ember_id];
-    let starting_wins = fighter.found.starting_wins;
-    let binding = Binding {
-        version: play::VERSION,
-        bridge_id: ctx.config.bridge_id.clone(),
-        match_id: fighter.found.id.clone(),
-        assignment_generation: Counter(fighter.found.generation),
-        binding_revision: Counter(current.binding_revision),
-        room_id,
-        build_id: claimed[0].build_id.clone(),
-        games_to_win: fighter.found.games_to_win,
-        rules_digest: play::rules_digest(&fighter.rules)?,
-        roster_digest: play::roster_digest(p1, p2)?,
-        fighters: [
-            BoundFighter {
-                ember_id: p1.clone(),
-                endpoint_id: bound[0].clone(),
-            },
-            BoundFighter {
-                ember_id: p2.clone(),
-                endpoint_id: bound[1].clone(),
-            },
-        ],
-        issued_at: ctx.now,
-        starting_wins,
-        watchers: watch::bound(current.bound_watchers.as_deref())?,
-    };
-    Ok(Some(
-        ctx.keys
-            .sign_binding(&binding)
-            .map_err(|_| ApiFailure::unavailable())?,
-    ))
+    Ok(named)
 }
 
 /// The room as a fighter is told it, with the binding derived afresh: every
@@ -317,23 +177,13 @@ fn room_answer(
     claimed: &[ClaimRow],
 ) -> Result<ClaimAnswer> {
     rebind(tx, ctx, fighter, claimed)?;
-    let (room_id, invitation) = invitation(ctx, &room(tx, &fighter.found.id)?)?;
+    let current = room(tx, &fighter.found.id)?;
+    let (room_id, invitation) = invitation(ctx, &current)?;
     Ok(ClaimAnswer::Room {
         room_id,
         invitation,
-        binding: binding(tx, ctx, fighter, claimed)?.map(Box::new),
+        binding: binding(ctx, fighter, claimed, current)?.map(Box::new),
     })
-}
-
-/// The published room's id and its current invitation.
-pub fn invitation(ctx: &Ctx, room: &Room) -> Result<(String, String)> {
-    let (Some(room_id), Some(sealed)) = (&room.room_id, &room.invitation_sealed) else {
-        return Err(ApiFailure::unavailable());
-    };
-    let invitation = ctx.keys.open(sealed).ok_or_else(ApiFailure::unavailable)?;
-    let invitation =
-        String::from_utf8(invitation.to_vec()).map_err(|_| ApiFailure::unavailable())?;
-    Ok((room_id.clone(), invitation))
 }
 
 /// `POST /v1/matches/{id}/claims`: a `match.claim` proof.
@@ -343,16 +193,17 @@ pub async fn claim_route(
     Path(id): Path<String>,
     body: Body<PROOF_BODY>,
 ) -> Result<Response> {
+    let player = playing(&state, &headers).await?;
     let call = Call::new(Action::MatchClaim, format!("/v1/matches/{id}/claims"));
-    let answer = proven_call(
-        &state,
-        &headers,
-        &body,
-        call,
-        Claim::check,
-        move |tx, ctx, ember_id, command: Claim| claim(tx, ctx, &id, ember_id, &command),
-    )
-    .await?;
+    let answer = call
+        .run(
+            &state,
+            &player,
+            &body,
+            Claim::check,
+            move |tx, ctx, ember_id, command: Claim| claim(tx, ctx, &id, ember_id, &command),
+        )
+        .await?;
     Ok(respond(StatusCode::OK, &answer?))
 }
 
@@ -366,7 +217,7 @@ fn claim(
     command: &Claim,
 ) -> Result<Result<ClaimAnswer>> {
     let fighter = fighter(tx, match_id, ember_id)?;
-    finished(&fighter.found, finished_state)?;
+    finished(&fighter.found)?;
     let other = claims(tx, match_id)?
         .into_iter()
         .find(|claim| claim.ember_id != *ember_id);
@@ -467,16 +318,19 @@ pub async fn publish_route(
     Path(id): Path<String>,
     body: Body<PROOF_BODY>,
 ) -> Result<Response> {
+    let player = playing(&state, &headers).await?;
     let call = Call::new(Action::RoomPublish, format!("/v1/matches/{id}/room"));
-    let answer = proven_call(
-        &state,
-        &headers,
-        &body,
-        call,
-        PublishRoom::check,
-        move |tx, ctx, ember_id, command: PublishRoom| publish(tx, ctx, &id, ember_id, &command),
-    )
-    .await?;
+    let answer = call
+        .run(
+            &state,
+            &player,
+            &body,
+            PublishRoom::check,
+            move |tx, ctx, ember_id, command: PublishRoom| {
+                publish(tx, ctx, &id, ember_id, &command)
+            },
+        )
+        .await?;
     Ok(respond(StatusCode::OK, &answer))
 }
 
@@ -488,7 +342,7 @@ fn publish(
     command: &PublishRoom,
 ) -> Result<ClaimAnswer> {
     let mut fighter = fighter(tx, match_id, ember_id)?;
-    finished(&fighter.found, finished_state)?;
+    finished(&fighter.found)?;
     let claimed = claims(tx, match_id)?;
     if !claimed.iter().any(|claim| claim.ember_id == *ember_id) {
         return Err(ApiFailure::new(
@@ -596,16 +450,17 @@ pub async fn prepare_route(
     body: Body<PROOF_BODY>,
 ) -> Result<Response> {
     let path = format!("/v1/matches/{id}/attempts/prepare");
+    let player = playing(&state, &headers).await?;
     let call = Call::new(Action::AttemptPrepare, path);
-    let answer = proven_call(
-        &state,
-        &headers,
-        &body,
-        call,
-        Prepare::check,
-        move |tx, ctx, ember_id, command: Prepare| prepare(tx, ctx, &id, ember_id, &command),
-    )
-    .await?;
+    let answer = call
+        .run(
+            &state,
+            &player,
+            &body,
+            Prepare::check,
+            move |tx, ctx, ember_id, command: Prepare| prepare(tx, ctx, &id, ember_id, &command),
+        )
+        .await?;
     Ok(respond(StatusCode::OK, &answer))
 }
 
@@ -617,7 +472,7 @@ fn prepare(
     command: &Prepare,
 ) -> Result<PrepareAnswer> {
     let fighter = fighter(tx, match_id, ember_id)?;
-    finished(&fighter.found, finished_state)?;
+    finished(&fighter.found)?;
     if fighter.found.state == MatchState::NeedsReview {
         return Err(ApiFailure::new(
             ErrorCode::LeaseConflict,
@@ -675,9 +530,14 @@ fn prepare(
 /// Whether two descriptors, both at or above `floor` (the revision of the
 /// last fighter-endpoint change), describe the same game. A watcher joining
 /// or leaving moves the revision a fighter reads between its claims, and
-/// must not keep two fighters from agreeing.
+/// must not keep two fighters from agreeing: the protocol's comparison is
+/// made as if both were at the first one's revision.
 fn same_game(a: &Prepare, b: &Prepare, floor: u64) -> bool {
-    a.binding_revision.0 >= floor && b.binding_revision.0 >= floor && a.same_game_at_any_revision(b)
+    let at_a = Prepare {
+        binding_revision: a.binding_revision,
+        ..b.clone()
+    };
+    a.binding_revision.0 >= floor && b.binding_revision.0 >= floor && a.same_game(&at_a)
 }
 
 /// A descriptor must name the match's current binding, room and rules, and

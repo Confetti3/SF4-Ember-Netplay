@@ -277,6 +277,10 @@ pub struct Policy {
     /// (`matches.ends_by`). None when only `match_expiry_hours` applies.
     /// BluMint's is `BLUMINT_MATCH_LIFETIME_SECS`.
     pub max_lifetime_secs: Option<u64>,
+    /// The platform fixes who may watch its matches (BluMint), so its
+    /// organizer's watch settings are read-only: the routes that change them
+    /// refuse (`routes::play::watch`).
+    pub fixed_watchers: bool,
 }
 
 /// The longest a match on a BluMint connection lives,
@@ -294,6 +298,7 @@ impl Policy {
             reviews_disputes: disputes == Disputes::Review,
             reports_progress: kind == BLUMINT,
             max_lifetime_secs: (kind == BLUMINT).then_some(BLUMINT_MATCH_LIFETIME_SECS),
+            fixed_watchers: kind == BLUMINT,
         }
     }
 }

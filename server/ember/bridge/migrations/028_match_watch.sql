@@ -47,7 +47,9 @@ CREATE TABLE match_watch_conflicts (
 );
 
 -- The watcher set the current binding names, as a JSON list of
--- {"ember_id", "endpoint_id"}. NULL means none, which is every row today.
+-- {"ember_id", "endpoint_id"} the bridge decodes into a typed list when it
+-- reads the row. NULL means none (an empty set is never written), which is
+-- every row today.
 ALTER TABLE match_rooms ADD COLUMN bound_watchers TEXT;
 
 -- The binding revision of the last fighter-endpoint change; prepares are

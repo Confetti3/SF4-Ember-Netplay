@@ -6,7 +6,8 @@ mod common;
 use common::{
     blumint, code,
     play::{
-        BUILD, ROOM, Table, act, bound, descriptor, endpoint, permit, prepare, publish, report,
+        BUILD, ROOM, Table, act, bound, bound_as, claim_as, descriptor, endpoint, permit, prepare,
+        publish, report,
     },
     watch::*,
 };
@@ -31,7 +32,7 @@ async fn a_match_is_closed_to_watchers_until_its_organizer_opens_it() {
     let (status, fighter) = ask(&f, &f.id, &f.a).await;
     assert_eq!(status, StatusCode::FORBIDDEN, "{fighter}");
     assert_eq!(reason(&fighter), "fighter");
-    let binding = bound_watching(&f, &f.id).await;
+    let binding = bound_as(&f, &f.id, true).await;
     assert!(binding.get("watchers").is_none(), "{binding}");
     assert_eq!(
         count(&f.bridge, "SELECT COUNT(*) FROM match_watchers").await,
@@ -45,6 +46,7 @@ async fn a_match_is_closed_to_watchers_until_its_organizer_opens_it() {
     );
 
     // A match whose games an organizer enters is not played through Ember.
+    // A stranger is told the watch policy before that.
     let provider = f.bridge.provider(CONNECTION).await;
     let (mut c, mut d) = (f.bridge.player(41), f.bridge.player(42));
     let entered = make_match(
@@ -55,6 +57,12 @@ async fn a_match_is_closed_to_watchers_until_its_organizer_opens_it() {
         "organizer-reported-v1",
     )
     .await;
+    let (status, closed) = ask(&f, &entered, &player3).await;
+    assert_eq!(
+        (status, reason(&closed)),
+        (StatusCode::FORBIDDEN, "not_allowed")
+    );
+    assert_eq!(add_staff(&f, &player3).await, StatusCode::OK);
     let (status, unsupported) = ask(&f, &entered, &player3).await;
     assert_eq!(
         (status, code(&unsupported)),
@@ -75,7 +83,6 @@ async fn a_match_is_closed_to_watchers_until_its_organizer_opens_it() {
         })
         .await
         .unwrap();
-    assert_eq!(add_staff(&f, &player3).await, StatusCode::OK);
     let (status, over) = ask(&f, &f.id, &player3).await;
     assert_eq!(
         (status, code(&over), reason(&over)),
@@ -89,10 +96,10 @@ async fn a_watcher_waits_for_the_room_and_for_both_fighters() {
     let player3 = viewer(&f.bridge, 40).await;
     add_staff(&f, &player3).await;
     assert_eq!(waiting(&f, &f.id, &player3).await, "no_room");
-    let (_, host) = claim_watching(&f, &f.a, &f.id, &endpoint(&f.a), BUILD).await;
+    let (_, host) = claim_as(&f, &f.a, &f.id, &endpoint(&f.a), BUILD, true).await;
     publish(&f, &f.a, &f.id, ROOM, Some(&host), None).await;
     assert_eq!(waiting(&f, &f.id, &player3).await, "not_bound");
-    claim_watching(&f, &f.b, &f.id, &endpoint(&f.b), BUILD).await;
+    claim_as(&f, &f.b, &f.id, &endpoint(&f.b), BUILD, true).await;
     let binding = binding_for(&f, &f.id, &f.b).await;
     assert_eq!(watchers(&binding), [player3.id().as_str()]);
     let answer = admitted(&f, &f.id, &player3).await;
@@ -109,7 +116,7 @@ async fn a_watcher_waits_for_the_room_and_for_both_fighters() {
 #[tokio::test]
 async fn a_staff_watcher_is_named_in_the_next_binding_and_moves_only_the_binding_revision() {
     let f = fixture().await;
-    let before = bound_watching(&f, &f.id).await;
+    let before = bound_as(&f, &f.id, true).await;
     let player3 = viewer(&f.bridge, 40).await;
     assert_eq!(add_staff(&f, &player3).await, StatusCode::OK);
     admitted(&f, &f.id, &player3).await;
@@ -131,7 +138,7 @@ async fn a_staff_watcher_is_named_in_the_next_binding_and_moves_only_the_binding
 #[tokio::test]
 async fn watchers_coming_and_going_never_fail_a_prepare() {
     let f = fixture().await;
-    let first = bound_watching(&f, &f.id).await;
+    let first = bound_as(&f, &f.id, true).await;
     let mut crowd = vec![];
     for byte in 40..44 {
         let player = viewer(&f.bridge, byte).await;
@@ -180,9 +187,9 @@ async fn watchers_coming_and_going_never_fail_a_prepare() {
 #[tokio::test]
 async fn a_prepare_below_the_fighters_revision_is_stale() {
     let f = fixture().await;
-    let old = bound_watching(&f, &f.id).await;
+    let old = bound_as(&f, &f.id, true).await;
     // The second fighter comes back on another endpoint.
-    let (status, back) = claim_watching(&f, &f.b, &f.id, &"b".repeat(64), BUILD).await;
+    let (status, back) = claim_as(&f, &f.b, &f.id, &"b".repeat(64), BUILD, true).await;
     assert_eq!(status, StatusCode::OK, "{back}");
     assert_eq!(revision(&back["binding"]["binding"]), revision(&old) + 1);
     let (status, stale) = prepare(&f, &f.a, &f.id, &old, 11).await;
@@ -196,7 +203,7 @@ async fn a_prepare_below_the_fighters_revision_is_stale() {
 #[tokio::test]
 async fn agreement_uses_the_current_fighters_revision() {
     let f = fixture().await;
-    let old = bound_watching(&f, &f.id).await;
+    let old = bound_as(&f, &f.id, true).await;
     let (status, first) = prepare(&f, &f.a, &f.id, &old, 11).await;
     assert_eq!(
         (status, first["state"].as_str()),
@@ -206,7 +213,7 @@ async fn agreement_uses_the_current_fighters_revision() {
     // The other fighter reconnects on a new endpoint and prepares at the new
     // revision. The first fighter's description is below it, so no permit.
     let new_endpoint = "b".repeat(64);
-    let (_, back) = claim_watching(&f, &f.b, &f.id, &new_endpoint, BUILD).await;
+    let (_, back) = claim_as(&f, &f.b, &f.id, &new_endpoint, BUILD, true).await;
     let current = back["binding"]["binding"].clone();
     let mut second = descriptor(&current, &f.b, 11);
     second["endpoint_id"] = json!(new_endpoint);
@@ -334,11 +341,14 @@ async fn blumint_matches_stay_closed_to_watchers() {
         (Method::PUT, denial.clone(), Some(json!({}))),
         (Method::DELETE, denial, None),
     ] {
-        let (status, refused) = send(&f.bridge, &f.organizer, method.clone(), &path, body).await;
+        let (status, refused) = f
+            .bridge
+            .send(&f.organizer, method.clone(), &path, body)
+            .await;
         assert_eq!(status, StatusCode::FORBIDDEN, "{method} {path}: {refused}");
         assert_eq!(reason(&refused), "connection_fixed");
     }
-    let (status, read) = send(&f.bridge, &f.provider, Method::GET, &policy, None).await;
+    let (status, read) = f.bridge.send(&f.provider, Method::GET, &policy, None).await;
     assert_eq!(
         (status, &read["link_holders"]),
         (StatusCode::OK, &json!(false))
@@ -364,7 +374,7 @@ async fn blumint_matches_stay_closed_to_watchers() {
 #[tokio::test]
 async fn a_watcher_must_run_the_fighters_build() {
     let f = fixture().await;
-    bound_watching(&f, &f.id).await;
+    bound_as(&f, &f.id, true).await;
     let player3 = viewer(&f.bridge, 40).await;
     add_staff(&f, &player3).await;
     let (status, refused) = ask_from(&f, &f.id, &player3, &endpoint(&player3), "build-2").await;
@@ -389,7 +399,7 @@ async fn a_watcher_must_run_the_fighters_build() {
         })
         .await
         .unwrap();
-    let (_, moved) = claim_watching(&f, &f.a, &f.id, &endpoint(&f.a), "build-2").await;
+    let (_, moved) = claim_as(&f, &f.a, &f.id, &endpoint(&f.a), "build-2", true).await;
     assert_eq!(moved["binding"]["binding"]["build_id"], "build-2");
     assert!(watchers(&moved["binding"]["binding"]).is_empty(), "{moved}");
     let (status, refused) = ask(&f, &f.id, &player3).await;
@@ -408,7 +418,7 @@ async fn a_watcher_must_run_the_fighters_build() {
 #[tokio::test]
 async fn link_holders_are_capped_and_staff_hold_the_ceiling() {
     let f = fixture().await;
-    bound_watching(&f, &f.id).await;
+    bound_as(&f, &f.id, true).await;
     assert_eq!(open_to_link_holders(&f, true).await, StatusCode::OK);
     // Arrivals a second apart, so their order is the order they came in.
     let mut holders = vec![];
@@ -447,7 +457,7 @@ async fn link_holders_are_capped_and_staff_hold_the_ceiling() {
 #[tokio::test]
 async fn a_denial_removes_a_watcher_and_clearing_it_lets_them_back() {
     let f = fixture().await;
-    bound_watching(&f, &f.id).await;
+    bound_as(&f, &f.id, true).await;
     let player3 = viewer(&f.bridge, 40).await;
     add_staff(&f, &player3).await;
     admitted(&f, &f.id, &player3).await;
@@ -472,7 +482,7 @@ async fn a_denial_removes_a_watcher_and_clearing_it_lets_them_back() {
 #[tokio::test]
 async fn closing_the_setting_or_the_staff_list_drops_watchers_at_the_next_claim() {
     let f = fixture().await;
-    bound_watching(&f, &f.id).await;
+    bound_as(&f, &f.id, true).await;
     let (holder, staff) = (viewer(&f.bridge, 40).await, viewer(&f.bridge, 41).await);
     open_to_link_holders(&f, true).await;
     add_staff(&f, &staff).await;
@@ -498,7 +508,7 @@ async fn closing_the_setting_or_the_staff_list_drops_watchers_at_the_next_claim(
 #[tokio::test]
 async fn a_watcher_who_goes_quiet_is_dropped_at_the_next_claim() {
     let f = fixture().await;
-    bound_watching(&f, &f.id).await;
+    bound_as(&f, &f.id, true).await;
     let player3 = viewer(&f.bridge, 40).await;
     add_staff(&f, &player3).await;
     admitted(&f, &f.id, &player3).await;
@@ -513,7 +523,7 @@ async fn a_watcher_who_goes_quiet_is_dropped_at_the_next_claim() {
 #[tokio::test]
 async fn leaving_removes_a_watcher_at_once() {
     let f = fixture().await;
-    bound_watching(&f, &f.id).await;
+    bound_as(&f, &f.id, true).await;
     let player3 = viewer(&f.bridge, 40).await;
     add_staff(&f, &player3).await;
     admitted(&f, &f.id, &player3).await;
@@ -530,7 +540,7 @@ async fn leaving_removes_a_watcher_at_once() {
 #[tokio::test]
 async fn two_watchers_asking_for_one_endpoint_get_one_place() {
     let f = fixture().await;
-    bound_watching(&f, &f.id).await;
+    bound_as(&f, &f.id, true).await;
     open_to_link_holders(&f, true).await;
     let shared = "e".repeat(64);
     let (holder, first, second) = (
@@ -580,7 +590,7 @@ async fn two_watchers_asking_for_one_endpoint_get_one_place() {
 #[tokio::test]
 async fn a_replaced_room_keeps_its_watchers() {
     let f = fixture().await;
-    bound_watching(&f, &f.id).await;
+    bound_as(&f, &f.id, true).await;
     let player3 = viewer(&f.bridge, 40).await;
     add_staff(&f, &player3).await;
     admitted(&f, &f.id, &player3).await;
@@ -599,7 +609,7 @@ async fn a_replaced_room_keeps_its_watchers() {
 #[tokio::test]
 async fn the_organizers_view_says_who_watches_and_who_is_denied() {
     let f = fixture().await;
-    bound_watching(&f, &f.id).await;
+    bound_as(&f, &f.id, true).await;
     open_to_link_holders(&f, true).await;
     let (staff, holder) = (viewer(&f.bridge, 40).await, viewer(&f.bridge, 41).await);
     add_staff(&f, &staff).await;
@@ -608,7 +618,7 @@ async fn the_organizers_view_says_who_watches_and_who_is_denied() {
     deny(&f, &holder).await;
     binding_for(&f, &f.id, &f.a).await;
     let path = format!("/v1/matches/{}/watchers", f.id);
-    let (status, view) = send(&f.bridge, &f.provider, Method::GET, &path, None).await;
+    let (status, view) = f.bridge.send(&f.provider, Method::GET, &path, None).await;
     assert_eq!(status, StatusCode::OK, "{view}");
     assert_eq!(view["link_holders"], true);
     assert_eq!(view["denied"], json!([holder.id()]));
@@ -646,14 +656,17 @@ async fn only_the_connections_organizer_writes_its_watch_policy() {
     let other_provider = f.bridge.provider("mock-b").await;
     let other_organizer = f.bridge.organizer("t2").await;
 
-    let (status, read) = send(&f.bridge, &f.organizer, Method::GET, &policy, None).await;
+    let (status, read) = f
+        .bridge
+        .send(&f.organizer, Method::GET, &policy, None)
+        .await;
     assert_eq!(status, StatusCode::OK, "{read}");
     assert_eq!(
         read,
         json!({ "connection_id": CONNECTION, "link_holders": false, "link_holder_cap": 2, "ceiling": 6, "staff": [] })
     );
     add_staff(&f, &player3).await;
-    let (_, read) = send(&f.bridge, &f.provider, Method::GET, &policy, None).await;
+    let (_, read) = f.bridge.send(&f.provider, Method::GET, &policy, None).await;
     assert_eq!(read["staff"][0]["ember_id"], player3.id().as_str());
 
     let writes = [
@@ -669,8 +682,10 @@ async fn only_the_connections_organizer_writes_its_watch_policy() {
     ];
     for (method, path, body) in &writes {
         // The connection's own provider may read but not write.
-        let (status, refused) =
-            send(&f.bridge, &f.provider, method.clone(), path, body.clone()).await;
+        let (status, refused) = f
+            .bridge
+            .send(&f.provider, method.clone(), path, body.clone())
+            .await;
         assert_eq!(
             (status, code(&refused)),
             (StatusCode::FORBIDDEN, "forbidden"),
@@ -678,70 +693,73 @@ async fn only_the_connections_organizer_writes_its_watch_policy() {
         );
         // Anyone else is told there is nothing there.
         for token in [&other_provider, &other_organizer] {
-            let (status, hidden) = send(&f.bridge, token, method.clone(), path, body.clone()).await;
+            let (status, hidden) = f
+                .bridge
+                .send(token, method.clone(), path, body.clone())
+                .await;
             assert_eq!(
                 (status, code(&hidden)),
                 (StatusCode::NOT_FOUND, "not_found"),
                 "{method} {path}"
             );
         }
-        let (status, _) = send(&f.bridge, "", method.clone(), path, body.clone()).await;
+        let (status, _) = f.bridge.send("", method.clone(), path, body.clone()).await;
         assert_eq!(status, StatusCode::UNAUTHORIZED);
         // A player's session is not a service credential.
-        let (status, _) = send(
-            &f.bridge,
-            player3.token(),
-            method.clone(),
-            path,
-            body.clone(),
-        )
-        .await;
+        let (status, _) = f
+            .bridge
+            .send(player3.token(), method.clone(), path, body.clone())
+            .await;
         assert_eq!(status, StatusCode::FORBIDDEN);
     }
     for token in [&other_provider, &other_organizer] {
         for path in [&policy, &view] {
-            let (status, _) = send(&f.bridge, token, Method::GET, path, None).await;
+            let (status, _) = f.bridge.send(token, Method::GET, path, None).await;
             assert_eq!(status, StatusCode::NOT_FOUND, "{path}");
         }
     }
-    let (status, _) = send(&f.bridge, &f.provider, Method::GET, &view, None).await;
+    let (status, _) = f.bridge.send(&f.provider, Method::GET, &view, None).await;
     assert_eq!(status, StatusCode::OK);
     // Malformed requests are refused, and nothing changed.
-    let (status, _) = send(
-        &f.bridge,
-        &f.organizer,
-        Method::PUT,
-        &format!("{policy}/staff/not-an-ember-id"),
-        Some(json!({})),
-    )
-    .await;
+    let (status, _) = f
+        .bridge
+        .send(
+            &f.organizer,
+            Method::PUT,
+            &format!("{policy}/staff/not-an-ember-id"),
+            Some(json!({})),
+        )
+        .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    let (status, _) = send(
-        &f.bridge,
-        &f.organizer,
-        Method::PUT,
-        &staff,
-        Some(json!({ "label": "x" })),
-    )
-    .await;
+    let (status, _) = f
+        .bridge
+        .send(
+            &f.organizer,
+            Method::PUT,
+            &staff,
+            Some(json!({ "label": "x" })),
+        )
+        .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    let (status, _) = send(
-        &f.bridge,
-        &f.organizer,
-        Method::PUT,
-        &policy,
-        Some(json!({ "link_holders": "yes" })),
-    )
-    .await;
+    let (status, _) = f
+        .bridge
+        .send(
+            &f.organizer,
+            Method::PUT,
+            &policy,
+            Some(json!({ "link_holders": "yes" })),
+        )
+        .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    let (status, _) = send(
-        &f.bridge,
-        &f.organizer,
-        Method::GET,
-        "/v1/connections/no-such/watch",
-        None,
-    )
-    .await;
+    let (status, _) = f
+        .bridge
+        .send(
+            &f.organizer,
+            Method::GET,
+            "/v1/connections/no-such/watch",
+            None,
+        )
+        .await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(
         count(

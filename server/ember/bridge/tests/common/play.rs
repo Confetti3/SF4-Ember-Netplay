@@ -282,3 +282,46 @@ pub async fn bound_as(f: &impl Table, id: &str, watch: bool) -> Json {
     assert_eq!(binding.games_to_win, 2);
     serde_json::to_value(binding).unwrap()
 }
+
+/// Makes a first-to-`games_to_win` match of `profile` between two linked
+/// players, `links` being what linking them answered; returns its ID.
+pub async fn create_match(
+    bridge: &Bridge,
+    provider: &str,
+    links: &[Json; 2],
+    players: [&Player; 2],
+    external: &str,
+    profile: &str,
+    games_to_win: u8,
+) -> String {
+    let (status, created) = bridge
+        .post_keyed(
+            provider,
+            "/v1/matches",
+            json!({
+                "external_match_id": external,
+                "game": "usf4",
+                "participants": [
+                    { "participant_id": links[0]["participant_id"], "ember_id": players[0].id(), "slot": 0 },
+                    { "participant_id": links[1]["participant_id"], "ember_id": players[1].id(), "slot": 1 },
+                ],
+                "rules": {
+                    "games_to_win": games_to_win,
+                    "draw_policy": "replay_no_score",
+                    "native_rules_profile": profile,
+                    "edition_policy": "ultra_only",
+                    "character_policy": "unrestricted_between_games",
+                    "stage_policy": "p1_selects",
+                    "input_delay_policy": "ember_existing_ready_policy",
+                },
+                "observer_policy": "authorized_only",
+                "result_policy": "two_player_agreement_or_review",
+                "required_build_id": "ember",
+                "metadata": {},
+            }),
+            Some(external),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    created["match_id"].as_str().unwrap().to_owned()
+}

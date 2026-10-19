@@ -41,11 +41,12 @@ use axum::{
     routing::{get, post},
 };
 use ember_protocol::{
-    discord,
+    EmberId, discord,
     encoding::b64u,
     sign_in::{Connection, SIGN_IN_SECS, SignInStarted},
     sites,
 };
+use rusqlite::Transaction;
 use serde::Deserialize;
 use serde_json::json;
 
@@ -64,7 +65,7 @@ use crate::{
         site_has_accounts,
     },
     rate::Slot,
-    routes::sessions,
+    routes::sessions::{Call, Nothing, Rate},
     util::random,
 };
 
@@ -211,15 +212,6 @@ async fn start(
 ) -> Result<Response> {
     let oauth = enabled(&state, &site)?;
     let player = auth::player(&state, &headers).await?;
-    state
-        .rate
-        .check(
-            &format!("{}:{}", site.domain("start"), player.ember_id),
-            STARTS_PER_HOUR,
-            3600,
-            state.now(),
-        )
-        .map_err(ApiFailure::rate_limited)?;
     let secret = b64u(&random::<32>());
     let hash = state_hash(&state, &site, &secret);
     let expires_at = state.now() + SIGN_IN_SECS;
@@ -228,8 +220,12 @@ async fn start(
         .ok_or_else(ApiFailure::unavailable)?;
     let (rate, limits, starts) = (state.rate.clone(), oauth.limits, site.domain("starts"));
     let stored = site.clone();
-    let target = site.target(Step::Connect);
-    let started = sessions::as_proven(&state, player, &body, target, move |tx, ctx, ember_id| {
+    let call = Call::from(site.target(Step::Connect)).limited(Rate {
+        scope: site.domain("start").into(),
+        calls: STARTS_PER_HOUR,
+        window_secs: 3600,
+    });
+    let work = move |tx: &Transaction<'_>, ctx: &Ctx, ember_id: &EmberId, _: Nothing| {
         // Once the proof holds, in the same write: the site's request
         // budget must have room for the exchange, and the start takes a
         // bridge-wide slot, given back unless the start commits, so requests
@@ -248,11 +244,13 @@ async fn start(
         }
         sign_ins::expire(tx, ctx.now)?;
         // Only the latest sign-in can connect an account.
-        sign_ins::end(tx, &stored, ember_id)?;
-        sign_ins::insert(tx, &stored, &hash, ember_id, expires_at)?;
+        sign_ins::end(tx, &stored, ember_id.as_str())?;
+        sign_ins::insert(tx, &stored, &hash, ember_id.as_str(), expires_at)?;
         Ok(Ok(slot))
-    })
-    .await?;
+    };
+    let started = call
+        .run(&state, &player, &body, Nothing::check, work)
+        .await?;
     match started {
         Ok(slot) => slot.into_iter().for_each(Slot::keep),
         Err((cap, retry_after)) => {
@@ -279,11 +277,15 @@ async fn cancel(
     site: Site,
 ) -> Result<Response> {
     let player = auth::player(&state, &headers).await?;
-    let target = site.target(Step::Cancel);
-    sessions::as_proven(&state, player, &body, target, move |tx, _, ember_id| {
-        sign_ins::end(tx, &site, ember_id)
-    })
-    .await?;
+    Call::from(site.target(Step::Cancel))
+        .run(
+            &state,
+            &player,
+            &body,
+            Nothing::check,
+            move |tx, _, ember_id, _: Nothing| sign_ins::end(tx, &site, ember_id.as_str()),
+        )
+        .await?;
     Ok(ok(&json!({})))
 }
 
@@ -311,11 +313,15 @@ async fn remove(
 ) -> Result<Response> {
     let player = auth::player(&state, &headers).await?;
     let site = held(&state, &player, site).await?;
-    let target = site.target(Step::Remove);
-    sessions::as_proven(&state, player, &body, target, move |tx, ctx, ember_id| {
-        site.disconnect(tx, ctx, ember_id)
-    })
-    .await?;
+    Call::from(site.target(Step::Remove))
+        .run(
+            &state,
+            &player,
+            &body,
+            Nothing::check,
+            move |tx, ctx, ember_id, _: Nothing| site.disconnect(tx, ctx, ember_id.as_str()),
+        )
+        .await?;
     Ok(ok(&Connection { account: None }))
 }
 

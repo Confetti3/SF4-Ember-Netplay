@@ -622,13 +622,15 @@ applies per version, so the gap is safe. Register it with `include_str!` in
 
 `match_watchers` is the source. The bound set is derived, never edited in
 place. One derivation serves the whole binding: `rebind` in
-`bridge/src/routes/play.rs` works out both the fighters' endpoints and the
+`bridge/src/routes/play/mod.rs` works out both the fighters' endpoints and the
 watchers, and `room_answer` calls it, so every answer that carries a room or a
 binding is derived afresh. The watcher half is `named` in
-`bridge/src/routes/watch/rewatch.rs`, which returns the text `bound_watchers`
-should hold.
+`bridge/src/routes/play/watch/rewatch.rs`. It returns a typed `Named` (no room,
+not bound, or the set), which `rebind` stores through `room::bind` and the
+watch route turns into its answer, so the two never decide separately. The
+room row keeps the set as a typed list (`room::Room::bound_watchers`).
 
-1. **Short-circuit.** `named` returns none when the room is not published or a
+1. **Short-circuit.** `named` names nobody when the room is not published or a
    fighter has not claimed, and when no watcher row is live. Deploying
    therefore touches nothing, and BluMint and Stable matches never get past
    this step (review finding 2).
@@ -1588,10 +1590,10 @@ and read by B.
   - `challenge.rs`: `MatchWatch`, `MatchUnwatch`.
 - **A2, bridge:**
   - `bridge/migrations/028_match_watch.sql` and `bridge/src/db.rs`;
-  - `bridge/src/routes/{play.rs, discovery.rs, sessions.rs, mod.rs}`, where
+  - `bridge/src/routes/{play/mod.rs, discovery.rs, sessions.rs, mod.rs}`, where
     `mod.rs` registers the routes;
-  - `bridge/src/auth.rs`: an organizer-of-connection helper;
-  - a new `bridge/src/routes/watch.rs`;
+  - `bridge/src/events.rs`: `Viewer::sees`, shared with `matches::visible`;
+  - new `bridge/src/routes/play/{room.rs, watch/}`, with `play.rs` now `play/mod.rs`;
   - a new `bridge/tests/watch.rs`, plus new helpers in `bridge/tests/common/`.
 - **SDK:** `sdk/typescript/src/client.ts`:
   - methods `watchPolicy`, `setWatchLinkHolders`, `addWatchStaff`,

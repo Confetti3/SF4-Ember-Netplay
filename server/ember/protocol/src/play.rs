@@ -332,14 +332,8 @@ impl Prepare {
 
     /// The fields both fighters must agree on (the endpoint is each one's own).
     pub fn same_game(&self, other: &Prepare) -> bool {
-        self.binding_revision == other.binding_revision && self.same_game_at_any_revision(other)
-    }
-
-    /// `same_game` without the binding revision, for a caller that checks the
-    /// revisions itself: watchers joining or leaving move the revision a
-    /// fighter reads between its claims without changing the game.
-    pub fn same_game_at_any_revision(&self, other: &Prepare) -> bool {
         self.assignment_generation == other.assignment_generation
+            && self.binding_revision == other.binding_revision
             && self.room_id == other.room_id
             && self.table_id == other.table_id
             && self.match_generation == other.match_generation

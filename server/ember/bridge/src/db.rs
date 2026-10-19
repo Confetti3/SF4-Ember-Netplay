@@ -583,7 +583,13 @@ mod tests {
         connection
             .pragma_update(None, "foreign_keys", "ON")
             .unwrap();
-        migrate(&mut connection, &MIGRATIONS[..26]).unwrap();
+        // The schema as it stood before watching (028).
+        let before_watching: Vec<_> = MIGRATIONS
+            .iter()
+            .take_while(|(version, _)| *version < 28)
+            .copied()
+            .collect();
+        migrate(&mut connection, &before_watching).unwrap();
         connection
             .execute_batch(
                 "INSERT INTO tenants (id, name) VALUES ('t', 'Tenant');

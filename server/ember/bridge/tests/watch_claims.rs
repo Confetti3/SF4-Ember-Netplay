@@ -4,7 +4,7 @@
 mod common;
 
 use common::{
-    play::{BUILD, Table, bound, claim, endpoint},
+    play::{BUILD, Table, bound, bound_as, claim, claim_as, endpoint},
     watch::*,
 };
 use reqwest::StatusCode;
@@ -58,7 +58,7 @@ fn strip_issued(binding: &Json, like: &Json) -> Json {
 #[tokio::test]
 async fn watchers_are_named_when_both_fighters_say_they_read_them() {
     let f = fixture().await;
-    bound_watching(&f, &f.id).await;
+    bound_as(&f, &f.id, true).await;
     let player3 = viewer(&f.bridge, 40).await;
     add_staff(&f, &player3).await;
     admitted(&f, &f.id, &player3).await;
@@ -71,7 +71,7 @@ async fn watchers_are_named_when_both_fighters_say_they_read_them() {
 #[tokio::test]
 async fn a_fighter_that_stops_saying_it_reads_watchers_drops_them_from_the_binding() {
     let f = fixture().await;
-    bound_watching(&f, &f.id).await;
+    bound_as(&f, &f.id, true).await;
     let player3 = viewer(&f.bridge, 40).await;
     add_staff(&f, &player3).await;
     admitted(&f, &f.id, &player3).await;
@@ -100,7 +100,7 @@ async fn a_fighter_that_stops_saying_it_reads_watchers_drops_them_from_the_bindi
 #[tokio::test]
 async fn a_watcher_on_a_fighters_endpoint_is_not_named() {
     let f = fixture().await;
-    let before = bound_watching(&f, &f.id).await;
+    let before = bound_as(&f, &f.id, true).await;
     let player3 = viewer(&f.bridge, 40).await;
     add_staff(&f, &player3).await;
     for fighter in [&f.a, &f.b] {
@@ -122,12 +122,12 @@ async fn a_watcher_on_a_fighters_endpoint_is_not_named() {
 #[tokio::test]
 async fn a_fighter_reconnecting_on_a_watchers_endpoint_takes_it_from_the_watcher() {
     let f = fixture().await;
-    bound_watching(&f, &f.id).await;
+    bound_as(&f, &f.id, true).await;
     let player3 = viewer(&f.bridge, 40).await;
     add_staff(&f, &player3).await;
     admitted(&f, &f.id, &player3).await;
     let taken = endpoint(&player3);
-    let (status, back) = claim_watching(&f, &f.b, &f.id, &taken, BUILD).await;
+    let (status, back) = claim_as(&f, &f.b, &f.id, &taken, BUILD, true).await;
     let binding = verified_binding(&f, &status, &back).await;
     assert_eq!(binding["fighters"][1]["endpoint_id"], taken);
     assert!(binding.get("watchers").is_none(), "{binding}");
@@ -140,25 +140,13 @@ async fn a_fighter_reconnecting_on_a_watchers_endpoint_takes_it_from_the_watcher
 #[tokio::test]
 async fn a_watcher_who_becomes_a_fighter_is_no_longer_named() {
     let f = fixture().await;
-    bound_watching(&f, &f.id).await;
+    bound_as(&f, &f.id, true).await;
     let player3 = viewer(&f.bridge, 40).await;
     add_staff(&f, &player3).await;
     admitted(&f, &f.id, &player3).await;
     // The organizer's platform gives the second slot to the watcher.
-    let (id, who) = (f.id.clone(), player3.id().as_str().to_owned());
-    f.bridge
-        .state()
-        .db
-        .write(move |tx| {
-            tx.execute(
-                "UPDATE match_participants SET ember_id = ?1 WHERE match_id = ?2 AND slot = 1",
-                rusqlite::params![who, id],
-            )?;
-            Ok(())
-        })
-        .await
-        .unwrap();
-    let (status, claimed) = claim_watching(&f, &player3, &f.id, &endpoint(&player3), BUILD).await;
+    reassign_second_slot(&f, &player3).await;
+    let (status, claimed) = claim_as(&f, &player3, &f.id, &endpoint(&player3), BUILD, true).await;
     let binding = verified_binding(&f, &status, &claimed).await;
     assert_eq!(binding["fighters"][1]["ember_id"], player3.id().as_str());
     assert!(binding.get("watchers").is_none(), "{binding}");
@@ -172,7 +160,7 @@ async fn a_watcher_who_becomes_a_fighter_is_no_longer_named() {
 #[tokio::test]
 async fn a_returning_watcher_does_not_push_out_the_one_who_took_its_place() {
     let f = fixture().await;
-    bound_watching(&f, &f.id).await;
+    bound_as(&f, &f.id, true).await;
     open_to_link_holders(&f, true).await;
     let mut holders = vec![];
     for byte in 40..43 {
@@ -228,4 +216,51 @@ async fn organizer_changes_are_audited_with_who_they_name() {
             entry("watch.link_holders.set", "off"),
         ]
     );
+}
+
+/// The organizer's platform gives the match's second slot to `who`. The claim
+/// of the fighter it had stays in the table.
+async fn reassign_second_slot(f: &Match, who: &common::Player) {
+    let (id, who) = (f.id.clone(), who.id().as_str().to_owned());
+    f.bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "UPDATE match_participants SET ember_id = ?1 WHERE match_id = ?2 AND slot = 1",
+                rusqlite::params![who, id],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_reassigned_fighters_old_claim_does_not_turn_a_watcher_away() {
+    let f = fixture().await;
+    bound_as(&f, &f.id, true).await;
+    let (watcher, newcomer) = (viewer(&f.bridge, 40).await, viewer(&f.bridge, 41).await);
+    add_staff(&f, &watcher).await;
+    reassign_second_slot(&f, &newcomer).await;
+    let (status, claimed) = claim_as(&f, &newcomer, &f.id, &endpoint(&newcomer), BUILD, true).await;
+    verified_binding(&f, &status, &claimed).await;
+    // The first fighter's claim is still in the table, and says another build.
+    // The players now at the table are on the watcher's.
+    let (id, old) = (f.id.clone(), f.b.id().as_str().to_owned());
+    f.bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "UPDATE match_claims SET build_id = 'ember-old' WHERE match_id = ?1 AND ember_id = ?2",
+                rusqlite::params![id, old],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    admitted(&f, &f.id, &watcher).await;
+    let named = watchers(&binding_for(&f, &f.id, &f.a).await);
+    assert_eq!(named, [watcher.id().as_str()]);
 }
