@@ -41,3 +41,8 @@ jobs:
       # SF4E_DISCORD_SDK_ARCHIVE come from the runner's environment.
       - name: Build and test
         run: ./scripts/build-current.ps1
+      # The helper's rule for the in-game self-test's Ember folder is compiled
+      # only with the self-test feature, which the build above leaves out.
+      - name: Test the helper's self-test folder rule
+        working-directory: rust/sf4-net
+        run: cargo test --locked --lib --features selftest the_selftest_folder

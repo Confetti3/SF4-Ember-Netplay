@@ -10,7 +10,7 @@
 // closes itself at the end. Without the variable nothing here runs.
 namespace sf4e { namespace selftest {
 
-enum class Test { None, Training, RoomHost, RoomGuest, Replay };
+enum class Test { None, Training, RoomHost, RoomGuest, Replay, TournamentHost, TournamentGuest };
 
 // The test a name names; None for a name no test has. scripts/run-selftest.ps1
 // checks its -Test against the same names.
@@ -19,6 +19,8 @@ inline Test Parse(const std::wstring& name) {
 	if (name == L"room-host") return Test::RoomHost;
 	if (name == L"room-guest") return Test::RoomGuest;
 	if (name == L"replay") return Test::Replay;
+	if (name == L"tournament-host") return Test::TournamentHost;
+	if (name == L"tournament-guest") return Test::TournamentGuest;
 	return Test::None;
 }
 
@@ -30,10 +32,16 @@ Test Requested();
 // Game thread, once a runtime tick. screen: the native screen in front, empty
 // while it changes.
 void Tick(bool atMainMenu, const std::string& screen);
+// Game thread, each time the runtime reads the controller for a room's match
+// this PC fights in, after the read: a tournament test plays `side` itself,
+// and replaces the input it was given. The read is also made on a frame GGPO
+// then stalls and repeats, so a test counts reads, not frames.
+void MatchInput(int side, unsigned& mapped, unsigned& raw);
 #else
 // A build without the self-test (CMake option SF4E_SELFTEST) runs none.
 inline Test Requested() { return Test::None; }
 inline void Tick(bool, const std::string&) {}
+inline void MatchInput(int, unsigned&, unsigned&) {}
 #endif
 
 // A test runs: nobody sits in front of the game, so it runs on behind other
@@ -57,6 +65,9 @@ template <class Stage> struct Steps {
 	int waited = 0, held = 0;
 	void Enter(Stage next) { stage = next; waited = 0; held = 0; }
 	bool Late(int seconds) const { return waited > seconds * kSecond; }
+	// The first tick of the stage and every `seconds` after it: a waiting step
+	// sends again, since the runtime drops a command whose generation moved on.
+	bool Every(int seconds) const { return waited % (seconds * kSecond) == 1; }
 	// A failed step goes on at `otherwise`, or ends the run at Done.
 	void Fail(const std::string& step, const std::string& detail, Stage otherwise = Stage::Done) {
 		Say(false, step, detail);
@@ -79,6 +90,10 @@ void TickRoom();
 bool ReplayReady();
 bool StartReplay();
 void TickReplay(bool atMainMenu);
+
+// The tournament test (sf4e__SelfTest__Tournament.cxx), both of its sides.
+bool StartTournament();
+void TickTournament();
 
 // The cells the meter draws for one side, by kind.
 struct Cells { int startup = 0, active = 0, recovery = 0; };

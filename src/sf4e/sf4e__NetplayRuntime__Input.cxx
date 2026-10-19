@@ -3,6 +3,7 @@
 #include "sf4e__Gamepads.hxx"
 #include "sf4e__DirectInputFilter.hxx"
 #include "sf4e__Overlay.hxx"
+#include "sf4e__SelfTest.hxx"
 #include <ctime>
 #include "../ui/ButtonLayoutScreen.hxx"
 
@@ -285,6 +286,8 @@ bool ReadRuntimeMatchInput(int side,unsigned& mapped,unsigned& raw) {
     if(!runtime||!runtime->attached)return false;
     const bool valid=side==runtime->matchInputSide&&input::ReadAssignedInput(runtime->matchInput,side,mapped,raw);
     runtime->matchInputFault=!valid;
+    // The tournament self-test plays its own fighter; nothing without SF4E_SELFTEST.
+    selftest::MatchInput(side,mapped,raw);
     return valid;
 }
 
