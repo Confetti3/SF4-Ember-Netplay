@@ -21,6 +21,7 @@ pub(crate) struct Roster {
 #[derive(Default)]
 struct Known {
     accounts: HashMap<String, Vec<Account>>,
+    names: HashMap<String, String>,
     read_at: Option<u64>,
 }
 
@@ -52,13 +53,15 @@ impl Roster {
             .any(|id| old || !known.accounts.contains_key(id))
     }
 
-    /// Replaces what is known with a fresh read of the entries. Each of
+    /// Replaces what is known with a fresh read of the entries and the
+    /// names the site shows for them. Each of
     /// `asked` the read still lacks is kept as an entry with no accounts, so
     /// an ID the list never shows costs one read, not one on every read of
     /// the sets.
     pub fn replace<'a>(
         &self,
         mut accounts: HashMap<String, Vec<Account>>,
+        names: HashMap<String, String>,
         asked: impl IntoIterator<Item = &'a String>,
     ) {
         for id in asked {
@@ -66,6 +69,7 @@ impl Roster {
         }
         *self.known() = Known {
             accounts,
+            names,
             read_at: Some(self.clock.now()),
         };
     }
@@ -76,6 +80,7 @@ impl Roster {
         ids.map(|ids| {
             ids.clone().map(|id| Entry {
                 accounts: known.accounts.get(&id).cloned().unwrap_or_default(),
+                name: known.names.get(&id).cloned(),
                 participant_id: id,
             })
         })
@@ -100,7 +105,11 @@ mod tests {
         let ids = ["1".to_owned(), "2".to_owned()];
         assert!(roster.stale(&ids));
         // "2" is not on the list: it is known as having no accounts.
-        roster.replace(HashMap::from([("1".to_owned(), vec![account("u1")])]), &ids);
+        roster.replace(
+            HashMap::from([("1".to_owned(), vec![account("u1")])]),
+            HashMap::from([("1".to_owned(), "Kuro".to_owned())]),
+            &ids,
+        );
         assert!(!roster.stale(&ids));
         let [one, two] = roster.entries(Some(&ids)).unwrap();
         assert_eq!(
@@ -123,7 +132,7 @@ mod tests {
         let clock = Clock::frozen(1_000);
         let roster = Roster::new(clock.clone(), None);
         let ids = ["1".to_owned()];
-        roster.replace(HashMap::new(), &ids);
+        roster.replace(HashMap::new(), HashMap::new(), &ids);
         clock.advance(1_000_000);
         assert!(!roster.stale(&ids));
         assert!(roster.stale(&["2".to_owned()]));

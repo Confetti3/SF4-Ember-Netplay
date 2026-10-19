@@ -267,6 +267,7 @@ impl WireSet {
         }
         let entry = |wire: WireEntry| Entry {
             participant_id: wire.id,
+            name: None,
             accounts: wire.accounts.into_iter().map(Account::from).collect(),
         };
         Some(Set {

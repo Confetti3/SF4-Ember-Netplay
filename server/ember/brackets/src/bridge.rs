@@ -698,6 +698,7 @@ mod tests {
         };
         let entry = Entry {
             participant_id: "355".into(),
+            name: None,
             accounts: vec![site.clone(), discord.clone()],
         };
         let mut found = Found::default();
@@ -711,6 +712,7 @@ mod tests {
         );
         let none = Entry {
             participant_id: "354".into(),
+            name: None,
             accounts: Vec::new(),
         };
         assert!(found.player(&none).is_none());

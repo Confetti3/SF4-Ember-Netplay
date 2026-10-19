@@ -279,11 +279,18 @@ impl Startgg {
                 data.event.map(|event| event.entrants)
             })
             .await?;
+        let names: HashMap<String, String> = entrants
+            .iter()
+            .filter_map(|entrant| {
+                let name = entrant.name.as_ref().filter(|name| !name.is_empty())?;
+                Some((entrant.id.clone(), name.clone()))
+            })
+            .collect();
         let accounts: HashMap<String, Vec<Account>> = entrants
             .into_iter()
             .map(|entrant| entrant.accounts(&self.bridge_site))
             .collect();
-        self.roster.replace(accounts, asked.iter().copied());
+        self.roster.replace(accounts, names, asked.iter().copied());
         Ok(())
     }
 

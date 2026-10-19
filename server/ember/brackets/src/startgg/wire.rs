@@ -16,7 +16,7 @@ pub(super) const COMPLETED: i64 = 3;
 pub(super) const CALLED: i64 = 6;
 
 pub(super) const EVENT: &str = "query Event($slug: String) { event(slug: $slug) { id state } }";
-pub(super) const ENTRANTS: &str = "query Entrants($id: ID!, $page: Int!, $perPage: Int!) { event(id: $id) { entrants(query: {page: $page, perPage: $perPage}) { pageInfo { totalPages } nodes { id participants { user { id authorizations(types: [DISCORD]) { externalId } } } } } } }";
+pub(super) const ENTRANTS: &str = "query Entrants($id: ID!, $page: Int!, $perPage: Int!) { event(id: $id) { entrants(query: {page: $page, perPage: $perPage}) { pageInfo { totalPages } nodes { id name participants { user { id authorizations(types: [DISCORD]) { externalId } } } } } } }";
 /// The query for a page of open sets. `phaseGroup` and `stream` are asked
 /// only when a round rule names a phase or sets on a stream are held: each
 /// adds objects to the count of the 1000 start.gg allows a request.
@@ -107,6 +107,9 @@ pub(super) struct EntrantsEvent {
 pub(super) struct WireEntrant {
     #[serde(deserialize_with = "id")]
     pub(super) id: String,
+    /// The entrant's name: the gamer tag, with its sponsor prefix.
+    #[serde(default)]
+    pub(super) name: Option<String>,
     #[serde(default)]
     pub(super) participants: Vec<WireParticipant>,
 }
@@ -538,6 +541,11 @@ mod tests {
                 },
             ]
         );
+        // Its name, as the bracket shows it, comes in the same read.
+        let named: WireEntrant =
+            serde_json::from_value(json!({ "id": 1, "name": "ZZ | Kuro" })).unwrap();
+        assert_eq!(named.name.as_deref(), Some("ZZ | Kuro"));
+        assert!(ENTRANTS.contains("nodes { id name participants"));
         // No start.gg account behind it, or a team: nobody to find.
         assert!(
             entrant(json!({ "id": 1, "participants": [{ "user": null }] }))

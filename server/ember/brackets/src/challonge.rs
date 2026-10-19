@@ -205,6 +205,18 @@ impl Challonge {
     ) -> Result<(), SiteError> {
         let participants: Vec<Resource<ParticipantAttributes>> =
             self.list(priority, "/participants.json").await?;
+        // The name the bracket shows, else the username.
+        let names: HashMap<String, String> = participants
+            .iter()
+            .filter_map(|participant| {
+                let attributes = &participant.attributes;
+                let name = attributes.name.as_ref().or(attributes.username.as_ref());
+                Some((
+                    participant.id.clone(),
+                    name.filter(|name| !name.is_empty())?.clone(),
+                ))
+            })
+            .collect();
         let accounts: HashMap<String, Vec<Account>> = participants
             .into_iter()
             .map(|participant| {
@@ -219,7 +231,7 @@ impl Challonge {
                 (participant.id, account.into_iter().collect())
             })
             .collect();
-        self.roster.replace(accounts, asked.iter().copied());
+        self.roster.replace(accounts, names, asked.iter().copied());
         Ok(())
     }
 
@@ -492,6 +504,8 @@ struct TournamentAttributes {
 
 #[derive(Deserialize)]
 struct ParticipantAttributes {
+    #[serde(default)]
+    name: Option<String>,
     #[serde(default)]
     username: Option<String>,
 }

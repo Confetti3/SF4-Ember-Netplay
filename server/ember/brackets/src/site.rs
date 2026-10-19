@@ -173,6 +173,8 @@ pub enum Status {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Entry {
     pub participant_id: String,
+    /// The name the site shows for the entry, when it gives one.
+    pub name: Option<String>,
     /// The accounts behind the entry, the one to try first first: its site
     /// account, then a linked Discord account.
     pub accounts: Vec<Account>,

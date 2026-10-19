@@ -187,4 +187,18 @@ async fn a_set_held_from_the_desk_is_not_played() {
     let (status, set) = public_set(&world).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(set["desk_state"], "held");
+    // No Ember match yet: the players are the names the site shows, and
+    // the public view carries none of the site's IDs.
+    let players = set["players"].as_array().unwrap();
+    assert_eq!(players.len(), 2);
+    assert!(
+        players
+            .iter()
+            .all(|name| name.as_str().is_some_and(|name| name.starts_with("Entry "))),
+        "{set}"
+    );
+    assert!(
+        set.get("entries").is_none() && set.get("names").is_none(),
+        "{set}"
+    );
 }

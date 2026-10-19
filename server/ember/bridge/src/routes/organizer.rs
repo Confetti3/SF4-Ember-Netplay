@@ -1244,9 +1244,10 @@ pub async fn adjudicate(
 }
 
 /// A kept snapshot's sets with what the bridge knows of each one's Ember
-/// match: score, players (by their account on the event's site, and their
-/// Ember IDs when `with_ids`), the round its metadata names when the
-/// snapshot has none, and the desk state.
+/// match: score, players (by their account on the event's site, else the
+/// name the site shows for the entry; their Ember IDs when `with_ids`), the
+/// round its metadata names when the snapshot has none, and the desk state.
+/// Without `with_ids` no ID of the site's or Ember's is left in a set.
 fn desk_sets(
     tx: &Transaction<'_>,
     event: &str,
@@ -1278,6 +1279,12 @@ fn desk_sets(
                 Some(match_id) => desk_match(tx, match_id, site)?,
                 None => None,
             };
+            // The site's names, each replaced by the player's account
+            // name once the set has an Ember match.
+            let mut players = match set["names"].take() {
+                Value::Array(names) => names,
+                _ => vec![Value::Null; 2],
+            };
             if let Some(found) = &found {
                 for key in ["round_label", "round", "phase"] {
                     if set[key].is_null() {
@@ -1285,7 +1292,11 @@ fn desk_sets(
                     }
                 }
                 set["score"] = json!(found.wins);
-                set["players"] = json!(found.names);
+                for (slot, name) in found.names.iter().enumerate() {
+                    if let (Some(name), Some(player)) = (name, players.get_mut(slot)) {
+                        *player = json!(name);
+                    }
+                }
                 if with_ids {
                     set["ember_ids"] = json!(found.ember_ids);
                     // What a decision from the desk names as its
@@ -1294,10 +1305,15 @@ fn desk_sets(
                     set["games"] = json!(found.games);
                 }
             }
+            if let Some(set) = set.as_object_mut() {
+                set.remove("names");
+            }
+            set["players"] = json!(players);
             set["side"] = json!(side(&set));
             set["desk_state"] = json!(desk_state(&set, found.as_ref().map(|f| f.state.as_str())));
-            if !with_ids {
-                set.as_object_mut().map(|set| set.remove("match_id"));
+            if !with_ids && let Some(set) = set.as_object_mut() {
+                set.remove("match_id");
+                set.remove("entries");
             }
             Ok(set)
         })

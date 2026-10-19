@@ -42,6 +42,7 @@ impl Bracket {
                     "round_label": set.round_label,
                     "phase": set.extras.phase.as_ref().map(ToString::to_string),
                     "entries": set.entry_ids(),
+                    "names": set.entries.as_ref().map(|entries| entries.each_ref().map(|entry| entry.name.as_deref())),
                     "status": status,
                     "winner": set.winner,
                     "held": self.held(set).is_some(),
