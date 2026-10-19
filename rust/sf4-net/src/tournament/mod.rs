@@ -11,6 +11,7 @@ mod builtin;
 mod client;
 mod discord;
 mod play;
+mod replays;
 mod rooms;
 mod sign_in;
 mod sites;
@@ -201,6 +202,20 @@ pub enum Request {
     MatchLeave {
         match_id: String,
     },
+    /// An archived replay of a set's game with a confirmed result, played
+    /// under room binding revision `revision`.
+    ReplaySend {
+        bridge_id: String,
+        match_id: String,
+        revision: Counter,
+        path: String,
+    },
+    /// The set's pack, written to `path`.
+    ReplayPack {
+        bridge_id: String,
+        match_id: String,
+        path: String,
+    },
 }
 
 impl Request {
@@ -238,6 +253,8 @@ impl Request {
             Self::GamePrepare { .. } => "game_prepare",
             Self::GameReport { .. } => "game_report",
             Self::MatchLeave { .. } => "match_leave",
+            Self::ReplaySend { .. } => "replay_send",
+            Self::ReplayPack { .. } => "replay_pack",
         }
     }
 
@@ -528,6 +545,11 @@ fn check_path(path: &str) -> Result<&Path, Failure> {
 }
 
 fn read_backup(path: &str) -> Result<Zeroizing<Vec<u8>>, Failure> {
+    read_file(path, MAX_BACKUP_FILE)
+}
+
+/// The file at `path`, refused above `max` bytes.
+fn read_file(path: &str, max: usize) -> Result<Zeroizing<Vec<u8>>, Failure> {
     use std::io::Read;
     let path = check_path(path)?;
     let file = std::fs::File::open(path).map_err(|_| Failure::new("file_unreadable"))?;
@@ -535,12 +557,12 @@ fn read_backup(path: &str) -> Result<Zeroizing<Vec<u8>>, Failure> {
         .metadata()
         .map_err(|_| Failure::new("file_unreadable"))?
         .len()
-        > MAX_BACKUP_FILE as u64
+        > max as u64
     {
         return Err(Failure::new("corrupt"));
     }
     let mut bytes = Zeroizing::new(Vec::new());
-    file.take(MAX_BACKUP_FILE as u64 + 1)
+    file.take(max as u64 + 1)
         .read_to_end(&mut bytes)
         .map_err(|_| Failure::new("file_unreadable"))?;
     Ok(bytes)
@@ -772,6 +794,17 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             .await
         }
         Request::MatchLeave { match_id } => play::forget(shared, &match_id),
+        Request::ReplaySend {
+            bridge_id,
+            match_id,
+            revision,
+            path,
+        } => replays::send(shared, &bridge_id, &match_id, revision.0, &path).await,
+        Request::ReplayPack {
+            bridge_id,
+            match_id,
+            path,
+        } => replays::pack(shared, &bridge_id, &match_id, &path).await,
         _ => Err(Failure::new("invalid_request")),
     }
 }

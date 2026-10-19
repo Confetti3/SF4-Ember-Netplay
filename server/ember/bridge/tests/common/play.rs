@@ -279,7 +279,7 @@ pub async fn send_replay(
     replay: &[u8],
     revision: u64,
 ) -> StatusCode {
-    let crc = ember_protocol::replays::crc_name(replay);
+    let crc = ember_protocol::replays::crc_name(replay).unwrap();
     f.bridge()
         .client
         .put(f.bridge().url(&format!(

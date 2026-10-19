@@ -39,7 +39,10 @@ async fn sign_in_sites_through_the_helper() {
     assert_eq!(listed[1]["id"], "startgg");
     assert_eq!(listed[1]["display_name"], "start.gg");
     assert_eq!(listed[1]["authorize_origin"], pages);
-    let bridge_id = inspected["profile"]["bridge_id"].as_str().unwrap().to_owned();
+    let bridge_id = inspected["profile"]["bridge_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     let (ok, reason, _, _) = worker
         .ask(json!({ "op": "bridge_approve", "origin": origin, "bridge_id": bridge_id }))
         .await;
@@ -658,5 +661,36 @@ async fn play_a_set_through_two_helpers() {
         .await;
     assert!(!ok);
     assert_eq!(reason.as_deref(), Some("unknown_permit"));
+
+    // Both fighters' games send each game's replay; the set keeps one of
+    // each, and either fighter saves the set's pack.
+    for n in [1u8, 2] {
+        let path = dirs.0.join(format!("game-{n}.emberreplay"));
+        std::fs::write(
+            &path,
+            ember_protocol::replays::wrap(&[n; 64], 1_800_000_000 + u32::from(n)),
+        )
+        .unwrap();
+        for (worker, kept) in [(&mut host, true), (&mut guest, false)] {
+            let (ok, reason, _, sent) = worker
+                .ask(json!({ "op": "replay_send", "bridge_id": bridge_id, "match_id": match_id, "revision": "1", "path": path }))
+                .await;
+            assert!(ok, "{reason:?}");
+            assert_eq!(sent["kept"], kept);
+        }
+    }
+    let torn = dirs.0.join("torn.emberreplay");
+    std::fs::write(&torn, b"EMBRPLY1").unwrap();
+    let (ok, reason, _, _) = host
+        .ask(json!({ "op": "replay_send", "bridge_id": bridge_id, "match_id": match_id, "revision": "1", "path": torn }))
+        .await;
+    assert_eq!((ok, reason.as_deref()), (false, Some("invalid_replay")));
+    let pack = dirs.0.join("set.emberpack");
+    let (ok, reason, _, _) = guest
+        .ask(json!({ "op": "replay_pack", "bridge_id": bridge_id, "match_id": match_id, "path": pack }))
+        .await;
+    assert!(ok, "{reason:?}");
+    let bytes = std::fs::read(&pack).unwrap();
+    assert_eq!(&bytes[..8], ember_protocol::replays::PACK_MAGIC);
     running.abort();
 }

@@ -118,6 +118,43 @@ impl Client {
         body: Option<Vec<u8>>,
         timeout: Option<Duration>,
     ) -> Result<(u16, Vec<u8>), Failure> {
+        self.send(
+            method,
+            url,
+            token,
+            body,
+            "application/json",
+            MAX_RESPONSE,
+            timeout,
+        )
+        .await
+    }
+
+    /// `call` with a body of `content_type` and at most `max` bytes back.
+    pub(super) async fn call_bounded(
+        &self,
+        method: reqwest::Method,
+        url: &str,
+        token: Option<&str>,
+        body: Option<Vec<u8>>,
+        content_type: &str,
+        max: usize,
+    ) -> Result<(u16, Vec<u8>), Failure> {
+        self.send(method, url, token, body, content_type, max, None)
+            .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn send(
+        &self,
+        method: reqwest::Method,
+        url: &str,
+        token: Option<&str>,
+        body: Option<Vec<u8>>,
+        content_type: &str,
+        max: usize,
+        timeout: Option<Duration>,
+    ) -> Result<(u16, Vec<u8>), Failure> {
         let http = self.http.as_ref().ok_or_else(unreachable)?;
         let mut request = http.request(method, url);
         if let Some(timeout) = timeout {
@@ -127,15 +164,13 @@ impl Client {
             request = request.bearer_auth(token);
         }
         if let Some(body) = body {
-            request = request
-                .header("content-type", "application/json")
-                .body(body);
+            request = request.header("content-type", content_type).body(body);
         }
         let mut response = request.send().await.map_err(|_| unreachable())?;
         let status = response.status().as_u16();
         let mut bytes = Vec::new();
         while let Some(chunk) = response.chunk().await.map_err(|_| unreachable())? {
-            if bytes.len() + chunk.len() > MAX_RESPONSE {
+            if bytes.len() + chunk.len() > max {
                 return Err(Failure::new("bridge_response_too_large"));
             }
             bytes.extend_from_slice(&chunk);

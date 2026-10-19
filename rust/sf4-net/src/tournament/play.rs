@@ -35,7 +35,7 @@ pub struct State {
     reads_ready: HashSet<String>,
 }
 
-fn check_match_id(match_id: &str) -> Result<(), Failure> {
+pub(super) fn check_match_id(match_id: &str) -> Result<(), Failure> {
     if is_prefixed_id(match_id, "emt") {
         Ok(())
     } else {

@@ -25,9 +25,10 @@ pub fn crc32(bytes: &[u8]) -> u32 {
     })
 }
 
-/// The replay's CRC as its file name and the bridge's path write it.
-pub fn crc_name(replay: &[u8]) -> String {
-    format!("{:08x}", u32_at(replay, 8 + 5))
+/// The CRC an `.emberreplay`'s record names, as its file name and the
+/// bridge's path write it; none for a file too short to hold a replay.
+pub fn crc_name(replay: &[u8]) -> Option<String> {
+    (replay.len() > HEAD).then(|| format!("{:08x}", u32_at(replay, 8 + 5)))
 }
 
 /// The save time (unix seconds) of a whole `.emberreplay` whose record and
@@ -67,7 +68,7 @@ mod tests {
     #[test]
     fn only_a_whole_replay_with_its_crc_reads() {
         let replay = wrap(b"a game", 1_800_000_000);
-        let crc = crc_name(&replay);
+        let crc = crc_name(&replay).unwrap();
         assert_eq!(saved_at(&crc, &replay), Some(1_800_000_000));
         assert_eq!(saved_at(&crc.to_uppercase(), &replay), None);
         assert_eq!(saved_at("00000000", &replay), None);
@@ -75,5 +76,6 @@ mod tests {
         *changed.last_mut().unwrap() ^= 1;
         assert_eq!(saved_at(&crc, &changed), None);
         assert_eq!(saved_at(&crc, &replay[..HEAD]), None);
+        assert_eq!(crc_name(&replay[..HEAD]), None);
     }
 }
