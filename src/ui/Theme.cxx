@@ -159,9 +159,9 @@ void NoteUserText(const std::string& utf8, UserTextRole role) {
     }
 }
 void SetAtlasBuildLog(std::function<void(const char*)> log) { atlasBuildLog = std::move(log); }
-bool ApplyTheme(float dpiScale, float interfaceScale) {
+bool ApplyTheme(float displayScale, float interfaceScale) {
     interfaceSize = interfaceScale;
-    dpiScale = (std::max)(1.f, (std::min)(dpiScale * interfaceScale, 3.f));
+    const float scale = (std::max)(1.f, (std::min)(displayScale * interfaceScale, 3.f));
     auto& io = ImGui::GetIO();
     const auto catalog = CatalogInAtlas(loc::Active());
     // Font configuration survives device resets; texture ownership stays with DX9.
@@ -173,7 +173,7 @@ bool ApplyTheme(float dpiScale, float interfaceScale) {
     const bool userGlyphsDue = userGlyphsAdded && (!userGlyphBuildSeen || now - lastUserGlyphBuild >= rebuildInterval);
     if (io.Fonts->Fonts.Size == 3 &&
         std::fabs(io.Fonts->Fonts[0]->FontSize - BodySize) < .01f &&
-        std::fabs(io.FontGlobalScale - dpiScale) < .001f && atlasCatalog == catalog && !userGlyphsDue)
+        std::fabs(io.FontGlobalScale - scale) < .001f && atlasCatalog == catalog && !userGlyphsDue)
         return false;
     io.FontDefault = nullptr;
     io.Fonts->Clear();
@@ -196,8 +196,8 @@ bool ApplyTheme(float dpiScale, float interfaceScale) {
         config.FontDataOwnedByAtlas = false;
         config.GlyphRanges = UiGlyphRanges;
         // Keep logical sizes integral: ImGui 1.91 truncates SizePixels. Baking at
-        // display density then scaling metrics preserves fractional Windows DPI.
-        config.RasterizerDensity = i == 2 ? (std::max)(3.5f,dpiScale) : dpiScale;
+        // display density then scaling metrics preserves fractional display scales.
+        config.RasterizerDensity = i == 2 ? (std::max)(3.5f,scale) : scale;
         // ImGui stores an oversampled glyph at the oversampled size, so 3x2 costs
         // six times the atlas area. A font baked at two texels or more per logical
         // pixel (the diagnostic font always, body text from 200%) has the
@@ -208,7 +208,7 @@ bool ApplyTheme(float dpiScale, float interfaceScale) {
         const auto* data = i == 1 ? fonts::Heading : fonts::Body;
         const int bytes = static_cast<int>(i == 1 ? sizeof(fonts::Heading) : sizeof(fonts::Body));
         std::snprintf(config.Name, sizeof(config.Name), "%s %.0fpx",
-            i == 1 ? "Inter SemiBold" : "Inter Regular", sizes[i]*dpiScale);
+            i == 1 ? "Inter SemiBold" : "Inter Regular", sizes[i]*scale);
         io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(data), bytes, sizes[i], &config);
         for (const auto font : mergeOrder) {
             ImFontConfig merged;
@@ -232,11 +232,11 @@ bool ApplyTheme(float dpiScale, float interfaceScale) {
             const float mergedSize = sizes[i] * fit;
             merged.GlyphOffset.y = 0;
             merged.RasterizerDensity = i == 2 ? (std::min)(config.RasterizerDensity, 2.f) : config.RasterizerDensity;
-            std::snprintf(merged.Name, sizeof(merged.Name), "Noto Sans CJK %.0fpx", mergedSize*dpiScale);
+            std::snprintf(merged.Name, sizeof(merged.Name), "Noto Sans CJK %.0fpx", mergedSize*scale);
             io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(source.data), static_cast<int>(source.bytes), mergedSize, &merged);
         }
     }
-    io.FontGlobalScale = dpiScale;
+    io.FontGlobalScale = scale;
     io.FontDefault = io.Fonts->Fonts[0];
     const int markIndex = io.Fonts->AddCustomRectRegular(brand::Size, brand::Size);
     IM_ASSERT(markIndex == 0); // Clear above makes this the first custom rectangle.
@@ -320,7 +320,7 @@ bool ApplyTheme(float dpiScale, float interfaceScale) {
     c[ImGuiCol_PlotHistogram] = Color(Ember);
     c[ImGuiCol_PlotLinesHovered] = c[ImGuiCol_PlotHistogramHovered] = Color(0xFFB16F);
     c[ImGuiCol_DragDropTarget] = Color(Ember);
-    style.ScaleAllSizes(dpiScale);
+    style.ScaleAllSizes(scale);
     ImGui::GetStyle() = style;
     return true;
 }

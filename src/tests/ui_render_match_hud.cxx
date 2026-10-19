@@ -140,7 +140,7 @@ void CheckMatchHudTopCenter(){
 bool MatchHudShotCaptured(const char* shot,int w,int h,float dpi){
     const std::string name=shot?shot:"";
     return (name=="match-hud"||name=="match-hud-split")&&((w==1280&&h==720&&dpi==1)||
-            (w==1920&&h==1080&&dpi==1)||(w==2560&&h==1440)||(w==3440&&h==1440)||(w==3840&&h==2160&&dpi==1))||
+            (w==1920&&h==1080&&dpi==1)||(w==2560&&h==1440)||(w==3440&&h==1440)||(w==3840&&h==2160&&dpi==2))||
         (w==1920&&h==1080&&dpi==1&&
             (name=="match-hud-size-0"||name=="match-hud-size-2"||name=="match-hud-raised"||name=="match-hud-long"||
              name=="match-hud-unavailable"||name=="match-hud-spectator"||name=="match-hud-reset"||

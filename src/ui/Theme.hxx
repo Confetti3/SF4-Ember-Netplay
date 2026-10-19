@@ -41,9 +41,10 @@ constexpr float WatchedPictureShare = .25f;
 inline ImVec4 BoardPanelColor(bool seeThrough) { return ImVec4(.08f,.075f,.07f,seeThrough ? .6f : .84f); }
 
 // Call between frames. A true result requires backend font texture recreation.
-// Text is drawn at Windows' DPI scale for the window times the player's
-// Interface size (Scale()).
-bool ApplyTheme(float dpiScale, float interfaceScale = 1.f);
+// Text is drawn at `displayScale` times the player's Interface size (Scale()):
+// over the game the larger of Windows' DPI scale and the picture's height over
+// 1080 lines, in the recovery window Windows' DPI scale alone.
+bool ApplyTheme(float displayScale, float interfaceScale = 1.f);
 // What player text is, from most to least worth atlas space when more distinct
 // characters are on screen than the atlas can hold.
 enum class UserTextRole { Name, Chat, Draft };
@@ -73,7 +74,7 @@ void SetAtlasBuildLog(std::function<void(const char*)> log);
 void SetUserGlyphRetention(std::chrono::milliseconds retention);
 float Scale();
 // The player's Interface size alone, for what is laid out in the game's
-// pixels and so leaves Windows' DPI out (the training HUD).
+// pixels and so leaves the display scale out (the training HUD).
 float InterfaceScale();
 ImFont* HeadingFont();
 ImFont* DiagnosticFont();
