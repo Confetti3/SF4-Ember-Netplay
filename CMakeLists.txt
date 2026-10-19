@@ -494,7 +494,7 @@ endif()
 # selftest::Running is false and nothing of the test is built.
 option(SF4E_SELFTEST "Build the in-game self-test" OFF)
 if(SF4E_SELFTEST)
-    target_sources(sf4e PRIVATE "src/sf4e/sf4e__SelfTest.cxx" "src/sf4e/sf4e__SelfTest__Training.cxx" "src/sf4e/sf4e__SelfTest__Room.cxx")
+    target_sources(sf4e PRIVATE "src/sf4e/sf4e__SelfTest.cxx" "src/sf4e/sf4e__SelfTest__Training.cxx" "src/sf4e/sf4e__SelfTest__Room.cxx" "src/sf4e/sf4e__SelfTest__Replay.cxx")
     target_compile_definitions(sf4e PRIVATE SF4E_SELFTEST=1)
 endif()
 target_link_libraries(sf4e PRIVATE sf4e_steam sf4e_custom_content_files sf4e_replay_files sf4e_video_capture sf4e_netplay_core sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization)

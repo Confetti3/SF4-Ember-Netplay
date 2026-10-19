@@ -8,11 +8,12 @@
 # Enter key, and gives it back; the rest runs behind other windows. Do not
 # type during those seconds. The saves are copied to
 # %APPDATA%\sf4e\selftest-backups before each run. The training test plays
-# an offline battle and writes nothing to them.
+# an offline battle and writes nothing to them; the replay test imports a
+# replay into them as the Replays screen does.
 param(
     [string]$PackageDir = "",
     # The names sf4e__SelfTest.hxx knows (selftest::Test).
-    [ValidateSet("training", "room-host", "room-guest")]
+    [ValidateSet("training", "room-host", "room-guest", "replay")]
     [string]$Test = "training",
     # The room tests: the file the host writes its invitation to, and the
     # guest reads it from once the runner has copied it across.
