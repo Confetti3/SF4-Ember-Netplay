@@ -33,8 +33,14 @@ pub fn account_path(site: &str) -> String {
     format!("{PREFIX}{site}")
 }
 
+/// `POST` starts an organizer sign-in, `DELETE` drops its grant, `GET`
+/// reads it (docs/design/TOURNAMENT_DESK.md).
+pub fn organize_path(site: &str) -> String {
+    format!("{PREFIX}{site}/organize")
+}
+
 /// The site a site path names, if `path` is that site's path ending in
-/// `suffix` (`/start`, or empty for the account).
+/// `suffix` (`/start`, `/organize`, or empty for the account).
 pub fn site_of(path: &str, suffix: &str) -> Option<String> {
     path.strip_prefix(PREFIX)?
         .strip_suffix(suffix)

@@ -55,6 +55,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
         include_str!("../migrations/026_blumint_refused_keys_dropped.sql"),
     ),
     (27, include_str!("../migrations/027_sign_in_sites.sql")),
+    (29, include_str!("../migrations/029_organizer_grants.sql")),
 ];
 
 #[derive(Clone)]
@@ -182,7 +183,14 @@ mod tests {
             .unwrap()
             .collect::<rusqlite::Result<_>>()
             .unwrap();
-        assert_eq!(versions, (1..=MIGRATIONS.len() as i64).collect::<Vec<_>>());
+        // 28 is match watch's, on its own branch.
+        assert_eq!(
+            versions,
+            MIGRATIONS
+                .iter()
+                .map(|(version, _)| *version)
+                .collect::<Vec<_>>()
+        );
     }
 
     #[test]

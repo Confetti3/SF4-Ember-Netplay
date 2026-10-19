@@ -20,6 +20,7 @@ pub fn insert(
     hash: &[u8; 32],
     ember_id: &str,
     expires_at: u64,
+    organizer: bool,
 ) -> Result<()> {
     match site {
         Site::Discord => tx.execute(
@@ -27,24 +28,29 @@ pub fn insert(
             params![hash.as_slice(), ember_id, expires_at],
         )?,
         Site::Configured(id) => tx.execute(
-            "INSERT INTO site_sign_ins (site, state_hash, ember_id, expires_at) VALUES (?1, ?2, ?3, ?4)",
-            params![id, hash.as_slice(), ember_id, expires_at],
+            "INSERT INTO site_sign_ins (site, state_hash, ember_id, expires_at, organizer)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![id, hash.as_slice(), ember_id, expires_at, organizer],
         )?,
     };
     Ok(())
 }
 
-/// Claims the sign-in `hash` names for the first answer that arrives for it,
-/// and says whether this was that answer.
-pub fn claim(tx: &Transaction<'_>, site: &Site, hash: &[u8; 32], now: u64) -> Result<bool> {
+/// Claims the sign-in `hash` names for the first answer that arrives for it.
+/// When this was that answer, whether it is an organizer sign-in.
+pub fn claim(tx: &Transaction<'_>, site: &Site, hash: &[u8; 32], now: u64) -> Result<Option<bool>> {
     let (table, scope) = site.scope(SIGN_INS);
-    Ok(tx.execute(
-        &format!(
-            "UPDATE {table} SET claimed = 1
-             WHERE {scope}state_hash = :hash AND expires_at > :now AND claimed = 0"
-        ),
-        &*site.bind(named_params! { ":hash": hash.as_slice(), ":now": now }),
-    )? == 1)
+    Ok(tx
+        .query_row(
+            &format!(
+                "UPDATE {table} SET claimed = 1
+                 WHERE {scope}state_hash = :hash AND expires_at > :now AND claimed = 0
+                 RETURNING organizer"
+            ),
+            &*site.bind(named_params! { ":hash": hash.as_slice(), ":now": now }),
+            |row| row.get(0),
+        )
+        .optional()?)
 }
 
 /// The Ember ID that started the claimed sign-in `hash` names, while it is
@@ -75,6 +81,9 @@ pub struct Question {
     pub user_id: String,
     pub username: String,
     pub owner: Option<String>,
+    /// An organizer sign-in's sealed grant, stored once the account is
+    /// the Ember ID's.
+    pub grant: Option<Vec<u8>>,
 }
 
 /// Turns the claimed sign-in `hash` names into the page's question, keyed by
@@ -90,7 +99,7 @@ pub fn ask(
     tx.execute(
         &format!(
             "UPDATE {table} SET state_hash = :secret, pending_user_id = :user_id,
-               pending_username = :username, pending_owner = :owner
+               pending_username = :username, pending_owner = :owner, pending_grant = :grant
              WHERE {scope}state_hash = :hash"
         ),
         &*site.bind(named_params! { ":hash": hash.as_slice(),
@@ -98,6 +107,7 @@ pub fn ask(
             ":user_id": question.user_id,
             ":username": question.username,
             ":owner": question.owner,
+            ":grant": question.grant,
         }),
     )?;
     Ok(())
@@ -139,7 +149,8 @@ pub fn take_question(
                 "DELETE FROM {table}
                  WHERE {scope}state_hash = :secret AND expires_at > :now AND claimed = 1
                    AND pending_user_id IS NOT NULL
-                 RETURNING ember_id, pending_user_id, pending_username, pending_owner"
+                 RETURNING ember_id, pending_user_id, pending_username, pending_owner,
+                   pending_grant"
             ),
             &*site.bind(named_params! { ":secret": secret.as_slice(), ":now": now }),
             |row| {
@@ -148,6 +159,7 @@ pub fn take_question(
                     user_id: row.get(1)?,
                     username: row.get(2)?,
                     owner: row.get(3)?,
+                    grant: row.get(4)?,
                 })
             },
         )

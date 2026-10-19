@@ -29,5 +29,8 @@
     "monthly_request_budget": 400,
     "daily_request_budget": 40,
     "starts_per_hour": 30
+  },
+  "organizer": {
+    "scope": "me tournaments:read matches:read matches:write participants:read"
   }
 }

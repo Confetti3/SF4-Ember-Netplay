@@ -37,6 +37,10 @@ pub enum Step {
     Cancel,
     /// `DELETE <account>`.
     Remove,
+    /// `POST <organize>`: an organizer sign-in.
+    Organize,
+    /// `DELETE <organize>`: drops the organizer grant, keeps the account.
+    Withdraw,
 }
 
 impl Site {
@@ -61,6 +65,11 @@ impl Site {
         }
     }
 
+    /// Where an organizer sign-in starts; Discord offers none.
+    pub fn organize_path(&self) -> String {
+        sites::organize_path(self.id())
+    }
+
     /// The action, method and path a proof for `step` names.
     pub fn target(&self, step: Step) -> (Action, ProofMethod, String) {
         // Discord's action, a configured site's, the method and the path.
@@ -82,6 +91,19 @@ impl Site {
                 Action::SiteRemove,
                 ProofMethod::Delete,
                 self.account_path(),
+            ),
+            // The connect and remove actions, told apart by their path.
+            Step::Organize => (
+                Action::DiscordConnect,
+                Action::SiteConnect,
+                ProofMethod::Post,
+                self.organize_path(),
+            ),
+            Step::Withdraw => (
+                Action::DiscordRemove,
+                Action::SiteRemove,
+                ProofMethod::Delete,
+                self.organize_path(),
             ),
         };
         let action = if *self == Self::Discord {
@@ -125,6 +147,8 @@ pub struct OAuth {
     /// Parameters the authorize page takes beyond the standard ones.
     authorize_params: Vec<(String, String)>,
     token_url: String,
+    /// Where a refresh token is exchanged.
+    refresh_url: String,
     token_encoding: Encoding,
     /// Fields the token request carries beyond the standard ones.
     token_params: Vec<(String, String)>,
@@ -165,6 +189,14 @@ pub struct User {
     pub username: String,
 }
 
+/// The tokens a code or refresh token was exchanged for.
+pub struct Tokens {
+    pub access: Zeroizing<String>,
+    pub refresh: Option<Zeroizing<String>>,
+    /// How long the access token lasts, when the site says.
+    pub expires_in: Option<u64>,
+}
+
 /// What the user endpoint said.
 pub enum SignedIn {
     User(User),
@@ -191,6 +223,7 @@ impl OAuth {
                     // Ember before, so the player sees which account it is.
                     authorize_params: vec![("prompt".into(), "consent".into())],
                     token_url: format!("{}/oauth2/token", discord.api_base),
+                    refresh_url: format!("{}/oauth2/token", discord.api_base),
                     token_encoding: Encoding::Form,
                     token_params: Vec::new(),
                     client_id: discord.client_id.clone(),
@@ -218,6 +251,7 @@ impl OAuth {
                     authorize_url: site.authorize_url.clone(),
                     authorize_params: pairs(&site.authorize_params),
                     token_url: site.token_url.clone(),
+                    refresh_url: site.token_url.clone(),
                     token_encoding: site.token_encoding,
                     token_params: pairs(&site.token_params),
                     client_id: site.client_id.clone(),
@@ -239,6 +273,31 @@ impl OAuth {
                 })
             }
         }
+    }
+
+    /// The scopes the sign-in asks for.
+    pub fn scope(&self) -> &str {
+        &self.scope
+    }
+
+    /// The site's organizer sign-in, when its definition offers one: its
+    /// organizer scope in place of `scope`, in the token request too.
+    pub fn organizer(state: &AppState, site: &Site) -> Option<Self> {
+        let Site::Configured(id) = site else {
+            return None;
+        };
+        let organizer = state.config.sign_in_site(id)?.organizer.as_ref()?;
+        let mut oauth = Self::of(state, site)?;
+        oauth.scope = organizer.scope.clone();
+        for (name, value) in &mut oauth.token_params {
+            if name == "scope" {
+                *value = organizer.scope.clone();
+            }
+        }
+        if let Some(url) = &organizer.refresh_url {
+            oauth.refresh_url = url.clone();
+        }
+        Some(oauth)
     }
 
     /// The form lookups by username match `username` in, for a configured
@@ -277,57 +336,21 @@ impl OAuth {
     }
 
     /// Exchanges the code and reads who signed in, or None on any failure.
-    /// The token is dropped here.
-    pub async fn user(&self, redirect_uri: &str, code: &str) -> Option<SignedIn> {
-        #[derive(Deserialize)]
-        struct Token {
-            access_token: String,
-        }
+    /// The tokens come back too; a player sign-in drops them.
+    pub async fn user(&self, redirect_uri: &str, code: &str) -> Option<(SignedIn, Tokens)> {
         let client = outbound_client().build().ok()?;
-        let fields = [
-            ("grant_type", "authorization_code"),
-            ("code", code),
-            ("redirect_uri", redirect_uri),
-            ("client_id", self.client_id.as_str()),
-            ("client_secret", self.client_secret.as_str()),
-        ];
-        let fields = fields.into_iter().chain(
-            self.token_params
-                .iter()
-                .map(|(name, value)| (name.as_str(), value.as_str())),
-        );
-        // The body carries the client secret and the code. It goes to the
-        // request by value, without a copy left behind here.
-        let (content_type, body) = match self.token_encoding {
-            Encoding::Form => (
-                "application/x-www-form-urlencoded",
-                url::form_urlencoded::Serializer::new(String::new())
-                    .extend_pairs(fields)
-                    .finish(),
-            ),
-            Encoding::Json => (
-                "application/json",
-                serde_json::to_string(
-                    &fields
-                        .map(|(name, value)| (name.to_owned(), Value::from(value)))
-                        .collect::<serde_json::Map<String, Value>>(),
-                )
-                .ok()?,
-            ),
-        };
-        let response = client
-            .post(&self.token_url)
-            .header(header::CONTENT_TYPE, content_type)
-            .body(body)
-            .send()
-            .await
-            .ok()?;
-        if !response.status().is_success() {
-            return None;
-        }
-        let token: Token =
-            serde_json::from_slice(&read_bounded(response, MAX_ANSWER).await?).ok()?;
-        let token = Zeroizing::new(token.access_token);
+        let tokens = self
+            .tokens(
+                &client,
+                &self.token_url,
+                [
+                    ("grant_type", "authorization_code"),
+                    ("code", code),
+                    ("redirect_uri", redirect_uri),
+                ],
+            )
+            .await?;
+        let token = &tokens.access;
         let request = match self.user.method {
             Method::Get => client.get(&self.user.url),
             Method::Post => client.post(&self.user.url),
@@ -361,14 +384,94 @@ impl OAuth {
             return None;
         }
         let body = read_bounded(response, MAX_ANSWER).await?;
-        match &self.read {
+        let user = match &self.read {
             Read::Discord => discord_user(&body),
             Read::Pointers {
                 id,
                 username,
                 username_rule,
             } => pointed_user(&body, id, username.as_deref(), username_rule.as_ref()),
+        }?;
+        Some((user, tokens))
+    }
+
+    /// Exchanges an organizer's refresh token for fresh tokens, or None on
+    /// any failure.
+    pub async fn refresh(&self, redirect_uri: &str, refresh_token: &str) -> Option<Tokens> {
+        let client = outbound_client().build().ok()?;
+        self.tokens(
+            &client,
+            &self.refresh_url,
+            [
+                ("grant_type", "refresh_token"),
+                ("refresh_token", refresh_token),
+                ("redirect_uri", redirect_uri),
+            ],
+        )
+        .await
+    }
+
+    /// Posts a token request to `url`: `grant` with the client's ID and
+    /// secret and the definition's `token_params`.
+    async fn tokens(
+        &self,
+        client: &reqwest::Client,
+        url: &str,
+        grant: [(&str, &str); 3],
+    ) -> Option<Tokens> {
+        #[derive(Deserialize)]
+        struct Token {
+            access_token: String,
+            #[serde(default)]
+            refresh_token: Option<String>,
+            #[serde(default)]
+            expires_in: Option<u64>,
         }
+        let fields = grant.into_iter().chain([
+            ("client_id", self.client_id.as_str()),
+            ("client_secret", self.client_secret.as_str()),
+        ]);
+        let fields = fields.chain(
+            self.token_params
+                .iter()
+                .map(|(name, value)| (name.as_str(), value.as_str())),
+        );
+        // The body carries the client secret and the code. It goes to the
+        // request by value, without a copy left behind here.
+        let (content_type, body) = match self.token_encoding {
+            Encoding::Form => (
+                "application/x-www-form-urlencoded",
+                url::form_urlencoded::Serializer::new(String::new())
+                    .extend_pairs(fields)
+                    .finish(),
+            ),
+            Encoding::Json => (
+                "application/json",
+                serde_json::to_string(
+                    &fields
+                        .map(|(name, value)| (name.to_owned(), Value::from(value)))
+                        .collect::<serde_json::Map<String, Value>>(),
+                )
+                .ok()?,
+            ),
+        };
+        let response = client
+            .post(url)
+            .header(header::CONTENT_TYPE, content_type)
+            .body(body)
+            .send()
+            .await
+            .ok()?;
+        if !response.status().is_success() {
+            return None;
+        }
+        let token: Token =
+            serde_json::from_slice(&read_bounded(response, MAX_ANSWER).await?).ok()?;
+        Some(Tokens {
+            access: Zeroizing::new(token.access_token),
+            refresh: token.refresh_token.map(Zeroizing::new),
+            expires_in: token.expires_in,
+        })
     }
 }
 

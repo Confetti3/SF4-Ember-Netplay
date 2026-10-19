@@ -16,7 +16,7 @@ use crate::common::{
     sites::{self, bridge_with_sites},
 };
 pub use crate::common::{
-    sign_in::{Gate, User, confirmation, player},
+    sign_in::{Gate, User, confirmation, player, query},
     sites::{
         LIMITS, TestSite, connect_discord, database_holds, direct, insert_account, link_of,
         remove_link, secrets,

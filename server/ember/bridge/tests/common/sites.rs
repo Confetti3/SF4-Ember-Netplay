@@ -217,6 +217,61 @@ impl TestSite {
             .await
     }
 
+    fn organize_path(self) -> String {
+        ember_protocol::sites::organize_path(self.0)
+    }
+
+    /// Starts an organizer sign-in; the page the browser is sent to.
+    pub async fn start_organizing(self, bridge: &Bridge, player: &Player) -> url::Url {
+        let path = self.organize_path();
+        let (status, started) = sign_in::send(
+            bridge,
+            player,
+            Action::SiteConnect,
+            Method::Post,
+            &path,
+            json!({}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::CREATED, "{started}");
+        url::Url::parse(started["authorize_url"].as_str().unwrap()).unwrap()
+    }
+
+    /// Signs `player` in as an organizer with `code`, saying yes when the
+    /// page asks; the last page the browser shows.
+    pub async fn organize(self, bridge: &Bridge, player: &Player, code: &str) -> String {
+        let url = self.start_organizing(bridge, player).await;
+        let state = sign_in::query(&url)["state"].clone();
+        let page = self
+            .back(bridge, &format!("code={code}&state={state}"))
+            .await;
+        if !page.contains("name=\"confirmation\"") {
+            return page;
+        }
+        self.decide(bridge, &sign_in::confirmation(&page), "connect")
+            .await
+    }
+
+    /// The player's organizer grant: its scope and expiry, or null.
+    pub async fn organizer(self, bridge: &Bridge, player: &Player) -> Json {
+        let (status, answer) = bridge.get(player.token(), &self.organize_path()).await;
+        assert_eq!(status, StatusCode::OK, "{answer}");
+        answer["organizer"].clone()
+    }
+
+    pub async fn withdraw(self, bridge: &Bridge, player: &Player) -> (StatusCode, Json) {
+        let path = self.organize_path();
+        sign_in::send(
+            bridge,
+            player,
+            Action::SiteRemove,
+            Method::Delete,
+            &path,
+            json!({}),
+        )
+        .await
+    }
+
     pub async fn cancel(self, bridge: &Bridge, player: &Player) -> (StatusCode, Json) {
         sign_in::cancel(bridge, player, &self.routes()).await
     }

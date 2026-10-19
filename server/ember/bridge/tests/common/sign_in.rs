@@ -84,6 +84,7 @@ pub struct FakeSite {
     pub me_body: fn(User) -> Json,
     seen: Mutex<Vec<Seen>>,
     tokens: Mutex<HashMap<String, User>>,
+    refreshes: Mutex<HashMap<String, User>>,
 }
 
 type Reply = (AxumStatus, [(header::HeaderName, &'static str); 1], String);
@@ -117,6 +118,7 @@ impl FakeSite {
             me_body,
             seen: Mutex::default(),
             tokens: Mutex::default(),
+            refreshes: Mutex::default(),
         })
     }
 
@@ -180,6 +182,19 @@ async fn token(
 ) -> Reply {
     let seen = site.record(site.token_path, query, &body, headers);
     let form = |key: &str| seen.form.get(key).map(String::as_str);
+    // A refresh token it handed out, for the client that holds it.
+    if form("grant_type") == Some("refresh_token") {
+        let user = form("refresh_token")
+            .and_then(|refresh| site.refreshes.lock().unwrap().get(refresh).copied())
+            .filter(|_| {
+                form("client_id") == Some(site.client_id)
+                    && form("client_secret") == Some(site.client_secret)
+            });
+        return match user {
+            Some(user) => site.issue(user),
+            None => reply(AxumStatus::BAD_REQUEST, json!({ "error": "invalid_grant" })),
+        };
+    }
     let code = site
         .codes
         .iter()
@@ -207,14 +222,23 @@ async fn token(
     if !valid {
         return reply(AxumStatus::BAD_REQUEST, json!({ "error": "invalid_grant" }));
     }
-    let mut tokens = site.tokens.lock().unwrap();
-    let access = format!("access-token-{}-{}", user.0, tokens.len());
-    tokens.insert(access.clone(), user);
-    reply(
-        AxumStatus::OK,
-        json!({ "access_token": access, "token_type": "Bearer", "expires_in": 604800,
-                "refresh_token": "refresh-token", "scope": "identify me" }),
-    )
+    site.issue(user)
+}
+
+impl FakeSite {
+    /// A new access token and refresh token for `user`.
+    fn issue(&self, user: User) -> Reply {
+        let mut tokens = self.tokens.lock().unwrap();
+        let access = format!("access-token-{}-{}", user.0, tokens.len());
+        let refresh = format!("refresh-token-{}-{}", user.0, tokens.len());
+        tokens.insert(access.clone(), user);
+        self.refreshes.lock().unwrap().insert(refresh.clone(), user);
+        reply(
+            AxumStatus::OK,
+            json!({ "access_token": access, "token_type": "Bearer", "expires_in": 604800,
+                    "refresh_token": refresh, "scope": "identify me" }),
+        )
+    }
 }
 
 async fn me(State(site): State<Arc<FakeSite>>, headers: HeaderMap, body: Bytes) -> Reply {
@@ -281,6 +305,9 @@ pub fn definition(name: &str, origin: &str, client_id: &str) -> SignInSite {
     site.authorize_url = local(&site.authorize_url);
     site.token_url = local(&site.token_url);
     site.user.url = local(&site.user.url);
+    if let Some(organizer) = &mut site.organizer {
+        organizer.refresh_url = organizer.refresh_url.as_deref().map(local);
+    }
     site.client_id = client_id.into();
     site
 }

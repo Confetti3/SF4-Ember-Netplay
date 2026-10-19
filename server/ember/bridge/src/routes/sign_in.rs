@@ -11,6 +11,12 @@
 //! platforms that find players by that account get the Ember ID. Nothing
 //! else from the site is stored, and the access token is dropped.
 //!
+//! An organizer sign-in (`/v1/sites/<id>/organize`, for a site whose
+//! definition has `organizer`) asks for the site's organizer scopes and does
+//! all of the above, and also keeps the tokens, sealed, as the account's
+//! grant (`linking::grants`) once the account is the Ember ID's. The bridge
+//! refreshes them when they are used (`organizer_grant`).
+//!
 //! A platform's link approved by a sign-in follows the account as
 //! `linking::site` describes: it ends when the account moves or is
 //! disconnected, and a link the player removes is not made again until a
@@ -51,7 +57,7 @@ use serde_json::json;
 
 use self::{
     pages::Pages,
-    provider::{OAuth, SignedIn, Step},
+    provider::{OAuth, SignedIn, Step, Tokens},
 };
 use crate::{
     AppState, auth,
@@ -60,6 +66,7 @@ use crate::{
     http::{Body, PROOF_BODY, json, ok},
     linking::{
         Site,
+        grants::{self, Grant},
         sign_ins::{self, Question},
         site_has_accounts,
     },
@@ -71,11 +78,15 @@ use crate::{
 /// Sign-ins one Ember ID may start per hour, on each site.
 const STARTS_PER_HOUR: usize = 10;
 
+/// How long before it lapses an organizer's access token is refreshed, and
+/// how long one lasts when the site does not say.
+const REFRESH_MARGIN: u64 = 24 * 3600;
+
 /// Adds Discord's sign-in routes and the configured sites' (`/v1/sites/...`).
 pub fn routes(app: Router<AppState>) -> Router<AppState> {
     app.route(
         discord::START_PATH,
-        post(|state, headers, body| start(state, headers, body, Site::Discord))
+        post(|state, headers, body| start(state, headers, body, Site::Discord, false))
             .delete(|state, headers, body| cancel(state, headers, body, Site::Discord)),
     )
     .route(
@@ -92,7 +103,14 @@ pub fn routes(app: Router<AppState>) -> Router<AppState> {
         "/v1/sites/{site}/start",
         post(
             |state: State<AppState>, Path(id): Path<String>, headers, body| async move {
-                start(state.clone(), headers, body, configured(&state, &id)?).await
+                start(
+                    state.clone(),
+                    headers,
+                    body,
+                    configured(&state, &id)?,
+                    false,
+                )
+                .await
             },
         )
         .delete(
@@ -117,6 +135,24 @@ pub fn routes(app: Router<AppState>) -> Router<AppState> {
                     Ok(site) => decide(state, answer, site).await,
                     Err(_) => pages::unknown(),
                 }
+            },
+        ),
+    )
+    .route(
+        "/v1/sites/{site}/organize",
+        post(
+            |state: State<AppState>, Path(id): Path<String>, headers, body| async move {
+                start(state.clone(), headers, body, configured(&state, &id)?, true).await
+            },
+        )
+        .delete(
+            |state: State<AppState>, Path(id): Path<String>, headers, body| async move {
+                withdraw(state.clone(), headers, body, configured(&state, &id)?).await
+            },
+        )
+        .get(
+            |state: State<AppState>, Path(id): Path<String>, headers| async move {
+                organizer(state.clone(), headers, configured(&state, &id)?).await
             },
         ),
     )
@@ -202,14 +238,20 @@ fn redirect_uri(state: &AppState, site: &Site) -> String {
     format!("{}{}", state.config.origin, site.callback_path())
 }
 
-/// `POST <start>`: where to send the player's browser.
+/// `POST <start>`, or `POST <organize>` for an organizer sign-in: where to
+/// send the player's browser.
 async fn start(
     State(state): State<AppState>,
     headers: HeaderMap,
     body: Body<PROOF_BODY>,
     site: Site,
+    organizer: bool,
 ) -> Result<Response> {
-    let oauth = enabled(&state, &site)?;
+    let oauth = if organizer {
+        OAuth::organizer(&state, &site).ok_or_else(ApiFailure::not_found)?
+    } else {
+        enabled(&state, &site)?
+    };
     let player = auth::player(&state, &headers).await?;
     state
         .rate
@@ -228,7 +270,11 @@ async fn start(
         .ok_or_else(ApiFailure::unavailable)?;
     let (rate, limits, starts) = (state.rate.clone(), oauth.limits, site.domain("starts"));
     let stored = site.clone();
-    let target = site.target(Step::Connect);
+    let target = site.target(if organizer {
+        Step::Organize
+    } else {
+        Step::Connect
+    });
     let started = sessions::as_proven(&state, player, &body, target, move |tx, ctx, ember_id| {
         // Once the proof holds, in the same write: the site's request
         // budget must have room for the exchange, and the start takes a
@@ -249,7 +295,7 @@ async fn start(
         sign_ins::expire(tx, ctx.now)?;
         // Only the latest sign-in can connect an account.
         sign_ins::end(tx, &stored, ember_id)?;
-        sign_ins::insert(tx, &stored, &hash, ember_id, expires_at)?;
+        sign_ins::insert(tx, &stored, &hash, ember_id, expires_at, organizer)?;
         Ok(Ok(slot))
     })
     .await?;
@@ -369,9 +415,17 @@ async fn callback(
         .db
         .write(move |tx| sign_ins::claim(tx, &claiming, &hash, now))
         .await;
-    if !matches!(claimed, Ok(true)) {
+    let Ok(Some(organizer)) = claimed else {
         return pages.not_waiting();
-    }
+    };
+    let oauth = match (organizer, OAuth::organizer(&state, &site)) {
+        (false, _) => oauth,
+        (true, Some(organizer)) => organizer,
+        (true, None) => {
+            end_claimed(&state, &site, hash, now).await;
+            return pages.off();
+        }
+    };
     let code = match (answer.error.as_deref(), answer.code) {
         (None, Some(code)) if !code.is_empty() && code.len() <= 256 => code,
         _ => {
@@ -385,9 +439,9 @@ async fn callback(
         end_claimed(&state, &site, hash, now).await;
         return pages.busy();
     }
-    let user = match oauth.user(&redirect_uri(&state, &site), &code).await {
-        Some(SignedIn::User(user)) => user,
-        Some(SignedIn::Unusable(username)) => {
+    let (user, tokens) = match oauth.user(&redirect_uri(&state, &site), &code).await {
+        Some((SignedIn::User(user), tokens)) => (user, tokens),
+        Some((SignedIn::Unusable(username), _)) => {
             end_claimed(&state, &site, hash, now).await;
             return pages.unusable(&username);
         }
@@ -400,6 +454,7 @@ async fn callback(
     let confirmation = b64u(&random::<32>());
     let confirmation_key = confirmation_hash(&state, &site, &confirmation);
     let username_key = oauth.username_key(&user.username);
+    let grant = organizer.then(|| grant(tokens, &oauth, now).seal(&state.keys));
     let ctx = Ctx::of(&state);
     let stored = state
         .db
@@ -417,6 +472,7 @@ async fn callback(
                     user_id: user.id,
                     username: user.username,
                     owner,
+                    grant,
                 };
                 sign_ins::ask(tx, &site, &hash, &confirmation_key, &question)?;
                 return Ok(Stored::Asking {
@@ -427,6 +483,14 @@ async fn callback(
                 });
             }
             sign_ins::take(tx, &site, &hash, ctx.now)?;
+            // A player sign-in of the account this Ember ID already holds
+            // keeps its organizer grant, which the fresh row would drop.
+            let kept = match grant {
+                Some(_) => None,
+                None => grants::held(tx, site.id(), &ember_id)?
+                    .filter(|(held, _)| *held == user.id)
+                    .map(|(_, sealed)| sealed),
+            };
             site.connect(
                 tx,
                 &ctx,
@@ -435,6 +499,9 @@ async fn callback(
                 &user.username,
                 username_key.as_deref(),
             )?;
+            if let Some(grant) = grant.or(kept) {
+                grants::save(tx, site.id(), &user.id, &grant, ctx.now)?;
+            }
             Ok(Stored::Connected(ember_id))
         })
         .await;
@@ -522,6 +589,9 @@ async fn decide(
                     &question.username,
                     oauth.username_key(&question.username).as_deref(),
                 )?;
+                if let Some(grant) = &question.grant {
+                    grants::save(tx, site.id(), &question.user_id, grant, ctx.now)?;
+                }
             }
             Ok(Some(Decided::Answered(
                 question.ember_id,
@@ -546,4 +616,101 @@ async fn decide(
     } else {
         pages.kept(&username)
     }
+}
+
+/// The grant an organizer sign-in keeps from `tokens`.
+fn grant(tokens: Tokens, oauth: &OAuth, now: u64) -> Grant {
+    Grant {
+        access: tokens.access.to_string(),
+        refresh: tokens.refresh.map(|refresh| refresh.to_string()),
+        scope: oauth.scope().to_owned(),
+        expires_at: now + tokens.expires_in.unwrap_or(REFRESH_MARGIN),
+    }
+}
+
+/// `DELETE <organize>`: drops the session player's organizer grant on the
+/// site. The account stays connected.
+async fn withdraw(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    body: Body<PROOF_BODY>,
+    site: Site,
+) -> Result<Response> {
+    let player = auth::player(&state, &headers).await?;
+    let target = site.target(Step::Withdraw);
+    sessions::as_proven(&state, player, &body, target, move |tx, _, ember_id| {
+        sign_ins::end(tx, &site, ember_id)?;
+        grants::remove(tx, site.id(), ember_id)
+    })
+    .await?;
+    Ok(ok(&json!({ "organizer": null })))
+}
+
+/// `GET <organize>`: the session player's organizer grant on the site, if
+/// they hold one that still works: its scope and when its access token
+/// lapses. Reading it refreshes it when due.
+async fn organizer(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    site: Site,
+) -> Result<Response> {
+    let player = auth::player(&state, &headers).await?;
+    let grant = organizer_grant(&state, &site, player.ember_id.as_str()).await?;
+    Ok(ok(&json!({
+        "organizer": grant.map(|grant| json!({ "scope": grant.scope, "expires_at": grant.expires_at })),
+    })))
+}
+
+/// The Ember ID's organizer grant on `site`, refreshed first when its
+/// access token lapses within `REFRESH_MARGIN`. A refresh the site refuses
+/// keeps the grant while its access token still works; after that there is
+/// none until the organizer signs in again.
+// ponytail: two refreshes at once may both spend the refresh token; one
+// per grant at a time if a site rotates refresh tokens strictly.
+pub async fn organizer_grant(
+    state: &AppState,
+    site: &Site,
+    ember_id: &str,
+) -> Result<Option<Grant>> {
+    let (id, ember_id) = (site.id().to_owned(), ember_id.to_owned());
+    let Some((user_id, sealed)) = state
+        .db
+        .read(move |tx| grants::held(tx, &id, &ember_id))
+        .await?
+    else {
+        return Ok(None);
+    };
+    let Some(mut grant) = Grant::open(&state.keys, &sealed) else {
+        return Ok(None);
+    };
+    let now = state.now();
+    if grant.expires_at > now + REFRESH_MARGIN {
+        return Ok(Some(grant));
+    }
+    let Some(oauth) = OAuth::organizer(state, site) else {
+        return Ok(None);
+    };
+    // A refresh spends from a limited site's budget as a sign-in does.
+    let spent = match (&grant.refresh, oauth.limits) {
+        (None, _) => false,
+        (Some(_), Some(limits)) => budget::spend(state, site.id(), limits).await?,
+        (Some(_), None) => true,
+    };
+    let tokens = match grant.refresh.as_deref() {
+        Some(refresh) if spent => oauth.refresh(&redirect_uri(state, site), refresh).await,
+        _ => None,
+    };
+    let Some(tokens) = tokens else {
+        return Ok((grant.expires_at > now).then_some(grant));
+    };
+    // A site that keeps the refresh token answers without one.
+    let kept = grant.refresh.take();
+    let mut fresh = self::grant(tokens, &oauth, now);
+    fresh.refresh = fresh.refresh.take().or(kept);
+    let (id, sealed) = (site.id().to_owned(), fresh.seal(&state.keys));
+    state
+        .db
+        .write(move |tx| grants::save(tx, &id, &user_id, &sealed, now))
+        .await?;
+    Ok(Some(fresh))
 }

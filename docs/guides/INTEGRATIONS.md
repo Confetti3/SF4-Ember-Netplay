@@ -460,6 +460,34 @@ by username miss them (a site switched to `username` stored no usernames to
 match) until each player connects that account again. Plan such a change
 like a new site, and ask players to reconnect.
 
+### Organizer sign-in
+
+A site definition with an `organizer` block also lets a tournament organizer
+sign in to run their events through Ember (docs/design/TOURNAMENT_DESK.md):
+
+```json
+"organizer": {
+  "scope": "user.identity tournament.reporter",
+  "refresh_url": "https://api.start.gg/oauth/refresh"
+}
+```
+
+- `scope`: what the organizer sign-in asks for, in place of the site's
+  `scope`, and in place of a `scope` in `token_params`. Neither start.gg
+  nor Challonge sets scopes on the application's page: each sign-in asks.
+- `refresh_url`: optional, where a refresh token is exchanged when not at
+  `token_url`. On one of `hosts`, like every other URL.
+
+`POST /v1/sites/<id>/organize` starts it (proof action `site.connect` on that
+path), and it connects the account exactly as a player sign-in does. The
+bridge then keeps the access and refresh tokens, sealed with its encryption
+key, as the account's grant, and refreshes them a day before they lapse
+when they are used; a refresh spends from a limited site's budget like a
+sign-in. `GET` on the same path shows the grant's scope and expiry (never
+the tokens), and `DELETE` (proof action `site.remove`) drops it and keeps
+the account. Disconnecting the account, moving it to another Ember ID or
+signing in with it again removes the grant.
+
 ## Bracket sites (Challonge, start.gg, your own)
 
 The bridge knows players, matches and results, and names no site. Everything

@@ -918,3 +918,63 @@ async fn a_bridge_without_sign_in_sites_lists_none() {
     let (status, _) = CHALLONGE.try_start(&bridge, &player1).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn an_organizer_sign_in_keeps_its_tokens_sealed_and_refreshes_them() {
+    let fake = fake_challonge();
+    let bridge = bridge(&fake).await;
+    let mut player1 = player(&bridge, 1).await;
+    assert_eq!(CHALLONGE.organizer(&bridge, &player1).await, json!(null));
+
+    // It asks Challonge for the organizer scopes, and connects the account
+    // as a player sign-in does.
+    let url = CHALLONGE.start_organizing(&bridge, &player1).await;
+    let scope = "me tournaments:read matches:read matches:write participants:read";
+    assert_eq!(query(&url)["scope"], scope);
+    let page = CHALLONGE.organize(&bridge, &player1, "good-player1").await;
+    assert!(page.contains("Challonge connected"), "{page}");
+    assert_eq!(
+        CHALLONGE.account(&bridge, &player1).await.as_deref(),
+        Some(PLAYER1.0)
+    );
+    let now = bridge.clock.now();
+    assert_eq!(
+        CHALLONGE.organizer(&bridge, &player1).await,
+        json!({ "scope": scope, "expires_at": now + 604800 })
+    );
+    // Kept, but never in the clear.
+    assert!(!database_holds(&bridge, "access-token").await);
+    assert!(!database_holds(&bridge, "refresh-token").await);
+
+    // A day before it lapses, reading it refreshes it.
+    bridge.clock.advance(604800 - 86400 + 1);
+    bridge.open_session(&mut player1).await;
+    let expires = bridge.clock.now() + 604800;
+    assert_eq!(
+        CHALLONGE.organizer(&bridge, &player1).await,
+        json!({ "scope": scope, "expires_at": expires })
+    );
+    let refresh = fake.seen("/oauth/token").pop().unwrap();
+    assert_eq!(refresh.form["grant_type"], "refresh_token");
+    assert!(refresh.form["refresh_token"].starts_with("refresh-token-1001"));
+    assert_eq!(refresh.form["client_secret"], CLIENT_SECRET);
+    assert!(!database_holds(&bridge, "refresh-token").await);
+
+    // Signing in again as a player with the same account keeps it.
+    CHALLONGE.connect(&bridge, &player1, "good-player1").await;
+    assert_eq!(
+        CHALLONGE.organizer(&bridge, &player1).await,
+        json!({ "scope": scope, "expires_at": expires })
+    );
+
+    // Withdrawing keeps the account; disconnecting it takes the grant along.
+    let (status, _) = CHALLONGE.withdraw(&bridge, &player1).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(CHALLONGE.organizer(&bridge, &player1).await, json!(null));
+    assert!(CHALLONGE.account(&bridge, &player1).await.is_some());
+    CHALLONGE.organize(&bridge, &player1, "good-player1").await;
+    assert!(CHALLONGE.organizer(&bridge, &player1).await.is_object());
+    let (status, _) = CHALLONGE.disconnect(&bridge, &player1).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(CHALLONGE.organizer(&bridge, &player1).await, json!(null));
+}

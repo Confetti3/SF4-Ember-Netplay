@@ -691,3 +691,21 @@ async fn an_account_on_a_site_taken_out_of_the_configuration_can_still_go() {
     let (status, body) = bridge.get(player1.token(), "/v1/sites/startgg").await;
     assert_eq!((status, code(&body)), (StatusCode::NOT_FOUND, "not_found"));
 }
+
+#[tokio::test]
+async fn an_organizer_sign_in_asks_start_gg_for_the_reporter_scope() {
+    let fake = fake_startgg();
+    let bridge = bridge(&fake).await;
+    let player1 = player(&bridge, 1).await;
+    let url = STARTGG.start_organizing(&bridge, &player1).await;
+    let scope = "user.identity tournament.reporter";
+    assert_eq!(sign_in::query(&url)["scope"], scope);
+    let page = STARTGG.organize(&bridge, &player1, "good-player1").await;
+    assert!(page.contains("start.gg connected"), "{page}");
+    // start.gg's token request names the scope too: the organizer one.
+    assert_eq!(fake.seen("/oauth/access_token")[0].form["scope"], scope);
+    assert_eq!(
+        STARTGG.organizer(&bridge, &player1).await["scope"],
+        json!(scope)
+    );
+}

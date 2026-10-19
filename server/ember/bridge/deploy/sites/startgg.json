@@ -20,5 +20,9 @@
     "case_insensitive": false
   },
   "lookup_by": "user_id",
-  "hosts": ["start.gg", "api.start.gg"]
+  "hosts": ["start.gg", "api.start.gg"],
+  "organizer": {
+    "scope": "user.identity tournament.reporter",
+    "refresh_url": "https://api.start.gg/oauth/refresh"
+  }
 }

@@ -136,8 +136,11 @@ fn route_matches(action: Action, method: Method, path: &str) -> bool {
         (Action::DiscordCancel, Method::Delete) => path == ember_protocol::discord::START_PATH,
         (Action::SiteConnect, Method::Post) | (Action::SiteCancel, Method::Delete) => {
             sites::site_of(path, "/start").is_some()
+                || (action == Action::SiteConnect && sites::site_of(path, "/organize").is_some())
         }
-        (Action::SiteRemove, Method::Delete) => sites::site_of(path, "").is_some(),
+        (Action::SiteRemove, Method::Delete) => {
+            sites::site_of(path, "").is_some() || sites::site_of(path, "/organize").is_some()
+        }
         _ => false,
     }
 }

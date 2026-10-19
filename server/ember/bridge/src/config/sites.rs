@@ -42,6 +42,22 @@ pub struct SignInSite {
     pub hosts: Vec<String>,
     #[serde(default)]
     pub limits: Option<Limits>,
+    /// Offers organizers a sign-in that keeps the site's tokens, to run
+    /// their events (docs/design/TOURNAMENT_DESK.md). None offers none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub organizer: Option<Organizer>,
+}
+
+/// What an organizer sign-in asks the site for.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Organizer {
+    /// The scopes it asks for, in place of `scope`; also in place of a
+    /// `scope` in `token_params`.
+    pub scope: String,
+    /// Where a refresh token is exchanged, when not at `token_url`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refresh_url: Option<String>,
 }
 
 /// How the token request's body is encoded.
@@ -172,12 +188,13 @@ impl SignInSite {
         if !is_token(&self.client_id, 256) {
             return fail("client_id must be 1 to 256 visible ASCII characters");
         }
-        if self.scope.len() > 256
-            || !self
-                .scope
-                .bytes()
-                .all(|b| b.is_ascii_alphanumeric() || b" :._-".contains(&b))
-        {
+        let scope = |scope: &str| {
+            scope.len() <= 256
+                && scope
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b" :._-".contains(&b))
+        };
+        if !scope(&self.scope) || !self.organizer.as_ref().is_none_or(|o| scope(&o.scope)) {
             return fail("scope must be space-separated scopes");
         }
         if self.hosts.is_empty() || !self.hosts.iter().all(|host| is_host(host)) {
@@ -193,11 +210,16 @@ impl SignInSite {
                 "hosts must be public DNS names, not IP addresses, localhost or internal names",
             );
         }
+        let refresh_url = self.organizer.as_ref().and_then(|o| o.refresh_url.as_ref());
         for (name, url) in [
-            ("authorize_url", &self.authorize_url),
-            ("token_url", &self.token_url),
-            ("user.url", &self.user.url),
-        ] {
+            ("authorize_url", Some(&self.authorize_url)),
+            ("token_url", Some(&self.token_url)),
+            ("user.url", Some(&self.user.url)),
+            ("organizer.refresh_url", refresh_url),
+        ]
+        .into_iter()
+        .filter_map(|(name, url)| Some((name, url?)))
+        {
             if !self.allows(url, policy) {
                 return fail(&format!(
                     "{name} must be https on one of hosts, with no credentials or fragment"
@@ -382,6 +404,8 @@ mod tests {
             json!({ "hosts": ["API.challonge.com"] }),
             json!({ "display_name": "" }),
             json!({ "scope": "me\nall" }),
+            json!({ "organizer": { "scope": "me\nall" } }),
+            json!({ "organizer": { "scope": "me", "refresh_url": "https://evil.example/oauth/token" } }),
             json!({ "limits": { "monthly_request_budget": 1, "daily_request_budget": 2, "starts_per_hour": 1 } }),
         ] {
             assert!(refused(change.clone()), "{change}");

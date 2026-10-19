@@ -13,6 +13,7 @@
 mod approval;
 mod claim;
 mod code;
+pub mod grants;
 mod intent;
 mod revoke;
 pub mod sign_ins;
