@@ -12,29 +12,26 @@ The desk is part of the Ember bridge. On the nightly bridge it is at `https://em
 
 The desk knows you by your Ember ID, which lives in the game. Link the bracket site there once.
 
-1. In Ember, open **Online play > Ember ID > Linked accounts**.
-2. Pick **Challonge** or **start.gg** and connect your account. Your browser opens the site; approve Ember there.
-3. Back on the same screen, select **Organizer access**. The browser opens again and asks for the organizer permissions: reading your events and reporting scores, and on Challonge also creating tournaments and adding players. Approve, then come back to the screen; the row now says **Allowed**.
-4. Optional but useful: connect **Discord** on the same screen, so calls can ping you as a player too.
+1. In Ember, open **Online play > Ember ID > Linked accounts**, pick **Challonge** or **start.gg** and connect your account. Your browser opens the site; approve Ember there.
+2. Open **Online play > Ember ID > Tournament organizer**. Each site has an **organizer access** row: **Allow** opens the browser again for the organizer permissions (reading your events and reporting scores, and on Challonge also creating tournaments and adding players). Approve; the row shows **Allowed** by itself within a few seconds.
+3. Optional but useful: connect **Discord** under Linked accounts, so calls can ping you as a player too.
 
-Organizer access can be taken away from the same row; your account stays connected. Disconnecting the account removes the organizer access with it.
+Organizer access is only on the **Tournament organizer** screen; the site's own screen under Linked accounts points there. Removing it there keeps your account connected. Disconnecting the account removes the organizer access with it.
 
 ![Linked accounts](../design/tournament-desk/03-link-accounts.webp)
 
 ### 2. Open the web desk from Ember
 
-In Ember, open **Online play › Ember ID › Tournament desk**:
+In Ember, open **Online play › Ember ID › Tournament organizer**:
 
-- **Open in browser** opens the desk on this PC, signed in.
-- **Sign in on another device** shows an eight-letter code for two minutes. On that device, open the desk address and type it under **Have a code from Ember?**. **New code** makes another one.
-
-Once organizer access is allowed, the site's screen under Linked accounts also has **Open the desk in your browser**, which does the same as **Open in browser**.
+- **Open in browser** opens the desk on this PC, signed in. No code is shown, so this is the safe one while you stream.
+- **Sign in on another device**: on that device (phone, tablet, laptop) open the desk address. It shows a code for two minutes. In Ember, type that code. Only the browser that showed the code signs in, so someone who sees it on your stream can't use it; still, do it off stream. **New code** on the device makes another one.
 
 A desk opened from Ember can do everything. The web session ends after 12 hours, or after 2 hours you don't use it; **Sign out** ends it sooner.
 
 You can also **Sign in with Challonge** or **Sign in with start.gg** on the desk page, without Ember. That desk can call players, hold sets, decide games and edit a draft, but not create or ready a tournament or change its Discord webhook, public page or sign-ups: for those it says *Open the desk from Ember*, because a site account alone is not your Ember key.
 
-In the game, **Tournament desk** shows **Signed in on the web**: how many browsers are signed in and the newest. **Sign out everywhere** ends them all. The first time you open the desk after a new web sign-in, Ember tells you, so you can sign it out if it wasn't you.
+In the game, **Tournament organizer** shows **Signed in on the web**: how many browsers are signed in and the newest. **Sign out everywhere** ends them all. The first time you open it after a new web sign-in, Ember tells you, so you can sign it out if it wasn't you.
 
 Turn on two-factor sign-in on your start.gg and Challonge accounts: whoever gets into them can sign in to your web desk.
 
@@ -42,25 +39,23 @@ Only an account already linked in Ember can sign in. If the desk says the accoun
 
 ### 3. Create a tournament
 
-The desk walks you through six steps. On a phone they show as numbered circles at the top; on a wider screen as a list on the left.
+**Your tournaments** shows each bracket site and whether you have organizer access (**Allow** fixes a missing one), then your tournaments. **New tournament** walks you through four steps, each with one **Save**; a problem shows at the top of the step. On a phone the steps show as numbered circles at the top; on a wider screen as a list on the left.
 
-1. **Accounts.** Shows each bracket site and whether you have organizer access. **Allow** fixes a missing one.
-2. **New tournament.** A title is all a draft needs. Date and start time can stay empty until you know them. A draft creates nothing on any site.
-3. **Service and settings.** Pick the bracket service:
-   - **Challonge: Ember creates it for you.** Choose the format (single or double elimination, round robin, swiss), the grand final (standard, single match or skip), a third place match, open sign-up, and whether players sign up through Ember. **Create on Challonge** makes the tournament on your account and adds its page as the first link. *Not tested live yet.*
-   - **start.gg: create it on start.gg, then pick it here.** start.gg does not let other apps create events, so make the tournament and event on start.gg first, then select it under **Pick an event**.
-   - Both: **Games to win** (first to N), with longer sets for later rounds or a phase such as Top 8, and on start.gg **Hold sets assigned to a stream**.
-4. **Links.** Add any links with a label: Matcherino, the Twitch stream, the rules, your Discord server. The bracket page is already there. Links must start with `https://`.
-5. **Discord post.** See below.
-6. **Live.** Where you run the event once it starts.
+1. **Details.** A title is all a draft needs. Date and start time can stay empty until you know them. Add your links with a label: Matcherino, the Twitch stream, the rules, your Discord server. Links must start with `https://`. A draft creates nothing on any site.
+2. **Service and rules.** Pick the bracket service; only that service's settings show:
+   - **Challonge: Ember creates it for you.** Format (single or double elimination, round robin, swiss), grand final (normal with a reset, one match, or none), third place match and Challonge's own sign-up page. **Create on Challonge** makes the tournament on your account and adds its page as the first link. If Challonge refuses a setting, its own reason shows at the top of the step.
+   - **start.gg: create it on start.gg, then pick it here.** start.gg does not let other apps create events, so make the tournament and event on start.gg first, then pick it. Here you can also hold sets start.gg puts on a stream.
+   - **Games to win**, for either service: *Every set first to 2, from Top 8 first to 3, grand final first to 3* (Top 16, 8, 6, 4 or the finals, or off). Ember works out which sets are in the top from the bracket itself, for single and double elimination.
+3. **Discord and sign-ups.** The Discord channel webhook for calls, posting each set's score, the public page, and players signing up through Ember.
+4. **Ready.** The Discord post, and **Mark ready**. It says what is still missing (a start date, the bracket event) until it can be marked.
 
-When date, service and settings are filled in, **Mark ready**. Ember runs the event from its start time: it creates each set's match as soon as both players are known. **Delete this draft** removes a draft; **Stop this tournament** stops a ready or running one.
+Ember runs a ready event from its start time: it creates each set's match as soon as both players are known. **Live** is where you run it. **Delete this draft** removes a draft; **Stop this tournament** stops a ready or running one.
 
 ![Web desk on a phone, a tablet and a computer](../design/tournament-desk/07-web-desk-390.webp)
 
 ### 4. The Discord announcement
 
-The **Discord post** step builds one message with everything in it: title, date, format, the bracket, sign-up, stream and Matcherino links, and where to get Ember. **Copy message** puts it on your clipboard; paste it in your announcements channel. The date uses Discord's own time codes, so every reader sees it in their own time zone. Lines with nothing filled in are left out.
+The **Ready** step builds one message with everything in it: title, date, format, the bracket, sign-up, stream and Matcherino links, and where to get Ember. **Copy message** puts it on your clipboard; paste it in your announcements channel. The date uses Discord's own time codes, so every reader sees it in their own time zone. Lines with nothing filled in are left out.
 
 When the event is public, its public page is linked too, and Discord shows a preview card with the title and start time.
 
@@ -129,7 +124,7 @@ The Live step and the public page both have the bracket: tabs per phase, then th
 
 ### 10. The desk in the game
 
-*In progress.* Online play > Ember ID will get a **Tournament desk** while you hold organizer access, with the same sets queue (LB/RB for the filters), the bracket view, and the actions above on a controller. Until then, the Linked accounts screen shows the web desk's address.
+**Online play > Ember ID > Tournament organizer** is the desk in the game: organizer access per site, the web desk (in this PC's browser, or another device by its code), and your events. Pick an event for its sets as a queue or as its bracket (Left/Right switch the filter and the view), and a set for its actions: call again, hold or let go, decide a game in review, void or add a game. Each asks first.
 
 ![In-game desk](../design/tournament-desk/01-desk-sets.webp)
 
@@ -139,6 +134,7 @@ The event ends with the bracket on the site. **Stop this tournament** stops Embe
 
 ### Troubleshooting
 
+- **"That code is wrong or expired"** in Ember: codes last two minutes and work once. Make a new one on the other device.
 - **"Not linked: connect it in Ember first"** when signing in on the web: link that site's account in Ember (step 1), then sign in again.
 - **A player is never called.** Ember finds players by the bracket site account they linked in Ember. A player who has not linked their Challonge or start.gg account in Ember is skipped until they do; ask them to follow *For players* below.
 - **No calls in Discord.** Check the webhook is still there in Discord (deleting it there breaks it). A set's card says **Discord refused it** when Discord rejects the post; paste a new webhook.

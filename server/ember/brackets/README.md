@@ -313,6 +313,17 @@ Secrets are only ever read from files, never written to the log.
   above is first to 2 in every phase, first to 3 in top 8, and first to 5
   from top 8's winners round 3 on (the first rule comes first because it is
   narrower).
+
+  Two lengths follow the bracket rather than its round numbers: `top`
+  (`{"top": 8, "games_to_win": 3}`) covers the sets played once that many
+  players are left, and `grand_final` is the grand final's and its reset's
+  length (a single elimination bracket's final counts). The connector reads
+  each phase's shape from the sets it has read: a double elimination
+  bracket of 2^k players has 2k - 2 losers rounds, and its top 8 is the
+  winners side from four players left and the losers side from four (top 6:
+  two and four). A round rule that covers a set wins over `top`;
+  `grand_final` wins over both. A bracket with byes may count one losers
+  round more or less.
   - start.gg: the phase's name as the event's bracket page shows it (its
     tabs, such as "Pools" or "Top 8"), compared without case and the spaces
     around it, or the phase's ID, which tells apart two phases with one name.

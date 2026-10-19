@@ -531,7 +531,11 @@ Routes, all with the organizer's player session:
 - `POST /v1/organizer/events/<id>/create` (`site.connect`), command
   `{ "site", "fields" }`: creates a draft's event on the site with the
   organizer's grant, when its definition has `organizer.create`, and gives
-  it to the draft with its page as the first link (`Bracket`).
+  it to the draft with its page as the first link (`Bracket`). When the
+  site refuses, the answer is 400 with `details.reason` `site_refused` and
+  `details.site_said`, the site's own words (at most 300 characters,
+  nothing of the request), and the bridge logs one line; a refused sign-up
+  answers the same.
 - `POST /v1/organizer/events/<id>/ready` (`site.connect`): a draft with its
   event and a start time becomes ready; it runs from that time.
 - `GET /v1/organizer/events`: their events that have not ended, each with
@@ -544,7 +548,9 @@ Routes, all with the organizer's player session:
 API creates no events): `url`, `headers`, the JSON `body` to POST,
 `name_pointer` where the title goes, `fields` (each a `pointer` into the
 body and the `values` it takes; every pointer's parent object is in the
-body), `id_pointer` into the answer for the event's ID as `tournaments`
+body; an empty value leaves the field to the site; `with` maps a value to
+more pointers to set alongside it, such as the options object Challonge
+requires with round robin and swiss), `id_pointer` into the answer for the event's ID as `tournaments`
 lists it, and optionally `link_pointer` with `link_prefix` for its page.
 
 The web desk signs organizers in without the game: `GET
@@ -559,14 +565,22 @@ take that cookie in place of a player session; every change also sends the
 session's CSRF token in `X-Ember-CSRF`, which `GET /web/session` gives with
 the Ember ID, and needs no proof. `POST /web/sign-out` ends it.
 
-The game opens the desk too: `POST /v1/web-sessions/handoff` (player
-session, `site.connect` proof) answers a one-time `token` and an
-eight-letter `code` (no 0, 1, I or O), both lasting two minutes and kept
-only as keyed hashes. The browser trades the token at `GET /desk/h/<token>`,
-or the code typed on another device at `POST /web/handoff` with
-`{"code": …}`, for the same session cookie, marked `from_game` in
-`GET /web/session`. Either uses the handoff up; one address tries at most
-10 in ten minutes, one code 5.
+The game opens the desk too, in two ways, each marked `from_game` in
+`GET /web/session`:
+
+- In this PC's browser: `POST /v1/web-sessions/handoff` (player session,
+  `site.connect` proof) answers a one-time `token`, lasting two minutes and
+  kept only as a keyed hash; the browser trades it at `GET /desk/h/<token>`
+  for the session cookie.
+- On another device, the other way round, so a code seen on a stream is no
+  use to anyone else: that browser's `POST /web/device` answers an
+  eight-letter `code` (no 0, 1, I or O) and sets a secret cookie, both for
+  two minutes. The game approves the code with `POST
+  /v1/web-sessions/approve` (`{"code": …}`, player session, `site.connect`
+  proof). The browser polls `GET /web/device`, which answers `waiting`
+  until then and then sets the session cookie, for the browser holding the
+  secret only. One address asks at most 10 codes or links in ten minutes,
+  one Ember ID 10 handoffs or approvals, one code 5 approvals.
 
 A session from a site sign-in alone is only as safe as the site account, so
 the changes a stolen one must not make refuse it with 403 and
