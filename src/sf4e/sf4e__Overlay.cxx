@@ -881,9 +881,7 @@ LRESULT WINAPI Overlay::OverlayWindowFunc(HWND window, UINT message, WPARAM w, L
     // The position hotkeys only as plain keys, so Alt+F4 still reaches the game.
     const bool plainKey = message == WM_KEYDOWN || message == WM_KEYUP, systemKey = message == WM_SYSKEYDOWN || message == WM_SYSKEYUP;
     if (sf4e::replaytransport::KeepsKey(replayPlayback, message, static_cast<unsigned>(w))) return 1;
-    // Alt+Enter's display switch stops the game's loop for over a second, past
-    // the backlog at which P1 drops a spectator (SpectatorPolicy).
-    if (watchingStream && systemKey && w == VK_RETURN) return 1;
+    if (sf4e::ui::KeepsAltEnter(message, w, l, watchingStream)) return 1;
     if (trainingAvailable && !replayPlayback && ((w >= VK_F5 && w <= VK_F8 && (plainKey || systemKey)) ||
         (plainKey && w >= VK_F1 && w <= VK_F12 && sf4e::ui::TrainingHotkeyBound(static_cast<int>(w - VK_F1))))) return 1;
     return handled;
