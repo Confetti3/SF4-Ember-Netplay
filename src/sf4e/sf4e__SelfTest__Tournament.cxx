@@ -1,18 +1,13 @@
-#include "sf4e__SelfTest.hxx"
+#include "sf4e__SelfTest__Online.hxx"
 
 #include <cstdint>
 #include <ctime>
-#include <fstream>
-#include <memory>
 #include <string>
 
-#include <windows.h>
-
-#include "../Dimps/Dimps__Game__Battle.hxx"
 #include "../platform/Utf8.hxx"
 #include "../session/TournamentBinding.hxx"
 #include "sf4e.hxx"
-#include "sf4e__NetplayFacade.hxx"
+#include "sf4e__SelfTest__Attack.hxx"
 
 // The tournament test (docs/design/TOURNAMENT_SELFTEST.md): two PCs play one
 // match of a local test bridge end to end. Each side makes its Ember ID,
@@ -29,6 +24,8 @@ using NetplayFacade::RuntimeSnapshot;
 using netplay::IdentityOp;
 using netplay::IdentityRequest;
 using netplay::tournament::Phase;
+using online::Command;
+using online::Now;
 
 // The files of the exchange folder. The game writes its Ember ID and build,
 // then its claim's fingerprint; the runner writes the link code, then the
@@ -48,39 +45,17 @@ struct Run : Steps<Stage> {
 	// 1, so the test's start far above them.
 	std::uint64_t ticket = std::uint64_t(1) << 48;
 	bool asked = false, enableSent = false;
-	// Frames the host's fighter has played.
+	// Reads of the host's fighter's input; see MatchInput.
 	unsigned frames = 0;
 } s_run;
 
 bool Host() { return Requested() == Test::TournamentHost; }
-std::shared_ptr<const RuntimeSnapshot> Now() { return NetplayFacade::GetRuntimeSnapshotShared(); }
 
-// A waiting step sends again every few seconds, as the room test does.
-bool Again(int seconds) { return s_run.waited % (seconds * kSecond) == 1; }
-
+// The first line of an exchange file, empty until the runner has written it;
+// and the game's own, written whole.
 std::wstring ExchangePath(const wchar_t* name) { return s_run.exchange + L"\\" + name; }
-
-// The first line of an exchange file, empty until the runner has written it.
-std::string ReadExchange(const wchar_t* name) {
-	std::ifstream in(ExchangePath(name));
-	std::string line;
-	std::getline(in, line);
-	while (!line.empty() && (line.back() == '\r' || line.back() == ' ')) line.pop_back();
-	return line;
-}
-
-// Written whole or not at all: through a temp file and a rename, so the
-// runner never reads half a line.
-bool WriteExchange(const wchar_t* name, const std::string& line) {
-	const std::wstring path = ExchangePath(name), temp = path + L".tmp";
-	{
-		std::ofstream out(temp, std::ios::trunc);
-		out << line << '\n';
-		out.flush();
-		if (!out) return false;
-	}
-	return MoveFileExW(temp.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING) != 0;
-}
+std::string ReadExchange(const wchar_t* name) { return online::ReadLine(ExchangePath(name)); }
+bool WriteExchange(const wchar_t* name, const std::string& line) { return online::WriteLine(ExchangePath(name), line); }
 
 // An identity or bridge request, as the screens send it.
 void Ask(IdentityRequest request) {
@@ -108,12 +83,13 @@ Answer Answered(const RuntimeSnapshot& now) {
 
 // One identity step: the request goes when the step begins and again every
 // few seconds until it is answered. True once it went through; a refusal
-// fails the step.
+// fails the step. The request goes before any answer is read: the answer
+// to the last step's request is still the newest one on the first tick.
 bool Asked(const RuntimeSnapshot& now, IdentityOp op, const std::string& step, Stage otherwise = Stage::Done) {
+	if (s_run.Every(10)) { Ask(Request(op)); return false; }
 	const auto answer = Answered(now);
 	if (answer.given && answer.ok) { s_run.asked = false; return true; }
 	if (answer.given) { s_run.asked = false; s_run.Fail(step, answer.reason.empty() ? "refused" : answer.reason, otherwise); return false; }
-	if (s_run.waited == 1 || Again(10)) Ask(Request(op));
 	if (s_run.Late(60)) s_run.Fail(step, "the helper never answered", otherwise);
 	return false;
 }
@@ -125,24 +101,10 @@ void SendTournament(netplay::tournament::Command::Op op) {
 	NetplayFacade::SubmitRuntimeCommand(std::move(command));
 }
 
-RuntimeCommand Command(netplay::CommandKind kind) {
-	const auto now = Now();
-	RuntimeCommand request;
-	request.command = { kind, now->session.generation, {} };
-	request.preferences = now->preferences;
-	request.displayName = now->preferences.displayName;
-	return request;
-}
-
-// Each side its own name, a fixed delay so Ready does not wait for the
-// connection check, and one short round: a match's room is opened from the
-// saved settings, and one round of thirty seconds ends one game quickly.
+// The room test's settings, and one round of thirty seconds: a match's room
+// is opened from the saved settings, and that ends one game quickly.
 netplay::PlayerPreferences TournamentPreferences(const RuntimeSnapshot& now) {
-	netplay::PlayerPreferences preferences = now.preferences;
-	preferences.displayName = Host() ? "SelfTest host" : "SelfTest guest";
-	preferences.autoInputDelay = false;
-	preferences.inputDelay = 2;
-	preferences.tableRules.roundCount = 1;
+	netplay::PlayerPreferences preferences = online::TestPreferences(now, Host());
 	preferences.tableRules.roundTime = 30;
 	return preferences;
 }
@@ -168,25 +130,24 @@ void Step(const RuntimeSnapshot& now) {
 	const auto phase = now.tournament.phase;
 	switch (run.stage) {
 	case Stage::Setup:
-		// The keyboard, as the room test asks for it: a room needs a controller.
-		if (!now.controllerReady) {
-			if (Again(3)) { RuntimeCommand request; request.command.generation = now.session.generation; request.inputAction = input::Action::UseKeyboard; NetplayFacade::SubmitRuntimeCommand(std::move(request)); }
-			if (run.Late(15)) run.Fail("controller", "none could be assigned");
-			break;
-		}
-		if (!now.helperReady || !now.canOpenRoom) { if (run.Late(60)) run.Fail("helper", "never became available: " + now.helperError); break; }
-		run.Enter(Stage::Settings);
+		if (online::SetupReady(run, now)) run.Enter(Stage::Settings);
 		break;
 	case Stage::Settings: {
 		const auto wanted = TournamentPreferences(now);
 		if (now.preferences.displayName == wanted.displayName && now.preferences.tableRules == wanted.tableRules) { Say(true, "settings"); run.Enter(Stage::EmberId); break; }
-		if (Again(5)) { RuntimeCommand request = Command(netplay::CommandKind::SavePreferences); request.preferences = wanted; request.displayName = wanted.displayName; NetplayFacade::SubmitRuntimeCommand(std::move(request)); }
+		if (run.Every(5)) { RuntimeCommand request = Command(netplay::CommandKind::SavePreferences); request.preferences = wanted; request.displayName = wanted.displayName; NetplayFacade::SubmitRuntimeCommand(std::move(request)); }
 		if (run.Late(20)) run.Fail("settings", "were not taken");
 		break;
 	}
 	case Stage::EmberId:
 		// The self-test's own Ember folder starts empty, so the ID is made
-		// here, as Create does on the Ember ID screen.
+		// here, as Create does on the Ember ID screen. One that is ready before
+		// Enable was sent is somebody else's: the helper did not use the test's
+		// folder, and the test would trust the bridge in the player's own.
+		if (id.state == "ready" && !run.enableSent) {
+			run.Fail("ember id", "the helper is not using the test's Ember folder (it found an ID there before the test made one)");
+			break;
+		}
 		if (id.state == "ready") {
 			if (!WriteExchange(kEmberIdFile, id.emberId + " " + sidecarHash)) { run.Fail("ember id", "could not be written to the exchange folder"); break; }
 			Say(true, "ember id", id.emberId);
@@ -194,7 +155,7 @@ void Step(const RuntimeSnapshot& now) {
 		}
 		else if (id.passphraseRequired) run.Fail("ember id", "this PC needs a passphrase for it (Wine or Proton)");
 		else if (id.state == "disabled" && !run.enableSent) { Ask(Request(IdentityOp::Enable)); run.enableSent = true; }
-		else if (Again(5)) Ask(Request(IdentityOp::Status));
+		else if (run.Every(5)) Ask(Request(IdentityOp::Status));
 		if (run.stage == Stage::EmberId && run.Late(60))
 			run.Fail("ember id", !now.identityRefusal.empty() ? now.identityRefusal : id.state.empty() ? "no answer" : id.state + " " + id.reason);
 		break;
@@ -240,7 +201,7 @@ void Step(const RuntimeSnapshot& now) {
 	case Stage::Linked:
 		// The runner approves the claim; the link then shows in the list.
 		if (Linked(now)) { Say(true, "linked", run.connection); run.Enter(Stage::Match); break; }
-		if (Again(3)) Ask(Request(IdentityOp::LinkList));
+		if (run.Every(3)) Ask(Request(IdentityOp::LinkList));
 		if (run.Late(180)) run.Fail("linked", "the claim was never approved");
 		break;
 	case Stage::Match:
@@ -257,7 +218,7 @@ void Step(const RuntimeSnapshot& now) {
 			run.Enter(Stage::Room);
 			break;
 		}
-		if (Again(5)) SendTournament(netplay::tournament::Command::Op::Refresh);
+		if (run.Every(5)) SendTournament(netplay::tournament::Command::Op::Refresh);
 		if (run.Late(120)) run.Fail("match", now.tournament.list.error.empty() ? "never listed as playable" : now.tournament.list.error);
 		break;
 	case Stage::Room:
@@ -275,12 +236,7 @@ void Step(const RuntimeSnapshot& now) {
 		// started the game.
 		if (now.session.match == netplay::MatchState::Playing) { Say(true, "match live"); run.Enter(Stage::Playing); break; }
 		if (phase == Phase::Failed) { run.Fail("match live", now.tournament.reason, Stage::Leaving); break; }
-		const auto& table = now.room.tables[room::TournamentTable];
-		if (table.p1 && table.p2 && now.session.match == netplay::MatchState::None && !now.session.readyPending && Again(5)) {
-			RuntimeCommand request = Command(netplay::CommandKind::Ready);
-			request.character.charaID = 0; request.character.unc_edition = Dimps::Game::Battle::ED_USF4;
-			NetplayFacade::SubmitRuntimeCommand(std::move(request));
-		}
+		if (run.Every(5)) online::ReadyAsRyu(now, room::TournamentTable);
 		if (run.Late(180)) run.Fail("match live", now.readyFailure.empty() ? "never went live" : now.readyFailure, Stage::Leaving);
 		break;
 	}
@@ -295,7 +251,7 @@ void Step(const RuntimeSnapshot& now) {
 		// A finished match's room is left once its last battle has closed; a
 		// failed one is stopped, as Stop on the Matches screen does.
 		if (now.session.room == netplay::RoomState::Idle && !Active(phase)) { Say(true, "left the room"); run.Enter(Stage::Done); Finish(); break; }
-		if (Active(phase) && Again(5)) SendTournament(netplay::tournament::Command::Op::Stop);
+		if (Active(phase) && run.Every(5)) SendTournament(netplay::tournament::Command::Op::Stop);
 		if (run.Late(150)) run.Fail("leave", "the room never let go");
 		break;
 	case Stage::Done:

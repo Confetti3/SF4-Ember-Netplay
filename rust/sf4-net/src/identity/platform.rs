@@ -15,7 +15,7 @@ const DPAPI_ENTROPY: &[u8] = b"EMBER:KEY-DPAPI:1\n";
 #[cfg(windows)]
 pub fn default_directory() -> io::Result<PathBuf> {
     #[cfg(feature = "selftest")]
-    if let Some(root) = selftest_root(std::env::var_os(SELFTEST_ROOT)) {
+    if let Some(root) = selftest_root(std::env::var_os(SELFTEST_ROOT))? {
         return Ok(root.join(r"Identity\v1"));
     }
     use std::{ffi::OsString, os::windows::ffi::OsStringExt, ptr};
@@ -52,14 +52,28 @@ pub fn default_directory() -> io::Result<PathBuf> {
 /// The variable that gives the in-game self-test
 /// (docs/design/TOURNAMENT_SELFTEST.md) an `Ember` folder of its own, so a
 /// test run never touches the player's Ember ID or services. Only a helper
-/// built with the `selftest` feature reads it.
-#[cfg(feature = "selftest")]
+/// built with the `selftest` feature reads it. `is_absolute` is the Windows
+/// rule, so the pair is Windows-only.
+#[cfg(all(windows, feature = "selftest"))]
 const SELFTEST_ROOT: &str = "SF4E_SELFTEST_EMBER_DIR";
 
-/// The self-test's `Ember` folder: an absolute path, or none.
-#[cfg(feature = "selftest")]
-fn selftest_root(value: Option<std::ffi::OsString>) -> Option<PathBuf> {
-    value.map(PathBuf::from).filter(|path| path.is_absolute())
+/// The self-test's `Ember` folder: none when the variable is not set, an
+/// absolute path, or an error. A value that is set but not usable never falls
+/// back to the player's own folder: the identity is then unavailable.
+#[cfg(all(windows, feature = "selftest"))]
+fn selftest_root(value: Option<std::ffi::OsString>) -> io::Result<Option<PathBuf>> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    let path = PathBuf::from(value);
+    if path.is_absolute() {
+        Ok(Some(path))
+    } else {
+        Err(io::Error::other(format!(
+            "{SELFTEST_ROOT} must be an absolute path, not '{}'",
+            path.display()
+        )))
+    }
 }
 
 #[cfg(not(windows))]
@@ -309,15 +323,18 @@ mod tests {
         assert!(default_directory().unwrap().ends_with(r"Ember\Identity\v1"));
     }
 
-    #[cfg(feature = "selftest")]
+    #[cfg(all(windows, feature = "selftest"))]
     #[test]
-    fn the_selftest_folder_is_absolute_or_none() {
-        assert_eq!(selftest_root(None), None);
-        assert_eq!(selftest_root(Some("".into())), None);
-        assert_eq!(selftest_root(Some("Ember".into())), None);
-        assert_eq!(selftest_root(Some(r"\Ember".into())), None);
+    fn the_selftest_folder_is_absolute_none_or_an_error() {
+        assert_eq!(selftest_root(None).unwrap(), None);
+        for unusable in ["", "Ember", r"\Ember", r"C:Ember"] {
+            assert!(
+                selftest_root(Some(unusable.into())).is_err(),
+                "'{unusable}' must not fall back to the player's folder"
+            );
+        }
         assert_eq!(
-            selftest_root(Some(r"C:\Temp\run\Ember".into())),
+            selftest_root(Some(r"C:\Temp\run\Ember".into())).unwrap(),
             Some(PathBuf::from(r"C:\Temp\run\Ember"))
         );
     }

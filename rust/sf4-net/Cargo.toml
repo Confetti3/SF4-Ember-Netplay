@@ -10,7 +10,8 @@ publish = false
 # Nightly builds turn it on through CMake's SF4E_STAGING_BRIDGE.
 staging-bridge = []
 # The in-game self-test's own data folder (identity/platform.rs). CMake turns
-# it on only with SF4E_SELFTEST, which no package is built with.
+# it on only with SF4E_SELFTEST. build-current.ps1 passes that only for
+# -SelfTest, and Assert-BuildReceipt refuses such a build for a package.
 selftest = []
 
 [dependencies]

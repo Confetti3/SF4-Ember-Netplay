@@ -3,8 +3,6 @@
 #include <string>
 
 #include "../training/FrameMeter.hxx"
-#include "../training/MoveNotation.hxx"
-#include "../training/RecordingTypes.hxx"
 
 // The in-game self-test (docs/development/IN_GAME_SELFTEST.md), for what a
 // unit test cannot reach. SF4E_SELFTEST names the test; every step's outcome
@@ -34,9 +32,10 @@ Test Requested();
 // Game thread, once a runtime tick. screen: the native screen in front, empty
 // while it changes.
 void Tick(bool atMainMenu, const std::string& screen);
-// Game thread, for each new frame of a room's match this PC fights in, after
-// the controller was read: a tournament test plays `side` itself, and
-// replaces the input it was given.
+// Game thread, each time the runtime reads the controller for a room's match
+// this PC fights in, after the read: a tournament test plays `side` itself,
+// and replaces the input it was given. The read is also made on a frame GGPO
+// then stalls and repeats, so a test counts reads, not frames.
 void MatchInput(int side, unsigned& mapped, unsigned& raw);
 #else
 // A build without the self-test (CMake option SF4E_SELFTEST) runs none.
@@ -66,6 +65,9 @@ template <class Stage> struct Steps {
 	int waited = 0, held = 0;
 	void Enter(Stage next) { stage = next; waited = 0; held = 0; }
 	bool Late(int seconds) const { return waited > seconds * kSecond; }
+	// The first tick of the stage and every `seconds` after it: a waiting step
+	// sends again, since the runtime drops a command whose generation moved on.
+	bool Every(int seconds) const { return waited % (seconds * kSecond) == 1; }
 	// A failed step goes on at `otherwise`, or ends the run at Done.
 	void Fail(const std::string& step, const std::string& detail, Stage otherwise = Stage::Done) {
 		Say(false, step, detail);
@@ -92,16 +94,6 @@ void TickReplay(bool atMainMenu);
 // The tournament test (sf4e__SelfTest__Tournament.cxx), both of its sides.
 bool StartTournament();
 void TickTournament();
-
-// What the tournament host's fighter plays on its `frame`th frame: forward
-// held throughout, heavy punch pressed for two frames out of every twenty.
-// A fighter who stands still is hit until the game ends, so it ends in the
-// host's win rather than a draw on time, which a tournament plays again.
-constexpr unsigned kAttackPeriod = 20, kAttackPress = 2;
-inline unsigned AttackInput(unsigned frame, bool facingRight) {
-	const unsigned forward = facingRight ? training::RightBit : training::LeftBit;
-	return forward | (frame % kAttackPeriod < kAttackPress ? combo::HP : 0u);
-}
 
 // The cells the meter draws for one side, by kind.
 struct Cells { int startup = 0, active = 0, recovery = 0; };

@@ -1,6 +1,7 @@
 // The in-game self-test's own rule: a move's cells are counted as the bars
 // draw them, one side at a time.
 #include "../sf4e/sf4e__SelfTest.hxx"
+#include "../sf4e/sf4e__SelfTest__Attack.hxx"
 #include <cstdio>
 #include <stdexcept>
 using namespace sf4e;
