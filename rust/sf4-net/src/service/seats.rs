@@ -21,7 +21,7 @@ use super::*;
 pub(super) type SeenCommit = (
     [u8; 16],
     Arc<crate::coordination::Committed>,
-    Option<BTreeSet<EndpointId>>,
+    Option<BTreeMap<EndpointId, u64>>,
 );
 
 /// The endpoints a match room's checkpoint names.
@@ -170,7 +170,7 @@ impl Actor {
         &mut self,
         room: [u8; 16],
         committed: &Arc<crate::coordination::Committed>,
-    ) -> Option<BTreeSet<EndpointId>> {
+    ) -> Option<BTreeMap<EndpointId, u64>> {
         if let Some((seen_room, seen, roster)) = &self.refresh_roster
             && *seen_room == room
             && seen.same_commit(committed)

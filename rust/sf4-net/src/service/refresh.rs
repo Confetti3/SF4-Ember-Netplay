@@ -220,7 +220,9 @@ impl Actor {
             // matches. A joint membership counts the voters of both halves, so
             // it is finished whatever the count says.
             let restore_voters = state.leader_local
-                && (joint || state.voter_count != self.voters().desired(&retained));
+                && (joint
+                    || state.voter_count
+                        != self.voters().desired(&retained.keys().copied().collect()));
             self.schedule_membership_reconciliation(
                 retained,
                 state.term,

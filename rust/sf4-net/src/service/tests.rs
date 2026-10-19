@@ -1059,8 +1059,10 @@ async fn an_unconfirmed_departure_is_released_by_the_next_epoch() {
         follower.room_invite = Some(invite.clone());
         follower.remember_admission(voter_admission);
         follower.remember_admission(host_recovery.advertise().await);
-        follower.committed_native_members =
-            Some(BTreeSet::from([host_primary.id(), follower_primary.id()]));
+        follower.committed_native_members = Some(BTreeMap::from([
+            (host_primary.id(), host_recovery.incarnation),
+            (follower_primary.id(), voter.incarnation),
+        ]));
         follower.recovery = Some(voter.clone());
         while voter.coordinator.current_leader() != Some(host_recovery.incarnation) {
             tokio::time::sleep(Duration::from_millis(25)).await;
@@ -1744,7 +1746,9 @@ async fn rejoin_expiry_exception_requires_current_native_membership() {
         primary_endpoint: remote.id(),
     });
     assert_eq!(actor.control_rejoin_member(remote.id()), None);
-    actor.committed_native_members = Some(BTreeSet::from([remote.id()]));
+    actor.committed_native_members = Some(BTreeMap::from([(remote.id(), 8)]));
+    assert_eq!(actor.control_rejoin_member(remote.id()), None);
+    actor.committed_native_members = Some(BTreeMap::from([(remote.id(), 9)]));
     assert_eq!(actor.control_rejoin_member(remote.id()), Some(9));
     assert_eq!(actor.control_rejoin_member(local.id()), None);
     actor.pending_retired_incarnations.insert(9);
@@ -2934,7 +2938,10 @@ async fn a_confirmed_departure_is_not_reconciled_on_every_refresh() {
         actor.hosted = Some(invite.clone());
         actor.room_invite = Some(invite);
         // The committed native roster no longer lists the member that left.
-        actor.committed_native_members = Some(BTreeSet::from([host.id()]));
+        actor.committed_native_members = Some(BTreeMap::from([(
+            host.id(),
+            actor.recovery.as_ref().unwrap().incarnation,
+        )]));
         let recovery = actor.recovery.clone().unwrap();
         let departed = crate::recovery::RecoverySession::join(
             room,
@@ -4637,7 +4644,12 @@ async fn failed_attempts_say_at_which_stage_they_failed() {
     let local = endpoint().await;
     let (events, mut receiver) = mpsc::channel(IPC_QUEUE_CAPACITY);
     let mut actor = test_actor(local.clone(), events);
-    let unreachable = || io::Error::new(io::ErrorKind::ConnectionAborted, transport::HOST_UNREACHABLE);
+    let unreachable = || {
+        io::Error::new(
+            io::ErrorKind::ConnectionAborted,
+            transport::HOST_UNREACHABLE,
+        )
+    };
     // A join whose connection never opened, with no home relay connected here
     // (the test endpoint has none): the relay is what is missing.
     actor.epoch = 1;
@@ -4879,8 +4891,10 @@ async fn learner_follower() -> LearnerFollower {
     follower.room = Some(fixture.room);
     follower.room_invite = Some(fixture.invite.clone());
     follower.remember_admission(admission);
-    follower.committed_native_members =
-        Some(BTreeSet::from([fixture.host.id(), fixture.remote.id()]));
+    follower.committed_native_members = Some(BTreeMap::from([
+        (fixture.host.id(), fixture.recovery.incarnation),
+        (fixture.remote.id(), learner.incarnation),
+    ]));
     follower.recovery = Some(learner.clone());
     follower.next_transport_message = TRANSPORT_MESSAGE_ID_BASE + 1;
     follower.controls.insert(fixture.host.id(), worker);
@@ -5022,7 +5036,10 @@ async fn removing_a_voter_does_not_wait_for_an_unreachable_voter() {
             .pending_retired_incarnations
             .insert(leaving.incarnation);
         let retained = BTreeSet::from([host.id(), dead_primary.id()]);
-        actor.committed_native_members = Some(retained.clone());
+        actor.committed_native_members = Some(BTreeMap::from([
+            (host.id(), recovery.incarnation),
+            (dead_primary.id(), dead.incarnation),
+        ]));
         let term = recovery.state().await.term;
         let revision = recovery.committed().await.revision();
         actor.spawn_membership_operation(retained, term, revision);
@@ -7344,6 +7361,7 @@ async fn a_control_message_nested_past_the_native_limit_is_dropped() {
 
 mod join_deadline;
 mod match_watch;
+mod membership_retirement;
 mod public_admission;
 mod public_rooms;
 mod public_support;

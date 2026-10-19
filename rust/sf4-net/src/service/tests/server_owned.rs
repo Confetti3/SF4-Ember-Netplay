@@ -34,7 +34,7 @@ fn roster(endpoints: &[EndpointId]) -> serde_json::Value {
     let members: Vec<_> = endpoints
         .iter()
         .map(
-            |endpoint| serde_json::json!({"data": {"authenticatedEndpoint": endpoint.to_string()}}),
+            |endpoint| serde_json::json!({"incarnation":0x77,"data": {"authenticatedEndpoint": endpoint.to_string()}}),
         )
         .collect();
     serde_json::json!({"checkpoint": {"members": members}})
@@ -241,7 +241,10 @@ async fn a_public_host_absent_from_the_native_roster_is_never_retired() {
         // The host leads but is not in the checkpoint's member list.
         let with_member = roster(&[member]);
         let retained = actor.committed_roster(&with_member).unwrap();
-        assert_eq!(retained, BTreeSet::from([own.id(), member]));
+        assert_eq!(
+            retained,
+            BTreeMap::from([(own.id(), recovery.incarnation), (member, 0x77)])
+        );
         actor.schedule_membership_reconciliation(retained.clone(), term, 1, false);
         assert_eq!(actor.committed_native_members, Some(retained));
         assert!(actor.pending_retired_incarnations.is_empty());
@@ -252,7 +255,7 @@ async fn a_public_host_absent_from_the_native_roster_is_never_retired() {
         // host is not.
         let empty = roster(&[]);
         let retained = actor.committed_roster(&empty).unwrap();
-        assert_eq!(retained, BTreeSet::from([own.id()]));
+        assert_eq!(retained, BTreeMap::from([(own.id(), recovery.incarnation)]));
         actor.schedule_membership_reconciliation(retained, term, 2, false);
         assert_eq!(actor.pending_retired_incarnations, BTreeSet::from([0x77]));
         assert!(
@@ -268,7 +271,7 @@ async fn a_public_host_absent_from_the_native_roster_is_never_retired() {
         let (events, _rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
         let mut private = test_actor(own.clone(), events);
         let retained = private.committed_roster(&with_member).unwrap();
-        assert_eq!(retained, BTreeSet::from([member]));
+        assert_eq!(retained, BTreeMap::from([(member, 0x77)]));
         private.schedule_membership_reconciliation(retained, term, 1, false);
         assert_eq!(private.committed_native_members, None);
         assert!(private.committed_roster(&empty).is_none());
