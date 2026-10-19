@@ -246,7 +246,7 @@ mod tests {
             .identity
             .lock()
             .unwrap()
-            .enable(Protection::Default)
+            .enable(Protection::Passphrase("a test passphrase"))
             .unwrap();
         let count = || asked.load(Ordering::SeqCst);
         let match_id = ember_protocol::encoding::prefixed_id("emt", [2; 16]);
