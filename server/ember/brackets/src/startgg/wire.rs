@@ -20,7 +20,10 @@ pub(super) const ENTRANTS: &str = "query Entrants($id: ID!, $page: Int!, $perPag
 /// The query for a page of open sets. `phaseGroup` and `stream` are asked
 /// only when a round rule names a phase or sets on a stream are held: each
 /// adds objects to the count of the 1000 start.gg allows a request.
-pub(super) fn sets_query(phases: bool, streams: bool) -> String {
+/// The sets list query: the open sets (created, started, called), and with
+/// `completed` the decided ones too.
+pub(super) fn sets_query(phases: bool, streams: bool, completed: bool) -> String {
+    let states = if completed { "1, 2, 3, 6" } else { "1, 2, 6" };
     let phase = if phases {
         " phaseGroup { phase { id name } }"
     } else {
@@ -32,7 +35,7 @@ pub(super) fn sets_query(phases: bool, streams: bool) -> String {
         ""
     };
     format!(
-        "query Sets($id: ID!, $page: Int!, $perPage: Int!) {{ event(id: $id) {{ sets(page: $page, perPage: $perPage, sortType: ROUND, filters: {{state: [1, 2, 6], hideEmpty: true}}) {{ pageInfo {{ totalPages }} nodes {{ id state round fullRoundText winnerId slots {{ slotIndex entrant {{ id }} }}{phase}{stream} }} }} }} }}"
+        "query Sets($id: ID!, $page: Int!, $perPage: Int!) {{ event(id: $id) {{ sets(page: $page, perPage: $perPage, sortType: ROUND, filters: {{state: [{states}], hideEmpty: true}}) {{ pageInfo {{ totalPages }} nodes {{ id state round fullRoundText winnerId slots {{ slotIndex entrant {{ id }} }}{phase}{stream} }} }} }} }}"
     )
 }
 
@@ -550,7 +553,7 @@ mod tests {
 
     #[test]
     fn a_sets_query_asks_for_a_phase_or_a_stream_only_when_used() {
-        let asked = |phases, streams| sets_query(phases, streams);
+        let asked = |phases, streams| sets_query(phases, streams, false);
         let plain = asked(false, false);
         assert!(!plain.contains("phaseGroup") && !plain.contains("stream"));
         let phases = asked(true, false);

@@ -115,3 +115,49 @@ async fn a_desk_events_sets_follow_its_matches_and_show_while_public() {
     let (status, _) = public_set(&world).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn a_desk_events_sets_hold_the_whole_bracket() {
+    let world = World::start(Setup {
+        challonge: false,
+        kind: CredentialKind::Bearer,
+        ..Setup::default()
+    })
+    .await;
+    // A later round nobody can play yet: never in a read of open sets.
+    world
+        .challonge
+        .state
+        .lock()
+        .unwrap()
+        .matches
+        .push(support::challonge::FakeMatch::fed_by(
+            "2001",
+            2,
+            ["1001", "1001"],
+        ));
+    let mut config = world.config.clone();
+    config.desk = Some(Desk {
+        api_bases: BTreeMap::from([("challonge".into(), world.challonge.api.clone())]),
+    });
+    let connector = support::connector(&config, &world.clock);
+    world.bridge.connect(1, "player1").await;
+    world.bridge.connect(2, "Player_2").await;
+    connector.pass(true).await;
+    run_public_event(&world).await;
+    connector.pass(true).await;
+
+    let (status, view) = world
+        .bridge
+        .send("", Method::GET, "/v1/public/events/evt_1", None, None)
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    let later = view["sets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|set| set["id"] == "2001")
+        .expect("the later round is in the bracket");
+    assert_eq!(later["round"], 2);
+    assert_eq!(later["desk_state"], "not_ready");
+}

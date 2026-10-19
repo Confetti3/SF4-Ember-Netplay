@@ -229,9 +229,33 @@ impl Challonge {
     }
 
     async fn read_open_sets(&self, purpose: Purpose) -> Result<Vec<Set>, SiteError> {
+        self.read_sets(purpose, "/matches.json?state=open").await
+    }
+
+    /// Every match, the open ones and the rest. Paged like the open read,
+    /// so it costs more of the budget in a bracket with many matches.
+    async fn read_whole(&self, purpose: Purpose) -> Result<(Vec<Set>, Vec<Set>), SiteError> {
+        let (open, rest) = self
+            .read_raw_sets(purpose, "/matches.json")
+            .await?
+            .into_iter()
+            .partition::<Vec<_>, _>(|raw| raw.open);
+        Ok((
+            open.into_iter().map(|raw| self.set_of(raw)).collect(),
+            rest.into_iter().map(|raw| self.set_of(raw)).collect(),
+        ))
+    }
+
+    async fn read_sets(&self, purpose: Purpose, path: &str) -> Result<Vec<Set>, SiteError> {
+        let raw = self.read_raw_sets(purpose, path).await?;
+        Ok(raw.into_iter().map(|raw| self.set_of(raw)).collect())
+    }
+
+    /// The matches `path` lists, with their participants' usernames read
+    /// when the roster lacks them.
+    async fn read_raw_sets(&self, purpose: Purpose, path: &str) -> Result<Vec<RawSet>, SiteError> {
         let priority = priority(purpose);
-        let matches: Vec<Resource<MatchAttributes>> =
-            self.list(priority, "/matches.json?state=open").await?;
+        let matches: Vec<Resource<MatchAttributes>> = self.list(priority, path).await?;
         let raw: Vec<RawSet> = matches.into_iter().map(RawSet::from).collect();
         let ids: Vec<&String> = raw
             .iter()
@@ -240,7 +264,7 @@ impl Challonge {
         if self.roster.stale(ids.iter().copied()) {
             self.refresh_participants(priority, &ids).await?;
         }
-        Ok(raw.into_iter().map(|raw| self.set_of(raw)).collect())
+        Ok(raw)
     }
 
     async fn read_set(&self, id: &str, purpose: Purpose) -> Result<Option<Set>, SiteError> {
@@ -349,6 +373,10 @@ impl Challonge {
 impl Site for Challonge {
     fn open_sets(&self, purpose: Purpose) -> SiteFuture<'_, Vec<Set>> {
         Box::pin(self.read_open_sets(purpose))
+    }
+
+    fn whole_sets(&self, purpose: Purpose) -> SiteFuture<'_, Option<(Vec<Set>, Vec<Set>)>> {
+        Box::pin(async move { self.read_whole(purpose).await.map(Some) })
     }
 
     fn set<'a>(&'a self, id: &'a str, purpose: Purpose) -> SiteFuture<'a, Option<Set>> {
@@ -492,6 +520,8 @@ struct RawSet {
     players: Option<[String; 2]>,
     /// A group stage match, as `group_id` says.
     in_group: bool,
+    /// Listed as open: what a read of open matches would have shown.
+    open: bool,
 }
 
 /// The stages of a Challonge tournament as round rules name them: the
@@ -528,7 +558,9 @@ impl From<Resource<MatchAttributes>> for RawSet {
                 Some([id(players.player1)?, id(players.player2)?])
             });
         let in_group = in_group(attributes.group_id.as_ref());
+        let open = attributes.state == "open";
         Self {
+            open,
             id: resource.id,
             round: attributes.round.unwrap_or(0),
             status,

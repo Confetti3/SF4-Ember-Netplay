@@ -1,13 +1,13 @@
 //! What a desk event's bracket looks like to its organizer (docs/design/
-//! TOURNAMENT_DESK.md): every set the reads have shown open, with what the
-//! connector is doing about it, plus every set it has tracked since. Sent to
-//! the bridge after each read, which adds each Ember match's score and state
-//! and serves it to the organizer's desk and, if they make it public, to
-//! anyone.
+//! TOURNAMENT_DESK.md): every set of the bracket, with what the connector is
+//! doing about it, plus every set it has tracked. Sent to the bridge after
+//! each read, which adds each Ember match's score and state and serves it to
+//! the organizer's desk and, if they make it public, to anyone.
 //!
-//! ponytail: sets never seen open (later rounds, sets decided on the site
-//! before the connector ran) are not in it; a full read of the bracket would
-//! cost more of the site's budget than one read per poll allows.
+//! ponytail: the whole bracket is read every `WHOLE_SECS` (the open sets
+//! every poll), so a set decided between two whole reads shows its last
+//! read state until the next; shorten it if desks need it sooner and the
+//! sites' budgets allow.
 use std::collections::BTreeMap;
 
 use serde_json::{Value, json};

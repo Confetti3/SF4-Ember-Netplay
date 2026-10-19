@@ -569,8 +569,8 @@ organizer dropped their grant waits there until they sign in again.
 `server/ember/docker/compose.yml`.
 
 After each read of a running event, `ember-brackets` sends its sets with
-`PUT /v1/desk/events/{id}/sets` (at most 1024): every set its reads have
-shown open and every set it tracks, with what it is doing about each. The
+`PUT /v1/desk/events/{id}/sets` (at most 1024): every set of the bracket
+and every set it tracks, with what it is doing about each. The
 bridge keeps the latest and serves it with each Ember match's score, state
 and players (by their account on the event's site):
 
@@ -582,9 +582,11 @@ and players (by their account on the event's site):
   `"public": true` on the event: its title, start, links and sets without
   Ember IDs or match IDs.
 
-Sets the reads never showed open (later rounds, sets decided on the site
-before the connector ran) are not there yet: reading the whole bracket each
-poll would cost more of the site's request budget.
+The whole bracket is read every 10 minutes (Challonge and start.gg; an
+`http` service shows only its open sets), the open sets at every poll in
+between, so a set decided on the site shows its new state within 10
+minutes. On a paged site the whole read costs a request per page of
+decided sets as well.
 
 ## Bracket sites (Challonge, start.gg, your own)
 

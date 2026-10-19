@@ -18,6 +18,12 @@ pub trait Site: Send + Sync {
     /// The sets the site lists as open. A list read in pages is no snapshot
     /// and can miss a set, so a set's absence proves nothing.
     fn open_sets(&self, purpose: Purpose) -> SiteFuture<'_, Vec<Set>>;
+    /// Every set of the bracket, as the open ones and the rest: what a desk
+    /// event's bracket view shows. `None` from a site that cannot list them
+    /// all, which then shows only the sets seen open.
+    fn whole_sets(&self, _purpose: Purpose) -> SiteFuture<'_, Option<(Vec<Set>, Vec<Set>)>> {
+        Box::pin(async { Ok(None) })
+    }
     /// One set as it is now, or `None` when the site says it does not
     /// exist: the evidence asked for before a match is cancelled or a
     /// result is set aside.

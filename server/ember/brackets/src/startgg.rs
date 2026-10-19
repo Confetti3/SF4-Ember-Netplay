@@ -36,9 +36,9 @@ use crate::{
     },
 };
 use wire::{
-    ENTRANTS, EVENT, EntrantsData, Envelope, EventData, Page, REPORT, RawSet, SET, SetData,
-    SetsData, UNDERWAY, WireEntrant, WireSet, is_set_id, is_set_not_found, is_whole, sets_query,
-    shows_recorded,
+    COMPLETED, ENTRANTS, EVENT, EntrantsData, Envelope, EventData, Page, REPORT, RawSet, SET,
+    SetData, SetsData, UNDERWAY, WireEntrant, WireSet, is_set_id, is_set_not_found, is_whole,
+    sets_query, shows_recorded,
 };
 
 /// start.gg's API origin. The organizer's token goes nowhere else
@@ -75,6 +75,8 @@ pub(crate) struct Startgg {
     headers: HeaderMap,
     /// The query for a page of open sets, with what `Wanted` asks for.
     sets_query: String,
+    /// The same list with the decided sets: a desk event's whole bracket.
+    whole_query: String,
     limiter: Limiter,
     slug: String,
     bridge_site: String,
@@ -116,7 +118,8 @@ impl Startgg {
             http: http_client()?,
             url: format!("{origin}{API_PATH}"),
             headers,
-            sets_query: sets_query(wanted.phases, wanted.streams),
+            sets_query: sets_query(wanted.phases, wanted.streams, false),
+            whole_query: sets_query(wanted.phases, wanted.streams, true),
             limiter,
             slug: slug.to_owned(),
             bridge_site: bridge_site.to_owned(),
@@ -298,11 +301,31 @@ impl Startgg {
     }
 
     async fn read_open_sets(&self) -> Result<Vec<Set>, SiteError> {
-        let sets: Vec<WireSet> = self
-            .pages(&self.sets_query, Errors::Fail, |data: SetsData| {
-                data.event.map(|event| event.sets)
-            })
-            .await?;
+        let sets = self.read_wire(&self.sets_query).await?;
+        self.sets_of(sets).await
+    }
+
+    /// Every set, the open ones (as the open read lists them) and the rest.
+    /// The decided sets take more pages as the bracket is played.
+    async fn read_whole(&self) -> Result<(Vec<Set>, Vec<Set>), SiteError> {
+        let (open, rest) = self
+            .read_wire(&self.whole_query)
+            .await?
+            .into_iter()
+            .partition(|set| set.state != Some(COMPLETED));
+        Ok((self.sets_of(open).await?, self.sets_of(rest).await?))
+    }
+
+    async fn read_wire(&self, query: &str) -> Result<Vec<WireSet>, SiteError> {
+        self.pages(query, Errors::Fail, |data: SetsData| {
+            data.event.map(|event| event.sets)
+        })
+        .await
+    }
+
+    /// The sets, with their entrants' accounts read when the roster lacks
+    /// them.
+    async fn sets_of(&self, sets: Vec<WireSet>) -> Result<Vec<Set>, SiteError> {
         let raw: Vec<RawSet> = sets.into_iter().filter_map(WireSet::into_raw).collect();
         let ids: Vec<&String> = raw
             .iter()
@@ -488,6 +511,10 @@ impl Site for Startgg {
     /// waits its turn, whatever it is for.
     fn open_sets(&self, _purpose: Purpose) -> SiteFuture<'_, Vec<Set>> {
         Box::pin(self.read_open_sets())
+    }
+
+    fn whole_sets(&self, _purpose: Purpose) -> SiteFuture<'_, Option<(Vec<Set>, Vec<Set>)>> {
+        Box::pin(async { self.read_whole().await.map(Some) })
     }
 
     fn set<'a>(&'a self, id: &'a str, _purpose: Purpose) -> SiteFuture<'a, Option<Set>> {

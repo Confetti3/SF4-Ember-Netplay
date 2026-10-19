@@ -46,6 +46,10 @@ const WAKE_SECS: u64 = 60;
 /// tries span 1 + 2 + 4 + 8 + 16 + 32 minutes and five hours, about 6
 /// hours. Counted while the connector runs.
 const MAX_DEFERRALS: u32 = 12;
+/// How often a desk event's scheduled read takes the whole bracket rather
+/// than its open sets. A paged site spends a request per page of decided
+/// sets too, so this keeps a Challonge month within its budget.
+const WHOLE_SECS: u64 = 600;
 
 /// What every tournament shares.
 pub(crate) struct Context {
@@ -103,6 +107,8 @@ struct State {
     last_read: Option<Vec<(String, [String; 2])>>,
     /// Every set the reads have shown, as last shown, for the desk.
     seen: BTreeMap<String, Set>,
+    /// When a desk event's whole bracket was last read.
+    whole_at: Option<u64>,
     /// Kept in the database too, so a restart does not read it again.
     finished: bool,
     /// Every set looks played but the site does not say it is over: read
@@ -188,6 +194,7 @@ impl Bracket {
                 phases: PhaseWatch::default(),
                 last_read: None,
                 seen: BTreeMap::new(),
+                whole_at: None,
                 finished,
                 played_out: false,
                 window_end_logged: false,
@@ -384,7 +391,26 @@ impl Bracket {
             Purpose::Result
         };
         state.schedule.hold(now);
-        let mut sets = self.site.open_sets(purpose).await?;
+        // A desk event's scheduled read takes the whole bracket now and
+        // then, which also gives the open sets the rest of the pass needs.
+        let whole_due = self.desk_event.is_some()
+            && purpose == Purpose::Scheduled
+            && state.whole_at.is_none_or(|at| now >= at + WHOLE_SECS);
+        let whole = if whole_due {
+            self.site.whole_sets(purpose).await?
+        } else {
+            None
+        };
+        let mut sets = match whole {
+            Some((open, rest)) => {
+                state.whole_at = Some(now);
+                for set in rest {
+                    state.seen.insert(set.id.clone(), set);
+                }
+                open
+            }
+            None => self.site.open_sets(purpose).await?,
+        };
         // A paged list can show a set twice, when a set ahead of it opens
         // between two pages.
         sets.sort_by(|a, b| a.id.cmp(&b.id));
